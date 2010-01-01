@@ -355,6 +355,7 @@ clang_getCompletionChunkKindSpelling(enum CXCompletionChunkKind Kind) {
   case CXCompletionChunk_LeftAngle: return "LeftAngle";
   case CXCompletionChunk_RightAngle: return "RightAngle";
   case CXCompletionChunk_Comma: return "Comma";
+  case CXCompletionChunk_ResultType: return "ResultType";
   }
   
   return "Unknown";
@@ -461,7 +462,15 @@ int parse_remapped_files(int argc, const char **argv, int start_arg,
     
     /* Read the contents of the file we're remapping to. */
     contents = (char *)malloc(unsaved->Length + 1);
-    fread(contents, 1, unsaved->Length, to_file);
+    if (fread(contents, 1, unsaved->Length, to_file) != unsaved->Length) {
+      fprintf(stderr, "error: unexpected %s reading 'to' file %s\n",
+              (feof(to_file) ? "EOF" : "error"), semi + 1);
+      fclose(to_file);
+      free_remapped_files(*unsaved_files, i);
+      *unsaved_files = 0;
+      *num_unsaved_files = 0;
+      return -1;
+    }
     contents[unsaved->Length] = 0;
     unsaved->Contents = contents;
 
@@ -488,6 +497,7 @@ int perform_code_completion(int argc, const char **argv) {
   int errorCode;
   struct CXUnsavedFile *unsaved_files = 0;
   int num_unsaved_files = 0;
+  CXCodeCompleteResults *results = 0;
 
   input += strlen("-code-completion-at=");
   if ((errorCode = parse_file_line_column(input, &filename, &line, &column)))
@@ -497,10 +507,18 @@ int perform_code_completion(int argc, const char **argv) {
     return -1;
 
   CIdx = clang_createIndex(0, 0);
-  clang_codeComplete(CIdx, argv[argc - 1], argc - num_unsaved_files - 3, 
-                     argv + num_unsaved_files + 2, 
-                     num_unsaved_files, unsaved_files,
-                     filename, line, column, &print_completion_result, stdout);
+  results = clang_codeComplete(CIdx, 
+                               argv[argc - 1], argc - num_unsaved_files - 3, 
+                               argv + num_unsaved_files + 2, 
+                               num_unsaved_files, unsaved_files,
+                               filename, line, column);
+  if (results) {
+    unsigned i, n = results->NumResults;
+    for (i = 0; i != n; ++i)
+      print_completion_result(results->Results + i, stdout);
+    clang_disposeCodeCompleteResults(results);
+  }
+
   clang_disposeIndex(CIdx);
   free(filename);
   

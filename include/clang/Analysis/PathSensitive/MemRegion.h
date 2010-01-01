@@ -72,8 +72,8 @@ public:
     VarRegionKind = BEG_DECL_REGIONS,
     FieldRegionKind,
     ObjCIvarRegionKind,
-    ObjCObjectRegionKind,
-    END_DECL_REGIONS = ObjCObjectRegionKind,
+    CXXObjectRegionKind,
+    END_DECL_REGIONS = CXXObjectRegionKind,
     END_TYPED_REGIONS = END_DECL_REGIONS
   };
     
@@ -662,33 +662,6 @@ public:
   }
 };
 
-class ObjCObjectRegion : public DeclRegion {
-
-  friend class MemRegionManager;
-
-  ObjCObjectRegion(const ObjCInterfaceDecl* ivd, const MemRegion* sReg)
-  : DeclRegion(ivd, sReg, ObjCObjectRegionKind) {}
-
-  static void ProfileRegion(llvm::FoldingSetNodeID& ID,
-                            const ObjCInterfaceDecl* ivd,
-                            const MemRegion* superRegion) {
-    DeclRegion::ProfileRegion(ID, ivd, superRegion, ObjCObjectRegionKind);
-  }
-
-public:
-  const ObjCInterfaceDecl* getInterface() const {
-    return cast<ObjCInterfaceDecl>(D);
-  }
-
-  QualType getValueType(ASTContext& C) const {
-    return C.getObjCInterfaceType(getInterface());
-  }
-
-  static bool classof(const MemRegion* R) {
-    return R->getKind() == ObjCObjectRegionKind;
-  }
-};
-
 class ObjCIvarRegion : public DeclRegion {
 
   friend class MemRegionManager;
@@ -749,6 +722,30 @@ public:
 
   static bool classof(const MemRegion* R) {
     return R->getKind() == ElementRegionKind;
+  }
+};
+
+class CXXObjectRegion : public TypedRegion {
+  friend class MemRegionManager;
+
+  // T - The object type.
+  QualType T;
+
+  CXXObjectRegion(QualType t, const MemRegion *sReg) 
+    : TypedRegion(sReg, CXXObjectRegionKind), T(t) {}
+
+  static void ProfileRegion(llvm::FoldingSetNodeID &ID,
+                            QualType T, const MemRegion *sReg);
+  
+public:
+  QualType getValueType(ASTContext& C) const {
+    return T;
+  }
+
+  void Profile(llvm::FoldingSetNodeID &ID) const;
+
+  static bool classof(const MemRegion* R) {
+    return R->getKind() == CXXObjectRegionKind;
   }
 };
 
@@ -865,17 +862,14 @@ public:
     return getFieldRegion(FR->getDecl(), superRegion);
   }
 
-  /// getObjCObjectRegion - Retrieve or create the memory region associated with
-  ///  the instance of a specified Objective-C class.
-  const ObjCObjectRegion* getObjCObjectRegion(const ObjCInterfaceDecl* ID,
-                                              const MemRegion* superRegion);
-
   /// getObjCIvarRegion - Retrieve or create the memory region associated with
   ///   a specified Objective-c instance variable.  'superRegion' corresponds
   ///   to the containing region (which typically represents the Objective-C
   ///   object).
   const ObjCIvarRegion *getObjCIvarRegion(const ObjCIvarDecl* ivd,
                                           const MemRegion* superRegion);
+
+  const CXXObjectRegion *getCXXObjectRegion(QualType T);
 
   const FunctionTextRegion *getFunctionTextRegion(const FunctionDecl *FD);
   const BlockTextRegion *getBlockTextRegion(const BlockDecl *BD,

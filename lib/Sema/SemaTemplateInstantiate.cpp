@@ -554,7 +554,6 @@ namespace {
 
     Sema::OwningExprResult TransformPredefinedExpr(PredefinedExpr *E);
     Sema::OwningExprResult TransformDeclRefExpr(DeclRefExpr *E);
-
     Sema::OwningExprResult TransformCXXDefaultArgExpr(CXXDefaultArgExpr *E);
 
     /// \brief Transforms a template type parameter type by performing
@@ -785,7 +784,9 @@ Sema::OwningExprResult TemplateInstantiator::TransformCXXDefaultArgExpr(
   assert(!cast<FunctionDecl>(E->getParam()->getDeclContext())->
              getDescribedFunctionTemplate() &&
          "Default arg expressions are never formed in dependent cases.");
-  return SemaRef.Owned(E->Retain());
+  return SemaRef.BuildCXXDefaultArgExpr(E->getUsedLocation(),
+                           cast<FunctionDecl>(E->getParam()->getDeclContext()), 
+                                        E->getParam());
 }
 
 

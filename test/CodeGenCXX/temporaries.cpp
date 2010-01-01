@@ -1,4 +1,4 @@
-// RUN: clang-cc -emit-llvm %s -o - -triple=x86_64-apple-darwin9 | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm %s -o - -triple=x86_64-apple-darwin9 | FileCheck %s
 struct A {
   A();
   ~A();
@@ -201,4 +201,51 @@ void f11(H h) {
   // CHECK-NOT: call void @_ZN1HD1Ev
   // CHECK: ret void
   f10(h);
+}
+
+// PR5808
+struct I {
+  I(const char *);
+  ~I();
+};
+
+// CHECK: _Z3f12v
+I f12() {
+  // CHECK: call void @_ZN1IC1EPKc
+  // CHECK-NOT: call void @_ZN1ID1Ev
+  // CHECK: ret void
+  return "Hello";
+}
+
+// PR5867
+namespace PR5867 {
+  struct S {
+    S();
+    S(const S &);
+    ~S();
+  };
+
+  void f(S, int);
+  // CHECK: define void @_ZN6PR58671gEv
+  void g() {
+    // CHECK: call void @_ZN6PR58671SC1Ev
+    // CHECK-NEXT: call void @_ZN6PR58671fENS_1SEi
+    // CHECK-NEXT: call void @_ZN6PR58671SD1Ev
+    // CHECK-NEXT: ret void
+    (f)(S(), 0);
+  }
+
+  // CHECK: define linkonce_odr void @_ZN6PR58672g2IiEEvT_
+  template<typename T>
+  void g2(T) {
+    // CHECK: call void @_ZN6PR58671SC1Ev
+    // CHECK-NEXT: call void @_ZN6PR58671fENS_1SEi
+    // CHECK-NEXT: call void @_ZN6PR58671SD1Ev
+    // CHECK-NEXT: ret void
+    (f)(S(), 0);
+  }
+
+  void h() {
+    g2(17);
+  }
 }

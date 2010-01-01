@@ -329,7 +329,7 @@ NamedDecl *Sema::FindFirstQualifierInScope(Scope *S, NestedNameSpecifier *NNS) {
 /// This routine differs only slightly from ActOnCXXNestedNameSpecifier, in
 /// that it contains an extra parameter \p ScopeLookupResult, which provides
 /// the result of name lookup within the scope of the nested-name-specifier
-/// that was computed at template definitino time.
+/// that was computed at template definition time.
 ///
 /// If ErrorRecoveryLookup is true, then this call is used to improve error
 /// recovery.  This means that it should not emit diagnostics, it should
@@ -428,6 +428,28 @@ Sema::CXXScopeTy *Sema::BuildCXXNestedNameSpecifier(Scope *S,
   }
 
   // FIXME: Deal with ambiguities cleanly.
+
+  if (Found.empty() && !ErrorRecoveryLookup) {
+    // We haven't found anything, and we're not recovering from a
+    // different kind of error, so look for typos.
+    DeclarationName Name = Found.getLookupName();
+    if (CorrectTypo(Found, S, &SS, LookupCtx, EnteringContext) &&
+        Found.isSingleResult() &&
+        isAcceptableNestedNameSpecifier(Found.getAsSingle<NamedDecl>())) {
+      if (LookupCtx)
+        Diag(Found.getNameLoc(), diag::err_no_member_suggest)
+          << Name << LookupCtx << Found.getLookupName() << SS.getRange()
+          << CodeModificationHint::CreateReplacement(Found.getNameLoc(),
+                                           Found.getLookupName().getAsString());
+      else
+        Diag(Found.getNameLoc(), diag::err_undeclared_var_use_suggest)
+          << Name << Found.getLookupName()
+          << CodeModificationHint::CreateReplacement(Found.getNameLoc(),
+                                           Found.getLookupName().getAsString());
+    } else
+      Found.clear();
+  }
+
   NamedDecl *SD = Found.getAsSingle<NamedDecl>();
   if (isAcceptableNestedNameSpecifier(SD)) {
     if (!ObjectType.isNull() && !ObjectTypeSearchedInScope) {
@@ -605,15 +627,18 @@ bool Sema::ShouldEnterDeclaratorScope(Scope *S, const CXXScopeSpec &SS) {
 /// The 'SS' should be a non-empty valid CXXScopeSpec.
 bool Sema::ActOnCXXEnterDeclaratorScope(Scope *S, const CXXScopeSpec &SS) {
   assert(SS.isSet() && "Parser passed invalid CXXScopeSpec.");
-  if (DeclContext *DC = computeDeclContext(SS, true)) {
-    // Before we enter a declarator's context, we need to make sure that
-    // it is a complete declaration context.
-    if (!DC->isDependentContext() && RequireCompleteDeclContext(SS))
-      return true;
-      
-    EnterDeclaratorContext(S, DC);
-  }
-  
+
+  if (SS.isInvalid()) return true;
+
+  DeclContext *DC = computeDeclContext(SS, true);
+  if (!DC) return true;
+
+  // Before we enter a declarator's context, we need to make sure that
+  // it is a complete declaration context.
+  if (!DC->isDependentContext() && RequireCompleteDeclContext(SS))
+    return true;
+    
+  EnterDeclaratorContext(S, DC);
   return false;
 }
 
@@ -626,6 +651,7 @@ void Sema::ActOnCXXExitDeclaratorScope(Scope *S, const CXXScopeSpec &SS) {
   assert(SS.isSet() && "Parser passed invalid CXXScopeSpec.");
   if (SS.isInvalid())
     return;
-  if (computeDeclContext(SS, true))
-    ExitDeclaratorContext(S);
+  assert(!SS.isInvalid() && computeDeclContext(SS, true) &&
+         "exiting declarator scope we never really entered");
+  ExitDeclaratorContext(S);
 }

@@ -1,7 +1,7 @@
-// RUN: clang-cc -triple x86_64-apple-darwin -std=c++0x -O0 -S %s -o %t-64.s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin -std=c++0x -O0 -S %s -o %t-64.s
 // RUN: FileCheck -check-prefix LP64 --input-file=%t-64.s %s
 
-// RUN: clang-cc -triple x86_64-apple-darwin -std=c++0x -emit-llvm %s -o %t-64.ll
+// RUN: %clang_cc1 -triple x86_64-apple-darwin -std=c++0x -emit-llvm %s -o %t-64.ll
 // RUN: FileCheck -check-prefix LPLL64 --input-file=%t-64.ll %s
 
 
@@ -147,12 +147,12 @@ void test12_foo() {
 }
 
 // CHECK-LPLL64:define void @_Z10test12_foov() nounwind {
-// CHECK-LPLL64:  call void %2(%class.test14* %tmp)
-// CHECK-LPLL64:  call void %5(%class.test14* %tmp1)
-// CHECK-LPLL64:  call void %8(%class.test14* %tmp3)
-// CHECK-LPLL64:  call void %11(%class.test14* %tmp5)
-// CHECK-LPLL64:  call void %14(%class.test14* %tmp7)
-// CHECK-LPLL64:  call void %17(%class.test14* %tmp9)
+// CHECK-LPLL64:  call void %
+// CHECK-LPLL64:  call void %
+// CHECK-LPLL64:  call void %
+// CHECK-LPLL64:  call void %
+// CHECK-LPLL64:  call void %
+// CHECK-LPLL64:  call void %
 // CHECK-LPLL64:  call void @_ZN8test12_A3fooEv(%class.test14* %tmp11)
 
 

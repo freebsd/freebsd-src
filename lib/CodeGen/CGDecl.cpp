@@ -15,6 +15,7 @@
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/CharUnits.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/Basic/SourceManager.h"
@@ -471,7 +472,8 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
       const llvm::Type *IntPtr =
         llvm::IntegerType::get(VMContext, LLVMPointerWidth);
       llvm::Value *SizeVal =
-        llvm::ConstantInt::get(IntPtr, getContext().getTypeSizeInBytes(Ty));
+        llvm::ConstantInt::get(IntPtr, 
+                               getContext().getTypeSizeInChars(Ty).getRaw());
 
       const llvm::Type *BP = llvm::Type::getInt8PtrTy(VMContext);
       if (Loc->getType() != BP)
@@ -641,7 +643,7 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
       Args.push_back(std::make_pair(RValue::get(Builder.CreateBitCast(DeclPtr,
                                                            ConvertType(ArgTy))),
                                     getContext().getPointerType(D.getType())));
-      EmitCall(Info, F, Args);
+      EmitCall(Info, F, ReturnValueSlot(), Args);
     }
     if (Exceptions) {
       EHCleanupBlock Cleanup(*this);
@@ -650,7 +652,7 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
       Args.push_back(std::make_pair(RValue::get(Builder.CreateBitCast(DeclPtr,
                                                            ConvertType(ArgTy))),
                                     getContext().getPointerType(D.getType())));
-      EmitCall(Info, F, Args);
+      EmitCall(Info, F, ReturnValueSlot(), Args);
     }
   }
 

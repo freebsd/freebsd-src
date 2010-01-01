@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 template<typename T, T Divisor>
 class X {
 public:
@@ -30,7 +30,7 @@ T Z<T>::value; // expected-error{{no matching constructor}}
 struct DefCon {};
 
 struct NoDefCon { 
-  NoDefCon(const NoDefCon&);
+  NoDefCon(const NoDefCon&); // expected-note{{candidate function}}
 };
 
 void test() {

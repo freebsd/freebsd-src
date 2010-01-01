@@ -1,4 +1,4 @@
-// RUN: clang -cc1 -triple i386-apple-darwin10 -analyze -warn-security-syntactic %s -verify
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -warn-security-syntactic %s -verify
 
 // <rdar://problem/6336718> rule request: floating point used as loop 
 //  condition (FLP30-C, FLP-30-CPP)
@@ -48,6 +48,7 @@ int setuid(uid_t);
 int setregid(gid_t, gid_t);
 int setreuid(uid_t, uid_t);
 extern void check(int);
+void abort(void);
 
 void test_setuid() 
 {

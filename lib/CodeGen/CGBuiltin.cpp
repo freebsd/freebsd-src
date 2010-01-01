@@ -209,10 +209,19 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     const llvm::Type *ResType[] = {
       ConvertType(E->getType())
     };
+    
+    // LLVM only supports 0 and 2, make sure that we pass along that
+    // as a boolean.
+    Value *Ty = EmitScalarExpr(E->getArg(1));
+    ConstantInt *CI = dyn_cast<ConstantInt>(Ty);
+    assert(CI);
+    uint64_t val = CI->getZExtValue();
+    CI = ConstantInt::get(llvm::Type::getInt1Ty(VMContext), (val & 0x2) >> 1);    
+    
     Value *F = CGM.getIntrinsic(Intrinsic::objectsize, ResType, 1);
     return RValue::get(Builder.CreateCall2(F,
                                            EmitScalarExpr(E->getArg(0)),
-                                           EmitScalarExpr(E->getArg(1))));
+                                           CI));
   }
   case Builtin::BI__builtin_prefetch: {
     Value *Locality, *RW, *Address = EmitScalarExpr(E->getArg(0));
@@ -229,6 +238,8 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     return RValue::get(Builder.CreateCall(F));
   }
   case Builtin::BI__builtin_unreachable: {
+    if (CatchUndefined && HaveInsertPoint())
+      EmitBranch(getTrapBB());
     Value *V = Builder.CreateUnreachable();
     Builder.ClearInsertionPoint();
     return RValue::get(V);
@@ -300,6 +311,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
                         llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), 1));
     return RValue::get(Address);
   }
+  case Builtin::BImemcpy:
   case Builtin::BI__builtin_memcpy: {
     Value *Address = EmitScalarExpr(E->getArg(0));
     Builder.CreateCall4(CGM.getMemCpyFn(), Address,
@@ -308,6 +320,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
                         llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), 1));
     return RValue::get(Address);
   }
+  case Builtin::BImemmove:
   case Builtin::BI__builtin_memmove: {
     Value *Address = EmitScalarExpr(E->getArg(0));
     Builder.CreateCall4(CGM.getMemMoveFn(), Address,
@@ -316,6 +329,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
                         llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), 1));
     return RValue::get(Address);
   }
+  case Builtin::BImemset:
   case Builtin::BI__builtin_memset: {
     Value *Address = EmitScalarExpr(E->getArg(0));
     Builder.CreateCall4(CGM.getMemSetFn(), Address,
@@ -326,12 +340,20 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     return RValue::get(Address);
   }
   case Builtin::BI__builtin_return_address: {
+    Value *Depth = EmitScalarExpr(E->getArg(0));
+    Depth = Builder.CreateIntCast(Depth,
+                                  llvm::Type::getInt32Ty(VMContext),
+                                  false, "tmp");
     Value *F = CGM.getIntrinsic(Intrinsic::returnaddress, 0, 0);
-    return RValue::get(Builder.CreateCall(F, EmitScalarExpr(E->getArg(0))));
+    return RValue::get(Builder.CreateCall(F, Depth));
   }
   case Builtin::BI__builtin_frame_address: {
+    Value *Depth = EmitScalarExpr(E->getArg(0));
+    Depth = Builder.CreateIntCast(Depth,
+                                  llvm::Type::getInt32Ty(VMContext),
+                                  false, "tmp");
     Value *F = CGM.getIntrinsic(Intrinsic::frameaddress, 0, 0);
-    return RValue::get(Builder.CreateCall(F, EmitScalarExpr(E->getArg(0))));
+    return RValue::get(Builder.CreateCall(F, Depth));
   }
   case Builtin::BI__builtin_extract_return_addr: {
     // FIXME: There should be a target hook for this
@@ -565,9 +587,10 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
   // that function.
   if (getContext().BuiltinInfo.isLibFunction(BuiltinID) ||
       getContext().BuiltinInfo.isPredefinedLibFunction(BuiltinID))
-    return EmitCall(CGM.getBuiltinLibFunction(FD, BuiltinID),
-                    E->getCallee()->getType(), E->arg_begin(),
-                    E->arg_end());
+    return EmitCall(E->getCallee()->getType(),
+                    CGM.getBuiltinLibFunction(FD, BuiltinID),
+                    ReturnValueSlot(),
+                    E->arg_begin(), E->arg_end());
 
   // See if we have a target specific intrinsic.
   const char *Name = getContext().BuiltinInfo.GetName(BuiltinID);
@@ -848,7 +871,5 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
 
 Value *CodeGenFunction::EmitPPCBuiltinExpr(unsigned BuiltinID,
                                            const CallExpr *E) {
-  switch (BuiltinID) {
-  default: return 0;
-  }
+  return 0;
 }

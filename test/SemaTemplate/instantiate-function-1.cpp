@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 template<typename T, typename U>
 struct X0 {
   void f(T x, U y) { 
@@ -66,7 +66,7 @@ template<typename T, typename U, typename V> struct X6 {
       return u;
     else { 
       if (t < 0)
-        return v; // expected-error{{incompatible type}}
+        return v; // expected-error{{cannot initialize return object of type}}
     }
 
     if (T x = t) {

@@ -97,13 +97,15 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
                                                    bool IsInitializer) {
   bool ShouldDestroyTemporaries = false;
   unsigned OldNumLiveTemporaries = 0;
-  
-  if (const CXXExprWithTemporaries *TE = dyn_cast<CXXExprWithTemporaries>(E)) {
-    ShouldDestroyTemporaries = TE->shouldDestroyTemporaries();
 
+  if (const CXXDefaultArgExpr *DAE = dyn_cast<CXXDefaultArgExpr>(E))
+    E = DAE->getExpr();
+
+  if (const CXXExprWithTemporaries *TE = dyn_cast<CXXExprWithTemporaries>(E)) {
+    ShouldDestroyTemporaries = true;
+    
     // Keep track of the current cleanup stack depth.
-    if (ShouldDestroyTemporaries)
-      OldNumLiveTemporaries = LiveTemporaries.size();
+    OldNumLiveTemporaries = LiveTemporaries.size();
     
     E = TE->getSubExpr();
   }
@@ -209,6 +211,34 @@ unsigned CodeGenFunction::getAccessedFieldNo(unsigned Idx,
   return cast<llvm::ConstantInt>(Elts->getOperand(Idx))->getZExtValue();
 }
 
+void CodeGenFunction::EmitCheck(llvm::Value *Address, unsigned Size) {
+  if (!CatchUndefined)
+    return;
+
+  const llvm::IntegerType *Size_tTy
+    = llvm::IntegerType::get(VMContext, LLVMPointerWidth);
+  Address = Builder.CreateBitCast(Address, PtrToInt8Ty);
+
+  const llvm::Type *ResType[] = {
+    Size_tTy
+  };
+  llvm::Value *F = CGM.getIntrinsic(llvm::Intrinsic::objectsize, ResType, 1);
+  const llvm::IntegerType *IntTy = cast<llvm::IntegerType>(
+    CGM.getTypes().ConvertType(CGM.getContext().IntTy));
+  // In time, people may want to control this and use a 1 here.
+  llvm::Value *Arg = llvm::ConstantInt::get(IntTy, 0);
+  llvm::Value *C = Builder.CreateCall2(F, Address, Arg);
+  llvm::BasicBlock *Cont = createBasicBlock();
+  llvm::BasicBlock *Check = createBasicBlock();
+  llvm::Value *NegativeOne = llvm::ConstantInt::get(Size_tTy, -1ULL);
+  Builder.CreateCondBr(Builder.CreateICmpEQ(C, NegativeOne), Cont, Check);
+    
+  EmitBlock(Check);
+  Builder.CreateCondBr(Builder.CreateICmpUGE(C,
+                                        llvm::ConstantInt::get(Size_tTy, Size)),
+                       Cont, getTrapBB());
+  EmitBlock(Cont);
+}
 
 //===----------------------------------------------------------------------===//
 //                         LValue Expression Emission
@@ -244,6 +274,13 @@ LValue CodeGenFunction::EmitUnsupportedLValue(const Expr *E,
   llvm::Type *Ty = llvm::PointerType::getUnqual(ConvertType(E->getType()));
   return LValue::MakeAddr(llvm::UndefValue::get(Ty),
                           MakeQualifiers(E->getType()));
+}
+
+LValue CodeGenFunction::EmitCheckedLValue(const Expr *E) {
+  LValue LV = EmitLValue(E);
+  if (!isa<DeclRefExpr>(E) && !LV.isBitfield() && LV.isSimple())
+    EmitCheck(LV.getAddress(), getContext().getTypeSize(E->getType()) / 8);
+  return LV;
 }
 
 /// EmitLValue - Emit code to compute a designator that specifies the location
@@ -1072,8 +1109,9 @@ LValue CodeGenFunction::EmitArraySubscriptExpr(const ArraySubscriptExpr *E) {
                             llvm::IntegerType::get(VMContext, LLVMPointerWidth),
                                 IdxSigned, "idxprom");
 
+  // FIXME: As llvm implements the object size checking, this can come out.
   if (CatchUndefined) {
-    if (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(E->getBase())) {
+    if (const ImplicitCastExpr *ICE=dyn_cast<ImplicitCastExpr>(E->getBase())) {
       if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(ICE->getSubExpr())) {
         if (ICE->getCastKind() == CastExpr::CK_ArrayToPointerDecay) {
           if (const ConstantArrayType *CAT
@@ -1141,7 +1179,7 @@ LValue CodeGenFunction::EmitArraySubscriptExpr(const ArraySubscriptExpr *E) {
 static
 llvm::Constant *GenerateConstantVector(llvm::LLVMContext &VMContext,
                                        llvm::SmallVector<unsigned, 4> &Elts) {
-  llvm::SmallVector<llvm::Constant *, 4> CElts;
+  llvm::SmallVector<llvm::Constant*, 4> CElts;
 
   for (unsigned i = 0, e = Elts.size(); i != e; ++i)
     CElts.push_back(llvm::ConstantInt::get(
@@ -1152,21 +1190,37 @@ llvm::Constant *GenerateConstantVector(llvm::LLVMContext &VMContext,
 
 LValue CodeGenFunction::
 EmitExtVectorElementExpr(const ExtVectorElementExpr *E) {
+  const llvm::Type *Int32Ty = llvm::Type::getInt32Ty(VMContext);
+
   // Emit the base vector as an l-value.
   LValue Base;
 
   // ExtVectorElementExpr's base can either be a vector or pointer to vector.
-  if (!E->isArrow()) {
-    assert(E->getBase()->getType()->isVectorType());
-    Base = EmitLValue(E->getBase());
-  } else {
-    const PointerType *PT = E->getBase()->getType()->getAs<PointerType>();
+  if (E->isArrow()) {
+    // If it is a pointer to a vector, emit the address and form an lvalue with
+    // it.
     llvm::Value *Ptr = EmitScalarExpr(E->getBase());
+    const PointerType *PT = E->getBase()->getType()->getAs<PointerType>();
     Qualifiers Quals = MakeQualifiers(PT->getPointeeType());
     Quals.removeObjCGCAttr();
     Base = LValue::MakeAddr(Ptr, Quals);
+  } else if (E->getBase()->isLvalue(getContext()) == Expr::LV_Valid) {
+    // Otherwise, if the base is an lvalue ( as in the case of foo.x.x),
+    // emit the base as an lvalue.
+    assert(E->getBase()->getType()->isVectorType());
+    Base = EmitLValue(E->getBase());
+  } else {
+    // Otherwise, the base is a normal rvalue (as in (V+V).x), emit it as such.
+    const VectorType *VT = E->getBase()->getType()->getAs<VectorType>();
+    assert(VT && "Result must be a vector");
+    llvm::Value *Vec = EmitScalarExpr(E->getBase());
+    
+    // Store the vector to memory (because LValue wants an address).
+    llvm::Value *VecMem =CreateTempAlloca(ConvertType(E->getBase()->getType()));
+    Builder.CreateStore(Vec, VecMem);
+    Base = LValue::MakeAddr(VecMem, Qualifiers());
   }
-
+  
   // Encode the element access list into a vector of unsigned indices.
   llvm::SmallVector<unsigned, 4> Indices;
   E->getEncodedElementAccess(Indices);
@@ -1181,7 +1235,6 @@ EmitExtVectorElementExpr(const ExtVectorElementExpr *E) {
   llvm::Constant *BaseElts = Base.getExtVectorElts();
   llvm::SmallVector<llvm::Constant *, 4> CElts;
 
-  const llvm::Type *Int32Ty = llvm::Type::getInt32Ty(VMContext);
   for (unsigned i = 0, e = Indices.size(); i != e; ++i) {
     if (isa<llvm::ConstantAggregateZero>(BaseElts))
       CElts.push_back(llvm::ConstantInt::get(Int32Ty, 0));
@@ -1325,12 +1378,20 @@ LValue CodeGenFunction::EmitCompoundLiteralLValue(const CompoundLiteralExpr* E){
 LValue 
 CodeGenFunction::EmitConditionalOperatorLValue(const ConditionalOperator* E) {
   if (E->isLvalue(getContext()) == Expr::LV_Valid) {
+    if (int Cond = ConstantFoldsToSimpleInteger(E->getCond())) {
+      Expr *Live = Cond == 1 ? E->getLHS() : E->getRHS();
+      if (Live)
+        return EmitLValue(Live);
+    }
+
+    if (!E->getLHS())
+      return EmitUnsupportedLValue(E, "conditional operator with missing LHS");
+
     llvm::BasicBlock *LHSBlock = createBasicBlock("cond.true");
     llvm::BasicBlock *RHSBlock = createBasicBlock("cond.false");
     llvm::BasicBlock *ContBlock = createBasicBlock("cond.end");
     
-    llvm::Value *Cond = EvaluateExprAsBool(E->getCond());
-    Builder.CreateCondBr(Cond, LHSBlock, RHSBlock);
+    EmitBranchOnBoolExpr(E->getCond(), LHSBlock, RHSBlock);
     
     EmitBlock(LHSBlock);
 
@@ -1390,6 +1451,7 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
   case CastExpr::CK_NoOp:
   case CastExpr::CK_ConstructorConversion:
   case CastExpr::CK_UserDefinedConversion:
+  case CastExpr::CK_AnyPointerToObjCPointerCast:
     return EmitLValue(E->getSubExpr());
   
   case CastExpr::CK_DerivedToBase: {
@@ -1464,13 +1526,14 @@ LValue CodeGenFunction::EmitNullInitializationLValue(
 //===--------------------------------------------------------------------===//
 
 
-RValue CodeGenFunction::EmitCallExpr(const CallExpr *E) {
+RValue CodeGenFunction::EmitCallExpr(const CallExpr *E, 
+                                     ReturnValueSlot ReturnValue) {
   // Builtins never have block type.
   if (E->getCallee()->getType()->isBlockPointerType())
-    return EmitBlockCallExpr(E);
+    return EmitBlockCallExpr(E, ReturnValue);
 
   if (const CXXMemberCallExpr *CE = dyn_cast<CXXMemberCallExpr>(E))
-    return EmitCXXMemberCallExpr(CE);
+    return EmitCXXMemberCallExpr(CE, ReturnValue);
 
   const Decl *TargetDecl = 0;
   if (const ImplicitCastExpr *CE = dyn_cast<ImplicitCastExpr>(E->getCallee())) {
@@ -1484,7 +1547,7 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E) {
 
   if (const CXXOperatorCallExpr *CE = dyn_cast<CXXOperatorCallExpr>(E))
     if (const CXXMethodDecl *MD = dyn_cast_or_null<CXXMethodDecl>(TargetDecl))
-      return EmitCXXOperatorMemberCallExpr(CE, MD);
+      return EmitCXXOperatorMemberCallExpr(CE, MD, ReturnValue);
 
   if (isa<CXXPseudoDestructorExpr>(E->getCallee()->IgnoreParens())) {
     // C++ [expr.pseudo]p1:
@@ -1497,7 +1560,7 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E) {
   }
 
   llvm::Value *Callee = EmitScalarExpr(E->getCallee());
-  return EmitCall(Callee, E->getCallee()->getType(),
+  return EmitCall(E->getCallee()->getType(), Callee, ReturnValue,
                   E->arg_begin(), E->arg_end(), TargetDecl);
 }
 
@@ -1658,7 +1721,8 @@ LValue CodeGenFunction::EmitPointerToDataMemberLValue(const FieldDecl *Field) {
   return LValue::MakeAddr(V, MakeQualifiers(Field->getType()));
 }
 
-RValue CodeGenFunction::EmitCall(llvm::Value *Callee, QualType CalleeType,
+RValue CodeGenFunction::EmitCall(QualType CalleeType, llvm::Value *Callee,
+                                 ReturnValueSlot ReturnValue,
                                  CallExpr::const_arg_iterator ArgBeg,
                                  CallExpr::const_arg_iterator ArgEnd,
                                  const Decl *TargetDecl) {
@@ -1683,7 +1747,7 @@ RValue CodeGenFunction::EmitCall(llvm::Value *Callee, QualType CalleeType,
     CallingConvention = F->getCallingConv();
   return EmitCall(CGM.getTypes().getFunctionInfo(ResultType, Args,
                                                  CallingConvention),
-                  Callee, Args, TargetDecl);
+                  Callee, ReturnValue, Args, TargetDecl);
 }
 
 LValue CodeGenFunction::

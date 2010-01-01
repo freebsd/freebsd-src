@@ -578,13 +578,23 @@ adds runtime checks for undefined runtime behavior.  If the check fails,
 <tt>__builtin_trap()</tt> is used to indicate failure.
 The checks are:
 <p>
-<li>Subscripting where the static type of one operand is decayed from an
-    array type and the other operand is greater than the size of the array or
-    less than zero.</li>
+<li>Subscripting where the static type of one operand is variable
+    which is decayed from an array type and the other operand is
+    greater than the size of the array or less than zero.</li>
 <li>Shift operators where the amount shifted is greater or equal to the
     promoted bit-width of the left-hand-side or less than zero.</li>
+<li>If control flow reaches __builtin_unreachable.
+<li>When llvm implements more __builtin_object_size support, reads and
+    writes for objects that __builtin_object_size indicates we aren't
+    accessing valid memory.  Bit-fields and vectors are not yet checked.
 </p>
 </dd>
+
+<dt id="opt_fno-assume-sane-operator-new"><b>-fno-assume-sane-operator-new</b>:
+Don't assume that the C++'s new operator is sane.</dt>
+<dd>This option tells the compiler to do not assume that C++'s global new
+operator will always return a pointer that do not
+alias any other pointer when the function returns.</dd>
 
 <!-- ======================================================================= -->
 <h2 id="c">C Language Features</h2>

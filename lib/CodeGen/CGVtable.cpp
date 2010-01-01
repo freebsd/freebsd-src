@@ -202,8 +202,10 @@ public:
       Extern(!l->isInAnonymousNamespace()),
       LLVMPointerWidth(cgm.getContext().Target.getPointerWidth(0)) {
     Ptr8Ty = llvm::PointerType::get(llvm::Type::getInt8Ty(VMContext), 0);
-    if (BuildVtable)
-      rtti = CGM.GetAddrOfRTTI(MostDerivedClass);
+    if (BuildVtable) {
+      QualType ClassType = CGM.getContext().getTagDeclType(MostDerivedClass);
+      rtti = CGM.GetAddrOfRTTIDescriptor(ClassType);
+    }
   }
 
   // getVtableComponents - Returns a reference to the vtable components.
@@ -481,13 +483,13 @@ public:
   }
 
 
-  Index_t FinishGenerateVtable(const CXXRecordDecl *RD,
-                               const ASTRecordLayout &Layout,
-                               const CXXRecordDecl *PrimaryBase,
-                               bool PrimaryBaseWasVirtual,
-                               bool MorallyVirtual, int64_t Offset,
-                               bool ForVirtualBase, int64_t CurrentVBaseOffset,
-                               Path_t *Path) {
+  void FinishGenerateVtable(const CXXRecordDecl *RD,
+                            const ASTRecordLayout &Layout,
+                            const CXXRecordDecl *PrimaryBase,
+                            bool PrimaryBaseWasVirtual,
+                            bool MorallyVirtual, int64_t Offset,
+                            bool ForVirtualBase, int64_t CurrentVBaseOffset,
+                            Path_t *Path) {
     bool alloc = false;
     if (Path == 0) {
       alloc = true;
@@ -535,7 +537,6 @@ public:
     if (alloc) {
       delete Path;
     }
-    return AddressPoint;
   }
 
   void Primaries(const CXXRecordDecl *RD, bool MorallyVirtual, int64_t Offset,
@@ -600,19 +601,19 @@ public:
     }
   }
 
-  int64_t GenerateVtableForBase(const CXXRecordDecl *RD, int64_t Offset = 0,
-                                bool MorallyVirtual = false, 
-                                bool ForVirtualBase = false,
-                                int CurrentVBaseOffset = 0,
-                                Path_t *Path = 0) {
+  void GenerateVtableForBase(const CXXRecordDecl *RD, int64_t Offset = 0,
+                             bool MorallyVirtual = false, 
+                             bool ForVirtualBase = false,
+                             int CurrentVBaseOffset = 0,
+                             Path_t *Path = 0) {
     if (!RD->isDynamicClass())
-      return 0;
+      return;
 
     // Construction vtable don't need parts that have no virtual bases and
     // aren't morally virtual.
     if ((LayoutClass != MostDerivedClass) && 
         RD->getNumVBases() == 0 && !MorallyVirtual)
-      return 0;
+      return;
 
     const ASTRecordLayout &Layout = CGM.getContext().getASTRecordLayout(RD);
     const CXXRecordDecl *PrimaryBase = Layout.getPrimaryBase();
@@ -631,9 +632,9 @@ public:
     if (Path)
       OverrideMethods(Path, MorallyVirtual, Offset, CurrentVBaseOffset);
 
-    return FinishGenerateVtable(RD, Layout, PrimaryBase, PrimaryBaseWasVirtual,
-                                MorallyVirtual, Offset, ForVirtualBase,
-                                CurrentVBaseOffset, Path);
+    FinishGenerateVtable(RD, Layout, PrimaryBase, PrimaryBaseWasVirtual,
+                         MorallyVirtual, Offset, ForVirtualBase,
+                         CurrentVBaseOffset, Path);
   }
 
   void GenerateVtableForVBases(const CXXRecordDecl *RD,
@@ -751,10 +752,10 @@ TypeConversionRequiresAdjustment(ASTContext &Ctx,
   }
   
   const CXXRecordDecl *DerivedDecl = 
-  cast<CXXRecordDecl>(cast<RecordType>(CanDerivedType)->getDecl());
+    cast<CXXRecordDecl>(cast<RecordType>(CanDerivedType)->getDecl());
   
   const CXXRecordDecl *BaseDecl = 
-  cast<CXXRecordDecl>(cast<RecordType>(CanBaseType)->getDecl());
+    cast<CXXRecordDecl>(cast<RecordType>(CanBaseType)->getDecl());
   
   return TypeConversionRequiresAdjustment(Ctx, DerivedDecl, BaseDecl);
 }
@@ -1156,22 +1157,13 @@ CGVtableInfo::GenerateVtable(llvm::GlobalVariable::LinkageTypes Linkage,
     CGM.getMangleContext().mangleCXXVtable(RD, OutName);
   llvm::StringRef Name = OutName.str();
 
-  int64_t AddressPoint;
-
   llvm::GlobalVariable *GV = CGM.getModule().getGlobalVariable(Name);
-  if (GV && CGM.AddressPoints[LayoutClass] && !GV->isDeclaration()) {
-    AddressPoint=(*(*(CGM.AddressPoints[LayoutClass]))[RD])[std::make_pair(RD,
-                                                                       Offset)];
-    // FIXME: We can never have 0 address point.  Do this for now so gepping
-    // retains the same structure.  Later, we'll just assert.
-    if (AddressPoint == 0)
-      AddressPoint = 1;
-  } else {
+  if (GV == 0 || CGM.AddressPoints[LayoutClass] == 0 || GV->isDeclaration()) {
     VtableBuilder b(RD, LayoutClass, Offset, CGM, GenerateDefinition);
 
     D1(printf("vtable %s\n", RD->getNameAsCString()));
     // First comes the vtables for all the non-virtual bases...
-    AddressPoint = b.GenerateVtableForBase(RD, Offset);
+    b.GenerateVtableForBase(RD, Offset);
 
     // then the vtables for all the virtual bases.
     b.GenerateVtableForVBases(RD, Offset);

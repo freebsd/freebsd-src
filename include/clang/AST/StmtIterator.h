@@ -28,11 +28,12 @@ class StmtIteratorBase {
 protected:
   enum { DeclMode = 0x1, SizeOfTypeVAMode = 0x2, DeclGroupMode = 0x3,
          Flags = 0x3 };
-
-  union { Stmt** stmt; Decl* decl; Decl** DGI; };
+  
+  Stmt **stmt;
+  union { Decl *decl; Decl **DGI; };
   uintptr_t RawVAPtr;
-  Decl** DGE;
-
+  Decl **DGE;
+  
   bool inDecl() const {
     return (RawVAPtr & Flags) == DeclMode;
   }
@@ -64,11 +65,11 @@ protected:
 
   Stmt*& GetDeclExpr() const;
 
-  StmtIteratorBase(Stmt** s) : stmt(s), RawVAPtr(0) {}
-  StmtIteratorBase(Decl* d);
-  StmtIteratorBase(VariableArrayType* t);
-  StmtIteratorBase(Decl** dgi, Decl** dge);
-  StmtIteratorBase() : stmt(NULL), RawVAPtr(0) {}
+  StmtIteratorBase(Stmt **s) : stmt(s), decl(0), RawVAPtr(0) {}
+  StmtIteratorBase(Decl *d, Stmt **s);
+  StmtIteratorBase(VariableArrayType *t);
+  StmtIteratorBase(Decl **dgi, Decl **dge);
+  StmtIteratorBase() : stmt(0), decl(0), RawVAPtr(0) {}
 };
 
 
@@ -81,9 +82,9 @@ protected:
   StmtIteratorImpl(const StmtIteratorBase& RHS) : StmtIteratorBase(RHS) {}
 public:
   StmtIteratorImpl() {}
-  StmtIteratorImpl(Stmt** s) : StmtIteratorBase(s) {}
-  StmtIteratorImpl(Decl** dgi, Decl** dge) : StmtIteratorBase(dgi, dge) {}
-  StmtIteratorImpl(Decl* d) : StmtIteratorBase(d) {}
+  StmtIteratorImpl(Stmt **s) : StmtIteratorBase(s) {}
+  StmtIteratorImpl(Decl **dgi, Decl **dge) : StmtIteratorBase(dgi, dge) {}
+  StmtIteratorImpl(Decl *d, Stmt **s) : StmtIteratorBase(d, s) {}
   StmtIteratorImpl(VariableArrayType* t) : StmtIteratorBase(t) {}
 
   DERIVED& operator++() {
@@ -106,11 +107,11 @@ public:
   }
 
   bool operator==(const DERIVED& RHS) const {
-    return stmt == RHS.stmt && RawVAPtr == RHS.RawVAPtr;
+    return stmt == RHS.stmt && decl == RHS.decl && RawVAPtr == RHS.RawVAPtr;
   }
 
   bool operator!=(const DERIVED& RHS) const {
-    return stmt != RHS.stmt || RawVAPtr != RHS.RawVAPtr;
+    return stmt != RHS.stmt || decl != RHS.decl || RawVAPtr != RHS.RawVAPtr;
   }
 
   REFERENCE operator*() const {
@@ -124,11 +125,15 @@ struct StmtIterator : public StmtIteratorImpl<StmtIterator,Stmt*&> {
   explicit StmtIterator() : StmtIteratorImpl<StmtIterator,Stmt*&>() {}
 
   StmtIterator(Stmt** S) : StmtIteratorImpl<StmtIterator,Stmt*&>(S) {}
+
   StmtIterator(Decl** dgi, Decl** dge)
    : StmtIteratorImpl<StmtIterator,Stmt*&>(dgi, dge) {}
 
-  StmtIterator(VariableArrayType* t):StmtIteratorImpl<StmtIterator,Stmt*&>(t) {}
-  StmtIterator(Decl* D) : StmtIteratorImpl<StmtIterator,Stmt*&>(D) {}
+  StmtIterator(VariableArrayType* t)
+    : StmtIteratorImpl<StmtIterator,Stmt*&>(t) {}
+
+  StmtIterator(Decl* D, Stmt **s = 0)
+    : StmtIteratorImpl<StmtIterator,Stmt*&>(D, s) {}
 };
 
 struct ConstStmtIterator : public StmtIteratorImpl<ConstStmtIterator,

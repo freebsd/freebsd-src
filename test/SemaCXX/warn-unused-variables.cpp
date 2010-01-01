@@ -1,4 +1,4 @@
-// RUN: clang -fsyntax-only -Wunused-variable -verify %s
+// RUN: %clang -fsyntax-only -Wunused-variable -verify %s
 
 template<typename T> void f() {
 	T t;
@@ -31,4 +31,15 @@ namespace PR5531 {
     B(17);
     C();
   }
+}
+
+
+struct X {
+ int foo() __attribute__((warn_unused_result));
+};
+
+void bah() {
+  X x, *x2;
+  x.foo(); // expected-warning {{ignoring return value of function declared with warn_unused_result attribute}}
+  x2->foo(); // expected-warning {{ignoring return value of function declared with warn_unused_result attribute}}
 }

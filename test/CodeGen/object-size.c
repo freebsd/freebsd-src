@@ -1,4 +1,4 @@
-// RUN: clang-cc -triple x86_64-apple-darwin -emit-llvm %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin -emit-llvm %s -o - | FileCheck %s
 
 #define strcpy(dest, src) \
   ((__builtin_object_size(dest, 0) != -1ULL) \
@@ -35,7 +35,7 @@ void test4() {
 
 void test5() {
   // CHECK:     %tmp = load i8** @gp
-  // CHECK-NEXT:%0 = call i64 @llvm.objectsize.i64(i8* %tmp, i32 0)
+  // CHECK-NEXT:%0 = call i64 @llvm.objectsize.i64(i8* %tmp, i1 false)
   // CHECK-NEXT:%cmp = icmp ne i64 %0, -1
   strcpy(gp, "Hi there");
 }

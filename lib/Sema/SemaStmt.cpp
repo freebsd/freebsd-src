@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Sema.h"
+#include "SemaInit.h"
 #include "clang/AST/APValue.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
@@ -95,7 +96,7 @@ void Sema::DiagnoseUnusedExprResult(const Stmt *S) {
   if (const CallExpr *CE = dyn_cast<CallExpr>(E)) {
     // If the callee has attribute pure, const, or warn_unused_result, warn with
     // a more specific message to make it clear what is happening.
-    if (const FunctionDecl *FD = CE->getDirectCallee()) {
+    if (const Decl *FD = CE->getCalleeDecl()) {
       if (FD->getAttr<WarnUnusedResultAttr>()) {
         Diag(Loc, diag::warn_unused_call) << R1 << R2 << "warn_unused_result";
         return;
@@ -902,7 +903,7 @@ Sema::ActOnIndirectGotoStmt(SourceLocation GotoLoc, SourceLocation StarLoc,
     AssignConvertType ConvTy =
       CheckSingleAssignmentConstraints(Context.VoidPtrTy, E);
     if (DiagnoseAssignmentResult(ConvTy, StarLoc, Context.VoidPtrTy, ETy,
-                                 E, "passing"))
+                                 E, AA_Passing))
       return StmtError();
   }
   return Owned(new (Context) IndirectGotoStmt(GotoLoc, StarLoc, E));
@@ -977,7 +978,6 @@ Sema::ActOnBlockReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
 
   if (!FnRetType->isDependentType() && !RetValExp->isTypeDependent()) {
     // we have a non-void block with an expression, continue checking
-    QualType RetValType = RetValExp->getType();
 
     // C99 6.8.6.4p3(136): The return statement is not an assignment. The
     // overlap restriction of subclause 6.5.16.1 does not apply to the case of
@@ -986,7 +986,7 @@ Sema::ActOnBlockReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
     // In C++ the return statement is handled via a copy initialization.
     // the C version of which boils down to CheckSingleAssignmentConstraints.
     // FIXME: Leaks RetValExp.
-    if (PerformCopyInitialization(RetValExp, FnRetType, "returning"))
+    if (PerformCopyInitialization(RetValExp, FnRetType, AA_Returning))
       return StmtError();
 
     if (RetValExp) CheckReturnStackAddr(RetValExp, FnRetType, ReturnLoc);
@@ -1053,7 +1053,7 @@ Sema::ActOnReturnStmt(SourceLocation ReturnLoc, ExprArg rex) {
           << RetValExp->getSourceRange();
       }
 
-      RetValExp = MaybeCreateCXXExprWithTemporaries(RetValExp, true);
+      RetValExp = MaybeCreateCXXExprWithTemporaries(RetValExp);
     }
     return Owned(new (Context) ReturnStmt(ReturnLoc, RetValExp));
   }
@@ -1092,21 +1092,28 @@ Sema::ActOnReturnStmt(SourceLocation ReturnLoc, ExprArg rex) {
     bool Elidable = getLangOptions().CPlusPlus0x ?
                       IsReturnCopyElidable(Context, FnRetType, RetValExp) :
                       false;
+    // FIXME: Elidable
+    (void)Elidable;
 
     // In C++ the return statement is handled via a copy initialization.
     // the C version of which boils down to CheckSingleAssignmentConstraints.
-    // FIXME: Leaks RetValExp on error.
-    if (PerformCopyInitialization(RetValExp, FnRetType, "returning", Elidable)){
-      // We should still clean up our temporaries, even when we're failing!
-      RetValExp = MaybeCreateCXXExprWithTemporaries(RetValExp, true);
+    OwningExprResult Res = PerformCopyInitialization(
+                             InitializedEntity::InitializeResult(ReturnLoc, 
+                                                                 FnRetType),
+                             SourceLocation(),
+                             Owned(RetValExp));
+    if (Res.isInvalid()) {
+      // FIXME: Cleanup temporaries here, anyway?
       return StmtError();
     }
-    
-    if (RetValExp) CheckReturnStackAddr(RetValExp, FnRetType, ReturnLoc);
+
+    RetValExp = Res.takeAs<Expr>();
+    if (RetValExp) 
+      CheckReturnStackAddr(RetValExp, FnRetType, ReturnLoc);
   }
 
   if (RetValExp)
-    RetValExp = MaybeCreateCXXExprWithTemporaries(RetValExp, true);
+    RetValExp = MaybeCreateCXXExprWithTemporaries(RetValExp);
   return Owned(new (Context) ReturnStmt(ReturnLoc, RetValExp));
 }
 

@@ -956,8 +956,12 @@ public:
       // We have a reference to an unnamed field.
       assert(!Qualifier && "Can't have an unnamed field with a qualifier!");
 
+      Expr *BaseExpr = Base.takeAs<Expr>();
+      if (getSema().PerformObjectMemberConversion(BaseExpr, Member))
+        return getSema().ExprError();
+
       MemberExpr *ME =
-        new (getSema().Context) MemberExpr(Base.takeAs<Expr>(), isArrow,
+        new (getSema().Context) MemberExpr(BaseExpr, isArrow,
                                            Member, MemberLoc,
                                            cast<FieldDecl>(Member)->getType());
       return getSema().Owned(ME);
@@ -1358,8 +1362,10 @@ public:
   /// By default, builds a new default-argument expression, which does not
   /// require any semantic analysis. Subclasses may override this routine to
   /// provide different behavior.
-  OwningExprResult RebuildCXXDefaultArgExpr(ParmVarDecl *Param) {
-    return getSema().Owned(CXXDefaultArgExpr::Create(getSema().Context, Param));
+  OwningExprResult RebuildCXXDefaultArgExpr(SourceLocation Loc, 
+                                            ParmVarDecl *Param) {
+    return getSema().Owned(CXXDefaultArgExpr::Create(getSema().Context, Loc,
+                                                     Param));
   }
 
   /// \brief Build a new C++ zero-initialization expression.
@@ -1655,7 +1661,7 @@ Sema::OwningStmtResult TreeTransform<Derived>::TransformStmt(Stmt *S) {
       if (E.isInvalid())
         return getSema().StmtError();
 
-      return getSema().ActOnExprStmt(getSema().FullExpr(E));
+      return getSema().ActOnExprStmt(getSema().MakeFullExpr(E));
     }
   }
 
@@ -2124,13 +2130,6 @@ QualType TransformTypeSpecType(TypeLocBuilder &TLB, TyLoc T) {
 template<typename Derived>
 QualType TreeTransform<Derived>::TransformBuiltinType(TypeLocBuilder &TLB,
                                                       BuiltinTypeLoc T) {
-  return TransformTypeSpecType(TLB, T);
-}
-
-template<typename Derived>
-QualType
-TreeTransform<Derived>::TransformFixedWidthIntType(TypeLocBuilder &TLB,
-                                                   FixedWidthIntTypeLoc T) {
   return TransformTypeSpecType(TLB, T);
 }
 
@@ -3067,7 +3066,7 @@ TreeTransform<Derived>::TransformIfStmt(IfStmt *S) {
       return SemaRef.StmtError();
   }
   
-  Sema::FullExprArg FullCond(getSema().FullExpr(Cond));
+  Sema::FullExprArg FullCond(getSema().MakeFullExpr(Cond));
 
   // Transform the "then" branch.
   OwningStmtResult Then = getDerived().TransformStmt(S->getThen());
@@ -3110,7 +3109,7 @@ TreeTransform<Derived>::TransformSwitchStmt(SwitchStmt *S) {
       return SemaRef.StmtError();
   }
 
-  Sema::FullExprArg FullCond(getSema().FullExpr(Cond));
+  Sema::FullExprArg FullCond(getSema().MakeFullExpr(Cond));
   
   // Rebuild the switch statement.
   OwningStmtResult Switch = getDerived().RebuildSwitchStmtStart(FullCond,
@@ -3147,7 +3146,7 @@ TreeTransform<Derived>::TransformWhileStmt(WhileStmt *S) {
       return SemaRef.StmtError();
   }
 
-  Sema::FullExprArg FullCond(getSema().FullExpr(Cond));
+  Sema::FullExprArg FullCond(getSema().MakeFullExpr(Cond));
 
   // Transform the body
   OwningStmtResult Body = getDerived().TransformStmt(S->getBody());
@@ -3229,9 +3228,9 @@ TreeTransform<Derived>::TransformForStmt(ForStmt *S) {
     return SemaRef.Owned(S->Retain());
 
   return getDerived().RebuildForStmt(S->getForLoc(), S->getLParenLoc(),
-                                     move(Init), getSema().FullExpr(Cond),
+                                     move(Init), getSema().MakeFullExpr(Cond),
                                      ConditionVar,
-                                     getSema().FullExpr(Inc),
+                                     getSema().MakeFullExpr(Inc),
                                      S->getRParenLoc(), move(Body));
 }
 
@@ -3688,8 +3687,13 @@ TreeTransform<Derived>::TransformMemberExpr(MemberExpr *E) {
       Base.get() == E->getBase() &&
       Qualifier == E->getQualifier() &&
       Member == E->getMemberDecl() &&
-      !E->hasExplicitTemplateArgumentList())
+      !E->hasExplicitTemplateArgumentList()) {
+    
+    // Mark it referenced in the new context regardless.
+    // FIXME: this is a bit instantiation-specific.
+    SemaRef.MarkDeclarationReferenced(E->getMemberLoc(), Member);
     return SemaRef.Owned(E->Retain());
+  }
 
   TemplateArgumentListInfo TransArgs;
   if (E->hasExplicitTemplateArgumentList()) {
@@ -4411,7 +4415,7 @@ TreeTransform<Derived>::TransformCXXDefaultArgExpr(CXXDefaultArgExpr *E) {
       Param == E->getParam())
     return SemaRef.Owned(E->Retain());
 
-  return getDerived().RebuildCXXDefaultArgExpr(Param);
+  return getDerived().RebuildCXXDefaultArgExpr(E->getUsedLocation(), Param);
 }
 
 template<typename Derived>
@@ -4476,6 +4480,31 @@ TreeTransform<Derived>::TransformCXXNewExpr(CXXNewExpr *E) {
       !ArgumentChanged)
     return SemaRef.Owned(E->Retain());
 
+  if (!ArraySize.get()) {
+    // If no array size was specified, but the new expression was
+    // instantiated with an array type (e.g., "new T" where T is
+    // instantiated with "int[4]"), extract the outer bound from the
+    // array type as our array size. We do this with constant and
+    // dependently-sized array types.
+    const ArrayType *ArrayT = SemaRef.Context.getAsArrayType(AllocType);
+    if (!ArrayT) {
+      // Do nothing
+    } else if (const ConstantArrayType *ConsArrayT
+                                     = dyn_cast<ConstantArrayType>(ArrayT)) {
+      ArraySize 
+        = SemaRef.Owned(new (SemaRef.Context) IntegerLiteral(
+                                                  ConsArrayT->getSize(), 
+                                                  SemaRef.Context.getSizeType(),
+                                                  /*FIXME:*/E->getLocStart()));
+      AllocType = ConsArrayT->getElementType();
+    } else if (const DependentSizedArrayType *DepArrayT
+                              = dyn_cast<DependentSizedArrayType>(ArrayT)) {
+      if (DepArrayT->getSizeExpr()) {
+        ArraySize = SemaRef.Owned(DepArrayT->getSizeExpr()->Retain());
+        AllocType = DepArrayT->getElementType();
+      }
+    }
+  }
   return getDerived().RebuildCXXNewExpr(E->getLocStart(),
                                         E->isGlobalNew(),
                                         /*FIXME:*/E->getLocStart(),
@@ -4725,38 +4754,24 @@ TreeTransform<Derived>::TransformCXXConstructExpr(CXXConstructExpr *E) {
 
 /// \brief Transform a C++ temporary-binding expression.
 ///
-/// The transformation of a temporary-binding expression always attempts to
-/// bind a new temporary variable to its subexpression, even if the
-/// subexpression itself did not change, because the temporary variable itself
-/// must be unique.
+/// Since CXXBindTemporaryExpr nodes are implicitly generated, we just
+/// transform the subexpression and return that.
 template<typename Derived>
 Sema::OwningExprResult
 TreeTransform<Derived>::TransformCXXBindTemporaryExpr(CXXBindTemporaryExpr *E) {
-  OwningExprResult SubExpr = getDerived().TransformExpr(E->getSubExpr());
-  if (SubExpr.isInvalid())
-    return SemaRef.ExprError();
-
-  return SemaRef.MaybeBindToTemporary(SubExpr.takeAs<Expr>());
+  return getDerived().TransformExpr(E->getSubExpr());
 }
 
 /// \brief Transform a C++ expression that contains temporaries that should
 /// be destroyed after the expression is evaluated.
 ///
-/// The transformation of a full expression always attempts to build a new
-/// CXXExprWithTemporaries expression, even if the
-/// subexpression itself did not change, because it will need to capture the
-/// the new temporary variables introduced in the subexpression.
+/// Since CXXExprWithTemporaries nodes are implicitly generated, we
+/// just transform the subexpression and return that.
 template<typename Derived>
 Sema::OwningExprResult
 TreeTransform<Derived>::TransformCXXExprWithTemporaries(
-                                                      CXXExprWithTemporaries *E) {
-  OwningExprResult SubExpr = getDerived().TransformExpr(E->getSubExpr());
-  if (SubExpr.isInvalid())
-    return SemaRef.ExprError();
-
-  return SemaRef.Owned(
-           SemaRef.MaybeCreateCXXExprWithTemporaries(SubExpr.takeAs<Expr>(),
-                                               E->shouldDestroyTemporaries()));
+                                                    CXXExprWithTemporaries *E) {
+  return getDerived().TransformExpr(E->getSubExpr());
 }
 
 template<typename Derived>
@@ -5232,9 +5247,6 @@ TreeTransform<Derived>::RebuildArrayType(QualType ElementType,
       SizeType = Types[I];
       break;
     }
-
-  if (SizeType.isNull())
-    SizeType = SemaRef.Context.getFixedWidthIntType(Size->getBitWidth(), false);
 
   IntegerLiteral ArraySize(*Size, SizeType, /*FIXME*/BracketsRange.getBegin());
   return SemaRef.BuildArrayType(ElementType, SizeMod, &ArraySize,

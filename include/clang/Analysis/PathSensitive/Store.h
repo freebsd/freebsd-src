@@ -103,6 +103,9 @@ public:
 
   virtual SVal getLValueElement(QualType elementType, SVal offset, SVal Base)=0;
 
+  // T - the object type.
+  Loc getThisObject(QualType T);
+
   // FIXME: Make out-of-line.
   virtual DefinedOrUnknownSVal getSizeInElements(const GRState *state, 
                                                  const MemRegion *region) {
@@ -201,7 +204,7 @@ public:
 
   class Visitor {
   public:
-    virtual ~Visitor() {};
+    virtual ~Visitor() {}
     virtual bool Visit(const MemRegion* Parent, const MemRegion* SubRegion) = 0;
   };
 

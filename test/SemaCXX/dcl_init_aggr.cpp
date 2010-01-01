@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -pedantic -verify %s
+// RUN: %clang_cc1 -fsyntax-only -pedantic -verify %s
 // C++ [dcl.init.aggr]p2
 struct A { 
   int x;
@@ -13,7 +13,7 @@ struct NonAggregate {
 
   int a, b;
 };
-NonAggregate non_aggregate_test = { 1, 2 }; // expected-error{{initialization of non-aggregate type 'struct NonAggregate' with an initializer list}}
+NonAggregate non_aggregate_test = { 1, 2 }; // expected-error{{non-aggregate type 'struct NonAggregate' cannot be initialized with an initializer list}}
 
 NonAggregate non_aggregate_test2[2] = { { 1, 2 }, { 3, 4 } }; // expected-error 2 {{initialization of non-aggregate type 'struct NonAggregate' with an initializer list}}
 
@@ -40,17 +40,18 @@ char cv[4] = { 'a', 's', 'd', 'f', 0 }; // expected-error{{excess elements in ar
 struct TooFew { int a; char* b; int c; }; 
 TooFew too_few = { 1, "asdf" }; // okay
 
-struct NoDefaultConstructor { // expected-note 3 {{candidate function}}
+struct NoDefaultConstructor { // expected-note 3 {{candidate function}} \
+                              // expected-note{{declared here}}
   NoDefaultConstructor(int); // expected-note 3 {{candidate function}}
 };
-struct TooFewError {
+struct TooFewError { // expected-error{{implicit default constructor for}}
   int a;
-  NoDefaultConstructor nodef;
+  NoDefaultConstructor nodef; // expected-note{{member is declared here}}
 };
 TooFewError too_few_okay = { 1, 1 };
 TooFewError too_few_error = { 1 }; // expected-error{{no matching constructor}}
 
-TooFewError too_few_okay2[2] = { 1, 1 };
+TooFewError too_few_okay2[2] = { 1, 1 }; // expected-note{{implicit default constructor for 'struct TooFewError' first required here}}
 TooFewError too_few_error2[2] = { 1 }; // expected-error{{no matching constructor}}
 
 NoDefaultConstructor too_few_error3[3] = { }; // expected-error {{no matching constructor}}
@@ -114,9 +115,9 @@ B2 b2_2 = { 4, d2, 0 };
 B2 b2_3 = { c2, a2, a2 };
 
 // C++ [dcl.init.aggr]p15:
-union u { int a; char* b; };
+union u { int a; char* b; }; // expected-note{{candidate function}}
 u u1 = { 1 }; 
 u u2 = u1; 
-u u3 = 1; // expected-error{{cannot initialize 'u3' with an rvalue of type 'int'}}
+u u3 = 1; // expected-error{{no viable conversion}}
 u u4 = { 0, "asdf" };  // expected-error{{excess elements in union initializer}}
 u u5 = { "asdf" }; // expected-error{{incompatible type initializing 'char const [5]', expected 'int'}}

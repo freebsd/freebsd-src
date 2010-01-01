@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 #include <stddef.h>
 
@@ -18,7 +18,8 @@ struct V : U
 {
 };
 
-void* operator new(size_t); // expected-note 2 {{candidate}}
+// PR5823
+void* operator new(const size_t); // expected-note 2 {{candidate}}
 void* operator new(size_t, int*); // expected-note 3 {{candidate}}
 void* operator new(size_t, float*); // expected-note 3 {{candidate}}
 void* operator new(size_t, S); // expected-note 2 {{candidate}}
@@ -59,12 +60,12 @@ void bad_news(int *ip)
   (void)new int[1][i]; // expected-error {{only the first dimension}}
   (void)new (int[1][i]); // expected-error {{only the first dimension}}
   (void)new (int[i]); // expected-error {{when type is in parentheses}}
-  (void)new int(*(S*)0); // expected-error {{incompatible type initializing}}
-  (void)new int(1, 2); // expected-error {{initializer of a builtin type can only take one argument}}
+  (void)new int(*(S*)0); // expected-error {{no viable conversion from 'struct S' to 'int'}}
+  (void)new int(1, 2); // expected-error {{excess elements in scalar initializer}}
   (void)new S(1); // expected-error {{no matching constructor}}
-  (void)new S(1, 1); // expected-error {{call to constructor of 'S' is ambiguous}}
-  (void)new const int; // expected-error {{must provide an initializer}}
-  (void)new float*(ip); // expected-error {{incompatible type initializing 'int *', expected 'float *'}}
+  (void)new S(1, 1); // expected-error {{call to constructor of 'struct S' is ambiguous}}
+  (void)new const int; // expected-error {{default initialization of an object of const type 'int const'}}
+  (void)new float*(ip); // expected-error {{cannot initialize a value of type 'float *' with an lvalue of type 'int *'}}
   // Undefined, but clang should reject it directly.
   (void)new int[-1]; // expected-error {{array size is negative}}
   (void)new int[*(S*)0]; // expected-error {{array size expression must have integral or enumerated type, not 'struct S'}}
@@ -215,4 +216,3 @@ static void* f(void* g)
 {
     return new (g) X13();
 }
-

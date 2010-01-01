@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 namespace test0 {
   namespace N { }
@@ -46,4 +46,18 @@ namespace test1 {
     Knot().Visit((struct Object2*) 0);
     Knot().Visit((struct Object3*) 0); // expected-error {{no matching member function for call}}
   }
+}
+
+// PR5847
+namespace test2 {
+  namespace ns {
+    void foo();
+  }
+
+  template <class T> void bar(T* ptr) {
+    using ns::foo;
+    foo();
+  }
+
+  template void bar(char *);
 }

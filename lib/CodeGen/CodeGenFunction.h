@@ -515,6 +515,12 @@ public:
 
   void InitializeVtablePtrs(const CXXRecordDecl *ClassDecl);
 
+  void InitializeVtablePtrsRecursive(const CXXRecordDecl *ClassDecl,
+                                     llvm::Constant *Vtable,
+                                     CodeGenModule::AddrSubMap_t& AddressPoints,
+                                     llvm::Value *ThisPtr,
+                                     uint64_t Offset);
+
   void SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
                                     CXXCtorType Type,
                                     llvm::Function *Fn,
@@ -807,6 +813,8 @@ public:
   llvm::Value* EmitCXXTypeidExpr(const CXXTypeidExpr *E);
   llvm::Value *EmitDynamicCast(llvm::Value *V, const CXXDynamicCastExpr *DCE);
 
+  void EmitCheck(llvm::Value *, unsigned Size);
+
   //===--------------------------------------------------------------------===//
   //                            Declaration Emission
   //===--------------------------------------------------------------------===//
@@ -921,6 +929,12 @@ public:
   ///
   LValue EmitLValue(const Expr *E);
 
+  /// EmitCheckedLValue - Same as EmitLValue but additionally we generate
+  /// checking code to guard against undefined behavior.  This is only
+  /// suitable when we know that the address will be used to access the
+  /// object.
+  LValue EmitCheckedLValue(const Expr *E);
+
   /// EmitLoadOfScalar - Load a scalar value from an address, taking
   /// care to appropriately convert from the memory representation to
   /// the LLVM value representation.
@@ -1022,14 +1036,17 @@ public:
   /// used to set attributes on the call (noreturn, etc.).
   RValue EmitCall(const CGFunctionInfo &FnInfo,
                   llvm::Value *Callee,
+                  ReturnValueSlot ReturnValue,
                   const CallArgList &Args,
                   const Decl *TargetDecl = 0);
 
-  RValue EmitCall(llvm::Value *Callee, QualType FnType,
+  RValue EmitCall(QualType FnType, llvm::Value *Callee,
+                  ReturnValueSlot ReturnValue,
                   CallExpr::const_arg_iterator ArgBeg,
                   CallExpr::const_arg_iterator ArgEnd,
                   const Decl *TargetDecl = 0);
-  RValue EmitCallExpr(const CallExpr *E);
+  RValue EmitCallExpr(const CallExpr *E, 
+                      ReturnValueSlot ReturnValue = ReturnValueSlot());
 
   llvm::Value *BuildVirtualCall(const CXXMethodDecl *MD, llvm::Value *This,
                                 const llvm::Type *Ty);
@@ -1038,20 +1055,24 @@ public:
 
   RValue EmitCXXMemberCall(const CXXMethodDecl *MD,
                            llvm::Value *Callee,
+                           ReturnValueSlot ReturnValue,
                            llvm::Value *This,
                            CallExpr::const_arg_iterator ArgBeg,
                            CallExpr::const_arg_iterator ArgEnd);
-  RValue EmitCXXMemberCallExpr(const CXXMemberCallExpr *E);
-  RValue EmitCXXMemberPointerCallExpr(const CXXMemberCallExpr *E);
+  RValue EmitCXXMemberCallExpr(const CXXMemberCallExpr *E,
+                               ReturnValueSlot ReturnValue);
+  RValue EmitCXXMemberPointerCallExpr(const CXXMemberCallExpr *E,
+                                      ReturnValueSlot ReturnValue);
 
   RValue EmitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
-                                       const CXXMethodDecl *MD);
+                                       const CXXMethodDecl *MD,
+                                       ReturnValueSlot ReturnValue);
 
   
   RValue EmitBuiltinExpr(const FunctionDecl *FD,
                          unsigned BuiltinID, const CallExpr *E);
 
-  RValue EmitBlockCallExpr(const CallExpr *E);
+  RValue EmitBlockCallExpr(const CallExpr *E, ReturnValueSlot ReturnValue);
 
   /// EmitTargetBuiltinExpr - Emit the given builtin call. Returns 0 if the call
   /// is unhandled by the current target.

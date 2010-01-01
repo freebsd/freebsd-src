@@ -47,7 +47,7 @@ static const FunctionType *getFunctionType(const Decl *d,
 // FIXME: We should provide an abstraction around a method or function
 // to provide the following bits of information.
 
-/// isFunctionOrMethod - Return true if the given decl has function
+/// isFunction - Return true if the given decl has function
 /// type (function or function-typed variable).
 static bool isFunction(const Decl *d) {
   return getFunctionType(d, false) != NULL;
@@ -730,15 +730,19 @@ static void HandleWarnUnusedResult(Decl *D, const AttributeList &Attr, Sema &S) 
     return;
   }
 
-  // TODO: could also be applied to methods?
-  FunctionDecl *Fn = dyn_cast<FunctionDecl>(D);
-  if (!Fn) {
+  if (!isFunctionOrMethod(D)) {
     S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
       << Attr.getName() << 0 /*function*/;
     return;
   }
 
-  Fn->addAttr(::new (S.Context) WarnUnusedResultAttr());
+  if (getFunctionType(D)->getResultType()->isVoidType()) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_void_function)
+      << Attr.getName();
+    return;
+  }
+
+  D->addAttr(::new (S.Context) WarnUnusedResultAttr());
 }
 
 static void HandleWeakAttr(Decl *D, const AttributeList &Attr, Sema &S) {
@@ -1610,7 +1614,10 @@ static void HandleModeAttr(Decl *D, const AttributeList &Attr, Sema &S) {
       S.Diag(Attr.getLoc(), diag::err_unsupported_machine_mode) << Name;
       return;
     }
-    NewTy = S.Context.getFixedWidthIntType(128, OldTy->isSignedIntegerType());
+    if (OldTy->isSignedIntegerType())
+      NewTy = S.Context.Int128Ty;
+    else
+      NewTy = S.Context.UnsignedInt128Ty;
     break;
   }
 

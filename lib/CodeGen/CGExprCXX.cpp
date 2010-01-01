@@ -78,7 +78,6 @@ static uint64_t CalculateCookiePadding(ASTContext &Ctx, const CXXNewExpr *E) {
   }
       
   return CalculateCookiePadding(Ctx, E->getAllocatedType());
-  QualType T = E->getAllocatedType();
 }
 
 static llvm::Value *EmitCXXNewAllocSize(CodeGenFunction &CGF, 
@@ -212,7 +211,7 @@ llvm::Value *CodeGenFunction::EmitCXXNewExpr(const CXXNewExpr *E) {
   // Emit the call to new.
   RValue RV =
     EmitCall(CGM.getTypes().getFunctionInfo(NewFTy->getResultType(), NewArgs),
-             CGM.GetAddrOfFunction(NewFD), NewArgs, NewFD);
+             CGM.GetAddrOfFunction(NewFD), ReturnValueSlot(), NewArgs, NewFD);
 
   // If an allocation function is declared with an empty exception specification
   // it returns null to indicate failure to allocate storage. [expr.new]p13.
@@ -354,7 +353,7 @@ void CodeGenFunction::EmitDeleteCall(const FunctionDecl *DeleteFD,
   // Emit the call to delete.
   EmitCall(CGM.getTypes().getFunctionInfo(DeleteFTy->getResultType(),
                                           DeleteArgs),
-           CGM.GetAddrOfFunction(DeleteFD),
+           CGM.GetAddrOfFunction(DeleteFD), ReturnValueSlot(), 
            DeleteArgs, DeleteFD);
 }
 
@@ -406,7 +405,7 @@ void CodeGenFunction::EmitCXXDeleteExpr(const CXXDeleteExpr *E) {
                                            /*isVariadic=*/false);
           
           llvm::Value *Callee = BuildVirtualCall(Dtor, Dtor_Deleting, Ptr, Ty);
-          EmitCXXMemberCall(Dtor, Callee, Ptr, 0, 0);
+          EmitCXXMemberCall(Dtor, Callee, ReturnValueSlot(), Ptr, 0, 0);
 
           // The dtor took care of deleting the object.
           ShouldCallDelete = false;
@@ -426,9 +425,12 @@ llvm::Value * CodeGenFunction::EmitCXXTypeidExpr(const CXXTypeidExpr *E) {
   QualType Ty = E->getType();
   const llvm::Type *LTy = ConvertType(Ty)->getPointerTo();
   
-  if (E->isTypeOperand())
-    return Builder.CreateBitCast(CGM.GetAddrOfRTTI(E->getTypeOperand()), LTy);
-
+  if (E->isTypeOperand()) {
+    llvm::Constant *TypeInfo = 
+      CGM.GetAddrOfRTTIDescriptor(E->getTypeOperand());
+    return Builder.CreateBitCast(TypeInfo, LTy);
+  }
+  
   Expr *subE = E->getExprOperand();
   Ty = subE->getType();
   CanQualType CanTy = CGM.getContext().getCanonicalType(Ty);
@@ -468,24 +470,23 @@ llvm::Value * CodeGenFunction::EmitCXXTypeidExpr(const CXXTypeidExpr *E) {
       V = Builder.CreateConstInBoundsGEP1_64(V, -1ULL);
       V = Builder.CreateLoad(V);
       return V;
-    }      
-    return Builder.CreateBitCast(CGM.GenerateRTTI(RD), LTy);
+    }
   }
-  return Builder.CreateBitCast(CGM.GenerateRTTI(Ty), LTy);
+  return Builder.CreateBitCast(CGM.GetAddrOfRTTIDescriptor(Ty), LTy);
 }
 
 llvm::Value *CodeGenFunction::EmitDynamicCast(llvm::Value *V,
                                               const CXXDynamicCastExpr *DCE) {
-  QualType CastTy = DCE->getTypeAsWritten();
-  QualType InnerType = CastTy->getPointeeType();
-  QualType ArgTy = DCE->getSubExpr()->getType();
-  const llvm::Type *LArgTy = ConvertType(ArgTy);
+  QualType SrcTy = DCE->getSubExpr()->getType();
+  QualType DestTy = DCE->getTypeAsWritten();
+  QualType InnerType = DestTy->getPointeeType();
+  
   const llvm::Type *LTy = ConvertType(DCE->getType());
 
   bool CanBeZero = false;
   bool ToVoid = false;
   bool ThrowOnBad = false;
-  if (CastTy->isPointerType()) {
+  if (DestTy->isPointerType()) {
     // FIXME: if PointerType->hasAttr<NonNullAttr>(), we don't set this
     CanBeZero = true;
     if (InnerType->isVoidType())
@@ -495,14 +496,13 @@ llvm::Value *CodeGenFunction::EmitDynamicCast(llvm::Value *V,
     ThrowOnBad = true;
   }
 
-  CXXRecordDecl *SrcTy;
-  QualType Ty = ArgTy;
-  if (ArgTy.getTypePtr()->isPointerType()
-      || ArgTy.getTypePtr()->isReferenceType())
-    Ty = Ty.getTypePtr()->getPointeeType();
-  CanQualType CanTy = CGM.getContext().getCanonicalType(Ty);
-  Ty = CanTy.getUnqualifiedType();
-  SrcTy = cast<CXXRecordDecl>(Ty->getAs<RecordType>()->getDecl());
+  if (SrcTy->isPointerType() || SrcTy->isReferenceType())
+    SrcTy = SrcTy->getPointeeType();
+  SrcTy = SrcTy.getUnqualifiedType();
+
+  if (DestTy->isPointerType() || DestTy->isReferenceType())
+    DestTy = DestTy->getPointeeType();
+  DestTy = DestTy.getUnqualifiedType();
 
   llvm::BasicBlock *ContBlock = createBasicBlock();
   llvm::BasicBlock *NullBlock = 0;
@@ -510,15 +510,13 @@ llvm::Value *CodeGenFunction::EmitDynamicCast(llvm::Value *V,
   if (CanBeZero) {
     NonZeroBlock = createBasicBlock();
     NullBlock = createBasicBlock();
-    llvm::Value *Zero = llvm::Constant::getNullValue(LArgTy);
-    Builder.CreateCondBr(Builder.CreateICmpNE(V, Zero),
-                         NonZeroBlock, NullBlock);
+    Builder.CreateCondBr(Builder.CreateIsNotNull(V), NonZeroBlock, NullBlock);
     EmitBlock(NonZeroBlock);
   }
 
   llvm::BasicBlock *BadCastBlock = 0;
 
-  const llvm::Type *PtrDiffTy = ConvertType(getContext().getSizeType());
+  const llvm::Type *PtrDiffTy = ConvertType(getContext().getPointerDiffType());
 
   // See if this is a dynamic_cast(void*)
   if (ToVoid) {
@@ -542,27 +540,27 @@ llvm::Value *CodeGenFunction::EmitDynamicCast(llvm::Value *V,
     ArgTys.push_back(PtrToInt8Ty);
     ArgTys.push_back(PtrDiffTy);
     FTy = llvm::FunctionType::get(ResultType, ArgTys, false);
-    CXXRecordDecl *DstTy;
-    Ty = CastTy.getTypePtr()->getPointeeType();
-    CanTy = CGM.getContext().getCanonicalType(Ty);
-    Ty = CanTy.getUnqualifiedType();
-    DstTy = cast<CXXRecordDecl>(Ty->getAs<RecordType>()->getDecl());
 
     // FIXME: Calculate better hint.
     llvm::Value *hint = llvm::ConstantInt::get(PtrDiffTy, -1ULL);
-    llvm::Value *SrcArg = CGM.GenerateRTTIRef(SrcTy);
-    llvm::Value *DstArg = CGM.GenerateRTTIRef(DstTy);
+    
+    assert(SrcTy->isRecordType() && "Src type must be record type!");
+    assert(DestTy->isRecordType() && "Dest type must be record type!");
+    
+    llvm::Value *SrcArg
+      = CGM.GetAddrOfRTTIDescriptor(SrcTy.getUnqualifiedType());
+    llvm::Value *DestArg
+      = CGM.GetAddrOfRTTIDescriptor(DestTy.getUnqualifiedType());
+    
     V = Builder.CreateBitCast(V, PtrToInt8Ty);
     V = Builder.CreateCall4(CGM.CreateRuntimeFunction(FTy, "__dynamic_cast"),
-                            V, SrcArg, DstArg, hint);
+                            V, SrcArg, DestArg, hint);
     V = Builder.CreateBitCast(V, LTy);
 
     if (ThrowOnBad) {
       BadCastBlock = createBasicBlock();
 
-      llvm::Value *Zero = llvm::Constant::getNullValue(LTy);
-      Builder.CreateCondBr(Builder.CreateICmpNE(V, Zero),
-                           ContBlock, BadCastBlock);
+      Builder.CreateCondBr(Builder.CreateIsNotNull(V), ContBlock, BadCastBlock);
       EmitBlock(BadCastBlock);
       /// Call __cxa_bad_cast
       ResultType = llvm::Type::getVoidTy(VMContext);

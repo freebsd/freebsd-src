@@ -174,6 +174,8 @@ std::string PredefinedExpr::ComputeName(ASTContext &Context, IdentType IT,
     if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
       if (MD->isVirtual())
         Out << "virtual ";
+      if (MD->isStatic())
+        Out << "static ";
     }
 
     PrintingPolicy Policy(Context.getLangOptions());
@@ -202,6 +204,14 @@ std::string PredefinedExpr::ComputeName(ASTContext &Context, IdentType IT,
       }
     }
     Proto += ")";
+
+    if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
+      Qualifiers ThisQuals = Qualifiers::fromCVRMask(MD->getTypeQualifiers());
+      if (ThisQuals.hasConst())
+        Proto += " const";
+      if (ThisQuals.hasVolatile())
+        Proto += " volatile";
+    }
 
     if (!isa<CXXConstructorDecl>(FD) && !isa<CXXDestructorDecl>(FD))
       AFT->getResultType().getAsStringInternal(Proto, Policy);
@@ -398,12 +408,18 @@ void CallExpr::DoDestroy(ASTContext& C) {
   C.Deallocate(this);
 }
 
-FunctionDecl *CallExpr::getDirectCallee() {
+Decl *CallExpr::getCalleeDecl() {
   Expr *CEE = getCallee()->IgnoreParenCasts();
   if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CEE))
-    return dyn_cast<FunctionDecl>(DRE->getDecl());
+    return DRE->getDecl();
+  if (MemberExpr *ME = dyn_cast<MemberExpr>(CEE))
+    return ME->getMemberDecl();
 
   return 0;
+}
+
+FunctionDecl *CallExpr::getDirectCallee() {
+  return dyn_cast_or_null<FunctionDecl>(getCalleeDecl());
 }
 
 /// setNumArgs - This changes the number of arguments present in this call.
@@ -858,7 +874,7 @@ bool Expr::isUnusedResultAWarning(SourceLocation &Loc, SourceRange &R1,
   case CXXMemberCallExprClass: {
     // If this is a direct call, get the callee.
     const CallExpr *CE = cast<CallExpr>(this);
-    if (const FunctionDecl *FD = CE->getDirectCallee()) {
+    if (const Decl *FD = CE->getCalleeDecl()) {
       // If the callee has attribute pure, const, or warn_unused_result, warn
       // about it. void foo() { strlen("bar"); } should warn.
       //
@@ -1047,8 +1063,13 @@ Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
 
       //   -- If E2 is a non-static data member [...]. If E1 is an
       //      lvalue, then E1.E2 is an lvalue.
-      if (isa<FieldDecl>(Member))
-        return m->isArrow() ? LV_Valid : m->getBase()->isLvalue(Ctx);
+      if (isa<FieldDecl>(Member)) {
+        if (m->isArrow())
+          return LV_Valid;
+        Expr *BaseExp = m->getBase();
+        return (BaseExp->getStmtClass() == ObjCPropertyRefExprClass) ?
+                 LV_SubObjCPropertySetting : BaseExp->isLvalue(Ctx);        
+      }
 
       //   -- If it refers to a static member function [...], then
       //      E1.E2 is an lvalue.
@@ -1065,9 +1086,13 @@ Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
         // Not an lvalue.
       return LV_InvalidExpression;
     }
-
+    
     // C99 6.5.2.3p4
-    return m->isArrow() ? LV_Valid : m->getBase()->isLvalue(Ctx);
+    if (m->isArrow())
+      return LV_Valid;
+    Expr *BaseExp = m->getBase();
+    return (BaseExp->getStmtClass() == ObjCPropertyRefExprClass) ?
+             LV_SubObjCPropertySetting : BaseExp->isLvalue(Ctx);
   }
   case UnaryOperatorClass:
     if (cast<UnaryOperator>(this)->getOpcode() == UnaryOperator::Deref)
@@ -1204,6 +1229,16 @@ Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
     return LV_Valid;
   }
 
+  case Expr::CXXExprWithTemporariesClass:
+    return cast<CXXExprWithTemporaries>(this)->getSubExpr()->isLvalue(Ctx);
+
+  case Expr::ObjCMessageExprClass:
+    if (const ObjCMethodDecl *Method
+          = cast<ObjCMessageExpr>(this)->getMethodDecl())
+      if (Method->getResultType()->isLValueReferenceType())
+        return LV_Valid;
+    break;
+
   default:
     break;
   }
@@ -1244,6 +1279,7 @@ Expr::isModifiableLvalue(ASTContext &Ctx, SourceLocation *Loc) const {
     }
     return MLV_InvalidExpression;
   case LV_MemberFunction: return MLV_MemberFunction;
+    case LV_SubObjCPropertySetting: return MLV_SubObjCPropertySetting;
   }
 
   // The following is illegal:
@@ -1996,7 +2032,7 @@ ObjCMessageExpr::ObjCMessageExpr(Expr *receiver, Selector selInfo,
                 QualType retType, ObjCMethodDecl *mproto,
                 SourceLocation LBrac, SourceLocation RBrac,
                 Expr **ArgExprs, unsigned nargs)
-  : Expr(ObjCMessageExprClass, retType), SelName(selInfo),
+  : Expr(ObjCMessageExprClass, retType, false, false), SelName(selInfo),
     MethodProto(mproto) {
   NumArgs = nargs;
   SubExprs = new Stmt*[NumArgs+1];
@@ -2015,7 +2051,7 @@ ObjCMessageExpr::ObjCMessageExpr(IdentifierInfo *clsName, Selector selInfo,
                 QualType retType, ObjCMethodDecl *mproto,
                 SourceLocation LBrac, SourceLocation RBrac,
                 Expr **ArgExprs, unsigned nargs)
-  : Expr(ObjCMessageExprClass, retType), SelName(selInfo),
+  : Expr(ObjCMessageExprClass, retType, false, false), SelName(selInfo),
     MethodProto(mproto) {
   NumArgs = nargs;
   SubExprs = new Stmt*[NumArgs+1];
@@ -2033,7 +2069,7 @@ ObjCMessageExpr::ObjCMessageExpr(ObjCInterfaceDecl *cls, Selector selInfo,
                                  QualType retType, ObjCMethodDecl *mproto,
                                  SourceLocation LBrac, SourceLocation RBrac,
                                  Expr **ArgExprs, unsigned nargs)
-: Expr(ObjCMessageExprClass, retType), SelName(selInfo),
+: Expr(ObjCMessageExprClass, retType, false, false), SelName(selInfo),
 MethodProto(mproto) {
   NumArgs = nargs;
   SubExprs = new Stmt*[NumArgs+1];

@@ -106,6 +106,7 @@ public:
   void VisitConditionalOperator(const ConditionalOperator *CO);
   void VisitChooseExpr(const ChooseExpr *CE);
   void VisitInitListExpr(InitListExpr *E);
+  void VisitImplicitValueInitExpr(ImplicitValueInitExpr *E);
   void VisitCXXDefaultArgExpr(CXXDefaultArgExpr *DAE) {
     Visit(DAE->getExpr());
   }
@@ -271,6 +272,13 @@ void AggExprEmitter::VisitCallExpr(const CallExpr *E) {
     return;
   }
 
+  // If the struct doesn't require GC, we can just pass the destination
+  // directly to EmitCall.
+  if (!RequiresGCollection) {
+    CGF.EmitCallExpr(E, ReturnValueSlot(DestPtr, VolatileDest));
+    return;
+  }
+  
   RValue RV = CGF.EmitCallExpr(E);
   EmitFinalDestCopy(E, RV);
 }
@@ -388,12 +396,16 @@ void AggExprEmitter::VisitBinAssign(const BinaryOperator *E) {
 }
 
 void AggExprEmitter::VisitConditionalOperator(const ConditionalOperator *E) {
+  if (!E->getLHS()) {
+    CGF.ErrorUnsupported(E, "conditional operator with missing LHS");
+    return;
+  }
+
   llvm::BasicBlock *LHSBlock = CGF.createBasicBlock("cond.true");
   llvm::BasicBlock *RHSBlock = CGF.createBasicBlock("cond.false");
   llvm::BasicBlock *ContBlock = CGF.createBasicBlock("cond.end");
 
-  llvm::Value *Cond = CGF.EvaluateExprAsBool(E->getCond());
-  Builder.CreateCondBr(Cond, LHSBlock, RHSBlock);
+  CGF.EmitBranchOnBoolExpr(E->getCond(), LHSBlock, RHSBlock);
 
   CGF.StartConditionalBranch();
   CGF.EmitBlock(LHSBlock);
@@ -457,16 +469,45 @@ AggExprEmitter::VisitCXXConstructExpr(const CXXConstructExpr *E) {
     Val = CGF.CreateTempAlloca(CGF.ConvertTypeForMem(E->getType()), "tmp");
   }
 
+  if (E->requiresZeroInitialization())
+    EmitNullInitializationToLValue(LValue::MakeAddr(Val, 
+                                                    // FIXME: Qualifiers()?
+                                                 E->getType().getQualifiers()),
+                                   E->getType());
+
   CGF.EmitCXXConstructExpr(Val, E);
 }
 
 void AggExprEmitter::VisitCXXExprWithTemporaries(CXXExprWithTemporaries *E) {
-  CGF.EmitCXXExprWithTemporaries(E, DestPtr, VolatileDest, IsInitializer);
+  llvm::Value *Val = DestPtr;
+
+  if (!Val) {
+    // Create a temporary variable.
+    Val = CGF.CreateTempAlloca(CGF.ConvertTypeForMem(E->getType()), "tmp");
+  }
+  CGF.EmitCXXExprWithTemporaries(E, Val, VolatileDest, IsInitializer);
 }
 
 void AggExprEmitter::VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *E) {
-  LValue lvalue = LValue::MakeAddr(DestPtr, Qualifiers());
-  EmitNullInitializationToLValue(lvalue, E->getType());
+  llvm::Value *Val = DestPtr;
+
+  if (!Val) {
+    // Create a temporary variable.
+    Val = CGF.CreateTempAlloca(CGF.ConvertTypeForMem(E->getType()), "tmp");
+  }
+  LValue LV = LValue::MakeAddr(Val, Qualifiers());
+  EmitNullInitializationToLValue(LV, E->getType());
+}
+
+void AggExprEmitter::VisitImplicitValueInitExpr(ImplicitValueInitExpr *E) {
+  llvm::Value *Val = DestPtr;
+
+  if (!Val) {
+    // Create a temporary variable.
+    Val = CGF.CreateTempAlloca(CGF.ConvertTypeForMem(E->getType()), "tmp");
+  }
+  LValue LV = LValue::MakeAddr(Val, Qualifiers());
+  EmitNullInitializationToLValue(LV, E->getType());
 }
 
 void AggExprEmitter::EmitInitializationToLValue(Expr* E, LValue LV) {

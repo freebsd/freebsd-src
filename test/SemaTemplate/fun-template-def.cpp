@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 // Tests that dependent expressions are always allowed, whereas non-dependent
 // are checked as usual.
@@ -8,7 +8,7 @@
 // Fake typeid, lacking a typeinfo header.
 namespace std { class type_info {}; }
 
-struct dummy {};
+struct dummy {}; // expected-note 3 {{candidate function}}
 
 template<typename T>
 int f0(T x) {
@@ -39,9 +39,9 @@ T f1(T t1, U u1, int i1)
   new (t1, u1) int;
   delete t1;
 
-  dummy d1 = sizeof(t1); // FIXME: delayed checking okay?
-  dummy d2 = offsetof(T, foo); // expected-error {{cannot initialize 'd2'}}
-  dummy d3 = __alignof(u1); // FIXME: delayed checking okay?
+  dummy d1 = sizeof(t1); // expected-error {{no viable conversion}}
+  dummy d2 = offsetof(T, foo); // expected-error {{no viable conversion}}
+  dummy d3 = __alignof(u1); // expected-error {{no viable conversion}}
   i1 = typeid(t1); // expected-error {{incompatible type assigning}}
 
   return u1;

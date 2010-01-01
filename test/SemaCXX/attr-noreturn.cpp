@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 // PR5620
 void f0() __attribute__((__noreturn__));
@@ -27,4 +27,13 @@ void f3(noreturn_fp); // expected-note{{candidate function}}
 void test_f3() {
   f3(f0); // okay
   f3(f2); // expected-error{{no matching function for call}}
+}
+
+
+class xpto {
+  int blah() __attribute__((noreturn));
+};
+
+int xpto::blah() {
+  return 3; // expected-warning {{function 'blah' declared 'noreturn' should not return}}
 }

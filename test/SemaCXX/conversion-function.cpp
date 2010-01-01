@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 class X { 
 public:
   operator bool();
@@ -9,7 +9,7 @@ public:
   }
 
   float g() {
-    return operator float(); // expected-error{{no matching function for call to 'operator float'}}
+    return operator float(); // expected-error{{use of undeclared 'operator float'}}
   }
 };
 
@@ -56,14 +56,14 @@ public:
 
 // This used to crash Clang.
 struct Flip;
-struct Flop {
+struct Flop { // expected-note{{candidate function}}
   Flop();
-  Flop(const Flip&);
+  Flop(const Flip&); // expected-note{{candidate function}}
 };
 struct Flip {
-  operator Flop() const;
+  operator Flop() const; // expected-note{{candidate function}}
 };
-Flop flop = Flip(); // expected-error {{cannot initialize 'flop' with an rvalue of type 'struct Flip'}}
+Flop flop = Flip(); // expected-error {{conversion from 'struct Flip' to 'struct Flop' is ambiguous}}
 
 // This tests that we don't add the second conversion declaration to the list of user conversions
 struct C {
@@ -99,7 +99,7 @@ class AutoPtrRef { };
 class AutoPtr {
   // FIXME: Using 'unavailable' since we do not have access control yet.
   // FIXME: The error message isn't so good.
-  AutoPtr(AutoPtr &) __attribute__((unavailable));
+  AutoPtr(AutoPtr &) __attribute__((unavailable)); // expected-note{{explicitly marked}}
   
 public:
   AutoPtr();
@@ -115,9 +115,19 @@ AutoPtr test_auto_ptr(bool Cond) {
   
   AutoPtr p;
   if (Cond)
-    return p; // expected-error{{incompatible type returning}}
+    return p; // expected-error{{call to deleted constructor}}
   
   return AutoPtr();
 }
 
+struct A1 {
+  A1(const char *);
+  ~A1();
 
+private:
+  A1(const A1&) __attribute__((unavailable)); // expected-note{{here}}
+};
+
+A1 f() {
+  return "Hello"; // expected-error{{invokes deleted copy constructor}}
+}

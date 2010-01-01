@@ -1,5 +1,5 @@
-// RUN: clang -cc1 -triple i386-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s
-// RUN: clang -cc1 -triple x86_64-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -DTEST_64 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks %s
 
 typedef struct objc_selector *SEL;
 typedef signed char BOOL;
@@ -23,6 +23,13 @@ extern id NSAllocateObject(Class aClass, NSUInteger extraBytes, NSZone *zone);
 @end
 extern NSString * const NSConnectionReplyMode;
 
+#ifdef TEST_64
+typedef long long int64_t;
+typedef int64_t intptr_t;
+#else
+typedef int int32_t;
+typedef int32_t intptr_t;
+#endif
 
 //---------------------------------------------------------------------------
 // Test case 'checkaccess_union' differs for region store and basic store.
@@ -636,3 +643,44 @@ void rdar7468209() {
   }();
 }
 
+//===----------------------------------------------------------------------===//
+// PR 5857 - Test loading an integer from a byte array that has also been
+//  reinterpreted to be loaded as a field.
+//===----------------------------------------------------------------------===//
+
+typedef struct { int x; } TestFieldLoad;
+int pr5857(char *src) {
+  TestFieldLoad *tfl = (TestFieldLoad *) (intptr_t) src;
+  int y = tfl->x;
+  long long *z = (long long *) (intptr_t) src;
+  long long w = 0;
+  int n = 0;
+  for (n = 0; n < y; ++n) {
+    // Previously we crashed analyzing this statement.
+    w = *z++;
+  }
+  return 1;
+}
+
+//===----------------------------------------------------------------------===//
+// PR 4358 - Without field-sensitivity, this code previously triggered
+//  a false positive that 'uninit' could be uninitialized at the call
+//  to pr4358_aux().
+//===----------------------------------------------------------------------===//
+
+struct pr4358 {
+  int bar;
+  int baz;
+};
+void pr4358_aux(int x);
+void pr4358(struct pr4358 *pnt) {
+  int uninit;
+  if (pnt->bar < 3) {
+    uninit = 1;
+  } else if (pnt->baz > 2) {
+    uninit = 3;
+  } else if (pnt->baz <= 2) {
+    uninit = 2;
+  }
+  pr4358_aux(uninit); // no-warning
+}

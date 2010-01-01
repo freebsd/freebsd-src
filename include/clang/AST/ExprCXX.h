@@ -224,7 +224,7 @@ class CXXBoolLiteralExpr : public Expr {
   SourceLocation Loc;
 public:
   CXXBoolLiteralExpr(bool val, QualType Ty, SourceLocation l) :
-    Expr(CXXBoolLiteralExprClass, Ty), Value(val), Loc(l) {}
+    Expr(CXXBoolLiteralExprClass, Ty, false, false), Value(val), Loc(l) {}
 
   bool getValue() const { return Value; }
 
@@ -245,7 +245,7 @@ class CXXNullPtrLiteralExpr : public Expr {
   SourceLocation Loc;
 public:
   CXXNullPtrLiteralExpr(QualType Ty, SourceLocation l) :
-    Expr(CXXNullPtrLiteralExprClass, Ty), Loc(l) {}
+    Expr(CXXNullPtrLiteralExprClass, Ty, false, false), Loc(l) {}
 
   virtual SourceRange getSourceRange() const { return SourceRange(Loc); }
 
@@ -386,30 +386,70 @@ public:
 /// parameter's default argument, when the call did not explicitly
 /// supply arguments for all of the parameters.
 class CXXDefaultArgExpr : public Expr {
-  ParmVarDecl *Param;
+  /// \brief The parameter whose default is being used.
+  ///
+  /// When the bit is set, the subexpression is stored after the 
+  /// CXXDefaultArgExpr itself. When the bit is clear, the parameter's
+  /// actual default expression is the subexpression.
+  llvm::PointerIntPair<ParmVarDecl *, 1, bool> Param;
 
+  /// \brief The location where the default argument expression was used.
+  SourceLocation Loc;
+  
 protected:
-  CXXDefaultArgExpr(StmtClass SC, ParmVarDecl *param)
-    : Expr(SC, param->hasUnparsedDefaultArg() ?
-           param->getType().getNonReferenceType()
-           : param->getDefaultArg()->getType()),
-    Param(param) { }
+  CXXDefaultArgExpr(StmtClass SC, SourceLocation Loc, ParmVarDecl *param)
+    : Expr(SC, 
+           param->hasUnparsedDefaultArg()
+             ? param->getType().getNonReferenceType()
+             : param->getDefaultArg()->getType(),
+           false, false),
+      Param(param, false), Loc(Loc) { }
 
+  CXXDefaultArgExpr(StmtClass SC, SourceLocation Loc, ParmVarDecl *param, 
+                    Expr *SubExpr)
+    : Expr(SC, SubExpr->getType(), false, false), Param(param, true), Loc(Loc)
+  {
+    *reinterpret_cast<Expr **>(this + 1) = SubExpr;
+  }
+  
+protected:
+  virtual void DoDestroy(ASTContext &C);
+  
 public:
   // Param is the parameter whose default argument is used by this
   // expression.
-  static CXXDefaultArgExpr *Create(ASTContext &C, ParmVarDecl *Param) {
-    return new (C) CXXDefaultArgExpr(CXXDefaultArgExprClass, Param);
+  static CXXDefaultArgExpr *Create(ASTContext &C, SourceLocation Loc,
+                                   ParmVarDecl *Param) {
+    return new (C) CXXDefaultArgExpr(CXXDefaultArgExprClass, Loc, Param);
   }
 
+  // Param is the parameter whose default argument is used by this
+  // expression, and SubExpr is the expression that will actually be used.
+  static CXXDefaultArgExpr *Create(ASTContext &C, 
+                                   SourceLocation Loc,
+                                   ParmVarDecl *Param, 
+                                   Expr *SubExpr);
+  
   // Retrieve the parameter that the argument was created from.
-  const ParmVarDecl *getParam() const { return Param; }
-  ParmVarDecl *getParam() { return Param; }
+  const ParmVarDecl *getParam() const { return Param.getPointer(); }
+  ParmVarDecl *getParam() { return Param.getPointer(); }
 
   // Retrieve the actual argument to the function call.
-  const Expr *getExpr() const { return Param->getDefaultArg(); }
-  Expr *getExpr() { return Param->getDefaultArg(); }
+  const Expr *getExpr() const { 
+    if (Param.getInt())
+      return *reinterpret_cast<Expr const * const*> (this + 1);
+    return getParam()->getDefaultArg(); 
+  }
+  Expr *getExpr() { 
+    if (Param.getInt())
+      return *reinterpret_cast<Expr **> (this + 1);
+    return getParam()->getDefaultArg(); 
+  }
 
+  /// \brief Retrieve the location where this default argument was actually 
+  /// used.
+  SourceLocation getUsedLocation() const { return Loc; }
+  
   virtual SourceRange getSourceRange() const {
     // Default argument expressions have no representation in the
     // source, so they have an empty source range.
@@ -452,8 +492,8 @@ class CXXBindTemporaryExpr : public Expr {
   Stmt *SubExpr;
 
   CXXBindTemporaryExpr(CXXTemporary *temp, Expr* subexpr)
-   : Expr(CXXBindTemporaryExprClass,
-          subexpr->getType()), Temp(temp), SubExpr(subexpr) { }
+   : Expr(CXXBindTemporaryExprClass, subexpr->getType(), false, false),
+     Temp(temp), SubExpr(subexpr) { }
   ~CXXBindTemporaryExpr() { }
 
 protected:
@@ -489,15 +529,18 @@ public:
 class CXXConstructExpr : public Expr {
   CXXConstructorDecl *Constructor;
 
-  bool Elidable;
-
+  SourceLocation Loc;
+  bool Elidable : 1;
+  bool ZeroInitialization : 1;
   Stmt **Args;
   unsigned NumArgs;
 
 protected:
   CXXConstructExpr(ASTContext &C, StmtClass SC, QualType T,
+                   SourceLocation Loc,
                    CXXConstructorDecl *d, bool elidable,
-                   Expr **args, unsigned numargs);
+                   Expr **args, unsigned numargs,
+                   bool ZeroInitialization = false);
   ~CXXConstructExpr() { }
 
   virtual void DoDestroy(ASTContext &C);
@@ -508,16 +551,28 @@ public:
   CXXConstructExpr(EmptyShell Empty, ASTContext &C, unsigned numargs);
   
   static CXXConstructExpr *Create(ASTContext &C, QualType T,
+                                  SourceLocation Loc,
                                   CXXConstructorDecl *D, bool Elidable,
-                                  Expr **Args, unsigned NumArgs);
+                                  Expr **Args, unsigned NumArgs,
+                                  bool ZeroInitialization = false);
 
 
   CXXConstructorDecl* getConstructor() const { return Constructor; }
   void setConstructor(CXXConstructorDecl *C) { Constructor = C; }
   
+  SourceLocation getLocation() const { return Loc; }
+  void setLocation(SourceLocation Loc) { this->Loc = Loc; }
+  
   /// \brief Whether this construction is elidable.
   bool isElidable() const { return Elidable; }
   void setElidable(bool E) { Elidable = E; }
+  
+  /// \brief Whether this construction first requires
+  /// zero-initialization before the initializer is called.
+  bool requiresZeroInitialization() const { return ZeroInitialization; }
+  void setRequiresZeroInitialization(bool ZeroInit) {
+    ZeroInitialization = ZeroInit;
+  }
   
   typedef ExprIterator arg_iterator;
   typedef ConstExprIterator const_arg_iterator;
@@ -546,13 +601,7 @@ public:
     Args[Arg] = ArgExpr;
   }
 
-  virtual SourceRange getSourceRange() const { 
-    // FIXME: Should we know where the parentheses are, if there are any?
-    if (NumArgs == 0)
-      return SourceRange(); 
-    
-    return SourceRange(Args[0]->getLocStart(), Args[NumArgs - 1]->getLocEnd());
-  }
+  virtual SourceRange getSourceRange() const;
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXConstructExprClass ||
@@ -1264,10 +1313,8 @@ class CXXExprWithTemporaries : public Expr {
   CXXTemporary **Temps;
   unsigned NumTemps;
 
-  bool ShouldDestroyTemps;
-
   CXXExprWithTemporaries(Expr *SubExpr, CXXTemporary **Temps,
-                         unsigned NumTemps, bool ShouldDestroyTemps);
+                         unsigned NumTemps);
   ~CXXExprWithTemporaries();
 
 protected:
@@ -1275,8 +1322,8 @@ protected:
 
 public:
   static CXXExprWithTemporaries *Create(ASTContext &C, Expr *SubExpr,
-                                        CXXTemporary **Temps, unsigned NumTemps,
-                                        bool ShouldDestroyTemporaries);
+                                        CXXTemporary **Temps, 
+                                        unsigned NumTemps);
 
   unsigned getNumTemporaries() const { return NumTemps; }
   CXXTemporary *getTemporary(unsigned i) {
@@ -1284,13 +1331,8 @@ public:
     return Temps[i];
   }
   const CXXTemporary *getTemporary(unsigned i) const {
-    assert(i < NumTemps && "Index out of range");
-    return Temps[i];
+    return const_cast<CXXExprWithTemporaries*>(this)->getTemporary(i);
   }
-
-  bool shouldDestroyTemporaries() const { return ShouldDestroyTemps; }
-
-  void removeLastTemporary() { NumTemps--; }
 
   Expr *getSubExpr() { return cast<Expr>(SubExpr); }
   const Expr *getSubExpr() const { return cast<Expr>(SubExpr); }

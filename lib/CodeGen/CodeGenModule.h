@@ -212,24 +212,10 @@ public:
   llvm::Constant *GetAddrOfFunction(GlobalDecl GD,
                                     const llvm::Type *Ty = 0);
 
-  /// GetAddrOfRTTI - Get the address of the RTTI structure for the given type.
-  llvm::Constant *GetAddrOfRTTI(QualType Ty);
+  /// GetAddrOfRTTIDescriptor - Get the address of the RTTI descriptor 
+  /// for the given type.
+  llvm::Constant *GetAddrOfRTTIDescriptor(QualType Ty);
 
-  /// GetAddrOfRTTI - Get the address of the RTTI structure for the given record
-  /// decl.
-  llvm::Constant *GetAddrOfRTTI(const CXXRecordDecl *RD);
-
-  /// GenerateRTTI - Generate the rtti information for the given type.
-  llvm::Constant *GenerateRTTI(const CXXRecordDecl *RD);
-  
-  /// GenerateRTTIRef - Generate a reference to the rtti information for the
-  /// given type.
-  llvm::Constant *GenerateRTTIRef(const CXXRecordDecl *RD);
-  
-  /// GenerateRTTI - Generate the rtti information for the given
-  /// non-class type.
-  llvm::Constant *GenerateRTTI(QualType Ty);
-  
   llvm::Constant *GetAddrOfThunk(GlobalDecl GD,
                                  const ThunkAdjustment &ThisAdjustment);
   llvm::Constant *GetAddrOfCovariantThunk(GlobalDecl GD,
@@ -247,8 +233,8 @@ public:
                       const CovariantThunkAdjustment &Adjustment);
 
   typedef std::pair<const CXXRecordDecl *, uint64_t> CtorVtable_t;
-  typedef llvm::DenseMap<const CXXRecordDecl *,
-                         llvm::DenseMap<CtorVtable_t, int64_t>*> AddrMap_t;
+  typedef llvm::DenseMap<CtorVtable_t, int64_t> AddrSubMap_t;
+  typedef llvm::DenseMap<const CXXRecordDecl *, AddrSubMap_t *> AddrMap_t;
   llvm::DenseMap<const CXXRecordDecl *, AddrMap_t*> AddressPoints;
 
   /// GetCXXBaseClassOffset - Returns the offset from a derived class to its

@@ -125,8 +125,8 @@ private:
 
   void mangleTemplateArgs(const TemplateArgument *TemplateArgs,
                           unsigned NumTemplateArgs);
-  void mangleTemplateArgumentList(const TemplateArgumentList &L);
-  void mangleTemplateArgument(const TemplateArgument &A);
+  void mangleTemplateArgs(const TemplateArgumentList &L);
+  void mangleTemplateArg(const TemplateArgument &A);
 
   void mangleTemplateParameter(unsigned Index);
 };
@@ -321,7 +321,7 @@ void CXXNameMangler::mangleName(const NamedDecl *ND) {
     const TemplateArgumentList *TemplateArgs = 0;
     if (const TemplateDecl *TD = isTemplate(ND, TemplateArgs)) {
       mangleUnscopedTemplateName(TD);
-      mangleTemplateArgumentList(*TemplateArgs);
+      mangleTemplateArgs(*TemplateArgs);
       return;
     }
 
@@ -480,10 +480,17 @@ void CXXNameMangler::mangleUnqualifiedName(const NamedDecl *ND) {
     mangleType(Context.getASTContext().getCanonicalType(Name.getCXXNameType()));
     break;
 
-  case DeclarationName::CXXOperatorName:
-    mangleOperatorName(Name.getCXXOverloadedOperator(),
-                       cast<FunctionDecl>(ND)->getNumParams());
+  case DeclarationName::CXXOperatorName: {
+    unsigned Arity = cast<FunctionDecl>(ND)->getNumParams();
+    
+    // If we have a C++ member function, we need to include the 'this' pointer.
+    // FIXME: This does not make sense for operators that are static, but their
+    // names stay the same regardless of the arity (operator new for instance).
+    if (isa<CXXMethodDecl>(ND))
+      Arity++;
+    mangleOperatorName(Name.getCXXOverloadedOperator(), Arity);
     break;
+  }
 
   case DeclarationName::CXXLiteralOperatorName:
     // FIXME: This mangling is not yet official.
@@ -517,7 +524,7 @@ void CXXNameMangler::mangleNestedName(const NamedDecl *ND,
   const TemplateArgumentList *TemplateArgs = 0;
   if (const TemplateDecl *TD = isTemplate(ND, TemplateArgs)) {
     mangleTemplatePrefix(TD);
-    mangleTemplateArgumentList(*TemplateArgs);
+    mangleTemplateArgs(*TemplateArgs);
   } else {
     manglePrefix(DC);
     mangleUnqualifiedName(ND);
@@ -573,7 +580,7 @@ void CXXNameMangler::manglePrefix(const DeclContext *DC) {
   const TemplateArgumentList *TemplateArgs = 0;
   if (const TemplateDecl *TD = isTemplate(cast<NamedDecl>(DC), TemplateArgs)) {
     mangleTemplatePrefix(TD);
-    mangleTemplateArgumentList(*TemplateArgs);
+    mangleTemplateArgs(*TemplateArgs);
   } else {
     manglePrefix(DC->getParent());
     mangleUnqualifiedName(cast<NamedDecl>(DC));
@@ -611,16 +618,24 @@ CXXNameMangler::mangleOperatorName(OverloadedOperatorKind OO, unsigned Arity) {
   case OO_Array_Delete: Out << "da"; break;
   //              ::= ps        # + (unary)
   //              ::= pl        # +
-  case OO_Plus: Out << (Arity == 1? "ps" : "pl"); break;
+  case OO_Plus: 
+    assert((Arity == 1 || Arity == 2) && "Invalid arity!");
+    Out << (Arity == 1? "ps" : "pl"); break;
   //              ::= ng        # - (unary)
   //              ::= mi        # -
-  case OO_Minus: Out << (Arity == 1? "ng" : "mi"); break;
+  case OO_Minus: 
+    assert((Arity == 1 || Arity == 2) && "Invalid arity!");
+    Out << (Arity == 1? "ng" : "mi"); break;
   //              ::= ad        # & (unary)
   //              ::= an        # &
-  case OO_Amp: Out << (Arity == 1? "ad" : "an"); break;
+  case OO_Amp: 
+    assert((Arity == 1 || Arity == 2) && "Invalid arity!");
+    Out << (Arity == 1? "ad" : "an"); break;
   //              ::= de        # * (unary)
   //              ::= ml        # *
-  case OO_Star: Out << (Arity == 1? "de" : "ml"); break;
+  case OO_Star: 
+    assert((Arity == 1 || Arity == 2) && "Invalid arity!");
+    Out << (Arity == 1? "de" : "ml"); break;
   //              ::= co        # ~
   case OO_Tilde: Out << "co"; break;
   //              ::= dv        # /
@@ -975,11 +990,8 @@ void CXXNameMangler::mangleType(const ObjCInterfaceType *T) {
 }
 
 void CXXNameMangler::mangleType(const BlockPointerType *T) {
-  assert(false && "can't mangle block pointer types yet");
-}
-
-void CXXNameMangler::mangleType(const FixedWidthIntType *T) {
-  assert(false && "can't mangle arbitary-precision integer type yet");
+  Out << "U13block_pointer";
+  mangleType(T->getPointeeType());
 }
 
 void CXXNameMangler::mangleType(const TemplateSpecializationType *T) {
@@ -1078,6 +1090,16 @@ void CXXNameMangler::mangleExpression(const Expr *E) {
     break;
   }
 
+  case Expr::CXXOperatorCallExprClass: {
+    const CXXOperatorCallExpr *CE = cast<CXXOperatorCallExpr>(E);
+    unsigned NumArgs = CE->getNumArgs();
+    mangleOperatorName(CE->getOperator(), /*Arity=*/NumArgs);
+    // Mangle the arguments.
+    for (unsigned i = 0; i != NumArgs; ++i)
+      mangleExpression(CE->getArg(i));
+    break;
+  }
+      
   case Expr::ParenExprClass:
     mangleExpression(cast<ParenExpr>(E)->getSubExpr());
     break;
@@ -1161,11 +1183,11 @@ void CXXNameMangler::mangleCXXDtorType(CXXDtorType T) {
   }
 }
 
-void CXXNameMangler::mangleTemplateArgumentList(const TemplateArgumentList &L) {
+void CXXNameMangler::mangleTemplateArgs(const TemplateArgumentList &L) {
   // <template-args> ::= I <template-arg>+ E
   Out << "I";
   for (unsigned i = 0, e = L.size(); i != e; ++i)
-    mangleTemplateArgument(L[i]);
+    mangleTemplateArg(L[i]);
   Out << "E";
 }
 
@@ -1174,11 +1196,11 @@ void CXXNameMangler::mangleTemplateArgs(const TemplateArgument *TemplateArgs,
   // <template-args> ::= I <template-arg>+ E
   Out << "I";
   for (unsigned i = 0; i != NumTemplateArgs; ++i)
-    mangleTemplateArgument(TemplateArgs[i]);
+    mangleTemplateArg(TemplateArgs[i]);
   Out << "E";
 }
 
-void CXXNameMangler::mangleTemplateArgument(const TemplateArgument &A) {
+void CXXNameMangler::mangleTemplateArg(const TemplateArgument &A) {
   // <template-arg> ::= <type>              # type or template
   //                ::= X <expression> E    # expression
   //                ::= <expr-primary>      # simple expressions
@@ -1190,6 +1212,9 @@ void CXXNameMangler::mangleTemplateArgument(const TemplateArgument &A) {
   case TemplateArgument::Type:
     mangleType(A.getAsType());
     break;
+  case TemplateArgument::Template:
+    mangleName(A.getAsTemplate().getAsTemplateDecl());
+    break;      
   case TemplateArgument::Expression:
     Out << 'X';
     mangleExpression(A.getAsExpr());
@@ -1558,6 +1583,7 @@ void MangleContext::mangleCXXCtorVtable(const CXXRecordDecl *RD, int64_t Offset,
 void MangleContext::mangleCXXRTTI(QualType Ty,
                                   llvm::SmallVectorImpl<char> &Res) {
   // <special-name> ::= TI <type>  # typeinfo structure
+  assert(!Ty.hasQualifiers() && "RTTI info cannot have top-level qualifiers");
   CXXNameMangler Mangler(*this, Res);
   Mangler.getStream() << "_ZTI";
   Mangler.mangleType(Ty);

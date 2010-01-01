@@ -829,6 +829,39 @@ static void AddTypeSpecifierResults(const LangOptions &LangOpts, unsigned Rank,
   }
 }
 
+/// \brief If the given declaration has an associated type, add it as a result 
+/// type chunk.
+static void AddResultTypeChunk(ASTContext &Context,
+                               NamedDecl *ND,
+                               CodeCompletionString *Result) {
+  if (!ND)
+    return;
+  
+  // Determine the type of the declaration (if it has a type).
+  QualType T;
+  if (FunctionDecl *Function = dyn_cast<FunctionDecl>(ND))
+    T = Function->getResultType();
+  else if (ObjCMethodDecl *Method = dyn_cast<ObjCMethodDecl>(ND))
+    T = Method->getResultType();
+  else if (FunctionTemplateDecl *FunTmpl = dyn_cast<FunctionTemplateDecl>(ND))
+    T = FunTmpl->getTemplatedDecl()->getResultType();
+  else if (EnumConstantDecl *Enumerator = dyn_cast<EnumConstantDecl>(ND))
+    T = Context.getTypeDeclType(cast<TypeDecl>(Enumerator->getDeclContext()));
+  else if (isa<UnresolvedUsingValueDecl>(ND)) {
+    /* Do nothing: ignore unresolved using declarations*/
+  } else if (ValueDecl *Value = dyn_cast<ValueDecl>(ND))
+    T = Value->getType();
+  else if (ObjCPropertyDecl *Property = dyn_cast<ObjCPropertyDecl>(ND))
+    T = Property->getType();
+  
+  if (T.isNull() || Context.hasSameType(T, Context.DependentTy))
+    return;
+  
+  std::string TypeStr;
+  T.getAsStringInternal(TypeStr, Context.PrintingPolicy);
+  Result->AddResultTypeChunk(TypeStr);
+}
+
 /// \brief Add function parameter chunks to the given code completion string.
 static void AddFunctionParameterChunks(ASTContext &Context,
                                        FunctionDecl *Function,
@@ -1042,6 +1075,8 @@ CodeCompleteConsumer::Result::CreateCodeCompletionString(Sema &S) {
     return Result;
   }
   
+  AddResultTypeChunk(S.Context, ND, Result);
+  
   if (FunctionDecl *Function = dyn_cast<FunctionDecl>(ND)) {
     AddQualifierToCompletionString(Result, Qualifier, QualifierIsInformative, 
                                    S.Context);
@@ -1170,6 +1205,13 @@ CodeCompleteConsumer::Result::CreateCodeCompletionString(Sema &S) {
         Result->AddPlaceholderChunk(Arg);
     }
 
+    if (Method->isVariadic()) {
+      if (AllParametersAreInformative)
+        Result->AddInformativeChunk(", ...");
+      else
+        Result->AddPlaceholderChunk(", ...");
+    }
+    
     return Result;
   }
 
@@ -1189,6 +1231,7 @@ CodeCompleteConsumer::OverloadCandidate::CreateSignatureString(
   
   CodeCompletionString *Result = new CodeCompletionString;
   FunctionDecl *FDecl = getFunction();
+  AddResultTypeChunk(S.Context, FDecl, Result);
   const FunctionProtoType *Proto 
     = dyn_cast<FunctionProtoType>(getFunctionType());
   if (!FDecl && !Proto) {
@@ -1706,33 +1749,24 @@ void Sema::CodeCompleteCall(Scope *S, ExprTy *FnIn,
     CodeCompleteOrdinaryName(S);
     return;
   }
-  
-  llvm::SmallVector<NamedDecl*,8> Fns;
-  DeclarationName UnqualifiedName;
-  NestedNameSpecifier *Qualifier;
-  SourceRange QualifierRange;
-  bool ArgumentDependentLookup;
-  bool Overloaded;
-  bool HasExplicitTemplateArgs;
-  TemplateArgumentListInfo ExplicitTemplateArgs;
-  
-  DeconstructCallFunction(Fn, Fns, UnqualifiedName, Qualifier, QualifierRange,
-                          ArgumentDependentLookup, Overloaded,
-                          HasExplicitTemplateArgs, ExplicitTemplateArgs);
 
-  
+  // Build an overload candidate set based on the functions we find.
+  OverloadCandidateSet CandidateSet;
+
   // FIXME: What if we're calling something that isn't a function declaration?
   // FIXME: What if we're calling a pseudo-destructor?
   // FIXME: What if we're calling a member function?
   
-  // Build an overload candidate set based on the functions we find.
-  OverloadCandidateSet CandidateSet;
-  AddOverloadedCallCandidates(Fns, UnqualifiedName, 
-                              ArgumentDependentLookup,
-                       (HasExplicitTemplateArgs ? &ExplicitTemplateArgs : 0),
-                              Args, NumArgs,
-                              CandidateSet,
-                              /*PartialOverloading=*/true);
+  Expr *NakedFn = Fn->IgnoreParenCasts();
+  if (UnresolvedLookupExpr *ULE = dyn_cast<UnresolvedLookupExpr>(NakedFn))
+    AddOverloadedCallCandidates(ULE, Args, NumArgs, CandidateSet,
+                                /*PartialOverloading=*/ true);
+  else if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(NakedFn)) {
+    FunctionDecl *FDecl = dyn_cast<FunctionDecl>(DRE->getDecl());
+    if (FDecl)
+      AddOverloadCandidate(FDecl, Args, NumArgs, CandidateSet,
+                           false, false, /*PartialOverloading*/ true);
+  }
   
   // Sort the overload candidate set by placing the best overloads first.
   std::stable_sort(CandidateSet.begin(), CandidateSet.end(),
@@ -2419,7 +2453,6 @@ void Sema::CodeCompleteObjCInstanceMessage(Scope *S, ExprTy *Receiver,
   typedef CodeCompleteConsumer::Result Result;
   
   Expr *RecExpr = static_cast<Expr *>(Receiver);
-  QualType RecType = RecExpr->getType();
   
   // If necessary, apply function/array conversion to the receiver.
   // C99 6.7.5.3p[7,8].

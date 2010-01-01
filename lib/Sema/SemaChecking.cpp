@@ -747,6 +747,7 @@ bool Sema::SemaBuiltinEHReturnDataRegNo(CallExpr *TheCall) {
 /// SemaBuiltinObjectSize - Handle __builtin_object_size(void *ptr,
 /// int type). This simply type checks that type is one of the defined
 /// constants (0-3).
+// For compatability check 0-3, llvm only handles 0 and 2.
 bool Sema::SemaBuiltinObjectSize(CallExpr *TheCall) {
   Expr *Arg = TheCall->getArg(1);
   if (Arg->isTypeDependent())
@@ -800,7 +801,7 @@ bool Sema::SemaCheckStringLiteral(const Expr *E, const CallExpr *TheCall,
   switch (E->getStmtClass()) {
   case Stmt::ConditionalOperatorClass: {
     const ConditionalOperator *C = cast<ConditionalOperator>(E);
-    return SemaCheckStringLiteral(C->getLHS(), TheCall,
+    return SemaCheckStringLiteral(C->getTrueExpr(), TheCall,
                                   HasVAListArg, format_idx, firstDataArg)
         && SemaCheckStringLiteral(C->getRHS(), TheCall,
                                   HasVAListArg, format_idx, firstDataArg);

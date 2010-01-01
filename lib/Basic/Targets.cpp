@@ -323,11 +323,14 @@ protected:
     Define(Defs, "__PPU__", "1");
     Define(Defs, "__CELLOS_LV2__", "1");
     Define(Defs, "__ELF__", "1");
+    Define(Defs, "__LP32__", "1");
   }
 public:
   PS3PPUTargetInfo(const std::string& triple)
     : OSTargetInfo<Target>(triple) {
     this->UserLabelPrefix = "";
+    this->LongWidth = this->LongAlign = this->PointerWidth = this->PointerAlign = 32;
+    this->SizeType = TargetInfo::UnsignedInt;
   }
 };
 
@@ -625,7 +628,7 @@ const Builtin::Info BuiltinInfo[] = {
 #include "clang/Basic/BuiltinsX86.def"
 };
 
-const char *GCCRegNames[] = {
+static const char* const GCCRegNames[] = {
   "ax", "dx", "cx", "bx", "si", "di", "bp", "sp",
   "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)",
   "argp", "flags", "fspr", "dirflag", "frame",
@@ -685,7 +688,7 @@ public:
                                  bool Enabled) const;
   virtual void getDefaultFeatures(const std::string &CPU,
                                   llvm::StringMap<bool> &Features) const;
-  virtual void HandleTargetFeatures(const std::vector<std::string> &Features);
+  virtual void HandleTargetFeatures(std::vector<std::string> &Features);
 };
 
 void X86TargetInfo::getDefaultFeatures(const std::string &CPU,
@@ -802,8 +805,7 @@ bool X86TargetInfo::setFeatureEnabled(llvm::StringMap<bool> &Features,
 
 /// HandleTargetOptions - Perform initialization based on the user
 /// configured set of features.
-void
-X86TargetInfo::HandleTargetFeatures(const std::vector<std::string> &Features) {
+void X86TargetInfo::HandleTargetFeatures(std::vector<std::string> &Features) {
   // Remember the maximum enabled sselevel.
   for (unsigned i = 0, e = Features.size(); i !=e; ++i) {
     // Ignore disabled features.
@@ -993,8 +995,8 @@ public:
     WCharType = UnsignedShort;
     DoubleAlign = LongLongAlign = 64;
     DescriptionString = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
-                        "i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-"
-                        "a0:0:64-f80:32:32-n8:16:32";
+                        "i64:64:64-f32:32:32-f64:64:64-f80:128:128-v64:64:64-"
+                        "v128:128:128-a0:0:64-f80:32:32-n8:16:32";
   }
   virtual void getTargetDefines(const LangOptions &Opts,
                                 std::vector<char> &Defines) const {
@@ -1181,52 +1183,40 @@ public:
 
 namespace {
 class ARMTargetInfo : public TargetInfo {
-  enum {
-    Armv4t,
-    Armv5,
-    Armv6,
-    Armv7a,
-    XScale
-  } ArmArch;
+  // Possible FPU choices.
+  enum FPUMode {
+    NoFPU,
+    VFP2FPU,
+    VFP3FPU,
+    NeonFPU
+  };
 
-   static const TargetInfo::GCCRegAlias GCCRegAliases[];
-   static const char * const GCCRegNames[];
+  static bool FPUModeIsVFP(FPUMode Mode) {
+    return Mode >= VFP2FPU && Mode <= NeonFPU;
+  }
 
-  std::string ABI;
-  bool IsThumb;
+  static const TargetInfo::GCCRegAlias GCCRegAliases[];
+  static const char * const GCCRegNames[];
+
+  std::string ABI, CPU;
+
+  unsigned FPU : 3;
+
+  unsigned IsThumb : 1;
+
+  // Initialized via features.
+  unsigned SoftFloat : 1;
+  unsigned SoftFloatABI : 1;
 
 public:
   ARMTargetInfo(const std::string &TripleStr)
-    : TargetInfo(TripleStr), ABI("aapcs-linux"), IsThumb(false)
+    : TargetInfo(TripleStr), ABI("aapcs-linux"), CPU("arm1136j-s")
   {
-    llvm::Triple Triple(TripleStr);
-
     SizeType = UnsignedInt;
     PtrDiffType = SignedInt;
 
-    // FIXME: This shouldn't be done this way, we should use features to
-    // indicate the arch. See lib/Driver/Tools.cpp.
-    llvm::StringRef Version(""), Arch = Triple.getArchName();
-    if (Arch.startswith("arm"))
-      Version = Arch.substr(3);
-    else if (Arch.startswith("thumb"))
-      Version = Arch.substr(5);
-    if (Version == "v7")
-      ArmArch = Armv7a;
-    else if (Version.empty() || Version == "v6" || Version == "v6t2")
-      ArmArch = Armv6;
-    else if (Version == "v5")
-      ArmArch = Armv5;
-    else if (Version == "v4t")
-      ArmArch = Armv4t;
-    else if (Arch == "xscale" || Arch == "thumbv5e")
-      ArmArch = XScale;
-    else
-      ArmArch = Armv6;
-
-    if (Arch.startswith("thumb"))
-      IsThumb = true;
-
+    // FIXME: Should we just treat this as a feature?
+    IsThumb = getTriple().getArchName().startswith("thumb");
     if (IsThumb) {
       DescriptionString = ("e-p:32:32:32-i1:8:32-i8:8:32-i16:16:32-i32:32:32-"
                            "i64:64:64-f32:32:32-f64:64:64-"
@@ -1269,6 +1259,88 @@ public:
 
     return true;
   }
+
+  void getDefaultFeatures(const std::string &CPU,
+                          llvm::StringMap<bool> &Features) const {
+    // FIXME: This should not be here.
+    Features["vfp2"] = false;
+    Features["vfp3"] = false;
+    Features["neon"] = false;
+
+    if (CPU == "arm1136jf-s" || CPU == "arm1176jzf-s" || CPU == "mpcore")
+      Features["vfp2"] = true;
+    else if (CPU == "cortex-a8" || CPU == "cortex-a9")
+      Features["neon"] = true;
+  }
+  
+  virtual bool setFeatureEnabled(llvm::StringMap<bool> &Features,
+                                 const std::string &Name,
+                                 bool Enabled) const {
+    if (Name == "soft-float" || Name == "soft-float-abi") {
+      Features[Name] = Enabled;
+    } else if (Name == "vfp2" || Name == "vfp3" || Name == "neon") {
+      // These effectively are a single option, reset them when any is enabled.
+      if (Enabled)
+        Features["vfp2"] = Features["vfp3"] = Features["neon"] = false;
+      Features[Name] = Enabled;
+    } else
+      return false;
+
+    return true;
+  }
+
+  virtual void HandleTargetFeatures(std::vector<std::string> &Features) {
+    FPU = NoFPU;
+    SoftFloat = SoftFloatABI = false;
+    for (unsigned i = 0, e = Features.size(); i != e; ++i) {
+      if (Features[i] == "+soft-float")
+        SoftFloat = true;
+      else if (Features[i] == "+soft-float-abi")
+        SoftFloatABI = true;
+      else if (Features[i] == "+vfp2")
+        FPU = VFP2FPU;
+      else if (Features[i] == "+vfp3")
+        FPU = VFP3FPU;
+      else if (Features[i] == "+neon")
+        FPU = NeonFPU;
+    }
+
+    // Remove front-end specific options which the backend handles differently.
+    std::vector<std::string>::iterator it;
+    it = std::find(Features.begin(), Features.end(), "+soft-float");
+    if (it != Features.end())
+      Features.erase(it);
+    it = std::find(Features.begin(), Features.end(), "+soft-float-abi");
+    if (it != Features.end())
+      Features.erase(it);
+  }
+
+  static const char *getCPUDefineSuffix(llvm::StringRef Name) {
+    return llvm::StringSwitch<const char*>(Name)
+      .Cases("arm8", "arm810", "4")
+      .Cases("strongarm", "strongarm110", "strongarm1100", "strongarm1110", "4")
+      .Cases("arm7tdmi", "arm7tdmi-s", "arm710t", "arm720t", "arm9", "4T")
+      .Cases("arm9tdmi", "arm920", "arm920t", "arm922t", "arm940t", "4T")
+      .Case("ep9312", "4T")
+      .Cases("arm10tdmi", "arm1020t", "5T")
+      .Cases("arm9e", "arm946e-s", "arm966e-s", "arm968e-s", "5TE")
+      .Case("arm926ej-s", "5TEJ")
+      .Cases("arm10e", "arm1020e", "arm1022e", "5TE")
+      .Cases("xscale", "iwmmxt", "5TE")
+      .Case("arm1136j-s", "6J")
+      .Cases("arm1176jz-s", "arm1176jzf-s", "6ZK")
+      .Cases("arm1136jf-s", "mpcorenovfp", "mpcore", "6K")
+      .Cases("arm1156t2-s", "arm1156t2f-s", "6T2")
+      .Cases("cortex-a8", "cortex-a9", "7A")
+      .Default(0);
+  }
+  virtual bool setCPU(const std::string &Name) {
+    if (!getCPUDefineSuffix(Name))
+      return false;
+
+    CPU = Name;
+    return true;
+  }
   virtual void getTargetDefines(const LangOptions &Opts,
                                 std::vector<char> &Defs) const {
     // Target identification.
@@ -1276,46 +1348,55 @@ public:
     Define(Defs, "__arm__");
 
     // Target properties.
+    Define(Defs, "__ARMEL__");
     Define(Defs, "__LITTLE_ENDIAN__");
+    Define(Defs, "__REGISTER_PREFIX__", "");
+
+    llvm::StringRef CPUArch = getCPUDefineSuffix(CPU);
+    std::string ArchName = "__ARM_ARCH_";
+    ArchName += CPUArch;
+    ArchName += "__";
+    Define(Defs, ArchName);
 
     // Subtarget options.
-    //
-    // FIXME: Neither THUMB_INTERWORK nor SOFTFP is not being set correctly
-    // here.
-    if (ArmArch == Armv7a) {
-      Define(Defs, "__ARM_ARCH_7A__");
+
+    // FIXME: It's more complicated than this and we don't really support
+    // interworking.
+    if ('5' <= CPUArch[0] && CPUArch[0] <= '7')
       Define(Defs, "__THUMB_INTERWORK__");
-    } else if (ArmArch == Armv6) {
-      Define(Defs, "__ARM_ARCH_6K__");
-      Define(Defs, "__THUMB_INTERWORK__");
-    } else if (ArmArch == Armv5) {
-      Define(Defs, "__ARM_ARCH_5TEJ__");
-      Define(Defs, "__THUMB_INTERWORK__");
+
+    if (ABI == "aapcs" || ABI == "aapcs-linux")
+      Define(Defs, "__ARM_EABI__");
+
+    if (SoftFloat)
       Define(Defs, "__SOFTFP__");
-    } else if (ArmArch == Armv4t) {
-      Define(Defs, "__ARM_ARCH_4T__");
-      Define(Defs, "__SOFTFP__");
-    } else if (ArmArch == XScale) {
-      Define(Defs, "__ARM_ARCH_5TE__");
+
+    if (CPU == "xscale")
       Define(Defs, "__XSCALE__");
-      Define(Defs, "__SOFTFP__");
-    }
 
-    Define(Defs, "__ARMEL__");
-
+    bool IsThumb2 = IsThumb && (CPUArch == "6T2" || CPUArch.startswith("7"));
     if (IsThumb) {
       Define(Defs, "__THUMBEL__");
       Define(Defs, "__thumb__");
-      if (ArmArch == Armv7a)
+      if (IsThumb2)
         Define(Defs, "__thumb2__");
     }
 
     // Note, this is always on in gcc, even though it doesn't make sense.
     Define(Defs, "__APCS_32__");
-    // FIXME: This should be conditional on VFP instruction support.
-    Define(Defs, "__VFP_FP__");
 
-    Define(Defs, "__USING_SJLJ_EXCEPTIONS__");
+    if (FPUModeIsVFP((FPUMode) FPU))
+      Define(Defs, "__VFP_FP__");
+
+    // This only gets set when Neon instructions are actually available, unlike
+    // the VFP define, hence the soft float and arch check. This is subtly
+    // different from gcc, we follow the intent which was that it should be set
+    // when Neon instructions are actually available.
+    if (FPU == NeonFPU && !SoftFloat && IsThumb2)
+      Define(Defs, "__ARM_NEON__");
+
+    if (getTriple().getOS() == llvm::Triple::Darwin)
+      Define(Defs, "__USING_SJLJ_EXCEPTIONS__");
   }
   virtual void getTargetBuiltins(const Builtin::Info *&Records,
                                  unsigned &NumRecords) const {
@@ -1602,7 +1683,7 @@ namespace {
       IntPtrType = SignedShort;
       PtrDiffType = SignedInt;
       SigAtomicType = SignedLong;
-      DescriptionString = "e-p:16:8:8-i8:8:8-i16:8:8-i32:8:8-n8:16";
+      DescriptionString = "e-p:16:16:16-i8:8:8-i16:16:16-i32:16:32-n8:16";
    }
     virtual void getTargetDefines(const LangOptions &Opts,
                                  std::vector<char> &Defines) const {
@@ -2111,13 +2192,19 @@ static TargetInfo *AllocateTarget(const std::string &T) {
 /// CreateTargetInfo - Return the target info object for the specified target
 /// triple.
 TargetInfo *TargetInfo::CreateTargetInfo(Diagnostic &Diags,
-                                         const TargetOptions &Opts) {
+                                         TargetOptions &Opts) {
   llvm::Triple Triple(Opts.Triple);
 
   // Construct the target
   llvm::OwningPtr<TargetInfo> Target(AllocateTarget(Triple.str()));
   if (!Target) {
     Diags.Report(diag::err_target_unknown_triple) << Triple.str();
+    return 0;
+  }
+
+  // Set the target CPU if specified.
+  if (!Opts.CPU.empty() && !Target->setCPU(Opts.CPU)) {
+    Diags.Report(diag::err_target_unknown_cpu) << Opts.CPU;
     return 0;
   }
 
@@ -2149,11 +2236,11 @@ TargetInfo *TargetInfo::CreateTargetInfo(Diagnostic &Diags,
   //
   // FIXME: If we are completely confident that we have the right set, we only
   // need to pass the minuses.
-  std::vector<std::string> StrFeatures;
+  Opts.Features.clear();
   for (llvm::StringMap<bool>::const_iterator it = Features.begin(),
          ie = Features.end(); it != ie; ++it)
-    StrFeatures.push_back(std::string(it->second ? "+" : "-") + it->first());
-  Target->HandleTargetFeatures(StrFeatures);
+    Opts.Features.push_back(std::string(it->second ? "+" : "-") + it->first());
+  Target->HandleTargetFeatures(Opts.Features);
 
   return Target.take();
 }

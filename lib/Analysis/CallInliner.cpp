@@ -11,36 +11,46 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Analysis/PathSensitive/GRExprEngine.h"
-#include "clang/Analysis/PathSensitive/GRTransferFuncs.h"
+#include "clang/Analysis/PathSensitive/CheckerVisitor.h"
+#include "clang/Analysis/PathSensitive/GRState.h"
+#include "clang/Analysis/LocalCheckers.h"
 
 using namespace clang;
 
 namespace {
-  
-class CallInliner : public GRTransferFuncs {
-  ASTContext &Ctx;
+class CallInliner : public Checker {
 public:
-  CallInliner(ASTContext &ctx) : Ctx(ctx) {}
+  static void *getTag() {
+    static int x;
+    return &x;
+  }
 
-  void EvalCall(ExplodedNodeSet& Dst, GRExprEngine& Engine,
-                GRStmtNodeBuilder& Builder, CallExpr* CE, SVal L,
-                ExplodedNode* Pred);
-  
+  virtual bool EvalCallExpr(CheckerContext &C, const CallExpr *CE);
+  virtual void EvalEndPath(GREndPathNodeBuilder &B,void *tag,GRExprEngine &Eng);
 };
-
 }
 
-void CallInliner::EvalCall(ExplodedNodeSet& Dst, GRExprEngine& Engine,
-                           GRStmtNodeBuilder& Builder, CallExpr* CE, SVal L,
-                           ExplodedNode* Pred) {
-  FunctionDecl const *FD = L.getAsFunctionDecl();
-  if (!FD)
-    return; // GRExprEngine is responsible for the autotransition.
+void clang::RegisterCallInliner(GRExprEngine &Eng) {
+  Eng.registerCheck(new CallInliner());
+}
 
+bool CallInliner::EvalCallExpr(CheckerContext &C, const CallExpr *CE) {
+  const GRState *state = C.getState();
+  const Expr *Callee = CE->getCallee();
+  SVal L = state->getSVal(Callee);
+  
+  const FunctionDecl *FD = L.getAsFunctionDecl();
+  if (!FD)
+    return false;
+
+  if (!FD->isThisDeclarationADefinition())
+    return false;
+
+  GRStmtNodeBuilder &Builder = C.getNodeBuilder();
   // Make a new LocationContext.
-  StackFrameContext const *LocCtx =
-  Engine.getAnalysisManager().getStackFrame(FD, Pred->getLocationContext(), CE);
+  const StackFrameContext *LocCtx = C.getAnalysisManager().getStackFrame(FD, 
+                                   C.getPredecessor()->getLocationContext(), CE,
+                                   Builder.getBlock(), Builder.getIndex());
 
   CFGBlock const *Entry = &(LocCtx->getCFG()->getEntry());
 
@@ -54,22 +64,50 @@ void CallInliner::EvalCall(ExplodedNodeSet& Dst, GRExprEngine& Engine,
   // Construct an edge representing the starting location in the function.
   BlockEdge Loc(Entry, SuccB, LocCtx);
 
-  GRState const *state = Builder.GetState(Pred);  
-  state = Engine.getStoreManager().EnterStackFrame(state, LocCtx);
-
-  bool isNew;
-  ExplodedNode *SuccN = Engine.getGraph().getNode(Loc, state, &isNew);
-  SuccN->addPredecessor(Pred, Engine.getGraph());
-
-  Builder.Deferred.erase(Pred);
-
+  state = C.getStoreManager().EnterStackFrame(state, LocCtx);
   // This is a hack. We really should not use the GRStmtNodeBuilder.
+  bool isNew;
+  GRExprEngine &Eng = C.getEngine();
+  ExplodedNode *Pred = C.getPredecessor();
+  
+
+  ExplodedNode *SuccN = Eng.getGraph().getNode(Loc, state, &isNew);
+  SuccN->addPredecessor(Pred, Eng.getGraph());
+  C.getNodeBuilder().Deferred.erase(Pred);
+  
   if (isNew)
     Builder.getWorkList()->Enqueue(SuccN);
 
   Builder.HasGeneratedNode = true;
+
+  return true;
 }
-  
-GRTransferFuncs *clang::CreateCallInliner(ASTContext &ctx) {
-  return new CallInliner(ctx);
+
+void CallInliner::EvalEndPath(GREndPathNodeBuilder &B, void *tag,
+                              GRExprEngine &Eng) {
+  const GRState *state = B.getState();
+  ExplodedNode *Pred = B.getPredecessor();
+  const StackFrameContext *LocCtx = 
+                         cast<StackFrameContext>(Pred->getLocationContext());
+
+  const Stmt *CE = LocCtx->getCallSite();
+
+  // Check if this is the top level stack frame.
+  if (!LocCtx->getParent())
+    return;
+
+  PostStmt NodeLoc(CE, LocCtx->getParent());
+
+  bool isNew;
+  ExplodedNode *Succ = Eng.getGraph().getNode(NodeLoc, state, &isNew);
+  Succ->addPredecessor(Pred, Eng.getGraph());
+
+  // When creating the new work list unit, increment the statement index to
+  // point to the statement after the CallExpr.
+  if (isNew)
+    B.getWorkList().Enqueue(Succ, 
+                            *const_cast<CFGBlock*>(LocCtx->getCallSiteBlock()),
+                            LocCtx->getIndex() + 1);
+
+  B.HasGeneratedNode = true;
 }

@@ -145,6 +145,11 @@ Decl *TemplateDeclInstantiator::VisitTypedefDecl(TypedefDecl *D) {
   if (Invalid)
     Typedef->setInvalidDecl();
 
+  if (TypedefDecl *Prev = D->getPreviousDeclaration()) {
+    NamedDecl *InstPrev = SemaRef.FindInstantiatedDecl(Prev, TemplateArgs);
+    Typedef->setPreviousDeclaration(cast<TypedefDecl>(InstPrev));
+  }
+
   Owner->addDecl(Typedef);
 
   return Typedef;
@@ -396,7 +401,16 @@ Decl *TemplateDeclInstantiator::VisitFriendDecl(FriendDecl *D) {
     // FIXME: We have a problem here, because the nested call to Visit(ND)
     // will inject the thing that the friend references into the current
     // owner, which is wrong.
-    Decl *NewND = Visit(ND);
+    Decl *NewND;
+
+    // Hack to make this work almost well pending a rewrite.
+    if (ND->getDeclContext()->isRecord())
+      NewND = SemaRef.FindInstantiatedDecl(ND, TemplateArgs);
+    else if (D->wasSpecialization()) {
+      // Totally egregious hack to work around PR5866
+      return 0;
+    } else
+      NewND = Visit(ND);
     if (!NewND) return 0;
 
     FU = cast<NamedDecl>(NewND);
@@ -645,6 +659,12 @@ Decl *TemplateDeclInstantiator::VisitCXXRecordDecl(CXXRecordDecl *D) {
   CXXRecordDecl *PrevDecl = 0;
   if (D->isInjectedClassName())
     PrevDecl = cast<CXXRecordDecl>(Owner);
+  else if (D->getPreviousDeclaration()) {
+    NamedDecl *Prev = SemaRef.FindInstantiatedDecl(D->getPreviousDeclaration(),
+                                                   TemplateArgs);
+    if (!Prev) return 0;
+    PrevDecl = cast<CXXRecordDecl>(Prev);
+  }
 
   CXXRecordDecl *Record
     = CXXRecordDecl::Create(SemaRef.Context, D->getTagKind(), Owner,
@@ -675,7 +695,7 @@ Decl *TemplateDeclInstantiator::VisitCXXRecordDecl(CXXRecordDecl *D) {
 ///   1) instantiating function templates
 ///   2) substituting friend declarations
 /// FIXME: preserve function definitions in case #2
-  Decl *TemplateDeclInstantiator::VisitFunctionDecl(FunctionDecl *D,
+Decl *TemplateDeclInstantiator::VisitFunctionDecl(FunctionDecl *D,
                                        TemplateParameterList *TemplateParams) {
   // Check whether there is already a function template specialization for
   // this declaration.
@@ -1149,6 +1169,8 @@ Decl *TemplateDeclInstantiator::VisitUsingDecl(UsingDecl *D) {
   if (NewUD->isInvalidDecl())
     return NewUD;
 
+  bool isFunctionScope = Owner->isFunctionOrMethod();
+
   // Process the shadow decls.
   for (UsingDecl::shadow_iterator I = D->shadow_begin(), E = D->shadow_end();
          I != E; ++I) {
@@ -1164,6 +1186,9 @@ Decl *TemplateDeclInstantiator::VisitUsingDecl(UsingDecl *D) {
     UsingShadowDecl *InstShadow
       = SemaRef.BuildUsingShadowDecl(/*Scope*/ 0, NewUD, InstTarget);
     SemaRef.Context.setInstantiatedFromUsingShadowDecl(InstShadow, Shadow);
+
+    if (isFunctionScope)
+      SemaRef.CurrentInstantiationScope->InstantiatedLocal(Shadow, InstShadow);
   }
 
   return NewUD;

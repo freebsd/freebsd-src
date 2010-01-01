@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 struct C { };
 
@@ -14,7 +14,7 @@ template struct X0<void>; // expected-note{{instantiation}}
 // Explicitly instantiate a function template specialization
 template<typename T>
 void f0(T t) {
-  ++t; // expected-error{{cannot modify}}
+  ++t; // expected-error{{cannot increment}}
 }
 
 template void f0(int);
@@ -48,8 +48,8 @@ template void X1<int>::f<>(int&, int*); // expected-note{{instantiation}}
 
 // Explicitly instantiate members of a class template
 struct Incomplete; // expected-note{{forward declaration}}
-struct NonDefaultConstructible {
-  NonDefaultConstructible(int);
+struct NonDefaultConstructible { // expected-note{{candidate function}}
+  NonDefaultConstructible(int); // expected-note{{candidate function}}
 };
 
 template<typename T, typename U>
@@ -68,7 +68,7 @@ struct X2 {
 };
 
 template<typename T, typename U>
-T X2<T, U>::static_member1 = 17; // expected-error{{incompatible type}}
+T X2<T, U>::static_member1 = 17; // expected-error{{cannot initialize}}
 
 template<typename T, typename U>
 U X2<T, U>::static_member2; // expected-error{{no matching}}

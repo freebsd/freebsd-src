@@ -1,4 +1,4 @@
-// RUN: clang -cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 @interface I0 
 @property(readonly) int x;
@@ -80,6 +80,7 @@ static int g_val;
 }
 @end
 
+void abort(void);
 int main (void) {
     Subclass *x = [[Subclass alloc] init];
 

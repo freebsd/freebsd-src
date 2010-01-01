@@ -282,6 +282,18 @@ bool UnaryTypeTraitExpr::EvaluateTrait(ASTContext& C) const {
   }
 }
 
+SourceRange CXXConstructExpr::getSourceRange() const { 
+  // FIXME: Should we know where the parentheses are, if there are any?
+  for (std::reverse_iterator<Stmt**> I(&Args[NumArgs]), E(&Args[0]); I!=E;++I) {
+    // Ignore CXXDefaultExprs when computing the range, as they don't
+    // have a range.
+    if (!isa<CXXDefaultArgExpr>(*I))
+      return SourceRange(Loc, (*I)->getLocEnd());
+  }
+  
+  return SourceRange(Loc);
+}
+
 SourceRange CXXOperatorCallExpr::getSourceRange() const {
   OverloadedOperatorKind Kind = getOperator();
   if (Kind == OO_PlusPlus || Kind == OO_MinusMinus) {
@@ -340,6 +352,21 @@ const char *CXXNamedCastExpr::getCastName() const {
   }
 }
 
+CXXDefaultArgExpr *
+CXXDefaultArgExpr::Create(ASTContext &C, SourceLocation Loc, 
+                          ParmVarDecl *Param, Expr *SubExpr) {
+  void *Mem = C.Allocate(sizeof(CXXDefaultArgExpr) + sizeof(Stmt *));
+  return new (Mem) CXXDefaultArgExpr(CXXDefaultArgExprClass, Loc, Param, 
+                                     SubExpr);
+}
+
+void CXXDefaultArgExpr::DoDestroy(ASTContext &C) {
+  if (Param.getInt())
+    getExpr()->Destroy(C);
+  this->~CXXDefaultArgExpr();
+  C.Deallocate(this);
+}
+
 CXXTemporary *CXXTemporary::Create(ASTContext &C,
                                    const CXXDestructorDecl *Destructor) {
   return new (C) CXXTemporary(Destructor);
@@ -372,34 +399,40 @@ CXXTemporaryObjectExpr::CXXTemporaryObjectExpr(ASTContext &C,
                                                Expr **Args,
                                                unsigned NumArgs,
                                                SourceLocation rParenLoc)
-  : CXXConstructExpr(C, CXXTemporaryObjectExprClass, writtenTy, Cons,
-                     false, Args, NumArgs),
+  : CXXConstructExpr(C, CXXTemporaryObjectExprClass, writtenTy, tyBeginLoc,
+                     Cons, false, Args, NumArgs),
   TyBeginLoc(tyBeginLoc), RParenLoc(rParenLoc) {
 }
 
 CXXConstructExpr *CXXConstructExpr::Create(ASTContext &C, QualType T,
+                                           SourceLocation Loc,
                                            CXXConstructorDecl *D, bool Elidable,
-                                           Expr **Args, unsigned NumArgs) {
-  return new (C) CXXConstructExpr(C, CXXConstructExprClass, T, D, Elidable,
-                                  Args, NumArgs);
+                                           Expr **Args, unsigned NumArgs,
+                                           bool ZeroInitialization) {
+  return new (C) CXXConstructExpr(C, CXXConstructExprClass, T, Loc, D, 
+                                  Elidable, Args, NumArgs, ZeroInitialization);
 }
 
 CXXConstructExpr::CXXConstructExpr(ASTContext &C, StmtClass SC, QualType T,
+                                   SourceLocation Loc,
                                    CXXConstructorDecl *D, bool elidable,
-                                   Expr **args, unsigned numargs)
+                                   Expr **args, unsigned numargs,
+                                   bool ZeroInitialization)
 : Expr(SC, T,
        T->isDependentType(),
        (T->isDependentType() ||
         CallExpr::hasAnyValueDependentArguments(args, numargs))),
-  Constructor(D), Elidable(elidable), Args(0), NumArgs(numargs) {
-    if (NumArgs) {
-      Args = new (C) Stmt*[NumArgs];
-
-      for (unsigned i = 0; i != NumArgs; ++i) {
-        assert(args[i] && "NULL argument in CXXConstructExpr");
-        Args[i] = args[i];
-      }
+  Constructor(D), Loc(Loc), Elidable(elidable), 
+  ZeroInitialization(ZeroInitialization), Args(0), NumArgs(numargs) 
+{
+  if (NumArgs) {
+    Args = new (C) Stmt*[NumArgs];
+    
+    for (unsigned i = 0; i != NumArgs; ++i) {
+      assert(args[i] && "NULL argument in CXXConstructExpr");
+      Args[i] = args[i];
     }
+  }
 }
 
 CXXConstructExpr::CXXConstructExpr(EmptyShell Empty, ASTContext &C, 
@@ -420,12 +453,10 @@ void CXXConstructExpr::DoDestroy(ASTContext &C) {
 
 CXXExprWithTemporaries::CXXExprWithTemporaries(Expr *subexpr,
                                                CXXTemporary **temps,
-                                               unsigned numtemps,
-                                               bool shoulddestroytemps)
+                                               unsigned numtemps)
 : Expr(CXXExprWithTemporariesClass, subexpr->getType(),
        subexpr->isTypeDependent(), subexpr->isValueDependent()),
-  SubExpr(subexpr), Temps(0), NumTemps(numtemps),
-  ShouldDestroyTemps(shoulddestroytemps) {
+  SubExpr(subexpr), Temps(0), NumTemps(numtemps) {
   if (NumTemps > 0) {
     Temps = new CXXTemporary*[NumTemps];
     for (unsigned i = 0; i < NumTemps; ++i)
@@ -436,10 +467,8 @@ CXXExprWithTemporaries::CXXExprWithTemporaries(Expr *subexpr,
 CXXExprWithTemporaries *CXXExprWithTemporaries::Create(ASTContext &C,
                                                        Expr *SubExpr,
                                                        CXXTemporary **Temps,
-                                                       unsigned NumTemps,
-                                                       bool ShouldDestroyTemps){
-  return new (C) CXXExprWithTemporaries(SubExpr, Temps, NumTemps,
-                                        ShouldDestroyTemps);
+                                                       unsigned NumTemps) {
+  return new (C) CXXExprWithTemporaries(SubExpr, Temps, NumTemps);
 }
 
 void CXXExprWithTemporaries::DoDestroy(ASTContext &C) {

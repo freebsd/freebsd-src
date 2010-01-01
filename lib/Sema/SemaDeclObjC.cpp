@@ -1950,6 +1950,10 @@ Sema::DeclPtrTy Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
                     !(Attributes & ObjCDeclSpec::DQ_PR_retain) &&
                     !(Attributes & ObjCDeclSpec::DQ_PR_copy)));
   QualType T = GetTypeForDeclarator(FD.D, S);
+  if (T->isReferenceType()) {
+    Diag(AtLoc, diag::error_reference_property);
+    return DeclPtrTy();
+  }
   Decl *ClassDecl = ClassCategory.getAs<Decl>();
   ObjCInterfaceDecl *CCPrimary = 0; // continuation class's primary class
   // May modify Attributes.
@@ -2028,7 +2032,14 @@ Sema::DeclPtrTy Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
   ObjCPropertyDecl *PDecl = ObjCPropertyDecl::Create(Context, DC,
                                                      FD.D.getIdentifierLoc(),
                                                      FD.D.getIdentifier(), T);
-  DC->addDecl(PDecl);
+  DeclContext::lookup_result Found = DC->lookup(PDecl->getDeclName());
+  if (Found.first != Found.second && isa<ObjCPropertyDecl>(*Found.first)) {
+    Diag(PDecl->getLocation(), diag::err_duplicate_property);
+    Diag((*Found.first)->getLocation(), diag::note_property_declare);
+    PDecl->setInvalidDecl();
+  }
+  else
+    DC->addDecl(PDecl);
 
   if (T->isArrayType() || T->isFunctionType()) {
     Diag(AtLoc, diag::err_property_type) << T;

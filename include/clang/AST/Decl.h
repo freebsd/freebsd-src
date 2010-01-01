@@ -21,6 +21,7 @@
 #include "clang/AST/ExternalASTSource.h"
 
 namespace clang {
+class CXXTemporary;
 class Expr;
 class FunctionTemplateDecl;
 class Stmt;
@@ -84,12 +85,19 @@ public:
 class TranslationUnitDecl : public Decl, public DeclContext {
   ASTContext &Ctx;
 
+  /// The (most recently entered) anonymous namespace for this
+  /// translation unit, if one has been created.
+  NamespaceDecl *AnonymousNamespace;
+
   explicit TranslationUnitDecl(ASTContext &ctx)
     : Decl(TranslationUnit, 0, SourceLocation()),
       DeclContext(TranslationUnit),
-      Ctx(ctx) {}
+      Ctx(ctx), AnonymousNamespace(0) {}
 public:
   ASTContext &getASTContext() const { return Ctx; }
+
+  NamespaceDecl *getAnonymousNamespace() const { return AnonymousNamespace; }
+  void setAnonymousNamespace(NamespaceDecl *D) { AnonymousNamespace = D; }
 
   static TranslationUnitDecl *Create(ASTContext &C);
   // Implement isa/cast/dyncast/etc.
@@ -198,6 +206,20 @@ public:
   /// \brief Determine whether this declaration has linkage.
   bool hasLinkage() const;
 
+  /// \brief Determine whether this declaration is a C++ class member.
+  bool isCXXClassMember() const {
+    const DeclContext *DC = getDeclContext();
+
+    // C++0x [class.mem]p1:
+    //   The enumerators of an unscoped enumeration defined in
+    //   the class are members of the class.
+    // FIXME: support C++0x scoped enumerations.
+    if (isa<EnumDecl>(DC))
+      DC = DC->getParent();
+
+    return DC->isRecord();
+  }
+
   /// \brief Describes the different kinds of linkage 
   /// (C++ [basic.link], C99 6.2.2) that an entity may have.
   enum Linkage {
@@ -246,10 +268,15 @@ class NamespaceDecl : public NamedDecl, public DeclContext {
   // OrigNamespace of the first namespace decl points to itself.
   NamespaceDecl *OrigNamespace, *NextNamespace;
 
+  // The (most recently entered) anonymous namespace inside this
+  // namespace.
+  NamespaceDecl *AnonymousNamespace;
+
   NamespaceDecl(DeclContext *DC, SourceLocation L, IdentifierInfo *Id)
     : NamedDecl(Namespace, DC, L, Id), DeclContext(Namespace) {
     OrigNamespace = this;
     NextNamespace = 0;
+    AnonymousNamespace = 0;
   }
 public:
   static NamespaceDecl *Create(ASTContext &C, DeclContext *DC,
@@ -276,6 +303,16 @@ public:
     return OrigNamespace;
   }
   void setOriginalNamespace(NamespaceDecl *ND) { OrigNamespace = ND; }
+
+  NamespaceDecl *getAnonymousNamespace() const {
+    return AnonymousNamespace;
+  }
+
+  void setAnonymousNamespace(NamespaceDecl *D) {
+    assert(D->isAnonymousNamespace());
+    assert(D->getParent() == this);
+    AnonymousNamespace = D;
+  }
 
   virtual NamespaceDecl *getCanonicalDecl() { return OrigNamespace; }
   const NamespaceDecl *getCanonicalDecl() const { return OrigNamespace; }
@@ -769,14 +806,6 @@ class ParmVarDecl : public VarDecl {
   /// in, inout, etc.
   unsigned objcDeclQualifier : 6;
 
-  /// \brief Retrieves the fake "value" of an unparsed
-  static Expr *getUnparsedDefaultArgValue() {
-    uintptr_t Value = (uintptr_t)-1;
-    // Mask off the low bits
-    Value &= ~(uintptr_t)0x07;
-    return reinterpret_cast<Expr*> (Value);
-  }
-
 protected:
   ParmVarDecl(Kind DK, DeclContext *DC, SourceLocation L,
               IdentifierInfo *Id, QualType T, TypeSourceInfo *TInfo,
@@ -798,22 +827,21 @@ public:
     objcDeclQualifier = QTVal;
   }
 
+  Expr *getDefaultArg();
   const Expr *getDefaultArg() const {
-    assert(!hasUnparsedDefaultArg() && "Default argument is not yet parsed!");
-    assert(!hasUninstantiatedDefaultArg() &&
-           "Default argument is not yet instantiated!");
-    return getInit();
+    return const_cast<ParmVarDecl *>(this)->getDefaultArg();
   }
-  Expr *getDefaultArg() {
-    assert(!hasUnparsedDefaultArg() && "Default argument is not yet parsed!");
-    assert(!hasUninstantiatedDefaultArg() &&
-           "Default argument is not yet instantiated!");
-    return getInit();
-  }
+  
   void setDefaultArg(Expr *defarg) {
     Init = reinterpret_cast<Stmt *>(defarg);
   }
 
+  unsigned getNumDefaultArgTemporaries() const;
+  CXXTemporary *getDefaultArgTemporary(unsigned i);
+  const CXXTemporary *getDefaultArgTemporary(unsigned i) const {
+    return const_cast<ParmVarDecl *>(this)->getDefaultArgTemporary(i);
+  }
+  
   /// \brief Retrieve the source range that covers the entire default
   /// argument.
   SourceRange getDefaultArgRange() const;  
@@ -1152,7 +1180,7 @@ public:
   /// represents an C++ overloaded operator, e.g., "operator+".
   bool isOverloadedOperator() const {
     return getOverloadedOperator() != OO_None;
-  };
+  }
 
   OverloadedOperatorKind getOverloadedOperator() const;
 
@@ -1421,7 +1449,7 @@ public:
 };
 
 
-class TypedefDecl : public TypeDecl {
+class TypedefDecl : public TypeDecl, public Redeclarable<TypedefDecl> {
   /// UnderlyingType - This is the type the typedef is set to.
   TypeSourceInfo *TInfo;
 
@@ -1429,7 +1457,7 @@ class TypedefDecl : public TypeDecl {
               IdentifierInfo *Id, TypeSourceInfo *TInfo)
     : TypeDecl(Typedef, DC, L, Id), TInfo(TInfo) {}
 
-  virtual ~TypedefDecl() {}
+  virtual ~TypedefDecl();
 public:
 
   static TypedefDecl *Create(ASTContext &C, DeclContext *DC,
@@ -1438,6 +1466,14 @@ public:
 
   TypeSourceInfo *getTypeSourceInfo() const {
     return TInfo;
+  }
+
+  /// Retrieves the canonical declaration of this typedef.
+  TypedefDecl *getCanonicalDecl() {
+    return getFirstDeclaration();
+  }
+  const TypedefDecl *getCanonicalDecl() const {
+    return getFirstDeclaration();
   }
 
   QualType getUnderlyingType() const {

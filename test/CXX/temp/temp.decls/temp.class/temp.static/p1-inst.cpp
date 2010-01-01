@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 // Test instantiation of static data members declared out-of-line.
 
@@ -8,13 +8,13 @@ struct X {
 };
 
 template<typename T> 
-  T X<T>::value = 17; // expected-error{{initialize}}
+  T X<T>::value = 17; // expected-error{{no viable conversion}}
 
 struct InitOkay {
   InitOkay(int) { }
 };
 
-struct CannotInit { };
+struct CannotInit { }; // expected-note{{candidate function}}
 
 int &returnInt() { return X<int>::value; }
 float &returnFloat() { return X<float>::value; }

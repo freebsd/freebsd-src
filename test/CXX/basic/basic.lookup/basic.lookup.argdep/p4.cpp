@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 namespace A {
   class A {
@@ -32,7 +32,7 @@ namespace D {
 namespace Test {
   void test() {
     func(A::A());
-    func(B::B()); // expected-error {{ no matching function for call to 'func' }}
+    func(B::B()); // expected-error {{use of undeclared identifier 'func'}}
     func(C::C());
     A::A() + A::A();
     B::B() + B::B();

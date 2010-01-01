@@ -20,8 +20,8 @@ include "OptParser.td"
 
 def target_abi : Separate<"-target-abi">,
   HelpText<"Target a particular ABI type">;
-def mcpu : Separate<"-mcpu">,
-  HelpText<"Target a specific cpu type ('-mcpu help' for details)">;
+def target_cpu : Separate<"-target-cpu">,
+  HelpText<"Target a specific cpu type">;
 def target_feature : Separate<"-target-feature">,
   HelpText<"Target specific attributes">;
 def triple : Separate<"-triple">,
@@ -104,6 +104,8 @@ def disable_llvm_optzns : Flag<"-disable-llvm-optzns">,
   HelpText<"Don't run LLVM optimization passes">;
 def disable_red_zone : Flag<"-disable-red-zone">,
   HelpText<"Do not emit code that uses the red zone.">;
+def dwarf_debug_flags : Separate<"-dwarf-debug-flags">,
+  HelpText<"The string to embed in the Dwarf debug flags record.">;
 def g : Flag<"-g">, HelpText<"Generate source level debug information">;
 def fcatch_undefined_behavior : Flag<"-fcatch-undefined-behavior">,
     HelpText<"Generate runtime checks for undefined behavior.">;
@@ -282,8 +284,6 @@ def rewrite_objc : Flag<"-rewrite-objc">,
   HelpText<"Rewrite ObjC into C (code rewriter example)">;
 def rewrite_macros : Flag<"-rewrite-macros">,
   HelpText<"Expand macros without full preprocessing">;
-def rewrite_blocks : Flag<"-rewrite-blocks">,
-  HelpText<"Rewrite Blocks to C">;
 
 }
 
@@ -304,8 +304,12 @@ def faltivec : Flag<"-faltivec">,
   HelpText<"Enable AltiVec vector initializer syntax">;
 def faccess_control : Flag<"-faccess-control">,
   HelpText<"Enable C++ access control">;
+def fno_assume_sane_operator_new : Flag<"-fno-assume-sane-operator-new">,
+  HelpText<"Don't assume that C++'s global operator new can't alias any pointer">;
 def fdollars_in_identifiers : Flag<"-fdollars-in-identifiers">,
   HelpText<"Allow '$' in identifiers">;
+def fno_dollars_in_identifiers : Flag<"-fno-dollars-in-identifiers">,
+  HelpText<"Disallow '$' in identifiers">;
 def femit_all_decls : Flag<"-femit-all-decls">,
   HelpText<"Emit all declarations, even if unused">;
 def fblocks : Flag<"-fblocks">,

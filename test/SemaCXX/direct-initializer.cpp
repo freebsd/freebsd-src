@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -verify %s 
 
 int x(1);
 int (x2)(1);
@@ -20,19 +20,19 @@ public:
   X(float, Y); // expected-note{{candidate function}}
 };
 
-class Z {
+class Z { // expected-note{{candidate function}}
 public:
-  Z(int);
+  Z(int); // expected-note{{candidate function}}
 };
 
 void g() {
   X x1(5);
   X x2(1.0, 3, 4.2);
-  X x3(1.0, 1.0); // expected-error{{no matching constructor for initialization of 'x3'; candidates are:}}
+  X x3(1.0, 1.0); // expected-error{{no matching constructor for initialization of 'class X'}}
   Y y(1.0);
   X x4(3.14, y);
 
-  Z z; // expected-error{{no matching constructor for initialization of 'z'}}
+  Z z; // expected-error{{no matching constructor for initialization of 'class Z'}}
 }
 
 struct Base {
@@ -40,11 +40,11 @@ struct Base {
 };
 
 struct Derived : Base {
-   operator int*(); 
+   operator int*(); // expected-note {{candidate function}}
 };
 
 void foo(const Derived cd, Derived d) {
-        int *pi = cd;	// expected-error {{incompatible type initializing 'struct Derived const', expected 'int *'}}
+        int *pi = cd;	// expected-error {{no viable conversion from 'struct Derived const' to 'int *'}}
         int *ppi = d; 
 
 }

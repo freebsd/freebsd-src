@@ -122,6 +122,10 @@ static void CodeGenOptsToArgs(const CodeGenOptions &Opts,
     Res.push_back("-disable-llvm-optzns");
   if (Opts.DisableRedZone)
     Res.push_back("-disable-red-zone");
+  if (!Opts.DwarfDebugFlags.empty()) {
+    Res.push_back("-dwarf-debug-flags");
+    Res.push_back(Opts.DwarfDebugFlags);
+  }
   if (!Opts.MergeAllConstants)
     Res.push_back("-fno-merge-all-constants");
   if (Opts.NoCommon)
@@ -276,7 +280,6 @@ static const char *getActionName(frontend::ActionKind Kind) {
   case frontend::ParseSyntaxOnly:        return "-fsyntax-only";
   case frontend::PrintDeclContext:       return "-print-decl-contexts";
   case frontend::PrintPreprocessedInput: return "-E";
-  case frontend::RewriteBlocks:          return "-rewrite-blocks";
   case frontend::RewriteMacros:          return "-rewrite-macros";
   case frontend::RewriteObjC:            return "-rewrite-objc";
   case frontend::RewriteTest:            return "-rewrite-test";
@@ -440,7 +443,7 @@ static void LangOptsToArgs(const LangOptions &Opts,
   if (Opts.DollarIdents)
     Res.push_back("-fdollars-in-identifiers");
   if (Opts.Microsoft)
-    Res.push_back("-fms-extensions=1");
+    Res.push_back("-fms-extensions");
   if (Opts.ObjCNonFragileABI)
     Res.push_back("-fobjc-nonfragile-abi");
   // NoInline is implicit.
@@ -466,6 +469,8 @@ static void LangOptsToArgs(const LangOptions &Opts,
     Res.push_back("-ffreestanding");
   if (Opts.NoBuiltin)
     Res.push_back("-fno-builtin");
+  if (!Opts.AssumeSaneOperatorNew)
+    Res.push_back("-fno-assume-sane-operator-new");
   if (Opts.ThreadsafeStatics)
     llvm::llvm_report_error("FIXME: Not yet implemented!");
   if (Opts.POSIXThreads)
@@ -593,7 +598,7 @@ static void TargetOptsToArgs(const TargetOptions &Opts,
   Res.push_back("-triple");
   Res.push_back(Opts.Triple);
   if (!Opts.CPU.empty()) {
-    Res.push_back("-mcpu");
+    Res.push_back("-target-cpu");
     Res.push_back(Opts.CPU);
   }
   if (!Opts.ABI.empty()) {
@@ -747,6 +752,7 @@ static void ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
   Opts.DebugInfo = Args.hasArg(OPT_g);
   Opts.DisableLLVMOpts = Args.hasArg(OPT_disable_llvm_optzns);
   Opts.DisableRedZone = Args.hasArg(OPT_disable_red_zone);
+  Opts.DwarfDebugFlags = getLastArgValue(Args, OPT_dwarf_debug_flags);
   Opts.MergeAllConstants = !Args.hasArg(OPT_fno_merge_all_constants);
   Opts.NoCommon = Args.hasArg(OPT_fno_common);
   Opts.NoImplicitFloat = Args.hasArg(OPT_no_implicit_float);
@@ -851,8 +857,6 @@ ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args, Diagnostic &Diags) {
       Opts.ProgramAction = frontend::PrintDeclContext; break;
     case OPT_E:
       Opts.ProgramAction = frontend::PrintPreprocessedInput; break;
-    case OPT_rewrite_blocks:
-      Opts.ProgramAction = frontend::RewriteBlocks; break;
     case OPT_rewrite_macros:
       Opts.ProgramAction = frontend::RewriteMacros; break;
     case OPT_rewrite_objc:
@@ -1124,10 +1128,9 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args,
   if (Args.hasArg(OPT_trigraphs))
     Opts.Trigraphs = 1;
 
-  Opts.DollarIdents = !Opts.AsmPreprocessor;
-  if (Args.hasArg(OPT_fdollars_in_identifiers))
-    Opts.DollarIdents = 1;
-
+  Opts.DollarIdents = Args.hasFlag(OPT_fdollars_in_identifiers,
+                                   OPT_fno_dollars_in_identifiers,
+                                   !Opts.AsmPreprocessor);
   Opts.PascalStrings = Args.hasArg(OPT_fpascal_strings);
   Opts.Microsoft = Args.hasArg(OPT_fms_extensions);
   Opts.WritableStrings = Args.hasArg(OPT_fwritable_strings);
@@ -1140,6 +1143,7 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args,
   Opts.ShortWChar = Args.hasArg(OPT_fshort_wchar);
   Opts.Freestanding = Args.hasArg(OPT_ffreestanding);
   Opts.NoBuiltin = Args.hasArg(OPT_fno_builtin) || Opts.Freestanding;
+  Opts.AssumeSaneOperatorNew = !Args.hasArg(OPT_fno_assume_sane_operator_new);
   Opts.HeinousExtensions = Args.hasArg(OPT_fheinous_gnu_extensions);
   Opts.AccessControl = Args.hasArg(OPT_faccess_control);
   Opts.ElideConstructors = !Args.hasArg(OPT_fno_elide_constructors);
@@ -1245,7 +1249,7 @@ static void ParsePreprocessorOutputArgs(PreprocessorOutputOptions &Opts,
 static void ParseTargetArgs(TargetOptions &Opts, ArgList &Args) {
   using namespace cc1options;
   Opts.ABI = getLastArgValue(Args, OPT_target_abi);
-  Opts.CPU = getLastArgValue(Args, OPT_mcpu);
+  Opts.CPU = getLastArgValue(Args, OPT_target_cpu);
   Opts.Triple = getLastArgValue(Args, OPT_triple);
   Opts.Features = getAllArgValues(Args, OPT_target_feature);
 

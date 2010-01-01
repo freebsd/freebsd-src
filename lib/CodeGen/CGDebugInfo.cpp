@@ -123,8 +123,6 @@ llvm::DICompileUnit CGDebugInfo::getOrCreateCompileUnit(SourceLocation Loc) {
     CLANG_VENDOR
 #endif
     "clang " CLANG_VERSION_STRING;
-  bool isOptimized = LO.Optimize;
-  const char *Flags = "";   // FIXME: Encode command line options.
 
   // Figure out which version of the ObjC runtime we have.
   unsigned RuntimeVers = 0;
@@ -132,11 +130,9 @@ llvm::DICompileUnit CGDebugInfo::getOrCreateCompileUnit(SourceLocation Loc) {
     RuntimeVers = LO.ObjCNonFragileABI ? 2 : 1;
 
   // Create new compile unit.
-  return Unit = DebugFactory.CreateCompileUnit(LangTag, 
-                                               AbsFileName.getLast(),
-                                               AbsFileName.getDirname(),
-                                               Producer, isMain,
-                                               isOptimized, Flags, RuntimeVers);
+  return Unit = DebugFactory.CreateCompileUnit(
+    LangTag, AbsFileName.getLast(), AbsFileName.getDirname(), Producer, isMain,
+    LO.Optimize, CGM.getCodeGenOpts().DwarfDebugFlags, RuntimeVers);
 }
 
 /// CreateType - Get the Basic type from the cache or create a new
@@ -834,27 +830,43 @@ llvm::DIType CGDebugInfo::CreateType(const MemberPointerType *Ty,
                                           0, 0, 0, llvm::DIType(), Elements);
 }
 
-static QualType CanonicalizeTypeForDebugInfo(QualType T) {
-  switch (T->getTypeClass()) {
-  default:
-    return T;
-  case Type::TemplateSpecialization:
-    return cast<TemplateSpecializationType>(T)->desugar();
-  case Type::TypeOfExpr: {
-    TypeOfExprType *Ty = cast<TypeOfExprType>(T);
-    return CanonicalizeTypeForDebugInfo(Ty->getUnderlyingExpr()->getType());
-  }
-  case Type::TypeOf:
-    return cast<TypeOfType>(T)->getUnderlyingType();
-  case Type::Decltype:
-    return cast<DecltypeType>(T)->getUnderlyingType();
-  case Type::QualifiedName:
-    return cast<QualifiedNameType>(T)->getNamedType();
-  case Type::SubstTemplateTypeParm:
-    return cast<SubstTemplateTypeParmType>(T)->getReplacementType();
-  case Type::Elaborated:
-    return cast<ElaboratedType>(T)->getUnderlyingType();
-  }
+static QualType UnwrapTypeForDebugInfo(QualType T) {
+  do {
+    QualType LastT = T;
+    switch (T->getTypeClass()) {
+    default:
+      return T;
+    case Type::TemplateSpecialization:
+      T = cast<TemplateSpecializationType>(T)->desugar();
+      break;
+    case Type::TypeOfExpr: {
+      TypeOfExprType *Ty = cast<TypeOfExprType>(T);
+      T = Ty->getUnderlyingExpr()->getType();
+      break;
+    }
+    case Type::TypeOf:
+      T = cast<TypeOfType>(T)->getUnderlyingType();
+      break;
+    case Type::Decltype:
+      T = cast<DecltypeType>(T)->getUnderlyingType();
+      break;
+    case Type::QualifiedName:
+      T = cast<QualifiedNameType>(T)->getNamedType();
+      break;
+    case Type::SubstTemplateTypeParm:
+      T = cast<SubstTemplateTypeParmType>(T)->getReplacementType();
+      break;
+    case Type::Elaborated:
+      T = cast<ElaboratedType>(T)->getUnderlyingType();
+      break;
+    }
+    
+    assert(T != LastT && "Type unwrapping failed to unwrap!");
+    if (T == LastT)
+      return T;
+  } while (true);
+  
+  return T;
 }
 
 /// getOrCreateType - Get the type from the cache or create a new
@@ -864,8 +876,8 @@ llvm::DIType CGDebugInfo::getOrCreateType(QualType Ty,
   if (Ty.isNull())
     return llvm::DIType();
 
-  // Canonicalize the type.
-  Ty = CanonicalizeTypeForDebugInfo(Ty);
+  // Unwrap the type as needed for debug information.
+  Ty = UnwrapTypeForDebugInfo(Ty);
   
   // Check for existing entry.
   std::map<void *, llvm::WeakVH>::iterator it =
@@ -891,6 +903,8 @@ llvm::DIType CGDebugInfo::CreateTypeNode(QualType Ty,
   if (Ty.hasLocalQualifiers())
     return CreateQualifiedType(Ty, Unit);
 
+  const char *Diag = 0;
+  
   // Work out details of type.
   switch (Ty->getTypeClass()) {
 #define TYPE(Class, Base)
@@ -903,11 +917,8 @@ llvm::DIType CGDebugInfo::CreateTypeNode(QualType Ty,
   // FIXME: Handle these.
   case Type::ExtVector:
   case Type::Vector:
-  case Type::FixedWidthInt:
     return llvm::DIType();
-  default:
-    assert(false && "Unhandled type class!");
-    return llvm::DIType();
+      
   case Type::ObjCObjectPointer:
     return CreateType(cast<ObjCObjectPointerType>(Ty), Unit);
   case Type::ObjCInterface:
@@ -934,7 +945,29 @@ llvm::DIType CGDebugInfo::CreateTypeNode(QualType Ty,
 
   case Type::MemberPointer:
     return CreateType(cast<MemberPointerType>(Ty), Unit);
+
+  case Type::TemplateSpecialization:
+  case Type::Elaborated:
+  case Type::QualifiedName:
+  case Type::SubstTemplateTypeParm:
+  case Type::TypeOfExpr:
+  case Type::TypeOf:
+  case Type::Decltype:
+    llvm_unreachable("type should have been unwrapped!");
+    return llvm::DIType();
+      
+  case Type::RValueReference:
+    // FIXME: Implement!
+    Diag = "rvalue references";
+    break;
   }
+  
+  assert(Diag && "Fall through without a diagnostic?");
+  unsigned DiagID = CGM.getDiags().getCustomDiagID(Diagnostic::Error,
+                               "debug information for %0 is not yet supported");
+  CGM.getDiags().Report(FullSourceLoc(), DiagID)
+    << Diag;
+  return llvm::DIType();
 }
 
 /// EmitFunctionStart - Constructs the debug code for entering a function -
@@ -1067,7 +1100,7 @@ void CGDebugInfo::EmitDeclare(const VarDecl *Decl, unsigned Tag,
     EltTys.push_back(FieldTy);
     FieldOffset += FieldSize;
 
-    FType = CGM.getContext().getFixedWidthIntType(32, true); // Int32Ty;
+    FType = CGM.getContext().IntTy;
     FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
     FieldSize = CGM.getContext().getTypeSize(FType);
     FieldAlign = CGM.getContext().getTypeAlign(FType);
@@ -1078,7 +1111,7 @@ void CGDebugInfo::EmitDeclare(const VarDecl *Decl, unsigned Tag,
     EltTys.push_back(FieldTy);
     FieldOffset += FieldSize;
 
-    FType = CGM.getContext().getFixedWidthIntType(32, true); // Int32Ty;
+    FType = CGM.getContext().IntTy;
     FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
     FieldSize = CGM.getContext().getTypeSize(FType);
     FieldAlign = CGM.getContext().getTypeAlign(FType);
@@ -1182,9 +1215,9 @@ void CGDebugInfo::EmitDeclare(const VarDecl *Decl, unsigned Tag,
 
   llvm::DIScope DS(RegionStack.back());
   llvm::DILocation DO(NULL);
-  llvm::DILocation DL = 
-    DebugFactory.CreateLocation(Line, Column, DS, DO);
-  Builder.SetDebugLocation(Call, DL.getNode());
+  llvm::DILocation DL = DebugFactory.CreateLocation(Line, Column, DS, DO);
+  
+  Call->setMetadata("dbg", DL.getNode());
 }
 
 /// EmitDeclare - Emit local variable declaration debug info.
@@ -1244,7 +1277,7 @@ void CGDebugInfo::EmitDeclare(const BlockDeclRefExpr *BDRE, unsigned Tag,
     EltTys.push_back(FieldTy);
     FieldOffset += FieldSize;
 
-    FType = CGM.getContext().getFixedWidthIntType(32, true); // Int32Ty;
+    FType = CGM.getContext().IntTy;
     FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
     FieldSize = CGM.getContext().getTypeSize(FType);
     FieldAlign = CGM.getContext().getTypeAlign(FType);
@@ -1255,7 +1288,7 @@ void CGDebugInfo::EmitDeclare(const BlockDeclRefExpr *BDRE, unsigned Tag,
     EltTys.push_back(FieldTy);
     FieldOffset += FieldSize;
 
-    FType = CGM.getContext().getFixedWidthIntType(32, true); // Int32Ty;
+    FType = CGM.getContext().IntTy;
     FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
     FieldSize = CGM.getContext().getTypeSize(FType);
     FieldAlign = CGM.getContext().getTypeAlign(FType);
@@ -1385,7 +1418,8 @@ void CGDebugInfo::EmitDeclare(const BlockDeclRefExpr *BDRE, unsigned Tag,
   llvm::DILocation DO(NULL);
   llvm::DILocation DL = 
     DebugFactory.CreateLocation(Line, PLoc.getColumn(), DS, DO);
-  Builder.SetDebugLocation(Call, DL.getNode());
+  
+  Call->setMetadata("dbg", DL.getNode());
 }
 
 void CGDebugInfo::EmitDeclareOfAutoVariable(const VarDecl *Decl,

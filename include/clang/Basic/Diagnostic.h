@@ -45,7 +45,7 @@ namespace clang {
       DIAG_START_PARSE    = DIAG_START_LEX      +  300,
       DIAG_START_AST      = DIAG_START_PARSE    +  300,
       DIAG_START_SEMA     = DIAG_START_AST      +  100,
-      DIAG_START_ANALYSIS = DIAG_START_SEMA     + 1100,
+      DIAG_START_ANALYSIS = DIAG_START_SEMA     + 1500,
       DIAG_UPPER_LIMIT    = DIAG_START_ANALYSIS +  100
     };
 
@@ -76,7 +76,10 @@ namespace clang {
 
       /// Map this diagnostic to "warning", but make it immune to -Werror.  This
       /// happens when you specify -Wno-error=foo.
-      MAP_WARNING_NO_WERROR = 5
+      MAP_WARNING_NO_WERROR = 5,
+      /// Map this diagnostic to "error", but make it immune to -Wfatal-errors.
+      /// This happens for -Wno-fatal-errors=foo.
+      MAP_ERROR_NO_WFATAL = 6
     };
   }
 
@@ -178,6 +181,7 @@ private:
   unsigned char AllExtensionsSilenced; // Used by __extension__
   bool IgnoreAllWarnings;        // Ignore all warnings: -w
   bool WarningsAsErrors;         // Treat warnings like errors:
+  bool ErrorsAsFatal;            // Treat errors like fatal errors.
   bool SuppressSystemWarnings;   // Suppress warnings in system headers.
   bool SuppressAllDiagnostics;   // Suppress all diagnostics.
   ExtensionHandling ExtBehavior; // Map extensions onto warnings or errors?
@@ -259,6 +263,11 @@ public:
   /// as errors.
   void setWarningsAsErrors(bool Val) { WarningsAsErrors = Val; }
   bool getWarningsAsErrors() const { return WarningsAsErrors; }
+
+  /// setErrorsAsFatal - When set to true, any error reported is made a
+  /// fatal error.
+  void setErrorsAsFatal(bool Val) { ErrorsAsFatal = Val; }
+  bool getErrorsAsFatal() const { return ErrorsAsFatal; }
 
   /// setSuppressSystemWarnings - When set to true mask warnings that
   /// come from system headers.

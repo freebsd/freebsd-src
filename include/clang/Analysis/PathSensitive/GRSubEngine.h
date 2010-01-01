@@ -17,6 +17,7 @@ namespace clang {
 
 class Stmt;
 class CFGBlock;
+class CFGElement;
 class GRState;
 class GRStateManager;
 class GRBlockCounter;
@@ -37,7 +38,7 @@ public:
 
   /// ProcessStmt - Called by GRCoreEngine. Used to generate new successor
   ///  nodes by processing the 'effects' of a block-level statement.
-  virtual void ProcessStmt(Stmt* S, GRStmtNodeBuilder& builder) = 0;
+  virtual void ProcessStmt(CFGElement E, GRStmtNodeBuilder& builder) = 0;
 
   /// ProcessBlockEntrance - Called by GRCoreEngine when start processing
   ///  a CFGBlock.  This method returns true if the analysis should continue

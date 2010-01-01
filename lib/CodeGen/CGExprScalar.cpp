@@ -69,6 +69,7 @@ public:
 
   const llvm::Type *ConvertType(QualType T) { return CGF.ConvertType(T); }
   LValue EmitLValue(const Expr *E) { return CGF.EmitLValue(E); }
+  LValue EmitCheckedLValue(const Expr *E) { return CGF.EmitCheckedLValue(E); }
 
   Value *EmitLoadOfLValue(LValue LV, QualType T) {
     return CGF.EmitLoadOfLValue(LV, T).getScalarVal();
@@ -78,7 +79,7 @@ public:
   /// value l-value, this method emits the address of the l-value, then loads
   /// and returns the result.
   Value *EmitLoadOfLValue(const Expr *E) {
-    return EmitLoadOfLValue(EmitLValue(E), E->getType());
+    return EmitLoadOfLValue(EmitCheckedLValue(E), E->getType());
   }
 
   /// EmitConversionToBool - Convert the specified expression value to a
@@ -327,16 +328,16 @@ public:
   Value *VisitBin ## OP ## Assign(const CompoundAssignOperator *E) {       \
     return EmitCompoundAssign(E, &ScalarExprEmitter::Emit ## OP);          \
   }
-  HANDLEBINOP(Mul);
-  HANDLEBINOP(Div);
-  HANDLEBINOP(Rem);
-  HANDLEBINOP(Add);
-  HANDLEBINOP(Sub);
-  HANDLEBINOP(Shl);
-  HANDLEBINOP(Shr);
-  HANDLEBINOP(And);
-  HANDLEBINOP(Xor);
-  HANDLEBINOP(Or);
+  HANDLEBINOP(Mul)
+  HANDLEBINOP(Div)
+  HANDLEBINOP(Rem)
+  HANDLEBINOP(Add)
+  HANDLEBINOP(Sub)
+  HANDLEBINOP(Shl)
+  HANDLEBINOP(Shr)
+  HANDLEBINOP(And)
+  HANDLEBINOP(Xor)
+  HANDLEBINOP(Or)
 #undef HANDLEBINOP
 
   // Comparisons.
@@ -346,12 +347,12 @@ public:
     Value *VisitBin##CODE(const BinaryOperator *E) { \
       return EmitCompare(E, llvm::ICmpInst::UI, llvm::ICmpInst::SI, \
                          llvm::FCmpInst::FP); }
-  VISITCOMP(LT, ICMP_ULT, ICMP_SLT, FCMP_OLT);
-  VISITCOMP(GT, ICMP_UGT, ICMP_SGT, FCMP_OGT);
-  VISITCOMP(LE, ICMP_ULE, ICMP_SLE, FCMP_OLE);
-  VISITCOMP(GE, ICMP_UGE, ICMP_SGE, FCMP_OGE);
-  VISITCOMP(EQ, ICMP_EQ , ICMP_EQ , FCMP_OEQ);
-  VISITCOMP(NE, ICMP_NE , ICMP_NE , FCMP_UNE);
+  VISITCOMP(LT, ICMP_ULT, ICMP_SLT, FCMP_OLT)
+  VISITCOMP(GT, ICMP_UGT, ICMP_SGT, FCMP_OGT)
+  VISITCOMP(LE, ICMP_ULE, ICMP_SLE, FCMP_OLE)
+  VISITCOMP(GE, ICMP_UGE, ICMP_SGE, FCMP_OGE)
+  VISITCOMP(EQ, ICMP_EQ , ICMP_EQ , FCMP_OEQ)
+  VISITCOMP(NE, ICMP_NE , ICMP_NE , FCMP_UNE)
 #undef VISITCOMP
 
   Value *VisitBinAssign     (const BinaryOperator *E);
@@ -815,6 +816,7 @@ Value *ScalarExprEmitter::EmitCastExpr(CastExpr *CE) {
     return Builder.CreateBitCast(Src, ConvertType(DestTy));
   }
   case CastExpr::CK_NoOp:
+  case CastExpr::CK_UserDefinedConversion:
     return Visit(const_cast<Expr*>(E));
 
   case CastExpr::CK_BaseToDerived: {
@@ -902,7 +904,6 @@ Value *ScalarExprEmitter::EmitCastExpr(CastExpr *CE) {
     return Src;
   }
 
-  case CastExpr::CK_UserDefinedConversion:
   case CastExpr::CK_ConstructorConversion:
     assert(0 && "Should be unreachable!");
     break;
@@ -1198,7 +1199,7 @@ BinOpInfo ScalarExprEmitter::EmitBinOps(const BinaryOperator *E) {
 Value *ScalarExprEmitter::EmitCompoundAssign(const CompoundAssignOperator *E,
                       Value *(ScalarExprEmitter::*Func)(const BinOpInfo &)) {
   bool Ignore = TestAndClearIgnoreResultAssign();
-  QualType LHSTy = E->getLHS()->getType(), RHSTy = E->getRHS()->getType();
+  QualType LHSTy = E->getLHS()->getType();
 
   BinOpInfo OpInfo;
 
@@ -1217,7 +1218,7 @@ Value *ScalarExprEmitter::EmitCompoundAssign(const CompoundAssignOperator *E,
   OpInfo.Ty = E->getComputationResultType();
   OpInfo.E = E;
   // Load/convert the LHS.
-  LValue LHSLV = EmitLValue(E->getLHS());
+  LValue LHSLV = EmitCheckedLValue(E->getLHS());
   OpInfo.LHS = EmitLoadOfLValue(LHSLV, LHSTy);
   OpInfo.LHS = EmitScalarConversion(OpInfo.LHS, LHSTy,
                                     E->getComputationLHSType());
@@ -1654,7 +1655,7 @@ Value *ScalarExprEmitter::VisitBinAssign(const BinaryOperator *E) {
   // __block variables need to have the rhs evaluated first, plus this should
   // improve codegen just a little.
   Value *RHS = Visit(E->getRHS());
-  LValue LHS = EmitLValue(E->getLHS());
+  LValue LHS = EmitCheckedLValue(E->getLHS());
 
   // Store the value into the LHS.  Bit-fields are handled specially
   // because the result is altered by the store, i.e., [C99 6.5.16p1]

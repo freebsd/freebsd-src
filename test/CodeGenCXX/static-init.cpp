@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -triple=x86_64-apple-darwin10 -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 %s -triple=x86_64-apple-darwin10 -emit-llvm -o - | FileCheck %s
 struct A {
   A();
   ~A();
@@ -11,7 +11,7 @@ void f() {
 }
 
 void g() {
-  // CHECK: call i8* @_Znwm(i64 1)
+  // CHECK: call noalias i8* @_Znwm(i64 1)
   // CHECK: call void @_ZN1AC1Ev(
   static A& a = *new A;
 }
