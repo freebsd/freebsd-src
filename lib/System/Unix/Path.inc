@@ -16,7 +16,6 @@
 //===          is guaranteed to work on *all* UNIX variants.
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/SmallVector.h"
 #include "Unix.h"
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -79,15 +78,15 @@ using namespace sys;
 
 const char sys::PathSeparator = ':';
 
-Path::Path(const std::string& p)
+Path::Path(StringRef p)
   : path(p) {}
 
 Path::Path(const char *StrStart, unsigned StrLen)
   : path(StrStart, StrLen) {}
 
 Path&
-Path::operator=(const std::string &that) {
-  path = that;
+Path::operator=(StringRef that) {
+  path.assign(that.data(), that.size());
   return *this;
 }
 
@@ -378,11 +377,11 @@ Path Path::GetMainExecutable(const char *argv0, void *MainAddr) {
 }
 
 
-std::string Path::getDirname() const {
-  return getDirnameCharSep(path, '/');
+StringRef Path::getDirname() const {
+  return getDirnameCharSep(path, "/");
 }
 
-std::string
+StringRef
 Path::getBasename() const {
   // Find the last slash
   std::string::size_type slash = path.rfind('/');
@@ -393,12 +392,12 @@ Path::getBasename() const {
 
   std::string::size_type dot = path.rfind('.');
   if (dot == std::string::npos || dot < slash)
-    return path.substr(slash);
+    return StringRef(path).substr(slash);
   else
-    return path.substr(slash, dot - slash);
+    return StringRef(path).substr(slash, dot - slash);
 }
 
-std::string
+StringRef
 Path::getSuffix() const {
   // Find the last slash
   std::string::size_type slash = path.rfind('/');
@@ -409,26 +408,24 @@ Path::getSuffix() const {
 
   std::string::size_type dot = path.rfind('.');
   if (dot == std::string::npos || dot < slash)
-    return std::string();
+    return StringRef("");
   else
-    return path.substr(dot + 1);
+    return StringRef(path).substr(dot + 1);
 }
 
-bool Path::getMagicNumber(std::string& Magic, unsigned len) const {
+bool Path::getMagicNumber(std::string &Magic, unsigned len) const {
   assert(len < 1024 && "Request for magic string too long");
-  SmallVector<char, 128> Buf;
-  Buf.resize(1 + len);
-  char* buf = Buf.data();
+  char Buf[1025];
   int fd = ::open(path.c_str(), O_RDONLY);
   if (fd < 0)
     return false;
-  ssize_t bytes_read = ::read(fd, buf, len);
+  ssize_t bytes_read = ::read(fd, Buf, len);
   ::close(fd);
   if (ssize_t(len) != bytes_read) {
     Magic.clear();
     return false;
   }
-  Magic.assign(buf,len);
+  Magic.assign(Buf, len);
   return true;
 }
 
@@ -481,7 +478,7 @@ Path::canExecute() const {
   return true;
 }
 
-std::string
+StringRef
 Path::getLast() const {
   // Find the last slash
   size_t pos = path.rfind('/');
@@ -495,12 +492,12 @@ Path::getLast() const {
     // Find the second to last slash
     size_t pos2 = path.rfind('/', pos-1);
     if (pos2 == std::string::npos)
-      return path.substr(0,pos);
+      return StringRef(path).substr(0,pos);
     else
-      return path.substr(pos2+1,pos-pos2-1);
+      return StringRef(path).substr(pos2+1,pos-pos2-1);
   }
   // Return everything after the last slash
-  return path.substr(pos+1);
+  return StringRef(path).substr(pos+1);
 }
 
 const FileStatus *
@@ -592,7 +589,7 @@ Path::getDirectoryContents(std::set<Path>& result, std::string* ErrMsg) const {
 }
 
 bool
-Path::set(const std::string& a_path) {
+Path::set(StringRef a_path) {
   if (a_path.empty())
     return false;
   std::string save(path);
@@ -605,7 +602,7 @@ Path::set(const std::string& a_path) {
 }
 
 bool
-Path::appendComponent(const std::string& name) {
+Path::appendComponent(StringRef name) {
   if (name.empty())
     return false;
   std::string save(path);
@@ -637,7 +634,7 @@ Path::eraseComponent() {
 }
 
 bool
-Path::appendSuffix(const std::string& suffix) {
+Path::appendSuffix(StringRef suffix) {
   std::string save(path);
   path.append(".");
   path.append(suffix);
@@ -861,18 +858,15 @@ Path::makeUnique(bool reuse_current, std::string* ErrMsg) {
 
   // Append an XXXXXX pattern to the end of the file for use with mkstemp,
   // mktemp or our own implementation.
-  SmallVector<char, 128> Buf;
-  Buf.resize(path.size()+8);
-  char *FNBuffer = Buf.data();
-    path.copy(FNBuffer,path.size());
+  std::string Buf(path);
   if (isDirectory())
-    strcpy(FNBuffer+path.size(), "/XXXXXX");
+    Buf += "/XXXXXX";
   else
-    strcpy(FNBuffer+path.size(), "-XXXXXX");
+    Buf += "-XXXXXX";
 
 #if defined(HAVE_MKSTEMP)
   int TempFD;
-  if ((TempFD = mkstemp(FNBuffer)) == -1)
+  if ((TempFD = mkstemp((char*)Buf.c_str())) == -1)
     return MakeErrMsg(ErrMsg, path + ": can't make unique filename");
 
   // We don't need to hold the temp file descriptor... we will trust that no one
@@ -880,21 +874,21 @@ Path::makeUnique(bool reuse_current, std::string* ErrMsg) {
   close(TempFD);
 
   // Save the name
-  path = FNBuffer;
+  path = Buf;
 #elif defined(HAVE_MKTEMP)
   // If we don't have mkstemp, use the old and obsolete mktemp function.
-  if (mktemp(FNBuffer) == 0)
+  if (mktemp(Buf.c_str()) == 0)
     return MakeErrMsg(ErrMsg, path + ": can't make unique filename");
 
   // Save the name
-  path = FNBuffer;
+  path = Buf;
 #else
   // Okay, looks like we have to do it all by our lonesome.
   static unsigned FCounter = 0;
   unsigned offset = path.size() + 1;
-  while ( FCounter < 999999 && exists()) {
-    sprintf(FNBuffer+offset,"%06u",++FCounter);
-    path = FNBuffer;
+  while (FCounter < 999999 && exists()) {
+    sprintf(Buf.data()+offset, "%06u", ++FCounter);
+    path = Buf;
   }
   if (FCounter > 999999)
     return MakeErrMsg(ErrMsg,

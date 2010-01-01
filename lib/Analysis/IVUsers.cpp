@@ -53,7 +53,7 @@ static bool containsAddRecFromDifferentLoop(const SCEV *S, Loop *L) {
       if (newLoop == L)
         return false;
       // if newLoop is an outer loop of L, this is OK.
-      if (newLoop->contains(L->getHeader()))
+      if (newLoop->contains(L))
         return false;
     }
     return true;
@@ -128,7 +128,7 @@ static bool getSCEVStartAndStride(const SCEV *&SH, Loop *L, Loop *UseLoop,
     if (!AddRecStride->properlyDominates(Header, DT))
       return false;
 
-    DEBUG(errs() << "[" << L->getHeader()->getName()
+    DEBUG(dbgs() << "[" << L->getHeader()->getName()
                  << "] Variable stride: " << *AddRec << "\n");
   }
 
@@ -148,7 +148,7 @@ static bool IVUseShouldUsePostIncValue(Instruction *User, Instruction *IV,
                                        Loop *L, LoopInfo *LI, DominatorTree *DT,
                                        Pass *P) {
   // If the user is in the loop, use the preinc value.
-  if (L->contains(User->getParent())) return false;
+  if (L->contains(User)) return false;
 
   BasicBlock *LatchBlock = L->getLoopLatch();
   if (!LatchBlock)
@@ -209,7 +209,7 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
     return false;  // Non-reducible symbolic expression, bail out.
 
   // Keep things simple. Don't touch loop-variant strides.
-  if (!Stride->isLoopInvariant(L) && L->contains(I->getParent()))
+  if (!Stride->isLoopInvariant(L) && L->contains(I))
     return false;
 
   SmallPtrSet<Instruction *, 4> UniqueUsers;
@@ -233,13 +233,13 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
     if (LI->getLoopFor(User->getParent()) != L) {
       if (isa<PHINode>(User) || Processed.count(User) ||
           !AddUsersIfInteresting(User)) {
-        DEBUG(errs() << "FOUND USER in other loop: " << *User << '\n'
+        DEBUG(dbgs() << "FOUND USER in other loop: " << *User << '\n'
                      << "   OF SCEV: " << *ISE << '\n');
         AddUserToIVUsers = true;
       }
     } else if (Processed.count(User) ||
                !AddUsersIfInteresting(User)) {
-      DEBUG(errs() << "FOUND USER: " << *User << '\n'
+      DEBUG(dbgs() << "FOUND USER: " << *User << '\n'
                    << "   OF SCEV: " << *ISE << '\n');
       AddUserToIVUsers = true;
     }
@@ -262,7 +262,7 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
         const SCEV *NewStart = SE->getMinusSCEV(Start, Stride);
         StrideUses->addUser(NewStart, User, I);
         StrideUses->Users.back().setIsUseOfPostIncrementedValue(true);
-        DEBUG(errs() << "   USING POSTINC SCEV, START=" << *NewStart<< "\n");
+        DEBUG(dbgs() << "   USING POSTINC SCEV, START=" << *NewStart<< "\n");
       } else {
         StrideUses->addUser(Start, User, I);
       }
@@ -307,7 +307,6 @@ bool IVUsers::runOnLoop(Loop *l, LPPassManager &LPM) {
   for (BasicBlock::iterator I = L->getHeader()->begin(); isa<PHINode>(I); ++I)
     AddUsersIfInteresting(I);
 
-  Processed.clear();
   return false;
 }
 
@@ -325,7 +324,7 @@ const SCEV *IVUsers::getReplacementExpr(const IVStrideUse &U) const {
   if (U.isUseOfPostIncrementedValue())
     RetVal = SE->getAddExpr(RetVal, U.getParent()->Stride);
   // Evaluate the expression out of the loop, if possible.
-  if (!L->contains(U.getUser()->getParent())) {
+  if (!L->contains(U.getUser())) {
     const SCEV *ExitVal = SE->getSCEVAtScope(RetVal, L->getParentLoop());
     if (ExitVal->isLoopInvariant(L))
       RetVal = ExitVal;
@@ -364,12 +363,13 @@ void IVUsers::print(raw_ostream &OS, const Module *M) const {
 }
 
 void IVUsers::dump() const {
-  print(errs());
+  print(dbgs());
 }
 
 void IVUsers::releaseMemory() {
   IVUsesByStride.clear();
   StrideOrder.clear();
+  Processed.clear();
   IVUses.clear();
 }
 

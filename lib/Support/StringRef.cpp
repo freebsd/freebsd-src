@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/SmallVector.h"
 using namespace llvm;
 
 // MSVC emits references to this into the translation units which reference it.
@@ -33,6 +34,45 @@ int StringRef::compare_lower(StringRef RHS) const {
   if (Length == RHS.Length)
         return 0;
   return Length < RHS.Length ? -1 : 1;
+}
+
+// Compute the edit distance between the two given strings.
+unsigned StringRef::edit_distance(llvm::StringRef Other, 
+                                  bool AllowReplacements) {
+  // The algorithm implemented below is the "classic"
+  // dynamic-programming algorithm for computing the Levenshtein
+  // distance, which is described here:
+  //
+  //   http://en.wikipedia.org/wiki/Levenshtein_distance
+  //
+  // Although the algorithm is typically described using an m x n
+  // array, only two rows are used at a time, so this implemenation
+  // just keeps two separate vectors for those two rows.
+  size_type m = size();
+  size_type n = Other.size();
+
+  SmallVector<unsigned, 32> previous(n+1, 0);
+  for (SmallVector<unsigned, 32>::size_type i = 0; i <= n; ++i) 
+    previous[i] = i;
+
+  SmallVector<unsigned, 32> current(n+1, 0);
+  for (size_type y = 1; y <= m; ++y) {
+    current.assign(n+1, 0);
+    current[0] = y;
+    for (size_type x = 1; x <= n; ++x) {
+      if (AllowReplacements) {
+        current[x] = min(previous[x-1] + ((*this)[y-1] == Other[x-1]? 0u:1u),
+                         min(current[x-1], previous[x])+1);
+      }
+      else {
+        if ((*this)[y-1] == Other[x-1]) current[x] = previous[x-1];
+        else current[x] = min(current[x-1], previous[x]) + 1;
+      }
+    }
+    current.swap(previous);
+  }
+
+  return previous[n];
 }
 
 //===----------------------------------------------------------------------===//

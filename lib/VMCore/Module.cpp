@@ -47,9 +47,9 @@ GlobalAlias *ilist_traits<GlobalAlias>::createSentinel() {
 
 // Explicit instantiations of SymbolTableListTraits since some of the methods
 // are not in the public header file.
-template class SymbolTableListTraits<GlobalVariable, Module>;
-template class SymbolTableListTraits<Function, Module>;
-template class SymbolTableListTraits<GlobalAlias, Module>;
+template class llvm::SymbolTableListTraits<GlobalVariable, Module>;
+template class llvm::SymbolTableListTraits<Function, Module>;
+template class llvm::SymbolTableListTraits<GlobalAlias, Module>;
 
 //===----------------------------------------------------------------------===//
 // Primitive Module methods.
@@ -117,6 +117,20 @@ Module::PointerSize Module::getPointerSize() const {
 GlobalValue *Module::getNamedValue(StringRef Name) const {
   return cast_or_null<GlobalValue>(getValueSymbolTable().lookup(Name));
 }
+
+/// getMDKindID - Return a unique non-zero ID for the specified metadata kind.
+/// This ID is uniqued across modules in the current LLVMContext.
+unsigned Module::getMDKindID(StringRef Name) const {
+  return Context.getMDKindID(Name);
+}
+
+/// getMDKindNames - Populate client supplied SmallVector with the name for
+/// custom metadata IDs registered in this LLVMContext.   ID #0 is not used,
+/// so it is filled in as an empty string.
+void Module::getMDKindNames(SmallVectorImpl<StringRef> &Result) const {
+  return Context.getMDKindNames(Result);
+}
+
 
 //===----------------------------------------------------------------------===//
 // Methods for easy access to the functions in the module.

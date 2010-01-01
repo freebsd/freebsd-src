@@ -139,6 +139,12 @@ public:
   virtual
   MVT::SimpleValueType getSetCCResultType(EVT VT) const;
 
+  /// getCmpLibcallReturnType - Return the ValueType for comparison 
+  /// libcalls. Comparions libcalls include floating point comparion calls,
+  /// and Ordered/Unordered check calls on floating point numbers.
+  virtual 
+  MVT::SimpleValueType getCmpLibcallReturnType() const;
+
   /// getBooleanContents - For targets without i1 registers, this gives the
   /// nature of the high-bits of boolean values held in types wider than i1.
   /// "Boolean values" are special true/false values produced by nodes like
@@ -1136,7 +1142,7 @@ public:
               bool isVarArg, bool isInreg, unsigned NumFixedArgs,
               CallingConv::ID CallConv, bool isTailCall,
               bool isReturnValueUsed, SDValue Callee, ArgListTy &Args,
-              SelectionDAG &DAG, DebugLoc dl);
+              SelectionDAG &DAG, DebugLoc dl, unsigned Order);
 
   /// LowerCall - This hook must be implemented to lower calls into the
   /// the specified DAG. The outgoing arguments to the call are described
@@ -1289,20 +1295,6 @@ public:
                                     SelectionDAG& DAG) const {
     // Conservative default: no calls are eligible.
     return false;
-  }
-
-  /// GetPossiblePreceedingTailCall - Get preceeding TailCallNodeOpCode node if
-  /// it exists. Skip a possible ISD::TokenFactor.
-  static SDValue GetPossiblePreceedingTailCall(SDValue Chain,
-                                                 unsigned TailCallNodeOpCode) {
-    if (Chain.getOpcode() == TailCallNodeOpCode) {
-      return Chain;
-    } else if (Chain.getOpcode() == ISD::TokenFactor) {
-      if (Chain.getNumOperands() &&
-          Chain.getOperand(0).getOpcode() == TailCallNodeOpCode)
-        return Chain.getOperand(0);
-    }
-    return Chain;
   }
 
   /// getTargetNodeName() - This method returns the name of a target specific

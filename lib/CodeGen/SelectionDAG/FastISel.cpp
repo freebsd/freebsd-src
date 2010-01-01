@@ -43,7 +43,6 @@
 #include "llvm/GlobalVariable.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
-#include "llvm/LLVMContext.h"
 #include "llvm/CodeGen/FastISel.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
@@ -334,7 +333,7 @@ bool FastISel::SelectCall(User *I) {
     return true;
   case Intrinsic::dbg_declare: {
     DbgDeclareInst *DI = cast<DbgDeclareInst>(I);
-    if (!isValidDebugInfoIntrinsic(*DI, CodeGenOpt::None) || !DW
+    if (!DIDescriptor::ValidDebugInfo(DI->getVariable(), CodeGenOpt::None)||!DW
         || !DW->ShouldEmitDwarfDebug())
       return true;
 
@@ -349,11 +348,8 @@ bool FastISel::SelectCall(User *I) {
     if (SI == StaticAllocaMap.end()) break; // VLAs.
     int FI = SI->second;
     if (MMI) {
-      MetadataContext &TheMetadata = 
-        DI->getParent()->getContext().getMetadata();
-      unsigned MDDbgKind = TheMetadata.getMDKind("dbg");
-      MDNode *Dbg = TheMetadata.getMD(MDDbgKind, DI);
-      MMI->setVariableDbgInfo(DI->getVariable(), FI, Dbg);
+      if (MDNode *Dbg = DI->getMetadata("dbg"))
+        MMI->setVariableDbgInfo(DI->getVariable(), FI, Dbg);
     }
     return true;
   }
@@ -548,9 +544,6 @@ FastISel::SelectInstruction(Instruction *I) {
 /// the CFG.
 void
 FastISel::FastEmitBranch(MachineBasicBlock *MSucc) {
-  MachineFunction::iterator NextMBB =
-     llvm::next(MachineFunction::iterator(MBB));
-
   if (MBB->isLayoutSuccessor(MSucc)) {
     // The unconditional fall-through case, which needs no instructions.
   } else {

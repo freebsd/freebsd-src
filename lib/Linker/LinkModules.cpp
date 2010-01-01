@@ -538,8 +538,8 @@ static void LinkNamedMDNodes(Module *Dest, Module *Src) {
       NamedMDNode::Create(SrcNMD, Dest);
     else {
       // Add Src elements into Dest node.
-      for (unsigned i = 0, e = SrcNMD->getNumElements(); i != e; ++i) 
-        DestNMD->addElement(SrcNMD->getElement(i));
+      for (unsigned i = 0, e = SrcNMD->getNumOperands(); i != e; ++i) 
+        DestNMD->addOperand(SrcNMD->getOperand(i));
     }
   }
 }
@@ -664,7 +664,6 @@ static bool LinkGlobals(Module *Dest, const Module *Src,
         Var->eraseFromParent();
       else
         cast<Function>(DGV)->eraseFromParent();
-      DGV = NewDGV;
 
       // If the symbol table renamed the global, but it is an externally visible
       // symbol, DGV must be an existing global with internal linkage.  Rename.

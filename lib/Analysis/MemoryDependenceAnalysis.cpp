@@ -275,7 +275,8 @@ getPointerDependencyFrom(Value *MemPtr, uint64_t MemSize, bool isLoad,
     // a subsequent bitcast of the malloc call result.  There can be stores to
     // the malloced memory between the malloc call and its bitcast uses, and we
     // need to continue scanning until the malloc call.
-    if (isa<AllocaInst>(Inst) || extractMallocCall(Inst)) {
+    if (isa<AllocaInst>(Inst) ||
+        (isa<CallInst>(Inst) && extractMallocCall(Inst))) {
       Value *AccessPtr = MemPtr->getUnderlyingObject();
       
       if (AccessPtr == Inst ||
@@ -546,9 +547,9 @@ MemoryDependenceAnalysis::getNonLocalCallDependency(CallSite QueryCS) {
     // If we had a dirty entry for the block, update it.  Otherwise, just add
     // a new entry.
     if (ExistingResult)
-      ExistingResult->setResult(Dep, 0);
+      ExistingResult->setResult(Dep);
     else
-      Cache.push_back(NonLocalDepEntry(DirtyBB, Dep, 0));
+      Cache.push_back(NonLocalDepEntry(DirtyBB, Dep));
     
     // If the block has a dependency (i.e. it isn't completely transparent to
     // the value), remember the association!
@@ -578,7 +579,7 @@ MemoryDependenceAnalysis::getNonLocalCallDependency(CallSite QueryCS) {
 ///
 void MemoryDependenceAnalysis::
 getNonLocalPointerDependency(Value *Pointer, bool isLoad, BasicBlock *FromBB,
-                             SmallVectorImpl<NonLocalDepEntry> &Result) {
+                             SmallVectorImpl<NonLocalDepResult> &Result) {
   assert(isa<PointerType>(Pointer->getType()) &&
          "Can't get pointer deps of a non-pointer!");
   Result.clear();
@@ -599,9 +600,9 @@ getNonLocalPointerDependency(Value *Pointer, bool isLoad, BasicBlock *FromBB,
                                    Result, Visited, true))
     return;
   Result.clear();
-  Result.push_back(NonLocalDepEntry(FromBB,
-                                    MemDepResult::getClobber(FromBB->begin()),
-                                    Pointer));
+  Result.push_back(NonLocalDepResult(FromBB,
+                                     MemDepResult::getClobber(FromBB->begin()),
+                                     Pointer));
 }
 
 /// GetNonLocalInfoForBlock - Compute the memdep value for BB with
@@ -656,9 +657,9 @@ GetNonLocalInfoForBlock(Value *Pointer, uint64_t PointeeSize,
   // If we had a dirty entry for the block, update it.  Otherwise, just add
   // a new entry.
   if (ExistingResult)
-    ExistingResult->setResult(Dep, Pointer);
+    ExistingResult->setResult(Dep);
   else
-    Cache->push_back(NonLocalDepEntry(BB, Dep, Pointer));
+    Cache->push_back(NonLocalDepEntry(BB, Dep));
   
   // If the block has a dependency (i.e. it isn't completely transparent to
   // the value), remember the reverse association because we just added it
@@ -726,7 +727,7 @@ SortNonLocalDepInfoCache(MemoryDependenceAnalysis::NonLocalDepInfo &Cache,
 bool MemoryDependenceAnalysis::
 getNonLocalPointerDepFromBB(const PHITransAddr &Pointer, uint64_t PointeeSize,
                             bool isLoad, BasicBlock *StartBB,
-                            SmallVectorImpl<NonLocalDepEntry> &Result,
+                            SmallVectorImpl<NonLocalDepResult> &Result,
                             DenseMap<BasicBlock*, Value*> &Visited,
                             bool SkipFirstBlock) {
   
@@ -759,11 +760,12 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer, uint64_t PointeeSize,
       }
     }
     
+    Value *Addr = Pointer.getAddr();
     for (NonLocalDepInfo::iterator I = Cache->begin(), E = Cache->end();
          I != E; ++I) {
-      Visited.insert(std::make_pair(I->getBB(), Pointer.getAddr()));
+      Visited.insert(std::make_pair(I->getBB(), Addr));
       if (!I->getResult().isNonLocal())
-        Result.push_back(*I);
+        Result.push_back(NonLocalDepResult(I->getBB(), I->getResult(), Addr));
     }
     ++NumCacheCompleteNonLocalPtr;
     return false;
@@ -807,7 +809,7 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer, uint64_t PointeeSize,
       
       // If we got a Def or Clobber, add this to the list of results.
       if (!Dep.isNonLocal()) {
-        Result.push_back(NonLocalDepEntry(BB, Dep, Pointer.getAddr()));
+        Result.push_back(NonLocalDepResult(BB, Dep, Pointer.getAddr()));
         continue;
       }
     }
@@ -889,41 +891,17 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer, uint64_t PointeeSize,
       // a computation of the pointer in this predecessor.
       if (PredPtrVal == 0) {
         // Add the entry to the Result list.
-        NonLocalDepEntry Entry(Pred,
-                               MemDepResult::getClobber(Pred->getTerminator()),
-                               PredPtrVal);
+        NonLocalDepResult Entry(Pred,
+                                MemDepResult::getClobber(Pred->getTerminator()),
+                                PredPtrVal);
         Result.push_back(Entry);
 
-        // Add it to the cache for this CacheKey so that subsequent queries get
-        // this result.
-        Cache = &NonLocalPointerDeps[CacheKey].second;
-        MemoryDependenceAnalysis::NonLocalDepInfo::iterator It =
-          std::upper_bound(Cache->begin(), Cache->end(), Entry);
-        
-        if (It != Cache->begin() && (It-1)->getBB() == Pred)
-          --It;
-
-        if (It == Cache->end() || It->getBB() != Pred) {
-          Cache->insert(It, Entry);
-          // Add it to the reverse map.
-          ReverseNonLocalPtrDeps[Pred->getTerminator()].insert(CacheKey);
-        } else if (!It->getResult().isDirty()) {
-          // noop
-        } else if (It->getResult().getInst() == Pred->getTerminator()) {
-          // Same instruction, clear the dirty marker.
-          It->setResult(Entry.getResult(), PredPtrVal);
-        } else if (It->getResult().getInst() == 0) {
-          // Dirty, with no instruction, just add this.
-          It->setResult(Entry.getResult(), PredPtrVal);
-          ReverseNonLocalPtrDeps[Pred->getTerminator()].insert(CacheKey);
-        } else {
-          // Otherwise, dirty with a different instruction.
-          RemoveFromReverseMap(ReverseNonLocalPtrDeps,
-                               It->getResult().getInst(), CacheKey);
-          It->setResult(Entry.getResult(),PredPtrVal);
-          ReverseNonLocalPtrDeps[Pred->getTerminator()].insert(CacheKey);
-        }
-        Cache = 0;
+        // Since we had a phi translation failure, the cache for CacheKey won't
+        // include all of the entries that we need to immediately satisfy future
+        // queries.  Mark this in NonLocalPointerDeps by setting the
+        // BBSkipFirstBlockPair pointer to null.  This requires reuse of the
+        // cached value to do more work but not miss the phi trans failure.
+        NonLocalPointerDeps[CacheKey].first = BBSkipFirstBlockPair();
         continue;
       }
 
@@ -961,10 +939,10 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer, uint64_t PointeeSize,
       NumSortedEntries = Cache->size();
     }
     
-    // Since we did phi translation, the "Cache" set won't contain all of the
+    // Since we failed phi translation, the "Cache" set won't contain all of the
     // results for the query.  This is ok (we can still use it to accelerate
     // specific block queries) but we can't do the fastpath "return all
-    // results from the set"  Clear out the indicator for this.
+    // results from the set".  Clear out the indicator for this.
     CacheInfo->first = BBSkipFirstBlockPair();
     
     // If *nothing* works, mark the pointer as being clobbered by the first
@@ -983,9 +961,10 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer, uint64_t PointeeSize,
       
       assert(I->getResult().isNonLocal() &&
              "Should only be here with transparent block");
-      I->setResult(MemDepResult::getClobber(BB->begin()), Pointer.getAddr());
+      I->setResult(MemDepResult::getClobber(BB->begin()));
       ReverseNonLocalPtrDeps[BB->begin()].insert(CacheKey);
-      Result.push_back(*I);
+      Result.push_back(NonLocalDepResult(I->getBB(), I->getResult(),
+                                         Pointer.getAddr()));
       break;
     }
   }
@@ -1139,7 +1118,7 @@ void MemoryDependenceAnalysis::removeInstruction(Instruction *RemInst) {
         if (DI->getResult().getInst() != RemInst) continue;
         
         // Convert to a dirty entry for the subsequent instruction.
-        DI->setResult(NewDirtyVal, DI->getAddress());
+        DI->setResult(NewDirtyVal);
         
         if (Instruction *NextI = NewDirtyVal.getInst())
           ReverseDepsToAdd.push_back(std::make_pair(NextI, *I));
@@ -1181,7 +1160,7 @@ void MemoryDependenceAnalysis::removeInstruction(Instruction *RemInst) {
         if (DI->getResult().getInst() != RemInst) continue;
         
         // Convert to a dirty entry for the subsequent instruction.
-        DI->setResult(NewDirtyVal, DI->getAddress());
+        DI->setResult(NewDirtyVal);
         
         if (Instruction *NewDirtyInst = NewDirtyVal.getInst())
           ReversePtrDepsToAdd.push_back(std::make_pair(NewDirtyInst, P));

@@ -20,6 +20,7 @@
 #include "llvm/OperandTraits.h"
 #include "llvm/Operator.h"
 #include "llvm/DerivedTypes.h"
+#include "llvm/ADT/Twine.h"
 
 namespace llvm {
 
@@ -160,7 +161,7 @@ public:
   /// Instruction is allowed to be a dereferenced end iterator.
   ///
   static BinaryOperator *Create(BinaryOps Op, Value *S1, Value *S2,
-                                const Twine &Name = "",
+                                const Twine &Name = Twine(),
                                 Instruction *InsertBefore = 0);
 
   /// Create() - Construct a binary instruction, given the opcode and the two
@@ -277,6 +278,27 @@ public:
     return BO;
   }
 
+  /// CreateNSWMul - Create a Mul operator with the NSW flag set.
+  ///
+  static BinaryOperator *CreateNSWMul(Value *V1, Value *V2,
+                                      const Twine &Name = "") {
+    BinaryOperator *BO = CreateMul(V1, V2, Name);
+    BO->setHasNoSignedWrap(true);
+    return BO;
+  }
+  static BinaryOperator *CreateNSWMul(Value *V1, Value *V2,
+                                      const Twine &Name, BasicBlock *BB) {
+    BinaryOperator *BO = CreateMul(V1, V2, Name, BB);
+    BO->setHasNoSignedWrap(true);
+    return BO;
+  }
+  static BinaryOperator *CreateNSWMul(Value *V1, Value *V2,
+                                      const Twine &Name, Instruction *I) {
+    BinaryOperator *BO = CreateMul(V1, V2, Name, I);
+    BO->setHasNoSignedWrap(true);
+    return BO;
+  }
+
   /// CreateExactSDiv - Create an SDiv operator with the exact flag set.
   ///
   static BinaryOperator *CreateExactSDiv(Value *V1, Value *V2,
@@ -308,6 +330,10 @@ public:
                                    Instruction *InsertBefore = 0);
   static BinaryOperator *CreateNeg(Value *Op, const Twine &Name,
                                    BasicBlock *InsertAtEnd);
+  static BinaryOperator *CreateNSWNeg(Value *Op, const Twine &Name = "",
+                                      Instruction *InsertBefore = 0);
+  static BinaryOperator *CreateNSWNeg(Value *Op, const Twine &Name,
+                                      BasicBlock *InsertAtEnd);
   static BinaryOperator *CreateFNeg(Value *Op, const Twine &Name = "",
                                     Instruction *InsertBefore = 0);
   static BinaryOperator *CreateFNeg(Value *Op, const Twine &Name,
@@ -707,10 +733,12 @@ public:
   }
 
   /// @brief Return the predicate for this instruction.
-  Predicate getPredicate() const { return Predicate(SubclassData); }
+  Predicate getPredicate() const {
+    return Predicate(getSubclassDataFromInstruction());
+  }
 
   /// @brief Set the predicate for this instruction to the specified value.
-  void setPredicate(Predicate P) { SubclassData = P; }
+  void setPredicate(Predicate P) { setInstructionSubclassData(P); }
 
   static bool isFPPredicate(Predicate P) {
     return P >= FIRST_FCMP_PREDICATE && P <= LAST_FCMP_PREDICATE;
@@ -830,6 +858,12 @@ public:
                              vt->getNumElements());
     }
     return Type::getInt1Ty(opnd_type->getContext());
+  }
+private:
+  // Shadow Value::setValueSubclassData with a private forwarding method so that
+  // subclasses cannot accidentally use it.
+  void setValueSubclassData(unsigned short D) {
+    Value::setValueSubclassData(D);
   }
 };
 

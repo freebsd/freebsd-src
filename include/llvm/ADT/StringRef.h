@@ -133,6 +133,22 @@ namespace llvm {
     /// compare_lower - Compare two strings, ignoring case.
     int compare_lower(StringRef RHS) const;
 
+    /// \brief Determine the edit distance between this string and another 
+    /// string.
+    ///
+    /// \param Other the string to compare this string against.
+    ///
+    /// \param AllowReplacements whether to allow character
+    /// replacements (change one character into another) as a single
+    /// operation, rather than as two operations (an insertion and a
+    /// removal).
+    ///
+    /// \returns the minimum number of character insertions, removals,
+    /// or (if \p AllowReplacements is \c true) replacements needed to
+    /// transform one of the given strings into the other. If zero,
+    /// the strings are identical.
+    unsigned edit_distance(StringRef Other, bool AllowReplacements = true);
+
     /// str - Get the contents as an std::string.
     std::string str() const { return std::string(Data, Length); }
 
@@ -159,12 +175,14 @@ namespace llvm {
 
     /// startswith - Check if this string starts with the given \arg Prefix.
     bool startswith(StringRef Prefix) const {
-      return substr(0, Prefix.Length).equals(Prefix);
+      return Length >= Prefix.Length &&
+             memcmp(Data, Prefix.Data, Prefix.Length) == 0;
     }
 
     /// endswith - Check if this string ends with the given \arg Suffix.
     bool endswith(StringRef Suffix) const {
-      return slice(size() - Suffix.Length, size()).equals(Suffix);
+      return Length >= Suffix.Length &&
+             memcmp(end() - Suffix.Length, Suffix.Data, Suffix.Length) == 0;
     }
 
     /// @}

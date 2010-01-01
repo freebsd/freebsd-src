@@ -79,6 +79,9 @@ void Type::destroy() const {
     operator delete(const_cast<Type *>(this));
 
     return;
+  } else if (const OpaqueType *opaque_this = dyn_cast<OpaqueType>(this)) {
+    LLVMContextImpl *pImpl = this->getContext().pImpl;
+    pImpl->OpaqueTypes.erase(opaque_this);
   }
 
   // For all the other type subclasses, there is either no contained types or 
@@ -684,9 +687,11 @@ static bool TypesEqual(const Type *Ty, const Type *Ty2,
   }
 }
 
+namespace llvm { // in namespace llvm so findable by ADL
 static bool TypesEqual(const Type *Ty, const Type *Ty2) {
   std::map<const Type *, const Type *> EqTypes;
-  return TypesEqual(Ty, Ty2, EqTypes);
+  return ::TypesEqual(Ty, Ty2, EqTypes);
+}
 }
 
 // AbstractTypeHasCycleThrough - Return true there is a path from CurTy to
@@ -722,8 +727,10 @@ static bool ConcreteTypeHasCycleThrough(const Type *TargetTy, const Type *CurTy,
   return false;
 }
 
-/// TypeHasCycleThroughItself - Return true if the specified type has a cycle
-/// back to itself.
+/// TypeHasCycleThroughItself - Return true if the specified type has
+/// a cycle back to itself.
+
+namespace llvm { // in namespace llvm so it's findable by ADL
 static bool TypeHasCycleThroughItself(const Type *Ty) {
   SmallPtrSet<const Type*, 128> VisitedTypes;
 
@@ -739,6 +746,7 @@ static bool TypeHasCycleThroughItself(const Type *Ty) {
         return true;
   }
   return false;
+}
 }
 
 //===----------------------------------------------------------------------===//
@@ -952,6 +960,20 @@ bool PointerType::isValidElementType(const Type *ElemTy) {
          ElemTy->getTypeID() != LabelTyID &&
          ElemTy->getTypeID() != MetadataTyID;
 }
+
+
+//===----------------------------------------------------------------------===//
+// Opaque Type Factory...
+//
+
+OpaqueType *OpaqueType::get(LLVMContext &C) {
+  OpaqueType *OT = new OpaqueType(C);           // All opaque types are distinct
+  
+  LLVMContextImpl *pImpl = C.pImpl;
+  pImpl->OpaqueTypes.insert(OT);
+  return OT;
+}
+
 
 
 //===----------------------------------------------------------------------===//

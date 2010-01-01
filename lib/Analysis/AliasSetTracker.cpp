@@ -19,6 +19,7 @@
 #include "llvm/Type.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Assembly/Writer.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/Format.h"
@@ -549,8 +550,8 @@ void AliasSetTracker::print(raw_ostream &OS) const {
   OS << "\n";
 }
 
-void AliasSet::dump() const { print(errs()); }
-void AliasSetTracker::dump() const { print(errs()); }
+void AliasSet::dump() const { print(dbgs()); }
+void AliasSetTracker::dump() const { print(dbgs()); }
 
 //===----------------------------------------------------------------------===//
 //                     ASTCallbackVH Class Implementation

@@ -15,6 +15,7 @@
 #include "llvm/Constants.h"
 #include "llvm/Function.h"
 #include "llvm/InlineAsm.h"
+#include "llvm/Type.h"
 #include "llvm/Value.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -555,8 +556,13 @@ void MachineInstr::addOperand(const MachineOperand &Op) {
       Operands.back().ParentMI = this;
   
       // If the operand is a register, update the operand's use list.
-      if (Op.isReg())
+      if (Op.isReg()) {
         Operands.back().AddRegOperandToRegInfo(RegInfo);
+        // If the register operand is flagged as early, mark the operand as such
+        unsigned OpNo = Operands.size() - 1;
+        if (TID->getOperandConstraint(OpNo, TOI::EARLY_CLOBBER) != -1)
+          Operands[OpNo].setIsEarlyClobber(true);
+      }
       return;
     }
   }
@@ -573,8 +579,12 @@ void MachineInstr::addOperand(const MachineOperand &Op) {
 
     // Do explicitly set the reginfo for this operand though, to ensure the
     // next/prev fields are properly nulled out.
-    if (Operands[OpNo].isReg())
+    if (Operands[OpNo].isReg()) {
       Operands[OpNo].AddRegOperandToRegInfo(0);
+      // If the register operand is flagged as early, mark the operand as such
+      if (TID->getOperandConstraint(OpNo, TOI::EARLY_CLOBBER) != -1)
+        Operands[OpNo].setIsEarlyClobber(true);
+    }
 
   } else if (Operands.size()+1 <= Operands.capacity()) {
     // Otherwise, we have to remove register operands from their register use
@@ -594,8 +604,12 @@ void MachineInstr::addOperand(const MachineOperand &Op) {
     Operands.insert(Operands.begin()+OpNo, Op);
     Operands[OpNo].ParentMI = this;
 
-    if (Operands[OpNo].isReg())
+    if (Operands[OpNo].isReg()) {
       Operands[OpNo].AddRegOperandToRegInfo(RegInfo);
+      // If the register operand is flagged as early, mark the operand as such
+      if (TID->getOperandConstraint(OpNo, TOI::EARLY_CLOBBER) != -1)
+        Operands[OpNo].setIsEarlyClobber(true);
+    }
     
     // Re-add all the implicit ops.
     for (unsigned i = OpNo+1, e = Operands.size(); i != e; ++i) {
@@ -613,6 +627,11 @@ void MachineInstr::addOperand(const MachineOperand &Op) {
   
     // Re-add all the operands.
     AddRegOperandsToUseLists(*RegInfo);
+
+      // If the register operand is flagged as early, mark the operand as such
+    if (Operands[OpNo].isReg()
+        && TID->getOperandConstraint(OpNo, TOI::EARLY_CLOBBER) != -1)
+      Operands[OpNo].setIsEarlyClobber(true);
   }
 }
 
@@ -1141,7 +1160,7 @@ void MachineInstr::print(raw_ostream &OS, const TargetMachine *TM) const {
 
   // Briefly indicate whether any call clobbers were omitted.
   if (OmittedAnyCallClobbers) {
-    if (FirstOp) FirstOp = false; else OS << ",";
+    if (!FirstOp) OS << ",";
     OS << " ...";
   }
 
@@ -1159,7 +1178,7 @@ void MachineInstr::print(raw_ostream &OS, const TargetMachine *TM) const {
   }
 
   if (!debugLoc.isUnknown() && MF) {
-    if (!HaveSemi) OS << ";"; HaveSemi = true;
+    if (!HaveSemi) OS << ";";
 
     // TODO: print InlinedAtLoc information
 

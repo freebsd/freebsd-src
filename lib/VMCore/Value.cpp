@@ -19,7 +19,6 @@
 #include "llvm/Instructions.h"
 #include "llvm/Operator.h"
 #include "llvm/Module.h"
-#include "llvm/Metadata.h"
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Debug.h"
@@ -41,7 +40,7 @@ static inline const Type *checkType(const Type *Ty) {
 }
 
 Value::Value(const Type *ty, unsigned scid)
-  : SubclassID(scid), HasValueHandle(0), HasMetadata(0),
+  : SubclassID(scid), HasValueHandle(0),
     SubclassOptionalData(0), SubclassData(0), VTy(checkType(ty)),
     UseList(0), Name(0) {
   if (isa<CallInst>(this) || isa<InvokeInst>(this))
@@ -57,11 +56,6 @@ Value::Value(const Type *ty, unsigned scid)
 }
 
 Value::~Value() {
-  if (HasMetadata) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsDeleted(this);
-  }
-
   // Notify all ValueHandles (if present) that this value is going away.
   if (HasValueHandle)
     ValueHandleBase::ValueIsDeleted(this);
@@ -306,10 +300,6 @@ void Value::uncheckedReplaceAllUsesWith(Value *New) {
   // Notify all ValueHandles (if present) that this value is going away.
   if (HasValueHandle)
     ValueHandleBase::ValueIsRAUWd(this, New);
-  if (HasMetadata) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsRAUWd(this, New);
-  }
 
   while (!use_empty()) {
     Use &U = *UseList;

@@ -59,6 +59,12 @@ STATISTIC(NumRetries, "Number of retries with more memory");
 static JIT *TheJIT = 0;
 
 
+// A declaration may stop being a declaration once it's fully read from bitcode.
+// This function returns true if F is fully read and is still a declaration.
+static bool isNonGhostDeclaration(const Function *F) {
+  return F->isDeclaration() && !F->hasNotBeenReadFromBitcode();
+}
+
 //===----------------------------------------------------------------------===//
 // JIT lazy compilation code.
 //
@@ -271,6 +277,10 @@ namespace {
   class JITEmitter : public JITCodeEmitter {
     JITMemoryManager *MemMgr;
 
+    // When outputting a function stub in the context of some other function, we
+    // save BufferBegin/BufferEnd/CurBufferPtr here.
+    uint8_t *SavedBufferBegin, *SavedBufferEnd, *SavedCurBufferPtr;
+
     // When reattempting to JIT a function after running out of space, we store
     // the estimated size of the function we're trying to JIT here, so we can
     // ask the memory manager for at least this much space.  When we
@@ -396,11 +406,13 @@ namespace {
     void initJumpTableInfo(MachineJumpTableInfo *MJTI);
     void emitJumpTableInfo(MachineJumpTableInfo *MJTI);
 
-    virtual void startGVStub(BufferState &BS, const GlobalValue* GV,
-                             unsigned StubSize, unsigned Alignment = 1);
-    virtual void startGVStub(BufferState &BS, void *Buffer,
-                             unsigned StubSize);
-    virtual void* finishGVStub(BufferState &BS);
+    void startGVStub(const GlobalValue* GV,
+                     unsigned StubSize, unsigned Alignment = 1);
+    void startGVStub(void *Buffer, unsigned StubSize);
+    void finishGVStub();
+    virtual void *allocIndirectGV(const GlobalValue *GV,
+                                  const uint8_t *Buffer, size_t Size,
+                                  unsigned Alignment);
 
     /// allocateSpace - Reserves space in the current block if any, or
     /// allocate a new one of the given size.
@@ -513,7 +525,7 @@ void *JITResolver::getLazyFunctionStub(Function *F) {
 
   // If this is an external declaration, attempt to resolve the address now
   // to place in the stub.
-  if (F->isDeclaration() && !F->hasNotBeenReadFromBitcode()) {
+  if (isNonGhostDeclaration(F) || F->hasAvailableExternallyLinkage()) {
     Actual = TheJIT->getPointerToFunction(F);
 
     // If we resolved the symbol to a null address (eg. a weak external)
@@ -521,13 +533,12 @@ void *JITResolver::getLazyFunctionStub(Function *F) {
     if (!Actual) return 0;
   }
 
-  MachineCodeEmitter::BufferState BS;
   TargetJITInfo::StubLayout SL = TheJIT->getJITInfo().getStubLayout();
-  JE.startGVStub(BS, F, SL.Size, SL.Alignment);
+  JE.startGVStub(F, SL.Size, SL.Alignment);
   // Codegen a new stub, calling the lazy resolver or the actual address of the
   // external function, if it was resolved.
   Stub = TheJIT->getJITInfo().emitFunctionStub(F, Actual, JE);
-  JE.finishGVStub(BS);
+  JE.finishGVStub();
 
   if (Actual != (void*)(intptr_t)LazyResolverFn) {
     // If we are getting the stub for an external function, we really want the
@@ -547,7 +558,7 @@ void *JITResolver::getLazyFunctionStub(Function *F) {
   // exist yet, add it to the JIT's work list so that we can fill in the stub
   // address later.
   if (!Actual && !TheJIT->isCompilingLazily())
-    if (!F->isDeclaration() || F->hasNotBeenReadFromBitcode())
+    if (!isNonGhostDeclaration(F) && !F->hasAvailableExternallyLinkage())
       TheJIT->addPendingFunction(F);
 
   return Stub;
@@ -579,11 +590,10 @@ void *JITResolver::getExternalFunctionStub(void *FnAddr) {
   void *&Stub = ExternalFnToStubMap[FnAddr];
   if (Stub) return Stub;
 
-  MachineCodeEmitter::BufferState BS;
   TargetJITInfo::StubLayout SL = TheJIT->getJITInfo().getStubLayout();
-  JE.startGVStub(BS, 0, SL.Size, SL.Alignment);
+  JE.startGVStub(0, SL.Size, SL.Alignment);
   Stub = TheJIT->getJITInfo().emitFunctionStub(0, FnAddr, JE);
-  JE.finishGVStub(BS);
+  JE.finishGVStub();
 
   DEBUG(errs() << "JIT: Stub emitted at [" << Stub
                << "] for external function at '" << FnAddr << "'\n");
@@ -753,7 +763,7 @@ void *JITEmitter::getPointerToGlobal(GlobalValue *V, void *Reference,
 
     // If this is an external function pointer, we can force the JIT to
     // 'compile' it, which really just adds it to the map.
-    if (F->isDeclaration() && !F->hasNotBeenReadFromBitcode())
+    if (isNonGhostDeclaration(F) || F->hasAvailableExternallyLinkage())
       return TheJIT->getPointerToFunction(F);
   }
 
@@ -1215,8 +1225,9 @@ bool JITEmitter::finishFunction(MachineFunction &F) {
 
   if (DwarfExceptionHandling || JITEmitDebugInfo) {
     uintptr_t ActualSize = 0;
-    BufferState BS;
-    SaveStateTo(BS);
+    SavedBufferBegin = BufferBegin;
+    SavedBufferEnd = BufferEnd;
+    SavedCurBufferPtr = CurBufferPtr;
 
     if (MemMgr->NeedsExactSize()) {
       ActualSize = DE->GetDwarfTableSizeInBytes(F, *this, FnStart, FnEnd);
@@ -1232,7 +1243,9 @@ bool JITEmitter::finishFunction(MachineFunction &F) {
     MemMgr->endExceptionTable(F.getFunction(), BufferBegin, CurBufferPtr,
                               FrameRegister);
     uint8_t *EhEnd = CurBufferPtr;
-    RestoreStateFrom(BS);
+    BufferBegin = SavedBufferBegin;
+    BufferEnd = SavedBufferEnd;
+    CurBufferPtr = SavedCurBufferPtr;
 
     if (DwarfExceptionHandling) {
       TheJIT->RegisterTable(FrameRegister);
@@ -1438,27 +1451,39 @@ void JITEmitter::emitJumpTableInfo(MachineJumpTableInfo *MJTI) {
   }
 }
 
-void JITEmitter::startGVStub(BufferState &BS, const GlobalValue* GV,
+void JITEmitter::startGVStub(const GlobalValue* GV,
                              unsigned StubSize, unsigned Alignment) {
-  SaveStateTo(BS);
+  SavedBufferBegin = BufferBegin;
+  SavedBufferEnd = BufferEnd;
+  SavedCurBufferPtr = CurBufferPtr;
 
   BufferBegin = CurBufferPtr = MemMgr->allocateStub(GV, StubSize, Alignment);
   BufferEnd = BufferBegin+StubSize+1;
 }
 
-void JITEmitter::startGVStub(BufferState &BS, void *Buffer, unsigned StubSize) {
-  SaveStateTo(BS);
+void JITEmitter::startGVStub(void *Buffer, unsigned StubSize) {
+  SavedBufferBegin = BufferBegin;
+  SavedBufferEnd = BufferEnd;
+  SavedCurBufferPtr = CurBufferPtr;
 
   BufferBegin = CurBufferPtr = (uint8_t *)Buffer;
   BufferEnd = BufferBegin+StubSize+1;
 }
 
-void *JITEmitter::finishGVStub(BufferState &BS) {
+void JITEmitter::finishGVStub() {
   assert(CurBufferPtr != BufferEnd && "Stub overflowed allocated space.");
   NumBytes += getCurrentPCOffset();
-  void *Result = BufferBegin;
-  RestoreStateFrom(BS);
-  return Result;
+  BufferBegin = SavedBufferBegin;
+  BufferEnd = SavedBufferEnd;
+  CurBufferPtr = SavedCurBufferPtr;
+}
+
+void *JITEmitter::allocIndirectGV(const GlobalValue *GV,
+                                  const uint8_t *Buffer, size_t Size,
+                                  unsigned Alignment) {
+  uint8_t *IndGV = MemMgr->allocateStub(GV, Size, Alignment);
+  memcpy(IndGV, Buffer, Size);
+  return IndGV;
 }
 
 // getConstantPoolEntryAddress - Return the address of the 'ConstantNum' entry
@@ -1543,14 +1568,14 @@ void JIT::updateFunctionStub(Function *F) {
   JITEmitter *JE = cast<JITEmitter>(getCodeEmitter());
   void *Stub = JE->getJITResolver().getLazyFunctionStub(F);
   void *Addr = getPointerToGlobalIfAvailable(F);
+  assert(Addr != Stub && "Function must have non-stub address to be updated.");
 
   // Tell the target jit info to rewrite the stub at the specified address,
   // rather than creating a new one.
-  MachineCodeEmitter::BufferState BS;
   TargetJITInfo::StubLayout layout = getJITInfo().getStubLayout();
-  JE->startGVStub(BS, Stub, layout.Size);
+  JE->startGVStub(Stub, layout.Size);
   getJITInfo().emitFunctionStub(F, Addr, *getCodeEmitter());
-  JE->finishGVStub(BS);
+  JE->finishGVStub();
 }
 
 /// freeMachineCodeForFunction - release machine code memory for given Function.

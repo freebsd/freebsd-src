@@ -92,24 +92,13 @@ TEST(MDNodeTest, Simple) {
   (void) n3;
 #endif
 
-  EXPECT_EQ(3u, n1->getNumElements());
-  EXPECT_EQ(s1, n1->getElement(0));
-  EXPECT_EQ(CI, n1->getElement(1));
-  EXPECT_EQ(s2, n1->getElement(2));
+  EXPECT_EQ(3u, n1->getNumOperands());
+  EXPECT_EQ(s1, n1->getOperand(0));
+  EXPECT_EQ(CI, n1->getOperand(1));
+  EXPECT_EQ(s2, n1->getOperand(2));
 
-  EXPECT_EQ(1u, n2->getNumElements());
-  EXPECT_EQ(n1, n2->getElement(0));
-
-  std::string Str;
-  raw_string_ostream oss(Str);
-  n1->print(oss);
-  EXPECT_STREQ("!0 = metadata !{metadata !\"abc\", i8 0, metadata !\"123\"}\n",
-               oss.str().c_str());
-  Str.clear();
-  n2->print(oss);
-  EXPECT_STREQ("!0 = metadata !{metadata !1}\n"
-               "!1 = metadata !{metadata !\"abc\", i8 0, metadata !\"123\"}\n",
-               oss.str().c_str());
+  EXPECT_EQ(1u, n2->getNumOperands());
+  EXPECT_EQ(n1, n2->getOperand(0));
 }
 
 TEST(MDNodeTest, Delete) {
@@ -123,11 +112,6 @@ TEST(MDNodeTest, Delete) {
   EXPECT_EQ(n, wvh);
 
   delete I;
-
-  std::string Str;
-  raw_string_ostream oss(Str);
-  wvh->print(oss);
-  EXPECT_STREQ("!0 = metadata !{null}\n", oss.str().c_str());
 }
 
 TEST(NamedMDNodeTest, Search) {
@@ -147,8 +131,7 @@ TEST(NamedMDNodeTest, Search) {
   std::string Str;
   raw_string_ostream oss(Str);
   NMD->print(oss);
-  EXPECT_STREQ("!llvm.NMD1 = !{!0, !1}\n!0 = metadata !{i32 1}\n"
-               "!1 = metadata !{i32 2}\n",
+  EXPECT_STREQ("!llvm.NMD1 = !{!0, !1}\n",
                oss.str().c_str());
 }
 }

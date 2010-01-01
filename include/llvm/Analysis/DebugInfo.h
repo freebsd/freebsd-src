@@ -17,14 +17,10 @@
 #ifndef LLVM_ANALYSIS_DEBUGINFO_H
 #define LLVM_ANALYSIS_DEBUGINFO_H
 
-#include "llvm/Metadata.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Dwarf.h"
-#include "llvm/Support/ValueHandle.h"
 
 namespace llvm {
   class BasicBlock;
@@ -42,13 +38,15 @@ namespace llvm {
   class DebugLoc;
   struct DebugLocTracker;
   class Instruction;
+  class MDNode;
   class LLVMContext;
 
-  /// DIDescriptor - A thin wraper around MDNode to access encoded debug info. This should not
-  /// be stored in a container, because underly MDNode may change in certain situations.
+  /// DIDescriptor - A thin wraper around MDNode to access encoded debug info.
+  /// This should not be stored in a container, because underly MDNode may
+  /// change in certain situations.
   class DIDescriptor {
   protected:
-    MDNode  *DbgNode;
+    MDNode *DbgNode;
 
     /// DIDescriptor constructor.  If the specified node is non-null, check
     /// to make sure that the tag in the descriptor matches 'RequiredTag'.  If
@@ -86,7 +84,7 @@ namespace llvm {
     }
 
     /// ValidDebugInfo - Return true if N represents valid debug info value.
-    static bool ValidDebugInfo(MDNode *N, CodeGenOpt::Level OptLevel);
+    static bool ValidDebugInfo(MDNode *N, unsigned OptLevel);
 
     /// dump - print descriptor.
     void dump() const;
@@ -99,6 +97,7 @@ namespace llvm {
     bool isGlobalVariable() const;
     bool isScope() const;
     bool isCompileUnit() const;
+    bool isNameSpace() const;
     bool isLexicalBlock() const;
     bool isSubrange() const;
     bool isEnumerator() const;
@@ -218,7 +217,7 @@ namespace llvm {
     virtual ~DIType() {}
 
     DIDescriptor getContext() const     { return getDescriptorField(1); }
-    StringRef getName() const         { return getStringField(2);     }
+    StringRef getName() const           { return getStringField(2);     }
     DICompileUnit getCompileUnit() const{ return getFieldAs<DICompileUnit>(3); }
     unsigned getLineNumber() const      { return getUnsignedField(4); }
     uint64_t getSizeInBits() const      { return getUInt64Field(5); }
@@ -371,20 +370,10 @@ namespace llvm {
     unsigned isLocalToUnit() const     { return getUnsignedField(9); }
     unsigned isDefinition() const      { return getUnsignedField(10); }
 
-    unsigned getVirtuality() const {
-      if (DbgNode->getNumElements() < 14)
-        return 0;
-      return getUnsignedField(11);
-    }
-
-    unsigned getVirtualIndex() const { 
-      if (DbgNode->getNumElements() < 14)
-        return 0;
-      return getUnsignedField(12);
-    }
+    unsigned getVirtuality() const { return getUnsignedField(11); }
+    unsigned getVirtualIndex() const { return getUnsignedField(12); }
 
     DICompositeType getContainingType() const {
-      assert (DbgNode->getNumElements() >= 14 && "Invalid type!");
       return getFieldAs<DICompositeType>(13);
     }
 
@@ -442,8 +431,8 @@ namespace llvm {
       return getNumAddrElements() > 0;
     }
 
-    unsigned getNumAddrElements() const { return DbgNode->getNumElements()-6; }
-
+    unsigned getNumAddrElements() const;
+    
     uint64_t getAddrElement(unsigned Idx) const {
       return getUInt64Field(Idx+6);
     }
@@ -468,6 +457,22 @@ namespace llvm {
     DIScope getContext() const       { return getFieldAs<DIScope>(1); }
     StringRef getDirectory() const { return getContext().getDirectory(); }
     StringRef getFilename() const  { return getContext().getFilename(); }
+  };
+
+  /// DINameSpace - A wrapper for a C++ style name space.
+  class DINameSpace : public DIScope { 
+  public:
+    explicit DINameSpace(MDNode *N = 0) : DIScope(N) {
+      if (DbgNode && !isNameSpace())
+        DbgNode = 0;
+    }
+
+    DIScope getContext() const     { return getFieldAs<DIScope>(1);      }
+    StringRef getName() const      { return getStringField(2);           }
+    StringRef getDirectory() const { return getContext().getDirectory(); }
+    StringRef getFilename() const  { return getContext().getFilename();  }
+    DICompileUnit getCompileUnit() const { return getFieldAs<DICompileUnit>(3);}
+    unsigned getLineNumber() const { return getUnsignedField(4);         }
   };
 
   /// DILocation - This object holds location information. This object
@@ -624,6 +629,11 @@ namespace llvm {
     /// with the specified parent context.
     DILexicalBlock CreateLexicalBlock(DIDescriptor Context);
 
+    /// CreateNameSpace - This creates new descriptor for a namespace
+    /// with the specified parent context.
+    DINameSpace CreateNameSpace(DIDescriptor Context, StringRef Name,
+                                DICompileUnit CU, unsigned LineNo);
+
     /// CreateLocation - Creates a debug info location.
     DILocation CreateLocation(unsigned LineNo, unsigned ColumnNo,
                               DIScope S, DILocation OrigLoc);
@@ -666,34 +676,9 @@ namespace llvm {
   /// Find the debug info descriptor corresponding to this global variable.
   Value *findDbgGlobalDeclare(GlobalVariable *V);
 
-bool getLocationInfo(const Value *V, std::string &DisplayName,
-                     std::string &Type, unsigned &LineNo, std::string &File,
-                     std::string &Dir);
-
-  /// isValidDebugInfoIntrinsic - Return true if SPI is a valid debug
-  /// info intrinsic.
-  bool isValidDebugInfoIntrinsic(DbgStopPointInst &SPI,
-                                 CodeGenOpt::Level OptLev);
-
-  /// isValidDebugInfoIntrinsic - Return true if FSI is a valid debug
-  /// info intrinsic.
-  bool isValidDebugInfoIntrinsic(DbgFuncStartInst &FSI,
-                                 CodeGenOpt::Level OptLev);
-
-  /// isValidDebugInfoIntrinsic - Return true if RSI is a valid debug
-  /// info intrinsic.
-  bool isValidDebugInfoIntrinsic(DbgRegionStartInst &RSI,
-                                 CodeGenOpt::Level OptLev);
-
-  /// isValidDebugInfoIntrinsic - Return true if REI is a valid debug
-  /// info intrinsic.
-  bool isValidDebugInfoIntrinsic(DbgRegionEndInst &REI,
-                                 CodeGenOpt::Level OptLev);
-
-  /// isValidDebugInfoIntrinsic - Return true if DI is a valid debug
-  /// info intrinsic.
-  bool isValidDebugInfoIntrinsic(DbgDeclareInst &DI,
-                                 CodeGenOpt::Level OptLev);
+  bool getLocationInfo(const Value *V, std::string &DisplayName,
+                       std::string &Type, unsigned &LineNo, std::string &File,
+                       std::string &Dir);
 
   /// ExtractDebugLocation - Extract debug location information
   /// from llvm.dbg.stoppoint intrinsic.
@@ -717,7 +702,6 @@ bool getLocationInfo(const Value *V, std::string &DisplayName,
   DICompositeType getDICompositeType(DIType T);
 
   class DebugInfoFinder {
-
   public:
     /// processModule - Process entire module and collect debug info
     /// anchors.

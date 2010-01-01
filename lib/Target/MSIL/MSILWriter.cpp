@@ -556,8 +556,7 @@ void MSILWriter::printSimpleInstruction(const char* Inst, const char* Operand) {
 
 
 void MSILWriter::printPHICopy(const BasicBlock* Src, const BasicBlock* Dst) {
-  for (BasicBlock::const_iterator I = Dst->begin(), E = Dst->end();
-       isa<PHINode>(I); ++I) {
+  for (BasicBlock::const_iterator I = Dst->begin(); isa<PHINode>(I); ++I) {
     const PHINode* Phi = cast<PHINode>(I);
     const Value* Val = Phi->getIncomingValueForBlock(Src);
     if (isa<UndefValue>(Val)) continue;
@@ -1696,7 +1695,7 @@ bool MSILTarget::addPassesToEmitWholeFile(PassManager &PM,
   if (FileType != TargetMachine::AssemblyFile) return true;
   MSILWriter* Writer = new MSILWriter(o);
   PM.add(createGCLoweringPass());
-  // FIXME: Handle switch trougth native IL instruction "switch"
+  // FIXME: Handle switch through native IL instruction "switch"
   PM.add(createLowerSwitchPass());
   PM.add(createCFGSimplificationPass());
   PM.add(new MSILModule(Writer->UsedTypes,Writer->TD));

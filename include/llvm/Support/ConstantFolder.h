@@ -54,6 +54,9 @@ public:
   Constant *CreateMul(Constant *LHS, Constant *RHS) const {
     return ConstantExpr::getMul(LHS, RHS);
   }
+  Constant *CreateNSWMul(Constant *LHS, Constant *RHS) const {
+    return ConstantExpr::getNSWMul(LHS, RHS);
+  }
   Constant *CreateFMul(Constant *LHS, Constant *RHS) const {
     return ConstantExpr::getFMul(LHS, RHS);
   }
@@ -108,6 +111,9 @@ public:
 
   Constant *CreateNeg(Constant *C) const {
     return ConstantExpr::getNeg(C);
+  }
+  Constant *CreateNSWNeg(Constant *C) const {
+    return ConstantExpr::getNSWNeg(C);
   }
   Constant *CreateFNeg(Constant *C) const {
     return ConstantExpr::getFNeg(C);

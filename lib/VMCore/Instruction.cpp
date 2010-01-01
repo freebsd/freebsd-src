@@ -11,12 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "LLVMContextImpl.h"
+#include "llvm/Instruction.h"
 #include "llvm/Type.h"
 #include "llvm/Instructions.h"
-#include "llvm/Function.h"
 #include "llvm/Constants.h"
-#include "llvm/GlobalVariable.h"
 #include "llvm/Module.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/LeakDetector.h"
@@ -51,10 +49,8 @@ Instruction::Instruction(const Type *ty, unsigned it, Use *Ops, unsigned NumOps,
 // Out of line virtual method, so the vtable, etc has a home.
 Instruction::~Instruction() {
   assert(Parent == 0 && "Instruction still linked in the program!");
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsDeleted(this);
-  }
+  if (hasMetadata())
+    removeAllMetadata();
 }
 
 
@@ -464,7 +460,14 @@ bool Instruction::isSafeToSpeculativelyExecute() const {
 Instruction *Instruction::clone() const {
   Instruction *New = clone_impl();
   New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata())
-    getContext().pImpl->TheMetadata.ValueIsCloned(this, New);
+  if (!hasMetadata())
+    return New;
+  
+  // Otherwise, enumerate and copy over metadata from the old instruction to the
+  // new one.
+  SmallVector<std::pair<unsigned, MDNode*>, 4> TheMDs;
+  getAllMetadata(TheMDs);
+  for (unsigned i = 0, e = TheMDs.size(); i != e; ++i)
+    New->setMetadata(TheMDs[i].first, TheMDs[i].second);
   return New;
 }

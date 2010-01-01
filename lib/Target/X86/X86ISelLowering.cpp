@@ -980,6 +980,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   setTargetDAGCombine(ISD::SRL);
   setTargetDAGCombine(ISD::STORE);
   setTargetDAGCombine(ISD::MEMBARRIER);
+  setTargetDAGCombine(ISD::ZERO_EXTEND);
   if (Subtarget->is64Bit())
     setTargetDAGCombine(ISD::MUL);
 
@@ -4583,7 +4584,7 @@ X86TargetLowering::LowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) {
                                                  MVT::v4i32, Vec),
                                      Op.getOperand(1)));
     // Transform it so it match pextrw which produces a 32-bit result.
-    EVT EltVT = (MVT::SimpleValueType)(VT.getSimpleVT().SimpleTy+1);
+    EVT EltVT = MVT::i32;
     SDValue Extract = DAG.getNode(X86ISD::PEXTRW, dl, EltVT,
                                     Op.getOperand(0), Op.getOperand(1));
     SDValue Assert  = DAG.getNode(ISD::AssertZext, dl, EltVT, Extract,
@@ -5127,12 +5128,9 @@ SDValue X86TargetLowering::BuildFILD(SDValue Op, EVT SrcVT, SDValue Chain,
     Tys = DAG.getVTList(MVT::f64, MVT::Other, MVT::Flag);
   else
     Tys = DAG.getVTList(Op.getValueType(), MVT::Other);
-  SmallVector<SDValue, 8> Ops;
-  Ops.push_back(Chain);
-  Ops.push_back(StackSlot);
-  Ops.push_back(DAG.getValueType(SrcVT));
+  SDValue Ops[] = { Chain, StackSlot, DAG.getValueType(SrcVT) };
   SDValue Result = DAG.getNode(useSSE ? X86ISD::FILD_FLAG : X86ISD::FILD, dl,
-                                 Tys, &Ops[0], Ops.size());
+                               Tys, Ops, array_lengthof(Ops));
 
   if (useSSE) {
     Chain = Result.getValue(1);
@@ -5145,13 +5143,10 @@ SDValue X86TargetLowering::BuildFILD(SDValue Op, EVT SrcVT, SDValue Chain,
     int SSFI = MF.getFrameInfo()->CreateStackObject(8, 8, false);
     SDValue StackSlot = DAG.getFrameIndex(SSFI, getPointerTy());
     Tys = DAG.getVTList(MVT::Other);
-    SmallVector<SDValue, 8> Ops;
-    Ops.push_back(Chain);
-    Ops.push_back(Result);
-    Ops.push_back(StackSlot);
-    Ops.push_back(DAG.getValueType(Op.getValueType()));
-    Ops.push_back(InFlag);
-    Chain = DAG.getNode(X86ISD::FST, dl, Tys, &Ops[0], Ops.size());
+    SDValue Ops[] = {
+      Chain, Result, StackSlot, DAG.getValueType(Op.getValueType()), InFlag
+    };
+    Chain = DAG.getNode(X86ISD::FST, dl, Tys, Ops, array_lengthof(Ops));
     Result = DAG.getLoad(Op.getValueType(), dl, Chain, StackSlot,
                          PseudoSourceValue::getFixedStack(SSFI), 0);
   }
@@ -5752,14 +5747,11 @@ SDValue X86TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) {
   SDValue Cond = EmitCmp(Op0, Op1, X86CC, DAG);
 
   // Use sbb x, x to materialize carry bit into a GPR.
-  // FIXME: Temporarily disabled since it breaks self-hosting. It's apparently
-  // miscompiling ARMISelDAGToDAG.cpp.
-  if (0 && !isFP && X86CC == X86::COND_B) {
+  if (X86CC == X86::COND_B)
     return DAG.getNode(ISD::AND, dl, MVT::i8,
                        DAG.getNode(X86ISD::SETCC_CARRY, dl, MVT::i8,
                                    DAG.getConstant(X86CC, MVT::i8), Cond),
                        DAG.getConstant(1, MVT::i8));
-  }
 
   return DAG.getNode(X86ISD::SETCC, dl, MVT::i8,
                      DAG.getConstant(X86CC, MVT::i8), Cond);
@@ -5949,14 +5941,10 @@ SDValue X86TargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) {
   }
 
   SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::Flag);
-  SmallVector<SDValue, 4> Ops;
   // X86ISD::CMOV means set the result (which is operand 1) to the RHS if
   // condition is true.
-  Ops.push_back(Op.getOperand(2));
-  Ops.push_back(Op.getOperand(1));
-  Ops.push_back(CC);
-  Ops.push_back(Cond);
-  return DAG.getNode(X86ISD::CMOV, dl, VTs, &Ops[0], Ops.size());
+  SDValue Ops[] = { Op.getOperand(2), Op.getOperand(1), CC, Cond };
+  return DAG.getNode(X86ISD::CMOV, dl, VTs, Ops, array_lengthof(Ops));
 }
 
 // isAndOrOfSingleUseSetCCs - Return true if node is an ISD::AND or
@@ -6196,7 +6184,8 @@ X86TargetLowering::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
         LowerCallTo(Chain, Type::getVoidTy(*DAG.getContext()),
                     false, false, false, false,
                     0, CallingConv::C, false, /*isReturnValueUsed=*/false,
-                    DAG.getExternalSymbol(bzeroEntry, IntPtr), Args, DAG, dl);
+                    DAG.getExternalSymbol(bzeroEntry, IntPtr), Args, DAG, dl,
+                    DAG.GetOrdering(Chain.getNode()));
       return CallResult.second;
     }
 
@@ -6266,11 +6255,8 @@ X86TargetLowering::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
   InFlag = Chain.getValue(1);
 
   SDVTList Tys = DAG.getVTList(MVT::Other, MVT::Flag);
-  SmallVector<SDValue, 8> Ops;
-  Ops.push_back(Chain);
-  Ops.push_back(DAG.getValueType(AVT));
-  Ops.push_back(InFlag);
-  Chain  = DAG.getNode(X86ISD::REP_STOS, dl, Tys, &Ops[0], Ops.size());
+  SDValue Ops[] = { Chain, DAG.getValueType(AVT), InFlag };
+  Chain = DAG.getNode(X86ISD::REP_STOS, dl, Tys, Ops, array_lengthof(Ops));
 
   if (TwoRepStos) {
     InFlag = Chain.getValue(1);
@@ -6283,11 +6269,8 @@ X86TargetLowering::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
                               Left, InFlag);
     InFlag = Chain.getValue(1);
     Tys = DAG.getVTList(MVT::Other, MVT::Flag);
-    Ops.clear();
-    Ops.push_back(Chain);
-    Ops.push_back(DAG.getValueType(MVT::i8));
-    Ops.push_back(InFlag);
-    Chain  = DAG.getNode(X86ISD::REP_STOS, dl, Tys, &Ops[0], Ops.size());
+    SDValue Ops[] = { Chain, DAG.getValueType(MVT::i8), InFlag };
+    Chain = DAG.getNode(X86ISD::REP_STOS, dl, Tys, Ops, array_lengthof(Ops));
   } else if (BytesLeft) {
     // Handle the last 1 - 7 bytes.
     unsigned Offset = SizeVal - BytesLeft;
@@ -6351,11 +6334,9 @@ X86TargetLowering::EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
   InFlag = Chain.getValue(1);
 
   SDVTList Tys = DAG.getVTList(MVT::Other, MVT::Flag);
-  SmallVector<SDValue, 8> Ops;
-  Ops.push_back(Chain);
-  Ops.push_back(DAG.getValueType(AVT));
-  Ops.push_back(InFlag);
-  SDValue RepMovs = DAG.getNode(X86ISD::REP_MOVS, dl, Tys, &Ops[0], Ops.size());
+  SDValue Ops[] = { Chain, DAG.getValueType(AVT), InFlag };
+  SDValue RepMovs = DAG.getNode(X86ISD::REP_MOVS, dl, Tys, Ops,
+                                array_lengthof(Ops));
 
   SmallVector<SDValue, 4> Results;
   Results.push_back(RepMovs);
@@ -6979,12 +6960,13 @@ SDValue X86TargetLowering::LowerCTLZ(SDValue Op, SelectionDAG &DAG) {
   Op = DAG.getNode(X86ISD::BSR, dl, VTs, Op);
 
   // If src is zero (i.e. bsr sets ZF), returns NumBits.
-  SmallVector<SDValue, 4> Ops;
-  Ops.push_back(Op);
-  Ops.push_back(DAG.getConstant(NumBits+NumBits-1, OpVT));
-  Ops.push_back(DAG.getConstant(X86::COND_E, MVT::i8));
-  Ops.push_back(Op.getValue(1));
-  Op = DAG.getNode(X86ISD::CMOV, dl, OpVT, &Ops[0], 4);
+  SDValue Ops[] = {
+    Op,
+    DAG.getConstant(NumBits+NumBits-1, OpVT),
+    DAG.getConstant(X86::COND_E, MVT::i8),
+    Op.getValue(1)
+  };
+  Op = DAG.getNode(X86ISD::CMOV, dl, OpVT, Ops, array_lengthof(Ops));
 
   // Finally xor with NumBits-1.
   Op = DAG.getNode(ISD::XOR, dl, OpVT, Op, DAG.getConstant(NumBits-1, OpVT));
@@ -7011,12 +6993,13 @@ SDValue X86TargetLowering::LowerCTTZ(SDValue Op, SelectionDAG &DAG) {
   Op = DAG.getNode(X86ISD::BSF, dl, VTs, Op);
 
   // If src is zero (i.e. bsf sets ZF), returns NumBits.
-  SmallVector<SDValue, 4> Ops;
-  Ops.push_back(Op);
-  Ops.push_back(DAG.getConstant(NumBits, OpVT));
-  Ops.push_back(DAG.getConstant(X86::COND_E, MVT::i8));
-  Ops.push_back(Op.getValue(1));
-  Op = DAG.getNode(X86ISD::CMOV, dl, OpVT, &Ops[0], 4);
+  SDValue Ops[] = {
+    Op,
+    DAG.getConstant(NumBits, OpVT),
+    DAG.getConstant(X86::COND_E, MVT::i8),
+    Op.getValue(1)
+  };
+  Op = DAG.getNode(X86ISD::CMOV, dl, OpVT, Ops, array_lengthof(Ops));
 
   if (VT == MVT::i8)
     Op = DAG.getNode(ISD::TRUNCATE, dl, MVT::i8, Op);
@@ -9349,6 +9332,32 @@ static SDValue PerformMEMBARRIERCombine(SDNode* N, SelectionDAG &DAG) {
   }
 }
 
+static SDValue PerformZExtCombine(SDNode *N, SelectionDAG &DAG) {
+  // (i32 zext (and (i8  x86isd::setcc_carry), 1)) ->
+  //           (and (i32 x86isd::setcc_carry), 1)
+  // This eliminates the zext. This transformation is necessary because
+  // ISD::SETCC is always legalized to i8.
+  DebugLoc dl = N->getDebugLoc();
+  SDValue N0 = N->getOperand(0);
+  EVT VT = N->getValueType(0);
+  if (N0.getOpcode() == ISD::AND &&
+      N0.hasOneUse() &&
+      N0.getOperand(0).hasOneUse()) {
+    SDValue N00 = N0.getOperand(0);
+    if (N00.getOpcode() != X86ISD::SETCC_CARRY)
+      return SDValue();
+    ConstantSDNode *C = dyn_cast<ConstantSDNode>(N0.getOperand(1));
+    if (!C || C->getZExtValue() != 1)
+      return SDValue();
+    return DAG.getNode(ISD::AND, dl, VT,
+                       DAG.getNode(X86ISD::SETCC_CARRY, dl, VT,
+                                   N00.getOperand(0), N00.getOperand(1)),
+                       DAG.getConstant(1, VT));
+  }
+
+  return SDValue();
+}
+
 SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
                                              DAGCombinerInfo &DCI) const {
   SelectionDAG &DAG = DCI.DAG;
@@ -9368,6 +9377,7 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
   case X86ISD::BT:          return PerformBTCombine(N, DAG, DCI);
   case X86ISD::VZEXT_MOVL:  return PerformVZEXT_MOVLCombine(N, DAG);
   case ISD::MEMBARRIER:     return PerformMEMBARRIERCombine(N, DAG);
+  case ISD::ZERO_EXTEND:    return PerformZExtCombine(N, DAG);
   }
 
   return SDValue();

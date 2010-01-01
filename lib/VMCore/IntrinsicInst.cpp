@@ -61,11 +61,19 @@ Value *DbgInfoIntrinsic::StripCast(Value *C) {
 Value *DbgStopPointInst::getFileName() const {
   // Once the operand indices are verified, update this assert
   assert(LLVMDebugVersion == (7 << 16) && "Verify operand indices");
-  return getContext()->getElement(3);
+  return getContext()->getOperand(3);
 }
 
 Value *DbgStopPointInst::getDirectory() const {
   // Once the operand indices are verified, update this assert
   assert(LLVMDebugVersion == (7 << 16) && "Verify operand indices");
-  return getContext()->getElement(4);
+  return getContext()->getOperand(4);
+}
+
+//===----------------------------------------------------------------------===//
+/// DbgValueInst - This represents the llvm.dbg.value instruction.
+///
+
+Value *DbgValueInst::getValue() const {
+  return cast<MDNode>(getOperand(1))->getOperand(0);
 }
