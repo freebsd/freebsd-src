@@ -628,31 +628,44 @@ schizo_attach(device_t dev)
 	/*
 	 * According to the Schizo Errata I-13, consistent DMA flushing/
 	 * syncing is FUBAR in version < 5 (i.e. revision < 2.3) bridges,
-	 * so we can't use it and need to live with the consequences.
-	 * With Schizo version >= 5, CDMA flushing/syncing is usable
-	 * but requires the the workaround described in Schizo Errata
-	 * I-23.  With Tomatillo and XMITS, CDMA flushing/syncing works
-	 * as expected, Tomatillo version <= 4 (i.e. revision <= 2.3)
-	 * bridges additionally require a block store after a write to
-	 * TOMXMS_PCI_DMA_SYNC_PEND though.
+	 * so we can't use it and need to live with the consequences.  With
+	 * Schizo version >= 5, CDMA flushing/syncing is usable but requires
+	 * the workaround described in Schizo Errata I-23.  With Tomatillo
+	 * and XMITS, CDMA flushing/syncing works as expected, Tomatillo
+	 * version <= 4 (i.e. revision <= 2.3) bridges additionally require
+	 * a block store after a write to TOMXMS_PCI_DMA_SYNC_PEND though.
 	 */
 	if ((sc->sc_mode == SCHIZO_MODE_SCZ && sc->sc_ver >= 5) ||
 	    sc->sc_mode == SCHIZO_MODE_TOM || sc->sc_mode == SCHIZO_MODE_XMS) {
 		sc->sc_flags |= SCHIZO_FLAGS_CDMA;
 		if (sc->sc_mode == SCHIZO_MODE_SCZ) {
-			n = STX_CDMA_A_INO + sc->sc_half;
-			if (bus_set_resource(dev, SYS_RES_IRQ, 5,
-			    INTMAP_VEC(sc->sc_ign, n), 1) != 0)
-				panic("%s: failed to add CDMA interrupt",
-				    __func__);
-			i = schizo_intr_register(sc, n);
-			if (i != 0)
-				panic("%s: could not register interrupt "
-				    "controller for CDMA (%d)", __func__, i);
-			(void)schizo_get_intrmap(sc, n, NULL,
-			   &sc->sc_cdma_clr);
 			sc->sc_cdma_state = SCHIZO_CDMA_STATE_DONE;
-			schizo_set_intr(sc, 5, n, schizo_cdma);
+			/*
+			 * Some firmware versions include the CDMA interrupt
+			 * at RID 4 but most don't.  With the latter we add
+			 * it ourselves at the spare RID 5.
+			 */
+			n = INTINO(bus_get_resource_start(dev, SYS_RES_IRQ,
+			    4));
+			if (n == STX_CDMA_A_INO || n == STX_CDMA_B_INO) {
+				(void)schizo_get_intrmap(sc, n, NULL,
+				   &sc->sc_cdma_clr);
+				schizo_set_intr(sc, 4, n, schizo_cdma);
+			} else {
+				n = STX_CDMA_A_INO + sc->sc_half;
+				if (bus_set_resource(dev, SYS_RES_IRQ, 5,
+				    INTMAP_VEC(sc->sc_ign, n), 1) != 0)
+					panic("%s: failed to add CDMA "
+					    "interrupt", __func__);
+				i = schizo_intr_register(sc, n);
+				if (i != 0)
+					panic("%s: could not register "
+					    "interrupt controller for CDMA "
+					    "(%d)", __func__, i);
+				(void)schizo_get_intrmap(sc, n, NULL,
+				   &sc->sc_cdma_clr);
+				schizo_set_intr(sc, 5, n, schizo_cdma);
+			}
 		}
 		if (sc->sc_mode == SCHIZO_MODE_TOM && sc->sc_ver <= 4)
 			sc->sc_flags |= SCHIZO_FLAGS_BSWAR;
