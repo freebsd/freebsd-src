@@ -160,8 +160,8 @@ exverror(int cond, const char *msg, va_list ap)
 #endif
 	if (msg) {
 		if (commandname)
-			outfmt(&errout, "%s: ", commandname);
-		doformat(&errout, msg, ap);
+			outfmt(out2, "%s: ", commandname);
+		doformat(out2, msg, ap);
 		out2c('\n');
 	}
 	flushall();

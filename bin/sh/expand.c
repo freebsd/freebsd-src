@@ -526,7 +526,7 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 
 	case VSQUESTION:
 		if (*p != CTLENDVAR) {
-			outfmt(&errout, "%s\n", startp);
+			outfmt(out2, "%s\n", startp);
 			error((char *)NULL);
 		}
 		error("%.*s: parameter %snot set", (int)(p - str - 1),
