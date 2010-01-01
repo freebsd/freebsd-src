@@ -183,8 +183,8 @@ named_prestart()
 	if [ -s "${named_confdir}/rndc.conf" ]; then
 		unset confgen_command
 	fi
-	if [ -s "${named_confidr}/rndc.key" ]; then
-		case `stat -f%Su ${named_confidr}/rndc.key` in
+	if [ -s "${named_confdir}/rndc.key" ]; then
+		case `stat -f%Su ${named_confdir}/rndc.key` in
 		root|$named_uid) ;;
 		*) $confgen_command ;;
 		esac
