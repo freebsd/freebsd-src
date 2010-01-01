@@ -43,19 +43,19 @@ chroot_autoupdate()
 		warn "chroot directory structure not updated"
 	fi
 
-	# Create /etc/namedb symlink
+	# Create (or update) the configuration directory symlink
 	#
-	if [ ! -L /etc/namedb ]; then
-		if [ -d /etc/namedb ]; then
-			warn "named chroot: /etc/namedb is a directory!"
-		elif [ -e /etc/namedb ]; then
-			warn "named chroot: /etc/namedb exists!"
+	if [ ! -L "${named_conf%/*}" ]; then
+		if [ -d "${named_conf%/*}" ]; then
+			warn "named chroot: ${named_conf%/*} is a directory!"
+		elif [ -e "${named_conf%/*}" ]; then
+			warn "named chroot: ${named_conf%/*} exists!"
 		else
-			ln -s ${named_chrootdir}/etc/namedb /etc/namedb
+			ln -s ${named_confdir} ${named_conf%/*}
 		fi
 	else
 		# Make sure it points to the right place.
-		ln -shf ${named_chrootdir}/etc/namedb /etc/namedb
+		ln -shf ${named_confdir} ${named_conf%/*}
 	fi
 
 	# Mount a devfs in the chroot directory if needed
@@ -179,12 +179,12 @@ named_prestart()
 	# Create an rndc.key file for the user if none exists
 	#
 	confgen_command="${command%/named}/rndc-confgen -a -b256 -u $named_uid \
-	    -c ${named_chrootdir}/etc/namedb/rndc.key"
-	if [ -s "${named_chrootdir}/etc/namedb/rndc.conf" ]; then
+	    -c ${named_confdir}/rndc.key"
+	if [ -s "${named_confdir}/rndc.conf" ]; then
 		unset confgen_command
 	fi
-	if [ -s "${named_chrootdir}/etc/namedb/rndc.key" ]; then
-		case `stat -f%Su ${named_chrootdir}/etc/namedb/rndc.key` in
+	if [ -s "${named_confidr}/rndc.key" ]; then
+		case `stat -f%Su ${named_confidr}/rndc.key` in
 		root|$named_uid) ;;
 		*) $confgen_command ;;
 		esac
@@ -198,8 +198,8 @@ named_prestart()
 			warn "named_auto_forward enabled, but no /etc/resolv.conf"
 
 			# Empty the file in case it is included in named.conf
-			[ -s "${named_chrootdir}/etc/namedb/auto_forward.conf" ] &&
-			    create_file ${named_chrootdir}/etc/namedb/auto_forward.conf
+			[ -s "${named_confdir}/auto_forward.conf" ] &&
+			    create_file ${named_confdir}/auto_forward.conf
 
 			${command%/named}/named-checkconf $named_conf ||
 			    err 3 'named-checkconf for $named_conf failed'
@@ -248,19 +248,19 @@ named_prestart()
 			mv /var/run/naf-resolv.conf /etc/resolv.conf
 		fi
 
-		if cmp -s ${named_chrootdir}/etc/namedb/auto_forward.conf \
+		if cmp -s ${named_confdir}/auto_forward.conf \
 		    /var/run/auto_forward.conf; then
 			unlink /var/run/auto_forward.conf
 		else
-			[ -e "${named_chrootdir}/etc/namedb/auto_forward.conf" ] &&
-			    unlink ${named_chrootdir}/etc/namedb/auto_forward.conf
+			[ -e "${named_confdir}/auto_forward.conf" ] &&
+			    unlink ${named_confdir}/auto_forward.conf
 			mv /var/run/auto_forward.conf \
-			    ${named_chrootdir}/etc/namedb/auto_forward.conf
+			    ${named_confdir}/auto_forward.conf
 		fi
 	else
 		# Empty the file in case it is included in named.conf
-		[ -s "${named_chrootdir}/etc/namedb/auto_forward.conf" ] &&
-		    create_file ${named_chrootdir}/etc/namedb/auto_forward.conf
+		[ -s "${named_confdir}/auto_forward.conf" ] &&
+		    create_file ${named_confdir}/auto_forward.conf
 	fi
 
 	${command%/named}/named-checkconf $named_conf ||
@@ -274,5 +274,6 @@ load_rc_config $name
 required_dirs="$named_chrootdir"	# if it is set, it must exist
 required_files="${named_conf:=/etc/namedb/named.conf}"
 pidfile="${named_pidfile:-/var/run/named/pid}"
+named_confdir="${named_chrootdir}${named_conf%/*}"
 
 run_rc_command "$1"
