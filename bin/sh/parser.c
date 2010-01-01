@@ -1560,8 +1560,8 @@ STATIC void
 synerror(const char *msg)
 {
 	if (commandname)
-		outfmt(&errout, "%s: %d: ", commandname, startlinno);
-	outfmt(&errout, "Syntax error: %s\n", msg);
+		outfmt(out2, "%s: %d: ", commandname, startlinno);
+	outfmt(out2, "Syntax error: %s\n", msg);
 	error((char *)NULL);
 }
 

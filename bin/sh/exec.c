@@ -255,7 +255,7 @@ hashcmd(int argc __unused, char **argv __unused)
 				if (cmdp != NULL)
 					printentry(cmdp, verbose);
 				else
-					outfmt(&errout, "%s: not found\n", name);
+					outfmt(out2, "%s: not found\n", name);
 			}
 			flushall();
 		}
