@@ -184,7 +184,7 @@ mk48txx_gettime(device_t dev, struct timespec *ts)
 	 * Set dow = -1 because some drivers (for example the NetBSD and
 	 * OpenBSD mk48txx(4)) don't set it correctly.
 	 */
-	ct.dow = - 1;
+	ct.dow = -1;
 #endif
 	ct.mon = FROMBCD(FROMREG(MK48TXX_IMON, MK48TXX_MON_MASK));
 	year = FROMBCD(FROMREG(MK48TXX_IYEAR, MK48TXX_YEAR_MASK));
