@@ -118,8 +118,8 @@ namespace {
             TLI.LowerCallTo(InChain, RetTy, isSigned, !isSigned, false, false,
                             0, TLI.getLibcallCallingConv(LC), false,
                             /*isReturnValueUsed=*/true,
-                            Callee, Args, DAG,
-                            Op.getDebugLoc());
+                            Callee, Args, DAG, Op.getDebugLoc(),
+                            DAG.GetOrdering(InChain.getNode()));
 
     return CallInfo.first;
   }
@@ -748,9 +748,7 @@ LowerSTORE(SDValue Op, SelectionDAG &DAG, const SPUSubtarget *ST) {
   case ISD::UNINDEXED: {
     // The vector type we really want to load from the 16-byte chunk.
     EVT vecVT = EVT::getVectorVT(*DAG.getContext(),
-                                 VT, (128 / VT.getSizeInBits())),
-        stVecVT = EVT::getVectorVT(*DAG.getContext(),
-                                   StVT, (128 / StVT.getSizeInBits()));
+                                 VT, (128 / VT.getSizeInBits()));
 
     SDValue alignLoadVec;
     SDValue basePtr = SN->getBasePtr();
@@ -1157,11 +1155,6 @@ SPUTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
   // Handy pointer type
   EVT PtrVT = DAG.getTargetLoweringInfo().getPointerTy();
 
-  // Accumulate how many bytes are to be pushed on the stack, including the
-  // linkage area, and parameter passing area.  According to the SPU ABI,
-  // we minimally need space for [LR] and [SP]
-  unsigned NumStackBytes = SPUFrameInfo::minStackSize();
-
   // Set up a copy of the stack pointer for use loading and storing any
   // arguments that may not fit in the registers available for argument
   // passing.
@@ -1224,8 +1217,12 @@ SPUTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     }
   }
 
-  // Update number of stack bytes actually used, insert a call sequence start
-  NumStackBytes = (ArgOffset - SPUFrameInfo::minStackSize());
+  // Accumulate how many bytes are to be pushed on the stack, including the
+  // linkage area, and parameter passing area.  According to the SPU ABI,
+  // we minimally need space for [LR] and [SP].
+  unsigned NumStackBytes = ArgOffset - SPUFrameInfo::minStackSize();
+
+  // Insert a call sequence start
   Chain = DAG.getCALLSEQ_START(Chain, DAG.getIntPtrConstant(NumStackBytes,
                                                             true));
 
@@ -2623,8 +2620,6 @@ static SDValue LowerSIGN_EXTEND(SDValue Op, SelectionDAG &DAG)
 
   // Type to extend to
   MVT OpVT = Op.getValueType().getSimpleVT();
-  EVT VecVT = EVT::getVectorVT(*DAG.getContext(),
-                               OpVT, (128 / OpVT.getSizeInBits()));
 
   // Type to extend from
   SDValue Op0 = Op.getOperand(0);

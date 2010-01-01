@@ -50,9 +50,6 @@
 #include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
-#include "llvm/Support/CommandLine.h"
-static cl::opt<bool> AvoidDupAddrCompute("x86-avoid-dup-address", cl::Hidden);
-
 STATISTIC(NumLoadMoved, "Number of loads moved below TokenFactor");
 
 //===----------------------------------------------------------------------===//
@@ -1275,28 +1272,7 @@ bool X86DAGToDAGISel::SelectAddr(SDValue Op, SDValue N, SDValue &Base,
                                  SDValue &Scale, SDValue &Index,
                                  SDValue &Disp, SDValue &Segment) {
   X86ISelAddressMode AM;
-  bool Done = false;
-  if (AvoidDupAddrCompute && !N.hasOneUse()) {
-    unsigned Opcode = N.getOpcode();
-    if (Opcode != ISD::Constant && Opcode != ISD::FrameIndex &&
-        Opcode != X86ISD::Wrapper && Opcode != X86ISD::WrapperRIP) {
-      // If we are able to fold N into addressing mode, then we'll allow it even
-      // if N has multiple uses. In general, addressing computation is used as
-      // addresses by all of its uses. But watch out for CopyToReg uses, that
-      // means the address computation is liveout. It will be computed by a LEA
-      // so we want to avoid computing the address twice.
-      for (SDNode::use_iterator UI = N.getNode()->use_begin(),
-             UE = N.getNode()->use_end(); UI != UE; ++UI) {
-        if (UI->getOpcode() == ISD::CopyToReg) {
-          MatchAddressBase(N, AM);
-          Done = true;
-          break;
-        }
-      }
-    }
-  }
-
-  if (!Done && MatchAddress(N, AM))
+  if (MatchAddress(N, AM))
     return false;
 
   EVT VT = N.getValueType();
@@ -1891,27 +1867,28 @@ SDNode *X86DAGToDAGISel::Select(SDValue N) {
       }
     }
 
-    unsigned LoReg, HiReg;
+    unsigned LoReg, HiReg, ClrReg;
     unsigned ClrOpcode, SExtOpcode;
+    EVT ClrVT = NVT;
     switch (NVT.getSimpleVT().SimpleTy) {
     default: llvm_unreachable("Unsupported VT!");
     case MVT::i8:
-      LoReg = X86::AL;  HiReg = X86::AH;
+      LoReg = X86::AL;  ClrReg = HiReg = X86::AH;
       ClrOpcode  = 0;
       SExtOpcode = X86::CBW;
       break;
     case MVT::i16:
       LoReg = X86::AX;  HiReg = X86::DX;
-      ClrOpcode  = X86::MOV16r0;
+      ClrOpcode  = X86::MOV32r0;  ClrReg = X86::EDX;  ClrVT = MVT::i32;
       SExtOpcode = X86::CWD;
       break;
     case MVT::i32:
-      LoReg = X86::EAX; HiReg = X86::EDX;
+      LoReg = X86::EAX; ClrReg = HiReg = X86::EDX;
       ClrOpcode  = X86::MOV32r0;
       SExtOpcode = X86::CDQ;
       break;
     case MVT::i64:
-      LoReg = X86::RAX; HiReg = X86::RDX;
+      LoReg = X86::RAX; ClrReg = HiReg = X86::RDX;
       ClrOpcode  = ~0U; // NOT USED.
       SExtOpcode = X86::CQO;
       break;
@@ -1966,10 +1943,10 @@ SDNode *X86DAGToDAGISel::Select(SDValue N) {
                                            MVT::i64, Zero, ClrNode, SubRegNo),
                     0);
         } else {
-          ClrNode = SDValue(CurDAG->getMachineNode(ClrOpcode, dl, NVT), 0);
+          ClrNode = SDValue(CurDAG->getMachineNode(ClrOpcode, dl, ClrVT), 0);
         }
 
-        InFlag = CurDAG->getCopyToReg(CurDAG->getEntryNode(), dl, HiReg,
+        InFlag = CurDAG->getCopyToReg(CurDAG->getEntryNode(), dl, ClrReg,
                                       ClrNode, InFlag).getValue(1);
       }
     }

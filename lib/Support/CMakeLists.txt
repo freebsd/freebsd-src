@@ -3,6 +3,7 @@ add_llvm_library(LLVMSupport
   APInt.cpp
   APSInt.cpp
   Allocator.cpp
+  circular_raw_ostream.cpp
   CommandLine.cpp
   ConstantRange.cpp
   Debug.cpp
@@ -23,6 +24,7 @@ add_llvm_library(LLVMSupport
   Regex.cpp
   SlowOperationInformer.cpp
   SmallPtrSet.cpp
+  SmallVector.cpp
   SourceMgr.cpp
   Statistic.cpp
   StringExtras.cpp

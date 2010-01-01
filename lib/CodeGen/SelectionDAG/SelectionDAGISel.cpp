@@ -362,32 +362,29 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
 
 /// SetDebugLoc - Update MF's and SDB's DebugLocs if debug information is
 /// attached with this instruction.
-static void SetDebugLoc(unsigned MDDbgKind,
-                        MetadataContext &TheMetadata,
-                        Instruction *I,
+static void SetDebugLoc(unsigned MDDbgKind, Instruction *I,
                         SelectionDAGBuilder *SDB,
-                        FastISel *FastIS,
-                        MachineFunction *MF) {
-  if (!isa<DbgInfoIntrinsic>(I)) 
-    if (MDNode *Dbg = TheMetadata.getMD(MDDbgKind, I)) {
-      DILocation DILoc(Dbg);
-      DebugLoc Loc = ExtractDebugLocation(DILoc, MF->getDebugLocInfo());
+                        FastISel *FastIS, MachineFunction *MF) {
+  if (isa<DbgInfoIntrinsic>(I)) return;
+  
+  if (MDNode *Dbg = I->getMetadata(MDDbgKind)) {
+    DILocation DILoc(Dbg);
+    DebugLoc Loc = ExtractDebugLocation(DILoc, MF->getDebugLocInfo());
 
-      SDB->setCurDebugLoc(Loc);
+    SDB->setCurDebugLoc(Loc);
 
-      if (FastIS)
-        FastIS->setCurDebugLoc(Loc);
+    if (FastIS)
+      FastIS->setCurDebugLoc(Loc);
 
-      // If the function doesn't have a default debug location yet, set
-      // it. This is kind of a hack.
-      if (MF->getDefaultDebugLoc().isUnknown())
-        MF->setDefaultDebugLoc(Loc);
-    }
+    // If the function doesn't have a default debug location yet, set
+    // it. This is kind of a hack.
+    if (MF->getDefaultDebugLoc().isUnknown())
+      MF->setDefaultDebugLoc(Loc);
+  }
 }
 
 /// ResetDebugLoc - Set MF's and SDB's DebugLocs to Unknown.
-static void ResetDebugLoc(SelectionDAGBuilder *SDB,
-                          FastISel *FastIS) {
+static void ResetDebugLoc(SelectionDAGBuilder *SDB, FastISel *FastIS) {
   SDB->setCurDebugLoc(DebugLoc::getUnknownLoc());
   if (FastIS)
     FastIS->setCurDebugLoc(DebugLoc::getUnknownLoc());
@@ -398,14 +395,12 @@ void SelectionDAGISel::SelectBasicBlock(BasicBlock *LLVMBB,
                                         BasicBlock::iterator End,
                                         bool &HadTailCall) {
   SDB->setCurrentBasicBlock(BB);
-  MetadataContext &TheMetadata = LLVMBB->getParent()->getContext().getMetadata();
-  unsigned MDDbgKind = TheMetadata.getMDKind("dbg");
+  unsigned MDDbgKind = LLVMBB->getContext().getMDKindID("dbg");
 
   // Lower all of the non-terminator instructions. If a call is emitted
   // as a tail call, cease emitting nodes for this block.
   for (BasicBlock::iterator I = Begin; I != End && !SDB->HasTailCall; ++I) {
-    if (MDDbgKind)
-      SetDebugLoc(MDDbgKind, TheMetadata, I, SDB, 0, MF);
+    SetDebugLoc(MDDbgKind, I, SDB, 0, MF);
 
     if (!isa<TerminatorInst>(I)) {
       SDB->visit(*I);
@@ -428,7 +423,7 @@ void SelectionDAGISel::SelectBasicBlock(BasicBlock *LLVMBB,
       HandlePHINodesInSuccessorBlocks(LLVMBB);
 
       // Lower the terminator after the copies are emitted.
-      SetDebugLoc(MDDbgKind, TheMetadata, LLVMBB->getTerminator(), SDB, 0, MF);
+      SetDebugLoc(MDDbgKind, LLVMBB->getTerminator(), SDB, 0, MF);
       SDB->visit(*LLVMBB->getTerminator());
       ResetDebugLoc(SDB, 0);
     }
@@ -567,9 +562,9 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
   if (Changed) {
     if (TimePassesIsEnabled) {
       NamedRegionTimer T("Type Legalization 2", GroupName);
-      Changed = CurDAG->LegalizeTypes();
+      CurDAG->LegalizeTypes();
     } else {
-      Changed = CurDAG->LegalizeTypes();
+      CurDAG->LegalizeTypes();
     }
 
     if (ViewDAGCombineLT)
@@ -680,8 +675,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
 #endif
                                 );
 
-  MetadataContext &TheMetadata = Fn.getContext().getMetadata();
-  unsigned MDDbgKind = TheMetadata.getMDKind("dbg");
+  unsigned MDDbgKind = Fn.getContext().getMDKindID("dbg");
 
   // Iterate over all basic blocks in the function.
   for (Function::iterator I = Fn.begin(), E = Fn.end(); I != E; ++I) {
@@ -779,8 +773,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
             break;
           }
 
-        if (MDDbgKind)
-          SetDebugLoc(MDDbgKind, TheMetadata, BI, SDB, FastIS, &MF);
+        SetDebugLoc(MDDbgKind, BI, SDB, FastIS, &MF);
 
         // First try normal tablegen-generated "fast" selection.
         if (FastIS->SelectInstruction(BI)) {
@@ -1182,9 +1175,8 @@ SelectInlineAsmMemoryOperands(std::vector<SDValue> &Ops) {
       }
 
       // Add this to the output node.
-      EVT IntPtrTy = TLI.getPointerTy();
       Ops.push_back(CurDAG->getTargetConstant(4/*MEM*/ | (SelOps.size()<< 3),
-                                              IntPtrTy));
+                                              MVT::i32));
       Ops.insert(Ops.end(), SelOps.begin(), SelOps.end());
       i += 2;
     }

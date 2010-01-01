@@ -187,7 +187,6 @@ SDValue
 SelectionDAGLegalize::ShuffleWithNarrowerEltType(EVT NVT, EVT VT,  DebugLoc dl, 
                                                  SDValue N1, SDValue N2,
                                              SmallVectorImpl<int> &Mask) const {
-  EVT EltVT = NVT.getVectorElementType();
   unsigned NumMaskElts = VT.getVectorNumElements();
   unsigned NumDestElts = NVT.getVectorNumElements();
   unsigned NumEltsGrowth = NumDestElts / NumMaskElts;
@@ -461,8 +460,7 @@ SDValue ExpandUnalignedStore(StoreSDNode *ST, SelectionDAG &DAG,
          !ST->getMemoryVT().isVector() &&
          "Unaligned store of unknown type.");
   // Get the half-size VT
-  EVT NewStoredVT =
-    (MVT::SimpleValueType)(ST->getMemoryVT().getSimpleVT().SimpleTy - 1);
+  EVT NewStoredVT = ST->getMemoryVT().getHalfSizedIntegerVT(*DAG.getContext());
   int NumBits = NewStoredVT.getSizeInBits();
   int IncrementSize = NumBits / 8;
 
@@ -1170,8 +1168,7 @@ SDValue SelectionDAGLegalize::LegalizeOp(SDValue Op) {
         Tmp2 = LegalizeOp(Ch);
       } else if (SrcWidth & (SrcWidth - 1)) {
         // If not loading a power-of-2 number of bits, expand as two loads.
-        assert(SrcVT.isExtended() && !SrcVT.isVector() &&
-               "Unsupported extload!");
+        assert(!SrcVT.isVector() && "Unsupported extload!");
         unsigned RoundWidth = 1 << Log2_32(SrcWidth);
         assert(RoundWidth < SrcWidth);
         unsigned ExtraWidth = SrcWidth - RoundWidth;
@@ -1384,8 +1381,7 @@ SDValue SelectionDAGLegalize::LegalizeOp(SDValue Op) {
                                    SVOffset, NVT, isVolatile, Alignment);
       } else if (StWidth & (StWidth - 1)) {
         // If not storing a power-of-2 number of bits, expand as two stores.
-        assert(StVT.isExtended() && !StVT.isVector() &&
-               "Unsupported truncstore!");
+        assert(!StVT.isVector() && "Unsupported truncstore!");
         unsigned RoundWidth = 1 << Log2_32(StWidth);
         assert(RoundWidth < StWidth);
         unsigned ExtraWidth = StWidth - RoundWidth;
@@ -1869,7 +1865,7 @@ SDValue SelectionDAGLegalize::ExpandLibCall(RTLIB::Libcall LC, SDNode *Node,
                     0, TLI.getLibcallCallingConv(LC), false,
                     /*isReturnValueUsed=*/true,
                     Callee, Args, DAG,
-                    Node->getDebugLoc());
+                    Node->getDebugLoc(), DAG.GetOrdering(Node));
 
   // Legalize the call sequence, starting with the chain.  This will advance
   // the LastCALLSEQ_END to the legalized version of the CALLSEQ_END node that
@@ -2274,7 +2270,7 @@ void SelectionDAGLegalize::ExpandNode(SDNode *Node,
                       false, false, false, false, 0, CallingConv::C, false,
                       /*isReturnValueUsed=*/true,
                       DAG.getExternalSymbol("abort", TLI.getPointerTy()),
-                      Args, DAG, dl);
+                      Args, DAG, dl, DAG.GetOrdering(Node));
     Results.push_back(CallResult.second);
     break;
   }
@@ -2750,7 +2746,7 @@ void SelectionDAGLegalize::ExpandNode(SDNode *Node,
     SDValue RHS = Node->getOperand(1);
     SDValue BottomHalf;
     SDValue TopHalf;
-    static unsigned Ops[2][3] =
+    static const unsigned Ops[2][3] =
         { { ISD::MULHU, ISD::UMUL_LOHI, ISD::ZERO_EXTEND },
           { ISD::MULHS, ISD::SMUL_LOHI, ISD::SIGN_EXTEND }};
     bool isSigned = Node->getOpcode() == ISD::SMULO;
@@ -2967,7 +2963,7 @@ void SelectionDAGLegalize::PromoteNode(SDNode *Node,
     break;
   case ISD::BSWAP: {
     unsigned DiffBits = NVT.getSizeInBits() - OVT.getSizeInBits();
-    Tmp1 = DAG.getNode(ISD::ZERO_EXTEND, dl, NVT, Tmp1);
+    Tmp1 = DAG.getNode(ISD::ZERO_EXTEND, dl, NVT, Node->getOperand(0));
     Tmp1 = DAG.getNode(ISD::BSWAP, dl, NVT, Tmp1);
     Tmp1 = DAG.getNode(ISD::SRL, dl, NVT, Tmp1,
                           DAG.getConstant(DiffBits, TLI.getShiftAmountTy()));

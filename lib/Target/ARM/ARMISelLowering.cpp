@@ -1273,7 +1273,8 @@ ARMTargetLowering::LowerToTLSGeneralDynamicModel(GlobalAddressSDNode *GA,
     LowerCallTo(Chain, (const Type *) Type::getInt32Ty(*DAG.getContext()),
                 false, false, false, false,
                 0, CallingConv::C, false, /*isReturnValueUsed=*/true,
-                DAG.getExternalSymbol("__tls_get_addr", PtrVT), Args, DAG, dl);
+                DAG.getExternalSymbol("__tls_get_addr", PtrVT), Args, DAG, dl,
+                DAG.GetOrdering(Chain.getNode()));
   return CallResult.first;
 }
 
@@ -3147,6 +3148,7 @@ ARMTargetLowering::EmitAtomicBinary(MachineInstr *MI, MachineBasicBlock *BB,
   unsigned ptr = MI->getOperand(1).getReg();
   unsigned incr = MI->getOperand(2).getReg();
   DebugLoc dl = MI->getDebugLoc();
+
   bool isThumb2 = Subtarget->isThumb2();
   unsigned ldrOpc, strOpc;
   switch (Size) {
@@ -3213,6 +3215,9 @@ ARMTargetLowering::EmitAtomicBinary(MachineInstr *MI, MachineBasicBlock *BB,
   //  exitMBB:
   //   ...
   BB = exitMBB;
+
+  F->DeleteMachineInstr(MI);   // The instruction is gone now.
+
   return BB;
 }
 
@@ -4265,7 +4270,7 @@ ARMTargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
     case 'w':
       if (VT == MVT::f32)
         return std::make_pair(0U, ARM::SPRRegisterClass);
-      if (VT == MVT::f64)
+      if (VT.getSizeInBits() == 64)
         return std::make_pair(0U, ARM::DPRRegisterClass);
       if (VT.getSizeInBits() == 128)
         return std::make_pair(0U, ARM::QPRRegisterClass);
@@ -4302,7 +4307,7 @@ getRegClassForInlineAsmConstraint(const std::string &Constraint,
                                    ARM::S20,ARM::S21,ARM::S22,ARM::S23,
                                    ARM::S24,ARM::S25,ARM::S26,ARM::S27,
                                    ARM::S28,ARM::S29,ARM::S30,ARM::S31, 0);
-    if (VT == MVT::f64)
+    if (VT.getSizeInBits() == 64)
       return make_vector<unsigned>(ARM::D0, ARM::D1, ARM::D2, ARM::D3,
                                    ARM::D4, ARM::D5, ARM::D6, ARM::D7,
                                    ARM::D8, ARM::D9, ARM::D10,ARM::D11,

@@ -21,6 +21,7 @@
 #include "llvm/GlobalVariable.h"
 #include "llvm/Function.h"
 #include "llvm/LLVMContext.h"
+#include "llvm/Metadata.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/Analysis/ConstantFolding.h"
@@ -347,8 +348,7 @@ ConstantFoldMappedInstruction(const Instruction *I) {
                                   Ops.size(), TD);
 }
 
-static MDNode *UpdateInlinedAtInfo(MDNode *InsnMD, MDNode *TheCallMD,
-                                   LLVMContext &Context) {
+static MDNode *UpdateInlinedAtInfo(MDNode *InsnMD, MDNode *TheCallMD) {
   DILocation ILoc(InsnMD);
   if (ILoc.isNull()) return InsnMD;
 
@@ -358,14 +358,15 @@ static MDNode *UpdateInlinedAtInfo(MDNode *InsnMD, MDNode *TheCallMD,
   DILocation OrigLocation = ILoc.getOrigLocation();
   MDNode *NewLoc = TheCallMD;
   if (!OrigLocation.isNull())
-    NewLoc = UpdateInlinedAtInfo(OrigLocation.getNode(), TheCallMD, Context);
+    NewLoc = UpdateInlinedAtInfo(OrigLocation.getNode(), TheCallMD);
 
-  SmallVector<Value *, 4> MDVs;
-  MDVs.push_back(InsnMD->getElement(0)); // Line
-  MDVs.push_back(InsnMD->getElement(1)); // Col
-  MDVs.push_back(InsnMD->getElement(2)); // Scope
-  MDVs.push_back(NewLoc);
-  return MDNode::get(Context, MDVs.data(), MDVs.size());
+  Value *MDVs[] = {
+    InsnMD->getOperand(0), // Line
+    InsnMD->getOperand(1), // Col
+    InsnMD->getOperand(2), // Scope
+    NewLoc
+  };
+  return MDNode::get(InsnMD->getContext(), MDVs, 4);
 }
 
 /// CloneAndPruneFunctionInto - This works exactly like CloneFunctionInto,
@@ -421,12 +422,10 @@ void llvm::CloneAndPruneFunctionInto(Function *NewFunc, const Function *OldFunc,
     //
     BasicBlock::iterator I = NewBB->begin();
 
-    LLVMContext &Context = OldFunc->getContext();
-    unsigned DbgKind = Context.getMetadata().getMDKind("dbg");
+    unsigned DbgKind = OldFunc->getContext().getMDKindID("dbg");
     MDNode *TheCallMD = NULL;
-    SmallVector<Value *, 4> MDVs;
     if (TheCall && TheCall->hasMetadata()) 
-      TheCallMD = Context.getMetadata().getMD(DbgKind, TheCall);
+      TheCallMD = TheCall->getMetadata(DbgKind);
     
     // Handle PHI nodes specially, as we have to remove references to dead
     // blocks.
@@ -436,32 +435,38 @@ void llvm::CloneAndPruneFunctionInto(Function *NewFunc, const Function *OldFunc,
       for (; (PN = dyn_cast<PHINode>(I)); ++I, ++OldI) {
         if (I->hasMetadata()) {
           if (TheCallMD) {
-            if (MDNode *IMD = Context.getMetadata().getMD(DbgKind, I)) {
-              MDNode *NewMD = UpdateInlinedAtInfo(IMD, TheCallMD, Context);
-              Context.getMetadata().addMD(DbgKind, NewMD, I);
+            if (MDNode *IMD = I->getMetadata(DbgKind)) {
+              MDNode *NewMD = UpdateInlinedAtInfo(IMD, TheCallMD);
+              I->setMetadata(DbgKind, NewMD);
             }
           } else {
             // The cloned instruction has dbg info but the call instruction
             // does not have dbg info. Remove dbg info from cloned instruction.
-            Context.getMetadata().removeMD(DbgKind, I);
+            I->setMetadata(DbgKind, 0);
           }
         }
         PHIToResolve.push_back(cast<PHINode>(OldI));
       }
     }
     
+    // FIXME:
+    // FIXME:
+    // FIXME: Unclone all this metadata stuff.
+    // FIXME:
+    // FIXME:
+    
     // Otherwise, remap the rest of the instructions normally.
     for (; I != NewBB->end(); ++I) {
       if (I->hasMetadata()) {
         if (TheCallMD) {
-          if (MDNode *IMD = Context.getMetadata().getMD(DbgKind, I)) {
-            MDNode *NewMD = UpdateInlinedAtInfo(IMD, TheCallMD, Context);
-            Context.getMetadata().addMD(DbgKind, NewMD, I);
+          if (MDNode *IMD = I->getMetadata(DbgKind)) {
+            MDNode *NewMD = UpdateInlinedAtInfo(IMD, TheCallMD);
+            I->setMetadata(DbgKind, NewMD);
           }
         } else {
           // The cloned instruction has dbg info but the call instruction
           // does not have dbg info. Remove dbg info from cloned instruction.
-          Context.getMetadata().removeMD(DbgKind, I);
+          I->setMetadata(DbgKind, 0);
         }
       }
       RemapInstruction(I, ValueMap);

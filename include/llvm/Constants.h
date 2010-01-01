@@ -605,7 +605,7 @@ protected:
   ConstantExpr(const Type *ty, unsigned Opcode, Use *Ops, unsigned NumOps)
     : Constant(ty, ConstantExprVal, Ops, NumOps) {
     // Operation type (an Instruction opcode) is stored as the SubclassData.
-    SubclassData = Opcode;
+    setValueSubclassData(Opcode);
   }
 
   // These private methods are used by the type resolution code to create
@@ -692,8 +692,10 @@ public:
   static Constant *getIntToPtr(Constant *C, const Type *Ty);
   static Constant *getBitCast (Constant *C, const Type *Ty);
 
+  static Constant *getNSWNeg(Constant *C);
   static Constant *getNSWAdd(Constant *C1, Constant *C2);
   static Constant *getNSWSub(Constant *C1, Constant *C2);
+  static Constant *getNSWMul(Constant *C1, Constant *C2);
   static Constant *getExactSDiv(Constant *C1, Constant *C2);
 
   /// Transparently provide more efficient getOperand methods.
@@ -812,7 +814,7 @@ public:
   virtual bool isNullValue() const { return false; }
 
   /// getOpcode - Return the opcode at the root of this constant expression
-  unsigned getOpcode() const { return SubclassData; }
+  unsigned getOpcode() const { return getSubclassDataFromValue(); }
 
   /// getPredicate - Return the ICMP or FCMP predicate value. Assert if this is
   /// not an ICMP or FCMP constant expression.
@@ -844,6 +846,13 @@ public:
   static inline bool classof(const ConstantExpr *) { return true; }
   static inline bool classof(const Value *V) {
     return V->getValueID() == ConstantExprVal;
+  }
+  
+private:
+  // Shadow Value::setValueSubclassData with a private forwarding method so that
+  // subclasses cannot accidentally use it.
+  void setValueSubclassData(unsigned short D) {
+    Value::setValueSubclassData(D);
   }
 };
 

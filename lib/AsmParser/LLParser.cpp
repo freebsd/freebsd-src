@@ -18,8 +18,6 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/InlineAsm.h"
 #include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Metadata.h"
 #include "llvm/Module.h"
 #include "llvm/Operator.h"
 #include "llvm/ValueSymbolTable.h"
@@ -170,8 +168,8 @@ bool LLParser::ParseTopLevelEntities() {
     case lltok::LocalVar:   if (ParseNamedType()) return true; break;
     case lltok::GlobalID:   if (ParseUnnamedGlobal()) return true; break;
     case lltok::GlobalVar:  if (ParseNamedGlobal()) return true; break;
-    case lltok::Metadata:   if (ParseStandaloneMetadata()) return true; break;
-    case lltok::NamedOrCustomMD: if (ParseNamedMetadata()) return true; break;
+    case lltok::exclaim:    if (ParseStandaloneMetadata()) return true; break;
+    case lltok::MetadataVar: if (ParseNamedMetadata()) return true; break;
 
     // The Global variable production with no name can have many different
     // optional leading prefixes, the production is:
@@ -465,69 +463,61 @@ bool LLParser::ParseNamedGlobal() {
 
 // MDString:
 //   ::= '!' STRINGCONSTANT
-bool LLParser::ParseMDString(MetadataBase *&MDS) {
+bool LLParser::ParseMDString(MDString *&Result) {
   std::string Str;
   if (ParseStringConstant(Str)) return true;
-  MDS = MDString::get(Context, Str);
+  Result = MDString::get(Context, Str);
   return false;
 }
 
 // MDNode:
 //   ::= '!' MDNodeNumber
-bool LLParser::ParseMDNode(MetadataBase *&Node) {
+bool LLParser::ParseMDNodeID(MDNode *&Result) {
   // !{ ..., !42, ... }
   unsigned MID = 0;
-  if (ParseUInt32(MID))  return true;
+  if (ParseUInt32(MID)) return true;
 
   // Check existing MDNode.
-  std::map<unsigned, WeakVH>::iterator I = MetadataCache.find(MID);
-  if (I != MetadataCache.end()) {
-    Node = cast<MetadataBase>(I->second);
+  if (MID < NumberedMetadata.size() && NumberedMetadata[MID] != 0) {
+    Result = NumberedMetadata[MID];
     return false;
   }
 
-  // Check known forward references.
-  std::map<unsigned, std::pair<WeakVH, LocTy> >::iterator
-    FI = ForwardRefMDNodes.find(MID);
-  if (FI != ForwardRefMDNodes.end()) {
-    Node = cast<MetadataBase>(FI->second.first);
-    return false;
-  }
+  // Create MDNode forward reference.
 
-  // Create MDNode forward reference
-  SmallVector<Value *, 1> Elts;
+  // FIXME: This is not unique enough!
   std::string FwdRefName = "llvm.mdnode.fwdref." + utostr(MID);
-  Elts.push_back(MDString::get(Context, FwdRefName));
-  MDNode *FwdNode = MDNode::get(Context, Elts.data(), Elts.size());
+  Value *V = MDString::get(Context, FwdRefName);
+  MDNode *FwdNode = MDNode::get(Context, &V, 1);
   ForwardRefMDNodes[MID] = std::make_pair(FwdNode, Lex.getLoc());
-  Node = FwdNode;
+  
+  if (NumberedMetadata.size() <= MID)
+    NumberedMetadata.resize(MID+1);
+  NumberedMetadata[MID] = FwdNode;
+  Result = FwdNode;
   return false;
 }
 
-///ParseNamedMetadata:
+/// ParseNamedMetadata:
 ///   !foo = !{ !1, !2 }
 bool LLParser::ParseNamedMetadata() {
-  assert(Lex.getKind() == lltok::NamedOrCustomMD);
-  Lex.Lex();
+  assert(Lex.getKind() == lltok::MetadataVar);
   std::string Name = Lex.getStrVal();
+  Lex.Lex();
 
-  if (ParseToken(lltok::equal, "expected '=' here"))
+  if (ParseToken(lltok::equal, "expected '=' here") ||
+      ParseToken(lltok::exclaim, "Expected '!' here") ||
+      ParseToken(lltok::lbrace, "Expected '{' here"))
     return true;
 
-  if (Lex.getKind() != lltok::Metadata)
-    return TokError("Expected '!' here");
-  Lex.Lex();
-
-  if (Lex.getKind() != lltok::lbrace)
-    return TokError("Expected '{' here");
-  Lex.Lex();
   SmallVector<MetadataBase *, 8> Elts;
   do {
-    if (Lex.getKind() != lltok::Metadata)
-      return TokError("Expected '!' here");
-    Lex.Lex();
-    MetadataBase *N = 0;
-    if (ParseMDNode(N)) return true;
+    if (ParseToken(lltok::exclaim, "Expected '!' here"))
+      return true;
+    
+    // FIXME: This rejects MDStrings.  Are they legal in an named MDNode or not?
+    MDNode *N = 0;
+    if (ParseMDNodeID(N)) return true;
     Elts.push_back(N);
   } while (EatIfPresent(lltok::comma));
 
@@ -541,74 +531,41 @@ bool LLParser::ParseNamedMetadata() {
 /// ParseStandaloneMetadata:
 ///   !42 = !{...}
 bool LLParser::ParseStandaloneMetadata() {
-  assert(Lex.getKind() == lltok::Metadata);
+  assert(Lex.getKind() == lltok::exclaim);
   Lex.Lex();
   unsigned MetadataID = 0;
-  if (ParseUInt32(MetadataID))
-    return true;
-  if (MetadataCache.find(MetadataID) != MetadataCache.end())
-    return TokError("Metadata id is already used");
-  if (ParseToken(lltok::equal, "expected '=' here"))
-    return true;
 
   LocTy TyLoc;
   PATypeHolder Ty(Type::getVoidTy(Context));
-  if (ParseType(Ty, TyLoc))
-    return true;
-
-  if (Lex.getKind() != lltok::Metadata)
-    return TokError("Expected metadata here");
-
-  Lex.Lex();
-  if (Lex.getKind() != lltok::lbrace)
-    return TokError("Expected '{' here");
-
   SmallVector<Value *, 16> Elts;
-  if (ParseMDNodeVector(Elts)
-      || ParseToken(lltok::rbrace, "expected end of metadata node"))
+  if (ParseUInt32(MetadataID) ||
+      ParseToken(lltok::equal, "expected '=' here") ||
+      ParseType(Ty, TyLoc) ||
+      ParseToken(lltok::exclaim, "Expected '!' here") ||
+      ParseToken(lltok::lbrace, "Expected '{' here") ||
+      ParseMDNodeVector(Elts) ||
+      ParseToken(lltok::rbrace, "expected end of metadata node"))
     return true;
 
   MDNode *Init = MDNode::get(Context, Elts.data(), Elts.size());
-  MetadataCache[MetadataID] = Init;
-  std::map<unsigned, std::pair<WeakVH, LocTy> >::iterator
+  
+  // See if this was forward referenced, if so, handle it.
+  std::map<unsigned, std::pair<TrackingVH<MDNode>, LocTy> >::iterator
     FI = ForwardRefMDNodes.find(MetadataID);
   if (FI != ForwardRefMDNodes.end()) {
-    MDNode *FwdNode = cast<MDNode>(FI->second.first);
-    FwdNode->replaceAllUsesWith(Init);
+    FI->second.first->replaceAllUsesWith(Init);
     ForwardRefMDNodes.erase(FI);
+    
+    assert(NumberedMetadata[MetadataID] == Init && "Tracking VH didn't work");
+  } else {
+    if (MetadataID >= NumberedMetadata.size())
+      NumberedMetadata.resize(MetadataID+1);
+
+    if (NumberedMetadata[MetadataID] != 0)
+      return TokError("Metadata id is already used");
+    NumberedMetadata[MetadataID] = Init;
   }
 
-  return false;
-}
-
-/// ParseInlineMetadata:
-///   !{type %instr}
-///   !{...} MDNode
-///   !"foo" MDString
-bool LLParser::ParseInlineMetadata(Value *&V, PerFunctionState &PFS) {
-  assert(Lex.getKind() == lltok::Metadata && "Only for Metadata");
-  V = 0;
-
-  Lex.Lex();
-  if (Lex.getKind() == lltok::lbrace) {
-    Lex.Lex();
-    if (ParseTypeAndValue(V, PFS) ||
-        ParseToken(lltok::rbrace, "expected end of metadata node"))
-      return true;
-
-    Value *Vals[] = { V };
-    V = MDNode::get(Context, Vals, 1);
-    return false;
-  }
-
-  // Standalone metadata reference
-  // !{ ..., !42, ... }
-  if (!ParseMDNode((MetadataBase *&)V))
-    return false;
-
-  // MDString:
-  // '!' STRINGCONSTANT
-  if (ParseMDString((MetadataBase *&)V)) return true;
   return false;
 }
 
@@ -1105,29 +1062,28 @@ bool LLParser::ParseOptionalCallingConv(CallingConv::ID &CC) {
   return false;
 }
 
-/// ParseOptionalCustomMetadata
-///   ::= /* empty */
-///   ::= !dbg !42
-bool LLParser::ParseOptionalCustomMetadata() {
-  if (Lex.getKind() != lltok::NamedOrCustomMD)
-    return false;
+/// ParseInstructionMetadata
+///   ::= !dbg !42 (',' !dbg !57)*
+bool LLParser::
+ParseInstructionMetadata(SmallVectorImpl<std::pair<unsigned,
+                                                 MDNode *> > &Result){
+  do {
+    if (Lex.getKind() != lltok::MetadataVar)
+      return TokError("expected metadata after comma");
 
-  std::string Name = Lex.getStrVal();
-  Lex.Lex();
+    std::string Name = Lex.getStrVal();
+    Lex.Lex();
 
-  if (Lex.getKind() != lltok::Metadata)
-    return TokError("Expected '!' here");
-  Lex.Lex();
+    MDNode *Node;
+    if (ParseToken(lltok::exclaim, "expected '!' here") ||
+        ParseMDNodeID(Node))
+      return true;
 
-  MetadataBase *Node;
-  if (ParseMDNode(Node)) return true;
+    unsigned MDK = M->getMDKindID(Name.c_str());
+    Result.push_back(std::make_pair(MDK, Node));
 
-  MetadataContext &TheMetadata = M->getContext().getMetadata();
-  unsigned MDK = TheMetadata.getMDKind(Name.c_str());
-  if (!MDK)
-    MDK = TheMetadata.registerMDKind(Name.c_str());
-  MDsOnInst.push_back(std::make_pair(MDK, cast<MDNode>(Node)));
-
+    // If this is the end of the list, we're done.
+  } while (EatIfPresent(lltok::comma));
   return false;
 }
 
@@ -1145,33 +1101,53 @@ bool LLParser::ParseOptionalAlignment(unsigned &Alignment) {
   return false;
 }
 
-/// ParseOptionalInfo
-///   ::= OptionalInfo (',' OptionalInfo)+
-bool LLParser::ParseOptionalInfo(unsigned &Alignment) {
-
-  // FIXME: Handle customized metadata info attached with an instruction.
-  do {
-      if (Lex.getKind() == lltok::NamedOrCustomMD) {
-      if (ParseOptionalCustomMetadata()) return true;
-    } else if (Lex.getKind() == lltok::kw_align) {
+/// ParseOptionalCommaAlign
+///   ::= 
+///   ::= ',' align 4
+///
+/// This returns with AteExtraComma set to true if it ate an excess comma at the
+/// end.
+bool LLParser::ParseOptionalCommaAlign(unsigned &Alignment,
+                                       bool &AteExtraComma) {
+  AteExtraComma = false;
+  while (EatIfPresent(lltok::comma)) {
+    // Metadata at the end is an early exit.
+    if (Lex.getKind() == lltok::MetadataVar) {
+      AteExtraComma = true;
+      return false;
+    }
+    
+    if (Lex.getKind() == lltok::kw_align) {
       if (ParseOptionalAlignment(Alignment)) return true;
     } else
       return true;
-  } while (EatIfPresent(lltok::comma));
+  }
 
   return false;
 }
 
 
+/// ParseIndexList - This parses the index list for an insert/extractvalue
+/// instruction.  This sets AteExtraComma in the case where we eat an extra
+/// comma at the end of the line and find that it is followed by metadata.
+/// Clients that don't allow metadata can call the version of this function that
+/// only takes one argument.
+///
 /// ParseIndexList
 ///    ::=  (',' uint32)+
-bool LLParser::ParseIndexList(SmallVectorImpl<unsigned> &Indices) {
+///
+bool LLParser::ParseIndexList(SmallVectorImpl<unsigned> &Indices,
+                              bool &AteExtraComma) {
+  AteExtraComma = false;
+  
   if (Lex.getKind() != lltok::comma)
     return TokError("expected ',' as start of index list");
 
   while (EatIfPresent(lltok::comma)) {
-    if (Lex.getKind() == lltok::NamedOrCustomMD)
-      break;
+    if (Lex.getKind() == lltok::MetadataVar) {
+      AteExtraComma = true;
+      return false;
+    }
     unsigned Idx;
     if (ParseUInt32(Idx)) return true;
     Indices.push_back(Idx);
@@ -1213,7 +1189,7 @@ PATypeHolder LLParser::HandleUpRefs(const Type *ty) {
 
   PATypeHolder Ty(ty);
 #if 0
-  errs() << "Type '" << Ty->getDescription()
+  dbgs() << "Type '" << Ty->getDescription()
          << "' newly formed.  Resolving upreferences.\n"
          << UpRefs.size() << " upreferences active!\n";
 #endif
@@ -1231,7 +1207,7 @@ PATypeHolder LLParser::HandleUpRefs(const Type *ty) {
                 UpRefs[i].LastContainedTy) != Ty->subtype_end();
 
 #if 0
-    errs() << "  UR#" << i << " - TypeContains(" << Ty->getDescription() << ", "
+    dbgs() << "  UR#" << i << " - TypeContains(" << Ty->getDescription() << ", "
            << UpRefs[i].LastContainedTy->getDescription() << ") = "
            << (ContainsType ? "true" : "false")
            << " level=" << UpRefs[i].NestingLevel << "\n";
@@ -1248,7 +1224,7 @@ PATypeHolder LLParser::HandleUpRefs(const Type *ty) {
       continue;
 
 #if 0
-    errs() << "  * Resolving upreference for " << UpRefs[i].UpRefTy << "\n";
+    dbgs() << "  * Resolving upreference for " << UpRefs[i].UpRefTy << "\n";
 #endif
     if (!TypeToResolve)
       TypeToResolve = UpRefs[i].UpRefTy;
@@ -1416,17 +1392,13 @@ bool LLParser::ParseParameterList(SmallVectorImpl<ParamInfo> &ArgList,
     if (ParseType(ArgTy, ArgLoc))
       return true;
 
-    if (Lex.getKind() == lltok::Metadata) {
-      if (ParseInlineMetadata(V, PFS))
-        return true;
-    } else {
-      if (ParseOptionalAttrs(ArgAttrs1, 0) ||
-          ParseValue(ArgTy, V, PFS) ||
-          // FIXME: Should not allow attributes after the argument, remove this
-          // in LLVM 3.0.
-          ParseOptionalAttrs(ArgAttrs2, 3))
-        return true;
-    }
+    // Otherwise, handle normal operands.
+    if (ParseOptionalAttrs(ArgAttrs1, 0) ||
+        ParseValue(ArgTy, V, PFS) ||
+        // FIXME: Should not allow attributes after the argument, remove this
+        // in LLVM 3.0.
+        ParseOptionalAttrs(ArgAttrs2, 3))
+      return true;
     ArgList.push_back(ParamInfo(ArgLoc, V, ArgAttrs1|ArgAttrs2));
   }
 
@@ -1931,30 +1903,33 @@ bool LLParser::ParseValID(ValID &ID) {
     ID.StrVal = Lex.getStrVal();
     ID.Kind = ValID::t_LocalName;
     break;
-  case lltok::Metadata: {  // !{...} MDNode, !"foo" MDString
-    ID.Kind = ValID::t_Metadata;
+  case lltok::exclaim:   // !{...} MDNode, !"foo" MDString
     Lex.Lex();
-    if (Lex.getKind() == lltok::lbrace) {
+    
+    if (EatIfPresent(lltok::lbrace)) {
       SmallVector<Value*, 16> Elts;
       if (ParseMDNodeVector(Elts) ||
           ParseToken(lltok::rbrace, "expected end of metadata node"))
         return true;
 
-      ID.MetadataVal = MDNode::get(Context, Elts.data(), Elts.size());
+      ID.MDNodeVal = MDNode::get(Context, Elts.data(), Elts.size());
+      ID.Kind = ValID::t_MDNode;
       return false;
     }
 
     // Standalone metadata reference
     // !{ ..., !42, ... }
-    if (!ParseMDNode(ID.MetadataVal))
+    if (Lex.getKind() == lltok::APSInt) {
+      if (ParseMDNodeID(ID.MDNodeVal)) return true;
+      ID.Kind = ValID::t_MDNode;
       return false;
-
+    }
+    
     // MDString:
     //   ::= '!' STRINGCONSTANT
-    if (ParseMDString(ID.MetadataVal)) return true;
-    ID.Kind = ValID::t_Metadata;
+    if (ParseMDString(ID.MDStringVal)) return true;
+    ID.Kind = ValID::t_MDString;
     return false;
-  }
   case lltok::APSInt:
     ID.APSIntVal = Lex.getAPSIntVal();
     ID.Kind = ValID::t_APSInt;
@@ -2154,8 +2129,6 @@ bool LLParser::ParseValID(ValID &ID) {
         ParseIndexList(Indices) ||
         ParseToken(lltok::rparen, "expected ')' in extractvalue constantexpr"))
       return true;
-    if (Lex.getKind() == lltok::NamedOrCustomMD)
-      if (ParseOptionalCustomMetadata()) return true;
 
     if (!isa<StructType>(Val->getType()) && !isa<ArrayType>(Val->getType()))
       return Error(ID.Loc, "extractvalue operand must be array or struct");
@@ -2178,8 +2151,6 @@ bool LLParser::ParseValID(ValID &ID) {
         ParseIndexList(Indices) ||
         ParseToken(lltok::rparen, "expected ')' in insertvalue constantexpr"))
       return true;
-    if (Lex.getKind() == lltok::NamedOrCustomMD)
-      if (ParseOptionalCustomMetadata()) return true;
     if (!isa<StructType>(Val0->getType()) && !isa<ArrayType>(Val0->getType()))
       return Error(ID.Loc, "extractvalue operand must be array or struct");
     if (!ExtractValueInst::getIndexedType(Val0->getType(), Indices.begin(),
@@ -2398,7 +2369,8 @@ bool LLParser::ConvertGlobalValIDToValue(const Type *Ty, ValID &ID,
 
   switch (ID.Kind) {
   default: llvm_unreachable("Unknown ValID!");
-  case ValID::t_Metadata:
+  case ValID::t_MDNode:
+  case ValID::t_MDString:
     return Error(ID.Loc, "invalid use of metadata");
   case ValID::t_LocalID:
   case ValID::t_LocalName:
@@ -2468,6 +2440,30 @@ bool LLParser::ConvertGlobalValIDToValue(const Type *Ty, ValID &ID,
   }
 }
 
+/// ConvertGlobalOrMetadataValIDToValue - Apply a type to a ValID to get a fully
+/// resolved constant or metadata value.
+bool LLParser::ConvertGlobalOrMetadataValIDToValue(const Type *Ty, ValID &ID,
+                                                   Value *&V) {
+  switch (ID.Kind) {
+  case ValID::t_MDNode:
+    if (!Ty->isMetadataTy())
+      return Error(ID.Loc, "metadata value must have metadata type");
+    V = ID.MDNodeVal;
+    return false;
+  case ValID::t_MDString:
+    if (!Ty->isMetadataTy())
+      return Error(ID.Loc, "metadata value must have metadata type");
+    V = ID.MDStringVal;
+    return false;
+  default:
+    Constant *C;
+    if (ConvertGlobalValIDToValue(Ty, ID, C)) return true;
+    V = C;
+    return false;
+  }
+}
+  
+
 bool LLParser::ParseGlobalTypeAndValue(Constant *&V) {
   PATypeHolder Type(Type::getVoidTy(Context));
   return ParseType(Type) ||
@@ -2504,25 +2500,20 @@ bool LLParser::ParseGlobalValueVector(SmallVectorImpl<Constant*> &Elts) {
 
 bool LLParser::ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
                                    PerFunctionState &PFS) {
-  if (ID.Kind == ValID::t_LocalID)
-    V = PFS.GetVal(ID.UIntVal, Ty, ID.Loc);
-  else if (ID.Kind == ValID::t_LocalName)
-    V = PFS.GetVal(ID.StrVal, Ty, ID.Loc);
-  else if (ID.Kind == ValID::t_InlineAsm) {
+  switch (ID.Kind) {
+  case ValID::t_LocalID: V = PFS.GetVal(ID.UIntVal, Ty, ID.Loc); break;
+  case ValID::t_LocalName: V = PFS.GetVal(ID.StrVal, Ty, ID.Loc); break;
+  case ValID::t_InlineAsm: {
     const PointerType *PTy = dyn_cast<PointerType>(Ty);
-    const FunctionType *FTy =
+    const FunctionType *FTy = 
       PTy ? dyn_cast<FunctionType>(PTy->getElementType()) : 0;
     if (!FTy || !InlineAsm::Verify(FTy, ID.StrVal2))
       return Error(ID.Loc, "invalid type for inline asm constraint string");
     V = InlineAsm::get(FTy, ID.StrVal, ID.StrVal2, ID.UIntVal&1, ID.UIntVal>>1);
     return false;
-  } else if (ID.Kind == ValID::t_Metadata) {
-    V = ID.MetadataVal;
-  } else {
-    Constant *C;
-    if (ConvertGlobalValIDToValue(Ty, ID, C)) return true;
-    V = C;
-    return false;
+  }
+  default:
+    return ConvertGlobalOrMetadataValIDToValue(Ty, ID, V);
   }
 
   return V == 0;
@@ -2803,6 +2794,7 @@ bool LLParser::ParseBasicBlock(PerFunctionState &PFS) {
 
   // Parse the instructions in this block until we get a terminator.
   Instruction *Inst;
+  SmallVector<std::pair<unsigned, MDNode *>, 4> MetadataOnInst;
   do {
     // This instruction may have three possibilities for a name: a) none
     // specified, b) name specified "%foo =", c) number specified: "%4 =".
@@ -2824,16 +2816,28 @@ bool LLParser::ParseBasicBlock(PerFunctionState &PFS) {
         return true;
     }
 
-    if (ParseInstruction(Inst, BB, PFS)) return true;
-    if (EatIfPresent(lltok::comma))
-      ParseOptionalCustomMetadata();
+    switch (ParseInstruction(Inst, BB, PFS)) {
+    default: assert(0 && "Unknown ParseInstruction result!");
+    case InstError: return true;
+    case InstNormal:
+      // With a normal result, we check to see if the instruction is followed by
+      // a comma and metadata.
+      if (EatIfPresent(lltok::comma))
+        if (ParseInstructionMetadata(MetadataOnInst))
+          return true;
+      break;
+    case InstExtraComma:
+      // If the instruction parser ate an extra comma at the end of it, it
+      // *must* be followed by metadata.
+      if (ParseInstructionMetadata(MetadataOnInst))
+        return true;
+      break;        
+    }
 
     // Set metadata attached with this instruction.
-    MetadataContext &TheMetadata = M->getContext().getMetadata();
-    for (SmallVector<std::pair<unsigned, MDNode *>, 2>::iterator
-           MDI = MDsOnInst.begin(), MDE = MDsOnInst.end(); MDI != MDE; ++MDI)
-      TheMetadata.addMD(MDI->first, MDI->second, Inst);
-    MDsOnInst.clear();
+    for (unsigned i = 0, e = MetadataOnInst.size(); i != e; ++i)
+      Inst->setMetadata(MetadataOnInst[i].first, MetadataOnInst[i].second);
+    MetadataOnInst.clear();
 
     BB->getInstList().push_back(Inst);
 
@@ -2850,8 +2854,8 @@ bool LLParser::ParseBasicBlock(PerFunctionState &PFS) {
 
 /// ParseInstruction - Parse one of the many different instructions.
 ///
-bool LLParser::ParseInstruction(Instruction *&Inst, BasicBlock *BB,
-                                PerFunctionState &PFS) {
+int LLParser::ParseInstruction(Instruction *&Inst, BasicBlock *BB,
+                               PerFunctionState &PFS) {
   lltok::Kind Token = Lex.getKind();
   if (Token == lltok::Eof)
     return TokError("found end of file when expecting more instructions");
@@ -3015,12 +3019,12 @@ bool LLParser::ParseCmpPredicate(unsigned &P, unsigned Opc) {
 //===----------------------------------------------------------------------===//
 
 /// ParseRet - Parse a return instruction.
-///   ::= 'ret' void (',' !dbg, !1)
-///   ::= 'ret' TypeAndValue (',' !dbg, !1)
-///   ::= 'ret' TypeAndValue (',' TypeAndValue)+  (',' !dbg, !1)
+///   ::= 'ret' void (',' !dbg, !1)*
+///   ::= 'ret' TypeAndValue (',' !dbg, !1)*
+///   ::= 'ret' TypeAndValue (',' TypeAndValue)+  (',' !dbg, !1)*
 ///         [[obsolete: LLVM 3.0]]
-bool LLParser::ParseRet(Instruction *&Inst, BasicBlock *BB,
-                        PerFunctionState &PFS) {
+int LLParser::ParseRet(Instruction *&Inst, BasicBlock *BB,
+                       PerFunctionState &PFS) {
   PATypeHolder Ty(Type::getVoidTy(Context));
   if (ParseType(Ty, true /*void allowed*/)) return true;
 
@@ -3032,21 +3036,22 @@ bool LLParser::ParseRet(Instruction *&Inst, BasicBlock *BB,
   Value *RV;
   if (ParseValue(Ty, RV, PFS)) return true;
 
+  bool ExtraComma = false;
   if (EatIfPresent(lltok::comma)) {
     // Parse optional custom metadata, e.g. !dbg
-    if (Lex.getKind() == lltok::NamedOrCustomMD) {
-      if (ParseOptionalCustomMetadata()) return true;
+    if (Lex.getKind() == lltok::MetadataVar) {
+      ExtraComma = true;
     } else {
       // The normal case is one return value.
-      // FIXME: LLVM 3.0 remove MRV support for 'ret i32 1, i32 2', requiring use
-      // of 'ret {i32,i32} {i32 1, i32 2}'
+      // FIXME: LLVM 3.0 remove MRV support for 'ret i32 1, i32 2', requiring
+      // use of 'ret {i32,i32} {i32 1, i32 2}'
       SmallVector<Value*, 8> RVs;
       RVs.push_back(RV);
 
       do {
         // If optional custom metadata, e.g. !dbg is seen then this is the 
         // end of MRV.
-        if (Lex.getKind() == lltok::NamedOrCustomMD)
+        if (Lex.getKind() == lltok::MetadataVar)
           break;
         if (ParseTypeAndValue(RV, PFS)) return true;
         RVs.push_back(RV);
@@ -3062,7 +3067,7 @@ bool LLParser::ParseRet(Instruction *&Inst, BasicBlock *BB,
   }
 
   Inst = ReturnInst::Create(Context, RV);
-  return false;
+  return ExtraComma ? InstExtraComma : InstNormal;
 }
 
 
@@ -3485,7 +3490,7 @@ bool LLParser::ParseShuffleVector(Instruction *&Inst, PerFunctionState &PFS) {
 
 /// ParsePHI
 ///   ::= 'phi' Type '[' Value ',' Value ']' (',' '[' Value ',' Value ']')*
-bool LLParser::ParsePHI(Instruction *&Inst, PerFunctionState &PFS) {
+int LLParser::ParsePHI(Instruction *&Inst, PerFunctionState &PFS) {
   PATypeHolder Ty(Type::getVoidTy(Context));
   Value *Op0, *Op1;
   LocTy TypeLoc = Lex.getLoc();
@@ -3498,6 +3503,7 @@ bool LLParser::ParsePHI(Instruction *&Inst, PerFunctionState &PFS) {
       ParseToken(lltok::rsquare, "expected ']' in phi value list"))
     return true;
 
+  bool AteExtraComma = false;
   SmallVector<std::pair<Value*, BasicBlock*>, 16> PHIVals;
   while (1) {
     PHIVals.push_back(std::make_pair(Op0, cast<BasicBlock>(Op1)));
@@ -3505,8 +3511,10 @@ bool LLParser::ParsePHI(Instruction *&Inst, PerFunctionState &PFS) {
     if (!EatIfPresent(lltok::comma))
       break;
 
-    if (Lex.getKind() == lltok::NamedOrCustomMD)
+    if (Lex.getKind() == lltok::MetadataVar) {
+      AteExtraComma = true;
       break;
+    }
 
     if (ParseToken(lltok::lsquare, "expected '[' in phi value list") ||
         ParseValue(Ty, Op0, PFS) ||
@@ -3516,9 +3524,6 @@ bool LLParser::ParsePHI(Instruction *&Inst, PerFunctionState &PFS) {
       return true;
   }
 
-  if (Lex.getKind() == lltok::NamedOrCustomMD)
-    if (ParseOptionalCustomMetadata()) return true;
-
   if (!Ty->isFirstClassType())
     return Error(TypeLoc, "phi node must have first class type");
 
@@ -3527,7 +3532,7 @@ bool LLParser::ParsePHI(Instruction *&Inst, PerFunctionState &PFS) {
   for (unsigned i = 0, e = PHIVals.size(); i != e; ++i)
     PN->addIncoming(PHIVals[i].first, PHIVals[i].second);
   Inst = PN;
-  return false;
+  return AteExtraComma ? InstExtraComma : InstNormal;
 }
 
 /// ParseCall
@@ -3634,22 +3639,24 @@ bool LLParser::ParseCall(Instruction *&Inst, PerFunctionState &PFS,
 /// ParseAlloc
 ///   ::= 'malloc' Type (',' TypeAndValue)? (',' OptionalInfo)?
 ///   ::= 'alloca' Type (',' TypeAndValue)? (',' OptionalInfo)?
-bool LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS,
-                          BasicBlock* BB, bool isAlloca) {
+int LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS,
+                         BasicBlock* BB, bool isAlloca) {
   PATypeHolder Ty(Type::getVoidTy(Context));
   Value *Size = 0;
   LocTy SizeLoc;
   unsigned Alignment = 0;
   if (ParseType(Ty)) return true;
 
+  bool AteExtraComma = false;
   if (EatIfPresent(lltok::comma)) {
-    if (Lex.getKind() == lltok::kw_align 
-        || Lex.getKind() == lltok::NamedOrCustomMD) {
-      if (ParseOptionalInfo(Alignment)) return true;
+    if (Lex.getKind() == lltok::kw_align) {
+      if (ParseOptionalAlignment(Alignment)) return true;
+    } else if (Lex.getKind() == lltok::MetadataVar) {
+      AteExtraComma = true;
     } else {
-      if (ParseTypeAndValue(Size, SizeLoc, PFS)) return true;
-      if (EatIfPresent(lltok::comma))
-        if (ParseOptionalInfo(Alignment)) return true;
+      if (ParseTypeAndValue(Size, SizeLoc, PFS) ||
+          ParseOptionalCommaAlign(Alignment, AteExtraComma))
+        return true;
     }
   }
 
@@ -3658,7 +3665,7 @@ bool LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS,
 
   if (isAlloca) {
     Inst = new AllocaInst(Ty, Size, Alignment);
-    return false;
+    return AteExtraComma ? InstExtraComma : InstNormal;
   }
 
   // Autoupgrade old malloc instruction to malloc call.
@@ -3672,7 +3679,7 @@ bool LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS,
     MallocF = cast<Function>(
        M->getOrInsertFunction("", Type::getInt8PtrTy(Context), IntPtrTy, NULL));
   Inst = CallInst::CreateMalloc(BB, IntPtrTy, Ty, AllocSize, Size, MallocF);
-  return false;
+return AteExtraComma ? InstExtraComma : InstNormal;
 }
 
 /// ParseFree
@@ -3689,36 +3696,35 @@ bool LLParser::ParseFree(Instruction *&Inst, PerFunctionState &PFS,
 
 /// ParseLoad
 ///   ::= 'volatile'? 'load' TypeAndValue (',' OptionalInfo)?
-bool LLParser::ParseLoad(Instruction *&Inst, PerFunctionState &PFS,
-                         bool isVolatile) {
+int LLParser::ParseLoad(Instruction *&Inst, PerFunctionState &PFS,
+                        bool isVolatile) {
   Value *Val; LocTy Loc;
   unsigned Alignment = 0;
-  if (ParseTypeAndValue(Val, Loc, PFS)) return true;
-
-  if (EatIfPresent(lltok::comma))
-    if (ParseOptionalInfo(Alignment)) return true;
+  bool AteExtraComma = false;
+  if (ParseTypeAndValue(Val, Loc, PFS) ||
+      ParseOptionalCommaAlign(Alignment, AteExtraComma))
+    return true;
 
   if (!isa<PointerType>(Val->getType()) ||
       !cast<PointerType>(Val->getType())->getElementType()->isFirstClassType())
     return Error(Loc, "load operand must be a pointer to a first class type");
 
   Inst = new LoadInst(Val, "", isVolatile, Alignment);
-  return false;
+  return AteExtraComma ? InstExtraComma : InstNormal;
 }
 
 /// ParseStore
 ///   ::= 'volatile'? 'store' TypeAndValue ',' TypeAndValue (',' 'align' i32)?
-bool LLParser::ParseStore(Instruction *&Inst, PerFunctionState &PFS,
-                          bool isVolatile) {
+int LLParser::ParseStore(Instruction *&Inst, PerFunctionState &PFS,
+                         bool isVolatile) {
   Value *Val, *Ptr; LocTy Loc, PtrLoc;
   unsigned Alignment = 0;
+  bool AteExtraComma = false;
   if (ParseTypeAndValue(Val, Loc, PFS) ||
       ParseToken(lltok::comma, "expected ',' after store operand") ||
-      ParseTypeAndValue(Ptr, PtrLoc, PFS))
+      ParseTypeAndValue(Ptr, PtrLoc, PFS) ||
+      ParseOptionalCommaAlign(Alignment, AteExtraComma))
     return true;
-
-  if (EatIfPresent(lltok::comma))
-    if (ParseOptionalInfo(Alignment)) return true;
 
   if (!isa<PointerType>(Ptr->getType()))
     return Error(PtrLoc, "store operand must be a pointer");
@@ -3728,7 +3734,7 @@ bool LLParser::ParseStore(Instruction *&Inst, PerFunctionState &PFS,
     return Error(Loc, "stored value and pointer type do not match");
 
   Inst = new StoreInst(Val, Ptr, isVolatile, Alignment);
-  return false;
+  return AteExtraComma ? InstExtraComma : InstNormal;
 }
 
 /// ParseGetResult
@@ -3752,7 +3758,7 @@ bool LLParser::ParseGetResult(Instruction *&Inst, PerFunctionState &PFS) {
 
 /// ParseGetElementPtr
 ///   ::= 'getelementptr' 'inbounds'? TypeAndValue (',' TypeAndValue)*
-bool LLParser::ParseGetElementPtr(Instruction *&Inst, PerFunctionState &PFS) {
+int LLParser::ParseGetElementPtr(Instruction *&Inst, PerFunctionState &PFS) {
   Value *Ptr, *Val; LocTy Loc, EltLoc;
 
   bool InBounds = EatIfPresent(lltok::kw_inbounds);
@@ -3763,16 +3769,17 @@ bool LLParser::ParseGetElementPtr(Instruction *&Inst, PerFunctionState &PFS) {
     return Error(Loc, "base of getelementptr must be a pointer");
 
   SmallVector<Value*, 16> Indices;
+  bool AteExtraComma = false;
   while (EatIfPresent(lltok::comma)) {
-    if (Lex.getKind() == lltok::NamedOrCustomMD)
+    if (Lex.getKind() == lltok::MetadataVar) {
+      AteExtraComma = true;
       break;
+    }
     if (ParseTypeAndValue(Val, EltLoc, PFS)) return true;
     if (!isa<IntegerType>(Val->getType()))
       return Error(EltLoc, "getelementptr index must be an integer");
     Indices.push_back(Val);
   }
-  if (Lex.getKind() == lltok::NamedOrCustomMD)
-    if (ParseOptionalCustomMetadata()) return true;
 
   if (!GetElementPtrInst::getIndexedType(Ptr->getType(),
                                          Indices.begin(), Indices.end()))
@@ -3780,19 +3787,18 @@ bool LLParser::ParseGetElementPtr(Instruction *&Inst, PerFunctionState &PFS) {
   Inst = GetElementPtrInst::Create(Ptr, Indices.begin(), Indices.end());
   if (InBounds)
     cast<GetElementPtrInst>(Inst)->setIsInBounds(true);
-  return false;
+  return AteExtraComma ? InstExtraComma : InstNormal;
 }
 
 /// ParseExtractValue
 ///   ::= 'extractvalue' TypeAndValue (',' uint32)+
-bool LLParser::ParseExtractValue(Instruction *&Inst, PerFunctionState &PFS) {
+int LLParser::ParseExtractValue(Instruction *&Inst, PerFunctionState &PFS) {
   Value *Val; LocTy Loc;
   SmallVector<unsigned, 4> Indices;
+  bool AteExtraComma;
   if (ParseTypeAndValue(Val, Loc, PFS) ||
-      ParseIndexList(Indices))
+      ParseIndexList(Indices, AteExtraComma))
     return true;
-  if (Lex.getKind() == lltok::NamedOrCustomMD)
-    if (ParseOptionalCustomMetadata()) return true;
 
   if (!isa<StructType>(Val->getType()) && !isa<ArrayType>(Val->getType()))
     return Error(Loc, "extractvalue operand must be array or struct");
@@ -3801,22 +3807,21 @@ bool LLParser::ParseExtractValue(Instruction *&Inst, PerFunctionState &PFS) {
                                         Indices.end()))
     return Error(Loc, "invalid indices for extractvalue");
   Inst = ExtractValueInst::Create(Val, Indices.begin(), Indices.end());
-  return false;
+  return AteExtraComma ? InstExtraComma : InstNormal;
 }
 
 /// ParseInsertValue
 ///   ::= 'insertvalue' TypeAndValue ',' TypeAndValue (',' uint32)+
-bool LLParser::ParseInsertValue(Instruction *&Inst, PerFunctionState &PFS) {
+int LLParser::ParseInsertValue(Instruction *&Inst, PerFunctionState &PFS) {
   Value *Val0, *Val1; LocTy Loc0, Loc1;
   SmallVector<unsigned, 4> Indices;
+  bool AteExtraComma;
   if (ParseTypeAndValue(Val0, Loc0, PFS) ||
       ParseToken(lltok::comma, "expected comma after insertvalue operand") ||
       ParseTypeAndValue(Val1, Loc1, PFS) ||
-      ParseIndexList(Indices))
+      ParseIndexList(Indices, AteExtraComma))
     return true;
-  if (Lex.getKind() == lltok::NamedOrCustomMD)
-    if (ParseOptionalCustomMetadata()) return true;
-
+  
   if (!isa<StructType>(Val0->getType()) && !isa<ArrayType>(Val0->getType()))
     return Error(Loc0, "extractvalue operand must be array or struct");
 
@@ -3824,7 +3829,7 @@ bool LLParser::ParseInsertValue(Instruction *&Inst, PerFunctionState &PFS) {
                                         Indices.end()))
     return Error(Loc0, "invalid indices for insertvalue");
   Inst = InsertValueInst::Create(Val0, Val1, Indices.begin(), Indices.end());
-  return false;
+  return AteExtraComma ? InstExtraComma : InstNormal;
 }
 
 //===----------------------------------------------------------------------===//
@@ -3836,32 +3841,20 @@ bool LLParser::ParseInsertValue(Instruction *&Inst, PerFunctionState &PFS) {
 /// Element
 ///   ::= 'null' | TypeAndValue
 bool LLParser::ParseMDNodeVector(SmallVectorImpl<Value*> &Elts) {
-  assert(Lex.getKind() == lltok::lbrace);
-  Lex.Lex();
   do {
-    Value *V = 0;
-    if (Lex.getKind() == lltok::kw_null) {
-      Lex.Lex();
-      V = 0;
-    } else {
-      PATypeHolder Ty(Type::getVoidTy(Context));
-      if (ParseType(Ty)) return true;
-      if (Lex.getKind() == lltok::Metadata) {
-        Lex.Lex();
-        MetadataBase *Node = 0;
-        if (!ParseMDNode(Node))
-          V = Node;
-        else {
-          MetadataBase *MDS = 0;
-          if (ParseMDString(MDS)) return true;
-          V = MDS;
-        }
-      } else {
-        Constant *C;
-        if (ParseGlobalValue(Ty, C)) return true;
-        V = C;
-      }
+    // Null is a special case since it is typeless.
+    if (EatIfPresent(lltok::kw_null)) {
+      Elts.push_back(0);
+      continue;
     }
+    
+    Value *V = 0;
+    PATypeHolder Ty(Type::getVoidTy(Context));
+    ValID ID;
+    if (ParseType(Ty) || ParseValID(ID) ||
+        ConvertGlobalOrMetadataValIDToValue(Ty, ID, V))
+      return true;
+    
     Elts.push_back(V);
   } while (EatIfPresent(lltok::comma));
 

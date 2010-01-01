@@ -91,11 +91,13 @@ class SelectionDAGBuilder {
 
   DenseMap<const Value*, SDValue> NodeMap;
 
+public:
   /// PendingLoads - Loads are not emitted to the program immediately.  We bunch
   /// them up and then emit token factor nodes when possible.  This allows us to
   /// get simple disambiguation between loads without worrying about alias
   /// analysis.
   SmallVector<SDValue, 8> PendingLoads;
+private:
 
   /// PendingExports - CopyToReg nodes that copy values to virtual registers
   /// for export to other blocks need to be emitted before any terminator
@@ -103,6 +105,10 @@ class SelectionDAGBuilder {
   /// up and the emit a single tokenfactor for them just before terminator
   /// instructions.
   SmallVector<SDValue, 8> PendingExports;
+
+  /// SDNodeOrder - A unique monotonically increasing number used to order the
+  /// SDNodes we create.
+  unsigned SDNodeOrder;
 
   /// Case - A struct to record the Value for a switch case, and the
   /// case's target basic block.
@@ -300,7 +306,7 @@ public:
   SelectionDAGBuilder(SelectionDAG &dag, TargetLowering &tli,
                       FunctionLoweringInfo &funcinfo,
                       CodeGenOpt::Level ol)
-    : CurDebugLoc(DebugLoc::getUnknownLoc()), 
+    : CurDebugLoc(DebugLoc::getUnknownLoc()), SDNodeOrder(0),
       TLI(tli), DAG(dag), FuncInfo(funcinfo), OptLevel(ol),
       HasTailCall(false),
       Context(dag.getContext()) {
@@ -331,6 +337,8 @@ public:
 
   DebugLoc getCurDebugLoc() const { return CurDebugLoc; }
   void setCurDebugLoc(DebugLoc dl) { CurDebugLoc = dl; }
+
+  unsigned getSDNodeOrder() const { return SDNodeOrder; }
 
   void CopyValueToVirtualRegister(Value *V, unsigned Reg);
 
@@ -455,6 +463,8 @@ private:
   void visitStore(StoreInst &I);
   void visitPHI(PHINode &I) { } // PHI nodes are handled specially.
   void visitCall(CallInst &I);
+  bool visitMemCmpCall(CallInst &I);
+  
   void visitInlineAsm(CallSite CS);
   const char *visitIntrinsicCall(CallInst &I, unsigned Intrinsic);
   void visitTargetIntrinsic(CallInst &I, unsigned Intrinsic);

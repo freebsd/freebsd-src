@@ -77,7 +77,7 @@ protected:
 
   /// IsBTMemSlow - True if BT (bit test) of memory instructions are slow.
   bool IsBTMemSlow;
-  
+
   /// DarwinVers - Nonzero if this is a darwin platform: the numeric
   /// version of the platform, e.g. 8 = 10.4 (Tiger), 9 = 10.5 (Leopard), etc.
   unsigned char DarwinVers; // Is any darwin-x86 platform.
@@ -169,8 +169,11 @@ public:
       p = "e-p:64:64-s:64-f64:64:64-i64:64:64-f80:128:128-n8:16:32:64";
     else if (isTargetDarwin())
       p = "e-p:32:32-f64:32:64-i64:32:64-f80:128:128-n8:16:32";
+    else if (isTargetCygMing() || isTargetWindows())
+      p = "e-p:32:32-f64:64:64-i64:64:64-f80:128:128-n8:16:32";
     else
       p = "e-p:32:32-f64:32:64-i64:32:64-f80:32:32-n8:16:32";
+
     return std::string(p);
   }
 

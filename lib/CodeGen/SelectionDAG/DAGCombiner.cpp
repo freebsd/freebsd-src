@@ -2755,7 +2755,34 @@ SDValue DAGCombiner::visitSRL(SDNode *N) {
   if (N1C && SimplifyDemandedBits(SDValue(N, 0)))
     return SDValue(N, 0);
 
-  return N1C ? visitShiftByConstant(N, N1C->getZExtValue()) : SDValue();
+  if (N1C) {
+    SDValue NewSRL = visitShiftByConstant(N, N1C->getZExtValue());
+    if (NewSRL.getNode())
+      return NewSRL;
+  }
+
+  // Here is a common situation. We want to optimize:
+  //
+  //   %a = ...
+  //   %b = and i32 %a, 2
+  //   %c = srl i32 %b, 1
+  //   brcond i32 %c ...
+  //
+  // into
+  // 
+  //   %a = ...
+  //   %b = and %a, 2
+  //   %c = setcc eq %b, 0
+  //   brcond %c ...
+  //
+  // However when after the source operand of SRL is optimized into AND, the SRL
+  // itself may not be optimized further. Look for it and add the BRCOND into
+  // the worklist.
+  if (N->hasOneUse() &&
+      N->use_begin()->getOpcode() == ISD::BRCOND)
+    AddToWorkList(*N->use_begin());
+
+  return SDValue();
 }
 
 SDValue DAGCombiner::visitCTLZ(SDNode *N) {
@@ -3200,19 +3227,6 @@ SDValue DAGCombiner::visitZERO_EXTEND(SDNode *N) {
     Mask.zext(VT.getSizeInBits());
     return DAG.getNode(ISD::AND, N->getDebugLoc(), VT,
                        X, DAG.getConstant(Mask, VT));
-  }
-
-  // Fold (zext (and x, cst)) -> (and (zext x), cst)
-  if (N0.getOpcode() == ISD::AND &&
-      N0.getOperand(1).getOpcode() == ISD::Constant &&
-      N0.getOperand(0).getOpcode() != ISD::TRUNCATE &&
-      N0.getOperand(0).hasOneUse()) {
-    APInt Mask = cast<ConstantSDNode>(N0.getOperand(1))->getAPIntValue();
-    Mask.zext(VT.getSizeInBits());
-    return DAG.getNode(ISD::AND, N->getDebugLoc(), VT,
-                       DAG.getNode(ISD::ZERO_EXTEND, N->getDebugLoc(), VT,
-                                   N0.getOperand(0)),
-                       DAG.getConstant(Mask, VT));
   }
 
   // fold (zext (load x)) -> (zext (truncate (zextload x)))

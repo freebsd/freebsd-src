@@ -20,6 +20,7 @@
 #include "llvm/BasicBlock.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
+#include "llvm/GlobalVariable.h"
 #include "llvm/Function.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/LLVMContext.h"
@@ -48,7 +49,6 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
-#include <cstdio>
 using namespace llvm;
 
 STATISTIC(NumGVNInstr,  "Number of instructions deleted");
@@ -733,13 +733,13 @@ static RegisterPass<GVN> X("gvn",
                            "Global Value Numbering");
 
 void GVN::dump(DenseMap<uint32_t, Value*>& d) {
-  printf("{\n");
+  errs() << "{\n";
   for (DenseMap<uint32_t, Value*>::iterator I = d.begin(),
        E = d.end(); I != E; ++I) {
-      printf("%d\n", I->first);
+      errs() << I->first << "\n";
       I->second->dump();
   }
-  printf("}\n");
+  errs() << "}\n";
 }
 
 static bool isSafeReplacement(PHINode* p, Instruction *inst) {
@@ -1278,6 +1278,32 @@ struct AvailableValueInBlock {
     assert(!isSimpleValue() && "Wrong accessor");
     return cast<MemIntrinsic>(Val.getPointer());
   }
+  
+  /// MaterializeAdjustedValue - Emit code into this block to adjust the value
+  /// defined here to the specified type.  This handles various coercion cases.
+  Value *MaterializeAdjustedValue(const Type *LoadTy,
+                                  const TargetData *TD) const {
+    Value *Res;
+    if (isSimpleValue()) {
+      Res = getSimpleValue();
+      if (Res->getType() != LoadTy) {
+        assert(TD && "Need target data to handle type mismatch case");
+        Res = GetStoreValueForLoad(Res, Offset, LoadTy, BB->getTerminator(),
+                                   *TD);
+        
+        DEBUG(errs() << "GVN COERCED NONLOCAL VAL:\nOffset: " << Offset << "  "
+                     << *getSimpleValue() << '\n'
+                     << *Res << '\n' << "\n\n\n");
+      }
+    } else {
+      Res = GetMemInstValueForLoad(getMemIntrinValue(), Offset,
+                                   LoadTy, BB->getTerminator(), *TD);
+      DEBUG(errs() << "GVN COERCED NONLOCAL MEM INTRIN:\nOffset: " << Offset
+                   << "  " << *getMemIntrinValue() << '\n'
+                   << *Res << '\n' << "\n\n\n");
+    }
+    return Res;
+  }
 };
 
 /// ConstructSSAForLoadSet - Given a set of loads specified by ValuesPerBlock,
@@ -1286,7 +1312,15 @@ struct AvailableValueInBlock {
 static Value *ConstructSSAForLoadSet(LoadInst *LI, 
                          SmallVectorImpl<AvailableValueInBlock> &ValuesPerBlock,
                                      const TargetData *TD,
+                                     const DominatorTree &DT,
                                      AliasAnalysis *AA) {
+  // Check for the fully redundant, dominating load case.  In this case, we can
+  // just use the dominating value directly.
+  if (ValuesPerBlock.size() == 1 && 
+      DT.properlyDominates(ValuesPerBlock[0].BB, LI->getParent()))
+    return ValuesPerBlock[0].MaterializeAdjustedValue(LI->getType(), TD);
+
+  // Otherwise, we have to construct SSA form.
   SmallVector<PHINode*, 8> NewPHIs;
   SSAUpdater SSAUpdate(&NewPHIs);
   SSAUpdate.Initialize(LI);
@@ -1300,28 +1334,7 @@ static Value *ConstructSSAForLoadSet(LoadInst *LI,
     if (SSAUpdate.HasValueForBlock(BB))
       continue;
 
-    unsigned Offset = AV.Offset;
-
-    Value *AvailableVal;
-    if (AV.isSimpleValue()) {
-      AvailableVal = AV.getSimpleValue();
-      if (AvailableVal->getType() != LoadTy) {
-        assert(TD && "Need target data to handle type mismatch case");
-        AvailableVal = GetStoreValueForLoad(AvailableVal, Offset, LoadTy,
-                                            BB->getTerminator(), *TD);
-        
-        DEBUG(errs() << "GVN COERCED NONLOCAL VAL:\nOffset: " << Offset << "  "
-              << *AV.getSimpleValue() << '\n'
-              << *AvailableVal << '\n' << "\n\n\n");
-      }
-    } else {
-      AvailableVal = GetMemInstValueForLoad(AV.getMemIntrinValue(), Offset,
-                                            LoadTy, BB->getTerminator(), *TD);
-      DEBUG(errs() << "GVN COERCED NONLOCAL MEM INTRIN:\nOffset: " << Offset
-            << "  " << *AV.getMemIntrinValue() << '\n'
-            << *AvailableVal << '\n' << "\n\n\n");
-    }
-    SSAUpdate.AddAvailableValue(BB, AvailableVal);
+    SSAUpdate.AddAvailableValue(BB, AV.MaterializeAdjustedValue(LoadTy, TD));
   }
   
   // Perform PHI construction.
@@ -1346,7 +1359,7 @@ static bool isLifetimeStart(Instruction *Inst) {
 bool GVN::processNonLocalLoad(LoadInst *LI,
                               SmallVectorImpl<Instruction*> &toErase) {
   // Find the non-local dependencies of the load.
-  SmallVector<NonLocalDepEntry, 64> Deps;
+  SmallVector<NonLocalDepResult, 64> Deps;
   MD->getNonLocalPointerDependency(LI->getOperand(0), true, LI->getParent(),
                                    Deps);
   //DEBUG(errs() << "INVESTIGATING NONLOCAL LOAD: "
@@ -1490,7 +1503,7 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
     DEBUG(errs() << "GVN REMOVING NONLOCAL LOAD: " << *LI << '\n');
     
     // Perform PHI construction.
-    Value *V = ConstructSSAForLoadSet(LI, ValuesPerBlock, TD,
+    Value *V = ConstructSSAForLoadSet(LI, ValuesPerBlock, TD, *DT,
                                       VN.getAliasAnalysis());
     LI->replaceAllUsesWith(V);
 
@@ -1679,7 +1692,7 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
   ValuesPerBlock.push_back(AvailableValueInBlock::get(UnavailablePred,NewLoad));
 
   // Perform PHI construction.
-  Value *V = ConstructSSAForLoadSet(LI, ValuesPerBlock, TD,
+  Value *V = ConstructSSAForLoadSet(LI, ValuesPerBlock, TD, *DT,
                                     VN.getAliasAnalysis());
   LI->replaceAllUsesWith(V);
   if (isa<PHINode>(V))

@@ -75,6 +75,7 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ConstantRange.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/InstIterator.h"
@@ -117,8 +118,8 @@ char ScalarEvolution::ID = 0;
 SCEV::~SCEV() {}
 
 void SCEV::dump() const {
-  print(errs());
-  errs() << '\n';
+  print(dbgs());
+  dbgs() << '\n';
 }
 
 bool SCEV::isZero() const {
@@ -298,7 +299,7 @@ bool SCEVAddRecExpr::isLoopInvariant(const Loop *QueryLoop) const {
     return false;
 
   // This recurrence is variant w.r.t. QueryLoop if QueryLoop contains L.
-  if (QueryLoop->contains(L->getHeader()))
+  if (QueryLoop->contains(L))
     return false;
 
   // This recurrence is variant w.r.t. QueryLoop if any of its operands
@@ -333,7 +334,7 @@ bool SCEVUnknown::isLoopInvariant(const Loop *L) const {
   // Instructions are never considered invariant in the function body
   // (null loop) because they are defined within the "loop".
   if (Instruction *I = dyn_cast<Instruction>(V))
-    return L && !L->contains(I->getParent());
+    return L && !L->contains(I);
   return true;
 }
 
@@ -1457,10 +1458,13 @@ const SCEV *ScalarEvolution::getAddExpr(SmallVectorImpl<const SCEV *> &Ops,
       LIOps.push_back(AddRec->getStart());
 
       SmallVector<const SCEV *, 4> AddRecOps(AddRec->op_begin(),
-                                           AddRec->op_end());
+                                             AddRec->op_end());
       AddRecOps[0] = getAddExpr(LIOps);
 
+      // It's tempting to propagate NUW/NSW flags here, but nuw/nsw addition
+      // is not associative so this isn't necessarily safe.
       const SCEV *NewRec = getAddRecExpr(AddRecOps, AddRec->getLoop());
+
       // If all of the other operands were loop invariant, we are done.
       if (Ops.size() == 1) return NewRec;
 
@@ -1636,6 +1640,8 @@ const SCEV *ScalarEvolution::getMulExpr(SmallVectorImpl<const SCEV *> &Ops,
         }
       }
 
+      // It's tempting to propagate the NSW flag here, but nsw multiplication
+      // is not associative so this isn't necessarily safe.
       const SCEV *NewRec = getAddRecExpr(NewOps, AddRec->getLoop());
 
       // If all of the other operands were loop invariant, we are done.
@@ -1838,10 +1844,10 @@ ScalarEvolution::getAddRecExpr(SmallVectorImpl<const SCEV *> &Operands,
 
   // Canonicalize nested AddRecs in by nesting them in order of loop depth.
   if (const SCEVAddRecExpr *NestedAR = dyn_cast<SCEVAddRecExpr>(Operands[0])) {
-    const Loop* NestedLoop = NestedAR->getLoop();
+    const Loop *NestedLoop = NestedAR->getLoop();
     if (L->getLoopDepth() < NestedLoop->getLoopDepth()) {
       SmallVector<const SCEV *, 4> NestedOperands(NestedAR->op_begin(),
-                                                NestedAR->op_end());
+                                                  NestedAR->op_end());
       Operands[0] = NestedAR->getStart();
       // AddRecs require their operands be loop-invariant with respect to their
       // loops. Don't perform this transformation if it would break this
@@ -2441,7 +2447,7 @@ ScalarEvolution::ForgetSymbolicName(Instruction *I, const SCEV *SymName) {
     Instruction *I = Worklist.pop_back_val();
     if (!Visited.insert(I)) continue;
 
-    std::map<SCEVCallbackVH, const SCEV*>::iterator It =
+    std::map<SCEVCallbackVH, const SCEV *>::iterator It =
       Scalars.find(static_cast<Value *>(I));
     if (It != Scalars.end()) {
       // Short-circuit the def-use traversal if the symbolic name
@@ -2592,8 +2598,9 @@ const SCEV *ScalarEvolution::createNodeForPHI(PHINode *PN) {
 /// createNodeForGEP - Expand GEP instructions into add and multiply
 /// operations. This allows them to be analyzed by regular SCEV code.
 ///
-const SCEV *ScalarEvolution::createNodeForGEP(Operator *GEP) {
+const SCEV *ScalarEvolution::createNodeForGEP(GEPOperator *GEP) {
 
+  bool InBounds = GEP->isInBounds();
   const Type *IntPtrTy = getEffectiveSCEVType(GEP->getType());
   Value *Base = GEP->getOperand(0);
   // Don't attempt to analyze GEPs over unsized objects.
@@ -2610,18 +2617,23 @@ const SCEV *ScalarEvolution::createNodeForGEP(Operator *GEP) {
       // For a struct, add the member offset.
       unsigned FieldNo = cast<ConstantInt>(Index)->getZExtValue();
       TotalOffset = getAddExpr(TotalOffset,
-                               getFieldOffsetExpr(STy, FieldNo));
+                               getFieldOffsetExpr(STy, FieldNo),
+                               /*HasNUW=*/false, /*HasNSW=*/InBounds);
     } else {
       // For an array, add the element offset, explicitly scaled.
       const SCEV *LocalOffset = getSCEV(Index);
       if (!isa<PointerType>(LocalOffset->getType()))
         // Getelementptr indicies are signed.
         LocalOffset = getTruncateOrSignExtend(LocalOffset, IntPtrTy);
-      LocalOffset = getMulExpr(LocalOffset, getAllocSizeExpr(*GTI));
-      TotalOffset = getAddExpr(TotalOffset, LocalOffset);
+      // Lower "inbounds" GEPs to NSW arithmetic.
+      LocalOffset = getMulExpr(LocalOffset, getAllocSizeExpr(*GTI),
+                               /*HasNUW=*/false, /*HasNSW=*/InBounds);
+      TotalOffset = getAddExpr(TotalOffset, LocalOffset,
+                               /*HasNUW=*/false, /*HasNSW=*/InBounds);
     }
   }
-  return getAddExpr(getSCEV(Base), TotalOffset);
+  return getAddExpr(getSCEV(Base), TotalOffset,
+                    /*HasNUW=*/false, /*HasNSW=*/InBounds);
 }
 
 /// GetMinTrailingZeros - Determine the minimum number of zero bits that S is
@@ -3130,7 +3142,7 @@ const SCEV *ScalarEvolution::createSCEV(Value *V) {
     // expressions we handle are GEPs and address literals.
 
   case Instruction::GetElementPtr:
-    return createNodeForGEP(U);
+    return createNodeForGEP(cast<GEPOperator>(U));
 
   case Instruction::PHI:
     return createNodeForPHI(cast<PHINode>(U));
@@ -3241,7 +3253,7 @@ ScalarEvolution::getBackedgeTakenInfo(const Loop *L) {
   // update the value. The temporary CouldNotCompute value tells SCEV
   // code elsewhere that it shouldn't attempt to request a new
   // backedge-taken count, which could result in infinite recursion.
-  std::pair<std::map<const Loop*, BackedgeTakenInfo>::iterator, bool> Pair =
+  std::pair<std::map<const Loop *, BackedgeTakenInfo>::iterator, bool> Pair =
     BackedgeTakenCounts.insert(std::make_pair(L, getCouldNotCompute()));
   if (Pair.second) {
     BackedgeTakenInfo ItCount = ComputeBackedgeTakenCount(L);
@@ -3276,7 +3288,7 @@ ScalarEvolution::getBackedgeTakenInfo(const Loop *L) {
         Instruction *I = Worklist.pop_back_val();
         if (!Visited.insert(I)) continue;
 
-        std::map<SCEVCallbackVH, const SCEV*>::iterator It =
+        std::map<SCEVCallbackVH, const SCEV *>::iterator It =
           Scalars.find(static_cast<Value *>(I));
         if (It != Scalars.end()) {
           // SCEVUnknown for a PHI either means that it has an unrecognized
@@ -3316,7 +3328,7 @@ void ScalarEvolution::forgetLoop(const Loop *L) {
     Instruction *I = Worklist.pop_back_val();
     if (!Visited.insert(I)) continue;
 
-    std::map<SCEVCallbackVH, const SCEV*>::iterator It =
+    std::map<SCEVCallbackVH, const SCEV *>::iterator It =
       Scalars.find(static_cast<Value *>(I));
     if (It != Scalars.end()) {
       ValuesAtScopes.erase(It->second);
@@ -3333,7 +3345,7 @@ void ScalarEvolution::forgetLoop(const Loop *L) {
 /// of the specified loop will execute.
 ScalarEvolution::BackedgeTakenInfo
 ScalarEvolution::ComputeBackedgeTakenCount(const Loop *L) {
-  SmallVector<BasicBlock*, 8> ExitingBlocks;
+  SmallVector<BasicBlock *, 8> ExitingBlocks;
   L->getExitingBlocks(ExitingBlocks);
 
   // Examine all exits and pick the most conservative values.
@@ -3616,10 +3628,10 @@ ScalarEvolution::ComputeBackedgeTakenCountFromExitCondICmp(const Loop *L,
   }
   default:
 #if 0
-    errs() << "ComputeBackedgeTakenCount ";
+    dbgs() << "ComputeBackedgeTakenCount ";
     if (ExitCond->getOperand(0)->getType()->isUnsigned())
-      errs() << "[unsigned] ";
-    errs() << *LHS << "   "
+      dbgs() << "[unsigned] ";
+    dbgs() << *LHS << "   "
          << Instruction::getOpcodeName(Instruction::ICmp)
          << "   " << *RHS << "\n";
 #endif
@@ -3740,7 +3752,7 @@ ScalarEvolution::ComputeLoadConstantCompareBackedgeTakenCount(
     if (!isa<ConstantInt>(Result)) break;  // Couldn't decide for sure
     if (cast<ConstantInt>(Result)->getValue().isMinValue()) {
 #if 0
-      errs() << "\n***\n*** Computed loop count " << *ItCst
+      dbgs() << "\n***\n*** Computed loop count " << *ItCst
              << "\n*** From global " << *GV << "*** BB: " << *L->getHeader()
              << "***\n";
 #endif
@@ -3774,7 +3786,7 @@ static PHINode *getConstantEvolvingPHI(Value *V, const Loop *L) {
   // If this is not an instruction, or if this is an instruction outside of the
   // loop, it can't be derived from a loop PHI.
   Instruction *I = dyn_cast<Instruction>(V);
-  if (I == 0 || !L->contains(I->getParent())) return 0;
+  if (I == 0 || !L->contains(I)) return 0;
 
   if (PHINode *PN = dyn_cast<PHINode>(I)) {
     if (L->getHeader() == I->getParent())
@@ -3839,7 +3851,7 @@ static Constant *EvaluateExpression(Value *V, Constant *PHIVal,
 /// involving constants, fold it.
 Constant *
 ScalarEvolution::getConstantEvolutionLoopExitValue(PHINode *PN,
-                                                   const APInt& BEs,
+                                                   const APInt &BEs,
                                                    const Loop *L) {
   std::map<PHINode*, Constant*>::iterator I =
     ConstantEvolutionLoopExitValue.find(PN);
@@ -4008,7 +4020,7 @@ const SCEV *ScalarEvolution::computeSCEVAtScope(const SCEV *V, const Loop *L) {
             if (!isSCEVable(Op->getType()))
               return V;
 
-            const SCEV* OpV = getSCEVAtScope(Op, L);
+            const SCEV *OpV = getSCEVAtScope(Op, L);
             if (const SCEVConstant *SC = dyn_cast<SCEVConstant>(OpV)) {
               Constant *C = SC->getValue();
               if (C->getType() != Op->getType())
@@ -4091,7 +4103,7 @@ const SCEV *ScalarEvolution::computeSCEVAtScope(const SCEV *V, const Loop *L) {
   // If this is a loop recurrence for a loop that does not contain L, then we
   // are dealing with the final value computed by the loop.
   if (const SCEVAddRecExpr *AddRec = dyn_cast<SCEVAddRecExpr>(V)) {
-    if (!L || !AddRec->getLoop()->contains(L->getHeader())) {
+    if (!L || !AddRec->getLoop()->contains(L)) {
       // To evaluate this recurrence, we need to know how many times the AddRec
       // loop iterates.  Compute this now.
       const SCEV *BackedgeTakenCount = getBackedgeTakenCount(AddRec->getLoop());
@@ -4306,7 +4318,7 @@ const SCEV *ScalarEvolution::HowFarToZero(const SCEV *V, const Loop *L) {
     const SCEVConstant *R2 = dyn_cast<SCEVConstant>(Roots.second);
     if (R1) {
 #if 0
-      errs() << "HFTZ: " << *V << " - sol#1: " << *R1
+      dbgs() << "HFTZ: " << *V << " - sol#1: " << *R1
              << "  sol#2: " << *R2 << "\n";
 #endif
       // Pick the smallest positive root value.
@@ -5183,7 +5195,7 @@ static void PrintLoopInfo(raw_ostream &OS, ScalarEvolution *SE,
 
   OS << "Loop " << L->getHeader()->getName() << ": ";
 
-  SmallVector<BasicBlock*, 8> ExitBlocks;
+  SmallVector<BasicBlock *, 8> ExitBlocks;
   L->getExitBlocks(ExitBlocks);
   if (ExitBlocks.size() != 1)
     OS << "<multiple exits> ";
@@ -5206,14 +5218,14 @@ static void PrintLoopInfo(raw_ostream &OS, ScalarEvolution *SE,
   OS << "\n";
 }
 
-void ScalarEvolution::print(raw_ostream &OS, const Module* ) const {
+void ScalarEvolution::print(raw_ostream &OS, const Module *) const {
   // ScalarEvolution's implementaiton of the print method is to print
   // out SCEV values of all instructions that are interesting. Doing
   // this potentially causes it to create new SCEV objects though,
   // which technically conflicts with the const qualifier. This isn't
   // observable from outside the class though, so casting away the
   // const isn't dangerous.
-  ScalarEvolution &SE = *const_cast<ScalarEvolution*>(this);
+  ScalarEvolution &SE = *const_cast<ScalarEvolution *>(this);
 
   OS << "Classifying expressions for: " << F->getName() << "\n";
   for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I)

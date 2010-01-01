@@ -14,8 +14,6 @@
 #include "ValueEnumerator.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Metadata.h"
 #include "llvm/Module.h"
 #include "llvm/TypeSymbolTable.h"
 #include "llvm/ValueSymbolTable.h"
@@ -80,6 +78,8 @@ ValueEnumerator::ValueEnumerator(const Module *M) {
   // the module symbol table can refer to them...
   EnumerateValueSymbolTable(M->getValueSymbolTable());
 
+  SmallVector<std::pair<unsigned, MDNode*>, 8> MDs;
+
   // Enumerate types used by function bodies and argument lists.
   for (Module::const_iterator F = M->begin(), E = M->end(); F != E; ++F) {
 
@@ -87,9 +87,6 @@ ValueEnumerator::ValueEnumerator(const Module *M) {
          I != E; ++I)
       EnumerateType(I->getType());
 
-    MetadataContext &TheMetadata = F->getContext().getMetadata();
-    typedef SmallVector<std::pair<unsigned, TrackingVH<MDNode> >, 2> MDMapTy;
-    MDMapTy MDs;
     for (Function::const_iterator BB = F->begin(), E = F->end(); BB != E; ++BB)
       for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I!=E;++I){
         for (User::const_op_iterator OI = I->op_begin(), E = I->op_end();
@@ -103,10 +100,9 @@ ValueEnumerator::ValueEnumerator(const Module *M) {
 
         // Enumerate metadata attached with this instruction.
         MDs.clear();
-        TheMetadata.getMDs(I, MDs);
-        for (MDMapTy::const_iterator MI = MDs.begin(), ME = MDs.end(); MI != ME;
-             ++MI)
-          EnumerateMetadata(MI->second);
+        I->getAllMetadata(MDs);
+        for (unsigned i = 0, e = MDs.size(); i != e; ++i)
+          EnumerateMetadata(MDs[i].second);
       }
   }
 
@@ -216,8 +212,8 @@ void ValueEnumerator::EnumerateMetadata(const MetadataBase *MD) {
     MDValues.push_back(std::make_pair(MD, 1U));
     MDValueMap[MD] = MDValues.size();
     MDValueID = MDValues.size();
-    for (unsigned i = 0, e = N->getNumElements(); i != e; ++i) {    
-      if (Value *V = N->getElement(i))
+    for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {    
+      if (Value *V = N->getOperand(i))
         EnumerateValue(V);
       else
         EnumerateType(Type::getVoidTy(MD->getContext()));
@@ -226,24 +222,21 @@ void ValueEnumerator::EnumerateMetadata(const MetadataBase *MD) {
   }
   
   if (const NamedMDNode *N = dyn_cast<NamedMDNode>(MD)) {
-    for(NamedMDNode::const_elem_iterator I = N->elem_begin(),
-          E = N->elem_end(); I != E; ++I) {
-      MetadataBase *M = *I;
-      EnumerateValue(M);
-    }
+    for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
+      EnumerateValue(N->getOperand(i));
     MDValues.push_back(std::make_pair(MD, 1U));
     MDValueMap[MD] = Values.size();
     return;
   }
 
   // Add the value.
+  assert(isa<MDString>(MD) && "Unknown metadata kind");
   MDValues.push_back(std::make_pair(MD, 1U));
   MDValueID = MDValues.size();
 }
 
 void ValueEnumerator::EnumerateValue(const Value *V) {
-  assert(V->getType() != Type::getVoidTy(V->getContext()) &&
-         "Can't insert void values!");
+  assert(!V->getType()->isVoidTy() && "Can't insert void values!");
   if (const MetadataBase *MB = dyn_cast<MetadataBase>(V))
     return EnumerateMetadata(MB);
 
@@ -334,8 +327,8 @@ void ValueEnumerator::EnumerateOperandType(const Value *V) {
     }
 
     if (const MDNode *N = dyn_cast<MDNode>(V)) {
-      for (unsigned i = 0, e = N->getNumElements(); i != e; ++i)
-        if (Value *Elem = N->getElement(i))
+      for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
+        if (Value *Elem = N->getOperand(i))
           EnumerateOperandType(Elem);
     }
   } else if (isa<MDString>(V) || isa<MDNode>(V))

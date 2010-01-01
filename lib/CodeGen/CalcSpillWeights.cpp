@@ -37,7 +37,7 @@ void CalculateSpillWeights::getAnalysisUsage(AnalysisUsage &au) const {
 
 bool CalculateSpillWeights::runOnMachineFunction(MachineFunction &fn) {
 
-  DEBUG(errs() << "********** Compute Spill Weights **********\n"
+  DEBUG(dbgs() << "********** Compute Spill Weights **********\n"
                << "********** Function: "
                << fn.getFunction()->getName() << '\n');
 
@@ -95,7 +95,7 @@ bool CalculateSpillWeights::runOnMachineFunction(MachineFunction &fn) {
           SlotIndex defIdx = lis->getInstructionIndex(mi).getDefIndex();
           const LiveRange *dlr =
             lis->getInterval(reg).getLiveRangeContaining(defIdx);
-          if (dlr->end > mbbEnd)
+          if (dlr->end >= mbbEnd)
             weight *= 3.0F;
         }
         regInt.weight += weight;

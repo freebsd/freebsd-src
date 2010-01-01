@@ -25,7 +25,6 @@
 #define LLVM_INTRINSICINST_H
 
 #include "llvm/Constants.h"
-#include "llvm/Metadata.h"
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
 #include "llvm/Intrinsics.h"
@@ -98,8 +97,8 @@ namespace llvm {
       return unsigned(cast<ConstantInt>(getOperand(2))->getZExtValue());
     }
     
-    Value* getFileName() const;
-    Value* getDirectory() const;
+    Value *getFileName() const;
+    Value *getDirectory() const;
 
     // Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const DbgStopPointInst *) { return true; }
@@ -175,9 +174,7 @@ namespace llvm {
   /// DbgValueInst - This represents the llvm.dbg.value instruction.
   ///
   struct DbgValueInst : public DbgInfoIntrinsic {
-    Value *getValue()  const {
-      return cast<MDNode>(getOperand(1))->getElement(0);
-    }
+    Value *getValue() const;
     Value *getOffset() const { return getOperand(2); }
     MDNode *getVariable() const { return cast<MDNode>(getOperand(3)); }
 

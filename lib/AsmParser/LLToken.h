@@ -29,6 +29,7 @@ namespace lltok {
     less, greater,     // <  >
     lparen, rparen,    // (  )
     backslash,         // \    (not /)
+    exclaim,           // !
 
     kw_x,
     kw_begin,   kw_end,
@@ -128,11 +129,8 @@ namespace lltok {
     LabelStr,          // foo:
     GlobalVar,         // @foo @"foo"
     LocalVar,          // %foo %"foo"
+    MetadataVar,       // !foo
     StringConstant,    // "foo"
-    NamedOrCustomMD,   // !foo
-
-    // Metadata valued tokens.
-    Metadata,          // !"foo" !{i8 42}
 
     // Type valued tokens (TyVal).
     Type,

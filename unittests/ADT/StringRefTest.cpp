@@ -13,7 +13,7 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-namespace {
+namespace llvm {
 
 std::ostream &operator<<(std::ostream &OS, const StringRef &S) {
   OS << S;
@@ -26,6 +26,9 @@ std::ostream &operator<<(std::ostream &OS,
   return OS;
 }
 
+}
+
+namespace {
 TEST(StringRefTest, Construction) {
   EXPECT_EQ("", StringRef());
   EXPECT_EQ("hello", StringRef("hello"));
@@ -198,6 +201,14 @@ TEST(StringRefTest, StartsWith) {
   EXPECT_FALSE(Str.startswith("hi"));
 }
 
+TEST(StringRefTest, EndsWith) {
+  StringRef Str("hello");
+  EXPECT_TRUE(Str.endswith("lo"));
+  EXPECT_FALSE(Str.endswith("helloworld"));
+  EXPECT_FALSE(Str.endswith("worldhello"));
+  EXPECT_FALSE(Str.endswith("so"));
+}
+
 TEST(StringRefTest, Find) {
   StringRef Str("hello");
   EXPECT_EQ(2U, Str.find('l'));
@@ -234,6 +245,11 @@ TEST(StringRefTest, Count) {
   EXPECT_EQ(1U, Str.count("hello"));
   EXPECT_EQ(1U, Str.count("ello"));
   EXPECT_EQ(0U, Str.count("zz"));
+}
+
+TEST(StringRefTest, EditDistance) {
+  StringRef Str("hello");
+  EXPECT_EQ(2U, Str.edit_distance("hill"));
 }
 
 TEST(StringRefTest, Misc) {

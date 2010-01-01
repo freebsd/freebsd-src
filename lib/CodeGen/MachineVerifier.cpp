@@ -365,24 +365,6 @@ void
 MachineVerifier::visitMachineBasicBlockBefore(const MachineBasicBlock *MBB) {
   const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
 
-  // Start with minimal CFG sanity checks.
-  MachineFunction::const_iterator MBBI = MBB;
-  ++MBBI;
-  if (MBBI != MF->end()) {
-    // Block is not last in function.
-    if (!MBB->isSuccessor(MBBI)) {
-      // Block does not fall through.
-      if (MBB->empty()) {
-        report("MBB doesn't fall through but is empty!", MBB);
-      }
-    }
-  } else {
-    // Block is last in function.
-    if (MBB->empty()) {
-      report("MBB is last in function but is empty!", MBB);
-    }
-  }
-
   // Call AnalyzeBranch. If it succeeds, there several more conditions to check.
   MachineBasicBlock *TBB = 0, *FBB = 0;
   SmallVector<MachineOperand, 4> Cond;
@@ -553,7 +535,8 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum) {
         report("Explicit operand marked as implicit", MO, MONum);
     }
   } else {
-    if (MO->isReg() && !MO->isImplicit() && !TI.isVariadic())
+    // ARM adds %reg0 operands to indicate predicates. We'll allow that.
+    if (MO->isReg() && !MO->isImplicit() && !TI.isVariadic() && MO->getReg())
       report("Extra explicit operand on non-variadic instruction", MO, MONum);
   }
 

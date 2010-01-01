@@ -109,7 +109,7 @@ X("loopsimplify", "Canonicalize natural loops", true);
 const PassInfo *const llvm::LoopSimplifyID = &X;
 Pass *llvm::createLoopSimplifyPass() { return new LoopSimplify(); }
 
-/// runOnFunction - Run down all loops in the CFG (recursively, but we could do
+/// runOnLoop - Run down all loops in the CFG (recursively, but we could do
 /// it in any convenient order) inserting preheaders...
 ///
 bool LoopSimplify::runOnLoop(Loop *l, LPPassManager &LPM) {
@@ -304,12 +304,6 @@ ReprocessLoop:
       ExitingBlock->eraseFromParent();
     }
   }
-
-  // If there are duplicate phi nodes (for example, from loop rotation),
-  // get rid of them.
-  for (Loop::block_iterator BB = L->block_begin(), E = L->block_end();
-       BB != E; ++BB)
-    EliminateDuplicatePHINodes(*BB);
 
   return Changed;
 }

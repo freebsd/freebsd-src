@@ -14,6 +14,7 @@
 #include "llvm/Analysis/PHITransAddr.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -35,12 +36,12 @@ static bool CanPHITrans(Instruction *Inst) {
 
 void PHITransAddr::dump() const {
   if (Addr == 0) {
-    errs() << "PHITransAddr: null\n";
+    dbgs() << "PHITransAddr: null\n";
     return;
   }
-  errs() << "PHITransAddr: " << *Addr << "\n";
+  dbgs() << "PHITransAddr: " << *Addr << "\n";
   for (unsigned i = 0, e = InstInputs.size(); i != e; ++i)
-    errs() << "  Input #" << i << " is " << *InstInputs[i] << "\n";
+    dbgs() << "  Input #" << i << " is " << *InstInputs[i] << "\n";
 }
 
 

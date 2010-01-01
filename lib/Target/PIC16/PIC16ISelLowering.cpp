@@ -226,6 +226,7 @@ PIC16TargetLowering::PIC16TargetLowering(PIC16TargetMachine &TM)
   setLibcallName(RTLIB::DIV_F32, getIntrinsicName(RTLIB::DIV_F32));
 
   // Floationg point comparison
+  setLibcallName(RTLIB::O_F32, getIntrinsicName(RTLIB::O_F32));
   setLibcallName(RTLIB::UO_F32, getIntrinsicName(RTLIB::UO_F32));
   setLibcallName(RTLIB::OLE_F32, getIntrinsicName(RTLIB::OLE_F32));
   setLibcallName(RTLIB::OGE_F32, getIntrinsicName(RTLIB::OGE_F32));
@@ -371,6 +372,11 @@ PIC16TargetLowering::getSetCCResultType(EVT ValType) const {
   return MVT::i8;
 }
 
+MVT::SimpleValueType
+PIC16TargetLowering::getCmpLibcallReturnType() const {
+  return MVT::i8; 
+}
+
 /// The type legalizer framework of generating legalizer can generate libcalls
 /// only when the operand/result types are illegal.
 /// PIC16 needs to generate libcalls even for the legal types (i8) for some ops.
@@ -413,7 +419,8 @@ PIC16TargetLowering::MakePIC16Libcall(PIC16ISD::PIC16Libcall Call,
      LowerCallTo(DAG.getEntryNode(), RetTy, isSigned, !isSigned, false,
                  false, 0, CallingConv::C, false,
                  /*isReturnValueUsed=*/true,
-                 Callee, Args, DAG, dl);
+                 Callee, Args, DAG, dl,
+                 DAG.GetOrdering(DAG.getEntryNode().getNode()));
 
   return CallInfo.first;
 }
@@ -924,7 +931,7 @@ SDValue PIC16TargetLowering::ExpandLoad(SDNode *N, SelectionDAG &DAG) {
   }
   else if (VT == MVT::i16) {
     BP = DAG.getNode(ISD::BUILD_PAIR, dl, VT, PICLoads[0], PICLoads[1]);
-    if (MemVT == MVT::i8)
+    if ((MemVT == MVT::i8) || (MemVT == MVT::i1))
       Chain = getChain(PICLoads[0]);
     else
       Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, 
@@ -936,7 +943,7 @@ SDValue PIC16TargetLowering::ExpandLoad(SDNode *N, SelectionDAG &DAG) {
     BPs[1] = DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16,
                          PICLoads[2], PICLoads[3]);
     BP = DAG.getNode(ISD::BUILD_PAIR, dl, VT, BPs[0], BPs[1]);
-    if (MemVT == MVT::i8)
+    if ((MemVT == MVT::i8) || (MemVT == MVT::i1))
       Chain = getChain(PICLoads[0]);
     else if (MemVT == MVT::i16)
       Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, 
@@ -1270,7 +1277,6 @@ PIC16TargetLowering::LowerReturn(SDValue Chain,
   std::string FuncName = F->getName();
 
   const char *tmpName = createESName(PAN::getFrameLabel(FuncName));
-  SDVTList VTs  = DAG.getVTList (MVT::i8, MVT::Other);
   SDValue ES = DAG.getTargetExternalSymbol(tmpName, MVT::i8);
   SDValue BS = DAG.getConstant(1, MVT::i8);
   SDValue RetVal;
@@ -1482,7 +1488,8 @@ bool PIC16TargetLowering::isDirectLoad(const SDValue Op) {
 // operand no. of the operand to be converted in 'MemOp'. Remember, PIC16 has 
 // no instruction that can operation on two registers. Most insns take
 // one register and one memory operand (addwf) / Constant (addlw).
-bool PIC16TargetLowering::NeedToConvertToMemOp(SDValue Op, unsigned &MemOp) {
+bool PIC16TargetLowering::NeedToConvertToMemOp(SDValue Op, unsigned &MemOp, 
+                      SelectionDAG &DAG) {
   // If one of the operand is a constant, return false.
   if (Op.getOperand(0).getOpcode() == ISD::Constant ||
       Op.getOperand(1).getOpcode() == ISD::Constant)
@@ -1491,11 +1498,33 @@ bool PIC16TargetLowering::NeedToConvertToMemOp(SDValue Op, unsigned &MemOp) {
   // Return false if one of the operands is already a direct
   // load and that operand has only one use.
   if (isDirectLoad(Op.getOperand(0))) {
-    if (Op.getOperand(0).hasOneUse())
-      return false;
-    else 
-      MemOp = 0;
+    if (Op.getOperand(0).hasOneUse()) {  
+      // Legal and profitable folding check uses the NodeId of DAG nodes.
+      // This NodeId is assigned by topological order. Therefore first 
+      // assign topological order then perform legal and profitable check.
+      // Note:- Though this ordering is done before begining with legalization,
+      // newly added node during legalization process have NodeId=-1 (NewNode)
+      // therefore before performing any check proper ordering of the node is
+      // required.
+      DAG.AssignTopologicalOrder();
+
+      // Direct load operands are folded in binary operations. But before folding
+      // verify if this folding is legal. Fold only if it is legal otherwise
+      // convert this direct load to a separate memory operation.
+      if(ISel->IsLegalAndProfitableToFold(Op.getOperand(0).getNode(), 
+                                         Op.getNode(), Op.getNode()))
+        return false;
+      else 
+        MemOp = 0;
+    }
   }
+
+  // For operations that are non-cummutative there is no need to check 
+  // for right operand because folding right operand may result in 
+  // incorrect operation. 
+  if (! SelectionDAG::isCommutativeBinOp(Op.getOpcode()))
+    return true;
+
   if (isDirectLoad(Op.getOperand(1))) {
     if (Op.getOperand(1).hasOneUse())
       return false;
@@ -1514,7 +1543,7 @@ SDValue PIC16TargetLowering::LowerBinOp(SDValue Op, SelectionDAG &DAG) {
   assert (Op.getValueType() == MVT::i8 && "illegal Op to lower");
 
   unsigned MemOp = 1;
-  if (NeedToConvertToMemOp(Op, MemOp)) {
+  if (NeedToConvertToMemOp(Op, MemOp, DAG)) {
     // Put one value on stack.
     SDValue NewVal = ConvertToMemOperand (Op.getOperand(MemOp), DAG, dl);
 
@@ -1533,7 +1562,7 @@ SDValue PIC16TargetLowering::LowerADD(SDValue Op, SelectionDAG &DAG) {
   assert (Op.getValueType() == MVT::i8 && "illegal add to lower");
   DebugLoc dl = Op.getDebugLoc();
   unsigned MemOp = 1;
-  if (NeedToConvertToMemOp(Op, MemOp)) {
+  if (NeedToConvertToMemOp(Op, MemOp, DAG)) {
     // Put one value on stack.
     SDValue NewVal = ConvertToMemOperand (Op.getOperand(MemOp), DAG, dl);
     
@@ -1561,30 +1590,47 @@ SDValue PIC16TargetLowering::LowerSUB(SDValue Op, SelectionDAG &DAG) {
   DebugLoc dl = Op.getDebugLoc();
   // We should have handled larger operands in type legalizer itself.
   assert (Op.getValueType() == MVT::i8 && "illegal sub to lower");
-
-  // Nothing to do if the first operand is already a direct load and it has
-  // only one use.
-  if (isDirectLoad(Op.getOperand(0)) && Op.getOperand(0).hasOneUse())
-    return Op;
-
-  // Put first operand on stack.
-  SDValue NewVal = ConvertToMemOperand (Op.getOperand(0), DAG, dl);
-
+  unsigned MemOp = 1;
   SDVTList Tys = DAG.getVTList(MVT::i8, MVT::Flag);
-  switch (Op.getOpcode()) {
-    default:
-      assert (0 && "Opcode unknown."); 
-    case ISD::SUBE:
-      return DAG.getNode(Op.getOpcode(), dl, Tys, NewVal, Op.getOperand(1),
-                         Op.getOperand(2));
-      break;
-    case ISD::SUBC:
-      return DAG.getNode(Op.getOpcode(), dl, Tys, NewVal, Op.getOperand(1));
-      break;
-    case ISD::SUB:
-      return DAG.getNode(Op.getOpcode(), dl, MVT::i8, NewVal, Op.getOperand(1));
-      break;
-  }
+
+  // Since we don't have an instruction for X - c , 
+  // we can change it to X + (-c)
+  ConstantSDNode *C = dyn_cast<ConstantSDNode>(Op.getOperand(1));
+  if (C && (Op.getOpcode() == ISD::SUB))
+    {
+      return DAG.getNode(ISD::ADD, 
+                         dl, MVT::i8, Op.getOperand(0), 
+                         DAG.getConstant(0-(C->getZExtValue()), MVT::i8));
+    }
+
+  if (NeedToConvertToMemOp(Op, MemOp, DAG) ||
+      (isDirectLoad(Op.getOperand(1)) && 
+       (!isDirectLoad(Op.getOperand(0))) &&
+       (Op.getOperand(0).getOpcode() != ISD::Constant)))
+    {
+      // Put first operand on stack.
+      SDValue NewVal = ConvertToMemOperand (Op.getOperand(0), DAG, dl);
+      
+      switch (Op.getOpcode()) {
+      default:
+        assert (0 && "Opcode unknown."); 
+      case ISD::SUBE:
+        return DAG.getNode(Op.getOpcode(), 
+                           dl, Tys, NewVal, Op.getOperand(1),
+                           Op.getOperand(2));
+        break;
+      case ISD::SUBC:
+        return DAG.getNode(Op.getOpcode(), 
+                           dl, Tys, NewVal, Op.getOperand(1));
+        break;
+      case ISD::SUB:
+        return DAG.getNode(Op.getOpcode(), 
+                           dl, MVT::i8, NewVal, Op.getOperand(1));
+        break;
+      }
+    }
+  else 
+    return Op;
 }
 
 void PIC16TargetLowering::InitReservedFrameCount(const Function *F) {
