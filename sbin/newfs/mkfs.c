@@ -557,7 +557,7 @@ mkfs(struct partition *pp, char *fsys)
 			sblock.fs_cssize - i : sblock.fs_bsize,
 			((char *)fscs) + i);
 	/*
-	 * Update information about this partion in pack
+	 * Update information about this partition in pack
 	 * label, to that it may be updated on disk.
 	 */
 	if (pp != NULL) {
