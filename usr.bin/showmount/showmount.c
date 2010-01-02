@@ -110,9 +110,7 @@ int tcp_callrpc(const char *host, int prognum, int versnum, int procnum,
  * for detailed information on the protocol.
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	register struct exportslist *exp;
 	register struct grouplist *grp;
@@ -213,15 +211,8 @@ main(argc, argv)
  * use tcp as transport method in order to handle large replies.
  */
 int 
-tcp_callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
-	const char *host;
-	int prognum;
-	int versnum;
-	int procnum;
-	xdrproc_t inproc;
-	char *in;
-	xdrproc_t outproc;
-	char *out;
+tcp_callrpc(const char *host, int prognum, int versnum, int procnum,
+    xdrproc_t inproc, char *in, xdrproc_t outproc, char *out)
 {
 	CLIENT *client;
 	struct timeval timeout;
@@ -245,9 +236,7 @@ tcp_callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
  * Xdr routine for retrieving the mount dump list
  */
 int
-xdr_mntdump(xdrsp, mlp)
-	XDR *xdrsp;
-	struct mountlist **mlp;
+xdr_mntdump(XDR *xdrsp, struct mountlist **mlp)
 {
 	register struct mountlist *mp;
 	register struct mountlist *tp;
@@ -327,9 +316,7 @@ next:
  * Xdr routine to retrieve exports list
  */
 int
-xdr_exportslist(xdrsp, exp)
-	XDR *xdrsp;
-	struct exportslist **exp;
+xdr_exportslist(XDR *xdrsp, struct exportslist **exp)
 {
 	register struct exportslist *ep;
 	register struct grouplist *gp;
@@ -370,7 +357,7 @@ xdr_exportslist(xdrsp, exp)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: showmount [-a | -d] [-e3] [host]\n");
 	exit(1);
@@ -380,8 +367,7 @@ usage()
  * Print the binary tree in inorder so that output is sorted.
  */
 void
-print_dump(mp)
-	struct mountlist *mp;
+print_dump(struct mountlist *mp)
 {
 
 	if (mp == NULL)
