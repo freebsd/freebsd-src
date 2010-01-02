@@ -272,7 +272,7 @@ main(int argc, char *argv[])
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 		"usage: mount_portalfs [-o options] config mount-point\n");
