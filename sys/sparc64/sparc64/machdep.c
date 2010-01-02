@@ -383,8 +383,9 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 */
 	for (va = KERNBASE + (kernel_tlb_slots - 1) * PAGE_SIZE_4M;
 	    va >= roundup2(end, PAGE_SIZE_4M); va -= PAGE_SIZE_4M) {
-		printf("demapping unused kernel TLB slot (va %#lx - %#lx)\n",
-		    va, va + PAGE_SIZE_4M - 1);
+		if (bootverbose)
+			printf("demapping unused kernel TLB slot "
+			    "(va %#lx - %#lx)\n", va, va + PAGE_SIZE_4M - 1);
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE,
 		    ASI_DMMU_DEMAP, 0);
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE,
@@ -659,15 +660,6 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	    td, mc->mc_tpc, mc->mc_sp, mc->mc_tstate);
 	return (EJUSTRETURN);
 }
-
-#ifdef COMPAT_FREEBSD4
-int
-freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
-{
-
-	return sigreturn(td, (struct sigreturn_args *)uap);
-}
-#endif
 
 /*
  * Construct a PCB from a trapframe. This is called from kdb_trap() where
