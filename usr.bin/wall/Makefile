@@ -6,8 +6,6 @@ SRCS=	ttymsg.c wall.c
 BINGRP=	tty
 BINMODE=2555
 
-WARNS?=	6
-
 DPADD=	${LIBULOG}
 LDADD=	-lulog
 

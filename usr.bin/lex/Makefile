@@ -24,6 +24,8 @@ MLINKS+=	lex.1 flex.1
 MLINKS+=	lex.1 flex++.1
 MLINKS+=	lex.1 lex++.1
 
+WARNS?=		2
+
 CLEANFILES=	scan.c skel.c
 
 SUBDIR=		lib

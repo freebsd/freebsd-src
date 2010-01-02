@@ -5,4 +5,6 @@ LDADD+=	-lutil
 PROG=	gcore
 SRCS=	elfcore.c gcore.c
 
+WARNS?=	1
+
 .include <bsd.prog.mk>

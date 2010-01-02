@@ -3,6 +3,5 @@
 
 PROG=	xargs
 SRCS=	xargs.c strnsubst.c
-WARNS?=	6
 
 .include <bsd.prog.mk>
