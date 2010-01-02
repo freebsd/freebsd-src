@@ -8,8 +8,6 @@ LIB=	begemot
 SHLIB_MAJOR= 4
 SHLIBDIR?= /lib
 
-# WARNS?=	6
-
 CFLAGS+=	-DUSE_SELECT -DQUADFMT='"ll"'
 SRCS=	rpoll.c
 INCS=	rpoll.h

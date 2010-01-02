@@ -23,8 +23,6 @@ CFLAGS+=	-I. -I${.CURDIR}
 
 SHLIB_MAJOR=	2
 
-WARNS?=	6
-
 WITHOUT_MAN=	yes
 
 .include <bsd.lib.mk>

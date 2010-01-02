@@ -9,6 +9,8 @@ CFLAGS+=	-Wall -Wno-unused \
 		-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include
 
+WARNS?=		2
+
 all: ${OBJS}
 
 CLEANFILES=	${OBJS}
