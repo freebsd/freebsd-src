@@ -75,6 +75,7 @@ struct psycho_softc {
 	struct rman			sc_pci_io_rman;
 
 	uint8_t				sc_pci_secbus;
+	uint8_t				sc_pci_subbus;
 
 	uint8_t				sc_pci_hpbcfg[16];
 
