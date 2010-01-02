@@ -333,7 +333,7 @@ diskGetSelectCount(Device ***devs)
 void
 diskPartition(Device *dev)
 {
-    char *cp, *p;
+    char *p;
     int rv, key = 0;
     int i;
     Boolean chunking;
