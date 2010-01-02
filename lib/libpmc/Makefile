@@ -5,8 +5,6 @@ LIB=	pmc
 SRCS=	libpmc.c pmclog.c
 INCS=	pmc.h pmclog.h
 
-WARNS?=	6
-
 MAN=	pmc.3
 MAN+=	pmc_allocate.3
 MAN+=	pmc_attach.3

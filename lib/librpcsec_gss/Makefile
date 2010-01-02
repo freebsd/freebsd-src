@@ -2,7 +2,6 @@
 
 LIB=	rpcsec_gss
 SHLIB_MAJOR= 1
-WARNS?=	6
 SRCS+=	rpcsec_gss.c rpcsec_gss_prot.c rpcsec_gss_conf.c rpcsec_gss_misc.c \
 	svc_rpcsec_gss.c
 

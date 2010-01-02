@@ -33,8 +33,6 @@ MLINKS+=ulog_endutxent.3 endutxent.3 \
 	ulog_pututxline.3 pututxline.3 \
 	ulog_setutxent.3 setutxent.3
 
-WARNS?=	6
-
 VERSION_DEF= ${.CURDIR}/../libc/Versions.def
 SYMBOL_MAPS= ${.CURDIR}/Symbol.map
 
