@@ -43,6 +43,8 @@ CFLAGS+= ${DBMDEF} ${NIS} -DTCPWRAPPERS ${MAPS}
 CFLAGS+= -DNETINET6
 .endif
 
+WARNS?=	2
+
 DPADD=	${LIBUTIL} ${LIBWRAP}
 LDADD=	-lutil -lwrap
 
