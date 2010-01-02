@@ -1203,7 +1203,7 @@ parseargs(int argc, const char *argv[], struct commandline *cmd)
 }
 
 static void
-usage()
+usage(void)
 {
 	f_print(stderr, "%s\n%s\n%s\n%s\n%s\n",
 		"usage: rpcgen infile",
@@ -1218,7 +1218,7 @@ usage()
 }
 
 static void
-options_usage()
+options_usage(void)
 {
 	f_print(stderr, "options:\n");
 	f_print(stderr, "-a\t\tgenerate all files, including samples\n");
