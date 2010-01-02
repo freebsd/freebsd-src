@@ -8,7 +8,6 @@ FILESOWN=	${LIBOWN}
 FILESGRP=	${LIBGRP}
 FILESMODE=	${LIBMODE}
 FILESDIR=	${LIBDIR}
-WARNS?=		6
 CFLAGS+=	-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include
 CLEANFILES=	${FILES} crt1_c.o crt1_s.o gcrt1_c.o Scrt1_c.o

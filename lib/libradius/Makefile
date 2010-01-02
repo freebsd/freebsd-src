@@ -33,6 +33,8 @@ CFLAGS+=	-Wall
 SHLIB_MAJOR=	4
 MAN=		libradius.3 radius.conf.5
 
+WARNS?=		3
+
 .if ${MK_OPENSSL} == "no"
 DPADD=		${LIBMD}
 LDADD=		-lmd

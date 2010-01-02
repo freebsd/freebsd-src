@@ -2,7 +2,6 @@
 
 LIB=		gssapi
 SHLIB_MAJOR=	10
-WARNS=		6
 VERSION_DEF=	${.CURDIR}/../libc/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 

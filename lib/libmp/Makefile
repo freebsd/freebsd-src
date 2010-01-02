@@ -8,7 +8,6 @@ MAN=		libmp.3
 INCS=		mp.h
 SRCS=		mpasbn.c
 
-WARNS?=		6
 CFLAGS+=	-I${.CURDIR}/../../crypto
 
 VERSION_DEF=	${.CURDIR}/../libc/Versions.def

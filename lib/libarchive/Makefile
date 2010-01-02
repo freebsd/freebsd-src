@@ -22,8 +22,6 @@ DPADD+=	${LIBCRYPTO}
 LDADD+=	-lcrypto
 .endif
 
-WARNS?=	6
-
 # Headers to be installed in /usr/include
 INCS=	archive.h archive_entry.h
 

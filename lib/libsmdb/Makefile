@@ -9,6 +9,8 @@ CFLAGS+=-DNEWDB -DNOT_SENDMAIL
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
 
+WARNS?=	3
+
 LIB=	smdb
 
 SRCS+=	sm_os.h
