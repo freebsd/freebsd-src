@@ -20,6 +20,8 @@ MAGICPATH?=	/usr/share/misc
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR} -I${CONTRDIR}
 
+WARNS?=		1
+
 CLEANFILES+=	magic magic.mgc
 
 FILES=		magic magic.mgc
