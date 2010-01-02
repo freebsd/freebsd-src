@@ -414,7 +414,7 @@ arscp_extract(struct list *list)
 
 /* List modules of archive. (Simple Mode) */
 static void
-arscp_list()
+arscp_list(void)
 {
 
 	if (!arscp_target_exist())
@@ -483,7 +483,7 @@ arscp_replace(struct list *list)
 
 /* Rename the temporary archive to the target archive. */
 static void
-arscp_save()
+arscp_save(void)
 {
 	mode_t mask;
 
@@ -512,7 +512,7 @@ arscp_save()
  * invoking CREATE cmd on current archive.
  */
 static void
-arscp_clear()
+arscp_clear(void)
 {
 	char		*new_target;
 
@@ -549,7 +549,7 @@ arscp_end(int eval)
  * issued by user.
  */
 static int
-arscp_target_exist()
+arscp_target_exist(void)
 {
 
 	if (target)
@@ -624,7 +624,7 @@ arscp_mlist2argv(struct list *list)
 
 /* Free space allocated for argv array and its elements. */
 static void
-arscp_free_argv()
+arscp_free_argv(void)
 {
 	int i;
 
@@ -636,7 +636,7 @@ arscp_free_argv()
 
 /* Show a prompt if we are in interactive mode */
 static void
-arscp_prompt()
+arscp_prompt(void)
 {
 
 	if (interactive) {

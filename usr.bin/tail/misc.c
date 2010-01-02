@@ -63,7 +63,7 @@ ierr(const char *fname)
 }
 
 void
-oerr()
+oerr(void)
 {
 	err(1, "stdout");
 }
