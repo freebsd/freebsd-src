@@ -4,8 +4,6 @@ PROG =	rpc.rusersd
 SRCS =	rusersd.c rusers_proc.c
 MAN =	rpc.rusersd.8
 
-WARNS?=	6
-
 DPADD=	${LIBRPCSVC} ${LIBULOG} ${LIBUTIL}
 LDADD=	-lrpcsvc -lulog -lutil
 
@@ -13,6 +11,5 @@ LDADD=	-lrpcsvc -lulog -lutil
 #CFLAGS+= -DXIDLE
 #LDADD+= -L/usr/X11R6/lib -lXext -lX11
 #.endif
-
 
 .include <bsd.prog.mk>
