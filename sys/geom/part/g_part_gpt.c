@@ -375,7 +375,7 @@ gpt_parse_type(const char *type, struct uuid *uuid)
 	for (uap = &gpt_uuid_alias_match[0]; uap->uuid; uap++) {
 		alias = g_part_alias_name(uap->alias);
 		if (!strcasecmp(type, alias)) {
-			uuid = uap->uuid;
+			*uuid = *uap->uuid;
 			return (0);
 		}
 	}
