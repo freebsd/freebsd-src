@@ -14,7 +14,6 @@ XSYM=	snmpMIB begemotSnmpdModuleTable begemotSnmpd begemotTrapSinkTable \
 	freeBSDVersion
 CLEANFILES= oid.h tree.c tree.h
 MAN=	bsnmpd.1 snmpmod.3
-WARNS?=	6
 NO_WERROR=
 
 FILESGROUPS= BMIBS DEFS

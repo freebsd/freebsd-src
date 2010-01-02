@@ -6,8 +6,6 @@ LINKS=	${BINDIR}/pstat ${BINDIR}/swapinfo
 MAN=	pstat.8
 MLINKS=	pstat.8 swapinfo.8
 
-WARNS?=	6
-
 DPADD=	${LIBKVM} ${LIBUTIL}
 LDADD=	-lkvm -lutil
 

@@ -10,6 +10,8 @@ SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \
 
 CFLAGS+= -DDB_CACHE -DTCP_WRAPPER -I.
 
+WARNS?=	0
+
 DPADD=	${LIBWRAP}
 LDADD=	-lwrap
 

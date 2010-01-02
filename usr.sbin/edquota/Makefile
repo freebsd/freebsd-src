@@ -4,6 +4,4 @@
 PROG=	edquota
 MAN=	edquota.8
 
-WARNS?=	4
-
 .include <bsd.prog.mk>
