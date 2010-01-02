@@ -9,6 +9,8 @@ SRCS=	ypxfrd_svc.c ypxfrd.h ypxfrd_server.c yp_error.c \
 
 CFLAGS+= -I. -DXFRBLOCKSIZE=65535
 
+WARNS?=	2
+
 DPADD=	${LIBRPCSVC}
 LDADD=	-lrpcsvc
 

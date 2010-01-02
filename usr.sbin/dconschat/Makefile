@@ -8,4 +8,6 @@ CFLAGS+= -I${.CURDIR}/../../sys
 DPADD=  ${LIBKVM}
 LDADD=  -lkvm
 
+WARNS?=	1
+
 .include <bsd.prog.mk>

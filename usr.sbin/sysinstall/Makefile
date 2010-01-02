@@ -20,6 +20,8 @@ CFLAGS+= -DPC98
 .endif
 CFLAGS+= -I${.CURDIR}/../../gnu/lib/libdialog -I.
 
+WARNS?=	1
+
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
 LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
 

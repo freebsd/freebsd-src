@@ -4,7 +4,6 @@
 PROG=	nghook
 MAN=	nghook.8
 SRCS=	main.c
-WARNS?=	6
 
 DPADD=	${LIBNETGRAPH}
 LDADD=	-lnetgraph
