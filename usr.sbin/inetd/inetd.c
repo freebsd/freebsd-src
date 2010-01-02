@@ -1397,8 +1397,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 
 #ifdef IPSEC
 void
-ipsecsetup(sep)
-	struct servtab *sep;
+ipsecsetup(struct servtab *sep)
 {
 	char *buf;
 	char *policy_in = NULL;
