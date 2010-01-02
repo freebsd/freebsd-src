@@ -8,4 +8,6 @@ CFLAGS+=-DCOLLATE_DEBUG -DYY_NO_UNPUT
 LDADD=	-ll
 DPADD=	${LIBL}
 
+WARNS?=	2
+
 .include <bsd.prog.mk>

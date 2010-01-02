@@ -5,8 +5,6 @@ PROG=	write
 BINMODE=2555
 BINGRP=	tty
 
-WARNS?=	6
-
 DPADD=	${LIBULOG}
 LDADD=	-lulog
 

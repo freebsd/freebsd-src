@@ -8,7 +8,6 @@ SRCS=	arch.c buf.c cond.c dir.c for.c hash.c hash_tables.c job.c	\
 	lst.c main.c make.c parse.c proc.c shell.c str.c suff.c targ.c	\
 	util.c var.c
 
-WARNS?=	6
 NO_SHARED?=	YES
 
 CFLAGS+=-DMAKE_VERSION=\"5200408120\"

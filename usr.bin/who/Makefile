@@ -3,8 +3,6 @@
 
 PROG=	who
 
-WARNS=	6
-
 DPADD=	${LIBULOG}
 LDADD=	-lulog
 

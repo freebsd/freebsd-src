@@ -14,6 +14,8 @@ SRCS+=	icmp6.c ip6.c
 CFLAGS+= -DINET6
 .endif
 
+WARNS?=	0
+
 DPADD=	${LIBCURSES} ${LIBM} ${LIBDEVSTAT} ${LIBKVM} ${LIBULOG}
 LDADD=	-lcursesw -lm -ldevstat -lkvm -lulog
 
