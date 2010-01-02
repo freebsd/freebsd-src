@@ -11,5 +11,7 @@ MAN=	lint.1
 CFLAGS+=-I${.CURDIR}/../lint1
 CFLAGS+= -DPREFIX=\"${TOOLS_PREFIX}\"
 
+WARNS?=	2
+
 .include "${.CURDIR}/../../Makefile.inc"
 .include <bsd.prog.mk>

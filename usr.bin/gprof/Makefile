@@ -7,4 +7,6 @@ SRCS=	gprof.c aout.c arcs.c dfn.c elf.c lookup.c hertz.c \
 FILES=	gprof.flat gprof.callg
 FILESDIR=	${SHAREDIR}/misc
 
+WARNS?=	1
+
 .include <bsd.prog.mk>
