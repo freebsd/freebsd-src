@@ -31,6 +31,8 @@ LDADD=	-lipsec
 
 CFLAGS+= -I${TRACEROUTE_DISTDIR}/lbl
 
+WARNS?=	0
+
 version.c: ${TRACEROUTE_DISTDIR}/VERSION
 	@rm -f ${.TARGET}
 	head -1 ${TRACEROUTE_DISTDIR}/VERSION | \
