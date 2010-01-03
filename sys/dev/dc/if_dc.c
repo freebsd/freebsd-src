@@ -43,8 +43,9 @@ __FBSDID("$FreeBSD$");
  * ASIX Electronics AX88140A (www.asix.com.tw)
  * ASIX Electronics AX88141 (www.asix.com.tw)
  * ADMtek AL981 (www.admtek.com.tw)
- * ADMtek AN985 (www.admtek.com.tw)
- * Netgear FA511 (www.netgear.com) Appears to be rebadged ADMTek AN985
+ * ADMtek AN983 (www.admtek.com.tw)
+ * ADMtek cardbus AN985 (www.admtek.com.tw)
+ * Netgear FA511 (www.netgear.com) Appears to be rebadged ADMTek cardbus AN985
  * Davicom DM9100, DM9102, DM9102A (www.davicom8.com)
  * Accton EN1217 (www.accton.com)
  * Xircom X3201 (www.xircom.com)
@@ -161,14 +162,14 @@ static const struct dc_type dc_devs[] = {
 		"Davicom DM9102 10/100BaseTX" },
 	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AL981), 0,
 		"ADMtek AL981 10/100BaseTX" },
+	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AN983), 0,
+		"ADMtek AN983 10/100BaseTX" },
 	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AN985), 0,
-		"ADMtek AN985 10/100BaseTX" },
+		"ADMtek AN985 cardBus 10/100BaseTX or clone" },
 	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9511), 0,
 		"ADMtek ADM9511 10/100BaseTX" },
 	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9513), 0,
 		"ADMtek ADM9513 10/100BaseTX" },
-	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_FA511), 0,
-		"Netgear FA511 10/100BaseTX" },
 	{ DC_DEVID(DC_VENDORID_ASIX, DC_DEVICEID_AX88140A), DC_REVISION_88141,
 		"ASIX AX88141 10/100BaseTX" },
 	{ DC_DEVID(DC_VENDORID_ASIX, DC_DEVICEID_AX88140A), 0,
@@ -778,10 +779,10 @@ dc_miibus_readreg(device_t dev, int phy, int reg)
 	bzero(&frame, sizeof(frame));
 
 	/*
-	 * Note: both the AL981 and AN985 have internal PHYs,
+	 * Note: both the AL981 and AN983 have internal PHYs,
 	 * however the AL981 provides direct access to the PHY
-	 * registers while the AN985 uses a serial MII interface.
-	 * The AN985's MII interface is also buggy in that you
+	 * registers while the AN983 uses a serial MII interface.
+	 * The AN983's MII interface is also buggy in that you
 	 * can read from any MII address (0 to 31), but only address 1
 	 * behaves normally. To deal with both cases, we pretend
 	 * that the PHY is at MII address 1.
@@ -1895,11 +1896,11 @@ dc_attach(device_t dev)
 		sc->dc_pmode = DC_PMODE_MII;
 		dc_read_srom(sc, sc->dc_romwidth);
 		break;
+	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AN983):
 	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AN985):
 	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9511):
 	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9513):
 	case DC_DEVID(DC_VENDORID_DLINK, DC_DEVICEID_DRP32TXD):
-	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_FA511):
 	case DC_DEVID(DC_VENDORID_ABOCOM, DC_DEVICEID_FE2500):
 	case DC_DEVID(DC_VENDORID_ABOCOM, DC_DEVICEID_FE2500MX):
 	case DC_DEVID(DC_VENDORID_ACCTON, DC_DEVICEID_EN2242):
@@ -1910,7 +1911,7 @@ dc_attach(device_t dev)
 	case DC_DEVID(DC_VENDORID_MICROSOFT, DC_DEVICEID_MSMN130):
 	case DC_DEVID(DC_VENDORID_LINKSYS, DC_DEVICEID_PCMPC200_AB08):
 	case DC_DEVID(DC_VENDORID_LINKSYS, DC_DEVICEID_PCMPC200_AB09):
-		sc->dc_type = DC_TYPE_AN985;
+		sc->dc_type = DC_TYPE_AN983;
 		sc->dc_flags |= DC_64BIT_HASH;
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
@@ -2057,7 +2058,7 @@ dc_attach(device_t dev)
 		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_EE_NODEADDR, 3, 0);
 		break;
 	case DC_TYPE_AL981:
-	case DC_TYPE_AN985:
+	case DC_TYPE_AN983:
 		reg = CSR_READ_4(sc, DC_AL_PAR0);
 		mac = (uint8_t *)&eaddr[0];
 		mac[0] = (reg >> 0) & 0xff;
