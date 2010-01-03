@@ -2642,8 +2642,15 @@ bge_attach(device_t dev)
 	 * the TSO to the controllers that are not affected TSO issues
 	 * (e.g. 5755 or higher).
 	 */
-	if (BGE_IS_5755_PLUS(sc))
-		sc->bge_flags |= BGE_FLAG_TSO;
+	if (BGE_IS_5755_PLUS(sc)) {
+		/*
+		 * BCM5754 and BCM5787 shares the same ASIC id so
+		 * explicit device id check is required.
+		 */
+		if (pci_get_device(dev) != BCOM_DEVICEID_BCM5754 &&
+		    pci_get_device(dev) != BCOM_DEVICEID_BCM5754M)
+			sc->bge_flags |= BGE_FLAG_TSO;
+	}
 
   	/*
 	 * Check if this is a PCI-X or PCI Express device.
