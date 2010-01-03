@@ -6,12 +6,16 @@
 PROG=	pack
 NO_MAN=
 
+CFLAGS= -include /usr/include/sys/limits.h \
+	-include /usr/include/sys/syslog.h
+
 all: regress
 
 pack: pack.c convert.c
 
 convert.c: ../../../sys/kern/kern_acct.c
-	sed -n '/FLOAT_CONVERSION_START/,/FLOAT_CONVERSION_END/p' $? >$@
+	sed -n -e 's/log(/syslog(/g' \
+	       -e '/FLOAT_CONVERSION_START/,/FLOAT_CONVERSION_END/p' $? >$@
 
 regress: pack regress.t
 	./regress.t
