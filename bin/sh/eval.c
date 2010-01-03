@@ -722,9 +722,10 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 					break;
 				if ((cmdentry.u.index = find_builtin(*argv,
 				    &cmdentry.special)) < 0) {
-					out2fmt_flush("%s: not found\n", *argv);
-					exitstatus = 127;
-					return;
+					cmdentry.u.index = BLTINCMD;
+					argv--;
+					argc++;
+					break;
 				}
 				if (cmdentry.u.index != BLTINCMD)
 					break;
@@ -944,12 +945,17 @@ prehash(union node *n)
  */
 
 /*
- * No command given, or a bltin command with no arguments.
+ * No command given, a bltin command with no arguments, or a bltin command
+ * with an invalid name.
  */
 
 int
-bltincmd(int argc __unused, char **argv __unused)
+bltincmd(int argc, char **argv)
 {
+	if (argc > 1) {
+		out2fmt_flush("%s: not found\n", argv[1]);
+		return 127;
+	}
 	/*
 	 * Preserve exitstatus of a previous possible redirection
 	 * as POSIX mandates
