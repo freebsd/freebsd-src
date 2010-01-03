@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100103: ntptrace(8) removed
+OLD_FILES+=usr/sbin/ntptrace
+OLD_FILES+=usr/share/man/man8/ntptrace.8.gz
 # 20091229: remove no longer relevant examples
 OLD_FILES+=usr/share/examples/pppd/auth-down.sample
 OLD_FILES+=usr/share/examples/pppd/auth-up.sample
