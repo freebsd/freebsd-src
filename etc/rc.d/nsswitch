@@ -77,10 +77,10 @@ generate_host_conf()
 	nis)
 		echo "nis" >> $host_conf
 		;;
-	*=*)
+	cache | *=*)
 		;;
 	*)
-		printf "Warning: unrecognized source [%s]", $_s > "/dev/stderr"
+		printf "Warning: unrecognized source [%s]\n" $_s > "/dev/stderr"
 		;;
 	esac
     done
