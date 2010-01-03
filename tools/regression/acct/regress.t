@@ -17,6 +17,8 @@ check()
 	fi
 }
 
+(cd $DIR ; make pack)
+
 echo 1..7
 
 check 1 0 0
