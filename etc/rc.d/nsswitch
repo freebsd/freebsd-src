@@ -80,7 +80,7 @@ generate_host_conf()
 	cache | *=*)
 		;;
 	*)
-		printf "Warning: unrecognized source [%s]\n" $_s > "/dev/stderr"
+		printf "Warning: unrecognized source [%s]\n" $_s >&2
 		;;
 	esac
     done
