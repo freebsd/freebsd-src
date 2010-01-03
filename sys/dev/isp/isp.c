@@ -8285,6 +8285,8 @@ isp_parse_nvram_2100(ispsoftc_t *isp, uint8_t *nvram_data)
 			if ((wwn >> 60) == 0) {
 				wwn |= (((uint64_t) 2)<< 60);
 			}
+		} else {
+			wwn = fcp->isp_wwpn_nvram & ~((uint64_t) 0xfff << 48);
 		}
 	} else {
 		wwn &= ~((uint64_t) 0xfff << 48);
