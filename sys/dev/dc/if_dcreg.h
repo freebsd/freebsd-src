@@ -1002,7 +1002,7 @@ struct dc_softc {
 #define DC_VENDORID_MICROSOFT		0x1414
 
 /*
- * Supported Microsoft PCI and cardbus NICs. These are really
+ * Supported Microsoft PCI and CardBus NICs. These are really
  * ADMtek parts in disguise.
  */
 
