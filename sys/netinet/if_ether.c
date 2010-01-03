@@ -372,8 +372,8 @@ retry:
 	if (la->la_asked < V_arp_maxtries)
 		error = EWOULDBLOCK;	/* First request. */
 	else
-		error =
-			(rt0->rt_flags & RTF_GATEWAY) ? EHOSTUNREACH : EHOSTDOWN;
+		error = rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) ?
+		    EHOSTUNREACH : EHOSTDOWN;
 
 	if (renew) {
 		LLE_ADDREF(la);
