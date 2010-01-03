@@ -29,24 +29,28 @@ check()
 	A1=$2
 	A2=$3
 
-	count=`expr ${count} + 1`
-
 	if [ -z "${A2}" ]; then A2=${A1}; fi
+
+	count=`expr ${count} + 1`
 
 	R=`date -r ${TEST1} +%${S}`
 	if [ "${R}" = "${A1}" ]; then
-		echo "${count}a. ${S} - ok"
+		echo "ok ${count} - ${S}(a)"
 	else
-		echo "${count}a. ${S} - not ok (got ${R}, expected ${A1})"
+		echo "no ok ${count} - ${S}(a) (got ${R}, expected ${A1})"
 	fi
+
+	count=`expr ${count} + 1`
 
 	R=`date -r ${TEST2} +%${S}`
 	if [ "${R}" = "${A2}" ]; then
-		echo "${count}b. ${S} - ok"
+		echo "ok ${count} - ${S}(b)"
 	else
-		echo "${count}b. ${S} - not ok (got ${R}, expected ${A2})"
+		echo "no ok ${count} - ${S}(b) (got ${R}, expected ${A2})"
 	fi
 }
+
+echo "1..78"
 
 check A Saturday Monday
 check a Sat Mon
