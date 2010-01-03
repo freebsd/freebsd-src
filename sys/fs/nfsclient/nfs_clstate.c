@@ -116,8 +116,8 @@ static int nfscl_checkconflict(struct nfscllockownerhead *, struct nfscllock *,
     u_int8_t *, struct nfscllock **);
 static void nfscl_freelockowner(struct nfscllockowner *, int);
 static void nfscl_freealllocks(struct nfscllockownerhead *, int);
-static int nfscl_localconflict(struct nfsclclient *, struct nfscllock *,
-    u_int8_t *, struct nfscldeleg *, struct nfscllock **);
+static int nfscl_localconflict(struct nfsclclient *, u_int8_t *, int,
+    struct nfscllock *, u_int8_t *, struct nfscldeleg *, struct nfscllock **);
 static void nfscl_newopen(struct nfsclclient *, struct nfscldeleg *,
     struct nfsclowner **, struct nfsclowner **, struct nfsclopen **,
     struct nfsclopen **, u_int8_t *, u_int8_t *, int, int *);
@@ -955,7 +955,8 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 			lhp = &op->nfso_lock;
 	}
 	if (!error && !recovery)
-		error = nfscl_localconflict(clp, nlop, ownp, ldp, NULL);
+		error = nfscl_localconflict(clp, np->n_fhp->nfh_fh,
+		    np->n_fhp->nfh_len, nlop, ownp, ldp, NULL);
 	if (error) {
 		if (!recovery) {
 			nfscl_clrelease(clp);
@@ -1047,7 +1048,7 @@ nfscl_relbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 	struct nfscldeleg *dp;
 	struct nfsnode *np;
 	u_int8_t own[NFSV4CL_LOCKNAMELEN];
-	int ret = 0, fnd, error;
+	int ret = 0, fnd;
 
 	np = VTONFS(vp);
 	*lpp = NULL;
@@ -1081,16 +1082,6 @@ nfscl_relbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 	if (callcnt == 0)
 		dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh,
 		    np->n_fhp->nfh_len);
-
-	/* Search for a local conflict. */
-	error = nfscl_localconflict(clp, nlop, own, dp, NULL);
-	if (error) {
-		NFSUNLOCKCLSTATE();
-		FREE((caddr_t)nlop, M_NFSCLLOCK);
-		if (other_lop != NULL)
-			FREE((caddr_t)other_lop, M_NFSCLLOCK);
-		return (error);
-	}
 
 	/*
 	 * First, unlock any local regions on a delegation.
@@ -3169,8 +3160,9 @@ nfscl_getmnt(u_int32_t cbident)
  *   a write lock or this is an unlock.
  */
 static int
-nfscl_localconflict(struct nfsclclient *clp, struct nfscllock *nlop,
-    u_int8_t *own, struct nfscldeleg *dp, struct nfscllock **lopp)
+nfscl_localconflict(struct nfsclclient *clp, u_int8_t *fhp, int fhlen,
+    struct nfscllock *nlop, u_int8_t *own, struct nfscldeleg *dp,
+    struct nfscllock **lopp)
 {
 	struct nfsclowner *owp;
 	struct nfsclopen *op;
@@ -3183,10 +3175,13 @@ nfscl_localconflict(struct nfsclclient *clp, struct nfscllock *nlop,
 	}
 	LIST_FOREACH(owp, &clp->nfsc_owner, nfsow_list) {
 		LIST_FOREACH(op, &owp->nfsow_open, nfso_list) {
-			ret = nfscl_checkconflict(&op->nfso_lock, nlop, own,
-			    lopp);
-			if (ret)
-				return (ret);
+			if (op->nfso_fhlen == fhlen &&
+			    !NFSBCMP(op->nfso_fh, fhp, fhlen)) {
+				ret = nfscl_checkconflict(&op->nfso_lock, nlop,
+				    own, lopp);
+				if (ret)
+					return (ret);
+			}
 		}
 	}
 	return (0);
@@ -3245,10 +3240,9 @@ nfscl_lockt(vnode_t vp, struct nfsclclient *clp, u_int64_t off,
 	nfscl_filllockowner(p, own);
 	NFSLOCKCLSTATE();
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
-	error = nfscl_localconflict(clp, &nlck, own, dp, &lop);
-	if (error == NFSERR_DENIED)
-		error = EACCES;
-	if (error) {
+	error = nfscl_localconflict(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len,
+	    &nlck, own, dp, &lop);
+	if (error != 0) {
 		fl->l_whence = SEEK_SET;
 		fl->l_start = lop->nfslo_first;
 		if (lop->nfslo_end == NFS64BITSSET)
@@ -3257,6 +3251,7 @@ nfscl_lockt(vnode_t vp, struct nfsclclient *clp, u_int64_t off,
 			fl->l_len = lop->nfslo_end - lop->nfslo_first;
 		fl->l_pid = (pid_t)0;
 		fl->l_type = lop->nfslo_type;
+		error = -1;			/* no RPC required */
 	} else if (dp != NULL && ((dp->nfsdl_flags & NFSCLDL_WRITE) ||
 	    fl->l_type == F_RDLCK)) {
 		/*
