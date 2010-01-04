@@ -13,7 +13,7 @@ if [ "$tty" = "??" ]; then
 else
 	case $tty in
 	pts/*)	ttyshort=`echo $tty | cut -c 5-` ;;
-	*)		ttyshort=`echo $tty | cut -c 4-` ;;
+	*)	ttyshort=`echo $tty | cut -c 4-` ;;
 	esac
 fi
 sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
