@@ -11,7 +11,10 @@ if [ "$tty" = "??" ]; then
 	tty="-"
 	ttyshort="-"
 else
-	ttyshort=`echo $tty | cut -c 4-`
+	case $tty in
+	pts/*)	ttyshort=`echo $tty | cut -c 5-` ;;
+	*)		ttyshort=`echo $tty | cut -c 4-` ;;
+	esac
 fi
 sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
 ln -sf /bin/sleep $sleep
