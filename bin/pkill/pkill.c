@@ -670,6 +670,20 @@ makelist(struct listhead *head, enum listtype type, char *src)
 				if (li->li_number == 0)
 					li->li_number = -1;	/* any jail */
 				break;
+			case LT_TTY:
+				if (li->li_number < 0)
+					errx(STATUS_BADUSAGE,
+					     "Negative /dev/pts tty `%s'", sp);
+				snprintf(buf, sizeof(buf), _PATH_DEV "pts/%s",
+				    sp);
+				if (stat(buf, &st) != -1)
+					goto foundtty;
+				if (errno == ENOENT)
+					errx(STATUS_BADUSAGE, "No such tty: `"
+					    _PATH_DEV "pts/%s'", sp);
+				err(STATUS_ERROR, "Cannot access `"
+				    _PATH_DEV "pts/%s'", sp);
+				break;
 			default:
 				break;
 			}
@@ -702,10 +716,6 @@ makelist(struct listhead *head, enum listtype type, char *src)
 				goto foundtty;
 
 			snprintf(buf, sizeof(buf), _PATH_DEV "tty%s", cp);
-			if (stat(buf, &st) != -1)
-				goto foundtty;
-
-			snprintf(buf, sizeof(buf), _PATH_DEV "pts/%s", cp);
 			if (stat(buf, &st) != -1)
 				goto foundtty;
 
