@@ -280,7 +280,7 @@ void	 inform(const struct printer *_pp, char *_cf);
 void	 init_printer(struct printer *_pp);
 void	 init_request(struct request *_rp);
 int	 inlist(char *_uname, char *_cfile);
-int	 iscf(struct dirent *_d);
+int	 iscf(const struct dirent *_d);
 void	 ldump(const char *_nfile, const char *_datafile, int _copies);
 void	 lastprinter(void);
 int	 lockchk(struct printer *_pp, char *_slockf);
