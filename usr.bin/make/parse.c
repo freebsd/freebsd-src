@@ -802,6 +802,7 @@ ParseDoDependency(char *line)
 			 * merges.
 			 */
 			if (strncmp(line, "<<<<<<", 6) == 0 ||
+			    strncmp(line, "||||||", 6) == 0 ||
 			    strncmp(line, "======", 6) == 0 ||
 			    strncmp(line, ">>>>>>", 6) == 0) {
 				Parse_Error(PARSE_FATAL, "Makefile appears to "
