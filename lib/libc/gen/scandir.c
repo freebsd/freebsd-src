@@ -58,11 +58,9 @@ __FBSDID("$FreeBSD$");
 	    (((dp)->d_namlen + 1 + 3) &~ 3))
 
 int
-scandir(dirname, namelist, select, dcomp)
-	const char *dirname;
-	struct dirent ***namelist;
-	int (*select)(struct dirent *);
-	int (*dcomp)(const void *, const void *);
+scandir(const char *dirname, struct dirent ***namelist,
+    int (*select)(const struct dirent *), int (*dcomp)(const struct dirent **,
+	const struct dirent **))
 {
 	struct dirent *d, *p, **names = NULL;
 	size_t nitems = 0;
@@ -111,26 +109,25 @@ scandir(dirname, namelist, select, dcomp)
 	}
 	closedir(dirp);
 	if (nitems && dcomp != NULL)
-		qsort(names, nitems, sizeof(struct dirent *), dcomp);
+		qsort(names, nitems, sizeof(struct dirent *),
+		    (int (*)(const void *, const void *))dcomp);
 	*namelist = names;
-	return(nitems);
+	return (nitems);
 
 fail:
 	while (nitems > 0)
 		free(names[--nitems]);
 	free(names);
 	closedir(dirp);
-	return -1;
+	return (-1);
 }
 
 /*
  * Alphabetic order comparison routine for those who want it.
  */
 int
-alphasort(d1, d2)
-	const void *d1;
-	const void *d2;
+alphasort(const struct dirent **d1, const struct dirent **d2)
 {
-	return(strcmp((*(struct dirent **)d1)->d_name,
-	    (*(struct dirent **)d2)->d_name));
+
+	return (strcmp((*d1)->d_name, (*d2)->d_name));
 }
