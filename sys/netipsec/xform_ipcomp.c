@@ -255,7 +255,6 @@ ipcomp_input_cb(struct cryptop *crp)
 			NET_UNLOCK_GIANT();
 			return error;
 		}
-
 		ipcompstat.ipcomps_noxform++;
 		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
 		error = crp->crp_etype;
@@ -493,7 +492,7 @@ ipcomp_output_cb(struct cryptop *crp)
 
 	/* Check for crypto errors */
 	if (crp->crp_etype) {
-		/* Reset session ID */
+		/* Reset the session ID */
 		if (sav->tdb_cryptoid != 0)
 			sav->tdb_cryptoid = crp->crp_sid;
 
