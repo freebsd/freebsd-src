@@ -240,6 +240,36 @@ The system include path will always be appended to the search path used
 for "..."-style inclusions and makefile searches (see the
 .Fl I
 option).
+.Pp
+If a file or directory name in the
+.Fl m
+argument (or the
+.Ev MAKESYSPATH
+environment variable) starts with the string
+.Qq \&.../
+then
+.Nm
+will search for the specified file or directory named in the remaining part
+of the argument string.
+The search starts with the current directory of the Makefile and then works
+upward towards the root of the filesystem.
+If the search is successful,
+then the resulting directory replaces the
+.Qq \&.../
+specification in the
+.Fl m
+argument.
+If used, this feature allows
+.Nm
+to easily search in the current source tree for customized sys.mk files
+(e.g. by using
+.Qq \&.../mk/sys.mk
+as an argument).
+Note that a
+.Fl C
+that are earlier on the command line affect where
+.Fl m Qq \&.../
+searches.
 .It Fl n
 Display the commands that would have been executed, but do not actually
 execute them.
@@ -1665,8 +1695,9 @@ utility uses the following environment variables, if they exist:
 .Ev MAKE ,
 .Ev MAKEFLAGS ,
 .Ev MAKEOBJDIR ,
+.Ev MAKEOBJDIRPREFIX ,
 and
-.Ev MAKEOBJDIRPREFIX .
+.Ev MAKESYSPATH .
 .Sh FILES
 .Bl -tag -width /usr/share/doc/psd/12.make -compact
 .It Pa .depend
