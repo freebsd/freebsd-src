@@ -61,6 +61,10 @@ __FBSDID("$FreeBSD$");
  *			If it exists, the entire path is returned.
  *			Otherwise NULL is returned.
  *
+ *	Dir_FindHereOrAbove Search for a path in the current directory and
+ *			then all the directories above it in turn until
+ *			the path is found or we reach the root ("/").
+ *
  *	Dir_MTime	Return the modification time of a node. The file
  *			is searched for along the default search path.
  *			The path and mtime fields of the node are filled in.
@@ -83,7 +87,7 @@ __FBSDID("$FreeBSD$");
  *	Dir_PrintDirectories	Print stats about the directory cache.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <err.h>
@@ -847,6 +851,83 @@ Path_FindFile(char *name, struct Path *path)
 		DEBUGF(DIR, ("failed. Returning NULL\n"));
 		return (NULL);
 	}
+}
+
+/*-
+ *-----------------------------------------------------------------------
+ * Dir_FindHereOrAbove  --
+ *	search for a path starting at a given directory and then working
+ *	our way up towards the root.
+ *
+ * Input:
+ *	here		starting directory
+ *	search_path	the path we are looking for
+ *	result		the result of a successful search is placed here
+ *	rlen		the length of the result buffer
+ *			(typically MAXPATHLEN + 1)
+ *
+ * Results:
+ *	0 on failure, 1 on success [in which case the found path is put
+ *	in the result buffer].
+ *
+ * Side Effects:
+ *-----------------------------------------------------------------------
+ */
+int
+Dir_FindHereOrAbove(char *here, char *search_path, char *result, int rlen)
+{
+	struct stat st;
+	char dirbase[MAXPATHLEN + 1], *db_end;
+	char try[MAXPATHLEN + 1], *try_end;
+
+	/* copy out our starting point */
+	snprintf(dirbase, sizeof(dirbase), "%s", here);
+	db_end = dirbase + strlen(dirbase);
+
+	/* loop until we determine a result */
+	while (1) {
+		/* try and stat(2) it ... */
+		snprintf(try, sizeof(try), "%s/%s", dirbase, search_path);
+		if (stat(try, &st) != -1) {
+			/*
+			 * Success!  If we found a file, chop off
+			 * the filename so we return a directory.
+			 */
+			if ((st.st_mode & S_IFMT) != S_IFDIR) {
+				try_end = try + strlen(try);
+				while (try_end > try && *try_end != '/')
+					try_end--;
+				if (try_end > try)
+					*try_end = 0;	/* chop! */
+			}
+
+			/*
+			 * Done!
+			 */
+			snprintf(result, rlen, "%s", try);
+			return(1);
+		}
+
+		/*
+		 * Nope, we didn't find it.  If we used up dirbase we've
+		 * reached the root and failed.
+		 */
+		if (db_end == dirbase)
+			break;		/* Failed! */
+
+		/*
+		 * truncate dirbase from the end to move up a dir
+		 */
+		while (db_end > dirbase && *db_end != '/')
+			db_end--;
+		*db_end = 0;		/* chop! */
+
+	} /* while (1) */
+
+	/*
+	 * We failed...
+	 */
+	return(0);
 }
 
 /*-
