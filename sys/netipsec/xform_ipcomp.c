@@ -370,12 +370,12 @@ ipcomp_output(
 	switch (sav->sah->saidx.dst.sa.sa_family) {
 #ifdef INET
 	case AF_INET:
-		maxpacketsize =  IP_MAXPACKET;
+		maxpacketsize = IP_MAXPACKET;
 		break;
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		maxpacketsize =  IPV6_MAXPACKET;
+		maxpacketsize = IPV6_MAXPACKET;
 		break;
 #endif /* INET6 */
 	default:
@@ -575,7 +575,7 @@ ipcomp_output_cb(struct cryptop *crp)
 			DPRINTF(("%s: unknown/unsupported protocol "
 			    "family %d, IPCA %s/%08lx\n", __func__,
 			    sav->sah->saidx.dst.sa.sa_family,
-			    ipsec_address(&sav->sah->saidx.dst), 
+			    ipsec_address(&sav->sah->saidx.dst),
 			    (u_long) ntohl(sav->spi)));
 			error = EPFNOSUPPORT;
 			goto bad;
