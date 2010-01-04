@@ -462,15 +462,10 @@ heap_free(struct dn_heap *h)
  */
 
 /*
- * Dispose a packet in dummynet. Use an inline functions so if we
+ * Dispose a list of packet. Use an inline functions so if we
  * need to free extra state associated to a packet, this is a
  * central point to do it.
  */
-static __inline void *dn_free_pkt(struct mbuf *m)
-{
-	m_freem(m);
-	return NULL;
-}
 
 static __inline void dn_free_pkts(struct mbuf *mnext)
 {
@@ -478,7 +473,7 @@ static __inline void dn_free_pkts(struct mbuf *mnext)
 
 	while ((m = mnext) != NULL) {
 		mnext = m->m_nextpkt;
-		dn_free_pkt(m);
+		FREE_PKT(m);
 	}
 }
 
@@ -968,24 +963,31 @@ dummynet_send(struct mbuf *m)
 	for (; m != NULL; m = n) {
 		struct ifnet *ifp;
 		int dst;
+        	struct m_tag *tag;
 
 		n = m->m_nextpkt;
 		m->m_nextpkt = NULL;
-		if (m_tag_first(m) == NULL) {
+		tag = m_tag_first(m);
+		if (tag == NULL) {
 			dst = DIR_DROP;
 		} else {
 			struct dn_pkt_tag *pkt = dn_tag_get(m);
+			/* extract the dummynet info, rename the tag */
 			dst = pkt->dn_dir;
 			ifp = pkt->ifp;
+			/* rename the tag so it carries reinject info */
+			tag->m_tag_cookie = MTAG_IPFW_RULE;
+			tag->m_tag_id = 0;
 		}
 
 		switch (dst) {
 		case DIR_OUT:
+			SET_HOST_IPLEN(mtod(m, struct ip *));
 			ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
 			break ;
 		case DIR_IN :
 			/* put header in network format for ip_input() */
-			SET_NET_IPLEN(mtod(m, struct ip *));
+			//SET_NET_IPLEN(mtod(m, struct ip *));
 			netisr_dispatch(NETISR_IP, m);
 			break;
 #ifdef INET6
@@ -994,6 +996,7 @@ dummynet_send(struct mbuf *m)
 			break;
 
 		case DIR_OUT | PROTO_IPV6:
+			SET_HOST_IPLEN(mtod(m, struct ip *));
 			ip6_output(m, NULL, NULL, IPV6_FORWARDING, NULL, NULL, NULL);
 			break;
 #endif
@@ -1024,12 +1027,12 @@ dummynet_send(struct mbuf *m)
 
 		case DIR_DROP:
 			/* drop the packet after some time */
-			dn_free_pkt(m);
+			FREE_PKT(m);
 			break;
 
 		default:
 			printf("dummynet: bad switch %d!\n", dst);
-			dn_free_pkt(m);
+			FREE_PKT(m);
 			break;
 		}
 	}
@@ -1362,7 +1365,7 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	struct dn_pipe *pipe;
 	uint64_t len = m->m_pkthdr.len;
 	struct dn_flow_queue *q = NULL;
-	int is_pipe = fwa->cookie & 0x8000000 ? 0 : 1;
+	int is_pipe = fwa->rule.info & IPFW_IS_PIPE;
 
 	KASSERT(m->m_nextpkt == NULL,
 	    ("dummynet_io: mbuf queue passed to dummynet"));
@@ -1371,16 +1374,13 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	io_pkt++;
 	/*
 	 * This is a dummynet rule, so we expect an O_PIPE or O_QUEUE rule.
-	 *
-	 * XXXGL: probably the pipe->fs and fs->pipe logic here
-	 * below can be simplified.
 	 */
 	if (is_pipe) {
-		pipe = locate_pipe(fwa->cookie & 0xffff);
+		pipe = locate_pipe(fwa->rule.info & IPFW_INFO_MASK);
 		if (pipe != NULL)
 			fs = &(pipe->fs);
 	} else
-		fs = locate_flowset(fwa->cookie & 0xffff);
+		fs = locate_flowset(fwa->rule.info & IPFW_INFO_MASK);
 
 	if (fs == NULL)
 		goto dropit;	/* This queue/pipe does not exist! */
@@ -1426,12 +1426,9 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	 * Ok, i can handle the pkt now...
 	 * Build and enqueue packet + parameters.
 	 */
-	pkt->slot = fwa->slot;
-	pkt->rulenum = fwa->rulenum;
-	pkt->rule_id = fwa->rule_id;
-	pkt->chain_id = fwa->chain_id;
+	pkt->rule = fwa->rule;
+	pkt->rule.info &= IPFW_ONEPASS;	/* only keep this info */
 	pkt->dn_dir = dir;
-
 	pkt->ifp = fwa->oif;
 
 	if (q->head == NULL)
@@ -1562,7 +1559,8 @@ dropit:
 	if (q)
 		q->drops++;
 	DUMMYNET_UNLOCK();
-	*m0 = dn_free_pkt(m);
+	FREE_PKT(m);
+	*m0 = NULL;
 	return ((fs && (fs->flags_fs & DN_NOERROR)) ? 0 : ENOBUFS);
 }
 

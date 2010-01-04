@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
-#include <netinet/ip_divert.h>
 
 #ifdef MAC
 #include <security/mac/mac_framework.h>
@@ -304,6 +303,8 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 					n++;
 			}
 		}
+		if (n == 0 && arg == 0)
+			break; /* special case, flush on empty ruleset */
 		/* allocate the map, if needed */
 		if (n > 0)
 			map = get_map(chain, -n, 1 /* locked */);

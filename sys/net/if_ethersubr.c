@@ -469,21 +469,20 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared)
 	struct ip_fw_args args;
 	struct m_tag *mtag;
 
-	mtag = m_tag_find(*m0, PACKET_TAG_DUMMYNET, NULL);
+	/* fetch start point from rule, if any */
+	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
 	if (mtag == NULL) {
-		args.slot = 0;
+		args.rule.slot = 0;
 	} else {
 		struct dn_pkt_tag *dn_tag;
 
+		/* XXX can we free it after use ? */
 		mtag->m_tag_id = PACKET_TAG_NONE;
 		dn_tag = (struct dn_pkt_tag *)(mtag + 1);
-		if (dn_tag->slot != 0 && V_fw_one_pass)
+		if (dn_tag->rule.slot != 0 && V_fw_one_pass)
 			/* dummynet packet, already partially processed */
 			return (1);
-		args.slot = dn_tag->slot;	/* matching rule to restart */
-		args.rulenum = dn_tag->rulenum;
-		args.rule_id = dn_tag->rule_id;
-		args.chain_id = dn_tag->chain_id;
+		args.rule = dn_tag->rule;
 	}
 
 	/*

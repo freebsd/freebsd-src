@@ -114,11 +114,7 @@ struct dn_heap {
  * other forms of packet reinjection.
  */
 struct dn_pkt_tag {
-    /* first part, reinject info */
-    uint32_t slot;		/* slot of next rule to use */
-    uint32_t rulenum;		/* matching rule number */
-    uint32_t rule_id;		/* matching rule id */
-    uint32_t chain_id;		/* ruleset id */
+	struct ipfw_rule_ref rule;	/* matching rule */
 
     /* second part, dummynet specific */
     int dn_dir;			/* action when packet comes out. */

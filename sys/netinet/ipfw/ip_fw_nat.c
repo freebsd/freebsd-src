@@ -219,9 +219,6 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 		return (IP_FW_DENY);
 	}
 	ip = mtod(mcl, struct ip *);
-	if (args->eh == NULL) {
-		SET_NET_IPLEN(ip);
-	}
 
 	/*
 	 * XXX - Libalias checksum offload 'duct tape':
@@ -329,9 +326,6 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 			in_delayed_cksum(mcl);
 			mcl->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 		}
-	}
-	if (args->eh == NULL) {
-		SET_HOST_IPLEN(ip);
 	}
 	args->m = mcl;
 	return (IP_FW_NAT);
