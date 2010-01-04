@@ -36,6 +36,7 @@
 #ifdef _KERNEL
 
 #define MTAG_IPFW	1148380143	/* IPFW-tagged cookie */
+#define MTAG_IPFW_RULE	1262273568	/* rule reference */
 
 /* Return values from ipfw_chk() */
 enum {
@@ -49,10 +50,6 @@ enum {
 	IP_FW_NAT,
 	IP_FW_REASS,
 };
-
-/* flags for divert mtag */
-#define	IP_FW_DIVERT_LOOPBACK_FLAG	0x00080000
-#define	IP_FW_DIVERT_OUTPUT_FLAG	0x00100000
 
 /*
  * Structure for collecting parameters to dummynet for ip6_output forwarding
@@ -70,6 +67,39 @@ struct _ip6dn_args {
 };
 
 /*
+ * Reference to an ipfw rule that can be carried outside critical sections.
+ * A rule is identified by rulenum:rule_id which is ordered.
+ * In version chain_id the rule can be found in slot 'slot', so
+ * we don't need a lookup if chain_id == chain->id.
+ *
+ * On exit from the firewall this structure refers to the rule after
+ * the matching one (slot points to the new rule; rulenum:rule_id-1
+ * is the matching rule), and additional info (e.g. info often contains
+ * the insn argument or tablearg in the low 16 bits, in host format).
+ * On entry, the structure is valid if slot>0, and refers to the starting
+ * rules. 'info' contains the reason for reinject, e.g. divert port,
+ * divert direction, and so on.
+ */
+struct ipfw_rule_ref {
+	uint32_t	slot;		/* slot for matching rule	*/
+	uint32_t	rulenum;	/* matching rule number		*/
+	uint32_t	rule_id;	/* matching rule id		*/
+	uint32_t	chain_id;	/* ruleset id			*/
+	uint32_t	info;		/* see below			*/
+};
+
+enum {
+	IPFW_INFO_MASK	= 0x0000ffff,
+	IPFW_INFO_OUT	= 0x00000000,	/* outgoing, just for convenience */
+	IPFW_INFO_IN	= 0x80000000,	/* incoming, overloads dir */
+	IPFW_ONEPASS	= 0x40000000,	/* One-pass, do not reinject */
+	IPFW_IS_MASK	= 0x30000000,	/* which source ? */
+	IPFW_IS_DIVERT	= 0x20000000,
+	IPFW_IS_DUMMYNET =0x10000000,
+	IPFW_IS_PIPE	= 0x08000000,	/* pip1=1, queue = 0 */
+};
+
+/*
  * Arguments for calling ipfw_chk() and dummynet_io(). We put them
  * all into a structure because this way it is easier and more
  * efficient to pass variables around and extend the interface.
@@ -79,19 +109,19 @@ struct ip_fw_args {
 	struct ifnet	*oif;		/* output interface		*/
 	struct sockaddr_in *next_hop;	/* forward address		*/
 
-	/* chain_id validates 'slot', the location of the pointer to
-	 * a matching rule.
-	 * If invalid, we can lookup the rule using rule_id and rulenum
+	/*
+	 * On return, it points to the matching rule.
+	 * On entry, rule.slot > 0 means the info is valid and
+	 * contains the the starting rule for an ipfw search.
+	 * If chain_id == chain->id && slot >0 then jump to that slot.
+	 * Otherwise, we locate the first rule >= rulenum:rule_id
 	 */
-	uint32_t	slot;		/* slot for matching rule	*/
-	uint32_t	rulenum;	/* matching rule number		*/
-	uint32_t	rule_id;	/* matching rule id		*/
-	uint32_t	chain_id;	/* ruleset id			*/
+	struct ipfw_rule_ref rule;	/* match/restart info		*/
 
 	struct ether_header *eh;	/* for bridged packets		*/
 
 	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
-	uint32_t	cookie;		/* a cookie depending on rule action */
+	//uint32_t	cookie;		/* a cookie depending on rule action */
 	struct inpcb	*inp;
 
 	struct _ip6dn_args	dummypar; /* dummynet->ip6_output */
@@ -121,6 +151,9 @@ enum {
 	PROTO_IFB =	0x0c, /* layer2 + ifbridge */
    /*	PROTO_OLDBDG =	0x14, unused, old bridge */
 };
+
+/* wrapper for freeing a packet, in case we need to do more work */
+#define FREE_PKT(m)	m_freem(m)
 
 /*
  * Function definitions.
@@ -256,6 +289,9 @@ int ipfw_del_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 int ipfw_count_table(struct ip_fw_chain *ch, uint32_t tbl, uint32_t *cnt);
 int ipfw_dump_table(struct ip_fw_chain *ch, ipfw_table *tbl);
 
+/* hooks for divert */
+extern void (*ip_divert_ptr)(struct mbuf *m, int incoming);
+
 /* In ip_fw_nat.c */
 
 extern struct cfg_nat *(*lookup_nat_ptr)(struct nat_list *, int);
@@ -276,18 +312,6 @@ extern ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
 typedef int ng_ipfw_input_t(struct mbuf **, int, struct ip_fw_args *, int);
 extern  ng_ipfw_input_t *ng_ipfw_input_p;
 #define NG_IPFW_LOADED  (ng_ipfw_input_p != NULL)
-
-struct ng_ipfw_tag {
-        struct m_tag    mt;             /* tag header */
-	/* reinject info */
-        uint32_t        slot;           /* slot for next rule */
-        uint32_t        rulenum;        /* matching rule number */
-        uint32_t        rule_id;        /* matching rule id */
-        uint32_t        chain_id;       /* ruleset id */
-        int             dir;
-
-//        struct ifnet    *ifp;           /* interface, for ip_output */
-};
 
 #define TAGSIZ  (sizeof(struct ng_ipfw_tag) - sizeof(struct m_tag))
 

@@ -165,16 +165,8 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 			 * more info in the header
 			 */
 			mh.mh_data = "DDDDDDSSSSSS\x08\x00";
-			if (args->f_id.addr_type == 4) {
-				/* restore wire format */
-				SET_NET_IPLEN(ip);
-			}
 		}
 		BPF_MTAP(log_if, (struct mbuf *)&mh);
-		if (args->eh == NULL && args->f_id.addr_type == 4) {
-			/* restore host format */
-			SET_HOST_IPLEN(ip);
-		}
 #endif /* !WITHOUT_BPF */
 		return;
 	}
@@ -409,23 +401,15 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 		} else
 #endif
 		{
-			int ip_off, ip_len;
-#ifndef HAVE_NET_IPLEN
-			if (args->eh == NULL) {
-				ip_off = ip->ip_off;
-				ip_len = ip->ip_len;
-			} else
-#endif /* !HAVE_NET_IPLEN */
-			{
-				ip_off = ntohs(ip->ip_off);
-				ip_len = ntohs(ip->ip_len);
-			}
-			if (ip_off & (IP_MF | IP_OFFMASK))
+			int ipoff, iplen;
+			ipoff = ntohs(ip->ip_off);
+			iplen = ntohs(ip->ip_len);
+			if (ipoff & (IP_MF | IP_OFFMASK))
 				snprintf(SNPARGS(fragment, 0),
 				    " (frag %d:%d@%d%s)",
-				    ntohs(ip->ip_id), ip_len - (ip->ip_hl << 2),
+				    ntohs(ip->ip_id), iplen - (ip->ip_hl << 2),
 				    offset << 3,
-				    (ip_off & IP_MF) ? "+" : "");
+				    (ipoff & IP_MF) ? "+" : "");
 		}
 	}
 	if (oif || m->m_pkthdr.rcvif)
