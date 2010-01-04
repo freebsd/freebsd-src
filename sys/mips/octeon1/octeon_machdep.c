@@ -80,7 +80,12 @@ __FBSDID("$FreeBSD$");
 extern int	*edata;
 extern int	*end;
 
+uint64_t ciu_get_en_reg_addr_new(int corenum, int intx, int enx, int ciu_ip);
+void ciu_dump_interrutps_enabled(int core_num, int intx, int enx, int ciu_ip);
+
 static void octeon_boot_params_init(register_t ptr);
+static uint64_t ciu_get_intr_sum_reg_addr(int core_num, int intx, int enx);
+static uint64_t ciu_get_intr_en_reg_addr(int core_num, int intx, int enx);
 
 void
 platform_cpu_init()
@@ -90,7 +95,6 @@ platform_cpu_init()
 
 /*
  * Perform a board-level soft-reset.
- * Note that this is not emulated by gxemul.
  */
 void
 platform_reset(void)
@@ -99,85 +103,95 @@ platform_reset(void)
 }
 
 
-static inline uint32_t octeon_disable_interrupts (void)
+static inline uint32_t
+octeon_disable_interrupts(void)
 {
-    uint32_t status_bits;
+	uint32_t status_bits;
 
-    status_bits = mips_rd_status();
-    mips_wr_status(status_bits & ~MIPS_SR_INT_IE);
-    return (status_bits);
+	status_bits = mips_rd_status();
+	mips_wr_status(status_bits & ~MIPS_SR_INT_IE);
+	return (status_bits);
 }
 
 
-static inline void octeon_set_interrupts (uint32_t status_bits)
+static inline void
+octeon_set_interrupts(uint32_t status_bits)
 {
-    mips_wr_status(status_bits);
+	mips_wr_status(status_bits);
 }
 
 
-void octeon_led_write_char (int char_position, char val)
+void
+octeon_led_write_char(int char_position, char val)
 {
-    uint64_t ptr = (OCTEON_CHAR_LED_BASE_ADDR | 0xf8);
+	uint64_t ptr = (OCTEON_CHAR_LED_BASE_ADDR | 0xf8);
 
-    if (!octeon_board_real()) return;
+	if (!octeon_board_real())
+		return;
 
-    char_position &= 0x7;  /* only 8 chars */
-    ptr += char_position;
-    oct_write8_x8(ptr, val);
+	char_position &= 0x7;  /* only 8 chars */
+	ptr += char_position;
+	oct_write8_x8(ptr, val);
 }
 
-void octeon_led_write_char0 (char val)
+void
+octeon_led_write_char0(char val)
 {
-    uint64_t ptr = (OCTEON_CHAR_LED_BASE_ADDR | 0xf8);
+	uint64_t ptr = (OCTEON_CHAR_LED_BASE_ADDR | 0xf8);
 
-    if (!octeon_board_real()) return;
-
-    oct_write8_x8(ptr, val);
+	if (!octeon_board_real())
+		return;
+	oct_write8_x8(ptr, val);
 }
 
-void octeon_led_write_hexchar (int char_position, char hexval)
+void
+octeon_led_write_hexchar(int char_position, char hexval)
 {
-    uint64_t ptr = (OCTEON_CHAR_LED_BASE_ADDR | 0xf8);
-    char char1, char2;
+	uint64_t ptr = (OCTEON_CHAR_LED_BASE_ADDR | 0xf8);
+	char char1, char2;
 
-    if (!octeon_board_real()) return;
+	if (!octeon_board_real())
+		return;
 
-    char1 = (hexval >> 4) & 0x0f; char1 = (char1 < 10)?char1+'0':char1+'7';
-    char2 = (hexval  & 0x0f); char2 = (char2 < 10)?char2+'0':char2+'7';
-    char_position &= 0x7;  /* only 8 chars */
-    if (char_position > 6) char_position = 6;
-    ptr += char_position;
-    oct_write8_x8(ptr, char1);
-    ptr++;
-    oct_write8_x8(ptr, char2);
+	char1 = (hexval >> 4) & 0x0f; char1 = (char1 < 10)?char1+'0':char1+'7';
+	char2 = (hexval  & 0x0f); char2 = (char2 < 10)?char2+'0':char2+'7';
+	char_position &= 0x7;  /* only 8 chars */
+	if (char_position > 6)
+		char_position = 6;
+	ptr += char_position;
+	oct_write8_x8(ptr, char1);
+	ptr++;
+	oct_write8_x8(ptr, char2);
 }
 
-void octeon_led_write_string (const char *str)
+void
+octeon_led_write_string(const char *str)
 {
-    uint64_t ptr = (OCTEON_CHAR_LED_BASE_ADDR | 0xf8);
-    int i;
+	uint64_t ptr = (OCTEON_CHAR_LED_BASE_ADDR | 0xf8);
+	int i;
 
-    if (!octeon_board_real()) return;
+	if (!octeon_board_real())
+		return;
 
-    for (i=0; i<8; i++, ptr++) {
-        if (str && *str) {
-            oct_write8_x8(ptr, *str++);
-        } else {
-            oct_write8_x8(ptr, ' ');
-        }
-        oct_read64(OCTEON_MIO_BOOT_BIST_STAT);
-    }
+	for (i=0; i<8; i++, ptr++) {
+		if (str && *str)
+			oct_write8_x8(ptr, *str++);
+		else
+			oct_write8_x8(ptr, ' ');
+		oct_read64(OCTEON_MIO_BOOT_BIST_STAT);
+	}
 }
 
 static char progress[8] = { '-', '/', '|', '\\', '-', '/', '|', '\\'};
 
-void octeon_led_run_wheel (/*int count, */int *prog_count, int led_position)
+void
+octeon_led_run_wheel(int *prog_count, int led_position)
 {
-    if (!octeon_board_real()) return;
-
-    octeon_led_write_char(led_position, progress[*prog_count]);
-    *prog_count += 1;
-    *prog_count &= 0x7;
+	if (!octeon_board_real())
+		return;
+	octeon_led_write_char(led_position, progress[*prog_count]);
+	*prog_count += 1;
+	*prog_count &= 0x7;
 }
 
 #define LSR_DATAREADY        0x01    /* Data ready */
@@ -191,160 +205,116 @@ void octeon_led_run_wheel (/*int count, */int *prog_count, int led_position)
  * Put out a single byte off of uart port.
  */
 
-void octeon_uart_write_byte (int uart_index, uint8_t ch)
+void
+octeon_uart_write_byte(int uart_index, uint8_t ch)
 {
-    uint64_t val, val2;
-    if ((uart_index < 0) || (uart_index > 1)) {
-        return;
-    }
+	uint64_t val, val2;
+	if (uart_index < 0 || uart_index > 1)
+		return;
 
-    while (1) {
-        val = oct_read64(OCTEON_MIO_UART0_LSR + (uart_index * 0x400));
-        val2 = oct_read64(OCTEON_MIO_UART0_USR + (uart_index * 0x400));
-        if ((((uint8_t) val) & LSR_THRE) ||
-            (((uint8_t) val2) & USR_TXFIFO_NOTFULL)) {
-            break;
-        }
-    }
+	while (1) {
+		val = oct_read64(OCTEON_MIO_UART0_LSR + (uart_index * 0x400));
+		val2 = oct_read64(OCTEON_MIO_UART0_USR + (uart_index * 0x400));
+		if ((((uint8_t) val) & LSR_THRE) ||
+		    (((uint8_t) val2) & USR_TXFIFO_NOTFULL)) {
+			break;
+		}
+	}
 
-    /* Write the byte */
-    oct_write8(OCTEON_MIO_UART0_THR + (uart_index * 0x400), (uint64_t) ch);
+	/* Write the byte */
+	oct_write8(OCTEON_MIO_UART0_THR + (uart_index * 0x400), (uint64_t) ch);
 
-    /* Force Flush the IOBus */
-    oct_read64(OCTEON_MIO_BOOT_BIST_STAT);
+	/* Force Flush the IOBus */
+	oct_read64(OCTEON_MIO_BOOT_BIST_STAT);
 }
 
 
-void octeon_uart_write_byte0 (uint8_t ch)
+void
+octeon_uart_write_byte0(uint8_t ch)
 {
-    uint64_t val, val2;
+	uint64_t val, val2;
 
-    while (1) {
-        val = oct_read64(OCTEON_MIO_UART0_LSR);
-        val2 = oct_read64(OCTEON_MIO_UART0_USR);
-        if ((((uint8_t) val) & LSR_THRE) ||
-            (((uint8_t) val2) & USR_TXFIFO_NOTFULL)) {
-            break;
-        }
-    }
+	while (1) {
+		val = oct_read64(OCTEON_MIO_UART0_LSR);
+		val2 = oct_read64(OCTEON_MIO_UART0_USR);
+		if ((((uint8_t) val) & LSR_THRE) ||
+		    (((uint8_t) val2) & USR_TXFIFO_NOTFULL)) {
+			break;
+		}
+	}
 
-    /* Write the byte */
-    oct_write8(OCTEON_MIO_UART0_THR, (uint64_t) ch);
+	/* Write the byte */
+	oct_write8(OCTEON_MIO_UART0_THR, (uint64_t) ch);
 
-    /* Force Flush the IOBus */
-    oct_read64(OCTEON_MIO_BOOT_BIST_STAT);
+	/* Force Flush the IOBus */
+	oct_read64(OCTEON_MIO_BOOT_BIST_STAT);
 }
 
 /*
  * octeon_uart_write_string
  * 
  */
-void octeon_uart_write_string (int uart_index, const char *str)
+void
+octeon_uart_write_string(int uart_index, const char *str)
 {
-     /* Just loop writing one byte at a time */
+	/* Just loop writing one byte at a time */
     
-    while (*str)
-    {
-        octeon_uart_write_byte(uart_index, *str);
-        if (*str == '\n') {
-            octeon_uart_write_byte(uart_index, '\r');
-        }
-        str++;
-    }
- }
+	while (*str) {
+		octeon_uart_write_byte(uart_index, *str);
+		if (*str == '\n') {
+			octeon_uart_write_byte(uart_index, '\r');
+		}
+		str++;
+	}
+}
 
 static char wstr[30];
 
-void octeon_led_write_hex (uint32_t wl)
+void
+octeon_led_write_hex(uint32_t wl)
 {
-    char nbuf[80];
+	char nbuf[80];
 
-    sprintf(nbuf, "%X", wl);
-    octeon_led_write_string(nbuf);
+	sprintf(nbuf, "%X", wl);
+	octeon_led_write_string(nbuf);
 }
 
 
-void octeon_uart_write_hex2 (uint32_t wl, uint32_t wh)
+void octeon_uart_write_hex2(uint32_t wl, uint32_t wh)
 {
-    sprintf(wstr, "0x%X-0x%X  ", wh, wl);
-    octeon_uart_write_string(0, wstr);
+	sprintf(wstr, "0x%X-0x%X  ", wh, wl);
+	octeon_uart_write_string(0, wstr);
 }
 
-void octeon_uart_write_hex (uint32_t wl)
+void
+octeon_uart_write_hex(uint32_t wl)
 {
-    sprintf(wstr, " 0x%X  ", wl);
-    octeon_uart_write_string(0, wstr);
+	sprintf(wstr, " 0x%X  ", wl);
+	octeon_uart_write_string(0, wstr);
 }
-
-#ifdef __not_used__
-#define OCT_CONS_BUFLEN	200
-static char console_str_buff0[OCT_CONS_BUFLEN + 1];
-#include <machine/stdarg.h>
-
-//#define USE_KERN_SUBR_PRINTF
-#ifndef USE_KERN_SUBR_PRINTF
-static int oct_printf (const char *fmt, va_list ap);
-#endif
-
-int kern_cons_printf(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-#ifndef USE_KERN_SUBR_PRINTF
-        oct_printf(fmt, ap);
-#else
-        ker_printf(fmt, ap);
-#endif
-        va_end(ap);
-        return (0);
-}
-
-#ifndef USE_KERN_SUBR_PRINTF
-static int oct_printf(const char *fmt, va_list ap)
-{
-        snprintf(console_str_buff0, OCT_CONS_BUFLEN, fmt, ap);
-        octeon_uart_write_string(0, console_str_buff0);
-        return (0);
-}
-#endif
-
-int console_printf(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-        sprintf(console_str_buff0, fmt, ap);
-        va_end(ap);
-        octeon_uart_write_string(0, console_str_buff0);
-        return (0);
-}
-#endif
-
 
 /*
  * octeon_wait_uart_flush
  */
-void octeon_wait_uart_flush (int uart_index, uint8_t ch)
+void
+octeon_wait_uart_flush(int uart_index, uint8_t ch)
 {
-    uint64_t val;
-    int64_t val3;
-    uint32_t cpu_status_bits;
+	uint64_t val;
+	int64_t val3;
+	uint32_t cpu_status_bits;
 
-    if ((uart_index < 0) || (uart_index > 1)) {
-        return;
-    }
+	if (uart_index < 0 || uart_index > 1)
+		return;
 
-    cpu_status_bits = octeon_disable_interrupts();
-    /* Force Flush the IOBus */
-    oct_read64(OCTEON_MIO_BOOT_BIST_STAT);
-    for (val3 = 0xfffffffff; val3 > 0; val3--) {
-        val = oct_read64(OCTEON_MIO_UART0_LSR + (uart_index * 0x400));
-        if (((uint8_t) val) & LSR_TEMT) {
-            break;
-        }
-    }
-    octeon_set_interrupts(cpu_status_bits);
+	cpu_status_bits = octeon_disable_interrupts();
+	/* Force Flush the IOBus */
+	oct_read64(OCTEON_MIO_BOOT_BIST_STAT);
+	for (val3 = 0xfffffffff; val3 > 0; val3--) {
+		val = oct_read64(OCTEON_MIO_UART0_LSR + (uart_index * 0x400));
+		if (((uint8_t) val) & LSR_TEMT)
+			break;
+	}
+	octeon_set_interrupts(cpu_status_bits);
 }
 
 
@@ -354,16 +324,19 @@ void octeon_wait_uart_flush (int uart_index, uint8_t ch)
  * Does nothing.
  * Used to mark the point for simulator to begin tracing
  */
-void octeon_debug_symbol (void)
+void
+octeon_debug_symbol(void)
 {
 }
 
-void octeon_ciu_stop_gtimer (int timer)
+void
+octeon_ciu_stop_gtimer(int timer)
 {
-    oct_write64(OCTEON_CIU_GENTIMER_ADDR(timer), 0ll);
+	oct_write64(OCTEON_CIU_GENTIMER_ADDR(timer), 0ll);
 }
 
-void octeon_ciu_start_gtimer (int timer, u_int one_shot, uint64_t time_cycles)
+void
+octeon_ciu_start_gtimer(int timer, u_int one_shot, uint64_t time_cycles)
 {
     	octeon_ciu_gentimer gentimer;
 
@@ -378,22 +351,23 @@ void octeon_ciu_start_gtimer (int timer, u_int one_shot, uint64_t time_cycles)
  *
  * Shutdown all CIU to IP2, IP3 mappings
  */
-void octeon_ciu_reset (void)
+void
+octeon_ciu_reset(void)
 {
 
-    octeon_ciu_stop_gtimer(CIU_GENTIMER_NUM_0);
-    octeon_ciu_stop_gtimer(CIU_GENTIMER_NUM_1);
-    octeon_ciu_stop_gtimer(CIU_GENTIMER_NUM_2);
-    octeon_ciu_stop_gtimer(CIU_GENTIMER_NUM_3);
+	octeon_ciu_stop_gtimer(CIU_GENTIMER_NUM_0);
+	octeon_ciu_stop_gtimer(CIU_GENTIMER_NUM_1);
+	octeon_ciu_stop_gtimer(CIU_GENTIMER_NUM_2);
+	octeon_ciu_stop_gtimer(CIU_GENTIMER_NUM_3);
 
-    ciu_disable_intr(CIU_THIS_CORE, CIU_INT_0, CIU_EN_0);
-    ciu_disable_intr(CIU_THIS_CORE, CIU_INT_0, CIU_EN_1);
-    ciu_disable_intr(CIU_THIS_CORE, CIU_INT_1, CIU_EN_0);
-    ciu_disable_intr(CIU_THIS_CORE, CIU_INT_1, CIU_EN_1);
+	ciu_disable_intr(CIU_THIS_CORE, CIU_INT_0, CIU_EN_0);
+	ciu_disable_intr(CIU_THIS_CORE, CIU_INT_0, CIU_EN_1);
+	ciu_disable_intr(CIU_THIS_CORE, CIU_INT_1, CIU_EN_0);
+	ciu_disable_intr(CIU_THIS_CORE, CIU_INT_1, CIU_EN_1);
 
-    ciu_clear_int_summary(CIU_THIS_CORE, CIU_INT_0, CIU_EN_0, 0ll);
-    ciu_clear_int_summary(CIU_THIS_CORE, CIU_INT_1, CIU_EN_0, 0ll);
-    ciu_clear_int_summary(CIU_THIS_CORE, CIU_INT_1, CIU_EN_1, 0ll);
+	ciu_clear_int_summary(CIU_THIS_CORE, CIU_INT_0, CIU_EN_0, 0ll);
+	ciu_clear_int_summary(CIU_THIS_CORE, CIU_INT_1, CIU_EN_0, 0ll);
+	ciu_clear_int_summary(CIU_THIS_CORE, CIU_INT_1, CIU_EN_1, 0ll);
 }
 
 /*
@@ -401,54 +375,48 @@ void octeon_ciu_reset (void)
  *
  * Disable interrupts in the CPU controller
  */
-void mips_disable_interrupt_controls (void)
+void
+mips_disable_interrupt_controls(void)
 {
-    /*
-     * Disable interrupts in CIU.
-     */
-    octeon_ciu_reset();
+	/*
+	 * Disable interrupts in CIU.
+	 */
+	octeon_ciu_reset();
 }
-
-static uint64_t ciu_get_intr_sum_reg_addr(int core_num, int intx, int enx);
 
 /*
  * ciu_get_intr_sum_reg_addr
  */
-static uint64_t ciu_get_intr_sum_reg_addr (int core_num, int intx, int enx)
+static uint64_t
+ciu_get_intr_sum_reg_addr(int core_num, int intx, int enx)
 {
-    uint64_t ciu_intr_sum_reg_addr;
+	uint64_t ciu_intr_sum_reg_addr;
 
-    	if (enx == CIU_EN_0) {
-            	ciu_intr_sum_reg_addr = OCTEON_CIU_SUMMARY_BASE_ADDR + (core_num * 0x10) +
-                                        (intx * 0x8);
-        } else {
+    	if (enx == CIU_EN_0)
+            	ciu_intr_sum_reg_addr = OCTEON_CIU_SUMMARY_BASE_ADDR +
+		    (core_num * 0x10) + (intx * 0x8);
+	else
             	ciu_intr_sum_reg_addr = OCTEON_CIU_SUMMARY_INT1_ADDR;
-        }
 
         return (ciu_intr_sum_reg_addr);
 }
 
 
-static uint64_t ciu_get_intr_en_reg_addr(int core_num, int intx, int enx);
-
 /*
  * ciu_get_intr_en_reg_addr
  */
-static uint64_t ciu_get_intr_en_reg_addr (int core_num, int intx, int enx)
+static uint64_t
+ciu_get_intr_en_reg_addr(int core_num, int intx, int enx)
 {
-    uint64_t ciu_intr_reg_addr;
+	uint64_t ciu_intr_reg_addr;
 
-
-    	ciu_intr_reg_addr = OCTEON_CIU_ENABLE_BASE_ADDR + ((enx == 0) ? 0x0 : 0x8) +
-                            (intx * 0x10) +  (core_num * 0x20);
-
+    	ciu_intr_reg_addr = OCTEON_CIU_ENABLE_BASE_ADDR + 
+	    ((enx == 0) ? 0x0 : 0x8) + (intx * 0x10) +  (core_num * 0x20);
         return (ciu_intr_reg_addr);
 }
 
 
 
-
-uint64_t ciu_get_en_reg_addr_new (int corenum, int intx, int enx, int ciu_ip);
 
 /*
  * ciu_get_intr_reg_addr
@@ -465,45 +433,46 @@ uint64_t ciu_get_en_reg_addr_new (int corenum, int intx, int enx, int ciu_ip);
  * 238 ---int1,en1 ip3
  *
  */
-uint64_t ciu_get_en_reg_addr_new (int corenum, int intx, int enx, int ciu_ip)
+uint64_t
+ciu_get_en_reg_addr_new(int corenum, int intx, int enx, int ciu_ip)
 {
-    uint64_t ciu_intr_reg_addr = OCTEON_CIU_ENABLE_BASE_ADDR;
+	uint64_t ciu_intr_reg_addr = OCTEON_CIU_ENABLE_BASE_ADDR;
 
-    if (enx < CIU_EN_0 || enx > CIU_EN_1) {
-        printf("%s: invalid enx value %d, should be %d or %d\n",
-               __FUNCTION__, enx, CIU_EN_0, CIU_EN_1);
-        return 0;
-    }
-    if (intx < CIU_INT_0 || intx > CIU_INT_1) {
-        printf("%s: invalid intx value %d, should be %d or %d\n",
-               __FUNCTION__, enx, CIU_INT_0, CIU_INT_1);
-        return 0;
-    }
-    if (ciu_ip < CIU_MIPS_IP2 || ciu_ip > CIU_MIPS_IP3) {
-        printf("%s: invalid ciu_ip value %d, should be %d or %d\n",
-               __FUNCTION__, ciu_ip, CIU_MIPS_IP2, CIU_MIPS_IP3);
-        return 0;
-    }
+	/* XXX kasserts? */
+	if (enx < CIU_EN_0 || enx > CIU_EN_1) {
+		printf("%s: invalid enx value %d, should be %d or %d\n",
+		    __FUNCTION__, enx, CIU_EN_0, CIU_EN_1);
+		return 0;
+	}
+	if (intx < CIU_INT_0 || intx > CIU_INT_1) {
+		printf("%s: invalid intx value %d, should be %d or %d\n",
+		    __FUNCTION__, enx, CIU_INT_0, CIU_INT_1);
+		return 0;
+	}
+	if (ciu_ip < CIU_MIPS_IP2 || ciu_ip > CIU_MIPS_IP3) {
+		printf("%s: invalid ciu_ip value %d, should be %d or %d\n",
+		    __FUNCTION__, ciu_ip, CIU_MIPS_IP2, CIU_MIPS_IP3);
+		return 0;
+	}
 
-    ciu_intr_reg_addr += (enx    * 0x8);
-    ciu_intr_reg_addr += (ciu_ip * 0x10);
-    ciu_intr_reg_addr += (intx   * 0x20);
-
-    return (ciu_intr_reg_addr);
+	ciu_intr_reg_addr += (enx    * 0x8);
+	ciu_intr_reg_addr += (ciu_ip * 0x10);
+	ciu_intr_reg_addr += (intx   * 0x20);
+	return (ciu_intr_reg_addr);
 }
 
 /*
  * ciu_get_int_summary
  */
-uint64_t ciu_get_int_summary (int core_num, int intx, int enx)
+uint64_t
+ciu_get_int_summary(int core_num, int intx, int enx)
 {
-    uint64_t ciu_intr_sum_reg_addr;
+	uint64_t ciu_intr_sum_reg_addr;
 
-    if (core_num == CIU_THIS_CORE) {
+	if (core_num == CIU_THIS_CORE)
         	core_num = octeon_get_core_num();
-    }
-    ciu_intr_sum_reg_addr = ciu_get_intr_sum_reg_addr(core_num, intx, enx);
-    return (oct_read64(ciu_intr_sum_reg_addr));
+	ciu_intr_sum_reg_addr = ciu_get_intr_sum_reg_addr(core_num, intx, enx);
+	return (oct_read64(ciu_intr_sum_reg_addr));
 }
 
 //#define DEBUG_CIU 1
@@ -517,74 +486,75 @@ uint64_t ciu_get_int_summary (int core_num, int intx, int enx)
 /*
  * ciu_clear_int_summary
  */
-void ciu_clear_int_summary (int core_num, int intx, int enx, uint64_t write_bits)
+void
+ciu_clear_int_summary(int core_num, int intx, int enx, uint64_t write_bits)
 {
-    uint32_t cpu_status_bits;
-    uint64_t ciu_intr_sum_reg_addr;
+	uint32_t cpu_status_bits;
+	uint64_t ciu_intr_sum_reg_addr;
 
 //#define DEBUG_CIU_SUM 1
 
 #ifdef DEBUG_CIU_SUM
-    uint64_t ciu_intr_sum_bits;
+	uint64_t ciu_intr_sum_bits;
 #endif
 
 
-    if (core_num == CIU_THIS_CORE) {
+	if (core_num == CIU_THIS_CORE) {
         	core_num = octeon_get_core_num();
-    }
+	}
 
 #ifdef DEBUG_CIU_SUM
         printf(" CIU: core %u clear sum IntX %u  Enx %u  Bits: 0x%llX\n",
-               core_num, intx, enx, write_bits);
+	    core_num, intx, enx, write_bits);
 #endif
 
-    cpu_status_bits = octeon_disable_interrupts();
+	cpu_status_bits = octeon_disable_interrupts();
 
-    ciu_intr_sum_reg_addr = ciu_get_intr_sum_reg_addr(core_num, intx, enx);
+	ciu_intr_sum_reg_addr = ciu_get_intr_sum_reg_addr(core_num, intx, enx);
 
 #ifdef DEBUG_CIU_SUM
     	ciu_intr_sum_bits =  oct_read64(ciu_intr_sum_reg_addr);	/* unneeded dummy read */
         printf(" CIU: status: 0x%X  reg_addr: 0x%llX   Val: 0x%llX   ->  0x%llX",
-               cpu_status_bits, ciu_intr_sum_reg_addr, ciu_intr_sum_bits,
-               ciu_intr_sum_bits | write_bits);
+	    cpu_status_bits, ciu_intr_sum_reg_addr, ciu_intr_sum_bits,
+	    ciu_intr_sum_bits | write_bits);
 #endif
 
-    oct_write64(ciu_intr_sum_reg_addr, write_bits);
-    oct_read64(OCTEON_MIO_BOOT_BIST_STAT);	/* Bus Barrier */
+	oct_write64(ciu_intr_sum_reg_addr, write_bits);
+	oct_read64(OCTEON_MIO_BOOT_BIST_STAT);	/* Bus Barrier */
 
 #ifdef DEBUG_CIU_SUM
         printf(" Readback: 0x%llX\n\n   ", (uint64_t) oct_read64(ciu_intr_sum_reg_addr));
 #endif
     
-    octeon_set_interrupts(cpu_status_bits);
+	octeon_set_interrupts(cpu_status_bits);
 }
 
 /*
  * ciu_disable_intr
  */
-void ciu_disable_intr (int core_num, int intx, int enx)
+void
+ciu_disable_intr(int core_num, int intx, int enx)
 {
-    uint32_t cpu_status_bits;
-    uint64_t ciu_intr_reg_addr;
+	uint32_t cpu_status_bits;
+	uint64_t ciu_intr_reg_addr;
 
-    if (core_num == CIU_THIS_CORE) {
+	if (core_num == CIU_THIS_CORE)
         	core_num = octeon_get_core_num();
-    }
 
-    cpu_status_bits = octeon_disable_interrupts();
+	cpu_status_bits = octeon_disable_interrupts();
     
-    ciu_intr_reg_addr = ciu_get_intr_en_reg_addr(core_num, intx, enx);
+	ciu_intr_reg_addr = ciu_get_intr_en_reg_addr(core_num, intx, enx);
 
-    oct_read64(ciu_intr_reg_addr);	/* Dummy read */
+	oct_read64(ciu_intr_reg_addr);	/* Dummy read */
 
-    oct_write64(ciu_intr_reg_addr, 0LL);
-    oct_read64(OCTEON_MIO_BOOT_BIST_STAT);	/* Bus Barrier */
+	oct_write64(ciu_intr_reg_addr, 0LL);
+	oct_read64(OCTEON_MIO_BOOT_BIST_STAT);	/* Bus Barrier */
 
-    octeon_set_interrupts(cpu_status_bits);
+	octeon_set_interrupts(cpu_status_bits);
 }
 
-void ciu_dump_interrutps_enabled (int core_num, int intx, int enx, int ciu_ip);
-void ciu_dump_interrutps_enabled (int core_num, int intx, int enx, int ciu_ip)
+void
+ciu_dump_interrutps_enabled(int core_num, int intx, int enx, int ciu_ip)
 {
 
 	uint64_t ciu_intr_reg_addr;
@@ -616,23 +586,21 @@ void ciu_dump_interrutps_enabled (int core_num, int intx, int enx, int ciu_ip)
 /*
  * ciu_enable_interrupts
  */
-void ciu_enable_interrupts (int core_num, int intx, int enx, uint64_t set_these_interrupt_bits,
-                            int ciu_ip)
+void ciu_enable_interrupts(int core_num, int intx, int enx,
+    uint64_t set_these_interrupt_bits, int ciu_ip)
 {
-
 	uint32_t cpu_status_bits;
 	uint64_t ciu_intr_reg_addr;
 	uint64_t ciu_intr_bits;
 
-        if (core_num == CIU_THIS_CORE) {
+        if (core_num == CIU_THIS_CORE)
             	core_num = octeon_get_core_num();
-        }
 
 //#define DEBUG_CIU_EN 1
 
 #ifdef DEBUG_CIU_EN
         printf(" CIU: core %u enabling Intx %u  Enx %u IP %d  Bits: 0x%llX\n",
-               core_num, intx, enx, ciu_ip, set_these_interrupt_bits);
+	    core_num, intx, enx, ciu_ip, set_these_interrupt_bits);
 #endif
 
 	cpu_status_bits = octeon_disable_interrupts();
@@ -644,16 +612,16 @@ void ciu_enable_interrupts (int core_num, int intx, int enx, uint64_t set_these_
 #endif
 
         if (!ciu_intr_reg_addr) {
-            printf("Bad call to %s\n", __FUNCTION__);
-            while(1);
-            return;
+		printf("Bad call to %s\n", __FUNCTION__);
+		while(1);
+		return;	/* XXX */
         }
 
 	ciu_intr_bits =  oct_read64(ciu_intr_reg_addr);
 
 #ifdef DEBUG_CIU_EN
         printf(" CIU: status: 0x%X  reg_addr: 0x%llX   Val: 0x%llX   ->  0x%llX",
-               cpu_status_bits, ciu_intr_reg_addr, ciu_intr_bits, ciu_intr_bits | set_these_interrupt_bits);
+	    cpu_status_bits, ciu_intr_reg_addr, ciu_intr_bits, ciu_intr_bits | set_these_interrupt_bits);
 #endif
 	ciu_intr_bits |=  set_these_interrupt_bits;
 	oct_write64(ciu_intr_reg_addr, ciu_intr_bits);
@@ -663,15 +631,16 @@ void ciu_enable_interrupts (int core_num, int intx, int enx, uint64_t set_these_
 	oct_read64(OCTEON_MIO_BOOT_BIST_STAT);	/* Bus Barrier */
 
 #ifdef DEBUG_CIU_EN
-        printf(" Readback: 0x%llX\n\n   ", (uint64_t) oct_read64(ciu_intr_reg_addr));
+        printf(" Readback: 0x%llX\n\n   ",
+	    (uint64_t)oct_read64(ciu_intr_reg_addr));
 #endif
 
 	octeon_set_interrupts(cpu_status_bits);
 }
 
 void
-platform_start(__register_t a0, __register_t a1,
-    __register_t a2 __unused, __register_t a3)
+platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
+    __register_t a3)
 {
 	uint64_t platform_counter_freq;
 	vm_offset_t kernend;
