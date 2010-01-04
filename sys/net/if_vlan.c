@@ -573,7 +573,7 @@ vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
 {
 	const char *cp;
 	struct ifnet *ifp;
-	int t = 0;
+	int t;
 
 	/* Check for <etherif>.<vlan> style interface names. */
 	IFNET_RLOCK();
@@ -583,13 +583,15 @@ vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
 		if (strncmp(ifp->if_xname, name, strlen(ifp->if_xname)) != 0)
 			continue;
 		cp = name + strlen(ifp->if_xname);
-		if (*cp != '.')
+		if (*cp++ != '.')
 			continue;
-		for(; *cp != '\0'; cp++) {
-			if (*cp < '0' || *cp > '9')
-				continue;
+		if (*cp == '\0')
+			continue;
+		t = 0;
+		for(; *cp >= '0' && *cp <= '9'; cp++)
 			t = (t * 10) + (*cp - '0');
-		}
+		if (*cp != '\0')
+			continue;
 		if (tag != NULL)
 			*tag = t;
 		break;
