@@ -73,7 +73,7 @@ FILES_CPU_FUNC =	$S/$M/$M/cpufunc_asm_arm7tdmi.S \
 	$S/$M/$M/cpufunc_asm_sa1.S $S/$M/$M/cpufunc_asm_arm10.S \
 	$S/$M/$M/cpufunc_asm_xscale.S $S/$M/$M/cpufunc_asm.S \
 	$S/$M/$M/cpufunc_asm_xscale_c3.S $S/$M/$M/cpufunc_asm_armv5_ec.S \
-	$S/$M/$M/cpufunc_asm_sheeva.S
+	$S/$M/$M/cpufunc_asm_sheeva.S $S/$M/$M/cpufunc_asm_fa526.S
 KERNEL_EXTRA=trampoline
 KERNEL_EXTRA_INSTALL=kernel.gz.tramp
 trampoline: ${KERNEL_KO}.tramp
