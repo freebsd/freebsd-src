@@ -113,13 +113,17 @@ deflate_global(data, size, decomp, out)
 	if (error != Z_OK)
 		goto bad;
 	for (;;) {
-		error = decomp ? inflate(&zbuf, Z_PARTIAL_FLUSH) :
-				 deflate(&zbuf, Z_PARTIAL_FLUSH);
+		error = decomp ? inflate(&zbuf, Z_SYNC_FLUSH) :
+				 deflate(&zbuf, Z_FINISH);
 		if (error != Z_OK && error != Z_STREAM_END)
 			goto bad;
-		else if (zbuf.avail_in == 0 && zbuf.avail_out != 0)
-			goto end;
-		else if (zbuf.avail_out == 0 && i < (ZBUF - 1)) {
+		if (decomp && zbuf.avail_in == 0 && error == Z_STREAM_END) {
+			/* Done. */
+			break;
+		} else if (!decomp && error == Z_STREAM_END) {
+			/* Done. */
+			break;
+		} else if (zbuf.avail_out == 0) {
 			/* we need more output space, allocate size */
 			buf[i].out = malloc((u_long) size,
 			    M_CRYPTO_DATA, M_NOWAIT);
@@ -130,11 +134,12 @@ deflate_global(data, size, decomp, out)
 			buf[i].flag = 1;
 			zbuf.avail_out = buf[i].size;
 			i++;
-		} else
+		} else {
+			/* Unexpect result. */
 			goto bad;
+		}
 	}
 
-end:
 	result = count = zbuf.total_out;
 
 	*out = malloc((u_long) result, M_CRYPTO_DATA, M_NOWAIT);
