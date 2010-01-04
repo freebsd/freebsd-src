@@ -899,7 +899,11 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 
 	} else {
 		int len;
-		char src[48], dst[48];
+#ifdef INET6
+		char src[INET6_ADDRSTRLEN + 2], dst[INET6_ADDRSTRLEN + 2];
+#else
+		char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
+#endif
 		struct icmphdr *icmp;
 		struct tcphdr *tcp;
 		struct udphdr *udp;
@@ -1050,6 +1054,32 @@ hash_packet(struct ipfw_flow_id *id)
 	return i;
 }
 
+static __inline void
+unlink_dyn_rule_print(struct ipfw_flow_id *id)
+{
+	struct in_addr da;
+#ifdef INET6
+	char src[INET6_ADDRSTRLEN], dst[INET6_ADDRSTRLEN];
+#else
+	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
+#endif
+
+#ifdef INET6
+	if (IS_IP6_FLOW_ID(id)) {
+		ip6_sprintf(src, &id->src_ip6);
+		ip6_sprintf(dst, &id->dst_ip6);
+	} else
+#endif
+	{
+		da.s_addr = htonl(id->src_ip);
+		inet_ntoa_r(da, src);
+		da.s_addr = htonl(id->dst_ip);
+		inet_ntoa_r(da, dst);
+	}
+	printf("ipfw: unlink entry %s %d -> %s %d, %d left\n",
+	    src, id->src_port, dst, id->dst_port, V_dyn_count - 1);
+}
+
 /**
  * unlink a dynamic rule from a chain. prev is a pointer to
  * the previous one, q is a pointer to the rule to delete,
@@ -1062,9 +1092,7 @@ hash_packet(struct ipfw_flow_id *id)
 	/* remove a refcount to the parent */				\
 	if (q->dyn_type == O_LIMIT)					\
 		q->parent->count--;					\
-	DEB(printf("ipfw: unlink entry 0x%08x %d -> 0x%08x %d, %d left\n",\
-		(q->id.src_ip), (q->id.src_port),			\
-		(q->id.dst_ip), (q->id.dst_port), V_dyn_count-1 ); )	\
+	DEB(unlink_dyn_rule_print(&q->id);)				\
 	if (prev != NULL)						\
 		prev->next = q = q->next;				\
 	else								\
@@ -1394,11 +1422,32 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 	r->next = V_ipfw_dyn_v[i];
 	V_ipfw_dyn_v[i] = r;
 	V_dyn_count++;
-	DEB(printf("ipfw: add dyn entry ty %d 0x%08x %d -> 0x%08x %d, total %d\n",
-	   dyn_type,
-	   (r->id.src_ip), (r->id.src_port),
-	   (r->id.dst_ip), (r->id.dst_port),
-	   V_dyn_count ); )
+	DEB({
+		struct in_addr da;
+#ifdef INET6
+		char src[INET6_ADDRSTRLEN];
+		char dst[INET6_ADDRSTRLEN];
+#else
+		char src[INET_ADDRSTRLEN];
+		char dst[INET_ADDRSTRLEN];
+#endif
+
+#ifdef INET6
+		if (IS_IP6_FLOW_ID(&(r->id))) {
+			ip6_sprintf(src, &r->id.src_ip6);
+			ip6_sprintf(dst, &r->id.dst_ip6);
+		} else
+#endif
+		{
+			da.s_addr = htonl(r->id.src_ip);
+			inet_ntoa_r(da, src);
+			da.s_addr = htonl(r->id.dst_ip);
+			inet_ntoa_r(da, dst);
+		}
+		printf("ipfw: add dyn entry ty %d %s %d -> %s %d, total %d\n",
+		    dyn_type, src, r->id.src_port, dst, r->id.dst_port,
+		    V_dyn_count);
+	})
 	return r;
 }
 
@@ -1455,19 +1504,36 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 	static int last_log;
 	ipfw_dyn_rule *q;
 	struct in_addr da;
-	char src[48], dst[48];
+#ifdef INET6
+	char src[INET6_ADDRSTRLEN + 2], dst[INET6_ADDRSTRLEN + 2];
+#else
+	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
+#endif
 
 	src[0] = '\0';
 	dst[0] = '\0';
 
-	DEB(
-	printf("ipfw: %s: type %d 0x%08x %u -> 0x%08x %u\n",
-	    __func__, cmd->o.opcode,
-	    (args->f_id.src_ip), (args->f_id.src_port),
-	    (args->f_id.dst_ip), (args->f_id.dst_port));
-	)
-
 	IPFW_DYN_LOCK();
+
+	DEB(
+#ifdef INET6
+	if (IS_IP6_FLOW_ID(&(args->f_id))) {
+		ip6_sprintf(src, &args->f_id.src_ip6);
+		ip6_sprintf(dst, &args->f_id.dst_ip6);
+	} else
+#endif
+	{
+		da.s_addr = htonl(args->f_id.src_ip);
+		inet_ntoa_r(da, src);
+		da.s_addr = htonl(args->f_id.dst_ip);
+		inet_ntoa_r(da, dst);
+	}
+	printf("ipfw: %s: type %d %s %u -> %s %u\n",
+	    __func__, cmd->o.opcode, src, args->f_id.src_port,
+	    dst, args->f_id.dst_port);
+	src[0] = '\0';
+	dst[0] = '\0';
+	)
 
 	q = lookup_dyn_rule_locked(&args->f_id, NULL, NULL);
 
