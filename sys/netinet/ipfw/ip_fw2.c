@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #ifdef INET6
 #include <netinet6/scope6_var.h>
+#include <netinet6/ip6_var.h>
 #endif
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
@@ -250,6 +251,10 @@ static struct mtx ipfw_dyn_mtx;		/* mutex guarding dynamic rules */
 #define	IPFW_DYN_LOCK()		mtx_lock(&ipfw_dyn_mtx)
 #define	IPFW_DYN_UNLOCK()	mtx_unlock(&ipfw_dyn_mtx)
 #define	IPFW_DYN_LOCK_ASSERT()	mtx_assert(&ipfw_dyn_mtx, MA_OWNED)
+
+static struct mbuf *send_pkt(struct mbuf *, struct ipfw_flow_id *,
+    u_int32_t, u_int32_t, int);
+
 
 /*
  * Timeouts for various events in handing dynamic rules.
@@ -710,60 +715,18 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 	m = args->m;
 	if (code == ICMP6_UNREACH_RST && args->f_id.proto == IPPROTO_TCP) {
 		struct tcphdr *tcp;
-		tcp_seq ack, seq;
-		int flags;
-		struct {
-			struct ip6_hdr ip6;
-			struct tcphdr th;
-		} ti;
 		tcp = (struct tcphdr *)((char *)ip6 + hlen);
 
-		if ((tcp->th_flags & TH_RST) != 0) {
-			m_freem(m);
-			args->m = NULL;
-			return;
+		if ((tcp->th_flags & TH_RST) == 0) {
+			struct mbuf *m0;
+			m0 = send_pkt(args->m, &(args->f_id),
+			    ntohl(tcp->th_seq), ntohl(tcp->th_ack),
+			    tcp->th_flags | TH_RST);
+			if (m0 != NULL)
+				ip6_output(m0, NULL, NULL, 0, NULL, NULL,
+				    NULL);
 		}
-
-		ti.ip6 = *ip6;
-		ti.th = *tcp;
-		ti.th.th_seq = ntohl(ti.th.th_seq);
-		ti.th.th_ack = ntohl(ti.th.th_ack);
-		ti.ip6.ip6_nxt = IPPROTO_TCP;
-
-		if (ti.th.th_flags & TH_ACK) {
-			ack = 0;
-			seq = ti.th.th_ack;
-			flags = TH_RST;
-		} else {
-			ack = ti.th.th_seq;
-			if ((m->m_flags & M_PKTHDR) != 0) {
-				/*
-				 * total new data to ACK is:
-				 * total packet length,
-				 * minus the header length,
-				 * minus the tcp header length.
-				 */
-				ack += m->m_pkthdr.len - hlen
-					- (ti.th.th_off << 2);
-			} else if (ip6->ip6_plen) {
-				ack += ntohs(ip6->ip6_plen) + sizeof(*ip6) -
-				    hlen - (ti.th.th_off << 2);
-			} else {
-				m_freem(m);
-				return;
-			}
-			if (tcp->th_flags & TH_SYN)
-				ack++;
-			seq = 0;
-			flags = TH_RST|TH_ACK;
-		}
-		bcopy(&ti, ip6, sizeof(ti));
-		/*
-		 * m is only used to recycle the mbuf
-		 * The data in it is never read so we don't need
-		 * to correct the offsets or anything
-		 */
-		tcp_respond(NULL, ip6, tcp, m, ack, seq, flags);
+		m_freem(m);
 	} else if (code != ICMP6_UNREACH_RST) { /* Send an ICMPv6 unreach. */
 #if 0
 		/*
@@ -1651,13 +1614,16 @@ send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
     u_int32_t ack, int flags)
 {
 	struct mbuf *m;
-	struct ip *ip;
-	struct tcphdr *tcp;
+	int len, dir;
+	struct ip *h = NULL;		/* stupid compiler */
+#ifdef INET6
+	struct ip6_hdr *h6 = NULL;
+#endif
+	struct tcphdr *th = NULL;
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == 0)
+	if (m == NULL)
 		return (NULL);
-	m->m_pkthdr.rcvif = (struct ifnet *)0;
 
 	M_SETFIB(m, id->fib);
 #ifdef MAC
@@ -1669,67 +1635,118 @@ send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 	(void)replyto;		/* don't warn about unused arg */
 #endif
 
-	m->m_pkthdr.len = m->m_len = sizeof(struct ip) + sizeof(struct tcphdr);
-	m->m_data += max_linkhdr;
+	switch (id->addr_type) {
+	case 4:
+		len = sizeof(struct ip) + sizeof(struct tcphdr);
+		break;
+#ifdef INET6
+	case 6:
+		len = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
+		break;
+#endif
+	default:
+		/* XXX: log me?!? */
+		m_freem(m);
+		return (NULL);
+	}
+	dir = ((flags & (TH_SYN | TH_RST)) == TH_SYN);
 
-	ip = mtod(m, struct ip *);
-	bzero(ip, m->m_len);
-	tcp = (struct tcphdr *)(ip + 1); /* no IP options */
-	ip->ip_p = IPPROTO_TCP;
-	tcp->th_off = 5;
-	/*
-	 * Assume we are sending a RST (or a keepalive in the reverse
-	 * direction), swap src and destination addresses and ports.
-	 */
-	ip->ip_src.s_addr = htonl(id->dst_ip);
-	ip->ip_dst.s_addr = htonl(id->src_ip);
-	tcp->th_sport = htons(id->dst_port);
-	tcp->th_dport = htons(id->src_port);
-	if (flags & TH_RST) {	/* we are sending a RST */
+	m->m_data += max_linkhdr;
+	m->m_flags |= M_SKIP_FIREWALL;
+	m->m_pkthdr.len = m->m_len = len;
+	m->m_pkthdr.rcvif = NULL;
+	bzero(m->m_data, len);
+
+	switch (id->addr_type) {
+	case 4:
+		h = mtod(m, struct ip *);
+
+		/* prepare for checksum */
+		h->ip_p = IPPROTO_TCP;
+		h->ip_len = htons(sizeof(struct tcphdr));
+		if (dir) {
+			h->ip_src.s_addr = htonl(id->src_ip);
+			h->ip_dst.s_addr = htonl(id->dst_ip);
+		} else {
+			h->ip_src.s_addr = htonl(id->dst_ip);
+			h->ip_dst.s_addr = htonl(id->src_ip);
+		}
+
+		th = (struct tcphdr *)(h + 1);
+		break;
+#ifdef INET6
+	case 6:
+		h6 = mtod(m, struct ip6_hdr *);
+
+		/* prepare for checksum */
+		h6->ip6_nxt = IPPROTO_TCP;
+		h6->ip6_plen = htons(sizeof(struct tcphdr));
+		if (dir) {
+			h6->ip6_src = id->src_ip6;
+			h6->ip6_dst = id->dst_ip6;
+		} else {
+			h6->ip6_src = id->dst_ip6;
+			h6->ip6_dst = id->src_ip6;
+		}
+
+		th = (struct tcphdr *)(h6 + 1);
+		break;
+#endif
+	}
+
+	if (dir) {
+		th->th_sport = htons(id->src_port);
+		th->th_dport = htons(id->dst_port);
+	} else {
+		th->th_sport = htons(id->dst_port);
+		th->th_dport = htons(id->src_port);
+	}
+	th->th_off = sizeof(struct tcphdr) >> 2;
+
+	if (flags & TH_RST) {
 		if (flags & TH_ACK) {
-			tcp->th_seq = htonl(ack);
-			tcp->th_ack = htonl(0);
-			tcp->th_flags = TH_RST;
+			th->th_seq = htonl(ack);
+			th->th_flags = TH_RST;
 		} else {
 			if (flags & TH_SYN)
 				seq++;
-			tcp->th_seq = htonl(0);
-			tcp->th_ack = htonl(seq);
-			tcp->th_flags = TH_RST | TH_ACK;
+			th->th_ack = htonl(seq);
+			th->th_flags = TH_RST | TH_ACK;
 		}
 	} else {
 		/*
-		 * We are sending a keepalive. flags & TH_SYN determines
-		 * the direction, forward if set, reverse if clear.
-		 * NOTE: seq and ack are always assumed to be correct
-		 * as set by the caller. This may be confusing...
+		 * Keepalive - use caller provided sequence numbers
 		 */
-		if (flags & TH_SYN) {
-			/*
-			 * we have to rewrite the correct addresses!
-			 */
-			ip->ip_dst.s_addr = htonl(id->dst_ip);
-			ip->ip_src.s_addr = htonl(id->src_ip);
-			tcp->th_dport = htons(id->dst_port);
-			tcp->th_sport = htons(id->src_port);
-		}
-		tcp->th_seq = htonl(seq);
-		tcp->th_ack = htonl(ack);
-		tcp->th_flags = TH_ACK;
+		th->th_seq = htonl(seq);
+		th->th_ack = htonl(ack);
+		th->th_flags = TH_ACK;
 	}
-	/*
-	 * set ip_len to the payload size so we can compute
-	 * the tcp checksum on the pseudoheader
-	 * XXX check this, could save a couple of words ?
-	 */
-	ip->ip_len = htons(sizeof(struct tcphdr));
-	tcp->th_sum = in_cksum(m, m->m_pkthdr.len);
-	/*
-	 * now fill fields left out earlier
-	 */
-	ip->ip_ttl = V_ip_defttl;
-	ip->ip_len = m->m_pkthdr.len;
-	m->m_flags |= M_SKIP_FIREWALL;
+
+	switch (id->addr_type) {
+	case 4:
+		th->th_sum = in_cksum(m, len);
+
+		/* finish the ip header */
+		h->ip_v = 4;
+		h->ip_hl = sizeof(*h) >> 2;
+		h->ip_tos = IPTOS_LOWDELAY;
+		h->ip_off = 0;
+		h->ip_len = len;
+		h->ip_ttl = V_ip_defttl;
+		h->ip_sum = 0;
+		break;
+#ifdef INET6
+	case 6:
+		th->th_sum = in6_cksum(m, IPPROTO_TCP, sizeof(*h6),
+		    sizeof(struct tcphdr));
+
+		/* finish the ip6 header */
+		h6->ip6_vfc |= IPV6_VERSION;
+		h6->ip6_hlim = IPV6_DEFHLIM;
+		break;
+#endif
+	}
+
 	return (m);
 }
 
@@ -4529,13 +4546,16 @@ static void
 ipfw_tick(void * vnetx) 
 {
 	struct mbuf *m0, *m, *mnext, **mtailp;
+#ifdef INET6
+	struct mbuf *m6, **m6_tailp;
+#endif
 	int i;
 	ipfw_dyn_rule *q;
 #ifdef VIMAGE
 	struct vnet *vp = vnetx;
 #endif
 
-        CURVNET_SET(vp);
+	CURVNET_SET(vp);
 	if (V_dyn_keepalive == 0 || V_ipfw_dyn_v == NULL || V_dyn_count == 0)
 		goto done;
 
@@ -4547,6 +4567,10 @@ ipfw_tick(void * vnetx)
 	 */
 	m0 = NULL;
 	mtailp = &m0;
+#ifdef INET6
+	m6 = NULL;
+	m6_tailp = &m6;
+#endif
 	IPFW_DYN_LOCK();
 	for (i = 0 ; i < V_curr_dyn_buckets ; i++) {
 		for (q = V_ipfw_dyn_v[i] ; q ; q = q->next ) {
@@ -4562,14 +4586,37 @@ ipfw_tick(void * vnetx)
 			if (TIME_LEQ(q->expire, time_uptime))
 				continue;	/* too late, rule expired */
 
-			*mtailp = send_pkt(NULL, &(q->id), q->ack_rev - 1,
+			m = send_pkt(NULL, &(q->id), q->ack_rev - 1,
 				q->ack_fwd, TH_SYN);
-			if (*mtailp != NULL)
-				mtailp = &(*mtailp)->m_nextpkt;
-			*mtailp = send_pkt(NULL, &(q->id), q->ack_fwd - 1,
+			mnext = send_pkt(NULL, &(q->id), q->ack_fwd - 1,
 				q->ack_rev, 0);
-			if (*mtailp != NULL)
-				mtailp = &(*mtailp)->m_nextpkt;
+
+			switch (q->id.addr_type) {
+			case 4:
+				if (m != NULL) {
+					*mtailp = m;
+					mtailp = &(*mtailp)->m_nextpkt;
+				}
+				if (mnext != NULL) {
+					*mtailp = mnext;
+					mtailp = &(*mtailp)->m_nextpkt;
+				}
+				break;
+#ifdef INET6
+			case 6:
+				if (m != NULL) {
+					*m6_tailp = m;
+					m6_tailp = &(*m6_tailp)->m_nextpkt;
+				}
+				if (mnext != NULL) {
+					*m6_tailp = mnext;
+					m6_tailp = &(*m6_tailp)->m_nextpkt;
+				}
+				break;
+#endif
+			}
+
+			m = mnext = NULL;
 		}
 	}
 	IPFW_DYN_UNLOCK();
@@ -4578,6 +4625,13 @@ ipfw_tick(void * vnetx)
 		m->m_nextpkt = NULL;
 		ip_output(m, NULL, NULL, 0, NULL, NULL);
 	}
+#ifdef INET6
+	for (m = mnext = m6; m != NULL; m = mnext) {
+		mnext = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
+	}
+#endif
 done:
 	callout_reset(&V_ipfw_timeout, V_dyn_keepalive_period * hz,
 		      ipfw_tick, vnetx);
