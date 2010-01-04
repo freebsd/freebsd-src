@@ -396,6 +396,7 @@ trng_add(char *str)
 			default:
 				paxwarn(1, "Bad option %c with time range %s",
 				    *flgpt, str);
+				free(pt);
 				goto out;
 			}
 			++flgpt;
