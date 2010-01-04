@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
-#include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
 #include <netgraph/ng_ipfw.h>
 
@@ -76,13 +75,13 @@ static VNET_DEFINE(int, fw6_enable) = 1;
 int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
 /* Divert hooks. */
-ip_divert_packet_t *ip_divert_ptr = NULL;
+void (*ip_divert_ptr)(struct mbuf *m, int incoming);
 
 /* ng_ipfw hooks. */
 ng_ipfw_input_t *ng_ipfw_input_p = NULL;
 
 /* Forward declarations. */
-static void	ipfw_divert(struct mbuf **, int, int);
+static int ipfw_divert(struct mbuf **, int, struct ipfw_rule_ref *, int);
 
 #ifdef SYSCTL_NODE
 SYSCTL_DECL(_net_inet_ip_fw);
@@ -107,52 +106,38 @@ ipfw_check_hook(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
 	struct ip_fw_args args;
-	struct ng_ipfw_tag *ng_tag;
-	struct m_tag *dn_tag;
+	struct m_tag *tag;
 	int ipfw;
 	int ret;
-#ifdef IPFIREWALL_FORWARD
-	struct m_tag *fwd_tag;
-#endif
+
+	/* all the processing now uses ip_len in net format */
+	SET_NET_IPLEN(mtod(*m0, struct ip *));
 
 	/* convert dir to IPFW values */
 	dir = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
 	bzero(&args, sizeof(args));
 
-	ng_tag = (struct ng_ipfw_tag *)m_tag_locate(*m0, NGM_IPFW_COOKIE, 0,
-	    NULL);
-	if (ng_tag != NULL) {
-		KASSERT(ng_tag->dir == dir,
-		    ("ng_ipfw tag with wrong direction"));
-		args.slot = ng_tag->slot;
-		args.rulenum = ng_tag->rulenum;
-		args.rule_id = ng_tag->rule_id;
-		args.chain_id = ng_tag->chain_id;
-		m_tag_delete(*m0, (struct m_tag *)ng_tag);
-	}
-
 again:
-	dn_tag = m_tag_find(*m0, PACKET_TAG_DUMMYNET, NULL);
-	if (dn_tag != NULL) {
-		struct dn_pkt_tag *dt;
-
-		dt = (struct dn_pkt_tag *)(dn_tag+1);
-		args.slot = dt->slot;
-		args.rulenum = dt->rulenum;
-		args.rule_id = dt->rule_id;
-		args.chain_id = dt->chain_id;
-		m_tag_delete(*m0, dn_tag);
+	/*
+	 * extract and remove the tag if present. If we are left
+	 * with onepass, optimize the outgoing path.
+	 */
+	tag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
+	if (tag != NULL) {
+		args.rule = *((struct ipfw_rule_ref *)(tag+1));
+		m_tag_delete(*m0, tag);
+		if (args.rule.info & IPFW_ONEPASS) {
+			SET_HOST_IPLEN(mtod(*m0, struct ip *));
+			return 0;
+		}
 	}
 
 	args.m = *m0;
 	args.oif = dir == DIR_OUT ? ifp : NULL;
 	args.inp = inp;
 
-	if (V_fw_one_pass == 0 || args.slot == 0) {
-		ipfw = ipfw_chk(&args);
-		*m0 = args.m;
-	} else
-		ipfw = IP_FW_PASS;
+	ipfw = ipfw_chk(&args);
+	*m0 = args.m;
 
 	KASSERT(*m0 != NULL || ipfw == IP_FW_DENY, ("%s: m0 is NULL",
 	    __func__));
@@ -167,6 +152,9 @@ again:
 #ifndef IPFIREWALL_FORWARD
 		ret = EACCES;
 #else
+	    {
+		struct m_tag *fwd_tag;
+
 		/* Incoming packets should not be tagged so we do not
 		 * m_tag_find. Outgoing packets may be tagged, so we
 		 * reuse the tag if present.
@@ -188,6 +176,7 @@ again:
 
 		if (in_localip(args.next_hop->sin_addr))
 			(*m0)->m_flags |= M_FASTFWD_OURS;
+	    }
 #endif
 		break;
 
@@ -222,15 +211,11 @@ again:
 			ret = EACCES;
 			break; /* i.e. drop */
 		}
-		ipfw_divert(m0, dir, (ipfw == IP_FW_TEE) ? 1 : 0);
-		if (*m0) {
-			/* continue processing for this one. We set
-			 * args.slot=0, but the divert tag is processed
-			 * in ipfw_chk to jump to the right place.
-			 */
-			args.slot = 0;
-			goto again;	/* continue with packet */
-		}
+		ret = ipfw_divert(m0, dir, &args.rule,
+			(ipfw == IP_FW_TEE) ? 1 : 0);
+		/* continue processing for the original packet (tee). */
+		if (*m0)
+			goto again;
 		break;
 
 	case IP_FW_NGTEE:
@@ -255,14 +240,18 @@ again:
 
 	if (ret != 0) {
 		if (*m0)
-			m_freem(*m0);
+			FREE_PKT(*m0);
 		*m0 = NULL;
 	}
+	if (*m0)
+		SET_HOST_IPLEN(mtod(*m0, struct ip *));
 	return ret;
 }
 
-static void
-ipfw_divert(struct mbuf **m0, int incoming, int tee)
+/* do the divert, return 1 on error 0 on success */
+static int
+ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
+	int tee)
 {
 	/*
 	 * ipfw_chk() has already tagged the packet with the divert tag.
@@ -271,6 +260,7 @@ ipfw_divert(struct mbuf **m0, int incoming, int tee)
 	 */
 	struct mbuf *clone;
 	struct ip *ip;
+	struct m_tag *tag;
 
 	/* Cloning needed for tee? */
 	if (tee == 0) {
@@ -282,7 +272,7 @@ ipfw_divert(struct mbuf **m0, int incoming, int tee)
 		 * chain and continue with the tee-ed packet.
 		 */
 		if (clone == NULL)
-			return;
+			return 1;
 	}
 
 	/*
@@ -294,13 +284,14 @@ ipfw_divert(struct mbuf **m0, int incoming, int tee)
 	 * we can do it before a 'tee'.
 	 */
 	ip = mtod(clone, struct ip *);
-	if (!tee && ip->ip_off & (IP_MF | IP_OFFMASK)) {
+	if (!tee && ntohs(ip->ip_off) & (IP_MF | IP_OFFMASK)) {
 		int hlen;
 		struct mbuf *reass;
 
+		SET_HOST_IPLEN(ip); /* ip_reass wants host order */
 		reass = ip_reass(clone); /* Reassemble packet. */
 		if (reass == NULL)
-			return;
+			return 0; /* not an error */
 		/* if reass = NULL then it was consumed by ip_reass */
 		/*
 		 * IP header checksum fixup after reassembly and leave header
@@ -315,13 +306,20 @@ ipfw_divert(struct mbuf **m0, int incoming, int tee)
 		else
 			ip->ip_sum = in_cksum(reass, hlen);
 		clone = reass;
-	} else {
-		/* Convert header to network byte order. */
-		SET_NET_IPLEN(ip);
 	}
+	/* attach a tag to the packet with the reinject info */
+	tag = m_tag_alloc(MTAG_IPFW_RULE, 0,
+		    sizeof(struct ipfw_rule_ref), M_NOWAIT);
+	if (tag == NULL) {
+		FREE_PKT(clone);
+		return 1;
+	}
+	*((struct ipfw_rule_ref *)(tag+1)) = *rule;
+	m_tag_prepend(clone, tag);
 
 	/* Do the dirty job... */
 	ip_divert_ptr(clone, incoming);
+	return 0;
 }
 
 /*
@@ -330,17 +328,14 @@ ipfw_divert(struct mbuf **m0, int incoming, int tee)
 static int
 ipfw_hook(int onoff, int pf)
 {
-	const int arg = PFIL_IN | PFIL_OUT | PFIL_WAITOK;
 	struct pfil_head *pfh;
 
 	pfh = pfil_head_get(PFIL_TYPE_AF, pf);
 	if (pfh == NULL)
 		return ENOENT;
 
-	if (onoff)
-		(void)pfil_add_hook(ipfw_check_hook, NULL, arg, pfh);
-	else
-		(void)pfil_remove_hook(ipfw_check_hook, NULL, arg, pfh);
+	(void) (onoff ? pfil_add_hook : pfil_remove_hook)
+	    (ipfw_check_hook, NULL, PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh);
 
 	return 0;
 }

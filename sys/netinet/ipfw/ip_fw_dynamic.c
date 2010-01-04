@@ -917,7 +917,7 @@ ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 #endif
 	default:
 		/* XXX: log me?!? */
-		m_freem(m);
+		FREE_PKT(m);
 		return (NULL);
 	}
 	dir = ((flags & (TH_SYN | TH_RST)) == TH_SYN);
@@ -1002,11 +1002,7 @@ ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 		h->ip_hl = sizeof(*h) >> 2;
 		h->ip_tos = IPTOS_LOWDELAY;
 		h->ip_off = 0;
-#ifdef HAVE_NET_IPLEN /* XXX do we handle layer2 ? */
 		h->ip_len = htons(len);
-#else
-		h->ip_len = len;
-#endif
 		h->ip_ttl = V_ip_defttl;
 		h->ip_sum = 0;
 		break;

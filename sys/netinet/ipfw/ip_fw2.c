@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
-#include <netinet/ip_divert.h>
 #include <netinet/ip_carp.h>
 #include <netinet/pim.h>
 #include <netinet/tcp_var.h>
@@ -560,7 +559,7 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 				ip6_output(m0, NULL, NULL, 0, NULL, NULL,
 				    NULL);
 		}
-		m_freem(m);
+		FREE_PKT(m);
 	} else if (code != ICMP6_UNREACH_RST) { /* Send an ICMPv6 unreach. */
 #if 0
 		/*
@@ -576,7 +575,7 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 #endif
 		icmp6_error(m, ICMP6_DST_UNREACH, code, 0);
 	} else
-		m_freem(m);
+		FREE_PKT(m);
 
 	args->m = NULL;
 }
@@ -603,9 +602,7 @@ send_reject(struct ip_fw_args *args, int code, int iplen, struct ip *ip)
 #endif
 	if (code != ICMP_REJECT_RST) { /* Send an ICMP unreach */
 		/* We need the IP header in host order for icmp_error(). */
-		if (args->eh != NULL) {
-			SET_HOST_IPLEN(ip);
-		}
+		SET_HOST_IPLEN(ip);
 		icmp_error(args->m, ICMP_UNREACH, code, 0L, 0);
 	} else if (args->f_id.proto == IPPROTO_TCP) {
 		struct tcphdr *const tcp =
@@ -618,9 +615,9 @@ send_reject(struct ip_fw_args *args, int code, int iplen, struct ip *ip)
 			if (m != NULL)
 				ip_output(m, NULL, NULL, 0, NULL, NULL);
 		}
-		m_freem(args->m);
+		FREE_PKT(args->m);
 	} else
-		m_freem(args->m);
+		FREE_PKT(args->m);
 	args->m = NULL;
 }
 
@@ -709,16 +706,18 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 }
 
 /*
- * Helper function to write the matching rule into args
+ * Helper function to set args with info on the rule after the matching
+ * one. slot is precise, whereas we guess rule_id as they are
+ * assigned sequentially.
  */
 static inline void
 set_match(struct ip_fw_args *args, int slot,
 	struct ip_fw_chain *chain)
 {
-	args->chain_id = chain->id;
-	args->slot = slot + 1; /* we use 0 as a marker */
-	args->rule_id = chain->map[slot]->id;
-	args->rulenum = chain->map[slot]->rulenum;
+	args->rule.chain_id = chain->id;
+	args->rule.slot = slot + 1; /* we use 0 as a marker */
+	args->rule.rule_id = 1 + chain->map[slot]->id;
+	args->rule.rulenum = chain->map[slot]->rulenum;
 }
 
 /*
@@ -743,7 +742,7 @@ set_match(struct ip_fw_args *args, int slot,
  *	args->rule	Pointer to the last matching rule (in/out)
  *	args->next_hop	Socket we are forwarding to (out).
  *	args->f_id	Addresses grabbed from the packet (out)
- * 	args->cookie	a cookie depending on rule action
+ * 	args->rule.info	a cookie depending on rule action
  *
  * Return value:
  *
@@ -753,6 +752,8 @@ set_match(struct ip_fw_args *args, int slot,
  *	IP_FW_TEE	tee packet, port in m_tag
  *	IP_FW_DUMMYNET	to dummynet, pipe in args->cookie
  *	IP_FW_NETGRAPH	into netgraph, cookie args->cookie
+ *		args->rule contains the matching rule,
+ *		args->rule.info has additional information.
  *
  */
 int
@@ -795,14 +796,6 @@ ipfw_chk(struct ip_fw_args *args)
 	 */
 	struct ucred *ucred_cache = NULL;
 	int ucred_lookup = 0;
-
-	/*
-	 * divinput_flags	If non-zero, set to the IP_FW_DIVERT_*_FLAG
-	 *	associated with a packet input on a divert socket.  This
-	 *	will allow to distinguish traffic and its direction when
-	 *	it originates from a divert socket.
-	 */
-	u_int divinput_flags = 0;
 
 	/*
 	 * oif | args->oif	If NULL, ipfw_chk has been called on the
@@ -862,7 +855,6 @@ ipfw_chk(struct ip_fw_args *args)
 	int dyn_dir = MATCH_UNKNOWN;
 	ipfw_dyn_rule *q = NULL;
 	struct ip_fw_chain *chain = &V_layer3_chain;
-	struct m_tag *mtag;
 
 	/*
 	 * We store in ulp a pointer to the upper layer protocol header.
@@ -1090,16 +1082,8 @@ do {								\
 		proto = ip->ip_p;
 		src_ip = ip->ip_src;
 		dst_ip = ip->ip_dst;
-#ifndef HAVE_NET_IPLEN
-		if (args->eh == NULL) { /* on l3 these are in host format */
-			offset = ip->ip_off & IP_OFFMASK;
-			iplen = ip->ip_len;
-		} else
-#endif /* !HAVE_NET_IPLEN */
-		{	/* otherwise they are in net format */
-			offset = ntohs(ip->ip_off) & IP_OFFMASK;
-			iplen = ntohs(ip->ip_len);
-		}
+		offset = ntohs(ip->ip_off) & IP_OFFMASK;
+		iplen = ntohs(ip->ip_len);
 		pktlen = iplen < pktlen ? iplen : pktlen;
 
 		if (offset == 0) {
@@ -1143,44 +1127,20 @@ do {								\
 		IPFW_RUNLOCK(chain);
 		return (IP_FW_PASS);	/* accept */
 	}
-	/* XXX divert should be handled same as other tags */
-	mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
-	if (args->slot) {
+	if (args->rule.slot) {
 		/*
 		 * Packet has already been tagged as a result of a previous
 		 * match on rule args->rule aka args->rule_id (PIPE, QUEUE,
-		 * REASS, NETGRAPH and similar, never a skipto).
+		 * REASS, NETGRAPH, DIVERT/TEE...)
 		 * Validate the slot and continue from the next one
 		 * if still present, otherwise do a lookup.
 		 */
-		if (V_fw_one_pass) {
-			IPFW_RUNLOCK(chain);
-			return (IP_FW_PASS);
-		}
-		f_pos = (args->chain_id == chain->id) ?
-		    args->slot /* already incremented */ :
-		    ipfw_find_rule(chain, args->rulenum, args->rule_id+1);
+		f_pos = (args->rule.chain_id == chain->id) ?
+		    args->rule.slot :
+		    ipfw_find_rule(chain, args->rule.rulenum,
+			args->rule.rule_id);
 	} else {
-		/*
-		 * Find the starting rule. It can be either the first
-		 * one, or the one after divert_rule if asked so.
-		 */
-		int skipto = mtag ? divert_cookie(mtag) : 0;
-
 		f_pos = 0;
-		if (args->eh == NULL && skipto != 0) {
-			if (skipto >= IPFW_DEFAULT_RULE) {
-				IPFW_RUNLOCK(chain);
-				return (IP_FW_DENY); /* invalid */
-			}
-			f_pos = ipfw_find_rule(chain, skipto+1, 0);
-		}
-	}
-	/* reset divert rule to avoid confusion later */
-	if (mtag) {
-		divinput_flags = divert_info(mtag) &
-		    (IP_FW_DIVERT_OUTPUT_FLAG | IP_FW_DIVERT_LOOPBACK_FLAG);
-		m_tag_delete(m, mtag);
 	}
 
 	/*
@@ -1332,10 +1292,15 @@ do {								\
 				break;
 
 			case O_DIVERTED:
-				match = (cmd->arg1 & 1 && divinput_flags &
-				    IP_FW_DIVERT_LOOPBACK_FLAG) ||
-					(cmd->arg1 & 2 && divinput_flags &
-				    IP_FW_DIVERT_OUTPUT_FLAG);
+			    {
+				/* For diverted packets, args->rule.info
+				 * contains the divert port (in host format)
+				 * reason and direction.
+	 			 */
+				uint32_t i = args->rule.info;
+				match = (i&IPFW_IS_MASK) == IPFW_IS_DIVERT &&
+				    cmd->arg1 & ((i & IPFW_INFO_IN) ? 1 : 2);
+			    }
 				break;
 
 			case O_PROTO:
@@ -1755,6 +1720,7 @@ do {								\
 				break;
 
 			case O_TAG: {
+				struct m_tag *mtag;
 				uint32_t tag = (cmd->arg1 == IP_FW_TABLEARG) ?
 				    tablearg : cmd->arg1;
 
@@ -1771,12 +1737,13 @@ do {								\
 				if (cmd->len & F_NOT) { /* `untag' action */
 					if (mtag != NULL)
 						m_tag_delete(m, mtag);
+					match = 0;
 				} else if (mtag == NULL) {
 					if ((mtag = m_tag_alloc(MTAG_IPFW,
 					    tag, 0, M_NOWAIT)) != NULL)
 						m_tag_prepend(m, mtag);
+					match = 1;
 				}
-				match = (cmd->len & F_NOT) ? 0: 1;
 				break;
 			}
 
@@ -1786,6 +1753,7 @@ do {								\
 				break;
 
 			case O_TAGGED: {
+				struct m_tag *mtag;
 				uint32_t tag = (cmd->arg1 == IP_FW_TABLEARG) ?
 				    tablearg : cmd->arg1;
 
@@ -1926,10 +1894,12 @@ do {								\
 			case O_PIPE:
 			case O_QUEUE:
 				set_match(args, f_pos, chain);
-				args->cookie = (cmd->arg1 == IP_FW_TABLEARG) ?
+				args->rule.info = (cmd->arg1 == IP_FW_TABLEARG) ?
 					tablearg : cmd->arg1;
-				if (cmd->opcode == O_QUEUE)
-					args->cookie |= 0x80000000;
+				if (cmd->opcode == O_PIPE)
+					args->rule.info |= IPFW_IS_PIPE;
+				if (V_fw_one_pass)
+					args->rule.info |= IPFW_ONEPASS;
 				retval = IP_FW_DUMMYNET;
 				l = 0;          /* exit inner loop */
 				done = 1;       /* exit outer loop */
@@ -1942,23 +1912,11 @@ do {								\
 				/* otherwise this is terminal */
 				l = 0;		/* exit inner loop */
 				done = 1;	/* exit outer loop */
-				mtag = m_tag_get(PACKET_TAG_DIVERT,
-					sizeof(struct divert_tag),
-					M_NOWAIT);
-				if (mtag == NULL) {
-				    retval = IP_FW_DENY;
-				} else {
-				    struct divert_tag *dt;
-				    dt = (struct divert_tag *)(mtag+1);
-				    dt->cookie = f->rulenum;
-				    if (cmd->arg1 == IP_FW_TABLEARG)
-					dt->info = tablearg;
-				    else
-					dt->info = cmd->arg1;
-				    m_tag_prepend(m, mtag);
-				    retval = (cmd->opcode == O_DIVERT) ?
+				retval = (cmd->opcode == O_DIVERT) ?
 					IP_FW_DIVERT : IP_FW_TEE;
-				}
+				set_match(args, f_pos, chain);
+				args->rule.info = (cmd->arg1 == IP_FW_TABLEARG) ?
+				    tablearg : cmd->arg1;
 				break;
 
 			case O_COUNT:
@@ -2074,7 +2032,7 @@ do {								\
 			case O_NETGRAPH:
 			case O_NGTEE:
 				set_match(args, f_pos, chain);
-				args->cookie = (cmd->arg1 == IP_FW_TABLEARG) ?
+				args->rule.info = (cmd->arg1 == IP_FW_TABLEARG) ?
 					tablearg : cmd->arg1;
 				retval = (cmd->opcode == O_NETGRAPH) ?
 				    IP_FW_NETGRAPH : IP_FW_NGTEE;
@@ -2126,12 +2084,6 @@ do {								\
 				f->pcnt++;
 				f->bcnt += pktlen;
 				l = 0;	/* in any case exit inner loop */
-
-#ifndef HAVE_NET_IPLEN
-				if (args->eh == NULL)
-					ip_off = ip->ip_off;
-				else
-#endif /* !HAVE_NET_IPLEN */
 				ip_off = ntohs(ip->ip_off);
 
 				/* if not fragmented, go to next rule */
@@ -2139,19 +2091,14 @@ do {								\
 				    break;
 				/* 
 				 * ip_reass() expects len & off in host
-				 * byte order: fix them in case we come
-				 * from layer2.
+				 * byte order.
 				 */
-				if (args->eh != NULL) {
-					SET_HOST_IPLEN(ip);
-				}
+				SET_HOST_IPLEN(ip);
 
 				args->m = m = ip_reass(m);
 
 				/*
-				 * IP header checksum fixup after 
-				 * reassembly and leave header
-				 * in network byte order.
+				 * do IP header checksum fixup.
 				 */
 				if (m == NULL) { /* fragment got swallowed */
 				    retval = IP_FW_DENY;
@@ -2160,10 +2107,7 @@ do {								\
 
 				    ip = mtod(m, struct ip *);
 				    hlen = ip->ip_hl << 2;
-				    /* revert len. & off to net format if needed */
-				    if (args->eh != NULL) {
-					SET_NET_IPLEN(ip);
-				    }
+				    SET_NET_IPLEN(ip);
 				    ip->ip_sum = 0;
 				    if (hlen == sizeof(struct ip))
 					ip->ip_sum = in_cksum_hdr(ip);

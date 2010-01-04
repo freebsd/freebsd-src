@@ -3040,25 +3040,26 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	}
 
 	/* XXX this section is also in if_ethersubr.c */
-	if (V_ip_fw_chk_ptr && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
+	// XXX PFIL_OUT or DIR_OUT ?
+	if (V_ip_fw_chk_ptr && pfil_ipfw != 0 &&
+			dir == PFIL_OUT && ifp != NULL) {
 		struct m_tag *mtag;
 
 		error = -1;
-		mtag = m_tag_find(*mp, PACKET_TAG_DUMMYNET, NULL);
+		/* fetch the start point from existing tags, if any */
+		mtag = m_tag_locate(*mp, MTAG_IPFW_RULE, 0, NULL);
 		if (mtag == NULL) {
-			args.slot = 0;
+			args.rule.slot = 0;
 		} else {
 			struct dn_pkt_tag *dn_tag;
 
+			/* XXX can we free the tag after use ? */
 			mtag->m_tag_id = PACKET_TAG_NONE;
 			dn_tag = (struct dn_pkt_tag *)(mtag + 1);
-			if (dn_tag->slot != 0 && V_fw_one_pass)
-				/* packet already partially processed */
+			/* packet already partially processed ? */
+			if (dn_tag->rule.slot != 0 && V_fw_one_pass)
 				goto ipfwpass;
-			args.slot = dn_tag->slot; /* next rule to use */
-			args.chain_id = dn_tag->chain_id;
-			args.rulenum = dn_tag->rulenum;
-			args.rule_id = dn_tag->rule_id;
+			args.rule = dn_tag->rule;
 		}
 
 		args.m = *mp;
