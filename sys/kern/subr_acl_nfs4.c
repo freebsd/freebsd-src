@@ -985,7 +985,7 @@ _acls_are_equal(const struct acl *a, const struct acl *b)
 }
 
 /*
- * This routine is used to determine whether to remove entry_type attribute
+ * This routine is used to determine whether to remove extended attribute
  * that stores ACL contents.
  */
 int
@@ -1004,9 +1004,8 @@ acl_nfs4_is_trivial(const struct acl *aclp, int file_owner_id)
 	 *
 	 * XXX: I guess there is a faster way to do this.  However, even
 	 *      this slow implementation significantly speeds things up
-	 *      for files that don't have any entry_type ACL entries - it's
-	 *      critical for performance to not use EA when they are not
-	 *      needed.
+	 *      for files that don't have non-trivial ACLs - it's critical
+	 *      for performance to not use EA when they are not needed.
 	 */
 	tmpaclp = acl_alloc(M_WAITOK | M_ZERO);
 	acl_nfs4_sync_mode_from_acl(&tmpmode, aclp);
