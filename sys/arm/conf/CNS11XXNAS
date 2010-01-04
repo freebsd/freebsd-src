@@ -29,8 +29,6 @@ ident		CNS11XXNAS
 
 include		"../econa/std.econa"
 
-#To statically compile in device wiring instead of /boot/device.hints
-hints		"CNS11XXNAS.hints"
 makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
