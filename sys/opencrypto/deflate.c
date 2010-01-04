@@ -79,7 +79,7 @@ deflate_global(data, size, decomp, out)
 	zbuf.avail_in = size;	/* Total length of data to be processed */
 
 	if (!decomp) {
-		MALLOC(buf[i].out, u_int8_t *, (u_long) size, M_CRYPTO_DATA, 
+		buf[i].out = malloc((u_long) size, M_CRYPTO_DATA, 
 		    M_NOWAIT);
 		if (buf[i].out == NULL)
 			goto bad;
@@ -94,7 +94,7 @@ deflate_global(data, size, decomp, out)
 	 	 * updated while the decompression is going on
 	 	 */
 
-		MALLOC(buf[i].out, u_int8_t *, (u_long) (size * 4), 
+		buf[i].out = malloc((u_long) (size * 4), 
 		    M_CRYPTO_DATA, M_NOWAIT);
 		if (buf[i].out == NULL)
 			goto bad;
@@ -121,7 +121,7 @@ deflate_global(data, size, decomp, out)
 			goto end;
 		else if (zbuf.avail_out == 0 && i < (ZBUF - 1)) {
 			/* we need more output space, allocate size */
-			MALLOC(buf[i].out, u_int8_t *, (u_long) size,
+			buf[i].out = malloc((u_long) size,
 			    M_CRYPTO_DATA, M_NOWAIT);
 			if (buf[i].out == NULL)
 				goto bad;
@@ -137,7 +137,7 @@ deflate_global(data, size, decomp, out)
 end:
 	result = count = zbuf.total_out;
 
-	MALLOC(*out, u_int8_t *, (u_long) result, M_CRYPTO_DATA, M_NOWAIT);
+	*out = malloc((u_long) result, M_CRYPTO_DATA, M_NOWAIT);
 	if (*out == NULL)
 		goto bad;
 	if (decomp)
@@ -149,13 +149,13 @@ end:
 		if (count > buf[j].size) {
 			bcopy(buf[j].out, *out, buf[j].size);
 			*out += buf[j].size;
-			FREE(buf[j].out, M_CRYPTO_DATA);
+			free(buf[j].out, M_CRYPTO_DATA);
 			count -= buf[j].size;
 		} else {
 			/* it should be the last buffer */
 			bcopy(buf[j].out, *out, count);
 			*out += count;
-			FREE(buf[j].out, M_CRYPTO_DATA);
+			free(buf[j].out, M_CRYPTO_DATA);
 			count = 0;
 		}
 	}
@@ -165,7 +165,7 @@ end:
 bad:
 	*out = NULL;
 	for (j = 0; buf[j].flag != 0; j++)
-		FREE(buf[j].out, M_CRYPTO_DATA);
+		free(buf[j].out, M_CRYPTO_DATA);
 	if (decomp)
 		inflateEnd(&zbuf);
 	else
