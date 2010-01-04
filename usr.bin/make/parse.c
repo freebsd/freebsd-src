@@ -699,6 +699,7 @@ static void
 ParseDoDependency(char *line)
 {
 	char	*cp;	/* our current position */
+	char	*lstart = line;	/* original input line */
 	GNode	*gn;	/* a general purpose temporary node */
 	int	op;	/* the operator on the line */
 	char	savec;	/* a place to save a character */
@@ -809,7 +810,8 @@ ParseDoDependency(char *line)
 				    "contain unresolved cvs/rcs/??? merge "
 				    "conflicts");
 			} else
-				Parse_Error(PARSE_FATAL, "Need an operator");
+				Parse_Error(PARSE_FATAL, lstart[0] == '.' ?
+				    "Unknown directive" : "Need an operator");
 			return;
 		}
 		*cp = '\0';
@@ -1029,7 +1031,8 @@ ParseDoDependency(char *line)
 			op = OP_DEPENDS;
 		}
 	} else {
-		Parse_Error(PARSE_FATAL, "Missing dependency operator");
+		Parse_Error(PARSE_FATAL, lstart[0] == '.' ?
+		    "Unknown directive" : "Missing dependency operator");
 		return;
 	}
 
