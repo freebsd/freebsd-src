@@ -1120,39 +1120,39 @@ iso.1:
 .if defined(CD_BOOT)
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 	    FreeBSD_bootonly \
-	    ${CD}/${BUILDNAME}-${TARGET}-bootonly.iso ${CD_BOOT}
+	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-bootonly.iso ${CD_BOOT}
 .endif
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 	    FreeBSD_Install \
-	    ${CD}/${BUILDNAME}-${TARGET}-disc1.iso ${CD_DISC1} \
+	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-disc1.iso ${CD_DISC1} \
 	    ${CD_DISC1_PKGS}
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
 	    FreeBSD_Packages \
-	    ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2} \
+	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2} \
 	    ${CD_DISC2_PKGS}
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
 	    FreeBSD_Packages_2 \
-	    ${CD}/${BUILDNAME}-${TARGET}-disc3.iso ${CD_DISC3} \
+	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-disc3.iso ${CD_DISC3} \
 	    ${CD_DISC3_PKGS}
 .if defined(MAKE_DVD)
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 	    FreeBSD_Install \
-	    ${CD}/${BUILDNAME}-${TARGET}-dvd1.iso ${CD_DVD1} \
+	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-dvd1.iso ${CD_DVD1} \
 	    ${CD_DVD1_PKGS}
 .endif
 .if !defined(NODOC)
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
 	    FreeBSD_Documentation \
-	    ${CD}/${BUILDNAME}-${TARGET}-docs.iso ${CD_DOCS}
+	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-docs.iso ${CD_DOCS}
 .endif
 .if defined(SEPARATE_LIVEFS)
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 	    FreeBSD_LiveFS \
-	    ${CD}/${BUILDNAME}-${TARGET}-livefs.iso ${CD_LIVEFS}
+	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-livefs.iso ${CD_LIVEFS}
 .endif
 	@echo "Generating MD5 and SHA256 sums..."
-	@(cd ${CD} && md5 *.iso > ${BUILDNAME}-${TARGET}-iso.CHECKSUM.MD5)
-	@(cd ${CD} && sha256 *.iso > ${BUILDNAME}-${TARGET}-iso.CHECKSUM.SHA256)
+	@(cd ${CD} && md5 *.iso > FreeBSD-${BUILDNAME}-${TARGET}-iso.CHECKSUM.MD5)
+	@(cd ${CD} && sha256 *.iso > FreeBSD-${BUILDNAME}-${TARGET}-iso.CHECKSUM.SHA256)
 	touch ${.TARGET}
 .else
 	@echo "Do not know how to create an ISO for ${TARGET_ARCH}."
