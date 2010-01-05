@@ -99,15 +99,10 @@ typedef struct sem* sem_t;
 #define SYM_FBP10(sym)                  __CONCAT(sym, _fbp10)
 #define WEAK_REF(sym, alias)            __weak_reference(sym, alias)
 #define SYM_COMPAT(sym, impl, ver)      __sym_compat(sym, impl, ver)
-#define SYM_DEFAULT(sym, impl, ver)     __sym_default(sym, impl, ver)
  
 #define FB10_COMPAT(func, sym)                          \
         WEAK_REF(func, SYM_FB10(sym));                  \
         SYM_COMPAT(sym, SYM_FB10(sym), FBSD_1.0)
-
-#define FB10_COMPAT_PRIVATE(func, sym)                  \
-        WEAK_REF(func, SYM_FBP10(sym));                 \
-        SYM_DEFAULT(sym, SYM_FBP10(sym), FBSDprivate_1.0)
 
 static sem_t sem_alloc(unsigned int value, semid_t semid, int system_sem);
 static void  sem_free(sem_t sem);
