@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100105: new userland semaphore implementation
+OLD_FILES+=usr/include/sys/semaphore.h
 # 20100103: ntptrace(8) removed
 OLD_FILES+=usr/sbin/ntptrace
 OLD_FILES+=usr/share/man/man8/ntptrace.8.gz

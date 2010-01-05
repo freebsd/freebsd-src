@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2010 David Xu <davidxu@freebsd.org>.
  * Copyright (C) 2000 Jason Evans <jasone@freebsd.org>.
  * All rights reserved.
  * 
@@ -59,34 +60,71 @@
 #include "namespace.h"
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <machine/atomic.h>
 #include <errno.h>
+#include <sys/umtx.h>
+#include <sys/_semaphore.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <time.h>
-#include <_semaphore.h>
 #include "un-namespace.h"
 #include "libc_private.h"
+
+/*
+ * Old semaphore definitions.
+ */
+struct sem {
+#define SEM_MAGIC       ((u_int32_t) 0x09fa4012)
+        u_int32_t       magic;
+        pthread_mutex_t lock;
+        pthread_cond_t  gtzero;
+        u_int32_t       count;
+        u_int32_t       nwaiters;
+#define SEM_USER        (NULL)
+        semid_t         semid;  /* semaphore id if kernel (shared) semaphore */
+        int             syssem; /* 1 if kernel (shared) semaphore */
+        LIST_ENTRY(sem) entry;
+        struct sem      **backpointer;
+};
+
+typedef struct sem* sem_t;
+
+#define SEM_FAILED     ((sem_t *)0)
+#define SEM_VALUE_MAX  __INT_MAX
+
+#define SYM_FB10(sym)                   __CONCAT(sym, _fb10)
+#define SYM_FBP10(sym)                  __CONCAT(sym, _fbp10)
+#define WEAK_REF(sym, alias)            __weak_reference(sym, alias)
+#define SYM_COMPAT(sym, impl, ver)      __sym_compat(sym, impl, ver)
+#define SYM_DEFAULT(sym, impl, ver)     __sym_default(sym, impl, ver)
+ 
+#define FB10_COMPAT(func, sym)                          \
+        WEAK_REF(func, SYM_FB10(sym));                  \
+        SYM_COMPAT(sym, SYM_FB10(sym), FBSD_1.0)
+
+#define FB10_COMPAT_PRIVATE(func, sym)                  \
+        WEAK_REF(func, SYM_FBP10(sym));                 \
+        SYM_DEFAULT(sym, SYM_FBP10(sym), FBSDprivate_1.0)
 
 static sem_t sem_alloc(unsigned int value, semid_t semid, int system_sem);
 static void  sem_free(sem_t sem);
 
-static LIST_HEAD(, sem) named_sems = LIST_HEAD_INITIALIZER(named_sems);
+static LIST_HEAD(, sem) named_sems = LIST_HEAD_INITIALIZER(&named_sems);
 static pthread_mutex_t named_sems_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-__weak_reference(__sem_init, sem_init);
-__weak_reference(__sem_destroy, sem_destroy);
-__weak_reference(__sem_open, sem_open);
-__weak_reference(__sem_close, sem_close);
-__weak_reference(__sem_unlink, sem_unlink);
-__weak_reference(__sem_wait, sem_wait);
-__weak_reference(__sem_trywait, sem_trywait);
-__weak_reference(__sem_timedwait, sem_timedwait);
-__weak_reference(__sem_post, sem_post);
-__weak_reference(__sem_getvalue, sem_getvalue);
-
+FB10_COMPAT(_libc_sem_init_compat, sem_init);
+FB10_COMPAT(_libc_sem_destroy_compat, sem_destroy);
+FB10_COMPAT(_libc_sem_open_compat, sem_open);
+FB10_COMPAT(_libc_sem_close_compat, sem_close);
+FB10_COMPAT(_libc_sem_unlink_compat, sem_unlink);
+FB10_COMPAT(_libc_sem_wait_compat, sem_wait);
+FB10_COMPAT(_libc_sem_trywait_compat, sem_trywait);
+FB10_COMPAT(_libc_sem_timedwait_compat, sem_timedwait);
+FB10_COMPAT(_libc_sem_post_compat, sem_post);
+FB10_COMPAT(_libc_sem_getvalue_compat, sem_getvalue);
 
 static inline int
 sem_check_validity(sem_t *sem)
@@ -104,8 +142,6 @@ static void
 sem_free(sem_t sem)
 {
 
-	_pthread_mutex_destroy(&sem->lock);
-	_pthread_cond_destroy(&sem->gtzero);
 	sem->magic = 0;
 	free(sem);
 }
@@ -131,13 +167,11 @@ sem_alloc(unsigned int value, semid_t semid, int system_sem)
 	sem->magic = SEM_MAGIC;
 	sem->semid = semid;
 	sem->syssem = system_sem;
-	sem->lock = PTHREAD_MUTEX_INITIALIZER;
-	sem->gtzero = PTHREAD_COND_INITIALIZER;
 	return (sem);
 }
 
 int
-__sem_init(sem_t *sem, int pshared, unsigned int value)
+_libc_sem_init_compat(sem_t *sem, int pshared, unsigned int value)
 {
 	semid_t semid;
 
@@ -147,26 +181,27 @@ __sem_init(sem_t *sem, int pshared, unsigned int value)
 	 * pthread_cond_wait() is just a stub that doesn't really
 	 * wait.
 	 */
-	if (ksem_init(&semid, value) != 0)
+	semid = (semid_t)SEM_USER;
+	if ((pshared != 0) && ksem_init(&semid, value) != 0)
 		return (-1);
 
-	(*sem) = sem_alloc(value, semid, 1);
+	*sem = sem_alloc(value, semid, pshared);
 	if ((*sem) == NULL) {
-		ksem_destroy(semid);
+		if (pshared != 0)
+			ksem_destroy(semid);
 		return (-1);
 	}
 	return (0);
 }
 
 int
-__sem_destroy(sem_t *sem)
+_libc_sem_destroy_compat(sem_t *sem)
 {
 	int retval;
 
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
-	_pthread_mutex_lock(&(*sem)->lock);
 	/*
 	 * If this is a system semaphore let the kernel track it otherwise
 	 * make sure there are no waiters.
@@ -181,18 +216,14 @@ __sem_destroy(sem_t *sem)
 		retval = 0;
 		(*sem)->magic = 0;
 	}
-	_pthread_mutex_unlock(&(*sem)->lock);
 
-	if (retval == 0) {
-		_pthread_mutex_destroy(&(*sem)->lock);
-		_pthread_cond_destroy(&(*sem)->gtzero);
+	if (retval == 0)
 		sem_free(*sem);
-	}
 	return (retval);
 }
 
 sem_t *
-__sem_open(const char *name, int oflag, ...)
+_libc_sem_open_compat(const char *name, int oflag, ...)
 {
 	sem_t *sem;
 	sem_t s;
@@ -255,7 +286,7 @@ err:
 }
 
 int
-__sem_close(sem_t *sem)
+_libc_sem_close_compat(sem_t *sem)
 {
 
 	if (sem_check_validity(sem) != 0)
@@ -280,68 +311,156 @@ __sem_close(sem_t *sem)
 }
 
 int
-__sem_unlink(const char *name)
+_libc_sem_unlink_compat(const char *name)
 {
 
 	return (ksem_unlink(name));
 }
 
-int
-__sem_wait(sem_t *sem)
+static int
+enable_async_cancel(void)
 {
+	int old;
 
-	if (sem_check_validity(sem) != 0)
+	_pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &old);
+	return (old);
+}
+
+static void
+restore_async_cancel(int val)
+{
+	_pthread_setcanceltype(val, NULL);
+}
+
+static int
+_umtx_wait_uint(volatile unsigned *mtx, unsigned id, const struct timespec *timeout)
+{
+	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
+	    timeout->tv_nsec <= 0))) {
+		errno = ETIMEDOUT;
 		return (-1);
+	}
+	return _umtx_op(__DEVOLATILE(void *, mtx),
+		UMTX_OP_WAIT_UINT_PRIVATE, id, NULL, __DECONST(void*, timeout));
+}
 
-	return (ksem_wait((*sem)->semid));
+static int
+_umtx_wake(volatile void *mtx)
+{
+	return _umtx_op(__DEVOLATILE(void *, mtx), UMTX_OP_WAKE_PRIVATE,
+			1, NULL, NULL);
+}
+
+#define TIMESPEC_SUB(dst, src, val)                             \
+        do {                                                    \
+                (dst)->tv_sec = (src)->tv_sec - (val)->tv_sec;  \
+                (dst)->tv_nsec = (src)->tv_nsec - (val)->tv_nsec; \
+                if ((dst)->tv_nsec < 0) {                       \
+                        (dst)->tv_sec--;                        \
+                        (dst)->tv_nsec += 1000000000;           \
+                }                                               \
+        } while (0)
+
+
+static void
+sem_cancel_handler(void *arg)
+{
+	sem_t *sem = arg;
+
+	atomic_add_int(&(*sem)->nwaiters, -1);
+	if ((*sem)->nwaiters && (*sem)->count)
+		_umtx_wake(&(*sem)->count);
 }
 
 int
-__sem_trywait(sem_t *sem)
+_libc_sem_timedwait_compat(sem_t * __restrict sem,
+	const struct timespec * __restrict abstime)
 {
-	int retval;
+	struct timespec ts, ts2;
+	int val, retval, saved_cancel;
 
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
-	if ((*sem)->syssem != 0)
- 		retval = ksem_trywait((*sem)->semid);
-	else {
-		_pthread_mutex_lock(&(*sem)->lock);
-		if ((*sem)->count > 0) {
-			(*sem)->count--;
-			retval = 0;
-		} else {
-			errno = EAGAIN;
-			retval = -1;
+	if ((*sem)->syssem != 0) {
+		saved_cancel = enable_async_cancel();
+		retval = ksem_wait((*sem)->semid);
+		restore_async_cancel(saved_cancel);
+		return (retval);
+	}
+
+	retval = 0;
+	_pthread_testcancel();
+	for (;;) {
+		while ((val = (*sem)->count) > 0) {
+			if (atomic_cmpset_acq_int(&(*sem)->count, val, val - 1))
+				return (0);
 		}
-		_pthread_mutex_unlock(&(*sem)->lock);
+		if (retval)
+			break;
+		if (abstime) {
+			if (abstime->tv_nsec >= 1000000000 || abstime->tv_nsec < 0) {
+				errno = EINVAL;
+				return (-1);
+			}
+			clock_gettime(CLOCK_REALTIME, &ts);
+	                TIMESPEC_SUB(&ts2, abstime, &ts);
+		}
+		atomic_add_int(&(*sem)->nwaiters, 1);
+		pthread_cleanup_push(sem_cancel_handler, sem);
+		saved_cancel = enable_async_cancel();
+		retval = _umtx_wait_uint(&(*sem)->count, 0, abstime ? &ts2 : NULL);
+		restore_async_cancel(saved_cancel);
+		pthread_cleanup_pop(0);
+		atomic_add_int(&(*sem)->nwaiters, -1);
 	}
 	return (retval);
 }
 
 int
-__sem_timedwait(sem_t * __restrict sem,
-    const struct timespec * __restrict abs_timeout)
+_libc_sem_wait_compat(sem_t *sem)
 {
-	if (sem_check_validity(sem) != 0)
-		return (-1);
-
-	return (ksem_timedwait((*sem)->semid, abs_timeout));
+	return _libc_sem_timedwait_compat(sem, NULL);
 }
 
 int
-__sem_post(sem_t *sem)
+_libc_sem_trywait_compat(sem_t *sem)
+{
+	int val;
+
+	if (sem_check_validity(sem) != 0)
+		return (-1);
+
+	if ((*sem)->syssem != 0)
+ 		return ksem_trywait((*sem)->semid);
+
+	while ((val = (*sem)->count) > 0) {
+		if (atomic_cmpset_acq_int(&(*sem)->count, val, val - 1))
+			return (0);
+	}
+	errno = EAGAIN;
+	return (-1);
+}
+
+int
+_libc_sem_post_compat(sem_t *sem)
 {
 
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
-	return (ksem_post((*sem)->semid));
+	if ((*sem)->syssem != 0)
+		return ksem_post((*sem)->semid);
+
+	atomic_add_rel_int(&(*sem)->count, 1);
+
+	if ((*sem)->nwaiters)
+		return _umtx_wake(&(*sem)->count);
+	return (0);
 }
 
 int
-__sem_getvalue(sem_t * __restrict sem, int * __restrict sval)
+_libc_sem_getvalue_compat(sem_t * __restrict sem, int * __restrict sval)
 {
 	int retval;
 
@@ -351,10 +470,7 @@ __sem_getvalue(sem_t * __restrict sem, int * __restrict sval)
 	if ((*sem)->syssem != 0)
 		retval = ksem_getvalue((*sem)->semid, sval);
 	else {
-		_pthread_mutex_lock(&(*sem)->lock);
 		*sval = (int)(*sem)->count;
-		_pthread_mutex_unlock(&(*sem)->lock);
-
 		retval = 0;
 	}
 	return (retval);
