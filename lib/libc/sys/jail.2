@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2003
+.Dd January 6, 2009
 .Dt JAIL 2
 .Os
 .Sh NAME
@@ -97,6 +97,9 @@ or, if present, the per-jail
 .Pp
 All IP activity will be forced to happen to/from the IP number specified,
 which should be an alias on one of the network interfaces.
+All connections to/from the loopback address
+.Pq Li 127.0.0.1
+will be changed to be to/from the address of the jail.
 .Pp
 It is possible to identify a process as jailed by examining
 .Dq Li /proc/<pid>/status :
