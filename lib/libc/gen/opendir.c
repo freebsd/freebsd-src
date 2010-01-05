@@ -93,6 +93,18 @@ __opendir2(const char *name, int flags)
 }
 
 /*
+ * POSIX 2008 and XSI 7 require alphasort() to call strcoll() for
+ * directory entries ordering.  Use local copy that uses strcmp().
+ */
+static int
+opendir_alphasort(const void *p1, const void *p2)
+{
+
+	return (strcmp((*(const struct dirent **)p1)->d_name,
+	    (*(const struct dirent **)p2)->d_name));
+}
+
+/*
  * Common routine for opendir(3), __opendir2(3) and fdopendir(3).
  */
 static DIR *
@@ -240,8 +252,8 @@ __opendir_common(int fd, const char *name, int flags)
 				/*
 				 * This sort must be stable.
 				 */
-				mergesort(dpv, n, sizeof(*dpv), (int (*)(const
-				    void *, const void *))alphasort);
+				mergesort(dpv, n, sizeof(*dpv),
+				    opendir_alphasort);
 
 				dpv[n] = NULL;
 				xp = NULL;
