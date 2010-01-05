@@ -145,13 +145,6 @@ FBSD_1.0 {
 	recvfrom;
 	recvmsg;
 	select;
-	sem_destroy;
-	sem_getvalue;
-	sem_init;
-	sem_post;
-	sem_timedwait;
-	sem_trywait;
-	sem_wait;
 	sendmsg;
 	sendto;
 	sigaction;
@@ -348,13 +341,6 @@ FBSDprivate_1.0 {
 	_pthread_timedjoin_np;
 	_pthread_yield;
 	_raise;
-	_sem_destroy;
-	_sem_getvalue;
-	_sem_init;
-	_sem_post;
-	_sem_timedwait;
-	_sem_trywait;
-	_sem_wait;
 	_sigaction;
 	_sigprocmask;
 	_sigsuspend;
@@ -410,4 +396,11 @@ FBSD_1.1 {
 
 FBSD_1.2 {
 	openat;
+	sem_destroy;
+	sem_getvalue;
+	sem_init;
+	sem_post;
+	sem_timedwait;
+	sem_trywait;
+	sem_wait;
 };

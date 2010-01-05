@@ -18,7 +18,7 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	netdb.h nl_types.h nlist.h nss.h nsswitch.h paths.h \
 	printf.h proc_service.h pthread.h \
 	pthread_np.h pwd.h ranlib.h readpassphrase.h regex.h regexp.h \
-	res_update.h resolv.h runetype.h search.h setjmp.h \
+	res_update.h resolv.h runetype.h search.h semaphore.h setjmp.h \
 	signal.h spawn.h stab.h \
 	stdbool.h stddef.h stdio.h stdlib.h string.h stringlist.h \
 	strings.h sysexits.h tar.h termios.h tgmath.h \
@@ -28,7 +28,7 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 
 MHDRS=	float.h floatingpoint.h stdarg.h
 
-PHDRS=	sched.h semaphore.h _semaphore.h
+PHDRS=	sched.h _semaphore.h
 
 LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
 	ucontext.h
