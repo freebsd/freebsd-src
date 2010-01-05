@@ -934,8 +934,28 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 		if (pr->ndpr_ifp != ifp)
 			continue;
 
-		if (!(pr->ndpr_stateflags & NDPRF_ONLINK))
-			continue;
+		if (!(pr->ndpr_stateflags & NDPRF_ONLINK)) {
+			struct rtentry *rt;
+			rt = rtalloc1((struct sockaddr *)&pr->ndpr_prefix, 0, 0);
+			if (rt == NULL)
+				continue;
+			/*
+			 * This is the case where multiple interfaces
+			 * have the same prefix, but only one is installed 
+			 * into the routing table and that prefix entry
+			 * is not the one being examined here. In the case
+			 * where RADIX_MPATH is enabled, multiple route
+			 * entries (of the same rt_key value) will be 
+			 * installed because the interface addresses all
+			 * differ.
+			 */
+			if (!IN6_ARE_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
+			       &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr)) {
+				RTFREE_LOCKED(rt);
+				continue;
+			}
+			RTFREE_LOCKED(rt);
+		}
 
 		if (IN6_ARE_MASKED_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
 		    &addr->sin6_addr, &pr->ndpr_mask))
