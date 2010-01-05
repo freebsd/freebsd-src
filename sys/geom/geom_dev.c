@@ -323,7 +323,12 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 			return (ENOENT);
 		strlcpy(data, pp->name, i);
 		break;
-
+	case DIOCGSTRIPESIZE:
+		*(off_t *)data = cp->provider->stripesize;
+		break;
+	case DIOCGSTRIPEOFFSET:
+		*(off_t *)data = cp->provider->stripeoffset;
+		break;
 	default:
 		if (cp->provider->geom->ioctl != NULL) {
 			error = cp->provider->geom->ioctl(cp->provider, cmd, data, fflag, td);
