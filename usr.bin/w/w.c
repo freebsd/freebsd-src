@@ -118,7 +118,7 @@ struct	entry {
 	struct	kinfo_proc *dkp;	/* debug option proc list */
 } *ep, *ehead = NULL, **nextp = &ehead;
 
-#define	debugproc(p) *((struct kinfo_proc **)&(p)->ki_udata)
+#define	debugproc(p) *(&((struct kinfo_proc *)p)->ki_udata)
 
 #define	W_DISPUSERSIZE	10
 #define	W_DISPLINESIZE	8
