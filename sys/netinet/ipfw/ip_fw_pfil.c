@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
-#include <netinet/ip_dummynet.h>
 #include <netgraph/ng_ipfw.h>
 
 #include <machine/in_cksum.h>
