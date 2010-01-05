@@ -1193,6 +1193,8 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 		ti->tcpi_rcv_wscale = tp->rcv_scale;
 	}
 
+	ti->tcpi_rto = tp->t_rxtcur * tick;
+	ti->tcpi_last_data_recv = (long)(ticks - (int)tp->t_rcvtime) * tick;
 	ti->tcpi_rtt = ((u_int64_t)tp->t_srtt * tick) >> TCP_RTT_SHIFT;
 	ti->tcpi_rttvar = ((u_int64_t)tp->t_rttvar * tick) >> TCP_RTTVAR_SHIFT;
 
@@ -1206,11 +1208,11 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 	ti->tcpi_rcv_nxt = tp->rcv_nxt;
 	ti->tcpi_snd_wnd = tp->snd_wnd;
 	ti->tcpi_snd_bwnd = tp->snd_bwnd;
-        ti->tcpi_snd_nxt = tp->snd_nxt;
-        ti->__tcpi_snd_mss = tp->t_maxseg;
-        ti->__tcpi_rcv_mss = tp->t_maxseg;
-        if (tp->t_flags & TF_TOE)
-                ti->tcpi_options |= TCPI_OPT_TOE;
+	ti->tcpi_snd_nxt = tp->snd_nxt;
+	ti->tcpi_snd_mss = tp->t_maxseg;
+	ti->tcpi_rcv_mss = tp->t_maxseg;
+	if (tp->t_flags & TF_TOE)
+		ti->tcpi_options |= TCPI_OPT_TOE;
 }
 
 /*
