@@ -475,14 +475,6 @@ FBSDprivate_1.0 {
 	__waitpid;
 	_waitpid;
 
-	_libc_sem_destroy;
-	_libc_sem_init;
-	_libc_sem_getvalue;
-	_libc_sem_trywait;
-	_libc_sem_wait;
-	_libc_sem_timedwait;
-	_libc_sem_post;
-
 	_libc_sem_init_compat;
 	_libc_sem_destroy_compat;
 	_libc_sem_open_compat;
