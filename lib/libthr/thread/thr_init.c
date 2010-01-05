@@ -246,7 +246,9 @@ static pthread_func_t jmp_table[][2] = {
 	{DUAL_ENTRY(_pthread_setcanceltype)},	/* PJT_SETCANCELTYPE */
 	{DUAL_ENTRY(_pthread_setspecific)},	/* PJT_SETSPECIFIC */
 	{DUAL_ENTRY(_pthread_sigmask)},		/* PJT_SIGMASK */
-	{DUAL_ENTRY(_pthread_testcancel)}	/* PJT_TESTCANCEL */
+	{DUAL_ENTRY(_pthread_testcancel)},	/* PJT_TESTCANCEL */
+	{DUAL_ENTRY(__pthread_cleanup_pop_imp)},/* PJT_CLEANUP_POP_IMP */
+	{DUAL_ENTRY(__pthread_cleanup_push_imp)}/* PJT_CLEANUP_PUSH_IMP */
 };
 
 static int init_once = 0;
