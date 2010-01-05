@@ -712,6 +712,7 @@ struct ifaddr {
 	struct mtx ifa_mtx;
 };
 #define	IFA_ROUTE	RTF_UP		/* route installed */
+#define IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 
 /* for compatibility with other BSDs */
 #define	ifa_list	ifa_link
