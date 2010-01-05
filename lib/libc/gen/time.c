@@ -37,13 +37,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 time_t
-time(t)
-	time_t *t;
+time(time_t *t)
 {
-	struct timeval tt;
+	struct timespec tt;
 	time_t retval;
 
-	if (gettimeofday(&tt, (struct timezone *)0) < 0)
+	if (clock_gettime(CLOCK_SECOND, &tt) < 0)
 		retval = -1;
 	else
 		retval = tt.tv_sec;
