@@ -189,6 +189,7 @@ static int ndis_set_offload	(struct ndis_softc *);
 static void ndis_getstate_80211	(struct ndis_softc *);
 static void ndis_setstate_80211	(struct ndis_softc *);
 static void ndis_auth_and_assoc	(struct ndis_softc *, struct ieee80211vap *);
+static void ndis_media_status	(struct ifnet *, struct ifmediareq *);
 static int ndis_set_cipher	(struct ndis_softc *, int);
 static int ndis_set_wpa		(struct ndis_softc *, void *, int);
 static int ndis_add_key		(struct ieee80211vap *,
@@ -993,7 +994,7 @@ ndis_vap_create(struct ieee80211com *ic,
 	vap->iv_newstate = ndis_newstate;
 
 	/* complete setup */
-	ieee80211_vap_attach(vap, ieee80211_media_change, ieee80211_media_status);
+	ieee80211_vap_attach(vap, ieee80211_media_change, ndis_media_status);
 	ic->ic_opmode = opmode;
 	/* install key handing routines */
 	vap->iv_key_set = ndis_add_key;
@@ -2237,6 +2238,23 @@ ndis_set_wpa(sc, ie, ielen)
 }
 
 static void
+ndis_media_status(struct ifnet *ifp, struct ifmediareq *imr)
+{
+	struct ieee80211vap *vap = ifp->if_softc;
+	struct ndis_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	uint32_t txrate;
+	size_t len;
+
+	if (!NDIS_INITIALIZED(sc))
+		return;
+
+	len = sizeof(txrate);
+	if (ndis_get_info(sc, OID_GEN_LINK_SPEED, &txrate, &len) == 0)
+		vap->iv_bss->ni_txrate = txrate / 5000;
+	ieee80211_media_status(ifp, imr);
+}
+
+static void
 ndis_setstate_80211(sc)
 	struct ndis_softc	*sc;
 {
@@ -2695,13 +2713,6 @@ ndis_getstate_80211(sc)
 	bcopy(bs->nwbx_ssid.ns_ssid, ni->ni_essid,
 	    bs->nwbx_ssid.ns_ssidlen);
 	ni->ni_esslen = bs->nwbx_ssid.ns_ssidlen;
-
-	len = sizeof(arg);
-	rval = ndis_get_info(sc, OID_GEN_LINK_SPEED, &arg, &len);
-	if (rval)
-		device_printf(sc->ndis_dev, "get link speed failed: %d\n",
-		    rval);
-	ni->ni_txrate = arg / 5000;
 
 	if (ic->ic_caps & IEEE80211_C_PMGT) {
 		len = sizeof(arg);
