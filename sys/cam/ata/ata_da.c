@@ -687,9 +687,14 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_sectorsize = softc->params.secsize;
 	softc->disk->d_mediasize = (off_t)softc->params.sectors *
 	    softc->params.secsize;
-	softc->disk->d_stripesize = ata_physical_sector_size(&cgd->ident_data);
-	softc->disk->d_stripeoffset = softc->disk->d_stripesize -
-	    ata_logical_sector_offset(&cgd->ident_data);
+	if (ata_physical_sector_size(&cgd->ident_data) !=
+	    softc->params.secsize) {
+		softc->disk->d_stripesize =
+		    ata_physical_sector_size(&cgd->ident_data);
+		softc->disk->d_stripeoffset = (softc->disk->d_stripesize -
+		    ata_logical_sector_offset(&cgd->ident_data)) %
+		    softc->disk->d_stripesize;
+	}
 	/* XXX: these are not actually "firmware" values, so they may be wrong */
 	softc->disk->d_fwsectors = softc->params.secs_per_track;
 	softc->disk->d_fwheads = softc->params.heads;
