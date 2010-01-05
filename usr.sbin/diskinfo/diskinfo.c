@@ -104,9 +104,6 @@ main(int argc, char **argv)
 		error = ioctl(fd, DIOCGFWHEADS, &fwheads);
 		if (error)
 			fwheads = 0;
-		error = ioctl(fd, DIOCGIDENT, ident);
-		if (error)
-			ident[0] = '\0';
 		if (!opt_v) {
 			printf("%s", argv[i]);
 			printf("\t%u", sectorsize);
@@ -133,7 +130,7 @@ main(int argc, char **argv)
 				printf("\t%-12u\t# Heads according to firmware.\n", fwheads);
 				printf("\t%-12u\t# Sectors according to firmware.\n", fwsectors);
 			} 
-			if (ident[0] != '\0')
+			if (ioctl(fd, DIOCGIDENT, ident) == 0)
 				printf("\t%-12s\t# Disk ident.\n", ident);
 		}
 		printf("\n");
