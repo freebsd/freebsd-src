@@ -236,16 +236,6 @@ FBSD_1.0 {
 	seekdir;
 	user_from_uid;
 	group_from_gid;
-	sem_init;
-	sem_destroy;
-	sem_open;
-	sem_close;
-	sem_unlink;
-	sem_wait;
-	sem_trywait;
-	sem_timedwait;
-	sem_post;
-	sem_getvalue;
 	setdomainname;
 	sethostname;
 	longjmperror;
@@ -363,11 +353,23 @@ FBSD_1.1 {
 	semctl;
 	tcgetsid;
 	tcsetsid;
+	__pthread_cleanup_pop_imp;
+	__pthread_cleanup_push_imp;
 };
 
 FBSD_1.2 {
 	basename_r;
 	getpagesizes;
+	sem_close;
+	sem_destroy;
+	sem_getvalue;
+	sem_init;
+	sem_open;
+	sem_timedwait;
+	sem_trywait;
+	sem_post;
+	sem_wait;
+	sem_unlink;
 };
 
 FBSDprivate_1.0 {
@@ -456,16 +458,6 @@ FBSDprivate_1.0 {
 	__pw_scan;	/* Used by (at least) libutil */
 	__raise;
 	_raise;
-	__sem_init;
-	__sem_destroy;
-	__sem_open;
-	__sem_close;
-	__sem_unlink;
-	__sem_wait;
-	__sem_trywait;
-	__sem_timedwait;
-	__sem_post;
-	__sem_getvalue;
 	__sleep;
 	_sleep;
 	_rtld_allocate_tls;
@@ -482,4 +474,23 @@ FBSDprivate_1.0 {
 	_wait;
 	__waitpid;
 	_waitpid;
+
+	_libc_sem_destroy;
+	_libc_sem_init;
+	_libc_sem_getvalue;
+	_libc_sem_trywait;
+	_libc_sem_wait;
+	_libc_sem_timedwait;
+	_libc_sem_post;
+
+	_libc_sem_init_compat;
+	_libc_sem_destroy_compat;
+	_libc_sem_open_compat;
+	_libc_sem_close_compat;
+	_libc_sem_unlink_compat;
+	_libc_sem_wait_compat;
+	_libc_sem_trywait_compat;
+	_libc_sem_timedwait_compat;
+	_libc_sem_post_compat;
+	_libc_sem_getvalue_compat;
 };
