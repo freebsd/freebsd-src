@@ -3797,6 +3797,46 @@ pci_deactivate_resource(device_t dev, device_t child, int type,
 }
 
 void
+pci_delete_child(device_t dev, device_t child)
+{
+	struct resource_list_entry *rle;
+	struct resource_list *rl;
+	struct pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(child);
+	rl = &dinfo->resources;
+
+	if (device_is_attached(child))
+		device_detach(child);
+
+	/* Turn off access to resources we're about to free */
+	pci_write_config(child, PCIR_COMMAND, pci_read_config(child,
+	    PCIR_COMMAND, 2) & ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN), 2);
+
+	/* Free all allocated resources */
+	STAILQ_FOREACH(rle, rl, link) {
+		if (rle->res) {
+			if (rman_get_flags(rle->res) & RF_ACTIVE ||
+			    resource_list_busy(rl, rle->type, rle->rid)) {
+				pci_printf(&dinfo->cfg,
+				    "Resource still owned, oops. "
+				    "(type=%d, rid=%d, addr=%lx)\n",
+				    rle->type, rle->rid,
+				    rman_get_start(rle->res));
+				bus_release_resource(child, rle->type, rle->rid,
+				    rle->res);
+			}
+			resource_list_unreserve(rl, dev, child, rle->type,
+			    rle->rid);
+		}
+	}
+	resource_list_free(rl);
+
+	device_delete_child(dev, child);
+	pci_freecfg(dinfo);
+}
+
+void
 pci_delete_resource(device_t dev, device_t child, int type, int rid)
 {
 	struct pci_devinfo *dinfo;
