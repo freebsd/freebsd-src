@@ -2317,6 +2317,8 @@ static void
 g_raid3_launch_provider(struct g_raid3_softc *sc)
 {
 	struct g_provider *pp;
+	struct g_raid3_disk *disk;
+	int n;
 
 	sx_assert(&sc->sc_lock, SX_LOCKED);
 
@@ -2324,6 +2326,18 @@ g_raid3_launch_provider(struct g_raid3_softc *sc)
 	pp = g_new_providerf(sc->sc_geom, "raid3/%s", sc->sc_name);
 	pp->mediasize = sc->sc_mediasize;
 	pp->sectorsize = sc->sc_sectorsize;
+	pp->stripesize = 0;
+	pp->stripeoffset = 0;
+	for (n = 0; n < sc->sc_ndisks; n++) {
+		disk = &sc->sc_disks[n];
+		if (disk->d_consumer && disk->d_consumer->provider &&
+		    disk->d_consumer->provider->stripesize > pp->stripesize) {
+			pp->stripesize = disk->d_consumer->provider->stripesize;
+			pp->stripeoffset = disk->d_consumer->provider->stripeoffset;
+		}
+	}
+	pp->stripesize *= sc->sc_ndisks - 1;
+	pp->stripeoffset *= sc->sc_ndisks - 1;
 	sc->sc_provider = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();
