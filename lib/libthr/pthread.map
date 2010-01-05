@@ -396,11 +396,4 @@ FBSD_1.1 {
 
 FBSD_1.2 {
 	openat;
-	sem_destroy;
-	sem_getvalue;
-	sem_init;
-	sem_post;
-	sem_timedwait;
-	sem_trywait;
-	sem_wait;
 };
