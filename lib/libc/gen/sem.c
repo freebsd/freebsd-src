@@ -96,7 +96,6 @@ typedef struct sem* sem_t;
 #define SEM_VALUE_MAX  __INT_MAX
 
 #define SYM_FB10(sym)                   __CONCAT(sym, _fb10)
-#define SYM_FBP10(sym)                  __CONCAT(sym, _fbp10)
 #define WEAK_REF(sym, alias)            __weak_reference(sym, alias)
 #define SYM_COMPAT(sym, impl, ver)      __sym_compat(sym, impl, ver)
  
