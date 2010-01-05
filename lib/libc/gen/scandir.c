@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "un-namespace.h"
 
+static int alphasort_thunk(void *thunk, const void *p1, const void *p2);
+
 /*
  * The DIRSIZ macro is the minimum record length which will hold the directory
  * entry.  This requires the amount of space in struct dirent without the
@@ -109,8 +111,8 @@ scandir(const char *dirname, struct dirent ***namelist,
 	}
 	closedir(dirp);
 	if (nitems && dcomp != NULL)
-		qsort(names, nitems, sizeof(struct dirent *),
-		    (int (*)(const void *, const void *))dcomp);
+		qsort_r(names, nitems, sizeof(struct dirent *),
+		    &dcomp, alphasort_thunk);
 	*namelist = names;
 	return (nitems);
 
@@ -124,10 +126,25 @@ fail:
 
 /*
  * Alphabetic order comparison routine for those who want it.
+ *
+ * XXXKIB POSIX 2008 requires the alphasort() to use strcoll().  Keep
+ * strcmp() for now, since environment locale settings could have no
+ * relevance for the byte sequence of the file name. Moreover, it
+ * might be even invalid sequence in current locale, and then
+ * behaviour of alphasort would be undefined.
  */
 int
 alphasort(const struct dirent **d1, const struct dirent **d2)
 {
 
 	return (strcmp((*d1)->d_name, (*d2)->d_name));
+}
+
+static int
+alphasort_thunk(void *thunk, const void *p1, const void *p2)
+{
+	int (*dc)(const struct dirent **, const struct dirent **);
+
+	dc = *(int (**)(const struct dirent **, const struct dirent **))thunk;
+	return (dc((const struct dirent **)p1, (const struct dirent **)p2));
 }
