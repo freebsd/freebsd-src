@@ -260,8 +260,11 @@ mips_proc0_init(void)
 {
 	proc_linkup0(&proc0, &thread0);
 
+	KASSERT((kstack0 & PAGE_MASK) == 0,
+		("kstack0 is not aligned on a page boundary: 0x%0lx",
+		(long)kstack0));
 	thread0.td_kstack = kstack0;
-	thread0.td_kstack_pages = KSTACK_PAGES - 1;
+	thread0.td_kstack_pages = KSTACK_PAGES;
 	thread0.td_md.md_realstack = roundup2(thread0.td_kstack, PAGE_SIZE * 2);
 	/* 
 	 * Do not use cpu_thread_alloc to initialize these fields 
