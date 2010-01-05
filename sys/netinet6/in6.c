@@ -1196,8 +1196,12 @@ in6_purgeaddr(struct ifaddr *ifa)
 	 * The check for the current setting of "nd6_useloopback" 
 	 * is not needed.
 	 */
-	error = ifa_del_loopback_route((struct ifaddr *)ia,
-			       (struct sockaddr *)&ia->ia_addr);
+	if (ia->ia_flags & IFA_RTSELF) {
+		error = ifa_del_loopback_route((struct ifaddr *)ia,
+				       (struct sockaddr *)&ia->ia_addr);
+		if (error == 0)
+			ia->ia_flags &= ~IFA_RTSELF;
+	}
 
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
@@ -1758,6 +1762,8 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 		|| (ifp->if_flags & IFF_LOOPBACK))) {
 		error = ifa_add_loopback_route((struct ifaddr *)ia,
 				       (struct sockaddr *)&ia->ia_addr);
+		if (error == 0)
+			ia->ia_flags |= IFA_RTSELF;
 	}
 
 	/* Add ownaddr as loopback rtentry, if necessary (ex. on p2p link). */
@@ -2340,7 +2346,9 @@ in6_lltable_prefix_free(struct lltable *llt,
 }
 
 static int
-in6_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
+in6_lltable_rtcheck(struct ifnet *ifp, 
+		    u_int flags, 
+		    const struct sockaddr *l3addr)
 {
 	struct rtentry *rt;
 	char ip6buf[INET6_ADDRSTRLEN];
@@ -2408,7 +2416,7 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 		 * verify this.
 		 */
 		if (!(flags & LLE_IFADDR) &&
-		    in6_lltable_rtcheck(ifp, l3addr) != 0)
+		    in6_lltable_rtcheck(ifp, flags, l3addr) != 0)
 			return NULL;
 
 		lle = in6_lltable_new(l3addr, flags);

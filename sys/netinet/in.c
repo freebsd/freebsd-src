@@ -924,9 +924,25 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	/*
 	 * add a loopback route to self
 	 */
-	if (V_useloopback && !(ifp->if_flags & IFF_LOOPBACK))
-		error = ifa_add_loopback_route((struct ifaddr *)ia, 
+	if (V_useloopback && !(ifp->if_flags & IFF_LOOPBACK)) {
+		struct route ia_ro;
+
+		bzero(&ia_ro, sizeof(ia_ro));
+		*((struct sockaddr_in *)(&ia_ro.ro_dst)) = ia->ia_addr;
+		rtalloc_ign_fib(&ia_ro, 0, 0);
+		if ((ia_ro.ro_rt != NULL) && (ia_ro.ro_rt->rt_ifp != NULL) &&
+		    (ia_ro.ro_rt->rt_ifp == V_loif)) {
+			RT_LOCK(ia_ro.ro_rt);
+			RT_ADDREF(ia_ro.ro_rt);
+			RTFREE_LOCKED(ia_ro.ro_rt);
+		} else
+			error = ifa_add_loopback_route((struct ifaddr *)ia, 
 				       (struct sockaddr *)&ia->ia_addr);
+		if (error == 0)
+			ia->ia_flags |= IFA_RTSELF;
+		if (ia_ro.ro_rt != NULL)
+			RTFREE(ia_ro.ro_rt);
+	}
 
 	return (error);
 }
@@ -1043,7 +1059,7 @@ in_scrubprefix(struct in_ifaddr *target)
 {
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p;
-	int error;
+	int error = 0;
 	struct sockaddr_in prefix0, mask0;
 
 	/*
@@ -1057,9 +1073,28 @@ in_scrubprefix(struct in_ifaddr *target)
 	 * deletion is unconditional.
 	 */
 	if ((target->ia_addr.sin_addr.s_addr != INADDR_ANY) &&
-	    !(target->ia_ifp->if_flags & IFF_LOOPBACK)) {
-		error = ifa_del_loopback_route((struct ifaddr *)target,
+	    !(target->ia_ifp->if_flags & IFF_LOOPBACK) &&
+	    (target->ia_flags & IFA_RTSELF)) {
+		struct route ia_ro;
+		int freeit = 0;
+
+		bzero(&ia_ro, sizeof(ia_ro));
+		*((struct sockaddr_in *)(&ia_ro.ro_dst)) = target->ia_addr;
+		rtalloc_ign_fib(&ia_ro, 0, 0);
+		if ((ia_ro.ro_rt != NULL) && (ia_ro.ro_rt->rt_ifp != NULL) &&
+		    (ia_ro.ro_rt->rt_ifp == V_loif)) {
+			RT_LOCK(ia_ro.ro_rt);
+			if (ia_ro.ro_rt->rt_refcnt <= 1)
+				freeit = 1;
+			else
+				RT_REMREF(ia_ro.ro_rt);
+			RTFREE_LOCKED(ia_ro.ro_rt);
+		}
+		if (freeit)
+			error = ifa_del_loopback_route((struct ifaddr *)target,
 				       (struct sockaddr *)&target->ia_addr);
+		if (error == 0)
+			target->ia_flags &= ~IFA_RTSELF;
 		/* remove arp cache */
 		arp_ifscrub(target->ia_ifp, IA_SIN(target)->sin_addr.s_addr);
 	}
@@ -1317,7 +1352,7 @@ in_lltable_prefix_free(struct lltable *llt,
 
 
 static int
-in_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
+in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr)
 {
 	struct rtentry *rt;
 
@@ -1326,7 +1361,8 @@ in_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
 
 	/* XXX rtalloc1 should take a const param */
 	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
-	if (rt == NULL || (rt->rt_flags & RTF_GATEWAY) || rt->rt_ifp != ifp) {
+	if (rt == NULL || (rt->rt_flags & RTF_GATEWAY) || 
+	    ((rt->rt_ifp != ifp) && !(flags & LLE_PUB))) {
 #ifdef DIAGNOSTIC
 		log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
 		    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
@@ -1378,7 +1414,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 		 * verify this.
 		 */
 		if (!(flags & LLE_IFADDR) &&
-		    in_lltable_rtcheck(ifp, l3addr) != 0)
+		    in_lltable_rtcheck(ifp, flags, l3addr) != 0)
 			goto done;
 
 		lle = in_lltable_new(l3addr, flags);
