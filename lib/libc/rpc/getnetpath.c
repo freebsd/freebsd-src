@@ -101,7 +101,7 @@ setnetpath()
     if ((np_sessionp->nc_handlep = setnetconfig()) == NULL) {
 	free(np_sessionp);
 	syslog (LOG_ERR, "rpc: failed to open " NETCONFIG);
-	goto failed;
+    	return (NULL);
     }
     np_sessionp->valid = NP_VALID;
     np_sessionp->ncp_list = NULL;
