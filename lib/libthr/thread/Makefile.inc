@@ -41,7 +41,6 @@ SRCS+= \
 	thr_rwlockattr.c \
 	thr_self.c \
 	thr_sem.c \
-	thr_sem_new.c \
 	thr_setprio.c \
 	thr_setschedparam.c \
 	thr_sig.c \
