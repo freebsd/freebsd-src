@@ -331,7 +331,7 @@ _libc_sem_getvalue(sem_t * __restrict sem, int * __restrict sval)
 	return (0);
 }
 
-static int
+static __inline int
 usem_wake(struct _usem *sem)
 {
 	if (!sem->_has_waiters)
@@ -339,7 +339,7 @@ usem_wake(struct _usem *sem)
 	return _umtx_op(sem, UMTX_OP_SEM_WAKE, 0, NULL, NULL);
 }
 
-static int
+static __inline int
 usem_wait(struct _usem *sem, const struct timespec *timeout)
 {
 	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
@@ -387,7 +387,7 @@ sem_cancel_handler(void *arg)
         } while (0)
 
 
-static int
+static __inline int
 enable_async_cancel(void)
 {
 	int old;
@@ -396,7 +396,7 @@ enable_async_cancel(void)
 	return (old);
 }
 
-static void
+static __inline void
 restore_async_cancel(int val)
 {
 	_pthread_setcanceltype(val, NULL);
@@ -413,7 +413,6 @@ _libc_sem_timedwait(sem_t * __restrict sem,
 		return (-1);
 
 	retval = 0;
-	_pthread_testcancel();
 	for (;;) {
 		while ((val = sem->_kern._count) > 0) {
 			if (atomic_cmpset_acq_int(&sem->_kern._count, val, val - 1))
@@ -464,7 +463,5 @@ _libc_sem_post(sem_t *sem)
 		return (-1);
 
 	atomic_add_rel_int(&sem->_kern._count, 1);
-	if (sem->_kern._has_waiters)
-		return usem_wake(&sem->_kern);
-	return (0);
+	return usem_wake(&sem->_kern);
 }
