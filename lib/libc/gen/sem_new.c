@@ -48,26 +48,16 @@
 #include <unistd.h>
 #include "un-namespace.h"
 
-__weak_reference(_libc_sem_close, sem_close);
-__weak_reference(_libc_sem_close, _sem_close);
-__weak_reference(_libc_sem_destroy, sem_destroy);
-__weak_reference(_libc_sem_destroy, _sem_destroy);
-__weak_reference(_libc_sem_getvalue, sem_getvalue);
-__weak_reference(_libc_sem_getvalue, _sem_getvalue);
-__weak_reference(_libc_sem_init, sem_init);
-__weak_reference(_libc_sem_init, _sem_init);
-__weak_reference(_libc_sem_open, sem_open);
-__weak_reference(_libc_sem_open, _sem_open);
-__weak_reference(_libc_sem_post, sem_post);
-__weak_reference(_libc_sem_post, _sem_post);
-__weak_reference(_libc_sem_timedwait, sem_timedwait);
-__weak_reference(_libc_sem_timedwait, _sem_timedwait);
-__weak_reference(_libc_sem_trywait, sem_trywait);
-__weak_reference(_libc_sem_trywait, _sem_trywait);
-__weak_reference(_libc_sem_unlink, sem_unlink);
-__weak_reference(_libc_sem_unlink, _sem_unlink);
-__weak_reference(_libc_sem_wait, sem_wait);
-__weak_reference(_libc_sem_wait, _sem_wait);
+__weak_reference(_sem_close, sem_close);
+__weak_reference(_sem_destroy, sem_destroy);
+__weak_reference(_sem_getvalue, sem_getvalue);
+__weak_reference(_sem_init, sem_init);
+__weak_reference(_sem_open, sem_open);
+__weak_reference(_sem_post, sem_post);
+__weak_reference(_sem_timedwait, sem_timedwait);
+__weak_reference(_sem_trywait, sem_trywait);
+__weak_reference(_sem_unlink, sem_unlink);
+__weak_reference(_sem_wait, sem_wait);
 
 #define SEM_PREFIX	"/tmp/SEMD"
 #define SEM_MAGIC	((u_int32_t)0x73656d31)
@@ -127,7 +117,7 @@ sem_check_validity(sem_t *sem)
 }
 
 int
-_libc_sem_init(sem_t *sem, int pshared, unsigned int value)
+_sem_init(sem_t *sem, int pshared, unsigned int value)
 {
 
 	if (value > SEM_VALUE_MAX) {
@@ -144,7 +134,7 @@ _libc_sem_init(sem_t *sem, int pshared, unsigned int value)
 }
 
 sem_t *
-_libc_sem_open(const char *name, int flags, ...)
+_sem_open(const char *name, int flags, ...)
 {
 	char path[PATH_MAX];
 
@@ -251,7 +241,7 @@ error:
 }
 
 int
-_libc_sem_close(sem_t *sem)
+_sem_close(sem_t *sem)
 {
 	struct sem_nameinfo *ni;
 
@@ -287,7 +277,7 @@ _libc_sem_close(sem_t *sem)
 }
 
 int
-_libc_sem_unlink(const char *name)
+_sem_unlink(const char *name)
 {
 	char path[PATH_MAX];
 
@@ -306,7 +296,7 @@ _libc_sem_unlink(const char *name)
 }
 
 int
-_libc_sem_destroy(sem_t *sem)
+_sem_destroy(sem_t *sem)
 {
 
 	if (sem_check_validity(sem) != 0)
@@ -321,7 +311,7 @@ _libc_sem_destroy(sem_t *sem)
 }
 
 int
-_libc_sem_getvalue(sem_t * __restrict sem, int * __restrict sval)
+_sem_getvalue(sem_t * __restrict sem, int * __restrict sval)
 {
 
 	if (sem_check_validity(sem) != 0)
@@ -352,7 +342,7 @@ usem_wait(struct _usem *sem, const struct timespec *timeout)
 }
 
 int
-_libc_sem_trywait(sem_t *sem)
+_sem_trywait(sem_t *sem)
 {
 	int val;
 
@@ -403,7 +393,7 @@ restore_async_cancel(int val)
 }
 
 int
-_libc_sem_timedwait(sem_t * __restrict sem,
+_sem_timedwait(sem_t * __restrict sem,
 	const struct timespec * __restrict abstime)
 {
 	struct timespec ts, ts2;
@@ -444,9 +434,9 @@ _libc_sem_timedwait(sem_t * __restrict sem,
 }
 
 int
-_libc_sem_wait(sem_t *sem)
+_sem_wait(sem_t *sem)
 {
-	return _libc_sem_timedwait(sem, NULL);
+	return _sem_timedwait(sem, NULL);
 }
 
 /*
@@ -456,7 +446,7 @@ _libc_sem_wait(sem_t *sem)
  * The implementation does not use lock, so it should be safe.
  */
 int
-_libc_sem_post(sem_t *sem)
+_sem_post(sem_t *sem)
 {
 
 	if (sem_check_validity(sem) != 0)
