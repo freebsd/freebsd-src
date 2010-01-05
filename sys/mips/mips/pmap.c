@@ -291,6 +291,12 @@ pmap_bootstrap(void)
 	/* Sort. */
 again:
 	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
+		/*
+		 * Keep the memory aligned on page boundary.
+		 */
+		phys_avail[i] = round_page(phys_avail[i]);
+		phys_avail[i + 1] = trunc_page(phys_avail[i + 1]);
+
 		if (phys_avail[i + 1] >= MIPS_KSEG0_LARGEST_PHYS)
 			memory_larger_than_512meg++;
 		if (i < 2)
