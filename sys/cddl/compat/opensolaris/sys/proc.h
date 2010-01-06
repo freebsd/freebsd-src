@@ -34,13 +34,16 @@
 #include_next <sys/proc.h>
 #include <sys/stdint.h>
 #include <sys/smp.h>
+#include <sys/sched.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/debug.h>
 
 #ifdef _KERNEL
 
 #define	CPU		curcpu
-#define	minclsyspri	0
-#define	maxclsyspri	0
+#define	minclsyspri	PRIBIO
+#define	maxclsyspri	PVM
 #define	max_ncpus	mp_ncpus
 #define	boot_max_ncpus	mp_ncpus
 
@@ -64,6 +67,7 @@ static __inline kthread_t *
 thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
     size_t len, proc_t *pp, int state, pri_t pri)
 {
+	kthread_t *td;
 	proc_t *p;
 	int error;
 
@@ -76,7 +80,15 @@ thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
 
 	error = kthread_create(proc, arg, &p, 0, ZFS_KSTACK_PAGES,
 	    "solthread %p", proc);
-	return (error == 0 ? FIRST_THREAD_IN_PROC(p) : NULL);
+	if (error != 0)
+		td = NULL;
+	else {
+		td = FIRST_THREAD_IN_PROC(p);
+		thread_lock(td);
+		sched_prio(td, pri);
+		thread_unlock(td);
+	}
+	return (td);
 }
 
 #define	thread_exit()	kthread_exit(0)
