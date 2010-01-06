@@ -1805,7 +1805,7 @@ repeat_set_config:
 			 * Try to figure out if we have an
 			 * auto-install disk there:
 			 */
-			if (usb_test_autoinstall(udev, 0, 0) == 0) {
+			if (usb_iface_is_cdrom(udev, 0)) {
 				DPRINTFN(0, "Found possible auto-install "
 				    "disk (trying next config)\n");
 				config_index++;
