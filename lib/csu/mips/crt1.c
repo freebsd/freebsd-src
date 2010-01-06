@@ -1,4 +1,6 @@
 /*-
+ * Copyright 1996-1998 John D. Polstra.
+ * All rights reserved.
  * Copyright (c) 1995 Christopher G. Demetriou
  * All rights reserved.
  *
@@ -63,94 +65,37 @@ extern int etext;
 
 char **environ;
 const char *__progname = "";
-struct ps_strings *__ps_strings;
 
 void __gccmain(void) {}
 void __main(void) {}
 
-/*
- * Historically, mips has used __start for the beginning address of programs.
- * However, the Cavium toolchain (and maybe others) use _start.  Define both
- * here.  The assembler code here tries to juggle the arguments such that they
- * are right for all ABIs and then calls __start_mips which is what used to
- * be just plain __start, and still is on other BSD ports.
- */
-
 /* The entry function. */
-__asm("	.text			\n"
-"	.align	8		\n"
-"	.globl	_start		\n"
-"	_start:			\n"
-"	.globl	__start		\n"
-"	__start:		\n"
-#if defined(__mips_n32) || defined(__mips_n64)
-"	.cpsetup $25, $24, __start\n"
-#else
-"	.set noreorder		\n"
-"	.cpload $25		\n"
-"	.set reorder		\n"
-#endif
-"	/* Get cleanup routine and main object set by rtld */\n"
-"	/* Note that a2 is already set to ps_string by _rtld_start */\n"
-"	/* move	a3, a0        */\n"
-"	/* move	t0, a1        */\n"
-"	/* Get argc, argv from stack */	\n"
-"	/* lw	a0, 0(sp)     */\n"
-"	/* move	a1, sp        */\n"
-"	/* addu	a1, 4         */\n"
-"				\n"
-"	/* Stack should 8bytes aligned */\n"
-"	/* required by ABI to pass     */\n"
-"	/* 64-bits arguments           */\n"
-"	/* and	sp, ~8        */\n"
-"	/* subu	sp, sp, 20    */\n"
-"	/* sw	t0, 16(sp)    */\n"
-"				\n"
-"	move	$7, $4		/* atexit */\n"
-"	move	$8, $5		/* main_obj entry */\n"
-#if defined(__mips_n64)
-"	ld	$4, 0($29)	\n"
-"	move	$5, $29		\n"
-"	addu	$5, 8		\n"
-#else
-"	lw	$4, 0($29)	\n"
-"	move	$5, $29		\n"
-"	addu	$5, 4		\n"
-#endif
-"				\n"
-"	and	$29, 0xfffffff8	\n"
-"	subu	$29, $29, 24	/* args slot + cleanup + 4 bytes padding */ \n"
-"	sw	$8, 16($29)	\n"
-"\n"
-"	la	 $25, __start_mips  \n"
-"	nop	 \n"
-"	j	 $25\n");
-/* ARGSUSED */
-
 void
-__start_mips(int argc, char **argv, struct ps_strings *ps_strings,
-    void (*cleanup)(void), struct Struct_Obj_Entry *obj __unused)
+__start(char **ap,
+	void (*cleanup)(void),			/* from shared loader */
+	struct Struct_Obj_Entry *obj,		/* from shared loader */
+	struct ps_strings *ps_strings)
 {
+	int argc;
+	char **argv;
 	char **env;
-	const char *s;
 
-	env  = argv + argc + 1;
+	argc = * (long *) ap;
+	argv = ap + 1;
+	env  = ap + 2 + argc;
 	environ = env;
-
 	if(argc > 0 && argv[0] != NULL) {
+		const char *s;
 		__progname = argv[0];
 		for (s = __progname; *s != '\0'; s++)
 			if (*s == '/')
 				__progname = s + 1;
 	}
 
-	__ps_strings = ps_strings;
-
+#ifndef NOSHARED
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
-	else
-		_init_tls();
-
+#endif
 #ifdef GCRT
 	atexit(_mcleanup);
 #endif
