@@ -383,7 +383,7 @@ extract_dir(struct archive *a, struct archive_entry *e, const char *path)
 {
 	int mode;
 
-	mode = archive_entry_filetype(e) & 0777;
+	mode = archive_entry_mode(e) & 0777;
 	if (mode == 0)
 		mode = 0755;
 
@@ -425,7 +425,7 @@ extract_file(struct archive *a, struct archive_entry *e, const char *path)
 	ssize_t len;
 	unsigned char *p, *q, *end;
 
-	mode = archive_entry_filetype(e) & 0777;
+	mode = archive_entry_mode(e) & 0777;
 	if (mode == 0)
 		mode = 0644;
 	mtime = archive_entry_mtime(e);
