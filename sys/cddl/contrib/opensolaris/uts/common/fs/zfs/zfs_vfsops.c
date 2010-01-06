@@ -340,6 +340,13 @@ zfs_register_callbacks(vfs_t *vfsp)
 	os = zfsvfs->z_os;
 
 	/*
+	 * This function can be called for a snapshot when we update snapshot's
+	 * mount point, which isn't really supported.
+	 */
+	if (dmu_objset_is_snapshot(os))
+		return (EOPNOTSUPP);
+
+	/*
 	 * The act of registering our callbacks will destroy any mount
 	 * options we may have.  In order to enable temporary overrides
 	 * of mount options, we stash away the current values and
@@ -727,7 +734,10 @@ zfs_mount(vfs_t *vfsp, kthread_t *td)
 	error = secpolicy_fs_mount(cr, mvp, vfsp);
 	if (error) {
 		error = dsl_deleg_access(osname, ZFS_DELEG_PERM_MOUNT, cr);
-		if (error == 0) {
+		if (error != 0)
+			goto out;
+
+		if (!(vfsp->vfs_flag & MS_REMOUNT)) {
 			vattr_t		vattr;
 
 			/*
@@ -737,7 +747,9 @@ zfs_mount(vfs_t *vfsp, kthread_t *td)
 
 			vattr.va_mask = AT_UID;
 
+			vn_lock(mvp, LK_SHARED | LK_RETRY, td);
 			if (error = VOP_GETATTR(mvp, &vattr, cr, td)) {
+				VOP_UNLOCK(mvp, 0, td);
 				goto out;
 			}
 
@@ -749,18 +761,19 @@ zfs_mount(vfs_t *vfsp, kthread_t *td)
 			}
 #else
 			if (error = secpolicy_vnode_owner(mvp, cr, vattr.va_uid)) {
+				VOP_UNLOCK(mvp, 0, td);
 				goto out;
 			}
 
 			if (error = VOP_ACCESS(mvp, VWRITE, cr, td)) {
+				VOP_UNLOCK(mvp, 0, td);
 				goto out;
 			}
+			VOP_UNLOCK(mvp, 0, td);
 #endif
-
-			secpolicy_fs_mount_clearopts(cr, vfsp);
-		} else {
-			goto out;
 		}
+
+		secpolicy_fs_mount_clearopts(cr, vfsp);
 	}
 
 	/*
@@ -890,6 +903,9 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 		 * 'z_parent' is self referential for non-snapshots.
 		 */
 		(void) dnlc_purge_vfsp(zfsvfs->z_parent->z_vfs, 0);
+#ifdef FREEBSD_NAMECACHE
+		cache_purgevfs(zfsvfs->z_parent->z_vfs);
+#endif
 	}
 
 	/*
@@ -1113,6 +1129,9 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 	ZFS_EXIT(zfsvfs);
 	return (err);
 }
+
+CTASSERT(SHORT_FID_LEN <= sizeof(struct fid));
+CTASSERT(LONG_FID_LEN <= sizeof(struct fid));
 
 static int
 zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
