@@ -1519,7 +1519,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	tp = intotcpcb(inp);
 	KASSERT(tp != NULL, ("tcp_mtudisc: tp == NULL"));
 
-	tcp_mss_update(tp, -1, NULL);
+	tcp_mss_update(tp, -1, NULL, NULL);
   
 	so = inp->inp_socket;
 	SOCKBUF_LOCK(&so->so_snd);
