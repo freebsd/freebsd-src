@@ -57,13 +57,6 @@
 #define AAC_ADAPTER_FIBS	8
 
 /*
- * FIBs are allocated in page-size chunks and can grow up to the 512
- * limit imposed by the hardware.
- */
-#define AAC_PREALLOCATE_FIBS	128
-#define AAC_NUM_MGT_FIB		8
-
-/*
  * The controller reports status events in AIFs.  We hang on to a number of
  * these in order to pass them out to user-space management tools.
  */
