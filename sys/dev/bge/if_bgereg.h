@@ -1705,11 +1705,8 @@
 /* MSI mode register */
 #define	BGE_MSIMODE_RESET		0x00000001
 #define	BGE_MSIMODE_ENABLE		0x00000002
-#define	BGE_MSIMODE_PCI_TGT_ABRT_ATTN	0x00000004
-#define	BGE_MSIMODE_PCI_MSTR_ABRT_ATTN	0x00000008
-#define	BGE_MSIMODE_PCI_PERR_ATTN	0x00000010
-#define	BGE_MSIMODE_MSI_FIFOUFLOW_ATTN	0x00000020
-#define	BGE_MSIMODE_MSI_FIFOOFLOW_ATTN	0x00000040
+#define	BGE_MSIMODE_ONE_SHOT_DISABLE	0x00000020
+#define	BGE_MSIMODE_MULTIVEC_ENABLE	0x00000080
 
 /* MSI status register */
 #define	BGE_MSISTAT_PCI_TGT_ABRT_ATTN	0x00000004
@@ -2484,13 +2481,6 @@ struct bge_gib {
 #define	BGE_MSLOTS	256
 #define	BGE_JSLOTS	384
 
-#define	BGE_JRAWLEN (BGE_JUMBO_FRAMELEN + ETHER_ALIGN)
-#define	BGE_JLEN (BGE_JRAWLEN + (sizeof(uint64_t) - \
-	(BGE_JRAWLEN % sizeof(uint64_t))))
-#define	BGE_JPAGESZ PAGE_SIZE
-#define	BGE_RESID (BGE_JPAGESZ - (BGE_JLEN * BGE_JSLOTS) % BGE_JPAGESZ)
-#define	BGE_JMEM ((BGE_JLEN * BGE_JSLOTS) + BGE_RESID)
-
 #define	BGE_NSEG_JUMBO	4
 #define	BGE_NSEG_NEW 32
 
@@ -2547,7 +2537,9 @@ struct bge_chain_data {
 	bus_dma_tag_t		bge_tx_mtag;	/* Tx mbuf mapping tag */
 	bus_dma_tag_t		bge_mtag_jumbo;	/* Jumbo mbuf mapping tag */
 	bus_dmamap_t		bge_tx_dmamap[BGE_TX_RING_CNT];
+	bus_dmamap_t		bge_rx_std_sparemap;
 	bus_dmamap_t		bge_rx_std_dmamap[BGE_STD_RX_RING_CNT];
+	bus_dmamap_t		bge_rx_jumbo_sparemap;
 	bus_dmamap_t		bge_rx_jumbo_dmamap[BGE_JUMBO_RX_RING_CNT];
 	bus_dmamap_t		bge_rx_std_ring_map;
 	bus_dmamap_t		bge_rx_jumbo_ring_map;
