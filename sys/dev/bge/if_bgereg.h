@@ -2584,6 +2584,9 @@ struct bge_softc {
 	struct resource		*bge_irq;
 	struct resource		*bge_res;
 	struct ifmedia		bge_ifmedia;	/* TBI media info */
+	int			bge_expcap;
+	int			bge_msicap;
+	int			bge_pcixcap;
 	uint32_t		bge_flags;
 #define	BGE_FLAG_TBI		0x00000001
 #define	BGE_FLAG_JUMBO		0x00000002
