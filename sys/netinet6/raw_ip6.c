@@ -213,17 +213,39 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		 */
 		if (in6p->in6p_moptions &&
 		    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
-			struct sockaddr_in6 mcaddr;
+			/*
+			 * If the incoming datagram is for MLD, allow it
+			 * through unconditionally to the raw socket.
+			 *
+			 * Use the M_RTALERT_MLD flag to check for MLD
+			 * traffic without having to inspect the mbuf chain
+			 * more deeply, as all MLDv1/v2 host messages MUST
+			 * contain the Router Alert option.
+			 *
+			 * In the case of MLDv1, we may not have explicitly
+			 * joined the group, and may have set IFF_ALLMULTI
+			 * on the interface. im6o_mc_filter() may discard
+			 * control traffic we actually need to see.
+			 *
+			 * Userland multicast routing daemons should continue
+			 * filter the control traffic appropriately.
+			 */
 			int blocked;
 
-			bzero(&mcaddr, sizeof(struct sockaddr_in6));
-			mcaddr.sin6_len = sizeof(struct sockaddr_in6);
-			mcaddr.sin6_family = AF_INET6;
-			mcaddr.sin6_addr = ip6->ip6_dst;
+			blocked = MCAST_PASS;
+			if ((m->m_flags & M_RTALERT_MLD) == 0) {
+				struct sockaddr_in6 mcaddr;
 
-			blocked = im6o_mc_filter(in6p->in6p_moptions, ifp,
-			    (struct sockaddr *)&mcaddr,
-			    (struct sockaddr *)&fromsa);
+				bzero(&mcaddr, sizeof(struct sockaddr_in6));
+				mcaddr.sin6_len = sizeof(struct sockaddr_in6);
+				mcaddr.sin6_family = AF_INET6;
+				mcaddr.sin6_addr = ip6->ip6_dst;
+
+				blocked = im6o_mc_filter(in6p->in6p_moptions,
+				    ifp,
+				    (struct sockaddr *)&mcaddr,
+				    (struct sockaddr *)&fromsa);
+			}
 			if (blocked != MCAST_PASS) {
 				IP6STAT_INC(ip6s_notmember);
 				continue;

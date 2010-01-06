@@ -15,6 +15,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20100106:	p2	FreeBSD-SA-10:01.bind, FreeBSD-SA-10:02.ntpd,
+			FreeBSD-SA-10:03.zfs, FreeBSD-EN-10:01.freebsd
+	Fix BIND named(8) cache poisoning with DNSSEC validation.
+	[SA-10:01]
+
+	Fix ntpd mode 7 denial of service. [SA-10:02]
+
+	Fix ZFS ZIL playback with insecure permissions. [SA-10:03]
+
+	Various FreeBSD 8.0-RELEASE improvements. [EN-10:01]
+
 20091203:	p1	FreeBSD-SA-09:15.ssl, FreeBSD-SA-09:16.rtld,
 			FreeBSD-SA-09:17.freebsd-update
 	Disable SSL renegotiation in order to protect against a serious
