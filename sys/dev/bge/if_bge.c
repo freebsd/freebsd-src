@@ -414,7 +414,7 @@ static uint32_t bge_readreg_ind(struct bge_softc *, int);
 #endif
 static void bge_writemem_direct(struct bge_softc *, int, int);
 static void bge_writereg_ind(struct bge_softc *, int, int);
-static void bge_set_max_readrq(struct bge_softc *, int);
+static void bge_set_max_readrq(struct bge_softc *);
 
 static int bge_miibus_readreg(device_t, int, int);
 static int bge_miibus_writereg(device_t, int, int, int);
@@ -558,25 +558,23 @@ bge_writemem_ind(struct bge_softc *sc, int off, int val)
  * PCI Express only
  */
 static void
-bge_set_max_readrq(struct bge_softc *sc, int expr_ptr)
+bge_set_max_readrq(struct bge_softc *sc)
 {
 	device_t dev;
 	uint16_t val;
 
-	KASSERT((sc->bge_flags & BGE_FLAG_PCIE) && expr_ptr != 0,
-	    ("%s: not applicable", __func__));
-
 	dev = sc->bge_dev;
 
-	val = pci_read_config(dev, expr_ptr + BGE_PCIE_DEVCTL, 2);
-	if ((val & BGE_PCIE_DEVCTL_MAX_READRQ_MASK) !=
+	val = pci_read_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
+	if ((val & PCIM_EXP_CTL_MAX_READ_REQUEST) !=
 	    BGE_PCIE_DEVCTL_MAX_READRQ_4096) {
 		if (bootverbose)
 			device_printf(dev, "adjust device control 0x%04x ",
 			    val);
-		val &= ~BGE_PCIE_DEVCTL_MAX_READRQ_MASK;
+		val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
 		val |= BGE_PCIE_DEVCTL_MAX_READRQ_4096;
-		pci_write_config(dev, expr_ptr + BGE_PCIE_DEVCTL, val, 2);
+		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL,
+		    val, 2);
 		if (bootverbose)
 			printf("-> 0x%04x\n", val);
 	}
@@ -1055,8 +1053,7 @@ bge_init_rx_ring_std(struct bge_softc *sc)
 	};
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
-	    sc->bge_cdata.bge_rx_std_ring_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_PREWRITE);
 
 	sc->bge_std = i - 1;
 	bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, sc->bge_std);
@@ -1099,8 +1096,7 @@ bge_init_rx_ring_jumbo(struct bge_softc *sc)
 	};
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
-	    sc->bge_cdata.bge_rx_jumbo_ring_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_PREWRITE);
 
 	sc->bge_jumbo = i - 1;
 
@@ -2413,7 +2409,6 @@ bge_dma_alloc(device_t dev)
 	return (0);
 }
 
-#if __FreeBSD_version > 602105
 /*
  * Return true if this device has more than one port.
  */
@@ -2462,7 +2457,6 @@ bge_can_use_msi(struct bge_softc *sc)
 	}
 	return (can_use_msi);
 }
-#endif
 
 static int
 bge_attach(device_t dev)
@@ -2471,7 +2465,7 @@ bge_attach(device_t dev)
 	struct bge_softc *sc;
 	uint32_t hwcfg = 0, misccfg;
 	u_char eaddr[ETHER_ADDR_LEN];
-	int error, reg, rid, trys;
+	int error, msicount, reg, rid, trys;
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
@@ -2580,42 +2574,34 @@ bge_attach(device_t dev)
   	/*
 	 * Check if this is a PCI-X or PCI Express device.
   	 */
-#if __FreeBSD_version > 602101
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
 		/*
 		 * Found a PCI Express capabilities register, this
 		 * must be a PCI Express device.
 		 */
-		if (reg != 0) {
-			sc->bge_flags |= BGE_FLAG_PCIE;
-#else
-	if (BGE_IS_5705_PLUS(sc)) {
-		reg = pci_read_config(dev, BGE_PCIE_CAPID_REG, 4);
-		if ((reg & 0xFF) == BGE_PCIE_CAPID) {
-			sc->bge_flags |= BGE_FLAG_PCIE;
-			reg = BGE_PCIE_CAPID;
-#endif
-			bge_set_max_readrq(sc, reg);
-		}
+		sc->bge_flags |= BGE_FLAG_PCIE;
+		sc->bge_expcap = reg;
+		bge_set_max_readrq(sc);
 	} else {
 		/*
 		 * Check if the device is in PCI-X Mode.
 		 * (This bit is not valid on PCI Express controllers.)
 		 */
+		if (pci_find_extcap(dev, PCIY_PCIX, &reg) == 0)
+			sc->bge_pcixcap = reg;
 		if ((pci_read_config(dev, BGE_PCI_PCISTATE, 4) &
 		    BGE_PCISTATE_PCI_BUSMODE) == 0)
 			sc->bge_flags |= BGE_FLAG_PCIX;
 	}
 
-#if __FreeBSD_version > 602105
-	{
-		int msicount;
-
-		/*
-		 * Allocate the interrupt, using MSI if possible.  These devices
-		 * support 8 MSI messages, but only the first one is used in
-		 * normal operation.
-		 */
+	/*
+	 * Allocate the interrupt, using MSI if possible.  These devices
+	 * support 8 MSI messages, but only the first one is used in
+	 * normal operation.
+	 */
+	rid = 0;
+	if (pci_find_extcap(sc->bge_dev, PCIY_MSI, &reg) != 0) {
+		sc->bge_msicap = reg;
 		if (bge_can_use_msi(sc)) {
 			msicount = pci_msi_count(dev);
 			if (msicount > 1)
@@ -2625,12 +2611,8 @@ bge_attach(device_t dev)
 		if (msicount == 1 && pci_alloc_msi(dev, &msicount) == 0) {
 			rid = 1;
 			sc->bge_flags |= BGE_FLAG_MSI;
-		} else
-			rid = 0;
+		}
 	}
-#else
-	rid = 0;
-#endif
 
 	sc->bge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
@@ -2921,10 +2903,8 @@ bge_release_resources(struct bge_softc *sc)
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    sc->bge_flags & BGE_FLAG_MSI ? 1 : 0, sc->bge_irq);
 
-#if __FreeBSD_version > 602105
 	if (sc->bge_flags & BGE_FLAG_MSI)
 		pci_release_msi(dev);
-#endif
 
 	if (sc->bge_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
@@ -2945,6 +2925,7 @@ bge_reset(struct bge_softc *sc)
 	device_t dev;
 	uint32_t cachesize, command, pcistate, reset, val;
 	void (*write_op)(struct bge_softc *, int, int);
+	uint16_t devctl;
 	int i;
 
 	dev = sc->bge_dev;
@@ -3023,11 +3004,17 @@ bge_reset(struct bge_softc *sc)
 			val = pci_read_config(dev, 0xC4, 4);
 			pci_write_config(dev, 0xC4, val | (1 << 15), 4);
 		}
-		/*
-		 * Set PCIE max payload size to 128 bytes and clear error
-		 * status.
-		 */
-		pci_write_config(dev, 0xD8, 0xF5000, 4);
+		devctl = pci_read_config(dev,
+		    sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
+		/* Clear enable no snoop and disable relaxed ordering. */
+		devctl &= ~(0x0010 | 0x0800);
+		/* Set PCIE max payload size to 128. */
+		devctl &= ~PCIM_EXP_CTL_MAX_PAYLOAD;
+		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL,
+		    devctl, 2);
+		/* Clear error status. */
+		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_STA,
+		    0, 2);
 	}
 
 	/* Reset some of the PCI state that got zapped by reset. */
@@ -3042,8 +3029,10 @@ bge_reset(struct bge_softc *sc)
 	if (BGE_IS_5714_FAMILY(sc)) {
 		/* This chip disables MSI on reset. */
 		if (sc->bge_flags & BGE_FLAG_MSI) {
-			val = pci_read_config(dev, BGE_PCI_MSI_CTL, 2);
-			pci_write_config(dev, BGE_PCI_MSI_CTL,
+			val = pci_read_config(dev,
+			    sc->bge_msicap + PCIR_MSI_CTRL, 2);
+			pci_write_config(dev,
+			    sc->bge_msicap + PCIR_MSI_CTRL,
 			    val | PCIM_MSICTRL_MSI_ENABLE, 2);
 			val = CSR_READ_4(sc, BGE_MSI_MODE);
 			CSR_WRITE_4(sc, BGE_MSI_MODE,
@@ -3689,11 +3678,8 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	} else if (error != 0)
 		return (error);
 
-	/*
-	 * Sanity check: avoid coming within 16 descriptors
-	 * of the end of the ring.
-	 */
-	if (nsegs > (BGE_TX_RING_CNT - sc->bge_txcnt - 16)) {
+	/* Check if we have enough free send BDs. */
+	if (sc->bge_txcnt + nsegs >= BGE_TX_RING_CNT) {
 		bus_dmamap_unload(sc->bge_cdata.bge_tx_mtag, map);
 		return (ENOBUFS);
 	}
@@ -3758,18 +3744,25 @@ static void
 bge_start_locked(struct ifnet *ifp)
 {
 	struct bge_softc *sc;
-	struct mbuf *m_head = NULL;
+	struct mbuf *m_head;
 	uint32_t prodidx;
-	int count = 0;
+	int count;
 
 	sc = ifp->if_softc;
+	BGE_LOCK_ASSERT(sc);
 
-	if (!sc->bge_link || IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!sc->bge_link ||
+	    (ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
 		return;
 
 	prodidx = sc->bge_tx_prodidx;
 
-	while(sc->bge_cdata.bge_tx_chain[prodidx] == NULL) {
+	for (count = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd);) {
+		if (sc->bge_txcnt > BGE_TX_RING_CNT - 16) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
@@ -3822,24 +3815,22 @@ bge_start_locked(struct ifnet *ifp)
 #endif
 	}
 
-	if (count == 0)
-		/* No packets were dequeued. */
-		return;
-
-	bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
-	    sc->bge_cdata.bge_tx_ring_map, BUS_DMASYNC_PREWRITE);
-	/* Transmit. */
-	bge_writembx(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
-	/* 5700 b2 errata */
-	if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
+	if (count > 0) {
+		bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
+		    sc->bge_cdata.bge_tx_ring_map, BUS_DMASYNC_PREWRITE);
+		/* Transmit. */
 		bge_writembx(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
+		/* 5700 b2 errata */
+		if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
+			bge_writembx(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
 
-	sc->bge_tx_prodidx = prodidx;
+		sc->bge_tx_prodidx = prodidx;
 
-	/*
-	 * Set a timeout in case the chip goes out to lunch.
-	 */
-	sc->bge_timer = 5;
+		/*
+		 * Set a timeout in case the chip goes out to lunch.
+		 */
+		sc->bge_timer = 5;
+	}
 }
 
 /*
