@@ -101,9 +101,6 @@ zio_init(void)
 	zio_cache = kmem_cache_create("zio_cache", sizeof (zio_t), 0,
 	    NULL, NULL, NULL, NULL, NULL, 0);
 
-	zio_cache = kmem_cache_create("zio_cache", sizeof (zio_t), 0,
-	    NULL, NULL, NULL, NULL, NULL, 0);
-
 #ifdef ZIO_USE_UMA
 	/*
 	 * For small buffers, we want a cache for each multiple of
@@ -425,6 +422,7 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp,
 	ASSERT3U(size, <=, SPA_MAXBLOCKSIZE);
 	ASSERT(P2PHASE(size, SPA_MINBLOCKSIZE) == 0);
 	ASSERT(P2PHASE(offset, SPA_MINBLOCKSIZE) == 0);
+
 	ASSERT(!vd || spa_config_held(spa, SCL_STATE_ALL, RW_READER));
 	ASSERT(!bp || !(flags & ZIO_FLAG_CONFIG_WRITER));
 	ASSERT(vd || stage == ZIO_STAGE_OPEN);
