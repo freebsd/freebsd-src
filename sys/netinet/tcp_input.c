@@ -1415,7 +1415,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 *   only accepting RSTs where the sequence number is equal to
 	 *   last_ack_sent.  In all other states (the states in which a
 	 *   RST is more likely), the more permissive check is used.
-	 * If we have multiple segments in flight, the intial reset
+	 * If we have multiple segments in flight, the initial reset
 	 * segment sequence numbers will be to the left of last_ack_sent,
 	 * but they will eventually catch up.
 	 * In any case, it never made sense to trim reset segments to
@@ -2763,7 +2763,7 @@ tcp_mss_update(struct tcpcb *tp, int offer,
 	 */
 	if (maxmtu == 0) {
 		/*
-		 * In case we return early we need to intialize metrics
+		 * In case we return early we need to initialize metrics
 		 * to a defined state as tcp_hc_get() would do for us
 		 * if there was no cache hit.
 		 */
