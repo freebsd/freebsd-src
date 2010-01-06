@@ -46,8 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 int
-__system(command)
-	const char *command;
+__system(const char *command)
 {
 	pid_t pid, savedpid;
 	int pstat;

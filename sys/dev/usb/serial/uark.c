@@ -211,7 +211,7 @@ uark_attach(device_t dev)
 
 	if (error) {
 		device_printf(dev, "allocating control USB "
-		    "transfers failed!\n");
+		    "transfers failed\n");
 		goto detach;
 	}
 	/* clear stall at first run */

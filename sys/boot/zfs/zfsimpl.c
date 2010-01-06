@@ -51,7 +51,7 @@ static char *dnode_cache_buf;
 static char *zap_scratch;
 static char *zfs_temp_buf, *zfs_temp_end, *zfs_temp_ptr;
 
-#define TEMP_SIZE	(1*SPA_MAXBLOCKSIZE)
+#define TEMP_SIZE	(1024 * 1024)
 
 static int zio_read(spa_t *spa, const blkptr_t *bp, void *buf);
 

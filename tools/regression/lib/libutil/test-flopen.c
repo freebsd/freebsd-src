@@ -28,11 +28,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/signal.h>
 #include <sys/types.h>
 #include <sys/fcntl.h>
 
 #include <errno.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -169,16 +169,10 @@ test_flopen_lock_child(void)
 			_exit(0);
 		}
 		close(fd1);
-		fd2 = -42;
-		if (vfork() == 0) {
-			fd2 = flopen(fn, O_RDWR|O_NONBLOCK);
-			close(fd2);
-			_exit(0);
-		}
-		if (fd2 == -42)
-			result = "vfork() doesn't work as expected";
-		if (fd2 >= 0)
+		if ((fd2 = flopen(fn, O_RDWR|O_NONBLOCK)) != -1) {
 			result = "second open succeeded";
+			close(fd2);
+		}
 		kill(pid, SIGINT);
 	}
 	unlink(fn);

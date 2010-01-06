@@ -1121,17 +1121,14 @@ ktruser_malloc(int len, unsigned char *p)
 {
 	struct utrace_malloc *ut = (struct utrace_malloc *)p;
 
-	if (ut->p == NULL) {
-		if (ut->s == 0 && ut->r == NULL)
-			printf("malloc_init()\n");
-		else
-			printf("%p = malloc(%zu)\n", ut->r, ut->s);
-	} else {
-		if (ut->s == 0)
-			printf("free(%p)\n", ut->p);
-		else
-			printf("%p = realloc(%p, %zu)\n", ut->r, ut->p, ut->s);
-	}
+	if (ut->p == (void *)(intptr_t)(-1))
+		printf("malloc_init()\n");
+	else if (ut->s == 0)
+		printf("free(%p)\n", ut->p);
+	else if (ut->p == NULL)
+		printf("%p = malloc(%zu)\n", ut->r, ut->s);
+	else
+		printf("%p = realloc(%p, %zu)\n", ut->r, ut->p, ut->s);
 }
 
 void

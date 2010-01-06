@@ -347,14 +347,14 @@ static void
 g_concat_check_and_run(struct g_concat_softc *sc)
 {
 	struct g_concat_disk *disk;
+	struct g_provider *pp;
 	u_int no, sectorsize = 0;
 	off_t start;
 
 	if (g_concat_nvalid(sc) != sc->sc_ndisks)
 		return;
 
-	sc->sc_provider = g_new_providerf(sc->sc_geom, "concat/%s",
-	    sc->sc_name);
+	pp = g_new_providerf(sc->sc_geom, "concat/%s", sc->sc_name);
 	start = 0;
 	for (no = 0; no < sc->sc_ndisks; no++) {
 		disk = &sc->sc_disks[no];
@@ -371,10 +371,13 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 			    disk->d_consumer->provider->sectorsize);
 		}
 	}
-	sc->sc_provider->sectorsize = sectorsize;
+	pp->sectorsize = sectorsize;
 	/* We have sc->sc_disks[sc->sc_ndisks - 1].d_end in 'start'. */
-	sc->sc_provider->mediasize = start;
-	g_error_provider(sc->sc_provider, 0);
+	pp->mediasize = start;
+	pp->stripesize = sc->sc_disks[0].d_consumer->provider->stripesize;
+	pp->stripeoffset = sc->sc_disks[0].d_consumer->provider->stripeoffset;
+	sc->sc_provider = pp;
+	g_error_provider(pp, 0);
 
 	G_CONCAT_DEBUG(0, "Device %s activated.", sc->sc_name);
 }

@@ -29,6 +29,7 @@
 struct usb_fifo;
 struct usb_xfer;
 struct usb_device;
+struct usb_attach_arg;
 struct usb_interface;
 struct usb_endpoint;
 struct usb_page_cache;
@@ -98,6 +99,13 @@ typedef int (usb_fifo_ioctl_t)(struct usb_fifo *fifo, u_long cmd, void *addr, in
 typedef void (usb_fifo_cmd_t)(struct usb_fifo *fifo);
 typedef void (usb_fifo_filter_t)(struct usb_fifo *fifo, struct usb_mbuf *m);
 
+
+/* USB events */
+#include <sys/eventhandler.h>
+typedef void (*usb_dev_configured_t)(void *, struct usb_device *,
+    struct usb_attach_arg *);
+EVENTHANDLER_DECLARE(usb_dev_configured, usb_dev_configured_t);
+
 /*
  * The following macros are used used to convert milliseconds into
  * HZ. We use 1024 instead of 1000 milliseconds per second to save a
@@ -130,13 +138,22 @@ struct usb_endpoint {
 	struct usb_pipe_methods *methods;	/* set by HC driver */
 
 	uint16_t isoc_next;
-	uint16_t refcount;
 
 	uint8_t	toggle_next:1;		/* next data toggle value */
 	uint8_t	is_stalled:1;		/* set if endpoint is stalled */
 	uint8_t	is_synced:1;		/* set if we a synchronised */
 	uint8_t	unused:5;
 	uint8_t	iface_index;		/* not used by "default endpoint" */
+
+	uint8_t refcount_alloc;		/* allocation refcount */
+	uint8_t refcount_bw;		/* bandwidth refcount */
+#define	USB_EP_REF_MAX 0x3f
+
+	/* High-Speed resource allocation (valid if "refcount_bw" > 0) */
+
+	uint8_t	usb_smask;		/* USB start mask */
+	uint8_t	usb_cmask;		/* USB complete mask */
+	uint8_t	usb_uframe;		/* USB microframe */
 };
 
 /*
@@ -329,6 +346,10 @@ struct usb_attach_arg {
 	enum usb_hc_mode usb_mode;	/* host or device mode */
 	uint8_t	port;
 	uint8_t	use_generic;		/* hint for generic drivers */
+	uint8_t dev_state;
+#define UAA_DEV_READY		0
+#define UAA_DEV_DISABLED	1
+#define UAA_DEV_EJECTING	2
 };
 
 /*

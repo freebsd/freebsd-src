@@ -96,6 +96,8 @@ struct est_softc {
 
 static int msr_info_enabled = 0;
 TUNABLE_INT("hw.est.msr_info", &msr_info_enabled);
+static int strict = -1;
+TUNABLE_INT("hw.est.strict", &strict);
 
 /* Default bus clock value for Centrino processors. */
 #define INTEL_BUS_CLK		100
@@ -1025,6 +1027,9 @@ est_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
+	/* On SMP system we can't guarantie independent freq setting. */
+	if (strict == -1 && mp_ncpus > 1)
+		strict = 0;
 	/* Check CPU for supported settings. */
 	if (est_get_info(dev))
 		return (ENXIO);
@@ -1119,17 +1124,21 @@ est_acpi_info(device_t dev, freq_info **freqs)
 		 */
 		if (sets[i].freq > 0) {
 			error = est_set_id16(dev, sets[i].spec[0], 1);
-			if (error != 0) {
+			if (error != 0 && strict) {
 				if (bootverbose) 
 					device_printf(dev, "Invalid freq %u, "
 					    "ignored.\n", sets[i].freq);
-			} else {
-				table[j].freq = sets[i].freq;
-				table[j].volts = sets[i].volts;
-				table[j].id16 = sets[i].spec[0];
-				table[j].power = sets[i].power;
-				++j;
+				continue;
+			} else if (error != 0 && bootverbose) {
+				device_printf(dev, "Can't check freq %u, "
+				    "it may be invalid\n",
+				    sets[i].freq);
 			}
+			table[j].freq = sets[i].freq;
+			table[j].volts = sets[i].volts;
+			table[j].id16 = sets[i].spec[0];
+			table[j].power = sets[i].power;
+			++j;
 		}
 	}
 	/* restore saved setting */

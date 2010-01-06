@@ -37,7 +37,6 @@ DEFINE_TEST(test_read_compress_program)
 	int r;
 	struct archive_entry *ae;
 	struct archive *a;
-	const char *extprog;
 
 	/*
 	 * First, test handling when a non-existent compression
@@ -53,26 +52,23 @@ DEFINE_TEST(test_read_compress_program)
 	assertEqualIntA(a, ARCHIVE_OK, r);
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, ARCHIVE_FATAL,
-	    archive_read_next_header(a, &ae));
-	assertEqualIntA(a, ARCHIVE_WARN, archive_read_close(a));
+	    archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 
 	/*
 	 * If we have "gzip -d", try using that.
 	 */
-	if ((extprog = external_gzip_program(1)) == NULL) {
-		skipping("There is no gzip uncompression "
-		    "program in this platform");
+	if (!canGunzip()) {
+		skipping("Can't run gunzip program on this platform");
 		return;
 	}
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_compression_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_program(a, extprog));
+	    archive_read_support_compression_program(a, "gunzip"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,

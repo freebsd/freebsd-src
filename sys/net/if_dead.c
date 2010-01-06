@@ -70,12 +70,6 @@ ifdead_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (ENXIO);
 }
 
-static void
-ifdead_watchdog(struct ifnet *ifp)
-{
-
-}
-
 static int
 ifdead_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
     struct sockaddr *sa)
@@ -107,7 +101,6 @@ if_dead(struct ifnet *ifp)
 	ifp->if_input = ifdead_input;
 	ifp->if_start = ifdead_start;
 	ifp->if_ioctl = ifdead_ioctl;
-	ifp->if_watchdog = ifdead_watchdog;
 	ifp->if_resolvemulti = ifdead_resolvemulti;
 	ifp->if_qflush = ifdead_qflush;
 	ifp->if_transmit = ifdead_transmit;

@@ -191,7 +191,7 @@ AcpiRsValidateParameters (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    Node = AcpiNsMapHandleToNode (DeviceHandle);
+    Node = AcpiNsValidateHandle (DeviceHandle);
     if (!Node)
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);

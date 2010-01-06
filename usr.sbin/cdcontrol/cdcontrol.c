@@ -152,7 +152,7 @@ __const char	*strstatus(int);
 static u_int	 dbprog_discid(void);
 __const char	*cdcontrol_prompt(void);
 
-void help ()
+void help (void)
 {
 	struct cmdtab *c;
 	const char *s;
@@ -178,7 +178,7 @@ void help ()
 	printf ("\tThe plain target address is taken as a synonym for play.\n");
 }
 
-void usage ()
+void usage (void)
 {
 	fprintf (stderr, "usage: cdcontrol [-sv] [-f device] [command ...]\n");
 	exit (1);
@@ -413,8 +413,11 @@ int run (int cmd, char *arg)
 		if (fd < 0 && !open_cd ())
 			return (0);
 
-		if (! strlen (arg))
-		    	return pstatus ("volume");
+		if (! strlen (arg)) {
+			char volume[] = "volume";
+
+		    	return pstatus (volume);
+		}
 
 		if (! strncasecmp (arg, "left", strlen(arg)))
 			return ioctl (fd, CDIOCSETLEFT);
@@ -899,7 +902,7 @@ dbprog_sum(int n)
  *	The integer disc ID.
  */
 static u_int
-dbprog_discid()
+dbprog_discid(void)
 {
 	struct	ioc_toc_header h;
 	int	rc;
@@ -930,7 +933,7 @@ dbprog_discid()
 	return((n % 0xff) << 24 | t << 8 | ntr);
 }
 
-int cdid ()
+int cdid (void)
 {
 	u_int	id;
 
@@ -1130,7 +1133,7 @@ int status (int *trk, int *min, int *sec, int *frame)
 }
 
 const char *
-cdcontrol_prompt()
+cdcontrol_prompt(void)
 {
 	return ("cdcontrol> ");
 }
@@ -1249,7 +1252,7 @@ char *parse (char *buf, int *cmd)
 	return p;
 }
 
-int open_cd ()
+int open_cd (void)
 {
 	char devbuf[MAXPATHLEN];
 	const char *dev;

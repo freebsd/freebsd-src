@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2005
+.Dd December 21, 2009
 .Os
 .Dt BURNCD 8
 .Sh NAME
@@ -158,7 +158,11 @@ refers to stdin, and can only be used once.
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
-.Bl -tag -width ".Ev CDROM"
+.Bl -tag -width ".Ev BURNCD_SPEED"
+.It Ev BURNCD_SPEED
+The write speed to use if one is not specified with the
+.Fl s
+flag.
 .It Ev CDROM
 The CD device to use if one is not specified with the
 .Fl f

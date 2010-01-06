@@ -189,7 +189,8 @@ AcpiNsWalkNamespace (
     ACPI_HANDLE             StartObject,
     UINT32                  MaxDepth,
     UINT32                  Flags,
-    ACPI_WALK_CALLBACK      UserFunction,
+    ACPI_WALK_CALLBACK      PreOrderVisit,
+    ACPI_WALK_CALLBACK      PostOrderVisit,
     void                    *Context,
     void                    **ReturnValue);
 
@@ -428,7 +429,8 @@ AcpiNsGetAttachedData (
 
 
 /*
- * nsrepair - return object repair for predefined methods/objects
+ * nsrepair - General return object repair for all
+ * predefined methods/objects
  */
 ACPI_STATUS
 AcpiNsRepairObject (
@@ -442,6 +444,23 @@ AcpiNsRepairPackageList (
     ACPI_PREDEFINED_DATA    *Data,
     ACPI_OPERAND_OBJECT     **ObjDescPtr);
 
+
+/*
+ * nsrepair2 - Return object repair for specific
+ * predefined methods/objects
+ */
+ACPI_STATUS
+AcpiNsComplexRepairs (
+    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_STATUS             ValidateStatus,
+    ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
+
+void
+AcpiNsRemoveNullElements (
+    ACPI_PREDEFINED_DATA    *Data,
+    UINT8                   PackageType,
+    ACPI_OPERAND_OBJECT     *ObjDesc);
 
 /*
  * nssearch - Namespace searching and entry
@@ -528,12 +547,8 @@ AcpiNsExternalizeName (
     char                    **ConvertedName);
 
 ACPI_NAMESPACE_NODE *
-AcpiNsMapHandleToNode (
+AcpiNsValidateHandle (
     ACPI_HANDLE             Handle);
-
-ACPI_HANDLE
-AcpiNsConvertEntryToHandle(
-    ACPI_NAMESPACE_NODE     *Node);
 
 void
 AcpiNsTerminate (

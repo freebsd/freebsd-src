@@ -84,6 +84,9 @@ static int ohcidebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
 SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RW,
     &ohcidebug, 0, "ohci debug level");
+
+TUNABLE_INT("hw.usb.ohci.debug", &ohcidebug);
+
 static void ohci_dumpregs(ohci_softc_t *);
 static void ohci_dump_tds(ohci_td_t *);
 static uint8_t ohci_dump_td(ohci_td_t *);

@@ -11,6 +11,8 @@ FILESDIR=	${SHAREDIR}/misc
 FILESDIR_tmac.vgrind=	${SHAREDIR}/tmac
 MAN=	vgrind.1 vgrindefs.5
 
+WARNS?=	2
+
 BINDIR=	/usr/libexec
 SCRIPTSDIR=/usr/bin
 

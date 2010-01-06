@@ -42,15 +42,12 @@ static const char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/9/93";
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 #include "extern.h"
 
 void
-cat(file)
-	char *file;
+cat(char *file)
 {
 	register int fd, nr, nw;
 	char buf[1024];
@@ -67,8 +64,7 @@ cat(file)
 }
 
 int
-outc(c)
-	int c;
+outc(int c)
 {
 	return putc(c, stderr);
 }

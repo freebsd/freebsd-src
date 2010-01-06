@@ -190,5 +190,11 @@ cam_periph_unlock(struct cam_periph *periph)
 	mtx_unlock(periph->sim->mtx);
 }
 
+static __inline int
+cam_periph_owned(struct cam_periph *periph)
+{
+	return (mtx_owned(periph->sim->mtx));
+}
+
 #endif /* _KERNEL */
 #endif /* _CAM_CAM_PERIPH_H */

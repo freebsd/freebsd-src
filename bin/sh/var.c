@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 struct varinit {
 	struct var *var;
 	int flags;
-	char *text;
+	const char *text;
 	void (*func)(const char *);
 };
 
@@ -94,27 +94,27 @@ STATIC struct var voptind;
 
 STATIC const struct varinit varinit[] = {
 #ifndef NO_HISTORY
-	{ &vhistsize,	VSTRFIXED|VTEXTFIXED|VUNSET,	"HISTSIZE=",
+	{ &vhistsize,	VUNSET,				"HISTSIZE=",
 	  sethistsize },
 #endif
-	{ &vifs,	VSTRFIXED|VTEXTFIXED,		"IFS= \t\n",
+	{ &vifs,	0,				"IFS= \t\n",
 	  NULL },
-	{ &vmail,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAIL=",
+	{ &vmail,	VUNSET,				"MAIL=",
 	  NULL },
-	{ &vmpath,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAILPATH=",
+	{ &vmpath,	VUNSET,				"MAILPATH=",
 	  NULL },
-	{ &vpath,	VSTRFIXED|VTEXTFIXED,		"PATH=" _PATH_DEFPATH,
+	{ &vpath,	0,				"PATH=" _PATH_DEFPATH,
 	  changepath },
-	{ &vppid,	VSTRFIXED|VTEXTFIXED|VUNSET,	"PPID=",
+	{ &vppid,	VUNSET,				"PPID=",
 	  NULL },
 	/*
 	 * vps1 depends on uid
 	 */
-	{ &vps2,	VSTRFIXED|VTEXTFIXED,		"PS2=> ",
+	{ &vps2,	0,				"PS2=> ",
 	  NULL },
-	{ &vps4,	VSTRFIXED|VTEXTFIXED,		"PS4=+ ",
+	{ &vps4,	0,				"PS4=+ ",
 	  NULL },
-	{ &voptind,	VSTRFIXED|VTEXTFIXED,		"OPTIND=1",
+	{ &voptind,	0,				"OPTIND=1",
 	  getoptsreset },
 	{ NULL,	0,				NULL,
 	  NULL }
@@ -122,9 +122,9 @@ STATIC const struct varinit varinit[] = {
 
 STATIC struct var *vartab[VTABSIZE];
 
-STATIC struct var **hashvar(char *);
-STATIC int varequal(char *, char *);
-STATIC int localevar(char *);
+STATIC struct var **hashvar(const char *);
+STATIC int varequal(const char *, const char *);
+STATIC int localevar(const char *);
 
 /*
  * Initialize the variable symbol tables and import the environment.
@@ -132,9 +132,9 @@ STATIC int localevar(char *);
 
 #ifdef mkinit
 INCLUDE "var.h"
+MKINIT char **environ;
 INIT {
 	char **envp;
-	extern char **environ;
 
 	initvar();
 	for (envp = environ ; *envp ; envp++) {
@@ -164,8 +164,8 @@ initvar(void)
 			vpp = hashvar(ip->text);
 			vp->next = *vpp;
 			*vpp = vp;
-			vp->text = ip->text;
-			vp->flags = ip->flags;
+			vp->text = __DECONST(char *, ip->text);
+			vp->flags = ip->flags | VSTRFIXED | VTEXTFIXED;
 			vp->func = ip->func;
 		}
 	}
@@ -176,7 +176,7 @@ initvar(void)
 		vpp = hashvar("PS1=");
 		vps1.next = *vpp;
 		*vpp = &vps1;
-		vps1.text = geteuid() ? "PS1=$ " : "PS1=# ";
+		vps1.text = __DECONST(char *, geteuid() ? "PS1=$ " : "PS1=# ");
 		vps1.flags = VSTRFIXED|VTEXTFIXED;
 	}
 	if ((vppid.flags & VEXPORT) == 0) {
@@ -190,12 +190,14 @@ initvar(void)
  */
 
 int
-setvarsafe(char *name, char *val, int flags)
+setvarsafe(const char *name, const char *val, int flags)
 {
 	struct jmploc jmploc;
 	struct jmploc *const savehandler = handler;
 	int err = 0;
+	int inton;
 
+	inton = is_int_on();
 	if (setjmp(jmploc.loc))
 		err = 1;
 	else {
@@ -203,6 +205,7 @@ setvarsafe(char *name, char *val, int flags)
 		setvar(name, val, flags);
 	}
 	handler = savehandler;
+	SETINTON(inton);
 	return err;
 }
 
@@ -212,9 +215,9 @@ setvarsafe(char *name, char *val, int flags)
  */
 
 void
-setvar(char *name, char *val, int flags)
+setvar(const char *name, const char *val, int flags)
 {
-	char *p, *q;
+	const char *p;
 	int len;
 	int namelen;
 	char *nameeq;
@@ -242,25 +245,24 @@ setvar(char *name, char *val, int flags)
 	} else {
 		len += strlen(val);
 	}
-	p = nameeq = ckmalloc(len);
-	q = name;
-	while (--namelen >= 0)
-		*p++ = *q++;
-	*p++ = '=';
-	*p = '\0';
+	nameeq = ckmalloc(len);
+	memcpy(nameeq, name, namelen);
+	nameeq[namelen] = '=';
 	if (val)
-		scopy(val, p);
+		scopy(val, nameeq + namelen + 1);
+	else
+		nameeq[namelen + 1] = '\0';
 	setvareq(nameeq, flags);
 }
 
 STATIC int
-localevar(char *s)
+localevar(const char *s)
 {
-	static char *lnames[7] = {
+	static const char *lnames[7] = {
 		"ALL", "COLLATE", "CTYPE", "MONETARY",
 		"NUMERIC", "TIME", NULL
 	};
-	char **ss;
+	const char **ss;
 
 	if (*s != 'L')
 		return 0;
@@ -280,7 +282,7 @@ localevar(char *s)
  * pointer into environ where the string should not be manipulated.
  */
 static void
-change_env(char *s, int set)
+change_env(const char *s, int set)
 {
 	char *eqp;
 	char *ss;
@@ -386,7 +388,7 @@ listsetvar(struct strlist *list)
  */
 
 char *
-lookupvar(char *name)
+lookupvar(const char *name)
 {
 	struct var *v;
 
@@ -409,7 +411,7 @@ lookupvar(char *name)
  */
 
 char *
-bltinlookup(char *name, int doall)
+bltinlookup(const char *name, int doall)
 {
 	struct strlist *sp;
 	struct var *v;
@@ -467,9 +469,9 @@ environment(void)
  * VSTACK set since these are currently allocated on the stack.
  */
 
-#ifdef mkinit
 MKINIT void shprocvar(void);
 
+#ifdef mkinit
 SHELLPROC {
 	shprocvar();
 }
@@ -604,7 +606,6 @@ exportcmd(int argc, char **argv)
 
 	if (values && argc != 0)
 		error("-p requires no arguments");
-	listsetvar(cmdenviron);
 	if (argc != 0) {
 		while ((name = *argv++) != NULL) {
 			if ((p = strchr(name, '=')) != NULL) {
@@ -794,7 +795,7 @@ unsetcmd(int argc __unused, char **argv __unused)
  */
 
 int
-unsetvar(char *s)
+unsetvar(const char *s)
 {
 	struct var **vpp;
 	struct var *vp;
@@ -834,7 +835,7 @@ unsetvar(char *s)
  */
 
 STATIC struct var **
-hashvar(char *p)
+hashvar(const char *p)
 {
 	unsigned int hashval;
 
@@ -853,7 +854,7 @@ hashvar(char *p)
  */
 
 STATIC int
-varequal(char *p, char *q)
+varequal(const char *p, const char *q)
 {
 	while (*p == *q++) {
 		if (*p++ == '=')

@@ -53,8 +53,7 @@ static const char sccsid[] = "@(#)wrterm.c	8.1 (Berkeley) 6/9/93";
  * shell problems and omitting empty fields.
  */
 void
-wrtermcap(bp)
-	char *bp;
+wrtermcap(char *bp)
 {
 	register int ch;
 	register char *p;

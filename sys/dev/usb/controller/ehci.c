@@ -99,6 +99,9 @@ SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RW,
 SYSCTL_INT(_hw_usb_ehci, OID_AUTO, no_hs, CTLFLAG_RW,
     &ehcinohighspeed, 0, "Disable High Speed USB");
 
+TUNABLE_INT("hw.usb.ehci.debug", &ehcidebug);
+TUNABLE_INT("hw.usb.ehci.no_hs", &ehcinohighspeed);
+
 static void ehci_dump_regs(ehci_softc_t *sc);
 static void ehci_dump_sqh(ehci_softc_t *sc, ehci_qh_t *sqh);
 
@@ -525,7 +528,7 @@ ehci_detach(ehci_softc_t *sc)
 	usb_callout_stop(&sc->sc_tmo_pcd);
 	usb_callout_stop(&sc->sc_tmo_poll);
 
-	EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
+	EOWRITE4(sc, EHCI_USBINTR, 0);
 	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	if (ehci_hcreset(sc)) {
@@ -2016,8 +2019,8 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 
 	qh_endphub =
 	    (EHCI_QH_SET_MULT(xfer->max_packet_count & 3) |
-	    EHCI_QH_SET_CMASK(xfer->usb_cmask) |
-	    EHCI_QH_SET_SMASK(xfer->usb_smask) |
+	    EHCI_QH_SET_CMASK(xfer->endpoint->usb_cmask) |
+	    EHCI_QH_SET_SMASK(xfer->endpoint->usb_smask) |
 	    EHCI_QH_SET_HUBA(xfer->xroot->udev->hs_hub_addr) |
 	    EHCI_QH_SET_PORT(xfer->xroot->udev->hs_port_no));
 
@@ -2162,7 +2165,7 @@ ehci_isoc_hs_done(ehci_softc_t *sc, struct usb_xfer *xfer)
 
 		DPRINTFN(2, "status=0x%08x, len=%u\n", status, len);
 
-		if (xfer->usb_smask & (1 << td_no)) {
+		if (xfer->endpoint->usb_smask & (1 << td_no)) {
 
 			if (*plen >= len) {
 				/*
@@ -2348,22 +2351,8 @@ ehci_device_intr_open(struct usb_xfer *xfer)
 	uint16_t best;
 	uint16_t bit;
 	uint16_t x;
-	uint8_t slot;
 
-	/* Allocate a microframe slot first: */
-
-	slot = usb_intr_schedule_adjust
-	    (xfer->xroot->udev, xfer->max_frame_size, USB_HS_MICRO_FRAMES_MAX);
-
-	if (usbd_get_speed(xfer->xroot->udev) == USB_SPEED_HIGH) {
-		xfer->usb_uframe = slot;
-		xfer->usb_smask = (1 << slot) & 0xFF;
-		xfer->usb_cmask = 0;
-	} else {
-		xfer->usb_uframe = slot;
-		xfer->usb_smask = (1 << slot) & 0x3F;
-		xfer->usb_cmask = (-(4 << slot)) & 0xFE;
-	}
+	usb_hs_bandwidth_alloc(xfer);
 
 	/*
 	 * Find the best QH position corresponding to the given interval:
@@ -2399,12 +2388,12 @@ ehci_device_intr_close(struct usb_xfer *xfer)
 {
 	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
 
-	usb_intr_schedule_adjust(xfer->xroot->udev,
-	    -(xfer->max_frame_size), xfer->usb_uframe);
-
 	sc->sc_intr_stat[xfer->qh_pos]--;
 
 	ehci_device_done(xfer, USB_ERR_CANCELLED);
+
+	/* bandwidth must be freed after device done */
+	usb_hs_bandwidth_free(xfer);
 }
 
 static void
@@ -2726,28 +2715,8 @@ ehci_device_isoc_hs_open(struct usb_xfer *xfer)
 	ehci_itd_t *td;
 	uint32_t temp;
 	uint8_t ds;
-	uint8_t slot;
 
-	slot = usb_intr_schedule_adjust(xfer->xroot->udev, xfer->max_frame_size,
-	    USB_HS_MICRO_FRAMES_MAX);
-
-	xfer->usb_uframe = slot;
-	xfer->usb_cmask = 0;
-
-	switch (usbd_xfer_get_fps_shift(xfer)) {
-	case 0:
-		xfer->usb_smask = 0xFF;
-		break;
-	case 1:
-		xfer->usb_smask = 0x55 << (slot & 1);
-		break;
-	case 2:
-		xfer->usb_smask = 0x11 << (slot & 3);
-		break;
-	default:
-		xfer->usb_smask = 0x01 << (slot & 7);
-		break;
-	}
+	usb_hs_bandwidth_alloc(xfer);
 
 	/* initialize all TD's */
 
@@ -2791,11 +2760,10 @@ ehci_device_isoc_hs_open(struct usb_xfer *xfer)
 static void
 ehci_device_isoc_hs_close(struct usb_xfer *xfer)
 {
-
-	usb_intr_schedule_adjust(xfer->xroot->udev,
-	    -(xfer->max_frame_size), xfer->usb_uframe);
-
 	ehci_device_done(xfer, USB_ERR_CANCELLED);
+
+	/* bandwidth must be freed after device done */
+	usb_hs_bandwidth_free(xfer);
 }
 
 static void
@@ -2905,7 +2873,7 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 			*plen = xfer->max_frame_size;
 		}
 
-		if (xfer->usb_smask & (1 << td_no)) {
+		if (xfer->endpoint->usb_smask & (1 << td_no)) {
 			status = (EHCI_ITD_SET_LEN(*plen) |
 			    EHCI_ITD_ACTIVE |
 			    EHCI_ITD_SET_PG(0));

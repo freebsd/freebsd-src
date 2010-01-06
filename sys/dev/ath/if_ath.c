@@ -1190,7 +1190,7 @@ ath_suspend(struct ath_softc *sc)
 	/*
 	 * NB: don't worry about putting the chip in low power
 	 * mode; pci will power off our socket on suspend and
-	 * cardbus detaches the device.
+	 * CardBus detaches the device.
 	 */
 }
 

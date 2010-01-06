@@ -289,7 +289,7 @@ int
 pw_edit(int notsetuid)
 {
 	struct sigaction sa, sa_int, sa_quit;
-	sigset_t oldsigset, sigset;
+	sigset_t oldsigset, nsigset;
 	struct stat st1, st2;
 	const char *editor;
 	int pstat;
@@ -303,9 +303,9 @@ pw_edit(int notsetuid)
 	sa.sa_flags = 0;
 	sigaction(SIGINT, &sa, &sa_int);
 	sigaction(SIGQUIT, &sa, &sa_quit);
-	sigemptyset(&sigset);
-	sigaddset(&sigset, SIGCHLD);
-	sigprocmask(SIG_BLOCK, &sigset, &oldsigset);
+	sigemptyset(&nsigset);
+	sigaddset(&nsigset, SIGCHLD);
+	sigprocmask(SIG_BLOCK, &nsigset, &oldsigset);
 	switch ((editpid = fork())) {
 	case -1:
 		return (-1);

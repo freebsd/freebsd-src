@@ -673,6 +673,7 @@ cdregister(struct cam_periph *periph, void *arg)
 		softc->quirks = CD_Q_NONE;
 
 	/* Check if the SIM does not want 6 byte commands */
+	bzero(&cpi, sizeof(cpi));
 	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
@@ -726,6 +727,12 @@ cdregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_name = "cd";
 	softc->disk->d_unit = periph->unit_number;
 	softc->disk->d_drv1 = periph;
+	if (cpi.maxio == 0)
+		softc->disk->d_maxsize = DFLTPHYS;	/* traditional default */
+	else if (cpi.maxio > MAXPHYS)
+		softc->disk->d_maxsize = MAXPHYS;	/* for safety */
+	else
+		softc->disk->d_maxsize = cpi.maxio;
 	softc->disk->d_flags = 0;
 	disk_create(softc->disk, DISK_VERSION);
 	cam_periph_lock(periph);
@@ -1457,8 +1464,6 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 		} else {
 			bioq_remove(&softc->bio_queue, bp);
 
-			devstat_start_transaction_bio(softc->disk->d_devstat, bp);
-
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/cd_retry_count,
 					/* cbfcnp */ cddone,
@@ -1570,7 +1575,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 			bp->bio_resid = bp->bio_bcount;
 			bp->bio_error = error;
 			bp->bio_flags |= BIO_ERROR;
-			cam_release_devq(done_ccb->ccb_h.path,
+			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+				cam_release_devq(done_ccb->ccb_h.path,
 					 /*relsim_flags*/0,
 					 /*reduction*/0,
 					 /*timeout*/0,
@@ -1658,7 +1664,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 				struct ccb_getdev cgd;
 
 				/* Don't wedge this device's queue */
-				cam_release_devq(done_ccb->ccb_h.path,
+				if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+					cam_release_devq(done_ccb->ccb_h.path,
 						 /*relsim_flags*/0,
 						 /*reduction*/0,
 						 /*timeout*/0,
@@ -2671,12 +2678,10 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 
 		authinfo = (struct dvd_authinfo *)addr;
 
-		cam_periph_lock(periph);
 		if (cmd == DVDIOCREPORTKEY)
 			error = cdreportkey(periph, authinfo);
 		else
 			error = cdsendkey(periph, authinfo);
-		cam_periph_unlock(periph);
 		break;
 		}
 	case DVDIOCREADSTRUCTURE: {
@@ -2684,9 +2689,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 
 		dvdstruct = (struct dvd_struct *)addr;
 
-		cam_periph_lock(periph);
 		error = cdreaddvdstructure(periph, dvdstruct);
-		cam_periph_unlock(periph);
 
 		break;
 	}
@@ -2766,7 +2769,6 @@ cdcheckmedia(struct cam_periph *periph)
 	softc = (struct cd_softc *)periph->softc;
 
 	cdprevent(periph, PR_PREVENT);
-	softc->disk->d_maxsize = DFLTPHYS;
 	softc->disk->d_sectorsize = 2048;
 	softc->disk->d_mediasize = 0;
 
@@ -2868,7 +2870,6 @@ cdcheckmedia(struct cam_periph *periph)
 	}
 
 	softc->flags |= CD_FLAG_VALID_TOC;
-	softc->disk->d_maxsize = DFLTPHYS;
 	softc->disk->d_sectorsize = softc->params.blksize;
 	softc->disk->d_mediasize =
 	    (off_t)softc->params.blksize * softc->params.disksize;
@@ -3730,8 +3731,6 @@ cdreportkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 	databuf = NULL;
 	lba = 0;
 
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
-
 	switch (authinfo->format) {
 	case DVD_REPORT_AGID:
 		length = sizeof(struct scsi_report_key_data_agid);
@@ -3757,9 +3756,7 @@ cdreportkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 		length = 0;
 		break;
 	default:
-		error = EINVAL;
-		goto bailout;
-		break; /* NOTREACHED */
+		return (EINVAL);
 	}
 
 	if (length != 0) {
@@ -3767,6 +3764,8 @@ cdreportkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 	} else
 		databuf = NULL;
 
+	cam_periph_lock(periph);
+	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_report_key(&ccb->csio,
 			/* retries */ 1,
@@ -3867,11 +3866,13 @@ cdreportkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 		goto bailout;
 		break; /* NOTREACHED */
 	}
+
 bailout:
+	xpt_release_ccb(ccb);
+	cam_periph_unlock(periph);
+
 	if (databuf != NULL)
 		free(databuf, M_DEVBUF);
-
-	xpt_release_ccb(ccb);
 
 	return(error);
 }
@@ -3886,8 +3887,6 @@ cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 
 	error = 0;
 	databuf = NULL;
-
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
 
 	switch(authinfo->format) {
 	case DVD_SEND_CHALLENGE: {
@@ -3940,10 +3939,11 @@ cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 		break;
 	}
 	default:
-		error = EINVAL;
-		goto bailout;
-		break; /* NOTREACHED */
+		return (EINVAL);
 	}
+
+	cam_periph_lock(periph);
+	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_send_key(&ccb->csio,
 		      /* retries */ 1,
@@ -3959,12 +3959,11 @@ cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
 			 /*sense_flags*/SF_RETRY_UA);
 
-bailout:
+	xpt_release_ccb(ccb);
+	cam_periph_unlock(periph);
 
 	if (databuf != NULL)
 		free(databuf, M_DEVBUF);
-
-	xpt_release_ccb(ccb);
 
 	return(error);
 }
@@ -3983,8 +3982,6 @@ cdreaddvdstructure(struct cam_periph *periph, struct dvd_struct *dvdstruct)
 	/* The address is reserved for many of the formats */
 	address = 0;
 
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
-
 	switch(dvdstruct->format) {
 	case DVD_STRUCT_PHYSICAL:
 		length = sizeof(struct scsi_read_dvd_struct_data_physical);
@@ -4002,13 +3999,7 @@ cdreaddvdstructure(struct cam_periph *periph, struct dvd_struct *dvdstruct)
 		length = sizeof(struct scsi_read_dvd_struct_data_manufacturer);
 		break;
 	case DVD_STRUCT_CMI:
-		error = ENODEV;
-		goto bailout;
-#ifdef notyet
-		length = sizeof(struct scsi_read_dvd_struct_data_copy_manage);
-		address = dvdstruct->address;
-#endif
-		break; /* NOTREACHED */
+		return (ENODEV);
 	case DVD_STRUCT_PROTDISCID:
 		length = sizeof(struct scsi_read_dvd_struct_data_prot_discid);
 		break;
@@ -4025,21 +4016,9 @@ cdreaddvdstructure(struct cam_periph *periph, struct dvd_struct *dvdstruct)
 		length = sizeof(struct scsi_read_dvd_struct_data_spare_area);
 		break;
 	case DVD_STRUCT_RMD_LAST:
-		error = ENODEV;
-		goto bailout;
-#ifdef notyet
-		length = sizeof(struct scsi_read_dvd_struct_data_rmd_borderout);
-		address = dvdstruct->address;
-#endif
-		break; /* NOTREACHED */
+		return (ENODEV);
 	case DVD_STRUCT_RMD_RMA:
-		error = ENODEV;
-		goto bailout;
-#ifdef notyet
-		length = sizeof(struct scsi_read_dvd_struct_data_rmd);
-		address = dvdstruct->address;
-#endif
-		break; /* NOTREACHED */
+		return (ENODEV);
 	case DVD_STRUCT_PRERECORDED:
 		length = sizeof(struct scsi_read_dvd_struct_data_leadin);
 		break;
@@ -4047,13 +4026,7 @@ cdreaddvdstructure(struct cam_periph *periph, struct dvd_struct *dvdstruct)
 		length = sizeof(struct scsi_read_dvd_struct_data_disc_id);
 		break;
 	case DVD_STRUCT_DCB:
-		error = ENODEV;
-		goto bailout;
-#ifdef notyet
-		length = sizeof(struct scsi_read_dvd_struct_data_dcb);
-		address = dvdstruct->address;
-#endif
-		break; /* NOTREACHED */
+		return (ENODEV);
 	case DVD_STRUCT_LIST:
 		/*
 		 * This is the maximum allocation length for the READ DVD
@@ -4065,15 +4038,16 @@ cdreaddvdstructure(struct cam_periph *periph, struct dvd_struct *dvdstruct)
 		length = 65535;
 		break;
 	default:
-		error = EINVAL;
-		goto bailout;
-		break; /* NOTREACHED */
+		return (EINVAL);
 	}
 
 	if (length != 0) {
 		databuf = malloc(length, M_DEVBUF, M_WAITOK | M_ZERO);
 	} else
 		databuf = NULL;
+
+	cam_periph_lock(periph);
+	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_read_dvd_structure(&ccb->csio,
 				/* retries */ 1,
@@ -4162,12 +4136,13 @@ cdreaddvdstructure(struct cam_periph *periph, struct dvd_struct *dvdstruct)
 		      min(sizeof(dvdstruct->data), dvdstruct->length));
 		break;
 	}
+
 bailout:
+	xpt_release_ccb(ccb);
+	cam_periph_unlock(periph);
 
 	if (databuf != NULL)
 		free(databuf, M_DEVBUF);
-
-	xpt_release_ccb(ccb);
 
 	return(error);
 }

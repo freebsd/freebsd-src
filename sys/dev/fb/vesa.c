@@ -250,8 +250,8 @@ vesa_bios_post(void)
 	dc = devclass_find("vgapci");
 	if (dc != NULL && devclass_get_devices(dc, &devs, &count) == 0) {
 		for (dev = NULL, i = 0; dev == NULL && i < count; devs++, i++)
-			if (x86bios_match_device(0xc0000, *devs) &&
-			    device_get_flags(*devs) != 0) {
+			if (device_get_flags(*devs) != 0 &&
+			    x86bios_match_device(0xc0000, *devs)) {
 				dev = *devs;
 				is_pci = 1;
 				break;
@@ -1528,12 +1528,12 @@ vesa_blank_display(video_adapter_t *adp, int mode)
 }
 
 static int
-vesa_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
-	  int prot)
+vesa_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
+	  int prot, vm_memattr_t *memattr)
 {
 
 #if VESA_DEBUG > 0
-	printf("vesa_mmap(): window:0x%tx, buffer:0x%tx, offset:0x%tx\n", 
+	printf("vesa_mmap(): window:0x%tx, buffer:0x%tx, offset:0x%jx\n", 
 	       adp->va_info.vi_window, adp->va_info.vi_buffer, offset);
 #endif
 
@@ -1546,7 +1546,7 @@ vesa_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
 		*paddr = adp->va_info.vi_buffer + offset;
 		return (0);
 	}
-	return ((*prevvidsw->mmap)(adp, offset, paddr, prot));
+	return ((*prevvidsw->mmap)(adp, offset, paddr, prot, memattr));
 }
 
 static int

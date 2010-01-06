@@ -376,7 +376,6 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 	long d, dlower, dupper, blkno, start;
 	ufs2_daddr_t i, cbase, dmax;
 	struct ufs1_dinode *dp1;
-	struct ufs2_dinode *dp2;
 	struct csum *cs;
 
 	if (iobuf == NULL && (iobuf = malloc(sblock.fs_bsize)) == NULL) {
@@ -460,16 +459,11 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 		for (i = 2 * sblock.fs_frag; i < sblock.fs_ipg / INOPF(&sblock);
 		     i += sblock.fs_frag) {
 			dp1 = (struct ufs1_dinode *)iobuf;
-			dp2 = (struct ufs2_dinode *)iobuf;
 #ifdef FSIRAND
-			for (j = 0; j < INOPB(&sblock); j++)
-				if (sblock.fs_magic == FS_UFS1_MAGIC) {
-					dp1->di_gen = random();
-					dp1++;
-				} else {
-					dp2->di_gen = random();
-					dp2++;
-				}
+			for (j = 0; j < INOPB(&sblock); j++) {
+				dp1->di_gen = random();
+				dp1++;
+			}
 #endif
 			wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
 			    sblock.fs_bsize, iobuf, fso, Nflag);

@@ -118,19 +118,14 @@ static driver_t dpms_driver = {
 
 static devclass_t dpms_devclass;
 
-DRIVER_MODULE(dpms, vgapci, dpms_driver, dpms_devclass, NULL, NULL);
+DRIVER_MODULE(dpms, vgapm, dpms_driver, dpms_devclass, NULL, NULL);
 MODULE_DEPEND(dpms, x86bios, 1, 1, 1);
 
 static void
 dpms_identify(driver_t *driver, device_t parent)
 {
 
-	/* The DPMS VBE only allows for manipulating a single monitor. */
-	if (devclass_get_device(dpms_devclass, 0) != NULL)
-		return;
-
-	if (x86bios_match_device(0xc0000, parent) &&
-	    device_get_flags(parent) != 0)
+	if (x86bios_match_device(0xc0000, device_get_parent(parent)))
 		device_add_child(parent, "dpms", 0);
 }
 

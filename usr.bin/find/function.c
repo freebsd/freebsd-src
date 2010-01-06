@@ -770,7 +770,7 @@ done:	*argvp = argv + 1;
 
 /* Finish any pending -exec ... {} + functions. */
 void
-finish_execplus()
+finish_execplus(void)
 {
 	PLAN *p;
 

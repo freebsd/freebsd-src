@@ -12,7 +12,10 @@ GENSRCS=yp.h yp_clnt.c ypxfr_clnt.c
 MAN=	ypxfr.8
 
 CFLAGS+= -I.
+
+WARNS?=	2
 WFORMAT=0
+
 DPADD=	${LIBRPCSVC}
 LDADD=	-lrpcsvc
 

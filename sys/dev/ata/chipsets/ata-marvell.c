@@ -52,9 +52,9 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 /* local prototypes */
-static int ata_marvell_pata_chipinit(device_t dev);
-static int ata_marvell_pata_ch_attach(device_t dev);
-static void ata_marvell_pata_setmode(device_t dev, int mode);
+static int ata_marvell_chipinit(device_t dev);
+static int ata_marvell_ch_attach(device_t dev);
+static int ata_marvell_setmode(device_t dev, int target, int mode);
 static int ata_marvell_edma_ch_attach(device_t dev);
 static int ata_marvell_edma_ch_detach(device_t dev);
 static int ata_marvell_edma_status(device_t dev);
@@ -107,9 +107,12 @@ ata_marvell_probe(device_t dev)
      { ATA_M88SX6042, 0, 4, MV_6042, ATA_SA300, "88SX6042" },
      { ATA_M88SX6081, 0, 8, MV_60XX, ATA_SA300, "88SX6081" },
      { ATA_M88SX7042, 0, 4, MV_7042, ATA_SA300, "88SX7042" },
-     { ATA_M88SX6101, 0, 1, MV_61XX, ATA_UDMA6, "88SX6101" },
-     { ATA_M88SX6121, 0, 1, MV_61XX, ATA_UDMA6, "88SX6121" },
-     { ATA_M88SX6145, 0, 2, MV_61XX, ATA_UDMA6, "88SX6145" },
+     { ATA_M88SX6101, 0, 0, MV_61XX, ATA_UDMA6, "88SX6101" },
+     { ATA_M88SX6102, 0, 0, MV_61XX, ATA_UDMA6, "88SX6102" },
+     { ATA_M88SX6111, 0, 1, MV_61XX, ATA_UDMA6, "88SX6111" },
+     { ATA_M88SX6121, 0, 2, MV_61XX, ATA_UDMA6, "88SX6121" },
+     { ATA_M88SX6141, 0, 4, MV_61XX, ATA_UDMA6, "88SX6141" },
+     { ATA_M88SX6145, 0, 4, MV_61XX, ATA_UDMA6, "88SX6145" },
      { 0, 0, 0, 0, 0, 0}};
 
     if (pci_get_vendor(dev) != ATA_MARVELL_ID)
@@ -128,53 +131,63 @@ ata_marvell_probe(device_t dev)
 	ctlr->chipinit = ata_marvell_edma_chipinit;
 	break;
     case MV_61XX:
-	ctlr->chipinit = ata_marvell_pata_chipinit;
+	ctlr->chipinit = ata_marvell_chipinit;
 	break;
     }
     return (BUS_PROBE_DEFAULT);
 }
 
 static int
-ata_marvell_pata_chipinit(device_t dev)
+ata_marvell_chipinit(device_t dev)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(dev);
+	device_t child;
 
-    if (ata_setup_interrupt(dev, ata_generic_intr))
-	return ENXIO;
-
-    ctlr->ch_attach = ata_marvell_pata_ch_attach;
-    ctlr->ch_detach = ata_pci_ch_detach;
-    ctlr->setmode = ata_marvell_pata_setmode;
-    ctlr->channels = ctlr->chip->cfg1;
-    return 0;
+	if (ata_setup_interrupt(dev, ata_generic_intr))
+		return ENXIO;
+	/* Create AHCI subdevice if AHCI part present. */
+	if (ctlr->chip->cfg1) {
+	    	child = device_add_child(dev, NULL, -1);
+		if (child != NULL) {
+		    device_set_ivars(child, (void *)(intptr_t)-1);
+		    bus_generic_attach(dev);
+		}
+	}
+        ctlr->ch_attach = ata_marvell_ch_attach;
+	ctlr->ch_detach = ata_pci_ch_detach;
+	ctlr->reset = ata_generic_reset;
+        ctlr->setmode = ata_marvell_setmode;
+        ctlr->channels = 1;
+        return (0);
 }
 
 static int
-ata_marvell_pata_ch_attach(device_t dev)
+ata_marvell_ch_attach(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(dev);
+	struct ata_channel *ch = device_get_softc(dev);
+	int error;
  
-    /* setup the usual register normal pci style */
-    if (ata_pci_ch_attach(dev))
-	return ENXIO;
- 
-    /* dont use 32 bit PIO transfers */
+	error = ata_pci_ch_attach(dev);
+    	/* dont use 32 bit PIO transfers */
 	ch->flags |= ATA_USE_16BIT;
-
-    return 0;
+	ch->flags |= ATA_CHECKS_CABLE;
+	return (error);
 }
 
-static void
-ata_marvell_pata_setmode(device_t dev, int mode)
+static int
+ata_marvell_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_device *atadev = device_get_softc(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+	struct ata_channel *ch = device_get_softc(dev);
 
-    mode = ata_limit_mode(dev, mode, ctlr->chip->max_dma);
-    mode = ata_check_80pin(dev, mode);
-    if (!ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
-	atadev->mode = mode;
+	mode = min(mode, ctlr->chip->max_dma);
+	/* Check for 80pin cable present. */
+	if (mode > ATA_UDMA2 && ATA_IDX_INB(ch, ATA_BMDEVSPEC_0) & 0x01) {
+		ata_print_cable(dev, "controller");
+		mode = ATA_UDMA2;
+	}
+	/* Nothing to do to setup mode, the controller snoop SET_FEATURE cmd. */
+	return (mode);
 }
 
 int
@@ -201,6 +214,7 @@ ata_marvell_edma_chipinit(device_t dev)
     ctlr->ch_detach = ata_marvell_edma_ch_detach;
     ctlr->reset = ata_marvell_edma_reset;
     ctlr->setmode = ata_sata_setmode;
+    ctlr->getrev = ata_sata_getrev;
     ctlr->channels = ctlr->chip->cfg1;
 
     /* clear host controller interrupts */
@@ -272,6 +286,7 @@ ata_marvell_edma_ch_attach(device_t dev)
 
     ch->flags |= ATA_NO_SLAVE;
     ch->flags |= ATA_USE_16BIT; /* XXX SOS needed ? */
+    ch->flags |= ATA_SATA;
     ata_generic_hw(dev);
     ch->hw.begin_transaction = ata_marvell_edma_begin_transaction;
     ch->hw.end_transaction = ata_marvell_edma_end_transaction;
@@ -592,8 +607,6 @@ ata_marvell_edma_dmainit(device_t dev)
     /* chip does not reliably do 64K DMA transfers */
     if (ctlr->chip->cfg2 == MV_50XX || ctlr->chip->cfg2 == MV_60XX)
 	ch->dma.max_iosize = 64 * DEV_BSIZE;
-    else
-	ch->dma.max_iosize = (ATA_DMA_ENTRIES - 1) * PAGE_SIZE;
 }
 
 ATA_DECLARE_DRIVER(ata_marvell);

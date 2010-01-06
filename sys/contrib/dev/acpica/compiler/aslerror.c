@@ -535,6 +535,7 @@ AslCommonError (
         Gbl_NextError = Gbl_ErrorLog;
         CmDoOutputFiles ();
         CmCleanupAndExit ();
+        exit(1);
     }
 
     return;

@@ -313,25 +313,40 @@ AcpiNsCheckPredefinedNames (
     Data->Pathname = Pathname;
 
     /*
-     * Check that the type of the return object is what is expected for
-     * this predefined name
+     * Check that the type of the main return object is what is expected
+     * for this predefined name
      */
     Status = AcpiNsCheckObjectType (Data, ReturnObjectPtr,
                 Predefined->Info.ExpectedBtypes, ACPI_NOT_PACKAGE_ELEMENT);
     if (ACPI_FAILURE (Status))
     {
-        goto CheckValidationStatus;
+        goto Exit;
     }
 
-    /* For returned Package objects, check the type of all sub-objects */
-
-    if (ReturnObject->Common.Type == ACPI_TYPE_PACKAGE)
+    /*
+     * For returned Package objects, check the type of all sub-objects.
+     * Note: Package may have been newly created by call above.
+     */
+    if ((*ReturnObjectPtr)->Common.Type == ACPI_TYPE_PACKAGE)
     {
         Status = AcpiNsCheckPackage (Data, ReturnObjectPtr);
+        if (ACPI_FAILURE (Status))
+        {
+            goto Exit;
+        }
     }
 
+    /*
+     * The return object was OK, or it was successfully repaired above.
+     * Now make some additional checks such as verifying that package
+     * objects are sorted correctly (if required) or buffer objects have
+     * the correct data width (bytes vs. dwords). These repairs are
+     * performed on a per-name basis, i.e., the code is specific to
+     * particular predefined names.
+     */
+    Status = AcpiNsComplexRepairs (Data, Node, Status, ReturnObjectPtr);
 
-CheckValidationStatus:
+Exit:
     /*
      * If the object validation failed or if we successfully repaired one
      * or more objects, mark the parent node to suppress further warning
@@ -342,7 +357,6 @@ CheckValidationStatus:
         Node->Flags |= ANOBJ_EVALUATED;
     }
     ACPI_FREE (Data);
-
 
 Cleanup:
     ACPI_FREE (Pathname);
@@ -538,6 +552,12 @@ AcpiNsCheckPackage (
         "%s Validating return Package of Type %X, Count %X\n",
         Data->Pathname, Package->RetInfo.Type, ReturnObject->Package.Count));
 
+    /*
+     * For variable-length Packages, we can safely remove all embedded
+     * and trailing NULL package elements
+     */
+    AcpiNsRemoveNullElements (Data, Package->RetInfo.Type, ReturnObject);
+
     /* Extract package count and elements array */
 
     Elements = ReturnObject->Package.Elements;
@@ -576,9 +596,10 @@ AcpiNsCheckPackage (
         }
         else if (Count > ExpectedCount)
         {
-            ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
-                "Return Package is larger than needed - "
-                "found %u, expected %u", Count, ExpectedCount));
+            ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
+                "%s: Return Package is larger than needed - "
+                "found %u, expected %u\n",
+                Data->Pathname, Count, ExpectedCount));
         }
 
         /* Validate all elements of the returned package */
@@ -719,7 +740,7 @@ AcpiNsCheckPackage (
          * there is only one entry). We may be able to repair this by
          * wrapping the returned Package with a new outer Package.
          */
-        if ((*Elements)->Common.Type != ACPI_TYPE_PACKAGE)
+        if (*Elements && ((*Elements)->Common.Type != ACPI_TYPE_PACKAGE))
         {
             /* Create the new outer package and populate it */
 
@@ -799,8 +820,13 @@ AcpiNsCheckPackageList (
     UINT32                      j;
 
 
-    /* Validate each sub-Package in the parent Package */
-
+    /*
+     * Validate each sub-Package in the parent Package
+     *
+     * NOTE: assumes list of sub-packages contains no NULL elements.
+     * Any NULL elements should have been removed by earlier call
+     * to AcpiNsRemoveNullElements.
+     */
     for (i = 0; i < Count; i++)
     {
         SubPackage = *Elements;

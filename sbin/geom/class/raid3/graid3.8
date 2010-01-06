@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2006
+.Dd January 5, 2010
 .Dt GRAID3 8
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nm
 .Cm label
 .Op Fl Fhnrvw
+.Op Fl s Ar blocksize
 .Ar name
 .Ar prov prov prov ...
 .Nm
@@ -113,6 +114,12 @@ but sequential reads are slower.
 One cannot use this option if the
 .Fl w
 option is also specified.
+.It Fl s
+Manually specify array block size. Block size will be set equal to least
+common multiple of all component's sector sizes and specified value.
+Note that array sector size calculated as multiple of block size and number
+of regular data components. Big values may decrease performance and compatibility,
+as all I/O requests have to be multiple of sector size.
 .It Fl w
 Use verify reading feature.
 When reading from a device in a complete state, also read data from the parity component

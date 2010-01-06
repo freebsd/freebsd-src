@@ -53,6 +53,7 @@ static const char sccsid[] = "@(#)tset.c	8.1 (Berkeley) 6/9/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termcap.h>
 #include <termios.h>
 #include <unistd.h>
 

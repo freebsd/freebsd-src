@@ -75,6 +75,8 @@ static void e1000_shift_out_mdi_bits_82543(struct e1000_hw *hw, u32 data,
                                            u16 count);
 static bool e1000_tbi_compatibility_enabled_82543(struct e1000_hw *hw);
 static void e1000_set_tbi_sbp_82543(struct e1000_hw *hw, bool state);
+static s32  e1000_read_mac_addr_82543(struct e1000_hw *hw);
+
 
 /**
  *  e1000_init_phy_params_82543 - Init PHY func ptrs.
@@ -246,6 +248,8 @@ static s32 e1000_init_mac_params_82543(struct e1000_hw *hw)
 	mac->ops.clear_vfta = e1000_clear_vfta_generic;
 	/* setting MTA */
 	mac->ops.mta_set = e1000_mta_set_82543;
+	/* read mac address */
+	mac->ops.read_mac_addr = e1000_read_mac_addr_82543;
 	/* turn on/off LED */
 	mac->ops.led_on = e1000_led_on_82543;
 	mac->ops.led_off = e1000_led_off_82543;
@@ -1599,4 +1603,42 @@ static void e1000_clear_hw_cntrs_82543(struct e1000_hw *hw)
 	E1000_READ_REG(hw, E1000_CEXTERR);
 	E1000_READ_REG(hw, E1000_TSCTC);
 	E1000_READ_REG(hw, E1000_TSCTFC);
+}
+
+/**
+ *  e1000_read_mac_addr_82543 - Read device MAC address
+ *  @hw: pointer to the HW structure
+ *
+ *  Reads the device MAC address from the EEPROM and stores the value.
+ *  Since devices with two ports use the same EEPROM, we increment the
+ *  last bit in the MAC address for the second port.
+ *
+ **/
+s32 e1000_read_mac_addr_82543(struct e1000_hw *hw)
+{
+	s32  ret_val = E1000_SUCCESS;
+	u16 offset, nvm_data, i;
+
+	DEBUGFUNC("e1000_read_mac_addr");
+
+	for (i = 0; i < ETH_ADDR_LEN; i += 2) {
+		offset = i >> 1;
+		ret_val = hw->nvm.ops.read(hw, offset, 1, &nvm_data);
+		if (ret_val) {
+			DEBUGOUT("NVM Read Error\n");
+			goto out;
+		}
+		hw->mac.perm_addr[i] = (u8)(nvm_data & 0xFF);
+		hw->mac.perm_addr[i+1] = (u8)(nvm_data >> 8);
+	}
+
+	/* Flip last bit of mac address if we're on second port */
+	if (hw->bus.func == E1000_FUNC_1)
+		hw->mac.perm_addr[5] ^= 1;
+
+	for (i = 0; i < ETH_ADDR_LEN; i++)
+		hw->mac.addr[i] = hw->mac.perm_addr[i];
+
+out:
+	return ret_val;
 }

@@ -211,6 +211,14 @@ extern u_int mibif_hc_update_interval;
 /* re-compute update interval */
 void mibif_reset_hc_timer(void);
 
+/* interfaces' data poll interval */
+extern u_int mibII_poll_ticks;
+
+/* restart the data poll timer */
+void mibif_restart_mibII_poll_timer(void);
+
+#define MIBII_POLL_TICKS	100
+
 /* get interfaces and interface addresses. */
 void mib_fetch_interfaces(void);
 

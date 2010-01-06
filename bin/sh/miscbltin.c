@@ -93,7 +93,7 @@ readcmd(int argc __unused, char **argv __unused)
 	char c;
 	int rflag;
 	char *prompt;
-	char *ifs;
+	const char *ifs;
 	char *p;
 	int startword;
 	int status;
@@ -254,7 +254,7 @@ readcmd(int argc __unused, char **argv __unused)
 
 
 int
-umaskcmd(int argc __unused, char **argv)
+umaskcmd(int argc __unused, char **argv __unused)
 {
 	char *ap;
 	int mask;

@@ -1814,6 +1814,7 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 
 	ifp = NULL;
 	imf = NULL;
+	lims = NULL;
 	error = 0;
 	is_new = 0;
 
@@ -1917,11 +1918,6 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	 */
 	(void)in6_setscope(&gsa->sin6.sin6_addr, ifp, NULL);
 
-	/*
-	 * MCAST_JOIN_SOURCE on an exclusive membership is an error.
-	 * On an existing inclusive membership, it just adds the
-	 * source to the filter list.
-	 */
 	imo = in6p_findmoptions(inp);
 	idx = im6o_match_group(imo, ifp, &gsa->sa);
 	if (idx == -1) {
@@ -1929,14 +1925,51 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	} else {
 		inm = imo->im6o_membership[idx];
 		imf = &imo->im6o_mfilters[idx];
-		if (ssa->ss.ss_family != AF_UNSPEC &&
-		    imf->im6f_st[1] != MCAST_INCLUDE) {
+		if (ssa->ss.ss_family != AF_UNSPEC) {
+			/*
+			 * MCAST_JOIN_SOURCE_GROUP on an exclusive membership
+			 * is an error. On an existing inclusive membership,
+			 * it just adds the source to the filter list.
+			 */
+			if (imf->im6f_st[1] != MCAST_INCLUDE) {
+				error = EINVAL;
+				goto out_in6p_locked;
+			}
+			/*
+			 * Throw out duplicates.
+			 *
+			 * XXX FIXME: This makes a naive assumption that
+			 * even if entries exist for *ssa in this imf,
+			 * they will be rejected as dupes, even if they
+			 * are not valid in the current mode (in-mode).
+			 *
+			 * in6_msource is transactioned just as for anything
+			 * else in SSM -- but note naive use of in6m_graft()
+			 * below for allocating new filter entries.
+			 *
+			 * This is only an issue if someone mixes the
+			 * full-state SSM API with the delta-based API,
+			 * which is discouraged in the relevant RFCs.
+			 */
+			lims = im6o_match_source(imo, idx, &ssa->sa);
+			if (lims != NULL /*&&
+			    lims->im6sl_st[1] == MCAST_INCLUDE*/) {
+				error = EADDRNOTAVAIL;
+				goto out_in6p_locked;
+			}
+		} else {
+			/*
+			 * MCAST_JOIN_GROUP alone, on any existing membership,
+			 * is rejected, to stop the same inpcb tying up
+			 * multiple refs to the in_multi.
+			 * On an existing inclusive membership, this is also
+			 * an error; if you want to change filter mode,
+			 * you must use the userland API setsourcefilter().
+			 * XXX We don't reject this for imf in UNDEFINED
+			 * state at t1, because allocation of a filter
+			 * is atomic with allocation of a membership.
+			 */
 			error = EINVAL;
-			goto out_in6p_locked;
-		}
-		lims = im6o_match_source(imo, idx, &ssa->sa);
-		if (lims != NULL) {
-			error = EADDRNOTAVAIL;
 			goto out_in6p_locked;
 		}
 	}
@@ -1970,7 +2003,13 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Graft new source into filter list for this inpcb's
 	 * membership of the group. The in6_multi may not have
-	 * been allocated yet if this is a new membership.
+	 * been allocated yet if this is a new membership, however,
+	 * the in_mfilter slot will be allocated and must be initialized.
+	 *
+	 * Note: Grafting of exclusive mode filters doesn't happen
+	 * in this path.
+	 * XXX: Should check for non-NULL lims (node exists but may
+	 * not be in-mode) for interop with full-state API.
 	 */
 	if (ssa->ss.ss_family != AF_UNSPEC) {
 		/* Membership starts in IN mode */
@@ -1986,6 +2025,12 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 			    __func__);
 			error = ENOMEM;
 			goto out_im6o_free;
+		}
+	} else {
+		/* No address specified; Membership starts in EX mode */
+		if (is_new) {
+			CTR1(KTR_MLD, "%s: new join w/o source", __func__);
+			im6f_init(imf, MCAST_UNDEFINED, MCAST_EXCLUDE);
 		}
 	}
 
@@ -2272,8 +2317,10 @@ out_im6f_rollback:
 
 	if (is_final) {
 		/* Remove the gap in the membership array. */
-		for (++idx; idx < imo->im6o_num_memberships; ++idx)
+		for (++idx; idx < imo->im6o_num_memberships; ++idx) {
 			imo->im6o_membership[idx-1] = imo->im6o_membership[idx];
+			imo->im6o_mfilters[idx-1] = imo->im6o_mfilters[idx];
+		}
 		imo->im6o_num_memberships--;
 	}
 
@@ -2340,9 +2387,11 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (error)
 		return (error);
 
-	if (msfr.msfr_nsrcs > in6_mcast_maxsocksrc ||
-	    (msfr.msfr_fmode != MCAST_EXCLUDE &&
-	     msfr.msfr_fmode != MCAST_INCLUDE))
+	if (msfr.msfr_nsrcs > in6_mcast_maxsocksrc)
+		return (ENOBUFS);
+
+	if (msfr.msfr_fmode != MCAST_EXCLUDE &&
+	    msfr.msfr_fmode != MCAST_INCLUDE)
 		return (EINVAL);
 
 	if (msfr.msfr_group.ss_family != AF_INET6 ||

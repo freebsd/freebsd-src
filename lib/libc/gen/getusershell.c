@@ -124,7 +124,7 @@ _local_initshells(rv, cb_data, ap)
 	if ((fp = fopen(_PATH_SHELLS, "r")) == NULL)
 		return NS_UNAVAIL;
 
-	sp = cp = line;
+	cp = line;
 	while (fgets(cp, MAXPATHLEN + 1, fp) != NULL) {
 		while (*cp != '#' && *cp != '/' && *cp != '\0')
 			cp++;

@@ -15,7 +15,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	hcsecd \
 	hostapd hostid hostid_save hostname \
 	inetd initrandom \
-	ip6addrctl ip6fw ipfilter ipfs ipfw ipmon \
+	ip6addrctl ipfilter ipfs ipfw ipmon \
 	ipnat ipsec ipxrouted \
 	jail \
 	kadmind kerberos keyserv kldxref kpasswdd \

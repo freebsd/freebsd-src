@@ -403,6 +403,7 @@
 #define ACPI_ERROR_NAMESPACE(s, e)      AcpiNsReportError (AE_INFO, s, e);
 #define ACPI_ERROR_METHOD(s, n, p, e)   AcpiNsReportMethodError (AE_INFO, s, n, p, e);
 #define ACPI_WARN_PREDEFINED(plist)     AcpiUtPredefinedWarning plist
+#define ACPI_INFO_PREDEFINED(plist)     AcpiUtPredefinedInfo plist
 
 #else
 
@@ -411,6 +412,7 @@
 #define ACPI_ERROR_NAMESPACE(s, e)
 #define ACPI_ERROR_METHOD(s, n, p, e)
 #define ACPI_WARN_PREDEFINED(plist)
+#define ACPI_INFO_PREDEFINED(plist)
 
 #endif /* ACPI_NO_ERROR_MESSAGES */
 

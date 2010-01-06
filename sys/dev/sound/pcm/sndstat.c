@@ -79,7 +79,7 @@ static int sndstat_files = 0;
 	}								\
 } while (0)
 
-static SLIST_HEAD(, sndstat_entry) sndstat_devlist = SLIST_HEAD_INITIALIZER(none);
+static SLIST_HEAD(, sndstat_entry) sndstat_devlist = SLIST_HEAD_INITIALIZER(sndstat_devlist);
 
 int snd_verbose = 1;
 TUNABLE_INT("hw.snd.verbose", &snd_verbose);

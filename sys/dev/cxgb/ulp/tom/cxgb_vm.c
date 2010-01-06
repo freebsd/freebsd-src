@@ -131,8 +131,7 @@ vm_fault_hold_user_pages(vm_map_t map, vm_offset_t addr, vm_page_t *mp,
 		 * taken away from us before it is held
 		 */
 		while (*pages == NULL) {
-			rv = vm_fault(map, va, prot,
-			    (prot & VM_PROT_WRITE) ? VM_FAULT_DIRTY : VM_FAULT_NORMAL);
+			rv = vm_fault(map, va, prot, VM_FAULT_NORMAL);
 			if (rv) 
 				goto error;
 			*pages = pmap_extract_and_hold(pmap, va, prot);

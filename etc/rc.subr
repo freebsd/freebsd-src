@@ -390,7 +390,7 @@ wait_for_pids()
 		_list=$_nlist
 		echo -n ${_prefix:-"Waiting for PIDS: "}$_list
 		_prefix=", "
-		sleep 2
+		pwait $_list 2>/dev/null || sleep 2
 	done
 	if [ -n "$_prefix" ]; then
 		echo "."
@@ -738,7 +738,7 @@ $command $rc_flags $command_args"
 				if [ -n "$_nice" ]; then
 					if [ -z "$_user" ]; then
 						_doit="sh -c \"$_doit\""
-					fi	
+					fi
 					_doit="nice -n $_nice $_doit"
 				fi
 			fi
@@ -958,10 +958,11 @@ _run_rc_killcmd()
 #
 # run_rc_script file arg
 #	Start the script `file' with `arg', and correctly handle the
-#	return value from the script.  If `file' ends with `.sh', it's
-#	sourced into the current environment.  If `file' appears to be
-#	a backup or scratch file, ignore it.  Otherwise if it's
-#	executable run as a child process.
+#	return value from the script.
+#	If `file' ends with `.sh', it's sourced into the current environment
+#	when $rc_fast_and_loose is set, otherwise it is run as a child process.
+#	If `file' appears to be a backup or scratch file, ignore it.
+#	Otherwise if it is executable run as a child process.
 #
 run_rc_script()
 {
@@ -1063,7 +1064,7 @@ load_rc_config()
 		esac
 	done
 }
-  
+
 #
 # load_rc_config_var name var
 #	Read the rc.conf(5) var for name and set in the

@@ -85,7 +85,7 @@ afd_attach(device_t dev)
 	return ENOMEM;
     }
     device_set_ivars(dev, fdp);
-    ATA_SETMODE(device_get_parent(dev), dev);
+    ata_setmode(dev);
 
     if (afd_sense(dev)) {
 	device_set_ivars(dev, NULL);
@@ -152,7 +152,7 @@ afd_reinit(device_t dev)
     if (!(ch->devices & (ATA_ATAPI_MASTER << atadev->unit)))
 	return 1;
 
-    ATA_SETMODE(device_get_parent(dev), dev);
+    ata_setmode(dev);
     return 0;
 }
 
@@ -400,10 +400,11 @@ afd_describe(device_t dev)
     else
 	strcpy(sizestring, "(no media)");
  
-    device_printf(dev, "%s <%.40s %.8s> at ata%d-%s %s\n",
+    device_printf(dev, "%s <%.40s %.8s> at ata%d-%s %s %s\n",
 		  sizestring, atadev->param.model, atadev->param.revision,
 		  device_get_unit(ch->dev), ata_unit2str(atadev),
-		  ata_mode2str(atadev->mode));
+		  ata_mode2str(atadev->mode),
+		  ata_satarev2str(ATA_GETREV(device_get_parent(dev), atadev->unit)));
     if (bootverbose) {
 	device_printf(dev, "%ju sectors [%juC/%dH/%dS]\n",
 	    	      fdp->mediasize / fdp->sectorsize,

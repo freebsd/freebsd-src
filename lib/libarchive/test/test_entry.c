@@ -51,11 +51,38 @@ DEFINE_TEST(test_entry)
 	const char *xname; /* For xattr tests. */
 	const void *xval; /* For xattr tests. */
 	size_t xsize; /* For xattr tests. */
-	int c;
 	wchar_t wc;
 	long l;
 
 	assert((e = archive_entry_new()) != NULL);
+
+	/*
+	 * Verify that the AE_IF* defines match S_IF* defines
+	 * on this platform. See comments in archive_entry.h.
+	 */
+#ifdef S_IFREG
+	assertEqualInt(S_IFREG, AE_IFREG);
+#endif
+#ifdef S_IFLNK
+	assertEqualInt(S_IFLNK, AE_IFLNK);
+#endif
+#ifdef S_IFSOCK
+	assertEqualInt(S_IFSOCK, AE_IFSOCK);
+#endif
+#ifdef S_IFCHR
+	assertEqualInt(S_IFCHR, AE_IFCHR);
+#endif
+/* Work around MinGW, which defines S_IFBLK wrong. */
+/* sourceforge.net/tracker/?func=detail&atid=102435&aid=1942809&group_id=2435 */
+#if defined(S_IFBLK) && !defined(_WIN32)
+	assertEqualInt(S_IFBLK, AE_IFBLK);
+#endif
+#ifdef S_IFDIR
+	assertEqualInt(S_IFDIR, AE_IFDIR);
+#endif
+#ifdef S_IFIFO
+	assertEqualInt(S_IFIFO, AE_IFIFO);
+#endif
 
 	/*
 	 * Basic set/read tests for all fields.
@@ -414,7 +441,7 @@ DEFINE_TEST(test_entry)
 	skipping("ACL preserved by archive_entry_clone()");
 #else
 	/* Verify ACL was copied. */
-	assertEqualInt(4, c = archive_entry_acl_reset(e2,
+	assertEqualInt(4, archive_entry_acl_reset(e2,
 			   ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
 	/* First three are standard permission bits. */
 	assertEqualInt(0, archive_entry_acl_next(e2,
@@ -455,7 +482,7 @@ DEFINE_TEST(test_entry)
 	skipping("xattr data preserved by archive_entry_clone");
 #else
 	/* Verify xattr was copied. */
-	assertEqualInt(1, c = archive_entry_xattr_reset(e2));
+	assertEqualInt(1, archive_entry_xattr_reset(e2));
 	assertEqualInt(0, archive_entry_xattr_next(e2, &xname, &xval, &xsize));
 	assertEqualString(xname, "xattr1");
 	assertEqualString(xval, "xattrvalue");
@@ -539,7 +566,7 @@ DEFINE_TEST(test_entry)
 	skipping("ACL held by clone of archive_entry");
 #else
 	/* Verify ACL was unchanged. */
-	assertEqualInt(4, c = archive_entry_acl_reset(e2,
+	assertEqualInt(4, archive_entry_acl_reset(e2,
 			   ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
 	/* First three are standard permission bits. */
 	assertEqualInt(0, archive_entry_acl_next(e2,
@@ -807,7 +834,7 @@ DEFINE_TEST(test_entry)
 	/*
 	 * Exercise the character-conversion logic, if we can.
 	 */
-	if (NULL == setlocale(LC_ALL, LOCALE_DE)) {
+	if (NULL == LOCALE_UTF8 || NULL == setlocale(LC_ALL, LOCALE_UTF8)) {
 		skipping("Can't exercise charset-conversion logic without"
 			" a suitable locale.");
 	} else {

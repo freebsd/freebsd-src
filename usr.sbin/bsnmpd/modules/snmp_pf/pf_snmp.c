@@ -1104,7 +1104,7 @@ pft_refresh(void)
 	}
 
 	for (i = 0; i < numtbls; i++) {
-		e = malloc(sizeof(struct pfr_tstats));
+		e = malloc(sizeof(struct pft_entry));
 		if (e == NULL)
 			goto err1;
 		e->index = i + 1;

@@ -41,12 +41,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "buf.h"
-#include "globals.h"
 #include "str.h"
 #include "util.h"
 

@@ -11,6 +11,8 @@ SRCS=	ypupdate_prot_svc.c ypupdate_prot.h ypupdated_main.c \
 #CFLAGS+= -DYP
 CFLAGS+= -I${.CURDIR}/../ypserv -I. -I${.CURDIR}/../../libexec/ypxfr
 
+WARNS?=	1
+
 DPADD=	${LIBRPCSVC}
 LDADD=	-lrpcsvc
 

@@ -3,9 +3,10 @@
 .include <bsd.own.mk>
 MK_SSP=		no
 
-PROG=		loader.sym
+LOADER?=	loader
+PROG=		${LOADER}.sym
 INTERNALPROG=
-NEWVERSWHAT=	"bootstrap loader" i386
+NEWVERSWHAT?=	"bootstrap loader" i386
 
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
@@ -16,7 +17,7 @@ CFLAGS+=	-DLOADER_FIREWIRE_SUPPORT
 LIBFIREWIRE=	${.OBJDIR}/../libfirewire/libfirewire.a
 .endif
 
-# Put LOADER_ZFS_SUPPORT=yes in /etc/make.conf for ZFS support
+# Set by zfsloader Makefile
 .if defined(LOADER_ZFS_SUPPORT)
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
 LIBZFS=		${.OBJDIR}/../../zfs/libzfsboot.a
@@ -61,7 +62,7 @@ CFLAGS+=	-DLOADER_GPT_SUPPORT
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I.
 
-CLEANFILES=	vers.c loader loader.bin loader.help
+CLEANFILES=	vers.c ${LOADER} ${LOADER}.bin loader.help
 
 CFLAGS+=	-Wall
 LDFLAGS=	-static -Ttext 0x0
@@ -80,29 +81,34 @@ CFLAGS+=	-I${.CURDIR}/../btx/lib
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
 
-vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
-	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
+vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../loader/version
+	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../loader/version \
+		${NEWVERSWHAT}
 
-loader: loader.bin ${BTXLDR} ${BTXKERN}
+${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
-		-b ${BTXKERN} loader.bin
+		-b ${BTXKERN} ${LOADER}.bin
 
-loader.bin: loader.sym
+${LOADER}.bin: ${LOADER}.sym
 	cp ${.ALLSRC} ${.TARGET}
 	strip -R .comment -R .note ${.TARGET}
 
 loader.help: help.common help.i386
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
-.PATH: ${.CURDIR}/../../forth 
-FILES=	loader loader.help loader.4th support.4th loader.conf
-FILES+= screen.4th frames.4th beastie.4th
+FILES=	${LOADER}
 # XXX INSTALLFLAGS_loader= -b
-FILESMODE_loader= ${BINMODE} -b
+FILESMODE_${LOADER}= ${BINMODE} -b
+
+.if !defined(LOADER_ONLY)
+.PATH: ${.CURDIR}/../../forth 
+FILES+=	loader.help loader.4th support.4th loader.conf
+FILES+= screen.4th frames.4th beastie.4th
 FILESDIR_loader.conf=	/boot/defaults
 
 .if !exists(${DESTDIR}/boot/loader.rc)
 FILES+=	loader.rc
+.endif
 .endif
 
 # XXX crt0.o needs to be first for pxeboot(8) to work

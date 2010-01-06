@@ -524,13 +524,12 @@ AcpiDsMethodDataGetValue (
 
         if (AcpiGbl_EnableInterpreterSlack)
         {
-            Object = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+            Object = AcpiUtCreateIntegerObject ((UINT64) 0);
             if (!Object)
             {
                 return_ACPI_STATUS (AE_NO_MEMORY);
             }
 
-            Object->Integer.Value = 0;
             Node->Object = Object;
         }
 

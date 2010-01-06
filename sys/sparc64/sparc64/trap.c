@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/ofw_machdep.h>
+#include <machine/pcb.h>
 #include <machine/smp.h>
 #include <machine/trap.h>
 #include <machine/tstate.h>
@@ -409,7 +410,6 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 	vm_prot_t prot;
 	vm_map_entry_t entry;
 	u_long ctx;
-	int flags;
 	int type;
 	int rv;
 
@@ -429,15 +429,13 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 	CTR4(KTR_TRAP, "trap_pfault: td=%p pm_ctx=%#lx va=%#lx ctx=%#lx",
 	    td, p->p_vmspace->vm_pmap.pm_context[curcpu], va, ctx);
 
-	if (type == T_DATA_PROTECTION) {
+	if (type == T_DATA_PROTECTION)
 		prot = VM_PROT_WRITE;
-		flags = VM_FAULT_DIRTY;
-	} else {
+	else {
 		if (type == T_DATA_MISS)
 			prot = VM_PROT_READ;
 		else
 			prot = VM_PROT_READ | VM_PROT_EXECUTE;
-		flags = VM_FAULT_NORMAL;
 	}
 
 	if (ctx != TLB_CTX_KERNEL) {
@@ -463,7 +461,7 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 		PROC_UNLOCK(p);
 
 		/* Fault in the user page. */
-		rv = vm_fault(&vm->vm_map, va, prot, flags);
+		rv = vm_fault(&vm->vm_map, va, prot, VM_FAULT_NORMAL);
 
 		/*
 		 * Now the process can be swapped again.

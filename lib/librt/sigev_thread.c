@@ -439,9 +439,9 @@ worker_routine(void *arg)
 {
 	struct sigev_node *sn = arg;
 
-	_pthread_cleanup_push(worker_cleanup, sn);
+	pthread_cleanup_push(worker_cleanup, sn);
 	sn->sn_dispatch(sn);
-	_pthread_cleanup_pop(1);
+	pthread_cleanup_pop(1);
 
 	return (0);
 }

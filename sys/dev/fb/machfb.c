@@ -837,8 +837,8 @@ machfb_blank_display(video_adapter_t *adp, int mode)
 }
 
 static int
-machfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
-    int prot)
+machfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 	struct machfb_softc *sc;
 	video_info_t *vi;

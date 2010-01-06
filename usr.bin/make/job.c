@@ -485,7 +485,7 @@ catch_child(int sig __unused)
 /**
  */
 void
-Proc_Init()
+Proc_Init(void)
 {
 	/*
 	 * Catch SIGCHLD so that we get kicked out of select() when we
@@ -1008,17 +1008,6 @@ JobFinish(Job *job, int *status)
 				if (!(job->flags & JOB_CONTINUING)) {
 					DEBUGF(JOB, ("Warning: process %jd was not "
 						     "continuing.\n", (intmax_t) job->pid));
-#ifdef notdef
-					/*
-					 * We don't really want to restart a
-					 * job from scratch just because it
-					 * continued, especially not without
-					 * killing the continuing process!
-					 * That's why this is ifdef'ed out.
-					 * FD - 9/17/90
-					 */
-					JobRestart(job);
-#endif
 				}
 				job->flags &= ~JOB_CONTINUING;
 				TAILQ_INSERT_TAIL(&jobs, job, link);

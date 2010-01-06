@@ -53,7 +53,6 @@ SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
  *  1: force disable CLFLUSH
  */
 static int	hw_clflush_disable = -1;
-TUNABLE_INT("hw.clflush_disable", &hw_clflush_disable);
 
 int	cpu;			/* Are we 386, 386sx, 486, etc? */
 u_int	cpu_feature;		/* Feature flags */
@@ -164,6 +163,11 @@ initializecpu(void)
 	    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
 	    CPUID_TO_MODEL(cpu_id) >= 0xf)
 		init_via();
+}
+
+void
+initializecpucache()
+{
 
 	/*
 	 * CPUID with %eax = 1, %ebx returns
@@ -185,7 +189,6 @@ initializecpu(void)
 	 * hw.clflush_disable tunable.  This may help Xen guest on some AMD
 	 * CPUs.
 	 */
-	if (hw_clflush_disable == 1) {
+	if (hw_clflush_disable == 1)
 		cpu_feature &= ~CPUID_CLFSH;
-	}
 }

@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 static int ata_sis_chipinit(device_t dev);
 static int ata_sis_ch_attach(device_t dev);
 static void ata_sis_reset(device_t dev);
-static void ata_sis_setmode(device_t dev, int mode);
+static int ata_sis_setmode(device_t dev, int target, int mode);
 
 /* misc defines */
 #define SIS_33		1
@@ -191,6 +191,7 @@ ata_sis_chipinit(device_t dev)
 	    ctlr->reset = ata_sis_reset;
 	}
 	ctlr->setmode = ata_sata_setmode;
+	ctlr->getrev = ata_sata_getrev;
 	return 0;
     default:
 	return ENXIO;
@@ -217,6 +218,7 @@ ata_sis_ch_attach(device_t dev)
     ch->r_io[ATA_SCONTROL].res = ctlr->r_res2;
     ch->r_io[ATA_SCONTROL].offset = 0x08 + offset;
     ch->flags |= ATA_NO_SLAVE;
+    ch->flags |= ATA_SATA;
 
     /* XXX SOS PHY hotplug handling missing in SiS chip ?? */
     /* XXX SOS unknown how to enable PHY state change interrupt */
@@ -230,40 +232,30 @@ ata_sis_reset(device_t dev)
 	ata_generic_reset(dev);
 }
 
-static void
-ata_sis_setmode(device_t dev, int mode)
+static int
+ata_sis_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int devno = (ch->unit << 1) + atadev->unit;
-    int error;
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	struct ata_channel *ch = device_get_softc(dev);
+	int devno = (ch->unit << 1) + target;
 
-    mode = ata_limit_mode(dev, mode, ctlr->chip->max_dma);
+	mode = min(mode, ctlr->chip->max_dma);
 
-    if (ctlr->chip->cfg1 == SIS_133NEW) {
-	if (mode > ATA_UDMA2 &&
-	    pci_read_config(gparent, ch->unit ? 0x52 : 0x50,2) & 0x8000) {
-	    ata_print_cable(dev, "controller");
-	    mode = ATA_UDMA2;
-	}
-    }
-    else {
-	if (mode > ATA_UDMA2 &&
-	    pci_read_config(gparent, 0x48, 1)&(ch->unit ? 0x20 : 0x10)) {
-	    ata_print_cable(dev, "controller");
-	    mode = ATA_UDMA2;
-	}
-    }
+	if (ctlr->chip->cfg1 == SIS_133NEW) {
+		if (mode > ATA_UDMA2 &&
+		        pci_read_config(parent, ch->unit ? 0x52 : 0x50,2) & 0x8000) {
+		        ata_print_cable(dev, "controller");
+		        mode = ATA_UDMA2;
+		}
+	} else {
+		if (mode > ATA_UDMA2 &&
+		    pci_read_config(parent, 0x48, 1)&(ch->unit ? 0x20 : 0x10)) {
+		    ata_print_cable(dev, "controller");
+		    mode = ATA_UDMA2;
+		}
+        }
 
-    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-
-    if (bootverbose)
-	device_printf(dev, "%ssetting %s on %s chip\n",
-		      (error) ? "FAILURE " : "",
-		      ata_mode2str(mode), ctlr->chip->text);
-    if (!error) {
 	switch (ctlr->chip->cfg1) {
 	case SIS_133NEW: {
 	    u_int32_t timings[] = 
@@ -272,8 +264,8 @@ ata_sis_setmode(device_t dev, int mode)
 		  0x0509347c, 0x0509325c, 0x0509323c, 0x0509322c, 0x0509321c};
 	    u_int32_t reg;
 
-	    reg = (pci_read_config(gparent, 0x57, 1)&0x40?0x70:0x40)+(devno<<2);
-	    pci_write_config(gparent, reg, timings[ata_mode2idx(mode)], 4);
+	    reg = (pci_read_config(parent, 0x57, 1)&0x40?0x70:0x40)+(devno<<2);
+	    pci_write_config(parent, reg, timings[ata_mode2idx(mode)], 4);
 	    break;
 	    }
 	case SIS_133OLD: {
@@ -283,7 +275,7 @@ ata_sis_setmode(device_t dev, int mode)
 		  
 	    u_int16_t reg = 0x40 + (devno << 1);
 
-	    pci_write_config(gparent, reg, timings[ata_mode2idx(mode)], 2);
+	    pci_write_config(parent, reg, timings[ata_mode2idx(mode)], 2);
 	    break;
 	    }
 	case SIS_100NEW: {
@@ -292,7 +284,7 @@ ata_sis_setmode(device_t dev, int mode)
 		  0x0031, 0x8b31, 0x8731, 0x8531, 0x8431, 0x8231, 0x8131 };
 	    u_int16_t reg = 0x40 + (devno << 1);
 
-	    pci_write_config(gparent, reg, timings[ata_mode2idx(mode)], 2);
+	    pci_write_config(parent, reg, timings[ata_mode2idx(mode)], 2);
 	    break;
 	    }
 	case SIS_100OLD:
@@ -303,12 +295,11 @@ ata_sis_setmode(device_t dev, int mode)
 		  0x0301, 0xf301, 0xd301, 0xb301, 0xa301, 0x9301, 0x8301 };
 	    u_int16_t reg = 0x40 + (devno << 1);
 
-	    pci_write_config(gparent, reg, timings[ata_mode2idx(mode)], 2);
+	    pci_write_config(parent, reg, timings[ata_mode2idx(mode)], 2);
 	    break;
 	    }
 	}
-	atadev->mode = mode;
-    }
+	return (mode);
 }
 
 ATA_DECLARE_DRIVER(ata_sis);

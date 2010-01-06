@@ -81,10 +81,8 @@ static int nfsrpc_createv4(vnode_t , char *, int, struct vattr *,
 static int nfsrpc_locku(struct nfsrv_descript *, struct nfsmount *,
     struct nfscllockowner *, u_int64_t, u_int64_t,
     u_int32_t, struct ucred *, NFSPROC_T *, int);
-#ifdef NFS4_ACL_EXTATTR_NAME
 static int nfsrpc_setaclrpc(vnode_t, struct ucred *, NFSPROC_T *,
     struct acl *, nfsv4stateid_t *, void *);
-#endif
 
 /*
  * nfs null call from vfs.
@@ -983,14 +981,9 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 		if (vap != NULL)
 			error = nfsrpc_setattrrpc(vp, vap, &stateid, cred, p,
 			    rnap, attrflagp, stuff);
-#ifdef NFS4_ACL_EXTATTR_NAME
 		else
 			error = nfsrpc_setaclrpc(vp, cred, p, aclp, &stateid,
 			    stuff);
-#else
-		else
-			error = EOPNOTSUPP;
-#endif
 		if (error == NFSERR_STALESTATEID)
 			nfscl_initiate_recovery(nmp->nm_clp);
 		if (lckp != NULL)
@@ -1633,10 +1626,15 @@ nfsrpc_mknod(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		return (ENAMETOOLONG);
 	NFSCL_REQSTART(nd, NFSPROC_MKNOD, dvp);
 	if (nd->nd_flag & ND_NFSV4) {
-		NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
-		*tl++ = vtonfsv34_type(vtyp);
-		*tl++ = txdr_unsigned(NFSMAJOR(rdev));
-		*tl = txdr_unsigned(NFSMINOR(rdev));
+		if (vtyp == VBLK || vtyp == VCHR) {
+			NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+			*tl++ = vtonfsv34_type(vtyp);
+			*tl++ = txdr_unsigned(NFSMAJOR(rdev));
+			*tl = txdr_unsigned(NFSMINOR(rdev));
+		} else {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = vtonfsv34_type(vtyp);
+		}
 	}
 	(void) nfsm_strtom(nd, name, namelen);
 	if (nd->nd_flag & ND_NFSV3) {
@@ -4094,7 +4092,6 @@ nfsrpc_delegreturn(struct nfscldeleg *dp, struct ucred *cred,
 	return (error);
 }
 
-#ifdef NFS4_ACL_EXTATTR_NAME
 /*
  * nfs getacl call.
  */
@@ -4168,5 +4165,3 @@ nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	mbuf_freem(nd->nd_mrep);
 	return (nd->nd_repstat);
 }
-
-#endif	/* NFS4_ACL_EXTATTR_NAME */

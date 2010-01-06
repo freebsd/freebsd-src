@@ -13,4 +13,4 @@ NO_MAN=	yes
 .include <bsd.prog.mk>
 
 test: ${PROG}
-	@sh envtest.t
+	@env -i sh envtest.t

@@ -6,7 +6,7 @@
 # 
 # EDIT THIS FILE WITH CAUTION  (ntpdc-opts.texi)
 # 
-# It has been AutoGen-ed  Sunday August 17, 2008 at 05:26:27 AM EDT
+# It has been AutoGen-ed  Tuesday December  8, 2009 at 08:14:02 AM EST
 # From the definitions    ntpdc-opts.def
 # and the template file   aginfo.tpl
 @end ignore
@@ -58,12 +58,15 @@ This is the automatically generated usage text for ntpdc:
 
 @exampleindent 0
 @example
-ntpdc - vendor-specific NTP query program - Ver. 4.2.5p113
+ntpdc - vendor-specific NTP query program - Ver. 4.2.5p247-RC
 USAGE:  ntpdc [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... [ host ...]
   Flg Arg Option-Name    Description
    -4 no  ipv4           Force IPv4 DNS name resolution
+                                - prohibits these options:
+                                ipv6
    -6 no  ipv6           Force IPv6 DNS name resolution
-                                - an alternate for ipv4
+                                - prohibits these options:
+                                ipv4
    -c Str command        run a command and exit
                                 - may appear multiple times
    -l no  listpeers      Print a list of the peers
@@ -87,7 +90,7 @@ USAGE:  ntpdc [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... [ host ...]
                                 - may appear multiple times
    -n no  numeric        numeric host addresses
       opt version        Output version information and exit
-   -? no  help           Display usage information and exit
+   -? no  help           Display extended usage information and exit
    -! no  more-help      Extended usage information passed thru pager
    -> opt save-opts      Save the option state to a config file
    -< Str load-opts      Load options from a config file

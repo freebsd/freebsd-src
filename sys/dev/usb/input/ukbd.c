@@ -105,6 +105,8 @@ SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, debug, CTLFLAG_RW,
 SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, no_leds, CTLFLAG_RW,
     &ukbd_no_leds, 0, "Disables setting of keyboard leds");
 
+TUNABLE_INT("hw.usb.ukbd.debug", &ukbd_debug);
+TUNABLE_INT("hw.usb.ukbd.no_leds", &ukbd_no_leds);
 #endif
 
 #define	UPROTO_BOOT_KEYBOARD 1
@@ -924,7 +926,7 @@ ukbd_detach(device_t dev)
 	DPRINTF("\n");
 
 	if (sc->sc_flags & UKBD_FLAG_POLLING) {
-		panic("cannot detach polled keyboard!\n");
+		panic("cannot detach polled keyboard\n");
 	}
 	sc->sc_flags |= UKBD_FLAG_GONE;
 

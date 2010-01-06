@@ -42,7 +42,7 @@
 static void
 usage(void)
 {
-	fprintf(stderr, "fifolog_writer [-w write-rate] [-s sync-rate] "
+	fprintf(stderr, "Usage: fifolog_writer [-w write-rate] [-s sync-rate] "
 	    "[-z compression] file\n");
 	exit(EX_USAGE);
 }

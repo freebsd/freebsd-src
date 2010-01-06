@@ -23,6 +23,11 @@ SRCS+=	dev_net.c
 SRCS+=  bcache.c
 .endif
 
+.if defined(MD_IMAGE_SIZE)
+CFLAGS+= -DMD_IMAGE_SIZE=${MD_IMAGE_SIZE}
+SRCS+=	md.c
+.endif
+
 # Machine-independant ISA PnP
 .if defined(HAVE_ISABUS)
 SRCS+=	isapnp.c
@@ -36,6 +41,10 @@ SRCS+=	pnp.c
 SRCS+=	interp_forth.c
 MAN+=	../forth/loader.conf.5
 MAN+=	../forth/loader.4th.8
+.endif
+
+.if defined(BOOT_PROMPT_123)
+CFLAGS+=	-DBOOT_PROMPT_123
 .endif
 
 MAN+=	loader.8

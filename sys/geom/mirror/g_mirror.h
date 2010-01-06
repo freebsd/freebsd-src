@@ -133,8 +133,8 @@ struct g_mirror_disk {
 	struct g_mirror_softc	*d_softc; /* Back-pointer to softc. */
 	int		 d_state;	/* Disk state. */
 	u_int		 d_priority;	/* Disk priority. */
-	struct bintime	 d_delay;	/* Disk delay. */
-	struct bintime	 d_last_used;	/* When disk was last used. */
+	u_int		 load;		/* Averaged queue length */
+	off_t		 d_last_offset;	/* Last read offset */
 	uint64_t	 d_flags;	/* Additional flags. */
 	u_int		 d_genid;	/* Disk's generation ID. */
 	struct g_mirror_disk_sync d_sync;/* Sync information. */

@@ -6,7 +6,7 @@
 # 
 # EDIT THIS FILE WITH CAUTION  (ntpd-opts.texi)
 # 
-# It has been AutoGen-ed  Sunday August 17, 2008 at 05:20:12 AM EDT
+# It has been AutoGen-ed  Tuesday December  8, 2009 at 08:13:12 AM EST
 # From the definitions    ntpd-opts.def
 # and the template file   aginfo.tpl
 @end ignore
@@ -60,12 +60,15 @@ This is the automatically generated usage text for ntpd:
 
 @exampleindent 0
 @example
-ntpd - NTP daemon program - Ver. 4.2.5p113
+ntpd - NTP daemon program - Ver. 4.2.5p247-RC
 USAGE:  ntpd [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]...
   Flg Arg Option-Name    Description
    -4 no  ipv4           Force IPv4 DNS name resolution
+                                - prohibits these options:
+                                ipv6
    -6 no  ipv6           Force IPv6 DNS name resolution
-                                - an alternate for ipv4
+                                - prohibits these options:
+                                ipv4
    -a no  authreq        Require crypto authentication
                                 - prohibits these options:
                                 authnoreq
@@ -80,20 +83,24 @@ USAGE:  ntpd [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]...
                                 - may appear multiple times
    -f Str driftfile      frequency drift file name
    -g no  panicgate      Allow the first adjustment to be Big
-   -I Str interface      Listen on the specified interface or IP
+                                - may appear multiple times
+   -i --- jaildir        built without --enable-clockctl or --enable-linuxcaps
+   -I Str interface      Listen on an interface name or address
                                 - may appear multiple times
    -k Str keyfile        path to symmetric keys
    -l Str logfile        path to the log file
-   -L no  novirtualips   Do not listen to virtual IPs
+   -L no  novirtualips   Do not listen to virtual interfaces
    -n no  nofork         Do not fork
    -N no  nice           Run at high priority
    -p Str pidfile        path to the PID file
    -P Num priority       Process priority
    -q no  quit           Set the time and quit
    -r Str propagationdelay Broadcast/propagation delay
+      Str saveconfigquit Save parsed configuration and quit
    -s Str statsdir       Statistics file location
    -t Str trustedkey     Trusted key number
                                 - may appear multiple times
+   -u --- user           built without --enable-clockctl or --enable-linuxcaps
    -U Num updateinterval interval in seconds between scans for new or dropped interfaces
       Str var            make ARG an ntp variable (RW)
                                 - may appear multiple times
@@ -101,7 +108,7 @@ USAGE:  ntpd [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]...
                                 - may appear multiple times
    -x no  slew           Slew up to 600 seconds
       opt version        Output version information and exit
-   -? no  help           Display usage information and exit
+   -? no  help           Display extended usage information and exit
    -! no  more-help      Extended usage information passed thru pager
 
 Options are specified by doubled hyphens and their name

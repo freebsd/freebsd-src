@@ -75,6 +75,11 @@ ata_op_string(struct ata_cmd *cmd)
 	switch (cmd->command) {
 	case 0x00: return ("NOP");
 	case 0x03: return ("CFA_REQUEST_EXTENDED_ERROR");
+	case 0x06:
+		switch (cmd->features) {
+	        case 0x01: return ("DSM TRIM");
+	        }
+	        return "DSM";
 	case 0x08: return ("DEVICE_RESET");
 	case 0x20: return ("READ");
 	case 0x24: return ("READ48");
@@ -93,8 +98,8 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x39: return ("WRITE_MUL48");
 	case 0x3a: return ("WRITE_STREAM_DMA48");
 	case 0x3b: return ("WRITE_STREAM48");
-	case 0x3d: return ("WRITE_DMA_FUA");
-	case 0x3e: return ("WRITE_DMA_FUA48");
+	case 0x3d: return ("WRITE_DMA_FUA48");
+	case 0x3e: return ("WRITE_DMA_QUEUED_FUA48");
 	case 0x3f: return ("WRITE_LOG_EXT");
 	case 0x40: return ("READ_VERIFY");
 	case 0x42: return ("READ_VERIFY48");
@@ -119,7 +124,7 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0xca: return ("WRITE_DMA");
 	case 0xcc: return ("WRITE_DMA_QUEUED");
 	case 0xcd: return ("CFA_WRITE_MULTIPLE_WITHOUT_ERASE");
-	case 0xce: return ("WRITE_MULTIPLE_FUA48");
+	case 0xce: return ("WRITE_MUL_FUA48");
 	case 0xd1: return ("CHECK_MEDIA_CARD_TYPE");
 	case 0xda: return ("GET_MEDIA_STATUS");
 	case 0xde: return ("MEDIA_LOCK");
@@ -256,8 +261,10 @@ ata_print_ident(struct ata_params *ident_data)
 		   sizeof(product));
 	cam_strvis(revision, ident_data->revision, sizeof(ident_data->revision),
 		   sizeof(revision));
-	printf("<%s %s> ATA/ATAPI-%d",
-	    product, revision, ata_version(ident_data->version_major));
+	printf("<%s %s> %s-%d",
+	    product, revision,
+	    (ident_data->config & ATA_PROTO_ATAPI) ? "ATAPI" : "ATA",
+	    ata_version(ident_data->version_major));
 	if (ident_data->satacapabilities && ident_data->satacapabilities != 0xffff) {
 		if (ident_data->satacapabilities & ATA_SATA_GEN3)
 			printf(" SATA 3.x");
@@ -309,6 +316,11 @@ ata_28bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
 {
 	bzero(&ataio->cmd, sizeof(ataio->cmd));
 	ataio->cmd.flags = 0;
+	if (cmd == ATA_READ_DMA ||
+	    cmd == ATA_READ_DMA_QUEUED ||
+	    cmd == ATA_WRITE_DMA ||
+	    cmd == ATA_WRITE_DMA_QUEUED)
+		ataio->cmd.flags |= CAM_ATAIO_DMA;
 	ataio->cmd.command = cmd;
 	ataio->cmd.features = features;
 	ataio->cmd.lba_low = lba;
@@ -324,6 +336,16 @@ ata_48bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint16_t features,
 {
 	bzero(&ataio->cmd, sizeof(ataio->cmd));
 	ataio->cmd.flags = CAM_ATAIO_48BIT;
+	if (cmd == ATA_READ_DMA48 ||
+	    cmd == ATA_READ_DMA_QUEUED48 ||
+	    cmd == ATA_READ_STREAM_DMA48 ||
+	    cmd == ATA_WRITE_DMA48 ||
+	    cmd == ATA_WRITE_DMA_FUA48 ||
+	    cmd == ATA_WRITE_DMA_QUEUED48 ||
+	    cmd == ATA_WRITE_DMA_QUEUED_FUA48 ||
+	    cmd == ATA_WRITE_STREAM_DMA48 ||
+	    cmd == ATA_DATA_SET_MANAGEMENT)
+		ataio->cmd.flags |= CAM_ATAIO_DMA;
 	ataio->cmd.command = cmd;
 	ataio->cmd.features = features;
 	ataio->cmd.lba_low = lba;
@@ -491,22 +513,143 @@ ata_max_umode(struct ata_params *ap)
 }
 
 int
-ata_max_mode(struct ata_params *ap, int mode, int maxmode)
+ata_max_mode(struct ata_params *ap, int maxmode)
 {
 
-    if (maxmode && mode > maxmode)
-	mode = maxmode;
+	if (maxmode == 0)
+		maxmode = ATA_DMA_MAX;
+	if (maxmode >= ATA_UDMA0 && ata_max_umode(ap) > 0)
+		return (min(maxmode, ata_max_umode(ap)));
+	if (maxmode >= ATA_WDMA0 && ata_max_wmode(ap) > 0)
+		return (min(maxmode, ata_max_wmode(ap)));
+	return (min(maxmode, ata_max_pmode(ap)));
+}
 
-    if (mode >= ATA_UDMA0 && ata_max_umode(ap) > 0)
-	return (min(mode, ata_max_umode(ap)));
+char *
+ata_mode2string(int mode)
+{
+    switch (mode) {
+    case -1: return "UNSUPPORTED";
+    case 0: return "NONE";
+    case ATA_PIO0: return "PIO0";
+    case ATA_PIO1: return "PIO1";
+    case ATA_PIO2: return "PIO2";
+    case ATA_PIO3: return "PIO3";
+    case ATA_PIO4: return "PIO4";
+    case ATA_WDMA0: return "WDMA0";
+    case ATA_WDMA1: return "WDMA1";
+    case ATA_WDMA2: return "WDMA2";
+    case ATA_UDMA0: return "UDMA0";
+    case ATA_UDMA1: return "UDMA1";
+    case ATA_UDMA2: return "UDMA2";
+    case ATA_UDMA3: return "UDMA3";
+    case ATA_UDMA4: return "UDMA4";
+    case ATA_UDMA5: return "UDMA5";
+    case ATA_UDMA6: return "UDMA6";
+    default:
+	if (mode & ATA_DMA_MASK)
+	    return "BIOSDMA";
+	else
+	    return "BIOSPIO";
+    }
+}
 
-    if (mode >= ATA_WDMA0 && ata_max_wmode(ap) > 0)
-	return (min(mode, ata_max_wmode(ap)));
+int
+ata_string2mode(char *str)
+{
+	if (!strcasecmp(str, "PIO0")) return (ATA_PIO0);
+	if (!strcasecmp(str, "PIO1")) return (ATA_PIO1);
+	if (!strcasecmp(str, "PIO2")) return (ATA_PIO2);
+	if (!strcasecmp(str, "PIO3")) return (ATA_PIO3);
+	if (!strcasecmp(str, "PIO4")) return (ATA_PIO4);
+	if (!strcasecmp(str, "WDMA0")) return (ATA_WDMA0);
+	if (!strcasecmp(str, "WDMA1")) return (ATA_WDMA1);
+	if (!strcasecmp(str, "WDMA2")) return (ATA_WDMA2);
+	if (!strcasecmp(str, "UDMA0")) return (ATA_UDMA0);
+	if (!strcasecmp(str, "UDMA16")) return (ATA_UDMA0);
+	if (!strcasecmp(str, "UDMA1")) return (ATA_UDMA1);
+	if (!strcasecmp(str, "UDMA25")) return (ATA_UDMA1);
+	if (!strcasecmp(str, "UDMA2")) return (ATA_UDMA2);
+	if (!strcasecmp(str, "UDMA33")) return (ATA_UDMA2);
+	if (!strcasecmp(str, "UDMA3")) return (ATA_UDMA3);
+	if (!strcasecmp(str, "UDMA44")) return (ATA_UDMA3);
+	if (!strcasecmp(str, "UDMA4")) return (ATA_UDMA4);
+	if (!strcasecmp(str, "UDMA66")) return (ATA_UDMA4);
+	if (!strcasecmp(str, "UDMA5")) return (ATA_UDMA5);
+	if (!strcasecmp(str, "UDMA100")) return (ATA_UDMA5);
+	if (!strcasecmp(str, "UDMA6")) return (ATA_UDMA6);
+	if (!strcasecmp(str, "UDMA133")) return (ATA_UDMA6);
+	return (-1);
+}
 
-    if (mode > ata_max_pmode(ap))
-	return (min(mode, ata_max_pmode(ap)));
 
-    return (mode);
+u_int
+ata_mode2speed(int mode)
+{
+	switch (mode) {
+	case ATA_PIO0:
+	default:
+		return (3300);
+	case ATA_PIO1:
+		return (5200);
+	case ATA_PIO2:
+		return (8300);
+	case ATA_PIO3:
+		return (11100);
+	case ATA_PIO4:
+		return (16700);
+	case ATA_WDMA0:
+		return (4200);
+	case ATA_WDMA1:
+		return (13300);
+	case ATA_WDMA2:
+		return (16700);
+	case ATA_UDMA0:
+		return (16700);
+	case ATA_UDMA1:
+		return (25000);
+	case ATA_UDMA2:
+		return (33300);
+	case ATA_UDMA3:
+		return (44400);
+	case ATA_UDMA4:
+		return (66700);
+	case ATA_UDMA5:
+		return (100000);
+	case ATA_UDMA6:
+		return (133000);
+	}
+}
+
+u_int
+ata_revision2speed(int revision)
+{
+	switch (revision) {
+	case 1:
+	default:
+		return (150000);
+	case 2:
+		return (300000);
+	case 3:
+		return (600000);
+	}
+}
+
+int
+ata_speed2revision(u_int speed)
+{
+	switch (speed) {
+	case 0:
+		return (0);
+	case 150000:
+		return (1);
+	case 300000:
+		return (2);
+	case 600000:
+		return (3);
+	default:
+		return (-1);
+	}
 }
 
 int

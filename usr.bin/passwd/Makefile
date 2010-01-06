@@ -12,7 +12,6 @@ LDADD	 = ${MINUSLPAM}
 LINKS	 = ${BINDIR}/passwd ${BINDIR}/yppasswd
 MLINKS	 = passwd.1 yppasswd.1
 .endif
-WARNS	?= 4
 
 beforeinstall:
 .for i in passwd yppasswd

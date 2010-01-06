@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/posix4.h>
-#include <sys/semaphore.h>
 #include <sys/_semaphore.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>

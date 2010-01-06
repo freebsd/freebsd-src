@@ -265,7 +265,7 @@ printcpuinfo(void)
 				        strcat(cpu_model, "/P54C");
 					break;
 				case 0x30:
-				        strcat(cpu_model, "/P54T Overdrive");
+				        strcat(cpu_model, "/P24T");
 					break;
 				case 0x40:
 				        strcat(cpu_model, "/P55C");
@@ -746,7 +746,7 @@ printcpuinfo(void)
 				"\024SSE4.1"
 				"\025SSE4.2"
 				"\026x2APIC"	/* xAPIC Extensions */
-				"\027<b22>"
+				"\027MOVBE"
 				"\030POPCNT"
 				"\031<b24>"
 				"\032<b25>"

@@ -251,8 +251,10 @@ set_charset(struct iovec **iov, int *iovlen, const char *localcs)
 
 	if ((cs_disk = malloc(ICONV_CSNMAXLEN)) == NULL)
 		return (-1);
-	if ((cs_local = malloc(ICONV_CSNMAXLEN)) == NULL)
+	if ((cs_local = malloc(ICONV_CSNMAXLEN)) == NULL) {
+		free(cs_disk);
 		return (-1);
+	}
 	strncpy(cs_disk, ENCODING_UNICODE, ICONV_CSNMAXLEN);
 	strncpy(cs_local, kiconv_quirkcs(localcs, KICONV_VENDOR_MICSFT),
 	    ICONV_CSNMAXLEN);

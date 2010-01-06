@@ -292,7 +292,7 @@ upgt_attach(device_t dev)
 	/* Calculate device memory space.  */
 	if (sc->sc_memaddr_frame_start == 0 || sc->sc_memaddr_frame_end == 0) {
 		device_printf(dev,
-		    "could not find memory space addresses on FW!\n");
+		    "could not find memory space addresses on FW\n");
 		error = EIO;
 		goto fail5;
 	}
@@ -732,7 +732,7 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 		break;
 	default:
 		device_printf(sc->sc_dev,
-		    "MAC filter does not know that state!\n");
+		    "MAC filter does not know that state\n");
 		break;
 	}
 
@@ -1181,7 +1181,7 @@ upgt_eeprom_parse(struct upgt_softc *sc)
 			break;
 		case UPGT_EEPROM_TYPE_OFF:
 			DPRINTF(sc, UPGT_DEBUG_FW,
-			    "%s: EEPROM off without end option!\n", __func__);
+			    "%s: EEPROM off without end option\n", __func__);
 			return (EIO);
 		default:
 			DPRINTF(sc, UPGT_DEBUG_FW,
@@ -1356,7 +1356,7 @@ upgt_eeprom_read(struct upgt_softc *sc)
 		error = mtx_sleep(sc, &sc->sc_mtx, 0, "eeprom_request", hz);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "timeout while waiting for EEPROM data!\n");
+			    "timeout while waiting for EEPROM data\n");
 			UPGT_UNLOCK(sc);
 			return (EIO);
 		}
@@ -1490,7 +1490,7 @@ upgt_rx(struct upgt_softc *sc, uint8_t *data, int pkglen, int *rssi)
 	    ("A current mbuf storage is small (%d)", pkglen + ETHER_ALIGN));
 	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
-		device_printf(sc->sc_dev, "could not create RX mbuf!\n");
+		device_printf(sc->sc_dev, "could not create RX mbuf\n");
 		return (NULL);
 	}
 	m_adj(m, ETHER_ALIGN);
@@ -1587,7 +1587,7 @@ upgt_mem_free(struct upgt_softc *sc, uint32_t addr)
 	}
 
 	device_printf(sc->sc_dev,
-	    "could not free memory address 0x%08x!\n", addr);
+	    "could not free memory address 0x%08x\n", addr);
 }
 
 static int
@@ -1602,7 +1602,7 @@ upgt_fw_load(struct upgt_softc *sc)
 
 	fw = firmware_get(upgt_fwname);
 	if (fw == NULL) {
-		device_printf(sc->sc_dev, "could not read microcode %s!\n",
+		device_printf(sc->sc_dev, "could not read microcode %s\n",
 		    upgt_fwname);
 		return (EIO);
 	}
@@ -1676,7 +1676,7 @@ upgt_fw_load(struct upgt_softc *sc)
 	usbd_transfer_start(sc->sc_xfer[UPGT_BULK_RX]);
 	error = mtx_sleep(sc, &sc->sc_mtx, 0, "upgtfw", 2 * hz);
 	if (error != 0) {
-		device_printf(sc->sc_dev, "firmware load failed!\n");
+		device_printf(sc->sc_dev, "firmware load failed\n");
 		error = EIO;
 	}
 
@@ -1782,7 +1782,7 @@ upgt_fw_verify(struct upgt_softc *sc)
 
 	fw = firmware_get(upgt_fwname);
 	if (fw == NULL) {
-		device_printf(sc->sc_dev, "could not read microcode %s!\n",
+		device_printf(sc->sc_dev, "could not read microcode %s\n",
 		    upgt_fwname);
 		return EIO;
 	}
@@ -1802,7 +1802,7 @@ upgt_fw_verify(struct upgt_softc *sc)
 	}
 	if (offset == fw->datasize) { 
 		device_printf(sc->sc_dev,
-		    "firmware Boot Record Area not found!\n");
+		    "firmware Boot Record Area not found\n");
 		error = EIO;
 		goto fail;
 	}
@@ -1827,7 +1827,7 @@ upgt_fw_verify(struct upgt_softc *sc)
 
 			if (bra_option_len != UPGT_BRA_FWTYPE_SIZE) {
 				device_printf(sc->sc_dev,
-				    "wrong UPGT_BRA_TYPE_FW len!\n");
+				    "wrong UPGT_BRA_TYPE_FW len\n");
 				error = EIO;
 				goto fail;
 			}
@@ -1842,7 +1842,7 @@ upgt_fw_verify(struct upgt_softc *sc)
 				break;
 			}
 			device_printf(sc->sc_dev,
-			    "unsupported firmware type!\n");
+			    "unsupported firmware type\n");
 			error = EIO;
 			goto fail;
 		case UPGT_BRA_TYPE_VERSION:
@@ -1946,7 +1946,7 @@ upgt_alloc_tx(struct upgt_softc *sc)
 		data->buf = malloc(MCLBYTES, M_USBDEV, M_NOWAIT | M_ZERO);
 		if (data->buf == NULL) {
 			device_printf(sc->sc_dev,
-			    "could not allocate TX buffer!\n");
+			    "could not allocate TX buffer\n");
 			return (ENOMEM);
 		}
 		STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, data, next);
@@ -1970,7 +1970,7 @@ upgt_alloc_rx(struct upgt_softc *sc)
 		data->buf = malloc(MCLBYTES, M_USBDEV, M_NOWAIT | M_ZERO);
 		if (data->buf == NULL) {
 			device_printf(sc->sc_dev,
-			    "could not allocate RX buffer!\n");
+			    "could not allocate RX buffer\n");
 			return (ENOMEM);
 		}
 		STAILQ_INSERT_TAIL(&sc->sc_rx_inactive, data, next);

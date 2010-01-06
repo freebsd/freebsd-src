@@ -247,24 +247,27 @@ AcpiNsGetNextNodeTyped (
  *              MaxDepth            - Depth to which search is to reach
  *              Flags               - Whether to unlock the NS before invoking
  *                                    the callback routine
- *              UserFunction        - Called when an object of "Type" is found
- *              Context             - Passed to user function
- *              ReturnValue         - from the UserFunction if terminated early.
- *                                    Otherwise, returns NULL.
+ *              PreOrderVisit       - Called during tree pre-order visit
+ *                                    when an object of "Type" is found
+ *              PostOrderVisit      - Called during tree post-order visit
+ *                                    when an object of "Type" is found
+ *              Context             - Passed to user function(s) above
+ *              ReturnValue         - from the UserFunction if terminated
+ *                                    early. Otherwise, returns NULL.
  * RETURNS:     Status
  *
  * DESCRIPTION: Performs a modified depth-first walk of the namespace tree,
  *              starting (and ending) at the node specified by StartHandle.
- *              The UserFunction is called whenever a node that matches
- *              the type parameter is found.  If the user function returns
+ *              The callback function is called whenever a node that matches
+ *              the type parameter is found. If the callback function returns
  *              a non-zero value, the search is terminated immediately and
  *              this value is returned to the caller.
  *
  *              The point of this procedure is to provide a generic namespace
  *              walk routine that can be called from multiple places to
- *              provide multiple services;  the User Function can be tailored
- *              to each task, whether it is a print function, a compare
- *              function, etc.
+ *              provide multiple services; the callback function(s) can be
+ *              tailored to each task, whether it is a print function,
+ *              a compare function, etc.
  *
  ******************************************************************************/
 
@@ -274,7 +277,8 @@ AcpiNsWalkNamespace (
     ACPI_HANDLE             StartNode,
     UINT32                  MaxDepth,
     UINT32                  Flags,
-    ACPI_WALK_CALLBACK      UserFunction,
+    ACPI_WALK_CALLBACK      PreOrderVisit,
+    ACPI_WALK_CALLBACK      PostOrderVisit,
     void                    *Context,
     void                    **ReturnValue)
 {
@@ -284,6 +288,7 @@ AcpiNsWalkNamespace (
     ACPI_NAMESPACE_NODE     *ParentNode;
     ACPI_OBJECT_TYPE        ChildType;
     UINT32                  Level;
+    BOOLEAN                 NodePreviouslyVisited = FALSE;
 
 
     ACPI_FUNCTION_TRACE (NsWalkNamespace);
@@ -299,7 +304,7 @@ AcpiNsWalkNamespace (
     /* Null child means "get first node" */
 
     ParentNode  = StartNode;
-    ChildNode   = NULL;
+    ChildNode   = AcpiNsGetNextNode (ParentNode, NULL);
     ChildType   = ACPI_TYPE_ANY;
     Level       = 1;
 
@@ -308,103 +313,139 @@ AcpiNsWalkNamespace (
      * started. When Level is zero, the loop is done because we have
      * bubbled up to (and passed) the original parent handle (StartEntry)
      */
-    while (Level > 0)
+    while (Level > 0 && ChildNode)
     {
-        /* Get the next node in this scope.  Null if not found */
-
         Status = AE_OK;
+
+        /* Found next child, get the type if we are not searching for ANY */
+
+        if (Type != ACPI_TYPE_ANY)
+        {
+            ChildType = ChildNode->Type;
+        }
+
+        /*
+         * Ignore all temporary namespace nodes (created during control
+         * method execution) unless told otherwise. These temporary nodes
+         * can cause a race condition because they can be deleted during
+         * the execution of the user function (if the namespace is
+         * unlocked before invocation of the user function.) Only the
+         * debugger namespace dump will examine the temporary nodes.
+         */
+        if ((ChildNode->Flags & ANOBJ_TEMPORARY) &&
+            !(Flags & ACPI_NS_WALK_TEMP_NODES))
+        {
+            Status = AE_CTRL_DEPTH;
+        }
+
+        /* Type must match requested type */
+
+        else if (ChildType == Type)
+        {
+            /*
+             * Found a matching node, invoke the user callback function.
+             * Unlock the namespace if flag is set.
+             */
+            if (Flags & ACPI_NS_WALK_UNLOCK)
+            {
+                MutexStatus = AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+                if (ACPI_FAILURE (MutexStatus))
+                {
+                    return_ACPI_STATUS (MutexStatus);
+                }
+            }
+
+            /*
+             * Invoke the user function, either pre-order or post-order
+             * or both.
+             */
+            if (!NodePreviouslyVisited)
+            {
+                if (PreOrderVisit)
+                {
+                    Status = PreOrderVisit (ChildNode, Level,
+                                Context, ReturnValue);
+                }
+            }
+            else
+            {
+                if (PostOrderVisit)
+                {
+                    Status = PostOrderVisit (ChildNode, Level,
+                                Context, ReturnValue);
+                }
+            }
+
+            if (Flags & ACPI_NS_WALK_UNLOCK)
+            {
+                MutexStatus = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+                if (ACPI_FAILURE (MutexStatus))
+                {
+                    return_ACPI_STATUS (MutexStatus);
+                }
+            }
+
+            switch (Status)
+            {
+            case AE_OK:
+            case AE_CTRL_DEPTH:
+
+                /* Just keep going */
+                break;
+
+            case AE_CTRL_TERMINATE:
+
+                /* Exit now, with OK status */
+
+                return_ACPI_STATUS (AE_OK);
+
+            default:
+
+                /* All others are valid exceptions */
+
+                return_ACPI_STATUS (Status);
+            }
+        }
+
+        /*
+         * Depth first search: Attempt to go down another level in the
+         * namespace if we are allowed to.  Don't go any further if we have
+         * reached the caller specified maximum depth or if the user
+         * function has specified that the maximum depth has been reached.
+         */
+        if (!NodePreviouslyVisited &&
+            (Level < MaxDepth) &&
+            (Status != AE_CTRL_DEPTH))
+        {
+            if (ChildNode->Child)
+            {
+                /* There is at least one child of this node, visit it */
+
+                Level++;
+                ParentNode = ChildNode;
+                ChildNode = AcpiNsGetNextNode (ParentNode, NULL);
+                continue;
+            }
+        }
+
+        /* No more children, re-visit this node */
+
+        if (!NodePreviouslyVisited)
+        {
+            NodePreviouslyVisited = TRUE;
+            continue;
+        }
+
+        /* No more children, visit peers */
+
         ChildNode = AcpiNsGetNextNode (ParentNode, ChildNode);
         if (ChildNode)
         {
-            /* Found next child, get the type if we are not searching for ANY */
-
-            if (Type != ACPI_TYPE_ANY)
-            {
-                ChildType = ChildNode->Type;
-            }
-
-            /*
-             * Ignore all temporary namespace nodes (created during control
-             * method execution) unless told otherwise. These temporary nodes
-             * can cause a race condition because they can be deleted during
-             * the execution of the user function (if the namespace is
-             * unlocked before invocation of the user function.) Only the
-             * debugger namespace dump will examine the temporary nodes.
-             */
-            if ((ChildNode->Flags & ANOBJ_TEMPORARY) &&
-                !(Flags & ACPI_NS_WALK_TEMP_NODES))
-            {
-                Status = AE_CTRL_DEPTH;
-            }
-
-            /* Type must match requested type */
-
-            else if (ChildType == Type)
-            {
-                /*
-                 * Found a matching node, invoke the user callback function.
-                 * Unlock the namespace if flag is set.
-                 */
-                if (Flags & ACPI_NS_WALK_UNLOCK)
-                {
-                    MutexStatus = AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
-                    if (ACPI_FAILURE (MutexStatus))
-                    {
-                        return_ACPI_STATUS (MutexStatus);
-                    }
-                }
-
-                Status = UserFunction (ChildNode, Level, Context, ReturnValue);
-
-                if (Flags & ACPI_NS_WALK_UNLOCK)
-                {
-                    MutexStatus = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
-                    if (ACPI_FAILURE (MutexStatus))
-                    {
-                        return_ACPI_STATUS (MutexStatus);
-                    }
-                }
-
-                switch (Status)
-                {
-                case AE_OK:
-                case AE_CTRL_DEPTH:
-
-                    /* Just keep going */
-                    break;
-
-                case AE_CTRL_TERMINATE:
-
-                    /* Exit now, with OK status */
-
-                    return_ACPI_STATUS (AE_OK);
-
-                default:
-
-                    /* All others are valid exceptions */
-
-                    return_ACPI_STATUS (Status);
-                }
-            }
-
-            /*
-             * Depth first search: Attempt to go down another level in the
-             * namespace if we are allowed to.  Don't go any further if we have
-             * reached the caller specified maximum depth or if the user
-             * function has specified that the maximum depth has been reached.
-             */
-            if ((Level < MaxDepth) && (Status != AE_CTRL_DEPTH))
-            {
-                if (ChildNode->Child)
-                {
-                    /* There is at least one child of this node, visit it */
-
-                    Level++;
-                    ParentNode = ChildNode;
-                    ChildNode = NULL;
-                }
-            }
+            NodePreviouslyVisited = FALSE;
         }
+
+        /* No peers, re-visit parent */
+
         else
         {
             /*
@@ -414,6 +455,8 @@ AcpiNsWalkNamespace (
             Level--;
             ChildNode = ParentNode;
             ParentNode = AcpiNsGetParentNode (ParentNode);
+
+            NodePreviouslyVisited = TRUE;
         }
     }
 

@@ -42,7 +42,6 @@
 #include <arpa/inet.h>
 #include <protocols/talkd.h>
 #include <curses.h>
-#include <unistd.h>
 
 extern	int sockt;
 extern	int curses_initialized;

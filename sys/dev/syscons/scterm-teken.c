@@ -132,9 +132,9 @@ scteken_init(scr_stat *scp, void **softc, int code)
 #ifndef TEKEN_UTF8
 		teken_set_8bit(&ts->ts_teken);
 #endif /* !TEKEN_UTF8 */
-#ifndef TEKEN_XTERM
+#ifdef TEKEN_CONS25
 		teken_set_cons25(&ts->ts_teken);
-#endif /* !TEKEN_XTERM */
+#endif /* TEKEN_CONS25 */
 
 		tp.tp_row = scp->ysize;
 		tp.tp_col = scp->xsize;

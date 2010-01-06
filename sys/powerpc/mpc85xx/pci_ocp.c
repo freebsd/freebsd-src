@@ -783,6 +783,7 @@ pci_ocp_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			device_printf(dev, "%s requested ISA interrupt %lu\n",
 			    device_get_nameunit(child), start);
 		}
+		flags |= RF_SHAREABLE;
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 		    type, rid, start, end, count, flags));
 	default:
