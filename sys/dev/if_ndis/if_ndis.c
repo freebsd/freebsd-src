@@ -2243,7 +2243,7 @@ ndis_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 	struct ieee80211vap *vap = ifp->if_softc;
 	struct ndis_softc *sc = vap->iv_ic->ic_ifp->if_softc;
 	uint32_t txrate;
-	size_t len;
+	int len;
 
 	if (!NDIS_INITIALIZED(sc))
 		return;
