@@ -288,11 +288,10 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 	entry->gpe_pp->mediasize -= entry->gpe_offset - offset;
 	entry->gpe_pp->sectorsize = pp->sectorsize;
 	entry->gpe_pp->flags = pp->flags & G_PF_CANDELETE;
-	if (pp->stripesize > 0) {
-		entry->gpe_pp->stripesize = pp->stripesize;
-		entry->gpe_pp->stripeoffset = (pp->stripeoffset +
-		    entry->gpe_offset) % pp->stripesize;
-	}
+	entry->gpe_pp->stripesize = pp->stripesize;
+	entry->gpe_pp->stripeoffset = pp->stripeoffset + entry->gpe_offset;
+	if (pp->stripesize > 0)
+		entry->gpe_pp->stripeoffset %= pp->stripesize;
 	g_error_provider(entry->gpe_pp, 0);
 }
 
