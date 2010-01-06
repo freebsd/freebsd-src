@@ -77,12 +77,6 @@
 GLOBAL(fenvp)
 	.space 4			# Assumes mips32?  Is that OK?
 #endif
-#ifdef CFE			/* Assumes MIPS32, bad? */
-GLOBAL(cfe_handle)
-	.space 4
-GLOBAL(cfe_vector)
-	.space 4
-#endif
 GLOBAL(stackspace)
 	.space NBPG /* Smaller than it should be since it's temp. */
 	.align 8
@@ -175,16 +169,6 @@ VECTOR(_locore, unknown)
 #ifdef YAMON
 	/* Save YAMON boot environment pointer */
 	sw	a2, _C_LABEL(fenvp)
-#endif
-#ifdef CFE
-	/*
-	* Save the CFE context passed to us by the loader.
-	*/
-	li	t1, 0x43464531
-	bne	a3, t1, no_cfe		/* Check for "CFE1" signature */
-	sw	a0, _C_LABEL(cfe_handle)/* Firmware data segment */
-	sw	a2, _C_LABEL(cfe_vector)/* Firmware entry vector */
-no_cfe:
 #endif
 
 	/*

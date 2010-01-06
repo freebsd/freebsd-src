@@ -86,11 +86,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #endif
 
-#ifdef CFE
-extern uint32_t cfe_handle;
-extern uint32_t cfe_vector;
-#endif
-
 #ifdef CFE_ENV
 extern void cfe_env_init(void);
 #endif
@@ -236,8 +231,8 @@ platform_trap_exit(void)
 }
 
 void
-platform_start(__register_t a0 __unused, __register_t a1 __unused, 
-    __register_t a2 __unused, __register_t a3 __unused)
+platform_start(__register_t a0, __register_t a1, __register_t a2,
+	       __register_t a3)
 {
 	vm_offset_t kernend;
 
@@ -249,16 +244,17 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	/*
 	 * Initialize CFE firmware trampolines before
 	 * we initialize the low-level console.
+	 *
+	 * CFE passes the following values in registers:
+	 * a0: firmware handle
+	 * a2: firmware entry point
+	 * a3: entry point seal
 	 */
-	if (cfe_handle != 0)
-		cfe_init(cfe_handle, cfe_vector);
+	if (a3 == CFE_EPTSEAL)
+		cfe_init(a0, a2);
 #endif
 	cninit();
 
-#ifdef CFE
-	if (cfe_handle == 0)
-		panic("CFE was not detected by locore.\n");
-#endif
 	mips_init();
 
 	mips_timer_init_params(sb_cpu_speed(), 0);
