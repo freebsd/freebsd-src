@@ -8,6 +8,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20100106:	p15	FreeBSD-SA-10:01.bind, FreeBSD-SA-10:02.ntpd
+	Fix BIND named(8) cache poisoning with DNSSEC validation.
+	[SA-10:01]
+
+	Fix ntpd mode 7 denial of service. [SA-10:02]
+
 20091203:	p14	FreeBSD-SA-09:15.ssl, FreeBSD-SA-09:17.freebsd-update
 	Disable SSL renegotiation in order to protect against a serious
 	protocol flaw. [09:15]

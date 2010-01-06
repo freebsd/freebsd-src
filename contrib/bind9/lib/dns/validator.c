@@ -235,7 +235,7 @@ auth_nonpending(dns_message_t *message) {
 		     rdataset != NULL;
 		     rdataset = ISC_LIST_NEXT(rdataset, link))
 		{
-			if (rdataset->trust == dns_trust_pending)
+			if (DNS_TRUST_PENDING(rdataset->trust))
 				rdataset->trust = dns_trust_authauthority;
 		}
 	}
@@ -1146,7 +1146,7 @@ get_key(dns_validator_t *val, dns_rdata_rrsig_t *siginfo) {
 		 * We have an rrset for the given keyname.
 		 */
 		val->keyset = &val->frdataset;
-		if (val->frdataset.trust == dns_trust_pending &&
+		if (DNS_TRUST_PENDING(val->frdataset.trust) &&
 		    dns_rdataset_isassociated(&val->fsigrdataset))
 		{
 			/*
@@ -1161,7 +1161,7 @@ get_key(dns_validator_t *val, dns_rdata_rrsig_t *siginfo) {
 			if (result != ISC_R_SUCCESS)
 				return (result);
 			return (DNS_R_WAIT);
-		} else if (val->frdataset.trust == dns_trust_pending) {
+		} else if (DNS_TRUST_PENDING(val->frdataset.trust)) {
 			/*
 			 * Having a pending key with no signature means that
 			 * something is broken.
@@ -1723,7 +1723,7 @@ validatezonekey(dns_validator_t *val) {
 			 * We have DS records.
 			 */
 			val->dsset = &val->frdataset;
-			if (val->frdataset.trust == dns_trust_pending &&
+			if (DNS_TRUST_PENDING(val->frdataset.trust) &&
 			    dns_rdataset_isassociated(&val->fsigrdataset))
 			{
 				result = create_validator(val,
@@ -1736,7 +1736,7 @@ validatezonekey(dns_validator_t *val) {
 				if (result != ISC_R_SUCCESS)
 					return (result);
 				return (DNS_R_WAIT);
-			} else if (val->frdataset.trust == dns_trust_pending) {
+			} else if (DNS_TRUST_PENDING(val->frdataset.trust)) {
 				/*
 				 * There should never be an unsigned DS.
 				 */

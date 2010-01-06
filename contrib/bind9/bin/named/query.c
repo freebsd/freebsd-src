@@ -92,6 +92,8 @@
 #define DNS_GETDB_NOLOG 0x02U
 #define DNS_GETDB_PARTIAL 0x04U
 
+#define PENDINGOK(x)	(((x) & DNS_DBFIND_PENDINGOK) != 0)
+
 static void
 query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype);
 
@@ -1698,14 +1700,14 @@ query_addbestns(ns_client_t *client) {
 		zsigrdataset = NULL;
 	}
 
-	if ((client->query.dboptions & DNS_DBFIND_PENDINGOK) == 0 &&
-	    (rdataset->trust == dns_trust_pending ||
-	     (sigrdataset != NULL && sigrdataset->trust == dns_trust_pending)))
+	if ((DNS_TRUST_PENDING(rdataset->trust) ||
+	    (sigrdataset != NULL && DNS_TRUST_PENDING(sigrdataset->trust))) &&
+	    !PENDINGOK(client->query.dboptions))
 		goto cleanup;
 
-	if (WANTDNSSEC(client) && SECURE(client) &&
-	    (rdataset->trust == dns_trust_glue ||
-	     (sigrdataset != NULL && sigrdataset->trust == dns_trust_glue)))
+	if ((DNS_TRUST_GLUE(rdataset->trust) ||
+	    (sigrdataset != NULL && DNS_TRUST_GLUE(sigrdataset->trust))) &&
+  	    SECURE(client) && WANTDNSSEC(client))
 		goto cleanup;
 
 	query_addrrset(client, &fname, &rdataset, &sigrdataset, dbuf,
@@ -2364,6 +2366,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	unsigned int options;
 	isc_boolean_t empty_wild;
 	dns_rdataset_t *noqname;
+	dns_rdataset_t tmprdataset;
+	unsigned int dboptions;
 
 	CTRACE("query_find");
 
@@ -2563,9 +2567,47 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	/*
 	 * Now look for an answer in the database.
 	 */
+	dboptions = client->query.dboptions;
+	if (sigrdataset == NULL && client->view->enablednssec) {
+		/*
+		 * If the client doesn't want DNSSEC we still want to
+		 * look for any data pending validation to save a remote
+		 * lookup if possible.
+		 */
+		dns_rdataset_init(&tmprdataset);
+		sigrdataset = &tmprdataset;
+		dboptions |= DNS_DBFIND_PENDINGOK;
+	}
+ refind:
 	result = dns_db_find(db, client->query.qname, version, type,
-			     client->query.dboptions, client->now,
-			     &node, fname, rdataset, sigrdataset);
+			     dboptions, client->now, &node, fname,
+			     rdataset, sigrdataset);
+	/*
+	 * If we have found pending data try to validate it.
+	 * If the data does not validate as secure and we can't
+	 * use the unvalidated data requery the database with
+	 * pending disabled to prevent infinite looping.
+	 */
+	if (result != ISC_R_SUCCESS || !DNS_TRUST_PENDING(rdataset->trust))
+		goto validation_done;
+	if (rdataset->trust != dns_trust_pending_answer ||
+	    !PENDINGOK(client->query.dboptions)) {
+		dns_rdataset_disassociate(rdataset);
+		if (sigrdataset != NULL &&
+		    dns_rdataset_isassociated(sigrdataset))
+			dns_rdataset_disassociate(sigrdataset);
+		if (sigrdataset == &tmprdataset)
+			sigrdataset = NULL;
+		dns_db_detachnode(db, &node);
+		dboptions &= ~DNS_DBFIND_PENDINGOK;
+		goto refind;
+	}
+ validation_done:
+	if (sigrdataset == &tmprdataset) {
+		if (dns_rdataset_isassociated(sigrdataset))
+			dns_rdataset_disassociate(sigrdataset);
+		sigrdataset = NULL;
+	}
 
  resume:
 	CTRACE("query_find: resume");
