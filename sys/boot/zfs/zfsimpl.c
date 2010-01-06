@@ -404,7 +404,7 @@ vdev_create(uint64_t guid, vdev_read_t *read)
 }
 
 static int
-vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
+vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 {
 	int rc;
 	uint64_t guid, id, ashift, nparity;
@@ -412,7 +412,8 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
 	const char *path;
 	vdev_t *vdev, *kid;
 	const unsigned char *kids;
-	int nkids, i;
+	int nkids, i, is_new;
+	uint64_t is_offline, is_faulted, is_degraded, is_removed;
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_GUID,
 			DATA_TYPE_UINT64, 0, &guid)
@@ -424,23 +425,27 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
 		return (ENOENT);
 	}
 
-	/*
-	 * Assume that if we've seen this vdev tree before, this one
-	 * will be identical.
-	 */
-	vdev = vdev_find(guid);
-	if (vdev) {
-		if (vdevp)
-			*vdevp = vdev;
-		return (0);
-	}
-
 	if (strcmp(type, VDEV_TYPE_MIRROR)
 	    && strcmp(type, VDEV_TYPE_DISK)
 	    && strcmp(type, VDEV_TYPE_RAIDZ)) {
 		printf("ZFS: can only boot from disk, mirror or raidz vdevs\n");
 		return (EIO);
 	}
+
+	is_offline = is_removed = is_faulted = is_degraded = 0;
+
+	nvlist_find(nvlist, ZPOOL_CONFIG_OFFLINE, DATA_TYPE_UINT64, 0,
+			&is_offline);
+	nvlist_find(nvlist, ZPOOL_CONFIG_REMOVED, DATA_TYPE_UINT64, 0,
+			&is_removed);
+	nvlist_find(nvlist, ZPOOL_CONFIG_FAULTED, DATA_TYPE_UINT64, 0,
+			&is_faulted);
+	nvlist_find(nvlist, ZPOOL_CONFIG_DEGRADED, DATA_TYPE_UINT64, 0,
+			&is_degraded);
+
+	vdev = vdev_find(guid);
+	if (!vdev) {
+		is_new = 1;
 
 	if (!strcmp(type, VDEV_TYPE_MIRROR))
 		vdev = vdev_create(guid, vdev_mirror_read);
@@ -480,6 +485,39 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
 			vdev->v_name = strdup(type);
 		}
 	}
+
+		if (is_offline)
+			vdev->v_state = VDEV_STATE_OFFLINE;
+		else if (is_removed)
+			vdev->v_state = VDEV_STATE_REMOVED;
+		else if (is_faulted)
+			vdev->v_state = VDEV_STATE_FAULTED;
+		else if (is_degraded)
+			vdev->v_state = VDEV_STATE_DEGRADED;
+		else
+			vdev->v_state = VDEV_STATE_HEALTHY;
+	} else {
+		is_new = 0;
+
+		if (is_newer) {
+			/*
+			 * We've already seen this vdev, but from an older
+			 * vdev label, so let's refresh its state from the
+			 * newer label.
+			 */
+			if (is_offline)
+				vdev->v_state = VDEV_STATE_OFFLINE;
+			else if (is_removed)
+				vdev->v_state = VDEV_STATE_REMOVED;
+			else if (is_faulted)
+				vdev->v_state = VDEV_STATE_FAULTED;
+			else if (is_degraded)
+				vdev->v_state = VDEV_STATE_DEGRADED;
+			else
+				vdev->v_state = VDEV_STATE_HEALTHY;
+		}
+	}
+
 	rc = nvlist_find(nvlist, ZPOOL_CONFIG_CHILDREN,
 			 DATA_TYPE_NVLIST_ARRAY, &nkids, &kids);
 	/*
@@ -488,10 +526,12 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
 	if (rc == 0) {
 		vdev->v_nchildren = nkids;
 		for (i = 0; i < nkids; i++) {
-			rc = vdev_init_from_nvlist(kids, &kid);
+			rc = vdev_init_from_nvlist(kids, &kid, is_newer);
 			if (rc)
 				return (rc);
-			STAILQ_INSERT_TAIL(&vdev->v_children, kid, v_childlink);
+			if (is_new)
+				STAILQ_INSERT_TAIL(&vdev->v_children, kid,
+						   v_childlink);
 			kids = nvlist_next(kids);
 		}
 	} else {
@@ -593,7 +633,9 @@ state_name(vdev_state_t state)
 		"UNKNOWN",
 		"CLOSED",
 		"OFFLINE",
+		"REMOVED",
 		"CANT_OPEN",
+		"FAULTED",
 		"DEGRADED",
 		"ONLINE"
 	};
@@ -711,7 +753,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	uint64_t pool_txg, pool_guid;
 	const char *pool_name;
 	const unsigned char *vdevs;
-	int i, rc;
+	int i, rc, is_newer;
 	char upbuf[1024];
 	const struct uberblock *up;
 
@@ -793,12 +835,15 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 		spa = spa_create(pool_guid);
 		spa->spa_name = strdup(pool_name);
 	}
-	if (pool_txg > spa->spa_txg)
+	if (pool_txg > spa->spa_txg) {
 		spa->spa_txg = pool_txg;
+		is_newer = 1;
+	} else
+		is_newer = 0;
 
 	/*
 	 * Get the vdev tree and create our in-core copy of it.
-	 * If we already have a healthy vdev with this guid, this must
+	 * If we already have a vdev with this guid, this must
 	 * be some kind of alias (overlapping slices, dangerously dedicated
 	 * disks etc).
 	 */
@@ -808,16 +853,16 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 		return (EIO);
 	}
 	vdev = vdev_find(guid);
-	if (vdev && vdev->v_state == VDEV_STATE_HEALTHY) {
+	if (vdev && vdev->v_phys_read)	/* Has this vdev already been inited? */
 		return (EIO);
-	}
 
 	if (nvlist_find(nvlist,
 			ZPOOL_CONFIG_VDEV_TREE,
 			DATA_TYPE_NVLIST, 0, &vdevs)) {
 		return (EIO);
 	}
-	rc = vdev_init_from_nvlist(vdevs, &top_vdev);
+
+	rc = vdev_init_from_nvlist(vdevs, &top_vdev, is_newer);
 	if (rc)
 		return (rc);
 
@@ -838,7 +883,6 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	if (vdev) {
 		vdev->v_phys_read = read;
 		vdev->v_read_priv = read_priv;
-		vdev->v_state = VDEV_STATE_HEALTHY;
 	} else {
 		printf("ZFS: inconsistent nvlist contents\n");
 		return (EIO);
