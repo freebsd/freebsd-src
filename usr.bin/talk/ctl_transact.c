@@ -42,7 +42,6 @@ static const char sccsid[] = "@(#)ctl_transact.c	8.1 (Berkeley) 6/6/93";
 #include <arpa/inet.h>
 
 #include <errno.h>
-#include <string.h>
 
 #include "talk.h"
 #include "talk_ctl.h"

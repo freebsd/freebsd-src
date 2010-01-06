@@ -42,7 +42,7 @@ __RCSID("$Revision: 2.27 $");
 #endif
 
 struct ifhead ifnet = LIST_HEAD_INITIALIZER(ifnet);	/* all interfaces */
-struct ifhead remote_if = LIST_HEAD_INITIALIZER(ifnet);	/* remote interfaces */
+struct ifhead remote_if = LIST_HEAD_INITIALIZER(remote_if);	/* remote interfaces */
 
 /* hash table for all interfaces, big enough to tolerate ridiculous
  * numbers of IP aliases.  Crazy numbers of aliases such as 7000

@@ -913,7 +913,7 @@ sched_sleep(struct thread *td, int pri)
 	td->td_sched->ts_slptime = 0;
 	if (pri)
 		sched_prio(td, pri);
-	if (TD_IS_SUSPENDED(td) || pri <= PSOCK)
+	if (TD_IS_SUSPENDED(td) || pri >= PSOCK)
 		td->td_flags |= TDF_CANSWAP;
 }
 

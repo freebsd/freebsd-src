@@ -87,7 +87,7 @@ struct prison prison0 = {
 	.pr_securelevel	= -1,
 	.pr_childmax	= JAIL_MAX,
 	.pr_hostuuid	= DEFAULT_HOSTUUID,
-	.pr_children	= LIST_HEAD_INITIALIZER(&prison0.pr_children),
+	.pr_children	= LIST_HEAD_INITIALIZER(prison0.pr_children),
 #ifdef VIMAGE
 	.pr_flags	= PR_HOST|PR_VNET,
 #else
@@ -3161,7 +3161,7 @@ prison_check_af(struct ucred *cred, int af)
 	pr = cred->cr_prison;
 #ifdef VIMAGE
 	/* Prisons with their own network stack are not limited. */
-	if (pr->pr_flags & PR_VNET)
+	if (prison_owns_vnet(cred))
 		return (0);
 #endif
 
@@ -3222,6 +3222,11 @@ prison_if(struct ucred *cred, struct sockaddr *sa)
 	KASSERT(cred != NULL, ("%s: cred is NULL", __func__));
 	KASSERT(sa != NULL, ("%s: sa is NULL", __func__));
 
+#ifdef VIMAGE
+	if (prison_owns_vnet(cred))
+		return (0);
+#endif
+
 	error = 0;
 	switch (sa->sa_family)
 	{
@@ -3276,6 +3281,24 @@ jailed(struct ucred *cred)
 {
 
 	return (cred->cr_prison != &prison0);
+}
+
+/*
+ * Return 1 if the passed credential is in a jail and that jail does not
+ * have its own virtual network stack, otherwise 0.
+ */
+int
+jailed_without_vnet(struct ucred *cred)
+{
+
+	if (!jailed(cred))
+		return (0);
+#ifdef VIMAGE
+	if (prison_owns_vnet(cred))
+		return (0);
+#endif
+
+	return (1);
 }
 
 /*
@@ -3467,7 +3490,6 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_NET_SETIFMTU:
 	case PRIV_NET_SETIFFLAGS:
 	case PRIV_NET_SETIFCAP:
-	case PRIV_NET_SETIFDESCR:
 	case PRIV_NET_SETIFNAME	:
 	case PRIV_NET_SETIFMETRIC:
 	case PRIV_NET_SETIFPHYS:

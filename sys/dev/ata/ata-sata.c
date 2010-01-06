@@ -209,38 +209,21 @@ ata_sata_phy_reset(device_t dev, int port, int quick)
     return 0;
 }
 
-void
-ata_sata_setmode(device_t dev, int mode)
+int
+ata_sata_setmode(device_t dev, int target, int mode)
 {
-    struct ata_device *atadev = device_get_softc(dev);
 
-    /*
-     * if we detect that the device isn't a real SATA device we limit 
-     * the transfer mode to UDMA5/ATA100.
-     * this works around the problems some devices has with the 
-     * Marvell 88SX8030 SATA->PATA converters and UDMA6/ATA133.
-     */
-    if (atadev->param.satacapabilities != 0x0000 &&
-	atadev->param.satacapabilities != 0xffff) {
-	struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+	return (min(mode, ATA_UDMA5));
+}
 
-	/* on some drives we need to set the transfer mode */
-	ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,
-		       ata_limit_mode(dev, mode, ATA_UDMA6));
+int
+ata_sata_getrev(device_t dev, int target)
+{
+	struct ata_channel *ch = device_get_softc(dev);
 
-	/* query SATA STATUS for the speed */
-        if (ch->r_io[ATA_SSTATUS].res && 
-	   ((ATA_IDX_INL(ch, ATA_SSTATUS) & ATA_SS_CONWELL_MASK) ==
-	    ATA_SS_CONWELL_GEN2))
-	    atadev->mode = ATA_SA300;
-	else 
-	    atadev->mode = ATA_SA150;
-    }
-    else {
-	mode = ata_limit_mode(dev, mode, ATA_UDMA5);
-	if (!ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
-	    atadev->mode = mode;
-    }
+	if (ch->r_io[ATA_SSTATUS].res)
+		return ((ATA_IDX_INL(ch, ATA_SSTATUS) & 0x0f0) >> 4);
+	return (0);
 }
 
 int

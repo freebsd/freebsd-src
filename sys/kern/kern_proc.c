@@ -140,7 +140,6 @@ struct sx allproc_lock;
 struct sx proctree_lock;
 struct mtx ppeers_lock;
 uma_zone_t proc_zone;
-uma_zone_t ithread_zone;
 
 int kstack_pages = KSTACK_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0, "");
@@ -358,6 +357,7 @@ enterpgrp(p, pgid, pgrp, sess)
 		sess->s_sid = p->p_pid;
 		refcount_init(&sess->s_count, 1);
 		sess->s_ttyvp = NULL;
+		sess->s_ttydp = NULL;
 		sess->s_ttyp = NULL;
 		bcopy(p->p_session->s_login, sess->s_login,
 			    sizeof(sess->s_login));

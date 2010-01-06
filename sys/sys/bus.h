@@ -231,12 +231,16 @@ struct resource_list_entry {
 	STAILQ_ENTRY(resource_list_entry) link;
 	int	type;			/**< @brief type argument to alloc_resource */
 	int	rid;			/**< @brief resource identifier */
+	int	flags;			/**< @brief resource flags */
 	struct	resource *res;		/**< @brief the real resource when allocated */
 	u_long	start;			/**< @brief start of resource range */
 	u_long	end;			/**< @brief end of resource range */
 	u_long	count;			/**< @brief count within range */
 };
 STAILQ_HEAD(resource_list, resource_list_entry);
+
+#define	RLE_RESERVED		0x0001	/* Reserved by the parent bus. */
+#define	RLE_ALLOCATED		0x0002	/* Reserved resource is allocated. */
 
 void	resource_list_init(struct resource_list *rl);
 void	resource_list_free(struct resource_list *rl);
@@ -247,6 +251,8 @@ struct resource_list_entry *
 int	resource_list_add_next(struct resource_list *rl,
 			  int type,
 			  u_long start, u_long end, u_long count);
+int	resource_list_busy(struct resource_list *rl,
+			   int type, int rid);
 struct resource_list_entry*
 	resource_list_find(struct resource_list *rl,
 			   int type, int rid);
@@ -261,6 +267,15 @@ struct resource *
 int	resource_list_release(struct resource_list *rl,
 			      device_t bus, device_t child,
 			      int type, int rid, struct resource *res);
+struct resource *
+	resource_list_reserve(struct resource_list *rl,
+			      device_t bus, device_t child,
+			      int type, int *rid,
+			      u_long start, u_long end,
+			      u_long count, u_int flags);
+int	resource_list_unreserve(struct resource_list *rl,
+				device_t bus, device_t child,
+				int type, int rid);
 void	resource_list_purge(struct resource_list *rl);
 int	resource_list_print_type(struct resource_list *rl,
 				 const char *name, int type,

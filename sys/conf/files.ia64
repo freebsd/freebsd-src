@@ -45,8 +45,6 @@ contrib/ia64/libuwx/src/uwx_uinfo.c		standard
 contrib/ia64/libuwx/src/uwx_utable.c		standard
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
-dev/advansys/adv_isa.c		optional	adv isa
-dev/aic/aic_isa.c		optional	aic isa
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
 dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
 dev/atkbdc/atkbdc.c		optional	atkbdc
@@ -74,6 +72,7 @@ ia64/ia32/ia32_reg.c		optional	compat_ia32
 ia64/ia32/ia32_signal.c		optional	compat_ia32
 ia64/ia32/ia32_trap.c		optional	compat_ia32
 ia64/ia64/autoconf.c		standard
+ia64/ia64/bus_machdep.c		standard
 ia64/ia64/busdma_machdep.c	standard
 ia64/ia64/clock.c		standard
 ia64/ia64/context.S		standard

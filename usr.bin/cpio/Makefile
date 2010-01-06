@@ -5,7 +5,6 @@
 PROG=	bsdcpio
 BSDCPIO_VERSION_STRING=2.7.0
 SRCS=	cpio.c cmdline.c err.c matching.c pathmatch.c
-WARNS?=	6
 DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2}
 CFLAGS+= -DBSDCPIO_VERSION_STRING=\"${BSDCPIO_VERSION_STRING}\"
 CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"

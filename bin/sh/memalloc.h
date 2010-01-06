@@ -51,7 +51,7 @@ extern int herefd;
 pointer ckmalloc(size_t);
 pointer ckrealloc(pointer, int);
 void ckfree(pointer);
-char *savestr(char *);
+char *savestr(const char *);
 pointer stalloc(int);
 void stunalloc(pointer);
 void setstackmark(struct stackmark *);

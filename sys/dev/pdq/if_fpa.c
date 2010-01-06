@@ -73,11 +73,9 @@ static void	pdq_pci_ifintr		(void *);
 static void
 pdq_pci_ifintr(void *arg)
 {
-    device_t dev;
     pdq_softc_t *sc;
 
-    dev = (device_t)arg;
-    sc = device_get_softc(dev);
+    sc = arg;
 
     PDQ_LOCK(sc);
     (void) pdq_interrupt(sc->sc_pdq);
@@ -105,12 +103,10 @@ static int
 pdq_pci_attach(device_t dev)
 {
     pdq_softc_t *sc;
-    struct ifnet *ifp;
     u_int32_t command;
     int error;
 
     sc = device_get_softc(dev);
-    ifp = sc->ifp;
 
     sc->dev = dev;
 
@@ -146,26 +142,18 @@ pdq_pci_attach(device_t dev)
 	goto bad;
     }
 
-    if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-
-    sc->sc_pdq = pdq_initialize(sc->mem_bst, sc->mem_bsh,
-				ifp->if_xname, -1,
-				(void *)sc, PDQ_DEFPA);
-    if (sc->sc_pdq == NULL) {
-	device_printf(dev, "Initialization failed.\n");
-	error = ENXIO;
+    error = pdq_ifattach(sc, sc->sc_pdq->pdq_hwaddr.lanaddr_bytes, PDQ_DEFPA);
+    if (error)
 	goto bad;
-    }
-
-    error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, NULL,
-			   pdq_pci_ifintr, dev, &sc->irq_ih);
+    
+    error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE, NULL,
+			   pdq_pci_ifintr, sc, &sc->irq_ih);
     if (error) {
 	device_printf(dev, "Failed to setup interrupt handler.\n");
-	error = ENXIO;
-	goto bad;
+	pdq_ifdetach(sc);
+	return (error);
     }
 
-    pdq_ifattach(sc, sc->sc_pdq->pdq_hwaddr.lanaddr_bytes);
 
     return (0);
 bad:
@@ -191,7 +179,9 @@ pdq_pci_shutdown(device_t dev)
     pdq_softc_t *sc;
 
     sc = device_get_softc(dev);
+    PDQ_LOCK(sc);
     pdq_hwreset(sc->sc_pdq);
+    PDQ_UNLOCK(sc);
 
     return (0);
 }

@@ -86,7 +86,7 @@ struct cgchain {
 
 #define	MAX_CACHED_CGS	1024
 static unsigned ncgs = 0;
-static LIST_HEAD(, cgchain) cglist = LIST_HEAD_INITIALIZER(&cglist);
+static LIST_HEAD(, cgchain) cglist = LIST_HEAD_INITIALIZER(cglist);
 
 static const char *devnam;
 static struct uufsd *disk = NULL;

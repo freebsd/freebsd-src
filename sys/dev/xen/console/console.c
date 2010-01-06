@@ -132,7 +132,6 @@ xc_cngetc(struct consdev *dev)
 	
 	CN_LOCK(cn_mtx);
 	if ((rp - rc)) {
-		/* if (kdb_active) printf("%s:%d\n", __func__, __LINE__); */
 		/* we need to return only one char */
 		ret = (int)rbuf[RBUF_MASK(rc)];
 		rc++;

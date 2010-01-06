@@ -3187,7 +3187,7 @@ cookedprint(
 				else {
 					char b[12];
 
-					(void) snprintf(b, sizeof(b), "%03lo", uval);
+					(void) snprintf(b, sizeof b, "%03lo", uval);
 					output(fp, name, b);
 				}
 				break;

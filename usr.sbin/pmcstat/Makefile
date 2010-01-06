@@ -8,8 +8,6 @@ MAN=	pmcstat.8
 DPADD=	${LIBELF} ${LIBKVM} ${LIBPMC} ${LIBM}
 LDADD=	-lelf -lkvm -lpmc -lm
 
-WARNS?=	6
-
 SRCS=	pmcstat.c pmcstat.h pmcstat_log.c
 
 .include <bsd.prog.mk>

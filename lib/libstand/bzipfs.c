@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #ifndef REGRESSION
 #include "stand.h"
 #else
+#include <stdlib.h>
 #include <sys/errno.h>
 #include <sys/fcntl.h>
 #include <sys/types.h>
@@ -42,7 +43,7 @@ struct open_file {
 };
 #define F_READ          0x0001  /* file opened for reading */
 #define EOFFSET (ELAST+8)       /* relative seek not supported */
-static inline u_int min(u_int a, u_int b) { return (a < b ? a : b); }
+static inline u_int min(u_int a, u_int b) { return(a < b ? a : b); }
 #define panic(x, y) abort()
 #endif
 
@@ -174,6 +175,8 @@ bzf_open(const char *fname, struct open_file *f)
 
     /* Construct new name */
     bzfname = malloc(strlen(fname) + 5);
+    if (bzfname == NULL)
+	return(ENOMEM);
     sprintf(bzfname, "%s.bz2", fname);
 
     /* Try to open the compressed datafile */
@@ -195,13 +198,14 @@ bzf_open(const char *fname, struct open_file *f)
 
     /* Allocate a bz_file structure, populate it */
     bzf = malloc(sizeof(struct bz_file));
+    if (bzf == NULL)
+	return(ENOMEM);
     bzero(bzf, sizeof(struct bz_file));
     bzf->bzf_rawfd = rawfd;
 
-    /* Verify that the file is bzipped (XXX why do this afterwards?) */
+    /* Verify that the file is bzipped */
     if (check_header(bzf)) {
 	close(bzf->bzf_rawfd);
-	BZ2_bzDecompressEnd(&(bzf->bzf_bzstream));
 	free(bzf);
 	return(EFTYPE);
     }
@@ -247,7 +251,7 @@ bzf_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 	if (bzf->bzf_bzstream.avail_in == 0) {		/* oops, unexpected EOF */
 	    printf("bzf_read: unexpected EOF\n");
 	    if (bzf->bzf_bzstream.avail_out == size)
-		return (EIO);
+		return(EIO);
 	    break;
 	}
 
@@ -263,6 +267,50 @@ bzf_read(struct open_file *f, void *buf, size_t size, size_t *resid)
     }
     if (resid != NULL)
 	*resid = bzf->bzf_bzstream.avail_out;
+    return(0);
+}
+
+static int
+bzf_rewind(struct open_file *f)
+{
+    struct bz_file	*bzf = (struct bz_file *)f->f_fsdata;
+    struct bz_file	*bzf_tmp;
+
+    /*
+     * Since bzip2 does not have an equivalent inflateReset function a crude
+     * one needs to be provided.  The functions all called in such a way that
+     * at any time an error occurs a role back can be done (effectively making
+     * this rewind 'atomic', either the reset occurs successfully or not at all,
+     * with no 'undefined' state happening).
+     */
+
+    /* Allocate a bz_file structure, populate it */
+    bzf_tmp = malloc(sizeof(struct bz_file));
+    if (bzf_tmp == NULL)
+	return(-1);
+    bzero(bzf_tmp, sizeof(struct bz_file));
+    bzf_tmp->bzf_rawfd = bzf->bzf_rawfd;
+
+    /* Initialise the inflation engine */
+    if (BZ2_bzDecompressInit(&(bzf_tmp->bzf_bzstream), 0, 1) != BZ_OK) {
+	free(bzf_tmp);
+	return(-1);
+    }
+
+    /* Seek back to the beginning of the file */
+    if (lseek(bzf->bzf_rawfd, 0, SEEK_SET) == -1) {
+	BZ2_bzDecompressEnd(&(bzf_tmp->bzf_bzstream));
+	free(bzf_tmp);
+	return(-1);
+    }
+
+    /* Free old bz_file data */
+    BZ2_bzDecompressEnd(&(bzf->bzf_bzstream));
+    free(bzf);
+
+    /* Use the new bz_file data */
+    f->f_fsdata = bzf_tmp;
+
     return(0);
 }
 
@@ -284,14 +332,17 @@ bzf_seek(struct open_file *f, off_t offset, int where)
 	target = -1;
     default:
 	errno = EINVAL;
-	return (-1);
+	return(-1);
     }
 
     /* Can we get there from here? */
-    if (target < bzf->bzf_bzstream.total_out_lo32) {
+    if (target < bzf->bzf_bzstream.total_out_lo32 && bzf_rewind(f) != 0) {
 	errno = EOFFSET;
 	return -1;
-    } 
+    }
+
+    /* if bzf_rewind was called then bzf has changed */
+    bzf = (struct bz_file *)f->f_fsdata;
 
     /* skip forwards if required */
     while (target > bzf->bzf_bzstream.total_out_lo32) {
@@ -301,7 +352,7 @@ bzf_seek(struct open_file *f, off_t offset, int where)
 	    return(-1);
     }
     /* This is where we are (be honest if we overshot) */
-    return (bzf->bzf_bzstream.total_out_lo32);
+    return(bzf->bzf_bzstream.total_out_lo32);
 }
 
 static int

@@ -5875,10 +5875,8 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	sp->strseq = 0;
 	if (sp->sinfo_flags & SCTP_ADDR_OVER) {
 		sp->net = net;
-		sp->addr_over = 1;
 	} else {
 		sp->net = stcb->asoc.primary_destination;
-		sp->addr_over = 0;
 	}
 	atomic_add_int(&sp->net->ref_count, 1);
 	(void)SCTP_GETTIME_TIMEVAL(&sp->ts);
@@ -7052,7 +7050,6 @@ dont_do_it:
 
 	chk->rec.data.timetodrop = sp->ts;
 	chk->flags = sp->act_flags;
-	chk->addr_over = sp->addr_over;
 
 	chk->whoTo = net;
 	atomic_add_int(&chk->whoTo->ref_count, 1);
@@ -9442,6 +9439,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 
 	if ((un_sent <= 0) &&
 	    (TAILQ_EMPTY(&asoc->control_send_queue)) &&
+	    (TAILQ_EMPTY(&asoc->asconf_send_queue)) &&
 	    (asoc->sent_queue_retran_cnt == 0)) {
 		/* Nothing to do unless there is something to be sent left */
 		return;
@@ -12251,10 +12249,8 @@ skip_copy:
 	} else {
 		if (sp->sinfo_flags & SCTP_ADDR_OVER) {
 			sp->net = net;
-			sp->addr_over = 1;
 		} else {
 			sp->net = asoc->primary_destination;
-			sp->addr_over = 0;
 		}
 		atomic_add_int(&sp->net->ref_count, 1);
 		sctp_set_prsctp_policy(sp);

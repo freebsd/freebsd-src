@@ -460,7 +460,6 @@ trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data
 	vm_offset_t va;
 	vm_prot_t prot;
 	u_long ctx;
-	int flags;
 	int rv;
 
 	if (td == NULL)
@@ -487,15 +486,13 @@ trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data
 	KASSERT(td->td_proc->p_vmspace != NULL, ("trap_pfault: vmspace NULL"));
 
 
-	if (type == T_DATA_PROTECTION) {
+	if (type == T_DATA_PROTECTION)
 		prot = VM_PROT_WRITE;
-		flags = VM_FAULT_DIRTY;
-	} else {
+	else {
 		if (type == T_DATA_MISS)
 			prot = VM_PROT_READ;
 		else
 			prot = VM_PROT_READ | VM_PROT_EXECUTE;
-		flags = VM_FAULT_NORMAL;
 	}
 
 	if (ctx != TLB_CTX_KERNEL) {
@@ -521,7 +518,7 @@ trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data
 		PROC_UNLOCK(p);
 
 		/* Fault in the user page. */
-		rv = vm_fault(&vm->vm_map, va, prot, flags);
+		rv = vm_fault(&vm->vm_map, va, prot, VM_FAULT_NORMAL);
 
 		/*
 		 * Now the process can be swapped again.

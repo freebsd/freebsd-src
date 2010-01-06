@@ -839,7 +839,7 @@ vid_enum_outputs(ACPI_HANDLE handle,
 	argset.dod_pkg  = res;
 	argset.count    = 0;
 	status = AcpiWalkNamespace(ACPI_TYPE_DEVICE, handle, 1,
-	    vid_enum_outputs_subr, &argset, NULL);
+	    vid_enum_outputs_subr, NULL, &argset, NULL);
 	if (ACPI_FAILURE(status))
 		printf("failed walking down %s - %s\n",
 		       acpi_name(handle), AcpiFormatException(status));

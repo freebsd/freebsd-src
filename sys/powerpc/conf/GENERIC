@@ -131,6 +131,7 @@ device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support
+device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
 device		pty		# BSD-style compatibility pseudo ttys
 device		md		# Memory "disks"
@@ -155,6 +156,7 @@ options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
 device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da0
 device		ums		# Mouse
+device		atp		# Apple USB touchpad
 device		urio		# Diamond Rio 500 MP3 player
 # USB Ethernet
 device		aue		# ADMtek USB Ethernet

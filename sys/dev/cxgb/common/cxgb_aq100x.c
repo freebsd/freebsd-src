@@ -515,13 +515,11 @@ t3_aq100x_phy_prep(pinfo_t *pinfo, int phy_addr,
 		CH_WARN(adapter, "PHY%d: unknown firmware %d.%d\n", phy_addr,
 		    v >> 8, v & 0xff);
 
-#if 0
 	/* The PHY should start in really-low-power mode. */
 	(void) mdio_read(phy, MDIO_DEV_PMA_PMD, MII_BMCR, &v);
 	if ((v & BMCR_PDOWN) == 0)
 		CH_WARN(adapter, "PHY%d does not start in low power mode.\n",
 			phy_addr);
-#endif
 
 	/*
 	 * Verify XAUI and 1000-X settings, but let prep succeed no matter what.

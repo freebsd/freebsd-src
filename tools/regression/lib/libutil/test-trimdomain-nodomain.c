@@ -47,7 +47,8 @@ int tests = 0;
  * This makes the tests much easier to write and less likely to fail on
  * oddly configured systems.
  */
-int gethostname(char *name, size_t namelen)
+int
+gethostname(char *name, size_t namelen)
 {
 	if (strlcpy(name, TESTFQDN, namelen) > namelen) {
 		errno = ENAMETOOLONG;
@@ -63,7 +64,7 @@ testit(const char *input, int hostsize, const char *output, const char *test)
 	const char *expected = (output == NULL) ? input : output;
 
 	testhost = strdup(input);
-	trimdomain(testhost, hostsize < 0 ? strlen(testhost) : hostsize);
+	trimdomain(testhost, hostsize < 0 ? (int)strlen(testhost) : hostsize);
 	tests++;
 	if (strcmp(testhost, expected) != 0) {
 		printf("not ok %d - %s\n", tests, test);
@@ -75,7 +76,7 @@ testit(const char *input, int hostsize, const char *output, const char *test)
 }
 
 int
-main (int argc, char **argv)
+main(void)
 {
 
 	printf("1..5\n");

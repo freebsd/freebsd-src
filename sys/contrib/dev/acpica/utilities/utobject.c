@@ -281,6 +281,41 @@ AcpiUtCreatePackageObject (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiUtCreateIntegerObject
+ *
+ * PARAMETERS:  InitialValue        - Initial value for the integer
+ *
+ * RETURN:      Pointer to a new Integer object, null on failure
+ *
+ * DESCRIPTION: Create an initialized integer object
+ *
+ ******************************************************************************/
+
+ACPI_OPERAND_OBJECT *
+AcpiUtCreateIntegerObject (
+    UINT64                  InitialValue)
+{
+    ACPI_OPERAND_OBJECT     *IntegerDesc;
+
+
+    ACPI_FUNCTION_TRACE (UtCreateIntegerObject);
+
+
+    /* Create and initialize a new integer object */
+
+    IntegerDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+    if (!IntegerDesc)
+    {
+        return_PTR (NULL);
+    }
+
+    IntegerDesc->Integer.Value = InitialValue;
+    return_PTR (IntegerDesc);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiUtCreateBufferObject
  *
  * PARAMETERS:  BufferSize             - Size of buffer to be created

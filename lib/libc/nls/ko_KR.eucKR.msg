@@ -181,6 +181,16 @@ $ ENOATTR
 87 속성을 찾을 수 없습니다
 $ EDOOFUS
 88 프로그램상 오류입니다
+$ EBADMSG
+89 잘못된 메시지입니다
+$ EMULTIHOP
+90 멀티홉이 시도되었습니다
+$ ENOLINK
+91 연결이 끊겼습니다
+$ EPROTO
+92 프로토콜이 잘못되었습니다
+$ ENOTCAPABLE
+93 접근 능력이 충분치 않습니다
 $
 $ strsignal() support catalog
 $
@@ -230,7 +240,7 @@ $ SIGTTIN
 $ SIGTTOU
 22 정지 (터미널 출력)
 $ SIGIO
-23 I/O possible
+23 I/O 가능
 $ SIGXCPU
 24 CPU 사용 시간 초과
 $ SIGXFSZ
@@ -247,3 +257,39 @@ $ SIGUSR1
 30 사용자 정의 시그널 1
 $ SIGUSR2
 31 사용자 정의 시그널 2
+$
+$ gai_strerror() support catalog
+$
+$set 3
+$ 1 (obsolete)
+1 호스트 이름이 지원하지 않는 주소군입니다
+$ EAI_AGAIN
+2 주소 변환에 일시적으로 실패했습니다
+$ EAI_BADFLAGS
+3 잘못된 ai_flags입니다
+$ EAI_FAIL
+4 주소 변환에 완전히 실패했습니다
+$ EAI_FAMILY
+5 지원되지 않는 ai_family입니다
+$ EAI_MEMORY
+6 메모리 할당에 실패했습니다
+$ 7 (obsolete)
+7 호스트 이름과 일치하는 주소가 없습니다
+$ EAI_NONAME
+8 호스트 이름 또는 서비스 이름이 지정되지 않았거나 알 수 없습니다
+$ EAI_SERVICE
+9 서비스 이름은 ai_socktype에서 지원되지 않습니다
+$ EAI_SOCKTYPE
+10 지원되지 않는 ai_socktype입니다
+$ EAI_SYSTEM
+11 시스템 오류가 errno에 반환되었습니다
+$ EAI_BADHINTS
+12 잘못된 hints입니다
+$ EAI_PROTOCOL
+13 알 수 없는 프로토콜이 변환되었습니다
+$ EAI_OVERFLOW
+14 인자 버퍼 공간이 모자랍니다
+$ 0
+32766 성공
+$ NL_MSGMAX
+32767 알 수 없는 오류

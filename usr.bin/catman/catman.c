@@ -589,9 +589,15 @@ process_section(char *mandir, char *section)
 }
 
 static int
-select_sections(struct dirent *entry)
+select_sections(const struct dirent *entry)
 {
-	return directory_type(entry->d_name) == MAN_SECTION_DIR;
+	char *name;
+	int ret;
+
+	name = strdup(entry->d_name);
+	ret = directory_type(name) == MAN_SECTION_DIR;
+	free(name);
+	return (ret);
 }
 
 /*

@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ufs/ffs/ffs_extern.h>
 
-static vop_access_t	ufs_access;
+static vop_accessx_t	ufs_accessx;
 static int ufs_chmod(struct vnode *, int, struct ucred *, struct thread *);
 static int ufs_chown(struct vnode *, uid_t, gid_t, struct ucred *, struct thread *);
 static vop_close_t	ufs_close;
@@ -298,8 +298,8 @@ ufs_close(ap)
 }
 
 static int
-ufs_access(ap)
-	struct vop_access_args /* {
+ufs_accessx(ap)
+	struct vop_accessx_args /* {
 		struct vnode *a_vp;
 		accmode_t a_accmode;
 		struct ucred *a_cred;
@@ -315,6 +315,7 @@ ufs_access(ap)
 #endif
 #ifdef UFS_ACL
 	struct acl *acl;
+	acl_type_t type;
 #endif
 
 	/*
@@ -322,7 +323,7 @@ ufs_access(ap)
 	 * unless the file is a socket, fifo, or a block or
 	 * character device resident on the filesystem.
 	 */
-	if (accmode & VWRITE) {
+	if (accmode & VMODIFY_PERMS) {
 		switch (vp->v_type) {
 		case VDIR:
 		case VLNK:
@@ -367,41 +368,63 @@ relock:
 		}
 	}
 
-	/* If immutable bit set, nobody gets to write it. */
-	if ((accmode & VWRITE) && (ip->i_flags & (IMMUTABLE | SF_SNAPSHOT)))
+	/*
+	 * If immutable bit set, nobody gets to write it.  "& ~VADMIN_PERMS"
+	 * is here, because without it, * it would be impossible for the owner
+	 * to remove the IMMUTABLE flag.
+	 */
+	if ((accmode & (VMODIFY_PERMS & ~VADMIN_PERMS)) &&
+	    (ip->i_flags & (IMMUTABLE | SF_SNAPSHOT)))
 		return (EPERM);
 
 #ifdef UFS_ACL
-	if ((vp->v_mount->mnt_flag & MNT_ACLS) != 0) {
+	if ((vp->v_mount->mnt_flag & (MNT_ACLS | MNT_NFS4ACLS)) != 0) {
+		if (vp->v_mount->mnt_flag & MNT_NFS4ACLS)
+			type = ACL_TYPE_NFS4;
+		else
+			type = ACL_TYPE_ACCESS;
+
 		acl = acl_alloc(M_WAITOK);
-		error = VOP_GETACL(vp, ACL_TYPE_ACCESS, acl, ap->a_cred,
-		    ap->a_td);
+		if (type == ACL_TYPE_NFS4)
+			error = ufs_getacl_nfs4_internal(vp, acl, ap->a_td);
+		else
+			error = VOP_GETACL(vp, type, acl, ap->a_cred, ap->a_td);
 		switch (error) {
-		case EOPNOTSUPP:
-			error = vaccess(vp->v_type, ip->i_mode, ip->i_uid,
-			    ip->i_gid, ap->a_accmode, ap->a_cred, NULL);
-			break;
 		case 0:
-			error = vaccess_acl_posix1e(vp->v_type, ip->i_uid,
-			    ip->i_gid, acl, ap->a_accmode, ap->a_cred, NULL);
+			if (type == ACL_TYPE_NFS4) {
+				error = vaccess_acl_nfs4(vp->v_type, ip->i_uid,
+				    ip->i_gid, acl, accmode, ap->a_cred, NULL);
+			} else {
+				error = vfs_unixify_accmode(&accmode);
+				if (error == 0)
+					error = vaccess_acl_posix1e(vp->v_type, ip->i_uid,
+					    ip->i_gid, acl, accmode, ap->a_cred, NULL);
+			}
 			break;
 		default:
-			printf(
-"ufs_access(): Error retrieving ACL on object (%d).\n",
-			    error);
+			if (error != EOPNOTSUPP)
+				printf(
+"ufs_accessx(): Error retrieving ACL on object (%d).\n",
+				    error);
 			/*
 			 * XXX: Fall back until debugged.  Should
 			 * eventually possibly log an error, and return
 			 * EPERM for safety.
 			 */
-			error = vaccess(vp->v_type, ip->i_mode, ip->i_uid,
-			    ip->i_gid, ap->a_accmode, ap->a_cred, NULL);
+			error = vfs_unixify_accmode(&accmode);
+			if (error == 0)
+				error = vaccess(vp->v_type, ip->i_mode, ip->i_uid,
+				    ip->i_gid, accmode, ap->a_cred, NULL);
 		}
 		acl_free(acl);
-	} else
+
+		return (error);
+	}
 #endif /* !UFS_ACL */
+	error = vfs_unixify_accmode(&accmode);
+	if (error == 0)
 		error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
-		    ap->a_accmode, ap->a_cred, NULL);
+		    accmode, ap->a_cred, NULL);
 	return (error);
 }
 
@@ -608,11 +631,20 @@ ufs_setattr(ap)
 		 * check succeeds.
 		 */
 		if (vap->va_vaflags & VA_UTIMES_NULL) {
-			error = VOP_ACCESS(vp, VADMIN, cred, td);
+			/*
+			 * NFSv4.1, draft 21, 6.2.1.3.1, Discussion of Mask Attributes
+			 *
+			 * "A user having ACL_WRITE_DATA or ACL_WRITE_ATTRIBUTES
+			 * will be allowed to set the times [..] to the current
+			 * server time."
+			 *
+			 * XXX: Calling it four times seems a little excessive.
+			 */
+			error = VOP_ACCESSX(vp, VWRITE_ATTRIBUTES, cred, td);
 			if (error)
 				error = VOP_ACCESS(vp, VWRITE, cred, td);
 		} else
-			error = VOP_ACCESS(vp, VADMIN, cred, td);
+			error = VOP_ACCESSX(vp, VWRITE_ATTRIBUTES, cred, td);
 		if (error)
 			return (error);
 		if (vap->va_atime.tv_sec != VNOVAL)
@@ -652,6 +684,32 @@ ufs_setattr(ap)
 	return (error);
 }
 
+#ifdef UFS_ACL
+static int
+ufs_update_nfs4_acl_after_mode_change(struct vnode *vp, int mode,
+    int file_owner_id, struct ucred *cred, struct thread *td)
+{
+	int error;
+	struct acl *aclp;
+
+	aclp = acl_alloc(M_WAITOK);
+	error = ufs_getacl_nfs4_internal(vp, aclp, td);
+	/*
+	 * We don't have to handle EOPNOTSUPP here, as the filesystem claims
+	 * it supports ACLs.
+	 */
+	if (error)
+		goto out;
+
+	acl_nfs4_sync_acl_from_mode(aclp, mode, file_owner_id);
+	error = ufs_setacl_nfs4_internal(vp, aclp, td);
+
+out:
+	acl_free(aclp);
+	return (error);
+}
+#endif /* UFS_ACL */
+
 /*
  * Mark this file's access time for update for vfs_mark_atime().  This
  * is called from execve() and mmap().
@@ -689,7 +747,7 @@ ufs_chmod(vp, mode, cred, td)
 	 * To modify the permissions on a file, must possess VADMIN
 	 * for that file.
 	 */
-	if ((error = VOP_ACCESS(vp, VADMIN, cred, td)))
+	if ((error = VOP_ACCESSX(vp, VWRITE_ACL, cred, td)))
 		return (error);
 	/*
 	 * Privileged processes may set the sticky bit on non-directories,
@@ -706,11 +764,25 @@ ufs_chmod(vp, mode, cred, td)
 		if (error)
 			return (error);
 	}
+
+	/*
+	 * Deny setting setuid if we are not the file owner.
+	 */
+	if ((mode & ISUID) && ip->i_uid != cred->cr_uid) {
+		error = priv_check_cred(cred, PRIV_VFS_ADMIN, 0);
+		if (error)
+			return (error);
+	}
+
 	ip->i_mode &= ~ALLPERMS;
 	ip->i_mode |= (mode & ALLPERMS);
 	DIP_SET(ip, i_mode, ip->i_mode);
 	ip->i_flag |= IN_CHANGE;
-	return (0);
+#ifdef UFS_ACL
+	if ((vp->v_mount->mnt_flag & MNT_NFS4ACLS) != 0)
+		error = ufs_update_nfs4_acl_after_mode_change(vp, mode, ip->i_uid, cred, td);
+#endif
+	return (error);
 }
 
 /*
@@ -742,14 +814,14 @@ ufs_chown(vp, uid, gid, cred, td)
 	 * To modify the ownership of a file, must possess VADMIN for that
 	 * file.
 	 */
-	if ((error = VOP_ACCESS(vp, VADMIN, cred, td)))
+	if ((error = VOP_ACCESSX(vp, VWRITE_OWNER, cred, td)))
 		return (error);
 	/*
 	 * To change the owner of a file, or change the group of a file to a
 	 * group of which we are not a member, the caller must have
 	 * privilege.
 	 */
-	if ((uid != ip->i_uid || 
+	if (((uid != ip->i_uid && uid != cred->cr_uid) || 
 	    (gid != ip->i_gid && !groupmember(gid, cred))) &&
 	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0)))
 		return (error);
@@ -1397,6 +1469,33 @@ out:
 	return (error);
 }
 
+#ifdef UFS_ACL
+static int
+ufs_do_nfs4_acl_inheritance(struct vnode *dvp, struct vnode *tvp,
+    mode_t child_mode, struct ucred *cred, struct thread *td)
+{
+	int error;
+	struct acl *parent_aclp, *child_aclp;
+
+	parent_aclp = acl_alloc(M_WAITOK);
+	child_aclp = acl_alloc(M_WAITOK | M_ZERO);
+
+	error = ufs_getacl_nfs4_internal(dvp, parent_aclp, td);
+	if (error)
+		goto out;
+	acl_nfs4_compute_inherited_acl(parent_aclp, child_aclp,
+	    child_mode, VTOI(tvp)->i_uid, tvp->v_type == VDIR);
+	error = ufs_setacl_nfs4_internal(tvp, child_aclp, td);
+	if (error)
+		goto out;
+out:
+	acl_free(parent_aclp);
+	acl_free(child_aclp);
+
+	return (error);
+}
+#endif
+
 /*
  * Mkdir system call
  */
@@ -1629,6 +1728,13 @@ ufs_mkdir(ap)
 		acl_free(acl);
 		acl_free(dacl);
 		dacl = acl = NULL;
+	}
+
+	if (dvp->v_mount->mnt_flag & MNT_NFS4ACLS) {
+		error = ufs_do_nfs4_acl_inheritance(dvp, tvp, dmode,
+		    cnp->cn_cred, cnp->cn_thread);
+		if (error)
+			goto bad;
 	}
 #endif /* !UFS_ACL */
 
@@ -2117,6 +2223,7 @@ ufsfifo_pathconf(ap)
 
 	switch (ap->a_name) {
 	case _PC_ACL_EXTENDED:
+	case _PC_ACL_NFS4:
 	case _PC_ACL_PATH_MAX:
 	case _PC_MAC_PRESENT:
 		return (ufs_pathconf(ap));
@@ -2169,9 +2276,21 @@ ufs_pathconf(ap)
 		*ap->a_retval = 0;
 #endif
 		break;
+
+	case _PC_ACL_NFS4:
+#ifdef UFS_ACL
+		if (ap->a_vp->v_mount->mnt_flag & MNT_NFS4ACLS)
+			*ap->a_retval = 1;
+		else
+			*ap->a_retval = 0;
+#else
+		*ap->a_retval = 0;
+#endif
+		break;
+
 	case _PC_ACL_PATH_MAX:
 #ifdef UFS_ACL
-		if (ap->a_vp->v_mount->mnt_flag & MNT_ACLS)
+		if (ap->a_vp->v_mount->mnt_flag & (MNT_ACLS | MNT_NFS4ACLS))
 			*ap->a_retval = ACL_MAX_ENTRIES;
 		else
 			*ap->a_retval = 3;
@@ -2466,6 +2585,13 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 		}
 		acl_free(acl);
 	}
+
+	if (dvp->v_mount->mnt_flag & MNT_NFS4ACLS) {
+		error = ufs_do_nfs4_acl_inheritance(dvp, tvp, mode,
+		    cnp->cn_cred, cnp->cn_thread);
+		if (error)
+			goto bad;
+	}
 #endif /* !UFS_ACL */
 	ufs_makedirentry(ip, cnp, &newdir);
 	error = ufs_direnter(dvp, tvp, &newdir, cnp, NULL);
@@ -2496,7 +2622,7 @@ struct vop_vector ufs_vnodeops = {
 	.vop_read =		VOP_PANIC,
 	.vop_reallocblks =	VOP_PANIC,
 	.vop_write =		VOP_PANIC,
-	.vop_access =		ufs_access,
+	.vop_accessx =		ufs_accessx,
 	.vop_bmap =		ufs_bmap,
 	.vop_cachedlookup =	ufs_lookup,
 	.vop_close =		ufs_close,
@@ -2540,7 +2666,7 @@ struct vop_vector ufs_vnodeops = {
 struct vop_vector ufs_fifoops = {
 	.vop_default =		&fifo_specops,
 	.vop_fsync =		VOP_PANIC,
-	.vop_access =		ufs_access,
+	.vop_accessx =		ufs_accessx,
 	.vop_close =		ufsfifo_close,
 	.vop_getattr =		ufs_getattr,
 	.vop_inactive =		ufs_inactive,

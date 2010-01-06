@@ -67,17 +67,21 @@ volatile sig_atomic_t intpending;
 char *commandname;
 
 
-static void exverror(int, const char *, va_list) __printf0like(2, 0);
+static void exverror(int, const char *, va_list) __printf0like(2, 0) __dead2;
 
 /*
  * Called to raise an exception.  Since C doesn't include exceptions, we
  * just do a longjmp to the exception handler.  The type of exception is
  * stored in the global variable "exception".
+ *
+ * Interrupts are disabled; they should be reenabled when the exception is
+ * caught.
  */
 
 void
 exraise(int e)
 {
+	INTOFF;
 	if (handler == NULL)
 		abort();
 	exception = e;
@@ -138,8 +142,15 @@ onint(void)
 static void
 exverror(int cond, const char *msg, va_list ap)
 {
-	CLEAR_PENDING_INT;
-	INTOFF;
+	/*
+	 * An interrupt trumps an error.  Certain places catch error
+	 * exceptions or transform them to a plain nonzero exit code
+	 * in child processes, and if an error exception can be handled,
+	 * an interrupt can be handled as well.
+	 *
+	 * exraise() will disable interrupts for the exception handler.
+	 */
+	FORCEINTON;
 
 #ifdef DEBUG
 	if (msg)
@@ -149,8 +160,8 @@ exverror(int cond, const char *msg, va_list ap)
 #endif
 	if (msg) {
 		if (commandname)
-			outfmt(&errout, "%s: ", commandname);
-		doformat(&errout, msg, ap);
+			outfmt(out2, "%s: ", commandname);
+		doformat(out2, msg, ap);
 		out2c('\n');
 	}
 	flushall();

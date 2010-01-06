@@ -13,13 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -33,14 +26,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: NetBSD: mk48txx.c,v 1.15 2004/07/05 09:24:31 pk Exp
+ *	$NetBSD: mk48txx.c,v 1.25 2008/04/28 20:23:50 martin Exp $
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 /*
- * Mostek MK48T02, MK48T08, MK48T18, MK48T59 time-of-day chip subroutines.
+ * Mostek MK48T02, MK48T08, MK48T18, MK48T59 time-of-day chip subroutines
  */
 
 #include <sys/param.h>
@@ -50,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/watchdog.h>
 
 #include <machine/bus.h>
@@ -59,17 +53,17 @@ __FBSDID("$FreeBSD$");
 
 #include "clock_if.h"
 
-static uint8_t	mk48txx_def_nvrd(device_t, int);
-static void	mk48txx_def_nvwr(device_t, int, uint8_t);
-static void	mk48txx_watchdog(void *, u_int, int *);
+static uint8_t	mk48txx_def_nvrd(device_t dev, int off);
+static void	mk48txx_def_nvwr(device_t dev, int off, uint8_t v);
+static void	mk48txx_watchdog(void *arg, u_int cmd, int *error);
 
-struct {
+static const struct {
 	const char *name;
 	bus_size_t nvramsz;
 	bus_size_t clkoff;
-	int flags;
-#define MK48TXX_EXT_REGISTERS	1	/* Has extended register set */
-} mk48txx_models[] = {
+	u_int flags;
+#define	MK48TXX_EXT_REGISTERS	1	/* Has extended register set. */
+} const mk48txx_models[] = {
 	{ "mk48t02", MK48T02_CLKSZ, MK48T02_CLKOFF, 0 },
 	{ "mk48t08", MK48T08_CLKSZ, MK48T08_CLKOFF, 0 },
 	{ "mk48t18", MK48T18_CLKSZ, MK48T18_CLKOFF, 0 },
@@ -112,7 +106,7 @@ mk48txx_attach(device_t dev)
 
 	if (mk48txx_models[i].flags & MK48TXX_EXT_REGISTERS) {
 		mtx_lock(&sc->sc_mtx);
-	    	if ((*sc->sc_nvrd)(dev, sc->sc_clkoffset + MK48TXX_FLAGS) &
+		if ((*sc->sc_nvrd)(dev, sc->sc_clkoffset + MK48TXX_FLAGS) &
 		    MK48TXX_FLAGS_BL) {
 			mtx_unlock(&sc->sc_mtx);
 			device_printf(dev, "%s: battery low\n", __func__);
@@ -140,7 +134,7 @@ mk48txx_attach(device_t dev)
 		}
 	}
 
-	clock_register(dev, 1000000);	/* 1 second resolution. */
+	clock_register(dev, 1000000);	/* 1 second resolution */
 
 	if ((sc->sc_flag & MK48TXX_WDOG_REGISTER) &&
 	    (mk48txx_models[i].flags & MK48TXX_EXT_REGISTERS)) {
@@ -182,8 +176,16 @@ mk48txx_gettime(device_t dev, struct timespec *ts)
 	ct.min = FROMBCD(FROMREG(MK48TXX_IMIN, MK48TXX_MIN_MASK));
 	ct.hour = FROMBCD(FROMREG(MK48TXX_IHOUR, MK48TXX_HOUR_MASK));
 	ct.day = FROMBCD(FROMREG(MK48TXX_IDAY, MK48TXX_DAY_MASK));
+#if 0
 	/* Map dow from 1 - 7 to 0 - 6; FROMBCD() isn't necessary here. */
 	ct.dow = FROMREG(MK48TXX_IWDAY, MK48TXX_WDAY_MASK) - 1;
+#else
+	/*
+	 * Set dow = -1 because some drivers (for example the NetBSD and
+	 * OpenBSD mk48txx(4)) don't set it correctly.
+	 */
+	ct.dow = -1;
+#endif
 	ct.mon = FROMBCD(FROMREG(MK48TXX_IMON, MK48TXX_MON_MASK));
 	year = FROMBCD(FROMREG(MK48TXX_IYEAR, MK48TXX_YEAR_MASK));
 	year += sc->sc_year0;
@@ -273,7 +275,7 @@ mk48txx_def_nvrd(device_t dev, int off)
 	struct mk48txx_softc *sc;
 
 	sc = device_get_softc(dev);
-	return (bus_space_read_1(sc->sc_bst, sc->sc_bsh, off));
+	return (bus_read_1(sc->sc_res, off));
 }
 
 static void
@@ -282,7 +284,7 @@ mk48txx_def_nvwr(device_t dev, int off, uint8_t v)
 	struct mk48txx_softc *sc;
 
 	sc = device_get_softc(dev);
-	bus_space_write_1(sc->sc_bst, sc->sc_bsh, off, v);
+	bus_write_1(sc->sc_res, off, v);
 }
 
 static void

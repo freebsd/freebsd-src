@@ -135,7 +135,7 @@ static	char	*concat3(const char *, const char *, const char *);
 static	void	terminate(int) __attribute__((__noreturn__));
 static	const	char *lbasename(const char *, int);
 static	void	appdef(char ***, const char *);
-static	void	usage(void);
+static	void	usage(void) __dead2;
 static	void	fname(const char *);
 static	void	runchild(const char *, char *const *, const char *, int);
 static	void	findlibs(char *const *);
@@ -304,11 +304,12 @@ int
 main(int argc, char *argv[])
 {
 	int	c;
-	char	flgbuf[3], *tmp, *s;
+	char	flgbuf[3], *s;
+	const char *tmp;
 	size_t	len;
 
 	if ((tmp = getenv("TMPDIR")) == NULL || (len = strlen(tmp)) == 0) {
-		tmpdir = xstrdup(_PATH_TMP);
+		tmpdir = _PATH_TMP;
 	} else {
 		s = xmalloc(len + 2);
 		(void)sprintf(s, "%s%s", tmp, tmp[len - 1] == '/' ? "" : "/");
@@ -555,9 +556,9 @@ main(int argc, char *argv[])
 		terminate(0);
 
 	if (!oflag) {
-		if ((s = getenv("LIBDIR")) == NULL || strlen(s) == 0)
-			s = PATH_LINTLIB;
-		appcstrg(&libsrchpath, s);
+		if ((tmp = getenv("LIBDIR")) == NULL || strlen(tmp) == 0)
+			tmp = PATH_LINTLIB;
+		appcstrg(&libsrchpath, tmp);
 		findlibs(libs);
 		findlibs(deflibs);
 	}
@@ -620,7 +621,7 @@ fname(const char *name)
 			return;
 		}
 		ofn = xmalloc(strlen(bn) + (bn == suff ? 4 : 2));
-		len = bn == suff ? strlen(bn) : (suff - 1) - bn;
+		len = bn == suff ? strlen(bn) : (size_t)((suff - 1) - bn);
 		(void)sprintf(ofn, "%.*s", (int)len, bn);
 		(void)strcat(ofn, ".ln");
 	} else {

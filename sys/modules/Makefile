@@ -21,6 +21,7 @@ SUBDIR=	${_3dfx} \
 	alc \
 	ale \
 	${_amd} \
+	${_amdsbwd} \
 	${_amdtemp} \
 	amr \
 	${_an} \
@@ -416,6 +417,7 @@ _zfs=		zfs
 _aac=		aac
 _acpi=		acpi
 _ahb=		ahb
+_amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
@@ -472,6 +474,7 @@ _aac=		aac
 _acpi=		acpi
 _agp=		agp
 _an=		an
+_amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc

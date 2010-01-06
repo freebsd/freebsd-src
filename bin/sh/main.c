@@ -75,8 +75,9 @@ __FBSDID("$FreeBSD$");
 
 int rootpid;
 int rootshell;
+struct jmploc main_handler;
 
-STATIC void read_profile(char *);
+STATIC void read_profile(const char *);
 STATIC char *find_dot_file(char *);
 
 /*
@@ -90,14 +91,13 @@ STATIC char *find_dot_file(char *);
 int
 main(int argc, char *argv[])
 {
-	struct jmploc jmploc;
 	struct stackmark smark;
 	volatile int state;
 	char *shinit;
 
 	(void) setlocale(LC_ALL, "");
 	state = 0;
-	if (setjmp(jmploc.loc)) {
+	if (setjmp(main_handler.loc)) {
 		/*
 		 * When a shell procedure is executed, we raise the
 		 * exception EXSHELLPROC to clean up before executing
@@ -143,7 +143,7 @@ main(int argc, char *argv[])
 		else
 			goto state4;
 	}
-	handler = &jmploc;
+	handler = &main_handler;
 #ifdef DEBUG
 	opentrace();
 	trputs("Shell args:  ");  trargs(argv);
@@ -154,7 +154,7 @@ main(int argc, char *argv[])
 	setstackmark(&smark);
 	procargs(argc, argv);
 	if (getpwd() == NULL && iflag)
-		out2str("sh: cannot determine working directory\n");
+		out2fmt_flush("sh: cannot determine working directory\n");
 	if (getpwd() != NULL)
 		setvar ("PWD", getpwd(), VEXPORT);
 	if (argv[0] && argv[0][0] == '-') {
@@ -223,7 +223,7 @@ cmdloop(int top)
 			if (!stoppedjobs()) {
 				if (!Iflag)
 					break;
-				out2str("\nUse \"exit\" to leave shell.\n");
+				out2fmt_flush("\nUse \"exit\" to leave shell.\n");
 			}
 			numeof++;
 		} else if (n != NULL && nflag == 0) {
@@ -248,7 +248,7 @@ cmdloop(int top)
  */
 
 STATIC void
-read_profile(char *name)
+read_profile(const char *name)
 {
 	int fd;
 
@@ -269,7 +269,7 @@ read_profile(char *name)
  */
 
 void
-readcmdfile(char *name)
+readcmdfile(const char *name)
 {
 	int fd;
 
@@ -296,7 +296,7 @@ find_dot_file(char *basename)
 {
 	static char localname[FILENAME_MAX+1];
 	char *fullname;
-	char *path = pathval();
+	const char *path = pathval();
 	struct stat statb;
 
 	/* don't try this for absolute or relative paths */
@@ -315,16 +315,12 @@ find_dot_file(char *basename)
 int
 dotcmd(int argc, char **argv)
 {
-	struct strlist *sp;
 	char *fullname;
 
 	if (argc < 2)
 		error("missing filename");
 
 	exitstatus = 0;
-
-	for (sp = cmdenviron; sp ; sp = sp->next)
-		setvareq(savestr(sp->text), VSTRFIXED|VTEXTFIXED);
 
 	fullname = find_dot_file(argv[1]);
 	setinputfile(fullname, 1);
@@ -338,8 +334,6 @@ dotcmd(int argc, char **argv)
 int
 exitcmd(int argc, char **argv)
 {
-	extern int oexitstatus;
-
 	if (stoppedjobs())
 		return 0;
 	if (argc > 1)

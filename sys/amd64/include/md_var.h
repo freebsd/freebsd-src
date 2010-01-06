@@ -89,6 +89,7 @@ void	gs_load_fault(void) __asm(__STRING(gs_load_fault));
 void	dump_add_page(vm_paddr_t);
 void	dump_drop_page(vm_paddr_t);
 void	initializecpu(void);
+void	initializecpucache(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 void	fpstate_drop(struct thread *td);
 int	is_physical_memory(vm_paddr_t addr);

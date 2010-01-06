@@ -285,7 +285,7 @@ include(const char *fname, int ateof)
  * Terminate the most recent inclusion.
  */
 static int
-endinclude()
+endinclude(void)
 {
 	struct incl *in;
 	int ateof;

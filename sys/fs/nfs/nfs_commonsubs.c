@@ -650,10 +650,8 @@ nfsrv_dissectacl(struct nfsrv_descript *nd, NFSACL_T *aclp, int *aclerrp,
 	int acecnt, error = 0, aceerr = 0, acesize;
 
 	*aclerrp = 0;
-#ifdef NFS4_ACL_EXTATTR_NAME
 	if (aclp)
 		aclp->acl_cnt = 0;
-#endif
 	/*
 	 * Parse out the ace entries and expect them to conform to
 	 * what can be supported by R/W/X bits.
@@ -661,28 +659,22 @@ nfsrv_dissectacl(struct nfsrv_descript *nd, NFSACL_T *aclp, int *aclerrp,
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	aclsize = NFSX_UNSIGNED;
 	acecnt = fxdr_unsigned(int, *tl);
-#ifdef NFS4_ACL_EXTATTR_NAME
 	if (acecnt > ACL_MAX_ENTRIES)
 		aceerr = 1;
-#endif
 	if (nfsrv_useacl == 0)
 		aceerr = 1;
 	for (i = 0; i < acecnt; i++) {
-#ifdef NFS4_ACL_EXTATTR_NAME
 		if (aclp && !aceerr)
 			error = nfsrv_dissectace(nd, &aclp->acl_entry[i],
 			    &aceerr, &acesize, p);
 		else
-#endif
 			error = nfsrv_skipace(nd, &acesize);
 		if (error)
 			return (error);
 		aclsize += acesize;
 	}
-#ifdef NFS4_ACL_EXTATTR_NAME
 	if (aclp && !aceerr)
 		aclp->acl_cnt = acecnt;
-#endif
 	if (aceerr)
 		*aclerrp = aceerr;
 	if (aclsizep)
@@ -1014,7 +1006,6 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 		case NFSATTRBIT_ACL:
 			if (compare) {
 			  if (!(*retcmpp)) {
-#ifdef NFS4_ACL_EXTATTR_NAME
 			    if (nfsrv_useacl) {
 				NFSACL_T *naclp;
 
@@ -1028,9 +1019,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				if (aceerr || nfsrv_compareacl(aclp, naclp))
 				    *retcmpp = NFSERR_NOTSAME;
 				acl_free(naclp);
-			    } else
-#endif
-			    {
+			    } else {
 				error = nfsrv_dissectacl(nd, NULL, &aceerr,
 				    &cnt, p);
 				*retcmpp = NFSERR_ATTRNOTSUPP;
@@ -1932,9 +1921,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 		aclp = saclp;
 	} else {
 		NFSCLRNOTFILLABLE_ATTRBIT(retbitp);
-#ifdef NFS4_ACL_EXTATTR_NAME
 		naclp = acl_alloc(M_WAITOK);
-#endif
 		aclp = naclp;
 	}
 	nfsvno_getfs(&fsinf, isdgram);
@@ -1957,21 +1944,15 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 	/*
 	 * And the NFSv4 ACL...
 	 */
-	if (NFSISSET_ATTRBIT(retbitp, NFSATTRBIT_ACLSUPPORT)
-#ifdef NFS4_ACL_EXTATTR_NAME
-	    && (nfsrv_useacl == 0 || ((cred != NULL || p != NULL) &&
-		!NFSHASNFS4ACL(vnode_mount(vp))))
-#endif
-	    ) {
+	if (NFSISSET_ATTRBIT(retbitp, NFSATTRBIT_ACLSUPPORT) &&
+	    (nfsrv_useacl == 0 || ((cred != NULL || p != NULL) &&
+		!NFSHASNFS4ACL(vnode_mount(vp))))) {
 		NFSCLRBIT_ATTRBIT(retbitp, NFSATTRBIT_ACLSUPPORT);
 	}
 	if (NFSISSET_ATTRBIT(retbitp, NFSATTRBIT_ACL)) {
-#ifdef NFS4_ACL_EXTATTR_NAME
 		if (nfsrv_useacl == 0 || ((cred != NULL || p != NULL) &&
 		    !NFSHASNFS4ACL(vnode_mount(vp)))) {
-#endif
 			NFSCLRBIT_ATTRBIT(retbitp, NFSATTRBIT_ACL);
-#ifdef NFS4_ACL_EXTATTR_NAME
 		} else if (naclp != NULL) {
 			NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
 			error = VOP_ACCESS(vp, VREAD_ACL, cred, p);
@@ -1987,7 +1968,6 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 				NFSCLRBIT_ATTRBIT(retbitp, NFSATTRBIT_ACL);
 			}
 		}
-#endif
 	}
 	/*
 	 * Put out the attribute bitmap for the ones being filled in
@@ -2005,11 +1985,8 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 		switch (bitpos) {
 		case NFSATTRBIT_SUPPORTEDATTRS:
 			NFSSETSUPP_ATTRBIT(&attrbits);
-#ifdef NFS4_ACL_EXTATTR_NAME
 			if (nfsrv_useacl == 0 || ((cred != NULL || p != NULL)
-			    && !NFSHASNFS4ACL(vnode_mount(vp))))
-#endif
-			{
+			    && !NFSHASNFS4ACL(vnode_mount(vp)))) {
 			    NFSCLRBIT_ATTRBIT(&attrbits,NFSATTRBIT_ACLSUPPORT);
 			    NFSCLRBIT_ATTRBIT(&attrbits,NFSATTRBIT_ACL);
 			}
@@ -2082,7 +2059,6 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 		/*
 		 * Recommended Attributes. (Only the supported ones.)
 		 */
-#ifdef NFS4_ACL_EXTATTR_NAME
 		case NFSATTRBIT_ACL:
 			retnum += nfsrv_buildacl(nd, aclp, vnode_vtype(vp), p);
 			break;
@@ -2091,7 +2067,6 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 			*tl = txdr_unsigned(NFSV4ACE_SUPTYPES);
 			retnum += NFSX_UNSIGNED;
 			break;
-#endif
 		case NFSATTRBIT_CANSETTIME:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 			if (fsinf.fs_properties & NFSV3FSINFO_CANSETTIME)
@@ -2397,10 +2372,8 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 		};
 	    }
 	}
-#ifdef NFS4_ACL_EXTATTR_NAME
 	if (naclp != NULL)
 		acl_free(naclp);
-#endif
 	*retnump = txdr_unsigned(retnum);
 	return (retnum + prefixnum);
 }

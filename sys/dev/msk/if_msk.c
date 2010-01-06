@@ -3198,6 +3198,8 @@ msk_tick(void *xsc_if)
 	mii = device_get_softc(sc_if->msk_miibus);
 
 	mii_tick(mii);
+	if ((sc_if->msk_flags & MSK_FLAG_LINK) == 0)
+		msk_miibus_statchg(sc_if->msk_if_dev);
 	msk_watchdog(sc_if);
 	callout_reset(&sc_if->msk_tick_ch, hz, msk_tick, sc_if);
 }

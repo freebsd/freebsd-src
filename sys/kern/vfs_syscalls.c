@@ -4426,7 +4426,7 @@ fhopen(td, uap)
 	}
 	if (fmode & FREAD)
 		accmode |= VREAD;
-	if (fmode & O_APPEND)
+	if ((fmode & O_APPEND) && (fmode & FWRITE))
 		accmode |= VAPPEND;
 #ifdef MAC
 	error = mac_vnode_check_open(td->td_ucred, vp, accmode);

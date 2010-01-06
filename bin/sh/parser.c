@@ -113,7 +113,7 @@ STATIC int xxreadtoken(void);
 STATIC int readtoken1(int, char const *, char *, int);
 STATIC int noexpand(char *);
 STATIC void synexpect(int);
-STATIC void synerror(char *);
+STATIC void synerror(const char *);
 STATIC void setprompt(int);
 
 
@@ -364,7 +364,9 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		n1 = (union node *)stalloc(sizeof (struct nfor));
 		n1->type = NFOR;
 		n1->nfor.var = wordtext;
-		if (readtoken() == TWORD && ! quoteflag && equal(wordtext, "in")) {
+		while (readtoken() == TNL)
+			;
+		if (lasttoken == TWORD && ! quoteflag && equal(wordtext, "in")) {
 			app = &ap;
 			while (readtoken() == TWORD) {
 				n2 = (union node *)stalloc(sizeof (struct narg));
@@ -1309,10 +1311,16 @@ parsebackq: {
 	int savelen;
 	int saveprompt;
 	const int bq_startlinno = plinno;
+	char *volatile ostr = NULL;
+	struct parsefile *const savetopfile = getcurrentfile();
 
+	str = NULL;
 	if (setjmp(jmploc.loc)) {
+		popfilesupto(savetopfile);
 		if (str)
 			ckfree(str);
+		if (ostr)
+			ckfree(ostr);
 		handler = savehandler;
 		if (exception == EXERROR) {
 			startlinno = bq_startlinno;
@@ -1321,7 +1329,6 @@ parsebackq: {
 		longjmp(handler->loc, 1);
 	}
 	INTOFF;
-	str = NULL;
 	savelen = out - stackblock();
 	if (savelen > 0) {
 		str = ckmalloc(savelen);
@@ -1333,13 +1340,12 @@ parsebackq: {
                 /* We must read until the closing backquote, giving special
                    treatment to some slashes, and then push the string and
                    reread it as input, interpreting it normally.  */
-                char *out;
+                char *oout;
                 int c;
-                int savelen;
-                char *str;
+                int olen;
 
 
-                STARTSTACKSTR(out);
+                STARTSTACKSTR(oout);
 		for (;;) {
 			if (needprompt) {
 				setprompt(2);
@@ -1366,7 +1372,7 @@ parsebackq: {
 				}
                                 if (c != '\\' && c != '`' && c != '$'
                                     && (!dblquote || c != '"'))
-                                        STPUTC('\\', out);
+                                        STPUTC('\\', oout);
 				break;
 
 			case '\n':
@@ -1382,16 +1388,16 @@ parsebackq: {
 			default:
 				break;
 			}
-			STPUTC(c, out);
+			STPUTC(c, oout);
                 }
 done:
-                STPUTC('\0', out);
-                savelen = out - stackblock();
-                if (savelen > 0) {
-                        str = ckmalloc(savelen);
-                        memcpy(str, stackblock(), savelen);
-			setinputstring(str, 1);
-                }
+                STPUTC('\0', oout);
+                olen = oout - stackblock();
+		INTOFF;
+		ostr = ckmalloc(olen);
+		memcpy(ostr, stackblock(), olen);
+		setinputstring(ostr, 1);
+		INTON;
         }
 	nlpp = &bqlist;
 	while (*nlpp)
@@ -1431,6 +1437,12 @@ done:
 		INTOFF;
 		ckfree(str);
 		str = NULL;
+		INTON;
+	}
+	if (ostr) {
+		INTOFF;
+		ckfree(ostr);
+		ostr = NULL;
 		INTON;
 	}
 	handler = savehandler;
@@ -1508,9 +1520,9 @@ noexpand(char *text)
  */
 
 int
-goodname(char *name)
+goodname(const char *name)
 {
-	char *p;
+	const char *p;
 
 	p = name;
 	if (! is_name(*p))
@@ -1545,11 +1557,11 @@ synexpect(int token)
 
 
 STATIC void
-synerror(char *msg)
+synerror(const char *msg)
 {
 	if (commandname)
-		outfmt(&errout, "%s: %d: ", commandname, startlinno);
-	outfmt(&errout, "Syntax error: %s\n", msg);
+		outfmt(out2, "%s: %d: ", commandname, startlinno);
+	outfmt(out2, "Syntax error: %s\n", msg);
 	error((char *)NULL);
 }
 
@@ -1561,7 +1573,10 @@ setprompt(int which)
 #ifndef NO_HISTORY
 	if (!el)
 #endif
+	{
 		out2str(getprompt(NULL));
+		flushout(out2);
+	}
 }
 
 /*
@@ -1574,13 +1589,14 @@ getprompt(void *unused __unused)
 	static char ps[PROMPTLEN];
 	char *fmt;
 	int i, j, trim;
+	static char internal_error[] = "<internal prompt error>";
 
 	/*
 	 * Select prompt format.
 	 */
 	switch (whichprompt) {
 	case 0:
-		fmt = "";
+		fmt = nullstr;
 		break;
 	case 1:
 		fmt = ps1val();
@@ -1589,7 +1605,7 @@ getprompt(void *unused __unused)
 		fmt = ps2val();
 		break;
 	default:
-		return "<internal prompt error>";
+		return internal_error;
 	}
 
 	/*

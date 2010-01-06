@@ -75,8 +75,9 @@
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#if 0	/* not used yet */
 #include <netinet/ip_fw.h>
-
+#endif
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>

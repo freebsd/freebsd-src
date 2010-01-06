@@ -819,19 +819,23 @@ struct ccb_trans_settings_sas {
 struct ccb_trans_settings_ata {
 	u_int     	valid;		/* Which fields to honor */
 #define	CTS_ATA_VALID_MODE		0x01
-#define	CTS_ATA_VALID_BYTECOUNT		0x04
-	u_int32_t 	mode;
+#define	CTS_ATA_VALID_BYTECOUNT		0x02
+	int		mode;		/* Mode */
 	u_int 		bytecount;	/* Length of PIO transaction */
 };
 
 struct ccb_trans_settings_sata {
 	u_int     	valid;		/* Which fields to honor */
-#define	CTS_SATA_VALID_SPEED		0x01
-#define	CTS_SATA_VALID_PM		0x02
-#define	CTS_SATA_VALID_BYTECOUNT	0x04
-	u_int32_t 	bitrate;	/* Mbps */
-	u_int 		pm_present;	/* PM is present (XPT->SIM) */
+#define	CTS_SATA_VALID_MODE		0x01
+#define	CTS_SATA_VALID_BYTECOUNT	0x02
+#define	CTS_SATA_VALID_REVISION		0x04
+#define	CTS_SATA_VALID_PM		0x08
+#define	CTS_SATA_VALID_TAGS		0x10
+	int		mode;		/* Legacy PATA mode */
 	u_int 		bytecount;	/* Length of PIO transaction */
+	int		revision;	/* SATA revision */
+	u_int 		pm_present;	/* PM is present (XPT->SIM) */
+	u_int 		tags;		/* Number of allowed tags */
 };
 
 /* Get/Set transfer rate/width/disconnection/tag queueing settings */

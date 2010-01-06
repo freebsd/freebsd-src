@@ -61,6 +61,10 @@ options 	BOOTP_COMPAT
 #options 	PREEMPTION
 #options 	VERBOSE_SYSINIT
 
+# Hardware performance counters
+options 	HWPMC_HOOKS
+device		hwpmc
+
 #device		saarm
 
 device		pci
@@ -132,6 +136,7 @@ device		ath_rf5413
 device		ath_ar5416
 options 	AH_SUPPORT_AR5416
 device		ath_ar9160
+device		ath_ar9280
 
 device		usb
 #options 	USB_DEBUG

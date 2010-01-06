@@ -557,9 +557,6 @@ zfs_rmnode(znode_t *zp)
 	dmu_tx_t	*tx;
 	uint64_t	acl_obj;
 	int		error;
-	int		vfslocked;
-
-	vfslocked = VFS_LOCK_GIANT(zfsvfs->z_vfs);
 
 	ASSERT(zp->z_phys->zp_links == 0);
 
@@ -593,7 +590,6 @@ zfs_rmnode(znode_t *zp)
 			 */
 			zfs_znode_dmu_fini(zp);
 			zfs_znode_free(zp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			return;
 		}
 	}
@@ -666,7 +662,6 @@ zfs_rmnode(znode_t *zp)
 out:
 	if (xzp)
 		VN_RELE(ZTOV(xzp));
-	VFS_UNLOCK_GIANT(vfslocked);
 }
 
 static uint64_t

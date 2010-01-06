@@ -70,7 +70,6 @@
 #include <sys/tty.h>
 #include <sys/serial.h>
 #include <sys/fcntl.h>
-#include <sys/termios.h>
 
 /* Module interface related macros */
 #define	UCOM_MODVER	1

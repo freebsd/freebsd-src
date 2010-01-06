@@ -352,11 +352,11 @@ device_get_status(struct devinfo_dev *dev)
 	assert(dev != NULL);
 
 	switch (dev->dd_state) {
-	case DIS_ALIVE:			/* probe succeeded */
-	case DIS_NOTPRESENT:		/* not probed or probe failed */
+	case DS_ALIVE:			/* probe succeeded */
+	case DS_NOTPRESENT:		/* not probed or probe failed */
 		return (DS_DOWN);
-	case DIS_ATTACHED:		/* attach method called */
-	case DIS_BUSY:			/* device is open */
+	case DS_ATTACHED:		/* attach method called */
+	case DS_BUSY:			/* device is open */
 		return (DS_RUNNING);
 	default:
 		return (DS_UNKNOWN);

@@ -48,7 +48,7 @@
  *      (num_tx_desc * sizeof(struct e1000_tx_desc)) % 128 == 0
  */
 #define IGB_MIN_TXD		80
-#define IGB_DEFAULT_TXD		256
+#define IGB_DEFAULT_TXD		1024
 #define IGB_MAX_TXD		4096
 
 /*
@@ -63,7 +63,7 @@
  *      (num_tx_desc * sizeof(struct e1000_tx_desc)) % 128 == 0
  */
 #define IGB_MIN_RXD		80
-#define IGB_DEFAULT_RXD		256
+#define IGB_DEFAULT_RXD		1024
 #define IGB_MAX_RXD		4096
 
 /*
@@ -128,7 +128,7 @@
 /*
  * This parameter controls the duration of transmit watchdog timer.
  */
-#define IGB_TX_TIMEOUT                   5    /* set to 5 seconds */
+#define IGB_WATCHDOG                   (10 * hz)
 
 /*
  * This parameter controls when the driver calls the routine to reclaim
@@ -225,6 +225,7 @@
 #define IGB_TSO_SIZE		(65535 + sizeof(struct ether_vlan_header))
 #define IGB_TSO_SEG_SIZE	4096	/* Max dma segment size */
 #define IGB_HDR_BUF		128
+#define IGB_PKTTYPE_MASK	0x0000FFF0
 #define ETH_ZLEN		60
 #define ETH_ADDR_LEN		6
 
@@ -234,11 +235,6 @@
 #else
 #define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP)
 #endif
-
-/* Header split codes for get_buf */
-#define IGB_CLEAN_HEADER		1
-#define IGB_CLEAN_PAYLOAD		2
-#define IGB_CLEAN_BOTH			3
 
 /*
  * Interrupt Moderation parameters
@@ -280,6 +276,7 @@ struct tx_ring {
 	struct igb_dma_alloc	txdma;		/* bus_dma glue for tx desc */
 	struct e1000_tx_desc	*tx_base;
 	struct task		tx_task;	/* cleanup tasklet */
+	struct taskqueue	*tq;
 	u32			next_avail_desc;
 	u32			next_to_clean;
 	volatile u16		tx_avail;
@@ -291,7 +288,8 @@ struct tx_ring {
 	struct resource		*res;
 	void			*tag;
 
-	u32			watchdog_timer;
+	bool			watchdog_check;
+	int			watchdog_time;
 	u64			no_desc_avail;
 	u64			tx_irq;
 	u64			tx_packets;
@@ -311,13 +309,14 @@ struct rx_ring {
 	bool			lro_enabled;
 	bool			hdr_split;
 	struct task		rx_task;	/* cleanup tasklet */
+	struct taskqueue	*tq;
 	struct mtx		rx_mtx;
 	char			mtx_name[16];
 	u32			last_cleaned;
 	u32			next_to_check;
-	struct igb_rx_buffer	*rx_buffers;
+	struct igb_rx_buf	*rx_buffers;
 	bus_dma_tag_t		rxtag;		/* dma tag for tx */
-	bus_dmamap_t		rx_spare_map;
+	bus_dmamap_t		spare_map;
 	/*
 	 * First/last mbuf pointers, for
 	 * collecting multisegment RX packets.
@@ -364,7 +363,6 @@ struct adapter {
 	int		min_frame_size;
 	struct mtx	core_mtx;
 	int		igb_insert_vlan_header;
-	struct task     link_task;
 	struct task     rxtx_task;
 	struct taskqueue *tq;           /* private task queue */
         u16		num_queues;
@@ -445,7 +443,7 @@ struct igb_tx_buffer {
         bus_dmamap_t    map;         /* bus_dma map for packet */
 };
 
-struct igb_rx_buffer {
+struct igb_rx_buf {
         struct mbuf    *m_head;
         struct mbuf    *m_pack;
         bus_dmamap_t    map;         /* bus_dma map for packet */
@@ -454,12 +452,12 @@ struct igb_rx_buffer {
 #define	IGB_CORE_LOCK_INIT(_sc, _name) \
 	mtx_init(&(_sc)->core_mtx, _name, "IGB Core Lock", MTX_DEF)
 #define	IGB_CORE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->core_mtx)
-#define	IGB_TX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->tx_mtx)
-#define	IGB_RX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->rx_mtx)
+#define	IGB_TX_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->tx_mtx)
+#define	IGB_RX_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->rx_mtx)
 #define	IGB_CORE_LOCK(_sc)		mtx_lock(&(_sc)->core_mtx)
-#define	IGB_TX_LOCK(_sc)			mtx_lock(&(_sc)->tx_mtx)
-#define	IGB_TX_TRYLOCK(_sc)			mtx_trylock(&(_sc)->tx_mtx)
-#define	IGB_RX_LOCK(_sc)			mtx_lock(&(_sc)->rx_mtx)
+#define	IGB_TX_LOCK(_sc)		mtx_lock(&(_sc)->tx_mtx)
+#define	IGB_TX_TRYLOCK(_sc)		mtx_trylock(&(_sc)->tx_mtx)
+#define	IGB_RX_LOCK(_sc)		mtx_lock(&(_sc)->rx_mtx)
 #define	IGB_CORE_UNLOCK(_sc)		mtx_unlock(&(_sc)->core_mtx)
 #define	IGB_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->tx_mtx)
 #define	IGB_RX_UNLOCK(_sc)		mtx_unlock(&(_sc)->rx_mtx)

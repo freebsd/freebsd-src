@@ -611,6 +611,7 @@ static int
 mge_attach(device_t dev)
 {
 	struct mge_softc *sc;
+	struct mii_softc *miisc;
 	struct ifnet *ifp;
 	uint8_t hwaddr[ETHER_ADDR_LEN];
 	int i, error ;
@@ -689,12 +690,14 @@ mge_attach(device_t dev)
 	error = mii_phy_probe(dev, &sc->miibus, mge_ifmedia_upd, mge_ifmedia_sts);
 	if (error) {
 		device_printf(dev, "MII failed to find PHY\n");
-		if_free(ifp);
-		sc->ifp = NULL;
 		mge_detach(dev);
 		return (error);
 	}
 	sc->mii = device_get_softc(sc->miibus);
+
+	/* Tell the MAC where to find the PHY so autoneg works */
+	miisc = LIST_FIRST(&sc->mii->mii_phys);
+	MGE_WRITE(sc, MGE_REG_PHYDEV, miisc->mii_phy);
 
 	/* Attach interrupt handlers */
 	for (i = 0; i < 2; ++i) {
@@ -704,7 +707,7 @@ mge_attach(device_t dev)
 		if (error) {
 			device_printf(dev, "could not setup %s\n",
 			    mge_intrs[i].description);
-			ether_ifdetach(sc->ifp);
+			mge_detach(dev);
 			return (error);
 		}
 	}
@@ -729,6 +732,9 @@ mge_detach(device_t dev)
 
 	/* Stop and release all interrupts */
 	for (i = 0; i < 2; ++i) {
+		if (!sc->ih_cookie[i])
+			continue;
+
 		error = bus_teardown_intr(dev, sc->res[1 + i], sc->ih_cookie[i]);
 		if (error)
 			device_printf(dev, "could not release %s\n",

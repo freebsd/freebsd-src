@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/wait.h>
 
-#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -86,16 +85,16 @@ int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
 mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 const char *suffix = BACKUP_SUFFIX;
 
-void	copy(int, const char *, int, const char *, off_t);
-int	compare(int, const char *, size_t, int, const char *, size_t);
-int	create_newfile(const char *, int, struct stat *);
-int	create_tempfile(const char *, char *, size_t);
-void	install(const char *, const char *, u_long, u_int);
-void	install_dir(char *);
-u_long	numeric_id(const char *, const char *);
-void	strip(const char *);
-int	trymmap(int);
-void	usage(void);
+static int	compare(int, const char *, size_t, int, const char *, size_t);
+static void	copy(int, const char *, int, const char *, off_t);
+static int	create_newfile(const char *, int, struct stat *);
+static int	create_tempfile(const char *, char *, size_t);
+static void	install(const char *, const char *, u_long, u_int);
+static void	install_dir(char *);
+static u_long	numeric_id(const char *, const char *);
+static void	strip(const char *);
+static int	trymmap(int);
+static void	usage(void);
 
 int
 main(int argc, char *argv[])
@@ -247,7 +246,7 @@ main(int argc, char *argv[])
 	/* NOTREACHED */
 }
 
-u_long
+static u_long
 numeric_id(const char *name, const char *type)
 {
 	u_long val;
@@ -270,7 +269,7 @@ numeric_id(const char *name, const char *type)
  * install --
  *	build a path name and install the file
  */
-void
+static void
 install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 {
 	struct stat from_sb, temp_sb, to_sb;
@@ -524,7 +523,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
  * compare --
  *	compare two files; non-zero means files differ
  */
-int
+static int
 compare(int from_fd, const char *from_name __unused, size_t from_len,
 	int to_fd, const char *to_name __unused, size_t to_len)
 {
@@ -588,7 +587,7 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
  * create_tempfile --
  *	create a temporary file based on path and open it
  */
-int
+static int
 create_tempfile(const char *path, char *temp, size_t tsize)
 {
 	char *p;
@@ -608,7 +607,7 @@ create_tempfile(const char *path, char *temp, size_t tsize)
  * create_newfile --
  *	create a new file, overwriting an existing one if necessary
  */
-int
+static int
 create_newfile(const char *path, int target, struct stat *sbp)
 {
 	char backup[MAXPATHLEN];
@@ -651,7 +650,7 @@ create_newfile(const char *path, int target, struct stat *sbp)
  * copy --
  *	copy from one file to another
  */
-void
+static void
 copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
     off_t size)
 {
@@ -704,7 +703,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
  * strip --
  *	use strip(1) to strip the target file
  */
-void
+static void
 strip(const char *to_name)
 {
 	const char *stripbin;
@@ -736,7 +735,7 @@ strip(const char *to_name)
  * install_dir --
  *	build directory heirarchy
  */
-void
+static void
 install_dir(char *path)
 {
 	char *p;
@@ -770,8 +769,8 @@ install_dir(char *path)
  * usage --
  *	print a usage message and die
  */
-void
-usage()
+static void
+usage(void)
 {
 	(void)fprintf(stderr,
 "usage: install [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
@@ -787,7 +786,7 @@ usage()
  * trymmap --
  *	return true (1) if mmap should be tried, false (0) if not.
  */
-int
+static int
 trymmap(int fd)
 {
 /*

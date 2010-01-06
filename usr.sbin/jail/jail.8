@@ -561,7 +561,7 @@ or for running a virtual server.
 Start a shell in the jail:
 .Pp
 .Bd -literal -offset indent
-jail path=/data/jail/192.0.2.100 host.hostname=testhostname \\
+jail -c path=/data/jail/192.0.2.100 host.hostname=testhostname \\
 	ip4.addr=192.0.2.100 command=/bin/sh
 .Ed
 .Pp
@@ -636,7 +636,7 @@ script from within the jail.
 .Bd -literal -offset indent
 ifconfig ed0 inet alias 192.0.2.100/32
 mount -t procfs proc /data/jail/192.0.2.100/proc
-jail path=/data/jail/192.0.2.100 host.hostname=testhostname \\
+jail -c path=/data/jail/192.0.2.100 host.hostname=testhostname \\
 	ip4.addr=192.0.2.100 command=/bin/sh /etc/rc
 .Ed
 .Pp

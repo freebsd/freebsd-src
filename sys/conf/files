@@ -112,12 +112,12 @@ cam/cam_sim.c			optional scbus
 cam/cam_xpt.c			optional scbus
 cam/ata/ata_all.c		optional scbus
 cam/ata/ata_xpt.c		optional scbus
+cam/ata/ata_pmp.c		optional scbus
 cam/scsi/scsi_xpt.c		optional scbus
 cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
 cam/scsi/scsi_ch.c		optional ch
-cam/ata/ata_da.c		optional da
-cam/ata/ata_pmp.c		optional da
+cam/ata/ata_da.c		optional ada | da
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_low.c		optional ct | ncv | nsp | stg
 cam/scsi/scsi_low_pisa.c	optional ct | ncv | nsp | stg
@@ -171,107 +171,108 @@ contrib/dev/acpica/dispatcher/dswexec.c		optional acpi
 contrib/dev/acpica/dispatcher/dswload.c		optional acpi
 contrib/dev/acpica/dispatcher/dswscope.c	optional acpi
 contrib/dev/acpica/dispatcher/dswstate.c	optional acpi
-contrib/dev/acpica/events/evevent.c	optional acpi
-contrib/dev/acpica/events/evgpe.c	optional acpi
-contrib/dev/acpica/events/evgpeblk.c	optional acpi
-contrib/dev/acpica/events/evmisc.c	optional acpi
-contrib/dev/acpica/events/evregion.c	optional acpi
-contrib/dev/acpica/events/evrgnini.c	optional acpi
-contrib/dev/acpica/events/evsci.c	optional acpi
-contrib/dev/acpica/events/evxface.c	optional acpi
-contrib/dev/acpica/events/evxfevnt.c	optional acpi
-contrib/dev/acpica/events/evxfregn.c	optional acpi
-contrib/dev/acpica/executer/exconfig.c	optional acpi
-contrib/dev/acpica/executer/exconvrt.c	optional acpi
-contrib/dev/acpica/executer/excreate.c	optional acpi
-contrib/dev/acpica/executer/exdump.c	optional acpi
-contrib/dev/acpica/executer/exfield.c	optional acpi
-contrib/dev/acpica/executer/exfldio.c	optional acpi
-contrib/dev/acpica/executer/exmisc.c	optional acpi
-contrib/dev/acpica/executer/exmutex.c	optional acpi
-contrib/dev/acpica/executer/exnames.c	optional acpi
-contrib/dev/acpica/executer/exoparg1.c	optional acpi
-contrib/dev/acpica/executer/exoparg2.c	optional acpi
-contrib/dev/acpica/executer/exoparg3.c	optional acpi
-contrib/dev/acpica/executer/exoparg6.c	optional acpi
-contrib/dev/acpica/executer/exprep.c	optional acpi
-contrib/dev/acpica/executer/exregion.c	optional acpi
-contrib/dev/acpica/executer/exresnte.c	optional acpi
-contrib/dev/acpica/executer/exresolv.c	optional acpi
-contrib/dev/acpica/executer/exresop.c	optional acpi
-contrib/dev/acpica/executer/exstore.c	optional acpi
-contrib/dev/acpica/executer/exstoren.c	optional acpi
-contrib/dev/acpica/executer/exstorob.c	optional acpi
-contrib/dev/acpica/executer/exsystem.c	optional acpi
-contrib/dev/acpica/executer/exutils.c	optional acpi
-contrib/dev/acpica/hardware/hwacpi.c	optional acpi
-contrib/dev/acpica/hardware/hwgpe.c	optional acpi
-contrib/dev/acpica/hardware/hwregs.c	optional acpi
-contrib/dev/acpica/hardware/hwsleep.c	optional acpi
-contrib/dev/acpica/hardware/hwtimer.c	optional acpi
-contrib/dev/acpica/hardware/hwvalid.c	optional acpi
-contrib/dev/acpica/hardware/hwxface.c	optional acpi
-contrib/dev/acpica/namespace/nsaccess.c	optional acpi
-contrib/dev/acpica/namespace/nsalloc.c	optional acpi
-contrib/dev/acpica/namespace/nsdump.c	optional acpi
-contrib/dev/acpica/namespace/nseval.c	optional acpi
-contrib/dev/acpica/namespace/nsinit.c	optional acpi
-contrib/dev/acpica/namespace/nsload.c	optional acpi
-contrib/dev/acpica/namespace/nsnames.c	optional acpi
-contrib/dev/acpica/namespace/nsobject.c	optional acpi
-contrib/dev/acpica/namespace/nsparse.c	optional acpi
-contrib/dev/acpica/namespace/nspredef.c	optional acpi
-contrib/dev/acpica/namespace/nsrepair.c	optional acpi
-contrib/dev/acpica/namespace/nssearch.c	optional acpi
-contrib/dev/acpica/namespace/nsutils.c	optional acpi
-contrib/dev/acpica/namespace/nswalk.c	optional acpi
-contrib/dev/acpica/namespace/nsxfeval.c	optional acpi
-contrib/dev/acpica/namespace/nsxfname.c	optional acpi
-contrib/dev/acpica/namespace/nsxfobj.c	optional acpi
-contrib/dev/acpica/parser/psargs.c	optional acpi
-contrib/dev/acpica/parser/psloop.c	optional acpi
-contrib/dev/acpica/parser/psopcode.c	optional acpi
-contrib/dev/acpica/parser/psparse.c	optional acpi
-contrib/dev/acpica/parser/psscope.c	optional acpi
-contrib/dev/acpica/parser/pstree.c	optional acpi
-contrib/dev/acpica/parser/psutils.c	optional acpi
-contrib/dev/acpica/parser/pswalk.c	optional acpi
-contrib/dev/acpica/parser/psxface.c	optional acpi
-contrib/dev/acpica/resources/rsaddr.c	optional acpi
-contrib/dev/acpica/resources/rscalc.c	optional acpi
-contrib/dev/acpica/resources/rscreate.c	optional acpi
-contrib/dev/acpica/resources/rsdump.c	optional acpi
-contrib/dev/acpica/resources/rsinfo.c	optional acpi
-contrib/dev/acpica/resources/rsio.c	optional acpi
-contrib/dev/acpica/resources/rsirq.c	optional acpi
-contrib/dev/acpica/resources/rslist.c	optional acpi
-contrib/dev/acpica/resources/rsmemory.c	optional acpi
-contrib/dev/acpica/resources/rsmisc.c	optional acpi
-contrib/dev/acpica/resources/rsutils.c	optional acpi
-contrib/dev/acpica/resources/rsxface.c	optional acpi
-contrib/dev/acpica/tables/tbfadt.c	optional acpi
-contrib/dev/acpica/tables/tbfind.c	optional acpi
-contrib/dev/acpica/tables/tbinstal.c	optional acpi
-contrib/dev/acpica/tables/tbutils.c	optional acpi
-contrib/dev/acpica/tables/tbxface.c	optional acpi
-contrib/dev/acpica/tables/tbxfroot.c	optional acpi
-contrib/dev/acpica/utilities/utalloc.c	optional acpi
-contrib/dev/acpica/utilities/utcache.c	optional acpi
-contrib/dev/acpica/utilities/utcopy.c	optional acpi
-contrib/dev/acpica/utilities/utdebug.c	optional acpi
-contrib/dev/acpica/utilities/utdelete.c	optional acpi
-contrib/dev/acpica/utilities/uteval.c	optional acpi
-contrib/dev/acpica/utilities/utglobal.c	optional acpi
-contrib/dev/acpica/utilities/utids.c	optional acpi
-contrib/dev/acpica/utilities/utinit.c	optional acpi
-contrib/dev/acpica/utilities/utlock.c	optional acpi
-contrib/dev/acpica/utilities/utmath.c	optional acpi
-contrib/dev/acpica/utilities/utmisc.c	optional acpi
-contrib/dev/acpica/utilities/utmutex.c	optional acpi
-contrib/dev/acpica/utilities/utobject.c	optional acpi
-contrib/dev/acpica/utilities/utresrc.c	optional acpi
-contrib/dev/acpica/utilities/utstate.c	optional acpi
-contrib/dev/acpica/utilities/utxface.c	optional acpi
+contrib/dev/acpica/events/evevent.c		optional acpi
+contrib/dev/acpica/events/evgpe.c		optional acpi
+contrib/dev/acpica/events/evgpeblk.c		optional acpi
+contrib/dev/acpica/events/evmisc.c		optional acpi
+contrib/dev/acpica/events/evregion.c		optional acpi
+contrib/dev/acpica/events/evrgnini.c		optional acpi
+contrib/dev/acpica/events/evsci.c		optional acpi
+contrib/dev/acpica/events/evxface.c		optional acpi
+contrib/dev/acpica/events/evxfevnt.c		optional acpi
+contrib/dev/acpica/events/evxfregn.c		optional acpi
+contrib/dev/acpica/executer/exconfig.c		optional acpi
+contrib/dev/acpica/executer/exconvrt.c		optional acpi
+contrib/dev/acpica/executer/excreate.c		optional acpi
+contrib/dev/acpica/executer/exdump.c		optional acpi
+contrib/dev/acpica/executer/exfield.c		optional acpi
+contrib/dev/acpica/executer/exfldio.c		optional acpi
+contrib/dev/acpica/executer/exmisc.c		optional acpi
+contrib/dev/acpica/executer/exmutex.c		optional acpi
+contrib/dev/acpica/executer/exnames.c		optional acpi
+contrib/dev/acpica/executer/exoparg1.c		optional acpi
+contrib/dev/acpica/executer/exoparg2.c		optional acpi
+contrib/dev/acpica/executer/exoparg3.c		optional acpi
+contrib/dev/acpica/executer/exoparg6.c		optional acpi
+contrib/dev/acpica/executer/exprep.c		optional acpi
+contrib/dev/acpica/executer/exregion.c		optional acpi
+contrib/dev/acpica/executer/exresnte.c		optional acpi
+contrib/dev/acpica/executer/exresolv.c		optional acpi
+contrib/dev/acpica/executer/exresop.c		optional acpi
+contrib/dev/acpica/executer/exstore.c		optional acpi
+contrib/dev/acpica/executer/exstoren.c		optional acpi
+contrib/dev/acpica/executer/exstorob.c		optional acpi
+contrib/dev/acpica/executer/exsystem.c		optional acpi
+contrib/dev/acpica/executer/exutils.c		optional acpi
+contrib/dev/acpica/hardware/hwacpi.c		optional acpi
+contrib/dev/acpica/hardware/hwgpe.c		optional acpi
+contrib/dev/acpica/hardware/hwregs.c		optional acpi
+contrib/dev/acpica/hardware/hwsleep.c		optional acpi
+contrib/dev/acpica/hardware/hwtimer.c		optional acpi
+contrib/dev/acpica/hardware/hwvalid.c		optional acpi
+contrib/dev/acpica/hardware/hwxface.c		optional acpi
+contrib/dev/acpica/namespace/nsaccess.c		optional acpi
+contrib/dev/acpica/namespace/nsalloc.c		optional acpi
+contrib/dev/acpica/namespace/nsdump.c		optional acpi
+contrib/dev/acpica/namespace/nseval.c		optional acpi
+contrib/dev/acpica/namespace/nsinit.c		optional acpi
+contrib/dev/acpica/namespace/nsload.c		optional acpi
+contrib/dev/acpica/namespace/nsnames.c		optional acpi
+contrib/dev/acpica/namespace/nsobject.c		optional acpi
+contrib/dev/acpica/namespace/nsparse.c		optional acpi
+contrib/dev/acpica/namespace/nspredef.c		optional acpi
+contrib/dev/acpica/namespace/nsrepair.c		optional acpi
+contrib/dev/acpica/namespace/nsrepair2.c	optional acpi
+contrib/dev/acpica/namespace/nssearch.c		optional acpi
+contrib/dev/acpica/namespace/nsutils.c		optional acpi
+contrib/dev/acpica/namespace/nswalk.c		optional acpi
+contrib/dev/acpica/namespace/nsxfeval.c		optional acpi
+contrib/dev/acpica/namespace/nsxfname.c		optional acpi
+contrib/dev/acpica/namespace/nsxfobj.c		optional acpi
+contrib/dev/acpica/parser/psargs.c		optional acpi
+contrib/dev/acpica/parser/psloop.c		optional acpi
+contrib/dev/acpica/parser/psopcode.c		optional acpi
+contrib/dev/acpica/parser/psparse.c		optional acpi
+contrib/dev/acpica/parser/psscope.c		optional acpi
+contrib/dev/acpica/parser/pstree.c		optional acpi
+contrib/dev/acpica/parser/psutils.c		optional acpi
+contrib/dev/acpica/parser/pswalk.c		optional acpi
+contrib/dev/acpica/parser/psxface.c		optional acpi
+contrib/dev/acpica/resources/rsaddr.c		optional acpi
+contrib/dev/acpica/resources/rscalc.c		optional acpi
+contrib/dev/acpica/resources/rscreate.c		optional acpi
+contrib/dev/acpica/resources/rsdump.c		optional acpi
+contrib/dev/acpica/resources/rsinfo.c		optional acpi
+contrib/dev/acpica/resources/rsio.c		optional acpi
+contrib/dev/acpica/resources/rsirq.c		optional acpi
+contrib/dev/acpica/resources/rslist.c		optional acpi
+contrib/dev/acpica/resources/rsmemory.c		optional acpi
+contrib/dev/acpica/resources/rsmisc.c		optional acpi
+contrib/dev/acpica/resources/rsutils.c		optional acpi
+contrib/dev/acpica/resources/rsxface.c		optional acpi
+contrib/dev/acpica/tables/tbfadt.c		optional acpi
+contrib/dev/acpica/tables/tbfind.c		optional acpi
+contrib/dev/acpica/tables/tbinstal.c		optional acpi
+contrib/dev/acpica/tables/tbutils.c		optional acpi
+contrib/dev/acpica/tables/tbxface.c		optional acpi
+contrib/dev/acpica/tables/tbxfroot.c		optional acpi
+contrib/dev/acpica/utilities/utalloc.c		optional acpi
+contrib/dev/acpica/utilities/utcache.c		optional acpi
+contrib/dev/acpica/utilities/utcopy.c		optional acpi
+contrib/dev/acpica/utilities/utdebug.c		optional acpi
+contrib/dev/acpica/utilities/utdelete.c		optional acpi
+contrib/dev/acpica/utilities/uteval.c		optional acpi
+contrib/dev/acpica/utilities/utglobal.c		optional acpi
+contrib/dev/acpica/utilities/utids.c		optional acpi
+contrib/dev/acpica/utilities/utinit.c		optional acpi
+contrib/dev/acpica/utilities/utlock.c		optional acpi
+contrib/dev/acpica/utilities/utmath.c		optional acpi
+contrib/dev/acpica/utilities/utmisc.c		optional acpi
+contrib/dev/acpica/utilities/utmutex.c		optional acpi
+contrib/dev/acpica/utilities/utobject.c		optional acpi
+contrib/dev/acpica/utilities/utresrc.c		optional acpi
+contrib/dev/acpica/utilities/utstate.c		optional acpi
+contrib/dev/acpica/utilities/utxface.c		optional acpi
 contrib/ipfilter/netinet/fil.c	optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_auth.c optional ipfilter inet \
@@ -532,7 +533,6 @@ dev/ata/chipsets/ata-sis.c	optional ata pci | atasis
 dev/ata/chipsets/ata-via.c	optional ata pci | atavia
 dev/ata/ata-disk.c		optional atadisk
 dev/ata/ata-raid.c		optional ataraid
-dev/ata/ata-usb.c		optional atausb usb
 dev/ata/atapi-cd.c		optional atapicd
 dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
@@ -1083,6 +1083,20 @@ iwi_monitor.fw			optional iwimonitorfw | iwifw		\
 	no-obj no-implicit-rule						\
 	clean		"iwi_monitor.fw"
 dev/iwn/if_iwn.c		optional iwn
+iwn1000fw.c			optional iwn1000fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn1000.fw:iwn1000fw -miwn1000fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn1000fw.c"
+iwn1000fw.fwo			optional iwn1000fw | iwnfw		\
+	dependency	"iwn1000.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn1000.fw" \
+	no-implicit-rule						\
+	clean		"iwn1000fw.fwo"
+iwn1000.fw			optional iwn1000fw | iwnfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-1000-128.50.3.1.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"iwn1000.fw"
 iwn4965fw.c			optional iwn4965fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn4965.fw:iwn4965fw -miwn4965fw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
@@ -1094,7 +1108,7 @@ iwn4965fw.fwo			optional iwn4965fw | iwnfw		\
 	clean		"iwn4965fw.fwo"
 iwn4965.fw			optional iwn4965fw | iwnfw		\
 	dependency	".PHONY"					\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-4965-228.57.2.23.fw.uu" \
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-4965-228.61.2.24.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn4965.fw"
 iwn5000fw.c			optional iwn5000fw | iwnfw		\
@@ -1108,7 +1122,7 @@ iwn5000fw.fwo		optional iwn5000fw | iwnfw			\
 	clean		"iwn5000fw.fwo"
 iwn5000.fw			optional iwn5000fw | iwnfw		\
 	dependency	".PHONY"					\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-5000-5.4.A.11.fw.uu"	\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-5000-8.24.2.12.fw.uu"	\
 	no-obj no-implicit-rule						\
 	clean		"iwn5000.fw"
 iwn5150fw.c			optional iwn5150fw | iwnfw		\
@@ -1125,6 +1139,20 @@ iwn5150.fw			optional iwn5150fw | iwnfw		\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-5150-8.24.2.2.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn5150.fw"
+iwn6000fw.c			optional iwn6000fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6000.fw:iwn6000fw -miwn6000fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn6000fw.c"
+iwn6000fw.fwo			optional iwn6000fw | iwnfw		\
+	dependency	"iwn6000.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn6000.fw" \
+	no-implicit-rule						\
+	clean		"iwn6000fw.fwo"
+iwn6000.fw			optional iwn6000fw | iwnfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000-9.176.4.1.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"iwn6000.fw"
 dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
@@ -1657,8 +1685,8 @@ dev/usb/net/if_cue.c		optional cue
 dev/usb/net/if_kue.c		optional kue
 dev/usb/net/if_rue.c		optional rue
 dev/usb/net/if_udav.c		optional udav
-dev/usb/net/usb_ethernet.c \
-	optional (aue | axe | cdce | cue | kue | rue | udav)
+dev/usb/net/usb_ethernet.c	optional aue | axe | cdce | cue | kue | rue | \
+					 udav
 #
 # USB WLAN drivers
 #
@@ -1689,8 +1717,11 @@ dev/usb/serial/uplcom.c		optional uplcom
 dev/usb/serial/uslcom.c		optional uslcom
 dev/usb/serial/uvisor.c		optional uvisor
 dev/usb/serial/uvscom.c		optional uvscom
-dev/usb/serial/usb_serial.c 	optional ucom | \
-	(u3g | uark | ubsa | ubser | uchcom | ucycom | ufoma | uftdi | ugensa | uipaq | ulpt | umct | umodem | umoscom | uplcom | uslcom | uvisor | uvscom)
+dev/usb/serial/usb_serial.c 	optional ucom | u3g | uark | ubsa | ubser | \
+					 uchcom | ucycom | ufoma | uftdi | \
+					 ugensa | uipaq | ulpt | umct | \
+					 umodem | umoscom | uplcom | uslcom | \
+					 uvisor | uvscom
 #
 # USB misc drivers
 #
@@ -2194,6 +2225,7 @@ libkern/iconv_converter_if.m	optional libiconv
 libkern/iconv_xlat.c		optional libiconv
 libkern/iconv_xlat16.c		optional libiconv
 libkern/index.c			standard
+libkern/inet_aton.c		standard
 libkern/inet_ntoa.c		standard
 libkern/mcount.c		optional profiling-routine
 libkern/memcmp.c		standard
@@ -2424,7 +2456,11 @@ netinet/ip_encap.c		optional inet | inet6
 netinet/ip_fastfwd.c		optional inet
 netinet/ipfw/ip_fw2.c		optional inet ipfirewall \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
+netinet/ipfw/ip_fw_dynamic.c	optional inet ipfirewall
+netinet/ipfw/ip_fw_log.c	optional inet ipfirewall
 netinet/ipfw/ip_fw_pfil.c	optional inet ipfirewall
+netinet/ipfw/ip_fw_sockopt.c	optional inet ipfirewall
+netinet/ipfw/ip_fw_table.c	optional inet ipfirewall
 netinet/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
 netinet/ip_icmp.c		optional inet
 netinet/ip_input.c		optional inet

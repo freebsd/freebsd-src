@@ -51,8 +51,8 @@ extern int invoker_root;		/* Invoked by root */
 
 void	 enter_lastlog(PERSON *);
 PERSON	*enter_person(struct passwd *);
-void	 enter_where(struct utmp *, PERSON *);
-PERSON	*find_person(const char *);
+void	 enter_where(struct utmpx *, PERSON *);
+PERSON	*find_person(char *);
 int	 hide(struct passwd *);
 void	 lflag_print(void);
 int	 match(struct passwd *, const char *);

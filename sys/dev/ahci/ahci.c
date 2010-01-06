@@ -72,7 +72,7 @@ static void ahci_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int er
 static void ahci_execute_transaction(struct ahci_slot *slot);
 static void ahci_timeout(struct ahci_slot *slot);
 static void ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et);
-static int ahci_setup_fis(struct ahci_cmd_tab *ctp, union ccb *ccb, int tag);
+static int ahci_setup_fis(device_t dev, struct ahci_cmd_tab *ctp, union ccb *ccb, int tag);
 static void ahci_dmainit(device_t dev);
 static void ahci_dmasetupc_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
 static void ahci_dmafini(device_t dev);
@@ -99,7 +99,14 @@ MALLOC_DEFINE(M_AHCI, "AHCI driver", "AHCI driver data buffers");
 static struct {
 	uint32_t	id;
 	const char	*name;
-	int		flags;
+	int		quirks;
+#define AHCI_Q_NOFORCE	1
+#define AHCI_Q_NOPMP	2
+#define AHCI_Q_NONCQ	4
+#define AHCI_Q_1CH	8
+#define AHCI_Q_2CH	16
+#define AHCI_Q_4CH	32
+#define AHCI_Q_EDGEIS	64
 } ahci_ids[] = {
 	{0x43801002, "ATI IXP600",	0},
 	{0x43901002, "ATI IXP700",	0},
@@ -108,8 +115,8 @@ static struct {
 	{0x43931002, "ATI IXP700",	0},
 	{0x43941002, "ATI IXP800",	0},
 	{0x43951002, "ATI IXP800",	0},
-	{0x26528086, "Intel ICH6",	0},
-	{0x26538086, "Intel ICH6M",	0},
+	{0x26528086, "Intel ICH6",	AHCI_Q_NOFORCE},
+	{0x26538086, "Intel ICH6M",	AHCI_Q_NOFORCE},
 	{0x26818086, "Intel ESB2",	0},
 	{0x26828086, "Intel ESB2",	0},
 	{0x26838086, "Intel ESB2",	0},
@@ -145,6 +152,15 @@ static struct {
 	{0x3b2b8086, "Intel PCH",	0},
 	{0x3b2c8086, "Intel PCH",	0},
 	{0x3b2f8086, "Intel PCH",	0},
+	{0x2361197b, "JMicron JMB361",	AHCI_Q_NOFORCE},
+	{0x2363197b, "JMicron JMB363",	AHCI_Q_NOFORCE},
+	{0x2365197b, "JMicron JMB365",	AHCI_Q_NOFORCE},
+	{0x2366197b, "JMicron JMB366",	AHCI_Q_NOFORCE},
+	{0x2368197b, "JMicron JMB368",	AHCI_Q_NOFORCE},
+	{0x611111ab, "Marvell 88SX6111", AHCI_Q_NOFORCE|AHCI_Q_1CH|AHCI_Q_EDGEIS},
+	{0x612111ab, "Marvell 88SX6121", AHCI_Q_NOFORCE|AHCI_Q_2CH|AHCI_Q_EDGEIS},
+	{0x614111ab, "Marvell 88SX6141", AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
+	{0x614511ab, "Marvell 88SX6145", AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
 	{0x044c10de, "NVIDIA MCP65",	0},
 	{0x044d10de, "NVIDIA MCP65",	0},
 	{0x044e10de, "NVIDIA MCP65",	0},
@@ -226,9 +242,43 @@ static int
 ahci_probe(device_t dev)
 {
 	char buf[64];
+	int i, valid = 0;
+	uint32_t devid = pci_get_devid(dev);
+
+	/* Is this a possible AHCI candidate? */
+	if (pci_get_class(dev) == PCIC_STORAGE &&
+	    pci_get_subclass(dev) == PCIS_STORAGE_SATA &&
+	    pci_get_progif(dev) == PCIP_STORAGE_SATA_AHCI_1_0)
+		valid = 1;
+	/* Is this a known AHCI chip? */
+	for (i = 0; ahci_ids[i].id != 0; i++) {
+		if (ahci_ids[i].id == devid &&
+		    (valid || !(ahci_ids[i].quirks & AHCI_Q_NOFORCE))) {
+			/* Do not attach JMicrons with single PCI function. */
+			if (pci_get_vendor(dev) == 0x197b &&
+			    (pci_read_config(dev, 0xdf, 1) & 0x40) == 0)
+				return (ENXIO);
+			snprintf(buf, sizeof(buf), "%s AHCI SATA controller",
+			    ahci_ids[i].name);
+			device_set_desc_copy(dev, buf);
+			return (BUS_PROBE_VENDOR);
+		}
+	}
+	if (!valid)
+		return (ENXIO);
+	device_set_desc_copy(dev, "AHCI SATA controller");
+	return (BUS_PROBE_VENDOR);
+}
+
+static int
+ahci_ata_probe(device_t dev)
+{
+	char buf[64];
 	int i;
 	uint32_t devid = pci_get_devid(dev);
 
+	if ((intptr_t)device_get_ivars(dev) >= 0)
+		return (ENXIO);
 	/* Is this a known AHCI chip? */
 	for (i = 0; ahci_ids[i].id != 0; i++) {
 		if (ahci_ids[i].id == devid) {
@@ -238,11 +288,6 @@ ahci_probe(device_t dev)
 			return (BUS_PROBE_VENDOR);
 		}
 	}
-	/* Is this a possible AHCI candidate? */
-	if (pci_get_class(dev) != PCIC_STORAGE ||
-	    pci_get_subclass(dev) != PCIS_STORAGE_SATA ||
-	    pci_get_progif(dev) != PCIP_STORAGE_SATA_AHCI_1_0)
-		return (ENXIO);
 	device_set_desc_copy(dev, "AHCI SATA controller");
 	return (BUS_PROBE_VENDOR);
 }
@@ -252,10 +297,15 @@ ahci_attach(device_t dev)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
 	device_t child;
-	int	error, unit, speed;
+	int	error, unit, speed, i;
+	uint32_t devid = pci_get_devid(dev);
 	u_int32_t version;
 
 	ctlr->dev = dev;
+	i = 0;
+	while (ahci_ids[i].id != 0 && ahci_ids[i].id != devid)
+		i++;
+	ctlr->quirks = ahci_ids[i].quirks;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "ccc", &ctlr->ccc);
 	/* if we have a memory BAR(5) we are likely on an AHCI part */
@@ -282,10 +332,32 @@ ahci_attach(device_t dev)
 		rman_fini(&ctlr->sc_iomem);
 		return (error);
 	};
-	/* Get the number of HW channels */
+	/* Get the HW capabilities */
+	version = ATA_INL(ctlr->r_mem, AHCI_VS);
+	ctlr->caps = ATA_INL(ctlr->r_mem, AHCI_CAP);
+	if (version >= 0x00010020)
+		ctlr->caps2 = ATA_INL(ctlr->r_mem, AHCI_CAP2);
 	ctlr->ichannels = ATA_INL(ctlr->r_mem, AHCI_PI);
+	if (ctlr->quirks & AHCI_Q_1CH) {
+		ctlr->caps &= ~AHCI_CAP_NPMASK;
+		ctlr->ichannels &= 0x01;
+	}
+	if (ctlr->quirks & AHCI_Q_2CH) {
+		ctlr->caps &= ~AHCI_CAP_NPMASK;
+		ctlr->caps |= 1;
+		ctlr->ichannels &= 0x03;
+	}
+	if (ctlr->quirks & AHCI_Q_4CH) {
+		ctlr->caps &= ~AHCI_CAP_NPMASK;
+		ctlr->caps |= 3;
+		ctlr->ichannels &= 0x0f;
+	}
 	ctlr->channels = MAX(flsl(ctlr->ichannels),
-	    (ATA_INL(ctlr->r_mem, AHCI_CAP) & AHCI_CAP_NPMASK) + 1);
+	    (ctlr->caps & AHCI_CAP_NPMASK) + 1);
+	if (ctlr->quirks & AHCI_Q_NOPMP)
+		ctlr->caps &= ~AHCI_CAP_SPM;
+	if (ctlr->quirks & AHCI_Q_NONCQ)
+		ctlr->caps &= ~AHCI_CAP_SNCQ;
 	/* Setup interrupts. */
 	if (ahci_setup_interrupt(dev)) {
 		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
@@ -293,10 +365,6 @@ ahci_attach(device_t dev)
 		return ENXIO;
 	}
 	/* Announce HW capabilities. */
-	version = ATA_INL(ctlr->r_mem, AHCI_VS);
-	ctlr->caps = ATA_INL(ctlr->r_mem, AHCI_CAP);
-	if (version >= 0x00010020)
-		ctlr->caps2 = ATA_INL(ctlr->r_mem, AHCI_CAP2);
 	speed = (ctlr->caps & AHCI_CAP_ISS) >> AHCI_CAP_ISS_SHIFT;
 	device_printf(dev,
 		    "AHCI v%x.%02x with %d %sGbps ports, Port Multiplier %s\n",
@@ -528,13 +596,18 @@ ahci_intr(void *data)
 		unit = irq->r_irq_rid - 1;
 		is = ATA_INL(ctlr->r_mem, AHCI_IS);
 	}
+	/* Some controllers have edge triggered IS. */
+	if (ctlr->quirks & AHCI_Q_EDGEIS)
+		ATA_OUTL(ctlr->r_mem, AHCI_IS, is);
 	for (; unit < ctlr->channels; unit++) {
 		if ((is & (1 << unit)) != 0 &&
 		    (arg = ctlr->interrupt[unit].argument)) {
-			ctlr->interrupt[unit].function(arg);
-			ATA_OUTL(ctlr->r_mem, AHCI_IS, 1 << unit);
+				ctlr->interrupt[unit].function(arg);
 		}
 	}
+	/* AHCI declares level triggered IS. */
+	if (!(ctlr->quirks & AHCI_Q_EDGEIS))
+		ATA_OUTL(ctlr->r_mem, AHCI_IS, is);
 }
 
 /*
@@ -665,6 +738,25 @@ static driver_t ahci_driver = {
         sizeof(struct ahci_controller)
 };
 DRIVER_MODULE(ahci, pci, ahci_driver, ahci_devclass, 0, 0);
+static device_method_t ahci_ata_methods[] = {
+	DEVMETHOD(device_probe,     ahci_ata_probe),
+	DEVMETHOD(device_attach,    ahci_attach),
+	DEVMETHOD(device_detach,    ahci_detach),
+	DEVMETHOD(device_suspend,   ahci_suspend),
+	DEVMETHOD(device_resume,    ahci_resume),
+	DEVMETHOD(bus_print_child,  ahci_print_child),
+	DEVMETHOD(bus_alloc_resource,       ahci_alloc_resource),
+	DEVMETHOD(bus_release_resource,     ahci_release_resource),
+	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
+	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
+	{ 0, 0 }
+};
+static driver_t ahci_ata_driver = {
+        "ahci",
+        ahci_ata_methods,
+        sizeof(struct ahci_controller)
+};
+DRIVER_MODULE(ahci, atapci, ahci_ata_driver, ahci_devclass, 0, 0);
 MODULE_VERSION(ahci, 1);
 MODULE_DEPEND(ahci, cam, 1, 1, 1);
 
@@ -682,12 +774,13 @@ ahci_ch_attach(device_t dev)
 	struct ahci_controller *ctlr = device_get_softc(device_get_parent(dev));
 	struct ahci_channel *ch = device_get_softc(dev);
 	struct cam_devq *devq;
-	int rid, error;
+	int rid, error, i, sata_rev = 0;
 
 	ch->dev = dev;
 	ch->unit = (intptr_t)device_get_ivars(dev);
 	ch->caps = ctlr->caps;
 	ch->caps2 = ctlr->caps2;
+	ch->quirks = ctlr->quirks;
 	ch->numslots = ((ch->caps & AHCI_CAP_NCS) >> AHCI_CAP_NCS_SHIFT) + 1,
 	mtx_init(&ch->mtx, "AHCI channel lock", NULL, MTX_DEF);
 	resource_int_value(device_get_name(dev),
@@ -700,9 +793,16 @@ ahci_ch_attach(device_t dev)
 	    pci_get_subvendor(ctlr->dev) == 0x1043 &&
 	    pci_get_subdevice(ctlr->dev) == 0x81e4 &&
 	    ch->unit == 0)
-		ch->sata_rev = 1;
+		sata_rev = 1;
 	resource_int_value(device_get_name(dev),
-	    device_get_unit(dev), "sata_rev", &ch->sata_rev);
+	    device_get_unit(dev), "sata_rev", &sata_rev);
+	for (i = 0; i < 16; i++) {
+		ch->user[i].revision = sata_rev;
+		ch->user[i].mode = 0;
+		ch->user[i].bytecount = 8192;
+		ch->user[i].tags = ch->numslots;
+		ch->curr[i] = ch->user[i];
+	}
 	rid = ch->unit;
 	if (!(ch->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &rid, RF_ACTIVE)))
@@ -734,7 +834,9 @@ ahci_ch_attach(device_t dev)
 	/* Construct SIM entry */
 	ch->sim = cam_sim_alloc(ahciaction, ahcipoll, "ahcich", ch,
 	    device_get_unit(dev), &ch->mtx,
-	    min(2, ch->numslots), ch->numslots, devq);
+	    min(2, ch->numslots),
+	    (ch->caps & AHCI_CAP_SNCQ) ? ch->numslots : 0,
+	    devq);
 	if (ch->sim == NULL) {
 		device_printf(dev, "unable to allocate sim\n");
 		error = ENOMEM;
@@ -856,7 +958,7 @@ static driver_t ahcich_driver = {
         ahcich_methods,
         sizeof(struct ahci_channel)
 };
-DRIVER_MODULE(ahcich, ahci, ahcich_driver, ahci_devclass, 0, 0);
+DRIVER_MODULE(ahcich, ahci, ahcich_driver, ahcich_devclass, 0, 0);
 
 struct ahci_dc_cb_args {
 	bus_addr_t maddr;
@@ -1025,7 +1127,8 @@ ahci_notify_events(device_t dev, u_int32_t status)
 	struct cam_path *dpath;
 	int i;
 
-	ATA_OUTL(ch->r_mem, AHCI_P_SNTF, status);
+	if (ch->caps & AHCI_CAP_SSNTF)
+		ATA_OUTL(ch->r_mem, AHCI_P_SNTF, status);
 	if (bootverbose)
 		device_printf(dev, "SNTF 0x%04x\n", status);
 	for (i = 0; i < 16; i++) {
@@ -1084,8 +1187,16 @@ ahci_ch_intr(void *data)
 	/* Read command statuses. */
 	sstatus = ATA_INL(ch->r_mem, AHCI_P_SACT);
 	cstatus = ATA_INL(ch->r_mem, AHCI_P_CI);
-	if ((istatus & AHCI_P_IX_SDB) && (ch->caps & AHCI_CAP_SSNTF))
-		sntf = ATA_INL(ch->r_mem, AHCI_P_SNTF);
+	if (istatus & AHCI_P_IX_SDB) {
+		if (ch->caps & AHCI_CAP_SSNTF)
+			sntf = ATA_INL(ch->r_mem, AHCI_P_SNTF);
+		else {
+			u_int8_t *fis = ch->dma.rfis + 0x58;
+
+			if (fis[1] & 0x80)
+				sntf = (1 << (fis[1] & 0x0f));
+		}
+	}
 	/* Process PHY events */
 	if (istatus & (AHCI_P_IX_PC | AHCI_P_IX_PRC | AHCI_P_IX_OF |
 	    AHCI_P_IX_IF | AHCI_P_IX_HBD | AHCI_P_IX_HBF | AHCI_P_IX_TFE)) {
@@ -1178,6 +1289,10 @@ ahci_check_collision(device_t dev, union ccb *ccb)
 		if (ch->numtslots != 0 &&
 		    ch->taggedtarget != ccb->ccb_h.target_id)
 			return (1);
+		/* Tagged command while we have no supported tag free. */
+		if (((~ch->oslots) & (0xffffffff >> (32 -
+		    ch->curr[ccb->ccb_h.target_id].tags))) == 0)
+			return (1);
 	} else {
 		/* Untagged command while tagged are active. */
 		if (ch->numrslots != 0 && ch->numtslots != 0)
@@ -1201,15 +1316,21 @@ ahci_begin_transaction(device_t dev, union ccb *ccb)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
 	struct ahci_slot *slot;
-	int tag;
+	int tag, tags;
 
 	/* Choose empty slot. */
+	tags = ch->numslots;
+	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
+	    (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA))
+		tags = ch->curr[ccb->ccb_h.target_id].tags;
 	tag = ch->lastslot;
-	while (ch->slot[tag].state != AHCI_SLOT_EMPTY) {
-		if (++tag >= ch->numslots)
+	while (1) {
+		if (tag >= tags)
 			tag = 0;
-		KASSERT(tag != ch->lastslot, ("ahci: ALL SLOTS BUSY!"));
-	}
+		if (ch->slot[tag].state == AHCI_SLOT_EMPTY)
+			break;
+		tag++;
+	};
 	ch->lastslot = tag;
 	/* Occupy chosen slot. */
 	slot = &ch->slot[tag];
@@ -1218,6 +1339,7 @@ ahci_begin_transaction(device_t dev, union ccb *ccb)
 	if (ch->numrslots == 0 && ch->pm_level > 3)
 		callout_stop(&ch->pm_timer);
 	/* Update channel stats. */
+	ch->oslots |= (1 << slot->slot);
 	ch->numrslots++;
 	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
 	    (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA)) {
@@ -1295,7 +1417,7 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	ctp = (struct ahci_cmd_tab *)
 		(ch->dma.work + AHCI_CT_OFFSET + (AHCI_CT_SIZE * slot->slot));
 	/* Setup the FIS for this request */
-	if (!(fis_size = ahci_setup_fis(ctp, ccb, slot->slot))) {
+	if (!(fis_size = ahci_setup_fis(dev, ctp, ccb, slot->slot))) {
 		device_printf(ch->dev, "Setting up SATA FIS failed\n");
 		ahci_end_transaction(slot, AHCI_ERR_INVALID);
 		return;
@@ -1538,6 +1660,7 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 	}
 	/* Free slot. */
+	ch->oslots &= ~(1 << slot->slot);
 	ch->rslots &= ~(1 << slot->slot);
 	ch->aslots &= ~(1 << slot->slot);
 	slot->state = AHCI_SLOT_EMPTY;
@@ -1567,7 +1690,7 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	} else
 		xpt_done(ccb);
 	/* Unfreeze frozen command. */
-	if (ch->frozen && ch->numrslots == 0) {
+	if (ch->frozen && !ahci_check_collision(dev, ch->frozen)) {
 		union ccb *fccb = ch->frozen;
 		ch->frozen = NULL;
 		ahci_begin_transaction(dev, fccb);
@@ -1867,8 +1990,9 @@ ahci_reset(device_t dev)
 }
 
 static int
-ahci_setup_fis(struct ahci_cmd_tab *ctp, union ccb *ccb, int tag)
+ahci_setup_fis(device_t dev, struct ahci_cmd_tab *ctp, union ccb *ccb, int tag)
 {
+	struct ahci_channel *ch = device_get_softc(dev);
 	u_int8_t *fis = &ctp->cfis[0];
 
 	bzero(ctp->cfis, 64);
@@ -1877,7 +2001,8 @@ ahci_setup_fis(struct ahci_cmd_tab *ctp, union ccb *ccb, int tag)
 	if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
 		fis[1] |= 0x80;
 		fis[2] = ATA_PACKET_CMD;
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE &&
+		    ch->curr[ccb->ccb_h.target_id].mode >= ATA_DMA)
 			fis[3] = ATA_F_DMA;
 		else {
 			fis[5] = ccb->csio.dxfer_len;
@@ -1957,6 +2082,7 @@ static int
 ahci_sata_phy_reset(device_t dev, int quick)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
+	int sata_rev;
 	uint32_t val;
 
 	if (quick) {
@@ -1967,11 +2093,12 @@ ahci_sata_phy_reset(device_t dev, int quick)
 
 	if (bootverbose)
 		device_printf(dev, "hardware reset ...\n");
-	if (ch->sata_rev == 1)
+	sata_rev = ch->user[ch->pm_present ? 15 : 0].revision;
+	if (sata_rev == 1)
 		val = ATA_SC_SPD_SPEED_GEN1;
-	else if (ch->sata_rev == 2)
+	else if (sata_rev == 2)
 		val = ATA_SC_SPD_SPEED_GEN2;
-	else if (ch->sata_rev == 3)
+	else if (sata_rev == 3)
 		val = ATA_SC_SPD_SPEED_GEN3;
 	else
 		val = 0;
@@ -2028,10 +2155,22 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
+		struct	ahci_device *d; 
 
-		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_PM) {
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
+			d = &ch->curr[ccb->ccb_h.target_id];
+		else
+			d = &ch->user[ccb->ccb_h.target_id];
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_REVISION)
+			d->revision = cts->xport_specific.sata.revision;
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_MODE)
+			d->mode = cts->xport_specific.sata.mode;
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_BYTECOUNT)
+			d->bytecount = min(8192, cts->xport_specific.sata.bytecount);
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_TAGS)
+			d->tags = min(ch->numslots, cts->xport_specific.sata.tags);
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_PM)
 			ch->pm_present = cts->xport_specific.sata.pm_present;
-		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -2040,36 +2179,41 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 	/* Get default/user set transfer settings for the target */
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
+		struct  ahci_device *d;
 		uint32_t status;
 
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
+			d = &ch->curr[ccb->ccb_h.target_id];
+		else
+			d = &ch->user[ccb->ccb_h.target_id];
 		cts->protocol = PROTO_ATA;
 		cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cts->transport = XPORT_SATA;
 		cts->transport_version = XPORT_VERSION_UNSPECIFIED;
 		cts->proto_specific.valid = 0;
 		cts->xport_specific.sata.valid = 0;
-		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS &&
+		    (ccb->ccb_h.target_id == 15 ||
+		    (ccb->ccb_h.target_id == 0 && !ch->pm_present))) {
 			status = ATA_INL(ch->r_mem, AHCI_P_SSTS) & ATA_SS_SPD_MASK;
-		else
-			status = ATA_INL(ch->r_mem, AHCI_P_SCTL) & ATA_SC_SPD_MASK;
-		if (status & ATA_SS_SPD_GEN3) {
-			cts->xport_specific.sata.bitrate = 600000;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_SPEED;
-		} else if (status & ATA_SS_SPD_GEN2) {
-			cts->xport_specific.sata.bitrate = 300000;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_SPEED;
-		} else if (status & ATA_SS_SPD_GEN1) {
-			cts->xport_specific.sata.bitrate = 150000;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_SPEED;
-		}
-		if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
-			cts->xport_specific.sata.pm_present =
-			    (ATA_INL(ch->r_mem, AHCI_P_CMD) & AHCI_P_CMD_PMA) ?
-			    1 : 0;
+			if (status & 0x0f0) {
+				cts->xport_specific.sata.revision =
+				    (status & 0x0f0) >> 4;
+				cts->xport_specific.sata.valid |=
+				    CTS_SATA_VALID_REVISION;
+			}
 		} else {
-			cts->xport_specific.sata.pm_present = ch->pm_present;
+			cts->xport_specific.sata.revision = d->revision;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
 		}
+		cts->xport_specific.sata.mode = d->mode;
+		cts->xport_specific.sata.valid |= CTS_SATA_VALID_MODE;
+		cts->xport_specific.sata.bytecount = d->bytecount;
+		cts->xport_specific.sata.valid |= CTS_SATA_VALID_BYTECOUNT;
+		cts->xport_specific.sata.pm_present = ch->pm_present;
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_PM;
+		cts->xport_specific.sata.tags = d->tags;
+		cts->xport_specific.sata.valid |= CTS_SATA_VALID_TAGS;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -2119,7 +2263,9 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_pathinq *cpi = &ccb->cpi;
 
 		cpi->version_num = 1; /* XXX??? */
-		cpi->hba_inquiry = PI_SDTR_ABLE | PI_TAG_ABLE;
+		cpi->hba_inquiry = PI_SDTR_ABLE;
+		if (ch->caps & AHCI_CAP_SNCQ)
+			cpi->hba_inquiry |= PI_TAG_ABLE;
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;

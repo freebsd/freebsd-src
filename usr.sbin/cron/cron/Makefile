@@ -9,4 +9,6 @@ CFLAGS+= -DLOGIN_CAP -DPAM
 DPADD=	${LIBCRON} ${LIBPAM} ${LIBUTIL}
 LDADD=	${LIBCRON} ${MINUSLPAM} -lutil
 
+WARNS?=	2
+
 .include <bsd.prog.mk>

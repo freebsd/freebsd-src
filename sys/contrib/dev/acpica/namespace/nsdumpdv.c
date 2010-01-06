@@ -225,7 +225,7 @@ AcpiNsDumpRootDevices (
 
     Status = AcpiNsWalkNamespace (ACPI_TYPE_DEVICE, SysBusHandle,
                 ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
-                AcpiNsDumpOneDevice, NULL, NULL);
+                AcpiNsDumpOneDevice, NULL, NULL, NULL);
 }
 
 #endif

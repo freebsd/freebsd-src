@@ -30,12 +30,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2007
+.Dd December 18, 2009
 .Dt VGE 4
 .Os
 .Sh NAME
 .Nm vge
-.Nd "VIA Networking Technologies VT6122 PCI Gigabit Ethernet adapter driver"
+.Nd "VIA Networking Technologies Velocity Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -55,22 +55,23 @@ if_vge_load="YES"
 The
 .Nm
 driver provides support for various NICs and embedded Ethernet interfaces
-based on the VIA Networking Technologies VT6122 Gigabit Ethernet
-controller chips.
+based on the VIA Technologies VT6120, VT6122, VT6130 and VT6132 Velocity
+Family Gigabit Ethernet controller chips.
 .Pp
-The VT6122 is a 33/66Mhz 64-bit PCI device which combines a tri-speed MAC with
-an integrated 10/100/1000 copper PHY.
+The VT6120/VT6122 is a 33/66Mhz 64-bit PCI device which combines a tri-speed
+MAC with an integrated 10/100/1000 copper PHY.
 (Some older cards use an external PHY.)
+The VT6130/VT6132 is the PCI express version of Velocity family.
 The MAC supports TCP/IP hardware
 checksums (IPv4 only), TCP large send, VLAN tag insertion and stripping,
 as well as VLAN filtering, a 64-entry CAM filter and a 64-entry VLAN filter,
 64-bit multicast hash filter, 4 separate transmit DMA queues, flow control
 and jumbo frames up to 16K in size.
-The VT6122 has a 16K receive FIFO and 48K transmit FIFO.
+The Velocity family controllers have a 16K receive FIFO and 48K transmit FIFO.
 .Pp
 The
 .Nm
-driver takes advantage of the VT6122's checksum offload and VLAN
+driver takes advantage of the controller's checksum offload and VLAN
 tagging features, as well as the jumbo frame and CAM filter support.
 The CAM filter is used for multicast address filtering to provide
 64 perfect multicast address filter support.
@@ -162,7 +163,7 @@ For more information on configuring this device, see
 .Sh HARDWARE
 The
 .Nm
-driver supports VIA Networking VT3119 and VT6122 based
+driver supports VIA Networking VT6120, VT6122, VT6130 and VT6132 based
 Gigabit Ethernet adapters including:
 .Pp
 .Bl -bullet -compact
@@ -172,6 +173,38 @@ VIA Networking LAN-on-motherboard Gigabit Ethernet
 ZyXEL GN650-T 64-bit PCI Gigabit Ethernet NIC (ZX1701)
 .It
 ZyXEL GN670-T 32-bit PCI Gigabit Ethernet NIC (ZX1702)
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "xxxxxx"
+.It Va hw.vge.msi_disable
+This tunable disables MSI support on the Ethernet hardware.
+The default value is 0.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.vge.%d.int_holdoff
+Maximum number of time to delay interrupts.
+The valid range is 0 to 5100 in units of 1us, the default is
+150 (150us).
+The resolution of of timer is about 20us so finer tuning than
+20us wouldn't be available.
+The interface should be brought down and up again before a change
+takes effect.
+.It Va dev.vge.%d.rx_coal_pkt
+Maximum number of packets to fire Rx completion interrupt.
+The valid range is 1 to 255, the default is 64.
+.It Va dev.vge.%d.tx_coal_pkt
+Maximum number of packets to fire Tx completion interrupt.
+The valid range is 1 to 255, the default is 128.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag

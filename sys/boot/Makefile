@@ -22,7 +22,7 @@ SUBDIR+=		ofw
 SUBDIR+=		uboot
 .endif
 
-.if defined(LOADER_ZFS_SUPPORT)
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE} == "i386"
 SUBDIR+=		zfs
 .endif
 

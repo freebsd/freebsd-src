@@ -41,8 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 unsigned int
-__sleep(seconds)
-	unsigned int seconds;
+__sleep(unsigned int seconds)
 {
 	struct timespec time_to_sleep;
 	struct timespec time_remaining;

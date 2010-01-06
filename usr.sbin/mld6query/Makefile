@@ -20,4 +20,6 @@ SRCS=	mld6.c
 
 CFLAGS+= -DIPSEC -DUSE_RFC2292BIS
 
+WARNS?=	2
+
 .include <bsd.prog.mk>

@@ -266,7 +266,7 @@ ucycom_attach(device_t dev)
 	    sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "allocating USB "
-		    "transfers failed!\n");
+		    "transfers failed\n");
 		goto detach;
 	}
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
@@ -555,7 +555,7 @@ ucycom_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			break;
 
 		default:
-			DPRINTFN(0, "unsupported model number!\n");
+			DPRINTFN(0, "unsupported model number\n");
 			goto tr_setup;
 		}
 

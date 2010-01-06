@@ -401,7 +401,7 @@ ufoma_attach(device_t dev)
 
 	if (error) {
 		device_printf(dev, "allocating control USB "
-		    "transfers failed!\n");
+		    "transfers failed\n");
 		goto detach;
 	}
 	mad = ufoma_get_intconf(cd, id, UDESC_VS_INTERFACE, UDESCSUB_MCPC_ACM);
@@ -1060,7 +1060,7 @@ ufoma_modem_setup(device_t dev, struct ufoma_softc *sc,
 				break;
 			}
 		} else {
-			device_printf(dev, "no data interface!\n");
+			device_printf(dev, "no data interface\n");
 			return (EINVAL);
 		}
 	}
@@ -1071,7 +1071,7 @@ ufoma_modem_setup(device_t dev, struct ufoma_softc *sc,
 
 	if (error) {
 		device_printf(dev, "allocating BULK USB "
-		    "transfers failed!\n");
+		    "transfers failed\n");
 		return (EINVAL);
 	}
 	return (0);

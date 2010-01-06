@@ -3,6 +3,7 @@
 PROG=	lastlogin
 MAN=	lastlogin.8
 
-WARNS?=	2
+DPADD=	${LIBULOG}
+LDADD=	-lulog
 
 .include <bsd.prog.mk>

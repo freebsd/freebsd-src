@@ -477,7 +477,7 @@ struct tulip_perfstat {
 	u_quad_t	perf_ifstart_cycles;
 	u_quad_t	perf_ifstart_one_cycles;
 	u_quad_t	perf_ifioctl_cycles;
-	u_quad_t	perf_ifwatchdog_cycles;
+	u_quad_t	perf_stat_cycles;
 	u_quad_t	perf_timeout_cycles;
 	u_quad_t	perf_txput_cycles;
 	u_quad_t	perf_txintr_cycles;
@@ -487,7 +487,7 @@ struct tulip_perfstat {
 	unsigned int	perf_ifstart;
 	unsigned int	perf_ifstart_one;
 	unsigned int	perf_ifioctl;
-	unsigned int	perf_ifwatchdog;
+	unsigned int	perf_stat;
 	unsigned int	perf_timeout;
 	unsigned int	perf_txput;
 	unsigned int	perf_txintr;
@@ -570,6 +570,7 @@ struct tulip_softc {
 	tulip_srom_connection_t	tulip_conntype;
 	struct callout		tulip_callout;
 	struct mtx		tulip_mutex;
+	struct callout	tulip_stat_timer;
 };
 
 #define	tulip_curperfstats	tulip_perfstats[TULIP_PERF_CURRENT]

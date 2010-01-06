@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #define	CRYPTO_TIMING				/* enable timing support */
 
 #include "opt_ddb.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -68,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 
 #include <ddb/ddb.h>
@@ -79,6 +81,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kobj.h>
 #include <sys/bus.h>
 #include "cryptodev_if.h"
+
+SDT_PROVIDER_DEFINE(opencrypto);
 
 /*
  * Crypto drivers register themselves by allocating a slot in the

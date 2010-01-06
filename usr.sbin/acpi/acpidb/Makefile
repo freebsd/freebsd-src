@@ -38,8 +38,8 @@ SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c	\
 # namespace
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c		\
 	nsload.c nsnames.c nsobject.c nsparse.c nspredef.c	\
-	nsrepair.c nssearch.c nsutils.c nswalk.c nsxfeval.c	\
-	nsxfname.c nsxfobj.c
+	nsrepair.c nsrepair2.c nssearch.c nsutils.c nswalk.c	\
+	nsxfeval.c nsxfname.c nsxfobj.c
 
 # resources
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c		\

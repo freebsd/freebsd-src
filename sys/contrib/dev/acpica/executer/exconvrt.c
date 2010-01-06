@@ -260,7 +260,7 @@ AcpiExConvertToInteger (
 
     /* Create a new integer */
 
-    ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+    ReturnDesc = AcpiUtCreateIntegerObject (Result);
     if (!ReturnDesc)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -271,7 +271,6 @@ AcpiExConvertToInteger (
 
     /* Save the Result */
 
-    ReturnDesc->Integer.Value = Result;
     AcpiExTruncateFor32bitTable (ReturnDesc);
     *ResultDesc = ReturnDesc;
     return_ACPI_STATUS (AE_OK);

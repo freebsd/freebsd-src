@@ -282,7 +282,7 @@ ubser_attach(device_t dev)
 	sc->sc_tx_size = usbd_xfer_max_len(sc->sc_xfer[UBSER_BULK_DT_WR]);
 
 	if (sc->sc_tx_size == 0) {
-		DPRINTFN(0, "invalid tx_size!\n");
+		DPRINTFN(0, "invalid tx_size\n");
 		goto detach;
 	}
 	/* initialize port numbers */

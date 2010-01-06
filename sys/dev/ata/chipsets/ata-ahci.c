@@ -52,6 +52,12 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 /* local prototypes */
+static int ata_ahci_ch_attach(device_t dev);
+static int ata_ahci_ch_detach(device_t dev);
+static int ata_ahci_ch_suspend(device_t dev);
+static int ata_ahci_ch_resume(device_t dev);
+static int ata_ahci_ctlr_reset(device_t dev);
+static void ata_ahci_reset(device_t dev);
 static int ata_ahci_suspend(device_t dev);
 static int ata_ahci_status(device_t dev);
 static int ata_ahci_begin_transaction(struct ata_request *request);
@@ -97,6 +103,49 @@ ata_ahci_probe(device_t dev)
     return (BUS_PROBE_GENERIC);
 }
 
+static int
+ata_ahci_ata_probe(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+
+    if ((intptr_t)device_get_ivars(dev) >= 0)
+	    return (ENXIO);
+    device_set_desc_copy(dev, "AHCI SATA controller");
+    ctlr->chipinit = ata_ahci_chipinit;
+    return (BUS_PROBE_GENERIC);
+}
+
+static int
+ata_ahci_ata_attach(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    device_t child;
+    int unit;
+
+    /* do chipset specific setups only needed once */
+    ctlr->legacy = 0;
+    ctlr->ichannels = -1;
+    ctlr->ch_attach = ata_pci_ch_attach;
+    ctlr->ch_detach = ata_pci_ch_detach;
+    ctlr->dev = dev;
+    if (ctlr->chipinit(dev))
+	return ENXIO;
+    /* attach all channels on this controller */
+    for (unit = 0; unit < ctlr->channels; unit++) {
+	if ((ctlr->ichannels & (1 << unit)) == 0)
+	    continue;
+	child = device_add_child(dev, "ata",
+	    ((unit == 0 || unit == 1) && ctlr->legacy) ?
+	    unit : devclass_find_free_unit(ata_devclass, 2));
+	if (child == NULL)
+	    device_printf(dev, "failed to add ata child device\n");
+	else
+	    device_set_ivars(child, (void *)(intptr_t)unit);
+    }
+    bus_generic_attach(dev);
+    return 0;
+}
+
 int
 ata_ahci_chipinit(device_t dev)
 {
@@ -129,9 +178,15 @@ ata_ahci_chipinit(device_t dev)
 
     /* get the number of HW channels */
     ctlr->ichannels = ATA_INL(ctlr->r_res2, ATA_AHCI_PI);
-    ctlr->channels =
-	MAX(flsl(ctlr->ichannels),
+    ctlr->channels = MAX(flsl(ctlr->ichannels),
 	    (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_NPMASK) + 1);
+    if (pci_get_devid(dev) == ATA_M88SX6111)
+	    ctlr->channels = 1;
+    else if (pci_get_devid(dev) == ATA_M88SX6121)
+	    ctlr->channels = 2;
+    else if (pci_get_devid(dev) == ATA_M88SX6141 ||
+	pci_get_devid(dev) == ATA_M88SX6145)
+	    ctlr->channels = 4;
 
     ctlr->reset = ata_ahci_reset;
     ctlr->ch_attach = ata_ahci_ch_attach;
@@ -139,6 +194,7 @@ ata_ahci_chipinit(device_t dev)
     ctlr->ch_suspend = ata_ahci_ch_suspend;
     ctlr->ch_resume = ata_ahci_ch_resume;
     ctlr->setmode = ata_sata_setmode;
+    ctlr->getrev = ata_sata_getrev;
     ctlr->suspend = ata_ahci_suspend;
     ctlr->resume = ata_ahci_ctlr_reset;
 
@@ -183,7 +239,7 @@ ata_ahci_chipinit(device_t dev)
 	return 0;
 }
 
-int
+static int
 ata_ahci_ctlr_reset(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
@@ -228,7 +284,7 @@ ata_ahci_suspend(device_t dev)
     return 0;
 }
 
-int
+static int
 ata_ahci_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -254,12 +310,14 @@ ata_ahci_ch_attach(device_t dev)
     ch->hw.softreset = ata_ahci_softreset;
     ch->hw.pm_read = ata_ahci_pm_read;
     ch->hw.pm_write = ata_ahci_pm_write;
+    ch->flags |= ATA_NO_SLAVE;
+    ch->flags |= ATA_SATA;
 
     ata_ahci_ch_resume(dev);
     return 0;
 }
 
-int
+static int
 ata_ahci_ch_detach(device_t dev)
 {
 
@@ -268,7 +326,7 @@ ata_ahci_ch_detach(device_t dev)
     return (0);
 }
 
-int
+static int
 ata_ahci_ch_suspend(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -293,7 +351,7 @@ ata_ahci_ch_suspend(device_t dev)
     return (0);
 }
 
-int
+static int
 ata_ahci_ch_resume(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -769,11 +827,10 @@ ata_ahci_hardreset(device_t dev, int port, uint32_t *signature)
 static u_int32_t
 ata_ahci_softreset(device_t dev, int port)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    int offset = ch->unit << 7;
     struct ata_ahci_cmd_tab *ctp =
 	(struct ata_ahci_cmd_tab *)(ch->dma.work + ATA_AHCI_CT_OFFSET);
+    u_int8_t *fis = ch->dma.work + ATA_AHCI_FB_OFFSET + 0x40;
 
     if (bootverbose)
 	device_printf(dev, "software reset port %d...\n", port);
@@ -810,10 +867,13 @@ ata_ahci_softreset(device_t dev, int port)
 	return (-1);
     }
 
-    return ATA_INL(ctlr->r_res2, ATA_AHCI_P_SIG + offset);
+    return (((u_int32_t)fis[6] << 24) |
+	    ((u_int32_t)fis[5] << 16) |
+	    ((u_int32_t)fis[4] << 8) |
+	     (u_int32_t)fis[12]);
 }
 
-void
+static void
 ata_ahci_reset(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -845,9 +905,12 @@ ata_ahci_reset(device_t dev)
 	      ((ch->pm_level == 0) ? ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC : 0) |
 	      ATA_AHCI_P_IX_DP | ATA_AHCI_P_IX_UF | ATA_AHCI_P_IX_SDB |
 	      ATA_AHCI_P_IX_DS | ATA_AHCI_P_IX_PS | ATA_AHCI_P_IX_DHR));
-
-    /* only probe for PortMultiplier if HW has support */
-    if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM) {
+    /*
+     * Only probe for PortMultiplier if HW has support.
+     * Ignore Marvell, which is not working,
+     */
+    if ((ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM) &&
+	    pci_get_vendor(ctlr->dev) != 0x11ab) {
 	signature = ata_ahci_softreset(dev, ATA_PM);
 	/* Workaround for some ATI chips, failing to soft-reset
 	 * when port multiplicator supported, but absent.
@@ -924,3 +987,26 @@ ata_ahci_setup_fis(struct ata_ahci_cmd_tab *ctp, struct ata_request *request)
 }
 
 ATA_DECLARE_DRIVER(ata_ahci);
+static device_method_t ata_ahci_ata_methods[] = {
+    DEVMETHOD(device_probe,     ata_ahci_ata_probe),
+    DEVMETHOD(device_attach,    ata_ahci_ata_attach),
+    DEVMETHOD(device_detach,    ata_pci_detach),
+    DEVMETHOD(device_suspend,   ata_pci_suspend),
+    DEVMETHOD(device_resume,    ata_pci_resume),
+    DEVMETHOD(device_shutdown,  bus_generic_shutdown),
+    DEVMETHOD(bus_read_ivar,		ata_pci_read_ivar),
+    DEVMETHOD(bus_write_ivar,		ata_pci_write_ivar),
+    DEVMETHOD(bus_alloc_resource,       ata_pci_alloc_resource),
+    DEVMETHOD(bus_release_resource,     ata_pci_release_resource),
+    DEVMETHOD(bus_activate_resource,    bus_generic_activate_resource),
+    DEVMETHOD(bus_deactivate_resource,  bus_generic_deactivate_resource),
+    DEVMETHOD(bus_setup_intr,           ata_pci_setup_intr),
+    DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr),
+    { 0, 0 }
+};
+static driver_t ata_ahci_ata_driver = {
+        "atapci",
+        ata_ahci_ata_methods,
+        sizeof(struct ata_pci_controller)
+};
+DRIVER_MODULE(ata_ahci_ata, atapci, ata_ahci_ata_driver, ata_pci_devclass, 0, 0);

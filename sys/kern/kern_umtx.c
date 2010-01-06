@@ -2759,6 +2759,110 @@ out:
 	return (error);
 }
 
+static int
+do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
+{
+	struct umtx_q *uq;
+	struct timeval tv;
+	struct timespec cts, ets, tts;
+	uint32_t flags, count;
+	int error;
+
+	uq = td->td_umtxq;
+	flags = fuword32(&sem->_flags);
+	error = umtx_key_get(sem, TYPE_CV, GET_SHARE(flags), &uq->uq_key);
+	if (error != 0)
+		return (error);
+	umtxq_lock(&uq->uq_key);
+	umtxq_busy(&uq->uq_key);
+	umtxq_insert(uq);
+	umtxq_unlock(&uq->uq_key);
+
+	count = fuword32(__DEVOLATILE(uint32_t *, &sem->_count));
+	if (count != 0) {
+		umtxq_lock(&uq->uq_key);
+		umtxq_unbusy(&uq->uq_key);
+		umtxq_remove(uq);
+		umtxq_unlock(&uq->uq_key);
+		umtx_key_release(&uq->uq_key);
+		return (0);
+	}
+
+	/*
+	 * The magic thing is we should set c_has_waiters to 1 before
+	 * releasing user mutex.
+	 */
+	suword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters), 1);
+
+	umtxq_lock(&uq->uq_key);
+	umtxq_unbusy(&uq->uq_key);
+	umtxq_unlock(&uq->uq_key);
+
+	umtxq_lock(&uq->uq_key);
+	if (timeout == NULL) {
+		error = umtxq_sleep(uq, "usem", 0);
+	} else {
+		getnanouptime(&ets);
+		timespecadd(&ets, timeout);
+		TIMESPEC_TO_TIMEVAL(&tv, timeout);
+		for (;;) {
+			error = umtxq_sleep(uq, "usem", tvtohz(&tv));
+			if (error != ETIMEDOUT)
+				break;
+			getnanouptime(&cts);
+			if (timespeccmp(&cts, &ets, >=)) {
+				error = ETIMEDOUT;
+				break;
+			}
+			tts = ets;
+			timespecsub(&tts, &cts);
+			TIMESPEC_TO_TIMEVAL(&tv, &tts);
+		}
+	}
+
+	if (error != 0) {
+		if ((uq->uq_flags & UQF_UMTXQ) == 0) {
+			if (!umtxq_signal(&uq->uq_key, 1))
+				error = 0;
+		}
+		if (error == ERESTART)
+			error = EINTR;
+	}
+	umtxq_remove(uq);
+	umtxq_unlock(&uq->uq_key);
+	umtx_key_release(&uq->uq_key);
+	return (error);
+}
+
+/*
+ * Signal a userland condition variable.
+ */
+static int
+do_sem_wake(struct thread *td, struct _usem *sem)
+{
+	struct umtx_key key;
+	int error, cnt, nwake;
+	uint32_t flags;
+
+	flags = fuword32(&sem->_flags);
+	if ((error = umtx_key_get(sem, TYPE_CV, GET_SHARE(flags), &key)) != 0)
+		return (error);	
+	umtxq_lock(&key);
+	umtxq_busy(&key);
+	cnt = umtxq_count(&key);
+	nwake = umtxq_signal(&key, 1);
+	if (cnt <= nwake) {
+		umtxq_unlock(&key);
+		error = suword32(
+		    __DEVOLATILE(uint32_t *, &sem->_has_waiters), 0);
+		umtxq_lock(&key);
+	}
+	umtxq_unbusy(&key);
+	umtxq_unlock(&key);
+	umtx_key_release(&key);
+	return (error);
+}
+
 int
 _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
     /* struct umtx *umtx */
@@ -3031,6 +3135,35 @@ __umtx_op_rw_unlock(struct thread *td, struct _umtx_op_args *uap)
 	return do_rw_unlock(td, uap->obj);
 }
 
+static int
+__umtx_op_sem_wait(struct thread *td, struct _umtx_op_args *uap)
+{
+	struct timespec *ts, timeout;
+	int error;
+
+	/* Allow a null timespec (wait forever). */
+	if (uap->uaddr2 == NULL)
+		ts = NULL;
+	else {
+		error = copyin(uap->uaddr2, &timeout,
+		    sizeof(timeout));
+		if (error != 0)
+			return (error);
+		if (timeout.tv_nsec >= 1000000000 ||
+		    timeout.tv_nsec < 0) {
+			return (EINVAL);
+		}
+		ts = &timeout;
+	}
+	return (do_sem_wait(td, uap->obj, ts));
+}
+
+static int
+__umtx_op_sem_wake(struct thread *td, struct _umtx_op_args *uap)
+{
+	return do_sem_wake(td, uap->obj);
+}
+
 typedef int (*_umtx_op_func)(struct thread *td, struct _umtx_op_args *uap);
 
 static _umtx_op_func op_table[] = {
@@ -3052,7 +3185,9 @@ static _umtx_op_func op_table[] = {
 	__umtx_op_wait_uint_private,	/* UMTX_OP_WAIT_UINT_PRIVATE */
 	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
 	__umtx_op_wait_umutex,		/* UMTX_OP_UMUTEX_WAIT */
-	__umtx_op_wake_umutex		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_wake_umutex,		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_sem_wait,		/* UMTX_OP_SEM_WAIT */
+	__umtx_op_sem_wake		/* UMTX_OP_SEM_WAKE */
 };
 
 int
@@ -3274,6 +3409,27 @@ __umtx_op_wait_uint_private_compat32(struct thread *td, struct _umtx_op_args *ua
 	return do_wait(td, uap->obj, uap->val, ts, 1, 1);
 }
 
+static int
+__umtx_op_sem_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
+{
+	struct timespec *ts, timeout;
+	int error;
+
+	/* Allow a null timespec (wait forever). */
+	if (uap->uaddr2 == NULL)
+		ts = NULL;
+	else {
+		error = copyin_timeout32(uap->uaddr2, &timeout);
+		if (error != 0)
+			return (error);
+		if (timeout.tv_nsec >= 1000000000 ||
+		    timeout.tv_nsec < 0)
+			return (EINVAL);
+		ts = &timeout;
+	}
+	return (do_sem_wait(td, uap->obj, ts));
+}
+
 static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_lock_umtx_compat32,	/* UMTX_OP_LOCK */
 	__umtx_op_unlock_umtx_compat32,	/* UMTX_OP_UNLOCK */
@@ -3293,7 +3449,9 @@ static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_wait_uint_private_compat32,	/* UMTX_OP_WAIT_UINT_PRIVATE */
 	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
 	__umtx_op_wait_umutex_compat32, /* UMTX_OP_UMUTEX_WAIT */
-	__umtx_op_wake_umutex		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_wake_umutex,		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_sem_wait_compat32,	/* UMTX_OP_SEM_WAIT */
+	__umtx_op_sem_wake		/* UMTX_OP_SEM_WAKE */
 };
 
 int

@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <limits.h>
 #include <locale.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,7 +60,8 @@ static const char rcsid[] =
 #include <wchar.h>
 #include <wctype.h>
 
-#define	MAXLINELEN	(LINE_MAX + 1)
+#define	INITLINELEN	(LINE_MAX + 1)
+#define	MAXLINELEN	((SIZE_MAX / sizeof(wchar_t)) / 2)
 
 int cflag, dflag, uflag;
 int numchars, numfields, repeats;
@@ -137,8 +139,8 @@ main (int argc, char *argv[])
 	if (argc > 1)
 		ofp = file(argv[1], "w");
 
- 	prevbuflen = MAXLINELEN;
- 	thisbuflen = MAXLINELEN;
+ 	prevbuflen = INITLINELEN;
+ 	thisbuflen = INITLINELEN;
  	prevline = malloc(prevbuflen * sizeof(*prevline));
  	thisline = malloc(thisbuflen * sizeof(*thisline));
 	if (prevline == NULL || thisline == NULL)
@@ -198,16 +200,19 @@ getline(wchar_t *buf, size_t *buflen, FILE *fp)
 
 	bufpos = 0;
 	while ((ch = getwc(fp)) != WEOF && ch != '\n') {
-		if (bufpos + 2 >= *buflen) {
+		if (bufpos + 1 >= *buflen) {
 			*buflen = *buflen * 2;
+			if (*buflen > MAXLINELEN)
+				errx(1,
+				    "Maximum line buffer length (%zu) exceeded",
+				    MAXLINELEN);
 			buf = reallocf(buf, *buflen * sizeof(*buf));
 			if (buf == NULL)
-				return (NULL);
+				err(1, "reallocf");
 		}
 		buf[bufpos++] = ch;
 	}
-	if (bufpos + 1 != *buflen)
-		buf[bufpos] = '\0';
+	buf[bufpos] = '\0';
 
 	return (bufpos != 0 || ch == '\n' ? buf : NULL);
 }
@@ -305,13 +310,13 @@ wcsicoll(wchar_t *s1, wchar_t *s2)
 	new_l2_buflen = wcsicoll_l2_buflen;
 	while (new_l1_buflen < l1) {
 		if (new_l1_buflen == 0)
-			new_l1_buflen = MAXLINELEN;
+			new_l1_buflen = INITLINELEN;
 		else
 			new_l1_buflen *= 2;
 	}
 	while (new_l2_buflen < l2) {
 		if (new_l2_buflen == 0)
-			new_l2_buflen = MAXLINELEN;
+			new_l2_buflen = INITLINELEN;
 		else
 			new_l2_buflen *= 2;
 	}

@@ -439,31 +439,27 @@ skip1:
 void
 nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 {
+	int canceled;
+
 	if (tick < 0) {
 		ln->la_expire = 0;
 		ln->ln_ntick = 0;
-		callout_stop(&ln->ln_timer_ch);
-		/*
-		 * XXX - do we know that there is
-		 * callout installed? i.e. are we 
-		 * guaranteed that we're not dropping
-		 * a reference that we did not add?
-		 * KMM 
-		 */
-		LLE_REMREF(ln);
+		canceled = callout_stop(&ln->ln_timer_ch);
 	} else {
 		ln->la_expire = time_second + tick / hz;
 		LLE_ADDREF(ln);
 		if (tick > INT_MAX) {
 			ln->ln_ntick = tick - INT_MAX;
-			callout_reset(&ln->ln_timer_ch, INT_MAX,
+			canceled = callout_reset(&ln->ln_timer_ch, INT_MAX,
 			    nd6_llinfo_timer, ln);
 		} else {
 			ln->ln_ntick = 0;
-			callout_reset(&ln->ln_timer_ch, tick,
+			canceled = callout_reset(&ln->ln_timer_ch, tick,
 			    nd6_llinfo_timer, ln);
 		}
 	}
+	if (canceled)
+		LLE_REMREF(ln);
 }
 
 void
@@ -939,8 +935,28 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 		if (pr->ndpr_ifp != ifp)
 			continue;
 
-		if (!(pr->ndpr_stateflags & NDPRF_ONLINK))
-			continue;
+		if (!(pr->ndpr_stateflags & NDPRF_ONLINK)) {
+			struct rtentry *rt;
+			rt = rtalloc1((struct sockaddr *)&pr->ndpr_prefix, 0, 0);
+			if (rt == NULL)
+				continue;
+			/*
+			 * This is the case where multiple interfaces
+			 * have the same prefix, but only one is installed 
+			 * into the routing table and that prefix entry
+			 * is not the one being examined here. In the case
+			 * where RADIX_MPATH is enabled, multiple route
+			 * entries (of the same rt_key value) will be 
+			 * installed because the interface addresses all
+			 * differ.
+			 */
+			if (!IN6_ARE_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
+			       &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr)) {
+				RTFREE_LOCKED(rt);
+				continue;
+			}
+			RTFREE_LOCKED(rt);
+		}
 
 		if (IN6_ARE_MASKED_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
 		    &addr->sin6_addr, &pr->ndpr_mask))
@@ -1048,6 +1064,9 @@ nd6_free(struct llentry *ln, int gc)
 			else
 				nd6_llinfo_settimer(ln, (long)V_nd6_gctimer * hz);
 			splx(s);
+			LLE_WLOCK(ln);
+			LLE_REMREF(ln);
+			LLE_WUNLOCK(ln);
 			return (LIST_NEXT(ln, lle_next));
 		}
 

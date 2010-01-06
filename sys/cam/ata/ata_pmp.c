@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
+#include <cam/cam_xpt_internal.h>
 #include <cam/cam_sim.h>
 
 #include <cam/ata/ata_all.h>
@@ -63,11 +64,12 @@ __FBSDID("$FreeBSD$");
 typedef enum {
 	PMP_STATE_NORMAL,
 	PMP_STATE_PORTS,
-	PMP_STATE_CONFIG,
+	PMP_STATE_PRECONFIG,
 	PMP_STATE_RESET,
 	PMP_STATE_CONNECT,
 	PMP_STATE_CHECK,
 	PMP_STATE_CLEAR,
+	PMP_STATE_CONFIG,
 	PMP_STATE_SCAN
 } pmp_state;
 
@@ -175,8 +177,8 @@ pmpfreeze(struct cam_periph *periph, int mask)
 		if (xpt_create_path(&dpath, periph,
 		    xpt_path_path_id(periph->path),
 		    i, 0) == CAM_REQ_CMP) {
-printf("PMP freeze: %d\n", i);
 			softc->frozen |= (1 << i);
+			xpt_acquire_device(dpath->device);
 			cam_freeze_devq(dpath);
 			xpt_free_path(dpath);
 		}
@@ -197,9 +199,9 @@ pmprelease(struct cam_periph *periph, int mask)
 		if (xpt_create_path(&dpath, periph,
 		    xpt_path_path_id(periph->path),
 		    i, 0) == CAM_REQ_CMP) {
-printf("PMP release: %d\n", i);
 			softc->frozen &= ~(1 << i);
 			cam_release_devq(dpath, 0, 0, 0, FALSE);
+			xpt_release_device(dpath->device);
 			xpt_free_path(dpath);
 		}
 	}
@@ -227,6 +229,7 @@ pmponinvalidate(struct cam_periph *periph)
 			xpt_free_path(dpath);
 		}
 	}
+	pmprelease(periph, -1);
 	xpt_print(periph->path, "lost device\n");
 }
 
@@ -436,7 +439,7 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 		      pmp_default_timeout * 1000);
 		ata_pm_read_cmd(ataio, 2, 15);
 		break;
-	case PMP_STATE_CONFIG:
+	case PMP_STATE_PRECONFIG:
 		cam_fill_ataio(ataio,
 		      pmp_retry_count,
 		      pmpdone,
@@ -445,7 +448,7 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 		      /*data_ptr*/NULL,
 		      /*dxfer_len*/0,
 		      pmp_default_timeout * 1000);
-		ata_pm_write_cmd(ataio, 0x60, 15, 0xf);
+		ata_pm_write_cmd(ataio, 0x60, 15, 0x0);
 		break;
 	case PMP_STATE_RESET:
 		cam_fill_ataio(ataio,
@@ -458,8 +461,6 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 		      pmp_default_timeout * 1000);
 		ata_pm_write_cmd(ataio, 2, softc->pm_step,
 		    (softc->found & (1 << softc->pm_step)) ? 0 : 1);
-printf("PM RESET %d%s\n", softc->pm_step,
-    (softc->found & (1 << softc->pm_step)) ? " skipping" : "");
 		break;
 	case PMP_STATE_CONNECT:
 		cam_fill_ataio(ataio,
@@ -495,6 +496,17 @@ printf("PM RESET %d%s\n", softc->pm_step,
 		      pmp_default_timeout * 1000);
 		ata_pm_write_cmd(ataio, 1, softc->pm_step, 0xFFFFFFFF);
 		break;
+	case PMP_STATE_CONFIG:
+		cam_fill_ataio(ataio,
+		      pmp_retry_count,
+		      pmpdone,
+		      /*flags*/CAM_DIR_NONE,
+		      0,
+		      /*data_ptr*/NULL,
+		      /*dxfer_len*/0,
+		      pmp_default_timeout * 1000);
+		ata_pm_write_cmd(ataio, 0x60, 15, 0xf);
+		break;
 	default:
 		break;
 	}
@@ -504,6 +516,7 @@ printf("PM RESET %d%s\n", softc->pm_step,
 static void
 pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 {
+	struct ccb_trans_settings cts;
 	struct pmp_softc *softc;
 	struct ccb_ataio *ataio;
 	union ccb *work_ccb;
@@ -554,24 +567,31 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 		    (done_ccb->ataio.res.lba_mid << 16) +
 		    (done_ccb->ataio.res.lba_low << 8) +
 		    done_ccb->ataio.res.sector_count;
-		/* This PM declares 6 ports, while only 5 of them are real.
+		/* This PMP declares 6 ports, while only 5 of them are real.
 		 * Port 5 is enclosure management bridge port, which has implementation
 		 * problems, causing probe faults. Hide it for now. */
 		if (softc->pm_pid == 0x37261095 && softc->pm_ports == 6)
 			softc->pm_ports = 5;
-		/* This PM declares 7 ports, while only 5 of them are real.
+		/* This PMP declares 7 ports, while only 5 of them are real.
 		 * Port 5 is some fake "Config  Disk" with 640 sectors size,
 		 * port 6 is enclosure management bridge port.
 		 * Both fake ports has implementation problems, causing
 		 * probe faults. Hide them for now. */
 		if (softc->pm_pid == 0x47261095 && softc->pm_ports == 7)
 			softc->pm_ports = 5;
-		printf("PM ports: %d\n", softc->pm_ports);
-		softc->state = PMP_STATE_CONFIG;
+		/* These PMPs declare one more port then actually have,
+		 * for configuration purposes. Hide it for now. */
+		if (softc->pm_pid == 0x57231095 || softc->pm_pid == 0x57331095 ||
+		    softc->pm_pid == 0x57341095 || softc->pm_pid == 0x57441095)
+			softc->pm_ports--;
+		printf("%s%d: %d fan-out ports\n",
+		    periph->periph_name, periph->unit_number,
+		    softc->pm_ports);
+		softc->state = PMP_STATE_PRECONFIG;
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
 		return;
-	case PMP_STATE_CONFIG:
+	case PMP_STATE_PRECONFIG:
 		softc->pm_step = 0;
 		softc->state = PMP_STATE_RESET;
 		softc->reset |= ~softc->found;
@@ -588,7 +608,6 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 			    /*reduction*/0,
 			    /*timeout*/5,
 			    /*getcount_only*/0);
-			printf("PM reset done\n");
 			softc->state = PMP_STATE_CONNECT;
 		}
 		xpt_release_ccb(done_ccb);
@@ -605,7 +624,6 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 			    /*reduction*/0,
 			    /*timeout*/10,
 			    /*getcount_only*/0);
-			printf("PM connect done\n");
 			softc->state = PMP_STATE_CHECK;
 		}
 		xpt_release_ccb(done_ccb);
@@ -617,7 +635,24 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 		    (done_ccb->ataio.res.lba_low << 8) +
 		    done_ccb->ataio.res.sector_count;
 		if ((res & 0xf0f) == 0x103 && (res & 0x0f0) != 0) {
-			printf("PM status: %d - %08x\n", softc->pm_step, res);
+			if (bootverbose) {
+				printf("%s%d: port %d status: %08x\n",
+				    periph->periph_name, periph->unit_number,
+				    softc->pm_step, res);
+			}
+			/* Report device speed. */
+			if (xpt_create_path(&dpath, periph,
+			    xpt_path_path_id(periph->path),
+			    softc->pm_step, 0) == CAM_REQ_CMP) {
+				bzero(&cts, sizeof(cts));
+				xpt_setup_ccb(&cts.ccb_h, dpath, CAM_PRIORITY_NORMAL);
+				cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+				cts.type = CTS_TYPE_CURRENT_SETTINGS;
+				cts.xport_specific.sata.revision = (res & 0x0f0) >> 4;
+				cts.xport_specific.sata.valid = CTS_SATA_VALID_REVISION;
+				xpt_action((union ccb *)&cts);
+				xpt_free_path(dpath);
+			}
 			softc->found |= (1 << softc->pm_step);
 			softc->pm_step++;
 		} else {
@@ -630,7 +665,11 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 				    /*getcount_only*/0);
 				softc->pm_try++;
 			} else {
-				printf("PM status: %d - %08x\n", softc->pm_step, res);
+				if (bootverbose) {
+					printf("%s%d: port %d status: %08x\n",
+					    periph->periph_name, periph->unit_number,
+					    softc->pm_step, res);
+				}
 				softc->found &= ~(1 << softc->pm_step);
 				if (xpt_create_path(&dpath, periph,
 				    done_ccb->ccb_h.path_id,
@@ -658,11 +697,15 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 		return;
 	case PMP_STATE_CLEAR:
 		softc->pm_step++;
-		if (softc->pm_step < softc->pm_ports) {
-			xpt_release_ccb(done_ccb);
-			xpt_schedule(periph, priority);
-			return;
-		} else if (softc->found) {
+		if (softc->pm_step >= softc->pm_ports) {
+			softc->state = PMP_STATE_CONFIG;
+			softc->pm_step = 0;
+		}
+		xpt_release_ccb(done_ccb);
+		xpt_schedule(periph, priority);
+		return;
+	case PMP_STATE_CONFIG:
+		if (softc->found) {
 			softc->pm_step = 0;
 			softc->state = PMP_STATE_SCAN;
 			work_ccb = xpt_alloc_ccb_nowait();

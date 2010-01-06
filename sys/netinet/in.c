@@ -924,9 +924,25 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	/*
 	 * add a loopback route to self
 	 */
-	if (V_useloopback && !(ifp->if_flags & IFF_LOOPBACK))
-		error = ifa_add_loopback_route((struct ifaddr *)ia, 
+	if (V_useloopback && !(ifp->if_flags & IFF_LOOPBACK)) {
+		struct route ia_ro;
+
+		bzero(&ia_ro, sizeof(ia_ro));
+		*((struct sockaddr_in *)(&ia_ro.ro_dst)) = ia->ia_addr;
+		rtalloc_ign_fib(&ia_ro, 0, 0);
+		if ((ia_ro.ro_rt != NULL) && (ia_ro.ro_rt->rt_ifp != NULL) &&
+		    (ia_ro.ro_rt->rt_ifp == V_loif)) {
+			RT_LOCK(ia_ro.ro_rt);
+			RT_ADDREF(ia_ro.ro_rt);
+			RTFREE_LOCKED(ia_ro.ro_rt);
+		} else
+			error = ifa_add_loopback_route((struct ifaddr *)ia, 
 				       (struct sockaddr *)&ia->ia_addr);
+		if (error == 0)
+			ia->ia_flags |= IFA_RTSELF;
+		if (ia_ro.ro_rt != NULL)
+			RTFREE(ia_ro.ro_rt);
+	}
 
 	return (error);
 }
@@ -934,6 +950,49 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 #define rtinitflags(x) \
 	((((x)->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT)) != 0) \
 	    ? RTF_HOST : 0)
+
+/*
+ * Generate a routing message when inserting or deleting 
+ * an interface address alias.
+ */
+static void in_addralias_rtmsg(int cmd, struct in_addr *prefix, 
+    struct in_ifaddr *target)
+{
+	struct route pfx_ro;
+	struct sockaddr_in *pfx_addr;
+	struct rtentry msg_rt;
+
+	/* QL: XXX
+	 * This is a bit questionable because there is no
+	 * additional route entry added/deleted for an address
+	 * alias. Therefore this route report is inaccurate.
+	 */
+	bzero(&pfx_ro, sizeof(pfx_ro));
+	pfx_addr = (struct sockaddr_in *)(&pfx_ro.ro_dst);
+	pfx_addr->sin_len = sizeof(*pfx_addr);
+	pfx_addr->sin_family = AF_INET;
+	pfx_addr->sin_addr = *prefix;
+	rtalloc_ign_fib(&pfx_ro, 0, 0);
+	if (pfx_ro.ro_rt != NULL) {
+		msg_rt = *pfx_ro.ro_rt;
+
+		/* QL: XXX
+		 * Point the gateway to the new interface
+		 * address as if a new prefix route entry has 
+		 * been added through the new address alias. 
+		 * All other parts of the rtentry is accurate, 
+		 * e.g., rt_key, rt_mask, rt_ifp etc.
+		 */
+		msg_rt.rt_gateway = 
+			(struct sockaddr *)&target->ia_addr;
+		rt_newaddrmsg(cmd, 
+			      (struct ifaddr *)target,
+			      0, &msg_rt);
+		RTFREE(pfx_ro.ro_rt);
+	}
+	return;
+}
+
 /*
  * Check if we have a route for the given prefix already or add one accordingly.
  */
@@ -981,40 +1040,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 				IN_IFADDR_RUNLOCK();
 				return (EEXIST);
 			} else {
-				struct route pfx_ro;
-				struct sockaddr_in *pfx_addr;
-				struct rtentry msg_rt;
-
-				/* QL: XXX
-				 * This is a bit questionable because there is no
-				 * additional route entry added for an address alias.
-				 * Therefore this route report is inaccurate. Perhaps
-				 * it's better to supply a empty rtentry as how it
-				 * is done in in_scrubprefix().
-				 */
-				bzero(&pfx_ro, sizeof(pfx_ro));
-				pfx_addr = (struct sockaddr_in *)(&pfx_ro.ro_dst);
-				pfx_addr->sin_len = sizeof(*pfx_addr);
-				pfx_addr->sin_family = AF_INET;
-				pfx_addr->sin_addr = prefix;
-				rtalloc_ign_fib(&pfx_ro, 0, 0);
-				if (pfx_ro.ro_rt != NULL) {
-					msg_rt = *pfx_ro.ro_rt;
-					/* QL: XXX
-					 * Point the gateway to the given interface
-					 * address as if a new prefix route entry has 
-					 * been added through the new address alias. 
-					 * All other parts of the rtentry is accurate, 
-					 * e.g., rt_key, rt_mask, rt_ifp etc.
-					 */
-					msg_rt.rt_gateway = 
-						(struct sockaddr *)&ia->ia_addr;
-					rt_newaddrmsg(RTM_ADD, 
-						      (struct ifaddr *)target,
-						      0, &msg_rt);
-					RTFREE(pfx_ro.ro_rt);
-				}
-
+				in_addralias_rtmsg(RTM_ADD, &prefix, target);
 				IN_IFADDR_RUNLOCK();
 				return (0);
 			}
@@ -1043,7 +1069,7 @@ in_scrubprefix(struct in_ifaddr *target)
 {
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p;
-	int error;
+	int error = 0;
 	struct sockaddr_in prefix0, mask0;
 
 	/*
@@ -1057,25 +1083,30 @@ in_scrubprefix(struct in_ifaddr *target)
 	 * deletion is unconditional.
 	 */
 	if ((target->ia_addr.sin_addr.s_addr != INADDR_ANY) &&
-	    !(target->ia_ifp->if_flags & IFF_LOOPBACK)) {
-		error = ifa_del_loopback_route((struct ifaddr *)target,
+	    !(target->ia_ifp->if_flags & IFF_LOOPBACK) &&
+	    (target->ia_flags & IFA_RTSELF)) {
+		struct route ia_ro;
+		int freeit = 0;
+
+		bzero(&ia_ro, sizeof(ia_ro));
+		*((struct sockaddr_in *)(&ia_ro.ro_dst)) = target->ia_addr;
+		rtalloc_ign_fib(&ia_ro, 0, 0);
+		if ((ia_ro.ro_rt != NULL) && (ia_ro.ro_rt->rt_ifp != NULL) &&
+		    (ia_ro.ro_rt->rt_ifp == V_loif)) {
+			RT_LOCK(ia_ro.ro_rt);
+			if (ia_ro.ro_rt->rt_refcnt <= 1)
+				freeit = 1;
+			else
+				RT_REMREF(ia_ro.ro_rt);
+			RTFREE_LOCKED(ia_ro.ro_rt);
+		}
+		if (freeit)
+			error = ifa_del_loopback_route((struct ifaddr *)target,
 				       (struct sockaddr *)&target->ia_addr);
+		if (error == 0)
+			target->ia_flags &= ~IFA_RTSELF;
 		/* remove arp cache */
 		arp_ifscrub(target->ia_ifp, IA_SIN(target)->sin_addr.s_addr);
-	}
-
-	if ((target->ia_flags & IFA_ROUTE) == 0) {
-		struct rtentry rt;
-
-		/* QL: XXX
-		 * Report a blank rtentry when a route has not been
-		 * installed for the given interface address.
-		 */
-		bzero(&rt, sizeof(rt));
-		rt_newaddrmsg(RTM_DELETE, 
-			      (struct ifaddr *)target,
-			      0, &rt);
-		return (0);
 	}
 
 	if (rtinitflags(target))
@@ -1084,6 +1115,11 @@ in_scrubprefix(struct in_ifaddr *target)
 		prefix = target->ia_addr.sin_addr;
 		mask = target->ia_sockmask.sin_addr;
 		prefix.s_addr &= mask.s_addr;
+	}
+
+	if ((target->ia_flags & IFA_ROUTE) == 0) {
+		in_addralias_rtmsg(RTM_DELETE, &prefix, target);
+		return (0);
 	}
 
 	IN_IFADDR_RLOCK();
@@ -1317,7 +1353,7 @@ in_lltable_prefix_free(struct lltable *llt,
 
 
 static int
-in_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
+in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr)
 {
 	struct rtentry *rt;
 
@@ -1326,7 +1362,8 @@ in_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
 
 	/* XXX rtalloc1 should take a const param */
 	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
-	if (rt == NULL || (rt->rt_flags & RTF_GATEWAY) || rt->rt_ifp != ifp) {
+	if (rt == NULL || (rt->rt_flags & RTF_GATEWAY) || 
+	    ((rt->rt_ifp != ifp) && !(flags & LLE_PUB))) {
 #ifdef DIAGNOSTIC
 		log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
 		    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
@@ -1378,7 +1415,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 		 * verify this.
 		 */
 		if (!(flags & LLE_IFADDR) &&
-		    in_lltable_rtcheck(ifp, l3addr) != 0)
+		    in_lltable_rtcheck(ifp, flags, l3addr) != 0)
 			goto done;
 
 		lle = in_lltable_new(l3addr, flags);

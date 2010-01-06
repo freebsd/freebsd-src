@@ -62,8 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define	_ULOG_POSIX_NAMES
+#include <ulog.h>
 #include <unistd.h>
-#include <utmp.h>
 
 void done(int);
 void do_write(char *, char *, uid_t);
@@ -146,20 +147,17 @@ usage(void)
 int
 utmp_chk(char *user, char *tty)
 {
-	struct utmp u;
-	int ufd;
+	struct utmpx lu, *u;
 
-	if ((ufd = open(_PATH_UTMP, O_RDONLY)) < 0)
-		return(0);	/* ignore error, shouldn't happen anyway */
-
-	while (read(ufd, (char *) &u, sizeof(u)) == sizeof(u))
-		if (strncmp(user, u.ut_name, sizeof(u.ut_name)) == 0 &&
-		    strncmp(tty, u.ut_line, sizeof(u.ut_line)) == 0) {
-			(void)close(ufd);
+	strncpy(lu.ut_line, tty, sizeof lu.ut_line);
+	setutxent();
+	while ((u = getutxline(&lu)) != NULL)
+		if (u->ut_type == USER_PROCESS &&
+		    strcmp(user, u->ut_user) == 0) {
+			endutxent();
 			return(0);
 		}
-
-	(void)close(ufd);
+	endutxent();
 	return(1);
 }
 
@@ -177,43 +175,40 @@ utmp_chk(char *user, char *tty)
 void
 search_utmp(char *user, char *tty, char *mytty, uid_t myuid)
 {
-	struct utmp u;
+	struct utmpx *u;
 	time_t bestatime, atime;
-	int ufd, nloggedttys, nttys, msgsok, user_is_me;
-	char atty[UT_LINESIZE + 1];
-
-	if ((ufd = open(_PATH_UTMP, O_RDONLY)) < 0)
-		err(1, "utmp");
+	int nloggedttys, nttys, msgsok, user_is_me;
 
 	nloggedttys = nttys = 0;
 	bestatime = 0;
 	user_is_me = 0;
-	while (read(ufd, (char *) &u, sizeof(u)) == sizeof(u))
-		if (strncmp(user, u.ut_name, sizeof(u.ut_name)) == 0) {
+
+	setutxent();
+	while ((u = getutxent()) != NULL)
+		if (u->ut_type == USER_PROCESS &&
+		    strcmp(user, u->ut_user) == 0) {
 			++nloggedttys;
-			(void)strncpy(atty, u.ut_line, UT_LINESIZE);
-			atty[UT_LINESIZE] = '\0';
-			if (term_chk(atty, &msgsok, &atime, 0))
+			if (term_chk(u->ut_line, &msgsok, &atime, 0))
 				continue;	/* bad term? skip */
 			if (myuid && !msgsok)
 				continue;	/* skip ttys with msgs off */
-			if (strcmp(atty, mytty) == 0) {
+			if (strcmp(u->ut_line, mytty) == 0) {
 				user_is_me = 1;
 				continue;	/* don't write to yourself */
 			}
 			++nttys;
 			if (atime > bestatime) {
 				bestatime = atime;
-				(void)strcpy(tty, atty);
+				(void)strlcpy(tty, u->ut_line, MAXPATHLEN);
 			}
 		}
+	endutxent();
 
-	(void)close(ufd);
 	if (nloggedttys == 0)
 		errx(1, "%s is not logged in", user);
 	if (nttys == 0) {
 		if (user_is_me) {		/* ok, so write to yourself! */
-			(void)strcpy(tty, mytty);
+			(void)strlcpy(tty, mytty, MAXPATHLEN);
 			return;
 		}
 		errx(1, "%s has messages disabled", user);

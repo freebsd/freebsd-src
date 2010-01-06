@@ -264,7 +264,6 @@ static struct	mem_region *pregions;
 extern u_int	phys_avail_count;
 extern int	regions_sz, pregions_sz;
 extern int	ofw_real_mode;
-static struct	ofw_map translations[96];
 
 extern struct pmap ofw_pmap;
 
@@ -709,17 +708,73 @@ moea64_bridge_cpu_bootstrap(mmu_t mmup, int ap)
 }
 
 static void
+moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
+{
+	struct ofw_map	translations[sz/sizeof(struct ofw_map)];
+	register_t	msr;
+	vm_offset_t	off;
+	int		i, ofw_mappings;
+
+	bzero(translations, sz);
+	if (OF_getprop(mmu, "translations", translations, sz) == -1)
+		panic("moea64_bootstrap: can't get ofw translations");
+
+	CTR0(KTR_PMAP, "moea64_add_ofw_mappings: translations");
+	sz /= sizeof(*translations);
+	qsort(translations, sz, sizeof (*translations), om_cmp);
+
+	for (i = 0, ofw_mappings = 0; i < sz; i++) {
+		CTR3(KTR_PMAP, "translation: pa=%#x va=%#x len=%#x",
+		    (uint32_t)(translations[i].om_pa_lo), translations[i].om_va,
+		    translations[i].om_len);
+
+		if (translations[i].om_pa_lo % PAGE_SIZE)
+			panic("OFW translation not page-aligned!");
+
+		if (translations[i].om_pa_hi)
+			panic("OFW translations above 32-bit boundary!");
+
+		/* Now enter the pages for this mapping */
+
+		/*
+		 * Lock the ofw pmap. pmap_kenter(), which we use for the
+		 * pages the kernel also needs, does its own locking.
+		 */
+		PMAP_LOCK(&ofw_pmap); 
+		DISABLE_TRANS(msr);
+		for (off = 0; off < translations[i].om_len; off += PAGE_SIZE) {
+			struct vm_page m;
+
+			/* Map low memory mappings into the kernel pmap, too.
+			 * These are typically mappings made by the loader,
+			 * so we need them if we want to keep executing. */
+
+			if (translations[i].om_va + off < SEGMENT_LENGTH)
+				moea64_kenter(mmup, translations[i].om_va + off,
+				    translations[i].om_va + off);
+
+			m.phys_addr = translations[i].om_pa_lo + off;
+			moea64_enter_locked(&ofw_pmap,
+			    translations[i].om_va + off, &m, VM_PROT_ALL, 1);
+
+			ofw_mappings++;
+		}
+		ENABLE_TRANS(msr);
+		PMAP_UNLOCK(&ofw_pmap);
+	}
+}
+
+static void
 moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 {
 	ihandle_t	mmui;
 	phandle_t	chosen;
 	phandle_t	mmu;
-	int		sz;
+	size_t		sz;
 	int		i, j;
-	int		ofw_mappings;
 	vm_size_t	size, physsz, hwphyssz;
 	vm_offset_t	pa, va, off;
-	uint32_t	msr;
+	register_t	msr;
 	void		*dpcpu;
 
 	/* We don't have a direct map since there is no BAT */
@@ -865,7 +920,6 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 	off = (vm_offset_t)(moea64_bpvo_pool);
 	for (pa = off; pa < off + size; pa += PAGE_SIZE) 
 		moea64_kenter(mmup, pa, pa);
-	ENABLE_TRANS(msr);
 
 	/*
 	 * Map certain important things, like ourselves.
@@ -876,7 +930,6 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 	 * address.
 	 */
 
-	DISABLE_TRANS(msr);
 	for (pa = kernelstart & ~PAGE_MASK; pa < kernelend; pa += PAGE_SIZE) 
 		moea64_kenter(mmup, pa, pa);
 	ENABLE_TRANS(msr);
@@ -897,57 +950,10 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 		panic("moea64_bootstrap: can't get mmu package");
 	    if ((sz = OF_getproplen(mmu, "translations")) == -1)
 		panic("moea64_bootstrap: can't get ofw translation count");
-	    if (sz > sizeof(translations))
-		panic("moea64_bootstrap: too many ofw translations (%d)",
-		      sz/sizeof(*translations));
+	    if (sz > 6144 /* tmpstksz - 2 KB headroom */)
+		panic("moea64_bootstrap: too many ofw translations");
 
-	    bzero(translations, sz);
-	    if (OF_getprop(mmu, "translations", translations, sz) == -1)
-		panic("moea64_bootstrap: can't get ofw translations");
-
-	    CTR0(KTR_PMAP, "moea64_bootstrap: translations");
-	    sz /= sizeof(*translations);
-	    qsort(translations, sz, sizeof (*translations), om_cmp);
-
-	    for (i = 0, ofw_mappings = 0; i < sz; i++) {
-		CTR3(KTR_PMAP, "translation: pa=%#x va=%#x len=%#x",
-		    (uint32_t)(translations[i].om_pa_lo), translations[i].om_va,
-		    translations[i].om_len);
-
-		if (translations[i].om_pa_lo % PAGE_SIZE)
-			panic("OFW translation not page-aligned!");
-
-		if (translations[i].om_pa_hi)
-			panic("OFW translations above 32-bit boundary!");
-
-		/* Now enter the pages for this mapping */
-
-		/*
-		 * Lock the ofw pmap. pmap_kenter(), which we use for the
-		 * pages the kernel also needs, does its own locking.
-		 */
-		PMAP_LOCK(&ofw_pmap); 
-		DISABLE_TRANS(msr);
-		for (off = 0; off < translations[i].om_len; off += PAGE_SIZE) {
-			struct vm_page m;
-
-			/* Map low memory mappings into the kernel pmap, too.
-			 * These are typically mappings made by the loader,
-			 * so we need them if we want to keep executing. */
-
-			if (translations[i].om_va + off < SEGMENT_LENGTH)
-				moea64_kenter(mmup, translations[i].om_va + off,
-				    translations[i].om_va + off);
-
-			m.phys_addr = translations[i].om_pa_lo + off;
-			moea64_enter_locked(&ofw_pmap,
-			    translations[i].om_va + off, &m, VM_PROT_ALL, 1);
-
-			ofw_mappings++;
-		}
-		ENABLE_TRANS(msr);
-		PMAP_UNLOCK(&ofw_pmap);
-	    }
+	    moea64_add_ofw_mappings(mmup, mmu, sz);
 	}
 
 #ifdef SMP

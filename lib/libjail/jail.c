@@ -532,7 +532,7 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 	}
 	jp_key = jp_lastjid ? jp_lastjid :
 	    jp_jid && jp_jid->jp_valuelen == sizeof(int) &&
-	    *(int *)jp_jid->jp_value ? jp_jid : jp_name;
+	    jp_jid->jp_value && *(int *)jp_jid->jp_value ? jp_jid : jp_name;
 	if (jp_key == NULL || jp_key->jp_value == NULL) {
 		strlcpy(jail_errmsg, "no jail specified", JAIL_ERRMSGLEN);
 		errno = ENOENT;
