@@ -88,8 +88,8 @@ main(int argc, char **argv)
 	time_t tt;
 	struct tm GMT, tmd;
 	double days, today, tomorrow;
-	int cnt;
-	char *odate = NULL, *otime = NULL, ch;
+	int ch, cnt;
+	char *odate = NULL, *otime = NULL;
 
 	while ((ch = getopt(argc, argv, "d:t:")) != -1)
 		switch (ch) {
