@@ -544,6 +544,7 @@ void	 tcp_reass_init(void);
 void	 tcp_input(struct mbuf *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *, int *);
 u_long	 tcp_maxmtu6(struct in_conninfo *, int *);
+void	 tcp_mss_update(struct tcpcb *, int, struct hc_metrics_lite *);
 void	 tcp_mss(struct tcpcb *, int);
 int	 tcp_mssopt(struct in_conninfo *);
 struct inpcb *

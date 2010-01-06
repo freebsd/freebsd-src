@@ -1509,13 +1509,7 @@ struct inpcb *
 tcp_mtudisc(struct inpcb *inp, int errno)
 {
 	struct tcpcb *tp;
-	struct socket *so = inp->inp_socket;
-	u_int maxmtu;
-	u_int romtu;
-	int mss;
-#ifdef INET6
-	int isipv6;
-#endif /* INET6 */
+	struct socket *so;
 
 	INP_WLOCK_ASSERT(inp);
 	if ((inp->inp_flags & INP_TIMEWAIT) ||
@@ -1525,72 +1519,14 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	tp = intotcpcb(inp);
 	KASSERT(tp != NULL, ("tcp_mtudisc: tp == NULL"));
 
-#ifdef INET6
-	isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) != 0;
-#endif
-	maxmtu = tcp_hc_getmtu(&inp->inp_inc); /* IPv4 and IPv6 */
-	romtu =
-#ifdef INET6
-	    isipv6 ? tcp_maxmtu6(&inp->inp_inc, NULL) :
-#endif /* INET6 */
-	    tcp_maxmtu(&inp->inp_inc, NULL);
-	if (!maxmtu)
-		maxmtu = romtu;
-	else
-		maxmtu = min(maxmtu, romtu);
-	if (!maxmtu) {
-		tp->t_maxopd = tp->t_maxseg =
-#ifdef INET6
-			isipv6 ? tcp_v6mssdflt :
-#endif /* INET6 */
-			tcp_mssdflt;
-		return (inp);
-	}
-	mss = maxmtu -
-#ifdef INET6
-		(isipv6 ? sizeof(struct ip6_hdr) + sizeof(struct tcphdr) :
-#endif /* INET6 */
-		 sizeof(struct tcpiphdr)
-#ifdef INET6
-		 )
-#endif /* INET6 */
-		;
-
-	/*
-	 * XXX - The above conditional probably violates the TCP
-	 * spec.  The problem is that, since we don't know the
-	 * other end's MSS, we are supposed to use a conservative
-	 * default.  But, if we do that, then MTU discovery will
-	 * never actually take place, because the conservative
-	 * default is much less than the MTUs typically seen
-	 * on the Internet today.  For the moment, we'll sweep
-	 * this under the carpet.
-	 *
-	 * The conservative default might not actually be a problem
-	 * if the only case this occurs is when sending an initial
-	 * SYN with options and data to a host we've never talked
-	 * to before.  Then, they will reply with an MSS value which
-	 * will get recorded and the new parameters should get
-	 * recomputed.  For Further Study.
-	 */
-	if (tp->t_maxopd <= mss)
-		return (inp);
-	tp->t_maxopd = mss;
-
-	if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
-	    (tp->t_flags & TF_RCVD_TSTMP) == TF_RCVD_TSTMP)
-		mss -= TCPOLEN_TSTAMP_APPA;
-#if	(MCLBYTES & (MCLBYTES - 1)) == 0
-	if (mss > MCLBYTES)
-		mss &= ~(MCLBYTES-1);
-#else
-	if (mss > MCLBYTES)
-		mss = mss / MCLBYTES * MCLBYTES;
-#endif
-	if (so->so_snd.sb_hiwat < mss)
-		mss = so->so_snd.sb_hiwat;
-
-	tp->t_maxseg = mss;
+	tcp_mss_update(tp, -1, NULL);
+  
+	so = inp->inp_socket;
+	SOCKBUF_LOCK(&so->so_snd);
+	/* If the mss is larger than the socket buffer, decrease the mss. */
+	if (so->so_snd.sb_hiwat < tp->t_maxseg)
+		tp->t_maxseg = so->so_snd.sb_hiwat;
+	SOCKBUF_UNLOCK(&so->so_snd);
 
 	tcpstat.tcps_mturesent++;
 	tp->t_rtttime = 0;
