@@ -1426,7 +1426,7 @@ const time_t * const	timep;
 	struct tm *p_tm;
 
 	if (__isthreaded != 0) {
-		_once(&localtime_once, localtime_key_init);
+		_pthread_once(&localtime_once, localtime_key_init);
 		if (localtime_key_error != 0) {
 			errno = localtime_key_error;
 			return(NULL);
@@ -1527,7 +1527,7 @@ const time_t * const	timep;
 	struct tm *p_tm;
 
 	if (__isthreaded != 0) {
-		_once(&gmtime_once, gmtime_key_init);
+		_pthread_once(&gmtime_once, gmtime_key_init);
 		if (gmtime_key_error != 0) {
 			errno = gmtime_key_error;
 			return(NULL);
