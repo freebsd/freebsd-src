@@ -52,11 +52,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /* Protocol and userland module handlers chains. */
-LIST_HEAD(handler_chain, proto_handler) handler_chain = LIST_HEAD_INITIALIZER(foo);
+LIST_HEAD(handler_chain, proto_handler) handler_chain = LIST_HEAD_INITIALIZER(handler_chain);
 #ifdef _KERNEL
 struct rwlock   handler_rw;
 #endif
-SLIST_HEAD(dll_chain, dll) dll_chain = SLIST_HEAD_INITIALIZER(foo); 
+SLIST_HEAD(dll_chain, dll) dll_chain = SLIST_HEAD_INITIALIZER(dll_chain); 
 
 #ifdef _KERNEL
 

@@ -7,7 +7,7 @@ autogen definitions options;
 copyright = {
     date  = "1970-2006";
     owner = "ntp.org";
-    eaddr = "http://bugs.ntp.isc.org, bugs@ntp.org";
+    eaddr = "http://bugs.ntp.org, bugs@ntp.org";
     type  = note;
     text  = `cat COPYRIGHT`;
 };

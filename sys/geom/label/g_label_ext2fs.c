@@ -86,7 +86,10 @@ exit_free:
 	g_free(fs);
 }
 
-const struct g_label_desc g_label_ext2fs = {
+struct g_label_desc g_label_ext2fs = {
 	.ld_taste = g_label_ext2fs_taste,
-	.ld_dir = "ext2fs"
+	.ld_dir = "ext2fs",
+	.ld_enabled = 1
 };
+
+G_LABEL_INIT(ext2fs, g_label_ext2fs, "Create device nodes for EXT2FS volumes");

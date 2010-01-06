@@ -550,7 +550,7 @@ carp_input(struct mbuf *m, int hlen)
 	/* check if received on a valid carp interface */
 	if (m->m_pkthdr.rcvif->if_carp == NULL) {
 		CARPSTATS_INC(carps_badif);
-		CARP_LOG("carp_input: packet received on non-carp "
+		CARP_DEBUG("carp_input: packet received on non-carp "
 		    "interface: %s\n",
 		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
@@ -571,7 +571,7 @@ carp_input(struct mbuf *m, int hlen)
 
 	if (m->m_pkthdr.len < iplen + sizeof(*ch)) {
 		CARPSTATS_INC(carps_badlen);
-		CARP_LOG("carp_input: received len %zd < "
+		CARP_DEBUG("carp_input: received len %zd < "
 		    "sizeof(struct carp_header) on %s\n",
 		    m->m_len - sizeof(struct ip),
 		    m->m_pkthdr.rcvif->if_xname);
@@ -582,7 +582,7 @@ carp_input(struct mbuf *m, int hlen)
 	if (iplen + sizeof(*ch) < m->m_len) {
 		if ((m = m_pullup(m, iplen + sizeof(*ch))) == NULL) {
 			CARPSTATS_INC(carps_hdrops);
-			CARP_LOG("carp_input: pullup failed\n");
+			CARP_DEBUG("carp_input: pullup failed\n");
 			return;
 		}
 		ip = mtod(m, struct ip *);
@@ -596,7 +596,7 @@ carp_input(struct mbuf *m, int hlen)
 	len = iplen + sizeof(*ch);
 	if (len > m->m_pkthdr.len) {
 		CARPSTATS_INC(carps_badlen);
-		CARP_LOG("carp_input: packet too short %d on %s\n",
+		CARP_DEBUG("carp_input: packet too short %d on %s\n",
 		    m->m_pkthdr.len,
 		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
@@ -614,7 +614,7 @@ carp_input(struct mbuf *m, int hlen)
 	m->m_data += iplen;
 	if (carp_cksum(m, len - iplen)) {
 		CARPSTATS_INC(carps_badsum);
-		CARP_LOG("carp_input: checksum failed on %s\n",
+		CARP_DEBUG("carp_input: checksum failed on %s\n",
 		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
 		return;
@@ -643,7 +643,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 	/* check if received on a valid carp interface */
 	if (m->m_pkthdr.rcvif->if_carp == NULL) {
 		CARPSTATS_INC(carps_badif);
-		CARP_LOG("carp6_input: packet received on non-carp "
+		CARP_DEBUG("carp6_input: packet received on non-carp "
 		    "interface: %s\n",
 		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
@@ -653,7 +653,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 	/* verify that the IP TTL is 255 */
 	if (ip6->ip6_hlim != CARP_DFLTTL) {
 		CARPSTATS_INC(carps_badttl);
-		CARP_LOG("carp6_input: received ttl %d != 255 on %s\n",
+		CARP_DEBUG("carp6_input: received ttl %d != 255 on %s\n",
 		    ip6->ip6_hlim,
 		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
@@ -665,7 +665,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 	IP6_EXTHDR_GET(ch, struct carp_header *, m, *offp, sizeof(*ch));
 	if (ch == NULL) {
 		CARPSTATS_INC(carps_badlen);
-		CARP_LOG("carp6_input: packet size %u too small\n", len);
+		CARP_DEBUG("carp6_input: packet size %u too small\n", len);
 		return (IPPROTO_DONE);
 	}
 
@@ -674,7 +674,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 	m->m_data += *offp;
 	if (carp_cksum(m, sizeof(*ch))) {
 		CARPSTATS_INC(carps_badsum);
-		CARP_LOG("carp6_input: checksum failed, on %s\n",
+		CARP_DEBUG("carp6_input: checksum failed, on %s\n",
 		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
 		return (IPPROTO_DONE);
@@ -727,7 +727,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 		CARPSTATS_INC(carps_badver);
 		SC2IFP(sc)->if_ierrors++;
 		CARP_UNLOCK(ifp->if_carp);
-		CARP_LOG("%s; invalid version %d\n",
+		CARP_DEBUG("%s; invalid version %d\n",
 		    SC2IFP(sc)->if_xname,
 		    ch->carp_version);
 		m_freem(m);
@@ -772,7 +772,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 		if (timevalcmp(&sc_tv, &ch_tv, >) ||
 		    timevalcmp(&sc_tv, &ch_tv, ==)) {
 			callout_stop(&sc->sc_ad_tmo);
-			CARP_DEBUG("%s: MASTER -> BACKUP "
+			CARP_LOG("%s: MASTER -> BACKUP "
 			   "(more frequent advertisement received)\n",
 			   SC2IFP(sc)->if_xname);
 			carp_set_state(sc, BACKUP);
@@ -787,7 +787,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 		 */
 		if (carp_opts[CARPCTL_PREEMPT] &&
 		    timevalcmp(&sc_tv, &ch_tv, <)) {
-			CARP_DEBUG("%s: BACKUP -> MASTER "
+			CARP_LOG("%s: BACKUP -> MASTER "
 			    "(preempting a slower master)\n",
 			    SC2IFP(sc)->if_xname);
 			carp_master_down_locked(sc);
@@ -801,7 +801,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 		 */
 		sc_tv.tv_sec = sc->sc_advbase * 3;
 		if (timevalcmp(&sc_tv, &ch_tv, <)) {
-			CARP_DEBUG("%s: BACKUP -> MASTER "
+			CARP_LOG("%s: BACKUP -> MASTER "
 			    "(master timed out)\n",
 			    SC2IFP(sc)->if_xname);
 			carp_master_down_locked(sc);
@@ -1024,7 +1024,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		if (in6_setscope(&ip6->ip6_dst, sc->sc_carpdev, NULL) != 0) {
 			SC2IFP(sc)->if_oerrors++;
 			m_freem(m);
-			CARP_LOG("%s: in6_setscope failed\n", __func__);
+			CARP_DEBUG("%s: in6_setscope failed\n", __func__);
 			return;
 		}
 
@@ -1385,12 +1385,12 @@ carp_setrun(struct carp_softc *sc, sa_family_t af)
 #ifdef INET6
 			carp_send_na(sc);
 #endif /* INET6 */
-			CARP_DEBUG("%s: INIT -> MASTER (preempting)\n",
+			CARP_LOG("%s: INIT -> MASTER (preempting)\n",
 			    SC2IFP(sc)->if_xname);
 			carp_set_state(sc, MASTER);
 			carp_setroute(sc, RTM_ADD);
 		} else {
-			CARP_DEBUG("%s: INIT -> BACKUP\n", SC2IFP(sc)->if_xname);
+			CARP_LOG("%s: INIT -> BACKUP\n", SC2IFP(sc)->if_xname);
 			carp_set_state(sc, BACKUP);
 			carp_setroute(sc, RTM_DELETE);
 			carp_setrun(sc, 0);

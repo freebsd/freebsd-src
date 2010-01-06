@@ -85,7 +85,7 @@ void onalrm(int);
 void reapchildren(int);
 
 int
-main(int argc, char *argv[])
+main(int argc __unused, char *argv[] __unused)
 {
 	struct sockaddr_in from;
 	socklen_t fromlen;
@@ -132,16 +132,16 @@ main(int argc, char *argv[])
 }
 
 void
-reapchildren(int signo)
+reapchildren(int signo __unused)
 {
 	while (wait3(NULL, WNOHANG, NULL) > 0);
 }
 
 void
-onalrm(int signo)
+onalrm(int signo __unused)
 {
-	static u_int utmpsize;		/* last malloced size for utmp */
-	static u_int utmpmtime;		/* last modification time for utmp */
+	static off_t utmpsize;		/* last malloced size for utmp */
+	static time_t utmpmtime;	/* last modification time for utmp */
 	struct stat statbf;
 
 	if (time(NULL) - lastmsgtime >= MAXIDLE)
@@ -194,7 +194,7 @@ mailfor(char *name)
 			notify(utp, file, offset, folder);
 }
 
-static char *cr;
+static const char *cr;
 
 void
 notify(struct utmp *utp, char file[], off_t offset, int folder)
@@ -203,11 +203,11 @@ notify(struct utmp *utp, char file[], off_t offset, int folder)
 	struct stat stb;
 	struct termios tio;
 	char tty[20], name[sizeof(utmp[0].ut_name) + 1];
-	const char *cr = utp->ut_line;
+	const char *line = utp->ut_line;
 
-	if (strncmp(cr, "pts/", 4) == 0)
-		cr += 4;
-	if (strchr(cr, '/')) {
+	if (strncmp(line, "pts/", 4) == 0)
+		line += 4;
+	if (strchr(line, '/')) {
 		/* A slash is an attempt to break security... */
 		syslog(LOG_AUTH | LOG_NOTICE, "Unexpected `/' in `%s'",
 		    utp->ut_line);

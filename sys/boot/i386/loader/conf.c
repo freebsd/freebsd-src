@@ -128,6 +128,7 @@ extern struct console comconsole;
 extern struct console dconsole;
 #endif
 extern struct console nullconsole;
+extern struct console spinconsole;
 
 struct console *consoles[] = {
     &vidconsole,
@@ -136,6 +137,7 @@ struct console *consoles[] = {
     &dconsole,
 #endif
     &nullconsole,
+    &spinconsole,
     NULL
 };
 

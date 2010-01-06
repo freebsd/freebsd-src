@@ -72,7 +72,7 @@ static struct cdevsw g_gate_cdevsw = {
 
 
 static LIST_HEAD(, g_gate_softc) g_gate_list =
-    LIST_HEAD_INITIALIZER(&g_gate_list);
+    LIST_HEAD_INITIALIZER(g_gate_list);
 static struct mtx g_gate_list_mtx;
 
 

@@ -173,12 +173,21 @@ uhid_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTF("transferred!\n");
 
 		pc = usbd_xfer_get_frame(xfer, 0);
-		if (actlen >= sc->sc_isize) {
+
+		/* 
+		 * If the ID byte is non zero we allow descriptors
+		 * having multiple sizes:
+		 */
+		if ((actlen >= sc->sc_isize) ||
+		    ((actlen > 0) && (sc->sc_iid != 0))) {
+			/* limit report length to the maximum */
+			if (actlen > sc->sc_isize)
+				actlen = sc->sc_isize;
 			usb_fifo_put_data(sc->sc_fifo.fp[USB_FIFO_RX], pc,
-			    0, sc->sc_isize, 1);
+			    0, actlen, 1);
 		} else {
 			/* ignore it */
-			DPRINTF("ignored short transfer, %d bytes\n", actlen);
+			DPRINTF("ignored transfer, %d bytes\n", actlen);
 		}
 
 	case USB_ST_SETUP:

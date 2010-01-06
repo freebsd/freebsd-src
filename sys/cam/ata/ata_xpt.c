@@ -275,7 +275,7 @@ probeschedule(struct cam_periph *periph)
 static void
 probestart(struct cam_periph *periph, union ccb *start_ccb)
 {
-	/* Probe the device that our peripheral driver points to */
+	struct ccb_trans_settings cts;
 	struct ccb_ataio *ataio;
 	struct ccb_scsiio *csio;
 	probe_softc *softc;
@@ -333,6 +333,55 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 			ata_28bit_cmd(ataio, ATA_ATAPI_IDENTIFY, 0, 0, 0);
 		break;
 	case PROBE_SETMODE:
+	{
+		int mode, wantmode;
+
+		mode = 0;
+		/* Fetch user modes from SIM. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_USER_SETTINGS;
+		xpt_action((union ccb *)&cts);
+		if (path->device->transport == XPORT_ATA) {
+			if (cts.xport_specific.ata.valid & CTS_ATA_VALID_MODE)
+				mode = cts.xport_specific.ata.mode;
+		} else {
+			if (cts.xport_specific.sata.valid & CTS_SATA_VALID_MODE)
+				mode = cts.xport_specific.sata.mode;
+		}
+negotiate:
+		/* Honor device capabilities. */
+		wantmode = mode = ata_max_mode(ident_buf, mode);
+		/* Report modes to SIM. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+		cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		if (path->device->transport == XPORT_ATA) {
+			cts.xport_specific.ata.mode = mode;
+			cts.xport_specific.ata.valid = CTS_ATA_VALID_MODE;
+		} else {
+			cts.xport_specific.sata.mode = mode;
+			cts.xport_specific.sata.valid = CTS_SATA_VALID_MODE;
+		}
+		xpt_action((union ccb *)&cts);
+		/* Fetch current modes from SIM. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		xpt_action((union ccb *)&cts);
+		if (path->device->transport == XPORT_ATA) {
+			if (cts.xport_specific.ata.valid & CTS_ATA_VALID_MODE)
+				mode = cts.xport_specific.ata.mode;
+		} else {
+			if (cts.xport_specific.ata.valid & CTS_SATA_VALID_MODE)
+				mode = cts.xport_specific.sata.mode;
+		}
+		/* If SIM disagree - renegotiate. */
+		if (mode != wantmode)
+			goto negotiate;
 		cam_fill_ataio(ataio,
 		      1,
 		      probedone,
@@ -341,16 +390,30 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		      /*data_ptr*/NULL,
 		      /*dxfer_len*/0,
 		      30 * 1000);
-		ata_28bit_cmd(ataio, ATA_SETFEATURES, ATA_SF_SETXFER, 0,
-		    ata_max_mode(ident_buf, ATA_UDMA6, ATA_UDMA6));
+		ata_28bit_cmd(ataio, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
 		break;
+	}
 	case PROBE_SET_MULTI:
 	{
-		struct ccb_trans_settings cts;
-		u_int sectors;
+		u_int sectors, bytecount;
 
-		sectors = max(1, min(ident_buf->sectors_intr & 0xff, 16));
-
+		bytecount = 8192;	/* SATA maximum */
+		/* Fetch user bytecount from SIM. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_USER_SETTINGS;
+		xpt_action((union ccb *)&cts);
+		if (path->device->transport == XPORT_ATA) {
+			if (cts.xport_specific.ata.valid & CTS_ATA_VALID_BYTECOUNT)
+				bytecount = cts.xport_specific.ata.bytecount;
+		} else {
+			if (cts.xport_specific.sata.valid & CTS_SATA_VALID_BYTECOUNT)
+				bytecount = cts.xport_specific.sata.bytecount;
+		}
+		/* Honor device capabilities. */
+		sectors = max(1, min(ident_buf->sectors_intr & 0xff,
+		    bytecount / ata_logical_sector_size(ident_buf)));
 		/* Report bytecount to SIM. */
 		bzero(&cts, sizeof(cts));
 		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
@@ -366,6 +429,20 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 			cts.xport_specific.sata.valid = CTS_SATA_VALID_BYTECOUNT;
 		}
 		xpt_action((union ccb *)&cts);
+		/* Fetch current bytecount from SIM. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		xpt_action((union ccb *)&cts);
+		if (path->device->transport == XPORT_ATA) {
+			if (cts.xport_specific.ata.valid & CTS_ATA_VALID_BYTECOUNT)
+				bytecount = cts.xport_specific.ata.bytecount;
+		} else {
+			if (cts.xport_specific.sata.valid & CTS_SATA_VALID_BYTECOUNT)
+				bytecount = cts.xport_specific.sata.bytecount;
+		}
+		sectors = bytecount / ata_logical_sector_size(ident_buf);
 
 		cam_fill_ataio(ataio,
 		    1,
@@ -379,6 +456,45 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		break;
 	}
 	case PROBE_INQUIRY:
+	{
+		u_int bytecount;
+
+		bytecount = 8192;	/* SATA maximum */
+		/* Fetch user bytecount from SIM. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_USER_SETTINGS;
+		xpt_action((union ccb *)&cts);
+		if (path->device->transport == XPORT_ATA) {
+			if (cts.xport_specific.ata.valid & CTS_ATA_VALID_BYTECOUNT)
+				bytecount = cts.xport_specific.ata.bytecount;
+		} else {
+			if (cts.xport_specific.sata.valid & CTS_SATA_VALID_BYTECOUNT)
+				bytecount = cts.xport_specific.sata.bytecount;
+		}
+		/* Honor device capabilities. */
+		bytecount &= ~1;
+		bytecount = max(2, min(65534, bytecount));
+		if (ident_buf->satacapabilities != 0x0000 &&
+		    ident_buf->satacapabilities != 0xffff) {
+			bytecount = min(8192, bytecount);
+		}
+		/* Report bytecount to SIM. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+		cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		if (path->device->transport == XPORT_ATA) {
+			cts.xport_specific.ata.bytecount = bytecount;
+			cts.xport_specific.ata.valid = CTS_ATA_VALID_BYTECOUNT;
+		} else {
+			cts.xport_specific.sata.bytecount = bytecount;
+			cts.xport_specific.sata.valid = CTS_SATA_VALID_BYTECOUNT;
+		}
+		xpt_action((union ccb *)&cts);
+		/* FALLTHROUGH */
+	}
 	case PROBE_FULL_INQUIRY:
 	{
 		u_int inquiry_len;
@@ -564,6 +680,7 @@ proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
 static void
 probedone(struct cam_periph *periph, union ccb *done_ccb)
 {
+	struct ccb_trans_settings cts;
 	struct ata_params *ident_buf;
 	probe_softc *softc;
 	struct cam_path *path;
@@ -612,16 +729,15 @@ noerror:
 	{
 		int sign = (done_ccb->ataio.res.lba_high << 8) +
 		    done_ccb->ataio.res.lba_mid;
-		xpt_print(path, "SIGNATURE: %04x\n", sign);
+		if (bootverbose)
+			xpt_print(path, "SIGNATURE: %04x\n", sign);
 		if (sign == 0x0000 &&
 		    done_ccb->ccb_h.target_id != 15) {
 			path->device->protocol = PROTO_ATA;
 			PROBE_SET_ACTION(softc, PROBE_IDENTIFY);
 		} else if (sign == 0x9669 &&
 		    done_ccb->ccb_h.target_id == 15) {
-			struct ccb_trans_settings cts;
-
-				/* Report SIM that PM is present. */
+			/* Report SIM that PM is present. */
 			bzero(&cts, sizeof(cts));
 			xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
 			cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
@@ -716,10 +832,17 @@ noerror:
 			    ATA_QUEUE_LEN(ident_buf->queue) + 1;
 		}
 		ata_find_quirk(path->device);
-		/* XXX: If not all tags allowed, we must to tell SIM which are. */
-		if (path->device->mintags < path->bus->sim->max_tagged_dev_openings)
-			path->device->mintags = path->device->maxtags = 0;
-		if (path->device->mintags != 0) {
+		if (path->device->mintags != 0 &&
+		    path->bus->sim->max_tagged_dev_openings != 0) {
+			/* Report SIM which tags are allowed. */
+			bzero(&cts, sizeof(cts));
+			xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+			cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+			cts.type = CTS_TYPE_CURRENT_SETTINGS;
+			cts.xport_specific.sata.tags = path->device->maxtags;
+			cts.xport_specific.sata.valid = CTS_SATA_VALID_TAGS;
+			xpt_action((union ccb *)&cts);
+			/* Reconfigure queues for tagged queueing. */
 			xpt_start_tags(path);
 		}
 		ata_device_transport(path);
@@ -799,7 +922,6 @@ noerror:
 		    (done_ccb->ataio.res.lba_low << 8) +
 		    done_ccb->ataio.res.sector_count;
 		((uint32_t *)ident_buf)[0] = softc->pm_pid;
-		printf("PM Product ID: %08x\n", softc->pm_pid);
 		snprintf(ident_buf->model, sizeof(ident_buf->model),
 		    "Port Multiplier %08x", softc->pm_pid);
 		PROBE_SET_ACTION(softc, PROBE_PM_PRV);
@@ -812,7 +934,6 @@ noerror:
 		    (done_ccb->ataio.res.lba_low << 8) +
 		    done_ccb->ataio.res.sector_count;
 		((uint32_t *)ident_buf)[1] = softc->pm_prv;
-		printf("PM Revision: %08x\n", softc->pm_prv);
 		snprintf(ident_buf->revision, sizeof(ident_buf->revision),
 		    "%04x", softc->pm_prv);
 		path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;

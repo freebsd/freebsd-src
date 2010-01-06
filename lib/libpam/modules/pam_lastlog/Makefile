@@ -28,7 +28,7 @@ LIB=	pam_lastlog
 SRCS=	pam_lastlog.c
 MAN=	pam_lastlog.8
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+DPADD=	${LIBULOG}
+LDADD=	-lulog
 
 .include <bsd.lib.mk>

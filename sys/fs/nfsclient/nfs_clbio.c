@@ -75,101 +75,6 @@ static int nfs_directio_write(struct vnode *vp, struct uio *uiop,
     struct ucred *cred, int ioflag);
 
 /*
- * Any signal that can interrupt an NFS operation in an intr mount
- * should be added to this set. SIGSTOP and SIGKILL cannot be masked.
- */
-static int nfs_sig_set[] = {
-	SIGINT,
-	SIGTERM,
-	SIGHUP,
-	SIGKILL,
-	SIGSTOP,
-	SIGQUIT
-};
-
-#ifdef notnow
-/*
- * Check to see if one of the signals in our subset is pending on
- * the process (in an intr mount).
- */
-int
-ncl_sig_pending(sigset_t set)
-{
-	int i;
-	
-	for (i = 0 ; i < sizeof(nfs_sig_set)/sizeof(int) ; i++)
-		if (SIGISMEMBER(set, nfs_sig_set[i]))
-			return (1);
-	return (0);
-}
-#endif
- 
-/*
- * The set/restore sigmask functions are used to (temporarily) overwrite
- * the process p_sigmask during an RPC call (for example). These are also
- * used in other places in the NFS client that might tsleep().
- */
-static void
-ncl_set_sigmask(struct thread *td, sigset_t *oldset)
-{
-	sigset_t newset;
-	int i;
-	struct proc *p;
-	
-	SIGFILLSET(newset);
-	if (td == NULL)
-		td = curthread; /* XXX */
-	p = td->td_proc;
-	/* Remove the NFS set of signals from newset */
-	PROC_LOCK(p);
-	mtx_lock(&p->p_sigacts->ps_mtx);
-	for (i = 0 ; i < sizeof(nfs_sig_set)/sizeof(int) ; i++) {
-		/*
-		 * But make sure we leave the ones already masked
-		 * by the process, ie. remove the signal from the
-		 * temporary signalmask only if it wasn't already
-		 * in p_sigmask.
-		 */
-		if (!SIGISMEMBER(td->td_sigmask, nfs_sig_set[i]) &&
-		    !SIGISMEMBER(p->p_sigacts->ps_sigignore, nfs_sig_set[i]))
-			SIGDELSET(newset, nfs_sig_set[i]);
-	}
-	mtx_unlock(&p->p_sigacts->ps_mtx);
-	PROC_UNLOCK(p);
-	kern_sigprocmask(td, SIG_SETMASK, &newset, oldset, 0);
-}
-
-static void
-ncl_restore_sigmask(struct thread *td, sigset_t *set)
-{
-	if (td == NULL)
-		td = curthread; /* XXX */
-	kern_sigprocmask(td, SIG_SETMASK, set, NULL, 0);
-}
-
-/*
- * NFS wrapper to msleep(), that shoves a new p_sigmask and restores the
- * old one after msleep() returns.
- */
-int
-ncl_msleep(struct thread *td, void *ident, struct mtx *mtx, int priority, char *wmesg, int timo)
-{
-	sigset_t oldset;
-	int error;
-	struct proc *p;
-	
-	if ((priority & PCATCH) == 0)
-		return msleep(ident, mtx, priority, wmesg, timo);
-	if (td == NULL)
-		td = curthread; /* XXX */
-	ncl_set_sigmask(td, &oldset);
-	error = msleep(ident, mtx, priority, wmesg, timo);
-	ncl_restore_sigmask(td, &oldset);
-	p = td->td_proc;
-	return (error);
-}
-
-/*
  * Vnode op for VM getpages.
  */
 int
@@ -1356,9 +1261,9 @@ nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size, struct thread *td)
 	if (nmp->nm_flag & NFSMNT_INT) {
  		sigset_t oldset;
 
- 		ncl_set_sigmask(td, &oldset);
+ 		newnfs_set_sigmask(td, &oldset);
 		bp = getblk(vp, bn, size, NFS_PCATCH, 0, 0);
- 		ncl_restore_sigmask(td, &oldset);
+ 		newnfs_restore_sigmask(td, &oldset);
 		while (bp == NULL) {
 			if (newnfs_sigintr(nmp, td))
 				return (NULL);
@@ -1544,9 +1449,9 @@ again:
 			NFS_DPF(ASYNCIO,
 				("ncl_asyncio: waiting for mount %p queue to drain\n", nmp));
 			nmp->nm_bufqwant = TRUE;
- 			error = ncl_msleep(td, &nmp->nm_bufq, &ncl_iod_mutex, 
-					   slpflag | PRIBIO,
- 					   "nfsaio", slptimeo);
+ 			error = newnfs_msleep(td, &nmp->nm_bufq, 
+			    &ncl_iod_mutex, slpflag | PRIBIO, "nfsaio",
+  			   slptimeo);
 			if (error) {
 				error2 = newnfs_sigintr(nmp, td);
 				if (error2) {

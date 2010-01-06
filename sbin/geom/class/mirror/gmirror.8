@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 1, 2009
+.Dd December 8, 2009
 .Dt GMIRROR 8
 .Os
 .Sh NAME
@@ -135,6 +135,7 @@ Specifies balance algorithm to use, one of:
 .Bl -tag -width ".Cm round-robin"
 .It Cm load
 Read from the component with the lowest load.
+This is the default balance algorithm.
 .It Cm prefer
 Read from the component with the biggest priority.
 .It Cm round-robin
@@ -142,7 +143,6 @@ Use round-robin algorithm when choosing component to read.
 .It Cm split
 Split read requests, which are bigger than or equal to slice size on N pieces,
 where N is the number of active components.
-This is the default balance algorithm.
 .El
 .It Fl F
 Do not synchronize after a power failure or system crash.

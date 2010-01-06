@@ -276,7 +276,7 @@ intr_execute_handlers(void *cookie)
 	struct intr_vector *iv;
 
 	iv = cookie;
-	if (iv->iv_ic == NULL || intr_event_handle(iv->iv_event, NULL) != 0)
+	if (__predict_false(intr_event_handle(iv->iv_event, NULL) != 0))
 		intr_stray_vector(iv);
 }
 
@@ -377,7 +377,8 @@ inthand_add(const char *name, int vec, driver_filter_t *filt,
 #endif
 	ic->ic_enable(iv);
 	/* Ensure the interrupt is cleared, it might have triggered before. */
-	ic->ic_clear(iv);
+	if (ic->ic_clear != NULL)
+		ic->ic_clear(iv);
 	sx_xunlock(&intr_table_lock);
 	return (0);
 }
@@ -409,6 +410,31 @@ inthand_remove(int vec, void *cookie)
 		}
 		sx_xunlock(&intr_table_lock);
 	}
+	return (error);
+}
+
+/* Add a description to an active interrupt handler. */
+int
+intr_describe(int vec, void *ih, const char *descr)
+{
+	struct intr_vector *iv;
+	int error;
+
+	if (vec < 0 || vec >= IV_MAX)
+		return (EINVAL);
+	sx_xlock(&intr_table_lock);
+	iv = &intr_vectors[vec];
+	if (iv == NULL) {
+		sx_xunlock(&intr_table_lock);
+		return (EINVAL);
+	}
+	error = intr_event_describe_handler(iv->iv_event, ih, descr);
+	if (error) {
+		sx_xunlock(&intr_table_lock);
+		return (error);
+	}
+	intrcnt_updatename(vec, iv->iv_event->ie_fullname, 0);
+	sx_xunlock(&intr_table_lock);
 	return (error);
 }
 
@@ -449,13 +475,19 @@ int
 intr_bind(int vec, u_char cpu)
 {
 	struct intr_vector *iv;
+	int error;
 
 	if (vec < 0 || vec >= IV_MAX)
 		return (EINVAL);
+	sx_xlock(&intr_table_lock);
 	iv = &intr_vectors[vec];
-	if (iv == NULL)
+	if (iv == NULL) {
+		sx_xunlock(&intr_table_lock);
 		return (EINVAL);
-	return (intr_event_bind(iv->iv_event, cpu));
+	}
+	error = intr_event_bind(iv->iv_event, cpu);
+	sx_xunlock(&intr_table_lock);
+	return (error);
 }
 
 /*

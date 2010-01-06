@@ -425,11 +425,6 @@ print_jail(int pflags, int jflags)
 			if (params[i].jp_flags & JP_USER)
 				free(param_values[i]);
 	}
-	for (i = 0; i < nparams; i++)
-		if (!(params[i].jp_flags & JP_RAWVALUE)) {
-			free(params[i].jp_value);
-			params[i].jp_value = NULL;
-		}
 	return (jid);
 }
 

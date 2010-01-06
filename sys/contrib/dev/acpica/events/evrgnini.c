@@ -716,6 +716,20 @@ AcpiEvInitializeRegion (
                 HandlerObj = ObjDesc->ThermalZone.Handler;
                 break;
 
+            case ACPI_TYPE_METHOD:
+                /*
+                 * If we are executing module level code, the original
+                 * Node's object was replaced by this Method object and we
+                 * saved the handler in the method object.
+                 *
+                 * See AcpiNsExecModuleCode
+                 */
+                if (ObjDesc->Method.Flags & AOPOBJ_MODULE_LEVEL)
+                {
+                    HandlerObj = ObjDesc->Method.Extra.Handler;
+                }
+                break;
+
             default:
                 /* Ignore other objects */
                 break;

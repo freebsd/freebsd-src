@@ -4,6 +4,9 @@ LIB=rt
 SHLIB_MAJOR= 1
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}
 CFLAGS+=-Winline -Wall -g
+LDADD+=-lpthread
+
+WARNS?=	2
 
 #MAN=	libthr.3
 

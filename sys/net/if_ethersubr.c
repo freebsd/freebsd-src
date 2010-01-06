@@ -71,6 +71,7 @@
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
 #include <netinet/ip_fw.h>
+#include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/ip_dummynet.h>
 #include <netinet/ip_var.h>
 #endif
@@ -466,19 +467,23 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared)
 	struct mbuf *m;
 	int i;
 	struct ip_fw_args args;
-	struct dn_pkt_tag *dn_tag;
+	struct m_tag *mtag;
 
-	dn_tag = ip_dn_claim_tag(*m0);
+	/* fetch start point from rule, if any */
+	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
+	if (mtag == NULL) {
+		args.rule.slot = 0;
+	} else {
+		struct dn_pkt_tag *dn_tag;
 
-	if (dn_tag != NULL) {
-		if (dn_tag->rule != NULL && V_fw_one_pass)
+		/* XXX can we free it after use ? */
+		mtag->m_tag_id = PACKET_TAG_NONE;
+		dn_tag = (struct dn_pkt_tag *)(mtag + 1);
+		if (dn_tag->rule.slot != 0 && V_fw_one_pass)
 			/* dummynet packet, already partially processed */
 			return (1);
-		args.rule = dn_tag->rule;	/* matching rule to restart */
-		args.rule_id = dn_tag->rule_id;
-		args.chain_id = dn_tag->chain_id;
-	} else
-		args.rule = NULL;
+		args.rule = dn_tag->rule;
+	}
 
 	/*
 	 * I need some amt of data to be contiguous, and in case others need
@@ -529,6 +534,7 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared)
 		return 1;
 
 	if (ip_dn_io_ptr && (i == IP_FW_DUMMYNET)) {
+		int dir;
 		/*
 		 * Pass the pkt to dummynet, which consumes it.
 		 * If shared, make a copy and keep the original.
@@ -544,7 +550,8 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared)
 			 */
 			*m0 = NULL ;
 		}
-		ip_dn_io_ptr(&m, dst ? DN_TO_ETH_OUT: DN_TO_ETH_DEMUX, &args);
+		dir = PROTO_LAYER2 | (dst ? DIR_OUT : DIR_IN);
+		ip_dn_io_ptr(&m, dir, &args);
 		return 0;
 	}
 	/*

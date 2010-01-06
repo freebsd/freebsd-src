@@ -97,7 +97,7 @@ static void     ixgb_intr(void *);
 static void     ixgb_start(struct ifnet *);
 static void     ixgb_start_locked(struct ifnet *);
 static int      ixgb_ioctl(struct ifnet *, IOCTL_CMD_TYPE, caddr_t);
-static void     ixgb_watchdog(struct ifnet *);
+static void     ixgb_watchdog(struct adapter *);
 static void     ixgb_init(void *);
 static void     ixgb_init_locked(struct adapter *);
 static void     ixgb_stop(void *);
@@ -274,7 +274,7 @@ ixgb_attach(device_t dev)
 			(void *)adapter, 0,
 			ixgb_sysctl_stats, "I", "Statistics");
 
-	callout_init(&adapter->timer, CALLOUT_MPSAFE);
+	callout_init_mtx(&adapter->timer, &adapter->mtx, 0);
 
 	/* Determine hardware revision */
 	ixgb_identify_hardware(adapter);
@@ -382,13 +382,14 @@ ixgb_detach(device_t dev)
 	IXGB_UNLOCK(adapter);
 
 #if __FreeBSD_version < 500000
-	ether_ifdetach(adapter->ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 #else
-	ether_ifdetach(adapter->ifp);
+	ether_ifdetach(ifp);
 #endif
+	callout_drain(&adapter->timer);
 	ixgb_free_pci_resources(adapter);
 #if __FreeBSD_version >= 500000
-	if_free(adapter->ifp);
+	if_free(ifp);
 #endif
 
 	/* Free Transmit Descriptor ring */
@@ -408,9 +409,6 @@ ixgb_detach(device_t dev)
 		adapter->next->prev = adapter->prev;
 	if (adapter->prev != NULL)
 		adapter->prev->next = adapter->next;
-
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	ifp->if_timer = 0;
 
 	IXGB_LOCK_DESTROY(adapter);
 	return (0);
@@ -473,7 +471,7 @@ ixgb_start_locked(struct ifnet * ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 #endif
 		/* Set timeout in case hardware has problems transmitting */
-		ifp->if_timer = IXGB_TX_TIMEOUT;
+		adapter->tx_timer = IXGB_TX_TIMEOUT;
 
 	}
 	return;
@@ -610,26 +608,24 @@ out:
  **********************************************************************/
 
 static void
-ixgb_watchdog(struct ifnet * ifp)
+ixgb_watchdog(struct adapter *adapter)
 {
-	struct adapter *adapter;
-	adapter = ifp->if_softc;
+	struct ifnet *ifp;
+
+	ifp = adapter->ifp;
 
 	/*
 	 * If we are in this routine because of pause frames, then don't
 	 * reset the hardware.
 	 */
 	if (IXGB_READ_REG(&adapter->hw, STATUS) & IXGB_STATUS_TXOFF) {
-		ifp->if_timer = IXGB_TX_TIMEOUT;
+		adapter->tx_timer = IXGB_TX_TIMEOUT;
 		return;
 	}
 	if_printf(ifp, "watchdog timeout -- resetting\n");
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-
-
 	ixgb_stop(adapter);
-	ixgb_init(adapter);
+	ixgb_init_locked(adapter);
 
 
 	ifp->if_oerrors++;
@@ -713,7 +709,7 @@ ixgb_init_locked(struct adapter *adapter)
 		temp_reg |= IXGB_CTRL0_JFE;
 		IXGB_WRITE_REG(&adapter->hw, CTRL0, temp_reg);
 	}
-	callout_reset(&adapter->timer, 2 * hz, ixgb_local_timer, adapter);
+	callout_reset(&adapter->timer, hz, ixgb_local_timer, adapter);
 	ixgb_clear_hw_cntrs(&adapter->hw);
 #ifdef DEVICE_POLLING
 	/*
@@ -753,11 +749,8 @@ ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		reg_icr = IXGB_READ_REG(&adapter->hw, ICR);
 		if (reg_icr & (IXGB_INT_RXSEQ | IXGB_INT_LSC)) {
-			callout_stop(&adapter->timer);
 			ixgb_check_for_link(&adapter->hw);
 			ixgb_print_link_status(adapter);
-			callout_reset(&adapter->timer, 2 * hz, ixgb_local_timer,
-			    adapter);
 		}
 	}
 	rx_npkts = ixgb_process_receive_interrupts(adapter, count);
@@ -830,11 +823,8 @@ ixgb_intr(void *arg)
 
 	/* Link status change */
 	if (reg_icr & (IXGB_INT_RXSEQ | IXGB_INT_LSC)) {
-		callout_stop(&adapter->timer);
 		ixgb_check_for_link(&adapter->hw);
 		ixgb_print_link_status(adapter);
-		callout_reset(&adapter->timer, 2 * hz, ixgb_local_timer,
-		    adapter);
 	}
 	while (loop_cnt > 0) {
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -1123,7 +1113,7 @@ ixgb_local_timer(void *arg)
 	struct adapter *adapter = arg;
 	ifp = adapter->ifp;
 
-	IXGB_LOCK(adapter);
+	IXGB_LOCK_ASSERT(adapter);
 
 	ixgb_check_for_link(&adapter->hw);
 	ixgb_print_link_status(adapter);
@@ -1131,10 +1121,9 @@ ixgb_local_timer(void *arg)
 	if (ixgb_display_debug_stats && ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		ixgb_print_hw_stats(adapter);
 	}
-	callout_reset(&adapter->timer, 2 * hz, ixgb_local_timer, adapter);
-
-	IXGB_UNLOCK(adapter);
-	return;
+	if (adapter->tx_timer != 0 && --adapter->tx_timer == 0)
+		ixgb_watchdog(adapter);
+	callout_reset(&adapter->timer, hz, ixgb_local_timer, adapter);
 }
 
 static void
@@ -1183,9 +1172,9 @@ ixgb_stop(void *arg)
 	ixgb_free_transmit_structures(adapter);
 	ixgb_free_receive_structures(adapter);
 
-
 	/* Tell the stack that the interface is no longer active */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	adapter->tx_timer = 0;
 
 	return;
 }
@@ -1352,7 +1341,6 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixgb_ioctl;
 	ifp->if_start = ixgb_start;
-	ifp->if_watchdog = ixgb_watchdog;
 	ifp->if_snd.ifq_maxlen = adapter->num_tx_desc - 1;
 
 #if __FreeBSD_version < 500000
@@ -1755,9 +1743,9 @@ ixgb_clean_transmit_interrupts(struct adapter * adapter)
 
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		if (num_avail == adapter->num_tx_desc)
-			ifp->if_timer = 0;
+			adapter->tx_timer = 0;
 		else if (num_avail == adapter->num_tx_desc_avail)
-			ifp->if_timer = IXGB_TX_TIMEOUT;
+			adapter->tx_timer = IXGB_TX_TIMEOUT;
 	}
 	adapter->num_tx_desc_avail = num_avail;
 	return;

@@ -1,6 +1,6 @@
 /*-
  * Copyright (C) 2002-2003 NetGroup, Politecnico di Torino (Italy)
- * Copyright (C) 2005-2008 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (C) 2005-2009 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,7 +85,17 @@
 #define DL	2
 #define BL	3
 
-/* A stream of native binary code.*/
+/* Optimization flags */
+#define	BPF_JIT_FRET	0x01
+#define	BPF_JIT_FPKT	0x02
+#define	BPF_JIT_FMEM	0x04
+#define	BPF_JIT_FJMP	0x08
+#define	BPF_JIT_FLEN	0x10
+
+#define	BPF_JIT_FLAG_ALL	\
+    (BPF_JIT_FPKT | BPF_JIT_FMEM | BPF_JIT_FJMP | BPF_JIT_FLEN)
+
+/* A stream of native binary code */
 typedef struct bpf_bin_stream {
 	/* Current native instruction pointer. */
 	int		cur_ip;
@@ -117,7 +127,7 @@ typedef struct bpf_bin_stream {
 typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 
 /*
- * native Instruction Macros
+ * Native instruction macros
  */
 
 /* movl i32,r32 */
@@ -215,8 +225,18 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	emitm(&stream, 0xc486, 2);					\
 } while (0)
 
-/* ret */
-#define RET() do {						\
+/* pushq r64 */
+#define PUSH(r64) do {							\
+	emitm(&stream, (5 << 4) | (0 << 3) | (r64 & 0x7), 1);		\
+} while (0)
+
+/* leaveq */
+#define LEAVE() do {							\
+	emitm(&stream, 0xc9, 1);					\
+} while (0)
+
+/* retq */
+#define RET() do {							\
 	emitm(&stream, 0xc3, 1);					\
 } while (0)
 
@@ -251,6 +271,13 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 #define SUB_EAXi(i32) do {						\
 	emitm(&stream, 0x2d, 1);					\
 	emitm(&stream, i32, 4);						\
+} while (0)
+
+/* subq i8,r64 */
+#define SUBib(i8, r64) do {						\
+	emitm(&stream, 0x8348, 2);					\
+	emitm(&stream, (29 << 3) | (r64 & 0x7), 1);			\
+	emitm(&stream, i8, 1);						\
 } while (0)
 
 /* mull r32 */

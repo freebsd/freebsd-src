@@ -249,14 +249,13 @@ AcpiExReadDataFromField (
     {
         /* Field will fit within an Integer (normal case) */
 
-        BufferDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+        BufferDesc = AcpiUtCreateIntegerObject ((UINT64) 0);
         if (!BufferDesc)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
         Length = AcpiGbl_IntegerByteWidth;
-        BufferDesc->Integer.Value = 0;
         Buffer = &BufferDesc->Integer.Value;
     }
 

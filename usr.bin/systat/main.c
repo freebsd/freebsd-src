@@ -87,7 +87,7 @@ main(int argc, char **argv)
 	char errbuf[_POSIX2_LINE_MAX], dummy;
 	size_t	size;
 
-	(void) setlocale(LC_TIME, "");
+	(void) setlocale(LC_ALL, "");
 
 	argc--, argv++;
 	while (argc > 0) {

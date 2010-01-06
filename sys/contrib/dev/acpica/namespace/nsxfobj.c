@@ -172,7 +172,7 @@ AcpiGetType (
 
     /* Convert and validate the handle */
 
-    Node = AcpiNsMapHandleToNode (Handle);
+    Node = AcpiNsValidateHandle (Handle);
     if (!Node)
     {
         (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
@@ -233,7 +233,7 @@ AcpiGetParent (
 
     /* Convert and validate the handle */
 
-    Node = AcpiNsMapHandleToNode (Handle);
+    Node = AcpiNsValidateHandle (Handle);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
@@ -243,7 +243,7 @@ AcpiGetParent (
     /* Get the parent entry */
 
     ParentNode = AcpiNsGetParentNode (Node);
-    *RetHandle = AcpiNsConvertEntryToHandle (ParentNode);
+    *RetHandle = ACPI_CAST_PTR (ACPI_HANDLE, ParentNode);
 
     /* Return exception if parent is null */
 
@@ -312,7 +312,7 @@ AcpiGetNextObject (
     {
         /* Start search at the beginning of the specified scope */
 
-        ParentNode = AcpiNsMapHandleToNode (Parent);
+        ParentNode = AcpiNsValidateHandle (Parent);
         if (!ParentNode)
         {
             Status = AE_BAD_PARAMETER;
@@ -324,7 +324,7 @@ AcpiGetNextObject (
         /* Non-null handle, ignore the parent */
         /* Convert and validate the handle */
 
-        ChildNode = AcpiNsMapHandleToNode (Child);
+        ChildNode = AcpiNsValidateHandle (Child);
         if (!ChildNode)
         {
             Status = AE_BAD_PARAMETER;
@@ -343,7 +343,7 @@ AcpiGetNextObject (
 
     if (RetHandle)
     {
-        *RetHandle = AcpiNsConvertEntryToHandle (Node);
+        *RetHandle = ACPI_CAST_PTR (ACPI_HANDLE, Node);
     }
 
 

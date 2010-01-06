@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.270.12.6 2009/05/06 23:34:30 jinmei Exp $ */
+/* $Id: rbtdb.c,v 1.270.12.6.10.1 2009/11/18 23:58:04 marka Exp $ */
 
 /*! \file */
 
@@ -4005,7 +4005,7 @@ cache_zonecut_callback(dns_rbtnode_t *node, dns_name_t *name, void *arg) {
 	}
 
 	if (dname_header != NULL &&
-	    (dname_header->trust != dns_trust_pending ||
+	    (!DNS_TRUST_PENDING(dname_header->trust) ||
 	     (search->options & DNS_DBFIND_PENDINGOK) != 0)) {
 		/*
 		 * We increment the reference count on node to ensure that
@@ -4548,7 +4548,7 @@ cache_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 	if (found == NULL ||
 	    (found->trust == dns_trust_glue &&
 	     ((options & DNS_DBFIND_GLUEOK) == 0)) ||
-	    (found->trust == dns_trust_pending &&
+	    (DNS_TRUST_PENDING(found->trust) &&
 	     ((options & DNS_DBFIND_PENDINGOK) == 0))) {
 		/*
 		 * If there is an NS rdataset at this node, then this is the

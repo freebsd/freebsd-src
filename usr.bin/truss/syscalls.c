@@ -92,6 +92,18 @@ static const char rcsid[] =
 struct syscall syscalls[] = {
 	{ .name = "fcntl", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 } , { Fcntl, 1 }, { Fcntlflag | OUT, 2 } } },
+	{ .name = "fork", .ret_type = 1, .nargs = 0 },
+	{ .name = "getegid", .ret_type = 1, .nargs = 0 },
+	{ .name = "geteuid", .ret_type = 1, .nargs = 0 },
+	{ .name = "getgid", .ret_type = 1, .nargs = 0 },
+	{ .name = "getpid", .ret_type = 1, .nargs = 0 },
+	{ .name = "getpgid", .ret_type = 1, .nargs = 1,
+	  .args = { { Int, 0 } } },
+	{ .name = "getpgrp", .ret_type = 1, .nargs = 0 },
+	{ .name = "getppid", .ret_type = 1, .nargs = 0 },
+	{ .name = "getsid", .ret_type = 1, .nargs = 1,
+	  .args = { { Int, 0 } } },
+	{ .name = "getuid", .ret_type = 1, .nargs = 0 },
 	{ .name = "readlink", .ret_type = 1, .nargs = 3,
 	  .args = { { Name, 0 } , { Readlinkres | OUT, 1 }, { Int, 2 } } },
 	{ .name = "lseek", .ret_type = 2, .nargs = 3,
@@ -230,6 +242,8 @@ struct syscall syscalls[] = {
 	  .args = { { Name | IN, 0 }, { Hex, 1 } } },
 	{ .name = "pathconf", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Pathconf, 1 } } },
+	{ .name = "pipe", .ret_type = 1, .nargs = 1,
+	  .args = { { Ptr, 0 } } },
 	{ .name = "truncate", .ret_type = 1, .nargs = 3,
 	  .args = { { Name | IN, 0 }, { Int | IN, 1 }, { Quad | IN, 2 } } },
 	{ .name = "ftruncate", .ret_type = 1, .nargs = 3,
@@ -244,6 +258,8 @@ struct syscall syscalls[] = {
 	  .args = { { Name , 0 } , { Name, 1 } } },
 	{ .name = "symlink", .ret_type = 1, .nargs = 2,
 	  .args = { { Name , 0 } , { Name, 1 } } },
+	{ .name = "posix_openpt", .ret_type = 1, .nargs = 1,
+	  .args = { { Open, 0 } } },
 	{ .name = 0 },
 };
 
@@ -259,7 +275,7 @@ struct xlat {
 static struct xlat kevent_filters[] = {
 	X(EVFILT_READ) X(EVFILT_WRITE) X(EVFILT_AIO) X(EVFILT_VNODE)
 	X(EVFILT_PROC) X(EVFILT_SIGNAL) X(EVFILT_TIMER)
-	X(EVFILT_NETDEV) X(EVFILT_FS) X(EVFILT_READ) XEND
+	X(EVFILT_FS) X(EVFILT_READ) XEND
 };
 
 static struct xlat kevent_flags[] = {
@@ -1125,6 +1141,12 @@ print_syscall_ret(struct trussinfo *trussinfo, const char *name, int nargs,
 	if (errorp) {
 		fprintf(trussinfo->outfile, " ERR#%ld '%s'\n", retval, strerror(retval));
 	} else {
+		/*
+		 * Because pipe(2) has a special assembly glue to provide the
+		 * libc API, we have to adjust retval.
+		 */
+		if (name != NULL && !strcmp(name, "pipe"))
+			retval = 0;
 		fprintf(trussinfo->outfile, " = %ld (0x%lx)\n", retval, retval);
 	}
 }
@@ -1141,15 +1163,15 @@ print_summary(struct trussinfo *trussinfo)
 	ncall = nerror = 0;
 	for (sc = syscalls; sc->name != NULL; sc++)
 		if (sc->ncalls) {
-			fprintf(trussinfo->outfile, "%-20s%5d.%09ld%8d%8d\n",
-			    sc->name, sc->time.tv_sec, sc->time.tv_nsec,
-			    sc->ncalls, sc->nerror);
+			fprintf(trussinfo->outfile, "%-20s%5jd.%09ld%8d%8d\n",
+			    sc->name, (intmax_t)sc->time.tv_sec,
+			    sc->time.tv_nsec, sc->ncalls, sc->nerror);
 			timespecadd(&total, &sc->time, &total);
 			ncall += sc->ncalls;
 			nerror += sc->nerror;
 		}
 	fprintf(trussinfo->outfile, "%20s%15s%8s%8s\n",
 		"", "-------------", "-------", "-------");
-	fprintf(trussinfo->outfile, "%-20s%5d.%09ld%8d%8d\n",
-		"", total.tv_sec, total.tv_nsec, ncall, nerror);
+	fprintf(trussinfo->outfile, "%-20s%5jd.%09ld%8d%8d\n",
+		"", (intmax_t)total.tv_sec, total.tv_nsec, ncall, nerror);
 }

@@ -320,7 +320,7 @@ we_check(const char *words, int flags)
 				if (c == '\0' || level != 0)
 					return (WRDE_SYNTAX);
 			} else
-				c = *--words;
+				--words;
 			break;
 		default:
 			break;

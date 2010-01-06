@@ -126,16 +126,20 @@ ad_attach(device_t dev)
     adp->disk->d_name = "ad";
     adp->disk->d_drv1 = dev;
     adp->disk->d_maxsize = ch->dma.max_iosize ? ch->dma.max_iosize : DFLTPHYS;
+    if (atadev->param.support.command2 & ATA_SUPPORT_ADDRESS48)
+	adp->disk->d_maxsize = min(adp->disk->d_maxsize, 65536 * DEV_BSIZE);
+    else					/* 28bit ATA command limit */
+	adp->disk->d_maxsize = min(adp->disk->d_maxsize, 256 * DEV_BSIZE);
     adp->disk->d_sectorsize = DEV_BSIZE;
     adp->disk->d_mediasize = DEV_BSIZE * (off_t)adp->total_secs;
     adp->disk->d_fwsectors = adp->sectors;
     adp->disk->d_fwheads = adp->heads;
     adp->disk->d_unit = device_get_unit(dev);
     if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
-	adp->disk->d_flags = DISKFLAG_CANFLUSHCACHE;
+	adp->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
     if ((atadev->param.support.command2 & ATA_SUPPORT_CFA) ||
 	atadev->param.config == ATA_PROTO_CFA)
-	adp->disk->d_flags = DISKFLAG_CANDELETE;
+	adp->disk->d_flags |= DISKFLAG_CANDELETE;
     strlcpy(adp->disk->d_ident, atadev->param.serial,
 	sizeof(adp->disk->d_ident));
     disk_create(adp->disk, DISK_VERSION);
@@ -381,7 +385,7 @@ ad_init(device_t dev)
 {
     struct ata_device *atadev = device_get_softc(dev);
 
-    ATA_SETMODE(device_get_parent(dev), dev);
+    ata_setmode(dev);
 
     /* enable readahead caching */
     if (atadev->param.support.command1 & ATA_SUPPORT_LOOKAHEAD)
@@ -397,7 +401,7 @@ ad_init(device_t dev)
 
     /* use multiple sectors/interrupt if device supports it */
     if (ad_version(atadev->param.version_major)) {
-	int secsperint = max(1, min(atadev->param.sectors_intr, 16));
+	int secsperint = max(1, min(atadev->param.sectors_intr & 0xff, 16));
 
 	if (!ata_controlcmd(dev, ATA_SET_MULTI, 0, 0, secsperint))
 	    atadev->max_iosize = secsperint * DEV_BSIZE;
@@ -533,12 +537,13 @@ ad_describe(device_t dev)
 	strncpy(product, atadev->param.model, 40);
     }
 
-    device_printf(dev, "%juMB <%s%s %.8s> at ata%d-%s %s%s\n",
+    device_printf(dev, "%juMB <%s%s %.8s> at ata%d-%s %s%s %s\n",
 		  adp->total_secs / (1048576 / DEV_BSIZE),
 		  vendor, product, atadev->param.revision,
 		  device_get_unit(ch->dev), ata_unit2str(atadev),
 		  (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
-		  ata_mode2str(atadev->mode));
+		  ata_mode2str(atadev->mode),
+		  ata_satarev2str(ATA_GETREV(device_get_parent(dev), atadev->unit)));
     if (bootverbose) {
 	device_printf(dev, "%ju sectors [%juC/%dH/%dS] "
 		      "%d sectors/interrupt %d depth queue\n", adp->total_secs,

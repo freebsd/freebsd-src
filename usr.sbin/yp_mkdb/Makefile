@@ -9,4 +9,6 @@ SRCS=	yp_mkdb.c yp_dblookup.c yp_dbwrite.c
 CFLAGS+= -Dyp_error=warnx
 CFLAGS+= -I${.CURDIR}/../../libexec/ypxfr -I${.CURDIR}/../../usr.sbin/ypserv
 
+WARNS?=	1
+
 .include <bsd.prog.mk>

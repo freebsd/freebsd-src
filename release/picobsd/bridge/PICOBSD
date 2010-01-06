@@ -46,6 +46,8 @@ options		IPDIVERT		# divert (for natd)
 # Support for bridging and bandwidth limiting
 options		DUMMYNET
 device		if_bridge
+# Running with less than 1000 seems to give poor timing on
+# qemu, so we set HZ explicitly.
 options		HZ=1000
 
 device		random			# used by ssh

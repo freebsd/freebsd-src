@@ -13,6 +13,8 @@ BINMODE= 6555
 
 CFLAGS+= -I${.CURDIR}/../common_source
 
+WARNS?=	2
+
 DPADD=	${LIBLPR}
 LDADD=	${LIBLPR}
 

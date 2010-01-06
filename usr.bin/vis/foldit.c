@@ -44,9 +44,7 @@ static const char sccsid[] = "@(#)foldit.c	8.1 (Berkeley) 6/6/93";
 #include "extern.h"
 
 int
-foldit(chunk, col, max)
-	char *chunk;
-	int col, max;
+foldit(char *chunk, int col, int max)
 {
 	char *cp;
 

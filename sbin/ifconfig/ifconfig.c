@@ -83,8 +83,6 @@ static const char rcsid[] =
 struct	ifreq ifr;
 
 char	name[IFNAMSIZ];
-char	*descr = NULL;
-size_t	descrlen = 64;
 int	setaddr;
 int	setmask;
 int	doalias;
@@ -149,7 +147,7 @@ main(int argc, char *argv[])
 	struct ifaddrs *ifap, *ifa;
 	struct ifreq paifr;
 	const struct sockaddr_dl *sdl;
-	char options[1024], *cp;
+	char options[1024], *cp, *namecp = NULL;
 	const char *ifname;
 	struct option *p;
 	size_t iflen;
@@ -296,7 +294,7 @@ main(int argc, char *argv[])
 			sdl = (const struct sockaddr_dl *) ifa->ifa_addr;
 		else
 			sdl = NULL;
-		if (cp != NULL && strcmp(cp, ifa->ifa_name) == 0)
+		if (cp != NULL && strcmp(cp, ifa->ifa_name) == 0 && !namesonly)
 			continue;
 		iflen = strlcpy(name, ifa->ifa_name, sizeof(name));
 		if (iflen >= sizeof(name)) {
@@ -310,16 +308,32 @@ main(int argc, char *argv[])
 			continue;
 		if (uponly && (ifa->ifa_flags & IFF_UP) == 0)
 			continue;
-		ifindex++;
 		/*
 		 * Are we just listing the interfaces?
 		 */
 		if (namesonly) {
+			if (namecp == cp)
+				continue;
+			if (afp != NULL) {
+				/* special case for "ether" address family */
+				if (!strcmp(afp->af_name, "ether")) {
+					if (sdl == NULL ||
+					    sdl->sdl_type != IFT_ETHER ||
+					    sdl->sdl_alen != ETHER_ADDR_LEN)
+						continue;
+				} else {
+					if (ifa->ifa_addr->sa_family != afp->af_af)
+						continue;
+				}
+			}
+			namecp = cp;
+			ifindex++;
 			if (ifindex > 1)
 				printf(" ");
 			fputs(name, stdout);
 			continue;
 		}
+		ifindex++;
 
 		if (argc > 0)
 			ifconfig(argc, argv, 0, afp);
@@ -824,36 +838,6 @@ setifname(const char *val, int dummy __unused, int s,
 	free(newname);
 }
 
-/* ARGSUSED */
-static void
-setifdescr(const char *val, int dummy __unused, int s, 
-    const struct afswtch *afp)
-{
-	char *newdescr;
-
-	newdescr = strdup(val);
-	if (newdescr == NULL) {
-		warn("no memory to set ifdescr");
-		return;
-	}
-	ifr.ifr_buffer.buffer = newdescr;
-	ifr.ifr_buffer.length = strlen(newdescr);
-	if (ioctl(s, SIOCSIFDESCR, (caddr_t)&ifr) < 0) {
-		warn("ioctl (set descr)");
-		free(newdescr);
-		return;
-	}
-	free(newdescr);
-}
-
-/* ARGSUSED */
-static void
-unsetifdescr(const char *val, int value, int s, const struct afswtch *afp)
-{
-
-	setifdescr("", 0, s, 0);
-}
-
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6SMART\7RUNNING" \
 "\10NOARP\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2" \
@@ -897,23 +881,6 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 	if (ioctl(s, SIOCGIFMTU, &ifr) != -1)
 		printf(" mtu %d", ifr.ifr_mtu);
 	putchar('\n');
-
-	descr = reallocf(descr, descrlen);
-	if (descr != NULL) {
-		do {
-			ifr.ifr_buffer.buffer = descr;
-			ifr.ifr_buffer.length = descrlen;
-			if (ioctl(s, SIOCGIFDESCR, &ifr) == 0) {
-			    if (strlen(descr) > 0)
-				printf("\tdescription: %s\n", descr);
-			    break;
-			}
-			if (errno == ENAMETOOLONG) {
-				descrlen *= 2;
-				descr = reallocf(descr, descrlen);
-			}
-		} while (errno == ENAMETOOLONG);
-	}
 
 	if (ioctl(s, SIOCGIFCAP, (caddr_t)&ifr) == 0) {
 		if (ifr.ifr_curcap != 0) {
@@ -1084,10 +1051,6 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-arp",		IFF_NOARP,	setifflags),
 	DEF_CMD("debug",	IFF_DEBUG,	setifflags),
 	DEF_CMD("-debug",	-IFF_DEBUG,	setifflags),
-	DEF_CMD_ARG("description",		setifdescr),
-	DEF_CMD_ARG("descr",			setifdescr),
-	DEF_CMD("-description",	0,		unsetifdescr),
-	DEF_CMD("-descr",	0,		unsetifdescr),
 	DEF_CMD("promisc",	IFF_PPROMISC,	setifflags),
 	DEF_CMD("-promisc",	-IFF_PPROMISC,	setifflags),
 	DEF_CMD("add",		IFF_UP,		notealias),

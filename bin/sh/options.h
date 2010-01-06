@@ -102,7 +102,7 @@ extern char *arg0;		/* $0 */
 extern struct shparam shellparam;  /* $@ */
 extern char **argptr;		/* argument list for builtin commands */
 extern char *shoptarg;		/* set by nextopt */
-extern char *optptr;		/* used by nextopt */
+extern char *nextopt_optptr;	/* used by nextopt */
 
 void procargs(int, char **);
 void optschanged(void);
@@ -111,5 +111,5 @@ void freeparam(struct shparam *);
 int shiftcmd(int, char **);
 int setcmd(int, char **);
 int getoptscmd(int, char **);
-int nextopt(char *);
+int nextopt(const char *);
 void getoptsreset(const char *);

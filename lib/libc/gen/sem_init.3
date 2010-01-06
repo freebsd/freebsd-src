@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2000
+.Dd December 8, 2009
 .Dt SEM_INIT 3
 .Os
 .Sh NAME
@@ -48,8 +48,7 @@ to have the value
 .Fa value .
 A non-zero value for
 .Fa pshared
-specifies a shared semaphore that can be used by multiple processes, which this
-implementation is not capable of.
+specifies a shared semaphore that can be used by multiple processes.
 .Pp
 Following a successful call to
 .Fn sem_init ,
@@ -78,8 +77,6 @@ argument exceeds
 .Dv SEM_VALUE_MAX .
 .It Bq Er ENOSPC
 Memory allocation error.
-.It Bq Er EPERM
-Unable to initialize a shared semaphore.
 .El
 .Sh SEE ALSO
 .Xr sem_destroy 3 ,
@@ -93,16 +90,10 @@ The
 .Fn sem_init
 function conforms to
 .St -p1003.1-96 .
-.Pp
-This implementation does not support shared semaphores, and reports this fact
-by setting
-.Va errno
-to
-.Er EPERM .
-This is perhaps a stretch of the intention of
-.Tn POSIX ,
-but is
-compliant, with the caveat that
-.Fn sem_init
-always reports a permissions error when an attempt to create a shared semaphore
-is made.
+.Sh BUGS
+A sem_t is a pointer to a separately allocated structure,
+therefore process shared semaphores only work between related processes
+and do not perform very well
+(each operation is a system call,
+while single-process semaphores only do a system call
+if they need to block or wake up a thread).

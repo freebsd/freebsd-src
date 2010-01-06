@@ -87,10 +87,13 @@ __FBSDID("$FreeBSD$");
 /* #define SCTP_AUDITING_ENABLED 1 used for debug/auditing */
 #define SCTP_AUDIT_SIZE 256
 
+/* temporary disabled since it does not work with VNET. */
+#if 0
 #define SCTP_USE_THREAD_BASED_ITERATOR 1
+#endif
 
 #define SCTP_KTRHEAD_NAME "sctp_iterator"
-#define SCTP_KTHREAD_PAGES 2
+#define SCTP_KTHREAD_PAGES 0
 
 
 /* If you support Multi-VRF how big to

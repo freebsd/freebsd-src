@@ -344,18 +344,15 @@ AcpiExOpcode_6A_0T_1R (
         }
 
         /* Create an integer for the return value */
+        /* Default return value is ACPI_INTEGER_MAX if no match found */
 
-        ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+        ReturnDesc = AcpiUtCreateIntegerObject (ACPI_INTEGER_MAX);
         if (!ReturnDesc)
         {
             Status = AE_NO_MEMORY;
             goto Cleanup;
 
         }
-
-        /* Default return value if no match found */
-
-        ReturnDesc->Integer.Value = ACPI_INTEGER_MAX;
 
         /*
          * Examine each element until a match is found. Both match conditions

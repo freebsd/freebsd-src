@@ -15,6 +15,8 @@ LIBSM=		${LIBSMDIR}/libsm.a
 DPADD=	${LIBSM}
 LDADD=	${LIBSM}
 
+WARNS?=	2
+
 SRCS+=	sm_os.h
 CLEANFILES+=sm_os.h
 

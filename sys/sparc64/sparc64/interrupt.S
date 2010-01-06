@@ -176,7 +176,7 @@ ENTRY(intr_fast)
 
 3:	ldx	[%l0 + IR_FUNC], %o0
 	ldx	[%l0 + IR_ARG], %o1
-	lduw	[%l0 + IR_VEC], %o2
+	lduw	[%l0 + IR_VEC], %l2
 
 	ldx	[PCPU(IRFREE)], %l1
 	stx	%l1, [%l0 + IR_NEXT]
@@ -188,17 +188,17 @@ ENTRY(intr_fast)
 	call	%o0
 	 mov	%o1, %o0
 
-	/* intrcnt[intr_countp[%o2]]++ */
-	SET(intrcnt, %l7, %l2)		/* %l2 = intrcnt */
-	prefetcha [%l2] ASI_N, 1
-	SET(intr_countp, %l7, %l3)	/* %l3 = intr_countp */
-	sllx	%o2, 1, %l4		/* %l4 = vec << 1 */
-	lduh	[%l4 + %l3], %l5	/* %l5 = intr_countp[%o2] */
-	sllx	%l5, 3, %l6		/* %l6 = intr_countp[%o2] << 3 */
-	add	%l6, %l2, %l7		/* %l7 = intrcnt[intr_countp[%o2]] */
-	ldx	[%l7], %l2
+	/* intrcnt[intr_countp[%l2]]++ */
+	SET(intrcnt, %l7, %l3)		/* %l3 = intrcnt */
+	prefetcha [%l3] ASI_N, 1
+	SET(intr_countp, %l7, %l4)	/* %l4 = intr_countp */
+	sllx	%l2, 1, %l2		/* %l2 = vec << 1 */
+	lduh	[%l4 + %l2], %l4	/* %l4 = intr_countp[%l2] */
+	sllx	%l4, 3, %l4		/* %l4 = intr_countp[%l2] << 3 */
+	add	%l4, %l3, %l4		/* %l4 = intrcnt[intr_countp[%l2]] */
+	ldx	[%l4], %l2
 	inc	%l2
-	stx	%l2, [%l7]
+	stx	%l2, [%l4]
 
 	ba,a	%xcc, 1b
 	 nop

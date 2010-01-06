@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2009 Hans Petter Selasky. All rights reserved.
  * Copyright (c) 2007-2008 Daniel Drake.  All rights reserved.
  * Copyright (c) 2001 Johannes Erdfelt.  All rights reserved.
  *
@@ -226,6 +226,7 @@ void	libusb20_tr_setup_bulk(struct libusb20_transfer *xfer, void *pbuf, uint32_t
 void	libusb20_tr_setup_control(struct libusb20_transfer *xfer, void *psetup, void *pbuf, uint32_t timeout);
 void	libusb20_tr_setup_intr(struct libusb20_transfer *xfer, void *pbuf, uint32_t length, uint32_t timeout);
 void	libusb20_tr_setup_isoc(struct libusb20_transfer *xfer, void *pbuf, uint32_t length, uint16_t fr_index);
+uint8_t	libusb20_tr_bulk_intr_sync(struct libusb20_transfer *xfer, void *pbuf, uint32_t length, uint32_t *pactlen, uint32_t timeout);
 void	libusb20_tr_start(struct libusb20_transfer *xfer);
 void	libusb20_tr_stop(struct libusb20_transfer *xfer);
 void	libusb20_tr_submit(struct libusb20_transfer *xfer);

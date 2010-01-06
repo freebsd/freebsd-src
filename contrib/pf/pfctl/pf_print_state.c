@@ -294,6 +294,8 @@ print_state(struct pf_state *s, int opts)
 			printf(", anchor %u", s->anchor.nr);
 		if (s->rule.nr != -1)
 			printf(", rule %u", s->rule.nr);
+		if (s->state_flags & PFSTATE_SLOPPY)
+			printf(", sloppy");
 		if (s->src_node != NULL)
 			printf(", source-track");
 		if (s->nat_src_node != NULL)

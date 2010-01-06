@@ -179,7 +179,7 @@ static char *cwdname(void)
 }
 
 static long
-nextjob()
+nextjob(void)
 {
     long jobno;
     FILE *fid;

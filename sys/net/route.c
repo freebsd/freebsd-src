@@ -98,8 +98,6 @@ VNET_DEFINE(struct rtstat, rtstat);
 #define	V_rttrash	VNET(rttrash)
 #define	V_rtstat	VNET(rtstat)
 
-static void rt_maskedcopy(struct sockaddr *,
-	    struct sockaddr *, struct sockaddr *);
 
 /* compare two sockaddr structures */
 #define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
@@ -171,13 +169,20 @@ rt_tables_get_rnh(int table, int fam)
 static void
 route_init(void)
 {
+	struct domain *dom;
+	int max_keylen = 0;
 
 	/* whack the tunable ints into  line. */
 	if (rt_numfibs > RT_MAXFIBS)
 		rt_numfibs = RT_MAXFIBS;
 	if (rt_numfibs == 0)
 		rt_numfibs = 1;
-	rn_init();	/* initialize all zeroes, all ones, mask table */
+
+	for (dom = domains; dom; dom = dom->dom_next)
+		if (dom->dom_maxrtkey > max_keylen)
+			max_keylen = dom->dom_maxrtkey;
+
+	rn_init(max_keylen);	/* init all zeroes, all ones, mask table */
 }
 SYSINIT(route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, 0);
 
@@ -1315,7 +1320,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	return (0);
 }
 
-static void
+void
 rt_maskedcopy(struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netmask)
 {
 	register u_char *cp1 = (u_char *)src;
@@ -1497,7 +1502,11 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			    ((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
 				rt->rt_ifp->if_index;
 			}
+			RT_ADDREF(rt);
+			RT_UNLOCK(rt);
 			rt_newaddrmsg(cmd, ifa, error, rt);
+			RT_LOCK(rt);
+			RT_REMREF(rt);
 			if (cmd == RTM_DELETE) {
 				/*
 				 * If we are deleting, and we found an entry,

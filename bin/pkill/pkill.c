@@ -113,14 +113,14 @@ static int	cflags = REG_EXTENDED;
 static kvm_t	*kd;
 static pid_t	mypid;
 
-static struct listhead euidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead ruidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead rgidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead pgrplist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead ppidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead tdevlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead sidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead jidlist = SLIST_HEAD_INITIALIZER(list);
+static struct listhead euidlist = SLIST_HEAD_INITIALIZER(euidlist);
+static struct listhead ruidlist = SLIST_HEAD_INITIALIZER(ruidlist);
+static struct listhead rgidlist = SLIST_HEAD_INITIALIZER(rgidlist);
+static struct listhead pgrplist = SLIST_HEAD_INITIALIZER(pgrplist);
+static struct listhead ppidlist = SLIST_HEAD_INITIALIZER(ppidlist);
+static struct listhead tdevlist = SLIST_HEAD_INITIALIZER(tdevlist);
+static struct listhead sidlist = SLIST_HEAD_INITIALIZER(sidlist);
+static struct listhead jidlist = SLIST_HEAD_INITIALIZER(jidlist);
 
 static void	usage(void) __attribute__((__noreturn__));
 static int	killact(const struct kinfo_proc *);
@@ -671,8 +671,19 @@ makelist(struct listhead *head, enum listtype type, char *src)
 					li->li_number = -1;	/* any jail */
 				break;
 			case LT_TTY:
-				usage();
-				/* NOTREACHED */
+				if (li->li_number < 0)
+					errx(STATUS_BADUSAGE,
+					     "Negative /dev/pts tty `%s'", sp);
+				snprintf(buf, sizeof(buf), _PATH_DEV "pts/%s",
+				    sp);
+				if (stat(buf, &st) != -1)
+					goto foundtty;
+				if (errno == ENOENT)
+					errx(STATUS_BADUSAGE, "No such tty: `"
+					    _PATH_DEV "pts/%s'", sp);
+				err(STATUS_ERROR, "Cannot access `"
+				    _PATH_DEV "pts/%s'", sp);
+				break;
 			default:
 				break;
 			}

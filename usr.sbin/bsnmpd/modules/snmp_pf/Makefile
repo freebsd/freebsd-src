@@ -4,7 +4,6 @@
 
 MOD=	pf
 SRCS=	pf_snmp.c
-WARNS?=	6
 
 XSYM=	begemotPf
 DEFS=	${MOD}_tree.def

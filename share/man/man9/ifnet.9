@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2007
+.Dd December 1, 2009
 .Os
 .Dt IFNET 9
 .Sh NAME
@@ -279,13 +279,6 @@ to refer to a particular interface by index
 .Xr link_addr 3 ) .
 (Initialized by
 .Fn if_alloc . )
-.It Va if_timer
-.Pq Vt short
-Number of seconds until the watchdog timer
-.Fn if_watchdog
-is called, or zero if the timer is disabled.
-(Set by driver,
-decremented by generic watchdog code.)
 .It Va if_flags
 .Pq Vt int
 Flags describing operational parameters of this interface (see below).
@@ -401,11 +394,6 @@ flags and flushing queues.
 See the description of
 .Fn ifioctl
 below for more information.
-.It Fn if_watchdog
-Routine called by the generic code when the watchdog timer,
-.Va if_timer ,
-expires.
-Usually this will reset the interface.
 .\" .It Fn if_poll_recv
 .\" .It Fn if_poll_xmit
 .\" .It Fn if_poll_slowinput
@@ -415,7 +403,7 @@ Usually this will reset the interface.
 .\" section, below.
 .It Fn if_init
 Initialize and bring up the hardware,
-e.g., reset the chip and the watchdog timer and enable the receiver unit.
+e.g., reset the chip and enable the receiver unit.
 Should mark the interface running,
 but not active
 .Dv ( IFF_RUNNING , ~IIF_OACTIVE ) .

@@ -4,6 +4,4 @@
 PROG=	usbdevs
 MAN=	usbdevs.8
 
-WARNS?=	2
-
 .include <bsd.prog.mk>

@@ -1,4 +1,144 @@
 ----------------------------------------
+14 December 2009. Summary of changes for version 20091214:
+
+This release is available at www.acpica.org/downloads
+
+1) ACPI CA Core Subsystem:
+
+Enhanced automatic data type conversions for predefined name repairs. This 
+change expands the automatic repairs/conversions for predefined name return 
+values to make Integers, Strings, and Buffers fully interchangeable. Also, a 
+Buffer can be converted to a Package of Integers if necessary. The nsrepair.c 
+module was completely restructured. Lin Ming, Bob Moore.
+
+Implemented automatic removal of null package elements during predefined name 
+repairs. This change will automatically remove embedded and trailing NULL 
+package elements from returned package objects that are defined to contain a 
+variable number of sub-packages. The driver is then presented with a package 
+with no null elements to deal with. ACPICA BZ 819.
+
+Implemented a repair for the predefined _FDE and _GTM names. The expected 
+return value for both names is a Buffer of 5 DWORDs. This repair fixes two 
+possible problems (both seen in the field), where a package of integers is 
+returned, or a buffer of BYTEs is returned. With assistance from Jung-uk Kim.
+
+Implemented additional module-level code support. This change will properly 
+execute module-level code that is not at the root of the namespace (under a 
+Device object, etc.). Now executes the code within the current scope instead 
+of the root. ACPICA BZ 762. Lin Ming.
+
+Fixed possible mutex acquisition errors when running _REG methods. Fixes a 
+problem where mutex errors can occur when running a _REG method that is in 
+the same scope as a method-defined operation region or an operation region 
+under a module-level IF block. This type of code is rare, so the problem has 
+not been seen before. ACPICA BZ 826. Lin Ming, Bob Moore.
+
+Fixed a possible memory leak during module-level code execution. An object 
+could be leaked for each block of executed module-level code if the 
+interpreter slack mode is enabled This change deletes any implicitly returned 
+object from the module-level code block. Lin Ming.
+
+Removed messages for successful predefined repair(s). The repair mechanism 
+was considered too wordy. Now, messages are only unconditionally emitted if 
+the return object cannot be repaired. Existing messages for successful 
+repairs were converted to ACPI_DEBUG_PRINT messages for now. ACPICA BZ 827.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  86.6K Code, 18.2K Data, 104.8K Total
+    Debug Version:     162.7K Code, 50.8K Data, 213.5K Total
+  Current Release:
+    Non-Debug Version:  87.0K Code, 18.0K Data, 105.0K Total
+    Debug Version:     163.4K Code, 50.8K Data, 214.2K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Fixed a regression introduced in 20091112 where intermediate .SRC files 
+were no longer automatically removed at the termination of the compile.
+
+acpiexec: Implemented the -f option to specify default region fill value. 
+This option specifies the value used to initialize buffers that simulate 
+operation regions. Default value is zero. Useful for debugging problems that 
+depend on a specific initial value for a region or field.
+
+----------------------------------------
+12 November 2009. Summary of changes for version 20091112:
+
+This release is available at www.acpica.org/downloads
+
+1) ACPI CA Core Subsystem:
+
+Implemented a post-order callback to AcpiWalkNamespace. The existing 
+interface only has a pre-order callback. This change adds an additional 
+parameter for a post-order callback which will be more useful for bus scans. 
+ACPICA BZ 779. Lin Ming. Updated the ACPICA Programmer Reference.
+
+Modified the behavior of the operation region memory mapping cache for 
+SystemMemory. Ensure that the memory mappings created for operation regions 
+do not cross 4K page boundaries. Crossing a page boundary while mapping 
+regions can cause kernel warnings on some hosts if the pages have different 
+attributes. Such regions are probably BIOS bugs, and this is the workaround. 
+Linux BZ 14445. Lin Ming.
+
+Implemented an automatic repair for predefined methods that must return 
+sorted lists. This change will repair (by sorting) packages returned by _ALR, 
+_PSS, and _TSS. Drivers can now assume that the packages are correctly sorted 
+and do not contain NULL package elements. Adds one new file, 
+namespace/nsrepair2.c. ACPICA BZ 784. Lin Ming, Bob Moore.
+
+Fixed a possible fault during predefined name validation if a return Package 
+object contains NULL elements. Also adds a warning if a NULL element is 
+followed by any non-null elements. ACPICA BZ 813, 814. Future enhancement may 
+include repair or removal of all such NULL elements where possible.
+
+Implemented additional module-level executable AML code support. This change 
+will execute module-level code that is not at the root of the namespace 
+(under a Device object, etc.) at table load time. Module-level executable AML 
+code has been illegal since ACPI 2.0. ACPICA BZ 762. Lin Ming.
+
+Implemented a new internal function to create Integer objects. This function 
+simplifies miscellaneous object creation code. ACPICA BZ 823.
+
+Reduced the severity of predefined repair messages, Warning to Info. Since 
+the object was successfully repaired, a warning is too severe. Reduced to an 
+info message for now. These messages may eventually be changed to debug-only. 
+ACPICA BZ 812.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  85.8K Code, 18.0K Data, 103.8K Total
+    Debug Version:     161.8K Code, 50.6K Data, 212.4K Total
+  Current Release:
+    Non-Debug Version:  86.6K Code, 18.2K Data, 104.8K Total
+    Debug Version:     162.7K Code, 50.8K Data, 213.5K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented Switch() with While(1) so that Break works correctly. This 
+change correctly implements the Switch operator with a surrounding While(1) 
+so that the Break operator works as expected. ACPICA BZ 461. Lin Ming.
+
+iASL: Added a message if a package initializer list is shorter than package 
+length. Adds a new remark for a Package() declaration if an initializer list 
+exists, but is shorter than the declared length of the package. Although 
+technically legal, this is probably a coding error and it is seen in the 
+field. ACPICA BZ 815. Lin Ming, Bob Moore.
+
+iASL: Fixed a problem where the compiler could fault after the maximum number 
+of errors was reached (200).
+
+acpixtract: Fixed a possible warning for pointer cast if the compiler warning 
+level set very high.
+
+----------------------------------------
 13 October 2009. Summary of changes for version 20091013:
 
 This release is available at www.acpica.org/downloads

@@ -176,9 +176,8 @@ svc_raw_reply(xprt, msg)
 		msg->acpted_rply.ar_results.proc = (xdrproc_t) xdr_void;
 		msg->acpted_rply.ar_results.where = NULL;
 
-		if (!xdr_replymsg(xdrs, msg) ||
-		    !SVCAUTH_WRAP(&SVC_AUTH(xprt), xdrs, xdr_proc, xdr_where))
-			stat = FALSE;
+		stat = xdr_replymsg(xdrs, msg) &&
+		    SVCAUTH_WRAP(&SVC_AUTH(xprt), xdrs, xdr_proc, xdr_where);
 	} else {
 		stat = xdr_replymsg(xdrs, msg);
 	}

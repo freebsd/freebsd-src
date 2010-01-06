@@ -814,7 +814,8 @@ unzip(const char *fn)
 	ac(archive_read_support_format_zip(a));
 	ac(archive_read_open_fd(a, fd, 8192));
 
-	printf("Archive:  %s\n", fn);
+	if (!p_opt && !q_opt)
+		printf("Archive:  %s\n", fn);
 	if (v_opt == 1) {
 		printf("  Length     Date   Time    Name\n");
 		printf(" --------    ----   ----    ----\n");

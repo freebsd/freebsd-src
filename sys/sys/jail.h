@@ -335,6 +335,7 @@ struct mount;
 struct sockaddr;
 struct statfs;
 int jailed(struct ucred *cred);
+int jailed_without_vnet(struct ucred *);
 void getcredhostname(struct ucred *, char *, size_t);
 void getcreddomainname(struct ucred *, char *, size_t);
 void getcredhostuuid(struct ucred *, char *, size_t);

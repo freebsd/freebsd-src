@@ -69,10 +69,23 @@ __FBSDID("$FreeBSD$");
 
 devclass_t pdq_devclass;
 
+static void	pdq_watchdog(void *);
+
 static void
-pdq_ifinit(
-    pdq_softc_t *sc)
+pdq_ifstop(pdq_softc_t *sc)
 {
+
+    PDQ_IFNET(sc)->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+    sc->sc_pdq->pdq_flags &= ~PDQ_RUNNING;
+    pdq_stop(sc->sc_pdq);
+    callout_stop(&sc->watchdog);
+}
+
+static void
+pdq_ifinit_locked(pdq_softc_t *sc)
+{
+
+    PDQ_LOCK_ASSERT(sc);
     if (PDQ_IFNET(sc)->if_flags & IFF_UP) {
 	PDQ_IFNET(sc)->if_drv_flags |= IFF_DRV_RUNNING;
 	if (PDQ_IFNET(sc)->if_flags & IFF_PROMISC) {
@@ -87,24 +100,40 @@ pdq_ifinit(
 	}
 	sc->sc_pdq->pdq_flags |= PDQ_RUNNING;
 	pdq_run(sc->sc_pdq);
-    } else {
-	PDQ_IFNET(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
-	sc->sc_pdq->pdq_flags &= ~PDQ_RUNNING;
-	pdq_stop(sc->sc_pdq);
-    }
+	callout_reset(&sc->watchdog, hz, pdq_watchdog, sc);
+    } else
+	pdq_ifstop(sc);
+}
+
+static void
+pdq_ifinit(void *arg)
+{
+    pdq_softc_t *sc;
+
+    sc = arg;
+    PDQ_LOCK(sc);
+    pdq_ifinit_locked(sc);
+    PDQ_UNLOCK(sc);
 }
 
 static void
-pdq_ifwatchdog(
-    struct ifnet *ifp)
+pdq_watchdog(void *arg)
 {
+    pdq_softc_t *sc;
+    struct ifnet *ifp;
+
+    sc = arg;
+    PDQ_LOCK_ASSERT(sc);
+    callout_reset(&sc->watchdog, hz, pdq_watchdog, sc);
+    if (sc->timer == 0 || --sc->timer > 0)
+	return;
+
     /*
      * No progress was made on the transmit queue for PDQ_OS_TX_TRANSMIT
      * seconds.  Remove all queued packets.
      */
-
+    ifp = PDQ_IFNET(sc);
     ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-    ifp->if_timer = 0;
     for (;;) {
 	struct mbuf *m;
 	IFQ_DEQUEUE(&ifp->if_snd, m);
@@ -115,18 +144,18 @@ pdq_ifwatchdog(
 }
 
 static void
-pdq_ifstart(
-    struct ifnet *ifp)
+pdq_ifstart_locked(struct ifnet *ifp)
 {
     pdq_softc_t * const sc = PDQ_OS_IFP_TO_SOFTC(ifp);
     struct mbuf *m;
     int tx = 0;
 
+    PDQ_LOCK_ASSERT(sc);
     if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 	return;
 
-    if (PDQ_IFNET(sc)->if_timer == 0)
-	PDQ_IFNET(sc)->if_timer = PDQ_OS_TX_TIMEOUT;
+    if (sc->timer == 0)
+	sc->timer = PDQ_OS_TX_TIMEOUT;
 
     if ((sc->sc_pdq->pdq_flags & PDQ_TXOK) == 0) {
 	PDQ_IFNET(sc)->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -177,6 +206,16 @@ pdq_ifstart(
 	PDQ_DO_TYPE2_PRODUCER(sc->sc_pdq);
     sc->sc_flags &= ~PDQIF_DOWNCALL;
 }
+
+static void
+pdq_ifstart(struct ifnet *ifp)
+{
+    pdq_softc_t * const sc = PDQ_OS_IFP_TO_SOFTC(ifp);
+
+    PDQ_LOCK(sc);
+    pdq_ifstart_locked(ifp);
+    PDQ_UNLOCK(sc);
+}
 
 void
 pdq_os_receive_pdu(
@@ -218,7 +257,9 @@ pdq_os_receive_pdu(
     }
 
     m->m_pkthdr.rcvif = ifp;
+    PDQ_UNLOCK(sc);
     (*ifp->if_input)(ifp, m);
+    PDQ_LOCK(sc);
 }
 
 void
@@ -228,11 +269,11 @@ pdq_os_restart_transmitter(
     pdq_softc_t *sc = pdq->pdq_os_ctx;
     PDQ_IFNET(sc)->if_drv_flags &= ~IFF_DRV_OACTIVE;
     if (IFQ_IS_EMPTY(&PDQ_IFNET(sc)->if_snd) == 0) {
-	PDQ_IFNET(sc)->if_timer = PDQ_OS_TX_TIMEOUT;
+	sc->timer = PDQ_OS_TX_TIMEOUT;
 	if ((sc->sc_flags & PDQIF_DOWNCALL) == 0)
-	    pdq_ifstart(PDQ_IFNET(sc));
+	    pdq_ifstart_locked(PDQ_IFNET(sc));
     } else {
-	PDQ_IFNET(sc)->if_timer = 0;
+	sc->timer = 0;
     }
 }
 
@@ -305,6 +346,7 @@ pdq_ifmedia_change(
 {
     pdq_softc_t * const sc = PDQ_OS_IFP_TO_SOFTC(ifp);
 
+    PDQ_LOCK(sc);
     if (sc->sc_ifmedia.ifm_media & IFM_FDX) {
 	if ((sc->sc_pdq->pdq_flags & PDQ_WANT_FDX) == 0) {
 	    sc->sc_pdq->pdq_flags |= PDQ_WANT_FDX;
@@ -316,6 +358,7 @@ pdq_ifmedia_change(
 	if (sc->sc_pdq->pdq_flags & PDQ_RUNNING)
 	    pdq_run(sc->sc_pdq);
     }
+    PDQ_UNLOCK(sc);
 
     return 0;
 }
@@ -327,6 +370,7 @@ pdq_ifmedia_status(
 {
     pdq_softc_t * const sc = PDQ_OS_IFP_TO_SOFTC(ifp);
 
+    PDQ_LOCK(sc);
     ifmr->ifm_status = IFM_AVALID;
     if (sc->sc_pdq->pdq_flags & PDQ_IS_ONRING)
 	ifmr->ifm_status |= IFM_ACTIVE;
@@ -334,6 +378,7 @@ pdq_ifmedia_status(
     ifmr->ifm_active = (ifmr->ifm_current & ~IFM_FDX);
     if (sc->sc_pdq->pdq_flags & PDQ_IS_FDX)
 	ifmr->ifm_active |= IFM_FDX;
+    PDQ_UNLOCK(sc);
 }
 
 void
@@ -369,8 +414,6 @@ pdq_ifioctl(
     pdq_softc_t *sc = PDQ_OS_IFP_TO_SOFTC(ifp);
     int error = 0;
 
-    PDQ_LOCK(sc);
-
     switch (cmd) {
 	case SIOCSIFFLAGS: {
 	    pdq_ifinit(sc);
@@ -379,10 +422,12 @@ pdq_ifioctl(
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI: {
+	    PDQ_LOCK(sc);
 	    if (PDQ_IFNET(sc)->if_drv_flags & IFF_DRV_RUNNING) {
 		    pdq_run(sc->sc_pdq);
 		error = 0;
 	    }
+	    PDQ_UNLOCK(sc);
 	    break;
 	}
 
@@ -401,7 +446,6 @@ pdq_ifioctl(
 	}
     }
 
-    PDQ_UNLOCK(sc);
     return error;
 }
 
@@ -409,24 +453,26 @@ pdq_ifioctl(
 #define	IFF_NOTRAILERS	0
 #endif
 
-void
-pdq_ifattach(pdq_softc_t *sc, const pdq_uint8_t *llc)
+int
+pdq_ifattach(pdq_softc_t *sc, const pdq_uint8_t *llc, pdq_type_t type)
 {
     struct ifnet *ifp;
 
     ifp = PDQ_IFNET(sc) = if_alloc(IFT_FDDI);
-    if (ifp == NULL)
-	panic("%s: can not if_alloc()", device_get_nameunit(sc->dev));
+    if (ifp == NULL) {
+	device_printf(sc->dev, "can not if_alloc()\n");
+	return (ENOSPC);
+    }
 
     mtx_init(&sc->mtx, device_get_nameunit(sc->dev), MTX_NETWORK_LOCK,
-	MTX_DEF | MTX_RECURSE);
+	MTX_DEF);
+    callout_init_mtx(&sc->watchdog, &sc->mtx, 0);
 
+    if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
     ifp->if_softc = sc;
-    ifp->if_init = (if_init_f_t *)pdq_ifinit;
+    ifp->if_init = pdq_ifinit;
     ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
     ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_NOTRAILERS|IFF_MULTICAST;
-
-    ifp->if_watchdog = pdq_ifwatchdog;
 
     ifp->if_ioctl = pdq_ifioctl;
     ifp->if_start = pdq_ifstart;
@@ -441,7 +487,15 @@ pdq_ifattach(pdq_softc_t *sc, const pdq_uint8_t *llc)
     }
 #endif
   
+    sc->sc_pdq = pdq_initialize(sc->mem_bst, sc->mem_bsh, ifp->if_xname, -1,
+	sc, type);
+    if (sc->sc_pdq == NULL) {
+	device_printf(sc->dev, "Initialization failed.\n");
+	return (ENXIO);
+    }
+
     fddi_ifattach(ifp, llc, FDDI_BPF_SUPPORTED);
+    return (0);
 }
 
 void
@@ -452,8 +506,10 @@ pdq_ifdetach (pdq_softc_t *sc)
     ifp = sc->ifp;
 
     fddi_ifdetach(ifp, FDDI_BPF_SUPPORTED);
-    if_free(ifp);
-    pdq_stop(sc->sc_pdq);
+    PDQ_LOCK(sc);
+    pdq_ifstop(sc);
+    PDQ_UNLOCK(sc);
+    callout_drain(&sc->watchdog);
     pdq_free(sc->dev);
 
     return;
@@ -474,6 +530,8 @@ pdq_free (device_t dev)
 		bus_teardown_intr(dev, sc->irq, sc->irq_ih);
 	if (sc->irq)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq);
+	if (sc->ifp)
+		if_free(sc->ifp);
 
 	/*
 	 * Destroy the mutex.

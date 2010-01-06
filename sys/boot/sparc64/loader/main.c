@@ -261,7 +261,6 @@ static int
 sparc64_autoload(void)
 {
 
-	setenv("hw.ata.atapi_dma", "0", 0);
 	return (0);
 }
 
@@ -386,6 +385,8 @@ __elfN(exec)(struct preloaded_file *fp)
 #ifdef LOADER_DEBUG
 	pmap_print_tlb_sun4u();
 #endif
+
+	dev_cleanup();
 
 	entry = e->e_entry;
 

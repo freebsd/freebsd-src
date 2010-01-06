@@ -1061,6 +1061,27 @@ typedef enum {
 #define AHD_MODE_UNKNOWN_MSK	AHD_MK_MSK(AHD_MODE_UNKNOWN)
 #define AHD_MODE_ANY_MSK (~0)
 
+typedef enum {
+	AHD_SYSCTL_ROOT,
+	AHD_SYSCTL_SUMMARY,
+	AHD_SYSCTL_DEBUG,
+	AHD_SYSCTL_NUMBER
+} ahd_sysctl_types_t;
+
+typedef enum {
+	AHD_ERRORS_CORRECTABLE,
+	AHD_ERRORS_UNCORRECTABLE,
+	AHD_ERRORS_FATAL,
+	AHD_ERRORS_NUMBER
+} ahd_sysctl_errors_t;
+
+#define	AHD_CORRECTABLE_ERROR(sc)					\
+	(((sc)->summerr[AHD_ERRORS_CORRECTABLE])++)
+#define	AHD_UNCORRECTABLE_ERROR(sc)					\
+	(((sc)->summerr[AHD_ERRORS_UNCORRECTABLE])++)
+#define	AHD_FATAL_ERROR(sc)						\
+	(((sc)->summerr[AHD_ERRORS_FATAL])++)
+
 typedef uint8_t ahd_mode_state;
 
 typedef void ahd_callback_t (void *);
@@ -1157,6 +1178,13 @@ struct ahd_softc {
 	u_int			  cmdcmplt_bucket;
 	uint32_t		  cmdcmplt_counts[AHD_STAT_BUCKETS];
 	uint32_t		  cmdcmplt_total;
+
+	/*
+	 * Errors statistics and printouts.
+	 */
+	struct sysctl_ctx_list	  sysctl_ctx[AHD_SYSCTL_NUMBER];
+	struct sysctl_oid	 *sysctl_tree[AHD_SYSCTL_NUMBER];
+	u_int			  summerr[AHD_ERRORS_NUMBER];
 
 	/*
 	 * Card characteristics

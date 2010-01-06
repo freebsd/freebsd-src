@@ -337,7 +337,7 @@ AcpiNsHandleToPathname (
     ACPI_FUNCTION_TRACE_PTR (NsHandleToPathname, TargetHandle);
 
 
-    Node = AcpiNsMapHandleToNode (TargetHandle);
+    Node = AcpiNsValidateHandle (TargetHandle);
     if (!Node)
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);

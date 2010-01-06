@@ -39,6 +39,8 @@
 #ifndef _UHCIREG_H_
 #define	_UHCIREG_H_
 
+#define	PCI_UHCI_BASE_REG	0x20
+
 /* PCI config registers  */
 #define	PCI_USBREV		0x60	/* USB protocol revision */
 #define	PCI_USB_REV_MASK		0xff

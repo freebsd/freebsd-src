@@ -325,7 +325,7 @@ gnttab_claim_grant_reference(grant_ref_t *private_head)
 	grant_ref_t g = *private_head;
 
 	if (unlikely(g == GNTTAB_LIST_END))
-		return (ENOSPC);
+		return (g);
 	*private_head = gnttab_entry(g);
 	return (g);
 }

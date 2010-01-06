@@ -25,6 +25,10 @@
  * $FreeBSD$
  */
 
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
+
 #ifndef ARCHIVE_READ_PRIVATE_H_INCLUDED
 #define	ARCHIVE_READ_PRIVATE_H_INCLUDED
 
@@ -160,7 +164,7 @@ struct archive_read {
 		int	(*read_data)(struct archive_read *, const void **, size_t *, off_t *);
 		int	(*read_data_skip)(struct archive_read *);
 		int	(*cleanup)(struct archive_read *);
-	}	formats[8];
+	}	formats[9];
 	struct archive_format_descriptor	*format; /* Active format. */
 
 	/*

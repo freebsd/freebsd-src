@@ -535,7 +535,7 @@ rue_reset(struct rue_softc *sc)
 			break;
 	}
 	if (i == RUE_TIMEOUT)
-		device_printf(sc->sc_ue.ue_dev, "reset never completed!\n");
+		device_printf(sc->sc_ue.ue_dev, "reset never completed\n");
 
 	uether_pause(&sc->sc_ue, hz / 100);
 }
@@ -591,7 +591,7 @@ rue_attach(device_t dev)
 	    sc->sc_xfer, rue_config, RUE_N_TRANSFER,
 	    sc, &sc->sc_mtx);
 	if (error) {
-		device_printf(dev, "allocating USB transfers failed!\n");
+		device_printf(dev, "allocating USB transfers failed\n");
 		goto detach;
 	}
 

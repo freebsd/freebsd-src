@@ -65,7 +65,7 @@
 #
 # just following tradition...
 # %a %b %e %H:%M:%S %Y
-%a %b/%e %T %Y
+%a %_m/%e %T %Y
 #
 # am
 #

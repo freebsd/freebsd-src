@@ -329,15 +329,11 @@ void newnfs_timer(void *);
 /* nfs_commonacl.c */
 int nfsrv_dissectace(struct nfsrv_descript *, struct acl_entry *,
     int *, int *, NFSPROC_T *);
-#ifdef NFS4_ACL_EXTATTR_NAME
 int nfsrv_buildacl(struct nfsrv_descript *, NFSACL_T *, enum vtype,
-    NFSPROC_T *);
-int nfsrv_aclaccess(vnode_t, accmode_t, u_int32_t, struct ucred *,
     NFSPROC_T *);
 int nfsrv_setacl(vnode_t, NFSACL_T *, struct ucred *,
     NFSPROC_T *);
 int nfsrv_compareacl(NFSACL_T *, NFSACL_T *);
-#endif
 
 /* nfs_clrpcops.c */
 int nfsrpc_null(vnode_t, struct ucred *, NFSPROC_T *);
@@ -516,8 +512,8 @@ int nfsvno_getattr(vnode_t, struct nfsvattr *, struct ucred *,
 int nfsvno_setattr(vnode_t, struct nfsvattr *, struct ucred *,
     NFSPROC_T *, struct nfsexstuff *);
 int nfsvno_getfh(vnode_t, fhandle_t *, NFSPROC_T *);
-int nfsvno_accchk(vnode_t, u_int32_t, struct ucred *,
-    struct nfsexstuff *, NFSPROC_T *, int, int);
+int nfsvno_accchk(vnode_t, accmode_t, struct ucred *,
+    struct nfsexstuff *, NFSPROC_T *, int, int, u_int32_t *);
 int nfsvno_namei(struct nfsrv_descript *, struct nameidata *,
     vnode_t, int, struct nfsexstuff *, NFSPROC_T *, vnode_t *);
 void nfsvno_setpathbuf(struct nameidata *, char **, u_long **);
@@ -529,7 +525,7 @@ int nfsvno_read(vnode_t, off_t, int, struct ucred *, NFSPROC_T *,
 int nfsvno_write(vnode_t, off_t, int, int, int, mbuf_t,
     char *, struct ucred *, NFSPROC_T *);
 int nfsvno_createsub(struct nfsrv_descript *, struct nameidata *,
-    vnode_t *, struct nfsvattr *, int *, u_char *, NFSDEV_T, NFSPROC_T *,
+    vnode_t *, struct nfsvattr *, int *, int32_t *, NFSDEV_T, NFSPROC_T *,
     struct nfsexstuff *);
 int nfsvno_mknod(struct nameidata *, struct nfsvattr *, struct ucred *,
     NFSPROC_T *);
@@ -552,7 +548,7 @@ int nfsvno_fsync(vnode_t, u_int64_t, int, struct ucred *, NFSPROC_T *);
 int nfsvno_statfs(vnode_t, struct statfs *);
 void nfsvno_getfs(struct nfsfsinfo *, int);
 void nfsvno_open(struct nfsrv_descript *, struct nameidata *, nfsquad_t,
-    nfsv4stateid_t *, struct nfsstate *, int *, struct nfsvattr *, u_char *,
+    nfsv4stateid_t *, struct nfsstate *, int *, struct nfsvattr *, int32_t *,
     int, NFSACL_T *, nfsattrbit_t *, struct ucred *, NFSPROC_T *,
     struct nfsexstuff *, vnode_t *);
 void nfsvno_updfilerev(vnode_t, struct nfsvattr *, struct ucred *,

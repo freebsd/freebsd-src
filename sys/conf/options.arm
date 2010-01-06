@@ -36,3 +36,4 @@ VERBOSE_INIT_ARM	opt_global.h
 AT91_BWCT		opt_at91.h
 AT91_TSC		opt_at91.h
 AT91_KWIKBYTE		opt_at91.h
+CPU_FA526		opt_global.h

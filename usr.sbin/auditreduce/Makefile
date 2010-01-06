@@ -13,4 +13,6 @@ MAN=	auditreduce.1
 DPADD=	${LIBBSM}
 LDADD=	-lbsm
 
+WARNS?=	3
+
 .include <bsd.prog.mk>

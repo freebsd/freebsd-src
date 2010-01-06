@@ -33,13 +33,13 @@ static char sccsid[] = "@(#)pwcache.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/types.h>
 
 #include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
-#include <utmp.h>
 
 #define	NCACHE	64			/* power of 2 */
 #define	MASK	(NCACHE - 1)		/* bits to store with */
@@ -50,7 +50,7 @@ user_from_uid(uid_t uid, int nouser)
 	static struct ncache {
 		uid_t	uid;
 		int	found;
-		char	name[UT_NAMESIZE + 1];
+		char	name[MAXLOGNAME];
 	} c_uid[NCACHE];
 	static int pwopen;
 	struct passwd *pw;
@@ -66,11 +66,11 @@ user_from_uid(uid_t uid, int nouser)
 		cp->uid = uid;
 		if (pw != NULL) {
 			cp->found = 1;
-			(void)strncpy(cp->name, pw->pw_name, UT_NAMESIZE);
-			cp->name[UT_NAMESIZE] = '\0';
+			(void)strncpy(cp->name, pw->pw_name, MAXLOGNAME - 1);
+			cp->name[MAXLOGNAME - 1] = '\0';
 		} else {
 			cp->found = 0;
-			(void)snprintf(cp->name, UT_NAMESIZE, "%u", uid);
+			(void)snprintf(cp->name, MAXLOGNAME - 1, "%u", uid);
 			if (nouser)
 				return (NULL);
 		}
@@ -84,7 +84,7 @@ group_from_gid(gid_t gid, int nogroup)
 	static struct ncache {
 		gid_t	gid;
 		int	found;
-		char	name[UT_NAMESIZE + 1];
+		char	name[MAXLOGNAME];
 	} c_gid[NCACHE];
 	static int gropen;
 	struct group *gr;
@@ -100,11 +100,11 @@ group_from_gid(gid_t gid, int nogroup)
 		cp->gid = gid;
 		if (gr != NULL) {
 			cp->found = 1;
-			(void)strncpy(cp->name, gr->gr_name, UT_NAMESIZE);
-			cp->name[UT_NAMESIZE] = '\0';
+			(void)strncpy(cp->name, gr->gr_name, MAXLOGNAME - 1);
+			cp->name[MAXLOGNAME - 1] = '\0';
 		} else {
 			cp->found = 0;
-			(void)snprintf(cp->name, UT_NAMESIZE, "%u", gid);
+			(void)snprintf(cp->name, MAXLOGNAME - 1, "%u", gid);
 			if (nogroup)
 				return (NULL);
 		}

@@ -138,6 +138,7 @@ struct nve_softc {
 	device_t miibus;
 	device_t dev;
 	struct callout stat_callout;
+	int tx_timer;
 
 	void *sc_ih;
 	bus_space_tag_t sc_st;

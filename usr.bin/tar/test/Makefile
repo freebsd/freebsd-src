@@ -45,7 +45,6 @@ CFLAGS+= -I${TAR_SRCDIR}
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
 #CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
-WARNS=6
 
 check test:	bsdtar_test
 	./bsdtar_test -p ${.OBJDIR}/../bsdtar -r ${.CURDIR}

@@ -58,7 +58,7 @@ int vm_fault(vm_map_t, vm_offset_t, vm_prot_t, int);
 void vm_fault_copy_entry(vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t,
     vm_ooffset_t *);
 void vm_fault_unwire(vm_map_t, vm_offset_t, vm_offset_t, boolean_t);
-int vm_fault_wire(vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t);
+int vm_fault_wire(vm_map_t, vm_offset_t, vm_offset_t, boolean_t);
 int vm_forkproc(struct thread *, struct proc *, struct thread *, struct vmspace *, int);
 void vm_waitproc(struct proc *);
 int vm_mmap(vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, objtype_t, void *, vm_ooffset_t);

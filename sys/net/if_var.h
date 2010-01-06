@@ -141,7 +141,7 @@ struct ifnet {
 	struct	carp_if *if_carp;	/* carp interface structure */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
 	u_short	if_index;		/* numeric abbreviation for this if  */
-	short	if_timer;		/* time 'til if_watchdog called */
+	short	if_index_reserved;	/* spare space to grow if_index */
 	struct  ifvlantrunk *if_vlantrunk; /* pointer to 802.1q data */
 	int	if_flags;		/* up/down, broadcast, etc. */
 	int	if_capabilities;	/* interface features & capabilities */
@@ -161,8 +161,6 @@ struct ifnet {
 		(struct ifnet *);
 	int	(*if_ioctl)		/* ioctl routine */
 		(struct ifnet *, u_long, caddr_t);
-	void	(*if_watchdog)		/* timer routine */
-		(struct ifnet *);
 	void	(*if_init)		/* Init routine */
 		(void *);
 	int	(*if_resolvemulti)	/* validate/resolve multicast */
@@ -198,7 +196,6 @@ struct ifnet {
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
 	u_char	 if_alloctype;		/* if_type at time of allocation */
-	struct sbuf *if_description;	/* interface description */
 
 	/*
 	 * Spare fields are added so that we can modify sensitive data
@@ -206,7 +203,7 @@ struct ifnet {
 	 * be used with care where binary compatibility is required.
 	 */
 	char	 if_cspare[3];
-	void	*if_pspare[7];
+	void	*if_pspare[8];
 	int	if_ispare[4];
 };
 
@@ -713,6 +710,7 @@ struct ifaddr {
 	struct mtx ifa_mtx;
 };
 #define	IFA_ROUTE	RTF_UP		/* route installed */
+#define IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 
 /* for compatibility with other BSDs */
 #define	ifa_list	ifa_link
@@ -846,7 +844,6 @@ void	if_ref(struct ifnet *);
 void	if_rele(struct ifnet *);
 int	if_setlladdr(struct ifnet *, const u_char *, int);
 void	if_up(struct ifnet *);
-/*void	ifinit(void);*/ /* declared in systm.h for main() */
 int	ifioctl(struct socket *, u_long, caddr_t, struct thread *);
 int	ifpromisc(struct ifnet *, int);
 struct	ifnet *ifunit(const char *);

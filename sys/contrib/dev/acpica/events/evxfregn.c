@@ -171,7 +171,7 @@ AcpiInstallAddressSpaceHandler (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsMapHandleToNode (Device);
+    Node = AcpiNsValidateHandle (Device);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
@@ -244,7 +244,7 @@ AcpiRemoveAddressSpaceHandler (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsMapHandleToNode (Device);
+    Node = AcpiNsValidateHandle (Device);
     if (!Node ||
         ((Node->Type != ACPI_TYPE_DEVICE)    &&
          (Node->Type != ACPI_TYPE_PROCESSOR) &&

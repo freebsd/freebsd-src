@@ -34,20 +34,7 @@
 #include "acpi_wakedata.h"
 #include "assym.s"
 
-#define	WAKEUP_DECL(member)	\
-    .set WAKEUP_ ## member, wakeup_ ## member - wakeup_ctx
-
-	WAKEUP_DECL(xpcb)
-	WAKEUP_DECL(gdt)
-	WAKEUP_DECL(efer)
-	WAKEUP_DECL(pat)
-	WAKEUP_DECL(star)
-	WAKEUP_DECL(lstar)
-	WAKEUP_DECL(cstar)
-	WAKEUP_DECL(sfmask)
-	WAKEUP_DECL(cpu)
-
-#define	WAKEUP_CTX(member)	WAKEUP_ ## member (%rdi)
+#define	WAKEUP_CTX(member)	wakeup_ ## member - wakeup_ctx(%rdi)
 #define	WAKEUP_PCB(member)	PCB_ ## member(%r11)
 #define	WAKEUP_XPCB(member)	XPCB_ ## member(%r11)
 

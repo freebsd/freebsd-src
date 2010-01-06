@@ -33,7 +33,6 @@
 /*
  * Routines to build and maintain radix trees for routing lookups.
  */
-#ifndef _RADIX_H_
 #include <sys/param.h>
 #ifdef	_KERNEL
 #include <sys/lock.h>
@@ -41,20 +40,21 @@
 #include <sys/rwlock.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/domain.h>
-#else
-#include <stdlib.h>
-#endif
 #include <sys/syslog.h>
 #include <net/radix.h>
-#endif
-
 #include "opt_mpath.h"
-
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
-
+#else /* !_KERNEL */
+#include <stdio.h>
+#include <strings.h>
+#include <stdlib.h>
+#define log(x, arg...)  fprintf(stderr, ## arg)
+#define panic(x)        fprintf(stderr, "PANIC: %s", x), exit(1)
+#define min(a, b) ((a) < (b) ? (a) : (b) )
+#include <net/radix.h>
+#endif /* !_KERNEL */
 
 static int	rn_walktree_from(struct radix_node_head *h, void *a, void *m,
 		    walktree_f_t *f, void *w);
@@ -72,6 +72,8 @@ static struct radix_node_head *mask_rnhead;
 /*
  * Work area -- the following point to 3 buffers of size max_keylen,
  * allocated in this order in a block of memory malloc'ed by rn_init.
+ * rn_zeros, rn_ones are set in rn_init and used in readonly afterwards.
+ * addmask_key is used in rn_addmask in rw mode and not thread-safe.
  */
 static char *rn_zeros, *rn_ones, *addmask_key;
 
@@ -135,8 +137,9 @@ static int	rn_satisfies_leaf(char *trial, struct radix_node *leaf,
  * To make the assumption more explicit, we use the LEN() macro to access
  * this field. It is safe to pass an expression with side effects
  * to LEN() as the argument is evaluated only once.
+ * We cast the result to int as this is the dominant usage.
  */
-#define LEN(x) (*(const u_char *)(x))
+#define LEN(x) ( (int) (*(const u_char *)(x)) )
 
 /*
  * XXX THIS NEEDS TO BE FIXED
@@ -197,7 +200,7 @@ rn_refines(m_arg, n_arg)
 {
 	register caddr_t m = m_arg, n = n_arg;
 	register caddr_t lim, lim2 = lim = n + LEN(n);
-	int longer = LEN(n++) - (int)LEN(m++);
+	int longer = LEN(n++) - LEN(m++);
 	int masks_are_equal = 1;
 
 	if (longer > 0)
@@ -250,10 +253,10 @@ rn_satisfies_leaf(trial, leaf, skip)
 	char *cplim;
 	int length = min(LEN(cp), LEN(cp2));
 
-	if (cp3 == 0)
+	if (cp3 == NULL)
 		cp3 = rn_ones;
 	else
-		length = min(length, *(u_char *)cp3);
+		length = min(length, LEN(cp3));
 	cplim = cp + length; cp3 += skip; cp2 += skip;
 	for (cp += skip; cp < cplim; cp++, cp2++, cp3++)
 		if ((*cp ^ *cp2) & *cp3)
@@ -424,7 +427,7 @@ rn_insert(v_arg, head, dupentry, nodes)
 {
 	caddr_t v = v_arg;
 	struct radix_node *top = head->rnh_treetop;
-	int head_off = top->rn_offset, vlen = (int)LEN(v);
+	int head_off = top->rn_offset, vlen = LEN(v);
 	register struct radix_node *t = rn_search(v_arg, top);
 	register caddr_t cp = v + head_off;
 	register int b;
@@ -1159,16 +1162,11 @@ rn_inithead(head, off)
 }
 
 void
-rn_init()
+rn_init(int maxk)
 {
 	char *cp, *cplim;
-#ifdef _KERNEL
-	struct domain *dom;
 
-	for (dom = domains; dom; dom = dom->dom_next)
-		if (dom->dom_maxrtkey > max_keylen)
-			max_keylen = dom->dom_maxrtkey;
-#endif
+	max_keylen = maxk;
 	if (max_keylen == 0) {
 		log(LOG_ERR,
 		    "rn_init: radix functions require max_keylen be set\n");

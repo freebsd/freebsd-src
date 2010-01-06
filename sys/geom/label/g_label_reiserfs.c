@@ -111,7 +111,10 @@ exit_free:
 	g_free(fs);
 }
 
-const struct g_label_desc g_label_reiserfs = {
+struct g_label_desc g_label_reiserfs = {
 	.ld_taste = g_label_reiserfs_taste,
-	.ld_dir = "reiserfs"
+	.ld_dir = "reiserfs",
+	.ld_enabled = 1
 };
+
+G_LABEL_INIT(reiserfs, g_label_reiserfs, "Create device nodes for REISERFS volumes");
