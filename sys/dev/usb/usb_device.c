@@ -1691,8 +1691,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	    udev->ddesc.iSerialNumber) {
 		/* read out the language ID string */
 		err = usbd_req_get_string_desc(udev, NULL,
-		    (char *)scratch_ptr, 4, scratch_size,
-		    USB_LANGUAGE_TABLE);
+		    (char *)scratch_ptr, 4, 0, USB_LANGUAGE_TABLE);
 	} else {
 		err = USB_ERR_INVAL;
 	}
