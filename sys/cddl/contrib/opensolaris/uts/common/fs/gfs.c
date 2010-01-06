@@ -564,8 +564,13 @@ gfs_file_inactive(vnode_t *vp)
 	if (fp->gfs_parent == NULL || (vp->v_flag & V_XATTRDIR))
 		goto found;
 
-	dp = fp->gfs_parent->v_data;
-
+	/*
+	 * XXX cope with a FreeBSD-specific race wherein the parent's
+	 * snapshot data can be freed before the parent is
+	 */
+	if ((dp = fp->gfs_parent->v_data) == NULL)
+		return (NULL);
+		
 	/*
 	 * First, see if this vnode is cached in the parent.
 	 */

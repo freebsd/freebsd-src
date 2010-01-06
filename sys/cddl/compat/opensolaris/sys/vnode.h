@@ -75,7 +75,6 @@ vn_is_readonly(vnode_t *vp)
 #define	VN_HOLD(v)	vref(v)
 #define	VN_RELE(v)	vrele(v)
 #define	VN_URELE(v)	vput(v)
-#define	VN_RELE_ASYNC(v, tq)	vn_rele_async(v, tq); 
 
 #define	VOP_REALVP(vp, vpp, ct)	(*(vpp) = (vp), 0)
 

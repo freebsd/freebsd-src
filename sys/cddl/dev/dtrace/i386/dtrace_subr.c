@@ -408,7 +408,6 @@ dtrace_gethrtime_init(void *arg)
 	uint64_t tsc_f;
 	cpumask_t map;
 	int i;
-	struct pcpu *cp;
 
 	/*
 	 * Get TSC frequency known at this moment.
@@ -444,7 +443,7 @@ dtrace_gethrtime_init(void *arg)
 		if (i == curcpu)
 			continue;
 
-		if ((cp = pcpu_find(i)) == NULL)
+		if (pcpu_find(i) == NULL)
 			continue;
 
 		map = 0;

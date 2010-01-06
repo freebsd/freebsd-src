@@ -37,6 +37,7 @@
 #include <sys/_task.h>
 
 struct taskqueue;
+struct thread;
 
 /*
  * A notification callback function which is called from
@@ -60,6 +61,7 @@ void	taskqueue_free(struct taskqueue *queue);
 void	taskqueue_run(struct taskqueue *queue);
 void	taskqueue_block(struct taskqueue *queue);
 void	taskqueue_unblock(struct taskqueue *queue);
+int	taskqueue_member(struct taskqueue *queue, struct thread *td);
 
 /*
  * Functions for dedicated thread taskqueues

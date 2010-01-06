@@ -576,6 +576,7 @@ zfs_domount(vfs_t *vfsp, char *osname)
 	vfsp->mnt_flag |= MNT_LOCAL;
 	vfsp->mnt_kern_flag |= MNTK_MPSAFE;
 	vfsp->mnt_kern_flag |= MNTK_LOOKUP_SHARED;
+	vfsp->mnt_kern_flag |= MNTK_SHARED_WRITES;
 
 	if (error = dsl_prop_get_integer(osname, "readonly", &readonly, NULL))
 		goto out;
@@ -924,7 +925,7 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	for (zp = list_head(&zfsvfs->z_all_znodes); zp != NULL;
 	    zp = list_next(&zfsvfs->z_all_znodes, zp))
 		if (zp->z_dbuf) {
-			ASSERT(ZTOV(zp)->v_count > 0);
+			ASSERT(ZTOV(zp)->v_count >= 0);
 			zfs_znode_dmu_fini(zp);
 		}
 	mutex_exit(&zfsvfs->z_znodes_lock);
