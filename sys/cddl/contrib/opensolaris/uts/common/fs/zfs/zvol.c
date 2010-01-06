@@ -153,7 +153,22 @@ static int zvol_dump_init(zvol_state_t *zv, boolean_t resize);
 static void
 zvol_size_changed(zvol_state_t *zv, major_t maj)
 {
+	struct g_provider *pp;
 
+	g_topology_assert();
+
+	pp = zv->zv_provider;
+	if (pp == NULL)
+		return;
+	if (zv->zv_volsize == pp->mediasize)
+		return;
+	/*
+	 * Changing provider size is not really supported by GEOM, but it
+	 * should be safe when provider is closed.
+	 */
+	if (zv->zv_total_opens > 0)
+		return;
+	pp->mediasize = zv->zv_volsize;
 }
 
 int
@@ -263,6 +278,7 @@ zvol_access(struct g_provider *pp, int acr, int acw, int ace)
 	}
 
 	zv->zv_total_opens += acr + acw + ace;
+	zvol_size_changed(zv, 0);
 
 	mutex_exit(&zvol_state_lock);
 
@@ -1070,11 +1086,6 @@ zvol_set_volblocksize(const char *name, uint64_t volblocksize)
 		if (error == ENOTSUP)
 			error = EBUSY;
 		dmu_tx_commit(tx);
-		/* XXX: Not supported. */
-#if 0
-		if (error == 0)
-			zv->zv_provider->sectorsize = zc->zc_volblocksize;
-#endif
 	}
 end:
 	mutex_exit(&zvol_state_lock);

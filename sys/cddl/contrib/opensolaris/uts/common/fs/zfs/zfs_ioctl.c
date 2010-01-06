@@ -3022,8 +3022,10 @@ zfsdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	if (error == 0)
 		error = zfs_ioc_vec[vec].zvec_func(zc);
 
-	if (zfs_ioc_vec[vec].zvec_his_log == B_TRUE)
-		zfs_log_history(zc);
+	if (error == 0) {
+		if (zfs_ioc_vec[vec].zvec_his_log == B_TRUE)
+			zfs_log_history(zc);
+	}
 
 	return (error);
 }

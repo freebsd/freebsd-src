@@ -1186,8 +1186,6 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 		}
 	}
 
-	ZFS_EXIT(zfsvfs);
-
 	/* Translate errors and add SAVENAME when needed. */
 	if (cnp->cn_flags & ISLASTCN) {
 		switch (nameiop) {
@@ -1218,6 +1216,7 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 		if (error != 0) {
 			VN_RELE(*vpp);
 			*vpp = NULL;
+			ZFS_EXIT(zfsvfs);
 			return (error);
 		}
 	}
@@ -1238,6 +1237,8 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 		}
 	}
 #endif
+
+	ZFS_EXIT(zfsvfs);
 
 	return (error);
 }
