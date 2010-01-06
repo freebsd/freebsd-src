@@ -238,7 +238,7 @@ static const struct bge_vendor {
 
 	{ 0, NULL }
 };
-	
+
 static const struct bge_revision {
 	uint32_t	br_chipid;
 	const char	*br_name;
@@ -295,7 +295,7 @@ static const struct bge_revision {
 	{ BGE_CHIPID_BCM5784_A0,	"BCM5784 A0" },
 	{ BGE_CHIPID_BCM5784_A1,	"BCM5784 A1" },
 	/* 5754 and 5787 share the same ASIC ID */
-	{ BGE_CHIPID_BCM5787_A0,	"BCM5754/5787 A0" }, 
+	{ BGE_CHIPID_BCM5787_A0,	"BCM5754/5787 A0" },
 	{ BGE_CHIPID_BCM5787_A1,	"BCM5754/5787 A1" },
 	{ BGE_CHIPID_BCM5787_A2,	"BCM5754/5787 A2" },
 	{ BGE_CHIPID_BCM5906_A1,	"BCM5906 A1" },
@@ -1046,6 +1046,7 @@ bge_init_rx_ring_std(struct bge_softc *sc)
 {
 	int error, i;
 
+	bzero(sc->bge_ldata.bge_rx_std_ring, BGE_STD_RX_RING_SZ);
 	sc->bge_std = 0;
 	for (i = 0; i < BGE_SSLOTS; i++) {
 		if ((error = bge_newbuf_std(sc, i)) != 0)
@@ -1089,6 +1090,7 @@ bge_init_rx_ring_jumbo(struct bge_softc *sc)
 	struct bge_rcb *rcb;
 	int error, i;
 
+	bzero(sc->bge_ldata.bge_rx_jumbo_ring, BGE_JUMBO_RX_RING_SZ);
 	sc->bge_jumbo = 0;
 	for (i = 0; i < BGE_JUMBO_RX_RING_CNT; i++) {
 		if ((error = bge_newbuf_jumbo(sc, i)) != 0)
@@ -1160,6 +1162,10 @@ bge_init_tx_ring(struct bge_softc *sc)
 {
 	sc->bge_txcnt = 0;
 	sc->bge_tx_saved_considx = 0;
+
+	bzero(sc->bge_ldata.bge_tx_ring, BGE_TX_RING_SZ);
+	bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
+	    sc->bge_cdata.bge_tx_ring_map, BUS_DMASYNC_PREWRITE);
 
 	/* Initialize transmit producer index for host-memory send ring. */
 	sc->bge_tx_prodidx = 0;
@@ -1278,11 +1284,11 @@ bge_sig_post_reset(sc, type)
 	if (sc->bge_asf_mode & ASF_NEW_HANDSHAKE) {
 		switch (type) {
 		case BGE_RESET_START:
-			bge_writemem_ind(sc, BGE_SDI_STATUS, 0x80000001); 
+			bge_writemem_ind(sc, BGE_SDI_STATUS, 0x80000001);
 			/* START DONE */
 			break;
 		case BGE_RESET_STOP:
-			bge_writemem_ind(sc, BGE_SDI_STATUS, 0x80000002); 
+			bge_writemem_ind(sc, BGE_SDI_STATUS, 0x80000002);
 			break;
 		}
 	}
@@ -1674,7 +1680,7 @@ bge_blockinit(struct bge_softc *sc)
 	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_lo, taddr.bge_addr_lo);
 	RCB_WRITE_4(sc, vrcb, bge_nicaddr, 0x00000000);
 	RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
-	    BGE_RCB_MAXLEN_FLAGS(sc->bge_return_ring_cnt, 0));	
+	    BGE_RCB_MAXLEN_FLAGS(sc->bge_return_ring_cnt, 0));
 
 	/* Set random backoff seed for TX */
 	CSR_WRITE_4(sc, BGE_TX_RANDOM_BACKOFF,
@@ -1904,7 +1910,7 @@ bge_lookup_vendor(uint16_t vid)
 	for (v = bge_vendors; v->v_name != NULL; v++)
 		if (v->v_id == vid)
 			return (v);
-		
+
 	panic("%s: unknown vendor %d", __func__, vid);
 	return (NULL);
 }
@@ -2255,7 +2261,7 @@ bge_dma_alloc(device_t dev)
 		    0, &sc->bge_cdata.bge_rx_jumbo_sparemap);
 		if (error) {
 			device_printf(sc->bge_dev,
-			    "can't create sapre DMA map for jumbo RX\n");
+			    "can't create spare DMA map for jumbo RX\n");
 			return (ENOMEM);
 		}
 		for (i = 0; i < BGE_JUMBO_RX_RING_CNT; i++) {
@@ -2743,7 +2749,7 @@ bge_attach(device_t dev)
 	 */
 	if (sc->bge_chipid == BGE_CHIPID_BCM5700_B0) {
 		ifp->if_capabilities &= ~IFCAP_HWCSUM;
-		ifp->if_capenable &= IFCAP_HWCSUM;
+		ifp->if_capenable &= ~IFCAP_HWCSUM;
 		ifp->if_hwassist = 0;
 	}
 
@@ -2989,7 +2995,7 @@ bge_reset(struct bge_softc *sc)
 		}
 	}
 
-	/* 
+	/*
 	 * Set GPHY Power Down Override to leave GPHY
 	 * powered up in D0 uninitialized.
 	 */
@@ -3316,8 +3322,7 @@ bge_txeof(struct bge_softc *sc)
 	ifp = sc->bge_ifp;
 
 	bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
-	    sc->bge_cdata.bge_tx_ring_map,
-	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	    sc->bge_cdata.bge_tx_ring_map, BUS_DMASYNC_POSTWRITE);
 	/*
 	 * Go through our tx ring and free mbufs for those
 	 * frames that have been sent.
@@ -3625,7 +3630,7 @@ bge_cksum_pad(struct mbuf *m)
 			last = n;
 		}
 	}
-	
+
 	/* Now zero the pad area, to avoid the bge cksum-assist bug. */
 	memset(mtod(last, caddr_t) + last->m_len, 0, padlen);
 	last->m_len += padlen;
@@ -3826,6 +3831,8 @@ bge_start_locked(struct ifnet *ifp)
 		/* No packets were dequeued. */
 		return;
 
+	bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
+	    sc->bge_cdata.bge_tx_ring_map, BUS_DMASYNC_PREWRITE);
 	/* Transmit. */
 	bge_writembx(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
 	/* 5700 b2 errata */
@@ -3977,7 +3984,7 @@ bge_init_locked(struct bge_softc *sc)
 	BGE_CLRBIT(sc, BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_MASK_PCI_INTR);
 	bge_writembx(sc, BGE_MBX_IRQ0_LO, 0);
 	}
-	
+
 	bge_ifmedia_upd_locked(ifp);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -4360,7 +4367,7 @@ bge_stop(struct bge_softc *sc)
 	bge_sig_legacy(sc, BGE_RESET_STOP);
 	bge_sig_post_reset(sc, BGE_RESET_STOP);
 
-	/* 
+	/*
 	 * Keep the ASF firmware running if up.
 	 */
 	if (sc->bge_asf_mode & ASF_STACKUP)
@@ -4700,7 +4707,7 @@ bge_add_sysctls(struct bge_softc *sc)
 	BGE_SYSCTL_STAT(sc, ctx, "Multiple Collision Frames",
 	    children, txstats.dot3StatsMultipleCollisionFrames,
 	    "MultipleCollisionFrames");
-	BGE_SYSCTL_STAT(sc, ctx, "Deferred Transmissions", 
+	BGE_SYSCTL_STAT(sc, ctx, "Deferred Transmissions",
 	    children, txstats.dot3StatsDeferredTransmissions,
 	    "DeferredTransmissions");
 	BGE_SYSCTL_STAT(sc, ctx, "Excessive Collisions",
@@ -4709,7 +4716,7 @@ bge_add_sysctls(struct bge_softc *sc)
 	BGE_SYSCTL_STAT(sc, ctx, "Late Collisions",
 	    children, txstats.dot3StatsLateCollisions,
 	    "LateCollisions");
-	BGE_SYSCTL_STAT(sc, ctx, "Outbound Unicast Packets", 
+	BGE_SYSCTL_STAT(sc, ctx, "Outbound Unicast Packets",
 	    children, txstats.ifHCOutUcastPkts, "UcastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Multicast Packets",
 	    children, txstats.ifHCOutMulticastPkts, "MulticastPkts");
