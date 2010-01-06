@@ -2727,13 +2727,11 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
  * segment. Outgoing SYN/ACK MSS settings are handled in tcp_mssopt().
  */
 void
-tcp_mss(struct tcpcb *tp, int offer)
+tcp_mss_update(struct tcpcb *tp, int offer, struct hc_metrics_lite *metricptr)
 {
-	int rtt, mss;
-	u_long bufsize;
+	int mss;
 	u_long maxmtu;
 	struct inpcb *inp = tp->t_inpcb;
-	struct socket *so;
 	struct hc_metrics_lite metrics;
 	int origoffer = offer;
 	int mtuflags = 0;
@@ -2766,6 +2764,10 @@ tcp_mss(struct tcpcb *tp, int offer)
 	if (maxmtu == 0)
 		return;
 
+	/* Check the interface for TSO capabilities. */
+	if (mtuflags & CSUM_TSO)
+		tp->t_flags |= TF_TSO;
+
 	/* What have we got? */
 	switch (offer) {
 		case 0:
@@ -2789,19 +2791,14 @@ tcp_mss(struct tcpcb *tp, int offer)
 			 * to at least minmss.
 			 */
 			offer = max(offer, tcp_minmss);
-			/*
-			 * Sanity check: make sure that maxopd will be large
-			 * enough to allow some data on segments even if the
-			 * all the option space is used (40bytes).  Otherwise
-			 * funny things may happen in tcp_output.
-			 */
-			offer = max(offer, 64);
 	}
 
 	/*
 	 * rmx information is now retrieved from tcp_hostcache.
 	 */
 	tcp_hc_get(&inp->inp_inc, &metrics);
+	if (metricptr != NULL)
+		bcopy(&metrics, metricptr, sizeof(struct hc_metrics_lite));
 
 	/*
 	 * If there's a discovered mtu int tcp hostcache, use it
@@ -2824,8 +2821,34 @@ tcp_mss(struct tcpcb *tp, int offer)
 			    !in_localaddr(inp->inp_faddr))
 				mss = min(mss, tcp_mssdflt);
 		}
+		/*
+		 * XXX - The above conditional (mss = maxmtu - min_protoh)
+		 * probably violates the TCP spec.
+		 * The problem is that, since we don't know the
+		 * other end's MSS, we are supposed to use a conservative
+		 * default.  But, if we do that, then MTU discovery will
+		 * never actually take place, because the conservative
+		 * default is much less than the MTUs typically seen
+		 * on the Internet today.  For the moment, we'll sweep
+		 * this under the carpet.
+		 *
+		 * The conservative default might not actually be a problem
+		 * if the only case this occurs is when sending an initial
+		 * SYN with options and data to a host we've never talked
+		 * to before.  Then, they will reply with an MSS value which
+		 * will get recorded and the new parameters should get
+		 * recomputed.  For Further Study.
+		 */
 	}
 	mss = min(mss, offer);
+
+	/*
+	 * Sanity check: make sure that maxopd will be large
+	 * enough to allow some data on segments even if the
+	 * all the option space is used (40bytes).  Otherwise
+	 * funny things may happen in tcp_output.
+	 */
+	mss = max(mss, 64);
 
 	/*
 	 * maxopd stores the maximum length of data AND options
@@ -2853,6 +2876,28 @@ tcp_mss(struct tcpcb *tp, int offer)
 		mss = mss / MCLBYTES * MCLBYTES;
 #endif
 	tp->t_maxseg = mss;
+}
+
+void
+tcp_mss(struct tcpcb *tp, int offer)
+{
+	int rtt, mss;
+	u_long bufsize;
+	struct inpcb *inp;
+	struct socket *so;
+	struct hc_metrics_lite metrics;
+#ifdef INET6
+	int isipv6;
+#endif
+	KASSERT(tp != NULL, ("%s: tp == NULL", __func__));
+	
+	tcp_mss_update(tp, offer, &metrics);
+
+	mss = tp->t_maxseg;
+	inp = tp->t_inpcb;
+#ifdef INET6
+	isipv6 = ((inp->inp_vflag & INP_IPV6) != 0) ? 1 : 0;
+#endif
 
 	/*
 	 * If there's a pipesize, change the socket buffer to that size,
@@ -2959,10 +3004,6 @@ tcp_mss(struct tcpcb *tp, int offer)
 		tp->snd_cwnd = mss * ss_fltsz_local;
 	else
 		tp->snd_cwnd = mss * ss_fltsz;
-
-	/* Check the interface for TSO capabilities. */
-	if (mtuflags & CSUM_TSO)
-		tp->t_flags |= TF_TSO;
 }
 
 /*
