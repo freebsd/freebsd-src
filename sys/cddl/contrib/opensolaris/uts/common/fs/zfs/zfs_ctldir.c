@@ -879,20 +879,20 @@ domount:
 	mountpoint = kmem_alloc(mountpoint_len, KM_SLEEP);
 	(void) snprintf(mountpoint, mountpoint_len, "%s/.zfs/snapshot/%s",
 	    dvp->v_vfsp->mnt_stat.f_mntonname, nm);
-	err = domount(curthread, *vpp, "zfs", mountpoint, snapname, 0);
+	err = mount_snapshot(curthread, vpp, "zfs", mountpoint, snapname, 0);
 	kmem_free(mountpoint, mountpoint_len);
-	/* FreeBSD: This line was moved from below to avoid a lock recursion. */
-	if (err == 0)
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, curthread);
-	mutex_exit(&sdp->sd_lock);
-	/*
-	 * If we had an error, drop our hold on the vnode and
-	 * zfsctl_snapshot_inactive() will clean up.
-	 */
-	if (err) {
-		VN_RELE(*vpp);
-		*vpp = NULL;
+	if (err == 0) {
+		/*
+		 * Fix up the root vnode mounted on .zfs/snapshot/<snapname>.
+		 *
+		 * This is where we lie about our v_vfsp in order to
+		 * make .zfs/snapshot/<snapname> accessible over NFS
+		 * without requiring manual mounts of <snapname>.
+		 */
+		ASSERT(VTOZ(*vpp)->z_zfsvfs != zfsvfs);
+		VTOZ(*vpp)->z_zfsvfs->z_parent = zfsvfs;
 	}
+	mutex_exit(&sdp->sd_lock);
 	ZFS_EXIT(zfsvfs);
 	return (err);
 }
