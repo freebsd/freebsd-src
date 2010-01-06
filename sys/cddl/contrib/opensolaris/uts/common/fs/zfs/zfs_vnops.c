@@ -925,6 +925,7 @@ zfs_get_done(dmu_buf_t *db, void *vzgd)
 	zgd_t *zgd = (zgd_t *)vzgd;
 	rl_t *rl = zgd->zgd_rl;
 	vnode_t *vp = ZTOV(rl->r_zp);
+	objset_t *os = rl->r_zp->z_zfsvfs->z_os;
 	int vfslocked;
 
 	vfslocked = VFS_LOCK_GIANT(vp->v_vfsp);
@@ -934,7 +935,7 @@ zfs_get_done(dmu_buf_t *db, void *vzgd)
 	 * Release the vnode asynchronously as we currently have the
 	 * txg stopped from syncing.
 	 */
-	VN_RELE_ASYNC(vp, NULL);
+	VN_RELE_ASYNC(vp, dsl_pool_vnrele_taskq(dmu_objset_pool(os)));
 	zil_add_block(zgd->zgd_zilog, zgd->zgd_bp);
 	kmem_free(zgd, sizeof (zgd_t));
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -969,8 +970,8 @@ zfs_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 		 * Release the vnode asynchronously as we currently have the
 		 * txg stopped from syncing.
 		 */
-		VN_RELE_ASYNC(ZTOV(zp), NULL);
-
+		VN_RELE_ASYNC(ZTOV(zp),
+		    dsl_pool_vnrele_taskq(dmu_objset_pool(os)));
 		return (ENOENT);
 	}
 
@@ -1046,7 +1047,7 @@ out:
 	 * Release the vnode asynchronously as we currently have the
 	 * txg stopped from syncing.
 	 */
-	VN_RELE_ASYNC(ZTOV(zp), NULL);
+	VN_RELE_ASYNC(ZTOV(zp), dsl_pool_vnrele_taskq(dmu_objset_pool(os)));
 	return (error);
 }
 
@@ -3709,12 +3710,11 @@ zfs_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 		 * The fs has been unmounted, or we did a
 		 * suspend/resume and this file no longer exists.
 		 */
-		mutex_enter(&zp->z_lock);
 		VI_LOCK(vp);
 		vp->v_count = 0; /* count arrives as 1 */
-		mutex_exit(&zp->z_lock);
+		VI_UNLOCK(vp);
+		vrecycle(vp, curthread);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
-		zfs_znode_free(zp);
 		return;
 	}
 
@@ -3963,7 +3963,7 @@ static int
 zfs_freebsd_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
-		int  a_accmode;
+		accmode_t a_accmode;
 		struct ucred *a_cred;
 		struct thread *a_td;
 	} */ *ap;
@@ -4355,7 +4355,6 @@ zfs_freebsd_reclaim(ap)
 {
 	vnode_t	*vp = ap->a_vp;
 	znode_t	*zp = VTOZ(vp);
-	zfsvfs_t *zfsvfs;
 
 	ASSERT(zp != NULL);
 
@@ -4365,13 +4364,18 @@ zfs_freebsd_reclaim(ap)
 	vnode_destroy_vobject(vp);
 
 	mutex_enter(&zp->z_lock);
-	ASSERT(zp->z_phys);
+	ASSERT(zp->z_phys != NULL);
 	ZTOV(zp) = NULL;
-	if (!zp->z_unlinked) {
+	mutex_exit(&zp->z_lock);
+
+	if (zp->z_unlinked)
+		;	/* Do nothing. */
+	else if (zp->z_dbuf == NULL)
+		zfs_znode_free(zp);
+	else /* if (!zp->z_unlinked && zp->z_dbuf != NULL) */ {
+		zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 		int locked;
 
-		zfsvfs = zp->z_zfsvfs;
-		mutex_exit(&zp->z_lock);
 		locked = MUTEX_HELD(ZFS_OBJ_MUTEX(zfsvfs, zp->z_id)) ? 2 :
 		    ZFS_OBJ_HOLD_TRYENTER(zfsvfs, zp->z_id);
 		if (locked == 0) {
@@ -4387,8 +4391,6 @@ zfs_freebsd_reclaim(ap)
 				ZFS_OBJ_HOLD_EXIT(zfsvfs, zp->z_id);
 			zfs_znode_free(zp);
 		}
-	} else {
-		mutex_exit(&zp->z_lock);
 	}
 	VI_LOCK(vp);
 	vp->v_data = NULL;
@@ -4702,6 +4704,9 @@ vop_listextattr {
 
 	ZFS_ENTER(zfsvfs);
 
+	if (sizep != NULL)
+		*sizep = 0;
+
 	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
 	    LOOKUP_XATTR);
 	if (error != 0) {
@@ -4725,9 +4730,6 @@ vop_listextattr {
 	auio.uio_td = td;
 	auio.uio_rw = UIO_READ;
 	auio.uio_offset = 0;
-
-	if (sizep != NULL)
-		*sizep = 0;
 
 	do {
 		u_char nlen;

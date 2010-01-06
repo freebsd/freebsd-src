@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -18,28 +17,29 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
- *
- * $FreeBSD$
  */
 /*
- * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef	_SYS_TASKQ_H
 #define	_SYS_TASKQ_H
 
-#pragma ident	"@(#)taskq.h	1.5	05/06/08 SMI"
-
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/proc.h>
-#include <sys/kcondvar.h>
+#include <sys/taskqueue.h>
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
 #define	TASKQ_NAMELEN	31
+
+struct taskqueue;
+struct taskq {
+	struct taskqueue	*tq_queue;
+};
 
 typedef struct taskq taskq_t;
 typedef uintptr_t taskqid_t;
@@ -51,6 +51,7 @@ typedef void (task_func_t)(void *);
 #define	TASKQ_PREPOPULATE	0x0001	/* Prepopulate with threads and data */
 #define	TASKQ_CPR_SAFE		0x0002	/* Use CPR safe protocol */
 #define	TASKQ_DYNAMIC		0x0004	/* Use dynamic thread scheduling */
+#define	TASKQ_THREADS_CPU_PCT	0x0008	/* number of threads as % of ncpu */
 
 /*
  * Flags for taskq_dispatch. TQ_SLEEP/TQ_NOSLEEP should be same as
@@ -64,6 +65,9 @@ typedef void (task_func_t)(void *);
 #ifdef _KERNEL
 
 extern taskq_t *system_taskq;
+
+extern void	taskq_init(void);
+extern void	taskq_mp_init(void);
 
 extern taskq_t	*taskq_create(const char *, int, pri_t, int, int, uint_t);
 extern taskq_t	*taskq_create_instance(const char *, int, int, pri_t, int,

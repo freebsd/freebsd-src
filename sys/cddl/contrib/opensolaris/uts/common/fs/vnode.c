@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -35,9 +35,6 @@
  * software developed by the University of California, Berkeley, and its
  * contributors.
  */
-
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -76,15 +73,12 @@ xva_getxoptattr(xvattr_t *xvap)
 	return (xoap);
 }
 
-static STAILQ_HEAD(, vnode) vn_rele_async_list;
-static struct mtx vn_rele_async_lock;
-static struct cv vn_rele_async_cv;
-static int vn_rele_list_length;
-static int vn_rele_async_thread_exit;
+static void
+vn_rele_inactive(vnode_t *vp)
+{
 
-typedef struct  {
-	struct vnode *stqe_next;
-} vnode_link_t;
+	vrele(vp);
+}
 
 /*
  * Like vn_rele() except if we are going to call VOP_INACTIVE() then do it
@@ -97,117 +91,16 @@ typedef struct  {
  * This is because taskqs throttle back allocation if too many are created.
  */
 void
-vn_rele_async(vnode_t *vp, taskq_t *taskq /* unused */)
+vn_rele_async(vnode_t *vp, taskq_t *taskq)
 {
-	
-	KASSERT(vp != NULL, ("vrele: null vp"));
-	VFS_ASSERT_GIANT(vp->v_mount);
+	VERIFY(vp->v_count > 0);
 	VI_LOCK(vp);
-
-	if (vp->v_usecount > 1 || ((vp->v_iflag & VI_DOINGINACT) &&
-	    vp->v_usecount == 1)) {
-		vp->v_usecount--;
-		vdropl(vp);
-		return;
-	}	
-	if (vp->v_usecount != 1) {
-#ifdef DIAGNOSTIC
-		vprint("vrele: negative ref count", vp);
-#endif
+	if (vp->v_count == 1 && !(vp->v_iflag & VI_DOINGINACT)) {
 		VI_UNLOCK(vp);
-		panic("vrele: negative ref cnt");
-	}
-	/*
-	 * We are exiting
-	 */
-	if (vn_rele_async_thread_exit != 0) {
-		vrele(vp);
+		VERIFY(taskq_dispatch((taskq_t *)taskq,
+		    (task_func_t *)vn_rele_inactive, vp, TQ_SLEEP) != 0);
 		return;
 	}
-	
-	mtx_lock(&vn_rele_async_lock);
-
-	/*  STAILQ_INSERT_TAIL 			*/
-	(*(vnode_link_t *)&vp->v_cstart).stqe_next = NULL;
-	*vn_rele_async_list.stqh_last = vp;
-	vn_rele_async_list.stqh_last =
-	    &((vnode_link_t *)&vp->v_cstart)->stqe_next;
-
-	/****************************************/
-	vn_rele_list_length++;
-	if ((vn_rele_list_length % 100) == 0)
-		cv_signal(&vn_rele_async_cv);
-	mtx_unlock(&vn_rele_async_lock);
-	VI_UNLOCK(vp);
+	vp->v_usecount--;
+	vdropl(vp);
 }
-
-static void
-vn_rele_async_init(void *arg)
-{
-
-	mtx_init(&vn_rele_async_lock, "valock", NULL, MTX_DEF);
-	STAILQ_INIT(&vn_rele_async_list);
-
-	/* cv_init(&vn_rele_async_cv, "vacv"); */
-	vn_rele_async_cv.cv_description = "vacv";
-	vn_rele_async_cv.cv_waiters = 0;
-}
-
-void
-vn_rele_async_fini(void)
-{
-
-	mtx_lock(&vn_rele_async_lock);
-	vn_rele_async_thread_exit = 1;
-	cv_signal(&vn_rele_async_cv);
-	while (vn_rele_async_thread_exit != 0)
-		cv_wait(&vn_rele_async_cv, &vn_rele_async_lock);
-	mtx_unlock(&vn_rele_async_lock);
-	mtx_destroy(&vn_rele_async_lock);
-}
-
-
-static void
-vn_rele_async_cleaner(void)
-{
-	STAILQ_HEAD(, vnode) vn_tmp_list;
-	struct vnode *curvnode;
-
-	STAILQ_INIT(&vn_tmp_list);
-	mtx_lock(&vn_rele_async_lock);
-	while (vn_rele_async_thread_exit == 0) {
-		STAILQ_CONCAT(&vn_tmp_list, &vn_rele_async_list);
-		vn_rele_list_length = 0;
-		mtx_unlock(&vn_rele_async_lock);
-		
-		while (!STAILQ_EMPTY(&vn_tmp_list)) {
-			curvnode = STAILQ_FIRST(&vn_tmp_list);
-
-			/*   STAILQ_REMOVE_HEAD */
-			STAILQ_FIRST(&vn_tmp_list) =
-			    ((vnode_link_t *)&curvnode->v_cstart)->stqe_next;
-			if (STAILQ_FIRST(&vn_tmp_list) == NULL)
-				         vn_tmp_list.stqh_last = &STAILQ_FIRST(&vn_tmp_list);
-			/***********************/
-			vrele(curvnode);
-		}
-		mtx_lock(&vn_rele_async_lock);
-		if (vn_rele_list_length == 0)
-			cv_timedwait(&vn_rele_async_cv, &vn_rele_async_lock,
-			    hz/10);
-	}
-
-	vn_rele_async_thread_exit = 0;
-	cv_broadcast(&vn_rele_async_cv);
-	mtx_unlock(&vn_rele_async_lock);
-	thread_exit();
-}
-
-static struct proc *vn_rele_async_proc;
-static struct kproc_desc up_kp = {
-	"vaclean",
-	vn_rele_async_cleaner,
-	&vn_rele_async_proc
-};
-SYSINIT(vaclean, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp);
-SYSINIT(vn_rele_async_setup, SI_SUB_VFS, SI_ORDER_FIRST, vn_rele_async_init, NULL);

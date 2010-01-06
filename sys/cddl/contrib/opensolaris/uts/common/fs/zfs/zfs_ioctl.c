@@ -3057,44 +3057,35 @@ zfsdev_fini(void)
 		destroy_dev(zfsdev);
 }
 
-static struct task zfs_start_task;
 static struct root_hold_token *zfs_root_token;
-
 
 uint_t zfs_fsyncer_key;
 extern uint_t rrw_tsd_key;
 
-static void
-zfs_start(void *context __unused, int pending __unused)
-{
-
-	zfsdev_init();
-	spa_init(FREAD | FWRITE);
-	zfs_init();
-	zvol_init();
-
-	tsd_create(&zfs_fsyncer_key, NULL);
-	tsd_create(&rrw_tsd_key, NULL);
-
-	printf("ZFS storage pool version " SPA_VERSION_STRING "\n");
-	root_mount_rel(zfs_root_token);
-}
-
 static int
 zfs_modevent(module_t mod, int type, void *unused __unused)
 {
-	int error;
+	int error = 0;
 
-	error = EOPNOTSUPP;
 	switch (type) {
 	case MOD_LOAD:
 		zfs_root_token = root_mount_hold("ZFS");
 		printf("WARNING: ZFS is considered to be an experimental "
 		    "feature in FreeBSD.\n");
-		TASK_INIT(&zfs_start_task, 0, zfs_start, NULL);
-		taskqueue_enqueue(taskqueue_thread, &zfs_start_task);
+
 		mutex_init(&zfs_share_lock, NULL, MUTEX_DEFAULT, NULL);
-		error = 0;
+
+		spa_init(FREAD | FWRITE);
+		zfs_init();
+		zvol_init();
+
+		tsd_create(&zfs_fsyncer_key, NULL);
+		tsd_create(&rrw_tsd_key, NULL);
+
+		printf("ZFS storage pool version " SPA_VERSION_STRING "\n");
+		root_mount_rel(zfs_root_token);
+
+		zfsdev_init();
 		break;
 	case MOD_UNLOAD:
 		if (spa_busy() || zfs_busy() || zvol_busy() ||
@@ -3102,14 +3093,19 @@ zfs_modevent(module_t mod, int type, void *unused __unused)
 			error = EBUSY;
 			break;
 		}
+
+		zfsdev_fini();
 		zvol_fini();
 		zfs_fini();
 		spa_fini();
-		zfsdev_fini();
+
 		tsd_destroy(&zfs_fsyncer_key);
 		tsd_destroy(&rrw_tsd_key);
+
 		mutex_destroy(&zfs_share_lock);
-		error = 0;
+		break;
+	default:
+		error = EOPNOTSUPP;
 		break;
 	}
 	return (error);

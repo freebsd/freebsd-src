@@ -351,7 +351,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 	struct iovec aiov;
 	struct mount *mp;
 	struct ucred *cred;
-	int error;
+	int error, lock_flags;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 
@@ -362,12 +362,23 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
 			    != 0)
 				return (error);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+			if (mp != NULL &&
+			    (mp->mnt_kern_flag & MNTK_SHARED_WRITES)) {
+				/*
+				 * XXX See the next comment what should
+				 * be done here too.
+				 */
+				lock_flags = LK_EXCLUSIVE;
+			} else {
+				lock_flags = LK_EXCLUSIVE;
+			}
+			vn_lock(vp, lock_flags | LK_RETRY, td);
 		} else {
 			/*
-			 * XXX This should be LK_SHARED but I don't trust VFS
-			 * enough to leave it like that until it has been
-			 * reviewed further.
+			 * XXX This should be LK_SHARED but the VFS in releng7
+			 * needs some patches before this can be done.
+			 * The same applies to the lock_flags above and to a
+			 * similar place below.
 			 */
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		}
@@ -551,7 +562,7 @@ vn_write(fp, uio, active_cred, flags, td)
 {
 	struct vnode *vp;
 	struct mount *mp;
-	int error, ioflag;
+	int error, ioflag, lock_flags;
 	int vfslocked;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
@@ -574,8 +585,21 @@ vn_write(fp, uio, active_cred, flags, td)
 	if (vp->v_type != VCHR &&
 	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto unlock;
-	VOP_LEASE(vp, td, fp->f_cred, LEASE_WRITE);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+ 
+	if (vp->v_mount != NULL &&
+	    (vp->v_mount->mnt_kern_flag & MNTK_SHARED_WRITES) &&
+	    (flags & FOF_OFFSET) != 0) {
+		/*
+		 * XXX This should be LK_SHARED but the VFS in releng7
+		 * needs some patches before this can be done.
+		 * See the similar comment above.
+		 */
+		lock_flags = LK_EXCLUSIVE;
+	} else {
+		lock_flags = LK_EXCLUSIVE;
+	}
+
+	vn_lock(vp, lock_flags | LK_RETRY, td);
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
 	ioflag |= sequential_heuristic(uio, fp);

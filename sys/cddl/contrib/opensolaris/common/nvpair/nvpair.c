@@ -2523,14 +2523,15 @@ nvpair_native_embedded(nvstream_t *nvs, nvpair_t *nvp)
 {
 	if (nvs->nvs_op == NVS_OP_ENCODE) {
 		nvs_native_t *native = (nvs_native_t *)nvs->nvs_private;
-		nvlist_t *packed = (void *)
+		char *packed = (void *)
 		    (native->n_curr - nvp->nvp_size + NVP_VALOFF(nvp));
 		/*
 		 * Null out the pointer that is meaningless in the packed
 		 * structure. The address may not be aligned, so we have
 		 * to use bzero.
 		 */
-		bzero(&packed->nvl_priv, sizeof (packed->nvl_priv));
+		bzero(packed + offsetof(nvlist_t, nvl_priv),
+		    sizeof(((nvlist_t *)NULL)->nvl_priv));
 	}
 
 	return (nvs_embedded(nvs, EMBEDDED_NVL(nvp)));
@@ -2543,7 +2544,6 @@ nvpair_native_embedded_array(nvstream_t *nvs, nvpair_t *nvp)
 		nvs_native_t *native = (nvs_native_t *)nvs->nvs_private;
 		char *value = native->n_curr - nvp->nvp_size + NVP_VALOFF(nvp);
 		size_t len = NVP_NELEM(nvp) * sizeof (uint64_t);
-		nvlist_t *packed = (nvlist_t *)((uintptr_t)value + len);
 		int i;
 		/*
 		 * Null out pointers that are meaningless in the packed
@@ -2552,13 +2552,17 @@ nvpair_native_embedded_array(nvstream_t *nvs, nvpair_t *nvp)
 		 */
 		bzero(value, len);
 
-		for (i = 0; i < NVP_NELEM(nvp); i++, packed++)
+		value += len;
+		for (i = 0; i < NVP_NELEM(nvp); i++) {
 			/*
 			 * Null out the pointer that is meaningless in the
 			 * packed structure. The address may not be aligned,
 			 * so we have to use bzero.
 			 */
-			bzero(&packed->nvl_priv, sizeof (packed->nvl_priv));
+			bzero(value + offsetof(nvlist_t, nvl_priv),
+			    sizeof(((nvlist_t *)NULL)->nvl_priv));
+			value += sizeof(nvlist_t);
+		}
 	}
 
 	return (nvs_embedded_nvl_array(nvs, nvp, NULL));

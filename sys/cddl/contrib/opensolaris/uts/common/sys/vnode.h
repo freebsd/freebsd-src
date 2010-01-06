@@ -354,6 +354,11 @@ typedef struct caller_context {
 } caller_context_t;
 
 /*
+ * Structure tags for function prototypes, defined elsewhere.
+ */
+struct taskq;
+
+/*
  * Flags for VOP_LOOKUP
  *
  * Defined in file.h, but also possible, FIGNORECASE
@@ -370,6 +375,13 @@ typedef struct caller_context {
 #define	V_RDDIR_ENTFLAGS	0x01	/* request dirent flags */
 
 /*
+ * Public vnode manipulation functions.
+ */
+#ifdef	_KERNEL
+
+void	vn_rele_async(struct vnode *vp, struct taskq *taskq);
+
+/*
  * Extensible vnode attribute (xva) routines:
  * xva_init() initializes an xvattr_t (zero struct, init mapsize, set AT_XATTR)
  * xva_getxoptattr() returns a ponter to the xoptattr_t section of xvattr_t
@@ -377,10 +389,12 @@ typedef struct caller_context {
 void		xva_init(xvattr_t *);
 xoptattr_t	*xva_getxoptattr(xvattr_t *);	/* Get ptr to xoptattr_t */
 
-struct taskq;
-void	vn_rele_async(struct vnode *vp, struct taskq *taskq);
-void	vn_rele_async_fini(void);
-	
+#define	VN_RELE_ASYNC(vp, taskq)	{ \
+	vn_rele_async(vp, taskq); \
+}
+
+#endif	/* _KERNEL */
+
 /*
  * Flags to VOP_SETATTR/VOP_GETATTR.
  */

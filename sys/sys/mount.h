@@ -328,6 +328,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define MNTK_SOFTDEP	0x00000004	/* async disabled by softdep */
 #define MNTK_NOINSMNTQ	0x00000008	/* insmntque is not allowed */
 #define	MNTK_REFEXPIRE	0x00000020	/* refcount expiring is happening */
+#define	MNTK_SHARED_WRITES	0x00000080 /* Allow shared locking for writes */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */

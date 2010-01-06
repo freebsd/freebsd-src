@@ -463,3 +463,32 @@ taskqueue_fast_run(void *dummy)
 TASKQUEUE_FAST_DEFINE(fast, taskqueue_fast_enqueue, 0,
 	swi_add(NULL, "Fast task queue", taskqueue_fast_run, NULL,
 	SWI_TQ_FAST, INTR_MPSAFE, &taskqueue_fast_ih));
+
+int
+taskqueue_member(struct taskqueue *queue, struct thread *td)
+{
+	int i, j, ret = 0;
+	struct thread *ptd;
+
+	TQ_LOCK(queue);
+	for (i = 0, j = 0; ; i++) {
+		if (queue->tq_pproc[i] == NULL)
+			continue;
+		ptd = FIRST_THREAD_IN_PROC(queue->tq_pproc[i]);
+		/*
+		 * In releng7 all kprocs have only one kthread, so there is
+		 * no need to use FOREACH_THREAD_IN_PROC instead.
+		 * If this changes at some point, only the first 'if' needs
+		 * to be included in the FOREACH_..., the second one can
+		 * stay as it is.
+		 */
+		if (ptd == td) {
+			ret = 1;
+			break;
+		}
+		if (++j >= queue->tq_pcount)
+			break;
+	}
+	TQ_UNLOCK(queue);
+	return (ret);
+}
