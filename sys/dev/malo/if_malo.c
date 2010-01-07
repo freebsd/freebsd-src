@@ -2108,7 +2108,7 @@ malo_rx_proc(void *arg, int npending)
 		 * payload prior to constructing the header.
 		 */
 		m = bf->bf_m;
-		data = mtod(m, uint8_t *);;
+		data = mtod(m, uint8_t *);
 		hdrlen = ieee80211_anyhdrsize(data + sizeof(uint16_t));
 		off = sizeof(uint16_t) + sizeof(struct ieee80211_frame_addr4);
 
