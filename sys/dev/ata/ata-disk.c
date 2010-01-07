@@ -155,6 +155,10 @@ ad_attach(device_t dev)
 	adp->disk->d_maxsize = ch->dma->max_iosize;
     else
 	adp->disk->d_maxsize = DFLTPHYS;
+    if (atadev->param.support.command2 & ATA_SUPPORT_ADDRESS48)
+	adp->disk->d_maxsize = min(adp->disk->d_maxsize, 65536 * DEV_BSIZE);
+    else					/* 28bit ATA command limit */
+	adp->disk->d_maxsize = min(adp->disk->d_maxsize, 256 * DEV_BSIZE);
     adp->disk->d_sectorsize = DEV_BSIZE;
     adp->disk->d_mediasize = DEV_BSIZE * (off_t)adp->total_secs;
     adp->disk->d_fwsectors = adp->sectors;
