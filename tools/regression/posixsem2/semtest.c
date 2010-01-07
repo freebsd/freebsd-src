@@ -58,10 +58,10 @@ test_named(void)
 
 	printf("testing named process-shared semaphore\n");
 	sem_unlink(SEM_NAME);
-	s = sem_open(SEM_NAME, O_CREAT, 0777);
+	s = sem_open(SEM_NAME, O_CREAT, 0777, 0);
 	if (s == SEM_FAILED)
 		err(1, "sem_open failed");
-	s2 = sem_open(SEM_NAME, O_CREAT, 0777);
+	s2 = sem_open(SEM_NAME, O_CREAT, 0777, 0);
 	if (s2 == SEM_FAILED)
 		err(2, "second sem_open call failed");
 	if (s != s2)
