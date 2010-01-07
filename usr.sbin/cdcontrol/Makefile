@@ -2,8 +2,6 @@
 
 PROG= cdcontrol
 
-WARNS?= 3
-
 DPADD=	${LIBEDIT} ${LIBTERMCAP}
 LDADD=	-ledit -ltermcap
 
