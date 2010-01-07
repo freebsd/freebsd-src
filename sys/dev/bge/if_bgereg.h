@@ -2641,6 +2641,8 @@ struct bge_softc {
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif /* DEVICE_POLLING */
+	struct task		bge_intr_task;
+	struct taskqueue	*bge_tq;
 };
 
 #define	BGE_LOCK_INIT(_sc, _name) \
