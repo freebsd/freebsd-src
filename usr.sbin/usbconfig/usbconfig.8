@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.\" Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+.\" Copyright (c) 2008-2010 Hans Petter Selasky. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 1, 2009
+.Dd January 6, 2010
 .Dt USBCONFIG 8
 .Os
 .Sh NAME
@@ -33,6 +33,9 @@
 .Nm
 .Op Fl u Ar unit
 .Op Fl a Ar addr
+.Op cmds...
+.Nm
+.Op Fl d Ar [ugen]<unit>.<addr>
 .Op cmds...
 .Sh DESCRIPTION
 The
@@ -46,6 +49,9 @@ Limit device range to USB devices connected to the given USBUS unit.
 .It Fl a Ar addr
 Limit device range to the given USB device index.
 Should only be used in conjunction with the unit argument.
+.It Fl d Ar [ugen]<unit>.<addr>
+Limit device range to USB devices connected to the given unit and address.
+The unit and address coordinates may be prefixed by the lowercased word "ugen".
 .It Fl h
 Show help and available commands.
 .El
@@ -57,5 +63,34 @@ prints a list of all available USB devices.
 Show information about the device on USB bus 1 at address 2:
 .Pp
 .Dl usbconfig -u 1 -a 2 dump_info
+.Pp
+Dump HID descriptor for device on USB bus 1 at address 2:
+.Pp
+.Dl usbconfig -u 1 -a 2 do_request 0x81 0x06 0x2200 0 0x100
+.Pp
+Dump string descriptor at index Z for device on USB bus 1 at address 2:
+.Pp
+.Dl usbconfig -u 1 -a 2 dump_string Z
+.Pp
+Dump current configuration descriptor for device on USB bus 1 at address 2:
+.Pp
+.Dl usbconfig -u 1 -a 2 dump_curr_config_desc
+.Pp
+Dump device descriptor for device on USB bus 1 at address 2:
+.Pp
+.Dl usbconfig -u 1 -a 2 dump_device_desc
+.Pp
+Program the device on USB bus 1 at address 2 to suspend, resume, power off, go into power save, or power on:
+.Pp
+.Dl usbconfig -u 1 -a 2 suspend
+.Dl usbconfig -u 1 -a 2 resume
+.Dl usbconfig -u 1 -a 2 power_off
+.Dl usbconfig -u 1 -a 2 power_save
+.Dl usbconfig -u 1 -a 2 power_on
+.Pp
+Display a list of available quirk names:
+.Pp
+.Dl usbconfig dump_quirk_names
+.Pp
 .Sh SEE ALSO
 .Xr usb 4

@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2009 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -81,6 +81,8 @@ struct options {
 	uint8_t	got_show_iface_driver:1;
 	uint8_t	got_remove_device_quirk:1;
 	uint8_t	got_add_device_quirk:1;
+	uint8_t	got_remove_quirk:1;
+	uint8_t	got_add_quirk:1;
 	uint8_t	got_dump_string:1;
 	uint8_t	got_do_request:1;
 };
@@ -94,6 +96,7 @@ struct token {
 enum {
 	T_UNIT,
 	T_ADDR,
+	T_UGEN,
 	T_IFACE,
 	T_SET_CONFIG,
 	T_SET_ALT,
@@ -101,6 +104,8 @@ enum {
 	T_GET_TEMPLATE,
 	T_ADD_DEVICE_QUIRK,
 	T_REMOVE_DEVICE_QUIRK,
+	T_ADD_QUIRK,
+	T_REMOVE_QUIRK,
 	T_SHOW_IFACE_DRIVER,
 	T_DUMP_QUIRK_NAMES,
 	T_DUMP_DEVICE_QUIRKS,
@@ -124,6 +129,7 @@ static struct options options;
 static const struct token token[] = {
 	{"-u", T_UNIT, 1},
 	{"-a", T_ADDR, 1},
+	{"-d", T_UGEN, 1},
 	{"-i", T_IFACE, 1},
 	{"set_config", T_SET_CONFIG, 1},
 	{"set_alt", T_SET_ALT, 1},
@@ -131,6 +137,8 @@ static const struct token token[] = {
 	{"get_template", T_GET_TEMPLATE, 0},
 	{"add_dev_quirk_vplh", T_ADD_DEVICE_QUIRK, 5},
 	{"remove_dev_quirk_vplh", T_REMOVE_DEVICE_QUIRK, 5},
+	{"add_quirk", T_ADD_QUIRK, 1},
+	{"remove_quirk", T_REMOVE_QUIRK, 1},
 	{"dump_quirk_names", T_DUMP_QUIRK_NAMES, 0},
 	{"dump_device_quirks", T_DUMP_DEVICE_QUIRKS, 0},
 	{"dump_device_desc", T_DUMP_DEVICE_DESC, 0},
@@ -247,11 +255,20 @@ get_int(const char *s)
 }
 
 static void
+duplicate_option(const char *ptr)
+{
+	printf("Syntax error: "
+	    "Duplicate option: '%s'\n", ptr);
+	exit(1);
+}
+
+static void
 usage(void)
 {
 	printf(""
 	    "usbconfig - configure the USB subsystem" "\n"
 	    "usage: usbconfig -u <busnum> -a <devaddr> -i <ifaceindex> [cmds...]" "\n"
+	    "usage: usbconfig -d [ugen]<busnum>.<devaddr> -i <ifaceindex> [cmds...]" "\n"
 	    "commands:" "\n"
 	    "  set_config <cfg_index>" "\n"
 	    "  set_alt <alt_index>" "\n"
@@ -259,6 +276,8 @@ usage(void)
 	    "  get_template" "\n"
 	    "  add_dev_quirk_vplh <vid> <pid> <lo_rev> <hi_rev> <quirk>" "\n"
 	    "  remove_dev_quirk_vplh <vid> <pid> <lo_rev> <hi_rev> <quirk>" "\n"
+	    "  add_quirk <quirk>" "\n"
+	    "  remove_quirk <quirk>" "\n"
 	    "  dump_quirk_names" "\n"
 	    "  dump_device_quirks" "\n"
 	    "  dump_device_desc" "\n"
@@ -360,25 +379,33 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 		}
 		matches++;
 
+		if (opt->got_remove_quirk) {
+			struct LIBUSB20_DEVICE_DESC_DECODED *ddesc;
+	
+			ddesc = libusb20_dev_get_device_desc(pdev);
+
+			be_dev_remove_quirk(pbe,
+			    ddesc->idVendor, ddesc->idProduct, 
+			    ddesc->bcdDevice, ddesc->bcdDevice,
+			    opt->quirkname);
+		}
+
+		if (opt->got_add_quirk) {
+			struct LIBUSB20_DEVICE_DESC_DECODED *ddesc;
+	
+			ddesc = libusb20_dev_get_device_desc(pdev);
+
+			be_dev_add_quirk(pbe,
+			    ddesc->idVendor, ddesc->idProduct, 
+			    ddesc->bcdDevice, ddesc->bcdDevice,
+			    opt->quirkname);
+		}
+
 		if (libusb20_dev_open(pdev, 0)) {
 			err(1, "could not open device");
 		}
 		if (opt->got_dump_string) {
-			char *pbuf;
-
-			pbuf = malloc(256);
-			if (pbuf == NULL) {
-				err(1, "out of memory");
-			}
-			if (libusb20_dev_req_string_simple_sync(pdev,
-			    opt->string_index, pbuf, 256)) {
-				printf("STRING_0x%02x = <read error>\n",
-				    opt->string_index);
-			} else {
-				printf("STRING_0x%02x = <%s>\n",
-				    opt->string_index, pbuf);
-			}
-			free(pbuf);
+			dump_string_by_index(pdev, opt->string_index);
 		}
 		if (opt->got_do_request) {
 			uint16_t actlen;
@@ -501,6 +528,9 @@ main(int argc, char **argv)
 {
 	struct libusb20_backend *pbe;
 	struct options *opt = &options;
+	const char *ptr;
+	int unit;
+	int addr;
 	int n;
 	int t;
 
@@ -518,6 +548,28 @@ main(int argc, char **argv)
 		if (t > 255)
 			t = 255;
 		switch (get_token(argv[n], t)) {
+		case T_ADD_QUIRK:
+			if (opt->got_add_quirk) {
+				flush_command(pbe, opt);
+			}
+			opt->quirkname = argv[n + 1];
+			n++;
+
+			opt->got_add_quirk = 1;
+			opt->got_any++;
+			break;
+
+		case T_REMOVE_QUIRK:
+			if (opt->got_remove_quirk) {
+				flush_command(pbe, opt);
+			}
+			opt->quirkname = argv[n + 1];
+			n++;
+
+			opt->got_remove_quirk = 1;
+			opt->got_any++;
+			break;
+
 		case T_ADD_DEVICE_QUIRK:
 			if (opt->got_add_device_quirk) {
 				flush_command(pbe, opt);
@@ -548,17 +600,48 @@ main(int argc, char **argv)
 			break;
 
 		case T_DUMP_QUIRK_NAMES:
+			if (opt->got_dump_quirk_names)
+				duplicate_option(argv[n]);
 			opt->got_dump_quirk_names = 1;
 			opt->got_any++;
 			break;
 
 		case T_DUMP_DEVICE_QUIRKS:
+			if (opt->got_dump_device_quirks)
+				duplicate_option(argv[n]);
 			opt->got_dump_device_quirks = 1;
 			opt->got_any++;
 			break;
 
 		case T_SHOW_IFACE_DRIVER:
 			opt->got_show_iface_driver = 1;
+			break;
+
+		case T_UGEN:
+			if (opt->got_any) {
+				/* allow multiple commands on the same line */
+				flush_command(pbe, opt);
+			}
+			ptr = argv[n + 1];
+
+			if ((ptr[0] == 'u') &&
+			    (ptr[1] == 'g') &&
+			    (ptr[2] == 'e') &&
+			    (ptr[3] == 'n'))
+				ptr += 4;
+
+			if ((sscanf(ptr, "%d.%d",
+			    &unit, &addr) != 2) ||
+			    (unit < 0) || (unit > 65535) ||
+			    (addr < 0) || (addr > 65535)) {
+				errx(1, "cannot "
+				    "parse '%s'", argv[n + 1]);
+			}
+			opt->bus = unit;
+			opt->addr = addr;
+			opt->got_bus = 1;
+;			opt->got_addr = 1;
+			n++;
 			break;
 
 		case T_UNIT:
@@ -581,84 +664,112 @@ main(int argc, char **argv)
 			n++;
 			break;
 		case T_SET_CONFIG:
+			if (opt->got_set_config)
+				duplicate_option(argv[n]);
 			opt->config_index = num_id(argv[n + 1], "cfg_index");
 			opt->got_set_config = 1;
 			opt->got_any++;
 			n++;
 			break;
 		case T_SET_ALT:
+			if (opt->got_set_alt)
+				duplicate_option(argv[n]);
 			opt->alt_index = num_id(argv[n + 1], "cfg_index");
 			opt->got_set_alt = 1;
 			opt->got_any++;
 			n++;
 			break;
 		case T_SET_TEMPLATE:
+			if (opt->got_set_template)
+				duplicate_option(argv[n]);
 			opt->template = get_int(argv[n + 1]);
 			opt->got_set_template = 1;
 			opt->got_any++;
 			n++;
 			break;
 		case T_GET_TEMPLATE:
+			if (opt->got_get_template)
+				duplicate_option(argv[n]);
 			opt->got_get_template = 1;
 			opt->got_any++;
 			break;
 		case T_DUMP_DEVICE_DESC:
+			if (opt->got_dump_device_desc)
+				duplicate_option(argv[n]);
 			opt->got_dump_device_desc = 1;
 			opt->got_any++;
 			break;
 		case T_DUMP_CURR_CONFIG_DESC:
+			if (opt->got_dump_curr_config)
+				duplicate_option(argv[n]);
 			opt->got_dump_curr_config = 1;
 			opt->got_any++;
 			break;
 		case T_DUMP_ALL_CONFIG_DESC:
+			if (opt->got_dump_all_config)
+				duplicate_option(argv[n]);
 			opt->got_dump_all_config = 1;
 			opt->got_any++;
 			break;
 		case T_DUMP_INFO:
+			if (opt->got_dump_info)
+				duplicate_option(argv[n]);
 			opt->got_dump_info = 1;
 			opt->got_any++;
 			break;
 		case T_DUMP_STRING:
-			if (opt->got_dump_string) {
-				flush_command(pbe, opt);
-			}
+			if (opt->got_dump_string)
+				duplicate_option(argv[n]);
 			opt->string_index = num_id(argv[n + 1], "str_index");
 			opt->got_dump_string = 1;
 			opt->got_any++;
 			n++;
 			break;
 		case T_SUSPEND:
+			if (opt->got_suspend)
+				duplicate_option(argv[n]);
 			opt->got_suspend = 1;
 			opt->got_any++;
 			break;
 		case T_RESUME:
+			if (opt->got_resume)
+				duplicate_option(argv[n]);
 			opt->got_resume = 1;
 			opt->got_any++;
 			break;
 		case T_POWER_OFF:
+			if (opt->got_power_off)
+				duplicate_option(argv[n]);
 			opt->got_power_off = 1;
 			opt->got_any++;
 			break;
 		case T_POWER_SAVE:
+			if (opt->got_power_save)
+				duplicate_option(argv[n]);
 			opt->got_power_save = 1;
 			opt->got_any++;
 			break;
 		case T_POWER_ON:
+			if (opt->got_power_on)
+				duplicate_option(argv[n]);
 			opt->got_power_on = 1;
 			opt->got_any++;
 			break;
 		case T_RESET:
+			if (opt->got_reset)
+				duplicate_option(argv[n]);
 			opt->got_reset = 1;
 			opt->got_any++;
 			break;
 		case T_LIST:
+			if (opt->got_list)
+				duplicate_option(argv[n]);
 			opt->got_list = 1;
 			opt->got_any++;
 			break;
 		case T_DO_REQUEST:
-			if (opt->got_do_request) {
-				flush_command(pbe, opt);
-			}
+			if (opt->got_do_request)
+				duplicate_option(argv[n]);
 			LIBUSB20_INIT(LIBUSB20_CONTROL_SETUP, &opt->setup);
 			opt->setup.bmRequestType = num_id(argv[n + 1], "bmReqTyp");
 			opt->setup.bRequest = num_id(argv[n + 2], "bReq");
