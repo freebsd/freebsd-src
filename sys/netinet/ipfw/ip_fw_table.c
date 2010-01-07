@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/ip_var.h>	/* struct ipfw_rule_ref */
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
 

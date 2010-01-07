@@ -52,8 +52,6 @@ __FBSDID("$FreeBSD$");
  * 000601: WF2Q support
  * 000106: large rewrite, use heaps to handle very many pipes.
  * 980513:	initial release
- *
- * include files marked with XXX are probably not needed
  */
 
 #include <sys/param.h>
@@ -75,10 +73,10 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>		/* ip_len, ip_off */
+#include <netinet/ip_var.h>	/* ip_output(), IP_FORWARDING */
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/ip_dummynet.h>
-#include <netinet/ip_var.h>	/* ip_output(), IP_FORWARDING */
 
 #include <netinet/if_ether.h> /* various ether_* routines */
 
