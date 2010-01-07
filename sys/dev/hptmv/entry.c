@@ -1341,7 +1341,7 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 #endif
 			&pAdapter->io_dma_parent /* tag */))
 		{
-			return ENXIO;;
+			return ENXIO;
 	}
 
 

@@ -1657,7 +1657,7 @@ amdhandlemsgreject(struct amd_softc *amd)
 				    tinfo_sync_period[pDCB->SyncPeriod - 4];
 				pDCB->tinfo.goal.offset = pDCB->SyncOffset;
 				pDCB->tinfo.current.period =
-				    tinfo_sync_period[pDCB->SyncPeriod - 4];;
+				    tinfo_sync_period[pDCB->SyncPeriod - 4];
 				pDCB->tinfo.current.offset = pDCB->SyncOffset;
 
 				/*

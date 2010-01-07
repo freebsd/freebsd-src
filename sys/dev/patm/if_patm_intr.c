@@ -381,7 +381,7 @@ patm_feed_lbufs(struct patm_softc *sc)
 static void
 patm_intr_tsif(struct patm_softc *sc)
 {
-	struct idt_tsqe *tsqe = sc->tsq_next;;
+	struct idt_tsqe *tsqe = sc->tsq_next;
 	struct idt_tsqe *prev = NULL;
 	uint32_t stamp;
 

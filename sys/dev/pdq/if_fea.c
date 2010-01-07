@@ -140,7 +140,7 @@ pdq_eisa_probe (dev)
 	u_int32_t	maddr;
 	u_int32_t	msize;
 
-	u_int32_t	eisa_id = eisa_get_id(dev);;
+	u_int32_t	eisa_id = eisa_get_id(dev);
 
 	desc = pdq_eisa_match(eisa_id);
 	if (!desc) {
