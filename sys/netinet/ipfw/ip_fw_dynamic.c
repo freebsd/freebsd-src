@@ -1002,7 +1002,8 @@ ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 		h->ip_hl = sizeof(*h) >> 2;
 		h->ip_tos = IPTOS_LOWDELAY;
 		h->ip_off = 0;
-		h->ip_len = htons(len);
+		/* ip_len must be in host format for ip_output */
+		h->ip_len = len;
 		h->ip_ttl = V_ip_defttl;
 		h->ip_sum = 0;
 		break;
