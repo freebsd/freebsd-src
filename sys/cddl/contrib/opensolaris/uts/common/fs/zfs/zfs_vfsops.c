@@ -872,7 +872,7 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp, kthread_t *td)
 	znode_t *rootzp;
 	int error;
 
-	ZFS_ENTER(zfsvfs);
+	ZFS_ENTER_NOERROR(zfsvfs);
 
 	error = zfs_zget(zfsvfs, zfsvfs->z_root, &rootzp);
 	if (error == 0) {
@@ -1045,6 +1045,17 @@ zfs_umount(vfs_t *vfsp, int fflag, kthread_t *td)
 		ASSERT(zfsvfs->z_ctldir == NULL);
 	}
 
+	if (fflag & MS_FORCE) {
+		/*
+		 * Mark file system as unmounted before calling
+		 * vflush(FORCECLOSE). This way we ensure no future vnops
+		 * will be called and risk operating on DOOMED vnodes.
+		 */
+		rrw_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
+		zfsvfs->z_unmounted = B_TRUE;
+		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
+	}
+
 	/*
 	 * Flush all the files.
 	 */
@@ -1111,10 +1122,7 @@ zfs_umount(vfs_t *vfsp, int fflag, kthread_t *td)
 	if (zfsvfs->z_issnap) {
 		vnode_t *svp = vfsp->mnt_vnodecovered;
 
-		/*
-		 * We don't need an extra vn_rele if this is a manual snapshot mount
-		 */
-		if (svp->v_count == 2)
+		if (svp->v_count >= 2)
 			VN_RELE(svp);
 	}
 	zfs_freevfs(vfsp);
