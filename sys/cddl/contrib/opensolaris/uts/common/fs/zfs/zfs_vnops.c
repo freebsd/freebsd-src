@@ -3964,26 +3964,38 @@ static int
 zfs_freebsd_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
-		accmode_t a_accmode;
+		accmode_t a_mode;
 		struct ucred *a_cred;
 		struct thread *a_td;
 	} */ *ap;
 {
+	accmode_t accmode;
+	int error = 0;
 
 	/*
-	 * ZFS itself only knowns about VREAD, VWRITE and VEXEC, the rest
-	 * we have to handle by calling vaccess().
+	 * ZFS itself only knowns about VREAD, VWRITE, VEXEC and VAPPEND,
 	 */
-	if ((ap->a_mode & ~(VREAD|VWRITE|VEXEC)) != 0) {
-		vnode_t *vp = ap->a_vp;
-		znode_t *zp = VTOZ(vp);
-		znode_phys_t *zphys = zp->z_phys;
+	accmode = ap->a_mode & (VREAD|VWRITE|VEXEC|VAPPEND);
+	if (accmode != 0)
+		error = zfs_access(ap->a_vp, accmode, 0, ap->a_cred, NULL);
 
-		return (vaccess(vp->v_type, zphys->zp_mode, zphys->zp_uid,
-		    zphys->zp_gid, ap->a_mode, ap->a_cred, NULL));
+	/*
+	 * VADMIN has to be handled by vaccess().
+	 */
+	if (error == 0) {
+		accmode = ap->a_mode & ~(VREAD|VWRITE|VEXEC|VAPPEND);
+		if (accmode != 0) {
+			vnode_t *vp = ap->a_vp;
+			znode_t *zp = VTOZ(vp);
+			znode_phys_t *zphys = zp->z_phys;
+
+			error = vaccess(vp->v_type, zphys->zp_mode,
+			    zphys->zp_uid, zphys->zp_gid, accmode, ap->a_cred,
+			    NULL);
+		}
 	}
 
-	return (zfs_access(ap->a_vp, ap->a_mode, 0, ap->a_cred, NULL));
+	return (error);
 }
 
 static int
@@ -4176,7 +4188,11 @@ zfs_freebsd_setattr(ap)
 	zflags = VTOZ(vp)->z_phys->zp_flags;
 
 	if (vap->va_flags != VNOVAL) {
+		zfsvfs_t *zfsvfs = VTOZ(vp)->z_zfsvfs;
 		int error;
+
+		if (zfsvfs->z_use_fuids == B_FALSE)
+			return (EOPNOTSUPP);
 
 		fflags = vap->va_flags;
 		if ((fflags & ~(SF_IMMUTABLE|SF_APPEND|SF_NOUNLINK|UF_NODUMP)) != 0)

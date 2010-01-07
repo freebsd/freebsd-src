@@ -506,6 +506,25 @@ zil_rollback_destroy(zilog_t *zilog, dmu_tx_t *tx)
 	    tx, zh->zh_claim_txg);
 }
 
+/*
+ * return true if the initial log block is not valid
+ */
+static boolean_t
+zil_empty(zilog_t *zilog)
+{
+	const zil_header_t *zh = zilog->zl_header;
+	arc_buf_t *abuf = NULL;
+
+	if (BP_IS_HOLE(&zh->zh_log))
+		return (B_TRUE);
+
+	if (zil_read_log_block(zilog, &zh->zh_log, &abuf) != 0)
+		return (B_TRUE);
+
+	VERIFY(arc_buf_remove_ref(abuf, &abuf) == 1);
+	return (B_FALSE);
+}
+
 int
 zil_claim(char *osname, void *txarg)
 {
@@ -524,6 +543,21 @@ zil_claim(char *osname, void *txarg)
 
 	zilog = dmu_objset_zil(os);
 	zh = zil_header_in_syncing_context(zilog);
+
+	/*
+	 * Record here whether the zil has any records to replay.
+	 * If the header block pointer is null or the block points
+	 * to the stubby then we know there are no valid log records.
+	 * We use the header to store this state as the the zilog gets
+	 * freed later in dmu_objset_close().
+	 * The flags (and the rest of the header fields) are cleared in
+	 * zil_sync() as a result of a zil_destroy(), after replaying the log.
+	 *
+	 * Note, the intent log can be empty but still need the
+	 * stubby to be claimed.
+	 */
+	if (!zil_empty(zilog))
+		zh->zh_flags |= ZIL_REPLAY_NEEDED;
 
 	/*
 	 * Claim all log blocks if we haven't already done so, and remember
@@ -1349,25 +1383,6 @@ zil_free(zilog_t *zilog)
 }
 
 /*
- * return true if the initial log block is not valid
- */
-static boolean_t
-zil_empty(zilog_t *zilog)
-{
-	const zil_header_t *zh = zilog->zl_header;
-	arc_buf_t *abuf = NULL;
-
-	if (BP_IS_HOLE(&zh->zh_log))
-		return (B_TRUE);
-
-	if (zil_read_log_block(zilog, &zh->zh_log, &abuf) != 0)
-		return (B_TRUE);
-
-	VERIFY(arc_buf_remove_ref(abuf, &abuf) == 1);
-	return (B_FALSE);
-}
-
-/*
  * Open an intent log.
  */
 zilog_t *
@@ -1422,7 +1437,7 @@ zil_suspend(zilog_t *zilog)
 	const zil_header_t *zh = zilog->zl_header;
 
 	mutex_enter(&zilog->zl_lock);
-	if (zh->zh_claim_txg != 0) {		/* unplayed log */
+	if (zh->zh_flags & ZIL_REPLAY_NEEDED) {		/* unplayed log */
 		mutex_exit(&zilog->zl_lock);
 		return (EBUSY);
 	}
@@ -1649,7 +1664,7 @@ zil_replay(objset_t *os, void *arg, uint64_t *txgp,
 	const zil_header_t *zh = zilog->zl_header;
 	zil_replay_arg_t zr;
 
-	if (zil_empty(zilog)) {
+	if ((zh->zh_flags & ZIL_REPLAY_NEEDED) == 0) {
 		zil_destroy(zilog, B_TRUE);
 		return;
 	}

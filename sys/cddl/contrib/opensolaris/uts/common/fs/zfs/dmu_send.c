@@ -828,11 +828,7 @@ restore_object(struct restorearg *ra, objset_t *os, struct drr_object *drro)
 {
 	int err;
 	dmu_tx_t *tx;
-
-	err = dmu_object_info(os, drro->drr_object, NULL);
-
-	if (err != 0 && err != ENOENT)
-		return (EINVAL);
+	void *data = NULL;
 
 	if (drro->drr_type == DMU_OT_NONE ||
 	    drro->drr_type >= DMU_OT_NUMTYPES ||
@@ -846,12 +842,15 @@ restore_object(struct restorearg *ra, objset_t *os, struct drr_object *drro)
 		return (EINVAL);
 	}
 
-	tx = dmu_tx_create(os);
+	err = dmu_object_info(os, drro->drr_object, NULL);
+
+	if (err != 0 && err != ENOENT)
+		return (EINVAL);
 
 	if (err == ENOENT) {
 		/* currently free, want to be allocated */
+		tx = dmu_tx_create(os);
 		dmu_tx_hold_bonus(tx, DMU_NEW_OBJECT);
-		dmu_tx_hold_write(tx, DMU_NEW_OBJECT, 0, 1);
 		err = dmu_tx_assign(tx, TXG_WAIT);
 		if (err) {
 			dmu_tx_abort(tx);
@@ -860,45 +859,41 @@ restore_object(struct restorearg *ra, objset_t *os, struct drr_object *drro)
 		err = dmu_object_claim(os, drro->drr_object,
 		    drro->drr_type, drro->drr_blksz,
 		    drro->drr_bonustype, drro->drr_bonuslen, tx);
+		dmu_tx_commit(tx);
 	} else {
 		/* currently allocated, want to be allocated */
-		dmu_tx_hold_bonus(tx, drro->drr_object);
-		/*
-		 * We may change blocksize and delete old content,
-		 * so need to hold_write and hold_free.
-		 */
-		dmu_tx_hold_write(tx, drro->drr_object, 0, 1);
-		dmu_tx_hold_free(tx, drro->drr_object, 0, DMU_OBJECT_END);
-		err = dmu_tx_assign(tx, TXG_WAIT);
-		if (err) {
-			dmu_tx_abort(tx);
-			return (err);
-		}
 
 		err = dmu_object_reclaim(os, drro->drr_object,
 		    drro->drr_type, drro->drr_blksz,
-		    drro->drr_bonustype, drro->drr_bonuslen, tx);
+		    drro->drr_bonustype, drro->drr_bonuslen);
 	}
-	if (err) {
-		dmu_tx_commit(tx);
+	if (err)
 		return (EINVAL);
+
+	if (drro->drr_bonuslen) {
+		data = restore_read(ra, P2ROUNDUP(drro->drr_bonuslen, 8));
+		if (ra->err)
+			return (ra->err);
+	}
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_bonus(tx, drro->drr_object);
+	err = dmu_tx_assign(tx, TXG_WAIT);
+	if (err) {
+		dmu_tx_abort(tx);
+		return (err);
 	}
 
 	dmu_object_set_checksum(os, drro->drr_object, drro->drr_checksum, tx);
 	dmu_object_set_compress(os, drro->drr_object, drro->drr_compress, tx);
 
-	if (drro->drr_bonuslen) {
+	if (data != NULL) {
 		dmu_buf_t *db;
-		void *data;
+
 		VERIFY(0 == dmu_bonus_hold(os, drro->drr_object, FTAG, &db));
 		dmu_buf_will_dirty(db, tx);
 
 		ASSERT3U(db->db_size, >=, drro->drr_bonuslen);
-		data = restore_read(ra, P2ROUNDUP(drro->drr_bonuslen, 8));
-		if (data == NULL) {
-			dmu_tx_commit(tx);
-			return (ra->err);
-		}
 		bcopy(data, db->db_data, drro->drr_bonuslen);
 		if (ra->byteswap) {
 			dmu_ot[drro->drr_bonustype].ot_byteswap(db->db_data,
