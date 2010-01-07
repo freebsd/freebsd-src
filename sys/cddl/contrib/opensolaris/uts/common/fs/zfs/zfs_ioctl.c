@@ -24,7 +24,6 @@
  */
 
 #include <sys/types.h>
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>

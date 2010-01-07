@@ -23,7 +23,6 @@
  * Use is subject to license terms.
  */
 
-
 /* Portions Copyright 2007 Jeremy Teo */
 
 #include <sys/types.h>
@@ -2301,6 +2300,7 @@ zfs_fsync(vnode_t *vp, int syncflag, cred_t *cr, caller_context_t *ct)
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 
 	(void) tsd_set(zfs_fsyncer_key, (void *)zfs_fsync_sync_cnt);
+
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zp);
 	zil_commit(zfsvfs->z_log, zp->z_last_itx, zp->z_id);

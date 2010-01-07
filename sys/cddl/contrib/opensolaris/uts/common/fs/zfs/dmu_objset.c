@@ -1131,7 +1131,6 @@ dmu_objset_find_spa(spa_t *spa, const char *name,
 		dsl_dir_close(dd, FTAG);
 		return (0);
 	}
-	attr = kmem_alloc(sizeof (zap_attribute_t), KM_SLEEP);
 
 	thisobj = dd->dd_phys->dd_head_dataset_obj;
 	attr = kmem_alloc(sizeof (zap_attribute_t), KM_SLEEP);

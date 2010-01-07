@@ -127,7 +127,6 @@ secpolicy_vnode_access(struct ucred *cred, struct vnode *vp, uint64_t owner,
 
 	if ((accmode & VREAD) && priv_check_cred(cred, PRIV_VFS_READ, 0) != 0)
 		return (EACCES);
-
 	if ((accmode & VWRITE) &&
 	    priv_check_cred(cred, PRIV_VFS_WRITE, 0) != 0) {
 		return (EACCES);

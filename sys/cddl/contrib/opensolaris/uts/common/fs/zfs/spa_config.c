@@ -87,6 +87,7 @@ spa_config_load(void)
 	(void) snprintf(pathname, MAXPATHLEN, "%s", spa_config_path);
 
 	file = kobj_open_file(pathname);
+
 	if (file == (struct _buf *)-1) {
 		ZFS_LOG(1, "Cannot open %s.", pathname);
 		goto out;

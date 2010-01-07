@@ -30,6 +30,7 @@
 #define	_OPENSOLARIS_SYS_TIME_H_
 
 #include_next <sys/time.h>
+
 #define SEC		1
 #define MILLISEC	1000
 #define MICROSEC	1000000
