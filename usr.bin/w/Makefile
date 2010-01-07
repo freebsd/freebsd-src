@@ -10,8 +10,6 @@ LDADD=	-lkvm -lulog -lutil
 #BINMODE=2555
 LINKS=	${BINDIR}/w ${BINDIR}/uptime
 
-WARNS?=	1
-
 .PATH: ${.CURDIR}/../../bin/ps
 
 .include <bsd.prog.mk>
