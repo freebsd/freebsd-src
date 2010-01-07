@@ -365,3 +365,40 @@ dump_config(struct libusb20_device *pdev, uint8_t all_cfg)
 	}
 	return;
 }
+
+void
+dump_string_by_index(struct libusb20_device *pdev, uint8_t str_index)
+{
+	char *pbuf;
+	uint8_t n;
+	uint8_t len;
+
+	pbuf = malloc(256);
+	if (pbuf == NULL)
+		err(1, "out of memory");
+
+	if (str_index == 0) {
+		/* language table */
+		if (libusb20_dev_req_string_sync(pdev,
+		    str_index, 0, pbuf, 256)) {
+			printf("STRING_0x%02x = <read error>\n", str_index);
+		} else {
+			printf("STRING_0x%02x = ", str_index);
+			len = (uint8_t)pbuf[0];
+			for (n = 0; n != len; n++) {
+				printf("0x%02x%s", (uint8_t)pbuf[n], 
+				    (n != (len-1)) ? ", " : "");
+			}
+			printf("\n");
+		}
+	} else {
+		/* ordinary string */
+		if (libusb20_dev_req_string_simple_sync(pdev,
+		    str_index, pbuf, 256)) {
+			printf("STRING_0x%02x = <read error>\n", str_index);
+		} else {
+			printf("STRING_0x%02x = <%s>\n", str_index, pbuf);
+		}
+	}
+	free(pbuf);
+}
