@@ -480,7 +480,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 		}
 		resinfo = resp;
 		resp += PNP_SRES_LEN(tag);
-		scanning -= PNP_SRES_LEN(tag);;
+		scanning -= PNP_SRES_LEN(tag);
 			
 		switch (PNP_SRES_NUM(tag)) {
 		case PNP_TAG_LOGICAL_DEVICE:

@@ -1150,7 +1150,7 @@ mge_intr_tx_locked(struct mge_softc *sc)
 			break;
 
 		sc->tx_desc_used_idx =
-			(++sc->tx_desc_used_idx) % MGE_TX_DESC_NUM;;
+			(++sc->tx_desc_used_idx) % MGE_TX_DESC_NUM;
 		sc->tx_desc_used_count--;
 
 		/* Update collision statistics */

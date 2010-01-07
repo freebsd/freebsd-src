@@ -4743,7 +4743,7 @@ static void
 ixgbe_reinit_fdir(void *context, int pending)
 {
 	struct adapter  *adapter = context;
-	struct ifnet   *ifp = adapter->ifp;;
+	struct ifnet   *ifp = adapter->ifp;
 
 	if (adapter->fdir_reinit != 1) /* Shouldn't happen */
 		return;
@@ -4763,7 +4763,7 @@ ixgbe_reinit_fdir(void *context, int pending)
 static void
 ixgbe_update_stats_counters(struct adapter *adapter)
 {
-	struct ifnet   *ifp = adapter->ifp;;
+	struct ifnet   *ifp = adapter->ifp;
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32  missed_rx = 0, bprc, lxon, lxoff, total;
 	u64  total_missed_rx = 0;

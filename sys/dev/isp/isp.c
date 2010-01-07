@@ -6658,8 +6658,8 @@ isp_mbox_continue(ispsoftc_t *isp)
 	ptr = isp->isp_mbxworkp;
 	switch (isp->isp_lastmbxcmd) {
 	case MBOX_WRITE_RAM_WORD:
-		mbs.param[1] = isp->isp_mbxwrk1++;;
-		mbs.param[2] = *ptr++;;
+		mbs.param[1] = isp->isp_mbxwrk1++;
+		mbs.param[2] = *ptr++;
 		break;
 	case MBOX_READ_RAM_WORD:
 		*ptr++ = isp->isp_mboxtmp[2];
@@ -6669,7 +6669,7 @@ isp_mbox_continue(ispsoftc_t *isp)
 		offset = isp->isp_mbxwrk1;
 		offset |= isp->isp_mbxwrk8 << 16;
 
-		mbs.param[2] = *ptr++;;
+		mbs.param[2] = *ptr++;
 		mbs.param[1] = offset;
 		mbs.param[8] = offset >> 16;
 		isp->isp_mbxwrk1 = ++offset;

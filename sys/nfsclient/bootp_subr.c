@@ -1332,7 +1332,7 @@ bootpc_compose_query(struct bootpc_ifcontext *ifctx,
 	*vendp++ = TAG_VENDOR_INDENTIFIER;
 	*vendp++ = vendor_client_len;
 	memcpy(vendp, vendor_client, vendor_client_len);
-	vendp += vendor_client_len;;
+	vendp += vendor_client_len;
 	ifctx->dhcpquerytype = DHCP_NOMSG;
 	switch (ifctx->state) {
 	case IF_DHCP_UNRESOLVED:
