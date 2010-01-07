@@ -110,9 +110,7 @@ IdlePDPT:	.long	0		/* phys addr of kernel PDPT */
 KPTphys:	.long	0		/* phys addr of kernel page tables */
 
 	.globl	proc0kstack
-proc0uarea:	.long	0		/* address of proc 0 uarea (unused)*/
 proc0kstack:	.long	0		/* address of proc 0 kstack space */
-p0upa:		.long	0		/* phys addr of proc0 UAREA (unused) */
 p0kpa:		.long	0		/* phys addr of proc0's STACK */
 
 vm86phystk:	.long	0		/* PA of vm86/bios stack */
