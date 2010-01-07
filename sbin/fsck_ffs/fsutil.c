@@ -436,7 +436,7 @@ check_cgmagic(int cg, struct cg *cgp)
 	    ((sblock.fs_magic == FS_UFS1_MAGIC &&
 	      cgp->cg_old_niblk == sblock.fs_ipg &&
 	      cgp->cg_ndblk <= sblock.fs_fpg &&
-	      cgp->cg_old_ncyl == sblock.fs_old_cpg) ||
+	      cgp->cg_old_ncyl <= sblock.fs_old_cpg) ||
 	     (sblock.fs_magic == FS_UFS2_MAGIC &&
 	      cgp->cg_niblk == sblock.fs_ipg &&
 	      cgp->cg_ndblk <= sblock.fs_fpg &&
