@@ -143,6 +143,7 @@ _sem_open(const char *name, int flags, ...)
 	struct sem_nameinfo *ni = NULL;
 	sem_t *sem = NULL;
 	int fd = -1, mode, len;
+	int value = 0;
 
 	if (name[0] != '/') {
 		errno = EINVAL;
@@ -170,6 +171,7 @@ _sem_open(const char *name, int flags, ...)
 	if (flags & O_CREAT) {
 		va_start(ap, flags);
 		mode = va_arg(ap, int);
+		value = va_arg(ap, int);
 		va_end(ap);
 	}
 
@@ -203,7 +205,7 @@ _sem_open(const char *name, int flags, ...)
 
 		tmp._magic = SEM_MAGIC;
 		tmp._kern._has_waiters = 0;
-		tmp._kern._count = 0;
+		tmp._kern._count = value;
 		tmp._kern._flags = USYNC_PROCESS_SHARED | SEM_NAMED;
 		if (_write(fd, &tmp, sizeof(tmp)) != sizeof(tmp)) {
 			flock(fd, LOCK_UN);
