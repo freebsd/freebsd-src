@@ -103,7 +103,7 @@ static int red_lookup_depth = 256;	/* RED - default lookup table depth */
 static int red_avg_pkt_size = 512;      /* RED - default medium packet size */
 static int red_max_pkt_size = 1500;     /* RED - default max packet size */
 
-static struct timeval prev_t, t;
+static struct timeval prev_t;
 static long tick_last;			/* Last tick duration (usec). */
 static long tick_delta;			/* Last vs standard tick diff (usec). */
 static long tick_delta_sum;		/* Accumulated tick difference (usec).*/
@@ -239,7 +239,6 @@ static int	ip_dn_ctl(struct sockopt *sopt);
 static void	dummynet(void *);
 static void	dummynet_flush(void);
 static void	dummynet_send(struct mbuf *);
-void		dummynet_drain(void);
 static int	dummynet_io(struct mbuf **, int , struct ip_fw_args *);
 
 /*
@@ -851,7 +850,9 @@ dummynet(void * __unused unused)
 }
 
 /*
- * The main dummynet processing function.
+ * The timer handler for dummynet. Time is computed in ticks, but
+ * but the code is tolerant to the actual rate at which this is called.
+ * Once complete, the function reschedules itself for the next tick.
  */
 static void
 dummynet_task(void *context, int pending)
@@ -862,6 +863,7 @@ dummynet_task(void *context, int pending)
 	struct dn_heap *h;
 	void *p;	/* generic parameter to handler */
 	int i;
+	struct timeval t;
 
 	DUMMYNET_LOCK();
 
@@ -1952,35 +1954,6 @@ pipe_remove_from_heap(struct dn_heap *h, struct dn_pipe *p)
 			break ;
 		}
 	}
-}
-
-/*
- * drain all queues. Called in case of severe mbuf shortage.
- */
-void
-dummynet_drain(void)
-{
-    struct dn_flow_set *fs;
-    struct dn_pipe *pipe;
-    int i;
-
-    DUMMYNET_LOCK_ASSERT();
-
-    heap_free(&ready_heap);
-    heap_free(&wfq_ready_heap);
-    heap_free(&extract_heap);
-    /* remove all references to this pipe from flow_sets */
-    for (i = 0; i < HASHSIZE; i++)
-	SLIST_FOREACH(fs, &flowsethash[i], next)
-		purge_flow_set(fs, 0);
-
-    for (i = 0; i < HASHSIZE; i++) {
-	SLIST_FOREACH(pipe, &pipehash[i], next) {
-		purge_flow_set(&(pipe->fs), 0);
-		dn_free_pkts(pipe->head);
-		pipe->head = pipe->tail = NULL;
-	}
-    }
 }
 
 /*
