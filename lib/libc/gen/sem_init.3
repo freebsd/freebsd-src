@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2009
+.Dd January 7, 2010
 .Dt SEM_INIT 3
 .Os
 .Sh NAME
@@ -90,10 +90,3 @@ The
 .Fn sem_init
 function conforms to
 .St -p1003.1-96 .
-.Sh BUGS
-A sem_t is a pointer to a separately allocated structure,
-therefore process shared semaphores only work between related processes
-and do not perform very well
-(each operation is a system call,
-while single-process semaphores only do a system call
-if they need to block or wake up a thread).
