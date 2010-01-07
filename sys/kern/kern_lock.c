@@ -280,8 +280,8 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 		 * Please note that lk_exslpfail count may be lying about
 		 * the real number of waiters with the LK_SLEEPFAIL flag on
 		 * because they may be used in conjuction with interruptible
-		 * sleeps so lk_exslpfail is consider as a 'upper limit'
-		 * bound, considering the edge cases.
+		 * sleeps so lk_exslpfail might be considered an 'upper limit'
+		 * bound, including the edge cases.
 		 */
 		realexslp = sleepq_sleepcnt(&lk->lock_object,
 		    SQ_EXCLUSIVE_QUEUE);
@@ -952,8 +952,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			 * about the real number of waiters with the
 			 * LK_SLEEPFAIL flag on because they may be used in
 			 * conjuction with interruptible sleeps so
-			 * lk_exslpfail is consider as a 'upper limit' bound,
-			 * considering the edge cases.
+			 * lk_exslpfail might be considered an 'upper limit'
+			 * bound, including the edge cases.
 			 */
 			MPASS((x & LK_EXCLUSIVE_SPINNERS) == 0);
 			realexslp = sleepq_sleepcnt(&lk->lock_object,
@@ -1061,8 +1061,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				 * lying about the real number of waiters with
 				 * the LK_SLEEPFAIL flag on because they may
 				 * be used in conjuction with interruptible
-				 * sleeps so lk_exslpfail is consider as a
-				 * 'upper limit' bound, considering the edge
+				 * sleeps so lk_exslpfail might be considered
+				 * an 'upper limit' bound, including the edge
 				 * cases.
 				 */
 				if (v & LK_EXCLUSIVE_WAITERS) {
