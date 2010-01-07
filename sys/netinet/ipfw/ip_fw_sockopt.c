@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/ip_var.h> /* hooks */
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
 
@@ -676,7 +677,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 				goto check_size;
 		case O_NETGRAPH:
 		case O_NGTEE:
-			if (!NG_IPFW_LOADED)
+			if (ng_ipfw_input_p == NULL)
 				return EINVAL;
 			else
 				goto check_size;

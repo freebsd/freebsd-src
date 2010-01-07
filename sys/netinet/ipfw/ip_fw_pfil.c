@@ -73,12 +73,6 @@ static VNET_DEFINE(int, fw6_enable) = 1;
 
 int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
-/* Divert hooks. */
-void (*ip_divert_ptr)(struct mbuf *m, int incoming);
-
-/* ng_ipfw hooks. */
-ng_ipfw_input_t *ng_ipfw_input_p = NULL;
-
 /* Forward declarations. */
 static int ipfw_divert(struct mbuf **, int, struct ipfw_rule_ref *, int);
 
@@ -219,7 +213,7 @@ again:
 
 	case IP_FW_NGTEE:
 	case IP_FW_NETGRAPH:
-		if (!NG_IPFW_LOADED) {
+		if (ng_ipfw_input_p == NULL) {
 			ret = EACCES;
 			break; /* i.e. drop */
 		}
