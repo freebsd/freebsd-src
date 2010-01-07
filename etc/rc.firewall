@@ -505,7 +505,10 @@ case ${firewall_type} in
 
 	# Allow "mandatory" ICMP in.
 	${fwcmd} add pass icmp from any to any icmptype 3,4,11
-	
+	if [ $ipv6_available -eq 0 ]; then
+		${fwcmd} add pass ipv6-icmp from any to any icmp6type 3
+	fi
+
 	# Add permits for this workstations published services below
 	# Only IPs and nets in firewall_allowservices is allowed in.
 	# If you really wish to let anyone use services on your 
