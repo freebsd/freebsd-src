@@ -43,10 +43,10 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
+#include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/ip.h>
-#include <netinet/ip_var.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
