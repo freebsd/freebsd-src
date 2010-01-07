@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -369,6 +370,8 @@ static void bge_asf_driver_up (struct bge_softc *);
 static void bge_tick(void *);
 static void bge_stats_update(struct bge_softc *);
 static void bge_stats_update_regs(struct bge_softc *);
+static struct mbuf *bge_setup_tso(struct bge_softc *, struct mbuf *,
+    uint16_t *);
 static int bge_encap(struct bge_softc *, struct mbuf **, uint32_t *);
 
 static void bge_intr(void *);
@@ -1754,8 +1757,15 @@ bge_blockinit(struct bge_softc *sc)
 	sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx = 0;
 	sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx = 0;
 
+	/* Set up status block size. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
+	    sc->bge_chipid != BGE_CHIPID_BCM5700_C0)
+		val = BGE_STATBLKSZ_FULL;
+	else
+		val = BGE_STATBLKSZ_32BYTE;
+
 	/* Turn on host coalescing state machine */
-	CSR_WRITE_4(sc, BGE_HCC_MODE, BGE_HCCMODE_ENABLE);
+	CSR_WRITE_4(sc, BGE_HCC_MODE, val | BGE_HCCMODE_ENABLE);
 
 	/* Turn on RX BD completion state machine and enable attentions */
 	CSR_WRITE_4(sc, BGE_RBDC_MODE,
@@ -1811,6 +1821,8 @@ bge_blockinit(struct bge_softc *sc)
 		    BGE_RDMAMODE_MBUF_SBD_CRPT_ATTN;
 	if (sc->bge_flags & BGE_FLAG_PCIE)
 		val |= BGE_RDMAMODE_FIFO_LONG_BURST;
+	if (sc->bge_flags & BGE_FLAG_TSO)
+		val |= BGE_RDMAMODE_TSO4_ENABLE;
 	CSR_WRITE_4(sc, BGE_RDMA_MODE, val);
 	DELAY(40);
 
@@ -1837,7 +1849,10 @@ bge_blockinit(struct bge_softc *sc)
 	CSR_WRITE_4(sc, BGE_SDC_MODE, val);
 
 	/* Turn on send data initiator state machine */
-	CSR_WRITE_4(sc, BGE_SDI_MODE, BGE_SDIMODE_ENABLE);
+	if (sc->bge_flags & BGE_FLAG_TSO)
+		CSR_WRITE_4(sc, BGE_SDI_MODE, BGE_SDIMODE_ENABLE | 0x08);
+	else
+		CSR_WRITE_4(sc, BGE_SDI_MODE, BGE_SDIMODE_ENABLE);
 
 	/* Turn on send BD initiator state machine */
 	CSR_WRITE_4(sc, BGE_SBDI_MODE, BGE_SBDIMODE_ENABLE);
@@ -2104,15 +2119,22 @@ bge_dma_alloc(device_t dev)
 {
 	struct bge_dmamap_arg ctx;
 	struct bge_softc *sc;
+	bus_addr_t lowaddr;
+	bus_size_t sbsz, txsegsz, txmaxsegsz;
 	int i, error;
 
 	sc = device_get_softc(dev);
 
+	lowaddr = BUS_SPACE_MAXADDR;
+	if ((sc->bge_flags & BGE_FLAG_40BIT_BUG) != 0)
+		lowaddr = BGE_DMA_MAXADDR;
+	if ((sc->bge_flags & BGE_FLAG_4G_BNDRY_BUG) != 0)
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->bge_dev),
-	    1, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,	NULL,
+	    1, 0, lowaddr, BUS_SPACE_MAXADDR, NULL,
 	    NULL, BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT,
 	    0, NULL, NULL, &sc->bge_cdata.bge_parent_tag);
 
@@ -2125,10 +2147,17 @@ bge_dma_alloc(device_t dev)
 	/*
 	 * Create tag for Tx mbufs.
 	 */
+	if (sc->bge_flags & BGE_FLAG_TSO) {
+		txsegsz = BGE_TSOSEG_SZ;
+		txmaxsegsz = 65535 + sizeof(struct ether_vlan_header);
+	} else {
+		txsegsz = MCLBYTES;
+		txmaxsegsz = MCLBYTES * BGE_NSEG_NEW;
+	}
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag, 1,
-	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-	    NULL, MCLBYTES * BGE_NSEG_NEW, BGE_NSEG_NEW, MCLBYTES,
-	    BUS_DMA_ALLOCNOW, NULL, NULL, &sc->bge_cdata.bge_tx_mtag);
+	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    txmaxsegsz, BGE_NSEG_NEW, txsegsz, 0, NULL, NULL,
+	    &sc->bge_cdata.bge_tx_mtag);
 
 	if (error) {
 		device_printf(sc->bge_dev, "could not allocate TX dma tag\n");
@@ -2140,7 +2169,7 @@ bge_dma_alloc(device_t dev)
 	 */
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag, 1, 0,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1,
-	    MCLBYTES, BUS_DMA_ALLOCNOW, NULL, NULL, &sc->bge_cdata.bge_rx_mtag);
+	    MCLBYTES, 0, NULL, NULL, &sc->bge_cdata.bge_rx_mtag);
 
 	if (error) {
 		device_printf(sc->bge_dev, "could not allocate RX dma tag\n");
@@ -2343,14 +2372,25 @@ bge_dma_alloc(device_t dev)
 
 	sc->bge_ldata.bge_tx_ring_paddr = ctx.bge_busaddr;
 
-	/* Create tag for status block. */
+	/*
+	 * Create tag for status block.
+	 * Because we only use single Tx/Rx/Rx return ring, use
+	 * minimum status block size except BCM5700 AX/BX which
+	 * seems to want to see full status block size regardless
+	 * of configured number of ring.
+	 */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
+	    sc->bge_chipid != BGE_CHIPID_BCM5700_C0)
+		sbsz = BGE_STATUS_BLK_SZ;
+	else
+		sbsz = 32;
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
 	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-	    NULL, BGE_STATUS_BLK_SZ, 1, BGE_STATUS_BLK_SZ, 0,
-	    NULL, NULL, &sc->bge_cdata.bge_status_tag);
+	    NULL, sbsz, 1, sbsz, 0, NULL, NULL, &sc->bge_cdata.bge_status_tag);
 
 	if (error) {
-		device_printf(sc->bge_dev, "could not allocate dma tag\n");
+		device_printf(sc->bge_dev,
+		    "could not allocate status dma tag\n");
 		return (ENOMEM);
 	}
 
@@ -2361,7 +2401,7 @@ bge_dma_alloc(device_t dev)
 	if (error)
 		return (ENOMEM);
 
-	bzero((char *)sc->bge_ldata.bge_status_block, BGE_STATUS_BLK_SZ);
+	bzero((char *)sc->bge_ldata.bge_status_block, sbsz);
 
 	/* Load the address of the status block. */
 	ctx.sc = sc;
@@ -2369,7 +2409,7 @@ bge_dma_alloc(device_t dev)
 
 	error = bus_dmamap_load(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map, sc->bge_ldata.bge_status_block,
-	    BGE_STATUS_BLK_SZ, bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
+	    sbsz, bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
 
 	if (error)
 		return (ENOMEM);
@@ -2566,6 +2606,16 @@ bge_attach(device_t dev)
 			sc->bge_flags |= BGE_FLAG_BER_BUG;
 	}
 
+	/*
+	 * All controllers that are not 5755 or higher have 4GB
+	 * boundary DMA bug.
+	 * Whenever an address crosses a multiple of the 4GB boundary
+	 * (including 4GB, 8Gb, 12Gb, etc.) and makes the transition
+	 * from 0xX_FFFF_FFFF to 0x(X+1)_0000_0000 an internal DMA
+	 * state machine will lockup and cause the device to hang.
+	 */
+	if (BGE_IS_5755_PLUS(sc) == 0)
+		sc->bge_flags |= BGE_FLAG_4G_BNDRY_BUG;
 
 	/*
 	 * We could possibly check for BCOM_DEVICEID_BCM5788 in bge_probe()
@@ -2575,6 +2625,21 @@ bge_attach(device_t dev)
 	if (misccfg == BGE_MISCCFG_BOARD_ID_5788 ||
 	    misccfg == BGE_MISCCFG_BOARD_ID_5788M)
 		sc->bge_flags |= BGE_FLAG_5788;
+
+	/*
+	 * Some controllers seem to require a special firmware to use
+	 * TSO. But the firmware is not available to FreeBSD and Linux
+	 * claims that the TSO performed by the firmware is slower than
+	 * hardware based TSO. Moreover the firmware based TSO has one
+	 * known bug which can't handle TSO if ethernet header + IP/TCP
+	 * header is greater than 80 bytes. The workaround for the TSO
+	 * bug exist but it seems it's too expensive than not using
+	 * TSO at all. Some hardwares also have the TSO bug so limit
+	 * the TSO to the controllers that are not affected TSO issues
+	 * (e.g. 5755 or higher).
+	 */
+	if (BGE_IS_5755_PLUS(sc))
+		sc->bge_flags |= BGE_FLAG_TSO;
 
   	/*
 	 * Check if this is a PCI-X or PCI Express device.
@@ -2600,12 +2665,19 @@ bge_attach(device_t dev)
 	}
 
 	/*
+	 * The 40bit DMA bug applies to the 5714/5715 controllers and is
+	 * not actually a MAC controller bug but an issue with the embedded
+	 * PCIe to PCI-X bridge in the device. Use 40bit DMA workaround.
+	 */
+	if (BGE_IS_5714_FAMILY(sc) && (sc->bge_flags & BGE_FLAG_PCIX))
+		sc->bge_flags |= BGE_FLAG_40BIT_BUG;
+	/*
 	 * Allocate the interrupt, using MSI if possible.  These devices
 	 * support 8 MSI messages, but only the first one is used in
 	 * normal operation.
 	 */
 	rid = 0;
-	if (pci_find_extcap(sc->bge_dev, PCIY_MSI, &reg) != 0) {
+	if (pci_find_extcap(sc->bge_dev, PCIY_MSI, &reg) == 0) {
 		sc->bge_msicap = reg;
 		if (bge_can_use_msi(sc)) {
 			msicount = pci_msi_count(dev);
@@ -2722,6 +2794,10 @@ bge_attach(device_t dev)
 	ifp->if_hwassist = BGE_CSUM_FEATURES;
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING |
 	    IFCAP_VLAN_MTU;
+	if ((sc->bge_flags & BGE_FLAG_TSO) != 0) {
+		ifp->if_hwassist |= CSUM_TSO;
+		ifp->if_capabilities |= IFCAP_TSO4;
+	}
 #ifdef IFCAP_VLAN_HWCSUM
 	ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
 #endif
@@ -2839,6 +2915,8 @@ again:
 #if __FreeBSD_version > 700030
 	if (BGE_IS_5755_PLUS(sc) && sc->bge_flags & BGE_FLAG_MSI) {
 		/* Take advantage of single-shot MSI. */
+		CSR_WRITE_4(sc, BGE_MSI_MODE, CSR_READ_4(sc, BGE_MSI_MODE) &
+		    ~BGE_MSIMODE_ONE_SHOT_DISABLE);
 		sc->bge_tq = taskqueue_create_fast("bge_taskq", M_WAITOK,
 		    taskqueue_thread_enqueue, &sc->bge_tq);
 		if (sc->bge_tq == NULL) {
@@ -3729,6 +3807,72 @@ bge_cksum_pad(struct mbuf *m)
 	return (0);
 }
 
+static struct mbuf *
+bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss)
+{
+	struct ether_header *eh;
+	struct ip *ip;
+	struct tcphdr *tcp;
+	struct mbuf *n;
+	uint16_t hlen;
+	uint32_t ip_off, poff;
+
+	if (M_WRITABLE(m) == 0) {
+		/* Get a writable copy. */
+		n = m_dup(m, M_DONTWAIT);
+		m_freem(m);
+		if (n == NULL)
+			return (NULL);
+		m = n;
+	}
+	ip_off = sizeof(struct ether_header);
+	m = m_pullup(m, ip_off);
+	if (m == NULL)
+		return (NULL);
+	eh = mtod(m, struct ether_header *);
+	/* Check the existence of VLAN tag. */
+	if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+		ip_off = sizeof(struct ether_vlan_header);
+		m = m_pullup(m, ip_off);
+		if (m == NULL)
+			return (NULL);
+	}
+	m = m_pullup(m, ip_off + sizeof(struct ip));
+	if (m == NULL)
+		return (NULL);
+	ip = (struct ip *)(mtod(m, char *) + ip_off);
+	poff = ip_off + (ip->ip_hl << 2);
+	m = m_pullup(m, poff + sizeof(struct tcphdr));
+	if (m == NULL)
+		return (NULL);
+	tcp = (struct tcphdr *)(mtod(m, char *) + poff);
+	m = m_pullup(m, poff + sizeof(struct tcphdr) + tcp->th_off);
+	if (m == NULL)
+		return (NULL);
+	/*
+	 * It seems controller doesn't modify IP length and TCP pseudo
+	 * checksum. These checksum computed by upper stack should be 0.
+	 */
+	*mss = m->m_pkthdr.tso_segsz;
+	ip->ip_sum = 0;
+	ip->ip_len = htons(*mss + (ip->ip_hl << 2) + (tcp->th_off << 2));
+	/* Clear pseudo checksum computed by TCP stack. */
+	tcp->th_sum = 0;
+	/*
+	 * Broadcom controllers uses different descriptor format for
+	 * TSO depending on ASIC revision. Due to TSO-capable firmware
+	 * license issue and lower performance of firmware based TSO
+	 * we only support hardware based TSO which is applicable for
+	 * BCM5755 or newer controllers. Hardware based TSO uses 11
+	 * bits to store MSS and upper 5 bits are used to store IP/TCP
+	 * header length(including IP/TCP options). The header length
+	 * is expressed as 32 bits unit.
+	 */
+	hlen = ((ip->ip_hl << 2) + (tcp->th_off << 2)) >> 2;
+	*mss |= (hlen << 11);
+	return (m);
+}
+
 /*
  * Encapsulate an mbuf chain in the tx ring  by coupling the mbuf data
  * pointers to descriptors.
@@ -3741,11 +3885,19 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	struct bge_tx_bd	*d;
 	struct mbuf		*m = *m_head;
 	uint32_t		idx = *txidx;
-	uint16_t		csum_flags;
+	uint16_t		csum_flags, mss, vlan_tag;
 	int			nsegs, i, error;
 
 	csum_flags = 0;
-	if (m->m_pkthdr.csum_flags) {
+	mss = 0;
+	vlan_tag = 0;
+	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+		*m_head = m = bge_setup_tso(sc, m, &mss);
+		if (*m_head == NULL)
+			return (ENOBUFS);
+		csum_flags |= BGE_TXBDFLAG_CPU_PRE_DMA |
+		    BGE_TXBDFLAG_CPU_POST_DMA;
+	} else if ((m->m_pkthdr.csum_flags & BGE_CSUM_FEATURES) != 0) {
 		if (m->m_pkthdr.csum_flags & CSUM_IP)
 			csum_flags |= BGE_TXBDFLAG_IP_CSUM;
 		if (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)) {
@@ -3792,12 +3944,29 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 
 	bus_dmamap_sync(sc->bge_cdata.bge_tx_mtag, map, BUS_DMASYNC_PREWRITE);
 
+#if __FreeBSD_version > 700022
+	if (m->m_flags & M_VLANTAG) {
+		csum_flags |= BGE_TXBDFLAG_VLAN_TAG;
+		vlan_tag = m->m_pkthdr.ether_vtag;
+	}
+#else
+	{
+		struct m_tag		*mtag;
+
+		if ((mtag = VLAN_OUTPUT_TAG(sc->bge_ifp, m)) != NULL) {
+			csum_flags |= BGE_TXBDFLAG_VLAN_TAG;
+			vlan_tag = VLAN_TAG_VALUE(mtag);
+		}
+	}
+#endif
 	for (i = 0; ; i++) {
 		d = &sc->bge_ldata.bge_tx_ring[idx];
 		d->bge_addr.bge_addr_lo = BGE_ADDR_LO(segs[i].ds_addr);
 		d->bge_addr.bge_addr_hi = BGE_ADDR_HI(segs[i].ds_addr);
 		d->bge_len = segs[i].ds_len;
 		d->bge_flags = csum_flags;
+		d->bge_vlan_tag = vlan_tag;
+		d->bge_mss = mss;
 		if (i == nsegs - 1)
 			break;
 		BGE_INC(idx, BGE_TX_RING_CNT);
@@ -3805,26 +3974,6 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 
 	/* Mark the last segment as end of packet... */
 	d->bge_flags |= BGE_TXBDFLAG_END;
-
-	/* ... and put VLAN tag into first segment.  */
-	d = &sc->bge_ldata.bge_tx_ring[*txidx];
-#if __FreeBSD_version > 700022
-	if (m->m_flags & M_VLANTAG) {
-		d->bge_flags |= BGE_TXBDFLAG_VLAN_TAG;
-		d->bge_vlan_tag = m->m_pkthdr.ether_vtag;
-	} else
-		d->bge_vlan_tag = 0;
-#else
-	{
-		struct m_tag		*mtag;
-
-		if ((mtag = VLAN_OUTPUT_TAG(sc->bge_ifp, m)) != NULL) {
-			d->bge_flags |= BGE_TXBDFLAG_VLAN_TAG;
-			d->bge_vlan_tag = VLAN_TAG_VALUE(mtag);
-		} else
-			d->bge_vlan_tag = 0;
-	}
-#endif
 
 	/*
 	 * Insure that the map for this transmission
@@ -4332,12 +4481,21 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 			if (IFCAP_HWCSUM & ifp->if_capenable &&
 			    IFCAP_HWCSUM & ifp->if_capabilities)
-				ifp->if_hwassist = BGE_CSUM_FEATURES;
+				ifp->if_hwassist |= BGE_CSUM_FEATURES;
 			else
-				ifp->if_hwassist = 0;
+				ifp->if_hwassist &= ~BGE_CSUM_FEATURES;
 #ifdef VLAN_CAPABILITIES
 			VLAN_CAPABILITIES(ifp);
 #endif
+		}
+
+		if ((mask & IFCAP_TSO4) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
+			ifp->if_capenable ^= IFCAP_TSO4;
+			if ((ifp->if_capenable & IFCAP_TSO4) != 0)
+				ifp->if_hwassist |= CSUM_TSO;
+			else
+				ifp->if_hwassist &= ~CSUM_TSO;
 		}
 
 		if (mask & IFCAP_VLAN_MTU) {
