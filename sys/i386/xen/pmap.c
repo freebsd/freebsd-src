@@ -318,6 +318,7 @@ static __inline void pagezero(void *page);
 #if defined(PAE) && !defined(XEN)
 static void *pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
 #endif
+static void pmap_set_pg(void);
 
 CTASSERT(1 << PDESHIFT == sizeof(pd_entry_t));
 CTASSERT(1 << PTESHIFT == sizeof(pt_entry_t));
@@ -552,7 +553,7 @@ pmap_init_pat(void)
 /*
  * Set PG_G on kernel pages.  Only the BSP calls this when SMP is turned on.
  */
-void
+static void
 pmap_set_pg(void)
 {
 	pd_entry_t pdir;
