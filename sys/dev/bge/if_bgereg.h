@@ -2647,6 +2647,7 @@ struct bge_softc {
 	int			bge_link;	/* link state */
 	int			bge_link_evt;	/* pending link event */
 	int			bge_timer;
+	int			bge_forced_collapse;
 	struct callout		bge_stat_ch;
 	uint32_t		bge_rx_discards;
 	uint32_t		bge_tx_discards;
