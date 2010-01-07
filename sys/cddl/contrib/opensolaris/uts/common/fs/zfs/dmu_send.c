@@ -847,6 +847,12 @@ restore_object(struct restorearg *ra, objset_t *os, struct drr_object *drro)
 	if (err != 0 && err != ENOENT)
 		return (EINVAL);
 
+	if (drro->drr_bonuslen) {
+		data = restore_read(ra, P2ROUNDUP(drro->drr_bonuslen, 8));
+		if (ra->err)
+			return (ra->err);
+	}
+
 	if (err == ENOENT) {
 		/* currently free, want to be allocated */
 		tx = dmu_tx_create(os);
@@ -862,19 +868,12 @@ restore_object(struct restorearg *ra, objset_t *os, struct drr_object *drro)
 		dmu_tx_commit(tx);
 	} else {
 		/* currently allocated, want to be allocated */
-
 		err = dmu_object_reclaim(os, drro->drr_object,
 		    drro->drr_type, drro->drr_blksz,
 		    drro->drr_bonustype, drro->drr_bonuslen);
 	}
 	if (err)
 		return (EINVAL);
-
-	if (drro->drr_bonuslen) {
-		data = restore_read(ra, P2ROUNDUP(drro->drr_bonuslen, 8));
-		if (ra->err)
-			return (ra->err);
-	}
 
 	tx = dmu_tx_create(os);
 	dmu_tx_hold_bonus(tx, drro->drr_object);
