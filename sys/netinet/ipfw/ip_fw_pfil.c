@@ -104,7 +104,8 @@ ipfw_check_hook(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 	int ret;
 
 	/* all the processing now uses ip_len in net format */
-	SET_NET_IPLEN(mtod(*m0, struct ip *));
+	if (mtod(*m0, struct ip *)->ip_v == 4)
+		SET_NET_IPLEN(mtod(*m0, struct ip *));
 
 	/* convert dir to IPFW values */
 	dir = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
@@ -236,7 +237,7 @@ again:
 			FREE_PKT(*m0);
 		*m0 = NULL;
 	}
-	if (*m0)
+	if (*m0 && mtod(*m0, struct ip *)->ip_v == 4)
 		SET_HOST_IPLEN(mtod(*m0, struct ip *));
 	return ret;
 }
