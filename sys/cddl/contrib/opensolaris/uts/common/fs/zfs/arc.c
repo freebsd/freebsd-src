@@ -2965,7 +2965,7 @@ arc_release(arc_buf_t *buf, void *tag)
 
 		mutex_exit(hash_lock);
 
-		nhdr = kmem_cache_alloc(hdr_cache, (KM_PUSHPAGE|KM_ZERO));
+		nhdr = kmem_cache_alloc(hdr_cache, KM_PUSHPAGE);
 		nhdr->b_size = blksz;
 		nhdr->b_spa = spa;
 		nhdr->b_type = type;
@@ -2976,7 +2976,6 @@ arc_release(arc_buf_t *buf, void *tag)
 		nhdr->b_l2hdr = NULL;
 		nhdr->b_datacnt = 1;
 		nhdr->b_freeze_cksum = NULL;
-		mutex_init(&nhdr->b_freeze_lock, NULL, MUTEX_DEFAULT, NULL);
 		(void) refcount_add(&nhdr->b_refcnt, tag);
 		buf->b_hdr = nhdr;
 		rw_exit(&buf->b_lock);
@@ -3412,7 +3411,6 @@ arc_lowmem(void *arg __unused, int howto __unused)
 	/* Serialize access via arc_lowmem_lock. */
 	mutex_enter(&arc_lowmem_lock);
 	needfree = 1;
-
 	cv_signal(&arc_reclaim_thr_cv);
 	while (needfree)
 		tsleep(&needfree, 0, "zfs:lowmem", hz / 5);
@@ -3449,7 +3447,6 @@ arc_init(void)
 		arc_c_max = (arc_c * 8) - (1<<30);
 	else
 		arc_c_max = arc_c_min;
-
 	arc_c_max = MAX(arc_c * 5, arc_c_max);
 #ifdef _KERNEL
 	/*

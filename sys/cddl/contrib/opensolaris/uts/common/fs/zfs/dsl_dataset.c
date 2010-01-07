@@ -864,7 +864,6 @@ dsl_snapshot_destroy_one(char *name, void *arg)
 	(void) strcat(name, da->snapname);
 	err = dsl_dataset_own(name, DS_MODE_READONLY | DS_MODE_INCONSISTENT,
 	    da->dstg, &ds);
-
 	cp = strchr(name, '@');
 	*cp = '\0';
 	if (err == 0) {

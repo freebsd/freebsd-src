@@ -870,15 +870,6 @@ vdev_raidz_io_done(zio_t *zio)
 				 * so we can write it out to the failed device
 				 * later.
 				 */
-
-				/*
-				 * If we read parity information (unnecessarily
-				 * as it happens since no reconstruction was
-				 * needed) regenerate and verify the parity.
-				 * We also regenerate parity when resilvering
-				 * so we can write it out to the failed device
-				 * later.
-				 */
 				if (parity_errors + parity_untried <
 				    rm->rm_firstdatacol ||
 				    (zio->io_flags & ZIO_FLAG_RESILVER)) {

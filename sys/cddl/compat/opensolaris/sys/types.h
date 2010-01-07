@@ -62,8 +62,8 @@ typedef	uint64_t	pgcnt_t;
 typedef	short		index_t;
 typedef	off_t		offset_t;
 typedef	long		ptrdiff_t;	/* pointer difference */
-typedef	int		major_t;
 typedef	int64_t		rlim64_t;
+typedef	int		major_t;
 
 #else
 #ifdef NEED_SOLARIS_BOOLEAN

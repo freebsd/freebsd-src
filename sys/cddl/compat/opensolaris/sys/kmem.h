@@ -40,7 +40,6 @@
 #define	KM_SLEEP		M_WAITOK
 #define	KM_PUSHPAGE		M_WAITOK
 #define	KM_NOSLEEP		M_NOWAIT
-#define	KM_ZERO			M_ZERO
 #define	KMC_NODEBUG		0
 
 typedef struct kmem_cache {

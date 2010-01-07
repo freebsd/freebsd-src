@@ -653,8 +653,8 @@ zfsctl_snapdir_remove(vnode_t *dvp, char *name, vnode_t *cwd, cred_t *cr,
 		}
 	}
 
-
 	ZFS_EXIT(zfsvfs);
+
 	err = zfsctl_snapshot_zname(dvp, name, MAXNAMELEN, snapname);
 	if (!err)
 		err = zfs_secpolicy_destroy_perms(snapname, cr);
@@ -1060,6 +1060,7 @@ zfsctl_snapshot_mknode(vnode_t *pvp, uint64_t objset)
 	zcp->zc_id = objset;
 	VFS_HOLD(vp->v_vfsp);
 	VOP_UNLOCK(vp, 0, curthread);
+
 	return (vp);
 }
 

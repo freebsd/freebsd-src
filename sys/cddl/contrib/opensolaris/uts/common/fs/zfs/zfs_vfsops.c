@@ -710,12 +710,6 @@ zfs_mount(vfs_t *vfsp, kthread_t *td)
 	int		error = 0;
 	int		canwrite;
 
-#if 0
-	/* TODO: For now deny user mounts. */
-	if ((error = priv_check(td, PRIV_VFS_MOUNT)) != 0)
-		return (error);
-
-#endif
 	if (vfs_getopt(vfsp->mnt_optnew, "from", (void **)&osname, NULL))
 		return (EINVAL);
 

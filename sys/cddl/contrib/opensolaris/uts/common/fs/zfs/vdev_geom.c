@@ -432,7 +432,7 @@ vdev_geom_open_by_guid(vdev_t *vd)
 	if (cp != NULL) {
 		len = strlen(cp->provider->name) + strlen("/dev/") + 1;
 		buf = kmem_alloc(len, KM_SLEEP);
-	
+
 		snprintf(buf, len, "/dev/%s", cp->provider->name);
 		spa_strfree(vd->vdev_path);
 		vd->vdev_path = buf;
@@ -662,11 +662,11 @@ static void
 vdev_geom_io_done(zio_t *zio)
 {
 
-	/*																						    
-	 * If the device returned ENXIO, then attempt we should verify if GEOM														
-	 * provider has been removed. If this is the case, then we trigger an														 
-	 * asynchronous removal of the device.																		
-	 */																						   
+	/*
+	 * If the device returned ENXIO, then attempt we should verify if GEOM
+	 * provider has been removed. If this is the case, then we trigger an
+	 * asynchronous removal of the device.
+	 */
 	if (zio->io_error == ENXIO) {
 		vdev_t *vd = zio->io_vd;
 		vdev_geom_ctx_t *ctx;

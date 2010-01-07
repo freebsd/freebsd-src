@@ -363,6 +363,7 @@ typedef enum zfs_cache_type {
 #define	ZPOOL_CONFIG_FAULTED		"faulted"
 #define	ZPOOL_CONFIG_DEGRADED		"degraded"
 #define	ZPOOL_CONFIG_REMOVED		"removed"
+
 #define	VDEV_TYPE_ROOT			"root"
 #define	VDEV_TYPE_MIRROR		"mirror"
 #define	VDEV_TYPE_REPLACING		"replacing"
