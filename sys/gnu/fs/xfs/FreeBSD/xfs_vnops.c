@@ -1117,7 +1117,7 @@ _xfs_strategy(
 	} */ *ap)
 {
 	daddr_t blkno;
-	struct buf *bp;;
+	struct buf *bp;
 	struct bufobj *bo;
 	struct vnode *vp;
 	struct xfs_mount *xmp;

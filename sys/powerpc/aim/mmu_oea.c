@@ -922,7 +922,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	thread0.td_kstack = va;
 	thread0.td_kstack_pages = KSTACK_PAGES;
 	for (i = 0; i < KSTACK_PAGES; i++) {
-		moea_kenter(mmup, va, pa);;
+		moea_kenter(mmup, va, pa);
 		pa += PAGE_SIZE;
 		va += PAGE_SIZE;
 	}
@@ -935,7 +935,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	va = virtual_avail;
 	virtual_avail += round_page(MSGBUF_SIZE);
 	while (va < virtual_avail) {
-		moea_kenter(mmup, va, pa);;
+		moea_kenter(mmup, va, pa);
 		pa += PAGE_SIZE;
 		va += PAGE_SIZE;
 	}
@@ -948,7 +948,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	va = virtual_avail;
 	virtual_avail += DPCPU_SIZE;
 	while (va < virtual_avail) {
-		moea_kenter(mmup, va, pa);;
+		moea_kenter(mmup, va, pa);
 		pa += PAGE_SIZE;
 		va += PAGE_SIZE;
 	}

@@ -407,7 +407,7 @@ ata_raid_strategy(struct bio *bp)
 	    if (rdp->status & AR_S_REBUILDING)
 		blk = ((lba / rdp->interleave) * rdp->width) * rdp->interleave +
 		      (rdp->interleave * (drv % rdp->width)) +
-		      lba % rdp->interleave;;
+		      lba % rdp->interleave;
 
 	    if (bp->bio_cmd == BIO_READ) {
 		int src_online =

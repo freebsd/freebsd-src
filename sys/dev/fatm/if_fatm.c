@@ -858,7 +858,7 @@ fatm_getprom(struct fatm_softc *sc)
 	NEXT_QUEUE_ENTRY(sc->cmdqueue.head, FATM_CMD_QLEN);
 
 	q->error = 0;
-	q->cb = NULL;;
+	q->cb = NULL;
 	H_SETSTAT(q->q.statp, FATM_STAT_PENDING);
 	H_SYNCSTAT_PREWRITE(sc, q->q.statp);
 

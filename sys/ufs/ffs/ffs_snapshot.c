@@ -739,7 +739,7 @@ out1:
 	auio.uio_iovcnt = 1;
 	aiov.iov_base = (void *)snapblklist;
 	aiov.iov_len = snaplistsize * sizeof(daddr_t);
-	auio.uio_resid = aiov.iov_len;;
+	auio.uio_resid = aiov.iov_len;
 	auio.uio_offset = ip->i_size;
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_WRITE;

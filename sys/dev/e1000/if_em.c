@@ -4346,7 +4346,7 @@ em_free_receive_structures(struct adapter *adapter)
 static int
 em_rxeof(struct adapter *adapter, int count)
 {
-	struct ifnet	*ifp = adapter->ifp;;
+	struct ifnet	*ifp = adapter->ifp;
 	struct mbuf	*mp;
 	u8		status, accept_frame = 0, eop = 0;
 	u16 		len, desc_len, prev_len_adj;

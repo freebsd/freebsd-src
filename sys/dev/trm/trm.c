@@ -2770,7 +2770,7 @@ trm_DoingSRB_Done(PACB pACB)
 			xpt_done(pccb);
 			psrb  = psrb2;
 		}
-		pdcb->GoingSRBCnt = 0;;
+		pdcb->GoingSRBCnt = 0;
 		pdcb->pGoingSRB = NULL;
 		pdcb = pdcb->pNextDCB;
 	}

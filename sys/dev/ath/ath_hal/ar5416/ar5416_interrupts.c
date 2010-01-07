@@ -104,7 +104,7 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		isr = OS_REG_READ(ah, AR_ISR_RAC);
 		if (isr == 0xffffffff) {
 			*masked = 0;
-			return AH_FALSE;;
+			return AH_FALSE;
 		}
 
 		*masked = isr & HAL_INT_COMMON;

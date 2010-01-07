@@ -429,7 +429,7 @@ targbhdtor(struct cam_periph *periph)
 
 	switch (softc->init_level) {
 	case 0:
-		panic("targdtor - impossible init level");;
+		panic("targdtor - impossible init level");
 	case 1:
 		/* FALLTHROUGH */
 	default:

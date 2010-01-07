@@ -205,7 +205,7 @@ ndisusb_detach(device_t self)
 {
 	int i;
 	struct ndis_softc       *sc = device_get_softc(self);
-	struct ndisusb_ep	*ne;;
+	struct ndisusb_ep	*ne;
 
 	sc->ndisusb_status |= NDISUSB_STATUS_DETACH;
 

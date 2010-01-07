@@ -500,7 +500,7 @@ firmware_modevent(module_t mod, int type, void *unused)
 		mtx_lock(&firmware_mtx);
 		for (i = 0; i < FIRMWARE_MAX; i++) {
 			fp = &firmware_table[i];
-			fp->flags |= FW_UNLOAD;;
+			fp->flags |= FW_UNLOAD;
 		}
 		mtx_unlock(&firmware_mtx);
 		taskqueue_enqueue(firmware_tq, &firmware_unload_task);
