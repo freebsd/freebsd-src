@@ -300,7 +300,14 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 			}
 				
 		} else {
-			MPASS(lk->lk_exslpfail == 0);
+
+			/*
+			 * Exclusive waiters sleeping with LK_SLEEPFAIL on
+			 * and using interruptible sleeps/timeout may have
+			 * left spourious lk_exslpfail counts on, so clean
+			 * it up anyway.
+			 */
+			lk->lk_exslpfail = 0;
 			queue = SQ_SHARED_QUEUE;
 		}
 
@@ -959,7 +966,14 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 					queue = SQ_SHARED_QUEUE;
 				}
 			} else {
-				MPASS(lk->lk_exslpfail == 0);
+
+				/*
+				 * Exclusive waiters sleeping with LK_SLEEPFAIL
+				 * on and using interruptible sleeps/timeout
+				 * may have left spourious lk_exslpfail counts
+				 * on, so clean it up anyway. 
+				 */
+				lk->lk_exslpfail = 0;
 				queue = SQ_SHARED_QUEUE;
 			}
 
@@ -1037,8 +1051,16 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 					queue = SQ_EXCLUSIVE_QUEUE;
 					v &= ~LK_EXCLUSIVE_WAITERS;
 				} else {
+
+					/*
+					 * Exclusive waiters sleeping with
+					 * LK_SLEEPFAIL on and using
+					 * interruptible sleeps/timeout may
+					 * have left spourious lk_exslpfail
+					 * counts on, so clean it up anyway.
+					 */
 					MPASS(v & LK_SHARED_WAITERS);
-					MPASS(lk->lk_exslpfail == 0);
+					lk->lk_exslpfail = 0;
 					queue = SQ_SHARED_QUEUE;
 					v &= ~LK_SHARED_WAITERS;
 				}
