@@ -852,6 +852,7 @@ kqueue_add_filteropts(int filt, struct filterops *filtops)
 {
 	int error;
 
+	error = 0;
 	if (filt > 0 || filt + EVFILT_SYSCOUNT < 0) {
 		printf(
 "trying to add a filterop that is out of range: %d is beyond %d\n",
@@ -868,7 +869,7 @@ kqueue_add_filteropts(int filt, struct filterops *filtops)
 	}
 	mtx_unlock(&filterops_lock);
 
-	return (0);
+	return (error);
 }
 
 int
