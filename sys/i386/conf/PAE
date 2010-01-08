@@ -10,10 +10,6 @@ ident		PAE-GENERIC
 # To make a PAE kernel, the next option is needed
 options 	PAE			# Physical Address Extensions Kernel
 
-# Compile acpi in statically since the module isn't built properly.  Most
-# machines which support large amounts of memory require acpi.
-device		acpi
-
 # Don't build modules with this kernel config, since they are not built with
 # the correct options headers.
 makeoptions	NO_MODULES=yes
