@@ -234,7 +234,7 @@ vge_eeprom_getword(sc, addr, dest)
 	int			addr;
 	u_int16_t		*dest;
 {
-	register int		i;
+	int			i;
 	u_int16_t		word = 0;
 
 	/*
@@ -537,7 +537,7 @@ fail:
 /*
  * Program the multicast filter. We use the 64-entry CAM filter
  * for perfect filtering. If there's more than 64 multicast addresses,
- * we use the hash filter insted.
+ * we use the hash filter instead.
  */
 static void
 vge_setmulti(sc)
@@ -603,7 +603,7 @@ static void
 vge_reset(sc)
 	struct vge_softc		*sc;
 {
-	register int		i;
+	int			i;
 
 	CSR_WRITE_1(sc, VGE_CRS1, VGE_CR1_SOFTRESET);
 
@@ -921,10 +921,9 @@ vge_attach(dev)
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct vge_softc	*sc;
 	struct ifnet		*ifp;
-	int			unit, error = 0, rid;
+	int			error = 0, rid;
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 	sc->vge_dev = dev;
 
 	mtx_init(&sc->vge_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
@@ -937,22 +936,22 @@ vge_attach(dev)
 	pci_enable_busmaster(dev);
 
 	rid = VGE_PCI_LOMEM;
-	sc->vge_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->vge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
 
 	if (sc->vge_res == NULL) {
-		printf ("vge%d: couldn't map ports/memory\n", unit);
+		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
 		goto fail;
 	}
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->vge_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-	    0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	sc->vge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->vge_irq == NULL) {
-		printf("vge%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1030,7 +1029,7 @@ vge_attach(dev)
 	    NULL, vge_intr, sc, &sc->vge_intrhand);
 
 	if (error) {
-		printf("vge%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
 		goto fail;
 	}
@@ -1182,7 +1181,7 @@ vge_newbuf(sc, idx, m)
 
 	/*
 	 * Note: the manual fails to document the fact that for
-	 * proper opration, the driver needs to replentish the RX
+	 * proper operation, the driver needs to replenish the RX
 	 * DMA ring 4 descriptors at a time (rather than one at a
 	 * time, like most chips). We can allocate the new buffers
 	 * but we should not set the OWN bits until we're ready
@@ -1972,7 +1971,7 @@ vge_init_locked(struct vge_softc *sc)
 
 	/*
 	 * Configure one-shot timer for microsecond
-	 * resulution and load it for 500 usecs.
+	 * resolution and load it for 500 usecs.
 	 */
 	CSR_SETBIT_1(sc, VGE_DIAGCTL, VGE_DIAGCTL_TIMER0_RES);
 	CSR_WRITE_2(sc, VGE_SSTIMER, 400);
@@ -2262,7 +2261,7 @@ static void
 vge_stop(sc)
 	struct vge_softc		*sc;
 {
-	register int		i;
+	int			i;
 	struct ifnet		*ifp;
 
 	VGE_LOCK_ASSERT(sc);
