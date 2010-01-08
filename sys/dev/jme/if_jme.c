@@ -462,15 +462,7 @@ jme_reg_macaddr(struct jme_softc *sc)
 	if ((par0 == 0 && par1 == 0) ||
 	    (par0 == 0xFFFFFFFF && par1 == 0xFFFF)) {
 		device_printf(sc->jme_dev,
-		    "generating fake ethernet address.\n");
-		par0 = arc4random();
-		/* Set OUI to JMicron. */
-		sc->jme_eaddr[0] = 0x02;	/* U/L bit set. */
-		sc->jme_eaddr[1] = 0x1B;
-		sc->jme_eaddr[2] = 0x8C;
-		sc->jme_eaddr[3] = (par0 >> 16) & 0xff;
-		sc->jme_eaddr[4] = (par0 >> 8) & 0xff;
-		sc->jme_eaddr[5] = par0 & 0xff;
+		    "Failed to retrieve Ethernet address.\n");
 	} else {
 		sc->jme_eaddr[0] = (par0 >> 0) & 0xFF;
 		sc->jme_eaddr[1] = (par0 >> 8) & 0xFF;
