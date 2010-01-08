@@ -190,7 +190,7 @@ device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
 #device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
-#device		ste		# Sundance ST201 (D-Link DFE-550TX)
+device		ste		# Sundance ST201 (D-Link DFE-550TX)
 device		stge		# Sundance/Tamarack TC9021 gigabit Ethernet
 #device		tl		# Texas Instruments ThunderLAN
 #device		tx		# SMC EtherPower II (83c170 ``EPIC'')
