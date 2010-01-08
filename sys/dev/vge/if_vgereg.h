@@ -587,8 +587,7 @@
 
 struct vge_tx_frag {
 	uint32_t		vge_addrlo;
-	uint16_t		vge_addrhi;
-	uint16_t		vge_buflen;
+	uint32_t		vge_addrhi;
 };
 
 /*
@@ -600,7 +599,7 @@ struct vge_tx_frag {
  * to obtain this behavior, the special 'queue' bit must be set.
  */
 
-#define VGE_TXDESC_Q		0x8000
+#define VGE_TXDESC_Q		0x80000000
 
 struct vge_tx_desc {
 	uint32_t		vge_sts;
@@ -645,11 +644,10 @@ struct vge_tx_desc {
 /* Receive DMA descriptors have a single fragment pointer. */
 
 struct vge_rx_desc {
-	volatile uint32_t	vge_sts;
-	volatile uint32_t	vge_ctl;
-	volatile uint32_t	vge_addrlo;
-	volatile uint16_t	vge_addrhi;
-	volatile uint16_t	vge_buflen;
+	uint32_t	vge_sts;
+	uint32_t	vge_ctl;
+	uint32_t	vge_addrlo;
+	uint32_t	vge_addrhi;
 };
 
 /*
@@ -658,7 +656,7 @@ struct vge_rx_desc {
  * not interrupts are generated for this descriptor.
  */
 
-#define VGE_RXDESC_I		0x8000
+#define VGE_RXDESC_I		0x80000000
 
 #define VGE_RDSTS_VIDM		0x00000001	/* VLAN tag filter miss */
 #define VGE_RDSTS_CRCERR	0x00000002	/* bad CRC error */
