@@ -120,7 +120,7 @@ static int	ste_miibus_readreg(device_t, int, int);
 static void	ste_miibus_statchg(device_t);
 static int	ste_miibus_writereg(device_t, int, int, int);
 static int	ste_newbuf(struct ste_softc *, struct ste_chain_onefrag *);
-static int	ste_read_eeprom(struct ste_softc *, caddr_t, int, int, int);
+static int	ste_read_eeprom(struct ste_softc *, uint16_t *, int, int);
 static void	ste_reset(struct ste_softc *);
 static void	ste_restart_tx(struct ste_softc *);
 static int	ste_rxeof(struct ste_softc *, int);
@@ -538,9 +538,8 @@ ste_eeprom_wait(struct ste_softc *sc)
  * data is stored in the EEPROM in network byte order.
  */
 static int
-ste_read_eeprom(struct ste_softc *sc, caddr_t dest, int off, int cnt, int swap)
+ste_read_eeprom(struct ste_softc *sc, uint16_t *dest, int off, int cnt)
 {
-	uint16_t word, *ptr;
 	int err = 0, i;
 
 	if (ste_eeprom_wait(sc))
@@ -551,12 +550,8 @@ ste_read_eeprom(struct ste_softc *sc, caddr_t dest, int off, int cnt, int swap)
 		err = ste_eeprom_wait(sc);
 		if (err)
 			break;
-		word = CSR_READ_2(sc, STE_EEPROM_DATA);
-		ptr = (uint16_t *)(dest + (i * 2));
-		if (swap)
-			*ptr = ntohs(word);
-		else
-			*ptr = word;
+		*dest = le16toh(CSR_READ_2(sc, STE_EEPROM_DATA));
+		dest++;
 	}
 
 	return (err ? 1 : 0);
@@ -1063,7 +1058,7 @@ ste_attach(device_t dev)
 {
 	struct ste_softc *sc;
 	struct ifnet *ifp;
-	u_char eaddr[6];
+	uint16_t eaddr[ETHER_ADDR_LEN / 2];
 	int error = 0, pmc, rid;
 
 	sc = device_get_softc(dev);
@@ -1122,8 +1117,7 @@ ste_attach(device_t dev)
 	/*
 	 * Get station address from the EEPROM.
 	 */
-	if (ste_read_eeprom(sc, eaddr,
-	    STE_EEADDR_NODE0, 3, 0)) {
+	if (ste_read_eeprom(sc, eaddr, STE_EEADDR_NODE0, ETHER_ADDR_LEN / 2)) {
 		device_printf(dev, "failed to read station address\n");
 		error = ENXIO;
 		goto fail;
@@ -1163,7 +1157,7 @@ ste_attach(device_t dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, eaddr);
+	ether_ifattach(ifp, (uint8_t *)eaddr);
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
