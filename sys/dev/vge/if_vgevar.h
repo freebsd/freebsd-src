@@ -100,22 +100,20 @@ struct vge_list_data {
 struct vge_softc {
 	struct ifnet		*vge_ifp;	/* interface info */
 	device_t		vge_dev;
-	bus_space_handle_t	vge_bhandle;	/* bus space handle */
-	bus_space_tag_t		vge_btag;	/* bus space tag */
 	struct resource		*vge_res;
 	struct resource		*vge_irq;
 	void			*vge_intrhand;
 	device_t		vge_miibus;
 	bus_dma_tag_t		vge_parent_tag;
 	bus_dma_tag_t		vge_tag;
-	u_int8_t		vge_unit;	/* interface number */
 	u_int8_t		vge_type;
 	int			vge_if_flags;
 	int			vge_rx_consumed;
 	int			vge_link;
 	int			vge_camidx;
-	struct task		vge_txtask;
 	struct mtx		vge_mtx;
+	struct callout		vge_watchdog;
+	int			vge_timer;
 	struct mbuf		*vge_head;
 	struct mbuf		*vge_tail;
 
@@ -135,20 +133,20 @@ struct vge_softc {
  * register space access macros
  */
 #define CSR_WRITE_STREAM_4(sc, reg, val)	\
-	bus_space_write_stream_4(sc->vge_btag, sc->vge_bhandle, reg, val)
+	bus_write_stream_4(sc->vge_res, reg, val)
 #define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->vge_btag, sc->vge_bhandle, reg, val)
+	bus_write_4(sc->vge_res, reg, val)
 #define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->vge_btag, sc->vge_bhandle, reg, val)
+	bus_write_2(sc->vge_res, reg, val)
 #define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->vge_btag, sc->vge_bhandle, reg, val)
+	bus_write_1(sc->vge_res, reg, val)
 
 #define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->vge_btag, sc->vge_bhandle, reg)
+	bus_read_4(sc->vge_res, reg)
 #define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->vge_btag, sc->vge_bhandle, reg)
+	bus_read_2(sc->vge_res, reg)
 #define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->vge_btag, sc->vge_bhandle, reg)
+	bus_read_1(sc->vge_res, reg)
 
 #define CSR_SETBIT_1(sc, reg, x)	\
 	CSR_WRITE_1(sc, reg, CSR_READ_1(sc, reg) | (x))
