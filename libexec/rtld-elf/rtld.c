@@ -433,7 +433,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		_rtld_error("environment corrupt; aborting");
 		die();
 	}
-#endif
 #ifdef IN_RTLD_CAP
 	unsetenv(LD_ "CAPLIBINDEX");
 #endif
