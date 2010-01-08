@@ -1821,15 +1821,18 @@ arc_reclaim_needed(void)
 #endif
 
 #ifdef _KERNEL
+	if (needfree)
+		return (1);
+	if (arc_size > arc_c_max)
+		return (1);
+	if (arc_size <= arc_c_min)
+		return (0);
 
 	/*
 	 * If pages are needed or we're within 2048 pages 
 	 * of needing to page need to reclaim
 	 */
 	if (vm_pages_needed || (vm_paging_target() > -2048))
-		return (1);
-
-	if (needfree)
 		return (1);
 
 #if 0
