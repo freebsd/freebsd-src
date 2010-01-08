@@ -465,7 +465,7 @@ jme_reg_macaddr(struct jme_softc *sc)
 		    "generating fake ethernet address.\n");
 		par0 = arc4random();
 		/* Set OUI to JMicron. */
-		sc->jme_eaddr[0] = 0x00;
+		sc->jme_eaddr[0] = 0x02;	/* U/L bit set. */
 		sc->jme_eaddr[1] = 0x1B;
 		sc->jme_eaddr[2] = 0x8C;
 		sc->jme_eaddr[3] = (par0 >> 16) & 0xff;
