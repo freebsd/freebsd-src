@@ -117,9 +117,9 @@ static void	mly_printstate(struct mly_softc *sc);
 static void	mly_print_command(struct mly_command *mc);
 static void	mly_print_packet(struct mly_command *mc);
 static void	mly_panic(struct mly_softc *sc, char *reason);
+static int	mly_timeout(struct mly_softc *sc);
 #endif
 void		mly_print_controller(int controller);
-static int	mly_timeout(struct mly_softc *sc);
 
 
 static d_open_t		mly_user_open;
@@ -2981,6 +2981,7 @@ mly_user_health(struct mly_softc *sc, struct mly_user_health *uh)
     return(error);
 }
 
+#ifdef MLY_DEBUG
 static int
 mly_timeout(struct mly_softc *sc)
 {
@@ -3000,3 +3001,4 @@ mly_timeout(struct mly_softc *sc)
 
 	return (0);
 }
+#endif
