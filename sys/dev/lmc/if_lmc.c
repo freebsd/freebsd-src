@@ -4842,7 +4842,7 @@ setup_ifnet(struct ifnet *ifp)
   if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
 # elif defined(__NetBSD__)
   strcpy(ifp->if_xname, sc->dev.dv_xname);
-# elif __OpenBSD__
+# elif defined(__OpenBSD__)
   bcopy(sc->dev.dv_xname, ifp->if_xname, IFNAMSIZ);
 # elif defined(__bsdi__)
   ifp->if_name  = sc->dev.dv_cfdata->cf_driver->cd_name;
