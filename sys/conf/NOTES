@@ -973,6 +973,7 @@ options 	NFSSERVER		#Network File System server
 options 	NFSLOCKD		#Network Lock Manager
 options 	NFSCL			#experimental NFS client with NFSv4
 options 	NFSD			#experimental NFS server with NFSv4
+options 	KGSSAPI			#Kernel GSSAPI implementaion
 
 # NT File System. Read-mostly, see mount_ntfs(8) for details.
 # For a full read-write NTFS support consider sysutils/fusefs-ntfs
