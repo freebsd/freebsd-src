@@ -139,7 +139,7 @@ struct vge_softc {
 	struct resource		*vge_irq;
 	void			*vge_intrhand;
 	device_t		vge_miibus;
-	u_int8_t		vge_type;
+	uint8_t			vge_type;
 	int			vge_if_flags;
 	int			vge_link;
 	int			vge_camidx;
