@@ -560,7 +560,7 @@ carp_input(struct mbuf *m, int hlen)
 	/* verify that the IP TTL is 255.  */
 	if (ip->ip_ttl != CARP_DFLTTL) {
 		CARPSTATS_INC(carps_badttl);
-		CARP_LOG("carp_input: received ttl %d != 255i on %s\n",
+		CARP_DEBUG("carp_input: received ttl %d != 255 on %s\n",
 		    ip->ip_ttl,
 		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
@@ -739,7 +739,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 		CARPSTATS_INC(carps_badauth);
 		SC2IFP(sc)->if_ierrors++;
 		CARP_UNLOCK(ifp->if_carp);
-		CARP_LOG("%s: incorrect hash\n", SC2IFP(sc)->if_xname);
+		CARP_DEBUG("%s: incorrect hash\n", SC2IFP(sc)->if_xname);
 		m_freem(m);
 		return;
 	}

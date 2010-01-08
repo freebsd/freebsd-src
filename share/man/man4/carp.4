@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2006
+.Dd January 5, 2010
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -118,12 +118,12 @@ See also the first example.
 Disabled by default.
 .It Va net.inet.carp.log
 Value of 0 disables any logging.
-Value of 1 enables logging of bad
-.Nm
-packets.
-Values above 1 enable logging state changes of
+Value of 1 enables logging state changes of
 .Nm
 interfaces.
+Values above 1 enable logging of bad
+.Nm
+packets.
 Default value is 1.
 .It Va net.inet.carp.arpbalance
 Balance local traffic using ARP (see below).
