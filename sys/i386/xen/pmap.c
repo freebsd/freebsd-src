@@ -318,7 +318,9 @@ static __inline void pagezero(void *page);
 #if defined(PAE) && !defined(XEN)
 static void *pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
 #endif
+#ifndef XEN
 static void pmap_set_pg(void);
+#endif
 
 CTASSERT(1 << PDESHIFT == sizeof(pd_entry_t));
 CTASSERT(1 << PTESHIFT == sizeof(pt_entry_t));
@@ -550,6 +552,7 @@ pmap_init_pat(void)
 	wrmsr(MSR_PAT, pat_msr);
 }
 
+#ifndef XEN
 /*
  * Set PG_G on kernel pages.  Only the BSP calls this when SMP is turned on.
  */
@@ -588,6 +591,7 @@ pmap_set_pg(void)
 		}
 	}
 }
+#endif
 
 /*
  * Initialize a vm_page's machine-dependent fields.
