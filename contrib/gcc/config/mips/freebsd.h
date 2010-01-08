@@ -97,6 +97,9 @@ Boston, MA 02110-1301, USA.  */
    Needs to agree with <machine/ansi.h>.  GCC defaults come from c-decl.c,
    c-common.c, and config/<arch>/<arch>.h.  */
 
+#undef TARGET_DEFAULT
+#define TARGET_DEFAULT (MASK_ABICALLS | MASK_SOFT_FLOAT)
+
 #if TARGET_ENDIAN_DEFAULT != 0
 #define TARGET_VERSION	fprintf (stderr, " (FreeBSD/mips)");
 #else
