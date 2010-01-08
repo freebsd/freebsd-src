@@ -95,7 +95,9 @@ static int	lagg_port_ioctl(struct ifnet *, u_long, caddr_t);
 static int	lagg_port_output(struct ifnet *, struct mbuf *,
 		    struct sockaddr *, struct route *);
 static void	lagg_port_ifdetach(void *arg __unused, struct ifnet *);
+#ifdef LAGG_PORT_STACKING
 static int	lagg_port_checkstacking(struct lagg_softc *);
+#endif
 static void	lagg_port2req(struct lagg_port *, struct lagg_reqport *);
 static void	lagg_init(void *);
 static void	lagg_stop(struct lagg_softc *);
@@ -456,7 +458,8 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 			mtx_unlock(&lagg_list_mtx);
 			free(lp, M_DEVBUF);
 			return (EINVAL);
-			/* XXX disable stacking for the moment, its untested
+			/* XXX disable stacking for the moment, its untested */
+#ifdef LAGG_PORT_STACKING
 			lp->lp_flags |= LAGG_PORT_STACK;
 			if (lagg_port_checkstacking(sc_ptr) >=
 			    LAGG_MAX_STACKING) {
@@ -464,7 +467,7 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 				free(lp, M_DEVBUF);
 				return (E2BIG);
 			}
-			*/
+#endif
 		}
 	}
 	mtx_unlock(&lagg_list_mtx);
@@ -515,6 +518,7 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	return (error);
 }
 
+#ifdef LAGG_PORT_STACKING
 static int
 lagg_port_checkstacking(struct lagg_softc *sc)
 {
@@ -533,6 +537,7 @@ lagg_port_checkstacking(struct lagg_softc *sc)
 
 	return (m + 1);
 }
+#endif
 
 static int
 lagg_port_destroy(struct lagg_port *lp, int runpd)
