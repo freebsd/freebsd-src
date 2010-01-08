@@ -136,7 +136,7 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 					if (TD_ON_LOCK(td))
 						lflag++;
 					if (TD_IS_SLEEPING(td)) {
-						if (!td->td_flags & TDF_SINTR)
+						if (!(td->td_flags & TDF_SINTR))
 							dflag++;
 						else
 							sflag++;
@@ -171,7 +171,7 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 		state[1] = '\0';
 
 		/* Additional process state flags. */
-		if (!p->p_flag & P_INMEM)
+		if (!(p->p_flag & P_INMEM))
 			strlcat(state, "W", sizeof(state));
 		if (p->p_flag & P_TRACED)
 			strlcat(state, "X", sizeof(state));
