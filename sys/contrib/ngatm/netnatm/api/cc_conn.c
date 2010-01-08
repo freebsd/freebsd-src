@@ -768,7 +768,7 @@ cc_party_drop_ack_ind(struct ccconn *conn,
 	party = cc_party_find(conn, drop->epref.epref);
 	if (party == NULL) {
 		cc_party_log(party, "no party for %s",
-		    ptab[CONN_SIG_DROP_PARTY_ACK_IND]);
+		    cc_conn_sigtab[CONN_SIG_DROP_PARTY_ACK_IND]);
 		return;
 	}
 	switch (party->state) {
