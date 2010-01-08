@@ -339,19 +339,19 @@
 #define VGE_TXQCSR_RUN0		0x0001	/* Enable TX queue 0 */
 #define VGE_TXQCSR_ACT0		0x0002	/* queue 0 active indicator */
 #define VGE_TXQCSR_WAK0		0x0004	/* Wake up (poll) queue 0 */
-#define VGE_TXQCST_DEAD0	0x0008	/* queue 0 dead indicator */
+#define VGE_TXQCSR_DEAD0	0x0008	/* queue 0 dead indicator */
 #define VGE_TXQCSR_RUN1		0x0010	/* Enable TX queue 1 */
 #define VGE_TXQCSR_ACT1		0x0020	/* queue 1 active indicator */
 #define VGE_TXQCSR_WAK1		0x0040	/* Wake up (poll) queue 1 */
-#define VGE_TXQCST_DEAD1	0x0080	/* queue 1 dead indicator */
+#define VGE_TXQCSR_DEAD1	0x0080	/* queue 1 dead indicator */
 #define VGE_TXQCSR_RUN2		0x0100	/* Enable TX queue 2 */
 #define VGE_TXQCSR_ACT2		0x0200	/* queue 2 active indicator */
 #define VGE_TXQCSR_WAK2		0x0400	/* Wake up (poll) queue 2 */
-#define VGE_TXQCST_DEAD2	0x0800	/* queue 2 dead indicator */
+#define VGE_TXQCSR_DEAD2	0x0800	/* queue 2 dead indicator */
 #define VGE_TXQCSR_RUN3		0x1000	/* Enable TX queue 3 */
 #define VGE_TXQCSR_ACT3		0x2000	/* queue 3 active indicator */
 #define VGE_TXQCSR_WAK3		0x4000	/* Wake up (poll) queue 3 */
-#define VGE_TXQCST_DEAD3	0x8000	/* queue 3 dead indicator */
+#define VGE_TXQCSR_DEAD3	0x8000	/* queue 3 dead indicator */
 
 /* RX descriptor queue control/status register */
 
