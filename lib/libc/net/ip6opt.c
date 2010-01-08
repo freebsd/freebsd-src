@@ -55,8 +55,7 @@ static void inet6_insert_padopt(u_char *p, int len);
  * byte, the length byte, and the option data.
  */
 int
-inet6_option_space(nbytes)
-	int nbytes;
+inet6_option_space(int nbytes)
 {
 	nbytes += 2;	/* we need space for nxt-hdr and length fields */
 	return(CMSG_SPACE((nbytes + 7) & ~7));
@@ -68,10 +67,7 @@ inet6_option_space(nbytes)
  * success or -1 on an error.
  */
 int
-inet6_option_init(bp, cmsgp, type)
-	void *bp;
-	struct cmsghdr **cmsgp;
-	int type;
+inet6_option_init(void *bp, struct cmsghdr **cmsgp, int type)
 {
 	struct cmsghdr *ch = (struct cmsghdr *)bp;
 
@@ -98,11 +94,8 @@ inet6_option_init(bp, cmsgp, type)
  * earlier.  It must have a value between 0 and 7, inclusive.
  */
 int
-inet6_option_append(cmsg, typep, multx, plusy)
-	struct cmsghdr *cmsg;
-	const u_int8_t *typep;
-	int multx;
-	int plusy;
+inet6_option_append(struct cmsghdr *cmsg, const u_int8_t *typep, int multx,
+    int plusy)
 {
 	int padlen, optlen, off;
 	u_char *bp = (u_char *)cmsg + cmsg->cmsg_len;
@@ -171,11 +164,7 @@ inet6_option_append(cmsg, typep, multx, plusy)
  * 
  */
 u_int8_t *
-inet6_option_alloc(cmsg, datalen, multx, plusy)
-	struct cmsghdr *cmsg;
-	int datalen;
-	int multx;
-	int plusy;
+inet6_option_alloc(struct cmsghdr *cmsg, int datalen, int multx, int plusy)
 {
 	int padlen, off;
 	u_int8_t *bp = (u_char *)cmsg + cmsg->cmsg_len;
@@ -238,9 +227,7 @@ inet6_option_alloc(cmsg, datalen, multx, plusy)
  * (RFC 2292, 6.3.5)
  */
 int
-inet6_option_next(cmsg, tptrp)
-	const struct cmsghdr *cmsg;
-	u_int8_t **tptrp;
+inet6_option_next(const struct cmsghdr *cmsg, u_int8_t **tptrp)
 {
 	struct ip6_ext *ip6e;
 	int hdrlen, optlen;
@@ -296,10 +283,7 @@ inet6_option_next(cmsg, tptrp)
  *       it's a typo. The variable should be type of u_int8_t **.
  */
 int
-inet6_option_find(cmsg, tptrp, type)
-	const struct cmsghdr *cmsg;
-	u_int8_t **tptrp;
-	int type;
+inet6_option_find(const struct cmsghdr *cmsg, u_int8_t **tptrp, int type)
 {
 	struct ip6_ext *ip6e;
 	int hdrlen, optlen;
@@ -352,8 +336,7 @@ inet6_option_find(cmsg, tptrp, type)
  * calculated length and the limitation of the buffer.
  */
 static int
-ip6optlen(opt, lim)
-	u_int8_t *opt, *lim;
+ip6optlen(u_int8_t *opt, u_int8_t *lim)
 {
 	int optlen;
 

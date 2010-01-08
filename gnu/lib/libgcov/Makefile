@@ -2,6 +2,7 @@
 
 NO_PROFILE=
 .include <bsd.own.mk>
+MK_SSP=		no
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc

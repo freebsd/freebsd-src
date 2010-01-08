@@ -118,6 +118,8 @@
 #define	NBPML4		(1ul<<PML4SHIFT)/* bytes/page map lev4 table */
 #define	PML4MASK	(NBPML4-1)
 
+#define	MAXPAGESIZES	3	/* maximum number of supported page sizes */
+
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 
 #ifndef	KSTACK_PAGES

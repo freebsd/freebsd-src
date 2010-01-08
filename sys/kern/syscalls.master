@@ -930,5 +930,9 @@
 521	AUE_NULL	STD	{ int pdwait(int fd, int *status, \
 				    int options, struct rusage *rusage); }
 
+522	AUE_SELECT	STD	{ int pselect(int nd, fd_set *in, \
+				    fd_set *ou, fd_set *ex, \
+				    const struct timespec *ts, \
+				    const sigset_t *sm); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

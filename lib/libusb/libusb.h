@@ -271,9 +271,11 @@ typedef struct libusb_control_setup {
 	uint16_t wLength;
 }	libusb_control_setup;
 
+#define	LIBUSB_CONTROL_SETUP_SIZE	8	/* bytes */
+
 typedef struct libusb_iso_packet_descriptor {
-	unsigned int length;
-	unsigned int actual_length;
+	uint32_t length;
+	uint32_t actual_length;
 	enum libusb_transfer_status status;
 }	libusb_iso_packet_descriptor __aligned(sizeof(void *));
 
@@ -282,9 +284,9 @@ typedef void (*libusb_transfer_cb_fn) (struct libusb_transfer *transfer);
 typedef struct libusb_transfer {
 	libusb_device_handle *dev_handle;
 	uint8_t	flags;
-	unsigned int endpoint;
+	uint32_t endpoint;
 	uint8_t type;
-	unsigned int timeout;
+	uint32_t timeout;
 	enum libusb_transfer_status status;
 	int	length;
 	int	actual_length;
@@ -320,7 +322,7 @@ int	libusb_get_configuration(libusb_device_handle * devh, int *config);
 int	libusb_set_configuration(libusb_device_handle * devh, int configuration);
 int	libusb_claim_interface(libusb_device_handle * devh, int interface_number);
 int	libusb_release_interface(libusb_device_handle * devh, int interface_number);
-int	libusb_reset_device(libusb_device_handle * dev);
+int	libusb_reset_device(libusb_device_handle * devh);
 int 	libusb_kernel_driver_active(libusb_device_handle * devh, int interface);
 int 	libusb_detach_kernel_driver(libusb_device_handle * devh, int interface);
 int 	libusb_attach_kernel_driver(libusb_device_handle * devh, int interface);
@@ -333,7 +335,8 @@ int	libusb_get_active_config_descriptor(libusb_device * dev, struct libusb_confi
 int	libusb_get_config_descriptor(libusb_device * dev, uint8_t config_index, struct libusb_config_descriptor **config);
 int	libusb_get_config_descriptor_by_value(libusb_device * dev, uint8_t bConfigurationValue, struct libusb_config_descriptor **config);
 void	libusb_free_config_descriptor(struct libusb_config_descriptor *config);
-int	libusb_get_string_descriptor_ascii(libusb_device_handle * dev, uint8_t desc_index, uint8_t *data, int length);
+int	libusb_get_string_descriptor_ascii(libusb_device_handle * devh, uint8_t desc_index, uint8_t *data, int length);
+int	libusb_get_descriptor(libusb_device_handle * devh, uint8_t desc_type, uint8_t desc_index, uint8_t *data, int length);
 
 /* Asynchronous device I/O */
 
@@ -341,7 +344,16 @@ struct libusb_transfer *libusb_alloc_transfer(int iso_packets);
 void	libusb_free_transfer(struct libusb_transfer *transfer);
 int	libusb_submit_transfer(struct libusb_transfer *transfer);
 int	libusb_cancel_transfer(struct libusb_transfer *transfer);
-uint8_t *libusb_get_iso_packet_buffer_simple(struct libusb_transfer *transfer, unsigned int packet);
+uint8_t *libusb_get_iso_packet_buffer(struct libusb_transfer *transfer, uint32_t index);
+uint8_t *libusb_get_iso_packet_buffer_simple(struct libusb_transfer *transfer, uint32_t index);
+void	libusb_set_iso_packet_lengths(struct libusb_transfer *transfer, uint32_t length);
+uint8_t *libusb_control_transfer_get_data(struct libusb_transfer *transfer);
+struct libusb_control_setup *libusb_control_transfer_get_setup(struct libusb_transfer *transfer);
+void	libusb_fill_control_setup(uint8_t *buf, uint8_t bmRequestType, uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLength);
+void	libusb_fill_control_transfer(struct libusb_transfer *transfer, libusb_device_handle *devh, uint8_t *buf, libusb_transfer_cb_fn callback, void *user_data, uint32_t timeout);
+void	libusb_fill_bulk_transfer(struct libusb_transfer *transfer, libusb_device_handle *devh, uint8_t endpoint, uint8_t *buf, int length, libusb_transfer_cb_fn callback, void *user_data, uint32_t timeout);
+void	libusb_fill_interrupt_transfer(struct libusb_transfer *transfer, libusb_device_handle *devh, uint8_t endpoint, uint8_t *buf, int length, libusb_transfer_cb_fn callback, void *user_data, uint32_t timeout);
+void	libusb_fill_iso_transfer(struct libusb_transfer *transfer, libusb_device_handle *devh, uint8_t endpoint, uint8_t *buf, int length, int npacket, libusb_transfer_cb_fn callback, void *user_data, uint32_t timeout);
 
 /* Polling and timing */
 
@@ -362,9 +374,14 @@ struct libusb_pollfd **libusb_get_pollfds(libusb_context * ctx);
 
 /* Synchronous device I/O */
 
-int	libusb_control_transfer(libusb_device_handle * devh, uint8_t bmRequestType, uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint8_t *data, uint16_t wLength, unsigned int timeout);
-int	libusb_bulk_transfer(libusb_device_handle *devh, uint8_t endpoint, uint8_t *data, int length, int *transferred, unsigned int timeout);
-int	libusb_interrupt_transfer(libusb_device_handle *devh, uint8_t endpoint, uint8_t *data, int length, int *transferred, unsigned int timeout);
+int	libusb_control_transfer(libusb_device_handle * devh, uint8_t bmRequestType, uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint8_t *data, uint16_t wLength, uint32_t timeout);
+int	libusb_bulk_transfer(libusb_device_handle * devh, uint8_t endpoint, uint8_t *data, int length, int *transferred, uint32_t timeout);
+int	libusb_interrupt_transfer(libusb_device_handle * devh, uint8_t endpoint, uint8_t *data, int length, int *transferred, uint32_t timeout);
+
+/* Byte-order */
+
+uint16_t libusb_cpu_to_le16(uint16_t x);
+uint16_t libusb_le16_to_cpu(uint16_t x);
 
 #if 0
 {					/* indent fix */

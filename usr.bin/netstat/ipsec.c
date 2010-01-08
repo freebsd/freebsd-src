@@ -418,6 +418,7 @@ esp_stats(u_long off, const char *name, int family __unused, int proto __unused)
 static void
 print_ipcompstats(const struct ipcompstat *ipcompstat)
 {
+	uint32_t version;
 #define	p32(f, m) if (ipcompstat->f || sflag <= 1) \
     printf("\t%u" m, (unsigned int)ipcompstat->f, plural(ipcompstat->f))
 #define	p64(f, m) if (ipcompstat->f || sflag <= 1) \
@@ -425,6 +426,11 @@ print_ipcompstats(const struct ipcompstat *ipcompstat)
 #define	hist(f, n, t) \
     ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t));
 
+#ifndef IPCOMPSTAT_VERSION
+	version = 0;
+#else
+	version = ipcompstat->version;
+#endif
 	p32(ipcomps_hdrops, " packet%s shorter than header shows\n");
 	p32(ipcomps_nopf, " packet%s dropped; protocol family not supported\n");
 	p32(ipcomps_notdb, " packet%s dropped; no TDB\n");
@@ -441,6 +447,10 @@ print_ipcompstats(const struct ipcompstat *ipcompstat)
 	p32(ipcomps_pdrops, " packet%s blocked due to policy\n");
 	p32(ipcomps_crypto, " crypto processing failure%s\n");
 	hist(ipcompstat->ipcomps_hist, ipsec_compnames, "COMP output");
+	if (version >= 1) {
+	p32(ipcomps_threshold, " packet%s sent uncompressed; size < compr. algo. threshold\n");
+	p32(ipcomps_uncompr, " packet%s sent uncompressed; compression was useless\n");
+	}
 
 #undef p32
 #undef p64

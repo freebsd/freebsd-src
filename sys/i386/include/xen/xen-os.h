@@ -34,10 +34,10 @@ void force_evtchn_callback(void);
 #include <vm/pmap.h>
 #endif
 
+extern int gdtset;
 #ifdef SMP
 #include <sys/time.h> /* XXX for pcpu.h */
 #include <sys/pcpu.h> /* XXX for PCPU_GET */
-extern int gdtset;
 static inline int 
 smp_processor_id(void)  
 {

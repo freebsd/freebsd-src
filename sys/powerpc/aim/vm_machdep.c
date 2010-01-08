@@ -81,7 +81,9 @@
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/sf_buf.h>
+#include <sys/syscall.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/unistd.h>
 
 #include <machine/cpu.h>
@@ -419,6 +421,59 @@ cpu_thread_swapin(struct thread *td)
 void
 cpu_thread_swapout(struct thread *td)
 {
+}
+
+void
+cpu_set_syscall_retval(struct thread *td, int error)
+{
+	struct proc *p;
+	struct trapframe *tf;
+	int fixup;
+
+	if (error == EJUSTRETURN)
+		return;
+
+	p = td->td_proc;
+	tf = td->td_frame;
+
+	if (tf->fixreg[0] == SYS___syscall) {
+		int code = tf->fixreg[FIRSTARG + 1];
+		if (p->p_sysent->sv_mask)
+			code &= p->p_sysent->sv_mask;
+		fixup = (code != SYS_freebsd6_lseek && code != SYS_lseek) ?
+		    1 : 0;
+	} else
+		fixup = 0;
+
+	switch (error) {
+	case 0:
+		if (fixup) {
+			/*
+			 * 64-bit return, 32-bit syscall. Fixup byte order
+			 */
+			tf->fixreg[FIRSTARG] = 0;
+			tf->fixreg[FIRSTARG + 1] = td->td_retval[0];
+		} else {
+			tf->fixreg[FIRSTARG] = td->td_retval[0];
+			tf->fixreg[FIRSTARG + 1] = td->td_retval[1];
+		}
+		tf->cr &= ~0x10000000;		/* XXX: Magic number */
+		break;
+	case ERESTART:
+		/*
+		 * Set user's pc back to redo the system call.
+		 */
+		tf->srr0 -= 4;
+		break;
+	default:
+		if (p->p_sysent->sv_errsize) {
+			error = (error < p->p_sysent->sv_errsize) ?
+			    p->p_sysent->sv_errtbl[error] : -1;
+		}
+		tf->fixreg[FIRSTARG] = error;
+		tf->cr |= 0x10000000;		/* XXX: Magic number */
+		break;
+	}
 }
 
 void

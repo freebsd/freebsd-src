@@ -930,7 +930,7 @@ SYSCTL_PROC(_net_inet_sctp, OID_AUTO, output_unlocked, CTLTYPE_INT | CTLFLAG_RW,
 #endif
 
 SYSCTL_STRUCT(_net_inet_sctp, OID_AUTO, stats, CTLFLAG_RW,
-    &SCTP_BASE_STATS, sctpstat,
+    &SCTP_BASE_STATS_SYSCTL, sctpstat,
     "SCTP statistics (struct sctp_stat)");
 
 SYSCTL_PROC(_net_inet_sctp, OID_AUTO, assoclist, CTLFLAG_RD,

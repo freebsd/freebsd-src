@@ -1993,7 +1993,7 @@ char *cmd_str;
 	int number;
 	int i;
 	char *ptr;
-	char *direction = NULL;
+	char *direction = "d";
 	struct text *t_line;
 
 	ptr = cmd_str;

@@ -924,6 +924,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct vnode **vpp = ap->a_vpp;
 	struct mount *mp = dvp->v_mount;
 	struct vattr vattr;
+	time_t dmtime;
 	int flags = cnp->cn_flags;
 	struct vnode *newvp;
 	struct nfsmount *nmp;
@@ -935,7 +936,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	int error = 0, attrflag, fhsize, ltype;
 	int v3 = NFS_ISV3(dvp);
 	struct thread *td = cnp->cn_thread;
-	
+
 	*vpp = NULLVP;
 	if ((flags & ISLASTCN) && (mp->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
@@ -992,6 +993,19 @@ nfs_lookup(struct vop_lookup_args *ap)
 		np->n_dmtime = 0;
 		mtx_unlock(&np->n_mtx);
 	}
+
+	/*
+	 * Cache the modification time of the parent directory in case
+	 * the lookup fails and results in adding the first negative
+	 * name cache entry for the directory.  Since this is reading
+	 * a single time_t, don't bother with locking.  The
+	 * modification time may be a bit stale, but it must be read
+	 * before performing the lookup RPC to prevent a race where
+	 * another lookup updates the timestamp on the directory after
+	 * the lookup RPC has been performed on the server but before
+	 * n_dmtime is set at the end of this function.
+	 */
+	dmtime = np->n_vattr.va_mtime.tv_sec;
 	error = 0;
 	newvp = NULLVP;
 	nfsstats.lookupcache_misses++;
@@ -1130,13 +1144,25 @@ nfsmout:
 			 * Maintain n_dmtime as the modification time
 			 * of the parent directory when the oldest -ve
 			 * name cache entry for this directory was
-			 * added.
+			 * added.  If a -ve cache entry has already
+			 * been added with a newer modification time
+			 * by a concurrent lookup, then don't bother
+			 * adding a cache entry.  The modification
+			 * time of the directory might have changed
+			 * due to the file this lookup failed to find
+			 * being created.  In that case a subsequent
+			 * lookup would incorrectly use the entry
+			 * added here instead of doing an extra
+			 * lookup.
 			 */
 			mtx_lock(&np->n_mtx);
-			if (np->n_dmtime == 0)
-				np->n_dmtime = np->n_vattr.va_mtime.tv_sec;
-			mtx_unlock(&np->n_mtx);
-			cache_enter(dvp, NULL, cnp);
+			if (np->n_dmtime <= dmtime) {
+				if (np->n_dmtime == 0)
+					np->n_dmtime = dmtime;
+				mtx_unlock(&np->n_mtx);
+				cache_enter(dvp, NULL, cnp);
+			} else
+				mtx_unlock(&np->n_mtx);
 		}
 		return (ENOENT);
 	}
@@ -1529,14 +1555,21 @@ nfs_create(struct vop_create_args *ap)
 	struct vattr vattr;
 	int v3 = NFS_ISV3(dvp);
 
+	CURVNET_SET(CRED_TO_VNET(curthread->td_ucred));
+
 	/*
 	 * Oops, not for me..
 	 */
-	if (vap->va_type == VSOCK)
-		return (nfs_mknodrpc(dvp, ap->a_vpp, cnp, vap));
-
-	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)) != 0)
+	if (vap->va_type == VSOCK) {
+		error = nfs_mknodrpc(dvp, ap->a_vpp, cnp, vap);
+		CURVNET_RESTORE();
 		return (error);
+	}
+
+	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)) != 0) {
+		CURVNET_RESTORE();
+		return (error);
+	}
 	if (vap->va_vaflags & VA_EXCLUSIVE)
 		fmode |= O_EXCL;
 again:
@@ -1632,6 +1665,7 @@ nfsmout:
 		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(dvp);
 	}
 	mtx_unlock(&(VTONFS(dvp))->n_mtx);
+	CURVNET_RESTORE();
 	return (error);
 }
 

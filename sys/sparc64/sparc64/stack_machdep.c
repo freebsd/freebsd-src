@@ -36,15 +36,20 @@ __FBSDID("$FreeBSD$");
 #include <machine/stack.h>
 #include <machine/vmparam.h>
 
-static void stack_capture(struct stack *st, struct frame *fp);
+static void stack_capture(struct stack *st, struct frame *frame);
 
 static void
-stack_capture(struct stack *st, struct frame *fp)
+stack_capture(struct stack *st, struct frame *frame)
 {
+	struct frame *fp;
 	vm_offset_t callpc;
 
 	stack_zero(st);
-	while (1) {
+	fp = frame;
+	for (;;) {
+		if (!INKERNEL((vm_offset_t)fp) ||
+		    !ALIGNED_POINTER(fp, uint64_t))
+                        break;
 		callpc = fp->fr_pc;
 		if (!INKERNEL(callpc))
 			break;
@@ -55,6 +60,9 @@ stack_capture(struct stack *st, struct frame *fp)
 		    callpc < (uint64_t)tl_text_end))
 			break;
 		if (stack_put(st, callpc) == -1)
+			break;
+		if (v9next_frame(fp) <= fp ||
+		    v9next_frame(fp) >= frame + KSTACK_PAGES * PAGE_SIZE)
 			break;
 		fp = v9next_frame(fp);
 	}

@@ -312,6 +312,9 @@ static int
 sequential_heuristic(struct uio *uio, struct file *fp)
 {
 
+	if (atomic_load_acq_int(&(fp->f_flag)) & FRDAHEAD)
+		return (fp->f_seqcount << IO_SEQSHIFT);
+
 	/*
 	 * Offset 0 is handled specially.  open() sets f_seqcount to 1 so
 	 * that the first I/O is normally considered to be slightly

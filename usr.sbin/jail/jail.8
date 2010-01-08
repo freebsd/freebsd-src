@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2009
+.Dd October 18, 2009
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -377,7 +377,7 @@ Since raw sockets can be used to configure and interact with various
 network subsystems, extra caution should be used where privileged access
 to jails is given out to untrusted parties.
 .It Va allow.chflags
-Normally, priveleged users inside a jail are treated as unprivileged by
+Normally, privileged users inside a jail are treated as unprivileged by
 .Xr chflags 2 .
 When this parameter is set, such users are treated as privileged, and
 may manipulate system file flags subject to the usual constraints on

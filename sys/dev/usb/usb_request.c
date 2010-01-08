@@ -1549,7 +1549,7 @@ retry:
 	    USB_MAX_IPACKET, USB_MAX_IPACKET, 0, UDESC_DEVICE, 0, 0);
 	if (err) {
 		DPRINTFN(0, "getting device descriptor "
-		    "at addr %d failed, %s!\n", udev->address,
+		    "at addr %d failed, %s\n", udev->address,
 		    usbd_errstr(err));
 		goto done;
 	}
@@ -1557,7 +1557,7 @@ retry:
 	err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
 	if (err) {
 		DPRINTFN(0, "addr=%d, getting device "
-		    "descriptor failed, %s!\n", old_addr, 
+		    "descriptor failed, %s\n", old_addr, 
 		    usbd_errstr(err));
 		goto done;
 	}

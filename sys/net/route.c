@@ -98,8 +98,6 @@ VNET_DEFINE(struct rtstat, rtstat);
 #define	V_rttrash	VNET(rttrash)
 #define	V_rtstat	VNET(rtstat)
 
-static void rt_maskedcopy(struct sockaddr *,
-	    struct sockaddr *, struct sockaddr *);
 
 /* compare two sockaddr structures */
 #define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
@@ -1315,7 +1313,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	return (0);
 }
 
-static void
+void
 rt_maskedcopy(struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netmask)
 {
 	register u_char *cp1 = (u_char *)src;
@@ -1497,7 +1495,11 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			    ((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
 				rt->rt_ifp->if_index;
 			}
+			RT_ADDREF(rt);
+			RT_UNLOCK(rt);
 			rt_newaddrmsg(cmd, ifa, error, rt);
+			RT_LOCK(rt);
+			RT_REMREF(rt);
 			if (cmd == RTM_DELETE) {
 				/*
 				 * If we are deleting, and we found an entry,

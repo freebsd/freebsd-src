@@ -18,10 +18,11 @@ SUBDIR=	${_3dfx} \
 	${_aic} \
 	aic7xxx \
 	aio \
-	${_amd} \
-	${_amdtemp} \
 	alc \
 	ale \
+	${_amd} \
+	${_amdsbwd} \
+	${_amdtemp} \
 	amr \
 	${_an} \
 	${_aout} \
@@ -150,6 +151,7 @@ SUBDIR=	${_3dfx} \
 	libiconv \
 	libmbpool \
 	libmchain \
+	${_lindev} \
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
@@ -370,6 +372,7 @@ _ie=		ie
 _if_ndis=	if_ndis
 _igb=		igb
 _io=		io
+_lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
@@ -411,6 +414,7 @@ _zfs=		zfs
 _aac=		aac
 _acpi=		acpi
 _ahb=		ahb
+_amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
@@ -466,6 +470,7 @@ _aac=		aac
 _acpi=		acpi
 _agp=		agp
 _an=		an
+_amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
@@ -505,6 +510,7 @@ _ipwfw=		ipwfw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
+_lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux

@@ -67,6 +67,9 @@ static	int prefix(void *, int);
 static	char *sec2str(time_t);
 static	int explicit_prefix = 0;
 
+extern void setnd6flags(const char *, int, int, const struct afswtch *);
+extern void setnd6defif(const char *, int, int, const struct afswtch *);
+
 static	char addr_buf[MAXHOSTNAMELEN *2 + 1];	/*for getnameinfo()*/
 
 static void
@@ -493,6 +496,16 @@ static struct cmd inet6_cmds[] = {
 	DEF_CMD("-deprecated", -IN6_IFF_DEPRECATED,	setip6flags),
 	DEF_CMD("autoconf",	IN6_IFF_AUTOCONF,	setip6flags),
 	DEF_CMD("-autoconf",	-IN6_IFF_AUTOCONF,	setip6flags),
+	DEF_CMD("accept_rtadv",	ND6_IFF_ACCEPT_RTADV,	setnd6flags),
+	DEF_CMD("-accept_rtadv",-ND6_IFF_ACCEPT_RTADV,	setnd6flags),
+	DEF_CMD("defaultif",	1,			setnd6defif),
+	DEF_CMD("-defaultif",	-1,			setnd6defif),
+	DEF_CMD("ifdisabled",	ND6_IFF_IFDISABLED,	setnd6flags),
+	DEF_CMD("-ifdisabled",	-ND6_IFF_IFDISABLED,	setnd6flags),
+	DEF_CMD("nud",		ND6_IFF_PERFORMNUD,	setnd6flags),
+	DEF_CMD("-nud",		-ND6_IFF_PERFORMNUD,	setnd6flags),
+	DEF_CMD("prefer_source",ND6_IFF_PREFER_SOURCE,	setnd6flags),
+	DEF_CMD("-prefer_source",-ND6_IFF_PREFER_SOURCE,setnd6flags),
 	DEF_CMD_ARG("pltime",        			setip6pltime),
 	DEF_CMD_ARG("vltime",        			setip6vltime),
 	DEF_CMD("eui64",	0,			setip6eui64),

@@ -544,7 +544,7 @@ sctp_attach(struct socket *so, int proto, struct thread *p)
 	inp->sctp_flags &= ~SCTP_PCB_FLAGS_BOUND_V6;	/* I'm not v6! */
 	ip_inp = &inp->ip_inp.inp;
 	ip_inp->inp_vflag |= INP_IPV4;
-	ip_inp->inp_ip_ttl = MODULE_GLOBAL(MOD_INET, ip_defttl);
+	ip_inp->inp_ip_ttl = MODULE_GLOBAL(ip_defttl);
 #ifdef IPSEC
 	error = ipsec_init_policy(so, &ip_inp->inp_sp);
 #ifdef SCTP_LOG_CLOSING

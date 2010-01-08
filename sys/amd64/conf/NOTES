@@ -385,8 +385,10 @@ device		asmc
 # Hardware watchdog timers:
 #
 # ichwd: Intel ICH watchdog timer
+# amdsbwd: AMD SB7xx watchdog timer
 #
 device		ichwd
+device		amdsbwd
 
 #
 # Temperature sensors:
@@ -503,3 +505,6 @@ options 	VM_KMEM_SIZE_SCALE
 # Enable NDIS binary driver support
 options 	NDISAPI
 device		ndis
+
+# Linux-specific pseudo devices support
+device		lindev

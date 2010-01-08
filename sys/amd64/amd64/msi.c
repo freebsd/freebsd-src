@@ -275,8 +275,8 @@ msi_init(void)
 	case CPU_VENDOR_AMD:
 		break;
 	case CPU_VENDOR_CENTAUR:
-		if (AMD64_CPU_FAMILY(cpu_id) == 0x6 &&
-		    AMD64_CPU_MODEL(cpu_id) >= 0xf)
+		if (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		    CPUID_TO_MODEL(cpu_id) >= 0xf)
 			break;
 		/* FALLTHROUGH */
 	default:

@@ -147,6 +147,7 @@ options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
 device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da0
 device		ums		# Mouse
+device		atp		# Apple USB touchpad
 device		urio		# Diamond Rio 500 MP3 player
 # USB Ethernet
 device		aue		# ADMtek USB Ethernet
@@ -157,7 +158,7 @@ device		kue		# Kawasaki LSI USB Ethernet
 
 # FireWire support
 device		firewire	# FireWire bus code
-device		sbp		# SCSI over FireWire (Requires scbus and da)
+#device		sbp		# SCSI over FireWire (Requires scbus and da)
 device		fwe		# Ethernet over FireWire (non-standard!)
 
 # Misc

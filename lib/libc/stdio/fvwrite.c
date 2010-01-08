@@ -60,7 +60,7 @@ __sfvwrite(fp, uio)
 	char *nl;
 	int nlknown, nldist;
 
-	if ((len = uio->uio_resid) == 0)
+	if (uio->uio_resid == 0)
 		return (0);
 	/* make sure we can write */
 	if (prepwrite(fp) != 0)

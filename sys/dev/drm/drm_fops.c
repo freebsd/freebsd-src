@@ -44,14 +44,13 @@ int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 		    struct drm_device *dev)
 {
 	struct drm_file *priv;
-	int m = dev2unit(kdev);
 	int retcode;
 
 	if (flags & O_EXCL)
 		return EBUSY; /* No exclusive opens */
 	dev->flags = flags;
 
-	DRM_DEBUG("pid = %d, minor = %d\n", DRM_CURRENTPID, m);
+	DRM_DEBUG("pid = %d, device = %s\n", DRM_CURRENTPID, devtoname(kdev));
 
 	priv = malloc(sizeof(*priv), DRM_MEM_FILES, M_NOWAIT | M_ZERO);
 	if (priv == NULL) {
@@ -68,7 +67,6 @@ int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 	priv->dev		= dev;
 	priv->uid		= p->td_ucred->cr_svuid;
 	priv->pid		= p->td_proc->p_pid;
-	priv->minor		= m;
 	priv->ioctl_count 	= 0;
 
 	/* for compatibility root is always authenticated */

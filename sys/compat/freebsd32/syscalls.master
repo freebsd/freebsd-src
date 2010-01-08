@@ -740,10 +740,14 @@
 				    struct freebsd32_ucontext *oucp, \
 				    const struct freebsd32_ucontext *ucp); }
 424	AUE_SWAPOFF	UNIMPL	swapoff
-425	AUE_NULL	UNIMPL	__acl_get_link
-426	AUE_NULL	UNIMPL	__acl_set_link
-427	AUE_NULL	UNIMPL	__acl_delete_link
-428	AUE_NULL	UNIMPL	__acl_aclcheck_link
+425	AUE_NULL	NOPROTO	{ int __acl_get_link(const char *path, \
+				    acl_type_t type, struct acl *aclp); }
+426	AUE_NULL	NOPROTO	{ int __acl_set_link(const char *path, \
+				    acl_type_t type, struct acl *aclp); }
+427	AUE_NULL	NOPROTO	{ int __acl_delete_link(const char *path, \
+				    acl_type_t type); }
+428	AUE_NULL	NOPROTO	{ int __acl_aclcheck_link(const char *path, \
+				    acl_type_t type, struct acl *aclp); }
 429	AUE_SIGWAIT	NOPROTO	{ int sigwait(const sigset_t *set, \
 				    int *sig); }
 430	AUE_NULL	UNIMPL	thr_create;
@@ -911,3 +915,7 @@
 520	AUE_NULL	NOPROTO	{ int pdgetpid(int fd, pid_t *pidp); }
 521	AUE_NULL	NOPROTO	{ int pdwait(int fd, int *status, \
 				    int options, struct rusage *rusage); }
+522	AUE_SELECT	STD	{ int freebsd32_pselect(int nd, fd_set *in, \
+				    fd_set *ou, fd_set *ex, \
+				    const struct timespec32 *ts, \
+				    const sigset_t *sm); }

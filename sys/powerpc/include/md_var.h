@@ -46,7 +46,6 @@ extern	u_long	ns_per_tick;
 
 extern	int powerpc_pow_enabled;
 extern	int cacheline_size;
-extern  int ppc64;
 extern  int hw_direct_map;
 
 void	__syncicache(void *, int);

@@ -3004,7 +3004,7 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 	 */
 	xpt_setup_ccb(&cgd.ccb_h,
 		      csio->ccb_h.path,
-		      /*priority*/ 1);
+		      CAM_PRIORITY_NORMAL);
 	cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 	xpt_action((union ccb *)&cgd);
 
@@ -3088,7 +3088,7 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 	 */
 	xpt_setup_ccb(&cgd.ccb_h,
 		      csio->ccb_h.path,
-		      /*priority*/ 1);
+		      CAM_PRIORITY_NORMAL);
 	cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 	xpt_action((union ccb *)&cgd);
 

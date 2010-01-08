@@ -330,6 +330,7 @@ findvar(char *p, int user, char **header)
 				errx(1, "malloc failed");
 			snprintf(realfmt, rflen, "%s=%s", v->alias, hp);
 			parsefmt(realfmt, user);
+			free(realfmt);
 		}
 		return ((VAR *)NULL);
 	}

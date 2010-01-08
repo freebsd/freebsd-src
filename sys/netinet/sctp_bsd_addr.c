@@ -89,6 +89,7 @@ sctp_wakeup_iterator(void)
 static void
 sctp_iterator_thread(void *v)
 {
+	CURVNET_SET((struct vnet *)v);
 	SCTP_IPI_ITERATOR_WQ_LOCK();
 	SCTP_BASE_INFO(iterator_running) = 0;
 	while (1) {
@@ -96,10 +97,12 @@ sctp_iterator_thread(void *v)
 		    &SCTP_BASE_INFO(ipi_iterator_wq_mtx),
 		    0, "waiting_for_work", 0);
 		if (SCTP_BASE_INFO(threads_must_exit)) {
+			SCTP_IPI_ITERATOR_WQ_DESTROY();
 			kthread_exit();
 		}
 		sctp_iterator_worker();
 	}
+	CURVNET_RESTORE();
 }
 
 void
@@ -108,7 +111,7 @@ sctp_startup_iterator(void)
 	int ret;
 
 	ret = kproc_create(sctp_iterator_thread,
-	    (void *)NULL,
+	    (void *)curvnet,
 	    &SCTP_BASE_INFO(thread_proc),
 	    RFPROC,
 	    SCTP_KTHREAD_PAGES,
@@ -126,7 +129,7 @@ sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa)
 
 	ifa6 = (struct in6_ifaddr *)ifa->ifa;
 	ifa->flags = ifa6->ia6_flags;
-	if (!MODULE_GLOBAL(MOD_INET6, ip6_use_deprecated)) {
+	if (!MODULE_GLOBAL(ip6_use_deprecated)) {
 		if (ifa->flags &
 		    IN6_IFF_DEPRECATED) {
 			ifa->localifa_flags |= SCTP_ADDR_IFA_UNUSEABLE;
@@ -206,7 +209,8 @@ sctp_init_ifns_for_vrf(int vrfid)
 	struct sctp_ifa *sctp_ifa;
 	uint32_t ifa_flags;
 
-	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(MOD_NET, ifnet), if_list) {
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
 		IF_ADDR_LOCK(ifn);
 		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
 			if (ifa->ifa_addr == NULL) {
@@ -251,6 +255,7 @@ sctp_init_ifns_for_vrf(int vrfid)
 		}
 		IF_ADDR_UNLOCK(ifn);
 	}
+	IFNET_RUNLOCK();
 }
 
 void
@@ -336,7 +341,8 @@ void
 	struct ifnet *ifn;
 	struct ifaddr *ifa;
 
-	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(MOD_NET, ifnet), if_list) {
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
 		if (!(*pred) (ifn)) {
 			continue;
 		}
@@ -344,6 +350,7 @@ void
 			sctp_addr_change(ifa, add ? RTM_ADD : RTM_DELETE);
 		}
 	}
+	IFNET_RUNLOCK();
 }
 
 struct mbuf *

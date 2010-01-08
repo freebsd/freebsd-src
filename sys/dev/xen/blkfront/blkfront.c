@@ -16,7 +16,9 @@
  */
 
 /*
- * XenoBSD block device driver
+ * XenBSD block device driver
+ *
+ * Copyright (c) 2009 Frank Suchomel, Citrix
  */
 
 #include <sys/cdefs.h>
@@ -122,6 +124,10 @@ static int blkif_ioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct
 static int blkif_queue_request(struct bio *bp);
 static void xb_strategy(struct bio *bp);
 
+// In order to quiesce the device during kernel dumps, outstanding requests to
+// DOM0 for disk reads/writes need to be accounted for.
+static	int	blkif_queued_requests;
+static	int	xb_dump(void *, void *, vm_offset_t, off_t, size_t);
 
 
 /* XXX move to xb_vbd.c when VBD update support is added */
@@ -231,6 +237,7 @@ xlvbd_add(device_t dev, blkif_sector_t capacity,
 	sc->xb_disk->d_close = blkif_close;
 	sc->xb_disk->d_ioctl = blkif_ioctl;
 	sc->xb_disk->d_strategy = xb_strategy;
+	sc->xb_disk->d_dump = xb_dump;
 	sc->xb_disk->d_name = name;
 	sc->xb_disk->d_drv1 = sc;
 	sc->xb_disk->d_sectorsize = sector_size;
@@ -286,9 +293,10 @@ xb_strategy(struct bio *bp)
 	 * Place it in the queue of disk activities for this disk
 	 */
 	mtx_lock(&blkif_io_lock);
-	bioq_disksort(&sc->xb_bioq, bp);
 
+	bioq_disksort(&sc->xb_bioq, bp);
 	xb_startio(sc);
+
 	mtx_unlock(&blkif_io_lock);
 	return;
 
@@ -300,6 +308,81 @@ xb_strategy(struct bio *bp)
 	biodone(bp);
 	return;
 }
+
+static void xb_quiesce(struct blkfront_info *info);
+// Quiesce the disk writes for a dump file before allowing the next buffer.
+static void
+xb_quiesce(struct blkfront_info *info)
+{
+	int		mtd;
+
+	// While there are outstanding requests
+	while (blkif_queued_requests) {
+		RING_FINAL_CHECK_FOR_RESPONSES(&info->ring, mtd);
+		if (mtd) {
+			// Recieved request completions, update queue.
+			blkif_int(info);
+		}
+		if (blkif_queued_requests) {
+			// Still pending requests, wait for the disk i/o to complete
+			HYPERVISOR_yield();
+		}
+	}
+}
+
+// Some bio structures for dumping core
+#define DUMP_BIO_NO 16				// 16 * 4KB = 64KB dump block
+static	struct bio		xb_dump_bp[DUMP_BIO_NO];
+
+// Kernel dump function for a paravirtualized disk device
+static int
+xb_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
+        size_t length)
+{
+			int				 sbp;
+  			int			     mbp;
+			size_t			 chunk;
+	struct	disk   			*dp = arg;
+	struct	xb_softc		*sc = (struct xb_softc *) dp->d_drv1;
+	        int	    		 rc = 0;
+
+	xb_quiesce(sc->xb_info);		// All quiet on the western front.
+	if (length > 0) {
+		// If this lock is held, then this module is failing, and a successful
+		// kernel dump is highly unlikely anyway.
+		mtx_lock(&blkif_io_lock);
+		// Split the 64KB block into 16 4KB blocks
+		for (sbp=0; length>0 && sbp<DUMP_BIO_NO; sbp++) {
+			chunk = length > PAGE_SIZE ? PAGE_SIZE : length;
+			xb_dump_bp[sbp].bio_disk   = dp;
+			xb_dump_bp[sbp].bio_pblkno = offset / dp->d_sectorsize;
+			xb_dump_bp[sbp].bio_bcount = chunk;
+			xb_dump_bp[sbp].bio_resid  = chunk;
+			xb_dump_bp[sbp].bio_data   = virtual;
+			xb_dump_bp[sbp].bio_cmd    = BIO_WRITE;
+			xb_dump_bp[sbp].bio_done   = NULL;
+
+			bioq_disksort(&sc->xb_bioq, &xb_dump_bp[sbp]);
+
+			length -= chunk;
+			offset += chunk;
+			virtual = (char *) virtual + chunk;
+		}
+		// Tell DOM0 to do the I/O
+		xb_startio(sc);
+		mtx_unlock(&blkif_io_lock);
+
+		// Must wait for the completion: the dump routine reuses the same
+		//                               16 x 4KB buffer space.
+		xb_quiesce(sc->xb_info);	// All quite on the eastern front
+		// If there were any errors, bail out...
+		for (mbp=0; mbp<sbp; mbp++) {
+			if ((rc = xb_dump_bp[mbp].bio_error)) break;
+		}
+	}
+	return (rc);
+}
+
 
 static int
 blkfront_probe(device_t dev)
@@ -646,6 +729,7 @@ GET_ID_FROM_FREELIST(struct blkfront_info *info)
 	KASSERT(nfree <= BLK_RING_SIZE, ("free %lu > RING_SIZE", nfree));
 	info->shadow_free = info->shadow[nfree].req.id;
 	info->shadow[nfree].req.id = 0x0fffffee; /* debug */
+	atomic_add_int(&blkif_queued_requests, 1);
 	return nfree;
 }
 
@@ -655,6 +739,7 @@ ADD_ID_TO_FREELIST(struct blkfront_info *info, unsigned long id)
 	info->shadow[id].req.id  = info->shadow_free;
 	info->shadow[id].request = 0;
 	info->shadow_free = id;
+	atomic_subtract_int(&blkif_queued_requests, 1);
 }
 
 static inline void 

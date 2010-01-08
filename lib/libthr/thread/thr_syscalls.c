@@ -104,6 +104,8 @@ extern int	__sys_accept(int, struct sockaddr *, socklen_t *);
 extern int	__sys_connect(int, const struct sockaddr *, socklen_t);
 extern int	__sys_fsync(int);
 extern int	__sys_msync(void *, size_t, int);
+extern int	__sys_pselect(int, fd_set *, fd_set *, fd_set *,
+			const struct timespec *, const sigset_t *);
 extern int	__sys_poll(struct pollfd *, unsigned, int);
 extern ssize_t	__sys_recv(int, void *, size_t, int);
 extern ssize_t	__sys_recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
@@ -366,7 +368,7 @@ ___pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
 	int ret;
 
 	_thr_cancel_enter(curthread);
-	ret = __pselect(count, rfds, wfds, efds, timo, mask);
+	ret = __sys_pselect(count, rfds, wfds, efds, timo, mask);
 	_thr_cancel_leave(curthread);
 
 	return (ret);

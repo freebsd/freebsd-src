@@ -32,8 +32,10 @@
  * SUCH DAMAGE.
  *
  * $DragonFly: src/sys/dev/netif/et/if_et.c,v 1.10 2008/05/18 07:47:14 sephe Exp $
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -75,6 +77,12 @@
 MODULE_DEPEND(et, pci, 1, 1, 1);
 MODULE_DEPEND(et, ether, 1, 1, 1);
 MODULE_DEPEND(et, miibus, 1, 1, 1);
+
+/* Tunables. */
+static int msi_disable = 0;
+TUNABLE_INT("hw.et.msi_disable", &msi_disable);
+
+#define	ET_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 
 static int	et_probe(device_t);
 static int	et_attach(device_t);
@@ -138,7 +146,7 @@ static int	et_stop_rxdma(struct et_softc *);
 static int	et_stop_txdma(struct et_softc *);
 static int	et_enable_txrx(struct et_softc *, int);
 static void	et_reset(struct et_softc *);
-static int	et_bus_config(device_t);
+static int	et_bus_config(struct et_softc *);
 static void	et_get_eaddr(device_t, uint8_t[]);
 static void	et_setmulti(struct et_softc *);
 static void	et_tick(void *);
@@ -218,10 +226,10 @@ et_probe(device_t dev)
 	for (d = et_devices; d->desc != NULL; ++d) {
 		if (vid == d->vid && did == d->did) {
 			device_set_desc(dev, d->desc);
-			return 0;
+			return (0);
 		}
 	}
-	return ENXIO;
+	return (ENXIO);
 }
 
 static int
@@ -230,7 +238,7 @@ et_attach(device_t dev)
 	struct et_softc *sc;
 	struct ifnet *ifp;
 	uint8_t eaddr[ETHER_ADDR_LEN];
-	int error;
+	int cap, error, msic;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -263,25 +271,48 @@ et_attach(device_t dev)
 						&sc->sc_mem_rid, RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {
 		device_printf(dev, "can't allocate IO memory\n");
-		return ENXIO;
+		return (ENXIO);
 	}
-	sc->sc_mem_bt = rman_get_bustag(sc->sc_mem_res);
-	sc->sc_mem_bh = rman_get_bushandle(sc->sc_mem_res);
+
+	msic = 0;
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
+		sc->sc_expcap = cap;
+		sc->sc_flags |= ET_FLAG_PCIE;
+		msic = pci_msi_count(dev);
+		if (bootverbose)
+			device_printf(dev, "MSI count: %d\n", msic);
+	}
+	if (msic > 0 && msi_disable == 0) {
+		msic = 1;
+		if (pci_alloc_msi(dev, &msic) == 0) {
+			if (msic == 1) {
+				device_printf(dev, "Using %d MSI message\n",
+				    msic);
+				sc->sc_flags |= ET_FLAG_MSI;
+			} else
+				pci_release_msi(dev);
+		}
+	}
 
 	/*
 	 * Allocate IRQ
 	 */
-	sc->sc_irq_rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-						&sc->sc_irq_rid,
-						RF_SHAREABLE | RF_ACTIVE);
+	if ((sc->sc_flags & ET_FLAG_MSI) == 0) {
+		sc->sc_irq_rid = 0;
+		sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		    &sc->sc_irq_rid, RF_SHAREABLE | RF_ACTIVE);
+	} else {
+		sc->sc_irq_rid = 1;
+		sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		    &sc->sc_irq_rid, RF_ACTIVE);
+	}
 	if (sc->sc_irq_res == NULL) {
 		device_printf(dev, "can't allocate irq\n");
 		error = ENXIO;
 		goto fail;
 	}
 
-	error = et_bus_config(dev);
+	error = et_bus_config(sc);
 	if (error)
 		goto fail;
 
@@ -305,7 +336,7 @@ et_attach(device_t dev)
 	ifp->if_ioctl = et_ioctl;
 	ifp->if_start = et_start;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
+	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ET_TX_NDESC);
 	IFQ_SET_READY(&ifp->if_snd);
@@ -322,14 +353,8 @@ et_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 	callout_init_mtx(&sc->sc_tick, &sc->sc_mtx, 0);
 
-#if __FreeBSD_version > 700030
 	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-			       NULL, et_intr, sc, &sc->sc_irq_handle);
-#else
-	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-			       et_intr, sc, &sc->sc_irq_handle);
-#endif
-
+	    NULL, et_intr, sc, &sc->sc_irq_handle);
 	if (error) {
 		ether_ifdetach(ifp);
 		device_printf(dev, "can't setup intr\n");
@@ -338,10 +363,10 @@ et_attach(device_t dev)
 
 	et_add_sysctls(sc);
 
-	return 0;
+	return (0);
 fail:
 	et_detach(dev);
-	return error;
+	return (error);
 }
 
 static int
@@ -368,6 +393,8 @@ et_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irq_rid,
 				     sc->sc_irq_res);
 	}
+	if ((sc->sc_flags & ET_FLAG_MSI) != 0)
+		pci_release_msi(dev);
 
 	if (sc->sc_mem_res != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_mem_rid,
@@ -378,9 +405,10 @@ et_detach(device_t dev)
 		if_free(sc->ifp);
 
 	et_dma_free(dev);
-	/* XXX Destroy lock here */
 
-	return 0;
+	mtx_destroy(&sc->sc_mtx);
+
+	return (0);
 }
 
 static int
@@ -391,7 +419,7 @@ et_shutdown(device_t dev)
 	ET_LOCK(sc);
 	et_stop(sc);
 	ET_UNLOCK(sc);
-	return 0;
+	return (0);
 }
 
 static int
@@ -404,8 +432,8 @@ et_miibus_readreg(device_t dev, int phy, int reg)
 	/* Stop any pending operations */
 	CSR_WRITE_4(sc, ET_MII_CMD, 0);
 
-	val = __SHIFTIN(phy, ET_MII_ADDR_PHY) |
-	      __SHIFTIN(reg, ET_MII_ADDR_REG);
+	val = (phy << ET_MII_ADDR_PHY_SHIFT) & ET_MII_ADDR_PHY_MASK;
+	val |= (reg << ET_MII_ADDR_REG_SHIFT) & ET_MII_ADDR_REG_MASK;
 	CSR_WRITE_4(sc, ET_MII_ADDR, val);
 
 	/* Start reading */
@@ -429,12 +457,12 @@ et_miibus_readreg(device_t dev, int phy, int reg)
 #undef NRETRY
 
 	val = CSR_READ_4(sc, ET_MII_STAT);
-	ret = __SHIFTOUT(val, ET_MII_STAT_VALUE);
+	ret = val & ET_MII_STAT_VALUE_MASK;
 
 back:
 	/* Make sure that the current operation is stopped */
 	CSR_WRITE_4(sc, ET_MII_CMD, 0);
-	return ret;
+	return (ret);
 }
 
 static int
@@ -447,12 +475,13 @@ et_miibus_writereg(device_t dev, int phy, int reg, int val0)
 	/* Stop any pending operations */
 	CSR_WRITE_4(sc, ET_MII_CMD, 0);
 
-	val = __SHIFTIN(phy, ET_MII_ADDR_PHY) |
-	      __SHIFTIN(reg, ET_MII_ADDR_REG);
+	val = (phy << ET_MII_ADDR_PHY_SHIFT) & ET_MII_ADDR_PHY_MASK;
+	val |= (reg << ET_MII_ADDR_REG_SHIFT) & ET_MII_ADDR_REG_MASK;
 	CSR_WRITE_4(sc, ET_MII_ADDR, val);
 
 	/* Start writing */
-	CSR_WRITE_4(sc, ET_MII_CTRL, __SHIFTIN(val0, ET_MII_CTRL_VALUE));
+	CSR_WRITE_4(sc, ET_MII_CTRL,
+	    (val0 << ET_MII_CTRL_VALUE_SHIFT) & ET_MII_CTRL_VALUE_MASK);
 
 #define NRETRY 100
 
@@ -472,7 +501,7 @@ et_miibus_writereg(device_t dev, int phy, int reg, int val0)
 
 	/* Make sure that the current operation is stopped */
 	CSR_WRITE_4(sc, ET_MII_CMD, 0);
-	return 0;
+	return (0);
 }
 
 static void
@@ -495,7 +524,7 @@ et_ifmedia_upd_locked(struct ifnet *ifp)
 	}
 	mii_mediachg(mii);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -508,7 +537,7 @@ et_ifmedia_upd(struct ifnet *ifp)
 	res = et_ifmedia_upd_locked(ifp);
 	ET_UNLOCK(sc);
 
-	return res;
+	return (res);
 }
 
 static void
@@ -550,7 +579,7 @@ et_stop(struct et_softc *sc)
 }
 
 static int
-et_bus_config(device_t dev)
+et_bus_config(struct et_softc *sc)
 {
 	uint32_t val, max_plsz;
 	uint16_t ack_latency, replay_timer;
@@ -559,21 +588,25 @@ et_bus_config(device_t dev)
 	 * Test whether EEPROM is valid
 	 * NOTE: Read twice to get the correct value
 	 */
-	pci_read_config(dev, ET_PCIR_EEPROM_STATUS, 1);
-	val = pci_read_config(dev, ET_PCIR_EEPROM_STATUS, 1);
+	pci_read_config(sc->dev, ET_PCIR_EEPROM_STATUS, 1);
+	val = pci_read_config(sc->dev, ET_PCIR_EEPROM_STATUS, 1);
 	if (val & ET_PCIM_EEPROM_STATUS_ERROR) {
-		device_printf(dev, "EEPROM status error 0x%02x\n", val);
-		return ENXIO;
+		device_printf(sc->dev, "EEPROM status error 0x%02x\n", val);
+		return (ENXIO);
 	}
 
 	/* TODO: LED */
+
+	if ((sc->sc_flags & ET_FLAG_PCIE) == 0)
+		return (0);
 
 	/*
 	 * Configure ACK latency and replay timer according to
 	 * max playload size
 	 */
-	val = pci_read_config(dev, ET_PCIR_DEVICE_CAPS, 4);
-	max_plsz = val & ET_PCIM_DEVICE_CAPS_MAX_PLSZ;
+	val = pci_read_config(sc->dev,
+	    sc->sc_expcap + PCIR_EXPRESS_DEVICE_CAP, 4);
+	max_plsz = val & PCIM_EXP_CAP_MAX_PAYLOAD;
 
 	switch (max_plsz) {
 	case ET_PCIV_DEVICE_CAPS_PLSZ_128:
@@ -587,32 +620,41 @@ et_bus_config(device_t dev)
 		break;
 
 	default:
-		ack_latency = pci_read_config(dev, ET_PCIR_ACK_LATENCY, 2);
-		replay_timer = pci_read_config(dev, ET_PCIR_REPLAY_TIMER, 2);
-		device_printf(dev, "ack latency %u, replay timer %u\n",
+		ack_latency = pci_read_config(sc->dev, ET_PCIR_ACK_LATENCY, 2);
+		replay_timer = pci_read_config(sc->dev,
+		    ET_PCIR_REPLAY_TIMER, 2);
+		device_printf(sc->dev, "ack latency %u, replay timer %u\n",
 			      ack_latency, replay_timer);
 		break;
 	}
 	if (ack_latency != 0) {
-		pci_write_config(dev, ET_PCIR_ACK_LATENCY, ack_latency, 2);
-		pci_write_config(dev, ET_PCIR_REPLAY_TIMER, replay_timer, 2);
+		pci_write_config(sc->dev, ET_PCIR_ACK_LATENCY, ack_latency, 2);
+		pci_write_config(sc->dev, ET_PCIR_REPLAY_TIMER, replay_timer,
+		    2);
 	}
 
 	/*
 	 * Set L0s and L1 latency timer to 2us
 	 */
-	val = ET_PCIV_L0S_LATENCY(2) | ET_PCIV_L1_LATENCY(2);
-	pci_write_config(dev, ET_PCIR_L0S_L1_LATENCY, val, 1);
+	val = pci_read_config(sc->dev, ET_PCIR_L0S_L1_LATENCY, 4);
+	val &= ~(PCIM_LINK_CAP_L0S_EXIT | PCIM_LINK_CAP_L1_EXIT);
+	/* L0s exit latency : 2us */
+	val |= 0x00005000;
+	/* L1 exit latency : 2us */
+	val |= 0x00028000;
+	pci_write_config(sc->dev, ET_PCIR_L0S_L1_LATENCY, val, 4);
 
 	/*
 	 * Set max read request size to 2048 bytes
 	 */
-	val = pci_read_config(dev, ET_PCIR_DEVICE_CTRL, 2);
-	val &= ~ET_PCIM_DEVICE_CTRL_MAX_RRSZ;
+	val = pci_read_config(sc->dev,
+	    sc->sc_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
+	val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
 	val |= ET_PCIV_DEVICE_CTRL_RRSZ_2K;
-	pci_write_config(dev, ET_PCIR_DEVICE_CTRL, val, 2);
+	pci_write_config(sc->dev,
+	    sc->sc_expcap + PCIR_EXPRESS_DEVICE_CTL, val, 2);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -684,7 +726,7 @@ et_dma_alloc(device_t dev)
 				   0, NULL, NULL, &sc->sc_dtag);
 	if (error) {
 		device_printf(dev, "can't create DMA tag\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -695,7 +737,7 @@ et_dma_alloc(device_t dev)
 				  &tx_ring->tr_paddr, &tx_ring->tr_dmap);
 	if (error) {
 		device_printf(dev, "can't create TX ring DMA stuffs\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -706,7 +748,7 @@ et_dma_alloc(device_t dev)
 				  &txsd->txsd_paddr, &txsd->txsd_dmap);
 	if (error) {
 		device_printf(dev, "can't create TX status DMA stuffs\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -726,7 +768,7 @@ et_dma_alloc(device_t dev)
 		if (error) {
 			device_printf(dev, "can't create DMA stuffs for "
 				      "the %d RX ring\n", i);
-			return error;
+			return (error);
 		}
 		rx_ring->rr_posreg = rx_ring_posreg[i];
 	}
@@ -740,7 +782,7 @@ et_dma_alloc(device_t dev)
 				  &rxst_ring->rsr_paddr, &rxst_ring->rsr_dmap);
 	if (error) {
 		device_printf(dev, "can't create RX stat ring DMA stuffs\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -752,7 +794,7 @@ et_dma_alloc(device_t dev)
 				  &rxsd->rxsd_paddr, &rxsd->rxsd_dmap);
 	if (error) {
 		device_printf(dev, "can't create RX status DMA stuffs\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -760,9 +802,9 @@ et_dma_alloc(device_t dev)
 	 */
 	error = et_dma_mbuf_create(dev);
 	if (error)
-		return error;
+		return (error);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -841,7 +883,7 @@ et_dma_mbuf_create(device_t dev)
 				   BUS_DMA_ALLOCNOW, NULL, NULL, &sc->sc_mbuf_dtag);
 	if (error) {
 		device_printf(dev, "can't create mbuf DMA tag\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -852,7 +894,7 @@ et_dma_mbuf_create(device_t dev)
 		device_printf(dev, "can't create spare mbuf DMA map\n");
 		bus_dma_tag_destroy(sc->sc_mbuf_dtag);
 		sc->sc_mbuf_dtag = NULL;
-		return error;
+		return (error);
 	}
 
 	/*
@@ -871,7 +913,7 @@ et_dma_mbuf_create(device_t dev)
 					      "for %d RX ring\n", j, i);
 				rx_done[i] = j;
 				et_dma_mbuf_destroy(dev, 0, rx_done);
-				return error;
+				return (error);
 			}
 		}
 		rx_done[i] = ET_RX_NDESC;
@@ -890,11 +932,11 @@ et_dma_mbuf_create(device_t dev)
 			device_printf(dev, "can't create %d TX mbuf "
 				      "DMA map\n", i);
 			et_dma_mbuf_destroy(dev, i, rx_done);
-			return error;
+			return (error);
 		}
 	}
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -959,7 +1001,7 @@ et_dma_mem_create(device_t dev, bus_size_t size, bus_dma_tag_t *dtag,
 				   0, NULL, NULL, dtag);
 	if (error) {
 		device_printf(dev, "can't create DMA tag\n");
-		return error;
+		return (error);
 	}
 
 	error = bus_dmamem_alloc(*dtag, addr, BUS_DMA_WAITOK | BUS_DMA_ZERO,
@@ -968,7 +1010,7 @@ et_dma_mem_create(device_t dev, bus_size_t size, bus_dma_tag_t *dtag,
 		device_printf(dev, "can't allocate DMA mem\n");
 		bus_dma_tag_destroy(*dtag);
 		*dtag = NULL;
-		return error;
+		return (error);
 	}
 
 	error = bus_dmamap_load(*dtag, *dmap, *addr, size,
@@ -978,9 +1020,9 @@ et_dma_mem_create(device_t dev, bus_size_t size, bus_dma_tag_t *dtag,
 		bus_dmamem_free(*dtag, *addr, *dmap);
 		bus_dma_tag_destroy(*dtag);
 		*dtag = NULL;
-		return error;
+		return (error);
 	}
-	return 0;
+	return (0);
 }
 
 static void
@@ -1021,10 +1063,10 @@ et_chip_attach(struct et_softc *sc)
 	/*
 	 * Setup half duplex mode
 	 */
-	val = __SHIFTIN(10, ET_MAC_HDX_ALT_BEB_TRUNC) |
-	      __SHIFTIN(15, ET_MAC_HDX_REXMIT_MAX) |
-	      __SHIFTIN(55, ET_MAC_HDX_COLLWIN) |
-	      ET_MAC_HDX_EXC_DEFER;
+	val = (10 << ET_MAC_HDX_ALT_BEB_TRUNC_SHIFT) |
+	    (15 << ET_MAC_HDX_REXMIT_MAX_SHIFT) |
+	    (55 << ET_MAC_HDX_COLLWIN_SHIFT) |
+	    ET_MAC_HDX_EXC_DEFER;
 	CSR_WRITE_4(sc, ET_MAC_HDX, val);
 
 	/* Clear MAC control */
@@ -1137,7 +1179,7 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct et_softc *sc = ifp->if_softc;
 	struct mii_data *mii = device_get_softc(sc->sc_miibus);
 	struct ifreq *ifr = (struct ifreq *)data;
-	int error = 0, max_framelen;
+	int error = 0, mask, max_framelen;
 
 /* XXX LOCKSUSED */
 	switch (cmd) {
@@ -1194,11 +1236,25 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 
+	case SIOCSIFCAP:
+		ET_LOCK(sc);
+		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (IFCAP_TXCSUM & ifp->if_capabilities) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0)
+				ifp->if_hwassist |= ET_CSUM_FEATURES;
+			else
+				ifp->if_hwassist &= ~ET_CSUM_FEATURES;
+		}
+		ET_UNLOCK(sc);
+		break;
+
 	default:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
-	return error;
+	return (error);
 }
 
 static void
@@ -1277,9 +1333,9 @@ et_stop_rxdma(struct et_softc *sc)
 	DELAY(5);
 	if ((CSR_READ_4(sc, ET_RXDMA_CTRL) & ET_RXDMA_CTRL_HALTED) == 0) {
 		if_printf(sc->ifp, "can't stop RX DMA engine\n");
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -1287,7 +1343,7 @@ et_stop_txdma(struct et_softc *sc)
 {
 	CSR_WRITE_4(sc, ET_TXDMA_CTRL,
 		    ET_TXDMA_CTRL_HALT | ET_TXDMA_CTRL_SINGLE_EPKT);
-	return 0;
+	return (0);
 }
 
 static void
@@ -1326,7 +1382,7 @@ et_free_rx_ring(struct et_softc *sc)
 			struct et_rxbuf *rb = &rbd->rbd_buf[i];
 
 			if (rb->rb_mbuf != NULL) {
-				bus_dmamap_unload(sc->sc_mbuf_dtag, 
+				bus_dmamap_unload(sc->sc_mbuf_dtag,
 			  	    rb->rb_dmap);
 				m_freem(rb->rb_mbuf);
 				rb->rb_mbuf = NULL;
@@ -1431,7 +1487,8 @@ et_chip_init(struct et_softc *sc)
 	CSR_WRITE_4(sc, ET_LOOPBACK, 0);
 
 	/* Clear MSI configure */
-	CSR_WRITE_4(sc, ET_MSI_CFG, 0);
+	if ((sc->sc_flags & ET_FLAG_MSI) == 0)
+		CSR_WRITE_4(sc, ET_MSI_CFG, 0);
 
 	/* Disable timer */
 	CSR_WRITE_4(sc, ET_TIMER, 0);
@@ -1451,14 +1508,14 @@ et_chip_init(struct et_softc *sc)
 	/* Initialize RX DMA engine */
 	error = et_init_rxdma(sc);
 	if (error)
-		return error;
+		return (error);
 
 	/* Initialize TX DMA engine */
 	error = et_init_txdma(sc);
 	if (error)
-		return error;
+		return (error);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -1479,7 +1536,7 @@ et_init_tx_ring(struct et_softc *sc)
 	bzero(txsd->txsd_status, sizeof(uint32_t));
 	bus_dmamap_sync(txsd->txsd_dtag, txsd->txsd_dmap,
 			BUS_DMASYNC_PREWRITE);
-	return 0;
+	return (0);
 }
 
 static int
@@ -1498,7 +1555,7 @@ et_init_rx_ring(struct et_softc *sc)
 			if (error) {
 				if_printf(sc->ifp, "%d ring %d buf, "
 					  "newbuf failed: %d\n", n, i, error);
-				return error;
+				return (error);
 			}
 		}
 	}
@@ -1511,7 +1568,7 @@ et_init_rx_ring(struct et_softc *sc)
 	bus_dmamap_sync(rxst_ring->rsr_dtag, rxst_ring->rsr_dmap,
 			BUS_DMASYNC_PREWRITE);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -1545,7 +1602,7 @@ et_init_rxdma(struct et_softc *sc)
 	error = et_stop_rxdma(sc);
 	if (error) {
 		if_printf(sc->ifp, "can't init RX DMA engine\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -1601,7 +1658,7 @@ et_init_rxdma(struct et_softc *sc)
 	CSR_WRITE_4(sc, ET_RX_INTR_NPKTS, sc->sc_rx_intr_npkts);
 	CSR_WRITE_4(sc, ET_RX_INTR_DELAY, sc->sc_rx_intr_delay);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -1614,7 +1671,7 @@ et_init_txdma(struct et_softc *sc)
 	error = et_stop_txdma(sc);
 	if (error) {
 		if_printf(sc->ifp, "can't init TX DMA engine\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -1636,7 +1693,7 @@ et_init_txdma(struct et_softc *sc)
 	tx_ring->tr_ready_index = 0;
 	tx_ring->tr_ready_wrap = 0;
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -1655,19 +1712,19 @@ et_init_mac(struct et_softc *sc)
 	/*
 	 * Setup inter packet gap
 	 */
-	val = __SHIFTIN(56, ET_IPG_NONB2B_1) |
-	      __SHIFTIN(88, ET_IPG_NONB2B_2) |
-	      __SHIFTIN(80, ET_IPG_MINIFG) |
-	      __SHIFTIN(96, ET_IPG_B2B);
+	val = (56 << ET_IPG_NONB2B_1_SHIFT) |
+	    (88 << ET_IPG_NONB2B_2_SHIFT) |
+	    (80 << ET_IPG_MINIFG_SHIFT) |
+	    (96 << ET_IPG_B2B_SHIFT);
 	CSR_WRITE_4(sc, ET_IPG, val);
 
 	/*
 	 * Setup half duplex mode
 	 */
-	val = __SHIFTIN(10, ET_MAC_HDX_ALT_BEB_TRUNC) |
-	      __SHIFTIN(15, ET_MAC_HDX_REXMIT_MAX) |
-	      __SHIFTIN(55, ET_MAC_HDX_COLLWIN) |
-	      ET_MAC_HDX_EXC_DEFER;
+	val = (10 << ET_MAC_HDX_ALT_BEB_TRUNC_SHIFT) |
+	    (15 << ET_MAC_HDX_REXMIT_MAX_SHIFT) |
+	    (55 << ET_MAC_HDX_COLLWIN_SHIFT) |
+	    ET_MAC_HDX_EXC_DEFER;
 	CSR_WRITE_4(sc, ET_MAC_HDX, val);
 
 	/* Clear MAC control */
@@ -1738,7 +1795,7 @@ et_init_rxmac(struct et_softc *sc)
 		 * since this is the size of the PCI-Express TLP's
 		 * that the ET1310 uses.
 		 */
-		val = __SHIFTIN(ET_RXMAC_SEGSZ(256), ET_RXMAC_MC_SEGSZ_MAX) |
+		val = (ET_RXMAC_SEGSZ(256) & ET_RXMAC_MC_SEGSZ_MAX_MASK) |
 		      ET_RXMAC_MC_SEGSZ_ENABLE;
 	} else {
 		val = 0;
@@ -1761,7 +1818,9 @@ et_init_rxmac(struct et_softc *sc)
 	/*
 	 * Configure runt filtering (may not work on certain chip generation)
 	 */
-	val = __SHIFTIN(ETHER_MIN_LEN, ET_PKTFILT_MINLEN) | ET_PKTFILT_FRAG;
+	val = (ETHER_MIN_LEN << ET_PKTFILT_MINLEN_SHIFT) &
+	    ET_PKTFILT_MINLEN_MASK;
+	val |= ET_PKTFILT_FRAG;
 	CSR_WRITE_4(sc, ET_PKTFILT, val);
 
 	/* Enable RX MAC but leave WOL disabled */
@@ -1793,11 +1852,9 @@ et_start_rxdma(struct et_softc *sc)
 {
 	uint32_t val = 0;
 
-	val |= __SHIFTIN(sc->sc_rx_data[0].rbd_bufsize,
-			 ET_RXDMA_CTRL_RING0_SIZE) |
+	val |= (sc->sc_rx_data[0].rbd_bufsize & ET_RXDMA_CTRL_RING0_SIZE_MASK) |
 	       ET_RXDMA_CTRL_RING0_ENABLE;
-	val |= __SHIFTIN(sc->sc_rx_data[1].rbd_bufsize,
-			 ET_RXDMA_CTRL_RING1_SIZE) |
+	val |= (sc->sc_rx_data[1].rbd_bufsize & ET_RXDMA_CTRL_RING1_SIZE_MASK) |
 	       ET_RXDMA_CTRL_RING1_ENABLE;
 
 	CSR_WRITE_4(sc, ET_RXDMA_CTRL, val);
@@ -1806,16 +1863,16 @@ et_start_rxdma(struct et_softc *sc)
 
 	if (CSR_READ_4(sc, ET_RXDMA_CTRL) & ET_RXDMA_CTRL_HALTED) {
 		if_printf(sc->ifp, "can't start RX DMA engine\n");
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 	}
-	return 0;
+	return (0);
 }
 
 static int
 et_start_txdma(struct et_softc *sc)
 {
 	CSR_WRITE_4(sc, ET_TXDMA_CTRL, ET_TXDMA_CTRL_SINGLE_EPKT);
-	return 0;
+	return (0);
 }
 
 static int
@@ -1848,7 +1905,7 @@ et_enable_txrx(struct et_softc *sc, int media_upd)
 	}
 	if (i == NRETRY) {
 		if_printf(ifp, "can't enable RX/TX\n");
-		return 0;
+		return (0);
 	}
 	sc->sc_flags |= ET_FLAG_TXRX_ENABLED;
 
@@ -1859,13 +1916,13 @@ et_enable_txrx(struct et_softc *sc, int media_upd)
 	 */
 	error = et_start_rxdma(sc);
 	if (error)
-		return error;
+		return (error);
 
 	error = et_start_txdma(sc);
 	if (error)
-		return error;
+		return (error);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -1874,7 +1931,7 @@ et_rxeof(struct et_softc *sc)
 	struct ifnet *ifp;
 	struct et_rxstatus_data *rxsd;
 	struct et_rxstat_ring *rxst_ring;
-	uint32_t rxs_stat_ring;
+	uint32_t rxs_stat_ring, rxst_info2;
 	int rxst_wrap, rxst_index;
 
 	ET_LOCK_ASSERT(sc);
@@ -1890,9 +1947,10 @@ et_rxeof(struct et_softc *sc)
 	bus_dmamap_sync(rxst_ring->rsr_dtag, rxst_ring->rsr_dmap,
 			BUS_DMASYNC_POSTREAD);
 
-	rxs_stat_ring = rxsd->rxsd_status->rxs_stat_ring;
+	rxs_stat_ring = le32toh(rxsd->rxsd_status->rxs_stat_ring);
 	rxst_wrap = (rxs_stat_ring & ET_RXS_STATRING_WRAP) ? 1 : 0;
-	rxst_index = __SHIFTOUT(rxs_stat_ring, ET_RXS_STATRING_INDEX);
+	rxst_index = (rxs_stat_ring & ET_RXS_STATRING_INDEX_MASK) >>
+	    ET_RXS_STATRING_INDEX_SHIFT;
 
 	while (rxst_index != rxst_ring->rsr_index ||
 	       rxst_wrap != rxst_ring->rsr_wrap) {
@@ -1905,17 +1963,19 @@ et_rxeof(struct et_softc *sc)
 
 		MPASS(rxst_ring->rsr_index < ET_RX_NSTAT);
 		st = &rxst_ring->rsr_stat[rxst_ring->rsr_index];
-
-		buflen = __SHIFTOUT(st->rxst_info2, ET_RXST_INFO2_LEN);
-		buf_idx = __SHIFTOUT(st->rxst_info2, ET_RXST_INFO2_BUFIDX);
-		ring_idx = __SHIFTOUT(st->rxst_info2, ET_RXST_INFO2_RINGIDX);
+		rxst_info2 = le32toh(st->rxst_info2);
+		buflen = (rxst_info2 & ET_RXST_INFO2_LEN_MASK) >>
+		    ET_RXST_INFO2_LEN_SHIFT;
+		buf_idx = (rxst_info2 & ET_RXST_INFO2_BUFIDX_MASK) >>
+		    ET_RXST_INFO2_BUFIDX_SHIFT;
+		ring_idx = (rxst_info2 & ET_RXST_INFO2_RINGIDX_MASK) >>
+		    ET_RXST_INFO2_RINGIDX_SHIFT;
 
 		if (++rxst_ring->rsr_index == ET_RX_NSTAT) {
 			rxst_ring->rsr_index = 0;
 			rxst_ring->rsr_wrap ^= 1;
 		}
-		rxstat_pos = __SHIFTIN(rxst_ring->rsr_index,
-				       ET_RXSTAT_POS_INDEX);
+		rxstat_pos = rxst_ring->rsr_index & ET_RXSTAT_POS_INDEX_MASK;
 		if (rxst_ring->rsr_wrap)
 			rxstat_pos |= ET_RXSTAT_POS_WRAP;
 		CSR_WRITE_4(sc, ET_RXSTAT_POS, rxstat_pos);
@@ -1940,11 +2000,9 @@ et_rxeof(struct et_softc *sc)
 				m = NULL;
 				ifp->if_ierrors++;
 			} else {
-				m->m_pkthdr.len = m->m_len = buflen;
+				m->m_pkthdr.len = m->m_len =
+				    buflen - ETHER_CRC_LEN;
 				m->m_pkthdr.rcvif = ifp;
-
-				m_adj(m, -ETHER_CRC_LEN);
-
 				ifp->if_ipackets++;
 				ET_UNLOCK(sc);
 				ifp->if_input(ifp, m);
@@ -1968,7 +2026,7 @@ et_rxeof(struct et_softc *sc)
 			rx_ring->rr_index = 0;
 			rx_ring->rr_wrap ^= 1;
 		}
-		rxring_pos = __SHIFTIN(rx_ring->rr_index, ET_RX_RING_POS_INDEX);
+		rxring_pos = rx_ring->rr_index & ET_RX_RING_POS_INDEX_MASK;
 		if (rx_ring->rr_wrap)
 			rxring_pos |= ET_RX_RING_POS_WRAP;
 		CSR_WRITE_4(sc, rx_ring->rr_posreg, rxring_pos);
@@ -1986,7 +2044,7 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 	struct et_txdesc *td;
 	bus_dmamap_t map;
 	int error, maxsegs, first_idx, last_idx, i;
-	uint32_t tx_ready_pos, last_td_ctrl2;
+	uint32_t csum_flags, tx_ready_pos, last_td_ctrl2;
 
 	maxsegs = ET_TX_NDESC - tbd->tbd_used;
 	if (maxsegs > ET_NSEG_MAX)
@@ -2048,20 +2106,29 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 		last_td_ctrl2 |= ET_TDCTRL2_INTR;
 	}
 
+	csum_flags = 0;
+	if ((m->m_pkthdr.csum_flags & ET_CSUM_FEATURES) != 0) {
+		if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
+			csum_flags |= ET_TDCTRL2_CSUM_IP;
+		if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
+			csum_flags |= ET_TDCTRL2_CSUM_UDP;
+		else if ((m->m_pkthdr.csum_flags & CSUM_TCP) != 0)
+			csum_flags |= ET_TDCTRL2_CSUM_TCP;
+	}
 	last_idx = -1;
 	for (i = 0; i < ctx.nsegs; ++i) {
 		int idx;
 
 		idx = (first_idx + i) % ET_TX_NDESC;
 		td = &tx_ring->tr_desc[idx];
-		td->td_addr_hi = ET_ADDR_HI(segs[i].ds_addr);
-		td->td_addr_lo = ET_ADDR_LO(segs[i].ds_addr);
-		td->td_ctrl1 = __SHIFTIN(segs[i].ds_len, ET_TDCTRL1_LEN);
-
+		td->td_addr_hi = htole32(ET_ADDR_HI(segs[i].ds_addr));
+		td->td_addr_lo = htole32(ET_ADDR_LO(segs[i].ds_addr));
+		td->td_ctrl1 =  htole32(segs[i].ds_len & ET_TDCTRL1_LEN_MASK);
 		if (i == ctx.nsegs - 1) {	/* Last frag */
-			td->td_ctrl2 = last_td_ctrl2;
+			td->td_ctrl2 = htole32(last_td_ctrl2 | csum_flags);
 			last_idx = idx;
-		}
+		} else
+			td->td_ctrl2 = htole32(csum_flags);
 
 		MPASS(tx_ring->tr_ready_index < ET_TX_NDESC);
 		if (++tx_ring->tr_ready_index == ET_TX_NDESC) {
@@ -2070,7 +2137,7 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 		}
 	}
 	td = &tx_ring->tr_desc[first_idx];
-	td->td_ctrl2 |= ET_TDCTRL2_FIRST_FRAG;	/* First frag */
+	td->td_ctrl2 |= htole32(ET_TDCTRL2_FIRST_FRAG);	/* First frag */
 
 	MPASS(last_idx >= 0);
 	tbd->tbd_buf[first_idx].tb_dmap = tbd->tbd_buf[last_idx].tb_dmap;
@@ -2083,8 +2150,7 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 	bus_dmamap_sync(tx_ring->tr_dtag, tx_ring->tr_dmap,
 			BUS_DMASYNC_PREWRITE);
 
-	tx_ready_pos = __SHIFTIN(tx_ring->tr_ready_index,
-		       ET_TX_READY_POS_INDEX);
+	tx_ready_pos = tx_ring->tr_ready_index & ET_TX_READY_POS_INDEX_MASK;
 	if (tx_ring->tr_ready_wrap)
 		tx_ready_pos |= ET_TX_READY_POS_WRAP;
 	CSR_WRITE_4(sc, ET_TX_READY_POS, tx_ready_pos);
@@ -2095,7 +2161,7 @@ back:
 		m_freem(m);
 		*m0 = NULL;
 	}
-	return error;
+	return (error);
 }
 
 static void
@@ -2119,7 +2185,7 @@ et_txeof(struct et_softc *sc)
 		return;
 
 	tx_done = CSR_READ_4(sc, ET_TX_DONE_POS);
-	end = __SHIFTOUT(tx_done, ET_TX_DONE_POS_INDEX);
+	end = tx_done & ET_TX_DONE_POS_INDEX_MASK;
 	wrap = (tx_done & ET_TX_DONE_POS_WRAP) ? 1 : 0;
 
 	while (tbd->tbd_start_index != end || tbd->tbd_start_wrap != wrap) {
@@ -2183,13 +2249,13 @@ et_tick(void *xsc)
 static int
 et_newbuf_cluster(struct et_rxbuf_data *rbd, int buf_idx, int init)
 {
-	return et_newbuf(rbd, buf_idx, init, MCLBYTES);
+	return (et_newbuf(rbd, buf_idx, init, MCLBYTES));
 }
 
 static int
 et_newbuf_hdr(struct et_rxbuf_data *rbd, int buf_idx, int init)
 {
-	return et_newbuf(rbd, buf_idx, init, MHLEN);
+	return (et_newbuf(rbd, buf_idx, init, MHLEN));
 }
 
 static int
@@ -2213,7 +2279,7 @@ et_newbuf(struct et_rxbuf_data *rbd, int buf_idx, int init, int len0)
 		if (init) {
 			if_printf(sc->ifp,
 				  "m_getl failed, size %d\n", len0);
-			return error;
+			return (error);
 		} else {
 			goto back;
 		}
@@ -2240,7 +2306,7 @@ et_newbuf(struct et_rxbuf_data *rbd, int buf_idx, int init, int len0)
 
 		if (init) {
 			if_printf(sc->ifp, "can't load RX mbuf\n");
-			return error;
+			return (error);
 		} else {
 			goto back;
 		}
@@ -2264,7 +2330,7 @@ et_newbuf(struct et_rxbuf_data *rbd, int buf_idx, int init, int len0)
 	error = 0;
 back:
 	et_setup_rxdesc(rbd, buf_idx, rb->rb_paddr);
-	return error;
+	return (error);
 }
 
 /*
@@ -2314,7 +2380,7 @@ et_sysctl_rx_intr_npkts(SYSCTL_HANDLER_ARGS)
 		sc->sc_rx_intr_npkts = v;
 	}
 back:
-	return error;
+	return (error);
 }
 
 static int
@@ -2339,7 +2405,7 @@ et_sysctl_rx_intr_delay(SYSCTL_HANDLER_ARGS)
 		sc->sc_rx_intr_delay = v;
 	}
 back:
-	return error;
+	return (error);
 }
 
 static void
@@ -2352,7 +2418,8 @@ et_setmedia(struct et_softc *sc)
 	cfg2 &= ~(ET_MAC_CFG2_MODE_MII | ET_MAC_CFG2_MODE_GMII |
 		  ET_MAC_CFG2_FDX | ET_MAC_CFG2_BIGFRM);
 	cfg2 |= ET_MAC_CFG2_LENCHK | ET_MAC_CFG2_CRC | ET_MAC_CFG2_PADCRC |
-		__SHIFTIN(7, ET_MAC_CFG2_PREAMBLE_LEN);
+	    ((7 << ET_MAC_CFG2_PREAMBLE_LEN_SHIFT) &
+	    ET_MAC_CFG2_PREAMBLE_LEN_MASK);
 
 	ctrl = CSR_READ_4(sc, ET_MAC_CTRL);
 	ctrl &= ~(ET_MAC_CTRL_GHDX | ET_MAC_CTRL_MODE_MII);
@@ -2382,9 +2449,9 @@ et_setup_rxdesc(struct et_rxbuf_data *rbd, int buf_idx, bus_addr_t paddr)
 	MPASS(buf_idx < ET_RX_NDESC);
 	desc = &rx_ring->rr_desc[buf_idx];
 
-	desc->rd_addr_hi = ET_ADDR_HI(paddr);
-	desc->rd_addr_lo = ET_ADDR_LO(paddr);
-	desc->rd_ctrl = __SHIFTIN(buf_idx, ET_RDCTRL_BUFIDX);
+	desc->rd_addr_hi = htole32(ET_ADDR_HI(paddr));
+	desc->rd_addr_lo = htole32(ET_ADDR_LO(paddr));
+	desc->rd_ctrl = htole32(buf_idx & ET_RDCTRL_BUFIDX_MASK);
 
 	bus_dmamap_sync(rx_ring->rr_dtag, rx_ring->rr_dmap,
 			BUS_DMASYNC_PREWRITE);

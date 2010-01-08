@@ -38,4 +38,8 @@ MAN+=	../forth/loader.conf.5
 MAN+=	../forth/loader.4th.8
 .endif
 
+.if defined(BOOT_PROMPT_123)
+CFLAGS+=	-DBOOT_PROMPT_123
+.endif
+
 MAN+=	loader.8

@@ -8582,7 +8582,7 @@ sym_pci_attach(device_t dev)
 	 *  Allocate a tag for the DMA of user data.
 	 */
 	if (bus_dma_tag_create(np->bus_dmat, 1, (1<<24),
-				BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+				BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 				NULL, NULL,
 				BUS_SPACE_MAXSIZE, SYM_CONF_MAX_SG,
 				(1<<24), 0, busdma_lock_mutex, &np->mtx,

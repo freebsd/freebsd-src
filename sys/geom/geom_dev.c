@@ -323,7 +323,12 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 			return (ENOENT);
 		strlcpy(data, pp->name, i);
 		break;
-
+	case DIOCGSTRIPESIZE:
+		*(off_t *)data = cp->provider->stripesize;
+		break;
+	case DIOCGSTRIPEOFFSET:
+		*(off_t *)data = cp->provider->stripeoffset;
+		break;
 	default:
 		if (cp->provider->geom->ioctl != NULL) {
 			error = cp->provider->geom->ioctl(cp->provider, cmd, data, fflag, td);
@@ -371,14 +376,14 @@ g_dev_strategy(struct bio *bp)
 	cp = dev->si_drv2;
 	KASSERT(cp->acr || cp->acw,
 	    ("Consumer with zero access count in g_dev_strategy"));
-
+#ifdef INVARIANTS
 	if ((bp->bio_offset % cp->provider->sectorsize) != 0 ||
 	    (bp->bio_bcount % cp->provider->sectorsize) != 0) {
 		bp->bio_resid = bp->bio_bcount;
 		biofinish(bp, NULL, EINVAL);
 		return;
 	}
-
+#endif
 	for (;;) {
 		/*
 		 * XXX: This is not an ideal solution, but I belive it to

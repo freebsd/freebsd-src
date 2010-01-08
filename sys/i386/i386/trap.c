@@ -227,6 +227,11 @@ trap(struct trapframe *frame)
 	}
 #endif
 
+	if (type == T_RESERVED) {
+		trap_fatal(frame, 0);
+		goto out;
+	}
+
 #ifdef	HWPMC_HOOKS
 	/*
 	 * CPU PMCs interrupt using an NMI so we check for that first.
@@ -1102,35 +1107,7 @@ syscall(struct trapframe *frame)
 #endif
 	}
 
-	switch (error) {
-	case 0:
-		frame->tf_eax = td->td_retval[0];
-		frame->tf_edx = td->td_retval[1];
-		frame->tf_eflags &= ~PSL_C;
-		break;
-
-	case ERESTART:
-		/*
-		 * Reconstruct pc, assuming lcall $X,y is 7 bytes,
-		 * int 0x80 is 2 bytes. We saved this in tf_err.
-		 */
-		frame->tf_eip -= frame->tf_err;
-		break;
-
-	case EJUSTRETURN:
-		break;
-
-	default:
- 		if (p->p_sysent->sv_errsize) {
- 			if (error >= p->p_sysent->sv_errsize)
-  				error = -1;	/* XXX */
-   			else
-  				error = p->p_sysent->sv_errtbl[error];
-		}
-		frame->tf_eax = error;
-		frame->tf_eflags |= PSL_C;
-		break;
-	}
+	cpu_set_syscall_retval(td, error);
 
 	/*
 	 * Traced syscall.

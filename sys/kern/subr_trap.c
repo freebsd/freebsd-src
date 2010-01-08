@@ -90,6 +90,7 @@ userret(struct thread *td, struct trapframe *frame)
 
 	CTR3(KTR_SYSC, "userret: thread %p (pid %d, %s)", td, p->p_pid,
             td->td_name);
+#if 0
 #ifdef DIAGNOSTIC
 	/* Check that we called signotify() enough. */
 	PROC_LOCK(p);
@@ -99,6 +100,7 @@ userret(struct thread *td, struct trapframe *frame)
 		printf("failed to set signal flags properly for ast()\n");
 	thread_unlock(td);
 	PROC_UNLOCK(p);
+#endif
 #endif
 #ifdef KTRACE
 	KTRUSERRET(td);
@@ -218,7 +220,14 @@ ast(struct trapframe *framep)
 			ktrcsw(0, 1);
 #endif
 	}
-	if (flags & TDF_NEEDSIGCHK) {
+
+	/*
+	 * Check for signals. Unlocked reads of p_pendingcnt or
+	 * p_siglist might cause process-directed signal to be handled
+	 * later.
+	 */
+	if (flags & TDF_NEEDSIGCHK || p->p_pendingcnt > 0 ||
+	    !SIGISEMPTY(p->p_siglist)) {
 		PROC_LOCK(p);
 		mtx_lock(&p->p_sigacts->ps_mtx);
 		while ((sig = cursig(td, SIG_STOP_ALLOWED)) != 0)
@@ -234,6 +243,11 @@ ast(struct trapframe *framep)
 		PROC_LOCK(p);
 		thread_suspend_check(0);
 		PROC_UNLOCK(p);
+	}
+
+	if (td->td_pflags & TDP_OLDMASK) {
+		td->td_pflags &= ~TDP_OLDMASK;
+		kern_sigprocmask(td, SIG_SETMASK, &td->td_oldsigmask, NULL, 0);
 	}
 
 	userret(td, framep);

@@ -15,6 +15,6 @@ CFLAGS+= -DINET6
 .endif
 
 DPADD=	${LIBCURSES} ${LIBM} ${LIBDEVSTAT} ${LIBKVM}
-LDADD=	-lcurses -lm -ldevstat -lkvm
+LDADD=	-lcursesw -lm -ldevstat -lkvm
 
 .include <bsd.prog.mk>

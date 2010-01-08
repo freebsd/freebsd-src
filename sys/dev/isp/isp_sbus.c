@@ -193,6 +193,8 @@ isp_sbus_attach(device_t dev)
 	isp->isp_param = &sbs->sbus_param;
 	isp->isp_osinfo.pc.ptr = &sbs->sbus_spi;
 	isp->isp_revision = 0;	/* XXX */
+	isp->isp_dev = dev;
+	isp->isp_nchan = 1;
 	ISP_SET_PC(isp, 0, role, role);
 
 	/*
@@ -316,18 +318,16 @@ isp_sbus_attach(device_t dev)
 		goto bad;
 	}
 	isp_init(isp);
-	if (role != ISP_ROLE_NONE && isp->isp_state != ISP_INITSTATE) {
-		isp_uninit(isp);
-		ISP_UNLOCK(isp);
-		goto bad;
-	}
-	isp_attach(isp);
-	if (role != ISP_ROLE_NONE && isp->isp_state != ISP_RUNSTATE) {
-		isp_uninit(isp);
-		ISP_UNLOCK(isp);
-		goto bad;
+	if (isp->isp_state == ISP_INITSTATE) {
+		isp->isp_state = ISP_RUNSTATE;
 	}
 	ISP_UNLOCK(isp);
+	if (isp_attach(isp)) {
+		ISP_LOCK(isp);
+		isp_uninit(isp);
+		ISP_UNLOCK(isp);
+		goto bad;
+	}
 	return (0);
 
 bad:
@@ -345,13 +345,10 @@ bad:
 	}
 
 	if (regs) {
-		(void) bus_release_resource(dev, 0, 0, regs);
+		(void) bus_release_resource(dev, SYS_RES_MEMORY, 0, regs);
 	}
 
 	if (sbs) {
-		if (sbs->sbus_isp.isp_param) {
-			free(sbs->sbus_isp.isp_param, M_DEVBUF);
-		}
 		free(sbs, M_DEVBUF);
 	}
 	return (ENXIO);
@@ -584,13 +581,6 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	isp = mp->isp;
 	rq = mp->rq;
 	if (nseg) {
-		if (sizeof (bus_addr_t) > 4) {
-			if (rq->req_header.rqs_entry_type == RQSTYPE_T2RQS) {
-				rq->req_header.rqs_entry_type = RQSTYPE_T3RQS;
-			} else if (rq->req_header.rqs_entry_type == RQSTYPE_REQUEST) {
-				rq->req_header.rqs_entry_type = RQSTYPE_A64;
-			}
-		}
 		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 			bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREREAD);
 			ddir = ISP_FROM_DEVICE;

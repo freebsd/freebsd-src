@@ -347,8 +347,19 @@ casuword(volatile u_long *addr, u_long old, u_long new)
 		return (-1);
 	}
 
-	val = *p;
-	(void) atomic_cmpset_32((volatile uint32_t *)p, old, new);
+	__asm __volatile (
+		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
+		"cmplw %3, %0\n\t"		/* compare */
+		"bne 2f\n\t"			/* exit if not equal */
+		"stwcx. %4, 0, %2\n\t"      	/* attempt to store */
+		"bne- 1b\n\t"			/* spin if failed */
+		"b 3f\n\t"			/* we've succeeded */
+		"2:\n\t"
+		"stwcx. %0, 0, %2\n\t"       	/* clear reservation (74xx) */
+		"3:\n\t"
+		: "=&r" (val), "=m" (*p)
+		: "r" (p), "r" (old), "r" (new), "m" (*p)
+		: "cc", "memory");
 
 	td->td_pcb->pcb_onfault = NULL;
 

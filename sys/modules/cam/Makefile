@@ -28,6 +28,7 @@ SRCS+=	scsi_xpt.c
 SRCS+=	ata_all.c
 SRCS+=	ata_xpt.c
 SRCS+=	ata_da.c
+SRCS+=	ata_pmp.c
 
 EXPORT_SYMS=	YES	# XXX evaluate
 

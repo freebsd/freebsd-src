@@ -241,6 +241,7 @@ pmclog_loop(void *arg)
 	int error;
 	struct pmc_owner *po;
 	struct pmclog_buffer *lb;
+	struct proc *p;
 	struct ucred *ownercred;
 	struct ucred *mycred;
 	struct thread *td;
@@ -249,12 +250,13 @@ pmclog_loop(void *arg)
 	size_t nbytes;
 
 	po = (struct pmc_owner *) arg;
+	p = po->po_owner;
 	td = curthread;
 	mycred = td->td_ucred;
 
-	PROC_LOCK(po->po_owner);
-	ownercred = crhold(po->po_owner->p_ucred);
-	PROC_UNLOCK(po->po_owner);
+	PROC_LOCK(p);
+	ownercred = crhold(p->p_ucred);
+	PROC_UNLOCK(p);
 
 	PMCDBG(LOG,INI,1, "po=%p kt=%p", po, po->po_kthread);
 	KASSERT(po->po_kthread == curthread->td_proc,
@@ -325,16 +327,16 @@ pmclog_loop(void *arg)
 		error = fo_write(po->po_file, &auio, ownercred, 0, td);
 		td->td_ucred = mycred;
 
-		mtx_lock(&pmc_kthread_mtx);
-
 		if (error) {
 			/* XXX some errors are recoverable */
 			/* XXX also check for SIGPIPE if a socket */
 
 			/* send a SIGIO to the owner and exit */
-			PROC_LOCK(po->po_owner);
-			psignal(po->po_owner, SIGIO);
-			PROC_UNLOCK(po->po_owner);
+			PROC_LOCK(p);
+			psignal(p, SIGIO);
+			PROC_UNLOCK(p);
+
+			mtx_lock(&pmc_kthread_mtx);
 
 			po->po_error = error; /* save for flush log */
 
@@ -342,6 +344,8 @@ pmclog_loop(void *arg)
 
 			break;
 		}
+
+		mtx_lock(&pmc_kthread_mtx);
 
 		/* put the used buffer back into the global pool */
 		PMCLOG_INIT_BUFFER_DESCRIPTOR(lb);
@@ -526,15 +530,20 @@ static void
 pmclog_stop_kthread(struct pmc_owner *po)
 {
 	/*
-	 * Unset flag, wakeup the helper thread,
+	 * Close the file to force the thread out of fo_write,
+	 * unset flag, wakeup the helper thread,
 	 * wait for it to exit
 	 */
 
-	mtx_assert(&pmc_kthread_mtx, MA_OWNED);
+	if (po->po_file != NULL)
+		fo_close(po->po_file, curthread);
+
+	mtx_lock(&pmc_kthread_mtx);
 	po->po_flags &= ~PMC_PO_OWNS_LOGFILE;
 	wakeup_one(po);
 	if (po->po_kthread)
 		msleep(po->po_kthread, &pmc_kthread_mtx, PPAUSE, "pmckstp", 0);
+	mtx_unlock(&pmc_kthread_mtx);
 }
 
 /*
@@ -603,10 +612,8 @@ pmclog_configure_log(struct pmc_mdep *md, struct pmc_owner *po, int logfd)
 
  error:
 	/* shutdown the thread */
-	mtx_lock(&pmc_kthread_mtx);
 	if (po->po_kthread)
 		pmclog_stop_kthread(po);
-	mtx_unlock(&pmc_kthread_mtx);
 
 	KASSERT(po->po_kthread == NULL, ("[pmclog,%d] po=%p kthread not "
 	    "stopped", __LINE__, po));
@@ -642,10 +649,8 @@ pmclog_deconfigure_log(struct pmc_owner *po)
 	    ("[pmclog,%d] po=%p no log file", __LINE__, po));
 
 	/* stop the kthread, this will reset the 'OWNS_LOGFILE' flag */
-	mtx_lock(&pmc_kthread_mtx);
 	if (po->po_kthread)
 		pmclog_stop_kthread(po);
-	mtx_unlock(&pmc_kthread_mtx);
 
 	KASSERT(po->po_kthread == NULL,
 	    ("[pmclog,%d] po=%p kthread not stopped", __LINE__, po));

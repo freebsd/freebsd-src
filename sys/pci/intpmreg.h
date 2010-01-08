@@ -35,7 +35,9 @@
 #define	PCI_BASE_ADDR_SMB	0x90	/* IO BAR. */
 #define	PCI_BASE_ADDR_PM	0x40
 #define	PCI_HST_CFG_SMB		0xd2	/* Host Configuration */
+#define	PCI_INTR_SMB_MASK	0xe
 #define	PCI_INTR_SMB_SMI	0
+#define	PCI_INTR_SMB_IRQ_PCI	2
 #define	PCI_INTR_SMB_IRQ9	8
 #define	PCI_INTR_SMB_ENABLE	1
 #define	PCI_SLV_CMD_SMB		0xd3 /*SLAVE COMMAND*/

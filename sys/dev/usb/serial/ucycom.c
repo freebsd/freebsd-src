@@ -124,6 +124,7 @@ static void	ucycom_stop_write(struct ucom_softc *);
 static void	ucycom_cfg_write(struct ucycom_softc *, uint32_t, uint8_t);
 static int	ucycom_pre_param(struct ucom_softc *, struct termios *);
 static void	ucycom_cfg_param(struct ucom_softc *, struct termios *);
+static void	ucycom_poll(struct ucom_softc *ucom);
 
 static const struct usb_config ucycom_config[UCYCOM_N_TRANSFER] = {
 
@@ -154,6 +155,7 @@ static const struct ucom_callback ucycom_callback = {
 	.ucom_stop_read = &ucycom_stop_read,
 	.ucom_start_write = &ucycom_start_write,
 	.ucom_stop_write = &ucycom_stop_write,
+	.ucom_poll = &ucycom_poll,
 };
 
 static device_method_t ucycom_methods[] = {
@@ -264,7 +266,7 @@ ucycom_attach(device_t dev)
 	    sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "allocating USB "
-		    "transfers failed!\n");
+		    "transfers failed\n");
 		goto detach;
 	}
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
@@ -553,7 +555,7 @@ ucycom_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			break;
 
 		default:
-			DPRINTFN(0, "unsupported model number!\n");
+			DPRINTFN(0, "unsupported model number\n");
 			goto tr_setup;
 		}
 
@@ -577,4 +579,11 @@ tr_setup:
 		return;
 
 	}
+}
+
+static void
+ucycom_poll(struct ucom_softc *ucom)
+{
+	struct ucycom_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UCYCOM_N_TRANSFER);
 }

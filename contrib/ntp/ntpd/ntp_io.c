@@ -65,6 +65,12 @@
 #endif	/* IPV6 Multicast Support */
 #endif  /* IPv6 Support */
 
+#ifdef INCLUDE_IPV6_SUPPORT
+#include <netinet/in.h>
+#include <net/if_var.h>
+#include <netinet/in_var.h>
+#endif /* !INCLUDE_IPV6_SUPPORT */
+
 extern int listen_to_virtual_ips;
 extern const char *specific_interface;
 
@@ -1137,6 +1143,36 @@ set_wildcard_reuse(int family, int on)
 }
 #endif /* OS_NEEDS_REUSEADDR_FOR_IFADDRBIND */
 
+#ifdef INCLUDE_IPV6_SUPPORT
+static isc_boolean_t
+is_anycast(struct sockaddr *sa, char *name)
+{
+#if defined(SIOCGIFAFLAG_IN6) && defined(IN6_IFF_ANYCAST)
+	struct in6_ifreq ifr6;
+	int fd;
+	u_int32_t flags6;
+
+	if (sa->sa_family != AF_INET6)
+		return ISC_FALSE;
+	if ((fd = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+		return ISC_FALSE;
+	memset(&ifr6, 0, sizeof(ifr6));
+	memcpy(&ifr6.ifr_addr, (struct sockaddr_in6 *)sa,
+	    sizeof(struct sockaddr_in6));
+	strlcpy(ifr6.ifr_name, name, IF_NAMESIZE);
+	if (ioctl(fd, SIOCGIFAFLAG_IN6, &ifr6) < 0) {
+		close(fd);
+		return ISC_FALSE;
+	}
+	close(fd);
+	flags6 = ifr6.ifr_ifru.ifru_flags6;
+	if ((flags6 & IN6_IFF_ANYCAST) != 0)
+		return ISC_TRUE;
+#endif /* !SIOCGIFAFLAG_IN6 || !IN6_IFF_ANYCAST */
+	return ISC_FALSE;
+}
+#endif /* !INCLUDE_IPV6_SUPPORT */
+
 /*
  * update_interface strategy
  *
@@ -1275,6 +1311,11 @@ update_interfaces(
 		 */
 		if (is_wildcard_addr(&interface.sin))
 			continue;
+
+#ifdef INCLUDE_IPV6_SUPPORT
+		if (is_anycast((struct sockaddr *)&interface.sin, isc_if.name))
+			continue;
+#endif /* !INCLUDE_IPV6_SUPPORT */
 
 		/*
 		 * map to local *address* in order

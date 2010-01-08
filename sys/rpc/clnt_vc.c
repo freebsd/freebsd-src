@@ -413,6 +413,22 @@ call_again:
 
 	cr->cr_xid = xid;
 	mtx_lock(&ct->ct_lock);
+	/*
+	 * Check to see if the other end has already started to close down
+	 * the connection. The upcall will have set ct_error.re_status
+	 * to RPC_CANTRECV if this is the case.
+	 * If the other end starts to close down the connection after this
+	 * point, it will be detected later when cr_error is checked,
+	 * since the request is in the ct_pending queue.
+	 */
+	if (ct->ct_error.re_status == RPC_CANTRECV) {
+		if (errp != &ct->ct_error) {
+			errp->re_errno = ct->ct_error.re_errno;
+			errp->re_status = RPC_CANTRECV;
+		}
+		stat = RPC_CANTRECV;
+		goto out;
+	}
 	TAILQ_INSERT_TAIL(&ct->ct_pending, cr, cr_link);
 	mtx_unlock(&ct->ct_lock);
 

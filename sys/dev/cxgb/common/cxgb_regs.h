@@ -280,6 +280,11 @@ $FreeBSD$
 #define V_RSPQ7STARVED(x) ((x) << S_RSPQ7STARVED)
 #define F_RSPQ7STARVED    V_RSPQ7STARVED(1U)
 
+#define S_RSPQXSTARVED    0
+#define M_RSPQXSTARVED    0xff
+#define V_RSPQXSTARVED(x) ((x) << S_RSPQXSTARVED)
+#define G_RSPQXSTARVED(x) (((x) >> S_RSPQXSTARVED) & M_RSPQXSTARVED)
+
 #define S_RSPQ0DISABLED    8
 #define V_RSPQ0DISABLED(x) ((x) << S_RSPQ0DISABLED)
 #define F_RSPQ0DISABLED    V_RSPQ0DISABLED(1U)
@@ -375,6 +380,11 @@ $FreeBSD$
 #define S_FL15EMPTY    31
 #define V_FL15EMPTY(x) ((x) << S_FL15EMPTY)
 #define F_FL15EMPTY    V_FL15EMPTY(1U)
+
+#define S_FLXEMPTY    16
+#define M_FLXEMPTY    0xffff
+#define V_FLXEMPTY(x) ((x) << S_FLXEMPTY)
+#define G_FLXEMPTY(x) (((x) >> S_FLXEMPTY) & M_FLXEMPTY)
 
 #define A_SG_EGR_PRI_CNT 0x50
 
@@ -6235,9 +6245,27 @@ $FreeBSD$
 #define V_ACK(x) ((x) << S_ACK)
 #define F_ACK    V_ACK(1U)
 
+#define S_I2C_DATA    0
+#define M_I2C_DATA    0xff
+#define V_I2C_DATA(x) ((x) << S_I2C_DATA)
+#define G_I2C_DATA(x) (((x) >> S_I2C_DATA) & M_I2C_DATA)
+
+#define S_I2C_BUSY    31
+#define V_I2C_BUSY(x) ((x) << S_I2C_BUSY)
+#define F_I2C_BUSY    V_I2C_BUSY(1U)
+
+#define S_I2C_ACK     30
+#define V_I2C_ACK(x)  ((x) << S_I2C_ACK)
+#define F_I2C_ACK     V_I2C_ACK(1U)
+
 #define S_I2C_CONT    1
 #define V_I2C_CONT(x) ((x) << S_I2C_CONT)
 #define F_I2C_CONT    V_I2C_CONT(1U)
+
+#define S_I2C_RDWR    0
+#define V_I2C_RDWR(x) ((x) << S_I2C_RDWR)
+#define F_I2C_READ    V_I2C_RDWR(0U)
+#define F_I2C_WRITE   V_I2C_RDWR(1U)
 
 /* registers for module MI1 */
 #define MI1_BASE_ADDR 0x6b0

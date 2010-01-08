@@ -639,19 +639,12 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	}
 #ifdef INET6
 	/*
-	 * Linux AF_INET6 socket has IPV6_V6ONLY setsockopt set to 0 by
-	 * default and some apps depend on this. So, set V6ONLY to 0
-	 * for Linux apps if the sysctl value is set to 1.
+	 * Linux AF_INET6 socket has IPV6_V6ONLY setsockopt set to 0 by default
+	 * and some apps depend on this. So, set V6ONLY to 0 for Linux apps.
+	 * For simplicity we do this unconditionally of the net.inet6.ip6.v6only
+	 * sysctl value.
 	 */
-	if (bsd_args.domain == PF_INET6
-#ifndef KLD_MODULE
-	    /*
-	     * XXX: Avoid undefined symbol error with an IPv4 only
-	     * kernel.
-	     */
-	    && V_ip6_v6only
-#endif
-	    ) {
+	if (bsd_args.domain == PF_INET6) {
 		int v6only;
 
 		v6only = 0;

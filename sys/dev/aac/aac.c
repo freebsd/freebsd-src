@@ -229,7 +229,7 @@ static int		aac_query_disk(struct aac_softc *sc, caddr_t uptr);
 static int		aac_get_pci_info(struct aac_softc *sc, caddr_t uptr);
 static int		aac_supported_features(struct aac_softc *sc, caddr_t uptr);
 static void		aac_ioctl_event(struct aac_softc *sc,
-				        struct aac_event *event, void *arg);
+					struct aac_event *event, void *arg);
 static struct aac_mntinforesp *
 	aac_get_container_info(struct aac_softc *sc, struct aac_fib *fib, int cid);
 
@@ -354,7 +354,7 @@ aac_attach(struct aac_softc *sc)
 	}
 
 	mtx_lock(&sc->aac_io_lock);
-	callout_reset(&sc->aac_daemontime, 30 * 60 * hz, aac_daemon, sc);
+	callout_reset(&sc->aac_daemontime, 60 * hz, aac_daemon, sc);
 	mtx_unlock(&sc->aac_io_lock);
 
 	return(0);
@@ -604,7 +604,7 @@ aac_alloc(struct aac_softc *sc)
 	TAILQ_INIT(&sc->aac_fibmap_tqh);
 	sc->aac_commands = malloc(sc->aac_max_fibs * sizeof(struct aac_command),
 				  M_AACBUF, M_WAITOK|M_ZERO);
-	while (sc->total_fibs < AAC_PREALLOCATE_FIBS) {
+	while (sc->total_fibs < sc->aac_max_fibs) {
 		if (aac_alloc_commands(sc) != 0)
 			break;
 	}
@@ -3618,7 +3618,7 @@ aac_query_disk(struct aac_softc *sc, caddr_t uptr)
 		query_disk.Lun = 0;
 		query_disk.UnMapped = 0;
 		sprintf(&query_disk.diskDeviceName[0], "%s%d",
-		        disk->ad_disk->d_name, disk->ad_disk->d_unit);
+			disk->ad_disk->d_name, disk->ad_disk->d_unit);
 	}
 	mtx_unlock(&sc->aac_container_lock);
 

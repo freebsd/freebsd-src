@@ -638,7 +638,10 @@ scsi_low_attach_xs(slp)
 		return ENOMEM;
 	splp = SCSI_LOW_MALLOC(sizeof(*splp));
 	if (splp == NULL)
+	{
+		SCSI_LOW_FREE(sap);
 		return ENOMEM;
+	}
 
 	SCSI_LOW_BZERO(sap, sizeof(*sap));
 	SCSI_LOW_BZERO(splp, sizeof(*splp));

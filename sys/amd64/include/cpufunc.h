@@ -277,7 +277,7 @@ static __inline void
 mfence(void)
 {
 
-	__asm__ __volatile("mfence" : : : "memory");
+	__asm __volatile("mfence" : : : "memory");
 }
 
 static __inline void
@@ -457,14 +457,14 @@ load_es(u_int sel)
 	__asm __volatile("mov %0,%%es" : : "rm" (sel));
 }
 
-static inline void
+static __inline void
 cpu_monitor(const void *addr, int extensions, int hints)
 {
 	__asm __volatile("monitor;"
 	    : :"a" (addr), "c" (extensions), "d"(hints));
 }
 
-static inline void
+static __inline void
 cpu_mwait(int extensions, int hints)
 {
 	__asm __volatile("mwait;" : :"a" (hints), "c" (extensions));

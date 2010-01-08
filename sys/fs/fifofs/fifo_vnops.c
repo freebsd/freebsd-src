@@ -78,6 +78,10 @@ struct fileops fifo_ops_f = {
 /*
  * This structure is associated with the FIFO vnode and stores
  * the state associated with the FIFO.
+ * Notes about locking:
+ *   - fi_readsock and fi_writesock are invariant since init time.
+ *   - fi_readers and fi_writers are vnode lock protected.
+ *   - fi_wgen is fif_mtx lock protected.
  */
 struct fifoinfo {
 	struct socket	*fi_readsock;
@@ -215,14 +219,9 @@ fail1:
 	}
 
 	/*
-	 * General access to fi_readers and fi_writers is protected using
-	 * the vnode lock.
-	 *
-	 * Protect the increment of fi_readers and fi_writers and the
-	 * associated calls to wakeup() with the fifo mutex in addition
-	 * to the vnode lock.  This allows the vnode lock to be dropped
-	 * for the msleep() calls below, and using the fifo mutex with
-	 * msleep() prevents the wakeup from being missed.
+	 * Use the fifo_mtx lock here, in addition to the vnode lock,
+	 * in order to allow vnode lock dropping before msleep() calls
+	 * and still avoiding missed wakeups.
 	 */
 	mtx_lock(&fifo_mtx);
 	if (ap->a_mode & FREAD) {
@@ -241,6 +240,8 @@ fail1:
 	if (ap->a_mode & FWRITE) {
 		if ((ap->a_mode & O_NONBLOCK) && fip->fi_readers == 0) {
 			mtx_unlock(&fifo_mtx);
+			if (fip->fi_writers == 0)
+				fifo_cleanup(vp);
 			return (ENXIO);
 		}
 		fip->fi_writers++;

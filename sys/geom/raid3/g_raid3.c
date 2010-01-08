@@ -183,15 +183,17 @@ static void *
 g_raid3_alloc(struct g_raid3_softc *sc, size_t size, int flags)
 {
 	void *ptr;
+	enum g_raid3_zones zone;
 
-	if (g_raid3_use_malloc)
+	if (g_raid3_use_malloc ||
+	    (zone = g_raid3_zone(size)) == G_RAID3_NUM_ZONES)
 		ptr = malloc(size, M_RAID3, flags);
 	else {
-		ptr = uma_zalloc_arg(sc->sc_zones[g_raid3_zone(size)].sz_zone,
-		   &sc->sc_zones[g_raid3_zone(size)], flags);
-		sc->sc_zones[g_raid3_zone(size)].sz_requested++;
+		ptr = uma_zalloc_arg(sc->sc_zones[zone].sz_zone,
+		   &sc->sc_zones[zone], flags);
+		sc->sc_zones[zone].sz_requested++;
 		if (ptr == NULL)
-			sc->sc_zones[g_raid3_zone(size)].sz_failed++;
+			sc->sc_zones[zone].sz_failed++;
 	}
 	return (ptr);
 }
@@ -199,12 +201,14 @@ g_raid3_alloc(struct g_raid3_softc *sc, size_t size, int flags)
 static void
 g_raid3_free(struct g_raid3_softc *sc, void *ptr, size_t size)
 {
+	enum g_raid3_zones zone;
 
-	if (g_raid3_use_malloc)
+	if (g_raid3_use_malloc ||
+	    (zone = g_raid3_zone(size)) == G_RAID3_NUM_ZONES)
 		free(ptr, M_RAID3);
 	else {
-		uma_zfree_arg(sc->sc_zones[g_raid3_zone(size)].sz_zone,
-		    ptr, &sc->sc_zones[g_raid3_zone(size)]);
+		uma_zfree_arg(sc->sc_zones[zone].sz_zone,
+		    ptr, &sc->sc_zones[zone]);
 	}
 }
 
@@ -2313,6 +2317,8 @@ static void
 g_raid3_launch_provider(struct g_raid3_softc *sc)
 {
 	struct g_provider *pp;
+	struct g_raid3_disk *disk;
+	int n;
 
 	sx_assert(&sc->sc_lock, SX_LOCKED);
 
@@ -2320,6 +2326,18 @@ g_raid3_launch_provider(struct g_raid3_softc *sc)
 	pp = g_new_providerf(sc->sc_geom, "raid3/%s", sc->sc_name);
 	pp->mediasize = sc->sc_mediasize;
 	pp->sectorsize = sc->sc_sectorsize;
+	pp->stripesize = 0;
+	pp->stripeoffset = 0;
+	for (n = 0; n < sc->sc_ndisks; n++) {
+		disk = &sc->sc_disks[n];
+		if (disk->d_consumer && disk->d_consumer->provider &&
+		    disk->d_consumer->provider->stripesize > pp->stripesize) {
+			pp->stripesize = disk->d_consumer->provider->stripesize;
+			pp->stripeoffset = disk->d_consumer->provider->stripeoffset;
+		}
+	}
+	pp->stripesize *= sc->sc_ndisks - 1;
+	pp->stripeoffset *= sc->sc_ndisks - 1;
 	sc->sc_provider = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();

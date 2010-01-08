@@ -35,8 +35,12 @@
 .Nm
 .Op Fl a | m
 .Nm
-.Op Fl ck
-.Op Ar keyword ...
+.Fl k 
+.Ic list
+.Op Ar prefix
+.Nm
+.Op Fl ck 
+.Ar keyword ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -79,6 +83,8 @@ The special
 specific) keyword
 .Cm list
 can be used to retrieve the human readable list of all available keywords.
+If so,
+a prefix string can be defined to limit the amount of keywords returned.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO

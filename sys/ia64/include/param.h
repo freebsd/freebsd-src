@@ -70,7 +70,7 @@
 #endif
 
 #if defined(SMP) || defined(KLD_MODULE)
-#define	MAXCPU		4
+#define	MAXCPU		32
 #else
 #define MAXCPU		1
 #endif
@@ -99,6 +99,8 @@
 #define	PAGE_SIZE	(1<<(LOG2_PAGE_SIZE))
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
+
+#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
 
 #ifndef	KSTACK_PAGES
 #define	KSTACK_PAGES	4		/* pages of kernel stack */

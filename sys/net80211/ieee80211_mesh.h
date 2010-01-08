@@ -470,6 +470,8 @@ struct ieee80211_scanparams;
 void		ieee80211_mesh_init_neighbor(struct ieee80211_node *,
 		   const struct ieee80211_frame *,
 		   const struct ieee80211_scanparams *);
+void		ieee80211_mesh_update_beacon(struct ieee80211vap *,
+		    struct ieee80211_beacon_offsets *);
 
 /*
  * Return non-zero if proxy operation is enabled.

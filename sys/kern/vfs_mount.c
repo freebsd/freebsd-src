@@ -104,13 +104,17 @@ struct vnode	*rootvnode;
  * The root filesystem is detailed in the kernel environment variable
  * vfs.root.mountfrom, which is expected to be in the general format
  *
- * <vfsname>:[<path>]
+ * <vfsname>:[<path>][	<vfsname>:[<path>] ...]
  * vfsname   := the name of a VFS known to the kernel and capable
  *              of being mounted as root
  * path      := disk device name or other data used by the filesystem
  *              to locate its physical store
  *
- * The environment variable vfs.root.mountfrom options is a comma delimited
+ * If the environment variable vfs.root.mountfrom is a space separated list,
+ * each list element is tried in turn and the root filesystem will be mounted
+ * from the first one that suceeds.
+ *
+ * The environment variable vfs.root.mountfrom.options is a comma delimited
  * set of string mount options.  These mount options must be parseable
  * by nmount() in the kernel.
  */
@@ -1643,7 +1647,7 @@ vfs_opterror(struct vfsoptlist *opts, const char *fmt, ...)
 void
 vfs_mountroot(void)
 {
-	char *cp, *options;
+	char *cp, *cpt, *options, *tmpdev;
 	int error, i, asked = 0;
 
 	options = NULL;
@@ -1695,10 +1699,15 @@ vfs_mountroot(void)
 	 */
 	cp = getenv("vfs.root.mountfrom");
 	if (cp != NULL) {
-		error = vfs_mountroot_try(cp, options);
+		cpt = cp;
+		while ((tmpdev = strsep(&cpt, " \t")) != NULL) {
+			error = vfs_mountroot_try(tmpdev, options);
+			if (error == 0) {
+				freeenv(cp);
+				goto mounted;
+			}
+		}
 		freeenv(cp);
-		if (!error)
-			goto mounted;
 	}
 
 	/*

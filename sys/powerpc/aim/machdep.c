@@ -130,7 +130,6 @@ extern vm_offset_t ksym_start, ksym_end;
 
 int cold = 1;
 int cacheline_size = 32;
-int ppc64 = 0;
 int hw_direct_map = 1;
 
 struct pcpu __pcpu[MAXCPU];
@@ -256,6 +255,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
         char		*env;
 	uint32_t	msr, scratch;
 	uint8_t		*cache_check;
+	int		ppc64;
 
 	end = 0;
 	kmdp = NULL;
@@ -374,7 +374,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	for (cacheline_size = 0; cacheline_size < 0x100; cacheline_size++)
 		cache_check[cacheline_size] = 0xff;
 
-	__asm __volatile("dcbz %0,0":: "r" (cache_check) : "memory");
+	__asm __volatile("dcbz 0,%0":: "r" (cache_check) : "memory");
 
 	/* Find the first byte dcbz did not zero to get the cache line size */
 	for (cacheline_size = 0; cacheline_size < 0x100 &&
@@ -405,12 +405,15 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 		mfsprg2 %1;"
 	    : "=r"(scratch), "=r"(ppc64));
 
+	if (ppc64)
+		cpu_features |= PPC_FEATURE_64;
+
 	/*
 	 * Now copy restorebridge into all the handlers, if necessary,
 	 * and set up the trap tables.
 	 */
 
-	if (ppc64) {
+	if (cpu_features & PPC_FEATURE_64) {
 		/* Patch the two instances of rfi -> rfid */
 		bcopy(&rfid_patch,&rfi_patch1,4);
 	#ifdef KDB
@@ -489,7 +492,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	 * in case the platform module had a better idea of what we
 	 * should do.
 	 */
-	if (ppc64)
+	if (cpu_features & PPC_FEATURE_64)
 		pmap_mmu_install(MMU_TYPE_G5, BUS_PROBE_GENERIC);
 	else
 		pmap_mmu_install(MMU_TYPE_OEA, BUS_PROBE_GENERIC);
@@ -692,7 +695,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 int
 sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
-	struct proc *p;
 	ucontext_t uc;
 	int error;
 
@@ -707,12 +709,7 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	if (error != 0)
 		return (error);
 
-	p = td->td_proc;
-	PROC_LOCK(p);
-	td->td_sigmask = uc.uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	CTR3(KTR_SIG, "sigreturn: return td=%p pc=%#x sp=%#x",
 	     td, uc.uc_mcontext.mc_srr0, uc.uc_mcontext.mc_gpr[1]);
@@ -885,6 +882,8 @@ cpu_initclocks(void)
 {
 
 	decr_tc_init();
+	stathz = hz;
+	profhz = hz;
 }
 
 /*

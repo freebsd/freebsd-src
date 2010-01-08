@@ -3278,14 +3278,8 @@ ndis_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 static void
 ndis_scan(void *arg)
 {
-	struct ndis_softc *sc = arg;
-	struct ieee80211com *ic;
-	struct ieee80211vap *vap;
+	struct ieee80211vap *vap = arg;
 
-	ic = sc->ifp->if_l2com;
-	vap = TAILQ_FIRST(&ic->ic_vaps);
-
-	ndis_scan_results(sc);
 	ieee80211_scan_done(vap);
 }
 
@@ -3361,24 +3355,11 @@ ndis_scan_results(struct ndis_softc *sc)
 			efrm = frm + wb->nwbx_ielen;
 			if (efrm - frm < 12)
 				goto done;
-			sp.tstamp = frm;
-			frm += 8;
-			sp.bintval = le16toh(*(uint16_t *)frm);
-			frm += 2;
-			sp.capinfo = le16toh(*(uint16_t *)frm);
-			frm += 2;
-
-			/* Grab variable length ies */
-			while (efrm - frm > 1) {
-				if (efrm - frm < frm[1] + 2)
-					break;
-				switch (*frm) {
-				case IEEE80211_ELEMID_RSN:
-					sp.rsn = frm;
-					break;
-				}
-				frm += frm[1] + 2;
-			}
+			sp.tstamp = frm;			frm += 8;
+			sp.bintval = le16toh(*(uint16_t *)frm);	frm += 2;
+			sp.capinfo = le16toh(*(uint16_t *)frm);	frm += 2;
+			sp.ies = frm;
+			sp.ies_len = efrm - frm;
 		}
 done:
 		DPRINTF(("scan: bssid %s chan %dMHz (%d/%d) rssi %d\n",
@@ -3434,7 +3415,7 @@ ndis_scan_start(struct ieee80211com *ic)
 		return;
 	}
 	/* Set a timer to collect the results */
-	callout_reset(&sc->ndis_scan_callout, hz * 3, ndis_scan, sc);
+	callout_reset(&sc->ndis_scan_callout, hz * 3, ndis_scan, vap);
 }
 
 static void
@@ -3458,6 +3439,8 @@ ndis_scan_mindwell(struct ieee80211_scan_state *ss)
 static void
 ndis_scan_end(struct ieee80211com *ic)
 {
-	/* ignore */
+	struct ndis_softc *sc = ic->ic_ifp->if_softc;
+
+	ndis_scan_results(sc);
 }
 

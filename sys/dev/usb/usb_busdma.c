@@ -445,7 +445,7 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 		/*
 		 * This check verifies that the physical address is correct:
 		 */
-		DPRINTFN(0, "Page offset was not preserved!\n");
+		DPRINTFN(0, "Page offset was not preserved\n");
 		error = 1;
 		goto done;
 	}
@@ -679,6 +679,12 @@ usb_pc_cpu_invalidate(struct usb_page_cache *pc)
 		/* nothing has been loaded into this page cache! */
 		return;
 	}
+
+	/*
+	 * TODO: We currently do XXX_POSTREAD and XXX_PREREAD at the
+	 * same time, but in the future we should try to isolate the
+	 * different cases to optimise the code. --HPS
+	 */
 	bus_dmamap_sync(pc->tag, pc->map, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_sync(pc->tag, pc->map, BUS_DMASYNC_PREREAD);
 }
@@ -758,8 +764,8 @@ usb_dma_tag_find(struct usb_dma_parent_tag *udpt,
 	struct usb_dma_tag *udt;
 	uint8_t nudt;
 
-	USB_ASSERT(align > 0, ("Invalid parameter align = 0!\n"));
-	USB_ASSERT(size > 0, ("Invalid parameter size = 0!\n"));
+	USB_ASSERT(align > 0, ("Invalid parameter align = 0\n"));
+	USB_ASSERT(size > 0, ("Invalid parameter size = 0\n"));
 
 	udt = udpt->utag_first;
 	nudt = udpt->utag_max;

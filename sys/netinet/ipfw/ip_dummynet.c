@@ -244,6 +244,17 @@ void		dummynet_drain(void);
 static int	dummynet_io(struct mbuf **, int , struct ip_fw_args *);
 
 /*
+ * Flow queue is idle if:
+ *   1) it's empty for at least 1 tick
+ *   2) it has invalid timestamp (WF2Q case)
+ *   3) parent pipe has no 'exhausted' burst.
+ */
+#define QUEUE_IS_IDLE(q) ((q)->head == NULL && (q)->S == (q)->F + 1 && \
+	curr_time > (q)->idle_time + 1 && \
+	((q)->numbytes + (curr_time - (q)->idle_time - 1) * \
+	(q)->fs->pipe->bandwidth >= (q)->fs->pipe->burst))
+
+/*
  * Heap management functions.
  *
  * In the heap, first node is element 0. Children of i are 2i+1 and 2i+2.
@@ -1004,7 +1015,7 @@ expire_queues(struct dn_flow_set *fs)
     fs->last_expired = time_uptime ;
     for (i = 0 ; i <= fs->rq_size ; i++) /* last one is overflow */
 	for (prev=NULL, q = fs->rq[i] ; q != NULL ; )
-	    if (q->head != NULL || q->S != q->F+1) {
+	    if (!QUEUE_IS_IDLE(q)) {
   		prev = q ;
   	        q = q->next ;
   	    } else { /* entry is idle, expire it */
@@ -1134,7 +1145,7 @@ find_queue(struct dn_flow_set *fs, struct ipfw_flow_id *id)
 		break ; /* found */
 
 	    /* No match. Check if we can expire the entry */
-	    if (pipe_expire && q->head == NULL && q->S == q->F+1 ) {
+	    if (pipe_expire && QUEUE_IS_IDLE(q)) {
 		/* entry is idle and not in any heap, expire it */
 		struct dn_flow_queue *old_q = q ;
 
@@ -1408,7 +1419,7 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 		if (q->idle_time < curr_time) {
 			/* Calculate available burst size. */
 			q->numbytes +=
-			    (curr_time - q->idle_time) * pipe->bandwidth;
+			    (curr_time - q->idle_time - 1) * pipe->bandwidth;
 			if (q->numbytes > pipe->burst)
 				q->numbytes = pipe->burst;
 			if (io_fast)
@@ -1418,8 +1429,8 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 		if (pipe->idle_time < curr_time) {
 			/* Calculate available burst size. */
 			pipe->numbytes +=
-			    (curr_time - pipe->idle_time) * pipe->bandwidth;
-			if (pipe->numbytes > pipe->burst)
+			    (curr_time - pipe->idle_time - 1) * pipe->bandwidth;
+			if (pipe->numbytes > 0 && pipe->numbytes > pipe->burst)
 				pipe->numbytes = pipe->burst;
 			if (io_fast)
 				pipe->numbytes += pipe->bandwidth;

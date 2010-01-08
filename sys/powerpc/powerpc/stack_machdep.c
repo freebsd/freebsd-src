@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 
 static void
-stack_capture(struct stack *st, register_t frame)
+stack_capture(struct stack *st, vm_offset_t frame)
 {
 	vm_offset_t callpc;
 
@@ -76,7 +76,7 @@ stack_capture(struct stack *st, register_t frame)
 void
 stack_save_td(struct stack *st, struct thread *td)
 {
-	register_t frame;
+	vm_offset_t frame;
 
 	if (TD_IS_SWAPPED(td))
 		panic("stack_save_td: swapped");

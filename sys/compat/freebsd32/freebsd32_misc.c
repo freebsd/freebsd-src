@@ -593,6 +593,41 @@ freebsd32_select(struct thread *td, struct freebsd32_select_args *uap)
 	    sizeof(int32_t) * 8));
 }
 
+int
+freebsd32_pselect(struct thread *td, struct freebsd32_pselect_args *uap)
+{
+	struct timespec32 ts32;
+	struct timespec ts;
+	struct timeval tv, *tvp;
+	sigset_t set, *uset;
+	int error;
+
+	if (uap->ts != NULL) {
+		error = copyin(uap->ts, &ts32, sizeof(ts32));
+		if (error != 0)
+			return (error);
+		CP(ts32, ts, tv_sec);
+		CP(ts32, ts, tv_nsec);
+		TIMESPEC_TO_TIMEVAL(&tv, &ts);
+		tvp = &tv;
+	} else
+		tvp = NULL;
+	if (uap->sm != NULL) {
+		error = copyin(uap->sm, &set, sizeof(set));
+		if (error != 0)
+			return (error);
+		uset = &set;
+	} else
+		uset = NULL;
+	/*
+	 * XXX big-endian needs to convert the fd_sets too.
+	 * XXX Do pointers need PTRIN()?
+	 */
+	error = kern_pselect(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
+	    uset, sizeof(int32_t) * 8);
+	return (error);
+}
+
 /*
  * Copy 'count' items into the destination list pointed to by uap->eventlist.
  */
@@ -2482,7 +2517,7 @@ ofreebsd32_sigprocmask(struct thread *td,
 	int error;
 
 	OSIG2SIG(uap->mask, set);
-	error = kern_sigprocmask(td, uap->how, &set, &oset, 1);
+	error = kern_sigprocmask(td, uap->how, &set, &oset, SIGPROCMASK_OLD);
 	SIG2OSIG(oset, td->td_retval[0]);
 	return (error);
 }
@@ -2546,15 +2581,11 @@ int
 ofreebsd32_sigblock(struct thread *td,
 			    struct ofreebsd32_sigblock_args *uap)
 {
-	struct proc *p = td->td_proc;
-	sigset_t set;
+	sigset_t set, oset;
 
 	OSIG2SIG(uap->mask, set);
-	SIG_CANTMASK(set);
-	PROC_LOCK(p);
-	SIG2OSIG(td->td_sigmask, td->td_retval[0]);
-	SIGSETOR(td->td_sigmask, set);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_BLOCK, &set, &oset, 0);
+	SIG2OSIG(oset, td->td_retval[0]);
 	return (0);
 }
 
@@ -2562,16 +2593,11 @@ int
 ofreebsd32_sigsetmask(struct thread *td,
 			      struct ofreebsd32_sigsetmask_args *uap)
 {
-	struct proc *p = td->td_proc;
-	sigset_t set;
+	sigset_t set, oset;
 
 	OSIG2SIG(uap->mask, set);
-	SIG_CANTMASK(set);
-	PROC_LOCK(p);
-	SIG2OSIG(td->td_sigmask, td->td_retval[0]);
-	SIGSETLO(td->td_sigmask, set);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &set, &oset, 0);
+	SIG2OSIG(oset, td->td_retval[0]);
 	return (0);
 }
 
@@ -2579,21 +2605,10 @@ int
 ofreebsd32_sigsuspend(struct thread *td,
 			      struct ofreebsd32_sigsuspend_args *uap)
 {
-	struct proc *p = td->td_proc;
 	sigset_t mask;
 
-	PROC_LOCK(p);
-	td->td_oldsigmask = td->td_sigmask;
-	td->td_pflags |= TDP_OLDMASK;
 	OSIG2SIG(uap->mask, mask);
-	SIG_CANTMASK(mask);
-	SIGSETLO(td->td_sigmask, mask);
-	signotify(td);
-	while (msleep(&p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "opause", 0) == 0)
-		/* void */;
-	PROC_UNLOCK(p);
-	/* always return EINTR rather than ERESTART... */
-	return (EINTR);
+	return (kern_sigsuspend(td, mask));
 }
 
 struct sigstack32 {

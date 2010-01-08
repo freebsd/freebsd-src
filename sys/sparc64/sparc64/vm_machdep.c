@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sysent.h>
 #include <sys/sf_buf.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
@@ -163,6 +164,42 @@ void
 cpu_thread_swapout(struct thread *td)
 {
 
+}
+
+void
+cpu_set_syscall_retval(struct thread *td, int error)
+{
+
+	switch (error) {
+	case 0:
+		td->td_frame->tf_out[0] = td->td_retval[0];
+		td->td_frame->tf_out[1] = td->td_retval[1];
+		td->td_frame->tf_tstate &= ~TSTATE_XCC_C;
+		break;
+
+	case ERESTART:
+		/*
+		 * Undo the tpc advancement we have done on syscall
+		 * enter, we want to reexecute the system call.
+		 */
+		td->td_frame->tf_tpc = td->td_pcb->pcb_tpc;
+		td->td_frame->tf_tnpc -= 4;
+		break;
+
+	case EJUSTRETURN:
+		break;
+
+	default:
+		if (td->td_proc->p_sysent->sv_errsize) {
+			if (error >= td->td_proc->p_sysent->sv_errsize)
+				error = -1;	/* XXX */
+			else
+				error = td->td_proc->p_sysent->sv_errtbl[error];
+		}
+		td->td_frame->tf_out[0] = error;
+		td->td_frame->tf_tstate |= TSTATE_XCC_C;
+		break;
+	}
 }
 
 void

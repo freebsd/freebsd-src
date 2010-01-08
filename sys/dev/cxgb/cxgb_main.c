@@ -116,7 +116,7 @@ static int cxgb_get_regs_len(void);
 static int offload_open(struct port_info *pi);
 static void touch_bars(device_t dev);
 static int offload_close(struct t3cdev *tdev);
-int t3_detect_link_fault(adapter_t *adapter, int port_id);
+static void cxgb_update_mac_settings(struct port_info *p);
 
 static device_method_t cxgb_controller_methods[] = {
 	DEVMETHOD(device_probe,		cxgb_controller_probe),
@@ -291,7 +291,9 @@ struct cxgb_ident {
 	{PCI_VENDOR_ID_CHELSIO, 0x0031, 3, "T3B20"},
 	{PCI_VENDOR_ID_CHELSIO, 0x0032, 1, "T3B02"},
 	{PCI_VENDOR_ID_CHELSIO, 0x0033, 4, "T3B04"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0035, 6, "N310E"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0035, 6, "T3C10"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0036, 3, "S320E-CR"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0037, 7, "N320E-G2"},
 	{0, 0, 0, NULL}
 };
 
@@ -353,7 +355,6 @@ cxgb_controller_probe(device_t dev)
 	const struct adapter_info *ai;
 	char *ports, buf[80];
 	int nports;
-	struct adapter *sc = device_get_softc(dev);
 
 	ai = cxgb_get_adapter_info(dev);
 	if (ai == NULL)
@@ -365,9 +366,7 @@ cxgb_controller_probe(device_t dev)
 	else
 		ports = "ports";
 
-	snprintf(buf, sizeof(buf), "%s %sNIC, rev: %d nports: %d %s",
-	    ai->desc, is_offload(sc) ? "R" : "",
-	    sc->params.rev, nports, ports);
+	snprintf(buf, sizeof(buf), "%s, %d %s", ai->desc, nports, ports);
 	device_set_desc_copy(dev, buf);
 	return (BUS_PROBE_DEFAULT);
 }
@@ -507,6 +506,9 @@ cxgb_controller_attach(device_t dev)
 	sc->bt = rman_get_bustag(sc->regs_res);
 	sc->bh = rman_get_bushandle(sc->regs_res);
 	sc->mmio_len = rman_get_size(sc->regs_res);
+
+	for (i = 0; i < MAX_NPORTS; i++)
+		sc->port[i].adapter = sc;
 
 	if (t3_prep_adapter(sc, ai, 1) < 0) {
 		printf("prep adapter failed\n");
@@ -660,8 +662,8 @@ cxgb_controller_attach(device_t dev)
 	    G_FW_VERSION_MAJOR(vers), G_FW_VERSION_MINOR(vers),
 	    G_FW_VERSION_MICRO(vers));
 
-	snprintf(buf, sizeof(buf), "%s\t E/C: %s S/N: %s", 
-		 ai->desc,
+	snprintf(buf, sizeof(buf), "%s %sNIC\t E/C: %s S/N: %s",
+		 ai->desc, is_offload(sc) ? "R" : "",
 		 sc->params.vpd.ec, sc->params.vpd.sn);
 	device_set_desc_copy(dev, buf);
 
@@ -1222,8 +1224,8 @@ t3_os_pci_restore_state(struct adapter *sc)
 
 /**
  *	t3_os_link_changed - handle link status changes
- *	@adapter: the adapter associated with the link change
- *	@port_id: the port index whose limk status has changed
+ *	@sc: the adapter associated with the link change
+ *	@port_id: the port index whose link status has changed
  *	@link_status: the new status of the link
  *	@speed: the new speed setting
  *	@duplex: the new duplex setting
@@ -1235,13 +1237,20 @@ t3_os_pci_restore_state(struct adapter *sc)
  */
 void
 t3_os_link_changed(adapter_t *adapter, int port_id, int link_status, int speed,
-     int duplex, int fc)
+     int duplex, int fc, int mac_was_reset)
 {
 	struct port_info *pi = &adapter->port[port_id];
 	struct ifnet *ifp = pi->ifp;
 
 	/* no race with detach, so ifp should always be good */
 	KASSERT(ifp, ("%s: if detached.", __func__));
+
+	/* Reapply mac settings if they were lost due to a reset */
+	if (mac_was_reset) {
+		PORT_LOCK(pi);
+		cxgb_update_mac_settings(pi);
+		PORT_UNLOCK(pi);
+	}
 
 	if (link_status) {
 		ifp->if_baudrate = IF_Mbps(speed);
@@ -1456,7 +1465,10 @@ setup_rss(adapter_t *adap)
 		rspq_map[i] = nq[0] ? i % nq[0] : 0;
 		rspq_map[i + RSS_TABLE_SIZE / 2] = nq[1] ? i % nq[1] + nq[0] : 0;
 	}
+
 	/* Calculate the reverse RSS map table */
+	for (i = 0; i < SGE_QSETS; ++i)
+		adap->rrss_map[i] = 0xff;
 	for (i = 0; i < RSS_TABLE_SIZE; ++i)
 		if (adap->rrss_map[rspq_map[i]] == 0xff)
 			adap->rrss_map[rspq_map[i]] = i;
@@ -1914,7 +1926,7 @@ cxgb_init_synchronized(struct port_info *p)
 	PORT_LOCK(p);
 	t3_port_intr_enable(sc, p->port_id);
 	if (!mac->multiport) 
-		t3_mac_reset(mac);
+		t3_mac_init(mac);
 	cxgb_update_mac_settings(p);
 	t3_link_start(&p->phy, mac, &p->link_config);
 	t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
@@ -1974,14 +1986,14 @@ cxgb_uninit_synchronized(struct port_info *pi)
 	t3_set_reg_field(sc, A_XGM_RXFIFO_CFG +  pi->mac.offset,
 			 V_RXFIFOPAUSEHWM(M_RXFIFOPAUSEHWM), 0);
 
-	DELAY(100);
+	DELAY(100 * 1000);
 
 	/* Wait for TXFIFO empty */
 	t3_wait_op_done(sc, A_XGM_TXFIFO_CFG + pi->mac.offset,
 			F_TXFIFO_EMPTY, 1, 20, 5);
 
-	DELAY(100);
-	t3_mac_disable(&pi->mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
+	DELAY(100 * 1000);
+	t3_mac_disable(&pi->mac, MAC_DIRECTION_RX);
 
 
 	pi->phy.ops->power_down(&pi->phy, 1);
@@ -1989,7 +2001,7 @@ cxgb_uninit_synchronized(struct port_info *pi)
 	PORT_UNLOCK(pi);
 
 	pi->link_config.link_ok = 0;
-	t3_os_link_changed(sc, pi->port_id, 0, 0, 0, 0);
+	t3_os_link_changed(sc, pi->port_id, 0, 0, 0, 0, 0);
 
 	if ((sc->open_device_map & PORT_MASK) == 0)
 		offload_close(&sc->tdev);
@@ -2332,6 +2344,19 @@ cxgb_ext_intr_handler(void *arg, int count)
 	ADAPTER_UNLOCK(sc);
 }
 
+static inline int
+link_poll_needed(struct port_info *p)
+{
+	struct cphy *phy = &p->phy;
+
+	if (phy->caps & POLL_LINK_1ST_TIME) {
+		p->phy.caps &= ~POLL_LINK_1ST_TIME;
+		return (1);
+	}
+
+	return (p->link_fault || !(phy->caps & SUPPORTED_LINK_IRQ));
+}
+
 static void
 check_link_status(adapter_t *sc)
 {
@@ -2343,7 +2368,7 @@ check_link_status(adapter_t *sc)
 		if (!isset(&sc->open_device_map, p->port_id))
 			continue;
 
-		if (p->link_fault || !(p->phy.caps & SUPPORTED_IRQ))
+		if (link_poll_needed(p))
 			t3_link_changed(sc, i);
 	}
 }
@@ -2363,7 +2388,8 @@ check_t3b2_mac(struct adapter *sc)
 		struct ifnet *ifp = p->ifp;
 #endif		
 
-		if (!isset(&sc->open_device_map, p->port_id))
+		if (!isset(&sc->open_device_map, p->port_id) || p->link_fault ||
+		    !p->link_config.link_ok)
 			continue;
 
 		KASSERT(ifp->if_drv_flags & IFF_DRV_RUNNING,
@@ -2411,7 +2437,6 @@ cxgb_tick_handler(void *arg, int count)
 		return;
 
 	check_link_status(sc);
-	sc->check_task_cnt++;
 
 	if (p->rev == T3_REV_B2 && p->nports < 4 && sc->open_device_map) 
 		check_t3b2_mac(sc);

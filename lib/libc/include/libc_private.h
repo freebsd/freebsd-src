@@ -34,6 +34,7 @@
 
 #ifndef _LIBC_PRIVATE_H_
 #define _LIBC_PRIVATE_H_
+#include <sys/_pthreadtypes.h>
 
 /*
  * This global flag is non-zero when a process has created one
@@ -145,6 +146,12 @@ int _yp_check(char **);
  * Initialise TLS for static programs
  */
 void _init_tls(void);
+
+/*
+ * Provides pthread_once()-like functionality for both single-threaded
+ * and multi-threaded applications.
+ */
+int _once(pthread_once_t *, void (*)(void));
 
 /*
  * Set the TLS thread pointer

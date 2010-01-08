@@ -41,6 +41,7 @@
 #define HID0_ECLK	0x02000000  /* CLK_OUT clock type selection */
 #define HID0_PAR	0x01000000  /* Disable precharge of ARTRY */
 #define HID0_STEN	0x01000000  /* Software table search enable (7450) */
+#define HID0_DEEPNAP	0x01000000  /* Enable deep nap mode (970) */
 #define HID0_HBATEN	0x00800000  /* High BAT enable (74[45][578])  */
 #define HID0_DOZE	0x00800000  /* Enable doze mode */
 #define HID0_NAP	0x00400000  /* Enable nap mode */
@@ -97,6 +98,12 @@
     "\030DOZE\027NAP\026SLEEP\025b11\024b12\023b13\022b14\021b15"	\
     "\020b16\017TBEN\016SEL_TBCLK\015b19\014b20\013b21\012b22\011b23"	\
     "\010EN_MAS7_UPDATE\007DCFA\006b26\005b27\004b28\003b29\002b30\001NOPTI"
+
+#define HID0_970_BITMASK						\
+    "\20"								\
+    "\040ONEPPC\037SINGLE\036ISYNCSC\035SERGP\031DEEPNAP\030DOZE"	\
+    "\027NAP\025DPM\023TG\022HANGDETECT\021NHR\020INORDER"		\
+    "\016TBCTRL\015TBEN\012CIABREN\011HDICEEN\001ENATTN"		
 
 /*
  *  HID0 bit definitions per cpu model

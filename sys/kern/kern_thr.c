@@ -282,7 +282,7 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 	}
 
 	PROC_LOCK(p);
-	sigqueue_flush(&td->td_sigqueue);
+	tdsigcleanup(td);
 	PROC_SLOCK(p);
 
 	/*

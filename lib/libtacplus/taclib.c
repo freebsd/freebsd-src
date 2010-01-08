@@ -1263,8 +1263,13 @@ tac_get_av_value(struct tac_handle *h, const char *attribute)
 			 *     h->srvr_avs[0] = "foobie=var1"
 			 *     h->srvr_avs[1] = "foo=var2"
 			 * is handled.
+			 *
+			 * Note that for empty string attribute values a
+			 * 0-length string is returned in order to distinguish
+			 * against unset values.
+			 * dump_str() will handle srvr.len == 0 correctly.
 			 */
-			if (found_seperator == 1 && ch != end) {
+			if (found_seperator == 1) {
 				srvr.len = end - ch;
 				srvr.data = ch;
 				return dup_str(h, &srvr, NULL);

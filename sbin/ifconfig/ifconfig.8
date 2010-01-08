@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2009
+.Dd December 7, 2009
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -596,6 +596,38 @@ This may be used to enable an interface after an
 It happens automatically when setting the first address on an interface.
 If the interface was reset when previously marked down,
 the hardware will be re-initialized.
+.El
+.Pp
+The following parameters are for ICMPv6 Neightbor Discovery Protocol:
+.Bl -tag -width indent
+.It Cm accept_rtadv
+Set a flag to enable accepting ICMPv6 Router Advertisement messages.
+.It Cm -accept_rtadv
+Clear a flag
+.Cm accept_rtadv .
+.It Cm defaultif
+Set the specified interface as the default route when there is no
+default router.
+.It Cm -defaultif
+Clear a flag
+.Cm defaultif .
+.It Cm ifdisabled
+Set a flag to disable all of IPv6 network communications on the
+specified interface.
+.It Cm -ifdisabled
+Clear a flag
+.Cm ifdisabled .
+.It Cm nud
+Set a flag to enable Neighbor Unreachability Detection.
+.It Cm -nud
+Clear a flag
+.Cm nud .
+.It Cm prefer_source
+Set a flag to prefer addesses on the interface as candidates of the
+source address for outgoing packets.
+.It Cm -prefer_source
+Clear a flag
+.Cm prefer_source .
 .El
 .Pp
 The following parameters are specific to cloning

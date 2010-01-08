@@ -865,11 +865,11 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 	int how = NFSCREATE_UNCHECKED, exclusive_flag = 0;
 	NFSDEV_T rdev = 0;
 	vnode_t vp = NULL, dirp = NULL;
-	u_char cverf[NFSX_VERF], *cp;
 	fhandle_t fh;
 	char *bufp;
 	u_long *hashp;
 	enum vtype vtyp;
+	int32_t cverf[2], tverf[2] = { 0, 0 };
 
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
@@ -920,8 +920,9 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 					goto nfsmout;
 				break;
 			case NFSCREATE_EXCLUSIVE:
-				NFSM_DISSECT(cp, u_char *, NFSX_VERF);
-				NFSBCOPY(cp, cverf, NFSX_VERF);
+				NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
+				cverf[0] = *tl++;
+				cverf[1] = *tl;
 				exclusive_flag = 1;
 				break;
 			};
@@ -988,6 +989,10 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 			nd->nd_repstat = nfsvno_getattr(vp, &nva, nd->nd_cred,
 			    p);
 		vput(vp);
+		if (!nd->nd_repstat) {
+			tverf[0] = nva.na_atime.tv_sec;
+			tverf[1] = nva.na_atime.tv_nsec;
+		}
 	}
 	if (nd->nd_flag & ND_NFSV2) {
 		if (!nd->nd_repstat) {
@@ -995,8 +1000,8 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 			nfsrv_fillattr(nd, &nva);
 		}
 	} else {
-		if (exclusive_flag && !nd->nd_repstat &&
-			NFSBCMP(cverf, (caddr_t)&nva.na_atime, NFSX_VERF))
+		if (exclusive_flag && !nd->nd_repstat && (cverf[0] != tverf[0]
+		    || cverf[1] != tverf[1]))
 			nd->nd_repstat = EEXIST;
 		diraft_ret = nfsvno_getattr(dirp, &diraft, nd->nd_cred, p);
 		vrele(dirp);
@@ -2406,7 +2411,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0, create, claim, exclusive_flag = 0;
 	u_int32_t rflags = NFSV4OPEN_LOCKTYPEPOSIX, acemask;
 	int how = NFSCREATE_UNCHECKED;
-	u_char cverf[NFSX_VERF];
+	int32_t cverf[2], tverf[2] = { 0, 0 };
 	vnode_t vp = NULL, dirp = NULL;
 	struct nfsvattr nva, dirfor, diraft;
 	struct nameidata named;
@@ -2517,7 +2522,8 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			break;
 		case NFSCREATE_EXCLUSIVE:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
-			NFSBCOPY((caddr_t)tl, cverf, NFSX_VERF);
+			cverf[0] = *tl++;
+			cverf[1] = *tl;
 			break;
 		default:
 			nd->nd_repstat = NFSERR_BADXDR;
@@ -2677,10 +2683,15 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		    NFSACCCHK_VPISLOCKED);
 	}
 
-	if (!nd->nd_repstat)
+	if (!nd->nd_repstat) {
 		nd->nd_repstat = nfsvno_getattr(vp, &nva, nd->nd_cred, p);
-	if (!nd->nd_repstat && exclusive_flag &&
-	    NFSBCMP(cverf, (caddr_t)&nva.na_atime, NFSX_VERF))
+		if (!nd->nd_repstat) {
+			tverf[0] = nva.na_atime.tv_sec;
+			tverf[1] = nva.na_atime.tv_nsec;
+		}
+	}
+	if (!nd->nd_repstat && exclusive_flag && (cverf[0] != tverf[0] ||
+	    cverf[1] != tverf[1]))
 		nd->nd_repstat = EEXIST;
 	/*
 	 * Do the open locking/delegation stuff.

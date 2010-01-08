@@ -53,7 +53,8 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_cyrix_chipinit(device_t dev);
-static void ata_cyrix_setmode(device_t dev, int mode);
+static int ata_cyrix_ch_attach(device_t dev);
+static int ata_cyrix_setmode(device_t dev, int target, int mode);
 
 
 /*
@@ -79,53 +80,57 @@ ata_cyrix_chipinit(device_t dev)
 
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
-
+    ctlr->ch_attach = ata_cyrix_ch_attach;
     ctlr->setmode = ata_cyrix_setmode;
     return 0;
 }
 
-static void
-ata_cyrix_setmode(device_t dev, int mode)
+static int
+ata_cyrix_ch_attach(device_t dev)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(GRANDPARENT(dev)); 
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int devno = (ch->unit << 1) + atadev->unit;
-    u_int32_t piotiming[] = 
-	{ 0x00009172, 0x00012171, 0x00020080, 0x00032010, 0x00040010 };
-    u_int32_t dmatiming[] = { 0x00077771, 0x00012121, 0x00002020 };
-    u_int32_t udmatiming[] = { 0x00921250, 0x00911140, 0x00911030 };
-    int error;
+	struct ata_channel *ch = device_get_softc(dev);
+	int error;
+ 
+	error = ata_pci_ch_attach(dev);
+	ch->dma.alignment = 16;
+	ch->dma.max_iosize = 64 * DEV_BSIZE;
+	return (error);
+}
 
-    mode = ata_limit_mode(dev, mode, ATA_UDMA2);
 
-    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
+static int
+ata_cyrix_setmode(device_t dev, int target, int mode)
+{
+	struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+	struct ata_channel *ch = device_get_softc(dev);
+	int devno = (ch->unit << 1) + target;
+	int piomode;
+	u_int32_t piotiming[] = 
+	    { 0x00009172, 0x00012171, 0x00020080, 0x00032010, 0x00040010 };
+	u_int32_t dmatiming[] = { 0x00077771, 0x00012121, 0x00002020 };
+	u_int32_t udmatiming[] = { 0x00921250, 0x00911140, 0x00911030 };
 
-    if (bootverbose)
-	device_printf(dev, "%ssetting %s on Cyrix chip\n",
-		      (error) ? "FAILURE " : "", ata_mode2str(mode));
-
-    if (!error) {
+	mode = min(mode, ATA_UDMA2);
 	/* dont try to set the mode if we dont have the resource */
 	if (ctlr->r_res1) {
-	    ch->dma.alignment = 16;
-	    ch->dma.max_iosize = 64 * DEV_BSIZE;
-
-	    if (mode >= ATA_UDMA0) {
+		if (mode >= ATA_UDMA0) {
+			/* Set UDMA timings, and PIO4. */
+			ATA_OUTL(ch->r_io[ATA_BMCMD_PORT].res,
+			    0x24 + (devno << 3), udmatiming[mode & ATA_MODE_MASK]);
+			piomode = ATA_PIO4;
+		} else if (mode >= ATA_WDMA0) {
+			/* Set WDMA timings, and respective PIO mode. */
+			ATA_OUTL(ch->r_io[ATA_BMCMD_PORT].res,
+			    0x24 + (devno << 3), dmatiming[mode & ATA_MODE_MASK]);
+		        piomode = (mode == ATA_WDMA0) ? ATA_PIO0 :
+			    (mode == ATA_WDMA1) ? ATA_PIO3 : ATA_PIO4;
+		} else
+			piomode = mode;
+		/* Set PIO mode calculated above. */
 		ATA_OUTL(ch->r_io[ATA_BMCMD_PORT].res,
-			 0x24 + (devno << 3), udmatiming[mode & ATA_MODE_MASK]);
-	    }
-	    else if (mode >= ATA_WDMA0) {
-		ATA_OUTL(ch->r_io[ATA_BMCMD_PORT].res,
-			 0x24 + (devno << 3), dmatiming[mode & ATA_MODE_MASK]);
-	    }
-	    else {
-		ATA_OUTL(ch->r_io[ATA_BMCMD_PORT].res,
-			 0x20 + (devno << 3), piotiming[mode & ATA_MODE_MASK]);
-	    }
+		    0x20 + (devno << 3), piotiming[ata_mode2idx(piomode)]);
 	}
-	atadev->mode = mode;
-    }
+	return (mode);
 }
 
 ATA_DECLARE_DRIVER(ata_cyrix);

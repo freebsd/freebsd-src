@@ -112,11 +112,12 @@ cam/cam_sim.c			optional scbus
 cam/cam_xpt.c			optional scbus
 cam/ata/ata_all.c		optional scbus
 cam/ata/ata_xpt.c		optional scbus
+cam/ata/ata_pmp.c		optional scbus
 cam/scsi/scsi_xpt.c		optional scbus
 cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
 cam/scsi/scsi_ch.c		optional ch
-cam/ata/ata_da.c		optional da
+cam/ata/ata_da.c		optional ada | da
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_low.c		optional ct | ncv | nsp | stg
 cam/scsi/scsi_low_pisa.c	optional ct | ncv | nsp | stg
@@ -517,19 +518,18 @@ dev/ata/chipsets/ata-highpoint.c	optional ata pci | atahighpoint
 dev/ata/chipsets/ata-intel.c	optional ata pci | ataintel
 dev/ata/chipsets/ata-ite.c	optional ata pci | ataite
 dev/ata/chipsets/ata-jmicron.c	optional ata pci | atajmicron
-dev/ata/chipsets/ata-marvell.c	optional ata pci | atamarvell
+dev/ata/chipsets/ata-marvell.c	optional ata pci | atamarvell | ataadaptec
 dev/ata/chipsets/ata-micron.c	optional ata pci | atamicron
 dev/ata/chipsets/ata-national.c	optional ata pci | atanational
 dev/ata/chipsets/ata-netcell.c	optional ata pci | atanetcell
 dev/ata/chipsets/ata-nvidia.c	optional ata pci | atanvidia
 dev/ata/chipsets/ata-promise.c	optional ata pci | atapromise
 dev/ata/chipsets/ata-serverworks.c	optional ata pci | ataserverworks
-dev/ata/chipsets/ata-siliconimage.c	optional ata pci | atasiliconimage
+dev/ata/chipsets/ata-siliconimage.c	optional ata pci | atasiliconimage | ataati
 dev/ata/chipsets/ata-sis.c	optional ata pci | atasis
 dev/ata/chipsets/ata-via.c	optional ata pci | atavia
 dev/ata/ata-disk.c		optional atadisk
 dev/ata/ata-raid.c		optional ataraid
-dev/ata/ata-usb.c		optional atausb usb
 dev/ata/atapi-cd.c		optional atapicd
 dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
@@ -772,6 +772,8 @@ dev/cxgb/common/cxgb_vsc8211.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_ael1002.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/common/cxgb_aq100x.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_mv88e1xxx.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_xgmac.c	optional cxgb pci \
@@ -845,8 +847,10 @@ dev/drm/r128_irq.c		optional r128drm
 dev/drm/r128_state.c		optional r128drm \
 	compile-with "${NORMAL_C} -finline-limit=13500"
 dev/drm/r300_cmdbuf.c		optional radeondrm
+dev/drm/r600_blit.c		optional radeondrm
 dev/drm/r600_cp.c		optional radeondrm
 dev/drm/radeon_cp.c		optional radeondrm
+dev/drm/radeon_cs.c		optional radeondrm
 dev/drm/radeon_drv.c		optional radeondrm
 dev/drm/radeon_irq.c		optional radeondrm
 dev/drm/radeon_mem.c		optional radeondrm
@@ -1620,8 +1624,8 @@ dev/usb/net/if_cue.c		optional cue
 dev/usb/net/if_kue.c		optional kue
 dev/usb/net/if_rue.c		optional rue
 dev/usb/net/if_udav.c		optional udav
-dev/usb/net/usb_ethernet.c \
-	optional (aue | axe | cdce | cue | kue | rue | udav)
+dev/usb/net/usb_ethernet.c	optional aue | axe | cdce | cue | kue | rue | \
+					 udav
 #
 # USB WLAN drivers
 #
@@ -1652,8 +1656,11 @@ dev/usb/serial/uplcom.c		optional uplcom
 dev/usb/serial/uslcom.c		optional uslcom
 dev/usb/serial/uvisor.c		optional uvisor
 dev/usb/serial/uvscom.c		optional uvscom
-dev/usb/serial/usb_serial.c 	optional ucom | \
-	(u3g | uark | ubsa | ubser | uchcom | ucycom | ufoma | uftdi | ugensa | uipaq | ulpt | umct | umodem | umoscom | uplcom | uslcom | uvisor | uvscom)
+dev/usb/serial/usb_serial.c 	optional ucom | u3g | uark | ubsa | ubser | \
+					 uchcom | ucycom | ufoma | uftdi | \
+					 ugensa | uipaq | ulpt | umct | \
+					 umodem | umoscom | uplcom | uslcom | \
+					 uvisor | uvscom
 #
 # USB misc drivers
 #
@@ -1662,6 +1669,7 @@ dev/usb/misc/udbp.c		optional udbp
 #
 # USB input drivers
 #
+dev/usb/input/atp.c		optional atp
 dev/usb/input/uhid.c		optional uhid
 dev/usb/input/ukbd.c		optional ukbd
 dev/usb/input/ums.c		optional ums
@@ -1787,6 +1795,7 @@ fs/procfs/procfs_ioctl.c	optional procfs
 fs/procfs/procfs_map.c		optional procfs
 fs/procfs/procfs_mem.c		optional procfs
 fs/procfs/procfs_note.c		optional procfs
+fs/procfs/procfs_osrel.c	optional procfs
 fs/procfs/procfs_regs.c		optional procfs
 fs/procfs/procfs_rlimit.c	optional procfs
 fs/procfs/procfs_status.c	optional procfs
@@ -2158,6 +2167,7 @@ libkern/iconv_converter_if.m	optional libiconv
 libkern/iconv_xlat.c		optional libiconv
 libkern/iconv_xlat16.c		optional libiconv
 libkern/index.c			standard
+libkern/inet_aton.c		standard
 libkern/inet_ntoa.c		standard
 libkern/mcount.c		optional profiling-routine
 libkern/memcmp.c		standard

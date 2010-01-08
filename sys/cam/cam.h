@@ -66,6 +66,9 @@ struct cam_periph;
  */
 typedef struct {
 	u_int32_t priority;
+#define CAM_PRIORITY_BUS	0
+#define CAM_PRIORITY_DEV	0
+#define CAM_PRIORITY_NORMAL	1
 #define CAM_PRIORITY_NONE	(u_int32_t)-1
 	u_int32_t generation;
 	int       index;
@@ -180,6 +183,12 @@ typedef enum {
 	CAM_ESF_PRINT_STATUS	= 0x10,
 	CAM_ESF_PRINT_SENSE	= 0x20
 } cam_error_scsi_flags;
+
+typedef enum {
+	CAM_EAF_PRINT_NONE	= 0x00,
+	CAM_EAF_PRINT_STATUS	= 0x10,
+	CAM_EAF_PRINT_RESULT	= 0x20
+} cam_error_ata_flags;
 
 struct cam_status_entry
 {

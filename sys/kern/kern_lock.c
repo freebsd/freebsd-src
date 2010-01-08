@@ -1083,6 +1083,7 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 	LOCK_LOG_LOCK("XDISOWN", &lk->lock_object, 0, 0, file, line);
 	WITNESS_UNLOCK(&lk->lock_object, LOP_EXCLUSIVE, file, line);
 	TD_LOCKS_DEC(curthread);
+	STACK_SAVE(lk);
 
 	/*
 	 * In order to preserve waiters flags, just spin.

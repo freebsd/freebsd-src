@@ -217,7 +217,7 @@ static int pat_works;			/* Is page attribute table sane? */
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
 static int pg_ps_enabled;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RD, &pg_ps_enabled, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
     "Are large page mappings enabled?");
 
 /*
@@ -484,7 +484,7 @@ pmap_init_pat(void)
 		return;
 
 	if (cpu_vendor_id != CPU_VENDOR_INTEL ||
-	    (I386_CPU_FAMILY(cpu_id) == 6 && I386_CPU_MODEL(cpu_id) >= 0xe)) {
+	    (CPUID_TO_FAMILY(cpu_id) == 6 && CPUID_TO_MODEL(cpu_id) >= 0xe)) {
 		/*
 		 * Leave the indices 0-3 at the default of WB, WT, UC, and UC-.
 		 * Program 4 and 5 as WP and WC.
@@ -673,6 +673,11 @@ pmap_init(void)
 	 * Are large page mappings enabled?
 	 */
 	TUNABLE_INT_FETCH("vm.pmap.pg_ps_enabled", &pg_ps_enabled);
+	if (pg_ps_enabled) {
+		KASSERT(MAXPAGESIZES > 1 && pagesizes[1] == 0,
+		    ("pmap_init: can't assign to pagesizes[1]"));
+		pagesizes[1] = NBPDR;
+	}
 
 	/*
 	 * Calculate the size of the pv head table for superpages.

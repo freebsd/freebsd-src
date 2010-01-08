@@ -301,8 +301,8 @@ atmegadci_setup_rx(struct atmegadci_td *td)
 		sc->sc_dv_addr = 0xFF;
 	}
 
-	/* clear SETUP packet interrupt */
-	ATMEGA_WRITE_1(sc, ATMEGA_UEINTX, ~ATMEGA_UEINTX_RXSTPI);
+	/* Clear SETUP packet interrupt and all other previous interrupts */
+	ATMEGA_WRITE_1(sc, ATMEGA_UEINTX, 0);
 	return (0);			/* complete */
 
 not_complete:
@@ -797,6 +797,7 @@ atmegadci_setup_standard_chain(struct usb_xfer *xfer)
 
 	/* setup temp */
 
+	temp.pc = NULL;
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
@@ -1191,7 +1192,8 @@ atmegadci_clear_stall_sub(struct atmegadci_softc *sc, uint8_t ep_no,
 
 		temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
 		if (!(temp & ATMEGA_UESTA0X_CFGOK)) {
-			DPRINTFN(0, "Chip rejected configuration\n");
+			device_printf(sc->sc_bus.bdev,
+			    "Chip rejected configuration\n");
 		}
 	} while (0);
 }
@@ -1913,7 +1915,8 @@ tr_handle_clear_port_feature:
 		/* check valid config */
 		temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
 		if (!(temp & ATMEGA_UESTA0X_CFGOK)) {
-			DPRINTFN(0, "Chip rejected EP0 configuration\n");
+			device_printf(sc->sc_bus.bdev,
+			    "Chip rejected EP0 configuration\n");
 		}
 		break;
 	case UHF_C_PORT_SUSPEND:

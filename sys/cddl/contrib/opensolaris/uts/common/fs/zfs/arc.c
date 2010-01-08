@@ -1821,15 +1821,18 @@ arc_reclaim_needed(void)
 #endif
 
 #ifdef _KERNEL
+	if (needfree)
+		return (1);
+	if (arc_size > arc_c_max)
+		return (1);
+	if (arc_size <= arc_c_min)
+		return (0);
 
 	/*
 	 * If pages are needed or we're within 2048 pages 
 	 * of needing to page need to reclaim
 	 */
 	if (vm_pages_needed || (vm_paging_target() > -2048))
-		return (1);
-
-	if (needfree)
 		return (1);
 
 #if 0
@@ -3557,15 +3560,19 @@ arc_init(void)
 	
 #ifdef __i386__
 	if (prefetch_tunable_set == 0) {
-		printf("ZFS NOTICE: prefetch is disabled by default on i386"
-		    " - add enable to tunable to change.\n" );
+		printf("ZFS NOTICE: Prefetch is disabled by default on i386 "
+		    "-- to enable,\n");
+		printf("            add \"vfs.zfs.prefetch_disable=0\" "
+		    "to /boot/loader.conf.\n");
 		zfs_prefetch_disable=1;
 	}
 #else	
 	if ((((uint64_t)physmem * PAGESIZE) < (1ULL << 32)) &&
 	    prefetch_tunable_set == 0) {
-		printf("ZFS NOTICE: system has less than 4GB and prefetch enable is not set"
-		    "... disabling.\n");
+		printf("ZFS NOTICE: Prefetch is disabled by default if less "
+		    "than 4GB of RAM is present;\n"
+		    "            to enable, add \"vfs.zfs.prefetch_disable=0\" "
+		    "to /boot/loader.conf.\n");
 		zfs_prefetch_disable=1;
 	}
 #endif	

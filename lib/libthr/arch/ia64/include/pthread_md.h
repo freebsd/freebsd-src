@@ -33,6 +33,8 @@
 
 #define	CPU_SPINWAIT
 
+#define	HAS__UMTX_OP_ERR	1
+
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
 /*

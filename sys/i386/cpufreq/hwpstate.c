@@ -83,12 +83,6 @@ __FBSDID("$FreeBSD$");
 #define	AMD_10H_11H_CUR_DID(msr)		(((msr) >> 6) & 0x07)
 #define	AMD_10H_11H_CUR_FID(msr)		((msr) & 0x3F)
 
-#if defined(__amd64__)
-#define CPU_FAMILY(id)	AMD64_CPU_FAMILY(id)
-#elif defined(__i386__)
-#define CPU_FAMILY(id)	I386_CPU_FAMILY(id)
-#endif
-
 #define	HWPSTATE_DEBUG(dev, msg...)			\
 	do{						\
 		if(hwpstate_verbose)			\
@@ -302,7 +296,7 @@ hwpstate_identify(driver_t *driver, device_t parent)
 	if (device_find_child(parent, "hwpstate", -1) != NULL)
 		return;
 
-	if (cpu_vendor_id != CPU_VENDOR_AMD || CPU_FAMILY(cpu_id) < 0x10)
+	if (cpu_vendor_id != CPU_VENDOR_AMD || CPUID_TO_FAMILY(cpu_id) < 0x10)
 		return;
 
 	/*
@@ -405,7 +399,7 @@ hwpstate_get_info_from_msr(device_t dev)
 	uint64_t msr;
 	int family, i, fid, did;
 
-	family = CPU_FAMILY(cpu_id);
+	family = CPUID_TO_FAMILY(cpu_id);
 	sc = device_get_softc(dev);
 	/* Get pstate count */
 	msr = rdmsr(MSR_AMD_10H_11H_LIMIT);

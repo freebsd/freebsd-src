@@ -103,9 +103,10 @@ Boston, MA 02110-1301, USA.  */
       %{p:gcrt1.o%s} \
       %{!p: \
 	%{profile:gcrt1.o%s} \
-	%{!profile:crt1.o%s}}}} \
+	%{!profile: \
+          %{pie: Scrt1.o%s;:crt1.o%s}}}}} \
   crti.o%s \
-  %{static:crtbeginT.o%s;shared:crtbeginS.o%s;:crtbegin.o%s}"
+  %{static:crtbeginT.o%s;shared|pie:crtbeginS.o%s;:crtbegin.o%s}"
 
 /* Provide an ENDFILE_SPEC appropriate for FreeBSD/i386.  Here we tack on
    our own magical crtend.o file (see crtstuff.c) which provides part of
@@ -113,8 +114,7 @@ Boston, MA 02110-1301, USA.  */
    entering `main', followed by the normal "finalizer" file, `crtn.o'.  */
 
 #define FBSD_ENDFILE_SPEC "\
-  %{!shared:crtend.o%s} \
-  %{shared:crtendS.o%s} \
+  %{shared|pie:crtendS.o%s;:crtend.o%s} \
   crtn.o%s "
 
 /* Provide a LIB_SPEC appropriate for FreeBSD as configured and as

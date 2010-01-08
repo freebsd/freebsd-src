@@ -3981,21 +3981,33 @@ zfs_freebsd_access(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
+	accmode_t accmode;
+	int error = 0;
 
 	/*
-	 * ZFS itself only knowns about VREAD, VWRITE and VEXEC, the rest
-	 * we have to handle by calling vaccess().
+	 * ZFS itself only knowns about VREAD, VWRITE, VEXEC and VAPPEND,
 	 */
-	if ((ap->a_accmode & ~(VREAD|VWRITE|VEXEC)) != 0) {
-		vnode_t *vp = ap->a_vp;
-		znode_t *zp = VTOZ(vp);
-		znode_phys_t *zphys = zp->z_phys;
+	accmode = ap->a_accmode & (VREAD|VWRITE|VEXEC|VAPPEND);
+	if (accmode != 0)
+		error = zfs_access(ap->a_vp, accmode, 0, ap->a_cred, NULL);
 
-		return (vaccess(vp->v_type, zphys->zp_mode, zphys->zp_uid,
-		    zphys->zp_gid, ap->a_accmode, ap->a_cred, NULL));
+	/*
+	 * VADMIN has to be handled by vaccess().
+	 */
+	if (error == 0) {
+		accmode = ap->a_accmode & ~(VREAD|VWRITE|VEXEC|VAPPEND);
+		if (accmode != 0) {
+			vnode_t *vp = ap->a_vp;
+			znode_t *zp = VTOZ(vp);
+			znode_phys_t *zphys = zp->z_phys;
+
+			error = vaccess(vp->v_type, zphys->zp_mode,
+			    zphys->zp_uid, zphys->zp_gid, accmode, ap->a_cred,
+			    NULL);
+		}
 	}
 
-	return (zfs_access(ap->a_vp, ap->a_accmode, 0, ap->a_cred, NULL));
+	return (error);
 }
 
 static int
@@ -4971,7 +4983,7 @@ struct vop_vector zfs_vnodeops = {
 
 struct vop_vector zfs_fifoops = {
 	.vop_default =		&fifo_specops,
-	.vop_fsync =		VOP_PANIC,
+	.vop_fsync =		zfs_freebsd_fsync,
 	.vop_access =		zfs_freebsd_access,
 	.vop_getattr =		zfs_freebsd_getattr,
 	.vop_inactive =		zfs_freebsd_inactive,

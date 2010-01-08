@@ -152,6 +152,10 @@ SYSCTL_LONG(_vfs, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
 static u_long freevnodes;
 SYSCTL_LONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
+static int vlru_allow_cache_src;
+SYSCTL_INT(_vfs, OID_AUTO, vlru_allow_cache_src, CTLFLAG_RW,
+    &vlru_allow_cache_src, 0, "Allow vlru to reclaim source vnode");
+
 /*
  * Various variables used for debugging the new implementation of
  * reassignbuf().
@@ -643,7 +647,9 @@ vlrureclaim(struct mount *mp)
 		 * If it's been deconstructed already, it's still
 		 * referenced, or it exceeds the trigger, skip it.
 		 */
-		if (vp->v_usecount || !LIST_EMPTY(&(vp)->v_cache_src) ||
+		if (vp->v_usecount ||
+		    (!vlru_allow_cache_src &&
+			!LIST_EMPTY(&(vp)->v_cache_src)) ||
 		    (vp->v_iflag & VI_DOOMED) != 0 || (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VI_UNLOCK(vp);
@@ -668,7 +674,9 @@ vlrureclaim(struct mount *mp)
 		 * interlock, the other thread will be unable to drop the
 		 * vnode lock before our VOP_LOCK() call fails.
 		 */
-		if (vp->v_usecount || !LIST_EMPTY(&(vp)->v_cache_src) ||
+		if (vp->v_usecount ||
+		    (!vlru_allow_cache_src &&
+			!LIST_EMPTY(&(vp)->v_cache_src)) ||
 		    (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VOP_UNLOCK(vp, LK_INTERLOCK);
@@ -2761,6 +2769,7 @@ DB_SHOW_COMMAND(vnode, db_show_vnode)
 DB_SHOW_COMMAND(mount, db_show_mount)
 {
 	struct mount *mp;
+	struct vfsopt *opt;
 	struct statfs *sp;
 	struct vnode *vp;
 	char buf[512];
@@ -2865,6 +2874,18 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 		    "0x%08x", flags);
 	}
 	db_printf("    mnt_kern_flag = %s\n", buf);
+
+	db_printf("    mnt_opt = ");
+	opt = TAILQ_FIRST(mp->mnt_opt);
+	if (opt != NULL) {
+		db_printf("%s", opt->name);
+		opt = TAILQ_NEXT(opt, link);
+		while (opt != NULL) {
+			db_printf(", %s", opt->name);
+			opt = TAILQ_NEXT(opt, link);
+		}
+	}
+	db_printf("\n");
 
 	sp = &mp->mnt_stat;
 	db_printf("    mnt_stat = { version=%u type=%u flags=0x%016jx "

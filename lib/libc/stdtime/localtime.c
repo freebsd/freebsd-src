@@ -21,6 +21,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include "private.h"
@@ -1413,13 +1414,16 @@ const time_t * const	timep;
 	static pthread_mutex_t localtime_mutex = PTHREAD_MUTEX_INITIALIZER;
 	static pthread_key_t localtime_key = -1;
 	struct tm *p_tm;
+	int r;
 
 	if (__isthreaded != 0) {
 		if (localtime_key < 0) {
 			_pthread_mutex_lock(&localtime_mutex);
 			if (localtime_key < 0) {
-				if (_pthread_key_create(&localtime_key, free) < 0) {
+				if ((r = _pthread_key_create(&localtime_key,
+				    free)) != 0) {
 					_pthread_mutex_unlock(&localtime_mutex);
+					errno = r;
 					return(NULL);
 				}
 			}
@@ -1512,13 +1516,16 @@ const time_t * const	timep;
 	static pthread_mutex_t gmtime_mutex = PTHREAD_MUTEX_INITIALIZER;
 	static pthread_key_t gmtime_key = -1;
 	struct tm *p_tm;
+	int r;
 
 	if (__isthreaded != 0) {
 		if (gmtime_key < 0) {
 			_pthread_mutex_lock(&gmtime_mutex);
 			if (gmtime_key < 0) {
-				if (_pthread_key_create(&gmtime_key, free) < 0) {
+				if ((r = _pthread_key_create(&gmtime_key,
+				    free)) != 0) {
 					_pthread_mutex_unlock(&gmtime_mutex);
+					errno = r;
 					return(NULL);
 				}
 			}

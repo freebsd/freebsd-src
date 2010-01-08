@@ -1310,6 +1310,7 @@ parsebackq: {
 	struct jmploc *const savehandler = handler;
 	int savelen;
 	int saveprompt;
+	const int bq_startlinno = plinno;
 
 	savepbq = parsebackquote;
 	if (setjmp(jmploc.loc)) {
@@ -1317,6 +1318,10 @@ parsebackq: {
 			ckfree(str);
 		parsebackquote = 0;
 		handler = savehandler;
+		if (exception == EXERROR) {
+			startlinno = bq_startlinno;
+			synerror("Error in command substitution");
+		}
 		longjmp(handler->loc, 1);
 	}
 	INTOFF;

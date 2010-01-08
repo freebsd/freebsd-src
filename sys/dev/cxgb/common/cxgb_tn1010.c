@@ -209,10 +209,10 @@ static struct cphy_ops tn1010_ops = {
 };
 #endif
 
-int t3_tn1010_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_tn1010_phy_prep(pinfo_t *pinfo, int phy_addr,
 		       const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, phy_addr, &tn1010_ops, mdio_ops,
+	cphy_init(&pinfo->phy, pinfo->adapter, pinfo, phy_addr, &tn1010_ops, mdio_ops,
 		  SUPPORTED_1000baseT_Full | SUPPORTED_10000baseT_Full |
 		  SUPPORTED_Autoneg | SUPPORTED_AUI | SUPPORTED_TP,
 		  "1000/10GBASE-T");

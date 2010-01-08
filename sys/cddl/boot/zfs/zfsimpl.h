@@ -374,6 +374,24 @@ typedef struct vdev_label {
 #define	VDEV_LABEL_END_SIZE	(2 * sizeof (vdev_label_t))
 #define	VDEV_LABELS		4
 
+/*
+ * Gang block headers are self-checksumming and contain an array
+ * of block pointers.
+ */
+#define SPA_GANGBLOCKSIZE	SPA_MINBLOCKSIZE
+#define SPA_GBH_NBLKPTRS	((SPA_GANGBLOCKSIZE - \
+	sizeof (zio_block_tail_t)) / sizeof (blkptr_t))
+#define SPA_GBH_FILLER		((SPA_GANGBLOCKSIZE - \
+	sizeof (zio_block_tail_t) - \
+	(SPA_GBH_NBLKPTRS * sizeof (blkptr_t))) /\
+	sizeof (uint64_t))
+
+typedef struct zio_gbh {
+	blkptr_t		zg_blkptr[SPA_GBH_NBLKPTRS];
+	uint64_t		zg_filler[SPA_GBH_FILLER];
+	zio_block_tail_t	zg_tail;
+} zio_gbh_phys_t;
+
 enum zio_checksum {
 	ZIO_CHECKSUM_INHERIT = 0,
 	ZIO_CHECKSUM_ON,

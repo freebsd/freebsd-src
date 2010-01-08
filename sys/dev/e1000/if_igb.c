@@ -2654,7 +2654,7 @@ igb_dma_malloc(struct adapter *adapter, bus_size_t size,
 	int error;
 
 	error = bus_dma_tag_create(bus_get_dma_tag(adapter->dev), /* parent */
-				IGB_DBA_ALIGN, 0,	/* alignment, bounds */
+				1, 0,			/* alignment, bounds */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
@@ -2867,7 +2867,7 @@ igb_allocate_transmit_buffers(struct tx_ring *txr)
 	 * Setup DMA descriptor areas.
 	 */
 	if ((error = bus_dma_tag_create(NULL,		/* parent */
-			       PAGE_SIZE, 0,		/* alignment, bounds */
+			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
@@ -3554,7 +3554,7 @@ igb_allocate_receive_buffers(struct rx_ring *rxr)
 	** it may not always use this.
 	*/
 	if ((error = bus_dma_tag_create(NULL,		/* parent */
-				   PAGE_SIZE, 0,	/* alignment, bounds */
+				   1, 0,		/* alignment, bounds */
 				   BUS_SPACE_MAXADDR,	/* lowaddr */
 				   BUS_SPACE_MAXADDR,	/* highaddr */
 				   NULL, NULL,		/* filter, filterarg */

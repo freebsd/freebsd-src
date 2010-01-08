@@ -48,14 +48,34 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
 
-extern void *rstcode;
-extern register_t l2cr_config;
-extern register_t l3cr_config;
-
 void *ap_pcpu;
 
+static register_t bsp_state[8] __aligned(8);
+
+static void cpudep_save_config(void *dummy);
+SYSINIT(cpu_save_config, SI_SUB_CPU, SI_ORDER_ANY, cpudep_save_config, NULL);
+
+uintptr_t
+cpudep_ap_bootstrap(void)
+{
+	register_t msr, sp;
+
+	msr = PSL_KERNSET & ~PSL_EE;
+	mtmsr(msr);
+	isync();
+
+	__asm __volatile("mtsprg 0, %0" :: "r"(ap_pcpu));
+	powerpc_sync();
+
+	pcpup->pc_curthread = pcpup->pc_idlethread;
+	pcpup->pc_curpcb = pcpup->pc_curthread->td_pcb;
+	sp = pcpup->pc_curpcb->pcb_sp;
+
+	return (sp);
+}
+
 static register_t
-l2_enable(void)
+mpc745x_l2_enable(register_t l2cr_config)
 {
 	register_t ccr;
 
@@ -77,7 +97,7 @@ l2_enable(void)
 }
 
 static register_t
-l3_enable(void)
+mpc745x_l3_enable(register_t l3cr_config)
 {
 	register_t ccr;
 
@@ -109,7 +129,7 @@ l3_enable(void)
 }
 
 static register_t
-l1d_enable(void)
+mpc745x_l1d_enable(void)
 {
 	register_t hid;
 
@@ -127,7 +147,7 @@ l1d_enable(void)
 }
 
 static register_t
-l1i_enable(void)
+mpc745x_l1i_enable(void)
 {
 	register_t hid;
 
@@ -144,43 +164,118 @@ l1i_enable(void)
 	return (hid);
 }
 
-uint32_t
-cpudep_ap_bootstrap(void)
+static void
+cpudep_save_config(void *dummy)
 {
-	uint32_t hid, msr, reg, sp;
+	uint16_t	vers;
 
-	// reg = mfspr(SPR_MSSCR0);
-	// mtspr(SPR_MSSCR0, reg | 0x3);
+	vers = mfpvr() >> 16;
 
-	__asm __volatile("mtsprg 0, %0" :: "r"(ap_pcpu));
-	powerpc_sync();
+	switch(vers) {
+	case IBM970:
+	case IBM970FX:
+	case IBM970MP:
+		__asm __volatile ("mfspr %0,%2; mr %1,%0; srdi %0,%0,32"
+		    : "=r" (bsp_state[0]),"=r" (bsp_state[1]) : "K" (SPR_HID0));
+		__asm __volatile ("mfspr %0,%2; mr %1,%0; srdi %0,%0,32"
+		    : "=r" (bsp_state[2]),"=r" (bsp_state[3]) : "K" (SPR_HID1));
+		__asm __volatile ("mfspr %0,%2; mr %1,%0; srdi %0,%0,32"
+		    : "=r" (bsp_state[4]),"=r" (bsp_state[5]) : "K" (SPR_HID4));
+		__asm __volatile ("mfspr %0,%2; mr %1,%0; srdi %0,%0,32"
+		    : "=r" (bsp_state[6]),"=r" (bsp_state[7]) : "K" (SPR_HID5));
 
-	__asm __volatile("mtspr 1023,%0" :: "r"(PCPU_GET(cpuid)));
-	__asm __volatile("mfspr %0,1023" : "=r"(pcpup->pc_pir));
+		powerpc_sync();
 
-	msr = PSL_FP | PSL_IR | PSL_DR | PSL_ME | PSL_RI;
-	powerpc_sync();
-	isync();
-	mtmsr(msr);
-	isync();
+		break;
+	case MPC7450:
+	case MPC7455:
+	case MPC7457:
+		/* Only MPC745x CPUs have an L3 cache. */
+		bsp_state[3] = mfspr(SPR_L3CR);
 
-	if (l3cr_config != 0)
-		reg = l3_enable();
-	if (l2cr_config != 0)
-		reg = l2_enable();
-	reg = l1d_enable();
-	reg = l1i_enable();
+		/* Fallthrough */
+	case MPC7400:
+	case MPC7410:
+	case MPC7447A:
+	case MPC7448:
+		bsp_state[2] = mfspr(SPR_L2CR);
+		bsp_state[1] = mfspr(SPR_HID1);
+		bsp_state[0] = mfspr(SPR_HID0);
+		break;
+	}
+}
 
-	hid = mfspr(SPR_HID0);
-	hid &= ~(HID0_DOZE | HID0_SLEEP);
-	hid |= HID0_NAP | HID0_DPM;
-	mtspr(SPR_HID0, hid);
-	isync();
+void
+cpudep_ap_setup()
+{ 
+	register_t	reg;
+	uint16_t	vers;
 
-	pcpup->pc_curthread = pcpup->pc_idlethread;
-	pcpup->pc_curpcb = pcpup->pc_curthread->td_pcb;
-	sp = pcpup->pc_curpcb->pcb_sp;
+	vers = mfpvr() >> 16;
 
-	return (sp);
+	switch(vers) {
+	case IBM970:
+	case IBM970FX:
+	case IBM970MP:
+		/* Set HIOR to 0 */
+		__asm __volatile("mtspr 311,%0" :: "r"(0));
+		powerpc_sync();
+
+		/*
+		 * The 970 has strange rules about how to update HID registers.
+		 * See Table 2-3, 970MP manual
+		 */
+
+		__asm __volatile("mtasr %0; sync" :: "r"(0));
+		__asm __volatile(" \
+			ld	%0,0(%2);				\
+			sync; isync;					\
+			mtspr	%1, %0;					\
+			mfspr	%0, %1;	mfspr	%0, %1;	mfspr	%0, %1;	\
+			mfspr	%0, %1;	mfspr	%0, %1;	mfspr	%0, %1; \
+			sync; isync" 
+		    : "=r"(reg) : "K"(SPR_HID0), "r"(bsp_state));
+		__asm __volatile("ld %0, 8(%2); sync; isync;	\
+		    mtspr %1, %0; mtspr %1, %0; sync; isync"
+		    : "=r"(reg) : "K"(SPR_HID1), "r"(bsp_state));
+		__asm __volatile("ld %0, 16(%2); sync; isync;	\
+		    mtspr %1, %0; sync; isync;"
+		    : "=r"(reg) : "K"(SPR_HID4), "r"(bsp_state));
+		__asm __volatile("ld %0, 24(%2); sync; isync;	\
+		    mtspr %1, %0; sync; isync;"
+		    : "=r"(reg) : "K"(SPR_HID5), "r"(bsp_state));
+
+		powerpc_sync();
+		break;
+	case MPC7450:
+	case MPC7455:
+	case MPC7457:
+		/* Only MPC745x CPUs have an L3 cache. */
+		reg = mpc745x_l3_enable(bsp_state[3]);
+		
+		/* Fallthrough */
+	case MPC7400:
+	case MPC7410:
+	case MPC7447A:
+	case MPC7448:
+		/* XXX: Program the CPU ID into PIR */
+		__asm __volatile("mtspr 1023,%0" :: "r"(PCPU_GET(cpuid)));
+
+		powerpc_sync();
+		isync();
+
+		mtspr(SPR_HID0, bsp_state[0]); isync();
+		mtspr(SPR_HID1, bsp_state[1]); isync();
+
+		reg = mpc745x_l2_enable(bsp_state[2]);
+		reg = mpc745x_l1d_enable();
+		reg = mpc745x_l1i_enable();
+
+		break;
+	default:
+		printf("WARNING: Unknown CPU type. Cache performace may be "
+		    "suboptimal.\n");
+		break;
+	}
 }
 
