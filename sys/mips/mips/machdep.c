@@ -253,6 +253,21 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock, CTLFLAG_RW,
 #endif	/* PORT_TO_JMIPS */
 
 /*
+ * Initialize per cpu data structures, include curthread.
+ */
+void
+mips_pcpu_init()
+{
+	/* Initialize pcpu info of cpu-zero */
+#ifdef SMP
+	pcpu_init(&__pcpu[0], 0, sizeof(struct pcpu));
+#else
+	pcpu_init(pcpup, 0, sizeof(struct pcpu));
+#endif
+	PCPU_SET(curthread, &thread0);
+}
+
+/*
  * Initialize mips and configure to run kernel
  */
 void
@@ -275,24 +290,15 @@ mips_proc0_init(void)
 	    (thread0.td_kstack_pages - 1) * PAGE_SIZE) - 1;
 	thread0.td_frame = &thread0.td_pcb->pcb_regs;
 
-	/* Initialize pcpu info of cpu-zero */
-#ifdef SMP
-	pcpu_init(&__pcpu[0], 0, sizeof(struct pcpu));
-#else
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-#endif
-
 	/* Steal memory for the dynamic per-cpu area. */
 	dpcpu_init((void *)pmap_steal_memory(DPCPU_SIZE), 0);
 
+	PCPU_SET(curpcb, thread0.td_pcb);
 	/*
 	 * There is no need to initialize md_upte array for thread0 as it's
 	 * located in .bss section and should be explicitly zeroed during 
 	 * kernel initialization.
 	 */
-
-	PCPU_SET(curthread, &thread0);
-	PCPU_SET(curpcb, thread0.td_pcb);
 }
 
 void

@@ -240,6 +240,9 @@ platform_start(__register_t a0, __register_t a1, __register_t a2,
 	memset(&edata, 0, (vm_offset_t)&end - (vm_offset_t)&edata);
 	kernend = round_page((vm_offset_t)&end);
 
+	/* Initialize pcpu stuff */
+	mips_pcpu_init();
+
 #ifdef CFE
 	/*
 	 * Initialize CFE firmware trampolines before
