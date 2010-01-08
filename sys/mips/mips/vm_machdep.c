@@ -42,6 +42,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_cputype.h"
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -588,3 +589,99 @@ cpu_throw(struct thread *old, struct thread *new)
 	func_2args_asmmacro(&mips_cpu_throw, old, new);
 	panic("mips_cpu_throw() returned");
 }
+
+#ifdef DDB
+#include <ddb/ddb.h>
+
+#define DB_PRINT_REG(ptr, regname)			\
+	db_printf("  %-12s 0x%lx\n", #regname, (long)((ptr)->regname))
+
+#define DB_PRINT_REG_ARRAY(ptr, arrname, regname)	\
+	db_printf("  %-12s 0x%lx\n", #regname, (long)((ptr)->arrname[regname]))
+
+DB_SHOW_COMMAND(pcb, ddb_dump_pcb)
+{
+	struct thread *td;
+	struct pcb *pcb;
+	struct trapframe *trapframe;
+
+	/* Determine which thread to examine. */
+	if (have_addr)
+		td = db_lookup_thread(addr, FALSE);
+	else
+		td = curthread;
+	
+	pcb = td->td_pcb;
+
+	db_printf("Thread %d at %p\n", td->td_tid, td);
+
+	db_printf("PCB at %p\n", pcb);
+
+	trapframe = &pcb->pcb_regs;
+	db_printf("Trapframe at %p\n", trapframe);
+	DB_PRINT_REG(trapframe, zero);
+	DB_PRINT_REG(trapframe, ast);
+	DB_PRINT_REG(trapframe, v0);
+	DB_PRINT_REG(trapframe, v1);
+	DB_PRINT_REG(trapframe, a0);
+	DB_PRINT_REG(trapframe, a1);
+	DB_PRINT_REG(trapframe, a2);
+	DB_PRINT_REG(trapframe, a3);
+	DB_PRINT_REG(trapframe, t0);
+	DB_PRINT_REG(trapframe, t1);
+	DB_PRINT_REG(trapframe, t2);
+	DB_PRINT_REG(trapframe, t3);
+	DB_PRINT_REG(trapframe, t4);
+	DB_PRINT_REG(trapframe, t5);
+	DB_PRINT_REG(trapframe, t6);
+	DB_PRINT_REG(trapframe, t7);
+	DB_PRINT_REG(trapframe, s0);
+	DB_PRINT_REG(trapframe, s1);
+	DB_PRINT_REG(trapframe, s2);
+	DB_PRINT_REG(trapframe, s3);
+	DB_PRINT_REG(trapframe, s4);
+	DB_PRINT_REG(trapframe, s5);
+	DB_PRINT_REG(trapframe, s6);
+	DB_PRINT_REG(trapframe, s7);
+	DB_PRINT_REG(trapframe, t8);
+	DB_PRINT_REG(trapframe, t9);
+	DB_PRINT_REG(trapframe, k0);
+	DB_PRINT_REG(trapframe, k1);
+	DB_PRINT_REG(trapframe, gp);
+	DB_PRINT_REG(trapframe, sp);
+	DB_PRINT_REG(trapframe, s8);
+	DB_PRINT_REG(trapframe, ra);
+	DB_PRINT_REG(trapframe, sr);
+	DB_PRINT_REG(trapframe, mullo);
+	DB_PRINT_REG(trapframe, mulhi);
+	DB_PRINT_REG(trapframe, badvaddr);
+	DB_PRINT_REG(trapframe, cause);
+	DB_PRINT_REG(trapframe, pc);
+
+	db_printf("PCB Context:\n");
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S0);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S1);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S2);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S3);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S4);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S5);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S6);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S7);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_SP);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S8);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_RA);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_SR);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_GP);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_PC);
+
+	db_printf("PCB onfault = %d\n", pcb->pcb_onfault);
+	db_printf("md_saved_intr = 0x%0lx\n", (long)td->td_md.md_saved_intr);
+	db_printf("md_spinlock_count = %d\n", td->td_md.md_spinlock_count);
+
+	if (td->td_frame != trapframe) {
+		db_printf("td->td_frame %p is not the same as pcb_regs %p\n",
+			  td->td_frame, trapframe);
+	}
+}
+
+#endif	/* DDB */
