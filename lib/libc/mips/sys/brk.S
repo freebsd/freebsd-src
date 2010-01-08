@@ -42,15 +42,12 @@ __FBSDID("$FreeBSD$");
 #endif /* LIBC_SCCS and not lint */
 
 	.globl	_C_LABEL(minbrk)
-	.globl	_C_LABEL(curbrk)
+	.globl	_C_LABEL(__curbrk)
 	.globl	_C_LABEL(_end)
 
 	.data
 _C_LABEL(minbrk):
 	.word	_C_LABEL(_end)
-_C_LABEL(curbrk):
-	.word	_C_LABEL(_end)
-	.text
 
 LEAF(__sys_brk)
 	WEAK_ALIAS(brk, __sys_brk)
@@ -67,7 +64,7 @@ LEAF(__sys_brk)
 	li	v0, SYS_break
 	syscall
 	bne	a3, zero, 2f
-	sw	a0, _C_LABEL(curbrk)
+	sw	a0, _C_LABEL(__curbrk)
 	move	v0, zero
 	j	ra
 2:
