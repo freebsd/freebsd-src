@@ -148,6 +148,7 @@ struct request_info *request;
     char   *sh_cmd;			/* becomes optional shell command */
     int     match = NO;
     struct tcpd_context saved_context;
+    char   *cp;
 
     saved_context = tcpd_context;		/* stupid compilers */
 
@@ -164,7 +165,16 @@ struct request_info *request;
 		tcpd_warn("missing newline or line too long");
 		continue;
 	    }
-	    if (sv_list[0] == '#' || sv_list[strspn(sv_list, " \t\r\n")] == 0)
+	    /* Ignore anything after unescaped # character */
+	    for (cp = strchr(sv_list, '#'); cp != NULL;) {
+		if (cp > sv_list && cp[-1] == '\\') {
+		    cp = strchr(cp + 1, '#');
+		    continue;
+		}
+		*cp = '\0';
+		break;
+	    }
+	    if (sv_list[strspn(sv_list, " \t\r\n")] == 0)
 		continue;
 	    if ((cl_list = split_at(sv_list, ':')) == 0) {
 		tcpd_warn("missing \":\" separator");
