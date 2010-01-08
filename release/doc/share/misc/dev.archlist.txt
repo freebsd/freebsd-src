@@ -139,7 +139,6 @@ snd_t4dwave	i386,amd64
 snd_via8233	i386,amd64
 snd_via82c686	i386,amd64
 snd_vibes	i386,amd64
-ste	i386,pc98,amd64
 stg	i386,pc98
 stge	i386,amd64,sparc64
 ti	i386,pc98,amd64,sparc64
