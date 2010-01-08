@@ -127,6 +127,10 @@ MODULE_DEPEND(vge, miibus, 1, 1, 1);
 
 #define VGE_CSUM_FEATURES    (CSUM_IP | CSUM_TCP | CSUM_UDP)
 
+/* Tunables */
+static int msi_disable = 0;
+TUNABLE_INT("hw.vge.msi_disable", &msi_disable);
+
 /*
  * Various supported device vendors/types and their names.
  */
@@ -136,56 +140,52 @@ static struct vge_type vge_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int vge_probe		(device_t);
-static int vge_attach		(device_t);
-static int vge_detach		(device_t);
+static int	vge_attach(device_t);
+static int	vge_detach(device_t);
+static int	vge_probe(device_t);
+static int	vge_resume(device_t);
+static int	vge_shutdown(device_t);
+static int	vge_suspend(device_t);
 
-static int vge_encap		(struct vge_softc *, struct mbuf **);
-
-static void vge_dmamap_cb	(void *, bus_dma_segment_t *, int, int);
-static int vge_dma_alloc	(struct vge_softc *);
-static void vge_dma_free	(struct vge_softc *);
-static void vge_discard_rxbuf	(struct vge_softc *, int);
-static int vge_newbuf		(struct vge_softc *, int);
-static int vge_rx_list_init	(struct vge_softc *);
-static int vge_tx_list_init	(struct vge_softc *);
-static void vge_freebufs	(struct vge_softc *);
-#ifndef __NO_STRICT_ALIGNMENT
-static __inline void vge_fixup_rx
-				(struct mbuf *);
-#endif
-static int vge_rxeof		(struct vge_softc *, int);
-static void vge_txeof		(struct vge_softc *);
-static void vge_intr		(void *);
-static void vge_tick		(void *);
-static void vge_start		(struct ifnet *);
-static void vge_start_locked	(struct ifnet *);
-static int vge_ioctl		(struct ifnet *, u_long, caddr_t);
-static void vge_init		(void *);
-static void vge_init_locked	(struct vge_softc *);
-static void vge_stop		(struct vge_softc *);
-static void vge_watchdog	(void *);
-static int vge_suspend		(device_t);
-static int vge_resume		(device_t);
-static int vge_shutdown		(device_t);
-static int vge_ifmedia_upd	(struct ifnet *);
-static void vge_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
-
+static void	vge_cam_clear(struct vge_softc *);
+static int	vge_cam_set(struct vge_softc *, uint8_t *);
+static void	vge_discard_rxbuf(struct vge_softc *, int);
+static int	vge_dma_alloc(struct vge_softc *);
+static void	vge_dma_free(struct vge_softc *);
+static void	vge_dmamap_cb(void *, bus_dma_segment_t *, int, int);
 #ifdef VGE_EEPROM
-static void vge_eeprom_getword	(struct vge_softc *, int, uint16_t *);
+static void	vge_eeprom_getword(struct vge_softc *, int, uint16_t *);
 #endif
-static void vge_read_eeprom	(struct vge_softc *, caddr_t, int, int, int);
-
-static void vge_miipoll_start	(struct vge_softc *);
-static void vge_miipoll_stop	(struct vge_softc *);
-static int vge_miibus_readreg	(device_t, int, int);
-static int vge_miibus_writereg	(device_t, int, int, int);
-static void vge_miibus_statchg	(device_t);
-
-static void vge_cam_clear	(struct vge_softc *);
-static int vge_cam_set		(struct vge_softc *, uint8_t *);
-static void vge_setmulti	(struct vge_softc *);
-static void vge_reset		(struct vge_softc *);
+static int	vge_encap(struct vge_softc *, struct mbuf **);
+#ifndef __NO_STRICT_ALIGNMENT
+static __inline void
+		vge_fixup_rx(struct mbuf *);
+#endif
+static void	vge_freebufs(struct vge_softc *);
+static void	vge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int	vge_ifmedia_upd(struct ifnet *);
+static void	vge_init(void *);
+static void	vge_init_locked(struct vge_softc *);
+static void	vge_intr(void *);
+static int	vge_ioctl(struct ifnet *, u_long, caddr_t);
+static int	vge_miibus_readreg(device_t, int, int);
+static void	vge_miibus_statchg(device_t);
+static int	vge_miibus_writereg(device_t, int, int, int);
+static void	vge_miipoll_start(struct vge_softc *);
+static void	vge_miipoll_stop(struct vge_softc *);
+static int	vge_newbuf(struct vge_softc *, int);
+static void	vge_read_eeprom(struct vge_softc *, caddr_t, int, int, int);
+static void	vge_reset(struct vge_softc *);
+static int	vge_rx_list_init(struct vge_softc *);
+static int	vge_rxeof(struct vge_softc *, int);
+static void	vge_setmulti(struct vge_softc *);
+static void	vge_start(struct ifnet *);
+static void	vge_start_locked(struct ifnet *);
+static void	vge_stop(struct vge_softc *);
+static void	vge_tick(void *);
+static int	vge_tx_list_init(struct vge_softc *);
+static void	vge_txeof(struct vge_softc *);
+static void	vge_watchdog(void *);
 
 static device_method_t vge_methods[] = {
 	/* Device interface */
@@ -353,7 +353,7 @@ vge_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	if (phy != (CSR_READ_1(sc, VGE_MIICFG) & 0x1F))
+	if (phy != sc->vge_phyaddr)
 		return (0);
 
 	vge_miipoll_stop(sc);
@@ -389,7 +389,7 @@ vge_miibus_writereg(device_t dev, int phy, int reg, int data)
 
 	sc = device_get_softc(dev);
 
-	if (phy != (CSR_READ_1(sc, VGE_MIICFG) & 0x1F))
+	if (phy != sc->vge_phyaddr)
 		return (0);
 
 	vge_miipoll_stop(sc);
@@ -582,27 +582,12 @@ vge_reset(struct vge_softc *sc)
 	}
 
 	if (i == VGE_TIMEOUT) {
-		device_printf(sc->vge_dev, "soft reset timed out");
+		device_printf(sc->vge_dev, "soft reset timed out\n");
 		CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_STOP_FORCE);
 		DELAY(2000);
 	}
 
 	DELAY(5000);
-
-	CSR_SETBIT_1(sc, VGE_EECSR, VGE_EECSR_RELOAD);
-
-	for (i = 0; i < VGE_TIMEOUT; i++) {
-		DELAY(5);
-		if ((CSR_READ_1(sc, VGE_EECSR) & VGE_EECSR_RELOAD) == 0)
-			break;
-	}
-
-	if (i == VGE_TIMEOUT) {
-		device_printf(sc->vge_dev, "EEPROM reload timed out\n");
-		return;
-	}
-
-	CSR_CLRBIT_1(sc, VGE_CHIPCFG0, VGE_CHIPCFG0_PACPI);
 }
 
 /*
@@ -954,7 +939,7 @@ vge_attach(device_t dev)
 	u_char eaddr[ETHER_ADDR_LEN];
 	struct vge_softc *sc;
 	struct ifnet *ifp;
-	int error = 0, rid;
+	int error = 0, cap, i, msic, rid;
 
 	sc = device_get_softc(dev);
 	sc->vge_dev = dev;
@@ -978,11 +963,28 @@ vge_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Allocate interrupt */
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
+		sc->vge_flags |= VGE_FLAG_PCIE;
+		sc->vge_expcap = cap;
+	}
 	rid = 0;
-	sc->vge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
+	msic = pci_msi_count(dev);
+	if (msi_disable == 0 && msic > 0) {
+		msic = 1;
+		if (pci_alloc_msi(dev, &msic) == 0) {
+			if (msic == 1) {
+				sc->vge_flags |= VGE_FLAG_MSI;
+				device_printf(dev, "Using %d MSI message\n",
+				    msic);
+				rid = 1;
+			} else
+				pci_release_msi(dev);
+		}
+	}
 
+	/* Allocate interrupt */
+	sc->vge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    ((sc->vge_flags & VGE_FLAG_MSI) ? 0 : RF_SHAREABLE) | RF_ACTIVE);
 	if (sc->vge_irq == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
@@ -991,12 +993,37 @@ vge_attach(device_t dev)
 
 	/* Reset the adapter. */
 	vge_reset(sc);
+	/* Reload EEPROM. */
+	CSR_WRITE_1(sc, VGE_EECSR, VGE_EECSR_RELOAD);
+	for (i = 0; i < VGE_TIMEOUT; i++) {
+		DELAY(5);
+		if ((CSR_READ_1(sc, VGE_EECSR) & VGE_EECSR_RELOAD) == 0)
+			break;
+	}
+	if (i == VGE_TIMEOUT)
+		device_printf(dev, "EEPROM reload timed out\n");
+	/*
+	 * Clear PACPI as EEPROM reload will set the bit. Otherwise
+	 * MAC will receive magic packet which in turn confuses
+	 * controller.
+	 */
+	CSR_CLRBIT_1(sc, VGE_CHIPCFG0, VGE_CHIPCFG0_PACPI);
 
 	/*
 	 * Get station address from the EEPROM.
 	 */
 	vge_read_eeprom(sc, (caddr_t)eaddr, VGE_EE_EADDR, 3, 0);
-
+	/*
+	 * Save configured PHY address.
+	 * It seems the PHY address of PCIe controllers just
+	 * reflects media jump strapping status so we assume the
+	 * internal PHY address of PCIe controller is at 1.
+	 */
+	if ((sc->vge_flags & VGE_FLAG_PCIE) != 0)
+		sc->vge_phyaddr = 1;
+	else
+		sc->vge_phyaddr = CSR_READ_1(sc, VGE_MIICFG) &
+		    VGE_MIICFG_PHYADDR;
 	error = vge_dma_alloc(sc);
 	if (error)
 		goto fail;
@@ -1030,8 +1057,8 @@ vge_attach(device_t dev)
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 	ifp->if_init = vge_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, VGE_IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = VGE_IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, VGE_TX_DESC_CNT - 1);
+	ifp->if_snd.ifq_drv_maxlen = VGE_TX_DESC_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	/*
@@ -1093,7 +1120,10 @@ vge_detach(device_t dev)
 	if (sc->vge_intrhand)
 		bus_teardown_intr(dev, sc->vge_irq, sc->vge_intrhand);
 	if (sc->vge_irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vge_irq);
+		bus_release_resource(dev, SYS_RES_IRQ,
+		    sc->vge_flags & VGE_FLAG_MSI ? 1 : 0, sc->vge_irq);
+	if (sc->vge_flags & VGE_FLAG_MSI)
+		pci_release_msi(dev);
 	if (sc->vge_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    PCIR_BAR(1), sc->vge_res);
@@ -1577,16 +1607,16 @@ vge_tick(void *xsc)
 	mii = device_get_softc(sc->vge_miibus);
 
 	mii_tick(mii);
-	if (sc->vge_link) {
+	if ((sc->vge_flags & VGE_FLAG_LINK) != 0) {
 		if (!(mii->mii_media_status & IFM_ACTIVE)) {
-			sc->vge_link = 0;
+			sc->vge_flags &= ~VGE_FLAG_LINK;
 			if_link_state_change(sc->vge_ifp,
 			    LINK_STATE_DOWN);
 		}
 	} else {
 		if (mii->mii_media_status & IFM_ACTIVE &&
 		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-			sc->vge_link = 1;
+			sc->vge_flags |= VGE_FLAG_LINK;
 			if_link_state_change(sc->vge_ifp,
 			    LINK_STATE_UP);
 			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1868,7 +1898,7 @@ vge_start_locked(struct ifnet *ifp)
 
 	VGE_LOCK_ASSERT(sc);
 
-	if (sc->vge_link == 0 ||
+	if ((sc->vge_flags & VGE_FLAG_LINK) == 0 ||
 	    (ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
@@ -2107,13 +2137,12 @@ vge_init_locked(struct vge_softc *sc)
 		CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
 	}
 
+	sc->vge_flags &= ~VGE_FLAG_LINK;
 	mii_mediachg(mii);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	callout_reset(&sc->vge_watchdog, hz, vge_watchdog, sc);
-
-	sc->vge_link = 0;
 }
 
 /*
