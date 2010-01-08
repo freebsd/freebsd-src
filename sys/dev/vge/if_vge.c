@@ -172,7 +172,7 @@ static int vge_ifmedia_upd	(struct ifnet *);
 static void vge_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
 #ifdef VGE_EEPROM
-static void vge_eeprom_getword	(struct vge_softc *, int, u_int16_t *);
+static void vge_eeprom_getword	(struct vge_softc *, int, uint16_t *);
 #endif
 static void vge_read_eeprom	(struct vge_softc *, caddr_t, int, int, int);
 
@@ -186,9 +186,6 @@ static void vge_cam_clear	(struct vge_softc *);
 static int vge_cam_set		(struct vge_softc *, uint8_t *);
 static void vge_setmulti	(struct vge_softc *);
 static void vge_reset		(struct vge_softc *);
-
-#define VGE_PCI_LOIO             0x10
-#define VGE_PCI_LOMEM            0x14
 
 static device_method_t vge_methods[] = {
 	/* Device interface */
@@ -228,13 +225,10 @@ DRIVER_MODULE(miibus, vge, miibus_driver, miibus_devclass, 0, 0);
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
 static void
-vge_eeprom_getword(sc, addr, dest)
-	struct vge_softc	*sc;
-	int			addr;
-	u_int16_t		*dest;
+vge_eeprom_getword(struct vge_softc *sc, int addr, uint16_t *dest)
 {
-	int			i;
-	u_int16_t		word = 0;
+	int i;
+	uint16_t word = 0;
 
 	/*
 	 * Enter EEPROM embedded programming mode. In order to
@@ -270,8 +264,6 @@ vge_eeprom_getword(sc, addr, dest)
 	CSR_CLRBIT_1(sc, VGE_CHIPCFG2, VGE_CHIPCFG2_EELOAD);
 
 	*dest = word;
-
-	return;
 }
 #endif
 
@@ -279,20 +271,15 @@ vge_eeprom_getword(sc, addr, dest)
  * Read a sequence of words from the EEPROM.
  */
 static void
-vge_read_eeprom(sc, dest, off, cnt, swap)
-	struct vge_softc	*sc;
-	caddr_t			dest;
-	int			off;
-	int			cnt;
-	int			swap;
+vge_read_eeprom(struct vge_softc *sc, caddr_t dest, int off, int cnt, int swap)
 {
-	int			i;
+	int i;
 #ifdef VGE_EEPROM
-	u_int16_t		word = 0, *ptr;
+	uint16_t word = 0, *ptr;
 
 	for (i = 0; i < cnt; i++) {
 		vge_eeprom_getword(sc, off + i, &word);
-		ptr = (u_int16_t *)(dest + (i * 2));
+		ptr = (uint16_t *)(dest + (i * 2));
 		if (swap)
 			*ptr = ntohs(word);
 		else
@@ -305,10 +292,9 @@ vge_read_eeprom(sc, dest, off, cnt, swap)
 }
 
 static void
-vge_miipoll_stop(sc)
-	struct vge_softc	*sc;
+vge_miipoll_stop(struct vge_softc *sc)
 {
-	int			i;
+	int i;
 
 	CSR_WRITE_1(sc, VGE_MIICMD, 0);
 
@@ -320,15 +306,12 @@ vge_miipoll_stop(sc)
 
 	if (i == VGE_TIMEOUT)
 		device_printf(sc->vge_dev, "failed to idle MII autopoll\n");
-
-	return;
 }
 
 static void
-vge_miipoll_start(sc)
-	struct vge_softc	*sc;
+vge_miipoll_start(struct vge_softc *sc)
 {
-	int			i;
+	int i;
 
 	/* First, make sure we're idle. */
 
@@ -360,23 +343,19 @@ vge_miipoll_start(sc)
 
 	if (i == VGE_TIMEOUT)
 		device_printf(sc->vge_dev, "failed to start MII autopoll\n");
-
-	return;
 }
 
 static int
-vge_miibus_readreg(dev, phy, reg)
-	device_t		dev;
-	int			phy, reg;
+vge_miibus_readreg(device_t dev, int phy, int reg)
 {
-	struct vge_softc	*sc;
-	int			i;
-	u_int16_t		rval = 0;
+	struct vge_softc *sc;
+	int i;
+	uint16_t rval = 0;
 
 	sc = device_get_softc(dev);
 
 	if (phy != (CSR_READ_1(sc, VGE_MIICFG) & 0x1F))
-		return(0);
+		return (0);
 
 	vge_miipoll_stop(sc);
 
@@ -404,17 +383,15 @@ vge_miibus_readreg(dev, phy, reg)
 }
 
 static int
-vge_miibus_writereg(dev, phy, reg, data)
-	device_t		dev;
-	int			phy, reg, data;
+vge_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
-	struct vge_softc	*sc;
-	int			i, rval = 0;
+	struct vge_softc *sc;
+	int i, rval = 0;
 
 	sc = device_get_softc(dev);
 
 	if (phy != (CSR_READ_1(sc, VGE_MIICFG) & 0x1F))
-		return(0);
+		return (0);
 
 	vge_miipoll_stop(sc);
 
@@ -445,10 +422,9 @@ vge_miibus_writereg(dev, phy, reg, data)
 }
 
 static void
-vge_cam_clear(sc)
-	struct vge_softc	*sc;
+vge_cam_clear(struct vge_softc *sc)
 {
-	int			i;
+	int i;
 
 	/*
 	 * Turn off all the mask bits. This tells the chip
@@ -473,19 +449,15 @@ vge_cam_clear(sc)
 	CSR_SETBIT_1(sc, VGE_CAMCTL, VGE_PAGESEL_MAR);
 
 	sc->vge_camidx = 0;
-
-	return;
 }
 
 static int
-vge_cam_set(sc, addr)
-	struct vge_softc	*sc;
-	uint8_t			*addr;
+vge_cam_set(struct vge_softc *sc, uint8_t *addr)
 {
-	int			i, error = 0;
+	int i, error = 0;
 
 	if (sc->vge_camidx == VGE_CAM_MAXADDRS)
-		return(ENOSPC);
+		return (ENOSPC);
 
 	/* Select the CAM data page. */
 	CSR_CLRBIT_1(sc, VGE_CAMCTL, VGE_CAMCTL_PAGESEL);
@@ -539,13 +511,12 @@ fail:
  * we use the hash filter instead.
  */
 static void
-vge_setmulti(sc)
-	struct vge_softc	*sc;
+vge_setmulti(struct vge_softc *sc)
 {
-	struct ifnet		*ifp;
-	int			error = 0/*, h = 0*/;
-	struct ifmultiaddr	*ifma;
-	u_int32_t		h, hashes[2] = { 0, 0 };
+	struct ifnet *ifp;
+	int error = 0/*, h = 0*/;
+	struct ifmultiaddr *ifma;
+	uint32_t h, hashes[2] = { 0, 0 };
 
 	VGE_LOCK_ASSERT(sc);
 
@@ -596,15 +567,12 @@ vge_setmulti(sc)
 		CSR_WRITE_4(sc, VGE_MAR1, hashes[1]);
 	}
 	IF_ADDR_UNLOCK(ifp);
-
-	return;
 }
 
 static void
-vge_reset(sc)
-	struct vge_softc		*sc;
+vge_reset(struct vge_softc *sc)
 {
-	int			i;
+	int i;
 
 	CSR_WRITE_1(sc, VGE_CRS1, VGE_CR1_SOFTRESET);
 
@@ -636,8 +604,6 @@ vge_reset(sc)
 	}
 
 	CSR_CLRBIT_1(sc, VGE_CHIPCFG0, VGE_CHIPCFG0_PACPI);
-
-	return;
 }
 
 /*
@@ -645,10 +611,9 @@ vge_reset(sc)
  * IDs against our list and return a device name if we find a match.
  */
 static int
-vge_probe(dev)
-	device_t		dev;
+vge_probe(device_t dev)
 {
-	struct vge_type		*t;
+	struct vge_type	*t;
 	struct vge_softc	*sc;
 
 	t = vge_devs;
@@ -675,13 +640,9 @@ struct vge_dmamap_arg {
 };
 
 static void
-vge_dmamap_cb(arg, segs, nsegs, error)
-	void			*arg;
-	bus_dma_segment_t	*segs;
-	int			nsegs;
-	int			error;
+vge_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
-	struct vge_dmamap_arg	*ctx;
+	struct vge_dmamap_arg *ctx;
 
 	if (error != 0)
 		return;
@@ -693,14 +654,13 @@ vge_dmamap_cb(arg, segs, nsegs, error)
 }
 
 static int
-vge_dma_alloc(sc)
-	struct vge_softc	*sc;
+vge_dma_alloc(struct vge_softc *sc)
 {
-	struct vge_dmamap_arg	ctx;
-	struct vge_txdesc	*txd;
-	struct vge_rxdesc	*rxd;
-	bus_addr_t		lowaddr, tx_ring_end, rx_ring_end;
-	int			error, i;
+	struct vge_dmamap_arg ctx;
+	struct vge_txdesc *txd;
+	struct vge_rxdesc *rxd;
+	bus_addr_t lowaddr, tx_ring_end, rx_ring_end;
+	int error, i;
 
 	lowaddr = BUS_SPACE_MAXADDR;
 
@@ -909,12 +869,11 @@ fail:
 }
 
 static void
-vge_dma_free(sc)
-	struct vge_softc	*sc;
+vge_dma_free(struct vge_softc *sc)
 {
-	struct vge_txdesc	*txd;
-	struct vge_rxdesc	*rxd;
-	int			i;
+	struct vge_txdesc *txd;
+	struct vge_rxdesc *rxd;
+	int i;
 
 	/* Tx ring. */
 	if (sc->vge_cdata.vge_tx_ring_tag != NULL) {
@@ -993,13 +952,12 @@ vge_dma_free(sc)
  * setup and ethernet/BPF attach.
  */
 static int
-vge_attach(dev)
-	device_t		dev;
+vge_attach(device_t dev)
 {
-	u_char			eaddr[ETHER_ADDR_LEN];
-	struct vge_softc	*sc;
-	struct ifnet		*ifp;
-	int			error = 0, rid;
+	u_char eaddr[ETHER_ADDR_LEN];
+	struct vge_softc *sc;
+	struct ifnet *ifp;
+	int error = 0, rid;
 
 	sc = device_get_softc(dev);
 	sc->vge_dev = dev;
@@ -1013,7 +971,7 @@ vge_attach(dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	rid = VGE_PCI_LOMEM;
+	rid = PCIR_BAR(1);
 	sc->vge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 
@@ -1109,11 +1067,10 @@ fail:
  * allocated.
  */
 static int
-vge_detach(dev)
-	device_t		dev;
+vge_detach(device_t dev)
 {
-	struct vge_softc		*sc;
-	struct ifnet		*ifp;
+	struct vge_softc *sc;
+	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->vge_mtx), ("vge mutex not initialized"));
@@ -1142,7 +1099,7 @@ vge_detach(dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vge_irq);
 	if (sc->vge_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    VGE_PCI_LOMEM, sc->vge_res);
+		    PCIR_BAR(1), sc->vge_res);
 	if (ifp)
 		if_free(ifp);
 
@@ -1153,12 +1110,10 @@ vge_detach(dev)
 }
 
 static void
-vge_discard_rxbuf(sc, prod)
-	struct vge_softc	*sc;
-	int			prod;
+vge_discard_rxbuf(struct vge_softc *sc, int prod)
 {
-	struct vge_rxdesc	*rxd;
-	int			i;
+	struct vge_rxdesc *rxd;
+	int i;
 
 	rxd = &sc->vge_cdata.vge_rxdesc[prod];
 	rxd->rx_desc->vge_sts = 0;
@@ -1182,15 +1137,13 @@ vge_discard_rxbuf(sc, prod)
 }
 
 static int
-vge_newbuf(sc, prod)
-	struct vge_softc	*sc;
-	int			prod;
+vge_newbuf(struct vge_softc *sc, int prod)
 {
-	struct vge_rxdesc	*rxd;
-	struct mbuf		*m;
-	bus_dma_segment_t	segs[1];
-	bus_dmamap_t		map;
-	int			i, nsegs;
+	struct vge_rxdesc *rxd;
+	struct mbuf *m;
+	bus_dma_segment_t segs[1];
+	bus_dmamap_t map;
+	int i, nsegs;
 
 	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
@@ -1254,12 +1207,11 @@ vge_newbuf(sc, prod)
 }
 
 static int
-vge_tx_list_init(sc)
-	struct vge_softc	*sc;
+vge_tx_list_init(struct vge_softc *sc)
 {
-	struct vge_ring_data	*rd;
-	struct vge_txdesc	*txd;
-	int			i;
+	struct vge_ring_data *rd;
+	struct vge_txdesc *txd;
+	int i;
 
 	VGE_LOCK_ASSERT(sc);
 
@@ -1283,12 +1235,11 @@ vge_tx_list_init(sc)
 }
 
 static int
-vge_rx_list_init(sc)
-	struct vge_softc	*sc;
+vge_rx_list_init(struct vge_softc *sc)
 {
-	struct vge_ring_data	*rd;
-	struct vge_rxdesc	*rxd;
-	int			i;
+	struct vge_ring_data *rd;
+	struct vge_rxdesc *rxd;
+	int i;
 
 	VGE_LOCK_ASSERT(sc);
 
@@ -1322,13 +1273,12 @@ vge_rx_list_init(sc)
 }
 
 static void
-vge_freebufs(sc)
-	struct vge_softc	*sc;
+vge_freebufs(struct vge_softc *sc)
 {
-	struct vge_txdesc	*txd;
-	struct vge_rxdesc	*rxd;
-	struct ifnet		*ifp;
-	int			i;
+	struct vge_txdesc *txd;
+	struct vge_rxdesc *rxd;
+	struct ifnet *ifp;
+	int i;
 
 	VGE_LOCK_ASSERT(sc);
 
@@ -1364,11 +1314,10 @@ vge_freebufs(sc)
 
 #ifndef	__NO_STRICT_ALIGNMENT
 static __inline void
-vge_fixup_rx(m)
-	struct mbuf		*m;
+vge_fixup_rx(struct mbuf *m)
 {
-	int			i;
-	uint16_t		*src, *dst;
+	int i;
+	uint16_t *src, *dst;
 
 	src = mtod(m, uint16_t *);
 	dst = src - 1;
@@ -1385,16 +1334,14 @@ vge_fixup_rx(m)
  * been fragmented across multiple 2K mbuf cluster buffers.
  */
 static int
-vge_rxeof(sc, count)
-	struct vge_softc	*sc;
-	int			count;
+vge_rxeof(struct vge_softc *sc, int count)
 {
-	struct mbuf		*m;
-	struct ifnet		*ifp;
-	int			prod, prog, total_len;
-	struct vge_rxdesc	*rxd;
-	struct vge_rx_desc	*cur_rx;
-	uint32_t		rxstat, rxctl;
+	struct mbuf *m;
+	struct ifnet *ifp;
+	int prod, prog, total_len;
+	struct vge_rxdesc *rxd;
+	struct vge_rx_desc *cur_rx;
+	uint32_t rxstat, rxctl;
 
 	VGE_LOCK_ASSERT(sc);
 
@@ -1559,14 +1506,13 @@ vge_rxeof(sc, count)
 }
 
 static void
-vge_txeof(sc)
-	struct vge_softc	*sc;
+vge_txeof(struct vge_softc *sc)
 {
-	struct ifnet		*ifp;
-	struct vge_tx_desc	*cur_tx;
-	struct vge_txdesc	*txd;
-	uint32_t		txstat;
-	int			cons, prod;
+	struct ifnet *ifp;
+	struct vge_tx_desc *cur_tx;
+	struct vge_txdesc *txd;
+	uint32_t txstat;
+	int cons, prod;
 
 	VGE_LOCK_ASSERT(sc);
 
@@ -1602,8 +1548,11 @@ vge_txeof(sc)
 		    __func__));
 		m_freem(txd->tx_m);
 		txd->tx_m = NULL;
+		txd->tx_desc->vge_frag[0].vge_addrhi = 0;
 	}
-
+	bus_dmamap_sync(sc->vge_cdata.vge_tx_ring_tag,
+	    sc->vge_cdata.vge_tx_ring_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	sc->vge_cdata.vge_tx_considx = cons;
 	if (sc->vge_cdata.vge_tx_cnt == 0)
 		sc->vge_timer = 0;
@@ -1619,12 +1568,11 @@ vge_txeof(sc)
 }
 
 static void
-vge_tick(xsc)
-	void			*xsc;
+vge_tick(void *xsc)
 {
-	struct vge_softc	*sc;
-	struct ifnet		*ifp;
-	struct mii_data		*mii;
+	struct vge_softc *sc;
+	struct ifnet *ifp;
+	struct mii_data *mii;
 
 	sc = xsc;
 	ifp = sc->vge_ifp;
@@ -1648,8 +1596,6 @@ vge_tick(xsc)
 				vge_start_locked(ifp);
 		}
 	}
-
-	return;
 }
 
 #ifdef DEVICE_POLLING
@@ -1669,7 +1615,7 @@ vge_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 		vge_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
-		u_int32_t       status;
+		uint32_t       status;
 		status = CSR_READ_4(sc, VGE_ISR);
 		if (status == 0xFFFFFFFF)
 			goto done;
@@ -1699,12 +1645,11 @@ done:
 #endif /* DEVICE_POLLING */
 
 static void
-vge_intr(arg)
-	void			*arg;
+vge_intr(void *arg)
 {
-	struct vge_softc	*sc;
-	struct ifnet		*ifp;
-	u_int32_t		status;
+	struct vge_softc *sc;
+	struct ifnet *ifp;
+	uint32_t status;
 
 	sc = arg;
 
@@ -1771,21 +1716,17 @@ vge_intr(arg)
 		vge_start_locked(ifp);
 
 	VGE_UNLOCK(sc);
-
-	return;
 }
 
 static int
-vge_encap(sc, m_head)
-	struct vge_softc	*sc;
-	struct mbuf		**m_head;
+vge_encap(struct vge_softc *sc, struct mbuf **m_head)
 {
-	struct vge_txdesc	*txd;
-	struct vge_tx_frag	*frag;
-	struct mbuf		*m;
-	bus_dma_segment_t	txsegs[VGE_MAXTXSEGS];
-	int			error, i, nsegs, padlen;
-	uint32_t		cflags;
+	struct vge_txdesc *txd;
+	struct vge_tx_frag *frag;
+	struct mbuf *m;
+	bus_dma_segment_t txsegs[VGE_MAXTXSEGS];
+	int error, i, nsegs, padlen;
+	uint32_t cflags;
 
 	VGE_LOCK_ASSERT(sc);
 
@@ -1905,10 +1846,9 @@ vge_encap(sc, m_head)
  */
 
 static void
-vge_start(ifp)
-	struct ifnet		*ifp;
+vge_start(struct ifnet *ifp)
 {
-	struct vge_softc	*sc;
+	struct vge_softc *sc;
 
 	sc = ifp->if_softc;
 	VGE_LOCK(sc);
@@ -1918,13 +1858,12 @@ vge_start(ifp)
 
 
 static void
-vge_start_locked(ifp)
-	struct ifnet		*ifp;
+vge_start_locked(struct ifnet *ifp)
 {
-	struct vge_softc	*sc;
-	struct vge_txdesc	*txd;
-	struct mbuf		*m_head;
-	int			enq, idx;
+	struct vge_softc *sc;
+	struct vge_txdesc *txd;
+	struct mbuf *m_head;
+	int enq, idx;
 
 	sc = ifp->if_softc;
 
@@ -1992,10 +1931,9 @@ vge_start_locked(ifp)
 }
 
 static void
-vge_init(xsc)
-	void			*xsc;
+vge_init(void *xsc)
 {
-	struct vge_softc	*sc = xsc;
+	struct vge_softc *sc = xsc;
 
 	VGE_LOCK(sc);
 	vge_init_locked(sc);
@@ -2005,9 +1943,9 @@ vge_init(xsc)
 static void
 vge_init_locked(struct vge_softc *sc)
 {
-	struct ifnet		*ifp = sc->vge_ifp;
-	struct mii_data		*mii;
-	int			error, i;
+	struct ifnet *ifp = sc->vge_ifp;
+	struct mii_data *mii;
+	int error, i;
 
 	VGE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->vge_miibus);
@@ -2183,11 +2121,10 @@ vge_init_locked(struct vge_softc *sc)
  * Set media options.
  */
 static int
-vge_ifmedia_upd(ifp)
-	struct ifnet		*ifp;
+vge_ifmedia_upd(struct ifnet *ifp)
 {
-	struct vge_softc	*sc;
-	struct mii_data		*mii;
+	struct vge_softc *sc;
+	struct mii_data *mii;
 
 	sc = ifp->if_softc;
 	VGE_LOCK(sc);
@@ -2202,12 +2139,10 @@ vge_ifmedia_upd(ifp)
  * Report current media status.
  */
 static void
-vge_ifmedia_sts(ifp, ifmr)
-	struct ifnet		*ifp;
-	struct ifmediareq	*ifmr;
+vge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	struct vge_softc	*sc;
-	struct mii_data		*mii;
+	struct vge_softc *sc;
+	struct mii_data *mii;
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->vge_miibus);
@@ -2217,17 +2152,14 @@ vge_ifmedia_sts(ifp, ifmr)
 	VGE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
-
-	return;
 }
 
 static void
-vge_miibus_statchg(dev)
-	device_t		dev;
+vge_miibus_statchg(device_t dev)
 {
-	struct vge_softc	*sc;
-	struct mii_data		*mii;
-	struct ifmedia_entry	*ife;
+	struct vge_softc *sc;
+	struct mii_data *mii;
+	struct ifmedia_entry *ife;
 
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->vge_miibus);
@@ -2267,20 +2199,15 @@ vge_miibus_statchg(dev)
 		    IFM_SUBTYPE(ife->ifm_media));
 		break;
 	}
-
-	return;
 }
 
 static int
-vge_ioctl(ifp, command, data)
-	struct ifnet		*ifp;
-	u_long			command;
-	caddr_t			data;
+vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	struct vge_softc	*sc = ifp->if_softc;
-	struct ifreq		*ifr = (struct ifreq *) data;
-	struct mii_data		*mii;
-	int			error = 0;
+	struct vge_softc *sc = ifp->if_softc;
+	struct ifreq *ifr = (struct ifreq *) data;
+	struct mii_data *mii;
+	int error = 0;
 
 	switch (command) {
 	case SIOCSIFMTU:
@@ -2332,7 +2259,7 @@ vge_ioctl(ifp, command, data)
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
 				error = ether_poll_register(vge_poll, ifp);
 				if (error)
-					return(error);
+					return (error);
 				VGE_LOCK(sc);
 					/* Disable interrupts */
 				CSR_WRITE_4(sc, VGE_IMR, 0);
@@ -2395,8 +2322,6 @@ vge_watchdog(void *arg)
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	vge_init_locked(sc);
-
-	return;
 }
 
 /*
@@ -2404,10 +2329,9 @@ vge_watchdog(void *arg)
  * RX and TX lists.
  */
 static void
-vge_stop(sc)
-	struct vge_softc		*sc;
+vge_stop(struct vge_softc *sc)
 {
-	struct ifnet		*ifp;
+	struct ifnet *ifp;
 
 	VGE_LOCK_ASSERT(sc);
 	ifp = sc->vge_ifp;
@@ -2434,10 +2358,9 @@ vge_stop(sc)
  * resume.
  */
 static int
-vge_suspend(dev)
-	device_t		dev;
+vge_suspend(device_t dev)
 {
-	struct vge_softc	*sc;
+	struct vge_softc *sc;
 
 	sc = device_get_softc(dev);
 
@@ -2456,11 +2379,10 @@ vge_suspend(dev)
  * appropriate.
  */
 static int
-vge_resume(dev)
-	device_t		dev;
+vge_resume(device_t dev)
 {
-	struct vge_softc	*sc;
-	struct ifnet		*ifp;
+	struct vge_softc *sc;
+	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
 	ifp = sc->vge_ifp;
@@ -2486,10 +2408,9 @@ vge_resume(dev)
  * get confused by errant DMAs when rebooting.
  */
 static int
-vge_shutdown(dev)
-	device_t		dev;
+vge_shutdown(device_t dev)
 {
-	struct vge_softc		*sc;
+	struct vge_softc *sc;
 
 	sc = device_get_softc(dev);
 
