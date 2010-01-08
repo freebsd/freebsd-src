@@ -897,6 +897,8 @@ domount:
 	}
 	mutex_exit(&sdp->sd_lock);
 	ZFS_EXIT(zfsvfs);
+	if (err != 0)
+		*vpp = NULL;
 	return (err);
 }
 
