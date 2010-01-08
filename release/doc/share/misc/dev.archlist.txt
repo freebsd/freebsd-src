@@ -107,7 +107,6 @@ rum	i386,amd64
 safe	i386,pc98,amd64
 sbp	i386,sparc64,ia64,amd64
 sis	i386,pc98,ia64,amd64
-sk	i386,sparc64,pc98,amd64
 sn	i386,amd64
 snc	pc98
 snd_ad1816	i386,amd64
@@ -135,12 +134,11 @@ snd_neomagic	i386,amd64
 snd_sbc	i386,amd64
 snd_solo	i386,amd64
 snd_spicds	i386,amd64
-snd_t4dwave	i386,amd64
+snd_t4dwave	i386,amd64,sparc64
 snd_via8233	i386,amd64
 snd_via82c686	i386,amd64
 snd_vibes	i386,amd64
 stg	i386,pc98
-stge	i386,amd64,sparc64
 ti	i386,pc98,amd64,sparc64
 tl	i386,pc98,amd64
 trm	i386,amd64
@@ -161,7 +159,6 @@ ural	i386,amd64
 urio	i386,pc98,amd64,powerpc
 uvisor	i386,pc98,amd64
 uvscom	i386,pc98,amd64
-vge	i386,pc98,amd64
 vpo	i386
 vx	i386,pc98,ia64,amd64
 wb	i386,pc98,amd64
