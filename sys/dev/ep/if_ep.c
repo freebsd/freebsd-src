@@ -815,7 +815,7 @@ read_again:
 #endif
 		EP_FRST(sc, F_RX_FIRST);
 		status = CSR_READ_2(sc, EP_W1_RX_STATUS);
-		if (!status & ERR_RX_INCOMPLETE) {
+		if (!(status & ERR_RX_INCOMPLETE)) {
 			/*
 			 * We see if by now, the packet has completly
 			 * arrived
