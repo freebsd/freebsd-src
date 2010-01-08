@@ -278,7 +278,7 @@ tinderbox:
 # with a reasonable chance of success, regardless of how old your
 # existing system is.
 #
-.if make(universe) || make(tinderbox)
+.if make(universe) || make(universe_kernels) || make(tinderbox)
 TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v
 
 .if defined(DOING_TINDERBOX)
@@ -297,10 +297,6 @@ universe_prologue:
 	rm -f ${FAILFILE}
 .endif
 .for target in ${TARGETS}
-KERNCONFS!=	cd ${.CURDIR}/sys/${target}/conf && \
-		find [A-Z0-9]*[A-Z0-9] -type f -maxdepth 0 \
-		! -name DEFAULTS ! -name LINT
-KERNCONFS:=	${KERNCONFS:S/^NOTES$/LINT/}
 universe: universe_${target}
 .ORDER: universe_prologue universe_${target} universe_epilogue
 universe_${target}:
@@ -320,16 +316,25 @@ universe_${target}:
 	    (echo "${target} 'make LINT' failed," \
 	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))
 .endif
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} TARGET=${target} \
+	    universe_kernels
+	@echo ">> ${target} completed on `LC_ALL=C date`"
+.endfor
+universe_kernels: universe_kernconfs
+BUILD_ARCH!=	uname -p
+TARGET?=	${BUILD_ARCH}
+KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
+		find [A-Z0-9]*[A-Z0-9] -type f -maxdepth 0 \
+		! -name DEFAULTS ! -name NOTES
+universe_kernconfs:
 .for kernel in ${KERNCONFS}
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
 	    ${MAKE} ${JFLAG} buildkernel \
-	    TARGET=${target} \
+	    TARGET=${TARGET} \
 	    KERNCONF=${kernel} \
-	    > _.${target}.${kernel} 2>&1 || \
-	    (echo "${target} ${kernel} kernel failed," \
-	    "check _.${target}.${kernel} for details"| ${MAKEFAIL}))
-.endfor
-	@echo ">> ${target} completed on `LC_ALL=C date`"
+	    > _.${TARGET}.${kernel} 2>&1 || \
+	    (echo "${TARGET} ${kernel} kernel failed," \
+	    "check _.${TARGET}.${kernel} for details"| ${MAKEFAIL}))
 .endfor
 universe: universe_epilogue
 universe_epilogue:
