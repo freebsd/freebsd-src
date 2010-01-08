@@ -32,11 +32,11 @@
  * Definitions for IEEE 802.11 drivers.
  */
 /* NB: portability glue must go first */
-#ifdef __NetBSD__
+#if defined(__NetBSD__)
 #include <net80211/ieee80211_netbsd.h>
-#elif __FreeBSD__
+#elif defined(__FreeBSD__)
 #include <net80211/ieee80211_freebsd.h>
-#elif __linux__
+#elif defined(__linux__)
 #include <net80211/ieee80211_linux.h>
 #else
 #error	"No support for your operating system!"
