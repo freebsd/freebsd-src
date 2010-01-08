@@ -185,8 +185,8 @@ tmpfs_mount(struct mount *mp)
 	ino_t nodes;
 	int error;
 	/* Size counters. */
-	ino_t	nodes_max;
-	size_t	size_max;
+	ino_t		nodes_max;
+	u_quad_t	size_max;
 
 	/* Root node attributes. */
 	uid_t	root_uid;
@@ -239,7 +239,7 @@ tmpfs_mount(struct mount *mp)
 	 * allowed to use, based on the maximum size the user passed in
 	 * the mount structure.  A value of zero is treated as if the
 	 * maximum available space was requested. */
-	if (size_max < PAGE_SIZE || size_max >= SIZE_MAX)
+	if (size_max < PAGE_SIZE || size_max > (SIZE_MAX - PAGE_SIZE))
 		pages = SIZE_MAX;
 	else
 		pages = howmany(size_max, PAGE_SIZE);
