@@ -5,7 +5,7 @@
 # Compare files created by /usr/src/etc/Makefile (or the directory
 # the user specifies) with the currently installed copies.
 
-# Copyright 1998-2009 Douglas Barton
+# Copyright 1998-2010 Douglas Barton
 # DougB@FreeBSD.org
 
 # $FreeBSD$
@@ -511,7 +511,7 @@ CVS_ID_TAG=FreeBSD
 delete_temproot () {
   rm -rf "${TEMPROOT}" 2>/dev/null
   chflags -R 0 "${TEMPROOT}" 2>/dev/null
-  rm -rf "${TEMPROOT}" || exit 1
+  rm -rf "${TEMPROOT}" || { echo "*** Unable to delete ${TEMPROOT}";  exit 1; }
 }
 
 case "${RERUN}" in
@@ -542,7 +542,7 @@ case "${RERUN}" in
           echo ''
           echo "   *** Deleting the old ${TEMPROOT}"
           echo ''
-          delete_temproot || exit 1
+          delete_temproot
           unset TEST_TEMP_ROOT
           ;;
         [tT])
@@ -1144,28 +1144,26 @@ if [ -n "${TEST_FOR_FILES}" ]; then
   echo "*** Files that remain for you to merge by hand:"
   find "${TEMPROOT}" -type f -size +0 | sort
   echo ''
-fi
 
-case "${AUTO_RUN}" in
-'')
-  echo -n "Do you wish to delete what is left of ${TEMPROOT}? [no] "
-  read DEL_TEMPROOT
-
-  case "${DEL_TEMPROOT}" in
-  [yY]*)
-    if delete_temproot; then
-      echo " *** ${TEMPROOT} has been deleted"
-    else
-      echo " *** Unable to delete ${TEMPROOT}"
-    fi
+  case "${AUTO_RUN}" in
+  '')
+    echo -n "Do you wish to delete what is left of ${TEMPROOT}? [no] "
+    read DEL_TEMPROOT
+    case "${DEL_TEMPROOT}" in
+    [yY]*)
+      delete_temproot
+      ;;
+    *)
+      echo " *** ${TEMPROOT} will remain"
+      ;;
+    esac
     ;;
-  *)
-    echo " *** ${TEMPROOT} will remain"
-    ;;
+  *) ;;
   esac
-  ;;
-*) ;;
-esac
+else
+  echo "*** ${TEMPROOT} is empty, deleting"
+  delete_temproot
+fi
 
 case "${AUTO_INSTALLED_FILES}" in
 '') ;;
