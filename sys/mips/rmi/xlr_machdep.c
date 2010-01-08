@@ -385,7 +385,10 @@ platform_start(__register_t a0 __unused,
 	void (*wakeup) (void *, void *, unsigned int);
 
 #endif
+	/* XXX no zeroing of BSS? */
 
+	/* Initialize pcpu stuff */
+	mips_pcpu_init();
 
 	/* XXX FIXME the code below is not 64 bit clean */
 	/* Save boot loader and other stuff from scratch regs */
