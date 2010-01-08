@@ -1573,12 +1573,14 @@ ste_init_rx_list(struct ste_softc *sc)
 			return (error);
 		if (i == (STE_RX_LIST_CNT - 1)) {
 			cd->ste_rx_chain[i].ste_next = &cd->ste_rx_chain[0];
-			ld->ste_rx_list[i].ste_next = ld->ste_rx_list_paddr +
-			    (sizeof(struct ste_desc_onefrag) * 0);
+			ld->ste_rx_list[i].ste_next =
+			    htole32(ld->ste_rx_list_paddr +
+			    (sizeof(struct ste_desc_onefrag) * 0));
 		} else {
 			cd->ste_rx_chain[i].ste_next = &cd->ste_rx_chain[i + 1];
-			ld->ste_rx_list[i].ste_next = ld->ste_rx_list_paddr +
-			    (sizeof(struct ste_desc_onefrag) * (i + 1));
+			ld->ste_rx_list[i].ste_next =
+			    htole32(ld->ste_rx_list_paddr +
+			    (sizeof(struct ste_desc_onefrag) * (i + 1)));
 		}
 	}
 
