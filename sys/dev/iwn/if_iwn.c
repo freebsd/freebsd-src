@@ -3928,7 +3928,7 @@ iwn5000_get_rssi(struct iwn_softc *sc, struct iwn_rx_stat *stat)
 
 	DPRINTF(sc, IWN_DEBUG_RECV, "%s: agc %d rssi %d %d %d "
 	    "result %d\n", __func__, agc,
-	    phy->rssi[0], phy->rssi[2], phy->rssi[4],
+	    phy->rssi[0], phy->rssi[1], phy->rssi[2],
 	    rssi - agc - IWN_RSSI_TO_DBM);
 	return rssi - agc - IWN_RSSI_TO_DBM;
 }
