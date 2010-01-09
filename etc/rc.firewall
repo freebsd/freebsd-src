@@ -220,6 +220,8 @@ case ${firewall_type} in
 		# Allow any link-local multicast traffic
 		${fwcmd} add pass all from fe80::/10 to ff02::/16
 		${fwcmd} add pass all from ${net6} to ff02::/16
+		# Allow DHCPv6
+		${fwcmd} add pass udp from fe80::/10 to me6 546
 	fi
 
 	# Allow TCP through if setup succeeded
