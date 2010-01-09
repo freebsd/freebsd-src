@@ -321,8 +321,8 @@ universe_${target}:
 	@echo ">> ${target} completed on `LC_ALL=C date`"
 .endfor
 universe_kernels: universe_kernconfs
-BUILD_ARCH!=	uname -p
-TARGET?=	${BUILD_ARCH}
+XMACHINE!=	uname -m
+TARGET?=	${XMACHINE}
 KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
 		find [A-Z0-9]*[A-Z0-9] -type f -maxdepth 0 \
 		! -name DEFAULTS ! -name NOTES
