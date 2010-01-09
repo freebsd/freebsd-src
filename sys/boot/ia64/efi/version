@@ -3,6 +3,9 @@ $FreeBSD$
 NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
 file is important.  Make sure the current version number is on line 6.
 
+2.0:	Provide devices based on the block I/O protocol, rather than the
+	simple file services protocol. Use the FreeBSD file system code
+	on top of those devices to access files.
 1.2:	Restructured. Has some user visible differences.
 1.1:	Pass the HCDP table address to the kernel via bootinfo if one
 	is present in the EFI system table.
