@@ -317,7 +317,6 @@ static int _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m, vm_page_t *free);
 static pt_entry_t *pmap_pte_quick(pmap_t pmap, vm_offset_t va);
 static void pmap_pte_release(pt_entry_t *pte);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t *);
-static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
 #ifdef PAE
 static void *pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
 #endif
@@ -332,24 +331,6 @@ CTASSERT(1 << PTESHIFT == sizeof(pt_entry_t));
  * multiple of 4 for a normal kernel, or a multiple of 8 for a PAE.
  */
 CTASSERT(KERNBASE % (1 << 24) == 0);
-
-/*
- * Move the kernel virtual free pointer to the next
- * 4MB.  This is used to help improve performance
- * by using a large (4MB) page for much of the kernel
- * (.text, .data, .bss)
- */
-static vm_offset_t
-pmap_kmem_choose(vm_offset_t addr)
-{
-	vm_offset_t newaddr = addr;
-
-#ifndef DISABLE_PSE
-	if (cpu_feature & CPUID_PSE)
-		newaddr = (addr + PDRMASK) & ~PDRMASK;
-#endif
-	return newaddr;
-}
 
 /*
  *	Bootstrap the system enough to run with virtual memory.
@@ -378,7 +359,6 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	 * in this calculation.
 	 */
 	virtual_avail = (vm_offset_t) KERNBASE + firstaddr;
-	virtual_avail = pmap_kmem_choose(virtual_avail);
 
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
