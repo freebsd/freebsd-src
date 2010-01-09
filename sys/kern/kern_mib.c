@@ -125,7 +125,8 @@ SYSCTL_INT(_kern, KERN_POSIX1, posix1version, CTLFLAG_RD,
     0, _POSIX_VERSION, "Version of POSIX attempting to comply to");
 
 SYSCTL_INT(_kern, KERN_NGROUPS, ngroups, CTLFLAG_RD,
-    0, NGROUPS_MAX, "Maximum number of groups a user can belong to");
+    0, NGROUPS_MAX,
+    "Maximum number of supplemental groups a user can belong to");
 
 SYSCTL_INT(_kern, KERN_JOB_CONTROL, job_control, CTLFLAG_RD,
     0, 1, "Whether job control is available");
