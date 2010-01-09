@@ -5,6 +5,17 @@
 # the check-old and delete-old* targets.
 #
 
+.if ${MK_ACCT} == no
+OLD_FILES+=etc/periodic/daily/310.accounting
+OLD_FILES+=etc/periodic/monthly/200.accounting
+OLD_FILES+=usr/sbin/ac
+OLD_FILES+=usr/sbin/accton
+OLD_FILES+=usr/sbin/sa
+OLD_FILES+=usr/share/man/man8/ac.8.gz
+OLD_FILES+=usr/share/man/man8/accton.8.gz
+OLD_FILES+=usr/share/man/man8/sa.8.gz
+.endif
+
 .if ${MK_ACPI} == no
 OLD_FILES+=usr/sbin/acpiconf
 OLD_FILES+=usr/sbin/acpidb
