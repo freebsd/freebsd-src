@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20100108:
+	Introduce the kernel thread "deadlock resolver" (which can be enabled
+	via the DEADLKRES option, see NOTES for more details) and the
+	sleepq_type() function for sleepqueues.
+
 20091202:
 	The rc.firewall and rc.firewall6 were unified, and
 	rc.firewall6 and rc.d/ip6fw were removed.
