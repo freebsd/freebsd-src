@@ -171,8 +171,10 @@ void		iwn_set_led(struct iwn_softc *, uint8_t, uint8_t, uint8_t);
 int		iwn_set_critical_temp(struct iwn_softc *);
 int		iwn_set_timing(struct iwn_softc *, struct ieee80211_node *);
 void		iwn4965_power_calibration(struct iwn_softc *, int);
-int		iwn4965_set_txpower(struct iwn_softc *, int);
-int		iwn5000_set_txpower(struct iwn_softc *, int);
+int		iwn4965_set_txpower(struct iwn_softc *,
+		    struct ieee80211_channel *, int);
+int		iwn5000_set_txpower(struct iwn_softc *,
+		    struct ieee80211_channel *, int);
 int		iwn4965_get_rssi(struct iwn_softc *, struct iwn_rx_stat *);
 int		iwn5000_get_rssi(struct iwn_softc *, struct iwn_rx_stat *);
 int		iwn_get_noise(const struct iwn_rx_general_stats *);
@@ -3694,13 +3696,16 @@ iwn_set_timing(struct iwn_softc *sc, struct ieee80211_node *ni)
 void
 iwn4965_power_calibration(struct iwn_softc *sc, int temp)
 {
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+
 	/* Adjust TX power if need be (delta >= 3 degC.) */
 	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: temperature %d->%d\n",
 	    __func__, sc->temp, temp);
 	if (abs(temp - sc->temp) >= 3) {
 		/* Record temperature of last calibration. */
 		sc->temp = temp;
-		(void)iwn4965_set_txpower(sc, 1);
+		(void)iwn4965_set_txpower(sc, ic->ic_bsschan, 1);
 	}
 }
 
@@ -3710,7 +3715,8 @@ iwn4965_power_calibration(struct iwn_softc *sc, int temp)
  * the current temperature and the current voltage.
  */
 int
-iwn4965_set_txpower(struct iwn_softc *sc, int async)
+iwn4965_set_txpower(struct iwn_softc *sc, struct ieee80211_channel *ch,
+    int async)
 {
 /* Fixed-point arithmetic division using a n-bit fractional part. */
 #define fdivround(a, b, n)	\
@@ -3723,7 +3729,6 @@ iwn4965_set_txpower(struct iwn_softc *sc, int async)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct iwn_ucode_info *uc = &sc->ucode_info;
-	struct ieee80211_channel *ch;
 	struct iwn4965_cmd_txpower cmd;
 	struct iwn4965_eeprom_chan_samples *chans;
 	int32_t vdiff, tdiff;
@@ -3731,11 +3736,10 @@ iwn4965_set_txpower(struct iwn_softc *sc, int async)
 	const uint8_t *rf_gain, *dsp_gain;
 	uint8_t chan;
 
-	/* Retrieve current channel from last RXON. */
-	chan = sc->rxon.chan;
+	/* Retrieve channel number. */
+	chan = ieee80211_chan2ieee(ic, ch);
 	DPRINTF(sc, IWN_DEBUG_RESET, "setting TX power for channel %d\n",
 	    chan);
-	ch = &ic->ic_channels[chan];
 
 	memset(&cmd, 0, sizeof cmd);
 	cmd.band = IEEE80211_IS_CHAN_5GHZ(ch) ? 0 : 1;
@@ -3863,7 +3867,8 @@ iwn4965_set_txpower(struct iwn_softc *sc, int async)
 }
 
 int
-iwn5000_set_txpower(struct iwn_softc *sc, int async)
+iwn5000_set_txpower(struct iwn_softc *sc, struct ieee80211_channel *ch,
+    int async)
 {
 	struct iwn5000_cmd_txpower cmd;
 
@@ -4519,7 +4524,7 @@ iwn_config(struct iwn_softc *sc)
 	}
 
 	/* Configuration has changed, set TX power accordingly. */
-	error = hal->set_txpower(sc, 0);
+	error = hal->set_txpower(sc, ic->ic_curchan, 0);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not set TX power\n", __func__);
@@ -4765,7 +4770,7 @@ iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 	}
 
 	/* Configuration has changed, set TX power accordingly. */
-	error = hal->set_txpower(sc, 1);
+	error = hal->set_txpower(sc, ni->ni_chan, 1);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not set Tx power, error %d\n", __func__, error);
@@ -4882,7 +4887,7 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 	
 
 	/* Configuration has changed, set TX power accordingly. */
-	error = hal->set_txpower(sc, 1);
+	error = hal->set_txpower(sc, ni->ni_chan, 1);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not set Tx power, error %d\n", __func__, error);
