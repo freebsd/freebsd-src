@@ -39,7 +39,7 @@
 #define VGE_TX_RING_ALIGN	64
 #define VGE_RX_RING_ALIGN	64
 #define VGE_MAXTXSEGS		6
-#define VGE_RX_BUF_ALIGN	sizeof(uint32_t)
+#define VGE_RX_BUF_ALIGN	sizeof(uint64_t)
 
 /*
  * VIA Velocity allows 64bit DMA addressing but high 16bits
@@ -186,9 +186,12 @@ struct vge_softc {
 	int			vge_flags;
 #define	VGE_FLAG_PCIE		0x0001
 #define	VGE_FLAG_MSI		0x0002
+#define	VGE_FLAG_PMCAP		0x0004
+#define	VGE_FLAG_JUMBO		0x0008
 #define	VGE_FLAG_SUSPENDED	0x4000
 #define	VGE_FLAG_LINK		0x8000
 	int			vge_expcap;
+	int			vge_pmcap;
 	int			vge_camidx;
 	int			vge_int_holdoff;
 	int			vge_rx_coal_pkt;
