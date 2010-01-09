@@ -149,7 +149,7 @@ extern	Cell	*call(Node **, int);
 extern	Cell	*copycell(Cell *);
 extern	Cell	*arg(Node **, int);
 extern	Cell	*jump(Node **, int);
-extern	Cell	*getline(Node **, int);
+extern	Cell	*awkgetline(Node **, int);
 extern	Cell	*getnf(Node **, int);
 extern	Cell	*array(Node **, int);
 extern	Cell	*awkdelete(Node **, int);
