@@ -292,7 +292,7 @@ umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2)
 static inline struct umtxq_chain *
 umtxq_getchain(struct umtx_key *key)
 {
-	if (key->type <= TYPE_CV)
+	if (key->type <= TYPE_SEM)
 		return (&umtxq_chains[1][key->hash]);
 	return (&umtxq_chains[0][key->hash]);
 }
