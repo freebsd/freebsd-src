@@ -1,0 +1,22 @@
+# /*
+#  *    This product includes software developed by the University of
+#  *    California, Berkeley and its contributors."
+# */
+# $FreeBSD$
+# 
+files	"../octeon1/files.octeon1"
+
+#
+# 
+#
+cpu     CPU_MIPS4KC
+#device	pci
+#device	ata
+#device	atadisk
+
+#device clock
+#device obio
+#device uart
+
+# Kludge
+options	TARGET_OCTEON
