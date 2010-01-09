@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 1998
+.Dd January 9, 2010
 .Dt FAITHD 8
 .Os
 .Sh NAME
@@ -44,20 +44,18 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility provides IPv6-to-IPv4 TCP relay.
-It must be used on an IPv4/v6 dual stack router.
+utility provides IPv6-to-IPv4 TCP relaying.
+It can only be used on an IPv4/v6 dual stack router.
 .Pp
 When
 .Nm
 receives
 .Tn TCPv6
-traffic,
-.Nm
-will relay the
+traffic, it will relay the
 .Tn TCPv6
 traffic to
 .Tn TCPv4 .
-Destination for relayed
+The destination for the relayed
 .Tn TCPv4
 connection will be determined by the last 4 octets of the original
 .Tn IPv6
@@ -73,14 +71,14 @@ destination address is
 the traffic will be relayed to IPv4 destination
 .Li 10.1.1.1 .
 .Pp
-To use
+To use the
 .Nm
 translation service,
 an IPv6 address prefix must be reserved for mapping IPv4 addresses into.
-Kernel must be properly configured to route all the TCP connection
+The kernel must be properly configured to route all the TCP connections
 toward the reserved IPv6 address prefix into the
 .Xr faith 4
-pseudo interface, by using
+pseudo interface, using the
 .Xr route 8
 command.
 Also,
@@ -91,7 +89,7 @@ to
 .Dv 1 .
 .Pp
 The router must be configured to capture all the TCP traffic
-toward reserved
+for the reserved
 .Tn IPv6
 address prefix, by using
 .Xr route 8
@@ -101,21 +99,20 @@ commands.
 .Pp
 The
 .Nm
-utility needs a special name-to-address translation logic, so that
-hostnames gets resolved into special
+utility needs special name-to-address translation logic, so that
+hostnames get resolved into the special
 .Tn IPv6
 address prefix.
-For small-scale installation, use
-.Xr hosts 5 .
-For large-scale installation, it is useful to have
+For small-scale installations, use
+.Xr hosts 5 ;
+For large-scale installations, it is useful to have
 a DNS server with special address translation support.
 An implementation called
 .Nm totd
-is available
-at
-.Pa http://www.vermicelli.pasta.cs.uit.no/ipv6/software.html .
-Make sure you do not propagate translated DNS records to normal DNS cloud,
-it is highly harmful.
+is available at
+.Pa http://www.vermicelli.pasta.cs.uit.no/software/totd.html .
+Make sure you do not propagate translated DNS records over to normal
+DNS, as it can cause severe problems.
 .Ss Daemon mode
 When
 .Nm
@@ -150,9 +147,9 @@ to
 you can run local daemons on the router.
 The
 .Nm
-utility will invoke local daemon at
+utility will invoke a local daemon at
 .Ar serverpath
-if the destination address is local interface address,
+if the destination address is a local interface address,
 and will perform translation to IPv4 TCP in other cases.
 You can also specify
 .Ar serverargs
@@ -182,7 +179,7 @@ The
 .Nm
 utility includes special support for protocols used by
 .Xr ftp 1 .
-When translating FTP protocol,
+When translating the FTP protocol,
 .Nm
 translates network level addresses in
 .Li PORT/LPRT/EPRT
@@ -191,8 +188,8 @@ and
 commands.
 .Pp
 Inactive sessions will be disconnected in 30 minutes,
-to avoid stale sessions from chewing up resources.
-This may be inappropriate for some of the services
+to prevent stale sessions from chewing up resources.
+This may be inappropriate for some services
 (should this be configurable?).
 .Ss inetd mode
 When
@@ -200,13 +197,13 @@ When
 is invoked via
 .Xr inetd 8 ,
 .Nm
-will handle connection passed from standard input.
+will handle connections passed from standard input.
 If the connection endpoint is in the reserved IPv6 address prefix,
 .Nm
 will relay the connection.
 Otherwise,
 .Nm
-will invoke service-specific daemon like
+will invoke a service-specific daemon like
 .Xr telnetd 8 ,
 by using the command argument passed from
 .Xr inetd 8 .
@@ -219,16 +216,16 @@ For example, if
 .Nm
 is invoked via
 .Xr inetd 8
-on FTP port, it will operate as a FTP relay.
+on the FTP port, it will operate as an FTP relay.
 .Pp
 The operation mode requires special support for
 .Nm
 in
 .Xr inetd 8 .
 .Ss Access control
-To prevent malicious accesses,
+To prevent malicious access,
 .Nm
-implements a simple address-based access control.
+implements simple address-based access control.
 With
 .Pa /etc/faithd.conf
 (or
@@ -239,7 +236,7 @@ specified by
 will avoid relaying unwanted traffic.
 The
 .Pa faithd.conf
-contains directives with the following format:
+configuration file contains directives of the following format:
 .Bl -bullet
 .It
 .Ar src Ns / Ns Ar slen Cm deny Ar dst Ns / Ns Ar dlen
@@ -281,6 +278,7 @@ on error.
 .Sh EXAMPLES
 Before invoking
 .Nm ,
+the
 .Xr faith 4
 interface has to be configured properly.
 .Bd -literal -offset
@@ -334,12 +332,12 @@ ssh     stream  tcp6/faith  nowait  root  faithd  /usr/sbin/sshd -i
 .Ed
 .Pp
 .Xr inetd 8
-will open listening sockets with enabling kernel TCP relay support.
-Whenever connection comes in,
+will open listening sockets with kernel TCP relay support enabled.
+Whenever a connection comes in,
 .Nm
 will be invoked by
 .Xr inetd 8 .
-If it the connection endpoint is in the reserved IPv6 address prefix.
+If the connection endpoint is in the reserved IPv6 address prefix.
 The
 .Nm
 utility will relay the connection.
@@ -377,12 +375,12 @@ setting.
 .Sh HISTORY
 The
 .Nm
-utility first appeared in WIDE Hydrangea IPv6 protocol stack kit.
+utility first appeared in the WIDE Hydrangea IPv6 protocol stack kit.
 .\"
 .Pp
 IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
 was initially integrated into
-.Fx 4.0
+.Fx 4.0 .
 .Sh SECURITY CONSIDERATIONS
 It is very insecure to use IP-address based authentication, for connections relayed by
 .Nm ,
@@ -392,16 +390,15 @@ Administrators are advised to limit accesses to
 .Nm
 using
 .Pa faithd.conf ,
-or by using IPv6 packet filters.
-It is to protect
+or by using IPv6 packet filters, to protect the
 .Nm
-service from malicious parties and avoid theft of service/bandwidth.
-IPv6 destination address can be limited by
-carefully configuring routing entries that points to
+service from malicious parties, and to avoid theft of service/bandwidth.
+IPv6 destination addresses can be limited by
+carefully configuring routing entries that point to
 .Xr faith 4 ,
 using
 .Xr route 8 .
-IPv6 source address needs to be filtered by using packet filters.
-Documents listed in
+The IPv6 source address needs to be filtered using packet filters.
+The documents listed in
 .Sx SEE ALSO
-have more discussions on this topic.
+have more information on this topic.
