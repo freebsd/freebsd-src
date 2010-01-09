@@ -59,12 +59,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define TYPE_SIMPLE_WAIT	0
-#define TYPE_CV			1
-#define TYPE_SIMPLE_LOCK	2
-#define TYPE_NORMAL_UMUTEX	3
-#define TYPE_PI_UMUTEX		4
-#define TYPE_PP_UMUTEX		5
-#define TYPE_RWLOCK		6
+#define TYPE_CV			(TYPE_SIMPLE_WAIT+1)
+#define TYPE_SEM		(TYPE_CV+1)
+#define TYPE_SIMPLE_LOCK	(TYPE_SEM+1)
+#define TYPE_NORMAL_UMUTEX	(TYPE_SIMPLE_LOCK+1)
+#define TYPE_PI_UMUTEX		(TYPE_NORMAL_UMUTEX+1)
+#define TYPE_PP_UMUTEX		(TYPE_PI_UMUTEX+1)
+#define TYPE_RWLOCK		(TYPE_PP_UMUTEX+1)
 
 #define _UMUTEX_TRY		1
 #define _UMUTEX_WAIT		2
@@ -2770,7 +2771,7 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
 
 	uq = td->td_umtxq;
 	flags = fuword32(&sem->_flags);
-	error = umtx_key_get(sem, TYPE_CV, GET_SHARE(flags), &uq->uq_key);
+	error = umtx_key_get(sem, TYPE_SEM, GET_SHARE(flags), &uq->uq_key);
 	if (error != 0)
 		return (error);
 	umtxq_lock(&uq->uq_key);
@@ -2845,7 +2846,7 @@ do_sem_wake(struct thread *td, struct _usem *sem)
 	uint32_t flags;
 
 	flags = fuword32(&sem->_flags);
-	if ((error = umtx_key_get(sem, TYPE_CV, GET_SHARE(flags), &key)) != 0)
+	if ((error = umtx_key_get(sem, TYPE_SEM, GET_SHARE(flags), &key)) != 0)
 		return (error);	
 	umtxq_lock(&key);
 	umtxq_busy(&key);
