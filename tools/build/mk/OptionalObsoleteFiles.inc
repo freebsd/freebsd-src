@@ -27,6 +27,29 @@ OLD_FILES+=usr/share/man/man8/acpidump.8.gz
 OLD_FILES+=usr/share/man/man8/iasl.8.gz
 .endif
 
+.if ${MK_AMD} == no
+OLD_FILES+=etc/amd.map
+OLD_FILES+=usr/bin/pawd
+OLD_FILES+=usr/sbin/amd
+OLD_FILES+=usr/sbin/amq
+OLD_FILES+=usr/sbin/fixmount
+OLD_FILES+=usr/sbin/fsinfo
+OLD_FILES+=usr/sbin/hlfsd
+OLD_FILES+=usr/sbin/mk-amd-map
+OLD_FILES+=usr/sbin/wire-test
+OLD_FILES+=usr/share/examples/etc/amd.map
+OLD_FILES+=usr/share/info/am-utils.info.gz
+OLD_FILES+=usr/share/man/man1/pawd.1.gz
+OLD_FILES+=usr/share/man/man5/amd.conf.5.gz
+OLD_FILES+=usr/share/man/man8/amd.8.gz
+OLD_FILES+=usr/share/man/man8/amq.8.gz
+OLD_FILES+=usr/share/man/man8/fixmount.8.gz
+OLD_FILES+=usr/share/man/man8/fsinfo.8.gz
+OLD_FILES+=usr/share/man/man8/hlfsd.8.gz
+OLD_FILES+=usr/share/man/man8/mk-amd-map.8.gz
+OLD_FILES+=usr/share/man/man8/wire-test.8.gz
+.endif
+
 #.if ${MK_ATM} == no
 # to be filled in
 #.endif
