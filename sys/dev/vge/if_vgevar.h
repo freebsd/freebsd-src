@@ -65,12 +65,6 @@
 #define VGE_RXBYTES(x)		(((x) & VGE_RDSTS_BUFSIZ) >> 16)
 #define VGE_MIN_FRAMELEN	60
 
-#ifdef VGE_FIXUP_RX
-#define VGE_ETHER_ALIGN		sizeof(uint32_t)
-#else
-#define VGE_ETHER_ALIGN		0
-#endif
-
 struct vge_type {
 	uint16_t		vge_vid;
 	uint16_t		vge_did;
@@ -173,12 +167,12 @@ struct vge_softc {
 	struct resource		*vge_irq;
 	void			*vge_intrhand;
 	device_t		vge_miibus;
-	uint8_t			vge_type;
 	int			vge_if_flags;
 	int			vge_phyaddr;
 	int			vge_flags;
 #define	VGE_FLAG_PCIE		0x0001
 #define	VGE_FLAG_MSI		0x0002
+#define	VGE_FLAG_SUSPENDED	0x4000
 #define	VGE_FLAG_LINK		0x8000
 	int			vge_expcap;
 	int			vge_camidx;
@@ -189,8 +183,6 @@ struct vge_softc {
 	struct vge_chain_data	vge_cdata;
 	struct vge_ring_data	vge_rdata;
 	struct vge_hw_stats	vge_stats;
-
-	int			suspended;	/* 0 = normal  1 = suspended */
 };
 
 #define	VGE_LOCK(_sc)		mtx_lock(&(_sc)->vge_mtx)
