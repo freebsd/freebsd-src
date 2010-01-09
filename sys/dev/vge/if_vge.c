@@ -175,6 +175,7 @@ static int	vge_ifmedia_upd(struct ifnet *);
 static void	vge_init(void *);
 static void	vge_init_locked(struct vge_softc *);
 static void	vge_intr(void *);
+static void	vge_intr_holdoff(struct vge_softc *);
 static int	vge_ioctl(struct ifnet *, u_long, caddr_t);
 static void	vge_link_statchg(void *);
 static int	vge_miibus_readreg(device_t, int, int);
@@ -1634,15 +1635,6 @@ vge_txeof(struct vge_softc *sc)
 	sc->vge_cdata.vge_tx_considx = cons;
 	if (sc->vge_cdata.vge_tx_cnt == 0)
 		sc->vge_timer = 0;
-	else {
-		/*
-		 * If not all descriptors have been released reaped yet,
-		 * reload the timer so that we will eventually get another
-		 * interrupt that will cause us to re-enter this routine.
-		 * This is done in case the transmitter has gone idle.
-		 */
-		CSR_WRITE_1(sc, VGE_CRS1, VGE_CR1_TIMER0_ENABLE);
-	}
 }
 
 static void
@@ -1747,30 +1739,21 @@ vge_intr(void *arg)
 
 	/* Disable interrupts */
 	CSR_WRITE_1(sc, VGE_CRC3, VGE_CR3_INT_GMSK);
-
-	for (;;) {
-
-		status = CSR_READ_4(sc, VGE_ISR);
-		/* If the card has gone away the read returns 0xffff. */
-		if (status == 0xFFFFFFFF)
-			break;
-
-		if (status)
-			CSR_WRITE_4(sc, VGE_ISR, status);
-
-		if ((status & VGE_INTRS) == 0)
-			break;
-
+	status = CSR_READ_4(sc, VGE_ISR);
+	CSR_WRITE_4(sc, VGE_ISR, status | VGE_ISR_HOLDOFF_RELOAD);
+	/* If the card has gone away the read returns 0xffff. */
+	if (status == 0xFFFFFFFF || (status & VGE_INTRS) == 0)
+		goto done;
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 		if (status & (VGE_ISR_RXOK|VGE_ISR_RXOK_HIPRIO))
 			vge_rxeof(sc, VGE_RX_DESC_CNT);
-
 		if (status & (VGE_ISR_RXOFLOW|VGE_ISR_RXNODESC)) {
 			vge_rxeof(sc, VGE_RX_DESC_CNT);
 			CSR_WRITE_1(sc, VGE_RXQCSRS, VGE_RXQCSR_RUN);
 			CSR_WRITE_1(sc, VGE_RXQCSRS, VGE_RXQCSR_WAK);
 		}
 
-		if (status & (VGE_ISR_TXOK0|VGE_ISR_TIMER0))
+		if (status & (VGE_ISR_TXOK0|VGE_ISR_TXOK_HIPRIO))
 			vge_txeof(sc);
 
 		if (status & (VGE_ISR_TXDMA_STALL|VGE_ISR_RXDMA_STALL)) {
@@ -1781,13 +1764,14 @@ vge_intr(void *arg)
 		if (status & VGE_ISR_LINKSTS)
 			vge_link_statchg(sc);
 	}
+done:
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+		/* Re-enable interrupts */
+		CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
 
-	/* Re-enable interrupts */
-	CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
-
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		vge_start_locked(ifp);
-
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			vge_start_locked(ifp);
+	}
 	VGE_UNLOCK(sc);
 }
 
@@ -1986,17 +1970,6 @@ vge_start_locked(struct ifnet *ifp)
 		/* Issue a transmit command. */
 		CSR_WRITE_2(sc, VGE_TXQCSRS, VGE_TXQCSR_WAK0);
 		/*
-		 * Use the countdown timer for interrupt moderation.
-		 * 'TX done' interrupts are disabled. Instead, we reset the
-		 * countdown timer, which will begin counting until it hits
-		 * the value in the SSTIMER register, and then trigger an
-		 * interrupt. Each time we set the TIMER0_ENABLE bit, the
-		 * the timer count is reloaded. Only when the transmitter
-		 * is idle will the timer hit 0 and an interrupt fire.
-		 */
-		CSR_WRITE_1(sc, VGE_CRS1, VGE_CR1_TIMER0_ENABLE);
-
-		/*
 		 * Set a timeout in case the chip goes out to lunch.
 		 */
 		sc->vge_timer = 5;
@@ -2085,6 +2058,9 @@ vge_init_locked(struct vge_softc *sc)
 	CSR_WRITE_2(sc, VGE_RXDESCNUM, VGE_RX_DESC_CNT - 1);
 	CSR_WRITE_2(sc, VGE_RXDESC_RESIDUECNT, VGE_RX_DESC_CNT);
 
+	/* Configure interrupt moderation. */
+	vge_intr_holdoff(sc);
+
 	/* Enable and wake up the RX descriptor queue */
 	CSR_WRITE_1(sc, VGE_RXQCSRS, VGE_RXQCSR_RUN);
 	CSR_WRITE_1(sc, VGE_RXQCSRS, VGE_RXQCSR_WAK);
@@ -2110,42 +2086,6 @@ vge_init_locked(struct vge_softc *sc)
 	CSR_WRITE_1(sc, VGE_CRS1, VGE_CR1_NOPOLL);
 	CSR_WRITE_1(sc, VGE_CRS0,
 	    VGE_CR0_TX_ENABLE|VGE_CR0_RX_ENABLE|VGE_CR0_START);
-
-	/*
-	 * Configure one-shot timer for microsecond
-	 * resolution and load it for 500 usecs.
-	 */
-	CSR_SETBIT_1(sc, VGE_DIAGCTL, VGE_DIAGCTL_TIMER0_RES);
-	CSR_WRITE_2(sc, VGE_SSTIMER, 400);
-
-	/*
-	 * Configure interrupt moderation for receive. Enable
-	 * the holdoff counter and load it, and set the RX
-	 * suppression count to the number of descriptors we
-	 * want to allow before triggering an interrupt.
-	 * The holdoff timer is in units of 20 usecs.
-	 */
-
-#ifdef notyet
-	CSR_WRITE_1(sc, VGE_INTCTL1, VGE_INTCTL_TXINTSUP_DISABLE);
-	/* Select the interrupt holdoff timer page. */
-	CSR_CLRBIT_1(sc, VGE_CAMCTL, VGE_CAMCTL_PAGESEL);
-	CSR_SETBIT_1(sc, VGE_CAMCTL, VGE_PAGESEL_INTHLDOFF);
-	CSR_WRITE_1(sc, VGE_INTHOLDOFF, 10); /* ~200 usecs */
-
-	/* Enable use of the holdoff timer. */
-	CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_HOLDOFF);
-	CSR_WRITE_1(sc, VGE_INTCTL1, VGE_INTCTL_SC_RELOAD);
-
-	/* Select the RX suppression threshold page. */
-	CSR_CLRBIT_1(sc, VGE_CAMCTL, VGE_CAMCTL_PAGESEL);
-	CSR_SETBIT_1(sc, VGE_CAMCTL, VGE_PAGESEL_RXSUPPTHR);
-	CSR_WRITE_1(sc, VGE_RXSUPPTHR, 64); /* interrupt after 64 packets */
-
-	/* Restore the page select bits. */
-	CSR_CLRBIT_1(sc, VGE_CAMCTL, VGE_CAMCTL_PAGESEL);
-	CSR_SETBIT_1(sc, VGE_CAMCTL, VGE_PAGESEL_MAR);
-#endif
 
 #ifdef DEVICE_POLLING
 	/*
@@ -2495,6 +2435,25 @@ vge_sysctl_node(struct vge_softc *sc)
 	stats = &sc->vge_stats;
 	ctx = device_get_sysctl_ctx(sc->vge_dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->vge_dev));
+
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "int_holdoff",
+	    CTLFLAG_RW, &sc->vge_int_holdoff, 0, "interrupt holdoff");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rx_coal_pkt",
+	    CTLFLAG_RW, &sc->vge_rx_coal_pkt, 0, "rx coalescing packet");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "tx_coal_pkt",
+	    CTLFLAG_RW, &sc->vge_tx_coal_pkt, 0, "tx coalescing packet");
+
+	/* Pull in device tunables. */
+	sc->vge_int_holdoff = VGE_INT_HOLDOFF_DEFAULT;
+	resource_int_value(device_get_name(sc->vge_dev),
+	    device_get_unit(sc->vge_dev), "int_holdoff", &sc->vge_int_holdoff);
+	sc->vge_rx_coal_pkt = VGE_RX_COAL_PKT_DEFAULT;
+	resource_int_value(device_get_name(sc->vge_dev),
+	    device_get_unit(sc->vge_dev), "rx_coal_pkt", &sc->vge_rx_coal_pkt);
+	sc->vge_tx_coal_pkt = VGE_TX_COAL_PKT_DEFAULT;
+	resource_int_value(device_get_name(sc->vge_dev),
+	    device_get_unit(sc->vge_dev), "tx_coal_pkt", &sc->vge_tx_coal_pkt);
+
 	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
 	    NULL, "VGE statistics");
 	parent = SYSCTL_CHILDREN(tree);
@@ -2699,4 +2658,52 @@ reset_idx:
 	    mib[VGE_MIB_RX_NOBUFS] +
 	    mib[VGE_MIB_RX_SYMERRS] +
 	    mib[VGE_MIB_RX_LENERRS];
+}
+
+static void
+vge_intr_holdoff(struct vge_softc *sc)
+{
+	uint8_t intctl;
+
+	VGE_LOCK_ASSERT(sc);
+
+	/*
+	 * Set Tx interrupt supression threshold.
+	 * It's possible to use single-shot timer in VGE_CRS1 register
+	 * in Tx path such that driver can remove most of Tx completion
+	 * interrupts. However this requires additional access to
+	 * VGE_CRS1 register to reload the timer in addintion to
+	 * activating Tx kick command. Another downside is we don't know
+	 * what single-shot timer value should be used in advance so
+	 * reclaiming transmitted mbufs could be delayed a lot which in
+	 * turn slows down Tx operation.
+	 */
+	CSR_WRITE_1(sc, VGE_CAMCTL, VGE_PAGESEL_TXSUPPTHR);
+	CSR_WRITE_1(sc, VGE_TXSUPPTHR, sc->vge_tx_coal_pkt);
+
+	/* Set Rx interrupt suppresion threshold. */
+	CSR_WRITE_1(sc, VGE_CAMCTL, VGE_PAGESEL_RXSUPPTHR);
+	CSR_WRITE_1(sc, VGE_RXSUPPTHR, sc->vge_rx_coal_pkt);
+
+	intctl = CSR_READ_1(sc, VGE_INTCTL1);
+	intctl &= ~VGE_INTCTL_SC_RELOAD;
+	intctl |= VGE_INTCTL_HC_RELOAD;
+	if (sc->vge_tx_coal_pkt <= 0)
+		intctl |= VGE_INTCTL_TXINTSUP_DISABLE;
+	else
+		intctl &= ~VGE_INTCTL_TXINTSUP_DISABLE;
+	if (sc->vge_rx_coal_pkt <= 0)
+		intctl |= VGE_INTCTL_RXINTSUP_DISABLE;
+	else
+		intctl &= ~VGE_INTCTL_RXINTSUP_DISABLE;
+	CSR_WRITE_1(sc, VGE_INTCTL1, intctl);
+	CSR_WRITE_1(sc, VGE_CRC3, VGE_CR3_INT_HOLDOFF);
+	if (sc->vge_int_holdoff > 0) {
+		/* Set interrupt holdoff timer. */
+		CSR_WRITE_1(sc, VGE_CAMCTL, VGE_PAGESEL_INTHLDOFF);
+		CSR_WRITE_1(sc, VGE_INTHOLDOFF,
+		    VGE_INT_HOLDOFF_USEC(sc->vge_int_holdoff));
+		/* Enable holdoff timer. */
+		CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_HOLDOFF);
+	}
 }

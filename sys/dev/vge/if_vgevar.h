@@ -65,6 +65,20 @@
 #define VGE_RXBYTES(x)		(((x) & VGE_RDSTS_BUFSIZ) >> 16)
 #define VGE_MIN_FRAMELEN	60
 
+#define	VGE_INT_HOLDOFF_TICK	20
+#define	VGE_INT_HOLDOFF_USEC(x)	((x) / VGE_INT_HOLDOFF_TICK)
+#define	VGE_INT_HOLDOFF_MIN	0
+#define	VGE_INT_HOLDOFF_MAX	(255 * VGE_INT_HOLDOFF_TICK)
+#define	VGE_INT_HOLDOFF_DEFAULT	150
+
+#define	VGE_RX_COAL_PKT_MIN	1
+#define	VGE_RX_COAL_PKT_MAX	VGE_RX_DESC_CNT
+#define	VGE_RX_COAL_PKT_DEFAULT	64
+
+#define	VGE_TX_COAL_PKT_MIN	1
+#define	VGE_TX_COAL_PKT_MAX	VGE_TX_DESC_CNT
+#define	VGE_TX_COAL_PKT_DEFAULT	128
+
 struct vge_type {
 	uint16_t		vge_vid;
 	uint16_t		vge_did;
@@ -176,6 +190,9 @@ struct vge_softc {
 #define	VGE_FLAG_LINK		0x8000
 	int			vge_expcap;
 	int			vge_camidx;
+	int			vge_int_holdoff;
+	int			vge_rx_coal_pkt;
+	int			vge_tx_coal_pkt;
 	struct mtx		vge_mtx;
 	struct callout		vge_watchdog;
 	int			vge_timer;
