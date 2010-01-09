@@ -58,6 +58,19 @@ OLD_FILES+=usr/share/man/man8/amd64/apm.8.gz
 OLD_FILES+=usr/share/man/man8/amd64/apmconf.8.gz
 .endif
 
+.if ${MK_AT} == no
+OLD_FILES+=usr/bin/at
+OLD_FILES+=usr/bin/atq
+OLD_FILES+=usr/bin/atrm
+OLD_FILES+=usr/bin/batch
+OLD_FILES+=usr/libexec/atrun
+OLD_FILES+=usr/share/man/man1/at.1.gz
+OLD_FILES+=usr/share/man/man1/atq.1.gz
+OLD_FILES+=usr/share/man/man1/atrm.1.gz
+OLD_FILES+=usr/share/man/man1/batch.1.gz
+OLD_FILES+=usr/share/man/man8/atrun.8.gz
+.endif
+
 #.if ${MK_ATM} == no
 # to be filled in
 #.endif
