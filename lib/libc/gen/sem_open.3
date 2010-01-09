@@ -58,6 +58,12 @@ The returned semaphore may be used in subsequent calls to
 and
 .Fn sem_close .
 .Pp
+This implementation places strict requirements on the value of
+.Fa name :
+it must begin with a slash
+.Pq Ql / ,
+contain no other slash characters.
+.Pp
 The following bits may be set in the
 .Fa oflag
 argument:
@@ -217,11 +223,3 @@ functions conform to
 .Sh HISTORY
 Support for named semaphores first appeared in
 .Fx 5.0 .
-.Sh BUGS
-This implementation places strict requirements on the value of
-.Fa name :
-it must begin with a slash
-.Pq Ql / ,
-contain no other slash characters,
-and be less than 14 characters in length
-not including the terminating null character.
