@@ -86,8 +86,7 @@ INLINE_LIMIT?=	15000
 .endif
 
 #
-# For MIPS we also tell gcc to use floating point emulation and 
-# disable MIPS DSP ASE Instruction set.
+# For MIPS we also tell gcc to use floating point emulation
 #
 .if ${MACHINE_ARCH} == "mips"
 CFLAGS+=	-msoft-float
