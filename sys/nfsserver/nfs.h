@@ -240,6 +240,7 @@ extern int nfs_debug;
 
 #endif
 
+void	nfs_realign(struct mbuf **);
 struct mbuf *nfs_rephead(int, struct nfsrv_descript *, int, struct mbuf **,
 	    caddr_t *);
 void	nfsm_srvfattr(struct nfsrv_descript *, struct vattr *,
