@@ -155,8 +155,10 @@ MLINKS+=	tree.3 RB_EMPTY.3 \
 
 .if ${MK_LIBTHR} != "no"
 PTHREAD_MAN=	pthread.3 \
+		pthread_affinity_np.3 \
 		pthread_atfork.3 \
 		pthread_attr.3 \
+		pthread_attr_affinity_np.3 \
 		pthread_attr_get_np.3 \
 		pthread_attr_setcreatesuspend_np.3 \
 		pthread_barrierattr.3 \
@@ -218,7 +220,9 @@ PTHREAD_MAN=	pthread.3 \
 		pthread_testcancel.3 \
 		pthread_yield.3
 
-PTHREAD_MLINKS=	pthread_attr.3 pthread_attr_destroy.3 \
+PTHREAD_MLINKS=	pthread_affinity_np.3 pthread_getaffinity_np.3 \
+		pthread_affinity_np.3 pthread_setaffinity_np.3
+PTHREAD_MLINKS+=pthread_attr.3 pthread_attr_destroy.3 \
 		pthread_attr.3 pthread_attr_getdetachstate.3 \
 		pthread_attr.3 pthread_attr_getguardsize.3 \
 		pthread_attr.3 pthread_attr_getinheritsched.3 \
@@ -238,6 +242,8 @@ PTHREAD_MLINKS=	pthread_attr.3 pthread_attr_destroy.3 \
 		pthread_attr.3 pthread_attr_setstack.3 \
 		pthread_attr.3 pthread_attr_setstackaddr.3 \
 		pthread_attr.3 pthread_attr_setstacksize.3
+PTHREAD_MLINKS+=pthread_attr_affinity_np.3 pthread_attr_getaffinity_np.3 \
+		pthread_attr_affinity_np.3 pthread_attr_setaffinity_np.3
 PTHREAD_MLINKS+=pthread_barrierattr.3 pthread_barrierattr_destroy.3 \
 		pthread_barrierattr.3 pthread_barrierattr_getpshared.3 \
 		pthread_barrierattr.3 pthread_barrierattr_init.3 \
