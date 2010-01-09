@@ -241,7 +241,7 @@ platform_start(__register_t a0, __register_t a1, __register_t a2,
 	kernend = round_page((vm_offset_t)&end);
 
 	/* Initialize pcpu stuff */
-	mips_pcpu_init();
+	mips_pcpu0_init();
 
 #ifdef CFE
 	/*

@@ -155,7 +155,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
 
 	/* Initialize pcpu stuff */
-	mips_pcpu_init();
+	mips_pcpu0_init();
 
 	cninit();
 	mips_init();

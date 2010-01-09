@@ -256,7 +256,7 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock, CTLFLAG_RW,
  * Initialize per cpu data structures, include curthread.
  */
 void
-mips_pcpu_init()
+mips_pcpu0_init()
 {
 	/* Initialize pcpu info of cpu-zero */
 #ifdef SMP
