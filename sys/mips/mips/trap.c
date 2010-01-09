@@ -1091,7 +1091,7 @@ MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
 	case OP_J:
 	case OP_JAL:
 		retAddr = (inst.JType.target << 2) |
-		    ((unsigned)instPC & 0xF0000000);
+		    ((unsigned)(instPC + 4) & 0xF0000000);
 		break;
 
 	case OP_BEQ:
