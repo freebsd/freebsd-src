@@ -135,9 +135,10 @@ OLD_FILES+=usr/share/man/man8/audit.8.gz
 OLD_FILES+=usr/share/man/man8/auditd.8.gz
 .endif
 
-#.if ${MK_AUTHPF} == no
-# to be filled in
-#.endif
+.if ${MK_AUTHPF} == no
+OLD_FILES+=usr/sbin/authpf
+OLD_FILES+=usr/share/man/man8/authpf.8.gz
+.endif
 
 .if ${MK_BIND} == no
 OLD_FILES+=usr/bin/dig
