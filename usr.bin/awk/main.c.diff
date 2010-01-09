@@ -2,12 +2,9 @@ $FreeBSD$
 
 Index: main.c
 ===================================================================
-RCS file: /home/ncvs/src/contrib/one-true-awk/main.c,v
-retrieving revision 1.1.1.10
-diff -u -p -r1.1.1.10 main.c
---- main.c	16 May 2005 19:11:31 -0000	1.1.1.10
-+++ main.c	15 Sep 2006 13:21:30 -0000
-@@ -22,7 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE
+--- main.c	(revision 201951)
++++ main.c	(working copy)
+@@ -22,7 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PE
  THIS SOFTWARE.
  ****************************************************************/
  
@@ -24,7 +21,7 @@ diff -u -p -r1.1.1.10 main.c
  	setlocale(LC_NUMERIC, "C"); /* for parsing cmdline & prog */
  	cmdname = argv[0];
  	if (argc == 1) {
-@@ -79,13 +80,18 @@ int main(int argc, char *argv[])
+@@ -86,13 +87,18 @@ int main(int argc, char *argv[])
  				safe = 1;
  			break;
  		case 'f':	/* next argument is program filename */
@@ -50,7 +47,7 @@ diff -u -p -r1.1.1.10 main.c
  			break;
  		case 'F':	/* set field separator */
  			if (argv[1][2] != 0) {	/* arg is -Fsomething */
-@@ -104,8 +110,14 @@ int main(int argc, char *argv[])
+@@ -111,8 +117,14 @@ int main(int argc, char *argv[])
  				WARNING("field separator FS is empty");
  			break;
  		case 'v':	/* -v a=1 to be done NOW.  one -v for each */
@@ -65,5 +62,5 @@ diff -u -p -r1.1.1.10 main.c
 +					setclvar(argv[1]);
 +			}
  			break;
- 		case 'm':	/* more memory: -mr=record, -mf=fields */
- 				/* no longer supported */
+ 		case 'd':
+ 			dbg = atoi(&argv[1][2]);
