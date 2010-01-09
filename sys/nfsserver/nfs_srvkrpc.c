@@ -187,19 +187,18 @@ nfssvc_nfsserver(struct thread *td, struct nfssvc_args *uap)
 		}
 		error = nfssvc_addsock(fp, td);
 		fdrop(fp, td);
-	} else if (uap->flag & NFSSVC_OLDNFSD) {
+	} else if (uap->flag & NFSSVC_OLDNFSD)
 		error = nfssvc_nfsd(td, NULL);
-	} else if (uap->flag & NFSSVC_NFSD) {
-		if (!uap->argp) 
+	else if (uap->flag & NFSSVC_NFSD) {
+		if (!uap->argp)
 			return (EINVAL);
 		error = copyin(uap->argp, (caddr_t)&nfsdarg,
 		    sizeof(nfsdarg));
 		if (error)
 			return (error);
 		error = nfssvc_nfsd(td, &nfsdarg);
-	} else {
+	} else
 		error = ENXIO;
-	}
 	return (error);
 }
 
@@ -447,9 +446,8 @@ nfssvc_addsock(struct file *fp, struct thread *td)
 
 	siz = sb_max_adj;
 	error = soreserve(so, siz, siz);
-	if (error) {
+	if (error)
 		return (error);
-	}
 
 	/*
 	 * Steal the socket from userland so that it doesn't close
@@ -471,7 +469,7 @@ nfssvc_addsock(struct file *fp, struct thread *td)
 }
 
 /*
- * Called by nfssvc() for nfsds. Just loops around servicing rpc requests
+ * Called by nfssvc() for nfsds.  Just loops around servicing rpc requests
  * until it is killed by a signal.
  */
 static int
@@ -496,9 +494,9 @@ nfssvc_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 #endif
 
 	/*
-	 * Only the first nfsd actually does any work. The RPC code
-	 * adds threads to it as needed. Any extra processes offered
-	 * by nfsd just exit. If nfsd is new enough, it will call us
+	 * Only the first nfsd actually does any work.  The RPC code
+	 * adds threads to it as needed.  Any extra processes offered
+	 * by nfsd just exit.  If nfsd is new enough, it will call us
 	 * once with a structure that specifies how many threads to
 	 * use.
 	 */
@@ -522,7 +520,7 @@ nfssvc_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 			nfsrv_pool->sp_minthreads = 4;
 			nfsrv_pool->sp_maxthreads = 4;
 		}
-			
+
 		svc_run(nfsrv_pool);
 
 #ifdef KGSSAPI
@@ -541,7 +539,7 @@ nfssvc_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 
 /*
  * Size the NFS server's duplicate request cache at 1/2 the
- * nmbclusters, floating within a (64, 2048) range. This is to
+ * nmbclusters, floating within a (64, 2048) range.  This is to
  * prevent all mbuf clusters being tied up in the NFS dupreq
  * cache for small values of nmbclusters.
  */
