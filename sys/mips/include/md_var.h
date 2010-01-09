@@ -66,6 +66,7 @@ int	is_physical_memory(vm_offset_t addr);
 void	mips_vector_init(void);
 void	cpu_identify(void);
 void	mips_cpu_init(void);
+void	mips_pcpu0_init(void);
 void	mips_proc0_init(void);
 
 /* Platform call-downs. */

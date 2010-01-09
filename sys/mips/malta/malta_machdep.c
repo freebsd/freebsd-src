@@ -294,6 +294,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	kernend = round_page((vm_offset_t)&end);
 	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
 
+	mips_pcpu0_init();
 	platform_counter_freq = malta_cpu_freq();
 	mips_timer_early_init(platform_counter_freq);
 
