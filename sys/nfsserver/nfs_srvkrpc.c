@@ -266,7 +266,7 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, int err,
  *	not occur with NFS/UDP and is supposed to only occassionally occur
  *	with TCP.  Use vfs.nfs.realign_count and realign_test to check this.
  */
-static void
+void
 nfs_realign(struct mbuf **pm)	/* XXX COMMON */
 {
 	struct mbuf *m;
