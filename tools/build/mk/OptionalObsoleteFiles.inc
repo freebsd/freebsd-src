@@ -71,9 +71,58 @@ OLD_FILES+=usr/share/man/man1/batch.1.gz
 OLD_FILES+=usr/share/man/man8/atrun.8.gz
 .endif
 
-#.if ${MK_ATM} == no
-# to be filled in
-#.endif
+.if ${MK_ATM} == no
+OLD_FILES+=rescue/atmconfig
+OLD_FILES+=sbin/atmconfig
+OLD_FILES+=usr/bin/sscop
+OLD_FILES+=usr/include/bsnmp/snmp_atm.h
+OLD_FILES+=usr/include/netnatm/addr.h
+OLD_FILES+=usr/include/netnatm/api/atmapi.h
+OLD_FILES+=usr/include/netnatm/api/ccatm.h
+OLD_FILES+=usr/include/netnatm/api/unisap.h
+OLD_FILES+=usr/include/netnatm/msg/uni_config.h
+OLD_FILES+=usr/include/netnatm/msg/uni_hdr.h
+OLD_FILES+=usr/include/netnatm/msg/uni_ie.h
+OLD_FILES+=usr/include/netnatm/msg/uni_msg.h
+OLD_FILES+=usr/include/netnatm/msg/unimsglib.h
+OLD_FILES+=usr/include/netnatm/msg/uniprint.h
+OLD_FILES+=usr/include/netnatm/msg/unistruct.h
+OLD_FILES+=usr/include/netnatm/saal/sscfu.h
+OLD_FILES+=usr/include/netnatm/saal/sscfudef.h
+OLD_FILES+=usr/include/netnatm/saal/sscop.h
+OLD_FILES+=usr/include/netnatm/saal/sscopdef.h
+OLD_FILES+=usr/include/netnatm/sig/uni.h
+OLD_FILES+=usr/include/netnatm/sig/unidef.h
+OLD_FILES+=usr/include/netnatm/sig/unisig.h
+OLD_FILES+=usr/include/netnatm/unimsg.h
+OLD_FILES+=usr/lib/libngatm.a
+OLD_FILES+=usr/lib/libngatm.so
+OLD_LIBS+=usr/lib/libngatm.so.4
+OLD_FILES+=usr/lib/libngatm_p.a
+OLD_FILES+=usr/lib/snmp_atm.so
+OLD_LIBS+=usr/lib/snmp_atm.so.6
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libngatm.a
+OLD_FILES+=usr/lib32/libngatm.so
+OLD_LIBS+=usr/lib32/libngatm.so.4
+OLD_FILES+=usr/lib32/libngatm_p.a
+.endif
+OLD_FILES+=usr/share/doc/atm/atmconfig.help
+OLD_FILES+=usr/share/doc/atm/atmconfig_device.help
+OLD_FILES+=usr/share/man/man1/sscop.1.gz
+OLD_FILES+=usr/share/man/man3/libngatm.3.gz
+OLD_FILES+=usr/share/man/man3/snmp_atm.3.gz
+OLD_FILES+=usr/share/man/man3/uniaddr.3.gz
+OLD_FILES+=usr/share/man/man3/unifunc.3.gz
+OLD_FILES+=usr/share/man/man3/unimsg.3.gz
+OLD_FILES+=usr/share/man/man3/unisap.3.gz
+OLD_FILES+=usr/share/man/man3/unistruct.3.gz
+OLD_FILES+=usr/share/man/man8/atmconfig.8.gz
+OLD_FILES+=usr/share/snmp/defs/atm_freebsd.def
+OLD_FILES+=usr/share/snmp/defs/atm_tree.def
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM-FREEBSD-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM.txt
+.endif
 
 .if ${MK_AUDIT} == no
 OLD_FILES+=usr/sbin/audit
