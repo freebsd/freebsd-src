@@ -2,12 +2,9 @@ $FreeBSD$
 
 Index: b.c
 ===================================================================
-RCS file: /home/ncvs/src/contrib/one-true-awk/b.c,v
-retrieving revision 1.1.1.8
-diff -u -p -r1.1.1.8 b.c
---- b.c	16 May 2005 19:11:31 -0000	1.1.1.8
-+++ b.c	16 May 2005 19:12:40 -0000
-@@ -282,9 +282,21 @@ int quoted(char **pp)	/* pick up next th
+--- b.c	(revision 201951)
++++ b.c	(working copy)
+@@ -285,9 +285,21 @@ int quoted(char **pp)	/* pick up next thing after
  	return c;
  }
  
@@ -29,10 +26,10 @@ diff -u -p -r1.1.1.8 b.c
  	uschar *p = (uschar *) argp;
  	uschar *op, *bp;
  	static uschar *buf = 0;
-@@ -303,15 +315,18 @@ char *cclenter(const char *argp)	/* add 
+@@ -306,15 +318,18 @@ char *cclenter(const char *argp)	/* add a characte
  				c2 = *p++;
  				if (c2 == '\\')
-					c2 = quoted((char **) &p);
+ 					c2 = quoted((char **) &p);
 -				if (c > c2) {	/* empty; ignore */
 +				if (collate_range_cmp(c, c2) > 0) {
  					bp--;
@@ -44,8 +41,8 @@ diff -u -p -r1.1.1.8 b.c
 +					if ((collate_range_cmp(c, j) > 0) ||
 +					    collate_range_cmp(j, c2) > 0)
 +						continue;
-					if (!adjbuf((char **) &buf, &bufsz, bp-buf+2, 100, (char **) &bp, "cclenter1"))
-						FATAL("out of space for character class [%.10s...] 2", p);
+ 					if (!adjbuf((char **) &buf, &bufsz, bp-buf+2, 100, (char **) &bp, "cclenter1"))
+ 						FATAL("out of space for character class [%.10s...] 2", p);
 -					*bp++ = ++c;
 +					*bp++ = j;
  					i++;
