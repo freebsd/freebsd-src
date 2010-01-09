@@ -731,6 +731,7 @@ Node *unary(Node *np)
  * to nelson beebe for the suggestion; let's see if it works everywhere.
  */
 
+/* #define HAS_ISBLANK */
 #ifndef HAS_ISBLANK
 
 int (isblank)(int c)
@@ -876,7 +877,7 @@ int cgoto(fa *f, int s, int c)
 					if (q[j] >= maxsetvec) {
 						maxsetvec *= 4;
 						setvec = (int *) realloc(setvec, maxsetvec * sizeof(int));
-						tmpset = (int *) realloc(setvec, maxsetvec * sizeof(int));
+						tmpset = (int *) realloc(tmpset, maxsetvec * sizeof(int));
 						if (setvec == 0 || tmpset == 0)
 							overflo("cgoto overflow");
 					}
