@@ -60,7 +60,8 @@ void		_tcb_dtor(struct tcb *);
 static __inline void
 _tcb_set(struct tcb *tcb)
 {
-	mips_tcb_set(tcb);
+
+	sysarch(MIPS_SET_TLS, tcb);
 }
 
 /*
@@ -69,7 +70,10 @@ _tcb_set(struct tcb *tcb)
 static __inline struct tcb *
 _tcb_get(void)
 {
-	return (mips_tcb_get());
+	void *tcb;
+
+	sysarch(MIPS_GET_TLS, &tcb);
+	return tcb;
 }
 
 extern struct pthread *_thr_initial;
