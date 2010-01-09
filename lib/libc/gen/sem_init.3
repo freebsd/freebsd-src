@@ -46,9 +46,19 @@ function initializes the unnamed semaphore pointed to by
 .Fa sem
 to have the value
 .Fa value .
+.Pp
 A non-zero value for
 .Fa pshared
-specifies a shared semaphore that can be used by multiple processes.
+specifies a shared semaphore that can be used by multiple processes,
+the semaphore should be located in shared memory region (see
+.Xr mmap 2 ,
+.Xr shm_open 2 , 
+and
+.Xr shmget 2 ) ,
+any process having read and write access to address
+.Fa sem
+can perform semaphore operations on
+.Fa sem .
 .Pp
 Following a successful call to
 .Fn sem_init ,
