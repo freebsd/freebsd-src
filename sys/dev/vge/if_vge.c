@@ -157,6 +157,7 @@ static int	vge_suspend(device_t);
 
 static void	vge_cam_clear(struct vge_softc *);
 static int	vge_cam_set(struct vge_softc *, uint8_t *);
+static void	vge_clrwol(struct vge_softc *);
 static void	vge_discard_rxbuf(struct vge_softc *, int);
 static int	vge_dma_alloc(struct vge_softc *);
 static void	vge_dma_free(struct vge_softc *);
@@ -190,6 +191,7 @@ static int	vge_rx_list_init(struct vge_softc *);
 static int	vge_rxeof(struct vge_softc *, int);
 static void	vge_rxfilter(struct vge_softc *);
 static void	vge_setvlan(struct vge_softc *);
+static void	vge_setwol(struct vge_softc *);
 static void	vge_start(struct ifnet *);
 static void	vge_start_locked(struct ifnet *);
 static void	vge_stats_clear(struct vge_softc *);
@@ -1011,6 +1013,11 @@ vge_attach(device_t dev)
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
 		sc->vge_flags |= VGE_FLAG_PCIE;
 		sc->vge_expcap = cap;
+	} else
+		sc->vge_flags |= VGE_FLAG_JUMBO;
+	if (pci_find_extcap(dev, PCIY_PMG, &cap) == 0) {
+		sc->vge_flags |= VGE_FLAG_PMCAP;
+		sc->vge_pmcap = cap;
 	}
 	rid = 0;
 	msic = pci_msi_count(dev);
@@ -1069,6 +1076,8 @@ vge_attach(device_t dev)
 	else
 		sc->vge_phyaddr = CSR_READ_1(sc, VGE_MIICFG) &
 		    VGE_MIICFG_PHYADDR;
+	/* Clear WOL and take hardware from powerdown. */
+	vge_clrwol(sc);
 	vge_sysctl_node(sc);
 	error = vge_dma_alloc(sc);
 	if (error)
@@ -1098,6 +1107,8 @@ vge_attach(device_t dev)
 	ifp->if_hwassist = VGE_CSUM_FEATURES;
 	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM |
 	    IFCAP_VLAN_HWTAGGING;
+	if ((sc->vge_flags & VGE_FLAG_PMCAP) != 0)
+		ifp->if_capabilities |= IFCAP_WOL;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -2211,9 +2222,17 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFMTU:
-		if (ifr->ifr_mtu > VGE_JUMBO_MTU)
+		VGE_LOCK(sc);
+		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > VGE_JUMBO_MTU)
 			error = EINVAL;
-		ifp->if_mtu = ifr->ifr_mtu;
+		else if (ifp->if_mtu != ifr->ifr_mtu) {
+			if (ifr->ifr_mtu > ETHERMTU &&
+			    (sc->vge_flags & VGE_FLAG_JUMBO) == 0)
+				error = EINVAL;
+			else
+				ifp->if_mtu = ifr->ifr_mtu;
+		}
+		VGE_UNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
 		VGE_LOCK(sc);
@@ -2279,6 +2298,15 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if ((mask & IFCAP_RXCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
+		if ((mask & IFCAP_WOL_UCAST) != 0 &&
+		    (ifp->if_capabilities & IFCAP_WOL_UCAST) != 0)
+			ifp->if_capenable ^= IFCAP_WOL_UCAST;
+		if ((mask & IFCAP_WOL_MCAST) != 0 &&
+		    (ifp->if_capabilities & IFCAP_WOL_MCAST) != 0)
+			ifp->if_capenable ^= IFCAP_WOL_MCAST;
+		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
+		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
+			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
 		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_VLAN_HWCSUM) != 0)
 			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
@@ -2365,7 +2393,7 @@ vge_suspend(device_t dev)
 
 	VGE_LOCK(sc);
 	vge_stop(sc);
-
+	vge_setwol(sc);
 	sc->vge_flags |= VGE_FLAG_SUSPENDED;
 	VGE_UNLOCK(sc);
 
@@ -2382,17 +2410,26 @@ vge_resume(device_t dev)
 {
 	struct vge_softc *sc;
 	struct ifnet *ifp;
+	uint16_t pmstat;
 
 	sc = device_get_softc(dev);
-	ifp = sc->vge_ifp;
-
-	/* reenable busmastering */
-	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_MEMORY);
-
-	/* reinitialize interface if necessary */
 	VGE_LOCK(sc);
-	if (ifp->if_flags & IFF_UP) {
+	if ((sc->vge_flags & VGE_FLAG_PMCAP) != 0) {
+		/* Disable PME and clear PME status. */
+		pmstat = pci_read_config(sc->vge_dev,
+		    sc->vge_pmcap + PCIR_POWER_STATUS, 2);
+		if ((pmstat & PCIM_PSTAT_PMEENABLE) != 0) {
+			pmstat &= ~PCIM_PSTAT_PMEENABLE;
+			pci_write_config(sc->vge_dev,
+			    sc->vge_pmcap + PCIR_POWER_STATUS, pmstat, 2);
+		}
+	}
+	vge_clrwol(sc);
+	/* Restart MII auto-polling. */
+	vge_miipoll_start(sc);
+	ifp = sc->vge_ifp;
+	/* Reinitialize interface if necessary. */
+	if ((ifp->if_flags & IFF_UP) != 0) {
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		vge_init_locked(sc);
 	}
@@ -2409,15 +2446,8 @@ vge_resume(device_t dev)
 static int
 vge_shutdown(device_t dev)
 {
-	struct vge_softc *sc;
 
-	sc = device_get_softc(dev);
-
-	VGE_LOCK(sc);
-	vge_stop(sc);
-	VGE_UNLOCK(sc);
-
-	return (0);
+	return (vge_suspend(dev));
 }
 
 #define	VGE_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
@@ -2542,8 +2572,6 @@ static void
 vge_stats_clear(struct vge_softc *sc)
 {
 	int i;
-
-	VGE_LOCK_ASSERT(sc);
 
 	CSR_WRITE_1(sc, VGE_MIBCSR,
 	    CSR_READ_1(sc, VGE_MIBCSR) | VGE_MIBCSR_FREEZE);
@@ -2705,4 +2733,155 @@ vge_intr_holdoff(struct vge_softc *sc)
 		/* Enable holdoff timer. */
 		CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_HOLDOFF);
 	}
+}
+
+static void
+vge_setlinkspeed(struct vge_softc *sc)
+{
+	struct mii_data *mii;
+	int aneg, i;
+
+	VGE_LOCK_ASSERT(sc);
+
+	mii = device_get_softc(sc->vge_miibus);
+	mii_pollstat(mii);
+	aneg = 0;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch IFM_SUBTYPE(mii->mii_media_active) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			return;
+		case IFM_1000_T:
+			aneg++;
+		default:
+			break;
+		}
+	}
+	vge_miibus_writereg(sc->vge_dev, sc->vge_phyaddr, MII_100T2CR, 0);
+	vge_miibus_writereg(sc->vge_dev, sc->vge_phyaddr, MII_ANAR,
+	    ANAR_TX_FD | ANAR_TX | ANAR_10_FD | ANAR_10 | ANAR_CSMA);
+	vge_miibus_writereg(sc->vge_dev, sc->vge_phyaddr, MII_BMCR,
+	    BMCR_AUTOEN | BMCR_STARTNEG);
+	DELAY(1000);
+	if (aneg != 0) {
+		/* Poll link state until vge(4) get a 10/100 link. */
+		for (i = 0; i < MII_ANEGTICKS_GIGE; i++) {
+			mii_pollstat(mii);
+			if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID))
+			    == (IFM_ACTIVE | IFM_AVALID)) {
+				switch (IFM_SUBTYPE(mii->mii_media_active)) {
+				case IFM_10_T:
+				case IFM_100_TX:
+					return;
+				default:
+					break;
+				}
+			}
+			VGE_UNLOCK(sc);
+			pause("vgelnk", hz);
+			VGE_LOCK(sc);
+		}
+		if (i == MII_ANEGTICKS_GIGE)
+			device_printf(sc->vge_dev, "establishing link failed, "
+			    "WOL may not work!");
+	}
+	/*
+	 * No link, force MAC to have 100Mbps, full-duplex link.
+	 * This is the last resort and may/may not work.
+	 */
+	mii->mii_media_status = IFM_AVALID | IFM_ACTIVE;
+	mii->mii_media_active = IFM_ETHER | IFM_100_TX | IFM_FDX;
+}
+
+static void
+vge_setwol(struct vge_softc *sc)
+{
+	struct ifnet *ifp;
+	uint16_t pmstat;
+	uint8_t val;
+
+	VGE_LOCK_ASSERT(sc);
+
+	if ((sc->vge_flags & VGE_FLAG_PMCAP) == 0) {
+		/* No PME capability, PHY power down. */
+		vge_miibus_writereg(sc->vge_dev, sc->vge_phyaddr, MII_BMCR,
+		    BMCR_PDOWN);
+		vge_miipoll_stop(sc);
+		return;
+	}
+
+	ifp = sc->vge_ifp;
+
+	/* Clear WOL on pattern match. */
+	CSR_WRITE_1(sc, VGE_WOLCR0C, VGE_WOLCR0_PATTERN_ALL);
+	/* Disable WOL on magic/unicast packet. */
+	CSR_WRITE_1(sc, VGE_WOLCR1C, 0x0F);
+	CSR_WRITE_1(sc, VGE_WOLCFGC, VGE_WOLCFG_SAB | VGE_WOLCFG_SAM |
+	    VGE_WOLCFG_PMEOVR);
+	if ((ifp->if_capenable & IFCAP_WOL) != 0) {
+		vge_setlinkspeed(sc);
+		val = 0;
+		if ((ifp->if_capenable & IFCAP_WOL_UCAST) != 0)
+			val |= VGE_WOLCR1_UCAST;
+		if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+			val |= VGE_WOLCR1_MAGIC;
+		CSR_WRITE_1(sc, VGE_WOLCR1S, val);
+		val = 0;
+		if ((ifp->if_capenable & IFCAP_WOL_MCAST) != 0)
+			val |= VGE_WOLCFG_SAM | VGE_WOLCFG_SAB;
+		CSR_WRITE_1(sc, VGE_WOLCFGS, val | VGE_WOLCFG_PMEOVR);
+		/* Disable MII auto-polling. */
+		vge_miipoll_stop(sc);
+	}
+	CSR_SETBIT_1(sc, VGE_DIAGCTL,
+	    VGE_DIAGCTL_MACFORCE | VGE_DIAGCTL_FDXFORCE);
+	CSR_CLRBIT_1(sc, VGE_DIAGCTL, VGE_DIAGCTL_GMII);
+
+	/* Clear WOL status on pattern match. */
+	CSR_WRITE_1(sc, VGE_WOLSR0C, 0xFF);
+	CSR_WRITE_1(sc, VGE_WOLSR1C, 0xFF);
+
+	val = CSR_READ_1(sc, VGE_PWRSTAT);
+	val |= VGE_STICKHW_SWPTAG;
+	CSR_WRITE_1(sc, VGE_PWRSTAT, val);
+	/* Put hardware into sleep. */
+	val = CSR_READ_1(sc, VGE_PWRSTAT);
+	val |= VGE_STICKHW_DS0 | VGE_STICKHW_DS1;
+	CSR_WRITE_1(sc, VGE_PWRSTAT, val);
+	/* Request PME if WOL is requested. */
+	pmstat = pci_read_config(sc->vge_dev, sc->vge_pmcap +
+	    PCIR_POWER_STATUS, 2);
+	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
+	if ((ifp->if_capenable & IFCAP_WOL) != 0)
+		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
+	pci_write_config(sc->vge_dev, sc->vge_pmcap + PCIR_POWER_STATUS,
+	    pmstat, 2);
+}
+
+static void
+vge_clrwol(struct vge_softc *sc)
+{
+	uint8_t val;
+
+	val = CSR_READ_1(sc, VGE_PWRSTAT);
+	val &= ~VGE_STICKHW_SWPTAG;
+	CSR_WRITE_1(sc, VGE_PWRSTAT, val);
+	/* Disable WOL and clear power state indicator. */
+	val = CSR_READ_1(sc, VGE_PWRSTAT);
+	val &= ~(VGE_STICKHW_DS0 | VGE_STICKHW_DS1);
+	CSR_WRITE_1(sc, VGE_PWRSTAT, val);
+
+	CSR_CLRBIT_1(sc, VGE_DIAGCTL, VGE_DIAGCTL_GMII);
+	CSR_CLRBIT_1(sc, VGE_DIAGCTL, VGE_DIAGCTL_MACFORCE);
+
+	/* Clear WOL on pattern match. */
+	CSR_WRITE_1(sc, VGE_WOLCR0C, VGE_WOLCR0_PATTERN_ALL);
+	/* Disable WOL on magic/unicast packet. */
+	CSR_WRITE_1(sc, VGE_WOLCR1C, 0x0F);
+	CSR_WRITE_1(sc, VGE_WOLCFGC, VGE_WOLCFG_SAB | VGE_WOLCFG_SAM |
+	    VGE_WOLCFG_PMEOVR);
+	/* Clear WOL status on pattern match. */
+	CSR_WRITE_1(sc, VGE_WOLSR0C, 0xFF);
+	CSR_WRITE_1(sc, VGE_WOLSR1C, 0xFF);
 }

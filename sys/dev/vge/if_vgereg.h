@@ -89,8 +89,8 @@
 #define VGE_RXQCSRC		0x36	/* RX queue ctl/status clear */
 #define VGE_RXDESC_ADDR_LO	0x38	/* RX desc base addr (lo 32 bits) */
 #define VGE_RXDESC_CONSIDX	0x3C	/* Current RX descriptor index */
-#define VGE_RXQTIMER		0x3E	/* RX queue timer pend register */
-#define VGE_TXQTIMER		0x3F	/* TX queue timer pend register */
+#define VGE_TXQTIMER		0x3E	/* TX queue timer pend register */
+#define VGE_RXQTIMER		0x3F	/* RX queue timer pend register */
 #define VGE_TXDESC_ADDR_LO0	0x40	/* TX desc0 base addr (lo 32 bits) */
 #define VGE_TXDESC_ADDR_LO1	0x44	/* TX desc1 base addr (lo 32 bits) */
 #define VGE_TXDESC_ADDR_LO2	0x48	/* TX desc2 base addr (lo 32 bits) */
@@ -590,6 +590,42 @@
 #define	VGE_MIB_DATA_MASK	0x00FFFFFF
 #define	VGE_MIB_DATA_IDX(x)	((x) >> 24)
 
+/* Sticky bit shadow register */
+
+#define	VGE_STICKHW_DS0		0x01
+#define	VGE_STICKHW_DS1		0x02
+#define	VGE_STICKHW_WOL_ENB	0x04
+#define	VGE_STICKHW_WOL_STS	0x08
+#define	VGE_STICKHW_SWPTAG	0x10
+
+/* WOL pattern control */
+#define	VGE_WOLCR0_PATTERN0	0x01
+#define	VGE_WOLCR0_PATTERN1	0x02
+#define	VGE_WOLCR0_PATTERN2	0x04
+#define	VGE_WOLCR0_PATTERN3	0x08
+#define	VGE_WOLCR0_PATTERN4	0x10
+#define	VGE_WOLCR0_PATTERN5	0x20
+#define	VGE_WOLCR0_PATTERN6	0x40
+#define	VGE_WOLCR0_PATTERN7	0x80
+#define	VGE_WOLCR0_PATTERN_ALL	0xFF
+
+/* WOL event control */
+#define	VGE_WOLCR1_UCAST	0x01
+#define	VGE_WOLCR1_MAGIC	0x02
+#define	VGE_WOLCR1_LINKON	0x04
+#define	VGE_WOLCR1_LINKOFF	0x08
+
+/* Poweer management config */
+#define VGE_PWRCFG_LEGACY_WOLEN	0x01
+#define VGE_PWRCFG_WOL_PULSE	0x20
+#define VGE_PWRCFG_WOL_BUTTON	0x00
+
+/* WOL config register */
+#define	VGE_WOLCFG_PHYINT_ENB	0x01
+#define	VGE_WOLCFG_SAB		0x10
+#define	VGE_WOLCFG_SAM		0x20
+#define	VGE_WOLCFG_PMEOVR	0x80
+
 /* EEPROM control/status register */
 
 #define VGE_EECSR_EDO		0x01	/* data out pin */
@@ -725,8 +761,8 @@ struct vge_rx_desc {
 #define VGE_RDSTS_OWN		0x80000000	/* own bit. */
 
 #define VGE_RXPKT_ONEFRAG	0x00000000	/* only one fragment */
-#define VGE_RXPKT_EOF		0x00000100	/* first frag in frame */
-#define VGE_RXPKT_SOF		0x00000200	/* last frag in frame */
+#define VGE_RXPKT_EOF		0x00000100	/* last frag in frame */
+#define VGE_RXPKT_SOF		0x00000200	/* first frag in frame */
 #define VGE_RXPKT_MOF		0x00000300	/* intermediate frag */
 
 #define VGE_RDCTL_VLANID	0x0000FFFF	/* VLAN ID info */
