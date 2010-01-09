@@ -1,0 +1,26 @@
+# $FreeBSD$
+#mips/rmi/xlr_boot1_console.c			standard
+mips/rmi/xlr_machdep.c				standard
+mips/rmi/clock.c				standard
+mips/rmi/tick.c 				standard
+mips/rmi/iodi.c					standard
+mips/rmi/msgring.c				standard
+mips/rmi/msgring_xls.c				standard
+mips/rmi/board.c				standard
+mips/rmi/on_chip.c				standard
+mips/rmi/intr_machdep.c			        standard
+mips/rmi/xlr_i2c.c              		optional iic
+mips/rmi/uart_bus_xlr_iodi.c			optional uart 
+mips/rmi/uart_cpu_mips_xlr.c			optional uart 
+mips/rmi/perfmon_kern.c				optional xlr_perfmon
+mips/rmi/perfmon_percpu.c			optional xlr_perfmon
+#mips/rmi/pcibus.c				optional pci
+#mips/rmi/xlr_pci.c				optional pci
+#mips/rmi/xls_ehci.c				optional usb ehci
+dev/rmi/xlr/rge.c				optional rge
+mips/rmi/bus_space_rmi.c			standard
+dev/iicbus/xlr_rtc.c				optional xlr_rtc
+dev/iicbus/xlr_temperature.c			optional xlr_temperature
+dev/iicbus/xlr_eeprom.c				optional xlr_eeprom
+dev/rmi/sec/rmisec.c				optional rmisec
+dev/rmi/sec/rmilib.c				optional rmisec
