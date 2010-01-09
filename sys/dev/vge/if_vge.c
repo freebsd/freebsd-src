@@ -168,6 +168,7 @@ static void	vge_init(void *);
 static void	vge_init_locked(struct vge_softc *);
 static void	vge_intr(void *);
 static int	vge_ioctl(struct ifnet *, u_long, caddr_t);
+static void	vge_link_statchg(void *);
 static int	vge_miibus_readreg(device_t, int, int);
 static void	vge_miibus_statchg(device_t);
 static int	vge_miibus_writereg(device_t, int, int, int);
@@ -178,11 +179,11 @@ static void	vge_read_eeprom(struct vge_softc *, caddr_t, int, int, int);
 static void	vge_reset(struct vge_softc *);
 static int	vge_rx_list_init(struct vge_softc *);
 static int	vge_rxeof(struct vge_softc *, int);
-static void	vge_setmulti(struct vge_softc *);
+static void	vge_rxfilter(struct vge_softc *);
+static void	vge_setvlan(struct vge_softc *);
 static void	vge_start(struct ifnet *);
 static void	vge_start_locked(struct ifnet *);
 static void	vge_stop(struct vge_softc *);
-static void	vge_tick(void *);
 static int	vge_tx_list_init(struct vge_softc *);
 static void	vge_txeof(struct vge_softc *);
 static void	vge_watchdog(void *);
@@ -505,38 +506,66 @@ fail:
 	return (error);
 }
 
+static void
+vge_setvlan(struct vge_softc *sc)
+{
+	struct ifnet *ifp;
+	uint8_t cfg;
+
+	VGE_LOCK_ASSERT(sc);
+
+	ifp = sc->vge_ifp;
+	cfg = CSR_READ_1(sc, VGE_RXCFG);
+	if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
+		cfg |= VGE_VTAG_OPT2;
+	else
+		cfg &= ~VGE_VTAG_OPT2;
+	CSR_WRITE_1(sc, VGE_RXCFG, cfg);
+}
+
 /*
  * Program the multicast filter. We use the 64-entry CAM filter
  * for perfect filtering. If there's more than 64 multicast addresses,
  * we use the hash filter instead.
  */
 static void
-vge_setmulti(struct vge_softc *sc)
+vge_rxfilter(struct vge_softc *sc)
 {
 	struct ifnet *ifp;
-	int error = 0/*, h = 0*/;
 	struct ifmultiaddr *ifma;
-	uint32_t h, hashes[2] = { 0, 0 };
+	uint32_t h, hashes[2];
+	uint8_t rxcfg;
+	int error = 0;
 
 	VGE_LOCK_ASSERT(sc);
 
-	ifp = sc->vge_ifp;
-
 	/* First, zot all the multicast entries. */
-	vge_cam_clear(sc);
-	CSR_WRITE_4(sc, VGE_MAR0, 0);
-	CSR_WRITE_4(sc, VGE_MAR1, 0);
+	hashes[0] = 0;
+	hashes[1] = 0;
 
+	rxcfg = CSR_READ_1(sc, VGE_RXCTL);
+	rxcfg &= ~(VGE_RXCTL_RX_MCAST | VGE_RXCTL_RX_BCAST |
+	    VGE_RXCTL_RX_PROMISC);
 	/*
-	 * If the user wants allmulti or promisc mode, enable reception
-	 * of all multicast frames.
+	 * Always allow VLAN oversized frames and frames for
+	 * this host.
 	 */
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
-		CSR_WRITE_4(sc, VGE_MAR0, 0xFFFFFFFF);
-		CSR_WRITE_4(sc, VGE_MAR1, 0xFFFFFFFF);
-		return;
+	rxcfg |= VGE_RXCTL_RX_GIANT | VGE_RXCTL_RX_UCAST;
+
+	ifp = sc->vge_ifp;
+	if ((ifp->if_flags & IFF_BROADCAST) != 0)
+		rxcfg |= VGE_RXCTL_RX_BCAST;
+	if ((ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
+		if ((ifp->if_flags & IFF_PROMISC) != 0)
+			rxcfg |= VGE_RXCTL_RX_PROMISC;
+		if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
+			hashes[0] = 0xFFFFFFFF;
+			hashes[1] = 0xFFFFFFFF;
+		}
+		goto done;
 	}
 
+	vge_cam_clear(sc);
 	/* Now program new ones */
 	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
@@ -562,11 +591,15 @@ vge_setmulti(struct vge_softc *sc)
 			else
 				hashes[1] |= (1 << (h - 32));
 		}
-
-		CSR_WRITE_4(sc, VGE_MAR0, hashes[0]);
-		CSR_WRITE_4(sc, VGE_MAR1, hashes[1]);
 	}
 	IF_ADDR_UNLOCK(ifp);
+
+done:
+	if (hashes[0] != 0 || hashes[1] != 0)
+		rxcfg |= VGE_RXCTL_RX_MCAST;
+	CSR_WRITE_4(sc, VGE_MAR0, hashes[0]);
+	CSR_WRITE_4(sc, VGE_MAR1, hashes[1]);
+	CSR_WRITE_1(sc, VGE_RXCTL, rxcfg);
 }
 
 static void
@@ -1048,13 +1081,13 @@ vge_attach(device_t dev)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = vge_ioctl;
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	ifp->if_start = vge_start;
 	ifp->if_hwassist = VGE_CSUM_FEATURES;
-	ifp->if_capabilities |= IFCAP_HWCSUM|IFCAP_VLAN_HWTAGGING;
+	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM |
+	    IFCAP_VLAN_HWTAGGING;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -1068,6 +1101,9 @@ vge_attach(device_t dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
+
+	/* Tell the upper layer(s) we support long frames. */
+	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->vge_irq, INTR_TYPE_NET|INTR_MPSAFE,
@@ -1598,7 +1634,7 @@ vge_txeof(struct vge_softc *sc)
 }
 
 static void
-vge_tick(void *xsc)
+vge_link_statchg(void *xsc)
 {
 	struct vge_softc *sc;
 	struct ifnet *ifp;
@@ -1609,7 +1645,7 @@ vge_tick(void *xsc)
 	VGE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->vge_miibus);
 
-	mii_tick(mii);
+	mii_pollstat(mii);
 	if ((sc->vge_flags & VGE_FLAG_LINK) != 0) {
 		if (!(mii->mii_media_status & IFM_ACTIVE)) {
 			sc->vge_flags &= ~VGE_FLAG_LINK;
@@ -1736,7 +1772,7 @@ vge_intr(void *arg)
 		}
 
 		if (status & VGE_ISR_LINKSTS)
-			vge_tick(sc);
+			vge_link_statchg(sc);
 	}
 
 	/* Re-enable interrupts */
@@ -2009,7 +2045,7 @@ vge_init_locked(struct vge_softc *sc)
 	 * reception of VLAN tagged frames.
 	 */
 	CSR_CLRBIT_1(sc, VGE_RXCFG, VGE_RXCFG_FIFO_THR|VGE_RXCFG_VTAGOPT);
-	CSR_SETBIT_1(sc, VGE_RXCFG, VGE_RXFIFOTHR_128BYTES|VGE_VTAG_OPT2);
+	CSR_SETBIT_1(sc, VGE_RXCFG, VGE_RXFIFOTHR_128BYTES);
 
 	/* Set DMA burst length */
 	CSR_CLRBIT_1(sc, VGE_DMACFG0, VGE_DMACFG0_BURSTLEN);
@@ -2048,29 +2084,12 @@ vge_init_locked(struct vge_softc *sc)
 	/* Enable the TX descriptor queue */
 	CSR_WRITE_2(sc, VGE_TXQCSRS, VGE_TXQCSR_RUN0);
 
-	/* Set up the receive filter -- allow large frames for VLANs. */
-	CSR_WRITE_1(sc, VGE_RXCTL, VGE_RXCTL_RX_UCAST|VGE_RXCTL_RX_GIANT);
-
-	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC) {
-		CSR_SETBIT_1(sc, VGE_RXCTL, VGE_RXCTL_RX_PROMISC);
-	}
-
-	/* Set capture broadcast bit to capture broadcast frames. */
-	if (ifp->if_flags & IFF_BROADCAST) {
-		CSR_SETBIT_1(sc, VGE_RXCTL, VGE_RXCTL_RX_BCAST);
-	}
-
-	/* Set multicast bit to capture multicast frames. */
-	if (ifp->if_flags & IFF_MULTICAST) {
-		CSR_SETBIT_1(sc, VGE_RXCTL, VGE_RXCTL_RX_MCAST);
-	}
-
 	/* Init the cam filter. */
 	vge_cam_clear(sc);
 
-	/* Init the multicast filter. */
-	vge_setmulti(sc);
+	/* Set up receiver filter. */
+	vge_rxfilter(sc);
+	vge_setvlan(sc);
 
 	/* Enable flow control */
 
@@ -2154,14 +2173,15 @@ vge_ifmedia_upd(struct ifnet *ifp)
 {
 	struct vge_softc *sc;
 	struct mii_data *mii;
+	int error;
 
 	sc = ifp->if_softc;
 	VGE_LOCK(sc);
 	mii = device_get_softc(sc->vge_miibus);
-	mii_mediachg(mii);
+	error = mii_mediachg(mii);
 	VGE_UNLOCK(sc);
 
-	return (0);
+	return (error);
 }
 
 /*
@@ -2177,6 +2197,10 @@ vge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc->vge_miibus);
 
 	VGE_LOCK(sc);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		VGE_UNLOCK(sc);
+		return;
+	}
 	mii_pollstat(mii);
 	VGE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
@@ -2236,7 +2260,7 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct vge_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	struct mii_data *mii;
-	int error = 0;
+	int error = 0, mask;
 
 	switch (command) {
 	case SIOCSIFMTU:
@@ -2246,25 +2270,15 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	case SIOCSIFFLAGS:
 		VGE_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    ifp->if_flags & IFF_PROMISC &&
-			    !(sc->vge_if_flags & IFF_PROMISC)) {
-				CSR_SETBIT_1(sc, VGE_RXCTL,
-				    VGE_RXCTL_RX_PROMISC);
-				vge_setmulti(sc);
-			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    !(ifp->if_flags & IFF_PROMISC) &&
-			    sc->vge_if_flags & IFF_PROMISC) {
-				CSR_CLRBIT_1(sc, VGE_RXCTL,
-				    VGE_RXCTL_RX_PROMISC);
-				vge_setmulti(sc);
-                        } else
+		if ((ifp->if_flags & IFF_UP) != 0) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+			    ((ifp->if_flags ^ sc->vge_if_flags) &
+			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
+				vge_rxfilter(sc);
+			else
 				vge_init_locked(sc);
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				vge_stop(sc);
-		}
+		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			vge_stop(sc);
 		sc->vge_if_flags = ifp->if_flags;
 		VGE_UNLOCK(sc);
 		break;
@@ -2272,7 +2286,7 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCDELMULTI:
 		VGE_LOCK(sc);
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			vge_setmulti(sc);
+			vge_rxfilter(sc);
 		VGE_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
@@ -2281,8 +2295,7 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-	    {
-		int mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
@@ -2319,8 +2332,16 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if ((mask & IFCAP_RXCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
+		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWCSUM) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (IFCAP_VLAN_HWTAGGING & ifp->if_capabilities) != 0) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			vge_setvlan(sc);
+		}
 		VGE_UNLOCK(sc);
-	    }
+		VLAN_CAPABILITIES(ifp);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
