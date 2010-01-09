@@ -1,0 +1,81 @@
+#
+# $Id: //depot/user/neelnatu/freebsd_sibyte/src/sys/mips/conf/SWARM#7 $
+#
+
+ident		SWARM
+options		CPU_SB1
+
+files		"../sibyte/files.sibyte"
+hints		"SWARM.hints"
+
+options		PCI_IOSPACE_ADDR=0xFC000000
+options		PCI_IOSPACE_SIZE=0x02000000
+
+#
+# 32-bit kernel cannot deal with physical memory beyond 4GB
+# XXX pmap assumes that all the memory can be mapped using KSEG0
+#
+options		MAXMEM=512*1024
+
+options		CFE
+options		CFE_CONSOLE
+options		CFE_ENV
+options		ALT_BREAK_TO_DEBUGGER
+
+# cfe loader expects kernel at 0x80001000 for mips32 w/o backwards
+# offsets in the linked elf image (see ldscript hack)
+# XXX can we conditionalize the linker stuff on options CFE?
+options		KERNVIRTADDR=0x80001000
+
+makeoptions	LDSCRIPT_NAME=	ldscript.mips.cfe
+
+#cpu		CPU_MIPS64
+#options 	ISA_MIPS64
+#makeoptions	ARCH_FLAGS="-march=mips64 -mgp64 -mabi=o64"
+cpu		CPU_MIPS32
+options 	ISA_MIPS32
+makeoptions	ARCH_FLAGS="-march=mips32"
+
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	MODULES_OVERRIDE=""
+
+options		DDB
+options		KDB
+
+options		SCHED_4BSD		#4BSD scheduler
+options		INET			#InterNETworking
+options		NFSCLIENT		#Network Filesystem Client
+options		NFS_ROOT		#NFS usable as /, requires NFSCLIENT
+options		PSEUDOFS		#Pseudo-filesystem framework
+options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+
+# Debugging for use in -current
+options		INVARIANTS
+options		INVARIANT_SUPPORT
+options		WITNESS
+
+options 	FFS			#Fast filesystem
+
+device		pci
+device		miibus
+device		bge
+device		loop
+device		ether
+device		md
+device		random
+
+options		USB_DEBUG
+device usb
+device ohci
+device uhci
+device ehci
+
+device umass
+
+device scbus
+device da
+
+device		ata
+device		atadisk
+device		atapicd
+options		ATA_STATIC_ID
