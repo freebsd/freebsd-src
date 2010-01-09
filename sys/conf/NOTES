@@ -2531,6 +2531,11 @@ options 	BOOTP_BLOCKSIZE=8192 # Override NFS block size
 options 	SW_WATCHDOG
 
 #
+# Add the software deadlock resolver thread.
+#
+options		DEADLKRES
+
+#
 # Disable swapping of stack pages.  This option removes all
 # code which actually performs swapping, so it's not possible to turn
 # it back on at run-time.
