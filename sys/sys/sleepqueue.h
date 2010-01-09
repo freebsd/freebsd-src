@@ -112,6 +112,7 @@ void	sleepq_set_timeout(void *wchan, int timo);
 u_int	sleepq_sleepcnt(void *wchan, int queue);
 int	sleepq_timedwait(void *wchan, int pri);
 int	sleepq_timedwait_sig(void *wchan, int pri);
+int	sleepq_type(void *wchan);
 void	sleepq_wait(void *wchan, int pri);
 int	sleepq_wait_sig(void *wchan, int pri);
 
