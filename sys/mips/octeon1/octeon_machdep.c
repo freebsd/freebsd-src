@@ -653,7 +653,7 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
 
 	/* Initialize pcpu stuff */
-	mips_pcpu_init();
+	mips_pcpu0_init();
 
 	octeon_boot_params_init(a3);
 	/* XXX octeon boot decriptor has args in it... */
