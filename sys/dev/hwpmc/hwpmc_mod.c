@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
@@ -1625,6 +1626,7 @@ pmc_log_kernel_mappings(struct pmc *pm)
 static void
 pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 {
+	int locked;
 	vm_map_t map;
 	struct vnode *vp;
 	struct vmspace *vm;
@@ -1733,7 +1735,11 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		freepath = NULL;
 		pmc_getfilename(vp, &fullpath, &freepath);
 		last_vp = vp;
+
+		locked = VFS_LOCK_GIANT(vp->v_mount);
 		vrele(vp);
+		VFS_UNLOCK_GIANT(locked);
+
 		vp = NULL;
 		pmclog_process_map_in(po, p->p_pid, start_addr, fullpath);
 		if (freepath)
