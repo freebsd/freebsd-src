@@ -108,12 +108,12 @@ __bswap64_var(__uint64_t _x)
 	    ((_x << 40) & ((__uint64_t)0xff << 48)) | ((_x << 56)));
 }
 
-#define	__bswap16(x)	(__uint16_t)(__is_constant(x) ? __bswap16_const(x) : \
-	__bswap16_var(x))
-#define	__bswap32(x)	(__uint32_t)(__is_constant(x) ? __bswap32_const(x) : \
-	__bswap32_var(x))
-#define	__bswap64(x)	(__uint64_t)(__is_constant(x) ? __bswap64_const(x) : \
-	__bswap64_var(x))
+#define	__bswap16(x)	(__uint16_t)(__is_constant(x) ?		\
+	__bswap16_const((__uint16_t)x) :  __bswap16_var((__uint16_t)x))
+#define	__bswap32(x)	(__uint32_t)(__is_constant(x) ?		\
+	__bswap32_const((__uint32_t)x) :  __bswap32_var((__uint32_t)x))
+#define	__bswap64(x)	(__uint64_t)(__is_constant(x) ?		\
+	__bswap64_const((__uint64_t)x) :  __bswap64_var((__uint64_t)x))
 
 #ifdef __MIPSEB__
 #define	__htonl(x)	((__uint32_t)(x))

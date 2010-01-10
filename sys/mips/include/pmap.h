@@ -145,7 +145,21 @@ typedef struct pv_entry {
 #define	PMAP_DIAGNOSTIC
 #endif
 
-extern vm_offset_t phys_avail[];
+/*
+ * physmem_desc[] is a superset of phys_avail[] and describes all the
+ * memory present in the system.
+ *
+ * phys_avail[] is similar but does not include the memory stolen by
+ * pmap_steal_memory().
+ *
+ * Each memory region is described by a pair of elements in the array
+ * so we can describe up to (PHYS_AVAIL_ENTRIES / 2) distinct memory
+ * regions.
+ */
+#define	PHYS_AVAIL_ENTRIES	10
+extern vm_offset_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
+extern vm_offset_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
+
 extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
@@ -172,6 +186,7 @@ void *pmap_kenter_temporary(vm_paddr_t pa, int i);
 void pmap_kenter_temporary_free(vm_paddr_t pa);
 int pmap_compute_pages_to_dump(void);
 void pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte);
+void pmap_flush_pvcache(vm_page_t m);
 
 /*
  * floating virtual pages (FPAGES)
