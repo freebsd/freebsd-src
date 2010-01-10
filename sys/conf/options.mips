@@ -31,8 +31,9 @@
 CPU_MIPS4KC	opt_global.h
 CPU_MIPS32	opt_global.h
 CPU_MIPS64	opt_global.h
-CPU_NOFPU	opt_global.h
 CPU_SENTRY5	opt_global.h
+CPU_HAVEFPU	opt_global.h
+CPU_SB1 	opt_global.h
 
 ISA_MIPS1	opt_cputype.h
 ISA_MIPS3	opt_cputype.h
@@ -44,14 +45,30 @@ ISA_MIPS64v2	opt_cputype.h
 YAMON		opt_global.h
 CFE		opt_global.h
 CFE_CONSOLE	opt_global.h
+CFE_ENV		opt_global.h
+CFE_ENV_SIZE	opt_global.h
 
 KERNPHYSADDR	opt_global.h
 KERNVIRTADDR	opt_global.h
 PHYSADDR	opt_global.h
-SOFTFLOAT	opt_global.h
-
+PHYS_ADDR_64BIT	opt_global.h
+NOFPU		opt_global.h
 TARGET_OCTEON	opt_global.h
 TARGET_EMULATOR	opt_ddb.h
+TARGET_XLR_XLS  opt_global.h
 
 TICK_USE_YAMON_FREQ	opt_global.h
 TICK_USE_MALTA_RTC	opt_global.h
+
+#
+# The MIPS architecture does not have separate memory and i/o address space
+# like x86. However some MIPS processors provide a memory-mapped window that
+# maps onto the PCI I/O space.
+#
+PCI_IOSPACE_SIZE        opt_global.h
+PCI_IOSPACE_ADDR        opt_global.h
+
+#
+# The highest memory address that can be used by the kernel in units of KB.
+#
+MAXMEM			opt_global.h
