@@ -6,3 +6,5 @@ mips/idt/if_kr.c		optional kr
 mips/idt/obio.c			standard
 mips/idt/uart_cpu_rc32434.c	optional uart
 mips/idt/uart_bus_rc32434.c	optional uart
+mips/mips/intr_machdep.c        standard
+mips/mips/tick.c		standard
