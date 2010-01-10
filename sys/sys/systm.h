@@ -164,6 +164,7 @@ void	critical_exit(void);
 void	init_param1(void);
 void	init_param2(long physpages);
 void	init_param3(long kmempages);
+void	init_static_kenv(char *, size_t);
 void	tablefull(const char *);
 int	kvprintf(char const *, void (*)(int, void*), void *, int,
 	    __va_list) __printflike(1, 0);
