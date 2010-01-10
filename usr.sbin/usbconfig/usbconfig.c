@@ -175,7 +175,7 @@ be_dev_remove_quirk(struct libusb20_backend *pbe,
 
 	error = libusb20_be_remove_dev_quirk(pbe, &q);
 	if (error) {
-		printf("Removing quirk '%s' failed, continuing.\n", str);
+		fprintf(stderr, "Removing quirk '%s' failed, continuing.\n", str);
 	}
 	return;
 }
@@ -198,7 +198,7 @@ be_dev_add_quirk(struct libusb20_backend *pbe,
 
 	error = libusb20_be_add_dev_quirk(pbe, &q);
 	if (error) {
-		printf("Adding quirk '%s' failed, continuing.\n", str);
+		fprintf(stderr, "Adding quirk '%s' failed, continuing.\n", str);
 	}
 	return;
 }
@@ -257,7 +257,7 @@ get_int(const char *s)
 static void
 duplicate_option(const char *ptr)
 {
-	printf("Syntax error: "
+	fprintf(stderr, "Syntax error: "
 	    "Duplicate option: '%s'\n", ptr);
 	exit(1);
 }
@@ -265,7 +265,7 @@ duplicate_option(const char *ptr)
 static void
 usage(void)
 {
-	printf(""
+	fprintf(stderr, ""
 	    "usbconfig - configure the USB subsystem" "\n"
 	    "usage: usbconfig -u <busnum> -a <devaddr> -i <ifaceindex> [cmds...]" "\n"
 	    "usage: usbconfig -d [ugen]<busnum>.<devaddr> -i <ifaceindex> [cmds...]" "\n"
@@ -349,7 +349,7 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 	if (opt->got_set_template) {
 		opt->got_any--;
 		if (libusb20_be_set_template(pbe, opt->template)) {
-			printf("Setting USB template %u failed, "
+			fprintf(stderr, "Setting USB template %u failed, "
 			    "continuing.\n", opt->template);
 		}
 	}
