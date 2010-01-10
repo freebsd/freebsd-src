@@ -22,6 +22,9 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #define DEBUG
 #include <stdio.h>
 #include <ctype.h>
@@ -653,7 +656,7 @@ Cell *relop(Node **a, int n)	/* a[0 < a[1], etc. */
 		j = x->fval - y->fval;
 		i = j<0? -1: (j>0? 1: 0);
 	} else {
-		i = strcmp(getsval(x), getsval(y));
+		i = strcoll(getsval(x), getsval(y));
 	}
 	tempfree(x);
 	tempfree(y);
