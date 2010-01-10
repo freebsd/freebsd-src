@@ -294,9 +294,9 @@ pc3|ibmpc3|IBM PC 386BSD Console:\
 # $XTermId: termcap,v 1.78 2009/11/09 00:24:26 tom Exp $
 #
 xterm-new|modern xterm:\
-	:*6=\EOF:@7=\EOF:F1=\E[23~:F2=\E[24~:K2=\EOE:Km=\E[M:\
+	:@7=\EOF:@8=\EOM:F1=\E[23~:F2=\E[24~:K2=\EOE:Km=\E[M:\
 	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:k6=\E[17~:\
-	:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:kH=\EOF:kI=\E[2~:\
+	:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:kI=\E[2~:\
 	:kN=\E[6~:kP=\E[5~:kd=\EOB:kh=\EOH:kl=\EOD:kr=\EOC:ku=\EOA:\
 	:tc=xterm-basic:
 #
