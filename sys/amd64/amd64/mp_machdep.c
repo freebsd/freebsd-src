@@ -98,12 +98,6 @@ char *doublefault_stack;
 char *nmi_stack;
 void *dpcpu;
 
-/* Hotwire a 0->4MB V==P mapping */
-extern pt_entry_t *KPTphys;
-
-/* SMP page table page */
-extern pt_entry_t *SMPpt;
-
 struct pcb stoppcbs[MAXCPU];
 struct xpcb **stopxpcbs = NULL;
 
