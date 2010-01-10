@@ -127,8 +127,6 @@ main(int argc, CHAR16 *argv[])
 	/* Get our loaded image protocol interface structure. */
 	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 
-	printf("Image base: 0x%016lx\n", (u_long)img->ImageBase);
-
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
