@@ -75,6 +75,7 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	MAC			# TrustedBSD MAC Framework
+options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
 # Debugging for use in -current
 options 	KDB			# Enable kernel debugger support.
