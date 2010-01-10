@@ -63,20 +63,18 @@ int	obio_attach(device_t);
  * A bit tricky and hackish. Since we need OBIO to rely
  * on PCI we make it pseudo-pci device. But there should 
  * be only one such device, so we use this static flag 
- * to prevent false positives on every realPCI device probe. 
+ * to prevent false positives on every real PCI device probe.
  */
 static int have_one = 0;
 
 int
 obio_probe(device_t dev)
 {
-	if(!have_one)
-	{
+	if (!have_one) {
 		have_one = 1;
 		return 0;
 	}
-	else
-		return (ENXIO);
+	return (ENXIO);
 }
 
 int
@@ -84,7 +82,7 @@ obio_attach(device_t dev)
 {
 	struct obio_softc *sc = device_get_softc(dev);
 
-	sc->oba_st = MIPS_BUS_SPACE_IO;
+	sc->oba_st = mips_bus_space_generic;
 	sc->oba_addr = MIPS_PHYS_TO_KSEG1(MALTA_UART0ADR);
 	sc->oba_size = MALTA_PCIMEM3_SIZE;
 	sc->oba_rman.rm_type = RMAN_ARRAY;
