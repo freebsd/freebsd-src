@@ -1,8 +1,7 @@
-/*      $NetBSD: bus.h,v 1.12 1997/10/01 08:25:15 fvdl Exp $    */
+/*	$NetBSD: bus.h,v 1.11 2003/07/28 17:35:54 thorpej Exp $	*/
+
 /*-
- * $Id: bus.h,v 1.6 2007/08/09 11:23:32 katta Exp $
- *
- * Copyright (c) 1996, 1997 The NetBSD Foundation, Inc.
+ * Copyright (c) 1996, 1997, 1998, 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -38,7 +37,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 1996 Charles M. Hannum.  All rights reserved.
  * Copyright (c) 1996 Christopher G. Demetriou.  All rights reserved.
  *

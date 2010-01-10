@@ -50,7 +50,7 @@
 struct pcb
 {
 	struct trapframe pcb_regs;	/* saved CPU and registers */
-	label_t pcb_context;		/* kernel context for resume */
+	__register_t pcb_context[14];	/* kernel context for resume */
 	int	pcb_onfault;		/* for copyin/copyout faults */
 	register_t pcb_tpc;
 };
@@ -71,6 +71,7 @@ struct pcb
 #define PCB_REG_RA   10
 #define PCB_REG_SR   11
 #define PCB_REG_GP   12
+#define PCB_REG_PC   13
 
 
 #ifdef _KERNEL

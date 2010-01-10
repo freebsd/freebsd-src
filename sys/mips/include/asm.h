@@ -60,6 +60,7 @@
 #include <machine/regdef.h>
 #endif
 #include <machine/endian.h>
+#include <machine/cdefs.h>
 
 #undef __FBSDID
 #if !defined(lint) && !defined(STRIP_FBSDID)
@@ -281,7 +282,7 @@ _C_LABEL(x):
  * Macros to panic and printf from assembly language.
  */
 #define	PANIC(msg)			\
-	la	a0, 9f;			\
+	PTR_LA	a0, 9f;			\
 	jal	_C_LABEL(panic);	\
 	nop;				\
 	MSG(msg)
@@ -289,7 +290,7 @@ _C_LABEL(x):
 #define	PANIC_KSEG0(msg, reg)	PANIC(msg)
 
 #define	PRINTF(msg)			\
-	la	a0, 9f;			\
+	PTR_LA	a0, 9f;			\
 	jal	_C_LABEL(printf);	\
 	nop;				\
 	MSG(msg)
@@ -308,23 +309,24 @@ _C_LABEL(x):
  */
 #define DO_AST				             \
 44:				                     \
-	la	s0, _C_LABEL(disableintr)           ;\
+	PTR_LA	s0, _C_LABEL(disableintr)           ;\
 	jalr	s0                                  ;\
 	nop                                         ;\
+	move	a0, v0                              ;\
 	GET_CPU_PCPU(s1)                            ;\
 	lw	s3, PC_CURPCB(s1)                   ;\
 	lw	s1, PC_CURTHREAD(s1)                ;\
 	lw	s2, TD_FLAGS(s1)                    ;\
 	li	s0, TDF_ASTPENDING | TDF_NEEDRESCHED;\
 	and	s2, s0                              ;\
-	la	s0, _C_LABEL(enableintr)            ;\
+	PTR_LA	s0, _C_LABEL(restoreintr)           ;\
 	jalr	s0                                  ;\
 	nop                                         ;\
 	beq	s2, zero, 4f                        ;\
 	nop                                         ;\
-	la	s0, _C_LABEL(ast)                   ;\
+	PTR_LA	s0, _C_LABEL(ast)                   ;\
 	jalr	s0                                  ;\
-	addu	a0, s3, U_PCB_REGS                  ;\
+	PTR_ADDU a0, s3, U_PCB_REGS                 ;\
 	j 44b			                    ;\
         nop                                         ;\
 4:
@@ -361,12 +363,15 @@ _C_LABEL(x):
  */
 
 #if !defined(_MIPS_BSD_API) || _MIPS_BSD_API == _MIPS_BSD_API_LP32
+/* #if !defined(__mips_n64) */
 #define	REG_L		lw
 #define	REG_S		sw
 #define	REG_LI		li
 #define	REG_PROLOGUE	.set push
 #define	REG_EPILOGUE	.set pop
 #define	SZREG		4
+#define	PTR_LA		la
+#define	PTR_ADDU	addu
 #else
 #define	REG_L		ld
 #define	REG_S		sd
@@ -374,6 +379,8 @@ _C_LABEL(x):
 #define	REG_PROLOGUE	.set push ; .set mips3
 #define	REG_EPILOGUE	.set pop
 #define	SZREG		8
+#define	PTR_LA		dla
+#define	PTR_ADDU	daddu
 #endif	/* _MIPS_BSD_API */
 
 #define	mfc0_macro(data, spr)						\

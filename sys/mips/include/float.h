@@ -42,10 +42,10 @@ extern int __flt_rounds(void);
 __END_DECLS
 
 #define	FLT_RADIX	2		/* b */
-#ifdef SOFTFLOAT
-#define	FLT_ROUNDS	-1
-#else
+#ifdef CPU_HAVEFPU
 #define	FLT_ROUNDS	__flt_rounds() /* FP addition rounds to nearest */
+#else
+#define	FLT_ROUNDS	-1
 #endif
 /*
  * XXXMIPS: MIPS32 has both float and double type, so set FLT_EVAL_METHOD

@@ -47,8 +47,4 @@
 #define	USERMODE(ps)	(((ps) & SR_KSU_MASK) == SR_KSU_USER)
 #define	BASEPRI(ps)	(((ps) & (INT_MASK | SR_INT_ENA_PREV)) \
 			    == (INT_MASK | SR_INT_ENA_PREV))
-
-#ifdef _KERNEL
-#include <machine/intr.h>
-#endif
 #endif	/* _MACHINE_PSL_H_ */

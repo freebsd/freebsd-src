@@ -29,15 +29,48 @@
 #ifndef	_MACHINE_INTR_MACHDEP_H_
 #define	_MACHINE_INTR_MACHDEP_H_
 
+#ifdef TARGET_XLR_XLS
+/*
+ * XLR/XLS uses its own intr_machdep.c and has
+ * a different number of interupts. This probably
+ * should be placed somewhere else.
+ */
+
+struct mips_intrhand {
+        struct  intr_event *mih_event;
+        driver_intr_t      *mih_disable;
+        volatile long       *cntp;  /* interrupt counter */
+};
+
+extern struct mips_intrhand mips_intr_handlers[];
+#define XLR_MAX_INTR 64 
+
+#else
 #define NHARD_IRQS	6
 #define NSOFT_IRQS	2
+#endif
 
 struct trapframe;
 
-void cpu_establish_hardintr(const char *, int (*)(void*), void (*)(void*), 
+void cpu_init_interrupts(void);
+void cpu_establish_hardintr(const char *, driver_filter_t *, driver_intr_t *, 
     void *, int, int, void **);
-void cpu_establish_softintr(const char *, int (*)(void*), void (*)(void*), 
+void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void*), 
     void *, int, int, void **);
 void cpu_intr(struct trapframe *);
 
+/*
+ * Opaque datatype that represents intr counter
+ */
+typedef unsigned long* mips_intrcnt_t;
+
+mips_intrcnt_t mips_intrcnt_create(const char *);
+void mips_intrcnt_setname(mips_intrcnt_t, const char *);
+
+static __inline void
+mips_intrcnt_inc(mips_intrcnt_t counter)
+{
+	if (counter)
+		atomic_add_long(counter, 1);
+}
 #endif /* !_MACHINE_INTR_MACHDEP_H_ */
