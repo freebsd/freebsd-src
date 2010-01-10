@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 
+#undef NEXUS_DEBUG
 #ifdef NEXUS_DEBUG
 #define dprintf printf
 #else 
@@ -76,20 +77,7 @@ struct nexus_device {
 
 static struct rman irq_rman;
 static struct rman mem_rman;
-
-#ifdef notyet
-/*
- * XXX: TODO: Implement bus space barrier functions.
- * Currently tag and handle are set when memory resources
- * are activated.
- */
-struct bus_space_tag nexus_bustag = {
-	NULL,			/* cookie */
-	NULL,			/* parent bus tag */
-	NEXUS_BUS_SPACE,	/* type */
-	nexus_bus_barrier,	/* bus_space_barrier */
-};
-#endif
+static struct rman port_rman;
 
 static struct resource *
 		nexus_alloc_resource(device_t, device_t, int, int *, u_long,
@@ -173,6 +161,21 @@ nexus_probe(device_t dev)
 		panic("%s: mem_rman", __func__);
 	}
 
+	/*
+	 * MIPS has no concept of the x86 I/O address space but some cpus
+	 * provide a memory mapped window to access the PCI I/O BARs.
+	 */
+	port_rman.rm_start = 0;
+#ifdef PCI_IOSPACE_SIZE
+	port_rman.rm_end = PCI_IOSPACE_SIZE - 1;
+#endif
+	port_rman.rm_type = RMAN_ARRAY;
+	port_rman.rm_descr = "I/O ports";
+	if (rman_init(&port_rman) != 0 ||
+	    rman_manage_region(&port_rman, 0, port_rman.rm_end) != 0)
+		panic("%s: port_rman", __func__);
+
+
 	return (0);
 }
 
@@ -182,14 +185,14 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 {
 	int irq;
 
-	register_t sr = intr_disable();
+	intrmask_t s = disableintr();
 	irq = rman_get_start(res);
 	if (irq >= NUM_MIPS_IRQS)
 		return (0);
 
 	cpu_establish_hardintr(device_get_nameunit(child), filt, intr, arg,
 	    irq, flags, cookiep);
-	intr_restore(sr);
+	restoreintr(s);
 	return (0);
 }
 
@@ -238,6 +241,7 @@ nexus_print_all_resources(device_t dev)
 
 	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
 	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
 
 	return (retval);
 }
@@ -249,24 +253,46 @@ nexus_hinted_child(device_t bus, const char *dname, int dunit)
 	long	maddr;
 	int	msize;
 	int	result;
+	int	irq;
+	int	mem_hints_count;
 
 	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
+	if (child == NULL)
+		return;
 
 	/*
 	 * Set hard-wired resources for hinted child using
 	 * specific RIDs.
 	 */
-	resource_long_value(dname, dunit, "maddr", &maddr);
-	resource_int_value(dname, dunit, "msize", &msize);
+	mem_hints_count = 0;
+	if (resource_long_value(dname, dunit, "maddr", &maddr) == 0)
+		mem_hints_count++;
+	if (resource_int_value(dname, dunit, "msize", &msize) == 0)
+		mem_hints_count++;
 
-	dprintf("%s: discovered hinted child %s at maddr %p(%d)\n",
-	    __func__, device_get_nameunit(child),
-	    (void *)(intptr_t)maddr, msize);
+	/* check if all info for mem resource has been provided */
+	if ((mem_hints_count > 0) && (mem_hints_count < 2)) {
+		printf("Either maddr or msize hint is missing for %s%d\n",
+		    dname, dunit);
+	} 
+	else if (mem_hints_count) {
+		dprintf("%s: discovered hinted child %s at maddr %p(%d)\n",
+		    __func__, device_get_nameunit(child),
+		    (void *)(intptr_t)maddr, msize);
 
-	result = bus_set_resource(child, SYS_RES_MEMORY, MIPS_MEM_RID,
-	    maddr, msize);
-	if (result != 0) {
-		device_printf(bus, "warning: bus_set_resource() failed\n");
+		result = bus_set_resource(child, SYS_RES_MEMORY, 0, maddr, 
+		    msize);
+		if (result != 0) {
+			device_printf(bus, 
+			    "warning: bus_set_resource() failed\n");
+		}
+	}
+
+	if (resource_int_value(dname, dunit, "irq", &irq) == 0) {
+		result = bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1);
+		if (result != 0)
+			device_printf(bus,
+			    "warning: bus_set_resource() failed\n");
 	}
 }
 
@@ -282,6 +308,10 @@ nexus_add_child(device_t bus, int order, const char *name, int unit)
 	resource_list_init(&ndev->nx_resources);
 
 	child = device_add_child_ordered(bus, order, name, unit);
+	if (child == NULL) {
+		device_printf(bus, "failed to add child: %s%d\n", name, unit);
+		return (0);
+	}
 
 	/* should we free this in nexus_child_detached? */
 	device_set_ivars(child, ndev);
@@ -338,6 +368,9 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	case SYS_RES_MEMORY:
 		rm = &mem_rman;
 		break;
+	case SYS_RES_IOPORT:
+		rm = &port_rman;
+		break;
 	default:
 		printf("%s: unknown resource type %d\n", __func__, type);
 		return (0);
@@ -345,7 +378,8 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == 0) {
-		printf("%s: could not reserve resource\n", __func__);
+		printf("%s: could not reserve resource for %s\n", __func__,
+		    device_get_nameunit(child));
 		return (0);
 	}
 
@@ -366,33 +400,25 @@ static int
 nexus_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-#ifdef TARGET_OCTEON
-        uint64_t temp;
-#endif		
 	/*
 	 * If this is a memory resource, track the direct mapping
 	 * in the uncached MIPS KSEG1 segment.
 	 */
+	/* XXX we shouldn't be supporting sys_res_ioport here */
 	if ((type == SYS_RES_MEMORY) || (type == SYS_RES_IOPORT)) {
-                caddr_t vaddr = 0;
-                u_int32_t paddr;
-                u_int32_t psize;
-                u_int32_t poffs;
-                
-                paddr = rman_get_start(r);
-                psize = rman_get_size(r);
-                poffs = paddr - trunc_page(paddr);
-                vaddr = (caddr_t) pmap_mapdev(paddr-poffs, psize+poffs) + poffs;
+		caddr_t vaddr = 0;
+		u_int32_t paddr;
+		u_int32_t psize;
+		u_int32_t poffs;
+		
+		paddr = rman_get_start(r);
+		psize = rman_get_size(r);
+		poffs = paddr - trunc_page(paddr);
+		vaddr = (caddr_t) pmap_mapdev(paddr-poffs, psize+poffs) + poffs;
 
 		rman_set_virtual(r, vaddr);
-		rman_set_bustag(r, MIPS_BUS_SPACE_MEM);
-#ifdef TARGET_OCTEON
-		temp = 0x0000000000000000;
-		temp |= (uint32_t)vaddr;
-		rman_set_bushandle(r, (bus_space_handle_t)temp);
-#else		
-		rman_set_bushandle(r, (bus_space_handle_t)vaddr);
-#endif		
+		rman_set_bustag(r, mips_bus_space_generic);
+		rman_set_bushandle(r, (bus_space_handle_t)(uintptr_t)vaddr);
 	}
 
 	return (rman_activate_resource(r));
@@ -473,6 +499,12 @@ static int
 nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 			  struct resource *r)
 {
+	vm_offset_t va;
+	
+	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+		va = (vm_offset_t)rman_get_virtual(r);
+		pmap_unmapdev(va, rman_get_size(r));
+	}
 
 	return (rman_deactivate_resource(r));
 }

@@ -67,13 +67,13 @@ ENTRY(copystr)
 	move	v0, zero
 	beqz	a2, 2f
 	move	t1, zero
-1:	subu	a2, 1
+1:	subu	a2, 1			/*XXX mips64 unsafe -- long */
 	lbu	t0, 0(a0)
-	addu	a0, 1
+	PTR_ADDU a0, 1
 	sb	t0, 0(a1)
-	addu	a1, 1
+	PTR_ADDU a1, 1
 	beqz	t0, 3f /* NULL  - end of string*/
-	addu	t1, 1
+	addu	t1, 1			/*XXX mips64 unsafe -- long */
 	bnez	a2, 1b
 	nop
 2:	/* ENAMETOOLONG */
@@ -81,7 +81,7 @@ ENTRY(copystr)
 3:	/* done != NULL -> how many bytes were copied */
 	beqz	a3, 4f
 	nop
-	sw	t1, 0(a3)
+	sw	t1, 0(a3)		/*XXX mips64 unsafe -- long */
 4:	jr	ra
 	nop
 	.set reorder
@@ -100,25 +100,25 @@ LEAF(copyinstr)
 	.set noat
 	lw	t2, pcpup
 	lw	v1, PC_CURPCB(t2)
-	la	v0, _C_LABEL(copystrerr)
+	PTR_LA	v0, _C_LABEL(copystrerr)
 	blt	a0, zero, _C_LABEL(copystrerr)
 	sw	v0, PCB_ONFAULT(v1)
 	move	t0, a2
 	beq	a2, zero, 4f
 1:
 	lbu	v0, 0(a0)
-	subu	a2, a2, 1
+	subu	a2, a2, 1		/*xxx mips64 unsafe -- long */
 	beq	v0, zero, 2f
 	sb	v0, 0(a1)
-	addu	a0, a0, 1
+	PTR_ADDU a0, a0, 1
 	bne	a2, zero, 1b
-	addu	a1, a1, 1
+	PTR_ADDU a1, a1, 1
 4:
 	li	v0, ENAMETOOLONG
 2:
 	beq	a3, zero, 3f
-	subu	a2, t0, a2
-	sw	a2, 0(a3)
+	subu	a2, t0, a2		/*xxx mips64 unsafe -- long */
+	sw	a2, 0(a3)		/*xxx mips64 unsafe -- long */
 3:
 	j	ra				# v0 is 0 or ENAMETOOLONG
 	sw	zero, PCB_ONFAULT(v1)
@@ -138,25 +138,25 @@ LEAF(copyoutstr)
 	.set noat
 	lw	t2, pcpup
 	lw	v1, PC_CURPCB(t2)
-	la	v0, _C_LABEL(copystrerr)
+	PTR_LA	v0, _C_LABEL(copystrerr)
 	blt	a1, zero, _C_LABEL(copystrerr)
 	sw	v0, PCB_ONFAULT(v1)
 	move	t0, a2
 	beq	a2, zero, 4f
 1:
 	lbu	v0, 0(a0)
-	subu	a2, a2, 1
+	subu	a2, a2, 1		/*xxx mips64 unsafe -- long */
 	beq	v0, zero, 2f
 	sb	v0, 0(a1)
-	addu	a0, a0, 1
+	PTR_ADDU a0, a0, 1
 	bne	a2, zero, 1b
-	addu	a1, a1, 1
+	PTR_ADDU a1, a1, 1
 4:
 	li	v0, ENAMETOOLONG
 2:
 	beq	a3, zero, 3f
-	subu	a2, t0, a2
-	sw	a2, 0(a3)
+	subu	a2, t0, a2		/*xxx mips64 unsafe -- long */
+	sw	a2, 0(a3)		/*xxx mips64 unsafe -- long */
 3:
 	j	ra				# v0 is 0 or ENAMETOOLONG
 	sw	zero, PCB_ONFAULT(v1)
