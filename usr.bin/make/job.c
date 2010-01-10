@@ -114,6 +114,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <string.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -137,7 +138,8 @@ __FBSDID("$FreeBSD$");
 #include "util.h"
 #include "var.h"
 
-#define	TMPPAT	"/tmp/makeXXXXXXXXXX"
+#define	TMPPAT	"makeXXXXXXXXXX"
+#define	TMPDIR	"/tmp"
 
 #ifndef USE_KQUEUE
 /*
@@ -236,7 +238,7 @@ typedef struct Job {
 		 */
 		struct {
 			/* Name of file to which shell output was rerouted */
-			char	of_outFile[sizeof(TMPPAT)];
+			char	of_outFile[PATH_MAX];
 
 			/*
 			 * Stream open to the output file. Used to funnel all
@@ -1566,7 +1568,8 @@ JobStart(GNode *gn, int flags, Job *previous)
 	Boolean	noExec;		/* Set true if we decide not to run the job */
 	int	tfd;		/* File descriptor for temp file */
 	LstNode	*ln;
-	char	tfile[sizeof(TMPPAT)];
+	char	tfile[PATH_MAX];
+	const char *tdir;
 
 	if (interrupted) {
 		JobPassSig(interrupted);
@@ -1607,6 +1610,9 @@ JobStart(GNode *gn, int flags, Job *previous)
 		cmdsOK = TRUE;
 	}
 
+	if ((tdir = getenv("TMPDIR")) == NULL)
+		tdir = TMPDIR;
+
 	/*
 	 * If the -n flag wasn't given, we open up OUR (not the child's)
 	 * temporary file to stuff commands in it. The thing is rd/wr so we
@@ -1622,7 +1628,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 			DieHorribly();
 		}
 
-		strcpy(tfile, TMPPAT);
+		snprintf(tfile, sizeof(tfile), "%s/%s", tdir, TMPPAT);
 		if ((tfd = mkstemp(tfile)) == -1)
 			Punt("Cannot create temp file: %s", strerror(errno));
 		job->cmdFILE = fdopen(tfd, "w+");
@@ -1801,7 +1807,10 @@ JobStart(GNode *gn, int flags, Job *previous)
 		} else {
 			fprintf(stdout, "Remaking `%s'\n", gn->name);
 			fflush(stdout);
-			strcpy(job->outFile, TMPPAT);
+			if ((tdir = getenv("TMPDIR")) == NULL)
+				tdir = TMPDIR;
+			snprintf(job->outFile, sizeof(job->outFile), "%s/%s",
+			    tdir, TMPPAT);
 			if ((job->outFd = mkstemp(job->outFile)) == -1)
 				Punt("cannot create temp file: %s",
 				    strerror(errno));
