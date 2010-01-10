@@ -1882,6 +1882,7 @@ fire_setup_intr(device_t dev, device_t child, struct resource *ires,
     void **cookiep)
 {
 	struct fire_softc *sc;
+	struct fire_msiqarg *fmqa;
 	u_long vec;
 	int error;
 	u_int msi, msiq;
@@ -1914,17 +1915,24 @@ fire_setup_intr(device_t dev, device_t child, struct resource *ires,
 		rman_set_end(ires, msi);
 		if (error != 0)
 			return (error);
+		fmqa = intr_vectors[vec].iv_icarg;
 		/*
 		 * XXX inject our event queue handler.
 		 */
 		if (filt != NULL) {
 			intr_vectors[vec].iv_func = fire_msiq_filter;
 			intr_vectors[vec].iv_ic = &fire_msiqc_filter;
+			/*
+			 * Ensure the event queue interrupt is cleared, it
+			 * might have triggered before.  Given we supply NULL
+			 * as ic_clear, inthand_add() won't do this for us.
+			 */
+			FIRE_PCI_WRITE_8(sc, fmqa->fmqa_fica.fica_clr,
+			    INTCLR_IDLE);
 		} else
 			intr_vectors[vec].iv_func = fire_msiq_handler;
 		/* Record the MSI/MSI-X as long as we we use a 1:1 mapping. */
-		((struct fire_msiqarg *)intr_vectors[vec].iv_icarg)->
-		    fmqa_msi = msi;
+		fmqa->fmqa_msi = msi;
 		FIRE_PCI_WRITE_8(sc, FO_PCI_EQ_CTRL_SET_BASE + (msiq << 3),
 		    FO_PCI_EQ_CTRL_SET_EN);
 		msi <<= 3;
