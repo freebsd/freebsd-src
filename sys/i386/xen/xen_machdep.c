@@ -715,9 +715,6 @@ xen_destroy_contiguous_region(void *addr, int npages)
 	balloon_unlock(flags);
 }
 
-extern unsigned long cpu0prvpage;
-extern unsigned long *SMPpt;
-extern  struct user	*proc0uarea;
 extern  vm_offset_t	proc0kstack;
 extern int vm86paddr, vm86phystk;
 char *bootmem_start, *bootmem_current, *bootmem_end;
