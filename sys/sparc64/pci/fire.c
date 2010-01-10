@@ -83,6 +83,8 @@ __FBSDID("$FreeBSD$");
 
 #include "pcib_if.h"
 
+struct fire_msiqarg;
+
 static bus_space_tag_t fire_alloc_bus_tag(struct fire_softc *sc, int type);
 static const struct fire_desc *fire_get_desc(device_t dev);
 static void fire_dmamap_sync(bus_dma_tag_t dt __unused, bus_dmamap_t map,
@@ -94,6 +96,9 @@ static void fire_intr_clear(void *arg);
 static void fire_intr_disable(void *arg);
 static void fire_intr_enable(void *arg);
 static int fire_intr_register(struct fire_softc *sc, u_int ino);
+static inline void fire_msiq_common(struct intr_vector *iv,
+    struct fire_msiqarg *fmqa);
+static void fire_msiq_filter(void *cookie);
 static void fire_msiq_handler(void *cookie);
 static void fire_set_intr(struct fire_softc *sc, u_int index, u_int ino,
     driver_filter_t handler, void *arg);
@@ -182,6 +187,13 @@ struct fire_icarg {
 	struct fire_softc	*fica_sc;
 	bus_addr_t		fica_map;
 	bus_addr_t		fica_clr;
+};
+
+static const struct intr_controller fire_msiqc_filter = {
+	fire_intr_enable,
+	fire_intr_disable,
+	fire_intr_assign,
+	NULL
 };
 
 struct fire_msiqarg {
@@ -1611,7 +1623,7 @@ fire_intr_clear(void *arg)
  */
 
 static int
-fire_alloc_msi(device_t dev, device_t child, int count, int maxcount,
+fire_alloc_msi(device_t dev, device_t child, int count, int maxcount __unused,
     int *irqs)
 {
 	struct fire_softc *sc;
@@ -1637,16 +1649,11 @@ fire_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 		mtx_unlock(&sc->sc_msi_mtx);
 		return (ENXIO);
 	}
-	/*
-	 * It's unclear whether we need to actually align the MSIs in the
-	 * mapping table based on the maxcount or just the count. We use
-	 * maxcount to be on the safe side.
-	 */
-	for (i = 0; i + maxcount < sc->sc_msi_count; i += maxcount) {
-		for (j = i; j < i + maxcount; j++)
+	for (i = 0; i + count < sc->sc_msi_count; i += count) {
+		for (j = i; j < i + count; j++)
 			if (isclr(sc->sc_msi_bitmap, j) == 0)
 				break;
-		if (j == i + maxcount) {
+		if (j == i + count) {
 			for (j = 0; j < count; j++) {
 				setbit(sc->sc_msiq_bitmap, msiqrun + j);
 				setbit(sc->sc_msi_bitmap, i + j);
@@ -1765,33 +1772,67 @@ fire_msiq_handler(void *cookie)
 {
 	struct intr_vector *iv;
 	struct fire_msiqarg *fmqa;
+
+	iv = cookie;
+	fmqa = iv->iv_icarg;
+	/*
+	 * Note that since fire_intr_clear() will clear the event queue
+	 * interrupt after the handler associated with the MSI [sic] has
+	 * been executed we have to protect the access to the event queue as
+	 * otherwise nested event queue interrupts cause corruption of the
+	 * event queue on MP machines.  Obviously especially when abandoning
+	 * the 1:1 mapping it would be better to not clear the event queue
+	 * interrupt after each handler invocation but only once when the
+	 * outstanding MSIs have been processed but unfortunately that
+	 * doesn't work well and leads to interrupt storms with controllers/
+	 * drivers which don't mask interrupts while the handler is executed.
+	 * Maybe delaying clearing the MSI until after the handler has been
+	 * executed could be used to work around this but that's not the
+	 * intended usage and might in turn cause lost MSIs.
+	 */
+	mtx_lock_spin(&fmqa->fmqa_mtx);
+	fire_msiq_common(iv, fmqa);
+	mtx_unlock_spin(&fmqa->fmqa_mtx);
+}
+
+static void
+fire_msiq_filter(void *cookie)
+{
+	struct intr_vector *iv;
+	struct fire_msiqarg *fmqa;
+
+	iv = cookie;
+	fmqa = iv->iv_icarg;
+	/*
+	 * For filters we don't use fire_intr_clear() since it would clear
+	 * the event queue interrupt while we're still processing the event
+	 * queue as filters and associated post-filter handler are executed
+	 * directly, which in turn would lead to lost MSIs.  So we clear the
+	 * event queue interrupt only once after processing the event queue.
+	 * Given that this still guarantees the filters to not be executed
+	 * concurrently and no other CPU can clear the event queue interrupt
+	 * while the event queue is still processed, we don't even need to
+	 * interlock the access to the event queue in this case.
+	 */
+	critical_enter();
+	fire_msiq_common(iv, fmqa);
+	FIRE_PCI_WRITE_8(fmqa->fmqa_fica.fica_sc, fmqa->fmqa_fica.fica_clr,
+	    INTCLR_IDLE);
+	critical_exit();
+}
+
+static inline void
+fire_msiq_common(struct intr_vector *iv, struct fire_msiqarg *fmqa)
+{
 	struct fire_softc *sc;
 	struct fo_msiq_record *qrec;
 	device_t dev;
 	uint64_t word0;
 	u_int head, msi, msiq;
 
-	iv = cookie;
-	fmqa = iv->iv_icarg;
 	sc = fmqa->fmqa_fica.fica_sc;
 	dev = sc->sc_dev;
 	msiq = fmqa->fmqa_msiq;
-	/*
-	 * Note that since fire_intr_clear() will clear the event queue
-	 * interrupt after the filter/handler associated with the MSI [sic]
-	 * has been executed we have to protect the access to the event queue
-	 * as otherwise nested event queue interrupts cause corruption of the
-	 * event queue on MP machines.  Obviously especially when abandoning
-	 * the 1:1 mapping it would be better to not clear the event queue
-	 * interrupt after each filter/handler invocation but only once when
-	 * the outstanding MSIs have been processed but unfortunately that
-	 * doesn't work well and leads to interrupt storms with controllers/
-	 * drivers which don't mask interrupts while the filter/handler is
-	 * executed.  Maybe delaying clearing the MSI until after the filter/
-	 * handler has been executed could be used to work around this but
-	 * that's not the intended usage and might in turn cause lost MSIs.
-	 */
-	mtx_lock_spin(&fmqa->fmqa_mtx);
 	head = (FIRE_PCI_READ_8(sc, fmqa->fmqa_head) & FO_PCI_EQ_HD_MASK) >>
 	    FO_PCI_EQ_HD_SHFT;
 	qrec = &fmqa->fmqa_base[head];
@@ -1833,7 +1874,6 @@ fire_msiq_handler(void *cookie)
 		    FIRE_PCI_READ_8(sc, FO_PCI_EQ_CTRL_CLR_BASE + msiq) |
 		    FO_PCI_EQ_CTRL_CLR_COVERR);
 	}
-	mtx_unlock_spin(&fmqa->fmqa_mtx);
 }
 
 static int
@@ -1872,31 +1912,32 @@ fire_setup_intr(device_t dev, device_t child, struct resource *ires,
 		    intr, arg, cookiep);
 		rman_set_start(ires, msi);
 		rman_set_end(ires, msi);
-		if (error == 0) {
-			/*
-			 * XXX inject our event queue handler.
-			 */
+		if (error != 0)
+			return (error);
+		/*
+		 * XXX inject our event queue handler.
+		 */
+		if (filt != NULL) {
+			intr_vectors[vec].iv_func = fire_msiq_filter;
+			intr_vectors[vec].iv_ic = &fire_msiqc_filter;
+		} else
 			intr_vectors[vec].iv_func = fire_msiq_handler;
-			/*
-			 * Record the MSI/MSI-X as long as we we use a 1:1
-			 * mapping.
-			 */
-			((struct fire_msiqarg *)intr_vectors[vec].iv_icarg)->
-			    fmqa_msi = msi;
-			FIRE_PCI_WRITE_8(sc, FO_PCI_EQ_CTRL_SET_BASE +
-			    (msiq << 3), FO_PCI_EQ_CTRL_SET_EN);
-			msi <<= 3;
-			FIRE_PCI_WRITE_8(sc, FO_PCI_MSI_MAP_BASE + msi,
-			    (FIRE_PCI_READ_8(sc, FO_PCI_MSI_MAP_BASE + msi) &
-			    ~FO_PCI_MSI_MAP_EQNUM_MASK) |
-			    ((msiq << FO_PCI_MSI_MAP_EQNUM_SHFT) &
-			    FO_PCI_MSI_MAP_EQNUM_MASK));
-			FIRE_PCI_WRITE_8(sc, FO_PCI_MSI_CLR_BASE + msi,
-			    FO_PCI_MSI_CLR_EQWR_N);
-			FIRE_PCI_WRITE_8(sc, FO_PCI_MSI_MAP_BASE + msi,
-			    FIRE_PCI_READ_8(sc, FO_PCI_MSI_MAP_BASE + msi) |
-			    FO_PCI_MSI_MAP_V);
-		}
+		/* Record the MSI/MSI-X as long as we we use a 1:1 mapping. */
+		((struct fire_msiqarg *)intr_vectors[vec].iv_icarg)->
+		    fmqa_msi = msi;
+		FIRE_PCI_WRITE_8(sc, FO_PCI_EQ_CTRL_SET_BASE + (msiq << 3),
+		    FO_PCI_EQ_CTRL_SET_EN);
+		msi <<= 3;
+		FIRE_PCI_WRITE_8(sc, FO_PCI_MSI_MAP_BASE + msi,
+		    (FIRE_PCI_READ_8(sc, FO_PCI_MSI_MAP_BASE + msi) &
+		    ~FO_PCI_MSI_MAP_EQNUM_MASK) |
+		    ((msiq << FO_PCI_MSI_MAP_EQNUM_SHFT) &
+		    FO_PCI_MSI_MAP_EQNUM_MASK));
+		FIRE_PCI_WRITE_8(sc, FO_PCI_MSI_CLR_BASE + msi,
+		    FO_PCI_MSI_CLR_EQWR_N);
+		FIRE_PCI_WRITE_8(sc, FO_PCI_MSI_MAP_BASE + msi,
+		    FIRE_PCI_READ_8(sc, FO_PCI_MSI_MAP_BASE + msi) |
+		    FO_PCI_MSI_MAP_V);
 		return (error);
 	}
 
@@ -1945,14 +1986,16 @@ fire_teardown_intr(device_t dev, device_t child, struct resource *ires,
 		    (0 << FO_PCI_EQ_TL_SHFT) & FO_PCI_EQ_TL_MASK);
 		FIRE_PCI_WRITE_8(sc, FO_PCI_EQ_HD_BASE + msiq,
 		    (0 << FO_PCI_EQ_HD_SHFT) & FO_PCI_EQ_HD_MASK);
+		intr_vectors[vec].iv_ic = &fire_ic;
 		/*
 		 * The MD interrupt code needs the vector rather than the MSI.
 		 */
 		rman_set_start(ires, vec);
 		rman_set_end(ires, vec);
 		error = bus_generic_teardown_intr(dev, child, ires, cookie);
+		msi >>= 3;
 		rman_set_start(ires, msi);
-		rman_set_end(ires, msi >> 3);
+		rman_set_end(ires, msi);
 		return (error);
 	}
 	return (bus_generic_teardown_intr(dev, child, ires, cookie));
