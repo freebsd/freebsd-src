@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_ati_chipinit(device_t dev);
+static int ata_ati_ixp700_ch_attach(device_t dev);
 static int ata_ati_setmode(device_t dev, int target, int mode);
 
 /* misc defines */
@@ -121,7 +122,7 @@ ata_ati_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     device_t smbdev;
-    int satacfg;
+    uint8_t satacfg;
 
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
@@ -145,19 +146,39 @@ ata_ati_chipinit(device_t dev)
 		    (satacfg & 0x01) == 0 ? "disabled" : "enabled",
 		    (satacfg & 0x08) == 0 ? "" : "combined mode, ",
 		    (satacfg & 0x10) == 0 ? "primary" : "secondary");
-
+	    ctlr->chipset_data = (void *)(uintptr_t)satacfg;
 	    /*
 	     * If SATA controller is enabled but combined mode is disabled,
 	     * we have only one PATA channel.  Ignore a non-existent channel.
 	     */
 	    if ((satacfg & 0x09) == 0x01)
 		ctlr->ichannels &= ~(1 << ((satacfg & 0x10) >> 4));
+	    else {
+	        ctlr->ch_attach = ata_ati_ixp700_ch_attach;
+	    }
 	}
 	break;
     }
 
     ctlr->setmode = ata_ati_setmode;
     return 0;
+}
+
+static int
+ata_ati_ixp700_ch_attach(device_t dev)
+{
+	struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+	struct ata_channel *ch = device_get_softc(dev);
+	uint8_t satacfg = (uint8_t)(uintptr_t)ctlr->chipset_data;
+
+	/* Setup the usual register normal pci style. */
+	if (ata_pci_ch_attach(dev))
+		return ENXIO;
+
+	/* One of channels is PATA, another is SATA. */
+	if (ch->unit == ((satacfg & 0x10) >> 4))
+		ch->flags |= ATA_SATA;
+	return (0);
 }
 
 static int
