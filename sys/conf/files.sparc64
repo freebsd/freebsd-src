@@ -74,6 +74,7 @@ sparc64/isa/isa.c		optional	isa
 sparc64/isa/isa_dma.c		optional	isa
 sparc64/isa/ofw_isa.c		optional	ebus | isa
 sparc64/pci/apb.c		optional	pci
+sparc64/pci/fire.c		optional	pci
 sparc64/pci/ofw_pcib.c		optional	pci
 sparc64/pci/ofw_pcib_subr.c	optional	pci
 sparc64/pci/ofw_pcibus.c	optional	pci
