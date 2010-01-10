@@ -41,6 +41,8 @@
 #include <machine/cpu.h>
 #include <machine/regnum.h>
 
+#include "opt_cputype.h"
+
 #include "assym.s"
 
 /*

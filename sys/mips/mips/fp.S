@@ -634,7 +634,7 @@ func_fmt_tbl:
  */
 sub_s:
 	jal	get_ft_fs_s
-	xor	t4, t4, 1			# negate FT sign bit
+	xor	ta0, ta0, 1			# negate FT sign bit
 	b	add_sub_s
 /*
  * Single precision add.
@@ -643,38 +643,38 @@ add_s:
 	jal	get_ft_fs_s
 add_sub_s:
 	bne	t1, SEXP_INF, 1f		# is FS an infinity?
-	bne	t5, SEXP_INF, result_fs_s	# if FT is not inf, result=FS
+	bne	ta1, SEXP_INF, result_fs_s	# if FT is not inf, result=FS
 	bne	t2, zero, result_fs_s		# if FS is NAN, result is FS
-	bne	t6, zero, result_ft_s		# if FT is NAN, result is FT
-	bne	t0, t4, invalid_s		# both infinities same sign?
+	bne	ta2, zero, result_ft_s		# if FT is NAN, result is FT
+	bne	t0, ta0, invalid_s		# both infinities same sign?
 	b	result_fs_s			# result is in FS
 1:
-	beq	t5, SEXP_INF, result_ft_s	# if FT is inf, result=FT
+	beq	ta1, SEXP_INF, result_ft_s	# if FT is inf, result=FT
 	bne	t1, zero, 4f			# is FS a denormalized num?
 	beq	t2, zero, 3f			# is FS zero?
-	bne	t5, zero, 2f			# is FT a denormalized num?
-	beq	t6, zero, result_fs_s		# FT is zero, result=FS
+	bne	ta1, zero, 2f			# is FT a denormalized num?
+	beq	ta2, zero, result_fs_s		# FT is zero, result=FS
 	jal	renorm_fs_s
 	jal	renorm_ft_s
 	b	5f
 2:
 	jal	renorm_fs_s
-	subu	t5, t5, SEXP_BIAS		# unbias FT exponent
-	or	t6, t6, SIMPL_ONE		# set implied one bit
+	subu	ta1, ta1, SEXP_BIAS		# unbias FT exponent
+	or	ta2, ta2, SIMPL_ONE		# set implied one bit
 	b	5f
 3:
-	bne	t5, zero, result_ft_s		# if FT != 0, result=FT
-	bne	t6, zero, result_ft_s
+	bne	ta1, zero, result_ft_s		# if FT != 0, result=FT
+	bne	ta2, zero, result_ft_s
 	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
 	bne	v0, FPC_ROUND_RM, 1f		# round to -infinity?
-	or	t0, t0, t4			# compute result sign
+	or	t0, t0, ta0			# compute result sign
 	b	result_fs_s
 1:
-	and	t0, t0, t4			# compute result sign
+	and	t0, t0, ta0			# compute result sign
 	b	result_fs_s
 4:
-	bne	t5, zero, 2f			# is FT a denormalized num?
-	beq	t6, zero, result_fs_s		# FT is zero, result=FS
+	bne	ta1, zero, 2f			# is FT a denormalized num?
+	beq	ta2, zero, result_fs_s		# FT is zero, result=FS
 	subu	t1, t1, SEXP_BIAS		# unbias FS exponent
 	or	t2, t2, SIMPL_ONE		# set implied one bit
 	jal	renorm_ft_s
@@ -682,15 +682,15 @@ add_sub_s:
 2:
 	subu	t1, t1, SEXP_BIAS		# unbias FS exponent
 	or	t2, t2, SIMPL_ONE		# set implied one bit
-	subu	t5, t5, SEXP_BIAS		# unbias FT exponent
-	or	t6, t6, SIMPL_ONE		# set implied one bit
+	subu	ta1, ta1, SEXP_BIAS		# unbias FT exponent
+	or	ta2, ta2, SIMPL_ONE		# set implied one bit
 /*
  * Perform the addition.
  */
 5:
 	move	t8, zero			# no shifted bits (sticky reg)
-	beq	t1, t5, 4f			# no shift needed
-	subu	v0, t1, t5			# v0 = difference of exponents
+	beq	t1, ta1, 4f			# no shift needed
+	subu	v0, t1, ta1			# v0 = difference of exponents
 	move	v1, v0				# v1 = abs(difference)
 	bge	v0, zero, 1f
 	negu	v1
@@ -698,50 +698,50 @@ add_sub_s:
 	ble	v1, SFRAC_BITS+2, 2f		# is difference too great?
 	li	t8, STICKYBIT			# set the sticky bit
 	bge	v0, zero, 1f			# check which exp is larger
-	move	t1, t5				# result exp is FTs
+	move	t1, ta1				# result exp is FTs
 	move	t2, zero			# FSs fraction shifted is zero
 	b	4f
 1:
-	move	t6, zero			# FTs fraction shifted is zero
+	move	ta2, zero			# FTs fraction shifted is zero
 	b	4f
 2:
 	li	t9, 32				# compute 32 - abs(exp diff)
 	subu	t9, t9, v1
 	bgt	v0, zero, 3f			# if FS > FT, shift FTs frac
-	move	t1, t5				# FT > FS, result exp is FTs
+	move	t1, ta1				# FT > FS, result exp is FTs
 	sll	t8, t2, t9			# save bits shifted out
 	srl	t2, t2, v1			# shift FSs fraction
 	b	4f
 3:
-	sll	t8, t6, t9			# save bits shifted out
-	srl	t6, t6, v1			# shift FTs fraction
+	sll	t8, ta2, t9			# save bits shifted out
+	srl	ta2, ta2, v1			# shift FTs fraction
 4:
-	bne	t0, t4, 1f			# if signs differ, subtract
-	addu	t2, t2, t6			# add fractions
+	bne	t0, ta0, 1f			# if signs differ, subtract
+	addu	t2, t2, ta2			# add fractions
 	b	norm_s
 1:
-	blt	t2, t6, 3f			# subtract larger from smaller
-	bne	t2, t6, 2f			# if same, result=0
+	blt	t2, ta2, 3f			# subtract larger from smaller
+	bne	t2, ta2, 2f			# if same, result=0
 	move	t1, zero			# result=0
 	move	t2, zero
 	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	bne	v0, FPC_ROUND_RM, 1f	# round to -infinity?
-	or	t0, t0, t4			# compute result sign
+	bne	v0, FPC_ROUND_RM, 1f		# round to -infinity?
+	or	t0, t0, ta0			# compute result sign
 	b	result_fs_s
 1:
-	and	t0, t0, t4			# compute result sign
+	and	t0, t0, ta0			# compute result sign
 	b	result_fs_s
 2:
-	sltu	t9, zero, t8			# compute t2:zero - t6:t8
+	sltu	t9, zero, t8			# compute t2:zero - ta2:t8
 	subu	t8, zero, t8
-	subu	t2, t2, t6			# subtract fractions
+	subu	t2, t2, ta2			# subtract fractions
 	subu	t2, t2, t9			# subtract barrow
 	b	norm_s
 3:
-	move	t0, t4				# sign of result = FTs
-	sltu	t9, zero, t8			# compute t6:zero - t2:t8
+	move	t0, ta0				# sign of result = FTs
+	sltu	t9, zero, t8			# compute ta2:zero - t2:t8
 	subu	t8, zero, t8
-	subu	t2, t6, t2			# subtract fractions
+	subu	t2, ta2, t2			# subtract fractions
 	subu	t2, t2, t9			# subtract barrow
 	b	norm_s
 
@@ -750,7 +750,7 @@ add_sub_s:
  */
 sub_d:
 	jal	get_ft_fs_d
-	xor	t4, t4, 1			# negate sign bit
+	xor	ta0, ta0, 1			# negate sign bit
 	b	add_sub_d
 /*
  * Double precision add.
@@ -759,46 +759,46 @@ add_d:
 	jal	get_ft_fs_d
 add_sub_d:
 	bne	t1, DEXP_INF, 1f		# is FS an infinity?
-	bne	t5, DEXP_INF, result_fs_d	# if FT is not inf, result=FS
+	bne	ta1, DEXP_INF, result_fs_d	# if FT is not inf, result=FS
 	bne	t2, zero, result_fs_d		# if FS is NAN, result is FS
 	bne	t3, zero, result_fs_d
-	bne	t6, zero, result_ft_d		# if FT is NAN, result is FT
-	bne	t7, zero, result_ft_d
-	bne	t0, t4, invalid_d		# both infinities same sign?
+	bne	ta2, zero, result_ft_d		# if FT is NAN, result is FT
+	bne	ta3, zero, result_ft_d
+	bne	t0, ta0, invalid_d		# both infinities same sign?
 	b	result_fs_d			# result is in FS
 1:
-	beq	t5, DEXP_INF, result_ft_d	# if FT is inf, result=FT
+	beq	ta1, DEXP_INF, result_ft_d	# if FT is inf, result=FT
 	bne	t1, zero, 4f			# is FS a denormalized num?
 	bne	t2, zero, 1f			# is FS zero?
 	beq	t3, zero, 3f
 1:
-	bne	t5, zero, 2f			# is FT a denormalized num?
-	bne	t6, zero, 1f
-	beq	t7, zero, result_fs_d		# FT is zero, result=FS
+	bne	ta1, zero, 2f			# is FT a denormalized num?
+	bne	ta2, zero, 1f
+	beq	ta3, zero, result_fs_d		# FT is zero, result=FS
 1:
 	jal	renorm_fs_d
 	jal	renorm_ft_d
 	b	5f
 2:
 	jal	renorm_fs_d
-	subu	t5, t5, DEXP_BIAS		# unbias FT exponent
-	or	t6, t6, DIMPL_ONE		# set implied one bit
+	subu	ta1, ta1, DEXP_BIAS		# unbias FT exponent
+	or	ta2, ta2, DIMPL_ONE		# set implied one bit
 	b	5f
 3:
-	bne	t5, zero, result_ft_d		# if FT != 0, result=FT
-	bne	t6, zero, result_ft_d
-	bne	t7, zero, result_ft_d
+	bne	ta1, zero, result_ft_d		# if FT != 0, result=FT
+	bne	ta2, zero, result_ft_d
+	bne	ta3, zero, result_ft_d
 	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	bne	v0, FPC_ROUND_RM, 1f	# round to -infinity?
-	or	t0, t0, t4			# compute result sign
+	bne	v0, FPC_ROUND_RM, 1f		# round to -infinity?
+	or	t0, t0, ta0			# compute result sign
 	b	result_fs_d
 1:
-	and	t0, t0, t4			# compute result sign
+	and	t0, t0, ta0			# compute result sign
 	b	result_fs_d
 4:
-	bne	t5, zero, 2f			# is FT a denormalized num?
-	bne	t6, zero, 1f
-	beq	t7, zero, result_fs_d		# FT is zero, result=FS
+	bne	ta1, zero, 2f			# is FT a denormalized num?
+	bne	ta2, zero, 1f
+	beq	ta3, zero, result_fs_d		# FT is zero, result=FS
 1:
 	subu	t1, t1, DEXP_BIAS		# unbias FS exponent
 	or	t2, t2, DIMPL_ONE		# set implied one bit
@@ -807,15 +807,15 @@ add_sub_d:
 2:
 	subu	t1, t1, DEXP_BIAS		# unbias FS exponent
 	or	t2, t2, DIMPL_ONE		# set implied one bit
-	subu	t5, t5, DEXP_BIAS		# unbias FT exponent
-	or	t6, t6, DIMPL_ONE		# set implied one bit
+	subu	ta1, ta1, DEXP_BIAS		# unbias FT exponent
+	or	ta2, ta2, DIMPL_ONE		# set implied one bit
 /*
  * Perform the addition.
  */
 5:
 	move	t8, zero			# no shifted bits (sticky reg)
-	beq	t1, t5, 4f			# no shift needed
-	subu	v0, t1, t5			# v0 = difference of exponents
+	beq	t1, ta1, 4f			# no shift needed
+	subu	v0, t1, ta1			# v0 = difference of exponents
 	move	v1, v0				# v1 = abs(difference)
 	bge	v0, zero, 1f
 	negu	v1
@@ -823,18 +823,18 @@ add_sub_d:
 	ble	v1, DFRAC_BITS+2, 2f		# is difference too great?
 	li	t8, STICKYBIT			# set the sticky bit
 	bge	v0, zero, 1f			# check which exp is larger
-	move	t1, t5				# result exp is FTs
+	move	t1, ta1				# result exp is FTs
 	move	t2, zero			# FSs fraction shifted is zero
 	move	t3, zero
 	b	4f
 1:
-	move	t6, zero			# FTs fraction shifted is zero
-	move	t7, zero
+	move	ta2, zero			# FTs fraction shifted is zero
+	move	ta3, zero
 	b	4f
 2:
 	li	t9, 32
 	bge	v0, zero, 3f			# if FS > FT, shift FTs frac
-	move	t1, t5				# FT > FS, result exp is FTs
+	move	t1, ta1				# FT > FS, result exp is FTs
 	blt	v1, t9, 1f			# shift right by < 32?
 	subu	v1, v1, t9
 	subu	t9, t9, v1
@@ -856,62 +856,62 @@ add_sub_d:
 	blt	v1, t9, 1f			# shift right by < 32?
 	subu	v1, v1, t9
 	subu	t9, t9, v1
-	sll	t8, t6, t9			# save bits shifted out
-	srl	t7, t6, v1			# shift FTs fraction
-	move	t6, zero
+	sll	t8, ta2, t9			# save bits shifted out
+	srl	ta3, ta2, v1			# shift FTs fraction
+	move	ta2, zero
 	b	4f
 1:
 	subu	t9, t9, v1
-	sll	t8, t7, t9			# save bits shifted out
-	srl	t7, t7, v1			# shift FTs fraction
-	sll	t9, t6, t9			# save bits shifted out of t2
-	or	t7, t7, t9			# and put into t3
-	srl	t6, t6, v1
+	sll	t8, ta3, t9			# save bits shifted out
+	srl	ta3, ta3, v1			# shift FTs fraction
+	sll	t9, ta2, t9			# save bits shifted out of t2
+	or	ta3, ta3, t9			# and put into t3
+	srl	ta2, ta2, v1
 4:
-	bne	t0, t4, 1f			# if signs differ, subtract
-	addu	t3, t3, t7			# add fractions
-	sltu	t9, t3, t7			# compute carry
-	addu	t2, t2, t6			# add fractions
+	bne	t0, ta0, 1f			# if signs differ, subtract
+	addu	t3, t3, ta3			# add fractions
+	sltu	t9, t3, ta3			# compute carry
+	addu	t2, t2, ta2			# add fractions
 	addu	t2, t2, t9			# add carry
 	b	norm_d
 1:
-	blt	t2, t6, 3f			# subtract larger from smaller
-	bne	t2, t6, 2f
-	bltu	t3, t7, 3f
-	bne	t3, t7, 2f			# if same, result=0
+	blt	t2, ta2, 3f			# subtract larger from smaller
+	bne	t2, ta2, 2f
+	bltu	t3, ta3, 3f
+	bne	t3, ta3, 2f			# if same, result=0
 	move	t1, zero			# result=0
 	move	t2, zero
 	move	t3, zero
 	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
 	bne	v0, FPC_ROUND_RM, 1f		# round to -infinity?
-	or	t0, t0, t4			# compute result sign
+	or	t0, t0, ta0			# compute result sign
 	b	result_fs_d
 1:
-	and	t0, t0, t4			# compute result sign
+	and	t0, t0, ta0			# compute result sign
 	b	result_fs_d
 2:
-	beq	t8, zero, 1f			# compute t2:t3:zero - t6:t7:t8
+	beq	t8, zero, 1f			# compute t2:t3:zero - ta2:ta3:t8
 	subu	t8, zero, t8
 	sltu	v0, t3, 1			# compute barrow out
 	subu	t3, t3, 1			# subtract barrow
 	subu	t2, t2, v0
 1:
-	sltu	v0, t3, t7
-	subu	t3, t3, t7			# subtract fractions
-	subu	t2, t2, t6			# subtract fractions
+	sltu	v0, t3, ta3
+	subu	t3, t3, ta3			# subtract fractions
+	subu	t2, t2, ta2			# subtract fractions
 	subu	t2, t2, v0			# subtract barrow
 	b	norm_d
 3:
-	move	t0, t4				# sign of result = FTs
-	beq	t8, zero, 1f			# compute t6:t7:zero - t2:t3:t8
+	move	t0, ta0				# sign of result = FTs
+	beq	t8, zero, 1f			# compute ta2:ta3:zero - t2:t3:t8
 	subu	t8, zero, t8
-	sltu	v0, t7, 1			# compute barrow out
-	subu	t7, t7, 1			# subtract barrow
-	subu	t6, t6, v0
+	sltu	v0, ta3, 1			# compute barrow out
+	subu	ta3, ta3, 1			# subtract barrow
+	subu	ta2, ta2, v0
 1:
-	sltu	v0, t7, t3
-	subu	t3, t7, t3			# subtract fractions
-	subu	t2, t6, t2			# subtract fractions
+	sltu	v0, ta3, t3
+	subu	t3, ta3, t3			# subtract fractions
+	subu	t2, ta2, t2			# subtract fractions
 	subu	t2, t2, v0			# subtract barrow
 	b	norm_d
 
@@ -920,22 +920,22 @@ add_sub_d:
  */
 mul_s:
 	jal	get_ft_fs_s
-	xor	t0, t0, t4			# compute sign of result
-	move	t4, t0
+	xor	t0, t0, ta0			# compute sign of result
+	move	ta0, t0
 	bne	t1, SEXP_INF, 2f		# is FS an infinity?
 	bne	t2, zero, result_fs_s		# if FS is a NAN, result=FS
-	bne	t5, SEXP_INF, 1f		# FS is inf, is FT an infinity?
-	bne	t6, zero, result_ft_s		# if FT is a NAN, result=FT
+	bne	ta1, SEXP_INF, 1f		# FS is inf, is FT an infinity?
+	bne	ta2, zero, result_ft_s		# if FT is a NAN, result=FT
 	b	result_fs_s			# result is infinity
 1:
-	bne	t5, zero, result_fs_s		# inf * zero? if no, result=FS
-	bne	t6, zero, result_fs_s
+	bne	ta1, zero, result_fs_s		# inf * zero? if no, result=FS
+	bne	ta2, zero, result_fs_s
 	b	invalid_s			# infinity * zero is invalid
 2:
-	bne	t5, SEXP_INF, 1f		# FS != inf, is FT an infinity?
+	bne	ta1, SEXP_INF, 1f		# FS != inf, is FT an infinity?
 	bne	t1, zero, result_ft_s		# zero * inf? if no, result=FT
 	bne	t2, zero, result_ft_s
-	bne	t6, zero, result_ft_s		# if FT is a NAN, result=FT
+	bne	ta2, zero, result_ft_s		# if FT is a NAN, result=FT
 	b	invalid_s			# zero * infinity is invalid
 1:
 	bne	t1, zero, 1f			# is FS zero?
@@ -946,17 +946,17 @@ mul_s:
 	subu	t1, t1, SEXP_BIAS		# unbias FS exponent
 	or	t2, t2, SIMPL_ONE		# set implied one bit
 2:
-	bne	t5, zero, 1f			# is FT zero?
-	beq	t6, zero, result_ft_s		# result is zero
+	bne	ta1, zero, 1f			# is FT zero?
+	beq	ta2, zero, result_ft_s		# result is zero
 	jal	renorm_ft_s
 	b	2f
 1:
-	subu	t5, t5, SEXP_BIAS		# unbias FT exponent
-	or	t6, t6, SIMPL_ONE		# set implied one bit
+	subu	ta1, ta1, SEXP_BIAS		# unbias FT exponent
+	or	ta2, ta2, SIMPL_ONE		# set implied one bit
 2:
-	addu	t1, t1, t5			# compute result exponent
+	addu	t1, t1, ta1			# compute result exponent
 	addu	t1, t1, 9			# account for binary point
-	multu	t2, t6				# multiply fractions
+	multu	t2, ta2				# multiply fractions
 	mflo	t8
 	mfhi	t2
 	b	norm_s
@@ -966,27 +966,27 @@ mul_s:
  */
 mul_d:
 	jal	get_ft_fs_d
-	xor	t0, t0, t4			# compute sign of result
-	move	t4, t0
+	xor	t0, t0, ta0			# compute sign of result
+	move	ta0, t0
 	bne	t1, DEXP_INF, 2f		# is FS an infinity?
 	bne	t2, zero, result_fs_d		# if FS is a NAN, result=FS
 	bne	t3, zero, result_fs_d
-	bne	t5, DEXP_INF, 1f		# FS is inf, is FT an infinity?
-	bne	t6, zero, result_ft_d		# if FT is a NAN, result=FT
-	bne	t7, zero, result_ft_d
+	bne	ta1, DEXP_INF, 1f		# FS is inf, is FT an infinity?
+	bne	ta2, zero, result_ft_d		# if FT is a NAN, result=FT
+	bne	ta3, zero, result_ft_d
 	b	result_fs_d			# result is infinity
 1:
-	bne	t5, zero, result_fs_d		# inf * zero? if no, result=FS
-	bne	t6, zero, result_fs_d
-	bne	t7, zero, result_fs_d
+	bne	ta1, zero, result_fs_d		# inf * zero? if no, result=FS
+	bne	ta2, zero, result_fs_d
+	bne	ta3, zero, result_fs_d
 	b	invalid_d			# infinity * zero is invalid
 2:
-	bne	t5, DEXP_INF, 1f		# FS != inf, is FT an infinity?
+	bne	ta1, DEXP_INF, 1f		# FS != inf, is FT an infinity?
 	bne	t1, zero, result_ft_d		# zero * inf? if no, result=FT
 	bne	t2, zero, result_ft_d		# if FS is a NAN, result=FS
 	bne	t3, zero, result_ft_d
-	bne	t6, zero, result_ft_d		# if FT is a NAN, result=FT
-	bne	t7, zero, result_ft_d
+	bne	ta2, zero, result_ft_d		# if FT is a NAN, result=FT
+	bne	ta3, zero, result_ft_d
 	b	invalid_d			# zero * infinity is invalid
 1:
 	bne	t1, zero, 2f			# is FS zero?
@@ -999,37 +999,37 @@ mul_d:
 	subu	t1, t1, DEXP_BIAS		# unbias FS exponent
 	or	t2, t2, DIMPL_ONE		# set implied one bit
 3:
-	bne	t5, zero, 2f			# is FT zero?
-	bne	t6, zero, 1f
-	beq	t7, zero, result_ft_d		# result is zero
+	bne	ta1, zero, 2f			# is FT zero?
+	bne	ta2, zero, 1f
+	beq	ta3, zero, result_ft_d		# result is zero
 1:
 	jal	renorm_ft_d
 	b	3f
 2:
-	subu	t5, t5, DEXP_BIAS		# unbias FT exponent
-	or	t6, t6, DIMPL_ONE		# set implied one bit
+	subu	ta1, ta1, DEXP_BIAS		# unbias FT exponent
+	or	ta2, ta2, DIMPL_ONE		# set implied one bit
 3:
-	addu	t1, t1, t5			# compute result exponent
+	addu	t1, t1, ta1			# compute result exponent
 	addu	t1, t1, 12			# ???
-	multu	t3, t7				# multiply fractions (low * low)
-	move	t4, t2				# free up t2,t3 for result
-	move	t5, t3
+	multu	t3, ta3				# multiply fractions (low * low)
+	move	ta0, t2				# free up t2,t3 for result
+	move	ta1, t3
 	mflo	a3				# save low order bits
 	mfhi	t8
 	not	v0, t8
-	multu	t4, t7				# multiply FS(high) * FT(low)
+	multu	ta0, ta3			# multiply FS(high) * FT(low)
 	mflo	v1
 	mfhi	t3				# init low result
 	sltu	v0, v0, v1			# compute carry
 	addu	t8, v1
-	multu	t5, t6				# multiply FS(low) * FT(high)
+	multu	ta1, ta2			# multiply FS(low) * FT(high)
 	addu	t3, t3, v0			# add carry
 	not	v0, t8
 	mflo	v1
 	mfhi	t2
 	sltu	v0, v0, v1
 	addu	t8, v1
-	multu	t4, t6				# multiply FS(high) * FT(high)
+	multu	ta0, ta2			# multiply FS(high) * FT(high)
 	addu	t3, v0
 	not	v1, t3
 	sltu	v1, v1, t2
@@ -1050,24 +1050,24 @@ mul_d:
  */
 div_s:
 	jal	get_ft_fs_s
-	xor	t0, t0, t4			# compute sign of result
-	move	t4, t0
+	xor	t0, t0, ta0			# compute sign of result
+	move	ta0, t0
 	bne	t1, SEXP_INF, 1f		# is FS an infinity?
 	bne	t2, zero, result_fs_s		# if FS is NAN, result is FS
-	bne	t5, SEXP_INF, result_fs_s	# is FT an infinity?
-	bne	t6, zero, result_ft_s		# if FT is NAN, result is FT
+	bne	ta1, SEXP_INF, result_fs_s	# is FT an infinity?
+	bne	ta2, zero, result_ft_s		# if FT is NAN, result is FT
 	b	invalid_s			# infinity/infinity is invalid
 1:
-	bne	t5, SEXP_INF, 1f		# is FT an infinity?
-	bne	t6, zero, result_ft_s		# if FT is NAN, result is FT
+	bne	ta1, SEXP_INF, 1f		# is FT an infinity?
+	bne	ta2, zero, result_ft_s		# if FT is NAN, result is FT
 	move	t1, zero			# x / infinity is zero
 	move	t2, zero
 	b	result_fs_s
 1:
 	bne	t1, zero, 2f			# is FS zero?
 	bne	t2, zero, 1f
-	bne	t5, zero, result_fs_s		# FS=zero, is FT zero?
-	beq	t6, zero, invalid_s		# 0 / 0
+	bne	ta1, zero, result_fs_s		# FS=zero, is FT zero?
+	beq	ta2, zero, invalid_s		# 0 / 0
 	b	result_fs_s			# result = zero
 1:
 	jal	renorm_fs_s
@@ -1076,8 +1076,8 @@ div_s:
 	subu	t1, t1, SEXP_BIAS		# unbias FS exponent
 	or	t2, t2, SIMPL_ONE		# set implied one bit
 3:
-	bne	t5, zero, 2f			# is FT zero?
-	bne	t6, zero, 1f
+	bne	ta1, zero, 2f			# is FT zero?
+	bne	ta2, zero, 1f
 	or	a1, a1, FPC_EXCEPTION_DIV0 | FPC_STICKY_DIV0
 	and	v0, a1, FPC_ENABLE_DIV0 	# trap enabled?
 	bne	v0, zero, fpe_trap
@@ -1089,18 +1089,18 @@ div_s:
 	jal	renorm_ft_s
 	b	3f
 2:
-	subu	t5, t5, SEXP_BIAS		# unbias FT exponent
-	or	t6, t6, SIMPL_ONE		# set implied one bit
+	subu	ta1, ta1, SEXP_BIAS		# unbias FT exponent
+	or	ta2, ta2, SIMPL_ONE		# set implied one bit
 3:
-	subu	t1, t1, t5			# compute exponent
+	subu	t1, t1, ta1			# compute exponent
 	subu	t1, t1, 3			# compensate for result position
 	li	v0, SFRAC_BITS+3		# number of bits to divide
 	move	t8, t2				# init dividend
 	move	t2, zero			# init result
 1:
-	bltu	t8, t6, 3f			# is dividend >= divisor?
+	bltu	t8, ta2, 3f			# is dividend >= divisor?
 2:
-	subu	t8, t8, t6			# subtract divisor from dividend
+	subu	t8, t8, ta2			# subtract divisor from dividend
 	or	t2, t2, 1			# remember that we did
 	bne	t8, zero, 3f			# if not done, continue
 	sll	t2, t2, v0			# shift result to final position
@@ -1117,19 +1117,19 @@ div_s:
  */
 div_d:
 	jal	get_ft_fs_d
-	xor	t0, t0, t4			# compute sign of result
-	move	t4, t0
+	xor	t0, t0, ta0			# compute sign of result
+	move	ta0, t0
 	bne	t1, DEXP_INF, 1f		# is FS an infinity?
 	bne	t2, zero, result_fs_d		# if FS is NAN, result is FS
 	bne	t3, zero, result_fs_d
-	bne	t5, DEXP_INF, result_fs_d	# is FT an infinity?
-	bne	t6, zero, result_ft_d		# if FT is NAN, result is FT
-	bne	t7, zero, result_ft_d
+	bne	ta1, DEXP_INF, result_fs_d	# is FT an infinity?
+	bne	ta2, zero, result_ft_d		# if FT is NAN, result is FT
+	bne	ta3, zero, result_ft_d
 	b	invalid_d			# infinity/infinity is invalid
 1:
-	bne	t5, DEXP_INF, 1f		# is FT an infinity?
-	bne	t6, zero, result_ft_d		# if FT is NAN, result is FT
-	bne	t7, zero, result_ft_d
+	bne	ta1, DEXP_INF, 1f		# is FT an infinity?
+	bne	ta2, zero, result_ft_d		# if FT is NAN, result is FT
+	bne	ta3, zero, result_ft_d
 	move	t1, zero			# x / infinity is zero
 	move	t2, zero
 	move	t3, zero
@@ -1138,9 +1138,9 @@ div_d:
 	bne	t1, zero, 2f			# is FS zero?
 	bne	t2, zero, 1f
 	bne	t3, zero, 1f
-	bne	t5, zero, result_fs_d		# FS=zero, is FT zero?
-	bne	t6, zero, result_fs_d
-	beq	t7, zero, invalid_d		# 0 / 0
+	bne	ta1, zero, result_fs_d		# FS=zero, is FT zero?
+	bne	ta2, zero, result_fs_d
+	beq	ta3, zero, invalid_d		# 0 / 0
 	b	result_fs_d			# result = zero
 1:
 	jal	renorm_fs_d
@@ -1149,9 +1149,9 @@ div_d:
 	subu	t1, t1, DEXP_BIAS		# unbias FS exponent
 	or	t2, t2, DIMPL_ONE		# set implied one bit
 3:
-	bne	t5, zero, 2f			# is FT zero?
-	bne	t6, zero, 1f
-	bne	t7, zero, 1f
+	bne	ta1, zero, 2f			# is FT zero?
+	bne	ta2, zero, 1f
+	bne	ta3, zero, 1f
 	or	a1, a1, FPC_EXCEPTION_DIV0 | FPC_STICKY_DIV0
 	and	v0, a1, FPC_ENABLE_DIV0		# trap enabled?
 	bne	v0, zero, fpe_trap
@@ -1164,10 +1164,10 @@ div_d:
 	jal	renorm_ft_d
 	b	3f
 2:
-	subu	t5, t5, DEXP_BIAS		# unbias FT exponent
-	or	t6, t6, DIMPL_ONE		# set implied one bit
+	subu	ta1, ta1, DEXP_BIAS		# unbias FT exponent
+	or	ta2, ta2, DIMPL_ONE		# set implied one bit
 3:
-	subu	t1, t1, t5			# compute exponent
+	subu	t1, t1, ta1			# compute exponent
 	subu	t1, t1, 3			# compensate for result position
 	li	v0, DFRAC_BITS+3		# number of bits to divide
 	move	t8, t2				# init dividend
@@ -1175,13 +1175,13 @@ div_d:
 	move	t2, zero			# init result
 	move	t3, zero
 1:
-	bltu	t8, t6, 3f			# is dividend >= divisor?
-	bne	t8, t6, 2f
-	bltu	t9, t7, 3f
+	bltu	t8, ta2, 3f			# is dividend >= divisor?
+	bne	t8, ta2, 2f
+	bltu	t9, ta3, 3f
 2:
-	sltu	v1, t9, t7			# subtract divisor from dividend
-	subu	t9, t9, t7
-	subu	t8, t8, t6
+	sltu	v1, t9, ta3			# subtract divisor from dividend
+	subu	t9, t9, ta3
+	subu	t8, t8, ta2
 	subu	t8, t8, v1
 	or	t3, t3, 1			# remember that we did
 	bne	t8, zero, 3f			# if not done, continue
@@ -1576,23 +1576,23 @@ cmp_s:
 	bne	t1, SEXP_INF, 1f		# is FS an infinity?
 	bne	t2, zero, unordered		# FS is a NAN
 1:
-	bne	t5, SEXP_INF, 2f		# is FT an infinity?
-	bne	t6, zero, unordered		# FT is a NAN
+	bne	ta1, SEXP_INF, 2f		# is FT an infinity?
+	bne	ta2, zero, unordered		# FT is a NAN
 2:
 	sll	t1, t1, 23			# reassemble exp & frac
 	or	t1, t1, t2
-	sll	t5, t5, 23			# reassemble exp & frac
-	or	t5, t5, t6
+	sll	ta1, ta1, 23			# reassemble exp & frac
+	or	ta1, ta1, ta2
 	beq	t0, zero, 1f			# is FS positive?
 	negu	t1
 1:
-	beq	t4, zero, 1f			# is FT positive?
-	negu	t5
+	beq	ta0, zero, 1f			# is FT positive?
+	negu	ta1
 1:
 	li	v0, COND_LESS
-	blt	t1, t5, test_cond		# is FS < FT?
+	blt	t1, ta1, test_cond		# is FS < FT?
 	li	v0, COND_EQUAL
-	beq	t1, t5, test_cond		# is FS == FT?
+	beq	t1, ta1, test_cond		# is FS == FT?
 	move	v0, zero			# FS > FT
 	b	test_cond
 
@@ -1605,14 +1605,14 @@ cmp_d:
 	bne	t2, zero, unordered
 	bne	t3, zero, unordered		# FS is a NAN
 1:
-	bne	t5, DEXP_INF, 2f		# is FT an infinity?
-	bne	t6, zero, unordered
-	bne	t7, zero, unordered		# FT is a NAN
+	bne	ta1, DEXP_INF, 2f		# is FT an infinity?
+	bne	ta2, zero, unordered
+	bne	ta3, zero, unordered		# FT is a NAN
 2:
 	sll	t1, t1, 20			# reassemble exp & frac
 	or	t1, t1, t2
-	sll	t5, t5, 20			# reassemble exp & frac
-	or	t5, t5, t6
+	sll	ta1, ta1, 20			# reassemble exp & frac
+	or	ta1, ta1, ta2
 	beq	t0, zero, 1f			# is FS positive?
 	not	t3				# negate t1,t3
 	not	t1
@@ -1620,21 +1620,21 @@ cmp_d:
 	seq	v0, t3, zero			# compute carry
 	addu	t1, t1, v0
 1:
-	beq	t4, zero, 1f			# is FT positive?
-	not	t7				# negate t5,t7
-	not	t5
-	addu	t7, t7, 1
-	seq	v0, t7, zero			# compute carry
-	addu	t5, t5, v0
+	beq	ta0, zero, 1f			# is FT positive?
+	not	ta3				# negate ta1,ta3
+	not	ta1
+	addu	ta3, ta3, 1
+	seq	v0, ta3, zero			# compute carry
+	addu	ta1, ta1, v0
 1:
 	li	v0, COND_LESS
-	blt	t1, t5, test_cond		# is FS(MSW) < FT(MSW)?
+	blt	t1, ta1, test_cond		# is FS(MSW) < FT(MSW)?
 	move	v0, zero
-	bne	t1, t5, test_cond		# is FS(MSW) > FT(MSW)?
+	bne	t1, ta1, test_cond		# is FS(MSW) > FT(MSW)?
 	li	v0, COND_LESS
-	bltu	t3, t7, test_cond		# is FS(LSW) < FT(LSW)?
+	bltu	t3, ta3, test_cond		# is FS(LSW) < FT(LSW)?
 	li	v0, COND_EQUAL
-	beq	t3, t7, test_cond		# is FS(LSW) == FT(LSW)?
+	beq	t3, ta3, test_cond		# is FS(LSW) == FT(LSW)?
 	move	v0, zero			# FS > FT
 test_cond:
 	and	v0, v0, a0			# condition match instruction?
@@ -1725,8 +1725,8 @@ norm_s:
 	or	t8, t8, v0
 	srl	t2, t2, t9
 norm_noshift_s:
-	move	t5, t1				# save unrounded exponent
-	move	t6, t2				# save unrounded fraction
+	move	ta1, t1				# save unrounded exponent
+	move	ta2, t2				# save unrounded fraction
 	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
 	beq	v0, FPC_ROUND_RN, 3f		# round to nearest
 	beq	v0, FPC_ROUND_RZ, 5f		# round to zero (truncate)
@@ -1826,8 +1826,8 @@ underflow_s:
  * signal inexact result (if it is) and trap (if enabled).
  */
 1:
-	move	t1, t5				# get unrounded exponent
-	move	t2, t6				# get unrounded fraction
+	move	t1, ta1				# get unrounded exponent
+	move	t2, ta2				# get unrounded fraction
 	li	t9, SEXP_MIN			# compute shift amount
 	subu	t9, t9, t1			# shift t2,t8 right by t9
 	blt	t9, SFRAC_BITS+2, 3f		# shift all the bits out?
@@ -1841,7 +1841,7 @@ underflow_s:
 	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
 	beq	v0, FPC_ROUND_RN, inexact_nobias_s # round to nearest
 	beq	v0, FPC_ROUND_RZ, inexact_nobias_s # round to zero
-	beq	v0, FPC_ROUND_RP, 1f	# round to +infinity
+	beq	v0, FPC_ROUND_RP, 1f		# round to +infinity
 	beq	t0, zero, inexact_nobias_s	# if sign is positive, truncate
 	b	2f
 1:
@@ -1970,9 +1970,9 @@ norm_d:
 	or	t3, t3, v0
 	srl	t2, t2, t9
 norm_noshift_d:
-	move	t5, t1				# save unrounded exponent
-	move	t6, t2				# save unrounded fraction (MS)
-	move	t7, t3				# save unrounded fraction (LS)
+	move	ta1, t1				# save unrounded exponent
+	move	ta2, t2				# save unrounded fraction (MS)
+	move	ta3, t3				# save unrounded fraction (LS)
 	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
 	beq	v0, FPC_ROUND_RN, 3f		# round to nearest
 	beq	v0, FPC_ROUND_RZ, 5f		# round to zero (truncate)
@@ -2078,9 +2078,9 @@ underflow_d:
  * signal inexact result (if it is) and trap (if enabled).
  */
 1:
-	move	t1, t5				# get unrounded exponent
-	move	t2, t6				# get unrounded fraction (MS)
-	move	t3, t7				# get unrounded fraction (LS)
+	move	t1, ta1				# get unrounded exponent
+	move	t2, ta2				# get unrounded fraction (MS)
+	move	t3, ta3				# get unrounded fraction (LS)
 	li	t9, DEXP_MIN			# compute shift amount
 	subu	t9, t9, t1			# shift t2,t8 right by t9
 	blt	t9, DFRAC_BITS+2, 3f		# shift all the bits out?
@@ -2095,7 +2095,7 @@ underflow_d:
 	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
 	beq	v0, FPC_ROUND_RN, inexact_nobias_d  # round to nearest
 	beq	v0, FPC_ROUND_RZ, inexact_nobias_d  # round to zero
-	beq	v0, FPC_ROUND_RP, 1f	# round to +infinity
+	beq	v0, FPC_ROUND_RP, 1f		# round to +infinity
 	beq	t0, zero, inexact_nobias_d	# if sign is positive, truncate
 	b	2f
 1:
@@ -2128,9 +2128,9 @@ underflow_d:
  */
 2:
 	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	beq	v0, FPC_ROUND_RN, 3f	# round to nearest
-	beq	v0, FPC_ROUND_RZ, 5f	# round to zero (truncate)
-	beq	v0, FPC_ROUND_RP, 1f	# round to +infinity
+	beq	v0, FPC_ROUND_RN, 3f		# round to nearest
+	beq	v0, FPC_ROUND_RZ, 5f		# round to zero (truncate)
+	beq	v0, FPC_ROUND_RP, 1f		# round to +infinity
 	beq	t0, zero, 5f			# if sign is positive, truncate
 	b	2f
 1:
@@ -2227,9 +2227,9 @@ ill:
 	break	0
 
 result_ft_s:
-	move	t0, t4				# result is FT
-	move	t1, t5
-	move	t2, t6
+	move	t0, ta0				# result is FT
+	move	t1, ta1
+	move	t2, ta2
 result_fs_s:					# result is FS
 	jal	set_fd_s			# save result (in t0,t1,t2)
 	b	done
@@ -2239,10 +2239,10 @@ result_fs_w:
 	b	done
 
 result_ft_d:
-	move	t0, t4				# result is FT
-	move	t1, t5
-	move	t2, t6
-	move	t3, t7
+	move	t0, ta0				# result is FT
+	move	t1, ta1
+	move	t2, ta2
+	move	t3, ta3
 result_fs_d:					# result is FS
 	jal	set_fd_d			# save result (in t0,t1,t2,t3)
 
@@ -2356,9 +2356,9 @@ END(get_fs_int)
  *	t0	contains the FS sign
  *	t1	contains the FS (biased) exponent
  *	t2	contains the FS fraction
- *	t4	contains the FT sign
- *	t5	contains the FT (biased) exponent
- *	t6	contains the FT fraction
+ *	ta0	contains the FT sign
+ *	ta1	contains the FT (biased) exponent
+ *	ta2	contains the FT fraction
  *
  *----------------------------------------------------------------------------
  */
@@ -2389,59 +2389,59 @@ get_ft_s_tbl:
 	.text
 
 get_ft_s_f0:
-	mfc1	t4, $f0
+	mfc1	ta0, $f0
 	b	get_ft_s_done
 get_ft_s_f2:
-	mfc1	t4, $f2
+	mfc1	ta0, $f2
 	b	get_ft_s_done
 get_ft_s_f4:
-	mfc1	t4, $f4
+	mfc1	ta0, $f4
 	b	get_ft_s_done
 get_ft_s_f6:
-	mfc1	t4, $f6
+	mfc1	ta0, $f6
 	b	get_ft_s_done
 get_ft_s_f8:
-	mfc1	t4, $f8
+	mfc1	ta0, $f8
 	b	get_ft_s_done
 get_ft_s_f10:
-	mfc1	t4, $f10
+	mfc1	ta0, $f10
 	b	get_ft_s_done
 get_ft_s_f12:
-	mfc1	t4, $f12
+	mfc1	ta0, $f12
 	b	get_ft_s_done
 get_ft_s_f14:
-	mfc1	t4, $f14
+	mfc1	ta0, $f14
 	b	get_ft_s_done
 get_ft_s_f16:
-	mfc1	t4, $f16
+	mfc1	ta0, $f16
 	b	get_ft_s_done
 get_ft_s_f18:
-	mfc1	t4, $f18
+	mfc1	ta0, $f18
 	b	get_ft_s_done
 get_ft_s_f20:
-	mfc1	t4, $f20
+	mfc1	ta0, $f20
 	b	get_ft_s_done
 get_ft_s_f22:
-	mfc1	t4, $f22
+	mfc1	ta0, $f22
 	b	get_ft_s_done
 get_ft_s_f24:
-	mfc1	t4, $f24
+	mfc1	ta0, $f24
 	b	get_ft_s_done
 get_ft_s_f26:
-	mfc1	t4, $f26
+	mfc1	ta0, $f26
 	b	get_ft_s_done
 get_ft_s_f28:
-	mfc1	t4, $f28
+	mfc1	ta0, $f28
 	b	get_ft_s_done
 get_ft_s_f30:
-	mfc1	t4, $f30
+	mfc1	ta0, $f30
 get_ft_s_done:
-	srl	t5, t4, 23			# get exponent
-	and	t5, t5, 0xFF
-	and	t6, t4, 0x7FFFFF		# get fraction
-	srl	t4, t4, 31			# get sign
-	bne	t5, SEXP_INF, 1f		# is it a signaling NAN?
-	and	v0, t6, SSIGNAL_NAN
+	srl	ta1, ta0, 23			# get exponent
+	and	ta1, ta1, 0xFF
+	and	ta2, ta0, 0x7FFFFF		# get fraction
+	srl	ta0, ta0, 31			# get sign
+	bne	ta1, SEXP_INF, 1f		# is it a signaling NAN?
+	and	v0, ta2, SSIGNAL_NAN
 	bne	v0, zero, invalid_s
 1:
 	/* fall through to get FS */
@@ -2557,10 +2557,10 @@ END(get_ft_fs_s)
  *	t1	contains the FS (biased) exponent
  *	t2	contains the FS fraction
  *	t3	contains the FS remaining fraction
- *	t4	contains the FT sign
- *	t5	contains the FT (biased) exponent
- *	t6	contains the FT fraction
- *	t7	contains the FT remaining fraction
+ *	ta0	contains the FT sign
+ *	ta1	contains the FT (biased) exponent
+ *	ta2	contains the FT fraction
+ *	ta3	contains the FT remaining fraction
  *
  *----------------------------------------------------------------------------
  */
@@ -2591,75 +2591,75 @@ get_ft_d_tbl:
 	.text
 
 get_ft_d_f0:
-	mfc1	t7, $f0
-	mfc1	t4, $f1
+	mfc1	ta3, $f0
+	mfc1	ta0, $f1
 	b	get_ft_d_done
 get_ft_d_f2:
-	mfc1	t7, $f2
-	mfc1	t4, $f3
+	mfc1	ta3, $f2
+	mfc1	ta0, $f3
 	b	get_ft_d_done
 get_ft_d_f4:
-	mfc1	t7, $f4
-	mfc1	t4, $f5
+	mfc1	ta3, $f4
+	mfc1	ta0, $f5
 	b	get_ft_d_done
 get_ft_d_f6:
-	mfc1	t7, $f6
-	mfc1	t4, $f7
+	mfc1	ta3, $f6
+	mfc1	ta0, $f7
 	b	get_ft_d_done
 get_ft_d_f8:
-	mfc1	t7, $f8
-	mfc1	t4, $f9
+	mfc1	ta3, $f8
+	mfc1	ta0, $f9
 	b	get_ft_d_done
 get_ft_d_f10:
-	mfc1	t7, $f10
-	mfc1	t4, $f11
+	mfc1	ta3, $f10
+	mfc1	ta0, $f11
 	b	get_ft_d_done
 get_ft_d_f12:
-	mfc1	t7, $f12
-	mfc1	t4, $f13
+	mfc1	ta3, $f12
+	mfc1	ta0, $f13
 	b	get_ft_d_done
 get_ft_d_f14:
-	mfc1	t7, $f14
-	mfc1	t4, $f15
+	mfc1	ta3, $f14
+	mfc1	ta0, $f15
 	b	get_ft_d_done
 get_ft_d_f16:
-	mfc1	t7, $f16
-	mfc1	t4, $f17
+	mfc1	ta3, $f16
+	mfc1	ta0, $f17
 	b	get_ft_d_done
 get_ft_d_f18:
-	mfc1	t7, $f18
-	mfc1	t4, $f19
+	mfc1	ta3, $f18
+	mfc1	ta0, $f19
 	b	get_ft_d_done
 get_ft_d_f20:
-	mfc1	t7, $f20
-	mfc1	t4, $f21
+	mfc1	ta3, $f20
+	mfc1	ta0, $f21
 	b	get_ft_d_done
 get_ft_d_f22:
-	mfc1	t7, $f22
-	mfc1	t4, $f23
+	mfc1	ta3, $f22
+	mfc1	ta0, $f23
 	b	get_ft_d_done
 get_ft_d_f24:
-	mfc1	t7, $f24
-	mfc1	t4, $f25
+	mfc1	ta3, $f24
+	mfc1	ta0, $f25
 	b	get_ft_d_done
 get_ft_d_f26:
-	mfc1	t7, $f26
-	mfc1	t4, $f27
+	mfc1	ta3, $f26
+	mfc1	ta0, $f27
 	b	get_ft_d_done
 get_ft_d_f28:
-	mfc1	t7, $f28
-	mfc1	t4, $f29
+	mfc1	ta3, $f28
+	mfc1	ta0, $f29
 	b	get_ft_d_done
 get_ft_d_f30:
-	mfc1	t7, $f30
-	mfc1	t4, $f31
+	mfc1	ta3, $f30
+	mfc1	ta0, $f31
 get_ft_d_done:
-	srl	t5, t4, 20			# get exponent
-	and	t5, t5, 0x7FF
-	and	t6, t4, 0xFFFFF			# get fraction
-	srl	t4, t4, 31			# get sign
-	bne	t5, DEXP_INF, 1f		# is it a signaling NAN?
-	and	v0, t6, DSIGNAL_NAN
+	srl	ta1, ta0, 20			# get exponent
+	and	ta1, ta1, 0x7FF
+	and	ta2, ta0, 0xFFFFF		# get fraction
+	srl	ta0, ta0, 31			# get sign
+	bne	ta1, DEXP_INF, 1f		# is it a signaling NAN?
+	and	v0, ta2, DSIGNAL_NAN
 	bne	v0, zero, invalid_d
 1:
 	/* fall through to get FS */
@@ -2791,9 +2791,9 @@ END(get_ft_fs_d)
  *	t0	contains the sign
  *	t1	contains the (biased) exponent
  *	t2	contains the fraction
- *	t4	contains the sign
- *	t5	contains the (biased) exponent
- *	t6	contains the fraction
+ *	ta0	contains the sign
+ *	ta1	contains the (biased) exponent
+ *	ta2	contains the fraction
  *
  *----------------------------------------------------------------------------
  */
@@ -2902,57 +2902,57 @@ cmp_ft_s_tbl:
 	.text
 
 cmp_ft_s_f0:
-	mfc1	t4, $f0
+	mfc1	ta0, $f0
 	b	cmp_ft_s_done
 cmp_ft_s_f2:
-	mfc1	t4, $f2
+	mfc1	ta0, $f2
 	b	cmp_ft_s_done
 cmp_ft_s_f4:
-	mfc1	t4, $f4
+	mfc1	ta0, $f4
 	b	cmp_ft_s_done
 cmp_ft_s_f6:
-	mfc1	t4, $f6
+	mfc1	ta0, $f6
 	b	cmp_ft_s_done
 cmp_ft_s_f8:
-	mfc1	t4, $f8
+	mfc1	ta0, $f8
 	b	cmp_ft_s_done
 cmp_ft_s_f10:
-	mfc1	t4, $f10
+	mfc1	ta0, $f10
 	b	cmp_ft_s_done
 cmp_ft_s_f12:
-	mfc1	t4, $f12
+	mfc1	ta0, $f12
 	b	cmp_ft_s_done
 cmp_ft_s_f14:
-	mfc1	t4, $f14
+	mfc1	ta0, $f14
 	b	cmp_ft_s_done
 cmp_ft_s_f16:
-	mfc1	t4, $f16
+	mfc1	ta0, $f16
 	b	cmp_ft_s_done
 cmp_ft_s_f18:
-	mfc1	t4, $f18
+	mfc1	ta0, $f18
 	b	cmp_ft_s_done
 cmp_ft_s_f20:
-	mfc1	t4, $f20
+	mfc1	ta0, $f20
 	b	cmp_ft_s_done
 cmp_ft_s_f22:
-	mfc1	t4, $f22
+	mfc1	ta0, $f22
 	b	cmp_ft_s_done
 cmp_ft_s_f24:
-	mfc1	t4, $f24
+	mfc1	ta0, $f24
 	b	cmp_ft_s_done
 cmp_ft_s_f26:
-	mfc1	t4, $f26
+	mfc1	ta0, $f26
 	b	cmp_ft_s_done
 cmp_ft_s_f28:
-	mfc1	t4, $f28
+	mfc1	ta0, $f28
 	b	cmp_ft_s_done
 cmp_ft_s_f30:
-	mfc1	t4, $f30
+	mfc1	ta0, $f30
 cmp_ft_s_done:
-	srl	t5, t4, 23			# get exponent
-	and	t5, t5, 0xFF
-	and	t6, t4, 0x7FFFFF		# get fraction
-	srl	t4, t4, 31			# get sign
+	srl	ta1, ta0, 23			# get exponent
+	and	ta1, ta1, 0xFF
+	and	ta2, ta0, 0x7FFFFF		# get fraction
+	srl	ta0, ta0, 31			# get sign
 	j	ra
 END(get_cmp_s)
 
@@ -2968,10 +2968,10 @@ END(get_cmp_s)
  *	t1	contains the (biased) exponent
  *	t2	contains the fraction
  *	t3	contains the remaining fraction
- *	t4	contains the sign
- *	t5	contains the (biased) exponent
- *	t6	contains the fraction
- *	t7	contains the remaining fraction
+ *	ta0	contains the sign
+ *	ta1	contains the (biased) exponent
+ *	ta2	contains the fraction
+ *	ta3	contains the remaining fraction
  *
  *----------------------------------------------------------------------------
  */
@@ -3096,73 +3096,73 @@ cmp_ft_d_tbl:
 	.text
 
 cmp_ft_d_f0:
-	mfc1	t7, $f0
-	mfc1	t4, $f1
+	mfc1	ta3, $f0
+	mfc1	ta0, $f1
 	b	cmp_ft_d_done
 cmp_ft_d_f2:
-	mfc1	t7, $f2
-	mfc1	t4, $f3
+	mfc1	ta3, $f2
+	mfc1	ta0, $f3
 	b	cmp_ft_d_done
 cmp_ft_d_f4:
-	mfc1	t7, $f4
-	mfc1	t4, $f5
+	mfc1	ta3, $f4
+	mfc1	ta0, $f5
 	b	cmp_ft_d_done
 cmp_ft_d_f6:
-	mfc1	t7, $f6
-	mfc1	t4, $f7
+	mfc1	ta3, $f6
+	mfc1	ta0, $f7
 	b	cmp_ft_d_done
 cmp_ft_d_f8:
-	mfc1	t7, $f8
-	mfc1	t4, $f9
+	mfc1	ta3, $f8
+	mfc1	ta0, $f9
 	b	cmp_ft_d_done
 cmp_ft_d_f10:
-	mfc1	t7, $f10
-	mfc1	t4, $f11
+	mfc1	ta3, $f10
+	mfc1	ta0, $f11
 	b	cmp_ft_d_done
 cmp_ft_d_f12:
-	mfc1	t7, $f12
-	mfc1	t4, $f13
+	mfc1	ta3, $f12
+	mfc1	ta0, $f13
 	b	cmp_ft_d_done
 cmp_ft_d_f14:
-	mfc1	t7, $f14
-	mfc1	t4, $f15
+	mfc1	ta3, $f14
+	mfc1	ta0, $f15
 	b	cmp_ft_d_done
 cmp_ft_d_f16:
-	mfc1	t7, $f16
-	mfc1	t4, $f17
+	mfc1	ta3, $f16
+	mfc1	ta0, $f17
 	b	cmp_ft_d_done
 cmp_ft_d_f18:
-	mfc1	t7, $f18
-	mfc1	t4, $f19
+	mfc1	ta3, $f18
+	mfc1	ta0, $f19
 	b	cmp_ft_d_done
 cmp_ft_d_f20:
-	mfc1	t7, $f20
-	mfc1	t4, $f21
+	mfc1	ta3, $f20
+	mfc1	ta0, $f21
 	b	cmp_ft_d_done
 cmp_ft_d_f22:
-	mfc1	t7, $f22
-	mfc1	t4, $f23
+	mfc1	ta3, $f22
+	mfc1	ta0, $f23
 	b	cmp_ft_d_done
 cmp_ft_d_f24:
-	mfc1	t7, $f24
-	mfc1	t4, $f25
+	mfc1	ta3, $f24
+	mfc1	ta0, $f25
 	b	cmp_ft_d_done
 cmp_ft_d_f26:
-	mfc1	t7, $f26
-	mfc1	t4, $f27
+	mfc1	ta3, $f26
+	mfc1	ta0, $f27
 	b	cmp_ft_d_done
 cmp_ft_d_f28:
-	mfc1	t7, $f28
-	mfc1	t4, $f29
+	mfc1	ta3, $f28
+	mfc1	ta0, $f29
 	b	cmp_ft_d_done
 cmp_ft_d_f30:
-	mfc1	t7, $f30
-	mfc1	t4, $f31
+	mfc1	ta3, $f30
+	mfc1	ta0, $f31
 cmp_ft_d_done:
-	srl	t5, t4, 20			# get exponent
-	and	t5, t5, 0x7FF
-	and	t6, t4, 0xFFFFF			# get fraction
-	srl	t4, t4, 31			# get sign
+	srl	ta1, ta0, 20			# get exponent
+	and	ta1, ta1, 0x7FF
+	and	ta2, ta0, 0xFFFFF		# get fraction
+	srl	ta0, ta0, 31			# get sign
 	j	ra
 END(get_cmp_d)
 
@@ -3498,16 +3498,16 @@ END(renorm_fs_d)
  * renorm_ft_s --
  *
  * Results:
- *	t5	unbiased exponent
- *	t6	normalized fraction
+ *	ta1	unbiased exponent
+ *	ta2	normalized fraction
  *
  *----------------------------------------------------------------------------
  */
 LEAF(renorm_ft_s)
 /*
- * Find out how many leading zero bits are in t6 and put in t9.
+ * Find out how many leading zero bits are in ta2 and put in t9.
  */
-	move	v0, t6
+	move	v0, ta2
 	move	t9, zero
 	srl	v1, v0, 16
 	bne	v1, zero, 1f
@@ -3533,13 +3533,13 @@ LEAF(renorm_ft_s)
 	bne	v1, zero, 1f
 	addu	t9, 1
 /*
- * Now shift t6 the correct number of bits.
+ * Now shift ta2 the correct number of bits.
  */
 1:
 	subu	t9, t9, SLEAD_ZEROS	# dont count normal leading zeros
-	li	t5, SEXP_MIN
-	subu	t5, t5, t9		# adjust exponent
-	sll	t6, t6, t9
+	li	ta1, SEXP_MIN
+	subu	ta1, ta1, t9		# adjust exponent
+	sll	ta2, ta2, t9
 	j	ra
 END(renorm_ft_s)
 
@@ -3547,19 +3547,19 @@ END(renorm_ft_s)
  * renorm_ft_d --
  *
  * Results:
- *	t5	unbiased exponent
- *	t6,t7	normalized fraction
+ *	ta1	unbiased exponent
+ *	ta2,ta3	normalized fraction
  *
  *----------------------------------------------------------------------------
  */
 LEAF(renorm_ft_d)
 /*
- * Find out how many leading zero bits are in t6,t7 and put in t9.
+ * Find out how many leading zero bits are in ta2,ta3 and put in t9.
  */
-	move	v0, t6
+	move	v0, ta2
 	move	t9, zero
-	bne	t6, zero, 1f
-	move	v0, t7
+	bne	ta2, zero, 1f
+	move	v0, ta3
 	addu	t9, 32
 1:
 	srl	v1, v0, 16
@@ -3586,23 +3586,23 @@ LEAF(renorm_ft_d)
 	bne	v1, zero, 1f
 	addu	t9, 1
 /*
- * Now shift t6,t7 the correct number of bits.
+ * Now shift ta2,ta3 the correct number of bits.
  */
 1:
 	subu	t9, t9, DLEAD_ZEROS	# dont count normal leading zeros
-	li	t5, DEXP_MIN
-	subu	t5, t5, t9		# adjust exponent
+	li	ta1, DEXP_MIN
+	subu	ta1, ta1, t9		# adjust exponent
 	li	v0, 32
 	blt	t9, v0, 1f
 	subu	t9, t9, v0		# shift fraction left >= 32 bits
-	sll	t6, t7, t9
-	move	t7, zero
+	sll	ta2, ta3, t9
+	move	ta3, zero
 	j	ra
 1:
 	subu	v0, v0, t9		# shift fraction left < 32 bits
-	sll	t6, t6, t9
-	srl	v1, t7, v0
-	or	t6, t6, v1
-	sll	t7, t7, t9
+	sll	ta2, ta2, t9
+	srl	v1, ta3, v0
+	or	ta2, ta2, v1
+	sll	ta3, ta3, t9
 	j	ra
 END(renorm_ft_d)
