@@ -528,7 +528,7 @@ admsw_attach(device_t dev)
 		ifmedia_add(&sc->sc_ifmedia[i], IFM_ETHER|IFM_AUTO, 0, NULL);
 		ifmedia_set(&sc->sc_ifmedia[i], IFM_ETHER|IFM_AUTO);
 
-		ifp = sc->sc_ifnet[i] = if_alloc(IFT_ETHER);
+		ifp = sc->sc_ifnet[i] = if_alloc(IFT_ETHER);;
 
 		/* Setup interface parameters */
 		ifp->if_softc = sc;
