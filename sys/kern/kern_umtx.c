@@ -144,9 +144,25 @@ struct umtx_q {
 
 	/* Inherited priority from PP mutex */
 	u_char			uq_inherited_pri;
+	
+	/* Spare queue ready to be reused */
+	struct umtxq_queue	*uq_spare_queue;
+
+	/* The queue we on */
+	struct umtxq_queue	*uq_cur_queue;
 };
 
 TAILQ_HEAD(umtxq_head, umtx_q);
+
+/* Per-key wait-queue */
+struct umtxq_queue {
+	struct umtxq_head	head;
+	struct umtx_key		key;
+	LIST_ENTRY(umtxq_queue)	link;
+	int			length;
+};
+
+LIST_HEAD(umtxq_list, umtxq_queue);
 
 /* Userland lock object's wait-queue chain */
 struct umtxq_chain {
@@ -154,9 +170,11 @@ struct umtxq_chain {
 	struct mtx		uc_lock;
 
 	/* List of sleep queues. */
-	struct umtxq_head	uc_queue[2];
+	struct umtxq_list	uc_queue[2];
 #define UMTX_SHARED_QUEUE	0
 #define UMTX_EXCLUSIVE_QUEUE	1
+
+	LIST_HEAD(, umtxq_queue) uc_spare_queue;
 
 	/* Busy flag */
 	char			uc_busy;
@@ -166,6 +184,7 @@ struct umtxq_chain {
 
 	/* All PI in the list */
 	TAILQ_HEAD(,umtx_pi)	uc_pi_list;
+
 };
 
 #define	UMTXQ_LOCKED_ASSERT(uc)		mtx_assert(&(uc)->uc_lock, MA_OWNED)
@@ -247,8 +266,9 @@ umtxq_sysinit(void *arg __unused)
 		for (j = 0; j < UMTX_CHAINS; ++j) {
 			mtx_init(&umtxq_chains[i][j].uc_lock, "umtxql", NULL,
 				 MTX_DEF | MTX_DUPOK);
-			TAILQ_INIT(&umtxq_chains[i][j].uc_queue[0]);
-			TAILQ_INIT(&umtxq_chains[i][j].uc_queue[1]);
+			LIST_INIT(&umtxq_chains[i][j].uc_queue[0]);
+			LIST_INIT(&umtxq_chains[i][j].uc_queue[1]);
+			LIST_INIT(&umtxq_chains[i][j].uc_spare_queue);
 			TAILQ_INIT(&umtxq_chains[i][j].uc_pi_list);
 			umtxq_chains[i][j].uc_busy = 0;
 			umtxq_chains[i][j].uc_waiters = 0;
@@ -265,6 +285,8 @@ umtxq_alloc(void)
 	struct umtx_q *uq;
 
 	uq = malloc(sizeof(struct umtx_q), M_UMTX, M_WAITOK | M_ZERO);
+	uq->uq_spare_queue = malloc(sizeof(struct umtxq_queue), M_UMTX, M_WAITOK | M_ZERO);
+	TAILQ_INIT(&uq->uq_spare_queue->head);
 	TAILQ_INIT(&uq->uq_pi_contested);
 	uq->uq_inherited_pri = PRI_MAX;
 	return (uq);
@@ -273,6 +295,8 @@ umtxq_alloc(void)
 void
 umtxq_free(struct umtx_q *uq)
 {
+	MPASS(uq->uq_spare_queue != NULL);
+	free(uq->uq_spare_queue, M_UMTX);
 	free(uq, M_UMTX);
 }
 
@@ -371,27 +395,72 @@ umtxq_unbusy(struct umtx_key *key)
 		wakeup_one(uc);
 }
 
+static struct umtxq_queue *
+umtxq_queue_lookup(struct umtx_key *key, int q)
+{
+	struct umtxq_queue *uh;
+	struct umtxq_chain *uc;
+
+	uc = umtxq_getchain(key);
+	UMTXQ_LOCKED_ASSERT(uc);
+	LIST_FOREACH(uh, &uc->uc_queue[q], link) {
+		if (umtx_key_match(&uh->key, key))
+			return (uh);
+	}
+
+	return (NULL);
+}
+
 static inline void
 umtxq_insert_queue(struct umtx_q *uq, int q)
 {
+	struct umtxq_queue *uh;
 	struct umtxq_chain *uc;
 
 	uc = umtxq_getchain(&uq->uq_key);
 	UMTXQ_LOCKED_ASSERT(uc);
-	TAILQ_INSERT_TAIL(&uc->uc_queue[q], uq, uq_link);
+	KASSERT((uq->uq_flags & UQF_UMTXQ) == 0, ("umtx_q is already on queue"));
+	uh = umtxq_queue_lookup(&uq->uq_key, UMTX_SHARED_QUEUE);
+	if (uh != NULL) {
+		LIST_INSERT_HEAD(&uc->uc_spare_queue, uq->uq_spare_queue, link);
+	} else {
+		uh = uq->uq_spare_queue;
+		uh->key = uq->uq_key;
+		LIST_INSERT_HEAD(&uc->uc_queue[q], uh, link);
+	}
+	uq->uq_spare_queue = NULL;
+
+	TAILQ_INSERT_TAIL(&uh->head, uq, uq_link);
+	uh->length++;
 	uq->uq_flags |= UQF_UMTXQ;
+	uq->uq_cur_queue = uh;
+	return;
 }
 
 static inline void
 umtxq_remove_queue(struct umtx_q *uq, int q)
 {
 	struct umtxq_chain *uc;
+	struct umtxq_queue *uh;
 
 	uc = umtxq_getchain(&uq->uq_key);
 	UMTXQ_LOCKED_ASSERT(uc);
 	if (uq->uq_flags & UQF_UMTXQ) {
-		TAILQ_REMOVE(&uc->uc_queue[q], uq, uq_link);
+		uh = uq->uq_cur_queue;
+		TAILQ_REMOVE(&uh->head, uq, uq_link);
+		uh->length--;
 		uq->uq_flags &= ~UQF_UMTXQ;
+		if (TAILQ_EMPTY(&uh->head)) {
+			KASSERT(uh->length == 0,
+			    ("inconsistent umtxq_queue length"));
+			LIST_REMOVE(uh, link);
+		} else {
+			uh = LIST_FIRST(&uc->uc_spare_queue);
+			KASSERT(uh != NULL, ("uc_spare_queue is empty"));
+			LIST_REMOVE(uh, link);
+		}
+		uq->uq_spare_queue = uh;
+		uq->uq_cur_queue = NULL;
 	}
 }
 
@@ -402,18 +471,14 @@ static int
 umtxq_count(struct umtx_key *key)
 {
 	struct umtxq_chain *uc;
-	struct umtx_q *uq;
-	int count = 0;
+	struct umtxq_queue *uh;
 
 	uc = umtxq_getchain(key);
 	UMTXQ_LOCKED_ASSERT(uc);
-	TAILQ_FOREACH(uq, &uc->uc_queue[UMTX_SHARED_QUEUE], uq_link) {
-		if (umtx_key_match(&uq->uq_key, key)) {
-			if (++count > 1)
-				break;
-		}
-	}
-	return (count);
+	uh = umtxq_queue_lookup(key, UMTX_SHARED_QUEUE);
+	if (uh != NULL)
+		return (uh->length);
+	return (0);
 }
 
 /*
@@ -424,20 +489,17 @@ static int
 umtxq_count_pi(struct umtx_key *key, struct umtx_q **first)
 {
 	struct umtxq_chain *uc;
-	struct umtx_q *uq;
-	int count = 0;
+	struct umtxq_queue *uh;
 
 	*first = NULL;
 	uc = umtxq_getchain(key);
 	UMTXQ_LOCKED_ASSERT(uc);
-	TAILQ_FOREACH(uq, &uc->uc_queue[UMTX_SHARED_QUEUE], uq_link) {
-		if (umtx_key_match(&uq->uq_key, key)) {
-			if (++count > 1)
-				break;
-			*first = uq;
-		}
+	uh = umtxq_queue_lookup(key, UMTX_SHARED_QUEUE);
+	if (uh != NULL) {
+		*first = TAILQ_FIRST(&uh->head);
+		return (uh->length);
 	}
-	return (count);
+	return (0);
 }
 
 /*
@@ -448,18 +510,20 @@ static int
 umtxq_signal_queue(struct umtx_key *key, int n_wake, int q)
 {
 	struct umtxq_chain *uc;
-	struct umtx_q *uq, *next;
+	struct umtxq_queue *uh;
+	struct umtx_q *uq;
 	int ret;
 
 	ret = 0;
 	uc = umtxq_getchain(key);
 	UMTXQ_LOCKED_ASSERT(uc);
-	TAILQ_FOREACH_SAFE(uq, &uc->uc_queue[q], uq_link, next) {
-		if (umtx_key_match(&uq->uq_key, key)) {
+	uh = umtxq_queue_lookup(key, q);
+	if (uh != NULL) {
+		while ((uq = TAILQ_FIRST(&uh->head)) != NULL) {
 			umtxq_remove_queue(uq, q);
 			wakeup(uq);
 			if (++ret >= n_wake)
-				break;
+				return (ret);
 		}
 	}
 	return (ret);
@@ -1524,12 +1588,8 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi,
 	if (pi->pi_owner == NULL) {
 		/* XXX
 		 * Current, We only support process private PI-mutex,
-		 * non-contended PI-mutexes are locked in userland.
-		 * Process shared PI-mutex should always be initialized
-		 * by kernel and be registered in kernel, locking should
-		 * always be done by kernel to avoid security problems.
-		 * For process private PI-mutex, we can find owner
-		 * thread and boost its priority safely.
+		 * we need a faster way to find an owner thread for
+		 * process-shared mutex (not available yet).
 		 */
 		mtx_unlock_spin(&umtx_lock);
 		PROC_LOCK(curproc);
