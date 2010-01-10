@@ -41,6 +41,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cputype.h"
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -53,11 +56,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
+#include <machine/cache.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
-#include <machine/pltfm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -142,14 +145,14 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	if (td1 == PCPU_GET(fpcurthread))
 		MipsSaveCurFPState(td1);
 
-	pcb2->pcb_context.val[PCB_REG_RA] = (register_t)fork_trampoline;
+	pcb2->pcb_context[PCB_REG_RA] = (register_t)fork_trampoline;
 	/* Make sp 64-bit aligned */
-	pcb2->pcb_context.val[PCB_REG_SP] = (register_t)(((vm_offset_t)td2->td_pcb &
+	pcb2->pcb_context[PCB_REG_SP] = (register_t)(((vm_offset_t)td2->td_pcb &
 	    ~(sizeof(__int64_t) - 1)) - STAND_FRAME_SIZE);
-	pcb2->pcb_context.val[PCB_REG_S0] = (register_t)fork_return;
-	pcb2->pcb_context.val[PCB_REG_S1] = (register_t)td2;
-	pcb2->pcb_context.val[PCB_REG_S2] = (register_t)td2->td_frame;
-	pcb2->pcb_context.val[PCB_REG_SR] = SR_INT_MASK;
+	pcb2->pcb_context[PCB_REG_S0] = (register_t)fork_return;
+	pcb2->pcb_context[PCB_REG_S1] = (register_t)td2;
+	pcb2->pcb_context[PCB_REG_S2] = (register_t)td2->td_frame;
+	pcb2->pcb_context[PCB_REG_SR] = SR_INT_MASK & mips_rd_status();
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:
 	 * Setup any other CPU-Specific registers (Not MIPS Standard)
@@ -157,10 +160,11 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	 *  that are needed.
 	 */
 
+	td2->td_md.md_tls = td1->td_md.md_tls;
 	td2->td_md.md_saved_intr = MIPS_SR_INT_IE;
 	td2->td_md.md_spinlock_count = 1;
 #ifdef TARGET_OCTEON
-	pcb2->pcb_context.val[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS32_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
+	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS32_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
 #endif
 
 }
@@ -178,8 +182,8 @@ cpu_set_fork_handler(struct thread *td, void (*func) __P((void *)), void *arg)
 	 * Note that the trap frame follows the args, so the function
 	 * is really called like this:	func(arg, frame);
 	 */
-	td->td_pcb->pcb_context.val[PCB_REG_S0] = (register_t) func;
-	td->td_pcb->pcb_context.val[PCB_REG_S1] = (register_t) arg;
+	td->td_pcb->pcb_context[PCB_REG_S0] = (register_t) func;
+	td->td_pcb->pcb_context[PCB_REG_S1] = (register_t) arg;
 }
 
 void
@@ -348,20 +352,18 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * Set registers for trampoline to user mode.
 	 */
 
-	pcb2->pcb_context.val[PCB_REG_RA] = (register_t)fork_trampoline;
+	pcb2->pcb_context[PCB_REG_RA] = (register_t)fork_trampoline;
 	/* Make sp 64-bit aligned */
-	pcb2->pcb_context.val[PCB_REG_SP] = (register_t)(((vm_offset_t)td->td_pcb &
+	pcb2->pcb_context[PCB_REG_SP] = (register_t)(((vm_offset_t)td->td_pcb &
 	    ~(sizeof(__int64_t) - 1)) - STAND_FRAME_SIZE);
-	pcb2->pcb_context.val[PCB_REG_S0] = (register_t)fork_return;
-	pcb2->pcb_context.val[PCB_REG_S1] = (register_t)td;
-	pcb2->pcb_context.val[PCB_REG_S2] = (register_t)td->td_frame;
-
-
+	pcb2->pcb_context[PCB_REG_S0] = (register_t)fork_return;
+	pcb2->pcb_context[PCB_REG_S1] = (register_t)td;
+	pcb2->pcb_context[PCB_REG_S2] = (register_t)td->td_frame;
 	/* Dont set IE bit in SR. sched lock release will take care of it */
-/* idle_mask is jmips pcb2->pcb_context.val[11] = (ALL_INT_MASK & idle_mask); */
-	pcb2->pcb_context.val[PCB_REG_SR] = SR_INT_MASK;
+	pcb2->pcb_context[PCB_REG_SR] = SR_INT_MASK & mips_rd_status();
+
 #ifdef TARGET_OCTEON
-	pcb2->pcb_context.val[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT |
+	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT |
 	  MIPS32_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
 #endif
 
@@ -392,14 +394,14 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
     stack_t *stack)
 {
 	struct trapframe *tf;
-	u_int32_t sp;
+	register_t sp;
 
 	/*
 	* At the point where a function is called, sp must be 8
 	* byte aligned[for compatibility with 64-bit CPUs]
 	* in ``See MIPS Run'' by D. Sweetman, p. 269
 	* align stack */
-	sp = ((uint32_t)(stack->ss_sp + stack->ss_size) & ~0x7) -
+	sp = ((register_t)(stack->ss_sp + stack->ss_size) & ~0x7) -
 	    STAND_FRAME_SIZE;
 
 	/*
@@ -410,9 +412,18 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	bzero(tf, sizeof(struct trapframe));
 	tf->sp = (register_t)sp;
 	tf->pc = (register_t)entry;
+	/* 
+	 * MIPS ABI requires T9 to be the same as PC 
+	 * in subroutine entry point
+	 */
+	tf->t9 = (register_t)entry; 
 	tf->a0 = (register_t)arg;
 
-	tf->sr = SR_KSU_USER | SR_EXL;
+	/*
+	 * Keep interrupt mask
+	 */
+	tf->sr = SR_KSU_USER | SR_EXL | (SR_INT_MASK & mips_rd_status()) |
+	    MIPS_SR_INT_IE;
 #ifdef TARGET_OCTEON
 	tf->sr |=  MIPS_SR_INT_IE | MIPS_SR_COP_0_BIT | MIPS_SR_UX |
 	  MIPS_SR_KX;
@@ -446,34 +457,6 @@ kvtop(void *addr)
 
 #define	ZIDLE_LO(v)	((v) * 2 / 3)
 #define	ZIDLE_HI(v)	((v) * 4 / 5)
-
-/*
- * Tell whether this address is in some physical memory region.
- * Currently used by the kernel coredump code in order to avoid
- * dumping non-memory physical address space.
- */
-int
-is_physical_memory(vm_offset_t addr)
-{
-	if (addr >= SDRAM_ADDR_START && addr <= SDRAM_ADDR_END)
-		return 1;
-	else
-		return 0;
-}
-
-int
-is_cacheable_mem(vm_offset_t pa)
-{
-	if ((pa >= SDRAM_ADDR_START && pa <= SDRAM_ADDR_END) ||
-#ifdef FLASH_ADDR_START
-	    (pa >= FLASH_ADDR_START && pa <= FLASH_ADDR_END))
-#else
-	    0)
-#endif
-		return 1;
-	else
-		return 0;
-}
 
 /*
  * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
@@ -523,6 +506,12 @@ sf_buf_alloc(struct vm_page *m, int flags)
 				nsfbufsused++;
 				nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
 			}
+			/*
+			 * Flush all mappings in order to have up to date 
+			 * physycal memory
+			 */
+			pmap_flush_pvcache(sf->m);
+			mips_dcache_inv_range(sf->kva, PAGE_SIZE);
 			goto done;
 		}
 	}
@@ -564,6 +553,10 @@ sf_buf_free(struct sf_buf *sf)
 {
 	mtx_lock(&sf_buf_lock);
 	sf->ref_count--;
+	/*
+	 * Make sure all changes in KVA end up in physical memory
+	 */
+	mips_dcache_wbinv_range(sf->kva, PAGE_SIZE);
 	if (sf->ref_count == 0) {
 		TAILQ_INSERT_TAIL(&sf_buf_freelist, sf, free_entry);
 		nsfbufsused--;
@@ -585,7 +578,7 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
-	/* TBD */
+	td->td_md.md_tls = tls_base;
 	return (0);
 }
 
@@ -596,3 +589,99 @@ cpu_throw(struct thread *old, struct thread *new)
 	func_2args_asmmacro(&mips_cpu_throw, old, new);
 	panic("mips_cpu_throw() returned");
 }
+
+#ifdef DDB
+#include <ddb/ddb.h>
+
+#define DB_PRINT_REG(ptr, regname)			\
+	db_printf("  %-12s 0x%lx\n", #regname, (long)((ptr)->regname))
+
+#define DB_PRINT_REG_ARRAY(ptr, arrname, regname)	\
+	db_printf("  %-12s 0x%lx\n", #regname, (long)((ptr)->arrname[regname]))
+
+DB_SHOW_COMMAND(pcb, ddb_dump_pcb)
+{
+	struct thread *td;
+	struct pcb *pcb;
+	struct trapframe *trapframe;
+
+	/* Determine which thread to examine. */
+	if (have_addr)
+		td = db_lookup_thread(addr, FALSE);
+	else
+		td = curthread;
+	
+	pcb = td->td_pcb;
+
+	db_printf("Thread %d at %p\n", td->td_tid, td);
+
+	db_printf("PCB at %p\n", pcb);
+
+	trapframe = &pcb->pcb_regs;
+	db_printf("Trapframe at %p\n", trapframe);
+	DB_PRINT_REG(trapframe, zero);
+	DB_PRINT_REG(trapframe, ast);
+	DB_PRINT_REG(trapframe, v0);
+	DB_PRINT_REG(trapframe, v1);
+	DB_PRINT_REG(trapframe, a0);
+	DB_PRINT_REG(trapframe, a1);
+	DB_PRINT_REG(trapframe, a2);
+	DB_PRINT_REG(trapframe, a3);
+	DB_PRINT_REG(trapframe, t0);
+	DB_PRINT_REG(trapframe, t1);
+	DB_PRINT_REG(trapframe, t2);
+	DB_PRINT_REG(trapframe, t3);
+	DB_PRINT_REG(trapframe, t4);
+	DB_PRINT_REG(trapframe, t5);
+	DB_PRINT_REG(trapframe, t6);
+	DB_PRINT_REG(trapframe, t7);
+	DB_PRINT_REG(trapframe, s0);
+	DB_PRINT_REG(trapframe, s1);
+	DB_PRINT_REG(trapframe, s2);
+	DB_PRINT_REG(trapframe, s3);
+	DB_PRINT_REG(trapframe, s4);
+	DB_PRINT_REG(trapframe, s5);
+	DB_PRINT_REG(trapframe, s6);
+	DB_PRINT_REG(trapframe, s7);
+	DB_PRINT_REG(trapframe, t8);
+	DB_PRINT_REG(trapframe, t9);
+	DB_PRINT_REG(trapframe, k0);
+	DB_PRINT_REG(trapframe, k1);
+	DB_PRINT_REG(trapframe, gp);
+	DB_PRINT_REG(trapframe, sp);
+	DB_PRINT_REG(trapframe, s8);
+	DB_PRINT_REG(trapframe, ra);
+	DB_PRINT_REG(trapframe, sr);
+	DB_PRINT_REG(trapframe, mullo);
+	DB_PRINT_REG(trapframe, mulhi);
+	DB_PRINT_REG(trapframe, badvaddr);
+	DB_PRINT_REG(trapframe, cause);
+	DB_PRINT_REG(trapframe, pc);
+
+	db_printf("PCB Context:\n");
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S0);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S1);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S2);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S3);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S4);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S5);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S6);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S7);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_SP);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S8);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_RA);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_SR);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_GP);
+	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_PC);
+
+	db_printf("PCB onfault = %d\n", pcb->pcb_onfault);
+	db_printf("md_saved_intr = 0x%0lx\n", (long)td->td_md.md_saved_intr);
+	db_printf("md_spinlock_count = %d\n", td->td_md.md_spinlock_count);
+
+	if (td->td_frame != trapframe) {
+		db_printf("td->td_frame %p is not the same as pcb_regs %p\n",
+			  td->td_frame, trapframe);
+	}
+}
+
+#endif	/* DDB */

@@ -55,6 +55,7 @@
  *	assembly language support routines.
  */
 
+#include "opt_cputype.h"
 #include "opt_ddb.h"
 #include <sys/errno.h>
 #include <machine/asm.h>
@@ -460,8 +461,10 @@ ALEAF(fuibyte)
 	sw	zero, U_PCB_ONFAULT(v1)
 END(fubyte)
 
-LEAF(suword)
-XLEAF(suword32)
+LEAF(suword32)
+#ifndef __mips_n64
+XLEAF(suword)
+#endif
 	blt	a0, zero, fswberr	# make sure address is in user space
 	li	v0, FSWBERR
 	GET_CPU_PCPU(v1)
@@ -471,30 +474,85 @@ XLEAF(suword32)
 	sw	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero
-END(suword)
+END(suword32)
+
+#ifdef __mips_n64
+LEAF(suword64)
+XLEAF(suword)
+	blt	a0, zero, fswberr	# make sure address is in user space
+	li	v0, FSWBERR
+	GET_CPU_PCPU(v1)
+	lw	v1, PC_CURPCB(v1)
+	sw	v0, U_PCB_ONFAULT(v1)
+	sd	a1, 0(a0)		# store word
+	sw	zero, U_PCB_ONFAULT(v1)
+	j	ra
+	move	v0, zero
+END(suword64)
+#endif
 
 /*
  * casuword(9)
  * <v0>u_long casuword(<a0>u_long *p, <a1>u_long oldval, <a2>u_long newval)
  */
-ENTRY(casuword)
-	break
-	li	v0, -1
-	jr	ra
-	nop
-END(casuword)
-
 /*
  * casuword32(9)
  * <v0>uint32_t casuword(<a0>uint32_t *p, <a1>uint32_t oldval, 
  *							<a2>uint32_t newval)
  */
-ENTRY(casuword32)
-	break
+LEAF(casuword32)
+#ifndef __mips_n64
+XLEAF(casuword)
+#endif
+	blt	a0, zero, fswberr	# make sure address is in user space
+	li	v0, FSWBERR
+	GET_CPU_PCPU(v1)
+	lw	v1, PC_CURPCB(v1)
+	sw	v0, U_PCB_ONFAULT(v1)
+1:
+	move	t0, a2
+	ll	v0, 0(a0)
+	bne	a1, v0, 2f
+	nop
+	sc	t0, 0(a0)		# store word
+	beqz	t0, 1b
+	nop
+	j	3f
+	nop
+2:
 	li	v0, -1
+3:
+	sw	zero, U_PCB_ONFAULT(v1)
 	jr	ra
 	nop
 END(casuword32)
+
+#ifdef __mips_n64
+LEAF(casuword64)
+XLEAF(casuword)
+	blt	a0, zero, fswberr	# make sure address is in user space
+	li	v0, FSWBERR
+	GET_CPU_PCPU(v1)
+	lw	v1, PC_CURPCB(v1)
+	sw	v0, U_PCB_ONFAULT(v1)
+1:
+	move	t0, a2
+	lld	v0, 0(a0)
+	bne	a1, v0, 2f
+	nop
+	scd	t0, 0(a0)		# store double word
+	beqz	t0, 1b
+	nop
+	j	3f
+	nop
+2:
+	li	v0, -1
+3:
+	sw	zero, U_PCB_ONFAULT(v1)
+	jr	ra
+	nop
+END(casuword64)
+#endif
 
 #if 0
 	/* unused in FreeBSD */
@@ -1280,17 +1338,11 @@ END(atomic_subtract_8)
 	.set	mips3
 #endif
 
-LEAF(atomic_readandclear_64)
-1:
-	lld	v0, 0(a0)
-	li	t0, 0
-	scd	t0, 0(a0)
-	beqz	t0, 1b
-	nop
-	j	ra
-	nop
-END(atomic_readandclear_64)
-
+#if !defined(__mips_n64) && !defined(__mips_n32)	
+	/*
+	 * I don't know if these routines have the right number of
+	 * NOPs in it for all processors.  XXX
+	 */
 LEAF(atomic_store_64)
 	mfc0	t1, COP_0_STATUS_REG
 	and	t2, t1, ~SR_INT_ENAB
@@ -1336,6 +1388,7 @@ LEAF(atomic_load_64)
 	j	ra
 	nop
 END(atomic_load_64)
+#endif
 
 #if defined(DDB) || defined(DEBUG)
 

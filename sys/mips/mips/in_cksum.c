@@ -226,7 +226,7 @@ skip_start:
 		if (len < mlen)
 			mlen = len;
 
-		if ((clen ^ (int) addr) & 1)
+		if ((clen ^ (uintptr_t) addr) & 1)
 			sum += in_cksumdata(addr, mlen) << 8;
 		else
 			sum += in_cksumdata(addr, mlen);

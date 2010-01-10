@@ -33,6 +33,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cputype.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
@@ -58,6 +60,8 @@ uint64_t cycles_per_hz;
 u_int32_t counter_upper = 0;
 u_int32_t counter_lower_last = 0;
 int	tick_started = 0;
+
+void platform_initclocks(void);
 
 struct clk_ticks
 {
@@ -97,9 +101,8 @@ mips_timer_early_init(uint64_t clock_hz)
 }
 
 void
-cpu_initclocks(void)
+platform_initclocks(void)
 {
-
 	if (!tick_started) {
 	        tc_init(&counter_timecounter);
 		tick_started++;
@@ -138,25 +141,19 @@ mips_timer_init_params(uint64_t platform_counter_freq, int double_count)
 	 * function should  be called before cninit.
 	 */
 	counter_freq = platform_counter_freq;
+	/*
+	 * XXX: Some MIPS32 cores update the Count register only every two
+	 * pipeline cycles.
+	 */
+	if (double_count != 0)
+		counter_freq /= 2;
+
 	cycles_per_tick = counter_freq / 1000;
-	if (double_count)
-		cycles_per_tick *= 2;
 	cycles_per_hz = counter_freq / hz;
 	cycles_per_usec = counter_freq / (1 * 1000 * 1000);
 	cycles_per_sec =  counter_freq ;
 	
 	counter_timecounter.tc_frequency = counter_freq;
-	/*
-	 * XXX: Some MIPS32 cores update the Count register only every two
-	 * pipeline cycles.
-	 * XXX2: We can read this from the hardware register on some
-	 * systems.  Need to investigate.
-	 */
-	if (double_count != 0) {
-		cycles_per_hz /= 2;
-		cycles_per_usec /= 2;
-		cycles_per_sec /= 2;
-	}
 	printf("hz=%d cyl_per_hz:%jd cyl_per_usec:%jd freq:%jd cyl_per_hz:%jd cyl_per_sec:%jd\n",
 	       hz,
 	       cycles_per_tick,
@@ -229,9 +226,9 @@ DELAY(int n)
 
 		/* Check to see if the timer has wrapped around. */
 		if (cur < last)
-			delta += (cur + (cycles_per_hz - last));
+			delta += cur + (0xffffffff - last) + 1;
 		else
-			delta += (cur - last);
+			delta += cur - last;
 
 		last = cur;
 
@@ -346,6 +343,7 @@ clock_attach(device_t dev)
 		device_printf(dev, "bus_setup_intr returned %d\n", error);
 		return (error);
 	}
+
 	mips_wr_compare(mips_rd_count() + counter_freq / hz);
 	return (0);
 }

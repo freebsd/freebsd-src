@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/atomic.h>
-#include <machine/pltfm.h>
 #include <machine/memdev.h>
 
 
@@ -101,10 +100,8 @@ memrw(dev, uio, flags)
 			vm_paddr_t pa;
 			register int o;
 
-			if (v + c > (SDRAM_ADDR_START + ctob(physmem)))
-				return (EFAULT);
-
-			if (is_cacheable_mem(v) && is_cacheable_mem(v + c)) {
+			if (is_cacheable_mem(v) &&
+			    is_cacheable_mem(v + c - 1)) {
 				struct fpage *fp;
 				struct sysmaps *sysmaps;
 
@@ -117,7 +114,7 @@ memrw(dev, uio, flags)
 				va = pmap_map_fpage(pa, fp, FALSE);
 				o = (int)uio->uio_offset & PAGE_MASK;
 				c = (u_int)(PAGE_SIZE -
-					    ((int)iov->iov_base & PAGE_MASK));
+					    ((uintptr_t)iov->iov_base & PAGE_MASK));
 				c = min(c, (u_int)(PAGE_SIZE - o));
 				c = min(c, (u_int)iov->iov_len);
 				error = uiomove((caddr_t)(va + o), (int)c, uio);
@@ -133,6 +130,7 @@ memrw(dev, uio, flags)
 		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			v = uio->uio_offset;
 			c = min(iov->iov_len, MAXPHYS);
+
 			vm_offset_t addr, eaddr;
 			vm_offset_t wired_tlb_virtmem_end;
 
@@ -143,25 +141,37 @@ memrw(dev, uio, flags)
 			addr = trunc_page(uio->uio_offset);
 			eaddr = round_page(uio->uio_offset + c);
 
-			if (addr < (vm_offset_t) VM_MIN_KERNEL_ADDRESS)
-				return EFAULT;
+			if (addr > (vm_offset_t) VM_MIN_KERNEL_ADDRESS) {
+				wired_tlb_virtmem_end = VM_MIN_KERNEL_ADDRESS +
+				    VM_KERNEL_ALLOC_OFFSET;
+				if ((addr < wired_tlb_virtmem_end) &&
+				    (eaddr >= wired_tlb_virtmem_end))
+					addr = wired_tlb_virtmem_end;
 
-			wired_tlb_virtmem_end = VM_MIN_KERNEL_ADDRESS +
-			    VM_KERNEL_ALLOC_OFFSET;
-			if ((addr < wired_tlb_virtmem_end) &&
-			    (eaddr >= wired_tlb_virtmem_end))
-				addr = wired_tlb_virtmem_end;
+				if (addr >= wired_tlb_virtmem_end) {
+					for (; addr < eaddr; addr += PAGE_SIZE) 
+						if (pmap_extract(kernel_pmap,
+						    addr) == 0)
+							return EFAULT;
 
-			if (addr >= wired_tlb_virtmem_end) {
-				for (; addr < eaddr; addr += PAGE_SIZE) 
-					if (pmap_extract(kernel_pmap,addr) == 0)
-						return EFAULT;
-
-				if (!kernacc((caddr_t)(int)uio->uio_offset, c,
-				    uio->uio_rw == UIO_READ ?
-				    VM_PROT_READ : VM_PROT_WRITE))
+					if (!kernacc(
+					    (caddr_t)(uintptr_t)uio->uio_offset, c,
+					    uio->uio_rw == UIO_READ ?
+					    VM_PROT_READ : VM_PROT_WRITE))
+						return (EFAULT);
+				}
+			}
+			else if (MIPS_IS_KSEG0_ADDR(v)) {
+				if (MIPS_KSEG0_TO_PHYS(v + c) >= ctob(physmem))
 					return (EFAULT);
 			}
+			else if (MIPS_IS_KSEG1_ADDR(v)) {
+				if (MIPS_KSEG1_TO_PHYS(v + c) >= ctob(physmem))
+					return (EFAULT);
+			}
+			else
+				return (EFAULT);
+
 
 			error = uiomove((caddr_t)v, c, uio);
 			continue;
