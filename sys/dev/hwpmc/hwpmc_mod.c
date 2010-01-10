@@ -63,6 +63,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/md_var.h>
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
+
 /*
  * Types
  */
@@ -1622,6 +1628,151 @@ pmc_log_kernel_mappings(struct pmc *pm)
 static void
 pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 {
+	vm_map_t map;
+	struct vnode *vp;
+	struct vmspace *vm;
+	vm_map_entry_t entry;
+	vm_offset_t last_end;
+	u_int last_timestamp;
+	struct vnode *last_vp;
+	vm_offset_t start_addr;
+	vm_object_t obj, lobj, tobj;
+	char *fullpath, *freepath;
+
+	last_vp = NULL;
+	last_end = (vm_offset_t) 0;
+	fullpath = freepath = NULL;
+
+	if ((vm = vmspace_acquire_ref(p)) == NULL)
+		return;
+
+	map = &vm->vm_map;
+	vm_map_lock_read(map);
+
+	for (entry = map->header.next; entry != &map->header; entry = entry->next) {
+
+		if (entry == NULL) {
+			PMCDBG(LOG,OPS,2, "hwpmc: vm_map entry unexpectedly "
+			    "NULL! pid=%d vm_map=%p\n", p->p_pid, map);
+			break;
+		}
+
+		/*
+		 * We only care about executable map entries.
+		 */
+		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) ||
+		    !(entry->protection & VM_PROT_EXECUTE) ||
+		    (entry->object.vm_object == NULL)) {
+			continue;
+		}
+
+		obj = entry->object.vm_object;
+		VM_OBJECT_LOCK(obj);
+
+		/* 
+		 * Walk the backing_object list to find the base
+		 * (non-shadowed) vm_object.
+		 */
+		for (lobj = tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
+			if (tobj != obj)
+				VM_OBJECT_LOCK(tobj);
+			if (lobj != obj)
+				VM_OBJECT_UNLOCK(lobj);
+			lobj = tobj;
+		}
+
+		/*
+		 * At this point lobj is the base vm_object and it is locked.
+		 */
+		if (lobj == NULL) {
+			PMCDBG(LOG,OPS,2, "hwpmc: lobj unexpectedly NULL! pid=%d "
+			    "vm_map=%p vm_obj=%p\n", p->p_pid, map, obj);
+			VM_OBJECT_UNLOCK(obj);
+			continue;
+		}
+
+		if (lobj->type != OBJT_VNODE || lobj->handle == NULL) {
+			if (lobj != obj)
+				VM_OBJECT_UNLOCK(lobj);
+			VM_OBJECT_UNLOCK(obj);
+			continue;
+		}
+
+		/*
+		 * Skip contiguous regions that point to the same
+		 * vnode, so we don't emit redundant MAP-IN
+		 * directives.
+		 */
+		if (entry->start == last_end && lobj->handle == last_vp) {
+			last_end = entry->end;
+			if (lobj != obj)
+				VM_OBJECT_UNLOCK(lobj);
+			VM_OBJECT_UNLOCK(obj);
+			continue;
+		}
+
+		/* 
+		 * We don't want to keep the proc's vm_map or this
+		 * vm_object locked while we walk the pathname, since
+		 * vn_fullpath() can sleep.  However, if we drop the
+		 * lock, it's possible for concurrent activity to
+		 * modify the vm_map list.  To protect against this,
+		 * we save the vm_map timestamp before we release the
+		 * lock, and check it after we reacquire the lock
+		 * below.
+		 */
+		start_addr = entry->start;
+		last_end = entry->end;
+		last_timestamp = map->timestamp;
+		vm_map_unlock_read(map);
+
+		vp = lobj->handle;
+		vref(vp);
+		if (lobj != obj)
+			VM_OBJECT_UNLOCK(lobj);
+
+		VM_OBJECT_UNLOCK(obj);
+
+		freepath = NULL;
+		pmc_getfilename(vp, &fullpath, &freepath);
+		last_vp = vp;
+		vrele(vp);
+		vp = NULL;
+		pmclog_process_map_in(po, p->p_pid, start_addr, fullpath);
+		if (freepath)
+			free(freepath, M_TEMP);
+
+		vm_map_lock_read(map);
+
+		/*
+		 * If our saved timestamp doesn't match, this means
+		 * that the vm_map was modified out from under us and
+		 * we can't trust our current "entry" pointer.  Do a
+		 * new lookup for this entry.  If there is no entry
+		 * for this address range, vm_map_lookup_entry() will
+		 * return the previous one, so we always want to go to
+		 * entry->next on the next loop iteration.
+		 * 
+		 * There is an edge condition here that can occur if
+		 * there is no entry at or before this address.  In
+		 * this situation, vm_map_lookup_entry returns
+		 * &map->header, which would cause our loop to abort
+		 * without processing the rest of the map.  However,
+		 * in practice this will never happen for process
+		 * vm_map.  This is because the executable's text
+		 * segment is the first mapping in the proc's address
+		 * space, and this mapping is never removed until the
+		 * process exits, so there will always be a non-header
+		 * entry at or before the requested address for
+		 * vm_map_lookup_entry to return.
+		 */
+		if (map->timestamp != last_timestamp)
+			vm_map_lookup_entry(map, last_end - 1, &entry);
+	}
+
+	vm_map_unlock_read(map);
+	vmspace_free(vm);
+	return;
 }
 
 /*
@@ -1900,7 +2051,7 @@ pmc_allocate_owner_descriptor(struct proc *p)
 
 	/* allocate space for N pointers and one descriptor struct */
 	po = malloc(sizeof(struct pmc_owner), M_PMC, M_WAITOK|M_ZERO);
-	po->po_sscount = po->po_error = po->po_flags = 0;
+	po->po_sscount = po->po_error = po->po_flags = po->po_logprocmaps = 0;
 	po->po_file  = NULL;
 	po->po_owner = p;
 	po->po_kthread = NULL;
@@ -2523,8 +2674,15 @@ pmc_start(struct pmc *pm)
 		po->po_sscount++;
 	}
 
-	/* Log mapping information for all processes in the system. */
-	pmc_log_all_process_mappings(po);
+	/*
+	 * Log mapping information for all existing processes in the
+	 * system.  Subsequent mappings are logged as they happen;
+	 * see pmc_process_mmap().
+	 */
+	if (po->po_logprocmaps == 0) {
+		pmc_log_all_process_mappings(po);
+		po->po_logprocmaps = 1;
+	}
 
 	/*
 	 * Move to the CPU associated with this

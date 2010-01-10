@@ -755,7 +755,8 @@ struct pmc_owner  {
 	struct pmclog_buffer	*po_curbuf;	/* current log buffer */
 	struct file		*po_file;	/* file reference */
 	int			po_error;	/* recorded error */
-	int			po_sscount;	/* # SS PMCs owned */
+	short			po_sscount;	/* # SS PMCs owned */
+	short			po_logprocmaps;	/* global mappings done */
 };
 
 #define	PMC_PO_OWNS_LOGFILE		0x00000001 /* has a log file */
