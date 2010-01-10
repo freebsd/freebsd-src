@@ -76,6 +76,12 @@ extern int	*edata;
 extern int	*end;
 
 void
+platform_cpu_init()
+{
+	/* Nothing special */
+}
+
+void
 platform_halt(void)
 {
 
@@ -130,6 +136,9 @@ platform_start(__register_t a0, __register_t a1,
 	/* clear the BSS and SBSS segments */
 	kernend = round_page((vm_offset_t)&end);
 	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
+
+	/* Initialize pcpu stuff */
+	mips_pcpu0_init();
 
 	/*
 	 * Looking for mem=XXM argument
