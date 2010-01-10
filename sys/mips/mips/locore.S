@@ -77,16 +77,6 @@
 GLOBAL(fenvp)
 	.space 4			# Assumes mips32?  Is that OK?
 #endif
-#ifdef CFE			/* Assumes MIPS32, bad? */
-GLOBAL(cfe_handle)
-	.space 4
-GLOBAL(cfe_vector)
-	.space 4
-#endif
-#if defined(TARGET_OCTEON)
-GLOBAL(app_descriptor_addr)
-	.space 8
-#endif
 GLOBAL(stackspace)
 	.space NBPG /* Smaller than it should be since it's temp. */
 	.align 8
@@ -138,14 +128,18 @@ VECTOR(_locore, unknown)
 	mtc0	t2, COP_0_STATUS_REG
 	COP0_SYNC
 	/* Make sure KSEG0 is cached */
+#ifdef CPU_SB1
+	li	t0, CFG_K0_COHERENT
+#else
 	li	t0, CFG_K0_CACHED
+#endif
 	mtc0	t0, MIPS_COP_0_CONFIG
 	COP0_SYNC
 
 	/* Read and store the PrID FPU ID for CPU identification, if any. */
 	mfc0	t2, COP_0_STATUS_REG
 	mfc0	t0, MIPS_COP_0_PRID
-#ifndef CPU_NOFPU
+#ifdef CPU_HAVEFPU
 	and	t2, MIPS_SR_COP_1_BIT
 	beqz	t2, 1f
 	move	t1, zero
@@ -164,8 +158,8 @@ VECTOR(_locore, unknown)
 /*
  * Initialize stack and call machine startup.
  */
-	la	sp, _C_LABEL(topstack) - START_FRAME
-	la	gp, _C_LABEL(_gp)
+	PTR_LA	sp, _C_LABEL(topstack) - START_FRAME
+	PTR_LA	gp, _C_LABEL(_gp)
 	sw	zero, START_FRAME - 4(sp)  # Zero out old ra for debugger
 
 	/*xxximp
@@ -176,20 +170,6 @@ VECTOR(_locore, unknown)
 	/* Save YAMON boot environment pointer */
 	sw	a2, _C_LABEL(fenvp)
 #endif
-#ifdef CFE
-	/*
-	* Save the CFE context passed to us by the loader.
-	*/
-	li	t1, 0x43464531
-	bne	a3, t1, no_cfe		/* Check for "CFE1" signature */
-	sw	a0, _C_LABEL(cfe_handle)/* Firmware data segment */
-	sw	a2, _C_LABEL(cfe_vector)/* Firmware entry vector */
-no_cfe:
-#endif
-#if defined(TARGET_OCTEON)
-	la	a0, app_descriptor_addr
-	sw	a3, 0(a0)		/* Store app descriptor ptr */
-#endif
 
 	/*
 	 * The following needs to be done differently for each platform and
@@ -199,6 +179,7 @@ no_cfe:
 /*
  * Block all the slave CPUs
  */
+	/* XXX a0, a1, a2 shouldn't be used here */
 	/*
 	 * Read the cpu id from the cp0 config register
 	 * cpuid[9:4], thrid[3: 0]
@@ -232,7 +213,7 @@ no_cfe:
 	nop
 
 #ifdef SMP
-	la	t0, _C_LABEL(__pcpu)
+	PTR_LA	t0, _C_LABEL(__pcpu)
 	SET_CPU_PCPU(t0)
 	/* If not master cpu, jump... */
 /*XXX this assumes the above #if 0'd code runs */
@@ -244,7 +225,7 @@ no_cfe:
 	jal	_C_LABEL(platform_start)
 	sw	zero, START_FRAME - 8(sp)	# Zero out old fp for debugger
 
-	la      sp, _C_LABEL(thread0)
+	PTR_LA	sp, _C_LABEL(thread0)
 	lw      a0, TD_PCB(sp)
 	li	t0, ~7
 	and	a0, a0, t0

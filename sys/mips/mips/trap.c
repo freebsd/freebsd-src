@@ -76,9 +76,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/psl.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
 #include <machine/pte.h>
 #include <machine/pmap.h>
+#include <machine/md_var.h>
 #include <machine/mips_opcode.h>
 #include <machine/frame.h>
 #include <machine/regnum.h>
@@ -99,28 +99,17 @@ __FBSDID("$FreeBSD$");
 
 #ifdef TRAP_DEBUG
 int trap_debug = 1;
-
 #endif
 
 extern unsigned onfault_table[];
 
-extern void MipsKernGenException(void);
-extern void MipsUserGenException(void);
-extern void MipsKernIntr(void);
-extern void MipsUserIntr(void);
-extern void MipsTLBInvalidException(void);
-extern void MipsKernTLBInvalidException(void);
-extern void MipsUserTLBInvalidException(void);
-extern void MipsTLBMissException(void);
 static void log_bad_page_fault(char *, struct trapframe *, int);
 static void log_frame_dump(struct trapframe *frame);
 static void get_mapping_info(vm_offset_t, pd_entry_t **, pt_entry_t **);
 
 #ifdef TRAP_DEBUG
 static void trap_frame_dump(struct trapframe *frame);
-
 #endif
-extern char edata[];
 
 void (*machExceptionTable[]) (void)= {
 /*
@@ -232,36 +221,15 @@ char *trap_type[] = {
 
 #if !defined(SMP) && (defined(DDB) || defined(DEBUG))
 struct trapdebug trapdebug[TRAPSIZE], *trp = trapdebug;
-
 #endif
 
 #if defined(DDB) || defined(DEBUG)
 void stacktrace(struct trapframe *);
 void logstacktrace(struct trapframe *);
-int kdbpeek(int *);
-
-/* extern functions printed by name in stack backtraces */
-extern void MipsTLBMiss(void);
-extern void MipsUserSyscallException(void);
-extern char _locore[];
-extern char _locoreEnd[];
-
-#endif				/* DDB || DEBUG */
-
-extern void MipsSwitchFPState(struct thread *, struct trapframe *);
-extern void MipsFPTrap(u_int, u_int, u_int);
-
-u_int trap(struct trapframe *);
-u_int MipsEmulateBranch(struct trapframe *, int, int, u_int);
+#endif
 
 #define	KERNLAND(x) ((int)(x) < 0)
 #define	DELAYBRANCH(x) ((int)(x) < 0)
-
-/*
- * kdbpeekD(addr) - skip one word starting at 'addr', then read the second word
- */
-#define	kdbpeekD(addr)	kdbpeek(((int *)(addr)) + 1)
-int rrs_debug = 0;
 
 /*
  * MIPS load/store access type
@@ -306,8 +274,7 @@ extern char *syscallnames[];
  * p->p_addr->u_pcb.pcb_onfault is set, otherwise, return old pc.
  */
 u_int
-trap(trapframe)
-	struct trapframe *trapframe;
+trap(struct trapframe *trapframe)
 {
 	int type, usermode;
 	int i = 0;
@@ -365,7 +332,7 @@ trap(trapframe)
 		printf("cpuid = %d\n", PCPU_GET(cpuid));
 #endif
 		MachTLBGetPID(pid);
-		printf("badaddr = %p, pc = %p, ra = %p, sp = %p, sr = 0x%x, pid = %d, ASID = 0x%x\n",
+		printf("badaddr = 0x%0x, pc = 0x%0x, ra = 0x%0x, sp = 0x%0x, sr = 0x%x, pid = %d, ASID = 0x%x\n",
 		    trapframe->badvaddr, trapframe->pc, trapframe->ra,
 		    trapframe->sp, trapframe->sr,
 		    (curproc ? curproc->p_pid : -1), pid);
@@ -389,7 +356,7 @@ trap(trapframe)
 		    ((type & ~T_USER) != T_SYSCALL)) {
 			if (++count == 3) {
 				trap_frame_dump(trapframe);
-				panic("too many faults at %p\n", last_badvaddr);
+				panic("too many faults at %x\n", last_badvaddr);
 			}
 		} else {
 			last_badvaddr = this_badvaddr;
@@ -564,7 +531,7 @@ dofault:
 			--p->p_lock;
 			PROC_UNLOCK(p);
 #ifdef VMFAULT_TRACE
-			printf("vm_fault(%x (pmap %x), %x (%x), %x, %d) -> %x at pc %x\n",
+			printf("vm_fault(%p (pmap %p), %x (%x), %x, %d) -> %x at pc %x\n",
 			    map, &vm->vm_pmap, va, trapframe->badvaddr, ftype, VM_FAULT_NORMAL,
 			    rv, trapframe->pc);
 #endif
@@ -805,7 +772,7 @@ dofault:
 
 	case T_BREAK + T_USER:
 		{
-			unsigned int va, instr;
+			uintptr_t va, instr;
 
 			/* compute address of break instruction */
 			va = trapframe->pc;
@@ -838,13 +805,13 @@ dofault:
 	case T_IWATCH + T_USER:
 	case T_DWATCH + T_USER:
 		{
-			unsigned int va;
+			uintptr_t va;
 
 			/* compute address of trapped instruction */
 			va = trapframe->pc;
 			if (DELAYBRANCH(trapframe->cause))
 				va += sizeof(int);
-			printf("watch exception @ 0x%x\n", va);
+			printf("watch exception @ %p\n", (void *)va);
 			i = SIGTRAP;
 			addr = va;
 			break;
@@ -852,7 +819,7 @@ dofault:
 
 	case T_TRAP + T_USER:
 		{
-			unsigned int va, instr;
+			uintptr_t va, instr;
 			struct trapframe *locr0 = td->td_frame;
 
 			/* compute address of trap instruction */
@@ -885,7 +852,7 @@ dofault:
 		goto err;
 		break;
 	case T_COP_UNUSABLE + T_USER:
-#if defined(SOFTFLOAT)
+#if !defined(CPU_HAVEFPU)
 		/* FP (COP1) instruction */
 		if ((trapframe->cause & CR_COP_ERR) == 0x10000000) {
 			i = SIGILL;
@@ -1046,27 +1013,27 @@ trapDump(char *msg)
 /*
  * Return the resulting PC as if the branch was executed.
  */
-u_int
-MipsEmulateBranch(struct trapframe *framePtr, int instPC, int fpcCSR,
-    u_int instptr)
+uintptr_t
+MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
+    uintptr_t instptr)
 {
 	InstFmt inst;
 	register_t *regsPtr = (register_t *) framePtr;
-	unsigned retAddr = 0;
+	uintptr_t retAddr = 0;
 	int condition;
 
 #define	GetBranchDest(InstPtr, inst) \
-	((unsigned)InstPtr + 4 + ((short)inst.IType.imm << 2))
+	(InstPtr + 4 + ((short)inst.IType.imm << 2))
 
 
 	if (instptr) {
 		if (instptr < MIPS_KSEG0_START)
-			inst.word = fuword((void *)instptr);
+			inst.word = fuword32((void *)instptr);
 		else
 			inst = *(InstFmt *) instptr;
 	} else {
 		if ((vm_offset_t)instPC < MIPS_KSEG0_START)
-			inst.word = fuword((void *)instPC);
+			inst.word = fuword32((void *)instPC);
 		else
 			inst = *(InstFmt *) instPC;
 	}
@@ -1124,7 +1091,7 @@ MipsEmulateBranch(struct trapframe *framePtr, int instPC, int fpcCSR,
 	case OP_J:
 	case OP_JAL:
 		retAddr = (inst.JType.target << 2) |
-		    ((unsigned)instPC & 0xF0000000);
+		    ((unsigned)(instPC + 4) & 0xF0000000);
 		break;
 
 	case OP_BEQ:
@@ -1186,348 +1153,53 @@ MipsEmulateBranch(struct trapframe *framePtr, int instPC, int fpcCSR,
 
 
 #if defined(DDB) || defined(DEBUG)
-#define	MIPS_JR_RA	0x03e00008	/* instruction code for jr ra */
-
-/* forward */
-char *fn_name(unsigned addr);
-
 /*
  * Print a stack backtrace.
  */
 void
 stacktrace(struct trapframe *regs)
 {
-	stacktrace_subr(regs, printf);
+	stacktrace_subr(regs->pc, regs->sp, regs->ra, printf);
 }
-
-void
-stacktrace_subr(struct trapframe *regs, int (*printfn) (const char *,...))
-{
-	InstFmt i;
-	unsigned a0, a1, a2, a3, pc, sp, fp, ra, va, subr;
-	unsigned instr, mask;
-	unsigned int frames = 0;
-	int more, stksize;
-
-	/* get initial values from the exception frame */
-	sp = regs->sp;
-	pc = regs->pc;
-	fp = regs->s8;
-	ra = regs->ra;		/* May be a 'leaf' function */
-	a0 = regs->a0;
-	a1 = regs->a1;
-	a2 = regs->a2;
-	a3 = regs->a3;
-
-/* Jump here when done with a frame, to start a new one */
-loop:
-
-/* Jump here after a nonstandard (interrupt handler) frame */
-	stksize = 0;
-	subr = 0;
-	if (frames++ > 100) {
-		(*printfn) ("\nstackframe count exceeded\n");
-		/* return breaks stackframe-size heuristics with gcc -O2 */
-		goto finish;	/* XXX */
-	}
-	/* check for bad SP: could foul up next frame */
-	if (sp & 3 || sp < 0x80000000) {
-		(*printfn) ("SP 0x%x: not in kernel\n", sp);
-		ra = 0;
-		subr = 0;
-		goto done;
-	}
-#define Between(x, y, z) \
-		( ((x) <= (y)) && ((y) < (z)) )
-#define pcBetween(a,b) \
-		Between((unsigned)a, pc, (unsigned)b)
-
-	/*
-	 * Check for current PC in  exception handler code that don't have a
-	 * preceding "j ra" at the tail of the preceding function. Depends
-	 * on relative ordering of functions in exception.S, swtch.S.
-	 */
-	if (pcBetween(MipsKernGenException, MipsUserGenException))
-		subr = (unsigned)MipsKernGenException;
-	else if (pcBetween(MipsUserGenException, MipsKernIntr))
-		subr = (unsigned)MipsUserGenException;
-	else if (pcBetween(MipsKernIntr, MipsUserIntr))
-		subr = (unsigned)MipsKernIntr;
-	else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
-		subr = (unsigned)MipsUserIntr;
-	else if (pcBetween(MipsTLBInvalidException,
-	    MipsKernTLBInvalidException))
-		subr = (unsigned)MipsTLBInvalidException;
-	else if (pcBetween(MipsKernTLBInvalidException,
-	    MipsUserTLBInvalidException))
-		subr = (unsigned)MipsKernTLBInvalidException;
-	else if (pcBetween(MipsUserTLBInvalidException, MipsTLBMissException))
-		subr = (unsigned)MipsUserTLBInvalidException;
-	else if (pcBetween(cpu_switch, MipsSwitchFPState))
-		subr = (unsigned)cpu_switch;
-	else if (pcBetween(_locore, _locoreEnd)) {
-		subr = (unsigned)_locore;
-		ra = 0;
-		goto done;
-	}
-	/* check for bad PC */
-	if (pc & 3 || pc < (unsigned)0x80000000 || pc >= (unsigned)edata) {
-		(*printfn) ("PC 0x%x: not in kernel\n", pc);
-		ra = 0;
-		goto done;
-	}
-	/*
-	 * Find the beginning of the current subroutine by scanning
-	 * backwards from the current PC for the end of the previous
-	 * subroutine.
-	 */
-	if (!subr) {
-		va = pc - sizeof(int);
-		while ((instr = kdbpeek((int *)va)) != MIPS_JR_RA)
-			va -= sizeof(int);
-		va += 2 * sizeof(int);	/* skip back over branch & delay slot */
-		/* skip over nulls which might separate .o files */
-		while ((instr = kdbpeek((int *)va)) == 0)
-			va += sizeof(int);
-		subr = va;
-	}
-	/* scan forwards to find stack size and any saved registers */
-	stksize = 0;
-	more = 3;
-	mask = 0;
-	for (va = subr; more; va += sizeof(int),
-	    more = (more == 3) ? 3 : more - 1) {
-		/* stop if hit our current position */
-		if (va >= pc)
-			break;
-		instr = kdbpeek((int *)va);
-		i.word = instr;
-		switch (i.JType.op) {
-		case OP_SPECIAL:
-			switch (i.RType.func) {
-			case OP_JR:
-			case OP_JALR:
-				more = 2;	/* stop after next instruction */
-				break;
-
-			case OP_SYSCALL:
-			case OP_BREAK:
-				more = 1;	/* stop now */
-			};
-			break;
-
-		case OP_BCOND:
-		case OP_J:
-		case OP_JAL:
-		case OP_BEQ:
-		case OP_BNE:
-		case OP_BLEZ:
-		case OP_BGTZ:
-			more = 2;	/* stop after next instruction */
-			break;
-
-		case OP_COP0:
-		case OP_COP1:
-		case OP_COP2:
-		case OP_COP3:
-			switch (i.RType.rs) {
-			case OP_BCx:
-			case OP_BCy:
-				more = 2;	/* stop after next instruction */
-			};
-			break;
-
-		case OP_SW:
-			/* look for saved registers on the stack */
-			if (i.IType.rs != 29)
-				break;
-			/* only restore the first one */
-			if (mask & (1 << i.IType.rt))
-				break;
-			mask |= (1 << i.IType.rt);
-			switch (i.IType.rt) {
-			case 4:/* a0 */
-				a0 = kdbpeek((int *)(sp + (short)i.IType.imm));
-				break;
-
-			case 5:/* a1 */
-				a1 = kdbpeek((int *)(sp + (short)i.IType.imm));
-				break;
-
-			case 6:/* a2 */
-				a2 = kdbpeek((int *)(sp + (short)i.IType.imm));
-				break;
-
-			case 7:/* a3 */
-				a3 = kdbpeek((int *)(sp + (short)i.IType.imm));
-				break;
-
-			case 30:	/* fp */
-				fp = kdbpeek((int *)(sp + (short)i.IType.imm));
-				break;
-
-			case 31:	/* ra */
-				ra = kdbpeek((int *)(sp + (short)i.IType.imm));
-			}
-			break;
-
-		case OP_SD:
-			/* look for saved registers on the stack */
-			if (i.IType.rs != 29)
-				break;
-			/* only restore the first one */
-			if (mask & (1 << i.IType.rt))
-				break;
-			mask |= (1 << i.IType.rt);
-			switch (i.IType.rt) {
-			case 4:/* a0 */
-				a0 = kdbpeekD((int *)(sp + (short)i.IType.imm));
-				break;
-
-			case 5:/* a1 */
-				a1 = kdbpeekD((int *)(sp + (short)i.IType.imm));
-				break;
-
-			case 6:/* a2 */
-				a2 = kdbpeekD((int *)(sp + (short)i.IType.imm));
-				break;
-
-			case 7:/* a3 */
-				a3 = kdbpeekD((int *)(sp + (short)i.IType.imm));
-				break;
-
-			case 30:	/* fp */
-				fp = kdbpeekD((int *)(sp + (short)i.IType.imm));
-				break;
-
-			case 31:	/* ra */
-				ra = kdbpeekD((int *)(sp + (short)i.IType.imm));
-			}
-			break;
-
-		case OP_ADDI:
-		case OP_ADDIU:
-			/* look for stack pointer adjustment */
-			if (i.IType.rs != 29 || i.IType.rt != 29)
-				break;
-			stksize = -((short)i.IType.imm);
-		}
-	}
-
-done:
-	(*printfn) ("%s+%x (%x,%x,%x,%x) ra %x sz %d\n",
-	    fn_name(subr), pc - subr, a0, a1, a2, a3, ra, stksize);
-
-	if (ra) {
-		if (pc == ra && stksize == 0)
-			(*printfn) ("stacktrace: loop!\n");
-		else {
-			pc = ra;
-			sp += stksize;
-			ra = 0;
-			goto loop;
-		}
-	} else {
-finish:
-		if (curproc)
-			(*printfn) ("pid %d\n", curproc->p_pid);
-		else
-			(*printfn) ("curproc NULL\n");
-	}
-}
-
-/*
- * Functions ``special'' enough to print by name
- */
-#ifdef __STDC__
-#define	Name(_fn)  { (void*)_fn, # _fn }
-#else
-#define	Name(_fn) { _fn, "_fn"}
 #endif
-static struct {
-	void *addr;
-	char *name;
-}      names[] = {
-
-	Name(trap),
-	Name(MipsKernGenException),
-	Name(MipsUserGenException),
-	Name(MipsKernIntr),
-	Name(MipsUserIntr),
-	Name(cpu_switch),
-	{
-		0, 0
-	}
-};
-
-/*
- * Map a function address to a string name, if known; or a hex string.
- */
-char *
-fn_name(unsigned addr)
-{
-	static char buf[17];
-	int i = 0;
-
-#ifdef DDB
-	db_expr_t diff;
-	c_db_sym_t sym;
-	char *symname;
-
-	diff = 0;
-	symname = NULL;
-	sym = db_search_symbol((db_addr_t)addr, DB_STGY_ANY, &diff);
-	db_symbol_values(sym, (const char **)&symname, (db_expr_t *)0);
-	if (symname && diff == 0)
-		return (symname);
-#endif
-
-	for (i = 0; names[i].name; i++)
-		if (names[i].addr == (void *)addr)
-			return (names[i].name);
-	sprintf(buf, "%x", addr);
-	return (buf);
-}
-
-#endif				/* DDB */
 
 static void
 log_frame_dump(struct trapframe *frame)
 {
 	log(LOG_ERR, "Trapframe Register Dump:\n");
-	log(LOG_ERR, "\tzero: %08x\tat: %08x\tv0: %08x\tv1: %08x\n",
-	    0, frame->ast, frame->v0, frame->v1);
+	log(LOG_ERR, "\tzero: %p\tat: %p\tv0: %p\tv1: %p\n",
+	    (void *)0, (void *)frame->ast, (void *)frame->v0, (void *)frame->v1);
 
-	log(LOG_ERR, "\ta0: %08x\ta1: %08x\ta2: %08x\ta3: %08x\n",
-	    frame->a0, frame->a1, frame->a2, frame->a3);
+	log(LOG_ERR, "\ta0: %p\ta1: %p\ta2: %p\ta3: %p\n",
+	    (void *)frame->a0, (void *)frame->a1, (void *)frame->a2, (void *)frame->a3);
 
-	log(LOG_ERR, "\tt0: %08x\tt1: %08x\tt2: %08x\tt3: %08x\n",
-	    frame->t0, frame->t1, frame->t2, frame->t3);
+	log(LOG_ERR, "\tt0: %p\tt1: %p\tt2: %p\tt3: %p\n",
+	    (void *)frame->t0, (void *)frame->t1, (void *)frame->t2, (void *)frame->t3);
 
-	log(LOG_ERR, "\tt4: %08x\tt5: %08x\tt6: %08x\tt7: %08x\n",
-	    frame->t4, frame->t5, frame->t6, frame->t7);
+	log(LOG_ERR, "\tt4: %p\tt5: %p\tt6: %p\tt7: %p\n",
+	    (void *)frame->t4, (void *)frame->t5, (void *)frame->t6, (void *)frame->t7);
 
-	log(LOG_ERR, "\tt8: %08x\tt9: %08x\ts0: %08x\ts1: %08x\n",
-	    frame->t8, frame->t9, frame->s0, frame->s1);
+	log(LOG_ERR, "\tt8: %p\tt9: %p\ts0: %p\ts1: %p\n",
+	    (void *)frame->t8, (void *)frame->t9, (void *)frame->s0, (void *)frame->s1);
 
-	log(LOG_ERR, "\ts2: %08x\ts3: %08x\ts4: %08x\ts5: %08x\n",
-	    frame->s2, frame->s3, frame->s4, frame->s5);
+	log(LOG_ERR, "\ts2: %p\ts3: %p\ts4: %p\ts5: %p\n",
+	    (void *)frame->s2, (void *)frame->s3, (void *)frame->s4, (void *)frame->s5);
 
-	log(LOG_ERR, "\ts6: %08x\ts7: %08x\tk0: %08x\tk1: %08x\n",
-	    frame->s6, frame->s7, frame->k0, frame->k1);
+	log(LOG_ERR, "\ts6: %p\ts7: %p\tk0: %p\tk1: %p\n",
+	    (void *)frame->s6, (void *)frame->s7, (void *)frame->k0, (void *)frame->k1);
 
-	log(LOG_ERR, "\tgp: %08x\tsp: %08x\ts8: %08x\tra: %08x\n",
-	    frame->gp, frame->sp, frame->s8, frame->ra);
+	log(LOG_ERR, "\tgp: %p\tsp: %p\ts8: %p\tra: %p\n",
+	    (void *)frame->gp, (void *)frame->sp, (void *)frame->s8, (void *)frame->ra);
 
-	log(LOG_ERR, "\tsr: %08x\tmullo: %08x\tmulhi: %08x\tbadvaddr: %08x\n",
-	    frame->sr, frame->mullo, frame->mulhi, frame->badvaddr);
+	log(LOG_ERR, "\tsr: %p\tmullo: %p\tmulhi: %p\tbadvaddr: %p\n",
+	    (void *)frame->sr, (void *)frame->mullo, (void *)frame->mulhi, (void *)frame->badvaddr);
 
 #ifdef IC_REG
-	log(LOG_ERR, "\tcause: %08x\tpc: %08x\tic: %08x\n",
-	    frame->cause, frame->pc, frame->ic);
+	log(LOG_ERR, "\tcause: %p\tpc: %p\tic: %p\n",
+	    (void *)frame->cause, (void *)frame->pc, (void *)frame->ic);
 #else
-	log(LOG_ERR, "\tcause: %08x\tpc: %08x\n",
-	    frame->cause, frame->pc);
+	log(LOG_ERR, "\tcause: %p\tpc: %p\n",
+	    (void *)frame->cause, (void *)frame->pc);
 #endif
 }
 
@@ -1536,39 +1208,39 @@ static void
 trap_frame_dump(struct trapframe *frame)
 {
 	printf("Trapframe Register Dump:\n");
-	printf("\tzero: %08x\tat: %08x\tv0: %08x\tv1: %08x\n",
-	    0, frame->ast, frame->v0, frame->v1);
+	printf("\tzero: %p\tat: %p\tv0: %p\tv1: %p\n",
+	    (void *)0, (void *)frame->ast, (void *)frame->v0, (void *)frame->v1);
 
-	printf("\ta0: %08x\ta1: %08x\ta2: %08x\ta3: %08x\n",
-	    frame->a0, frame->a1, frame->a2, frame->a3);
+	printf("\ta0: %p\ta1: %p\ta2: %p\ta3: %p\n",
+	    (void *)frame->a0, (void *)frame->a1, (void *)frame->a2, (void *)frame->a3);
 
-	printf("\tt0: %08x\tt1: %08x\tt2: %08x\tt3: %08x\n",
-	    frame->t0, frame->t1, frame->t2, frame->t3);
+	printf("\tt0: %p\tt1: %p\tt2: %p\tt3: %p\n",
+	    (void *)frame->t0, (void *)frame->t1, (void *)frame->t2, (void *)frame->t3);
 
-	printf("\tt4: %08x\tt5: %08x\tt6: %08x\tt7: %08x\n",
-	    frame->t4, frame->t5, frame->t6, frame->t7);
+	printf("\tt4: %p\tt5: %p\tt6: %p\tt7: %p\n",
+	    (void *)frame->t4, (void *)frame->t5, (void *)frame->t6, (void *)frame->t7);
 
-	printf("\tt8: %08x\tt9: %08x\ts0: %08x\ts1: %08x\n",
-	    frame->t8, frame->t9, frame->s0, frame->s1);
+	printf("\tt8: %p\tt9: %p\ts0: %p\ts1: %p\n",
+	    (void *)frame->t8, (void *)frame->t9, (void *)frame->s0, (void *)frame->s1);
 
-	printf("\ts2: %08x\ts3: %08x\ts4: %08x\ts5: %08x\n",
-	    frame->s2, frame->s3, frame->s4, frame->s5);
+	printf("\ts2: %p\ts3: %p\ts4: %p\ts5: %p\n",
+	    (void *)frame->s2, (void *)frame->s3, (void *)frame->s4, (void *)frame->s5);
 
-	printf("\ts6: %08x\ts7: %08x\tk0: %08x\tk1: %08x\n",
-	    frame->s6, frame->s7, frame->k0, frame->k1);
+	printf("\ts6: %p\ts7: %p\tk0: %p\tk1: %p\n",
+	    (void *)frame->s6, (void *)frame->s7, (void *)frame->k0, (void *)frame->k1);
 
-	printf("\tgp: %08x\tsp: %08x\ts8: %08x\tra: %08x\n",
-	    frame->gp, frame->sp, frame->s8, frame->ra);
+	printf("\tgp: %p\tsp: %p\ts8: %p\tra: %p\n",
+	    (void *)frame->gp, (void *)frame->sp, (void *)frame->s8, (void *)frame->ra);
 
-	printf("\tsr: %08x\tmullo: %08x\tmulhi: %08x\tbadvaddr: %08x\n",
-	    frame->sr, frame->mullo, frame->mulhi, frame->badvaddr);
+	printf("\tsr: %p\tmullo: %p\tmulhi: %p\tbadvaddr: %p\n",
+	    (void *)frame->sr, (void *)frame->mullo, (void *)frame->mulhi, (void *)frame->badvaddr);
 
 #ifdef IC_REG
-	printf("\tcause: %08x\tpc: %08x\tic: %08x\n",
-	    frame->cause, frame->pc, frame->ic);
+	printf("\tcause: %p\tpc: %p\tic: %p\n",
+	    (void *)frame->cause, (void *)frame->pc, (void *)frame->ic);
 #else
-	printf("\tcause: %08x\tpc: %08x\n",
-	    frame->cause, frame->pc);
+	printf("\tcause: %p\tpc: %p\n",
+	    (void *)frame->cause, (void *)frame->pc);
 #endif
 }
 
@@ -1623,12 +1295,12 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	}
 
 	pc = frame->pc + (DELAYBRANCH(frame->cause) ? 4 : 0);
-	log(LOG_ERR, "%s: pid %d (%s), uid %d: pc 0x%x got a %s fault at 0x%x\n",
+	log(LOG_ERR, "%s: pid %d (%s), uid %d: pc %p got a %s fault at %p\n",
 	    msg, p->p_pid, p->p_comm,
 	    p->p_ucred ? p->p_ucred->cr_uid : -1,
-	    pc,
+	    (void *)pc,
 	    read_or_write,
-	    frame->badvaddr);
+	    (void *)frame->badvaddr);
 
 	/* log registers in trap frame */
 	log_frame_dump(frame);
@@ -1643,8 +1315,8 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	    (trap_type != T_BUS_ERR_IFETCH) &&
 	    useracc((caddr_t)pc, sizeof(int) * 4, VM_PROT_READ)) {
 		/* dump page table entry for faulting instruction */
-		log(LOG_ERR, "Page table info for pc address 0x%x: pde = %p, pte = 0x%lx\n",
-		    pc, *pdep, ptep ? *ptep : 0);
+		log(LOG_ERR, "Page table info for pc address %p: pde = %p, pte = 0x%lx\n",
+		    (void *)pc, *pdep, ptep ? *ptep : 0);
 
 		addr = (unsigned int *)pc;
 		log(LOG_ERR, "Dumping 4 words starting at pc address %p: \n",
@@ -1652,8 +1324,8 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 		log(LOG_ERR, "%08x %08x %08x %08x\n",
 		    addr[0], addr[1], addr[2], addr[3]);
 	} else {
-		log(LOG_ERR, "pc address 0x%x is inaccessible, pde = 0x%p, pte = 0x%lx\n",
-		    pc, *pdep, ptep ? *ptep : 0);
+		log(LOG_ERR, "pc address %p is inaccessible, pde = 0x%p, pte = 0x%lx\n",
+		    (void *)pc, *pdep, ptep ? *ptep : 0);
 	}
 	/*	panic("Bad trap");*/
 }
@@ -1762,8 +1434,9 @@ emulate_unaligned_access(struct trapframe *frame)
 			else
 				frame->pc += 4;
 
-			log(LOG_INFO, "Unaligned %s: pc=0x%x, badvaddr=0x%x\n",
-			    access_name[access_type - 1], pc, frame->badvaddr);
+			log(LOG_INFO, "Unaligned %s: pc=%p, badvaddr=%p\n",
+			    access_name[access_type - 1], (void *)pc,
+			    (void *)frame->badvaddr);
 		}
 	}
 	return access_type;
