@@ -1001,7 +1001,6 @@ typedef struct {
 	union	ccb *request_ccb;
 	struct 	ccb_pathinq *cpi;
 	int	counter;
-	int	found;
 } ata_scan_bus_info;
 
 /*
@@ -1049,14 +1048,11 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		}
 		scan_info->request_ccb = request_ccb;
 		scan_info->cpi = &work_ccb->cpi;
-		if (scan_info->cpi->transport == XPORT_ATA)
-			scan_info->found = 0x0003;
-		else
-			scan_info->found = 0x8001;
-		scan_info->counter = 0;
 		/* If PM supported, probe it first. */
 		if (scan_info->cpi->hba_inquiry & PI_SATAPM)
-			scan_info->counter = 15;
+			scan_info->counter = scan_info->cpi->max_target;
+		else
+			scan_info->counter = 0;
 
 		work_ccb = xpt_alloc_ccb_nowait();
 		if (work_ccb == NULL) {
@@ -1073,10 +1069,11 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		/* Free the current request path- we're done with it. */
 		xpt_free_path(work_ccb->ccb_h.path);
 		/* If there is PMP... */
-		if (scan_info->counter == 15) {
+		if ((scan_info->cpi->hba_inquiry & PI_SATAPM) &&
+		    (scan_info->counter == scan_info->cpi->max_target)) {
 			if (work_ccb->ccb_h.ppriv_field1 != 0) {
 				/* everything else willbe probed by it */
-				scan_info->found = 0x8000;
+				goto done;
 			} else {
 				struct ccb_trans_settings cts;
 
@@ -1091,11 +1088,10 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				xpt_action((union ccb *)&cts);
 			}
 		}
-take_next:
-		/* Take next device. Wrap from 15 (PM) to 0. */
-		scan_info->counter = (scan_info->counter + 1 ) & 0x0f;
-		if (scan_info->counter > scan_info->cpi->max_target -
-		    ((scan_info->cpi->hba_inquiry & PI_SATAPM) ? 1 : 0)) {
+		if (scan_info->counter ==
+		    ((scan_info->cpi->hba_inquiry & PI_SATAPM) ?
+		    0 : scan_info->cpi->max_target)) {
+done:
 			xpt_free_ccb(work_ccb);
 			xpt_free_ccb((union ccb *)scan_info->cpi);
 			request_ccb = scan_info->request_ccb;
@@ -1104,9 +1100,10 @@ take_next:
 			xpt_done(request_ccb);
 			break;
 		}
+		/* Take next device. Wrap from max (PMP) to 0. */
+		scan_info->counter = (scan_info->counter + 1 ) %
+		    (scan_info->cpi->max_target + 1);
 scan_next:
-		if ((scan_info->found & (1 << scan_info->counter)) == 0)
-			goto take_next;
 		status = xpt_create_path(&path, xpt_periph,
 		    scan_info->request_ccb->ccb_h.path_id,
 		    scan_info->counter, 0);
