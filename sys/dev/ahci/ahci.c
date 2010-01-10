@@ -570,6 +570,12 @@ ahci_setup_interrupt(device_t dev)
 			device_printf(dev, "unable to setup interrupt\n");
 			return ENXIO;
 		}
+		if (ctlr->numirqs > 1) {
+			bus_describe_intr(dev, ctlr->irqs[i].r_irq,
+			    ctlr->irqs[i].handle,
+			    ctlr->irqs[i].mode == AHCI_IRQ_MODE_ONE ?
+			    "ch%d" : "%d", i);
+		}
 	}
 	return (0);
 }
@@ -622,8 +628,14 @@ ahci_intr_one(void *data)
 	int unit;
 
 	unit = irq->r_irq_rid - 1;
+	/* Some controllers have edge triggered IS. */
+	if (ctlr->quirks & AHCI_Q_EDGEIS)
+		ATA_OUTL(ctlr->r_mem, AHCI_IS, 1 << unit);
 	if ((arg = ctlr->interrupt[unit].argument))
 	    ctlr->interrupt[unit].function(arg);
+	/* AHCI declares level triggered IS. */
+	if (!(ctlr->quirks & AHCI_Q_EDGEIS))
+		ATA_OUTL(ctlr->r_mem, AHCI_IS, 1 << unit);
 }
 
 static struct resource *
