@@ -2697,14 +2697,12 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VI_DOOMED", sizeof(buf));
 	if (vp->v_iflag & VI_FREE)
 		strlcat(buf, "|VI_FREE", sizeof(buf));
-	if (vp->v_iflag & VI_OBJDIRTY)
-		strlcat(buf, "|VI_OBJDIRTY", sizeof(buf));
 	if (vp->v_iflag & VI_DOINGINACT)
 		strlcat(buf, "|VI_DOINGINACT", sizeof(buf));
 	if (vp->v_iflag & VI_OWEINACT)
 		strlcat(buf, "|VI_OWEINACT", sizeof(buf));
 	flags = vp->v_iflag & ~(VI_MOUNT | VI_AGE | VI_DOOMED | VI_FREE |
-	    VI_OBJDIRTY | VI_DOINGINACT | VI_OWEINACT);
+	    VI_DOINGINACT | VI_OWEINACT);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VI(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
@@ -3198,7 +3196,8 @@ vfs_msync(struct mount *mp, int flags)
 	MNT_ILOCK(mp);
 	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);
-		if ((vp->v_iflag & VI_OBJDIRTY) &&
+		obj = vp->v_object;
+		if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0 &&
 		    (flags == MNT_WAIT || VOP_ISLOCKED(vp) == 0)) {
 			MNT_IUNLOCK(mp);
 			if (!vget(vp,
