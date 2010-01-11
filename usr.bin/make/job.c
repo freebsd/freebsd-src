@@ -667,8 +667,12 @@ filemon_open(Job *job)
 		retry--;
 	}
 
-	if (filemon_fd < 0)
-			err(1, "Could not open filemon device!");
+	if (filemon_fd < 0) {
+		err(1, "Could not open filemon device!\n"
+		    "To address this problem, either:\n\n"
+		    "(1) make sure filemon.ko kernel module is loaded.\n"
+		    "(2) or use '-Q' flag to suppress generation of meta data files\n\n");
+	}
 	if ((mon_fd = mkstemp(mon_fname)) < 0)
 		err(1, "Could not create temporary file!");
 	else if (ioctl(filemon_fd, FILEMON_SET_FD, &mon_fd) < 0)
