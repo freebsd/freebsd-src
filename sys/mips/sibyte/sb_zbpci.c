@@ -39,6 +39,7 @@
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcib_private.h>
 
