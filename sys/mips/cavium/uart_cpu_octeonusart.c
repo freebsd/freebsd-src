@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <mips/octeon1/octeonreg.h>
-#include <mips/octeon1/octeon_pcmap_regs.h>
+#include <mips/cavium/octeonreg.h>
+#include <mips/cavium/octeon_pcmap_regs.h>
 
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;

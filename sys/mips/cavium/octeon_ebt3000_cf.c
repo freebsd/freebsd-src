@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "octeon_ebt3000_cf.h"
 #include "driveid.h"
-#include <mips/octeon1/octeon_pcmap_regs.h>
+#include <mips/cavium/octeon_pcmap_regs.h>
 
 /* ATA Commands */
 #define CMD_READ_SECTOR		0x20

@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 /*
  * XXXMIPS:
  */
-#include <mips/octeon1/octeonreg.h>
+#include <mips/cavium/octeonreg.h>
 
 #include "uart_if.h"
 
