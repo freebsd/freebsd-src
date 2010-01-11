@@ -26,12 +26,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * RMI_BSD */
+ * RMI_BSD
+ */
 
 #ifndef _RMILIB_H_
 #define _RMILIB_H_
 
-#include <dev/rmi/sec/desc.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <mips/rmi/dev/sec/desc.h>
 #include <mips/xlr/iomap.h>
 
 /*#define XLR_SEC_CMD_DEBUG*/

@@ -17,10 +17,10 @@ mips/rmi/perfmon_percpu.c			optional xlr_perfmon
 #mips/rmi/pcibus.c				optional pci
 #mips/rmi/xlr_pci.c				optional pci
 #mips/rmi/xls_ehci.c				optional usb ehci
-dev/rmi/xlr/rge.c				optional rge
 mips/rmi/bus_space_rmi.c			standard
+mips/rmi/dev/sec/rmisec.c			optional rmisec
+mips/rmi/dev/sec/rmilib.c			optional rmisec
+mips/rmi/dev/xlr/rge.c				optional rge
 dev/iicbus/xlr_rtc.c				optional xlr_rtc
 dev/iicbus/xlr_temperature.c			optional xlr_temperature
 dev/iicbus/xlr_eeprom.c				optional xlr_eeprom
-dev/rmi/sec/rmisec.c				optional rmisec
-dev/rmi/sec/rmilib.c				optional rmisec
