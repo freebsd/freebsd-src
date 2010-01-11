@@ -753,7 +753,9 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			 * IP addresses are all sorted but ip[0] to preserve
 			 * the primary IP address as given from userland.
 			 * This special IP is used for unbound outgoing
-			 * connections as well for "loopback" traffic.
+			 * connections as well for "loopback" traffic in case
+			 * source address selection cannot find any more fitting
+			 * address to connect from.
 			 */
 			if (ip4s > 1)
 				qsort(ip4 + 1, ip4s - 1, sizeof(*ip4), qcmp_v4);
