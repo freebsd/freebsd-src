@@ -2689,7 +2689,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		if (fsckcmds) {
 			char buf[32];
 
-			if (copyinstr((char *)(int)cmd.value, buf, 32, NULL))
+			if (copyinstr((char *)(intptr_t)cmd.value, buf,32,NULL))
 				strncpy(buf, "Name_too_long", 32);
 			printf("%s: unlink %s (inode %jd)\n",
 			    mp->mnt_stat.f_mntonname, buf, (intmax_t)cmd.size);
@@ -2702,7 +2702,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		 */
 		vn_finished_write(mp);
 		mp = NULL;
-		error = kern_unlinkat(td, AT_FDCWD, (char *)(int)cmd.value,
+		error = kern_unlinkat(td, AT_FDCWD, (char *)(intptr_t)cmd.value,
 		    UIO_USERSPACE, (ino_t)cmd.size);
 		break;
 
