@@ -2708,9 +2708,9 @@ loop:
 		mtx_lock(&np->n_mtx);
 		while (np->n_directio_asyncwr > 0) {
 			np->n_flag |= NFSYNCWAIT;
-			error = ncl_msleep(td, (caddr_t)&np->n_directio_asyncwr,
-					   &np->n_mtx, slpflag | (PRIBIO + 1), 
-					   "nfsfsync", 0);
+			error = newnfs_msleep(td, &np->n_directio_asyncwr,
+			    &np->n_mtx, slpflag | (PRIBIO + 1), 
+			    "nfsfsync", 0);
 			if (error) {
 				if (newnfs_sigintr(nmp, td)) {
 					mtx_unlock(&np->n_mtx);
