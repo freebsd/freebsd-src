@@ -4,10 +4,13 @@
  *------------------------------------------------------------------
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include <mips/octeon1/octeon_pcmap_regs.h>
+#include <mips/cavium/octeon_pcmap_regs.h>
 #include "octeon_fau.h"
 
 /*
