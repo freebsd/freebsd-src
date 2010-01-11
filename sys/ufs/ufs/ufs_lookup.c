@@ -1224,6 +1224,11 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 	error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp);
 	if (error)
 		return (error);
+	if (ep->d_namlen == 2 && ep->d_name[1] == '.' && ep->d_name[0] == '.' &&
+	    ep->d_ino != oip->i_number) {
+		brelse(bp);
+		return (EIDRM);
+	}
 	ep->d_ino = newinum;
 	if (!OFSFMT(vdp))
 		ep->d_type = newtype;
