@@ -26,9 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * RMI_BSD */
+ * RMI_BSD
+ */
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -54,8 +56,8 @@
 #include <mips/xlr/iomap.h>
 #include <mips/xlr/msgring.h>
 #include <mips/xlr/board.h>
-#include <dev/rmi/sec/rmilib.h>
-#include <dev/rmi/sec/desc.h>
+#include <mips/rmi/dev/sec/rmilib.h>
+#include <mips/rmi/dev/sec/desc.h>
 
 
 // static int msgrng_stnid_pk0 = MSGRNG_STNID_PK0;

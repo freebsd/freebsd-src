@@ -26,8 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * RMI_BSD */
+ * RMI_BSD
+ */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,7 +55,7 @@
 #include <opencrypto/cryptodev.h>
 #include <sys/random.h>
 
-#include <dev/rmi/sec/rmilib.h>
+#include <mips/rmi/dev/sec/rmilib.h>
 
 /*#define RMI_SEC_DEBUG */
 
