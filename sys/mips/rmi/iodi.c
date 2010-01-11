@@ -26,7 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * RMI_BSD */
+ * RMI_BSD
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
@@ -67,8 +71,8 @@
 #include <mips/rmi/shared_structs.h>
 #include <mips/rmi/board.h>
 
-#include <dev/rmi/xlr/atx_cpld.h>
-#include <dev/rmi/xlr/xgmac_mdio.h>
+#include <mips/rmi/dev/xlr/atx_cpld.h>
+#include <mips/rmi/dev/xlr/xgmac_mdio.h>
 
 extern void iodi_activateirqs(void);
 
