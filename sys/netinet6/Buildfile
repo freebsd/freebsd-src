@@ -24,7 +24,6 @@ INCS = \
 	scope6_var.h \
 	sctp6_var.h \
 	tcp6_var.h \
-	udp6_var.h \
-	vinet6.h
+	udp6_var.h
 
 .include <bsd.headers.mk>

@@ -251,7 +251,6 @@ INCS = \
 	user.h \
 	utsname.h \
 	uuid.h \
-	vimage.h \
 	vmmeter.h \
 	vnode.h \
 	vtoc.h \
