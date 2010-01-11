@@ -923,6 +923,78 @@ Remake_Makefiles(void)
 
 #ifdef MAKE_IS_BUILD
 static void
+find_srctop(char *srctop)
+{
+	const char *syspaths[] = {
+		"build/mk2",
+		"build/mk",
+		"bld",
+		NULL,
+	};
+	const char **psp;
+	char *cp;
+	char tstdir[MAXPATHLEN];
+	char tstfn[MAXPATHLEN];
+	int n, x;
+
+	/*
+	 * If no user-supplied system path was given, walk the directory
+	 * tree from the current directory looking for the path to
+	 * "sys.mk" and if found, use that directory as the
+	 * default path to the system make files.
+	 */
+	if (TAILQ_EMPTY(&sysIncPath)) {
+		for (psp = syspaths; *psp; psp++) {
+			snprintf(tstfn, sizeof(tstfn), "%s/%s", *psp,
+			    PATH_DEFSYSMK);
+			if (Dir_FindHereOrAbove(curdir, tstfn, tstdir,
+			    sizeof(tstdir))) {
+				Path_AddDir(&sysIncPath, tstdir);
+				DEBUGF(DIR, ("Found '%s'\n", tstfn));
+				MFLAGS_append("-m", tstdir);
+				/* we just found srctop */
+				if (realpath(tstdir, srctop)) {
+					n = strlen(srctop);
+					srctop[n - strlen(*psp) - 1] = '\0';
+				}
+				break;
+			}
+		}
+	}
+
+	if (!srctop[0] && !TAILQ_EMPTY(&sysIncPath)) {
+		/*
+		 * find "sys.mk" so we can compute srctop
+		 */
+		strlcpy(tstfn, PATH_DEFSYSMK, sizeof(tstfn));
+		if ((cp = Path_FindFile(tstfn, &sysIncPath))) {
+			n = strlcpy(tstdir, cp, sizeof(tstdir));
+			n -= sizeof(PATH_DEFSYSMK);
+			tstdir[n] = '\0';
+
+			/* It _should_ be in one of these */
+			for (psp = syspaths; *psp; psp++) {
+				x = strlen(*psp);
+				if (strcmp(&tstdir[n - x], *psp) == 0) {
+					if (realpath(tstdir, srctop)) {
+						n = strlen(srctop);
+						srctop[n - x - 1] = '\0';
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	/* Check if we found the top of our source tree: */
+	if (srctop[0] != '\0') {
+		Var_SetGlobal(".SRCTOP", srctop);
+		Var_SetGlobal(".SRCREL", curdir + strlen(srctop) + 1);
+	}
+}
+
+
+static void
 make_objdir(char *path)
 {
 	struct stat fs;
@@ -944,31 +1016,6 @@ make_objdir(char *path)
 		if (mkdir(path, 0775) != 0 && errno != EEXIST)
 			err(1, "Could not make directory '%s'", path);
 	}
-}
-
-static void
-mk_path_init(char *srctop, size_t ssrctop, const char *p)
-{
-	char path[MAXPATHLEN];
-	const char *mk_path_rel = "/bld";
-	size_t len;
-	size_t len1 = strlen(mk_path_rel);
-
-	if (*srctop != '\0' || ssrctop == 0)
-		return;
-
-	if (realpath(p, path) == NULL)
-		return;
-
-	if ((len = strlen(path)) < len1)
-		return;
-
-	if (strcmp(path + len - len1, mk_path_rel) != 0)
-		return;
-
-	path[len - len1] = '\0';
-
-	strlcpy(srctop, path, ssrctop);
 }
 
 static void
@@ -1299,67 +1346,7 @@ main(int argc, char **argv)
 	}
 
 #ifdef MAKE_IS_BUILD
-	/*
-	 * If no user-supplied system path was given, walk the directory
-	 * tree from the current directory looking for the path to
-	 * "bld/sys.mk" and if found, use that directory as the
-	 * default path to the system make files.
-	 */
-	if (TAILQ_EMPTY(&sysIncPath)) {
-		char tstdir[MAXPATHLEN];
-		char tstfn[MAXPATHLEN];
-		struct stat fs;
-
-		strlcpy(tstdir, curdir, sizeof(tstdir));
-
-		while (1) {
-			/*
-			 * The system mk file we most want is sys.mk, so use
-			 * it as a test of whether the directory is sultable
-			 * for the system path.
-			 */
-			snprintf(tstfn, sizeof(tstfn), "%s/bld/sys.mk", tstdir);
-			if (stat(tstfn, &fs) == 0) {
-				/* Found the system path, so use it. */
-				tstfn[strlen(tstfn) - 7] = '\0';
-				Path_AddDir(&sysIncPath, tstfn);
-				MFLAGS_append("-m", tstfn);
-				break;
-			}
-
-			/* Get the parent directory path. */
-			if ((cp = strrchr(tstdir, '/')) == NULL)
-				break;
-
-			/* Already up to the root? Use the default instead. */
-			if (cp == tstdir)
-				break;
-
-			/* Truncate the path at the parent directory name. */
-			*cp = '\0';
-		}
-	}
-
-	/*
-	 * At this point we might have been provided with a system path
-	 * if we're a child build, or we might have discovered the system
-	 * path on our own. Either way, we should have a path to a relative
-	 * directory "bld" from the top of our source tree, so we
-	 * can figure out a few special variables from that.
-	 */
-	if (!TAILQ_EMPTY(&sysIncPath)) {
-		/*
-		 * List the system paths until we find one which matches
-		 * the "bld" relative path we prefer.
-		 */
-		Path_List(&sysIncPath, mk_path_init, srctop, sizeof(srctop));
-
-		/* Check if we found the top of our source tree: */
-		if (srctop[0] != '\0') {
-			Var_SetGlobal(".SRCTOP", srctop);
-			Var_SetGlobal(".SRCREL", curdir + strlen(srctop) + 1);
-		}
-	}
+	find_srctop(srctop);
 
 	/*
 	 * For 'build' we would rather force an object directory than build with
