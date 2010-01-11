@@ -50,18 +50,6 @@ If you are in the C shell and have just installed a new program, you won't
 be able to run it unless you first type "rehash".
 		-- Dru <genesis@istar.ca>
 %
-If you are running xterm, the default TERM variable will be 'xterm'.  If you
-set this environment variable to 'xterm-color' instead, a lot of programs will
-use colors.  You can do this by
-
-	TERM=xterm-color; export TERM
-
-in Bourne-derived shells, and
-
-	setenv TERM xterm-color
-
-in csh-derived shells.
-%
 If you do not want to get beeps in X11 (X Windows), you can turn them off with
 
 	xset b off
