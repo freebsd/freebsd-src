@@ -32,7 +32,7 @@ makeoptions     LDSCRIPT_NAME=ldscript.mips.octeon1.32
 
 options		KERNVIRTADDR=0x80100000
 makeoptions	KERNLOADADDR=0x80100000
-include		"../octeon1/std.octeon1"
+include		"../cavium/std.octeon1"
 
 hints		"OCTEON1.hints"		#Default places to look for devices.
 
