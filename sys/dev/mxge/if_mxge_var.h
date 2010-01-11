@@ -119,6 +119,7 @@ typedef struct
 	int cl_size;
 	int alloc_fail;
 	int mask;			/* number of rx slots -1 */
+	int mlen;
 } mxge_rx_ring_t;
 
 typedef struct
@@ -242,6 +243,7 @@ struct mxge_softc {
 	int fw_multicast_support;
 	int link_width;
 	int max_mtu;
+	int throttle;
 	int tx_defrag;
 	int media_flags;
 	int need_media_probe;
@@ -270,6 +272,8 @@ struct mxge_softc {
 #define MXGE_PCI_REV_Z8ES	1
 #define MXGE_XFP_COMPLIANCE_BYTE	131
 #define MXGE_SFP_COMPLIANCE_BYTE	  3
+#define MXGE_MIN_THROTTLE	416
+#define MXGE_MAX_THROTTLE	4096
 
 #define MXGE_HIGHPART_TO_U32(X) \
 (sizeof (X) == 8) ? ((uint32_t)((uint64_t)(X) >> 32)) : (0)
