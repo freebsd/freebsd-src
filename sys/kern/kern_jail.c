@@ -4169,10 +4169,11 @@ db_show_prison(struct prison *pr)
 #endif
 	db_printf(" root            = %p\n", pr->pr_root);
 	db_printf(" securelevel     = %d\n", pr->pr_securelevel);
-	db_printf(" childcount      = %d\n", pr->pr_childcount);
+	db_printf(" children.max    = %d\n", pr->pr_childmax);
+	db_printf(" children.cur    = %d\n", pr->pr_childcount);
 	db_printf(" child           = %p\n", LIST_FIRST(&pr->pr_children));
 	db_printf(" sibling         = %p\n", LIST_NEXT(pr, pr_sibling));
-	db_printf(" flags           = %x", pr->pr_flags);
+	db_printf(" flags           = 0x%x", pr->pr_flags);
 	for (fi = 0; fi < sizeof(pr_flag_names) / sizeof(pr_flag_names[0]);
 	    fi++)
 		if (pr_flag_names[fi] != NULL && (pr->pr_flags & (1 << fi)))
@@ -4187,7 +4188,7 @@ db_show_prison(struct prison *pr)
 		    : (jsf == pr_flag_jailsys[fi].new) ? "new"
 		    : "inherit");
 	}
-	db_printf(" allow           = %x", pr->pr_allow);
+	db_printf(" allow           = 0x%x", pr->pr_allow);
 	for (fi = 0; fi < sizeof(pr_allow_names) / sizeof(pr_allow_names[0]);
 	    fi++)
 		if (pr_allow_names[fi] != NULL && (pr->pr_allow & (1 << fi)))
@@ -4202,14 +4203,14 @@ db_show_prison(struct prison *pr)
 	db_printf(" ip4s            = %d\n", pr->pr_ip4s);
 	for (ii = 0; ii < pr->pr_ip4s; ii++)
 		db_printf(" %s %s\n",
-		    ii == 0 ? "ip4             =" : "                 ",
+		    ii == 0 ? "ip4.addr        =" : "                 ",
 		    inet_ntoa(pr->pr_ip4[ii]));
 #endif
 #ifdef INET6
 	db_printf(" ip6s            = %d\n", pr->pr_ip6s);
 	for (ii = 0; ii < pr->pr_ip6s; ii++)
 		db_printf(" %s %s\n",
-		    ii == 0 ? "ip6             =" : "                 ",
+		    ii == 0 ? "ip6.addr        =" : "                 ",
 		    ip6_sprintf(ip6buf, &pr->pr_ip6[ii]));
 #endif
 }
