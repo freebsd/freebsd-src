@@ -102,7 +102,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/brgphyreg.h>
 
 #include <sys/sysctl.h>
-#include <dev/rmi/xlr/rge.h>
+#include <mips/rmi/dev/xlr/rge.h>
 
 /* #include "opt_rge.h" */
 
@@ -245,7 +245,6 @@ static void rge_start(struct ifnet *);
 static int rge_ioctl(struct ifnet *, u_long, caddr_t);
 static void rge_init(void *);
 static void rge_stop(struct rge_softc *);
-static void rge_watchdog(struct ifnet *);
 static int rge_shutdown(device_t);
 static void rge_reset(struct rge_softc *);
 
@@ -1936,7 +1935,6 @@ rge_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = rge_ioctl;
 	ifp->if_start = rge_start;
-	ifp->if_watchdog = rge_watchdog;
 	ifp->if_init = rge_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_drv_maxlen = RGE_TX_Q_SIZE;
@@ -2402,11 +2400,6 @@ static void
 rge_stop(struct rge_softc *sc)
 {
 	rmi_xlr_mac_close(sc);
-}
-
-static void
-rge_watchdog(struct ifnet *sc)
-{
 }
 
 static int
