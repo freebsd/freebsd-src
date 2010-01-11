@@ -679,6 +679,8 @@ loop:
 	if (!first)
 		putchar('\n');
 	fflush(stdout);
+	if ((noutputs != 0) && (--noutputs == 0))
+		exit(0);
 	oldmask = sigblock(sigmask(SIGALRM));
 	while (!signalled)
 		sigpause(0);
