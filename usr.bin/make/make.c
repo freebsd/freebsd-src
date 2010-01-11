@@ -75,6 +75,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <err.h>
+#ifdef MAKE_IS_BUILD
+#include <stdlib.h>
+#endif
 #include <string.h>
 #include <unistd.h>
 
