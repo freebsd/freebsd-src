@@ -72,5 +72,6 @@ void Path_Print(const struct Path *);
 typedef void path_listcb_t(char *, size_t, const char *);
 void Path_List(const struct Path *, path_listcb_t *, char *, size_t);
 #endif
+int Dir_FindHereOrAbove(char *, char *, char *, int);
 
 #endif /* dir_h_6002e3b8 */
