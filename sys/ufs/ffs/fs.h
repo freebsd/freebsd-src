@@ -211,7 +211,10 @@
 #define	FFS_ADJ_NIFREE		 9	/* adjust number of free inodes */
 #define	FFS_ADJ_NFFREE		10 	/* adjust number of free frags */
 #define	FFS_ADJ_NUMCLUSTERS	11	/* adjust number of free clusters */
-#define	FFS_MAXID		12	/* number of valid ffs ids */
+#define FFS_SET_CWD		12	/* set current directory */
+#define	FFS_SET_DOTDOT		13	/* set inode number for ".." */
+#define	FFS_UNLINK		14	/* remove a name in the filesystem */
+#define	FFS_MAXID		15	/* number of valid ffs ids */
 
 /*
  * Command structure passed in to the filesystem to adjust filesystem values.
