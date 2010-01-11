@@ -547,7 +547,7 @@ fix_extraneous(struct inoinfo *inp, struct inodesc *idesc)
 				printf(" (IGNORED)\n");
 				return (0);
 			}
-			cmd.value = (int)idesc->id_dirp->d_name;
+			cmd.value = (intptr_t)idesc->id_dirp->d_name;
 			cmd.size = inp->i_number; /* verify same name */
 			if (sysctlbyname("vfs.ffs.unlink", 0, 0,
 			    &cmd, sizeof cmd) == -1) {
@@ -588,7 +588,7 @@ fix_extraneous(struct inoinfo *inp, struct inodesc *idesc)
 			printf(" (IGNORED)\n");
 			return (0);
 		}
-		cmd.value = (int)(cp + 1);
+		cmd.value = (intptr_t)(cp + 1);
 		cmd.size = inp->i_number; /* verify same name */
 		if (sysctlbyname("vfs.ffs.unlink", 0, 0,
 		    &cmd, sizeof cmd) == -1) {
