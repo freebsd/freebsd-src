@@ -105,9 +105,6 @@ static char callfunc_name[NR_CPUS][15];
 /* Free these after use */
 void *bootstacks[MAXCPU];
 
-/* Hotwire a 0->4MB V==P mapping */
-extern pt_entry_t *KPTphys;
-
 struct pcb stoppcbs[MAXCPU];
 
 /* Variables needed for SMP tlb shootdown. */
