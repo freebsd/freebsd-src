@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <paths.h>
 #include <string.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -139,7 +140,6 @@ __FBSDID("$FreeBSD$");
 #include "var.h"
 
 #define	TMPPAT	"makeXXXXXXXXXX"
-#define	TMPDIR	"/tmp"
 
 #ifndef USE_KQUEUE
 /*
@@ -1611,7 +1611,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 	}
 
 	if ((tdir = getenv("TMPDIR")) == NULL)
-		tdir = TMPDIR;
+		tdir = _PATH_TMP;
 
 	/*
 	 * If the -n flag wasn't given, we open up OUR (not the child's)
@@ -1807,8 +1807,6 @@ JobStart(GNode *gn, int flags, Job *previous)
 		} else {
 			fprintf(stdout, "Remaking `%s'\n", gn->name);
 			fflush(stdout);
-			if ((tdir = getenv("TMPDIR")) == NULL)
-				tdir = TMPDIR;
 			snprintf(job->outFile, sizeof(job->outFile), "%s/%s",
 			    tdir, TMPPAT);
 			if ((job->outFd = mkstemp(job->outFile)) == -1)
