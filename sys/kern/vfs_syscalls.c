@@ -1815,23 +1815,25 @@ unlinkat(struct thread *td, struct unlinkat_args *uap)
 	if (flag & AT_REMOVEDIR)
 		return (kern_rmdirat(td, fd, path, UIO_USERSPACE));
 	else
-		return (kern_unlinkat(td, fd, path, UIO_USERSPACE));
+		return (kern_unlinkat(td, fd, path, UIO_USERSPACE, 0));
 }
 
 int
 kern_unlink(struct thread *td, char *path, enum uio_seg pathseg)
 {
 
-	return (kern_unlinkat(td, AT_FDCWD, path, pathseg));
+	return (kern_unlinkat(td, AT_FDCWD, path, pathseg, 0));
 }
 
 int
-kern_unlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg)
+kern_unlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
+    ino_t oldinum)
 {
 	struct mount *mp;
 	struct vnode *vp;
 	int error;
 	struct nameidata nd;
+	struct stat sb;
 	int vfslocked;
 
 restart:
@@ -1842,9 +1844,13 @@ restart:
 		return (error == EINVAL ? EPERM : error);
 	vfslocked = NDHASGIANT(&nd);
 	vp = nd.ni_vp;
-	if (vp->v_type == VDIR)
+	if (vp->v_type == VDIR && oldinum == 0) {
 		error = EPERM;		/* POSIX */
-	else {
+	} else if (oldinum != 0 &&
+		  ((error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td)) == 0) &&
+		  sb.st_ino != oldinum) {
+			error = EIDRM;	/* Identifier removed */
+	} else {
 		/*
 		 * The root of a mounted filesystem cannot be deleted.
 		 *
