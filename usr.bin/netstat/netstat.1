@@ -32,7 +32,7 @@
 .\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2009
+.Dd January 10, 2010
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -133,6 +133,7 @@ is also present, print interface names using a wider field size.
 .Op Fl d
 .Op Fl M Ar core
 .Op Fl N Ar system
+.Op Fl q Ar howmany
 .Ek
 .Xc
 At intervals of
@@ -142,6 +143,11 @@ display the information regarding packet
 traffic on all configured network interfaces
 or a single
 .Ar interface .
+If
+.Fl q
+is also present, exit after
+.Ar howmany
+outputs.
 If
 .Fl d
 is also present, show the number of dropped packets.
