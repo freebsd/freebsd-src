@@ -9,6 +9,7 @@ machine		ia64
 device		acpi		# ACPI support
 
 # Pseudo devices.
+device		io		# I/O & EFI runtime device
 device		mem		# Memory and kernel memory devices
 
 # UART chips on this platform
