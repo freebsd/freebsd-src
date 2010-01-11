@@ -28,3 +28,4 @@
 
 d_open_t	ioopen;
 d_close_t	ioclose;
+d_ioctl_t	ioioctl;
