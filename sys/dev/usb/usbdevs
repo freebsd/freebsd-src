@@ -2099,6 +2099,7 @@ product OPTION E7041		0x7041	3G modem
 product OPTION E7061		0x7061	3G modem
 product OPTION E7100		0x7100	3G modem
 product OPTION GTM380		0x7201	3G modem
+product OPTION GE40X		0x7601	Globetrotter HSUPA
 
 /* OQO */
 product OQO WIFI01		0x0002	model 01 WiFi interface
