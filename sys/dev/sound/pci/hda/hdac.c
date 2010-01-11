@@ -86,7 +86,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20091113_0138"
+#define HDA_DRV_TEST_REV	"20100111_0139"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -3455,7 +3455,11 @@ hdac_stream_setup(struct hdac_chan *ch)
 	int i, chn, totalchn, c;
 	nid_t cad = ch->devinfo->codec->cad;
 	uint16_t fmt, dfmt;
+	uint16_t chmap[2][5] = {{ 0x0010, 0x0001, 0x0201, 0x0231, 0x0231 }, /* 5.1 */
+				{ 0x0010, 0x0001, 0x2001, 0x2031, 0x2431 }};/* 7.1 */
+	int map = -1;
 
+	totalchn = AFMT_CHANNEL(ch->fmt);
 	HDA_BOOTHVERBOSE(
 		device_printf(ch->pdevinfo->dev,
 		    "PCMDIR_%s: Stream setup fmt=%08x speed=%d\n",
@@ -3469,7 +3473,6 @@ hdac_stream_setup(struct hdac_chan *ch)
 		fmt |= ch->bit32 << 4;
 	else
 		fmt |= 1 << 4;
-
 	for (i = 0; i < HDA_RATE_TAB_LEN; i++) {
 		if (hda_rate_tab[i].valid && ch->spd == hda_rate_tab[i].rate) {
 			fmt |= hda_rate_tab[i].base;
@@ -3478,10 +3481,13 @@ hdac_stream_setup(struct hdac_chan *ch)
 			break;
 		}
 	}
+	fmt |= (totalchn - 1);
 
-	totalchn = AFMT_CHANNEL(ch->fmt);
-	if (totalchn > 1)
-		fmt |= 1;
+	/* Set channel mapping for known speaker setups. */
+	if (as->pinset == 0x0007 || as->pinset == 0x0013) /* Standard 5.1 */
+		map = 0;
+	else if (as->pinset == 0x0017) /* Standard 7.1 */
+		map = 1;
 
 	HDAC_WRITE_2(&sc->mem, ch->off + HDAC_SDFMT, fmt);
 		
@@ -3495,14 +3501,26 @@ hdac_stream_setup(struct hdac_chan *ch)
 		if (w == NULL)
 			continue;
 
-		if (as->hpredir >= 0 && i == as->pincnt)
-			chn = 0;
+		/* If HP redirection is enabled, but failed to use same
+		   DAC, make last DAC to duplicate first one. */
+		if (as->hpredir >= 0 && i == as->pincnt) {
+			c = (ch->sid << 4);
+		} else {
+			if (map >= 0) /* Map known speaker setups. */
+				chn = (((chmap[map][totalchn / 2] >> i * 4) &
+				    0xf) - 1) * 2;
+			if (chn < 0 || chn >= totalchn) {
+				c = 0;
+			} else {
+				c = (ch->sid << 4) | chn;
+			}
+		}
 		HDA_BOOTHVERBOSE(
 			device_printf(ch->pdevinfo->dev,
 			    "PCMDIR_%s: Stream setup nid=%d: "
-			    "fmt=0x%04x, dfmt=0x%04x\n",
+			    "fmt=0x%04x, dfmt=0x%04x, chan=0x%04x\n",
 			    (ch->dir == PCMDIR_PLAY) ? "PLAY" : "REC",
-			    ch->io[i], fmt, dfmt);
+			    ch->io[i], fmt, dfmt, c);
 		);
 		hdac_command(sc,
 		    HDA_CMD_SET_CONV_FMT(cad, ch->io[i], fmt), cad);
@@ -3510,17 +3528,6 @@ hdac_stream_setup(struct hdac_chan *ch)
 			hdac_command(sc,
 			    HDA_CMD_SET_DIGITAL_CONV_FMT1(cad, ch->io[i], dfmt),
 			    cad);
-		}
-		/* If HP redirection is enabled, but failed to use same
-		   DAC make last DAC one to duplicate first one. */
-		if (as->hpredir >= 0 && i == as->pincnt) {
-			c = (ch->sid << 4);
-		} else if (chn >= totalchn) {
-			/* This is until OSS will support multichannel.
-			   Should be: c = 0; to disable unused DAC */
-			c = (ch->sid << 4);
-		}else {
-			c = (ch->sid << 4) | chn;
 		}
 		hdac_command(sc,
 		    HDA_CMD_SET_CONV_STREAM_CHAN(cad, ch->io[i], c), cad);
@@ -3532,9 +3539,7 @@ hdac_stream_setup(struct hdac_chan *ch)
 		hdac_command(sc,
 		    HDA_CMD_SET_HDMI_CHAN_SLOT(cad, ch->io[i], 0x11), cad);
 #endif
-		chn +=
-		    HDA_PARAM_AUDIO_WIDGET_CAP_STEREO(w->param.widget_cap) ?
-		    2 : 1;
+		chn += HDA_PARAM_AUDIO_WIDGET_CAP_CC(w->param.widget_cap) + 1;
 	}
 }
 
@@ -6436,7 +6441,8 @@ hdac_pcmchannel_setup(struct hdac_chan *ch)
 	struct hdac_audio_as *as = devinfo->function.audio.as;
 	struct hdac_widget *w;
 	uint32_t cap, fmtcap, pcmcap;
-	int i, j, ret, max;
+	int i, j, ret, channels, onlystereo;
+	uint16_t pinset;
 
 	ch->caps = hdac_caps;
 	ch->caps.fmtlist = ch->fmtlist;
@@ -6446,11 +6452,13 @@ hdac_pcmchannel_setup(struct hdac_chan *ch)
 	ch->pcmrates[1] = 0;
 
 	ret = 0;
+	channels = 0;
+	onlystereo = 1;
+	pinset = 0;
 	fmtcap = devinfo->function.audio.supp_stream_formats;
 	pcmcap = devinfo->function.audio.supp_pcm_size_rate;
-	max = (sizeof(ch->io) / sizeof(ch->io[0])) - 1;
 
-	for (i = 0; i < 16 && ret < max; i++) {
+	for (i = 0; i < 16; i++) {
 		/* Check as is correct */
 		if (ch->as < 0)
 			break;
@@ -6468,15 +6476,11 @@ hdac_pcmchannel_setup(struct hdac_chan *ch)
 		w = hdac_widget_get(devinfo, as[ch->as].dacs[i]);
 		if (w == NULL || w->enable == 0)
 			continue;
-		if (!HDA_PARAM_AUDIO_WIDGET_CAP_STEREO(w->param.widget_cap))
-			continue;
 		cap = w->param.supp_stream_formats;
-		/*if (HDA_PARAM_SUPP_STREAM_FORMATS_FLOAT32(cap)) {
-		}*/
 		if (!HDA_PARAM_SUPP_STREAM_FORMATS_PCM(cap) &&
 		    !HDA_PARAM_SUPP_STREAM_FORMATS_AC3(cap))
 			continue;
-		/* Many codec does not declare AC3 support on SPDIF.
+		/* Many CODECs does not declare AC3 support on SPDIF.
 		   I don't beleave that they doesn't support it! */
 		if (HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap))
 			cap |= HDA_PARAM_SUPP_STREAM_FORMATS_AC3_MASK;
@@ -6488,8 +6492,23 @@ hdac_pcmchannel_setup(struct hdac_chan *ch)
 			pcmcap &= w->param.supp_pcm_size_rate;
 		}
 		ch->io[ret++] = as[ch->as].dacs[i];
+		/* Do not count redirection pin/dac channels. */
+		if (i == 15 && as[ch->as].hpredir >= 0)
+			continue;
+		channels += HDA_PARAM_AUDIO_WIDGET_CAP_CC(w->param.widget_cap) + 1;
+		if (HDA_PARAM_AUDIO_WIDGET_CAP_CC(w->param.widget_cap) != 1)
+			onlystereo = 0;
+		pinset |= (1 << i);
 	}
 	ch->io[ret] = -1;
+
+	if (as[ch->as].fakeredir)
+		ret--;
+	/* Standard speaks only about stereo pins and playback, ... */
+	if ((!onlystereo) || as[ch->as].dir != HDA_CTL_OUT)
+		pinset = 0;
+	/* ..., but there it gives us info about speakers layout. */
+	as[ch->as].pinset = pinset;
 
 	ch->supp_stream_formats = fmtcap;
 	ch->supp_pcm_size_rate = pcmcap;
@@ -6514,17 +6533,36 @@ hdac_pcmchannel_setup(struct hdac_chan *ch)
 				ch->bit32 = 3;
 			else if (HDA_PARAM_SUPP_PCM_SIZE_RATE_20BIT(pcmcap))
 				ch->bit32 = 2;
-			if (!(devinfo->function.audio.quirks & HDA_QUIRK_FORCESTEREO))
-				ch->fmtlist[i++] =
-				    SND_FORMAT(AFMT_S16_LE, 1, 0);
-			ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 2, 0);
-			if (ch->bit32 > 0) {
-				if (!(devinfo->function.audio.quirks &
-				    HDA_QUIRK_FORCESTEREO))
-					ch->fmtlist[i++] =
-					    SND_FORMAT(AFMT_S32_LE, 1, 0);
-				ch->fmtlist[i++] =
-				    SND_FORMAT(AFMT_S32_LE, 2, 0);
+			if (!(devinfo->function.audio.quirks & HDA_QUIRK_FORCESTEREO)) {
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 1, 0);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 1, 0);
+			}
+			if (channels >= 2) {
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 2, 0);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 2, 0);
+			}
+			if (channels == 4 || /* Any 4-channel */
+			    pinset == 0x0007 || /* 5.1 */
+			    pinset == 0x0013 || /* 5.1 */
+			    pinset == 0x0017) {  /* 7.1 */
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 4, 0);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 4, 0);
+			}
+#ifdef notyet
+			if (channels == 6 || /* Any 6-channel */
+			    pinset == 0x0017) {  /* 7.1 */
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 6, 1);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 6, 1);
+			}
+#endif
+			if (channels == 8) { /* Any 8-channel */
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 8, 1);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 8, 1);
 			}
 		}
 		if (HDA_PARAM_SUPP_STREAM_FORMATS_AC3(fmtcap)) {

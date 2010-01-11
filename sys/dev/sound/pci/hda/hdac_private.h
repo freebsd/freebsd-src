@@ -221,6 +221,7 @@ struct hdac_audio_as {
 	u_char pincnt;
 	u_char fakeredir;
 	u_char digital;
+	uint16_t pinset;
 	nid_t hpredir;
 	nid_t pins[16];
 	nid_t dacs[16];
@@ -281,7 +282,7 @@ struct hdac_chan {
 	struct hdac_devinfo *devinfo;
 	struct hdac_pcm_devinfo *pdevinfo;
 	struct hdac_dma	bdl_dma;
-	uint32_t spd, fmt, fmtlist[8], pcmrates[16];
+	uint32_t spd, fmt, fmtlist[16], pcmrates[16];
 	uint32_t supp_stream_formats, supp_pcm_size_rate;
 	uint32_t ptr, prevptr, blkcnt, blksz;
 	uint32_t *dmapos;
