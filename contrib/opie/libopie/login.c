@@ -21,13 +21,14 @@ you didn't get a copy, you may request one from <license@inner.net>.
 #include "opie_cfg.h"
 #include <stdio.h>
 #include <sys/types.h>
-#include <utmp.h>
 
 #if DOUTMPX
 #include <utmpx.h>
 #define pututline(x) pututxline(x)
 #define endutent endutxent
 #define utmp utmpx
+#else
+#include <utmp.h>
 #endif /* DOUTMPX */
 
 #if HAVE_STRING_H
