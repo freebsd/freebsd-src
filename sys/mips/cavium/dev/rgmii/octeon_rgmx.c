@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/locore.h>
 #include <machine/md_var.h>
 
-#include <mips/octeon1/octeon_pcmap_regs.h>
+#include <mips/cavium/octeon_pcmap_regs.h>
 
 #include "octeon_fau.h"
 #include "octeon_fpa.h"
@@ -1058,7 +1058,6 @@ static void octeon_rgmx_xmit_mark_buffers_done (struct rgmx_softc_dev *sc, u_int
          * Reset output active flag and watchdog timer.
          */
         sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-        sc->ifp->if_timer = 0;
 }
 
 
@@ -1574,7 +1573,6 @@ static void octeon_rgmx_stop (struct rgmx_softc_dev *sc)
 
         /* Reset transmitter variables and interface flags.  */
         sc->ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE | IFF_DRV_RUNNING);
-        sc->ifp->if_timer = 0;
         sc->txb_count = 0;
         sc->txb_sched = 0;
 }
