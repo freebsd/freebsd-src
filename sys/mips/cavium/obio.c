@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <mips/octeon1/octeonreg.h>
-#include <mips/octeon1/obiovar.h>
+#include <mips/cavium/octeonreg.h>
+#include <mips/cavium/obiovar.h>
 
 int	obio_probe(device_t);
 int	obio_attach(device_t);

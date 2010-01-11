@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ic/ns16550.h>
 
-#include <mips/octeon1/octeon_pcmap_regs.h>
+#include <mips/cavium/octeon_pcmap_regs.h>
 
 #include "uart_if.h"
 

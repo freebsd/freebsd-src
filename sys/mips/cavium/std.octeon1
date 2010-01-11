@@ -4,7 +4,7 @@
 # */
 # $FreeBSD$
 # 
-files	"../octeon1/files.octeon1"
+files	"../cavium/files.octeon1"
 
 #
 # 
