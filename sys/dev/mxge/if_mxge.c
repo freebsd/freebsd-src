@@ -99,6 +99,8 @@ static int mxge_ticks;
 static int mxge_max_slices = 1;
 static int mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
 static int mxge_always_promisc = 0;
+static int mxge_initial_mtu = ETHERMTU_JUMBO;
+static int mxge_throttle = 0;
 static char *mxge_fw_unaligned = "mxge_ethp_z8e";
 static char *mxge_fw_aligned = "mxge_eth_z8e";
 static char *mxge_fw_rss_aligned = "mxge_rss_eth_z8e";
@@ -589,10 +591,13 @@ static int
 mxge_select_firmware(mxge_softc_t *sc)
 {
 	int aligned = 0;
+	int force_firmware = mxge_force_firmware;
 
+	if (sc->throttle)
+		force_firmware = sc->throttle;
 
-	if (mxge_force_firmware != 0) {
-		if (mxge_force_firmware == 1)
+	if (force_firmware != 0) {
+		if (force_firmware == 1)
 			aligned = 1;
 		else
 			aligned = 0;
@@ -1300,7 +1305,45 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 	mxge_change_promisc(sc, sc->ifp->if_flags & IFF_PROMISC);
 	mxge_change_pause(sc, sc->pause);
 	mxge_set_multicast_list(sc);
+	if (sc->throttle) {
+		cmd.data0 = sc->throttle;
+		if (mxge_send_cmd(sc, MXGEFW_CMD_SET_THROTTLE_FACTOR,
+				  &cmd)) {
+			device_printf(sc->dev,
+				      "can't enable throttle\n");
+		}
+	}
 	return status;
+}
+
+static int
+mxge_change_throttle(SYSCTL_HANDLER_ARGS)
+{
+	mxge_cmd_t cmd;
+	mxge_softc_t *sc;
+	int err;
+	unsigned int throttle;
+
+	sc = arg1;
+	throttle = sc->throttle;
+	err = sysctl_handle_int(oidp, &throttle, arg2, req);
+        if (err != 0) {
+                return err;
+        }
+
+	if (throttle == sc->throttle)
+		return 0;
+
+        if (throttle < MXGE_MIN_THROTTLE || throttle > MXGE_MAX_THROTTLE)
+                return EINVAL;
+	
+	mtx_lock(&sc->driver_mtx);
+	cmd.data0 = throttle;
+	err = mxge_send_cmd(sc, MXGEFW_CMD_SET_THROTTLE_FACTOR, &cmd);
+	if (err == 0)
+		sc->throttle = throttle;
+	mtx_unlock(&sc->driver_mtx);	
+	return err;
 }
 
 static int
@@ -1493,6 +1536,12 @@ mxge_add_sysctls(mxge_softc_t *sc)
 			CTLTYPE_INT|CTLFLAG_RW, sc,
 			0, mxge_change_intr_coal, 
 			"I", "interrupt coalescing delay in usecs");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+			"throttle",
+			CTLTYPE_INT|CTLFLAG_RW, sc,
+			0, mxge_change_throttle, 
+			"I", "transmit throttling");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
 			"flow_control_enabled",
@@ -2206,7 +2255,7 @@ mxge_get_buf_big(struct mxge_slice_state *ss, bus_dmamap_t map, int idx)
 		err = ENOBUFS;
 		goto done;
 	}
-	m->m_len = rx->cl_size;
+	m->m_len = rx->mlen;
 	err = bus_dmamap_load_mbuf_sg(rx->dmat, map, m, 
 				      seg, &cnt, BUS_DMA_NOWAIT);
 	if (err != 0) {
@@ -3240,6 +3289,8 @@ mxge_slice_open(struct mxge_slice_state *ss, int nbufs, int cl_size)
 	}
 	ss->rx_big.nbufs = nbufs;
 	ss->rx_big.cl_size = cl_size;
+	ss->rx_big.mlen = ss->sc->ifp->if_mtu + ETHER_HDR_LEN +
+		ETHER_VLAN_ENCAP_LEN + MXGEFW_PAD;
 	for (i = 0; i <= ss->rx_big.mask; i += ss->rx_big.nbufs) {
 		map = ss->rx_big.info[i].map;
 		err = mxge_get_buf_big(ss, map, i);
@@ -3840,6 +3891,9 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 	TUNABLE_INT_FETCH("hw.mxge.lro_cnt", &sc->lro_cnt);
 	TUNABLE_INT_FETCH("hw.mxge.always_promisc", &mxge_always_promisc);
 	TUNABLE_INT_FETCH("hw.mxge.rss_hash_type", &mxge_rss_hash_type);
+	TUNABLE_INT_FETCH("hw.mxge.rss_hashtype", &mxge_rss_hash_type);
+	TUNABLE_INT_FETCH("hw.mxge.initial_mtu", &mxge_initial_mtu);
+	TUNABLE_INT_FETCH("hw.mxge.throttle", &mxge_throttle);
 	if (sc->lro_cnt != 0)
 		mxge_lro_cnt = sc->lro_cnt;
 
@@ -3854,6 +3908,15 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 	    || mxge_rss_hash_type > MXGEFW_RSS_HASH_TYPE_MAX) {
 		mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
 	}
+	if (mxge_initial_mtu > ETHERMTU_JUMBO ||
+	    mxge_initial_mtu < ETHER_MIN_LEN)
+		mxge_initial_mtu = ETHERMTU_JUMBO;
+
+	if (mxge_throttle && mxge_throttle > MXGE_MAX_THROTTLE)
+		mxge_throttle = MXGE_MAX_THROTTLE;
+	if (mxge_throttle && mxge_throttle < MXGE_MIN_THROTTLE)
+		mxge_throttle = MXGE_MIN_THROTTLE;
+	sc->throttle = mxge_throttle;
 }
 
 
@@ -4414,9 +4477,9 @@ mxge_attach(device_t dev)
 	mxge_media_probe(sc);
 	sc->dying = 0;
 	ether_ifattach(ifp, sc->mac_addr);
-	/* ether_ifattach sets mtu to 1500 */
-	if (ifp->if_capabilities & IFCAP_JUMBO_MTU)
-		ifp->if_mtu = 9000;
+	/* ether_ifattach sets mtu to ETHERMTU */
+	if (mxge_initial_mtu != ETHERMTU)
+		mxge_change_mtu(sc, mxge_initial_mtu);
 
 	mxge_add_sysctls(sc);
 	callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
