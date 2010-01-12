@@ -36,7 +36,7 @@
 .Os
 .Sh NAME
 .Nm sctp_peeloff
-.Nd detach an association from a one-to-many socket to its on fd
+.Nd detach an association from a one-to-many socket to its own fd
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -58,7 +58,7 @@ upon success.
 .Sh ERRORS
 The
 .Fn sctp_peeloff
-can return the following errors.
+system call can return the following errors:
 .Bl -tag -width Er
 .It Bq Er ENOTCONN
 The 
