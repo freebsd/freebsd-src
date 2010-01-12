@@ -46,7 +46,7 @@ ifn_start()
 	ifconfig_up ${ifn} && cfg=0
 	ipv4_up ${ifn} && cfg=0
 	ipx_up ${ifn} && cfg=0
-	childif_create ${ifn}
+	childif_create ${ifn} && cfg=0
 
 	return $cfg
 }
@@ -67,7 +67,7 @@ ifn_stop()
 	ipv4_down ${ifn} && cfg=0
 	ifconfig_down ${ifn} && cfg=0
 	ifscript_down ${ifn} && cfg=0
-	childif_destroy ${ifn}
+	childif_destroy ${ifn} && cfg=0
 
 	return $cfg
 }
@@ -530,7 +530,7 @@ clone_down()
 #
 childif_create()
 {
-	local cfg child child_wlans create_args debug_flags ifn i
+	local cfg child child_vlans child_wlans create_args debug_flags ifn i
 	cfg=1
 
 	ifn=$1
@@ -559,6 +559,32 @@ childif_create()
 		fi
 	done
 
+	# Create vlan interfaces
+	child_vlans=`get_if_var $ifn vlans_IF`
+
+	if [ -n "${child_vlans}" ]; then
+		load_kld if_vlan
+	fi
+
+	for child in ${child_vlans}; do
+		if expr $child : '[1-9][0-9]*$' >/dev/null 2>&1; then
+			child="${ifn}.${child}"
+			create_args=`get_if_var $child create_args_IF`
+			ifconfig $child create ${create_args} && cfg=0
+		else
+			create_args="vlandev $ifn `get_if_var $child create_args_IF`"
+			if expr $child : 'vlan[0-9][0-9]*$' >/dev/null 2>&1; then
+				ifconfig $child create ${create_args} && cfg=0
+			else
+				i=`ifconfig vlan create ${create_args}`
+				ifconfig $i name $child && cfg=0
+			fi
+		fi
+		if autoif $child; then
+			ifn_start $child
+		fi
+	done
+
 	return ${cfg}
 }
 
@@ -566,12 +592,34 @@ childif_create()
 #
 childif_destroy()
 {
-	local cfg child child_wlans ifn
+	local cfg child child_vlans child_wlans ifn
 
 	child_wlans=`get_if_var $ifn wlans_IF`
 	for child in ${child_wlans}; do
+		if ! ifexists $child; then
+			continue
+		fi
+		if autoif $child; then
+			ifn_stop $child
+		fi
 		ifconfig $child destroy && cfg=0
 	done
+
+	child_vlans=`get_if_var $ifn vlans_IF`
+	for child in ${child_vlans}; do
+		if expr $child : '[1-9][0-9]*$' >/dev/null 2>&1; then
+			child="${ifn}.${child}"
+		fi
+		if ! ifexists $child; then
+			continue
+		fi
+		if autoif $child; then
+			ifn_stop $child
+		fi
+		ifconfig $child destroy && cfg=0
+	done
+
+	return ${cfg}
 }
 
 # Create netgraph nodes.
