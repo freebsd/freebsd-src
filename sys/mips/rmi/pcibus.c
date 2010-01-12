@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/sys/alpha/pci/pcibus.c,v 1.36 2005/01/05 20:05:52 imp Exp $");
+__FBSDID("$FreeBSD$");
 
 #include "opt_isa.h"
 

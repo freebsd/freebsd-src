@@ -29,7 +29,7 @@
  * RMI_BSD */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/sys/mips/xlr/xlr_i2c.c,v 1.20.8.1 2008/08/25 23:17:51 cognet Exp $");
+__FBSDID("$FreeBSD$");
 
 /*
  * I2C driver for the Palm-BK3220 I2C Host adapter on the RMI XLR.
