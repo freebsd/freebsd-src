@@ -125,13 +125,13 @@ opmark(FILE *fd, int i, const struct athregrec *r)
 			fprintf(fd, "ar%uReset (done), OK", state.chipnum);
 		break;
 	case AH_MARK_CHIPRESET:
-		fprintf(fd, "ar%uChipReset, channel %u Mhz", state.chipnum, r->val);
+		fprintf(fd, "ar%uChipReset, channel %u MHz", state.chipnum, r->val);
 		break;
 	case AH_MARK_PERCAL:
-		fprintf(fd, "ar%uPerCalibration, channel %u Mhz", state.chipnum, r->val);
+		fprintf(fd, "ar%uPerCalibration, channel %u MHz", state.chipnum, r->val);
 		break;
 	case AH_MARK_SETCHANNEL:
-		fprintf(fd, "ar%uSetChannel, channel %u Mhz", state.chipnum, r->val);
+		fprintf(fd, "ar%uSetChannel, channel %u MHz", state.chipnum, r->val);
 		break;
 	case AH_MARK_ANI_RESET:
 		switch (r->val) {

@@ -87,7 +87,7 @@ ar5210Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	if (!IEEE80211_IS_CHAN_5GHZ(chan)) {
 		/* Only 11a mode */
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: channel not 5Ghz\n", __func__);
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: channel not 5GHz\n", __func__);
 		FAIL(HAL_EINVAL);
 	}
 	/*
