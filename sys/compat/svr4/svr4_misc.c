@@ -708,7 +708,7 @@ svr4_sys_sysconfig(td, uap)
 
 	switch (uap->name) {
 	case SVR4_CONFIG_NGROUPS:
-		*retval = NGROUPS_MAX;
+		*retval = ngroups_max;
 		break;
 	case SVR4_CONFIG_CHILD_MAX:
 		*retval = maxproc;
