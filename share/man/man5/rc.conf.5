@@ -1161,6 +1161,45 @@ and
 variables.
 .Pp
 If a
+.Va vlans_ Ns Aq Ar interface
+variable is set,
+a
+.Xr vlan 4
+interface will be created for each item in the list with the
+.Ar vlandev
+argument set to
+.Ar interface .
+If a vlan interface's name is a number,
+then that number is used as the vlan tag and the new vlan interface is
+named
+.Ar interface . Ns Ar tag .
+Otherwise,
+the vlan tag must be specified via a
+.Va vlan
+parameter in the
+.Va create_args_ Ns Aq Ar interface
+variable.
+.Pp
+To create a vlan device named
+.Li em0.101
+on
+.Li em0
+with the vlan tag 101:
+.Bd -literal
+vlans_em0="101"
+.Ed
+.Pp
+To create a vlan device named
+.Li myvlan
+on
+.Li em0
+with the vlan tag 102:
+.Bd -literal
+vlans_em0="myvlan"
+create_args_myvlan="vlan 102"
+.Ed
+.Pp
+If a
 .Va wlans_ Ns Aq Ar interface
 variable is set,
 an
@@ -1227,7 +1266,7 @@ Finally, you can add
 options in this variable, in addition to the
 .Pa /etc/start_if. Ns Aq Ar interface
 file.
-For instance, configure an
+For instance, to configure an
 .Xr ath 4
 wireless device in station mode with an address obtained 
 via DHCP, using WPA authentication and 802.11b mode, it is
@@ -1249,7 +1288,7 @@ This is intended to replace the no longer supported
 .Va pccard_ifconfig
 variable.
 .Pp
-It is also possible to rename interface by doing:
+It is also possible to rename an interface by doing:
 .Bd -literal
 ifconfig_ed0_name="net0"
 ifconfig_net0="inet 192.0.2.1 netmask 0xffffff00"
@@ -1286,6 +1325,12 @@ Now this works only for IPv6 link local multicast addresses.
 .It Va cloned_interfaces
 .Pq Vt str
 Set to the list of clonable network interfaces to create on this host.
+Further cloning arguments may be passed to the
+.Xr ifconfig 8
+.Cm create
+command for each interface by setting the
+.Va create_args_ Ns Aq Ar interface
+variable.
 Entries in
 .Va cloned_interfaces
 are automatically appended to
