@@ -87,7 +87,7 @@ static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_IGAIN]	= 0,
 	[SOUND_MIXER_LINE1]	= 75,
 	[SOUND_MIXER_VIDEO]	= 75,
-	[SOUND_MIXER_RECLEV]	= 0,
+	[SOUND_MIXER_RECLEV]	= 75,
 	[SOUND_MIXER_OGAIN]	= 50,
 	[SOUND_MIXER_MONITOR]	= 75,
 };
@@ -352,7 +352,13 @@ mixer_setrecsrc(struct snd_mixer *mixer, u_int32_t src)
 		dropmtx = 0;
 	src &= mixer->recdevs;
 	if (src == 0)
-		src = SOUND_MASK_MIC;
+		src = mixer->recdevs & SOUND_MASK_MIC;
+	if (src == 0)
+		src = mixer->recdevs & SOUND_MASK_MONITOR;
+	if (src == 0)
+		src = mixer->recdevs & SOUND_MASK_LINE;
+	if (src == 0 && mixer->recdevs != 0)
+		src = (1 << (ffs(mixer->recdevs) - 1));
 	/* It is safe to drop this mutex due to Giant. */
 	MIXER_SET_UNLOCK(mixer, dropmtx);
 	recsrc = MIXER_SETRECSRC(mixer, src);
@@ -716,7 +722,7 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 		mixer_set(m, i, v | (v << 8));
 	}
 
-	mixer_setrecsrc(m, SOUND_MASK_MIC);
+	mixer_setrecsrc(m, 0); /* Set default input. */
 
 	unit = device_get_unit(dev);
 	devunit = snd_mkunit(unit, SND_DEV_CTL, 0);
