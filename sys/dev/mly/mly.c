@@ -2528,7 +2528,7 @@ mly_describe_controller(struct mly_softc *sc)
 		   mly_describe_code(mly_table_memorytype, mi->memory_type),
 		   mi->memory_parity ? "+parity": "",mi->memory_ecc ? "+ECC": "",
 		   mi->cache_size);
-	mly_printf(sc, "CPU: %s @ %dMHZ\n", 
+	mly_printf(sc, "CPU: %s @ %dMHz\n", 
 		   mly_describe_code(mly_table_cputype, mi->cpu[0].type), mi->cpu[0].speed);
 	if (mi->l2cache_size != 0)
 	    mly_printf(sc, "%dKB L2 cache\n", mi->l2cache_size);
