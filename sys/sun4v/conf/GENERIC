@@ -169,6 +169,7 @@ device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support
+device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
 device		pty		# BSD-style compatibility pseudo ttys
 device		md		# Memory "disks"
