@@ -1130,7 +1130,7 @@ mixer_ioctl_channel(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
 
 	if ((j == SOUND_MIXER_DEVMASK || j == SOUND_MIXER_CAPS ||
 	    j == SOUND_MIXER_STEREODEVS) &&
-	    (cmd & MIXER_READ(0)) == MIXER_READ(0)) {
+	    (cmd & ~0xff) == MIXER_READ(0)) {
 		snd_mtxlock(m->lock);
 		*(int *)arg = mix_getdevs(m);
 		snd_mtxunlock(m->lock);
@@ -1148,14 +1148,14 @@ mixer_ioctl_channel_proc:
 	KASSERT(c != NULL, ("%s(): NULL channel", __func__));
 	CHN_LOCKASSERT(c);
 
-	if ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0)) {
+	if ((cmd & ~0xff) == MIXER_WRITE(0)) {
 		int left, right, center;
 
 		left = *(int *)arg & 0x7f;
 		right = (*(int *)arg >> 8) & 0x7f;
 		center = (left + right) >> 1;
 		chn_setvolume_multi(c, SND_VOL_C_PCM, left, right, center);
-	} else if ((cmd & MIXER_READ(0)) == MIXER_READ(0)) {
+	} else if ((cmd & ~0xff) == MIXER_READ(0)) {
 		*(int *)arg = CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FL);
 		*(int *)arg |=
 		    CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FR) << 8;
@@ -1208,7 +1208,7 @@ mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
     struct thread *td, int from)
 {
 	struct snd_mixer *m;
-	int ret, *arg_i = (int *)arg;
+	int ret = EINVAL, *arg_i = (int *)arg;
 	int v = -1, j = cmd & 0xff;
 
 	/*
@@ -1242,8 +1242,23 @@ mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		snd_mtxunlock(m->lock);
 		return (EBADF);
 	}
-
-	if ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0)) {
+	switch (cmd) {
+	case SNDCTL_DSP_GET_RECSRC_NAMES:
+		bcopy((void *)&m->enuminfo, arg, sizeof(oss_mixer_enuminfo));
+		ret = 0;
+		goto done;
+	case SNDCTL_DSP_GET_RECSRC:
+		ret = mixer_get_recroute(m, arg_i);
+		goto done;
+	case SNDCTL_DSP_SET_RECSRC:
+		ret = mixer_set_recroute(m, *arg_i);
+		goto done;
+	case OSS_GETVERSION:
+		*arg_i = SOUND_VERSION;
+		ret = 0;
+		goto done;
+	}
+	if ((cmd & ~0xff) == MIXER_WRITE(0)) {
 		if (j == SOUND_MIXER_RECSRC)
 			ret = mixer_setrecsrc(m, *arg_i);
 		else
@@ -1251,23 +1266,19 @@ mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		snd_mtxunlock(m->lock);
 		return ((ret == 0) ? 0 : ENXIO);
 	}
-
-    	if ((cmd & MIXER_READ(0)) == MIXER_READ(0)) {
+	if ((cmd & ~0xff) == MIXER_READ(0)) {
 		switch (j) {
-    		case SOUND_MIXER_DEVMASK:
-    		case SOUND_MIXER_CAPS:
-    		case SOUND_MIXER_STEREODEVS:
+		case SOUND_MIXER_DEVMASK:
+		case SOUND_MIXER_CAPS:
+		case SOUND_MIXER_STEREODEVS:
 			v = mix_getdevs(m);
 			break;
-
-    		case SOUND_MIXER_RECMASK:
+		case SOUND_MIXER_RECMASK:
 			v = mix_getrecdevs(m);
 			break;
-
-    		case SOUND_MIXER_RECSRC:
+		case SOUND_MIXER_RECSRC:
 			v = mixer_getrecsrc(m);
 			break;
-
 		default:
 			v = mixer_get(m, j);
 		}
@@ -1275,29 +1286,8 @@ mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		snd_mtxunlock(m->lock);
 		return ((v != -1) ? 0 : ENXIO);
 	}
-
-	ret = 0;
-
-	switch (cmd) {
-	case SNDCTL_DSP_GET_RECSRC_NAMES:
-		bcopy((void *)&m->enuminfo, arg, sizeof(oss_mixer_enuminfo));
-		break;
-	case SNDCTL_DSP_GET_RECSRC:
-		ret = mixer_get_recroute(m, arg_i);
-		break;
-	case SNDCTL_DSP_SET_RECSRC:
-		ret = mixer_set_recroute(m, *arg_i);
-		break;
-	case OSS_GETVERSION:
-		*arg_i = SOUND_VERSION;
-		break;
-	default:
-		ret = EINVAL;
-		break;
-	}
-
+done:
 	snd_mtxunlock(m->lock);
-
 	return (ret);
 }
 
