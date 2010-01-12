@@ -472,7 +472,7 @@ search(u_long addr, action_fn *action)
 {
 	int mib[6];
 	size_t needed;
-	char *lim, *buf, *newbuf, *next;
+	char *lim, *buf, *next;
 	struct rt_msghdr *rtm;
 	struct sockaddr_inarp *sin2;
 	struct sockaddr_dl *sdl;
@@ -491,13 +491,9 @@ search(u_long addr, action_fn *action)
 		return 0;
 	buf = NULL;
 	for (;;) {
-		newbuf = realloc(buf, needed);
-		if (newbuf == NULL) {
-			if (buf != NULL)
-				free(buf);
+		buf = reallocf(buf, needed);
+		if (buf == NULL)
 			errx(1, "could not reallocate memory");
-		}
-		buf = newbuf;
 		st = sysctl(mib, 6, buf, &needed, NULL, 0);
 		if (st == 0 || errno != ENOMEM)
 			break;
