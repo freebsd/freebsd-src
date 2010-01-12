@@ -143,6 +143,7 @@ device		sbp		# SCSI over FireWire (need scbus & da)
 
 # Various (pseudo) devices
 device		ether		# Ethernet support
+device		vlan		# 802.1Q VLAN support
 device		faith		# IPv6-to-IPv4 relaying (translation)
 device		gif		# IPv6 and IPv4 tunneling
 device		loop		# Network loopback

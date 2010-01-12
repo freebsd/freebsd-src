@@ -201,6 +201,7 @@ device		ath_rate_sample	# SampleRate tx rate control for ath
 device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support
+device		vlan		# 802.1Q VLAN support
 device		sl		# Kernel SLIP
 device		ppp		# Kernel PPP
 device		tun		# Packet tunnel.
