@@ -86,7 +86,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20100111_0139"
+#define HDA_DRV_TEST_REV	"20100112_0140"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -3543,6 +3543,32 @@ hdac_stream_setup(struct hdac_chan *ch)
 	}
 }
 
+/*
+ * Greatest Common Divisor.
+ */
+static unsigned
+gcd(unsigned a, unsigned b)
+{
+	u_int c;
+
+	while (b != 0) {
+		c = a;
+		a = b;
+		b = (c % b);
+	}
+	return (a);
+}
+
+/*
+ * Least Common Multiple.
+ */
+static unsigned
+lcm(unsigned a, unsigned b)
+{
+
+	return ((a * b) / gcd(a, b));
+}
+
 static int
 hdac_channel_setfragments(kobj_t obj, void *data,
 					uint32_t blksz, uint32_t blkcnt)
@@ -3550,7 +3576,7 @@ hdac_channel_setfragments(kobj_t obj, void *data,
 	struct hdac_chan *ch = data;
 	struct hdac_softc *sc = ch->devinfo->codec->sc;
 
-	blksz &= HDA_BLK_ALIGN;
+	blksz -= blksz % lcm(HDAC_DMA_ALIGNMENT, sndbuf_getalign(ch->b));
 
 	if (blksz > (sndbuf_getmaxsize(ch->b) / HDA_BDL_MIN))
 		blksz = sndbuf_getmaxsize(ch->b) / HDA_BDL_MIN;
@@ -6551,14 +6577,12 @@ hdac_pcmchannel_setup(struct hdac_chan *ch)
 				if (ch->bit32)
 					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 4, 0);
 			}
-#ifdef notyet
 			if (channels == 6 || /* Any 6-channel */
 			    pinset == 0x0017) {  /* 7.1 */
 				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 6, 1);
 				if (ch->bit32)
 					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 6, 1);
 			}
-#endif
 			if (channels == 8) { /* Any 8-channel */
 				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 8, 1);
 				if (ch->bit32)
