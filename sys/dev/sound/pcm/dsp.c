@@ -1003,7 +1003,7 @@ dsp_ioctl_channel(struct cdev *dev, struct pcm_channel *volch, u_long cmd,
 	if (volch != NULL &&
 	    ((j == SOUND_MIXER_PCM && volch->direction == PCMDIR_PLAY) ||
 	    (j == SOUND_MIXER_RECLEV && volch->direction == PCMDIR_REC))) {
-		if ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0)) {
+		if ((cmd & ~0xff) == MIXER_WRITE(0)) {
 			int left, right, center;
 
 			left = *(int *)arg & 0x7f;
@@ -1011,7 +1011,7 @@ dsp_ioctl_channel(struct cdev *dev, struct pcm_channel *volch, u_long cmd,
 			center = (left + right) >> 1;
 			chn_setvolume_multi(volch, SND_VOL_C_PCM, left, right,
 			    center);
-		} else if ((cmd & MIXER_READ(0)) == MIXER_READ(0)) {
+		} else if ((cmd & ~0xff) == MIXER_READ(0)) {
 			*(int *)arg = CHN_GETVOLUME(volch,
 				SND_VOL_C_PCM, SND_CHN_T_FL);
 			*(int *)arg |= CHN_GETVOLUME(volch,
@@ -1023,7 +1023,7 @@ dsp_ioctl_channel(struct cdev *dev, struct pcm_channel *volch, u_long cmd,
 		case SOUND_MIXER_DEVMASK:
 		case SOUND_MIXER_CAPS:
 		case SOUND_MIXER_STEREODEVS:
-			if ((cmd & MIXER_READ(0)) == MIXER_READ(0)) {
+			if ((cmd & ~0xff) == MIXER_READ(0)) {
 				*(int *)arg = 0;
 				if (rdch != NULL)
 					*(int *)arg |= SOUND_MASK_RECLEV;
@@ -1034,7 +1034,7 @@ dsp_ioctl_channel(struct cdev *dev, struct pcm_channel *volch, u_long cmd,
 			break;
 		case SOUND_MIXER_RECMASK:
 		case SOUND_MIXER_RECSRC:
-			if ((cmd & MIXER_READ(0)) == MIXER_READ(0))
+			if ((cmd & ~0xff) == MIXER_READ(0))
 				*(int *)arg = 0;
 			ret = 0;
 			break;
