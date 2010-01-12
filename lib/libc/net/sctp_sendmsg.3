@@ -271,7 +271,7 @@ if an error occurred.
 The
 .Fn sctp_sendmsg
 system call
-fail if:
+fails if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 An invalid descriptor was specified.
@@ -324,7 +324,7 @@ is not connected and is a one-to-one style socket.
 .Xr sendmsg 3 ,
 .Xr sctp 4
 .Sh BUGS
-Because in the one-to-many style socket the
+Because in the one-to-many style socket
 .Fn sctp_sendmsg 
 or
 .Fn sctp_sendmsgx
