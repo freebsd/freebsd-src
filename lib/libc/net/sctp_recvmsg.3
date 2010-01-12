@@ -160,7 +160,7 @@ struct sctp_sndrcvinfo {
 .Pp
 The
 .Fa sinfo->sinfo_ppid
-is an opaque 32 bit value that is passed transparently
+field is an opaque 32 bit value that is passed transparently
 through the stack from the peer endpoint. 
 Note that the stack passes this value without regard to byte
 order.
@@ -180,12 +180,13 @@ as soon as possible.
 When this flag is absent the message
 was delivered in order within the stream it was received.
 .Pp
+The
 .Fa sinfo->sinfo_stream
-is the SCTP stream that the message was received on. 
+field is the SCTP stream that the message was received on. 
 Streams in SCTP are reliable (or partially reliable) flows of ordered
 messages.
 .Pp
-The 
+The
 .Fa sinfo->sinfo_context
 field is used only if the local application set an association level
 context with the
@@ -197,7 +198,7 @@ association.
 .Pp
 The
 .Fa sinfo->sinfo_ssn
-will hold the stream sequence number assigned
+field will hold the stream sequence number assigned
 by the peer endpoint if the message is
 .Em not
 unordered.
@@ -205,7 +206,7 @@ For unordered messages this field holds an undefined value.
 .Pp
 The
 .Fa sinfo->sinfo_tsn
-holds a transport sequence number (TSN) that was assigned
+field holds a transport sequence number (TSN) that was assigned
 to this message by the peer endpoint.
 For messages that fit in or less
 than the path MTU this will be the only TSN assigned.
@@ -215,12 +216,12 @@ message.
 .Pp
 The
 .Fa sinfo->sinfo_cumtsn
-holds the current cumulative acknowledgment point of
+field holds the current cumulative acknowledgment point of
 the transport association.
 Note that this may be larger
 or smaller than the TSN assigned to the message itself.
 .Pp
-The 
+The
 .Fa sinfo->sinfo_assoc_id
 is the unique association identification that was assigned
 to the association.
@@ -232,10 +233,10 @@ setting various socket options on the specific association
 (see 
 .Xr sctp 4 ) .
 .Pp
-The 
+The
 .Fa sinfo->info_timetolive
 field is not used by 
-.Fa sctp_recvmsg .
+.Fn sctp_recvmsg .
 .Sh RETURN VALUES
 The call returns the number of characters sent, or -1
 if an error occurred.

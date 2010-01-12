@@ -37,7 +37,7 @@
 .Sh NAME
 .Nm sctp_generic_sendmsg
 .Nm sctp_generic_sendmsg_iov
-.Nd send data to a peer.
+.Nd send data to a peer
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -49,21 +49,25 @@
 .Ft int
 .Fn sctp_generic_sendmsg_iov "int s" "struct iovec *iov" "int iovlen" "struct sockaddr *to" "struct sctp_sndrcvinfo *sinfo" "int flags"
 .Sh DESCRIPTION
-The
 .Fn sctp_generic_sendmsg
 and
 .Fn sctp_generic_sendmsg_iov
 are the true system calls used by the
-.Fn sctp_sendmsg
+.Xr sctp_sendmsg 3
 and 
-.Fn sctp_send
-function calls. These are more efficient since they are
-true system calls but they are specific to FreeBSD and
-can be expected NOT to be present on any other Operating
-System. For detailed useage please see either the
-.Fn sctp_send
+.Xr sctp_send 3
+function calls.
+These are more efficient since they are
+true system calls but they are specific to
+.Fx
+and can be expected
+.Em not
+to be present on any other operating
+system.
+For detailed usage please see either the
+.Xr sctp_send 3
 or
-.Fn sctp_sendmsg
+.Xr sctp_sendmsg 3
 function calls. 
 .Sh RETURN VALUES
 The call returns the number of bytes written on success and -1 upon failure.
