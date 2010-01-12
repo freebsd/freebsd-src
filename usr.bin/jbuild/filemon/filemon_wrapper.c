@@ -339,6 +339,11 @@ filemon_wrapper_symlink(struct thread *td, struct symlink_args *uap)
 	return(ret);
 }
 
+#if __FreeBSD_version > 800032
+#define FILEMON_HAS_LINKAT
+#endif
+
+#ifdef FILEMON_HAS_LINKAT
 static int
 filemon_wrapper_linkat(struct thread *td, struct linkat_args *uap)
 {
@@ -373,7 +378,7 @@ filemon_wrapper_linkat(struct thread *td, struct linkat_args *uap)
 
 	return(ret);
 }
-
+#endif
 static int
 filemon_wrapper_stat(struct thread *td, struct stat_args *uap)
 {
@@ -565,7 +570,9 @@ filemon_wrapper_install(void)
 	sv_table[SYS_vfork].sy_call = (sy_call_t *) filemon_wrapper_vfork;
 	sv_table[SYS_link].sy_call = (sy_call_t *) filemon_wrapper_link;
 	sv_table[SYS_symlink].sy_call = (sy_call_t *) filemon_wrapper_symlink;
+#ifdef FILEMON_HAS_LINKAT
 	sv_table[SYS_linkat].sy_call = (sy_call_t *) filemon_wrapper_linkat;
+#endif
 
 #ifdef COMPAT_IA32
 	sv_table = ia32_freebsd_sysvec.sv_table;
@@ -581,7 +588,9 @@ filemon_wrapper_install(void)
 	sv_table[FREEBSD32_SYS_vfork].sy_call = (sy_call_t *) filemon_wrapper_vfork;
 	sv_table[FREEBSD32_SYS_link].sy_call = (sy_call_t *) filemon_wrapper_link;
 	sv_table[FREEBSD32_SYS_symlink].sy_call = (sy_call_t *) filemon_wrapper_symlink;
+#ifdef FILEMON_HAS_LINKAT
 	sv_table[FREEBSD32_SYS_linkat].sy_call = (sy_call_t *) filemon_wrapper_linkat;
+#endif
 #endif
 
 
@@ -609,7 +618,9 @@ filemon_wrapper_deinstall(void)
 	sv_table[SYS_vfork].sy_call = (sy_call_t *) vfork;
 	sv_table[SYS_link].sy_call = (sy_call_t *) link;
 	sv_table[SYS_symlink].sy_call = (sy_call_t *) symlink;
+#ifdef FILEMON_HAS_LINKAT
 	sv_table[SYS_linkat].sy_call = (sy_call_t *) linkat;
+#endif
 
 #ifdef COMPAT_IA32
 	sv_table = ia32_freebsd_sysvec.sv_table;
@@ -625,7 +636,9 @@ filemon_wrapper_deinstall(void)
 	sv_table[FREEBSD32_SYS_vfork].sy_call = (sy_call_t *) vfork;
 	sv_table[FREEBSD32_SYS_link].sy_call = (sy_call_t *) link;
 	sv_table[FREEBSD32_SYS_symlink].sy_call = (sy_call_t *) symlink;
+#ifdef FILEMON_HAS_LINKAT
 	sv_table[FREEBSD32_SYS_linkat].sy_call = (sy_call_t *) linkat;
+#endif
 #endif
 
 }
