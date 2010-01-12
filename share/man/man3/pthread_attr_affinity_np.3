@@ -31,7 +31,7 @@
 .Sh NAME
 .Nm pthread_attr_getaffinity_np ,
 .Nm pthread_attr_setaffinity_np
-.Nd manage CPU affinity in thread attribute object
+.Nd manage CPU affinity in thread attribute objects
 .Sh LIBRARY
 .Lb libpthread
 .Sh SYNOPSIS
@@ -41,20 +41,21 @@
 .Ft int
 .Fn pthread_attr_setaffinity_np "pthread_attr_t *pattr" "size_t cpusetsize" "const cpuset_t *cpusetp"
 .Sh DESCRIPTION
+The
 .Fn pthread_attr_getaffinity_np
 and
 .Fn pthread_attr_setaffinity_np
-allow the manipulation of sets of CPUs available to specified thread attribute object.
+functions allow the manipulation of sets of CPUs available to the specified thread attribute object.
 .Pp
 Masks of type
 .Ft cpuset_t
 are composed using the
-.Xr CPU_SET 2
+.Xr CPU_SET 3
 macros.
 The kernel tolerates large sets as long as all CPUs specified
 in the set exist.
 Sets smaller than the kernel uses generate an error on calls to
-.Fn  pthread_attr_getaffinity_np
+.Fn pthread_attr_getaffinity_np
 even if the result set would fit within the user supplied set.
 Calls to
 .Fn pthread_attr_setaffinity_np
@@ -75,14 +76,13 @@ retrieves the
 mask from the thread attribute object specified by
 .Fa pattr ,
 and stores it in the space provided by
-.Fa cpumaskp .
+.Fa cpusetp .
 .Pp
 .Fn pthread_attr_setaffinity_np
-set the mask for the thread attribute object specified by
+sets the mask for the thread attribute object specified by
 .Fa pattr
 to the value in
-.Fa cpumaskp .
-.Pp
+.Fa cpusetp .
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_attr_getaffinity_np
@@ -101,7 +101,8 @@ functions will fail if:
 .It Bq Er EINVAL
 The
 .Fa pattr
-or the attribute specified by it is NULL.
+or the attribute specified by it is
+.Dv NULL .
 .El
 .Pp
 The
@@ -111,7 +112,8 @@ function will fail if:
 .It Bq Er EINVAL
 The
 .Fa pattr
-or the attribute specified by it is NULL.
+or the attribute specified by it is
+.Dv NULL .
 .It Bq Er ENOMEM
 Insufficient memory exists to store the cpuset mask.
 .El
@@ -122,7 +124,7 @@ Insufficient memory exists to store the cpuset mask.
 .Xr cpuset_setid 2 ,
 .Xr CPU_SET 3 ,
 .Xr pthread_get_affinity_np 3 ,
-.Xr pthread_set_affinity_np 3 .
+.Xr pthread_set_affinity_np 3
 .Sh STANDARDS
 The
 .Nm pthread_attr_getaffinity_np
