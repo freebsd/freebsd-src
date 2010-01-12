@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 13, 2009
+.Dd January 12, 2010
 .Dt SND_HDA 4
 .Os
 .Sh NAME
@@ -125,12 +125,14 @@ such as
 .Dq Li nofixedrate ,
 will do the opposite and takes precedence.
 Options can be separated by whitespace and commas.
+.Pp
 .Dq Li GPIO Ns s
 are a codec's General Purpose I/O pins which system integrators sometimes
 use to control external muters, amplifiers and so on.
 If you have no sound, or sound volume is not adequate, you may have to
 experiment a bit with the GPIO setup to find the optimal setup for your
 system.
+.Pp
 The
 .Dq Li ivref Ns Ar X
 and
@@ -177,6 +179,11 @@ Sequence number.
 A unique, per-association number used to order pins inside the
 particular association.
 Sequence numbers can be specified as numeric values from 0 to 15.
+.Pp
+For output assotiations sequence numbers encode speaker pairs positions:
+0 - Front, 1 - Center/LFE, 2 - Back, 3 - Front Wide Center, 4 - Side.
+Standard combinations are: (0) - Stereo; (0, 2), (0, 4) - Quadro;
+(0, 1, 2), (0, 1, 4) - 5.1; (0, 1, 2, 4) - 7.1.
 .Pp
 The sequence number 15 has a special meaning for output associations.
 Output pins with this number and device type
@@ -639,6 +646,3 @@ to control external amplifiers. In some cases setting proper combination of
 GPIO bits may be needed to make sound work on specific device.
 .Pp
 HDMI and DisplayPort audio may also require support from video driver.
-.Pp
-Due to OSS limitation multichannel (not multidevice) playback is not
-supported.
