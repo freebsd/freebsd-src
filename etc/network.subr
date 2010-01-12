@@ -30,6 +30,48 @@
 # Requires that rc.conf be loaded first.
 #
 
+# ifn_start ifn
+#	Bring up and configure an interface.  If some configuration is
+#	applied print the interface configuration.
+#
+ifn_start()
+{
+	local ifn cfg
+	ifn="$1"
+	cfg=1
+
+	[ -z "$ifn" ] && err 1 "ifn_start called without an interface"
+
+	ifscript_up ${ifn} && cfg=0
+	ifconfig_up ${ifn} && cfg=0
+	ipv4_up ${ifn} && cfg=0
+	ipx_up ${ifn} && cfg=0
+	childif_create ${ifn} && cfg=0
+
+	return $cfg
+}
+
+# ifn_stop ifn
+#	Shutdown and de-configure an interface.  If action is taken
+#	print the interface name.
+#
+ifn_stop()
+{
+	local ifn cfg
+	ifn="$1"
+	cfg=1
+
+	[ -z "$ifn" ] && err 1 "ifn_stop called without an interface"
+
+	ipx_down ${ifn} && cfg=0
+	ipv4_down ${ifn} && cfg=0
+	ifconfig_down ${ifn} && cfg=0
+	ifscript_down ${ifn} && cfg=0
+	childif_destroy ${ifn} && cfg=0
+
+	return $cfg
+}
+
 # ifconfig_up if
 #	Evaluate ifconfig(8) arguments for interface $if and
 #	run ifconfig(8) with those arguments. It returns 0 if
@@ -450,6 +492,70 @@ clone_down()
 		fi
 	done
 	debug "Destroyed clones: ${_list}"
+}
+
+# childif_create
+#	Create and configure child interfaces.  Return 0 if child
+#	interfaces are created.
+#
+childif_create()
+{
+	local cfg child child_vlans create_args ifn i
+	cfg=1
+	ifn=$1
+
+	# Create vlan interfaces
+	child_vlans=`get_if_var $ifn vlans_IF`
+
+	if [ -n "${child_vlans}" ]; then
+		load_kld if_vlan
+	fi
+
+	for child in ${child_vlans}; do
+		if expr $child : '[1-9][0-9]*$' >/dev/null 2>&1; then
+			child="${ifn}.${child}"
+			create_args=`get_if_var $child create_args_IF`
+			ifconfig $child create ${create_args} && cfg=0
+		else
+			create_args="vlandev $ifn `get_if_var $child create_args_IF`"
+			if expr $child : 'vlan[0-9][0-9]*$' >/dev/null 2>&1; then
+				ifconfig $child create ${create_args} && cfg=0
+			else
+				i=`ifconfig vlan create ${create_args}`
+				ifconfig $i name $child && cfg=0
+			fi
+		fi
+		if autoif $child; then
+			ifn_start $child
+		fi
+	done
+
+	return ${cfg}
+}
+
+# childif_destroy
+#	Destroy child interfaces.
+#
+childif_destroy()
+{
+	local cfg child child_vlans ifn
+	cfg=1
+
+	child_vlans=`get_if_var $ifn vlans_IF`
+	for child in ${child_vlans}; do
+		if expr $child : '[1-9][0-9]*$' >/dev/null 2>&1; then
+			child="${ifn}.${child}"
+		fi
+		if ! ifexists $child; then
+			continue
+		fi
+		if autoif $child; then
+			ifn_stop $child
+		fi
+		ifconfig $child destroy && cfg=0
+	done
+
+	return ${cfg}
 }
 
 # Create netgraph nodes.

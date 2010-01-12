@@ -149,37 +149,5 @@ network_common()
 	debug "The following interfaces were not configured: $_fail"
 }
 
-ifn_start()
-{
-	local ifn cfg
-	ifn="$1"
-	cfg=1
-
-	[ -z "$ifn" ] && return 1
-
-	ifscript_up ${ifn} && cfg=0
-	ifconfig_up ${ifn} && cfg=0
-	ipv4_up ${ifn} && cfg=0
-	ipx_up ${ifn} && cfg=0
-
-	return $cfg
-}
-
-ifn_stop()
-{
-	local ifn cfg
-	ifn="$1"
-	cfg=1
-
-	[ -z "$ifn" ] && return 1
-
-	ipx_down ${ifn} && cfg=0
-	ipv4_down ${ifn} && cfg=0
-	ifconfig_down ${ifn} && cfg=0
-	ifscript_down ${ifn} && cfg=0
-
-	return $cfg
-}
-
 load_rc_config $name
 run_rc_command $*
