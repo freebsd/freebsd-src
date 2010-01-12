@@ -1,5 +1,5 @@
 #
-# $Id: //depot/user/neelnatu/freebsd_sibyte/src/sys/mips/conf/SWARM#7 $
+# $FreeBSD$
 #
 
 ident		SWARM
