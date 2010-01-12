@@ -2381,6 +2381,7 @@ uint8_t *
 ieee80211_add_meshconf(uint8_t *frm, struct ieee80211vap *vap)
 {
 	const struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	uint16_t caps;
 
 	KASSERT(vap->iv_opmode == IEEE80211_M_MBSS, ("not a MBSS vap"));
 
@@ -2396,11 +2397,12 @@ ieee80211_add_meshconf(uint8_t *frm, struct ieee80211vap *vap)
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_PORTAL)
 		*frm |= IEEE80211_MESHCONF_FORM_MP;
 	frm += 1;
-	*frm = 0;
+	caps = 0;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_AP)
-		*frm |= IEEE80211_MESHCONF_CAP_AP;
+		caps |= IEEE80211_MESHCONF_CAP_AP;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_FWD)
-		*frm |= IEEE80211_MESHCONF_CAP_FWRD;
+		caps |= IEEE80211_MESHCONF_CAP_FWRD;
+	ADDSHORT(frm, caps);
 	frm += 1;
 	return frm;
 }
