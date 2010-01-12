@@ -1,4 +1,6 @@
 #
+# AR71XX -- Kernel configuration file for FreeBSD/mips for Atheros 71xx systems
+#
 # $FreeBSD$
 #
 
