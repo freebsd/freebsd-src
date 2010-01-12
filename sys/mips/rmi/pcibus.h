@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: src/sys/alpha/pci/pcibus.h,v 1.5 2002/02/28 18:18:41 gallatin Exp $
+ * $FreeBSD$
  */
 #define DEFAULT_PCI_CONFIG_BASE         0x18000000
 
