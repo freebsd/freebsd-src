@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <time.h>
 #include <ulog.h>
+#include <utmpx.h>
 
 #define PAM_SM_SESSION
 
@@ -61,7 +62,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
     int argc __unused, const char *argv[] __unused)
 {
 	struct passwd *pwd;
-	struct ulog_utmpx *utx;
+	struct utmpx *utx;
 	time_t t;
 	const char *user;
 	const void *rhost, *tty;
@@ -91,10 +92,10 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	}
 
 	if ((flags & PAM_SILENT) == 0) {
-		if (ulog_setutxfile(UTXI_USER, NULL) != 0) {
-			PAM_LOG("Failed to open lastlog database");
+		if (setutxdb(UTXDB_LASTLOGIN, NULL) != 0) {
+			PAM_LOG("Failed to open lastlogin database");
 		} else {
-			utx = ulog_getutxuser(user);
+			utx = getutxuser(user);
 			if (utx != NULL && utx->ut_type == USER_PROCESS) {
 				t = utx->ut_tv.tv_sec;
 				if (*utx->ut_host != '\0')
@@ -104,7 +105,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 					pam_info(pamh, "Last login: %.*s on %s",
 					    24 - 5, ctime(&t), utx->ut_line);
 			}
-			ulog_endutxent();
+			endutxent();
 		}
 	}
 
