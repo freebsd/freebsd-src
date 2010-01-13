@@ -359,17 +359,25 @@ FBSD_1.1 {
 
 FBSD_1.2 {
 	basename_r;
+	endutxent;
 	getpagesizes;
+	getutxent;
+	getutxid;
+	getutxline;
+	getutxuser;
+	pututxline;
 	sem_close;
 	sem_destroy;
 	sem_getvalue;
 	sem_init;
 	sem_open;
+	sem_post;
 	sem_timedwait;
 	sem_trywait;
-	sem_post;
-	sem_wait;
 	sem_unlink;
+	sem_wait;
+	setutxdb;
+	setutxent;
 };
 
 FBSDprivate_1.0 {
