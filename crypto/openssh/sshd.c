@@ -73,7 +73,6 @@ __RCSID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <utmp.h>
 
 #include <openssl/dh.h>
 #include <openssl/bn.h>
@@ -240,7 +239,7 @@ u_char *session_id2 = NULL;
 u_int session_id2_len = 0;
 
 /* record remote hostname or ip */
-u_int utmp_len = UT_HOSTSIZE;
+u_int utmp_len = MAXHOSTNAMELEN;
 
 /* options.max_startup sized array of fd ints */
 int *startup_pipes = NULL;
