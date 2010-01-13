@@ -23,8 +23,8 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	stdbool.h stddef.h stdio.h stdlib.h string.h stringlist.h \
 	strings.h sysexits.h tar.h termios.h tgmath.h \
 	time.h timeconv.h timers.h ttyent.h \
-	ulimit.h unistd.h utime.h utmp.h uuid.h varargs.h vis.h wchar.h \
-	wctype.h wordexp.h
+	ulimit.h unistd.h utime.h utmp.h utmpx.h uuid.h varargs.h vis.h \
+	wchar.h wctype.h wordexp.h
 
 MHDRS=	float.h floatingpoint.h stdarg.h
 

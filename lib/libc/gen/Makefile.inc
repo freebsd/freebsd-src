@@ -18,12 +18,12 @@ SRCS+=  __getosreldate.c __xuname.c \
 	gethostname.c getloadavg.c getlogin.c getmntinfo.c getnetgrent.c \
 	getosreldate.c getpagesize.c getpagesizes.c \
 	getpeereid.c getprogname.c getpwent.c getttyent.c \
-	getusershell.c getvfsbyname.c glob.c \
+	getusershell.c getutxent.c getvfsbyname.c glob.c \
 	initgroups.c isatty.c isinf.c isnan.c jrand48.c lcong48.c \
 	lockf.c lrand48.c mrand48.c nftw.c nice.c \
 	nlist.c nrand48.c opendir.c \
 	pause.c pmadvise.c popen.c posix_spawn.c \
-	psignal.c pw_scan.c pwcache.c \
+	psignal.c pututxline.c pw_scan.c pwcache.c \
 	raise.c readdir.c readpassphrase.c rewinddir.c \
 	scandir.c seed48.c seekdir.c sem.c sem_new.c semctl.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c \
@@ -32,7 +32,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	sysconf.c sysctl.c sysctlbyname.c sysctlnametomib.c \
 	syslog.c telldir.c termios.c time.c times.c timezone.c tls.c \
 	ttyname.c ttyslot.c ualarm.c ulimit.c uname.c unvis.c \
-	usleep.c utime.c valloc.c vis.c wait.c wait3.c waitpid.c \
+	usleep.c utime.c utxdb.c valloc.c vis.c wait.c wait3.c waitpid.c \
 	wordexp.c
 
 SYM_MAPS+=${.CURDIR}/gen/Symbol.map
@@ -54,7 +54,7 @@ MAN+=	alarm.3 arc4random.3 \
 	getgrent.3 getgrouplist.3 gethostname.3 getloadavg.3 \
 	getmntinfo.3 getnetgrent.3 getosreldate.3 getpagesize.3 \
 	getpagesizes.3 getpass.3 getpeereid.3 getprogname.3 getpwent.3 \
-	getttyent.3 getusershell.3 getvfsbyname.3 \
+	getttyent.3 getusershell.3 getutxent.3 getvfsbyname.3 \
 	glob.3 initgroups.3 isgreater.3 ldexp.3 lockf.3 makecontext.3 \
 	modf.3 \
 	nice.3 nlist.3 pause.3 popen.3 \
@@ -126,6 +126,10 @@ MLINKS+=getttyent.3 endttyent.3 getttyent.3 getttynam.3 \
 	getttyent.3 isdialuptty.3 getttyent.3 isnettty.3 \
 	getttyent.3 setttyent.3
 MLINKS+=getusershell.3 endusershell.3 getusershell.3 setusershell.3
+MLINKS+=getutxent.3 endutxent.3 getutxent.3 getutxid.3 \
+	getutxent.3 getutxline.3 getutxent.3 getutxuser.3 \
+	getutxent.3 pututxline.3 getutxent.3 setutxdb.3 \
+	getutxent.3 setutxent.3
 MLINKS+=glob.3 globfree.3
 MLINKS+=isgreater.3 isgreaterequal.3 isgreater.3 isless.3 \
 	isgreater.3 islessequal.3 isgreater.3 islessgreater.3 \

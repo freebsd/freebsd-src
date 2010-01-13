@@ -26,13 +26,6 @@ MLINKS+=ulog_getutxent.3 ulog_endutxent.3 \
 	utempter_remove_added_record.3 removeFromUtmp.3 \
 	utempter_remove_record.3 removeLineFromUtmp.3
 
-# Add links to <utmpx.h>-style functions.
-MLINKS+=ulog_endutxent.3 endutxent.3 \
-	ulog_getutxent.3 getutxent.3 \
-	ulog_getutxline.3 getutxline.3 \
-	ulog_pututxline.3 pututxline.3 \
-	ulog_setutxent.3 setutxent.3
-
 VERSION_DEF= ${.CURDIR}/../libc/Versions.def
 SYMBOL_MAPS= ${.CURDIR}/Symbol.map
 
