@@ -44,10 +44,13 @@
  * controllers.
  */
 
-/* iommmu registers */
+/* IOMMU registers */
 #define	IMR_CTL		0x0000	/* IOMMU control register */
 #define	IMR_TSB		0x0008	/* IOMMU TSB base register */
 #define	IMR_FLUSH	0x0010	/* IOMMU flush register */
+/* The TTE Cache is Fire and Oberon only. */
+#define	IMR_CACHE_FLUSH	0x0100	/* IOMMU TTE cache flush address register */
+#define	IMR_CACHE_INVAL	0x0108	/* IOMMU TTE cache invalidate register */
 
 /* streaming buffer registers */
 #define	ISR_CTL		0x0000	/* streaming buffer control reg */
@@ -70,26 +73,55 @@
 /*
  * control register bits
  */
-/* Nummber of entries in IOTSB */
+/* Nummber of entries in the IOTSB - pre-Fire only */
+#define	IOMMUCR_TSBSZ_MASK	0x0000000000070000UL
 #define	IOMMUCR_TSBSZ_SHIFT	16
-#define	IOMMUCR_TSB1K		0x0000000000000000UL
-#define	IOMMUCR_TSB2K		0x0000000000010000UL
-#define	IOMMUCR_TSB4K		0x0000000000020000UL
-#define	IOMMUCR_TSB8K		0x0000000000030000UL
-#define	IOMMUCR_TSB16K		0x0000000000040000UL
-#define	IOMMUCR_TSB32K		0x0000000000050000UL
-#define	IOMMUCR_TSB64K		0x0000000000060000UL
-#define	IOMMUCR_TSB128K		0x0000000000070000UL
-/* Mask for above */
-#define	IOMMUCR_TSBMASK		0xfffffffffff8ffffUL
-/* 8K iommu page size */
+/* TSB cache snoop enable */
+#define	IOMMUCR_SE		0x0000000000000400UL
+/* Cache modes - Fire and Oberon */
+#define	IOMMUCR_CM_NC_TLB_TBW	0x0000000000000000UL
+#define	IOMMUCR_CM_LC_NTLB_NTBW	0x0000000000000100UL
+#define	IOMMUCR_CM_LC_TLB_TBW	0x0000000000000200UL
+#define	IOMMUCR_CM_C_TLB_TBW	0x0000000000000300UL
+/* IOMMU page size - pre-Fire only */
 #define	IOMMUCR_8KPG		0x0000000000000000UL
-/* 64K iommu page size */
 #define	IOMMUCR_64KPG		0x0000000000000004UL
-/* Diag enable */
+/* Bypass enable - Fire and Oberon */
+#define	IOMMUCR_BE		0x0000000000000002UL
+/* Diagnostic mode enable - pre-Fire only */
 #define	IOMMUCR_DE		0x0000000000000002UL
-/* Enable IOMMU */
+/* IOMMU/translation enable */
 #define	IOMMUCR_EN		0x0000000000000001UL
+
+/*
+ * TSB base register bits
+ */
+ /* TSB base address */
+#define	IOMMUTB_TB_MASK		0x000007ffffffe000UL
+#define	IOMMUTB_TB_SHIFT	13
+/* IOMMU page size - Fire and Oberon */
+#define	IOMMUTB_8KPG		0x0000000000000000UL
+#define	IOMMUTB_64KPG		0x0000000000000100UL
+/* Nummber of entries in the IOTSB - Fire and Oberon */
+#define	IOMMUTB_TSBSZ_MASK	0x0000000000000004UL
+#define	IOMMUTB_TSBSZ_SHIFT	0
+
+/*
+ * TSB size definitions for both control and TSB base register */
+#define	IOMMU_TSB1K		0
+#define	IOMMU_TSB2K		1
+#define	IOMMU_TSB4K		2
+#define	IOMMU_TSB8K		3
+#define	IOMMU_TSB16K		4
+#define	IOMMU_TSB32K		5
+#define	IOMMU_TSB64K		6
+#define	IOMMU_TSB128K		7
+/* Fire and Oberon */
+#define	IOMMU_TSB256K		8
+/* Fire and Oberon */
+#define	IOMMU_TSB512K		9
+#define	IOMMU_TSBENTRIES(tsbsz)						\
+	((1 << (tsbsz)) << (IO_PAGE_SHIFT - IOTTE_SHIFT))
 
 /*
  * Diagnostic register definitions
@@ -113,16 +145,16 @@
  */
 /* Entry valid */
 #define	IOTTE_V			0x8000000000000000UL
-/* 8K or 64K page? */
+/* Page size - pre-Fire only */
 #define	IOTTE_64K		0x2000000000000000UL
 #define	IOTTE_8K		0x0000000000000000UL
-/* Is page streamable? */
+/* Streamable page - streaming buffer equipped variants only */
 #define	IOTTE_STREAM		0x1000000000000000UL
-/* Accesses to same bus segment? */
+/* Accesses to the same bus segment - SBus only */
 #define	IOTTE_LOCAL		0x0800000000000000UL
-/* Let's assume this is correct */
-#define	IOTTE_PAMASK		0x000007ffffffe000UL
-/* Accesses to cacheable space */
+/* Physical address mask (based on Oberon) */
+#define	IOTTE_PAMASK		0x00007fffffffe000UL
+/* Accesses to cacheable space - pre-Fire only */
 #define	IOTTE_C			0x0000000000000010UL
 /* Writeable */
 #define	IOTTE_W			0x0000000000000002UL
