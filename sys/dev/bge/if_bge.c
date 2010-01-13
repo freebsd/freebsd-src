@@ -187,6 +187,7 @@ static const struct bge_type {
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5754M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5755 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5755M },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5756 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5761 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5761E },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5761S },
@@ -2604,7 +2605,8 @@ bge_attach(device_t dev)
 		    sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5787) {
-			if (sc->bge_chipid != BGE_CHIPID_BCM5722_A0)
+			if (pci_get_device(dev) != BCOM_DEVICEID_BCM5722 &&
+			    pci_get_device(dev) != BCOM_DEVICEID_BCM5756)
 				sc->bge_flags |= BGE_FLAG_JITTER_BUG;
 		} else if (sc->bge_asicrev != BGE_ASICREV_BCM5906)
 			sc->bge_flags |= BGE_FLAG_BER_BUG;
