@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <utmpx.h>
 
 static int	usage(void);
 static int	parsenum(const char *, unsigned long *);
@@ -72,6 +73,7 @@ static int	protocols(int, char *[]);
 static int	rpc(int, char *[]);
 static int	services(int, char *[]);
 static int	shells(int, char *[]);
+static int	utmpx(int, char *[]);
 
 enum {
 	RV_OK		= 0,
@@ -93,6 +95,7 @@ static struct getentdb {
 	{	"rpc",		rpc,		},
 	{	"services",	services,	},
 	{	"shells",	shells,		},
+	{	"utmpx",	utmpx,		},
 
 	{	NULL,		NULL,		},
 };
@@ -561,4 +564,90 @@ shells(int argc, char *argv[])
 	}
 	endusershell();
 	return rv;
+}
+
+/*
+ * utmpx
+ */
+
+#define	UTMPXPRINTID do {			\
+	size_t i;				\
+	for (i = 0; i < sizeof ut->ut_id; i++)	\
+		printf("%02hhx", ut->ut_id[i]);	\
+} while (0)
+
+static void
+utmpxprint(const struct utmpx *ut)
+{
+
+	if (ut->ut_type == EMPTY)
+		return;
+	
+	printf("[%.24s] ", ctime(&ut->ut_tv.tv_sec));
+
+	switch (ut->ut_type) {
+	case BOOT_TIME:
+		printf("system boot\n");
+		return;
+	case SHUTDOWN_TIME:
+		printf("system shutdown\n");
+		return;
+	case OLD_TIME:
+		printf("old system time\n");
+		return;
+	case NEW_TIME:
+		printf("new system time\n");
+		return;
+	case USER_PROCESS:
+		printf("user process: id=\"");
+		UTMPXPRINTID;
+		printf("\" user=\"%s\" line=\"%s\" host=\"%s\"\n",
+		    ut->ut_user, ut->ut_line, ut->ut_host);
+		break;
+	case DEAD_PROCESS:
+		printf("dead process: id=\"");
+		UTMPXPRINTID;
+		printf("\"\n");
+		break;
+	default:
+		printf("unknown record type\n");
+		break;
+	}
+}
+
+static int
+utmpx(int argc, char *argv[])
+{
+	const struct utmpx *ut;
+	int rv = RV_OK, db;
+
+	assert(argc > 1);
+	assert(argv != NULL);
+
+	if (argc == 2) {
+		db = UTXDB_ACTIVE;
+	} else if (argc == 3) {
+		if (strcmp(argv[2], "active") == 0)
+			db = UTXDB_ACTIVE;
+		else if (strcmp(argv[2], "lastlogin") == 0)
+			db = UTXDB_LASTLOGIN;
+		else if (strcmp(argv[2], "log") == 0)
+			db = UTXDB_LOG;
+		else
+			rv = RV_USAGE;
+	} else {
+		rv = RV_USAGE;
+	}
+
+	if (rv == RV_USAGE) {
+		fprintf(stderr, "Usage: %s utmpx [active | lastlogin | log]\n",
+		    getprogname());
+	} else if (rv == RV_OK) {
+		if (setutxdb(db, NULL) != 0)
+			return (RV_NOTFOUND);
+		while ((ut = getutxent()) != NULL)
+			utmpxprint(ut);
+		endutxent();
+	}
+	return (rv);
 }
