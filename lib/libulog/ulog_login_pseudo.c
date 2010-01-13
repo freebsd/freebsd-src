@@ -34,8 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <sysexits.h>
 #include <unistd.h>
-
-#include "ulog_internal.h"
+#include "ulog.h"
 
 #define	_PATH_ULOG_HELPER	"/usr/libexec/ulog-helper"
 
