@@ -56,7 +56,7 @@
  */
 
 /*
- * AUXIO registers support on the sbus & ebus2, used for the floppy driver
+ * AUXIO registers support on the SBus & EBus2, used for the floppy driver
  * and to control the system LED, for the BLINK option.
  */
 
@@ -85,8 +85,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/auxio/auxioreg.h>
 
 /*
- * on sun4u, auxio exists with one register (LED) on the sbus, and 5
- * registers on the ebus2 (pci) (LED, PCIMODE, FREQUENCY, SCSI
+ * On sun4u, auxio exists with one register (LED) on the SBus, and 5
+ * registers on the EBus2 (pci) (LED, PCIMODE, FREQUENCY, SCSI
  * OSCILLATOR, and TEMP SENSE.
  */
 
@@ -142,6 +142,7 @@ static driver_t auxio_sbus_driver = {
 
 static devclass_t	auxio_devclass;
 DRIVER_MODULE(auxio, sbus, auxio_sbus_driver, auxio_devclass, 0, 0);
+MODULE_DEPEND(auxio, sbus, 1, 1, 1);
 
 /* EBus */
 static device_method_t auxio_ebus_methods[] = {
@@ -158,6 +159,7 @@ static driver_t auxio_ebus_driver = {
 };
 
 DRIVER_MODULE(auxio, ebus, auxio_ebus_driver, auxio_devclass, 0, 0);
+MODULE_DEPEND(auxio, ebus, 1, 1, 1);
 MODULE_VERSION(auxio, 1);
 
 #define AUXIO_LOCK_INIT(sc)	\
