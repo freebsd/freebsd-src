@@ -90,7 +90,6 @@ struct pidfh {
 /* Avoid pulling in all the include files for no need */
 struct termios;
 struct winsize;
-struct utmp;
 struct in_addr;
 struct kinfo_file;
 struct kinfo_vmentry;
@@ -102,10 +101,7 @@ int	extattr_namespace_to_string(int _attrnamespace, char **_string);
 int	extattr_string_to_namespace(const char *_string, int *_attrnamespace);
 int	flopen(const char *_path, int _flags, ...);
 void	hexdump(const void *ptr, int length, const char *hdr, int flags);
-void	login(struct utmp *_ut);
 int	login_tty(int _fd);
-int	logout(const char *_line);
-void	logwtmp(const char *_line, const char *_name, const char *_host);
 void	trimdomain(char *_fullhost, int _hostsize);
 int	openpty(int *_amaster, int *_aslave, char *_name,
 		     struct termios *_termp, struct winsize *_winp);
