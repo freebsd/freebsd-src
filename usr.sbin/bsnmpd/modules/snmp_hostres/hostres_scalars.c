@@ -41,8 +41,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <syslog.h>
-#define	_ULOG_POSIX_NAMES
-#include <ulog.h>
+#include <utmpx.h>
 
 #include "hostres_snmp.h"
 #include "hostres_oid.h"
