@@ -65,9 +65,9 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <time.h>
 #include <ttyent.h>
-#define	_ULOG_POSIX_NAMES
 #include <ulog.h>
 #include <unistd.h>
+#include <utmpx.h>
 #include <sys/reboot.h>
 #include <err.h>
 
@@ -569,10 +569,13 @@ transition(state_t s)
  * NB: should send a message to the session logger to avoid blocking.
  */
 static void
-clear_session_logs(session_t *sp)
+clear_session_logs(session_t *sp __unused)
 {
 
-	ulog_logout(sp->se_device);
+	/*
+	 * XXX: Use getutxline() and call pututxline() for each entry.
+	 * Is this safe to do this here?  Is it really required anyway?
+	 */
 }
 
 /*
