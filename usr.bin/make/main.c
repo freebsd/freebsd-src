@@ -927,8 +927,8 @@ find_srctop(char *srctop)
 {
 	const char *syspaths[] = {
 		"build/mk2",
-		"build/mk",
 		"bld",
+		"build/mk",
 		NULL,
 	};
 	const char **psp;
