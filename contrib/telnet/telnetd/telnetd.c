@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <libutil.h>
 #include <paths.h>
 #include <termcap.h>
-#include <utmp.h>
 
 #include <arpa/inet.h>
 
