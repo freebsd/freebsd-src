@@ -424,6 +424,7 @@ MAN=	aac.4 \
 	ugen.4 \
 	uhci.4 \
 	uhid.4 \
+	uhso.4 \
 	uipaq.4 \
 	ukbd.4 \
 	ulpt.4 \
