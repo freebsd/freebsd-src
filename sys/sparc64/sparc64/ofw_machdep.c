@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 by Thomas Moestl <tmm@FreeBSD.org>.
- * Copyright (c) 2005 by Marius Strobl <marius@FreeBSD.org>.
+ * Copyright (c) 2005 - 2009 by Marius Strobl <marius@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,11 +99,11 @@ int
 OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 {
 	char name[32];
-	uint64_t cend, cstart, end, phys, sz, start;
+	uint64_t cend, cstart, end, phys, pphys, sz, start;
 	pcell_t addrc, szc, paddrc;
 	phandle_t bus, lbus, pbus;
 	uint32_t banks[10 * 5];	/* 10 PCI banks */
-	uint32_t cspace, spc;
+	uint32_t cspc, pspc, spc;
 	int i, j, nbank;
 
 	/*
@@ -149,17 +149,18 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 	nbank /= sizeof(banks[0]) * (addrc + szc);
 	if (bank < 0 || bank > nbank - 1)
 		return (ENXIO);
+	bank *= addrc + szc;
+	spc = phys_hi_mask_space(name, banks[bank]);
+	/* Skip the high cell for 3-cell addresses. */
+	bank += addrc - 2;
 	phys = 0;
 	for (i = 0; i < MIN(2, addrc); i++)
-		phys |= (uint64_t)banks[(addrc + szc) * bank + addrc - 2 + i] <<
-		    32 * (MIN(2, addrc) - i - 1);
+		phys = ((uint64_t)phys << 32) | banks[bank++];
 	sz = 0;
 	for (i = 0; i < szc; i++)
-		sz |= (uint64_t)banks[(addrc + szc) * bank + addrc + i] <<
-		    32 * (szc - i - 1);
+		sz = ((uint64_t)sz << 32) | banks[bank++];
 	start = phys;
 	end = phys + sz - 1;
-	spc = phys_hi_mask_space(name, banks[(addrc + szc) * bank]);
 
 	/*
 	 * Map upward in the device tree at every bridge we encounter
@@ -171,7 +172,7 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 	 * If a bridge doesn't have a "ranges" property no mapping is
 	 * necessary at that bridge.
 	 */
-	cspace = 0;
+	cspc = 0;
 	lbus = bus;
 	while ((pbus = OF_parent(bus)) != 0) {
 		if (OF_getprop(pbus, "#address-cells", &paddrc,
@@ -194,42 +195,40 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 				return (ENXIO);
 		}
 		nbank /= sizeof(banks[0]) * (addrc + paddrc + szc);
+		bank = 0;
 		for (i = 0; i < nbank; i++) {
-			cspace = phys_hi_mask_space(name,
-			    banks[(addrc + paddrc + szc) * i]);
-			if (cspace != spc)
+			cspc = phys_hi_mask_space(name, banks[bank]);
+			if (cspc != spc) {
+				bank += addrc + paddrc + szc;
 				continue;
+			}
+			/* Skip the high cell for 3-cell addresses. */
+			bank += addrc - 2;
 			phys = 0;
 			for (j = 0; j < MIN(2, addrc); j++)
-				phys |= (uint64_t)banks[
-				    (addrc + paddrc + szc) * i +
-				    addrc - 2 + j] <<
-				    32 * (MIN(2, addrc) - j - 1);
+				phys = ((uint64_t)phys << 32) | banks[bank++];
+			pspc = banks[bank];
+			/* Skip the high cell for 3-cell addresses. */
+			bank += paddrc - 2;
+			pphys = 0;
+			for (j = 0; j < MIN(2, paddrc); j++)
+				pphys =
+				    ((uint64_t)pphys << 32) | banks[bank++];
 			sz = 0;
 			for (j = 0; j < szc; j++)
-				sz |= (uint64_t)banks[
-				    (addrc + paddrc + szc) * i + addrc +
-				    paddrc + j] <<
-				    32 * (szc - j - 1);
+				sz = ((uint64_t)sz << 32) | banks[bank++];
 			cstart = phys;
 			cend = phys + sz - 1;
 			if (start < cstart || start > cend)
 				continue;
 			if (end < cstart || end > cend)
 				return (ENXIO);
-			phys = 0;
-			for (j = 0; j < MIN(2, paddrc); j++)
-				phys |= (uint64_t)banks[
-				    (addrc + paddrc + szc) * i + addrc +
-				    paddrc - 2 + j] <<
-				    32 * (MIN(2, paddrc) - j - 1);
-			start += phys - cstart;
-			end += phys - cstart;
 			if (OF_getprop(pbus, "name", name, sizeof(name)) == -1)
 				return (ENXIO);
 			name[sizeof(name) - 1] = '\0';
-			spc = phys_hi_mask_space(name,
-			    banks[(addrc + paddrc + szc) * i + addrc]);
+			spc = phys_hi_mask_space(name, pspc);
+			start += pphys - cstart;
+			end += pphys - cstart;
 			break;
 		}
 		if (i == nbank)
@@ -240,8 +239,8 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 		bus = pbus;
 	}
 
-	/* Done with mapping. Return the bus space as used by FreeBSD. */
 	*addr = start;
+	/* Determine the bus space based on the last bus we mapped. */
 	if (OF_parent(lbus) == 0) {
 		*space = NEXUS_BUS_SPACE;
 		return (0);
@@ -249,11 +248,12 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 	if (OF_getprop(lbus, "name", name, sizeof(name)) == -1)
 		return (ENXIO);
 	name[sizeof(name) - 1] = '\0';
-	if (strcmp(name, "central") == 0 || strcmp(name, "upa") == 0) {
+	if (strcmp(name, "central") == 0 || strcmp(name, "ebus") == 0 ||
+	    strcmp(name, "upa") == 0) {
 		*space = NEXUS_BUS_SPACE;
 		return (0);
 	} else if (strcmp(name, "pci") == 0) {
-		switch (cspace) {
+		switch (cspc) {
 		case OFW_PCI_PHYS_HI_SPACE_IO:
 			*space = PCI_IO_BUS_SPACE;
 			return (0);
