@@ -67,9 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <syslog.h>
 #include <timeconv.h>
-#define	_ULOG_POSIX_NAMES
-#include <ulog.h>
 #include <unistd.h>
+#include <utmpx.h>
 #include <pwd.h>
 #include <grp.h>
 

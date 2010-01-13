@@ -6,7 +6,4 @@ MAN=	rwhod.8
 
 WARNS?=	3
 
-DPADD=	${LIBULOG}
-LDADD=	-lulog
-
 .include <bsd.prog.mk>

@@ -69,8 +69,8 @@ MAN=	snmp_hostres.3
 DEFS=	${MOD}_tree.def
 BMIBS=	BEGEMOT-HOSTRES-MIB.txt
 
-DPADD=	${LIBKVM} ${LIBDEVINFO} ${LIBM} ${LIBGEOM} ${LIBMEMSTAT} ${LIBULOG}
-LDADD=	-lkvm -ldevinfo -lm -lgeom -lmemstat -lulog
+DPADD=	${LIBKVM} ${LIBDEVINFO} ${LIBM} ${LIBGEOM} ${LIBMEMSTAT}
+LDADD=	-lkvm -ldevinfo -lm -lgeom -lmemstat
 
 .include <bsd.snmpmod.mk>
 
