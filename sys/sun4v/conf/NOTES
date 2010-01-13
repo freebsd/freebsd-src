@@ -19,7 +19,7 @@ cpu		SUN4V
 # HARDWARE BUS CONFIGURATION
 
 device		ebus
-#device		isa
+device		isa
 device		pci
 
 
