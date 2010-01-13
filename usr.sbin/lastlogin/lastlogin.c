@@ -41,62 +41,62 @@ __RCSID("$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <ulog.h>
 #include <unistd.h>
+#include <utmpx.h>
 
 	int	main(int, char **);
-static	void	output(struct ulog_utmpx *);
+static	void	output(struct utmpx *);
 static	void	usage(void);
 
 int
 main(int argc, char *argv[])
 {
 	int	ch, i;
-	struct ulog_utmpx *u;
+	struct utmpx *u;
 
 	while ((ch = getopt(argc, argv, "")) != -1) {
 		usage();
 	}
-
-	if (ulog_setutxfile(UTXI_USER, NULL) != 0)
-		errx(1, "failed to open lastlog database");
 
 	setpassent(1);	/* Keep passwd file pointers open */
 
 	/* Process usernames given on the command line. */
 	if (argc > 1) {
 		for (i = 1; i < argc; ++i) {
-			if ((u = ulog_getutxuser(argv[i])) == NULL) {
+			if (setutxdb(UTXDB_LASTLOGIN, NULL) != 0)
+				errx(1, "failed to open lastlog database");
+			if ((u = getutxuser(argv[i])) == NULL) {
 				warnx("user '%s' not found", argv[i]);
 				continue;
 			}
 			output(u);
+			endutxent();
 		}
 	}
 	/* Read all lastlog entries, looking for active ones */
 	else {
-		while ((u = ulog_getutxent()) != NULL) {
+		if (setutxdb(UTXDB_LASTLOGIN, NULL) != 0)
+			errx(1, "failed to open lastlog database");
+		while ((u = getutxent()) != NULL) {
 			if (u->ut_type != USER_PROCESS)
 				continue;
 			output(u);
 		}
+		endutxent();
 	}
 
 	setpassent(0);	/* Close passwd file pointers */
-
-	ulog_endutxent();
 	exit(0);
 }
 
 /* Duplicate the output of last(1) */
 static void
-output(struct ulog_utmpx *u)
+output(struct utmpx *u)
 {
 	time_t t = u->ut_tv.tv_sec;
 
-	printf("%-16s  %-8s %-16s   %s",
-		u->ut_user, u->ut_line, u->ut_host,
-		(u->ut_type == USER_PROCESS) ? ctime(&t) : "Never logged in\n");
+	printf("%-10s %-8s %-22s %s",
+		u->ut_user, u->ut_line, u->ut_host, ctime(&t));
 }
 
 static void
