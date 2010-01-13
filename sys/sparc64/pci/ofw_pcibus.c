@@ -65,10 +65,10 @@ static void ofw_pcibus_setup_device(device_t bridge, uint32_t clock,
     u_int busno, u_int slot, u_int func);
 
 /* Methods */
-static device_probe_t ofw_pcibus_probe;
 static device_attach_t ofw_pcibus_attach;
-static pci_assign_interrupt_t ofw_pcibus_assign_interrupt;
+static device_probe_t ofw_pcibus_probe;
 static ofw_bus_get_devinfo_t ofw_pcibus_get_devinfo;
+static pci_assign_interrupt_t ofw_pcibus_assign_interrupt;
 
 static device_method_t ofw_pcibus_methods[] = {
 	/* Device interface */
@@ -122,6 +122,11 @@ static void
 ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
     u_int slot, u_int func)
 {
+#define	CS_READ(n, w)							\
+	PCIB_READ_CONFIG(bridge, busno, slot, func, (n), (w))
+#define	CS_WRITE(n, v, w)						\
+	PCIB_WRITE_CONFIG(bridge, busno, slot, func, (n), (v), (w))
+
 #ifndef SUN4V
 	uint32_t reg;
 
@@ -136,10 +141,9 @@ ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
 	 * For bridges, we additionally set up the bridge control and the
 	 * secondary latency registers.
 	 */
-	if ((PCIB_READ_CONFIG(bridge, busno, slot, func, PCIR_HDRTYPE, 1) &
-	    PCIM_HDRTYPE) == PCIM_HDRTYPE_BRIDGE) {
-		reg = PCIB_READ_CONFIG(bridge, busno, slot, func,
-		    PCIR_BRIDGECTL_1, 1);
+	if ((CS_READ(PCIR_HDRTYPE, 1) & PCIM_HDRTYPE) ==
+	    PCIM_HDRTYPE_BRIDGE) {
+		reg = CS_READ(PCIR_BRIDGECTL_1, 1);
 #if 0
 		reg |= PCIB_BCR_MASTER_ABORT_MODE | PCIB_BCR_SERR_ENABLE |
 #else
@@ -149,24 +153,19 @@ ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
 #ifdef OFW_PCI_DEBUG
 		device_printf(bridge,
 		    "bridge %d/%d/%d: control 0x%x -> 0x%x\n",
-		    busno, slot, func, PCIB_READ_CONFIG(bridge, busno, slot,
-		    func, PCIR_BRIDGECTL_1, 1), reg);
+		    busno, slot, func, CS_READ(PCIR_BRIDGECTL_1, 1), reg);
 #endif /* OFW_PCI_DEBUG */
-		PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_BRIDGECTL_1,
-		    reg, 1);
+		CS_WRITE(PCIR_BRIDGECTL_1, reg, 1);
 
 		reg = OFW_PCI_LATENCY;
 #ifdef OFW_PCI_DEBUG
 		device_printf(bridge,
 		    "bridge %d/%d/%d: latency timer %d -> %d\n",
-		    busno, slot, func, PCIB_READ_CONFIG(bridge, busno, slot,
-		    func, PCIR_SECLAT_1, 1), reg);
+		    busno, slot, func, CS_READ(PCIR_SECLAT_1, 1), reg);
 #endif /* OFW_PCI_DEBUG */
-		PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_SECLAT_1,
-		    reg, 1);
+		CS_WRITE(PCIR_SECLAT_1, reg, 1);
 	} else {
-		reg = PCIB_READ_CONFIG(bridge, busno, slot, func,
-		    PCIR_MINGNT, 1);
+		reg = CS_READ(PCIR_MINGNT, 1);
 		if (reg != 0) {
 			switch (clock) {
 			case 33000000:
@@ -182,10 +181,9 @@ ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
 	}
 #ifdef OFW_PCI_DEBUG
 	device_printf(bridge, "device %d/%d/%d: latency timer %d -> %d\n",
-	    busno, slot, func, PCIB_READ_CONFIG(bridge, busno, slot, func,
-	    PCIR_LATTIMER, 1), reg);
+	    busno, slot, func, CS_READ(PCIR_LATTIMER, 1), reg);
 #endif /* OFW_PCI_DEBUG */
-	PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_LATTIMER, reg, 1);
+	CS_WRITE(PCIR_LATTIMER, reg, 1);
 
 	/*
 	 * Compute a value to write into the cache line size register.
@@ -194,8 +192,7 @@ ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
 	 * reached.  Generally, the cache line size is fixed at 64 bytes
 	 * by Fireplane/Safari, JBus and UPA.
 	 */
-	PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_CACHELNSZ,
-	    STRBUF_LINESZ / sizeof(uint32_t), 1);
+	CS_WRITE(PCIR_CACHELNSZ, STRBUF_LINESZ / sizeof(uint32_t), 1);
 #endif
 
 	/*
@@ -203,8 +200,10 @@ ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
 	 * it to 255, so that the PCI code will reroute the interrupt if
 	 * needed.
 	 */
-	PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_INTLINE,
-	    PCI_INVALID_IRQ, 1);
+	CS_WRITE(PCIR_INTLINE, PCI_INVALID_IRQ, 1);
+
+#undef CS_READ
+#undef CS_WRITE
 }
 
 static int
