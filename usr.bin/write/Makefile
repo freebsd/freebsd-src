@@ -5,7 +5,4 @@ PROG=	write
 BINMODE=2555
 BINGRP=	tty
 
-DPADD=	${LIBULOG}
-LDADD=	-lulog
-
 .include <bsd.prog.mk>

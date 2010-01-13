@@ -65,9 +65,8 @@ static const char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#define	_ULOG_POSIX_NAMES
-#include <ulog.h>
 #include <unistd.h>
+#include <utmpx.h>
 #include <devstat.h>
 #include "systat.h"
 #include "extern.h"

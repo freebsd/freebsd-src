@@ -6,7 +6,4 @@ SRCS=	ttymsg.c wall.c
 BINGRP=	tty
 BINMODE=2555
 
-DPADD=	${LIBULOG}
-LDADD=	-lulog
-
 .include <bsd.prog.mk>
