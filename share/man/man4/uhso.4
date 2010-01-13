@@ -23,11 +23,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 12, 2009
+.Dd January 14, 2010
 .Os
 .Dt UHSO 4
 .Sh NAME
-.Nm hso
+.Nm uhso
 .Nd support for several HSxPA devices from Option N.V.
 .Sh SYNOPSIS
 The module can be loaded at boot time by placing the following line in
@@ -47,12 +47,12 @@ driver which makes them behave like a
 .Xr tty 4 .
 The packet interface is exposed as a network interface.
 .Pp
-To establish a connection on the packet interface the use of the proprietary
+Connection of the packet interface is achieved by using the proprietary
 AT commands
 .Dq Li AT_OWANCALL
 and
 .Dq Li AT_OWANDATA
-are required on any of the serial ports.
+on any of the available serial ports.
 .Pp
 The network interface must be configured manually using the data obtain from
 these calls.
@@ -70,12 +70,23 @@ driver supports at least the following cards
 Option GlobeSurfer iCON 7.2 (new firmware)
 .It
 Option iCON 225
+.It
+Option iCON 505
 .El
 .Pp
 The device features a mass storage device referred to as
 .Dq Zero-CD
-which contains drivers for Microsoft Windows.
-The driver automatically switches the device to modem mode.
+which contains drivers for Microsoft Windows, this is the default
+mode for the device.
+The
+.Nm
+driver automatically switches the device from
+.Dq Zero-CD
+mode to modem mode.
+This behavior can be disabled by setting
+.Va hw.usb.uhso.auto_switch
+to 0 using
+.Xr sysctl 8
 .Sh EXAMPLES
 Establishing a packet interface connection
 .Bd -literal -offset indent
