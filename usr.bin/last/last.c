@@ -59,14 +59,12 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <timeconv.h>
 #include <unistd.h>
-#include <utmp.h>
+#include <utmpx.h>
 #include <sys/queue.h>
 
 #define	NO	0				/* false/no */
 #define	YES	1				/* true/yes */
 #define	ATOI2(ar)	((ar)[0] - '0') * 10 + ((ar)[1] - '0'); (ar) += 2;
-
-static struct utmp	buf[1024];		/* utmp read buffer */
 
 typedef struct arg {
 	char	*name;				/* argument */
@@ -78,18 +76,18 @@ typedef struct arg {
 } ARG;
 ARG	*arglist;				/* head of linked list */
 
-LIST_HEAD(ttylisthead, ttytab) ttylist;
+LIST_HEAD(idlisthead, idtab) idlist;
 
-struct ttytab {
+struct idtab {
 	time_t	logout;				/* log out time */
-	char	tty[UT_LINESIZE + 1];		/* terminal name */
-	LIST_ENTRY(ttytab) list;
+	char	id[sizeof ((struct utmpx *)0)->ut_id]; /* identifier */
+	LIST_ENTRY(idtab) list;
 };
 
 static const	char *crmsg;			/* cause of last reboot */
-static long	currentout,			/* current logout value */
-		maxrec;				/* records to display */
-static const	char *file = _PATH_WTMP;		/* wtmp file */
+static time_t	currentout;			/* current logout value */
+static long	maxrec;				/* records to display */
+static const	char *file = NULL;		/* wtmp file */
 static int	sflag = 0;			/* show delta in seconds */
 static int	width = 5;			/* show seconds in delta */
 static int	yflag;				/* show year */
@@ -102,12 +100,11 @@ static time_t	snaptime;			/* if != 0, we will only
 
 void	 addarg(int, char *);
 time_t	 dateconv(char *);
-void	 doentry(struct utmp *);
+void	 doentry(struct utmpx *);
 void	 hostconv(char *);
-void	 onintr(int);
-void	 printentry(struct utmp *, struct ttytab *);
+void	 printentry(struct utmpx *, struct idtab *);
 char	*ttyconv(char *);
-int	 want(struct utmp *);
+int	 want(struct utmpx *);
 void	 usage(void);
 void	 wtmp(void);
 
@@ -199,6 +196,8 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
+#define	MAXUTXENTRIES	1024
+
 /*
  * wtmp --
  *	read through the wtmp file
@@ -206,33 +205,34 @@ main(int argc, char *argv[])
 void
 wtmp(void)
 {
-	struct utmp	*bp;			/* current structure */
-	struct stat	stb;			/* stat of file for size */
-	long	bl;
-	int	bytes, wfd;
+	struct utmpx buf[MAXUTXENTRIES];
+	struct utmpx *ut;
+	static unsigned int first = 0, amount = 0;
+	time_t t;
 	char ct[80];
 	struct tm *tm;
-	time_t	t;
 
-	LIST_INIT(&ttylist);
-
-	if ((wfd = open(file, O_RDONLY, 0)) < 0 || fstat(wfd, &stb) == -1)
-		err(1, "%s", file);
-	bl = (stb.st_size + sizeof(buf) - 1) / sizeof(buf);
-
+	LIST_INIT(&idlist);
 	(void)time(&t);
-	buf[0].ut_time = _time_to_int(t);
-	(void)signal(SIGINT, onintr);
-	(void)signal(SIGQUIT, onintr);
 
-	while (--bl >= 0) {
-		if (lseek(wfd, (off_t)(bl * sizeof(buf)), L_SET) == -1 ||
-		    (bytes = read(wfd, buf, sizeof(buf))) == -1)
-			err(1, "%s", file);
-		for (bp = &buf[bytes / sizeof(buf[0]) - 1]; bp >= buf; --bp)
-			doentry(bp);
+	/* Load the last entries from the file. */
+	if (setutxdb(UTXDB_LOG, file) != 0)
+		err(1, "%s", file);
+	while ((ut = getutxent()) != NULL) {
+		memcpy(&buf[(first + amount) % MAXUTXENTRIES], ut, sizeof *ut);
+		if (amount == MAXUTXENTRIES)
+			first++;
+		else
+			amount++;
+		if (t > ut->ut_tv.tv_sec)
+			t = ut->ut_tv.tv_sec;
 	}
-	t = _int_to_time(buf[0].ut_time);
+	endutxent();
+
+	/* Display them in reverse order. */
+	while (amount > 0)
+		doentry(&buf[(first + amount--) % MAXUTXENTRIES]);
+
 	tm = localtime(&t);
 	(void) strftime(ct, sizeof(ct), "\nwtmp begins %+\n", tm);
 	printf("%s", ct);
@@ -243,24 +243,21 @@ wtmp(void)
  *	process a single wtmp entry
  */
 void
-doentry(struct utmp *bp)
+doentry(struct utmpx *bp)
 {
-	struct ttytab	*tt, *ttx;		/* ttylist entry */
+	struct idtab	*tt, *ttx;		/* idlist entry */
 
-	/*
-	 * if the terminal line is '~', the machine stopped.
-	 * see utmp(5) for more info.
-	 */
-	if (bp->ut_line[0] == '~' && !bp->ut_line[1]) {
+	/* the machine stopped */
+	if (bp->ut_type == BOOT_TIME || bp->ut_type == SHUTDOWN_TIME) {
 		/* everybody just logged out */
-		for (tt = LIST_FIRST(&ttylist); tt;) {
+		for (tt = LIST_FIRST(&idlist); tt;) {
 			LIST_REMOVE(tt, list);
 			ttx = tt;
 			tt = LIST_NEXT(tt, list);
 			free(ttx);
 		}
-		currentout = -bp->ut_time;
-		crmsg = strncmp(bp->ut_name, "shutdown", UT_NAMESIZE) ?
+		currentout = -bp->ut_tv.tv_sec;
+		crmsg = bp->ut_type != SHUTDOWN_TIME ?
 		    "crash" : "shutdown";
 		/*
 		 * if we're in snapshot mode, we want to exit if this
@@ -276,50 +273,42 @@ doentry(struct utmp *bp)
 			printentry(bp, NULL);
 		return;
 	}
-	/*
-	 * if the line is '{' or '|', date got set; see
-	 * utmp(5) for more info.
-	 */
-	if ((bp->ut_line[0] == '{' || bp->ut_line[0] == '|') &&
-	    !bp->ut_line[1]) {
+	/* date got set */
+	if (bp->ut_type == OLD_TIME || bp->ut_type == NEW_TIME) {
 		if (want(bp) && !snaptime)
 			printentry(bp, NULL);
 		return;
 	}
-	/* find associated tty */
-	LIST_FOREACH(tt, &ttylist, list)
-	    if (!strncmp(tt->tty, bp->ut_line, UT_LINESIZE))
+
+	if (bp->ut_type != USER_PROCESS && bp->ut_type != DEAD_PROCESS)
+		return;
+
+	/* find associated identifier */
+	LIST_FOREACH(tt, &idlist, list)
+	    if (!memcmp(tt->id, bp->ut_id, sizeof bp->ut_id))
 		    break;
 
 	if (tt == NULL) {
 		/* add new one */
-		tt = malloc(sizeof(struct ttytab));
+		tt = malloc(sizeof(struct idtab));
 		if (tt == NULL)
 			errx(1, "malloc failure");
 		tt->logout = currentout;
-		strncpy(tt->tty, bp->ut_line, UT_LINESIZE);
-		LIST_INSERT_HEAD(&ttylist, tt, list);
+		memcpy(tt->id, bp->ut_id, sizeof bp->ut_id);
+		LIST_INSERT_HEAD(&idlist, tt, list);
 	}
 
 	/*
 	 * print record if not in snapshot mode and wanted
 	 * or in snapshot mode and in snapshot range
 	 */
-	if (bp->ut_name[0] && (want(bp) || (bp->ut_time < snaptime &&
+	if (bp->ut_type == USER_PROCESS && (want(bp) ||
+	    (bp->ut_tv.tv_sec < snaptime &&
 	    (tt->logout > snaptime || tt->logout < 1)))) {
 		snapfound = 1;
-		/*
-		 * when uucp and ftp log in over a network, the entry in
-		 * the utmp file is the name plus their process id.  See
-		 * etc/ftpd.c and usr.bin/uucp/uucpd.c for more information.
-		 */
-		if (!strncmp(bp->ut_line, "ftp", sizeof("ftp") - 1))
-			bp->ut_line[3] = '\0';
-		else if (!strncmp(bp->ut_line, "uucp", sizeof("uucp") - 1))
-			bp->ut_line[4] = '\0';
 		printentry(bp, tt);
 	}
-	tt->logout = bp->ut_time;
+	tt->logout = bp->ut_tv.tv_sec;
 }
 
 /*
@@ -330,7 +319,7 @@ doentry(struct utmp *bp)
  * logout type (crash/shutdown) as appropriate.
  */
 void
-printentry(struct utmp *bp, struct ttytab *tt)
+printentry(struct utmpx *bp, struct idtab *tt)
 {
 	char ct[80];
 	struct tm *tm;
@@ -339,16 +328,30 @@ printentry(struct utmp *bp, struct ttytab *tt)
 
 	if (maxrec != -1 && !maxrec--)
 		exit(0);
-	t = _int_to_time(bp->ut_time);
+	t = bp->ut_tv.tv_sec;
 	tm = localtime(&t);
 	(void) strftime(ct, sizeof(ct), d_first ?
 	    (yflag ? "%a %e %b %Y %R" : "%a %e %b %R") :
 	    (yflag ? "%a %b %e %Y %R" : "%a %b %e %R"), tm);
-	printf("%-*.*s %-*.*s %-*.*s %s%c",
-	    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
-	    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
-	    UT_HOSTSIZE, UT_HOSTSIZE, bp->ut_host,
-	    ct, tt == NULL ? '\n' : ' ');
+	switch (bp->ut_type) {
+	case BOOT_TIME:
+		printf("%-42s", "boot time");
+		break;
+	case SHUTDOWN_TIME:
+		printf("%-42s", "shutdown time");
+		break;
+	case OLD_TIME:
+		printf("%-42s", "old time");
+		break;
+	case NEW_TIME:
+		printf("%-42s", "new time");
+		break;
+	case USER_PROCESS:
+		printf("%-10s %-8s %-22.22s",
+		    bp->ut_user, bp->ut_line, bp->ut_host);
+		break;
+	}
+	printf(" %s%c", ct, tt == NULL ? '\n' : ' ');
 	if (tt == NULL)
 		return;
 	if (!tt->logout) {
@@ -363,7 +366,7 @@ printentry(struct utmp *bp, struct ttytab *tt)
 		(void) strftime(ct, sizeof(ct), "%R", tm);
 		printf("- %s", ct);
 	}
-	delta = tt->logout - bp->ut_time;
+	delta = tt->logout - bp->ut_tv.tv_sec;
 	if (sflag) {
 		printf("  (%8ld)\n", (long)delta);
 	} else {
@@ -381,7 +384,7 @@ printentry(struct utmp *bp, struct ttytab *tt)
  *	see if want this entry
  */
 int
-want(struct utmp *bp)
+want(struct utmpx *bp)
 {
 	ARG *step;
 
@@ -394,15 +397,15 @@ want(struct utmp *bp)
 	for (step = arglist; step; step = step->next)
 		switch(step->type) {
 		case HOST_TYPE:
-			if (!strncasecmp(step->name, bp->ut_host, UT_HOSTSIZE))
+			if (!strcasecmp(step->name, bp->ut_host))
 				return (YES);
 			break;
 		case TTY_TYPE:
-			if (!strncmp(step->name, bp->ut_line, UT_LINESIZE))
+			if (!strcmp(step->name, bp->ut_line))
 				return (YES);
 			break;
 		case USER_TYPE:
-			if (!strncmp(step->name, bp->ut_name, UT_NAMESIZE))
+			if (!strcmp(step->name, bp->ut_user))
 				return (YES);
 			break;
 		}
@@ -551,26 +554,4 @@ dateconv(char *arg)
 terr:           errx(1,
         "out of range or illegal time specification: [[CC]YY]MMDDhhmm[.SS]");
         return timet;
-}
-
-
-/*
- * onintr --
- *	on interrupt, we inform the user how far we've gotten
- */
-void
-onintr(int signo)
-{
-	char ct[80];
-	struct tm *tm;
-	time_t t = _int_to_time(buf[0].ut_time);
-
-	tm = localtime(&t);
-	(void) strftime(ct, sizeof(ct),
-			d_first ? "%a %e %b %R" : "%a %b %e %R",
-			tm);
-	printf("\ninterrupted %s\n", ct);
-	if (signo == SIGINT)
-		exit(1);
-	(void)fflush(stdout);			/* fix required for rsh */
 }
