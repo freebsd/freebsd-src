@@ -2111,6 +2111,7 @@ product OPTION GE40X_3		0x7381	Globetrotter HSUPA
 product OPTION ICONEDGE		0xc031	GlobeSurfer iCON EDGE
 product OPTION MODHSXPA		0xd013	Globetrotter HSUPA
 product OPTION ICON321		0xd031	Globetrotter HSUPA
+product OPTION ICON505		0xd055	Globetrotter iCON 505
 
 /* OQO */
 product OQO WIFI01		0x0002	model 01 WiFi interface

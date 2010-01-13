@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Fredrik Lindberg
+ * Copyright (c) 2009 Fredrik Lindberg <fli@shapeshifter.se>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,13 +63,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_bus.h>
 #include <dev/usb/serial/usb_serial.h>
 #include <dev/usb/usb_msctest.h>
 
 struct uhso_tty {
 	struct uhso_softc *ht_sc;
 	struct usb_xfer	*ht_xfer[3];
-	int		ht_muxport;
+	int		ht_muxport; /* Mux. port no */
 	int		ht_open;
 	char		ht_name[32];
 };
@@ -78,7 +80,7 @@ struct uhso_softc {
 	device_t		sc_dev;
 	struct usb_device	*sc_udev;
 	struct mtx		sc_mtx;
-	uint32_t		sc_type;
+	uint32_t		sc_type;	/* Interface definition */
 
 	struct usb_xfer		*sc_xfer[3];
 	uint8_t			sc_iface_no;
@@ -91,21 +93,20 @@ struct uhso_softc {
 	/* Network */
 	struct usb_xfer		*sc_if_xfer[2];
 	struct ifnet		*sc_ifp;
-	struct mbuf		*sc_mwait;	/* partial packet */
-	size_t			sc_waitlen;	/* no. of outstanding bytes */
+	struct mbuf		*sc_mwait;	/* Partial packet */
+	size_t			sc_waitlen;	/* No. of outstanding bytes */
 	struct ifqueue		sc_rxq;
 	struct callout		sc_c;
 
 	/* TTY related structures */
 	struct ucom_super_softc sc_super_ucom;
-	int 			sc_ttys;
+	int			sc_ttys;
 	struct uhso_tty		*sc_tty;
 	struct ucom_softc	*sc_ucom;
 	int			sc_msr;
 	int			sc_lsr;
 	int			sc_line;
 };
-
 
 #define UHSO_MAX_MTU		2048
 
@@ -135,7 +136,7 @@ struct uhso_softc {
  * Port types
  */
 #define UHSO_PORT_UNKNOWN	0x00
-#define UHSO_PORT_SERIAL		0x01	/* Serial port */
+#define UHSO_PORT_SERIAL	0x01	/* Serial port */
 #define UHSO_PORT_NETWORK	0x02	/* Network packet interface */
 
 /*
@@ -145,12 +146,14 @@ struct uhso_softc {
 #define UHSO_MPORT_TYPE_APP	0x01	/* Application */
 #define UHSO_MPORT_TYPE_PCSC	0x02
 #define UHSO_MPORT_TYPE_GPS	0x03
-#define UHSO_MPORT_TYPE_APP2	0x04
+#define UHSO_MPORT_TYPE_APP2	0x04	/* Secondary application */
 #define UHSO_MPORT_TYPE_MAX	UHSO_MPORT_TYPE_APP2
 #define UHSO_MPORT_TYPE_NOMAX	8	/* Max number of mux ports */
 
 /*
  * Port definitions
+ * Note that these definitions are arbitray and doesn't match
+ * values returned by the auto config descriptor.
  */
 #define UHSO_PORT_TYPE_CTL	0x01
 #define UHSO_PORT_TYPE_APP	0x02
@@ -176,8 +179,12 @@ static char *uhso_port[] = {
 	"Network/Serial"
 };
 
-/* Map between interface port type read from device and description type */
-static char uhso_port_map[] = {
+/*
+ * Map between interface port type read from device and description type.
+ * The position in this array is a direct map to the auto config
+ * descriptor values.
+ */
+static unsigned char uhso_port_map[] = {
 	0,
 	UHSO_PORT_TYPE_DIAG,
 	UHSO_PORT_TYPE_GPS,
@@ -193,7 +200,7 @@ static char uhso_port_map[] = {
 };
 static char uhso_port_map_max = sizeof(uhso_port_map) / sizeof(char);
 
-static char uhso_mux_port_map[] = {
+static unsigned char uhso_mux_port_map[] = {
 	UHSO_PORT_TYPE_CTL,
 	UHSO_PORT_TYPE_APP,
 	UHSO_PORT_TYPE_PCSC,
@@ -202,7 +209,7 @@ static char uhso_mux_port_map[] = {
 };
 
 static char *uhso_port_type[] = {
-	"Unknown",
+	"Unknown",  /* Not a valid port */
 	"Control",
 	"Application",
 	"Application (Secondary)",
@@ -233,7 +240,6 @@ static char *uhso_port_type_sysctl[] = {
 	"voice",
 };
 
-
 #define UHSO_STATIC_IFACE	0x01
 #define UHSO_AUTO_IFACE		0x02
 
@@ -263,11 +269,16 @@ static const struct usb_device_id uhso_devs[] = {
 	/* Option iCON 321 */
 	UHSO_DEV(OPTION, ICON321, UHSO_STATIC_IFACE),
 	/* Option iCON 322 */
-	UHSO_DEV(OPTION, GTICON322, UHSO_STATIC_IFACE)
+	UHSO_DEV(OPTION, GTICON322, UHSO_STATIC_IFACE),
+	/* Option iCON 505 */
+	UHSO_DEV(OPTION, ICON505, UHSO_AUTO_IFACE),
 #undef UHSO_DEV
 };
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, uhso, CTLFLAG_RW, 0, "USB uhso");
+static int uhso_autoswitch = 1;
+SYSCTL_INT(_hw_usb_uhso, OID_AUTO, auto_switch, CTLFLAG_RW,
+    &uhso_autoswitch, 0, "Automatically switch to modem mode");
 
 #ifdef USB_DEBUG
 #ifdef UHSO_DEBUG
@@ -335,6 +346,7 @@ static usb_callback_t uhso_bs_intr_callback;
 static usb_callback_t uhso_ifnet_read_callback;
 static usb_callback_t uhso_ifnet_write_callback;
 
+/* Config used for the default control pipes */
 static const struct usb_config uhso_ctrl_config[UHSO_CTRL_MAX] = {
 	[UHSO_CTRL_READ] = {
 		.type = UE_CONTROL,
@@ -356,6 +368,7 @@ static const struct usb_config uhso_ctrl_config[UHSO_CTRL_MAX] = {
 	}
 };
 
+/* Config for the multiplexed serial ports */
 static const struct usb_config uhso_mux_config[UHSO_MUX_ENDPT_MAX] = {
 	[UHSO_MUX_ENDPT_INTR] = {
 		.type = UE_INTERRUPT,
@@ -367,6 +380,7 @@ static const struct usb_config uhso_mux_config[UHSO_MUX_ENDPT_MAX] = {
 	}
 };
 
+/* Config for the raw IP-packet interface */
 static const struct usb_config uhso_ifnet_config[UHSO_IFNET_MAX] = {
 	[UHSO_IFNET_READ] = {
 		.type = UE_BULK,
@@ -387,6 +401,7 @@ static const struct usb_config uhso_ifnet_config[UHSO_IFNET_MAX] = {
 	}
 };
 
+/* Config for interfaces with normal bulk serial ports */
 static const struct usb_config uhso_bs_config[UHSO_BULK_ENDPT_MAX] = {
 	[UHSO_BULK_ENDPT_READ] = {
 		.type = UE_BULK,
@@ -416,20 +431,19 @@ static const struct usb_config uhso_bs_config[UHSO_BULK_ENDPT_MAX] = {
 	}
 };
 
-static int uhso_probe_iface(struct uhso_softc *, int,
+static int  uhso_probe_iface(struct uhso_softc *, int,
     int (*probe)(struct uhso_softc *, int));
-static int uhso_probe_iface_auto(struct uhso_softc *, int);
-static int uhso_probe_iface_static(struct uhso_softc *, int);
-
-static int uhso_attach_muxserial(struct uhso_softc *, struct usb_interface *,
+static int  uhso_probe_iface_auto(struct uhso_softc *, int);
+static int  uhso_probe_iface_static(struct uhso_softc *, int);
+static int  uhso_attach_muxserial(struct uhso_softc *, struct usb_interface *,
     int type);
-static int uhso_attach_bulkserial(struct uhso_softc *, struct usb_interface *,
+static int  uhso_attach_bulkserial(struct uhso_softc *, struct usb_interface *,
     int type);
-static int uhso_attach_ifnet(struct uhso_softc *, struct usb_interface *,
+static int  uhso_attach_ifnet(struct uhso_softc *, struct usb_interface *,
     int type);
 static void uhso_test_autoinst(void *, struct usb_device *,
 		struct usb_attach_arg *);
-static int uhso_driver_loaded(struct module *, int, void *);
+static int  uhso_driver_loaded(struct module *, int, void *);
 
 static void uhso_ucom_start_read(struct ucom_softc *);
 static void uhso_ucom_stop_read(struct ucom_softc *);
@@ -438,12 +452,11 @@ static void uhso_ucom_stop_write(struct ucom_softc *);
 static void uhso_ucom_cfg_get_status(struct ucom_softc *, uint8_t *, uint8_t *);
 static void uhso_ucom_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void uhso_ucom_cfg_set_rts(struct ucom_softc *, uint8_t);
-
 static void uhso_if_init(void *);
 static void uhso_if_start(struct ifnet *);
 static void uhso_if_stop(struct uhso_softc *);
-static int uhso_if_ioctl(struct ifnet *, u_long, caddr_t);
-static int uhso_if_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+static int  uhso_if_ioctl(struct ifnet *, u_long, caddr_t);
+static int  uhso_if_output(struct ifnet *, struct mbuf *, struct sockaddr *,
     struct route *);
 static void uhso_if_rxflush(void *);
 
@@ -512,11 +525,6 @@ uhso_attach(device_t self)
 	usb_error_t uerr;
 	char *desc;
 
-	device_set_usb_desc(self);
-
-	UHSO_DPRINTF(0, "Device is in modem mode, devClass=%x\n",
-	    uaa->device->ddesc.bDeviceClass);
-
 	sc->sc_dev = self;
 	sc->sc_udev = uaa->device;
 	mtx_init(&sc->sc_mtx, "uhso", NULL, MTX_DEF);
@@ -552,13 +560,24 @@ uhso_attach(device_t self)
 	if (error != 0)
 		goto out;
 
-
 	sctx = device_get_sysctl_ctx(sc->sc_dev);
 	soid = device_get_sysctl_tree(sc->sc_dev);
 
 	SYSCTL_ADD_STRING(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "type",
 	    CTLFLAG_RD, uhso_port[UHSO_IFACE_PORT(sc->sc_type)], 0,
 	    "Port available at this interface");
+
+	/*
+	 * The default interface description on most Option devices aren't
+	 * very helpful. So we skip device_set_usb_desc and set the
+	 * device description manually.
+	 */
+	device_set_desc_copy(self, uhso_port_type[UHSO_IFACE_PORT_TYPE(sc->sc_type)]); 
+	/* Announce device */
+	device_printf(self, "<%s port> at <%s %s> on %s\n",
+	    uhso_port_type[UHSO_IFACE_PORT_TYPE(sc->sc_type)],
+	    uaa->device->manufacturer, uaa->device->product,
+	    device_get_nameunit(uaa->device->bus->bdev));
 
 	if (sc->sc_ttys > 0) {
 		SYSCTL_ADD_INT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "ports",
@@ -568,10 +587,13 @@ uhso_attach(device_t self)
 		    "port", CTLFLAG_RD, NULL, "Serial ports");
 	}
 
+	/*
+	 * Loop through the number of found TTYs and create sysctl
+	 * nodes for them.
+	 */
 	for (i = 0; i < sc->sc_ttys; i++) {
 		ht = &sc->sc_tty[i];
 		ucom = &sc->sc_ucom[i];
-
 
 		if (UHSO_IFACE_USB_TYPE(sc->sc_type) & UHSO_IF_MUX)
 			port = uhso_mux_port_map[ht->ht_muxport];
@@ -607,7 +629,6 @@ uhso_attach(device_t self)
 out:
 	uhso_detach(sc->sc_dev);
 	return (ENXIO);
-
 }
 
 static int
@@ -633,21 +654,17 @@ uhso_detach(device_t self)
 	}
 
 	if (sc->sc_ifp != NULL) {
-
 		callout_drain(&sc->sc_c);
-
 		mtx_lock(&sc->sc_mtx);
 		uhso_if_stop(sc);
 		bpfdetach(sc->sc_ifp);
 		if_detach(sc->sc_ifp);
 		if_free(sc->sc_ifp);
 		mtx_unlock(&sc->sc_mtx);
-
 		usbd_transfer_unsetup(sc->sc_if_xfer, UHSO_IFNET_MAX);
 	}
 
 	mtx_destroy(&sc->sc_mtx);
-
 	return (0);
 }
 
@@ -658,7 +675,7 @@ uhso_test_autoinst(void *arg, struct usb_device *udev,
 	struct usb_interface *iface;
 	struct usb_interface_descriptor *id;
 
-	if (uaa->dev_state != UAA_DEV_READY)
+	if (uaa->dev_state != UAA_DEV_READY || !uhso_autoswitch)
 		return;
 
 	iface = usbd_get_iface(udev, 0);
@@ -694,7 +711,13 @@ uhso_driver_loaded(struct module *mod, int what, void *arg)
 	return (0);
 }
 
-static int uhso_probe_iface_auto(struct uhso_softc *sc, int index)
+/*
+ * Probe the interface type by querying the device. The elements
+ * of an array indicates the capabilities of a particular interface.
+ * Returns a bit mask with the interface capabilities.
+ */
+static int
+uhso_probe_iface_auto(struct uhso_softc *sc, int index)
 {
 	struct usb_device_request req;
 	usb_error_t uerr;
@@ -716,7 +739,7 @@ static int uhso_probe_iface_auto(struct uhso_softc *sc, int index)
 		return (0);
 	}
 
-	UHSO_DPRINTF(3, "actlen=%d\n", actlen);
+	UHSO_DPRINTF(1, "actlen=%d\n", actlen);
 	UHSO_HEXDUMP(buf, 17);
 
 	if (index < 0 || index > 16) {
@@ -724,21 +747,25 @@ static int uhso_probe_iface_auto(struct uhso_softc *sc, int index)
 		return (0);
 	}
 
-	UHSO_DPRINTF(3, "index=%d, type=%x\n", index, buf[index]);
+	UHSO_DPRINTF(1, "index=%d, type=%x[%s]\n", index, buf[index],
+	    uhso_port_type[(int)uhso_port_map[(int)buf[index]]]);
 
 	if (buf[index] >= uhso_port_map_max)
 		port = 0;
 	else
 		port = uhso_port_map[(int)buf[index]];
 
-	if (port == UHSO_PORT_TYPE_NETWORK)
-		return (UHSO_IFACE_SPEC(UHSO_IF_BULK,
-		    UHSO_PORT_NETWORK, port));
-	else if (port == UHSO_PORT_TYPE_VOICE)
+	switch (port) {
+	case UHSO_PORT_TYPE_NETWORK:
+		return (UHSO_IFACE_SPEC(UHSO_IF_NET | UHSO_IF_MUX,
+		    UHSO_PORT_SERIAL | UHSO_PORT_NETWORK, port));
+	case UHSO_PORT_TYPE_VOICE:
+		/* Don't claim 'voice' ports */
 		return (0);
-	else
+	default:
 		return (UHSO_IFACE_SPEC(UHSO_IF_BULK,
 		    UHSO_PORT_SERIAL, port));
+	}
 
 	return (0);
 }
@@ -750,10 +777,12 @@ uhso_probe_iface_static(struct uhso_softc *sc, int index)
 
 	cd = usbd_get_config_descriptor(sc->sc_udev);
 	if (cd->bNumInterface <= 3) {
+		/* Cards with 3 or less interfaces */
 		switch (index) {
 		case 0:
 			return UHSO_IFACE_SPEC(UHSO_IF_NET | UHSO_IF_MUX,
-			    UHSO_PORT_SERIAL | UHSO_PORT_NETWORK, 0);
+			    UHSO_PORT_SERIAL | UHSO_PORT_NETWORK,
+			    UHSO_PORT_TYPE_NETWORK);
 		case 1:
 			return UHSO_IFACE_SPEC(UHSO_IF_BULK,
 			    UHSO_PORT_SERIAL, UHSO_PORT_TYPE_DIAG);
@@ -761,12 +790,13 @@ uhso_probe_iface_static(struct uhso_softc *sc, int index)
 			return UHSO_IFACE_SPEC(UHSO_IF_BULK,
 			    UHSO_PORT_SERIAL, UHSO_PORT_TYPE_MODEM);
 		}
-	}
-	else {
+	} else {
+		/* Cards with 4 interfaces */
 		switch (index) {
 		case 0:
 			return UHSO_IFACE_SPEC(UHSO_IF_NET | UHSO_IF_MUX,
-			    UHSO_PORT_SERIAL | UHSO_PORT_NETWORK, 0);
+			    UHSO_PORT_SERIAL | UHSO_PORT_NETWORK,
+			    UHSO_PORT_TYPE_NETWORK);
 		case 1:
 			return UHSO_IFACE_SPEC(UHSO_IF_BULK,
 			    UHSO_PORT_SERIAL, UHSO_PORT_TYPE_DIAG2);
@@ -781,14 +811,18 @@ uhso_probe_iface_static(struct uhso_softc *sc, int index)
 	return (0);
 }
 
+/*
+ * Probes an interface for its particular capabilities and attaches if
+ * it's a supported interface.
+ */
 static int
 uhso_probe_iface(struct uhso_softc *sc, int index,
     int (*probe)(struct uhso_softc *, int))
 {
 	struct usb_interface *iface;
-	int type, error, error0;
+	int type, error;
 
-	UHSO_DPRINTF(1, "Probing for interface %d, cb=%p\n", index, probe);
+	UHSO_DPRINTF(1, "Probing for interface %d, probe_func=%p\n", index, probe);
 
 	type = probe(sc, index);
 	UHSO_DPRINTF(1, "Probe result %x\n", type);
@@ -798,27 +832,41 @@ uhso_probe_iface(struct uhso_softc *sc, int index,
 	sc->sc_type = type;
 	iface = usbd_get_iface(sc->sc_udev, index);
 
-	if (UHSO_IFACE_USB_TYPE(type) & (UHSO_IF_MUX | UHSO_IF_NET)) {
-		error0 = uhso_attach_muxserial(sc, iface, type);
+	if (UHSO_IFACE_PORT_TYPE(type) == UHSO_PORT_TYPE_NETWORK) {
 		error = uhso_attach_ifnet(sc, iface, type);
-
-		if (error0 && error)
+		if (error) {
+			UHSO_DPRINTF(1, "uhso_attach_ifnet failed");
 			return (ENXIO);
+		}
 
-		if (sc->sc_ttys > 0) {
+		/*
+		 * If there is an additional interrupt endpoint on this
+		 * interface we most likley have a multiplexed serial port
+		 * available.
+		 */
+		if (iface->idesc->bNumEndpoints < 3) {
+			sc->sc_type = UHSO_IFACE_SPEC( 
+			    UHSO_IFACE_USB_TYPE(type) & ~UHSO_IF_MUX,
+			    UHSO_IFACE_PORT(type) & ~UHSO_PORT_SERIAL,
+			    UHSO_IFACE_PORT_TYPE(type));
+			return (0);
+		}
+
+		UHSO_DPRINTF(1, "Trying to attach mux. serial\n");
+		error = uhso_attach_muxserial(sc, iface, type);
+		if (error == 0 && sc->sc_ttys > 0) {
 			error = ucom_attach(&sc->sc_super_ucom, sc->sc_ucom,
 			    sc->sc_ttys, sc, &uhso_ucom_callback, &sc->sc_mtx);
 			if (error) {
 				device_printf(sc->sc_dev, "ucom_attach failed\n");
 				return (ENXIO);
 			}
-		}
 
-		mtx_lock(&sc->sc_mtx);
-		usbd_transfer_start(sc->sc_xfer[UHSO_MUX_ENDPT_INTR]);
-		mtx_unlock(&sc->sc_mtx);
-	}
-	else if ((UHSO_IFACE_USB_TYPE(type) & UHSO_IF_BULK) &&
+			mtx_lock(&sc->sc_mtx);
+			usbd_transfer_start(sc->sc_xfer[UHSO_MUX_ENDPT_INTR]);
+			mtx_unlock(&sc->sc_mtx);
+		}
+	} else if ((UHSO_IFACE_USB_TYPE(type) & UHSO_IF_BULK) &&
 	    UHSO_IFACE_PORT(type) & UHSO_PORT_SERIAL) {
 
 		error = uhso_attach_bulkserial(sc, iface, type);
@@ -833,12 +881,18 @@ uhso_probe_iface(struct uhso_softc *sc, int index,
 		}
 	}
 	else {
+		UHSO_DPRINTF(0, "Unknown type %x\n", type);
 		return (ENXIO);
 	}
 
 	return (0);
 }
 
+/*
+ * Expands allocated memory to fit an additional TTY.
+ * Two arrays are kept with matching indexes, one for ucom and one
+ * for our private data.
+ */
 static int
 uhso_alloc_tty(struct uhso_softc *sc)
 {
@@ -856,11 +910,15 @@ uhso_alloc_tty(struct uhso_softc *sc)
 
 	sc->sc_tty[sc->sc_ttys - 1].ht_sc = sc;
 
-	UHSO_DPRINTF(2, "Allocated TTY %d\n", sc->sc_ttys - 1);	
+	UHSO_DPRINTF(1, "Allocated TTY %d\n", sc->sc_ttys - 1);	
 	return (sc->sc_ttys - 1);
 }
 
-
+/*
+ * Attach a multiplexed serial port
+ * Data is read/written with requests on the default control pipe. An interrupt
+ * endpoint returns when there is new data to be read.
+ */
 static int
 uhso_attach_muxserial(struct uhso_softc *sc, struct usb_interface *iface,
     int type)
@@ -885,6 +943,10 @@ uhso_attach_muxserial(struct uhso_softc *sc, struct usb_interface *iface,
 	if (desc->bDescriptorSubtype == 0)
 		return (ENXIO);
 
+	/*
+	 * The bitmask is one octet, loop through the number of
+	 * bits that are set and create a TTY for each.
+	 */
 	for (i = 0; i < 8; i++) {
 		port = (1 << i);
 		if ((port & desc->bDescriptorSubtype) == port) {
@@ -905,6 +967,7 @@ uhso_attach_muxserial(struct uhso_softc *sc, struct usb_interface *iface,
 		}
 	}
 
+	/* Setup the intr. endpoint */
 	uerr = usbd_transfer_setup(sc->sc_udev,
 	    &iface->idesc->bInterfaceNumber, sc->sc_xfer,
 	    uhso_mux_config, 1, sc, &sc->sc_mtx);
@@ -914,6 +977,10 @@ uhso_attach_muxserial(struct uhso_softc *sc, struct usb_interface *iface,
 	return (0);
 }
 
+/*
+ * Interrupt callback for the multiplexed serial port. Indicates
+ * which serial port that has data waiting.
+ */
 static void
 uhso_mux_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 {
@@ -943,6 +1010,7 @@ uhso_mux_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (mux > UHSO_MPORT_TYPE_NOMAX)
 			break;
 
+		/* Issue a read for this serial port */
 		usbd_xfer_set_priv(
 		    sc->sc_tty[mux].ht_xfer[UHSO_CTRL_READ],
 		    &sc->sc_tty[mux]);
@@ -962,7 +1030,6 @@ tr_setup:
 		usbd_xfer_set_stall(xfer);
 		goto tr_setup;
 	}
-
 }
 
 static void
@@ -1079,7 +1146,6 @@ uhso_mux_write_callback(struct usb_xfer *xfer, usb_error_t error)
 			break;
 		break;
 	}
-
 }
 
 static int
@@ -1089,9 +1155,7 @@ uhso_attach_bulkserial(struct uhso_softc *sc, struct usb_interface *iface,
 	usb_error_t uerr;
 	int tty;
 
-	/*
-	 * Try attaching RD/WR/INTR first
-	 */
+	/* Try attaching RD/WR/INTR first */
 	uerr = usbd_transfer_setup(sc->sc_udev,
 	    &iface->idesc->bInterfaceNumber, sc->sc_xfer,
 	    uhso_bs_config, UHSO_BULK_ENDPT_MAX, sc, &sc->sc_mtx);
@@ -1145,7 +1209,6 @@ tr_setup:
 		goto tr_setup;
 	}
 }
-
 
 static void
 uhso_bs_write_callback(struct usb_xfer *xfer, usb_error_t error)
@@ -1208,9 +1271,7 @@ uhso_bs_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	int actlen;
 	struct usb_cdc_notification cdc;
 
-
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
-
 	UHSO_DPRINTF(3, "status %d, actlen=%d\n", USB_GET_STATE(xfer), actlen);
 
 	switch (USB_GET_STATE(xfer)) {
@@ -1228,14 +1289,14 @@ uhso_bs_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		usbd_copy_out(pc, 0, &cdc, actlen);
 
 		if (UGETW(cdc.wIndex) != sc->sc_iface_no) {
-			UHSO_DPRINTF(0, "Interface missmatch, got %d expected %d\n",
+			UHSO_DPRINTF(0, "Interface mismatch, got %d expected %d\n",
 			    UGETW(cdc.wIndex), sc->sc_iface_no);
 			goto tr_setup;
 		}
 
 		if (cdc.bmRequestType == UCDC_NOTIFICATION &&
 		    cdc.bNotification == UCDC_N_SERIAL_STATE) {
-			UHSO_DPRINTF(1, "notify = 0x%02x\n", cdc.data[0]);
+			UHSO_DPRINTF(2, "notify = 0x%02x\n", cdc.data[0]);
 
 			sc->sc_msr = 0;
 			sc->sc_lsr = 0;
@@ -1298,7 +1359,6 @@ uhso_ucom_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 
 	uhso_bs_cfg(sc);
 }
-
 
 static void
 uhso_ucom_start_read(struct ucom_softc *ucom)
@@ -1373,7 +1433,6 @@ uhso_ucom_stop_write(struct ucom_softc *ucom)
 	else if (UHSO_IFACE_USB_TYPE(sc->sc_type) & UHSO_IF_BULK) {
 		usbd_transfer_stop(sc->sc_xfer[UHSO_BULK_ENDPT_WRITE]);
 	}
-
 }
 
 static int uhso_attach_ifnet(struct uhso_softc *sc, struct usb_interface *iface,
@@ -1393,7 +1452,7 @@ static int uhso_attach_ifnet(struct uhso_softc *sc, struct usb_interface *iface,
 		return (-1);
 	}
 
-	sc->sc_ifp = ifp = if_alloc(IFT_PPP);
+	sc->sc_ifp = ifp = if_alloc(IFT_OTHER);
 	if (sc->sc_ifp == NULL) {
 		device_printf(sc->sc_dev, "if_alloc() failed\n");
 		return (-1);
@@ -1406,7 +1465,6 @@ static int uhso_attach_ifnet(struct uhso_softc *sc, struct usb_interface *iface,
 
 	if_initname(ifp, device_get_name(sc->sc_dev), device_get_unit(sc->sc_dev));
 	ifp->if_mtu = UHSO_MAX_MTU;
-
 	ifp->if_ioctl = uhso_if_ioctl;
 	ifp->if_init = uhso_if_init;
 	ifp->if_start = uhso_if_start;
@@ -1448,6 +1506,7 @@ uhso_ifnet_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 			usbd_copy_out(pc, 0, mtod(m, uint8_t *), actlen);
 			m->m_pkthdr.len = m->m_len = actlen;
+			/* Enqueue frame for further processing */
 			_IF_ENQUEUE(&sc->sc_rxq, m);
 			if (!callout_pending(&sc->sc_c) ||
 			    !callout_active(&sc->sc_c)) {
@@ -1470,7 +1529,11 @@ tr_setup:
 }
 
 /*
- * Defered RX processing, called with mutex locked.
+ * Deferred RX processing, called with mutex locked.
+ *
+ * Each frame we receive might contain several small ip-packets aswell
+ * as partial ip-packets. We need to separate/assemble them into individual
+ * packets before sending them to the ip-layer.
  */
 static void
 uhso_if_rxflush(void *arg)
@@ -1493,7 +1556,7 @@ uhso_if_rxflush(void *arg)
 			_IF_DEQUEUE(&sc->sc_rxq, m);
 			if (m == NULL)
 				break;
-			UHSO_DPRINTF(2, "dequeue m=%p, len=%d\n", m, m->m_len);
+			UHSO_DPRINTF(3, "dequeue m=%p, len=%d\n", m, m->m_len);
 		}
 		mtx_unlock(&sc->sc_mtx);
 
@@ -1502,7 +1565,7 @@ uhso_if_rxflush(void *arg)
 			m0 = mwait;
 			mwait = NULL;
 
-			UHSO_DPRINTF(1, "partial m0=%p(%d), concat w/ m=%p(%d)\n",
+			UHSO_DPRINTF(3, "partial m0=%p(%d), concat w/ m=%p(%d)\n",
 			    m0, m0->m_len, m, m->m_len);
 			len = m->m_len + m0->m_len;
 
@@ -1518,7 +1581,7 @@ uhso_if_rxflush(void *arg)
 				mtx_lock(&sc->sc_mtx);
 				continue;
 			}
-			UHSO_DPRINTF(2, "Constructed mbuf=%p, len=%d\n",
+			UHSO_DPRINTF(3, "Constructed mbuf=%p, len=%d\n",
 			    m, m->m_pkthdr.len);
 		}
 
@@ -1560,7 +1623,7 @@ uhso_if_rxflush(void *arg)
 			continue;
 		}
 
-		UHSO_DPRINTF(1, "m=%p, len=%d, cp=%p, iplen=%d\n",
+		UHSO_DPRINTF(3, "m=%p, len=%d, cp=%p, iplen=%d\n",
 		    m, m->m_pkthdr.len, cp, iplen);
 
 		m0 = NULL;
@@ -1581,12 +1644,12 @@ uhso_if_rxflush(void *arg)
 			m_adj(m0, iplen);
 			m0 = m_defrag(m0, M_WAIT);
 
-			UHSO_DPRINTF(1, "New mbuf=%p, len=%d/%d, m0=%p, "
+			UHSO_DPRINTF(3, "New mbuf=%p, len=%d/%d, m0=%p, "
 			    "m0_len=%d/%d\n", m, m->m_pkthdr.len, m->m_len,
 			    m0, m0->m_pkthdr.len, m0->m_len);
 		}
 		else if (iplen > m->m_pkthdr.len) {
-			UHSO_DPRINTF(1, "Defered mbuf=%p, len=%d\n",
+			UHSO_DPRINTF(3, "Deferred mbuf=%p, len=%d\n",
 			    m, m->m_pkthdr.len);
 			mwait = m;
 			m = NULL;
@@ -1649,7 +1712,6 @@ tr_setup:
 		usbd_xfer_set_stall(xfer);
 		goto tr_setup;
 	}
-
 }
 
 static int
@@ -1698,7 +1760,7 @@ uhso_if_init(void *priv)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	mtx_unlock(&sc->sc_mtx);
 
-	UHSO_DPRINTF(3, "ifnet initialized\n");
+	UHSO_DPRINTF(2, "ifnet initialized\n");
 }
 
 static int
@@ -1722,7 +1784,6 @@ uhso_if_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 		return (ENOBUFS);
 	}
 	ifp->if_opackets++;
-
 	return (0);
 }
 
@@ -1749,6 +1810,5 @@ uhso_if_stop(struct uhso_softc *sc)
 
 	usbd_transfer_stop(sc->sc_if_xfer[UHSO_IFNET_READ]);
 	usbd_transfer_stop(sc->sc_if_xfer[UHSO_IFNET_WRITE]);
-
 	sc->sc_ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
