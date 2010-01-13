@@ -207,6 +207,7 @@ int syslogin_write_entry(struct logininfo *li);
 
 int getlast_entry(struct logininfo *li);
 int lastlog_get_entry(struct logininfo *li);
+int utmpx_get_entry(struct logininfo *li);
 int wtmp_get_entry(struct logininfo *li);
 int wtmpx_get_entry(struct logininfo *li);
 
@@ -509,6 +510,10 @@ getlast_entry(struct logininfo *li)
 	return(lastlog_get_entry(li));
 #else /* !USE_LASTLOG */
 
+#if 1
+	return (utmpx_get_entry(li));
+#endif
+
 #if defined(DISABLE_LASTLOG)
 	/* On some systems we shouldn't even try to obtain last login
 	 * time, e.g. AIX */
@@ -758,8 +763,8 @@ construct_utmpx(struct logininfo *li, struct utmpx *utx)
 	utx->ut_pid = li->pid;
 
 	/* strncpy(): Don't necessarily want null termination */
-	strncpy(utx->ut_name, li->username,
-	    MIN_SIZEOF(utx->ut_name, li->username));
+	strncpy(utx->ut_user, li->username,
+	    MIN_SIZEOF(utx->ut_user, li->username));
 
 	if (li->type == LTYPE_LOGOUT)
 		return;
@@ -1607,6 +1612,31 @@ lastlog_get_entry(struct logininfo *li)
 }
 #endif /* HAVE_GETLASTLOGXBYNAME */
 #endif /* USE_LASTLOG */
+
+#if 1
+int
+utmpx_get_entry(struct logininfo *li)
+{
+	struct utmpx *utx;
+
+	if (setutxdb(UTXDB_LASTLOGIN, NULL) != 0)
+		return (0);
+	utx = getutxuser(li->username);
+	if (utx == NULL) {
+		endutxent();
+		return (0);
+	}
+
+	line_fullname(li->line, utx->ut_line,
+	    MIN_SIZEOF(li->line, utx->ut_line));
+	strlcpy(li->hostname, utx->ut_host,
+	    MIN_SIZEOF(li->hostname, utx->ut_host));
+	li->tv_sec = utx->ut_tv.tv_sec;
+	li->tv_usec = utx->ut_tv.tv_usec;
+	endutxent();
+	return (1);
+}
+#endif
 
 #ifdef USE_BTMP
   /*
