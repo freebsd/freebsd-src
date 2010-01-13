@@ -8,15 +8,14 @@ SHLIB_MAJOR=    6
 
 KEYFILE?=	\"/etc/opiekeys\"
 
-.PATH: ${DIST_DIR} ${OPIE_DIST}/libmissing
+.PATH: ${DIST_DIR}
 
 LIB=	opie
 SRCS=	atob8.c btoa8.c btoh.c challenge.c getsequence.c hash.c hashlen.c \
 	keycrunch.c lock.c lookup.c newseed.c parsechallenge.c passcheck.c \
 	passwd.c randomchallenge.c readpass.c unlock.c verify.c version.c \
 	btoe.c accessfile.c generator.c insecure.c getutmpentry.c \
-	readrec.c writerec.c open.c \
-	getutline.c pututline.c endutent.c setutent.c # from libmissing
+	readrec.c writerec.c open.c
 SRCS+=	opieextra.c
 INCS=	${OPIE_DIST}/opie.h
 
