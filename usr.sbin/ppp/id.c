@@ -49,7 +49,7 @@
 #else
 #include <libutil.h>
 #endif
-#include <utmp.h>
+#include <utmpx.h>
 
 #include "log.h"
 #include "main.h"
@@ -202,36 +202,25 @@ ID0uu_unlock(const char *basettyname)
 }
 
 void
-ID0login(struct utmp *ut)
+ID0login(const struct utmpx *ut)
 {
   ID0set0();
-  if (logout(ut->ut_line)) {
-    log_Printf(LogID0, "logout(\"%s\")\n", ut->ut_line);
-    logwtmp(ut->ut_line, "", "");
-    log_Printf(LogID0, "logwtmp(\"%s\", \"\", \"\")\n", ut->ut_line);
-  }
-  login(ut);
-  log_Printf(LogID0, "login(\"%s\", \"%.*s\")\n",
-            ut->ut_line, (int)(sizeof ut->ut_name), ut->ut_name);
+  pututxline(ut);
+  log_Printf(LogID0, "pututxline(\"%.*s\", \"%.*s\", \"%.*s\", \"%.*s\")\n",
+      (int)sizeof ut->ut_id, ut->ut_id,
+      (int)sizeof ut->ut_user, ut->ut_user,
+      (int)sizeof ut->ut_line, ut->ut_line,
+      (int)sizeof ut->ut_host, ut->ut_host);
   ID0setuser();
 }
 
 void
-ID0logout(const char *device, int nologout)
+ID0logout(const struct utmpx *ut)
 {
-  struct utmp ut;
-  char ut_line[sizeof ut.ut_line + 1];
-
-  strncpy(ut_line, device, sizeof ut_line - 1);
-  ut_line[sizeof ut_line - 1] = '\0';
-
   ID0set0();
-  if (nologout || logout(ut_line)) {
-    log_Printf(LogID0, "logout(\"%s\")\n", ut_line);
-    logwtmp(ut_line, "", "");
-    log_Printf(LogID0, "logwtmp(\"%s\", \"\", \"\")\n", ut_line);
-  } else
-    log_Printf(LogERROR, "ID0logout: No longer logged in on %s\n", ut_line);
+  pututxline(ut);
+  log_Printf(LogID0, "pututxline(\"%.*s\")\n",
+      (int)sizeof ut->ut_id, ut->ut_id);
   ID0setuser();
 }
 
