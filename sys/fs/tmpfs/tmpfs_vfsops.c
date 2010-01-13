@@ -185,15 +185,15 @@ tmpfs_mount(struct mount *mp)
 	ino_t nodes;
 	int error;
 	/* Size counters. */
-	ino_t		nodes_max;
-	u_quad_t	size_max;
+	ino_t nodes_max;
+	u_quad_t size_max;
 
 	/* Root node attributes. */
-	uid_t	root_uid;
-	gid_t	root_gid;
-	mode_t	root_mode;
+	uid_t root_uid;
+	gid_t root_gid;
+	mode_t root_mode;
 
-	struct vattr	va;
+	struct vattr va;
 
 	if (vfs_filteropt(mp->mnt_optnew, tmpfs_opts))
 		return (EINVAL);
@@ -239,7 +239,7 @@ tmpfs_mount(struct mount *mp)
 	 * allowed to use, based on the maximum size the user passed in
 	 * the mount structure.  A value of zero is treated as if the
 	 * maximum available space was requested. */
-	if (size_max < PAGE_SIZE || size_max > (SIZE_MAX - PAGE_SIZE))
+	if (size_max < PAGE_SIZE || size_max > SIZE_MAX - PAGE_SIZE)
 		pages = SIZE_MAX;
 	else
 		pages = howmany(size_max, PAGE_SIZE);
