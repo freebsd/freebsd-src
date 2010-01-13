@@ -21,9 +21,6 @@ cpu		SUN4V
 device		ebus
 #device		isa
 device		pci
-device		sbus
-#device		central
-device		fhc
 
 
 #####################################################################
@@ -34,24 +31,13 @@ device		fhc
 #
 
 device		genclock	# Generic clock interface
-#device		eeprom		# eeprom (really a front-end for the MK48Txx)
-device		mk48txx		# Mostek MK48Txx clocks
-#device		rtc		# rtc (really a front-end for the MC146818)
-device		mc146818	# Motorola MC146818 and compatible clocks
 
 #
 # Optional devices:
 #
 
-#device		auxio		# auxiliary I/O device
-#device		clkbrd		# Clock Board (blinkenlight on Sun Exx00)
-#device		creator		# Creator, Creator3D and Elite3D framebuffers
-#device		machfb		# ATI Mach64 framebuffers
-
 device		ofw_console	# Open Firmware console device
 option 		OFWCONS_POLL_HZ=4 # 20 or more works best on Ultra2
-
-#device		sab		# Siemens SAB82532 based serial ports
 
 
 #####################################################################
