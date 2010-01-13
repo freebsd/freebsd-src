@@ -276,7 +276,7 @@ intr_execute_handlers(void *cookie)
 	struct intr_vector *iv;
 
 	iv = cookie;
-	if (iv->iv_ic == NULL || intr_event_handle(iv->iv_event, NULL) != 0)
+	if (__predict_false(intr_event_handle(iv->iv_event, NULL) != 0))
 		intr_stray_vector(iv);
 }
 
@@ -377,7 +377,8 @@ inthand_add(const char *name, int vec, driver_filter_t *filt,
 #endif
 	ic->ic_enable(iv);
 	/* Ensure the interrupt is cleared, it might have triggered before. */
-	ic->ic_clear(iv);
+	if (ic->ic_clear != NULL)
+		ic->ic_clear(iv);
 	sx_xunlock(&intr_table_lock);
 	return (0);
 }
