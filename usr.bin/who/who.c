@@ -44,9 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 #include <timeconv.h>
-#define _ULOG_POSIX_NAMES
-#include <ulog.h>
 #include <unistd.h>
+#include <utmpx.h>
 
 static void	heading(void);
 static void	process_utmp(void);
@@ -109,7 +108,7 @@ main(int argc, char *argv[])
 		usage();
 
 	if (*argv != NULL) {
-		if (ulog_setutxfile(UTXI_TTY, *argv) != 0)
+		if (setutxdb(UTXDB_ACTIVE, *argv) != 0)
 			err(1, "%s", *argv);
 	}
 

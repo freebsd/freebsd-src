@@ -3,7 +3,4 @@
 
 PROG=	who
 
-DPADD=	${LIBULOG}
-LDADD=	-lulog
-
 .include <bsd.prog.mk>
