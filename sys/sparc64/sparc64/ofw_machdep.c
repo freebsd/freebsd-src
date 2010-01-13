@@ -23,7 +23,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -64,34 +64,32 @@ OF_getetheraddr(device_t dev, u_char *addr)
 
 	node = OF_peer(0);
 	if (node <= 0 || OF_getprop(node, "idprom", &idp, sizeof(idp)) == -1)
-		panic("Could not determine the machine ethernet address");
+		panic("Could not determine the machine Ethernet address");
 	bcopy(&idp.id_ether, addr, ETHER_ADDR_LEN);
 }
 
 static __inline uint32_t
 phys_hi_mask_space(const char *bus, uint32_t phys_hi)
 {
-	uint32_t space;
 
-	space = phys_hi;
 	if (strcmp(bus, "ebus") == 0 || strcmp(bus, "isa") == 0)
-		space &= 0x1;
+		phys_hi &= 0x1;
 	else if (strcmp(bus, "pci") == 0)
-		space &= OFW_PCI_PHYS_HI_SPACEMASK;
+		phys_hi &= OFW_PCI_PHYS_HI_SPACEMASK;
 	/* The phys.hi cells of the other busses only contain space bits. */
-	return (space);
+	return (phys_hi);
 }
 
 /*
  * Return the physical address and the bus space to use for a node
  * referenced by its package handle and the index of the register bank
- * to decode. Intended to be used to together with sparc64_fake_bustag()
+ * to decode.  Intended to be used to together with sparc64_fake_bustag()
  * by console drivers in early boot only.
  * Works by mapping the address of the node's bank given in the address
  * space of its parent upward in the device tree at each bridge along the
  * path.
  * Currently only really deals with max. 64-bit addresses, i.e. addresses
- * consisting of max. 2 phys cells (phys.hi and phys.lo). If we encounter
+ * consisting of max. 2 phys cells (phys.hi and phys.lo).  If we encounter
  * a 3 phys cells address (as with PCI addresses) we assume phys.hi can
  * be ignored except for the space bits (generally contained in phys.hi)
  * and treat phys.mid as phys.hi.
@@ -109,17 +107,17 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 
 	/*
 	 * In general the addresses are contained in the "reg" property
-	 * of a node. The first address in the "reg" property of a PCI
+	 * of a node.  The first address in the "reg" property of a PCI
 	 * node however is the address of its configuration registers in
-	 * the configuration space of the host bridge. Additional entries
-	 * denote the memory and I/O addresses. For relocatable addresses
+	 * the configuration space of the host bridge.  Additional entries
+	 * denote the memory and I/O addresses.  For relocatable addresses
 	 * the "reg" property contains the BAR, for non-relocatable
-	 * addresses it contains the absolute PCI address. The PCI-only
+	 * addresses it contains the absolute PCI address.  The PCI-only
 	 * "assigned-addresses" property however always contains the
 	 * absolute PCI addresses.
 	 * The "assigned-addresses" and "reg" properties are arrays of
 	 * address structures consisting of #address-cells 32-bit phys
-	 * cells and #size-cells 32-bit size cells. If a parent lacks
+	 * cells and #size-cells 32-bit size cells.  If a parent lacks
 	 * the "#address-cells" or "#size-cells" property the default
 	 * for #address-cells to use is 2 and for #size-cells 1.
 	 */
