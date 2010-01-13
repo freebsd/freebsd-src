@@ -25,6 +25,9 @@ OLD_FILES+=usr/share/man/man3/ulog_getutxuser.3.gz
 OLD_FILES+=usr/share/man/man3/ulog_pututxline.3.gz
 OLD_FILES+=usr/share/man/man3/ulog_setutxent.3.gz
 OLD_FILES+=usr/share/man/man3/ulog_setutxfile.3.gz
+OLD_FILES+=usr/share/man/man5/lastlog.5.gz
+OLD_FILES+=usr/share/man/man5/utmp.5.gz
+OLD_FILES+=usr/share/man/man5/wtmp.5.gz
 OLD_LIBS+=lib/libutil.so.8
 # 20100105: new userland semaphore implementation
 OLD_FILES+=usr/include/sys/semaphore.h
