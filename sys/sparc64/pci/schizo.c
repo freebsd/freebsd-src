@@ -210,8 +210,6 @@ struct schizo_dma_sync {
 #define	SCHIZO_ICON_WRITE_8(sc, offs, v) \
 	SCHIZO_SPC_WRITE_8(STX_ICON, (sc), (offs), (v))
 
-#define	OFW_PCI_TYPE		"pci"
-
 struct schizo_desc {
 	const char	*sd_string;
 	int		sd_mode;
@@ -245,7 +243,7 @@ schizo_probe(device_t dev)
 	const char *dtype;
 
 	dtype = ofw_bus_get_type(dev);
-	if (dtype != NULL && strcmp(dtype, OFW_PCI_TYPE) == 0 &&
+	if (dtype != NULL && strcmp(dtype, OFW_TYPE_PCI) == 0 &&
 	    schizo_get_desc(dev) != NULL) {
 		device_set_desc(dev, "Sun Host-PCI bridge");
 		return (0);
