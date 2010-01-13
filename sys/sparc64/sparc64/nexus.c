@@ -144,7 +144,8 @@ static device_method_t nexus_methods[] = {
 static devclass_t nexus_devclass;
 
 DEFINE_CLASS_0(nexus, nexus_driver, nexus_methods, sizeof(struct nexus_softc));
-DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0,
+    BUS_PASS_BUS);
 MODULE_VERSION(nexus, 1);
 
 static const char *const nexus_excl_name[] = {

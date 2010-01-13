@@ -141,7 +141,9 @@ static driver_t auxio_sbus_driver = {
 };
 
 static devclass_t	auxio_devclass;
-DRIVER_MODULE(auxio, sbus, auxio_sbus_driver, auxio_devclass, 0, 0);
+/* The probe order is handled by sbus(4). */
+EARLY_DRIVER_MODULE(auxio, sbus, auxio_sbus_driver, auxio_devclass, 0, 0,
+    BUS_PASS_DEFAULT);
 MODULE_DEPEND(auxio, sbus, 1, 1, 1);
 
 /* EBus */
@@ -158,7 +160,8 @@ static driver_t auxio_ebus_driver = {
 	sizeof(struct auxio_softc)
 };
 
-DRIVER_MODULE(auxio, ebus, auxio_ebus_driver, auxio_devclass, 0, 0);
+EARLY_DRIVER_MODULE(auxio, ebus, auxio_ebus_driver, auxio_devclass, 0, 0,
+    BUS_PASS_DEFAULT);
 MODULE_DEPEND(auxio, ebus, 1, 1, 1);
 MODULE_VERSION(auxio, 1);
 

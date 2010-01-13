@@ -138,7 +138,8 @@ static driver_t ebus_driver = {
 
 static devclass_t ebus_devclass;
 
-DRIVER_MODULE(ebus, pci, ebus_driver, ebus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(ebus, pci, ebus_driver, ebus_devclass, 0, 0,
+    BUS_PASS_BUS);
 MODULE_DEPEND(ebus, pci, 1, 1, 1);
 MODULE_VERSION(ebus, 1);
 
