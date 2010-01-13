@@ -261,6 +261,7 @@ static driver_t sbus_driver = {
 static devclass_t sbus_devclass;
 
 DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, 0, 0);
+MODULE_DEPEND(sbus, nexus, 1, 1, 1);
 MODULE_VERSION(sbus, 1);
 
 #define	OFW_SBUS_TYPE	"sbus"
