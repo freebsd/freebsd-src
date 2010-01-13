@@ -93,7 +93,8 @@ static devclass_t pcib_devclass;
 
 DEFINE_CLASS_0(pcib, ofw_pcib_driver, ofw_pcib_methods,
     sizeof(struct ofw_pcib_gen_softc));
-DRIVER_MODULE(ofw_pcib, pci, ofw_pcib_driver, pcib_devclass, 0, 0);
+EARLY_DRIVER_MODULE(ofw_pcib, pci, ofw_pcib_driver, pcib_devclass, 0, 0,
+    BUS_PASS_BUS);
 MODULE_DEPEND(ofw_pcib, pci, 1, 1, 1);
 
 static int
