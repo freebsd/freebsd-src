@@ -3,7 +3,5 @@
 
 PROG=	date
 SRCS=	date.c netdate.c vary.c
-DPADD=	${LIBULOG}
-LDADD=	-lulog
 
 .include <bsd.prog.mk>
