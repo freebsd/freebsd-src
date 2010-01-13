@@ -112,6 +112,7 @@ static devclass_t pcib_devclass;
 
 DEFINE_CLASS_0(pcib, apb_driver, apb_methods, sizeof(struct apb_softc));
 DRIVER_MODULE(apb, pci, apb_driver, pcib_devclass, 0, 0);
+MODULE_DEPEND(apb, pci, 1, 1, 1);
 
 /* APB specific registers */
 #define	APBR_IOMAP	0xde
