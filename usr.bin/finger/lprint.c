@@ -56,9 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
-#define	_ULOG_POSIX_NAMES
-#include <ulog.h>
 #include <unistd.h>
+#include <utmpx.h>
 #include "finger.h"
 #include "pathnames.h"
 

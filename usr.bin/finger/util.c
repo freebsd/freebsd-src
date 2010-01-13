@@ -56,9 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define	_ULOG_POSIX_NAMES
-#include <ulog.h>
 #include <unistd.h>
+#include <utmpx.h>
 #include "finger.h"
 #include "pathnames.h"
 
@@ -110,11 +109,11 @@ void
 enter_lastlog(PERSON *pn)
 {
 	WHERE *w;
-	struct ulog_utmpx *ut;
+	struct utmpx *ut = NULL;
 	char doit = 0;
 
-	ulog_setutxfile(UTXI_USER, NULL);
-	ut = ulog_getutxuser(pn->name);
+	if (setutxdb(UTXDB_LASTLOGIN, NULL) == 0)
+		ut = getutxuser(pn->name);
 	if ((w = pn->whead) == NULL)
 		doit = 1;
 	else if (ut != NULL && ut->ut_type == USER_PROCESS) {
@@ -140,7 +139,7 @@ enter_lastlog(PERSON *pn)
 		strcpy(w->host, ut->ut_host);
 		w->loginat = ut->ut_tv.tv_sec;
 	}
-	ulog_endutxent();
+	endutxent();
 }
 
 void
