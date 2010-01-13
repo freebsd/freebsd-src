@@ -97,7 +97,7 @@ struct physical {
     char *base;
   } name;
 
-  time_t Utmp;                 /* Are we in utmp ? */
+  int Utmp;                    /* Are we in utmp ? */
   pid_t session_owner;         /* HUP this when closing the link */
 
   struct device *handler;      /* device specific handler */
