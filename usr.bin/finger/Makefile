@@ -7,7 +7,4 @@ MAN=	finger.1 finger.conf.5
 
 WARNS?=	2
 
-DPADD=	${LIBULOG}
-LDADD=	-lulog
-
 .include <bsd.prog.mk>
