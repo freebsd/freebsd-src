@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/times.h>
 #include <setjmp.h>
+#include <utmpx.h>
 #include "pathnames.h"
 
 extern int measure_delta;
@@ -55,8 +56,6 @@ static int dictate;
 static int slvcount;			/* slaves listening to our clock */
 
 static void mchgdate(struct tsp *);
-
-extern void logwtmp(char *, char *, char *);
 
 /*
  * The main function of `master' is to periodically compute the differences
@@ -350,6 +349,7 @@ mchgdate(msg)
 	char tname[MAXHOSTNAMELEN];
 	char olddate[32];
 	struct timeval otime, ntime, tmptv;
+	struct utmpx utx;
 
 	(void)strcpy(tname, msg->tsp_name);
 
@@ -371,9 +371,13 @@ mchgdate(msg)
 		dictate = 3;
 		synch(tvtomsround(ntime));
 	} else {
-		logwtmp("|", "date", "");
+		utx.ut_type = OLD_TIME;
+		gettimeofday(&utx.ut_tv, NULL);
+		pututxline(&utx);
  		(void)settimeofday(&tmptv, 0);
-		logwtmp("{", "date", "");
+		utx.ut_type = NEW_TIME;
+		gettimeofday(&utx.ut_tv, NULL);
+		pututxline(&utx);
 		spreadtime();
 	}
 
