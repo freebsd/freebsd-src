@@ -27,49 +27,58 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/time.h>
 #include <paths.h>
+#include <sha.h>
 #include <string.h>
+#include <unistd.h>
+#include <utmpx.h>
+#include "ulog.h"
 
-#include "ulog_internal.h"
-
-void
-ulog_login(const char *line, const char *user, const char *host)
+static void
+ulog_fill(struct utmpx *utx, const char *line)
 {
-	struct ulog_utmpx utx;
+	SHA_CTX c;
+	char id[SHA_DIGEST_LENGTH];
 
 	/* Remove /dev/ component. */
 	if (strncmp(line, _PATH_DEV, sizeof _PATH_DEV - 1) == 0)
 		line += sizeof _PATH_DEV - 1;
 
-	memset(&utx, 0, sizeof utx);
+	memset(utx, 0, sizeof *utx);
 
-	/* XXX: ut_id, ut_pid missing. */
+	utx->ut_pid = getpid();
+	gettimeofday(&utx->ut_tv, NULL);
+	strncpy(utx->ut_line, line, sizeof utx->ut_line);
+
+	SHA1_Init(&c);
+	SHA1_Update(&c, "libulog", 7);
+	SHA1_Update(&c, utx->ut_line, sizeof utx->ut_line);
+	SHA_Final(id, &c);
+
+	memcpy(utx->ut_id, id, MIN(sizeof utx->ut_id, sizeof id));
+}
+
+void
+ulog_login(const char *line, const char *user, const char *host)
+{
+	struct utmpx utx;
+
+	ulog_fill(&utx, line);
 	utx.ut_type = USER_PROCESS;
-	strncpy(utx.ut_line, line, sizeof utx.ut_line);
 	strncpy(utx.ut_user, user, sizeof utx.ut_user);
 	if (host != NULL)
 		strncpy(utx.ut_host, host, sizeof utx.ut_host);
-	gettimeofday(&utx.ut_tv, NULL);
-
-	ulog_pututxline(&utx);
+	pututxline(&utx);
 }
 
 void
 ulog_logout(const char *line)
 {
-	struct ulog_utmpx utx;
+	struct utmpx utx;
 
-	/* Remove /dev/ component. */
-	if (strncmp(line, _PATH_DEV, sizeof _PATH_DEV - 1) == 0)
-		line += sizeof _PATH_DEV - 1;
-
-	memset(&utx, 0, sizeof utx);
-
-	/* XXX: ut_id, ut_pid missing. ut_line not needed */
+	ulog_fill(&utx, line);
 	utx.ut_type = DEAD_PROCESS;
-	strncpy(utx.ut_line, line, sizeof utx.ut_line);
-	gettimeofday(&utx.ut_tv, NULL);
-
-	ulog_pututxline(&utx);
+	pututxline(&utx);
 }
