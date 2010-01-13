@@ -37,7 +37,7 @@
  */
 
 #ifndef _MACHINE_IOMMUREG_H_
-#define _MACHINE_IOMMUREG_H_
+#define	_MACHINE_IOMMUREG_H_
 
 /*
  * UltraSPARC IOMMU registers, common to both the PCI and SBus
@@ -61,9 +61,9 @@
 #define	ISD_LN_TAG_DIAG	0x0900	/* streaming buffer line tag diag 0..15 */
 
 /* streaming buffer control register */
-#define STRBUF_EN		0x0000000000000001UL
-#define STRBUF_D		0x0000000000000002UL
-#define STRBUF_RR_DIS		0x0000000000000004UL
+#define	STRBUF_EN		0x0000000000000001UL
+#define	STRBUF_D		0x0000000000000002UL
+#define	STRBUF_RR_DIS		0x0000000000000004UL
 
 #define	IOMMU_MAXADDR(bits)	((1UL << (bits)) - 1)
 
@@ -72,24 +72,24 @@
  */
 /* Nummber of entries in IOTSB */
 #define	IOMMUCR_TSBSZ_SHIFT	16
-#define IOMMUCR_TSB1K		0x0000000000000000UL
-#define IOMMUCR_TSB2K		0x0000000000010000UL
-#define IOMMUCR_TSB4K		0x0000000000020000UL
-#define IOMMUCR_TSB8K		0x0000000000030000UL
-#define IOMMUCR_TSB16K		0x0000000000040000UL
-#define IOMMUCR_TSB32K		0x0000000000050000UL
-#define IOMMUCR_TSB64K		0x0000000000060000UL
-#define IOMMUCR_TSB128K		0x0000000000070000UL
+#define	IOMMUCR_TSB1K		0x0000000000000000UL
+#define	IOMMUCR_TSB2K		0x0000000000010000UL
+#define	IOMMUCR_TSB4K		0x0000000000020000UL
+#define	IOMMUCR_TSB8K		0x0000000000030000UL
+#define	IOMMUCR_TSB16K		0x0000000000040000UL
+#define	IOMMUCR_TSB32K		0x0000000000050000UL
+#define	IOMMUCR_TSB64K		0x0000000000060000UL
+#define	IOMMUCR_TSB128K		0x0000000000070000UL
 /* Mask for above */
-#define IOMMUCR_TSBMASK		0xfffffffffff8ffffUL
+#define	IOMMUCR_TSBMASK		0xfffffffffff8ffffUL
 /* 8K iommu page size */
-#define IOMMUCR_8KPG		0x0000000000000000UL
+#define	IOMMUCR_8KPG		0x0000000000000000UL
 /* 64K iommu page size */
-#define IOMMUCR_64KPG		0x0000000000000004UL
+#define	IOMMUCR_64KPG		0x0000000000000004UL
 /* Diag enable */
-#define IOMMUCR_DE		0x0000000000000002UL
+#define	IOMMUCR_DE		0x0000000000000002UL
 /* Enable IOMMU */
-#define IOMMUCR_EN		0x0000000000000001UL
+#define	IOMMUCR_EN		0x0000000000000001UL
 
 /*
  * Diagnostic register definitions
@@ -97,9 +97,9 @@
 #define	IOMMU_DTAG_VPNBITS	19
 #define	IOMMU_DTAG_VPNMASK	((1 << IOMMU_DTAG_VPNBITS) - 1)
 #define	IOMMU_DTAG_VPNSHIFT	13
-#define IOMMU_DTAG_ERRBITS	3
+#define	IOMMU_DTAG_ERRBITS	3
 #define	IOMMU_DTAG_ERRSHIFT	22
-#define	IOMMU_DTAG_ERRMASK \
+#define	IOMMU_DTAG_ERRMASK						\
 	(((1 << IOMMU_DTAG_ERRBITS) - 1) << IOMMU_DTAG_ERRSHIFT)
 
 #define	IOMMU_DDATA_PGBITS	21
@@ -114,18 +114,18 @@
 /* Entry valid */
 #define	IOTTE_V			0x8000000000000000UL
 /* 8K or 64K page? */
-#define IOTTE_64K		0x2000000000000000UL
-#define IOTTE_8K		0x0000000000000000UL
+#define	IOTTE_64K		0x2000000000000000UL
+#define	IOTTE_8K		0x0000000000000000UL
 /* Is page streamable? */
-#define IOTTE_STREAM		0x1000000000000000UL
+#define	IOTTE_STREAM		0x1000000000000000UL
 /* Accesses to same bus segment? */
 #define	IOTTE_LOCAL		0x0800000000000000UL
 /* Let's assume this is correct */
-#define IOTTE_PAMASK		0x000007ffffffe000UL
+#define	IOTTE_PAMASK		0x000007ffffffe000UL
 /* Accesses to cacheable space */
-#define IOTTE_C			0x0000000000000010UL
+#define	IOTTE_C			0x0000000000000010UL
 /* Writeable */
-#define IOTTE_W			0x0000000000000002UL
+#define	IOTTE_W			0x0000000000000002UL
 
 /* log2 of the IOMMU TTE size */
 #define	IOTTE_SHIFT		3
@@ -167,14 +167,14 @@
  */
 
 #define	IOTSB_BASESZ		(1024 << IOTTE_SHIFT)
-#define IOTSB_VEND		(~IO_PAGE_MASK)
-#define IOTSB_VSTART(sz)	(u_int)(IOTSB_VEND << ((sz) + 10))
+#define	IOTSB_VEND		(~IO_PAGE_MASK)
+#define	IOTSB_VSTART(sz)	(u_int)(IOTSB_VEND << ((sz) + 10))
 
-#define MAKEIOTTE(pa,w,c,s)						\
+#define	MAKEIOTTE(pa, w, c, s)						\
 	(((pa) & IOTTE_PAMASK) | ((w) ? IOTTE_W : 0) |			\
 	((c) ? IOTTE_C : 0) | ((s) ? IOTTE_STREAM : 0) |		\
 	(IOTTE_V | IOTTE_8K))
-#define IOTSBSLOT(va)						\
+#define	IOTSBSLOT(va)							\
 	((u_int)(((vm_offset_t)(va)) - (is->is_dvmabase)) >> IO_PAGE_SHIFT)
 
 #endif /* !_MACHINE_IOMMUREG_H_ */
