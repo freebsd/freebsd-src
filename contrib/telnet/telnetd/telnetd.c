@@ -692,7 +692,6 @@ doit(struct sockaddr *who)
 	Please contact your net administrator");
 	remote_hostname[sizeof(remote_hostname) - 1] = '\0';
 
-	trimdomain(remote_hostname, UT_HOSTSIZE);
 	if (!isdigit(remote_hostname[0]) && strlen(remote_hostname) > utmp_len)
 		err_ = getnameinfo(who, who->sa_len, remote_hostname,
 				  sizeof(remote_hostname), NULL, 0,
