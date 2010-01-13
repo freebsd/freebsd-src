@@ -27,14 +27,14 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <timeconv.h>
 #include <unistd.h>
-#include <utmp.h>
+#include <utmpx.h>
 
 /*
  * this is for our list of currently logged in sessions
  */
 struct utmp_list {
 	struct utmp_list *next;
-	struct utmp usr;
+	struct utmpx usr;
 };
 
 /*
@@ -42,7 +42,7 @@ struct utmp_list {
  */
 struct user_list {
 	struct user_list *next;
-	char	name[UT_NAMESIZE+1];
+	char	name[sizeof(((struct utmpx *)0)->ut_user)];
 	time_t	secs;
 };
 
@@ -51,7 +51,7 @@ struct user_list {
  */
 struct tty_list {
 	struct tty_list *next;
-	char	name[UT_LINESIZE+3];
+	char	name[sizeof(((struct utmpx *)0)->ut_host) + 2];
 	size_t	len;
 	int	ret;
 };
@@ -81,15 +81,14 @@ static int Debug = 0;
 #endif
 
 int			main(int, char **);
-int			ac(FILE *);
+int			ac(const char *);
 struct tty_list		*add_tty(char *);
 #ifdef DEBUG
-const char		*debug_pfx(const struct utmp *, const struct utmp *);
+const char		*debug_pfx(const struct utmpx *, const struct utmpx *);
 #endif
 int			do_tty(char *);
-FILE			*file(const char *);
-struct utmp_list	*log_in(struct utmp_list *, struct utmp *);
-struct utmp_list	*log_out(struct utmp_list *, struct utmp *);
+struct utmp_list	*log_in(struct utmp_list *, struct utmpx *);
+struct utmp_list	*log_out(struct utmp_list *, struct utmpx *);
 int			on_console(struct utmp_list *);
 void			show(const char *, time_t);
 void			show_today(struct user_list *, struct utmp_list *,
@@ -97,22 +96,6 @@ void			show_today(struct user_list *, struct utmp_list *,
 void			show_users(struct user_list *);
 struct user_list	*update_user(struct user_list *, char *, time_t);
 void			usage(void);
-
-/*
- * open wtmp or die
- */
-FILE *
-file(const char *name)
-{
-	FILE *fp;
-
-	if ((fp = fopen(name, "r")) == NULL)
-		err(1, "%s", name);
-	/* in case we want to discriminate */
-	if (strcmp(_PATH_WTMP, name))
-		Flags |= AC_W;
-	return fp;
-}
 
 struct tty_list *
 add_tty(char *name)
@@ -173,8 +156,7 @@ on_console(struct utmp_list *head)
 	struct utmp_list *up;
 
 	for (up = head; up; up = up->next) {
-		if (strncmp(up->usr.ut_line, Console,
-		    sizeof (up->usr.ut_line)) == 0)
+		if (strcmp(up->usr.ut_line, Console) == 0)
 			return 1;
 	}
 	return 0;
@@ -190,7 +172,7 @@ update_user(struct user_list *head, char *name, time_t secs)
 	struct user_list *up;
 
 	for (up = head; up != NULL; up = up->next) {
-		if (strncmp(up->name, name, UT_NAMESIZE) == 0) {
+		if (strcmp(up->name, name) == 0) {
 			up->secs += secs;
 			Total += secs;
 			return head;
@@ -217,9 +199,10 @@ update_user(struct user_list *head, char *name, time_t secs)
  * includes a timestamp (perhaps with year), device-name, and user-name.
  */
 const char *
-debug_pfx(const struct utmp *event_up, const struct utmp *userinf_up)
+debug_pfx(const struct utmpx *event_up, const struct utmpx *userinf_up)
 {
-	static char str_result[40+UT_LINESIZE+UT_NAMESIZE];
+	static char str_result[40 + sizeof(userinf_up->ut_line) +
+	    sizeof(userinf_up->ut_user)];
 	static char thisyear[5];
 	size_t maxcopy;
 	time_t ut_timecopy;
@@ -231,15 +214,10 @@ debug_pfx(const struct utmp *event_up, const struct utmp *userinf_up)
 		strlcpy(thisyear, &str_result[20], sizeof(thisyear));
 	}
 
-	if (event_up->ut_time == 0)
+	if (event_up->ut_tv.tv_sec == 0)
 		strlcpy(str_result, "*ZeroTime* --:--:-- ", sizeof(str_result));
 	else {
-		/*
-		* The type of utmp.ut_time is not necessary type time_t, as
-		* it is explicitly defined as type int32_t.  Copy the value
-		* for platforms where sizeof(time_t) != sizeof(int32_t).
-		*/
-		ut_timecopy = _time32_to_time(event_up->ut_time);
+		ut_timecopy = event_up->ut_tv.tv_sec;
 		strlcpy(str_result, ctime(&ut_timecopy), sizeof(str_result));
 		/*
 		 * Include the year, if it is not the same year as "now".
@@ -255,22 +233,20 @@ debug_pfx(const struct utmp *event_up, const struct utmp *userinf_up)
 	if (userinf_up->ut_line[0] == '\0')
 		strlcat(str_result, "NoDev", sizeof(str_result));
 	else {
-		/* ut_line is not necessarily null-terminated. */
-		maxcopy = strlen(str_result) + UT_LINESIZE + 1;
+		maxcopy = strlen(str_result) + sizeof(userinf_up->ut_line);
 		if (maxcopy > sizeof(str_result))
 			maxcopy = sizeof(str_result);
 		strlcat(str_result, userinf_up->ut_line, maxcopy);
 	}
 	strlcat(str_result, ": ", sizeof(str_result));
 
-	if (userinf_up->ut_name[0] == '\0')
+	if (userinf_up->ut_user[0] == '\0')
 		strlcat(str_result, "LogOff", sizeof(str_result));
 	else {
-		/* ut_name is not necessarily null-terminated. */
-		maxcopy = strlen(str_result) + UT_NAMESIZE + 1;
+		maxcopy = strlen(str_result) + sizeof(userinf_up->ut_user);
 		if (maxcopy > sizeof(str_result))
 			maxcopy = sizeof(str_result);
-		strlcat(str_result, userinf_up->ut_name, maxcopy);
+		strlcat(str_result, userinf_up->ut_user, maxcopy);
 	}
 
 	return (str_result);
@@ -280,12 +256,11 @@ debug_pfx(const struct utmp *event_up, const struct utmp *userinf_up)
 int
 main(int argc, char *argv[])
 {
-	FILE *fp;
+	const char *wtmpf = NULL;
 	int c;
 
 	(void) setlocale(LC_TIME, "");
 
-	fp = NULL;
 	while ((c = getopt(argc, argv, "Dc:dpt:w:")) != -1) {
 		switch (c) {
 #ifdef DEBUG
@@ -310,7 +285,8 @@ main(int argc, char *argv[])
 			add_tty(optarg);
 			break;
 		case 'w':
-			fp = file(optarg);
+			Flags |= AC_W;
+			wtmpf = optarg;
 			break;
 		case '?':
 		default:
@@ -329,16 +305,7 @@ main(int argc, char *argv[])
 	}
 	if (Flags & AC_D)
 		Flags &= ~AC_P;
-	if (fp == NULL) {
-		/*
-		 * if _PATH_WTMP does not exist, exit quietly
-		 */
-		if (access(_PATH_WTMP, 0) != 0 && errno == ENOENT)
-			return 0;
-
-		fp = file(_PATH_WTMP);
-	}
-	ac(fp);
+	ac(wtmpf);
 
 	return 0;
 }
@@ -349,7 +316,8 @@ main(int argc, char *argv[])
 void
 show(const char *name, time_t secs)
 {
-	(void)printf("\t%-*s %8.2f\n", UT_NAMESIZE, name,
+	(void)printf("\t%-*s %8.2f\n",
+	    (int)sizeof(((struct utmpx *)0)->ut_user), name,
 	    ((double)secs / 3600));
 }
 
@@ -384,9 +352,9 @@ show_today(struct user_list *users, struct utmp_list *logins, time_t secs)
 	yesterday++;
 
 	for (lp = logins; lp != NULL; lp = lp->next) {
-		secs = yesterday - lp->usr.ut_time;
-		Users = update_user(Users, lp->usr.ut_name, secs);
-		lp->usr.ut_time = yesterday;	/* as if they just logged in */
+		secs = yesterday - lp->usr.ut_tv.tv_sec;
+		Users = update_user(Users, lp->usr.ut_user, secs);
+		lp->usr.ut_tv.tv_sec = yesterday; /* as if they just logged in */
 	}
 	secs = 0;
 	for (up = users; up != NULL; up = up->next) {
@@ -403,16 +371,17 @@ show_today(struct user_list *users, struct utmp_list *logins, time_t secs)
  * been shut down.
  */
 struct utmp_list *
-log_out(struct utmp_list *head, struct utmp *up)
+log_out(struct utmp_list *head, struct utmpx *up)
 {
 	struct utmp_list *lp, *lp2, *tlp;
 	time_t secs;
 
 	for (lp = head, lp2 = NULL; lp != NULL; )
-		if (*up->ut_line == '~' || strncmp(lp->usr.ut_line, up->ut_line,
-		    sizeof (up->ut_line)) == 0) {
-			secs = up->ut_time - lp->usr.ut_time;
-			Users = update_user(Users, lp->usr.ut_name, secs);
+		if (up->ut_type == BOOT_TIME || up->ut_type == SHUTDOWN_TIME ||
+		    (up->ut_type == DEAD_PROCESS &&
+		    memcmp(lp->usr.ut_id, up->ut_id, sizeof up->ut_id) == 0)) {
+			secs = up->ut_tv.tv_sec - lp->usr.ut_tv.tv_sec;
+			Users = update_user(Users, lp->usr.ut_user, secs);
 #ifdef DEBUG
 			if (Debug)
 				printf("%s logged out (%2d:%02d:%02d)\n",
@@ -442,7 +411,7 @@ log_out(struct utmp_list *head, struct utmp *up)
  * if do_tty says ok, login a user
  */
 struct utmp_list *
-log_in(struct utmp_list *head, struct utmp *up)
+log_in(struct utmp_list *head, struct utmpx *up)
 {
 	struct utmp_list *lp;
 
@@ -491,7 +460,7 @@ log_in(struct utmp_list *head, struct utmp *up)
 		errx(1, "malloc failed");
 	lp->next = head;
 	head = lp;
-	memmove((char *)&lp->usr, (char *)up, sizeof (struct utmp));
+	memmove(&lp->usr, up, sizeof *up);
 #ifdef DEBUG
 	if (Debug) {
 		printf("%s logged in", debug_pfx(&lp->usr, up));
@@ -505,10 +474,10 @@ log_in(struct utmp_list *head, struct utmp *up)
 }
 
 int
-ac(FILE	*fp)
+ac(const char *file)
 {
 	struct utmp_list *lp, *head = NULL;
-	struct utmp usr;
+	struct utmpx *usr, usht;
 	struct tm *ltm;
 	time_t prev_secs, secs, ut_timecopy;
 	int day, rfound, tchanged, tskipped;
@@ -517,14 +486,11 @@ ac(FILE	*fp)
 	prev_secs = 1;			/* Minimum acceptable date == 1970 */
 	rfound = tchanged = tskipped = 0;
 	secs = 0;
-	while (fread((char *)&usr, sizeof(usr), 1, fp) == 1) {
+	if (setutxdb(UTXDB_LOG, file) != 0)
+		err(1, "%s", file);
+	while ((usr = getutxent()) != NULL) {
 		rfound++;
-		/*
-		 * The type of utmp.ut_time is not necessary type time_t, as
-		 * it is explicitly defined as type int32_t.  Copy the value
-		 * for platforms where sizeof(time_t) != size(int32_t).
-		 */
-		ut_timecopy = _time32_to_time(usr.ut_time);
+		ut_timecopy = usr->ut_tv.tv_sec;
 		/*
 		 * With sparc64 using 64-bit time_t's, there is some system
 		 * routine which sets ut_time==0 (the high-order word of a
@@ -540,10 +506,10 @@ ac(FILE	*fp)
 #ifdef DEBUG
 			if (Debug)
 				printf("%s - date changed to: %s",
-				    debug_pfx(&usr, &usr), ctime(&prev_secs));
+				    debug_pfx(usr, usr), ctime(&prev_secs));
 #endif
 			tchanged++;
-			usr.ut_time = ut_timecopy = prev_secs;
+			usr->ut_tv.tv_sec = ut_timecopy = prev_secs;
 		}
 		/*
 		 * Skip records where the time goes backwards.
@@ -552,7 +518,7 @@ ac(FILE	*fp)
 #ifdef DEBUG
 			if (Debug)
 				printf("%s - bad date, record skipped\n",
-				    debug_pfx(&usr, &usr));
+				    debug_pfx(usr, usr));
 #endif
 			tskipped++;
 			continue;	/* Skip this invalid record. */
@@ -576,50 +542,51 @@ ac(FILE	*fp)
 			} else
 				day = ltm->tm_yday;
 		}
-		switch(*usr.ut_line) {
-		case '|':
+		switch(usr->ut_type) {
+		case OLD_TIME:
 			secs = ut_timecopy;
 			break;
-		case '{':
+		case NEW_TIME:
 			secs -= ut_timecopy;
 			/*
 			 * adjust time for those logged in
 			 */
 			for (lp = head; lp != NULL; lp = lp->next)
-				lp->usr.ut_time -= secs;
+				lp->usr.ut_tv.tv_sec -= secs;
 			break;
-		case '~':			/* reboot or shutdown */
-			head = log_out(head, &usr);
+		case BOOT_TIME:
+		case SHUTDOWN_TIME:
+			head = log_out(head, usr);
 			FirstTime = ut_timecopy; /* shouldn't be needed */
 			break;
-		default:
+		case USER_PROCESS:
 			/*
 			 * if they came in on tty[p-sP-S]*, then it is only
 			 * a login session if the ut_host field is non-empty
 			 */
-			if (*usr.ut_name) {
-				if (strncmp(usr.ut_line, "tty", 3) == 0 ||
-				    strchr("pqrsPQRS", usr.ut_line[3]) != 0 ||
-				    *usr.ut_host != '\0')
-					head = log_in(head, &usr);
+			if (strncmp(usr->ut_line, "tty", 3) != 0 ||
+			    strchr("pqrsPQRS", usr->ut_line[3]) == NULL ||
+			    *usr->ut_host != '\0')
+				head = log_in(head, usr);
 #ifdef DEBUG
-				else if (Debug > 1)
-					/* Things such as 'screen' sessions. */
-					printf("%s - record ignored\n",
-					    debug_pfx(&usr, &usr));
+			else if (Debug > 1)
+				/* Things such as 'screen' sessions. */
+				printf("%s - record ignored\n",
+				    debug_pfx(usr, usr));
 #endif
-			} else
-				head = log_out(head, &usr);
+			break;
+		case DEAD_PROCESS:
+			head = log_out(head, usr);
 			break;
 		}
 	}
-	(void)fclose(fp);
+	endutxent();
 	if (!(Flags & AC_W))
-		usr.ut_time = time((time_t *)0);
-	(void)strcpy(usr.ut_line, "~");
+		usht.ut_tv.tv_sec = time(NULL);
+	usht.ut_type = SHUTDOWN_TIME;
 
 	if (Flags & AC_D) {
-		ut_timecopy = _time32_to_time(usr.ut_time);
+		ut_timecopy = usht.ut_tv.tv_sec;
 		ltm = localtime(&ut_timecopy);
 		if (day >= 0 && day != ltm->tm_yday) {
 			/*
@@ -635,7 +602,7 @@ ac(FILE	*fp)
 	/*
 	 * anyone still logged in gets time up to now
 	 */
-	head = log_out(head, &usr);
+	head = log_out(head, &usht);
 
 	if (Flags & AC_D)
 		show_today(Users, head, time((time_t *)0));
