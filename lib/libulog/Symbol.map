@@ -3,17 +3,10 @@
  */	
 
 FBSD_1.2 {
-	ulog_endutxent;
-	ulog_getutxent;
-	ulog_getutxline;
-	ulog_getutxuser;
 	ulog_login;
 	ulog_login_pseudo;
 	ulog_logout;
 	ulog_logout_pseudo;
-	ulog_pututxline;
-	ulog_setutxent;
-	ulog_setutxfile;
 
 	addToUtmp;
 	removeFromUtmp;

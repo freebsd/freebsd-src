@@ -27,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "ulog_internal.h"
+#include "ulog.h"
 #include "utempter.h"
 
 static int last_fd = -1;
