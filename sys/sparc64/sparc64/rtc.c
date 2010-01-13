@@ -28,10 +28,11 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * The `rtc' device is a MC146818 compatible clock found on the ISA
- * bus and EBus. The EBus variant actually is the Real-Time Clock
- * function of a National Semiconductor PC87317/PC97317 which also
- * provides Advanced Power Control functionality.
+ * The `rtc' device is found on the ISA bus and the EBus.  The ISA version
+ * always is a MC146818 compatible clock while the EBus variant either is the
+ * MC146818 compatible Real-Time Clock function of a National Semiconductor
+ * PC87317/PC97317 which also provides Advanced Power Control functionality
+ * or a Texas Instruments bq4802.
  */
 
 #include "opt_isa.h"
@@ -130,6 +131,10 @@ rtc_ebus_probe(device_t dev)
 {
 
 	if (strcmp(ofw_bus_get_name(dev), "rtc") == 0) {
+		/* The bq4802 is not supported, yet. */
+		if (ofw_bus_get_compat(dev) != NULL &&
+		    strcmp(ofw_bus_get_compat(dev), "bq4802") == 0)
+			return (ENXIO);
 		device_set_desc(dev, RTC_DESC);
 		return (0);
 	}
