@@ -98,12 +98,12 @@ case "${populate_var}" in
 	;;
 esac
 
-# Make sure we have /var/log/lastlog and /var/log/wtmp files
-if [ ! -f /var/log/lastlog ]; then
-	cp /dev/null /var/log/lastlog
-	chmod 644 /var/log/lastlog
+# Make sure we have /var/log/utx.lastlogin and /var/log/utx.log files
+if [ ! -f /var/log/utx.lastlogin ]; then
+	cp /dev/null /var/log/utx.lastlogin
+	chmod 644 /var/log/utx.lastlogin
 fi
-if [ ! -f /var/log/wtmp ]; then
-	cp /dev/null /var/log/wtmp
-	chmod 644 /var/log/wtmp
+if [ ! -f /var/log/utx.log ]; then
+	cp /dev/null /var/log/utx.log
+	chmod 644 /var/log/utx.log
 fi
