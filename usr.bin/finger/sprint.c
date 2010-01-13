@@ -53,8 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#define	_ULOG_POSIX_NAMES
-#include <ulog.h>
+#include <utmpx.h>
 #include "finger.h"
 
 static void	  stimeprint(WHERE *);
