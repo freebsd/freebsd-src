@@ -147,13 +147,13 @@ _sem_open(const char *name, int flags, ...)
 
 	if (name[0] != '/') {
 		errno = EINVAL;
-		return (NULL);
+		return (SEM_FAILED);
 	}
 	name++;
 
 	if (flags & ~(O_CREAT|O_EXCL)) {
 		errno = EINVAL;
-		return (NULL);
+		return (SEM_FAILED);
 	}
 
 	_pthread_once(&once, sem_module_init);
@@ -275,6 +275,7 @@ _sem_close(sem_t *sem)
 		return (0);
 	}
 	_pthread_mutex_unlock(&sem_llock);
+	errno = EINVAL;
 	return (-1);
 }
 
