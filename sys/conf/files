@@ -1676,7 +1676,7 @@ dev/usb/usb_request.c		optional usb
 dev/usb/usb_transfer.c		optional usb
 dev/usb/usb_util.c		optional usb
 #
-# USB ethernet drivers
+# USB network drivers
 #
 dev/usb/net/if_aue.c		optional aue
 dev/usb/net/if_axe.c		optional axe
@@ -1687,6 +1687,7 @@ dev/usb/net/if_rue.c		optional rue
 dev/usb/net/if_udav.c		optional udav
 dev/usb/net/usb_ethernet.c	optional aue | axe | cdce | cue | kue | rue | \
 					 udav
+dev/usb/net/uhso.c		optional uhso
 #
 # USB WLAN drivers
 #
