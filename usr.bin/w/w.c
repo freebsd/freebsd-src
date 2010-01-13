@@ -83,9 +83,8 @@ static const char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #include <stdlib.h>
 #include <string.h>
 #include <timeconv.h>
-#define	_ULOG_POSIX_NAMES
-#include <ulog.h>
 #include <unistd.h>
+#include <utmpx.h>
 #include <vis.h>
 
 #include "extern.h"
@@ -283,7 +282,8 @@ main(int argc, char *argv[])
 	if ((kp = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nentries)) == NULL)
 		err(1, "%s", kvm_geterr(kd));
 	for (i = 0; i < nentries; i++, kp++) {
-		if (kp->ki_stat == SIDL || kp->ki_stat == SZOMB)
+		if (kp->ki_stat == SIDL || kp->ki_stat == SZOMB ||
+		    kp->ki_tdev == NODEV)
 			continue;
 		for (ep = ehead; ep != NULL; ep = ep->next) {
 			if (ep->tdev == kp->ki_tdev) {
@@ -418,9 +418,10 @@ main(int argc, char *argv[])
 		(void)printf("%-*.*s %-*.*s %-*.*s ",
 		    W_DISPUSERSIZE, W_DISPUSERSIZE, ep->utmp.ut_user,
 		    W_DISPLINESIZE, W_DISPLINESIZE,
-		    strncmp(ep->utmp.ut_line, "tty", 3) &&
+		    *ep->utmp.ut_line ?
+		    (strncmp(ep->utmp.ut_line, "tty", 3) &&
 		    strncmp(ep->utmp.ut_line, "cua", 3) ?
-		    ep->utmp.ut_line : ep->utmp.ut_line + 3,
+		    ep->utmp.ut_line : ep->utmp.ut_line + 3) : "-",
 		    W_DISPHOSTSIZE, W_DISPHOSTSIZE, *p ? p : "-");
 		t = ep->utmp.ut_tv.tv_sec;
 		longattime = pr_attime(&t, &now);
