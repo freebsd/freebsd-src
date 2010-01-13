@@ -45,8 +45,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <syslog.h>
-#define	_ULOG_POSIX_NAMES
-#include <ulog.h>
+#include <utmpx.h>
 #ifdef XIDLE
 #include <setjmp.h>
 #include <X11/Xlib.h>
