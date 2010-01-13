@@ -173,8 +173,7 @@ static struct ftphost {
 char	remotehost[NI_MAXHOST];
 char	*ident = NULL;
 
-static char	ttyline[20];
-char		*tty = ttyline;		/* for klogin */
+static char	wtmpid[20];
 
 #ifdef USE_PAM
 static int	auth_pam(struct passwd**, const char*);
@@ -584,8 +583,7 @@ gotchild:
 
 	data_source.su_port = htons(ntohs(ctrl_addr.su_port) - 1);
 
-	/* set this here so klogin can use it... */
-	(void)snprintf(ttyline, sizeof(ttyline), "ftp%d", getpid());
+	(void)snprintf(wtmpid, sizeof(wtmpid), "%xftpd", getpid());
 
 	/* Try to handle urgent data inline */
 #ifdef SO_OOBINLINE
@@ -1180,8 +1178,8 @@ end_login(void)
 #endif
 
 	(void) seteuid(0);
-	if (logged_in && dowtmp)
-		ftpd_logwtmp(ttyline, "", NULL);
+	if (logged_in && dowtmp && !dochroot)
+		ftpd_logwtmp(wtmpid, "", NULL);
 	pw = NULL;
 #ifdef	LOGIN_CAP
 	setusercontext(NULL, getpwuid(0), 0,
@@ -1476,9 +1474,16 @@ skip:
 	}
 #endif
 
-	/* open wtmp before chroot */
-	if (dowtmp)
-		ftpd_logwtmp(ttyline, pw->pw_name,
+	dochroot =
+		checkuser(_PATH_FTPCHROOT, pw->pw_name, 1, &residue)
+#ifdef	LOGIN_CAP	/* Allow login.conf configuration as well */
+		|| login_getcapbool(lc, "ftp-chroot", 0)
+#endif
+	;
+	chrootdir = NULL;
+
+	if (dowtmp && !dochroot)
+		ftpd_logwtmp(wtmpid, pw->pw_name,
 		    (struct sockaddr *)&his_addr);
 	logged_in = 1;
 
@@ -1491,13 +1496,6 @@ skip:
 		if (statfd < 0)
 			stats = 0;
 
-	dochroot =
-		checkuser(_PATH_FTPCHROOT, pw->pw_name, 1, &residue)
-#ifdef	LOGIN_CAP	/* Allow login.conf configuration as well */
-		|| login_getcapbool(lc, "ftp-chroot", 0)
-#endif
-	;
-	chrootdir = NULL;
 	/*
 	 * For a chrooted local user,
 	 * a) see whether ftpchroot(5) specifies a chroot directory,
@@ -2732,9 +2730,9 @@ void
 dologout(int status)
 {
 
-	if (logged_in && dowtmp) {
+	if (logged_in && dowtmp && !dochroot) {
 		(void) seteuid(0);
-		ftpd_logwtmp(ttyline, "", NULL);
+		ftpd_logwtmp(wtmpid, "", NULL);
 	}
 	/* beware of flushing buffers after a SIGPIPE */
 	_exit(status);
