@@ -87,7 +87,7 @@ utx_active_add(const struct futx *fu)
 		case DEAD_PROCESS:
 			/* Overwrite when ut_id matches. */
 			if (memcmp(fu->fu_id, fe.fu_id, sizeof fe.fu_id) == 0) {
-				fseeko(fp, -sizeof fe, SEEK_CUR);
+				fseeko(fp, -(off_t)sizeof fe, SEEK_CUR);
 				goto exact;
 			}
 			if (fe.fu_type != DEAD_PROCESS)
@@ -96,7 +96,7 @@ utx_active_add(const struct futx *fu)
 		default:
 			/* Allow us to overwrite unused records. */
 			if (partial == -1)
-				partial = ftello(fp) - sizeof fe;
+				partial = ftello(fp) - (off_t)sizeof fe;
 			break;
 		}
 	}
@@ -140,7 +140,7 @@ utx_active_remove(struct futx *fu)
 				fu->fu_tv = fe.fu_tv;
 
 			/* Terminate session. */
-			fseeko(fp, -sizeof fe, SEEK_CUR);
+			fseeko(fp, -(off_t)sizeof fe, SEEK_CUR);
 			fwrite(fu, sizeof *fu, 1, fp);
 			fclose(fp);
 			return (0);
@@ -181,7 +181,7 @@ utx_lastlogin_add(const struct futx *fu)
 			goto done;
 		
 		/* Found a previous lastlogin entry for this user. */
-		fseeko(fp, -sizeof fe, SEEK_CUR);
+		fseeko(fp, -(off_t)sizeof fe, SEEK_CUR);
 		break;
 	}
 	fwrite(fu, sizeof *fu, 1, fp);
