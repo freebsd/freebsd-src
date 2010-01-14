@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 
 #define STE_USEIOSPACE
 
-#include <pci/if_stereg.h>
+#include <dev/ste/if_stereg.h>
 
 MODULE_DEPEND(ste, pci, 1, 1, 1);
 MODULE_DEPEND(ste, ether, 1, 1, 1);
