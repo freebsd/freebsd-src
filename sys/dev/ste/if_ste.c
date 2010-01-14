@@ -108,7 +108,7 @@ static int ste_ioctl(struct ifnet *, u_long, caddr_t);
 static int ste_encap(struct ste_softc *, struct ste_chain *, struct mbuf *);
 static void ste_start(struct ifnet *);
 static void ste_start_locked(struct ifnet *);
-static void ste_watchdog(struct ifnet *);
+static void ste_watchdog(struct ste_softc *);
 static int ste_shutdown(device_t);
 static int ste_newbuf(struct ste_softc *, struct ste_chain_onefrag *,
 		struct mbuf *);
@@ -919,7 +919,7 @@ ste_txeof(sc)
 
 	sc->ste_cdata.ste_tx_cons = idx;
 	if (idx == sc->ste_cdata.ste_tx_prod)
-		ifp->if_timer = 0;
+		sc->ste_timer = 0;
 }
 
 static void
@@ -955,6 +955,8 @@ ste_stats_update(xsc)
 		}
 	}
 
+	if (sc->ste_timer > 0 && --sc->ste_timer == 0)
+		ste_watchdog(sc);
 	callout_reset(&sc->ste_stat_callout, hz, ste_stats_update, sc);
 
 	return;
@@ -1089,7 +1091,6 @@ ste_attach(dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ste_ioctl;
 	ifp->if_start = ste_start;
-	ifp->if_watchdog = ste_watchdog;
 	ifp->if_init = ste_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, STE_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = STE_TX_LIST_CNT - 1;
@@ -1154,11 +1155,11 @@ ste_detach(dev)
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
+		ether_ifdetach(ifp);
 		STE_LOCK(sc);
 		ste_stop(sc);
 		STE_UNLOCK(sc);
 		callout_drain(&sc->ste_stat_callout);
-		ether_ifdetach(ifp);
 	}
 	if (sc->ste_miibus)
 		device_delete_child(dev, sc->ste_miibus);
@@ -1703,7 +1704,7 @@ ste_start_locked(ifp)
 		BPF_MTAP(ifp, cur_tx->ste_mbuf);
 
 		STE_INC(idx, STE_TX_LIST_CNT);
-		ifp->if_timer = 5;
+		sc->ste_timer = 5;
 	}
 	sc->ste_cdata.ste_tx_prod = idx;
 
@@ -1711,13 +1712,12 @@ ste_start_locked(ifp)
 }
 
 static void
-ste_watchdog(ifp)
-	struct ifnet		*ifp;
+ste_watchdog(struct ste_softc *sc)
 {
-	struct ste_softc	*sc;
+	struct ifnet		*ifp;
 
-	sc = ifp->if_softc;
-	STE_LOCK(sc);
+	ifp = sc->ste_ifp;
+	STE_LOCK_ASSERT(sc);
 
 	ifp->if_oerrors++;
 	if_printf(ifp, "watchdog timeout\n");
@@ -1731,7 +1731,6 @@ ste_watchdog(ifp)
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		ste_start_locked(ifp);
-	STE_UNLOCK(sc);
 
 	return;
 }
