@@ -45,14 +45,13 @@
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
 
-#include <gnu/fs/ext2fs/inode.h>
-#include <gnu/fs/ext2fs/ext2_fs.h>
-#include <gnu/fs/ext2fs/ext2_fs_sb.h>
-#include <gnu/fs/ext2fs/ext2_mount.h>
-#include <gnu/fs/ext2fs/ext2_extern.h>
+#include <fs/ext2fs/inode.h>
+#include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/ext2_mount.h>
+#include <fs/ext2fs/ext2_extern.h>
 
 /*
- * Bmap converts a the logical block number of a file to its physical block
+ * Bmap converts the logical block number of a file to its physical block
  * number on the disk. The conversion is done by using the logical block
  * number to index into the array of block pointers described by the dinode.
  */
@@ -93,7 +92,7 @@ ext2_bmap(ap)
  * which they point.  Triple indirect blocks are addressed by one less than
  * the address of the first double indirect block to which they point.
  *
- * ufs_bmaparray does the bmap conversion, and if requested returns the
+ * ext2_bmaparray does the bmap conversion, and if requested returns the
  * array of logical blocks which must be traversed to get to a block.
  * Each entry contains the offset into that block that gets you to the
  * next block and the disk address of the block (if it is assigned).
