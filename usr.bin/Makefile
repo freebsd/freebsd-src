@@ -225,6 +225,7 @@ SUBDIR=	alias \
 	who \
 	whois \
 	write \
+	wtmpcvt \
 	xargs \
 	xinstall \
 	${_xlint} \
