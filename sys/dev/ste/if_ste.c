@@ -103,7 +103,6 @@ static int 	ste_eeprom_wait(struct ste_softc *);
 static int	ste_encap(struct ste_softc *, struct mbuf **,
 		    struct ste_chain *);
 static int	ste_ifmedia_upd(struct ifnet *);
-static void	ste_ifmedia_upd_locked(struct ifnet *);
 static void	ste_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static void	ste_init(void *);
 static void	ste_init_locked(struct ste_softc *);
@@ -123,11 +122,13 @@ static int	ste_read_eeprom(struct ste_softc *, caddr_t, int, int, int);
 static void	ste_reset(struct ste_softc *);
 static void	ste_restart_tx(struct ste_softc *);
 static void	ste_rxeof(struct ste_softc *, int);
-static void	ste_setmulti(struct ste_softc *);
+static void	ste_rxfilter(struct ste_softc *);
 static void	ste_start(struct ifnet *);
 static void	ste_start_locked(struct ifnet *);
+static void	ste_stats_clear(struct ste_softc *);
 static void	ste_stats_update(struct ste_softc *);
 static void	ste_stop(struct ste_softc *);
+static void	ste_sysctl_node(struct ste_softc *);
 static void	ste_tick(void *);
 static void	ste_txeoc(struct ste_softc *);
 static void	ste_txeof(struct ste_softc *);
@@ -449,31 +450,21 @@ static int
 ste_ifmedia_upd(struct ifnet *ifp)
 {
 	struct ste_softc *sc;
+	struct mii_data	*mii;
+	struct mii_softc *miisc;
+	int error;
 
 	sc = ifp->if_softc;
 	STE_LOCK(sc);
-	ste_ifmedia_upd_locked(ifp);
-	STE_UNLOCK(sc);
-
-	return (0);
-}
-
-static void
-ste_ifmedia_upd_locked(struct ifnet *ifp)
-{
-	struct ste_softc *sc;
-	struct mii_data *mii;
-
-	sc = ifp->if_softc;
-	STE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->ste_miibus);
-	sc->ste_flags &= ~STE_FLAG_LINK;
 	if (mii->mii_instance) {
-		struct mii_softc	*miisc;
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			mii_phy_reset(miisc);
 	}
-	mii_mediachg(mii);
+	error = mii_mediachg(mii);
+	STE_UNLOCK(sc);
+
+	return (error);
 }
 
 static void
@@ -486,6 +477,10 @@ ste_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc->ste_miibus);
 
 	STE_LOCK(sc);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		STE_UNLOCK(sc);
+		return;
+	}
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
@@ -563,27 +558,33 @@ ste_read_eeprom(struct ste_softc *sc, caddr_t dest, int off, int cnt, int swap)
 }
 
 static void
-ste_setmulti(struct ste_softc *sc)
+ste_rxfilter(struct ste_softc *sc)
 {
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	uint32_t hashes[2] = { 0, 0 };
+	uint8_t rxcfg;
 	int h;
 
+	STE_LOCK_ASSERT(sc);
+
 	ifp = sc->ste_ifp;
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
-		STE_SETBIT1(sc, STE_RX_MODE, STE_RXMODE_ALLMULTI);
-		STE_CLRBIT1(sc, STE_RX_MODE, STE_RXMODE_MULTIHASH);
-		return;
+	rxcfg = CSR_READ_1(sc, STE_RX_MODE);
+	rxcfg |= STE_RXMODE_UNICAST;
+	rxcfg &= ~(STE_RXMODE_ALLMULTI | STE_RXMODE_MULTIHASH |
+	    STE_RXMODE_BROADCAST | STE_RXMODE_PROMISC);
+	if (ifp->if_flags & IFF_BROADCAST)
+		rxcfg |= STE_RXMODE_BROADCAST;
+	if ((ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) != 0) {
+		if ((ifp->if_flags & IFF_ALLMULTI) != 0)
+			rxcfg |= STE_RXMODE_ALLMULTI;
+		if ((ifp->if_flags & IFF_PROMISC) != 0)
+			rxcfg |= STE_RXMODE_PROMISC;
+		goto chipit;
 	}
 
-	/* first, zot all the existing hash bits */
-	CSR_WRITE_2(sc, STE_MAR0, 0);
-	CSR_WRITE_2(sc, STE_MAR1, 0);
-	CSR_WRITE_2(sc, STE_MAR2, 0);
-	CSR_WRITE_2(sc, STE_MAR3, 0);
-
-	/* now program new ones */
+	rxcfg |= STE_RXMODE_MULTIHASH;
+	/* Now program new ones. */
 	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -597,12 +598,13 @@ ste_setmulti(struct ste_softc *sc)
 	}
 	IF_ADDR_UNLOCK(ifp);
 
+chipit:
 	CSR_WRITE_2(sc, STE_MAR0, hashes[0] & 0xFFFF);
 	CSR_WRITE_2(sc, STE_MAR1, (hashes[0] >> 16) & 0xFFFF);
 	CSR_WRITE_2(sc, STE_MAR2, hashes[1] & 0xFFFF);
 	CSR_WRITE_2(sc, STE_MAR3, (hashes[1] >> 16) & 0xFFFF);
-	STE_CLRBIT1(sc, STE_RX_MODE, STE_RXMODE_ALLMULTI);
-	STE_SETBIT1(sc, STE_RX_MODE, STE_RXMODE_MULTIHASH);
+	CSR_WRITE_1(sc, STE_RX_MODE, rxcfg);
+	CSR_READ_1(sc, STE_RX_MODE);
 }
 
 #ifdef DEVICE_POLLING
@@ -640,8 +642,10 @@ ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		if (status & STE_ISR_STATS_OFLOW)
 			ste_stats_update(sc);
 
-		if (status & STE_ISR_HOSTERR)
+		if (status & STE_ISR_HOSTERR) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			ste_init_locked(sc);
+		}
 	}
 }
 #endif /* DEVICE_POLLING */
@@ -688,8 +692,10 @@ ste_intr(void *xsc)
 		if (status & STE_ISR_STATS_OFLOW)
 			ste_stats_update(sc);
 
-		if (status & STE_ISR_HOSTERR)
+		if (status & STE_ISR_HOSTERR) {
 			ste_init_locked(sc);
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		}
 	}
 
 	/* Re-enable interrupts */
@@ -826,6 +832,7 @@ ste_txeoc(struct ste_softc *sc)
 				STE_SETBIT4(sc, STE_DMACTL,
 				    STE_DMACTL_TXDMA_STALL);
 				ste_wait(sc);
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				ste_init_locked(sc);
 				break;
 			}
@@ -864,6 +871,13 @@ ste_tick(void *arg)
 	 */
 	if ((sc->ste_flags & STE_FLAG_LINK) == 0)
 		ste_miibus_statchg(sc->ste_dev);
+	/*
+	 * Because we are not generating Tx completion
+	 * interrupt for every frame, reclaim transmitted
+	 * buffers here.
+	 */
+	ste_txeof(sc);
+	ste_txeoc(sc);
 	ste_stats_update(sc);
 	ste_watchdog(sc);
 	callout_reset(&sc->ste_callout, hz, ste_tick, sc);
@@ -912,16 +926,74 @@ ste_txeof(struct ste_softc *sc)
 }
 
 static void
+ste_stats_clear(struct ste_softc *sc)
+{
+
+	STE_LOCK_ASSERT(sc);
+
+	/* Rx stats. */
+	CSR_READ_2(sc, STE_STAT_RX_OCTETS_LO);
+	CSR_READ_2(sc, STE_STAT_RX_OCTETS_HI);
+	CSR_READ_2(sc, STE_STAT_RX_FRAMES);
+	CSR_READ_1(sc, STE_STAT_RX_BCAST);
+	CSR_READ_1(sc, STE_STAT_RX_MCAST);
+	CSR_READ_1(sc, STE_STAT_RX_LOST);
+	/* Tx stats. */
+	CSR_READ_2(sc, STE_STAT_TX_OCTETS_LO);
+	CSR_READ_2(sc, STE_STAT_TX_OCTETS_HI);
+	CSR_READ_2(sc, STE_STAT_TX_FRAMES);
+	CSR_READ_1(sc, STE_STAT_TX_BCAST);
+	CSR_READ_1(sc, STE_STAT_TX_MCAST);
+	CSR_READ_1(sc, STE_STAT_CARRIER_ERR);
+	CSR_READ_1(sc, STE_STAT_SINGLE_COLLS);
+	CSR_READ_1(sc, STE_STAT_MULTI_COLLS);
+	CSR_READ_1(sc, STE_STAT_LATE_COLLS);
+	CSR_READ_1(sc, STE_STAT_TX_DEFER);
+	CSR_READ_1(sc, STE_STAT_TX_EXDEFER);
+	CSR_READ_1(sc, STE_STAT_TX_ABORT);
+}
+
+static void
 ste_stats_update(struct ste_softc *sc)
 {
 	struct ifnet *ifp;
+	struct ste_hw_stats *stats;
+	uint32_t val;
 
 	STE_LOCK_ASSERT(sc);
 
 	ifp = sc->ste_ifp;
-	ifp->if_collisions += CSR_READ_1(sc, STE_LATE_COLLS)
-	    + CSR_READ_1(sc, STE_MULTI_COLLS)
-	    + CSR_READ_1(sc, STE_SINGLE_COLLS);
+	stats = &sc->ste_stats;
+	/* Rx stats. */
+	val = (uint32_t)CSR_READ_2(sc, STE_STAT_RX_OCTETS_LO) |
+	    ((uint32_t)CSR_READ_2(sc, STE_STAT_RX_OCTETS_HI)) << 16;
+	val &= 0x000FFFFF;
+	stats->rx_bytes += val;
+	stats->rx_frames += CSR_READ_2(sc, STE_STAT_RX_FRAMES);
+	stats->rx_bcast_frames += CSR_READ_1(sc, STE_STAT_RX_BCAST);
+	stats->rx_mcast_frames += CSR_READ_1(sc, STE_STAT_RX_MCAST);
+	stats->rx_lost_frames += CSR_READ_1(sc, STE_STAT_RX_LOST);
+	/* Tx stats. */
+	val = (uint32_t)CSR_READ_2(sc, STE_STAT_TX_OCTETS_LO) |
+	    ((uint32_t)CSR_READ_2(sc, STE_STAT_TX_OCTETS_HI)) << 16;
+	val &= 0x000FFFFF;
+	stats->tx_bytes += val;
+	stats->tx_frames += CSR_READ_2(sc, STE_STAT_TX_FRAMES);
+	stats->tx_bcast_frames += CSR_READ_1(sc, STE_STAT_TX_BCAST);
+	stats->tx_mcast_frames += CSR_READ_1(sc, STE_STAT_TX_MCAST);
+	stats->tx_carrsense_errs += CSR_READ_1(sc, STE_STAT_CARRIER_ERR);
+	val = CSR_READ_1(sc, STE_STAT_SINGLE_COLLS);
+	stats->tx_single_colls += val;
+	ifp->if_collisions += val;
+	val = CSR_READ_1(sc, STE_STAT_MULTI_COLLS);
+	stats->tx_multi_colls += val;
+	ifp->if_collisions += val;
+	val += CSR_READ_1(sc, STE_STAT_LATE_COLLS);
+	stats->tx_late_colls += val;
+	ifp->if_collisions += val;
+	stats->tx_frames_defered += CSR_READ_1(sc, STE_STAT_TX_DEFER);
+	stats->tx_excess_defers += CSR_READ_1(sc, STE_STAT_TX_EXDEFER);
+	stats->tx_abort += CSR_READ_1(sc, STE_STAT_TX_ABORT);
 }
 
 /*
@@ -1021,6 +1093,7 @@ ste_attach(device_t dev)
 		error = ENXIO;;
 		goto fail;
 	}
+	ste_sysctl_node(sc);
 
 	if ((error = ste_dma_alloc(sc)) != 0)
 		goto fail;
@@ -1537,10 +1610,15 @@ static void
 ste_init_locked(struct ste_softc *sc)
 {
 	struct ifnet *ifp;
+	struct mii_data *mii;
 	int i;
 
 	STE_LOCK_ASSERT(sc);
 	ifp = sc->ste_ifp;
+	mii = device_get_softc(sc->ste_miibus);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 	ste_stop(sc);
 	/* Reset the chip to a known state. */
@@ -1576,24 +1654,11 @@ ste_init_locked(struct ste_softc *sc)
 	/* Set the TX reclaim threshold. */
 	CSR_WRITE_1(sc, STE_TX_RECLAIM_THRESH, (STE_PACKET_SIZE >> 4));
 
+	/* Accept VLAN length packets */
+	CSR_WRITE_2(sc, STE_MAX_FRAMELEN, ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN);
+
 	/* Set up the RX filter. */
-	CSR_WRITE_1(sc, STE_RX_MODE, STE_RXMODE_UNICAST);
-
-	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC) {
-		STE_SETBIT1(sc, STE_RX_MODE, STE_RXMODE_PROMISC);
-	} else {
-		STE_CLRBIT1(sc, STE_RX_MODE, STE_RXMODE_PROMISC);
-	}
-
-	/* Set capture broadcast bit to accept broadcast frames. */
-	if (ifp->if_flags & IFF_BROADCAST) {
-		STE_SETBIT1(sc, STE_RX_MODE, STE_RXMODE_BROADCAST);
-	} else {
-		STE_CLRBIT1(sc, STE_RX_MODE, STE_RXMODE_BROADCAST);
-	}
-
-	ste_setmulti(sc);
+	ste_rxfilter(sc);
 
 	/* Load the address of the RX list. */
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_RXDMA_STALL);
@@ -1622,6 +1687,8 @@ ste_init_locked(struct ste_softc *sc)
 
 	/* Enable stats counters. */
 	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_STATS_ENABLE);
+	/* Clear stats counters. */
+	ste_stats_clear(sc);
 
 	CSR_WRITE_2(sc, STE_ISR, 0xFFFF);
 #ifdef DEVICE_POLLING
@@ -1633,10 +1700,9 @@ ste_init_locked(struct ste_softc *sc)
 	/* Enable interrupts. */
 	CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
 
-	/* Accept VLAN length packets */
-	CSR_WRITE_2(sc, STE_MAX_FRAMELEN, ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN);
-
-	ste_ifmedia_upd_locked(ifp);
+	sc->ste_flags &= ~STE_FLAG_LINK;
+	/* Switch to the current media. */
+	mii_mediachg(mii);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -1717,20 +1783,27 @@ ste_stop(struct ste_softc *sc)
 static void
 ste_reset(struct ste_softc *sc)
 {
+	uint32_t ctl;
 	int i;
 
-	STE_SETBIT4(sc, STE_ASICCTL,
-	    STE_ASICCTL_GLOBAL_RESET|STE_ASICCTL_RX_RESET|
-	    STE_ASICCTL_TX_RESET|STE_ASICCTL_DMA_RESET|
-	    STE_ASICCTL_FIFO_RESET|STE_ASICCTL_NETWORK_RESET|
-	    STE_ASICCTL_AUTOINIT_RESET|STE_ASICCTL_HOST_RESET|
-	    STE_ASICCTL_EXTRESET_RESET);
-
-	DELAY(100000);
+	ctl = CSR_READ_4(sc, STE_ASICCTL);
+	ctl |= STE_ASICCTL_GLOBAL_RESET | STE_ASICCTL_RX_RESET |
+	    STE_ASICCTL_TX_RESET | STE_ASICCTL_DMA_RESET |
+	    STE_ASICCTL_FIFO_RESET | STE_ASICCTL_NETWORK_RESET |
+	    STE_ASICCTL_AUTOINIT_RESET |STE_ASICCTL_HOST_RESET |
+	    STE_ASICCTL_EXTRESET_RESET;
+	CSR_WRITE_4(sc, STE_ASICCTL, ctl);
+	CSR_READ_4(sc, STE_ASICCTL);
+	/*
+	 * Due to the need of accessing EEPROM controller can take
+	 * up to 1ms to complete the global reset.
+	 */
+	DELAY(1000);
 
 	for (i = 0; i < STE_TIMEOUT; i++) {
 		if (!(CSR_READ_4(sc, STE_ASICCTL) & STE_ASICCTL_RESET_BUSY))
 			break;
+		DELAY(10);
 	}
 
 	if (i == STE_TIMEOUT)
@@ -1771,39 +1844,24 @@ ste_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFFLAGS:
 		STE_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    ifp->if_flags & IFF_PROMISC &&
-			    !(sc->ste_if_flags & IFF_PROMISC)) {
-				STE_SETBIT1(sc, STE_RX_MODE,
-				    STE_RXMODE_PROMISC);
-			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    !(ifp->if_flags & IFF_PROMISC) &&
-			    sc->ste_if_flags & IFF_PROMISC) {
-				STE_CLRBIT1(sc, STE_RX_MODE,
-				    STE_RXMODE_PROMISC);
-			}
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    (ifp->if_flags ^ sc->ste_if_flags) & IFF_ALLMULTI)
-				ste_setmulti(sc);
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-				sc->ste_tx_thresh = STE_TXSTART_THRESH;
+		if ((ifp->if_flags & IFF_UP) != 0) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+			    ((ifp->if_flags ^ sc->ste_if_flags) &
+			     (IFF_PROMISC | IFF_ALLMULTI)) != 0)
+				ste_rxfilter(sc);
+			else
 				ste_init_locked(sc);
-			}
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				ste_stop(sc);
-		}
+		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			ste_stop(sc);
 		sc->ste_if_flags = ifp->if_flags;
 		STE_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		STE_LOCK(sc);
-		ste_setmulti(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			ste_rxfilter(sc);
 		STE_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
@@ -1896,7 +1954,11 @@ ste_encap(struct ste_softc *sc, struct mbuf **m_head, struct ste_chain *txc)
 	 * Tx descriptors here. Otherwise we race with controller.
 	 */
 	desc->ste_next = 0;
-	desc->ste_ctl = htole32(STE_TXCTL_ALIGN_DIS | STE_TXCTL_DMAINTR);
+	if ((sc->ste_cdata.ste_tx_prod % STE_TX_INTR_FRAMES) == 0)
+		desc->ste_ctl = htole32(STE_TXCTL_ALIGN_DIS |
+		    STE_TXCTL_DMAINTR);
+	else
+		desc->ste_ctl = htole32(STE_TXCTL_ALIGN_DIS);
 	txc->ste_mbuf = *m_head;
 	STE_INC(sc->ste_cdata.ste_tx_prod, STE_TX_LIST_CNT);
 	sc->ste_cdata.ste_tx_cnt++;
@@ -1999,6 +2061,7 @@ ste_watchdog(struct ste_softc *sc)
 	ste_txeof(sc);
 	ste_txeoc(sc);
 	ste_rxeof(sc, -1);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ste_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -2018,3 +2081,70 @@ ste_shutdown(device_t dev)
 
 	return (0);
 }
+
+#define	STE_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
+	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
+#define	STE_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
+	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+
+static void
+ste_sysctl_node(struct ste_softc *sc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *child, *parent;
+	struct sysctl_oid *tree;
+	struct ste_hw_stats *stats;
+
+	stats = &sc->ste_stats;
+	ctx = device_get_sysctl_ctx(sc->ste_dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ste_dev));
+
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
+	    NULL, "STE statistics");
+	parent = SYSCTL_CHILDREN(tree);
+
+	/* Rx statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
+	    NULL, "Rx MAC statistics");
+	child = SYSCTL_CHILDREN(tree);
+	STE_SYSCTL_STAT_ADD64(ctx, child, "good_octets",
+	    &stats->rx_bytes, "Good octets");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
+	    &stats->rx_frames, "Good frames");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "good_bcast_frames",
+	    &stats->rx_bcast_frames, "Good broadcast frames");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "good_mcast_frames",
+	    &stats->rx_mcast_frames, "Good multicast frames");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "lost_frames",
+	    &stats->rx_lost_frames, "Lost frames");
+
+	/* Tx statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
+	    NULL, "Tx MAC statistics");
+	child = SYSCTL_CHILDREN(tree);
+	STE_SYSCTL_STAT_ADD64(ctx, child, "good_octets",
+	    &stats->tx_bytes, "Good octets");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
+	    &stats->tx_frames, "Good frames");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "good_bcast_frames",
+	    &stats->tx_bcast_frames, "Good broadcast frames");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "good_mcast_frames",
+	    &stats->tx_mcast_frames, "Good multicast frames");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "carrier_errs",
+	    &stats->tx_carrsense_errs, "Carrier sense errors");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "single_colls",
+	    &stats->tx_single_colls, "Single collisions");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "multi_colls",
+	    &stats->tx_multi_colls, "Multiple collisions");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "late_colls",
+	    &stats->tx_late_colls, "Late collisions");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "defers",
+	    &stats->tx_frames_defered, "Frames with deferrals");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "excess_defers",
+	    &stats->tx_excess_defers, "Frames with excessive derferrals");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "abort",
+	    &stats->tx_abort, "Aborted frames due to Excessive collisions");
+}
+
+#undef STE_SYSCTL_STAT_ADD32
+#undef STE_SYSCTL_STAT_ADD64
