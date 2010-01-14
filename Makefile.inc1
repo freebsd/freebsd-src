@@ -1266,7 +1266,7 @@ delete-old-files:
 		fi; \
 	done
 # Remove catpages without corresponding manpages.
-	@3<&0; \
+	@exec 3<&0; \
 	find ${DESTDIR}/usr/share/man/cat* ! -type d | \
 	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
 	while read catpage; do \
