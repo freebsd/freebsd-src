@@ -1633,10 +1633,15 @@ nfsrpc_mknod(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		return (ENAMETOOLONG);
 	NFSCL_REQSTART(nd, NFSPROC_MKNOD, dvp);
 	if (nd->nd_flag & ND_NFSV4) {
-		NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
-		*tl++ = vtonfsv34_type(vtyp);
-		*tl++ = txdr_unsigned(NFSMAJOR(rdev));
-		*tl = txdr_unsigned(NFSMINOR(rdev));
+		if (vtyp == VBLK || vtyp == VCHR) {
+			NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+			*tl++ = vtonfsv34_type(vtyp);
+			*tl++ = txdr_unsigned(NFSMAJOR(rdev));
+			*tl = txdr_unsigned(NFSMINOR(rdev));
+		} else {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = vtonfsv34_type(vtyp);
+		}
 	}
 	(void) nfsm_strtom(nd, name, namelen);
 	if (nd->nd_flag & ND_NFSV3) {
