@@ -152,8 +152,8 @@ struct uhso_softc {
 
 /*
  * Port definitions
- * Note that these definitions are arbitray and doesn't match
- * values returned by the auto config descriptor.
+ * Note that these definitions are arbitrary and do not match the values
+ * returned by the auto config descriptor.
  */
 #define UHSO_PORT_TYPE_CTL	0x01
 #define UHSO_PORT_TYPE_APP	0x02
@@ -568,7 +568,7 @@ uhso_attach(device_t self)
 	    "Port available at this interface");
 
 	/*
-	 * The default interface description on most Option devices aren't
+	 * The default interface description on most Option devices isn't
 	 * very helpful. So we skip device_set_usb_desc and set the
 	 * device description manually.
 	 */
@@ -841,7 +841,7 @@ uhso_probe_iface(struct uhso_softc *sc, int index,
 
 		/*
 		 * If there is an additional interrupt endpoint on this
-		 * interface we most likley have a multiplexed serial port
+		 * interface then we most likely have a multiplexed serial port
 		 * available.
 		 */
 		if (iface->idesc->bNumEndpoints < 3) {
@@ -979,7 +979,7 @@ uhso_attach_muxserial(struct uhso_softc *sc, struct usb_interface *iface,
 
 /*
  * Interrupt callback for the multiplexed serial port. Indicates
- * which serial port that has data waiting.
+ * which serial port has data waiting.
  */
 static void
 uhso_mux_intr_callback(struct usb_xfer *xfer, usb_error_t error)
@@ -1531,7 +1531,7 @@ tr_setup:
 /*
  * Deferred RX processing, called with mutex locked.
  *
- * Each frame we receive might contain several small ip-packets aswell
+ * Each frame we receive might contain several small ip-packets as well
  * as partial ip-packets. We need to separate/assemble them into individual
  * packets before sending them to the ip-layer.
  */
