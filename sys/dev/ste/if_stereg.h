@@ -96,7 +96,7 @@
 
 #define STE_LATE_COLLS  0x75
 #define STE_MULTI_COLLS	0x76
-#define STE_SINGLE_COLLS 0x77	
+#define STE_SINGLE_COLLS 0x77
 
 #define STE_DMACTL_RXDMA_STOPPED	0x00000001
 #define STE_DMACTL_TXDMA_CMPREQ		0x00000002
@@ -386,27 +386,27 @@
 
 
 struct ste_stats {
-	u_int32_t		ste_rx_bytes;
-	u_int32_t		ste_tx_bytes;
-	u_int16_t		ste_tx_frames;
-	u_int16_t		ste_rx_frames;
-	u_int8_t		ste_carrsense_errs;
-	u_int8_t		ste_late_colls;
-	u_int8_t		ste_multi_colls;
-	u_int8_t		ste_single_colls;
-	u_int8_t		ste_tx_frames_defered;
-	u_int8_t		ste_rx_lost_frames;
-	u_int8_t		ste_tx_excess_defers;
-	u_int8_t		ste_tx_abort_excess_colls;
-	u_int8_t		ste_tx_bcast_frames;
-	u_int8_t		ste_rx_bcast_frames;
-	u_int8_t		ste_tx_mcast_frames;
-	u_int8_t		ste_rx_mcast_frames;
+	uint32_t		ste_rx_bytes;
+	uint32_t		ste_tx_bytes;
+	uint16_t		ste_tx_frames;
+	uint16_t		ste_rx_frames;
+	uint8_t			ste_carrsense_errs;
+	uint8_t			ste_late_colls;
+	uint8_t			ste_multi_colls;
+	uint8_t			ste_single_colls;
+	uint8_t			ste_tx_frames_defered;
+	uint8_t			ste_rx_lost_frames;
+	uint8_t			ste_tx_excess_defers;
+	uint8_t			ste_tx_abort_excess_colls;
+	uint8_t			ste_tx_bcast_frames;
+	uint8_t			ste_rx_bcast_frames;
+	uint8_t			ste_tx_mcast_frames;
+	uint8_t			ste_rx_mcast_frames;
 };
 
 struct ste_frag {
-	u_int32_t		ste_addr;
-	u_int32_t		ste_len;
+	uint32_t		ste_addr;
+	uint32_t		ste_len;
 };
 
 #define STE_FRAG_LAST		0x80000000
@@ -415,14 +415,14 @@ struct ste_frag {
 #define STE_MAXFRAGS	8
 
 struct ste_desc {
-	u_int32_t		ste_next;
-	u_int32_t		ste_ctl;
+	uint32_t		ste_next;
+	uint32_t		ste_ctl;
 	struct ste_frag		ste_frags[STE_MAXFRAGS];
 };
 
 struct ste_desc_onefrag {
-	u_int32_t		ste_next;
-	u_int32_t		ste_status;
+	uint32_t		ste_next;
+	uint32_t		ste_status;
 	struct ste_frag		ste_frag;
 };
 
@@ -472,8 +472,8 @@ struct ste_desc_onefrag {
 #define STE_NEXT(x, y)		(x + 1) % y
 
 struct ste_type {
-	u_int16_t		ste_vid;
-	u_int16_t		ste_did;
+	uint16_t		ste_vid;
+	uint16_t		ste_did;
 	char			*ste_name;
 };
 
@@ -486,7 +486,7 @@ struct ste_chain {
 	struct ste_desc		*ste_ptr;
 	struct mbuf		*ste_mbuf;
 	struct ste_chain	*ste_next;
-	u_int32_t		ste_phys;
+	uint32_t		ste_phys;
 };
 
 struct ste_chain_onefrag {
@@ -515,7 +515,7 @@ struct ste_softc {
 	device_t		ste_miibus;
 	device_t		ste_dev;
 	int			ste_tx_thresh;
-	u_int8_t		ste_link;
+	uint8_t			ste_link;
 	int			ste_if_flags;
 	int			ste_timer;
 	struct ste_chain	*ste_tx_prev;
@@ -523,7 +523,7 @@ struct ste_softc {
 	struct ste_chain_data	ste_cdata;
 	struct callout		ste_stat_callout;
 	struct mtx		ste_mtx;
-	u_int8_t		ste_one_phy;
+	uint8_t			ste_one_phy;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
@@ -534,12 +534,12 @@ struct ste_softc {
 #define	STE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->ste_mtx, MA_OWNED)
 
 struct ste_mii_frame {
-	u_int8_t		mii_stdelim;
-	u_int8_t		mii_opcode;
-	u_int8_t		mii_phyaddr;
-	u_int8_t		mii_regaddr;
-	u_int8_t		mii_turnaround;
-	u_int16_t		mii_data;
+	uint8_t			mii_stdelim;
+	uint8_t			mii_opcode;
+	uint8_t			mii_phyaddr;
+	uint8_t			mii_regaddr;
+	uint8_t			mii_turnaround;
+	uint16_t		mii_data;
 };
 
 /*
