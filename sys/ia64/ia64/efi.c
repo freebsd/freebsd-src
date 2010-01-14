@@ -214,11 +214,11 @@ efi_var_nextname(size_t *namesize, efi_char *name, struct uuid *vendor)
 }
  
 int
-efi_var_set(efi_char *name, struct uuid *vendor, uint32_t *attrib,
-    size_t *datasize, void *data)
+efi_var_set(efi_char *name, struct uuid *vendor, uint32_t attrib,
+    size_t datasize, void *data)
 {
 	efi_status status;
  
-	status = efi_runtime->rt_getvar(name, vendor, attrib, datasize, data);
+	status = efi_runtime->rt_setvar(name, vendor, attrib, datasize, data);
 	return (efi_status_to_errno(status));
 }
