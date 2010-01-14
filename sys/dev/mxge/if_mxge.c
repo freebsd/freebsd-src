@@ -2774,6 +2774,7 @@ static struct mxge_media_type mxge_xfp_media_types[] =
 };
 static struct mxge_media_type mxge_sfp_media_types[] =
 {
+	{IFM_10G_TWINAX,      0,	"10GBASE-Twinax"},
 	{0,		(1 << 7),	"Reserved"},
 	{IFM_10G_LRM,	(1 << 6),	"10GBASE-LRM"},
 	{IFM_10G_LR, 	(1 << 5),	"10GBASE-LR"},
@@ -2908,7 +2909,7 @@ mxge_media_probe(mxge_softc_t *sc)
 		if (mxge_verbose)
 			device_printf(sc->dev, "%s:%s\n", cage_type,
 				      mxge_media_types[0].name);
-		mxge_set_media(sc, IFM_10G_CX4);
+		mxge_set_media(sc, mxge_media_types[0].flag);
 		return;
 	}
 	for (i = 1; i < mxge_media_type_entries; i++) {
