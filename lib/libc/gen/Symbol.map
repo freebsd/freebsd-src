@@ -272,7 +272,6 @@ FBSD_1.0 {
 	openlog;
 	closelog;
 	setlogmask;
-	ttyslot;
 	ttyname_r;
 	ttyname;
 	timezone;
