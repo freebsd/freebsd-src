@@ -46,10 +46,10 @@
 #include <sys/ucred.h>
 #include <sys/vnode.h>
 
-#include <gnu/fs/ext2fs/inode.h>
-#include <gnu/fs/ext2fs/ext2_extern.h>
-#include <gnu/fs/ext2fs/ext2_fs_sb.h>
-#include <gnu/fs/ext2fs/fs.h>
+#include <fs/ext2fs/inode.h>
+#include <fs/ext2fs/ext2_extern.h>
+#include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/fs.h>
 
 #ifdef KDB
 void	ext2_checkoverlap(struct buf *, struct inode *);
@@ -68,7 +68,7 @@ ext2_blkatoff(vp, offset, res, bpp)
 	struct buf **bpp;
 {
 	struct inode *ip;
-	struct ext2_sb_info *fs;
+	struct m_ext2fs *fs;
 	struct buf *bp;
 	int32_t lbn;
 	int bsize, error;

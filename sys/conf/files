@@ -1956,18 +1956,15 @@ geom/virstor/binstream.c	optional geom_virstor
 geom/virstor/g_virstor.c	optional geom_virstor
 geom/virstor/g_virstor_md.c	optional geom_virstor
 geom/zero/g_zero.c		optional geom_zero
-gnu/fs/ext2fs/ext2_alloc.c		optional ext2fs \
-	warning "kernel contains GPL contaminated ext2fs filesystem"
-gnu/fs/ext2fs/ext2_balloc.c	optional ext2fs
-gnu/fs/ext2fs/ext2_bmap.c	optional ext2fs
-gnu/fs/ext2fs/ext2_inode.c	optional ext2fs
-gnu/fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
-gnu/fs/ext2fs/ext2_linux_balloc.c	optional ext2fs
-gnu/fs/ext2fs/ext2_linux_ialloc.c	optional ext2fs
-gnu/fs/ext2fs/ext2_lookup.c	optional ext2fs
-gnu/fs/ext2fs/ext2_subr.c	optional ext2fs
-gnu/fs/ext2fs/ext2_vfsops.c	optional ext2fs
-gnu/fs/ext2fs/ext2_vnops.c	optional ext2fs
+fs/ext2fs/ext2_alloc.c		optional ext2fs
+fs/ext2fs/ext2_balloc.c		optional ext2fs
+fs/ext2fs/ext2_bmap.c		optional ext2fs
+fs/ext2fs/ext2_inode.c		optional ext2fs
+fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
+fs/ext2fs/ext2_lookup.c		optional ext2fs
+fs/ext2fs/ext2_subr.c		optional ext2fs
+fs/ext2fs/ext2_vfsops.c		optional ext2fs
+fs/ext2fs/ext2_vnops.c		optional ext2fs
 gnu/fs/reiserfs/reiserfs_hashes.c	optional reiserfs \
 	warning "kernel contains GPL contaminated ReiserFS filesystem"
 gnu/fs/reiserfs/reiserfs_inode.c	optional reiserfs

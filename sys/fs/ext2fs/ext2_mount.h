@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_GNU_EXT2FS_EXT2_MOUNT_H_
-#define _SYS_GNU_EXT2FS_EXT2_MOUNT_H_
+#ifndef _FS_EXT2FS_EXT2_MOUNT_H_
+#define _FS_EXT2FS_EXT2_MOUNT_H_
 
 #ifdef _KERNEL
 
@@ -47,16 +47,22 @@ struct ext2mount {
 	struct	cdev *um_dev;			/* device mounted */
 	struct	vnode *um_devvp;		/* block device mounted vnode */
 
-	struct	ext2_sb_info *um_e2fs;		/* EXT2FS */
-#define em_e2fsb um_e2fs->s_es
+	struct	m_ext2fs *um_e2fs;		/* EXT2FS */
+#define em_e2fsb um_e2fs->e2fs
 
 	u_long	um_nindir;			/* indirect ptrs per block */
 	u_long	um_bptrtodb;			/* indir ptr to disk block */
 	u_long	um_seqinc;			/* inc between seq blocks */
 
+	struct mtx um_lock;			/* Protects ext2mount & fs */
+
 	struct g_consumer *um_cp;
 	struct bufobj *um_bo;
 };
+
+#define EXT2_LOCK(aa)		mtx_lock(&(aa)->um_lock)
+#define EXT2_UNLOCK(aa)	mtx_unlock(&(aa)->um_lock)
+#define EXT2_MTX(aa)		(&(aa)->um_lock)
 
 /* Convert mount ptr to ext2fsmount ptr. */
 #define VFSTOEXT2(mp)	((struct ext2mount *)((mp)->mnt_data))
