@@ -253,6 +253,11 @@
 #define STE_TXSTATUS_TXINTR_REQ		0x40
 #define STE_TXSTATUS_TXDONE		0x80
 
+#define	STE_ERR_BITS			"\20"				\
+					"\2RECLAIM\3STSOFLOW"		\
+					"\4EXCESSCOLLS\5UNDERRUN"	\
+					"\6INTREQ\7DONE"
+
 #define STE_ISRACK_INTLATCH		0x0001
 #define STE_ISRACK_HOSTERR		0x0002
 #define STE_ISRACK_TX_DONE		0x0004
@@ -276,10 +281,9 @@
 #define STE_IMR_TX_DMADONE		0x0200
 #define STE_IMR_RX_DMADONE		0x0400
 
-#define STE_INTRS					\
+#define STE_INTRS				\
 	(STE_IMR_RX_DMADONE|STE_IMR_TX_DMADONE|	\
-	STE_IMR_TX_DONE|STE_IMR_HOSTERR| \
-        STE_IMR_LINKEVENT)
+	STE_IMR_TX_DONE|STE_IMR_HOSTERR)
 
 #define STE_ISR_INTLATCH		0x0001
 #define STE_ISR_HOSTERR			0x0002
@@ -466,18 +470,18 @@ struct ste_desc_onefrag {
  * register space access macros
  */
 #define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->ste_btag, sc->ste_bhandle, reg, val)
+	bus_write_4((sc)->ste_res, reg, val)
 #define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->ste_btag, sc->ste_bhandle, reg, val)
+	bus_write_2((sc)->ste_res, reg, val)
 #define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->ste_btag, sc->ste_bhandle, reg, val)
+	bus_write_1((sc)->ste_res, reg, val)
 
 #define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->ste_btag, sc->ste_bhandle, reg)
+	bus_read_4((sc)->ste_res, reg)
 #define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->ste_btag, sc->ste_bhandle, reg)
+	bus_read_2((sc)->ste_res, reg)
 #define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->ste_btag, sc->ste_bhandle, reg)
+	bus_read_1((sc)->ste_res, reg)
 
 #define	STE_DESC_ALIGN		8
 #define STE_RX_LIST_CNT		128
@@ -545,23 +549,24 @@ struct ste_chain_data {
 
 struct ste_softc {
 	struct ifnet		*ste_ifp;
-	bus_space_tag_t		ste_btag;
-	bus_space_handle_t	ste_bhandle;
 	struct resource		*ste_res;
+	int			ste_res_id;
+	int			ste_res_type;
 	struct resource		*ste_irq;
 	void			*ste_intrhand;
 	struct ste_type		*ste_info;
 	device_t		ste_miibus;
 	device_t		ste_dev;
 	int			ste_tx_thresh;
-	uint8_t			ste_link;
+	int			ste_flags;
+#define	STE_FLAG_ONE_PHY	0x0001
+#define	STE_FLAG_LINK		0x8000
 	int			ste_if_flags;
 	int			ste_timer;
 	struct ste_list_data	ste_ldata;
 	struct ste_chain_data	ste_cdata;
-	struct callout		ste_stat_callout;
+	struct callout		ste_callout;
 	struct mtx		ste_mtx;
-	uint8_t			ste_one_phy;
 };
 
 #define	STE_LOCK(_sc)		mtx_lock(&(_sc)->ste_mtx)
