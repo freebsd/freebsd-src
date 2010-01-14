@@ -2283,6 +2283,7 @@ mesh_verify_meshconf(struct ieee80211vap *vap, const uint8_t *ie)
 	const struct ieee80211_meshconf_ie *meshconf =
 	    (const struct ieee80211_meshconf_ie *) ie;
 	const struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	uint16_t cap;
 
 	if (meshconf == NULL)
 		return 1;
@@ -2316,8 +2317,10 @@ mesh_verify_meshconf(struct ieee80211vap *vap, const uint8_t *ie)
 		    meshconf->conf_pselid);
 		return 1;
 	}
+	/* NB: conf_cap is only read correctly here */
+	cap = LE_READ_2(&meshconf->conf_cap);
 	/* Not accepting peers */
-	if (!(meshconf->conf_cap & IEEE80211_MESHCONF_CAP_AP)) {
+	if (!(cap & IEEE80211_MESHCONF_CAP_AP)) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_MESH,
 		    "not accepting peers: 0x%x\n", meshconf->conf_cap);
 		return 1;
@@ -2403,7 +2406,6 @@ ieee80211_add_meshconf(uint8_t *frm, struct ieee80211vap *vap)
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_FWD)
 		caps |= IEEE80211_MESHCONF_CAP_FWRD;
 	ADDSHORT(frm, caps);
-	frm += 1;
 	return frm;
 }
 
