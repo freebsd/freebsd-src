@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100114: removal of ttyslot(3)
+OLD_FILES+=usr/share/man/man3/ttyslot.3.gz
 # 20100113: remove utmp.h, replace it by utmpx.h
 OLD_FILES+=usr/share/man/man3/login.3.gz
 OLD_FILES+=usr/share/man/man3/logout.3.gz

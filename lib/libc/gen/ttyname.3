@@ -34,8 +34,7 @@
 .Sh NAME
 .Nm ttyname ,
 .Nm ttyname_r ,
-.Nm isatty ,
-.Nm ttyslot
+.Nm isatty
 .Nd get name of associated terminal (tty) from file descriptor
 .Sh LIBRARY
 .Lb libc
@@ -47,8 +46,6 @@
 .Fn ttyname_r "int fd" "char *buf" "size_t len"
 .Ft int
 .Fn isatty "int fd"
-.Ft int
-.Fn ttyslot void
 .Sh DESCRIPTION
 These functions operate on the system file descriptors for terminal
 type devices.
@@ -89,13 +86,6 @@ The
 .Fn ttyname_r
 function
 takes a buffer and length as arguments to avoid this problem.
-.Pp
-The
-.Fn ttyslot
-function
-fetches the current process' control terminal number from the
-.Xr ttys 5
-file entry.
 .Sh RETURN VALUES
 The
 .Fn ttyname
@@ -110,12 +100,6 @@ The
 .Fn ttyname_r
 function returns 0 if successful.
 Otherwise an error number is returned.
-.Pp
-The
-.Fn ttyslot
-function
-returns the unit number of the device file if found; otherwise
-the value zero is returned.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/ttys" -compact
 .It Pa /dev/\(**
@@ -142,10 +126,9 @@ is smaller than the length of the string to be returned.
 .Xr ttys 5
 .Sh HISTORY
 The
-.Fn isatty ,
-.Fn ttyname ,
+.Fn isatty
 and
-.Fn ttyslot
+.Fn ttyname
 functions
 appeared in
 .At v7 .
