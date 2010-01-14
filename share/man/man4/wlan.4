@@ -130,7 +130,10 @@ Similarly there is an authenticator framework for defining 802.11
 authentication services and a framework for integrating access
 control mechanisms specific to the 802.11 protocol.
 .Sh DEBUGGING
-Debugging controls are available using:
+If the
+.Dv IEEE80211_DEBUG
+option is included in the kernel configuration,
+debugging controls are available using:
 .Pp
 .Dl "sysctl net.wlan.X.debug=mask"
 .Pp
