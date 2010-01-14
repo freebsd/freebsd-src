@@ -161,6 +161,6 @@ void efi_reset_system(void);
 int efi_set_time(struct efi_tm *);
 int efi_var_get(efi_char *, struct uuid *, uint32_t *, size_t *, void *);
 int efi_var_nextname(size_t *, efi_char *, struct uuid *);
-int efi_var_set(efi_char *, struct uuid *, uint32_t *, size_t *, void *);
+int efi_var_set(efi_char *, struct uuid *, uint32_t, size_t, void *);
 
 #endif /* _MACHINE_EFI_H_ */
