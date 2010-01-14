@@ -37,7 +37,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 
 	After the system has been upgraded, it is safe to remove the old
 	log files (/var/run/utmp, /var/log/lastlog and /var/log/wtmp*),
-	assuming their contents is of no importance anymore.
+	assuming their contents is of no importance anymore.  Old wtmp
+	databases can only be used by last(1) and ac(8) after they have
+	been converted to the new format using wtmpcvt(1).
 
 20100108:
 	Introduce the kernel thread "deadlock resolver" (which can be enabled
