@@ -39,14 +39,19 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sockio.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
+#include <sys/bus.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 
+#include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
@@ -55,14 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
-#include <net/bpf.h>
-
-#include <vm/vm.h>              /* for vtophys */
-#include <vm/pmap.h>            /* for vtophys */
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/bus.h>
-#include <sys/rman.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -70,12 +69,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+#include <dev/ste/if_stereg.h>
+
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
 #define STE_USEIOSPACE
-
-#include <dev/ste/if_stereg.h>
 
 MODULE_DEPEND(ste, pci, 1, 1, 1);
 MODULE_DEPEND(ste, ether, 1, 1, 1);
@@ -96,8 +95,12 @@ static int	ste_detach(device_t);
 static int	ste_probe(device_t);
 static int	ste_shutdown(device_t);
 
+static int	ste_dma_alloc(struct ste_softc *);
+static void	ste_dma_free(struct ste_softc *);
+static void	ste_dmamap_cb(void *, bus_dma_segment_t *, int, int);
 static int 	ste_eeprom_wait(struct ste_softc *);
-static int	ste_encap(struct ste_softc *, struct ste_chain *, struct mbuf *);
+static int	ste_encap(struct ste_softc *, struct mbuf **,
+		    struct ste_chain *);
 static int	ste_ifmedia_upd(struct ifnet *);
 static void	ste_ifmedia_upd_locked(struct ifnet *);
 static void	ste_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -114,12 +117,10 @@ static int	ste_mii_writereg(struct ste_softc *, struct ste_mii_frame *);
 static int	ste_miibus_readreg(device_t, int, int);
 static void	ste_miibus_statchg(device_t);
 static int	ste_miibus_writereg(device_t, int, int, int);
-static int	ste_newbuf(struct ste_softc *, struct ste_chain_onefrag *,
-		    struct mbuf *);
+static int	ste_newbuf(struct ste_softc *, struct ste_chain_onefrag *);
 static int	ste_read_eeprom(struct ste_softc *, caddr_t, int, int, int);
 static void	ste_reset(struct ste_softc *);
-static void	ste_rxeoc(struct ste_softc *);
-static void	ste_rxeof(struct ste_softc *);
+static void	ste_rxeof(struct ste_softc *, int);
 static void	ste_setmulti(struct ste_softc *);
 static void	ste_start(struct ifnet *);
 static void	ste_start_locked(struct ifnet *);
@@ -167,11 +168,6 @@ static devclass_t ste_devclass;
 
 DRIVER_MODULE(ste, pci, ste_driver, ste_devclass, 0, 0);
 DRIVER_MODULE(miibus, ste, miibus_driver, miibus_devclass, 0, 0);
-
-SYSCTL_NODE(_hw, OID_AUTO, ste, CTLFLAG_RD, 0, "if_ste parameters");
-
-static int ste_rxsyncs;
-SYSCTL_INT(_hw_ste, OID_AUTO, rxsyncs, CTLFLAG_RW, &ste_rxsyncs, 0, "");
 
 #define STE_SETBIT4(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | (x))
@@ -600,10 +596,7 @@ ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	STE_LOCK_ASSERT(sc);
 
-	sc->rxcycles = count;
-	if (cmd == POLL_AND_CHECK_STATUS)
-		ste_rxeoc(sc);
-	ste_rxeof(sc);
+	ste_rxeof(sc, count);
 	ste_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		ste_start_locked(ifp);
@@ -662,10 +655,8 @@ ste_intr(void *xsc)
 		if (!(status & STE_INTRS))
 			break;
 
-		if (status & STE_ISR_RX_DMADONE) {
-			ste_rxeoc(sc);
-			ste_rxeof(sc);
-		}
+		if (status & STE_ISR_RX_DMADONE)
+			ste_rxeof(sc, -1);
 
 		if (status & STE_ISR_TX_DMADONE)
 			ste_txeof(sc);
@@ -697,62 +688,40 @@ ste_intr(void *xsc)
 	STE_UNLOCK(sc);
 }
 
-static void
-ste_rxeoc(struct ste_softc *sc)
-{
-	struct ste_chain_onefrag *cur_rx;
-
-	STE_LOCK_ASSERT(sc);
-
-	if (sc->ste_cdata.ste_rx_head->ste_ptr->ste_status == 0) {
-		cur_rx = sc->ste_cdata.ste_rx_head;
-		do {
-			cur_rx = cur_rx->ste_next;
-			/* If the ring is empty, just return. */
-			if (cur_rx == sc->ste_cdata.ste_rx_head)
-				return;
-		} while (cur_rx->ste_ptr->ste_status == 0);
-		if (sc->ste_cdata.ste_rx_head->ste_ptr->ste_status == 0) {
-			/* We've fallen behind the chip: catch it. */
-			sc->ste_cdata.ste_rx_head = cur_rx;
-			++ste_rxsyncs;
-		}
-	}
-}
-
 /*
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
 static void
-ste_rxeof(struct ste_softc *sc)
+ste_rxeof(struct ste_softc *sc, int count)
 {
         struct mbuf *m;
         struct ifnet *ifp;
 	struct ste_chain_onefrag *cur_rx;
 	uint32_t rxstat;
-	int total_len = 0, count = 0;
-
-	STE_LOCK_ASSERT(sc);
+	int total_len, rx_npkts;
 
 	ifp = sc->ste_ifp;
 
-	while ((rxstat = sc->ste_cdata.ste_rx_head->ste_ptr->ste_status)
-	      & STE_RXSTAT_DMADONE) {
+	bus_dmamap_sync(sc->ste_cdata.ste_rx_list_tag,
+	    sc->ste_cdata.ste_rx_list_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
+	cur_rx = sc->ste_cdata.ste_rx_head;
+	for (rx_npkts = 0; rx_npkts < STE_RX_LIST_CNT; rx_npkts++,
+	    cur_rx = cur_rx->ste_next) {
+		rxstat = le32toh(cur_rx->ste_ptr->ste_status);
+		if ((rxstat & STE_RXSTAT_DMADONE) == 0)
+			break;
 #ifdef DEVICE_POLLING
 		if (ifp->if_capenable & IFCAP_POLLING) {
-			if (sc->rxcycles <= 0)
+			if (count == 0)
 				break;
-			sc->rxcycles--;
+			count--;
 		}
 #endif
-		if ((STE_RX_LIST_CNT - count) < 3) {
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
-		}
-
-		cur_rx = sc->ste_cdata.ste_rx_head;
-		sc->ste_cdata.ste_rx_head = cur_rx->ste_next;
-
 		/*
 		 * If an error occurs, update stats, clear the
 		 * status word and leave the mbuf cluster in place:
@@ -765,22 +734,9 @@ ste_rxeof(struct ste_softc *sc)
 			continue;
 		}
 
-		/*
-		 * If there error bit was not set, the upload complete
-		 * bit should be set which means we have a valid packet.
-		 * If not, something truly strange has happened.
-		 */
-		if (!(rxstat & STE_RXSTAT_DMADONE)) {
-			device_printf(sc->ste_dev,
-			    "bad receive status -- packet dropped\n");
-			ifp->if_ierrors++;
-			cur_rx->ste_ptr->ste_status = 0;
-			continue;
-		}
-
 		/* No errors; receive the packet. */
 		m = cur_rx->ste_mbuf;
-		total_len = cur_rx->ste_ptr->ste_status & STE_RXSTAT_FRAMELEN;
+		total_len = STE_RX_BYTES(rxstat);
 
 		/*
 		 * Try to conjure up a new mbuf cluster. If that
@@ -789,7 +745,7 @@ ste_rxeof(struct ste_softc *sc)
 		 * result in a lost packet, but there's little else we
 		 * can do in this situation.
 		 */
-		if (ste_newbuf(sc, cur_rx, NULL) == ENOBUFS) {
+		if (ste_newbuf(sc, cur_rx) != 0) {
 			ifp->if_ierrors++;
 			cur_rx->ste_ptr->ste_status = 0;
 			continue;
@@ -802,12 +758,14 @@ ste_rxeof(struct ste_softc *sc)
 		STE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		STE_LOCK(sc);
-
-		cur_rx->ste_ptr->ste_status = 0;
-		count++;
 	}
 
-	return;
+	if (rx_npkts > 0) {
+		sc->ste_cdata.ste_rx_head = cur_rx;
+		bus_dmamap_sync(sc->ste_cdata.ste_rx_list_tag,
+		    sc->ste_cdata.ste_rx_list_map,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	}
 }
 
 static void
@@ -852,27 +810,40 @@ ste_txeof(struct ste_softc *sc)
 {
 	struct ifnet *ifp;
 	struct ste_chain *cur_tx;
+	uint32_t txstat;
 	int idx;
 
-	ifp = sc->ste_ifp;
+	STE_LOCK_ASSERT(sc);
 
+	ifp = sc->ste_ifp;
 	idx = sc->ste_cdata.ste_tx_cons;
+	if (idx == sc->ste_cdata.ste_tx_prod)
+		return;
+
+	bus_dmamap_sync(sc->ste_cdata.ste_tx_list_tag,
+	    sc->ste_cdata.ste_tx_list_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
 	while (idx != sc->ste_cdata.ste_tx_prod) {
 		cur_tx = &sc->ste_cdata.ste_tx_chain[idx];
-
-		if (!(cur_tx->ste_ptr->ste_ctl & STE_TXCTL_DMADONE))
+		txstat = le32toh(cur_tx->ste_ptr->ste_ctl);
+		if ((txstat & STE_TXCTL_DMADONE) == 0)
 			break;
-
+		bus_dmamap_sync(sc->ste_cdata.ste_tx_tag, cur_tx->ste_map,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->ste_cdata.ste_tx_tag, cur_tx->ste_map);
+		KASSERT(cur_tx->ste_mbuf != NULL,
+		    ("%s: freeing NULL mbuf!\n", __func__));
 		m_freem(cur_tx->ste_mbuf);
 		cur_tx->ste_mbuf = NULL;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		ifp->if_opackets++;
-
+		sc->ste_cdata.ste_tx_cnt--;
 		STE_INC(idx, STE_TX_LIST_CNT);
 	}
 
 	sc->ste_cdata.ste_tx_cons = idx;
-	if (idx == sc->ste_cdata.ste_tx_prod)
+	if (sc->ste_cdata.ste_tx_cnt == 0)
 		sc->ste_timer = 0;
 }
 
@@ -1007,17 +978,8 @@ ste_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Allocate the descriptor queues. */
-	sc->ste_ldata = contigmalloc(sizeof(struct ste_list_data), M_DEVBUF,
-	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
-
-	if (sc->ste_ldata == NULL) {
-		device_printf(dev, "no memory for list buffers!\n");
-		error = ENXIO;
+	if ((error = ste_dma_alloc(sc)) != 0)
 		goto fail;
-	}
-
-	bzero(sc->ste_ldata, sizeof(struct ste_list_data));
 
 	ifp = sc->ste_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
@@ -1123,44 +1085,325 @@ ste_detach(device_t dev)
 	if (ifp)
 		if_free(ifp);
 
-	if (sc->ste_ldata) {
-		contigfree(sc->ste_ldata, sizeof(struct ste_list_data),
-		    M_DEVBUF);
-	}
-
+	ste_dma_free(sc);
 	mtx_destroy(&sc->ste_mtx);
 
 	return (0);
 }
 
-static int
-ste_newbuf(struct ste_softc *sc, struct ste_chain_onefrag *c, struct mbuf *m)
-{
-	struct mbuf *m_new = NULL;
+struct ste_dmamap_arg {
+	bus_addr_t	ste_busaddr;
+};
 
-	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL)
-			return (ENOBUFS);
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			m_freem(m_new);
-			return (ENOBUFS);
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	} else {
-		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-		m_new->m_data = m_new->m_ext.ext_buf;
+static void
+ste_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+	struct ste_dmamap_arg *ctx;
+
+	if (error != 0)
+		return;
+
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+	ctx = (struct ste_dmamap_arg *)arg;
+	ctx->ste_busaddr = segs[0].ds_addr;
+}
+
+static int
+ste_dma_alloc(struct ste_softc *sc)
+{
+	struct ste_chain *txc;
+	struct ste_chain_onefrag *rxc;
+	struct ste_dmamap_arg ctx;
+	int error, i;
+
+	/* Create parent DMA tag. */
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->ste_dev), /* parent */
+	    1, 0,			/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
+	    0,				/* nsegments */
+	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->ste_cdata.ste_parent_tag);
+	if (error != 0) {
+		device_printf(sc->ste_dev,
+		    "could not create parent DMA tag.\n");
+		goto fail;
 	}
 
-	m_adj(m_new, ETHER_ALIGN);
+	/* Create DMA tag for Tx descriptor list. */
+	error = bus_dma_tag_create(
+	    sc->ste_cdata.ste_parent_tag, /* parent */
+	    STE_DESC_ALIGN, 0,		/* alignment, boundary */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    STE_TX_LIST_SZ,		/* maxsize */
+	    1,				/* nsegments */
+	    STE_TX_LIST_SZ,		/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->ste_cdata.ste_tx_list_tag);
+	if (error != 0) {
+		device_printf(sc->ste_dev,
+		    "could not create Tx list DMA tag.\n");
+		goto fail;
+	}
 
-	c->ste_mbuf = m_new;
-	c->ste_ptr->ste_status = 0;
-	c->ste_ptr->ste_frag.ste_addr = vtophys(mtod(m_new, caddr_t));
-	c->ste_ptr->ste_frag.ste_len = (1536 + ETHER_VLAN_ENCAP_LEN) | STE_FRAG_LAST;
+	/* Create DMA tag for Rx descriptor list. */
+	error = bus_dma_tag_create(
+	    sc->ste_cdata.ste_parent_tag, /* parent */
+	    STE_DESC_ALIGN, 0,		/* alignment, boundary */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    STE_RX_LIST_SZ,		/* maxsize */
+	    1,				/* nsegments */
+	    STE_RX_LIST_SZ,		/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->ste_cdata.ste_rx_list_tag);
+	if (error != 0) {
+		device_printf(sc->ste_dev,
+		    "could not create Rx list DMA tag.\n");
+		goto fail;
+	}
 
+	/* Create DMA tag for Tx buffers. */
+	error = bus_dma_tag_create(
+	    sc->ste_cdata.ste_parent_tag, /* parent */
+	    1, 0,			/* alignment, boundary */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    MCLBYTES * STE_MAXFRAGS,	/* maxsize */
+	    STE_MAXFRAGS,		/* nsegments */
+	    MCLBYTES,			/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->ste_cdata.ste_tx_tag);
+	if (error != 0) {
+		device_printf(sc->ste_dev, "could not create Tx DMA tag.\n");
+		goto fail;
+	}
+
+	/* Create DMA tag for Rx buffers. */
+	error = bus_dma_tag_create(
+	    sc->ste_cdata.ste_parent_tag, /* parent */
+	    1, 0,			/* alignment, boundary */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    MCLBYTES,			/* maxsize */
+	    1,				/* nsegments */
+	    MCLBYTES,			/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->ste_cdata.ste_rx_tag);
+	if (error != 0) {
+		device_printf(sc->ste_dev, "could not create Rx DMA tag.\n");
+		goto fail;
+	}
+
+	/* Allocate DMA'able memory and load the DMA map for Tx list. */
+	error = bus_dmamem_alloc(sc->ste_cdata.ste_tx_list_tag,
+	    (void **)&sc->ste_ldata.ste_tx_list,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO | BUS_DMA_COHERENT,
+	    &sc->ste_cdata.ste_tx_list_map);
+	if (error != 0) {
+		device_printf(sc->ste_dev,
+		    "could not allocate DMA'able memory for Tx list.\n");
+		goto fail;
+	}
+	ctx.ste_busaddr = 0;
+	error = bus_dmamap_load(sc->ste_cdata.ste_tx_list_tag,
+	    sc->ste_cdata.ste_tx_list_map, sc->ste_ldata.ste_tx_list,
+	    STE_TX_LIST_SZ, ste_dmamap_cb, &ctx, 0);
+	if (error != 0 || ctx.ste_busaddr == 0) {
+		device_printf(sc->ste_dev,
+		    "could not load DMA'able memory for Tx list.\n");
+		goto fail;
+	}
+	sc->ste_ldata.ste_tx_list_paddr = ctx.ste_busaddr;
+
+	/* Allocate DMA'able memory and load the DMA map for Rx list. */
+	error = bus_dmamem_alloc(sc->ste_cdata.ste_rx_list_tag,
+	    (void **)&sc->ste_ldata.ste_rx_list,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO | BUS_DMA_COHERENT,
+	    &sc->ste_cdata.ste_rx_list_map);
+	if (error != 0) {
+		device_printf(sc->ste_dev,
+		    "could not allocate DMA'able memory for Rx list.\n");
+		goto fail;
+	}
+	ctx.ste_busaddr = 0;
+	error = bus_dmamap_load(sc->ste_cdata.ste_rx_list_tag,
+	    sc->ste_cdata.ste_rx_list_map, sc->ste_ldata.ste_rx_list,
+	    STE_RX_LIST_SZ, ste_dmamap_cb, &ctx, 0);
+	if (error != 0 || ctx.ste_busaddr == 0) {
+		device_printf(sc->ste_dev,
+		    "could not load DMA'able memory for Rx list.\n");
+		goto fail;
+	}
+	sc->ste_ldata.ste_rx_list_paddr = ctx.ste_busaddr;
+
+	/* Create DMA maps for Tx buffers. */
+	for (i = 0; i < STE_TX_LIST_CNT; i++) {
+		txc = &sc->ste_cdata.ste_tx_chain[i];
+		txc->ste_ptr = NULL;
+		txc->ste_mbuf = NULL;
+		txc->ste_next = NULL;
+		txc->ste_phys = 0;
+		txc->ste_map = NULL;
+		error = bus_dmamap_create(sc->ste_cdata.ste_tx_tag, 0,
+		    &txc->ste_map);
+		if (error != 0) {
+			device_printf(sc->ste_dev,
+			    "could not create Tx dmamap.\n");
+			goto fail;
+		}
+	}
+	/* Create DMA maps for Rx buffers. */
+	if ((error = bus_dmamap_create(sc->ste_cdata.ste_rx_tag, 0,
+	    &sc->ste_cdata.ste_rx_sparemap)) != 0) {
+		device_printf(sc->ste_dev,
+		    "could not create spare Rx dmamap.\n");
+		goto fail;
+	}
+	for (i = 0; i < STE_RX_LIST_CNT; i++) {
+		rxc = &sc->ste_cdata.ste_rx_chain[i];
+		rxc->ste_ptr = NULL;
+		rxc->ste_mbuf = NULL;
+		rxc->ste_next = NULL;
+		rxc->ste_map = NULL;
+		error = bus_dmamap_create(sc->ste_cdata.ste_rx_tag, 0,
+		    &rxc->ste_map);
+		if (error != 0) {
+			device_printf(sc->ste_dev,
+			    "could not create Rx dmamap.\n");
+			goto fail;
+		}
+	}
+
+fail:
+	return (error);
+}
+
+static void
+ste_dma_free(struct ste_softc *sc)
+{
+	struct ste_chain *txc;
+	struct ste_chain_onefrag *rxc;
+	int i;
+
+	/* Tx buffers. */
+	if (sc->ste_cdata.ste_tx_tag != NULL) {
+		for (i = 0; i < STE_TX_LIST_CNT; i++) {
+			txc = &sc->ste_cdata.ste_tx_chain[i];
+			if (txc->ste_map != NULL) {
+				bus_dmamap_destroy(sc->ste_cdata.ste_tx_tag,
+				    txc->ste_map);
+				txc->ste_map = NULL;
+			}
+		}
+		bus_dma_tag_destroy(sc->ste_cdata.ste_tx_tag);
+		sc->ste_cdata.ste_tx_tag = NULL;
+	}
+	/* Rx buffers. */
+	if (sc->ste_cdata.ste_rx_tag != NULL) {
+		for (i = 0; i < STE_RX_LIST_CNT; i++) {
+			rxc = &sc->ste_cdata.ste_rx_chain[i];
+			if (rxc->ste_map != NULL) {
+				bus_dmamap_destroy(sc->ste_cdata.ste_rx_tag,
+				    rxc->ste_map);
+				rxc->ste_map = NULL;
+			}
+		}
+		if (sc->ste_cdata.ste_rx_sparemap != NULL) {
+			bus_dmamap_destroy(sc->ste_cdata.ste_rx_tag,
+			    sc->ste_cdata.ste_rx_sparemap);
+			sc->ste_cdata.ste_rx_sparemap = NULL;
+		}
+		bus_dma_tag_destroy(sc->ste_cdata.ste_rx_tag);
+		sc->ste_cdata.ste_rx_tag = NULL;
+	}
+	/* Tx descriptor list. */
+	if (sc->ste_cdata.ste_tx_list_tag != NULL) {
+		if (sc->ste_cdata.ste_tx_list_map != NULL)
+			bus_dmamap_unload(sc->ste_cdata.ste_tx_list_tag,
+			    sc->ste_cdata.ste_tx_list_map);
+		if (sc->ste_cdata.ste_tx_list_map != NULL &&
+		    sc->ste_ldata.ste_tx_list != NULL)
+			bus_dmamem_free(sc->ste_cdata.ste_tx_list_tag,
+			    sc->ste_ldata.ste_tx_list,
+			    sc->ste_cdata.ste_tx_list_map);
+		sc->ste_ldata.ste_tx_list = NULL;
+		sc->ste_cdata.ste_tx_list_map = NULL;
+		bus_dma_tag_destroy(sc->ste_cdata.ste_tx_list_tag);
+		sc->ste_cdata.ste_tx_list_tag = NULL;
+	}
+	/* Rx descriptor list. */
+	if (sc->ste_cdata.ste_rx_list_tag != NULL) {
+		if (sc->ste_cdata.ste_rx_list_map != NULL)
+			bus_dmamap_unload(sc->ste_cdata.ste_rx_list_tag,
+			    sc->ste_cdata.ste_rx_list_map);
+		if (sc->ste_cdata.ste_rx_list_map != NULL &&
+		    sc->ste_ldata.ste_rx_list != NULL)
+			bus_dmamem_free(sc->ste_cdata.ste_rx_list_tag,
+			    sc->ste_ldata.ste_rx_list,
+			    sc->ste_cdata.ste_rx_list_map);
+		sc->ste_ldata.ste_rx_list = NULL;
+		sc->ste_cdata.ste_rx_list_map = NULL;
+		bus_dma_tag_destroy(sc->ste_cdata.ste_rx_list_tag);
+		sc->ste_cdata.ste_rx_list_tag = NULL;
+	}
+	if (sc->ste_cdata.ste_parent_tag != NULL) {
+		bus_dma_tag_destroy(sc->ste_cdata.ste_parent_tag);
+		sc->ste_cdata.ste_parent_tag = NULL;
+	}
+}
+
+static int
+ste_newbuf(struct ste_softc *sc, struct ste_chain_onefrag *rxc)
+{
+	struct mbuf *m;
+	bus_dma_segment_t segs[1];
+	bus_dmamap_t map;
+	int error, nsegs;
+
+	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL)
+		return (ENOBUFS);
+	m->m_len = m->m_pkthdr.len = MCLBYTES;
+	m_adj(m, ETHER_ALIGN);
+
+	if ((error = bus_dmamap_load_mbuf_sg(sc->ste_cdata.ste_rx_tag,
+	    sc->ste_cdata.ste_rx_sparemap, m, segs, &nsegs, 0)) != 0) {
+		m_freem(m);
+		return (error);
+	}
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+	if (rxc->ste_mbuf != NULL) {
+		bus_dmamap_sync(sc->ste_cdata.ste_rx_tag, rxc->ste_map,
+		    BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->ste_cdata.ste_rx_tag, rxc->ste_map);
+	}
+	map = rxc->ste_map;
+	rxc->ste_map = sc->ste_cdata.ste_rx_sparemap;
+	sc->ste_cdata.ste_rx_sparemap = map;
+	bus_dmamap_sync(sc->ste_cdata.ste_rx_tag, rxc->ste_map,
+	    BUS_DMASYNC_PREREAD);
+	rxc->ste_mbuf = m;
+	rxc->ste_ptr->ste_status = 0;
+	rxc->ste_ptr->ste_frag.ste_addr = htole32(segs[0].ds_addr);
+	rxc->ste_ptr->ste_frag.ste_len = htole32(segs[0].ds_len |
+	    STE_FRAG_LAST);
 	return (0);
 }
 
@@ -1169,30 +1412,31 @@ ste_init_rx_list(struct ste_softc *sc)
 {
 	struct ste_chain_data *cd;
 	struct ste_list_data *ld;
-	int i;
+	int error, i;
 
 	cd = &sc->ste_cdata;
-	ld = sc->ste_ldata;
-
+	ld = &sc->ste_ldata;
+	bzero(ld->ste_rx_list, STE_RX_LIST_SZ);
 	for (i = 0; i < STE_RX_LIST_CNT; i++) {
 		cd->ste_rx_chain[i].ste_ptr = &ld->ste_rx_list[i];
-		if (ste_newbuf(sc, &cd->ste_rx_chain[i], NULL) == ENOBUFS)
-			return (ENOBUFS);
+		error = ste_newbuf(sc, &cd->ste_rx_chain[i]);
+		if (error != 0)
+			return (error);
 		if (i == (STE_RX_LIST_CNT - 1)) {
-			cd->ste_rx_chain[i].ste_next =
-			    &cd->ste_rx_chain[0];
-			ld->ste_rx_list[i].ste_next =
-			    vtophys(&ld->ste_rx_list[0]);
+			cd->ste_rx_chain[i].ste_next = &cd->ste_rx_chain[0];
+			ld->ste_rx_list[i].ste_next = ld->ste_rx_list_paddr +
+			    (sizeof(struct ste_desc_onefrag) * 0);
 		} else {
-			cd->ste_rx_chain[i].ste_next =
-			    &cd->ste_rx_chain[i + 1];
-			ld->ste_rx_list[i].ste_next =
-			    vtophys(&ld->ste_rx_list[i + 1]);
+			cd->ste_rx_chain[i].ste_next = &cd->ste_rx_chain[i + 1];
+			ld->ste_rx_list[i].ste_next = ld->ste_rx_list_paddr +
+			    (sizeof(struct ste_desc_onefrag) * (i + 1));
 		}
-		ld->ste_rx_list[i].ste_status = 0;
 	}
 
 	cd->ste_rx_head = &cd->ste_rx_chain[0];
+	bus_dmamap_sync(sc->ste_cdata.ste_rx_list_tag,
+	    sc->ste_cdata.ste_rx_list_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	return (0);
 }
@@ -1205,22 +1449,32 @@ ste_init_tx_list(struct ste_softc *sc)
 	int i;
 
 	cd = &sc->ste_cdata;
-	ld = sc->ste_ldata;
+	ld = &sc->ste_ldata;
+	bzero(ld->ste_tx_list, STE_TX_LIST_SZ);
 	for (i = 0; i < STE_TX_LIST_CNT; i++) {
 		cd->ste_tx_chain[i].ste_ptr = &ld->ste_tx_list[i];
-		cd->ste_tx_chain[i].ste_ptr->ste_next = 0;
-		cd->ste_tx_chain[i].ste_ptr->ste_ctl  = 0;
-		cd->ste_tx_chain[i].ste_phys = vtophys(&ld->ste_tx_list[i]);
-		if (i == (STE_TX_LIST_CNT - 1))
-			cd->ste_tx_chain[i].ste_next =
-			    &cd->ste_tx_chain[0];
-		else
-			cd->ste_tx_chain[i].ste_next =
-			    &cd->ste_tx_chain[i + 1];
+		cd->ste_tx_chain[i].ste_mbuf = NULL;
+		if (i == (STE_TX_LIST_CNT - 1)) {
+			cd->ste_tx_chain[i].ste_next = &cd->ste_tx_chain[0];
+			cd->ste_tx_chain[i].ste_phys = htole32(STE_ADDR_LO(
+			    ld->ste_tx_list_paddr +
+			    (sizeof(struct ste_desc) * 0)));
+		} else {
+			cd->ste_tx_chain[i].ste_next = &cd->ste_tx_chain[i + 1];
+			cd->ste_tx_chain[i].ste_phys = htole32(STE_ADDR_LO(
+			    ld->ste_tx_list_paddr +
+			    (sizeof(struct ste_desc) * (i + 1))));
+		}
 	}
 
+	cd->ste_last_tx = NULL;
 	cd->ste_tx_prod = 0;
 	cd->ste_tx_cons = 0;
+	cd->ste_tx_cnt = 0;
+
+	bus_dmamap_sync(sc->ste_cdata.ste_tx_list_tag,
+	    sc->ste_cdata.ste_tx_list_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 }
 
 static void
@@ -1253,7 +1507,7 @@ ste_init_locked(struct ste_softc *sc)
 	}
 
 	/* Init RX list */
-	if (ste_init_rx_list(sc) == ENOBUFS) {
+	if (ste_init_rx_list(sc) != 0) {
 		device_printf(sc->ste_dev,
 		    "initialization failed: no memory for RX buffers\n");
 		ste_stop(sc);
@@ -1298,11 +1552,11 @@ ste_init_locked(struct ste_softc *sc)
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_RXDMA_STALL);
 	ste_wait(sc);
 	CSR_WRITE_4(sc, STE_RX_DMALIST_PTR,
-	    vtophys(&sc->ste_ldata->ste_rx_list[0]));
+	    STE_ADDR_LO(sc->ste_ldata.ste_rx_list_paddr));
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_RXDMA_UNSTALL);
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_RXDMA_UNSTALL);
 
-	/* Set TX polling interval (defer until we TX first packet */
+	/* Set TX polling interval(defer until we TX first packet). */
 	CSR_WRITE_1(sc, STE_TX_DMAPOLL_PERIOD, 0);
 
 	/* Load address of the TX list */
@@ -1312,7 +1566,6 @@ ste_init_locked(struct ste_softc *sc)
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 	ste_wait(sc);
-	sc->ste_tx_prev = NULL;
 
 	/* Enable receiver and transmitter */
 	CSR_WRITE_2(sc, STE_MACCTL0, 0);
@@ -1348,6 +1601,8 @@ static void
 ste_stop(struct ste_softc *sc)
 {
 	struct ifnet *ifp;
+	struct ste_chain_onefrag *cur_rx;
+	struct ste_chain *cur_tx;
 	int i;
 
 	STE_LOCK_ASSERT(sc);
@@ -1372,20 +1627,28 @@ ste_stop(struct ste_softc *sc)
 	sc->ste_link = 0;
 
 	for (i = 0; i < STE_RX_LIST_CNT; i++) {
-		if (sc->ste_cdata.ste_rx_chain[i].ste_mbuf != NULL) {
-			m_freem(sc->ste_cdata.ste_rx_chain[i].ste_mbuf);
-			sc->ste_cdata.ste_rx_chain[i].ste_mbuf = NULL;
+		cur_rx = &sc->ste_cdata.ste_rx_chain[i];
+		if (cur_rx->ste_mbuf != NULL) {
+			bus_dmamap_sync(sc->ste_cdata.ste_rx_tag,
+			    cur_rx->ste_map, BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(sc->ste_cdata.ste_rx_tag,
+			    cur_rx->ste_map);
+			m_freem(cur_rx->ste_mbuf);
+			cur_rx->ste_mbuf = NULL;
 		}
 	}
 
 	for (i = 0; i < STE_TX_LIST_CNT; i++) {
-		if (sc->ste_cdata.ste_tx_chain[i].ste_mbuf != NULL) {
-			m_freem(sc->ste_cdata.ste_tx_chain[i].ste_mbuf);
-			sc->ste_cdata.ste_tx_chain[i].ste_mbuf = NULL;
+		cur_tx = &sc->ste_cdata.ste_tx_chain[i];
+		if (cur_tx->ste_mbuf != NULL) {
+			bus_dmamap_sync(sc->ste_cdata.ste_tx_tag,
+			    cur_tx->ste_map, BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->ste_cdata.ste_tx_tag,
+			    cur_tx->ste_map);
+			m_freem(cur_tx->ste_mbuf);
+			cur_tx->ste_mbuf = NULL;
 		}
 	}
-
-	bzero(sc->ste_ldata, sizeof(struct ste_list_data));
 }
 
 static void
@@ -1500,48 +1763,60 @@ ste_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 static int
-ste_encap(struct ste_softc *sc, struct ste_chain *c, struct mbuf *m_head)
+ste_encap(struct ste_softc *sc, struct mbuf **m_head, struct ste_chain *txc)
 {
+	struct ste_frag *frag;
 	struct mbuf *m;
-	struct ste_desc *d;
-	struct ste_frag *f = NULL;
-	int frag = 0;
+	struct ste_desc *desc;
+	bus_dma_segment_t txsegs[STE_MAXFRAGS];
+	int error, i, nsegs;
 
-	d = c->ste_ptr;
-	d->ste_ctl = 0;
+	STE_LOCK_ASSERT(sc);
+	M_ASSERTPKTHDR((*m_head));
 
-encap_retry:
-	for (m = m_head, frag = 0; m != NULL; m = m->m_next) {
-		if (m->m_len != 0) {
-			if (frag == STE_MAXFRAGS)
-				break;
-			f = &d->ste_frags[frag];
-			f->ste_addr = vtophys(mtod(m, vm_offset_t));
-			f->ste_len = m->m_len;
-			frag++;
+	error = bus_dmamap_load_mbuf_sg(sc->ste_cdata.ste_tx_tag,
+	    txc->ste_map, *m_head, txsegs, &nsegs, 0);
+	if (error == EFBIG) {
+		m = m_collapse(*m_head, M_DONTWAIT, STE_MAXFRAGS);
+		if (m == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (ENOMEM);
 		}
-	}
-
-	if (m != NULL) {
-		struct mbuf *mn;
-
-		/*
-		 * We ran out of segments. We have to recopy this
-		 * mbuf chain first. Bail out if we can't get the
-		 * new buffers.
-		 */
-		mn = m_defrag(m_head, M_DONTWAIT);
-		if (mn == NULL) {
-			m_freem(m_head);
-			return ENOMEM;
+		*m_head = m;
+		error = bus_dmamap_load_mbuf_sg(sc->ste_cdata.ste_tx_tag,
+		    txc->ste_map, *m_head, txsegs, &nsegs, 0);
+		if (error != 0) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (error);
 		}
-		m_head = mn;
-		goto encap_retry;
+	} else if (error != 0)
+		return (error);
+	if (nsegs == 0) {
+		m_freem(*m_head);
+		*m_head = NULL;
+		return (EIO);
 	}
+	bus_dmamap_sync(sc->ste_cdata.ste_tx_tag, txc->ste_map,
+	    BUS_DMASYNC_PREWRITE);
 
-	c->ste_mbuf = m_head;
-	d->ste_frags[frag - 1].ste_len |= STE_FRAG_LAST;
-	d->ste_ctl = 1;
+	desc = txc->ste_ptr;
+	for (i = 0; i < nsegs; i++) {
+		frag = &desc->ste_frags[i];
+		frag->ste_addr = htole32(STE_ADDR_LO(txsegs[i].ds_addr));
+		frag->ste_len = htole32(txsegs[i].ds_len);
+	}
+	desc->ste_frags[i - 1].ste_len |= htole32(STE_FRAG_LAST);
+	/*
+	 * Because we use Tx polling we can't chain multiple
+	 * Tx descriptors here. Otherwise we race with controller.
+	 */
+	desc->ste_next = 0;
+	desc->ste_ctl = htole32(STE_TXCTL_ALIGN_DIS | STE_TXCTL_DMAINTR);
+	txc->ste_mbuf = *m_head;
+	STE_INC(sc->ste_cdata.ste_tx_prod, STE_TX_LIST_CNT);
+	sc->ste_cdata.ste_tx_cnt++;
 
 	return (0);
 }
@@ -1563,7 +1838,7 @@ ste_start_locked(struct ifnet *ifp)
 	struct ste_softc *sc;
 	struct ste_chain *cur_tx;
 	struct mbuf *m_head = NULL;
-	int idx;
+	int enq;
 
 	sc = ifp->if_softc;
 	STE_LOCK_ASSERT(sc);
@@ -1574,62 +1849,56 @@ ste_start_locked(struct ifnet *ifp)
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
-	idx = sc->ste_cdata.ste_tx_prod;
-
-	while (sc->ste_cdata.ste_tx_chain[idx].ste_mbuf == NULL) {
-		/*
-		 * We cannot re-use the last (free) descriptor;
-		 * the chip may not have read its ste_next yet.
-		 */
-		if (STE_NEXT(idx, STE_TX_LIST_CNT) ==
-		    sc->ste_cdata.ste_tx_cons) {
+	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd);) {
+		if (sc->ste_cdata.ste_tx_cnt == STE_TX_LIST_CNT - 1) {
+			/*
+			 * Controller may have cached copy of the last used
+			 * next ptr so we have to reserve one TFD to avoid
+			 * TFD overruns.
+			 */
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
-
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
-
-		cur_tx = &sc->ste_cdata.ste_tx_chain[idx];
-
-		if (ste_encap(sc, cur_tx, m_head) != 0)
+		cur_tx = &sc->ste_cdata.ste_tx_chain[sc->ste_cdata.ste_tx_prod];
+		if (ste_encap(sc, &m_head, cur_tx) != 0) {
+			if (m_head == NULL)
+				break;
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			break;
-
-		cur_tx->ste_ptr->ste_next = 0;
-
-		if (sc->ste_tx_prev == NULL) {
-			cur_tx->ste_ptr->ste_ctl = STE_TXCTL_DMAINTR | 1;
-			/* Load address of the TX list */
+		}
+		if (sc->ste_cdata.ste_last_tx == NULL) {
+			bus_dmamap_sync(sc->ste_cdata.ste_tx_list_tag,
+			    sc->ste_cdata.ste_tx_list_map,
+			    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 			STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_STALL);
 			ste_wait(sc);
-
 			CSR_WRITE_4(sc, STE_TX_DMALIST_PTR,
-			    vtophys(&sc->ste_ldata->ste_tx_list[0]));
-
-			/* Set TX polling interval to start TX engine */
+	    		    STE_ADDR_LO(sc->ste_ldata.ste_tx_list_paddr));
 			CSR_WRITE_1(sc, STE_TX_DMAPOLL_PERIOD, 64);
-
 			STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 			ste_wait(sc);
-		}else{
-			cur_tx->ste_ptr->ste_ctl = STE_TXCTL_DMAINTR | 1;
-			sc->ste_tx_prev->ste_ptr->ste_next
-				= cur_tx->ste_phys;
+		} else {
+			sc->ste_cdata.ste_last_tx->ste_ptr->ste_next =
+			    sc->ste_cdata.ste_last_tx->ste_phys;
+			bus_dmamap_sync(sc->ste_cdata.ste_tx_list_tag,
+			    sc->ste_cdata.ste_tx_list_map,
+			    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 		}
+		sc->ste_cdata.ste_last_tx = cur_tx;
 
-		sc->ste_tx_prev = cur_tx;
-
+		enq++;
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 	 	 */
-		BPF_MTAP(ifp, cur_tx->ste_mbuf);
-
-		STE_INC(idx, STE_TX_LIST_CNT);
-		sc->ste_timer = 5;
+		BPF_MTAP(ifp, m_head);
 	}
-	sc->ste_cdata.ste_tx_prod = idx;
+
+	if (enq > 0)
+		sc->ste_timer = STE_TX_TIMEOUT;
 }
 
 static void
@@ -1645,8 +1914,7 @@ ste_watchdog(struct ste_softc *sc)
 
 	ste_txeoc(sc);
 	ste_txeof(sc);
-	ste_rxeoc(sc);
-	ste_rxeof(sc);
+	ste_rxeof(sc, -1);
 	ste_reset(sc);
 	ste_init_locked(sc);
 
