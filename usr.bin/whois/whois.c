@@ -215,6 +215,10 @@ choose_server(char *domain)
 {
 	char *pos, *retval;
 
+	if (strchr(domain, ':')) {
+		s_asprintf(&retval, "%s", ANICHOST);
+		return (retval);
+	}
 	for (pos = strchr(domain, '\0'); pos > domain && *--pos == '.';)
 		*pos = '\0';
 	if (*domain == '\0')
