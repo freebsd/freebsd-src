@@ -1207,6 +1207,7 @@ dev/spibus/spibus.c		optional spibus				\
 dev/spibus/spibus_if.m		optional spibus
 dev/sr/if_sr.c			optional sr
 dev/sr/if_sr_pci.c		optional sr pci
+dev/ste/if_ste.c		optional ste pci
 dev/stg/tmc18c30.c		optional stg
 dev/stg/tmc18c30_isa.c		optional stg isa
 dev/stg/tmc18c30_pccard.c	optional stg pccard
@@ -2124,7 +2125,6 @@ pci/amdpm.c			optional amdpm pci | nfpm pci
 pci/amdsmb.c			optional amdsmb pci
 pci/if_mn.c			optional mn pci
 pci/if_rl.c			optional rl pci
-pci/if_ste.c			optional ste pci
 pci/if_tl.c			optional tl pci
 pci/if_wb.c			optional wb pci
 pci/if_xl.c			optional xl pci
