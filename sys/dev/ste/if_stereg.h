@@ -63,6 +63,7 @@
 #define STE_RX_DMABURST_THRESH	0x14
 #define STE_RX_DMAURG_THRESH	0x15
 #define STE_RX_DMAPOLL_PERIOD	0x16
+#define	STE_COUNTDOWN		0x18
 #define STE_DEBUGCTL		0x1A
 #define STE_ASICCTL		0x30
 #define STE_EEPROM_DATA		0x34
@@ -75,7 +76,6 @@
 #define STE_WAKE_EVENT		0x45
 #define STE_TX_STATUS		0x46
 #define STE_TX_FRAMEID		0x47
-#define STE_COUNTDOWN		0x48
 #define STE_ISR_ACK		0x4A
 #define STE_IMR			0x4C
 #define STE_ISR			0x4E
@@ -92,11 +92,25 @@
 #define STE_MAR1		0x62
 #define STE_MAR2		0x64
 #define STE_MAR3		0x66
-#define STE_STATS		0x68
 
-#define STE_LATE_COLLS  0x75
-#define STE_MULTI_COLLS	0x76
-#define STE_SINGLE_COLLS 0x77
+#define	STE_STAT_RX_OCTETS_LO	0x68
+#define	STE_STAT_RX_OCTETS_HI	0x6A
+#define	STE_STAT_TX_OCTETS_LO	0x6C
+#define	STE_STAT_TX_OCTETS_HI	0x6E
+#define	STE_STAT_TX_FRAMES	0x70
+#define	STE_STAT_RX_FRAMES	0x72
+#define	STE_STAT_CARRIER_ERR	0x74
+#define	STE_STAT_LATE_COLLS	0x75
+#define	STE_STAT_MULTI_COLLS	0x76
+#define	STE_STAT_SINGLE_COLLS	0x77
+#define	STE_STAT_TX_DEFER	0x78
+#define	STE_STAT_RX_LOST	0x79
+#define	STE_STAT_TX_EXDEFER	0x7A
+#define	STE_STAT_TX_ABORT	0x7B
+#define	STE_STAT_TX_BCAST	0x7C
+#define	STE_STAT_RX_BCAST	0x7D
+#define	STE_STAT_TX_MCAST	0x7E
+#define	STE_STAT_RX_MCAST	0x7F
 
 #define STE_DMACTL_RXDMA_STOPPED	0x00000001
 #define STE_DMACTL_TXDMA_CMPREQ		0x00000002
@@ -198,18 +212,6 @@
 #define STE_ASICCTL_EXTRESET_RESET	0x01000000
 #define STE_ASICCTL_SOFTINTR		0x02000000
 #define STE_ASICCTL_RESET_BUSY		0x04000000
-
-#define STE_ASICCTL1_GLOBAL_RESET	0x0001
-#define STE_ASICCTL1_RX_RESET		0x0002
-#define STE_ASICCTL1_TX_RESET		0x0004
-#define STE_ASICCTL1_DMA_RESET		0x0008
-#define STE_ASICCTL1_FIFO_RESET		0x0010
-#define STE_ASICCTL1_NETWORK_RESET	0x0020
-#define STE_ASICCTL1_HOST_RESET		0x0040
-#define STE_ASICCTL1_AUTOINIT_RESET	0x0080
-#define STE_ASICCTL1_EXTRESET_RESET	0x0100
-#define STE_ASICCTL1_SOFTINTR		0x0200
-#define STE_ASICCTL1_RESET_BUSY		0x0400
 
 #define STE_EECTL_ADDR			0x00FF
 #define STE_EECTL_OPCODE		0x0300
@@ -388,24 +390,23 @@
 #define STE_PME_EN			0x0010
 #define STE_PME_STATUS			0x8000
 
-
-struct ste_stats {
-	uint32_t		ste_rx_bytes;
-	uint32_t		ste_tx_bytes;
-	uint16_t		ste_tx_frames;
-	uint16_t		ste_rx_frames;
-	uint8_t			ste_carrsense_errs;
-	uint8_t			ste_late_colls;
-	uint8_t			ste_multi_colls;
-	uint8_t			ste_single_colls;
-	uint8_t			ste_tx_frames_defered;
-	uint8_t			ste_rx_lost_frames;
-	uint8_t			ste_tx_excess_defers;
-	uint8_t			ste_tx_abort_excess_colls;
-	uint8_t			ste_tx_bcast_frames;
-	uint8_t			ste_rx_bcast_frames;
-	uint8_t			ste_tx_mcast_frames;
-	uint8_t			ste_rx_mcast_frames;
+struct ste_hw_stats {
+	uint64_t		rx_bytes;
+	uint32_t		rx_frames;
+	uint32_t		rx_bcast_frames;
+	uint32_t		rx_mcast_frames;
+	uint32_t		rx_lost_frames;
+	uint64_t		tx_bytes;
+	uint32_t		tx_frames;
+	uint32_t		tx_bcast_frames;
+	uint32_t		tx_mcast_frames;
+	uint32_t		tx_carrsense_errs;
+	uint32_t		tx_single_colls;
+	uint32_t		tx_multi_colls;
+	uint32_t		tx_late_colls;
+	uint32_t		tx_frames_defered;
+	uint32_t		tx_excess_defers;
+	uint32_t		tx_abort;
 };
 
 struct ste_frag {
@@ -493,6 +494,12 @@ struct ste_desc_onefrag {
 #define	STE_ADDR_LO(x)		((uint64_t)(x) & 0xFFFFFFFF)
 #define	STE_ADDR_HI(x)		((uint64_t)(x) >> 32)
 
+/*
+ * Since Tx status can hold up to 31 status bytes we should
+ * check Tx status before controller fills it up. Otherwise
+ * Tx MAC stalls.
+ */
+#define	STE_TX_INTR_FRAMES	16
 #define	STE_TX_TIMEOUT		5
 #define STE_TIMEOUT		1000
 #define STE_MIN_FRAMELEN	60
@@ -566,6 +573,7 @@ struct ste_softc {
 	struct ste_list_data	ste_ldata;
 	struct ste_chain_data	ste_cdata;
 	struct callout		ste_callout;
+	struct ste_hw_stats	ste_stats;
 	struct mtx		ste_mtx;
 };
 
