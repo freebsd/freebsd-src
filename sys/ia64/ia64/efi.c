@@ -41,6 +41,45 @@ static struct efi_systbl *efi_systbl;
 static struct efi_cfgtbl *efi_cfgtbl;
 static struct efi_rt *efi_runtime;
 
+static int efi_status2err[25] = {
+	0,		/* EFI_SUCCESS */
+	ENOEXEC,	/* EFI_LOAD_ERROR */
+	EINVAL,		/* EFI_INVALID_PARAMETER */
+	ENOSYS,		/* EFI_UNSUPPORTED */
+	EMSGSIZE, 	/* EFI_BAD_BUFFER_SIZE */
+	EOVERFLOW,	/* EFI_BUFFER_TOO_SMALL */
+	EBUSY,		/* EFI_NOT_READY */
+	EIO,		/* EFI_DEVICE_ERROR */
+	EROFS,		/* EFI_WRITE_PROTECTED */
+	EAGAIN,		/* EFI_OUT_OF_RESOURCES */
+	EIO,		/* EFI_VOLUME_CORRUPTED */
+	ENOSPC,		/* EFI_VOLUME_FULL */
+	ENXIO,		/* EFI_NO_MEDIA */
+	ESTALE,		/* EFI_MEDIA_CHANGED */
+	ENOENT,		/* EFI_NOT_FOUND */
+	EACCES,		/* EFI_ACCESS_DENIED */
+	ETIMEDOUT,	/* EFI_NO_RESPONSE */
+	EADDRNOTAVAIL,	/* EFI_NO_MAPPING */
+	ETIMEDOUT,	/* EFI_TIMEOUT */
+	EDOOFUS,	/* EFI_NOT_STARTED */
+	EALREADY,	/* EFI_ALREADY_STARTED */
+	ECANCELED,	/* EFI_ABORTED */
+	EPROTO,		/* EFI_ICMP_ERROR */
+	EPROTO,		/* EFI_TFTP_ERROR */
+	EPROTO		/* EFI_PROTOCOL_ERROR */
+};
+
+static int
+efi_status_to_errno(efi_status status)
+{
+	u_long code;
+	int error;
+
+	code = status & 0x3ffffffffffffffful;
+	error = (code < 25) ? efi_status2err[code] : EDOOFUS;
+	return (error);
+}
+
 void
 efi_boot_finish(void)
 {
@@ -148,9 +187,38 @@ efi_reset_system(void)
 	panic("%s: unable to reset the machine", __func__);
 }
 
-efi_status
+int
 efi_set_time(struct efi_tm *tm)
 {
 
-	return (efi_runtime->rt_settime(tm));
+	return (efi_status_to_errno(efi_runtime->rt_settime(tm)));
+}
+
+int
+efi_var_get(efi_char *name, struct uuid *vendor, uint32_t *attrib,
+    size_t *datasize, void *data)
+{
+	efi_status status;
+
+	status = efi_runtime->rt_getvar(name, vendor, attrib, datasize, data);
+	return (efi_status_to_errno(status));
+}
+
+int
+efi_var_nextname(size_t *namesize, efi_char *name, struct uuid *vendor)
+{
+	efi_status status;
+
+	status = efi_runtime->rt_scanvar(namesize, name, vendor);
+	return (efi_status_to_errno(status));
+}
+ 
+int
+efi_var_set(efi_char *name, struct uuid *vendor, uint32_t *attrib,
+    size_t *datasize, void *data)
+{
+	efi_status status;
+ 
+	status = efi_runtime->rt_getvar(name, vendor, attrib, datasize, data);
+	return (efi_status_to_errno(status));
 }
