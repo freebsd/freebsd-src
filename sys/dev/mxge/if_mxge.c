@@ -104,7 +104,7 @@ static int mxge_verbose = 0;
 static int mxge_lro_cnt = 8;
 static int mxge_ticks;
 static int mxge_max_slices = 1;
-static int mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
+static int mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_DST_PORT;
 static int mxge_always_promisc = 0;
 static int mxge_initial_mtu = ETHERMTU_JUMBO;
 static int mxge_throttle = 0;
@@ -4175,7 +4175,7 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 	sc->pause = mxge_flow_control;
 	if (mxge_rss_hash_type < MXGEFW_RSS_HASH_TYPE_IPV4 
 	    || mxge_rss_hash_type > MXGEFW_RSS_HASH_TYPE_MAX) {
-		mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
+		mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_DST_PORT;
 	}
 	if (mxge_initial_mtu > ETHERMTU_JUMBO ||
 	    mxge_initial_mtu < ETHER_MIN_LEN)
