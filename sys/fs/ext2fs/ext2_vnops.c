@@ -74,14 +74,15 @@
 #include <sys/signalvar.h>
 #include <ufs/ufs/dir.h>
 
-#include <gnu/fs/ext2fs/inode.h>
-#include <gnu/fs/ext2fs/ext2_mount.h>
-#include <gnu/fs/ext2fs/ext2_fs_sb.h>
-#include <gnu/fs/ext2fs/fs.h>
-#include <gnu/fs/ext2fs/ext2_extern.h>
-#include <gnu/fs/ext2fs/ext2_fs.h>
+#include <fs/ext2fs/inode.h>
+#include <fs/ext2fs/ext2_mount.h>
+#include <fs/ext2fs/fs.h>
+#include <fs/ext2fs/ext2_extern.h>
+#include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/ext2_dir.h>
 
 static int ext2_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
+static void ext2_itimes_locked(struct vnode *);
 
 static vop_access_t	ext2_access;
 static int ext2_chmod(struct vnode *, int, struct ucred *, struct thread *);
@@ -160,7 +161,7 @@ struct vop_vector ext2_fifoops = {
 	.vop_vptofh =		ext2_vptofh,
 };
 
-#include <gnu/fs/ext2fs/ext2_readwrite.c>
+#include <fs/ext2fs/ext2_readwrite.c>
 
 /*
  * A virgin directory (no blushing please).
@@ -177,12 +178,13 @@ static struct dirtemplate omastertemplate = {
 	0, DIRBLKSIZ - 12, 2, EXT2_FT_UNKNOWN, ".."
 };
 
-void
-ext2_itimes(vp)
-	struct vnode *vp;
+static void
+ext2_itimes_locked(struct vnode *vp)
 {
 	struct inode *ip;
 	struct timespec ts;
+
+	ASSERT_VI_LOCKED(vp, __func__);	
 
 	ip = VTOI(vp);
 	if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) == 0)
@@ -208,6 +210,15 @@ ext2_itimes(vp)
 		}
 	}
 	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);
+}
+
+void
+ext2_itimes(struct vnode *vp)
+{
+
+	VI_LOCK(vp);
+	ext2_itimes_locked(vp);
+	VI_UNLOCK(vp);
 }
 
 /*
@@ -275,7 +286,7 @@ ext2_close(ap)
 
 	VI_LOCK(vp);
 	if (vp->v_usecount > 1)
-		ext2_itimes(vp);
+		ext2_itimes_locked(vp);
 	VI_UNLOCK(vp);
 	return (0);
 }
@@ -316,7 +327,7 @@ ext2_access(ap)
 	}
 
 	/* If immutable bit set, nobody gets to write it. */
-	if ((accmode & VWRITE) && (ip->i_flags & (IMMUTABLE | SF_SNAPSHOT)))
+	if ((accmode & VWRITE) && (ip->i_flags & (SF_IMMUTABLE | SF_SNAPSHOT)))
 		return (EPERM);
 
 	error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
@@ -391,12 +402,11 @@ ext2_setattr(ap)
 		return (EINVAL);
 	}
 	if (vap->va_flags != VNOVAL) {
-		/* Disallow flags not supported by ext2fs. */
-		if (vap->va_flags & ~(SF_APPEND | SF_IMMUTABLE | UF_NODUMP))
-			return (EOPNOTSUPP);
-
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
+		/* Disallow flags not supported by ext2fs. */
+		if(vap->va_flags & ~(SF_APPEND | SF_IMMUTABLE | UF_NODUMP))
+			return(EOPNOTSUPP);
 		/*
 		 * Callers may only modify the file flags on objects they
 		 * have VADMIN rights for.
@@ -420,11 +430,9 @@ ext2_setattr(ap)
 			ip->i_flags = vap->va_flags;
 		} else {
 			if (ip->i_flags
-			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
-			    (vap->va_flags & UF_SETTABLE) != vap->va_flags)
+			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND))
 				return (EPERM);
 			ip->i_flags &= SF_SETTABLE;
-			ip->i_flags |= (vap->va_flags & UF_SETTABLE);
 		}
 		ip->i_flag |= IN_CHANGE;
 		if (vap->va_flags & (IMMUTABLE | APPEND))
@@ -610,7 +618,6 @@ ext2_fsync(ap)
 	/*
 	 * Flush all dirty buffers associated with a vnode.
 	 */
-	ext2_discard_prealloc(VTOI(ap->a_vp));
 
 	vop_stdfsync(ap);
 
@@ -743,7 +750,27 @@ out:
 
 /*
  * Rename system call.
- *   See comments in sys/ufs/ufs/ufs_vnops.c
+ * 	rename("foo", "bar");
+ * is essentially
+ *	unlink("bar");
+ *	link("foo", "bar");
+ *	unlink("foo");
+ * but ``atomically''.  Can't do full commit without saving state in the
+ * inode on disk which isn't feasible at this time.  Best we can do is
+ * always guarantee the target exists.
+ *
+ * Basic algorithm is:
+ *
+ * 1) Bump link count on source while we're linking it to the
+ *    target.  This also ensure the inode won't be deleted out
+ *    from underneath us while we work (it may be truncated by
+ *    a concurrent `trunc' or `open' for creation).
+ * 2) Link source to destination.  If destination already exists,
+ *    delete it first.
+ * 3) Unlink source reference to inode if still around. If a
+ *    directory was moved and the parent of the destination
+ *    is different from the source, patch the ".." entry in the
+ *    directory.
  */
 static int
 ext2_rename(ap)
@@ -1189,7 +1216,7 @@ ext2_mkdir(ap)
 
 	/* Initialize directory with "." and ".." from static template. */
 	if (EXT2_HAS_INCOMPAT_FEATURE(ip->i_e2fs,
-	    EXT2_FEATURE_INCOMPAT_FILETYPE))
+	    EXT2F_INCOMPAT_FTYPE))
 		dtp = &mastertemplate;
 	else
 		dtp = &omastertemplate;
@@ -1200,7 +1227,7 @@ ext2_mkdir(ap)
 	 * so let's just redefine it - for this function only
 	 */
 #undef  DIRBLKSIZ 
-#define DIRBLKSIZ  VTOI(dvp)->i_e2fs->s_blocksize
+#define DIRBLKSIZ  VTOI(dvp)->i_e2fs->e2fs_bsize
 	dirtemplate.dotdot_reclen = DIRBLKSIZ - 12;
 	error = vn_rdwr(UIO_WRITE, tvp, (caddr_t)&dirtemplate,
 	    sizeof (dirtemplate), (off_t)0, UIO_SYSSPACE,
@@ -1454,7 +1481,7 @@ ext2fifo_close(ap)
 
 	VI_LOCK(vp);
 	if (vp->v_usecount > 1)
-		ext2_itimes(vp);
+		ext2_itimes_locked(vp);
 	VI_UNLOCK(vp);
 	return (fifo_specops.vop_close(ap));
 }

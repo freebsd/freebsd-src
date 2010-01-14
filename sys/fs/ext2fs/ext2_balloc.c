@@ -44,42 +44,39 @@
 #include <sys/ucred.h>
 #include <sys/vnode.h>
 
-#include <gnu/fs/ext2fs/inode.h>
-#include <gnu/fs/ext2fs/ext2_fs.h>
-#include <gnu/fs/ext2fs/ext2_fs_sb.h>
-#include <gnu/fs/ext2fs/fs.h>
-#include <gnu/fs/ext2fs/ext2_extern.h>
-
+#include <fs/ext2fs/inode.h>
+#include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/fs.h>
+#include <fs/ext2fs/ext2_extern.h>
+#include <fs/ext2fs/ext2_mount.h>
 /*
  * Balloc defines the structure of file system storage
  * by allocating the physical blocks on a device given
  * the inode and the logical block number in a file.
  */
 int
-ext2_balloc(ip, bn, size, cred, bpp, flags)
+ext2_balloc(ip, lbn, size, cred, bpp, flags)
 	struct inode *ip;
-	int32_t bn;
+	int32_t lbn;
 	int size;
 	struct ucred *cred;
 	struct buf **bpp;
 	int flags;
 {
-	struct ext2_sb_info *fs;
+	struct m_ext2fs *fs;
+	struct ext2mount *ump;
 	int32_t nb;
 	struct buf *bp, *nbp;
 	struct vnode *vp = ITOV(ip);
 	struct indir indirs[NIADDR + 2];
-	int32_t newb, lbn, *bap, pref;
+	int32_t newb, *bap, pref;
 	int osize, nsize, num, i, error;
-/*
-ext2_debug("ext2_balloc called (%d, %d, %d)\n", 
-	ip->i_number, (int)bn, (int)size);
-*/
+
 	*bpp = NULL;
-	if (bn < 0)
+	if (lbn < 0)
 		return (EFBIG);
 	fs = ip->i_e2fs;
-	lbn = bn;
+	ump = ip->i_ump;
 
 	/*
 	 * check if this is a sequential block allocation. 
@@ -94,12 +91,12 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 	/*
 	 * The first NDADDR blocks are direct blocks
 	 */
-	if (bn < NDADDR) {
-		nb = ip->i_db[bn];
+	if (lbn < NDADDR) {
+		nb = ip->i_db[lbn];
 		/* no new block is to be allocated, and no need to expand
 		   the file */
-		if (nb != 0 && ip->i_size >= (bn + 1) * fs->s_blocksize) {
-			error = bread(vp, bn, fs->s_blocksize, NOCRED, &bp);
+		if (nb != 0 && ip->i_size >= (lbn + 1) * fs->e2fs_bsize) {
+			error = bread(vp, lbn, fs->e2fs_bsize, NOCRED, &bp);
 			if (error) {
 				brelse(bp);
 				return (error);
@@ -115,7 +112,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 			osize = fragroundup(fs, blkoff(fs, ip->i_size));
 			nsize = fragroundup(fs, size);
 			if (nsize <= osize) {
-				error = bread(vp, bn, osize, NOCRED, &bp);
+				error = bread(vp, lbn, osize, NOCRED, &bp);
 				if (error) {
 					brelse(bp);
 					return (error);
@@ -134,21 +131,22 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
  */
 			}
 		} else {
-			if (ip->i_size < (bn + 1) * fs->s_blocksize)
+			if (ip->i_size < (lbn + 1) * fs->e2fs_bsize)
 				nsize = fragroundup(fs, size);
 			else
-				nsize = fs->s_blocksize;
-			error = ext2_alloc(ip, bn,
-			    ext2_blkpref(ip, bn, (int)bn, &ip->i_db[0], 0),
+				nsize = fs->e2fs_bsize;
+			EXT2_LOCK(ump);
+			error = ext2_alloc(ip, lbn,
+			    ext2_blkpref(ip, lbn, (int)lbn, &ip->i_db[0], 0),
 			    nsize, cred, &newb);
 			if (error)
 				return (error);
-			bp = getblk(vp, bn, nsize, 0, 0, 0);
+			bp = getblk(vp, lbn, nsize, 0, 0, 0);
 			bp->b_blkno = fsbtodb(fs, newb);
 			if (flags & B_CLRBUF)
 				vfs_bio_clrbuf(bp);
 		}
-		ip->i_db[bn] = dbtofsb(fs, bp->b_blkno);
+		ip->i_db[lbn] = dbtofsb(fs, bp->b_blkno);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		*bpp = bp;
 		return (0);
@@ -157,7 +155,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 	 * Determine the number of levels of indirection.
 	 */
 	pref = 0;
-	if ((error = ext2_getlbns(vp, bn, indirs, &num)) != 0)
+	if ((error = ext2_getlbns(vp, lbn, indirs, &num)) != 0)
 		return(error);
 #ifdef DIAGNOSTIC
 	if (num < 1)
@@ -169,28 +167,14 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 	--num;
 	nb = ip->i_ib[indirs[0].in_off];
 	if (nb == 0) {
-#if 0
-		pref = ext2_blkpref(ip, lbn, 0, (int32_t *)0, 0);
-#else
-		/* see the comment by ext2_blkpref. What we do here is
-		   to pretend that it'd be good for a block holding indirect
-		   pointers to be allocated near its predecessor in terms 
-		   of indirection, or the last direct block. 
-		   We shamelessly exploit the fact that i_ib immediately
-		   follows i_db. 
-		   Godmar thinks it make sense to allocate i_ib[0] immediately
-		   after i_db[11], but it's not utterly clear whether this also
-		   applies to i_ib[1] and i_ib[0]
-		*/
-
+		EXT2_LOCK(ump);
 		pref = ext2_blkpref(ip, lbn, indirs[0].in_off + 
 					     EXT2_NDIR_BLOCKS, &ip->i_db[0], 0);
-#endif
-	        if ((error = ext2_alloc(ip, lbn, pref, (int)fs->s_blocksize,
-		    cred, &newb)) != 0)
+	        if ((error = ext2_alloc(ip, lbn, pref, 
+			(int)fs->e2fs_bsize, cred, &newb)))
 			return (error);
 		nb = newb;
-		bp = getblk(vp, indirs[1].in_lbn, fs->s_blocksize, 0, 0, 0);
+		bp = getblk(vp, indirs[1].in_lbn, fs->e2fs_bsize, 0, 0, 0);
 		bp->b_blkno = fsbtodb(fs, newb);
 		vfs_bio_clrbuf(bp);
 		/*
@@ -198,7 +182,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 		 * never point at garbage.
 		 */
 		if ((error = bwrite(bp)) != 0) {
-			ext2_blkfree(ip, nb, fs->s_blocksize);
+			ext2_blkfree(ip, nb, fs->e2fs_bsize);
 			return (error);
 		}
 		ip->i_ib[indirs[0].in_off] = newb;
@@ -209,7 +193,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 	 */
 	for (i = 1;;) {
 		error = bread(vp,
-		    indirs[i].in_lbn, (int)fs->s_blocksize, NOCRED, &bp);
+		    indirs[i].in_lbn, (int)fs->e2fs_bsize, NOCRED, &bp);
 		if (error) {
 			brelse(bp);
 			return (error);
@@ -220,29 +204,20 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 			break;
 		i += 1;
 		if (nb != 0) {
-			brelse(bp);
+			bqrelse(bp);
 			continue;
 		}
-		if (pref == 0) 
-#if 1
-			/* see the comment above and by ext2_blkpref
-			 * I think this implements Linux policy, but
-			 * does it really make sense to allocate to
-			 * block containing pointers together ?
-			 * Also, will it ever succeed ?
-			 */
+		EXT2_LOCK(ump);
+		if (pref == 0)
 			pref = ext2_blkpref(ip, lbn, indirs[i].in_off, bap,
 						bp->b_lblkno);
-#else
-			pref = ext2_blkpref(ip, lbn, 0, (int32_t *)0, 0);
-#endif
-		if ((error =
-		    ext2_alloc(ip, lbn, pref, (int)fs->s_blocksize, cred, &newb)) != 0) {
+		error =  ext2_alloc(ip, lbn, pref, (int)fs->e2fs_bsize, cred, &newb);
+		if (error) {
 			brelse(bp);
 			return (error);
 		}
 		nb = newb;
-		nbp = getblk(vp, indirs[i].in_lbn, fs->s_blocksize, 0, 0, 0);
+		nbp = getblk(vp, indirs[i].in_lbn, fs->e2fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(nbp);
 		/*
@@ -250,7 +225,8 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 		 * never point at garbage.
 		 */
 		if ((error = bwrite(nbp)) != 0) {
-			ext2_blkfree(ip, nb, fs->s_blocksize);
+			ext2_blkfree(ip, nb, fs->e2fs_bsize);
+			EXT2_UNLOCK(ump);
 			brelse(bp);
 			return (error);
 		}
@@ -262,6 +238,8 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 		if (flags & B_SYNC) {
 			bwrite(bp);
 		} else {
+			if (bp->b_bufsize == fs->e2fs_bsize)
+				bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
 		}
 	}
@@ -269,15 +247,16 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 	 * Get the data block, allocating if necessary.
 	 */
 	if (nb == 0) {
+		EXT2_LOCK(ump);
 		pref = ext2_blkpref(ip, lbn, indirs[i].in_off, &bap[0], 
 				bp->b_lblkno);
 		if ((error = ext2_alloc(ip,
-		    lbn, pref, (int)fs->s_blocksize, cred, &newb)) != 0) {
+		    lbn, pref, (int)fs->e2fs_bsize, cred, &newb)) != 0) {
 			brelse(bp);
 			return (error);
 		}
 		nb = newb;
-		nbp = getblk(vp, lbn, fs->s_blocksize, 0, 0, 0);
+		nbp = getblk(vp, lbn, fs->e2fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		if (flags & B_CLRBUF)
 			vfs_bio_clrbuf(nbp);
@@ -289,6 +268,8 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 		if (flags & B_SYNC) {
 			bwrite(bp);
 		} else {
+		if (bp->b_bufsize == fs->e2fs_bsize)
+				bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
 		}
 		*bpp = nbp;
@@ -296,15 +277,16 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 	}
 	brelse(bp);
 	if (flags & B_CLRBUF) {
-		error = bread(vp, lbn, (int)fs->s_blocksize, NOCRED, &nbp);
+		error = bread(vp, lbn, (int)fs->e2fs_bsize, NOCRED, &nbp);
 		if (error) {
 			brelse(nbp);
 			return (error);
 		}
 	} else {
-		nbp = getblk(vp, lbn, fs->s_blocksize, 0, 0, 0);
+		nbp = getblk(vp, lbn, fs->e2fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 	}
 	*bpp = nbp;
 	return (0);
 }
+
