@@ -517,6 +517,7 @@ struct ste_softc {
 	int			ste_tx_thresh;
 	u_int8_t		ste_link;
 	int			ste_if_flags;
+	int			ste_timer;
 	struct ste_chain	*ste_tx_prev;
 	struct ste_list_data	*ste_ldata;
 	struct ste_chain_data	ste_cdata;
