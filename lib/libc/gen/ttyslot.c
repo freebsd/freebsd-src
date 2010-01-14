@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 int
-ttyslot()
+__ttyslot(void)
 {
 	struct ttyent *ttyp;
 	int slot;
@@ -63,3 +63,5 @@ ttyslot()
 	endttyent();
 	return(0);
 }
+
+__sym_compat(ttyslot, __ttyslot, FBSD_1.0);
