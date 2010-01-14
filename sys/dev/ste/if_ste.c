@@ -74,11 +74,12 @@ __FBSDID("$FreeBSD$");
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
-#define STE_USEIOSPACE
-
 MODULE_DEPEND(ste, pci, 1, 1, 1);
 MODULE_DEPEND(ste, ether, 1, 1, 1);
 MODULE_DEPEND(ste, miibus, 1, 1, 1);
+
+/* Define to show Tx error status. */
+#define	STE_SHOW_TXERRORS
 
 /*
  * Various supported device vendors/types and their names.
@@ -120,24 +121,18 @@ static int	ste_miibus_writereg(device_t, int, int, int);
 static int	ste_newbuf(struct ste_softc *, struct ste_chain_onefrag *);
 static int	ste_read_eeprom(struct ste_softc *, caddr_t, int, int, int);
 static void	ste_reset(struct ste_softc *);
+static void	ste_restart_tx(struct ste_softc *);
 static void	ste_rxeof(struct ste_softc *, int);
 static void	ste_setmulti(struct ste_softc *);
 static void	ste_start(struct ifnet *);
 static void	ste_start_locked(struct ifnet *);
-static void	ste_stats_update(void *);
+static void	ste_stats_update(struct ste_softc *);
 static void	ste_stop(struct ste_softc *);
+static void	ste_tick(void *);
 static void	ste_txeoc(struct ste_softc *);
 static void	ste_txeof(struct ste_softc *);
 static void	ste_wait(struct ste_softc *);
 static void	ste_watchdog(struct ste_softc *);
-
-#ifdef STE_USEIOSPACE
-#define STE_RES			SYS_RES_IOPORT
-#define STE_RID			STE_PCI_LOIO
-#else
-#define STE_RES			SYS_RES_MEMORY
-#define STE_RID			STE_PCI_LOMEM
-#endif
 
 static device_method_t ste_methods[] = {
 	/* Device interface */
@@ -369,7 +364,7 @@ ste_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	if ( sc->ste_one_phy && phy != 0 )
+	if ((sc->ste_flags & STE_FLAG_ONE_PHY) != 0 && phy != 0)
 		return (0);
 
 	bzero((char *)&frame, sizeof(frame));
@@ -404,15 +399,49 @@ ste_miibus_statchg(device_t dev)
 {
 	struct ste_softc *sc;
 	struct mii_data *mii;
+	struct ifnet *ifp;
+	uint16_t cfg;
 
 	sc = device_get_softc(dev);
 
 	mii = device_get_softc(sc->ste_miibus);
+	ifp = sc->ste_ifp;
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
 
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
-		STE_SETBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
-	} else {
-		STE_CLRBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
+	sc->ste_flags &= ~STE_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+		case IFM_100_FX:
+		case IFM_100_T4:
+			sc->ste_flags |= STE_FLAG_LINK;
+		default:
+			break;
+		}
+	}
+
+	/* Program MACs with resolved speed/duplex/flow-control. */
+	if ((sc->ste_flags & STE_FLAG_LINK) != 0) {
+		cfg = CSR_READ_2(sc, STE_MACCTL0);
+		cfg &= ~(STE_MACCTL0_FLOWCTL_ENABLE | STE_MACCTL0_FULLDUPLEX);
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
+			/*
+			 * ST201 data sheet says driver should enable receiving
+			 * MAC control frames bit of receive mode register to
+			 * receive flow-control frames but the register has no
+			 * such bits. In addition the controller has no ability
+			 * to send pause frames so it should be handled in
+			 * driver. Implementing pause timer handling in driver
+			 * layer is not trivial, so don't enable flow-control
+			 * here.
+			 */
+			cfg |= STE_MACCTL0_FULLDUPLEX;
+		}
+		CSR_WRITE_2(sc, STE_MACCTL0, cfg);
 	}
 }
 
@@ -438,7 +467,7 @@ ste_ifmedia_upd_locked(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	STE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->ste_miibus);
-	sc->ste_link = 0;
+	sc->ste_flags &= ~STE_FLAG_LINK;
 	if (mii->mii_instance) {
 		struct mii_softc	*miisc;
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
@@ -471,6 +500,7 @@ ste_wait(struct ste_softc *sc)
 	for (i = 0; i < STE_TIMEOUT; i++) {
 		if (!(CSR_READ_4(sc, STE_DMACTL) & STE_DMACTL_DMA_HALTINPROG))
 			break;
+		DELAY(1);
 	}
 
 	if (i == STE_TIMEOUT)
@@ -598,6 +628,7 @@ ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	ste_rxeof(sc, count);
 	ste_txeof(sc);
+	ste_txeoc(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		ste_start_locked(ifp);
 
@@ -606,21 +637,11 @@ ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		status = CSR_READ_2(sc, STE_ISR_ACK);
 
-		if (status & STE_ISR_TX_DONE)
-			ste_txeoc(sc);
-
-		if (status & STE_ISR_STATS_OFLOW) {
-			callout_stop(&sc->ste_stat_callout);
+		if (status & STE_ISR_STATS_OFLOW)
 			ste_stats_update(sc);
-		}
 
-		if (status & STE_ISR_LINKEVENT)
-			mii_pollstat(device_get_softc(sc->ste_miibus));
-
-		if (status & STE_ISR_HOSTERR) {
-			ste_reset(sc);
+		if (status & STE_ISR_HOSTERR)
 			ste_init_locked(sc);
-		}
 	}
 }
 #endif /* DEVICE_POLLING */
@@ -664,19 +685,11 @@ ste_intr(void *xsc)
 		if (status & STE_ISR_TX_DONE)
 			ste_txeoc(sc);
 
-		if (status & STE_ISR_STATS_OFLOW) {
-			callout_stop(&sc->ste_stat_callout);
+		if (status & STE_ISR_STATS_OFLOW)
 			ste_stats_update(sc);
-		}
 
-		if (status & STE_ISR_LINKEVENT)
-			mii_pollstat(device_get_softc(sc->ste_miibus));
-
-
-		if (status & STE_ISR_HOSTERR) {
-			ste_reset(sc);
+		if (status & STE_ISR_HOSTERR)
 			ste_init_locked(sc);
-		}
 	}
 
 	/* Re-enable interrupts */
@@ -771,38 +784,89 @@ ste_rxeof(struct ste_softc *sc, int count)
 static void
 ste_txeoc(struct ste_softc *sc)
 {
+	uint16_t txstat;
 	struct ifnet *ifp;
-	uint8_t txstat;
+
+	STE_LOCK_ASSERT(sc);
 
 	ifp = sc->ste_ifp;
 
-	while ((txstat = CSR_READ_1(sc, STE_TX_STATUS)) &
-	    STE_TXSTATUS_TXDONE) {
-		if (txstat & STE_TXSTATUS_UNDERRUN ||
-		    txstat & STE_TXSTATUS_EXCESSCOLLS ||
-		    txstat & STE_TXSTATUS_RECLAIMERR) {
+	/*
+	 * STE_TX_STATUS register implements a queue of up to 31
+	 * transmit status byte. Writing an arbitrary value to the
+	 * register will advance the queue to the next transmit
+	 * status byte. This means if driver does not read
+	 * STE_TX_STATUS register after completing sending more
+	 * than 31 frames the controller would be stalled so driver
+	 * should re-wake the Tx MAC. This is the most severe
+	 * limitation of ST201 based controller.
+	 */
+	for (;;) {
+		txstat = CSR_READ_2(sc, STE_TX_STATUS);
+		if ((txstat & STE_TXSTATUS_TXDONE) == 0)
+			break;
+		if ((txstat & (STE_TXSTATUS_UNDERRUN |
+		    STE_TXSTATUS_EXCESSCOLLS | STE_TXSTATUS_RECLAIMERR |
+		    STE_TXSTATUS_STATSOFLOW)) != 0) {
 			ifp->if_oerrors++;
-			device_printf(sc->ste_dev,
-			    "transmission error: %x\n", txstat);
-
-			ste_reset(sc);
-			ste_init_locked(sc);
-
-			if (txstat & STE_TXSTATUS_UNDERRUN &&
+#ifdef	STE_SHOW_TXERRORS
+			device_printf(sc->ste_dev, "TX error : 0x%b\n",
+			    txstat & 0xFF, STE_ERR_BITS);
+#endif
+			if ((txstat & STE_TXSTATUS_UNDERRUN) != 0 &&
 			    sc->ste_tx_thresh < STE_PACKET_SIZE) {
 				sc->ste_tx_thresh += STE_MIN_FRAMELEN;
+				if (sc->ste_tx_thresh > STE_PACKET_SIZE)
+					sc->ste_tx_thresh = STE_PACKET_SIZE;
 				device_printf(sc->ste_dev,
-				    "tx underrun, increasing tx"
+				    "TX underrun, increasing TX"
 				    " start threshold to %d bytes\n",
 				    sc->ste_tx_thresh);
+				/* Make sure to disable active DMA cycles. */
+				STE_SETBIT4(sc, STE_DMACTL,
+				    STE_DMACTL_TXDMA_STALL);
+				ste_wait(sc);
+				ste_init_locked(sc);
+				break;
 			}
-			CSR_WRITE_2(sc, STE_TX_STARTTHRESH, sc->ste_tx_thresh);
-			CSR_WRITE_2(sc, STE_TX_RECLAIM_THRESH,
-			    (STE_PACKET_SIZE >> 4));
+			/* Restart Tx. */
+			ste_restart_tx(sc);
 		}
-		ste_init_locked(sc);
+		/*
+		 * Advance to next status and ACK TxComplete
+		 * interrupt. ST201 data sheet was wrong here, to
+		 * get next Tx status, we have to write both
+		 * STE_TX_STATUS and STE_TX_FRAMEID register.
+		 * Otherwise controller returns the same status
+		 * as well as not acknowledge Tx completion
+		 * interrupt.
+		 */
 		CSR_WRITE_2(sc, STE_TX_STATUS, txstat);
 	}
+}
+
+static void
+ste_tick(void *arg)
+{
+	struct ste_softc *sc;
+	struct mii_data *mii;
+
+	sc = (struct ste_softc *)arg;
+
+	STE_LOCK_ASSERT(sc);
+
+	mii = device_get_softc(sc->ste_miibus);
+	mii_tick(mii);
+	/*
+	 * ukphy(4) does not seem to generate CB that reports
+	 * resolved link state so if we know we lost a link,
+	 * explicitly check the link state.
+	 */
+	if ((sc->ste_flags & STE_FLAG_LINK) == 0)
+		ste_miibus_statchg(sc->ste_dev);
+	ste_stats_update(sc);
+	ste_watchdog(sc);
+	callout_reset(&sc->ste_callout, hz, ste_tick, sc);
 }
 
 static void
@@ -848,42 +912,17 @@ ste_txeof(struct ste_softc *sc)
 }
 
 static void
-ste_stats_update(void *xsc)
+ste_stats_update(struct ste_softc *sc)
 {
-	struct ste_softc *sc;
 	struct ifnet *ifp;
-	struct mii_data *mii;
 
-	sc = xsc;
 	STE_LOCK_ASSERT(sc);
 
 	ifp = sc->ste_ifp;
-	mii = device_get_softc(sc->ste_miibus);
-
 	ifp->if_collisions += CSR_READ_1(sc, STE_LATE_COLLS)
 	    + CSR_READ_1(sc, STE_MULTI_COLLS)
 	    + CSR_READ_1(sc, STE_SINGLE_COLLS);
-
-	if (!sc->ste_link) {
-		mii_pollstat(mii);
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-			sc->ste_link++;
-			/*
-			* we don't get a call-back on re-init so do it
-			* otherwise we get stuck in the wrong link state
-			*/
-			ste_miibus_statchg(sc->ste_dev);
-			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-				ste_start_locked(ifp);
-		}
-	}
-
-	if (sc->ste_timer > 0 && --sc->ste_timer == 0)
-		ste_watchdog(sc);
-	callout_reset(&sc->ste_stat_callout, hz, ste_stats_update, sc);
 }
-
 
 /*
  * Probe for a Sundance ST201 chip. Check the PCI vendor and device
@@ -931,7 +970,7 @@ ste_attach(device_t dev)
 	if (pci_get_vendor(dev) == DL_VENDORID &&
 	    pci_get_device(dev) == DL_DEVICEID_DL10050 &&
 	    pci_get_revid(dev) == 0x12 )
-		sc->ste_one_phy = 1;
+		sc->ste_flags |= STE_FLAG_ONE_PHY;
 
 	mtx_init(&sc->ste_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -940,17 +979,22 @@ ste_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	rid = STE_RID;
-	sc->ste_res = bus_alloc_resource_any(dev, STE_RES, &rid, RF_ACTIVE);
-
+	/* Prefer memory space register mapping over IO space. */
+	sc->ste_res_id = PCIR_BAR(1);
+	sc->ste_res_type = SYS_RES_MEMORY;
+	sc->ste_res = bus_alloc_resource_any(dev, sc->ste_res_type,
+	    &sc->ste_res_id, RF_ACTIVE);
+	if (sc->ste_res == NULL) {
+		sc->ste_res_id = PCIR_BAR(0);
+		sc->ste_res_type = SYS_RES_IOPORT;
+		sc->ste_res = bus_alloc_resource_any(dev, sc->ste_res_type,
+		    &sc->ste_res_id, RF_ACTIVE);
+	}
 	if (sc->ste_res == NULL) {
 		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
 		goto fail;
 	}
-
-	sc->ste_btag = rman_get_bustag(sc->ste_res);
-	sc->ste_bhandle = rman_get_bushandle(sc->ste_res);
 
 	/* Allocate interrupt */
 	rid = 0;
@@ -963,7 +1007,7 @@ ste_attach(device_t dev)
 		goto fail;
 	}
 
-	callout_init_mtx(&sc->ste_stat_callout, &sc->ste_mtx, 0);
+	callout_init_mtx(&sc->ste_callout, &sc->ste_mtx, 0);
 
 	/* Reset the adapter. */
 	ste_reset(sc);
@@ -1069,7 +1113,7 @@ ste_detach(device_t dev)
 		STE_LOCK(sc);
 		ste_stop(sc);
 		STE_UNLOCK(sc);
-		callout_drain(&sc->ste_stat_callout);
+		callout_drain(&sc->ste_callout);
 	}
 	if (sc->ste_miibus)
 		device_delete_child(dev, sc->ste_miibus);
@@ -1080,7 +1124,8 @@ ste_detach(device_t dev)
 	if (sc->ste_irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
 	if (sc->ste_res)
-		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
+		bus_release_resource(dev, sc->ste_res_type, sc->ste_res_id,
+		    sc->ste_res);
 
 	if (ifp)
 		if_free(ifp);
@@ -1498,6 +1543,8 @@ ste_init_locked(struct ste_softc *sc)
 	ifp = sc->ste_ifp;
 
 	ste_stop(sc);
+	/* Reset the chip to a known state. */
+	ste_reset(sc);
 
 	/* Init our MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
@@ -1594,7 +1641,7 @@ ste_init_locked(struct ste_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	callout_reset(&sc->ste_stat_callout, hz, ste_stats_update, sc);
+	callout_reset(&sc->ste_callout, hz, ste_tick, sc);
 }
 
 static void
@@ -1603,28 +1650,44 @@ ste_stop(struct ste_softc *sc)
 	struct ifnet *ifp;
 	struct ste_chain_onefrag *cur_rx;
 	struct ste_chain *cur_tx;
+	uint32_t val;
 	int i;
 
 	STE_LOCK_ASSERT(sc);
 	ifp = sc->ste_ifp;
 
-	callout_stop(&sc->ste_stat_callout);
+	callout_stop(&sc->ste_callout);
+	sc->ste_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 
 	CSR_WRITE_2(sc, STE_IMR, 0);
-	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_TX_DISABLE);
-	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_RX_DISABLE);
-	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_STATS_DISABLE);
-	STE_SETBIT2(sc, STE_DMACTL, STE_DMACTL_TXDMA_STALL);
-	STE_SETBIT2(sc, STE_DMACTL, STE_DMACTL_RXDMA_STALL);
+	/* Stop pending DMA. */
+	val = CSR_READ_4(sc, STE_DMACTL);
+	val |= STE_DMACTL_TXDMA_STALL | STE_DMACTL_RXDMA_STALL;
+	CSR_WRITE_4(sc, STE_DMACTL, val);
 	ste_wait(sc);
-	/*
-	 * Try really hard to stop the RX engine or under heavy RX
-	 * data chip will write into de-allocated memory.
-	 */
-	ste_reset(sc);
-
-	sc->ste_link = 0;
+	/* Disable auto-polling. */
+	CSR_WRITE_1(sc, STE_RX_DMAPOLL_PERIOD, 0);
+	CSR_WRITE_1(sc, STE_TX_DMAPOLL_PERIOD, 0);
+	/* Nullify DMA address to stop any further DMA. */
+	CSR_WRITE_4(sc, STE_RX_DMALIST_PTR, 0);
+	CSR_WRITE_4(sc, STE_TX_DMALIST_PTR, 0);
+	/* Stop TX/RX MAC. */
+	val = CSR_READ_2(sc, STE_MACCTL1);
+	val |= STE_MACCTL1_TX_DISABLE | STE_MACCTL1_RX_DISABLE |
+	    STE_MACCTL1_STATS_DISABLE;
+	CSR_WRITE_2(sc, STE_MACCTL1, val);
+	for (i = 0; i < STE_TIMEOUT; i++) {
+		DELAY(10);
+		if ((CSR_READ_2(sc, STE_MACCTL1) & (STE_MACCTL1_TX_DISABLE |
+		    STE_MACCTL1_RX_DISABLE | STE_MACCTL1_STATS_DISABLE)) == 0)
+			break;
+	}
+	if (i == STE_TIMEOUT)
+		device_printf(sc->ste_dev, "Stopping MAC timed out\n");
+	/* Acknowledge any pending interrupts. */
+	CSR_READ_2(sc, STE_ISR_ACK);
+	ste_stats_update(sc);
 
 	for (i = 0; i < STE_RX_LIST_CNT; i++) {
 		cur_rx = &sc->ste_cdata.ste_rx_chain[i];
@@ -1672,6 +1735,26 @@ ste_reset(struct ste_softc *sc)
 
 	if (i == STE_TIMEOUT)
 		device_printf(sc->ste_dev, "global reset never completed\n");
+}
+
+static void
+ste_restart_tx(struct ste_softc *sc)
+{
+	uint16_t mac;
+	int i;
+
+	for (i = 0; i < STE_TIMEOUT; i++) {
+		mac = CSR_READ_2(sc, STE_MACCTL1);
+		mac |= STE_MACCTL1_TX_ENABLE;
+		CSR_WRITE_2(sc, STE_MACCTL1, mac);
+		mac = CSR_READ_2(sc, STE_MACCTL1);
+		if ((mac & STE_MACCTL1_TX_ENABLED) != 0)
+			break;
+		DELAY(10);
+	}
+
+	if (i == STE_TIMEOUT)
+		device_printf(sc->ste_dev, "starting Tx failed");
 }
 
 static int
@@ -1843,10 +1926,8 @@ ste_start_locked(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	STE_LOCK_ASSERT(sc);
 
-	if (!sc->ste_link)
-		return;
-
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING || (sc->ste_flags & STE_FLAG_LINK) == 0)
 		return;
 
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd);) {
@@ -1909,13 +1990,15 @@ ste_watchdog(struct ste_softc *sc)
 	ifp = sc->ste_ifp;
 	STE_LOCK_ASSERT(sc);
 
+	if (sc->ste_timer == 0 || --sc->ste_timer)
+		return;
+
 	ifp->if_oerrors++;
 	if_printf(ifp, "watchdog timeout\n");
 
-	ste_txeoc(sc);
 	ste_txeof(sc);
+	ste_txeoc(sc);
 	ste_rxeof(sc, -1);
-	ste_reset(sc);
 	ste_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
