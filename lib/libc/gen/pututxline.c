@@ -96,7 +96,7 @@ utx_active_add(const struct futx *fu)
 		default:
 			/* Allow us to overwrite unused records. */
 			if (partial == -1)
-				partial = fseeko(fp, 0, SEEK_CUR) - sizeof fe;
+				partial = ftello(fp) - sizeof fe;
 			break;
 		}
 	}
