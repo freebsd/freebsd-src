@@ -197,6 +197,7 @@ brgphy_attach(device_t dev)
 	case MII_OUI_xxBROADCOM:
 		switch (bsc->mii_model) {
 			case MII_MODEL_xxBROADCOM_BCM5706:
+			case MII_MODEL_xxBROADCOM_BCM5714:
 				/*
 				 * The 5464 PHY used in the 5706 supports both copper
 				 * and fiber interfaces over GMII.  Need to check the
