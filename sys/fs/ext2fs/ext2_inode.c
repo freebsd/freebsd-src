@@ -47,12 +47,11 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-#include <gnu/fs/ext2fs/inode.h>
-#include <gnu/fs/ext2fs/ext2_mount.h>
-#include <gnu/fs/ext2fs/ext2_fs.h>
-#include <gnu/fs/ext2fs/ext2_fs_sb.h>
-#include <gnu/fs/ext2fs/fs.h>
-#include <gnu/fs/ext2fs/ext2_extern.h>
+#include <fs/ext2fs/inode.h>
+#include <fs/ext2fs/ext2_mount.h>
+#include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/fs.h>
+#include <fs/ext2fs/ext2_extern.h>
 
 static int ext2_indirtrunc(struct inode *, int32_t, int32_t, int32_t, int,
 	    long *);
@@ -71,26 +70,27 @@ ext2_update(vp, waitfor)
 	struct vnode *vp;
 	int waitfor;
 {
-	struct ext2_sb_info *fs;
+	struct m_ext2fs *fs;
 	struct buf *bp;
 	struct inode *ip;
 	int error;
 
+	ASSERT_VOP_ELOCKED(vp, "ext2_update");
 	ext2_itimes(vp);
 	ip = VTOI(vp);
-	if ((ip->i_flag & IN_MODIFIED) == 0)
+	if ((ip->i_flag & IN_MODIFIED) == 0 && waitfor == 0)
 		return (0);
-	ip->i_flag &= ~(IN_LAZYMOD | IN_MODIFIED);
-	if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		return (0);
+	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED);
 	fs = ip->i_e2fs;
+	if(fs->e2fs_ronly)
+		return (0);
 	if ((error = bread(ip->i_devvp,
 	    fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-		(int)fs->s_blocksize, NOCRED, &bp)) != 0) {
+		(int)fs->e2fs_bsize, NOCRED, &bp)) != 0) {
 		brelse(bp);
 		return (error);
 	}
-	ext2_i2ei(ip, (struct ext2_inode *)((char *)bp->b_data +
+	ext2_i2ei(ip, (struct ext2fs_dinode *)((char *)bp->b_data +
 	    EXT2_INODE_SIZE(fs) * ino_to_fsbo(fs, ip->i_number)));
 	if (waitfor && (vp->v_mount->mnt_kern_flag & MNTK_ASYNC) == 0)
 		return (bwrite(bp));
@@ -120,22 +120,22 @@ ext2_truncate(vp, length, flags, cred, td)
 	struct inode *oip;
 	int32_t bn, lbn, lastiblock[NIADDR], indir_lbn[NIADDR];
 	int32_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
-	struct ext2_sb_info *fs;
+	struct bufobj *bo;
+	struct m_ext2fs *fs;
 	struct buf *bp;
 	int offset, size, level;
 	long count, nblocks, blocksreleased = 0;
 	int aflags, error, i, allerror;
 	off_t osize;
-/*
-printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
-*/	/* 
-	 * negative file sizes will totally break the code below and
-	 * are not meaningful anyways.
-	 */
-	if (length < 0)
-	    return EFBIG;
 
 	oip = VTOI(ovp);
+	bo = &ovp->v_bufobj;
+
+	ASSERT_VOP_LOCKED(vp, "ext2_truncate");	
+
+	if (length < 0)
+	    return (EINVAL);
+
 	if (ovp->v_type == VLNK &&
 	    oip->i_size < ovp->v_mount->mnt_maxsymlinklen) {
 #ifdef DIAGNOSTIC
@@ -153,27 +153,32 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	}
 	fs = oip->i_e2fs;
 	osize = oip->i_size;
-	ext2_discard_prealloc(oip);
 	/*
 	 * Lengthen the size of the file. We must ensure that the
 	 * last byte of the file is allocated. Since the smallest
-	 * value of oszie is 0, length will be at least 1.
+	 * value of osize is 0, length will be at least 1.
 	 */
 	if (osize < length) {
-		if (length > oip->i_e2fs->fs_maxfilesize)
+		if (length > oip->i_e2fs->e2fs_maxfilesize)
 			return (EFBIG);
+		vnode_pager_setsize(ovp, length);
 		offset = blkoff(fs, length - 1);
 		lbn = lblkno(fs, length - 1);
 		aflags = B_CLRBUF;
 		if (flags & IO_SYNC)
 			aflags |= B_SYNC;
-		vnode_pager_setsize(ovp, length);
-		if ((error = ext2_balloc(oip, lbn, offset + 1, cred, &bp,
-		    aflags)) != 0)
+		error = ext2_balloc(oip, lbn, offset + 1, cred, &bp, aflags);
+		if (error) {
+			vnode_pager_setsize(vp, osize);
 			return (error);
+		}
 		oip->i_size = length;
-		if (aflags & IO_SYNC)
+		if (bp->b_bufsize == fs->e2fs_bsize)
+			bp->b_flags |= B_CLUSTEROK;
+		if (aflags & B_SYNC)
 			bwrite(bp);
+		else if (ovp->v_mount->mnt_flag & MNT_ASYNC)
+			bdwrite(bp);
 		else
 			bawrite(bp);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -195,15 +200,19 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		aflags = B_CLRBUF;
 		if (flags & IO_SYNC)
 			aflags |= B_SYNC;
-		if ((error = ext2_balloc(oip, lbn, offset, cred, &bp,
-		    aflags)) != 0)
+		error = ext2_balloc(oip, lbn, offset, cred, &bp, aflags);
+		if (error)
 			return (error);
 		oip->i_size = length;
 		size = blksize(fs, oip, lbn);
 		bzero((char *)bp->b_data + offset, (u_int)(size - offset));
 		allocbuf(bp, size);
-		if (aflags & IO_SYNC)
+		if (bp->b_bufsize == fs->e2fs_bsize)
+			bp->b_flags |= B_CLUSTEROK;
+		if (aflags & B_SYNC)
 			bwrite(bp);
+		else if (ovp->v_mount->mnt_flag & MNT_ASYNC)
+			bdwrite(bp);
 		else
 			bawrite(bp);
 	}
@@ -213,11 +222,11 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	 * which we want to keep.  Lastblock is -1 when
 	 * the file is truncated to 0.
 	 */
-	lastblock = lblkno(fs, length + fs->s_blocksize - 1) - 1;
+	lastblock = lblkno(fs, length + fs->e2fs_bsize - 1) - 1;
 	lastiblock[SINGLE] = lastblock - NDADDR;
 	lastiblock[DOUBLE] = lastiblock[SINGLE] - NINDIR(fs);
 	lastiblock[TRIPLE] = lastiblock[DOUBLE] - NINDIR(fs) * NINDIR(fs);
-	nblocks = btodb(fs->s_blocksize);
+	nblocks = btodb(fs->e2fs_bsize);
 	/*
 	 * Update file and block pointers on disk before we start freeing
 	 * blocks.  If we crash before free'ing blocks below, the blocks
@@ -244,10 +253,11 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	bcopy((caddr_t)&oip->i_db[0], (caddr_t)newblks, sizeof newblks);
 	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof oldblks);
 	oip->i_size = osize;
-	error = vtruncbuf(ovp, cred, td, length, (int)fs->s_blocksize);
+	error = vtruncbuf(ovp, cred, td, length, (int)fs->e2fs_bsize);
 	if (error && (allerror == 0))
 		allerror = error;
-
+	vnode_pager_setsize(ovp, length);
+	
 	/*
 	 * Indirect blocks first.
 	 */
@@ -264,7 +274,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 			blocksreleased += count;
 			if (lastiblock[level] < 0) {
 				oip->i_ib[level] = 0;
-				ext2_blkfree(oip, bn, fs->s_frag_size);
+				ext2_blkfree(oip, bn, fs->e2fs_fsize);
 				blocksreleased += nblocks;
 			}
 		}
@@ -325,11 +335,11 @@ done:
 	for (i = 0; i < NDADDR; i++)
 		if (newblks[i] != oip->i_db[i])
 			panic("itrunc2");
-	VI_LOCK(ovp);
-	if (length == 0 && (ovp->v_bufobj.bo_dirty.bv_cnt != 0 ||
-	    ovp->v_bufobj.bo_clean.bv_cnt != 0))
+	BO_LOCK(bo);
+	if (length == 0 && (bo->bo_dirty.bv_cnt != 0 ||
+	    bo->bo_clean.bv_cnt != 0))
 		panic("itrunc3");
-	VI_UNLOCK(ovp);
+	BO_UNLOCK(bo);
 #endif /* DIAGNOSTIC */
 	/*
 	 * Put back the real size.
@@ -362,7 +372,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	long *countp;
 {
 	struct buf *bp;
-	struct ext2_sb_info *fs = ip->i_e2fs;
+	struct m_ext2fs *fs = ip->i_e2fs;
 	struct vnode *vp;
 	int32_t *bap, *copy, nb, nlbn, last;
 	long blkcount, factor;
@@ -380,7 +390,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	last = lastbn;
 	if (lastbn > 0)
 		last /= factor;
-	nblocks = btodb(fs->s_blocksize);
+	nblocks = btodb(fs->e2fs_bsize);
 	/*
 	 * Get buffer of block pointers, zero those entries corresponding
 	 * to blocks to be free'd, and update on disk copy first.  Since
@@ -390,7 +400,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	 * explicitly instead of letting bread do everything for us.
 	 */
 	vp = ITOV(ip);
-	bp = getblk(vp, lbn, (int)fs->s_blocksize, 0, 0, 0);
+	bp = getblk(vp, lbn, (int)fs->e2fs_bsize, 0, 0, 0);
 	if (bp->b_flags & (B_DONE | B_DELWRI)) {
 	} else {
 		bp->b_iocmd = BIO_READ;
@@ -409,8 +419,8 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	}
 
 	bap = (int32_t *)bp->b_data;
-	copy = malloc(fs->s_blocksize, M_TEMP, M_WAITOK);
-	bcopy((caddr_t)bap, (caddr_t)copy, (u_int)fs->s_blocksize);
+	copy = malloc(fs->e2fs_bsize, M_TEMP, M_WAITOK);
+	bcopy((caddr_t)bap, (caddr_t)copy, (u_int)fs->e2fs_bsize);
 	bzero((caddr_t)&bap[last + 1],
 	  (u_int)(NINDIR(fs) - (last + 1)) * sizeof (int32_t));
 	if (last == -1)
@@ -434,7 +444,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 				allerror = error;
 			blocksreleased += blkcount;
 		}
-		ext2_blkfree(ip, nb, fs->s_blocksize);
+		ext2_blkfree(ip, nb, fs->e2fs_bsize);
 		blocksreleased += nblocks;
 	}
 
@@ -471,7 +481,6 @@ ext2_inactive(ap)
 	struct thread *td = ap->a_td;
 	int mode, error = 0;
 
-	ext2_discard_prealloc(ip);
 	if (prtactive && vrefcnt(vp) != 0)
 		vprint("ext2_inactive: pushing active", vp);
 

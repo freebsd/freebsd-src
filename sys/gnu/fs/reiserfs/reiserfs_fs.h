@@ -728,15 +728,16 @@ struct stat_data_v1 {
  * We want common flags to have the same values as in ext2,
  * so chattr(1) will work without problems
  */
-#include <gnu/fs/ext2fs/ext2_fs.h>
-#define	REISERFS_IMMUTABLE_FL	EXT2_IMMUTABLE_FL
-#define	REISERFS_APPEND_FL	EXT2_APPEND_FL
-#define	REISERFS_SYNC_FL	EXT2_SYNC_FL
-#define	REISERFS_NOATIME_FL	EXT2_NOATIME_FL
-#define	REISERFS_NODUMP_FL	EXT2_NODUMP_FL
-#define	REISERFS_SECRM_FL	EXT2_SECRM_FL
-#define	REISERFS_UNRM_FL	EXT2_UNRM_FL
-#define	REISERFS_COMPR_FL	EXT2_COMPR_FL
+#include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/ext2_dinode.h>
+#define	REISERFS_IMMUTABLE_FL	EXT2_IMMUTABLE
+#define	REISERFS_APPEND_FL	EXT2_APPEND
+#define	REISERFS_SYNC_FL	EXT2_SYNC
+#define	REISERFS_NOATIME_FL	EXT2_NOATIME
+#define	REISERFS_NODUMP_FL	EXT2_NODUMP
+#define	REISERFS_SECRM_FL	EXT2_SECRM
+#define	REISERFS_UNRM_FL	EXT2_UNRM
+#define	REISERFS_COMPR_FL	EXT2_COMPR
 #define	REISERFS_NOTAIL_FL	EXT2_NOTAIL_FL
 
 /*
