@@ -143,7 +143,7 @@ struct handler_element
 };
 
 static TAILQ_HEAD(, handler_element) handlers =
-	TAILQ_HEAD_INITIALIZER(handlers);
+    TAILQ_HEAD_INITIALIZER(handlers);
 static struct sx linux_ioctl_sx;
 SX_SYSINIT(linux_ioctl, &linux_ioctl_sx, "linux ioctl handlers");
 
