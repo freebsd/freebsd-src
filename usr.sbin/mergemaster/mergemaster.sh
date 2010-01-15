@@ -5,7 +5,7 @@
 # Compare files created by /usr/src/etc/Makefile (or the directory
 # the user specifies) with the currently installed copies.
 
-# Copyright 1998-2009 Douglas Barton
+# Copyright 1998-2010 Douglas Barton
 # DougB@FreeBSD.org
 
 # $FreeBSD$
@@ -263,7 +263,7 @@ fi
 
 # Assign the location of the mtree database
 #
-MTREEDB=${MTREEDB:-/var/db}
+MTREEDB=${MTREEDB:-${DESTDIR}/var/db}
 MTREEFILE="${MTREEDB}/mergemaster.mtree"
 
 # Check the command line options
@@ -345,18 +345,24 @@ done
 # Don't force the user to set this in the mergemaster rc file
 if [ -n "${PRESERVE_FILES}" -a -z "${PRESERVE_FILES_DIR}" ]; then
   PRESERVE_FILES_DIR=/var/tmp/mergemaster/preserved-files-`date +%y%m%d-%H%M%S`
+  mkdir -p ${PRESERVE_FILES_DIR}
 fi
 
 # Check for the mtree database in DESTDIR
 case "${AUTO_UPGRADE}" in
 '') ;;	# If the option is not set no need to run the test or warn the user
 *)
-  if [ ! -s "${DESTDIR}${MTREEFILE}" ]; then
+  if [ ! -s "${MTREEFILE}" ]; then
     echo ''
-    echo "*** Unable to find mtree database. Skipping auto-upgrade on this run."
+    echo "*** Unable to find mtree database (${MTREEFILE})."
+    echo "    Skipping auto-upgrade on this run."
     echo "    It will be created for the next run when this one is complete."
     echo ''
-    press_to_continue
+    case "${AUTO_RUN}" in
+    '')
+      press_to_continue
+      ;;
+    esac
     unset AUTO_UPGRADE
   fi
   ;;
@@ -463,9 +469,9 @@ MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk"
 # Check DESTDIR against the mergemaster mtree database to see what
 # files the user changed from the reference files.
 #
-if [ -n "${AUTO_UPGRADE}" -a -s "${DESTDIR}${MTREEFILE}" ]; then
+if [ -n "${AUTO_UPGRADE}" -a -s "${MTREEFILE}" ]; then
 	CHANGED=:
-	for file in `mtree -eqL -f ${DESTDIR}${MTREEFILE} -p ${DESTDIR}/ \
+	for file in `mtree -eqL -f ${MTREEFILE} -p ${DESTDIR}/ \
 		2>/dev/null | awk '($2 == "changed") {print $1}'`; do
 		if [ -f "${DESTDIR}/$file" ]; then
 			CHANGED="${CHANGED}${DESTDIR}/${file}:"
@@ -505,7 +511,7 @@ CVS_ID_TAG=FreeBSD
 delete_temproot () {
   rm -rf "${TEMPROOT}" 2>/dev/null
   chflags -R 0 "${TEMPROOT}" 2>/dev/null
-  rm -rf "${TEMPROOT}" || exit 1
+  rm -rf "${TEMPROOT}" || { echo "*** Unable to delete ${TEMPROOT}";  exit 1; }
 }
 
 case "${RERUN}" in
@@ -536,7 +542,7 @@ case "${RERUN}" in
           echo ''
           echo "   *** Deleting the old ${TEMPROOT}"
           echo ''
-          delete_temproot || exit 1
+          delete_temproot
           unset TEST_TEMP_ROOT
           ;;
         [tT])
@@ -663,31 +669,32 @@ case "${RERUN}" in
   for file in ${IGNORE_FILES}; do
     test -e ${TEMPROOT}/${file} && unlink ${TEMPROOT}/${file}
   done
+
+  # We really don't want to have to deal with files like login.conf.db, pwd.db,
+  # or spwd.db.  Instead, we want to compare the text versions, and run *_mkdb.
+  # Prompt the user to do so below, as needed.
+  #
+  rm -f ${TEMPROOT}/etc/*.db ${TEMPROOT}/etc/passwd
+
+  # We only need to compare things like freebsd.cf once
+  find ${TEMPROOT}/usr/obj -type f -delete 2>/dev/null
+
+  # Delete stuff we do not need to keep the mtree database small,
+  # and to make the actual comparison faster.
+  find ${TEMPROOT}/usr -type l -delete 2>/dev/null
+  find ${TEMPROOT} -type f -size 0 -delete 2>/dev/null
+  find -d ${TEMPROOT} -type d -empty -delete 2>/dev/null
+
+  # Build the mtree database in a temporary location.
+  case "${PRE_WORLD}" in
+  '') MTREENEW=`mktemp -t mergemaster.mtree`
+      mtree -ci -p ${TEMPROOT} -k size,md5digest > ${MTREENEW} 2>/dev/null
+      ;;
+  *) # We don't want to mess with the mtree database on a pre-world run or
+     # when re-scanning a previously-built tree.
+     ;;
+  esac
   ;; # End of the "RERUN" test
-esac
-
-# We really don't want to have to deal with files like login.conf.db, pwd.db,
-# or spwd.db.  Instead, we want to compare the text versions, and run *_mkdb.
-# Prompt the user to do so below, as needed.
-#
-rm -f ${TEMPROOT}/etc/*.db ${TEMPROOT}/etc/passwd
-
-# We only need to compare things like freebsd.cf once
-find ${TEMPROOT}/usr/obj -type f -delete 2>/dev/null
-
-# Delete stuff we do not need to keep the mtree database small,
-# and to make the actual comparison faster.
-find ${TEMPROOT}/usr -type l -delete 2>/dev/null
-find ${TEMPROOT} -type f -size 0 -delete 2>/dev/null
-find -d ${TEMPROOT} -type d -empty -delete 2>/dev/null
-
-# Build the mtree database in a temporary location.
-MTREENEW=`mktemp -t mergemaster.mtree`
-case "${PRE_WORLD}" in
-'') mtree -ci -p ${TEMPROOT} -k size,md5digest > ${MTREENEW} 2>/dev/null
-    ;;
-*) # We don't want to mess with the mtree database on a pre-world run.
-   ;;
 esac
 
 # Get ready to start comparing files
@@ -818,7 +825,8 @@ mm_install () {
 
   if [ -n "${DESTDIR}${INSTALL_DIR}" -a ! -d "${DESTDIR}${INSTALL_DIR}" ]; then
     DIR_MODE=`find_mode "${TEMPROOT}/${INSTALL_DIR}"`
-    install -d -o root -g wheel -m "${DIR_MODE}" "${DESTDIR}${INSTALL_DIR}"
+    install -d -o root -g wheel -m "${DIR_MODE}" "${DESTDIR}${INSTALL_DIR}" ||
+      install_error $1 ${DESTDIR}${INSTALL_DIR}
   fi
 
   FILE_MODE=`find_mode "${1}"`
@@ -837,32 +845,39 @@ mm_install () {
       DONT_INSTALL=yes
       ;;
     /.cshrc | /.profile)
-    case "${AUTO_INSTALL}" in
-    '')
-      case "${LINK_EXPLAINED}" in
-      '')
-        echo "   *** Historically BSD derived systems have had a"
-        echo "       hard link from /.cshrc and /.profile to"
-        echo "       their namesakes in /root.  Please indicate"
-        echo "       your preference below for bringing your"
-        echo "       installed files up to date."
-        echo ''
-        LINK_EXPLAINED=yes
-        ;;
-      esac
+      local st_nlink
 
-      echo "   Use 'd' to delete the temporary ${COMPFILE}"
-      echo "   Use 'l' to delete the existing ${DESTDIR}${COMPFILE#.} and create the link"
-      echo ''
-      echo "   Default is to leave the temporary file to deal with by hand"
-      echo ''
-      echo -n "  How should I handle ${COMPFILE}? [Leave it to install later] "
-      read HANDLE_LINK
-      ;;
-    *)  # Part of AUTO_INSTALL
-      HANDLE_LINK=l
-      ;;
-    esac
+      # install will unlink the file before it installs the new one,
+      # so we have to restore/create the link afterwards.
+      #
+      st_nlink=0		# In case the file does not yet exist
+      eval $(stat -s ${DESTDIR}${COMPFILE#.} 2>/dev/null)
+
+      do_install_and_rm "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}"
+
+      if [ -n "${AUTO_INSTALL}" -a $st_nlink -gt 1 ]; then
+        HANDLE_LINK=l
+      else
+        case "${LINK_EXPLAINED}" in
+        '')
+          echo "   *** Historically BSD derived systems have had a"
+          echo "       hard link from /.cshrc and /.profile to"
+          echo "       their namesakes in /root.  Please indicate"
+          echo "       your preference below for bringing your"
+          echo "       installed files up to date."
+          echo ''
+          LINK_EXPLAINED=yes
+          ;;
+        esac
+
+        echo "   Use 'd' to delete the temporary ${COMPFILE}"
+        echo "   Use 'l' to delete the existing ${DESTDIR}/root/${COMPFILE##*/} and create the link"
+        echo ''
+        echo "   Default is to leave the temporary file to deal with by hand"
+        echo ''
+        echo -n "  How should I handle ${COMPFILE}? [Leave it to install later] "
+        read HANDLE_LINK
+      fi
 
       case "${HANDLE_LINK}" in
       [dD]*)
@@ -872,19 +887,19 @@ mm_install () {
         ;;
       [lL]*)
         echo ''
-        rm -f "${DESTDIR}${COMPFILE#.}"
-        if ln "${DESTDIR}/root/${COMPFILE##*/}" "${DESTDIR}${COMPFILE#.}"; then
+        unlink ${DESTDIR}/root/${COMPFILE##*/}
+        if ln ${DESTDIR}${COMPFILE#.} ${DESTDIR}/root/${COMPFILE##*/}; then
           echo "   *** Link from ${DESTDIR}${COMPFILE#.} to ${DESTDIR}/root/${COMPFILE##*/} installed successfully"
-          rm "${COMPFILE}"
         else
-          echo "   *** Error linking ${DESTDIR}${COMPFILE#.} to ${DESTDIR}/root/${COMPFILE##*/}, ${COMPFILE} will remain to install by hand"
+          echo "   *** Error linking ${DESTDIR}${COMPFILE#.} to ${DESTDIR}/root/${COMPFILE##*/}"
+          echo "   *** ${COMPFILE} will remain for your consideration"
         fi
         ;;
       *)
         echo "   *** ${COMPFILE} will remain for your consideration"
         ;;
       esac
-      DONT_INSTALL=yes
+      return
       ;;
     esac
 
@@ -955,6 +970,12 @@ if [ -z "${PRE_WORLD}" -a -z "${RERUN}" ]; then
       esac
       sleep 2
       ;;
+    *)
+      if [ -n "${DELETE_STALE_RC_FILES}" ]; then
+        echo '      *** Deleting ... '
+        rm ${STALE_RC_FILES}
+        echo '                       done.'
+      fi
     esac
     ;;
   esac
@@ -967,7 +988,58 @@ if [ -r "${MM_PRE_COMPARE_SCRIPT}" ]; then
   . "${MM_PRE_COMPARE_SCRIPT}"
 fi
 
-for COMPFILE in `find . -type f`; do
+# Things that were files/directories/links in one version can sometimes
+# change to something else in a newer version.  So we need to explicitly
+# test for this, and warn the user if what we find does not match.
+#
+for COMPFILE in `find . | sort` ; do
+  if [ -e "${DESTDIR}${COMPFILE#.}" ]; then
+    INSTALLED_TYPE=`stat -f '%HT' ${DESTDIR}${COMPFILE#.}`
+  else
+    continue
+  fi
+  TEMPROOT_TYPE=`stat -f '%HT' $COMPFILE`
+
+  if [ ! "$TEMPROOT_TYPE" = "$INSTALLED_TYPE" ]; then
+    [ "$COMPFILE" = '.' ] && continue
+    TEMPROOT_TYPE=`echo $TEMPROOT_TYPE | tr [:upper:] [:lower:]`
+    INSTALLED_TYPE=`echo $INSTALLED_TYPE | tr [:upper:] [:lower:]`
+
+    echo "*** The installed file ${DESTDIR}${COMPFILE#.} has the type \"$INSTALLED_TYPE\""
+    echo "    but the new version has the type \"$TEMPROOT_TYPE\""
+    echo ''
+    echo "    How would you like to handle this?"
+    echo ''
+    echo "    Use 'r' to remove ${DESTDIR}${COMPFILE#.}"
+    case "$TEMPROOT_TYPE" in
+    'symbolic link')
+	TARGET=`readlink $COMPFILE`
+	echo "    and create a link to $TARGET in its place" ;;
+    *)	echo "    You will be able to install it as a \"$TEMPROOT_TYPE\"" ;;
+    esac
+    echo ''
+    echo "    Use 'i' to ignore this"
+    echo ''
+    echo -n "    How to proceed? [i] "
+    read ANSWER
+    case "$ANSWER" in
+    [rR])	case "${PRESERVE_FILES}" in
+		[Yy][Ee][Ss])
+		mv ${DESTDIR}${COMPFILE#.} ${PRESERVE_FILES_DIR}/ || exit 1 ;;
+		*) rm -rf ${DESTDIR}${COMPFILE#.} ;;
+		esac
+		case "$TEMPROOT_TYPE" in
+		'symbolic link') ln -sf $TARGET ${DESTDIR}${COMPFILE#.} ;;
+		esac ;;
+    *)	echo ''
+        echo "*** See the man page about adding ${COMPFILE#.} to the list of IGNORE_FILES"
+        press_to_continue ;;
+    esac
+    echo ''
+  fi
+done
+
+for COMPFILE in `find . -type f | sort`; do
 
   # First, check to see if the file exists in DESTDIR.  If not, the
   # diff_loop function knows how to handle it.
@@ -1032,7 +1104,7 @@ for COMPFILE in `find . -type f`; do
       # If the user chose the -F option, test for that before proceeding
       #
       if [ -n "$FREEBSD_ID" ]; then
-        if diff -q -I'[$]FreeBSD:.*$' "${DESTDIR}${COMPFILE#.}" "${COMPFILE}" > \
+        if diff -q -I'[$]FreeBSD.*[$]' "${DESTDIR}${COMPFILE#.}" "${COMPFILE}" > \
             /dev/null 2>&1; then
           if mm_install "${COMPFILE}"; then
             echo "*** Updated revision control Id for ${DESTDIR}${COMPFILE#.}"
@@ -1061,8 +1133,8 @@ echo "*** Comparison complete"
 
 if [ -s "${MTREENEW}" ]; then
   echo "*** Saving mtree database for future upgrades"
-  test -e "${DESTDIR}${MTREEFILE}" && unlink ${DESTDIR}${MTREEFILE}
-  mv ${MTREENEW} ${DESTDIR}${MTREEFILE}
+  test -e "${MTREEFILE}" && unlink ${MTREEFILE}
+  mv ${MTREENEW} ${MTREEFILE}
 fi
 
 echo ''
@@ -1070,30 +1142,28 @@ echo ''
 TEST_FOR_FILES=`find ${TEMPROOT} -type f -size +0 2>/dev/null`
 if [ -n "${TEST_FOR_FILES}" ]; then
   echo "*** Files that remain for you to merge by hand:"
-  find "${TEMPROOT}" -type f -size +0
+  find "${TEMPROOT}" -type f -size +0 | sort
   echo ''
-fi
 
-case "${AUTO_RUN}" in
-'')
-  echo -n "Do you wish to delete what is left of ${TEMPROOT}? [no] "
-  read DEL_TEMPROOT
-
-  case "${DEL_TEMPROOT}" in
-  [yY]*)
-    if delete_temproot; then
-      echo " *** ${TEMPROOT} has been deleted"
-    else
-      echo " *** Unable to delete ${TEMPROOT}"
-    fi
+  case "${AUTO_RUN}" in
+  '')
+    echo -n "Do you wish to delete what is left of ${TEMPROOT}? [no] "
+    read DEL_TEMPROOT
+    case "${DEL_TEMPROOT}" in
+    [yY]*)
+      delete_temproot
+      ;;
+    *)
+      echo " *** ${TEMPROOT} will remain"
+      ;;
+    esac
     ;;
-  *)
-    echo " *** ${TEMPROOT} will remain"
-    ;;
+  *) ;;
   esac
-  ;;
-*) ;;
-esac
+else
+  echo "*** ${TEMPROOT} is empty, deleting"
+  delete_temproot
+fi
 
 case "${AUTO_INSTALLED_FILES}" in
 '') ;;
@@ -1268,5 +1338,9 @@ case "${PRE_WORLD}" in
   ;;
 esac
 
-exit 0
+if [ -n "${PRESERVE_FILES}" ]; then
+  find -d $PRESERVE_FILES_DIR -type d -empty -delete 2>/dev/null
+  rmdir $PRESERVE_FILES_DIR 2>/dev/null
+fi
 
+exit 0
