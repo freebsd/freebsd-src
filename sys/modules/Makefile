@@ -86,6 +86,7 @@ SUBDIR=	${_3dfx} \
 	${_em} \
 	en \
 	${_ep} \
+	${_epic} \
 	${_et} \
 	${_ex} \
 	${_exca} \
@@ -636,6 +637,7 @@ _smbfs=		smbfs
 .if ${MACHINE_ARCH} == "sparc64"
 _auxio=		auxio
 _em=		em
+_epic=		epic
 _i2c=		i2c
 _igb=		igb
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
