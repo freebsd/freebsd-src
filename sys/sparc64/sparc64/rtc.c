@@ -111,7 +111,7 @@ static device_method_t rtc_isa_methods[] = {
 	DEVMETHOD(clock_gettime,	mc146818_gettime),
 	DEVMETHOD(clock_settime,	mc146818_settime),
 
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static driver_t rtc_isa_driver = {
@@ -123,8 +123,8 @@ static driver_t rtc_isa_driver = {
 DRIVER_MODULE(rtc, isa, rtc_isa_driver, rtc_devclass, 0, 0);
 #endif
 
-static u_int pc87317_getcent(device_t);
-static void pc87317_setcent(device_t, u_int);
+static u_int pc87317_getcent(device_t dev);
+static void pc87317_setcent(device_t dev, u_int cent);
 
 static int
 rtc_ebus_probe(device_t dev)
