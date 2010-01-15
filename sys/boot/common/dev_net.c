@@ -71,12 +71,14 @@ __FBSDID("$FreeBSD$");
 int debug = 0;
 #endif
 
+static char *netdev_name;
 static int netdev_sock = -1;
 static int netdev_opens;
 
 static int	net_init(void);
 static int	net_open(struct open_file *, ...);
 static int	net_close(struct open_file *);
+static void	net_cleanup(void);
 static int	net_strategy();
 static void	net_print(int);
 
@@ -90,7 +92,8 @@ struct devsw netdev = {
 	net_open,
 	net_close,
 	noioctl,
-	net_print
+	net_print,
+	net_cleanup
 };
 
 static int
@@ -116,6 +119,12 @@ net_open(struct open_file *f, ...)
 	devname = va_arg(args, char*);
 	va_end(args);
 
+#ifdef	NETIF_OPEN_CLOSE_ONCE
+	/* Before opening another interface, close the previous one first. */
+	if (netdev_sock >= 0 && strcmp(devname, netdev_name) != 0)
+		net_cleanup();
+#endif
+
 	/* On first open, do netif open, mount, etc. */
 	if (netdev_opens == 0) {
 		/* Find network interface. */
@@ -125,6 +134,7 @@ net_open(struct open_file *f, ...)
 				printf("net_open: netif_open() failed\n");
 				return (ENXIO);
 			}
+			netdev_name = strdup(devname);
 #ifdef	NETIF_DEBUG
 			if (debug)
 				printf("net_open: netif_open() succeeded\n");
@@ -135,6 +145,7 @@ net_open(struct open_file *f, ...)
 			error = net_getparams(netdev_sock);
 			if (error) {
 				/* getparams makes its own noise */
+				free(netdev_name);
 				netif_close(netdev_sock);
 				netdev_sock = -1;
 				return (error);
@@ -150,30 +161,46 @@ net_open(struct open_file *f, ...)
 static int
 net_close(struct open_file *f)
 {
+
 #ifdef	NETIF_DEBUG
 	if (debug)
 		printf("net_close: opens=%d\n", netdev_opens);
 #endif
 
-	/* On last close, do netif close, etc. */
 	f->f_devdata = NULL;
+
+#ifndef	NETIF_OPEN_CLOSE_ONCE
 	/* Extra close call? */
 	if (netdev_opens <= 0)
 		return (0);
 	netdev_opens--;
 	/* Not last close? */
 	if (netdev_opens > 0)
-		return(0);
-	rootip.s_addr = 0;
+		return (0);
+	/* On last close, do netif close, etc. */
+#ifdef	NETIF_DEBUG
+	if (debug)
+		printf("net_close: calling net_cleanup()\n");
+#endif
+	net_cleanup();
+#endif
+	return (0);
+}
+
+static void
+net_cleanup(void)
+{
+
 	if (netdev_sock >= 0) {
 #ifdef	NETIF_DEBUG
 		if (debug)
-			printf("net_close: calling netif_close()\n");
+			printf("net_cleanup: calling netif_close()\n");
 #endif
+		rootip.s_addr = 0;
+		free(netdev_name);
 		netif_close(netdev_sock);
 		netdev_sock = -1;
 	}
-	return (0);
 }
 
 static int
