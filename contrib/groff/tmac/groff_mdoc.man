@@ -2556,6 +2556,8 @@ Corporate or foreign author.
 Report name.
 .It Li .%T
 Title of article.
+.It Li .%U
+Optional hypertext reference.
 .It Li .%V
 Volume.
 .El
