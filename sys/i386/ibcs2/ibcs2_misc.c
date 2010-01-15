@@ -663,9 +663,13 @@ ibcs2_getgroups(td, uap)
 	u_int i, ngrp;
 	int error;
 
-	if (uap->gidsetsize < 0)
-		return (EINVAL);
-	ngrp = MIN(uap->gidsetsize, ngroups_max + 1);
+	if (uap->gidsetsize < td->td_ucred->cr_ngroups) {
+		if (uap->gidsetsize == 0)
+			ngrp = 0;
+		else
+			return (EINVAL);
+	} else
+		ngrp = td->td_ucred->cr_ngroups;
 	gp = malloc(ngrp * sizeof(*gp), M_TEMP, M_WAITOK);
 	error = kern_getgroups(td, &ngrp, gp);
 	if (error)
