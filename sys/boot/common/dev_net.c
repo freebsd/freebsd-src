@@ -245,7 +245,8 @@ net_getparams(sock)
 	printf("net_open: bootparam/whoami RPC failed\n");
 	return (EIO);
     }
-    printf("net_open: client name: %s\n", hostname);
+    if (debug)
+        printf("net_open: client name: %s\n", hostname);
 
     /*
      * Ignore the gateway from whoami (unreliable).
@@ -259,10 +260,11 @@ net_getparams(sock)
     }
     if (smask) {
 	netmask = smask;
-	printf("net_open: subnet mask: %s\n", intoa(netmask));
+        if (debug)
+            printf("net_open: subnet mask: %s\n", intoa(netmask));
     }
-    if (gateip.s_addr)
-	printf("net_open: net gateway: %s\n", inet_ntoa(gateip));
+    if (gateip.s_addr && debug)
+        printf("net_open: net gateway: %s\n", inet_ntoa(gateip));
 
     /* Get the root server and pathname. */
     if (bp_getfile(sock, "root", &rootip, rootpath)) {
@@ -270,7 +272,7 @@ net_getparams(sock)
 	return (EIO);
     }
  exit:
-    /*  
+    /*
      * If present, strip the server's address off of the rootpath
      * before passing it along.  This allows us to be compatible with
      * the kernel's diskless (BOOTP_NFSROOT) booting conventions
@@ -285,8 +287,10 @@ net_getparams(sock)
 	    bcopy(&rootpath[i], &temp[0], strlen(&rootpath[i])+1);
 	    bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i])+1);	    
     }
-    printf("net_open: server addr: %s\n", inet_ntoa(rootip));
-    printf("net_open: server path: %s\n", rootpath);	    
+    if (debug) {
+        printf("net_open: server addr: %s\n", inet_ntoa(rootip));
+        printf("net_open: server path: %s\n", rootpath);
+    }
 
     d = socktodesc(sock);
     sprintf(temp, "%6D", d->myea, ":");
