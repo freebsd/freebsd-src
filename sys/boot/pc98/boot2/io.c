@@ -162,7 +162,7 @@ delay1ms(void)
 	    (void)outb(0x5f,0);		/* about 600ns */
 }
 
-static __inline int
+static int
 isch(void)
 {
 	int isc;
@@ -182,7 +182,7 @@ isch(void)
 	return (serial_ischar());
 }
 
-static __inline unsigned
+static unsigned
 pword(unsigned physaddr)
 {
 	static int counter = 0;
@@ -245,24 +245,6 @@ strcmp(const char *s1, const char *s2)
 	}
 	return 1;
 }
-
-#ifdef CDBOOT
-int
-strcasecmp(const char *s1, const char *s2)
-{
-	/*
-	 * We only consider ASCII chars and don't anticipate
-	 * control characters (they are invalid in filenames
-	 * anyway).
-	 */
-	while ((*s1 & 0x5f) == (*s2 & 0x5f)) {
-		if (!*s1++)
-			return 0;
-		s2++;
-	}
-	return 1;
-}
-#endif /* !CDBOOT */
 
 void
 memcpy(const void *from, void *to, size_t len)
@@ -349,6 +331,7 @@ void putc(int c)
 	outb(0x60, pos >> 8);
 }
 
+#ifdef SET_MACHINE_TYPE
 void machine_check(void)
 {
 	int	ret;
@@ -394,3 +377,4 @@ void machine_check(void)
 
 	(*(unsigned long *)V(0xA1620)) = ret;
 }
+#endif
