@@ -25,12 +25,14 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/Mangler.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
 using namespace llvm;
@@ -179,9 +181,12 @@ void BlackfinAsmPrinter::printOperand(const MachineInstr *MI, int opNum) {
     O << Mang->getMangledName(MO.getGlobal());
     printOffset(MO.getOffset());
     break;
-  case MachineOperand::MO_ExternalSymbol:
-    O << Mang->makeNameProper(MO.getSymbolName());
+  case MachineOperand::MO_ExternalSymbol: {
+    SmallString<60> NameStr;
+    Mang->getNameWithPrefix(NameStr, MO.getSymbolName());
+    OutContext.GetOrCreateSymbol(NameStr.str())->print(O, MAI);
     break;
+  }
   case MachineOperand::MO_ConstantPoolIndex:
     O << MAI->getPrivateGlobalPrefix() << "CPI" << getFunctionNumber() << "_"
       << MO.getIndex();

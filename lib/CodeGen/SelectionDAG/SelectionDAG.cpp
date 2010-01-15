@@ -36,6 +36,7 @@
 #include "llvm/Target/TargetIntrinsicInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MathExtras.h"
@@ -644,7 +645,7 @@ bool SelectionDAG::RemoveNodeFromCSEMaps(SDNode *N) {
   if (!Erased && N->getValueType(N->getNumValues()-1) != MVT::Flag &&
       !N->isMachineOpcode() && !doNotCSE(N)) {
     N->dump(this);
-    errs() << "\n";
+    dbgs() << "\n";
     llvm_unreachable("Node is not in map!");
   }
 #endif
@@ -1740,7 +1741,7 @@ void SelectionDAG::ComputeMaskedBits(SDValue Op, const APInt &Mask,
     return;
   case ISD::SIGN_EXTEND_INREG: {
     EVT EVT = cast<VTSDNode>(Op.getOperand(1))->getVT();
-    unsigned EBits = EVT.getSizeInBits();
+    unsigned EBits = EVT.getScalarType().getSizeInBits();
 
     // Sign extension.  Compute the demanded bits in the result that are not
     // present in the input.
@@ -1785,7 +1786,7 @@ void SelectionDAG::ComputeMaskedBits(SDValue Op, const APInt &Mask,
     if (ISD::isZEXTLoad(Op.getNode())) {
       LoadSDNode *LD = cast<LoadSDNode>(Op);
       EVT VT = LD->getMemoryVT();
-      unsigned MemBits = VT.getSizeInBits();
+      unsigned MemBits = VT.getScalarType().getSizeInBits();
       KnownZero |= APInt::getHighBitsSet(BitWidth, BitWidth - MemBits) & Mask;
     }
     return;
@@ -2024,7 +2025,8 @@ unsigned SelectionDAG::ComputeNumSignBits(SDValue Op, unsigned Depth) const{
 
   case ISD::SIGN_EXTEND_INREG:
     // Max of the input and what this extends.
-    Tmp = cast<VTSDNode>(Op.getOperand(1))->getVT().getSizeInBits();
+    Tmp =
+      cast<VTSDNode>(Op.getOperand(1))->getVT().getScalarType().getSizeInBits();
     Tmp = VTBits-Tmp+1;
 
     Tmp2 = ComputeNumSignBits(Op.getOperand(0), Depth+1);
@@ -2168,10 +2170,10 @@ unsigned SelectionDAG::ComputeNumSignBits(SDValue Op, unsigned Depth) const{
     switch (ExtType) {
     default: break;
     case ISD::SEXTLOAD:    // '17' bits known
-      Tmp = LD->getMemoryVT().getSizeInBits();
+      Tmp = LD->getMemoryVT().getScalarType().getSizeInBits();
       return VTBits-Tmp+1;
     case ISD::ZEXTLOAD:    // '16' bits known
-      Tmp = LD->getMemoryVT().getSizeInBits();
+      Tmp = LD->getMemoryVT().getScalarType().getSizeInBits();
       return VTBits-Tmp;
     }
   }
@@ -2655,12 +2657,20 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL, EVT VT,
     // size of the value, the shift/rotate count is guaranteed to be zero.
     if (VT == MVT::i1)
       return N1;
+    if (N2C && N2C->isNullValue())
+      return N1;
     break;
   case ISD::FP_ROUND_INREG: {
     EVT EVT = cast<VTSDNode>(N2)->getVT();
     assert(VT == N1.getValueType() && "Not an inreg round!");
     assert(VT.isFloatingPoint() && EVT.isFloatingPoint() &&
            "Cannot FP_ROUND_INREG integer types");
+    assert(EVT.isVector() == VT.isVector() &&
+           "FP_ROUND_INREG type should be vector iff the operand "
+           "type is vector!");
+    assert((!EVT.isVector() ||
+            EVT.getVectorNumElements() == VT.getVectorNumElements()) &&
+           "Vector element counts must match in FP_ROUND_INREG");
     assert(EVT.bitsLE(VT) && "Not rounding down!");
     if (cast<VTSDNode>(N2)->getVT() == VT) return N1;  // Not actually rounding.
     break;
@@ -2690,15 +2700,18 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL, EVT VT,
     assert(VT == N1.getValueType() && "Not an inreg extend!");
     assert(VT.isInteger() && EVT.isInteger() &&
            "Cannot *_EXTEND_INREG FP types");
-    assert(!EVT.isVector() &&
-           "SIGN_EXTEND_INREG type should be the vector element type rather "
-           "than the vector type!");
-    assert(EVT.bitsLE(VT.getScalarType()) && "Not extending!");
+    assert(EVT.isVector() == VT.isVector() &&
+           "SIGN_EXTEND_INREG type should be vector iff the operand "
+           "type is vector!");
+    assert((!EVT.isVector() ||
+            EVT.getVectorNumElements() == VT.getVectorNumElements()) &&
+           "Vector element counts must match in SIGN_EXTEND_INREG");
+    assert(EVT.bitsLE(VT) && "Not extending!");
     if (EVT == VT) return N1;  // Not actually extending
 
     if (N1C) {
       APInt Val = N1C->getAPIntValue();
-      unsigned FromBits = EVT.getSizeInBits();
+      unsigned FromBits = EVT.getScalarType().getSizeInBits();
       Val <<= Val.getBitWidth()-FromBits;
       Val = Val.ashr(Val.getBitWidth()-FromBits);
       return getConstant(Val, VT);
@@ -4106,7 +4119,7 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL, SDVTList VTList,
       if (ConstantSDNode *AndRHS = dyn_cast<ConstantSDNode>(N3.getOperand(1))) {
         // If the and is only masking out bits that cannot effect the shift,
         // eliminate the and.
-        unsigned NumBits = VT.getSizeInBits()*2;
+        unsigned NumBits = VT.getScalarType().getSizeInBits()*2;
         if ((AndRHS->getValue() & (NumBits-1)) == NumBits-1)
           return getNode(Opcode, DL, VT, N1, N2, N3.getOperand(0));
       }
@@ -5713,7 +5726,7 @@ std::string ISD::ArgFlagsTy::getArgFlagsString() {
 
 void SDNode::dump() const { dump(0); }
 void SDNode::dump(const SelectionDAG *G) const {
-  print(errs(), G);
+  print(dbgs(), G);
 }
 
 void SDNode::print_types(raw_ostream &OS, const SelectionDAG *G) const {
@@ -5885,12 +5898,12 @@ static void DumpNodes(const SDNode *N, unsigned indent, const SelectionDAG *G) {
     if (N->getOperand(i).getNode()->hasOneUse())
       DumpNodes(N->getOperand(i).getNode(), indent+2, G);
     else
-      errs() << "\n" << std::string(indent+2, ' ')
-             << (void*)N->getOperand(i).getNode() << ": <multiple use>";
+      dbgs() << "\n" << std::string(indent+2, ' ')
+           << (void*)N->getOperand(i).getNode() << ": <multiple use>";
 
 
-  errs() << "\n";
-  errs().indent(indent);
+  dbgs() << "\n";
+  dbgs().indent(indent);
   N->dump(G);
 }
 
@@ -5943,6 +5956,13 @@ SDValue SelectionDAG::UnrollVectorOp(SDNode *N, unsigned ResNE) {
       Scalars.push_back(getNode(N->getOpcode(), dl, EltVT, Operands[0],
                                 getShiftAmountOperand(Operands[1])));
       break;
+    case ISD::SIGN_EXTEND_INREG:
+    case ISD::FP_ROUND_INREG: {
+      EVT ExtVT = cast<VTSDNode>(Operands[1])->getVT().getVectorElementType();
+      Scalars.push_back(getNode(N->getOpcode(), dl, EltVT,
+                                Operands[0],
+                                getValueType(ExtVT)));
+    }
     }
   }
 
@@ -6048,7 +6068,7 @@ unsigned SelectionDAG::InferPtrAlignment(SDValue Ptr) const {
 }
 
 void SelectionDAG::dump() const {
-  errs() << "SelectionDAG has " << AllNodes.size() << " nodes:";
+  dbgs() << "SelectionDAG has " << AllNodes.size() << " nodes:";
 
   for (allnodes_const_iterator I = allnodes_begin(), E = allnodes_end();
        I != E; ++I) {
@@ -6059,7 +6079,7 @@ void SelectionDAG::dump() const {
 
   if (getRoot().getNode()) DumpNodes(getRoot().getNode(), 2, this);
 
-  errs() << "\n\n";
+  dbgs() << "\n\n";
 }
 
 void SDNode::printr(raw_ostream &OS, const SelectionDAG *G) const {
@@ -6106,12 +6126,12 @@ static void DumpNodesr(raw_ostream &OS, const SDNode *N, unsigned indent,
 
 void SDNode::dumpr() const {
   VisitedSDNodeSet once;
-  DumpNodesr(errs(), this, 0, 0, once);
+  DumpNodesr(dbgs(), this, 0, 0, once);
 }
 
 void SDNode::dumpr(const SelectionDAG *G) const {
   VisitedSDNodeSet once;
-  DumpNodesr(errs(), this, 0, G, once);
+  DumpNodesr(dbgs(), this, 0, G, once);
 }
 
 

@@ -44,14 +44,12 @@ Value::Value(const Type *ty, unsigned scid)
     SubclassOptionalData(0), SubclassData(0), VTy(checkType(ty)),
     UseList(0), Name(0) {
   if (isa<CallInst>(this) || isa<InvokeInst>(this))
-    assert((VTy->isFirstClassType() ||
-            VTy == Type::getVoidTy(ty->getContext()) ||
+    assert((VTy->isFirstClassType() || VTy->isVoidTy() ||
             isa<OpaqueType>(ty) || VTy->getTypeID() == Type::StructTyID) &&
            "invalid CallInst  type!");
   else if (!isa<Constant>(this) && !isa<BasicBlock>(this))
-    assert((VTy->isFirstClassType() ||
-            VTy == Type::getVoidTy(ty->getContext()) ||
-           isa<OpaqueType>(ty)) &&
+    assert((VTy->isFirstClassType() || VTy->isVoidTy() ||
+            isa<OpaqueType>(ty)) &&
            "Cannot create non-first-class values except for constants!");
 }
 
@@ -68,9 +66,9 @@ Value::~Value() {
   // a <badref>
   //
   if (!use_empty()) {
-    errs() << "While deleting: " << *VTy << " %" << getNameStr() << "\n";
+    dbgs() << "While deleting: " << *VTy << " %" << getNameStr() << "\n";
     for (use_iterator I = use_begin(), E = use_end(); I != E; ++I)
-      errs() << "Use still stuck around after Def is destroyed:"
+      dbgs() << "Use still stuck around after Def is destroyed:"
            << **I << "\n";
   }
 #endif
@@ -172,17 +170,13 @@ void Value::setName(const Twine &NewName) {
     return;
 
   SmallString<256> NameData;
-  NewName.toVector(NameData);
-
-  const char *NameStr = NameData.data();
-  unsigned NameLen = NameData.size();
+  StringRef NameRef = NewName.toStringRef(NameData);
 
   // Name isn't changing?
-  if (getName() == StringRef(NameStr, NameLen))
+  if (getName() == NameRef)
     return;
 
-  assert(getType() != Type::getVoidTy(getContext()) &&
-         "Cannot assign a name to void values!");
+  assert(!getType()->isVoidTy() && "Cannot assign a name to void values!");
 
   // Get the symbol table to update for this object.
   ValueSymbolTable *ST;
@@ -190,7 +184,7 @@ void Value::setName(const Twine &NewName) {
     return;  // Cannot set a name on this value (e.g. constant).
 
   if (!ST) { // No symbol table to update?  Just do the change.
-    if (NameLen == 0) {
+    if (NameRef.empty()) {
       // Free the name for this value.
       Name->Destroy();
       Name = 0;
@@ -204,7 +198,7 @@ void Value::setName(const Twine &NewName) {
     // then reallocated.
 
     // Create the new name.
-    Name = ValueName::Create(NameStr, NameStr+NameLen);
+    Name = ValueName::Create(NameRef.begin(), NameRef.end());
     Name->setValue(this);
     return;
   }
@@ -217,12 +211,12 @@ void Value::setName(const Twine &NewName) {
     Name->Destroy();
     Name = 0;
 
-    if (NameLen == 0)
+    if (NameRef.empty())
       return;
   }
 
   // Name is changing to something new.
-  Name = ST->createValueName(StringRef(NameStr, NameLen), this);
+  Name = ST->createValueName(NameRef, this);
 }
 
 
@@ -522,7 +516,7 @@ void ValueHandleBase::ValueIsDeleted(Value *V) {
   // All callbacks, weak references, and assertingVHs should be dropped by now.
   if (V->HasValueHandle) {
 #ifndef NDEBUG      // Only in +Asserts mode...
-    errs() << "While deleting: " << *V->getType() << " %" << V->getNameStr()
+    dbgs() << "While deleting: " << *V->getType() << " %" << V->getNameStr()
            << "\n";
     if (pImpl->ValueHandles[V]->getKind() == Assert)
       llvm_unreachable("An asserting value handle still pointed to this"

@@ -25,6 +25,7 @@
 #include "llvm/IntrinsicInst.h"
 #include "llvm/InlineAsm.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/ConstantsScanner.h"
 #include "llvm/Analysis/FindUsedTypes.h"
@@ -34,6 +35,7 @@
 #include "llvm/CodeGen/IntrinsicLowering.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/CallSite.h"
@@ -340,6 +342,15 @@ namespace {
 }
 
 char CWriter::ID = 0;
+
+
+static std::string Mangle(const std::string &S) {
+  std::string Result;
+  raw_string_ostream OS(Result);
+  MCSymbol::printMangledName(S, OS, 0);
+  return OS.str();
+}
+
 
 /// This method inserts names for any unnamed structure types that are used by
 /// the program, and removes names from structure types that are not used by the
@@ -1431,8 +1442,11 @@ void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode) {
 
 std::string CWriter::GetValueName(const Value *Operand) {
   // Mangle globals with the standard mangler interface for LLC compatibility.
-  if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand))
-    return Mang->getMangledName(GV);
+  if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand)) {
+    SmallString<128> Str;
+    Mang->getNameWithPrefix(Str, GV, false);
+    return Mangle(Str.str().str());
+  }
     
   std::string Name = Operand->getName();
     
@@ -1857,7 +1871,6 @@ bool CWriter::doInitialization(Module &M) {
 
   // Ensure that all structure types have names...
   Mang = new Mangler(M);
-  Mang->markCharUnacceptable('.');
 
   // Keep track of which functions are static ctors/dtors so they can have
   // an attribute added to their prototypes.
@@ -2210,7 +2223,7 @@ void CWriter::printModuleTypes(const TypeSymbolTable &TST) {
   // Print out forward declarations for structure types before anything else!
   Out << "/* Structure forward decls */\n";
   for (; I != End; ++I) {
-    std::string Name = "struct l_" + Mang->makeNameProper(I->first);
+    std::string Name = "struct " + Mangle("l_"+I->first);
     Out << Name << ";\n";
     TypeNames.insert(std::make_pair(I->second, Name));
   }
@@ -2221,7 +2234,7 @@ void CWriter::printModuleTypes(const TypeSymbolTable &TST) {
   // for struct or opaque types.
   Out << "/* Typedefs */\n";
   for (I = TST.begin(); I != End; ++I) {
-    std::string Name = "l_" + Mang->makeNameProper(I->first);
+    std::string Name = Mangle("l_"+I->first);
     Out << "typedef ";
     printType(Out, I->second, false, Name);
     Out << ";\n";
@@ -2921,7 +2934,6 @@ void CWriter::lowerIntrinsics(Function &F) {
           case Intrinsic::setjmp:
           case Intrinsic::longjmp:
           case Intrinsic::prefetch:
-          case Intrinsic::dbg_stoppoint:
           case Intrinsic::powi:
           case Intrinsic::x86_sse_cmp_ss:
           case Intrinsic::x86_sse_cmp_ps:
@@ -3178,20 +3190,6 @@ bool CWriter::visitBuiltinCall(CallInst &I, Intrinsic::ID ID,
     Out << "0; *((void**)&" << GetValueName(&I)
         << ") = __builtin_stack_save()";
     return true;
-  case Intrinsic::dbg_stoppoint: {
-    // If we use writeOperand directly we get a "u" suffix which is rejected
-    // by gcc.
-    DbgStopPointInst &SPI = cast<DbgStopPointInst>(I);
-    std::string dir;
-    GetConstantStringInfo(SPI.getDirectory(), dir);
-    std::string file;
-    GetConstantStringInfo(SPI.getFileName(), file);
-    Out << "\n#line "
-        << SPI.getLine()
-        << " \""
-        << dir << '/' << file << "\"\n";
-    return true;
-  }
   case Intrinsic::x86_sse_cmp_ss:
   case Intrinsic::x86_sse_cmp_ps:
   case Intrinsic::x86_sse2_cmp_sd:

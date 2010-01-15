@@ -764,7 +764,7 @@ public:
   }
 
   void dump() const {
-    DEBUG(errs() << "Constant.cpp: ConstantUniqueMap\n");
+    DEBUG(dbgs() << "Constant.cpp: ConstantUniqueMap\n");
   }
 };
 

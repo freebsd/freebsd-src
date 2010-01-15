@@ -102,6 +102,37 @@ unsigned InlineCostAnalyzer::FunctionInfo::
   return Reduction;
 }
 
+// callIsSmall - If a call is likely to lower to a single target instruction, or
+// is otherwise deemed small return true.
+// TODO: Perhaps calls like memcpy, strcpy, etc?
+static bool callIsSmall(const Function *F) {
+  if (!F) return false;
+  
+  if (F->hasLocalLinkage()) return false;
+  
+  if (!F->hasName()) return false;
+  
+  StringRef Name = F->getName();
+  
+  // These will all likely lower to a single selection DAG node.
+  if (Name == "copysign" || Name == "copysignf" ||
+      Name == "fabs" || Name == "fabsf" || Name == "fabsl" ||
+      Name == "sin" || Name == "sinf" || Name == "sinl" ||
+      Name == "cos" || Name == "cosf" || Name == "cosl" ||
+      Name == "sqrt" || Name == "sqrtf" || Name == "sqrtl" )
+    return true;
+  
+  // These are all likely to be optimized into something smaller.
+  if (Name == "pow" || Name == "powf" || Name == "powl" ||
+      Name == "exp2" || Name == "exp2l" || Name == "exp2f" ||
+      Name == "floor" || Name == "floorf" || Name == "ceil" ||
+      Name == "round" || Name == "ffs" || Name == "ffsl" ||
+      Name == "abs" || Name == "labs" || Name == "llabs")
+    return true;
+  
+  return false;
+}
+
 /// analyzeBasicBlock - Fill in the current structure with information gleaned
 /// from the specified block.
 void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB) {
@@ -129,7 +160,7 @@ void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB) {
 
       // Calls often compile into many machine instructions.  Bump up their
       // cost to reflect this.
-      if (!isa<IntrinsicInst>(II))
+      if (!isa<IntrinsicInst>(II) && !callIsSmall(CS.getCalledFunction()))
         NumInsts += InlineConstants::CallPenalty;
     }
     
@@ -141,10 +172,15 @@ void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB) {
     if (isa<ExtractElementInst>(II) || isa<VectorType>(II->getType()))
       ++NumVectorInsts; 
     
-    // Noop casts, including ptr <-> int,  don't count.
     if (const CastInst *CI = dyn_cast<CastInst>(II)) {
+      // Noop casts, including ptr <-> int,  don't count.
       if (CI->isLosslessCast() || isa<IntToPtrInst>(CI) || 
           isa<PtrToIntInst>(CI))
+        continue;
+      // Result of a cmp instruction is often extended (to be used by other
+      // cmp instructions, logical or return instructions). These are usually
+      // nop on most sane targets.
+      if (isa<CmpInst>(CI->getOperand(0)))
         continue;
     } else if (const GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(II)){
       // If a GEP has all constant indices, it will probably be folded with

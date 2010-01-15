@@ -28,11 +28,13 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/DebugInfo.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/LeakDetector.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/Metadata.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -277,8 +279,13 @@ void MachineOperand::print(raw_ostream &OS, const TargetMachine *TM) const {
     OS << '>';
     break;
   case MachineOperand::MO_BlockAddress:
-    OS << "<";
+    OS << '<';
     WriteAsOperand(OS, getBlockAddress(), /*PrintType=*/false);
+    OS << '>';
+    break;
+  case MachineOperand::MO_Metadata:
+    OS << '<';
+    WriteAsOperand(OS, getMetadata(), /*PrintType=*/false);
     OS << '>';
     break;
   default:
@@ -1094,7 +1101,7 @@ unsigned MachineInstr::isConstantValuePHI() const {
 }
 
 void MachineInstr::dump() const {
-  errs() << "  " << *this;
+  dbgs() << "  " << *this;
 }
 
 void MachineInstr::print(raw_ostream &OS, const TargetMachine *TM) const {
@@ -1312,4 +1319,13 @@ bool MachineInstr::addRegisterDead(unsigned IncomingReg,
                                        false /*IsKill*/,
                                        true  /*IsDead*/));
   return true;
+}
+
+void MachineInstr::addRegisterDefined(unsigned IncomingReg,
+                                      const TargetRegisterInfo *RegInfo) {
+  MachineOperand *MO = findRegisterDefOperand(IncomingReg, false, RegInfo);
+  if (!MO || MO->getSubReg())
+    addOperand(MachineOperand::CreateReg(IncomingReg,
+                                         true  /*IsDef*/,
+                                         true  /*IsImp*/));
 }

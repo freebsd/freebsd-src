@@ -25,6 +25,7 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/Mangler.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Analysis/DebugInfo.h"
 using namespace llvm;
 
 
@@ -399,6 +400,14 @@ void X86MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
     OutMI.setOpcode(X86::MOVZX32rm16);
     lower_subreg32(&OutMI, 0);
     break;
+  case X86::MOV16r0:
+    OutMI.setOpcode(X86::MOV32r0);
+    lower_subreg32(&OutMI, 0);
+    break;
+  case X86::MOV64r0:
+    OutMI.setOpcode(X86::MOV32r0);
+    lower_subreg32(&OutMI, 0);
+    break;
   }
 }
 
@@ -412,6 +421,25 @@ void X86AsmPrinter::printInstructionThroughMCStreamer(const MachineInstr *MI) {
   case TargetInstrInfo::GC_LABEL:
     printLabel(MI);
     return;
+  case TargetInstrInfo::DEBUG_VALUE: {
+    if (!VerboseAsm)
+      return;
+    O << '\t' << MAI->getCommentString() << "DEBUG_VALUE: ";
+    // cast away const; DIetc do not take const operands for some reason
+    DIVariable V((MDNode*)(MI->getOperand(2).getMetadata()));
+    O << V.getName();
+    O << " <- ";
+    if (MI->getOperand(0).getType()==MachineOperand::MO_Register)
+      printOperand(MI, 0);
+    else {
+      assert(MI->getOperand(0).getType()==MachineOperand::MO_Immediate);
+      int64_t imm = MI->getOperand(0).getImm();
+      O << '[' << ((imm<0) ? "EBP" : "ESP+") << imm << ']';
+    }
+    O << "+";
+    printOperand(MI, 1);
+    return;
+  }
   case TargetInstrInfo::INLINEASM:
     printInlineAsm(MI);
     return;

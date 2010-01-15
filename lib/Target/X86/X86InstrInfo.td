@@ -160,15 +160,21 @@ def X86ehret : SDNode<"X86ISD::EH_RETURN", SDT_X86EHRET,
 def X86tcret : SDNode<"X86ISD::TC_RETURN", SDT_X86TCRET, 
                         [SDNPHasChain,  SDNPOptInFlag]>;
 
-def X86add_flag  : SDNode<"X86ISD::ADD",  SDTBinaryArithWithFlags>;
+def X86add_flag  : SDNode<"X86ISD::ADD",  SDTBinaryArithWithFlags,
+                          [SDNPCommutative]>;
 def X86sub_flag  : SDNode<"X86ISD::SUB",  SDTBinaryArithWithFlags>;
-def X86smul_flag : SDNode<"X86ISD::SMUL", SDTBinaryArithWithFlags>;
-def X86umul_flag : SDNode<"X86ISD::UMUL", SDTUnaryArithWithFlags>;
+def X86smul_flag : SDNode<"X86ISD::SMUL", SDTBinaryArithWithFlags,
+                          [SDNPCommutative]>;
+def X86umul_flag : SDNode<"X86ISD::UMUL", SDTUnaryArithWithFlags,
+                          [SDNPCommutative]>;
 def X86inc_flag  : SDNode<"X86ISD::INC",  SDTUnaryArithWithFlags>;
 def X86dec_flag  : SDNode<"X86ISD::DEC",  SDTUnaryArithWithFlags>;
-def X86or_flag   : SDNode<"X86ISD::OR",   SDTBinaryArithWithFlags>;
-def X86xor_flag  : SDNode<"X86ISD::XOR",  SDTBinaryArithWithFlags>;
-def X86and_flag  : SDNode<"X86ISD::AND",  SDTBinaryArithWithFlags>;
+def X86or_flag   : SDNode<"X86ISD::OR",   SDTBinaryArithWithFlags,
+                          [SDNPCommutative]>;
+def X86xor_flag  : SDNode<"X86ISD::XOR",  SDTBinaryArithWithFlags,
+                          [SDNPCommutative]>;
+def X86and_flag  : SDNode<"X86ISD::AND",  SDTBinaryArithWithFlags,
+                          [SDNPCommutative]>;
 
 def X86mul_imm : SDNode<"X86ISD::MUL_IMM", SDTIntBinOp>;
 
@@ -485,6 +491,21 @@ def srl_su : PatFrag<(ops node:$lhs, node:$rhs), (srl node:$lhs, node:$rhs), [{
 // An 'trunc' node with a single use.
 def trunc_su : PatFrag<(ops node:$src), (trunc node:$src), [{
   return N->hasOneUse();
+}]>;
+
+// Treat an 'or' node is as an 'add' if the or'ed bits are known to be zero.
+def or_is_add : PatFrag<(ops node:$lhs, node:$rhs), (or node:$lhs, node:$rhs),[{
+  if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(N->getOperand(1)))
+    return CurDAG->MaskedValueIsZero(N->getOperand(0), CN->getAPIntValue());
+  else {
+    unsigned BitWidth = N->getValueType(0).getScalarType().getSizeInBits();
+    APInt Mask = APInt::getAllOnesValue(BitWidth);
+    APInt KnownZero0, KnownOne0;
+    CurDAG->ComputeMaskedBits(N->getOperand(0), Mask, KnownZero0, KnownOne0, 0);
+    APInt KnownZero1, KnownOne1;
+    CurDAG->ComputeMaskedBits(N->getOperand(1), Mask, KnownZero1, KnownOne1, 0);
+    return (~KnownZero0 & ~KnownZero1) == 0;
+  }
 }]>;
 
 // 'shld' and 'shrd' instruction patterns. Note that even though these have
@@ -3700,17 +3721,20 @@ let Defs = [EFLAGS], isReMaterializable = 1, isAsCheapAsAMove = 1,
 def MOV8r0   : I<0x30, MRMInitReg, (outs GR8 :$dst), (ins),
                  "xor{b}\t$dst, $dst",
                  [(set GR8:$dst, 0)]>;
+
+// We want to rewrite MOV16r0 in terms of MOV32r0, because it's a smaller
+// encoding and avoids a partial-register update sometimes, but doing so
+// at isel time interferes with rematerialization in the current register
+// allocator. For now, this is rewritten when the instruction is lowered
+// to an MCInst.
+def MOV16r0   : I<0x31, MRMInitReg, (outs GR16:$dst), (ins),
+                 "",
+                 [(set GR16:$dst, 0)]>, OpSize;
                  
 def MOV32r0  : I<0x31, MRMInitReg, (outs GR32:$dst), (ins),
                  "xor{l}\t$dst, $dst",
                  [(set GR32:$dst, 0)]>;
 }
-
-// Use xorl instead of xorw since we don't care about the high 16 bits,
-// it's smaller, and it avoids a partial-register update.
-let AddedComplexity = 1 in
-def : Pat<(i16 0),
-          (EXTRACT_SUBREG (MOV32r0), x86_subreg_16bit)>;
 
 //===----------------------------------------------------------------------===//
 // Thread Local Storage Instructions
@@ -3792,7 +3816,7 @@ def LCMPXCHG32 : I<0xB1, MRMDestMem, (outs), (ins i32mem:$ptr, GR32:$swap),
                [(X86cas addr:$ptr, GR32:$swap, 4)]>, TB, LOCK;
 }
 let Defs = [EAX, EDX, EFLAGS], Uses = [EAX, EBX, ECX, EDX] in {
-def LCMPXCHG8B : I<0xC7, MRM1m, (outs), (ins i32mem:$ptr),
+def LCMPXCHG8B : I<0xC7, MRM1m, (outs), (ins i64mem:$ptr),
                "lock\n\t"
                "cmpxchg8b\t$ptr",
                [(X86cas8 addr:$ptr)]>, TB, LOCK;
@@ -3858,6 +3882,7 @@ def CMPXCHG16rm  : I<0xB1, MRMDestMem, (outs), (ins i16mem:$dst, GR16:$src),
 def CMPXCHG32rm  : I<0xB1, MRMDestMem, (outs), (ins i32mem:$dst, GR32:$src),
                      "cmpxchg{l}\t{$src, $dst|$dst, $src}", []>, TB;
 
+let Defs = [EAX, EDX, EFLAGS], Uses = [EAX, EBX, ECX, EDX] in
 def CMPXCHG8B : I<0xC7, MRM1m, (outs), (ins i64mem:$dst),
                   "cmpxchg8b\t$dst", []>, TB;
 
@@ -4466,7 +4491,7 @@ def : Pat<(i8 (trunc (srl_su GR32:$src, (i8 8)))),
           (EXTRACT_SUBREG (i16 (COPY_TO_REGCLASS GR32:$src, GR32_ABCD)),
                           x86_subreg_8bit_hi)>,
       Requires<[In32BitMode]>;
-def : Pat<(srl_su GR16:$src, (i8 8)),
+def : Pat<(srl GR16:$src, (i8 8)),
           (EXTRACT_SUBREG
             (MOVZX32rr8
               (EXTRACT_SUBREG (i16 (COPY_TO_REGCLASS GR16:$src, GR16_ABCD)),
@@ -4639,6 +4664,28 @@ def : Pat<(i16 (anyext (i8 (X86setcc_c X86_COND_B, EFLAGS)))),
           (SETB_C16r)>;
 def : Pat<(i32 (anyext (i8 (X86setcc_c X86_COND_B, EFLAGS)))),
           (SETB_C32r)>;
+
+// (or x1, x2) -> (add x1, x2) if two operands are known not to share bits.
+let AddedComplexity = 5 in { // Try this before the selecting to OR
+def : Pat<(parallel (or_is_add GR16:$src1, imm:$src2),
+                    (implicit EFLAGS)),
+          (ADD16ri GR16:$src1, imm:$src2)>;
+def : Pat<(parallel (or_is_add GR32:$src1, imm:$src2),
+                    (implicit EFLAGS)),
+          (ADD32ri GR32:$src1, imm:$src2)>;
+def : Pat<(parallel (or_is_add GR16:$src1, i16immSExt8:$src2),
+                    (implicit EFLAGS)),
+          (ADD16ri8 GR16:$src1, i16immSExt8:$src2)>;
+def : Pat<(parallel (or_is_add GR32:$src1, i32immSExt8:$src2),
+                    (implicit EFLAGS)),
+          (ADD32ri8 GR32:$src1, i32immSExt8:$src2)>;
+def : Pat<(parallel (or_is_add GR16:$src1, GR16:$src2),
+                    (implicit EFLAGS)),
+          (ADD16rr GR16:$src1, GR16:$src2)>;
+def : Pat<(parallel (or_is_add GR32:$src1, GR32:$src2),
+                    (implicit EFLAGS)),
+          (ADD32rr GR32:$src1, GR32:$src2)>;
+} // AddedComplexity
 
 //===----------------------------------------------------------------------===//
 // EFLAGS-defining Patterns

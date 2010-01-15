@@ -282,14 +282,8 @@ let Properties = [IntrNoMem] in {
 // optimizers can change them aggressively.  Special handling needed in a few
 // places.
 let Properties = [IntrNoMem] in {
-  def int_dbg_stoppoint    : Intrinsic<[llvm_void_ty],
-                                       [llvm_i32_ty, llvm_i32_ty,
-                                        llvm_metadata_ty]>;
-  def int_dbg_region_start : Intrinsic<[llvm_void_ty], [llvm_metadata_ty]>;
-  def int_dbg_region_end   : Intrinsic<[llvm_void_ty], [llvm_metadata_ty]>;
-  def int_dbg_func_start   : Intrinsic<[llvm_void_ty], [llvm_metadata_ty]>;
   def int_dbg_declare      : Intrinsic<[llvm_void_ty],
-                                       [llvm_descriptor_ty, llvm_metadata_ty]>;
+                                       [llvm_metadata_ty, llvm_metadata_ty]>;
   def int_dbg_value  	   : Intrinsic<[llvm_void_ty],
                                        [llvm_metadata_ty, llvm_i64_ty,
                                         llvm_metadata_ty]>;

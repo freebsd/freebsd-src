@@ -32,6 +32,7 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
@@ -49,6 +50,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSet.h"
+#include "llvm/ADT/SmallString.h"
 using namespace llvm;
 
 STATISTIC(EmittedInsts, "Number of machine instrs printed");
@@ -57,27 +59,42 @@ namespace {
   class PPCAsmPrinter : public AsmPrinter {
   protected:
     struct FnStubInfo {
-      std::string Stub, LazyPtr, AnonSymbol;
+      MCSymbol *Stub, *LazyPtr, *AnonSymbol;
       
-      FnStubInfo() {}
+      FnStubInfo() {
+        Stub = LazyPtr = AnonSymbol = 0;
+      }
       
-      void Init(const GlobalValue *GV, Mangler *Mang) {
+      void Init(const GlobalValue *GV, Mangler *Mang, MCContext &Ctx) {
         // Already initialized.
-        if (!Stub.empty()) return;
-        Stub = Mang->getMangledName(GV, "$stub", true);
-        LazyPtr = Mang->getMangledName(GV, "$lazy_ptr", true);
-        AnonSymbol = Mang->getMangledName(GV, "$stub$tmp", true);
+        if (Stub != 0) return;
+
+        // Get the names.
+        SmallString<128> TmpStr;
+        Mang->getNameWithPrefix(TmpStr, GV, true);
+        MakeSymbols(TmpStr, Ctx);
       }
 
-      void Init(const std::string &GV, Mangler *Mang) {
-        // Already initialized.
-        if (!Stub.empty()) return;
-        Stub = Mang->makeNameProper(GV + "$stub",
-                                    Mangler::Private);
-        LazyPtr = Mang->makeNameProper(GV + "$lazy_ptr",
-                                       Mangler::Private);
-        AnonSymbol = Mang->makeNameProper(GV + "$stub$tmp",
-                                          Mangler::Private);
+      void Init(StringRef GVName, Mangler *Mang, MCContext &Ctx) {
+        assert(!GVName.empty() && "external symbol name shouldn't be empty");
+        if (Stub != 0) return; // Already initialized.
+        // Get the names for the external symbol name.
+        SmallString<128> TmpStr;
+        Mang->getNameWithPrefix(TmpStr, GVName, Mangler::Private);
+        MakeSymbols(TmpStr, Ctx);
+      }
+      
+      void MakeSymbols(SmallString<128> &TmpStr, MCContext &Ctx) {
+        TmpStr += "$stub";
+        Stub = Ctx.GetOrCreateSymbol(TmpStr.str());
+        TmpStr.erase(TmpStr.end()-5, TmpStr.end()); // Remove $stub
+
+        TmpStr += "$lazy_ptr";
+        LazyPtr = Ctx.GetOrCreateSymbol(TmpStr.str());
+        TmpStr.erase(TmpStr.end()-9, TmpStr.end()); // Remove $lazy_ptr
+        
+        TmpStr += "$stub$tmp";
+        AnonSymbol = Ctx.GetOrCreateSymbol(TmpStr.str());
       }
     };
     
@@ -224,15 +241,17 @@ namespace {
           if (GV->isDeclaration() || GV->isWeakForLinker()) {
             // Dynamically-resolved functions need a stub for the function.
             FnStubInfo &FnInfo = FnStubs[Mang->getMangledName(GV)];
-            FnInfo.Init(GV, Mang);
-            O << FnInfo.Stub;
+            FnInfo.Init(GV, Mang, OutContext);
+            FnInfo.Stub->print(O, MAI);
             return;
           }
         }
         if (MO.getType() == MachineOperand::MO_ExternalSymbol) {
-          FnStubInfo &FnInfo =FnStubs[Mang->makeNameProper(MO.getSymbolName())];
-          FnInfo.Init(MO.getSymbolName(), Mang);
-          O << FnInfo.Stub;
+          SmallString<128> MangledName;
+          Mang->getNameWithPrefix(MangledName, MO.getSymbolName());
+          FnStubInfo &FnInfo = FnStubs[MangledName.str()];
+          FnInfo.Init(MO.getSymbolName(), Mang, OutContext);
+          FnInfo.Stub->print(O, MAI);
           return;
         }
       }
@@ -550,50 +569,49 @@ void PPCAsmPrinter::printMachineInstruction(const MachineInstr *MI) {
   processDebugLoc(MI, true);
 
   // Check for slwi/srwi mnemonics.
+  bool useSubstituteMnemonic = false;
   if (MI->getOpcode() == PPC::RLWINM) {
-    bool FoundMnemonic = false;
     unsigned char SH = MI->getOperand(2).getImm();
     unsigned char MB = MI->getOperand(3).getImm();
     unsigned char ME = MI->getOperand(4).getImm();
     if (SH <= 31 && MB == 0 && ME == (31-SH)) {
-      O << "\tslwi "; FoundMnemonic = true;
+      O << "\tslwi "; useSubstituteMnemonic = true;
     }
     if (SH <= 31 && MB == (32-SH) && ME == 31) {
-      O << "\tsrwi "; FoundMnemonic = true;
+      O << "\tsrwi "; useSubstituteMnemonic = true;
       SH = 32-SH;
     }
-    if (FoundMnemonic) {
+    if (useSubstituteMnemonic) {
       printOperand(MI, 0);
       O << ", ";
       printOperand(MI, 1);
-      O << ", " << (unsigned int)SH << '\n';
-      return;
+      O << ", " << (unsigned int)SH;
     }
   } else if (MI->getOpcode() == PPC::OR || MI->getOpcode() == PPC::OR8) {
     if (MI->getOperand(1).getReg() == MI->getOperand(2).getReg()) {
+      useSubstituteMnemonic = true;
       O << "\tmr ";
       printOperand(MI, 0);
       O << ", ";
       printOperand(MI, 1);
-      O << '\n';
-      return;
     }
   } else if (MI->getOpcode() == PPC::RLDICR) {
     unsigned char SH = MI->getOperand(2).getImm();
     unsigned char ME = MI->getOperand(3).getImm();
     // rldicr RA, RS, SH, 63-SH == sldi RA, RS, SH
     if (63-SH == ME) {
+      useSubstituteMnemonic = true;
       O << "\tsldi ";
       printOperand(MI, 0);
       O << ", ";
       printOperand(MI, 1);
-      O << ", " << (unsigned int)SH << '\n';
-      return;
+      O << ", " << (unsigned int)SH;
     }
   }
 
-  printInstruction(MI);
-  
+  if (!useSubstituteMnemonic)
+    printInstruction(MI);
+
   if (VerboseAsm)
     EmitComments(*MI);
   O << '\n';
@@ -1038,27 +1056,38 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
                                 MCSectionMachO::S_SYMBOL_STUBS |
                                 MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
                                 32, SectionKind::getText());
-     for (StringMap<FnStubInfo>::iterator I = FnStubs.begin(), E = FnStubs.end();
+    for (StringMap<FnStubInfo>::iterator I = FnStubs.begin(), E = FnStubs.end();
          I != E; ++I) {
       OutStreamer.SwitchSection(StubSection);
       EmitAlignment(4);
       const FnStubInfo &Info = I->second;
-      O << Info.Stub << ":\n";
+      Info.Stub->print(O, MAI);
+      O << ":\n";
       O << "\t.indirect_symbol " << I->getKeyData() << '\n';
       O << "\tmflr r0\n";
-      O << "\tbcl 20,31," << Info.AnonSymbol << '\n';
-      O << Info.AnonSymbol << ":\n";
+      O << "\tbcl 20,31,";
+      Info.AnonSymbol->print(O, MAI);
+      O << '\n';
+      Info.AnonSymbol->print(O, MAI);
+      O << ":\n";
       O << "\tmflr r11\n";
-      O << "\taddis r11,r11,ha16(" << Info.LazyPtr << "-" << Info.AnonSymbol;
+      O << "\taddis r11,r11,ha16(";
+      Info.LazyPtr->print(O, MAI);
+      O << '-';
+      Info.AnonSymbol->print(O, MAI);
       O << ")\n";
       O << "\tmtlr r0\n";
       O << (isPPC64 ? "\tldu" : "\tlwzu") << " r12,lo16(";
-      O << Info.LazyPtr << "-" << Info.AnonSymbol << ")(r11)\n";
+      Info.LazyPtr->print(O, MAI);
+      O << '-';
+      Info.AnonSymbol->print(O, MAI);
+      O << ")(r11)\n";
       O << "\tmtctr r12\n";
       O << "\tbctr\n";
       
       OutStreamer.SwitchSection(LSPSection);
-      O << Info.LazyPtr << ":\n";
+      Info.LazyPtr->print(O, MAI);
+      O << ":\n";
       O << "\t.indirect_symbol " << I->getKeyData() << '\n';
       O << (isPPC64 ? "\t.quad" : "\t.long") << " dyld_stub_binding_helper\n";
     }
@@ -1074,15 +1103,20 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
       OutStreamer.SwitchSection(StubSection);
       EmitAlignment(4);
       const FnStubInfo &Info = I->second;
-      O << Info.Stub << ":\n";
+      Info.Stub->print(O, MAI);
+      O << ":\n";
       O << "\t.indirect_symbol " << I->getKeyData() << '\n';
-      O << "\tlis r11,ha16(" << Info.LazyPtr << ")\n";
+      O << "\tlis r11,ha16(";
+      Info.LazyPtr->print(O, MAI);
+      O << ")\n";
       O << (isPPC64 ? "\tldu" :  "\tlwzu") << " r12,lo16(";
-      O << Info.LazyPtr << ")(r11)\n";
+      Info.LazyPtr->print(O, MAI);
+      O << ")(r11)\n";
       O << "\tmtctr r12\n";
       O << "\tbctr\n";
       OutStreamer.SwitchSection(LSPSection);
-      O << Info.LazyPtr << ":\n";
+      Info.LazyPtr->print(O, MAI);
+      O << ":\n";
       O << "\t.indirect_symbol " << I->getKeyData() << '\n';
       O << (isPPC64 ? "\t.quad" : "\t.long") << " dyld_stub_binding_helper\n";
     }

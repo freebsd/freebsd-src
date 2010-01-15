@@ -43,6 +43,7 @@
       <li><a href="#globalvars">Global Variables</a></li>
       <li><a href="#functionstructure">Functions</a></li>
       <li><a href="#aliasstructure">Aliases</a></li>
+      <li><a href="#namedmetadatastructure">Named Metadata</a></li>
       <li><a href="#paramattrs">Parameter Attributes</a></li>
       <li><a href="#fnattrs">Function Attributes</a></li>
       <li><a href="#gc">Garbage Collector Names</a></li>
@@ -85,12 +86,12 @@
       <li><a href="#undefvalues">Undefined Values</a></li>
       <li><a href="#blockaddress">Addresses of Basic Blocks</a></li>
       <li><a href="#constantexprs">Constant Expressions</a></li>
-      <li><a href="#metadata">Embedded Metadata</a></li>
     </ol>
   </li>
   <li><a href="#othervalues">Other Values</a>
     <ol>
       <li><a href="#inlineasm">Inline Assembler Expressions</a></li>
+      <li><a href="#metadata">Metadata Nodes and Metadata Strings</a></li>
     </ol>
   </li>
   <li><a href="#intrinsic_globals">Intrinsic Global Variables</a>
@@ -498,14 +499,19 @@ define i32 @main() {                                        <i>; i32()* </i>
 
   <i>; Call puts function to write out the string to stdout.</i>
   <a href="#i_call">call</a> i32 @puts(i8 * %cast210)                             <i>; i32</i>
-  <a href="#i_ret">ret</a> i32 0<br>}<br>
+  <a href="#i_ret">ret</a> i32 0<br>}
+
+<i>; Named metadata</i>
+!1 = metadata !{i32 41}
+!foo = !{!1, null}
 </pre>
 </div>
 
 <p>This example is made up of a <a href="#globalvars">global variable</a> named
-   "<tt>.LC0</tt>", an external declaration of the "<tt>puts</tt>" function, and
+   "<tt>.LC0</tt>", an external declaration of the "<tt>puts</tt>" function,
    a <a href="#functionstructure">function definition</a> for
-   "<tt>main</tt>".</p>
+   "<tt>main</tt>" and <a href="#namedmetadatastructure">named metadata</a> 
+   "<tt>foo"</tt>.</p>
 
 <p>In general, a module is made up of a list of global values, where both
    functions and global variables are global values.  Global values are
@@ -558,10 +564,17 @@ define i32 @main() {                                        <i>; i32()* </i>
 
   <dt><tt><b><a name="linkage_linkonce">linkonce</a></b></tt></dt>
   <dd>Globals with "<tt>linkonce</tt>" linkage are merged with other globals of
-      the same name when linkage occurs.  This is typically used to implement
-      inline functions, templates, or other code which must be generated in each
-      translation unit that uses it.  Unreferenced <tt>linkonce</tt> globals are
-      allowed to be discarded.</dd>
+      the same name when linkage occurs.  This can be used to implement
+      some forms of inline functions, templates, or other code which must be
+      generated in each translation unit that uses it, but where the body may
+      be overridden with a more definitive definition later.  Unreferenced
+      <tt>linkonce</tt> globals are allowed to be discarded.  Note that
+      <tt>linkonce</tt> linkage does not actually allow the optimizer to
+      inline the body of this function into callers because it doesn't know if
+      this definition of the function is the definitive definition within the
+      program or whether it will be overridden by a stronger definition.
+      To enable inlining and other optimizations, use "<tt>linkonce_odr</tt>"
+      linkage.</dd>
 
   <dt><tt><b><a name="linkage_weak">weak</a></b></tt></dt>
   <dd>"<tt>weak</tt>" linkage has the same merging semantics as
@@ -671,9 +684,9 @@ define i32 @main() {                                        <i>; i32()* </i>
       (e.g. by passing things in registers).  This calling convention allows the
       target to use whatever tricks it wants to produce fast code for the
       target, without having to conform to an externally specified ABI
-      (Application Binary Interface).  Implementations of this convention should
-      allow arbitrary <a href="CodeGenerator.html#tailcallopt">tail call
-      optimization</a> to be supported.  This calling convention does not
+      (Application Binary Interface).
+      <a href="CodeGenerator.html#tailcallopt">Tail calls can only be optimized
+      when this convention is used.</a>  This calling convention does not
       support varargs and requires the prototype of all callees to exactly match
       the prototype of the function definition.</dd>
 
@@ -899,6 +912,27 @@ define [<a href="#linkage">linkage</a>] [<a href="#visibility">visibility</a>]
 <div class="doc_code">
 <pre>
 @&lt;Name&gt; = alias [Linkage] [Visibility] &lt;AliaseeTy&gt; @&lt;Aliasee&gt;
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="namedmetadatastructure">Named Metadata</a>
+</div>
+
+<div class="doc_text">
+
+<p>Named metadata is a collection of metadata. <a href="#metadata"> Metadata </a>
+   node and null are the only valid named metadata operands. 
+   Metadata strings are not allowed as an named metadata operand.</p>
+
+<h5>Syntax:</h5>
+<div class="doc_code">
+<pre>
+!1 = metadata !{metadata !"one"}
+!name = !{null, !1}
 </pre>
 </div>
 
@@ -1649,10 +1683,12 @@ Classifications</a> </div>
    underlying processor.  The elements of a structure may be any type that has a
    size.</p>
 
-<p>Structures are accessed using '<tt><a href="#i_load">load</a></tt> and
-   '<tt><a href="#i_store">store</a></tt>' by getting a pointer to a field with
-   the '<tt><a href="#i_getelementptr">getelementptr</a></tt>' instruction.</p>
-
+<p>Structures in memory are accessed using '<tt><a href="#i_load">load</a></tt>'
+   and '<tt><a href="#i_store">store</a></tt>' by getting a pointer to a field
+   with the '<tt><a href="#i_getelementptr">getelementptr</a></tt>' instruction.
+   Structures in registers are accessed using the
+   '<tt><a href="#i_extractvalue">extractvalue</a></tt>' and
+   '<tt><a href="#i_insertvalue">insertvalue</a></tt>' instructions.</p>
 <h5>Syntax:</h5>
 <pre>
   { &lt;type list&gt; }
@@ -2305,12 +2341,12 @@ has undefined behavior.</p>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection"><a name="metadata">Embedded Metadata</a>
+<div class="doc_subsection"><a name="metadata">Metadata Nodes and Metadata Strings</a>
 </div>
 
 <div class="doc_text">
 
-<p>Embedded metadata provides a way to attach arbitrary data to the instruction
+<p>Metadata provides a way to attach arbitrary data to the instruction
    stream without affecting the behaviour of the program.  There are two
    metadata primitives, strings and nodes. All metadata has the
    <tt>metadata</tt> type and is identified in syntax by a preceding exclamation
@@ -2328,6 +2364,9 @@ has undefined behavior.</p>
 <p>A metadata node will attempt to track changes to the values it holds. In the
    event that a value is deleted, it will be replaced with a typeless
    "<tt>null</tt>", such as "<tt>metadata !{null, i32 10}</tt>".</p>
+
+<p>A <a href="#namedmetadatastructure">named metadata</a> is a collection of 
+   metadata nodes. For example: "<tt>!foo =  metadata !{!4, !3}</tt>".
 
 <p>Optimizations may rely on metadata to provide additional information about
    the program that isn't available in the instructions, or that isn't easily
@@ -3848,7 +3887,7 @@ Instruction</a> </div>
 
 <h5>Syntax:</h5>
 <pre>
-  &lt;result&gt; = insertvalue &lt;aggregate type&gt; &lt;val&gt;, &lt;ty&gt; &lt;val&gt;, &lt;idx&gt;    <i>; yields &lt;n x &lt;ty&gt;&gt;</i>
+  &lt;result&gt; = insertvalue &lt;aggregate type&gt; &lt;val&gt;, &lt;ty&gt; &lt;elt&gt;, &lt;idx&gt;    <i>; yields &lt;aggregate type&gt;</i>
 </pre>
 
 <h5>Overview:</h5>
@@ -3873,7 +3912,8 @@ Instruction</a> </div>
 
 <h5>Example:</h5>
 <pre>
-  &lt;result&gt; = insertvalue {i32, float} %agg, i32 1, 0    <i>; yields {i32, float}</i>
+  %agg1 = insertvalue {i32, float} undef, i32 1, 0         <i>; yields {i32 1, float undef}</i>
+  %agg2 = insertvalue {i32, float} %agg1, float %val, 1    <i>; yields {i32 1, float %val}</i>
 </pre>
 
 </div>
@@ -4983,15 +5023,31 @@ Loop:       ; Infinite loop that counts from 0 on up...
 <p>This instruction requires several arguments:</p>
 
 <ol>
-  <li>The optional "tail" marker indicates whether the callee function accesses
-      any allocas or varargs in the caller.  If the "tail" marker is present,
-      the function call is eligible for tail call optimization.  Note that calls
-      may be marked "tail" even if they do not occur before
-      a <a href="#i_ret"><tt>ret</tt></a> instruction.</li>
+  <li>The optional "tail" marker indicates that the callee function does not
+      access any allocas or varargs in the caller.  Note that calls may be
+      marked "tail" even if they do not occur before
+      a <a href="#i_ret"><tt>ret</tt></a> instruction.  If the "tail" marker is
+      present, the function call is eligible for tail call optimization,
+      but <a href="CodeGenerator.html#tailcallopt">might not in fact be
+      optimized into a jump</a>.  As of this writing, the extra requirements for
+      a call to actually be optimized are:
+      <ul>
+        <li>Caller and callee both have the calling
+            convention <tt>fastcc</tt>.</li>
+        <li>The call is in tail position (ret immediately follows call and ret
+            uses value of call or is void).</li>
+        <li>Option <tt>-tailcallopt</tt> is enabled,
+            or <code>llvm::PerformTailCallOpt</code> is <code>true</code>.</li>
+        <li><a href="CodeGenerator.html#tailcallopt">Platform specific
+            constraints are met.</a></li>
+      </ul>
+  </li>
 
   <li>The optional "cconv" marker indicates which <a href="#callingconv">calling
       convention</a> the call should use.  If none is specified, the call
-      defaults to using C calling conventions.</li>
+      defaults to using C calling conventions.  The calling convention of the
+      call must match the calling convention of the target function, or else the
+      behavior is undefined.</li>
 
   <li>The optional <a href="#paramattrs">Parameter Attributes</a> list for
       return values. Only '<tt>zeroext</tt>', '<tt>signext</tt>', and
@@ -7263,7 +7319,7 @@ LLVM</a>.</p>
 
 <h5>Overview:</h5>
 <p>The <tt>llvm.objectsize</tt> intrinsic is designed to provide information
-   to the optimizers to either discover at compile time either a) when an
+   to the optimizers to discover at compile time either a) when an
    operation like memcpy will either overflow a buffer that corresponds to
    an object, or b) to determine that a runtime check for overflow isn't
    necessary. An object in this context means an allocation of a
@@ -7294,7 +7350,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-12-23 01:29:49 +0100 (Wed, 23 Dec 2009) $
+  Last modified: $Date: 2010-01-11 20:35:55 +0100 (Mon, 11 Jan 2010) $
 </address>
 
 </body>

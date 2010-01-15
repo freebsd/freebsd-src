@@ -110,7 +110,7 @@ void Constant::destroyConstantImpl() {
     Value *V = use_back();
 #ifndef NDEBUG      // Only in -g mode...
     if (!isa<Constant>(V)) {
-      errs() << "While deleting: " << *this
+      dbgs() << "While deleting: " << *this
              << "\n\nUse still stuck around after Def is destroyed: "
              << *V << "\n\n";
     }
@@ -196,6 +196,24 @@ Constant::PossibleRelocationsTy Constant::getRelocationInfo() const {
   
   if (const BlockAddress *BA = dyn_cast<BlockAddress>(this))
     return BA->getFunction()->getRelocationInfo();
+  
+  // While raw uses of blockaddress need to be relocated, differences between
+  // two of them don't when they are for labels in the same function.  This is a
+  // common idiom when creating a table for the indirect goto extension, so we
+  // handle it efficiently here.
+  if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(this))
+    if (CE->getOpcode() == Instruction::Sub) {
+      ConstantExpr *LHS = dyn_cast<ConstantExpr>(CE->getOperand(0));
+      ConstantExpr *RHS = dyn_cast<ConstantExpr>(CE->getOperand(1));
+      if (LHS && RHS &&
+          LHS->getOpcode() == Instruction::PtrToInt &&
+          RHS->getOpcode() == Instruction::PtrToInt &&
+          isa<BlockAddress>(LHS->getOperand(0)) &&
+          isa<BlockAddress>(RHS->getOperand(0)) &&
+          cast<BlockAddress>(LHS->getOperand(0))->getFunction() ==
+            cast<BlockAddress>(RHS->getOperand(0))->getFunction())
+        return NoRelocation;
+    }
   
   PossibleRelocationsTy Result = NoRelocation;
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
@@ -910,7 +928,7 @@ void ConstantArray::destroyConstant() {
 /// if the elements of the array are all ConstantInt's.
 bool ConstantArray::isString() const {
   // Check the element type for i8...
-  if (getType()->getElementType() != Type::getInt8Ty(getContext()))
+  if (!getType()->getElementType()->isInteger(8))
     return false;
   // Check the elements to make sure they are all integers, not constant
   // expressions.
@@ -925,7 +943,7 @@ bool ConstantArray::isString() const {
 /// null bytes except its terminator.
 bool ConstantArray::isCString() const {
   // Check the element type for i8...
-  if (getType()->getElementType() != Type::getInt8Ty(getContext()))
+  if (!getType()->getElementType()->isInteger(8))
     return false;
 
   // Last element must be a null.
@@ -1671,7 +1689,7 @@ Constant *ConstantExpr::getExtractElementTy(const Type *ReqTy, Constant *Val,
 Constant *ConstantExpr::getExtractElement(Constant *Val, Constant *Idx) {
   assert(isa<VectorType>(Val->getType()) &&
          "Tried to create extractelement operation on non-vector type!");
-  assert(Idx->getType() == Type::getInt32Ty(Val->getContext()) &&
+  assert(Idx->getType()->isInteger(32) &&
          "Extractelement index must be i32 type!");
   return getExtractElementTy(cast<VectorType>(Val->getType())->getElementType(),
                              Val, Idx);
@@ -1698,7 +1716,7 @@ Constant *ConstantExpr::getInsertElement(Constant *Val, Constant *Elt,
          "Tried to create insertelement operation on non-vector type!");
   assert(Elt->getType() == cast<VectorType>(Val->getType())->getElementType()
          && "Insertelement types must match!");
-  assert(Idx->getType() == Type::getInt32Ty(Val->getContext()) &&
+  assert(Idx->getType()->isInteger(32) &&
          "Insertelement index must be i32 type!");
   return getInsertElementTy(Val->getType(), Val, Elt, Idx);
 }

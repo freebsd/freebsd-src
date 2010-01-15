@@ -282,19 +282,6 @@ this requires TBAA.
 
 //===---------------------------------------------------------------------===//
 
-This should be optimized to one 'and' and one 'or', from PR4216:
-
-define i32 @test_bitfield(i32 %bf.prev.low) nounwind ssp {
-entry:
-  %bf.prev.lo.cleared10 = or i32 %bf.prev.low, 32962 ; <i32> [#uses=1]
-  %0 = and i32 %bf.prev.low, -65536               ; <i32> [#uses=1]
-  %1 = and i32 %bf.prev.lo.cleared10, 40186       ; <i32> [#uses=1]
-  %2 = or i32 %1, %0                              ; <i32> [#uses=1]
-  ret i32 %2
-}
-
-//===---------------------------------------------------------------------===//
-
 This isn't recognized as bswap by instcombine (yes, it really is bswap):
 
 unsigned long reverse(unsigned v) {
@@ -1661,38 +1648,9 @@ would delete the or instruction for us.
 
 //===---------------------------------------------------------------------===//
 
-FunctionAttrs is not marking this function as readnone (just readonly):
-$ clang t.c -emit-llvm -S -o - -O0 | opt -mem2reg -S -functionattrs
-
-int t(int a, int b, int c) {
- int *p;
- if (a)
-   p = &a;
- else
-   p = &c;
- return *p;
-}
-
-This is because we codegen this to:
-
-define i32 @t(i32 %a, i32 %b, i32 %c) nounwind readonly ssp {
-entry:
-  %a.addr = alloca i32                            ; <i32*> [#uses=3]
-  %c.addr = alloca i32                            ; <i32*> [#uses=2]
-...
-
-if.end:
-  %p.0 = phi i32* [ %a.addr, %if.then ], [ %c.addr, %if.else ]
-  %tmp2 = load i32* %p.0                          ; <i32> [#uses=1]
-  ret i32 %tmp2
-}
-
-And functionattrs doesn't realize that the p.0 load points to function local
-memory.
-
-Also, functionattrs doesn't know about memcpy/memset.  This function should be
-marked readnone, since it only twiddles local memory, but functionattrs doesn't
-handle memset/memcpy/memmove aggressively:
+functionattrs doesn't know much about memcpy/memset.  This function should be
+marked readnone rather than readonly, since it only twiddles local memory, but
+functionattrs doesn't handle memset/memcpy/memmove aggressively:
 
 struct X { int *p; int *q; };
 int foo() {

@@ -60,12 +60,12 @@ namespace {
 ///
 static void PrintOps(Instruction *I, const SmallVectorImpl<ValueEntry> &Ops) {
   Module *M = I->getParent()->getParent()->getParent();
-  errs() << Instruction::getOpcodeName(I->getOpcode()) << " "
+  dbgs() << Instruction::getOpcodeName(I->getOpcode()) << " "
        << *Ops[0].Op->getType() << '\t';
   for (unsigned i = 0, e = Ops.size(); i != e; ++i) {
-    errs() << "[ ";
-    WriteAsOperand(errs(), Ops[i].Op, false, M);
-    errs() << ", #" << Ops[i].Rank << "] ";
+    dbgs() << "[ ";
+    WriteAsOperand(dbgs(), Ops[i].Op, false, M);
+    dbgs() << ", #" << Ops[i].Rank << "] ";
   }
 }
 #endif
@@ -186,7 +186,7 @@ unsigned Reassociate::getRank(Value *V) {
       (!BinaryOperator::isNot(I) && !BinaryOperator::isNeg(I)))
     ++Rank;
 
-  //DEBUG(errs() << "Calculated Rank[" << V->getName() << "] = "
+  //DEBUG(dbgs() << "Calculated Rank[" << V->getName() << "] = "
   //     << Rank << "\n");
 
   return ValueRankMap[I] = Rank;
@@ -226,7 +226,7 @@ void Reassociate::LinearizeExpr(BinaryOperator *I) {
          isReassociableOp(RHS, I->getOpcode()) &&
          "Not an expression that needs linearization?");
 
-  DEBUG(errs() << "Linear" << *LHS << '\n' << *RHS << '\n' << *I << '\n');
+  DEBUG(dbgs() << "Linear" << *LHS << '\n' << *RHS << '\n' << *I << '\n');
 
   // Move the RHS instruction to live immediately before I, avoiding breaking
   // dominator properties.
@@ -239,7 +239,7 @@ void Reassociate::LinearizeExpr(BinaryOperator *I) {
 
   ++NumLinear;
   MadeChange = true;
-  DEBUG(errs() << "Linearized: " << *I << '\n');
+  DEBUG(dbgs() << "Linearized: " << *I << '\n');
 
   // If D is part of this expression tree, tail recurse.
   if (isReassociableOp(I->getOperand(1), I->getOpcode()))
@@ -335,10 +335,10 @@ void Reassociate::RewriteExprTree(BinaryOperator *I,
     if (I->getOperand(0) != Ops[i].Op ||
         I->getOperand(1) != Ops[i+1].Op) {
       Value *OldLHS = I->getOperand(0);
-      DEBUG(errs() << "RA: " << *I << '\n');
+      DEBUG(dbgs() << "RA: " << *I << '\n');
       I->setOperand(0, Ops[i].Op);
       I->setOperand(1, Ops[i+1].Op);
-      DEBUG(errs() << "TO: " << *I << '\n');
+      DEBUG(dbgs() << "TO: " << *I << '\n');
       MadeChange = true;
       ++NumChanged;
       
@@ -351,9 +351,9 @@ void Reassociate::RewriteExprTree(BinaryOperator *I,
   assert(i+2 < Ops.size() && "Ops index out of range!");
 
   if (I->getOperand(1) != Ops[i].Op) {
-    DEBUG(errs() << "RA: " << *I << '\n');
+    DEBUG(dbgs() << "RA: " << *I << '\n');
     I->setOperand(1, Ops[i].Op);
-    DEBUG(errs() << "TO: " << *I << '\n');
+    DEBUG(dbgs() << "TO: " << *I << '\n');
     MadeChange = true;
     ++NumChanged;
   }
@@ -414,6 +414,10 @@ static Value *NegateValue(Value *V, Instruction *BI) {
     // non-instruction value) or right after the definition.  These negates will
     // be zapped by reassociate later, so we don't need much finesse here.
     BinaryOperator *TheNeg = cast<BinaryOperator>(*UI);
+
+    // Verify that the negate is in this function, V might be a constant expr.
+    if (TheNeg->getParent()->getParent() != BI->getParent()->getParent())
+      continue;
     
     BasicBlock::iterator InsertPt;
     if (Instruction *InstInput = dyn_cast<Instruction>(V)) {
@@ -480,7 +484,7 @@ static Instruction *BreakUpSubtract(Instruction *Sub,
   Sub->replaceAllUsesWith(New);
   Sub->eraseFromParent();
 
-  DEBUG(errs() << "Negated: " << *New << '\n');
+  DEBUG(dbgs() << "Negated: " << *New << '\n');
   return New;
 }
 
@@ -788,6 +792,11 @@ Value *Reassociate::OptimizeAdd(Instruction *I,
     Instruction *DummyInst = BinaryOperator::CreateAdd(MaxOccVal, MaxOccVal);
     SmallVector<Value*, 4> NewMulOps;
     for (unsigned i = 0, e = Ops.size(); i != e; ++i) {
+      // Only try to remove factors from expressions we're allowed to.
+      BinaryOperator *BOp = dyn_cast<BinaryOperator>(Ops[i].Op);
+      if (BOp == 0 || BOp->getOpcode() != Instruction::Mul || !BOp->use_empty())
+        continue;
+      
       if (Value *V = RemoveFactorFromExpression(Ops[i].Op, MaxOccVal)) {
         NewMulOps.push_back(V);
         Ops.erase(Ops.begin()+i);
@@ -797,14 +806,15 @@ Value *Reassociate::OptimizeAdd(Instruction *I,
     
     // No need for extra uses anymore.
     delete DummyInst;
-    
+
     unsigned NumAddedValues = NewMulOps.size();
     Value *V = EmitAddTreeOfValues(I, NewMulOps);
-    
+
     // Now that we have inserted the add tree, optimize it. This allows us to
     // handle cases that require multiple factoring steps, such as this:
     // A*A*B + A*A*C   -->   A*(A*B+A*C)   -->   A*(A*(B+C))
     assert(NumAddedValues > 1 && "Each occurrence should contribute a value");
+    (void)NumAddedValues;
     V = ReassociateExpression(cast<BinaryOperator>(V));
 
     // Create the multiply.
@@ -928,6 +938,10 @@ void Reassociate::ReassociateBB(BasicBlock *BB) {
     if (BI->getOpcode() == Instruction::Sub) {
       if (ShouldBreakUpSubtract(BI)) {
         BI = BreakUpSubtract(BI, ValueRankMap);
+        // Reset the BBI iterator in case BreakUpSubtract changed the
+        // instruction it points to.
+        BBI = BI;
+        ++BBI;
         MadeChange = true;
       } else if (BinaryOperator::isNeg(BI)) {
         // Otherwise, this is a negation.  See if the operand is a multiply tree
@@ -967,7 +981,7 @@ Value *Reassociate::ReassociateExpression(BinaryOperator *I) {
   SmallVector<ValueEntry, 8> Ops;
   LinearizeExprTree(I, Ops);
   
-  DEBUG(errs() << "RAIn:\t"; PrintOps(I, Ops); errs() << '\n');
+  DEBUG(dbgs() << "RAIn:\t"; PrintOps(I, Ops); dbgs() << '\n');
   
   // Now that we have linearized the tree to a list and have gathered all of
   // the operands and their ranks, sort the operands by their rank.  Use a
@@ -982,7 +996,7 @@ Value *Reassociate::ReassociateExpression(BinaryOperator *I) {
   if (Value *V = OptimizeExpression(I, Ops)) {
     // This expression tree simplified to something that isn't a tree,
     // eliminate it.
-    DEBUG(errs() << "Reassoc to scalar: " << *V << '\n');
+    DEBUG(dbgs() << "Reassoc to scalar: " << *V << '\n');
     I->replaceAllUsesWith(V);
     RemoveDeadBinaryOp(I);
     ++NumAnnihil;
@@ -1001,7 +1015,7 @@ Value *Reassociate::ReassociateExpression(BinaryOperator *I) {
     Ops.insert(Ops.begin(), Tmp);
   }
   
-  DEBUG(errs() << "RAOut:\t"; PrintOps(I, Ops); errs() << '\n');
+  DEBUG(dbgs() << "RAOut:\t"; PrintOps(I, Ops); dbgs() << '\n');
   
   if (Ops.size() == 1) {
     // This expression tree simplified to something that isn't a tree,

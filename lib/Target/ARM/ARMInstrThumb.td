@@ -113,7 +113,7 @@ def t_addrmode_s1 : Operand<i32>,
 def t_addrmode_sp : Operand<i32>,
                     ComplexPattern<i32, 2, "SelectThumbAddrModeSP", []> {
   let PrintMethod = "printThumbAddrModeSPOperand";
-  let MIOperandInfo = (ops JustSP:$base, i32imm:$offsimm);
+  let MIOperandInfo = (ops GPR:$base, i32imm:$offsimm);
 }
 
 //===----------------------------------------------------------------------===//
@@ -208,9 +208,8 @@ let isReturn = 1, isTerminator = 1, isBarrier = 1 in {
 let isBranch = 1, isTerminator = 1, isBarrier = 1, isIndirectBranch = 1 in {
   def tBRIND : TI<(outs), (ins GPR:$dst), IIC_Br, "mov\tpc, $dst",
                   [(brind GPR:$dst)]>,
-               T1Special<{1,0,?,?}> {
-    // <Rd> = pc
-    let Inst{7} = 1;
+               T1Special<{1,0,1,1}> {
+    // <Rd> = Inst{7:2-0} = pc
     let Inst{2-0} = 0b111;
   }
 }
@@ -342,16 +341,28 @@ def tLDR : T1pI4<(outs tGPR:$dst), (ins t_addrmode_s4:$addr), IIC_iLoadr,
                "ldr", "\t$dst, $addr",
                [(set tGPR:$dst, (load t_addrmode_s4:$addr))]>,
            T1LdSt<0b100>;
+def tLDRi: T1pI4<(outs tGPR:$dst), (ins t_addrmode_s4:$addr), IIC_iLoadr, 
+               "ldr", "\t$dst, $addr",
+               []>,
+           T1LdSt4Imm<{1,?,?}>;
 
 def tLDRB : T1pI1<(outs tGPR:$dst), (ins t_addrmode_s1:$addr), IIC_iLoadr,
                 "ldrb", "\t$dst, $addr",
                 [(set tGPR:$dst, (zextloadi8 t_addrmode_s1:$addr))]>,
             T1LdSt<0b110>;
+def tLDRBi: T1pI1<(outs tGPR:$dst), (ins t_addrmode_s1:$addr), IIC_iLoadr,
+                "ldrb", "\t$dst, $addr",
+                []>,
+            T1LdSt1Imm<{1,?,?}>;
 
 def tLDRH : T1pI2<(outs tGPR:$dst), (ins t_addrmode_s2:$addr), IIC_iLoadr,
                 "ldrh", "\t$dst, $addr",
                 [(set tGPR:$dst, (zextloadi16 t_addrmode_s2:$addr))]>,
             T1LdSt<0b101>;
+def tLDRHi: T1pI2<(outs tGPR:$dst), (ins t_addrmode_s2:$addr), IIC_iLoadr,
+                "ldrh", "\t$dst, $addr",
+                []>,
+            T1LdSt2Imm<{1,?,?}>;
 
 let AddedComplexity = 10 in
 def tLDRSB : T1pI1<(outs tGPR:$dst), (ins t_addrmode_rr:$addr), IIC_iLoadr,
@@ -397,16 +408,28 @@ def tSTR : T1pI4<(outs), (ins tGPR:$src, t_addrmode_s4:$addr), IIC_iStorer,
                "str", "\t$src, $addr",
                [(store tGPR:$src, t_addrmode_s4:$addr)]>,
            T1LdSt<0b000>;
+def tSTRi: T1pI4<(outs), (ins tGPR:$src, t_addrmode_s4:$addr), IIC_iStorer,
+               "str", "\t$src, $addr",
+               []>,
+           T1LdSt4Imm<{0,?,?}>;
 
 def tSTRB : T1pI1<(outs), (ins tGPR:$src, t_addrmode_s1:$addr), IIC_iStorer,
                  "strb", "\t$src, $addr",
                  [(truncstorei8 tGPR:$src, t_addrmode_s1:$addr)]>,
             T1LdSt<0b010>;
+def tSTRBi: T1pI1<(outs), (ins tGPR:$src, t_addrmode_s1:$addr), IIC_iStorer,
+                 "strb", "\t$src, $addr",
+                 []>,
+            T1LdSt1Imm<{0,?,?}>;
 
 def tSTRH : T1pI2<(outs), (ins tGPR:$src, t_addrmode_s2:$addr), IIC_iStorer,
                  "strh", "\t$src, $addr",
                  [(truncstorei16 tGPR:$src, t_addrmode_s2:$addr)]>,
             T1LdSt<0b001>;
+def tSTRHi: T1pI2<(outs), (ins tGPR:$src, t_addrmode_s2:$addr), IIC_iStorer,
+                 "strh", "\t$src, $addr",
+                 []>,
+            T1LdSt2Imm<{0,?,?}>;
 
 def tSTRspi : T1pIs<(outs), (ins tGPR:$src, t_addrmode_sp:$addr), IIC_iStorei,
                    "str", "\t$src, $addr",
@@ -748,7 +771,7 @@ let usesCustomInserter = 1 in  // Expanded after instruction selection.
 // 16-bit movcc in IT blocks for Thumb2.
 def tMOVCCr : T1pIt<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs), IIC_iCMOVr,
                     "mov", "\t$dst, $rhs", []>,
-              T1Special<{1,0,?,?}>;
+              T1Special<{1,0,1,1}>;
 
 def tMOVCCi : T1pIt<(outs GPR:$dst), (ins GPR:$lhs, i32imm:$rhs), IIC_iCMOVi,
                     "mov", "\t$dst, $rhs", []>,

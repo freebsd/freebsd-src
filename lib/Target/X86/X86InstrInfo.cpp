@@ -28,6 +28,7 @@
 #include "llvm/CodeGen/LiveVariables.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetOptions.h"
@@ -711,6 +712,62 @@ bool X86InstrInfo::isMoveInstr(const MachineInstr& MI,
   }
 }
 
+bool
+X86InstrInfo::isCoalescableExtInstr(const MachineInstr &MI,
+                                    unsigned &SrcReg, unsigned &DstReg,
+                                    unsigned &SubIdx) const {
+  switch (MI.getOpcode()) {
+  default: break;
+  case X86::MOVSX16rr8:
+  case X86::MOVZX16rr8:
+  case X86::MOVSX32rr8:
+  case X86::MOVZX32rr8:
+  case X86::MOVSX64rr8:
+  case X86::MOVZX64rr8:
+    if (!TM.getSubtarget<X86Subtarget>().is64Bit())
+      // It's not always legal to reference the low 8-bit of the larger
+      // register in 32-bit mode.
+      return false;
+  case X86::MOVSX32rr16:
+  case X86::MOVZX32rr16:
+  case X86::MOVSX64rr16:
+  case X86::MOVZX64rr16:
+  case X86::MOVSX64rr32:
+  case X86::MOVZX64rr32: {
+    if (MI.getOperand(0).getSubReg() || MI.getOperand(1).getSubReg())
+      // Be conservative.
+      return false;
+    SrcReg = MI.getOperand(1).getReg();
+    DstReg = MI.getOperand(0).getReg();
+    switch (MI.getOpcode()) {
+    default:
+      llvm_unreachable(0);
+      break;
+    case X86::MOVSX16rr8:
+    case X86::MOVZX16rr8:
+    case X86::MOVSX32rr8:
+    case X86::MOVZX32rr8:
+    case X86::MOVSX64rr8:
+    case X86::MOVZX64rr8:
+      SubIdx = 1;
+      break;
+    case X86::MOVSX32rr16:
+    case X86::MOVZX32rr16:
+    case X86::MOVSX64rr16:
+    case X86::MOVZX64rr16:
+      SubIdx = 3;
+      break;
+    case X86::MOVSX64rr32:
+    case X86::MOVZX64rr32:
+      SubIdx = 4;
+      break;
+    }
+    return true;
+  }
+  }
+  return false;
+}
+
 /// isFrameOperand - Return true and the FrameIndex if the specified
 /// operand and follow operands form a reference to the stack frame.
 bool X86InstrInfo::isFrameOperand(const MachineInstr *MI, unsigned int Op,
@@ -1018,12 +1075,16 @@ void X86InstrInfo::reMaterialize(MachineBasicBlock &MBB,
   switch (Opc) {
   default: break;
   case X86::MOV8r0:
-  case X86::MOV32r0: {
+  case X86::MOV16r0:
+  case X86::MOV32r0:
+  case X86::MOV64r0: {
     if (!isSafeToClobberEFLAGS(MBB, I)) {
       switch (Opc) {
       default: break;
       case X86::MOV8r0:  Opc = X86::MOV8ri;  break;
+      case X86::MOV16r0: Opc = X86::MOV16ri; break;
       case X86::MOV32r0: Opc = X86::MOV32ri; break;
+      case X86::MOV64r0: Opc = X86::MOV64ri; break;
       }
       Clone = false;
     }
@@ -2290,8 +2351,12 @@ X86InstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
     OpcodeTablePtr = &RegOp2MemOpTable2Addr;
     isTwoAddrFold = true;
   } else if (i == 0) { // If operand 0
-    if (MI->getOpcode() == X86::MOV32r0)
+    if (MI->getOpcode() == X86::MOV64r0)
+      NewMI = MakeM0Inst(*this, X86::MOV64mi32, MOs, MI);
+    else if (MI->getOpcode() == X86::MOV32r0)
       NewMI = MakeM0Inst(*this, X86::MOV32mi, MOs, MI);
+    else if (MI->getOpcode() == X86::MOV16r0)
+      NewMI = MakeM0Inst(*this, X86::MOV16mi, MOs, MI);
     else if (MI->getOpcode() == X86::MOV8r0)
       NewMI = MakeM0Inst(*this, X86::MOV8mi, MOs, MI);
     if (NewMI)
@@ -2354,7 +2419,7 @@ X86InstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
   
   // No fusion 
   if (PrintFailedFusing)
-    errs() << "We failed to fuse operand " << i << " in " << *MI;
+    dbgs() << "We failed to fuse operand " << i << " in " << *MI;
   return NULL;
 }
 
@@ -2559,7 +2624,9 @@ bool X86InstrInfo::canFoldMemoryOperand(const MachineInstr *MI,
   } else if (OpNum == 0) { // If operand 0
     switch (Opc) {
     case X86::MOV8r0:
+    case X86::MOV16r0:
     case X86::MOV32r0:
+    case X86::MOV64r0:
       return true;
     default: break;
     }

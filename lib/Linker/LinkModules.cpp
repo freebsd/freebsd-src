@@ -25,6 +25,7 @@
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/Instructions.h"
 #include "llvm/Assembly/Writer.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
@@ -144,7 +145,7 @@ protected:
 
   // for debugging...
   virtual void dump() const {
-    errs() << "AbstractTypeSet!\n";
+    dbgs() << "AbstractTypeSet!\n";
   }
 };
 }
@@ -337,11 +338,11 @@ static bool LinkTypes(Module *Dest, const Module *Src, std::string *Err) {
 static void PrintMap(const std::map<const Value*, Value*> &M) {
   for (std::map<const Value*, Value*>::const_iterator I = M.begin(), E =M.end();
        I != E; ++I) {
-    errs() << " Fr: " << (void*)I->first << " ";
+    dbgs() << " Fr: " << (void*)I->first << " ";
     I->first->dump();
-    errs() << " To: " << (void*)I->second << " ";
+    dbgs() << " To: " << (void*)I->second << " ";
     I->second->dump();
-    errs() << "\n";
+    dbgs() << "\n";
   }
 }
 #endif
@@ -404,10 +405,10 @@ static Value *RemapOperand(const Value *In,
   }
 
 #ifndef NDEBUG
-  errs() << "LinkModules ValueMap: \n";
+  dbgs() << "LinkModules ValueMap: \n";
   PrintMap(ValueMap);
 
-  errs() << "Couldn't remap value: " << (void*)In << " " << *In << "\n";
+  dbgs() << "Couldn't remap value: " << (void*)In << " " << *In << "\n";
   llvm_unreachable("Couldn't remap value!");
 #endif
   return 0;
@@ -854,9 +855,14 @@ static bool LinkAlias(Module *Dest, const Module *Src,
     } else {
       // No linking to be performed, simply create an identical version of the
       // alias over in the dest module...
-
+      Constant *Aliasee = DAliasee;
+      // Fixup aliases to bitcasts.  Note that aliases to GEPs are still broken
+      // by this, but aliases to GEPs are broken to a lot of other things, so
+      // it's less important.
+      if (SGA->getType() != DAliasee->getType())
+        Aliasee = ConstantExpr::getBitCast(DAliasee, SGA->getType());
       NewGA = new GlobalAlias(SGA->getType(), SGA->getLinkage(),
-                              SGA->getName(), DAliasee, Dest);
+                              SGA->getName(), Aliasee, Dest);
       CopyGVAttributes(NewGA, SGA);
 
       // Proceed to 'common' steps
@@ -1222,9 +1228,15 @@ static bool LinkAppendingVars(Module *M,
 static bool ResolveAliases(Module *Dest) {
   for (Module::alias_iterator I = Dest->alias_begin(), E = Dest->alias_end();
        I != E; ++I)
-    if (const GlobalValue *GV = I->resolveAliasedGlobal())
-      if (GV != I && !GV->isDeclaration())
-        I->replaceAllUsesWith(const_cast<GlobalValue*>(GV));
+    // We can't sue resolveGlobalAlias here because we need to preserve
+    // bitcasts and GEPs.
+    if (const Constant *C = I->getAliasee()) {
+      while (dyn_cast<GlobalAlias>(C))
+        C = cast<GlobalAlias>(C)->getAliasee();
+      const GlobalValue *GV = dyn_cast<GlobalValue>(C);
+      if (C != I && !(GV && GV->isDeclaration()))
+        I->replaceAllUsesWith(const_cast<Constant*>(C));
+    }
 
   return false;
 }

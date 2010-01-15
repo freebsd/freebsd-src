@@ -93,11 +93,10 @@ CallGraphNode *SRETPromotion::PromoteReturn(CallGraphNode *CGN) {
   if (F->arg_size() == 0 || !F->hasStructRetAttr() || F->doesNotReturn())
     return 0;
 
-  DEBUG(errs() << "SretPromotion: Looking at sret function " 
+  DEBUG(dbgs() << "SretPromotion: Looking at sret function " 
         << F->getName() << "\n");
 
-  assert(F->getReturnType() == Type::getVoidTy(F->getContext()) &&
-         "Invalid function return type");
+  assert(F->getReturnType()->isVoidTy() && "Invalid function return type");
   Function::arg_iterator AI = F->arg_begin();
   const llvm::PointerType *FArgType = dyn_cast<PointerType>(AI->getType());
   assert(FArgType && "Invalid sret parameter type");
@@ -107,12 +106,12 @@ CallGraphNode *SRETPromotion::PromoteReturn(CallGraphNode *CGN) {
 
   // Check if it is ok to perform this promotion.
   if (isSafeToUpdateAllCallers(F) == false) {
-    DEBUG(errs() << "SretPromotion: Not all callers can be updated\n");
+    DEBUG(dbgs() << "SretPromotion: Not all callers can be updated\n");
     NumRejectedSRETUses++;
     return 0;
   }
 
-  DEBUG(errs() << "SretPromotion: sret argument will be promoted\n");
+  DEBUG(dbgs() << "SretPromotion: sret argument will be promoted\n");
   NumSRET++;
   // [1] Replace use of sret parameter 
   AllocaInst *TheAlloca = new AllocaInst(STy, NULL, "mrv", 
@@ -358,7 +357,7 @@ bool SRETPromotion::nestedStructType(const StructType *STy) {
   unsigned Num = STy->getNumElements();
   for (unsigned i = 0; i < Num; i++) {
     const Type *Ty = STy->getElementType(i);
-    if (!Ty->isSingleValueType() && Ty != Type::getVoidTy(STy->getContext()))
+    if (!Ty->isSingleValueType() && !Ty->isVoidTy())
       return true;
   }
   return false;

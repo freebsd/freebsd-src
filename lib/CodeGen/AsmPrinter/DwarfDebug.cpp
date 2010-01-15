@@ -212,19 +212,30 @@ public:
   ///
   void addVariable(DbgVariable *V) { Variables.push_back(V); }
 
-  void fixInstructionMarkers() {
+  void fixInstructionMarkers(DenseMap<const MachineInstr *, 
+                             unsigned> &MIIndexMap) {
     assert (getFirstInsn() && "First instruction is missing!");
-    if (getLastInsn())
-      return;
-
-    // If a scope does not have an instruction to mark an end then use
-    // the end of last child scope.
+    
+    // Use the end of last child scope as end of this scope.
     SmallVector<DbgScope *, 4> &Scopes = getScopes();
-    assert (!Scopes.empty() && "Inner most scope does not have last insn!");
-    DbgScope *L = Scopes.back();
-    if (!L->getLastInsn())
-      L->fixInstructionMarkers();
-    setLastInsn(L->getLastInsn());
+    const MachineInstr *LastInsn = getFirstInsn();
+    unsigned LIndex = 0;
+    if (Scopes.empty()) {
+      assert (getLastInsn() && "Inner most scope does not have last insn!");
+      return;
+    }
+    for (SmallVector<DbgScope *, 4>::iterator SI = Scopes.begin(),
+           SE = Scopes.end(); SI != SE; ++SI) {
+      DbgScope *DS = *SI;
+      DS->fixInstructionMarkers(MIIndexMap);
+      const MachineInstr *DSLastInsn = DS->getLastInsn();
+      unsigned DSI = MIIndexMap[DSLastInsn];
+      if (DSI > LIndex) {
+        LastInsn = DSLastInsn;
+        LIndex = DSI;
+      }
+    }
+    setLastInsn(LastInsn);
   }
 
 #ifndef NDEBUG
@@ -1021,6 +1032,16 @@ DIE *DwarfDebug::constructEnumTypeDIE(DIEnumerator *ETy) {
   return Enumerator;
 }
 
+/// getRealLinkageName - If special LLVM prefix that is used to inform the asm 
+/// printer to not emit usual symbol prefix before the symbol name is used then
+/// return linkage name after skipping this special LLVM prefix.
+static StringRef getRealLinkageName(StringRef LinkageName) {
+  char One = '\1';
+  if (LinkageName.startswith(StringRef(&One, 1)))
+    return LinkageName.substr(1);
+  return LinkageName;
+}
+
 /// createGlobalVariableDIE - Create new DIE using GV.
 DIE *DwarfDebug::createGlobalVariableDIE(const DIGlobalVariable &GV) {
   // If the global variable was optmized out then no need to create debug info
@@ -1033,16 +1054,10 @@ DIE *DwarfDebug::createGlobalVariableDIE(const DIGlobalVariable &GV) {
             GV.getDisplayName());
 
   StringRef LinkageName = GV.getLinkageName();
-  if (!LinkageName.empty()) {
-    // Skip special LLVM prefix that is used to inform the asm printer to not
-    // emit usual symbol prefix before the symbol name. This happens for
-    // Objective-C symbol names and symbol whose name is replaced using GCC's
-    // __asm__ attribute.
-    if (LinkageName[0] == 1)
-      LinkageName = LinkageName.substr(1);
+  if (!LinkageName.empty())
     addString(GVDie, dwarf::DW_AT_MIPS_linkage_name, dwarf::DW_FORM_string,
-              LinkageName);
-  }
+              getRealLinkageName(LinkageName));
+
   addType(GVDie, GV.getType());
   if (!GV.isLocalToUnit())
     addUInt(GVDie, dwarf::DW_AT_external, dwarf::DW_FORM_flag, 1);
@@ -1074,10 +1089,9 @@ DIE *DwarfDebug::createMemberDIE(const DIDerivedType &DT) {
     addUInt(MemberDie, dwarf::DW_AT_bit_size, 0, DT.getSizeInBits());
 
     uint64_t Offset = DT.getOffsetInBits();
-    uint64_t FieldOffset = Offset;
     uint64_t AlignMask = ~(DT.getAlignInBits() - 1);
     uint64_t HiMark = (Offset + FieldSize) & AlignMask;
-    FieldOffset = (HiMark - FieldSize);
+    uint64_t FieldOffset = (HiMark - FieldSize);
     Offset -= FieldOffset;
 
     // Maybe we need to work from the other end.
@@ -1119,16 +1133,10 @@ DIE *DwarfDebug::createSubprogramDIE(const DISubprogram &SP, bool MakeDecl) {
   addString(SPDie, dwarf::DW_AT_name, dwarf::DW_FORM_string, SP.getName());
 
   StringRef LinkageName = SP.getLinkageName();
-  if (!LinkageName.empty()) {
-    // Skip special LLVM prefix that is used to inform the asm printer to not
-    // emit usual symbol prefix before the symbol name. This happens for
-    // Objective-C symbol names and symbol whose name is replaced using GCC's
-    // __asm__ attribute.
-    if (LinkageName[0] == 1)
-      LinkageName = LinkageName.substr(1);
+  if (!LinkageName.empty())
     addString(SPDie, dwarf::DW_AT_MIPS_linkage_name, dwarf::DW_FORM_string,
-              LinkageName);
-  }
+              getRealLinkageName(LinkageName));
+
   addSourceLine(SPDie, &SP);
 
   // Add prototyped tag, if C or ObjC.
@@ -1382,7 +1390,8 @@ DIE *DwarfDebug::constructInlinedScopeDIE(DbgScope *Scope) {
     I->second.push_back(std::make_pair(StartID, ScopeDIE));
 
   StringPool.insert(InlinedSP.getName());
-  StringPool.insert(InlinedSP.getLinkageName());
+  StringPool.insert(getRealLinkageName(InlinedSP.getLinkageName()));
+
   DILocation DL(Scope->getInlinedAt());
   addUInt(ScopeDIE, dwarf::DW_AT_call_file, 0, ModuleCU->getID());
   addUInt(ScopeDIE, dwarf::DW_AT_call_line, 0, DL.getLineNumber());
@@ -1644,8 +1653,11 @@ void DwarfDebug::constructGlobalVariableDIE(MDNode *N) {
   ModuleCU->insertDIE(N, VariableDie);
 
   // Add to context owner.
-  if (DI_GV.isDefinition() 
-      && !DI_GV.getContext().isCompileUnit()) {
+  DIDescriptor GVContext = DI_GV.getContext();
+  // Do not create specification DIE if context is either compile unit
+  // or a subprogram.
+  if (DI_GV.isDefinition() && !GVContext.isCompileUnit()
+      && !GVContext.isSubprogram()) {
     // Create specification DIE.
     DIE *VariableSpecDIE = new DIE(dwarf::DW_TAG_variable);
     addDIEEntry(VariableSpecDIE, dwarf::DW_AT_specification,
@@ -1663,7 +1675,7 @@ void DwarfDebug::constructGlobalVariableDIE(MDNode *N) {
                    Asm->Mang->getMangledName(DI_GV.getGlobal()));
     addBlock(VariableDie, dwarf::DW_AT_location, 0, Block);
   }
-  addToContextOwner(VariableDie, DI_GV.getContext());
+  addToContextOwner(VariableDie, GVContext);
   
   // Expose as global. FIXME - need to check external flag.
   ModuleCU->addGlobal(DI_GV.getName(), VariableDie);
@@ -1804,7 +1816,8 @@ void DwarfDebug::endModule() {
     DIE *NDie = ModuleCU->getDIE(N);
     if (!NDie) continue;
     addDIEEntry(SPDie, dwarf::DW_AT_containing_type, dwarf::DW_FORM_ref4, NDie);
-    addDIEEntry(NDie, dwarf::DW_AT_containing_type, dwarf::DW_FORM_ref4, NDie);
+    // FIXME - This is not the correct approach.
+    // addDIEEntry(NDie, dwarf::DW_AT_containing_type, dwarf::DW_FORM_ref4, NDie);
   }
 
   // Standard sections final addresses.
@@ -1976,12 +1989,15 @@ bool DwarfDebug::extractScopeInformation(MachineFunction *MF) {
   if (!DbgScopeMap.empty())
     return false;
 
+  DenseMap<const MachineInstr *, unsigned> MIIndexMap;
+  unsigned MIIndex = 0;
   // Scan each instruction and create scopes. First build working set of scopes.
   for (MachineFunction::const_iterator I = MF->begin(), E = MF->end();
        I != E; ++I) {
     for (MachineBasicBlock::const_iterator II = I->begin(), IE = I->end();
          II != IE; ++II) {
       const MachineInstr *MInsn = II;
+      MIIndexMap[MInsn] = MIIndex++;
       DebugLoc DL = MInsn->getDebugLoc();
       if (DL.isUnknown()) continue;
       DebugLocTuple DLT = MF->getDebugLocTuple(DL);
@@ -2014,16 +2030,10 @@ bool DwarfDebug::extractScopeInformation(MachineFunction *MF) {
     }
   }
 
-  // If a scope's last instruction is not set then use its child scope's
-  // last instruction as this scope's last instrunction.
-  for (ValueMap<MDNode *, DbgScope *>::iterator DI = DbgScopeMap.begin(),
-	 DE = DbgScopeMap.end(); DI != DE; ++DI) {
-    if (DI->second->isAbstractScope())
-      continue;
-    assert (DI->second->getFirstInsn() && "Invalid first instruction!");
-    DI->second->fixInstructionMarkers();
-    assert (DI->second->getLastInsn() && "Invalid last instruction!");
-  }
+  if (!CurrentFnDbgScope)
+    return false;
+
+  CurrentFnDbgScope->fixInstructionMarkers(MIIndexMap);
 
   // Each scope has first instruction and last instruction to mark beginning
   // and end of a scope respectively. Create an inverse map that list scopes
@@ -2105,38 +2115,41 @@ void DwarfDebug::endFunction(MachineFunction *MF) {
   if (DbgScopeMap.empty())
     return;
 
-  // Define end label for subprogram.
-  EmitLabel("func_end", SubprogramCount);
-
-  // Get function line info.
-  if (!Lines.empty()) {
-    // Get section line info.
-    unsigned ID = SectionMap.insert(Asm->getCurrentSection());
-    if (SectionSourceLines.size() < ID) SectionSourceLines.resize(ID);
-    std::vector<SrcLineInfo> &SectionLineInfos = SectionSourceLines[ID-1];
-    // Append the function info to section info.
-    SectionLineInfos.insert(SectionLineInfos.end(),
-                            Lines.begin(), Lines.end());
+  if (CurrentFnDbgScope) {
+    // Define end label for subprogram.
+    EmitLabel("func_end", SubprogramCount);
+    
+    // Get function line info.
+    if (!Lines.empty()) {
+      // Get section line info.
+      unsigned ID = SectionMap.insert(Asm->getCurrentSection());
+      if (SectionSourceLines.size() < ID) SectionSourceLines.resize(ID);
+      std::vector<SrcLineInfo> &SectionLineInfos = SectionSourceLines[ID-1];
+      // Append the function info to section info.
+      SectionLineInfos.insert(SectionLineInfos.end(),
+                              Lines.begin(), Lines.end());
+    }
+    
+    // Construct abstract scopes.
+    for (SmallVector<DbgScope *, 4>::iterator AI = AbstractScopesList.begin(),
+           AE = AbstractScopesList.end(); AI != AE; ++AI)
+      constructScopeDIE(*AI);
+    
+    constructScopeDIE(CurrentFnDbgScope);
+    
+    DebugFrames.push_back(FunctionDebugFrameInfo(SubprogramCount,
+                                                 MMI->getFrameMoves()));
   }
 
-  // Construct abstract scopes.
-  for (SmallVector<DbgScope *, 4>::iterator AI = AbstractScopesList.begin(),
-         AE = AbstractScopesList.end(); AI != AE; ++AI)
-    constructScopeDIE(*AI);
-
-  constructScopeDIE(CurrentFnDbgScope);
-
-  DebugFrames.push_back(FunctionDebugFrameInfo(SubprogramCount,
-                                               MMI->getFrameMoves()));
-
   // Clear debug info
-  CurrentFnDbgScope = NULL;
-  DbgScopeMap.clear();
-  DbgScopeBeginMap.clear();
-  DbgScopeEndMap.clear();
-  ConcreteScopes.clear();
-  AbstractScopesList.clear();
-
+  if (CurrentFnDbgScope) {
+    CurrentFnDbgScope = NULL;
+    DbgScopeMap.clear();
+    DbgScopeBeginMap.clear();
+    DbgScopeEndMap.clear();
+    ConcreteScopes.clear();
+    AbstractScopesList.clear();
+  }
   Lines.clear();
   
   if (TimePassesIsEnabled)
@@ -2908,8 +2921,6 @@ void DwarfDebug::emitDebugInlineInfo() {
   for (SmallVector<MDNode *, 4>::iterator I = InlinedSPNodes.begin(),
          E = InlinedSPNodes.end(); I != E; ++I) {
 
-//  for (ValueMap<MDNode *, SmallVector<InlineInfoLabels, 4> >::iterator
-    //        I = InlineInfo.begin(), E = InlineInfo.end(); I != E; ++I) {
     MDNode *Node = *I;
     ValueMap<MDNode *, SmallVector<InlineInfoLabels, 4> >::iterator II
       = InlineInfo.find(Node);
@@ -2920,20 +2931,11 @@ void DwarfDebug::emitDebugInlineInfo() {
 
     if (LName.empty())
       Asm->EmitString(Name);
-    else {
-      // Skip special LLVM prefix that is used to inform the asm printer to not
-      // emit usual symbol prefix before the symbol name. This happens for
-      // Objective-C symbol names and symbol whose name is replaced using GCC's
-      // __asm__ attribute.
-      if (LName[0] == 1)
-        LName = LName.substr(1);
-//      Asm->EmitString(LName);
+    else 
       EmitSectionOffset("string", "section_str",
-                        StringPool.idFor(LName), false, true);
+                        StringPool.idFor(getRealLinkageName(LName)), false, true);
 
-    }
     Asm->EOL("MIPS linkage name");
-//    Asm->EmitString(Name);
     EmitSectionOffset("string", "section_str",
                       StringPool.idFor(Name), false, true);
     Asm->EOL("Function name");

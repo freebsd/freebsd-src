@@ -990,7 +990,7 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
     if (TLO.ShrinkDemandedConstant(Op, ~KnownZero2 & NewMask))
       return true;
     // If the operation can be done in a smaller type, do so.
-    if (TLO.ShrinkDemandedOp(Op, BitWidth, NewMask, dl))
+    if (TLO.ShrinkOps && TLO.ShrinkDemandedOp(Op, BitWidth, NewMask, dl))
       return true;
 
     // Output known-1 bits are only known if set in both the LHS & RHS.
@@ -1024,7 +1024,7 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
     if (TLO.ShrinkDemandedConstant(Op, NewMask))
       return true;
     // If the operation can be done in a smaller type, do so.
-    if (TLO.ShrinkDemandedOp(Op, BitWidth, NewMask, dl))
+    if (TLO.ShrinkOps && TLO.ShrinkDemandedOp(Op, BitWidth, NewMask, dl))
       return true;
 
     // Output known-0 bits are only known if clear in both the LHS & RHS.
@@ -1049,7 +1049,7 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
     if ((KnownZero2 & NewMask) == NewMask)
       return TLO.CombineTo(Op, Op.getOperand(1));
     // If the operation can be done in a smaller type, do so.
-    if (TLO.ShrinkDemandedOp(Op, BitWidth, NewMask, dl))
+    if (TLO.ShrinkOps && TLO.ShrinkDemandedOp(Op, BitWidth, NewMask, dl))
       return true;
 
     // If all of the unknown bits are known to be zero on one side or the other
@@ -1272,19 +1272,21 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
 
     // Sign extension.  Compute the demanded bits in the result that are not 
     // present in the input.
-    APInt NewBits = APInt::getHighBitsSet(BitWidth,
-                                          BitWidth - EVT.getSizeInBits()) &
-                    NewMask;
+    APInt NewBits =
+      APInt::getHighBitsSet(BitWidth,
+                            BitWidth - EVT.getScalarType().getSizeInBits()) &
+      NewMask;
     
     // If none of the extended bits are demanded, eliminate the sextinreg.
     if (NewBits == 0)
       return TLO.CombineTo(Op, Op.getOperand(0));
 
-    APInt InSignBit = APInt::getSignBit(EVT.getSizeInBits());
+    APInt InSignBit = APInt::getSignBit(EVT.getScalarType().getSizeInBits());
     InSignBit.zext(BitWidth);
-    APInt InputDemandedBits = APInt::getLowBitsSet(BitWidth,
-                                                   EVT.getSizeInBits()) &
-                              NewMask;
+    APInt InputDemandedBits =
+      APInt::getLowBitsSet(BitWidth,
+                           EVT.getScalarType().getSizeInBits()) &
+      NewMask;
     
     // Since the sign extended bits are demanded, we know that the sign
     // bit is demanded.
@@ -1313,7 +1315,8 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
     break;
   }
   case ISD::ZERO_EXTEND: {
-    unsigned OperandBitWidth = Op.getOperand(0).getValueSizeInBits();
+    unsigned OperandBitWidth =
+      Op.getOperand(0).getValueType().getScalarType().getSizeInBits();
     APInt InMask = NewMask;
     InMask.trunc(OperandBitWidth);
     
@@ -1336,7 +1339,7 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
   }
   case ISD::SIGN_EXTEND: {
     EVT InVT = Op.getOperand(0).getValueType();
-    unsigned InBits = InVT.getSizeInBits();
+    unsigned InBits = InVT.getScalarType().getSizeInBits();
     APInt InMask    = APInt::getLowBitsSet(BitWidth, InBits);
     APInt InSignBit = APInt::getBitsSet(BitWidth, InBits - 1, InBits);
     APInt NewBits   = ~InMask & NewMask;
@@ -1376,7 +1379,8 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
     break;
   }
   case ISD::ANY_EXTEND: {
-    unsigned OperandBitWidth = Op.getOperand(0).getValueSizeInBits();
+    unsigned OperandBitWidth =
+      Op.getOperand(0).getValueType().getScalarType().getSizeInBits();
     APInt InMask = NewMask;
     InMask.trunc(OperandBitWidth);
     if (SimplifyDemandedBits(Op.getOperand(0), InMask,
@@ -1480,7 +1484,7 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
                              KnownOne2, TLO, Depth+1))
       return true;
     // See if the operation should be performed at a smaller bit width.
-    if (TLO.ShrinkDemandedOp(Op, BitWidth, NewMask, dl))
+    if (TLO.ShrinkOps && TLO.ShrinkDemandedOp(Op, BitWidth, NewMask, dl))
       return true;
   }
   // FALL THROUGH
@@ -1597,7 +1601,8 @@ TargetLowering::SimplifySetCC(EVT VT, SDValue N0, SDValue N1,
     if (N0.getOpcode() == ISD::SRL && (C1 == 0 || C1 == 1) &&
         N0.getOperand(0).getOpcode() == ISD::CTLZ &&
         N0.getOperand(1).getOpcode() == ISD::Constant) {
-      unsigned ShAmt = cast<ConstantSDNode>(N0.getOperand(1))->getZExtValue();
+      const APInt &ShAmt
+        = cast<ConstantSDNode>(N0.getOperand(1))->getAPIntValue();
       if ((Cond == ISD::SETEQ || Cond == ISD::SETNE) &&
           ShAmt == Log2_32(N0.getValueType().getSizeInBits())) {
         if ((C1 == 0) == (Cond == ISD::SETEQ)) {
@@ -1625,27 +1630,26 @@ TargetLowering::SimplifySetCC(EVT VT, SDValue N0, SDValue N1,
         N0.getOperand(0).getNode()->hasOneUse() &&
         isa<ConstantSDNode>(N0.getOperand(1))) {
       LoadSDNode *Lod = cast<LoadSDNode>(N0.getOperand(0));
-      uint64_t bestMask = 0;
+      APInt bestMask;
       unsigned bestWidth = 0, bestOffset = 0;
-      if (!Lod->isVolatile() && Lod->isUnindexed() &&
-          // FIXME: This uses getZExtValue() below so it only works on i64 and
-          // below.
-          N0.getValueType().getSizeInBits() <= 64) {
+      if (!Lod->isVolatile() && Lod->isUnindexed()) {
         unsigned origWidth = N0.getValueType().getSizeInBits();
+        unsigned maskWidth = origWidth;
         // We can narrow (e.g.) 16-bit extending loads on 32-bit target to 
         // 8 bits, but have to be careful...
         if (Lod->getExtensionType() != ISD::NON_EXTLOAD)
           origWidth = Lod->getMemoryVT().getSizeInBits();
-        uint64_t Mask =cast<ConstantSDNode>(N0.getOperand(1))->getZExtValue();
+        const APInt &Mask =
+          cast<ConstantSDNode>(N0.getOperand(1))->getAPIntValue();
         for (unsigned width = origWidth / 2; width>=8; width /= 2) {
-          uint64_t newMask = (1ULL << width) - 1;
+          APInt newMask = APInt::getLowBitsSet(maskWidth, width);
           for (unsigned offset=0; offset<origWidth/width; offset++) {
             if ((newMask & Mask) == Mask) {
               if (!TD->isLittleEndian())
                 bestOffset = (origWidth/width - offset - 1) * (width/8);
               else
                 bestOffset = (uint64_t)offset * (width/8);
-              bestMask = Mask >> (offset * (width/8) * 8);
+              bestMask = Mask.lshr(offset * (width/8) * 8);
               bestWidth = width;
               break;
             }
@@ -1668,7 +1672,8 @@ TargetLowering::SimplifySetCC(EVT VT, SDValue N0, SDValue N1,
                                         false, NewAlign);
           return DAG.getSetCC(dl, VT, 
                               DAG.getNode(ISD::AND, dl, newVT, NewLoad,
-                                          DAG.getConstant(bestMask, newVT)),
+                                      DAG.getConstant(bestMask.trunc(bestWidth),
+                                                      newVT)),
                               DAG.getConstant(0LL, newVT), Cond);
         }
       }
@@ -1760,7 +1765,7 @@ TargetLowering::SimplifySetCC(EVT VT, SDValue N0, SDValue N1,
       
       // SETCC (SETCC), [0|1], [EQ|NE]  -> SETCC
       if (N0.getOpcode() == ISD::SETCC) {
-        bool TrueWhenTrue = (Cond == ISD::SETEQ) ^ (N1C->getZExtValue() != 1);
+        bool TrueWhenTrue = (Cond == ISD::SETEQ) ^ (N1C->getAPIntValue() != 1);
         if (TrueWhenTrue)
           return N0;
         
@@ -1876,24 +1881,27 @@ TargetLowering::SimplifySetCC(EVT VT, SDValue N0, SDValue N1,
 
     // Fold bit comparisons when we can.
     if ((Cond == ISD::SETEQ || Cond == ISD::SETNE) &&
-        VT == N0.getValueType() && N0.getOpcode() == ISD::AND)
+        (VT == N0.getValueType() ||
+         (isTypeLegal(VT) && VT.bitsLE(N0.getValueType()))) &&
+        N0.getOpcode() == ISD::AND)
       if (ConstantSDNode *AndRHS =
                   dyn_cast<ConstantSDNode>(N0.getOperand(1))) {
         EVT ShiftTy = DCI.isBeforeLegalize() ?
           getPointerTy() : getShiftAmountTy();
         if (Cond == ISD::SETNE && C1 == 0) {// (X & 8) != 0  -->  (X & 8) >> 3
           // Perform the xform if the AND RHS is a single bit.
-          if (isPowerOf2_64(AndRHS->getZExtValue())) {
-            return DAG.getNode(ISD::SRL, dl, VT, N0,
-                                DAG.getConstant(Log2_64(AndRHS->getZExtValue()),
-                                                ShiftTy));
+          if (AndRHS->getAPIntValue().isPowerOf2()) {
+            return DAG.getNode(ISD::TRUNCATE, dl, VT,
+                              DAG.getNode(ISD::SRL, dl, N0.getValueType(), N0,
+                   DAG.getConstant(AndRHS->getAPIntValue().logBase2(), ShiftTy)));
           }
-        } else if (Cond == ISD::SETEQ && C1 == AndRHS->getZExtValue()) {
+        } else if (Cond == ISD::SETEQ && C1 == AndRHS->getAPIntValue()) {
           // (X & 8) == 8  -->  (X & 8) >> 3
           // Perform the xform if C1 is a single bit.
           if (C1.isPowerOf2()) {
-            return DAG.getNode(ISD::SRL, dl, VT, N0,
-                                DAG.getConstant(C1.logBase2(), ShiftTy));
+            return DAG.getNode(ISD::TRUNCATE, dl, VT,
+                               DAG.getNode(ISD::SRL, dl, N0.getValueType(), N0,
+                                      DAG.getConstant(C1.logBase2(), ShiftTy)));
           }
         }
       }

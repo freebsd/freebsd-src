@@ -138,7 +138,7 @@ void *ExecutionEngineState::RemoveMapping(
 void ExecutionEngine::addGlobalMapping(const GlobalValue *GV, void *Addr) {
   MutexGuard locked(lock);
 
-  DEBUG(errs() << "JIT: Map \'" << GV->getName() 
+  DEBUG(dbgs() << "JIT: Map \'" << GV->getName() 
         << "\' to [" << Addr << "]\n";);
   void *&CurVal = EEState.getGlobalAddressMap(locked)[GV];
   assert((CurVal == 0 || Addr == 0) && "GlobalMapping already established!");
@@ -246,13 +246,13 @@ static void *CreateArgv(LLVMContext &C, ExecutionEngine *EE,
   unsigned PtrSize = EE->getTargetData()->getPointerSize();
   char *Result = new char[(InputArgv.size()+1)*PtrSize];
 
-  DEBUG(errs() << "JIT: ARGV = " << (void*)Result << "\n");
+  DEBUG(dbgs() << "JIT: ARGV = " << (void*)Result << "\n");
   const Type *SBytePtr = Type::getInt8PtrTy(C);
 
   for (unsigned i = 0; i != InputArgv.size(); ++i) {
     unsigned Size = InputArgv[i].size()+1;
     char *Dest = new char[Size];
-    DEBUG(errs() << "JIT: ARGV[" << i << "] = " << (void*)Dest << "\n");
+    DEBUG(dbgs() << "JIT: ARGV[" << i << "] = " << (void*)Dest << "\n");
 
     std::copy(InputArgv[i].begin(), InputArgv[i].end(), Dest);
     Dest[Size-1] = 0;
@@ -343,9 +343,7 @@ int ExecutionEngine::runFunctionAsMain(Function *Fn,
   // Check main() type
   unsigned NumArgs = Fn->getFunctionType()->getNumParams();
   const FunctionType *FTy = Fn->getFunctionType();
-  const Type* PPInt8Ty = 
-    PointerType::getUnqual(PointerType::getUnqual(
-          Type::getInt8Ty(Fn->getContext())));
+  const Type* PPInt8Ty = Type::getInt8PtrTy(Fn->getContext())->getPointerTo();
   switch (NumArgs) {
   case 3:
    if (FTy->getParamType(2) != PPInt8Ty) {
@@ -358,13 +356,13 @@ int ExecutionEngine::runFunctionAsMain(Function *Fn,
    }
    // FALLS THROUGH
   case 1:
-   if (FTy->getParamType(0) != Type::getInt32Ty(Fn->getContext())) {
+   if (!FTy->getParamType(0)->isInteger(32)) {
      llvm_report_error("Invalid type for first argument of main() supplied");
    }
    // FALLS THROUGH
   case 0:
    if (!isa<IntegerType>(FTy->getReturnType()) &&
-       FTy->getReturnType() != Type::getVoidTy(FTy->getContext())) {
+       !FTy->getReturnType()->isVoidTy()) {
      llvm_report_error("Invalid return type of main() supplied");
    }
    break;
@@ -493,8 +491,22 @@ void *ExecutionEngine::getPointerToGlobal(const GlobalValue *GV) {
 /// @brief Get a GenericValue for a Constant*
 GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
   // If its undefined, return the garbage.
-  if (isa<UndefValue>(C)) 
-    return GenericValue();
+  if (isa<UndefValue>(C)) {
+    GenericValue Result;
+    switch (C->getType()->getTypeID()) {
+    case Type::IntegerTyID:
+    case Type::X86_FP80TyID:
+    case Type::FP128TyID:
+    case Type::PPC_FP128TyID:
+      // Although the value is undefined, we still have to construct an APInt
+      // with the correct bit width.
+      Result.IntVal = APInt(C->getType()->getPrimitiveSizeInBits(), 0);
+      break;
+    default:
+      break;
+    }
+    return Result;
+  }
 
   // If the value is a ConstantExpr
   if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(C)) {
@@ -620,13 +632,11 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
             GV.DoubleVal = GV.IntVal.bitsToDouble();
           break;
         case Type::FloatTyID: 
-          assert(DestTy == Type::getInt32Ty(DestTy->getContext()) &&
-                 "Invalid bitcast");
+          assert(DestTy->isInteger(32) && "Invalid bitcast");
           GV.IntVal.floatToBits(GV.FloatVal);
           break;
         case Type::DoubleTyID:
-          assert(DestTy == Type::getInt64Ty(DestTy->getContext()) &&
-                 "Invalid bitcast");
+          assert(DestTy->isInteger(64) && "Invalid bitcast");
           GV.IntVal.doubleToBits(GV.DoubleVal);
           break;
         case Type::PointerTyID:
@@ -832,7 +842,7 @@ void ExecutionEngine::StoreValueToMemory(const GenericValue &Val,
     *((PointerTy*)Ptr) = Val.PointerVal;
     break;
   default:
-    errs() << "Cannot store value of type " << *Ty << "!\n";
+    dbgs() << "Cannot store value of type " << *Ty << "!\n";
   }
 
   if (sys::isLittleEndianHost() != getTargetData()->isLittleEndian())
@@ -908,7 +918,7 @@ void ExecutionEngine::LoadValueFromMemory(GenericValue &Result,
 // specified memory location...
 //
 void ExecutionEngine::InitializeMemory(const Constant *Init, void *Addr) {
-  DEBUG(errs() << "JIT: Initializing " << Addr << " ");
+  DEBUG(dbgs() << "JIT: Initializing " << Addr << " ");
   DEBUG(Init->dump());
   if (isa<UndefValue>(Init)) {
     return;
@@ -939,7 +949,7 @@ void ExecutionEngine::InitializeMemory(const Constant *Init, void *Addr) {
     return;
   }
 
-  errs() << "Bad Type: " << *Init->getType() << "\n";
+  dbgs() << "Bad Type: " << *Init->getType() << "\n";
   llvm_unreachable("Unknown constant type to initialize memory with!");
 }
 

@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Target/TargetAsmParser.h"
 #include "X86.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Twine.h"
@@ -15,6 +16,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCParsedAsmOperand.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Target/TargetAsmParser.h"
@@ -46,7 +48,7 @@ private:
   /// @name Auto-generated Match Functions
   /// {  
 
-  bool MatchInstruction(SmallVectorImpl<X86Operand> &Operands,
+  bool MatchInstruction(const SmallVectorImpl<MCParsedAsmOperand*> &Operands,
                         MCInst &Inst);
 
   /// MatchRegisterName - Match the given string to a register name, or 0 if
@@ -59,7 +61,8 @@ public:
   X86ATTAsmParser(const Target &T, MCAsmParser &_Parser)
     : TargetAsmParser(T), Parser(_Parser) {}
 
-  virtual bool ParseInstruction(const StringRef &Name, MCInst &Inst);
+  virtual bool ParseInstruction(const StringRef &Name, SMLoc NameLoc,
+                                SmallVectorImpl<MCParsedAsmOperand*> &Operands);
 
   virtual bool ParseDirective(AsmToken DirectiveID);
 };
@@ -71,7 +74,7 @@ namespace {
 
 /// X86Operand - Instances of this class represent a parsed X86 machine
 /// instruction.
-struct X86Operand {
+struct X86Operand : public MCParsedAsmOperand {
   enum {
     Token,
     Register,
@@ -400,10 +403,11 @@ bool X86ATTAsmParser::ParseMemOperand(X86Operand &Op) {
   return false;
 }
 
-bool X86ATTAsmParser::ParseInstruction(const StringRef &Name, MCInst &Inst) {
-  SmallVector<X86Operand, 8> Operands;
+bool X86ATTAsmParser::
+ParseInstruction(const StringRef &Name, SMLoc NameLoc,
+                 SmallVectorImpl<MCParsedAsmOperand*> &Operands) {
 
-  Operands.push_back(X86Operand::CreateToken(Name));
+  Operands.push_back(new X86Operand(X86Operand::CreateToken(Name)));
 
   SMLoc Loc = getLexer().getTok().getLoc();
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
@@ -411,31 +415,27 @@ bool X86ATTAsmParser::ParseInstruction(const StringRef &Name, MCInst &Inst) {
     // Parse '*' modifier.
     if (getLexer().is(AsmToken::Star)) {
       getLexer().Lex(); // Eat the star.
-      Operands.push_back(X86Operand::CreateToken("*"));
+      Operands.push_back(new X86Operand(X86Operand::CreateToken("*")));
     }
 
     // Read the first operand.
-    Operands.push_back(X86Operand());
-    if (ParseOperand(Operands.back()))
+    X86Operand Op;
+    if (ParseOperand(Op))
       return true;
+
+    Operands.push_back(new X86Operand(Op));
 
     while (getLexer().is(AsmToken::Comma)) {
       getLexer().Lex();  // Eat the comma.
 
       // Parse and remember the operand.
-      Operands.push_back(X86Operand());
-      if (ParseOperand(Operands.back()))
+      if (ParseOperand(Op))
         return true;
+      Operands.push_back(new X86Operand(Op));
     }
   }
 
-  if (!MatchInstruction(Operands, Inst))
-    return false;
-
-  // FIXME: We should give nicer diagnostics about the exact failure.
-
-  Error(Loc, "unrecognized instruction");
-  return true;
+  return false;
 }
 
 bool X86ATTAsmParser::ParseDirective(AsmToken DirectiveID) {

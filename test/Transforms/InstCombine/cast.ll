@@ -55,8 +55,8 @@ define i32 @test6(i64 %A) {
         %c1 = trunc i64 %A to i32               ; <i32> [#uses=1]
         %res = bitcast i32 %c1 to i32           ; <i32> [#uses=1]
         ret i32 %res
-; CHECK: %res = trunc i64 %A to i32
-; CHECK: ret i32 %res
+; CHECK:  trunc i64 %A to i32
+; CHECK-NEXT: ret i32
 }
 
 define i64 @test7(i1 %A) {
@@ -71,8 +71,8 @@ define i64 @test8(i8 %A) {
         %c1 = sext i8 %A to i64         ; <i64> [#uses=1]
         %res = bitcast i64 %c1 to i64           ; <i64> [#uses=1]
         ret i64 %res
-; CHECK: %res = sext i8 %A to i64
-; CHECK: ret i64 %res
+; CHECK: = sext i8 %A to i64
+; CHECK-NEXT: ret i64
 }
 
 define i16 @test9(i16 %A) {
@@ -185,8 +185,8 @@ define i32 @test22(i32 %X) {
         %c2 = sext i8 %c1 to i32                ; <i32> [#uses=1]
         %RV = shl i32 %c2, 24           ; <i32> [#uses=1]
         ret i32 %RV
-; CHECK: %RV = shl i32 %X, 24
-; CHECK: ret i32 %RV
+; CHECK: shl i32 %X, 24
+; CHECK-NEXT: ret i32
 }
 
 define i32 @test23(i32 %X) {
@@ -336,4 +336,272 @@ define i64 @test38(i32 %a) {
 ; CHECK: %1 = icmp ne i32 %a, -2
 ; CHECK: %2 = zext i1 %1 to i64
 ; CHECK: ret i64 %2
+}
+
+define i16 @test39(i16 %a) {
+        %tmp = zext i16 %a to i32
+        %tmp21 = lshr i32 %tmp, 8
+        %tmp5 = shl i32 %tmp, 8
+        %tmp.upgrd.32 = or i32 %tmp21, %tmp5
+        %tmp.upgrd.3 = trunc i32 %tmp.upgrd.32 to i16
+        ret i16 %tmp.upgrd.3
+; CHECK: @test39
+; CHECK: %tmp.upgrd.32 = call i16 @llvm.bswap.i16(i16 %a)
+; CHECK: ret i16 %tmp.upgrd.32
+}
+
+define i16 @test40(i16 %a) {
+        %tmp = zext i16 %a to i32
+        %tmp21 = lshr i32 %tmp, 9
+        %tmp5 = shl i32 %tmp, 8
+        %tmp.upgrd.32 = or i32 %tmp21, %tmp5
+        %tmp.upgrd.3 = trunc i32 %tmp.upgrd.32 to i16
+        ret i16 %tmp.upgrd.3
+; CHECK: @test40
+; CHECK: %tmp21 = lshr i16 %a, 9
+; CHECK: %tmp5 = shl i16 %a, 8
+; CHECK: %tmp.upgrd.32 = or i16 %tmp21, %tmp5
+; CHECK: ret i16 %tmp.upgrd.32
+}
+
+; PR1263
+define i32* @test41(i32* %tmp1) {
+        %tmp64 = bitcast i32* %tmp1 to { i32 }*
+        %tmp65 = getelementptr { i32 }* %tmp64, i32 0, i32 0
+        ret i32* %tmp65
+; CHECK: @test41
+; CHECK: ret i32* %tmp1
+}
+
+define i32 @test42(i32 %X) {
+        %Y = trunc i32 %X to i8         ; <i8> [#uses=1]
+        %Z = zext i8 %Y to i32          ; <i32> [#uses=1]
+        ret i32 %Z
+; CHECK: @test42
+; CHECK: %Z = and i32 %X, 255
+}
+
+; rdar://6598839
+define zeroext i64 @test43(i8 zeroext %on_off) nounwind readonly {
+	%A = zext i8 %on_off to i32
+	%B = add i32 %A, -1
+	%C = sext i32 %B to i64
+	ret i64 %C  ;; Should be (add (zext i8 -> i64), -1)
+; CHECK: @test43
+; CHECK-NEXT: %A = zext i8 %on_off to i64
+; CHECK-NEXT: %B = add i64 %A, -1
+; CHECK-NEXT: ret i64 %B
+}
+
+define i64 @test44(i8 %T) {
+ %A = zext i8 %T to i16
+ %B = or i16 %A, 1234
+ %C = zext i16 %B to i64
+ ret i64 %C
+; CHECK: @test44
+; CHECK-NEXT: %A = zext i8 %T to i64
+; CHECK-NEXT: %B = or i64 %A, 1234
+; CHECK-NEXT: ret i64 %B
+}
+
+define i64 @test45(i8 %A, i64 %Q) {
+ %D = trunc i64 %Q to i32  ;; should be removed
+ %B = sext i8 %A to i32
+ %C = or i32 %B, %D
+ %E = zext i32 %C to i64 
+ ret i64 %E
+; CHECK: @test45
+; CHECK-NEXT: %B = sext i8 %A to i64
+; CHECK-NEXT: %C = or i64 %B, %Q
+; CHECK-NEXT: %E = and i64 %C, 4294967295
+; CHECK-NEXT: ret i64 %E
+}
+
+
+define i64 @test46(i64 %A) {
+ %B = trunc i64 %A to i32
+ %C = and i32 %B, 42
+ %D = shl i32 %C, 8
+ %E = zext i32 %D to i64 
+ ret i64 %E
+; CHECK: @test46
+; CHECK-NEXT: %C = shl i64 %A, 8
+; CHECK-NEXT: %D = and i64 %C, 10752
+; CHECK-NEXT: ret i64 %D
+}
+
+define i64 @test47(i8 %A) {
+ %B = sext i8 %A to i32
+ %C = or i32 %B, 42
+ %E = zext i32 %C to i64 
+ ret i64 %E
+; CHECK: @test47
+; CHECK-NEXT:   %B = sext i8 %A to i64
+; CHECK-NEXT: %C = or i64 %B, 42
+; CHECK-NEXT:  %E = and i64 %C, 4294967295
+; CHECK-NEXT:  ret i64 %E
+}
+
+define i64 @test48(i8 %A, i8 %a) {
+  %b = zext i8 %a to i32
+  %B = zext i8 %A to i32
+  %C = shl i32 %B, 8
+  %D = or i32 %C, %b
+  %E = zext i32 %D to i64
+  ret i64 %E
+; CHECK: @test48
+; CHECK-NEXT: %b = zext i8 %a to i64
+; CHECK-NEXT: %B = zext i8 %A to i64
+; CHECK-NEXT: %C = shl i64 %B, 8
+; CHECK-NEXT: %D = or i64 %C, %b
+; CHECK-NEXT: ret i64 %D
+}
+
+define i64 @test49(i64 %A) {
+ %B = trunc i64 %A to i32
+ %C = or i32 %B, 1
+ %D = sext i32 %C to i64 
+ ret i64 %D
+; CHECK: @test49
+; CHECK-NEXT: %C = shl i64 %A, 32
+; CHECK-NEXT: ashr i64 %C, 32
+; CHECK-NEXT: %D = or i64 {{.*}}, 1
+; CHECK-NEXT: ret i64 %D
+}
+
+define i64 @test50(i64 %A) {
+  %a = lshr i64 %A, 2
+  %B = trunc i64 %a to i32
+  %D = add i32 %B, -1
+  %E = sext i32 %D to i64
+  ret i64 %E
+; CHECK: @test50
+; CHECK-NEXT: shl i64 %A, 30
+; CHECK-NEXT: add i64 {{.*}}, -4294967296
+; CHECK-NEXT: %E = ashr i64 {{.*}}, 32
+; CHECK-NEXT: ret i64 %E
+}
+
+define i64 @test51(i64 %A, i1 %cond) {
+  %B = trunc i64 %A to i32
+  %C = and i32 %B, -2
+  %D = or i32 %B, 1
+  %E = select i1 %cond, i32 %C, i32 %D
+  %F = sext i32 %E to i64
+  ret i64 %F
+; CHECK: @test51
+
+; FIXME: disabled, see PR5997
+; HECK-NEXT: %C = and i64 %A, 4294967294
+; HECK-NEXT: %D = or i64 %A, 1
+; HECK-NEXT: %E = select i1 %cond, i64 %C, i64 %D
+; HECK-NEXT: %sext = shl i64 %E, 32
+; HECK-NEXT: %F = ashr i64 %sext, 32
+; HECK-NEXT: ret i64 %F
+}
+
+define i32 @test52(i64 %A) {
+  %B = trunc i64 %A to i16
+  %C = or i16 %B, -32574
+  %D = and i16 %C, -25350
+  %E = zext i16 %D to i32
+  ret i32 %E
+; CHECK: @test52
+; CHECK-NEXT: %B = trunc i64 %A to i32
+; CHECK-NEXT: %C = or i32 %B, 32962
+; CHECK-NEXT: %D = and i32 %C, 40186
+; CHECK-NEXT: ret i32 %D
+}
+
+define i64 @test53(i32 %A) {
+  %B = trunc i32 %A to i16
+  %C = or i16 %B, -32574
+  %D = and i16 %C, -25350
+  %E = zext i16 %D to i64
+  ret i64 %E
+; CHECK: @test53
+; CHECK-NEXT: %B = zext i32 %A to i64
+; CHECK-NEXT: %C = or i64 %B, 32962
+; CHECK-NEXT: %D = and i64 %C, 40186
+; CHECK-NEXT: ret i64 %D
+}
+
+define i32 @test54(i64 %A) {
+  %B = trunc i64 %A to i16
+  %C = or i16 %B, -32574
+  %D = and i16 %C, -25350
+  %E = sext i16 %D to i32
+  ret i32 %E
+; CHECK: @test54
+; CHECK-NEXT: %B = trunc i64 %A to i32
+; CHECK-NEXT: %C = or i32 %B, -32574
+; CHECK-NEXT: %D = and i32 %C, -25350
+; CHECK-NEXT: ret i32 %D
+}
+
+define i64 @test55(i32 %A) {
+  %B = trunc i32 %A to i16
+  %C = or i16 %B, -32574
+  %D = and i16 %C, -25350
+  %E = sext i16 %D to i64
+  ret i64 %E
+; CHECK: @test55
+; CHECK-NEXT: %B = zext i32 %A to i64
+; CHECK-NEXT: %C = or i64 %B, -32574
+; CHECK-NEXT: %D = and i64 %C, -25350
+; CHECK-NEXT: ret i64 %D
+}
+
+define i64 @test56(i16 %A) nounwind {
+  %tmp353 = sext i16 %A to i32
+  %tmp354 = lshr i32 %tmp353, 5
+  %tmp355 = zext i32 %tmp354 to i64
+  ret i64 %tmp355
+; CHECK: @test56
+; CHECK-NEXT: %tmp353 = sext i16 %A to i64
+; CHECK-NEXT: %tmp354 = lshr i64 %tmp353, 5
+; CHECK-NEXT: %tmp355 = and i64 %tmp354, 134217727
+; CHECK-NEXT: ret i64 %tmp355
+}
+
+define i64 @test57(i64 %A) nounwind {
+ %B = trunc i64 %A to i32
+ %C = lshr i32 %B, 8
+ %E = zext i32 %C to i64
+ ret i64 %E
+; CHECK: @test57
+; CHECK-NEXT: %C = lshr i64 %A, 8 
+; CHECK-NEXT: %E = and i64 %C, 16777215
+; CHECK-NEXT: ret i64 %E
+}
+
+define i64 @test58(i64 %A) nounwind {
+ %B = trunc i64 %A to i32
+ %C = lshr i32 %B, 8
+ %D = or i32 %C, 128
+ %E = zext i32 %D to i64
+ ret i64 %E
+ 
+; CHECK: @test58
+; CHECK-NEXT:   %C = lshr i64 %A, 8
+; CHECK-NEXT:   %D = or i64 %C, 128
+; CHECK-NEXT:   %E = and i64 %D, 16777215
+; CHECK-NEXT:   ret i64 %E
+}
+
+define i64 @test59(i8 %A, i8 %B) nounwind {
+  %C = zext i8 %A to i32
+  %D = shl i32 %C, 4
+  %E = and i32 %D, 48
+  %F = zext i8 %B to i32
+  %G = lshr i32 %F, 4
+  %H = or i32 %G, %E
+  %I = zext i32 %H to i64
+  ret i64 %I
+; CHECK: @test59
+; CHECK-NEXT:   %C = zext i8 %A to i64
+; CHECK-NOT: i32
+; CHECK:   %F = zext i8 %B to i64
+; CHECK-NOT: i32
+; CHECK:   ret i64 %H
 }
