@@ -651,6 +651,8 @@
 .\" X/Open
 .ds doc-str-St--susv2          Version\~2 of the Single \*[doc-Tn-font-size]UNIX\*[doc-str-St] Specification
 .as doc-str-St--susv2          " (\*[Lq]\*[doc-Tn-font-size]SUSv2\*[doc-str-St]\*[Rq])
+.ds doc-str-St--susv3          Version\~3 of the Single \*[doc-Tn-font-size]UNIX\*[doc-str-St] Specification
+.as doc-str-St--susv3          " (\*[Lq]\*[doc-Tn-font-size]SUSv3\*[doc-str-St]\*[Rq])
 .ds doc-str-St--svid4          System\~V Interface Definition, Fourth Edition
 .as doc-str-St--svid4          " (\*[Lq]\*[doc-Tn-font-size]SVID\*[doc-str-St]\^4\*[Rq])
 .ds doc-str-St--xbd5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] System Interface Definitions Issue\~5
