@@ -651,17 +651,14 @@ case "${RERUN}" in
     ;;
   esac
 
-  # Avoid comparing the motd if the user specifies it in .mergemasterrc
-  # Compatibility shim to be removed in FreeBSD 9.x
   case "${IGNORE_MOTD}" in
-  '') ;;
-  *) IGNORE_FILES="${IGNORE_FILES} /etc/motd"
+  *)
      echo ''
      echo "*** You have the IGNORE_MOTD option set in your mergemaster rc file."
      echo "    This option is deprecated in favor of the IGNORE_FILES option."
      echo "    Please update your rc file accordingly."
      echo ''
-     press_to_continue
+     exit 1
      ;;
   esac
 
