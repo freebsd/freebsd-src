@@ -3,6 +3,7 @@
  * Copyright (c) 2000 Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000 BSDi
  * Copyright (c) 2001 - 2003 Thomas Moestl <tmm@FreeBSD.org>
+ * Copyright (c) 2009 by Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,8 +38,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_ofw_pci.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/module.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -83,6 +85,11 @@ static device_method_t ofw_pcib_methods[] = {
 	DEVMETHOD(pcib_read_config,	pcib_read_config),
 	DEVMETHOD(pcib_write_config,	pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	ofw_pcib_gen_route_interrupt),
+	DEVMETHOD(pcib_alloc_msi,	pcib_alloc_msi),
+	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
+	DEVMETHOD(pcib_alloc_msix,	pcib_alloc_msix),
+	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
+	DEVMETHOD(pcib_map_msi,		pcib_map_msi),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pcib_gen_get_node),
@@ -100,19 +107,49 @@ MODULE_DEPEND(ofw_pcib, pci, 1, 1, 1);
 static int
 ofw_pcib_probe(device_t dev)
 {
+	char desc[sizeof("OFW PCIe-PCIe bridge")];
+	const char *dtype, *pbdtype;
+
+#define	ISDTYPE(dtype, type)						\
+	(((dtype) != NULL) && strcmp((dtype), (type)) == 0)
 
 	if ((pci_get_class(dev) == PCIC_BRIDGE) &&
 	    (pci_get_subclass(dev) == PCIS_BRIDGE_PCI) &&
 	    ofw_bus_get_node(dev) != 0) {
-		device_set_desc(dev, "OFW PCI-PCI bridge");
+		dtype = ofw_bus_get_type(dev);
+		pbdtype = ofw_bus_get_type(device_get_parent(
+		    device_get_parent(dev)));
+		snprintf(desc, sizeof(desc), "OFW PCI%s-PCI%s bridge",
+		    ISDTYPE(pbdtype, OFW_TYPE_PCIE) ? "e" : "",
+		    ISDTYPE(dtype, OFW_TYPE_PCIE) ? "e" : "");
+		device_set_desc_copy(dev, desc);
 		return (0);
 	}
+
+#undef ISDTYPE
+
 	return (ENXIO);
 }
 
 static int
 ofw_pcib_attach(device_t dev)
 {
+	struct ofw_pcib_gen_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	/* Quirk handling */
+	switch (pci_get_devid(dev)) {
+	/*
+	 * The ALi M5249 found in Fire-based machines by definition must me
+	 * subtractive as they have a ISA bridge on their secondary side but
+	 * don't indicate this in the class code although the ISA I/O range
+	 * isn't included in their bridge decode.
+	 */
+	case 0x524910b9:
+		sc->ops_pcib_sc.flags |= PCIB_SUBTRACTIVE;
+		break;
+	}
 
 	ofw_pcib_gen_setup(dev);
 	pcib_attach_common(dev);
