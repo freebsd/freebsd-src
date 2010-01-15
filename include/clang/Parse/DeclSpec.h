@@ -194,6 +194,7 @@ private:
 
   SourceLocation StorageClassSpecLoc, SCS_threadLoc;
   SourceLocation TSWLoc, TSCLoc, TSSLoc, TSTLoc;
+  SourceRange TypeofParensRange;
   SourceLocation TQ_constLoc, TQ_restrictLoc, TQ_volatileLoc;
   SourceLocation FS_inlineLoc, FS_virtualLoc, FS_explicitLoc;
   SourceLocation FriendLoc, ConstexprLoc;
@@ -256,6 +257,9 @@ public:
   SourceLocation getTypeSpecComplexLoc() const { return TSCLoc; }
   SourceLocation getTypeSpecSignLoc() const { return TSSLoc; }
   SourceLocation getTypeSpecTypeLoc() const { return TSTLoc; }
+
+  SourceRange getTypeofParensRange() const { return TypeofParensRange; }
+  void setTypeofParensRange(SourceRange range) { TypeofParensRange = range; }
 
   /// getSpecifierName - Turn a type-specifier-type into a string like "_Bool"
   /// or "union".
@@ -493,6 +497,8 @@ public:
     IK_LiteralOperatorId,
     /// \brief A constructor name.
     IK_ConstructorName,
+    /// \brief A constructor named via a template-id.
+    IK_ConstructorTemplateId,
     /// \brief A destructor name.
     IK_DestructorName,
     /// \brief A template-id, e.g., f<int>.
@@ -534,8 +540,9 @@ public:
     /// class-name.
     ActionBase::TypeTy *DestructorName;
     
-    /// \brief When Kind == IK_TemplateId, the template-id annotation that
-    /// contains the template name and template arguments.
+    /// \brief When Kind == IK_TemplateId or IK_ConstructorTemplateId,
+    /// the template-id annotation that contains the template name and
+    /// template arguments.
     TemplateIdAnnotation *TemplateId;
   };
   
@@ -647,6 +654,14 @@ public:
     EndLocation = EndLoc;
     ConstructorName = ClassType;
   }
+
+  /// \brief Specify that this unqualified-id was parsed as a
+  /// template-id that names a constructor.
+  ///
+  /// \param TemplateId the template-id annotation that describes the parsed
+  /// template-id. This UnqualifiedId instance will take ownership of the
+  /// \p TemplateId and will free it on destruction.
+  void setConstructorTemplateId(TemplateIdAnnotation *TemplateId);
 
   /// \brief Specify that this unqualified-id was parsed as a destructor name.
   ///

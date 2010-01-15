@@ -404,8 +404,8 @@ void Preprocessor::PTHSkipExcludedConditionalBlock() {
 /// LookupFile - Given a "foo" or <foo> reference, look up the indicated file,
 /// return null on failure.  isAngled indicates whether the file reference is
 /// for system #include's or not (i.e. using <> instead of "").
-const FileEntry *Preprocessor::LookupFile(const char *FilenameStart,
-                                          const char *FilenameEnd,
+const FileEntry *Preprocessor::LookupFile(llvm::StringRef Filename,
+                                          SourceLocation FilenameTokLoc,
                                           bool isAngled,
                                           const DirectoryLookup *FromDir,
                                           const DirectoryLookup *&CurDir) {
@@ -431,17 +431,24 @@ const FileEntry *Preprocessor::LookupFile(const char *FilenameStart,
   // Do a standard file entry lookup.
   CurDir = CurDirLookup;
   const FileEntry *FE =
-    HeaderInfo.LookupFile(FilenameStart, FilenameEnd,
-                          isAngled, FromDir, CurDir, CurFileEnt);
-  if (FE) return FE;
+    HeaderInfo.LookupFile(Filename, isAngled, FromDir, CurDir, CurFileEnt);
+  if (FE) {
+    // Warn about normal quoted #include from framework headers.  Since
+    // framework headers are published (both public and private ones) they
+    // should not do relative searches, they should do an include with the
+    // framework path included.
+    if (!isAngled && CurDir && FilenameTokLoc.isValid() &&
+        CurDir->isFramework() && CurDir == CurDirLookup)
+      Diag(FilenameTokLoc, diag::warn_pp_relative_include_from_framework);
+    return FE;
+  }
 
   // Otherwise, see if this is a subframework header.  If so, this is relative
   // to one of the headers on the #include stack.  Walk the list of the current
   // headers on the #include stack and pass them to HeaderInfo.
   if (IsFileLexer()) {
     if ((CurFileEnt = SourceMgr.getFileEntryForID(CurPPLexer->getFileID())))
-      if ((FE = HeaderInfo.LookupSubframeworkHeader(FilenameStart, FilenameEnd,
-                                                    CurFileEnt)))
+      if ((FE = HeaderInfo.LookupSubframeworkHeader(Filename, CurFileEnt)))
         return FE;
   }
 
@@ -450,8 +457,7 @@ const FileEntry *Preprocessor::LookupFile(const char *FilenameStart,
     if (IsFileLexer(ISEntry)) {
       if ((CurFileEnt =
            SourceMgr.getFileEntryForID(ISEntry.ThePPLexer->getFileID())))
-        if ((FE = HeaderInfo.LookupSubframeworkHeader(FilenameStart,
-                                                      FilenameEnd, CurFileEnt)))
+        if ((FE = HeaderInfo.LookupSubframeworkHeader(Filename, CurFileEnt)))
           return FE;
     }
   }
@@ -922,43 +928,41 @@ void Preprocessor::HandleIdentSCCSDirective(Token &Tok) {
 /// spelling of the filename, but is also expected to handle the case when
 /// this method decides to use a different buffer.
 bool Preprocessor::GetIncludeFilenameSpelling(SourceLocation Loc,
-                                              const char *&BufStart,
-                                              const char *&BufEnd) {
+                                              llvm::StringRef &Buffer) {
   // Get the text form of the filename.
-  assert(BufStart != BufEnd && "Can't have tokens with empty spellings!");
+  assert(!Buffer.empty() && "Can't have tokens with empty spellings!");
 
   // Make sure the filename is <x> or "x".
   bool isAngled;
-  if (BufStart[0] == '<') {
-    if (BufEnd[-1] != '>') {
+  if (Buffer[0] == '<') {
+    if (Buffer.back() != '>') {
       Diag(Loc, diag::err_pp_expects_filename);
-      BufStart = 0;
+      Buffer = llvm::StringRef();
       return true;
     }
     isAngled = true;
-  } else if (BufStart[0] == '"') {
-    if (BufEnd[-1] != '"') {
+  } else if (Buffer[0] == '"') {
+    if (Buffer.back() != '"') {
       Diag(Loc, diag::err_pp_expects_filename);
-      BufStart = 0;
+      Buffer = llvm::StringRef();
       return true;
     }
     isAngled = false;
   } else {
     Diag(Loc, diag::err_pp_expects_filename);
-    BufStart = 0;
+    Buffer = llvm::StringRef();
     return true;
   }
 
   // Diagnose #include "" as invalid.
-  if (BufEnd-BufStart <= 2) {
+  if (Buffer.size() <= 2) {
     Diag(Loc, diag::err_pp_empty_filename);
-    BufStart = 0;
-    return "";
+    Buffer = llvm::StringRef();
+    return true;
   }
 
   // Skip the brackets.
-  ++BufStart;
-  --BufEnd;
+  Buffer = Buffer.substr(1, Buffer.size()-2);
   return isAngled;
 }
 
@@ -1024,8 +1028,8 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
   CurPPLexer->LexIncludeFilename(FilenameTok);
 
   // Reserve a buffer to get the spelling.
-  llvm::SmallVector<char, 128> FilenameBuffer;
-  const char *FilenameStart, *FilenameEnd;
+  llvm::SmallString<128> FilenameBuffer;
+  llvm::StringRef Filename;
 
   switch (FilenameTok.getKind()) {
   case tok::eom:
@@ -1035,9 +1039,9 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
   case tok::angle_string_literal:
   case tok::string_literal: {
     FilenameBuffer.resize(FilenameTok.getLength());
-    FilenameStart = &FilenameBuffer[0];
+    const char *FilenameStart = &FilenameBuffer[0];
     unsigned Len = getSpelling(FilenameTok, FilenameStart);
-    FilenameEnd = FilenameStart+Len;
+    Filename = llvm::StringRef(FilenameStart, Len);
     break;
   }
 
@@ -1047,8 +1051,7 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
     FilenameBuffer.push_back('<');
     if (ConcatenateIncludeName(FilenameBuffer))
       return;   // Found <eom> but no ">"?  Diagnostic already emitted.
-    FilenameStart = FilenameBuffer.data();
-    FilenameEnd = FilenameStart + FilenameBuffer.size();
+    Filename = FilenameBuffer.str();
     break;
   default:
     Diag(FilenameTok.getLocation(), diag::err_pp_expects_filename);
@@ -1056,11 +1059,11 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
     return;
   }
 
-  bool isAngled = GetIncludeFilenameSpelling(FilenameTok.getLocation(),
-                                             FilenameStart, FilenameEnd);
+  bool isAngled = 
+    GetIncludeFilenameSpelling(FilenameTok.getLocation(), Filename);
   // If GetIncludeFilenameSpelling set the start ptr to null, there was an
   // error.
-  if (FilenameStart == 0) {
+  if (Filename.empty()) {
     DiscardUntilEndOfDirective();
     return;
   }
@@ -1079,14 +1082,13 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
 
   // Search include directories.
   const DirectoryLookup *CurDir;
-  const FileEntry *File = LookupFile(FilenameStart, FilenameEnd,
+  const FileEntry *File = LookupFile(Filename, FilenameTok.getLocation(),
                                      isAngled, LookupFrom, CurDir);
   if (File == 0) {
-    Diag(FilenameTok, diag::err_pp_file_not_found)
-       << std::string(FilenameStart, FilenameEnd);
+    Diag(FilenameTok, diag::err_pp_file_not_found) << Filename;
     return;
   }
-
+  
   // Ask HeaderInfo if we should enter this #include file.  If not, #including
   // this file will have no effect.
   if (!HeaderInfo.ShouldEnterIncludeFile(File, isImport))
@@ -1103,8 +1105,7 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
   FileID FID = SourceMgr.createFileID(File, FilenameTok.getLocation(),
                                       FileCharacter);
   if (FID.isInvalid()) {
-    Diag(FilenameTok, diag::err_pp_file_not_found)
-      << std::string(FilenameStart, FilenameEnd);
+    Diag(FilenameTok, diag::err_pp_file_not_found) << Filename;
     return;
   }
 

@@ -957,7 +957,7 @@ bool FunctionDecl::isInlined() const {
 /// "externally" visible to other translation units in the program.
 ///
 /// In C99, inline definitions are not externally visible by default. However,
-/// if even one of the globa-scope declarations is marked "extern inline", the
+/// if even one of the global-scope declarations is marked "extern inline", the
 /// inline definition becomes externally visible (C99 6.7.4p6).
 ///
 /// In GNU89 mode, or if the gnu_inline attribute is attached to the function
@@ -1037,6 +1037,15 @@ OverloadedOperatorKind FunctionDecl::getOverloadedOperator() const {
     return getDeclName().getCXXOverloadedOperator();
   else
     return OO_None;
+}
+
+/// getLiteralIdentifier - The literal suffix identifier this function
+/// represents, if any.
+const IdentifierInfo *FunctionDecl::getLiteralIdentifier() const {
+  if (getDeclName().getNameKind() == DeclarationName::CXXLiteralOperatorName)
+    return getDeclName().getCXXLiteralIdentifier();
+  else
+    return 0;
 }
 
 FunctionDecl *FunctionDecl::getInstantiatedFromMemberFunction() const {

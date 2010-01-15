@@ -1,17 +1,18 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s
-// RUN: %clang_cc1 -fsyntax-only -fixit -o - | %clang_cc1 -fsyntax-only -pedantic -Werror -x c -
+// RUN: %clang_cc1 -fsyntax-only -fixit -o - %s | %clang_cc1 -fsyntax-only -pedantic -Werror -x c -
 struct Point {
   float x, y;
 };
 
 struct Rectangle {
-  struct Point top_left, bottom_right;
+  struct Point top_left, // expected-note{{'top_left' declared here}}
+               bottom_right;
 };
 
 enum Color { Red, Green, Blue };
 
 struct Window {
-  struct Rectangle bounds;
+  struct Rectangle bounds; // expected-note{{'bounds' declared here}}
   enum Color color;
 };
 

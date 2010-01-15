@@ -270,18 +270,18 @@ bool Sema::MergeCXXFunctionDecl(FunctionDecl *New, FunctionDecl *Old) {
     ParmVarDecl *NewParam = New->getParamDecl(p);
 
     if (OldParam->hasDefaultArg() && NewParam->hasDefaultArg()) {
-      // FIXME: If the parameter doesn't have an identifier then the location
-      // points to the '=' which means that the fixit hint won't remove any
-      // extra spaces between the type and the '='.
-      SourceLocation Begin = NewParam->getLocation();
-      if (NewParam->getIdentifier())
-        Begin = PP.getLocForEndOfToken(Begin);
-        
+      // FIXME: If we knew where the '=' was, we could easily provide a fix-it 
+      // hint here. Alternatively, we could walk the type-source information
+      // for NewParam to find the last source location in the type... but it
+      // isn't worth the effort right now. This is the kind of test case that
+      // is hard to get right:
+      
+      //   int f(int);
+      //   void g(int (*fp)(int) = f);
+      //   void g(int (*fp)(int) = &f);
       Diag(NewParam->getLocation(),
            diag::err_param_default_argument_redefinition)
-        << NewParam->getDefaultArgRange()
-        << CodeModificationHint::CreateRemoval(SourceRange(Begin,
-                                                        NewParam->getLocEnd()));
+        << NewParam->getDefaultArgRange();
       
       // Look for the function declaration where the default argument was
       // actually written, which may be a declaration prior to Old.
@@ -424,6 +424,8 @@ void Sema::CheckCXXDefaultArguments(FunctionDecl *FD) {
 /// the innermost class.
 bool Sema::isCurrentClassName(const IdentifierInfo &II, Scope *,
                               const CXXScopeSpec *SS) {
+  assert(getLangOptions().CPlusPlus && "No class names in C!");
+
   CXXRecordDecl *CurDecl;
   if (SS && SS->isSet() && !SS->isInvalid()) {
     DeclContext *DC = computeDeclContext(*SS, true);
@@ -1072,6 +1074,8 @@ Sema::ActOnMemInitializer(DeclPtrTy ConstructorD,
               << MemberOrBase << true << R.getLookupName()
               << CodeModificationHint::CreateReplacement(R.getNameLoc(),
                                                R.getLookupName().getAsString());
+            Diag(Member->getLocation(), diag::note_previous_decl)
+              << Member->getDeclName();
 
             return BuildMemberInitializer(Member, (Expr**)Args, NumArgs, IdLoc,
                                           LParenLoc, RParenLoc);
@@ -1089,7 +1093,14 @@ Sema::ActOnMemInitializer(DeclPtrTy ConstructorD,
               << MemberOrBase << false << R.getLookupName()
               << CodeModificationHint::CreateReplacement(R.getNameLoc(),
                                                R.getLookupName().getAsString());
-            
+
+            const CXXBaseSpecifier *BaseSpec = DirectBaseSpec? DirectBaseSpec 
+                                                             : VirtualBaseSpec;
+            Diag(BaseSpec->getSourceRange().getBegin(),
+                 diag::note_base_class_specified_here)
+              << BaseSpec->getType()
+              << BaseSpec->getSourceRange();
+
             TyD = Type;
           }
         }
@@ -2054,7 +2065,7 @@ void Sema::CheckCompletedCXXClass(CXXRecordDecl *Record) {
 
   if (!Record->isDependentType())
     AddImplicitlyDeclaredMembersToClass(Record);
-
+  
   if (Record->isInvalidDecl())
     return;
 
@@ -2734,18 +2745,23 @@ Sema::DeclPtrTy Sema::ActOnConversionDeclarator(CXXConversionDecl *Conversion) {
       << ClassType << ConvType;
   }
 
-  if (Conversion->getPreviousDeclaration()) {
-    const NamedDecl *ExpectedPrevDecl = Conversion->getPreviousDeclaration();
+  if (Conversion->getPrimaryTemplate()) {
+    // ignore specializations
+  } else if (Conversion->getPreviousDeclaration()) {
     if (FunctionTemplateDecl *ConversionTemplate
-          = Conversion->getDescribedFunctionTemplate())
-      ExpectedPrevDecl = ConversionTemplate->getPreviousDeclaration();
-    if (ClassDecl->replaceConversion(ExpectedPrevDecl, Conversion))
+                                  = Conversion->getDescribedFunctionTemplate()) {
+      if (ClassDecl->replaceConversion(
+                                   ConversionTemplate->getPreviousDeclaration(),
+                                       ConversionTemplate))
+        return DeclPtrTy::make(ConversionTemplate);
+    } else if (ClassDecl->replaceConversion(Conversion->getPreviousDeclaration(),
+                                            Conversion))
       return DeclPtrTy::make(Conversion);
     assert(Conversion->isInvalidDecl() && "Conversion should not get here.");
   } else if (FunctionTemplateDecl *ConversionTemplate
                = Conversion->getDescribedFunctionTemplate())
     ClassDecl->addConversionFunction(ConversionTemplate);
-  else if (!Conversion->getPrimaryTemplate()) // ignore specializations
+  else 
     ClassDecl->addConversionFunction(Conversion);
 
   return DeclPtrTy::make(Conversion);
@@ -2986,6 +3002,7 @@ Sema::DeclPtrTy Sema::ActOnUsingDeclaration(Scope *S,
     break;
       
   case UnqualifiedId::IK_ConstructorName:
+  case UnqualifiedId::IK_ConstructorTemplateId:
     // C++0x inherited constructors.
     if (getLangOptions().CPlusPlus0x) break;
 
@@ -4184,7 +4201,7 @@ Sema::PerformInitializationByConstructor(QualType ClassType,
     else
       Diag(Loc, diag::err_ovl_no_viable_function_in_init)
         << ClassType << Range;
-    PrintOverloadCandidates(CandidateSet, /*OnlyViable=*/false);
+    PrintOverloadCandidates(CandidateSet, OCD_AllCandidates, Args, NumArgs);
     return 0;
 
   case OR_Ambiguous:
@@ -4192,7 +4209,7 @@ Sema::PerformInitializationByConstructor(QualType ClassType,
       Diag(Loc, diag::err_ovl_ambiguous_init) << InitEntity << Range;
     else
       Diag(Loc, diag::err_ovl_ambiguous_init) << ClassType << Range;
-    PrintOverloadCandidates(CandidateSet, /*OnlyViable=*/true);
+    PrintOverloadCandidates(CandidateSet, OCD_ViableCandidates, Args, NumArgs);
     return 0;
 
   case OR_Deleted:
@@ -4207,7 +4224,7 @@ Sema::PerformInitializationByConstructor(QualType ClassType,
         << Best->Function->isDeleted()
         << RD->getDeclName() << Range;
     }
-    PrintOverloadCandidates(CandidateSet, /*OnlyViable=*/true);
+    PrintOverloadCandidates(CandidateSet, OCD_AllCandidates, Args, NumArgs);
     return 0;
   }
 
@@ -4373,8 +4390,10 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
     = CompareReferenceRelationship(DeclLoc, T1, T2, DerivedToBase);
 
   // Most paths end in a failed conversion.
-  if (ICS)
-    ICS->ConversionKind = ImplicitConversionSequence::BadConversion;
+  if (ICS) {
+    ICS->setBad();
+    ICS->Bad.init(BadConversionSequence::no_conversion, Init, DeclType);
+  }
 
   // C++ [dcl.init.ref]p5:
   //   A reference to type "cv1 T1" is initialized by an expression
@@ -4412,7 +4431,7 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
       //   has a type that is a derived class of the parameter type,
       //   in which case the implicit conversion sequence is a
       //   derived-to-base Conversion (13.3.3.1).
-      ICS->ConversionKind = ImplicitConversionSequence::StandardConversion;
+      ICS->setStandard();
       ICS->Standard.First = ICK_Identity;
       ICS->Standard.Second = DerivedToBase? ICK_Derived_To_Base : ICK_Identity;
       ICS->Standard.Third = ICK_Identity;
@@ -4497,7 +4516,7 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
         //   conversion or, if the conversion function returns an
         //   entity of a type that is a derived class of the parameter
         //   type, a derived-to-base Conversion.
-        ICS->ConversionKind = ImplicitConversionSequence::UserDefinedConversion;
+        ICS->setUserDefined();
         ICS->UserDefined.Before = Best->Conversions[0].Standard;
         ICS->UserDefined.After = Best->FinalConversion;
         ICS->UserDefined.ConversionFunction = Best->Function;
@@ -4523,15 +4542,16 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
 
     case OR_Ambiguous:
       if (ICS) {
+        ICS->setAmbiguous();
         for (OverloadCandidateSet::iterator Cand = CandidateSet.begin();
              Cand != CandidateSet.end(); ++Cand)
           if (Cand->Viable)
-            ICS->ConversionFunctionSet.push_back(Cand->Function);
+            ICS->Ambiguous.addConversion(Cand->Function);
         break;
       }
       Diag(DeclLoc, diag::err_ref_init_ambiguous) << DeclType << Init->getType()
             << Init->getSourceRange();
-      PrintOverloadCandidates(CandidateSet, /*OnlyViable=*/true);
+      PrintOverloadCandidates(CandidateSet, OCD_ViableCandidates, &Init, 1);
       return true;
 
     case OR_No_Viable_Function:
@@ -4600,7 +4620,7 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
   if (InitLvalue != Expr::LV_Valid && T2->isRecordType() &&
       RefRelationship >= Ref_Compatible_With_Added_Qualification) {
     if (ICS) {
-      ICS->ConversionKind = ImplicitConversionSequence::StandardConversion;
+      ICS->setStandard();
       ICS->Standard.First = ICK_Identity;
       ICS->Standard.Second = DerivedToBase? ICK_Derived_To_Base : ICK_Identity;
       ICS->Standard.Third = ICK_Identity;
@@ -4672,30 +4692,27 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
                                  /*InOverloadResolution=*/false);
 
     // Of course, that's still a reference binding.
-    if (ICS->ConversionKind == ImplicitConversionSequence::StandardConversion) {
+    if (ICS->isStandard()) {
       ICS->Standard.ReferenceBinding = true;
       ICS->Standard.RRefBinding = isRValRef;
-    } else if (ICS->ConversionKind ==
-              ImplicitConversionSequence::UserDefinedConversion) {
+    } else if (ICS->isUserDefined()) {
       ICS->UserDefined.After.ReferenceBinding = true;
       ICS->UserDefined.After.RRefBinding = isRValRef;
     }
-    return ICS->ConversionKind == ImplicitConversionSequence::BadConversion;
+    return ICS->isBad();
   } else {
     ImplicitConversionSequence Conversions;
     bool badConversion = PerformImplicitConversion(Init, T1, AA_Initializing, 
                                                    false, false, 
                                                    Conversions);
     if (badConversion) {
-      if ((Conversions.ConversionKind  == 
-            ImplicitConversionSequence::BadConversion)
-          && !Conversions.ConversionFunctionSet.empty()) {
+      if (Conversions.isAmbiguous()) {
         Diag(DeclLoc, 
              diag::err_lvalue_to_rvalue_ambig_ref) << Init->getSourceRange();
-        for (int j = Conversions.ConversionFunctionSet.size()-1; 
+        for (int j = Conversions.Ambiguous.conversions().size()-1; 
              j >= 0; j--) {
-          FunctionDecl *Func = Conversions.ConversionFunctionSet[j];
-          Diag(Func->getLocation(), diag::err_ovl_candidate);
+          FunctionDecl *Func = Conversions.Ambiguous.conversions()[j];
+          NoteOverloadCandidate(Func);
         }
       }
       else {
@@ -4988,6 +5005,88 @@ bool Sema::CheckOverloadedOperatorDeclaration(FunctionDecl *FnDecl) {
       "Overloaded = not member, but not filtered.");
     CXXMethodDecl *Method = cast<CXXMethodDecl>(FnDecl);
     Method->getParent()->addedAssignmentOperator(Context, Method);
+  }
+
+  return false;
+}
+
+/// CheckLiteralOperatorDeclaration - Check whether the declaration
+/// of this literal operator function is well-formed. If so, returns
+/// false; otherwise, emits appropriate diagnostics and returns true.
+bool Sema::CheckLiteralOperatorDeclaration(FunctionDecl *FnDecl) {
+  DeclContext *DC = FnDecl->getDeclContext();
+  Decl::Kind Kind = DC->getDeclKind();
+  if (Kind != Decl::TranslationUnit && Kind != Decl::Namespace &&
+      Kind != Decl::LinkageSpec) {
+    Diag(FnDecl->getLocation(), diag::err_literal_operator_outside_namespace)
+      << FnDecl->getDeclName();
+    return true;
+  }
+
+  bool Valid = false;
+
+  // FIXME: Check for the one valid template signature
+  // template <char...> type operator "" name();
+
+  if (FunctionDecl::param_iterator Param = FnDecl->param_begin()) {
+    // Check the first parameter
+    QualType T = (*Param)->getType();
+
+    // unsigned long long int and long double are allowed, but only
+    // alone.
+    // We also allow any character type; their omission seems to be a bug
+    // in n3000
+    if (Context.hasSameType(T, Context.UnsignedLongLongTy) ||
+        Context.hasSameType(T, Context.LongDoubleTy) ||
+        Context.hasSameType(T, Context.CharTy) ||
+        Context.hasSameType(T, Context.WCharTy) ||
+        Context.hasSameType(T, Context.Char16Ty) ||
+        Context.hasSameType(T, Context.Char32Ty)) {
+      if (++Param == FnDecl->param_end())
+        Valid = true;
+      goto FinishedParams;
+    }
+
+    // Otherwise it must be a pointer to const; let's strip those.
+    const PointerType *PT = T->getAs<PointerType>();
+    if (!PT)
+      goto FinishedParams;
+    T = PT->getPointeeType();
+    if (!T.isConstQualified())
+      goto FinishedParams;
+    T = T.getUnqualifiedType();
+
+    // Move on to the second parameter;
+    ++Param;
+
+    // If there is no second parameter, the first must be a const char *
+    if (Param == FnDecl->param_end()) {
+      if (Context.hasSameType(T, Context.CharTy))
+        Valid = true;
+      goto FinishedParams;
+    }
+
+    // const char *, const wchar_t*, const char16_t*, and const char32_t*
+    // are allowed as the first parameter to a two-parameter function
+    if (!(Context.hasSameType(T, Context.CharTy) ||
+          Context.hasSameType(T, Context.WCharTy) ||
+          Context.hasSameType(T, Context.Char16Ty) ||
+          Context.hasSameType(T, Context.Char32Ty)))
+      goto FinishedParams;
+
+    // The second and final parameter must be an std::size_t
+    T = (*Param)->getType().getUnqualifiedType();
+    if (Context.hasSameType(T, Context.getSizeType()) &&
+        ++Param == FnDecl->param_end())
+      Valid = true;
+  }
+
+  // FIXME: This diagnostic is absolutely terrible.
+FinishedParams:
+  if (!Valid) {
+    Diag(FnDecl->getLocation(), diag::err_literal_operator_params)
+      << FnDecl->getDeclName();
+    return true;
   }
 
   return false;
@@ -5693,55 +5792,56 @@ void Sema::MaybeMarkVirtualMembersReferenced(SourceLocation Loc,
   if (!RD->isDynamicClass())
     return;
 
-  if (!MD->isOutOfLine()) {
-    // The only inline functions we care about are constructors. We also defer
-    // marking the virtual members as referenced until we've reached the end
-    // of the translation unit. We do this because we need to know the key
-    // function of the class in order to determine the key function.
-    if (isa<CXXConstructorDecl>(MD))
-      ClassesWithUnmarkedVirtualMembers.insert(std::make_pair(RD, Loc));
+  // Ignore declarations that are not definitions.
+  if (!MD->isThisDeclarationADefinition())
     return;
-  }
   
-  const CXXMethodDecl *KeyFunction = Context.getKeyFunction(RD);
-
-  if (!KeyFunction) {
-    // This record does not have a key function, so we assume that the vtable
-    // will be emitted when it's used by the constructor.
-    if (!isa<CXXConstructorDecl>(MD))
+  if (isa<CXXConstructorDecl>(MD)) {
+    switch (MD->getParent()->getTemplateSpecializationKind()) {
+    case TSK_Undeclared:
+    case TSK_ExplicitSpecialization:
+      // Classes that aren't instantiations of templates don't need their
+      // virtual methods marked until we see the definition of the key 
+      // function.
       return;
-  } else if (KeyFunction->getCanonicalDecl() != MD->getCanonicalDecl()) {
-    // We don't have the right key function.
+        
+    case TSK_ImplicitInstantiation:
+    case TSK_ExplicitInstantiationDeclaration:
+    case TSK_ExplicitInstantiationDefinition:
+      // This is a constructor of a class template; mark all of the virtual
+      // members as referenced to ensure that they get instantiatied.
+      break;
+    }
+  } else if (!MD->isOutOfLine()) {
+    // Consider only out-of-line definitions of member functions. When we see
+    // an inline definition, it's too early to compute the key function.
+    return;
+  } else if (const CXXMethodDecl *KeyFunction = Context.getKeyFunction(RD)) {
+    // If this is not the key function, we don't need to mark virtual members.
+    if (KeyFunction->getCanonicalDecl() != MD->getCanonicalDecl())
+      return;
+  } else {
+    // The class has no key function, so we've already noted that we need to
+    // mark the virtual members of this class.
     return;
   }
   
-  // Mark the members as referenced.
-  MarkVirtualMembersReferenced(Loc, RD);
-  ClassesWithUnmarkedVirtualMembers.erase(RD);
+  // We will need to mark all of the virtual members as referenced to build the
+  // vtable.
+  ClassesWithUnmarkedVirtualMembers.push_back(std::make_pair(RD, Loc));
 }
 
 bool Sema::ProcessPendingClassesWithUnmarkedVirtualMembers() {
   if (ClassesWithUnmarkedVirtualMembers.empty())
     return false;
   
-  for (std::map<CXXRecordDecl *, SourceLocation>::iterator i = 
-       ClassesWithUnmarkedVirtualMembers.begin(), 
-       e = ClassesWithUnmarkedVirtualMembers.end(); i != e; ++i) {
-    CXXRecordDecl *RD = i->first;
-    
-    const CXXMethodDecl *KeyFunction = Context.getKeyFunction(RD);
-    if (KeyFunction) {
-      // We know that the class has a key function. If the key function was
-      // declared in this translation unit, then it the class decl would not 
-      // have been in the ClassesWithUnmarkedVirtualMembers map.
-      continue;
-    }
-    
-    SourceLocation Loc = i->second;
+  while (!ClassesWithUnmarkedVirtualMembers.empty()) {
+    CXXRecordDecl *RD = ClassesWithUnmarkedVirtualMembers.back().first;
+    SourceLocation Loc = ClassesWithUnmarkedVirtualMembers.back().second;
+    ClassesWithUnmarkedVirtualMembers.pop_back();
     MarkVirtualMembersReferenced(Loc, RD);
   }
   
-  ClassesWithUnmarkedVirtualMembers.clear();
   return true;
 }
 

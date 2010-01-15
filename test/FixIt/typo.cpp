@@ -1,15 +1,15 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s
-// RUN: %clang_cc1 -fsyntax-only -fixit -o - | %clang_cc1 -fsyntax-only -pedantic -Werror -x c++ -
+// RUN: %clang_cc1 -fsyntax-only -fixit -o - %s | %clang_cc1 -fsyntax-only -pedantic -Werror -x c++ -
 namespace std {
-  template<typename T> class basic_string { 
-    int find(const char *substr);
-    static const int npos = -1;
+  template<typename T> class basic_string { // expected-note 2{{'basic_string' declared here}}
+    int find(const char *substr); // expected-note{{'find' declared here}}
+    static const int npos = -1; // expected-note{{'npos' declared here}}
   };
 
-  typedef basic_string<char> string;
+  typedef basic_string<char> string; // expected-note 2{{'string' declared here}}
 }
 
-namespace otherstd {
+namespace otherstd { // expected-note 2{{'otherstd' declared here}}
   using namespace std;
 }
 
@@ -21,8 +21,9 @@ tring str2; // expected-error{{unknown type name 'tring'; did you mean 'string'?
 
 ::other_std::string str3; // expected-error{{no member named 'other_std' in the global namespace; did you mean 'otherstd'?}}
 
-float area(float radius, float pi) {
-  return radious * pi; // expected-error{{use of undeclared identifier 'radious'; did you mean 'radius'?}}
+float area(float radius, // expected-note{{'radius' declared here}}
+           float pi) {
+  return radious * pi; // expected-error{{did you mean 'radius'?}}
 }
 
 bool test_string(std::string s) {
@@ -35,9 +36,19 @@ bool test_string(std::string s) {
 }
 
 struct Base { };
-struct Derived : public Base {
-  int member;
+struct Derived : public Base { // expected-note{{base class 'struct Base' specified here}}
+  int member; // expected-note 3{{'member' declared here}}
 
   Derived() : base(), // expected-error{{initializer 'base' does not name a non-static data member or base class; did you mean the base class 'Base'?}}
               ember() { } // expected-error{{initializer 'ember' does not name a non-static data member or base class; did you mean the member 'member'?}}
+
+  int getMember() const {
+    return ember; // expected-error{{use of undeclared identifier 'ember'; did you mean 'member'?}}
+  }
+
+  int &getMember();
 };
+
+int &Derived::getMember() {
+  return ember; // expected-error{{use of undeclared identifier 'ember'; did you mean 'member'?}}
+}

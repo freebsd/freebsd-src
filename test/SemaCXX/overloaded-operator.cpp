@@ -190,16 +190,23 @@ typedef INTREF Func1(FLOAT, double);
 typedef float& Func2(int, double);
 
 struct ConvertToFunc {
-  operator Func1*(); // expected-note{{conversion candidate of type 'INTREF (*)(FLOAT, double)'}}
-  operator Func2&(); // expected-note{{conversion candidate of type 'float &(&)(int, double)'}}
+  operator Func1*(); // expected-note 2{{conversion candidate of type 'INTREF (*)(FLOAT, double)'}}
+  operator Func2&(); // expected-note 2{{conversion candidate of type 'float &(&)(int, double)'}}
   void operator()();
 };
 
-void test_funcptr_call(ConvertToFunc ctf) {
+struct ConvertToFuncDerived : ConvertToFunc { };
+
+void test_funcptr_call(ConvertToFunc ctf, ConvertToFuncDerived ctfd) {
   int &i1 = ctf(1.0f, 2.0);
-  float &f2 = ctf((short int)1, 1.0f);
+  float &f1 = ctf((short int)1, 1.0f);
   ctf((long int)17, 2.0); // expected-error{{error: call to object of type 'struct ConvertToFunc' is ambiguous; candidates are:}}
   ctf();
+
+  int &i2 = ctfd(1.0f, 2.0);
+  float &f2 = ctfd((short int)1, 1.0f);
+  ctfd((long int)17, 2.0); // expected-error{{error: call to object of type 'struct ConvertToFuncDerived' is ambiguous; candidates are:}}
+  ctfd();
 }
 
 struct HasMember {
@@ -322,5 +329,29 @@ namespace pr5512 {
   int a;
   void b(A x) {
     a += x;
+  }
+}
+
+// PR5900
+namespace pr5900 {
+  struct NotAnArray {};
+  void test0() {
+    NotAnArray x;
+    x[0] = 0; // expected-error {{does not provide a subscript operator}}
+  }
+
+  struct NonConstArray {
+    int operator[](unsigned); // expected-note {{candidate}}
+  };
+  int test1() {
+    const NonConstArray x;
+    return x[0]; // expected-error {{no viable overloaded operator[] for type}}
+  }
+
+  // Not really part of this PR, but implemented at the same time.
+  struct NotAFunction {};
+  void test2() {
+    NotAFunction x;
+    x(); // expected-error {{does not provide a call operator}}
   }
 }

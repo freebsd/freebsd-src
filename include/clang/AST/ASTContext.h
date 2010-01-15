@@ -699,8 +699,8 @@ public:
                                       ObjCProtocolDecl *rProto);
 
   /// getObjCEncodingTypeSize returns size of type for objective-c encoding
-  /// purpose.
-  int getObjCEncodingTypeSize(QualType t);
+  /// purpose in characters.
+  CharUnits getObjCEncodingTypeSize(QualType t);
 
   /// This setter/getter represents the ObjC 'id' type. It is setup lazily, by
   /// Sema.  id is always a (typedef for a) pointer type, a pointer to a struct.
@@ -898,17 +898,18 @@ public:
     return getCanonicalType(T1) == getCanonicalType(T2);
   }
 
-  /// \brief Returns this type as a completely-unqualified array type, capturing
-  /// the qualifiers in Quals. This only operates on canonical types in order
-  /// to ensure the ArrayType doesn't itself have qualifiers.
+  /// \brief Returns this type as a completely-unqualified array type,
+  /// capturing the qualifiers in Quals. This will remove the minimal amount of
+  /// sugaring from the types, similar to the behavior of
+  /// QualType::getUnqualifiedType().
   ///
-  /// \param T is the canonicalized QualType, which may be an ArrayType
+  /// \param T is the qualified type, which may be an ArrayType
   ///
   /// \param Quals will receive the full set of qualifiers that were
-  /// applied to the element type of the array.
+  /// applied to the array.
   ///
   /// \returns if this is an array type, the completely unqualified array type
-  /// that corresponds to it. Otherwise, returns this->getUnqualifiedType().
+  /// that corresponds to it. Otherwise, returns T.getUnqualifiedType().
   QualType getUnqualifiedArrayType(QualType T, Qualifiers &Quals);
 
   /// \brief Determine whether the given types are equivalent after
@@ -996,7 +997,10 @@ public:
   const IncompleteArrayType *getAsIncompleteArrayType(QualType T) {
     return dyn_cast_or_null<IncompleteArrayType>(getAsArrayType(T));
   }
-
+  const DependentSizedArrayType *getAsDependentSizedArrayType(QualType T) {
+    return dyn_cast_or_null<DependentSizedArrayType>(getAsArrayType(T));
+  }
+  
   /// getBaseElementType - Returns the innermost element type of an array type.
   /// For example, will return "int" for int[m][n]
   QualType getBaseElementType(const ArrayType *VAT);

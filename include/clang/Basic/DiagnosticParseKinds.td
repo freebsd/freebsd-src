@@ -261,6 +261,8 @@ def err_attributes_not_allowed : Error<"an attribute list cannot appear here">;
 
 /// C++ Templates
 def err_expected_template : Error<"expected template">;
+def err_unknown_template_name : Error<
+  "unknown template name %0">;
 def err_expected_comma_greater : Error<
   "expected ',' or '>' in template-parameter-list">;
 def err_expected_type_id_after : Error<"expected type-id after '%0'">;
@@ -288,6 +290,16 @@ def err_explicit_instantiation_with_definition : Error<
     "explicit template instantiation cannot have a definition; if this "
     "definition is meant to be an explicit specialization, add '<>' after the "
     "'template' keyword">;
+
+// Constructor template diagnostics.
+def err_out_of_line_constructor_template_id : Error<
+  "out-of-line constructor for %0 cannot have template arguments">;
+def err_out_of_line_template_id_names_constructor : Error<
+  "qualified reference to %0 is a constructor name rather than a "
+  "template name wherever a constructor can be declared">;
+def err_out_of_line_type_names_constructor : Error<
+  "qualified reference to %0 is a constructor name rather than a "
+  "type wherever a constructor can be declared">;
 
 def err_expected_qualified_after_typename : Error<
   "expected a qualified name after 'typename'">;

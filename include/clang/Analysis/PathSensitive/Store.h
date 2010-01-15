@@ -103,9 +103,6 @@ public:
 
   virtual SVal getLValueElement(QualType elementType, SVal offset, SVal Base)=0;
 
-  // T - the object type.
-  Loc getThisObject(QualType T);
-
   // FIXME: Make out-of-line.
   virtual DefinedOrUnknownSVal getSizeInElements(const GRState *state, 
                                                  const MemRegion *region) {
@@ -192,7 +189,8 @@ protected:
   /// CastRetrievedVal - Used by subclasses of StoreManager to implement
   ///  implicit casts that arise from loads from regions that are reinterpreted
   ///  as another region.
-  SVal CastRetrievedVal(SVal val, const TypedRegion *R, QualType castTy);
+  SVal CastRetrievedVal(SVal val, const TypedRegion *R, QualType castTy,
+                        bool performTestOnly = true);
 };
 
 // FIXME: Do we still need this?

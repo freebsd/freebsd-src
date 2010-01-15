@@ -194,6 +194,9 @@ int ints(long a, unsigned long b) {
          ((short) a < (unsigned short) 0x80000) +  // expected-warning {{comparison of integers of different signs}}
          ((signed char) a < (unsigned char) 0x80000) +  // expected-warning {{comparison of integers of different signs}}
 
+         // We should be able to avoid warning about this.
+         (b != (a < 4 ? 1 : 2)) +
+
          10
     ;
 }
@@ -229,4 +232,45 @@ int void_pointers(void* foo) {
 int test1(int i) {
   enum en { zero };
   return i > zero;
+}
+
+// PR5937
+int test2(int i32) {
+  struct foo {
+    unsigned int u8 : 8;
+    unsigned long long u31 : 31;
+    unsigned long long u32 : 32;
+    unsigned long long u63 : 63;
+    unsigned long long u64 : 64;
+  } *x;
+  
+  if (x->u8 == i32) { // comparison in int32, exact
+    return 0;
+  } else if (x->u31 == i32) { // comparison in int32, exact
+    return 1;
+  } else if (x->u32 == i32) { // expected-warning {{comparison of integers of different signs}}
+    return 2;
+  } else if (x->u63 == i32) { // comparison in uint64, exact because ==
+    return 3;
+  } else if (x->u64 == i32) { // expected-warning {{comparison of integers of different signs}}
+    return 4;
+  } else {
+    return 5;
+  }
+}
+
+// PR5887
+void test3() {
+  unsigned short x, y;
+  unsigned int z;
+  if ((x > y ? x : y) > z)
+    (void) 0;
+}
+
+// PR5961
+extern char *ptr4;
+void test4() {
+  long value;
+  if (value < (unsigned long) &ptr4) // expected-warning {{comparison of integers of different signs}}
+    return;
 }

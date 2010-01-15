@@ -208,7 +208,9 @@ void PCHDeclReader::VisitObjCMethodDecl(ObjCMethodDecl *MD) {
 
 void PCHDeclReader::VisitObjCContainerDecl(ObjCContainerDecl *CD) {
   VisitNamedDecl(CD);
-  CD->setAtEndLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  SourceLocation A = SourceLocation::getFromRawEncoding(Record[Idx++]);
+  SourceLocation B = SourceLocation::getFromRawEncoding(Record[Idx++]);
+  CD->setAtEndRange(SourceRange(A, B));
 }
 
 void PCHDeclReader::VisitObjCInterfaceDecl(ObjCInterfaceDecl *ID) {
@@ -436,6 +438,9 @@ Attr *PCHReader::ReadAttributes() {
     bool IsInherited = Record[Idx++];
 
     switch (Kind) {
+    default:
+      assert(0 && "Unknown attribute!");
+      break;
     STRING_ATTR(Alias);
     UNSIGNED_ATTR(Aligned);
     SIMPLE_ATTR(AlwaysInline);

@@ -203,8 +203,8 @@ void DarwinGCC::AddLinkRuntimeLibArgs(const ArgList &Args,
         CmdArgs.push_back("-lgcc_s.10.5");
       }
     } else if (Args.hasArg(options::OPT_shared_libgcc) ||
-               // FIXME: -fexceptions -fno-exceptions means no exceptions
-               Args.hasArg(options::OPT_fexceptions) ||
+               Args.hasFlag(options::OPT_fexceptions,
+                            options::OPT_fno_exceptions) ||
                Args.hasArg(options::OPT_fgnu_runtime)) {
       // FIXME: This is probably broken on 10.3?
       if (isMacosxVersionLT(MacosxVersionMin, 10, 5))
@@ -516,10 +516,6 @@ DerivedArgList *Darwin::TranslateArgs(InputArgList &Args,
   return DAL;
 }
 
-bool Darwin::IsMathErrnoDefault() const {
-  return false;
-}
-
 bool Darwin::IsUnwindTablesDefault() const {
   // FIXME: Gross; we should probably have some separate target
   // definition, possibly even reusing the one in clang.
@@ -597,10 +593,6 @@ Tool &Generic_GCC::SelectTool(const Compilation &C,
   }
 
   return *T;
-}
-
-bool Generic_GCC::IsMathErrnoDefault() const {
-  return true;
 }
 
 bool Generic_GCC::IsUnwindTablesDefault() const {

@@ -139,10 +139,14 @@ typedef struct {
   enum CXCursorKind kind;
   CXDecl decl;
   CXStmt stmt; /* expression reference */
+  CXDecl referringDecl;
 } CXCursor;  
 
 /* A unique token for looking up "visible" CXDecls from a CXTranslationUnit. */
-typedef void *CXEntity;
+typedef struct {
+  CXIndex index;
+  void *data;
+} CXEntity;
 
 /**
  * For functions returning a string that might or might not need
@@ -321,19 +325,39 @@ CINDEX_LINKAGE time_t clang_getFileTime(CXFile SFile);
 /*
  * CXEntity Operations.
  */
-CINDEX_LINKAGE const char *clang_getDeclarationName(CXEntity);
-CINDEX_LINKAGE const char *clang_getURI(CXEntity);
-CINDEX_LINKAGE CXEntity clang_getEntity(const char *URI);
+  
+/* clang_getDeclaration() maps from a CXEntity to the matching CXDecl (if any)
+ *  in a specified translation unit. */
+CINDEX_LINKAGE CXDecl clang_getDeclaration(CXEntity, CXTranslationUnit);
+
 /*
  * CXDecl Operations.
  */
 CINDEX_LINKAGE CXCursor clang_getCursorFromDecl(CXDecl);
-CINDEX_LINKAGE CXEntity clang_getEntityFromDecl(CXDecl);
+CINDEX_LINKAGE CXEntity clang_getEntityFromDecl(CXIndex, CXDecl);
 CINDEX_LINKAGE CXString clang_getDeclSpelling(CXDecl);
 CINDEX_LINKAGE unsigned clang_getDeclLine(CXDecl);
 CINDEX_LINKAGE unsigned clang_getDeclColumn(CXDecl);
+CINDEX_LINKAGE CXString clang_getDeclUSR(CXDecl);
 CINDEX_LINKAGE const char *clang_getDeclSource(CXDecl); /* deprecate */
 CINDEX_LINKAGE CXFile clang_getDeclSourceFile(CXDecl);
+
+typedef struct CXSourceLineColumn {
+  unsigned line;
+  unsigned column;
+} CXSourceLineColumn;
+
+typedef struct CXDeclExtent {
+  CXSourceLineColumn begin;
+  CXSourceLineColumn end;
+} CXSourceExtent;
+
+/* clang_getDeclExtent() returns the physical extent of a declaration.  The
+ * beginning line/column pair points to the start of the first token in the
+ * declaration, and the ending line/column pair points to the last character in
+ * the last token of the declaration.
+ */
+CINDEX_LINKAGE CXSourceExtent clang_getDeclExtent(CXDecl);
 
 /*
  * CXCursor Operations.
@@ -564,7 +588,28 @@ enum CXCompletionChunkKind {
    * the text buffer. Rather, it is meant to illustrate the type that an 
    * expression using the given completion string would have.
    */
-  CXCompletionChunk_ResultType
+  CXCompletionChunk_ResultType,
+  /**
+   * \brief A colon (':').
+   */
+  CXCompletionChunk_Colon,
+  /**
+   * \brief A semicolon (';').
+   */
+  CXCompletionChunk_SemiColon,
+  /**
+   * \brief An '=' sign.
+   */
+  CXCompletionChunk_Equal,
+  /**
+   * Horizontal space (' ').
+   */
+  CXCompletionChunk_HorizontalSpace,
+  /**
+   * Vertical space ('\n'), after which it is generally a good idea to
+   * perform indentation.
+   */
+  CXCompletionChunk_VerticalSpace
 };
   
 /**

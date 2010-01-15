@@ -444,10 +444,83 @@ static bool LookupDirect(LookupResult &R, const DeclContext *DC) {
   bool Found = false;
 
   DeclContext::lookup_const_iterator I, E;
-  for (llvm::tie(I, E) = DC->lookup(R.getLookupName()); I != E; ++I)
-    if (R.isAcceptableDecl(*I))
-      R.addDecl(*I), Found = true;
+  for (llvm::tie(I, E) = DC->lookup(R.getLookupName()); I != E; ++I) {
+    if (R.isAcceptableDecl(*I)) {
+      R.addDecl(*I);
+      Found = true;
+    }
+  }
 
+  if (R.getLookupName().getNameKind()
+        == DeclarationName::CXXConversionFunctionName &&
+      !R.getLookupName().getCXXNameType()->isDependentType() &&
+      isa<CXXRecordDecl>(DC)) {
+    // C++ [temp.mem]p6:
+    //   A specialization of a conversion function template is not found by 
+    //   name lookup. Instead, any conversion function templates visible in the
+    //   context of the use are considered. [...]
+    const CXXRecordDecl *Record = cast<CXXRecordDecl>(DC);
+    if (!Record->isDefinition())
+      return Found;
+
+    const UnresolvedSet *Unresolved = Record->getConversionFunctions();
+    for (UnresolvedSet::iterator U = Unresolved->begin(), 
+                              UEnd = Unresolved->end();
+         U != UEnd; ++U) {
+      FunctionTemplateDecl *ConvTemplate = dyn_cast<FunctionTemplateDecl>(*U);
+      if (!ConvTemplate)
+        continue;
+      
+      // When we're performing lookup for the purposes of redeclaration, just
+      // add the conversion function template. When we deduce template 
+      // arguments for specializations, we'll end up unifying the return 
+      // type of the new declaration with the type of the function template.
+      if (R.isForRedeclaration()) {
+        R.addDecl(ConvTemplate);
+        Found = true;
+        continue;
+      }
+      
+      // C++ [temp.mem]p6:
+      //   [...] For each such operator, if argument deduction succeeds 
+      //   (14.9.2.3), the resulting specialization is used as if found by 
+      //   name lookup.
+      //
+      // When referencing a conversion function for any purpose other than
+      // a redeclaration (such that we'll be building an expression with the
+      // result), perform template argument deduction and place the 
+      // specialization into the result set. We do this to avoid forcing all
+      // callers to perform special deduction for conversion functions.
+      Sema::TemplateDeductionInfo Info(R.getSema().Context);
+      FunctionDecl *Specialization = 0;
+      
+      const FunctionProtoType *ConvProto        
+        = ConvTemplate->getTemplatedDecl()->getType()
+                                                  ->getAs<FunctionProtoType>();
+      assert(ConvProto && "Nonsensical conversion function template type");
+
+      // Compute the type of the function that we would expect the conversion
+      // function to have, if it were to match the name given.
+      // FIXME: Calling convention!
+      QualType ExpectedType
+        = R.getSema().Context.getFunctionType(
+                                            R.getLookupName().getCXXNameType(),
+                                              0, 0, ConvProto->isVariadic(),
+                                              ConvProto->getTypeQuals(),
+                                              false, false, 0, 0,
+                                              ConvProto->getNoReturnAttr());
+      
+      // Perform template argument deduction against the type that we would
+      // expect the function to have.
+      if (R.getSema().DeduceTemplateArguments(ConvTemplate, 0, ExpectedType,
+                                              Specialization, Info)
+            == Sema::TDK_Success) {
+        R.addDecl(Specialization);
+        Found = true;
+      }
+    }
+  }
+  
   return Found;
 }
 
@@ -550,7 +623,7 @@ bool Sema::CppLookupName(LookupResult &R, Scope *S) {
         // example, inside a class without any base classes, we never need to
         // perform qualified lookup because all of the members are on top of the
         // identifier chain.
-        if (LookupQualifiedName(R, Ctx))
+        if (LookupQualifiedName(R, Ctx, /*InUnqualifiedLookup=*/true))
           return true;
       }
     }
@@ -577,7 +650,7 @@ bool Sema::CppLookupName(LookupResult &R, Scope *S) {
 
   for (; S; S = S->getParent()) {
     DeclContext *Ctx = static_cast<DeclContext *>(S->getEntity());
-    if (Ctx->isTransparentContext())
+    if (!Ctx || Ctx->isTransparentContext())
       continue;
 
     assert(Ctx && Ctx->isFileContext() &&
@@ -854,11 +927,11 @@ static bool LookupQualifiedNameInUsingDirectives(LookupResult &R,
   return Found;
 }
 
-/// @brief Perform qualified name lookup into a given context.
+/// \brief Perform qualified name lookup into a given context.
 ///
 /// Qualified name lookup (C++ [basic.lookup.qual]) is used to find
 /// names when the context of those names is explicit specified, e.g.,
-/// "std::vector" or "x->member".
+/// "std::vector" or "x->member", or as part of unqualified name lookup.
 ///
 /// Different lookup criteria can find different names. For example, a
 /// particular scope can have both a struct and a function of the same
@@ -866,25 +939,18 @@ static bool LookupQualifiedNameInUsingDirectives(LookupResult &R,
 /// information about lookup criteria, see the documentation for the
 /// class LookupCriteria.
 ///
-/// @param LookupCtx The context in which qualified name lookup will
+/// \param R captures both the lookup criteria and any lookup results found.
+///
+/// \param LookupCtx The context in which qualified name lookup will
 /// search. If the lookup criteria permits, name lookup may also search
 /// in the parent contexts or (for C++ classes) base classes.
 ///
-/// @param Name     The name of the entity that we are searching for.
+/// \param InUnqualifiedLookup true if this is qualified name lookup that 
+/// occurs as part of unqualified name lookup.
 ///
-/// @param Criteria The criteria that this routine will use to
-/// determine which names are visible and which names will be
-/// found. Note that name lookup will find a name that is visible by
-/// the given criteria, but the entity itself may not be semantically
-/// correct or even the kind of entity expected based on the
-/// lookup. For example, searching for a nested-name-specifier name
-/// might result in an EnumDecl, which is visible but is not permitted
-/// as a nested-name-specifier in C++03.
-///
-/// @returns The result of name lookup, which includes zero or more
-/// declarations and possibly additional information used to diagnose
-/// ambiguities.
-bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx) {
+/// \returns true if lookup succeeded, false if it failed.
+bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
+                               bool InUnqualifiedLookup) {
   assert(LookupCtx && "Sema::LookupQualifiedName requires a lookup context");
 
   if (!R.getLookupName())
@@ -922,11 +988,22 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx) {
 
   // If this isn't a C++ class, we aren't allowed to look into base
   // classes, we're done.
-  if (!isa<CXXRecordDecl>(LookupCtx))
+  CXXRecordDecl *LookupRec = dyn_cast<CXXRecordDecl>(LookupCtx);
+  if (!LookupRec)
     return false;
 
+  // If we're performing qualified name lookup into a dependent class,
+  // then we are actually looking into a current instantiation. If we have any
+  // dependent base classes, then we either have to delay lookup until 
+  // template instantiation time (at which point all bases will be available)
+  // or we have to fail.
+  if (!InUnqualifiedLookup && LookupRec->isDependentContext() &&
+      LookupRec->hasAnyDependentBases()) {
+    R.setNotFoundInCurrentInstantiation();
+    return false;
+  }
+    
   // Perform lookup into our base classes.
-  CXXRecordDecl *LookupRec = cast<CXXRecordDecl>(LookupCtx);
   CXXBasePaths Paths;
   Paths.setOrigin(LookupRec);
 
@@ -1843,6 +1920,9 @@ VisibleDeclsRecord::ShadowMapEntry::end() {
 }
 
 NamedDecl *VisibleDeclsRecord::checkHidden(NamedDecl *ND) {
+  // Look through using declarations.
+  ND = ND->getUnderlyingDecl();
+  
   unsigned IDNS = ND->getIdentifierNamespace();
   std::list<ShadowMap>::reverse_iterator SM = ShadowMaps.rbegin();
   for (std::list<ShadowMap>::reverse_iterator SMEnd = ShadowMaps.rend();
@@ -1866,6 +1946,14 @@ NamedDecl *VisibleDeclsRecord::checkHidden(NamedDecl *ND) {
           (*I)->getIdentifierNamespace() != IDNS)
         continue;
 
+      // Functions and function templates in the same scope overload
+      // rather than hide.  FIXME: Look for hiding based on function
+      // signatures!
+      if ((*I)->isFunctionOrFunctionTemplate() &&
+          ND->isFunctionOrFunctionTemplate() &&
+          SM == ShadowMaps.rbegin())
+        continue;
+          
       // We've found a declaration that hides this one.
       return *I;
     }
@@ -1876,6 +1964,7 @@ NamedDecl *VisibleDeclsRecord::checkHidden(NamedDecl *ND) {
 
 static void LookupVisibleDecls(DeclContext *Ctx, LookupResult &Result,
                                bool QualifiedNameLookup,
+                               bool InBaseClass,
                                VisibleDeclConsumer &Consumer,
                                VisibleDeclsRecord &Visited) {
   // Make sure we don't visit the same context twice.
@@ -1890,14 +1979,14 @@ static void LookupVisibleDecls(DeclContext *Ctx, LookupResult &Result,
          D != DEnd; ++D) {
       if (NamedDecl *ND = dyn_cast<NamedDecl>(*D))
         if (Result.isAcceptableDecl(ND)) {
-          Consumer.FoundDecl(ND, Visited.checkHidden(ND));
+          Consumer.FoundDecl(ND, Visited.checkHidden(ND), InBaseClass);
           Visited.add(ND);
         }
 
       // Visit transparent contexts inside this context.
       if (DeclContext *InnerCtx = dyn_cast<DeclContext>(*D)) {
         if (InnerCtx->isTransparentContext())
-          LookupVisibleDecls(InnerCtx, Result, QualifiedNameLookup, 
+          LookupVisibleDecls(InnerCtx, Result, QualifiedNameLookup, InBaseClass,
                              Consumer, Visited);
       }
     }
@@ -1909,11 +1998,11 @@ static void LookupVisibleDecls(DeclContext *Ctx, LookupResult &Result,
     DeclContext::udir_iterator I, E;
     for (llvm::tie(I, E) = Ctx->getUsingDirectives(); I != E; ++I) {
       LookupVisibleDecls((*I)->getNominatedNamespace(), Result, 
-                         QualifiedNameLookup, Consumer, Visited);
+                         QualifiedNameLookup, InBaseClass, Consumer, Visited);
     }
   }
 
-  // Traverse the contexts of inherited classes.
+  // Traverse the contexts of inherited C++ classes.
   if (CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(Ctx)) {
     for (CXXRecordDecl::base_class_iterator B = Record->bases_begin(),
                                          BEnd = Record->bases_end();
@@ -1951,11 +2040,49 @@ static void LookupVisibleDecls(DeclContext *Ctx, LookupResult &Result,
       // Find results in this base class (and its bases).
       ShadowContextRAII Shadow(Visited);
       LookupVisibleDecls(Record->getDecl(), Result, QualifiedNameLookup,
-                         Consumer, Visited);
+                         true, Consumer, Visited);
     }
   }
   
-  // FIXME: Look into base classes in Objective-C!
+  // Traverse the contexts of Objective-C classes.
+  if (ObjCInterfaceDecl *IFace = dyn_cast<ObjCInterfaceDecl>(Ctx)) {
+    // Traverse categories.
+    for (ObjCCategoryDecl *Category = IFace->getCategoryList();
+         Category; Category = Category->getNextClassCategory()) {
+      ShadowContextRAII Shadow(Visited);
+      LookupVisibleDecls(Category, Result, QualifiedNameLookup, false, 
+                         Consumer, Visited);
+    }
+
+    // Traverse protocols.
+    for (ObjCInterfaceDecl::protocol_iterator I = IFace->protocol_begin(),
+         E = IFace->protocol_end(); I != E; ++I) {
+      ShadowContextRAII Shadow(Visited);
+      LookupVisibleDecls(*I, Result, QualifiedNameLookup, false, Consumer, 
+                         Visited);
+    }
+
+    // Traverse the superclass.
+    if (IFace->getSuperClass()) {
+      ShadowContextRAII Shadow(Visited);
+      LookupVisibleDecls(IFace->getSuperClass(), Result, QualifiedNameLookup,
+                         true, Consumer, Visited);
+    }
+  } else if (ObjCProtocolDecl *Protocol = dyn_cast<ObjCProtocolDecl>(Ctx)) {
+    for (ObjCProtocolDecl::protocol_iterator I = Protocol->protocol_begin(),
+           E = Protocol->protocol_end(); I != E; ++I) {
+      ShadowContextRAII Shadow(Visited);
+      LookupVisibleDecls(*I, Result, QualifiedNameLookup, false, Consumer, 
+                         Visited);
+    }
+  } else if (ObjCCategoryDecl *Category = dyn_cast<ObjCCategoryDecl>(Ctx)) {
+    for (ObjCCategoryDecl::protocol_iterator I = Category->protocol_begin(),
+           E = Category->protocol_end(); I != E; ++I) {
+      ShadowContextRAII Shadow(Visited);
+      LookupVisibleDecls(*I, Result, QualifiedNameLookup, false, Consumer, 
+                         Visited);
+    }
+  }
 }
 
 static void LookupVisibleDecls(Scope *S, LookupResult &Result,
@@ -1965,9 +2092,21 @@ static void LookupVisibleDecls(Scope *S, LookupResult &Result,
   if (!S)
     return;
 
+  if (!S->getEntity() || !S->getParent() ||
+      ((DeclContext *)S->getEntity())->isFunctionOrMethod()) {
+    // Walk through the declarations in this Scope.
+    for (Scope::decl_iterator D = S->decl_begin(), DEnd = S->decl_end();
+         D != DEnd; ++D) {
+      if (NamedDecl *ND = dyn_cast<NamedDecl>((Decl *)((*D).get())))
+        if (Result.isAcceptableDecl(ND)) {
+          Consumer.FoundDecl(ND, Visited.checkHidden(ND), false);
+          Visited.add(ND);
+        }
+    }
+  }
+  
   DeclContext *Entity = 0;
-  if (S->getEntity() && 
-      !((DeclContext *)S->getEntity())->isFunctionOrMethod()) {
+  if (S->getEntity()) {
     // Look into this scope's declaration context, along with any of its
     // parent lookup contexts (e.g., enclosing classes), up to the point
     // where we hit the context stored in the next outer scope.
@@ -1976,11 +2115,27 @@ static void LookupVisibleDecls(Scope *S, LookupResult &Result,
     
     for (DeclContext *Ctx = Entity; Ctx && Ctx->getPrimaryContext() != OuterCtx;
          Ctx = Ctx->getLookupParent()) {
+      if (ObjCMethodDecl *Method = dyn_cast<ObjCMethodDecl>(Ctx)) {
+        if (Method->isInstanceMethod()) {
+          // For instance methods, look for ivars in the method's interface.
+          LookupResult IvarResult(Result.getSema(), Result.getLookupName(),
+                                  Result.getNameLoc(), Sema::LookupMemberName);
+          ObjCInterfaceDecl *IFace = Method->getClassInterface();
+          LookupVisibleDecls(IFace, IvarResult, /*QualifiedNameLookup=*/false, 
+                             /*InBaseClass=*/false, Consumer, Visited);
+        }
+
+        // We've already performed all of the name lookup that we need
+        // to for Objective-C methods; the next context will be the
+        // outer scope.
+        break;
+      }
+
       if (Ctx->isFunctionOrMethod())
         continue;
       
       LookupVisibleDecls(Ctx, Result, /*QualifiedNameLookup=*/false, 
-                         Consumer, Visited);
+                         /*InBaseClass=*/false, Consumer, Visited);
     }
   } else if (!S->getParent()) {
     // Look into the translation unit scope. We walk through the translation
@@ -1991,22 +2146,11 @@ static void LookupVisibleDecls(Scope *S, LookupResult &Result,
     // doing so would force the normal C++ name-lookup code to look into the
     // translation unit decl when the IdentifierInfo chains would suffice. 
     // Once we fix that problem (which is part of a more general "don't look
-    // in DeclContexts unless we have to" optimization), we can eliminate the
-    // TranslationUnit parameter entirely.
+    // in DeclContexts unless we have to" optimization), we can eliminate this.
     Entity = Result.getSema().Context.getTranslationUnitDecl();
     LookupVisibleDecls(Entity, Result, /*QualifiedNameLookup=*/false, 
-                       Consumer, Visited);
-  } else {
-    // Walk through the declarations in this Scope.
-    for (Scope::decl_iterator D = S->decl_begin(), DEnd = S->decl_end();
-         D != DEnd; ++D) {
-      if (NamedDecl *ND = dyn_cast<NamedDecl>((Decl *)((*D).get())))
-        if (Result.isAcceptableDecl(ND)) {
-          Consumer.FoundDecl(ND, Visited.checkHidden(ND));
-          Visited.add(ND);
-        }
-    }
-  }
+                       /*InBaseClass=*/false, Consumer, Visited);
+  } 
   
   if (Entity) {
     // Lookup visible declarations in any namespaces found by using
@@ -2015,8 +2159,8 @@ static void LookupVisibleDecls(Scope *S, LookupResult &Result,
     llvm::tie(UI, UEnd) = UDirs.getNamespacesFor(Entity);
     for (; UI != UEnd; ++UI)
       LookupVisibleDecls(const_cast<DeclContext *>(UI->getNominatedNamespace()),
-                         Result, /*QualifiedNameLookup=*/false, Consumer, 
-                         Visited);
+                         Result, /*QualifiedNameLookup=*/false, 
+                         /*InBaseClass=*/false, Consumer, Visited);
   }
 
   // Lookup names in the parent scope.
@@ -2051,8 +2195,8 @@ void Sema::LookupVisibleDecls(DeclContext *Ctx, LookupNameKind Kind,
   LookupResult Result(*this, DeclarationName(), SourceLocation(), Kind);
   VisibleDeclsRecord Visited;
   ShadowContextRAII Shadow(Visited);
-  ::LookupVisibleDecls(Ctx, Result, /*QualifiedNameLookup=*/true, Consumer, 
-                       Visited);
+  ::LookupVisibleDecls(Ctx, Result, /*QualifiedNameLookup=*/true, 
+                       /*InBaseClass=*/false, Consumer, Visited);
 }
 
 //----------------------------------------------------------------------------
@@ -2075,7 +2219,7 @@ public:
   explicit TypoCorrectionConsumer(IdentifierInfo *Typo)
     : Typo(Typo->getName()) { }
 
-  virtual void FoundDecl(NamedDecl *ND, NamedDecl *Hiding);
+  virtual void FoundDecl(NamedDecl *ND, NamedDecl *Hiding, bool InBaseClass);
 
   typedef llvm::SmallVector<NamedDecl *, 4>::const_iterator iterator;
   iterator begin() const { return BestResults.begin(); }
@@ -2087,7 +2231,8 @@ public:
 
 }
 
-void TypoCorrectionConsumer::FoundDecl(NamedDecl *ND, NamedDecl *Hiding) {
+void TypoCorrectionConsumer::FoundDecl(NamedDecl *ND, NamedDecl *Hiding, 
+                                       bool InBaseClass) {
   // Don't consider hidden names for typo correction.
   if (Hiding)
     return;
@@ -2140,11 +2285,19 @@ void TypoCorrectionConsumer::FoundDecl(NamedDecl *ND, NamedDecl *Hiding) {
 /// \param EnteringContext whether we're entering the context described by 
 /// the nested-name-specifier SS.
 ///
+/// \param OPT when non-NULL, the search for visible declarations will
+/// also walk the protocols in the qualified interfaces of \p OPT.
+///
 /// \returns true if the typo was corrected, in which case the \p Res
 /// structure will contain the results of name lookup for the
 /// corrected name. Otherwise, returns false.
 bool Sema::CorrectTypo(LookupResult &Res, Scope *S, const CXXScopeSpec *SS,
-                       DeclContext *MemberContext, bool EnteringContext) {
+                       DeclContext *MemberContext, bool EnteringContext,
+                       const ObjCObjectPointerType *OPT) {
+  
+  if (Diags.hasFatalErrorOccurred())
+    return false;
+  
   // We only attempt to correct typos for identifiers.
   IdentifierInfo *Typo = Res.getLookupName().getAsIdentifierInfo();
   if (!Typo)
@@ -2161,9 +2314,17 @@ bool Sema::CorrectTypo(LookupResult &Res, Scope *S, const CXXScopeSpec *SS,
     return false;
 
   TypoCorrectionConsumer Consumer(Typo);
-  if (MemberContext)
+  if (MemberContext) {
     LookupVisibleDecls(MemberContext, Res.getLookupKind(), Consumer);
-  else if (SS && SS->isSet()) {
+
+    // Look in qualified interfaces.
+    if (OPT) {
+      for (ObjCObjectPointerType::qual_iterator 
+             I = OPT->qual_begin(), E = OPT->qual_end(); 
+           I != E; ++I)
+        LookupVisibleDecls(*I, Res.getLookupKind(), Consumer);
+    }
+  } else if (SS && SS->isSet()) {
     DeclContext *DC = computeDeclContext(*SS, EnteringContext);
     if (!DC)
       return false;
@@ -2180,10 +2341,22 @@ bool Sema::CorrectTypo(LookupResult &Res, Scope *S, const CXXScopeSpec *SS,
   // have overloads of that name, though).
   TypoCorrectionConsumer::iterator I = Consumer.begin();
   DeclarationName BestName = (*I)->getDeclName();
+
+  // If we've found an Objective-C ivar or property, don't perform
+  // name lookup again; we'll just return the result directly.
+  NamedDecl *FoundBest = 0;
+  if (isa<ObjCIvarDecl>(*I) || isa<ObjCPropertyDecl>(*I))
+    FoundBest = *I;
   ++I;
   for(TypoCorrectionConsumer::iterator IEnd = Consumer.end(); I != IEnd; ++I) {
     if (BestName != (*I)->getDeclName())
       return false;
+
+    // FIXME: If there are both ivars and properties of the same name,
+    // don't return both because the callee can't handle two
+    // results. We really need to separate ivar lookup from property
+    // lookup to avoid this problem.
+    FoundBest = 0;
   }
 
   // BestName is the closest viable name to what the user
@@ -2198,8 +2371,16 @@ bool Sema::CorrectTypo(LookupResult &Res, Scope *S, const CXXScopeSpec *SS,
   // success if we found something that was not ambiguous.
   Res.clear();
   Res.setLookupName(BestName);
-  if (MemberContext)
+
+  // If we found an ivar or property, add that result; no further
+  // lookup is required.
+  if (FoundBest)
+    Res.addDecl(FoundBest);  
+  // If we're looking into the context of a member, perform qualified
+  // name lookup on the best name.
+  else if (MemberContext)
     LookupQualifiedName(Res, MemberContext);
+  // Perform lookup as if we had just parsed the best name.
   else
     LookupParsedName(Res, S, SS, /*AllowBuiltinCreation=*/false, 
                      EnteringContext);

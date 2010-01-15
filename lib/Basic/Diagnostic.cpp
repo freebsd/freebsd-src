@@ -541,19 +541,46 @@ static bool ModifierIs(const char *Modifier, unsigned ModifierLen,
   return StrLen-1 == ModifierLen && !memcmp(Modifier, Str, StrLen-1);
 }
 
+/// ScanForward - Scans forward, looking for the given character, skipping
+/// nested clauses and escaped characters.
+static const char *ScanFormat(const char *I, const char *E, char Target) {
+  unsigned Depth = 0;
+
+  for ( ; I != E; ++I) {
+    if (Depth == 0 && *I == Target) return I;
+    if (Depth != 0 && *I == '}') Depth--;
+
+    if (*I == '%') {
+      I++;
+      if (I == E) break;
+
+      // Escaped characters get implicitly skipped here.
+
+      // Format specifier.
+      if (!isdigit(*I) && !ispunct(*I)) {
+        for (I++; I != E && !isdigit(*I) && *I != '{'; I++) ;
+        if (I == E) break;
+        if (*I == '{')
+          Depth++;
+      }
+    }
+  }
+  return E;
+}
+
 /// HandleSelectModifier - Handle the integer 'select' modifier.  This is used
 /// like this:  %select{foo|bar|baz}2.  This means that the integer argument
 /// "%2" has a value from 0-2.  If the value is 0, the diagnostic prints 'foo'.
 /// If the value is 1, it prints 'bar'.  If it has the value 2, it prints 'baz'.
 /// This is very useful for certain classes of variant diagnostics.
-static void HandleSelectModifier(unsigned ValNo,
+static void HandleSelectModifier(const DiagnosticInfo &DInfo, unsigned ValNo,
                                  const char *Argument, unsigned ArgumentLen,
                                  llvm::SmallVectorImpl<char> &OutStr) {
   const char *ArgumentEnd = Argument+ArgumentLen;
 
   // Skip over 'ValNo' |'s.
   while (ValNo) {
-    const char *NextVal = std::find(Argument, ArgumentEnd, '|');
+    const char *NextVal = ScanFormat(Argument, ArgumentEnd, '|');
     assert(NextVal != ArgumentEnd && "Value for integer select modifier was"
            " larger than the number of options in the diagnostic string!");
     Argument = NextVal+1;  // Skip this string.
@@ -561,9 +588,10 @@ static void HandleSelectModifier(unsigned ValNo,
   }
 
   // Get the end of the value.  This is either the } or the |.
-  const char *EndPtr = std::find(Argument, ArgumentEnd, '|');
-  // Add the value to the output string.
-  OutStr.append(Argument, EndPtr);
+  const char *EndPtr = ScanFormat(Argument, ArgumentEnd, '|');
+
+  // Recursively format the result of the select clause into the output string.
+  DInfo.FormatDiagnostic(Argument, EndPtr, OutStr);
 }
 
 /// HandleIntegerSModifier - Handle the integer 's' modifier.  This adds the
@@ -573,6 +601,37 @@ static void HandleIntegerSModifier(unsigned ValNo,
                                    llvm::SmallVectorImpl<char> &OutStr) {
   if (ValNo != 1)
     OutStr.push_back('s');
+}
+
+/// HandleOrdinalModifier - Handle the integer 'ord' modifier.  This
+/// prints the ordinal form of the given integer, with 1 corresponding
+/// to the first ordinal.  Currently this is hard-coded to use the
+/// English form.
+static void HandleOrdinalModifier(unsigned ValNo,
+                                  llvm::SmallVectorImpl<char> &OutStr) {
+  assert(ValNo != 0 && "ValNo must be strictly positive!");
+
+  llvm::raw_svector_ostream Out(OutStr);
+
+  // We could use text forms for the first N ordinals, but the numeric
+  // forms are actually nicer in diagnostics because they stand out.
+  Out << ValNo;
+
+  // It is critically important that we do this perfectly for
+  // user-written sequences with over 100 elements.
+  switch (ValNo % 100) {
+  case 11:
+  case 12:
+  case 13:
+    Out << "th"; return;
+  default:
+    switch (ValNo % 10) {
+    case 1: Out << "st"; return;
+    case 2: Out << "nd"; return;
+    case 3: Out << "rd"; return;
+    default: Out << "th"; return;
+    }
+  }
 }
 
 
@@ -685,11 +744,11 @@ static void HandlePluralModifier(unsigned ValNo,
     }
     if (EvalPluralExpr(ValNo, Argument, ExprEnd)) {
       Argument = ExprEnd + 1;
-      ExprEnd = std::find(Argument, ArgumentEnd, '|');
+      ExprEnd = ScanFormat(Argument, ArgumentEnd, '|');
       OutStr.append(Argument, ExprEnd);
       return;
     }
-    Argument = std::find(Argument, ArgumentEnd - 1, '|') + 1;
+    Argument = ScanFormat(Argument, ArgumentEnd - 1, '|') + 1;
   }
 }
 
@@ -701,6 +760,13 @@ void DiagnosticInfo::
 FormatDiagnostic(llvm::SmallVectorImpl<char> &OutStr) const {
   const char *DiagStr = getDiags()->getDescription(getID());
   const char *DiagEnd = DiagStr+strlen(DiagStr);
+
+  FormatDiagnostic(DiagStr, DiagEnd, OutStr);
+}
+
+void DiagnosticInfo::
+FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
+                 llvm::SmallVectorImpl<char> &OutStr) const {
 
   /// FormattedArgs - Keep track of all of the arguments formatted by
   /// ConvertArgToString and pass them into subsequent calls to
@@ -715,8 +781,8 @@ FormatDiagnostic(llvm::SmallVectorImpl<char> &OutStr) const {
       OutStr.append(DiagStr, StrEnd);
       DiagStr = StrEnd;
       continue;
-    } else if (DiagStr[1] == '%') {
-      OutStr.push_back('%');  // %% -> %.
+    } else if (ispunct(DiagStr[1])) {
+      OutStr.push_back(DiagStr[1]);  // %% -> %.
       DiagStr += 2;
       continue;
     }
@@ -745,8 +811,8 @@ FormatDiagnostic(llvm::SmallVectorImpl<char> &OutStr) const {
         ++DiagStr; // Skip {.
         Argument = DiagStr;
 
-        for (; DiagStr[0] != '}'; ++DiagStr)
-          assert(DiagStr[0] && "Mismatched {}'s in diagnostic string!");
+        DiagStr = ScanFormat(DiagStr, DiagEnd, '}');
+        assert(DiagStr != DiagEnd && "Mismatched {}'s in diagnostic string!");
         ArgumentLen = DiagStr-Argument;
         ++DiagStr;  // Skip }.
       }
@@ -781,11 +847,13 @@ FormatDiagnostic(llvm::SmallVectorImpl<char> &OutStr) const {
       int Val = getArgSInt(ArgNo);
 
       if (ModifierIs(Modifier, ModifierLen, "select")) {
-        HandleSelectModifier((unsigned)Val, Argument, ArgumentLen, OutStr);
+        HandleSelectModifier(*this, (unsigned)Val, Argument, ArgumentLen, OutStr);
       } else if (ModifierIs(Modifier, ModifierLen, "s")) {
         HandleIntegerSModifier(Val, OutStr);
       } else if (ModifierIs(Modifier, ModifierLen, "plural")) {
         HandlePluralModifier((unsigned)Val, Argument, ArgumentLen, OutStr);
+      } else if (ModifierIs(Modifier, ModifierLen, "ordinal")) {
+        HandleOrdinalModifier((unsigned)Val, OutStr);
       } else {
         assert(ModifierLen == 0 && "Unknown integer modifier");
         llvm::raw_svector_ostream(OutStr) << Val;
@@ -796,11 +864,13 @@ FormatDiagnostic(llvm::SmallVectorImpl<char> &OutStr) const {
       unsigned Val = getArgUInt(ArgNo);
 
       if (ModifierIs(Modifier, ModifierLen, "select")) {
-        HandleSelectModifier(Val, Argument, ArgumentLen, OutStr);
+        HandleSelectModifier(*this, Val, Argument, ArgumentLen, OutStr);
       } else if (ModifierIs(Modifier, ModifierLen, "s")) {
         HandleIntegerSModifier(Val, OutStr);
       } else if (ModifierIs(Modifier, ModifierLen, "plural")) {
         HandlePluralModifier((unsigned)Val, Argument, ArgumentLen, OutStr);
+      } else if (ModifierIs(Modifier, ModifierLen, "ordinal")) {
+        HandleOrdinalModifier(Val, OutStr);
       } else {
         assert(ModifierLen == 0 && "Unknown integer modifier");
         llvm::raw_svector_ostream(OutStr) << Val;

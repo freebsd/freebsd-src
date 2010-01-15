@@ -17,6 +17,7 @@
 #include "clang/AST/Type.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
+#include "clang/AST/CharUnits.h"
 #include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
@@ -463,7 +464,7 @@ public:
 
   llvm::Value *BuildBlockLiteralTmp(const BlockExpr *);
   llvm::Constant *BuildDescriptorBlockDecl(bool BlockHasCopyDispose,
-                                           uint64_t Size,
+                                           CharUnits Size,
                                            const llvm::StructType *,
                                            std::vector<HelperInfo> *);
 
@@ -471,14 +472,14 @@ public:
                                         const BlockInfo& Info,
                                         const Decl *OuterFuncDecl,
                                   llvm::DenseMap<const Decl*, llvm::Value*> ldm,
-                                        uint64_t &Size, uint64_t &Align,
+                                        CharUnits &Size, uint64_t &Align,
                       llvm::SmallVector<const Expr *, 8> &subBlockDeclRefDecls,
                                         bool &subBlockHasCopyDispose);
 
   void BlockForwardSelf();
   llvm::Value *LoadBlockStruct();
 
-  uint64_t AllocateBlockDecl(const BlockDeclRefExpr *E);
+  CharUnits AllocateBlockDecl(const BlockDeclRefExpr *E);
   llvm::Value *GetAddrOfBlockDecl(const BlockDeclRefExpr *E);
   const llvm::Type *BuildByRefType(const ValueDecl *D);
 
@@ -517,7 +518,7 @@ public:
 
   void InitializeVtablePtrsRecursive(const CXXRecordDecl *ClassDecl,
                                      llvm::Constant *Vtable,
-                                     CodeGenModule::AddrSubMap_t& AddressPoints,
+                                     CGVtableInfo::AddrSubMap_t& AddressPoints,
                                      llvm::Value *ThisPtr,
                                      uint64_t Offset);
 
@@ -728,6 +729,10 @@ public:
   /// generating code for an C++ member function.
   llvm::Value *LoadCXXThis();
 
+  /// LoadCXXVTT - Load the VTT parameter to base constructors/destructors have
+  /// virtual bases.
+  llvm::Value *LoadCXXVTT();
+  
   /// GetAddressOfBaseClass - This function will add the necessary delta to the
   /// load of 'this' and returns address of the base class.
   // FIXME. This currently only does a derived to non-virtual base conversion.
@@ -794,7 +799,7 @@ public:
                                  llvm::Value *NumElements,
                                  llvm::Value *This);
 
-  llvm::Constant * GenerateCXXAggrDestructorHelper(const CXXDestructorDecl *D,
+  llvm::Constant *GenerateCXXAggrDestructorHelper(const CXXDestructorDecl *D,
                                                 const ArrayType *Array,
                                                 llvm::Value *This);
 
@@ -815,6 +820,10 @@ public:
 
   void EmitCheck(llvm::Value *, unsigned Size);
 
+  llvm::Value *EmitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
+                                       bool isInc, bool isPre);
+  ComplexPairTy EmitComplexPrePostIncDec(const UnaryOperator *E, LValue LV,
+                                         bool isInc, bool isPre);
   //===--------------------------------------------------------------------===//
   //                            Declaration Emission
   //===--------------------------------------------------------------------===//
@@ -1057,6 +1066,7 @@ public:
                            llvm::Value *Callee,
                            ReturnValueSlot ReturnValue,
                            llvm::Value *This,
+                           llvm::Value *VTT,
                            CallExpr::const_arg_iterator ArgBeg,
                            CallExpr::const_arg_iterator ArgEnd);
   RValue EmitCXXMemberCallExpr(const CXXMemberCallExpr *E,
@@ -1080,10 +1090,6 @@ public:
 
   llvm::Value *EmitX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitPPCBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
-
-  llvm::Value *EmitShuffleVector(llvm::Value* V1, llvm::Value *V2, ...);
-  llvm::Value *EmitVector(llvm::Value * const *Vals, unsigned NumVals,
-                          bool isSplat = false);
 
   llvm::Value *EmitObjCProtocolExpr(const ObjCProtocolExpr *E);
   llvm::Value *EmitObjCStringLiteral(const ObjCStringLiteral *E);
@@ -1184,8 +1190,10 @@ public:
   /// GenerateCXXGlobalInitFunc - Generates code for initializing global
   /// variables.
   void GenerateCXXGlobalInitFunc(llvm::Function *Fn,
-                                 const VarDecl **Decls,
+                                 llvm::Constant **Decls,
                                  unsigned NumDecls);
+
+  void GenerateCXXGlobalVarDeclInitFunc(llvm::Function *Fn, const VarDecl *D);
 
   void EmitCXXConstructExpr(llvm::Value *Dest, const CXXConstructExpr *E);
 

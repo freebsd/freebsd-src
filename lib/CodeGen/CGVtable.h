@@ -61,10 +61,82 @@ public:
   ThunkAdjustment ReturnAdjustment;
 };
 
+// BaseSubobject - Uniquely identifies a direct or indirect base class. 
+// Stores both the base class decl and the offset from the most derived class to
+// the base class.
+class BaseSubobject {
+  /// Base - The base class declaration.
+  const CXXRecordDecl *Base;
+  
+  /// BaseOffset - The offset from the most derived class to the base class.
+  uint64_t BaseOffset;
+  
+public:
+  BaseSubobject(const CXXRecordDecl *Base, uint64_t BaseOffset)
+    : Base(Base), BaseOffset(BaseOffset) { }
+  
+  /// getBase - Returns the base class declaration.
+  const CXXRecordDecl *getBase() const { return Base; }
+
+  /// getBaseOffset - Returns the base class offset.
+  uint64_t getBaseOffset() const { return BaseOffset; }
+
+  friend bool operator==(const BaseSubobject &LHS, const BaseSubobject &RHS) {
+    return LHS.Base == RHS.Base && LHS.BaseOffset == RHS.BaseOffset;
+ }
+};
+
+} // end namespace CodeGen
+} // end namespace clang
+
+namespace llvm {
+
+template<> struct DenseMapInfo<clang::CodeGen::BaseSubobject> {
+  static clang::CodeGen::BaseSubobject getEmptyKey() {
+    return clang::CodeGen::BaseSubobject(
+      DenseMapInfo<const clang::CXXRecordDecl *>::getEmptyKey(),
+      DenseMapInfo<uint64_t>::getEmptyKey());
+  }
+
+  static clang::CodeGen::BaseSubobject getTombstoneKey() {
+    return clang::CodeGen::BaseSubobject(
+      DenseMapInfo<const clang::CXXRecordDecl *>::getTombstoneKey(),
+      DenseMapInfo<uint64_t>::getTombstoneKey());
+  }
+
+  static unsigned getHashValue(const clang::CodeGen::BaseSubobject &Base) {
+    return 
+      DenseMapInfo<const clang::CXXRecordDecl *>::getHashValue(Base.getBase()) ^
+      DenseMapInfo<uint64_t>::getHashValue(Base.getBaseOffset());
+  }
+
+  static bool isEqual(const clang::CodeGen::BaseSubobject &LHS, 
+                      const clang::CodeGen::BaseSubobject &RHS) {
+    return LHS == RHS;
+  }
+};
+
+// It's OK to treat BaseSubobject as a POD type.
+template <> struct isPodLike<clang::CodeGen::BaseSubobject> {
+  static const bool value = true;
+};
+
+}
+
+namespace clang {
+namespace CodeGen {
+
 class CGVtableInfo {
 public:
   typedef std::vector<std::pair<GlobalDecl, ThunkAdjustment> >
       AdjustmentVectorTy;
+
+  typedef std::pair<const CXXRecordDecl *, uint64_t> CtorVtable_t;
+  typedef llvm::DenseMap<CtorVtable_t, int64_t> AddrSubMap_t;
+  typedef llvm::DenseMap<const CXXRecordDecl *, AddrSubMap_t *> AddrMap_t;
+  llvm::DenseMap<const CXXRecordDecl *, AddrMap_t*> AddressPoints;
+
+  typedef llvm::DenseMap<BaseSubobject, uint64_t> AddressPointsMapTy;
 
 private:
   CodeGenModule &CGM;
@@ -93,6 +165,9 @@ private:
   SavedAdjustmentsTy SavedAdjustments;
   llvm::DenseSet<const CXXRecordDecl*> SavedAdjustmentRecords;
 
+  typedef llvm::DenseMap<ClassPairTy, uint64_t> SubVTTIndiciesTy;
+  SubVTTIndiciesTy SubVTTIndicies;
+
   /// getNumVirtualFunctionPointers - Return the number of virtual function
   /// pointers in the vtable for a given record decl.
   uint64_t getNumVirtualFunctionPointers(const CXXRecordDecl *RD);
@@ -110,15 +185,26 @@ private:
   llvm::GlobalVariable *
   GenerateVtable(llvm::GlobalVariable::LinkageTypes Linkage,
                  bool GenerateDefinition, const CXXRecordDecl *LayoutClass, 
-                 const CXXRecordDecl *RD, uint64_t Offset);
+                 const CXXRecordDecl *RD, uint64_t Offset,
+                 AddressPointsMapTy& AddressPoints);
 
   llvm::GlobalVariable *GenerateVTT(llvm::GlobalVariable::LinkageTypes Linkage,
+                                    bool GenerateDefinition,
                                     const CXXRecordDecl *RD);
 
 public:
   CGVtableInfo(CodeGenModule &CGM)
     : CGM(CGM) { }
 
+  /// needsVTTParameter - Return whether the given global decl needs a VTT
+  /// parameter, which it does if it's a base constructor or destructor with
+  /// virtual bases.
+  static bool needsVTTParameter(GlobalDecl GD);
+
+  /// getSubVTTIndex - Return the index of the sub-VTT for the base class of the
+  /// given record decl.
+  uint64_t getSubVTTIndex(const CXXRecordDecl *RD, const CXXRecordDecl *Base);
+  
   /// getMethodVtableIndex - Return the index (relative to the vtable address
   /// point) where the function pointer for the given virtual function is
   /// stored.
@@ -140,14 +226,26 @@ public:
   uint64_t getVtableAddressPoint(const CXXRecordDecl *RD);
   
   llvm::GlobalVariable *getVtable(const CXXRecordDecl *RD);
-  llvm::GlobalVariable *getCtorVtable(const CXXRecordDecl *RD,
-                                      const CXXRecordDecl *Class, 
-                                      uint64_t Offset);
   
+  /// CtorVtableInfo - Information about a constructor vtable.
+  struct CtorVtableInfo {
+    /// Vtable - The vtable itself.
+    llvm::GlobalVariable *Vtable;
+  
+    /// AddressPoints - The address points in this constructor vtable.
+    AddressPointsMapTy AddressPoints;
+    
+    CtorVtableInfo() : Vtable(0) { }
+  };
+  
+  CtorVtableInfo getCtorVtable(const CXXRecordDecl *RD, 
+                               const BaseSubobject &Base);
+  
+  llvm::GlobalVariable *getVTT(const CXXRecordDecl *RD);
   
   void MaybeEmitVtable(GlobalDecl GD);
 };
 
-}
-}
+} // end namespace CodeGen
+} // end namespace clang
 #endif

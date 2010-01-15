@@ -190,15 +190,9 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   QualType FnType = getContext().getFunctionType(RetTy, 0, 0, false, 0);
 
   // Emit subprogram debug descriptor.
-  // FIXME: The cast here is a huge hack.
   if (CGDebugInfo *DI = getDebugInfo()) {
     DI->setLocation(StartLoc);
-    if (isa<FunctionDecl>(D)) {
-      DI->EmitFunctionStart(CGM.getMangledName(GD), FnType, CurFn, Builder);
-    } else {
-      // Just use LLVM function name.
-      DI->EmitFunctionStart(Fn->getName(), FnType, CurFn, Builder);
-    }
+    DI->EmitFunctionStart(GD, FnType, CurFn, Builder);
   }
 
   // FIXME: Leaked.
@@ -230,26 +224,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   }
 }
 
-static bool NeedsVTTParameter(GlobalDecl GD) {
-  const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
-  
-  // We don't have any virtual bases, just return early.
-  if (!MD->getParent()->getNumVBases())
-    return false;
-  
-  // Check if we have a base constructor.
-  if (isa<CXXConstructorDecl>(MD) && GD.getCtorType() == Ctor_Base)
-    return true;
-
-  // Check if we have a base destructor.
-  if (isa<CXXDestructorDecl>(MD) && GD.getDtorType() == Dtor_Base)
-    return true;
-  
-  return false;
-}
-
-void CodeGenFunction::GenerateCode(GlobalDecl GD,
-                                   llvm::Function *Fn) {
+void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn) {
   const FunctionDecl *FD = cast<FunctionDecl>(GD.getDecl());
   
   // Check if we should generate debug info for this function.
@@ -271,7 +246,7 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD,
       Args.push_back(std::make_pair(CXXThisDecl, CXXThisDecl->getType()));
       
       // Check if we need a VTT parameter as well.
-      if (NeedsVTTParameter(GD)) {
+      if (CGVtableInfo::needsVTTParameter(GD)) {
         // FIXME: The comment about using a fake decl above applies here too.
         QualType T = getContext().getPointerType(getContext().VoidPtrTy);
         CXXVTTDecl = 
@@ -597,7 +572,7 @@ llvm::Value *CodeGenFunction::EmitVLASize(QualType Ty) {
         ElemSize = EmitVLASize(ElemTy);
       else
         ElemSize = llvm::ConstantInt::get(SizeTy,
-                                          getContext().getTypeSize(ElemTy) / 8);
+            getContext().getTypeSizeInChars(ElemTy).getQuantity());
 
       llvm::Value *NumElements = EmitScalarExpr(VAT->getSizeExpr());
       NumElements = Builder.CreateIntCast(NumElements, SizeTy, false, "tmp");

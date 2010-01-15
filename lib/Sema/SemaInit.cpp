@@ -88,7 +88,7 @@ static bool CheckSingleInitializer(Expr *&Init, QualType DeclType,
       S.Diag(Init->getSourceRange().getBegin(),
              diag::err_typecheck_convert_ambiguous)
             << DeclType << Init->getType() << Init->getSourceRange();
-      S.PrintOverloadCandidates(CandidateSet, /*OnlyViable=*/false);
+      S.PrintOverloadCandidates(CandidateSet, Sema::OCD_AllCandidates, &Init, 1);
       return true;
     }
     return false;
@@ -670,7 +670,7 @@ void InitListChecker::CheckSubElementType(InitListExpr *IList,
                                         /*ForceRValue=*/false,
                                         /*InOverloadResolution=*/false);
 
-      if (ICS.ConversionKind != ImplicitConversionSequence::BadConversion) {
+      if (!ICS.isBad()) {
         if (SemaRef.PerformImplicitConversion(expr, ElemType, ICS,
                                               Sema::AA_Initializing))
           hadError = true;
@@ -1136,7 +1136,7 @@ static void ExpandAnonymousFieldDesignator(Sema &SemaRef,
   // Expand the current designator into the set of replacement
   // designators, so we have a full subobject path down to where the
   // member of the anonymous struct/union is actually stored.
-  DIE->ExpandDesignator(DesigIdx, &Replacements[0],
+  DIE->ExpandDesignator(SemaRef.Context, DesigIdx, &Replacements[0],
                         &Replacements[0] + Replacements.size());
 
   // Update FieldIter/FieldIndex;
@@ -1302,6 +1302,9 @@ InitListChecker::CheckDesignatedInitializer(InitListExpr *IList,
             << FieldName << CurrentObjectType << R.getLookupName()
             << CodeModificationHint::CreateReplacement(D->getFieldLoc(),
                                                R.getLookupName().getAsString());
+          SemaRef.Diag(ReplacementField->getLocation(), 
+                       diag::note_previous_decl)
+            << ReplacementField->getDeclName();
         } else {
           SemaRef.Diag(D->getFieldLoc(), diag::err_field_designator_unknown)
             << FieldName << CurrentObjectType;
@@ -2224,9 +2227,11 @@ static void TryReferenceInitialization(Sema &S,
   
   QualType DestType = Entity.getType();
   QualType cv1T1 = DestType->getAs<ReferenceType>()->getPointeeType();
-  QualType T1 = cv1T1.getUnqualifiedType();
+  Qualifiers T1Quals;
+  QualType T1 = S.Context.getUnqualifiedArrayType(cv1T1, T1Quals);
   QualType cv2T2 = Initializer->getType();
-  QualType T2 = cv2T2.getUnqualifiedType();
+  Qualifiers T2Quals;
+  QualType T2 = S.Context.getUnqualifiedArrayType(cv2T2, T2Quals);
   SourceLocation DeclLoc = Initializer->getLocStart();
   
   // If the initializer is the address of an overloaded function, try
@@ -2276,9 +2281,9 @@ static void TryReferenceInitialization(Sema &S,
       // can occur. This property will be checked by PerformInitialization.
       if (DerivedToBase)
         Sequence.AddDerivedToBaseCastStep(
-                         S.Context.getQualifiedType(T1, cv2T2.getQualifiers()), 
+                         S.Context.getQualifiedType(T1, T2Quals), 
                          /*isLValue=*/true);
-      if (cv1T1.getQualifiers() != cv2T2.getQualifiers())
+      if (T1Quals != T2Quals)
         Sequence.AddQualificationConversionStep(cv1T1, /*IsLValue=*/true);
       Sequence.AddReferenceBindingStep(cv1T1, /*bindingTemporary=*/false);
       return;
@@ -2297,6 +2302,11 @@ static void TryReferenceInitialization(Sema &S,
                                                        Sequence);
       if (ConvOvlResult == OR_Success)
         return;
+      if (ConvOvlResult != OR_No_Viable_Function) {
+        Sequence.SetOverloadFailure(
+                      InitializationSequence::FK_ReferenceInitOverloadFailed,
+                                    ConvOvlResult);
+      }
     }
   }
   
@@ -2304,7 +2314,7 @@ static void TryReferenceInitialization(Sema &S,
   //       non-volatile const type (i.e., cv1 shall be const), or the reference
   //       shall be an rvalue reference and the initializer expression shall 
   //       be an rvalue.
-  if (!((isLValueRef && cv1T1.getCVRQualifiers() == Qualifiers::Const) ||
+  if (!((isLValueRef && T1Quals.hasConst()) ||
         (isRValueRef && InitLvalue != Expr::LV_Valid))) {
     if (ConvOvlResult && !Sequence.getFailedCandidateSet().empty())
       Sequence.SetOverloadFailure(
@@ -2331,9 +2341,9 @@ static void TryReferenceInitialization(Sema &S,
         RefRelationship >= Sema::Ref_Compatible_With_Added_Qualification) {
       if (DerivedToBase)
         Sequence.AddDerivedToBaseCastStep(
-                         S.Context.getQualifiedType(T1, cv2T2.getQualifiers()), 
+                         S.Context.getQualifiedType(T1, T2Quals), 
                          /*isLValue=*/false);
-      if (cv1T1.getQualifiers() != cv2T2.getQualifiers())
+      if (T1Quals != T2Quals)
         Sequence.AddQualificationConversionStep(cv1T1, /*IsLValue=*/false);
       Sequence.AddReferenceBindingStep(cv1T1, /*bindingTemporary=*/true);
       return;
@@ -2381,7 +2391,7 @@ static void TryReferenceInitialization(Sema &S,
                               /*FIXME:InOverloadResolution=*/false,
                               /*UserCast=*/Kind.isExplicitCast());
             
-  if (ICS.ConversionKind == ImplicitConversionSequence::BadConversion) {
+  if (ICS.isBad()) {
     // FIXME: Use the conversion function set stored in ICS to turn
     // this into an overloading ambiguity diagnostic. However, we need
     // to keep that set as an OverloadCandidateSet rather than as some
@@ -2398,8 +2408,10 @@ static void TryReferenceInitialization(Sema &S,
   //        [...] If T1 is reference-related to T2, cv1 must be the
   //        same cv-qualification as, or greater cv-qualification
   //        than, cv2; otherwise, the program is ill-formed.
+  unsigned T1CVRQuals = T1Quals.getCVRQualifiers();
+  unsigned T2CVRQuals = T2Quals.getCVRQualifiers();
   if (RefRelationship == Sema::Ref_Related && 
-      !cv1T1.isAtLeastAsQualifiedAs(cv2T2)) {
+      (T1CVRQuals | T2CVRQuals) != T1CVRQuals) {
     Sequence.SetFailed(InitializationSequence::FK_ReferenceInitDropsQualifiers);
     return;
   }
@@ -2682,14 +2694,14 @@ static void TryUserDefinedConversion(Sema &S,
   
   // Perform overload resolution. If it fails, return the failed result.  
   OverloadCandidateSet::iterator Best;
-  if (OverloadingResult Result 
+  if (OverloadingResult Result
         = S.BestViableFunction(CandidateSet, DeclLoc, Best)) {
     Sequence.SetOverloadFailure(
                         InitializationSequence::FK_UserConversionOverloadFailed, 
                                 Result);
     return;
   }
-  
+
   FunctionDecl *Function = Best->Function;
   
   if (isa<CXXConstructorDecl>(Function)) {
@@ -2708,7 +2720,7 @@ static void TryUserDefinedConversion(Sema &S,
   if (Best->FinalConversion.First || Best->FinalConversion.Second ||
       Best->FinalConversion.Third) {
     ImplicitConversionSequence ICS;
-    ICS.ConversionKind = ImplicitConversionSequence::StandardConversion;
+    ICS.setStandard();
     ICS.Standard = Best->FinalConversion;
     Sequence.AddConversionSequenceStep(ICS, DestType);
   }
@@ -2729,7 +2741,7 @@ static void TryImplicitConversion(Sema &S,
                               /*FIXME:InOverloadResolution=*/false,
                               /*UserCast=*/Kind.isExplicitCast());
   
-  if (ICS.ConversionKind == ImplicitConversionSequence::BadConversion) {
+  if (ICS.isBad()) {
     Sequence.SetFailed(InitializationSequence::FK_ConversionFailed);
     return;
   }
@@ -3007,14 +3019,16 @@ static Sema::OwningExprResult CopyIfRequiredForEntity(Sema &S,
     S.Diag(Loc, diag::err_temp_copy_no_viable)
       << (int)Entity.getKind() << CurInitExpr->getType()
       << CurInitExpr->getSourceRange();
-    S.PrintOverloadCandidates(CandidateSet, false);
+    S.PrintOverloadCandidates(CandidateSet, Sema::OCD_AllCandidates,
+                              &CurInitExpr, 1);
     return S.ExprError();
       
   case OR_Ambiguous:
     S.Diag(Loc, diag::err_temp_copy_ambiguous)
       << (int)Entity.getKind() << CurInitExpr->getType()
       << CurInitExpr->getSourceRange();
-    S.PrintOverloadCandidates(CandidateSet, true);
+    S.PrintOverloadCandidates(CandidateSet, Sema::OCD_ViableCandidates,
+                              &CurInitExpr, 1);
     return S.ExprError();
     
   case OR_Deleted:
@@ -3429,14 +3443,16 @@ bool InitializationSequence::Diagnose(Sema &S,
           << DestType << Args[0]->getType()
           << Args[0]->getSourceRange();
 
-      S.PrintOverloadCandidates(FailedCandidateSet, true);
+      S.PrintOverloadCandidates(FailedCandidateSet, Sema::OCD_ViableCandidates,
+                                Args, NumArgs);
       break;
         
     case OR_No_Viable_Function:
       S.Diag(Kind.getLocation(), diag::err_typecheck_nonviable_condition)
         << Args[0]->getType() << DestType.getNonReferenceType()
         << Args[0]->getSourceRange();
-      S.PrintOverloadCandidates(FailedCandidateSet, false);
+      S.PrintOverloadCandidates(FailedCandidateSet, Sema::OCD_AllCandidates,
+                                Args, NumArgs);
       break;
         
     case OR_Deleted: {
@@ -3538,13 +3554,15 @@ bool InitializationSequence::Diagnose(Sema &S,
       case OR_Ambiguous:
         S.Diag(Kind.getLocation(), diag::err_ovl_ambiguous_init)
           << DestType << ArgsRange;
-        S.PrintOverloadCandidates(FailedCandidateSet, true);
+        S.PrintOverloadCandidates(FailedCandidateSet,
+                                  Sema::OCD_ViableCandidates, Args, NumArgs);
         break;
         
       case OR_No_Viable_Function:
         S.Diag(Kind.getLocation(), diag::err_ovl_no_viable_function_in_init)
           << DestType << ArgsRange;
-        S.PrintOverloadCandidates(FailedCandidateSet, false);
+        S.PrintOverloadCandidates(FailedCandidateSet, Sema::OCD_AllCandidates,
+                                  Args, NumArgs);
         break;
         
       case OR_Deleted: {

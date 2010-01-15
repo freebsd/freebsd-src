@@ -743,7 +743,8 @@ QualType Sema::BuildFunctionType(QualType T,
                                  bool Variadic, unsigned Quals,
                                  SourceLocation Loc, DeclarationName Entity) {
   if (T->isArrayType() || T->isFunctionType()) {
-    Diag(Loc, diag::err_func_returning_array_function) << T;
+    Diag(Loc, diag::err_func_returning_array_function) 
+      << T->isFunctionType() << T;
     return QualType();
   }
 
@@ -896,12 +897,17 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
     break;
 
   case UnqualifiedId::IK_ConstructorName:
+  case UnqualifiedId::IK_ConstructorTemplateId:
   case UnqualifiedId::IK_DestructorName:
-  case UnqualifiedId::IK_ConversionFunctionId:
     // Constructors and destructors don't have return types. Use
-    // "void" instead. Conversion operators will check their return
-    // types separately.
+    // "void" instead. 
     T = Context.VoidTy;
+    break;
+
+  case UnqualifiedId::IK_ConversionFunctionId:
+    // The result type of a conversion function is the type that it
+    // converts to.
+    T = GetTypeFromParser(D.getName().ConversionFunctionId);
     break;
   }
   
@@ -1041,8 +1047,11 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
       const DeclaratorChunk::FunctionTypeInfo &FTI = DeclType.Fun;
 
       // C99 6.7.5.3p1: The return type may not be a function or array type.
-      if (T->isArrayType() || T->isFunctionType()) {
-        Diag(DeclType.Loc, diag::err_func_returning_array_function) << T;
+      // For conversion functions, we'll diagnose this particular error later.
+      if ((T->isArrayType() || T->isFunctionType()) &&
+          (D.getName().getKind() != UnqualifiedId::IK_ConversionFunctionId)) {
+        Diag(DeclType.Loc, diag::err_func_returning_array_function) 
+          << T->isFunctionType() << T;
         T = Context.IntTy;
         D.setInvalidType(true);
       }
@@ -1351,6 +1360,20 @@ namespace {
         cast<TemplateSpecializationTypeLoc>(TInfo->getTypeLoc());
       TL.copy(OldTL);
     }
+    void VisitTypeOfExprTypeLoc(TypeOfExprTypeLoc TL) {
+      assert(DS.getTypeSpecType() == DeclSpec::TST_typeofExpr);
+      TL.setTypeofLoc(DS.getTypeSpecTypeLoc());
+      TL.setParensRange(DS.getTypeofParensRange());
+    }
+    void VisitTypeOfTypeLoc(TypeOfTypeLoc TL) {
+      assert(DS.getTypeSpecType() == DeclSpec::TST_typeofType);
+      TL.setTypeofLoc(DS.getTypeSpecTypeLoc());
+      TL.setParensRange(DS.getTypeofParensRange());
+      assert(DS.getTypeRep());
+      TypeSourceInfo *TInfo = 0;
+      Sema::GetTypeFromParser(DS.getTypeRep(), &TInfo);
+      TL.setUnderlyingTInfo(TInfo);
+    }
     void VisitTypeLoc(TypeLoc TL) {
       // FIXME: add other typespec types and change this to an assert.
       TL.initialize(DS.getTypeSpecTypeLoc());
@@ -1459,34 +1482,6 @@ void LocInfoType::getAsStringInternal(std::string &Str,
   assert(false && "LocInfoType leaked into the type system; an opaque TypeTy*"
          " was used directly instead of getting the QualType through"
          " GetTypeFromParser");
-}
-
-/// ObjCGetTypeForMethodDefinition - Builds the type for a method definition
-/// declarator
-QualType Sema::ObjCGetTypeForMethodDefinition(DeclPtrTy D) {
-  ObjCMethodDecl *MDecl = cast<ObjCMethodDecl>(D.getAs<Decl>());
-  QualType T = MDecl->getResultType();
-  llvm::SmallVector<QualType, 16> ArgTys;
-
-  // Add the first two invisible argument types for self and _cmd.
-  if (MDecl->isInstanceMethod()) {
-    QualType selfTy = Context.getObjCInterfaceType(MDecl->getClassInterface());
-    selfTy = Context.getPointerType(selfTy);
-    ArgTys.push_back(selfTy);
-  } else
-    ArgTys.push_back(Context.getObjCIdType());
-  ArgTys.push_back(Context.getObjCSelType());
-
-  for (ObjCMethodDecl::param_iterator PI = MDecl->param_begin(),
-       E = MDecl->param_end(); PI != E; ++PI) {
-    QualType ArgTy = (*PI)->getType();
-    assert(!ArgTy.isNull() && "Couldn't parse type?");
-    ArgTy = adjustParameterType(ArgTy);
-    ArgTys.push_back(ArgTy);
-  }
-  T = Context.getFunctionType(T, &ArgTys[0], ArgTys.size(),
-                              MDecl->isVariadic(), 0);
-  return T;
 }
 
 /// UnwrapSimilarPointerTypes - If T1 and T2 are pointer types  that
