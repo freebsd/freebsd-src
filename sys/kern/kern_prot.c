@@ -283,7 +283,13 @@ getgroups(struct thread *td, register struct getgroups_args *uap)
 	u_int ngrp;
 	int error;
 
-	ngrp = MIN(uap->gidsetsize, ngroups_max + 1);
+	if (uap->gidsetsize < td->td_ucred->cr_ngroups) {
+		if (uap->gidsetsize == 0)
+			ngrp = 0;
+		else
+			return (EINVAL);
+	} else
+		ngrp = td->td_ucred->cr_ngroups;
 	groups = malloc(ngrp * sizeof(*groups), M_TEMP, M_WAITOK);
 	error = kern_getgroups(td, &ngrp, groups);
 	if (error)
