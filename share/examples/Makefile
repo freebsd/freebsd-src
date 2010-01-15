@@ -118,6 +118,12 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	kld/dyn_sysctl/Makefile \
 	kld/dyn_sysctl/README \
 	kld/dyn_sysctl/dyn_sysctl.c \
+	kld/firmware/Makefile \
+	kld/firmware/README \
+	kld/firmware/fwconsumer/Makefile \
+	kld/firmware/fwconsumer/fw_consumer.c \
+	kld/firmware/fwimage/Makefile \
+	kld/firmware/fwimage/firmware.img \
 	kld/syscall/Makefile \
 	kld/syscall/module/Makefile \
 	kld/syscall/module/syscall.c \
