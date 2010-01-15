@@ -386,6 +386,8 @@ __elfN(exec)(struct preloaded_file *fp)
 	pmap_print_tlb_sun4u();
 #endif
 
+	dev_cleanup();
+
 	entry = e->e_entry;
 
 	OF_release((void *)heapva, HEAPSZ);
