@@ -585,6 +585,11 @@ Parser::ParseCXXTypeConstructExpression(const DeclSpec &DS) {
 /// \returns true if there was a parsing, false otherwise.
 bool Parser::ParseCXXCondition(OwningExprResult &ExprResult,
                                DeclPtrTy &DeclResult) {
+  if (Tok.is(tok::code_completion)) {
+    Actions.CodeCompleteOrdinaryName(CurScope, Action::CCC_Condition);
+    ConsumeToken();
+  }
+
   if (!isCXXConditionDeclaration()) {
     ExprResult = ParseExpression(); // expression
     DeclResult = DeclPtrTy();
@@ -1148,6 +1153,13 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
     IdentifierInfo *Id = Tok.getIdentifierInfo();
     SourceLocation IdLoc = ConsumeToken();
 
+    if (!getLang().CPlusPlus) {
+      // If we're not in C++, only identifiers matter. Record the
+      // identifier and return.
+      Result.setIdentifier(Id, IdLoc);
+      return false;
+    }
+
     if (AllowConstructorName && 
         Actions.isCurrentClassName(*Id, CurScope, &SS)) {
       // We have parsed a constructor name.
@@ -1170,12 +1182,41 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
   // unqualified-id:
   //   template-id (already parsed and annotated)
   if (Tok.is(tok::annot_template_id)) {
-    // FIXME: Could this be a constructor name???
-    
+    TemplateIdAnnotation *TemplateId
+      = static_cast<TemplateIdAnnotation*>(Tok.getAnnotationValue());
+
+    // If the template-name names the current class, then this is a constructor 
+    if (AllowConstructorName && TemplateId->Name &&
+        Actions.isCurrentClassName(*TemplateId->Name, CurScope, &SS)) {
+      if (SS.isSet()) {
+        // C++ [class.qual]p2 specifies that a qualified template-name
+        // is taken as the constructor name where a constructor can be
+        // declared. Thus, the template arguments are extraneous, so
+        // complain about them and remove them entirely.
+        Diag(TemplateId->TemplateNameLoc, 
+             diag::err_out_of_line_constructor_template_id)
+          << TemplateId->Name
+          << CodeModificationHint::CreateRemoval(
+                    SourceRange(TemplateId->LAngleLoc, TemplateId->RAngleLoc));
+        Result.setConstructorName(Actions.getTypeName(*TemplateId->Name,
+                                                  TemplateId->TemplateNameLoc, 
+                                                      CurScope,
+                                                      &SS, false),
+                                  TemplateId->TemplateNameLoc, 
+                                  TemplateId->RAngleLoc);
+        TemplateId->Destroy();
+        ConsumeToken();
+        return false;
+      }
+
+      Result.setConstructorTemplateId(TemplateId);
+      ConsumeToken();
+      return false;
+    }
+
     // We have already parsed a template-id; consume the annotation token as
     // our unqualified-id.
-    Result.setTemplateId(
-                  static_cast<TemplateIdAnnotation*>(Tok.getAnnotationValue()));
+    Result.setTemplateId(TemplateId);
     ConsumeToken();
     return false;
   }
@@ -1202,7 +1243,8 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
     return false;
   }
   
-  if ((AllowDestructorName || SS.isSet()) && Tok.is(tok::tilde)) {
+  if (getLang().CPlusPlus && 
+      (AllowDestructorName || SS.isSet()) && Tok.is(tok::tilde)) {
     // C++ [expr.unary.op]p10:
     //   There is an ambiguity in the unary-expression ~X(), where X is a 
     //   class-name. The ambiguity is resolved in favor of treating ~ as a 

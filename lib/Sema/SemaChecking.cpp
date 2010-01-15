@@ -14,6 +14,7 @@
 
 #include "Sema.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/CharUnits.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
@@ -318,7 +319,7 @@ bool Sema::SemaBuiltinAtomicOverloaded(CallExpr *TheCall) {
 
   // Determine the index of the size.
   unsigned SizeIndex;
-  switch (Context.getTypeSize(ValType)/8) {
+  switch (Context.getTypeSizeInChars(ValType).getQuantity()) {
   case 1: SizeIndex = 0; break;
   case 2: SizeIndex = 1; break;
   case 4: SizeIndex = 2; break;
@@ -966,9 +967,6 @@ Sema::CheckNonNullArguments(const NonNullAttr *NonNull,
 ///
 ///  (8) Check that the format string is a wide literal.
 ///
-///  (9) Also check the arguments of functions with the __format__ attribute.
-///      (TODO).
-///
 /// All of these checks can be done by parsing the format string.
 ///
 /// For now, we ONLY do (1), (3), (5), (6), (7), and (8).
@@ -1559,3 +1557,475 @@ void Sema::CheckFloatComparison(SourceLocation loc, Expr* lex, Expr *rex) {
     Diag(loc, diag::warn_floatingpoint_eq)
       << lex->getSourceRange() << rex->getSourceRange();
 }
+
+//===--- CHECK: Integer mixed-sign comparisons (-Wsign-compare) --------===//
+//===--- CHECK: Lossy implicit conversions (-Wconversion) --------------===//
+
+namespace {
+
+/// Structure recording the 'active' range of an integer-valued
+/// expression.
+struct IntRange {
+  /// The number of bits active in the int.
+  unsigned Width;
+
+  /// True if the int is known not to have negative values.
+  bool NonNegative;
+
+  IntRange() {}
+  IntRange(unsigned Width, bool NonNegative)
+    : Width(Width), NonNegative(NonNegative)
+  {}
+
+  // Returns the range of the bool type.
+  static IntRange forBoolType() {
+    return IntRange(1, true);
+  }
+
+  // Returns the range of an integral type.
+  static IntRange forType(ASTContext &C, QualType T) {
+    return forCanonicalType(C, T->getCanonicalTypeInternal().getTypePtr());
+  }
+
+  // Returns the range of an integeral type based on its canonical
+  // representation.
+  static IntRange forCanonicalType(ASTContext &C, const Type *T) {
+    assert(T->isCanonicalUnqualified());
+
+    if (const VectorType *VT = dyn_cast<VectorType>(T))
+      T = VT->getElementType().getTypePtr();
+    if (const ComplexType *CT = dyn_cast<ComplexType>(T))
+      T = CT->getElementType().getTypePtr();
+    if (const EnumType *ET = dyn_cast<EnumType>(T))
+      T = ET->getDecl()->getIntegerType().getTypePtr();
+
+    const BuiltinType *BT = cast<BuiltinType>(T);
+    assert(BT->isInteger());
+
+    return IntRange(C.getIntWidth(QualType(T, 0)), BT->isUnsignedInteger());
+  }
+
+  // Returns the supremum of two ranges: i.e. their conservative merge.
+  static IntRange join(const IntRange &L, const IntRange &R) {
+    return IntRange(std::max(L.Width, R.Width),
+                    L.NonNegative && R.NonNegative);
+  }
+
+  // Returns the infinum of two ranges: i.e. their aggressive merge.
+  static IntRange meet(const IntRange &L, const IntRange &R) {
+    return IntRange(std::min(L.Width, R.Width),
+                    L.NonNegative || R.NonNegative);
+  }
+};
+
+IntRange GetValueRange(ASTContext &C, llvm::APSInt &value, unsigned MaxWidth) {
+  if (value.isSigned() && value.isNegative())
+    return IntRange(value.getMinSignedBits(), false);
+
+  if (value.getBitWidth() > MaxWidth)
+    value.trunc(MaxWidth);
+
+  // isNonNegative() just checks the sign bit without considering
+  // signedness.
+  return IntRange(value.getActiveBits(), true);
+}
+
+IntRange GetValueRange(ASTContext &C, APValue &result, QualType Ty,
+                       unsigned MaxWidth) {
+  if (result.isInt())
+    return GetValueRange(C, result.getInt(), MaxWidth);
+
+  if (result.isVector()) {
+    IntRange R = GetValueRange(C, result.getVectorElt(0), Ty, MaxWidth);
+    for (unsigned i = 1, e = result.getVectorLength(); i != e; ++i) {
+      IntRange El = GetValueRange(C, result.getVectorElt(i), Ty, MaxWidth);
+      R = IntRange::join(R, El);
+    }
+    return R;
+  }
+
+  if (result.isComplexInt()) {
+    IntRange R = GetValueRange(C, result.getComplexIntReal(), MaxWidth);
+    IntRange I = GetValueRange(C, result.getComplexIntImag(), MaxWidth);
+    return IntRange::join(R, I);
+  }
+
+  // This can happen with lossless casts to intptr_t of "based" lvalues.
+  // Assume it might use arbitrary bits.
+  // FIXME: The only reason we need to pass the type in here is to get
+  // the sign right on this one case.  It would be nice if APValue
+  // preserved this.
+  assert(result.isLValue());
+  return IntRange(MaxWidth, Ty->isUnsignedIntegerType());
+}
+
+/// Pseudo-evaluate the given integer expression, estimating the
+/// range of values it might take.
+///
+/// \param MaxWidth - the width to which the value will be truncated
+IntRange GetExprRange(ASTContext &C, Expr *E, unsigned MaxWidth) {
+  E = E->IgnoreParens();
+
+  // Try a full evaluation first.
+  Expr::EvalResult result;
+  if (E->Evaluate(result, C))
+    return GetValueRange(C, result.Val, E->getType(), MaxWidth);
+
+  // I think we only want to look through implicit casts here; if the
+  // user has an explicit widening cast, we should treat the value as
+  // being of the new, wider type.
+  if (ImplicitCastExpr *CE = dyn_cast<ImplicitCastExpr>(E)) {
+    if (CE->getCastKind() == CastExpr::CK_NoOp)
+      return GetExprRange(C, CE->getSubExpr(), MaxWidth);
+
+    IntRange OutputTypeRange = IntRange::forType(C, CE->getType());
+
+    bool isIntegerCast = (CE->getCastKind() == CastExpr::CK_IntegralCast);
+    if (!isIntegerCast && CE->getCastKind() == CastExpr::CK_Unknown)
+      isIntegerCast = CE->getSubExpr()->getType()->isIntegerType();
+
+    // Assume that non-integer casts can span the full range of the type.
+    if (!isIntegerCast)
+      return OutputTypeRange;
+
+    IntRange SubRange
+      = GetExprRange(C, CE->getSubExpr(),
+                     std::min(MaxWidth, OutputTypeRange.Width));
+
+    // Bail out if the subexpr's range is as wide as the cast type.
+    if (SubRange.Width >= OutputTypeRange.Width)
+      return OutputTypeRange;
+
+    // Otherwise, we take the smaller width, and we're non-negative if
+    // either the output type or the subexpr is.
+    return IntRange(SubRange.Width,
+                    SubRange.NonNegative || OutputTypeRange.NonNegative);
+  }
+
+  if (ConditionalOperator *CO = dyn_cast<ConditionalOperator>(E)) {
+    // If we can fold the condition, just take that operand.
+    bool CondResult;
+    if (CO->getCond()->EvaluateAsBooleanCondition(CondResult, C))
+      return GetExprRange(C, CondResult ? CO->getTrueExpr()
+                                        : CO->getFalseExpr(),
+                          MaxWidth);
+
+    // Otherwise, conservatively merge.
+    IntRange L = GetExprRange(C, CO->getTrueExpr(), MaxWidth);
+    IntRange R = GetExprRange(C, CO->getFalseExpr(), MaxWidth);
+    return IntRange::join(L, R);
+  }
+
+  if (BinaryOperator *BO = dyn_cast<BinaryOperator>(E)) {
+    switch (BO->getOpcode()) {
+
+    // Boolean-valued operations are single-bit and positive.
+    case BinaryOperator::LAnd:
+    case BinaryOperator::LOr:
+    case BinaryOperator::LT:
+    case BinaryOperator::GT:
+    case BinaryOperator::LE:
+    case BinaryOperator::GE:
+    case BinaryOperator::EQ:
+    case BinaryOperator::NE:
+      return IntRange::forBoolType();
+
+    // Operations with opaque sources are black-listed.
+    case BinaryOperator::PtrMemD:
+    case BinaryOperator::PtrMemI:
+      return IntRange::forType(C, E->getType());
+
+    // Bitwise-and uses the *infinum* of the two source ranges.
+    case BinaryOperator::And:
+      return IntRange::meet(GetExprRange(C, BO->getLHS(), MaxWidth),
+                            GetExprRange(C, BO->getRHS(), MaxWidth));
+
+    // Left shift gets black-listed based on a judgement call.
+    case BinaryOperator::Shl:
+      return IntRange::forType(C, E->getType());
+
+    // Right shift by a constant can narrow its left argument.
+    case BinaryOperator::Shr: {
+      IntRange L = GetExprRange(C, BO->getLHS(), MaxWidth);
+
+      // If the shift amount is a positive constant, drop the width by
+      // that much.
+      llvm::APSInt shift;
+      if (BO->getRHS()->isIntegerConstantExpr(shift, C) &&
+          shift.isNonNegative()) {
+        unsigned zext = shift.getZExtValue();
+        if (zext >= L.Width)
+          L.Width = (L.NonNegative ? 0 : 1);
+        else
+          L.Width -= zext;
+      }
+
+      return L;
+    }
+
+    // Comma acts as its right operand.
+    case BinaryOperator::Comma:
+      return GetExprRange(C, BO->getRHS(), MaxWidth);
+
+    // Black-list pointer subtractions.
+    case BinaryOperator::Sub:
+      if (BO->getLHS()->getType()->isPointerType())
+        return IntRange::forType(C, E->getType());
+      // fallthrough
+      
+    default:
+      break;
+    }
+
+    // Treat every other operator as if it were closed on the
+    // narrowest type that encompasses both operands.
+    IntRange L = GetExprRange(C, BO->getLHS(), MaxWidth);
+    IntRange R = GetExprRange(C, BO->getRHS(), MaxWidth);
+    return IntRange::join(L, R);
+  }
+
+  if (UnaryOperator *UO = dyn_cast<UnaryOperator>(E)) {
+    switch (UO->getOpcode()) {
+    // Boolean-valued operations are white-listed.
+    case UnaryOperator::LNot:
+      return IntRange::forBoolType();
+
+    // Operations with opaque sources are black-listed.
+    case UnaryOperator::Deref:
+    case UnaryOperator::AddrOf: // should be impossible
+    case UnaryOperator::OffsetOf:
+      return IntRange::forType(C, E->getType());
+
+    default:
+      return GetExprRange(C, UO->getSubExpr(), MaxWidth);
+    }
+  }
+
+  FieldDecl *BitField = E->getBitField();
+  if (BitField) {
+    llvm::APSInt BitWidthAP = BitField->getBitWidth()->EvaluateAsInt(C);
+    unsigned BitWidth = BitWidthAP.getZExtValue();
+
+    return IntRange(BitWidth, BitField->getType()->isUnsignedIntegerType());
+  }
+
+  return IntRange::forType(C, E->getType());
+}
+
+/// Checks whether the given value, which currently has the given
+/// source semantics, has the same value when coerced through the
+/// target semantics.
+bool IsSameFloatAfterCast(const llvm::APFloat &value,
+                          const llvm::fltSemantics &Src,
+                          const llvm::fltSemantics &Tgt) {
+  llvm::APFloat truncated = value;
+
+  bool ignored;
+  truncated.convert(Src, llvm::APFloat::rmNearestTiesToEven, &ignored);
+  truncated.convert(Tgt, llvm::APFloat::rmNearestTiesToEven, &ignored);
+
+  return truncated.bitwiseIsEqual(value);
+}
+
+/// Checks whether the given value, which currently has the given
+/// source semantics, has the same value when coerced through the
+/// target semantics.
+///
+/// The value might be a vector of floats (or a complex number).
+bool IsSameFloatAfterCast(const APValue &value,
+                          const llvm::fltSemantics &Src,
+                          const llvm::fltSemantics &Tgt) {
+  if (value.isFloat())
+    return IsSameFloatAfterCast(value.getFloat(), Src, Tgt);
+
+  if (value.isVector()) {
+    for (unsigned i = 0, e = value.getVectorLength(); i != e; ++i)
+      if (!IsSameFloatAfterCast(value.getVectorElt(i), Src, Tgt))
+        return false;
+    return true;
+  }
+
+  assert(value.isComplexFloat());
+  return (IsSameFloatAfterCast(value.getComplexFloatReal(), Src, Tgt) &&
+          IsSameFloatAfterCast(value.getComplexFloatImag(), Src, Tgt));
+}
+
+} // end anonymous namespace
+
+/// \brief Implements -Wsign-compare.
+///
+/// \param lex the left-hand expression
+/// \param rex the right-hand expression
+/// \param OpLoc the location of the joining operator
+/// \param Equality whether this is an "equality-like" join, which
+///   suppresses the warning in some cases
+void Sema::CheckSignCompare(Expr *lex, Expr *rex, SourceLocation OpLoc,
+                            const PartialDiagnostic &PD, bool Equality) {
+  // Don't warn if we're in an unevaluated context.
+  if (ExprEvalContexts.back().Context == Unevaluated)
+    return;
+
+  // If either expression is value-dependent, don't warn. We'll get another
+  // chance at instantiation time.
+  if (lex->isValueDependent() || rex->isValueDependent())
+    return;
+
+  QualType lt = lex->getType(), rt = rex->getType();
+
+  // Only warn if both operands are integral.
+  if (!lt->isIntegerType() || !rt->isIntegerType())
+    return;
+
+  // In C, the width of a bitfield determines its type, and the
+  // declared type only contributes the signedness.  This duplicates
+  // the work that will later be done by UsualUnaryConversions.
+  // Eventually, this check will be reorganized in a way that avoids
+  // this duplication.
+  if (!getLangOptions().CPlusPlus) {
+    QualType tmp;
+    tmp = Context.isPromotableBitField(lex);
+    if (!tmp.isNull()) lt = tmp;
+    tmp = Context.isPromotableBitField(rex);
+    if (!tmp.isNull()) rt = tmp;
+  }
+
+  // The rule is that the signed operand becomes unsigned, so isolate the
+  // signed operand.
+  Expr *signedOperand = lex, *unsignedOperand = rex;
+  QualType signedType = lt, unsignedType = rt;
+  if (lt->isSignedIntegerType()) {
+    if (rt->isSignedIntegerType()) return;
+  } else {
+    if (!rt->isSignedIntegerType()) return;
+    std::swap(signedOperand, unsignedOperand);
+    std::swap(signedType, unsignedType);
+  }
+
+  unsigned unsignedWidth = Context.getIntWidth(unsignedType);
+  unsigned signedWidth = Context.getIntWidth(signedType);
+
+  // If the unsigned type is strictly smaller than the signed type,
+  // then (1) the result type will be signed and (2) the unsigned
+  // value will fit fully within the signed type, and thus the result
+  // of the comparison will be exact.
+  if (signedWidth > unsignedWidth)
+    return;
+
+  // Otherwise, calculate the effective ranges.
+  IntRange signedRange = GetExprRange(Context, signedOperand, signedWidth);
+  IntRange unsignedRange = GetExprRange(Context, unsignedOperand, unsignedWidth);
+
+  // We should never be unable to prove that the unsigned operand is
+  // non-negative.
+  assert(unsignedRange.NonNegative && "unsigned range includes negative?");
+
+  // If the signed operand is non-negative, then the signed->unsigned
+  // conversion won't change it.
+  if (signedRange.NonNegative)
+    return;
+
+  // For (in)equality comparisons, if the unsigned operand is a
+  // constant which cannot collide with a overflowed signed operand,
+  // then reinterpreting the signed operand as unsigned will not
+  // change the result of the comparison.
+  if (Equality && unsignedRange.Width < unsignedWidth)
+    return;
+
+  Diag(OpLoc, PD)
+    << lt << rt << lex->getSourceRange() << rex->getSourceRange();
+}
+
+/// Diagnose an implicit cast;  purely a helper for CheckImplicitConversion.
+static void DiagnoseImpCast(Sema &S, Expr *E, QualType T, unsigned diag) {
+  S.Diag(E->getExprLoc(), diag) << E->getType() << T << E->getSourceRange();
+}
+
+/// Implements -Wconversion.
+void Sema::CheckImplicitConversion(Expr *E, QualType T) {
+  // Don't diagnose in unevaluated contexts.
+  if (ExprEvalContexts.back().Context == Sema::Unevaluated)
+    return;
+
+  // Don't diagnose for value-dependent expressions.
+  if (E->isValueDependent())
+    return;
+
+  const Type *Source = Context.getCanonicalType(E->getType()).getTypePtr();
+  const Type *Target = Context.getCanonicalType(T).getTypePtr();
+
+  // Never diagnose implicit casts to bool.
+  if (Target->isSpecificBuiltinType(BuiltinType::Bool))
+    return;
+
+  // Strip vector types.
+  if (isa<VectorType>(Source)) {
+    if (!isa<VectorType>(Target))
+      return DiagnoseImpCast(*this, E, T, diag::warn_impcast_vector_scalar);
+
+    Source = cast<VectorType>(Source)->getElementType().getTypePtr();
+    Target = cast<VectorType>(Target)->getElementType().getTypePtr();
+  }
+
+  // Strip complex types.
+  if (isa<ComplexType>(Source)) {
+    if (!isa<ComplexType>(Target))
+      return DiagnoseImpCast(*this, E, T, diag::warn_impcast_complex_scalar);
+
+    Source = cast<ComplexType>(Source)->getElementType().getTypePtr();
+    Target = cast<ComplexType>(Target)->getElementType().getTypePtr();
+  }
+
+  const BuiltinType *SourceBT = dyn_cast<BuiltinType>(Source);
+  const BuiltinType *TargetBT = dyn_cast<BuiltinType>(Target);
+
+  // If the source is floating point...
+  if (SourceBT && SourceBT->isFloatingPoint()) {
+    // ...and the target is floating point...
+    if (TargetBT && TargetBT->isFloatingPoint()) {
+      // ...then warn if we're dropping FP rank.
+
+      // Builtin FP kinds are ordered by increasing FP rank.
+      if (SourceBT->getKind() > TargetBT->getKind()) {
+        // Don't warn about float constants that are precisely
+        // representable in the target type.
+        Expr::EvalResult result;
+        if (E->Evaluate(result, Context)) {
+          // Value might be a float, a float vector, or a float complex.
+          if (IsSameFloatAfterCast(result.Val,
+                     Context.getFloatTypeSemantics(QualType(TargetBT, 0)),
+                     Context.getFloatTypeSemantics(QualType(SourceBT, 0))))
+            return;
+        }
+
+        DiagnoseImpCast(*this, E, T, diag::warn_impcast_float_precision);
+      }
+      return;
+    }
+
+    // If the target is integral, always warn.
+    if ((TargetBT && TargetBT->isInteger()))
+      // TODO: don't warn for integer values?
+      return DiagnoseImpCast(*this, E, T, diag::warn_impcast_float_integer);
+
+    return;
+  }
+
+  if (!Source->isIntegerType() || !Target->isIntegerType())
+    return;
+
+  IntRange SourceRange = GetExprRange(Context, E, Context.getIntWidth(E->getType()));
+  IntRange TargetRange = IntRange::forCanonicalType(Context, Target);
+
+  // FIXME: also signed<->unsigned?
+
+  if (SourceRange.Width > TargetRange.Width) {
+    // People want to build with -Wshorten-64-to-32 and not -Wconversion
+    // and by god we'll let them.
+    if (SourceRange.Width == 64 && TargetRange.Width == 32)
+      return DiagnoseImpCast(*this, E, T, diag::warn_impcast_integer_64_32);
+    return DiagnoseImpCast(*this, E, T, diag::warn_impcast_integer_precision);
+  }
+
+  return;
+}
+

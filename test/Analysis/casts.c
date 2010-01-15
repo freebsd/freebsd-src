@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 -triple x86_64-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify %s
+// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify %s
 
 // Test if the 'storage' region gets properly initialized after it is cast to
 // 'struct sockaddr *'. 
@@ -10,6 +11,8 @@ typedef __uint8_t sa_family_t;
 typedef __darwin_socklen_t socklen_t;
 struct sockaddr { sa_family_t sa_family; };
 struct sockaddr_storage {};
+
+void getsockname();
 
 void f(int sock) {
   struct sockaddr_storage storage;
@@ -44,4 +47,21 @@ void f2(const char *str) {
  cl = *p++;
  if(!cl)
     cl = 'a';
+}
+
+// Test cast VariableSizeArray to pointer does not crash.
+void *memcpy(void *, void const *, unsigned long);
+typedef unsigned char Byte;
+void doit(char *data, int len) {
+    if (len) {
+        Byte buf[len];
+        memcpy(buf, data, len);
+    }
+}
+
+// PR 6013 and 6035 - Test that a cast of a pointer to long and then to int does not crash SValuator.
+void pr6013_6035_test(void *p) {
+  unsigned int foo;
+  foo = ((long)(p));
+  (void) foo;
 }

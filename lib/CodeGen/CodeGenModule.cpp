@@ -17,6 +17,7 @@
 #include "CGCall.h"
 #include "CGObjCRuntime.h"
 #include "Mangle.h"
+#include "TargetInfo.h"
 #include "clang/CodeGen/CodeGenOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
@@ -42,8 +43,9 @@ CodeGenModule::CodeGenModule(ASTContext &C, const CodeGenOptions &CGO,
                              Diagnostic &diags)
   : BlockModule(C, M, TD, Types, *this), Context(C),
     Features(C.getLangOptions()), CodeGenOpts(CGO), TheModule(M),
-    TheTargetData(TD), Diags(diags), Types(C, M, TD), MangleCtx(C), 
-    VtableInfo(*this), Runtime(0),
+    TheTargetData(TD), TheTargetCodeGenInfo(0), Diags(diags),
+    Types(C, M, TD, getTargetCodeGenInfo().getABIInfo()),
+    MangleCtx(C), VtableInfo(*this), Runtime(0),
     MemCpyFn(0), MemMoveFn(0), MemSetFn(0), CFConstantStringClassRef(0),
     VMContext(M.getContext()) {
 
@@ -66,10 +68,8 @@ CodeGenModule::~CodeGenModule() {
 }
 
 void CodeGenModule::Release() {
-  // We need to call this first because it can add deferred declarations.
-  EmitCXXGlobalInitFunc();
-
   EmitDeferred();
+  EmitCXXGlobalInitFunc();
   if (Runtime)
     if (llvm::Function *ObjCInitFunction = Runtime->ModuleInitFunction())
       AddGlobalCtor(ObjCInitFunction);
@@ -378,6 +378,8 @@ void CodeGenModule::SetCommonAttributes(const Decl *D,
 
   if (const SectionAttr *SA = D->getAttr<SectionAttr>())
     GV->setSection(SA->getName());
+
+  getTargetCodeGenInfo().SetTargetAttributes(D, GV, *this);
 }
 
 void CodeGenModule::SetInternalFunctionAttributes(const Decl *D,
@@ -537,7 +539,8 @@ bool CodeGenModule::MayDeferGeneration(const ValueDecl *Global) {
       const CXXRecordDecl *RD = MD->getParent();
       if (MD->isOutOfLine() && RD->isDynamicClass()) {
         const CXXMethodDecl *KeyFunction = getContext().getKeyFunction(RD);
-        if (KeyFunction == MD->getCanonicalDecl())
+        if (KeyFunction && 
+            KeyFunction->getCanonicalDecl() == MD->getCanonicalDecl())
           return false;
       }
     }
@@ -876,6 +879,57 @@ void CodeGenModule::EmitTentativeDefinition(const VarDecl *D) {
   EmitGlobalVarDefinition(D);
 }
 
+llvm::GlobalVariable::LinkageTypes 
+CodeGenModule::getVtableLinkage(const CXXRecordDecl *RD) {
+  if (RD->isInAnonymousNamespace() || !RD->hasLinkage())
+    return llvm::GlobalVariable::InternalLinkage;
+
+  if (const CXXMethodDecl *KeyFunction
+                                    = RD->getASTContext().getKeyFunction(RD)) {
+    // If this class has a key function, use that to determine the linkage of
+    // the vtable.
+    const FunctionDecl *Def = 0;
+    if (KeyFunction->getBody(Def))
+      KeyFunction = cast<CXXMethodDecl>(Def);
+    
+    switch (KeyFunction->getTemplateSpecializationKind()) {
+      case TSK_Undeclared:
+      case TSK_ExplicitSpecialization:
+        if (KeyFunction->isInlined())
+          return llvm::GlobalVariable::WeakODRLinkage;
+        
+        return llvm::GlobalVariable::ExternalLinkage;
+        
+      case TSK_ImplicitInstantiation:
+      case TSK_ExplicitInstantiationDefinition:
+        return llvm::GlobalVariable::WeakODRLinkage;
+        
+      case TSK_ExplicitInstantiationDeclaration:
+        // FIXME: Use available_externally linkage. However, this currently
+        // breaks LLVM's build due to undefined symbols.
+        //      return llvm::GlobalVariable::AvailableExternallyLinkage;
+        return llvm::GlobalVariable::WeakODRLinkage;
+    }
+  }
+  
+  switch (RD->getTemplateSpecializationKind()) {
+  case TSK_Undeclared:
+  case TSK_ExplicitSpecialization:
+  case TSK_ImplicitInstantiation:
+  case TSK_ExplicitInstantiationDefinition:
+    return llvm::GlobalVariable::WeakODRLinkage;
+    
+  case TSK_ExplicitInstantiationDeclaration:
+    // FIXME: Use available_externally linkage. However, this currently
+    // breaks LLVM's build due to undefined symbols.
+    //   return llvm::GlobalVariable::AvailableExternallyLinkage;
+    return llvm::GlobalVariable::WeakODRLinkage;
+  }
+  
+  // Silence GCC warning.
+  return llvm::GlobalVariable::WeakODRLinkage;
+}
+
 static CodeGenModule::GVALinkage
 GetLinkageForVariable(ASTContext &Context, const VarDecl *VD) {
   // Everything located semantically within an anonymous namespace is
@@ -909,6 +963,7 @@ GetLinkageForVariable(ASTContext &Context, const VarDecl *VD) {
 void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D) {
   llvm::Constant *Init = 0;
   QualType ASTTy = D->getType();
+  bool NonConstInit = false;
 
   if (D->getInit() == 0) {
     // This is a tentative definition; tentative definitions are
@@ -928,8 +983,9 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D) {
     if (!Init) {
       QualType T = D->getInit()->getType();
       if (getLangOptions().CPlusPlus) {
-        CXXGlobalInits.push_back(D);
+        EmitCXXGlobalVarDeclInitFunc(D);
         Init = EmitNullConstant(T);
+        NonConstInit = true;
       } else {
         ErrorUnsupported(D, "static initializer");
         Init = llvm::UndefValue::get(getTypes().ConvertType(T));
@@ -990,7 +1046,7 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D) {
 
   // If it is safe to mark the global 'constant', do so now.
   GV->setConstant(false);
-  if (DeclIsConstantGlobal(Context, D))
+  if (!NonConstInit && DeclIsConstantGlobal(Context, D))
     GV->setConstant(true);
 
   GV->setAlignment(getContext().getDeclAlignInBytes(D));

@@ -80,6 +80,8 @@ TemplateNameKind Sema::isTemplateName(Scope *S,
                                       TypeTy *ObjectTypePtr,
                                       bool EnteringContext,
                                       TemplateTy &TemplateResult) {
+  assert(getLangOptions().CPlusPlus && "No template names in C!");
+
   DeclarationName TName;
   
   switch (Name.getKind()) {
@@ -141,6 +143,30 @@ TemplateNameKind Sema::isTemplateName(Scope *S,
   return TemplateKind;
 }
 
+bool Sema::DiagnoseUnknownTemplateName(const IdentifierInfo &II, 
+                                       SourceLocation IILoc,
+                                       Scope *S,
+                                       const CXXScopeSpec *SS,
+                                       TemplateTy &SuggestedTemplate,
+                                       TemplateNameKind &SuggestedKind) {
+  // We can't recover unless there's a dependent scope specifier preceding the
+  // template name.
+  if (!SS || !SS->isSet() || !isDependentScopeSpecifier(*SS) ||
+      computeDeclContext(*SS))
+    return false;
+  
+  // The code is missing a 'template' keyword prior to the dependent template
+  // name.
+  NestedNameSpecifier *Qualifier = (NestedNameSpecifier*)SS->getScopeRep();
+  Diag(IILoc, diag::err_template_kw_missing)
+    << Qualifier << II.getName()
+    << CodeModificationHint::CreateInsertion(IILoc, "template ");
+  SuggestedTemplate 
+    = TemplateTy::make(Context.getDependentTemplateName(Qualifier, &II));
+  SuggestedKind = TNK_Dependent_template_name;
+  return true;
+}
+
 void Sema::LookupTemplateName(LookupResult &Found,
                               Scope *S, const CXXScopeSpec &SS,
                               QualType ObjectType,
@@ -192,7 +218,8 @@ void Sema::LookupTemplateName(LookupResult &Found,
       ObjectTypeSearchedInScope = true;
     }
   } else if (isDependent) {
-    // We cannot look into a dependent object type or
+    // We cannot look into a dependent object type or nested nme
+    // specifier.
     return;
   } else {
     // Perform unqualified name lookup in the current scope.
@@ -203,7 +230,7 @@ void Sema::LookupTemplateName(LookupResult &Found,
   assert(!Found.isAmbiguous() &&
          "Cannot handle template name-lookup ambiguities");
 
-  if (Found.empty()) {
+  if (Found.empty() && !isDependent) {
     // If we did not find any names, attempt to correct any typos.
     DeclarationName Name = Found.getLookupName();
     if (CorrectTypo(Found, S, &SS, LookupCtx)) {
@@ -219,6 +246,9 @@ void Sema::LookupTemplateName(LookupResult &Found,
             << Name << Found.getLookupName()
             << CodeModificationHint::CreateReplacement(Found.getNameLoc(),
                                           Found.getLookupName().getAsString());
+        if (TemplateDecl *Template = Found.getAsSingle<TemplateDecl>())
+          Diag(Template->getLocation(), diag::note_previous_decl)
+            << Template->getDeclName();
       } else
         Found.clear();
     } else {
@@ -1578,15 +1608,19 @@ Sema::ActOnDependentTemplateName(SourceLocation TemplateKWLoc,
     TemplateTy Template;
     TemplateNameKind TNK = isTemplateName(0, SS, Name, ObjectType,
                                           EnteringContext, Template);
-    if (TNK == TNK_Non_template) {
+    if (TNK == TNK_Non_template && 
+        isCurrentInstantiationWithDependentBases(SS)) {
+      // This is a dependent template.
+    } else if (TNK == TNK_Non_template) {
       Diag(Name.getSourceRange().getBegin(), 
            diag::err_template_kw_refers_to_non_template)
         << GetNameFromUnqualifiedId(Name)
         << Name.getSourceRange();
       return TemplateTy();
+    } else {
+      // We found something; return it.
+      return Template;
     }
-
-    return Template;
   }
 
   NestedNameSpecifier *Qualifier
@@ -4537,8 +4571,10 @@ Sema::DeclResult Sema::ActOnExplicitInstantiation(Scope *S,
       if (CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(Prev)) {
         if (Context.hasSameUnqualifiedType(Method->getType(), R)) {
           Matches.clear();
+
           Matches.push_back(Method);
-          break;
+          if (Method->getTemplateSpecializationKind() == TSK_Undeclared)
+            break;
         }
       }
     }
@@ -4550,7 +4586,7 @@ Sema::DeclResult Sema::ActOnExplicitInstantiation(Scope *S,
     TemplateDeductionInfo Info(Context);
     FunctionDecl *Specialization = 0;
     if (TemplateDeductionResult TDK
-          = DeduceTemplateArguments(FunTmpl,
+          = DeduceTemplateArguments(FunTmpl, 
                                (HasExplicitTemplateArgs ? &TemplateArgs : 0),
                                     R, Specialization, Info)) {
       // FIXME: Keep track of almost-matches?
@@ -4735,6 +4771,10 @@ Sema::CheckTypenameType(NestedNameSpecifier *NNS, const IdentifierInfo &II,
   case LookupResult::NotFound:
     DiagID = diag::err_typename_nested_not_found;
     break;
+      
+  case LookupResult::NotFoundInCurrentInstantiation:
+    // Okay, it's a member of an unknown instantiation.
+    return Context.getTypenameType(NNS, &II);
 
   case LookupResult::Found:
     if (TypeDecl *Type = dyn_cast<TypeDecl>(Result.getFoundDecl())) {

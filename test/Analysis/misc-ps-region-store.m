@@ -55,7 +55,7 @@ void checkaccess_union() {
 
 // Check our handling of fields being invalidated by function calls.
 struct test2_struct { int x; int y; char* s; };
-void test2_helper(struct test2_struct* p);
+void test2_help(struct test2_struct* p);
 
 char test2() {
   struct test2_struct s;
@@ -387,7 +387,7 @@ void rdar_7332673_test1() {
     char value[1];
     if ( *(value) != 1 ) {} // expected-warning{{The left operand of '!=' is a garbage value}}
 }
-void rdar_rdar_7332673_test2_aux(char *x);
+int rdar_7332673_test2_aux(char *x);
 void rdar_7332673_test2() {
     char *value;
     if ( rdar_7332673_test2_aux(value) != 1 ) {} // expected-warning{{Pass-by-value argument in function call is undefined}}
@@ -631,7 +631,7 @@ typedef void (^RDar_7462324_Callback)(id obj);
 //===----------------------------------------------------------------------===//
 
 int rdar7468209_aux();
-void rdar7468209_aux2();
+void rdar7468209_aux_2();
 
 void rdar7468209() {
   __block int x = 0;
@@ -684,3 +684,49 @@ void pr4358(struct pr4358 *pnt) {
   }
   pr4358_aux(uninit); // no-warning
 }
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7526777>
+// Test handling fields of values returned from function calls or
+// message expressions.
+//===----------------------------------------------------------------------===//
+
+typedef struct testReturn_rdar_7526777 {
+  int x;
+  int y;
+} testReturn_rdar_7526777;
+
+@interface TestReturnStruct_rdar_7526777
+- (testReturn_rdar_7526777) foo;
+@end
+
+int test_return_struct(TestReturnStruct_rdar_7526777 *x) {
+  return [x foo].x;
+}
+
+testReturn_rdar_7526777 test_return_struct_2_aux_rdar_7526777();
+
+int test_return_struct_2_rdar_7526777() {
+  return test_return_struct_2_aux_rdar_7526777().x;
+}
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7527292> Assertion failed: (Op == BinaryOperator::Add || 
+//                                             Op == BinaryOperator::Sub)
+// This test case previously triggered an assertion failure due to a discrepancy
+// been the loaded/stored value in the array
+//===----------------------------------------------------------------------===//
+
+_Bool OSAtomicCompareAndSwapPtrBarrier( void *__oldValue, void *__newValue, void * volatile *__theValue );
+
+void rdar_7527292() {
+  static id Cache7527292[32];
+  for (signed long idx = 0;
+       idx < 32;
+       idx++) {
+    id v = Cache7527292[idx];
+    if (v && OSAtomicCompareAndSwapPtrBarrier(v, ((void*)0), (void * volatile *)(Cache7527292 + idx))) { 
+    }
+  }
+}
+

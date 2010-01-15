@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Sema.h"
+#include "Lookup.h"
 #include "clang/Sema/ExternalSemaSource.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ASTContext.h"
@@ -133,6 +134,19 @@ ActOnStartClassInterface(SourceLocation AtInterfaceLoc,
   if (SuperName) {
     // Check if a different kind of symbol declared in this scope.
     PrevDecl = LookupSingleName(TUScope, SuperName, LookupOrdinaryName);
+
+    if (!PrevDecl) {
+      // Try to correct for a typo in the superclass name.
+      LookupResult R(*this, SuperName, SuperLoc, LookupOrdinaryName);
+      if (CorrectTypo(R, TUScope, 0) &&
+          (PrevDecl = R.getAsSingle<ObjCInterfaceDecl>())) {
+        Diag(SuperLoc, diag::err_undef_superclass_suggest)
+          << SuperName << ClassName << PrevDecl->getDeclName();
+        Diag(PrevDecl->getLocation(), diag::note_previous_decl)
+          << PrevDecl->getDeclName();
+      }
+    }
+
     if (PrevDecl == IDecl) {
       Diag(SuperLoc, diag::err_recursive_superclass)
         << SuperName << ClassName << SourceRange(AtInterfaceLoc, ClassLoc);
@@ -316,6 +330,18 @@ Sema::FindProtocolDeclaration(bool WarnOnDeclarations,
                               llvm::SmallVectorImpl<DeclPtrTy> &Protocols) {
   for (unsigned i = 0; i != NumProtocols; ++i) {
     ObjCProtocolDecl *PDecl = LookupProtocol(ProtocolId[i].first);
+    if (!PDecl) {
+      LookupResult R(*this, ProtocolId[i].first, ProtocolId[i].second,
+                     LookupObjCProtocolName);
+      if (CorrectTypo(R, TUScope, 0) &&
+          (PDecl = R.getAsSingle<ObjCProtocolDecl>())) {
+        Diag(ProtocolId[i].second, diag::err_undeclared_protocol_suggest)
+          << ProtocolId[i].first << R.getLookupName();
+        Diag(PDecl->getLocation(), diag::note_previous_decl)
+          << PDecl->getDeclName();
+      }
+    }
+
     if (!PDecl) {
       Diag(ProtocolId[i].second, diag::err_undeclared_protocol)
         << ProtocolId[i].first;
@@ -568,7 +594,7 @@ ActOnStartCategoryInterface(SourceLocation AtInterfaceLoc,
   // FIXME: PushOnScopeChains?
   CurContext->addDecl(CDecl);
 
-  ObjCInterfaceDecl *IDecl = getObjCInterfaceDecl(ClassName);
+  ObjCInterfaceDecl *IDecl = getObjCInterfaceDecl(ClassName, ClassLoc);
   /// Check that class of this category is already completely declared.
   if (!IDecl || IDecl->isForwardDecl()) {
     CDecl->setInvalidDecl();
@@ -616,7 +642,7 @@ Sema::DeclPtrTy Sema::ActOnStartCategoryImplementation(
                       SourceLocation AtCatImplLoc,
                       IdentifierInfo *ClassName, SourceLocation ClassLoc,
                       IdentifierInfo *CatName, SourceLocation CatLoc) {
-  ObjCInterfaceDecl *IDecl = getObjCInterfaceDecl(ClassName);
+  ObjCInterfaceDecl *IDecl = getObjCInterfaceDecl(ClassName, ClassLoc);
   ObjCCategoryDecl *CatIDecl = 0;
   if (IDecl) {
     CatIDecl = IDecl->FindCategoryDeclaration(CatName);
@@ -667,12 +693,32 @@ Sema::DeclPtrTy Sema::ActOnStartClassImplementation(
   if (PrevDecl && !isa<ObjCInterfaceDecl>(PrevDecl)) {
     Diag(ClassLoc, diag::err_redefinition_different_kind) << ClassName;
     Diag(PrevDecl->getLocation(), diag::note_previous_definition);
-  }  else {
-    // Is there an interface declaration of this class; if not, warn!
-    IDecl = dyn_cast_or_null<ObjCInterfaceDecl>(PrevDecl);
-    if (!IDecl || IDecl->isForwardDecl()) {
+  } else if ((IDecl = dyn_cast_or_null<ObjCInterfaceDecl>(PrevDecl))) {
+    // If this is a forward declaration of an interface, warn.
+    if (IDecl->isForwardDecl()) {
       Diag(ClassLoc, diag::warn_undef_interface) << ClassName;
       IDecl = 0;
+    }
+  } else {
+    // We did not find anything with the name ClassName; try to correct for 
+    // typos in the class name.
+    LookupResult R(*this, ClassName, ClassLoc, LookupOrdinaryName);
+    if (CorrectTypo(R, TUScope, 0) &&
+        (IDecl = R.getAsSingle<ObjCInterfaceDecl>())) {
+      // Suggest the (potentially) correct interface name. However, put the
+      // fix-it hint itself in a separate note, since changing the name in 
+      // the warning would make the fix-it change semantics.However, don't
+      // provide a code-modification hint or use the typo name for recovery,
+      // because this is just a warning. The program may actually be correct.
+      Diag(ClassLoc, diag::warn_undef_interface_suggest)
+        << ClassName << R.getLookupName();
+      Diag(IDecl->getLocation(), diag::note_previous_decl)
+        << R.getLookupName()
+        << CodeModificationHint::CreateReplacement(ClassLoc,
+                                               R.getLookupName().getAsString());
+      IDecl = 0;
+    } else {
+      Diag(ClassLoc, diag::warn_undef_interface) << ClassName;
     }
   }
 
@@ -1437,8 +1483,11 @@ void Sema::ProcessPropertyDecl(ObjCPropertyDecl *property,
                                    property->getLocation());
 
   if (SetterMethod) {
-    if (Context.getCanonicalType(SetterMethod->getResultType())
-        != Context.VoidTy)
+    ObjCPropertyDecl::PropertyAttributeKind CAttr = 
+      property->getPropertyAttributes();
+    if ((!(CAttr & ObjCPropertyDecl::OBJC_PR_readonly)) &&
+        Context.getCanonicalType(SetterMethod->getResultType()) != 
+          Context.VoidTy)
       Diag(SetterMethod->getLocation(), diag::err_setter_type_void);
     if (SetterMethod->param_size() != 1 ||
         ((*SetterMethod->param_begin())->getType() != property->getType())) {
@@ -1563,7 +1612,8 @@ void Sema::CompareMethodParamsInBaseAndSuper(Decl *ClassDecl,
 
 // Note: For class/category implemenations, allMethods/allProperties is
 // always null.
-void Sema::ActOnAtEnd(SourceLocation AtEndLoc, DeclPtrTy classDecl,
+void Sema::ActOnAtEnd(SourceRange AtEnd,
+                      DeclPtrTy classDecl,
                       DeclPtrTy *allMethods, unsigned allNum,
                       DeclPtrTy *allProperties, unsigned pNum,
                       DeclGroupPtrTy *allTUVars, unsigned tuvNum) {
@@ -1580,9 +1630,13 @@ void Sema::ActOnAtEnd(SourceLocation AtEndLoc, DeclPtrTy classDecl,
          || isa<ObjCProtocolDecl>(ClassDecl);
   bool checkIdenticalMethods = isa<ObjCImplementationDecl>(ClassDecl);
 
-  if (!isInterfaceDeclKind && AtEndLoc.isInvalid()) {
-    AtEndLoc = ClassDecl->getLocation();
-    Diag(AtEndLoc, diag::warn_missing_atend);
+  if (!isInterfaceDeclKind && AtEnd.isInvalid()) {
+    // FIXME: This is wrong.  We shouldn't be pretending that there is
+    //  an '@end' in the declaration.
+    SourceLocation L = ClassDecl->getLocation();
+    AtEnd.setBegin(L);
+    AtEnd.setEnd(L);
+    Diag(L, diag::warn_missing_atend);
   }
   
   DeclContext *DC = dyn_cast<DeclContext>(ClassDecl);
@@ -1659,17 +1713,17 @@ void Sema::ActOnAtEnd(SourceLocation AtEndLoc, DeclPtrTy classDecl,
                                           E = CDecl->prop_end();
          I != E; ++I)
       ProcessPropertyDecl(*I, CDecl);
-    CDecl->setAtEndLoc(AtEndLoc);
+    CDecl->setAtEndRange(AtEnd);
   }
   if (ObjCImplementationDecl *IC=dyn_cast<ObjCImplementationDecl>(ClassDecl)) {
-    IC->setAtEndLoc(AtEndLoc);
+    IC->setAtEndRange(AtEnd);
     if (ObjCInterfaceDecl* IDecl = IC->getClassInterface()) {
       ImplMethodsVsClassMethods(IC, IDecl);
       AtomicPropertySetterGetterRules(IC, IDecl);
     }
   } else if (ObjCCategoryImplDecl* CatImplClass =
                                    dyn_cast<ObjCCategoryImplDecl>(ClassDecl)) {
-    CatImplClass->setAtEndLoc(AtEndLoc);
+    CatImplClass->setAtEndRange(AtEnd);
 
     // Find category interface decl and then check that all methods declared
     // in this interface are implemented in the category @implementation.
@@ -1979,6 +2033,32 @@ Sema::DeclPtrTy Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
                 (PIkind & retainCopyNonatomic)) {
               Diag(AtLoc, diag::warn_property_attr_mismatch);
               Diag(PIDecl->getLocation(), diag::note_property_declare);
+            }
+            DeclContext *DC = dyn_cast<DeclContext>(CCPrimary);
+            assert(DC && "ClassDecl is not a DeclContext");
+            DeclContext::lookup_result Found = 
+              DC->lookup(PIDecl->getDeclName());
+            bool PropertyInPrimaryClass = false;
+            for (; Found.first != Found.second; ++Found.first)
+              if (isa<ObjCPropertyDecl>(*Found.first)) {
+                PropertyInPrimaryClass = true;
+                break;
+              }
+            if (!PropertyInPrimaryClass) {
+              // Protocol is not in the primary class. Must build one for it.
+              ObjCDeclSpec ProtocolPropertyODS;
+              // FIXME. Assuming that ObjCDeclSpec::ObjCPropertyAttributeKind and
+              // ObjCPropertyDecl::PropertyAttributeKind have identical values.
+              // Should consolidate both into one enum type.
+              ProtocolPropertyODS.setPropertyAttributes(
+                (ObjCDeclSpec::ObjCPropertyAttributeKind)PIkind);
+              DeclPtrTy ProtocolPtrTy = 
+                ActOnProperty(S, AtLoc, FD, ProtocolPropertyODS, 
+                              PIDecl->getGetterName(), 
+                              PIDecl->getSetterName(), 
+                              DeclPtrTy::make(CCPrimary), isOverridingProperty, 
+                              MethodImplKind);
+              PIDecl = ProtocolPtrTy.getAs<ObjCPropertyDecl>();
             }
             PIDecl->makeitReadWriteAttribute();
             if (Attributes & ObjCDeclSpec::DQ_PR_retain)

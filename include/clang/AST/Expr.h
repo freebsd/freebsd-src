@@ -241,6 +241,11 @@ public:
   /// stack based objects.
   bool EvaluateAsAny(EvalResult &Result, ASTContext &Ctx) const;
 
+  /// EvaluateAsBooleanCondition - Return true if this is a constant
+  /// which we we can fold and convert to a boolean condition using
+  /// any crazy technique that we want to.
+  bool EvaluateAsBooleanCondition(bool &Result, ASTContext &Ctx) const;
+
   /// isEvaluatable - Call Evaluate to see if this expression can be constant
   /// folded, but discard the result.
   bool isEvaluatable(ASTContext &Ctx) const;
@@ -2552,7 +2557,7 @@ private:
   unsigned NumSubExprs : 16;
 
 
-  DesignatedInitExpr(QualType Ty, unsigned NumDesignators,
+  DesignatedInitExpr(ASTContext &C, QualType Ty, unsigned NumDesignators,
                      const Designator *Designators,
                      SourceLocation EqualOrColonLoc, bool GNUSyntax,
                      Expr **IndexExprs, unsigned NumIndexExprs,
@@ -2565,6 +2570,8 @@ private:
 protected:
   virtual void DoDestroy(ASTContext &C);
 
+  void DestroyDesignators(ASTContext &C);
+  
 public:
   /// A field designator, e.g., ".x".
   struct FieldDesignator {
@@ -2732,7 +2739,8 @@ public:
 
   Designator *getDesignator(unsigned Idx) { return &designators_begin()[Idx]; }
 
-  void setDesignators(const Designator *Desigs, unsigned NumDesigs);
+  void setDesignators(ASTContext &C, const Designator *Desigs, 
+                      unsigned NumDesigs);
 
   Expr *getArrayIndex(const Designator& D);
   Expr *getArrayRangeStart(const Designator& D);
@@ -2779,7 +2787,7 @@ public:
 
   /// \brief Replaces the designator at index @p Idx with the series
   /// of designators in [First, Last).
-  void ExpandDesignator(unsigned Idx, const Designator *First,
+  void ExpandDesignator(ASTContext &C, unsigned Idx, const Designator *First,
                         const Designator *Last);
 
   virtual SourceRange getSourceRange() const;

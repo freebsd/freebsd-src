@@ -43,6 +43,7 @@ namespace llvm {
 }
 
 namespace clang {
+  class TargetCodeGenInfo;
   class ASTContext;
   class FunctionDecl;
   class IdentifierInfo;
@@ -85,6 +86,7 @@ class CodeGenModule : public BlockModule {
   const CodeGenOptions &CodeGenOpts;
   llvm::Module &TheModule;
   const llvm::TargetData &TheTargetData;
+  mutable const TargetCodeGenInfo *TheTargetCodeGenInfo;
   Diagnostic &Diags;
   CodeGenTypes Types;
   MangleContext MangleCtx;
@@ -153,7 +155,7 @@ class CodeGenModule : public BlockModule {
 
   /// CXXGlobalInits - Variables with global initializers that need to run
   /// before main.
-  std::vector<const VarDecl*> CXXGlobalInits;
+  std::vector<llvm::Constant*> CXXGlobalInits;
 
   /// CFConstantStringClassRef - Cached reference to the class for constant
   /// strings. This value has type int * but is actually an Obj-C class pointer.
@@ -191,6 +193,7 @@ public:
   Diagnostic &getDiags() const { return Diags; }
   const llvm::TargetData &getTargetData() const { return TheTargetData; }
   llvm::LLVMContext &getLLVMContext() { return VMContext; }
+  const TargetCodeGenInfo &getTargetCodeGenInfo() const;
 
   /// getDeclVisibilityMode - Compute the visibility of the decl \arg D.
   LangOptions::VisibilityMode getDeclVisibilityMode(const Decl *D) const;
@@ -231,11 +234,6 @@ public:
   llvm::Constant *
   BuildCovariantThunk(const GlobalDecl &GD, bool Extern,
                       const CovariantThunkAdjustment &Adjustment);
-
-  typedef std::pair<const CXXRecordDecl *, uint64_t> CtorVtable_t;
-  typedef llvm::DenseMap<CtorVtable_t, int64_t> AddrSubMap_t;
-  typedef llvm::DenseMap<const CXXRecordDecl *, AddrSubMap_t *> AddrMap_t;
-  llvm::DenseMap<const CXXRecordDecl *, AddrMap_t*> AddressPoints;
 
   /// GetCXXBaseClassOffset - Returns the offset from a derived class to its
   /// base class. Returns null if the offset is 0.
@@ -412,6 +410,11 @@ public:
     GVA_TemplateInstantiation
   };
 
+  /// getVtableLinkage - Return the appropriate linkage for the vtable, VTT,
+  /// and type information of the given class.
+  static llvm::GlobalVariable::LinkageTypes 
+  getVtableLinkage(const CXXRecordDecl *RD);
+  
 private:
   /// UniqueMangledName - Unique a name by (if necessary) inserting it into the
   /// MangledNames string map.
@@ -475,7 +478,9 @@ private:
 
   /// EmitCXXGlobalInitFunc - Emit a function that initializes C++ globals.
   void EmitCXXGlobalInitFunc();
-  
+
+  void EmitCXXGlobalVarDeclInitFunc(const VarDecl *D);
+
   // FIXME: Hardcoding priority here is gross.
   void AddGlobalCtor(llvm::Function *Ctor, int Priority=65535);
   void AddGlobalDtor(llvm::Function *Dtor, int Priority=65535);

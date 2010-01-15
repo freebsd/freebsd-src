@@ -455,7 +455,9 @@ Parser::DeclGroupPtrTy Parser::ParseExternalDeclaration(CXX0XAttributeList Attr)
     SingleDecl = ParseObjCMethodDefinition();
     break;
   case tok::code_completion:
-    Actions.CodeCompleteOrdinaryName(CurScope);
+      Actions.CodeCompleteOrdinaryName(CurScope, 
+                                   ObjCImpDecl? Action::CCC_ObjCImplementation
+                                              : Action::CCC_Namespace);
     ConsumeToken();
     return ParseExternalDeclaration(Attr);
   case tok::kw_using:
@@ -541,7 +543,7 @@ Parser::ParseDeclarationOrFunctionDefinition(ParsingDeclSpec &DS,
   if (Attr)
     DS.AddAttributes(Attr);
 
-  ParseDeclarationSpecifiers(DS, ParsedTemplateInfo(), AS);
+  ParseDeclarationSpecifiers(DS, ParsedTemplateInfo(), AS, DSC_top_level);
 
   // C99 6.7.2.3p6: Handle "struct-or-union identifier;", "enum { X };"
   // declaration-specifiers init-declarator-list[opt] ';'

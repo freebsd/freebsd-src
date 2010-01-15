@@ -837,11 +837,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     break;
   }
 
-  // -fmath-errno is default.
-  if (!Args.hasFlag(options::OPT_fmath_errno,
+  // -fno-math-errno is default.
+  if (Args.hasFlag(options::OPT_fmath_errno,
                    options::OPT_fno_math_errno,
-                   getToolChain().IsMathErrnoDefault()))
-    CmdArgs.push_back("-fno-math-errno");
+                   false))
+    CmdArgs.push_back("-fmath-errno");
 
   Arg *Unsupported;
   if ((Unsupported = Args.getLastArg(options::OPT_MG)) ||
@@ -932,6 +932,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   if (Arg *A = Args.getLastArg(options::OPT_fconstant_string_class_EQ)) {
     CmdArgs.push_back("-fconstant-string-class");
+    CmdArgs.push_back(A->getValue(Args));
+  }
+
+  if (Arg *A = Args.getLastArg(options::OPT_ftabstop_EQ)) {
+    CmdArgs.push_back("-ftabstop");
     CmdArgs.push_back(A->getValue(Args));
   }
 
@@ -2069,13 +2074,7 @@ void darwin::Link::AddLinkArgs(const ArgList &Args,
   Args.AddAllArgs(CmdArgs, options::OPT_umbrella);
   Args.AddAllArgs(CmdArgs, options::OPT_undefined);
   Args.AddAllArgs(CmdArgs, options::OPT_unexported__symbols__list);
-
   Args.AddAllArgs(CmdArgs, options::OPT_weak__reference__mismatches);
-  if (!Args.hasArg(options::OPT_weak__reference__mismatches)) {
-    CmdArgs.push_back("-weak_reference_mismatches");
-    CmdArgs.push_back("non-weak");
-  }
-
   Args.AddLastArg(CmdArgs, options::OPT_X_Flag);
   Args.AddAllArgs(CmdArgs, options::OPT_y);
   Args.AddLastArg(CmdArgs, options::OPT_w);

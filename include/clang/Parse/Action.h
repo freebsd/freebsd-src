@@ -291,6 +291,42 @@ public:
                                           bool EnteringContext,
                                           TemplateTy &Template) = 0;
 
+  /// \brief Action called as part of error recovery when the parser has 
+  /// determined that the given name must refer to a template, but 
+  /// \c isTemplateName() did not return a result.
+  ///
+  /// This callback permits the action to give a detailed diagnostic when an
+  /// unknown template name is encountered and, potentially, to try to recover
+  /// by producing a new template in \p SuggestedTemplate.
+  ///
+  /// \param II the name that should be a template.
+  ///
+  /// \param IILoc the location of the name in the source.
+  ///
+  /// \param S the scope in which name lookup was performed.
+  ///
+  /// \param SS the C++ scope specifier that preceded the name.
+  ///
+  /// \param SuggestedTemplate if the action sets this template to a non-NULL,
+  /// template, the parser will recover by consuming the template name token
+  /// and the template argument list that follows.
+  ///
+  /// \param SuggestedTemplateKind as input, the kind of template that we
+  /// expect (e.g., \c TNK_Type_template or \c TNK_Function_template). If the
+  /// action provides a suggested template, this should be set to the kind of
+  /// template.
+  ///
+  /// \returns true if a diagnostic was emitted, false otherwise. When false,
+  /// the parser itself will emit a generic "unknown template name" diagnostic.
+  virtual bool DiagnoseUnknownTemplateName(const IdentifierInfo &II, 
+                                           SourceLocation IILoc,
+                                           Scope *S,
+                                           const CXXScopeSpec *SS,
+                                           TemplateTy &SuggestedTemplate,
+                                           TemplateNameKind &SuggestedKind) {
+    return false;
+  }
+  
   /// ActOnCXXGlobalScopeSpecifier - Return the object that represents the
   /// global scope ('::').
   virtual CXXScopeTy *ActOnCXXGlobalScopeSpecifier(Scope *S,
@@ -866,7 +902,8 @@ public:
                                         MultiExprArg Exprs,
                                         ExprArg AsmString,
                                         MultiExprArg Clobbers,
-                                        SourceLocation RParenLoc) {
+                                        SourceLocation RParenLoc,
+                                        bool MSAsm = false) {
     return StmtEmpty();
   }
 
@@ -2176,7 +2213,7 @@ public:
   // protocols, categories), the parser passes all methods/properties.
   // For class implementations, these values default to 0. For implementations,
   // methods are processed incrementally (by ActOnMethodDeclaration above).
-  virtual void ActOnAtEnd(SourceLocation AtEndLoc,
+  virtual void ActOnAtEnd(SourceRange AtEnd,
                           DeclPtrTy classDecl,
                           DeclPtrTy *allMethods = 0,
                           unsigned allNum = 0,
@@ -2339,11 +2376,49 @@ public:
   /// \todo Code completion for attributes.
   //@{
   
+  /// \brief Describes the context in which code completion occurs.
+  enum CodeCompletionContext {
+    /// \brief Code completion occurs at top-level or namespace context.
+    CCC_Namespace,
+    /// \brief Code completion occurs within a class, struct, or union.
+    CCC_Class,
+    /// \brief Code completion occurs within an Objective-C interface, protocol,
+    /// or category.
+    CCC_ObjCInterface,
+    /// \brief Code completion occurs within an Objective-C implementation or
+    /// category implementation
+    CCC_ObjCImplementation,
+    /// \brief Code completion occurs within the list of instance variables
+    /// in an Objective-C interface, protocol, category, or implementation.
+    CCC_ObjCInstanceVariableList,
+    /// \brief Code completion occurs following one or more template
+    /// headers.
+    CCC_Template,
+    /// \brief Code completion occurs following one or more template
+    /// headers within a class.
+    CCC_MemberTemplate,
+    /// \brief Code completion occurs within an expression.
+    CCC_Expression,
+    /// \brief Code completion occurs within a statement, which may
+    /// also be an expression or a declaration.
+    CCC_Statement,
+    /// \brief Code completion occurs at the beginning of the
+    /// initialization statement (or expression) in a for loop.
+    CCC_ForInit,
+    /// \brief Code completion ocurs within the condition of an if,
+    /// while, switch, or for statement.
+    CCC_Condition
+  };
+    
   /// \brief Code completion for an ordinary name that occurs within the given
   /// scope.
   ///
   /// \param S the scope in which the name occurs.
-  virtual void CodeCompleteOrdinaryName(Scope *S) { }
+  ///
+  /// \param CompletionContext the context in which code completion
+  /// occurs.
+  virtual void CodeCompleteOrdinaryName(Scope *S, 
+                                    CodeCompletionContext CompletionContext) { }
   
   /// \brief Code completion for a member access expression.
   ///
@@ -2458,6 +2533,9 @@ public:
   virtual void CodeCompleteObjCAtDirective(Scope *S, DeclPtrTy ObjCImpDecl,
                                            bool InInterface) { }
 
+  /// \brief Code completion after the '@' in the list of instance variables.
+  virtual void CodeCompleteObjCAtVisibility(Scope *S) { }
+  
   /// \brief Code completion after the '@' in a statement.
   virtual void CodeCompleteObjCAtStatement(Scope *S) { }
 

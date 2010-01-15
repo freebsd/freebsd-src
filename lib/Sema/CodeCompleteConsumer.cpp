@@ -85,6 +85,26 @@ CodeCompletionString::Chunk::Chunk(ChunkKind Kind, llvm::StringRef Text)
   case CK_Comma:
     this->Text = ", ";
     break;
+
+  case CK_Colon:
+    this->Text = ": ";
+    break;
+
+  case CK_SemiColon:
+    this->Text = ";";
+    break;
+
+  case CK_Equal:
+    this->Text = " = ";
+    break;
+
+  case CK_HorizontalSpace:
+    this->Text = " ";
+    break;
+
+  case CK_VerticalSpace:
+    this->Text = "\n";
+    break;
   }
 }
 
@@ -140,6 +160,11 @@ CodeCompletionString::Chunk CodeCompletionString::Chunk::Clone() const {
   case CK_LeftAngle:
   case CK_RightAngle:
   case CK_Comma:
+  case CK_Colon:
+  case CK_SemiColon:
+  case CK_Equal:
+  case CK_HorizontalSpace:
+  case CK_VerticalSpace:
     return Chunk(Kind, Text);
       
   case CK_Optional: {
@@ -177,6 +202,11 @@ CodeCompletionString::Chunk::Destroy() {
   case CK_LeftAngle:
   case CK_RightAngle:
   case CK_Comma:
+  case CK_Colon:
+  case CK_SemiColon:
+  case CK_Equal:
+  case CK_HorizontalSpace:
+  case CK_VerticalSpace:
     break;
   }
 }
@@ -271,6 +301,11 @@ void CodeCompletionString::Serialize(llvm::raw_ostream &OS) const {
     case CK_LeftAngle:
     case CK_RightAngle:
     case CK_Comma:
+    case CK_Colon:
+    case CK_SemiColon:
+    case CK_Equal:
+    case CK_HorizontalSpace:
+    case CK_VerticalSpace:
       break;
     }
   }
@@ -326,6 +361,11 @@ CodeCompletionString *CodeCompletionString::Deserialize(const char *&Str,
     case CK_LeftAngle:
     case CK_RightAngle:
     case CK_Comma:
+    case CK_Colon:
+    case CK_SemiColon:
+    case CK_Equal:
+    case CK_HorizontalSpace:
+    case CK_VerticalSpace:
       Result->AddChunk(Chunk(Kind));
       break;      
     }
@@ -386,8 +426,7 @@ PrintingCodeCompleteConsumer::ProcessCodeCompleteResults(Sema &SemaRef,
     OS << "COMPLETION: ";
     switch (Results[I].Kind) {
     case Result::RK_Declaration:
-      OS << Results[I].Declaration->getNameAsString() << " : " 
-         << Results[I].Rank;
+      OS << Results[I].Declaration->getNameAsString() ;
       if (Results[I].Hidden)
         OS << " (Hidden)";
       if (CodeCompletionString *CCS 
@@ -400,13 +439,13 @@ PrintingCodeCompleteConsumer::ProcessCodeCompleteResults(Sema &SemaRef,
       break;
       
     case Result::RK_Keyword:
-      OS << Results[I].Keyword << " : " << Results[I].Rank << '\n';
+      OS << Results[I].Keyword << '\n';
       break;
         
     case Result::RK_Macro: {
-      OS << Results[I].Macro->getName() << " : " << Results[I].Rank;
+      OS << Results[I].Macro->getName();
       if (CodeCompletionString *CCS 
-          = Results[I].CreateCodeCompletionString(SemaRef)) {
+            = Results[I].CreateCodeCompletionString(SemaRef)) {
         OS << " : " << CCS->getAsString();
         delete CCS;
       }
@@ -415,7 +454,7 @@ PrintingCodeCompleteConsumer::ProcessCodeCompleteResults(Sema &SemaRef,
     }
         
     case Result::RK_Pattern: {
-      OS << "Pattern : " << Results[I].Rank << " : " 
+      OS << "Pattern : " 
          << Results[I].Pattern->getAsString() << '\n';
       break;
     }

@@ -42,6 +42,7 @@ namespace llvm {
 }
 
 namespace clang {
+  class AnalysisContext;
   class ASTContext;
   class ASTConsumer;
   class CodeCompleteConsumer;
@@ -101,6 +102,7 @@ namespace clang {
   class InitializationKind;
   class InitializationSequence;
   class VisibleDeclConsumer;
+  class TargetAttributesSema;
 
 /// BlockSemaInfo - When a block is being parsed, this contains information
 /// about the block.  It is pointed to from Sema::CurBlock.
@@ -176,6 +178,7 @@ public:
 class Sema : public Action {
   Sema(const Sema&);           // DO NOT IMPLEMENT
   void operator=(const Sema&); // DO NOT IMPLEMENT
+  mutable const TargetAttributesSema* TheTargetAttributesSema;
 public:
   const LangOptions &LangOpts;
   Preprocessor &PP;
@@ -426,13 +429,12 @@ public:
   Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
        bool CompleteTranslationUnit = true,
        CodeCompleteConsumer *CompletionConsumer = 0);
-  ~Sema() {
-    if (PackContext) FreePackedContext();
-  }
+  ~Sema();
 
   const LangOptions &getLangOptions() const { return LangOpts; }
   Diagnostic &getDiagnostics() const { return Diags; }
   SourceManager &getSourceManager() const { return SourceMgr; }
+  const TargetAttributesSema &getTargetAttributesSema() const;
 
   /// \brief Helper class that creates diagnostics with optional
   /// template instantiation stacks.
@@ -560,8 +562,6 @@ public:
   bool CheckParamExceptionSpec(const PartialDiagnostic & NoteID,
       const FunctionProtoType *Target, SourceLocation TargetLoc,
       const FunctionProtoType *Source, SourceLocation SourceLoc);
-
-  QualType ObjCGetTypeForMethodDefinition(DeclPtrTy D);
 
   bool UnwrapSimilarPointerTypes(QualType& T1, QualType& T2);
 
@@ -1030,10 +1030,25 @@ public:
   OverloadingResult BestViableFunction(OverloadCandidateSet& CandidateSet,
                                        SourceLocation Loc,
                                        OverloadCandidateSet::iterator& Best);
+
+  enum OverloadCandidateDisplayKind {
+    /// Requests that all candidates be shown.  Viable candidates will
+    /// be printed first.
+    OCD_AllCandidates,
+
+    /// Requests that only viable candidates be shown.
+    OCD_ViableCandidates
+  };
   void PrintOverloadCandidates(OverloadCandidateSet& CandidateSet,
-                         bool OnlyViable,
-                         const char *Opc=0,
-                         SourceLocation Loc=SourceLocation());
+                               OverloadCandidateDisplayKind OCD,
+                               Expr **Args, unsigned NumArgs,
+                               const char *Opc = 0,
+                               SourceLocation Loc = SourceLocation());
+
+  void NoteOverloadCandidate(FunctionDecl *Fn);
+  void DiagnoseAmbiguousConversion(const ImplicitConversionSequence &ICS,
+                                   SourceLocation CaretLoc,
+                                   const PartialDiagnostic &PDiag);
 
   FunctionDecl *ResolveAddressOfOverloadedFunction(Expr *From, QualType ToType,
                                                    bool Complain);
@@ -1083,6 +1098,9 @@ public:
   OwningExprResult BuildOverloadedArrowExpr(Scope *S, ExprArg Base,
                                             SourceLocation OpLoc);
 
+  /// CheckUnreachable - Check for unreachable code.
+  void CheckUnreachable(AnalysisContext &);
+
   /// CheckCallReturnType - Checks that a call expression's return type is
   /// complete. Returns true on failure. The location passed in is the location
   /// that best represents the call.
@@ -1090,14 +1108,14 @@ public:
                            CallExpr *CE, FunctionDecl *FD);
                            
   /// Helpers for dealing with blocks and functions.
-  void CheckFallThroughForFunctionDef(Decl *D, Stmt *Body);
-  void CheckFallThroughForBlock(QualType BlockTy, Stmt *Body);
+  void CheckFallThroughForFunctionDef(Decl *D, Stmt *Body, AnalysisContext &);
+  void CheckFallThroughForBlock(QualType BlockTy, Stmt *, AnalysisContext &);
   bool CheckParmsForFunctionDef(FunctionDecl *FD);
   void CheckCXXDefaultArguments(FunctionDecl *FD);
   void CheckExtraCXXDefaultArguments(Declarator &D);
   enum ControlFlowKind { NeverFallThrough = 0, MaybeFallThrough = 1,
                          AlwaysFallThrough = 2, NeverFallThroughOrReturn = 3 };
-  ControlFlowKind CheckFallThrough(Stmt *);
+  ControlFlowKind CheckFallThrough(AnalysisContext &);
 
   Scope *getNonFieldDeclScope(Scope *S);
 
@@ -1168,8 +1186,14 @@ public:
     LookupObjCImplementationName
   };
 
+  /// \brief Specifies whether (or how) name lookup is being performed for a
+  /// redeclaration (vs. a reference).
   enum RedeclarationKind {
-    NotForRedeclaration,
+    /// \brief The lookup is a reference to this name that is not for the
+    /// purpose of redeclaring the name.
+    NotForRedeclaration = 0,
+    /// \brief The lookup results will be used for redeclaration of a name,
+    /// if an entity by that name already exists.
     ForRedeclaration
   };
 
@@ -1188,7 +1212,8 @@ public:
                                 = NotForRedeclaration);
   bool LookupName(LookupResult &R, Scope *S,
                   bool AllowBuiltinCreation = false);
-  bool LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx);
+  bool LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
+                           bool InUnqualifiedLookup = false);
   bool LookupParsedName(LookupResult &R, Scope *S, const CXXScopeSpec *SS,
                         bool AllowBuiltinCreation = false,
                         bool EnteringContext = false);
@@ -1210,7 +1235,8 @@ public:
 
   bool CorrectTypo(LookupResult &R, Scope *S, const CXXScopeSpec *SS,
                    DeclContext *MemberContext = 0,
-                   bool EnteringContext = false);
+                   bool EnteringContext = false,
+                   const ObjCObjectPointerType *OPT = 0);
 
   void FindAssociatedClassesAndNamespaces(Expr **Args, unsigned NumArgs,
                                    AssociatedNamespaceSet &AssociatedNamespaces,
@@ -1219,7 +1245,8 @@ public:
   bool DiagnoseAmbiguousLookup(LookupResult &Result);
   //@}
 
-  ObjCInterfaceDecl *getObjCInterfaceDecl(IdentifierInfo *Id);
+  ObjCInterfaceDecl *getObjCInterfaceDecl(IdentifierInfo *&Id,
+                                 SourceLocation RecoverLoc = SourceLocation());
   NamedDecl *LazilyCreateBuiltin(IdentifierInfo *II, unsigned ID,
                                  Scope *S, bool ForRedeclaration,
                                  SourceLocation Loc);
@@ -1383,7 +1410,8 @@ public:
                                         MultiExprArg Exprs,
                                         ExprArg AsmString,
                                         MultiExprArg Clobbers,
-                                        SourceLocation RParenLoc);
+                                        SourceLocation RParenLoc,
+                                        bool MSAsm = false);
 
   virtual OwningStmtResult ActOnObjCAtCatchStmt(SourceLocation AtLoc,
                                                 SourceLocation RParen,
@@ -1437,10 +1465,6 @@ public:
   void DiagnoseSentinelCalls(NamedDecl *D, SourceLocation Loc,
                              Expr **Args, unsigned NumArgs);
 
-  void CheckSignCompare(Expr *LHS, Expr *RHS, SourceLocation Loc,
-                        const PartialDiagnostic &PD,
-                        bool Equality = false);
-
   virtual void
   PushExpressionEvaluationContext(ExpressionEvaluationContext NewContext);
 
@@ -1462,7 +1486,8 @@ public:
 
   OwningExprResult LookupInObjCMethod(LookupResult &R,
                                       Scope *S,
-                                      IdentifierInfo *II);
+                                      IdentifierInfo *II,
+                                      bool AllowBuiltinCreation=false);
 
   OwningExprResult ActOnDependentIdExpression(const CXXScopeSpec &SS,
                                               DeclarationName Name,
@@ -1571,13 +1596,13 @@ public:
                                             QualType BaseType,
                                             SourceLocation OpLoc, bool IsArrow,
                                             const CXXScopeSpec &SS,
+                                            NamedDecl *FirstQualifierInScope,
                                             LookupResult &R,
                                  const TemplateArgumentListInfo *TemplateArgs);
 
   OwningExprResult LookupMemberExpr(LookupResult &R, Expr *&Base,
                                     bool &IsArrow, SourceLocation OpLoc,
                                     const CXXScopeSpec &SS,
-                                    NamedDecl *FirstQualifierInScope,
                                     DeclPtrTy ObjCImpDecl);
 
   bool CheckQualifiedMemberReference(Expr *BaseExpr, QualType BaseType,
@@ -2008,6 +2033,7 @@ public:
   bool isDependentScopeSpecifier(const CXXScopeSpec &SS);
   CXXRecordDecl *getCurrentInstantiationOf(NestedNameSpecifier *NNS);
   bool isUnknownSpecialization(const CXXScopeSpec &SS);
+  bool isCurrentInstantiationWithDependentBases(const CXXScopeSpec &SS);
 
   /// ActOnCXXGlobalScopeSpecifier - Return the object that represents the
   /// global scope ('::').
@@ -2175,11 +2201,11 @@ public:
   void MarkBaseAndMemberDestructorsReferenced(CXXDestructorDecl *Destructor);
 
   /// ClassesWithUnmarkedVirtualMembers - Contains record decls whose virtual
-  /// members might need to be marked as referenced. This is either done when
-  /// the key function definition is emitted (this is handled by by 
-  /// MaybeMarkVirtualMembersReferenced), or at the end of the translation unit
-  /// (done by ProcessPendingClassesWithUnmarkedVirtualMembers).
-  std::map<CXXRecordDecl *, SourceLocation> ClassesWithUnmarkedVirtualMembers;
+  /// members need to be marked as referenced at the end of the translation
+  /// unit. It will contain polymorphic classes that do not have a key
+  /// function or have a key function that has been defined.
+  llvm::SmallVector<std::pair<CXXRecordDecl *, SourceLocation>, 4>
+    ClassesWithUnmarkedVirtualMembers;
 
   /// MaybeMarkVirtualMembersReferenced - If the passed in method is the
   /// key function of the record decl, will mark virtual member functions as 
@@ -2236,8 +2262,6 @@ public:
   void CheckConversionDeclarator(Declarator &D, QualType &R,
                                  FunctionDecl::StorageClass& SC);
   DeclPtrTy ActOnConversionDeclarator(CXXConversionDecl *Conversion);
-
-  bool isImplicitMemberReference(const LookupResult &R, QualType &ThisType);
   
   //===--------------------------------------------------------------------===//
   // C++ Derived Classes
@@ -2338,6 +2362,8 @@ public:
 
   bool CheckOverloadedOperatorDeclaration(FunctionDecl *FnDecl);
 
+  bool CheckLiteralOperatorDeclaration(FunctionDecl *FnDecl);
+
   //===--------------------------------------------------------------------===//
   // C++ Templates [C++ 14]
   //
@@ -2350,6 +2376,14 @@ public:
                                           TypeTy *ObjectType,
                                           bool EnteringContext,
                                           TemplateTy &Template);
+  
+  virtual bool DiagnoseUnknownTemplateName(const IdentifierInfo &II, 
+                                           SourceLocation IILoc,
+                                           Scope *S,
+                                           const CXXScopeSpec *SS,
+                                           TemplateTy &SuggestedTemplate,
+                                           TemplateNameKind &SuggestedKind);
+    
   bool DiagnoseTemplateParameterShadow(SourceLocation Loc, Decl *PrevDecl);
   TemplateDecl *AdjustDeclIfTemplate(DeclPtrTy &Decl);
 
@@ -3348,10 +3382,11 @@ public:
   void MergeOneProtocolPropertiesIntoClass(Decl *CDecl,
                                            ObjCProtocolDecl *PDecl);
 
-  virtual void ActOnAtEnd(SourceLocation AtEndLoc, DeclPtrTy classDecl,
-                      DeclPtrTy *allMethods = 0, unsigned allNum = 0,
-                      DeclPtrTy *allProperties = 0, unsigned pNum = 0,
-                      DeclGroupPtrTy *allTUVars = 0, unsigned tuvNum = 0);
+  virtual void ActOnAtEnd(SourceRange AtEnd,
+                          DeclPtrTy classDecl,
+                          DeclPtrTy *allMethods = 0, unsigned allNum = 0,
+                          DeclPtrTy *allProperties = 0, unsigned pNum = 0,
+                          DeclGroupPtrTy *allTUVars = 0, unsigned tuvNum = 0);
 
   virtual DeclPtrTy ActOnProperty(Scope *S, SourceLocation AtLoc,
                                   FieldDeclarator &FD, ObjCDeclSpec &ODS,
@@ -3617,9 +3652,6 @@ public:
   bool PerformImplicitConversion(Expr *&From, QualType ToType,
                                  const StandardConversionSequence& SCS,
                                  AssignmentAction Action, bool IgnoreBaseAccess);
-  
-  bool BuildCXXDerivedToBaseExpr(Expr *&From, CastExpr::CastKind CastKind,
-                                 const ImplicitConversionSequence& ICS);
 
   /// the following "Check" methods will return a valid/converted QualType
   /// or a null QualType (indicating an error diagnostic was issued).
@@ -3629,7 +3661,8 @@ public:
   QualType CheckPointerToMemberOperands( // C++ 5.5
     Expr *&lex, Expr *&rex, SourceLocation OpLoc, bool isIndirect);
   QualType CheckMultiplyDivideOperands( // C99 6.5.5
-    Expr *&lex, Expr *&rex, SourceLocation OpLoc, bool isCompAssign = false);
+    Expr *&lex, Expr *&rex, SourceLocation OpLoc, bool isCompAssign,
+                                       bool isDivide);
   QualType CheckRemainderOperands( // C99 6.5.5
     Expr *&lex, Expr *&rex, SourceLocation OpLoc, bool isCompAssign = false);
   QualType CheckAdditionOperands( // C99 6.5.6
@@ -3801,7 +3834,8 @@ public:
 
   /// \name Code completion
   //@{
-  virtual void CodeCompleteOrdinaryName(Scope *S);
+  virtual void CodeCompleteOrdinaryName(Scope *S, 
+                                     CodeCompletionContext CompletionContext);
   virtual void CodeCompleteMemberReferenceExpr(Scope *S, ExprTy *Base,
                                                SourceLocation OpLoc,
                                                bool IsArrow);
@@ -3819,6 +3853,7 @@ public:
   
   virtual void CodeCompleteObjCAtDirective(Scope *S, DeclPtrTy ObjCImpDecl,
                                            bool InInterface);
+  virtual void CodeCompleteObjCAtVisibility(Scope *S);
   virtual void CodeCompleteObjCAtStatement(Scope *S);
   virtual void CodeCompleteObjCAtExpression(Scope *S);
   virtual void CodeCompleteObjCPropertyFlags(Scope *S, ObjCDeclSpec &ODS);
@@ -3895,6 +3930,11 @@ private:
   void CheckReturnStackAddr(Expr *RetValExp, QualType lhsType,
                             SourceLocation ReturnLoc);
   void CheckFloatComparison(SourceLocation loc, Expr* lex, Expr* rex);
+  void CheckSignCompare(Expr *LHS, Expr *RHS, SourceLocation Loc,
+                        const PartialDiagnostic &PD,
+                        bool Equality = false);
+  void CheckImplicitConversion(Expr *E, QualType Target);
+
 };
 
 //===--------------------------------------------------------------------===//

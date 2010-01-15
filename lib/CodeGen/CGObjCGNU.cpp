@@ -114,9 +114,11 @@ private:
   llvm::Constant *ExportUniqueString(const std::string &Str, const std::string
           prefix);
   llvm::Constant *MakeGlobal(const llvm::StructType *Ty,
-      std::vector<llvm::Constant*> &V, const std::string &Name="");
+    std::vector<llvm::Constant*> &V, const std::string &Name="",
+    llvm::GlobalValue::LinkageTypes linkage=llvm::GlobalValue::InternalLinkage);
   llvm::Constant *MakeGlobal(const llvm::ArrayType *Ty,
-      std::vector<llvm::Constant*> &V, const std::string &Name="");
+    std::vector<llvm::Constant*> &V, const std::string &Name="",
+    llvm::GlobalValue::LinkageTypes linkage=llvm::GlobalValue::InternalLinkage);
   llvm::GlobalVariable *ObjCIvarOffsetVariable(const ObjCInterfaceDecl *ID,
       const ObjCIvarDecl *Ivar);
   void EmitClassRef(const std::string &className);
@@ -215,8 +217,11 @@ static std::string SymbolNameForClass(const std::string &ClassName) {
 static std::string SymbolNameForMethod(const std::string &ClassName, const
   std::string &CategoryName, const std::string &MethodName, bool isClassMethod)
 {
-  return "_OBJC_METHOD_" + ClassName + "("+CategoryName+")"+
-            (isClassMethod ? "+" : "-") + MethodName;
+  std::string MethodNameColonStripped = MethodName;
+  std::replace(MethodNameColonStripped.begin(), MethodNameColonStripped.end(),
+      ':', '_');
+  return std::string(isClassMethod ? "_c_" : "_i_") + ClassName + "_" +
+    CategoryName + "_" + MethodNameColonStripped;
 }
 
 CGObjCGNU::CGObjCGNU(CodeGen::CodeGenModule &cgm)
@@ -257,6 +262,10 @@ CGObjCGNU::CGObjCGNU(CodeGen::CodeGenModule &cgm)
 llvm::Value *CGObjCGNU::GetClass(CGBuilderTy &Builder,
                                  const ObjCInterfaceDecl *OID) {
   llvm::Value *ClassName = CGM.GetAddrOfConstantCString(OID->getNameAsString());
+  // With the incompatible ABI, this will need to be replaced with a direct
+  // reference to the class symbol.  For the compatible nonfragile ABI we are
+  // still performing this lookup at run time but emitting the symbol for the
+  // class externally so that we can make the switch later.
   EmitClassRef(OID->getNameAsString());
   ClassName = Builder.CreateStructGEP(ClassName, 0);
 
@@ -323,14 +332,16 @@ llvm::Constant *CGObjCGNU::ExportUniqueString(const std::string &Str,
 }
 
 llvm::Constant *CGObjCGNU::MakeGlobal(const llvm::StructType *Ty,
-    std::vector<llvm::Constant*> &V, const std::string &Name) {
+    std::vector<llvm::Constant*> &V, const std::string &Name,
+    llvm::GlobalValue::LinkageTypes linkage) {
   llvm::Constant *C = llvm::ConstantStruct::get(Ty, V);
   return new llvm::GlobalVariable(TheModule, Ty, false,
       llvm::GlobalValue::InternalLinkage, C, Name);
 }
 
 llvm::Constant *CGObjCGNU::MakeGlobal(const llvm::ArrayType *Ty,
-    std::vector<llvm::Constant*> &V, const std::string &Name) {
+    std::vector<llvm::Constant*> &V, const std::string &Name,
+    llvm::GlobalValue::LinkageTypes linkage) {
   llvm::Constant *C = llvm::ConstantArray::get(Ty, V);
   return new llvm::GlobalVariable(TheModule, Ty, false,
                                   llvm::GlobalValue::InternalLinkage, C, Name);
@@ -703,7 +714,10 @@ llvm::Constant *CGObjCGNU::GenerateClassStructure(
   Elements.push_back(IvarOffsets);
   Elements.push_back(Properties);
   // Create an instance of the structure
-  return MakeGlobal(ClassTy, Elements, SymbolNameForClass(Name));
+  // This is now an externally visible symbol, so that we can speed up class
+  // messages in the next ABI.
+  return MakeGlobal(ClassTy, Elements, SymbolNameForClass(Name),
+         llvm::GlobalValue::ExternalLinkage);
 }
 
 llvm::Constant *CGObjCGNU::GenerateProtocolMethodList(
@@ -1607,7 +1621,7 @@ void CGObjCGNU::EmitTryOrSynchronizedStmt(CodeGen::CodeGenFunction &CGF,
   Params.push_back(PtrTy);
   llvm::Value *RethrowFn =
     CGM.CreateRuntimeFunction(llvm::FunctionType::get(llvm::Type::getVoidTy(VMContext),
-          Params, false), "objc_exception_throw");
+          Params, false), "_Unwind_Resume");
 
   bool isTry = isa<ObjCAtTryStmt>(S);
   llvm::BasicBlock *TryBlock = CGF.createBasicBlock("try");
@@ -1923,7 +1937,7 @@ llvm::GlobalVariable *CGObjCGNU::ObjCIvarOffsetVariable(
   if (!IvarOffsetPointer) {
     uint64_t Offset = ComputeIvarBaseOffset(CGM, ID, Ivar);
     llvm::ConstantInt *OffsetGuess =
-      llvm::ConstantInt::get(LongTy, Offset, "ivar");
+      llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), Offset, "ivar");
     // Don't emit the guess in non-PIC code because the linker will not be able
     // to replace it with the real version for a library.  In non-PIC code you
     // must compile with the fragile ABI if you want to use ivars from a

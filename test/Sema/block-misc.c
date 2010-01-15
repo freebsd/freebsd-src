@@ -64,6 +64,7 @@ int test4(int argc) {  // rdar://6251437
 }
 
 
+void bar(void*);
 // rdar://6257721 - reference to static/global is byref by default.
 static int test5g;
 void test5() {
@@ -157,6 +158,8 @@ void test16(__block int i) { // expected-error {{__block attribute not allowed, 
   __block int (*ap)[size]; // expected-error {{__block attribute not allowed on declaration with a variably modified type}}
 }
 
+void f();
+
 void test17() {
   void (^bp)(int);
   void (*rp)(int);
@@ -197,4 +200,23 @@ L0:
   return x;
 }
 
+// radr://7438948
+void test20() {
+  int n = 7;
+  int vla[n]; // expected-note {{declared at}}
+  int (*vm)[n] = 0; // expected-note {{declared at}}
+  vla[1] = 4341;
+  ^{
+    (void)vla[1];  // expected-error {{cannot refer to declaration with a variably modified type inside block}}
+    (void)(vm+1);  // expected-error {{cannot refer to declaration with a variably modified type inside block}}
+  }();
+}
 
+// radr://7438948
+void test21() {
+  int a[7]; // expected-note {{declared at}}
+  a[1] = 1;
+  ^{
+    (void)a[1]; // expected-error {{cannot refer to declaration with an array type inside block}}
+  }();
+}

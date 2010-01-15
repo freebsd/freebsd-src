@@ -17,6 +17,7 @@
 #include "clang/Analysis/PathSensitive/GRExprEngine.h"
 #include "clang/Analysis/PathSensitive/GRExprEngineBuilders.h"
 #include "clang/Analysis/PathSensitive/Checker.h"
+#include "clang/AST/CharUnits.h"
 #include "clang/AST/ParentMap.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/Basic/Builtins.h"
@@ -47,10 +48,9 @@ static inline Selector GetNullarySelector(const char* name, ASTContext& Ctx) {
 }
 
 
-static bool CalleeReturnsReference(const CallExpr *CE) { 
+static QualType GetCalleeReturnType(const CallExpr *CE) { 
   const Expr *Callee = CE->getCallee();
   QualType T = Callee->getType();
-  
   if (const PointerType *PT = T->getAs<PointerType>()) {
     const FunctionType *FT = PT->getPointeeType()->getAs<FunctionType>();
     T = FT->getResultType();
@@ -58,16 +58,35 @@ static bool CalleeReturnsReference(const CallExpr *CE) {
   else {
     const BlockPointerType *BT = T->getAs<BlockPointerType>();
     T = BT->getPointeeType()->getAs<FunctionType>()->getResultType();
-  }  
-  return T->isReferenceType();
+  }
+  return T;
+}
+
+static bool CalleeReturnsReference(const CallExpr *CE) { 
+  return (bool) GetCalleeReturnType(CE)->getAs<ReferenceType>();
 }
 
 static bool ReceiverReturnsReference(const ObjCMessageExpr *ME) {
   const ObjCMethodDecl *MD = ME->getMethodDecl();
   if (!MD)
     return false;
-  return MD->getResultType()->isReferenceType();
+  return MD->getResultType()->getAs<ReferenceType>();
 }
+
+#ifndef NDEBUG
+static bool ReceiverReturnsReferenceOrRecord(const ObjCMessageExpr *ME) {
+  const ObjCMethodDecl *MD = ME->getMethodDecl();
+  if (!MD)
+    return false;
+  QualType T = MD->getResultType();
+  return T->getAs<RecordType>() || T->getAs<ReferenceType>();
+}
+
+static bool CalleeReturnsReferenceOrRecord(const CallExpr *CE) {
+  QualType T = GetCalleeReturnType(CE);
+  return T->getAs<ReferenceType>() || T->getAs<RecordType>();
+}
+#endif
 
 //===----------------------------------------------------------------------===//
 // Batch auditor.  DEPRECATED.
@@ -300,23 +319,27 @@ static void RegisterInternalChecks(GRExprEngine &Eng) {
   RegisterOSAtomicChecker(Eng);
 }
 
-GRExprEngine::GRExprEngine(AnalysisManager &mgr)
+GRExprEngine::GRExprEngine(AnalysisManager &mgr, GRTransferFuncs *tf)
   : AMgr(mgr),
     CoreEngine(mgr.getASTContext(), *this),
     G(CoreEngine.getGraph()),
     Builder(NULL),
     StateMgr(G.getContext(), mgr.getStoreManagerCreator(),
-             mgr.getConstraintManagerCreator(), G.getAllocator()),
+             mgr.getConstraintManagerCreator(), G.getAllocator(),
+             *this),
     SymMgr(StateMgr.getSymbolManager()),
     ValMgr(StateMgr.getValueManager()),
     SVator(ValMgr.getSValuator()),
     CurrentStmt(NULL),
     NSExceptionII(NULL), NSExceptionInstanceRaiseSelectors(NULL),
     RaiseSel(GetNullarySelector("raise", G.getContext())),
-    BR(mgr, *this)
-{
+    BR(mgr, *this), TF(tf) {
   // Register internal checks.
   RegisterInternalChecks(*this);
+  
+  // FIXME: Eventually remove the TF object entirely.
+  TF->RegisterChecks(*this);
+  TF->RegisterPrinters(getStateManager().Printers);
 }
 
 GRExprEngine::~GRExprEngine() {
@@ -329,13 +352,6 @@ GRExprEngine::~GRExprEngine() {
 //===----------------------------------------------------------------------===//
 // Utility methods.
 //===----------------------------------------------------------------------===//
-
-void GRExprEngine::setTransferFunctionsAndCheckers(GRTransferFuncs* tf) {
-  StateMgr.TF = tf;
-  StateMgr.Checkers = &Checkers;
-  tf->RegisterChecks(*this);
-  tf->RegisterPrinters(getStateManager().Printers);
-}
 
 void GRExprEngine::AddCheck(GRSimpleAPICheck* A, Stmt::StmtClass C) {
   if (!BatchAuditor)
@@ -414,6 +430,25 @@ const GRState* GRExprEngine::getInitialState(const LocationContext *InitLoc) {
 //===----------------------------------------------------------------------===//
 // Top-level transfer function logic (Dispatcher).
 //===----------------------------------------------------------------------===//
+
+/// EvalAssume - Called by ConstraintManager. Used to call checker-specific
+///  logic for handling assumptions on symbolic values.
+const GRState *GRExprEngine::ProcessAssume(const GRState *state, SVal cond,
+                                           bool assumption) {  
+  for (CheckersOrdered::iterator I = Checkers.begin(), E = Checkers.end();
+        I != E; ++I) {
+
+    if (!state)
+      return NULL;  
+    
+    state = I->second->EvalAssume(state, cond, assumption);
+  }
+  
+  if (!state)
+    return NULL;
+  
+  return TF->EvalAssume(state, cond, assumption);
+}
 
 void GRExprEngine::ProcessStmt(CFGElement CE, GRStmtNodeBuilder& builder) {
   CurrentStmt = CE.getStmt();
@@ -809,7 +844,7 @@ void GRExprEngine::VisitLValue(Expr* Ex, ExplodedNode* Pred,
     case Stmt::CallExprClass:
     case Stmt::CXXOperatorCallExprClass: {
       CallExpr *C = cast<CallExpr>(Ex);
-      assert(CalleeReturnsReference(C));
+      assert(CalleeReturnsReferenceOrRecord(C));
       VisitCall(C, Pred, C->arg_begin(), C->arg_end(), Dst, true);      
       break;
     }
@@ -840,7 +875,7 @@ void GRExprEngine::VisitLValue(Expr* Ex, ExplodedNode* Pred,
       
     case Stmt::ObjCMessageExprClass: {
       ObjCMessageExpr *ME = cast<ObjCMessageExpr>(Ex);
-      assert(ReceiverReturnsReference(ME));
+      assert(ReceiverReturnsReferenceOrRecord(ME));
       VisitObjCMessageExpr(ME, Pred, Dst, true); 
       return;
     }
@@ -870,6 +905,11 @@ void GRExprEngine::VisitLValue(Expr* Ex, ExplodedNode* Pred,
 
     case Stmt::UnaryOperatorClass:
       VisitUnaryOperator(cast<UnaryOperator>(Ex), Pred, Dst, true);
+      return;
+
+    // In C++, binding an rvalue to a reference requires to create an object.
+    case Stmt::IntegerLiteralClass:
+      CreateCXXTemporaryObject(Ex, Pred, Dst);
       return;
       
     default:
@@ -1205,7 +1245,8 @@ void GRExprEngine::ProcessSwitch(GRSwitchNodeBuilder& builder) {
 
     do {
       nonloc::ConcreteInt CaseVal(getBasicVals().getValue(V1.Val.getInt()));
-      DefinedOrUnknownSVal Res = SVator.EvalEQ(DefaultSt, CondV, CaseVal);
+      DefinedOrUnknownSVal Res = SVator.EvalEQ(DefaultSt ? DefaultSt : state,
+                                               CondV, CaseVal);
             
       // Now "assume" that the case matches.
       if (const GRState* stateNew = state->Assume(Res, true)) {
@@ -1220,11 +1261,17 @@ void GRExprEngine::ProcessSwitch(GRSwitchNodeBuilder& builder) {
 
       // Now "assume" that the case doesn't match.  Add this state
       // to the default state (if it is feasible).
-      if (const GRState *stateNew = DefaultSt->Assume(Res, false)) {
-        defaultIsFeasible = true;
-        DefaultSt = stateNew;
+      if (DefaultSt) {
+        if (const GRState *stateNew = DefaultSt->Assume(Res, false)) {
+          defaultIsFeasible = true;
+          DefaultSt = stateNew;
+        }
+        else {
+          defaultIsFeasible = false;
+          DefaultSt = NULL;
+        }
       }
-
+        
       // Concretize the next value in the range.
       if (V1.Val.getInt() == V2.Val.getInt())
         break;
@@ -2375,12 +2422,12 @@ void GRExprEngine::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr* Ex,
                                           ExplodedNode* Pred,
                                           ExplodedNodeSet& Dst) {
   QualType T = Ex->getTypeOfArgument();
-  uint64_t amt;
+  CharUnits amt;
 
   if (Ex->isSizeOf()) {
     if (T == getContext().VoidTy) {
       // sizeof(void) == 1 byte.
-      amt = 1;
+      amt = CharUnits::One();
     }
     else if (!T.getTypePtr()->isConstantSizeType()) {
       // FIXME: Add support for VLAs.
@@ -2394,14 +2441,15 @@ void GRExprEngine::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr* Ex,
     }
     else {
       // All other cases.
-      amt = getContext().getTypeSize(T) / 8;
+      amt = getContext().getTypeSizeInChars(T);
     }
   }
   else  // Get alignment of the type.
-    amt = getContext().getTypeAlign(T) / 8;
+    amt = CharUnits::fromQuantity(getContext().getTypeAlign(T) / 8);
 
   MakeNode(Dst, Ex, Pred,
-           GetState(Pred)->BindExpr(Ex, ValMgr.makeIntVal(amt, Ex->getType())));
+           GetState(Pred)->BindExpr(Ex, 
+              ValMgr.makeIntVal(amt.getQuantity(), Ex->getType())));
 }
 
 
@@ -2695,8 +2743,13 @@ void GRExprEngine::VisitUnaryOperator(UnaryOperator* U, ExplodedNode* Pred,
 void GRExprEngine::VisitCXXThisExpr(CXXThisExpr *TE, ExplodedNode *Pred, 
                                     ExplodedNodeSet & Dst) {
   // Get the this object region from StoreManager.
-  Loc V = getStoreManager().getThisObject(TE->getType()->getPointeeType());
-  MakeNode(Dst, TE, Pred, GetState(Pred)->BindExpr(TE, V));
+  const MemRegion *R =
+    ValMgr.getRegionManager().getCXXThisRegion(TE->getType(),
+                                               Pred->getLocationContext());
+  
+  const GRState *state = GetState(Pred);
+  SVal V = state->getSVal(loc::MemRegionVal(R));
+  MakeNode(Dst, TE, Pred, state->BindExpr(TE, V));
 }
 
 void GRExprEngine::VisitAsmStmt(AsmStmt* A, ExplodedNode* Pred, 
@@ -2962,6 +3015,26 @@ void GRExprEngine::VisitBinaryOperator(BinaryOperator* B,
   }
 
   CheckerVisit(B, Dst, Tmp3, false);
+}
+
+void GRExprEngine::CreateCXXTemporaryObject(Expr *Ex, ExplodedNode *Pred, 
+                                            ExplodedNodeSet &Dst) {
+  ExplodedNodeSet Tmp;
+  Visit(Ex, Pred, Tmp);
+  for (ExplodedNodeSet::iterator I = Tmp.begin(), E = Tmp.end(); I != E; ++I) {
+    const GRState *state = GetState(*I);
+    
+    // Bind the temporary object to the value of the expression. Then bind
+    // the expression to the location of the object.
+    SVal V = state->getSVal(Ex);
+
+    const MemRegion *R = 
+      ValMgr.getRegionManager().getCXXObjectRegion(Ex,
+                                                   Pred->getLocationContext());
+
+    state = state->bindLoc(loc::MemRegionVal(R), V);
+    MakeNode(Dst, Ex, Pred, state->BindExpr(Ex, loc::MemRegionVal(R)));
+  }  
 }
 
 //===----------------------------------------------------------------------===//

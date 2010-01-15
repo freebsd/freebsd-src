@@ -89,7 +89,7 @@ def warn_decl_in_param_list : Warning<
 def warn_implicit_function_decl : Warning<
   "implicit declaration of function %0">,
   InGroup<ImplicitFunctionDeclare>, DefaultIgnore;
-def ext_implicit_function_decl : Extension<
+def ext_implicit_function_decl : ExtWarn<
   "implicit declaration of function %0 is invalid in C99">,
   InGroup<ImplicitFunctionDeclare>;
 
@@ -160,6 +160,8 @@ def warn_suggest_noreturn_function : Warning<
 def warn_suggest_noreturn_block : Warning<
   "block could be attribute 'noreturn'">,
   InGroup<DiagGroup<"missing-noreturn">>, DefaultIgnore;
+def warn_unreachable : Warning<"will never be executed">,
+  InGroup<DiagGroup<"unreachable-code">>, DefaultIgnore;
 
 /// Built-in functions.
 def ext_implicit_lib_function_decl : ExtWarn<
@@ -683,6 +685,8 @@ def err_attribute_not_string : Error<
   "argument to %0 attribute was not a string literal">;
 def err_attribute_section_invalid_for_target : Error<
   "argument to 'section' attribute is not valid for this target: %0">;
+def err_attribute_section_local_variable : Error<
+  "'section' attribute is not valid on local variables">;
 def err_attribute_aligned_not_power_of_two : Error<
   "requested alignment is not a power of 2">;
 def warn_redeclaration_without_attribute_prev_attribute_ignored : Warning<
@@ -895,18 +899,61 @@ def err_ovl_ambiguous_member_call : Error<
   "call to member function %0 is ambiguous">;
 def err_ovl_deleted_member_call : Error<
   "call to %select{unavailable|deleted}0 member function %1">;
-def err_ovl_candidate : Note<"candidate function">;
-def err_ovl_candidate_not_viable : Note<"function not viable because"
-                                        " of ambiguity in conversion of argument %0">;
+def note_ovl_candidate : Note<"candidate "
+    "%select{function|function|constructor|"
+    "function |function |constructor |"
+    "is the implicit default constructor|"
+    "is the implicit copy constructor|"
+    "is the implicit copy assignment operator}0%1">;
+// Note that we don't treat templates differently for this diagnostic.
+def note_ovl_candidate_arity : Note<"candidate "
+    "%select{function|function|constructor|function|function|constructor|"
+    "constructor (the implicit default constructor)|"
+    "constructor (the implicit copy constructor)|"
+    "function (the implicit copy assignment operator)}0 not viable: requires"
+    "%select{ at least| at most|}2 %3 argument%s3, but %4 %plural{1:was|:were}4 "
+    "provided">;
+def note_ovl_candidate_deleted : Note<
+  "candidate %select{function|function|constructor|"
+  "function |function |constructor |||}0%1 "
+  "has been explicitly %select{made unavailable|deleted}2">;
+def note_ovl_candidate_bad_conv : Note<"candidate "
+    "%select{function|function|constructor|"
+    "function |function |constructor |"
+    "constructor (the implicit default constructor)|"
+    "constructor (the implicit copy constructor)|"
+    "function (the implicit copy assignment operator)}0%1"
+    " not viable: no known conversion from %2 to %3 for "
+    "%select{%ordinal5 argument|object argument}4">;
+def note_ovl_candidate_bad_addrspace : Note<"candidate "
+    "%select{function|function|constructor|"
+    "function |function |constructor |"
+    "constructor (the implicit default constructor)|"
+    "constructor (the implicit copy constructor)|"
+    "function (the implicit copy assignment operator)}0%1 not viable: "
+    "%select{%ordinal6|'this'}5 argument (%2) is in "
+    "address space %3, but parameter must be in address space %4">;
+def note_ovl_candidate_bad_cvr_this : Note<"candidate "
+    "%select{|function|||function||||"
+    "function (the implicit copy assignment operator)}0 not viable: "
+    "'this' argument has type %2, but method is not marked "
+    "%select{const|volatile|const or volatile|restrict|const or restrict|"
+    "volatile or restrict|const, volatile, or restrict}3">;
+def note_ovl_candidate_bad_cvr : Note<"candidate "
+    "%select{function|function|constructor|"
+    "function |function |constructor |"
+    "constructor (the implicit default constructor)|"
+    "constructor (the implicit copy constructor)|"
+    "function (the implicit copy assignment operator)}0%1 not viable: "
+    "%ordinal4 argument (%2) would lose "
+    "%select{const|volatile|const and volatile|restrict|const and restrict|"
+    "volatile and restrict|const, volatile, and restrict}3 qualifier"
+    "%select{||s||s|s|s}3">;
 def note_ambiguous_type_conversion: Note<
     "because of ambiguity in conversion of %0 to %1">;
-def err_ovl_template_candidate : Note<
-  "candidate function template specialization %0">;
-def err_ovl_candidate_deleted : Note<
-  "candidate function has been explicitly %select{made unavailable|deleted}0">;
-def err_ovl_builtin_binary_candidate : Note<
+def note_ovl_builtin_binary_candidate : Note<
     "built-in candidate %0">;
-def err_ovl_builtin_unary_candidate : Note<
+def note_ovl_builtin_unary_candidate : Note<
     "built-in candidate %0">;
 def err_ovl_no_viable_function_in_init : Error<
   "no matching constructor for initialization of %0">;
@@ -920,6 +967,10 @@ def err_ovl_ambiguous_oper : Error<
 def err_ovl_no_viable_oper : Error<"no viable overloaded '%0'">;
 def err_ovl_deleted_oper : Error<
   "overload resolution selected %select{unavailable|deleted}0 operator '%1'">;
+def err_ovl_no_viable_subscript :
+    Error<"no viable overloaded operator[] for type %0">;
+def err_ovl_no_oper :
+    Error<"type %0 does not provide a %select{subscript|call}1 operator">;
 
 def err_ovl_no_viable_object_call : Error<
   "no matching function for call to object of type %0">;
@@ -927,7 +978,7 @@ def err_ovl_ambiguous_object_call : Error<
   "call to object of type %0 is ambiguous">;
 def err_ovl_deleted_object_call : Error<
   "call to %select{unavailable|deleted}0 function call operator in type %1">;
-def err_ovl_surrogate_cand : Note<"conversion candidate of type %0">;
+def note_ovl_surrogate_cand : Note<"conversion candidate of type %0">;
 def err_member_call_without_object : Error<
   "call to non-static member function without an object argument">;
 
@@ -1295,6 +1346,8 @@ def err_template_kw_refers_to_class_template : Error<
     "'%0%1' instantiated to a class template, not a function template">;
 def note_referenced_class_template : Error<
     "class template declared here">;
+def err_template_kw_missing : Error<
+  "missing 'template' keyword prior to dependent template name '%0%1'">;
 
 // C++0x Variadic Templates
 def err_template_param_pack_default_arg : Error<
@@ -1472,7 +1525,7 @@ def note_protected_by___block : Note<
   "jump bypasses setup of __block variable">;
 
 def err_func_returning_array_function : Error<
-  "function cannot return array or function type %0">;
+  "function cannot return %select{array|function}0 type %1">;
 def err_field_declared_as_function : Error<"field %0 declared as a function">;
 def err_field_incomplete : Error<"field has incomplete type %0">;
 def ext_variable_sized_type_in_struct : ExtWarn<
@@ -1543,15 +1596,17 @@ def warn_floatingpoint_eq : Warning<
   "comparing floating point with == or != is unsafe">,
   InGroup<DiagGroup<"float-equal">>, DefaultIgnore;
 
-def warn_shift_negative : Warning<
-  "shift count is negative">;
-def warn_shift_gt_typewidth : Warning<
-  "shift count >= width of type">;
+def warn_division_by_zero : Warning<"division by zero is undefined">;
+def warn_remainder_by_zero : Warning<"remainder by zero is undefined">;
+def warn_shift_negative : Warning<"shift count is negative">;
+def warn_shift_gt_typewidth : Warning<"shift count >= width of type">;
 
 def warn_precedence_bitwise_rel : Warning<
   "%0 has lower precedence than %1; %1 will be evaluated first">,
   InGroup<Parentheses>;
-
+def note_precedence_bitwise_first : Note<
+  "place parentheses around the %0 expression to evaluate it first">;
+  
 def err_sizeof_nonfragile_interface : Error<
   "invalid application of '%select{alignof|sizeof}1' to interface %0 in "
   "non-fragile ABI">;
@@ -1647,6 +1702,8 @@ def err_static_block_func : Error<
 def err_typecheck_address_of : Error<"address of %0 requested">;
 def ext_typecheck_addrof_void : Extension<
   "ISO C forbids taking the address of an expression of type 'void'">;
+def err_unqualified_pointer_member_function : Error<
+  "must explicitly qualify member function %0 when taking its address">;
 def err_typecheck_invalid_lvalue_addrof : Error<
   "address expression must be an lvalue or a function designator">;
 def err_typecheck_unary_expr : Error<
@@ -1721,6 +1778,10 @@ def warn_printf_nonliteral : Warning<
 def err_unexpected_interface : Error<
   "unexpected interface name %0: expected expression">;
 def err_ref_non_value : Error<"%0 does not refer to a value">;
+def err_ref_vm_type : Error<
+  "cannot refer to declaration with a variably modified type inside block">;
+def err_ref_array_type : Error<
+  "cannot refer to declaration with an array type inside block">;
 def err_property_not_found : Error<
   "property %0 not found on object of type %1">;
 def err_duplicate_property : Error<
@@ -1952,6 +2013,8 @@ def warn_condition_is_assignment : Warning<"using the result of an "
 def warn_condition_is_idiomatic_assignment : Warning<"using the result "
   "of an assignment as a condition without parentheses">,
   InGroup<DiagGroup<"idiomatic-parentheses">>, DefaultIgnore;
+def note_condition_assign_to_comparison : Note<
+  "use '==' to turn this assignment into an equality comparison">;
 
 def warn_value_always_zero : Warning<
   "%0 is always %select{zero|false|NULL}1 in this context">;
@@ -2303,6 +2366,13 @@ def err_operator_delete_dependent_param_type : Error<
 def err_operator_delete_param_type : Error<
   "%0 takes type %1 as first parameter">;
 
+// C++ literal operators
+def err_literal_operator_outside_namespace : Error<
+  "literal operator %0 must be in a namespace or global scope">;
+// FIXME: This diagnostic sucks
+def err_literal_operator_params : Error<
+  "parameter declaration for literal operator %0 is not valid">;
+
 // C++ conversion functions
 def err_conv_function_not_member : Error<
   "conversion function must be a non-static member function">;
@@ -2569,7 +2639,21 @@ def err_mem_init_not_member_or_class_suggest : Error<
 def err_field_designator_unknown_suggest : Error<
   "field designator %0 does not refer to any field in type %1; did you mean "
   "%2?">;
-
+def err_typecheck_member_reference_ivar_suggest : Error<
+  "%0 does not have a member named %1; did you mean %2?">;
+def err_property_not_found_suggest : Error<
+  "property %0 not found on object of type %1; did you mean %2?">;
+def err_undef_interface_suggest : Error<
+  "cannot find interface declaration for %0; did you mean %1?">;
+def warn_undef_interface_suggest : Warning<
+  "cannot find interface declaration for %0; did you mean %1?">;
+def err_undef_superclass_suggest : Error<
+  "cannot find interface declaration for %0, superclass of %1; did you mean "
+  "%2?">;
+def err_undeclared_protocol_suggest : Error<
+  "cannot find protocol declaration for %0; did you mean %1?">;
+def note_base_class_specified_here : Note<
+  "base class %0 specified here">;
 }
 
 

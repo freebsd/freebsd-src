@@ -200,11 +200,6 @@ static prec::Level getBinOpPrecedence(tok::TokenKind Kind,
 ///         expression ',' assignment-expression
 ///
 Parser::OwningExprResult Parser::ParseExpression() {
-  if (Tok.is(tok::code_completion)) {
-    Actions.CodeCompleteOrdinaryName(CurScope);
-    ConsumeToken();
-  }
-
   OwningExprResult LHS(ParseAssignmentExpression());
   if (LHS.isInvalid()) return move(LHS);
 
@@ -248,6 +243,11 @@ Parser::ParseExpressionWithLeadingExtension(SourceLocation ExtLoc) {
 /// ParseAssignmentExpression - Parse an expr that doesn't include commas.
 ///
 Parser::OwningExprResult Parser::ParseAssignmentExpression() {
+  if (Tok.is(tok::code_completion)) {
+    Actions.CodeCompleteOrdinaryName(CurScope, Action::CCC_Expression);
+    ConsumeToken();
+  }
+
   if (Tok.is(tok::kw_throw))
     return ParseThrowExpression();
 
@@ -616,9 +616,17 @@ Parser::OwningExprResult Parser::ParseCastExpression(bool isUnaryExpression,
     // Turn a potentially qualified name into a annot_typename or
     // annot_cxxscope if it would be valid.  This handles things like x::y, etc.
     if (getLang().CPlusPlus) {
-      // If TryAnnotateTypeOrScopeToken annotates the token, tail recurse.
-      if (TryAnnotateTypeOrScopeToken())
-        return ParseCastExpression(isUnaryExpression, isAddressOfOperand);
+      // Avoid the unnecessary parse-time lookup in the common case
+      // where the syntax forbids a type.
+      const Token &Next = NextToken();
+      if (Next.is(tok::coloncolon) ||
+          (!ColonIsSacred && Next.is(tok::colon)) ||
+          Next.is(tok::less) ||
+          Next.is(tok::l_paren)) {
+        // If TryAnnotateTypeOrScopeToken annotates the token, tail recurse.
+        if (TryAnnotateTypeOrScopeToken())
+          return ParseCastExpression(isUnaryExpression, isAddressOfOperand);
+      }
     }
 
     // Consume the identifier so that we can see if it is followed by a '(' or

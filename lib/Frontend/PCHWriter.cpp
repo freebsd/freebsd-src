@@ -344,10 +344,15 @@ void TypeLocWriter::VisitTypedefTypeLoc(TypedefTypeLoc TL) {
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
 }
 void TypeLocWriter::VisitTypeOfExprTypeLoc(TypeOfExprTypeLoc TL) {
-  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+  Writer.AddSourceLocation(TL.getTypeofLoc(), Record);
+  Writer.AddSourceLocation(TL.getLParenLoc(), Record);
+  Writer.AddSourceLocation(TL.getRParenLoc(), Record);
 }
 void TypeLocWriter::VisitTypeOfTypeLoc(TypeOfTypeLoc TL) {
-  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+  Writer.AddSourceLocation(TL.getTypeofLoc(), Record);
+  Writer.AddSourceLocation(TL.getLParenLoc(), Record);
+  Writer.AddSourceLocation(TL.getRParenLoc(), Record);
+  Writer.AddTypeSourceInfo(TL.getUnderlyingTInfo(), Record);
 }
 void TypeLocWriter::VisitDecltypeTypeLoc(DecltypeTypeLoc TL) {
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
@@ -1148,7 +1153,6 @@ void PCHWriter::WritePreprocessor(const Preprocessor &PP) {
 
   // Loop over all the macro definitions that are live at the end of the file,
   // emitting each to the PP section.
-  // FIXME: Make sure that this sees macros defined in included PCH files.
   for (Preprocessor::macro_iterator I = PP.macro_begin(), E = PP.macro_end();
        I != E; ++I) {
     // FIXME: This emits macros in hash table order, we should do it in a stable
@@ -1160,7 +1164,6 @@ void PCHWriter::WritePreprocessor(const Preprocessor &PP) {
     if (MI->isBuiltinMacro())
       continue;
 
-    // FIXME: Remove this identifier reference?
     AddIdentifierRef(I->first, Record);
     MacroOffsets[I->first] = Stream.GetCurrentBitNo();
     Record.push_back(MI->getDefinitionLoc().getRawEncoding());
@@ -1741,9 +1744,12 @@ void PCHWriter::WriteIdentifierTable(Preprocessor &PP) {
 void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
   RecordData Record;
   for (; Attr; Attr = Attr->getNext()) {
-    Record.push_back(Attr->getKind()); // FIXME: stable encoding
+    Record.push_back(Attr->getKind()); // FIXME: stable encoding, target attrs
     Record.push_back(Attr->isInherited());
     switch (Attr->getKind()) {
+    default:
+      assert(0 && "Does not support PCH writing for this attribute yet!");
+      break;
     case Attr::Alias:
       AddString(cast<AliasAttr>(Attr)->getAliasee(), Record);
       break;
