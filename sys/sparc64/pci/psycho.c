@@ -554,6 +554,7 @@ psycho_attach(device_t dev)
 		    M_NOWAIT | M_ZERO);
 		if (sc->sc_is == NULL)
 			panic("%s: malloc iommu_state failed", __func__);
+		sc->sc_is->is_flags = IOMMU_PRESERVE_PROM;
 		if (sc->sc_mode == PSYCHO_MODE_SABRE)
 			sc->sc_is->is_pmaxaddr =
 			    IOMMU_MAXADDR(SABRE_IOMMU_BITS);
@@ -591,10 +592,11 @@ psycho_attach(device_t dev)
 		panic("%s: could not get bus-range", __func__);
 	if (i != sizeof(prop_array))
 		panic("%s: broken bus-range (%d)", __func__, i);
+	sc->sc_pci_secbus = prop_array[0];
+	sc->sc_pci_subbus = prop_array[1];
 	if (bootverbose)
 		device_printf(dev, "bus range %u to %u; PCI bus %d\n",
-		    prop_array[0], prop_array[1], prop_array[0]);
-	sc->sc_pci_secbus = prop_array[0];
+		    sc->sc_pci_secbus, sc->sc_pci_subbus, sc->sc_pci_secbus);
 
 	/* Clear any pending PCI error bits. */
 	PCIB_WRITE_CONFIG(dev, sc->sc_pci_secbus, PCS_DEVICE, PCS_FUNC,
@@ -923,6 +925,10 @@ psycho_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	int i;
 
 	sc = device_get_softc(dev);
+	if (bus < sc->sc_pci_secbus || bus > sc->sc_pci_subbus ||
+	    slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCI_REGMAX)
+		return (-1);
+
 	bh = sc->sc_pci_bh[OFW_PCI_CS_CONFIG];
 
 	/*
@@ -1003,6 +1009,10 @@ psycho_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 	u_long offset = 0;
 
 	sc = device_get_softc(dev);
+	if (bus < sc->sc_pci_secbus || bus > sc->sc_pci_subbus ||
+	    slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCI_REGMAX)
+		return;
+
 	offset = PSYCHO_CONF_OFF(bus, slot, func, reg);
 	bh = sc->sc_pci_bh[OFW_PCI_CS_CONFIG];
 	switch (width) {
