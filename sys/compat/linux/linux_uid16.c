@@ -109,7 +109,7 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 #endif
 
 	ngrp = args->gidsetsize;
-	if (ngrp < 0 || ngrp > ngroups_max)
+	if (ngrp < 0 || ngrp >= ngroups_max + 1)
 		return (EINVAL);
 	linux_gidset = malloc(ngrp * sizeof(*linux_gidset), M_TEMP, M_WAITOK);
 	error = copyin(args->gidset, linux_gidset, ngrp * sizeof(l_gid16_t));
