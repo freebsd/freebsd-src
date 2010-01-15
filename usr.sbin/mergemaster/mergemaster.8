@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2009 Douglas Barton
+.\" Copyright (c) 1998-2010 Douglas Barton
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2009
+.Dd January 7, 2010
 .Dt MERGEMASTER 8
 .Os
 .Sh NAME
@@ -61,10 +61,10 @@ down, populating that environment with the various
 files.
 You can specify a different source directory
 with the
-.Op Fl m
+.Fl m
 command line option, or specify the destination
 directory with the
-.Op Fl D
+.Fl D
 option.
 It then compares each file in that environment
 to its installed counterpart.
@@ -91,10 +91,10 @@ compares the files themselves.
 You can
 also specify that the script ignore the Id strings and
 compare every file with the
-.Op Fl s
+.Fl s
 option.
 Using the
-.Op Fl F
+.Fl F
 option
 .Nm
 will install the new file for you if they differ only by
@@ -126,7 +126,7 @@ installing an updated version of this file you should
 probably run
 .Xr pwd_mkdb 8
 with the
-.Op Fl p
+.Fl p
 option to rebuild your password databases
 and recreate
 .Pa /etc/passwd .
@@ -165,6 +165,14 @@ which will be read before
 Options specified on the command line are updated last,
 and therefore can override both files.
 .Pp
+When the comparison is done if there are any files remaining
+in the temproot directory they will be listed, and if the
+.Fl a
+option is not in use the user will be given the option of 
+deleting the temproot directory.
+If there are no files remaining in the temproot directory
+it will be deleted.
+.Pp
 The options are as follows:
 .Bl -tag -width Fl
 .It Fl s
@@ -198,11 +206,13 @@ If the
 directory exists, it creates a new one in a previously
 non-existent directory.
 This option unsets the verbose flag,
-but is compatible with all other options.
+but other than
+.Fl U
+it is compatible with all other options.
 Setting
-.Op Fl a
+.Fl a
 makes
-.Op Fl w
+.Fl w
 superfluous.
 .It Fl h
 Display usage and help information.
@@ -253,7 +263,7 @@ instead of the default
 Add the date and time to the name of the temporary
 root directory.
 If
-.Op Fl t
+.Fl t
 is specified, this option must
 follow it if you want the date added too.
 .It Fl u Ar N
@@ -320,44 +330,44 @@ with all values commented out:
 # These are options for mergemaster, with their default values listed
 # The following options have command line overrides
 #
-# The target architecture (unset by default)
+# The target architecture (-A, unset by default)
 #ARCHSTRING='TARGET_ARCH=<foo>'
 #
-# Sourcedir is the directory to do the 'make' in (where the new files are)
+# Sourcedir is the directory to do the 'make' in (-m)
 #SOURCEDIR='/usr/src'
 #
-# Directory to install the temporary root environment into
+# Directory to install the temporary root environment into (-t)
 #TEMPROOT='/var/tmp/temproot'
 #
-# Specify the destination directory for the installed files
+# Specify the destination directory for the installed files (-D)
 #DESTDIR=
 #
-# Strict comparison skips the VCS Id test and compares every file
+# Strict comparison skips the VCS Id test and compares every file (-s)
 #STRICT=no
 #
-# Type of diff, such as unified, context, etc.
+# Type of diff, such as unified, context, etc. (-c)
 #DIFF_FLAG='-u'
 #
-# Install the new file if it differs only by VCS Id ($FreeBSD)
+# Install the new file if it differs only by VCS Id ($FreeBSD, -F)
 #FREEBSD_ID=
 #
-# Verbose mode includes more details and additional checks
+# Verbose mode includes more details and additional checks (-v)
 #VERBOSE=
 #
-# Automatically install files that do not exist on the system already
+# Automatically install files that do not exist on the system already (-i)
 #AUTO_INSTALL=
 #
-# Automatically upgrade files that have not been user modified
+# Automatically upgrade files that have not been user modified (-U)
 #AUTO_UPGRADE=
 #
-# Compare /etc/rc.conf[.local] to /etc/defaults/rc.conf
-#COMP_CONFS=yes
+# Compare /etc/rc.conf[.local] to /etc/defaults/rc.conf (-C)
+#COMP_CONFS=
 #
-# Preserve files that you replace
-#PRESERVE_FILES=yes
+# Preserve files that you replace (-P)
+#PRESERVE_FILES=
 #PRESERVE_FILES_DIR=/var/tmp/mergemaster/preserved-files-`date +%y%m%d-%H%M%S`
 #
-# The umask for mergemaster to compare the default file's modes to
+# The umask for mergemaster to compare the default file's modes to (-u)
 #NEW_UMASK=022
 #
 # The following options have no command line overrides
@@ -376,6 +386,9 @@ with all values commented out:
 #
 # If you set 'yes' above, make sure to include the PATH to your pager
 #PATH=/bin:/usr/bin:/usr/sbin
+#
+# Delete stale files in /etc/rc.d without prompting
+#DELETE_STALE_RC_FILES=
 #
 # Specify the path to scripts to run before the comparison starts,
 # and/or after the script has finished its work
