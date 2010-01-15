@@ -35,8 +35,7 @@ typedef uint8_t (*mk48txx_nvrd_t)(device_t dev, int off);
 typedef void (*mk48txx_nvwr_t)(device_t dev, int off, uint8_t v);
 
 struct mk48txx_softc {
-	bus_space_tag_t		sc_bst;	/* bus space tag */
-	bus_space_handle_t	sc_bsh;	/* bus space handle */
+	struct resource		*sc_res;/* bus resource */
 
 	struct mtx		sc_mtx;	/* hardware mutex */
 	eventhandler_tag	sc_wet;	/* watchdog event handler tag */
