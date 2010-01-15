@@ -38,8 +38,8 @@
  * $FreeBSD$
  */
 
-typedef uint8_t (*mk48txx_nvrd_t)(device_t, int);
-typedef void (*mk48txx_nvwr_t)(device_t, int, uint8_t);
+typedef uint8_t (*mk48txx_nvrd_t)(device_t dev, int off);
+typedef void (*mk48txx_nvwr_t)(device_t dev, int off, uint8_t v);
 
 struct mk48txx_softc {
 	bus_space_tag_t		sc_bst;	/* bus space tag */
@@ -53,17 +53,17 @@ struct mk48txx_softc {
 	bus_size_t	sc_clkoffset;	/* Offset in NVRAM to clock bits */
 	u_int		sc_year0;	/* year counter offset */
 	u_int		sc_flag;	/* MD flags */
-#define MK48TXX_NO_CENT_ADJUST	0x0001	/* don't manually adjust century */
-#define MK48TXX_WDOG_REGISTER	0x0002	/* register watchdog */
-#define MK48TXX_WDOG_ENABLE_WDS	0x0004	/* enable watchdog steering bit */
+#define	MK48TXX_NO_CENT_ADJUST	0x0001	/* don't manually adjust century */
+#define	MK48TXX_WDOG_REGISTER	0x0002	/* register watchdog */
+#define	MK48TXX_WDOG_ENABLE_WDS	0x0004	/* enable watchdog steering bit */
 
 	mk48txx_nvrd_t	sc_nvrd;	/* NVRAM/RTC read function */
 	mk48txx_nvwr_t	sc_nvwr;	/* NVRAM/RTC write function */
 };
 
 /* Chip attach function */
-int mk48txx_attach(device_t);
+int mk48txx_attach(device_t dev);
 
 /* Methods for the clock interface */
-int mk48txx_gettime(device_t, struct timespec *);
-int mk48txx_settime(device_t, struct timespec *);
+int mk48txx_gettime(device_t dev, struct timespec *ts);
+int mk48txx_settime(device_t dev, struct timespec *ts);
