@@ -455,6 +455,7 @@ schizo_attach(device_t dev)
 	 * buffer, in Schizo version < 5 (i.e. revision < 2.3) it's
 	 * affected by several errata and basically unusable though.
 	 */
+	sc->sc_is.is_flags = IOMMU_PRESERVE_PROM;
 	sc->sc_is.is_pmaxaddr = IOMMU_MAXADDR(STX_IOMMU_BITS);
 	sc->sc_is.is_sb[0] = sc->sc_is.is_sb[1] = 0;
 	if (OF_getproplen(node, "no-streaming-cache") < 0 &&
@@ -549,10 +550,11 @@ schizo_attach(device_t dev)
 		panic("%s: could not get bus-range", __func__);
 	if (i != sizeof(prop_array))
 		panic("%s: broken bus-range (%d)", __func__, i);
+	sc->sc_pci_secbus = prop_array[0];
+	sc->sc_pci_subbus = prop_array[1];
 	if (bootverbose)
 		device_printf(dev, "bus range %u to %u; PCI bus %d\n",
-		    prop_array[0], prop_array[1], prop_array[0]);
-	sc->sc_pci_secbus = prop_array[0];
+		    sc->sc_pci_secbus, sc->sc_pci_subbus, sc->sc_pci_secbus);
 
 	/* Clear any pending PCI error bits. */
 	PCIB_WRITE_CONFIG(dev, sc->sc_pci_secbus, STX_CS_DEVICE, STX_CS_FUNC,
@@ -928,6 +930,9 @@ schizo_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	uint8_t byte;
 
 	sc = device_get_softc(dev);
+	if (bus < sc->sc_pci_secbus || bus > sc->sc_pci_subbus ||
+	    slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCI_REGMAX)
+		return (-1);
 
 	/*
 	 * The Schizo bridges contain a dupe of their header at 0x80.
@@ -976,6 +981,10 @@ schizo_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 	u_long offset = 0;
 
 	sc = device_get_softc(dev);
+	if (bus < sc->sc_pci_secbus || bus > sc->sc_pci_subbus ||
+	    slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCI_REGMAX)
+		return;
+
 	offset = STX_CONF_OFF(bus, slot, func, reg);
 	bh = sc->sc_pci_bh[OFW_PCI_CS_CONFIG];
 	switch (width) {
