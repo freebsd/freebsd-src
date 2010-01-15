@@ -3950,11 +3950,8 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 			m = m_defrag(m, M_DONTWAIT);
 		else
 			m = m_collapse(m, M_DONTWAIT, sc->bge_forced_collapse);
-		if (m == NULL) {
-			m_freem(*m_head);
-			*m_head = NULL;
-			return (ENOBUFS);
-		}
+		if (m == NULL)
+			m = *m_head;
 		*m_head = m;
 	}
 
