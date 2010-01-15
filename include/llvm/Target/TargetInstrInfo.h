@@ -88,7 +88,10 @@ public:
     /// only needed in cases where the register classes implied by the
     /// instructions are insufficient. The actual MachineInstrs to perform
     /// the copy are emitted with the TargetInstrInfo::copyRegToReg hook.
-    COPY_TO_REGCLASS = 10
+    COPY_TO_REGCLASS = 10,
+
+    // DEBUG_VALUE - a mapping of the llvm.dbg.value intrinsic
+    DEBUG_VALUE = 11
   };
 
   unsigned getNumOpcodes() const { return NumOpcodes; }
@@ -140,6 +143,18 @@ public:
   virtual bool isMoveInstr(const MachineInstr& MI,
                            unsigned& SrcReg, unsigned& DstReg,
                            unsigned& SrcSubIdx, unsigned& DstSubIdx) const {
+    return false;
+  }
+
+  /// isCoalescableExtInstr - Return true if the instruction is a "coalescable"
+  /// extension instruction. That is, it's like a copy where it's legal for the
+  /// source to overlap the destination. e.g. X86::MOVSX64rr32. If this returns
+  /// true, then it's expected the pre-extension value is available as a subreg
+  /// of the result register. This also returns the sub-register index in
+  /// SubIdx.
+  virtual bool isCoalescableExtInstr(const MachineInstr &MI,
+                                     unsigned &SrcReg, unsigned &DstReg,
+                                     unsigned &SubIdx) const {
     return false;
   }
 
@@ -231,6 +246,14 @@ public:
                              unsigned DestReg, unsigned SubIdx,
                              const MachineInstr *Orig,
                              const TargetRegisterInfo *TRI) const = 0;
+
+  /// duplicate - Create a duplicate of the Orig instruction in MF. This is like
+  /// MachineFunction::CloneMachineInstr(), but the target may update operands
+  /// that are required to be unique.
+  ///
+  /// The instruction must be duplicable as indicated by isNotDuplicable().
+  virtual MachineInstr *duplicate(MachineInstr *Orig,
+                                  MachineFunction &MF) const = 0;
 
   /// convertToThreeAddress - This method must be implemented by targets that
   /// set the M_CONVERTIBLE_TO_3_ADDR flag.  When this flag is set, the target
@@ -560,6 +583,8 @@ public:
                              unsigned DestReg, unsigned SubReg,
                              const MachineInstr *Orig,
                              const TargetRegisterInfo *TRI) const;
+  virtual MachineInstr *duplicate(MachineInstr *Orig,
+                                  MachineFunction &MF) const;
   virtual bool isIdentical(const MachineInstr *MI,
                            const MachineInstr *Other,
                            const MachineRegisterInfo *MRI) const;

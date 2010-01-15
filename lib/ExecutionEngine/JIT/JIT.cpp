@@ -411,11 +411,10 @@ GenericValue JIT::runFunction(Function *F,
 
   // Handle some common cases first.  These cases correspond to common `main'
   // prototypes.
-  if (RetTy == Type::getInt32Ty(F->getContext()) ||
-      RetTy == Type::getVoidTy(F->getContext())) {
+  if (RetTy->isInteger(32) || RetTy->isVoidTy()) {
     switch (ArgValues.size()) {
     case 3:
-      if (FTy->getParamType(0) == Type::getInt32Ty(F->getContext()) &&
+      if (FTy->getParamType(0)->isInteger(32) &&
           isa<PointerType>(FTy->getParamType(1)) &&
           isa<PointerType>(FTy->getParamType(2))) {
         int (*PF)(int, char **, const char **) =
@@ -430,7 +429,7 @@ GenericValue JIT::runFunction(Function *F,
       }
       break;
     case 2:
-      if (FTy->getParamType(0) == Type::getInt32Ty(F->getContext()) &&
+      if (FTy->getParamType(0)->isInteger(32) &&
           isa<PointerType>(FTy->getParamType(1))) {
         int (*PF)(int, char **) = (int(*)(int, char **))(intptr_t)FPtr;
 
@@ -443,7 +442,7 @@ GenericValue JIT::runFunction(Function *F,
       break;
     case 1:
       if (FTy->getNumParams() == 1 &&
-          FTy->getParamType(0) == Type::getInt32Ty(F->getContext())) {
+          FTy->getParamType(0)->isInteger(32)) {
         GenericValue rv;
         int (*PF)(int) = (int(*)(int))(intptr_t)FPtr;
         rv.IntVal = APInt(32, PF(ArgValues[0].IntVal.getZExtValue()));
@@ -548,7 +547,7 @@ GenericValue JIT::runFunction(Function *F,
                                        "", StubBB);
   TheCall->setCallingConv(F->getCallingConv());
   TheCall->setTailCall();
-  if (TheCall->getType() != Type::getVoidTy(F->getContext()))
+  if (!TheCall->getType()->isVoidTy())
     // Return result of the call.
     ReturnInst::Create(F->getContext(), TheCall, StubBB);
   else

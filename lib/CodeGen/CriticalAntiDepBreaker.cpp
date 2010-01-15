@@ -288,9 +288,11 @@ void CriticalAntiDepBreaker::ScanInstruction(MachineInstr *MI,
 }
 
 unsigned
-CriticalAntiDepBreaker::findSuitableFreeRegister(unsigned AntiDepReg,
+CriticalAntiDepBreaker::findSuitableFreeRegister(MachineInstr *MI,
+                                                 unsigned AntiDepReg,
                                                  unsigned LastNewReg,
-                                                 const TargetRegisterClass *RC) {
+                                                 const TargetRegisterClass *RC)
+{
   for (TargetRegisterClass::iterator R = RC->allocation_order_begin(MF),
        RE = RC->allocation_order_end(MF); R != RE; ++R) {
     unsigned NewReg = *R;
@@ -300,12 +302,16 @@ CriticalAntiDepBreaker::findSuitableFreeRegister(unsigned AntiDepReg,
     // an anti-dependence with this AntiDepReg, because that would
     // re-introduce that anti-dependence.
     if (NewReg == LastNewReg) continue;
+    // If the instruction already has a def of the NewReg, it's not suitable.
+    // For example, Instruction with multiple definitions can result in this
+    // condition.
+    if (MI->modifiesRegister(NewReg, TRI)) continue;
     // If NewReg is dead and NewReg's most recent def is not before
     // AntiDepReg's kill, it's safe to replace AntiDepReg with NewReg.
-    assert(((KillIndices[AntiDepReg] == ~0u) != (DefIndices[AntiDepReg] == ~0u)) &&
-           "Kill and Def maps aren't consistent for AntiDepReg!");
-    assert(((KillIndices[NewReg] == ~0u) != (DefIndices[NewReg] == ~0u)) &&
-           "Kill and Def maps aren't consistent for NewReg!");
+    assert(((KillIndices[AntiDepReg] == ~0u) != (DefIndices[AntiDepReg] == ~0u))
+           && "Kill and Def maps aren't consistent for AntiDepReg!");
+    assert(((KillIndices[NewReg] == ~0u) != (DefIndices[NewReg] == ~0u))
+           && "Kill and Def maps aren't consistent for NewReg!");
     if (KillIndices[NewReg] != ~0u ||
         Classes[NewReg] == reinterpret_cast<TargetRegisterClass *>(-1) ||
         KillIndices[AntiDepReg] > DefIndices[NewReg])
@@ -336,14 +342,14 @@ BreakAntiDependencies(std::vector<SUnit>& SUnits,
 
 #ifndef NDEBUG
   {
-    DEBUG(errs() << "Critical path has total latency "
+    DEBUG(dbgs() << "Critical path has total latency "
           << (Max->getDepth() + Max->Latency) << "\n");
-    DEBUG(errs() << "Available regs:");
+    DEBUG(dbgs() << "Available regs:");
     for (unsigned Reg = 0; Reg < TRI->getNumRegs(); ++Reg) {
       if (KillIndices[Reg] == ~0u)
-        DEBUG(errs() << " " << TRI->getName(Reg));
+        DEBUG(dbgs() << " " << TRI->getName(Reg));
     }
-    DEBUG(errs() << '\n');
+    DEBUG(dbgs() << '\n');
   }
 #endif
 
@@ -495,10 +501,10 @@ BreakAntiDependencies(std::vector<SUnit>& SUnits,
     // TODO: Instead of picking the first free register, consider which might
     // be the best.
     if (AntiDepReg != 0) {
-      if (unsigned NewReg = findSuitableFreeRegister(AntiDepReg,
+      if (unsigned NewReg = findSuitableFreeRegister(MI, AntiDepReg,
                                                      LastNewReg[AntiDepReg],
                                                      RC)) {
-        DEBUG(errs() << "Breaking anti-dependence edge on "
+        DEBUG(dbgs() << "Breaking anti-dependence edge on "
               << TRI->getName(AntiDepReg)
               << " with " << RegRefs.count(AntiDepReg) << " references"
               << " using " << TRI->getName(NewReg) << "!\n");

@@ -1195,6 +1195,18 @@ SelectionDAGBuilder::ShouldEmitAsBranches(const std::vector<CaseBlock> &Cases){
     return false;
   }
 
+  // Handle: (X != null) | (Y != null) --> (X|Y) != 0
+  // Handle: (X == null) & (Y == null) --> (X|Y) == 0
+  if (Cases[0].CmpRHS == Cases[1].CmpRHS &&
+      Cases[0].CC == Cases[1].CC &&
+      isa<Constant>(Cases[0].CmpRHS) &&
+      cast<Constant>(Cases[0].CmpRHS)->isNullValue()) {
+    if (Cases[0].CC == ISD::SETEQ && Cases[0].TrueBB == Cases[1].ThisBB)
+      return false;
+    if (Cases[0].CC == ISD::SETNE && Cases[0].FalseBB == Cases[1].ThisBB)
+      return false;
+  }
+  
   return true;
 }
 
@@ -1733,7 +1745,7 @@ bool SelectionDAGBuilder::handleJTSwitchCase(CaseRec& CR,
   if (Density < 0.4)
     return false;
 
-  DEBUG(errs() << "Lowering jump table\n"
+  DEBUG(dbgs() << "Lowering jump table\n"
                << "First entry: " << First << ". Last entry: " << Last << '\n'
                << "Range: " << Range
                << "Size: " << TSize << ". Density: " << Density << "\n\n");
@@ -1837,7 +1849,7 @@ bool SelectionDAGBuilder::handleBTSplitSwitchCase(CaseRec& CR,
 
   APInt LSize = FrontCase.size();
   APInt RSize = TSize-LSize;
-  DEBUG(errs() << "Selecting best pivot: \n"
+  DEBUG(dbgs() << "Selecting best pivot: \n"
                << "First: " << First << ", Last: " << Last <<'\n'
                << "LSize: " << LSize << ", RSize: " << RSize << '\n');
   for (CaseItr I = CR.Range.first, J=I+1, E = CR.Range.second;
@@ -1853,7 +1865,7 @@ bool SelectionDAGBuilder::handleBTSplitSwitchCase(CaseRec& CR,
                            (Last - RBegin + 1ULL).roundToDouble();
     double Metric = Range.logBase2()*(LDensity+RDensity);
     // Should always split in some non-trivial place
-    DEBUG(errs() <<"=>Step\n"
+    DEBUG(dbgs() <<"=>Step\n"
                  << "LEnd: " << LEnd << ", RBegin: " << RBegin << '\n'
                  << "LDensity: " << LDensity
                  << ", RDensity: " << RDensity << '\n'
@@ -1861,7 +1873,7 @@ bool SelectionDAGBuilder::handleBTSplitSwitchCase(CaseRec& CR,
     if (FMetric < Metric) {
       Pivot = J;
       FMetric = Metric;
-      DEBUG(errs() << "Current metric set to: " << FMetric << '\n');
+      DEBUG(dbgs() << "Current metric set to: " << FMetric << '\n');
     }
 
     LSize += J->size();
@@ -1965,7 +1977,7 @@ bool SelectionDAGBuilder::handleBitTestsSwitchCase(CaseRec& CR,
       // Don't bother the code below, if there are too much unique destinations
       return false;
   }
-  DEBUG(errs() << "Total number of unique destinations: "
+  DEBUG(dbgs() << "Total number of unique destinations: "
         << Dests.size() << '\n'
         << "Total number of comparisons: " << numCmps << '\n');
 
@@ -1974,7 +1986,7 @@ bool SelectionDAGBuilder::handleBitTestsSwitchCase(CaseRec& CR,
   const APInt& maxValue = cast<ConstantInt>(BackCase.High)->getValue();
   APInt cmpRange = maxValue - minValue;
 
-  DEBUG(errs() << "Compare range: " << cmpRange << '\n'
+  DEBUG(dbgs() << "Compare range: " << cmpRange << '\n'
                << "Low bound: " << minValue << '\n'
                << "High bound: " << maxValue << '\n');
 
@@ -1984,7 +1996,7 @@ bool SelectionDAGBuilder::handleBitTestsSwitchCase(CaseRec& CR,
        !(Dests.size() >= 3 && numCmps >= 6)))
     return false;
 
-  DEBUG(errs() << "Emitting bit tests\n");
+  DEBUG(dbgs() << "Emitting bit tests\n");
   APInt lowBound = APInt::getNullValue(cmpRange.getBitWidth());
 
   // Optimize the case where all the case values fit in a
@@ -2034,9 +2046,9 @@ bool SelectionDAGBuilder::handleBitTestsSwitchCase(CaseRec& CR,
 
   const BasicBlock *LLVMBB = CR.CaseBB->getBasicBlock();
 
-  DEBUG(errs() << "Cases:\n");
+  DEBUG(dbgs() << "Cases:\n");
   for (unsigned i = 0, e = CasesBits.size(); i!=e; ++i) {
-    DEBUG(errs() << "Mask: " << CasesBits[i].Mask
+    DEBUG(dbgs() << "Mask: " << CasesBits[i].Mask
                  << ", Bits: " << CasesBits[i].Bits
                  << ", BB: " << CasesBits[i].BB << '\n');
 
@@ -2135,7 +2147,7 @@ void SelectionDAGBuilder::visitSwitch(SwitchInst &SI) {
   // create a binary search tree from them.
   CaseVector Cases;
   size_t numCmps = Clusterify(Cases, SI);
-  DEBUG(errs() << "Clusterify finished. Total clusters: " << Cases.size()
+  DEBUG(dbgs() << "Clusterify finished. Total clusters: " << Cases.size()
                << ". Total compares: " << numCmps << '\n');
   numCmps = 0;
 
@@ -3157,7 +3169,7 @@ void SelectionDAGBuilder::visitTargetIntrinsic(CallInst &I,
   } else if (!HasChain) {
     Result = DAG.getNode(ISD::INTRINSIC_WO_CHAIN, getCurDebugLoc(),
                          VTs, &Ops[0], Ops.size());
-  } else if (I.getType() != Type::getVoidTy(*DAG.getContext())) {
+  } else if (!I.getType()->isVoidTy()) {
     Result = DAG.getNode(ISD::INTRINSIC_W_CHAIN, getCurDebugLoc(),
                          VTs, &Ops[0], Ops.size());
   } else {
@@ -3176,7 +3188,7 @@ void SelectionDAGBuilder::visitTargetIntrinsic(CallInst &I,
       DAG.setRoot(Chain);
   }
 
-  if (I.getType() != Type::getVoidTy(*DAG.getContext())) {
+  if (!I.getType()->isVoidTy()) {
     if (const VectorType *PTy = dyn_cast<VectorType>(I.getType())) {
       EVT VT = TLI.getValueType(PTy);
       Result = DAG.getNode(ISD::BIT_CONVERT, getCurDebugLoc(), VT, Result);
@@ -4406,12 +4418,6 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
       DAG.AssignOrdering(Res.getNode(), SDNodeOrder);
     return 0;
   }
-  case Intrinsic::dbg_stoppoint:
-  case Intrinsic::dbg_region_start:
-  case Intrinsic::dbg_region_end:
-  case Intrinsic::dbg_func_start:
-    // FIXME - Remove this instructions once the dust settles.
-    return 0;
   case Intrinsic::dbg_declare: {
     if (OptLevel != CodeGenOpt::None)
       // FIXME: Variable debug info is not supported here.
@@ -5931,7 +5937,7 @@ void SelectionDAGBuilder::visitInlineAsm(CallSite CS) {
 
       // The return value of the call is this value.  As such, there is no
       // corresponding argument.
-      assert(CS.getType() != Type::getVoidTy(*DAG.getContext()) &&
+      assert(!CS.getType()->isVoidTy() &&
              "Bad inline asm!");
       if (const StructType *STy = dyn_cast<StructType>(CS.getType())) {
         OpVT = TLI.getValueType(STy->getElementType(ResNo));
@@ -6056,7 +6062,8 @@ void SelectionDAGBuilder::visitInlineAsm(CallSite CS) {
   std::vector<SDValue> AsmNodeOperands;
   AsmNodeOperands.push_back(SDValue());  // reserve space for input chain
   AsmNodeOperands.push_back(
-          DAG.getTargetExternalSymbol(IA->getAsmString().c_str(), MVT::Other));
+          DAG.getTargetExternalSymbol(IA->getAsmString().c_str(),
+                                      TLI.getPointerTy()));
 
 
   // Loop over all of the inputs, copying the operand values into the
@@ -6100,8 +6107,7 @@ void SelectionDAGBuilder::visitInlineAsm(CallSite CS) {
                                                       OpInfo.CallOperandVal));
       } else {
         // This is the result value of the call.
-        assert(CS.getType() != Type::getVoidTy(*DAG.getContext()) &&
-               "Bad inline asm!");
+        assert(!CS.getType()->isVoidTy() && "Bad inline asm!");
         // Concatenate this output onto the outputs list.
         RetValRegs.append(OpInfo.AssignedRegs);
       }

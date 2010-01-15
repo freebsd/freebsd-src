@@ -18,6 +18,7 @@
 #include "llvm/Instruction.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/SmallString.h"
 #include "SymbolTableListTraitsImpl.h"
 #include "llvm/Support/ValueHandle.h"
 using namespace llvm;
@@ -31,7 +32,7 @@ MDString::MDString(LLVMContext &C, StringRef S)
 
 MDString *MDString::get(LLVMContext &Context, StringRef Str) {
   LLVMContextImpl *pImpl = Context.pImpl;
-  StringMapEntry<MDString *> &Entry = 
+  StringMapEntry<MDString *> &Entry =
     pImpl->MDStringCache.GetOrCreateValue(Str);
   MDString *&S = Entry.getValue();
   if (!S) S = new MDString(Context, Entry.getKey());
@@ -40,7 +41,7 @@ MDString *MDString::get(LLVMContext &Context, StringRef Str) {
 
 MDString *MDString::get(LLVMContext &Context, const char *Str) {
   LLVMContextImpl *pImpl = Context.pImpl;
-  StringMapEntry<MDString *> &Entry = 
+  StringMapEntry<MDString *> &Entry =
     pImpl->MDStringCache.GetOrCreateValue(Str ? StringRef(Str) : StringRef());
   MDString *&S = Entry.getValue();
   if (!S) S = new MDString(Context, Entry.getKey());
@@ -58,11 +59,11 @@ class MDNodeOperand : public CallbackVH {
 public:
   MDNodeOperand(Value *V, MDNode *P) : CallbackVH(V), Parent(P) {}
   ~MDNodeOperand() {}
-  
+
   void set(Value *V) {
     setValPtr(V);
   }
-  
+
   virtual void deleted();
   virtual void allUsesReplacedWith(Value *NV);
 };
@@ -94,7 +95,7 @@ MDNode::MDNode(LLVMContext &C, Value *const *Vals, unsigned NumVals,
                bool isFunctionLocal)
 : MetadataBase(Type::getMetadataTy(C), Value::MDNodeVal) {
   NumOperands = NumVals;
- 
+
   if (isFunctionLocal)
     setValueSubclassData(getSubclassDataFromValue() | FunctionLocalBit);
 
@@ -107,17 +108,80 @@ MDNode::MDNode(LLVMContext &C, Value *const *Vals, unsigned NumVals,
 
 /// ~MDNode - Destroy MDNode.
 MDNode::~MDNode() {
-  assert((getSubclassDataFromValue() & DestroyFlag) != 0 && 
+  assert((getSubclassDataFromValue() & DestroyFlag) != 0 &&
          "Not being destroyed through destroy()?");
   if (!isNotUniqued()) {
     LLVMContextImpl *pImpl = getType()->getContext().pImpl;
     pImpl->MDNodeSet.RemoveNode(this);
   }
-  
+
   // Destroy the operands.
   for (MDNodeOperand *Op = getOperandPtr(this, 0), *E = Op+NumOperands;
        Op != E; ++Op)
     Op->~MDNodeOperand();
+}
+
+#ifndef NDEBUG
+static Function *assertLocalFunction(const MDNode *N,
+                                     SmallPtrSet<const MDNode *, 32> &Visited) {
+  Function *F = NULL;
+  // Only visit each MDNode once.
+  if (!Visited.insert(N)) return F;
+  
+  for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
+    Value *V = N->getOperand(i);
+    Function *NewF = NULL;
+    if (!V) continue;
+    if (Instruction *I = dyn_cast<Instruction>(V))
+      NewF = I->getParent()->getParent();
+    else if (BasicBlock *BB = dyn_cast<BasicBlock>(V))
+      NewF = BB->getParent();
+    else if (Argument *A = dyn_cast<Argument>(V))
+      NewF = A->getParent();
+    else if (MDNode *MD = dyn_cast<MDNode>(V))
+      if (MD->isFunctionLocal())
+        NewF = assertLocalFunction(MD, Visited);
+    if (F && NewF) assert(F == NewF && "inconsistent function-local metadata");
+    if (!F) F = NewF;
+  }
+  return F;
+}
+#endif
+
+static Function *getFunctionHelper(const MDNode *N,
+                                   SmallPtrSet<const MDNode *, 32> &Visited) {
+  assert(N->isFunctionLocal() && "Should only be called on function-local MD");
+#ifndef NDEBUG
+  return assertLocalFunction(N, Visited);
+#endif
+  Function *F = NULL;
+  // Only visit each MDNode once.
+  if (!Visited.insert(N)) return F;
+  
+  for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
+    Value *V = N->getOperand(i);
+    if (!V) continue;
+    if (Instruction *I = dyn_cast<Instruction>(V))
+      F = I->getParent()->getParent();
+    else if (BasicBlock *BB = dyn_cast<BasicBlock>(V))
+      F = BB->getParent();
+    else if (Argument *A = dyn_cast<Argument>(V))
+      F = A->getParent();
+    else if (MDNode *MD = dyn_cast<MDNode>(V))
+      if (MD->isFunctionLocal())
+        F = getFunctionHelper(MD, Visited);
+    if (F) break;
+  }
+  return F;
+}
+
+// getFunction - If this metadata is function-local and recursively has a
+// function-local operand, return the first such operand's parent function.
+// Otherwise, return null. 
+Function *MDNode::getFunction() const {
+  if (!isFunctionLocal()) return NULL;
+  SmallPtrSet<const MDNode *, 32> Visited;
+  return getFunctionHelper(this, Visited);
 }
 
 // destroy - Delete this node.  Only when there are no uses.
@@ -128,9 +192,8 @@ void MDNode::destroy() {
   free(this);
 }
 
-
-MDNode *MDNode::get(LLVMContext &Context, Value*const* Vals, unsigned NumVals,
-                    bool isFunctionLocal) {
+MDNode *MDNode::getMDNode(LLVMContext &Context, Value *const *Vals,
+                          unsigned NumVals, FunctionLocalness FL) {
   LLVMContextImpl *pImpl = Context.pImpl;
   FoldingSetNodeID ID;
   for (unsigned i = 0; i != NumVals; ++i)
@@ -139,14 +202,44 @@ MDNode *MDNode::get(LLVMContext &Context, Value*const* Vals, unsigned NumVals,
   void *InsertPoint;
   MDNode *N = pImpl->MDNodeSet.FindNodeOrInsertPos(ID, InsertPoint);
   if (!N) {
+    bool isFunctionLocal = false;
+    switch (FL) {
+    case FL_Unknown:
+      for (unsigned i = 0; i != NumVals; ++i) {
+        Value *V = Vals[i];
+        if (!V) continue;
+        if (isa<Instruction>(V) || isa<Argument>(V) || isa<BasicBlock>(V) ||
+            (isa<MDNode>(V) && cast<MDNode>(V)->isFunctionLocal())) {
+          isFunctionLocal = true;
+          break;
+        }
+      }
+      break;
+    case FL_No:
+      isFunctionLocal = false;
+      break;
+    case FL_Yes:
+      isFunctionLocal = true;
+      break;
+    }
+
     // Coallocate space for the node and Operands together, then placement new.
     void *Ptr = malloc(sizeof(MDNode)+NumVals*sizeof(MDNodeOperand));
     N = new (Ptr) MDNode(Context, Vals, NumVals, isFunctionLocal);
-    
+
     // InsertPoint will have been set by the FindNodeOrInsertPos call.
     pImpl->MDNodeSet.InsertNode(N, InsertPoint);
   }
   return N;
+}
+
+MDNode *MDNode::get(LLVMContext &Context, Value*const* Vals, unsigned NumVals) {
+  return getMDNode(Context, Vals, NumVals, FL_Unknown);
+}
+
+MDNode *MDNode::getWhenValsUnresolved(LLVMContext &Context, Value*const* Vals,
+                                      unsigned NumVals, bool isFunctionLocal) {
+  return getMDNode(Context, Vals, NumVals, isFunctionLocal ? FL_Yes : FL_No);
 }
 
 /// getOperand - Return specified operand.
@@ -163,7 +256,7 @@ void MDNode::Profile(FoldingSetNodeID &ID) const {
 // Replace value from this node's operand list.
 void MDNode::replaceOperand(MDNodeOperand *Op, Value *To) {
   Value *From = *Op;
-  
+
   if (From == To)
     return;
 
@@ -173,7 +266,7 @@ void MDNode::replaceOperand(MDNodeOperand *Op, Value *To) {
   // If this node is already not being uniqued (because one of the operands
   // already went to null), then there is nothing else to do here.
   if (isNotUniqued()) return;
-  
+
   LLVMContextImpl *pImpl = getType()->getContext().pImpl;
 
   // Remove "this" from the context map.  FoldingSet doesn't have to reprofile
@@ -187,7 +280,7 @@ void MDNode::replaceOperand(MDNodeOperand *Op, Value *To) {
     setIsNotUniqued();
     return;
   }
-  
+
   // Now that the node is out of the folding set, get ready to reinsert it.
   // First, check to see if another node with the same operands already exists
   // in the set.  If it doesn't exist, this returns the position to insert it.
@@ -210,21 +303,40 @@ void MDNode::replaceOperand(MDNodeOperand *Op, Value *To) {
 //===----------------------------------------------------------------------===//
 // NamedMDNode implementation.
 //
-static SmallVector<TrackingVH<MetadataBase>, 4> &getNMDOps(void *Operands) {
-  return *(SmallVector<TrackingVH<MetadataBase>, 4>*)Operands;
+
+namespace llvm {
+// SymbolTableListTraits specialization for MDSymbolTable.
+void ilist_traits<NamedMDNode>
+::addNodeToList(NamedMDNode *N) {
+  assert(N->getParent() == 0 && "Value already in a container!!");
+  Module *Owner = getListOwner();
+  N->setParent(Owner);
+  MDSymbolTable &ST = Owner->getMDSymbolTable();
+  ST.insert(N->getName(), N);
+}
+
+void ilist_traits<NamedMDNode>::removeNodeFromList(NamedMDNode *N) {
+  N->setParent(0);
+  Module *Owner = getListOwner();
+  MDSymbolTable &ST = Owner->getMDSymbolTable();
+  ST.remove(N->getName());
+}
+}
+
+static SmallVector<WeakVH, 4> &getNMDOps(void *Operands) {
+  return *(SmallVector<WeakVH, 4>*)Operands;
 }
 
 NamedMDNode::NamedMDNode(LLVMContext &C, const Twine &N,
-                         MetadataBase *const *MDs, 
+                         MDNode *const *MDs,
                          unsigned NumMDs, Module *ParentModule)
-  : MetadataBase(Type::getMetadataTy(C), Value::NamedMDNodeVal), Parent(0) {
+  : Value(Type::getMetadataTy(C), Value::NamedMDNodeVal), Parent(0) {
   setName(N);
-    
-  Operands = new SmallVector<TrackingVH<MetadataBase>, 4>();
-    
-  SmallVector<TrackingVH<MetadataBase>, 4> &Node = getNMDOps(Operands);
+  Operands = new SmallVector<WeakVH, 4>();
+
+  SmallVector<WeakVH, 4> &Node = getNMDOps(Operands);
   for (unsigned i = 0; i != NumMDs; ++i)
-    Node.push_back(TrackingVH<MetadataBase>(MDs[i]));
+    Node.push_back(WeakVH(MDs[i]));
 
   if (ParentModule)
     ParentModule->getNamedMDList().push_back(this);
@@ -232,9 +344,9 @@ NamedMDNode::NamedMDNode(LLVMContext &C, const Twine &N,
 
 NamedMDNode *NamedMDNode::Create(const NamedMDNode *NMD, Module *M) {
   assert(NMD && "Invalid source NamedMDNode!");
-  SmallVector<MetadataBase *, 4> Elems;
+  SmallVector<MDNode *, 4> Elems;
   Elems.reserve(NMD->getNumOperands());
-  
+
   for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i)
     Elems.push_back(NMD->getOperand(i));
   return new NamedMDNode(NMD->getContext(), NMD->getName().data(),
@@ -252,14 +364,14 @@ unsigned NamedMDNode::getNumOperands() const {
 }
 
 /// getOperand - Return specified operand.
-MetadataBase *NamedMDNode::getOperand(unsigned i) const {
+MDNode *NamedMDNode::getOperand(unsigned i) const {
   assert(i < getNumOperands() && "Invalid Operand number!");
-  return getNMDOps(Operands)[i];
+  return dyn_cast_or_null<MDNode>(getNMDOps(Operands)[i]);
 }
 
 /// addOperand - Add metadata Operand.
-void NamedMDNode::addOperand(MetadataBase *M) {
-  getNMDOps(Operands).push_back(TrackingVH<MetadataBase>(M));
+void NamedMDNode::addOperand(MDNode *M) {
+  getNMDOps(Operands).push_back(WeakVH(M));
 }
 
 /// eraseFromParent - Drop all references and remove the node from parent
@@ -273,6 +385,26 @@ void NamedMDNode::dropAllReferences() {
   getNMDOps(Operands).clear();
 }
 
+/// setName - Set the name of this named metadata.
+void NamedMDNode::setName(const Twine &NewName) {
+  assert (!NewName.isTriviallyEmpty() && "Invalid named metadata name!");
+
+  SmallString<256> NameData;
+  StringRef NameRef = NewName.toStringRef(NameData);
+
+  // Name isn't changing?
+  if (getName() == NameRef)
+    return;
+
+  Name = NameRef.str();
+  if (Parent)
+    Parent->getMDSymbolTable().insert(NameRef, this);
+}
+
+/// getName - Return a constant reference to this named metadata's name.
+StringRef NamedMDNode::getName() const {
+  return StringRef(Name);
+}
 
 //===----------------------------------------------------------------------===//
 // LLVMContext MDKind naming implementation.
@@ -299,9 +431,9 @@ static bool isValidName(StringRef MDName) {
 /// getMDKindID - Return a unique non-zero ID for the specified metadata kind.
 unsigned LLVMContext::getMDKindID(StringRef Name) const {
   assert(isValidName(Name) && "Invalid MDNode name");
-  
+
   unsigned &Entry = pImpl->CustomMDKindNames[Name];
-  
+
   // If this is new, assign it its ID.
   if (Entry == 0) Entry = pImpl->CustomMDKindNames.size();
   return Entry;
@@ -313,7 +445,7 @@ void LLVMContext::getMDKindNames(SmallVectorImpl<StringRef> &Names) const {
   Names.resize(pImpl->CustomMDKindNames.size()+1);
   Names[0] = "";
   for (StringMap<unsigned>::const_iterator I = pImpl->CustomMDKindNames.begin(),
-       E = pImpl->CustomMDKindNames.end(); I != E; ++I) 
+       E = pImpl->CustomMDKindNames.end(); I != E; ++I)
     // MD Handlers are numbered from 1.
     Names[I->second] = I->first();
 }
@@ -336,7 +468,7 @@ MDNode *Instruction::getMetadataImpl(const char *Kind) const {
 /// Node is null.
 void Instruction::setMetadata(unsigned KindID, MDNode *Node) {
   if (Node == 0 && !hasMetadata()) return;
-  
+
   // Handle the case when we're adding/updating metadata on an instruction.
   if (Node) {
     LLVMContextImpl::MDMapTy &Info = getContext().pImpl->MetadataStore[this];
@@ -351,24 +483,24 @@ void Instruction::setMetadata(unsigned KindID, MDNode *Node) {
           return;
         }
     }
-    
+
     // No replacement, just add it to the list.
     Info.push_back(std::make_pair(KindID, Node));
     return;
   }
-  
+
   // Otherwise, we're removing metadata from an instruction.
   assert(hasMetadata() && getContext().pImpl->MetadataStore.count(this) &&
          "HasMetadata bit out of date!");
   LLVMContextImpl::MDMapTy &Info = getContext().pImpl->MetadataStore[this];
-  
+
   // Common case is removing the only entry.
   if (Info.size() == 1 && Info[0].first == KindID) {
     getContext().pImpl->MetadataStore.erase(this);
     setHasMetadata(false);
     return;
   }
-  
+
   // Handle replacement of an existing value.
   for (unsigned i = 0, e = Info.size(); i != e; ++i)
     if (Info[i].first == KindID) {
@@ -383,7 +515,7 @@ void Instruction::setMetadata(unsigned KindID, MDNode *Node) {
 MDNode *Instruction::getMetadataImpl(unsigned KindID) const {
   LLVMContextImpl::MDMapTy &Info = getContext().pImpl->MetadataStore[this];
   assert(hasMetadata() && !Info.empty() && "Shouldn't have called this");
-  
+
   for (LLVMContextImpl::MDMapTy::iterator I = Info.begin(), E = Info.end();
        I != E; ++I)
     if (I->first == KindID)
@@ -398,10 +530,10 @@ void Instruction::getAllMetadataImpl(SmallVectorImpl<std::pair<unsigned,
   const LLVMContextImpl::MDMapTy &Info =
     getContext().pImpl->MetadataStore.find(this)->second;
   assert(!Info.empty() && "Shouldn't have called this");
-  
+
   Result.clear();
   Result.append(Info.begin(), Info.end());
-  
+
   // Sort the resulting array so it is stable.
   if (Result.size() > 1)
     array_pod_sort(Result.begin(), Result.end());

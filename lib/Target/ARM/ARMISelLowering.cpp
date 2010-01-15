@@ -3130,6 +3130,9 @@ ARMTargetLowering::EmitAtomicCmpSwap(MachineInstr *MI,
   //  exitMBB:
   //   ...
   BB = exitMBB;
+
+  MF->DeleteMachineInstr(MI);   // The instruction is gone now.
+
   return BB;
 }
 
@@ -3140,7 +3143,7 @@ ARMTargetLowering::EmitAtomicBinary(MachineInstr *MI, MachineBasicBlock *BB,
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
 
   const BasicBlock *LLVM_BB = BB->getBasicBlock();
-  MachineFunction *F = BB->getParent();
+  MachineFunction *MF = BB->getParent();
   MachineFunction::iterator It = BB;
   ++It;
 
@@ -3155,7 +3158,7 @@ ARMTargetLowering::EmitAtomicBinary(MachineInstr *MI, MachineBasicBlock *BB,
   default: llvm_unreachable("unsupported size for AtomicCmpSwap!");
   case 1:
     ldrOpc = isThumb2 ? ARM::t2LDREXB : ARM::LDREXB;
-    strOpc = isThumb2 ? ARM::t2LDREXB : ARM::STREXB;
+    strOpc = isThumb2 ? ARM::t2STREXB : ARM::STREXB;
     break;
   case 2:
     ldrOpc = isThumb2 ? ARM::t2LDREXH : ARM::LDREXH;
@@ -3167,13 +3170,13 @@ ARMTargetLowering::EmitAtomicBinary(MachineInstr *MI, MachineBasicBlock *BB,
     break;
   }
 
-  MachineBasicBlock *loopMBB = F->CreateMachineBasicBlock(LLVM_BB);
-  MachineBasicBlock *exitMBB = F->CreateMachineBasicBlock(LLVM_BB);
-  F->insert(It, loopMBB);
-  F->insert(It, exitMBB);
+  MachineBasicBlock *loopMBB = MF->CreateMachineBasicBlock(LLVM_BB);
+  MachineBasicBlock *exitMBB = MF->CreateMachineBasicBlock(LLVM_BB);
+  MF->insert(It, loopMBB);
+  MF->insert(It, exitMBB);
   exitMBB->transferSuccessors(BB);
 
-  MachineRegisterInfo &RegInfo = F->getRegInfo();
+  MachineRegisterInfo &RegInfo = MF->getRegInfo();
   unsigned scratch = RegInfo.createVirtualRegister(ARM::GPRRegisterClass);
   unsigned scratch2 = (!BinOpcode) ? incr :
     RegInfo.createVirtualRegister(ARM::GPRRegisterClass);
@@ -3216,7 +3219,7 @@ ARMTargetLowering::EmitAtomicBinary(MachineInstr *MI, MachineBasicBlock *BB,
   //   ...
   BB = exitMBB;
 
-  F->DeleteMachineInstr(MI);   // The instruction is gone now.
+  MF->DeleteMachineInstr(MI);   // The instruction is gone now.
 
   return BB;
 }
@@ -4258,10 +4261,10 @@ std::pair<unsigned, const TargetRegisterClass*>
 ARMTargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
                                                 EVT VT) const {
   if (Constraint.size() == 1) {
-    // GCC RS6000 Constraint Letters
+    // GCC ARM Constraint Letters
     switch (Constraint[0]) {
     case 'l':
-      if (Subtarget->isThumb1Only())
+      if (Subtarget->isThumb())
         return std::make_pair(0U, ARM::tGPRRegisterClass);
       else
         return std::make_pair(0U, ARM::GPRRegisterClass);

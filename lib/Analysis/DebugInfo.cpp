@@ -599,9 +599,7 @@ void DIVariable::dump() const {
 //===----------------------------------------------------------------------===//
 
 DIFactory::DIFactory(Module &m)
-  : M(m), VMContext(M.getContext()), DeclareFn(0) {
-  EmptyStructPtr = PointerType::getUnqual(StructType::get(VMContext));
-}
+  : M(m), VMContext(M.getContext()), DeclareFn(0) {}
 
 Constant *DIFactory::GetTagConstant(unsigned TAG) {
   assert((TAG & LLVMDebugVersionMask) == 0 &&
@@ -1033,58 +1031,52 @@ DILocation DIFactory::CreateLocation(unsigned LineNo, unsigned ColumnNo,
 
 /// InsertDeclare - Insert a new llvm.dbg.declare intrinsic call.
 Instruction *DIFactory::InsertDeclare(Value *Storage, DIVariable D,
-                              Instruction *InsertBefore) {
-  // Cast the storage to a {}* for the call to llvm.dbg.declare.
-  Storage = new BitCastInst(Storage, EmptyStructPtr, "", InsertBefore);
-
+                                      Instruction *InsertBefore) {
   if (!DeclareFn)
     DeclareFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_declare);
 
-  Value *Args[] = { Storage, D.getNode() };
+  Value *Elts[] = { Storage };
+  Value *Args[] = { MDNode::get(Storage->getContext(), Elts, 1), D.getNode() };
   return CallInst::Create(DeclareFn, Args, Args+2, "", InsertBefore);
 }
 
 /// InsertDeclare - Insert a new llvm.dbg.declare intrinsic call.
 Instruction *DIFactory::InsertDeclare(Value *Storage, DIVariable D,
-                              BasicBlock *InsertAtEnd) {
-  // Cast the storage to a {}* for the call to llvm.dbg.declare.
-  Storage = new BitCastInst(Storage, EmptyStructPtr, "", InsertAtEnd);
-
+                                      BasicBlock *InsertAtEnd) {
   if (!DeclareFn)
     DeclareFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_declare);
 
-  Value *Args[] = { Storage, D.getNode() };
+  Value *Elts[] = { Storage };
+  Value *Args[] = { MDNode::get(Storage->getContext(), Elts, 1), D.getNode() };
   return CallInst::Create(DeclareFn, Args, Args+2, "", InsertAtEnd);
 }
 
 /// InsertDbgValueIntrinsic - Insert a new llvm.dbg.value intrinsic call.
-Instruction *DIFactory::InsertDbgValueIntrinsic(Value *V, Value *Offset,
+Instruction *DIFactory::InsertDbgValueIntrinsic(Value *V, uint64_t Offset,
                                                 DIVariable D,
                                                 Instruction *InsertBefore) {
   assert(V && "no value passed to dbg.value");
-  assert(Offset->getType() == Type::getInt64Ty(V->getContext()) &&
-         "offset must be i64");
   if (!ValueFn)
     ValueFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_value);
 
   Value *Elts[] = { V };
-  Value *Args[] = { MDNode::get(V->getContext(), Elts, 1), Offset,
+  Value *Args[] = { MDNode::get(V->getContext(), Elts, 1),
+                    ConstantInt::get(Type::getInt64Ty(V->getContext()), Offset),
                     D.getNode() };
   return CallInst::Create(ValueFn, Args, Args+3, "", InsertBefore);
 }
 
 /// InsertDbgValueIntrinsic - Insert a new llvm.dbg.value intrinsic call.
-Instruction *DIFactory::InsertDbgValueIntrinsic(Value *V, Value *Offset,
+Instruction *DIFactory::InsertDbgValueIntrinsic(Value *V, uint64_t Offset,
                                                 DIVariable D,
                                                 BasicBlock *InsertAtEnd) {
   assert(V && "no value passed to dbg.value");
-  assert(Offset->getType() == Type::getInt64Ty(V->getContext()) &&
-         "offset must be i64");
   if (!ValueFn)
     ValueFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_value);
 
   Value *Elts[] = { V };
-  Value *Args[] = { MDNode::get(V->getContext(), Elts, 1), Offset,
+  Value *Args[] = { MDNode::get(V->getContext(), Elts, 1), 
+                    ConstantInt::get(Type::getInt64Ty(V->getContext()), Offset),
                     D.getNode() };
   return CallInst::Create(ValueFn, Args, Args+3, "", InsertAtEnd);
 }
@@ -1242,52 +1234,6 @@ bool DebugInfoFinder::addSubprogram(DISubprogram SP) {
   return true;
 }
 
-/// findStopPoint - Find the stoppoint coressponding to this instruction, that
-/// is the stoppoint that dominates this instruction.
-const DbgStopPointInst *llvm::findStopPoint(const Instruction *Inst) {
-  if (const DbgStopPointInst *DSI = dyn_cast<DbgStopPointInst>(Inst))
-    return DSI;
-
-  const BasicBlock *BB = Inst->getParent();
-  BasicBlock::const_iterator I = Inst, B;
-  while (BB) {
-    B = BB->begin();
-
-    // A BB consisting only of a terminator can't have a stoppoint.
-    while (I != B) {
-      --I;
-      if (const DbgStopPointInst *DSI = dyn_cast<DbgStopPointInst>(I))
-        return DSI;
-    }
-
-    // This BB didn't have a stoppoint: if there is only one predecessor, look
-    // for a stoppoint there. We could use getIDom(), but that would require
-    // dominator info.
-    BB = I->getParent()->getUniquePredecessor();
-    if (BB)
-      I = BB->getTerminator();
-  }
-
-  return 0;
-}
-
-/// findBBStopPoint - Find the stoppoint corresponding to first real
-/// (non-debug intrinsic) instruction in this Basic Block, and return the
-/// stoppoint for it.
-const DbgStopPointInst *llvm::findBBStopPoint(const BasicBlock *BB) {
-  for(BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I != E; ++I)
-    if (const DbgStopPointInst *DSI = dyn_cast<DbgStopPointInst>(I))
-      return DSI;
-
-  // Fallback to looking for stoppoint of unique predecessor. Useful if this
-  // BB contains no stoppoints, but unique predecessor does.
-  BB = BB->getUniquePredecessor();
-  if (BB)
-    return findStopPoint(BB->getTerminator());
-
-  return 0;
-}
-
 Value *llvm::findDbgGlobalDeclare(GlobalVariable *V) {
   const Module *M = V->getParent();
   NamedMDNode *NMD = M->getNamedMetadata("llvm.dbg.gv");
@@ -1306,25 +1252,24 @@ Value *llvm::findDbgGlobalDeclare(GlobalVariable *V) {
 
 /// Finds the llvm.dbg.declare intrinsic corresponding to this value if any.
 /// It looks through pointer casts too.
-const DbgDeclareInst *llvm::findDbgDeclare(const Value *V, bool stripCasts) {
-  if (stripCasts) {
-    V = V->stripPointerCasts();
-
-    // Look for the bitcast.
-    for (Value::use_const_iterator I = V->use_begin(), E =V->use_end();
-          I != E; ++I)
-      if (isa<BitCastInst>(I)) {
-        const DbgDeclareInst *DDI = findDbgDeclare(*I, false);
-        if (DDI) return DDI;
-      }
+const DbgDeclareInst *llvm::findDbgDeclare(const Value *V) {
+  V = V->stripPointerCasts();
+  
+  if (!isa<Instruction>(V) && !isa<Argument>(V))
     return 0;
-  }
-
-  // Find llvm.dbg.declare among uses of the instruction.
-  for (Value::use_const_iterator I = V->use_begin(), E =V->use_end();
-        I != E; ++I)
-    if (const DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(I))
-      return DDI;
+    
+  const Function *F = NULL;
+  if (const Instruction *I = dyn_cast<Instruction>(V))
+    F = I->getParent()->getParent();
+  else if (const Argument *A = dyn_cast<Argument>(V))
+    F = A->getParent();
+  
+  for (Function::const_iterator FI = F->begin(), FE = F->end(); FI != FE; ++FI)
+    for (BasicBlock::const_iterator BI = (*FI).begin(), BE = (*FI).end();
+         BI != BE; ++BI)
+      if (const DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(BI))
+        if (DDI->getAddress() == V)
+          return DDI;
 
   return 0;
 }
@@ -1372,29 +1317,6 @@ bool llvm::getLocationInfo(const Value *V, std::string &DisplayName,
 }
 
 /// ExtractDebugLocation - Extract debug location information
-/// from llvm.dbg.stoppoint intrinsic.
-DebugLoc llvm::ExtractDebugLocation(DbgStopPointInst &SPI,
-                                    DebugLocTracker &DebugLocInfo) {
-  DebugLoc DL;
-  Value *Context = SPI.getContext();
-
-  // If this location is already tracked then use it.
-  DebugLocTuple Tuple(cast<MDNode>(Context), NULL, SPI.getLine(),
-                      SPI.getColumn());
-  DenseMap<DebugLocTuple, unsigned>::iterator II
-    = DebugLocInfo.DebugIdMap.find(Tuple);
-  if (II != DebugLocInfo.DebugIdMap.end())
-    return DebugLoc::get(II->second);
-
-  // Add a new location entry.
-  unsigned Id = DebugLocInfo.DebugLocations.size();
-  DebugLocInfo.DebugLocations.push_back(Tuple);
-  DebugLocInfo.DebugIdMap[Tuple] = Id;
-
-  return DebugLoc::get(Id);
-}
-
-/// ExtractDebugLocation - Extract debug location information
 /// from DILocation.
 DebugLoc llvm::ExtractDebugLocation(DILocation &Loc,
                                     DebugLocTracker &DebugLocInfo) {
@@ -1406,32 +1328,6 @@ DebugLoc llvm::ExtractDebugLocation(DILocation &Loc,
   // If this location is already tracked then use it.
   DebugLocTuple Tuple(Context, InlinedLoc, Loc.getLineNumber(),
                       Loc.getColumnNumber());
-  DenseMap<DebugLocTuple, unsigned>::iterator II
-    = DebugLocInfo.DebugIdMap.find(Tuple);
-  if (II != DebugLocInfo.DebugIdMap.end())
-    return DebugLoc::get(II->second);
-
-  // Add a new location entry.
-  unsigned Id = DebugLocInfo.DebugLocations.size();
-  DebugLocInfo.DebugLocations.push_back(Tuple);
-  DebugLocInfo.DebugIdMap[Tuple] = Id;
-
-  return DebugLoc::get(Id);
-}
-
-/// ExtractDebugLocation - Extract debug location information
-/// from llvm.dbg.func_start intrinsic.
-DebugLoc llvm::ExtractDebugLocation(DbgFuncStartInst &FSI,
-                                    DebugLocTracker &DebugLocInfo) {
-  DebugLoc DL;
-  Value *SP = FSI.getSubprogram();
-
-  DISubprogram Subprogram(cast<MDNode>(SP));
-  unsigned Line = Subprogram.getLineNumber();
-  DICompileUnit CU(Subprogram.getCompileUnit());
-
-  // If this location is already tracked then use it.
-  DebugLocTuple Tuple(CU.getNode(), NULL, Line, /* Column */ 0);
   DenseMap<DebugLocTuple, unsigned>::iterator II
     = DebugLocInfo.DebugIdMap.find(Tuple);
   if (II != DebugLocInfo.DebugIdMap.end())

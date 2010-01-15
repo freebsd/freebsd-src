@@ -10,13 +10,15 @@
 #ifndef LLVM_TARGET_TARGETPARSER_H
 #define LLVM_TARGET_TARGETPARSER_H
 
-#include "llvm/MC/MCAsmLexer.h"
-
 namespace llvm {
 class MCAsmParser;
 class MCInst;
 class StringRef;
 class Target;
+class SMLoc;
+class AsmToken;
+class MCParsedAsmOperand;
+template <typename T> class SmallVectorImpl;
 
 /// TargetAsmParser - Generic interface to target specific assembly parsers.
 class TargetAsmParser {
@@ -43,9 +45,11 @@ public:
   //
   /// \param AP - The current parser object.
   /// \param Name - The instruction name.
-  /// \param Inst [out] - On success, the parsed instruction.
+  /// \param Operands [out] - The list of parsed operands, this returns
+  ///        ownership of them to the caller.
   /// \return True on failure.
-  virtual bool ParseInstruction(const StringRef &Name, MCInst &Inst) = 0;
+  virtual bool ParseInstruction(const StringRef &Name, SMLoc NameLoc,
+                            SmallVectorImpl<MCParsedAsmOperand*> &Operands) = 0;
 
   /// ParseDirective - Parse a target specific assembler directive
   ///
@@ -58,6 +62,14 @@ public:
   ///
   /// \param ID - the identifier token of the directive.
   virtual bool ParseDirective(AsmToken DirectiveID) = 0;
+  
+  /// MatchInstruction - Recognize a series of operands of a parsed instruction
+  /// as an actual MCInst.  This returns false and fills in Inst on success and
+  /// returns true on failure to match.
+  virtual bool 
+  MatchInstruction(const SmallVectorImpl<MCParsedAsmOperand*> &Operands,
+                   MCInst &Inst) = 0;
+  
 };
 
 } // End llvm namespace

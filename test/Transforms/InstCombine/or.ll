@@ -268,19 +268,17 @@ define i1 @test26(i32 %A, i32 %B) {
 ; CHECK: ret i1 
 }
 
-; PR5634
 define i1 @test27(i32* %A, i32* %B) {
-        %C1 = icmp eq i32* %A, null
-        %C2 = icmp eq i32* %B, null
-        ; (A == 0) & (A == 0)   -->   (A|B) == 0
-        %D = and i1 %C1, %C2
-        ret i1 %D
+  %C1 = ptrtoint i32* %A to i32
+  %C2 = ptrtoint i32* %B to i32
+  %D = or i32 %C1, %C2
+  %E = icmp eq i32 %D, 0
+  ret i1 %E
 ; CHECK: @test27
-; CHECK: ptrtoint i32* %A
-; CHECK: ptrtoint i32* %B
-; CHECK: or i32 
-; CHECK: icmp eq i32 {{.*}}, 0
-; CHECK: ret i1 
+; CHECK: icmp eq i32* %A, null
+; CHECK: icmp eq i32* %B, null
+; CHECK: and i1
+; CHECK: ret i1
 }
 
 ; PR5634
@@ -294,4 +292,47 @@ define i1 @test28(i32 %A, i32 %B) {
 ; CHECK: or i32 %A, %B
 ; CHECK: icmp ne i32 {{.*}}, 0
 ; CHECK: ret i1 
+}
+
+define i1 @test29(i32* %A, i32* %B) {
+  %C1 = ptrtoint i32* %A to i32
+  %C2 = ptrtoint i32* %B to i32
+  %D = or i32 %C1, %C2
+  %E = icmp ne i32 %D, 0
+  ret i1 %E
+; CHECK: @test29
+; CHECK: icmp ne i32* %A, null
+; CHECK: icmp ne i32* %B, null
+; CHECK: or i1
+; CHECK: ret i1
+}
+
+; PR4216
+define i32 @test30(i32 %A) {
+entry:
+  %B = or i32 %A, 32962
+  %C = and i32 %A, -65536
+  %D = and i32 %B, 40186
+  %E = or i32 %D, %C
+  ret i32 %E
+; CHECK: @test30
+; CHECK: %B = or i32 %A, 32962
+; CHECK: %E = and i32 %B, -25350
+; CHECK: ret i32 %E
+}
+
+; PR4216
+define i64 @test31(i64 %A) nounwind readnone ssp noredzone {
+  %B = or i64 %A, 194
+  %D = and i64 %B, 250
+
+  %C = or i64 %A, 32768
+  %E = and i64 %C, 4294941696
+
+  %F = or i64 %D, %E
+  ret i64 %F
+; CHECK: @test31
+; CHECK-NEXT: %bitfield = or i64 %A, 32962
+; CHECK-NEXT: %F = and i64 %bitfield, 4294941946
+; CHECK-NEXT: ret i64 %F
 }

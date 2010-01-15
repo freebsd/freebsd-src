@@ -30,6 +30,7 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/CFG.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
@@ -563,11 +564,14 @@ static SlotTracker *createSlotTracker(const Value *V) {
   if (const Function *Func = dyn_cast<Function>(V))
     return new SlotTracker(Func);
 
+  if (isa<MDNode>(V))
+    return new SlotTracker((Function *)0);
+
   return 0;
 }
 
 #if 0
-#define ST_DEBUG(X) errs() << X
+#define ST_DEBUG(X) dbgs() << X
 #else
 #define ST_DEBUG(X)
 #endif
@@ -614,8 +618,7 @@ void SlotTracker::processModule() {
          E = TheModule->named_metadata_end(); I != E; ++I) {
     const NamedMDNode *NMD = I;
     for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
-      // FIXME: Change accessor to be type safe.
-      if (MDNode *MD = cast_or_null<MDNode>(NMD->getOperand(i)))
+      if (MDNode *MD = NMD->getOperand(i))
         CreateMetadataSlot(MD);
     }
   }
@@ -832,7 +835,7 @@ static void WriteOptimizationInfo(raw_ostream &Out, const User *U) {
 static void WriteConstantInt(raw_ostream &Out, const Constant *CV,
                              TypePrinting &TypePrinter, SlotTracker *Machine) {
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
-    if (CI->getType() == Type::getInt1Ty(CV->getContext())) {
+    if (CI->getType()->isInteger(1)) {
       Out << (CI->getZExtValue() ? "true" : "false");
       return;
     }
@@ -1136,6 +1139,8 @@ static void WriteAsOperandInternal(raw_ostream &Out, const Value *V,
       return;
     }
   
+    if (!Machine)
+      Machine = createSlotTracker(V);
     Out << '!' << Machine->getMetadataSlot(N);
     return;
   }
@@ -1369,10 +1374,10 @@ void AssemblyWriter::printNamedMDNode(const NamedMDNode *NMD) {
   Out << "!" << NMD->getName() << " = !{";
   for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
     if (i) Out << ", ";
-    // FIXME: Change accessor to be typesafe.
-    // FIXME: This doesn't handle null??
-    MDNode *MD = cast_or_null<MDNode>(NMD->getOperand(i));
-    Out << '!' << Machine.getMetadataSlot(MD);
+    if (MDNode *MD = NMD->getOperand(i))
+      Out << '!' << Machine.getMetadataSlot(MD);
+    else
+      Out << "null";
   }
   Out << "}\n";
 }
@@ -2057,8 +2062,9 @@ void Value::print(raw_ostream &ROS, AssemblyAnnotationWriter *AAW) const {
     else
       W.printAlias(cast<GlobalAlias>(GV));
   } else if (const MDNode *N = dyn_cast<MDNode>(this)) {
-    SlotTracker SlotTable((Function*)0);
-    AssemblyWriter W(OS, SlotTable, 0, AAW);
+    Function *F = N->getFunction();
+    SlotTracker SlotTable(F);
+    AssemblyWriter W(OS, SlotTable, getModuleFromVal(F), AAW);
     W.printMDNodeBody(N);
   } else if (const NamedMDNode *N = dyn_cast<NamedMDNode>(this)) {
     SlotTracker SlotTable(N->getParent());
@@ -2085,17 +2091,17 @@ void Value::printCustom(raw_ostream &OS) const {
 }
 
 // Value::dump - allow easy printing of Values from the debugger.
-void Value::dump() const { print(errs()); errs() << '\n'; }
+void Value::dump() const { print(dbgs()); dbgs() << '\n'; }
 
 // Type::dump - allow easy printing of Types from the debugger.
 // This one uses type names from the given context module
 void Type::dump(const Module *Context) const {
-  WriteTypeSymbolic(errs(), this, Context);
-  errs() << '\n';
+  WriteTypeSymbolic(dbgs(), this, Context);
+  dbgs() << '\n';
 }
 
 // Type::dump - allow easy printing of Types from the debugger.
 void Type::dump() const { dump(0); }
 
 // Module::dump() - Allow printing of Modules from the debugger.
-void Module::dump() const { print(errs(), 0); }
+void Module::dump() const { print(dbgs(), 0); }

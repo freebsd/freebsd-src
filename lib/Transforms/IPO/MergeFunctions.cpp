@@ -498,7 +498,7 @@ static void ThunkGToF(Function *F, Function *G) {
   CallInst *CI = CallInst::Create(F, Args.begin(), Args.end(), "", BB);
   CI->setTailCall();
   CI->setCallingConv(F->getCallingConv());
-  if (NewG->getReturnType() == Type::getVoidTy(F->getContext())) {
+  if (NewG->getReturnType()->isVoidTy()) {
     ReturnInst::Create(F->getContext(), BB);
   } else if (CI->getType() != NewG->getReturnType()) {
     Value *BCI = new BitCastInst(CI, NewG->getReturnType(), "", BB);
@@ -633,17 +633,17 @@ bool MergeFunctions::runOnModule(Module &M) {
   bool LocalChanged;
   do {
     LocalChanged = false;
-    DEBUG(errs() << "size: " << FnMap.size() << "\n");
+    DEBUG(dbgs() << "size: " << FnMap.size() << "\n");
     for (std::map<unsigned long, std::vector<Function *> >::iterator
          I = FnMap.begin(), E = FnMap.end(); I != E; ++I) {
       std::vector<Function *> &FnVec = I->second;
-      DEBUG(errs() << "hash (" << I->first << "): " << FnVec.size() << "\n");
+      DEBUG(dbgs() << "hash (" << I->first << "): " << FnVec.size() << "\n");
 
       for (int i = 0, e = FnVec.size(); i != e; ++i) {
         for (int j = i + 1; j != e; ++j) {
           bool isEqual = equals(FnVec[i], FnVec[j]);
 
-          DEBUG(errs() << "  " << FnVec[i]->getName()
+          DEBUG(dbgs() << "  " << FnVec[i]->getName()
                 << (isEqual ? " == " : " != ")
                 << FnVec[j]->getName() << "\n");
 

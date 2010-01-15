@@ -31,7 +31,7 @@ template<typename ValueSubClass, typename ItemParentClass>
   
   
 //===----------------------------------------------------------------------===//
-// MetadataBase  - A base class for MDNode, MDString and NamedMDNode.
+// MetadataBase  - A base class for MDNode and MDString.
 class MetadataBase : public Value {
 protected:
   MetadataBase(const Type *Ty, unsigned scid)
@@ -42,8 +42,7 @@ public:
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const MetadataBase *) { return true; }
   static bool classof(const Value *V) {
-    return V->getValueID() == MDStringVal || V->getValueID() == MDNodeVal
-      || V->getValueID() == NamedMDNodeVal;
+    return V->getValueID() == MDStringVal || V->getValueID() == MDNodeVal;
   }
 };
 
@@ -113,6 +112,13 @@ class MDNode : public MetadataBase, public FoldingSetNode {
     DestroyFlag      = 1 << 2
   };
   
+  // FunctionLocal enums.
+  enum FunctionLocalness {
+    FL_Unknown = -1,
+    FL_No = 0,
+    FL_Yes = 1
+  };
+  
   // Replace each instance of F from the operand list of this node with T.
   void replaceOperand(MDNodeOperand *Op, Value *NewVal);
   ~MDNode();
@@ -120,10 +126,17 @@ class MDNode : public MetadataBase, public FoldingSetNode {
 protected:
   explicit MDNode(LLVMContext &C, Value *const *Vals, unsigned NumVals,
                   bool isFunctionLocal);
+  
+  static MDNode *getMDNode(LLVMContext &C, Value *const *Vals, unsigned NumVals,
+                           FunctionLocalness FL);
 public:
   // Constructors and destructors.
-  static MDNode *get(LLVMContext &Context, Value *const *Vals, unsigned NumVals,
-                     bool isFunctionLocal = false);
+  static MDNode *get(LLVMContext &Context, Value *const *Vals,
+                     unsigned NumVals);
+  // getWhenValsUnresolved - Construct MDNode determining function-localness
+  // from isFunctionLocal argument, not by analyzing Vals.
+  static MDNode *getWhenValsUnresolved(LLVMContext &Context, Value *const *Vals,
+                                       unsigned NumVals, bool isFunctionLocal);
   
   /// getOperand - Return specified operand.
   Value *getOperand(unsigned i) const;
@@ -138,6 +151,11 @@ public:
   bool isFunctionLocal() const {
     return (getSubclassDataFromValue() & FunctionLocalBit) != 0;
   }
+  
+  // getFunction - If this metadata is function-local and recursively has a
+  // function-local operand, return the first such operand's parent function.
+  // Otherwise, return null. 
+  Function *getFunction() const;
 
   // destroy - Delete this node.  Only when there are no uses.
   void destroy();
@@ -167,24 +185,25 @@ private:
 };
 
 //===----------------------------------------------------------------------===//
-/// NamedMDNode - a tuple of other metadata. 
+/// NamedMDNode - a tuple of MDNodes.
 /// NamedMDNode is always named. All NamedMDNode operand has a type of metadata.
-class NamedMDNode : public MetadataBase, public ilist_node<NamedMDNode> {
+class NamedMDNode : public Value, public ilist_node<NamedMDNode> {
   friend class SymbolTableListTraits<NamedMDNode, Module>;
+  friend struct ilist_traits<NamedMDNode>;
   friend class LLVMContextImpl;
-
   NamedMDNode(const NamedMDNode &);      // DO NOT IMPLEMENT
 
+  std::string Name;
   Module *Parent;
-  void *Operands; // SmallVector<TrackingVH<MetadataBase>, 4>
+  void *Operands; // SmallVector<WeakVH<MDNode>, 4>
 
   void setParent(Module *M) { Parent = M; }
 protected:
-  explicit NamedMDNode(LLVMContext &C, const Twine &N, MetadataBase*const *Vals, 
+  explicit NamedMDNode(LLVMContext &C, const Twine &N, MDNode*const *Vals, 
                        unsigned NumVals, Module *M = 0);
 public:
-  static NamedMDNode *Create(LLVMContext &C, const Twine &N, 
-                             MetadataBase *const *MDs, 
+  static NamedMDNode *Create(LLVMContext &C, const Twine &N,
+                             MDNode *const *MDs, 
                              unsigned NumMDs, Module *M = 0) {
     return new NamedMDNode(C, N, MDs, NumMDs, M);
   }
@@ -206,14 +225,20 @@ public:
   inline const Module *getParent() const { return Parent; }
 
   /// getOperand - Return specified operand.
-  MetadataBase *getOperand(unsigned i) const;
+  MDNode *getOperand(unsigned i) const;
   
   /// getNumOperands - Return the number of NamedMDNode operands.
   unsigned getNumOperands() const;
 
   /// addOperand - Add metadata operand.
-  void addOperand(MetadataBase *M);
-  
+  void addOperand(MDNode *M);
+
+  /// setName - Set the name of this named metadata.
+  void setName(const Twine &NewName);
+
+  /// getName - Return a constant reference to this named metadata's name.
+  StringRef getName() const;
+
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const NamedMDNode *) { return true; }
   static bool classof(const Value *V) {

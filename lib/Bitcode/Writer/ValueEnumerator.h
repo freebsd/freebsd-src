@@ -27,9 +27,11 @@ class BasicBlock;
 class Function;
 class Module;
 class MetadataBase;
+class NamedMDNode;
 class AttrListPtr;
 class TypeSymbolTable;
 class ValueSymbolTable;
+class MDSymbolTable;
 
 class ValueEnumerator {
 public:
@@ -126,6 +128,7 @@ private:
   void OptimizeConstants(unsigned CstStart, unsigned CstEnd);
     
   void EnumerateMetadata(const MetadataBase *MD);
+  void EnumerateNamedMDNode(const NamedMDNode *NMD);
   void EnumerateValue(const Value *V);
   void EnumerateType(const Type *T);
   void EnumerateOperandType(const Value *V);
@@ -133,6 +136,7 @@ private:
   
   void EnumerateTypeSymbolTable(const TypeSymbolTable &ST);
   void EnumerateValueSymbolTable(const ValueSymbolTable &ST);
+  void EnumerateMDSymbolTable(const MDSymbolTable &ST);
 };
 
 } // End llvm namespace

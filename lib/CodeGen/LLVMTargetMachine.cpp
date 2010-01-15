@@ -24,6 +24,7 @@
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/FormattedStream.h"
 using namespace llvm;
 
@@ -60,6 +61,7 @@ static cl::opt<bool> PrintGCInfo("print-gc", cl::Hidden,
 static cl::opt<bool> VerifyMachineCode("verify-machineinstrs", cl::Hidden,
     cl::desc("Verify generated machine code"),
     cl::init(getenv("LLVM_VERIFY_MACHINEINSTRS")!=NULL));
+
 
 // Enable or disable FastISel. Both options are needed, because
 // FastISel is enabled by default with -fast, and we wish to be
@@ -246,7 +248,7 @@ static void printAndVerify(PassManagerBase &PM,
                            const char *Banner,
                            bool allowDoubleDefs = false) {
   if (PrintMachineCode)
-    PM.add(createMachineFunctionPrinterPass(errs(), Banner));
+    PM.add(createMachineFunctionPrinterPass(dbgs(), Banner));
 
   if (VerifyMachineCode)
     PM.add(createMachineVerifierPass(allowDoubleDefs));
@@ -269,7 +271,7 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
   if (OptLevel != CodeGenOpt::None && !DisableLSR) {
     PM.add(createLoopStrengthReducePass(getTargetLowering()));
     if (PrintLSR)
-      PM.add(createPrintFunctionPass("\n\n*** Code after LSR ***\n", &errs()));
+      PM.add(createPrintFunctionPass("\n\n*** Code after LSR ***\n", &dbgs()));
   }
 
   // Turn exception handling constructs into something the code generators can
@@ -278,8 +280,13 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
   {
   case ExceptionHandling::SjLj:
     // SjLj piggy-backs on dwarf for this bit. The cleanups done apply to both
-    PM.add(createDwarfEHPass(getTargetLowering(), OptLevel==CodeGenOpt::None));
+    // Dwarf EH prepare needs to be run after SjLj prepare. Otherwise,
+    // catch info can get misplaced when a selector ends up more than one block
+    // removed from the parent invoke(s). This could happen when a landing
+    // pad is shared by multiple invokes and is also a target of a normal
+    // edge from elsewhere.
     PM.add(createSjLjEHPass(getTargetLowering()));
+    PM.add(createDwarfEHPass(getTargetLowering(), OptLevel==CodeGenOpt::None));
     break;
   case ExceptionHandling::Dwarf:
     PM.add(createDwarfEHPass(getTargetLowering(), OptLevel==CodeGenOpt::None));
@@ -302,7 +309,7 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
   if (PrintISelInput)
     PM.add(createPrintFunctionPass("\n\n"
                                    "*** Final LLVM Code input to ISel ***\n",
-                                   &errs()));
+                                   &dbgs()));
 
   // Standard Lower-Level Passes.
 
@@ -323,6 +330,7 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
                  /* allowDoubleDefs= */ true);
 
   if (OptLevel != CodeGenOpt::None) {
+    PM.add(createOptimizeExtsPass());
     if (!DisableMachineLICM)
       PM.add(createMachineLICMPass());
     if (!DisableMachineSink)
@@ -335,7 +343,8 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
   if (OptLevel != CodeGenOpt::None &&
       !DisableTailDuplicate && PreAllocTailDup) {
     PM.add(createTailDuplicatePass(true));
-    printAndVerify(PM, "After Pre-RegAlloc TailDuplicate");
+    printAndVerify(PM, "After Pre-RegAlloc TailDuplicate",
+                   /* allowDoubleDefs= */ true);
   }
 
   // Run pre-ra passes.
@@ -391,7 +400,7 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
   PM.add(createGCMachineCodeAnalysisPass());
 
   if (PrintGCInfo)
-    PM.add(createGCInfoPrinter(errs()));
+    PM.add(createGCInfoPrinter(dbgs()));
 
   if (OptLevel != CodeGenOpt::None && !DisableCodePlace) {
     PM.add(createCodePlacementOptPass());

@@ -510,12 +510,17 @@ bool LLParser::ParseNamedMetadata() {
       ParseToken(lltok::lbrace, "Expected '{' here"))
     return true;
 
-  SmallVector<MetadataBase *, 8> Elts;
+  SmallVector<MDNode *, 8> Elts;
   do {
+    // Null is a special case since it is typeless.
+    if (EatIfPresent(lltok::kw_null)) {
+      Elts.push_back(0);
+      continue;
+    }
+
     if (ParseToken(lltok::exclaim, "Expected '!' here"))
       return true;
     
-    // FIXME: This rejects MDStrings.  Are they legal in an named MDNode or not?
     MDNode *N = 0;
     if (ParseMDNodeID(N)) return true;
     Elts.push_back(N);
@@ -543,7 +548,7 @@ bool LLParser::ParseStandaloneMetadata() {
       ParseType(Ty, TyLoc) ||
       ParseToken(lltok::exclaim, "Expected '!' here") ||
       ParseToken(lltok::lbrace, "Expected '{' here") ||
-      ParseMDNodeVector(Elts) ||
+      ParseMDNodeVector(Elts, NULL) ||
       ParseToken(lltok::rbrace, "expected end of metadata node"))
     return true;
 
@@ -1715,8 +1720,7 @@ Value *LLParser::PerFunctionState::GetVal(const std::string &Name,
   }
 
   // Don't make placeholders with invalid type.
-  if (!Ty->isFirstClassType() && !isa<OpaqueType>(Ty) &&
-      Ty != Type::getLabelTy(F.getContext())) {
+  if (!Ty->isFirstClassType() && !isa<OpaqueType>(Ty) && !Ty->isLabelTy()) {
     P.Error(Loc, "invalid use of a non-first-class type");
     return 0;
   }
@@ -1757,8 +1761,7 @@ Value *LLParser::PerFunctionState::GetVal(unsigned ID, const Type *Ty,
     return 0;
   }
 
-  if (!Ty->isFirstClassType() && !isa<OpaqueType>(Ty) &&
-      Ty != Type::getLabelTy(F.getContext())) {
+  if (!Ty->isFirstClassType() && !isa<OpaqueType>(Ty) && !Ty->isLabelTy()) {
     P.Error(Loc, "invalid use of a non-first-class type");
     return 0;
   }
@@ -1881,8 +1884,10 @@ BasicBlock *LLParser::PerFunctionState::DefineBB(const std::string &Name,
 /// ParseValID - Parse an abstract value that doesn't necessarily have a
 /// type implied.  For example, if we parse "4" we don't know what integer type
 /// it has.  The value will later be combined with its type and checked for
-/// sanity.
-bool LLParser::ParseValID(ValID &ID) {
+/// sanity.  PFS is used to convert function-local operands of metadata (since
+/// metadata operands are not just parsed here but also converted to values).
+/// PFS can be null when we are not parsing metadata values inside a function.
+bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
   ID.Loc = Lex.getLoc();
   switch (Lex.getKind()) {
   default: return TokError("expected value token");
@@ -1908,7 +1913,7 @@ bool LLParser::ParseValID(ValID &ID) {
     
     if (EatIfPresent(lltok::lbrace)) {
       SmallVector<Value*, 16> Elts;
-      if (ParseMDNodeVector(Elts) ||
+      if (ParseMDNodeVector(Elts, PFS) ||
           ParseToken(lltok::rbrace, "expected end of metadata node"))
         return true;
 
@@ -2353,30 +2358,85 @@ bool LLParser::ParseValID(ValID &ID) {
 }
 
 /// ParseGlobalValue - Parse a global value with the specified type.
-bool LLParser::ParseGlobalValue(const Type *Ty, Constant *&V) {
-  V = 0;
+bool LLParser::ParseGlobalValue(const Type *Ty, Constant *&C) {
+  C = 0;
   ValID ID;
-  return ParseValID(ID) ||
-         ConvertGlobalValIDToValue(Ty, ID, V);
+  Value *V = NULL;
+  bool Parsed = ParseValID(ID) ||
+                ConvertValIDToValue(Ty, ID, V, NULL);
+  if (V && !(C = dyn_cast<Constant>(V)))
+    return Error(ID.Loc, "global values must be constants");
+  return Parsed;
 }
 
-/// ConvertGlobalValIDToValue - Apply a type to a ValID to get a fully resolved
-/// constant.
-bool LLParser::ConvertGlobalValIDToValue(const Type *Ty, ValID &ID,
-                                         Constant *&V) {
+bool LLParser::ParseGlobalTypeAndValue(Constant *&V) {
+  PATypeHolder Type(Type::getVoidTy(Context));
+  return ParseType(Type) ||
+         ParseGlobalValue(Type, V);
+}
+
+/// ParseGlobalValueVector
+///   ::= /*empty*/
+///   ::= TypeAndValue (',' TypeAndValue)*
+bool LLParser::ParseGlobalValueVector(SmallVectorImpl<Constant*> &Elts) {
+  // Empty list.
+  if (Lex.getKind() == lltok::rbrace ||
+      Lex.getKind() == lltok::rsquare ||
+      Lex.getKind() == lltok::greater ||
+      Lex.getKind() == lltok::rparen)
+    return false;
+
+  Constant *C;
+  if (ParseGlobalTypeAndValue(C)) return true;
+  Elts.push_back(C);
+
+  while (EatIfPresent(lltok::comma)) {
+    if (ParseGlobalTypeAndValue(C)) return true;
+    Elts.push_back(C);
+  }
+
+  return false;
+}
+
+
+//===----------------------------------------------------------------------===//
+// Function Parsing.
+//===----------------------------------------------------------------------===//
+
+bool LLParser::ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
+                                   PerFunctionState *PFS) {
   if (isa<FunctionType>(Ty))
     return Error(ID.Loc, "functions are not values, refer to them as pointers");
 
   switch (ID.Kind) {
   default: llvm_unreachable("Unknown ValID!");
-  case ValID::t_MDNode:
-  case ValID::t_MDString:
-    return Error(ID.Loc, "invalid use of metadata");
   case ValID::t_LocalID:
+    if (!PFS) return Error(ID.Loc, "invalid use of function-local name");
+    V = PFS->GetVal(ID.UIntVal, Ty, ID.Loc);
+    return (V == 0);
   case ValID::t_LocalName:
-    return Error(ID.Loc, "invalid use of function-local name");
-  case ValID::t_InlineAsm:
-    return Error(ID.Loc, "inline asm can only be an operand of call/invoke");
+    if (!PFS) return Error(ID.Loc, "invalid use of function-local name");
+    V = PFS->GetVal(ID.StrVal, Ty, ID.Loc);
+    return (V == 0);
+  case ValID::t_InlineAsm: {
+    const PointerType *PTy = dyn_cast<PointerType>(Ty);
+    const FunctionType *FTy = 
+      PTy ? dyn_cast<FunctionType>(PTy->getElementType()) : 0;
+    if (!FTy || !InlineAsm::Verify(FTy, ID.StrVal2))
+      return Error(ID.Loc, "invalid type for inline asm constraint string");
+    V = InlineAsm::get(FTy, ID.StrVal, ID.StrVal2, ID.UIntVal&1, ID.UIntVal>>1);
+    return false;
+  }
+  case ValID::t_MDNode:
+    if (!Ty->isMetadataTy())
+      return Error(ID.Loc, "metadata value must have metadata type");
+    V = ID.MDNodeVal;
+    return false;
+  case ValID::t_MDString:
+    if (!Ty->isMetadataTy())
+      return Error(ID.Loc, "metadata value must have metadata type");
+    V = ID.MDStringVal;
+    return false;
   case ValID::t_GlobalName:
     V = GetGlobalVal(ID.StrVal, Ty, ID.Loc);
     return V == 0;
@@ -2440,90 +2500,11 @@ bool LLParser::ConvertGlobalValIDToValue(const Type *Ty, ValID &ID,
   }
 }
 
-/// ConvertGlobalOrMetadataValIDToValue - Apply a type to a ValID to get a fully
-/// resolved constant or metadata value.
-bool LLParser::ConvertGlobalOrMetadataValIDToValue(const Type *Ty, ValID &ID,
-                                                   Value *&V) {
-  switch (ID.Kind) {
-  case ValID::t_MDNode:
-    if (!Ty->isMetadataTy())
-      return Error(ID.Loc, "metadata value must have metadata type");
-    V = ID.MDNodeVal;
-    return false;
-  case ValID::t_MDString:
-    if (!Ty->isMetadataTy())
-      return Error(ID.Loc, "metadata value must have metadata type");
-    V = ID.MDStringVal;
-    return false;
-  default:
-    Constant *C;
-    if (ConvertGlobalValIDToValue(Ty, ID, C)) return true;
-    V = C;
-    return false;
-  }
-}
-  
-
-bool LLParser::ParseGlobalTypeAndValue(Constant *&V) {
-  PATypeHolder Type(Type::getVoidTy(Context));
-  return ParseType(Type) ||
-         ParseGlobalValue(Type, V);
-}
-
-/// ParseGlobalValueVector
-///   ::= /*empty*/
-///   ::= TypeAndValue (',' TypeAndValue)*
-bool LLParser::ParseGlobalValueVector(SmallVectorImpl<Constant*> &Elts) {
-  // Empty list.
-  if (Lex.getKind() == lltok::rbrace ||
-      Lex.getKind() == lltok::rsquare ||
-      Lex.getKind() == lltok::greater ||
-      Lex.getKind() == lltok::rparen)
-    return false;
-
-  Constant *C;
-  if (ParseGlobalTypeAndValue(C)) return true;
-  Elts.push_back(C);
-
-  while (EatIfPresent(lltok::comma)) {
-    if (ParseGlobalTypeAndValue(C)) return true;
-    Elts.push_back(C);
-  }
-
-  return false;
-}
-
-
-//===----------------------------------------------------------------------===//
-// Function Parsing.
-//===----------------------------------------------------------------------===//
-
-bool LLParser::ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
-                                   PerFunctionState &PFS) {
-  switch (ID.Kind) {
-  case ValID::t_LocalID: V = PFS.GetVal(ID.UIntVal, Ty, ID.Loc); break;
-  case ValID::t_LocalName: V = PFS.GetVal(ID.StrVal, Ty, ID.Loc); break;
-  case ValID::t_InlineAsm: {
-    const PointerType *PTy = dyn_cast<PointerType>(Ty);
-    const FunctionType *FTy = 
-      PTy ? dyn_cast<FunctionType>(PTy->getElementType()) : 0;
-    if (!FTy || !InlineAsm::Verify(FTy, ID.StrVal2))
-      return Error(ID.Loc, "invalid type for inline asm constraint string");
-    V = InlineAsm::get(FTy, ID.StrVal, ID.StrVal2, ID.UIntVal&1, ID.UIntVal>>1);
-    return false;
-  }
-  default:
-    return ConvertGlobalOrMetadataValIDToValue(Ty, ID, V);
-  }
-
-  return V == 0;
-}
-
 bool LLParser::ParseValue(const Type *Ty, Value *&V, PerFunctionState &PFS) {
   V = 0;
   ValID ID;
-  return ParseValID(ID) ||
-         ConvertValIDToValue(Ty, ID, V, PFS);
+  return ParseValID(ID, &PFS) ||
+         ConvertValIDToValue(Ty, ID, V, &PFS);
 }
 
 bool LLParser::ParseTypeAndValue(Value *&V, PerFunctionState &PFS) {
@@ -2663,8 +2644,7 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
 
   AttrListPtr PAL = AttrListPtr::get(Attrs.begin(), Attrs.end());
 
-  if (PAL.paramHasAttr(1, Attribute::StructRet) &&
-      RetType != Type::getVoidTy(Context))
+  if (PAL.paramHasAttr(1, Attribute::StructRet) && !RetType->isVoidTy())
     return Error(RetTypeLoc, "functions with 'sret' argument must return void");
 
   const FunctionType *FT =
@@ -2766,6 +2746,10 @@ bool LLParser::ParseFunctionBody(Function &Fn) {
   
   PerFunctionState PFS(*this, Fn, FunctionNumber);
 
+  // We need at least one basic block.
+  if (Lex.getKind() == lltok::rbrace || Lex.getKind() == lltok::kw_end)
+    return TokError("function body requires at least one basic block");
+  
   while (Lex.getKind() != lltok::rbrace && Lex.getKind() != lltok::kw_end)
     if (ParseBasicBlock(PFS)) return true;
 
@@ -3232,7 +3216,7 @@ bool LLParser::ParseInvoke(Instruction *&Inst, PerFunctionState &PFS) {
 
   // Look up the callee.
   Value *Callee;
-  if (ConvertValIDToValue(PFTy, CalleeID, Callee, PFS)) return true;
+  if (ConvertValIDToValue(PFTy, CalleeID, Callee, &PFS)) return true;
 
   // FIXME: In LLVM 3.0, stop accepting zext, sext and inreg as optional
   // function attributes.
@@ -3578,7 +3562,7 @@ bool LLParser::ParseCall(Instruction *&Inst, PerFunctionState &PFS,
 
   // Look up the callee.
   Value *Callee;
-  if (ConvertValIDToValue(PFTy, CalleeID, Callee, PFS)) return true;
+  if (ConvertValIDToValue(PFTy, CalleeID, Callee, &PFS)) return true;
 
   // FIXME: In LLVM 3.0, stop accepting zext, sext and inreg as optional
   // function attributes.
@@ -3660,7 +3644,7 @@ int LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS,
     }
   }
 
-  if (Size && Size->getType() != Type::getInt32Ty(Context))
+  if (Size && !Size->getType()->isInteger(32))
     return Error(SizeLoc, "element count must be i32");
 
   if (isAlloca) {
@@ -3840,7 +3824,8 @@ int LLParser::ParseInsertValue(Instruction *&Inst, PerFunctionState &PFS) {
 ///   ::= Element (',' Element)*
 /// Element
 ///   ::= 'null' | TypeAndValue
-bool LLParser::ParseMDNodeVector(SmallVectorImpl<Value*> &Elts) {
+bool LLParser::ParseMDNodeVector(SmallVectorImpl<Value*> &Elts,
+                                 PerFunctionState *PFS) {
   do {
     // Null is a special case since it is typeless.
     if (EatIfPresent(lltok::kw_null)) {
@@ -3851,8 +3836,8 @@ bool LLParser::ParseMDNodeVector(SmallVectorImpl<Value*> &Elts) {
     Value *V = 0;
     PATypeHolder Ty(Type::getVoidTy(Context));
     ValID ID;
-    if (ParseType(Ty) || ParseValID(ID) ||
-        ConvertGlobalOrMetadataValIDToValue(Ty, ID, V))
+    if (ParseType(Ty) || ParseValID(ID, PFS) ||
+        ConvertValIDToValue(Ty, ID, V, PFS))
       return true;
     
     Elts.push_back(V);

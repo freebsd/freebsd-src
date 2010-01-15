@@ -1,13 +1,20 @@
-; RUN: llc < %s -march=x86 | FileCheck %s
-; rdar://7475489
+; RUN: llc < %s -march=x86    | FileCheck %s -check-prefix=X32
+; RUN: llc < %s -march=x86-64 | FileCheck %s -check-prefix=X64
 
 define i32 @t(i32 %a, i32 %b) nounwind ssp {
 entry:
-; CHECK: t:
-; CHECK: xorb
-; CHECK-NOT: andb
-; CHECK-NOT: shrb
-; CHECK: testb $64
+; X32:     t:
+; X32:     xorb
+; X32-NOT: andb
+; X32-NOT: shrb
+; X32:     testb $64
+; X32:     jne
+
+; X64:     t:
+; X64-NOT: setne
+; X64:     xorl
+; X64:     testb $64
+; X64:     jne
   %0 = and i32 %a, 16384
   %1 = icmp ne i32 %0, 0
   %2 = and i32 %b, 16384

@@ -737,7 +737,7 @@ bool BitcodeReader::ParseValueSymbolTable() {
 }
 
 bool BitcodeReader::ParseMetadata() {
-  unsigned NextValueNo = MDValueList.size();
+  unsigned NextMDValueNo = MDValueList.size();
 
   if (Stream.EnterSubBlock(bitc::METADATA_BLOCK_ID))
     return Error("Malformed block record");
@@ -766,6 +766,7 @@ bool BitcodeReader::ParseMetadata() {
       continue;
     }
 
+    bool IsFunctionLocal = false;
     // Read a record.
     Record.clear();
     switch (Stream.ReadRecord(Code, Record)) {
@@ -787,17 +788,25 @@ bool BitcodeReader::ParseMetadata() {
 
       // Read named metadata elements.
       unsigned Size = Record.size();
-      SmallVector<MetadataBase*, 8> Elts;
+      SmallVector<MDNode *, 8> Elts;
       for (unsigned i = 0; i != Size; ++i) {
-        Value *MD = MDValueList.getValueFwdRef(Record[i]);
-        if (MetadataBase *B = dyn_cast<MetadataBase>(MD))
-        Elts.push_back(B);
+        if (Record[i] == ~0U) {
+          Elts.push_back(NULL);
+          continue;
+        }
+        MDNode *MD = dyn_cast<MDNode>(MDValueList.getValueFwdRef(Record[i]));
+        if (MD == 0)
+          return Error("Malformed metadata record");
+        Elts.push_back(MD);
       }
       Value *V = NamedMDNode::Create(Context, Name.str(), Elts.data(),
                                      Elts.size(), TheModule);
-      MDValueList.AssignValue(V, NextValueNo++);
+      MDValueList.AssignValue(V, NextMDValueNo++);
       break;
     }
+    case bitc::METADATA_FN_NODE:
+      IsFunctionLocal = true;
+      // fall-through
     case bitc::METADATA_NODE: {
       if (Record.empty() || Record.size() % 2 == 1)
         return Error("Invalid METADATA_NODE record");
@@ -808,13 +817,15 @@ bool BitcodeReader::ParseMetadata() {
         const Type *Ty = getTypeByID(Record[i], false);
         if (Ty->isMetadataTy())
           Elts.push_back(MDValueList.getValueFwdRef(Record[i+1]));
-        else if (Ty != Type::getVoidTy(Context))
+        else if (!Ty->isVoidTy())
           Elts.push_back(ValueList.getValueFwdRef(Record[i+1], Ty));
         else
           Elts.push_back(NULL);
       }
-      Value *V = MDNode::get(Context, &Elts[0], Elts.size());
-      MDValueList.AssignValue(V, NextValueNo++);
+      Value *V = MDNode::getWhenValsUnresolved(Context, &Elts[0], Elts.size(),
+                                               IsFunctionLocal);
+      IsFunctionLocal = false;
+      MDValueList.AssignValue(V, NextMDValueNo++);
       break;
     }
     case bitc::METADATA_STRING: {
@@ -825,7 +836,7 @@ bool BitcodeReader::ParseMetadata() {
         String[i] = Record[i];
       Value *V = MDString::get(Context,
                                StringRef(String.data(), String.size()));
-      MDValueList.AssignValue(V, NextValueNo++);
+      MDValueList.AssignValue(V, NextMDValueNo++);
       break;
     }
     case bitc::METADATA_KIND: {
@@ -1646,6 +1657,9 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
       case bitc::METADATA_ATTACHMENT_ID:
         if (ParseMetadataAttachment()) return true;
         break;
+      case bitc::METADATA_BLOCK_ID:
+        if (ParseMetadata()) return true;
+        break;
       }
       continue;
     }
@@ -2238,7 +2252,7 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
     }
 
     // Non-void values get registered in the value table for future use.
-    if (I && I->getType() != Type::getVoidTy(Context))
+    if (I && !I->getType()->isVoidTy())
       ValueList.AssignValue(I, NextValueNo++);
   }
 

@@ -523,8 +523,7 @@ static Instruction *createMalloc(Instruction *InsertBefore,
     MCall->setCallingConv(F->getCallingConv());
     if (!F->doesNotAlias(0)) F->setDoesNotAlias(0);
   }
-  assert(MCall->getType() != Type::getVoidTy(BB->getContext()) &&
-         "Malloc has void return type");
+  assert(!MCall->getType()->isVoidTy() && "Malloc has void return type");
 
   return Result;
 }
@@ -788,7 +787,7 @@ BasicBlock *UnreachableInst::getSuccessorV(unsigned idx) const {
 
 void BranchInst::AssertOK() {
   if (isConditional())
-    assert(getCondition()->getType() == Type::getInt1Ty(getContext()) &&
+    assert(getCondition()->getType()->isInteger(1) &&
            "May only branch on boolean predicates!");
 }
 
@@ -893,7 +892,7 @@ static Value *getAISize(LLVMContext &Context, Value *Amt) {
   else {
     assert(!isa<BasicBlock>(Amt) &&
            "Passed basic block into allocation size parameter! Use other ctor");
-    assert(Amt->getType() == Type::getInt32Ty(Context) &&
+    assert(Amt->getType()->isInteger(32) &&
            "Allocation array size is not a 32-bit integer!");
   }
   return Amt;
@@ -904,7 +903,7 @@ AllocaInst::AllocaInst(const Type *Ty, Value *ArraySize,
   : UnaryInstruction(PointerType::getUnqual(Ty), Alloca,
                      getAISize(Ty->getContext(), ArraySize), InsertBefore) {
   setAlignment(0);
-  assert(Ty != Type::getVoidTy(Ty->getContext()) && "Cannot allocate void!");
+  assert(!Ty->isVoidTy() && "Cannot allocate void!");
   setName(Name);
 }
 
@@ -913,7 +912,7 @@ AllocaInst::AllocaInst(const Type *Ty, Value *ArraySize,
   : UnaryInstruction(PointerType::getUnqual(Ty), Alloca,
                      getAISize(Ty->getContext(), ArraySize), InsertAtEnd) {
   setAlignment(0);
-  assert(Ty != Type::getVoidTy(Ty->getContext()) && "Cannot allocate void!");
+  assert(!Ty->isVoidTy() && "Cannot allocate void!");
   setName(Name);
 }
 
@@ -922,7 +921,7 @@ AllocaInst::AllocaInst(const Type *Ty, const Twine &Name,
   : UnaryInstruction(PointerType::getUnqual(Ty), Alloca,
                      getAISize(Ty->getContext(), 0), InsertBefore) {
   setAlignment(0);
-  assert(Ty != Type::getVoidTy(Ty->getContext()) && "Cannot allocate void!");
+  assert(!Ty->isVoidTy() && "Cannot allocate void!");
   setName(Name);
 }
 
@@ -931,7 +930,7 @@ AllocaInst::AllocaInst(const Type *Ty, const Twine &Name,
   : UnaryInstruction(PointerType::getUnqual(Ty), Alloca,
                      getAISize(Ty->getContext(), 0), InsertAtEnd) {
   setAlignment(0);
-  assert(Ty != Type::getVoidTy(Ty->getContext()) && "Cannot allocate void!");
+  assert(!Ty->isVoidTy() && "Cannot allocate void!");
   setName(Name);
 }
 
@@ -940,7 +939,7 @@ AllocaInst::AllocaInst(const Type *Ty, Value *ArraySize, unsigned Align,
   : UnaryInstruction(PointerType::getUnqual(Ty), Alloca,
                      getAISize(Ty->getContext(), ArraySize), InsertBefore) {
   setAlignment(Align);
-  assert(Ty != Type::getVoidTy(Ty->getContext()) && "Cannot allocate void!");
+  assert(!Ty->isVoidTy() && "Cannot allocate void!");
   setName(Name);
 }
 
@@ -949,7 +948,7 @@ AllocaInst::AllocaInst(const Type *Ty, Value *ArraySize, unsigned Align,
   : UnaryInstruction(PointerType::getUnqual(Ty), Alloca,
                      getAISize(Ty->getContext(), ArraySize), InsertAtEnd) {
   setAlignment(Align);
-  assert(Ty != Type::getVoidTy(Ty->getContext()) && "Cannot allocate void!");
+  assert(!Ty->isVoidTy() && "Cannot allocate void!");
   setName(Name);
 }
 
@@ -1392,8 +1391,7 @@ ExtractElementInst::ExtractElementInst(Value *Val, Value *Index,
 
 
 bool ExtractElementInst::isValidOperands(const Value *Val, const Value *Index) {
-  if (!isa<VectorType>(Val->getType()) ||
-      Index->getType() != Type::getInt32Ty(Val->getContext()))
+  if (!isa<VectorType>(Val->getType()) || !Index->getType()->isInteger(32))
     return false;
   return true;
 }
@@ -1440,7 +1438,7 @@ bool InsertElementInst::isValidOperands(const Value *Vec, const Value *Elt,
   if (Elt->getType() != cast<VectorType>(Vec->getType())->getElementType())
     return false;// Second operand of insertelement must be vector element type.
     
-  if (Index->getType() != Type::getInt32Ty(Vec->getContext()))
+  if (!Index->getType()->isInteger(32))
     return false;  // Third operand of insertelement must be i32.
   return true;
 }
@@ -1492,7 +1490,7 @@ bool ShuffleVectorInst::isValidOperands(const Value *V1, const Value *V2,
   
   const VectorType *MaskTy = dyn_cast<VectorType>(Mask->getType());
   if (!isa<Constant>(Mask) || MaskTy == 0 ||
-      MaskTy->getElementType() != Type::getInt32Ty(V1->getContext()))
+      !MaskTy->getElementType()->isInteger(32))
     return false;
   return true;
 }
@@ -2287,7 +2285,8 @@ CastInst *CastInst::CreatePointerCast(Value *S, const Type *Ty,
 CastInst *CastInst::CreateIntegerCast(Value *C, const Type *Ty, 
                                       bool isSigned, const Twine &Name,
                                       Instruction *InsertBefore) {
-  assert(C->getType()->isInteger() && Ty->isInteger() && "Invalid cast");
+  assert(C->getType()->isIntOrIntVector() && Ty->isIntOrIntVector() &&
+         "Invalid integer cast");
   unsigned SrcBits = C->getType()->getScalarSizeInBits();
   unsigned DstBits = Ty->getScalarSizeInBits();
   Instruction::CastOps opcode =

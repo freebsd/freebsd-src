@@ -807,124 +807,145 @@ void AsmPrinter::EmitZeros(uint64_t NumZeros, unsigned AddrSpace) const {
 // Print out the specified constant, without a storage class.  Only the
 // constants valid in constant expressions can occur here.
 void AsmPrinter::EmitConstantValueOnly(const Constant *CV) {
-  if (CV->isNullValue() || isa<UndefValue>(CV))
+  if (CV->isNullValue() || isa<UndefValue>(CV)) {
     O << '0';
-  else if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
+    return;
+  }
+
+  if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
     O << CI->getZExtValue();
-  } else if (const GlobalValue *GV = dyn_cast<GlobalValue>(CV)) {
+    return;
+  }
+  
+  if (const GlobalValue *GV = dyn_cast<GlobalValue>(CV)) {
     // This is a constant address for a global variable or function. Use the
     // name of the variable or function as the address value.
     O << Mang->getMangledName(GV);
-  } else if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV)) {
-    const TargetData *TD = TM.getTargetData();
-    unsigned Opcode = CE->getOpcode();    
-    switch (Opcode) {
-    case Instruction::Trunc:
-    case Instruction::ZExt:
-    case Instruction::SExt:
-    case Instruction::FPTrunc:
-    case Instruction::FPExt:
-    case Instruction::UIToFP:
-    case Instruction::SIToFP:
-    case Instruction::FPToUI:
-    case Instruction::FPToSI:
-      llvm_unreachable("FIXME: Don't support this constant cast expr");
-    case Instruction::GetElementPtr: {
-      // generate a symbolic expression for the byte address
-      const Constant *ptrVal = CE->getOperand(0);
-      SmallVector<Value*, 8> idxVec(CE->op_begin()+1, CE->op_end());
-      if (int64_t Offset = TD->getIndexedOffset(ptrVal->getType(), &idxVec[0],
-                                                idxVec.size())) {
-        // Truncate/sext the offset to the pointer size.
-        if (TD->getPointerSizeInBits() != 64) {
-          int SExtAmount = 64-TD->getPointerSizeInBits();
-          Offset = (Offset << SExtAmount) >> SExtAmount;
-        }
-        
-        if (Offset)
-          O << '(';
-        EmitConstantValueOnly(ptrVal);
-        if (Offset > 0)
-          O << ") + " << Offset;
-        else if (Offset < 0)
-          O << ") - " << -Offset;
-      } else {
-        EmitConstantValueOnly(ptrVal);
-      }
-      break;
-    }
-    case Instruction::BitCast:
-      return EmitConstantValueOnly(CE->getOperand(0));
-
-    case Instruction::IntToPtr: {
-      // Handle casts to pointers by changing them into casts to the appropriate
-      // integer type.  This promotes constant folding and simplifies this code.
-      Constant *Op = CE->getOperand(0);
-      Op = ConstantExpr::getIntegerCast(Op, TD->getIntPtrType(CV->getContext()),
-                                        false/*ZExt*/);
-      return EmitConstantValueOnly(Op);
-    }
-      
-      
-    case Instruction::PtrToInt: {
-      // Support only foldable casts to/from pointers that can be eliminated by
-      // changing the pointer to the appropriately sized integer type.
-      Constant *Op = CE->getOperand(0);
-      const Type *Ty = CE->getType();
-
-      // We can emit the pointer value into this slot if the slot is an
-      // integer slot greater or equal to the size of the pointer.
-      if (TD->getTypeAllocSize(Ty) == TD->getTypeAllocSize(Op->getType()))
-        return EmitConstantValueOnly(Op);
-
-      O << "((";
-      EmitConstantValueOnly(Op);
-      APInt ptrMask =
-        APInt::getAllOnesValue(TD->getTypeAllocSizeInBits(Op->getType()));
-      
-      SmallString<40> S;
-      ptrMask.toStringUnsigned(S);
-      O << ") & " << S.str() << ')';
-      break;
-    }
-    case Instruction::Add:
-    case Instruction::Sub:
-    case Instruction::And:
-    case Instruction::Or:
-    case Instruction::Xor:
-      O << '(';
-      EmitConstantValueOnly(CE->getOperand(0));
-      O << ')';
-      switch (Opcode) {
-      case Instruction::Add:
-       O << " + ";
-       break;
-      case Instruction::Sub:
-       O << " - ";
-       break;
-      case Instruction::And:
-       O << " & ";
-       break;
-      case Instruction::Or:
-       O << " | ";
-       break;
-      case Instruction::Xor:
-       O << " ^ ";
-       break;
-      default:
-       break;
-      }
-      O << '(';
-      EmitConstantValueOnly(CE->getOperand(1));
-      O << ')';
-      break;
-    default:
-      llvm_unreachable("Unsupported operator!");
-    }
-  } else if (const BlockAddress *BA = dyn_cast<BlockAddress>(CV)) {
+    return;
+  }
+  
+  if (const BlockAddress *BA = dyn_cast<BlockAddress>(CV)) {
     GetBlockAddressSymbol(BA)->print(O, MAI);
-  } else {
+    return;
+  }
+  
+  const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV);
+  if (CE == 0) {
     llvm_unreachable("Unknown constant value!");
+    O << '0';
+    return;
+  }
+  
+  switch (CE->getOpcode()) {
+  case Instruction::ZExt:
+  case Instruction::SExt:
+  case Instruction::FPTrunc:
+  case Instruction::FPExt:
+  case Instruction::UIToFP:
+  case Instruction::SIToFP:
+  case Instruction::FPToUI:
+  case Instruction::FPToSI:
+  default:
+    llvm_unreachable("FIXME: Don't support this constant cast expr");
+  case Instruction::GetElementPtr: {
+    // generate a symbolic expression for the byte address
+    const TargetData *TD = TM.getTargetData();
+    const Constant *ptrVal = CE->getOperand(0);
+    SmallVector<Value*, 8> idxVec(CE->op_begin()+1, CE->op_end());
+    int64_t Offset = TD->getIndexedOffset(ptrVal->getType(), &idxVec[0],
+                                          idxVec.size());
+    if (Offset == 0)
+      return EmitConstantValueOnly(ptrVal);
+    
+    // Truncate/sext the offset to the pointer size.
+    if (TD->getPointerSizeInBits() != 64) {
+      int SExtAmount = 64-TD->getPointerSizeInBits();
+      Offset = (Offset << SExtAmount) >> SExtAmount;
+    }
+    
+    if (Offset)
+      O << '(';
+    EmitConstantValueOnly(ptrVal);
+    if (Offset > 0)
+      O << ") + " << Offset;
+    else
+      O << ") - " << -Offset;
+    return;
+  }
+  case Instruction::BitCast:
+    return EmitConstantValueOnly(CE->getOperand(0));
+
+  case Instruction::IntToPtr: {
+    // Handle casts to pointers by changing them into casts to the appropriate
+    // integer type.  This promotes constant folding and simplifies this code.
+    const TargetData *TD = TM.getTargetData();
+    Constant *Op = CE->getOperand(0);
+    Op = ConstantExpr::getIntegerCast(Op, TD->getIntPtrType(CV->getContext()),
+                                      false/*ZExt*/);
+    return EmitConstantValueOnly(Op);
+  }
+    
+  case Instruction::PtrToInt: {
+    // Support only foldable casts to/from pointers that can be eliminated by
+    // changing the pointer to the appropriately sized integer type.
+    Constant *Op = CE->getOperand(0);
+    const Type *Ty = CE->getType();
+    const TargetData *TD = TM.getTargetData();
+
+    // We can emit the pointer value into this slot if the slot is an
+    // integer slot greater or equal to the size of the pointer.
+    if (TD->getTypeAllocSize(Ty) == TD->getTypeAllocSize(Op->getType()))
+      return EmitConstantValueOnly(Op);
+
+    O << "((";
+    EmitConstantValueOnly(Op);
+    APInt ptrMask =
+      APInt::getAllOnesValue(TD->getTypeAllocSizeInBits(Op->getType()));
+    
+    SmallString<40> S;
+    ptrMask.toStringUnsigned(S);
+    O << ") & " << S.str() << ')';
+    return;
+  }
+      
+  case Instruction::Trunc:
+    // We emit the value and depend on the assembler to truncate the generated
+    // expression properly.  This is important for differences between
+    // blockaddress labels.  Since the two labels are in the same function, it
+    // is reasonable to treat their delta as a 32-bit value.
+    return EmitConstantValueOnly(CE->getOperand(0));
+      
+  case Instruction::Add:
+  case Instruction::Sub:
+  case Instruction::And:
+  case Instruction::Or:
+  case Instruction::Xor:
+    O << '(';
+    EmitConstantValueOnly(CE->getOperand(0));
+    O << ')';
+    switch (CE->getOpcode()) {
+    case Instruction::Add:
+     O << " + ";
+     break;
+    case Instruction::Sub:
+     O << " - ";
+     break;
+    case Instruction::And:
+     O << " & ";
+     break;
+    case Instruction::Or:
+     O << " | ";
+     break;
+    case Instruction::Xor:
+     O << " ^ ";
+     break;
+    default:
+     break;
+    }
+    O << '(';
+    EmitConstantValueOnly(CE->getOperand(1));
+    O << ')';
+    break;
   }
 }
 
@@ -1225,8 +1246,7 @@ void AsmPrinter::EmitGlobalConstantLargeInt(const ConstantInt *CI,
                                             unsigned AddrSpace) {
   const TargetData *TD = TM.getTargetData();
   unsigned BitWidth = CI->getBitWidth();
-  assert(isPowerOf2_32(BitWidth) &&
-         "Non-power-of-2-sized integers not handled!");
+  assert((BitWidth & 63) == 0 && "only support multiples of 64-bits");
 
   // We don't expect assemblers to support integer data directives
   // for more than 64 bits, so we emit the data in at most 64-bit
@@ -1239,39 +1259,34 @@ void AsmPrinter::EmitGlobalConstantLargeInt(const ConstantInt *CI,
     else
       Val = RawData[i];
 
-    if (MAI->getData64bitsDirective(AddrSpace))
+    if (MAI->getData64bitsDirective(AddrSpace)) {
       O << MAI->getData64bitsDirective(AddrSpace) << Val << '\n';
-    else if (TD->isBigEndian()) {
-      O << MAI->getData32bitsDirective(AddrSpace) << unsigned(Val >> 32);
-      if (VerboseAsm) {
-        O.PadToColumn(MAI->getCommentColumn());
-        O << MAI->getCommentString()
-          << " most significant half of i64 " << Val;
-      }
-      O << '\n';
-      O << MAI->getData32bitsDirective(AddrSpace) << unsigned(Val);
-      if (VerboseAsm) {
-        O.PadToColumn(MAI->getCommentColumn());
-        O << MAI->getCommentString()
-          << " least significant half of i64 " << Val;
-      }
-      O << '\n';
-    } else {
-      O << MAI->getData32bitsDirective(AddrSpace) << unsigned(Val);
-      if (VerboseAsm) {
-        O.PadToColumn(MAI->getCommentColumn());
-        O << MAI->getCommentString()
-          << " least significant half of i64 " << Val;
-      }
-      O << '\n';
-      O << MAI->getData32bitsDirective(AddrSpace) << unsigned(Val >> 32);
-      if (VerboseAsm) {
-        O.PadToColumn(MAI->getCommentColumn());
-        O << MAI->getCommentString()
-          << " most significant half of i64 " << Val;
-      }
-      O << '\n';
+      continue;
     }
+
+    // Emit two 32-bit chunks, order depends on endianness.
+    unsigned FirstChunk = unsigned(Val), SecondChunk = unsigned(Val >> 32);
+    const char *FirstName = " least", *SecondName = " most";
+    if (TD->isBigEndian()) {
+      std::swap(FirstChunk, SecondChunk);
+      std::swap(FirstName, SecondName);
+    }
+    
+    O << MAI->getData32bitsDirective(AddrSpace) << FirstChunk;
+    if (VerboseAsm) {
+      O.PadToColumn(MAI->getCommentColumn());
+      O << MAI->getCommentString()
+        << FirstName << " significant half of i64 " << Val;
+    }
+    O << '\n';
+    
+    O << MAI->getData32bitsDirective(AddrSpace) << SecondChunk;
+    if (VerboseAsm) {
+      O.PadToColumn(MAI->getCommentColumn());
+      O << MAI->getCommentString()
+        << SecondName << " significant half of i64 " << Val;
+    }
+    O << '\n';
   }
 }
 
@@ -1284,22 +1299,39 @@ void AsmPrinter::EmitGlobalConstant(const Constant *CV, unsigned AddrSpace) {
   if (CV->isNullValue() || isa<UndefValue>(CV)) {
     EmitZeros(Size, AddrSpace);
     return;
-  } else if (const ConstantArray *CVA = dyn_cast<ConstantArray>(CV)) {
+  }
+  
+  if (const ConstantArray *CVA = dyn_cast<ConstantArray>(CV)) {
     EmitGlobalConstantArray(CVA , AddrSpace);
     return;
-  } else if (const ConstantStruct *CVS = dyn_cast<ConstantStruct>(CV)) {
+  }
+  
+  if (const ConstantStruct *CVS = dyn_cast<ConstantStruct>(CV)) {
     EmitGlobalConstantStruct(CVS, AddrSpace);
     return;
-  } else if (const ConstantFP *CFP = dyn_cast<ConstantFP>(CV)) {
+  }
+
+  if (const ConstantFP *CFP = dyn_cast<ConstantFP>(CV)) {
     EmitGlobalConstantFP(CFP, AddrSpace);
     return;
-  } else if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
+  }
+  
+  if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
+    // If we can directly emit an 8-byte constant, do it.
+    if (Size == 8)
+      if (const char *Data64Dir = MAI->getData64bitsDirective(AddrSpace)) {
+        O << Data64Dir << CI->getZExtValue() << '\n';
+        return;
+      }
+
     // Small integers are handled below; large integers are handled here.
     if (Size > 4) {
       EmitGlobalConstantLargeInt(CI, AddrSpace);
       return;
     }
-  } else if (const ConstantVector *CP = dyn_cast<ConstantVector>(CV)) {
+  }
+  
+  if (const ConstantVector *CP = dyn_cast<ConstantVector>(CV)) {
     EmitGlobalConstantVector(CP);
     return;
   }
@@ -1617,7 +1649,7 @@ void AsmPrinter::printLabel(unsigned Id) const {
 
 /// PrintAsmOperand - Print the specified operand of MI, an INLINEASM
 /// instruction, using the specified assembler variant.  Targets should
-/// overried this to format as appropriate.
+/// override this to format as appropriate.
 bool AsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
                                  unsigned AsmVariant, const char *ExtraCode) {
   // Target doesn't support this yet!
@@ -1645,15 +1677,17 @@ MCSymbol *AsmPrinter::GetBlockAddressSymbol(const Function *F,
   // This code must use the function name itself, and not the function number,
   // since it must be possible to generate the label name from within other
   // functions.
-  std::string FuncName = Mang->getMangledName(F);
+  SmallString<60> FnName;
+  Mang->getNameWithPrefix(FnName, F, false);
 
-  SmallString<60> Name;
-  raw_svector_ostream(Name) << MAI->getPrivateGlobalPrefix() << "BA"
-    << FuncName.size() << '_' << FuncName << '_'
-    << Mang->makeNameProper(BB->getName())
-    << Suffix;
+  // FIXME: THIS IS BROKEN IF THE LLVM BASIC BLOCK DOESN'T HAVE A NAME!
+  SmallString<60> NameResult;
+  Mang->getNameWithPrefix(NameResult,
+                          StringRef("BA") + Twine((unsigned)FnName.size()) + 
+                          "_" + FnName.str() + "_" + BB->getName() + Suffix, 
+                          Mangler::Private);
 
-  return OutContext.GetOrCreateSymbol(Name.str());
+  return OutContext.GetOrCreateSymbol(NameResult.str());
 }
 
 MCSymbol *AsmPrinter::GetMBBSymbol(unsigned MBBID) const {

@@ -726,8 +726,7 @@ unsigned llvm::ComputeNumSignBits(Value *V, const TargetData *TD,
       
     Tmp2 = ComputeNumSignBits(U->getOperand(1), TD, Depth+1);
     if (Tmp2 == 1) return 1;
-      return std::min(Tmp, Tmp2)-1;
-    break;
+    return std::min(Tmp, Tmp2)-1;
     
   case Instruction::Sub:
     Tmp2 = ComputeNumSignBits(U->getOperand(1), TD, Depth+1);
@@ -757,8 +756,24 @@ unsigned llvm::ComputeNumSignBits(Value *V, const TargetData *TD,
     // is, at worst, one more bit than the inputs.
     Tmp = ComputeNumSignBits(U->getOperand(0), TD, Depth+1);
     if (Tmp == 1) return 1;  // Early out.
-      return std::min(Tmp, Tmp2)-1;
-    break;
+    return std::min(Tmp, Tmp2)-1;
+      
+  case Instruction::PHI: {
+    PHINode *PN = cast<PHINode>(U);
+    // Don't analyze large in-degree PHIs.
+    if (PN->getNumIncomingValues() > 4) break;
+    
+    // Take the minimum of all incoming values.  This can't infinitely loop
+    // because of our depth threshold.
+    Tmp = ComputeNumSignBits(PN->getIncomingValue(0), TD, Depth+1);
+    for (unsigned i = 1, e = PN->getNumIncomingValues(); i != e; ++i) {
+      if (Tmp == 1) return Tmp;
+      Tmp = std::min(Tmp,
+                     ComputeNumSignBits(PN->getIncomingValue(1), TD, Depth+1));
+    }
+    return Tmp;
+  }
+
   case Instruction::Trunc:
     // FIXME: it's tricky to do anything useful for this, but it is an important
     // case for targets like X86.
@@ -1348,7 +1363,7 @@ bool llvm::GetConstantStringInfo(Value *V, std::string &Str, uint64_t Offset,
     // Make sure the index-ee is a pointer to array of i8.
     const PointerType *PT = cast<PointerType>(GEP->getOperand(0)->getType());
     const ArrayType *AT = dyn_cast<ArrayType>(PT->getElementType());
-    if (AT == 0 || AT->getElementType() != Type::getInt8Ty(V->getContext()))
+    if (AT == 0 || !AT->getElementType()->isInteger(8))
       return false;
     
     // Check to make sure that the first operand of the GEP is an integer and
@@ -1387,8 +1402,7 @@ bool llvm::GetConstantStringInfo(Value *V, std::string &Str, uint64_t Offset,
   
   // Must be a Constant Array
   ConstantArray *Array = dyn_cast<ConstantArray>(GlobalInit);
-  if (Array == 0 ||
-      Array->getType()->getElementType() != Type::getInt8Ty(V->getContext()))
+  if (Array == 0 || !Array->getType()->getElementType()->isInteger(8))
     return false;
   
   // Get the number of elements in the array

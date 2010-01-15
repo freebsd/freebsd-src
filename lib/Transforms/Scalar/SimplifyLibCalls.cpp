@@ -80,7 +80,7 @@ public:
   /// specified pointer and character.  Ptr is required to be some pointer type,
   /// and the return value has 'i8*' type.
   Value *EmitStrChr(Value *Ptr, char C, IRBuilder<> &B);
-  
+
   /// EmitMemCpy - Emit a call to the memcpy function to the builder.  This
   /// always expects that the size has type 'intptr_t' and Dst/Src are pointers.
   Value *EmitMemCpy(Value *Dst, Value *Src, Value *Len,
@@ -101,10 +101,11 @@ public:
   /// EmitMemSet - Emit a call to the memset function
   Value *EmitMemSet(Value *Dst, Value *Val, Value *Len, IRBuilder<> &B);
 
-  /// EmitUnaryFloatFnCall - Emit a call to the unary function named 'Name' (e.g.
-  /// 'floor').  This function is known to take a single of type matching 'Op'
-  /// and returns one value with the same type.  If 'Op' is a long double, 'l'
-  /// is added as the suffix of name, if 'Op' is a float, we add a 'f' suffix.
+  /// EmitUnaryFloatFnCall - Emit a call to the unary function named 'Name'
+  /// (e.g.  'floor').  This function is known to take a single of type matching
+  /// 'Op' and returns one value with the same type.  If 'Op' is a long double,
+  /// 'l' is added as the suffix of name, if 'Op' is a float, we add a 'f'
+  /// suffix.
   Value *EmitUnaryFloatFnCall(Value *Op, const char *Name, IRBuilder<> &B,
                               const AttrListPtr &Attrs);
 
@@ -163,7 +164,7 @@ Value *LibCallOptimization::EmitStrChr(Value *Ptr, char C, IRBuilder<> &B) {
   Module *M = Caller->getParent();
   AttributeWithIndex AWI =
     AttributeWithIndex::get(~0u, Attribute::ReadOnly | Attribute::NoUnwind);
-  
+
   const Type *I8Ptr = Type::getInt8PtrTy(*Context);
   const Type *I32Ty = Type::getInt32Ty(*Context);
   Constant *StrChr = M->getOrInsertFunction("strchr", AttrListPtr::get(&AWI, 1),
@@ -236,8 +237,8 @@ Value *LibCallOptimization::EmitMemCmp(Value *Ptr1, Value *Ptr2,
 
   Value *MemCmp = M->getOrInsertFunction("memcmp", AttrListPtr::get(AWI, 3),
                                          Type::getInt32Ty(*Context),
-                                    Type::getInt8PtrTy(*Context),
-                                    Type::getInt8PtrTy(*Context),
+                                         Type::getInt8PtrTy(*Context),
+                                         Type::getInt8PtrTy(*Context),
                                          TD->getIntPtrType(*Context), NULL);
   CallInst *CI = B.CreateCall3(MemCmp, CastToCStr(Ptr1, B), CastToCStr(Ptr2, B),
                                Len, "memcmp");
@@ -504,8 +505,7 @@ static uint64_t GetStringLengthH(Value *V, SmallPtrSet<PHINode*, 32> &PHIs) {
 
   // Must be a Constant Array
   ConstantArray *Array = dyn_cast<ConstantArray>(GlobalInit);
-  if (!Array ||
-      Array->getType()->getElementType() != Type::getInt8Ty(V->getContext()))
+  if (!Array || !Array->getType()->getElementType()->isInteger(8))
     return false;
 
   // Get the number of elements in the array
@@ -677,8 +677,7 @@ struct StrChrOpt : public LibCallOptimization {
       if (!TD) return 0;
 
       uint64_t Len = GetStringLength(SrcStr);
-      if (Len == 0 ||
-          FT->getParamType(1) != Type::getInt32Ty(*Context)) // memchr needs i32.
+      if (Len == 0 || !FT->getParamType(1)->isInteger(32)) // memchr needs i32.
         return 0;
 
       return EmitMemChr(SrcStr, CI->getOperand(2), // include nul.
@@ -720,7 +719,7 @@ struct StrCmpOpt : public LibCallOptimization {
     // Verify the "strcmp" function prototype.
     const FunctionType *FT = Callee->getFunctionType();
     if (FT->getNumParams() != 2 ||
-	FT->getReturnType() != Type::getInt32Ty(*Context) ||
+	!FT->getReturnType()->isInteger(32) ||
         FT->getParamType(0) != FT->getParamType(1) ||
         FT->getParamType(0) != Type::getInt8PtrTy(*Context))
       return 0;
@@ -768,7 +767,7 @@ struct StrNCmpOpt : public LibCallOptimization {
     // Verify the "strncmp" function prototype.
     const FunctionType *FT = Callee->getFunctionType();
     if (FT->getNumParams() != 3 ||
-	FT->getReturnType() != Type::getInt32Ty(*Context) ||
+	!FT->getReturnType()->isInteger(32) ||
         FT->getParamType(0) != FT->getParamType(1) ||
         FT->getParamType(0) != Type::getInt8PtrTy(*Context) ||
         !isa<IntegerType>(FT->getParamType(2)))
@@ -949,20 +948,20 @@ struct StrStrOpt : public LibCallOptimization {
     // fold strstr(x, x) -> x.
     if (CI->getOperand(1) == CI->getOperand(2))
       return B.CreateBitCast(CI->getOperand(1), CI->getType());
-    
+
     // See if either input string is a constant string.
     std::string SearchStr, ToFindStr;
     bool HasStr1 = GetConstantStringInfo(CI->getOperand(1), SearchStr);
     bool HasStr2 = GetConstantStringInfo(CI->getOperand(2), ToFindStr);
-    
+
     // fold strstr(x, "") -> x.
     if (HasStr2 && ToFindStr.empty())
       return B.CreateBitCast(CI->getOperand(1), CI->getType());
-    
+
     // If both strings are known, constant fold it.
     if (HasStr1 && HasStr2) {
       std::string::size_type Offset = SearchStr.find(ToFindStr);
-      
+
       if (Offset == std::string::npos) // strstr("foo", "bar") -> null
         return Constant::getNullValue(CI->getType());
 
@@ -971,7 +970,7 @@ struct StrStrOpt : public LibCallOptimization {
       Result = B.CreateConstInBoundsGEP1_64(Result, Offset, "strstr");
       return B.CreateBitCast(Result, CI->getType());
     }
-    
+
     // fold strstr(x, "y") -> strchr(x, 'y').
     if (HasStr2 && ToFindStr.size() == 1)
       return B.CreateBitCast(EmitStrChr(CI->getOperand(1), ToFindStr[0], B),
@@ -979,7 +978,7 @@ struct StrStrOpt : public LibCallOptimization {
     return 0;
   }
 };
-  
+
 
 //===---------------------------------------===//
 // 'memcmp' Optimizations
@@ -989,7 +988,7 @@ struct MemCmpOpt : public LibCallOptimization {
     const FunctionType *FT = Callee->getFunctionType();
     if (FT->getNumParams() != 3 || !isa<PointerType>(FT->getParamType(0)) ||
         !isa<PointerType>(FT->getParamType(1)) ||
-        FT->getReturnType() != Type::getInt32Ty(*Context))
+        !FT->getReturnType()->isInteger(32))
       return 0;
 
     Value *LHS = CI->getOperand(1), *RHS = CI->getOperand(2);
@@ -1094,27 +1093,6 @@ struct MemSetOpt : public LibCallOptimization {
 //===----------------------------------------------------------------------===//
 // Object Size Checking Optimizations
 //===----------------------------------------------------------------------===//
-
-//===---------------------------------------===//
-// 'object size'
-namespace {
-struct SizeOpt : public LibCallOptimization {
-  virtual Value *CallOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
-    // TODO: We can do more with this, but delaying to here should be no change
-    // in behavior.
-    ConstantInt *Const = dyn_cast<ConstantInt>(CI->getOperand(2));
-
-    if (!Const) return 0;
-
-    const Type *Ty = Callee->getFunctionType()->getReturnType();
-
-    if (Const->getZExtValue() == 0)
-      return Constant::getAllOnesValue(Ty);
-    else
-      return ConstantInt::get(Ty, 0);
-  }
-};
-}
 
 //===---------------------------------------===//
 // 'memcpy_chk' Optimizations
@@ -1351,7 +1329,7 @@ struct FFSOpt : public LibCallOptimization {
     // Just make sure this has 2 arguments of the same FP type, which match the
     // result type.
     if (FT->getNumParams() != 1 ||
-	FT->getReturnType() != Type::getInt32Ty(*Context) ||
+	!FT->getReturnType()->isInteger(32) ||
         !isa<IntegerType>(FT->getParamType(0)))
       return 0;
 
@@ -1387,7 +1365,7 @@ struct IsDigitOpt : public LibCallOptimization {
     const FunctionType *FT = Callee->getFunctionType();
     // We require integer(i32)
     if (FT->getNumParams() != 1 || !isa<IntegerType>(FT->getReturnType()) ||
-        FT->getParamType(0) != Type::getInt32Ty(*Context))
+        !FT->getParamType(0)->isInteger(32))
       return 0;
 
     // isdigit(c) -> (c-'0') <u 10
@@ -1408,7 +1386,7 @@ struct IsAsciiOpt : public LibCallOptimization {
     const FunctionType *FT = Callee->getFunctionType();
     // We require integer(i32)
     if (FT->getNumParams() != 1 || !isa<IntegerType>(FT->getReturnType()) ||
-        FT->getParamType(0) != Type::getInt32Ty(*Context))
+        !FT->getParamType(0)->isInteger(32))
       return 0;
 
     // isascii(c) -> c <u 128
@@ -1449,7 +1427,7 @@ struct ToAsciiOpt : public LibCallOptimization {
     const FunctionType *FT = Callee->getFunctionType();
     // We require i32(i32)
     if (FT->getNumParams() != 1 || FT->getReturnType() != FT->getParamType(0) ||
-        FT->getParamType(0) != Type::getInt32Ty(*Context))
+        !FT->getParamType(0)->isInteger(32))
       return 0;
 
     // isascii(c) -> c & 0x7f
@@ -1558,7 +1536,8 @@ struct SPrintFOpt : public LibCallOptimization {
 
       // sprintf(str, fmt) -> llvm.memcpy(str, fmt, strlen(fmt)+1, 1)
       EmitMemCpy(CI->getOperand(1), CI->getOperand(2), // Copy the nul byte.
-          ConstantInt::get(TD->getIntPtrType(*Context), FormatStr.size()+1),1,B);
+          ConstantInt::get
+                 (TD->getIntPtrType(*Context), FormatStr.size()+1),1,B);
       return ConstantInt::get(CI->getType(), FormatStr.size());
     }
 
@@ -1688,8 +1667,9 @@ struct FPrintFOpt : public LibCallOptimization {
       // These optimizations require TargetData.
       if (!TD) return 0;
 
-      EmitFWrite(CI->getOperand(2), ConstantInt::get(TD->getIntPtrType(*Context),
-                                                     FormatStr.size()),
+      EmitFWrite(CI->getOperand(2),
+                 ConstantInt::get(TD->getIntPtrType(*Context),
+                                  FormatStr.size()),
                  CI->getOperand(1), B);
       return ConstantInt::get(CI->getType(), FormatStr.size());
     }
@@ -1744,7 +1724,6 @@ namespace {
     FWriteOpt FWrite; FPutsOpt FPuts; FPrintFOpt FPrintF;
 
     // Object Size Checking
-    SizeOpt ObjectSize;
     MemCpyChkOpt MemCpyChk; MemSetChkOpt MemSetChk; MemMoveChkOpt MemMoveChk;
 
     bool Modified;  // This is only used by doInitialization.
@@ -1854,8 +1833,6 @@ void SimplifyLibCalls::InitOptimizations() {
   Optimizations["fprintf"] = &FPrintF;
 
   // Object Size Checking
-  Optimizations["llvm.objectsize.i32"] = &ObjectSize;
-  Optimizations["llvm.objectsize.i64"] = &ObjectSize;
   Optimizations["__memcpy_chk"] = &MemCpyChk;
   Optimizations["__memset_chk"] = &MemSetChk;
   Optimizations["__memmove_chk"] = &MemMoveChk;
@@ -1896,8 +1873,8 @@ bool SimplifyLibCalls::runOnFunction(Function &F) {
       Value *Result = LCO->OptimizeCall(CI, TD, Builder);
       if (Result == 0) continue;
 
-      DEBUG(errs() << "SimplifyLibCalls simplified: " << *CI;
-            errs() << "  into: " << *Result << "\n");
+      DEBUG(dbgs() << "SimplifyLibCalls simplified: " << *CI;
+            dbgs() << "  into: " << *Result << "\n");
 
       // Something changed!
       Changed = true;

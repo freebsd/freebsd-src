@@ -10,7 +10,7 @@
 // This file implements the LiveRange and LiveInterval classes.  Given some
 // numbering of each the machine instructions an interval [i, j) is said to be a
 // live interval for register v if there is no instruction with number j' > j
-// such that v is live at j' abd there is no instruction with number i' < i such
+// such that v is live at j' and there is no instruction with number i' < i such
 // that v is live at i'. In this implementation intervals can have holes,
 // i.e. an interval might look like [1,20), [50,65), [1000,1001).  Each
 // individual range is represented as an instance of LiveRange, and the whole
@@ -24,6 +24,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include <algorithm>
@@ -813,7 +814,7 @@ raw_ostream& llvm::operator<<(raw_ostream& os, const LiveRange &LR) {
 }
 
 void LiveRange::dump() const {
-  errs() << *this << "\n";
+  dbgs() << *this << "\n";
 }
 
 void LiveInterval::print(raw_ostream &OS, const TargetRegisterInfo *TRI) const {
@@ -872,7 +873,7 @@ void LiveInterval::print(raw_ostream &OS, const TargetRegisterInfo *TRI) const {
 }
 
 void LiveInterval::dump() const {
-  errs() << *this << "\n";
+  dbgs() << *this << "\n";
 }
 
 

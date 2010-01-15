@@ -124,6 +124,11 @@ const Type *Type::getScalarType() const {
   return this;
 }
 
+/// isInteger - Return true if this is an IntegerType of the specified width.
+bool Type::isInteger(unsigned Bitwidth) const {
+  return isInteger() && cast<IntegerType>(this)->getBitWidth() == Bitwidth;
+}
+
 /// isIntOrIntVector - Return true if this is an integer type or a vector of
 /// integer types.
 ///
@@ -280,7 +285,7 @@ std::string Type::getDescription() const {
 
 bool StructType::indexValid(const Value *V) const {
   // Structure indexes require 32-bit integer constants.
-  if (V->getType() == Type::getInt32Ty(V->getContext()))
+  if (V->getType()->isInteger(32))
     if (const ConstantInt *CU = dyn_cast<ConstantInt>(V))
       return indexValid(CU->getZExtValue());
   return false;
@@ -487,7 +492,7 @@ PointerType::PointerType(const Type *E, unsigned AddrSpace)
 OpaqueType::OpaqueType(LLVMContext &C) : DerivedType(C, OpaqueTyID) {
   setAbstract(true);
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << *this << "\n");
+  DEBUG(dbgs() << "Derived new type: " << *this << "\n");
 #endif
 }
 
@@ -782,7 +787,7 @@ const IntegerType *IntegerType::get(LLVMContext &C, unsigned NumBits) {
     pImpl->IntegerTypes.add(IVT, ITy);
   }
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << *ITy << "\n");
+  DEBUG(dbgs() << "Derived new type: " << *ITy << "\n");
 #endif
   return ITy;
 }
@@ -825,7 +830,7 @@ FunctionType *FunctionType::get(const Type *ReturnType,
   }
 
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << FT << "\n");
+  DEBUG(dbgs() << "Derived new type: " << FT << "\n");
 #endif
   return FT;
 }
@@ -846,7 +851,7 @@ ArrayType *ArrayType::get(const Type *ElementType, uint64_t NumElements) {
     pImpl->ArrayTypes.add(AVT, AT = new ArrayType(ElementType, NumElements));
   }
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << *AT << "\n");
+  DEBUG(dbgs() << "Derived new type: " << *AT << "\n");
 #endif
   return AT;
 }
@@ -870,7 +875,7 @@ VectorType *VectorType::get(const Type *ElementType, unsigned NumElements) {
     pImpl->VectorTypes.add(PVT, PT = new VectorType(ElementType, NumElements));
   }
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << *PT << "\n");
+  DEBUG(dbgs() << "Derived new type: " << *PT << "\n");
 #endif
   return PT;
 }
@@ -902,7 +907,7 @@ StructType *StructType::get(LLVMContext &Context,
     pImpl->StructTypes.add(STV, ST);
   }
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << *ST << "\n");
+  DEBUG(dbgs() << "Derived new type: " << *ST << "\n");
 #endif
   return ST;
 }
@@ -946,7 +951,7 @@ PointerType *PointerType::get(const Type *ValueType, unsigned AddressSpace) {
     pImpl->PointerTypes.add(PVT, PT = new PointerType(ValueType, AddressSpace));
   }
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << *PT << "\n");
+  DEBUG(dbgs() << "Derived new type: " << *PT << "\n");
 #endif
   return PT;
 }
@@ -1009,13 +1014,13 @@ void Type::removeAbstractTypeUser(AbstractTypeUser *U) const {
   AbstractTypeUsers.erase(AbstractTypeUsers.begin()+i);
 
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "  remAbstractTypeUser[" << (void*)this << ", "
+  DEBUG(dbgs() << "  remAbstractTypeUser[" << (void*)this << ", "
                << *this << "][" << i << "] User = " << U << "\n");
 #endif
 
   if (AbstractTypeUsers.empty() && getRefCount() == 0 && isAbstract()) {
 #ifdef DEBUG_MERGE_TYPES
-    DEBUG(errs() << "DELETEing unused abstract type: <" << *this
+    DEBUG(dbgs() << "DELETEing unused abstract type: <" << *this
                  << ">[" << (void*)this << "]" << "\n");
 #endif
   
@@ -1041,7 +1046,7 @@ void DerivedType::unlockedRefineAbstractTypeTo(const Type *NewType) {
   pImpl->AbstractTypeDescriptions.clear();
 
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "REFINING abstract type [" << (void*)this << " "
+  DEBUG(dbgs() << "REFINING abstract type [" << (void*)this << " "
                << *this << "] to [" << (void*)NewType << " "
                << *NewType << "]!\n");
 #endif
@@ -1078,7 +1083,7 @@ void DerivedType::unlockedRefineAbstractTypeTo(const Type *NewType) {
 
     unsigned OldSize = AbstractTypeUsers.size(); OldSize=OldSize;
 #ifdef DEBUG_MERGE_TYPES
-    DEBUG(errs() << " REFINING user " << OldSize-1 << "[" << (void*)User
+    DEBUG(dbgs() << " REFINING user " << OldSize-1 << "[" << (void*)User
                  << "] of abstract type [" << (void*)this << " "
                  << *this << "] to [" << (void*)NewTy.get() << " "
                  << *NewTy << "]!\n");
@@ -1109,7 +1114,7 @@ void DerivedType::refineAbstractTypeTo(const Type *NewType) {
 //
 void DerivedType::notifyUsesThatTypeBecameConcrete() {
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "typeIsREFINED type: " << (void*)this << " " << *this <<"\n");
+  DEBUG(dbgs() << "typeIsREFINED type: " << (void*)this << " " << *this <<"\n");
 #endif
 
   unsigned OldSize = AbstractTypeUsers.size(); OldSize=OldSize;

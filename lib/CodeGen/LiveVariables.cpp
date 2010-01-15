@@ -30,6 +30,7 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
@@ -59,17 +60,17 @@ LiveVariables::VarInfo::findKill(const MachineBasicBlock *MBB) const {
 }
 
 void LiveVariables::VarInfo::dump() const {
-  errs() << "  Alive in blocks: ";
+  dbgs() << "  Alive in blocks: ";
   for (SparseBitVector<>::iterator I = AliveBlocks.begin(),
            E = AliveBlocks.end(); I != E; ++I)
-    errs() << *I << ", ";
-  errs() << "\n  Killed by:";
+    dbgs() << *I << ", ";
+  dbgs() << "\n  Killed by:";
   if (Kills.empty())
-    errs() << " No instructions.\n";
+    dbgs() << " No instructions.\n";
   else {
     for (unsigned i = 0, e = Kills.size(); i != e; ++i)
-      errs() << "\n    #" << i << ": " << *Kills[i];
-    errs() << "\n";
+      dbgs() << "\n    #" << i << ": " << *Kills[i];
+    dbgs() << "\n";
   }
 }
 
@@ -289,7 +290,6 @@ MachineInstr *LiveVariables::FindLastRefOrPartRef(unsigned Reg) {
 
   MachineInstr *LastRefOrPartRef = LastUse ? LastUse : LastDef;
   unsigned LastRefOrPartRefDist = DistanceMap[LastRefOrPartRef];
-  MachineInstr *LastPartDef = 0;
   unsigned LastPartDefDist = 0;
   for (const unsigned *SubRegs = TRI->getSubRegisters(Reg);
        unsigned SubReg = *SubRegs; ++SubRegs) {
@@ -298,13 +298,9 @@ MachineInstr *LiveVariables::FindLastRefOrPartRef(unsigned Reg) {
       // There was a def of this sub-register in between. This is a partial
       // def, keep track of the last one.
       unsigned Dist = DistanceMap[Def];
-      if (Dist > LastPartDefDist) {
+      if (Dist > LastPartDefDist)
         LastPartDefDist = Dist;
-        LastPartDef = Def;
-      }
-      continue;
-    }
-    if (MachineInstr *Use = PhysRegUse[SubReg]) {
+    } else if (MachineInstr *Use = PhysRegUse[SubReg]) {
       unsigned Dist = DistanceMap[Use];
       if (Dist > LastRefOrPartRefDist) {
         LastRefOrPartRefDist = Dist;

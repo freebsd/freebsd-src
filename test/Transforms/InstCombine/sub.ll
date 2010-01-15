@@ -223,8 +223,8 @@ define i32 @test23(i8* %P, i64 %A){
   %G = sub i32 %D, %F
   ret i32 %G
 ; CHECK: @test23
-; CHECK: %A1 = trunc i64 %A to i32
-; CHECK: ret i32 %A1
+; CHECK-NEXT: = trunc i64 %A to i32
+; CHECK-NEXT: ret i32
 }
 
 define i64 @test24(i8* %P, i64 %A){
@@ -247,4 +247,29 @@ define i64 @test24a(i8* %P, i64 %A){
 ; CHECK-NEXT: sub i64 0, %A
 ; CHECK-NEXT: ret i64 
 }
+
+@Arr = external global [42 x i16]
+
+define i64 @test24b(i8* %P, i64 %A){
+  %B = getelementptr inbounds [42 x i16]* @Arr, i64 0, i64 %A
+  %C = ptrtoint i16* %B to i64
+  %G = sub i64 %C, ptrtoint ([42 x i16]* @Arr to i64)
+  ret i64 %G
+; CHECK: @test24b
+; CHECK-NEXT: shl i64 %A, 1
+; CHECK-NEXT: ret i64 
+}
+
+
+define i64 @test25(i8* %P, i64 %A){
+  %B = getelementptr inbounds [42 x i16]* @Arr, i64 0, i64 %A
+  %C = ptrtoint i16* %B to i64
+  %G = sub i64 %C, ptrtoint (i16* getelementptr ([42 x i16]* @Arr, i64 1, i64 0) to i64)
+  ret i64 %G
+; CHECK: @test25
+; CHECK-NEXT: shl i64 %A, 1
+; CHECK-NEXT: add i64 {{.*}}, -84
+; CHECK-NEXT: ret i64 
+}
+
 

@@ -12,6 +12,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCAsmLexer.h"
 #include "llvm/MC/MCAsmParser.h"
+#include "llvm/MC/MCParsedAsmOperand.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
@@ -78,7 +79,7 @@ private:
 
   /// @name Auto-generated Match Functions
   /// {
-  bool MatchInstruction(SmallVectorImpl<ARMOperand> &Operands,
+  bool MatchInstruction(const SmallVectorImpl<MCParsedAsmOperand*> &Operands,
                         MCInst &Inst);
 
   /// MatchRegisterName - Match the given string to a register name and return
@@ -94,14 +95,15 @@ public:
   ARMAsmParser(const Target &T, MCAsmParser &_Parser)
     : TargetAsmParser(T), Parser(_Parser) {}
 
-  virtual bool ParseInstruction(const StringRef &Name, MCInst &Inst);
+  virtual bool ParseInstruction(const StringRef &Name, SMLoc NameLoc,
+                                SmallVectorImpl<MCParsedAsmOperand*> &Operands);
 
   virtual bool ParseDirective(AsmToken DirectiveID);
 };
   
 /// ARMOperand - Instances of this class represent a parsed ARM machine
 /// instruction.
-struct ARMOperand {
+struct ARMOperand : public MCParsedAsmOperand {
   enum {
     Token,
     Register,
@@ -515,9 +517,10 @@ int ARMAsmParser::MatchRegisterName(const StringRef &Name) {
 }
 
 /// A hack to allow some testing, to be replaced by a real table gen version.
-bool ARMAsmParser::MatchInstruction(SmallVectorImpl<ARMOperand> &Operands,
-                                    MCInst &Inst) {
-  struct ARMOperand Op0 = Operands[0];
+bool ARMAsmParser::
+MatchInstruction(const SmallVectorImpl<MCParsedAsmOperand*> &Operands,
+                 MCInst &Inst) {
+  ARMOperand &Op0 = *(ARMOperand*)Operands[0];
   assert(Op0.Kind == ARMOperand::Token && "First operand not a Token");
   const StringRef &Mnemonic = Op0.getToken();
   if (Mnemonic == "add" ||
@@ -578,33 +581,27 @@ bool ARMAsmParser::ParseOperand(ARMOperand &Op) {
 }
 
 /// Parse an arm instruction mnemonic followed by its operands.
-bool ARMAsmParser::ParseInstruction(const StringRef &Name, MCInst &Inst) {
-  SmallVector<ARMOperand, 7> Operands;
-
-  Operands.push_back(ARMOperand::CreateToken(Name));
+bool ARMAsmParser::ParseInstruction(const StringRef &Name, SMLoc NameLoc,
+                               SmallVectorImpl<MCParsedAsmOperand*> &Operands) {
+  Operands.push_back(new ARMOperand(ARMOperand::CreateToken(Name)));
 
   SMLoc Loc = getLexer().getTok().getLoc();
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
 
     // Read the first operand.
-    Operands.push_back(ARMOperand());
-    if (ParseOperand(Operands.back()))
-      return true;
+    ARMOperand Op;
+    if (ParseOperand(Op)) return true;
+    Operands.push_back(new ARMOperand(Op));
 
     while (getLexer().is(AsmToken::Comma)) {
       getLexer().Lex();  // Eat the comma.
 
       // Parse and remember the operand.
-      Operands.push_back(ARMOperand());
-      if (ParseOperand(Operands.back()))
-        return true;
+      if (ParseOperand(Op)) return true;
+      Operands.push_back(new ARMOperand(Op));
     }
   }
-  if (!MatchInstruction(Operands, Inst))
-    return false;
-
-  Error(Loc, "ARMAsmParser::ParseInstruction only partly implemented");
-  return true;
+  return false;
 }
 
 /// ParseDirective parses the arm specific directives

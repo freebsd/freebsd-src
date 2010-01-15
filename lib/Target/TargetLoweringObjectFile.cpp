@@ -21,11 +21,13 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSectionELF.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Mangler.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 using namespace llvm;
@@ -492,16 +494,15 @@ getELFKindForNamedSection(const char *Name, SectionKind K) {
 }
 
 
-static unsigned
-getELFSectionType(const char *Name, SectionKind K) {
+static unsigned getELFSectionType(StringRef Name, SectionKind K) {
 
-  if (strcmp(Name, ".init_array") == 0)
+  if (Name == ".init_array")
     return MCSectionELF::SHT_INIT_ARRAY;
 
-  if (strcmp(Name, ".fini_array") == 0)
+  if (Name == ".fini_array")
     return MCSectionELF::SHT_FINI_ARRAY;
 
-  if (strcmp(Name, ".preinit_array") == 0)
+  if (Name == ".preinit_array")
     return MCSectionELF::SHT_PREINIT_ARRAY;
 
   if (K.isBSS() || K.isThreadBSS())
@@ -577,10 +578,16 @@ SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
   // into a 'uniqued' section name, create and return the section now.
   if (GV->isWeakForLinker()) {
     const char *Prefix = getSectionPrefixForUniqueGlobal(Kind);
-    std::string Name = Mang->makeNameProper(GV->getNameStr());
-
-    return getELFSection((Prefix+Name).c_str(),
-                         getELFSectionType((Prefix+Name).c_str(), Kind),
+    SmallString<128> Name, MangledName;
+    Name.append(Prefix, Prefix+strlen(Prefix));
+    Mang->getNameWithPrefix(Name, GV, false);
+    
+    raw_svector_ostream OS(MangledName);
+    MCSymbol::printMangledName(Name, OS, 0);
+    OS.flush();
+    
+    return getELFSection(MangledName.str(),
+                         getELFSectionType(MangledName.str(), Kind),
                          getELFSectionFlags(Kind),
                          Kind);
   }
@@ -922,7 +929,7 @@ const MCSection *
 TargetLoweringObjectFileMachO::getSectionForConstant(SectionKind Kind) const {
   // If this constant requires a relocation, we have to put it in the data
   // segment, not in the text segment.
-  if (Kind.isDataRel())
+  if (Kind.isDataRel() || Kind.isReadOnlyWithRel())
     return ConstDataSection;
 
   if (Kind.isMergeableConst4())
@@ -983,7 +990,7 @@ TargetLoweringObjectFileCOFF::~TargetLoweringObjectFileCOFF() {
 
 
 const MCSection *TargetLoweringObjectFileCOFF::
-getCOFFSection(const char *Name, bool isDirective, SectionKind Kind) const {
+getCOFFSection(StringRef Name, bool isDirective, SectionKind Kind) const {
   // Create the map if it doesn't already exist.
   if (UniquingMap == 0)
     UniquingMap = new MachOUniqueMapTy();
@@ -1078,8 +1085,9 @@ SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
   // into a 'uniqued' section name, create and return the section now.
   if (GV->isWeakForLinker()) {
     const char *Prefix = getCOFFSectionPrefixForUniqueGlobal(Kind);
-    std::string Name = Mang->makeNameProper(GV->getNameStr());
-    return getCOFFSection((Prefix+Name).c_str(), false, Kind);
+    SmallString<128> Name(Prefix, Prefix+strlen(Prefix));
+    Mang->getNameWithPrefix(Name, GV, false);
+    return getCOFFSection(Name.str(), false, Kind);
   }
 
   if (Kind.isText())

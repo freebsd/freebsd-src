@@ -42,7 +42,7 @@ static Value *isBytewiseValue(Value *V) {
   LLVMContext &Context = V->getContext();
   
   // All byte-wide stores are splatable, even of arbitrary variables.
-  if (V->getType() == Type::getInt8Ty(Context)) return V;
+  if (V->getType()->isInteger(8)) return V;
   
   // Constant float and double values can be handled as integer values if the
   // corresponding integer value is "byteable".  An important case is 0.0. 
@@ -456,10 +456,10 @@ bool MemCpyOpt::processStore(StoreInst *SI, BasicBlock::iterator &BBI) {
       ConstantInt::get(Type::getInt32Ty(Context), Range.Alignment)
     };
     Value *C = CallInst::Create(MemSetF, Ops, Ops+4, "", InsertPt);
-    DEBUG(errs() << "Replace stores:\n";
+    DEBUG(dbgs() << "Replace stores:\n";
           for (unsigned i = 0, e = Range.TheStores.size(); i != e; ++i)
-            errs() << *Range.TheStores[i];
-          errs() << "With: " << *C); C=C;
+            dbgs() << *Range.TheStores[i];
+          dbgs() << "With: " << *C); C=C;
   
     // Don't invalidate the iterator
     BBI = BI;
@@ -562,8 +562,7 @@ bool MemCpyOpt::performCallSlotOptzn(MemCpyInst *cpy, CallInst *C) {
   SmallVector<User*, 8> srcUseList(srcAlloca->use_begin(),
                                    srcAlloca->use_end());
   while (!srcUseList.empty()) {
-    User *UI = srcUseList.back();
-    srcUseList.pop_back();
+    User *UI = srcUseList.pop_back_val();
 
     if (isa<BitCastInst>(UI)) {
       for (User::use_iterator I = UI->use_begin(), E = UI->use_end();
@@ -725,7 +724,7 @@ bool MemCpyOpt::processMemMove(MemMoveInst *M) {
       AliasAnalysis::NoAlias)
     return false;
   
-  DEBUG(errs() << "MemCpyOpt: Optimizing memmove -> memcpy: " << *M << "\n");
+  DEBUG(dbgs() << "MemCpyOpt: Optimizing memmove -> memcpy: " << *M << "\n");
   
   // If not, then we know we can transform this.
   Module *Mod = M->getParent()->getParent()->getParent();

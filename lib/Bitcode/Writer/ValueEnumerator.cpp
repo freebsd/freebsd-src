@@ -74,9 +74,10 @@ ValueEnumerator::ValueEnumerator(const Module *M) {
   // Enumerate types used by the type symbol table.
   EnumerateTypeSymbolTable(M->getTypeSymbolTable());
 
-  // Insert constants that are named at module level into the slot pool so that
-  // the module symbol table can refer to them...
+  // Insert constants and metadata  that are named at module level into the slot 
+  // pool so that the module symbol table can refer to them...
   EnumerateValueSymbolTable(M->getValueSymbolTable());
+  EnumerateMDSymbolTable(M->getMDSymbolTable());
 
   SmallVector<std::pair<unsigned, MDNode*>, 8> MDs;
 
@@ -90,8 +91,13 @@ ValueEnumerator::ValueEnumerator(const Module *M) {
     for (Function::const_iterator BB = F->begin(), E = F->end(); BB != E; ++BB)
       for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I!=E;++I){
         for (User::const_op_iterator OI = I->op_begin(), E = I->op_end();
-             OI != E; ++OI)
+             OI != E; ++OI) {
+          if (MDNode *MD = dyn_cast<MDNode>(*OI))
+            if (MD->isFunctionLocal())
+              // These will get enumerated during function-incorporation.
+              continue;
           EnumerateOperandType(*OI);
+        }
         EnumerateType(I->getType());
         if (const CallInst *CI = dyn_cast<CallInst>(I))
           EnumerateAttributes(CI->getAttributes());
@@ -196,6 +202,33 @@ void ValueEnumerator::EnumerateValueSymbolTable(const ValueSymbolTable &VST) {
     EnumerateValue(VI->getValue());
 }
 
+/// EnumerateMDSymbolTable - Insert all of the values in the specified metadata
+/// table.
+void ValueEnumerator::EnumerateMDSymbolTable(const MDSymbolTable &MST) {
+  for (MDSymbolTable::const_iterator MI = MST.begin(), ME = MST.end();
+       MI != ME; ++MI)
+    EnumerateValue(MI->getValue());
+}
+
+void ValueEnumerator::EnumerateNamedMDNode(const NamedMDNode *MD) {
+  // Check to see if it's already in!
+  unsigned &MDValueID = MDValueMap[MD];
+  if (MDValueID) {
+    // Increment use count.
+    MDValues[MDValueID-1].second++;
+    return;
+  }
+
+  // Enumerate the type of this value.
+  EnumerateType(MD->getType());
+
+  for (unsigned i = 0, e = MD->getNumOperands(); i != e; ++i)
+    if (MDNode *E = MD->getOperand(i))
+      EnumerateValue(E);
+  MDValues.push_back(std::make_pair(MD, 1U));
+  MDValueMap[MD] = Values.size();
+}
+
 void ValueEnumerator::EnumerateMetadata(const MetadataBase *MD) {
   // Check to see if it's already in!
   unsigned &MDValueID = MDValueMap[MD];
@@ -212,7 +245,7 @@ void ValueEnumerator::EnumerateMetadata(const MetadataBase *MD) {
     MDValues.push_back(std::make_pair(MD, 1U));
     MDValueMap[MD] = MDValues.size();
     MDValueID = MDValues.size();
-    for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {    
+    for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
       if (Value *V = N->getOperand(i))
         EnumerateValue(V);
       else
@@ -221,14 +254,6 @@ void ValueEnumerator::EnumerateMetadata(const MetadataBase *MD) {
     return;
   }
   
-  if (const NamedMDNode *N = dyn_cast<NamedMDNode>(MD)) {
-    for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
-      EnumerateValue(N->getOperand(i));
-    MDValues.push_back(std::make_pair(MD, 1U));
-    MDValueMap[MD] = Values.size();
-    return;
-  }
-
   // Add the value.
   assert(isa<MDString>(MD) && "Unknown metadata kind");
   MDValues.push_back(std::make_pair(MD, 1U));
@@ -239,6 +264,8 @@ void ValueEnumerator::EnumerateValue(const Value *V) {
   assert(!V->getType()->isVoidTy() && "Can't insert void values!");
   if (const MetadataBase *MB = dyn_cast<MetadataBase>(V))
     return EnumerateMetadata(MB);
+  else if (const NamedMDNode *NMD = dyn_cast<NamedMDNode>(V))
+    return EnumerateNamedMDNode(NMD);
 
   // Check to see if it's already in!
   unsigned &ValueID = ValueMap[V];
@@ -309,6 +336,7 @@ void ValueEnumerator::EnumerateType(const Type *Ty) {
 // walk through it, enumerating the types of the constant.
 void ValueEnumerator::EnumerateOperandType(const Value *V) {
   EnumerateType(V->getType());
+  
   if (const Constant *C = dyn_cast<Constant>(V)) {
     // If this constant is already enumerated, ignore it, we know its type must
     // be enumerated.
@@ -382,7 +410,15 @@ void ValueEnumerator::incorporateFunction(const Function &F) {
   // Add all of the instructions.
   for (Function::const_iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
     for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I!=E; ++I) {
-      if (I->getType() != Type::getVoidTy(F.getContext()))
+      for (User::const_op_iterator OI = I->op_begin(), E = I->op_end();
+           OI != E; ++OI) {
+        if (MDNode *MD = dyn_cast<MDNode>(*OI))
+          if (!MD->isFunctionLocal())
+              // These were already enumerated during ValueEnumerator creation.
+              continue;
+        EnumerateOperandType(*OI);
+      }
+      if (!I->getType()->isVoidTy())
         EnumerateValue(I);
     }
   }

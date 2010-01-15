@@ -162,7 +162,7 @@ MachineBasicBlock *TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
                                                          MachineBasicBlock *MBB,
                    DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const {
 #ifndef NDEBUG
-  errs() << "If a target marks an instruction with "
+  dbgs() << "If a target marks an instruction with "
           "'usesCustomInserter', it must implement "
           "TargetLowering::EmitInstrWithCustomInserter!";
 #endif
@@ -325,7 +325,7 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
   else
     GFI = 0;
   RegInfo = &MF->getRegInfo();
-  DEBUG(errs() << "\n\n\n=== " << Fn.getName() << "\n");
+  DEBUG(dbgs() << "\n\n\n=== " << Fn.getName() << "\n");
 
   MachineModuleInfo *MMI = getAnalysisIfAvailable<MachineModuleInfo>();
   DwarfWriter *DW = getAnalysisIfAvailable<DwarfWriter>();
@@ -438,6 +438,95 @@ void SelectionDAGISel::SelectBasicBlock(BasicBlock *LLVMBB,
   SDB->clear();
 }
 
+namespace {
+/// WorkListRemover - This class is a DAGUpdateListener that removes any deleted
+/// nodes from the worklist.
+class SDOPsWorkListRemover : public SelectionDAG::DAGUpdateListener {
+  SmallVector<SDNode*, 128> &Worklist;
+public:
+  SDOPsWorkListRemover(SmallVector<SDNode*, 128> &wl) : Worklist(wl) {}
+
+  virtual void NodeDeleted(SDNode *N, SDNode *E) {
+    Worklist.erase(std::remove(Worklist.begin(), Worklist.end(), N),
+                   Worklist.end());
+  }
+
+  virtual void NodeUpdated(SDNode *N) {
+    // Ignore updates.
+  }
+};
+}
+
+/// ShrinkDemandedOps - A late transformation pass that shrink expressions
+/// using TargetLowering::TargetLoweringOpt::ShrinkDemandedOp. It converts
+/// x+y to (VT)((SmallVT)x+(SmallVT)y) if the casts are free.
+void SelectionDAGISel::ShrinkDemandedOps() {
+  SmallVector<SDNode*, 128> Worklist;
+
+  // Add all the dag nodes to the worklist.
+  Worklist.reserve(CurDAG->allnodes_size());
+  for (SelectionDAG::allnodes_iterator I = CurDAG->allnodes_begin(),
+       E = CurDAG->allnodes_end(); I != E; ++I)
+    Worklist.push_back(I);
+
+  APInt Mask;
+  APInt KnownZero;
+  APInt KnownOne;
+
+  TargetLowering::TargetLoweringOpt TLO(*CurDAG, true);
+  while (!Worklist.empty()) {
+    SDNode *N = Worklist.pop_back_val();
+
+    if (N->use_empty() && N != CurDAG->getRoot().getNode()) {
+      CurDAG->DeleteNode(N);
+      continue;
+    }
+
+    // Run ShrinkDemandedOp on scalar binary operations.
+    if (N->getNumValues() == 1 &&
+        N->getValueType(0).isSimple() && N->getValueType(0).isInteger()) {
+      unsigned BitWidth = N->getValueType(0).getScalarType().getSizeInBits();
+      APInt Demanded = APInt::getAllOnesValue(BitWidth);
+      APInt KnownZero, KnownOne;
+      if (TLI.SimplifyDemandedBits(SDValue(N, 0), Demanded,
+                                   KnownZero, KnownOne, TLO)) {
+        // Revisit the node.
+        Worklist.erase(std::remove(Worklist.begin(), Worklist.end(), N),
+                       Worklist.end());
+        Worklist.push_back(N);
+
+        // Replace the old value with the new one.
+        DEBUG(errs() << "\nReplacing "; 
+              TLO.Old.getNode()->dump(CurDAG);
+              errs() << "\nWith: ";
+              TLO.New.getNode()->dump(CurDAG);
+              errs() << '\n');
+
+        Worklist.push_back(TLO.New.getNode());
+
+        SDOPsWorkListRemover DeadNodes(Worklist);
+        CurDAG->ReplaceAllUsesOfValueWith(TLO.Old, TLO.New, &DeadNodes);
+
+        if (TLO.Old.getNode()->use_empty()) {
+          for (unsigned i = 0, e = TLO.Old.getNode()->getNumOperands();
+               i != e; ++i) {
+            SDNode *OpNode = TLO.Old.getNode()->getOperand(i).getNode(); 
+            if (OpNode->hasOneUse()) {
+              Worklist.erase(std::remove(Worklist.begin(), Worklist.end(),
+                                         OpNode), Worklist.end());
+              Worklist.push_back(OpNode);
+            }
+          }
+
+          Worklist.erase(std::remove(Worklist.begin(), Worklist.end(),
+                                     TLO.Old.getNode()), Worklist.end());
+          CurDAG->DeleteNode(TLO.Old.getNode());
+        }
+      }
+    }
+  }
+}
+
 void SelectionDAGISel::ComputeLiveOutVRegInfo() {
   SmallPtrSet<SDNode*, 128> VisitedNodes;
   SmallVector<SDNode*, 128> Worklist;
@@ -448,9 +537,8 @@ void SelectionDAGISel::ComputeLiveOutVRegInfo() {
   APInt KnownZero;
   APInt KnownOne;
 
-  while (!Worklist.empty()) {
-    SDNode *N = Worklist.back();
-    Worklist.pop_back();
+  do {
+    SDNode *N = Worklist.pop_back_val();
 
     // If we've already seen this node, ignore it.
     if (!VisitedNodes.insert(N))
@@ -490,7 +578,7 @@ void SelectionDAGISel::ComputeLiveOutVRegInfo() {
       LOI.KnownOne = KnownOne;
       LOI.KnownZero = KnownZero;
     }
-  }
+  } while (!Worklist.empty());
 }
 
 void SelectionDAGISel::CodeGenAndEmitDAG() {
@@ -504,7 +592,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     BlockName = MF->getFunction()->getNameStr() + ":" +
                 BB->getBasicBlock()->getNameStr();
 
-  DEBUG(errs() << "Initial selection DAG:\n");
+  DEBUG(dbgs() << "Initial selection DAG:\n");
   DEBUG(CurDAG->dump());
 
   if (ViewDAGCombine1) CurDAG->viewGraph("dag-combine1 input for " + BlockName);
@@ -517,7 +605,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     CurDAG->Combine(Unrestricted, *AA, OptLevel);
   }
 
-  DEBUG(errs() << "Optimized lowered selection DAG:\n");
+  DEBUG(dbgs() << "Optimized lowered selection DAG:\n");
   DEBUG(CurDAG->dump());
 
   // Second step, hack on the DAG until it only uses operations and types that
@@ -533,7 +621,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     Changed = CurDAG->LegalizeTypes();
   }
 
-  DEBUG(errs() << "Type-legalized selection DAG:\n");
+  DEBUG(dbgs() << "Type-legalized selection DAG:\n");
   DEBUG(CurDAG->dump());
 
   if (Changed) {
@@ -548,7 +636,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
       CurDAG->Combine(NoIllegalTypes, *AA, OptLevel);
     }
 
-    DEBUG(errs() << "Optimized type-legalized selection DAG:\n");
+    DEBUG(dbgs() << "Optimized type-legalized selection DAG:\n");
     DEBUG(CurDAG->dump());
   }
 
@@ -578,7 +666,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
       CurDAG->Combine(NoIllegalOperations, *AA, OptLevel);
     }
 
-    DEBUG(errs() << "Optimized vector-legalized selection DAG:\n");
+    DEBUG(dbgs() << "Optimized vector-legalized selection DAG:\n");
     DEBUG(CurDAG->dump());
   }
 
@@ -591,7 +679,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     CurDAG->Legalize(OptLevel);
   }
 
-  DEBUG(errs() << "Legalized selection DAG:\n");
+  DEBUG(dbgs() << "Legalized selection DAG:\n");
   DEBUG(CurDAG->dump());
 
   if (ViewDAGCombine2) CurDAG->viewGraph("dag-combine2 input for " + BlockName);
@@ -604,13 +692,15 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     CurDAG->Combine(NoIllegalOperations, *AA, OptLevel);
   }
 
-  DEBUG(errs() << "Optimized legalized selection DAG:\n");
+  DEBUG(dbgs() << "Optimized legalized selection DAG:\n");
   DEBUG(CurDAG->dump());
 
   if (ViewISelDAGs) CurDAG->viewGraph("isel input for " + BlockName);
 
-  if (OptLevel != CodeGenOpt::None)
+  if (OptLevel != CodeGenOpt::None) {
+    ShrinkDemandedOps();
     ComputeLiveOutVRegInfo();
+  }
 
   // Third, instruction select all of the operations to machine code, adding the
   // code to the MachineBasicBlock.
@@ -621,7 +711,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     InstructionSelect();
   }
 
-  DEBUG(errs() << "Selected selection DAG:\n");
+  DEBUG(dbgs() << "Selected selection DAG:\n");
   DEBUG(CurDAG->dump());
 
   if (ViewSchedDAGs) CurDAG->viewGraph("scheduler input for " + BlockName);
@@ -654,7 +744,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     delete Scheduler;
   }
 
-  DEBUG(errs() << "Selected machine code:\n");
+  DEBUG(dbgs() << "Selected machine code:\n");
   DEBUG(BB->dump());
 }
 
@@ -699,7 +789,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
              I != E; ++I, ++j)
           if (Fn.paramHasAttr(j, Attribute::ByVal)) {
             if (EnableFastISelVerbose || EnableFastISelAbort)
-              errs() << "FastISel skips entry block due to byval argument\n";
+              dbgs() << "FastISel skips entry block due to byval argument\n";
             SuppressFastISel = true;
             break;
           }
@@ -729,10 +819,10 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
       // information is provided by an intrinsic (eh.selector) that can be moved
       // to unexpected places by the optimizers: if the unwind edge is critical,
       // then breaking it can result in the intrinsics being in the successor of
-      // the landing pad, not the landing pad itself.  This results in exceptions
-      // not being caught because no typeids are associated with the invoke.
-      // This may not be the only way things can go wrong, but it is the only way
-      // we try to work around for the moment.
+      // the landing pad, not the landing pad itself.  This results
+      // in exceptions not being caught because no typeids are associated with
+      // the invoke.  This may not be the only way things can go wrong, but it
+      // is the only way we try to work around for the moment.
       BranchInst *Br = dyn_cast<BranchInst>(LLVMBB->getTerminator());
 
       if (Br && Br->isUnconditional()) { // Critical edge?
@@ -765,7 +855,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
           if (!HandlePHINodesInSuccessorBlocksFast(LLVMBB, FastIS)) {
             ResetDebugLoc(SDB, FastIS);
             if (EnableFastISelVerbose || EnableFastISelAbort) {
-              errs() << "FastISel miss: ";
+              dbgs() << "FastISel miss: ";
               BI->dump();
             }
             assert(!EnableFastISelAbort &&
@@ -775,7 +865,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
 
         SetDebugLoc(MDDbgKind, BI, SDB, FastIS, &MF);
 
-        // First try normal tablegen-generated "fast" selection.
+        // Try to select the instruction with FastISel.
         if (FastIS->SelectInstruction(BI)) {
           ResetDebugLoc(SDB, FastIS);
           continue;
@@ -788,11 +878,11 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
         // Then handle certain instructions as single-LLVM-Instruction blocks.
         if (isa<CallInst>(BI)) {
           if (EnableFastISelVerbose || EnableFastISelAbort) {
-            errs() << "FastISel missed call: ";
+            dbgs() << "FastISel missed call: ";
             BI->dump();
           }
 
-          if (BI->getType() != Type::getVoidTy(*CurDAG->getContext())) {
+          if (!BI->getType()->isVoidTy()) {
             unsigned &R = FuncInfo->ValueMap[BI];
             if (!R)
               R = FuncInfo->CreateRegForValue(BI);
@@ -817,7 +907,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
         // For now, be a little lenient about non-branch terminators.
         if (!isa<TerminatorInst>(BI) || isa<BranchInst>(BI)) {
           if (EnableFastISelVerbose || EnableFastISelAbort) {
-            errs() << "FastISel miss: ";
+            dbgs() << "FastISel miss: ";
             BI->dump();
           }
           if (EnableFastISelAbort)
@@ -846,13 +936,13 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
 void
 SelectionDAGISel::FinishBasicBlock() {
 
-  DEBUG(errs() << "Target-post-processed machine code:\n");
+  DEBUG(dbgs() << "Target-post-processed machine code:\n");
   DEBUG(BB->dump());
 
-  DEBUG(errs() << "Total amount of phi nodes to update: "
+  DEBUG(dbgs() << "Total amount of phi nodes to update: "
                << SDB->PHINodesToUpdate.size() << "\n");
   DEBUG(for (unsigned i = 0, e = SDB->PHINodesToUpdate.size(); i != e; ++i)
-          errs() << "Node " << i << " : ("
+          dbgs() << "Node " << i << " : ("
                  << SDB->PHINodesToUpdate[i].first
                  << ", " << SDB->PHINodesToUpdate[i].second << ")\n");
 
@@ -915,11 +1005,11 @@ SelectionDAGISel::FinishBasicBlock() {
       // This is "default" BB. We have two jumps to it. From "header" BB and
       // from last "case" BB.
       if (PHIBB == SDB->BitTestCases[i].Default) {
-        PHI->addOperand(MachineOperand::CreateReg(SDB->PHINodesToUpdate[pi].second,
-                                                  false));
+        PHI->addOperand(MachineOperand::
+                        CreateReg(SDB->PHINodesToUpdate[pi].second, false));
         PHI->addOperand(MachineOperand::CreateMBB(SDB->BitTestCases[i].Parent));
-        PHI->addOperand(MachineOperand::CreateReg(SDB->PHINodesToUpdate[pi].second,
-                                                  false));
+        PHI->addOperand(MachineOperand::
+                        CreateReg(SDB->PHINodesToUpdate[pi].second, false));
         PHI->addOperand(MachineOperand::CreateMBB(SDB->BitTestCases[i].Cases.
                                                   back().ThisBB));
       }
@@ -927,10 +1017,9 @@ SelectionDAGISel::FinishBasicBlock() {
       for (unsigned j = 0, ej = SDB->BitTestCases[i].Cases.size();
            j != ej; ++j) {
         MachineBasicBlock* cBB = SDB->BitTestCases[i].Cases[j].ThisBB;
-        if (cBB->succ_end() !=
-            std::find(cBB->succ_begin(),cBB->succ_end(), PHIBB)) {
-          PHI->addOperand(MachineOperand::CreateReg(SDB->PHINodesToUpdate[pi].second,
-                                                    false));
+        if (cBB->isSuccessor(PHIBB)) {
+          PHI->addOperand(MachineOperand::
+                          CreateReg(SDB->PHINodesToUpdate[pi].second, false));
           PHI->addOperand(MachineOperand::CreateMBB(cBB));
         }
       }
@@ -977,7 +1066,7 @@ SelectionDAGISel::FinishBasicBlock() {
           (MachineOperand::CreateMBB(SDB->JTCases[i].first.HeaderBB));
       }
       // JT BB. Just iterate over successors here
-      if (BB->succ_end() != std::find(BB->succ_begin(),BB->succ_end(), PHIBB)) {
+      if (BB->isSuccessor(PHIBB)) {
         PHI->addOperand
           (MachineOperand::CreateReg(SDB->PHINodesToUpdate[pi].second, false));
         PHI->addOperand(MachineOperand::CreateMBB(BB));
@@ -1023,17 +1112,23 @@ SelectionDAGISel::FinishBasicBlock() {
         SDB->EdgeMapping.find(BB);
       if (EI != SDB->EdgeMapping.end())
         ThisBB = EI->second;
-      for (MachineBasicBlock::iterator Phi = BB->begin();
-           Phi != BB->end() && Phi->getOpcode() == TargetInstrInfo::PHI; ++Phi){
-        // This value for this PHI node is recorded in PHINodesToUpdate, get it.
-        for (unsigned pn = 0; ; ++pn) {
-          assert(pn != SDB->PHINodesToUpdate.size() &&
-                 "Didn't find PHI entry!");
-          if (SDB->PHINodesToUpdate[pn].first == Phi) {
-            Phi->addOperand(MachineOperand::CreateReg(SDB->PHINodesToUpdate[pn].
-                                                      second, false));
-            Phi->addOperand(MachineOperand::CreateMBB(ThisBB));
-            break;
+
+      // BB may have been removed from the CFG if a branch was constant folded.
+      if (ThisBB->isSuccessor(BB)) {
+        for (MachineBasicBlock::iterator Phi = BB->begin();
+             Phi != BB->end() && Phi->getOpcode() == TargetInstrInfo::PHI;
+             ++Phi) {
+          // This value for this PHI node is recorded in PHINodesToUpdate.
+          for (unsigned pn = 0; ; ++pn) {
+            assert(pn != SDB->PHINodesToUpdate.size() &&
+                   "Didn't find PHI entry!");
+            if (SDB->PHINodesToUpdate[pn].first == Phi) {
+              Phi->addOperand(MachineOperand::
+                              CreateReg(SDB->PHINodesToUpdate[pn].second,
+                                        false));
+              Phi->addOperand(MachineOperand::CreateMBB(ThisBB));
+              break;
+            }
           }
         }
       }
@@ -1302,45 +1397,47 @@ bool SelectionDAGISel::IsLegalAndProfitableToFold(SDNode *N, SDNode *U,
   return !isNonImmUse(Root, N, U);
 }
 
-SDNode *SelectionDAGISel::Select_INLINEASM(SDValue N) {
-  std::vector<SDValue> Ops(N.getNode()->op_begin(), N.getNode()->op_end());
+SDNode *SelectionDAGISel::Select_INLINEASM(SDNode *N) {
+  std::vector<SDValue> Ops(N->op_begin(), N->op_end());
   SelectInlineAsmMemoryOperands(Ops);
     
   std::vector<EVT> VTs;
   VTs.push_back(MVT::Other);
   VTs.push_back(MVT::Flag);
-  SDValue New = CurDAG->getNode(ISD::INLINEASM, N.getDebugLoc(),
+  SDValue New = CurDAG->getNode(ISD::INLINEASM, N->getDebugLoc(),
                                 VTs, &Ops[0], Ops.size());
   return New.getNode();
 }
 
-SDNode *SelectionDAGISel::Select_UNDEF(const SDValue &N) {
-  return CurDAG->SelectNodeTo(N.getNode(), TargetInstrInfo::IMPLICIT_DEF,
-                              N.getValueType());
+SDNode *SelectionDAGISel::Select_UNDEF(SDNode *N) {
+  return CurDAG->SelectNodeTo(N, TargetInstrInfo::IMPLICIT_DEF,
+                              N->getValueType(0));
 }
 
-SDNode *SelectionDAGISel::Select_EH_LABEL(const SDValue &N) {
-  SDValue Chain = N.getOperand(0);
+SDNode *SelectionDAGISel::Select_EH_LABEL(SDNode *N) {
+  SDValue Chain = N->getOperand(0);
   unsigned C = cast<LabelSDNode>(N)->getLabelID();
   SDValue Tmp = CurDAG->getTargetConstant(C, MVT::i32);
-  return CurDAG->SelectNodeTo(N.getNode(), TargetInstrInfo::EH_LABEL,
+  return CurDAG->SelectNodeTo(N, TargetInstrInfo::EH_LABEL,
                               MVT::Other, Tmp, Chain);
 }
 
-void SelectionDAGISel::CannotYetSelect(SDValue N) {
+void SelectionDAGISel::CannotYetSelect(SDNode *N) {
   std::string msg;
   raw_string_ostream Msg(msg);
   Msg << "Cannot yet select: ";
-  N.getNode()->print(Msg, CurDAG);
+  N->print(Msg, CurDAG);
   llvm_report_error(Msg.str());
 }
 
-void SelectionDAGISel::CannotYetSelectIntrinsic(SDValue N) {
-  errs() << "Cannot yet select: ";
+void SelectionDAGISel::CannotYetSelectIntrinsic(SDNode *N) {
+  dbgs() << "Cannot yet select: ";
   unsigned iid =
-    cast<ConstantSDNode>(N.getOperand(N.getOperand(0).getValueType() == MVT::Other))->getZExtValue();
+    cast<ConstantSDNode>(N->getOperand(N->getOperand(0).getValueType() ==
+                                       MVT::Other))->getZExtValue();
   if (iid < Intrinsic::num_intrinsics)
-    llvm_report_error("Cannot yet select: intrinsic %" + Intrinsic::getName((Intrinsic::ID)iid));
+    llvm_report_error("Cannot yet select: intrinsic %" +
+                      Intrinsic::getName((Intrinsic::ID)iid));
   else if (const TargetIntrinsicInfo *tii = TM.getIntrinsicInfo())
     llvm_report_error(Twine("Cannot yet select: target intrinsic %") +
                       tii->getName(iid));

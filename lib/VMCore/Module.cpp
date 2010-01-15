@@ -59,6 +59,7 @@ Module::Module(StringRef MID, LLVMContext& C)
   : Context(C), ModuleID(MID), DataLayout("")  {
   ValSymTab = new ValueSymbolTable();
   TypeSymTab = new TypeSymbolTable();
+  NamedMDSymTab = new MDSymbolTable();
 }
 
 Module::~Module() {
@@ -70,15 +71,17 @@ Module::~Module() {
   NamedMDList.clear();
   delete ValSymTab;
   delete TypeSymTab;
+  delete NamedMDSymTab;
 }
 
 /// Target endian information...
 Module::Endianness Module::getEndianness() const {
-  std::string temp = DataLayout;
+  StringRef temp = DataLayout;
   Module::Endianness ret = AnyEndianness;
   
   while (!temp.empty()) {
-    std::string token = getToken(temp, "-");
+    StringRef token = DataLayout;
+    tie(token, temp) = getToken(DataLayout, "-");
     
     if (token[0] == 'e') {
       ret = LittleEndian;
@@ -92,15 +95,17 @@ Module::Endianness Module::getEndianness() const {
 
 /// Target Pointer Size information...
 Module::PointerSize Module::getPointerSize() const {
-  std::string temp = DataLayout;
+  StringRef temp = DataLayout;
   Module::PointerSize ret = AnyPointerSize;
   
   while (!temp.empty()) {
-    std::string token = getToken(temp, "-");
-    char signal = getToken(token, ":")[0];
+    StringRef token, signalToken;
+    tie(token, temp) = getToken(temp, "-");
+    tie(signalToken, token) = getToken(token, ":");
     
-    if (signal == 'p') {
-      int size = atoi(getToken(token, ":").c_str());
+    if (signalToken[0] == 'p') {
+      int size = 0;
+      getToken(token, ":").first.getAsInteger(10, size);
       if (size == 32)
         ret = Pointer32;
       else if (size == 64)
@@ -307,15 +312,14 @@ GlobalAlias *Module::getNamedAlias(StringRef Name) const {
 /// specified name. This method returns null if a NamedMDNode with the 
 //// specified name is not found.
 NamedMDNode *Module::getNamedMetadata(StringRef Name) const {
-  return dyn_cast_or_null<NamedMDNode>(getValueSymbolTable().lookup(Name));
+  return NamedMDSymTab->lookup(Name);
 }
 
 /// getOrInsertNamedMetadata - Return the first named MDNode in the module 
 /// with the specified name. This method returns a new NamedMDNode if a 
 /// NamedMDNode with the specified name is not found.
 NamedMDNode *Module::getOrInsertNamedMetadata(StringRef Name) {
-  NamedMDNode *NMD =
-    dyn_cast_or_null<NamedMDNode>(getValueSymbolTable().lookup(Name));
+  NamedMDNode *NMD = NamedMDSymTab->lookup(Name);
   if (!NMD)
     NMD = NamedMDNode::Create(getContext(), Name, NULL, 0, this);
   return NMD;

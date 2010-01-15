@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/SmallVector.h"
+
 using namespace llvm;
 
 // MSVC emits references to this into the translation units which reference it.
@@ -51,13 +51,18 @@ unsigned StringRef::edit_distance(llvm::StringRef Other,
   size_type m = size();
   size_type n = Other.size();
 
-  SmallVector<unsigned, 32> previous(n+1, 0);
-  for (SmallVector<unsigned, 32>::size_type i = 0; i <= n; ++i) 
+  const unsigned SmallBufferSize = 64;
+  unsigned SmallBuffer[SmallBufferSize];
+  unsigned *Allocated = 0;
+  unsigned *previous = SmallBuffer;
+  if (2*(n + 1) > SmallBufferSize)
+    Allocated = previous = new unsigned [2*(n+1)];
+  unsigned *current = previous + (n + 1);
+  
+  for (unsigned i = 0; i <= n; ++i) 
     previous[i] = i;
 
-  SmallVector<unsigned, 32> current(n+1, 0);
   for (size_type y = 1; y <= m; ++y) {
-    current.assign(n+1, 0);
     current[0] = y;
     for (size_type x = 1; x <= n; ++x) {
       if (AllowReplacements) {
@@ -69,10 +74,16 @@ unsigned StringRef::edit_distance(llvm::StringRef Other,
         else current[x] = min(current[x-1], previous[x]) + 1;
       }
     }
-    current.swap(previous);
+    
+    unsigned *tmp = current;
+    current = previous;
+    previous = tmp;
   }
 
-  return previous[n];
+  unsigned Result = previous[n];
+  delete [] Allocated;
+  
+  return Result;
 }
 
 //===----------------------------------------------------------------------===//

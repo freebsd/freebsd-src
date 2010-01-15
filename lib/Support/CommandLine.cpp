@@ -354,7 +354,7 @@ static Option *HandlePrefixedOrGroupedOption(StringRef &Arg, StringRef &Value,
     // we don't need to pass argc/argv in.
     assert(PGOpt->getValueExpectedFlag() != cl::ValueRequired &&
            "Option can not be cl::Grouping AND cl::ValueRequired!");
-    int Dummy;
+    int Dummy = 0;
     ErrorParsing |= ProvideOption(PGOpt, OneArgName,
                                   StringRef(), 0, 0, Dummy);
 
@@ -778,10 +778,10 @@ void cl::ParseCommandLineOptions(int argc, char **argv,
       free(*i);
   }
 
-  DEBUG(errs() << "Args: ";
+  DEBUG(dbgs() << "Args: ";
         for (int i = 0; i < argc; ++i)
-          errs() << argv[i] << ' ';
-        errs() << '\n';
+          dbgs() << argv[i] << ' ';
+        dbgs() << '\n';
        );
 
   // If we had an error processing our arguments, don't let the program execute
