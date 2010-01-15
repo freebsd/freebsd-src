@@ -67,7 +67,6 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 	.file	"serial.S"
 
-#include <dev/sio/sioreg.h>
 #include "asm.h"
 
 	.text
