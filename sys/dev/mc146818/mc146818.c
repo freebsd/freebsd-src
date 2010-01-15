@@ -94,7 +94,7 @@ mc146818_attach(device_t dev)
 	(*sc->sc_mcwrite)(dev, MC_REGB, sc->sc_regb);
 	mtx_unlock_spin(&sc->sc_mtx);
 
-	clock_register(dev, 1000000);	/* 1 second resolution. */
+	clock_register(dev, 1000000);	/* 1 second resolution */
 
 	return (0);
 }
@@ -116,7 +116,7 @@ mc146818_gettime(device_t dev, struct timespec *ts)
 
 	/*
 	 * If MC_REGA_UIP is 0 we have at least 244us before the next
-	 * update. If it's 1 an update is imminent.
+	 * update.  If it's 1 an update is imminent.
 	 */
 	for (;;) {
 		mtx_lock_spin(&sc->sc_mtx);
@@ -260,6 +260,9 @@ mc146818_def_write(device_t dev, u_int reg, u_int val)
 	bus_space_write_1(sc->sc_bst, sc->sc_bsh, MC_DATA, val);
 }
 
+#undef MC_ADDR
+#undef MC_DATA
+
 /*
  * Looks like it's common even across platforms to store the century at
  * 0x32 in the NVRAM of the mc146818.
@@ -283,3 +286,5 @@ mc146818_def_setcent(device_t dev, u_int cent)
 	sc = device_get_softc(dev);
 	(*sc->sc_mcwrite)(dev, MC_CENT, cent);
 }
+
+#undef MC_CENT
