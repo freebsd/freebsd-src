@@ -2624,7 +2624,6 @@ bsd_to_linux_v4l_tuner(struct video_tuner *vt, struct l_video_tuner *lvt)
 	return (0);
 }
 
-#if 0
 static int
 linux_to_bsd_v4l_clip(struct l_video_clip *lvc, struct video_clip *vc)
 {
@@ -2635,7 +2634,6 @@ linux_to_bsd_v4l_clip(struct l_video_clip *lvc, struct video_clip *vc)
 	vc->next = PTRIN(lvc->next);	/* possible pointer size conversion */
 	return (0);
 }
-#endif
 
 static int
 linux_to_bsd_v4l_window(struct l_video_window *lvw, struct video_window *vw)
@@ -2696,29 +2694,21 @@ linux_to_bsd_v4l_code(struct l_video_code *lvc, struct video_code *vc)
 	return (0);
 }
 
-#if 0
 static int
-linux_v4l_cliplist_copy(struct l_video_window *lvw, struct video_window *vw)
+linux_v4l_clip_copy(void *lvc, struct video_clip **ppvc)
 {
+	int error;
 	struct video_clip vclip;
 	struct l_video_clip l_vclip;
-	struct video_clip **ppvc;
-	struct l_video_clip *plvc;
-	int error;
 
-	ppvc = &(vw->clips);
-	for (plvc = (struct l_video_clip *) PTRIN(lvw->clips);
-	    plvc != NULL;
-	    plvc = (struct l_video_clip *) PTRIN(plvc->next)) {
-		error = copyin((void *) plvc, &l_vclip, sizeof(l_vclip));
-		if (error) return (error);
-		linux_to_bsd_v4l_clip(&l_vclip, &vclip);
-		/* XXX: If there can be no concurrency: s/M_NOWAIT/M_WAITOK/ */
-		if ((*ppvc = malloc(sizeof(**ppvc), M_LINUX, M_NOWAIT)) == NULL)
-			return (ENOMEM);    /* XXX: linux has no ENOMEM here */
-		memcpy(&vclip, *ppvc, sizeof(vclip));
-		ppvc = &((*ppvc)->next);
-	}
+	error = copyin(lvc, &l_vclip, sizeof(l_vclip));
+	if (error) return (error);
+	linux_to_bsd_v4l_clip(&l_vclip, &vclip);
+	/* XXX: If there can be no concurrency: s/M_NOWAIT/M_WAITOK/ */
+	if ((*ppvc = malloc(sizeof(**ppvc), M_LINUX, M_NOWAIT)) == NULL)
+		return (ENOMEM);    /* XXX: linux has no ENOMEM here */
+	memcpy(&vclip, *ppvc, sizeof(vclip));
+	(*ppvc)->next = NULL;
 	return (0);
 }
 
@@ -2734,7 +2724,71 @@ linux_v4l_cliplist_free(struct video_window *vw)
 	}
 	return (0);
 }
-#endif
+
+static int
+linux_v4l_cliplist_copy(struct l_video_window *lvw, struct video_window *vw)
+{
+	int error;
+	int clipcount;
+	void *plvc;
+	struct video_clip **ppvc;
+
+	/*
+	 * XXX: The cliplist is used to pass in a list of clipping
+	 *	rectangles or, if clipcount == VIDEO_CLIP_BITMAP, a
+	 *	clipping bitmap.  Some Linux apps, however, appear to
+	 *	leave cliplist and clips uninitialized.  In any case,
+	 *	the cliplist is not used by pwc(4), at the time of
+	 *	writing, FreeBSD's only V4L driver.  When a driver
+	 *	that uses the cliplist is developed, this code may
+	 *	need re-examiniation.
+	 */
+	error = 0;
+	clipcount = vw->clipcount;
+	if (clipcount == VIDEO_CLIP_BITMAP) {
+		/*
+		 * In this case, the pointer (clips) is overloaded
+		 * to be a "void *" to a bitmap, therefore there
+		 * is no struct video_clip to copy now.
+		 */
+	} else if (clipcount > 0 && clipcount <= 16384) {
+		/*
+		 * Clips points to list of clip rectangles, so
+		 * copy the list.
+		 *
+		 * XXX: Upper limit of 16384 was used here to try to
+		 *	avoid cases when clipcount and clips pointer
+		 *	are uninitialized and therefore have high random
+		 *	values, as is the case in the Linux Skype
+		 *	application.  The value 16384 was chosen as that
+		 *	is what is used in the Linux stradis(4) MPEG
+		 *	decoder driver, the only place we found an
+		 *	example of cliplist use.
+		 */
+		plvc = PTRIN(lvw->clips);
+		ppvc = &(vw->clips);
+		while (clipcount-- > 0) {
+			if (plvc == 0)
+				error = EFAULT;
+			if (!error)
+				error = linux_v4l_clip_copy(plvc, ppvc);
+			if (error) {
+				linux_v4l_cliplist_free(vw);
+				break;
+			}
+			ppvc = &((*ppvc)->next);
+		        plvc = PTRIN(((struct l_video_clip *) plvc)->next);
+		}
+	} else {
+		/*
+		 * clipcount == 0 or negative (but not VIDEO_CLIP_BITMAP)
+		 * Force cliplist to null.
+		 */
+		vw->clipcount = 0;
+		vw->clips = NULL;
+	}
+	return (error);
+}
 
 static int
 linux_ioctl_v4l(struct thread *td, struct linux_ioctl_args *args)
@@ -2805,21 +2859,14 @@ linux_ioctl_v4l(struct thread *td, struct linux_ioctl_args *args)
 			return (error);
 		}
 		linux_to_bsd_v4l_window(&l_vwin, &vwin);
-#if 0
-		/*
-		 * XXX: some Linux apps call SWIN but do not store valid
-		 *	values in clipcount or in the clips pointer.  Until
-		 *	we have someone calling to support this, the code
-		 *	to handle the list of video_clip structures is removed.
-		 */
 		error = linux_v4l_cliplist_copy(&l_vwin, &vwin);
-#endif
-		if (!error)
-			error = fo_ioctl(fp, VIDIOCSWIN, &vwin, td->td_ucred, td);
+		if (error) {
+			fdrop(fp, td);
+			return (error);
+		}
+		error = fo_ioctl(fp, VIDIOCSWIN, &vwin, td->td_ucred, td);
 		fdrop(fp, td);
-#if 0
 		linux_v4l_cliplist_free(&vwin);
-#endif
 		return (error);
 
 	case LINUX_VIDIOCGFBUF:
