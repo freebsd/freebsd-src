@@ -238,6 +238,12 @@
                 ..
                 dyn_sysctl
                 ..
+                firmware
+                    fwconsumer
+                    ..
+                    fwimage
+                    ..
+                ..
                 syscall
                     module
                     ..
