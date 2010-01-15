@@ -60,7 +60,7 @@
 .Ft int
 .Fn getchar
 .Ft int
-.Fn getchar_unlocked "void"
+.Fn getchar_unlocked void
 .Ft int
 .Fn getw "FILE *stream"
 .Sh DESCRIPTION
@@ -145,7 +145,7 @@ until the condition is cleared with
 .Sh STANDARDS
 The
 .Fn fgetc ,
-.Fn getc
+.Fn getc ,
 and
 .Fn getchar
 functions
@@ -171,4 +171,3 @@ The size and byte order of an
 varies from one machine to another, and
 .Fn getw
 is not recommended for portable applications.
-.Pp
