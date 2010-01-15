@@ -46,6 +46,7 @@
 .nr %Q 1
 .nr %R 1
 .nr %T 1
+.nr %U 1
 .nr %V 1
 .nr Ac 3
 .nr Ad 12n
@@ -77,6 +78,7 @@
 .nr Dq 12n
 .nr Ds 6n\" many manpages still use this as a -width value
 .nr Dv 12n
+.nr Dx 1
 .nr Ec 3
 .nr Ef 8n\" ?
 .nr Ek 8n\" ?
@@ -1170,6 +1172,8 @@
 .  tm doc-reference-title-count == \n[doc-reference-title-count]
 .  tm doc-reference-title-name == `\*[doc-reference-title-name]'
 .  tm doc-reference-title-name-for-book == `\*[doc-reference-title-name-for-book]'
+.  tm doc-url-count == \n[doc-url-count]
+.  tm doc-url-name == `\*[doc-url-name]'
 .  tm doc-volume-count == \n[doc-volume-count]
 .  tm doc-volume-name == `\*[doc-volume-name]'
 .  tm doc-have-author == \n[doc-have-author]
