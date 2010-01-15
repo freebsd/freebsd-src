@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 #include "libi386/libi386.h"
+#include "libpc98/libpc98.h"
 #include "btxv86.h"
 
 #define	KARGS_FLAGS_CD		0x1
@@ -80,6 +81,9 @@ int
 main(void)
 {
     int			i;
+
+    /* Set machine type to PC98_SYSTEM_PARAMETER. */
+    set_machine_type();
 
     /* Pick up arguments */
     kargs = (void *)__args;

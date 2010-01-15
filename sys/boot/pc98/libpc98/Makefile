@@ -7,7 +7,7 @@ INTERNALLIB=
 
 SRCS=	bioscd.c biosdisk.c biosmem.c biospnp.c biospci.c biossmap.c \
 	bootinfo.c bootinfo32.c comconsole.c devicename.c elf32_freebsd.c \
-	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
+	i386_copy.c i386_module.c nullconsole.c pc98_sys.c pxe.c pxetramp.s \
 	time.c vidconsole.c
 
 BOOT_COMCONSOLE_PORT?= 0x238
