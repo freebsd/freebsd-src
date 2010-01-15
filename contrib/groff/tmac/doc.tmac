@@ -356,10 +356,10 @@
 .    ds doc-macro-name Fl
 .    doc-parse-args \$@
 .
-.    if !\n[.$] \{\
-.      \" no arguments
+.    \" no arguments
+.    if !\n[.$] \
 .      nop \|\-\|\f[]\s[0]
-.  \}\}
+.  \}
 .
 .  if !\n[doc-arg-limit] \
 .    return
@@ -481,8 +481,8 @@
 .  el \{\
 .    nr doc-reg-dpr \n[doc-arg-ptr]
 .
+.    \" the `\%' prevents hyphenation on a dash (`-')
 .    ie (\n[doc-reg-dpr1] == 2) \
-.      \" the `\%' prevents hyphenation on a dash (`-')
 .      nop \%\*[doc-str-dpr]\&\c
 .    el \{\
 .      \" punctuation character
@@ -595,10 +595,10 @@
 .    ds doc-macro-name Ar
 .    doc-parse-args \$@
 .
-.    if !\n[.$] \{\
-.      \" no argument
+.    \" no argument
+.    if !\n[.$] \
 .      nop \)\*[doc-str-Ar-default]\&\f[]\s[0]
-.  \}\}
+.  \}
 .
 .  if !\n[doc-arg-limit] \
 .    return
@@ -1034,10 +1034,10 @@
 .    ds doc-macro-name Pa
 .    doc-parse-args \$@
 .
-.    if !\n[.$] \{\
-.      \" default value
+.    \" default value
+.    if !\n[.$] \
 .      nop \*[doc-Pa-font]~\f[]\s[0]
-.  \}\}
+.  \}
 .
 .  if !\n[doc-arg-limit] \
 .    return
@@ -6423,6 +6423,19 @@
 ..
 .
 .blm doc-empty-line
+.
+.
+.\" For UTF-8, map some characters conservatively for the sake
+.\" of easy cut and paste.
+.
+.if '\*[.T]'utf8' \{\
+.  rchar \- - ' `
+.
+.  char \- \N'45'
+.  char  - \N'45'
+.  char  ' \N'39'
+.  char  ` \N'96'
+.\}
 .
 .
 .ec
