@@ -652,6 +652,7 @@ case "${RERUN}" in
   esac
 
   case "${IGNORE_MOTD}" in
+  '') ;;
   *)
      echo ''
      echo "*** You have the IGNORE_MOTD option set in your mergemaster rc file."
