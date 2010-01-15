@@ -255,6 +255,8 @@ _sem_close(sem_t *sem)
 		return (-1);
 	}
 
+	_pthread_once(&once, sem_module_init);
+
 	_pthread_mutex_lock(&sem_llock);
 	LIST_FOREACH(ni, &sem_list, next) {
 		if (sem == ni->sem) {
