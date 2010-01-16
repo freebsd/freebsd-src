@@ -296,7 +296,6 @@ FBSD_1.0 {
 	tcflow;
 	ualarm;
 	ulimit;
-	uname;
 	unvis;
 	strunvis;
 	strunvisx;
