@@ -478,12 +478,6 @@ sctp_get_mbuf_for_msg(unsigned int space_needed,
 #include <crypto/sha2/sha2.h>
 #endif
 
-#include <sys/md5.h>
-/* map standard crypto API names */
-#define MD5_Init	MD5Init
-#define MD5_Update	MD5Update
-#define MD5_Final	MD5Final
-
 #endif
 
 #define SCTP_DECREMENT_AND_CHECK_REFCOUNT(addr) (atomic_fetchadd_int(addr, -1) == 1)

@@ -4313,16 +4313,8 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 		if (stcb->asoc.authinfo.random != NULL) {
 			randp = (struct sctp_auth_random *)(mtod(m, caddr_t)+SCTP_BUF_LEN(m));
 			p_len = sizeof(*randp) + stcb->asoc.authinfo.random_len;
-#ifdef SCTP_AUTH_DRAFT_04
-			randp->ph.param_type = htons(SCTP_RANDOM);
-			randp->ph.param_length = htons(p_len);
-			bcopy(stcb->asoc.authinfo.random->key,
-			    randp->random_data,
-			    stcb->asoc.authinfo.random_len);
-#else
 			/* random key already contains the header */
 			bcopy(stcb->asoc.authinfo.random->key, randp, p_len);
-#endif
 			/* zero out any padding required */
 			bzero((caddr_t)randp + p_len, SCTP_SIZE32(p_len) - p_len);
 			SCTP_BUF_LEN(m) += SCTP_SIZE32(p_len);
