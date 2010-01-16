@@ -570,12 +570,6 @@ ahci_setup_interrupt(device_t dev)
 			device_printf(dev, "unable to setup interrupt\n");
 			return ENXIO;
 		}
-		if (ctlr->numirqs > 1) {
-			bus_describe_intr(dev, ctlr->irqs[i].r_irq,
-			    ctlr->irqs[i].handle,
-			    ctlr->irqs[i].mode == AHCI_IRQ_MODE_ONE ?
-			    "ch%d" : "%d", i);
-		}
 	}
 	return (0);
 }
