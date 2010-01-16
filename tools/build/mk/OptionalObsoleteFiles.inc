@@ -593,15 +593,31 @@ OLD_FILES+=usr/share/man/man1/dtrace.1.gz
 .endif
 
 .if ${MK_ZFS} == no
-OLD_LIBS+=lib/libzfs.so.1
-OLD_LIBS+=lib/libzpool.so.1
+OLD_FILES+=boot/gptzfsboot
+OLD_FILES+=boot/zfsboot
+OLD_FILES+=boot/zfsloader
+OLD_LIBS+=lib/libzfs.so.2
+OLD_LIBS+=lib/libzpool.so.2
+OLD_FILES+=rescue/zfs
+OLD_FILES+=rescue/zpool
 OLD_FILES+=sbin/zfs
 OLD_FILES+=sbin/zpool
+OLD_FILES+=usr/bin/zinject
+OLD_FILES+=usr/bin/ztest
 OLD_FILES+=usr/lib/libzfs.a
 OLD_FILES+=usr/lib/libzfs.so
+OLD_FILES+=usr/lib/libzfs_p.a
 OLD_FILES+=usr/lib/libzpool.a
 OLD_FILES+=usr/lib/libzpool.so
-OLD_FILES+=usr/bin/ztest
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libzfs.a
+OLD_FILES+=usr/lib32/libzfs.so
+OLD_LIBS+=usr/lib32/libzfs.so.2
+OLD_FILES+=usr/lib32/libzfs_p.a
+OLD_FILES+=usr/lib32/libzpool.a
+OLD_FILES+=usr/lib32/libzpool.so
+OLD_LIBS+=usr/lib32/libzpool.so.2
+.endif
 OLD_FILES+=usr/sbin/zdb
 OLD_FILES+=usr/share/man/man8/zdb.8.gz
 OLD_FILES+=usr/share/man/man8/zfs.8.gz
