@@ -10,6 +10,7 @@ SUBDIR+=eli
 SUBDIR+=journal
 SUBDIR+=label
 SUBDIR+=mirror
+SUBDIR+=mountver
 SUBDIR+=multipath
 SUBDIR+=nop
 SUBDIR+=part
