@@ -456,21 +456,6 @@ sctp_compute_hashkey(sctp_key_t * key1, sctp_key_t * key2, sctp_key_t * shared)
 
 	/* concatenate the keys */
 	if (sctp_compare_key(key1, key2) <= 0) {
-#ifdef SCTP_AUTH_DRAFT_04
-		/* key is key1 + shared + key2 */
-		if (sctp_get_keylen(key1)) {
-			bcopy(key1->key, key_ptr, key1->keylen);
-			key_ptr += key1->keylen;
-		}
-		if (sctp_get_keylen(shared)) {
-			bcopy(shared->key, key_ptr, shared->keylen);
-			key_ptr += shared->keylen;
-		}
-		if (sctp_get_keylen(key2)) {
-			bcopy(key2->key, key_ptr, key2->keylen);
-			key_ptr += key2->keylen;
-		}
-#else
 		/* key is shared + key1 + key2 */
 		if (sctp_get_keylen(shared)) {
 			bcopy(shared->key, key_ptr, shared->keylen);
@@ -484,23 +469,7 @@ sctp_compute_hashkey(sctp_key_t * key1, sctp_key_t * key2, sctp_key_t * shared)
 			bcopy(key2->key, key_ptr, key2->keylen);
 			key_ptr += key2->keylen;
 		}
-#endif
 	} else {
-#ifdef SCTP_AUTH_DRAFT_04
-		/* key is key2 + shared + key1 */
-		if (sctp_get_keylen(key2)) {
-			bcopy(key2->key, key_ptr, key2->keylen);
-			key_ptr += key2->keylen;
-		}
-		if (sctp_get_keylen(shared)) {
-			bcopy(shared->key, key_ptr, shared->keylen);
-			key_ptr += shared->keylen;
-		}
-		if (sctp_get_keylen(key1)) {
-			bcopy(key1->key, key_ptr, key1->keylen);
-			key_ptr += key1->keylen;
-		}
-#else
 		/* key is shared + key2 + key1 */
 		if (sctp_get_keylen(shared)) {
 			bcopy(shared->key, key_ptr, shared->keylen);
@@ -514,7 +483,6 @@ sctp_compute_hashkey(sctp_key_t * key1, sctp_key_t * key2, sctp_key_t * shared)
 			bcopy(key1->key, key_ptr, key1->keylen);
 			key_ptr += key1->keylen;
 		}
-#endif
 	}
 	return (new_key);
 }
@@ -739,7 +707,7 @@ sctp_auth_add_hmacid(sctp_hmaclist_t * list, uint16_t hmac_id)
 	    (hmac_id != SCTP_AUTH_HMAC_ID_SHA384) &&
 	    (hmac_id != SCTP_AUTH_HMAC_ID_SHA512) &&
 #endif
-	    (hmac_id != SCTP_AUTH_HMAC_ID_MD5)) {
+	    1) {
 		return (-1);
 	}
 	/* Now is it already in the list */
@@ -802,12 +770,6 @@ sctp_negotiate_hmacid(sctp_hmaclist_t * peer, sctp_hmaclist_t * local)
 	for (i = 0; i < peer->num_algo; i++) {
 		for (j = 0; j < local->num_algo; j++) {
 			if (peer->hmac[i] == local->hmac[j]) {
-#ifndef SCTP_AUTH_DRAFT_04
-				/* "skip" MD5 as it's been deprecated */
-				if (peer->hmac[i] == SCTP_AUTH_HMAC_ID_MD5)
-					continue;
-#endif
-
 				/* found the "best" one */
 				SCTPDBG(SCTP_DEBUG_AUTH1,
 				    "SCTP: negotiated peer HMAC id %u\n",
@@ -911,8 +873,6 @@ sctp_get_hmac_digest_len(uint16_t hmac_algo)
 	switch (hmac_algo) {
 	case SCTP_AUTH_HMAC_ID_SHA1:
 		return (SCTP_AUTH_DIGEST_LEN_SHA1);
-	case SCTP_AUTH_HMAC_ID_MD5:
-		return (SCTP_AUTH_DIGEST_LEN_MD5);
 #ifdef HAVE_SHA224
 	case SCTP_AUTH_HMAC_ID_SHA224:
 		return (SCTP_AUTH_DIGEST_LEN_SHA224);
@@ -936,7 +896,6 @@ sctp_get_hmac_block_len(uint16_t hmac_algo)
 {
 	switch (hmac_algo) {
 		case SCTP_AUTH_HMAC_ID_SHA1:
-		case SCTP_AUTH_HMAC_ID_MD5:
 #ifdef HAVE_SHA224
 		case SCTP_AUTH_HMAC_ID_SHA224:
 #endif
@@ -961,9 +920,6 @@ sctp_hmac_init(uint16_t hmac_algo, sctp_hash_context_t * ctx)
 	switch (hmac_algo) {
 		case SCTP_AUTH_HMAC_ID_SHA1:
 		SHA1_Init(&ctx->sha1);
-		break;
-	case SCTP_AUTH_HMAC_ID_MD5:
-		MD5_Init(&ctx->md5);
 		break;
 #ifdef HAVE_SHA224
 	case SCTP_AUTH_HMAC_ID_SHA224:
@@ -995,9 +951,6 @@ sctp_hmac_update(uint16_t hmac_algo, sctp_hash_context_t * ctx,
 		case SCTP_AUTH_HMAC_ID_SHA1:
 		SHA1_Update(&ctx->sha1, text, textlen);
 		break;
-	case SCTP_AUTH_HMAC_ID_MD5:
-		MD5_Update(&ctx->md5, text, textlen);
-		break;
 #ifdef HAVE_SHA224
 	case SCTP_AUTH_HMAC_ID_SHA224:
 		break;
@@ -1027,9 +980,6 @@ sctp_hmac_final(uint16_t hmac_algo, sctp_hash_context_t * ctx,
 	switch (hmac_algo) {
 		case SCTP_AUTH_HMAC_ID_SHA1:
 		SHA1_Final(digest, &ctx->sha1);
-		break;
-	case SCTP_AUTH_HMAC_ID_MD5:
-		MD5_Final(digest, &ctx->md5);
 		break;
 #ifdef HAVE_SHA224
 	case SCTP_AUTH_HMAC_ID_SHA224:
@@ -1636,15 +1586,6 @@ sctp_auth_get_cookie_params(struct sctp_tcb *stcb, struct mbuf *m,
 		    (uint8_t *) & tmp_param);
 	}
 	/* concatenate the full random key */
-#ifdef SCTP_AUTH_DRAFT_04
-	keylen = random_len;
-	new_key = sctp_alloc_key(keylen);
-	if (new_key != NULL) {
-		/* copy in the RANDOM */
-		if (p_random != NULL)
-			bcopy(p_random->random_data, new_key->key, random_len);
-	}
-#else
 	keylen = sizeof(*p_random) + random_len + sizeof(*hmacs) + hmacs_len;
 	if (chunks != NULL) {
 		keylen += sizeof(*chunks) + num_chunks;
@@ -1668,15 +1609,10 @@ sctp_auth_get_cookie_params(struct sctp_tcb *stcb, struct mbuf *m,
 			    sizeof(*hmacs) + hmacs_len);
 		}
 	}
-#endif
 	if (stcb->asoc.authinfo.random != NULL)
 		sctp_free_key(stcb->asoc.authinfo.random);
 	stcb->asoc.authinfo.random = new_key;
 	stcb->asoc.authinfo.random_len = random_len;
-#ifdef SCTP_AUTH_DRAFT_04
-	/* don't include the chunks and hmacs for draft -04 */
-	stcb->asoc.authinfo.random->keylen = random_len;
-#endif
 	sctp_clear_cachedkeys(stcb, stcb->asoc.authinfo.assoc_keyid);
 	sctp_clear_cachedkeys(stcb, stcb->asoc.authinfo.recv_keyid);
 
@@ -2143,11 +2079,6 @@ sctp_initialize_auth_params(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 	    &stcb->asoc.shared_keys);
 
 	/* now set the concatenated key (random + chunks + hmacs) */
-#ifdef SCTP_AUTH_DRAFT_04
-	/* don't include the chunks and hmacs for draft -04 */
-	keylen = random_len;
-	new_key = sctp_generate_random_key(keylen);
-#else
 	/* key includes parameter headers */
 	keylen = (3 * sizeof(struct sctp_paramhdr)) + random_len + chunks_len +
 	    hmacs_len;
@@ -2188,436 +2119,8 @@ sctp_initialize_auth_params(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 		(void)sctp_serialize_hmaclist(stcb->asoc.local_hmacs,
 		    new_key->key + keylen);
 	}
-#endif
 	if (stcb->asoc.authinfo.random != NULL)
 		sctp_free_key(stcb->asoc.authinfo.random);
 	stcb->asoc.authinfo.random = new_key;
 	stcb->asoc.authinfo.random_len = random_len;
 }
-
-
-#ifdef SCTP_HMAC_TEST
-/*
- * HMAC and key concatenation tests
- */
-static void
-sctp_print_digest(uint8_t * digest, uint32_t digestlen, const char *str)
-{
-	uint32_t i;
-
-	printf("\n%s: 0x", str);
-	if (digest == NULL)
-		return;
-
-	for (i = 0; i < digestlen; i++)
-		printf("%02x", digest[i]);
-}
-
-static int
-sctp_test_hmac(const char *str, uint16_t hmac_id, uint8_t * key,
-    uint32_t keylen, uint8_t * text, uint32_t textlen,
-    uint8_t * digest, uint32_t digestlen)
-{
-	uint8_t computed_digest[SCTP_AUTH_DIGEST_LEN_MAX];
-
-	printf("\n%s:", str);
-	sctp_hmac(hmac_id, key, keylen, text, textlen, computed_digest);
-	sctp_print_digest(digest, digestlen, "Expected digest");
-	sctp_print_digest(computed_digest, digestlen, "Computed digest");
-	if (memcmp(digest, computed_digest, digestlen) != 0) {
-		printf("\nFAILED");
-		return (-1);
-	} else {
-		printf("\nPASSED");
-		return (0);
-	}
-}
-
-
-/*
- * RFC 2202: HMAC-SHA1 test cases
- */
-void
-sctp_test_hmac_sha1(void)
-{
-	uint8_t *digest;
-	uint8_t key[128];
-	uint32_t keylen;
-	uint8_t text[128];
-	uint32_t textlen;
-	uint32_t digestlen = 20;
-	int failed = 0;
-
-	/*-
-	 * test_case =     1
-	 * key =           0x0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b
-	 * key_len =       20
-	 * data =          "Hi There"
-	 * data_len =      8
-	 * digest =        0xb617318655057264e28bc0b6fb378c8ef146be00
-	 */
-	keylen = 20;
-	memset(key, 0x0b, keylen);
-	textlen = 8;
-	strcpy(text, "Hi There");
-	digest = "\xb6\x17\x31\x86\x55\x05\x72\x64\xe2\x8b\xc0\xb6\xfb\x37\x8c\x8e\xf1\x46\xbe\x00";
-	if (sctp_test_hmac("SHA1 test case 1", SCTP_AUTH_HMAC_ID_SHA1, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/*-
-	 * test_case =     2
-	 * key =           "Jefe"
-	 * key_len =       4
-	 * data =          "what do ya want for nothing?"
-	 * data_len =      28
-	 * digest =        0xeffcdf6ae5eb2fa2d27416d5f184df9c259a7c79
-	 */
-	keylen = 4;
-	strcpy(key, "Jefe");
-	textlen = 28;
-	strcpy(text, "what do ya want for nothing?");
-	digest = "\xef\xfc\xdf\x6a\xe5\xeb\x2f\xa2\xd2\x74\x16\xd5\xf1\x84\xdf\x9c\x25\x9a\x7c\x79";
-	if (sctp_test_hmac("SHA1 test case 2", SCTP_AUTH_HMAC_ID_SHA1, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/*-
-	 * test_case =     3
-	 * key =           0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-	 * key_len =       20
-	 * data =          0xdd repeated 50 times
-	 * data_len =      50
-	 * digest =        0x125d7342b9ac11cd91a39af48aa17b4f63f175d3
-	 */
-	keylen = 20;
-	memset(key, 0xaa, keylen);
-	textlen = 50;
-	memset(text, 0xdd, textlen);
-	digest = "\x12\x5d\x73\x42\xb9\xac\x11\xcd\x91\xa3\x9a\xf4\x8a\xa1\x7b\x4f\x63\xf1\x75\xd3";
-	if (sctp_test_hmac("SHA1 test case 3", SCTP_AUTH_HMAC_ID_SHA1, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/*-
-	 * test_case =     4
-	 * key =           0x0102030405060708090a0b0c0d0e0f10111213141516171819
-	 * key_len =       25
-	 * data =          0xcd repeated 50 times
-	 * data_len =      50
-	 * digest =        0x4c9007f4026250c6bc8414f9bf50c86c2d7235da
-	 */
-	keylen = 25;
-	memcpy(key, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19", keylen);
-	textlen = 50;
-	memset(text, 0xcd, textlen);
-	digest = "\x4c\x90\x07\xf4\x02\x62\x50\xc6\xbc\x84\x14\xf9\xbf\x50\xc8\x6c\x2d\x72\x35\xda";
-	if (sctp_test_hmac("SHA1 test case 4", SCTP_AUTH_HMAC_ID_SHA1, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/*-
-	 * test_case =     5
-	 * key =           0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c
-	 * key_len =       20
-	 * data =          "Test With Truncation"
-	 * data_len =      20
-	 * digest =        0x4c1a03424b55e07fe7f27be1d58bb9324a9a5a04
-	 * digest-96 =     0x4c1a03424b55e07fe7f27be1
-	 */
-	keylen = 20;
-	memset(key, 0x0c, keylen);
-	textlen = 20;
-	strcpy(text, "Test With Truncation");
-	digest = "\x4c\x1a\x03\x42\x4b\x55\xe0\x7f\xe7\xf2\x7b\xe1\xd5\x8b\xb9\x32\x4a\x9a\x5a\x04";
-	if (sctp_test_hmac("SHA1 test case 5", SCTP_AUTH_HMAC_ID_SHA1, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/*-
-	 * test_case =     6
-	 * key =           0xaa repeated 80 times
-	 * key_len =       80
-	 * data =          "Test Using Larger Than Block-Size Key - Hash Key First"
-	 * data_len =      54
-	 * digest =        0xaa4ae5e15272d00e95705637ce8a3b55ed402112
-	 */
-	keylen = 80;
-	memset(key, 0xaa, keylen);
-	textlen = 54;
-	strcpy(text, "Test Using Larger Than Block-Size Key - Hash Key First");
-	digest = "\xaa\x4a\xe5\xe1\x52\x72\xd0\x0e\x95\x70\x56\x37\xce\x8a\x3b\x55\xed\x40\x21\x12";
-	if (sctp_test_hmac("SHA1 test case 6", SCTP_AUTH_HMAC_ID_SHA1, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/*-
-	 * test_case =     7
-	 * key =           0xaa repeated 80 times
-	 * key_len =       80
-	 * data =          "Test Using Larger Than Block-Size Key and Larger Than One Block-Size Data"
-	 * data_len =      73
-	 * digest =        0xe8e99d0f45237d786d6bbaa7965c7808bbff1a91
-	 */
-	keylen = 80;
-	memset(key, 0xaa, keylen);
-	textlen = 73;
-	strcpy(text, "Test Using Larger Than Block-Size Key and Larger Than One Block-Size Data");
-	digest = "\xe8\xe9\x9d\x0f\x45\x23\x7d\x78\x6d\x6b\xba\xa7\x96\x5c\x78\x08\xbb\xff\x1a\x91";
-	if (sctp_test_hmac("SHA1 test case 7", SCTP_AUTH_HMAC_ID_SHA1, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/* done with all tests */
-	if (failed)
-		printf("\nSHA1 test results: %d cases failed", failed);
-	else
-		printf("\nSHA1 test results: all test cases passed");
-}
-
-/*
- * RFC 2202: HMAC-MD5 test cases
- */
-void
-sctp_test_hmac_md5(void)
-{
-	uint8_t *digest;
-	uint8_t key[128];
-	uint32_t keylen;
-	uint8_t text[128];
-	uint32_t textlen;
-	uint32_t digestlen = 16;
-	int failed = 0;
-
-	/*-
-	 * test_case =     1
-	 * key =           0x0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b
-	 * key_len =       16
-	 * data =          "Hi There"
-	 * data_len =      8
-	 * digest =        0x9294727a3638bb1c13f48ef8158bfc9d
-	 */
-	keylen = 16;
-	memset(key, 0x0b, keylen);
-	textlen = 8;
-	strcpy(text, "Hi There");
-	digest = "\x92\x94\x72\x7a\x36\x38\xbb\x1c\x13\xf4\x8e\xf8\x15\x8b\xfc\x9d";
-	if (sctp_test_hmac("MD5 test case 1", SCTP_AUTH_HMAC_ID_MD5, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/*-
-	 * test_case =     2
-	 * key =           "Jefe"
-	 * key_len =       4
-	 * data =          "what do ya want for nothing?"
-	 * data_len =      28
-	 * digest =        0x750c783e6ab0b503eaa86e310a5db738
-	 */
-	keylen = 4;
-	strcpy(key, "Jefe");
-	textlen = 28;
-	strcpy(text, "what do ya want for nothing?");
-	digest = "\x75\x0c\x78\x3e\x6a\xb0\xb5\x03\xea\xa8\x6e\x31\x0a\x5d\xb7\x38";
-	if (sctp_test_hmac("MD5 test case 2", SCTP_AUTH_HMAC_ID_MD5, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/*-
-	 * test_case =     3
-	 * key =           0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-	 * key_len =       16
-	 * data =          0xdd repeated 50 times
-	 * data_len =	   50
-	 * digest =        0x56be34521d144c88dbb8c733f0e8b3f6
-	 */
-	keylen = 16;
-	memset(key, 0xaa, keylen);
-	textlen = 50;
-	memset(text, 0xdd, textlen);
-	digest = "\x56\xbe\x34\x52\x1d\x14\x4c\x88\xdb\xb8\xc7\x33\xf0\xe8\xb3\xf6";
-	if (sctp_test_hmac("MD5 test case 3", SCTP_AUTH_HMAC_ID_MD5, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/*-
-	 * test_case =     4
-	 * key =           0x0102030405060708090a0b0c0d0e0f10111213141516171819
-	 * key_len =       25
-	 * data =          0xcd repeated 50 times
-	 * data_len =      50
-	 * digest =        0x697eaf0aca3a3aea3a75164746ffaa79
-	 */
-	keylen = 25;
-	memcpy(key, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19", keylen);
-	textlen = 50;
-	memset(text, 0xcd, textlen);
-	digest = "\x69\x7e\xaf\x0a\xca\x3a\x3a\xea\x3a\x75\x16\x47\x46\xff\xaa\x79";
-	if (sctp_test_hmac("MD5 test case 4", SCTP_AUTH_HMAC_ID_MD5, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/*-
-	 * test_case =     5
-	 * key = 0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c
-	 * key_len =       16
-	 * data =          "Test With Truncation"
-	 * data_len =      20
-	 * digest =        0x56461ef2342edc00f9bab995690efd4c
-	 * digest-96 =     0x56461ef2342edc00f9bab995
-	 */
-	keylen = 16;
-	memset(key, 0x0c, keylen);
-	textlen = 20;
-	strcpy(text, "Test With Truncation");
-	digest = "\x56\x46\x1e\xf2\x34\x2e\xdc\x00\xf9\xba\xb9\x95\x69\x0e\xfd\x4c";
-	if (sctp_test_hmac("MD5 test case 5", SCTP_AUTH_HMAC_ID_MD5, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/*-
-	 * test_case =     6
-	 * key =           0xaa repeated 80 times
-	 * key_len =       80
-	 * data =          "Test Using Larger Than Block-Size Key - Hash Key First"
-	 * data_len =      54
-	 * digest =        0x6b1ab7fe4bd7bf8f0b62e6ce61b9d0cd
-	 */
-	keylen = 80;
-	memset(key, 0xaa, keylen);
-	textlen = 54;
-	strcpy(text, "Test Using Larger Than Block-Size Key - Hash Key First");
-	digest = "\x6b\x1a\xb7\xfe\x4b\xd7\xbf\x8f\x0b\x62\xe6\xce\x61\xb9\xd0\xcd";
-	if (sctp_test_hmac("MD5 test case 6", SCTP_AUTH_HMAC_ID_MD5, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/*-
-	 * test_case =     7
-	 * key =           0xaa repeated 80 times
-	 * key_len =       80
-	 * data =          "Test Using Larger Than Block-Size Key and Larger Than One Block-Size Data"
-	 * data_len =      73
-	 * digest =        0x6f630fad67cda0ee1fb1f562db3aa53e
-	 */
-	keylen = 80;
-	memset(key, 0xaa, keylen);
-	textlen = 73;
-	strcpy(text, "Test Using Larger Than Block-Size Key and Larger Than One Block-Size Data");
-	digest = "\x6f\x63\x0f\xad\x67\xcd\xa0\xee\x1f\xb1\xf5\x62\xdb\x3a\xa5\x3e";
-	if (sctp_test_hmac("MD5 test case 7", SCTP_AUTH_HMAC_ID_MD5, key, keylen,
-	    text, textlen, digest, digestlen) < 0)
-		failed++;
-
-	/* done with all tests */
-	if (failed)
-		printf("\nMD5 test results: %d cases failed", failed);
-	else
-		printf("\nMD5 test results: all test cases passed");
-}
-
-/*
- * test assoc key concatenation
- */
-static int
-sctp_test_key_concatenation(sctp_key_t * key1, sctp_key_t * key2,
-    sctp_key_t * expected_key)
-{
-	sctp_key_t *key;
-	int ret_val;
-
-	sctp_show_key(key1, "\nkey1");
-	sctp_show_key(key2, "\nkey2");
-	key = sctp_compute_hashkey(key1, key2, NULL);
-	sctp_show_key(expected_key, "\nExpected");
-	sctp_show_key(key, "\nComputed");
-	if (memcmp(key, expected_key, expected_key->keylen) != 0) {
-		printf("\nFAILED");
-		ret_val = -1;
-	} else {
-		printf("\nPASSED");
-		ret_val = 0;
-	}
-	sctp_free_key(key1);
-	sctp_free_key(key2);
-	sctp_free_key(expected_key);
-	sctp_free_key(key);
-	return (ret_val);
-}
-
-
-void
-sctp_test_authkey(void)
-{
-	sctp_key_t *key1, *key2, *expected_key;
-	int failed = 0;
-
-	/* test case 1 */
-	key1 = sctp_set_key("\x01\x01\x01\x01", 4);
-	key2 = sctp_set_key("\x01\x02\x03\x04", 4);
-	expected_key = sctp_set_key("\x01\x01\x01\x01\x01\x02\x03\x04", 8);
-	if (sctp_test_key_concatenation(key1, key2, expected_key) < 0)
-		failed++;
-
-	/* test case 2 */
-	key1 = sctp_set_key("\x00\x00\x00\x01", 4);
-	key2 = sctp_set_key("\x02", 1);
-	expected_key = sctp_set_key("\x00\x00\x00\x01\x02", 5);
-	if (sctp_test_key_concatenation(key1, key2, expected_key) < 0)
-		failed++;
-
-	/* test case 3 */
-	key1 = sctp_set_key("\x01", 1);
-	key2 = sctp_set_key("\x00\x00\x00\x02", 4);
-	expected_key = sctp_set_key("\x01\x00\x00\x00\x02", 5);
-	if (sctp_test_key_concatenation(key1, key2, expected_key) < 0)
-		failed++;
-
-	/* test case 4 */
-	key1 = sctp_set_key("\x00\x00\x00\x01", 4);
-	key2 = sctp_set_key("\x01", 1);
-	expected_key = sctp_set_key("\x01\x00\x00\x00\x01", 5);
-	if (sctp_test_key_concatenation(key1, key2, expected_key) < 0)
-		failed++;
-
-	/* test case 5 */
-	key1 = sctp_set_key("\x01", 1);
-	key2 = sctp_set_key("\x00\x00\x00\x01", 4);
-	expected_key = sctp_set_key("\x01\x00\x00\x00\x01", 5);
-	if (sctp_test_key_concatenation(key1, key2, expected_key) < 0)
-		failed++;
-
-	/* test case 6 */
-	key1 = sctp_set_key("\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07", 11);
-	key2 = sctp_set_key("\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x08", 11);
-	expected_key = sctp_set_key("\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x08", 22);
-	if (sctp_test_key_concatenation(key1, key2, expected_key) < 0)
-		failed++;
-
-	/* test case 7 */
-	key1 = sctp_set_key("\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x08", 11);
-	key2 = sctp_set_key("\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07", 11);
-	expected_key = sctp_set_key("\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x08", 22);
-	if (sctp_test_key_concatenation(key1, key2, expected_key) < 0)
-		failed++;
-
-	/* done with all tests */
-	if (failed)
-		printf("\nKey concatenation test results: %d cases failed", failed);
-	else
-		printf("\nKey concatenation test results: all test cases passed");
-}
-
-
-#if defined(STANDALONE_HMAC_TEST)
-int
-main(void)
-{
-	sctp_test_hmac_sha1();
-	sctp_test_hmac_md5();
-	sctp_test_authkey();
-}
-
-#endif				/* STANDALONE_HMAC_TEST */
-
-#endif				/* SCTP_HMAC_TEST */

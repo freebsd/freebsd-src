@@ -6254,15 +6254,6 @@ next_param:
 		return (-33);
 	}
 	/* concatenate the full random key */
-#ifdef SCTP_AUTH_DRAFT_04
-	keylen = random_len;
-	new_key = sctp_alloc_key(keylen);
-	if (new_key != NULL) {
-		/* copy in the RANDOM */
-		if (p_random != NULL)
-			bcopy(p_random->random_data, new_key->key, random_len);
-	}
-#else
 	keylen = sizeof(*p_random) + random_len + sizeof(*hmacs) + hmacs_len;
 	if (chunks != NULL) {
 		keylen += sizeof(*chunks) + num_chunks;
@@ -6285,19 +6276,13 @@ next_param:
 			bcopy(hmacs, new_key->key + keylen,
 			    sizeof(*hmacs) + hmacs_len);
 		}
-	}
-#endif
-	else {
+	} else {
 		/* failed to get memory for the key */
 		return (-34);
 	}
 	if (stcb->asoc.authinfo.peer_random != NULL)
 		sctp_free_key(stcb->asoc.authinfo.peer_random);
 	stcb->asoc.authinfo.peer_random = new_key;
-#ifdef SCTP_AUTH_DRAFT_04
-	/* don't include the chunks and hmacs for draft -04 */
-	stcb->asoc.authinfo.peer_random->keylen = random_len;
-#endif
 	sctp_clear_cachedkeys(stcb, stcb->asoc.authinfo.assoc_keyid);
 	sctp_clear_cachedkeys(stcb, stcb->asoc.authinfo.recv_keyid);
 
