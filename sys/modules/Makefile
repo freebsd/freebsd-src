@@ -192,7 +192,7 @@ SUBDIR=	${_3dfx} \
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
-	netgraph \
+	${_netgraph} \
 	${_nfe} \
 	nfscl \
 	nfsclient \
@@ -325,6 +325,10 @@ _random=	random
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
+.endif
+
+.if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)
+_netgraph=	netgraph
 .endif
 
 .if ${MK_PF} != "no" || defined(ALL_MODULES)
