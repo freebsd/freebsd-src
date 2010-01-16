@@ -466,9 +466,65 @@ OLD_FILES+=usr/share/man/man8/sdpd.8.gz
 # to be filled in
 #.endif
 
-#.if ${MK_CALENDAR} == no
-# to be filled in
-#.endif
+.if ${MK_CALENDAR} == no
+OLD_FILES+=etc/periodic/daily/300.calendar
+OLD_FILES+=usr/bin/calendar
+OLD_FILES+=usr/share/calendar/calendar.all
+OLD_FILES+=usr/share/calendar/calendar.australia
+OLD_FILES+=usr/share/calendar/calendar.birthday
+OLD_FILES+=usr/share/calendar/calendar.christian
+OLD_FILES+=usr/share/calendar/calendar.computer
+OLD_FILES+=usr/share/calendar/calendar.croatian
+OLD_FILES+=usr/share/calendar/calendar.dutch
+OLD_FILES+=usr/share/calendar/calendar.freebsd
+OLD_FILES+=usr/share/calendar/calendar.french
+OLD_FILES+=usr/share/calendar/calendar.german
+OLD_FILES+=usr/share/calendar/calendar.history
+OLD_FILES+=usr/share/calendar/calendar.holiday
+OLD_FILES+=usr/share/calendar/calendar.hungarian
+OLD_FILES+=usr/share/calendar/calendar.judaic
+OLD_FILES+=usr/share/calendar/calendar.lotr
+OLD_FILES+=usr/share/calendar/calendar.music
+OLD_FILES+=usr/share/calendar/calendar.newzealand
+OLD_FILES+=usr/share/calendar/calendar.russian
+OLD_FILES+=usr/share/calendar/calendar.southafrica
+OLD_FILES+=usr/share/calendar/calendar.ukrainian
+OLD_FILES+=usr/share/calendar/calendar.usholiday
+OLD_FILES+=usr/share/calendar/calendar.world
+OLD_DIRS+=usr/share/calendar/de_AT.ISO_8859-15
+OLD_FILES+=usr/share/calendar/de_AT.ISO_8859-15/calendar.feiertag
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.all
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.feiertag
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.geschichte
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.kirche
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.literatur
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.musik
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.wissenschaft
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-15
+OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.all
+OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.fetes
+OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.french
+OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.jferies
+OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.proverbes
+OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-15
+OLD_FILES+=usr/share/calendar/hr_HR.ISO8859-2/calendar.all
+OLD_FILES+=usr/share/calendar/hr_HR.ISO8859-2/calendar.praznici
+OLD_FILES+=usr/share/calendar/hu_HU.ISO8859-2/calendar.all
+OLD_FILES+=usr/share/calendar/hu_HU.ISO8859-2/calendar.nevnapok
+OLD_FILES+=usr/share/calendar/hu_HU.ISO8859-2/calendar.unnepek
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.all
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.common
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.holiday
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.military
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.msk
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.orthodox
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.pagan
+OLD_FILES+=usr/share/calendar/uk_UA.KOI8-U/calendar.all
+OLD_FILES+=usr/share/calendar/uk_UA.KOI8-U/calendar.holiday
+OLD_FILES+=usr/share/calendar/uk_UA.KOI8-U/calendar.misc
+OLD_FILES+=usr/share/calendar/uk_UA.KOI8-U/calendar.orthodox
+OLD_FILES+=usr/share/man/man1/calendar.1.gz
+.endif
 
 .if ${MK_CDDL} == no
 OLD_LIBS+=lib/libavl.so.1
