@@ -46,7 +46,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/nfs fs/ntfs fs/nullfs \
 	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
-	geom/mirror geom/multipath geom/nop \
+	geom/mirror geom/mountver geom/multipath geom/nop \
 	geom/raid3 geom/shsec geom/stripe geom/virstor \
 	netgraph/atm netgraph/netflow \
 	security/audit \
