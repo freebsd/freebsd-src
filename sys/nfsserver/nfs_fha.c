@@ -158,9 +158,9 @@ SYSUNINIT(nfs_fha, SI_SUB_ROOT_CONF, SI_ORDER_ANY, nfs_fha_uninit, NULL);
 static void
 fha_extract_info(struct svc_req *req, struct fha_info *i)
 {
-	struct mbuf *md = req->rq_args;
+	struct mbuf *md;
 	nfsfh_t fh;
-	caddr_t dpos = mtod(md, caddr_t);
+	caddr_t dpos;
 	static u_int64_t random_fh = 0;
 	int error;
 	int v3 = (req->rq_vers == 3);
@@ -201,6 +201,10 @@ fha_extract_info(struct svc_req *req, struct fha_info *i)
 	    procnum == NFSPROC_NULL)
 		goto out;
 	
+	nfs_realign(&req->rq_args);
+	md = req->rq_args;
+	dpos = mtod(md, caddr_t);
+
 	/* Grab the filehandle. */
 	error = nfsm_srvmtofh_xx(&fh.fh_generic, v3, &md, &dpos);
 	if (error)
