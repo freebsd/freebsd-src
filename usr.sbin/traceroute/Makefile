@@ -5,7 +5,7 @@ TRACEROUTE_DISTDIR?= ${.CURDIR}/../../contrib/traceroute
 
 PROG=	traceroute
 MAN=	traceroute.8
-SRCS=	as.c version.c traceroute.c ifaddrlist.c findsaddr-socket.c
+SRCS=	as.c version.c traceroute.c ifaddrlist.c findsaddr-udp.c
 BINOWN=	root
 BINMODE=4555
 CLEANFILES=	version.c
@@ -29,7 +29,7 @@ DPADD=	${LIBIPSEC}
 LDADD=	-lipsec
 .endif
 
-CFLAGS+= -I${TRACEROUTE_DISTDIR}/lbl
+CFLAGS+= -I${TRACEROUTE_DISTDIR}/lbl -I${TRACEROUTE_DISTDIR}
 
 version.c: ${TRACEROUTE_DISTDIR}/VERSION
 	@rm -f ${.TARGET}
