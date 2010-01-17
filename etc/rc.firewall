@@ -212,8 +212,8 @@ case ${firewall_type} in
 	${fwcmd} add pass all from me to ${net}
 	${fwcmd} add pass all from ${net} to me
 	if [ -n "$net6" ]; then
-		${fwcmd} add pass all from me6 to ${net6}
-		${fwcmd} add pass all from ${net6} to me6
+		${fwcmd} add pass all from me to ${net6}
+		${fwcmd} add pass all from ${net6} to me
 	fi
 
 	if [ -n "$net6" ]; then
@@ -221,7 +221,7 @@ case ${firewall_type} in
 		${fwcmd} add pass all from fe80::/10 to ff02::/16
 		${fwcmd} add pass all from ${net6} to ff02::/16
 		# Allow DHCPv6
-		${fwcmd} add pass udp from fe80::/10 to me6 546
+		${fwcmd} add pass udp from fe80::/10 to me 546
 	fi
 
 	# Allow TCP through if setup succeeded
@@ -232,30 +232,18 @@ case ${firewall_type} in
 
 	# Allow setup of incoming email
 	${fwcmd} add pass tcp from any to me 25 setup
-	if [ -n "$net6" ]; then
-		${fwcmd} add pass tcp from any to me6 25 setup
-	fi
 
 	# Allow setup of outgoing TCP connections only
 	${fwcmd} add pass tcp from me to any setup
-	if [ -n "$net6" ]; then
-		${fwcmd} add pass tcp from me6 to any setup
-	fi
 
 	# Disallow setup of all other TCP connections
 	${fwcmd} add deny tcp from any to any setup
 
 	# Allow DNS queries out in the world
 	${fwcmd} add pass udp from me to any 53 keep-state
-	if [ -n "$net6" ]; then
-		${fwcmd} add pass udp from me6 to any 53 keep-state
-	fi
 
 	# Allow NTP queries out in the world
 	${fwcmd} add pass udp from me to any 123 keep-state
-	if [ -n "$net6" ]; then
-		${fwcmd} add pass udp from me6 to any 123 keep-state
-	fi
 
 	# Everything else is denied by default, unless the
 	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
@@ -402,25 +390,14 @@ case ${firewall_type} in
 
 	# Allow setup of incoming email
 	${fwcmd} add pass tcp from any to me 25 setup
-	if [ -n "$inet6" ]; then
-		${fwcmd} add pass tcp from any to me6 25 setup
-	fi
 
 	# Allow access to our DNS
 	${fwcmd} add pass tcp from any to me 53 setup
 	${fwcmd} add pass udp from any to me 53
 	${fwcmd} add pass udp from me 53 to any
-	if [ -n "$inet6" ]; then
-		${fwcmd} add pass tcp from any to me6 53 setup
-		${fwcmd} add pass udp from any to me6 53
-		${fwcmd} add pass udp from me6 53 to any
-	fi
 
 	# Allow access to our WWW
 	${fwcmd} add pass tcp from any to me 80 setup
-	if [ -n "$inet6" ]; then
-		${fwcmd} add pass tcp from any to me6 80 setup
-	fi
 
 	# Reject&Log all setup of incoming connections from the outside
 	${fwcmd} add deny log ip4 from any to any in via ${oif} setup proto tcp
@@ -434,15 +411,9 @@ case ${firewall_type} in
 
 	# Allow DNS queries out in the world
 	${fwcmd} add pass udp from me to any 53 keep-state
-	if [ -n "$inet6" ]; then
-		${fwcmd} add pass udp from me6 to any 53 keep-state
-	fi
 
 	# Allow NTP queries out in the world
 	${fwcmd} add pass udp from me to any 123 keep-state
-	if [ -n "$inet6" ]; then
-		${fwcmd} add pass udp from me6 to any 123 keep-state
-	fi
 
 	# Everything else is denied by default, unless the
 	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
@@ -477,18 +448,13 @@ case ${firewall_type} in
 
 	# For services permitted below.
 	${fwcmd} add pass tcp  from me to any established
-	if [ $ipv6_available -eq 0 ]; then
-		${fwcmd} add pass tcp from me6 to any established
-	fi
 
 	# Allow any connection out, adding state for each.
 	${fwcmd} add pass tcp  from me to any setup keep-state
 	${fwcmd} add pass udp  from me to any       keep-state
 	${fwcmd} add pass icmp from me to any       keep-state
 	if [ $ipv6_available -eq 0 ]; then
-		${fwcmd} add pass tcp from me6 to any setup keep-state
-		${fwcmd} add pass udp from me6 to any keep-state
-		${fwcmd} add pass ipv6-icmp from me6 to any keep-state
+		${fwcmd} add pass ipv6-icmp from me to any keep-state
 	fi
 
 	# Allow DHCP.
@@ -496,7 +462,7 @@ case ${firewall_type} in
 	${fwcmd} add pass udp  from any 67     to me 68 in
 	${fwcmd} add pass udp  from any 67     to 255.255.255.255 68 in
 	if [ $ipv6_available -eq 0 ]; then
-		${fwcmd} add pass udp from fe80::/10 to me6 546 in
+		${fwcmd} add pass udp from fe80::/10 to me 546 in
 	fi
 	# Some servers will ping the IP while trying to decide if it's 
 	# still in use.
@@ -525,9 +491,6 @@ case ${firewall_type} in
 	for i in ${firewall_allowservices} ; do
 	  for j in ${firewall_myservices} ; do
 	    ${fwcmd} add pass tcp from $i to me $j
-	    if [ $ipv6_available -eq 0 ]; then
-	      ${fwcmd} add pass tcp from $i to me6 $j
-	    fi
 	  done
 	done
 
@@ -536,9 +499,6 @@ case ${firewall_type} in
 	# degrade the level of protection provided by the firewall.
 	for i in ${firewall_trusted} ; do
 	  ${fwcmd} add pass ip from $i to me
-	done
-	for i in ${firewall_trusted_ipv6} ; do
-	  ${fwcmd} add pass all from $i to me6
 	done
 
 	${fwcmd} add 65000 count ip from any to any
