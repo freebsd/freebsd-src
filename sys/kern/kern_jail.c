@@ -267,7 +267,9 @@ jail_copyin_ips(struct jail *j)
 	 *
 	 * IP addresses are all sorted but ip[0] to preserve the primary IP
 	 * address as given from userland.  This special IP is used for
-	 * unbound outgoing connections as well for "loopback" traffic.
+	 * unbound outgoing connections as well for "loopback" traffic in case
+	 * source address selection cannot find any more fitting address to
+	 * connect from.
 	 */
 #ifdef INET
 	ip4 = NULL;
