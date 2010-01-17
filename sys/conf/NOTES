@@ -2589,6 +2589,9 @@ device		rue
 #
 # Davicom DM9601E USB to fast ethernet. Supports the Corega FEther USB-TXC.
 device		udav
+#
+# HSxPA devices from Option N.V
+device		uhso
 
 #
 # Ralink Technology RT2501USB/RT2601USB wireless driver
