@@ -140,6 +140,7 @@ send_data:
 		    (struct sockaddr *)&peer, peer.ss_len);
 		if (n != size + 4) {
 			warn("sendto");
+			txrx_error = 1;
 			goto abort;
 		}
 		read_ahead(file, convert);
@@ -153,6 +154,7 @@ send_data:
 			alarm(0);
 			if (n < 0) {
 				warn("recvfrom");
+				txrx_error = 1;
 				goto abort;
 			}
 			if (!serv.ss_family)
@@ -160,6 +162,7 @@ send_data:
 			else if (!cmpport((struct sockaddr *)&serv,
 			    (struct sockaddr *)&from)) {
 				warn("server port mismatch");
+				txrx_error = 1;
 				goto abort;
 			}
 			peer = from;
@@ -202,7 +205,6 @@ abort:
 	stopclock();
 	if (amount > 0)
 		printstats("Sent", amount);
-	txrx_error = 1;
 }
 
 /*
@@ -255,6 +257,7 @@ send_ack:
 		    peer.ss_len) != size) {
 			alarm(0);
 			warn("sendto");
+			txrx_error = 1;
 			goto abort;
 		}
 		write_behind(file, convert);
@@ -268,6 +271,7 @@ send_ack:
 			alarm(0);
 			if (n < 0) {
 				warn("recvfrom");
+				txrx_error = 1;
 				goto abort;
 			}
 			if (!serv.ss_family)
@@ -275,6 +279,7 @@ send_ack:
 			else if (!cmpport((struct sockaddr *)&serv,
 			    (struct sockaddr *)&from)) {
 				warn("server port mismatch");
+				txrx_error = 1;
 				goto abort;
 			}
 			peer = from;
@@ -325,7 +330,6 @@ abort:						/* ok to ack, since user */
 	stopclock();
 	if (amount > 0)
 		printstats("Received", amount);
-	txrx_error = 1;
 }
 
 static int
