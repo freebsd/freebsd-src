@@ -7190,22 +7190,16 @@ sctp_select_a_stream(struct sctp_tcb *stcb, struct sctp_association *asoc)
 
 	/* Find the next stream to use */
 	if (asoc->last_out_stream == NULL) {
-		strq = asoc->last_out_stream = TAILQ_FIRST(&asoc->out_wheel);
-		if (asoc->last_out_stream == NULL) {
-			/* huh nothing on the wheel, TSNH */
-			return (NULL);
+		strq = TAILQ_FIRST(&asoc->out_wheel);
+	} else {
+		strq = TAILQ_NEXT(asoc->last_out_stream, next_spoke);
+		if (strq == NULL) {
+			strq = TAILQ_FIRST(&asoc->out_wheel);
 		}
-		goto done_it;
-	}
-	strq = TAILQ_NEXT(asoc->last_out_stream, next_spoke);
-done_it:
-	if (strq == NULL) {
-		strq = asoc->last_out_stream = TAILQ_FIRST(&asoc->out_wheel);
 	}
 	/* Save off the last stream */
 	asoc->last_out_stream = strq;
 	return (strq);
-
 }
 
 
