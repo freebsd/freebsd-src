@@ -269,7 +269,7 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 	 * we should basically suppress sending an error (RFC 2463, Section
 	 * 2.4).
 	 * We have two exceptions (the item e.2 in that section):
-	 * - the Pakcet Too Big message can be sent for path MTU discovery.
+	 * - the Packet Too Big message can be sent for path MTU discovery.
 	 * - the Parameter Problem Message that can be allowed an icmp6 error
 	 *   in the option type field.  This check has been done in
 	 *   ip6_unknown_opt(), so we can just check the type and code.
