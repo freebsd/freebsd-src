@@ -951,6 +951,8 @@ rescan0:
 						vnodes_skipped++;
 					goto unlock_and_continue;
 				}
+				KASSERT(mp != NULL,
+				    ("vp %p with NULL v_mount", vp));
 				vm_page_unlock_queues();
 				vm_object_reference_locked(object);
 				VM_OBJECT_UNLOCK(object);
