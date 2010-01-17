@@ -9442,6 +9442,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 
 	if ((un_sent <= 0) &&
 	    (TAILQ_EMPTY(&asoc->control_send_queue)) &&
+	    (TAILQ_EMPTY(&asoc->asconf_send_queue)) &&
 	    (asoc->sent_queue_retran_cnt == 0)) {
 		/* Nothing to do unless there is something to be sent left */
 		return;
