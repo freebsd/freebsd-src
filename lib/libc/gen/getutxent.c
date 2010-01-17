@@ -164,6 +164,7 @@ getutxid(const struct utmpx *id)
 		case SHUTDOWN_TIME:
 			if (fu->fu_type == id->ut_type)
 				goto found;
+			break;
 		case USER_PROCESS:
 		case INIT_PROCESS:
 		case LOGIN_PROCESS:
@@ -177,6 +178,7 @@ getutxid(const struct utmpx *id)
 				    MIN(sizeof fu->fu_id, sizeof id->ut_id)) == 0)
 					goto found;
 			}
+			break;
 		}
 	}
 
