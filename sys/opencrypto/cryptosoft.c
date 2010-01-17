@@ -430,7 +430,16 @@ swcr_authprepare(struct auth_hash *axf, struct swcr_data *sw, u_char *key,
 	case CRYPTO_MD5_KPDK:
 	case CRYPTO_SHA1_KPDK:
 	{
-		/* We need a buffer that can hold an md5 and a sha1 result. */
+		/* 
+		 * We need a buffer that can hold an md5 and a sha1 result
+		 * just to throw it away.
+		 * What we do here is the initial part of:
+		 *   ALGO( key, keyfill, .. )
+		 * adding the key to sw_ictx and abusing Final() to get the
+		 * "keyfill" padding.
+		 * In addition we abuse the sw_octx to save the key to have
+		 * it to be able to append it at the end in swcr_authcompute().
+		 */
 		u_char buf[SHA1_RESULTLEN];
 
 		sw->sw_klen = klen;
@@ -491,9 +500,17 @@ swcr_authcompute(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 
 	case CRYPTO_MD5_KPDK:
 	case CRYPTO_SHA1_KPDK:
+		/* If we have no key saved, return error. */
 		if (sw->sw_octx == NULL)
 			return EINVAL;
 
+		/*
+		 * Add the trailing copy of the key (see comment in
+		 * swcr_authprepare()) after the data:
+		 *   ALGO( .., key, algofill )
+		 * and let Final() do the proper, natural "algofill"
+		 * padding.
+		 */
 		axf->Update(&ctx, sw->sw_octx, sw->sw_klen);
 		axf->Final(aalg, &ctx);
 		break;
