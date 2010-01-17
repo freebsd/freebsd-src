@@ -1390,7 +1390,14 @@ do {								\
 
 					INADDR_TO_IFP(src_ip, tif);
 					match = (tif != NULL);
+					break;
 				}
+				/* FALLTHROUGH */
+#ifdef INET6
+			case O_IP6_SRC_ME:
+				match = is_ipv6 &&
+				    search_ip6_addr_net(&args->f_id.src_ip6);
+#endif
 				break;
 
 			case O_IP_DST_SET:
@@ -1423,7 +1430,14 @@ do {								\
 
 					INADDR_TO_IFP(dst_ip, tif);
 					match = (tif != NULL);
+					break;
 				}
+				/* FALLTHROUGH */
+#ifdef INET6
+			case O_IP6_DST_ME:
+				match = is_ipv6 &&
+				    search_ip6_addr_net(&args->f_id.dst_ip6);
+#endif
 				break;
 
 			case O_IP_SRCPORT:
@@ -1689,14 +1703,6 @@ do {								\
 						    &p);
 					}
 				}
-				break;
-
-			case O_IP6_SRC_ME:
-				match= is_ipv6 && search_ip6_addr_net(&args->f_id.src_ip6);
-				break;
-
-			case O_IP6_DST_ME:
-				match= is_ipv6 && search_ip6_addr_net(&args->f_id.dst_ip6);
 				break;
 
 			case O_FLOW6ID:
