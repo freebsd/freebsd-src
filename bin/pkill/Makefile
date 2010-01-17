@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	pkill
-WARNS?=	5
 
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
