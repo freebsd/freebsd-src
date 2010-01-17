@@ -772,6 +772,10 @@ list_one_provider(struct gprovider *pp, const char *prefix)
 	printf("%sMediasize: %jd (%s)\n", prefix, (intmax_t)pp->lg_mediasize,
 	    buf);
 	printf("%sSectorsize: %u\n", prefix, pp->lg_sectorsize);
+	if (pp->lg_stripesize > 0) {
+		printf("%sStripesize: %ju\n", prefix, pp->lg_stripesize);
+		printf("%sStripeoffset: %ju\n", prefix, pp->lg_stripeoffset);
+	}
 	printf("%sMode: %s\n", prefix, pp->lg_mode);
 	LIST_FOREACH(conf, &pp->lg_config, lg_config) {
 		printf("%s%s: %s\n", prefix, conf->lg_name, conf->lg_val);
@@ -796,6 +800,10 @@ list_one_consumer(struct gconsumer *cp, const char *prefix)
 		printf("%sMediasize: %jd (%s)\n", prefix,
 		    (intmax_t)pp->lg_mediasize, buf);
 		printf("%sSectorsize: %u\n", prefix, pp->lg_sectorsize);
+		if (pp->lg_stripesize > 0) {
+			printf("%sStripesize: %ju\n", prefix, pp->lg_stripesize);
+			printf("%sStripeoffset: %ju\n", prefix, pp->lg_stripeoffset);
+		}
 		printf("%sMode: %s\n", prefix, cp->lg_mode);
 	}
 	LIST_FOREACH(conf, &cp->lg_config, lg_config) {

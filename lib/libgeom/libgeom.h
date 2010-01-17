@@ -123,6 +123,8 @@ struct gprovider {
 	char			*lg_mode;
 	off_t			lg_mediasize;
 	u_int			lg_sectorsize;
+	off_t			lg_stripeoffset;
+	off_t			lg_stripesize;
 	struct gconf		lg_config;
 };
 
@@ -149,6 +151,8 @@ int g_open(const char *, int);
 int g_close(int);
 off_t g_mediasize(int);
 ssize_t g_sectorsize(int);
+off_t g_stripeoffset(int);
+off_t g_stripesize(int);
 int g_flush(int);
 int g_delete(int, off_t, off_t);
 int g_get_ident(int, char *, size_t);
