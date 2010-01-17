@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 
 static FILE *uf = NULL;
 static int udb;
-static struct utmpx utx;
 
 int
 setutxdb(int db, const char *file)
@@ -101,70 +100,59 @@ endutxent(void)
 	}
 }
 
-static struct futx *
-getfutxent(void)
+static int
+getfutxent(struct futx *fu)
 {
-	static struct futx fu;
 
 	if (uf == NULL)
 		setutxent();
 	if (uf == NULL)
-		return (NULL);
+		return (-1);
 
 	if (udb == UTXDB_LOG) {
 		uint16_t len;
 
 		if (fread(&len, sizeof len, 1, uf) != 1)
-			return (NULL);
+			return (-1);
 		len = be16toh(len);
-		if (len > sizeof fu) {
+		if (len > sizeof *fu) {
 			/* Forward compatibility. */
-			if (fread(&fu, sizeof fu, 1, uf) != 1)
-				return (NULL);
-			fseek(uf, len - sizeof fu, SEEK_CUR);
+			if (fread(fu, sizeof *fu, 1, uf) != 1)
+				return (-1);
+			fseek(uf, len - sizeof *fu, SEEK_CUR);
 		} else {
 			/* Partial record. */
-			memset(&fu, 0, sizeof fu);
-			if (fread(&fu, len, 1, uf) != 1)
-				return (NULL);
+			memset(fu, 0, sizeof *fu);
+			if (fread(fu, len, 1, uf) != 1)
+				return (-1);
 		}
 	} else {
-		if (fread(&fu, sizeof fu, 1, uf) != 1)
-			return (NULL);
+		if (fread(fu, sizeof *fu, 1, uf) != 1)
+			return (-1);
 	}
-	return (&fu);
+	return (0);
 }
 
 struct utmpx *
 getutxent(void)
 {
-	struct futx *fu;
+	struct futx fu;
 
-	fu = getfutxent();
-	if (fu == NULL)
+	if (getfutxent(&fu) != 0)
 		return (NULL);
-	futx_to_utx(fu, &utx);
-	return (&utx);
+	return (futx_to_utx(&fu));
 }
 
 struct utmpx *
 getutxid(const struct utmpx *id)
 {
-	struct futx *fu;
+	struct futx fu;
 
 	for (;;) {
-		fu = getfutxent();
-		if (fu == NULL)
+		if (getfutxent(&fu) != 0)
 			return (NULL);
 
-		switch (fu->fu_type) {
-		case BOOT_TIME:
-		case OLD_TIME:
-		case NEW_TIME:
-		case SHUTDOWN_TIME:
-			if (fu->fu_type == id->ut_type)
-				goto found;
-			break;
+		switch (fu.fu_type) {
 		case USER_PROCESS:
 		case INIT_PROCESS:
 		case LOGIN_PROCESS:
@@ -174,61 +162,62 @@ getutxid(const struct utmpx *id)
 			case INIT_PROCESS:
 			case LOGIN_PROCESS:
 			case DEAD_PROCESS:
-				if (memcmp(fu->fu_id, id->ut_id,
-				    MIN(sizeof fu->fu_id, sizeof id->ut_id)) == 0)
+				if (memcmp(fu.fu_id, id->ut_id,
+				    MIN(sizeof fu.fu_id, sizeof id->ut_id)) == 0)
 					goto found;
 			}
+			break;
+		default:
+			if (fu.fu_type == id->ut_type)
+				goto found;
 			break;
 		}
 	}
 
 found:
-	futx_to_utx(fu, &utx);
-	return (&utx);
+	return (futx_to_utx(&fu));
 }
 
 struct utmpx *
 getutxline(const struct utmpx *line)
 {
-	struct futx *fu;
+	struct futx fu;
 
 	for (;;) {
-		fu = getfutxent();
-		if (fu == NULL)
+		if (getfutxent(&fu) != 0)
 			return (NULL);
 
-		switch (fu->fu_type) {
+		switch (fu.fu_type) {
 		case USER_PROCESS:
 		case LOGIN_PROCESS:
-			if (strncmp(fu->fu_line, line->ut_line,
-			    MIN(sizeof fu->fu_line, sizeof line->ut_line)) == 0)
+			if (strncmp(fu.fu_line, line->ut_line,
+			    MIN(sizeof fu.fu_line, sizeof line->ut_line)) == 0)
 				goto found;
+			break;
 		}
 	}
 
 found:
-	futx_to_utx(fu, &utx);
-	return (&utx);
+	return (futx_to_utx(&fu));
 }
 
 struct utmpx *
 getutxuser(const char *user)
 {
-	struct futx *fu;
+	struct futx fu;
 
 	for (;;) {
-		fu = getfutxent();
-		if (fu == NULL)
+		if (getfutxent(&fu) != 0)
 			return (NULL);
 
-		switch (fu->fu_type) {
+		switch (fu.fu_type) {
 		case USER_PROCESS:
-			if (strncmp(fu->fu_user, user, sizeof fu->fu_user) == 0)
+			if (strncmp(fu.fu_user, user, sizeof fu.fu_user) == 0)
 				goto found;
+			break;
 		}
 	}
 
 found:
-	futx_to_utx(fu, &utx);
-	return (&utx);
+	return (futx_to_utx(&fu));
 }

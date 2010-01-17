@@ -56,6 +56,6 @@ struct futx {
 } __packed;
 
 void	utx_to_futx(const struct utmpx *, struct futx *);
-void	futx_to_utx(const struct futx *, struct utmpx *);
+struct utmpx *futx_to_utx(const struct futx *);
 
 #endif /* !_UTXDB_H_ */
