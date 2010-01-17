@@ -130,8 +130,19 @@ libusb20_tr_close(struct libusb20_transfer *xfer)
 	if (xfer->ppBuffer) {
 		free(xfer->ppBuffer);
 	}
-	/* clear some fields */
+	/* reset variable fields in case the transfer is opened again */
+	xfer->priv_sc0 = 0;
+	xfer->priv_sc1 = 0;
 	xfer->is_opened = 0;
+	xfer->is_pending = 0;
+	xfer->is_cancel = 0;
+	xfer->is_draining = 0;
+	xfer->is_restart = 0;
+	xfer->status = 0;
+	xfer->flags = 0;
+	xfer->nFrames = 0;
+	xfer->aFrames = 0;
+	xfer->timeout = 0;
 	xfer->maxFrames = 0;
 	xfer->maxTotalLength = 0;
 	xfer->maxPacketLen = 0;
