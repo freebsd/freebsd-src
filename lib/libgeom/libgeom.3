@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2008
+.Dd January 16, 2010
 .Dt LIBGEOM 3
 .Os
 .Sh NAME
@@ -50,6 +50,8 @@
 .Nm g_close ,
 .Nm g_mediasize ,
 .Nm g_sectorsize ,
+.Nm g_stripeoffset ,
+.Nm g_stripesize ,
 .Nm g_flush ,
 .Nm g_delete ,
 .Nm g_device_path ,
@@ -101,6 +103,10 @@
 .Fn g_mediasize "int fd"
 .Ft ssize_t
 .Fn g_sectorsize "int fd"
+.Ft ssize_t
+.Fn g_stripeoffset "int fd"
+.Ft ssize_t
+.Fn g_stripesize "int fd"
 .Ft int
 .Fn g_flush "int fd"
 .Ft int
@@ -295,6 +301,14 @@ function returns size of the given provider.
 The
 .Fn g_sectorsize
 function returns sector size of the given provider.
+.Pp
+The
+.Fn g_stripeoffset
+function returns stripe size of the given provider.
+.Pp
+The
+.Fn g_stripesize
+function returns stripe size of the given provider.
 .Pp
 The
 .Fn g_flush
