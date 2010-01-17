@@ -2099,6 +2099,7 @@ product OPTION E7041		0x7041	3G modem
 product OPTION E7061		0x7061	3G modem
 product OPTION E7100		0x7100	3G modem
 product OPTION GTM380		0x7201	3G modem
+product OPTION GE40X		0x7601	Globetrotter HSUPA
 product OPTION GSICON72		0x6911	GlobeSurfer iCON
 product OPTION GSICONHSUPA	0x7251	Globetrotter HSUPA
 product OPTION ICON401		0x7401	GlobeSurfer iCON 401
