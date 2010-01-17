@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/endian.h>
 #include <sys/param.h>
+#include <stdlib.h>
 #include <string.h>
 #include <utmpx.h>
 #include "utxdb.h"
@@ -82,6 +83,8 @@ utx_to_futx(const struct utmpx *ut, struct futx *fu)
 	case LOGIN_PROCESS:
 		UTOF_ID(ut, fu);
 		UTOF_STRING(ut, fu, user);
+		/* XXX: bug in the specification? Needed for getutxline(). */
+		UTOF_STRING(ut, fu, line);
 		UTOF_PID(ut, fu);
 		break;
 	case DEAD_PROCESS:
@@ -118,11 +121,18 @@ utx_to_futx(const struct utmpx *ut, struct futx *fu)
 	(ut)->ut_tv.tv_usec = t % 1000000;				\
 } while (0)
 
-void
-futx_to_utx(const struct futx *fu, struct utmpx *ut)
+struct utmpx *
+futx_to_utx(const struct futx *fu)
 {
+	static struct utmpx *ut;
 
-	memset(ut, 0, sizeof *ut);
+	if (ut == NULL) {
+		ut = calloc(1, sizeof *ut);
+		if (ut == NULL)
+			return (NULL);
+	} else {
+		memset(ut, 0, sizeof *ut);
+	}
 
 	switch (fu->fu_type) {
 	case BOOT_TIME:
@@ -146,6 +156,8 @@ futx_to_utx(const struct futx *fu, struct utmpx *ut)
 	case LOGIN_PROCESS:
 		FTOU_ID(fu, ut);
 		FTOU_STRING(fu, ut, user);
+		/* XXX: bug in the specification? Needed for getutxline(). */
+		FTOU_STRING(fu, ut, line);
 		FTOU_PID(fu, ut);
 		break;
 	case DEAD_PROCESS:
@@ -154,9 +166,10 @@ futx_to_utx(const struct futx *fu, struct utmpx *ut)
 		break;
 	default:
 		ut->ut_type = EMPTY;
-		return;
+		return (ut);
 	}
 
 	FTOU_TYPE(fu, ut);
 	FTOU_TV(fu, ut);
+	return (ut);
 }
