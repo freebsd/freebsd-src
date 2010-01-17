@@ -240,7 +240,6 @@ struct utmpx *
 pututxline(const struct utmpx *utmpx)
 {
 	struct futx fu;
-	static struct utmpx ut;
 
 	utx_to_futx(utmpx, &fu);
 	
@@ -272,6 +271,5 @@ pututxline(const struct utmpx *utmpx)
 	}
 
 	utx_log_add(&fu);
-	futx_to_utx(&fu, &ut);
-	return (&ut);
+	return (futx_to_utx(&fu));
 }
