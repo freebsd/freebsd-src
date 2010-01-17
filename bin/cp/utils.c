@@ -518,8 +518,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-"usage: cp [-R [-H | -L | -P]] [-f | -i | -n] [-alpv] source_file target_file",
-"       cp [-R [-H | -L | -P]] [-f | -i | -n] [-alpv] source_file ... "
+"usage: cp [-R [-H | -L | -P]] [-f | -i | -n] [-alpvx] source_file target_file",
+"       cp [-R [-H | -L | -P]] [-f | -i | -n] [-alpvx] source_file ... "
 "target_directory");
 	exit(EX_USAGE);
 }
