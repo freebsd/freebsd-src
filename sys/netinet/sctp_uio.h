@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 
 typedef uint32_t sctp_assoc_t;
 
+/* Compatibility to previous define's */
+#define sctp_stream_reset_events sctp_stream_reset_event
+
 /* On/Off setup for subscription to events */
 struct sctp_event_subscribe {
 	uint8_t sctp_data_io_event;
@@ -57,7 +60,7 @@ struct sctp_event_subscribe {
 	uint8_t sctp_adaptation_layer_event;
 	uint8_t sctp_authentication_event;
 	uint8_t sctp_sender_dry_event;
-	uint8_t sctp_stream_reset_events;
+	uint8_t sctp_stream_reset_event;
 };
 
 /* ancillary data types */
@@ -402,19 +405,19 @@ union sctp_notification {
 };
 
 /* notification types */
-#define SCTP_ASSOC_CHANGE		0x0001
-#define SCTP_PEER_ADDR_CHANGE		0x0002
-#define SCTP_REMOTE_ERROR		0x0003
-#define SCTP_SEND_FAILED		0x0004
-#define SCTP_SHUTDOWN_EVENT		0x0005
-#define SCTP_ADAPTATION_INDICATION	0x0006
+#define SCTP_ASSOC_CHANGE			0x0001
+#define SCTP_PEER_ADDR_CHANGE			0x0002
+#define SCTP_REMOTE_ERROR			0x0003
+#define SCTP_SEND_FAILED			0x0004
+#define SCTP_SHUTDOWN_EVENT			0x0005
+#define SCTP_ADAPTATION_INDICATION		0x0006
 /* same as above */
-#define SCTP_ADAPTION_INDICATION	0x0006
-#define SCTP_PARTIAL_DELIVERY_EVENT	0x0007
-#define SCTP_AUTHENTICATION_EVENT	0x0008
-#define SCTP_STREAM_RESET_EVENT		0x0009
-#define SCTP_SENDER_DRY_EVENT           0x000a
-
+#define SCTP_ADAPTION_INDICATION		0x0006
+#define SCTP_PARTIAL_DELIVERY_EVENT		0x0007
+#define SCTP_AUTHENTICATION_EVENT		0x0008
+#define SCTP_STREAM_RESET_EVENT			0x0009
+#define SCTP_SENDER_DRY_EVENT			0x000a
+#define SCTP__NOTIFICATIONS_STOPPED_EVENT	0x000b	/* we dont send this */
 /*
  * socket option structs
  */
