@@ -3490,11 +3490,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			tos_value = inp->ip_inp.inp.inp_ip_tos;
 		}
 		if ((nofragment_flag) && (port == 0)) {
-#if defined(WITH_CONVERT_IP_OFF) || defined(__FreeBSD__) || defined(__APPLE__) || defined(__Userspace__)
 			ip->ip_off = IP_DF;
-#else
-			ip->ip_off = htons(IP_DF);
-#endif
 		} else
 			ip->ip_off = 0;
 
