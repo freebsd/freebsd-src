@@ -67,8 +67,7 @@
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_request.h>
 #include <dev/usb/usb_util.h>
-
-#include <dev/usb/usb.h>
+#include <dev/usb/quirk/usb_quirk.h>
 
 enum {
 	ST_COMMAND,
@@ -86,7 +85,18 @@ enum {
 	DIR_NONE,
 };
 
+#define	SCSI_INQ_LEN	0x24
+static uint8_t scsi_test_unit_ready[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+static uint8_t scsi_inquiry[] = { 0x12, 0x00, 0x00, 0x00, SCSI_INQ_LEN, 0x00 };
+static uint8_t scsi_rezero_init[] =     { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
+static uint8_t scsi_start_stop_unit[] = { 0x1b, 0x00, 0x00, 0x00, 0x02, 0x00 };
+static uint8_t scsi_ztestor_eject[] =   { 0x85, 0x01, 0x01, 0x01, 0x18, 0x01,
+					  0x01, 0x01, 0x01, 0x01, 0x00, 0x00 };
+static uint8_t scsi_cmotech_eject[] =   { 0xff, 0x52, 0x44, 0x45, 0x56, 0x43,
+					  0x48, 0x47 };
+
 #define	BULK_SIZE		64	/* dummy */
+#define	ERR_CSW_FAILED		-1
 
 /* Command Block Wrapper */
 struct bbb_cbw {
@@ -134,8 +144,8 @@ struct bbb_transfer {
 	uint8_t	dir;
 	uint8_t	lun;
 	uint8_t	state;
-	uint8_t	error;
 	uint8_t	status_try;
+	int	error;
 
 	uint8_t	buffer[256];
 };
@@ -146,6 +156,15 @@ static usb_callback_t bbb_data_rd_cs_callback;
 static usb_callback_t bbb_data_write_callback;
 static usb_callback_t bbb_data_wr_cs_callback;
 static usb_callback_t bbb_status_callback;
+
+static void	bbb_done(struct bbb_transfer *, int);
+static void	bbb_transfer_start(struct bbb_transfer *, uint8_t);
+static void	bbb_data_clear_stall_callback(struct usb_xfer *, uint8_t,
+		    uint8_t);
+static uint8_t bbb_command_start(struct bbb_transfer *, uint8_t, uint8_t,
+		    void *, size_t, void *, size_t, usb_timeout_t);
+static struct bbb_transfer *bbb_attach(struct usb_device *, uint8_t);
+static void	bbb_detach(struct bbb_transfer *);
 
 static const struct usb_config bbb_config[ST_MAX] = {
 
@@ -208,25 +227,9 @@ static const struct usb_config bbb_config[ST_MAX] = {
 };
 
 static void
-bbb_done(struct bbb_transfer *sc, uint8_t error)
+bbb_done(struct bbb_transfer *sc, int error)
 {
-	struct usb_xfer *xfer;
 
-	xfer = sc->xfer[sc->state];
-
-	/* verify the error code */
-
-	if (error) {
-		switch (USB_GET_STATE(xfer)) {
-		case USB_ST_SETUP:
-		case USB_ST_TRANSFERRED:
-			error = 1;
-			break;
-		default:
-			error = 2;
-			break;
-		}
-	}
 	sc->error = error;
 	sc->state = ST_COMMAND;
 	sc->status_try = 1;
@@ -253,7 +256,7 @@ bbb_data_clear_stall_callback(struct usb_xfer *xfer,
 			bbb_transfer_start(sc, next_xfer);
 			break;
 		default:
-			bbb_done(sc, 1);
+			bbb_done(sc, USB_ERR_STALLED);
 			break;
 		}
 	}
@@ -291,7 +294,7 @@ bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 		break;
 
 	default:			/* Error */
-		bbb_done(sc, 1);
+		bbb_done(sc, error);
 		break;
 	}
 }
@@ -333,7 +336,7 @@ bbb_data_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	default:			/* Error */
 		if (error == USB_ERR_CANCELLED) {
-			bbb_done(sc, 1);
+			bbb_done(sc, error);
 		} else {
 			bbb_transfer_start(sc, ST_DATA_RD_CS);
 		}
@@ -385,7 +388,7 @@ bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	default:			/* Error */
 		if (error == USB_ERR_CANCELLED) {
-			bbb_done(sc, 1);
+			bbb_done(sc, error);
 		} else {
 			bbb_transfer_start(sc, ST_DATA_WR_CS);
 		}
@@ -415,11 +418,11 @@ bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* very simple status check */
 
 		if (actlen < sizeof(sc->csw)) {
-			bbb_done(sc, 1);/* error */
+			bbb_done(sc, USB_ERR_SHORT_XFER);
 		} else if (sc->csw.bCSWStatus == CSWSTATUS_GOOD) {
-			bbb_done(sc, 0);/* success */
+			bbb_done(sc, 0);	/* success */
 		} else {
-			bbb_done(sc, 1);/* error */
+			bbb_done(sc, ERR_CSW_FAILED);	/* error */
 		}
 		break;
 
@@ -429,11 +432,11 @@ bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 		break;
 
 	default:
-		DPRINTFN(0, "Failed to read CSW: %s, try %d\n",
+		DPRINTF("Failed to read CSW: %s, try %d\n",
 		    usbd_errstr(error), sc->status_try);
 
 		if (error == USB_ERR_CANCELLED || sc->status_try) {
-			bbb_done(sc, 1);
+			bbb_done(sc, error);
 		} else {
 			sc->status_try = 1;
 			bbb_transfer_start(sc, ST_DATA_RD_CS);
@@ -451,7 +454,7 @@ bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
  *------------------------------------------------------------------------*/
 static uint8_t
 bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
-    void *data_ptr, usb_size_t data_len, uint8_t cmd_len,
+    void *data_ptr, size_t data_len, void *cmd_ptr, size_t cmd_len,
     usb_timeout_t data_timeout)
 {
 	sc->lun = lun;
@@ -461,54 +464,46 @@ bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
 	sc->data_rem = data_len;
 	sc->data_timeout = (data_timeout + USB_MS_HZ);
 	sc->actlen = 0;
+	sc->data_ptr = data_ptr;
 	sc->cmd_len = cmd_len;
+	bzero(&sc->cbw.CBWCDB, sizeof(sc->cbw.CBWCDB));
+	bcopy(cmd_ptr, &sc->cbw.CBWCDB, cmd_len);
+	DPRINTFN(1, "SCSI cmd = %*D\n", cmd_len, &sc->cbw.CBWCDB, ":");
 
+	mtx_lock(&sc->mtx);
 	usbd_transfer_start(sc->xfer[sc->state]);
 
 	while (usbd_transfer_pending(sc->xfer[sc->state])) {
 		cv_wait(&sc->cv, &sc->mtx);
 	}
+	mtx_unlock(&sc->mtx);
 	return (sc->error);
 }
 
-/*------------------------------------------------------------------------*
- *	usb_test_autoinstall
- *
- * Return values:
- * 0: This interface is an auto install disk (CD-ROM)
- * Else: Not an auto install disk.
- *------------------------------------------------------------------------*/
-usb_error_t
-usb_test_autoinstall(struct usb_device *udev, uint8_t iface_index,
-    uint8_t do_eject)
+static struct bbb_transfer *
+bbb_attach(struct usb_device *udev, uint8_t iface_index)
 {
 	struct usb_interface *iface;
 	struct usb_interface_descriptor *id;
-	usb_error_t err;
-	uint8_t timeout;
-	uint8_t sid_type;
 	struct bbb_transfer *sc;
+	usb_error_t err;
 
-	if (udev == NULL) {
-		return (USB_ERR_INVAL);
-	}
 	iface = usbd_get_iface(udev, iface_index);
-	if (iface == NULL) {
-		return (USB_ERR_INVAL);
-	}
+	if (iface == NULL)
+		return (NULL);
+
 	id = iface->idesc;
-	if (id == NULL) {
-		return (USB_ERR_INVAL);
-	}
-	if (id->bInterfaceClass != UICLASS_MASS) {
-		return (USB_ERR_INVAL);
-	}
+	if (id == NULL || id->bInterfaceClass != UICLASS_MASS)
+		return (NULL);
+
 	switch (id->bInterfaceSubClass) {
 	case UISUBCLASS_SCSI:
 	case UISUBCLASS_UFI:
+	case UISUBCLASS_SFF8020I:
+	case UISUBCLASS_SFF8070I:
 		break;
 	default:
-		return (USB_ERR_INVAL);
+		return (NULL);
 	}
 
 	switch (id->bInterfaceProtocol) {
@@ -516,75 +511,112 @@ usb_test_autoinstall(struct usb_device *udev, uint8_t iface_index,
 	case UIPROTO_MASS_BBB:
 		break;
 	default:
-		return (USB_ERR_INVAL);
+		return (NULL);
 	}
 
 	sc = malloc(sizeof(*sc), M_USB, M_WAITOK | M_ZERO);
-	if (sc == NULL) {
-		return (USB_ERR_NOMEM);
-	}
 	mtx_init(&sc->mtx, "USB autoinstall", NULL, MTX_DEF);
 	cv_init(&sc->cv, "WBBB");
 
-	err = usbd_transfer_setup(udev,
-	    &iface_index, sc->xfer, bbb_config,
+	err = usbd_transfer_setup(udev, &iface_index, sc->xfer, bbb_config,
 	    ST_MAX, sc, &sc->mtx);
-
 	if (err) {
-		goto done;
+		bbb_detach(sc);
+		return (NULL);
 	}
-	mtx_lock(&sc->mtx);
+	return (sc);
+}
 
-	timeout = 4;			/* tries */
-
-repeat_inquiry:
-
-	sc->cbw.CBWCDB[0] = 0x12;	/* INQUIRY */
-	sc->cbw.CBWCDB[1] = 0;
-	sc->cbw.CBWCDB[2] = 0;
-	sc->cbw.CBWCDB[3] = 0;
-	sc->cbw.CBWCDB[4] = 0x24;	/* length */
-	sc->cbw.CBWCDB[5] = 0;
-	err = bbb_command_start(sc, DIR_IN, 0,
-	    sc->buffer, 0x24, 6, USB_MS_HZ);
-
-	if ((sc->actlen != 0) && (err == 0)) {
-		sid_type = sc->buffer[0] & 0x1F;
-		if (sid_type == 0x05) {
-			/* CD-ROM */
-			if (do_eject) {
-				/* 0: opcode: SCSI START/STOP */
-				sc->cbw.CBWCDB[0] = 0x1b;
-				/* 1: byte2: Not immediate */
-				sc->cbw.CBWCDB[1] = 0x00;
-				/* 2..3: reserved */
-				sc->cbw.CBWCDB[2] = 0x00;
-				sc->cbw.CBWCDB[3] = 0x00;
-				/* 4: Load/Eject command */
-				sc->cbw.CBWCDB[4] = 0x02;
-				/* 5: control */
-				sc->cbw.CBWCDB[5] = 0x00;
-				err = bbb_command_start(sc, DIR_OUT, 0,
-				    NULL, 0, 6, USB_MS_HZ);
-
-				DPRINTFN(0, "Eject CD command "
-				    "status: %s\n", usbd_errstr(err));
-			}
-			err = 0;
-			goto done;
-		}
-	} else if ((err != 2) && --timeout) {
-		usb_pause_mtx(&sc->mtx, hz);
-		goto repeat_inquiry;
-	}
-	err = USB_ERR_INVAL;
-	goto done;
-
-done:
-	mtx_unlock(&sc->mtx);
+static void
+bbb_detach(struct bbb_transfer *sc)
+{
 	usbd_transfer_unsetup(sc->xfer, ST_MAX);
 	mtx_destroy(&sc->mtx);
 	cv_destroy(&sc->cv);
 	free(sc, M_USB);
-	return (err);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_iface_is_cdrom
+ *
+ * Return values:
+ * 1: This interface is an auto install disk (CD-ROM)
+ * 0: Not an auto install disk.
+ *------------------------------------------------------------------------*/
+int
+usb_iface_is_cdrom(struct usb_device *udev, uint8_t iface_index)
+{
+	struct bbb_transfer *sc;
+	usb_error_t err;
+	uint8_t timeout, is_cdrom;
+	uint8_t sid_type;
+
+	sc = bbb_attach(udev, iface_index);
+	if (sc == NULL)
+		return (0);
+
+	is_cdrom = 0;
+	timeout = 4;	/* tries */
+	while (--timeout) {
+		err = bbb_command_start(sc, DIR_IN, 0, sc->buffer,
+		    SCSI_INQ_LEN, &scsi_inquiry, sizeof(scsi_inquiry),
+		    USB_MS_HZ);
+
+		if (err == 0 && sc->actlen > 0) {
+			sid_type = sc->buffer[0] & 0x1F;
+			if (sid_type == 0x05)
+				is_cdrom = 1;
+			break;
+		} else if (err != ERR_CSW_FAILED)
+			break;	/* non retryable error */
+		usb_pause_mtx(NULL, hz);
+	}
+	bbb_detach(sc);
+	return (is_cdrom);
+}
+
+usb_error_t
+usb_msc_eject(struct usb_device *udev, uint8_t iface_index, int method)
+{
+	struct bbb_transfer *sc;
+	usb_error_t err;
+
+	sc = bbb_attach(udev, iface_index);
+	if (sc == NULL)
+		return (USB_ERR_INVAL);
+
+	err = 0;
+	switch (method) {
+	case MSC_EJECT_STOPUNIT:
+		err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
+		    &scsi_test_unit_ready, sizeof(scsi_test_unit_ready),
+		    USB_MS_HZ);
+		DPRINTF("Test unit ready status: %s\n", usbd_errstr(err));
+		err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
+		    &scsi_start_stop_unit, sizeof(scsi_start_stop_unit),
+		    USB_MS_HZ);
+		break;
+	case MSC_EJECT_REZERO:
+		err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
+		    &scsi_rezero_init, sizeof(scsi_rezero_init),
+		    USB_MS_HZ);
+		break;
+	case MSC_EJECT_ZTESTOR:
+		err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
+		    &scsi_ztestor_eject, sizeof(scsi_ztestor_eject),
+		    USB_MS_HZ);
+		break;
+	case MSC_EJECT_CMOTECH:
+		err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
+		    &scsi_cmotech_eject, sizeof(scsi_cmotech_eject),
+		    USB_MS_HZ);
+		break;
+	default:
+		printf("usb_msc_eject: unknown eject method (%d)\n", method);
+		break;
+	}
+	DPRINTF("Eject CD command status: %s\n", usbd_errstr(err));
+
+	bbb_detach(sc);
+	return (0);
 }
