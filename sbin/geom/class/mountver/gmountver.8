@@ -54,7 +54,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is used to control mount verification GEOM class.
+utility is used to control the mount verification GEOM class.
 When configured, it passes all the I/O requests to the underlying provider.
 When the underlying provider disappears - for example because the disk device
 got disconnected - it queues all the I/O requests and waits for the provider
@@ -111,9 +111,10 @@ This can be set to a number between 0 and 3 inclusive.
 If set to 0 minimal debug information is printed, and if set to 3 the
 maximum amount of debug information is printed.
 .It Va kern.geom.mountver.check.check_ident : No 1
-This can be set to 0 or 1.  If set to 0,
+This can be set to 0 or 1.
+If set to 0,
 .Nm
-will reattach to the device even if the device reports different disk ID.
+will reattach to the device even if the device reports a different disk ID.
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
