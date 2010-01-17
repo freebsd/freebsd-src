@@ -59,9 +59,7 @@
 #define	USB_DEBUG_VAR u3g_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_dynamic.h>
 #include <dev/usb/usb_msctest.h>
-#include <dev/usb/usb_device.h>
 
 #include <dev/usb/serial/usb_serial.h>
 
