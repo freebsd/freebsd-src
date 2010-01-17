@@ -603,6 +603,7 @@ vendor SUPERTOP		0x14cd	Super Top
 vendor PLANEX3		0x14ea	Planex Communications
 vendor SILICONPORTALS	0x1527	Silicon Portals
 vendor UBIQUAM		0x1529	UBIQUAM Co., Ltd.
+vendor JMICRON		0x152d	JMicron
 vendor UBLOX		0x1546	U-blox
 vendor PNY		0x154b	PNY
 vendor OQO		0x1557	OQO
@@ -1670,6 +1671,9 @@ product JABLOTRON PC60B		0x0001	PC-60B
 
 /* Jaton products */
 product JATON EDA		0x5704	Ethernet
+
+/* JMicron products */
+product JMICRON JM20337		0x2338	USB to ATA/ATAPI Bridge
 
 /* JVC products */
 product JVC GR_DX95		0x000a	GR-DX95
