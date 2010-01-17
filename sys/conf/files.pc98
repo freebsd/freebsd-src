@@ -194,7 +194,7 @@ i386/ibcs2/ibcs2_util.c		optional ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
 i386/ibcs2/imgact_coff.c	optional ibcs2
-i386/isa/atpic.c		standard
+i386/isa/atpic.c		optional atpic	
 #i386/isa/atpic_vector.s		standard
 i386/isa/elink.c		optional ep | ie
 i386/isa/isa.c			optional isa
@@ -240,7 +240,7 @@ pc98/cbus/gdc.c			optional gdc
 pc98/cbus/nmi.c			standard
 pc98/cbus/olpt.c		optional olpt
 pc98/cbus/pckbd.c		optional pckbd
-pc98/cbus/pcrtc.c		standard
+pc98/cbus/pcrtc.c		optional atpic
 pc98/cbus/pmc.c			optional pmc
 pc98/cbus/scgdcrndr.c		optional sc gdc
 pc98/cbus/scterm-sck.c		optional sc

@@ -24,3 +24,6 @@ device		uart_ns8250
 # Default partitioning schemes
 options 	GEOM_PART_BSD
 options 	GEOM_PART_PC98
+
+# enable support for native hardware
+device		atpic
