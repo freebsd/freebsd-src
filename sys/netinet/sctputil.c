@@ -6156,11 +6156,11 @@ sctp_dynamic_set_primary(struct sockaddr *sa, uint32_t vrf_id)
 	 * newest first :-0
 	 */
 	LIST_INSERT_HEAD(&SCTP_BASE_INFO(addr_wq), wi, sctp_nxt_addr);
+	SCTP_IPI_ITERATOR_WQ_UNLOCK();
 	sctp_timer_start(SCTP_TIMER_TYPE_ADDR_WQ,
 	    (struct sctp_inpcb *)NULL,
 	    (struct sctp_tcb *)NULL,
 	    (struct sctp_nets *)NULL);
-	SCTP_IPI_ITERATOR_WQ_UNLOCK();
 	return (0);
 }
 
