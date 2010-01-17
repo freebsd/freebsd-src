@@ -444,7 +444,7 @@ int main (int argc, char** argv)
 	return 0;
 }
 
-static void DaemonMode ()
+static void DaemonMode(void)
 {
 	FILE*	pidFile;
 
@@ -1558,7 +1558,7 @@ void ReadConfigFile (const char* fileName)
 	fclose (file);
 }
 
-static void Usage ()
+static void Usage(void)
 {
 	int			i;
 	int			max;
