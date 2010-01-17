@@ -2417,6 +2417,7 @@ product SHARP SL5600		0x8006	Zaurus SL-5600 PDA
 product SHARP SLC700		0x8007	Zaurus SL-C700 PDA
 product SHARP SLC750		0x9031	Zaurus SL-C750 PDA
 product SHARP WZERO3ES		0x9123	W-ZERO3 ES Smartphone
+product SHARP WZERO3ADES	0x91ac	Advanced W-ZERO3 ES Smartphone
 product SHARP WILLCOM03		0x9242	WILLCOM03
 
 /* Shuttle Technology products */
