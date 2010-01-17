@@ -67,9 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
-#ifdef DEV_APIC
 #include <machine/apicvar.h>
-#endif
 #include <machine/ppireg.h>
 #include <machine/timerreg.h>
 #include <machine/smp.h>
