@@ -1398,7 +1398,7 @@ void
 zfs_init(void)
 {
 
-	printf("ZFS filesystem version " SPA_VERSION_STRING "\n");
+	printf("ZFS filesystem version " ZPL_VERSION_STRING "\n");
 
 	/*
 	 * Initialize znode cache, vnode ops, etc...
