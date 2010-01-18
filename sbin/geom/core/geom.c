@@ -800,7 +800,7 @@ list_one_consumer(struct gconsumer *cp, const char *prefix)
 		printf("%sMediasize: %jd (%s)\n", prefix,
 		    (intmax_t)pp->lg_mediasize, buf);
 		printf("%sSectorsize: %u\n", prefix, pp->lg_sectorsize);
-		if (pp->lg_stripesize > 0) {
+		if (pp->lg_stripesize > 0 || pp->lg_stripeoffset > 0) {
 			printf("%sStripesize: %ju\n", prefix, pp->lg_stripesize);
 			printf("%sStripeoffset: %ju\n", prefix, pp->lg_stripeoffset);
 		}
