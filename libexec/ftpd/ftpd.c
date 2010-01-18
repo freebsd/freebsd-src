@@ -1178,8 +1178,8 @@ end_login(void)
 #endif
 
 	(void) seteuid(0);
-	if (logged_in && dowtmp && !dochroot)
-		ftpd_logwtmp(wtmpid, "", NULL);
+	if (logged_in && dowtmp)
+		ftpd_logwtmp(wtmpid, NULL, NULL);
 	pw = NULL;
 #ifdef	LOGIN_CAP
 	setusercontext(NULL, getpwuid(0), 0,
@@ -1482,7 +1482,10 @@ skip:
 	;
 	chrootdir = NULL;
 
-	if (dowtmp && !dochroot)
+	/* Disable wtmp logging when chrooting. */
+	if (dochroot || guest)
+		dowtmp = 0;
+	if (dowtmp)
 		ftpd_logwtmp(wtmpid, pw->pw_name,
 		    (struct sockaddr *)&his_addr);
 	logged_in = 1;
@@ -2730,9 +2733,9 @@ void
 dologout(int status)
 {
 
-	if (logged_in && dowtmp && !dochroot) {
+	if (logged_in && dowtmp) {
 		(void) seteuid(0);
-		ftpd_logwtmp(wtmpid, "", NULL);
+		ftpd_logwtmp(wtmpid, NULL, NULL);
 	}
 	/* beware of flushing buffers after a SIGPIPE */
 	_exit(status);
