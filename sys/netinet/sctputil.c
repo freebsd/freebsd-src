@@ -912,24 +912,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 #endif
 	asoc->sb_send_resv = 0;
 	if (override_tag) {
-#ifdef MICHAELS_EXPERIMENT
-		if (sctp_is_in_timewait(override_tag, stcb->sctp_ep->sctp_lport, stcb->rport)) {
-			/*
-			 * It must be in the time-wait hash, we put it there
-			 * when we aloc one. If not the peer is playing
-			 * games.
-			 */
-			asoc->my_vtag = override_tag;
-		} else {
-			SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ENOMEM);
-#ifdef INVARIANTS
-			panic("Huh is_in_timewait fails");
-#endif
-			return (ENOMEM);
-		}
-#else
 		asoc->my_vtag = override_tag;
-#endif
 	} else {
 		asoc->my_vtag = sctp_select_a_tag(m, stcb->sctp_ep->sctp_lport, stcb->rport, 1);
 	}
@@ -1154,11 +1137,12 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->nr_mapping_array_size = SCTP_INITIAL_NR_MAPPING_ARRAY;
 	SCTP_MALLOC(asoc->nr_mapping_array, uint8_t *, asoc->nr_mapping_array_size,
 	    SCTP_M_MAP);
-	/*
-	 * if (asoc->nr_mapping_array == NULL) { SCTP_FREE(asoc->strmout,
-	 * SCTP_M_STRMO); SCTP_LTRACE_ERR_RET(NULL, stcb, NULL,
-	 * SCTP_FROM_SCTPUTIL, ENOMEM); return (ENOMEM); }
-	 */
+	if (asoc->nr_mapping_array == NULL) {
+		SCTP_FREE(asoc->strmout, SCTP_M_STRMO);
+		SCTP_FREE(asoc->mapping_array, SCTP_M_MAP);
+		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ENOMEM);
+		return (ENOMEM);
+	}
 	memset(asoc->nr_mapping_array, 0, asoc->nr_mapping_array_size);
 
 	/* Now the init of the other outqueues */

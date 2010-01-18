@@ -4102,9 +4102,6 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(stcb->asoc.my_vtag, SCTP_BASE_INFO(hashasocmark))];
 	/* put it in the bucket in the vtag hash of assoc's for the system */
 	LIST_INSERT_HEAD(head, stcb, sctp_asocs);
-#ifdef MICHAELS_EXPERIMENT
-	sctp_delete_from_timewait(stcb->asoc.my_vtag, inp->sctp_lport, stcb->rport);
-#endif
 	SCTP_INP_INFO_WUNLOCK();
 
 	if ((err = sctp_add_remote_addr(stcb, firstaddr, SCTP_DO_SETSCOPE, SCTP_ALLOC_ASOC))) {
@@ -4116,6 +4113,10 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		if (asoc->mapping_array) {
 			SCTP_FREE(asoc->mapping_array, SCTP_M_MAP);
 			asoc->mapping_array = NULL;
+		}
+		if (asoc->nr_mapping_array) {
+			SCTP_FREE(asoc->nr_mapping_array, SCTP_M_MAP);
+			asoc->nr_mapping_array = NULL;
 		}
 		SCTP_DECR_ASOC_COUNT();
 		SCTP_TCB_LOCK_DESTROY(stcb);
@@ -4878,6 +4879,10 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	if (asoc->mapping_array) {
 		SCTP_FREE(asoc->mapping_array, SCTP_M_MAP);
 		asoc->mapping_array = NULL;
+	}
+	if (asoc->nr_mapping_array) {
+		SCTP_FREE(asoc->nr_mapping_array, SCTP_M_MAP);
+		asoc->nr_mapping_array = NULL;
 	}
 	/* the stream outs */
 	if (asoc->strmout) {
@@ -6361,21 +6366,6 @@ skip_vtag_check:
 		}
 	}
 	SCTP_INP_INFO_RUNLOCK();
-#ifdef MICHAELS_EXPERIMENT
-	/*-
-	 * Not found, ok to use the tag, add it to the time wait hash
-	 * as well this will prevent two sucessive cookies from getting
-	 * the same tag or two inits sent quickly on multi-processors.
-	 * We only keep the tag for the life of a cookie and when we
-	 * add this tag to the assoc hash we need to purge it from
-	 * the t-wait hash.
-	 */
-	SCTP_INP_INFO_WLOCK();
-	if (save_in_twait)
-		sctp_add_vtag_to_timewait(tag, TICKS_TO_SEC(inp->sctp_ep.def_cookie_life, lport, rport));
-	SCTP_INP_INFO_WUNLOCK();
-#endif
-
 	return (1);
 }
 
