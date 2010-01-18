@@ -26,26 +26,17 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/module.h>
+#include <sys/syscall.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/syscall.h>
-#include <sys/types.h>
-#include <sys/module.h>
-
-static void usage (void);
-
-static void
-usage (void)
-{
-	fprintf (stderr, "call syscall-number\n");
-	exit (1);
-}
 
 int
-main(int argc, char **argv)
+main(int argc __unused, char **argv __unused)
 {
-	char *endptr;
 	int syscall_num;
 	struct module_stat stat;
 
