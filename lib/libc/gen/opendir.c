@@ -92,15 +92,11 @@ __opendir2(const char *name, int flags)
 	return __opendir_common(fd, name, flags);
 }
 
-/*
- * POSIX 2008 and XSI 7 require alphasort() to call strcoll() for
- * directory entries ordering.
- */
 static int
-opendir_alphasort(const void *p1, const void *p2)
+opendir_sort(const void *p1, const void *p2)
 {
 
-	return (strcoll((*(const struct dirent **)p1)->d_name,
+	return (strcmp((*(const struct dirent **)p1)->d_name,
 	    (*(const struct dirent **)p2)->d_name));
 }
 
@@ -253,7 +249,7 @@ __opendir_common(int fd, const char *name, int flags)
 				 * This sort must be stable.
 				 */
 				mergesort(dpv, n, sizeof(*dpv),
-				    opendir_alphasort);
+				    opendir_sort);
 
 				dpv[n] = NULL;
 				xp = NULL;
