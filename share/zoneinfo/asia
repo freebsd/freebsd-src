@@ -1,4 +1,4 @@
-# @(#)asia	8.50
+# @(#)asia	8.51
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -226,10 +226,10 @@ Zone	Asia/Bahrain	3:22:20 -	LMT	1920		# Al Manamah
 # establishment of a rule.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Dhaka	2009	only	-	Jun	29	23:00	1	S
-Rule	Dhaka	2010	only	-	Jan	1	0:00	-	-
-Rule	Dhaka	2010	max	-	Mar	31	23:00	1	S
-Rule	Dhaka	2010	max	-	Nov	1	0:00	-	-
+Rule	Dhaka	2009	only	-	Jun	19	23:00	1:00	S
+Rule	Dhaka	2010	only	-	Jan	1	0:00	0	-
+Rule	Dhaka	2010	max	-	Mar	31	23:00	1:00	S
+Rule	Dhaka	2010	max	-	Nov	1	0:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dhaka	6:01:40 -	LMT	1890
