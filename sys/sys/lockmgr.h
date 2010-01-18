@@ -144,6 +144,9 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 #define	LK_QUIET	0x000020
 #define	LK_ADAPTIVE	0x000040
 
+/* LK_EXSLPFAIL to follow, even if not used in lockinit() */
+#define	LK_EXSLPFAIL	0x000080
+
 /*
  * Additional attributes to be used in lockmgr().
  */
