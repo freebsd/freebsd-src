@@ -94,13 +94,13 @@ __opendir2(const char *name, int flags)
 
 /*
  * POSIX 2008 and XSI 7 require alphasort() to call strcoll() for
- * directory entries ordering.  Use local copy that uses strcmp().
+ * directory entries ordering.
  */
 static int
 opendir_alphasort(const void *p1, const void *p2)
 {
 
-	return (strcmp((*(const struct dirent **)p1)->d_name,
+	return (strcoll((*(const struct dirent **)p1)->d_name,
 	    (*(const struct dirent **)p2)->d_name));
 }
 
