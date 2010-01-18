@@ -138,6 +138,7 @@ SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW, &soft_pad, 0,
 static MALLOC_DEFINE(M_VLAN, VLANNAME, "802.1Q Virtual LAN Interface");
 
 static eventhandler_tag ifdetach_tag;
+static eventhandler_tag iflladdr_tag;
 
 /*
  * We have a global mutex, that is used to serialize configuration
@@ -199,6 +200,7 @@ static	int vlan_clone_create(struct if_clone *, char *, size_t, caddr_t);
 static	int vlan_clone_destroy(struct if_clone *, struct ifnet *);
 
 static	void vlan_ifdetach(void *arg, struct ifnet *ifp);
+static  void vlan_iflladdr(void *arg, struct ifnet *ifp);
 
 static	struct if_clone vlan_cloner = IFC_CLONE_INITIALIZER(VLANNAME, NULL,
     IF_MAXUNIT, NULL, vlan_clone_match, vlan_clone_create, vlan_clone_destroy);
@@ -463,6 +465,41 @@ vlan_setmulti(struct ifnet *ifp)
 }
 
 /*
+ * A handler for parent interface link layer address changes.
+ * If the parent interface link layer address is changed we
+ * should also change it on all children vlans.
+ */
+static void
+vlan_iflladdr(void *arg __unused, struct ifnet *ifp)
+{
+	struct ifvlan *ifv;
+	int i;
+
+	/*
+	 * Check if it's a trunk interface first of all
+	 * to avoid needless locking.
+	 */
+	if (ifp->if_vlantrunk == NULL)
+		return;
+
+	VLAN_LOCK();
+	/*
+	 * OK, it's a trunk.  Loop over and change all vlan's lladdrs on it.
+	 */
+#ifdef VLAN_ARRAY
+	for (i = 0; i < VLAN_ARRAY_SIZE; i++)
+		if ((ifv = ifp->if_vlantrunk->vlans[i]))
+			if_setlladdr(ifv->ifv_ifp, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+#else /* VLAN_ARRAY */
+	for (i = 0; i < (1 << ifp->if_vlantrunk->hwidth); i++)
+		LIST_FOREACH(ifv, &ifp->if_vlantrunk->hash[i], ifv_list)
+			if_setlladdr(ifv->ifv_ifp, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+#endif /* VLAN_ARRAY */
+	VLAN_UNLOCK();
+
+}
+
+/*
  * A handler for network interface departure events.
  * Track departure of trunks here so that we don't access invalid
  * pointers or whatever if a trunk is ripped from under us, e.g.,
@@ -537,6 +574,10 @@ vlan_modevent(module_t mod, int type, void *data)
 		    vlan_ifdetach, NULL, EVENTHANDLER_PRI_ANY);
 		if (ifdetach_tag == NULL)
 			return (ENOMEM);
+		iflladdr_tag = EVENTHANDLER_REGISTER(iflladdr_event,
+		    vlan_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
+		if (iflladdr_tag == NULL)
+			return (ENOMEM);
 		VLAN_LOCK_INIT();
 		vlan_input_p = vlan_input;
 		vlan_link_state_p = vlan_link_state;
@@ -555,6 +596,7 @@ vlan_modevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		if_clone_detach(&vlan_cloner);
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ifdetach_tag);
+		EVENTHANDLER_DEREGISTER(iflladdr_event, iflladdr_tag);
 		vlan_input_p = NULL;
 		vlan_link_state_p = NULL;
 		vlan_trunk_cap_p = NULL;
