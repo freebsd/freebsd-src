@@ -917,6 +917,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 			    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
 			sc->sc_ifaddr = fif;
 		}
+		EVENTHANDLER_INVOKE(iflladdr_event, sc->sc_ifp);
 	}
 
 	bridge_mutecaps(sc);	/* recalcuate now this interface is removed */
@@ -1033,6 +1034,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	    !memcmp(IF_LLADDR(sc->sc_ifp), sc->sc_defaddr, ETHER_ADDR_LEN)) {
 		bcopy(IF_LLADDR(ifs), IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
 		sc->sc_ifaddr = ifs;
+		EVENTHANDLER_INVOKE(iflladdr_event, sc->sc_ifp);
 	}
 
 	ifs->if_bridge = sc;
