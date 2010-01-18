@@ -348,7 +348,7 @@ sctp_cwnd_update_after_timeout(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	int old_cwnd = net->cwnd;
 
-	net->ssthresh = max(net->cwnd / 2, 2 * net->mtu);
+	net->ssthresh = max(net->cwnd / 2, 4 * net->mtu);
 	net->cwnd = net->mtu;
 	net->partial_bytes_acked = 0;
 
