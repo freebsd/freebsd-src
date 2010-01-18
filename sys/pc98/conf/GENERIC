@@ -97,9 +97,9 @@ device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 device		aic		# PC-9801-100
 device		ct		# host adapter using WD33C93[ABC] chip (C bus)
 
-#device		ncv		# NCR 53C500
-#device		nsp		# Workbit Ninja SCSI-3
-#device		stg		# TMC 18C30/18C50
+device		ncv		# NCR 53C500
+device		nsp		# Workbit Ninja SCSI-3
+device		stg		# TMC 18C30/18C50
 
 # SCSI peripherals
 device		scbus		# SCSI bus (required for SCSI)
@@ -138,9 +138,9 @@ device		sc
 
 # PCCARD (PCMCIA) support
 # PCMCIA and cardbus bridge support
-#device		cbb		# cardbus (yenta) bridge
-#device		pccard		# PC Card (16-bit) bus
-#device		cardbus		# CardBus (32-bit) bus
+device		cbb		# cardbus (yenta) bridge
+device		pccard		# PC Card (16-bit) bus
+device		cardbus		# CardBus (32-bit) bus
 
 # Serial (COM) ports
 options 	COM_MULTIPORT
@@ -151,15 +151,15 @@ device		mse
 #device		joy
 
 # NEW Parallel port
-#device		ppc
-#device		ppbus		# Parallel port bus (required)
-#device		lpt		# Printer
-#device		plip		# TCP/IP over parallel
-#device		ppi		# Parallel port interface device
+device		ppc
+device		ppbus		# Parallel port bus (required)
+device		lpt		# Printer
+device		plip		# TCP/IP over parallel
+device		ppi		# Parallel port interface device
 #device		vpo		# Requires scbus and da
 # OLD Parallel port
 # Please stay olpt driver after ppc driver
-#device		olpt
+device		olpt
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
