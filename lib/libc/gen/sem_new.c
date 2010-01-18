@@ -142,7 +142,7 @@ _sem_open(const char *name, int flags, ...)
 	va_list ap;
 	struct sem_nameinfo *ni = NULL;
 	sem_t *sem = NULL;
-	int fd = -1, mode, len;
+	int fd = -1, mode, len, errsave;
 	int value = 0;
 
 	if (name[0] != '/') {
@@ -233,12 +233,14 @@ _sem_open(const char *name, int flags, ...)
 	return (sem);
 
 error:
+	errsave = errno;
 	_pthread_mutex_unlock(&sem_llock);
 	if (fd != -1)
 		_close(fd);
 	if (sem != NULL)
 		munmap(sem, sizeof(sem_t));
 	free(ni);
+	errno = errsave;
 	return (SEM_FAILED);
 }
 
