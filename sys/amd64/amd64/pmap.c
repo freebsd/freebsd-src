@@ -629,7 +629,6 @@ pmap_page_init(vm_page_t m)
 void
 pmap_init(void)
 {
-	pd_entry_t *pd;
 	vm_page_t mpte;
 	vm_size_t s;
 	int i, pv_npg;
@@ -638,18 +637,13 @@ pmap_init(void)
 	 * Initialize the vm page array entries for the kernel pmap's
 	 * page table pages.
 	 */ 
-	pd = pmap_pde(kernel_pmap, KERNBASE);
 	for (i = 0; i < NKPT; i++) {
-		if ((pd[i] & (PG_PS | PG_V)) == (PG_PS | PG_V))
-			continue;
-		KASSERT((pd[i] & PG_V) != 0,
-		    ("pmap_init: page table page is missing"));
-		mpte = PHYS_TO_VM_PAGE(pd[i] & PG_FRAME);
+		mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
 		KASSERT(mpte >= vm_page_array &&
 		    mpte < &vm_page_array[vm_page_array_size],
 		    ("pmap_init: page table page is out of range"));
 		mpte->pindex = pmap_pde_pindex(KERNBASE) + i;
-		mpte->phys_addr = pd[i] & PG_FRAME;
+		mpte->phys_addr = KPTphys + (i << PAGE_SHIFT);
 	}
 
 	/*
