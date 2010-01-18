@@ -702,8 +702,12 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 	 * ideal.  It gives precedence to shared waiters if they are
 	 * present.  For this condition, we have to preserve the
 	 * state of the exclusive waiters flag.
+	 * If interruptible sleeps left the shared queue empty avoid a
+	 * starvation for the threads sleeping on the exclusive queue by giving
+	 * them precedence and cleaning up the shared waiters bit anyway.
 	 */
-	if (sx->sx_lock & SX_LOCK_SHARED_WAITERS) {
+	if ((sx->sx_lock & SX_LOCK_SHARED_WAITERS) != 0 &&
+	    sleepq_sleepcnt(&sx->lock_object, SQ_SHARED_QUEUE) != 0) {
 		queue = SQ_SHARED_QUEUE;
 		x |= (sx->sx_lock & SX_LOCK_EXCLUSIVE_WAITERS);
 	} else

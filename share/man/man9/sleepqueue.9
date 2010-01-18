@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2009
+.Dd January 18, 2010
 .Dt SLEEPQUEUE 9
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Nm sleepq_remove ,
 .Nm sleepq_signal ,
 .Nm sleepq_set_timeout ,
+.Nm sleepq_sleepcnt ,
 .Nm sleepq_timedwait ,
 .Nm sleepq_timedwait_sig ,
 .Nm sleepq_wait ,
@@ -77,6 +78,8 @@
 .Fn sleepq_signal "void *wchan" "int flags" "int pri" "int queue"
 .Ft void
 .Fn sleepq_set_timeout "void *wchan" "int timo"
+.Ft u_int
+.Fn sleepq_sleepcnt "void *wchan" "int queue"
 .Ft int
 .Fn sleepq_timedwait "void *wchan"
 .Ft int
@@ -353,6 +356,14 @@ This function should only be used if one of the other functions above is not
 sufficient.
 One possible use is waking up a specific thread from a widely shared sleep
 channel.
+.Pp
+The
+.Fn sleepq_sleepcnt
+function offer a simple way to retrieve the number of threads sleeping for
+the specified
+.Fa queue ,
+given a
+.Fa wchan .
 .Pp
 The
 .Fn sleepq_abort ,
