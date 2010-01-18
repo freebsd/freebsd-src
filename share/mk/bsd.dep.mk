@@ -182,6 +182,8 @@ cleandepend:
 .if defined(HTML)
 	rm -rf HTML
 .endif
+.else
+	rm -f ${DEPENDFILE}
 .endif
 .endif
 .endif
