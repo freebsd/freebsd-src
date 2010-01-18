@@ -43,6 +43,7 @@ device		mc146818	# Motorola MC146818 and compatible clocks
 #
 
 device		auxio		# auxiliary I/O device
+device		epic		# Sun Fire V215/V245 LEDs
 device		creator		# Creator, Creator3D and Elite3D framebuffers
 device		machfb		# ATI Mach64 framebuffers
 
