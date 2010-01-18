@@ -46,9 +46,12 @@ __FBSDID("$FreeBSD$");
 
 #define _BSD_SOURCE
 
+#include <sys/time.h>
 #include <pwd.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
-#include <ulog.h>
+#include <unistd.h>
 #include <utmpx.h>
 
 #define PAM_SM_SESSION
@@ -57,15 +60,18 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
+#define	PAM_UTMPX_ID	"utmpx_id"
+
 PAM_EXTERN int
 pam_sm_open_session(pam_handle_t *pamh, int flags,
     int argc __unused, const char *argv[] __unused)
 {
 	struct passwd *pwd;
-	struct utmpx *utx;
+	struct utmpx *utx, utl;
 	time_t t;
 	const char *user;
 	const void *rhost, *tty;
+	char *id;
 	int pam_err;
 
 	pam_err = pam_get_user(pamh, &user, NULL);
@@ -109,7 +115,29 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 		}
 	}
 
-	ulog_login(tty, user, rhost);
+	id = malloc(sizeof utl.ut_id);
+	if (id == NULL) {
+		pam_err = PAM_SERVICE_ERR;
+		goto err;
+	}
+	arc4random_buf(id, sizeof utl.ut_id);
+
+	pam_err = pam_set_data(pamh, PAM_UTMPX_ID, id, openpam_free_data);
+	if (pam_err != PAM_SUCCESS) {
+		free(id);
+		goto err;
+	}
+
+	memset(&utl, 0, sizeof utl);
+	utl.ut_type = USER_PROCESS;
+	memcpy(utl.ut_id, id, sizeof utl.ut_id);
+	strncpy(utl.ut_user, user, sizeof utl.ut_user);
+	strncpy(utl.ut_line, tty, sizeof utl.ut_line);
+	if (rhost != NULL)
+		strncpy(utl.ut_host, rhost, sizeof utl.ut_host);
+	utl.ut_pid = getpid();
+	gettimeofday(&utl.ut_tv, NULL);
+	pututxline(&utl);
 
 	return (PAM_SUCCESS);
 
@@ -123,18 +151,21 @@ PAM_EXTERN int
 pam_sm_close_session(pam_handle_t *pamh, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
-	const void *tty;
+	struct utmpx utl;
+	const void *id;
 	int pam_err;
 
-	pam_err = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
+	pam_err = pam_get_data(pamh, PAM_UTMPX_ID, (const void **)&id);
 	if (pam_err != PAM_SUCCESS)
 		goto err;
-	if (tty == NULL) {
-		PAM_LOG("No PAM_TTY");
-		pam_err = PAM_SERVICE_ERR;
-		goto err;
-	}
-	ulog_logout(tty);
+
+	memset(&utl, 0, sizeof utl);
+	utl.ut_type = DEAD_PROCESS;
+	memcpy(utl.ut_id, id, sizeof utl.ut_id);
+	utl.ut_pid = getpid();
+	gettimeofday(&utl.ut_tv, NULL);
+	pututxline(&utl);
+
 	return (PAM_SUCCESS);
 
  err:
