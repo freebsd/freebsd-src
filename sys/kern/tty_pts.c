@@ -396,7 +396,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 
 	/* Just redirect this ioctl to the slave device. */
 	tty_lock(tp);
-	error = tty_ioctl(tp, cmd, data, td);
+	error = tty_ioctl(tp, cmd, data, fp->f_flag, td);
 	tty_unlock(tp);
 	if (error == ENOIOCTL)
 		error = ENOTTY;

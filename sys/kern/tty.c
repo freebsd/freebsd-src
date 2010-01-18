@@ -504,12 +504,12 @@ ttydev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	case TIOCSPGRP:
 	case TIOCSTART:
 	case TIOCSTAT:
+	case TIOCSTI:
 	case TIOCSTOP:
 	case TIOCSWINSZ:
 #if 0
 	case TIOCSDRAINWAIT:
 	case TIOCSETD:
-	case TIOCSTI:
 #endif
 #ifdef COMPAT_43TTY
 	case  TIOCLBIC:
@@ -558,7 +558,7 @@ ttydev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			new->c_ospeed = old->c_ospeed;
 	}
 
-	error = tty_ioctl(tp, cmd, data, td);
+	error = tty_ioctl(tp, cmd, data, fflag, td);
 done:	tty_unlock(tp);
 
 	return (error);
@@ -1330,7 +1330,8 @@ tty_flush(struct tty *tp, int flags)
 }
 
 static int
-tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
+tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
+    struct thread *td)
 {
 	int error;
 
@@ -1657,17 +1658,26 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 	case TIOCSTAT:
 		tty_info(tp);
 		return (0);
+	case TIOCSTI:
+		if ((fflag & FREAD) == 0 && priv_check(td, PRIV_TTY_STI))
+			return (EPERM);
+		if (!tty_is_ctty(tp, td->td_proc) &&
+		    priv_check(td, PRIV_TTY_STI))
+			return (EACCES);
+		ttydisc_rint(tp, *(char *)data, 0);
+		ttydisc_rint_done(tp);
+		return (0);
 	}
 
 #ifdef COMPAT_43TTY
-	return tty_ioctl_compat(tp, cmd, data, td);
+	return tty_ioctl_compat(tp, cmd, data, fflag, td);
 #else /* !COMPAT_43TTY */
 	return (ENOIOCTL);
 #endif /* COMPAT_43TTY */
 }
 
 int
-tty_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
+tty_ioctl(struct tty *tp, u_long cmd, void *data, int fflag, struct thread *td)
 {
 	int error;
 
@@ -1678,7 +1688,7 @@ tty_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 	
 	error = ttydevsw_ioctl(tp, cmd, data, td);
 	if (error == ENOIOCTL)
-		error = tty_generic_ioctl(tp, cmd, data, td);
+		error = tty_generic_ioctl(tp, cmd, data, fflag, td);
 
 	return (error);
 }
