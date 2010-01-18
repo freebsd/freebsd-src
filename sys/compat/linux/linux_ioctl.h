@@ -611,4 +611,10 @@ int		 linux_ifname(struct ifnet *, char *, size_t);
 #define LINUX_IOCTL_VIDEO_MIN	LINUX_VIDIOCGCAP
 #define LINUX_IOCTL_VIDEO_MAX	LINUX_VIDIOCSVBIFMT
 
+/*
+ * Keep in sync with our include/dev/usb/usb_ioctl.h.
+ */
+#define	LINUX_FBSD_USB_MIN		0x5100
+#define	LINUX_FBSD_USB_MAX		0x55c7
+
 #endif /* !_LINUX_IOCTL_H_ */
