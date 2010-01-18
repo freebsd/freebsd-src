@@ -4463,6 +4463,7 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 		control->tail_mbuf = prev;
 	} else {
 		/* Everything got collapsed out?? */
+		SCTP_INP_READ_UNLOCK(inp);
 		return;
 	}
 	if (end) {
