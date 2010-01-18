@@ -1374,7 +1374,7 @@ buildBootFloppy:
 	@mkdir ${IMAGEDIR}
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${IMAGEDIR}/boot
-.if ${TARGET} == "i386"
+.if ${TARGET_ARCH} == "i386"
 	@${WMAKEENV} kgzip -v -l ${RD}/trees/base/usr/lib/kgzldr.o -o \
 	    ${IMAGEDIR}/boot/loader ${BOOTDIR}/loader
 .else
