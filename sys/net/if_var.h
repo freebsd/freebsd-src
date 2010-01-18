@@ -339,6 +339,9 @@ void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
 } while(0)
 
 #ifdef _KERNEL
+/* interface link layer address change event */
+typedef void (*iflladdr_event_handler_t)(void *, struct ifnet *);
+EVENTHANDLER_DECLARE(iflladdr_event, iflladdr_event_handler_t);
 /* interface address change event */
 typedef void (*ifaddr_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(ifaddr_event, ifaddr_event_handler_t);

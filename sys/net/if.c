@@ -2268,6 +2268,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		error = if_setlladdr(ifp,
 		    ifr->ifr_addr.sa_data, ifr->ifr_addr.sa_len);
+		EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 		break;
 
 	case SIOCAIFGROUP:

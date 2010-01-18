@@ -305,6 +305,7 @@ lagg_lladdr(struct lagg_softc *sc, uint8_t *lladdr)
 	/* Let the protocol know the MAC has changed */
 	if (sc->sc_lladdr != NULL)
 		(*sc->sc_lladdr)(sc);
+	EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 }
 
 static void
