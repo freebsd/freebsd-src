@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/sys/sys/capability.h#24 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/sys/sys/capability.h#25 $
  */
 
 /*
@@ -39,6 +39,7 @@
 #ifndef _SYS_CAPABILITY_H_
 #define	_SYS_CAPABILITY_H_
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
 
 /*
@@ -159,6 +160,7 @@ cap_rights_t	cap_rights(struct file *fp_cap);
 
 #else /* !_KERNEL */
 
+__BEGIN_DECLS
 /*
  * cap_enter(): Cause the process to enter capability mode, which will
  * prevent it from directly accessing global namespaces.  System calls will
@@ -183,6 +185,7 @@ int	cap_new(int fd, cap_rights_t rights);
  * cap_getrights(): Query the rights on a capability.
  */
 int	cap_getrights(int fd, cap_rights_t *rightsp);
+__END_DECLS
 
 #endif /* !_KERNEL */
 
