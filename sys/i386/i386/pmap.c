@@ -206,6 +206,7 @@ int pseflag = 0;		/* PG_PS or-in */
 static int nkpt;
 vm_offset_t kernel_vm_end;
 extern u_int32_t KERNend;
+extern u_int32_t KPTphys;
 
 #ifdef PAE
 pt_entry_t pg_nx;
@@ -649,13 +650,13 @@ pmap_init(void)
 	 * Initialize the vm page array entries for the kernel pmap's
 	 * page table pages.
 	 */ 
-	for (i = 0; i < nkpt; i++) {
-		mpte = PHYS_TO_VM_PAGE(PTD[i + KPTDI] & PG_FRAME);
+	for (i = 0; i < NKPT; i++) {
+		mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
 		KASSERT(mpte >= vm_page_array &&
 		    mpte < &vm_page_array[vm_page_array_size],
 		    ("pmap_init: page table page is out of range"));
 		mpte->pindex = i + KPTDI;
-		mpte->phys_addr = PTD[i + KPTDI] & PG_FRAME;
+		mpte->phys_addr = KPTphys + (i << PAGE_SHIFT);
 	}
 
 	/*
