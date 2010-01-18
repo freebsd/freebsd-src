@@ -38,7 +38,7 @@ options 	SCHED_4BSD		# 4BSD scheduler
 #options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
-#options 	SCTP			# Stream Control Transmission Protocol
+options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
@@ -46,13 +46,13 @@ options 	UFS_DIRHASH		# Improve performance on big directories
 options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
 options 	MD_ROOT			# MD is a potential root device
 options 	NFSCLIENT		# Network Filesystem Client
-#options 	NFSSERVER		# Network Filesystem Server
-#options 	NFSLOCKD		# Network Lock Manager
+options 	NFSSERVER		# Network Filesystem Server
+options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
 options 	MSDOSFS			# MSDOS Filesystem
 options 	CD9660			# ISO 9660 Filesystem
-#options 	PROCFS			# Process filesystem (requires PSEUDOFS)
-#options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	PROCFS			# Process filesystem (requires PSEUDOFS)
+options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
 options 	COMPAT_43TTY		# BSD 4.3 TTY compat (sgtty)
@@ -66,9 +66,9 @@ options 	EPSON_BOUNCEDMA		# use bounce buffer for 15-16M
 #options 	LINE30
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
-#options 	SYSVSHM			# SYSV-style shared memory
-#options 	SYSVMSG			# SYSV-style message queues
-#options 	SYSVSEM			# SYSV-style semaphores
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
 options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
@@ -106,9 +106,9 @@ device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 device		aic		# PC-9801-100
 device		ct		# host adapter using WD33C93[ABC] chip (C bus)
 
-#device		ncv		# NCR 53C500
-#device		nsp		# Workbit Ninja SCSI-3
-#device		stg		# TMC 18C30/18C50
+device		ncv		# NCR 53C500
+device		nsp		# Workbit Ninja SCSI-3
+device		stg		# TMC 18C30/18C50
 
 # SCSI peripherals
 device		scbus		# SCSI bus (required for SCSI)
@@ -147,9 +147,9 @@ device		sc
 
 # PCCARD (PCMCIA) support
 # PCMCIA and cardbus bridge support
-#device		cbb		# cardbus (yenta) bridge
-#device		pccard		# PC Card (16-bit) bus
-#device		cardbus		# CardBus (32-bit) bus
+device		cbb		# cardbus (yenta) bridge
+device		pccard		# PC Card (16-bit) bus
+device		cardbus		# CardBus (32-bit) bus
 
 # Serial (COM) ports
 #options 	COM_MULTIPORT
@@ -161,15 +161,15 @@ device		mse
 #device		joy
 
 # NEW Parallel port
-#device		ppc
-#device		ppbus		# Parallel port bus (required)
-#device		lpt		# Printer
-#device		plip		# TCP/IP over parallel
-#device		ppi		# Parallel port interface device
+device		ppc
+device		ppbus		# Parallel port bus (required)
+device		lpt		# Printer
+device		plip		# TCP/IP over parallel
+device		ppi		# Parallel port interface device
 #device		vpo		# Requires scbus and da
 # OLD Parallel port
 # Please stay olpt driver after ppc driver
-#device		olpt
+device		olpt
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
