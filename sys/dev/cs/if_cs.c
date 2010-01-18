@@ -852,7 +852,7 @@ cs_write_mbufs( struct cs_softc *sc, struct mbuf *m )
 		 * Ignore empty parts
 		 */
 		if (!len)
-		continue;
+			continue;
 
 		/*
 		 * Find actual data address
