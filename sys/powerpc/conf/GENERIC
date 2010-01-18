@@ -66,6 +66,7 @@ options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	MAC			# TrustedBSD MAC Framework
+options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
 # To make an SMP kernel, the next line is needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
