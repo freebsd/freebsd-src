@@ -60,7 +60,7 @@ ftpd_logwtmp(char *id, char *user, struct sockaddr *addr)
 
 	memset(&ut, 0, sizeof(ut));
 
-	if (*user != '\0') {
+	if (user != NULL) {
 		/* Log in. */
 		ut.ut_type = USER_PROCESS;
 		(void)strncpy(ut.ut_user, user, sizeof(ut.ut_user));
