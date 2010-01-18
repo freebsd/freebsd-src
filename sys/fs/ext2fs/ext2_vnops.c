@@ -402,11 +402,12 @@ ext2_setattr(ap)
 		return (EINVAL);
 	}
 	if (vap->va_flags != VNOVAL) {
-		if (vp->v_mount->mnt_flag & MNT_RDONLY)
-			return (EROFS);
 		/* Disallow flags not supported by ext2fs. */
 		if(vap->va_flags & ~(SF_APPEND | SF_IMMUTABLE | UF_NODUMP))
-			return(EOPNOTSUPP);
+			return (EOPNOTSUPP);
+
+		if (vp->v_mount->mnt_flag & MNT_RDONLY)
+			return (EROFS);
 		/*
 		 * Callers may only modify the file flags on objects they
 		 * have VADMIN rights for.
@@ -430,9 +431,11 @@ ext2_setattr(ap)
 			ip->i_flags = vap->va_flags;
 		} else {
 			if (ip->i_flags
-			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND))
+			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
+			    (vap->va_flags & UF_SETTABLE) != vap->va_flags)
 				return (EPERM);
 			ip->i_flags &= SF_SETTABLE;
+			ip->i_flags |= (vap->va_flags & UF_SETTABLE);
 		}
 		ip->i_flag |= IN_CHANGE;
 		if (vap->va_flags & (IMMUTABLE | APPEND))
