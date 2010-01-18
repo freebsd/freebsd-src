@@ -601,13 +601,13 @@ utmpxprint(const struct utmpx *ut)
 	case USER_PROCESS:
 		printf("user process: id=\"");
 		UTMPXPRINTID;
-		printf("\" user=\"%s\" line=\"%s\" host=\"%s\"\n",
-		    ut->ut_user, ut->ut_line, ut->ut_host);
+		printf("\" pid=\"%d\" user=\"%s\" line=\"%s\" host=\"%s\"\n",
+		    ut->ut_pid, ut->ut_user, ut->ut_line, ut->ut_host);
 		break;
 	case DEAD_PROCESS:
 		printf("dead process: id=\"");
 		UTMPXPRINTID;
-		printf("\"\n");
+		printf("\" pid=\"%d\"\n", ut->ut_pid);
 		break;
 	default:
 		printf("unknown record type\n");
