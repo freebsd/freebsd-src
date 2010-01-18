@@ -96,6 +96,7 @@ static linux_ioctl_function_t linux_ioctl_drm;
 static linux_ioctl_function_t linux_ioctl_sg;
 static linux_ioctl_function_t linux_ioctl_v4l;
 static linux_ioctl_function_t linux_ioctl_special;
+static linux_ioctl_function_t linux_ioctl_fbsd_usb;
 
 static struct linux_ioctl_handler cdrom_handler =
 { linux_ioctl_cdrom, LINUX_IOCTL_CDROM_MIN, LINUX_IOCTL_CDROM_MAX };
@@ -121,6 +122,8 @@ static struct linux_ioctl_handler sg_handler =
 { linux_ioctl_sg, LINUX_IOCTL_SG_MIN, LINUX_IOCTL_SG_MAX };
 static struct linux_ioctl_handler video_handler =
 { linux_ioctl_v4l, LINUX_IOCTL_VIDEO_MIN, LINUX_IOCTL_VIDEO_MAX };
+static struct linux_ioctl_handler fbsd_usb =
+{ linux_ioctl_fbsd_usb, LINUX_FBSD_USB_MIN, LINUX_FBSD_USB_MAX };
 
 DATA_SET(linux_ioctl_handler_set, cdrom_handler);
 DATA_SET(linux_ioctl_handler_set, vfat_handler);
@@ -134,6 +137,7 @@ DATA_SET(linux_ioctl_handler_set, private_handler);
 DATA_SET(linux_ioctl_handler_set, drm_handler);
 DATA_SET(linux_ioctl_handler_set, sg_handler);
 DATA_SET(linux_ioctl_handler_set, video_handler);
+DATA_SET(linux_ioctl_handler_set, fbsd_usb);
 
 struct handler_element
 {
@@ -2957,6 +2961,24 @@ linux_ioctl_special(struct thread *td, struct linux_ioctl_args *args)
 	}
 
 	return (error);
+}
+
+/*
+ * Support for mounting our devfs under /compat/linux/dev and using
+ * our libusb(3) compiled on Linux to access it from within Linuxolator
+ * environment.
+ */
+static int
+linux_ioctl_fbsd_usb(struct thread *td, struct linux_ioctl_args *args)
+{
+
+	/*
+	 * Because on GNU/Linux we build our libusb(3) with our header
+	 * files and ioccom.h macros, ioctl() will contain our native
+	 * command value. This means that we can basically redirect this
+	 * call further.
+	 */
+	return (ioctl(td, (struct ioctl_args *)args));
 }
 
 /*
