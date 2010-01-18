@@ -67,6 +67,7 @@ options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	AUDIT			# Security event auditing
+options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
 # To make an SMP kernel, the next line is needed
 options 	SMP			# Symmetric MultiProcessor Kernel
@@ -210,4 +211,3 @@ device		ccd
 # on most arches and in most cases 1000Hz pessimizes performance
 # its choice was not adequately researched
 options 	HZ=100
-

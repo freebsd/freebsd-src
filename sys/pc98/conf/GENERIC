@@ -66,6 +66,7 @@ options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	AUDIT			# Security event auditing
+options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
 # To make an SMP kernel, the next two lines are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
