@@ -46,6 +46,7 @@
 .nr %Q 1
 .nr %R 1
 .nr %T 1
+.nr %U 1
 .nr %V 1
 .nr Ac 3
 .nr Ad 12n
@@ -77,6 +78,7 @@
 .nr Dq 12n
 .nr Ds 6n\" many manpages still use this as a -width value
 .nr Dv 12n
+.nr Dx 1
 .nr Ec 3
 .nr Ef 8n\" ?
 .nr Ek 8n\" ?
@@ -219,6 +221,7 @@
 .\" NS   doc-document-title
 .\" NS   doc-section
 .\" NS   doc-volume
+.\" NS   doc-command-name
 .\" NS
 .\" NS local variables:
 .\" NS   doc-volume-as-XXX
@@ -319,6 +322,7 @@
 .  ds doc-document-title UNTITLED
 .  ds doc-volume LOCAL
 .  ds doc-section Null
+.  ds doc-command-name
 .
 .  if !"\$1"" \
 .    ds doc-document-title "\$1
@@ -357,6 +361,12 @@
 .  if !"\$3"" \
 .    if "\*[doc-volume]"LOCAL" \
 .      ds doc-volume \$3
+.
+.  if !\n[cR] \
+.    if \n[nl] \{\
+  .    doc-setup-header
+.      bp
+.    \}
 ..
 .
 .
@@ -379,6 +389,7 @@
 .\" NS
 .\" NS modifies:
 .\" NS   doc-operating-system
+.\" NS   doc-command-name
 .\" NS
 .\" NS local variables:
 .\" NS   doc-operating-system-XXX-XXX
@@ -435,9 +446,14 @@
 .ds doc-operating-system-NetBSD-2.0   2.0
 .ds doc-operating-system-NetBSD-2.0.1 2.0.1
 .ds doc-operating-system-NetBSD-2.0.2 2.0.2
+.ds doc-operating-system-NetBSD-2.0.3 2.0.3
 .ds doc-operating-system-NetBSD-2.1   2.1
 .ds doc-operating-system-NetBSD-3.0   3.0
+.ds doc-operating-system-NetBSD-3.0.1 3.0.1
+.ds doc-operating-system-NetBSD-3.0.2 3.0.2
+.ds doc-operating-system-NetBSD-3.1   3.1
 .ds doc-operating-system-NetBSD-4.0   4.0
+.ds doc-operating-system-NetBSD-4.0.1 4.0.1
 .
 .ds doc-operating-system-FreeBSD-1.0     1.0
 .ds doc-operating-system-FreeBSD-1.1     1.1
@@ -486,23 +502,48 @@
 .ds doc-operating-system-FreeBSD-6.0     6.0
 .ds doc-operating-system-FreeBSD-6.1     6.1
 .ds doc-operating-system-FreeBSD-6.2     6.2
+.ds doc-operating-system-FreeBSD-6.3     6.3
+.ds doc-operating-system-FreeBSD-6.4     6.4
 .ds doc-operating-system-FreeBSD-7.0     7.0
+.ds doc-operating-system-FreeBSD-7.1     7.1
 .
-.ds doc-operating-system-Darwin-8.0.0 8.0.0
-.ds doc-operating-system-Darwin-8.1.0 8.1.0
-.ds doc-operating-system-Darwin-8.2.0 8.2.0
-.ds doc-operating-system-Darwin-8.3.0 8.3.0
-.ds doc-operating-system-Darwin-8.4.0 8.4.0
-.ds doc-operating-system-Darwin-8.5.0 8.5.0
+.ds doc-operating-system-Darwin-8.0.0  8.0.0
+.ds doc-operating-system-Darwin-8.1.0  8.1.0
+.ds doc-operating-system-Darwin-8.2.0  8.2.0
+.ds doc-operating-system-Darwin-8.3.0  8.3.0
+.ds doc-operating-system-Darwin-8.4.0  8.4.0
+.ds doc-operating-system-Darwin-8.5.0  8.5.0
+.ds doc-operating-system-Darwin-8.6.0  8.6.0
+.ds doc-operating-system-Darwin-8.7.0  8.7.0
+.ds doc-operating-system-Darwin-8.8.0  8.8.0
+.ds doc-operating-system-Darwin-8.9.0  8.9.0
+.ds doc-operating-system-Darwin-8.10.0 8.10.0
+.ds doc-operating-system-Darwin-8.11.0 8.11.0
+.ds doc-operating-system-Darwin-9.0.0  9.0.0
+.ds doc-operating-system-Darwin-9.1.0  9.1.0
+.ds doc-operating-system-Darwin-9.2.0  9.2.0
+.ds doc-operating-system-Darwin-9.3.0  9.3.0
+.ds doc-operating-system-Darwin-9.4.0  9.4.0
+.ds doc-operating-system-Darwin-9.5.0  9.5.0
+.ds doc-operating-system-Darwin-9.6.0  9.6.0
 .
-.ds doc-operating-system-DragonFly-1.0 1.0
-.ds doc-operating-system-DragonFly-1.1 1.1
-.ds doc-operating-system-DragonFly-1.2 1.2
-.ds doc-operating-system-DragonFly-1.3 1.3
-.ds doc-operating-system-DragonFly-1.4 1.4
-.ds doc-operating-system-DragonFly-1.5 1.5
+.ds doc-operating-system-DragonFly-1.0    1.0
+.ds doc-operating-system-DragonFly-1.1    1.1
+.ds doc-operating-system-DragonFly-1.2    1.2
+.ds doc-operating-system-DragonFly-1.3    1.3
+.ds doc-operating-system-DragonFly-1.4    1.4
+.ds doc-operating-system-DragonFly-1.5    1.5
+.ds doc-operating-system-DragonFly-1.6    1.6
+.ds doc-operating-system-DragonFly-1.8    1.8
+.ds doc-operating-system-DragonFly-1.8.1  1.8.1
+.ds doc-operating-system-DragonFly-1.10   1.10
+.ds doc-operating-system-DragonFly-1.12   1.12
+.ds doc-operating-system-DragonFly-1.12.2 1.12.2
+.ds doc-operating-system-DragonFly-2.0    2.0
 .
 .de Os
+.  ds doc-command-name
+.
 .  ie "\$1"" \
 .    ds doc-operating-system "\*[doc-default-operating-system]
 .  el \{ .ie "\$1"ATT" \{\
@@ -563,6 +604,7 @@
 .\" NS
 .\" NS modifies:
 .\" NS   doc-date-string
+.\" NS   doc-command-name
 .\" NS
 .\" NS local variables:
 .\" NS   doc-date-XXX
@@ -583,6 +625,8 @@
 .ds doc-date-12 December
 .
 .de Dd
+.  ds doc-command-name
+.
 .  ie \n[.$] \{\
 .    ie (\n[.$] == 3) \
 .      ds doc-date-string \$1\~\$2 \$3
@@ -1128,6 +1172,8 @@
 .  tm doc-reference-title-count == \n[doc-reference-title-count]
 .  tm doc-reference-title-name == `\*[doc-reference-title-name]'
 .  tm doc-reference-title-name-for-book == `\*[doc-reference-title-name-for-book]'
+.  tm doc-url-count == \n[doc-url-count]
+.  tm doc-url-name == `\*[doc-url-name]'
 .  tm doc-volume-count == \n[doc-volume-count]
 .  tm doc-volume-name == `\*[doc-volume-name]'
 .  tm doc-have-author == \n[doc-have-author]
