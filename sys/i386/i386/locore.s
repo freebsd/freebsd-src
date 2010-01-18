@@ -104,9 +104,7 @@ IdlePTD:	.long	0		/* phys addr of kernel PTD */
 IdlePDPT:	.long	0		/* phys addr of kernel PDPT */
 #endif
 
-#ifdef SMP
 	.globl	KPTphys
-#endif
 KPTphys:	.long	0		/* phys addr of kernel page tables */
 
 	.globl	proc0kstack
