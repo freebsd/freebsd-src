@@ -3,6 +3,7 @@ $FreeBSD$
 NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
 file is important.  Make sure the current version number is on line 6.
 
+2.1:	Add support for "-dev <part>" argument parsing.
 2.0:	Provide devices based on the block I/O protocol, rather than the
 	simple file services protocol. Use the FreeBSD file system code
 	on top of those devices to access files.
