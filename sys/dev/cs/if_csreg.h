@@ -539,6 +539,8 @@
 static __inline uint16_t
 cs_inw(struct cs_softc *sc, int off)
 {
+	if (off & 1)
+		device_printf(sc->dev, "BUG: inw to an odd address.\n");
 	return ((inb(sc->nic_addr + off) & 0xff) |
 	    (inb(sc->nic_addr + off + 1) << 8));
 }
