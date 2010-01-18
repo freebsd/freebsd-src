@@ -127,17 +127,13 @@ fail:
 /*
  * Alphabetic order comparison routine for those who want it.
  *
- * XXXKIB POSIX 2008 requires the alphasort() to use strcoll().  Keep
- * strcmp() for now, since environment locale settings could have no
- * relevance for the byte sequence of the file name. Moreover, it
- * might be even invalid sequence in current locale, and then
- * behaviour of alphasort would be undefined.
+ * POSIX 2008 requires the alphasort() to use strcoll().
  */
 int
 alphasort(const struct dirent **d1, const struct dirent **d2)
 {
 
-	return (strcmp((*d1)->d_name, (*d2)->d_name));
+	return (strcoll((*d1)->d_name, (*d2)->d_name));
 }
 
 static int
