@@ -1473,7 +1473,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			d = &ch->curr[ccb->ccb_h.target_id];
 		else
 			d = &ch->user[ccb->ccb_h.target_id];
-		if ((ch->flags & ATA_SATA) && (ch->flags & ATA_NO_SLAVE)) {
+		if (ch->flags & ATA_SATA) {
 			if (cts->xport_specific.sata.valid & CTS_SATA_VALID_REVISION)
 				d->revision = cts->xport_specific.sata.revision;
 			if (cts->xport_specific.ata.valid & CTS_SATA_VALID_MODE) {
@@ -1497,8 +1497,6 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			}
 			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_BYTECOUNT)
 				d->bytecount = cts->xport_specific.ata.bytecount;
-			if (ch->flags & ATA_SATA)
-				d->bytecount = min(8192, d->bytecount);
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -1515,7 +1513,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			d = &ch->user[ccb->ccb_h.target_id];
 		cts->protocol = PROTO_ATA;
 		cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
-		if ((ch->flags & ATA_SATA) && (ch->flags & ATA_NO_SLAVE)) {
+		if (ch->flags & ATA_SATA) {
 			cts->transport = XPORT_SATA;
 			cts->transport_version = XPORT_VERSION_UNSPECIFIED;
 			cts->xport_specific.sata.mode = d->mode;
@@ -1604,7 +1602,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->hba_vid, "ATA", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
-		if ((ch->flags & ATA_SATA) && (ch->flags & ATA_NO_SLAVE))
+		if (ch->flags & ATA_SATA)
 			cpi->transport = XPORT_SATA;
 		else
 			cpi->transport = XPORT_ATA;
