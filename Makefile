@@ -303,7 +303,7 @@ universe_${target}:
 .if !defined(MAKE_JUST_KERNELS)
 	@echo ">> ${target} started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
-	    ${MAKE} ${JFLAG} buildworld \
+	    ${MAKE} ${JFLAG} kernel-toolchain \
 	    TARGET=${target} \
 	    > _.${target}.buildworld 2>&1 || \
 	    (echo "${target} world failed," \
