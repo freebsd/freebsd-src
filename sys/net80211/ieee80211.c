@@ -440,6 +440,9 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	/* auto-enable s/w beacon miss support */
 	if (flags & IEEE80211_CLONE_NOBEACONS)
 		vap->iv_flags_ext |= IEEE80211_FEXT_SWBMISS;
+	/* auto-generated or user supplied MAC address */
+	if (flags & (IEEE80211_CLONE_BSSID|IEEE80211_CLONE_MACADDR))
+		vap->iv_flags_ext |= IEEE80211_FEXT_UNIQMAC;
 	/*
 	 * Enable various functionality by default if we're
 	 * capable; the driver can override us if it knows better.
