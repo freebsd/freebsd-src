@@ -57,6 +57,7 @@ static int ata_intel_ch_attach(device_t dev);
 static void ata_intel_reset(device_t dev);
 static int ata_intel_old_setmode(device_t dev, int target, int mode);
 static int ata_intel_new_setmode(device_t dev, int target, int mode);
+static int ata_intel_sch_setmode(device_t dev, int target, int mode);
 static int ata_intel_sata_getrev(device_t dev, int target);
 static int ata_intel_31244_ch_attach(device_t dev);
 static int ata_intel_31244_ch_detach(device_t dev);
@@ -140,6 +141,7 @@ ata_intel_probe(device_t dev)
      { ATA_I82801JI_R1,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
      { ATA_I82801JI_S2,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
      { ATA_I31244,       0,          0, 2, ATA_SA150, "31244" },
+     { ATA_ISCH,         0,          0, 1, ATA_UDMA5, "SCH" },
      { 0, 0, 0, 0, 0, 0}};
 
     if (pci_get_vendor(dev) != ATA_INTEL_ID)
@@ -183,7 +185,13 @@ ata_intel_chipinit(device_t dev)
 	ctlr->setmode = ata_sata_setmode;
 	ctlr->getrev = ata_sata_getrev;
     }
-
+    /* SCH */
+    else if (ctlr->chip->chipid == ATA_ISCH) {
+	ctlr->channels = 1;
+	ctlr->ch_attach = ata_intel_ch_attach;
+	ctlr->ch_detach = ata_pci_ch_detach;
+	ctlr->setmode = ata_intel_sch_setmode;
+    }
     /* non SATA intel chips goes here */
     else if (ctlr->chip->max_dma < ATA_SA150) {
 	ctlr->channels = ctlr->chip->cfg2;
@@ -245,7 +253,7 @@ ata_intel_ch_attach(device_t dev)
 		(pci_read_config(device_get_parent(dev), 0x90, 1) & 0x04) == 0)
 		    ch->flags |= ATA_NO_SLAVE;
 	    ch->flags |= ATA_SATA;
-    } else
+    } else if (ctlr->chip->chipid != ATA_ISCH)
 	    ch->flags |= ATA_CHECKS_CABLE;
     return 0;
 }
@@ -356,6 +364,35 @@ ata_intel_new_setmode(device_t dev, int target, int mode)
 	}
 	pci_write_config(parent, 0x40, (reg40 & ~mask40) | new40, 4);
 	pci_write_config(parent, 0x44, (reg44 & ~mask44) | new44, 1);
+	return (mode);
+}
+
+static int
+ata_intel_sch_setmode(device_t dev, int target, int mode)
+{
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	u_int8_t dtim = 0x80 + (target << 2);
+	u_int32_t tim = pci_read_config(parent, dtim, 4);
+	int piomode;
+
+	mode = min(mode, ctlr->chip->max_dma);
+	if (mode >= ATA_UDMA0) {
+		tim |= (0x1 << 31);
+		tim &= ~(0x7 << 16);
+		tim |= ((mode & ATA_MODE_MASK) << 16);
+		piomode = ATA_PIO4;
+	} else if (mode >= ATA_WDMA0) {
+		tim &= ~(0x1 << 31);
+		tim &= ~(0x3 << 8);
+		tim |= ((mode & ATA_MODE_MASK) << 8);
+		piomode = (mode == ATA_WDMA0) ? ATA_PIO0 :
+		    (mode == ATA_WDMA1) ? ATA_PIO3 : ATA_PIO4;
+	} else
+		piomode = mode;
+	tim &= ~(0x7);
+	tim |= (piomode & 0x7);
+	pci_write_config(parent, dtim, tim, 4);
 	return (mode);
 }
 
