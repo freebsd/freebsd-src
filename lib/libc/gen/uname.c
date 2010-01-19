@@ -33,15 +33,15 @@ static char sccsid[] = "From: @(#)uname.c	8.1 (Berkeley) 1/4/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define uname wrapped_uname
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
 #include <errno.h>
+#undef uname
 
 int
-__uname(struct utsname *name)
+uname(struct utsname *name)
 {
 	return __xuname(32, name);
 }
-
-__sym_compat(uname, __uname, FBSD_1.0);
