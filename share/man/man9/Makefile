@@ -903,8 +903,8 @@ MLINKS+=mutex.9 mtx_assert.9 \
 	mutex.9 mtx_unlock_spin.9 \
 	mutex.9 mtx_unlock_spin_flags.9
 MLINKS+=namei.9 NDFREE.9 \
-	namei.9 NDINIT.9 \
-	namei.9 NDHASGIANT.9
+	namei.9 NDHASGIANT.9 \
+	namei.9 NDINIT.9
 MLINKS+=pbuf.9 getpbuf.9 \
 	pbuf.9 relpbuf.9 \
 	pbuf.9 trypbuf.9
