@@ -61,7 +61,7 @@ static int ata_amd_setmode(device_t dev, int target, int mode);
 #define AMD_CABLE	0x02
 
 /*
- * American Micro Devices (AMD) chipset support functions
+ * Advanced Micro Devices (AMD) chipset support functions
  */
 static int
 ata_amd_probe(device_t dev)
