@@ -2507,6 +2507,7 @@ pmc_init(void)
 		break;
 	case PMC_CPU_INTEL_CORE:
 		PMC_MDEP_INIT(core);
+		pmc_class_table[n] = &core_class_table_descr;
 		break;
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
