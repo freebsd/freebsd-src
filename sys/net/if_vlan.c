@@ -473,6 +473,9 @@ static void
 vlan_iflladdr(void *arg __unused, struct ifnet *ifp)
 {
 	struct ifvlan *ifv;
+#ifndef VLAN_ARRAY
+	struct ifvlan *next;
+#endif
 	int i;
 
 	/*
@@ -488,13 +491,15 @@ vlan_iflladdr(void *arg __unused, struct ifnet *ifp)
 	 */
 #ifdef VLAN_ARRAY
 	for (i = 0; i < VLAN_ARRAY_SIZE; i++)
-		if ((ifv = ifp->if_vlantrunk->vlans[i]))
-			if_setlladdr(ifv->ifv_ifp, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+		if ((ifv = ifp->if_vlantrunk->vlans[i])) {
 #else /* VLAN_ARRAY */
 	for (i = 0; i < (1 << ifp->if_vlantrunk->hwidth); i++)
-		LIST_FOREACH(ifv, &ifp->if_vlantrunk->hash[i], ifv_list)
-			if_setlladdr(ifv->ifv_ifp, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+		LIST_FOREACH_SAFE(ifv, &ifp->if_vlantrunk->hash[i], ifv_list, next) {
 #endif /* VLAN_ARRAY */
+			VLAN_UNLOCK();
+			if_setlladdr(ifv->ifv_ifp, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+			VLAN_LOCK();
+		}
 	VLAN_UNLOCK();
 
 }
