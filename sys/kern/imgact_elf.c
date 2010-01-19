@@ -692,9 +692,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	u_long text_size = 0, data_size = 0, total_size = 0;
 	u_long text_addr = 0, data_addr = 0;
 	u_long seg_size, seg_addr;
-	u_long addr, et_dyn_addr, entry = 0, proghdr = 0;
+	u_long addr, baddr, et_dyn_addr, entry = 0, proghdr = 0;
 	int32_t osrel = 0;
-	int error = 0, i;
+	int error = 0, i, n;
 	const char *interp = NULL, *newinterp = NULL;
 	Elf_Brandinfo *brand_info;
 	char *path;
@@ -724,14 +724,22 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
 	if (!aligned(phdr, Elf_Addr))
 		return (ENOEXEC);
+	n = 0;
+	baddr = 0;
 	for (i = 0; i < hdr->e_phnum; i++) {
+		if (phdr[i].p_type == PT_LOAD) {
+			if (n == 0)
+				baddr = phdr[i].p_vaddr;
+			n++;
+			continue;
+		}
 		if (phdr[i].p_type == PT_INTERP) {
 			/* Path to interpreter */
 			if (phdr[i].p_filesz > MAXPATHLEN ||
 			    phdr[i].p_offset + phdr[i].p_filesz > PAGE_SIZE)
 				return (ENOEXEC);
 			interp = imgp->image_header + phdr[i].p_offset;
-			break;
+			continue;
 		}
 	}
 
@@ -744,7 +752,14 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	if (hdr->e_type == ET_DYN) {
 		if ((brand_info->flags & BI_CAN_EXEC_DYN) == 0)
 			return (ENOEXEC);
-		et_dyn_addr = ET_DYN_LOAD_ADDR;
+		/*
+		 * Honour the base load address from the dso if it is
+		 * non-zero for some reason.
+		 */
+		if (baddr == 0)
+			et_dyn_addr = ET_DYN_LOAD_ADDR;
+		else
+			et_dyn_addr = 0;
 	} else
 		et_dyn_addr = 0;
 	sv = brand_info->sysvec;
@@ -915,7 +930,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			return (error);
 		}
 	} else
-		addr = 0;
+		addr = et_dyn_addr;
 
 	/*
 	 * Construct auxargs table (used by the fixup routine)
