@@ -596,20 +596,18 @@ ahci_intr(void *data)
 		unit = irq->r_irq_rid - 1;
 		is = ATA_INL(ctlr->r_mem, AHCI_IS);
 	}
+	/* Some controllers have edge triggered IS. */
+	if (ctlr->quirks & AHCI_Q_EDGEIS)
+		ATA_OUTL(ctlr->r_mem, AHCI_IS, is);
 	for (; unit < ctlr->channels; unit++) {
 		if ((is & (1 << unit)) != 0 &&
 		    (arg = ctlr->interrupt[unit].argument)) {
-			if (ctlr->quirks & AHCI_Q_EDGEIS) {
-				/* Some controller have edge triggered IS. */
-				ATA_OUTL(ctlr->r_mem, AHCI_IS, 1 << unit);
 				ctlr->interrupt[unit].function(arg);
-			} else {
-				/* but AHCI declares level triggered IS. */
-				ctlr->interrupt[unit].function(arg);
-				ATA_OUTL(ctlr->r_mem, AHCI_IS, 1 << unit);
-			}
 		}
 	}
+	/* AHCI declares level triggered IS. */
+	if (!(ctlr->quirks & AHCI_Q_EDGEIS))
+		ATA_OUTL(ctlr->r_mem, AHCI_IS, is);
 }
 
 /*
