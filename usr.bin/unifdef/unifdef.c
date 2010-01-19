@@ -334,7 +334,7 @@ main(int argc, char *argv[])
 			if (dirsep != NULL)
 				snprintf(tempname, sizeof(tempname),
 				    "%.*s/" TEMPLATE,
-				    dirsep - ofilename, ofilename);
+				    (int)(dirsep - ofilename), ofilename);
 			else
 				strlcpy(tempname, TEMPLATE, sizeof(tempname));
 			ofd = mkstemp(tempname);
