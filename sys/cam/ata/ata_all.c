@@ -75,6 +75,11 @@ ata_op_string(struct ata_cmd *cmd)
 	switch (cmd->command) {
 	case 0x00: return ("NOP");
 	case 0x03: return ("CFA_REQUEST_EXTENDED_ERROR");
+	case 0x06:
+		switch (cmd->features) {
+	        case 0x01: return ("DSM TRIM");
+	        }
+	        return "DSM";
 	case 0x08: return ("DEVICE_RESET");
 	case 0x20: return ("READ");
 	case 0x24: return ("READ48");
@@ -338,7 +343,8 @@ ata_48bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint16_t features,
 	    cmd == ATA_WRITE_DMA_FUA48 ||
 	    cmd == ATA_WRITE_DMA_QUEUED48 ||
 	    cmd == ATA_WRITE_DMA_QUEUED_FUA48 ||
-	    cmd == ATA_WRITE_STREAM_DMA48)
+	    cmd == ATA_WRITE_STREAM_DMA48 ||
+	    cmd == ATA_DATA_SET_MANAGEMENT)
 		ataio->cmd.flags |= CAM_ATAIO_DMA;
 	ataio->cmd.command = cmd;
 	ataio->cmd.features = features;
