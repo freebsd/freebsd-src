@@ -466,12 +466,14 @@
 	<listitem>
 	  <para>&sun.blade; 2500</para>
 	</listitem>
-
 	<listitem>
 	  <para>&sun.fire; 280R</para>
 	</listitem>
 	<listitem>
 	  <para>&sun.fire; V210</para>
+	</listitem>
+	<listitem>
+	  <para>&sun.fire; V215 (support first appeared in 7.3-RELEASE)</para>
 	</listitem>
 	<listitem>
 	  <para>&sun.fire; V250</para>
@@ -480,7 +482,10 @@
 	  <para>&sun.fire; V440 (support for the on-board NICs first
 	    appeared in 7.3-RELEASE and 8.0-RELEASE)</para>
 	</listitem>
-
+	<listitem>
+	  <para>&sun.fire; V480 (501-6780 and 501-6790 centerplanes only, for
+	    which support first appeared in 7.3-RELEASE)</para>
+	</listitem>
 	<listitem>
 	  <para>&sun.fire; V880</para>
 	</listitem>
@@ -499,6 +504,9 @@
 	<listitem>
 	  <para>&sun.fire; V240</para>
  	</listitem>
+	<listitem>
+	  <para>&sun.fire; V245 (support first appeared in 7.3-RELEASE)</para>
+	</listitem>
        </itemizedlist>
 </sect2>
 
