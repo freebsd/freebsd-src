@@ -44,7 +44,7 @@
 .Nd pathname translation and lookup operations
 .Sh SYNOPSIS
 .In sys/param.h
-.In sys/proc.h
+.In sys/fcntl.h
 .In sys/namei.h
 .Ft int
 .Fn namei "struct nameidata *ndp"
@@ -314,6 +314,34 @@ the
 flag can be passed to the
 .Fn NDFREE
 function.
+.El
+.Sh RETURN VALUES
+If successful,
+.Fn namei
+will return 0, otherwise it will return an error.
+.Sh ERRORS
+Errors which
+.Fn namei
+may return:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the specified pathname is not a directory when a directory is
+expected.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded 255 characters,
+or an entire pathname exceeded 1023 characters.
+.It Bq Er ENOENT
+A component of the specified pathname does not exist,
+or the pathname is an empty string.
+.It Bq Er ACCES
+An attempt is made to access a file in a way forbidden by its file access
+permissions.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EISDIR
+An attempt is made to open a directory with write mode specified.
+.It Bq Er EROFS
+An attempt is made to modify a file or directory on a read-only file system.
 .El
 .Sh FILES
 .Bl -tag
