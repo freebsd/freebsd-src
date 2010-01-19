@@ -80,7 +80,7 @@ ata_serverworks_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     static struct ata_chip_id ids[] =
-    {{ ATA_ROSB4,     0x00, SWKS_33,  0, ATA_UDMA2, "ROSB4" },
+    {{ ATA_ROSB4,     0x00, SWKS_33,  0, ATA_WDMA2, "ROSB4" },
      { ATA_CSB5,      0x92, SWKS_100, 0, ATA_UDMA5, "CSB5" },
      { ATA_CSB5,      0x00, SWKS_66,  0, ATA_UDMA4, "CSB5" },
      { ATA_CSB6,      0x00, SWKS_100, 0, ATA_UDMA5, "CSB6" },
@@ -388,10 +388,12 @@ ata_serverworks_setmode(device_t dev, int target, int mode)
 	    piomode = mode;
 	}
 	/* Set PIO mode and timings, calculated above. */
-	pci_write_config(parent, 0x4a,
+	if (ctlr->chip->cfg1 != SWKS_33) {
+		pci_write_config(parent, 0x4a,
 			 (pci_read_config(parent, 0x4a, 2) &
 			  ~(0xf << (devno << 2))) |
 			 ((piomode - ATA_PIO0) << (devno<<2)),2);
+	}
 	pci_write_config(parent, 0x40, 
 			 (pci_read_config(parent, 0x40, 4) &
 			  ~(0xff << offset)) |
