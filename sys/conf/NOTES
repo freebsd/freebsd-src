@@ -50,6 +50,15 @@ ident		LINT
 #
 maxusers	10
 
+# To statically compile in device wiring instead of /boot/device.hints
+#hints		"LINT.hints"		# Default places to look for devices.
+
+# Use the following to compile in values accessible to the kernel
+# through getenv() (or kenv(1) in userland). The format of the file
+# is 'variable=value', see kenv(1)
+#
+#env		"LINT.env"
+
 #
 # The `makeoptions' parameter allows variables to be passed to the
 # generated Makefile in the build area.
