@@ -2,7 +2,8 @@
 #
 # unifdefall: remove all the #if's from a source file
 #
-# Copyright (c) 2002 - 2009 Tony Finch <dot@dotat.at>.  All rights reserved.
+# Copyright (c) 2002 - 2010 Tony Finch <dot@dotat.at>
+# Copyright (c) 2009 - 2010 Jonathan Nieder <jrnieder@gmail.com>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -25,19 +26,27 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$dotat: unifdef/unifdefall.sh,v 1.24 2009/11/26 12:54:39 fanf2 Exp $
+#	$dotat: unifdef/unifdefall.sh,v 1.27 2010/01/19 16:09:50 fanf2 Exp $
 # $FreeBSD$
 
 set -e
 
-basename=$(basename $0)
+unifdef="$(dirname "$0")/unifdef"
+if [ ! -e "$unifdef" ]
+then
+	unifdef=unifdef
+fi
+# export to the final shell command
+export unifdef
+
+basename=$(basename "$0")
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/$basename.XXXXXXXXXX") || exit 2
 trap 'rm -r "$tmp" || exit 1' EXIT
 
 export LC_ALL=C
 
 # list of all controlling macros
-unifdef -s "$@" | sort | uniq >"$tmp/ctrl"
+"$unifdef" -s "$@" | sort | uniq >"$tmp/ctrl"
 # list of all macro definitions
 cpp -dM "$@" | sort | sed 's/^#define //' >"$tmp/hashdefs"
 # list of defined macro names
@@ -49,7 +58,7 @@ comm -12 "$tmp/ctrl" "$tmp/alldef" >"$tmp/def"
 # and converts them to unifdef command-line arguments
 sed 's|.*|s/^&\\(([^)]*)\\)\\{0,1\\} /-D&=/p|' <"$tmp/def" >"$tmp/script"
 # create the final unifdef command
-{	echo unifdef -k \\
+{	echo '"$unifdef" -k \'
 	# convert the controlling undefined macros to -U arguments
 	sed 's/.*/-U& \\/' <"$tmp/undef"
 	# convert the controlling defined macros to quoted -D arguments
