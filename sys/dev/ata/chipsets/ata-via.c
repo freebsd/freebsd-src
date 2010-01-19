@@ -59,6 +59,9 @@ static void ata_via_reset(device_t dev);
 static int ata_via_old_setmode(device_t dev, int target, int mode);
 static void ata_via_southbridge_fixup(device_t dev);
 static int ata_via_new_setmode(device_t dev, int target, int mode);
+static int ata_via_sata_ch_attach(device_t dev);
+static int ata_via_sata_getrev(device_t dev, int target);
+static int ata_via_sata_setmode(device_t dev, int target, int mode);
 
 /* misc defines */
 #define VIA33           0
@@ -70,6 +73,7 @@ static int ata_via_new_setmode(device_t dev, int target, int mode);
 #define VIABUG          0x02
 #define VIABAR          0x04
 #define VIAAHCI         0x08
+#define VIASATA         0x10
 
 
 /*
@@ -98,6 +102,9 @@ ata_via_probe(device_t dev)
      { ATA_VIA8237_5372, 0x00, VIA133, 0x00, ATA_UDMA6, "8237" },
      { ATA_VIA8237_7372, 0x00, VIA133, 0x00, ATA_UDMA6, "8237" },
      { ATA_VIA8251,   0x00, VIA133, 0x00,    ATA_UDMA6, "8251" },
+     { ATA_VIACX700,  0x00, VIA133, VIASATA, ATA_SA150, "CX700" },
+     { ATA_VIAVX800,  0x00, VIA133, VIASATA, ATA_SA150, "VX800" },
+     { ATA_VIAVX855,  0x00, VIA133, 0x00,    ATA_UDMA6, "VX855" },
      { 0, 0, 0, 0, 0, 0 }};
     static struct ata_chip_id new_ids[] =
     {{ ATA_VIA6410,   0x00, 0,      0x00,    ATA_UDMA6, "6410" },
@@ -113,7 +120,9 @@ ata_via_probe(device_t dev)
     if (pci_get_vendor(dev) != ATA_VIA_ID)
 	return ENXIO;
 
-    if (pci_get_devid(dev) == ATA_VIA82C571) {
+    if (pci_get_devid(dev) == ATA_VIA82C571 ||
+	pci_get_devid(dev) == ATA_VIACX700IDE ||
+	pci_get_devid(dev) == ATA_VIASATAIDE) {
 	if (!(ctlr->chip = ata_find_chip(dev, ids, -99))) 
 	    return ENXIO;
     }
@@ -134,12 +143,21 @@ ata_via_chipinit(device_t dev)
 
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
-    
-    if (ctlr->chip->max_dma >= ATA_SA150) {
-	/* do we have AHCI capability ? */
-	if ((ctlr->chip->cfg2 == VIAAHCI) && ata_ahci_chipinit(dev) != ENXIO)
-	    return 0;
 
+    /* AHCI SATA */
+    if (ctlr->chip->cfg2 & VIAAHCI) {
+	if (ata_ahci_chipinit(dev) != ENXIO)
+	    return (0);
+    }
+    /* 2 SATA without SATA registers on first channel + 1 PATA on second */
+    if (ctlr->chip->cfg2 & VIASATA) {
+	ctlr->ch_attach = ata_via_sata_ch_attach;
+	ctlr->setmode = ata_via_sata_setmode;
+	ctlr->getrev = ata_via_sata_getrev;
+	return 0;
+    }
+    /* Legacy SATA/SATA+PATA with SATA registers in BAR(5). */
+    if (ctlr->chip->max_dma >= ATA_SA150) {
 	ctlr->r_type2 = SYS_RES_IOPORT;
 	ctlr->r_rid2 = PCIR_BAR(5);
 	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
@@ -148,7 +166,6 @@ ata_via_chipinit(device_t dev)
 	    ctlr->ch_detach = ata_via_ch_detach;
 	    ctlr->reset = ata_via_reset;
 	}
-
 	if (ctlr->chip->cfg2 & VIABAR) {
 	    ctlr->channels = 3;
 	    ctlr->setmode = ata_via_new_setmode;
@@ -363,6 +380,38 @@ ata_via_southbridge_fixup(device_t dev)
 	}
     }
     free(children, M_TEMP);
+}
+
+static int
+ata_via_sata_ch_attach(device_t dev)
+{
+	struct ata_channel *ch = device_get_softc(dev);
+
+	if (ata_pci_ch_attach(dev))
+		return ENXIO;
+	if (ch->unit == 0)
+		ch->flags |= ATA_SATA;
+	return (0);
+}
+
+static int
+ata_via_sata_getrev(device_t dev, int target)
+{
+	struct ata_channel *ch = device_get_softc(dev);
+
+	if (ch->unit == 0)
+		return (1);
+	return (0);
+}
+
+static int
+ata_via_sata_setmode(device_t dev, int target, int mode)
+{
+	struct ata_channel *ch = device_get_softc(dev);
+
+	if (ch->unit == 0)
+		return (mode);
+	return (ata_via_old_setmode(dev, target, mode));
 }
 
 ATA_DECLARE_DRIVER(ata_via);
