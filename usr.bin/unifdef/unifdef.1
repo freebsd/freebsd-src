@@ -1,6 +1,6 @@
 .\" Copyright (c) 1985, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
-.\" Copyright (c) 2002 - 2009 Tony Finch <dot@dotat.at>.  All rights reserved.
+.\" Copyright (c) 2002 - 2010 Tony Finch <dot@dotat.at>.  All rights reserved.
 .\"
 .\" This code is derived from software contributed to Berkeley by
 .\" Dave Yost. It was rewritten to support ANSI C by Tony Finch.
@@ -30,10 +30,10 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)unifdef.1	8.2 (Berkeley) 4/1/94
-.\"	$dotat: unifdef/unifdef.1,v 1.60 2009/11/25 00:11:02 fanf2 Exp $
+.\"	$dotat: unifdef/unifdef.1,v 1.62 2010/01/19 17:33:53 fanf2 Exp $
 .\" $FreeBSD$
 .\"
-.Dd September 24, 2002
+.Dd January 19, 2010
 .Dt UNIFDEF 1
 .Os
 .Sh NAME
@@ -48,7 +48,8 @@
 .Op Fl iD Ns Ar sym Ns Op = Ns Ar val
 .Op Fl iU Ns Ar sym
 .Ar ...
-.Op Ar file
+.Op Fl o Ar outfile
+.Op Ar infile
 .Nm unifdefall
 .Op Fl I Ns Ar path
 .Ar ...
@@ -253,6 +254,18 @@ Add
 directives to the output following any deleted lines,
 so that errors produced when compiling the output file correspond to
 line numbers in the input file.
+.Pp
+.It Fl o Ar outfile
+Write output to the file
+.Ar outfile
+instead of the standard output.
+If
+.Ar outfile
+is the same as the input file,
+the output is written to a temporary file
+which is renamed into place when
+.Nm
+completes successfully.
 .Pp
 .It Fl s
 Instead of processing the input file as usual,

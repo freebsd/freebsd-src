@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 - 2009 Tony Finch <dot@dotat.at>
+ * Copyright (c) 2002 - 2010 Tony Finch <dot@dotat.at>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,26 +24,13 @@
  */
 
 /*
+ * unifdef - remove ifdef'ed lines
+ *
  * This code was derived from software contributed to Berkeley by Dave Yost.
  * It was rewritten to support ANSI C by Tony Finch. The original version
  * of unifdef carried the 4-clause BSD copyright licence. None of its code
  * remains in this version (though some of the names remain) so it now
  * carries a more liberal licence.
- *
- * The latest version is available from http://dotat.at/prog/unifdef
- */
-
-#include <sys/cdefs.h>
-
-#ifdef __IDSTRING
-__IDSTRING(dotat, "$dotat: unifdef/unifdef.c,v 1.190 2009/11/27 17:21:26 fanf2 Exp $");
-#endif
-#ifdef __FBSDID
-__FBSDID("$FreeBSD$");
-#endif
-
-/*
- * unifdef - remove ifdef'ed lines
  *
  *  Wishlist:
  *      provide an option which will append the name of the
@@ -56,14 +43,25 @@ __FBSDID("$FreeBSD$");
  *     also make it possible to handle all "dodgy" directives correctly.
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#ifdef __IDSTRING
+__IDSTRING(dotat, "$dotat: unifdef/unifdef.c,v 1.193 2010/01/19 18:03:02 fanf2 Exp $");
+#endif
+#ifdef __FBSDID
+__FBSDID("$FreeBSD$");
+#endif
 
 /* types of input lines: */
 typedef enum {
@@ -157,6 +155,11 @@ static char const * const linestate_name[] = {
 #define	EDITSLOP        10
 
 /*
+ * For temporary filenames
+ */
+#define TEMPLATE        "unifdef.XXXXXX"
+
+/*
  * Globals.
  */
 
@@ -179,6 +182,10 @@ static int              nsyms;			/* number of symbols */
 static FILE            *input;			/* input file pointer */
 static const char      *filename;		/* input file name */
 static int              linenum;		/* current line number */
+static FILE            *output;			/* output file pointer */
+static const char      *ofilename;		/* output file name */
+static bool             overwriting;		/* output overwrites input */
+static char             tempname[FILENAME_MAX];	/* used when overwriting */
 
 static char             tline[MAXLINE+EDITSLOP];/* input buffer plus space */
 static char            *keyword;		/* used for editing #elif's */
@@ -197,6 +204,7 @@ static bool             constexpr;		/* constant #if expression */
 static int              exitstat;		/* program exit status */
 
 static void             addsym(bool, bool, char *);
+static void             closeout(void);
 static void             debug(const char *, ...);
 static void             done(void);
 static void             error(const char *);
@@ -227,7 +235,7 @@ main(int argc, char *argv[])
 {
 	int opt;
 
-	while ((opt = getopt(argc, argv, "i:D:U:I:BbcdeKklnst")) != -1)
+	while ((opt = getopt(argc, argv, "i:D:U:I:o:BbcdeKklnst")) != -1)
 		switch (opt) {
 		case 'i': /* treat stuff controlled by these symbols as text */
 			/*
@@ -277,6 +285,9 @@ main(int argc, char *argv[])
 		case 'n': /* add #line directive after deleted lines */
 			lnnum = true;
 			break;
+		case 'o': /* output to a file */
+			ofilename = optarg;
+			break;
 		case 's': /* only output list of symbols that control #ifs */
 			symlist = true;
 			break;
@@ -300,6 +311,43 @@ main(int argc, char *argv[])
 	} else {
 		filename = "[stdin]";
 		input = stdin;
+	}
+	if (ofilename == NULL) {
+		output = stdout;
+	} else {
+		struct stat ist, ost;
+		memset(&ist, 0, sizeof(ist));
+		memset(&ost, 0, sizeof(ost));
+
+		if (fstat(fileno(input), &ist) != 0)
+			err(2, "can't fstat %s", filename);
+		if (stat(ofilename, &ost) != 0 && errno != ENOENT)
+			warn("can't stat %s", ofilename);
+
+		overwriting = (ist.st_dev == ost.st_dev
+		            && ist.st_ino == ost.st_ino);
+		if (overwriting) {
+			const char *dirsep;
+			int ofd;
+
+			dirsep = strrchr(ofilename, '/');
+			if (dirsep != NULL)
+				snprintf(tempname, sizeof(tempname),
+				    "%.*s/" TEMPLATE,
+				    dirsep - ofilename, ofilename);
+			else
+				strlcpy(tempname, TEMPLATE, sizeof(tempname));
+			ofd = mkstemp(tempname);
+			if (ofd != -1)
+				output = fdopen(ofd, "w+");
+			if (output == NULL)
+				err(2, "can't create temporary file");
+			fchmod(ofd, ist.st_mode & ACCESSPERMS);
+		} else {
+			output = fopen(ofilename, "w");
+			if (output == NULL)
+				err(2, "can't open %s", ofilename);
+		}
 	}
 	process();
 	abort(); /* bug */
@@ -435,13 +483,6 @@ static state_fn * const trans_table[IS_COUNT][LT_COUNT] = {
  * State machine utility functions
  */
 static void
-done(void)
-{
-	if (incomment)
-		error("EOF in comment");
-	exit(exitstat);
-}
-static void
 ignoreoff(void)
 {
 	if (depth == 0)
@@ -498,13 +539,13 @@ flushline(bool keep)
 		} else {
 			if (lnnum && delcount > 0)
 				printf("#line %d\n", linenum);
-			fputs(tline, stdout);
+			fputs(tline, output);
 			delcount = 0;
 			blankmax = blankcount = blankline ? blankcount + 1 : 0;
 		}
 	} else {
 		if (lnblank)
-			putc('\n', stdout);
+			putc('\n', output);
 		exitstat = 1;
 		delcount += 1;
 		blankcount = 0;
@@ -530,6 +571,40 @@ process(void)
 		    linetype_name[lineval],
 		    ifstate_name[ifstate[depth]], depth);
 	}
+}
+
+/*
+ * Flush the output and handle errors.
+ */
+static void
+closeout(void)
+{
+	if (fclose(output) == EOF) {
+		warn("couldn't write to output");
+		if (overwriting) {
+			unlink(tempname);
+			errx(2, "%s unchanged", filename);
+		} else {
+			exit(2);
+		}
+	}
+}
+
+/*
+ * Clean up and exit.
+ */
+static void
+done(void)
+{
+	if (incomment)
+		error("EOF in comment");
+	closeout();
+	if (overwriting && rename(tempname, filename) == -1) {
+		warn("couldn't rename temporary file");
+		unlink(tempname);
+		errx(2, "%s unchanged", filename);
+	}
+	exit(exitstat);
 }
 
 /*
@@ -1097,5 +1172,6 @@ error(const char *msg)
 	else
 		warnx("%s: %d: %s (#if line %d depth %d)",
 		    filename, linenum, msg, stifline[depth], depth);
+	closeout();
 	errx(2, "output may be truncated");
 }
