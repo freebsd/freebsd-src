@@ -304,6 +304,12 @@ struct siis_cmd {
 #define SIIS_PRB_INTERRUPT_MASK		0x0040
 #define SIIS_PRB_SOFT_RESET		0x0080
     u_int16_t			protocol_override;
+#define SIIS_PRB_PROTO_PACKET		0x0001
+#define SIIS_PRB_PROTO_TCQ		0x0002
+#define SIIS_PRB_PROTO_NCQ		0x0004
+#define SIIS_PRB_PROTO_READ		0x0008
+#define SIIS_PRB_PROTO_WRITE		0x0010
+#define SIIS_PRB_PROTO_TRANSPARENT	0x0020
     u_int32_t			transfer_count;
     u_int8_t			fis[24];
     union {
