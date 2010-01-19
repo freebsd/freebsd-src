@@ -196,8 +196,6 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-#define	MAXUTXENTRIES	1024
-
 /*
  * wtmp --
  *	read through the wtmp file
@@ -205,9 +203,9 @@ main(int argc, char *argv[])
 void
 wtmp(void)
 {
-	struct utmpx buf[MAXUTXENTRIES];
+	struct utmpx *buf = NULL;
 	struct utmpx *ut;
-	static unsigned int first = 0, amount = 0;
+	static unsigned int amount = 0;
 	time_t t;
 	char ct[80];
 	struct tm *tm;
@@ -219,11 +217,12 @@ wtmp(void)
 	if (setutxdb(UTXDB_LOG, file) != 0)
 		err(1, "%s", file);
 	while ((ut = getutxent()) != NULL) {
-		memcpy(&buf[(first + amount) % MAXUTXENTRIES], ut, sizeof *ut);
-		if (amount == MAXUTXENTRIES)
-			first++;
-		else
-			amount++;
+		if (amount % 128 == 0) {
+			buf = realloc(buf, (amount + 128) * sizeof *ut);
+			if (buf == NULL)
+				err(1, "realloc");
+		}
+		memcpy(&buf[amount++], ut, sizeof *ut);
 		if (t > ut->ut_tv.tv_sec)
 			t = ut->ut_tv.tv_sec;
 	}
@@ -231,7 +230,7 @@ wtmp(void)
 
 	/* Display them in reverse order. */
 	while (amount > 0)
-		doentry(&buf[(first + amount--) % MAXUTXENTRIES]);
+		doentry(&buf[--amount]);
 
 	tm = localtime(&t);
 	(void) strftime(ct, sizeof(ct), "\nwtmp begins %+\n", tm);
