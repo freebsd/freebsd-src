@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.92 2008/09/19 13:24:41 sobrado Exp $ */
+/* $OpenBSD: netcat.c,v 1.93 2009/06/05 00:18:10 claudio Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -84,6 +84,7 @@ int	Iflag;					/* TCP receive buffer size */
 int	Oflag;					/* TCP send buffer size */
 int	Sflag;					/* TCP MD5 signature option */
 int	Tflag = -1;				/* IP Type of Service */
+u_int	rdomain;
 
 int timeout = -1;
 int family = AF_UNSPEC;
@@ -125,7 +126,7 @@ main(int argc, char *argv[])
 	sv = NULL;
 
 	while ((ch = getopt(argc, argv,
-	    "46DdhI:i:jklnO:P:p:rSs:tT:Uuvw:X:x:z")) != -1) {
+	    "46DdhI:i:jklnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
@@ -186,6 +187,12 @@ main(int argc, char *argv[])
 			break;
 		case 'u':
 			uflag = 1;
+			break;
+		case 'V':
+			rdomain = (unsigned int)strtonum(optarg, 0,
+			    RT_TABLEID_MAX, &errstr);
+			if (errstr)
+				errx(1, "rdomain %s: %s", errstr, optarg);
 			break;
 		case 'v':
 			vflag = 1;
@@ -498,6 +505,12 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 		    res0->ai_protocol)) < 0)
 			continue;
 
+		if (rdomain) {
+			if (setsockopt(s, IPPROTO_IP, SO_RDOMAIN, &rdomain,
+			    sizeof(rdomain)) == -1)
+				err(1, "setsockopt SO_RDOMAIN");
+		}
+
 		/* Bind to a local port or source address if specified. */
 		if (sflag || pflag) {
 			struct addrinfo ahints, *ares;
@@ -565,6 +578,12 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		if ((s = socket(res0->ai_family, res0->ai_socktype,
 		    res0->ai_protocol)) < 0)
 			continue;
+
+		if (rdomain) {
+			if (setsockopt(s, IPPROTO_IP, SO_RDOMAIN, &rdomain,
+			    sizeof(rdomain)) == -1)
+				err(1, "setsockopt SO_RDOMAIN");
+		}
 
 		ret = setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &x, sizeof(x));
 		if (ret == -1)
@@ -851,6 +870,7 @@ help(void)
 	\t-t		Answer TELNET negotiation\n\
 	\t-U		Use UNIX domain socket\n\
 	\t-u		UDP mode\n\
+	\t-V rdomain	Specify alternate routing domain\n\
 	\t-v		Verbose\n\
 	\t-w secs\t	Timeout for connects and final net reads\n\
 	\t-X proto	Proxy protocol: \"4\", \"5\" (SOCKS) or \"connect\"\n\
@@ -866,8 +886,8 @@ usage(int ret)
 	fprintf(stderr,
 	    "usage: nc [-46DdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
 	    "\t  [-P proxy_username] [-p source_port] [-s source_ip_address] [-T ToS]\n"
-	    "\t  [-w timeout] [-X proxy_protocol] [-x proxy_address[:port]] [hostname]\n"
-	    "\t  [port]\n");
+	    "\t  [-V rdomain] [-w timeout] [-X proxy_protocol]\n"
+	    "\t  [-x proxy_address[:port]] [hostname] [port]\n");
 	if (ret)
 		exit(1);
 }

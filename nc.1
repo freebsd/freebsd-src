@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.48 2008/09/19 13:24:41 sobrado Exp $
+.\"     $OpenBSD: nc.1,v 1.50 2009/06/05 06:47:12 jmc Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: May 6 2008 $
+.Dd $Mdocdate: June 5 2009 $
 .Dt NC 1
 .Os
 .Sh NAME
@@ -42,6 +42,7 @@
 .Op Fl p Ar source_port
 .Op Fl s Ar source_ip_address
 .Op Fl T Ar ToS
+.Op Fl V Ar rdomain
 .Op Fl w Ar timeout
 .Op Fl X Ar proxy_protocol
 .Oo Xo
@@ -176,6 +177,9 @@ to script telnet sessions.
 Specifies to use Unix Domain Sockets.
 .It Fl u
 Use UDP instead of the default option of TCP.
+.It Fl V Ar rdomain
+Set the routing domain.
+The default is 0.
 .It Fl v
 Have
 .Nm
