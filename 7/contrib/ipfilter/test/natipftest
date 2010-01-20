@@ -1,0 +1,71 @@
+#!/bin/sh
+mode=$1
+name=$2
+input=$3
+output=$4
+shift
+if [ $output = hex ] ; then
+	format="-xF $input"
+else
+	format="-F $input"
+fi
+shift
+shift
+shift
+while [ $# -ge 1 ] ; do
+	l=`echo $1 | cut -c1`
+	if [ "$l" = "-" ] ; then
+		format="$format $1"
+	else
+		format="-T $1 $format"
+	fi
+	shift
+done
+mkdir -p results
+if [ -f /usr/ucb/touch ] ; then
+	TOUCH=/usr/ucb/touch
+else
+	if [ -f /usr/bin/touch ] ; then
+		TOUCH=/usr/bin/touch
+	else
+		if [ -f /bin/touch ] ; then
+			TOUCH=/bin/touch
+		fi
+	fi
+fi
+
+case $mode in
+single)
+	echo "$name...";
+	/bin/cp /dev/null results/$name
+	( while read rule; do
+		echo "$rule" | ../ipftest -R $format -b -r regress/$name.ipf -N - -i input/$name >> \
+			results/$name;
+		if [ $? -ne 0 ] ; then
+			exit 1;
+		fi
+		echo "-------------------------------" >> results/$name
+	done ) < regress/$name.nat
+	cmp expected/$name results/$name
+	status=$?
+	if [ $status = 0 ] ; then
+		$TOUCH $name
+	fi
+	;;
+multi)
+	echo "$name...";
+	/bin/cp /dev/null results/$name
+	../ipftest -R $format -b -r regress/$name.ipf -N regress/$name.nat \
+		-i input/$name >> results/$name;
+	if [ $? -ne 0 ] ; then
+		exit 2;
+	fi
+	echo "-------------------------------" >> results/$name
+	cmp expected/$name results/$name
+	status=$?
+	if [ $status = 0 ] ; then
+		$TOUCH $name
+	fi
+	;;
+esac
+exit $status

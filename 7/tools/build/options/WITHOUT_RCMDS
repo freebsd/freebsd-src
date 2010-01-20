@@ -1,0 +1,8 @@
+.\" $FreeBSD$
+Disable building of the
+.Bx
+r-commands.
+This includes
+.Xr rlogin 1 ,
+.Xr rsh 1 ,
+etc.

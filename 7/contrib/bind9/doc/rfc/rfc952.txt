@@ -1,0 +1,340 @@
+Network Working Group                               K. Harrenstien (SRI)
+Request for Comments: 952                                 M. Stahl (SRI)
+                                                        E. Feinler (SRI)
+Obsoletes:  RFC 810, 608                                    October 1985
+
+                 DOD INTERNET HOST TABLE SPECIFICATION
+
+
+STATUS OF THIS MEMO
+
+   This RFC is the official specification of the format of the Internet
+   Host Table.  This edition of the specification includes minor
+   revisions to RFC-810 which brings it up to date. Distribution of this
+   memo is unlimited.
+
+INTRODUCTION
+
+   The DoD Host Table is utilized by the DoD Hostname Server maintained
+   by the DDN Network Information Center (NIC) on behalf of the Defense
+   Communications Agency (DCA) [See RFC-953].
+
+LOCATION OF THE STANDARD DOD ONLINE HOST TABLE
+
+   A machine-translatable ASCII text version of the DoD Host Table is
+   online in the file NETINFO:HOSTS.TXT on the SRI-NIC host.  It can be
+   obtained via FTP from your local host by connecting to host
+   SRI-NIC.ARPA (26.0.0.73 or 10.0.0.51), logging in as user =
+   ANONYMOUS, password = GUEST, and retrieving the file
+   "NETINFO:HOSTS.TXT".  The same table may also be obtained via the NIC
+   Hostname Server, as described in RFC-953.  The latter method is
+   faster and easier, but requires a user program to make the necessary
+   connection to the Name Server.
+
+ASSUMPTIONS
+
+   1. A "name" (Net, Host, Gateway, or Domain name) is a text string up
+   to 24 characters drawn from the alphabet (A-Z), digits (0-9), minus
+   sign (-), and period (.).  Note that periods are only allowed when
+   they serve to delimit components of "domain style names". (See
+   RFC-921, "Domain Name System Implementation Schedule", for
+   background).  No blank or space characters are permitted as part of a
+   name. No distinction is made between upper and lower case.  The first
+   character must be an alpha character.  The last character must not be
+   a minus sign or period.  A host which serves as a GATEWAY should have
+   "-GATEWAY" or "-GW" as part of its name.  Hosts which do not serve as
+   Internet gateways should not use "-GATEWAY" and "-GW" as part of
+   their names. A host which is a TAC should have "-TAC" as the last
+   part of its host name, if it is a DoD host.  Single character names
+   or nicknames are not allowed.
+
+   2. Internet Addresses are 32-bit addresses [See RFC-796].  In the
+
+
+Harrenstien & Stahl & Feinler                                   [Page 1]
+
+
+
+RFC 952                                                     October 1985
+DOD INTERNET HOST TABLE SPECIFICATION
+
+
+   host table described herein each address is represented by four
+   decimal numbers separated by a period.  Each decimal number
+   represents 1 octet.
+
+   3. If the first bit of the first octet of the address is 0 (zero),
+   then the next 7 bits of the first octet indicate the network number
+   (Class A Address).  If the first two bits are 1,0 (one,zero), then
+   the next 14 bits define the net number (Class B Address).  If the
+   first 3 bits are 1,1,0 (one,one,zero), then the next 21 bits define
+   the net number (Class C Address) [See RFC-943].
+
+      This is depicted in the following diagram:
+
+      +-+------------+--------------+--------------+--------------+
+      |0|  NET <-7-> |         LOCAL ADDRESS <-24->               |
+      +-+------------+--------------+--------------+--------------+
+
+      +---+----------+--------------+--------------+--------------+
+      |1 0|      NET  <-14->        |  LOCAL ADDRESS <-16->       |
+      +---+----------+--------------+--------------+--------------+
+
+      +-----+--------+--------------+--------------+--------------+
+      |1 1 0|            NET  <-21->               | LOCAL ADDRESS|
+      +-----+--------+--------------+--------------+--------------+
+
+   4. The LOCAL ADDRESS portion of the internet address identifies a
+   host within the network specified by the NET portion of the address.
+
+   5. The ARPANET and MILNET are both Class A networks.  The NET portion
+   is 10 decimal for ARPANET, 26 decimal for MILNET, and the LOCAL
+   ADDRESS maps as follows: the second octet identifies the physical
+   host, the third octet identifies the logical host, and the fourth
+   identifies the Packet Switching Node (PSN), formerly known as an
+   Interface Message Processor (IMP).
+
+      +-+------------+--------------+--------------+--------------+
+      |0|  10 or 26  |    HOST      | LOGICAL HOST |   PSN (IMP)  |
+      +-+------------+--------------+--------------+--------------+
+
+      (NOTE:  RFC-796 also describes the local address mappings for
+      several other networks.)
+
+   6. It is the responsibility of the users of this host table to
+   translate it into whatever format is needed for their purposes.
+
+   7. Names and addresses for DoD hosts and gateways will be negotiated
+   and registered with the DDN PMO, and subsequently with the NIC,
+
+
+Harrenstien & Stahl & Feinler                                   [Page 2]
+
+
+
+RFC 952                                                     October 1985
+DOD INTERNET HOST TABLE SPECIFICATION
+
+
+   before being used and before traffic is passed by a DoD host.  Names
+   and addresses for domains and networks are to be registered with the
+   DDN Network Information Center (HOSTMASTER@SRI-NIC.ARPA) or
+   800-235-3155.
+
+   The NIC will attempt to keep similar information for non-DoD networks
+   and hosts, if this information is provided, and as long as it is
+   needed, i.e., until intercommunicating network name servers are in
+   place.
+
+EXAMPLE OF HOST TABLE FORMAT
+
+   NET : 10.0.0.0 : ARPANET :
+   NET : 128.10.0.0 : PURDUE-CS-NET :
+   GATEWAY : 10.0.0.77, 18.10.0.4 : MIT-GW.ARPA,MIT-GATEWAY : PDP-11 :
+             MOS : IP/GW,EGP :
+   HOST : 26.0.0.73, 10.0.0.51 : SRI-NIC.ARPA,SRI-NIC,NIC : DEC-2060 :
+          TOPS20 :TCP/TELNET,TCP/SMTP,TCP/TIME,TCP/FTP,TCP/ECHO,ICMP :
+   HOST : 10.2.0.11 : SU-TAC.ARPA,SU-TAC : C/30 : TAC : TCP :
+
+SYNTAX AND CONVENTIONS
+
+   ; (semicolon)   is used to denote the beginning of a comment.
+                   Any text on a given line following a ';' is a
+                   comment, and not part of the host table.
+
+   NET             keyword introducing a network entry
+
+   GATEWAY         keyword introducing a gateway entry
+
+   HOST            keyword introducing a host entry
+
+   DOMAIN          keyword introducing a domain entry
+
+   :(colon)        is used as a field delimiter
+
+   ::(2 colons)    indicates a null field
+
+   ,(comma)        is used as a data element delimiter
+
+   XXX/YYY         indicates protocol information of the type
+                   TRANSPORT/SERVICE.
+
+      where TRANSPORT/SERVICE options are specified as
+
+         "FOO/BAR"       both transport and service known
+
+
+
+Harrenstien & Stahl & Feinler                                   [Page 3]
+
+
+
+RFC 952                                                     October 1985
+DOD INTERNET HOST TABLE SPECIFICATION
+
+
+         "FOO"           transport known; services not known
+
+         "BAR"           service is known, transport not known
+
+         NOTE:  See "Assigned Numbers" for specific options and acronyms
+         for machine types, operating systems, and protocol/services.
+
+   Each host table entry is an ASCII text string comprised of 6 fields,
+   where
+
+      Field 1         KEYWORD indicating whether this entry pertains to
+                      a NET, GATEWAY, HOST, or DOMAIN.  NET entries are
+                      assigned and cannot have alternate addresses or
+                      nicknames.  DOMAIN entries do not use fields 4, 5,
+                      or 6.
+
+      Field 2         Internet Address of Network, Gateway, or Host
+                      followed by alternate addresses.  Addresses for a
+                      Domain are those where a Domain Name Server exists
+                      for that domain.
+
+      Field 3         Official Name of Network, Gateway, Host, or Domain
+                      (with optional nicknames, where permitted).
+
+      Field 4         Machine Type
+
+      Field 5         Operating System
+
+      Field 6         Protocol List
+
+   Fields 4, 5 and 6 are optional.  For a Domain they are not used.
+
+   Fields 3-6, if included, pertain to the first address in Field 2.
+
+   'Blanks' (spaces and tabs) are ignored between data elements or
+   fields, but are disallowed within a data element.
+
+   Each entry ends with a colon.
+
+   The entries in the table are grouped by types in the order Domain,
+   Net, Gateway, and Host.  Within each type the ordering is
+   unspecified.
+
+   Note that although optional nicknames are allowed for hosts, they are
+   discouraged, except in the case where host names have been changed
+
+
+
+
+Harrenstien & Stahl & Feinler                                   [Page 4]
+
+
+
+RFC 952                                                     October 1985
+DOD INTERNET HOST TABLE SPECIFICATION
+
+
+   and both the new and the old names are maintained for a suitable
+   period of time to effect a smooth transition.  Nicknames are not
+   permitted for NET names.
+
+GRAMMATICAL HOST TABLE SPECIFICATION
+
+   A. Parsing grammar
+
+      <entry> ::= <keyword> ":" <addresses> ":" <names> [":" [<cputype>]
+         [":" [<opsys>]  [":" [<protocol list>] ]]] ":"
+      <addresses> ::= <address> *["," <address>]
+      <address> ::= <octet> "." <octet> "." <octet> "." <octet>
+      <octet> ::= <0 to 255 decimal>
+      <names> ::= <netname> | <gatename> | <domainname> *[","
+         <nicknames>]
+         | <official hostname> *["," <nicknames>]
+      <netname>  ::= <name>
+      <gatename> ::= <hname>
+      <domainname> ::= <hname>
+      <official hostname> ::= <hname>
+      <nickname> ::= <hname>
+      <protocol list> ::= <protocol spec> *["," <protocol spec>]
+      <protocol spec> ::= <transport name> "/" <service name>
+         | <raw protocol name>
+
+   B. Lexical grammar
+
+      <entry-field> ::= <entry-text> [<cr><lf> <blank> <entry-field>]
+      <entry-text>  ::= <print-char> *<text>
+      <blank> ::= <space-or-tab> [<blank>]
+      <keyword> ::= NET | GATEWAY | HOST | DOMAIN
+      <hname> ::= <name>*["."<name>]
+      <name>  ::= <let>[*[<let-or-digit-or-hyphen>]<let-or-digit>]
+      <cputype> ::= PDP-11/70 | DEC-1080 | C/30 | CDC-6400...etc.
+      <opsys>   ::= ITS | MULTICS | TOPS20 | UNIX...etc.
+      <transport name> ::= TCP | NCP | UDP | IP...etc.
+      <service name> ::= TELNET | FTP | SMTP | MTP...etc.
+      <raw protocol name> ::= <name>
+      <comment> ::= ";" <text><cr><lf>
+      <text>    ::= *[<print-char> | <blank>]
+      <print-char>  ::= <any printing char (not space or tab)>
+
+   Notes:
+
+      1. Zero or more 'blanks' between separators " , : " are allowed.
+      'Blanks' are spaces and tabs.
+
+
+
+Harrenstien & Stahl & Feinler                                   [Page 5]
+
+
+
+RFC 952                                                     October 1985
+DOD INTERNET HOST TABLE SPECIFICATION
+
+
+      2. Continuation lines are lines that begin with at least one
+      blank.  They may be used anywhere 'blanks' are legal to split an
+      entry across lines.
+
+BIBLIOGRAPHY
+
+   1. Feinler, E., Harrenstien, K., Su, Z. and White, V., "Official DoD
+      Internet Host Table Specification", RFC-810, Network Information
+      Center, SRI International, March 1982.
+
+   2. Harrenstien, K., Stahl, M., and Feinler, E., "Hostname Server",
+      RFC-953, Network Information Center, SRI International, October
+      1985.
+
+   3. Kudlick, M. "Host Names Online", RFC-608, Network Information
+      Center, SRI International, January 1973.
+
+   4. Postel, J., "Internet Protocol", RFC-791, Information Sciences
+      Institute, University of Southern California, Marina del Rey,
+      September 1981.
+
+   5. Postel, J., "Address Mappings", RFC-796, Information Sciences
+      Institute, University of Southern California, Marina del Rey,
+      September 1981.
+
+   6. Postel, J., "Domain Name System Implementation Schedule", RFC-921,
+      Information Sciences Institute, University of Southern California,
+      Marina del Rey, October 1984.
+
+   7. Reynolds, J. and Postel, J., "Assigned Numbers", RFC-943,
+      Information Sciences Institute, University of Southern California,
+      Marina del Rey, April 1985.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Harrenstien & Stahl & Feinler                                   [Page 6]
+

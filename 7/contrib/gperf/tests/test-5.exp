@@ -1,0 +1,124 @@
+/* C code produced by gperf version 2.7 */
+/* Command-line: ../src/gperf -g -o -j1 -t -p -N is_reserved_word  */
+/* ISO Pascal 7185 reserved words.
+ *
+ * For GNU Pascal compiler (GPC) by jtv@hut.fi
+ *
+ * run this through the Doug Schmidt's gperf program
+ * with command
+ * gperf  -g -o -j1 -t -p -N is_reserved_word
+ *
+ */
+struct resword { char *name; short token; short iclass;};
+
+#define TOTAL_KEYWORDS 35
+#define MIN_WORD_LENGTH 2
+#define MAX_WORD_LENGTH 9
+#define MIN_HASH_VALUE 2
+#define MAX_HASH_VALUE 43
+/* maximum key range = 42, duplicates = 0 */
+
+#ifdef __GNUC__
+__inline
+#endif
+static unsigned int
+hash (str, len)
+     register const char *str;
+     register unsigned int len;
+{
+  static unsigned char asso_values[] =
+    {
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 18, 29, 14,  6,  7,
+      10, 20, 44, 28, 44, 44, 28, 19, 22, 15,
+       0, 44,  9, 23,  0, 23, 26,  2, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+       0,  0, 13, 44, 30, 44, 44, 44,  0, 25,
+       1,  0, 44, 44,  0, 44,  1, 44, 25, 44,
+      44,  0, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44
+    };
+  return len + asso_values[(unsigned char)str[len - 1]] + asso_values[(unsigned char)str[0]];
+}
+
+#ifdef __GNUC__
+__inline
+#endif
+struct resword *
+is_reserved_word (str, len)
+     register const char *str;
+     register unsigned int len;
+{
+  static struct resword wordlist[] =
+    {
+      {""}, {""},
+      {"To", TO, PASCAL_ISO},
+      {""},
+      {"Type", TYPE, PASCAL_ISO},
+      {"Then", THEN, PASCAL_ISO},
+      {"Packed", PACKED, PASCAL_ISO},
+      {"While",  WHILE,  PASCAL_ISO},
+      {"Do", DO, PASCAL_ISO},
+      {"Procedure", PROCEDURE, PASCAL_ISO},
+      {"End",  END,  PASCAL_ISO},
+      {"Else", ELSE, PASCAL_ISO},
+      {"Downto", DOWNTO, PASCAL_ISO},
+      {"For",  FOR,  PASCAL_ISO},
+      {"File", FILE_,  PASCAL_ISO},
+      {"Record", RECORD, PASCAL_ISO},
+      {"Repeat", REPEAT, PASCAL_ISO},
+      {"Or", OR, PASCAL_ISO},
+      {"Case", CASE, PASCAL_ISO},
+      {"Function", FUNCTION, PASCAL_ISO},
+      {"Const",  CONST,  PASCAL_ISO},
+      {"And",  AND,  PASCAL_ISO},
+      {"Mod",  MOD,  PASCAL_ISO},
+      {"Array",  ARRAY,  PASCAL_ISO},
+      {"Goto", GOTO, PASCAL_ISO},
+      {"Nil",  NIL,  PASCAL_ISO},
+      {"Not",  NOT,  PASCAL_ISO},
+      {"Set",  SET,  PASCAL_ISO},
+      {"Until",  UNTIL,  PASCAL_ISO},
+      {"Var",  VAR,  PASCAL_ISO},
+      {"Of", OF, PASCAL_ISO},
+      {"In", IN, PASCAL_ISO},
+      {"Program",PROGRAM,PASCAL_ISO},
+      {"Label",  LABEL,  PASCAL_ISO},
+      {"Div",  DIV,  PASCAL_ISO},
+      {"Begin",  BEGIN_, PASCAL_ISO},
+      {"With", WITH, PASCAL_ISO},
+      {""}, {""}, {""}, {""}, {""}, {""},
+      {"If", IF, PASCAL_ISO}
+    };
+
+  if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH)
+    {
+      register int key = hash (str, len);
+
+      if (key <= MAX_HASH_VALUE && key >= 0)
+        {
+          register const char *s = wordlist[key].name;
+
+          if (*str == *s && !strcmp (str + 1, s + 1))
+            return &wordlist[key];
+        }
+    }
+  return 0;
+}

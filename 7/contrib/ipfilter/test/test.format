@@ -1,0 +1,99 @@
+#test input-format output-format
+bpf-f1 text text
+bpf1 text ipf
+f1 text text
+f2 text text
+f3 text text
+f4 text text
+f5 text text
+f6 text text
+f7 text text
+f8 text text
+f9 text text
+f10 text text
+f11 text text -D
+f12 hex hex
+f13 hex hex
+f14 text text
+f15 text text
+f16 text text
+f17 hex hex
+f18 text text
+f19 text text fr_statemax=3
+f20 text text
+i1 text ipf
+i2 text ipf
+i3 text ipf
+i4 text ipf
+i5 text ipf
+i6 text ipf
+i7 text ipf
+i8 text ipf
+i9 text ipf
+i10 text ipf
+i11 text ipf
+i12 text ipf
+i13 text ipf
+i14 text ipf
+i15 text ipf
+i16 text ipf
+i17 text ipftest
+i18 text ipf
+i19 text ipf
+i20 text ipf
+i21 text ipf
+in1 text text
+in2 text text
+in3 text text
+in4 text text
+in5 text text
+in6 text text
+ip1 text text
+ip2 text text
+ipv6.1 hex hex
+ipv6.2 hex hex
+ipv6.3 hex hex
+ipv6.5 hex hex
+l1 hex hex
+n1 text text
+n2 text text
+n3 text text
+n4 text text
+n5 text text
+n6 text text
+n7 text text
+n8 hex hex fr_update_ipid=0
+n9 hex hex fr_update_ipid=0
+n10 hex hex fr_update_ipid=0
+n11 text text
+n12 hex hex fr_update_ipid=0
+n13 text text
+n14 text text
+ni1 hex hex fr_update_ipid=1
+ni2 hex hex fr_update_ipid=1
+ni3 hex hex fr_update_ipid=1
+ni4 hex hex fr_update_ipid=1
+ni5 hex hex fr_update_ipid=1
+ni6 hex hex fr_update_ipid=1
+ni7 hex hex fr_update_ipid=1
+ni8 hex hex fr_update_ipid=1
+ni9 hex hex fr_update_ipid=1
+ni10 hex hex fr_update_ipid=1
+ni11 hex hex fr_update_ipid=1
+ni12 hex hex fr_update_ipid=1
+ni13 hex hex fr_update_ipid=1
+ni14 hex hex fr_update_ipid=1
+ni15 hex hex fr_update_ipid=1
+ni16 hex hex fr_update_ipid=1
+ni19 hex hex fr_update_ipid=0
+ni20 hex hex fr_update_ipid=0
+ni21 text text
+ni23 text text -D
+p1 text text
+p2 text text
+p3 text text
+p4 text text
+p5 text text
+n16 hex hex -D
+f24 hex text
+ipv6.6 hex text

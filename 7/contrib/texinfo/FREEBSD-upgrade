@@ -1,0 +1,42 @@
+# ex:ts=8
+$FreeBSD$
+
+GNU Texinfo 4.8
+	originals can be found at: ftp://ftp.gnu.org/gnu/texinfo/
+
+
+For the import of Texinfo many files and directories were pruned by:
+
+	tar -X FREEBSD-Xlist -xyf texinfo-4.8.tar.bz2
+
+
+To reduce the size of import, and to make it so the changes from 3.12
+to 4.8 are easy to determine, the 4.8 directory structure was munged
+before import:
+
+	cd texinfo-4.8
+	mv config.in config.h.in
+
+
+Then imported by:
+
+	cvs import -m 'Import of stripped down GNU texinfo 4.8' \
+		src/contrib/texinfo FSF v4_8
+
+After the import, a separate extraction of texinfo was GNU configured
+in the "normal" way.  The resulting config.h file should be compared
+with src/contrib/texinfo/config.h, and src/contrib/texinfo/config.h
+updated as needed.
+
+To make local changes to texinfo, simply patch and commit to the main
+branch (aka HEAD).  Never make local changes on the vendor (FSF) branch.
+
+All local changes should be submitted to the FSF for inclusion in the
+next vendor release.
+
+ru@FreeBSD.org
+23-May-2005
+
+NOTE: The upstream fix to util/texindex.c which fixes CVE-2005-3011 
+(FreeBSD-SA-06:01.texindex) causes temporary files to not be removed
+when handling very large inputs.  FreeBSD's fix works.

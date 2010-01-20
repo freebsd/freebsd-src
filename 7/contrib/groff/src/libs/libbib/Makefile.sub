@@ -1,0 +1,14 @@
+LIB=bib
+OBJS=\
+  common.$(OBJEXT) \
+  index.$(OBJEXT) \
+  linear.$(OBJEXT) \
+  search.$(OBJEXT) \
+  map.$(OBJEXT)
+CCSRCS=\
+  $(srcdir)/common.cpp \
+  $(srcdir)/index.cpp \
+  $(srcdir)/linear.cpp \
+  $(srcdir)/search.cpp
+CSRCS=\
+  $(srcdir)/map.c

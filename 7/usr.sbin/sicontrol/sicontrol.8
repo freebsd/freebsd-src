@@ -1,0 +1,112 @@
+.\" $FreeBSD$
+.\"
+.Dd September 26, 1995
+.Dt SICONTROL 8
+.Os
+.Sh NAME
+.Nm sicontrol
+.Nd Specialix SI/XIO driver configuration and debugging
+.Sh SYNOPSIS
+.Nm
+device
+.Ar command Op Ar param ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to configure and monitor the SI/XIO device driver.
+.Pp
+The
+.Nm
+utility operates on the specified
+.Ar device
+to indicate which port is to be used.
+.Pp
+The special
+.Ar device
+string `-' is used to indicate the global driver settings instead.
+.Pp
+A
+.Pa /dev/
+is included if necessary.
+.Pp
+The following commands are used for the global settings and should be
+specified with the '-' device name:
+.Bl -tag -width 4n
+.It Cm int_throttle Op Cm value
+Configure the `aggregate interrupt throttle value'.
+The maximum number of host adapter interrupts per second is determined by:
+.Pp
+.Ar "controller CPU clock / (8 * int_throttle)"
+.Pp
+The default value at boot time is 25000.
+The host adapter cpu clock is
+25MHz.
+This gives a maximum interrupt rate of about 125 interrupts per
+second.
+.Pp
+Lowering this value will increase the rate in which the host adapter can
+interrupt the operating system for attention.
+.\"
+.It Cm rxint_throttle Op Cm value
+Configure the receiver interrupt throttle value.
+The default value of 4 at boot time allows an interrupt rate of
+approximately 25.
+.Pp
+Lowering this value will increase the rate in which the host adapter can
+interrupt the operating system to empty the receiver fifos.
+.\"
+.It Cm nport
+Return the number of ports under the control of the device driver.
+.El
+.Pp
+The following commands are used for the individual ports and should be
+specified with a device name from
+.Pa /dev :
+.Bl -tag -width 4n
+.It Cm mstate
+Show the current incoming modem control signals.
+.It Cm ccbstat
+Show the current "ccb" structure for the specified port.
+This is not of
+much use outside of debugging the driver and determining why a port is
+wedged.
+.It Cm ttystat
+Show the current "tty" structure that the kernel has for the specified port.
+This is not much use outside of debugging the driver.
+.El
+.Sh FILES
+.Bl -tag -width /dev/si_control -compact
+.It Pa /dev/si_control
+global driver control file for use by
+.Nm
+.It Pa /dev/ttyA*
+terminal control ports
+.It Pa /dev/ttyiA*
+initial termios state devices, for use by
+.Xr stty 1
+.It Pa /dev/ttylA*
+locked termios state devices, for use by
+.Xr stty 1
+.El
+.Sh DIAGNOSTICS
+Generally self explanatory.....
+.Sh SEE ALSO
+.Xr stty 1 ,
+.Xr si 4 ,
+.Xr termios 4 ,
+.Xr tty 4 ,
+.Xr comcontrol 8
+.Sh HISTORY
+The
+.Nm
+utility is loosely based on a utility called
+.Nm siconfig
+which was written by
+.An Andy Rutter Aq andy@acronym.co.uk
+.Pp
+Specialix International do not support this device driver in any way.
+.Sh AUTHORS
+.An Peter Wemm Aq peter@FreeBSD.org
+.Sh BUGS
+Bound to be many...
+:-)

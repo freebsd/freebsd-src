@@ -1,0 +1,20 @@
+In this screen, you can jump to remote or local HTML
+resources such as the FreeBSD Handbook & FreeBSD FAQ
+(Frequently Asked Questions) documents located in:
+
+     file:/usr/share/doc/
+
+if you've loaded the doc distribution.
+
+The default browser package used is links (a text based
+browser which can render tables), which will be
+automatically loaded from the installation media if it
+is available.  You may change the selection of browser
+& browser package to auto-load by visiting the Options
+editor.
+
+In order to visit remote URLs, you naturally must have 
+some sort of working Internet connection.  If you have not
+yet brought up any network interfaces, please visit
+the ``Networking'' item in the Configuration menu
+before attempting to reference any http://.. style URLs.

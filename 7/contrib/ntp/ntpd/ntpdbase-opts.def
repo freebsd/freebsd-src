@@ -1,0 +1,459 @@
+#include autogen-version.def
+
+test-main;
+
+flag = {
+    name      = ipv4;
+    value     = 4;
+    equivalence = ipv4;
+    descrip   = "Force IPv4 DNS name resolution";
+    doc = <<-  _EndOfDoc_
+	Force DNS resolution of following host names on the command line
+	to the IPv4 namespace.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = ipv6;
+    value     = 6;
+    equivalence = ipv4;
+    descrip   = "Force IPv6 DNS name resolution";
+    doc = <<-  _EndOfDoc_
+	Force DNS resolution of following host names on the command line
+	to the IPv6 namespace.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = authreq;
+    value     = a;
+    descrip   = "Require crypto authentication";
+    flags-cant = authnoreq;
+    doc = <<-  _EndOfDoc_
+	Require cryptographic authentication for broadcast client,
+	multicast client and symmetric passive associations.
+	This is the default.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = authnoreq;
+    value     = A;
+    descrip   = "Do not require crypto authentication";
+    flags-cant = authreq;
+    doc = <<-  _EndOfDoc_
+	Do not require cryptographic authentication for broadcast client,
+	multicast client and symmetric passive associations.
+	This is almost never a good idea.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = bcastsync;
+    value     = b;
+    descrip   = "Allow us to sync to broadcast servers";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+#ifdef SIM
+flag = {
+    name      = simbroadcastdelay;
+    value     = B;
+    arg-type  = string;
+    descrip   = "Simulator broadcast delay";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+#endif
+
+flag = {
+    name      = configfile;
+    value     = c;
+    arg-type  = string;
+    descrip   = "configuration file name";
+    doc = <<-  _EndOfDoc_
+	The name and path of the configuration file,
+	/etc/ntp.conf
+	by default.
+	_EndOfDoc_;
+};
+
+#ifdef SIM
+flag = {
+    name      = phasenoise;
+    value     = C;
+    arg-type  = string;
+    descrip   = "Phase noise level";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+#endif
+
+#include debug-opt.def
+
+flag = {
+    name      = driftfile;
+    value     = f;
+    arg-type  = string;
+    descrip   = "frequency drift file name";
+    doc = <<-  _EndOfDoc_
+	The name and path of the frequency file,
+	/etc/ntp.drift
+	by default.
+	This is the same operation as the
+	driftfile driftfile
+	configuration specification in the 
+	/etc/ntp.conf
+	file.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = panicgate;
+    value     = g;
+    descrip   = "Allow the first adjustment to be Big";
+    doc = <<-  _EndOfDoc_
+	Normally,
+	ntpd
+	exits with a message to the system log if the offset exceeds the panic threshold, which is 1000 s by default. This option allows the time to be set to any value without restriction; however, this can happen only once. If the threshold is exceeded after that,
+	ntpd
+	will exit with a message to the system log. This option can be used with the
+	-q
+	and
+	-x
+	options.
+	See the
+	tinker
+	configuration file directive for other options.
+	_EndOfDoc_;
+};
+
+#ifdef SIM
+flag = {
+    name      = simslew;
+    value     = H;
+    arg-type  = string;
+    descrip   = "Simuator slew";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+#endif
+
+flag = {
+    name      = jaildir;
+    value     = i;
+    arg-type  = string;
+    descrip   = "Jail directory";
+    doc = <<-  _EndOfDoc_
+	Chroot the server to the directory
+	jaildir
+	.
+	This option also implies that the server attempts to drop root privileges at startup (otherwise, chroot gives very little additional security), and it is only available if the OS supports to run the server without full root privileges.
+	You may need to also specify a
+	-u
+	option.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = interface;
+    value     = I;
+    arg-type  = string;
+    descrip   = "Listen on interface";
+    max       = NOLIMIT;
+    arg-name  = iface;
+    stack-arg;
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = keyfile;
+    value     = k;
+    arg-type  = string;
+    descrip   = "path to symmetric keys";
+    doc = <<-  _EndOfDoc_
+	Specify the name and path of the symmetric key file.
+	/etc/ntp.keys
+	is the default.
+	This is the same operation as the
+	keys keyfile
+	configuration file directive.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = logfile;
+    value     = l;
+    arg-type  = string;
+    descrip   = "path to the log file";
+    doc = <<-  _EndOfDoc_
+	Specify the name and path of the log file.
+	The default is the system log file.
+	This is the same operation as the
+	logfile logfile
+	configuration file directive.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = novirtualips;
+    value     = L;
+    descrip   = "Do not listen to virtual IPs";
+    doc = <<-  _EndOfDoc_
+	Do not listen to virtual IPs. The default is to listen.
+	_EndOfDoc_;
+};
+
+flag = {
+    ifdef     = SYS_WINNT;
+    name      = modifymmtimer;
+    value     = M;
+    descrip   = "Modify Multimedia Timer (Windows only)";
+    doc = <<-  _EndOfDoc_
+	Set the Windows Multimedia Timer to highest resolution.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = nofork;
+    value     = n;
+    descrip   = "Do not fork";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = nice;
+    value     = N;
+    descrip   = "Run at high priority";
+    doc = <<-  _EndOfDoc_
+	To the extent permitted by the operating system, run
+	ntpd
+	at the highest priority.
+	_EndOfDoc_;
+};
+
+#ifdef SIM
+flag = {
+    name      = servertime;
+    value     = O;
+    arg-type  = string;
+    descrip   = "Server time";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+#endif
+
+flag = {
+    name      = pidfile;
+    value     = p;
+    arg-type  = string;
+    descrip   = "path to the PID file";
+    doc = <<-  _EndOfDoc_
+	Specify the name and path of the file used to record
+	ntpd's
+	process ID.
+	This is the same operation as the
+	pidfile pidfile
+	configuration file directive.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = priority;
+    value     = P;
+    arg-type  = number;
+    descrip   = "Process priority";
+    doc = <<-  _EndOfDoc_
+	To the extent permitted by the operating system, run
+	ntpd
+	at the specified
+	sched_setscheduler(SCHED_FIFO)
+	priority.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = quit;
+    value     = q;
+    descrip   = "Set the time and quit";
+    doc = <<-  _EndOfDoc_
+	ntpd
+	will exit just after the first time the clock is set. This behavior mimics that of the
+	ntpdate
+	program, which is to be retired.
+	The
+	-g
+	and
+	-x
+	options can be used with this option.
+	Note: The kernel time discipline is disabled with this option.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = propagationdelay;
+    value     = r;
+    arg-type  = string;
+    descrip   = "Broadcast/propagation delay";
+    doc = <<-  _EndOfDoc_
+	Specify the default propagation delay from the broadcast/multicast server to this client. This is necessary only if the delay cannot be computed automatically by the protocol.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = updateinterval;
+    value     = U;
+    arg-type  = number;
+    descrip   = "interval in seconds between scans for new or dropped interfaces";
+    doc = <<-  _EndOfDoc_
+	Give the time in seconds between two scans for new or dropped interfaces.
+	For systems with routing socket support the scans will be performed shortly after the interface change
+	has been detected by the system.
+	Use 0 to disable scanning.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = statsdir;
+    value     = s;
+    arg-type  = string;
+    descrip   = "Statistics file location";
+    doc = <<-  _EndOfDoc_
+	Specify the directory path for files created by the statistics facility.
+	This is the same operation as the
+	statsdir statsdir
+	configuration file directive.
+	_EndOfDoc_;
+};
+
+#ifdef SIM
+flag = {
+    name      = endsimtime;
+    value     = S;
+    arg-type  = string;
+    descrip   = "Simulation end time";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+#endif
+
+flag = {
+    name      = trustedkey;
+    value     = t;
+    arg-type  = string;
+    descrip   = "Trusted key number";
+    max       = NOLIMIT;
+    arg-name  = tkey;
+    stack-arg;
+    doc = <<-  _EndOfDoc_
+	Add a key number to the trusted key list.
+	_EndOfDoc_;
+};
+
+#ifdef SIM
+flag = {
+    name      = freqerr;
+    value     = T;
+    arg-type  = string;
+    descrip   = "Simulation frequency error";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+#endif
+
+#ifdef SIM
+flag = {
+    name      = walknoise;
+    value     = W;
+    arg-type  = string;
+    descrip   = "Simulation random walk noise";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+#endif
+
+flag = {
+    name      = user;
+    value     = u;
+    arg-type  = string;
+    descrip   = "Run as userid (or userid:groupid)";
+    doc = <<-  _EndOfDoc_
+	Specify a user, and optionally a group, to switch to.
+	This option is only available if the OS supports to run the server without full root privileges.
+	Currently, this option is supported under NetBSD (configure with
+	--enable-clockctl
+	) and Linux (configure with
+	--enable-linuxcaps
+	).
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = var;
+    value     = v;
+    arg-type  = string;
+    descrip   = "make ARG an ntp variable (RW)";
+    max       = NOLIMIT;
+    arg-name  = nvar;
+    stack-arg;
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = dvar;
+    value     = V;
+    arg-type  = string;
+    descrip   = "make ARG an ntp variable (RW|DEF)";
+    max       = NOLIMIT;
+    arg-name  = ndvar;
+    stack-arg;
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = slew;
+    value     = x;
+    descrip   = "Slew up to 600 seconds";
+    doc = <<-  _EndOfDoc_
+	Normally, the time is slewed if the offset is less than the step threshold, which is 128 ms by default, and stepped if above the threshold.
+	This option sets the threshold to 600 s, which is well within the accuracy window to set the clock manually.
+	Note: Since the slew rate of typical Unix kernels is limited to 0.5 ms/s, each second of adjustment requires an amortization interval of 2000 s.
+	Thus, an adjustment as much as 600 s will take almost 14 days to complete.
+	This option can be used with the
+	-g
+	and
+	-q
+	options.
+	See the
+	tinker
+	configuration file directive for other options.
+	Note: The kernel time discipline is disabled with this option.
+	_EndOfDoc_;
+};
+
+#ifdef SIM
+flag = {
+    name      = ndelay;
+    value     = Y;
+    arg-type  = string;
+    descrip   = "Simulation network delay";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+#endif
+
+#ifdef SIM
+flag = {
+    name      = pdelay;
+    value     = Z;
+    arg-type  = string;
+    descrip   = "Simulation processing delay";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+#endif

@@ -1,0 +1,227 @@
+
+
+
+
+
+
+Network Working Group                                         B. Manning
+Request for Comments: 1348                               Rice University
+Updates: RFCs 1034, 1035                                       July 1992
+
+
+                              DNS NSAP RRs
+
+Status of this Memo
+
+   This memo defines an Experimental Protocol for the Internet
+   community.  Discussion and suggestions for improvement are requested.
+   Please refer to the current edition of the "IAB Official Protocol
+   Standards" for the standardization state and status of this protocol.
+   Distribution of this memo is unlimited.
+
+Table of Contents
+
+   Introduction .....................................................  1
+   Background .......................................................  1
+   NSAP RR ..........................................................  2
+   NSAP-PTR RR ......................................................  2
+   REFERENCES and BIBLIOGRAPHY ......................................  3
+   Security Considerations ..........................................  4
+   Author's Address .................................................  4
+
+Introduction
+
+   This RFC defines the format of two new Resource Records (RRs) for the
+   Domain Name System (DNS), and reserves corresponding DNS type
+   mnemonic and numerical codes.  This format may be used with the any
+   proposal that has variable length addresses, but is targeted for CLNP
+   use.
+
+   This memo assumes that the reader is familiar with the DNS [3,4].
+
+Background
+
+   This section describes an experimental representation of NSAP
+   addresses in the DNS. There are several reasons to take this approch.
+   First, it provides simple documentation of the correct addresses to
+   use in static configurations of CLNP compliant hosts and routers.
+
+   NSAP support requires that a new DNS resource record entry type
+   ("NSAP") be defined, to store longer Internet (i.e., NSAP) addresses.
+   This resource record allows mapping from DNS names to NSAP addresses,
+   and will contain entries for systems which are able to run Internet
+   applications, over TCP or UDP, over CLNP.
+
+
+
+
+Manning                                                         [Page 1]
+
+RFC 1348                      DNS NSAP RRs                     July 1992
+
+
+   The backward translation (from NSAP address to DNS name) is
+   facilitated by definition of an associated resource record. This
+   resource record is known as "NSAP-PTR", and is used in a manner
+   analogous to the existing "in-addr.arpa".
+
+   These RRs are intended for use in a proposal [6] by one of the
+   members of the NOOP WG to address the next-generation internet.
+
+The NSAP RR
+
+   The NSAP RR is defined with mnemonic NSAP and type code 22 (decimal).
+
+   An NSAP (Network Service Access Protocol) number is a unique string
+   to OSI transport service.
+
+   The numbering plan follows RFC 1237 and associated OSI definitions
+   for NSAP format.
+
+   NSAP has the following format:
+
+   <owner> <ttl> <class> NSAP <length> <NSAP-address>
+
+   All fields are required.
+
+   <length> identifies the number of octets in the <NSAP-address> as
+   defined by the various national and international authorities.
+
+   <NSAP-address> enumerates the actual octet values assigned by the
+   assigning authority.  Its format in master files is a <character-
+   string> syntactically identical to that used in TXT and HINFO.
+
+   The format of NSAP is class insensitive.  NSAP RR causes no
+   additional section processing.
+
+   For example:
+
+foo.bar.com.    IN  NSAP   21 47000580ffff000000321099991111222233334444
+host.school.de  IN  NSAP   17 39276f3100111100002222333344449876
+
+   The RR data is the ASCII representation of the digits.  It is encoded
+   as two <character-strings>, i.e., count followed by characters.
+
+The NSAP-PTR RR
+
+   The NSAP-PTR RR is defined with mnemonic NSAP-PTR and a type code 23
+   (decimal).
+
+   Its function is analogous to the PTR record used for IP addresses
+
+
+
+Manning                                                         [Page 2]
+
+RFC 1348                      DNS NSAP RRs                     July 1992
+
+
+   [4,7].
+
+   NSAP-PTR has the following format:
+
+   <NSAP-suffix> <ttl> <class> NSAP-PTR <owner>
+
+   All fields are required.
+
+   <NSAP-suffix> enumerates the actual octet values assigned by the
+   assigning authority for the LOCAL network.  Its format in master
+   files is a <character-string> syntactically identical to that used in
+   TXT and HINFO.
+
+   The format of NSAP-PTR is class insensitive.  NSAP-PTR RR causes no
+   additional section processing.
+
+   For example:
+
+   In net ff08000574.nsap-in-addr.arpa:
+
+   444433332222111199990123000000ff    NSAP-PTR   foo.bar.com.
+
+   Or in net 11110031f67293.nsap-in-addr.arpa:
+
+   67894444333322220000  NSAP-PTR        host.school.de.
+
+   The RR data is the ASCII representation of the digits.  It is encoded
+   as a <character-string>.
+
+REFERENCES and BIBLIOGRAPHY
+
+   [1] Stahl, M., "Domain Administrators Guide", RFC 1032, Network
+       Information Center, SRI International, November 1987.
+
+   [2] Lottor, M., "Domain Administrators Operations Guide", RFC 1033,
+       Network Information Center, SRI International, November, 1987.
+
+   [3] Mockapetris, P., "Domain Names - Concepts and Facilities", RFC
+       1034, USC/Information Sciences Institute, November 1987.
+
+   [4] Mockapetris, P., "Domain Names - Implementation and
+       Specification", RFC 1035, USC/Information Sciences Institute,
+       November 1987.
+
+   [5] Colella, R., Gardner, E., and R. Callon, "Guidelines for OSI
+       NSAP Allocation in the Internet", RFC 1237, NIST, Mitre, DEC,
+       July 1991.
+
+
+
+
+Manning                                                         [Page 3]
+
+RFC 1348                      DNS NSAP RRs                     July 1992
+
+
+   [6] Callon, R., "TCP and UDP with Bigger Addresses (TUBA),
+       A Simple Proposal for Internet Addressing and Routing",
+       Digital Equipment Corporation, RFC 1347, June 1992.
+
+   [7] Mockapetris, P., "DNS Encoding of Network Names and Other Types",
+       RFC 1101, USC/Information Sciences Institute, April 1989.
+
+   [8] ISO/IEC.  Information Processing Systems -- Data Communications
+       -- Network Service Definition Addendum 2: Network Layer Address-
+       ing. International Standard 8348/Addendum 2, ISO/IEC JTC 1,
+       Switzerland, 1988.
+
+   [9] Bryant, P., "NSAPs", PB660, IPTAG/92/23, SCIENCE AND ENGINEERING
+       RESEARCH COUNCIL, RUTHERFORD APPLETON LABORATORY May 1992.
+
+Security Considerations
+
+   Security issues are not addressed in this memo.
+
+Author's Address
+
+   Bill Manning
+   Rice University - ONCS
+   PO Box 1892
+   6100 South Main
+   Houston, Texas  77251-1892
+
+   Phone: +1.713.285.5415
+   EMail: bmanning@rice.edu
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Manning                                                         [Page 4]
+

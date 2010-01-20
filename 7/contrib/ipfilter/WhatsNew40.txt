@@ -1,0 +1,90 @@
+What's new in IPFilter 4.1
+==========================
+(Well, compared to 3.*, anyway)
+In no particular order, except headline alphabetical:
+
+Administration:
+	- Run-time support for modifying ipf table size parameters.
+	- Run-time support for tuning other ipfilter parameters.
+
+Content Scanning:
+	- Simple matching of content for TCP session startup.
+
+Firewall Synchronising:
+	- Master/slave programs available.
+
+General:
+	- All input files allow simple 'marco' definitions and expansion,
+	  including nesting.
+	- Code has been rototilled to make maintenance and enhancements
+	  eaiser for me and you.
+	- More configuration files and binaries.
+	- Takes up more memory.
+	- Probably slower.
+	- Versioned API to support changes in the ABI without breaking
+	  existing binaries (4.0 onward only.)
+	- IP-Filter framework in place for handling multiple different
+	  types of packet matching for firewalling.
+	- IP Id number rewriting available.
+	- Verification of checksums for recognised packet types.
+	- Optionally enable/disable IP forwarding when enabled/disabled.
+
+IPF:
+	- BPF syntax available for matching packets in ipf rules (1).
+	- Can convert IPv4 ipf rules into C code and either:
+	  * load them as an LKM o;
+	  * compile them statically into the kernel (where possible.)
+	- Address pools allow for simpler rules covering large numbers of
+	  addresses/networks (IPv4 only).
+	- Lookup functions available to map an IPv4 address to a group.
+	- Groups can be referenced by multiple heads for subroutine-like use.
+	- NAT/ipf rules can refer to each other via a tag, creating an implied
+	  join that forms part of the packet matching.
+	- Extra packet attributes available for filter rules:
+	  * source address/routing interface mismatch;
+	  * multicast (3);
+	  * broadcast (2,3);
+	  * state lookup partially failed;
+	  * out of the TCP window for a state connection;
+	  * NAT lookup partially failed.
+	- PPS (packets per second) matching available for ipf rules.
+	- Rule collections (cf FreeBSD numbering) supported for ipf rules.
+	- Groups can now be names rather than just numbers
+
+IPV6:
+	- understands extension headers.
+	- can filter on extension headers.
+
+Logging:
+	- ipmon now comes with a configuration file for more advanced logging
+	  behaviour.
+	- Can append arbitrary logging tags with ipf rules for easy matching.
+
+NAT:
+	- "sticky" mapping available to ensure an address translation on
+	  a per-address basis is always the same (while known) for a set
+	  IP address.
+
+Operating System Support:
+	- HP-UX 11 added.
+	- Tru64 5.1a added.
+	- Solaris/HP-UX now use pfil STREAMS module.
+	- Linux 2.4 on the way.
+
+Proxies:
+	- PPTP proxy added.
+	- IRC proxy added.
+	- RPCBIND proxy added.
+	- FTP proxy support for EPSV (IPv4 only.)
+
+Stateful Inspection:
+	- Can insist that all TCP data arrives in order.
+	- Can insist that all fragments pass through in order.
+	- The number of states created per-rule can be set where the total
+	  across all rules may exceed the maximum allowed.
+	- Can elect not to automatically match ICMP error packets.
+	- TCP sequence number rewriting supported.
+
+(1) - Requires libpcap for rule parsing
+(2) - On Solaris/HP-UX, broadcast packets are seen as multicast packets.
+(3) - Not supported on SunOS4

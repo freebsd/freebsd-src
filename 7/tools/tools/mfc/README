@@ -1,0 +1,19 @@
+$FreeBSD$
+
+Summarize scripts abilities and purposes.
+
+- mfc.awk: added by jmg
+
+Takes in a commit message and generates the proper (hopefully) update -j lines
+and commit line to do the MFC.
+
+- mfc.sh: added by des
+
+A simple shell script to help MFC an entire directory to a branch where it
+does not already exist.
+
+- mfc.pl: added by flz
+
+A perl script that takes a message-id, a commit mail or a query string and
+generates a patchset along with a commit message and a commit script if the
+user has commit rights.

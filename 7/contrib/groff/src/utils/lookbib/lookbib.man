@@ -1,0 +1,101 @@
+.ig
+Copyright (C) 1989-2000, 2001, 2004 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.
+.
+.TH @G@LOOKBIB @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.
+.
+.SH NAME
+@g@lookbib \- search bibliographic databases
+.
+.
+.SH SYNOPSIS
+.B @g@lookbib
+[
+.B \-v
+]
+[
+.BI \-i string
+]
+[
+.BI \-t n
+]
+.IR filename \|.\|.\|.
+.
+.PP
+It is possible to have whitespace between a command line option and its
+parameter.
+.
+.
+.SH DESCRIPTION
+.B @g@lookbib
+prints a prompt on the standard error (unless the standard input is not
+a terminal),
+reads from the standard input a line containing a set of keywords,
+searches the bibliographic databases
+.IR filename \|.\|.\|.\&
+for references containing those keywords,
+prints any references found on the standard output,
+and repeats this process until the end of input.
+For each database
+.I filename
+to be searched,
+if an index
+.IB filename @INDEX_SUFFIX@
+created by
+.BR @g@indxbib (@MAN1EXT@)
+exists, then it will be searched instead;
+each index can cover multiple databases.
+.
+.
+.SH OPTIONS
+.TP
+.B \-v
+Print the version number.
+.
+.TP
+.BI \-i string
+When searching files for which no index exists,
+ignore the contents of fields whose names are in
+.IR string .
+.
+.TP
+.BI \-t n
+Only require the first
+.I n
+characters of keys to be given.
+Initially
+.I n
+is\~6.
+.
+.
+.SH FILES
+.TP \w'\fIfilename\fB@INDEX_SUFFIX@'u+2n
+.IB filename @INDEX_SUFFIX@
+Index files.
+.
+.
+.SH "SEE ALSO"
+.BR @g@refer (@MAN1EXT@),
+.BR lkbib (@MAN1EXT@),
+.BR @g@indxbib (@MAN1EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

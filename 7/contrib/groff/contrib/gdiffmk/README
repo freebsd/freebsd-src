@@ -1,0 +1,46 @@
+gdiffmk is approximately a recreation of the original Bell Labs/AT&T diffmk
+command for troff/nroff documents, with enhancements.
+
+It should not be confused with `diffmk' commands that operate on XML.
+
+The inspiration for this code was a Perl 2 version written in 1989 by Randal
+L. Schwartz.  See
+  landfield.com/software/comp.sources.misc/archive-name/volume06/diffmk.p.gz
+
+The command also attempts to reproduce some of the functionality of the old
+`nrchbar' command.  See
+  open-systems.ufl.edu/mirrors/ftp.isc.org/usenet/comp.sources.unix/volume10/nrchbar.Z
+
+Thanks to Werner Lemberg for help in making the package more portable and
+fit into the GNU groff source structure.
+
+Gnu diff(1) with the -Dname option does all of the work and sed(1)
+translates the output into something groff/troff/nroff can handle.
+
+Note the BUGS on the man page.
+
+The `tests' directory contains simple tests.  `runtests run' runs them and
+compares the output against baseline files.  Calling `runtests' without
+argument gives the usage.
+
+----------------------------------------------------------------------------
+
+Copyright (C) 2004, 2005 Free Software Foundation, Inc.
+Written by Mike Bianchi <MBianchi@Foveal.com <mailto:MBianchi@Foveal.com>>
+
+This file is part of the gdiffmk utility, which is part of groff.
+
+groff is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+groff is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+License for more details.
+
+You should have received a copy of the GNU General Public License
+along with groff; see the files COPYING and LICENSE in the top
+directory of the groff source.  If not, write to the Free Software
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA.

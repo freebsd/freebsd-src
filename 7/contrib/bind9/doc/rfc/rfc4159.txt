@@ -1,0 +1,171 @@
+
+
+
+
+
+
+Network Working Group                                          G. Huston
+Request for Comments: 4159                                         APNIC
+BCP: 109                                                     August 2005
+Category: Best Current Practice
+
+
+                        Deprecation of "ip6.int"
+
+Status of This Memo
+
+   This document specifies an Internet Best Current Practices for the
+   Internet Community, and requests discussion and suggestions for
+   improvements.  Distribution of this memo is unlimited.
+
+Copyright Notice
+
+   Copyright (C) The Internet Society (2005).
+
+Abstract
+
+   This document advises of the deprecation of the use of "ip6.int" for
+   Standards Conformant IPv6 implementations.
+
+1.  IPv6 Standards Action
+
+   In August 2001 the IETF published [RFC3152], which advised that the
+   use of "ip6.int" as the domain for reverse-mapping of IPv6 addresses
+   to DNS names was deprecated.  The document noted that the use of
+   "ip6.int" would be phased out in an orderly fashion.
+
+   As of 1 September 2005, the IETF advises the community that the DNS
+   domain "ip6.int" should no longer be used to perform reverse mapping
+   of IPv6 addresses to domain names, and that the domain "ip6.arpa"
+   should be used henceforth, in accordance with the IANA Considerations
+   described in [RFC3596].  The domain "ip6.int" is deprecated, and its
+   use in IPv6 implementations that conform to the IPv6 Internet
+   Standards is discontinued.
+
+   The Regional Internet Registries (RIRs) are advised that maintenance
+   of delegation of entries in "ip6.int" is no longer required as part
+   of infrastructure services in support of Internet Standards
+   Conformant IPv6 implementations as of 1 September 2005.  The RIRs are
+   requested to work with their communities to adopt a schedule
+   regarding the cessation of support of registration services for the
+   "ip6.int" domain.
+
+
+
+
+
+
+Huston                   Best Current Practice                  [Page 1]
+
+RFC 4159                        ip6.int                      August 2005
+
+
+2.  IANA Considerations
+
+   IANA is advised that the "ip6.int" domain for reverse mapping of IPv6
+   addresses to domain names is no longer part of Internet Standards
+   Conformant support of IPv6 as of 1 September 2005.
+
+3.  Security Considerations
+
+   While DNS spoofing of address to name mapping has been exploited in
+   IPv4, removal of the "ip6.int" zone from the standard IPv6
+   specification creates no new threats to the security of the internet.
+
+4.  Acknowledgements
+
+   The document was prepared with the assistance of Kurt Lindqvist,
+   Thomas Narten, Paul Wilson, David Kessens, Bob Hinden, Brian
+   Haberman, and Bill Manning.
+
+5.  Normative References
+
+   [RFC3152] Bush, R., "Delegation of IP6.ARPA", BCP 49, RFC 3152,
+             August 2001.
+
+   [RFC3596] Thomson, S., Huitema, C., Ksinant, V., and M. Souissi, "DNS
+             Extensions to Support IP Version 6", RFC 3596, October
+             2003.
+
+Author's Address
+
+   Geoff Huston
+   APNIC
+
+   EMail: gih@apnic.net
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Huston                   Best Current Practice                  [Page 2]
+
+RFC 4159                        ip6.int                      August 2005
+
+
+Full Copyright Statement
+
+   Copyright (C) The Internet Society (2005).
+
+   This document is subject to the rights, licenses and restrictions
+   contained in BCP 78, and except as set forth therein, the authors
+   retain all their rights.
+
+   This document and the information contained herein are provided on an
+   "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE REPRESENTS
+   OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY AND THE INTERNET
+   ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED,
+   INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE
+   INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+   WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+Intellectual Property
+
+   The IETF takes no position regarding the validity or scope of any
+   Intellectual Property Rights or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this document or the extent to which any license under such rights
+   might or might not be available; nor does it represent that it has
+   made any independent effort to identify any such rights.  Information
+   on the procedures with respect to rights in RFC documents can be
+   found in BCP 78 and BCP 79.
+
+   Copies of IPR disclosures made to the IETF Secretariat and any
+   assurances of licenses to be made available, or the result of an
+   attempt made to obtain a general license or permission for the use of
+   such proprietary rights by implementers or users of this
+   specification can be obtained from the IETF on-line IPR repository at
+   http://www.ietf.org/ipr.
+
+   The IETF invites any interested party to bring to its attention any
+   copyrights, patents or patent applications, or other proprietary
+   rights that may cover technology that may be required to implement
+   this standard.  Please address the information to the IETF at ietf-
+   ipr@ietf.org.
+
+Acknowledgement
+
+   Funding for the RFC Editor function is currently provided by the
+   Internet Society.
+
+
+
+
+
+
+
+Huston                   Best Current Practice                  [Page 3]
+

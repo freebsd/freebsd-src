@@ -1,0 +1,48 @@
+PROG=troff$(EXEEXT)
+MAN1=troff.n
+XLIBS=$(LIBGROFF)
+MLIB=$(LIBM)
+OBJS=\
+  dictionary.$(OBJEXT) \
+  div.$(OBJEXT) \
+  env.$(OBJEXT) \
+  input.$(OBJEXT) \
+  majorminor.$(OBJEXT) \
+  mtsm.$(OBJEXT) \
+  node.$(OBJEXT) \
+  number.$(OBJEXT) \
+  reg.$(OBJEXT)
+CCSRCS=\
+  $(srcdir)/dictionary.cpp \
+  $(srcdir)/div.cpp \
+  $(srcdir)/env.cpp \
+  $(srcdir)/input.cpp \
+  majorminor.cpp \
+  $(srcdir)/mtsm.cpp \
+  $(srcdir)/node.cpp \
+  $(srcdir)/number.cpp \
+  $(srcdir)/reg.cpp
+HDRS=\
+  $(srcdir)/charinfo.h \
+  $(srcdir)/dictionary.h \
+  $(srcdir)/div.h \
+  $(srcdir)/env.h \
+  $(srcdir)/hvunits.h \
+  $(srcdir)/input.h \
+  $(srcdir)/mtsm.h \
+  $(srcdir)/node.h \
+  $(srcdir)/reg.h \
+  $(srcdir)/request.h \
+  $(srcdir)/token.h \
+  $(srcdir)/troff.h
+GENSRCS=majorminor.cpp
+NAMEPREFIX=$(g)
+
+majorminor.cpp: $(top_srcdir)/VERSION $(top_srcdir)/REVISION
+	@echo Making $@
+	@-rm -f $@
+	@echo const char \*major_version = \
+	\"`sed -e 's/^\([^.]*\)\..*$$/\1/' $(top_srcdir)/VERSION`\"\; >$@
+	@echo const char \*minor_version = \
+	\"`sed -e 's/^[^.]*\.\([0-9]*\).*$$/\1/' $(top_srcdir)/VERSION`\"\; >>$@
+	@echo const char \*revision = \"`cat $(top_srcdir)/REVISION`\"\; >>$@

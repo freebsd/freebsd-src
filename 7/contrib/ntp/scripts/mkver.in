@@ -1,0 +1,40 @@
+#!@PATH_SH@
+PROG=${1-UNKNOWN}
+
+ConfStr="$PROG"
+
+ConfStr="$ConfStr @VERSION@"
+
+case "$CSET" in
+ '') ;;
+ *) ConfStr="$ConfStr@$CSET" ;;
+esac
+
+case "@LCRYPTO@" in
+ '') ;;
+ -lcrypto)
+    ConfStr="${ConfStr}-o" ;;
+ *) ConfStr="${ConfStr}-?" ;;
+esac
+
+ConfStr="$ConfStr `LC_TIME=C TZ= date`"
+
+if [ ! -f .version ]; then
+  echo 0 > .version
+fi
+RUN="`cat .version`"
+RUN="`expr $RUN + 1`"
+echo $RUN > .version
+
+ConfStr="$ConfStr (${RUN})"
+
+echo "Version <${ConfStr}>";
+
+rm -f version.c
+cat > version.c << -EoF-
+/*
+ * version file for $PROG
+ */
+#include <config.h>
+const char * Version = "${ConfStr}";
+-EoF-
