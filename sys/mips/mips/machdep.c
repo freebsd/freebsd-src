@@ -351,7 +351,9 @@ mips_vector_init(void)
 	 * Mask all interrupts. Each interrupt will be enabled
 	 * when handler is installed for it
 	 */
-	set_intr_mask (ALL_INT_MASK);
+	set_intr_mask(ALL_INT_MASK);
+	enableintr();
+
 	/* Clear BEV in SR so we start handling our own exceptions */
 	mips_cp0_status_write(mips_cp0_status_read() & ~SR_BOOT_EXC_VEC);
 
