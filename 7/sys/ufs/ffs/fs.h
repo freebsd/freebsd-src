@@ -393,22 +393,24 @@ CTASSERT(sizeof(struct fs) == 1376);
  * flag to indicate that the indicies need to be rebuilt (by fsck) before
  * they can be used.
  *
- * FS_ACLS indicates that ACLs are administratively enabled for the
- * file system, so they should be loaded from extended attributes,
+ * FS_ACLS indicates that POSIX.1e ACLs are administratively enabled
+ * for the file system, so they should be loaded from extended attributes,
  * observed for access control purposes, and be administered by object
- * owners.  FS_MULTILABEL indicates that the TrustedBSD MAC Framework
- * should attempt to back MAC labels into extended attributes on the
- * file system rather than maintain a single mount label for all
- * objects.
+ * owners.  FS_NFS4ACLS indicates that NFSv4 ACLs are administratively
+ * enabled.  This flag is mutually exclusive with FS_ACLS.  FS_MULTILABEL
+ * indicates that the TrustedBSD MAC Framework should attempt to back MAC
+ * labels into extended attributes on the file system rather than maintain
+ * a single mount label for all objects.
  */
-#define FS_UNCLEAN    0x01	/* filesystem not clean at mount */
-#define FS_DOSOFTDEP  0x02	/* filesystem using soft dependencies */
-#define FS_NEEDSFSCK  0x04	/* filesystem needs sync fsck before mount */
-#define FS_INDEXDIRS  0x08	/* kernel supports indexed directories */
-#define FS_ACLS       0x10	/* file system has ACLs enabled */
-#define FS_MULTILABEL 0x20	/* file system is MAC multi-label */
-#define FS_GJOURNAL   0x40	/* gjournaled file system */
-#define FS_FLAGS_UPDATED 0x80	/* flags have been moved to new location */
+#define FS_UNCLEAN	0x0001	/* filesystem not clean at mount */
+#define FS_DOSOFTDEP	0x0002	/* filesystem using soft dependencies */
+#define FS_NEEDSFSCK	0x0004	/* filesystem needs sync fsck before mount */
+#define FS_INDEXDIRS	0x0008	/* kernel supports indexed directories */
+#define FS_ACLS		0x0010	/* file system has POSIX.1e ACLs enabled */
+#define FS_MULTILABEL	0x0020	/* file system is MAC multi-label */
+#define FS_GJOURNAL	0x0040	/* gjournaled file system */
+#define FS_FLAGS_UPDATED 0x0080	/* flags have been moved to new location */
+#define FS_NFS4ACLS	0x0100	/* file system has NFSv4 ACLs enabled */
 
 /*
  * Macros to access bits in the fs_active array.
