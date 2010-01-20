@@ -447,44 +447,44 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 	if (!vdev) {
 		is_new = 1;
 
-	if (!strcmp(type, VDEV_TYPE_MIRROR))
-		vdev = vdev_create(guid, vdev_mirror_read);
-	else if (!strcmp(type, VDEV_TYPE_RAIDZ))
-		vdev = vdev_create(guid, vdev_raidz_read);
-	else
-		vdev = vdev_create(guid, vdev_disk_read);
+		if (!strcmp(type, VDEV_TYPE_MIRROR))
+			vdev = vdev_create(guid, vdev_mirror_read);
+		else if (!strcmp(type, VDEV_TYPE_RAIDZ))
+			vdev = vdev_create(guid, vdev_raidz_read);
+		else
+			vdev = vdev_create(guid, vdev_disk_read);
 
-	vdev->v_id = id;
-	if (nvlist_find(nvlist, ZPOOL_CONFIG_ASHIFT,
-		DATA_TYPE_UINT64, 0, &ashift) == 0)
-		vdev->v_ashift = ashift;
-	else
-		vdev->v_ashift = 0;
-	if (nvlist_find(nvlist, ZPOOL_CONFIG_NPARITY,
-		DATA_TYPE_UINT64, 0, &nparity) == 0)
-		vdev->v_nparity = nparity;
-	else
-		vdev->v_nparity = 0;
-	if (nvlist_find(nvlist, ZPOOL_CONFIG_PATH,
-			DATA_TYPE_STRING, 0, &path) == 0) {
-		if (strlen(path) > 5
-		    && path[0] == '/'
-		    && path[1] == 'd'
-		    && path[2] == 'e'
-		    && path[3] == 'v'
-		    && path[4] == '/')
-			path += 5;
-		vdev->v_name = strdup(path);
-	} else {
-		if (!strcmp(type, "raidz")) {
-			if (vdev->v_nparity == 1)
-				vdev->v_name = "raidz1";
-			else
-				vdev->v_name = "raidz2";
+		vdev->v_id = id;
+		if (nvlist_find(nvlist, ZPOOL_CONFIG_ASHIFT,
+			DATA_TYPE_UINT64, 0, &ashift) == 0)
+			vdev->v_ashift = ashift;
+		else
+			vdev->v_ashift = 0;
+		if (nvlist_find(nvlist, ZPOOL_CONFIG_NPARITY,
+			DATA_TYPE_UINT64, 0, &nparity) == 0)
+			vdev->v_nparity = nparity;
+		else
+			vdev->v_nparity = 0;
+		if (nvlist_find(nvlist, ZPOOL_CONFIG_PATH,
+				DATA_TYPE_STRING, 0, &path) == 0) {
+			if (strlen(path) > 5
+			    && path[0] == '/'
+			    && path[1] == 'd'
+			    && path[2] == 'e'
+			    && path[3] == 'v'
+			    && path[4] == '/')
+				path += 5;
+			vdev->v_name = strdup(path);
 		} else {
-			vdev->v_name = strdup(type);
+			if (!strcmp(type, "raidz")) {
+				if (vdev->v_nparity == 1)
+					vdev->v_name = "raidz1";
+				else
+					vdev->v_name = "raidz2";
+			} else {
+				vdev->v_name = strdup(type);
+			}
 		}
-	}
 
 		if (is_offline)
 			vdev->v_state = VDEV_STATE_OFFLINE;
