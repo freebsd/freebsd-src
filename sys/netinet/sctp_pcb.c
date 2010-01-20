@@ -452,7 +452,7 @@ sctp_remove_ifa_from_ifn(struct sctp_ifa *sctp_ifap)
 			sctp_ifap->ifn_p->num_v4--;
 
 		ifn_index = sctp_ifap->ifn_p->ifn_index;
-		if (SCTP_LIST_EMPTY(&sctp_ifap->ifn_p->ifalist)) {
+		if (LIST_EMPTY(&sctp_ifap->ifn_p->ifalist)) {
 			/* remove the ifn, possibly freeing it */
 			sctp_delete_ifn(sctp_ifap->ifn_p, SCTP_ADDR_LOCKED);
 		} else {
@@ -4252,7 +4252,7 @@ sctp_delete_from_timewait(uint32_t tag, uint16_t lport, uint16_t rport)
 	int i;
 
 	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
-	if (!SCTP_LIST_EMPTY(chain)) {
+	if (!LIST_EMPTY(chain)) {
 		LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
 			for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
 				if ((twait_block->vtag_block[i].v_tag == tag) &&
@@ -4282,7 +4282,7 @@ sctp_is_in_timewait(uint32_t tag, uint16_t lport, uint16_t rport)
 
 	SCTP_INP_INFO_WLOCK();
 	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
-	if (!SCTP_LIST_EMPTY(chain)) {
+	if (!LIST_EMPTY(chain)) {
 		LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
 			for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
 				if ((twait_block->vtag_block[i].v_tag == tag) &&
@@ -4312,7 +4312,7 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time, uint16_t lport, uint16_t 
 	(void)SCTP_GETTIME_TIMEVAL(&now);
 	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
 	set = 0;
-	if (!SCTP_LIST_EMPTY(chain)) {
+	if (!LIST_EMPTY(chain)) {
 		/* Block(s) present, lets find space, and expire on the fly */
 		LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
 			for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
@@ -4935,7 +4935,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		sctp_free_remote_addr(net);
 	}
 
-	while (!SCTP_LIST_EMPTY(&asoc->sctp_restricted_addrs)) {
+	while (!LIST_EMPTY(&asoc->sctp_restricted_addrs)) {
 		/* sa_ignore FREED_MEMORY */
 		laddr = LIST_FIRST(&asoc->sctp_restricted_addrs);
 		sctp_remove_laddr(laddr);
@@ -5581,7 +5581,7 @@ sctp_pcb_finish(void)
 	 */
 	for (i = 0; i < SCTP_STACK_VTAG_HASH_SIZE; i++) {
 		chain = &SCTP_BASE_INFO(vtag_timewait)[i];
-		if (!SCTP_LIST_EMPTY(chain)) {
+		if (!LIST_EMPTY(chain)) {
 			prev_twait_block = NULL;
 			LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
 				if (prev_twait_block) {
@@ -6340,7 +6340,7 @@ skip_vtag_check:
 
 	chain = &SCTP_BASE_INFO(vtag_timewait[(tag % SCTP_STACK_VTAG_HASH_SIZE))];
 	/* Now what about timed wait ? */
-	if (!SCTP_LIST_EMPTY(chain)) {
+	if (!LIST_EMPTY(chain)) {
 		/*
 		 * Block(s) are present, lets see if we have this tag in the
 		 * list
