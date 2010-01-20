@@ -18,6 +18,7 @@ SUBDIR=	alias \
 	awk \
 	banner \
 	basename \
+	bc \
 	${_biff} \
 	${_bluetooth} \
 	brandelf \
@@ -49,6 +50,7 @@ SUBDIR=	alias \
 	${_csup} \
 	${_ctags} \
 	cut \
+	dc \
 	${_dig} \
 	dirname \
 	du \
