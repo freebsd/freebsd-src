@@ -5397,7 +5397,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				sctp_free_ifa(_lsrc);
 			} else {
 				ip->ip_src = over_addr->sin.sin_addr;
-				SCTP_RTALLOC((&ro->ro_rt), vrf_id);
+				SCTP_RTALLOC(ro, vrf_id);
 			}
 		}
 		if (port) {
@@ -5729,7 +5729,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				sctp_free_ifa(_lsrc);
 			} else {
 				lsa6->sin6_addr = over_addr->sin6.sin6_addr;
-				SCTP_RTALLOC((&ro->ro_rt), vrf_id);
+				SCTP_RTALLOC(ro, vrf_id);
 			}
 			(void)sa6_recoverscope(sin6);
 		}
