@@ -162,11 +162,8 @@ loop:
 		subr = (uintptr_t)MipsUserGenException;
 	else if (pcBetween(MipsKernIntr, MipsUserIntr))
 		subr = (uintptr_t)MipsKernIntr;
-	else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
+	else if (pcBetween(MipsUserIntr, MipsKernTLBInvalidException))
 		subr = (uintptr_t)MipsUserIntr;
-	else if (pcBetween(MipsTLBInvalidException,
-	    MipsKernTLBInvalidException))
-		subr = (uintptr_t)MipsTLBInvalidException;
 	else if (pcBetween(MipsKernTLBInvalidException,
 	    MipsUserTLBInvalidException))
 		subr = (uintptr_t)MipsKernTLBInvalidException;
