@@ -126,7 +126,7 @@ fail:
 
 /*
  * Alphabetic order comparison routine for those who want it.
- * POSIX 2008 requires the alphasort() to use strcoll().
+ * POSIX 2008 requires that alphasort() uses strcoll().
  */
 int
 alphasort(const struct dirent **d1, const struct dirent **d2)
