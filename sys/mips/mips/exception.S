@@ -830,35 +830,6 @@ NNON_LEAF(MipsUserIntr, STAND_FRAME_SIZE, ra)
 	.set	at
 END(MipsUserIntr)
 
-/*----------------------------------------------------------------------------
- *
- * MipsTLBInvalidException --
- *
- *	Handle a TLB invalid exception.
- *	The BaddVAddr, Context, and EntryHi registers contain the failed
- *	virtual address.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------------
- */
-NLEAF(MipsTLBInvalidException)
-	.set	noat
-	mfc0	k0, COP_0_STATUS_REG
-	nop
-	and	k0, k0, SR_KSU_USER
-	bne	k0, zero, _C_LABEL(MipsUserTLBInvalidException)
-	nop
-	.set	at
-END(MipsTLBInvalidException)
-/*
- * Fall through ...
- */
-
 NLEAF(MipsKernTLBInvalidException)
 	.set	noat
 	mfc0	k0, COP_0_BAD_VADDR	# get the fault address
