@@ -126,7 +126,6 @@ fail:
 
 /*
  * Alphabetic order comparison routine for those who want it.
- *
  * POSIX 2008 requires the alphasort() to use strcoll().
  */
 int
