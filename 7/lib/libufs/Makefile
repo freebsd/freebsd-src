@@ -3,7 +3,7 @@
 LIB=	ufs
 SHLIBDIR?= /lib
 
-SRCS=	block.c cgroup.c inode.c sblock.c type.c
+SRCS=	block.c cgroup.c inode.c sblock.c type.c ffs_subr.c ffs_tables.c
 INCS=	libufs.h
 
 MAN=	bread.3 cgread.3 libufs.3 sbread.3 ufs_disk_close.3
@@ -17,6 +17,9 @@ MLINKS+= ufs_disk_close.3 ufs_disk_write.3
 
 WARNS?=	2
 
+.PATH:  ${.CURDIR}/../../sys/ufs/ffs
+
+DEBUG_FLAGS = -g
 CFLAGS+= -D_LIBUFS
 .if defined(LIBUFS_DEBUG)
 CFLAGS+= -D_LIBUFS_DEBUGGING

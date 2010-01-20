@@ -411,6 +411,16 @@ struct {								\
 	TRASHIT((elm)->field.le_prev);					\
 } while (0)
 
+#define LIST_SWAP(head1, head2, type, field) do {			\
+	struct type *swap_tmp = LIST_FIRST((head1));			\
+	LIST_FIRST((head1)) = LIST_FIRST((head2));			\
+	LIST_FIRST((head2)) = swap_tmp;					\
+	if ((swap_tmp = LIST_FIRST((head1))) != NULL)			\
+		swap_tmp->field.le_prev = &LIST_FIRST((head1));		\
+	if ((swap_tmp = LIST_FIRST((head2))) != NULL)			\
+		swap_tmp->field.le_prev = &LIST_FIRST((head2));		\
+} while (0)
+
 /*
  * Tail queue declarations.
  */
