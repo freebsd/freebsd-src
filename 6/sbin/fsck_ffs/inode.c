@@ -332,7 +332,7 @@ getnextinode(ino_t inumber)
 		 * If bread returns an error, it will already have zeroed
 		 * out the buffer, so we do not need to do so here.
 		 */
-		(void)bread(fsreadfd, inodebuf, dblk, size);
+		(void)blread(fsreadfd, inodebuf, dblk, size);
 		nextinop = inodebuf;
 	}
 	dp = (union dinode *)nextinop;

@@ -71,6 +71,7 @@ struct uufsd {
 	int d_fd;		/* raw device file descriptor */
 	long d_bsize;		/* device bsize */
 	ufs2_daddr_t d_sblock;	/* superblock location */
+	struct csum *d_sbcsum;	/* Superblock summary info */
 	caddr_t d_inoblock;	/* inode block */
 	ino_t d_inomin;		/* low inode */
 	ino_t d_inomax;		/* high inode */
@@ -108,13 +109,18 @@ ssize_t bwrite(struct uufsd *, ufs2_daddr_t, const void *, size_t);
 /*
  * cgroup.c
  */
+ufs2_daddr_t cgballoc(struct uufsd *);
+ino_t cgialloc(struct uufsd *);
 int cgread(struct uufsd *);
 int cgread1(struct uufsd *, int);
+int cgwrite(struct uufsd *);
+int cgwrite1(struct uufsd *, int);
 
 /*
  * inode.c
  */
 int getino(struct uufsd *, void **, ino_t, int *);
+int putino(struct uufsd *);
 
 /*
  * sblock.c
@@ -129,6 +135,16 @@ int ufs_disk_close(struct uufsd *);
 int ufs_disk_fillout(struct uufsd *, const char *);
 int ufs_disk_fillout_blank(struct uufsd *, const char *);
 int ufs_disk_write(struct uufsd *);
+
+/*
+ * ffs_subr.c
+ */
+void	ffs_clrblock(struct fs *, u_char *, ufs1_daddr_t);
+void	ffs_clusteracct(struct fs *, struct cg *, ufs1_daddr_t, int);
+void	ffs_fragacct(struct fs *, int, int32_t [], int);
+int	ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
+int	ffs_isfreeblock(struct fs *, u_char *, ufs1_daddr_t);
+void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 
 __END_DECLS
 

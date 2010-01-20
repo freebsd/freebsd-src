@@ -66,6 +66,10 @@ ufs_disk_close(struct uufsd *disk)
 		free((char *)(uintptr_t)disk->d_name);
 		disk->d_name = NULL;
 	}
+	if (disk->d_sbcsum != NULL) {
+		free(disk->d_sbcsum);
+		disk->d_sbcsum = NULL;
+	}
 	return (0);
 }
 
@@ -124,6 +128,7 @@ again:	if (stat(name, &st) < 0) {
 	disk->d_mine = 0;
 	disk->d_ufs = 0;
 	disk->d_error = NULL;
+	disk->d_sbcsum = NULL;
 
 	if (oname != name) {
 		name = strdup(name);

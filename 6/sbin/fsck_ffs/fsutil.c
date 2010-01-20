@@ -221,7 +221,7 @@ getblk(struct bufarea *bp, ufs2_daddr_t blk, long size)
 	if (bp->b_bno != dblk) {
 		flush(fswritefd, bp);
 		diskreads++;
-		bp->b_errs = bread(fsreadfd, bp->b_un.b_buf, dblk, size);
+		bp->b_errs = blread(fsreadfd, bp->b_un.b_buf, dblk, size);
 		bp->b_bno = dblk;
 		bp->b_size = size;
 	}
@@ -244,11 +244,11 @@ flush(int fd, struct bufarea *bp)
 		    (bp->b_errs == bp->b_size / dev_bsize) ? "" : "PARTIALLY ",
 		    (long long)bp->b_bno);
 	bp->b_errs = 0;
-	bwrite(fd, bp->b_un.b_buf, bp->b_bno, (long)bp->b_size);
+	blwrite(fd, bp->b_un.b_buf, bp->b_bno, (long)bp->b_size);
 	if (bp != &sblk)
 		return;
 	for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize, j++) {
-		bwrite(fswritefd, (char *)sblock.fs_csp + i,
+		blwrite(fswritefd, (char *)sblock.fs_csp + i,
 		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
 		    sblock.fs_cssize - i < sblock.fs_bsize ?
 		    sblock.fs_cssize - i : sblock.fs_bsize);
@@ -345,7 +345,7 @@ ckfini(int markclean)
 }
 
 int
-bread(int fd, char *buf, ufs2_daddr_t blk, long size)
+blread(int fd, char *buf, ufs2_daddr_t blk, long size)
 {
 	char *cp;
 	int i, errs;
@@ -387,7 +387,7 @@ bread(int fd, char *buf, ufs2_daddr_t blk, long size)
 }
 
 void
-bwrite(int fd, char *buf, ufs2_daddr_t blk, long size)
+blwrite(int fd, char *buf, ufs2_daddr_t blk, long size)
 {
 	int i;
 	char *cp;

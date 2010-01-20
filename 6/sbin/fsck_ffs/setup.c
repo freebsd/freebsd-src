@@ -65,7 +65,7 @@ static struct disklabel *getdisklabel(char *s, int fd);
 /*
  * Read in a superblock finding an alternate if necessary.
  * Return 1 if successful, 0 if unsuccessful, -1 if file system
- * is already clean (preen mode only).
+ * is already clean (ckclean and preen mode only).
  */
 int
 setup(char *dev)
@@ -201,7 +201,7 @@ setup(char *dev)
 		pwarn("USING ALTERNATE SUPERBLOCK AT %d\n", bflag);
 		bflag = 0;
 	}
-	if (skipclean && preen && sblock.fs_clean) {
+	if (skipclean && ckclean && sblock.fs_clean) {
 		pwarn("FILE SYSTEM CLEAN; SKIPPING CHECKS\n");
 		return (-1);
 	}
@@ -249,7 +249,7 @@ setup(char *dev)
 	for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize, j++) {
 		size = sblock.fs_cssize - i < sblock.fs_bsize ?
 		    sblock.fs_cssize - i : sblock.fs_bsize;
-		if (bread(fsreadfd, (char *)sblock.fs_csp + i,
+		if (blread(fsreadfd, (char *)sblock.fs_csp + i,
 		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
 		    size) != 0 && !asked) {
 			pfatal("BAD SUMMARY INFORMATION");
@@ -322,7 +322,7 @@ readsb(int listerr)
 
 	if (bflag) {
 		super = bflag;
-		if ((bread(fsreadfd, (char *)&sblock, super, (long)SBLOCKSIZE)))
+		if ((blread(fsreadfd, (char *)&sblock, super, (long)SBLOCKSIZE)))
 			return (0);
 		if (sblock.fs_magic == FS_BAD_MAGIC) {
 			fprintf(stderr, BAD_MAGIC_MSG);
@@ -337,7 +337,7 @@ readsb(int listerr)
 	} else {
 		for (i = 0; sblock_try[i] != -1; i++) {
 			super = sblock_try[i] / dev_bsize;
-			if ((bread(fsreadfd, (char *)&sblock, super,
+			if ((blread(fsreadfd, (char *)&sblock, super,
 			    (long)SBLOCKSIZE)))
 				return (0);
 			if (sblock.fs_magic == FS_BAD_MAGIC) {

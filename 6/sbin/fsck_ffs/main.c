@@ -79,7 +79,7 @@ main(int argc, char *argv[])
 
 	sync();
 	skipclean = 1;
-	while ((ch = getopt(argc, argv, "b:Bc:dfFm:npy")) != -1) {
+	while ((ch = getopt(argc, argv, "b:Bc:CdfFm:npy")) != -1) {
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
@@ -125,6 +125,10 @@ main(int argc, char *argv[])
 
 		case 'p':
 			preen++;
+			/*FALLTHROUGH*/
+
+		case 'C':
+			ckclean++;
 			break;
 
 		case 'y':
@@ -144,7 +148,7 @@ main(int argc, char *argv[])
 
 	if (signal(SIGINT, SIG_IGN) != SIG_IGN)
 		(void)signal(SIGINT, catch);
-	if (preen)
+	if (ckclean)
 		(void)signal(SIGQUIT, catchquit);
 	signal(SIGINFO, infohandler);
 	if (bkgrdflag) {
@@ -202,7 +206,7 @@ checkfilesys(char *filesys)
 	size_t size;
 
 	cdevname = filesys;
-	if (debug && preen)
+	if (debug && ckclean)
 		pwarn("starting\n");
 	/*
 	 * Make best effort to get the disk name. Check first to see
@@ -237,6 +241,26 @@ checkfilesys(char *filesys)
 			exit(7);	/* Filesystem clean, report it now */
 		exit(0);
 	}
+	if (ckclean && skipclean) {
+		/*
+		 * If file system is su+j, check it here.
+		 */
+		if ((fsreadfd = open(filesys, O_RDONLY)) < 0 || readsb(0) == 0)
+			exit(3);	/* Cannot read superblock */
+		close(fsreadfd);
+#if 0
+		if ((sblock.fs_flags & FS_SUJ) != 0) {
+			if (sblock.fs_clean == 1) {
+				pwarn("FILE SYSTEM CLEAN; SKIPPING CHECKS\n");
+				exit(0);
+			}
+			suj_check(filesys);
+			if (chkdoreload(mntp) == 0)
+				exit(0);
+			exit(4);
+		}
+#endif
+	}
 	/*
 	 * If we are to do a background check:
 	 *	Get the mount point information of the file system
@@ -257,13 +281,13 @@ checkfilesys(char *filesys)
 			pfatal("MOUNTED READ-ONLY, CANNOT RUN IN BACKGROUND\n");
 		} else if ((fsreadfd = open(filesys, O_RDONLY)) >= 0) {
 			if (readsb(0) != 0) {
-				if (sblock.fs_flags & FS_NEEDSFSCK) {
+				if (sblock.fs_flags & (FS_NEEDSFSCK | FS_SUJ)) {
 					bkgrdflag = 0;
 					pfatal("UNEXPECTED INCONSISTENCY, %s\n",
 					    "CANNOT RUN IN BACKGROUND\n");
 				}
 				if ((sblock.fs_flags & FS_UNCLEAN) == 0 &&
-				    skipclean && preen) {
+				    skipclean && ckclean) {
 					/*
 					 * file system is clean;
 					 * skip snapshot and report it clean
@@ -430,6 +454,7 @@ checkfilesys(char *filesys)
 	inocleanup();
 	if (fsmodified) {
 		sblock.fs_time = time(NULL);
+		sblock.fs_mtime = time(NULL);
 		sbdirty();
 	}
 	if (cvtlevel && sblk.b_dirty) {
@@ -437,7 +462,7 @@ checkfilesys(char *filesys)
 		 * Write out the duplicate super blocks
 		 */
 		for (cylno = 0; cylno < sblock.fs_ncg; cylno++)
-			bwrite(fswritefd, (char *)&sblock,
+			blwrite(fswritefd, (char *)&sblock,
 			    fsbtodb(&sblock, cgsblock(&sblock, cylno)),
 			    SBLOCKSIZE);
 	}

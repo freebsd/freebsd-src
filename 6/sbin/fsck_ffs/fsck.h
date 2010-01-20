@@ -275,6 +275,7 @@ int	bkgrdcheck;		/* determine if background check is possible */
 int	bkgrdsumadj;		/* whether the kernel have ability to adjust superblock summary */
 char	usedsoftdep;		/* just fix soft dependency inconsistencies */
 char	preen;			/* just fix normal inconsistencies */
+char	ckclean;		/* only do work if not cleanly unmounted */
 char	rerun;			/* rerun fsck. Only used in non-preen mode */
 int	returntosingle;		/* 1 => return to single user mode on exit */
 char	resolved;		/* cleared if unresolved changes => not clean */
@@ -328,9 +329,9 @@ ino_t		allocdir(ino_t parent, ino_t request, int mode);
 ino_t		allocino(ino_t request, int type);
 void		blkerror(ino_t ino, const char *type, ufs2_daddr_t blk);
 char	       *blockcheck(char *name);
-int		bread(int fd, char *buf, ufs2_daddr_t blk, long size);
+int		blread(int fd, char *buf, ufs2_daddr_t blk, long size);
 void		bufinit(void);
-void		bwrite(int fd, char *buf, ufs2_daddr_t blk, long size);
+void		blwrite(int fd, char *buf, ufs2_daddr_t blk, long size);
 void		cacheino(union dinode *dp, ino_t inumber);
 void		catch(int);
 void		catchquit(int);
@@ -344,10 +345,6 @@ void		direrror(ino_t ino, const char *errmesg);
 int		dirscan(struct inodesc *);
 int		dofix(struct inodesc *, const char *msg);
 int		eascan(struct inodesc *, struct ufs2_dinode *dp);
-void		ffs_clrblock(struct fs *, u_char *, ufs1_daddr_t);
-void		ffs_fragacct(struct fs *, int, int32_t [], int);
-int		ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
-void		ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 void		fileerror(ino_t cwd, ino_t ino, const char *errmesg);
 int		findino(struct inodesc *);
 int		findname(struct inodesc *);
@@ -388,3 +385,4 @@ void		rwerror(const char *mesg, ufs2_daddr_t blk);
 void		sblock_init(void);
 void		setinodebuf(ino_t);
 int		setup(char *dev);
+void		suj_check(const char *filesys);
