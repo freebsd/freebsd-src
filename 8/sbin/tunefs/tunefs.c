@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -72,16 +73,19 @@ struct uufsd disk;
 
 void usage(void);
 void printfs(void);
+int journal_alloc(int64_t size);
+void sbdirty(void);
 
 int
 main(int argc, char *argv[])
 {
-	char *avalue, *Jvalue, *Lvalue, *lvalue, *nvalue;
+	char *avalue, *jvalue, *Jvalue, *Lvalue, *lvalue, *Nvalue, *nvalue;
 	const char *special, *on;
 	const char *name;
 	int active;
-	int Aflag, aflag, eflag, evalue, fflag, fvalue, Jflag, Lflag, lflag;
-	int mflag, mvalue, nflag, oflag, ovalue, pflag, sflag, svalue;
+	int Aflag, aflag, eflag, evalue, fflag, fvalue, jflag, Jflag, Lflag;
+	int lflag, mflag, mvalue, Nflag, nflag, oflag, ovalue, pflag, sflag;
+	int svalue, Sflag, Svalue;
 	int ch, found_arg, i;
 	const char *chg[2];
 	struct ufs_args args;
@@ -89,13 +93,13 @@ main(int argc, char *argv[])
 
 	if (argc < 3)
 		usage();
-	Aflag = aflag = eflag = fflag = Jflag = Lflag = lflag = mflag = 0;
-	nflag = oflag = pflag = sflag = 0;
-	avalue = Jvalue = Lvalue = lvalue = nvalue = NULL;
-	evalue = fvalue = mvalue = ovalue = svalue = 0;
+	Aflag = aflag = eflag = fflag = jflag = Jflag = Lflag = lflag = 0;
+	mflag = Nflag = nflag = oflag = pflag = sflag = 0;
+	avalue = jvalue = Jvalue = Lvalue = lvalue = Nvalue = nvalue = NULL;
+	evalue = fvalue = mvalue = ovalue = svalue = Svalue = 0;
 	active = 0;
 	found_arg = 0;		/* At least one arg is required. */
-	while ((ch = getopt(argc, argv, "Aa:e:f:J:L:l:m:n:o:ps:")) != -1)
+	while ((ch = getopt(argc, argv, "Aa:e:f:j:J:L:l:m:N:n:o:ps:S:")) != -1)
 		switch (ch) {
 
 		case 'A':
@@ -133,6 +137,18 @@ main(int argc, char *argv[])
 				errx(10, "%s must be >= 1 (was %s)",
 				    name, optarg);
 			fflag = 1;
+			break;
+
+		case 'j':
+			found_arg = 1;
+			name = "softdep journaled file system";
+			jvalue = optarg;
+			if (strcmp(jvalue, "enable") &&
+			    strcmp(jvalue, "disable")) {
+				errx(10, "bad %s (options are %s)",
+				    name, "`enable' or `disable'");
+			}
+			jflag = 1;
 			break;
 
 		case 'J':
@@ -228,6 +244,16 @@ main(int argc, char *argv[])
 			sflag = 1;
 			break;
 
+		case 'S':
+			found_arg = 1;
+			name = "Softdep Journal Size";
+			Svalue = atoi(optarg);
+			if (Svalue < SUJ_MIN)
+				errx(10, "%s must be >= %d (was %s)",
+				    name, SUJ_MIN, optarg);
+			Sflag = 1;
+			break;
+
 		default:
 			usage();
 		}
@@ -294,6 +320,33 @@ main(int argc, char *argv[])
 					name, sblock.fs_avgfilesize, fvalue);
 			sblock.fs_avgfilesize = fvalue;
 		}
+	}
+	if (jflag) {
+ 		name = "soft updates journaling";
+ 		if (strcmp(jvalue, "enable") == 0) {
+			if ((sblock.fs_flags & (FS_DOSOFTDEP | FS_SUJ)) ==
+			    (FS_DOSOFTDEP | FS_SUJ)) {
+				warnx("%s remains unchanged as enabled", name);
+			} else if (sblock.fs_clean == 0) {
+				warnx("%s cannot be enabled until fsck is run",
+				    name);
+			} else if (journal_alloc(Svalue) != 0) {
+				warnx("%s can not be enabled", name);
+			} else {
+ 				sblock.fs_flags |= FS_DOSOFTDEP | FS_SUJ;
+ 				warnx("%s set", name);
+			}
+ 		} else if (strcmp(jvalue, "disable") == 0) {
+			if ((~sblock.fs_flags & FS_SUJ) == FS_SUJ) {
+				warnx("%s remains unchanged as disabled", name);
+			} else {
+				sbdirty();
+ 				sblock.fs_flags &= ~(FS_DOSOFTDEP | FS_SUJ);
+				sblock.fs_sujournal = 0;
+				sblock.fs_sujfree = 0;
+ 				warnx("%s cleared", name);
+			}
+ 		}
 	}
 	if (Jflag) {
 		name = "gjournal";
@@ -418,6 +471,229 @@ err:
 }
 
 void
+sbdirty(void)
+{
+	disk.d_fs.fs_flags |= FS_UNCLEAN | FS_NEEDSFSCK;
+	disk.d_fs.fs_clean = 0;
+}
+
+int blocks;
+static char clrbuf[MAXBSIZE];
+
+static ufs2_daddr_t
+journal_balloc(void)
+{
+	ufs2_daddr_t blk;
+	struct cg *cgp;
+	struct fs *fs;
+	int valid;
+
+	cgp = &disk.d_cg;
+	fs = &disk.d_fs;
+	for (;;) {
+		blk = cgballoc(&disk);
+		if (blk > 0)
+			break;
+		/*
+		 * If we failed to allocate a block from this cg, move to
+		 * the next.
+		 */
+		if (cgwrite(&disk) < 0) {
+			warn("Failed to write updated cg");
+			return (-1);
+		}
+		while ((valid = cgread(&disk)) == 1) {
+			/*
+			 * Try to minimize fragmentation by requiring a minimum
+			 * number of blocks present.
+			 */
+			if (cgp->cg_cs.cs_nbfree > blocks / 8)
+				break;
+		}
+		if (valid)
+			continue;
+		warnx("Failed to find sufficient free blocks for the journal");
+		return -1;
+	}
+	if (bwrite(&disk, fsbtodb(fs, blk), clrbuf, fs->fs_bsize) <= 0) {
+		warn("Failed to initialize new block");
+		return -1;
+	}
+	return (blk);
+}
+
+static int
+indir_fill(ufs2_daddr_t blk, int level, int *resid)
+{
+	char indirbuf[MAXBSIZE];
+	ufs1_daddr_t *bap1;
+	ufs2_daddr_t *bap2;
+	ufs2_daddr_t nblk;
+	struct fs *fs;
+	int ncnt;
+	int cnt;
+	int i;
+
+	fs = &disk.d_fs;
+	bzero(indirbuf, sizeof(indirbuf));
+	bap1 = (ufs1_daddr_t *)indirbuf;
+	bap2 = (void *)bap1;
+	cnt = 0;
+	for (i = 0; i < NINDIR(fs) && *resid != 0; i++) {
+		nblk = journal_balloc();
+		if (nblk <= 0)
+			return (-1);
+		cnt++;
+		if (fs->fs_magic == FS_UFS1_MAGIC)
+			*bap1++ = nblk;
+		else
+			*bap2++ = nblk;
+		if (level != 0) {
+			ncnt = indir_fill(nblk, level - 1, resid);
+			if (ncnt <= 0)
+				return (-1);
+			cnt += ncnt;
+		} else 
+			(*resid)--;
+	}
+	if (bwrite(&disk, fsbtodb(fs, blk), indirbuf, fs->fs_bsize) <= 0) {
+		warn("Failed to write indirect");
+		return (-1);
+	}
+	return (cnt);
+}
+
+int
+journal_alloc(int64_t size)
+{
+	struct ufs1_dinode *dp1;
+	struct ufs2_dinode *dp2;
+	ufs2_daddr_t blk;
+	void *ip;
+	struct cg *cgp;
+	struct fs *fs;
+	int resid;
+	ino_t ino;
+	int blks;
+	int mode;
+	int i;
+
+	fs = &disk.d_fs;
+	cgp = &disk.d_cg;
+	ino = 0;
+
+	/*
+	 * If the user didn't supply a size pick one based on the filesystem
+	 * size constrained with hardcoded MIN and MAX values.  We opt for
+	 * 1/1024th of the filesystem up to MAX but not exceeding one CG and
+	 * not less than the MIN.
+	 */
+	if (size == 0) {
+		size = (fs->fs_size * fs->fs_bsize) / 1024;
+		size = MIN(SUJ_MAX, size);
+		if (size / fs->fs_fsize > fs->fs_fpg)
+			size = fs->fs_fpg * fs->fs_fsize;
+		size = MAX(SUJ_MIN, size);
+	}
+	resid = blocks = size / fs->fs_bsize;
+	if (fs->fs_cstotal.cs_nbfree < blocks) {
+		warn("Insufficient free space for %jd byte journal", size);
+		return (-1);
+	}
+	/*
+	 * Find a cg with enough blocks to satisfy the journal
+	 * size.  Presently the journal does not span cgs.
+	 */
+	while (cgread(&disk) == 1) {
+		if (cgp->cg_cs.cs_nifree == 0)
+			continue;
+		/*
+		 * Try to minimize fragmentation by requiring at least a
+		 * 1/8th of the blocks be present in each cg we use.
+		 */
+		if (cgp->cg_cs.cs_nbfree < blocks / 8)
+			continue;
+		ino = cgialloc(&disk);
+		if (ino <= 0)
+			break;
+		printf("Using inode %d in cg %d for %jd byte journal\n", 
+		    ino, cgp->cg_cgx, size);
+		if (getino(&disk, &ip, ino, &mode) != 0) {
+			warn("Failed to get allocated inode");
+			sbdirty();
+			goto out;
+		}
+		/*
+		 * We leave fields unrelated to the number of allocated
+		 * blocks and size uninitialized.  This causes legacy
+		 * fsck implementations to clear the inode.
+		 */
+		dp2 = ip;
+		dp1 = ip;
+		if (fs->fs_magic == FS_UFS1_MAGIC) {
+			bzero(dp1, sizeof(*dp1));
+			dp1->di_size = size;
+			dp1->di_mode = IFREG;
+			dp1->di_nlink = 1;
+		} else {
+			bzero(dp2, sizeof(*dp2));
+			dp2->di_size = size;
+			dp2->di_mode = IFREG;
+			dp2->di_nlink = 1;
+		}
+		for (i = 0; i < NDADDR && resid; i++, resid--) {
+			blk = journal_balloc();
+			if (blk <= 0)
+				goto out;
+			if (fs->fs_magic == FS_UFS1_MAGIC) {
+				dp1->di_db[i] = blk;
+				dp1->di_blocks++;
+			} else {
+				dp2->di_db[i] = blk;
+				dp2->di_blocks++;
+			}
+		}
+		for (i = 0; i < NIADDR && resid; i++) {
+			blk = journal_balloc();
+			if (blk <= 0)
+				goto out;
+			blks = indir_fill(blk, i, &resid) + 1;
+			if (blks <= 0) {
+				sbdirty();
+				goto out;
+			}
+			if (fs->fs_magic == FS_UFS1_MAGIC) {
+				dp1->di_ib[i] = blk;
+				dp1->di_blocks += blks;
+			} else {
+				dp2->di_ib[i] = blk;
+				dp2->di_blocks += blks;
+			}
+		}
+		if (fs->fs_magic == FS_UFS1_MAGIC)
+			dp1->di_blocks *= fs->fs_bsize / disk.d_bsize;
+		else
+			dp2->di_blocks *= fs->fs_bsize / disk.d_bsize;
+		if (putino(&disk) < 0) {
+			warn("Failed to write inode");
+			sbdirty();
+			return (-1);
+		}
+		if (cgwrite(&disk) < 0) {
+			warn("Failed to write updated cg");
+			sbdirty();
+			return (-1);
+		}
+		fs->fs_sujournal = ino;
+		fs->fs_sujfree = 0;
+		return (0);
+	}
+	warnx("Insufficient contiguous free space for the journal.");
+out:
+	return (-1);
+}
+
+void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
@@ -437,6 +713,8 @@ printfs(void)
 		(sblock.fs_flags & FS_MULTILABEL)? "enabled" : "disabled");
 	warnx("soft updates: (-n)                                 %s", 
 		(sblock.fs_flags & FS_DOSOFTDEP)? "enabled" : "disabled");
+	warnx("soft update journaling: (-j)                       %s", 
+		(sblock.fs_flags & FS_SUJ)? "enabled" : "disabled");
 	warnx("gjournal: (-J)                                     %s",
 		(sblock.fs_flags & FS_GJOURNAL)? "enabled" : "disabled");
 	warnx("maximum blocks per file in a cylinder group: (-e)  %d",

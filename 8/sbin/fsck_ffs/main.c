@@ -256,7 +256,7 @@ checkfilesys(char *filesys)
 	}
 	if (ckclean && skipclean) {
 		/*
-		 * If file system is gjournaled, check it here.
+		 * If file system is gjournaled or su+j, check it here.
 		 */
 		if ((fsreadfd = open(filesys, O_RDONLY)) < 0 || readsb(0) == 0)
 			exit(3);	/* Cannot read superblock */
@@ -278,6 +278,18 @@ checkfilesys(char *filesys)
 				    "CANNOT RUN FAST FSCK\n");
 			}
 		}
+#if 0
+		if ((sblock.fs_flags & FS_SUJ) != 0) {
+			if (sblock.fs_clean == 1) {
+				pwarn("FILE SYSTEM CLEAN; SKIPPING CHECKS\n");
+				exit(0);
+			}
+			suj_check(filesys);
+			if (chkdoreload(mntp) == 0)
+				exit(0);
+			exit(4);
+		}
+#endif
 	}
 	/*
 	 * If we are to do a background check:
@@ -299,7 +311,7 @@ checkfilesys(char *filesys)
 			pfatal("MOUNTED READ-ONLY, CANNOT RUN IN BACKGROUND\n");
 		} else if ((fsreadfd = open(filesys, O_RDONLY)) >= 0) {
 			if (readsb(0) != 0) {
-				if (sblock.fs_flags & FS_NEEDSFSCK) {
+				if (sblock.fs_flags & (FS_NEEDSFSCK | FS_SUJ)) {
 					bkgrdflag = 0;
 					pfatal("UNEXPECTED INCONSISTENCY, %s\n",
 					    "CANNOT RUN IN BACKGROUND\n");
@@ -478,6 +490,7 @@ checkfilesys(char *filesys)
 	inocleanup();
 	if (fsmodified) {
 		sblock.fs_time = time(NULL);
+		sblock.fs_mtime = time(NULL);
 		sbdirty();
 	}
 	if (cvtlevel && sblk.b_dirty) {
