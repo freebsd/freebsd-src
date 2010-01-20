@@ -303,13 +303,18 @@ create_service(const int sock, const struct netconfig *nconf,
 					freeaddrinfo(res0);
 					return -1;
 				}
-				if (bind(s, res->ai_addr,
-				    res->ai_addrlen) == -1) {
-					_msgout("cannot bind %s socket: %s",
-					    nconf->nc_netid, strerror(errno));
-					freeaddrinfo(res0);
-					close(sock);
-					return -1;
+				if (bindresvport_sa(s, res->ai_addr) == -1) {
+					if ((errno != EPERM) ||
+					    (bind(s, res->ai_addr,
+					    res->ai_addrlen) == -1)) {
+						_msgout("cannot bind "
+						    "%s socket: %s",
+						    nconf->nc_netid,
+						strerror(errno));
+						freeaddrinfo(res0);
+						close(sock);
+						return -1;
+					}
 				}
 				if (nconf->nc_semantics != NC_TPI_CLTS)
 					listen(s, SOMAXCONN);
