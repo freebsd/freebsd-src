@@ -167,6 +167,7 @@ int needroot = 1;		/* Root privs are necessary */
 int noaction = 0;		/* Don't do anything, just show it */
 int norotate = 0;		/* Don't rotate */
 int nosignal;			/* Do not send any signals */
+int enforcepid = 0;		/* If PID file does not exist or empty, do nothing */
 int force = 0;			/* Force the trim no matter what */
 int rotatereq = 0;		/* -R = Always rotate the file(s) as given */
 				/*    on the command (this also requires   */
@@ -580,7 +581,7 @@ parse_args(int argc, char **argv)
 		*p = '\0';
 
 	/* Parse command line options. */
-	while ((ch = getopt(argc, argv, "a:d:f:nrsvCD:FNR:")) != -1)
+	while ((ch = getopt(argc, argv, "a:d:f:nrsvCD:FNPR:")) != -1)
 		switch (ch) {
 		case 'a':
 			archtodir++;
@@ -623,6 +624,9 @@ parse_args(int argc, char **argv)
 			break;
 		case 'N':
 			norotate++;
+			break;
+		case 'P':
+			enforcepid++;
 			break;
 		case 'R':
 			rotatereq++;
@@ -1779,7 +1783,7 @@ set_swpid(struct sigwork_entry *swork, const struct conf_entry *ent)
 
 	f = fopen(ent->pid_file, "r");
 	if (f == NULL) {
-		if (errno == ENOENT) {
+		if (errno == ENOENT && enforcepid == 0) {
 			/*
 			 * Warn if the PID file doesn't exist, but do
 			 * not consider it an error.  Most likely it
@@ -1801,7 +1805,7 @@ set_swpid(struct sigwork_entry *swork, const struct conf_entry *ent)
 		 * has terminated, so it should be safe to rotate any
 		 * log files that the process would have been using.
 		 */
-		if (feof(f)) {
+		if (feof(f) && enforcepid == 0) {
 			swork->sw_pidok = 1;
 			warnx("pid file is empty: %s", ent->pid_file);
 		} else
