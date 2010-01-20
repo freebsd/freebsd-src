@@ -112,7 +112,6 @@ void MipsFPTrap(u_int, u_int, u_int);
 void MipsKernGenException(void);
 void MipsKernIntr(void);
 void MipsKernTLBInvalidException(void);
-void MipsTLBInvalidException(void);
 void MipsTLBMissException(void);
 void MipsUserGenException(void);
 void MipsUserIntr(void);
