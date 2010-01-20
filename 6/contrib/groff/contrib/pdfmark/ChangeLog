@@ -1,0 +1,137 @@
+2005-06-22  Keith Marshall  <keith.d.marshall@ntlworld.com>
+
+	pdfroff.sh portability enhancement.
+
+	* pdfroff.sh: (ARGLIST): Variable removed.
+	(GROFF_STYLE): Use it for all groff invocations.
+	(INPUT_FILES): Pass to all groff invocations, instead of ARGLIST.
+	(CS_MACRO, CE_MACRO): Initialize independently.
+	(CS_FILTER): Simplify quoting; it used to confuse some shells.
+	(Source): CVS keyword removed; replaced by...
+	(RCSfile, Revision): these.
+
+2005-06-17  Keith Marshall  <keith.d.marshall@ntlworld.com>
+
+	* pdfroff.sh: (MATCH): Correct quoting.
+	(Source): Add terminating `$' on CVS keyword.
+
+2005-06-17  Zvezdan Petkovic  <zpetkovic@acm.org>
+
+	* Makefile.sub: (RM): Define as `rm -f', for `make' programs
+	which don't predefine it.
+
+2005-06-16  Bernd Warken
+
+	* pdfroff.sh: (NULLDEV): Correct misspelled instance of NULDEV.
+
+2005-05-28  Werner LEMBERG  <wl@gnu.org>
+
+	* Makefile.sub (.ms.pdf): Use `--stylesheet', not `--style'.
+
+2005-05-17  Keith Marshall  <keith.d.marshall@ntlworld.com>
+
+	Improve portability of `pdfroff' shell script.
+
+	* pdfroff.sh: Add space in shebang, conforming to portability
+	guidelines in `autoconf' docs.
+	(searchpath): New shell function; use it instead of `type' command
+	to locate prerequisite helper programs.
+
+	* pdfroff.man: Document influence of `OSTYPE' and `PATH_SEPARATOR'
+	environment variables.
+
+	* Makefile.sub: (pdfroff): Make it depend on SH_DEPS_SED_SCRIPT,
+	from arch/misc/shdeps.sh; use it to customize PATH_SEPARATOR
+	initialization code for `searchpath' function in pdfroff.sh.
+
+2005-05-16  Keith Marshall  <keith.d.marshall@ntlworld.com>
+
+	Interim documentation update.
+
+	* pdfmark.ms: (GROFF-WEBSITE): New string; use it in references and
+	examples.
+	(Section 2.5): Add definitions of D and Z operators, for use with
+	pdfhref macro.
+	(Section 2.5.4): Complete description of pdfhref macro usage for
+	`Linking to Internet Resources'; provide examples.
+
+2005-05-14  Nick Stoughton  <nick@usenix.org>
+
+	* pdfmark.tmac (LB): Renamed to ...
+	(PDFLB): This to avoid conflicts with mm's LB macro.
+
+2005-05-02  Keith Marshall  <keith.d.marshall@ntlworld.com>
+
+	Handle parsing anomalies in Cygwin's `ash', and similar, shells.
+
+	* pdfroff.sh: ($CAT, $GREP, $SED, $GROFF, $DIFF): Avoid interpreting
+	misdirected error messages, which `type' sends to `stdout' in some
+	shells, as a successful program file match.
+
+	($AWK, $GS): Likewise; also ensure that multiple choice match
+	prototypes are eval'ed as such, in case token splitting occurs
+	before variable expansion.
+
+2005-04-24  Keith Marshall  <keith.d.marshall@ntlworld.com>
+
+	Add support for folded outlines in PDF documents.
+
+	* pdfmark.tmac (PDFOUTLINE.FOLDLEVEL): New register.
+	(pdf:bm.emit): Use it.
+
+	* pdfmark.ms: Document it.
+
+2005-03-25  Werner LEMBERG  <wl@gnu.org>
+
+	* Makefile.in: Removed.
+
+2005-03-24  Werner LEMBERG  <wl@gnu.org>
+
+	* Makefile: Renamed to...
+	* Makefile.in: This.
+
+2005-03-22  Keith Marshall  <keith.d.marshall@ntlworld.com>
+
+	* pdfroff.sh: Eliminate invalid program reference to $AWK, when
+	invoked with `--no-reference-dictionary' option.
+
+2005-03-02  Keith Marshall  <keith.d.marshall@ntlworld.com>
+
+	* contrib/pdfmark/Makefile.sub (install_data): Use $(INSTALL_SCRIPT)
+	to install `pdfroff'.
+	* contrib/pdfmark/pdfroff.man (opte): New macro.
+	Use it to remove spurious equal signs from SYNOPSIS.
+
+2005-02-28  Keith Marshall  <keith.d.marshall@ntlworld.com>
+
+	Provide `pdfroff' shell script, and manpage to document it;
+	runs multiple groff passes, to format PDF documents.
+
+	* pdfroff.sh: New shell script template;
+	* pdfroff.man: New man page to document it.
+
+	Integrate `pdfmark' into normal groff build system;
+	install macro `pdfmark' packages, build and install `pdfroff',
+	and PDF format documentation.
+
+	* Makefile.sub: Rewritten.
+	* pdfmark.tmac: Modified.
+	(pdfhref): New macro operators, `D' and `Z'.
+	(pdf*href-D, pdf*href-Z): New macros: implement them.
+	(pdf*href.mark.resolve, pdf*href.mark.emit, pdf*href.mark.flush):
+	Modified macro algorithm, to eliminate inconsistencies between
+	`grohtml' representations of `opminy' from differing groff versions.
+	(pdf*href.mark, pdf*href.mark.release, pdf*href.mark.close):
+	deleted (redundant macros).
+	(PDFHREF.LEADING): Default value changed (was 2.5p; now -1.0p).
+	Global comment updates.
+
+	* TODO: Updated.
+
+2004-12-10  Werner LEMBERG  <wl@gnu.org>
+
+	* TODO: Updated.
+
+2004-12-08  Keith Marshall  <keith.d.marshall@ntlworld.com>
+
+	First import of pdfmark files.

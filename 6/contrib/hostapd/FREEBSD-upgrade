@@ -1,0 +1,24 @@
+$FreeBSD$
+
+WPA/802.1x Authenticator
+	originals can be found at: http://hostap.epitest.fi/releases/
+
+
+For the import files and directories were pruned by:
+
+	tar -X FREEBSD-Xlist -zxf hostapd-0.4.8.tar.gz
+
+then imported by:
+
+	cvs import -m 'Import of hostapd 0.4.8' \
+		src/contrib/hostapd MALINEN v0_4_8
+
+To make local changes to hostapd, simply patch and commit to the
+main branch (aka HEAD).  Never make local changes on the vendor
+(MALINEN) branch.
+
+All local changes should be submitted to Jouni Malinen for inclusion in
+the next vendor release.
+
+sam@FreeBSD.org
+6-March-2006

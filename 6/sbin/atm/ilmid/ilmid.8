@@ -1,0 +1,110 @@
+.\"
+.\" ===================================
+.\" HARP  |  Host ATM Research Platform
+.\" ===================================
+.\"
+.\"
+.\" This Host ATM Research Platform ("HARP") file (the "Software") is
+.\" made available by Network Computing Services, Inc. ("NetworkCS")
+.\" "AS IS".  NetworkCS does not provide maintenance, improvements or
+.\" support of any kind.
+.\"
+.\" NETWORKCS MAKES NO WARRANTIES OR REPRESENTATIONS, EXPRESS OR IMPLIED,
+.\" INCLUDING, BUT NOT LIMITED TO, IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE, AS TO ANY ELEMENT OF THE
+.\" SOFTWARE OR ANY SUPPORT PROVIDED IN CONNECTION WITH THIS SOFTWARE.
+.\" In no event shall NetworkCS be responsible for any damages, including
+.\" but not limited to consequential damages, arising from or relating to
+.\" any use of the Software or related support.
+.\"
+.\" Copyright 1994-1998 Network Computing Services, Inc.
+.\"
+.\" Copies of this Software may be made, however, the above copyright
+.\" notice must be reproduced on all copies.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 14, 1998
+.Dt ILMID 8
+.Os
+.Sh NAME
+.Nm ilmid
+.Nd "simple ILMI ATM address registration daemon"
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar level
+.Op Fl f
+.Op Fl r
+.Sh DESCRIPTION
+The
+.Nm
+utility is a HARP ATM daemon that performs the ILMI ATM address registration
+procedures with an ATM network switch.
+It is normally invoked at boot time
+from the ATM startup script.
+.Pp
+For each ATM interface with a UNI signalling manager attached,
+.Nm
+will open an ILMI PVC (VPI = 0, VCI = 16) and register the interface's
+ATM address with the switch.
+As part of the address registration procedure,
+the ATM switch will notify the endsystem (local host) of the
+.Dq "network prefix"
+portion of the endsystem's ATM address and
+.Nm
+will notify the switch of the endsystem's
+.Dq "user part"
+of its address
+(typically the interface card MAC address).
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl d Ar level
+Specify the debug level for optional protocol tracing.
+Messages are
+written to
+.Pa /var/log/ilmid .
+.It Fl f
+Causes
+.Nm
+to run in the foreground.
+.It Fl r
+Causes
+.Nm
+to issue a coldStart TRAP on all ATM interfaces it is able to open and exit.
+.El
+.Sh NOTES
+This daemon does not fully conform to the ATM Forum ILMI specifications.
+In particular, it
+does not make any queries of the network side to ensure
+that the ATM Address table is empty.
+It also does not implement any
+of the ATM Forum MIB that is specified as part of ILMI.
+.Pp
+The
+.Nm
+utility will increment the debug level when it receives a
+.Dv SIGUSR1
+signal and will
+decrement the debug level when it receives a
+.Dv SIGUSR2
+signal.
+.Sh SEE ALSO
+The ATM Forum,
+.%T "ATM User-Network Interface, Version 3.1 (UNI 3.1) Specification"
+for details on the ILMI protocols and address registration
+procedures.
+.Sh COPYRIGHT
+Copyright (c) 1994-1998, Network Computing Services, Inc.
+.Sh AUTHORS
+.An John Cavanaugh ,
+Network Computing Services, Inc.
+.An Mike Spengler ,
+Network Computing Services, Inc.
+.An Joseph Thomas ,
+Network Computing Services, Inc.
+.Sh ACKNOWLEDGMENTS
+This software was developed with the support of the
+Defense Advanced Research Projects Agency (DARPA).
+.Sh BUGS
+Please report any bugs to
+.Aq harp\-bugs@magic.net .

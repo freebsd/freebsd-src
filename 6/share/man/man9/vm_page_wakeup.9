@@ -1,0 +1,76 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 14, 2001
+.Dt VM_PAGE_BUSY 9
+.Os
+.Sh NAME
+.Nm vm_page_busy ,
+.Nm vm_page_flash ,
+.Nm vm_page_wakeup
+.Nd "handle the busying and unbusying of a page"
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_page.h
+.Ft void
+.Fn vm_page_busy "vm_page_t m"
+.Ft void
+.Fn vm_page_flash "vm_page_t m"
+.Ft void
+.Fn vm_page_wakeup "vm_page_t m"
+.Sh DESCRIPTION
+These functions handle the busying, unbusying and notification of the unbusying
+of a page.
+.Pp
+.Fn vm_page_busy
+sets the
+.Dv PG_BUSY
+flag in the page.
+.Pp
+.Fn vm_page_flash
+checks to see if there is anybody waiting on the page
+.Dv ( PG_WANTED
+will be set), and if so, clears the
+.Dv PG_WANTED
+flag and notifies whoever is waiting via
+.Fn wakeup .
+.Pp
+.Fn vm_page_wakeup
+clears the
+.Dv PG_BUSY
+flag on the page, and calls
+.Fn vm_page_flash
+in case somebody has been waiting for it.
+.Pp
+.Sh SEE ALSO
+.Xr vm_page_sleep_busy 9 ,
+.Xr wakeup 9
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq davidc@acns.ab.ca .

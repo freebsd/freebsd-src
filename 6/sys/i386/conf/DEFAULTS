@@ -1,0 +1,17 @@
+#
+# DEFAULTS -- Default kernel configuration file for FreeBSD/i386
+#
+# $FreeBSD$
+
+# Not yet, this would break all existing configs
+#machine		i386
+
+# Bus support.
+device		isa
+
+# Floating point support.
+device		npx
+
+# Pseudo devices.
+device		mem		# Memory and kernel memory devices
+device		io		# I/O device

@@ -1,0 +1,7 @@
+# $FreeBSD$
+# a very simple makefile...
+pmake:
+	@echo 'make started.'
+	cc -DDEFSHELLNAME=\"sh\" -I. -c *.c
+	cc *.o -o pmake
+	@echo 'make completed.'

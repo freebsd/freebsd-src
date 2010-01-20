@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: rwho
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+
+. /etc/rc.subr
+
+name="rwhod"
+rcvar="`set_rcvar`"
+command="/usr/sbin/${name}"
+
+load_rc_config $name
+run_rc_command "$1"

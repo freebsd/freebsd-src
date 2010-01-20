@@ -1,0 +1,60 @@
+.\" Man page for apropos an whatis
+.\"
+.\" Copyright (c) 1990, 1991, John W. Eaton.
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the README file that comes with the man 1.0
+.\" distribution.
+.\"
+.\" John W. Eaton
+.\" jwe@che.utexas.edu
+.\" Department of Chemical Engineering
+.\" The University of Texas at Austin
+.\" Austin, Texas  78712
+.\"
+.\" $FreeBSD$
+.Dd January 15, 1991
+.Dt APROPOS 1
+.Os
+.Sh NAME
+.Nm apropos ,
+.Nm whatis
+.Nd search the whatis database
+.Sh SYNOPSIS
+.Nm apropos
+.Ar keyword ...
+.Nm whatis
+.Ar keyword ...
+.Sh DESCRIPTION
+.Nm
+searches a set of database files containing short descriptions
+of system commands for keywords and displays the result on the
+standard output.
+.Nm whatis
+displays only complete word matches.
+.Pp
+.Ar keyword
+really is an extended regular expression, please read
+.Xr grep 1
+manual page for more information about its format.
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev PAGER"
+.It Ev PATH , MANPATH , MANLOCALES
+Used in finding the
+.Nm whatis
+database files.
+See
+.Xr manpath 1 .
+.It Ev PAGER
+Command used to page the output.
+The default is
+.Ic more -s .
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success, and 1 if no keyword matched.
+.Sh SEE ALSO
+.Xr grep 1 ,
+.Xr makewhatis 1 ,
+.Xr man 1

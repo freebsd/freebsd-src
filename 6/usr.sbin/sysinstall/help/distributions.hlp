@@ -1,0 +1,34 @@
+DISTRIBUTION INFORMATION
+------------------------
+
+An ``X-'' prefixed before a distribution set means that the Xorg
+base distribution, libraries, manual pages, servers and a set
+of default fonts will be selected in addition to the set itself.
+If you select such a set, you will also be presented with a set of
+menus for customizing the selections to your desired X Window System
+setup.
+
+Any distribution may be further customized by selecting the `Custom'
+item before leaving the menu.
+
+The current "canned" installations are provided:
+
+All:            The base distribution, man pages, dictionary files,
+                profiling libraries, the FreeBSD compatibility libraries,
+                the complete source tree, games and your choice of XFree86
+                distribution components.
+
+Developer:      Base ("bin") distribution, man pages, dictionary
+                files, profiling libraries and the complete source tree.
+
+Kern-Developer: As Developer, but with only kernel sources instead of
+                the complete source tree.
+
+User:           The base distribution, man pages, and dictionary files.
+
+Minimal:        Only the base distribution.
+
+Custom:         Allows you to create or modify your distribution set on
+                a piece-by-piece basis.
+
+Reset:          Clear all currently selected distributions.

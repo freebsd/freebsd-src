@@ -1,0 +1,4 @@
+--with-irs-gr=yes #define WANT_IRS_GR
+--with-irs-nis=yes #define WANT_IRS_NIS
+--with-irs-pw=yes #define WANT_IRS_PW
+

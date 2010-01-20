@@ -1,0 +1,14 @@
+GNU cpio THANKS file
+
+GNU cpio has originally been written by Phil Nelson <phil@cs.wwu.edu>
+and David MacKenzie <djm@gnu.ai.mit.edu>. It was further modified
+by John Oleynick <juo@gnu.org> and Sergey Poznyakoff <gray@gnu.org>
+who currently maintains it.
+
+The following is a list of people who contributed to GNU cpio by
+reporting problems, suggesting various improvements or submitting actual
+code. Help us keep it complete and exempt of errors.
+
+Matthew Braithwaite     <mab@cnet.com>
+Mitsuru Chinen		<mchinen@yamato.ibm.com>
+Holger Fleischmann	<holger_fleischmann@mra.man.de>

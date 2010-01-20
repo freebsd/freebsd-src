@@ -1,0 +1,632 @@
+.\"
+.\" ===================================
+.\" HARP  |  Host ATM Research Platform
+.\" ===================================
+.\"
+.\"
+.\" This Host ATM Research Platform ("HARP") file (the "Software") is
+.\" made available by Network Computing Services, Inc. ("NetworkCS")
+.\" "AS IS".  NetworkCS does not provide maintenance, improvements or
+.\" support of any kind.
+.\"
+.\" NETWORKCS MAKES NO WARRANTIES OR REPRESENTATIONS, EXPRESS OR IMPLIED,
+.\" INCLUDING, BUT NOT LIMITED TO, IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE, AS TO ANY ELEMENT OF THE
+.\" SOFTWARE OR ANY SUPPORT PROVIDED IN CONNECTION WITH THIS SOFTWARE.
+.\" In no event shall NetworkCS be responsible for any damages, including
+.\" but not limited to consequential damages, arising from or relating to
+.\" any use of the Software or related support.
+.\"
+.\" Copyright 1994-1998 Network Computing Services, Inc.
+.\"
+.\" Copies of this Software may be made, however, the above copyright
+.\" notice must be reproduced on all copies.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 21, 1998
+.Dt SCSPD 8
+.Os
+.Sh NAME
+.Nm scspd
+.Nd "SCSP daemon"
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Aq Ar cfg\-file
+.Op Fl d
+.Op Fl T Ns Aq Ar options
+.Sh DESCRIPTION
+The
+.Nm
+utility is an implementation of the Server Cache Synchronization
+Protocol (SCSP) for the Host ATM Research Platform (HARP)
+networking software.
+The
+.Nm
+utility synchronizes the cache(s) of server(s)
+running on a host with the caches of servers on remote hosts.
+SCSP is defined for a number of different protocols, but the present
+version of
+.Nm
+only supports ATMARP.
+.Pp
+By using
+.Nm
+and
+.Xr atmarpd 8 ,
+one can provide multiple
+ATMARP servers in a single ATM LIS.
+This might be useful, for example, when a LIS consists of a number of
+local-area ATM networks connected by long-distance links.
+Each local-area network could have its own ATMARP server, with all the
+servers' caches being synchronized by SCSP.
+Then, if a long-distance link fails, hosts on a local-area network
+will still have connectivity to other local hosts (since they all use
+the local ATMARP server); when the long-distance link is restored,
+SCSP will re-synchronize the servers' caches, restoring
+connectivity to remote hosts.
+Both
+.Nm
+and
+.Xr atmarpd 8
+must be running before any ATMARP
+cache synchronization can take place.
+.Pp
+The
+.Nm
+utility implements SCSP as specified in RFC 2334,
+.%T "Server Cache Synchronization Protocol (SCSP)"
+and
+.Pa draft\-ietf\-ion\-scspd\-atmarpd\-00.txt ,
+.%T "A Distributed ATMARP Service using SCSP" .
+.Pp
+When
+.Nm
+starts, it parses its command line and puts
+itself into the background.
+.Sh TERMINOLOGY
+Some of the vocabulary associated with SCSP can be confusing.
+In this document, the following definitions are used:
+.Pp
+.Em "Client server"
+or
+.Em "local server"
+means the server running on
+the same host as
+.Nm
+whose cache is to be synchronized with that
+of one or more remote servers.
+When the word
+.Em server
+is used alone, it means
+.Em "client server" .
+.Pp
+.Em "Remote server"
+means a server running on some host other than
+the one where
+.Nm
+is running.
+.Pp
+.Em "Directly Connected Server"
+(DCS) means a remote server that
+.Nm
+communicates with directly.
+The remote server will also be running an implementation of SCSP.
+.Pp
+.Em "Cache Alignment"
+(CA) has two meanings.
+The Cache Alignment protocol is a part of the SCSP protocol
+specification, and the Cache Alignment finite state machine (FSM)
+is a finite state machine that implements the Cache Alignment
+protocol.
+.Sh OPTIONS
+The command-line options are:
+.Bl -tag -width "-f <cfg\-file>"
+.It Fl f Aq Ar cfg\-file
+Specifies the name of the configuration file.
+If this option is not specified,
+.Nm
+looks for the
+file
+.Pa /etc/scspd.conf .
+.It Fl d
+Specifies that
+.Nm
+is to be run in debug mode.
+In debug mode, the daemon is not put into the background.
+Log messages are written to standard output instead of to
+the log file specified in the configuration file.
+.It Fl T Ns Aq Ar options
+Specifies that
+.Nm
+will trace specified events and messages
+as it executes.
+The
+.Fl T
+flag is followed by one or more of the following
+options:
+.Pp
+.Bl -tag -width 4n -compact
+.It Cm c
+trace
+.Nm Ns 's
+CA Finite State Machine (FSM),
+.It Cm h
+trace
+.Nm Ns 's
+Hello FSM,
+.It Cm i
+trace
+.Nm Ns 's
+Client Interface FSM,
+.It Cm C
+trace CA, CSUS, CSU Request, and CSU Reply messages,
+.It Cm H
+trace Hello messages,
+.It Cm I
+trace interface messages to and from
+.Nm Ns 's
+clients.
+.El
+.El
+.Sh CONFIGURATION
+The configuration file consists of a sequence of configuration
+statements.
+These statements specify information about the servers,
+both local and remote, whose
+caches are to be synchronized by
+.Nm .
+RFC 2334,
+.%T "Server Cache Synchronization Protocol (SCSP)"
+and
+.Pa draft\-ietf\-ion\-scspd\-atmarpd\-00.txt ,
+.%T "A Distributed ATMARP Service using SCSP"
+will be valuable in understanding how to configure
+.Nm .
+.Pp
+A configuration statement other than a comment is terminated by a
+semicolon.
+Some statements contain blocks, delimited by braces
+.No ( Dq Li {
+and
+.Dq Li } ) .
+Configuration statement keywords are not case-sensitive,
+but some parameters (e.g.\& interface names) are.
+Configuration statements can span multiple lines.
+.Ss Comments
+Three types of comments are allowed:
+.Bl -hang
+.It Sy "# comments" :
+any characters from
+.Dq Li #
+to the end of the line are ignored.
+.It Sy "C comments" :
+any characters between
+.Dq Li /*
+and
+.Dq Li */
+are ignored.
+.It Sy "C++ comments" :
+any characters from
+.Dq Li //
+to the end of the line are ignored.
+.El
+.Ss Statements
+The configuration statements recognized by
+.Nm
+are:
+.Bd -literal
+Server <name> {
+	Protocol <protocol ID>;
+	Netif <if_name>;
+	ServerGroupID <ID>;
+	FamilyID <ID>;
+	DCS {
+		ATMaddr <ATM address>;
+		ID <host>;
+		CAReXmitInt <int>;
+		CSUSReXmitInt <int>;
+		CSUReXmitInt <int>;
+		CSUReXmitMax <cnt>;
+		HelloDead <cnt>;
+		HelloInt <int>;
+		Hops <cnt>;
+	};
+};
+
+Log {
+	File <file name>;
+	Syslog;
+};
+.Ed
+.Pp
+Where a host address needs to be specified in the configuration file,
+either a DNS name or an IP address in dotted decimal format can
+be used.
+.Pp
+ATM addresses are specified as strings of hex digits, with an
+optional leading
+.Dq Li 0x .
+Fields within the address may be separated by periods, but periods
+are for readability only and are ignored.
+ATM addresses are 20 bytes long.
+The full address, including any leading zeroes, must be given.
+For example:
+.Pp
+.Dl "0x47.0005.80.ffe100.0000.f21a.0170.0020481a0170.00"
+.Ss "Server Statement"
+The
+.Ic server
+statement specifies a client server whose cache
+to be synchronized with the caches of other servers
+running on remote hosts.
+There will be one
+.Ic server
+statement in the configuration file
+for each client server whose cache is to be synchronized by
+.Nm .
+The format of the
+.Ic server
+statement is:
+.Bd -ragged -offset indent
+.Ic Server
+.Aq Ar name
+{
+.Aq Ar statements
+};
+.Ed
+.Pp
+A
+.Ar name
+must be specified on the
+.Ic server
+statement, but it is
+not used by
+.Nm .
+It is expected to give a brief description of the server's purpose.
+.Pp
+The
+.Ic server
+statement has several sub-statements
+that specify the details of the
+.Nm Ns 's
+configuration.
+They are:
+.Bl -tag -width indent
+.It Ic Protocol Cm ATMARP ;
+The only protocol supported by the current version of
+.Nm
+is
+.Cm ATMARP .
+The
+.Ic protocol
+statement must always be specified.
+.It Ic Netif Aq Ar intf ;
+The
+.Ic netif
+statement specifies the name of the ATM network
+interface on which a client server is providing service.
+The
+.Ic netif
+statement must always be specified.
+.It Ic ServerGroupID Aq Ar ID ;
+The
+.Ic ServerGroupID
+statement specifies an identifier for the
+group of servers being synchronized by
+.Nm .
+The
+.Ar ID
+is specified as a decimal number in the range 0 - 65,535.
+The server group ID must be the same for all servers whose caches
+are being synchronized by an SCSP session.
+That is, the server group ID for a host must be the same for all
+Directly Connected Servers (DCSs) pointed to within a
+.Ic server
+statement.
+The
+.Ic ServerGroupID
+statement must always be specified.
+.It Ic FamilyID Aq Ar ID ;
+The
+.Ic familyID
+statement specifies an identifier for a family
+of parallel SCSP sessions running between a group of hosts (i.e., a
+set of SCSP sessions with different protocol IDs but the same set
+of servers).
+The
+.Ar ID
+is specified as a decimal number in the range 0 - 65,535.
+The family ID is currently not used by
+.Nm .
+.El
+.Ss "DCS Statement"
+The
+.Ic DCS
+statement is a sub-statement of the
+.Ic server
+statement
+that specifies the characteristics of a Directly Connected Server (DCS).
+The
+.Ic server
+statement will have one
+.Ic DCS
+statement for
+each DCS that
+.Nm
+is to exchange information with.
+The
+.Ic DCS
+statement has a number of sub-statements that specify the
+details of the configuration for the DCS.
+They are:
+.Bl -tag -width indent
+.It Ic ATMaddr Aq Ar ATM\ address ;
+The
+.Ic ATMaddr
+statement specifies the ATM address of the DCS.
+The
+.Ic ATMaddr
+statement must always be specified.
+.It Ic ID Aq Ar host ;
+The
+.Ic ID
+statement specifies the SCSP identifier of the DCS.
+For ATMARP, the ID is the IP address or DNS name associated with the
+ATM interface of the DCS.
+The
+.Ic ID
+statement must always be specified.
+.It Ic CAReXmitInt Aq Ar int ;
+The
+.Ic CAReXmitInt
+statement specifies the interval that is
+allowed to elapse between retransmissions of CA messages.
+If a CA message is sent and an acknowledgement is not received within
+.Ic CAReXmitInt
+seconds, the message will be retransmitted.
+The default value for
+.Ic CAReXmitInt
+is 3 seconds.
+.It Ic CSUSReXmitInt Aq Ar int ;
+The
+.Ic CSUSReXmitInt
+statement specifies the interval that is
+allowed to elapse between retransmissions of CSU Solicit messages.
+When a CSUS message is sent, any Cache State Advertisements (CSAs)
+requested by the CSUS that have
+not been received within
+.Ic CSUSReXmitInt
+seconds will be requested
+again by another CSUS message.
+The default value for
+.Ic CSUSReXmitInt
+is 3 seconds.
+Be careful not to confuse
+.Ic CSUSReXmitInt
+and
+.Ic CSUReXmitInt .
+.It Ic CSUReXmitInt Aq Ar int ;
+The
+.Ic CSUReXmitInt
+statement specifies the interval that is
+allowed to elapse between retransmissions of CSU Request messages.
+When a CSU Request message is sent, any CSAs that are not acknowledged
+by a CSU Reply message within
+.Ic CSUReXmitInt
+seconds will
+be retransmitted.
+The default value for
+.Ic CSUReXmitInt
+is 2 seconds.
+Be careful not to confuse
+.Ic CSUReXmitInt
+and
+.Ic CSUSReXmitInt .
+.It Ic CSUReXmitMax Aq Ar cnt ;
+The
+.Ic CSUReXmitMax
+statement specifies the number of times that
+a CSA will be retransmitted as described above before SCSP gives up
+on the CSA and discards it.
+The default value for
+.Ic CSUReXmitMax
+is 5.
+.It Ic HelloDead Aq Ar cnt ;
+The
+.Ic HelloDead
+statement specifies the Hello Dead Factor that
+will be sent to the DCS in Hello messages.
+A
+.Dq "DCS down"
+condition will be detected when nothing is received from
+a DCS in
+.Ic HelloDead No * Ic HelloInt
+seconds.
+The default value for
+.Ic HelloDead
+is 3.
+.It Ic HelloInt Aq Ar int ;
+The
+.Ic HelloInt
+statement specifies the Hello Interval that
+will be sent to the DCS in Hello messages.
+The default value for
+.Ic HelloInt
+is 3 seconds.
+.It Ic Hops Aq Ar cnt ;
+The
+.Ic Hops
+statement specifies the number of hops (DCS to DCS)
+that will be specified in CSAs originating from the local server.
+This number must be at least as large as the diameter of the
+server group.
+That is, it must be large enough for a CSA to be propagated from
+server to server all the way across the server group.
+The default value for
+.Ic Hops
+is 3.
+.El
+.Ss "Log Statement"
+The
+.Ic log
+statement specifies how
+.Nm
+is to log
+information about its operation.
+The
+.Nm
+utility can write log information to a file, to the system log,
+or both.
+.Bl -tag -width indent
+.It Ic File Aq Ar file\ name ;
+The
+.Ic file
+statement specifies that
+.Nm
+is to write
+its log messages to the named file.
+Log messages will be appended to the end of the file if
+it already exists.
+.It Ic Syslog ;
+The
+.Ic syslog
+statement specifies that
+.Nm
+is to write
+its log messages to the syslog facility.
+The
+.Nm
+utility writes its messages to syslog with a facility code
+of
+.Dv LOG_DAEMON .
+.El
+.Pp
+If no
+.Ic log
+statement is specified,
+.Nm
+writes log
+messages to the system log.
+If both
+.Ic file
+and
+.Ic syslog
+are specified,
+.Nm
+will
+write log messages to both the named file and the system log.
+.Ss Examples
+An example of a simple configuration file for
+.Nm
+might be:
+.Bd -literal -offset indent
+server atmarp_ni0 {
+     protocol ATMARP;
+     netif ni0;
+     ServerGroupID 23;
+     DCS {
+          ID 10.1.1.2;
+          ATMaddr 0x47.0005.80.ffdc00.0000.0002.0001.002048061de7.00;
+          hops 2;
+     };
+};
+.Ed
+.Pp
+This configuration would synchronize the cache of the ATMARP server
+operating on network interface ni0 with the cache of a second server
+running on a host whose IP address is 10.1.1.2.
+Log messages would be written to the system log.
+.Sh SIGNAL PROCESSING
+The following signals can be used to control
+.Nm :
+.Bl -tag -width indent
+.It Dv SIGHUP
+Reread the configuration file and restart
+.Nm .
+.It Dv SIGINT
+Dump debugging information to a file.
+When it receives a
+.Dv SIGINT
+signal,
+.Nm
+dumps a summary of
+its control blocks to a text file (see
+.Sx FILES ) .
+.El
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /etc/scspd.conf
+.Nm
+default configuration file name.
+A different file name can be specified with the
+.Fl f
+command-line
+option.
+.It Xo
+.Sm off
+.Pa /tmp/scspd.
+.Aq Ar pid
+.Pa \&.
+.Aq Ar seq
+.Pa .out
+.Sm on
+.Xc
+debugging information dump file name.
+The
+.Nm
+utility writes a summary of its control blocks to this file
+when it receives a
+.Dv SIGINT
+signal.
+.Aq Ar pid
+is the process ID of the daemon and
+.Aq Ar seq
+is a sequence
+number which is incremented every time a dump is taken.
+.It Xo
+.Sm off
+.Pa /tmp/scspd.
+.Aq Ar pid
+.Pa .trace
+.Sm on
+.Xc
+trace file.
+The
+.Nm
+utility writes trace information to this file if the
+.Fl T
+option is specified on the command line.
+.El
+.Sh SEE ALSO
+.Xr atm 8 ,
+.Xr atmarpd 8
+.Rs
+.%O "RFC 2334"
+.%T "Server Cache Synchronization Protocol (SCSP)"
+.Re
+.Rs
+.%O "draft\-ietf\-ion\-scsp\-atmarpd\-00.txt"
+.%T "A Distributed ATMARP Service Using SCSP"
+.Re
+.Sh COPYRIGHT
+Copyright (c) 1994-1998, Network Computing Services, Inc.
+.Sh AUTHORS
+.An John Cavanaugh ,
+Network Computing Services, Inc.
+.An Mike Spengler ,
+Network Computing Services, Inc.
+.An Joe Thomas ,
+Network Computing Services, Inc.
+.Sh ACKNOWLEDGMENTS
+This software was developed with the support of the Defense
+Advanced Research Projects Agency (DARPA).
+.Sh BUGS
+If
+.Nm
+terminates and is restarted, there will be a period of
+instability while previously-synchronized cache entries time out and are
+refreshed.
+.Pp
+Please report any bugs to
+.Aq harp\-bugs@magic.net .

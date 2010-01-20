@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: usbd
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="usbd"
+rcvar=`set_rcvar`
+command="/usr/sbin/${name}"
+
+load_rc_config $name
+run_rc_command "$1"

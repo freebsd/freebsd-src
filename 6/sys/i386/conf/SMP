@@ -1,0 +1,12 @@
+#
+# SMP -- Generic kernel configuration file for FreeBSD/i386 SMP
+#	 Use this for multi-processor machines
+#
+# $FreeBSD$
+
+include GENERIC
+
+ident		SMP-GENERIC
+
+# To make an SMP kernel, the next line is needed
+options 	SMP			# Symmetric MultiProcessor Kernel

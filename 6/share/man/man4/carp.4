@@ -1,0 +1,266 @@
+.\"	$OpenBSD: carp.4,v 1.16 2004/12/07 23:41:35 jmc Exp $
+.\"
+.\" Copyright (c) 2003, Ryan McBride.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 6, 2006
+.Dt CARP 4
+.Os
+.Sh NAME
+.Nm carp
+.Nd Common Address Redundancy Protocol
+.Sh SYNOPSIS
+.Cd "device carp"
+.Sh DESCRIPTION
+The
+.Nm
+interface is a pseudo-device that implements and controls the
+CARP protocol.
+CARP allows multiple hosts on the same local network to share a set of IP addresses.
+Its primary purpose is to ensure that these
+addresses are always available, but in some configurations
+.Nm
+can also provide load balancing functionality.
+.Pp
+A
+.Nm
+interface can be created at runtime using the
+.Nm ifconfig Li carp Ns Ar N Cm create
+command or by configuring
+it via
+.Va cloned_interfaces
+in the
+.Pa /etc/rc.conf
+file.
+.Pp
+To use
+.Nm ,
+the administrator needs to configure at minimum a common virtual host ID (VHID)
+and virtual host IP address on each machine which is to take part in the virtual
+group.
+Additional parameters can also be set on a per-interface basis:
+.Cm advbase
+and
+.Cm advskew ,
+which are used to control how frequently the host sends advertisements when it
+is the master for a virtual host, and
+.Cm pass
+which is used to authenticate
+.Nm
+advertisements.
+The
+.Cm advbase
+parameter stands for
+.Dq "advertisement base" .
+It is measured in seconds and specifies the base of the advertisement interval.
+The
+.Cm advskew
+parameter stands for
+.Dq "advertisement skew" .
+It is measured in 1/256 of seconds.
+It is added to the base advertisement interval to make one host advertise
+a bit slower that the other does.
+Both
+.Cm advbase
+and
+.Cm advskew
+are put inside CARP advertisements.
+These configurations can be done using
+.Xr ifconfig 8 ,
+or through the
+.Dv SIOCSVH
+.Xr ioctl 2 .
+.Pp
+Additionally, there are a number of global parameters which can be set using
+.Xr sysctl 8 :
+.Bl -tag -width ".Va net.inet.carp.arpbalance"
+.It Va net.inet.carp.allow
+Accept incoming
+.Nm
+packets.
+Enabled by default.
+.It Va net.inet.carp.preempt
+Allow virtual hosts to preempt each other.
+It is also used to failover
+.Nm
+interfaces as a group.
+When the option is enabled and one of the
+.Nm
+enabled physical interfaces
+goes down,
+.Cm advskew
+is changed to 240 on all
+.Nm
+interfaces.
+See also the first example.
+Disabled by default.
+.It Va net.inet.carp.log
+Value of 0 disables any logging.
+Value of 1 enables logging of bad
+.Nm
+packets.
+Values above 1 enable logging state changes of
+.Nm
+interfaces.
+Default value is 1.
+.It Va net.inet.carp.arpbalance
+Balance local traffic using ARP (see below).
+Disabled by default.
+.It Va net.inet.carp.suppress_preempt
+A read only value showing the status of preemption suppression.
+Preemption can be suppressed if link on an interface is down
+or when
+.Xr pfsync 4
+interface is not synchronized.
+Value of 0 means that preemption is not suppressed, since no
+problems are detected.
+Every problem increments suppression counter.
+.El
+.Sh ARP level load balancing
+The
+.Nm
+has limited abilities for load balancing the incoming connections
+between hosts in Ethernet network.
+For load balancing operation, one needs several CARP interfaces that
+are configured to the same IP address, but to a different VHIDs.
+Once an ARP request is received, the CARP protocol will use a hashing
+function against the source IP address in the ARP request to determine
+which VHID should this request belong to.
+If the corresponding CARP interface is in master state, the ARP request
+will be replied, otherwise it will be ignored.
+See the
+.Sx EXAMPLES
+section for a practical example of load balancing.
+.Pp
+The ARP load balancing has some limitations.
+First, ARP balancing only works on the local network segment.
+It cannot balance traffic that crosses a router, because the
+router itself will always be balanced to the same virtual host.
+Second, ARP load balancing can lead to asymmetric routing
+of incoming and outgoing traffic, and thus combining it with
+.Xr pfsync 4
+is dangerous, because this creates a race condition between
+balanced routers and a host they are serving.
+Imagine an incoming packet creating state on the first router, being
+forwarded to its destination, and destination replying faster
+than the state information is packed and synced with the second router.
+If the reply would be load balanced to second router, it will be
+dropped due to no state.
+.Sh EXAMPLES
+For firewalls and routers with multiple interfaces, it is desirable to
+failover all of the
+.Nm
+interfaces together, when one of the physical interfaces goes down.
+This is achieved by the preempt option.
+Enable it on both host A and B:
+.Pp
+.Dl sysctl net.inet.carp.preempt=1
+.Pp
+Assume that host A is the preferred master and 192.168.1.x/24 is
+configured on one physical interface and 192.168.2.y/24 on another.
+This is the setup for host A:
+.Bd -literal -offset indent
+ifconfig carp0 create
+ifconfig carp0 vhid 1 pass mekmitasdigoat 192.168.1.1/24
+ifconfig carp1 create
+ifconfig carp1 vhid 2 pass mekmitasdigoat 192.168.2.1/24
+.Ed
+.Pp
+The setup for host B is identical, but it has a higher
+.Cm advskew :
+.Bd -literal -offset indent
+ifconfig carp0 create
+ifconfig carp0 vhid 1 advskew 100 pass mekmitasdigoat 192.168.1.1/24
+ifconfig carp1 create
+ifconfig carp1 vhid 2 advskew 100 pass mekmitasdigoat 192.168.2.1/24
+.Ed
+.Pp
+Because of the preempt option, when one of the physical interfaces of
+host A fails,
+.Cm advskew
+is adjusted to 240 on all its
+.Nm
+interfaces.
+This will cause host B to preempt on both interfaces instead of
+just the failed one.
+.Pp
+In order to set up an ARP balanced virtual host, it is necessary to configure
+one virtual host for each physical host which would respond to ARP requests
+and thus handle the traffic.
+In the following example, two virtual hosts are configured on two hosts to
+provide balancing and failover for the IP address 192.168.1.10.
+.Pp
+First the
+.Nm
+interfaces on host A are configured.
+The
+.Cm advskew
+of 100 on the second virtual host means that its advertisements will be sent
+out slightly less frequently.
+.Bd -literal -offset indent
+ifconfig carp0 create
+ifconfig carp0 vhid 1 pass mekmitasdigoat 192.168.1.10/24
+ifconfig carp1 create
+ifconfig carp1 vhid 2 advskew 100 pass mekmitasdigoat 192.168.1.10/24
+.Ed
+.Pp
+The configuration for host B is identical, except the
+.Cm advskew
+is on virtual host 1 rather than virtual host 2.
+.Bd -literal -offset indent
+ifconfig carp0 create
+ifconfig carp0 vhid 1 advskew 100 pass mekmitasdigoat 192.168.1.10/24
+ifconfig carp1 create
+ifconfig carp1 vhid 2 pass mekmitasdigoat 192.168.1.10/24
+.Ed
+.Pp
+Finally, the ARP balancing feature must be enabled on both hosts:
+.Pp
+.Dl sysctl net.inet.carp.arpbalance=1
+.Pp
+When the hosts receive an ARP request for 192.168.1.10, the source IP address
+of the request is used to compute which virtual host should answer the request.
+The host which is master of the selected virtual host will reply to the
+request, the other(s) will ignore it.
+.Pp
+This way, locally connected systems will receive different ARP replies and
+subsequent IP traffic will be balanced among the hosts.
+If one of the hosts fails, the other will take over the virtual MAC address,
+and begin answering ARP requests on its behalf.
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr pfsync 4 ,
+.Xr rc.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Ox 3.5 .
+The
+.Nm
+device was imported into
+.Fx 5.4 .

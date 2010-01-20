@@ -1,0 +1,955 @@
+<!--
+	The FreeBSD Simplified Chinese Project
+
+	Original Revision: 1.282.2.12
+-->
+
+<!--
+
+	The "Supported Devices" section of the release notes.
+	Generally processor-independent, with conditional text
+	inclusion handling any architecture-dependent text.
+
+	Within each subsection describing a class of hardware
+	(i.e. Ethernet interfaces), list broad groups of devices
+	alphabetically as paragraphs sorted alphabetically (frequently
+	these groups will be arranged by manufacturer, i.e. 3Com
+	Ethernet interfaces).
+
+	Where applicable, a "Miscellaneous" section may follow all
+	other named sections.
+
+	These guidelines are not hard-and-fast rules, and exceptions
+	will occur.  Following these guidelines (vague as they may be)
+	is highly recommended to try to keep the formatting of
+	this section consistent.
+
+	We give manpage references using the &man entities where
+	possible.  If a driver has no manpage (and consequently no
+	&man entity, we simply give the name of the driver).  
+	Please avoid doing &man entity conversions unless you
+	know for sure that an entity and manpage exist; sweeps through
+	this file to fix "missed" conversions are likely to break the
+	build.
+-->
+
+<sect1 id="support">
+  <sect1info>
+    <pubdate>$FreeBSD$</pubdate>
+  </sect1info>
+
+  <title>支持的硬件</title>
+
+  <para>这一节描述了目前已知的被 &os 在
+  &arch.print; 平台上支持的硬件。 其他配置可能也能用， 只是尚未测试过。
+  我们鼓励您对这份列表的内容进行反馈、 更新和修正。</para>
+
+  <para>这份列表尽可能包含了驱动程序能够适用的一类设备。
+  如果驱动程序在 &os; 基本安装包中有联机手册 (绝大多数应该有)
+  则会在这里引用。 支持的具体设备或控制器型号等等，
+  可以在联机手册中找到。</para>
+
+  <note>
+    <para>设备列表是直接从 &os; 联机手册中生成的。 这意味着一些设备，
+      如果它们被多种不同的驱动程序支持的话， 可能会相应地出现多次。</para>
+  </note>
+
+  <sect2 id="disk">
+    <title>磁盘控制器</title>
+
+    <para arch="i386,alpha,sparc64,ia64,pc98,amd64">IDE/ATA 控制器 (&man.ata.4; 驱动程序)</para>
+    <para arch="pc98">IDE/ATA 控制器 (wdc 驱动程序)
+      <itemizedlist>
+        <listitem>
+	  <para>板载 IDE 控制器</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    &hwlist.aac;
+
+    &hwlist.adv;
+
+    &hwlist.adw;
+
+    &hwlist.aha;
+
+    &hwlist.ahb;
+
+    &hwlist.ahc;
+
+    &hwlist.ahd;
+
+    &hwlist.aic;
+
+    &hwlist.amd;
+
+    &hwlist.amr;
+      <note>
+	<para arch="i386,amd64">能够支持从这些控制器启动。 但不支持 EISA
+	适配器。</para>
+
+	<para arch="alpha">由于 SRM 的限制， 不支持从这些控制器启动。</para>
+      </note>
+
+    &hwlist.arcmsr;
+
+    &hwlist.asr;
+
+    &hwlist.bt;
+
+    &hwlist.ciss;
+
+    &hwlist.ct;
+
+    &hwlist.dpt;
+
+    &hwlist.esp;
+
+    &hwlist.hptmv;
+
+    &hwlist.ida;
+
+    &hwlist.iir;
+
+    &hwlist.ips;
+
+    &hwlist.isp;
+
+    &hwlist.mfi;
+
+    &hwlist.mlx;
+
+      <note>
+	<para arch="i386,amd64">能够支持从这些控制器启动。 不支持 EISA
+	适配器。</para>
+
+	<para arch="alpha">由于 SRM 的限制， 不支持从这些控制器启动。
+	Digital/Compaq 为 Alpha 系统作为 StorageWorks 系列一部分出售的 DAC960
+	控制器， 例如 KZPSC 或 KZPAC 可以从 SRM 启动。 注意这些卡使用
+        2.x 的固件。 目前尚不知道新版固件是否能配合 SRM 启动。</para>
+      </note>
+
+    &hwlist.mly;
+
+    &hwlist.mpt;
+
+    &hwlist.ncr;
+
+    &hwlist.ncv;
+
+    &hwlist.nsp;
+
+    &hwlist.pst;
+
+    &hwlist.rr232x;
+
+    &hwlist.stg;
+
+    &hwlist.sym;
+
+    &hwlist.trm;
+
+    &hwlist.twa;
+
+    &hwlist.twe;
+
+    &hwlist.vpo;
+
+    <para arch="i386">wds(4) 驱动程序支持 WD7000 SCSI 控制器</para>
+
+    <para>所有支持的 SCSI 控制器都提供了完整的
+    SCSI-I, SCSI-II, 和 SCSI-III 设备支持， 包括硬盘， 光盘，
+    磁带机 (包括 DAT, 8mm Exabyte, Mammoth, 以及 DLT), 盘柜,
+    处理器目标设备 以及 CD-ROM 驱动器。 支持 CD-ROM 命令的
+    WORM 设备则提供了只读的支持
+    (例如 &man.cd.4;)。  WORM/CD-R/CD-RW 写操作的支持由
+    &man.cdrecord.1; 提供， 它是 Ports Collection 中
+    <filename role="package">sysutils/cdrtools</filename> port
+    的一部分。</para>
+
+    <para>目前， 对以下 CD-ROM 文件系统类型提供支持：
+      <itemizedlist>
+        <listitem>
+          <para>SCSI 接口 (也包括 ProAudio Spectrum 和
+          SoundBlaster SCSI) (&man.cd.4;)</para>
+	</listitem>
+
+	<listitem arch="i386">
+	  <para>Sony 专有接口 (所有型号) (&man.scd.4;)</para>
+	</listitem>
+
+	<listitem>
+	  <para>ATAPI IDE 接口 (&man.acd.4;)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">以下设备不再维护了：
+      <itemizedlist>
+        <listitem>
+	  <para>Mitsumi 专有的 CD-ROM 接口 (所有型号) (&man.mcd.4;)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+  </sect2>
+  <sect2 id="ethernet">
+    <title>以太网接口</title>
+
+    &hwlist.aue;
+
+    &hwlist.axe;
+
+    &hwlist.bce;
+
+    <para arch="i386,amd64">基于 Broadcom BCM4401 的高速以太网适配器
+      (&man.bfe.4; 驱动程序)</para>
+
+    &hwlist.bge;
+
+    &hwlist.cue;
+
+    <para arch="i386,amd64">基于 Crystal Semiconductor CS89x0 的 NIC
+    (&man.cs.4; 驱动程序)
+    </para>
+
+    &hwlist.dc;
+
+    &hwlist.de;
+
+    &hwlist.ed;
+
+    &hwlist.el;
+
+    &hwlist.em;
+
+    &hwlist.ep;
+
+    &hwlist.ex;
+
+    &hwlist.fe;
+
+    &hwlist.fxp;
+
+    &hwlist.gem;
+
+    &hwlist.hme;
+
+    &hwlist.ie;
+
+    &hwlist.ixgb;
+
+    &hwlist.kue;
+
+    &hwlist.lge;
+
+    &hwlist.lnc;
+
+    &hwlist.my;
+
+    &hwlist.nge;
+
+    &hwlist.nve;
+
+    &hwlist.pcn;
+
+    &hwlist.re;
+
+    &hwlist.rl;
+
+    &hwlist.rue;
+
+    &hwlist.sf;
+
+    &hwlist.sis;
+
+    &hwlist.sk;
+
+    &hwlist.sn;
+
+    &hwlist.snc;
+
+    &hwlist.stge;
+ 
+    &hwlist.ste;
+
+    &hwlist.ti;
+
+    &hwlist.tl;
+
+    <para arch="i386,pc98,amd64">基于 SMC 83c17x (EPIC) 的以太网 NIC (&man.tx.4; 驱动程序)
+    </para>
+
+    &hwlist.txp;
+
+    &hwlist.udav;
+
+    &hwlist.vge;
+
+    &hwlist.vr;
+
+    &hwlist.vx;
+
+    &hwlist.wb;
+
+    &hwlist.xe;
+
+    &hwlist.xl;
+
+  </sect2>
+
+  <sect2 id="tokenring">
+    <title>Token Ring Interfaces</title>
+
+    &hwlist.oltr;
+
+  </sect2>
+
+  <sect2 id="fddi">
+    <title>FDDI 接口</title>
+    <para arch="i386,pc98,alpha">DEC DEFPA PCI (&man.fpa.4; 驱动程序)</para>
+    <para arch="i386">DEC DEFEA EISA (&man.fpa.4; 驱动程序)</para>
+  </sect2>
+
+  <sect2 id="atm">
+    <title>ATM 接口</title>
+
+    <para arch="i386,pc98">基于 Midway 的 ATM 接口 (&man.en.4;
+      驱动程序)</para>
+
+    <para arch="i386,pc98,sparc64">FORE Systems, Inc. PCA-200E ATM PCI
+      适配器 (hfa 和 &man.fatm.4; 驱动程序)</para>
+
+    <para arch="i386,pc98">基于 IDT NICStAR 77201/211 的 ATM 适配器 (&man.idt.4;
+    驱动程序)</para>
+
+    <para arch="i386,pc98,sparc64">FORE Systems, Inc. HE155 和 HE622
+      ATM 接口 (&man.hatm.4; 驱动程序)</para>
+
+    <para arch="i386,pc98">基于 IDT77252 的 ATM 卡 (&man.patm.4;
+      驱动程序)</para>
+
+  </sect2>
+  <sect2 id="wlan">
+    <title>无线网络接口</title>
+
+    <para arch="i386">NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
+    ISA/radio LAN 卡 (&man.wl.4; 驱动程序)</para>
+
+    <para arch="i386,pc98,amd64">Lucent Technologies WaveLAN/IEEE 802.11b
+      无线网络适配器以及软件通用型的采用 Lucent Hermes, Intersil
+      PRISM-II, Intersil PRISM-2.5, Intersil Prism-3, 和 Symbol
+      Spectrum24 芯片组的网卡 (&man.wi.4; 驱动程序)
+    </para>
+
+    <para arch="i386,pc98,amd64">Cisco/Aironet 802.11b 无线网络适配器 (&man.an.4; 驱动程序)
+    </para>
+
+    <para arch="i386,pc98">Raytheon Raylink 2.4GHz 无线网络适配器 (&man.ray.4; 驱动程序)
+    </para>
+
+    &hwlist.awi;
+
+    &hwlist.cnw;
+
+    &hwlist.ath;
+  </sect2>
+
+  <sect2 id="misc-network">
+    <title>其他网络设备</title>
+
+    &hwlist.ce;
+
+    &hwlist.cx;
+
+    &hwlist.cp;
+
+    &hwlist.ctau;
+
+    <para arch="i386">Granch SBNI12 点对点通讯适配器
+    (&man.sbni.4; 驱动程序)
+    </para>
+
+    <para arch="i386">Granch SBNI16 SHDSL 调制解调器 (&man.sbsh.4;
+      驱动程序)</para>
+
+    &hwlist.cm;
+
+  </sect2>
+
+  <sect2 id="isdn">
+    <title>ISDN 接口</title>
+    <para arch="i386">AcerISDN P10 ISA PnP (实验性的)</para>
+    <para arch="i386">Asuscom ISDNlink 128K ISA</para>
+    <para arch="i386">ASUSCOM P-IN100-ST-D (以及其他基于 Winbond W6692 的卡)</para>
+    <para arch="i386">AVM
+      <itemizedlist>
+        <listitem>
+	  <para>A1</para>
+	</listitem>
+        <listitem>
+	  <para>B1 ISA (在 V2.0 上测试过)</para>
+	</listitem>
+        <listitem>
+	  <para>B1 PCI (在 V4.0 上测试过)</para>
+	</listitem>
+        <listitem>
+	  <para>Fritz!Card classic</para>
+	</listitem>
+        <listitem>
+	  <para>Fritz!Card PnP</para>
+	</listitem>
+        <listitem>
+	  <para>Fritz!Card PCI</para>
+	</listitem>
+        <listitem>
+	  <para>Fritz!Card PCI, Version 2</para>
+	</listitem>
+        <listitem>
+	  <para>T1</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+    <para arch="i386">Creatix
+      <itemizedlist>
+        <listitem>
+	  <para>ISDN-S0</para>
+	</listitem>
+        <listitem>
+	  <para>ISDN-S0 P&amp;P</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+    <para arch="i386">Compaq Microcom 610 ISDN (Compaq series PSB2222I) ISA PnP</para>
+    <para arch="i386">Dr. Neuhaus Niccy Go@ 及兼容</para>
+    <para arch="i386">Dynalink IS64PPH 和 IS64PPH+</para>
+    <para arch="i386">Eicon Diehl DIVA 2.0 和 2.02</para>
+    <para arch="i386">ELSA
+      <itemizedlist>
+        <listitem>
+	  <para>ELSA PCC-16</para>
+	</listitem>
+        <listitem>
+	  <para>QuickStep 1000pro ISA</para>
+	</listitem>
+        <listitem>
+	  <para>MicroLink ISDN/PCI</para>
+	</listitem>
+        <listitem>
+	  <para>QuickStep 1000pro PCI</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+    <para arch="i386">ITK ix1 Micro ( &lt; V.3, 非 PnP 版本 )</para>
+    <para arch="i386">Sedlbauer Win Speed</para>
+    <para arch="i386">Siemens I-Surf 2.0</para>
+    <para arch="i386">TELEINT ISDN SPEED No.1 (试验性支持)</para>
+    <para arch="i386">Teles
+      <itemizedlist>
+        <listitem>
+	  <para>S0/8</para>
+	</listitem>
+        <listitem>
+	  <para>S0/16</para>
+	</listitem>
+        <listitem>
+	  <para>S0/16.3</para>
+	</listitem>
+        <listitem>
+	  <para>S0/16.3 PnP</para>
+	</listitem>
+        <listitem>
+	  <para>16.3c ISA PnP (试验性支持)</para>
+	</listitem>
+	<listitem>
+	  <para>Teles PCI-TJ</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+    <para arch="i386">Traverse Technologies NETjet-S PCI</para>
+    <para arch="i386">USRobotics Sportster ISDN TA intern</para>
+    <para arch="i386">基于 Winbond W6692 的 PCI 卡</para>
+  </sect2>
+
+  <sect2 id="serial">
+    <title>串口</title>
+
+    <para arch="i386,alpha,amd64"><quote>PC 标准</quote> 基于 8250、 16450， 以及基于 16550 的串口 (&man.sio.4; 驱动程序)</para>
+
+    &hwlist.uart;
+
+    <para arch="i386,alpha,amd64">使用共享 IRQ 的 AST 4 口串口卡</para>
+
+    <para arch="i386">ARNET 串口卡 (&man.ar.4; 驱动程序)
+      <itemizedlist>
+        <listitem>
+	  <para>使用共享 IRQ 的 ARNET 8 口串口卡</para>
+	</listitem>
+        <listitem>
+	  <para>ARNET (现在是 Digiboard) Sync 570/i 高速串口</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+    
+    <para arch="i386">Boca 多口串口卡
+      <itemizedlist>
+        <listitem>
+	  <para>Boca BB1004 4-口串口卡
+	  (<emphasis>不</emphasis> 支持调制解调器)</para>
+	</listitem>
+        <listitem>
+	  <para>Boca IOAT66 6-口串口卡 (支持调制解调器)</para>
+	</listitem>
+        <listitem>
+	  <para>Boca BB1008 8-口串口卡
+	  (<emphasis>不</emphasis> 支持调制解调器)</para>
+	</listitem>
+        <listitem>
+	  <para>Boca BB2016 16-口串口卡 (支持调制解调器)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,alpha">Comtrol Rocketport 卡 (&man.rp.4; 驱动程序)</para>
+
+    <para arch="i386">Cyclades Cyclom-Y 串口板 (&man.cy.4; 驱动程序)</para>
+
+    <para arch="i386">使用共享 IRQ 的 STB 4 口串口卡</para>
+
+    <para arch="i386">DigiBoard 智能串口卡 (digi 驱动程序)
+    </para>
+
+    <para arch="i386,ia64,amd64">基于 PCI 的多口串口板 (&man.puc.4;
+    驱动程序)
+      <itemizedlist>
+	<listitem arch="i386,amd64">
+	  <para>Actiontech 56K PCI</para>
+	</listitem>
+        <listitem arch="i386,amd64">
+	  <para>Avlab Technology, PCI IO 2S 和 PCI IO 4S</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Comtrol RocketPort 550</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Decision Computers PCCOM 4-多口串口 和 双口 RS232/422/485</para>
+	</listitem>
+	<listitem arch="ia64">
+	  <para>Diva Serial (GSP) 多口 UART</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Dolphin Peripherals 4025/4035/4036</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>IC Book Labs Dreadnought 16x Lite 和 Pro</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Lava Computers 2SP-PCI/DSerial-PCI/Quattro-PCI/Octopus-550</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Middle Digital, Weasle 串口</para>
+	</listitem>
+        <listitem arch="i386,amd64">
+	  <para>Moxa Industio CP-114, Smartio C104H-PCI 和 C168H/PCI</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>NEC PK-UG-X001 和 PK-UG-X008</para>
+	</listitem>
+        <listitem arch="i386,amd64">
+	  <para>Netmos NM9835 PCI-2S-550</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Oxford Semiconductor OX16PCI954 PCI UART</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Syba Tech SD-LAB PCI-4S2P-550-ECP</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>SIIG Cyber I/O PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>SIIG Cyber 2P1S PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>SIIG Cyber 2S1P PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>SIIG Cyber 4S PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>SIIG Cyber Serial (Single 和 Dual) PCI 16C550/16C650/16C850</para>
+	</listitem>
+        <listitem arch="i386,amd64">
+	  <para>Syba Tech Ltd. PCI-4S2P-550-ECP</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Titan PCI-200H 和 PCI-800H</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>US Robotics (3Com) 3CP5609 调制解调器</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>VScom PCI-400 和 PCI-800</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    &hwlist.rc;
+
+    &hwlist.sr;
+
+    <para arch="i386,amd64">支持 Specialix SI/XIO/SX 多口串口卡, 同时包括较旧的
+    SIHOST2.x 以及 <quote>增强型</quote> (基于 transputer，
+    也就是 JET 的) 宿主卡 (ISA、 EISA 和 PCI 接口)
+    注意， 最新的 SX+ PCI 卡目前还不支持。
+    (&man.si.4; 驱动程序)</para>
+
+    <para arch="pc98">内置串口 (&man.sio.4; 驱动程序)
+      <itemizedlist>
+        <listitem>
+	  <para>PC-9801 板载</para>
+	</listitem>
+        <listitem>
+	  <para>PC-9821 第二 CCU (flags 0x12000000)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="pc98">NEC PC-9861K, PC-9801-101 和 Midori-Denshi MDC-926Rs (&man.sio.4; 驱动程序)
+      <itemizedlist>
+        <listitem>
+	  <para>COM2 (flags 0x01000000)</para>
+	</listitem>
+        <listitem>
+	  <para>COM3 (flags 0x02000000)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="pc98">NEC PC-9801-120 (&man.sio.4; 驱动程序)</para>
+      <note arch="pc98">
+        <para>需要在内核配置中指定 "flags 0x11000000"。</para>
+      </note>
+
+    <para arch="pc98">Microcore MC-16550, MC-16550II, MC-RS98 (&man.sio.4; 驱动程序)</para>
+      <note arch="pc98">
+        <para>需要在内核配置中指定 "flags 0x14000?01"。</para>
+      </note>
+
+    <para arch="pc98">Media Intelligent RSB-2000, RSB-3000 and AIWA B98-02 (&man.sio.4; 驱动程序)</para>
+      <note arch="pc98">
+        <para>需要在内核配置中指定 "flags 0x15000?01"。</para>
+      </note>
+
+    <para arch="pc98">Media Intelligent RSB-384 (&man.sio.4; 驱动程序)</para>
+      <note arch="pc98">
+        <para>需要在内核配置中指定 "flags 0x16000001"。</para>
+      </note>
+
+    <para arch="pc98">I-O DATA RSA-98III (&man.sio.4; 驱动程序)</para>
+      <note arch="pc98">
+        <para>需要在内核配置中指定 "flags 0x18000?01"。</para>
+      </note>
+
+    <para arch="pc98">Hayes ESP98 (&man.sio.4; 驱动程序)</para>
+      <note arch="pc98">
+        <para>需要在内核配置中指定 "options COM_ESP" 和 "flags 0x19000000"。</para>
+      </note>
+
+  </sect2>
+  <sect2 id="sound">
+    <title>声音设备</title>
+
+    &hwlist.snd.ad1816;
+
+    &hwlist.snd.als4000;
+
+    &hwlist.snd.atiixp;
+
+    &hwlist.snd.audiocs;
+
+    &hwlist.snd.cmi;
+
+    &hwlist.snd.cs4281;
+
+    &hwlist.snd.csa;
+
+    &hwlist.snd.ds1;
+
+    &hwlist.snd.emu10k1;
+
+    &hwlist.snd.es137x;
+
+    &hwlist.snd.ess;
+
+    &hwlist.snd.fm801;
+
+    &hwlist.snd.gusc;
+
+    &hwlist.snd.ich;
+
+    &hwlist.snd.maestro;
+
+    &hwlist.snd.maestro3;
+
+    &hwlist.snd.mss;
+
+    &hwlist.snd.neomagic;
+
+    &hwlist.snd.sbc;
+
+    &hwlist.snd.solo;
+
+    &hwlist.snd.t4dwave;
+
+    &hwlist.snd.via8233;
+
+    &hwlist.snd.via82c686;
+
+    &hwlist.snd.vibes;
+
+    <para arch="pc98">NEC PC-9801-73, 86 及兼容 (nss 驱动程序)
+      <itemizedlist>
+        <listitem>
+          <para>NEC A-MATE 内置声音</para>
+        </listitem>
+        <listitem>
+          <para>Q-Vision WaveStar, WaveMaster</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="pc98">NEC X-MATE, CanBe, ValueStar 内置 (mss 驱动程序)</para>
+
+    <para arch="pc98">Creative Technologies SoundBlaster(98) (&man.sb.4;
+    驱动程序)</para>
+
+    <para arch="pc98">I-O DATA CD-BOX (&man.sb.4; 驱动程序)</para>
+
+    <para arch="pc98">MPU-401 及兼容接口 (mpu 驱动)
+      <itemizedlist>
+        <listitem>
+          <para>Q-Vision WaveStar</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+  </sect2>
+
+  <sect2 id="camera">
+    <title>照相机和视频捕捉设备</title>
+
+    &hwlist.bktr;
+
+    <para arch="i386">Connectix QuickCam</para>
+  </sect2>
+
+  <sect2 id="usb">
+    <title>USB 设备</title>
+
+    <para arch="alpha,i386,ia64,pc98,amd64">&os; 能够支持一系列 USB 外设；
+    已知能够正确使用的设备在这节列出。 由于 USB 设备天生的通用性，
+    除了少量比较有个性的设备之外， 同一类型的设备几乎都能被支持，
+    即使在这里没有明确地列出。</para>
+
+    <note arch="alpha,i386,ia64,pc98,amd64">
+      <para>USB 以太网适配器可以在 <link
+      linkend="ethernet">以太网接口</link> 一节找到。</para>
+    </note>
+
+    <note arch="alpha,i386,ia64,pc98,amd64">
+      <para>USB 蓝牙适配器可以在 <link
+      linkend="bluetooth">蓝牙</link> 一节找到。</para>
+    </note>
+
+    &hwlist.ohci;
+
+    &hwlist.uhci;
+
+    <para arch="i386,ia64,pc98,amd64">采用 EHCI 接口的 USB 2.0
+      控制器 (&man.ehci.4; 驱动程序)</para>
+
+    <para arch="i386,ia64,pc98,alpha,amd64">集线器
+    </para>
+    <para arch="i386,ia64,pc98,alpha,amd64">键盘 (&man.ukbd.4; 驱动程序)
+    </para>
+    <para arch="i386,pc98,amd64">其他
+      <itemizedlist>
+        <listitem>
+	  <para>Assist Computer Systems PC Camera C-M1</para>
+	</listitem>
+        <listitem>
+	  <para>ActiveWire I/O 板</para>
+	</listitem>
+        <listitem>
+	  <para>Creative Technology Video Blaster WebCam Plus</para>
+	</listitem>
+	<listitem>
+	  <para>D-Link DSB-R100 USB Radio (&man.ufm.4; 驱动程序)</para>
+	</listitem>
+        <listitem>
+	  <para>Mirunet AlphaCam Plus</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    &hwlist.urio;
+
+    &hwlist.umodem;
+
+    <para arch="i386,ia64,pc98,alpha,amd64">鼠标器 (&man.ums.4; 驱动程序)
+    </para>
+
+    &hwlist.ulpt;
+
+    &hwlist.ubsa;
+
+    &hwlist.ubser;
+
+    &hwlist.uftdi;
+
+    &hwlist.uplcom;
+
+    &hwlist.umct;
+
+    &hwlist.uscanner;
+
+    &hwlist.umass;
+
+    <para arch="i386,pc98,amd64">声音设备 (&man.uaudio.4; 驱动程序)
+    </para>
+
+    &hwlist.uvisor;
+
+ </sect2>
+
+  <sect2 id="firewire">
+    <title>IEEE 1394 (火线) 设备</title>
+
+    &hwlist.fwohci;
+
+    <para arch="i386,sparc64,amd64">串行总线协议 2 (SBP-2)
+      存储设备 (&man.sbp.4; 驱动程序)</para>
+
+  </sect2>
+
+  <sect2 id="bluetooth">
+    <title>蓝牙设备</title>
+
+    &hwlist.ng.bt3c;
+
+    &hwlist.ng.ubt;
+
+  </sect2>
+
+  <sect2 id="crypto-accel">
+    <title>密码学加速器</title>
+
+    &hwlist.hifn;
+
+    &hwlist.safe;
+
+    &hwlist.ubsec;
+  </sect2>
+
+  <sect2 id="misc">
+    <title>其他</title>
+
+    <para arch="i386,pc98,amd64">FAX-Modem/PCCARD
+      <itemizedlist>
+        <listitem>
+	  <para>MELCO IGM-PCM56K/IGM-PCM56KH</para>
+	</listitem>
+        <listitem>
+	  <para>Nokia Card Phone 2.0 (gsm900/dcs1800 HSCSD 终端)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,pc98,alpha,amd64">软驱 (&man.fdc.4; 驱动程序)</para>
+
+    <para arch="i386,alpha,amd64">VGA-兼容 显示卡
+      (&man.vga.4; 驱动程序)
+
+      <note>
+	<para>关于特定显卡与 <application>Xorg</application> 的兼容信息，
+	  可以在 <ulink
+	  url="http://www.x.org/"></ulink> 找到。</para>
+      </note>
+
+      </para>
+
+    <para arch="i386,pc98,alpha,ia64,amd64">键盘包括：
+      <itemizedlist>
+        <listitem arch="i386,alpha">
+	  <para>AT-风格的 键盘 (&man.atkbd.4; 驱动程序)</para>
+	</listitem>
+        <listitem arch="i386,alpha,amd64">
+	  <para>PS/2 键盘 (&man.atkbd.4; 驱动程序)</para>
+	</listitem>
+        <listitem arch="pc98">
+	  <para>标准键盘</para>
+	</listitem>
+        <listitem arch="i386,pc98,alpha,ia64,amd64">
+	  <para>USB 键盘 (&man.ukbd.4; 驱动程序)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,pc98,alpha,ia64,amd64">定点设备包括：
+      <itemizedlist>
+        <listitem arch="i386,pc98,amd64">
+	  <para>总线鼠标和兼容设备 (&man.mse.4; 驱动程序)</para>
+	</listitem>
+        <listitem arch="i386,alpha,amd64">
+	  <para>PS/2 鼠标和兼容设备， 也包括一系列笔记本定点设备
+	    (&man.psm.4; 驱动程序)</para>
+	</listitem>
+        <listitem>
+	  <para>串口鼠标和兼容设备</para>
+	</listitem>
+        <listitem arch="i386,pc98,alpha,ia64,amd64">
+	  <para>USB 鼠标 (&man.ums.4; 驱动程序)</para>
+	</listitem>
+      </itemizedlist>
+
+      <note>
+	<para>&man.moused.8; 提供了如何在 &os; 中使用定点设备的进一步信息。
+	  关于如何在 <application>Xorg</application> 中使用这类设备的信息， 可以在
+	  <ulink url="http://www.x.org/"></ulink> 找到。</para>
+      </note>
+    </para>
+
+    <para arch="i386,alpha,amd64"><quote>PC 标准</quote> 并口 (&man.ppc.4; 驱动程序)</para>
+    <para arch="pc98"><quote>PC-9821 标准</quote> 并口 (&man.ppc.4; 驱动程序)</para>
+
+    <para arch="i386,amd64">PC-兼容 游戏杆 (&man.joy.4; 驱动程序)</para>
+
+    <para arch="pc98">SoundBlaster(98) 的游戏杆接口 (&man.joy.4;
+    驱动程序)</para>
+
+    <para arch="i386,pc98">PHS Data Communication Card/PCCARD
+      <itemizedlist>
+        <listitem>
+	  <para>NTT DoCoMo P-in Comp@ct</para>
+	</listitem>
+        <listitem>
+	  <para>Panasonic KX-PH405</para>
+	</listitem>
+        <listitem>
+	  <para>SII MC-P200</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">基于 Xilinx XC6200 的可重配置硬件卡， 与
+    <ulink url="http://www.vcc.com/">Virtual
+    Computers</ulink> 的 HOT1 兼容 (xrpu 驱动程序)。</para>
+
+    <para arch="pc98">NEC PC-98 笔记本的电源管理控制器 (pmc
+    驱动程序)</para>
+
+    <para arch="sparc64">OpenFirmware 控制台 (ofwcons 驱动程序)</para>
+
+  </sect2>
+</sect1>

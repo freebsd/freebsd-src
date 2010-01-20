@@ -1,0 +1,3 @@
+A special shell will be launched by this option with a fixit floppy
+(or 2nd CDROM) mounted as /mnt2.  This provides access to extra
+commands under /mnt2.

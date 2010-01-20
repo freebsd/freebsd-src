@@ -1,0 +1,189 @@
+
+VGA BOOKS
+---------
+
+	Richard Wilton, "Programmers Guide to PC & PS/2 Video Systems",
+		Microsoft Press 1987
+
+
+	Richard F. Ferraro, "Programmers Guide to the EGA and VGA Cards",
+		Second Edition, Addison-Wesley 1990
+
+
+	Richard F. Ferraro, "Programmers Guide to the EGA and VGA Cards",
+		Third Edition, Addison-Wesley 1994
+
+
+	Matthias Uphoff, "Die Programmierung der EGA/VGA Grafikkarte",
+		Addison Wesley 1992
+
+
+	Bradley Dyck Kliewer, "EGA/VGA A Programmers Reference Guide",
+		McGraw Hill, 2nd Edition 1990
+
+
+UNIX AND UNIX DEVICE DRIVERS
+----------------------------
+
+	Bell Telephone Laboratories, Inc. "UNIX Programmer's Manual, Seventh
+		Edition, Volume 2". Revised and Expanded Version.
+		Holt, Rinehart and Winston 1983
+
+
+	George Pajari, "Writing Unix Device Drivers"
+		Addison Wesley 1992
+
+
+	Janet I. Egan and Thomas J. Teixeira, "Writing a UNIX Device Driver"
+		John Wiley & Sons 1988
+
+
+	Janet I. Egan and Thomas J. Teixeira, "Writing a UNIX Device Driver"
+		Second Edition. John Wiley & Sons 1992
+
+
+	Leffler, McKusick, Karels, Quarterman, "The Design and Implementation
+		of the 4.3BSD UNIX Operating System"
+		Addison Wesley 1988, corrected Reprint 1989
+
+
+	Leffler, McKusick, "The Design and Implementation of the 4.3BSD UNIX
+		Operating System, Answer Book"
+		Addison Wesley 1991
+
+
+	Maurice J. Bach, "The Design of the UNIX Operating System"
+		Prentice-Hall 1986
+
+
+	Sun Microsystems Inc., "Writing Device Drivers"
+		Part No. 800-3851-10, Revision A of 27 March 1990
+
+	
+	Hewlett-Packard Company, "HP-UX Driver Development Guide",
+		Part No. 98577-90013, First Edition 07/91
+
+
+	W. Richard Stevens, "Advanced Programming in the UNIX Environment",
+		Addison Wesley 1992
+
+
+	Phillip M. Adams, Clovis L. Tondo, "Writing Unix Device Drivers in C",
+		Prentice Hall 1993
+
+
+	Berny Goodheart, James Cox, "The Magic Garden Explained",
+		Prentice Hall 1994
+
+
+	Peter Kettle, Steve Statler, "Writing Device Drivers for SCO Unix"
+		Addison Wesley 1993
+	
+
+TERMINAL MANUALS
+----------------
+
+	Digital Equipment, VT100 Users Manual, 2nd ed. 1979
+	Digital Equipment, VT132 Users Manual
+	Digital Equipment, VT220 Programmers Reference Manual, 2nd ed. 1984
+		Digital Equipment Corporation
+
+
+	Hewlett Packard, 700/92 Technical Reference Manual (ANSI Operation)
+	Hewlett Packard, 2392a Users Manual (ANSI Operation)
+		Hewlett-Packard Company
+
+	
+	Walker Richer & Quinn, Inc., "Reflection 2 and Reflection 4 Technical
+		Reference Manual", Version 4.2
+		Walker, Richer & Quinn, Seattle, August 1992
+
+
+IBM PC HARDWARE/FIRMWARE
+------------------------
+
+	Frank van Gilluwe, "The Undocumented PC",
+		Addison Wesley, First Edition May 1994
+
+
+	IBM Corporation, "Technical Reference Personal Computer AT",
+		Part No. 6280070, Form No. S229-9611-00, First Edition 1985
+
+
+	Phoenix Technologies Ltd., "System BIOS for IBM PC/XT/AT Computers
+		and Compatibles", Addison Wesley, Fourth Printing June 1990
+
+
+	Phoenix Technologies Ltd., "System BIOS for IBM PCs, Compatibles,
+		and EISA Computers", Second Edition
+		Addison Wesley, First Printing May 1991
+
+
+	American Megatrends, Inc., "Hi-Flex ISA and EISA AMIBIOS Technical
+		Reference", American Megatrends, Inc. 1992 (9/25/92)
+
+
+	Thom Hogan, "The Programmers PC Sourcebook", 2nd Edition
+		Microsoft Press, 1991
+
+
+TERMCAP/TERMINFO
+----------------
+
+	John Strang, Linda Mui and Tim O'Reilly, "Termcap and Terminfo",
+		O'Reilly & Associates, Inc. , April 1991
+
+
+	Richard M. Stallman, "Termcap - The Termcap Library and Data Base",
+		Free Software Foundation, Second Edition November 1988
+
+
+
+DATABOOKS/DATASHEETS
+--------------------
+
+	Intel Corporation, "Microsystem Components Handbook Volume II",
+		Intel Corporation, 1984
+
+
+	Intel Corporation, "Peripheral Design Handbook",
+		Intel Corporation, 1980
+
+
+	Tseng Labs, Inc. "ET4000 Graphics Controller Data Book", 1990
+
+
+	Western Digital Corporation, "WD90C11, WD90C11A (PVGA1C) Enhanced
+		 VGA Controller", Western Digital 9/18/91
+
+
+	Western Digital Corporation, "WD90C00 Enhanced VGA Controller",
+		 Western Digital 1/14/91
+
+
+	Western Digital Corporation, "WD90C00 Interface Guide",
+		Western Digital 1/10/91
+
+
+	Western Digital Corporation, "VGA Register Based Programmers Manual",
+		Western Digital 1/30/91
+
+
+	Western Digital Corporation, "VGA BIOS Programmers Manual",
+		Western Digital 1/10/91
+
+
+	Cirrus Logic, "True Color VGA Family - CL-GD542X", Technical Ref.
+		Manual, Cirrus Logic, Inc. April 1993
+
+
+	S3 Inc, "86C801/86C805 GUI Accelerators"
+		S3 Incorporated, September 1992
+
+
+	S3 Inc, "86C928 GUI Accelerator"
+		S3 Incorporated, July 1993
+
+
+	Trident Microsystems Inc., "TVGA9000i Technical Reference Manual",
+		Trident Microsystems, Inc. (c) 1992, March 1993, Rev 1

@@ -1,0 +1,34 @@
+
+include        = <<- _EOF_
+	#ifdef __windows
+	  extern int atoi(const char*);
+	#else
+	# include <stdlib.h>
+	#endif
+	_EOF_;
+
+flag = {
+    name      = debug-level;
+    value     = d;
+    max       = NOLIMIT;
+    ifdef     = DEBUG;
+    nopreset;
+    descrip   = "Increase output debug message level";
+    doc = <<-  _EndOfDoc_
+	Increase the debugging message output level.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = set-debug-level;
+    value     = D;
+    max       = NOLIMIT;
+    ifdef     = DEBUG;
+    descrip   = "Set the output debug message level";
+    arg-type  = string;
+    flag-code = 'DESC(DEBUG_LEVEL).optOccCt = atoi( pOptDesc->pzLastArg );';
+    doc = <<-  _EndOfDoc_
+	Set the output debugging level.  Can be supplied multiple times,
+	but each overrides the previous value(s).
+	_EndOfDoc_;
+};

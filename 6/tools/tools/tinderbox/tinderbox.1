@@ -1,0 +1,309 @@
+.\"-
+.\" Copyright (c) 2003 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 21, 2004
+.Dt TINDERBOX 1
+.Os
+.Sh NAME
+.Nm tinderbox
+.Nd build and release testing
+.Sh SYNOPSIS
+.Nm
+.Op options
+.Ar command Op ...
+.Op Ar variable Ns = Ns Ar value ...
+.Sh DESCRIPTION
+The
+.Nm
+script tests the
+.Fx
+build and release system by performing a cross-build (and optionally a
+cross-release) of an arbitrary branch of the source tree for an
+arbitrary target platform.
+.Pp
+The following options are recognized:
+.Bl -tag -width 12n
+.It Fl a Ar ARCH , Fl -arch Ns = Ns Ar ARCH
+Specifies the target architecture.
+The default value is whatever the host system's
+.Xr uname 1
+reports.
+.It Fl b Ar BRANCH , Fl -branch Ns = Ns Ar BRANCH
+The branch to specify to
+.Xr cvs 1
+or
+.Xr cvsup 1
+when updating the source tree.
+The default is to use
+.Fl A
+instead, to get the head.
+Specifying
+.Va CURRENT
+as the argument to
+.Fl -branch
+is equivalent to leaving it unspecified.
+.It Fl c Ar NAME , Fl -cvsup Ns = Ns Ar NAME
+The name of the
+.Xr cvsup 1
+server from which to update the source tree
+.Cm update
+command is specified.
+The default is to use
+.Xr cvs 1
+instead.
+.It Fl d Ar DATE , Fl -date Ns = Ns Ar DATE
+The date to specify to
+.Xr cvs 1
+or
+.Xr cvsup 1
+when updating the source tree.
+As a special case, the value
+.Dq today
+corresponds to midnight UTC the day the run starts.
+The default is to use the top of whichever branch was specified.
+.It Fl h Ar NAME , Fl -hostname Ns = Ns Ar NAME
+The name of the host running the tinderbox.
+This defaults to the name reported by the
+.Fl n
+option of the
+.Xr uname 1
+command, and is only used for cosmetic purposes.
+.It Fl j Ar NUM , Fl -jobs Ns = Ns Ar NUM
+The maximum number of paralell jobs, as specified to
+.Xr make 1
+using the
+.Fl j
+option.
+The default is 1.
+.It Fl l Ar FILE , Fl -logfile Ns = Ns Ar FILE
+The name of a file to which the output and error messages produced by
+the build should be written.
+Note that this file can grow quite large.
+The default is to redirect all output to
+.Pa /dev/stdout .
+.It Fl m Ar MACHINE , Fl -machine Ns = Ns Ar MACHINE
+Specifies the target machine.
+The default value is whatever the host system's
+.Xr uname 1
+reports.
+.It Fl p Ar PATCH , Fl -patch Ns = Ns Ar PATCH
+The file name of a patch to apply to the source tree before building
+if the
+.Cm patch
+command is specified.
+The patch should be relative to the root of the source tree.
+When building a release, the patch is passed to the release process
+through the
+.Ev LOCAL_PATCHES
+environment variable (see
+.Xr release 7
+for more information), regardless of whether the
+.Cm patch
+command was specified.
+The default is to not apply any patches.
+.It Fl r Ar DIR , Fl -repository Ns = Ns Ar DIR
+The location of the
+.Xr cvs 1
+repository from which to update the source tree if the
+.Cm update
+command is specified.
+The default is
+.Pa /home/ncvs .
+.It Fl s Ar DIR , Fl -sandbox Ns = Ns Ar DIR
+The location of the sandbox in which the builds are to take place.
+This directory should reside on a reasonably fast disk with at least
+1.5 GB available (3 GB if building a release).
+.It Fl t Ar NUM , Fl -timeout Ns = Ns Ar NUM
+The maximum wall-time duration of the run, in seconds.
+The default is to continue until all targets are completed.
+.It Fl v , Fl -verbose
+Enable additional debugging output.
+.El
+.Pp
+Following the options on the command line, at least one of the
+following commands must be specified:
+.Bl -tag -width 12n
+.It Cm clean
+Delete the source and object trees.
+This is highly recommended when sources are patched, as successive
+builds will fail due to repeated application of the same patch to the
+same sources.
+.Pp
+Note that this does not remove the chroot tree created and populated
+by the release build.
+.It Cm update
+Update the sources using
+.Xr cvs 1 .
+This is highly recommended, for obvious reasons, if the
+.Cm clean
+command is specified.
+.It Cm patch
+Apply the patch specified with the
+.Fl -patch
+option to the source tree.
+If the specified patch file does not exist, the
+.Cm patch
+command will fail gracefully.
+.It Cm world
+Build the world.
+.It Cm generic
+Build a GENERIC kernel.
+.It Cm lint
+Build a LINT kernel if available.
+In
+.Fx
+5, the
+.Pa LINT
+configuration file will first be generated from the corresponding
+.Pa NOTES
+file.
+If neither
+.Pa LINT
+nor
+.Pa NOTES
+exist in the kernel configuration directory, the
+.Cm lint
+command will fail gracefully.
+.It Cm release
+Build a release by following the procedure described in
+.Xr release 7 .
+Note that this is a lengthy process which requires root privileges.
+.El
+.Pp
+The commands are executed in the order in which they are listed above,
+regardless of the order in which they are listed on the command line.
+.Pp
+Finally, any arguments of the form
+.Ar variable Ns = Ns Ar value
+are interpreted as environment variables which are exported into the
+build environment.
+These variables are not allowed to override those set by the script
+itself (see
+.Sx ENVIRONMENT
+below).
+.Sh NOTES
+The
+.Nm
+script was originally written to perform daily build testing of
+.Fx
+4 and 5.
+It is not intended for use with older releases, and probably will not
+work with anything older than
+.Fx 4.2 .
+.Sh ENVIRONMENT
+The
+.Nm
+script clears its environment at startup and provides its child
+processes with a tailored environment.
+The following variables are set for all builds:
+.Bl -tag -width 18n
+.It PATH
+.Va /usr/bin:/usr/sbin:/bin:/sbin
+.It TZ
+.Va UTC
+.It __MAKE_CONF
+.Va /dev/null
+.It CFLAGS
+.Va -O -pipe
+.El
+.Pp
+In addition, if one or more of the
+.Cm generic ,
+.Cm lint
+or
+.Cm release
+command was specified, the following variables, which affect kernel
+builds, are set:
+.Bl -tag -width 18n
+.It COPTFLAGS
+.Va -O -pipe
+.El
+.Pp
+Finally, the following variables are set for release builds:
+.Bl -tag -width 18n
+.It CHROOTDIR
+.Va $SANDBOX/root
+.It CVSROOT
+As specified with the
+.Fl -repository
+option.
+.It RELEASETAG
+.Va -rBRANCH
+if
+.Fl -branch Ns = Ns Ar BRANCH
+was specified, or
+.Va -A
+otherwise.
+.It CVSCMDARGS
+.Va -DDATE
+if
+.Fl -date Ns = Ns Ar DATE
+was specified.
+.It WORLD_FLAGS , KERNEL_FLAGS
+Both of these are set to
+.Va -jN
+if
+.Fl -jobs Ns = Ns Ar N
+was specified, or
+.Va -B
+otherwise.
+.It LOCAL_PATCHES
+Set to the path of the patch that was specified with the
+.Fl -patch
+option, if any.
+.It PATCH_FLAGS
+Set to
+.Va -fs
+if a patch was specified.
+.It NOCDROM
+.Va YES
+.It NODOC
+.Va YES
+.It NOPORTS
+.Va YES
+.El
+.Pp
+Except for
+.Va CFLAGS
+and
+.Va COPTFLAGS ,
+none of these variables may be overridden by command-line arguments.
+.Sh SEE ALSO
+.Xr cvs 1 ,
+.Xr make 1 ,
+.Xr patch 1 ,
+.Xr tbmaster 1 ,
+.Xr build 7 ,
+.Xr release 7
+.Sh AUTHORS
+.Nm
+was written by
+.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+.Sh BUGS
+are crunchy and nutritious.

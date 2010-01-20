@@ -1,0 +1,66 @@
+<!--
+	The FreeBSD Simplified Chinese Project
+
+	Original Revision: 1.5.2.1
+	$FreeBSD$
+-->
+<sect1 id="proc">
+  <title>支持的处理器和主板</title>
+
+  <para>从 2003 年中开始， &os;/&arch; 提供了 &arch.print;
+    (<quote>Hammer</quote>) 和 Intel EM64T 架构的支持，
+    现在则更成为了 Tier-1 平台 (完全支持的架构)，
+    您可以预期它在 &os; 操作系统的各个方面拥有产品级的品质，
+    包括安装和开发环境。</para>
+
+  <para>请注意这个架构有两个名字，
+    AMD64 (AMD) 和 Intel EM64T (扩展内存 64-位 技术)。
+    两种架构的 64-位 模式几乎是完全相互兼容的，
+    而 &os;/&arch; 则应该两者都能支持。</para>
+
+  <para>撰写本文时， 已经确认能够支持下列处理器：</para>
+
+  <itemizedlist>
+    <listitem>
+      <para>AMD Athlon64 (<quote>Clawhammer</quote>).</para>
+    </listitem>
+
+    <listitem>
+      <para>AMD Opteron (<quote>Sledgehammer</quote>).</para>
+    </listitem>
+
+    <listitem>
+      <para>Intel 64-位 至强 (<quote>Nacona</quote>).
+	这款处理器采用 90nm 制程工艺制造， 运行于
+	2.80 到 3.60 GHz (FSB 800MHz) 并配合 Intel E7520/E7525/E7320 芯片组。</para>
+    </listitem>
+
+    <listitem>
+      <para>支持 Intel EM64T 的 Intel 奔腾 4 处理器
+	(<quote>Prescott</quote>).
+	这些处理器采用 90nm 制程工艺制造，
+	使用 FC-LGA775 封装， 运行于 3.20F/3.40F/3.60F GHz
+	并配合 Intel 925X Express 芯片组。
+	相关的 S-Spec 编号为 SL7L9, SL7L8, SL7LA, SL7NZ, SL7PZ,
+	和 SL7PX。 请注意标记为 5xx 号的处理器并不支持
+	EM64T。</para>
+    </listitem>
+  </itemizedlist>
+
+  <para>Intel EM64T 是 IA-32 (x86) 的一个扩展版本， 并不同于
+    Intel IA-64 (安腾) 架构， 后者为 &os;/ia64 所支持。
+    一些 Intel 的较早的文档将 Intel EM64T 称为
+    <quote>64-位扩展技术</quote> 或 <quote>IA-32e</quote>。</para>
+
+  <para>目前为止测试过的最大内存配置是 8GB。 SMP 支持已经于近日完工，
+    并相当稳定了。</para>
+
+  <para>在许多方面， &os;/&arch; 和 &os;/i386 非常相像， 特别是所支持的设备方面。
+    在 64-位 代码清理以及一些 (特别是旧的) 驱动方面还存在一些问题。
+    一般来说， 在其他 64-位 平台上运行正常的驱动应该可以使用。</para>
+
+  <para>&os;/&arch; 是 &os; 一个非常年轻的平台。 尽管核心的
+    &os; 内核和基本系统组件是相当健壮的，
+    但可能还存在一些不太完善的地方， 特别是对第三方软件包的支持方面。</para>
+
+</sect1>

@@ -1,0 +1,582 @@
+.\"
+.\" $FreeBSD$
+.\"
+.\"	$KAME$
+.\"
+.\" Copyright (C) 1998, 1999, 2000 and 2001 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 13, 2000
+.Dt IP6FW 8
+.Os
+.Sh NAME
+.Nm ip6fw
+.Nd controlling utility for IPv6 firewall
+.Sh SYNOPSIS
+.Nm
+.Op Fl nq
+.Oo
+.Fl p Ar preproc
+.Oo Fl D
+.Ar macro Ns Op = Ns Ar value
+.Oc
+.Op Fl U Ar macro
+.Oc
+.Ar pathname
+.Nm
+.Op Fl n
+.Op Fl f | Fl q
+flush
+.Nm
+.Op Fl nq
+zero
+.Op Ar number ...
+.Nm
+.Op Fl n
+delete
+.Ar number ...
+.Nm
+.Op Fl aftN
+list
+.Op Ar number ...
+.Nm
+.Op Fl ftN
+show
+.Op Ar number ...
+.Nm
+.Op Fl nq
+add
+.Op Ar number
+.Ar action
+.Op log
+.Ar proto
+from
+.Ar src
+to
+.Ar dst
+.Op via Ar name | ipv6no
+.Op Ar options
+.Sh DESCRIPTION
+To ease configuration, rules can be put into a file which is
+processed using
+.Nm
+as shown in the first synopsis line.
+An absolute
+.Ar pathname
+must be used.
+The file
+will be read line by line and applied as arguments to the
+.Nm
+utility.
+.Pp
+Optionally, a preprocessor can be specified using
+.Fl p Ar preproc
+where
+.Ar pathname
+is to be piped through.
+Useful preprocessors include
+.Xr cpp 1
+and
+.Xr m4 1 .
+If
+.Ar preproc
+does not start with a slash
+.Pq Ql /
+as its first character, the usual
+.Ev PATH
+name search is performed.
+Care should be taken with this in environments where not all
+file systems are mounted (yet) by the time
+.Nm
+is being run (e.g.\& when they are mounted over NFS).
+Once
+.Fl p
+has been specified, optional
+.Fl D
+and
+.Fl U
+specifications can follow and will be passed on to the preprocessor.
+This allows for flexible configuration files (like conditionalizing
+them on the local hostname) and the use of macros to centralize
+frequently required arguments like IP addresses.
+.Pp
+The
+.Nm
+code works by going through the rule-list for each packet,
+until a match is found.
+All rules have two associated counters, a packet count and
+a byte count.
+These counters are updated when a packet matches the rule.
+.Pp
+The rules are ordered by a
+.Dq line-number
+from 1 to 65534 that is used
+to order and delete rules.
+Rules are tried in increasing order, and the
+first rule that matches a packet applies.
+Multiple rules may share the same number and apply in
+the order in which they were added.
+.Pp
+If a rule is added without a number, it is numbered 100 higher
+than the previous rule.
+If the highest defined rule number is
+greater than 65434, new rules are appended to the last rule.
+.Pp
+The delete operation deletes the first rule with number
+.Ar number ,
+if any.
+.Pp
+The list command prints out the current rule set.
+.Pp
+The show command is equivalent to `ip6fw -a list'.
+.Pp
+The zero operation zeroes the counters associated with rule number
+.Ar number .
+.Pp
+The flush operation removes all rules.
+.Pp
+Any command beginning with a
+.Sq # ,
+or being all blank, is ignored.
+.Pp
+One rule is always present:
+.Bd -literal -offset center
+65535 deny all from any to any
+.Ed
+.Pp
+This rule is the default policy, i.e., do not allow anything at all.
+Your job in setting up rules is to modify this policy to match your
+needs.
+.Pp
+The following options are available:
+.Bl -tag -width flag
+.It Fl a
+While listing, show counter values.
+See also
+.Dq show
+command.
+.It Fl f
+Do not ask for confirmation for commands that can cause problems if misused
+(ie; flush).
+.Ar Note ,
+if there is no tty associated with the process, this is implied.
+.It Fl n
+Only check syntax of the command strings,
+without actually passing them into the kernel.
+.It Fl q
+While adding, zeroing or flushing, be quiet about actions (implies '-f').
+This is useful for adjusting rules by executing multiple ip6fw commands in a
+script (e.g.\& sh /etc/rc.firewall), or by processing a file of many ip6fw rules,
+across a remote login session.
+If a flush is performed in normal
+(verbose) mode, it prints a message.
+Because all rules are flushed, the
+message cannot be delivered to the login session, the login session is
+closed and the remainder of the ruleset is not processed.
+Access to the
+console is required to recover.
+.It Fl t
+While listing, show last match timestamp.
+.It Fl N
+Try to resolve addresses and service names in output.
+.El
+.Pp
+.Ar action :
+.Bl -hang -offset flag -width 16n
+.It Ar allow
+Allow packets that match rule.
+The search terminates.
+Aliases are
+.Ar pass ,
+.Ar permit ,
+and
+.Ar accept .
+.It Ar deny
+Discard packets that match this rule.
+The search terminates.
+.Ar Drop
+is an alias for
+.Ar deny .
+.It Ar reject
+(Deprecated.)
+Discard packets that match this rule, and try to send an ICMPv6
+host unreachable notice.
+The search terminates.
+.It Ar unreach code
+Discard packets that match this rule, and try to send an ICMPv6
+unreachable notice with code
+.Ar code ,
+where
+.Ar code
+is a number from zero to 255, or one of these aliases:
+.Ar noroute ,
+.Ar admin ,
+.Ar notneighbor ,
+.Ar addr ,
+or
+.Ar noport ,
+The search terminates.
+.It Ar reset
+TCP packets only.
+Discard packets that match this rule,
+and try to send a TCP reset (RST) notice.
+The search terminates
+.It Ar count
+Update counters for all packets that match rule.
+The search continues with the next rule.
+.It Ar skipto number
+Skip all subsequent rules numbered less than
+.Ar number .
+The search continues with the first rule numbered
+.Ar number
+or higher.
+.El
+.Pp
+If the kernel was compiled with
+.Dv IPV6FIREWALL_VERBOSE ,
+then when a packet matches a rule with the
+.Dq log
+keyword or a clear/resetlog is performed, a message will be logged to
+.Xr syslogd 8 ,
+or, if that fails, to the console.
+If the kernel was compiled with the
+.Dv IPV6FIREWALL_VERBOSE_LIMIT
+option, then logging will cease after the number of packets
+specified by the option are received for that particular
+chain entry.
+When this limit is reached, the limit and rule number will be logged.
+Logging may then be re-enabled by clearing
+the packet counter for that entry.
+.Pp
+The
+.Xr syslogd 8
+logging and the default log limit are adjustable dynamically through the
+.Xr sysctl 8
+interface.
+.Pp
+.Ar proto :
+.Bl -hang -offset flag -width 16n
+.It Ar ipv6
+All packets match.
+The alias
+.Ar all
+has the same effect.
+.It Ar tcp
+Only TCP packets match.
+.It Ar udp
+Only UDP packets match.
+.It Ar ipv6-icmp
+Only ICMPv6 packets match.
+.It Ar <number|name>
+Only packets for the specified protocol matches (see
+.Pa /etc/protocols
+for a complete list).
+.El
+.Pp
+.Ar src
+and
+.Ar dst :
+.Bl -hang -offset flag
+.It Ar <address/prefixlen>
+.Op Ar ports
+.El
+.Pp
+The
+.Em <address/prefixlen>
+may be specified as:
+.Bl -hang -offset flag -width 16n
+.It Ar ipv6no
+An ipv6number of the form
+.Li fec0::1:2:3:4 .
+.It Ar ipv6no/prefixlen
+An ipv6number with a prefix length of the form
+.Li fec0::1:2:3:4/112 .
+.El
+.Pp
+The sense of the match can be inverted by preceding an address with the
+.Dq not
+modifier, causing all other addresses to be matched instead.
+This
+does not affect the selection of port numbers.
+.Pp
+With the TCP and UDP protocols, optional
+.Em ports
+may be specified as:
+.Pp
+.Bl -hang -offset flag
+.It Ns {port|port-port} Ns Op ,port Ns Op ,...
+.El
+.Pp
+Service names (from
+.Pa /etc/services )
+may be used instead of numeric port values.
+A range may only be specified as the first value,
+and the length of the port list is limited to
+.Dv IPV6_FW_MAX_PORTS
+(as defined in
+.In netinet6/ip6_fw.h )
+ports.
+.Pp
+Fragmented packets which have a non-zero offset (i.e., not the first
+fragment) will never match a rule which has one or more port
+specifications.
+See the
+.Ar frag
+option for details on matching fragmented packets.
+.Pp
+Rules can apply to packets when they are incoming, or outgoing, or both.
+The
+.Ar in
+keyword indicates the rule should only match incoming packets.
+The
+.Ar out
+keyword indicates the rule should only match outgoing packets.
+.Pp
+To match packets going through a certain interface, specify
+the interface using
+.Ar via :
+.Bl -hang -offset flag -width 16n
+.It Ar via ifX
+Packet must be going through interface
+.Ar ifX .
+.It Ar via if*
+Packet must be going through interface
+.Ar ifX ,
+where X is any unit number.
+.It Ar via any
+Packet must be going through
+.Em some
+interface.
+.It Ar via ipv6no
+Packet must be going through the interface having IPv6 address
+.Ar ipv6no .
+.El
+.Pp
+The
+.Ar via
+keyword causes the interface to always be checked.
+If
+.Ar recv
+or
+.Ar xmit
+is used instead of
+.Ar via ,
+then the only receive or transmit interface (respectively) is checked.
+By specifying both, it is possible to match packets based on both receive
+and transmit interface, e.g.:
+.Pp
+.Dl "ip6fw add 100 deny ip from any to any out recv ed0 xmit ed1"
+.Pp
+The
+.Ar recv
+interface can be tested on either incoming or outgoing packets, while the
+.Ar xmit
+interface can only be tested on outgoing packets.
+So
+.Ar out
+is required (and
+.Ar in
+invalid) whenever
+.Ar xmit
+is used.
+Specifying
+.Ar via
+together with
+.Ar xmit
+or
+.Ar recv
+is invalid.
+.Pp
+A packet may not have a receive or transmit interface: packets originating
+from the local host have no receive interface, while packets destined for
+the local host have no transmit interface.
+.Pp
+Additional
+.Ar options :
+.Bl -hang -offset flag -width 16n
+.It frag
+Matches if the packet is a fragment and this is not the first fragment
+of the datagram.
+.Ar frag
+may not be used in conjunction with either
+.Ar tcpflags
+or TCP/UDP port specifications.
+.It in
+Matches if this packet was on the way in.
+.It out
+Matches if this packet was on the way out.
+.It ipv6options Ar spec
+Matches if the IPv6 header contains the comma separated list of
+options specified in
+.Ar spec .
+The supported IPv6 options are:
+.Ar hopopt
+(hop-by-hop options header),
+.Ar route
+(routing header),
+.Ar frag
+(fragment header),
+.Ar esp
+(encapsulating security payload),
+.Ar ah
+(authentication header),
+.Ar nonxt
+(no next header), and
+.Ar opts
+(destination options header).
+The absence of a particular option may be denoted
+with a
+.Dq \&!
+.Em ( "not working yet" ) .
+.It established
+Matches packets that have the RST or ACK bits set.
+TCP packets only.
+.It setup
+Matches packets that have the SYN bit set but no ACK bit.
+TCP packets only.
+.It tcpflags Ar spec
+Matches if the TCP header contains the comma separated list of
+flags specified in
+.Ar spec .
+The supported TCP flags are:
+.Ar fin ,
+.Ar syn ,
+.Ar rst ,
+.Ar psh ,
+.Ar ack ,
+and
+.Ar urg .
+The absence of a particular flag may be denoted
+with a
+.Dq \&! .
+A rule which contains a
+.Ar tcpflags
+specification can never match a fragmented packet which has
+a non-zero offset.
+See the
+.Ar frag
+option for details on matching fragmented packets.
+.It icmptypes Ar types
+Matches if the ICMPv6 type is in the list
+.Ar types .
+The list may be specified as any combination of ranges
+or individual types separated by commas.
+.El
+.Sh CHECKLIST
+Here are some important points to consider when designing your
+rules:
+.Bl -bullet -offset flag
+.It
+Remember that you filter both packets going in and out.
+Most connections need packets going in both directions.
+.It
+Remember to test very carefully.
+It is a good idea to be near the console when doing this.
+.It
+Do not forget the loopback interface.
+.El
+.Sh FINE POINTS
+There is one kind of packet that the firewall will always discard,
+that is an IPv6 fragment with a fragment offset of one.
+This is a valid packet, but it only has one use, to try to circumvent
+firewalls.
+.Pp
+If you are logged in over a network, loading the KLD version of
+.Nm
+is probably not as straightforward as you would think
+.Em ( "not supported" ) .
+I recommend this command line:
+.Bd -literal -offset center
+kldload ip6fw && \e
+ip6fw add 32000 allow all from any to any
+.Ed
+.Pp
+Along the same lines, doing an
+.Bd -literal -offset center
+ip6fw flush
+.Ed
+.Pp
+in similar surroundings is also a bad idea.
+.Sh PACKET DIVERSION
+not supported.
+.Sh EXAMPLES
+This command adds an entry which denies all tcp packets from
+.Em hacker.evil.org
+to the telnet port of
+.Em wolf.tambov.su
+from being forwarded by the host:
+.Pp
+.Dl ip6fw add deny tcp from hacker.evil.org to wolf.tambov.su 23
+.Pp
+This one disallows any connection from the entire hackers network to
+my host:
+.Pp
+.Dl ip6fw add deny all from fec0::123:45:67:0/112 to my.host.org
+.Pp
+Here is a good usage of the list command to see accounting records
+and timestamp information:
+.Pp
+.Dl ip6fw -at l
+.Pp
+or in short form without timestamps:
+.Pp
+.Dl ip6fw -a l
+.Sh SEE ALSO
+.Xr ip 4 ,
+.Xr ipfirewall 4 ,
+.Xr protocols 5 ,
+.Xr services 5 ,
+.Xr reboot 8 ,
+.Xr sysctl 8 ,
+.Xr syslogd 8
+.Sh HISTORY
+A
+.Nm
+utility first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Ugen J. S. Antsilevich ,
+.An Poul-Henning Kamp ,
+.An Alex Nash ,
+.An Archie Cobbs .
+.Pp
+.An -nosplit
+API based upon code written by
+.An Daniel Boulet
+for BSDI.
+.Sh BUGS
+.Em WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!
+.Pp
+This program can put your computer in rather unusable state.
+When
+using it for the first time, work on the console of the computer, and
+do
+.Em NOT
+do anything you do not understand.
+.Pp
+When manipulating/adding chain entries, service and protocol names are
+not accepted.

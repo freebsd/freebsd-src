@@ -1,0 +1,558 @@
+ $FreeBSD$
+
+;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
+; System call name/number master file (or rather, slave, from LINUX).
+; Processed to created linux_sysent.c, linux_syscalls.c and linux_syscall.h.
+
+; Columns: number type nargs name alt{name,tag,rtyp}/comments
+;	number	system call number, must be in order
+;	audit	the audit event associated with the system call
+;		A value of AUE_NULL means no auditing, but it also means that
+;		there is no audit event for the call at this time. For the
+;		case where the event exists, but we don't want auditing, the
+;		event should be #defined to AUE_NULL in audit_kevents.h.
+;	type	one of STD, OBSOL, UNIMPL, COMPAT, CPT_NOA, LIBCOMPAT,
+;		NODEF, NOARGS, NOPROTO
+;	name	psuedo-prototype of syscall routine
+;		If one of the following alts is different, then all appear:
+;	altname	name of system call if different
+;	alttag	name of args struct tag if different from [o]`name'"_args"
+;	altrtyp	return type if not int (bogus - syscalls always return int)
+;		for UNIMPL/OBSOL, name continues with comments
+
+; types:
+;	STD	always included
+;	COMPAT	included on COMPAT #ifdef
+;	CPT_NOA	combines COMPAT with NOARGS
+;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
+;	NOARGS	same as STD except do not create structure in sys/sysproto.h
+;	NODEF	??
+;	NOPROTO	same as STD except do not create structure or function in
+;		sys/sysproto.h
+;	OBSOL	obsolete, not included in system, only specifies name
+;	UNIMPL	not implemented, placeholder only
+
+#include "opt_compat.h"
+#include <sys/param.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <compat/linux/linux_sysproto.h>
+#include <alpha/linux/linux.h>
+#include <alpha/linux/linux_proto.h>
+
+; Isn't pretty, but there seems to be no other way to trap nosys
+#define	nosys	linux_nosys
+
+; #ifdef's, etc. may be included, and are copied to the output files.
+
+0	AUE_NULL	UNIMPL
+1	AUE_NULL	MNOPROTO	{ void sys_exit(int rval); } exit \
+				    sys_exit_args void
+2	AUE_NULL	MSTD	{ int linux_fork(void); }
+3	AUE_NULL	MNOPROTO	{ int read(int fd, char *buf, \
+				    u_int nbyte); }
+4	AUE_NULL	MNOPROTO	{ int write(int fd, char *buf, \
+				    u_int nbyte); }
+5	AUE_NULL	UNIMPL
+6	AUE_NULL	MNOPROTO	{ int close(int fd); }
+7	AUE_NULL	MSTD	{ int osf1_wait4(int pid, int *status, \
+				    int options, \
+				    struct osf1_rusage *rusage); }
+8	AUE_NULL	UNIMPL
+9	AUE_NULL	MSTD	{ int linux_link(char *path, char *to); }
+10	AUE_NULL	MSTD	{ int linux_unlink(char *path); }
+11	AUE_NULL	UNIMPL
+12	AUE_NULL	MSTD	{ int linux_chdir(char *path); }
+13	AUE_NULL	MNOPROTO	{ int fchdir(int fd); }
+14	AUE_NULL	MSTD	{ int linux_mknod(char *path, l_int mode, \
+				    l_dev_t dev); }
+15	AUE_NULL	MSTD	{ int linux_chmod(char *path, \
+				    l_mode_t mode); }
+16	AUE_NULL	MSTD	{ int linux_chown(char *path, l_uid_t uid, \
+				    l_gid_t gid); }
+17	AUE_NULL	STD	{ int linux_brk(l_ulong dsend); }
+18	AUE_NULL	UNIMPL
+19	AUE_NULL	MSTD	{ int linux_lseek(l_uint fdes, l_off_t off, \
+				    l_int whence); }
+20	AUE_NULL	MNOPROTO	{ int getpid(void); } 
+21	AUE_NULL	UNIMPL	osf1_mount
+22	AUE_NULL	STD	{ int linux_umount(char *path, l_int flags); }
+23	AUE_NULL	MNOPROTO	{ int setuid(uid_t uid); }
+24	AUE_NULL	MNOPROTO	{ int getuid(void); }
+25	AUE_NULL	UNIMPL
+26	AUE_NULL	MSTD	{ int linux_ptrace(void); }
+27	AUE_NULL	UNIMPL
+28	AUE_NULL	UNIMPL
+29	AUE_NULL	UNIMPL
+30	AUE_NULL	UNIMPL
+31	AUE_NULL	UNIMPL
+32	AUE_NULL	UNIMPL
+33	AUE_NULL	MSTD	{ int linux_access(char *path, l_int flags); }
+34	AUE_NULL	UNIMPL
+35	AUE_NULL	UNIMPL
+36	AUE_NULL	MNOPROTO	{ int sync(void); }
+37	AUE_NULL	MSTD	{ int linux_kill(l_int pid, l_int signum); }
+38	AUE_NULL	UNIMPL
+39	AUE_NULL	MNOPROTO	{ int setpgid(int pid, int pgid); }
+40	AUE_NULL	UNIMPL
+41	AUE_NULL	MNOPROTO	{ int dup(u_int fd); }
+42	AUE_NULL	MNOPROTO	{ int pipe(void); }
+43	AUE_NULL	UNIMPL	osf_set_program_attributes
+44	AUE_NULL	UNIMPL
+45	AUE_NULL	MSTD	{ int linux_open(char *path, l_int flags, \
+				    l_int mode); }
+46	AUE_NULL	UNIMPL
+47	AUE_NULL	MNOPROTO	{ int getgid(void); }
+48	AUE_NULL	MSTD	{ int osf1_sigprocmask(int how, \
+				    u_long mask); }
+49	AUE_NULL	UNIMPL
+50	AUE_NULL	UNIMPL
+51	AUE_NULL	MNOPROTO	{ int acct(char *path); }
+52	AUE_NULL	MSTD	{ int linux_sigpending(void); }
+53	AUE_NULL	UNIMPL
+54	AUE_NULL	STD	{ int linux_ioctl(l_uint fd, l_uint cmd, \
+				    l_ulong arg); }
+55	AUE_NULL	UNIMPL
+56	AUE_NULL	UNIMPL
+57	AUE_NULL	MSTD	{ int linux_symlink(char *path, char *to); }
+58	AUE_NULL	MSTD	{ int linux_readlink(char *name, char *buf, \
+				    l_int count); }
+59	AUE_NULL	MSTD	{ int linux_execve(char *path, char **argp, \
+				    char **envp); }
+60	AUE_NULL	MNOPROTO	{ int umask(int newmask); }
+61	AUE_NULL	MNOPROTO	{ int chroot(char *path); }
+62	AUE_NULL	UNIMPL
+63	AUE_NULL	MNOPROTO	{ int getpgrp(void); }
+64	AUE_NULL	MSTD	{ int linux_getpagesize(void); }
+65	AUE_NULL	UNIMPL
+66	AUE_NULL	MSTD	{ int linux_vfork(void); }
+67	AUE_NULL	MSTD	{ int linux_newstat(char *path, \
+				    struct l_newstat *buf); }
+68	AUE_NULL	MSTD	{ int linux_newlstat(char *path, \
+				    struct l_newstat *buf); }
+69	AUE_NULL	UNIMPL
+70	AUE_NULL	UNIMPL
+71	AUE_NULL	MSTD	{ int linux_mmap(l_ulong addr, l_ulong len, \
+				    l_ulong prot, l_ulong flags, l_ulong fd, \
+				    l_ulong pos); }
+72	AUE_NULL	UNIMPL
+73	AUE_NULL	MSTD	{ int linux_munmap(l_ulong addr, \
+				    l_size_t len); }
+74	AUE_NULL	MSTD	{ int linux_mprotect(l_ulong addr, \
+				    l_size_t len, l_ulong prot); }
+75	AUE_NULL	MNOPROTO	{ int madvise(void *addr, \
+				    size_t len, int behav); }
+76	AUE_NULL	MSTD	{ int linux_vhangup(void); }
+77	AUE_NULL	UNIMPL
+78	AUE_NULL	UNIMPL
+79	AUE_NULL	MSTD	{ int linux_setgroups(l_int gidsetsize, \
+				    l_gid_t *grouplist); }
+80	AUE_NULL	MSTD	{ int linux_getgroups(l_int gidsetsize, \
+				    l_gid_t *grouplist); }
+81	AUE_NULL	UNIMPL	
+82	AUE_NULL	MNODEF	setpgid setpgid setpgid_args int
+83	AUE_NULL	MSTD	{ int osf1_setitimer(u_int which, \
+				    struct itimerval *itv, \
+				    struct itimerval *oitv); }
+84	AUE_NULL	UNIMPL
+85	AUE_NULL	UNIMPL
+86	AUE_NULL	UNIMPL	osf_getitimer
+87	AUE_NULL	MSTD	{ int linux_gethostname(void); }
+88	AUE_NULL	MNOPROTO	{ int osethostname(char *hostname, \
+				    u_int len); } osethostname \
+				    sethostname_args int
+89	AUE_NULL	MSTD	{ int linux_getdtablesize(void); }
+90	AUE_NULL	MNOPROTO	{ int dup2(u_int from, u_int to); }
+91	AUE_NULL	MSTD	{ int linux_newfstat(l_uint fd, \
+				    struct l_newstat *buf); }
+92	AUE_NULL	MSTD	{ int linux_fcntl(l_uint fd, l_uint cmd, \
+				    l_ulong arg); }
+93	AUE_NULL	MSTD	{ int osf1_select(u_int nd, fd_set *in, \
+				    fd_set *ou, fd_set *ex, \
+				    struct timeval *tv); }
+94	AUE_NULL	MNOPROTO	{ int poll(struct pollfd*, unsigned int \
+				    nfds, long timeout); }
+95	AUE_NULL	MNOPROTO	{ int fsync(int fd); }
+96	AUE_NULL	MNOPROTO	{ int setpriority(int which, \
+				    int who, int prio); }
+97	AUE_NULL	MSTD	{ int osf1_socket(int domain, int type, \
+				    int protocol); }
+98	AUE_NULL	MSTD	{ int linux_connect(l_int s, \
+				    struct l_sockaddr *name, l_int namelen); }
+99	AUE_NULL	MNOPROTO	{ int oaccept(int s, caddr_t name, \
+				    int *anamelen); } accept accept_args int
+100	AUE_NULL	MSTD	{ int linux_getpriority(int which, int who); }
+101	AUE_NULL	MNOPROTO	{ int osend(int s, caddr_t buf, int len, \
+				    int flags); }
+102	AUE_NULL	MNOPROTO { int orecv(int s, caddr_t buf, int len, \
+				    int flags); }
+103	AUE_NULL	MSTD	{ int osf1_sigreturn( \
+				    struct osigcontext *sigcntxp); }
+104	AUE_NULL	MNOPROTO	{ int bind(int s, caddr_t name, \
+				    int namelen); }
+105	AUE_NULL	MNOPROTO	{ int setsockopt(int s, int level, int name, \
+				    caddr_t val, int valsize); }
+106	AUE_NULL	MNOPROTO	{ int listen(int s, int backlog); }
+107	AUE_NULL	UNIMPL
+108	AUE_NULL	UNIMPL
+109	AUE_NULL	UNIMPL
+110	AUE_NULL	UNIMPL
+111	AUE_NULL	MSTD	{ int osf1_sigsuspend(unsigned long ss); }
+112	AUE_NULL	UNIMPL	osf_sigstack
+113	AUE_NULL	MSTD	{ int linux_recvmsg(void); }
+114	AUE_NULL	MSTD	{ int linux_sendmsg(void); }
+115	AUE_NULL	UNIMPL
+116	AUE_NULL	MSTD	{ int osf1_gettimeofday(struct timeval *tp, \
+				    struct timezone *tzp); }
+117	AUE_NULL	MSTD	{ int osf1_getrusage(long who, \
+				    void *rusage); }
+118	AUE_NULL	MNOPROTO	{ int getsockopt(int s, int level, int name, \
+				    caddr_t val, int *avalsize); }
+119	AUE_NULL	UNIMPL
+120	AUE_NULL	MNOPROTO	{ int readv(int fd, struct iovec *iovp, \
+				    u_int iovcnt); }
+121	AUE_NULL	MNOPROTO	{ int writev(int fd, struct iovec *iovp, \
+				    u_int iovcnt); }
+122	AUE_NULL	UNIMPL	osf_settimeofday
+123	AUE_NULL	MNOPROTO	{ int fchown(int fd, int uid, int gid); }
+124	AUE_NULL	MNOPROTO	{ int fchmod(int fd, int mode); }
+125	AUE_NULL	MNOPROTO	{ int orecvfrom(int s, caddr_t buf, \
+				    size_t len, int flags, caddr_t from, \
+				    int *fromlenaddr); } recvfrom \
+				    recvfrom_args int
+126	AUE_NULL	MNOPROTO	{ int setreuid(int ruid, int euid); }
+127	AUE_NULL	MNOPROTO	{ int setregid(int rgid, int egid); }
+128	AUE_NULL	MSTD	{ int linux_rename(char *from, char *to); }
+129	AUE_NULL	MSTD	{ int linux_truncate(char *path, \
+				    l_ulong length); }
+130	AUE_NULL	MNOPROTO	{ int oftruncate(int fd, long length); }
+131	AUE_NULL	MNOPROTO	{ int flock(int fd, int how); }
+132	AUE_NULL	MNOPROTO	{ int setgid(gid_t gid); }
+133	AUE_NULL	MSTD	{ int osf1_sendto(int s, caddr_t buf, \
+				    size_t len, int flags, \
+				    struct sockaddr *to, int tolen); }
+134	AUE_NULL	MNOPROTO	{ int shutdown(int s, int how); }
+135	AUE_NULL	MSTD	{ int linux_socketpair(void); }
+136	AUE_NULL	MSTD	{ int linux_mkdir(char *path, l_int mode); }
+137	AUE_NULL	MSTD	{ int linux_rmdir(char *path); }
+138	AUE_NULL	MNOPROTO	{ int utimes(char *path, \
+				    struct timeval *tptr); }
+139	AUE_NULL	UNIMPL
+140	AUE_NULL	UNIMPL
+141	AUE_NULL	MNOPROTO	{ int ogetpeername(int fdes, caddr_t asa, \
+				    int *alen); }
+142	AUE_NULL	UNIMPL
+143	AUE_NULL	UNIMPL
+144	AUE_NULL	MSTD	{ int linux_getrlimit(l_uint resource, \
+				    struct l_rlimit *rlim); }
+145	AUE_NULL	MSTD	{ int linux_setrlimit(l_uint resource, \
+				    struct l_rlimit *rlim); }
+146	AUE_NULL	UNIMPL
+147	AUE_NULL	MNOPROTO	{ int setsid(void); }
+148	AUE_NULL	MSTD	{ int linux_quotactl(void); }
+149	AUE_NULL	UNIMPL
+150	AUE_NULL	MNOPROTO	{ int ogetsockname(int fdec, caddr_t asa, \
+				    int *alen);} getsockname \
+				    getsockname_args int
+151	AUE_NULL	UNIMPL
+152	AUE_NULL	UNIMPL
+153	AUE_NULL	UNIMPL
+154	AUE_NULL	UNIMPL
+155	AUE_NULL	UNIMPL
+156	AUE_NULL	MSTD	{ int osf1_sigaction(int sig, \
+				    struct osf1_sigaction *nsa, \
+				    struct osf1_sigaction *osa); }
+157	AUE_NULL	UNIMPL
+158	AUE_NULL	UNIMPL
+159	AUE_NULL	UNIMPL	osf_getdirentries
+160	AUE_NULL	UNIMPL	osf_statfs
+161	AUE_NULL	UNIMPL	osf_fstatfs
+162	AUE_NULL	UNIMPL
+163	AUE_NULL	UNIMPL
+164	AUE_NULL	UNIMPL
+165	AUE_NULL	UNIMPL	osf_getdomainname
+166	AUE_NULL	MNOPROTO	{ int setdomainname(char *name, \
+				    int len); }
+167	AUE_NULL	UNIMPL
+168	AUE_NULL	UNIMPL
+169	AUE_NULL	UNIMPL
+170	AUE_NULL	UNIMPL
+171	AUE_NULL	UNIMPL
+172	AUE_NULL	UNIMPL
+173	AUE_NULL	UNIMPL
+174	AUE_NULL	UNIMPL
+175	AUE_NULL	UNIMPL
+176	AUE_NULL	UNIMPL
+177	AUE_NULL	UNIMPL
+178	AUE_NULL	UNIMPL
+179	AUE_NULL	UNIMPL
+180	AUE_NULL	UNIMPL
+181	AUE_NULL	UNIMPL
+182	AUE_NULL	UNIMPL
+183	AUE_NULL	UNIMPL
+184	AUE_NULL	UNIMPL
+185	AUE_NULL	UNIMPL
+186	AUE_NULL	UNIMPL
+187	AUE_NULL	UNIMPL
+188	AUE_NULL	UNIMPL
+189	AUE_NULL	UNIMPL
+190	AUE_NULL	UNIMPL
+191	AUE_NULL	UNIMPL
+192	AUE_NULL	UNIMPL
+193	AUE_NULL	UNIMPL
+194	AUE_NULL	UNIMPL
+195	AUE_NULL	UNIMPL
+196	AUE_NULL	UNIMPL
+197	AUE_NULL	UNIMPL
+198	AUE_NULL	UNIMPL
+199	AUE_NULL	UNIMPL	osf_swapon
+200	AUE_NULL	MSTD	{ int linux_msgctl(l_int msqid, l_int cmd, \
+				    struct l_msqid_ds *buf); }
+201	AUE_NULL	MSTD	{ int linux_msgget(l_key_t key, \
+				    l_int msgflg); }
+202	AUE_NULL	MSTD	{ int linux_msgrcv(l_int msqid, \
+				    struct l_msgbuf *msgp, l_size_t msgsz, \
+				    l_long msgtyp, l_int msgflg); }
+203	AUE_NULL	MSTD	{ int linux_msgsnd(l_int msqid, \
+				    struct l_msgbuf *msgp, l_size_t msgsz, \
+				    l_int msgflg); }
+204	AUE_NULL	STD	{ int linux_semctl(l_int semid, \
+				    l_int semnum, l_int cmd, \
+				    union l_semun arg); }
+205	AUE_NULL	MSTD	{ int linux_semget(l_key_t key, l_int nsems, \
+				    l_int semflg); }
+206	AUE_NULL	MSTD	{ int linux_semop(l_int semid, \
+				    struct l_sembuf *tsops, l_uint nsops); }
+207	AUE_NULL	UNIMPL	osf_utsname
+208	AUE_NULL	MSTD	{ int linux_lchown(char *path, l_uid_t uid, \
+				    l_gid_t gid); }
+209	AUE_NULL	MSTD	{ int linux_shmat(l_int shmid, \
+				    char *shmaddr, l_int shmflg); }
+210	AUE_NULL	MSTD	{ int linux_shmctl(l_int shmid, l_int cmd, \
+				    struct l_shmid_ds *buf); }
+211	AUE_NULL	MSTD	{ int linux_shmdt(char *shmaddr); }
+212	AUE_NULL	MSTD	{ int linux_shmget(l_key_t key, \
+				    l_size_t size, l_int shmflg); }
+213	AUE_NULL	UNIMPL
+214	AUE_NULL	UNIMPL
+215	AUE_NULL	UNIMPL
+216	AUE_NULL	UNIMPL
+217	AUE_NULL	MSTD	{ int linux_msync(l_ulong addr, \
+				    l_size_t len, l_int fl); }
+218	AUE_NULL	UNIMPL
+219	AUE_NULL	UNIMPL
+220	AUE_NULL	UNIMPL
+221	AUE_NULL	UNIMPL
+222	AUE_NULL	UNIMPL
+223	AUE_NULL	UNIMPL
+224	AUE_NULL	UNIMPL
+225	AUE_NULL	UNIMPL
+226	AUE_NULL	UNIMPL
+227	AUE_NULL	UNIMPL
+228	AUE_NULL	UNIMPL
+229	AUE_NULL	UNIMPL
+230	AUE_NULL	UNIMPL
+231	AUE_NULL	UNIMPL
+232	AUE_NULL	UNIMPL
+233	AUE_NULL	MNOPROTO	{ int getpgid(int pid); }
+234	AUE_NULL	MSTD	{ int linux_getsid(l_pid_t pid); }
+235	AUE_NULL	MSTD	{ int linux_sigaltstack(void); }
+236	AUE_NULL	UNIMPL
+237	AUE_NULL	UNIMPL
+238	AUE_NULL	UNIMPL
+239	AUE_NULL	UNIMPL
+240	AUE_NULL	UNIMPL
+241	AUE_NULL	MSTD	{ int osf1_sysinfo(int cmd, char *buf, \
+				    long count); }
+242	AUE_NULL	UNIMPL
+243	AUE_NULL	UNIMPL
+244	AUE_NULL	UNIMPL	osf_proplist_syscall
+245	AUE_NULL	UNIMPL
+246	AUE_NULL	UNIMPL
+247	AUE_NULL	UNIMPL
+248	AUE_NULL	UNIMPL
+249	AUE_NULL	UNIMPL
+250	AUE_NULL	UNIMPL
+251	AUE_NULL	UNIMPL	osf_usleep_thread
+252	AUE_NULL	UNIMPL
+253	AUE_NULL	UNIMPL
+254	AUE_NULL	MSTD	{ int linux_sysfs(l_int option, \
+				    l_ulong arg1, l_ulong arg2); }
+255	AUE_NULL	UNIMPL
+256	AUE_NULL	MSTD	{ int osf1_getsysinfo(u_long op, \
+				    caddr_t buffer, u_long nbytes, \
+				    caddr_t arg, u_long flag); }
+257	AUE_NULL	MSTD	{ int osf1_setsysinfo(u_long op, \
+				    caddr_t buffer, u_long nbytes, \
+				    caddr_t arg, u_long flag); }
+258	AUE_NULL	UNIMPL
+259	AUE_NULL	UNIMPL
+260	AUE_NULL	UNIMPL
+261	AUE_NULL	UNIMPL
+262	AUE_NULL	UNIMPL
+263	AUE_NULL	UNIMPL
+264	AUE_NULL	UNIMPL
+265	AUE_NULL	UNIMPL
+266	AUE_NULL	UNIMPL
+267	AUE_NULL	UNIMPL
+268	AUE_NULL	UNIMPL
+269	AUE_NULL	UNIMPL
+270	AUE_NULL	UNIMPL
+271	AUE_NULL	UNIMPL
+272	AUE_NULL	UNIMPL
+273	AUE_NULL	UNIMPL
+274	AUE_NULL	UNIMPL
+275	AUE_NULL	UNIMPL
+276	AUE_NULL	UNIMPL
+277	AUE_NULL	UNIMPL
+278	AUE_NULL	UNIMPL
+279	AUE_NULL	UNIMPL
+280	AUE_NULL	UNIMPL
+281	AUE_NULL	UNIMPL
+282	AUE_NULL	UNIMPL
+283	AUE_NULL	UNIMPL
+284	AUE_NULL	UNIMPL
+285	AUE_NULL	UNIMPL
+286	AUE_NULL	UNIMPL
+287	AUE_NULL	UNIMPL
+288	AUE_NULL	UNIMPL
+289	AUE_NULL	UNIMPL
+290	AUE_NULL	UNIMPL
+291	AUE_NULL	UNIMPL
+292	AUE_NULL	UNIMPL
+293	AUE_NULL	UNIMPL
+294	AUE_NULL	UNIMPL
+295	AUE_NULL	UNIMPL
+296	AUE_NULL	UNIMPL
+297	AUE_NULL	UNIMPL
+298	AUE_NULL	UNIMPL
+299	AUE_NULL	UNIMPL
+300	AUE_NULL	MSTD	{ int linux_bdflush(void); }
+301	AUE_NULL	MSTD	{ int linux_sethae(void); }
+302	AUE_NULL	STD	{ int linux_mount(char *specialfile, \
+				    char *dir, char *filesystemtype, \
+				    l_ulong rwflag, void *data); }
+303	AUE_NULL	MSTD	{ int linux_old_adjtimex(void); }
+304	AUE_NULL	MSTD	{ int linux_swapoff(void); }
+305	AUE_NULL	STD	{ int linux_getdents(l_uint fd, void *dent, \
+				    l_uint count); }
+306	AUE_NULL	MSTD	{ int linux_create_module(void); }
+307	AUE_NULL	MSTD	{ int linux_init_module(void); }
+308	AUE_NULL	MSTD	{ int linux_delete_module(void); }
+309	AUE_NULL	MSTD	{ int linux_get_kernel_syms(void); }
+310	AUE_NULL	MSTD	{ int linux_syslog(l_int type, char *buf, \
+				    l_int len); }
+311	AUE_NULL	MSTD	{ int linux_reboot(l_int magic1, \
+				    l_int magic2, l_uint cmd, void *arg); }
+312	AUE_NULL	MSTD	{ int linux_clone(l_int flags, void *stack); }
+313	AUE_NULL	STD	{ int linux_uselib(char *library); }	
+314	AUE_NULL	MNOPROTO	{ int mlock(const void *addr, \
+				    size_t len); }
+315	AUE_NULL	MNOPROTO	{ int munlock(const void *addr, \
+				    size_t len); }
+316	AUE_NULL	MNOPROTO	{ int mlockall(int how); }
+317	AUE_NULL	MNOPROTO	{ int munlockall(void); }
+318	AUE_NULL	MSTD	{ int linux_sysinfo(void); }
+319	AUE_NULL	MSTD	{ int linux_sysctl( \
+				    struct l___sysctl_args *args); }
+320	AUE_NULL	UNIMPL	sys_idle
+321	AUE_NULL	STD	{ int linux_oldumount(char *path); }
+322	AUE_NULL	MNOPROTO	{ int swapon(char *name); }
+323	AUE_NULL	MSTD	{ int linux_times(struct l_times_argv *buf); }
+324	AUE_NULL	MSTD	{ int linux_personality(l_ulong per); }
+325	AUE_NULL	MSTD	{ int linux_setfsuid(l_uid_t uid); }
+326	AUE_NULL	MSTD	{ int linux_setfsgid(l_gid_t gid); }
+327	AUE_NULL	MSTD	{ int linux_ustat(l_dev_t dev, \
+				    struct l_ustat *ubuf); }
+328	AUE_NULL	MSTD	{ int linux_statfs(char *path, \
+				    struct l_statfs_buf *buf); }
+329	AUE_NULL	MSTD	{ int linux_fstatfs(l_uint fd, \
+				    struct l_statfs_buf *buf); }
+330	AUE_NULL	MNOPROTO	{ int sched_setparam(pid_t pid, \
+				    const struct sched_param *param); }
+331	AUE_NULL	MNOPROTO	{ int sched_getparam(pid_t pid, \
+				    struct sched_param *param); }
+332	AUE_NULL	MSTD	{ int linux_sched_setscheduler(l_pid_t pid, \
+				    l_int policy, \
+				    struct l_sched_param *param); }
+333	AUE_NULL	MSTD	{ int linux_sched_getscheduler(l_pid_t pid); }
+334	AUE_NULL	MNOPROTO	{ int sched_yield(void); }
+335	AUE_NULL	MSTD	{ int linux_sched_get_priority_max( \
+				    l_int policy); }
+336	AUE_NULL	MSTD	{ int linux_sched_get_priority_min( \
+				    l_int policy); }
+337	AUE_NULL	MNOPROTO	{ int sched_rr_get_interval (pid_t pid, \
+				    struct timespec *interval); }
+338	AUE_NULL	UNIMPL	sys_afs_syscall
+339	AUE_NULL	MSTD	{ int linux_newuname( \
+				    struct l_newuname_t *buf); }
+340	AUE_NULL	MNOPROTO	{ int nanosleep( \
+				    const struct timespec *rqtp, \
+				    struct timespec *rmtp); }
+341	AUE_NULL	MSTD	{ int linux_mremap(l_ulong addr, \
+				    l_ulong old_len, l_ulong new_len, \
+				    l_ulong flags, l_ulong new_addr); }
+342	AUE_NULL	MSTD	{ int linux_nfsservctl(void); }
+343	AUE_NULL	MNOPROTO	{ int setresuid(uid_t ruid, \
+				    uid_t euid, uid_t suid); }
+344	AUE_NULL	MNOPROTO	{ int getresuid(uid_t *ruid, \
+				    uid_t *euid, uid_t *suid); }
+345	AUE_NULL	MSTD	{ int linux_pciconfig_read(void); }
+346	AUE_NULL	MSTD	{ int linux_pciconfig_write(void); }
+347	AUE_NULL	MSTD	{ int linux_query_module(void); }
+348	AUE_NULL	MSTD	{ int linux_prctl(void); }
+349	AUE_NULL	MSTD	{ int linux_pread(l_uint fd, char *buf, \
+				    l_size_t nbyte, l_loff_t offset); }
+350	AUE_NULL	MSTD	{ int linux_pwrite(l_uint fd, char *buf, \
+				    l_size_t nbyte, l_loff_t offset); }
+351	AUE_NULL	MSTD	{ int linux_rt_sigreturn(void); }
+352	AUE_NULL	MSTD	{ int linux_rt_sigaction(l_int sig, \
+				    l_sigaction_t *act, l_sigaction_t *oact, \
+				    l_size_t sigsetsize); }
+353	AUE_NULL	MSTD	{ int linux_rt_sigprocmask(l_int how, \
+				    l_sigset_t *mask, l_sigset_t *omask, \
+				    l_size_t sigsetsize); }
+354	AUE_NULL	MSTD	{ int linux_rt_sigpending(void); }
+355	AUE_NULL	MSTD	{ int linux_rt_sigtimedwait(void); }
+356	AUE_NULL	MSTD	{ int linux_rt_sigqueueinfo(void); }
+357	AUE_NULL	MSTD	{ int linux_rt_sigsuspend(l_sigset_t \
+				    *newset, l_size_t sigsetsize); }
+358	AUE_NULL	MSTD	{ int linux_select(l_int nfds, \
+				    l_fd_set *readfds, l_fd_set *writefds, \
+				    l_fd_set *exceptfds, \
+				    struct l_timeval *timeout); }
+359	AUE_NULL	MNOPROTO	{ int gettimeofday( \
+				    struct timeval *tp, \
+				    struct timezone *tzp); }
+360	AUE_NULL	MNOPROTO	{ int settimeofday( \
+				    struct timeval *tp, \
+				    struct timezone *tzp); }
+361	AUE_NULL	MSTD	{ int linux_getitimer(l_int which, \
+				    struct l_itimerval *itv); }
+362	AUE_NULL	MSTD	{ int linux_setitimer(l_int which, \
+				    struct l_itimerval *itv, \
+				    struct l_itimerval *oitv); }
+363	AUE_NULL	MSTD	{ int linux_utimes(char *fname, \
+				    struct l_timeval *times); }
+364	AUE_NULL	MNOPROTO	{ int getrusage(int who, \
+				    struct rusage *rusage); }
+365	AUE_NULL	MSTD	{ int linux_wait4(l_pid_t pid, \
+				    l_uint *status, l_int options, \
+				    struct l_rusage *rusage); }		
+366	AUE_NULL	MSTD	{ int linux_adjtimex(void); }
+367	AUE_NULL	MSTD	{ int linux_getcwd(char *buf, \
+				    l_ulong bufsize); }
+368	AUE_NULL	MSTD	{ int linux_capget(void); }
+369	AUE_NULL	MSTD	{ int linux_capset(void); }
+370	AUE_NULL	MSTD	{ int linux_sendfile(void); }
+371	AUE_NULL	MNOPROTO	{ int setresgid(gid_t rgid, \
+				    gid_t egid, gid_t sgid); }
+372	AUE_NULL	MNOPROTO	{ int getresgid(gid_t *rgid, \
+				    gid_t *egid, gid_t *sgid); }
+373	AUE_NULL	UNIMPL	sys_dipc
+374	AUE_NULL	MSTD	{ int linux_pivot_root(char *new_root, \
+				    char *put_old); }
+375	AUE_NULL	MSTD	{ int linux_mincore(l_ulong start, \
+				    l_size_t len, u_char *vec); }
+376	AUE_NULL	MSTD	{ int linux_pciconfig_iobase(void); }
+377	AUE_NULL	STD	{ int linux_getdents64(l_uint fd, void *dirent, l_uint count); }

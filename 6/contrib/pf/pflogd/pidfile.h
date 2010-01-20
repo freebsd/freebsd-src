@@ -1,0 +1,1 @@
+int pidfile(const char *);

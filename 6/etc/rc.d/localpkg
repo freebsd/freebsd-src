@@ -1,0 +1,62 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: localpkg
+# REQUIRE: abi
+# BEFORE:  securelevel
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="localpkg"
+start_cmd="pkg_start"
+stop_cmd="pkg_stop"
+
+pkg_start()
+{
+	# For each dir in $local_startup, search for init scripts matching *.sh
+	#
+	case ${local_startup} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n 'Local package initialization:'
+		find_local_scripts_old
+		for script in ${zlist} ${slist}; do
+			if [ -x "${script}" ]; then
+				(set -T
+				trap 'exit 1' 2
+				${script} start)
+			elif [ -f "${script}" -o -L "${script}" ]; then
+				echo -n " (skipping ${script}, not executable)"
+			fi
+		done
+		echo '.'
+		;;
+	esac
+}
+
+pkg_stop()
+{
+	case ${local_startup} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n 'Shutting down daemon processes:'
+		find_local_scripts_old
+		for script in `reverse_list ${slist} ${zlist}`; do
+			if [ -x "${script}" ]; then
+				(set -T
+				trap 'exit 1' 2
+				${script} stop)
+			fi
+		done
+		echo '.'
+		;;
+	esac
+}
+
+load_rc_config $name
+run_rc_command "$1"

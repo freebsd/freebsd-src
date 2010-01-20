@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ftpd
+# REQUIRE: LOGIN cleanvar
+
+. /etc/rc.subr
+
+name="ftpd"
+rcvar=`set_rcvar`
+command="/usr/libexec/${name}"
+pidfile="/var/run/${name}.pid"
+start_precmd=ftpd_prestart
+
+ftpd_prestart()
+{
+	rc_flags="-D ${rc_flags}"
+	return 0
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,235 @@
+# This file tells config what files go into building a kernel,
+# files marked standard are always included.
+#
+# $FreeBSD$
+#
+# The long compile-with and dependency lines are required because of
+# limitations in config: backslash-newline doesn't work in strings, and
+# dependency lines other than the first are silently ignored.
+#
+#
+linux_genassym.o		optional	compat_linux		\
+	dependency 	"$S/alpha/linux/linux_genassym.c"		\
+	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
+	no-obj no-implicit-rule						\
+	clean		"linux_genassym.o"
+#
+linux_assym.h			optional	compat_linux		\
+	dependency 	"$S/kern/genassym.sh linux_genassym.o"		\
+	compile-with	"sh $S/kern/genassym.sh linux_genassym.o > ${.TARGET}" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"linux_assym.h"
+#
+font.h				optional	sc_dflt_font		\
+	compile-with	"uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'static u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'static u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'static u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h"									\
+	no-obj no-implicit-rule before-depend				\
+	clean		"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
+#
+atkbdmap.h			optional	atkbd_dflt_keymap	\
+	compile-with	"/usr/sbin/kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"atkbdmap.h"
+#
+ukbdmap.h			optional	ukbd_dflt_keymap	\
+	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"ukbdmap.h"
+#
+hal.o				optional	ath_hal			\
+	dependency	"$S/contrib/dev/ath/public/alpha-elf.hal.o.uu"	\
+	compile-with	"uudecode < $S/contrib/dev/ath/public/alpha-elf.hal.o.uu" \
+	no-implicit-rule
+opt_ah.h			optional	ath_hal			\
+	dependency	"$S/contrib/dev/ath/public/alpha-elf.opt_ah.h"	\
+	compile-with	"cp $S/contrib/dev/ath/public/alpha-elf.opt_ah.h opt_ah.h" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"opt_ah.h"
+alpha/alpha/api_up1000.c	optional	api_up1000
+alpha/alpha/atomic.s		standard
+alpha/alpha/autoconf.c		standard
+alpha/alpha/busdma_machdep.c	standard
+alpha/alpha/busspace.c		standard
+alpha/alpha/clock.c		standard
+alpha/alpha/clock_if.m		standard
+alpha/alpha/cpuconf.c		standard
+alpha/alpha/db_disasm.c		optional	ddb
+alpha/alpha/db_interface.c	optional	ddb
+alpha/alpha/db_trace.c		optional	ddb
+alpha/alpha/dec_1000a.c		optional	dec_1000a
+alpha/alpha/dec_1000a.c		optional	dec_1000a
+alpha/alpha/dec_2100_a50.c	optional	dec_2100_a50
+alpha/alpha/dec_2100_a500.c	optional	dec_2100_a500
+alpha/alpha/dec_axppci_33.c	optional	dec_axppci_33
+alpha/alpha/dec_eb164.c		optional	dec_eb164
+alpha/alpha/dec_eb64plus.c	optional	dec_eb64plus
+alpha/alpha/dec_kn20aa.c	optional	dec_kn20aa
+alpha/alpha/dec_kn300.c		optional	dec_kn300
+alpha/alpha/dec_kn8ae.c		optional	dec_kn8ae
+alpha/alpha/dec_st550.c		optional	dec_st550
+alpha/alpha/dec_st6600.c	optional	dec_st6600
+alpha/alpha/dec_3000_300.c	optional	dec_3000_300
+alpha/alpha/dec_3000_500.c	optional	dec_3000_500
+alpha/alpha/dump_machdep.c	standard
+alpha/alpha/elf_machdep.c	standard
+alpha/alpha/exception.s		standard
+alpha/alpha/fp_emulate.c	standard
+alpha/alpha/ieee_float.c	standard
+alpha/alpha/gdb_machdep.c	optional	gdb
+alpha/alpha/in_cksum.c		optional	inet
+alpha/alpha/interrupt.c		standard
+alpha/alpha/locore.s		standard	no-obj
+alpha/alpha/machdep.c		standard
+alpha/alpha/mem.c		optional	mem
+alpha/alpha/pmap.c		standard
+alpha/alpha/mp_machdep.c	optional	smp
+alpha/alpha/prom.c		standard
+alpha/alpha/promcons.c		standard
+alpha/alpha/prom_disp.s		standard
+alpha/alpha/sgmap.c		standard
+alpha/alpha/support.s		standard
+alpha/alpha/swtch.s		standard
+alpha/alpha/sys_machdep.c	standard
+alpha/alpha/trap.c		standard
+alpha/alpha/uio_machdep.c	standard
+alpha/alpha/uma_machdep.c	standard
+alpha/alpha/vm_machdep.c	standard
+alpha/isa/isa.c			optional	isa
+alpha/isa/isa_dma.c		optional	isa
+alpha/isa/mcclock_isa.c		optional	isa
+alpha/linux/linux_dummy.c	optional	compat_linux
+alpha/linux/linux_locore.s	optional	compat_linux		\
+	dependency 	"linux_assym.h"
+alpha/linux/linux_machdep.c	optional	compat_linux
+alpha/linux/linux_sysent.c	optional	compat_linux
+alpha/linux/linux_sysvec.c	optional	compat_linux
+alpha/mcbus/mcbus.c		optional	dec_kn300
+alpha/mcbus/mcmem.c		optional	dec_kn300
+alpha/mcbus/mcpcia.c		optional	dec_kn300
+alpha/osf1/imgact_osf1.c	optional	compat_linux
+alpha/osf1/imgact_osf1.c	optional	compat_osf1
+alpha/osf1/osf1_ioctl.c		optional	compat_linux
+alpha/osf1/osf1_ioctl.c		optional	compat_osf1
+alpha/osf1/osf1_misc.c		optional	compat_linux
+alpha/osf1/osf1_misc.c		optional	compat_osf1
+alpha/osf1/osf1_mount.c		optional	compat_linux
+alpha/osf1/osf1_mount.c		optional	compat_osf1
+alpha/osf1/osf1_signal.c	optional	compat_linux
+alpha/osf1/osf1_signal.c	optional	compat_osf1
+alpha/osf1/osf1_sysent.c	optional	compat_linux
+alpha/osf1/osf1_sysent.c	optional	compat_osf1
+alpha/osf1/osf1_sysvec.c	optional	compat_linux
+alpha/osf1/osf1_sysvec.c	optional	compat_osf1
+alpha/pci/alphapci_if.m		optional	pci
+alpha/pci/apecs.c		optional	dec_2100_a50
+alpha/pci/apecs.c		optional	dec_eb64plus
+alpha/pci/apecs.c		optional	dec_1000a
+alpha/pci/apecs_pci.c		optional	dec_2100_a50
+alpha/pci/apecs_pci.c		optional	dec_eb64plus
+alpha/pci/apecs_pci.c		optional	dec_1000a
+alpha/pci/bwx.c			optional	pci
+alpha/pci/cia.c			optional	dec_eb164
+alpha/pci/cia.c			optional	dec_kn20aa
+alpha/pci/cia.c			optional	dec_st550
+alpha/pci/cia.c			optional	dec_1000a
+alpha/pci/cia_pci.c		optional	dec_eb164
+alpha/pci/cia_pci.c		optional	dec_kn20aa
+alpha/pci/cia_pci.c		optional	dec_st550
+alpha/pci/cia_pci.c		optional	dec_1000a
+alpha/pci/irongate.c		optional	api_up1000
+alpha/pci/irongate_pci.c	optional	api_up1000
+alpha/pci/lca.c			optional	dec_axppci_33
+alpha/pci/lca_pci.c		optional	dec_axppci_33
+alpha/pci/pci_eb164_intr.s	optional	dec_eb164
+alpha/pci/pci_eb164_intr.s	optional	dec_kn20aa
+alpha/pci/pci_eb164_intr.s	optional	dec_st550
+alpha/pci/pci_eb64plus_intr.s	optional	dec_2100_a50
+alpha/pci/pci_eb64plus_intr.s	optional	dec_eb64plus
+alpha/pci/pcibus.c		optional	pci
+alpha/pci/swiz.c		optional	pci
+alpha/pci/t2.c			optional	dec_2100_a500
+alpha/pci/t2_pci.c		optional	dec_2100_a500
+alpha/pci/tsunami.c		optional	dec_st6600
+alpha/pci/tsunami_pci.c		optional	dec_st6600
+alpha/tlsb/dwlpx.c		optional	dec_kn8ae
+alpha/tlsb/gbus.c		optional	dec_kn8ae
+alpha/tlsb/kftxx.c		optional	dec_kn8ae
+alpha/tlsb/mcclock_tlsb.c	optional	dec_kn8ae
+alpha/tlsb/tlsb.c		optional	dec_kn8ae
+alpha/tlsb/tlsbcpu.c		optional	dec_kn8ae
+alpha/tlsb/tlsbmem.c		optional	dec_kn8ae
+alpha/tlsb/zs_tlsb.c		optional	dec_kn8ae
+compat/linux/linux_file.c	optional	compat_linux
+compat/linux/linux_getcwd.c	optional	compat_linux
+compat/linux/linux_ioctl.c	optional	compat_linux
+compat/linux/linux_ipc.c	optional	compat_linux
+compat/linux/linux_mib.c	optional	compat_linux
+compat/linux/linux_misc.c	optional	compat_linux
+compat/linux/linux_signal.c	optional	compat_linux
+compat/linux/linux_socket.c	optional	compat_linux
+compat/linux/linux_sysctl.c	optional	compat_linux
+compat/linux/linux_stats.c	optional	compat_linux
+compat/linux/linux_util.c	optional	compat_linux
+crypto/blowfish/bf_enc.c	optional	crypto
+crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
+crypto/des/des_enc.c		optional	crypto
+crypto/des/des_enc.c		optional	ipsec ipsec_esp
+crypto/des/des_enc.c		optional	netsmb
+dev/advansys/adv_isa.c		optional	adv isa
+dev/aic/aic_isa.c		optional	aic isa
+dev/atkbdc/atkbd.c		optional	atkbd atkbdc
+dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
+dev/atkbdc/atkbdc.c		optional	atkbdc
+dev/atkbdc/atkbdc_isa.c		optional	atkbdc isa
+dev/atkbdc/atkbdc_subr.c	optional	atkbdc
+dev/atkbdc/psm.c		optional	psm atkbdc
+dev/dec/mcclock.c		optional	mcclock
+dev/dec/mcclock_if.m		optional	mcclock
+dev/ed/if_ed_3c503.c		optional	ed isa ed_3c503
+dev/ed/if_ed_isa.c		optional	ed isa
+dev/ed/if_ed_wd80x3.c		optional	ed isa
+dev/ed/if_ed_hpp.c		optional	ed isa ed_hpp
+dev/ed/if_ed_sic.c		optional	ed isa ed_sic
+dev/fb/fb.c			optional	fb
+dev/fb/fb.c			optional	vga
+dev/fb/splash.c			optional	splash
+dev/fb/vga.c			optional	vga
+dev/fdc/fdc.c			optional	fdc
+dev/fdc/fdc_isa.c		optional	fdc isa
+dev/hwpmc/hwpmc_alpha.c		optional	hwpmc
+dev/kbd/kbd.c			optional	atkbd
+dev/kbd/kbd.c			optional	sc
+dev/kbd/kbd.c			optional	ukbd
+dev/ppc/ppc.c			optional        ppc
+dev/ppc/ppc_puc.c		optional	ppc puc
+dev/sio/sio.c			optional	sio
+dev/sio/sio_isa.c		optional	sio isa
+dev/syscons/schistory.c		optional	sc
+dev/syscons/scmouse.c		optional	sc
+dev/syscons/scterm.c		optional	sc
+dev/syscons/scterm-dumb.c	optional	sc
+dev/syscons/scterm-sc.c		optional	sc
+dev/syscons/scvgarndr.c		optional	sc vga
+dev/syscons/scgfbrndr.c		optional	sc tga
+dev/syscons/scvidctl.c		optional	sc
+dev/syscons/scvtb.c		optional	sc
+dev/syscons/syscons.c		optional	sc
+dev/syscons/sysmouse.c		optional	sc
+dev/uart/uart_cpu_alpha.c	optional	uart
+geom/geom_bsd.c			standard
+geom/geom_bsd_enc.c		standard
+isa/syscons_isa.c		optional	sc
+isa/vga_isa.c			optional	vga
+libkern/alpha/bswap16.S		standard
+libkern/alpha/bswap32.S		standard
+libkern/bcmp.c			standard
+libkern/ffs.c			standard
+libkern/ffsl.c			standard
+libkern/fls.c			standard
+libkern/flsl.c			standard
+dev/fb/tga.c			optional	tga
+dev/fb/boot_font.c		optional	tga
+dev/tga/tga_pci.c		optional	tga
+dev/fb/fb.c			optional	tga
+dev/fb/gfb.c			optional	tga
+dev/gfb/gfb_pci.c		optional	tga
+pci/agp_amd.c			optional	agp

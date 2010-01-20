@@ -1,0 +1,8 @@
+<!-- -*- sgml -*- -->
+
+<!-- $FreeBSD$ -->
+
+<!-- Files to be included -->
+
+<!ENTITY art SYSTEM "../common/new.sgml">
+

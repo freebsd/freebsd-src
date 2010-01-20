@@ -1,0 +1,23 @@
+<!--
+	The FreeBSD Simplified Chinese Project
+
+	Original Revision: 1.7.2.1
+	$FreeBSD$
+-->
+
+<articleinfo>
+  <title>&os;/&arch; &release.current; ¼æÈÝÓ²¼þËµÃ÷</title>
+
+  <corpauthor>The &os; Documentation Project</corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <year>2003</year>
+    <year>2004</year>
+    <year>2005</year>
+    <year>2006</year>
+    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+  </copyright>
+</articleinfo>
