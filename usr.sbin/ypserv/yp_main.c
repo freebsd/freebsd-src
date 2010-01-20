@@ -450,6 +450,7 @@ main(int argc, char *argv[])
 {
 	int ch;
 	int error;
+	int ntrans;
 	
 	void *nc_handle;
 	struct netconfig *nconf;
@@ -527,12 +528,13 @@ main(int argc, char *argv[])
 	/*
 	 * Create RPC service for each transport.
 	 */
+	ntrans = 0;
 	while((nconf = getnetconfig(nc_handle))) {
 		if ((nconf->nc_flag & NC_VISIBLE)) {
 			if (__rpc_nconf2sockinfo(nconf, &si) == 0) {
-				_msgout("cannot get information for %s",
-				    nconf->nc_netid);
-				exit(1);
+				_msgout("cannot get information for %s.  "
+				    "Ignored.", nconf->nc_netid);
+				continue;
 			}
 			if (_rpcpmstart) {
 				if (si.si_socktype != _rpcfdtype ||
@@ -545,12 +547,16 @@ main(int argc, char *argv[])
 				endnetconfig(nc_handle);
 				exit(1);
 			}
+			ntrans++;
 		}
 	}
 	endnetconfig(nc_handle);
 	while(!(SLIST_EMPTY(&ble_head)))
 		SLIST_REMOVE_HEAD(&ble_head, ble_next);
-
+	if (ntrans == 0) {
+		_msgout("no transport is available.  Aborted.");
+		exit(1);
+	}
 	if (_rpcpmstart) {
 		(void) signal(SIGALRM, (SIG_PF) closedown);
 		(void) alarm(_RPCSVC_CLOSEDOWN/2);
