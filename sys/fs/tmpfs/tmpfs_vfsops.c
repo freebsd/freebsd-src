@@ -182,10 +182,10 @@ tmpfs_mount(struct mount *mp)
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
 	size_t pages, mem_size;
-	ino_t nodes;
+	uint32_t nodes;
 	int error;
 	/* Size counters. */
-	ino_t nodes_max;
+	u_int nodes_max;
 	u_quad_t size_max;
 
 	/* Root node attributes. */
@@ -223,7 +223,7 @@ tmpfs_mount(struct mount *mp)
 	if (mp->mnt_cred->cr_ruid != 0 ||
 	    vfs_scanopt(mp->mnt_optnew, "mode", "%ho", &root_mode) != 1)
 		root_mode = va.va_mode;
-	if (vfs_scanopt(mp->mnt_optnew, "inodes", "%d", &nodes_max) != 1)
+	if (vfs_scanopt(mp->mnt_optnew, "inodes", "%u", &nodes_max) != 1)
 		nodes_max = 0;
 	if (vfs_scanopt(mp->mnt_optnew, "size", "%qu", &size_max) != 1)
 		size_max = 0;
@@ -245,9 +245,12 @@ tmpfs_mount(struct mount *mp)
 		pages = howmany(size_max, PAGE_SIZE);
 	MPASS(pages > 0);
 
-	if (nodes_max <= 3)
-		nodes = 3 + pages * PAGE_SIZE / 1024;
-	else
+	if (nodes_max <= 3) {
+		if (pages > UINT32_MAX - 3)
+			nodes = UINT32_MAX;
+		else
+			nodes = pages + 3;
+	} else
 		nodes = nodes_max;
 	MPASS(nodes >= 3);
 
