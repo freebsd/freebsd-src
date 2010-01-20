@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ddb
+# REQUIRE: dumpon
+# BEFORE: disks savecore initrandom
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="ddb"
+rcvar=`set_rcvar`
+command="/sbin/${name}"
+start_precmd="ddb_prestart"
+stop_cmd=":"
+
+ddb_prestart()
+{
+	# Silently exit if ddb is not enabled
+	if [ -z "`sysctl -Nq debug.ddb.scripting.scripts`" ]; then
+		return 1
+	fi
+}
+
+load_rc_config $name
+
+required_files="${ddb_config}"
+command_args="${ddb_config}"
+
+run_rc_command "$1"

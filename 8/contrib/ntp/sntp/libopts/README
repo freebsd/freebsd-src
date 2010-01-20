@@ -1,0 +1,93 @@
+        THIS TARBALL IS NOT A FULL DISTRIBUTION.
+
+The contents of this tarball is designed to be incorporated into
+software packages that utilize the AutoOpts option automation
+package and are intended to be installed on systems that may not
+have libopts installed.  It is redistributable under the terms
+of either the LGPL (see COPYING.lgpl) or under the terms of
+the advertising clause free BSD license (see COPYING.mbsd).
+
+Usage Instructions for autoconf/automake/libtoolized projects:
+
+1. Install the unrolled tarball into your package source tree,
+   copying ``libopts.m4'' to your autoconf macro directory.
+
+   In your bootstrap (pre-configure) script, you can do this:
+
+      rm -rf libopts libopts-*
+      gunzip -c `autoopts-config libsrc` | tar -xvf -
+      mv -f libopts-*.*.* libopts
+      cp -fp libopts/m4/*.m4 m4/.
+
+   I tend to put my configure auxiliary files in "m4".
+   Whatever directory you choose, if it is not ".", then
+   be sure to tell autoconf about it with:
+
+      AC_CONFIG_AUX_DIR(m4)
+
+   This is one macro where you *MUST* remember to *NOT* quote
+   the argument.  If you do, automake will get lost.
+
+2. Add the following to your ``configure.ac'' file:
+
+      LIBOPTS_CHECK
+
+   or:
+
+      LIBOPTS_CHECK([relative/path/to/libopts])
+
+   This macro will automatically invoke
+
+      AC_CONFIG_FILES( [relative/path/to/libopts/Makefile] )
+
+   The default ``relative/path/to/libopts'' is simply
+   ``libopts''.
+
+3. Add the following to your top level ``Makefile.am'' file:
+
+      if NEED_LIBOPTS
+         SUBDIRS += $(LIBOPTS_DIR)
+      endif
+
+   where ``<...>'' can be whatever other files or directories
+   you may need.  The SUBDIRS must be properly ordered.
+   *PLEASE NOTE* it is crucial that the SUBDIRS be set under the
+   control of an automake conditional.  To work correctly,
+   automake has to know the range of possible values of SUBDIRS.
+   It's a magical name with magical properties.  ``NEED_LIBOPTS''
+   will be correctly set by the ``LIBOPTS_CHECK'' macro, above.
+
+4. Add ``$(LIBOPTS_CFLAGS)'' to relevant compiler flags and
+   ``$(LIBOPTS_LDADD)'' to relevant link options whereever
+   you need them in your build tree.
+
+5. Make sure your object files explicitly depend upon the
+   generated options header file.  e.g.:
+
+     $(prog_OBJECTS) : prog-opts.h
+     prog-opts.h : prog-opts.c
+     prog-opts.c : prog-opts.def
+         autogen prog-opts.def
+
+6. *OPTIONAL* --
+   If you are creating man pages and texi documentation from
+   the program options, you will need these rules somewhere, too:
+
+     man_MANS = prog.1
+     prog.1 : prog-opts.def
+         autogen -Tagman1.tpl -bprog prog-opts.def
+
+     prog-invoke.texi : prog-opts.def
+         autogen -Taginfo.tpl -bprog-invoke prog-opts.def
+
+If your package does not utilize the auto* tools, then you
+will need to hand craft the rules for building the library.
+
+LICENSING:
+
+This material is copyright 1993-2007 by Bruce Korb.
+You are licensed to use this under the terms of either
+the GNU Lesser General Public License (see: COPYING.lgpl), or,
+at your option, the modified Berkeley Software Distribution
+License (see:  COPYING.mbsd).  Both of these files should be
+included with this tarball.

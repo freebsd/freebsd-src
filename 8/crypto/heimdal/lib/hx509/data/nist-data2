@@ -1,0 +1,291 @@
+# 4.1.1 Valid Signatures Test1 - Validate Successfully
+0 ValidCertificatePathTest1EE.crt
+# 4.1.2 Invalid CA Signature Test2 - Reject - Invalid signature on intermediate certificate
+1 InvalidCASignatureTest2EE.crt
+# 4.1.3 Invalid EE Signature Test3 - Reject - Invalid signature on end entity certificate
+1 InvalidEESignatureTest3EE.crt
+# 4.1.4 Valid DSA Signatures Test4 - Reject - Application can not process DSA signatures
+1 ValidDSASignaturesTest4EE.crt
+# 4.2.1 Invalid CA notBefore Date Test1 - Reject - notBefore date in intermediate certificate is after the current date
+1 InvalidCAnotBeforeDateTest1EE.crt
+# 4.2.2 Invalid EE notBefore Date Test2 - Reject - notBefore date in end entity certificate is after the current date
+1 InvalidEEnotBeforeDateTest2EE.crt
+# 4.2.3 Valid pre2000 UTC notBefore Date Test3 - Validate Successfully
+0 Validpre2000UTCnotBeforeDateTest3EE.crt
+# 4.2.4 Valid GeneralizedTime notBefore Date Test4 - Validate Successfully
+0 ValidGeneralizedTimenotBeforeDateTest4EE.crt
+# 4.2.5 Invalid CA notAfter Date Test5 - Reject - notAfter date in intermediate certificate is before the current date
+1 InvalidCAnotAfterDateTest5EE.crt
+# 4.2.6 Invalid EE notAfter Date Test6 - Reject - notAfter date in end entity certificate is before the current date
+1 InvalidEEnotAfterDateTest6EE.crt
+# 4.2.7 Invalid pre2000 UTC EE notAfter Date Test7 - Reject - notAfter date in end entity certificate is before the current date
+1 Invalidpre2000UTCEEnotAfterDateTest7EE.crt
+# 4.2.8 Valid GeneralizedTime notAfter Date Test8 - Validate Successfully
+0 ValidGeneralizedTimenotAfterDateTest8EE.crt
+# 4.3.1 Invalid Name Chaining EE Test1 - Reject - names do not chain
+1 InvalidNameChainingTest1EE.crt
+# 4.3.2 Invalid Name Chaining Order Test2 - Reject - names do not chain
+1 InvalidNameChainingOrderTest2EE.crt
+# 4.3.3 Valid Name Chaining Whitespace Test3 - Validate Successfully
+0 ValidNameChainingWhitespaceTest3EE.crt
+# 4.3.4 Valid Name Chaining Whitespace Test4 - Validate Successfully
+0 ValidNameChainingWhitespaceTest4EE.crt
+# 4.3.5 Valid Name Chaining Capitalization Test5 - Validate Successfully
+0 ValidNameChainingCapitalizationTest5EE.crt
+# 4.3.6 Valid Name Chaining UIDs Test6 - Validate Successfully
+0 ValidNameUIDsTest6EE.crt
+# 4.3.9 Valid UTF8String Encoded Names Test9 - Validate Successfully
+0 ValidUTF8StringEncodedNamesTest9EE.crt
+# 4.4.1 Missing CRL Test1 - Reject or Warn - status of end entity certificate can not be determined
+3 InvalidMissingCRLTest1EE.crt
+# 4.4.2 Invalid Revoked CA Test2 - Reject - an intermediate certificate has been revoked.
+2 InvalidRevokedCATest2EE.crt
+# 4.4.3 Invalid Revoked EE Test3 - Reject - the end entity certificate has been revoked
+2 InvalidRevokedEETest3EE.crt
+# 4.4.4. Invalid Bad CRL Signature Test4 - Reject or Warn - status of end entity certificate can not be determined
+3 InvalidBadCRLSignatureTest4EE.crt
+# 4.4.5 Invalid Bad CRL Issuer Name Test5 - Reject or Warn - status of end entity certificate can not be determined
+3 InvalidBadCRLIssuerNameTest5EE.crt
+# 4.4.6 Invalid Wrong CRL Test6 - Reject or Warn - status of end entity certificate can not be determined
+3 InvalidWrongCRLTest6EE.crt
+# 4.4.7 Valid Two CRLs Test7 - Validate Successfully
+0 ValidTwoCRLsTest7EE.crt
+# 4.4.8 Invalid Unknown CRL Entry Extension Test8 - Reject - the end entity certificate has been revoked
+2 InvalidUnknownCRLEntryExtensionTest8EE.crt
+# 4.4.9 Invalid Unknown CRL Extension Test9 - Reject - the end entity certificate has been revoked
+2 InvalidUnknownCRLExtensionTest9EE.crt
+# 4.4.10 Invalid Unknown CRL Extension Test10 - Reject or Warn - status of end entity certificate can not be determined
+3 InvalidUnknownCRLExtensionTest10EE.crt
+# 4.4.11 Invalid Old CRL nextUpdate Test11 - Reject or Warn - status of end entity certificate can not be determined
+3 InvalidOldCRLnextUpdateTest11EE.crt
+# 4.4.12 Invalid pre2000 CRL nextUpdate Tesst12 - Reject or Warn - status of end entity certificate can not be determined
+3 Invalidpre2000CRLnextUpdateTest12EE.crt
+# 4.4.13 Valid GeneralizedTime CRL nextUpdate Test13 - Validate Successfully
+0 ValidGeneralizedTimeCRLnextUpdateTest13EE.crt
+# 4.4.14 Valid Negative Serial Number Test14 - Validate Successfully
+0 ValidNegativeSerialNumberTest14EE.crt
+# 4.4.15 Invalid Negative Serial Number Test15 - Reject - the end entity certificate has been revoked
+2 InvalidNegativeSerialNumberTest15EE.crt
+# 4.4.16 Valid Long Serial Number Test16 - Validate Successfully
+0 ValidLongSerialNumberTest16EE.crt
+# 4.4.17 Valid Long Serial Number Test17 - Validate Successfully
+0 ValidLongSerialNumberTest17EE.crt
+# 4.4.18 Invalid Long Serial Number Test18 - Reject - the end entity certificate has been revoked
+2 InvalidLongSerialNumberTest18EE.crt
+# 4.4.19 Valid Separate Certificate and CRL Keys Test19 - Validate Successfully
+0 ValidSeparateCertificateandCRLKeysTest19EE.crt
+# 4.4.20 Invalid Separate Certificate and CRL Keys Test20 - Reject - the end entity certificate has been revoked
+2 InvalidSeparateCertificateandCRLKeysTest20EE.crt
+# 4.4.21 Invalid Separate Certificate and CRL Keys Test21 - Reject or Warn - status of end entity certificate can not be determined
+3 InvalidSeparateCertificateandCRLKeysTest21EE.crt
+# 4.5.1 Valid Basic Self-Issued Old With New Test1 - Validate Successfully
+0 ValidBasicSelfIssuedOldWithNewTest1EE.crt
+# 4.5.2 Invalid Basic Self-Issued Old With New Test2 - Reject - the end entity certificate has been revoked
+2 InvalidBasicSelfIssuedOldWithNewTest2EE.crt
+# 4.5.3 Valid Basic Self-Issued New With Old Test3 - Validate Successfully
+0 ValidBasicSelfIssuedNewWithOldTest3EE.crt
+# 4.5.4 Valid Basic Self-Issued New With Old Test4 - Validate Successfully
+0 ValidBasicSelfIssuedNewWithOldTest4EE.crt
+# 4.5.5 Invalid Basic Self-Issued New With Old Test5 - Reject - the end entity certificate has been revoked
+2 InvalidBasicSelfIssuedNewWithOldTest5EE.crt
+# 4.5.6 Valid Basic Self-Issued CRL Signing Key Test6 - Validate Successfully
+0 ValidBasicSelfIssuedCRLSigningKeyTest6EE.crt
+# 4.5.7 Invalid Basic Self-Issued CRL Signing Key Test7 - Reject - the end entity certificate has been revoked
+2 InvalidBasicSelfIssuedCRLSigningKeyTest7EE.crt
+# 4.5.8 Invalid Basic Self-Issued CRL Signing Key Test8 - Reject - invalid certification path
+1 InvalidBasicSelfIssuedCRLSigningKeyTest8EE.crt
+# 4.6.1 Invalid Missing basicConstraints Test1 - Reject - invalid certification path
+1 InvalidMissingbasicConstraintsTest1EE.crt
+# 4.6.2 Invalid cA False Test2 - Reject - invalid certification path
+1 InvalidcAFalseTest2EE.crt
+# 4.6.3 Invalid cA False Test3 - Reject - invalid certification path
+1 InvalidcAFalseTest3EE.crt
+# 4.6.4 Valid basicConstraints Not Critical Test4 - Validate Successfully
+0 ValidbasicConstraintsNotCriticalTest4EE.crt
+# 4.6.5 Invalid pathLenConstraint Test5 - Reject - invalid certification path
+1 InvalidpathLenConstraintTest5EE.crt
+# 4.6.6 Invalid pathLenConstraint Test6 - Reject - invalid certification path
+1 InvalidpathLenConstraintTest6EE.crt
+# 4.6.7 Valid pathLenConstraint Test7 - Validate Successfully
+0 ValidpathLenConstraintTest7EE.crt
+# 4.6.8 Valid pathLenConstraint Test8 - Validate Successfully
+0 ValidpathLenConstraintTest8EE.crt
+# 4.6.9 Invalid pathLenConstraint Test9 - Reject - invalid certification path
+1 InvalidpathLenConstraintTest9EE.crt
+# 4.6.10 Invalid pathLenConstraint Test10 - Reject - invalid certification path
+1 InvalidpathLenConstraintTest10EE.crt
+# 4.6.11 Invalid pathLenConstraint Test11 - Reject - invalid certification path
+1 InvalidpathLenConstraintTest11EE.crt
+# 4.6.12 Invalid pathLenConstraint Test12 - Reject - invalid certification path
+1 InvalidpathLenConstraintTest12EE.crt
+# 4.6.13 Valid pathLenConstraint Test13 - Validate Successfully
+0 ValidpathLenConstraintTest13EE.crt
+# 4.6.14 Valid pathLenConstraint Test14 - Validate Successfully
+0 ValidpathLenConstraintTest14EE.crt
+# 4.6.15 Valid Self-Issued pathLenConstraint Test15 - Validate Successfully
+0 ValidSelfIssuedpathLenConstraintTest15EE.crt
+# 4.6.16 Invalid Self-Issued pathLenConstraint Test16 - Reject - invalid certification path
+1 InvalidSelfIssuedpathLenConstraintTest16EE.crt
+# 4.6.17 Valid Self-Issued pathLenConstraint Test17 - Validate Successfully
+0 ValidSelfIssuedpathLenConstraintTest17EE.crt
+# 4.7.1 Invalid keyUsage Critical keyCertSign False Test1 - Reject - invalid certification path
+1 InvalidkeyUsageCriticalkeyCertSignFalseTest1EE.crt
+# 4.7.2 Invalid keyUsage Not Critical keyCertSign False Test2 - Reject - invalid certification path
+1 InvalidkeyUsageNotCriticalkeyCertSignFalseTest2EE.crt
+# 4.7.3 Valid keyUsage Not Critical Test3 - Validate Successfully
+0 ValidkeyUsageNotCriticalTest3EE.crt
+# 4.7.4 Invalid keyUsage Critical cRLSign False Test4 - Reject - invalid certification path
+1 InvalidkeyUsageCriticalcRLSignFalseTest4EE.crt
+# 4.7.5 Invalid keyUsage Not Critical cRLSign False Test5 - Reject - invalid certification path
+1 InvalidkeyUsageNotCriticalcRLSignFalseTest5EE.crt
+0 UserNoticeQualifierTest19EE.crt
+# 4.10.1 Valid Policy Mapping Test1, subtest 1 - Reject - unrecognized critical extension [Test using the default settings (i.e., <i>initial-policy-set</i> = <i>any-policy</i>)
+1 InvalidSelfIssuedrequireExplicitPolicyTest8EE.crt
+# 4.11.2 Valid inhibitPolicyMapping Test2 - Reject - unrecognized critical extension
+1 ValidinhibitPolicyMappingTest2EE.crt
+# 4.12.2 Valid inhibitAnyPolicy Test2 - Reject - unrecognized critical extension
+1 ValidinhibitAnyPolicyTest2EE.crt
+# 4.13.1 Valid DN nameConstraints Test1 - Validate Successfully
+0 ValidDNnameConstraintsTest1EE.crt
+# 4.13.2 Invalid DN nameConstraints Test2 - Reject - name constraints violation
+1 InvalidDNnameConstraintsTest2EE.crt
+# 4.13.3 Invalid DN nameConstraints Test3 - Reject - name constraints violation
+1 InvalidDNnameConstraintsTest3EE.crt
+# 4.13.4 Valid DN nameConstraints Test4 - Validate Successfully
+0 ValidDNnameConstraintsTest4EE.crt
+# 4.13.5 Valid DN nameConstraints Test5 - Validate Successfully
+0 ValidDNnameConstraintsTest5EE.crt
+# 4.13.6 Valid DN nameConstraints Test6 - Validate Successfully
+0 ValidDNnameConstraintsTest6EE.crt
+# 4.13.7 Invalid DN nameConstraints Test7 - Reject - name constraints violation
+1 InvalidDNnameConstraintsTest7EE.crt
+# 4.13.8 Invalid DN nameConstraints Test8 - Reject - name constraints violation
+1 InvalidDNnameConstraintsTest8EE.crt
+# 4.13.9 Invalid DN nameConstraints Test9 - Reject - name constraints violation
+1 InvalidDNnameConstraintsTest9EE.crt
+# 4.13.10 Invalid DN nameConstraints Test10 - Reject - name constraints violation
+1 InvalidDNnameConstraintsTest10EE.crt
+# 4.13.11 Valid DN nameConstraints Test11 - Validate Successfully
+0 ValidDNnameConstraintsTest11EE.crt
+# 4.13.12 Invalid DN nameConstraints Test12 - Reject - name constraints violation
+1 InvalidDNnameConstraintsTest12EE.crt
+# 4.13.13 Invalid DN nameConstraints Test13 - Reject - name constraints violation
+1 InvalidDNnameConstraintsTest13EE.crt
+# 4.13.14 Valid DN nameConstraints Test14 - Validate Successfully
+0 ValidDNnameConstraintsTest14EE.crt
+# 4.13.15 Invalid DN nameConstraints Test15 - Reject - name constraints violation
+1 InvalidDNnameConstraintsTest15EE.crt
+# 4.13.16 Invalid DN nameConstraints Test16 - Reject - name constraints violation
+1 InvalidDNnameConstraintsTest16EE.crt
+# 4.13.17 Invalid DN nameConstraints Test17 - Reject - name constraints violation
+1 InvalidDNnameConstraintsTest17EE.crt
+# 4.13.18 Valid DN nameConstraints Test18 - Validate Successfully
+0 ValidDNnameConstraintsTest18EE.crt
+# 4.13.19 Valid Self-Issued DN nameConstraints Test19 - Validate Successfully
+0 ValidDNnameConstraintsTest19EE.crt
+# 4.13.20 Invalid Self-Issued DN nameConstraints Test20 - Reject - name constraints violation
+1 InvalidDNnameConstraintsTest20EE.crt
+# 4.13.21 Valid RFC822 nameConstraints Test21 - Validate Successfully
+0 ValidRFC822nameConstraintsTest21EE.crt
+# 4.13.22 Invalid RFC822 nameConstraints Test22 - Reject - name constraints violation
+1 InvalidRFC822nameConstraintsTest22EE.crt
+# 4.13.23 Valid RFC822 nameConstraints Test23 - Validate Successfully
+0 ValidRFC822nameConstraintsTest23EE.crt
+# 4.13.24 Invalid RFC822 nameConstraints Test24 - Reject - name constraints violation
+1 InvalidRFC822nameConstraintsTest24EE.crt
+# 4.13.25 Valid RFC822 nameConstraints Test25 - Validate Successfully
+0 ValidRFC822nameConstraintsTest25EE.crt
+# 4.13.26 Invalid RFC822 nameConstraints Test26 - Reject - name constraints violation
+1 InvalidRFC822nameConstraintsTest26EE.crt
+# 4.13.27 Valid DN and  RFC822 nameConstraints Test27 - Validate Successfully
+0 ValidDNandRFC822nameConstraintsTest27EE.crt
+# 4.13.28 Invalid DN and  RFC822 nameConstraints Test28 - Reject - name constraints violation
+1 InvalidDNandRFC822nameConstraintsTest28EE.crt
+# 4.13.29 Invalid DN and  RFC822 nameConstraints Test29 - Reject - name constraints violation
+1 InvalidDNandRFC822nameConstraintsTest29EE.crt
+# 4.13.30 Valid DNS nameConstraints Test30 - Validate Successfully
+0 ValidDNSnameConstraintsTest30EE.crt
+# 4.13.31 Invalid DNS nameConstraints Test31 - Reject - name constraints violation
+1 InvalidDNSnameConstraintsTest31EE.crt
+# 4.13.32 Valid DNS nameConstraints Test32 - Validate Successfully
+0 ValidDNSnameConstraintsTest32EE.crt
+# 4.13.33 Invalid DNS nameConstraints Test33 - Reject - name constraints violation
+1 InvalidDNSnameConstraintsTest33EE.crt
+# 4.13.34 Valid URI nameConstraints Test34 - Validate Successfully
+0 ValidURInameConstraintsTest34EE.crt
+# 4.13.35 Invalid URI nameConstraints Test35 - Reject - name constraints violation
+1 InvalidURInameConstraintsTest35EE.crt
+# 4.13.36 Valid URI nameConstraints Test36 - Validate Successfully
+0 ValidURInameConstraintsTest36EE.crt
+# 4.13.37 Invalid URI nameConstraints Test37 - Reject - name constraints violation
+1 InvalidURInameConstraintsTest37EE.crt
+# 4.13.38 Invalid DNS nameConstraints Test38 - Reject - name constraints violation
+1 InvalidDNSnameConstraintsTest38EE.crt
+# 4.14.1 Valid distributionPoint Test1 - Validate Successfully
+0 ValiddistributionPointTest1EE.crt
+# 4.14.2 Invalid distributionPoint Test2 - Reject - end entity certificate has been revoked
+2 InvaliddistributionPointTest2EE.crt
+# 4.14.3 Invalid distributionPoint Test3 - Reject or Warn - status of end entity certificate can not be determined
+3 InvaliddistributionPointTest3EE.crt
+# 4.14.4 Valid distributionPoint Test4 - Validate Successfully
+0 ValiddistributionPointTest4EE.crt
+# 4.14.5 Valid distributionPoint Test5 - Validate Successfully
+0 ValiddistributionPointTest5EE.crt
+# 4.14.6 Invalid distributionPoint Test6 - Reject - end entity certificate has been revoked
+2 InvaliddistributionPointTest6EE.crt
+# 4.14.7 Valid distributionPoint Test7 - Validate Successfully
+0 ValiddistributionPointTest7EE.crt
+# 4.14.8 Invalid distributionPoint Test8 - Reject or Warn - status of end entity certificate can not be determined
+3 InvaliddistributionPointTest8EE.crt
+# 4.14.9 Invalid distributionPoint Test9 - Reject or Warn - status of end entity certificate can not be determined
+3 InvaliddistributionPointTest9EE.crt
+# 4.14.10 Valid No issuingDistributionPoint Test10 - Validate Successfully
+0 ValidNoissuingDistributionPointTest10EE.crt
+# 4.14.11 Invalid onlyContainsUserCerts CRL Test11 - Reject or Warn - status of end entity certificate can not be determined
+3 InvalidonlyContainsUserCertsTest11EE.crt
+# 4.14.12 Invalid onlyContainsCACerts CRL Test12 - Reject or Warn - status of end entity certificate can not be determined
+3 InvalidonlyContainsCACertsTest12EE.crt
+# 4.14.13 Valid onlyContainsCACerts CRL Test13 - Validate Successfully
+0 ValidonlyContainsCACertsTest13EE.crt
+# 4.14.14 Invalid onlyContainsAttributeCerts Test14 - Reject or Warn - status of end entity certificate can not be determined
+3 InvalidonlyContainsAttributeCertsTest14EE.crt
+# 4.14.15 Invalid onlySomeReasons Test15 - Reject - end entity certificate has been revoked
+2 InvalidonlySomeReasonsTest15EE.crt
+# 4.14.16 Invalid onlySomeReasons Test16 - Reject - end entity certificate is on hold
+2 InvalidonlySomeReasonsTest16EE.crt
+# 4.14.17 Invalid onlySomeReasons Test17 - Reject or Warn - status of end entity certificate can not be determined
+3 InvalidonlySomeReasonsTest17EE.crt
+# 4.14.18 Valid onlySomeReasons Test18 - Validate Successfully
+0 ValidonlySomeReasonsTest18EE.crt
+# 4.14.19 Valid onlySomeReasons Test19 - Validate Successfully
+0 ValidonlySomeReasonsTest19EE.crt
+# 4.14.20 Invalid onlySomeReasons Test20 - Reject - end entity certificate has been revoked
+2 InvalidonlySomeReasonsTest20EE.crt
+# 4.14.21 Invalid onlySomeReasons Test21 - Reject - end entity certificate has been revoked
+2 InvalidonlySomeReasonsTest21EE.crt
+# 4.14.24 Valid IDP with indirectCRL Test24 - Reject or Warn - status of end entity certificate can not be determined
+3 ValidIDPwithindirectCRLTest24EE.crt
+# 4.15.1 Invalid deltaCRLIndicator No Base Test1 - Reject or Warn - status of end entity certificate can not be determined
+3 InvaliddeltaCRLIndicatorNoBaseTest1EE.crt
+# 4.15.2 Valid delta-CRL Test2 - Validate Successfully
+0 ValiddeltaCRLTest2EE.crt
+# 4.15.3 Invalid delta-CRL Test3 - Reject - end entity certificate has been revoked
+2 InvaliddeltaCRLTest3EE.crt
+# 4.15.4 Invalid delta-CRL Test4 - Reject - end entity certificate has been revoked
+2 InvaliddeltaCRLTest4EE.crt
+# 4.15.5 Valid delta-CRL Test5 - Validate Successfully
+0 ValiddeltaCRLTest5EE.crt
+# 4.15.6 Invalid delta-CRL Test6 - Reject - end entity certificate has been revoked
+2 InvaliddeltaCRLTest6EE.crt
+# 4.15.7 Valid delta-CRL Test7 - Validate Successfully
+0 ValiddeltaCRLTest7EE.crt
+# 4.15.8 Valid delta-CRL Test8 - Validate Successfully
+0 ValiddeltaCRLTest8EE.crt
+# 4.15.9 Invalid delta-CRL Test9 - Reject - end entity certificate has been revoked
+2 InvaliddeltaCRLTest9EE.crt
+# 4.15.10 Invalid delta-CRL Test10 - Reject or Warn - status of end entity certificate can not be determined
+3 InvaliddeltaCRLTest10EE.crt
+# 4.16.1 Valid Unknown Not Critical Certificate Extension Test1 - Validate Successfully
+0 ValidUnknownNotCriticalCertificateExtensionTest1EE.crt
+# 4.16.2 Invalid Unknown Critical Certificate Extension Test2 - Reject - unrecognized critical extension
+1 InvalidUnknownCriticalCertificateExtensionTest2EE.crt

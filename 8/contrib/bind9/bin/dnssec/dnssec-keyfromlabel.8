@@ -1,0 +1,149 @@
+.\" Copyright (C) 2008 Internet Systems Consortium, Inc. ("ISC")
+.\" 
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+.\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+.\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $Id: dnssec-keyfromlabel.8,v 1.6 2008/11/08 01:11:47 tbox Exp $
+.\"
+.hy 0
+.ad l
+.\"     Title: dnssec\-keyfromlabel
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
+.\"      Date: February 8, 2008
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
+.TH "DNSSEC\-KEYFROMLABEL" "8" "February 8, 2008" "BIND9" "BIND9"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+dnssec\-keyfromlabel \- DNSSEC key generation tool
+.SH "SYNOPSIS"
+.HP 20
+\fBdnssec\-keyfromlabel\fR {\-a\ \fIalgorithm\fR} {\-l\ \fIlabel\fR} [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIflag\fR\fR] [\fB\-k\fR] [\fB\-n\ \fR\fB\fInametype\fR\fR] [\fB\-p\ \fR\fB\fIprotocol\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] {name}
+.SH "DESCRIPTION"
+.PP
+\fBdnssec\-keyfromlabel\fR
+gets keys with the given label from a crypto hardware and builds key files for DNSSEC (Secure DNS), as defined in RFC 2535 and RFC 4034.
+.SH "OPTIONS"
+.PP
+\-a \fIalgorithm\fR
+.RS 4
+Selects the cryptographic algorithm. The value of
+\fBalgorithm\fR
+must be one of RSAMD5 (RSA) or RSASHA1, DSA, NSEC3RSASHA1, NSEC3DSA or DH (Diffie Hellman). These values are case insensitive.
+.sp
+Note 1: that for DNSSEC, RSASHA1 is a mandatory to implement algorithm, and DSA is recommended.
+.sp
+Note 2: DH automatically sets the \-k flag.
+.RE
+.PP
+\-l \fIlabel\fR
+.RS 4
+Specifies the label of keys in the crypto hardware (PKCS#11 device).
+.RE
+.PP
+\-n \fInametype\fR
+.RS 4
+Specifies the owner type of the key. The value of
+\fBnametype\fR
+must either be ZONE (for a DNSSEC zone key (KEY/DNSKEY)), HOST or ENTITY (for a key associated with a host (KEY)), USER (for a key associated with a user(KEY)) or OTHER (DNSKEY). These values are case insensitive.
+.RE
+.PP
+\-c \fIclass\fR
+.RS 4
+Indicates that the DNS record containing the key should have the specified class. If not specified, class IN is used.
+.RE
+.PP
+\-f \fIflag\fR
+.RS 4
+Set the specified flag in the flag field of the KEY/DNSKEY record. The only recognized flag is KSK (Key Signing Key) DNSKEY.
+.RE
+.PP
+\-h
+.RS 4
+Prints a short summary of the options and arguments to
+\fBdnssec\-keygen\fR.
+.RE
+.PP
+\-k
+.RS 4
+Generate KEY records rather than DNSKEY records.
+.RE
+.PP
+\-p \fIprotocol\fR
+.RS 4
+Sets the protocol value for the generated key. The protocol is a number between 0 and 255. The default is 3 (DNSSEC). Other possible values for this argument are listed in RFC 2535 and its successors.
+.RE
+.PP
+\-t \fItype\fR
+.RS 4
+Indicates the use of the key.
+\fBtype\fR
+must be one of AUTHCONF, NOAUTHCONF, NOAUTH, or NOCONF. The default is AUTHCONF. AUTH refers to the ability to authenticate data, and CONF the ability to encrypt data.
+.RE
+.PP
+\-v \fIlevel\fR
+.RS 4
+Sets the debugging level.
+.RE
+.SH "GENERATED KEY FILES"
+.PP
+When
+\fBdnssec\-keyfromlabel\fR
+completes successfully, it prints a string of the form
+\fIKnnnn.+aaa+iiiii\fR
+to the standard output. This is an identification string for the key files it has generated.
+.TP 4
+\(bu
+\fInnnn\fR
+is the key name.
+.TP 4
+\(bu
+\fIaaa\fR
+is the numeric representation of the algorithm.
+.TP 4
+\(bu
+\fIiiiii\fR
+is the key identifier (or footprint).
+.PP
+\fBdnssec\-keyfromlabel\fR
+creates two files, with names based on the printed string.
+\fIKnnnn.+aaa+iiiii.key\fR
+contains the public key, and
+\fIKnnnn.+aaa+iiiii.private\fR
+contains the private key.
+.PP
+The
+\fI.key\fR
+file contains a DNS KEY record that can be inserted into a zone file (directly or with a $INCLUDE statement).
+.PP
+The
+\fI.private\fR
+file contains algorithm specific fields. For obvious security reasons, this file does not have general read permission.
+.SH "SEE ALSO"
+.PP
+\fBdnssec\-keygen\fR(8),
+\fBdnssec\-signzone\fR(8),
+BIND 9 Administrator Reference Manual,
+RFC 2539,
+RFC 2845,
+RFC 4033.
+.SH "AUTHOR"
+.PP
+Internet Systems Consortium
+.SH "COPYRIGHT"
+Copyright \(co 2008 Internet Systems Consortium, Inc. ("ISC")
+.br

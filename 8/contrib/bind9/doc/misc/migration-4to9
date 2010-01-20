@@ -1,0 +1,57 @@
+Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+Copyright (C) 2001  Internet Software Consortium.
+See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
+
+$Id: migration-4to9,v 1.4 2004/03/05 05:04:53 marka Exp $
+
+		   BIND 4 to BIND 9 Migration Notes
+
+To transition from BIND 4 to BIND 9 you first need to convert your
+configuration file to the new format.  There is a conversion tool in
+contrib/named-bootconf that allows you to do this.
+
+	named-bootconf.sh < /etc/named.boot > /etc/named.conf
+
+BIND 9 uses a system assigned port for the UDP queries it makes rather
+than port 53 that BIND 4 uses.  This may conflict with some firewalls.
+The following directives in /etc/named.conf allows you to specify
+a port to use.
+
+	query-source address * port 53;
+	transfer-source * port 53;
+	notify-source * port 53;
+
+BIND 9 no longer uses the minimum field to specify the TTL of records
+without a explicit TTL.  Use the $TTL directive to specify a default TTL
+before the first record without a explicit TTL.
+
+	$TTL 3600
+	@	IN	SOA	ns1.example.com. hostmaster.example.com. (
+				2001021100
+				7200
+				1200
+				3600000
+				7200 )
+
+BIND 9 does not support multiple CNAMEs with the same owner name.
+	
+	Illegal:
+	www.example.com. CNAME host1.example.com.
+	www.example.com. CNAME host2.example.com.
+
+BIND 9 does not support "CNAMEs with other data" with the same owner name,
+ignoring the DNSSEC records (SIG, NXT, KEY) that BIND 4 did not support.
+
+	Illegal:
+	www.example.com. CNAME host1.example.com.
+	www.example.com. MX 10 host2.example.com.
+
+BIND 9 is less tolerant of errors in master files, so check your logs and
+fix any errors reported.  The named-checkzone program can also be to check
+master files.
+
+Outgoing zone transfers now use the "many-answers" format by default.
+This format is not understood by certain old versions of BIND 4.  
+You can work around this problem using the option "transfer-format
+one-answer;", but since these old versions all have known security
+problems, the correct fix is to upgrade the slave servers.

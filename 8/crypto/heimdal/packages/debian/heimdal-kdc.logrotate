@@ -1,0 +1,5 @@
+/var/log/heimdal-kdc.log {
+	rotate 5
+	weekly
+	compress
+}

@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_status_security_enable" in
+    [Yy][Ee][Ss])
+	echo ""
+	echo "Security check:"
+
+	case "$daily_status_security_inline" in
+	    [Yy][Ee][Ss])
+		export security_output="";;
+	    *)
+		export security_output="${daily_status_security_output}"
+		case "${daily_status_security_output}" in
+		    "")
+			;;
+		    /*)
+			echo "    (output logged separately)";;
+		    *)
+			echo "    (output mailed separately)";;
+		esac;;
+	esac
+
+	periodic security
+	rc=3;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

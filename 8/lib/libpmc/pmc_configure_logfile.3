@@ -1,0 +1,124 @@
+.\" Copyright (c) 2007 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 24, 2007
+.Os
+.Dt PMC_CONFIGURE_LOGFILE 3
+.Sh NAME
+.Nm pmc_configure_logfile ,
+.Nm pmc_flush_logfile ,
+.Nm pmc_writelog
+.Nd log file management
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Ft int
+.Fn pmc_configure_logfile "int fd"
+.Ft int
+.Fn pmc_flush_logfile void
+.Ft int
+.Fn pmc_writelog "uint32_t userdata"
+.Sh DESCRIPTION
+The functions manage logging of
+.Xr hwpmc 4
+events.
+.Pp
+Function
+.Fn pmc_configure_logfile
+is used to turn on and turn off logging.
+If argument
+.Fa fd
+is a valid file handle returned by a prior call to
+.Xr open 2
+or
+.Xr socket 2
+then performance events will be logged to the file corresponding
+to the specified handle.
+If the value of argument
+.Fa fd
+is -1 then logging will be stopped after any pending data is flushed.
+.Pp
+Function
+.Fn pmc_flush_logfile
+will force all log data queued inside the
+.Xr hwpmc 4
+driver to be written out.
+.Pp
+Function
+.Fn pmc_writelog
+will append a log entry containing the value of argument
+.Fa userdata
+to the log file.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+A call to
+.Fn pmc_configure_logfile
+may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The
+.Xr hwpmc 4
+driver was not able to create a helper process due to system limits
+being reached.
+.It Bq Er EBUSY
+Function
+.Fn pmc_configure_logfile
+was called with a log file already configured.
+.It Bq Er EINVAL
+Function
+.Fn pmc_configure_logfile
+was called with an argument of -1 without a log file being previously
+configured.
+.It Bq Er ENOMEM
+The system encountered a memory shortage when servicing this request.
+.El
+.Pp
+A call to
+.Fn pmc_flush_logfile
+may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Function
+.Fn pmc_flush_logfile
+was called without a log file being previously configured.
+.El
+.Pp
+A call to
+.Fn pmc_writelog
+may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Function
+.Fn pmc_writelog
+was called without a log file being previously configured.
+.It Bq Er ENOMEM
+The system encountered a memory shortage when servicing this
+request.
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr hwpmc 4

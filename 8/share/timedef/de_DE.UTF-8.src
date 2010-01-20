@@ -1,0 +1,106 @@
+# $FreeBSD$
+#
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+#
+# Short month names
+#
+Jan
+Feb
+Mär
+Apr
+Mai
+Jun
+Jul
+Aug
+Sep
+Okt
+Nov
+Dez
+#
+# Long month names (as in a date)
+#
+Januar
+Februar
+März
+April
+Mai
+Juni
+Juli
+August
+September
+Oktober
+November
+Dezember
+#
+# Short weekday names
+#
+So
+Mo
+Di
+Mi
+Do
+Fr
+Sa
+#
+# Long weekday names
+#
+Sonntag
+Montag
+Dienstag
+Mittwoch
+Donnerstag
+Freitag
+Samstag
+#
+# X_fmt
+#
+%H:%M:%S
+#
+# x_fmt
+#
+# Note about the new DIN5008, ISO8601 and EN28601 format of %Y-%m-%d:
+# A quick poll on IRC and the -doc mailinglist (June 2009) showed that
+# this format was not used often enough to push this change through.
+#
+%d.%m.%Y
+#
+# c_fmt
+#
+%a %e %b %X %Y
+#
+# am
+#
+am
+#
+# pm
+#
+pm
+#
+# date_fmt
+#
+%a %e %b %Y %X %Z
+#
+# Long month names (without case ending)
+#
+Januar
+Februar
+März
+April
+Mai
+Juni
+Juli
+August
+September
+Oktober
+November
+Dezember
+#
+# md_order
+#
+dm
+#
+# ampm_fmt
+#
+%I:%M:%S %p
+# EOF

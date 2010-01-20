@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to enable the http statistics interface for named.
+This requires ports/textproc/libxml2 to be installed in /usr/local.

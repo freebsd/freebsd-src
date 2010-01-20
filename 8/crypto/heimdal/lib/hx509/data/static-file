@@ -1,0 +1,84 @@
+This is a static file don't change the content, it is used in the test
+
+#!/bin/sh
+#
+# Copyright (c) 2005 Kungliga Tekniska Högskolan
+# (Royal Institute of Technology, Stockholm, Sweden). 
+# All rights reserved. 
+#
+# Redistribution and use in source and binary forms, with or without 
+# modification, are permitted provided that the following conditions 
+# are met: 
+#
+# 1. Redistributions of source code must retain the above copyright 
+#    notice, this list of conditions and the following disclaimer. 
+#
+# 2. Redistributions in binary form must reproduce the above copyright 
+#    notice, this list of conditions and the following disclaimer in the 
+#    documentation and/or other materials provided with the distribution. 
+#
+# 3. Neither the name of the Institute nor the names of its contributors 
+#    may be used to endorse or promote products derived from this software 
+#    without specific prior written permission. 
+#
+# THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+# SUCH DAMAGE. 
+#
+#
+
+srcdir="@srcdir@"
+
+echo "try printing"
+./hxtool print \
+	--pass=PASS:foobar \
+	PKCS12:$srcdir/data/test.p12 || exit 1
+
+echo "make sure entry is found (friendlyname)"
+./hxtool query \
+	--pass=PASS:foobar \
+	--friendlyname=friendlyname-test  \
+	PKCS12:$srcdir/data/test.p12 || exit 1
+
+echo "make sure entry is not found  (friendlyname)"
+./hxtool query \
+	--pass=PASS:foobar \
+	--friendlyname=friendlyname-test-not  \
+	PKCS12:$srcdir/data/test.p12 && exit 1
+
+echo "check for ca cert (friendlyname)"
+./hxtool query \
+	--pass=PASS:foobar \
+	--friendlyname=ca  \
+	PKCS12:$srcdir/data/test.p12 || exit 1
+
+echo "make sure entry is not found (friendlyname)"
+./hxtool query \
+	--pass=PASS:foobar \
+	--friendlyname=friendlyname-test \
+	PKCS12:$srcdir/data/sub-cert.p12 && exit 1
+
+echo "make sure entry is found (friendlyname|private key)"
+./hxtool query \
+	--pass=PASS:foobar \
+	--friendlyname=friendlyname-test  \
+	--private-key \
+	PKCS12:$srcdir/data/test.p12 || exit 1
+
+echo "make sure entry is not found (friendlyname|private key)"
+./hxtool query \
+	--pass=PASS:foobar \
+	--friendlyname=ca  \
+	--private-key \
+	PKCS12:$srcdir/data/test.p12 && exit 1
+
+exit 0
+

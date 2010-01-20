@@ -1,0 +1,15 @@
+Fix output so that tests for MIME and APPLE flags are not needed all
+over the place, and actual output is only done in one place. This
+needs a design. Suggestion: push possible outputs on to a list, then
+pick the last-pushed (most specific, one hopes) value at the end, or
+use a default if the list is empty.
+
+Continue to squash all magic bugs. See Debian BTS for a good source.
+
+Store arbitrarily long strings, for example for %s patterns, so that
+they can be printed out. Fixes Debian bug #271672.
+
+Add syntax for other sorts of counted string (Debian bug #466032). Use
+to fix bug #283760.
+
+Add syntax for relative offsets after current level (Debian bug #466037).

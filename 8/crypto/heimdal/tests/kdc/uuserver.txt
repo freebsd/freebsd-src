@@ -1,0 +1,4 @@
+User is `user2@TEST.H5L.SE'
+Server is `user1@TEST.H5L.SE'
+safe packet: hej
+priv packet: hemligt

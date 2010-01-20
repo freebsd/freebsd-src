@@ -1,0 +1,845 @@
+# Map HP MSL numbers and HP Unicode values to troff names for a text font.
+#
+# Created 30 December 2003 -- you need hpftodit from groff 1.19.1 or newer!
+#
+# Glyphs marked with an asterisk have (also) an entry in `special.umap'.
+# Unknown MSL numbers are marked with a question mark; glyphs with an
+# uncertain Unicode mapping are tagged also with a question mark.
+
+# 0 space -- unused
+1	0021	!
+2	0022	" dq
+3	0023	# sh
+4	0024	$ Do
+5	0025	%
+6	0026	&
+# 7 ?
+8	2019	' cq
+9	0028	(
+
+10	0029	)
+11	002A	*
+# 12 *
+12	002B	+
+13	002C	,
+14	002D	- hy
+15	002E	.
+16	002F	/ sl
+17	0030	0
+18	0031	1
+19	0032	2
+
+20	0033	3
+21	0034	4
+22	0035	5
+23	0036	6
+24	0037	7
+25	0038	8
+26	0039	9
+27	003A	:
+28	003B	;
+29	003C	<
+
+# 30 *
+30	003D	=
+31	003E	>
+32	003F	?
+33	0040	@ at
+# 34 *
+34	0041	A
+# 35 *
+35	0042	B
+36	0043	C
+37	0044	D
+# 38 *
+38	0045	E
+39	0046	F
+
+40	0047	G
+# 41 *
+41	0048	H
+# 42 *
+42	0049	I
+43	004A	J
+# 44 *
+44	004B	K
+45	004C	L
+# 46 *
+46	004D	M
+# 47 *
+47	004E	N
+# 48 *
+48	004F	O
+# 49 *
+49	0050	P
+
+50	0051	Q
+51	0052	R
+52	0053	S
+# 53 *
+53	0054	T
+54	0055	U
+55	0056	V
+56	0057	W
+# 57 *
+57	0058	X
+58	0059	Y
+# 59 *
+59	005A	Z
+
+60	005B	[ lB
+61	005C	\ rs
+62	005D	] rB
+63	005E	ha
+64	005F	_
+# 65 ?
+66	2018	` oq
+67	0061	a
+68	0062	b
+69	0063	c
+
+70	0064	d
+71	0065	e
+72	0066	f
+73	0067	g
+74	0068	h
+75	0069	i
+76	006A	j
+77	006B	k
+78	006C	l
+79	006D	m
+
+80	006E	n
+81	006F	o
+82	0070	p
+83	0071	q
+84	0072	r
+85	0073	s
+86	0074	t
+87	0075	u
+88	0076	v
+89	0077	w
+
+90	0078	x
+91	0079	y
+92	007A	z
+93	007B	lC {
+94	007C	ba |
+95	007D	rC }
+# 96 *
+96	007E	ti
+# 97 medium shading *
+# 98 uppercase greek delta -- unused
+99	00C0	`A
+
+100	00C2	^A
+101	00C8	`E
+102	00CA	^E
+103	00CB	:E
+104	00CE	^I
+105	00CF	:I
+106	00B4	aa
+107	0060	ga
+108	02C6	^ a^
+109	00A8	ad
+
+110	02DC	a~ ~
+111	00D9	`U
+112	00DB	^U
+113	00AF	u00AF
+114	00DD	'Y
+115	00FD	'y
+116	00B0	de
+117	00C7	,C
+118	00E7	,c
+119	00D1	~N
+
+120	00F1	~n
+121	00A1	r!
+122	00BF	r?
+123	00A4	Cs
+124	00A3	Po
+125	00A5	Ye
+126	00A7	sc
+127	0192	Fn
+128	00A2	ct
+129	00E2	^a
+
+130	00EA	^e
+131	00F4	^o
+132	00FB	^u
+133	00E1	'a
+134	00E9	'e
+135	00F3	'o
+136	00FA	'u
+137	00E0	`a
+138	00E8	`e
+139	00F2	`o
+
+140	00F9	`u
+141	00E4	:a
+142	00EB	:e
+143	00F6	:o
+144	00FC	:u
+145	00C5	oA
+146	00EE	^i
+147	00D8	/O
+148	00C6	AE
+149	00E5	oa
+
+150	00ED	'i
+151	00F8	/o
+152	00E6	ae
+153	00C4	:A
+154	00EC	`i
+155	00D6	:O
+156	00DC	:U
+157	00C9	'E
+158	00EF	:i
+159	00DF	ss
+
+160	00D4	^O
+161	00C1	'A
+162	00C3	~A
+163	00E3	~a
+164	00D0	-D
+165	00F0	Sd
+166	00CD	'I
+167	00CC	`I
+168	00D3	'O
+169	00D2	`O
+
+170	00D5	~O
+171	00F5	~o
+172	0160	vS
+173	0161	vs
+174	00DA	'U
+175	0178	:Y
+176	00FF	:y
+177	00DE	TP
+178	00FE	Tp
+# 179 lowercase middle dot -- unused (no Unicode mapping)
+
+180	00B5	mc
+181	00B6	ps
+182	00BE	34
+# 183 *
+183	2212	\-
+184	00BC	14
+185	00BD	12
+186	00AA	Of
+187	00BA	Om
+188	00AB	Fo
+# 189 medium solid box *
+
+190	00BB	Fc
+# 191 *
+191	00B1	t+-
+192	00A6	bb
+193	00A9	co
+# 194 *
+194	00AC	tno
+195	00AD	u00AD
+196	00AE	rg
+197	00B2	S2
+198	00B3	S3
+199	00B8	ac
+
+200	00B9	S1
+# 201 *
+201	00D7	tmu
+# 202 *
+202	00F7	tdi
+# 203 open smiling face *
+# 204 solid smiling face *
+# 205 solid heart *
+# 206 solid diamond *
+# 207 solid club *
+# 208 solid spade *
+# 209 medium solid bullet *
+
+# 210 large solid square/open dot *
+# 211 large open bullet ?
+# 212 large solid square/open ring *
+# 213 male symbol *
+# 214 female symbol *
+# 215 musical note *
+# 216 pair of musical notes *
+# 217 compass, 8 pointed sun *
+# 218 right solid arrowhead *
+# 219 left solid arrowhead *
+
+# 220 up/down arrow *
+221	203C	u203C
+# 222 thick horizontal mark *
+# 223 up/down arrow baseline *
+# 224 up arrow *
+# 225 down arrow *
+# 226 right arrow *
+# 227 left arrow *
+# 228 tick up at left (`logicalnotflopped') *
+# 229 left/right arrow *
+
+# 230 up solid arrowhead *
+# 231 down solid arrowhead *
+232	20A7	u20A7
+# 233 tick down at left *
+# 234 light shading *
+# 235 dark shading *
+# 236 vertical 1 *
+# 237 left 1 vertical 1 *
+# 238 left 2 vertical 1 *
+# 239 left 1 vertical 2 *
+
+# 240 left 1 down 2 *
+# 241 left 2 down 1 *
+# 242 left 2 vertical 2 *
+# 243 vertical 2 *
+# 244 left 2 down 2 *
+# 245 left 2 up 2 *
+# 246 left 1 up 2 *
+# 247 left 2 up 1 *
+# 248 left 1 down 1 *
+# 249 right 1 up 1 *
+
+# 250 horizontal 1 up 1 *
+# 251 horizontal 1 down 1 *
+# 252 right 1 vertical 1 *
+# 253 horizontal 1 *
+# 254 horizontal 1 vertical 1 *
+# 255 right 2 vertical 1 *
+# 256 right 1 vertical 2 *
+# 257 right 2 up 2 *
+# 258 right 2 down 2 *
+# 259 horizontal 2 up 2 *
+
+# 260 horizontal 2 down 2 *
+# 261 right 2 vertical 2 *
+# 262 horizontal 2 *
+# 263 horizontal 2 vertical 2 *
+# 264 horizontal 2 up 1 *
+# 265 horizontal 1 up 2 *
+# 266 horizontal 2 down 1 *
+# 267 horizontal 1 down 2 *
+# 268 right 1 up 2 *
+# 269 right 2 up 1 *
+
+# 270 right 2 down 1 *
+# 271 right 1 down 2 *
+# 272 horizontal 1 vertical 2 *
+# 273 horizontal 2 vertical 1 *
+# 274 left 1 up 1 *
+# 275 right 1 down 1 *
+# 276 solid full rectangle *
+# 277 bottom 1/2 solid rectangle *
+# 278 left 1/2 solid rectangle *
+# 279 right 1/2 solid rectangle *
+
+# 280 top 1/2 solid rectangle *
+# 281 lowercase greek alpha -- unused
+# 282 lowercase greek beta -- unused
+# 283 uppercase greek gamma -- unused
+# 284 lowercase greek pi -- unused
+# 285 uppercase greek sigma -- unused
+# 286 lowercase greek sigma -- unused
+# 287 lowercase greek tau -- unused
+# 288 uppercase greek phi -- unused
+# 289 uppercase greek theta -- unused
+
+# 290 uppercase omega, ohms -- unused
+# 291 lowercase greek delta -- unused
+# 292 infinity sign *
+# 293 lowercase greek phi -- unused
+# 294 lowercase greek epsilon -- unused
+# 295 set intersection *
+# 296 exactly equals *
+# 297 greater than/equal to *
+# 298 less than/equal to *
+# 299 top segment integral *
+
+# 300 bottom segment integral *
+# 301 2 wavy line approximation *
+# 302 *
+302	00B7	pc
+# 303 radical symbol *
+# 304 lowercase greek eta -- unused
+# 305 small solid box *
+306	013F	u013F
+307	0140	u0140
+308	2113	u2113
+309	0149	u0149
+
+310	2032	fm
+311	2033	sd
+312	2020	dg
+313	2122	tm
+314	2017	u2017
+315	02C7	ah
+316	02DA	ao
+# 317 uppercase acute accent -- unused
+# 318 uppercase grave accent -- unused
+# 319 uppercase circumflex accent -- unused
+
+# 320 uppercase dieresis accent -- unused
+# 321 uppercase tilde accent -- unused
+# 322 uppercase hacek accent -- unused
+# 323 uppercase ring accent -- unused
+324	2215	f/
+325	2014	em
+326	2013	en
+327	2021	dd
+328	0131	.i
+329	0027	aq
+
+# 330 uppercase cedilla -- unused
+331	2022	bu
+332	207F	u207F
+# 333 home plate *
+# 334 ?
+335	0138	u0138
+# 336 ?
+# 337 ?
+338	0166	u0166
+339	0167	u0167
+
+340	014A	u014A
+341	014B	u014B
+342	0111	u0111
+# 343-369 ?
+
+# 370 `lira' ?
+# 371-374 ?
+# 375 `asciigrave' ?
+
+# 376-399 ?
+
+400	0102	u0041_0306
+401	0103	u0061_0306
+402	0100	u0041_0304
+403	0101	u0061_0304
+404	0104	u0041_0328
+405	0105	u0061_0328
+406	0106	'C
+407	0107	'c
+# 408 ?
+# 409 ?
+
+410	010C	u0041_030C
+411	010D	u0061_030C
+# 412 ?
+# 413 ?
+414	010E	u0044_030C
+415	010F	u0064_030C
+416	011A	u0045_030C
+417	011B	u0065_030C
+418	0116	u0045_0307
+419	0117	u0065_0307
+
+420	0112	u0045_0304
+421	0113	u0065_0304
+422	0118	u0045_0328
+423	0119	u0065_0328
+# 424-427 ?
+428	0122	u0047_0327
+429	0123	u0067_0327
+
+# 430 ?
+# 431 ?
+432	012E	u0049_0328
+433	012F	u0069_0328
+434	012A	u0049_0304
+435	012B	u0069_0304
+# 436 ?
+# 437 ?
+438	0136	u004B_0327
+439	0137	u006B_0327
+
+440	0139	u004C_0301
+441	013A	u006C_0301
+442	013D	u004C_030C
+443	013E	u006C_030C
+444	013B	u004C_0327
+445	013C	u006C_0327
+446	0143	u004E_0301
+447	0144	u006E_0301
+448	0147	u004E_030C
+449	0148	u006E_030C
+
+450	0145	u004E_0327
+451	0146	u006E_0327
+452	0150	u004F_030B
+453	0151	u006F_030B
+454	014C	u004F_0304
+455	014D	u006F_0304
+456	0154	u0052_0301
+457	0155	u0072_0301
+458	0158	u0052_030C
+459	0159	u0072_030C
+
+460	0156	u0052_0327
+461	0157	u0072_0327
+462	015A	u0053_0301
+463	015B	u0073_0301
+# 464 ?
+# 465 ?
+466	0164	u0054_030C
+467	0165	u0074_030C
+468	0162	u0054_0327
+469	0163	u0074_0327
+
+470	0168	u0055_0303
+471	0169	u0075_0303
+# 472 ?
+# 473 ?
+474	0170	u0055_030B
+475	0171	u0075_030B
+476	016E	u0055_030A
+477	016F	u0075_030A
+478	016A	u0055_0304
+479	016B	u0075_0304
+
+480	0172	u0055_0328
+481	0173	u0075_0328
+482	0179	u005A_0301
+483	017A	u007A_0301
+484	017B	u005A_0307
+485	017C	u007A_0307
+486	0128	u0049_0303
+487	0129	u0069_0303
+# 488 ?
+# 489 ?
+
+# 490-499 ?
+
+# 500 radical segment *
+# 501 proportional to symbol *
+# 502 lowercase italic e *
+# 503 alternate lowercase epsilon *
+# 504 therefore *
+# 505 uppercase greek gamma *
+# 506 uppercase greek delta *
+# 507 uppercase greek theta *
+# 508 uppercase greek lambda *
+# 509 uppercase greek xi *
+
+# 510 uppercase greek pi *
+# 511 uppercase greek sigma *
+# 512 uppercase greek upsilon *
+# 513 uppercase greek phi *
+# 514 uppercase greek psi *
+# 515 uppercase greek omega *
+# 516 nabla symbol *
+# 517 partial diff symbol *
+# 518 terminal sigma *
+# 519 not equal to symbol *
+
+# 520 underline, composite ?
+# 521 because *
+# 522 lowercase greek alpha *
+# 523 lowercase greek beta *
+# 524 lowercase greek gamma *
+# 525 lowercase greek delta *
+# 526 lowercase greek epsilon *
+# 527 lowercase greek zeta *
+# 528 lowercase greek eta *
+# 529 lowercase greek theta *
+
+# 530 lowercase greek iota *
+# 531 lowercase greek kappa *
+# 532 lowercase greek lambda *
+# 533 lowercase greek mu *
+# 534 lowercase greek nu *
+# 535 lowercase greek xi *
+# 536 lowercase greek omicron *
+# 537 lowercase greek pi *
+# 538 lowercase greek rho *
+# 539 lowercase greek sigma *
+
+# 540 lowercase greek tau *
+# 541 lowercase greek upsilon *
+# 542 lowercase greek phi *
+# 543 lowercase greek chi *
+# 544 lowercase greek psi *
+# 545 lowercase greek omega *
+# 546 open lowercase greek theta *
+# 547 open lowercase greek phi *
+# 548 alternate lowercase pi *
+# 549 wavy/straight approximation *
+
+# 550 not exactly equal to *
+# 551 up arrow double stroke *
+# 552 right arrow double stroke *
+# 553 down arrow double stroke *
+# 554 left arrow double stroke *
+# 555 up/down arrow double stroke *
+# 556 left/right arrow double stroke *
+# 557 right over left arrow *
+# 558 left over right arrow *
+# 559 vector symbol *
+
+# 560 overline, composite *
+# 561 for all symbol *
+# 562 there exists symbol *
+# 563 top symbol *
+# 564 bottom symbol *
+# 565 set union symbol *
+# 566 element of symbol *
+# 567 contains symbol *
+# 568 not element of symbol *
+# 569 proper subset symbol *
+
+# 570 proper superset symbol *
+# 571 not proper subset symbol *
+# 572 not proper superset symbol *
+# 573 subset symbol *
+# 574 superset symbol *
+# 575 plus in circle symbol *
+# 576 dot in circle *
+# 577 times in circle *
+# 578 minus in circle *
+# 579 slash in circle *
+
+# 580 logical and symbol *
+# 581 logical or symbol *
+# 582 exclusive or symbol *
+# 583 function composition symbol *
+# 584 large open circle *
+# 585 assertion symbol *
+# 586 backwards assertion symbol *
+# 587 integral symbol *
+# 588 curvilinear integral symbol *
+# 589 angle symbol *
+
+# 590 empty set *
+# 591 hebrew aleph *
+# 592 hebrew beth *
+# 593 hebrew gimmel *
+# 594 fractur uppercase c *
+# 595 fractur uppercase i *
+# 596 fractur uppercase r *
+# 597 fractur uppercase z *
+# 598 top left bracket *
+# 599 bottom left bracket *
+
+# 600 top left brace *
+# 601 middle left brace *
+# 602 bottom left brace *
+# 603 middle curvature integral -- no Unicode mapping!
+# 604 top left summation -- no Unicode mapping!
+# 605 double vertical line, composite *
+# 606 bottom left summation -- no Unicode mapping!
+# 607 bottom diagonal summation -- no Unicode mapping!
+# 608 top right bracket *
+# 609 bottom right bracket *
+
+# 610 top right brace *
+# 611 middle right brace *
+# 612 bottom right brace *
+# 613 thick vertical line, composite *
+# 614 thin vertical line, composite *
+# 615 bottom radical, vert *
+# 616 top right summation -- no Unicode mapping!
+# 617 middle summation -- no Unicode mapping!
+# 618 bottom right summation -- no Unicode mapping!
+# 619 top diagonal summation -- no Unicode mapping!
+
+# 620 minus over plus sign *
+# 621 left angle bracket *
+# 622 right angle bracket *
+# 623 mask symbol, superior -- no Unicode mapping!
+# 624 wavy/2 straight approximation *
+# 625 45 degrees arrow *
+# 626 -45 degrees arrow *
+# 627 -135 degrees arrow *
+# 628 135 degrees arrow *
+# 629 up open triangle *
+
+# 630 right open triangle *
+# 631 down open triangle *
+# 632 left open triangle *
+# 633 much less than sign *
+# 634 much greater than sign *
+# 635 proportional to symbol *
+# 636 defined as symbol *
+# 637 lowercase greek digamma *
+# 638 planck's constant/2 pi *
+# 639 laplace transform symbol *
+
+# 640 power set symbol ?
+# 641 weierstrassian symbol *
+# 642 summation symbol, sigma *
+# 643 left double bracket *
+# 644 middle double bracket -- no Unicode mapping!
+# 645 right double bracket *
+# 646 left top round corner *
+# 647 left bottom round corner *
+# 648 extension large union/product -- no Unicode mapping!
+# 649 bottom large union -- no Unicode mapping!
+
+# 650 top large intersection -- no Unicode mapping!
+# 651 top left double bracket -- no Unicode mapping!
+# 652 bottom left double bracket -- no Unicode mapping!
+# 653 large open box ?
+# 654 open diamond *
+# 655 right top round corner *
+# 656 right bottom round corner *
+# 657 bottom large bottom product -- no Unicode mapping!
+# 658 top large top product -- no Unicode mapping!
+# 659 top right double bracket -- no Unicode mapping!
+
+# 660 bottom right double bracket -- no Unicode mapping!
+# 661 large solid box ?
+# 662 solid diamond *
+# 663 such that *
+# 664 math asterisk sign *
+# 665 horizontal arrow extension *
+# 666 double horizontal arrow extension -- no Unicode mapping!
+# 667 complement of #617 -- no Unicode mapping!
+# 668 right angle symbol *
+# 669 product symbol *
+
+# 670-683 ?
+
+684	25CA	u25CA
+
+# 684-999 ?
+
+1000	2070	u2070
+1001	2074	u2074
+1002	2075	u2075
+1003	2076	u2076
+1004	2077	u2077
+1005	2078	u2078
+1006	2079	u2079
+# 1007-1009 ?
+
+# 1010-1016 ?
+1017	201C	lq
+1018	201D	rq
+1019	201E	Bq
+
+1020	2003	u2003
+1021	2002	u2002
+# 1022 ?
+1023	2009	u2009
+# 1024-1027 ?
+1028	2026	u2026
+# 1029 ?
+
+# 1030 uppercase ogonek -- unused
+1031	017E	vz
+# 1032-1033 ?
+1034	2120	u2120
+# 1035 ?
+1036	211E	u211E
+# 1037-1039 ?
+
+# older HP TrueType TFM files use Unicode value U+F001 instead
+1040	FB01	fi
+# older HP TrueType TFM files use Unicode value U+F002 instead
+1041	FB02	fl
+1042	FB00	ff
+1043	FB03	Fi
+1044	FB04	Fl
+# 1045 uppercase double acute accent -- unused
+# 1046 ?
+1047	0133	ij
+# 1048 ?
+# 1049 ?
+
+# 1050-1059 ?
+
+1060	2105	u2105
+1061	011E	u0047_0306
+1062	011F	u0067_0306
+1063	015E	u0053_0327
+1064	015F	u0073_0327
+1065	0130	u0049_0307
+# 1066 ?
+1067	201A	bq
+1068	2030	%0
+1069	20AC	Eu
+
+# 1070-1079 ?
+
+# 1080-1083 ?
+1084	02C9	a-
+# 1085 uppercase macron accent -- unused
+1086	02D8	ab
+# 1087 uppercase breve accent -- unused
+1088	02D9	a.
+# 1089 uppercase overdot accent -- unused
+
+1090	0153	oe
+1091	0152	OE
+1092	2039	fo
+1093	203A	fc
+1094	25A1	sq
+1095	0141	/L
+1096	0142	/l
+1097	02DD	a"
+1098	02DB	ho
+# 1099 carriage return symbol *
+
+# 1100 registered, full, serif -- unused
+# 1101 copyright, full, serif -- unused
+# 1102 trademark, full, serif -- unused
+# 1103 registered, full, sans -- unused
+# 1104 copyright, full, sans -- unused
+# 1105 trademark, full, sans -- unused
+1106	017D	vZ
+1107	0132	IJ
+# 1108 small open box *
+# 1109 small open bullet *
+
+# 1110 medium open bullet *
+# 1111 large solid bullet ?
+# 1112 visible carriage return *
+# 1113 visible tab (`arrowtab') ?
+# 1114 visible space *
+# 1115 visible soft hyphen -- unused
+# 1116 visible end-of-file (`embox')?
+# 1117 `enspacereverse' ?
+# 1118 `emspacereverse' ?
+# 1119 ?
+
+# 1120-1399 ?
+
+1400	0301	u0301
+1401	0300	u0300
+1402	0302	u0302
+1403	0308	u0308
+1404	0303	u0303
+1405	030C	u030C
+1406	0306	u0306
+1407	030B	u030B
+1408	030A	u030A
+1409	0307	u0307
+
+1410	0304	u0304
+1411	0327	u0327
+1412	0328	u0328
+# 1413 combining uppercase acute accent -- unused
+# 1414 combining uppercase grave accent -- unused
+# 1415 combining uppercase circumflex accent -- unused
+# 1416 combining uppercase dieresis accent -- unused
+# 1417 combining uppercase tilde accent -- unused
+# 1418 combining uppercase caron accent -- unused
+# 1419 combining uppercase breve accent -- unused
+
+# 1420 combining uppercase double acute accent -- unused
+# 1421 combining uppercase ring accent -- unused
+# 1422 combining uppercase dot accent -- unused
+# 1423 combining uppercase macron accent -- unused
+# 1424 combining uppercase cedilla -- unused
+# 1425 combining uppercase ogonek -- unused
+# 1426 ?
+# 1427 uppercase middle dot -- unused (no Unicode mapping)
+# 1428 ?
+# 1429 ?
+
+# 1430-3811 ?
+
+# 3812 ornament, apple ?
+
+# EOF

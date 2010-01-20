@@ -1,0 +1,267 @@
+Copyright (C) 2004, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
+See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
+
+                   BIND 8 to BIND 9 Migration Notes
+
+BIND 9 is designed to be mostly upwards compatible with BIND 8, but
+there is still a number of caveats you should be aware of when
+upgrading an existing BIND 8 installation to use BIND 9.
+
+
+1. Configuration File Compatibility
+
+1.1. Unimplemented Options and Changed Defaults
+
+BIND 9 supports most, but not all of the named.conf options of BIND 8.
+For a complete list of implemented options, see doc/misc/options.
+
+If your named.conf file uses an unimplemented option, named will log a
+warning message.  A message is also logged about each option whose
+default has changed unless the option is set explicitly in named.conf.
+
+The default of the "transfer-format" option has changed from
+"one-answer" to "many-answers".  If you have slave servers that do not
+understand the many-answers zone transfer format (e.g., BIND 4.9.5 or
+older) you need to explicitly specify "transfer-format one-answer;" in
+either the options block or a server statement.
+
+BIND 9.4 onwards implements "allow-query-cache".  The "allow-query"
+option is no longer used to specify access to the cache.  The
+"allow-query" option continues to specify which hosts are allowed
+to ask ordinary DNS questions.  The new "allow-query-cache" option
+is used to specify which hosts are allowed to get answers from the
+cache. Since BIND 9.4.1, if "allow-query-cache" is not set then
+"allow-recursion" is used if it is set, otherwise "allow-query" is
+used if it is set, otherwise the default localnets and localhost
+is used.
+
+1.2. Handling of Configuration File Errors
+
+In BIND 9, named refuses to start if it detects an error in
+named.conf.  Earlier versions would start despite errors, causing the
+server to run with a partial configuration.  Errors detected during
+subsequent reloads do not cause the server to exit.
+
+Errors in master files do not cause the server to exit, but they
+do cause the zone not to load.
+
+1.3. Logging
+
+The set of logging categories in BIND 9 is different from that
+in BIND 8.  If you have customised your logging on a per-category
+basis, you need to modify your logging statement to use the
+new categories.
+
+Another difference is that the "logging" statement only takes effect
+after the entire named.conf file has been read.  This means that when
+the server starts up, any messages about errors in the configuration
+file are always logged to the default destination (syslog) when the
+server first starts up, regardless of the contents of the "logging"
+statement.  In BIND 8, the new logging configuration took effect
+immediately after the "logging" statement was read.
+
+1.4. Notify messages and Refresh queries
+
+The source address and port for these is now controlled by
+"notify-source" and "transfer-source", respectively, rather that
+query-source as in BIND 8.
+
+1.5. Multiple Classes.
+
+Multiple classes have to be put into explicit views for each class.
+
+
+2. Zone File Compatibility
+
+2.1. Strict RFC1035 Interpretation of TTLs in Zone Files
+
+BIND 9 strictly complies with the RFC1035 and RFC2308 rules regarding
+omitted TTLs in zone files.  Omitted TTLs are replaced by the value
+specified with the $TTL directive, or by the previous explicit TTL if
+there is no $TTL directive.
+
+If there is no $TTL directive and the first RR in the file does not
+have an explicit TTL field, the zone file is illegal according to
+RFC1035 since the TTL of the first RR is undefined.  Unfortunately,
+BIND 4 and many versions of BIND 8 accept such files without warning
+and use the value of the SOA MINTTL field as a default for missing TTL
+values.
+
+BIND 9.0 and 9.1 completely refused to load such files.  BIND 9.2
+emulates the nonstandard BIND 4/8 SOA MINTTL behaviour and loads the
+files anyway (provided the SOA is the first record in the file), but
+will issue the warning message "no TTL specified; using SOA MINTTL
+instead".
+
+To avoid problems, we recommend that you use a $TTL directive in each
+zone file.
+
+2.2. Periods in SOA Serial Numbers Deprecated
+
+Some versions of BIND allow SOA serial numbers with an embedded
+period, like "3.002", and convert them into integers in a rather
+unintuitive way.  This feature is not supported by BIND 9; serial
+numbers must be integers.
+
+2.3. Handling of Unbalanced Quotes
+
+TXT records with unbalanced quotes, like 'host TXT "foo', were not
+treated as errors in some versions of BIND.  If your zone files
+contain such records, you will get potentially confusing error
+messages like "unexpected end of file" because BIND 9 will interpret
+everything up to the next quote character as a literal string.
+
+2.4. Handling of Line Breaks
+
+Some versions of BIND accept RRs containing line breaks that are not
+properly quoted with parentheses, like the following SOA:
+
+	@	IN SOA	ns.example. hostmaster.example.
+			( 1 3600 1800 1814400 3600 )
+
+This is not legal master file syntax and will be treated as an error
+by BIND 9.  The fix is to move the opening parenthesis to the first
+line.
+
+2.5. Unimplemented BIND 8 Extensions
+
+$GENERATE: The "$$" construct for getting a literal $ into a domain
+name is deprecated.  Use \$ instead.
+
+2.6. TXT records are no longer automatically split.
+
+Some versions of BIND accepted strings in TXT RDATA consisting of more
+than 255 characters and silently split them to be able to encode the
+strings in a protocol conformant way. You may now see errors like this
+        dns_rdata_fromtext: local.db:119: ran out of space
+if you have TXT RRs with too longs strings. Make sure to split the
+string in the zone data file at or before a single one reaches 255
+characters.
+
+3. Interoperability Impact of New Protocol Features
+
+3.1. EDNS0
+
+BIND 9 uses EDNS0 (RFC2671) to advertise its receive buffer size.  It
+also sets DO EDNS flag bit in queries to indicate that it wishes to
+receive DNSSEC responses.
+
+Most older servers that do not support EDNS0, including prior versions
+of BIND, will send a FORMERR or NOTIMP response to these queries.
+When this happens, BIND 9 will automatically retry the query without
+EDNS0.
+
+Unfortunately, there exists at least one non-BIND name server
+implementation that silently ignores these queries instead of sending
+an error response.  Resolving names in zones where all or most
+authoritative servers use this server will be very slow or fail
+completely.  We have contacted the manufacturer of the name server in
+case, and they are working on a solution.
+
+When BIND 9 communicates with a server that does support EDNS0, such as
+another BIND 9 server, responses of up to 4096 bytes may be
+transmitted as a single UDP datagram which is subject to fragmentation
+at the IP level.  If a firewall incorrectly drops IP fragments, it can
+cause resolution to slow down dramatically or fail.
+
+3.2. Zone Transfers
+
+Outgoing zone transfers now use the "many-answers" format by default.
+This format is not understood by certain old versions of BIND 4.  
+You can work around this problem using the option "transfer-format
+one-answer;", but since these old versions all have known security
+problems, the correct fix is to upgrade the slave servers.
+
+Zone transfers to Windows 2000 DNS servers sometimes fail due to a
+bug in the Windows 2000 DNS server where DNS messages larger than
+16K are not handled properly.  Obtain the latest service pack for
+Windows 2000 from Microsoft to address this issue.  In the meantime,
+the problem can be worked around by setting "transfer-format one-answer;".
+http://support.microsoft.com/default.aspx?scid=kb;en-us;297936
+
+4. Unrestricted Character Set
+
+		BIND 9.2 only
+
+BIND 9 does not restrict the character set of domain names - it is
+fully 8-bit clean in accordance with RFC2181 section 11.
+
+It is strongly recommended that hostnames published in the DNS follow
+the RFC952 rules, but BIND 9 will not enforce this restriction.
+
+Historically, some applications have suffered from security flaws
+where data originating from the network, such as names returned by
+gethostbyaddr(), are used with insufficient checking and may cause a
+breach of security when containing unexpected characters; see
+<http://www.cert.org/advisories/CA-96.04.corrupt_info_from_servers.html>
+for details.  Some earlier versions of BIND attempt to protect these
+flawed applications from attack by discarding data containing
+characters deemed inappropriate in host names or mail addresses, under
+the control of the "check-names" option in named.conf and/or "options
+no-check-names" in resolv.conf.  BIND 9 provides no such protection;
+if applications with these flaws are still being used, they should
+be upgraded.
+
+	BIND 9.3 onwards implements check-names.
+
+5. Server Administration Tools
+
+5.1 Ndc Replaced by Rndc
+
+The "ndc" program has been replaced by "rndc", which is capable of
+remote operation.  Unlike ndc, rndc requires a configuration file.
+The easiest way to generate a configuration file is to run
+"rndc-confgen -a"; see the man pages for rndc(8), rndc-confgen(8),
+and rndc.conf(5) for details.
+
+5.2. Nsupdate Differences
+
+The BIND 8 implementation of nsupdate had an undocumented feature
+where an update request would be broken down into multiple requests
+based upon the discovered zones that contained the records.  This
+behaviour has not been implemented in BIND 9.  Each update request
+must pertain to a single zone, but it is still possible to do multiple
+updates in a single invocation of nsupdate by terminating each update
+with an empty line or a "send" command.
+
+
+6. No Information Leakage between Zones
+
+BIND 9 stores the authoritative data for each zone in a separate data
+structure, as recommended in RFC1035 and as required by DNSSEC and
+IXFR.  When a BIND 9 server is authoritative for both a child zone and
+its parent, it will have two distinct sets of NS records at the
+delegation point: the authoritative NS records at the child's apex,
+and a set of glue NS records in the parent.
+
+BIND 8 was unable to properly distinguish between these two sets of NS
+records and would "leak" the child's NS records into the parent,
+effectively causing the parent zone to be silently modified: responses
+and zone transfers from the parent contained the child's NS records
+rather than the glue configured into the parent (if any).  In the case
+of children of type "stub", this behaviour was documented as a feature,
+allowing the glue NS records to be omitted from the parent
+configuration.
+
+Sites that were relying on this BIND 8 behaviour need to add any
+omitted glue NS records, and any necessary glue A records, to the
+parent zone.
+
+Although stub zones can no longer be used as a mechanism for injecting
+NS records into their parent zones, they are still useful as a way of
+directing queries for a given domain to a particular set of name
+servers.
+
+
+7. Umask not Modified
+
+The BIND 8 named unconditionally sets the umask to 022.  BIND 9 does
+not; the umask inherited from the parent process remains in effect.
+This may cause files created by named, such as journal files, to be
+created with different file permissions than they did in BIND 8.  If
+necessary, the umask should be set explicitly in the script used to
+start the named process.
+
+
+$Id: migration,v 1.49 2008/03/18 15:42:53 jreed Exp $

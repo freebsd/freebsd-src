@@ -1,0 +1,43 @@
+#------------------------------------------------------------------------------
+# psion:  file(1) magic for Psion handhelds data
+# from: Peter Breitenlohner <peb@mppmu.mpg.de>
+#
+0	lelong		0x10000037	Psion Series 5
+>4	lelong		0x10000039	font file
+>4	lelong		0x1000003A	printer driver
+>4	lelong		0x1000003B	clipboard
+>4	lelong		0x10000042	multi-bitmap image
+>4	lelong		0x1000006A	application information file
+>4	lelong		0x1000006D
+>>8	lelong		0x1000007D	sketch image
+!:mime image/x-psion-sketch
+>>8	lelong		0x1000007E	voice note
+>>8	lelong		0x1000007F	word file
+>>8	lelong		0x10000085	OPL program
+>>8	lelong		0x10000088	sheet file
+>>8	lelong		0x100001C4	EasyFax initialisation file
+>4	lelong		0x10000073	OPO module
+>4	lelong		0x10000074	OPL application
+>4	lelong		0x1000008A	exported multi-bitmap image
+
+0	lelong		0x10000041	Psion Series 5 ROM multi-bitmap image
+
+0	lelong		0x10000050	Psion Series 5
+>4	lelong		0x1000006D	database
+>4	lelong		0x100000E4	ini file
+
+0	lelong		0x10000079	Psion Series 5 binary:
+>4	lelong		0x00000000	DLL
+>4	lelong		0x10000049	comms hardware library
+>4	lelong		0x1000004A	comms protocol library
+>4	lelong		0x1000005D	OPX
+>4	lelong		0x1000006C	application
+>4	lelong		0x1000008D	DLL
+>4	lelong		0x100000AC	logical device driver
+>4	lelong		0x100000AD	physical device driver
+>4	lelong		0x100000E5	file transfer protocol
+>4	lelong		0x100000E5	file transfer protocol
+>4	lelong		0x10000140	printer definition
+>4	lelong		0x10000141	printer definition
+
+0	lelong		0x1000007A	Psion Series 5 executable

@@ -1,0 +1,104 @@
+# $FreeBSD$
+#
+# Originally by CHOI Junho <cjh@FreeBSD.org>
+# 27 Mar 1997
+#
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+#
+# Short month names
+ 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+#
+# Long month names (as in a date)
+#
+1월
+2월
+3월
+4월
+5월
+6월
+7월
+8월
+9월
+10월
+11월
+12월
+#
+# Short weekday names
+#
+일
+월
+화
+수
+목
+금
+토
+#
+# Long weekday names
+#
+일요일
+월요일
+화요일
+수요일
+목요일
+금요일
+토요일
+#
+# X_fmt
+#
+%H시 %M분 %S초
+#
+# x_fmt
+#
+%Y년 %b월 %e일
+#
+# c_fmt
+#
+%x %A %X
+#
+# am
+#
+오전
+#
+# pm
+#
+오후
+#
+# date_fmt
+#
+%c %Z
+#
+# Long month names (without case ending)
+#
+1월
+2월
+3월
+4월
+5월
+6월
+7월
+8월
+9월
+10월
+11월
+12월
+#
+# md_order
+#
+md
+#
+# ampm_fmt
+#
+%p %I:%M:%S
+# EOF

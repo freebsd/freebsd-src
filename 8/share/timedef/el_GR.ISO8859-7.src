@@ -1,0 +1,102 @@
+# $FreeBSD$
+#
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+#
+# Short month names
+#
+Ιαν
+Φεβ
+Μαρ
+Απρ
+Μαϊ
+Ιον
+Ιολ
+Αυγ
+Σεπ
+Οκτ
+Νοε
+Δεκ
+#
+# Long month names (as in a date)
+#
+Ιανουαρίου
+Φεβρουαρίου
+Μαρτίου
+Απριλίου
+Μαΐου
+Ιουνίου
+Ιουλίου
+Αυγούστου
+Σεπτεμβρίου
+Οκτωβρίου
+Νοεμβρίου
+Δεκεμβρίου
+#
+# Short weekday names
+#
+Κυρ
+Δευ
+Τρι
+Τετ
+Πεμ
+Παρ
+Σαβ
+#
+# Long weekday names
+#
+Κυριακή
+Δευτέρα
+Τρίτη
+Τετάρτη
+Πέμπτη
+Παρασκευή
+Σάββατο
+#
+# X_fmt
+#
+%H:%M:%S
+#
+# x_fmt
+#
+%d/%m/%Y
+#
+# c_fmt
+#
+%a %e %b %X %Y
+#
+# am
+#
+πμ
+#
+# pm
+#
+μμ
+#
+# date_fmt
+#
+%a %e %b %Y %X %Z
+#
+# Long month names (without case ending)
+#
+Ιανουάριος
+Φεβρουάριος
+Μάρτιος
+Απρίλιος
+Μάϊος
+Ιούνιος
+Ιούλιος
+Αύγουστος
+Σεπτέμβριος
+Οκτώβριος
+Νοέμβριος
+Δεκέμβριος
+#
+# md_order
+#
+dm
+#
+# ampm_fmt
+#
+%I:%M:%S %p
+# EOF

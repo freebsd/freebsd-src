@@ -1,0 +1,85 @@
+
+#------------------------------------------------------------------------------
+# adventure: file(1) magic for Adventure game files
+#
+# from Allen Garvin <earendil@faeryland.tamu-commerce.edu>
+# Edited by Dave Chapeskie <dchapes@ddm.on.ca> Jun 28, 1998
+# Edited by Chris Chittleborough <cchittleborough@yahoo.com.au>, March 2002
+#
+# ALAN
+# I assume there are other, lower versions, but these are the only ones I
+# saw in the archive.
+0	beshort	0x0206	ALAN game data
+>2	byte	<10	version 2.6%d
+
+
+# Infocom (see z-machine)
+#------------------------------------------------------------------------------
+# Z-machine:  file(1) magic for Z-machine binaries.
+#
+# This will match ${TEX_BASE}/texmf/omega/ocp/char2uni/inbig5.ocp which
+# appears to be a version-0 Z-machine binary.
+#
+# The (false match) message is to correct that behavior.  Perhaps it is
+# not needed.
+#
+16	belong&0xfe00f0f0	0x3030	Infocom game data
+>0	ubyte			0	(false match)
+>0	ubyte			>0	(Z-machine %d,
+>>2	ubeshort		x	Release %d /
+>>18	string			>\0	Serial %.6s)
+
+#------------------------------------------------------------------------------
+# Glulx:  file(1) magic for Glulx binaries.
+#
+# I haven't checked for false matches yet.
+#
+0	string			Glul	Glulx game data
+>4	beshort			x	(Version %d
+>>6	byte			x	\b.%d
+>>8	byte			x	\b.%d)
+>36	string			Info	Compiled by Inform
+
+
+
+# For Quetzal and blorb magic see iff
+
+
+# TADS (Text Adventure Development System)
+#  All files are machine-independent (games compile to byte-code) and are tagged
+#  with a version string of the form "V2.<digit>.<digit>\0" (but TADS 3 is
+#  on the way).
+#  Game files start with "TADS2 bin\n\r\032\0" then the compiler version.
+0	string	TADS2\ bin	TADS
+>9	belong  !0x0A0D1A00	game data, CORRUPTED
+>9	belong	 0x0A0D1A00
+>>13	string	>\0		%s game data
+#  Resource files start with "TADS2 rsc\n\r\032\0" then the compiler version.
+0	string	TADS2\ rsc	TADS
+>9	belong  !0x0A0D1A00	resource data, CORRUPTED
+>9	belong	 0x0A0D1A00
+>>13	string	>\0		%s resource data
+#  Some saved game files start with "TADS2 save/g\n\r\032\0", a little-endian
+#  2-byte length N, the N-char name of the game file *without* a NUL (darn!),
+# "TADS2 save\n\r\032\0" and the interpreter version. 
+0	string	TADS2\ save/g	TADS
+>12	belong	!0x0A0D1A00	saved game data, CORRUPTED
+>12	belong	 0x0A0D1A00
+>>(16.s+32) string >\0		%s saved game data
+#  Other saved game files start with "TADS2 save\n\r\032\0" and the interpreter
+#  version.
+0	string	TADS2\ save	TADS
+>10	belong	!0x0A0D1A00	saved game data, CORRUPTED
+>10	belong	 0x0A0D1A00
+>>14	string	>\0		%s saved game data
+
+# Danny Milosavljevic <danny.milo@gmx.net>
+# this are adrift (adventure game standard) game files, extension .taf
+# depending on version magic continues with 0x93453E6139FA (V 4.0)
+# 0x9445376139FA (V 3.90)
+# 0x9445366139FA (V 3.80)
+# this is from source (http://www.adrift.org.uk/) and I have some taf
+# files, and checked them.
+#0	belong	0x3C423FC9
+#>4	belong	0x6A87C2CF	Adrift game file
+#!:mime	application/x-adrift

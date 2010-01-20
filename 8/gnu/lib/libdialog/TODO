@@ -1,0 +1,36 @@
+- cut off names in the listbox that are to long
+done 27Jan95
+	The current behaviour may not be desirable. When browsing through
+	long names these, when highlighted, will be shown with the first
+	characters cut off, when not highlighted the last characters will
+	be cut off.
+
+- look at behaviour of TAB key when browsing through directories.
+done 28Jan95
+
+- make sure the full name of the directory is written to the 
+  "Directory:"-box
+done 28Jan95
+
+- mark current selections in listbox when initializing the listobject
+Idontknow
+- test and use Notify() when checking for error conditions
+ok
+- test overall
+- adapt color of buttons when changing focus to the button.
+done 28Jan95
+- add shade to dialog_fselect()-window
+done 29Jan95
+- add (nn%) indication to lists.
+done 30Jan95
+- add use_helpfile()
+done 13Feb95
+- add use_helpline()
+
+NOTE: apparently there is a bug (or a strange interaction between pkg_manage
+and dialog_textbox) in dialog_textbox. When I use this routine to display 
+the helpfile in display_helpfile() the program gets mysterious segmentation
+faults and bus errors.
+I now use dialog_mesgbox, after I have read the file into a buffer.
+
+
