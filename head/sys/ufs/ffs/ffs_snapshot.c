@@ -582,7 +582,8 @@ loop:
 			len = fragroundup(fs, blkoff(fs, xp->i_size));
 			if (len != 0 && len < fs->fs_bsize) {
 				ffs_blkfree(ump, copy_fs, vp,
-				    DIP(xp, i_db[loc]), len, xp->i_number);
+				    DIP(xp, i_db[loc]), len, xp->i_number,
+				    NULL);
 				blkno = DIP(xp, i_db[loc]);
 				DIP_SET(xp, i_db[loc], 0);
 			}
@@ -598,7 +599,7 @@ loop:
 			DIP_SET(xp, i_db[loc], blkno);
 		if (!error)
 			error = ffs_freefile(ump, copy_fs, vp, xp->i_number,
-			    xp->i_mode);
+			    xp->i_mode, NULL);
 		VOP_UNLOCK(xvp, 0);
 		vdrop(xvp);
 		if (error) {
@@ -700,7 +701,7 @@ out1:
 					     copy_fs,
 					     vp,
 					     xp->i_number,
-					     xp->i_mode);
+					     xp->i_mode, NULL);
 		}
 		if (error) {
 			fs->fs_snapinum[snaploc] = 0;
@@ -1220,7 +1221,7 @@ mapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
-		ffs_blkfree(ip->i_ump, fs, vp, blkno, fs->fs_bsize, inum);
+		ffs_blkfree(ip->i_ump, fs, vp, blkno, fs->fs_bsize, inum, NULL);
 	}
 	return (0);
 }
@@ -1500,7 +1501,7 @@ mapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
-		ffs_blkfree(ip->i_ump, fs, vp, blkno, fs->fs_bsize, inum);
+		ffs_blkfree(ip->i_ump, fs, vp, blkno, fs->fs_bsize, inum, NULL);
 	}
 	return (0);
 }

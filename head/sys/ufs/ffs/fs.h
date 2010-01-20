@@ -340,7 +340,10 @@ struct fs {
 	int32_t	 fs_avgfilesize;	/* expected average file size */
 	int32_t	 fs_avgfpdir;		/* expected # of files per directory */
 	int32_t	 fs_save_cgsize;	/* save real cg size to use fs_bsize */
-	int32_t	 fs_sparecon32[26];	/* reserved for future constants */
+	int32_t  fs_sujournal;		/* SUJ journal file */
+	int32_t  fs_sujfree;		/* SUJ free list */
+	ufs_time_t fs_mtime;		/* Last mount or fsck time. */
+	int32_t	 fs_sparecon32[22];	/* reserved for future constants */
 	int32_t  fs_flags;		/* see FS_ flags below */
 	int32_t	 fs_contigsumsize;	/* size of cluster summary array */ 
 	int32_t	 fs_maxsymlinklen;	/* max length of an internal symlink */
@@ -414,6 +417,7 @@ CTASSERT(sizeof(struct fs) == 1376);
 #define FS_GJOURNAL	0x0040	/* gjournaled file system */
 #define FS_FLAGS_UPDATED 0x0080	/* flags have been moved to new location */
 #define FS_NFS4ACLS	0x0100	/* file system has NFSv4 ACLs enabled */
+#define	FS_SUJ       0x200	/* Filesystem using softupdate journal */
 
 /*
  * Macros to access bits in the fs_active array.
@@ -603,7 +607,31 @@ struct cg {
 	  ? (fs)->fs_bsize \
 	  : (fragroundup(fs, blkoff(fs, (size)))))
 
-
+/*
+ * Indirect lbns are aligned on NDADDR addresses where single indirects
+ * are the negated address of the lowest lbn reachable, double indirects
+ * are this lbn - 1 and triple indirects are this lbn - 2.  This yields
+ * an unusual bit order to determine level.
+ */
+static inline int
+lbn_level(ufs_lbn_t lbn)
+{
+	if (lbn >= 0)
+		return 0;
+	switch (lbn & 0x3) {
+	case 0:
+		return (0);
+	case 1:
+		break;
+	case 2:
+		return (2);
+	case 3:
+		return (1);
+	default:
+		break;
+	}
+	return (-1);
+}
 /*
  * Number of inodes in a secondary storage block/fragment.
  */
@@ -614,6 +642,89 @@ struct cg {
  * Number of indirects in a filesystem block.
  */
 #define	NINDIR(fs)	((fs)->fs_nindir)
+
+/*
+ * Softdep journal record format.
+ */
+
+#define	JOP_ADDREF	1	/* Add a reference to an inode. */
+#define	JOP_REMREF	2	/* Remove a reference from an inode. */
+#define	JOP_NEWBLK	3	/* Allocate a block. */
+#define	JOP_FREEBLK	4	/* Free a block or a tree of blocks. */
+#define	JOP_MVREF	5	/* Move a reference from one off to another. */
+#define	JOP_TRUNC	6	/* Partial truncation record. */
+
+#define	JREC_SIZE	32	/* Record and segment header size. */
+
+#define	SUJ_MIN		(1 * 1024 * 1024)	/* Minimum journal size */
+#define	SUJ_MAX		(64 * SUJ_MIN)		/* Maximum journal size */
+
+/*
+ * Size of the segment record header.  There is at most one for each disk
+ * block and at least one for each filesystem block in the journal.  The
+ * segment header is followed by an array of records.
+ */
+struct jsegrec {
+	uint64_t	jsr_seq;	/* Our sequence number */
+	uint64_t	jsr_oldest;	/* Oldest valid sequence number */
+	uint32_t	jsr_cnt;	/* Count of valid records */
+	uint32_t	jsr_crc;	/* 32bit crc of the valid space */
+	ufs_time_t	jsr_time;	/* timestamp for mount instance */
+};
+
+struct jrefrec {
+	uint32_t	jr_op;
+	ino_t		jr_ino;
+	ino_t		jr_parent;
+	uint16_t	jr_nlink;
+	uint16_t	jr_mode;
+	off_t		jr_diroff;
+	uint64_t	jr_unused;
+};
+
+struct jmvrec {
+	uint32_t	jm_op;
+	ino_t		jm_ino;
+	ino_t		jm_parent;
+	uint16_t	jm_unused;
+	off_t		jm_oldoff;
+	off_t		jm_newoff;
+};
+
+struct jblkrec {
+	uint32_t	jb_op;
+	uint32_t	jb_ino;
+	ufs2_daddr_t	jb_blkno;
+	ufs_lbn_t	jb_lbn;
+	uint16_t	jb_frags;
+	uint16_t	jb_oldfrags;
+	uint32_t	jb_unused;
+};
+
+struct jtrncrec {
+	uint32_t	jt_op;
+	uint32_t	jt_ino;
+	off_t		jt_size;
+	uint32_t	jt_extsize;
+	uint32_t	jt_pad[3];
+};
+
+union jrec {
+	struct jsegrec	rec_jsegrec;
+	struct jrefrec	rec_jrefrec;
+	struct jmvrec	rec_jmvrec;
+	struct jblkrec	rec_jblkrec;
+	struct jtrncrec	rec_jtrncrec;
+};
+
+#ifdef CTASSERT
+CTASSERT(sizeof(struct jsegrec) == JREC_SIZE);
+CTASSERT(sizeof(struct jrefrec) == JREC_SIZE);
+CTASSERT(sizeof(struct jmvrec) == JREC_SIZE);
+CTASSERT(sizeof(struct jblkrec) == JREC_SIZE);
+CTASSERT(sizeof(struct jtrncrec) == JREC_SIZE);
+CTASSERT(sizeof(union jrec) == JREC_SIZE);
+#endif
 
 extern int inside[], around[];
 extern u_char *fragtbl[];
