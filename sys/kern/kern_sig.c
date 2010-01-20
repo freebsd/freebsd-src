@@ -357,7 +357,10 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 
 	/* directly insert the ksi, don't copy it */
 	if (si->ksi_flags & KSI_INS) {
-		TAILQ_INSERT_TAIL(&sq->sq_list, si, ksi_link);
+		if (si->ksi_flags & KSI_HEAD)
+			TAILQ_INSERT_HEAD(&sq->sq_list, si, ksi_link);
+		else
+			TAILQ_INSERT_TAIL(&sq->sq_list, si, ksi_link);
 		si->ksi_sigq = sq;
 		goto out_set_bit;
 	}
@@ -378,7 +381,10 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 			p->p_pendingcnt++;
 		ksiginfo_copy(si, ksi);
 		ksi->ksi_signo = signo;
-		TAILQ_INSERT_TAIL(&sq->sq_list, ksi, ksi_link);
+		if (si->ksi_flags & KSI_HEAD)
+			TAILQ_INSERT_HEAD(&sq->sq_list, ksi, ksi_link);
+		else
+			TAILQ_INSERT_TAIL(&sq->sq_list, ksi, ksi_link);
 		ksi->ksi_sigq = sq;
 	}
 
@@ -2492,6 +2498,7 @@ issignal(struct thread *td, int stop_allowed)
 	struct sigacts *ps;
 	struct sigqueue *queue;
 	sigset_t sigpending;
+	ksiginfo_t ksi;
 	int sig, prop, newsig;
 
 	p = td->td_proc;
@@ -2529,24 +2536,22 @@ issignal(struct thread *td, int stop_allowed)
 		if (p->p_flag & P_TRACED && (p->p_flag & P_PPWAIT) == 0) {
 			/*
 			 * If traced, always stop.
+			 * Remove old signal from queue before the stop.
+			 * XXX shrug off debugger, it causes siginfo to
+			 * be thrown away.
 			 */
+			queue = &td->td_sigqueue;
+			ksi.ksi_signo = 0;
+			if (sigqueue_get(queue, sig, &ksi) == 0) {
+				queue = &p->p_sigqueue;
+				sigqueue_get(queue, sig, &ksi);
+			}
+
 			mtx_unlock(&ps->ps_mtx);
 			newsig = ptracestop(td, sig);
 			mtx_lock(&ps->ps_mtx);
 
 			if (sig != newsig) {
-				ksiginfo_t ksi;
-
-				queue = &td->td_sigqueue;
-				/*
-				 * clear old signal.
-				 * XXX shrug off debugger, it causes siginfo to
-				 * be thrown away.
-				 */
-				if (sigqueue_get(queue, sig, &ksi) == 0) {
-					queue = &p->p_sigqueue;
-					sigqueue_get(queue, sig, &ksi);
-				}
 
 				/*
 				 * If parent wants us to take the signal,
@@ -2561,10 +2566,20 @@ issignal(struct thread *td, int stop_allowed)
 				 * Put the new signal into td_sigqueue. If the
 				 * signal is being masked, look for other signals.
 				 */
-				SIGADDSET(queue->sq_signals, sig);
+				sigqueue_add(queue, sig, NULL);
 				if (SIGISMEMBER(td->td_sigmask, sig))
 					continue;
 				signotify(td);
+			} else {
+				if (ksi.ksi_signo != 0) {
+					ksi.ksi_flags |= KSI_HEAD;
+					if (sigqueue_add(&td->td_sigqueue, sig,
+					    &ksi) != 0)
+						ksi.ksi_signo = 0;
+				}
+				if (ksi.ksi_signo == 0)
+					sigqueue_add(&td->td_sigqueue, sig,
+					    NULL);
 			}
 
 			/*
