@@ -1166,8 +1166,6 @@ atacapprint(struct ata_params *parm)
 	}
 	printf("\n");
 
-	printf("overlap%ssupported\n",
-		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? " " : " not ");
 	if (parm->media_rotation_rate == 1) {
 		printf("media RPM             non-rotating\n");
 	} else if (parm->media_rotation_rate >= 0x0401 &&
@@ -1187,20 +1185,26 @@ atacapprint(struct ata_params *parm)
 	printf("flush cache                    %s	%s\n",
 		parm->support.command2 & ATA_SUPPORT_FLUSHCACHE ? "yes" : "no",
 		parm->enabled.command2 & ATA_SUPPORT_FLUSHCACHE ? "yes" : "no");
-	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
-		printf("Native Command Queuing (NCQ)   %s	"
-			"	%d/0x%02X\n",
-			parm->satacapabilities & ATA_SUPPORT_NCQ ?
-				"yes" : "no",
-			(parm->satacapabilities & ATA_SUPPORT_NCQ) ?
-				ATA_QUEUE_LEN(parm->queue) : 0,
-			(parm->satacapabilities & ATA_SUPPORT_NCQ) ?
-				ATA_QUEUE_LEN(parm->queue) : 0);
-	}
-	printf("Tagged Command Queuing (TCQ)   %s	%s	%d/0x%02X\n",
+	printf("overlap                        %s\n",
+		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? "yes" : "no");
+	printf("Tagged Command Queuing (TCQ)   %s	%s",
 		parm->support.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
-		parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
-		ATA_QUEUE_LEN(parm->queue), ATA_QUEUE_LEN(parm->queue));
+		parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no");
+		if (parm->support.command2 & ATA_SUPPORT_QUEUED) {
+			printf("	%d tags\n",
+			    ATA_QUEUE_LEN(parm->queue) + 1);
+		} else
+			printf("\n");
+	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
+		printf("Native Command Queuing (NCQ)   %s	",
+			parm->satacapabilities & ATA_SUPPORT_NCQ ?
+				"yes" : "no");
+		if (parm->satacapabilities & ATA_SUPPORT_NCQ) {
+			printf("	%d tags\n",
+			    ATA_QUEUE_LEN(parm->queue) + 1);
+		} else
+			printf("\n");
+	}
 	printf("SMART                          %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_SMART ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_SMART ? "yes" : "no");
@@ -1241,6 +1245,8 @@ atacapprint(struct ata_params *parm)
 	printf("free-fall                      %s	%s\n",
 		parm->support2 & ATA_SUPPORT_FREEFALL ? "yes" : "no",
 		parm->enabled2 & ATA_SUPPORT_FREEFALL ? "yes" : "no");
+	printf("data set management (TRIM)     %s\n",
+		parm->support_dsm & ATA_SUPPORT_DSM_TRIM ? "yes" : "no");
 }
 
 
@@ -1327,8 +1333,18 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 
 	for (i = 0; i < sizeof(struct ata_params) / 2; i++)
 		ptr[i] = le16toh(ptr[i]);
+	if (arglist & CAM_ARG_VERBOSE) {
+		fprintf(stdout, "%s%d: Raw identify data:\n",
+		    device->device_name, device->dev_unit_num);
+		for (i = 0; i < sizeof(struct ata_params) / 2; i++) {
+			if ((i % 8) == 0)
+			    fprintf(stdout, " %3d: ", i);
+			fprintf(stdout, "%04x ", (uint16_t)ptr[i]);
+			if ((i % 8) == 7)
+			    fprintf(stdout, "\n");
+		}
+	}
 	ident_buf = (struct ata_params *)ptr;
-
 	if (strncmp(ident_buf->model, "FX", 2) &&
 	    strncmp(ident_buf->model, "NEC", 3) &&
 	    strncmp(ident_buf->model, "Pioneer", 7) &&
@@ -2286,6 +2302,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 				error = 1;
 				goto scsicmd_bailout;
 			}
+			bzero(data_ptr, data_bytes);
 			/*
 			 * If the user supplied "-" instead of a format, he
 			 * wants the data to be read from stdin.
@@ -4305,7 +4322,7 @@ usage(int verbose)
 "        camcontrol periphlist [dev_id][-n dev_name] [-u unit]\n"
 "        camcontrol tur        [dev_id][generic args]\n"
 "        camcontrol inquiry    [dev_id][generic args] [-D] [-S] [-R]\n"
-"        camcontrol identify   [dev_id][generic args]\n"
+"        camcontrol identify   [dev_id][generic args] [-v]\n"
 "        camcontrol reportluns [dev_id][generic args] [-c] [-l] [-r report]\n"
 "        camcontrol readcap    [dev_id][generic args] [-b] [-h] [-H] [-N]\n"
 "                              [-q] [-s]\n"
