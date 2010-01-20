@@ -55,8 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -583,7 +584,9 @@ utmpxprint(const struct utmpx *ut)
 	if (ut->ut_type == EMPTY)
 		return;
 	
-	printf("[%.24s] ", ctime(&ut->ut_tv.tv_sec));
+	printf("[%jd.%06u -- %.24s] ",
+	    (intmax_t)ut->ut_tv.tv_sec, (unsigned int)ut->ut_tv.tv_usec,
+	    ctime(&ut->ut_tv.tv_sec));
 
 	switch (ut->ut_type) {
 	case BOOT_TIME:
