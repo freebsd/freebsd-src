@@ -541,8 +541,12 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 	jumbo_q_size = min(nmbjumbo4/(3*nqsets), JUMBO_Q_SIZE);
 #endif
 	while (!powerof2(jumbo_q_size))
-		jumbo_q_size--;		
-	
+		jumbo_q_size--;
+
+	if (fl_q_size < (FL_Q_SIZE / 4) || jumbo_q_size < (JUMBO_Q_SIZE / 2))
+		device_printf(adap->dev,
+		    "Insufficient clusters and/or jumbo buffers.\n");
+
 	/* XXX Does ETHER_ALIGN need to be accounted for here? */
 	p->max_pkt_size = adap->sge.qs[0].fl[1].buf_size - sizeof(struct cpl_rx_data);
 
