@@ -129,10 +129,10 @@ static int	ffs_reallocblks_ufs2(struct vop_reallocblks_args *);
  *      available block is located.
  */
 int
-ffs_alloc(ip, lbn, bpref, size, cred, bnp)
+ffs_alloc(ip, lbn, bpref, size, flags, cred, bnp)
 	struct inode *ip;
 	ufs2_daddr_t lbn, bpref;
-	int size;
+	int size, flags;
 	struct ucred *cred;
 	ufs2_daddr_t *bnp;
 {
@@ -190,7 +190,10 @@ retry:
 			UFS_UNLOCK(ump);
 		}
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		if (flags & IO_EXT)
+			ip->i_flag |= IN_CHANGE;
+		else
+			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		*bnp = bno;
 		return (0);
 	}
@@ -226,12 +229,12 @@ nospace:
  * invoked to get an appropriate block.
  */
 int
-ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, cred, bpp)
+ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 	struct inode *ip;
 	ufs2_daddr_t lbprev;
 	ufs2_daddr_t bprev;
 	ufs2_daddr_t bpref;
-	int osize, nsize;
+	int osize, nsize, flags;
 	struct ucred *cred;
 	struct buf **bpp;
 {
@@ -316,7 +319,10 @@ retry:
 			UFS_UNLOCK(ump);
 		}
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		if (flags & IO_EXT)
+			ip->i_flag |= IN_CHANGE;
+		else
+			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
 		if ((bp->b_flags & (B_MALLOC | B_VMIO)) != B_VMIO)
@@ -391,7 +397,10 @@ retry:
 			UFS_UNLOCK(ump);
 		}
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		if (flags & IO_EXT)
+			ip->i_flag |= IN_CHANGE;
+		else
+			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
 		if ((bp->b_flags & (B_MALLOC | B_VMIO)) != B_VMIO)
@@ -920,7 +929,7 @@ ffs_valloc(pvp, mode, cred, vpp)
 	struct timespec ts;
 	struct ufsmount *ump;
 	ino_t ino, ipref;
-	int cg, error;
+	int cg, error, error1;
 	static struct timeval lastfail;
 	static int curfail;
 
@@ -1838,7 +1847,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum)
 	struct cdev *dev;
 
 	cg = dtog(fs, bno);
-	if (devvp->v_type != VCHR) {
+	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
 		dev = VTOI(devvp)->i_devvp->v_rdev;
 		cgblkno = fragstoblks(fs, cgtod(fs, cg));
@@ -1883,7 +1892,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum)
 	if (size == fs->fs_bsize) {
 		fragno = fragstoblks(fs, cgbno);
 		if (!ffs_isfreeblock(fs, blksfree, fragno)) {
-			if (devvp->v_type != VCHR) {
+			if (devvp->v_type == VREG) {
 				UFS_UNLOCK(ump);
 				/* devvp is a snapshot */
 				brelse(bp);
@@ -2036,7 +2045,7 @@ ffs_freefile(ump, fs, devvp, ino, mode)
 	struct cdev *dev;
 
 	cg = ino_to_cg(fs, ino);
-	if (devvp->v_type != VCHR) {
+	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
 		dev = VTOI(devvp)->i_devvp->v_rdev;
 		cgbno = fragstoblks(fs, cgtod(fs, cg));
@@ -2102,7 +2111,7 @@ ffs_checkfreefile(fs, devvp, ino)
 	u_int8_t *inosused;
 
 	cg = ino_to_cg(fs, ino);
-	if (devvp->v_type != VCHR) {
+	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
 		cgbno = fragstoblks(fs, cgtod(fs, cg));
 	} else {

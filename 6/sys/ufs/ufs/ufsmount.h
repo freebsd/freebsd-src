@@ -73,8 +73,8 @@ struct ufsmount {
 	u_long	um_seqinc;			/* inc between seq blocks */
 	struct	mtx um_lock;			/* Protects ufsmount & fs */
 	long	um_numindirdeps;		/* outstanding indirdeps */
-	struct workhead softdep_workitem_pending; /* softdep work queue */
-	struct worklist *softdep_worklist_tail;	/* Tail pointer for above */
+	struct	workhead softdep_workitem_pending; /* softdep work queue */
+	struct	worklist *softdep_worklist_tail; /* Tail pointer for above */
 	int	softdep_on_worklist;		/* Items on the worklist */
 	int	softdep_on_worklist_inprogress;	/* Busy items on worklist */
 	int	softdep_deps;			/* Total dependency count */

@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 
 static uma_zone_t uma_inode, uma_ufs1, uma_ufs2;
 
-static int	ffs_sbupdate(struct ufsmount *, int, int);
 static int	ffs_reload(struct mount *, struct thread *);
 static int	ffs_mountfs(struct vnode *, struct mount *, struct thread *);
 static void	ffs_oldfscompat_read(struct fs *, struct ufsmount *,
@@ -1472,7 +1471,7 @@ ffs_uninit(vfsp)
 /*
  * Write a superblock and associated information back to disk.
  */
-static int
+int
 ffs_sbupdate(mp, waitfor, suspended)
 	struct ufsmount *mp;
 	int waitfor;
