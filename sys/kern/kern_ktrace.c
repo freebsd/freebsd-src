@@ -257,6 +257,10 @@ ktrace_resize_pool(u_int newsize)
 	return (ktr_requestpool);
 }
 
+/* ktr_getrequest() assumes that ktr_comm[] is the same size as p_comm[]. */
+CTASSERT(sizeof(((struct ktr_header *)NULL)->ktr_comm) ==
+    (sizeof((struct proc *)NULL)->p_comm));
+
 static struct ktr_request *
 ktr_getrequest(int type)
 {
@@ -284,7 +288,8 @@ ktr_getrequest(int type)
 		microtime(&req->ktr_header.ktr_time);
 		req->ktr_header.ktr_pid = p->p_pid;
 		req->ktr_header.ktr_tid = td->td_tid;
-		bcopy(p->p_comm, req->ktr_header.ktr_comm, MAXCOMLEN + 1);
+		bcopy(p->p_comm, req->ktr_header.ktr_comm,
+		    sizeof(req->ktr_header.ktr_comm));
 		req->ktr_buffer = NULL;
 		req->ktr_header.ktr_len = 0;
 	} else {
