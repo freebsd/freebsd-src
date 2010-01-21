@@ -581,16 +581,10 @@ NNON_LEAF(MipsUserGenException, STAND_FRAME_SIZE, ra)
 #ifdef TARGET_OCTEON
 	and k0, k0, ~(MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX)
 #endif
-	or  k0, k0, (MIPS_SR_INT_IE)
 	.set noat
 	RESTORE_U_PCB_REG(AT, AST, k1)
 
-/*
- * The restoration of the user SR must be done only after
- * k1 is no longer needed.  Otherwise, k1 will get clobbered after
- * interrupts are enabled.
- */
-	mtc0	k0, COP_0_STATUS_REG	# still exeption level
+	mtc0	k0, COP_0_STATUS_REG	# still exception level
 	ITLBNOPFIX
 	sync
 	eret
@@ -814,15 +808,9 @@ NNON_LEAF(MipsUserIntr, STAND_FRAME_SIZE, ra)
 #ifdef TARGET_OCTEON
 	and k0, k0, ~(MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX)
 #endif
-	or  k0, k0, (MIPS_SR_INT_IE|SR_EXL)
 	.set	noat
 	RESTORE_U_PCB_REG(AT, AST, k1)
 
-/*
- * The restoration of the user SR must be done only after
- * k1 is no longer needed.  Otherwise, k1 will get clobbered after
- * interrupts are enabled.
- */
 	mtc0	k0, COP_0_STATUS_REG	# SR with EXL set. 
 	ITLBNOPFIX
 	sync
