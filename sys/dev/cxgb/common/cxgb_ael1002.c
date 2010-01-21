@@ -49,16 +49,30 @@ enum {
 enum {
 	AEL100X_TX_DISABLE  = 9,
 	AEL100X_TX_CONFIG1  = 0xc002,
+
 	AEL1002_PWR_DOWN_HI = 0xc011,
 	AEL1002_PWR_DOWN_LO = 0xc012,
 	AEL1002_XFI_EQL     = 0xc015,
 	AEL1002_LB_EN       = 0xc017,
+
 	AEL_OPT_SETTINGS    = 0xc017,
 	AEL_I2C_CTRL        = 0xc30a,
 	AEL_I2C_DATA        = 0xc30b,
 	AEL_I2C_STAT        = 0xc30c,
+
 	AEL2005_GPIO_CTRL   = 0xc214,
 	AEL2005_GPIO_STAT   = 0xc215,
+
+	AEL2020_GPIO_INTR   = 0xc103,
+	AEL2020_GPIO_CTRL   = 0xc108,
+	AEL2020_GPIO_STAT   = 0xc10c,
+	AEL2020_GPIO_CFG    = 0xc110,
+
+	AEL2020_GPIO_SDA    = 0,
+	AEL2020_GPIO_MODDET = 1,
+	AEL2020_GPIO_0      = 3,
+	AEL2020_GPIO_1      = 2,
+	AEL2020_GPIO_LSTAT  = AEL2020_GPIO_1,
 };
 
 enum { edc_none, edc_sr, edc_twinax };
@@ -85,7 +99,7 @@ struct reg_val {
 	unsigned short set_bits;
 };
 
-static int get_module_type(struct cphy *phy);
+static int ael2xxx_get_module_type(struct cphy *phy, int delay_ms);
 
 static int set_phy_regs(struct cphy *phy, const struct reg_val *rv)
 {
@@ -112,6 +126,9 @@ static void ael100x_txon(struct cphy *phy)
 	msleep(30);
 }
 
+/*
+ * Read an 8-bit word from a device attached to the PHY's i2c bus.
+ */
 static int ael_i2c_rd(struct cphy *phy, int dev_addr, int word_addr)
 {
 	int i, err;
@@ -135,11 +152,14 @@ static int ael_i2c_rd(struct cphy *phy, int dev_addr, int word_addr)
 			return data >> 8;
 		}
 	}
-	CH_WARN(phy->adapter, "PHY %u I2C read of addr %u timed out\n",
-		phy->addr, word_addr);
+	CH_WARN(phy->adapter, "PHY %u i2c read of dev.addr %x.%x timed out\n",
+		phy->addr, dev_addr, word_addr);
 	return -ETIMEDOUT;
 }
 
+/*
+ * Write an 8-bit word to a device attached to the PHY's i2c bus.
+ */
 static int ael_i2c_wr(struct cphy *phy, int dev_addr, int word_addr, int data)
 {
 	int i, err;
@@ -162,8 +182,8 @@ static int ael_i2c_wr(struct cphy *phy, int dev_addr, int word_addr, int data)
 		if ((stat & 3) == 1)
 			return 0;
 	}
-	CH_WARN(phy->adapter, "PHY %u I2C Write of addr %u timed out\n",
-		phy->addr, word_addr);
+	CH_WARN(phy->adapter, "PHY %u i2c Write of dev.addr %x.%x = %#x timed out\n",
+		phy->addr, dev_addr, word_addr, data);
 	return -ETIMEDOUT;
 }
 
@@ -234,9 +254,9 @@ static int ael1002_get_module_type(struct cphy *phy, int delay_ms)
 	if (delay_ms)
 		msleep(delay_ms);
 
-	v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 0);
+	v = ael2xxx_get_module_type(phy, delay_ms);
 
-	return v == -ETIMEDOUT ? phy_modtype_none : get_module_type(phy);
+	return (v == -ETIMEDOUT ? phy_modtype_none : v);
 }
 
 static int ael1002_reset(struct cphy *phy, int wait)
@@ -316,12 +336,13 @@ static struct cphy_ops ael1002_ops = {
 };
 #endif
 
-int t3_ael1002_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_ael1002_phy_prep(pinfo_t *pinfo, int phy_addr,
 			const struct mdio_ops *mdio_ops)
 {
 	int err;
+	struct cphy *phy = &pinfo->phy;
 
-	cphy_init(phy, adapter, phy_addr, &ael1002_ops, mdio_ops,
+	cphy_init(phy, pinfo->adapter, pinfo, phy_addr, &ael1002_ops, mdio_ops,
 		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE,
 		  "10GBASE-R");
 	ael100x_txon(phy);
@@ -370,12 +391,6 @@ static int ael1006_reset(struct cphy *phy, int wait)
 	   
 }
 
-static int ael1006_power_down(struct cphy *phy, int enable)
-{
-	return t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, MII_BMCR,
-				   BMCR_PDOWN, enable ? BMCR_PDOWN : 0);
-}
-
 #ifdef C99_NOT_SUPPORTED
 static struct cphy_ops ael1006_ops = {
 	ael1006_reset,
@@ -389,7 +404,7 @@ static struct cphy_ops ael1006_ops = {
 	NULL,
 	NULL,
 	get_link_status_r,
-	ael1006_power_down,
+	ael1002_power_down,
 };
 #else
 static struct cphy_ops ael1006_ops = {
@@ -399,20 +414,97 @@ static struct cphy_ops ael1006_ops = {
 	.intr_clear      = t3_phy_lasi_intr_clear,
 	.intr_handler    = t3_phy_lasi_intr_handler,
 	.get_link_status = get_link_status_r,
-	.power_down      = ael1006_power_down,
+	.power_down      = ael1002_power_down,
 };
 #endif
 
-int t3_ael1006_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_ael1006_phy_prep(pinfo_t *pinfo, int phy_addr,
 			const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, phy_addr, &ael1006_ops, mdio_ops,
+	struct cphy *phy = &pinfo->phy;
+
+	cphy_init(phy, pinfo->adapter, pinfo, phy_addr, &ael1006_ops, mdio_ops,
 		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE,
 		  "10GBASE-SR");
+	phy->modtype = phy_modtype_sr;
 	ael100x_txon(phy);
 	return 0;
 }
 
+/*
+ * Decode our module type.
+ */
+static int ael2xxx_get_module_type(struct cphy *phy, int delay_ms)
+{
+	int v;
+
+	if (delay_ms)
+		msleep(delay_ms);
+
+	v = get_phytrans_type(phy);
+	if (v == phy_transtype_sfp) {
+		/* SFP: see SFF-8472 for below */
+
+		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 3);
+		if (v < 0)
+			return v;
+
+		if (v == 0x1)
+			return phy_modtype_twinax;
+		if (v == 0x10)
+			return phy_modtype_sr;
+		if (v == 0x20)
+			return phy_modtype_lr;
+		if (v == 0x40)
+			return phy_modtype_lrm;
+
+		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 6);
+		if (v < 0)
+			return v;
+		if (v != 4)
+			return phy_modtype_unknown;
+
+		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 10);
+		if (v < 0)
+			return v;
+
+		if (v & 0x80) {
+			v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 0x12);
+			if (v < 0)
+				return v;
+			return v > 10 ? phy_modtype_twinax_long :
+			    phy_modtype_twinax;
+		}
+	} else if (v == phy_transtype_xfp) {
+		/* XFP: See INF-8077i for details. */
+
+		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 127);
+		if (v < 0)
+			return v;
+
+		if (v != 1) {
+			/* XXX: set page select to table 1 yourself */
+			return phy_modtype_unknown;
+		}
+
+		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 131);
+		if (v < 0)
+			return v;
+		v &= 0xf0;
+		if (v == 0x10)
+			return phy_modtype_lrm;
+		if (v == 0x40)
+			return phy_modtype_lr;
+		if (v == 0x80)
+			return phy_modtype_sr;
+	}
+
+	return phy_modtype_unknown;
+}
+
+/*
+ * Code to support the Aeluros/NetLogic 2005 10Gb PHY.
+ */
 static int ael2005_setup_sr_edc(struct cphy *phy)
 {
 	static struct reg_val regs[] = {
@@ -1107,71 +1199,20 @@ static int ael2005_setup_twinax_edc(struct cphy *phy, int modtype)
 	return err;
 }
 
-static int get_module_type(struct cphy *phy)
+static int ael2005_get_module_type(struct cphy *phy, int delay_ms)
 {
 	int v;
+	unsigned int stat;
 
-	v = get_phytrans_type(phy);
-	if (v == phy_transtype_sfp) {
-		/* SFP: see SFF-8472 for below */
+	v = mdio_read(phy, MDIO_DEV_PMA_PMD, AEL2005_GPIO_CTRL, &stat);
+	if (v)
+		return v;
 
-		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 3);
-		if (v < 0)
-			return v;
+	if (stat & (1 << 8))			/* module absent */
+		return phy_modtype_none;
 
-		if (v == 0x1)
-			return phy_modtype_twinax;
-		if (v == 0x10)
-			return phy_modtype_sr;
-		if (v == 0x20)
-			return phy_modtype_lr;
-		if (v == 0x40)
-			return phy_modtype_lrm;
-
-		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 6);
-		if (v < 0)
-			return v;
-		if (v != 4)
-			return phy_modtype_unknown;
-
-		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 10);
-		if (v < 0)
-			return v;
-
-		if (v & 0x80) {
-			v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 0x12);
-			if (v < 0)
-				return v;
-			return v > 10 ? phy_modtype_twinax_long :
-			    phy_modtype_twinax;
-		}
-	} else if (v == phy_transtype_xfp) {
-		/* XFP: See INF-8077i for details. */
-
-		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 127);
-		if (v < 0)
-			return v;
-
-		if (v != 1) {
-			/* XXX: set page select to table 1 yourself */
-			return phy_modtype_unknown;
-		}
-
-		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 131);
-		if (v < 0)
-			return v;
-		v &= 0xf0;
-		if (v == 0x10)
-			return phy_modtype_lrm;
-		if (v == 0x40)
-			return phy_modtype_lr;
-		if (v == 0x80)
-			return phy_modtype_sr;
-	}
-
-	return phy_modtype_unknown;
+	return ael2xxx_get_module_type(phy, delay_ms);
 }
-
 
 static int ael2005_intr_enable(struct cphy *phy)
 {
@@ -1189,24 +1230,6 @@ static int ael2005_intr_clear(struct cphy *phy)
 {
 	int err = mdio_write(phy, MDIO_DEV_PMA_PMD, AEL2005_GPIO_CTRL, 0xd00);
 	return err ? err : t3_phy_lasi_intr_clear(phy);
-}
-
-static int ael2005_get_module_type(struct cphy *phy, int delay_ms)
-{
-	int v;
-	unsigned int stat;
-
-	v = mdio_read(phy, MDIO_DEV_PMA_PMD, AEL2005_GPIO_CTRL, &stat);
-	if (v)
-		return v;
-
-	if (stat & (1 << 8))			/* module absent */
-		return phy_modtype_none;
-
-	if (delay_ms)
-		msleep(delay_ms);
-
-	return get_module_type(phy);
 }
 
 static int ael2005_reset(struct cphy *phy, int wait)
@@ -1227,7 +1250,8 @@ static int ael2005_reset(struct cphy *phy, int wait)
 		{ 0, 0, 0, 0 }
 	};
 
-	int err, lasi_ctrl;
+	int err;
+	unsigned int lasi_ctrl;
 
 	err = mdio_read(phy, MDIO_DEV_PMA_PMD, LASI_CTRL, &lasi_ctrl);
 	if (err)
@@ -1315,8 +1339,8 @@ static int ael2005_intr_handler(struct cphy *phy)
 	return ret;
 }
 
-#ifdef C99_NOT_SUPPORTED
 static struct cphy_ops ael2005_ops = {
+#ifdef C99_NOT_SUPPORTED
 	ael2005_reset,
 	ael2005_intr_enable,
 	ael2005_intr_disable,
@@ -1329,9 +1353,7 @@ static struct cphy_ops ael2005_ops = {
 	NULL,
 	get_link_status_r,
 	ael1002_power_down,
-};
 #else
-static struct cphy_ops ael2005_ops = {
 	.reset           = ael2005_reset,
 	.intr_enable     = ael2005_intr_enable,
 	.intr_disable    = ael2005_intr_disable,
@@ -1339,14 +1361,16 @@ static struct cphy_ops ael2005_ops = {
 	.intr_handler    = ael2005_intr_handler,
 	.get_link_status = get_link_status_r,
 	.power_down      = ael1002_power_down,
-};
 #endif
+};
 
-int t3_ael2005_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_ael2005_phy_prep(pinfo_t *pinfo, int phy_addr,
 			const struct mdio_ops *mdio_ops)
 {
 	int err;
-	cphy_init(phy, adapter, phy_addr, &ael2005_ops, mdio_ops,
+	struct cphy *phy = &pinfo->phy;
+
+	cphy_init(phy, pinfo->adapter, pinfo, phy_addr, &ael2005_ops, mdio_ops,
 		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE |
 		  SUPPORTED_IRQ, "10GBASE-R");
 	msleep(125);
@@ -1358,6 +1382,713 @@ int t3_ael2005_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 
 	return t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, AEL_OPT_SETTINGS, 0,
 				   1 << 5);
+}
+
+/*
+ * Setup EDC and other parameters for operation with an optical module.
+ */
+static int ael2020_setup_sr_edc(struct cphy *phy)
+{
+	static struct reg_val regs[] = {
+		{ MDIO_DEV_PMA_PMD, 0xcc01, 0xffff, 0x488a },
+
+		{ MDIO_DEV_PMA_PMD, 0xcb1b, 0xffff, 0x0200 },
+		{ MDIO_DEV_PMA_PMD, 0xcb1c, 0xffff, 0x00f0 },
+		{ MDIO_DEV_PMA_PMD, 0xcc06, 0xffff, 0x00e0 },
+
+		/* end */
+		{ 0, 0, 0, 0 }
+	};
+	int err;
+
+	err = set_phy_regs(phy, regs);
+	msleep(50);
+	if (err)
+		return err;
+
+	phy->priv = edc_sr;
+	return 0;
+}
+
+/*
+ * Setup EDC and other parameters for operation with an TWINAX module.
+ */
+static int ael2020_setup_twinax_edc(struct cphy *phy, int modtype)
+{
+	static struct reg_val uCclock40MHz[] = {
+		{ MDIO_DEV_PMA_PMD, 0xff28, 0xffff, 0x4001 },
+		{ MDIO_DEV_PMA_PMD, 0xff2a, 0xffff, 0x0002 },
+		{ 0, 0, 0, 0 }
+	};
+
+	static struct reg_val uCclockActivate[] = {
+		{ MDIO_DEV_PMA_PMD, 0xd000, 0xffff, 0x5200 },
+		{ 0, 0, 0, 0 }
+	};
+
+	static struct reg_val uCactivate[] = {
+		{ MDIO_DEV_PMA_PMD, 0xd080, 0xffff, 0x0100 },
+		{ MDIO_DEV_PMA_PMD, 0xd092, 0xffff, 0x0000 },
+		{ 0, 0, 0, 0 }
+	};
+
+	static u16 twinax_edc[] = {
+		0xd800, 0x4009,
+		0xd801, 0x2fff,
+		0xd802, 0x300f,
+		0xd803, 0x40aa,
+		0xd804, 0x401c,
+		0xd805, 0x401e,
+		0xd806, 0x2ff4,
+		0xd807, 0x3dc4,
+		0xd808, 0x2035,
+		0xd809, 0x3035,
+		0xd80a, 0x6524,
+		0xd80b, 0x2cb2,
+		0xd80c, 0x3012,
+		0xd80d, 0x1002,
+		0xd80e, 0x26e2,
+		0xd80f, 0x3022,
+		0xd810, 0x1002,
+		0xd811, 0x27d2,
+		0xd812, 0x3022,
+		0xd813, 0x1002,
+		0xd814, 0x2822,
+		0xd815, 0x3012,
+		0xd816, 0x1002,
+		0xd817, 0x2492,
+		0xd818, 0x3022,
+		0xd819, 0x1002,
+		0xd81a, 0x2772,
+		0xd81b, 0x3012,
+		0xd81c, 0x1002,
+		0xd81d, 0x23d2,
+		0xd81e, 0x3022,
+		0xd81f, 0x1002,
+		0xd820, 0x22cd,
+		0xd821, 0x301d,
+		0xd822, 0x27f2,
+		0xd823, 0x3022,
+		0xd824, 0x1002,
+		0xd825, 0x5553,
+		0xd826, 0x0307,
+		0xd827, 0x2522,
+		0xd828, 0x3022,
+		0xd829, 0x1002,
+		0xd82a, 0x2142,
+		0xd82b, 0x3012,
+		0xd82c, 0x1002,
+		0xd82d, 0x4016,
+		0xd82e, 0x5e63,
+		0xd82f, 0x0344,
+		0xd830, 0x2142,
+		0xd831, 0x3012,
+		0xd832, 0x1002,
+		0xd833, 0x400e,
+		0xd834, 0x2522,
+		0xd835, 0x3022,
+		0xd836, 0x1002,
+		0xd837, 0x2b52,
+		0xd838, 0x3012,
+		0xd839, 0x1002,
+		0xd83a, 0x2742,
+		0xd83b, 0x3022,
+		0xd83c, 0x1002,
+		0xd83d, 0x25e2,
+		0xd83e, 0x3022,
+		0xd83f, 0x1002,
+		0xd840, 0x2fa4,
+		0xd841, 0x3dc4,
+		0xd842, 0x6624,
+		0xd843, 0x414b,
+		0xd844, 0x56b3,
+		0xd845, 0x03c6,
+		0xd846, 0x866b,
+		0xd847, 0x400c,
+		0xd848, 0x2712,
+		0xd849, 0x3012,
+		0xd84a, 0x1002,
+		0xd84b, 0x2c4b,
+		0xd84c, 0x309b,
+		0xd84d, 0x56b3,
+		0xd84e, 0x03c3,
+		0xd84f, 0x866b,
+		0xd850, 0x400c,
+		0xd851, 0x2272,
+		0xd852, 0x3022,
+		0xd853, 0x1002,
+		0xd854, 0x2742,
+		0xd855, 0x3022,
+		0xd856, 0x1002,
+		0xd857, 0x25e2,
+		0xd858, 0x3022,
+		0xd859, 0x1002,
+		0xd85a, 0x2fb4,
+		0xd85b, 0x3dc4,
+		0xd85c, 0x6624,
+		0xd85d, 0x56b3,
+		0xd85e, 0x03c3,
+		0xd85f, 0x866b,
+		0xd860, 0x401c,
+		0xd861, 0x2c45,
+		0xd862, 0x3095,
+		0xd863, 0x5b53,
+		0xd864, 0x2372,
+		0xd865, 0x3012,
+		0xd866, 0x13c2,
+		0xd867, 0x5cc3,
+		0xd868, 0x2712,
+		0xd869, 0x3012,
+		0xd86a, 0x1312,
+		0xd86b, 0x2b52,
+		0xd86c, 0x3012,
+		0xd86d, 0x1002,
+		0xd86e, 0x2742,
+		0xd86f, 0x3022,
+		0xd870, 0x1002,
+		0xd871, 0x2582,
+		0xd872, 0x3022,
+		0xd873, 0x1002,
+		0xd874, 0x2142,
+		0xd875, 0x3012,
+		0xd876, 0x1002,
+		0xd877, 0x628f,
+		0xd878, 0x2985,
+		0xd879, 0x33a5,
+		0xd87a, 0x25e2,
+		0xd87b, 0x3022,
+		0xd87c, 0x1002,
+		0xd87d, 0x5653,
+		0xd87e, 0x03d2,
+		0xd87f, 0x401e,
+		0xd880, 0x6f72,
+		0xd881, 0x1002,
+		0xd882, 0x628f,
+		0xd883, 0x2304,
+		0xd884, 0x3c84,
+		0xd885, 0x6436,
+		0xd886, 0xdff4,
+		0xd887, 0x6436,
+		0xd888, 0x2ff5,
+		0xd889, 0x3005,
+		0xd88a, 0x8656,
+		0xd88b, 0xdfba,
+		0xd88c, 0x56a3,
+		0xd88d, 0xd05a,
+		0xd88e, 0x2972,
+		0xd88f, 0x3012,
+		0xd890, 0x1392,
+		0xd891, 0xd05a,
+		0xd892, 0x56a3,
+		0xd893, 0xdfba,
+		0xd894, 0x0383,
+		0xd895, 0x6f72,
+		0xd896, 0x1002,
+		0xd897, 0x2b45,
+		0xd898, 0x3005,
+		0xd899, 0x4178,
+		0xd89a, 0x5653,
+		0xd89b, 0x0384,
+		0xd89c, 0x2a62,
+		0xd89d, 0x3012,
+		0xd89e, 0x1002,
+		0xd89f, 0x2f05,
+		0xd8a0, 0x3005,
+		0xd8a1, 0x41c8,
+		0xd8a2, 0x5653,
+		0xd8a3, 0x0382,
+		0xd8a4, 0x0002,
+		0xd8a5, 0x4218,
+		0xd8a6, 0x2474,
+		0xd8a7, 0x3c84,
+		0xd8a8, 0x6437,
+		0xd8a9, 0xdff4,
+		0xd8aa, 0x6437,
+		0xd8ab, 0x2ff5,
+		0xd8ac, 0x3c05,
+		0xd8ad, 0x8757,
+		0xd8ae, 0xb888,
+		0xd8af, 0x9787,
+		0xd8b0, 0xdff4,
+		0xd8b1, 0x6724,
+		0xd8b2, 0x866a,
+		0xd8b3, 0x6f72,
+		0xd8b4, 0x1002,
+		0xd8b5, 0x2641,
+		0xd8b6, 0x3021,
+		0xd8b7, 0x1001,
+		0xd8b8, 0xc620,
+		0xd8b9, 0x0000,
+		0xd8ba, 0xc621,
+		0xd8bb, 0x0000,
+		0xd8bc, 0xc622,
+		0xd8bd, 0x00ce,
+		0xd8be, 0xc623,
+		0xd8bf, 0x007f,
+		0xd8c0, 0xc624,
+		0xd8c1, 0x0032,
+		0xd8c2, 0xc625,
+		0xd8c3, 0x0000,
+		0xd8c4, 0xc627,
+		0xd8c5, 0x0000,
+		0xd8c6, 0xc628,
+		0xd8c7, 0x0000,
+		0xd8c8, 0xc62c,
+		0xd8c9, 0x0000,
+		0xd8ca, 0x0000,
+		0xd8cb, 0x2641,
+		0xd8cc, 0x3021,
+		0xd8cd, 0x1001,
+		0xd8ce, 0xc502,
+		0xd8cf, 0x53ac,
+		0xd8d0, 0xc503,
+		0xd8d1, 0x2cd3,
+		0xd8d2, 0xc600,
+		0xd8d3, 0x2a6e,
+		0xd8d4, 0xc601,
+		0xd8d5, 0x2a2c,
+		0xd8d6, 0xc605,
+		0xd8d7, 0x5557,
+		0xd8d8, 0xc60c,
+		0xd8d9, 0x5400,
+		0xd8da, 0xc710,
+		0xd8db, 0x0700,
+		0xd8dc, 0xc711,
+		0xd8dd, 0x0f06,
+		0xd8de, 0xc718,
+		0xd8df, 0x0700,
+		0xd8e0, 0xc719,
+		0xd8e1, 0x0f06,
+		0xd8e2, 0xc720,
+		0xd8e3, 0x4700,
+		0xd8e4, 0xc721,
+		0xd8e5, 0x0f06,
+		0xd8e6, 0xc728,
+		0xd8e7, 0x0700,
+		0xd8e8, 0xc729,
+		0xd8e9, 0x1207,
+		0xd8ea, 0xc801,
+		0xd8eb, 0x7f50,
+		0xd8ec, 0xc802,
+		0xd8ed, 0x7760,
+		0xd8ee, 0xc803,
+		0xd8ef, 0x7fce,
+		0xd8f0, 0xc804,
+		0xd8f1, 0x520e,
+		0xd8f2, 0xc805,
+		0xd8f3, 0x5c11,
+		0xd8f4, 0xc806,
+		0xd8f5, 0x3c51,
+		0xd8f6, 0xc807,
+		0xd8f7, 0x4061,
+		0xd8f8, 0xc808,
+		0xd8f9, 0x49c1,
+		0xd8fa, 0xc809,
+		0xd8fb, 0x3840,
+		0xd8fc, 0xc80a,
+		0xd8fd, 0x0000,
+		0xd8fe, 0xc821,
+		0xd8ff, 0x0002,
+		0xd900, 0xc822,
+		0xd901, 0x0046,
+		0xd902, 0xc844,
+		0xd903, 0x182f,
+		0xd904, 0xc013,
+		0xd905, 0xf341,
+		0xd906, 0xc084,
+		0xd907, 0x0030,
+		0xd908, 0xc904,
+		0xd909, 0x1401,
+		0xd90a, 0xcb0c,
+		0xd90b, 0x0004,
+		0xd90c, 0xcb0e,
+		0xd90d, 0xa00a,
+		0xd90e, 0xcb0f,
+		0xd90f, 0xc0c0,
+		0xd910, 0xcb10,
+		0xd911, 0xc0c0,
+		0xd912, 0xcb11,
+		0xd913, 0x00a0,
+		0xd914, 0xcb12,
+		0xd915, 0x0007,
+		0xd916, 0xc241,
+		0xd917, 0xa000,
+		0xd918, 0xc243,
+		0xd919, 0x7fe0,
+		0xd91a, 0xc604,
+		0xd91b, 0x000e,
+		0xd91c, 0xc609,
+		0xd91d, 0x00f5,
+		0xd91e, 0xc611,
+		0xd91f, 0x000e,
+		0xd920, 0xc660,
+		0xd921, 0x9600,
+		0xd922, 0xc687,
+		0xd923, 0x0004,
+		0xd924, 0xc60a,
+		0xd925, 0x04f5,
+		0xd926, 0x0000,
+		0xd927, 0x2641,
+		0xd928, 0x3021,
+		0xd929, 0x1001,
+		0xd92a, 0xc620,
+		0xd92b, 0x14e5,
+		0xd92c, 0xc621,
+		0xd92d, 0xc53d,
+		0xd92e, 0xc622,
+		0xd92f, 0x3cbe,
+		0xd930, 0xc623,
+		0xd931, 0x4452,
+		0xd932, 0xc624,
+		0xd933, 0xc5c5,
+		0xd934, 0xc625,
+		0xd935, 0xe01e,
+		0xd936, 0xc627,
+		0xd937, 0x0000,
+		0xd938, 0xc628,
+		0xd939, 0x0000,
+		0xd93a, 0xc62c,
+		0xd93b, 0x0000,
+		0xd93c, 0x0000,
+		0xd93d, 0x2b84,
+		0xd93e, 0x3c74,
+		0xd93f, 0x6435,
+		0xd940, 0xdff4,
+		0xd941, 0x6435,
+		0xd942, 0x2806,
+		0xd943, 0x3006,
+		0xd944, 0x8565,
+		0xd945, 0x2b24,
+		0xd946, 0x3c24,
+		0xd947, 0x6436,
+		0xd948, 0x1002,
+		0xd949, 0x2b24,
+		0xd94a, 0x3c24,
+		0xd94b, 0x6436,
+		0xd94c, 0x4045,
+		0xd94d, 0x8656,
+		0xd94e, 0x5663,
+		0xd94f, 0x0302,
+		0xd950, 0x401e,
+		0xd951, 0x1002,
+		0xd952, 0x2807,
+		0xd953, 0x31a7,
+		0xd954, 0x20c4,
+		0xd955, 0x3c24,
+		0xd956, 0x6724,
+		0xd957, 0x1002,
+		0xd958, 0x2807,
+		0xd959, 0x3187,
+		0xd95a, 0x20c4,
+		0xd95b, 0x3c24,
+		0xd95c, 0x6724,
+		0xd95d, 0x1002,
+		0xd95e, 0x24f4,
+		0xd95f, 0x3c64,
+		0xd960, 0x6436,
+		0xd961, 0xdff4,
+		0xd962, 0x6436,
+		0xd963, 0x1002,
+		0xd964, 0x2006,
+		0xd965, 0x3d76,
+		0xd966, 0xc161,
+		0xd967, 0x6134,
+		0xd968, 0x6135,
+		0xd969, 0x5443,
+		0xd96a, 0x0303,
+		0xd96b, 0x6524,
+		0xd96c, 0x00fb,
+		0xd96d, 0x1002,
+		0xd96e, 0x20d4,
+		0xd96f, 0x3c24,
+		0xd970, 0x2025,
+		0xd971, 0x3005,
+		0xd972, 0x6524,
+		0xd973, 0x1002,
+		0xd974, 0xd019,
+		0xd975, 0x2104,
+		0xd976, 0x3c24,
+		0xd977, 0x2105,
+		0xd978, 0x3805,
+		0xd979, 0x6524,
+		0xd97a, 0xdff4,
+		0xd97b, 0x4005,
+		0xd97c, 0x6524,
+		0xd97d, 0x2e8d,
+		0xd97e, 0x303d,
+		0xd97f, 0x2408,
+		0xd980, 0x35d8,
+		0xd981, 0x5dd3,
+		0xd982, 0x0307,
+		0xd983, 0x8887,
+		0xd984, 0x63a7,
+		0xd985, 0x8887,
+		0xd986, 0x63a7,
+		0xd987, 0xdffd,
+		0xd988, 0x00f9,
+		0xd989, 0x1002,
+		0xd98a, 0x0000,
+	};
+	int i, err;
+
+	/* set uC clock and activate it */
+	err = set_phy_regs(phy, uCclock40MHz);
+	msleep(500);
+	if (err)
+		return err;
+	err = set_phy_regs(phy, uCclockActivate);
+	msleep(500);
+	if (err)
+		return err;
+
+	for (i = 0; i < ARRAY_SIZE(twinax_edc) && !err; i += 2)
+		err = mdio_write(phy, MDIO_DEV_PMA_PMD, twinax_edc[i],
+				 twinax_edc[i + 1]);
+	/* activate uC */
+	err = set_phy_regs(phy, uCactivate);
+	if (!err)
+		phy->priv = edc_twinax;
+	return err;
+}
+
+/*
+ * Return Module Type.
+ */
+static int ael2020_get_module_type(struct cphy *phy, int delay_ms)
+{
+	int v;
+	unsigned int stat;
+
+	v = mdio_read(phy, MDIO_DEV_PMA_PMD, AEL2020_GPIO_STAT, &stat);
+	if (v)
+		return v;
+
+	if (stat & (0x1 << (AEL2020_GPIO_MODDET*4))) {
+		/* module absent */
+		return phy_modtype_none;
+	}
+
+	return ael2xxx_get_module_type(phy, delay_ms);
+}
+
+/*
+ * Enable PHY interrupts.  We enable "Module Detection" interrupts (on any
+ * state transition) and then generic Link Alarm Status Interrupt (LASI).
+ */
+static int ael2020_intr_enable(struct cphy *phy)
+{
+	struct reg_val regs[] = {
+		{ MDIO_DEV_PMA_PMD, AEL2020_GPIO_CFG+AEL2020_GPIO_LSTAT,
+			0xffff, 0x4 },
+		{ MDIO_DEV_PMA_PMD, AEL2020_GPIO_CTRL,
+			0xffff, 0x8 << (AEL2020_GPIO_LSTAT*4) },
+
+		{ MDIO_DEV_PMA_PMD, AEL2020_GPIO_CTRL,
+			0xffff, 0x2 << (AEL2020_GPIO_MODDET*4) },
+
+		/* end */
+		{ 0, 0, 0, 0 }
+	};
+	int err;
+
+	err = set_phy_regs(phy, regs);
+	if (err)
+		return err;
+
+	phy->caps |= POLL_LINK_1ST_TIME;
+
+	/* enable standard Link Alarm Status Interrupts */
+	err = t3_phy_lasi_intr_enable(phy);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+/*
+ * Disable PHY interrupts.  The mirror of the above ...
+ */
+static int ael2020_intr_disable(struct cphy *phy)
+{
+	struct reg_val regs[] = {
+		{ MDIO_DEV_PMA_PMD, AEL2020_GPIO_CTRL,
+			0xffff, 0xb << (AEL2020_GPIO_LSTAT*4) },
+
+		{ MDIO_DEV_PMA_PMD, AEL2020_GPIO_CTRL,
+			0xffff, 0x1 << (AEL2020_GPIO_MODDET*4) },
+
+		/* end */
+		{ 0, 0, 0, 0 }
+	};
+	int err;
+
+	err = set_phy_regs(phy, regs);
+	if (err)
+		return err;
+
+	/* disable standard Link Alarm Status Interrupts */
+	return t3_phy_lasi_intr_disable(phy);
+}
+
+/*
+ * Clear PHY interrupt state.
+ */
+static int ael2020_intr_clear(struct cphy *phy)
+{
+	unsigned int stat;
+	int err = mdio_read(phy, MDIO_DEV_PMA_PMD, AEL2020_GPIO_INTR, &stat);
+	return err ? err : t3_phy_lasi_intr_clear(phy);
+}
+
+/*
+ * Common register settings for the AEL2020 when it comes out of reset.
+ */
+static struct reg_val ael2020_reset_regs[] = {
+	{ MDIO_DEV_PMA_PMD, 0xc003, 0xffff, 0x3101 },
+
+	{ MDIO_DEV_PMA_PMD, 0xcd40, 0xffff, 0x0001 },
+
+	{ MDIO_DEV_PMA_PMD, 0xff02, 0xffff, 0x0023 },
+	{ MDIO_DEV_PMA_PMD, 0xff03, 0xffff, 0x0000 },
+	{ MDIO_DEV_PMA_PMD, 0xff04, 0xffff, 0x0000 },
+
+	/* end */
+	{ 0, 0, 0, 0 }
+};
+
+/*
+ * Reset the PHY and put it into a canonical operating state.
+ */
+static int ael2020_reset(struct cphy *phy, int wait)
+{
+	int err;
+	unsigned int lasi_ctrl;
+
+	/* grab current interrupt state */
+	err = mdio_read(phy, MDIO_DEV_PMA_PMD, LASI_CTRL, &lasi_ctrl);
+	if (err)
+		return err;
+
+	err = t3_phy_reset(phy, MDIO_DEV_PMA_PMD, 125);
+	if (err)
+		return err;
+	msleep(100);
+
+	/* basic initialization for all module types */
+	phy->priv = edc_none;
+	err = set_phy_regs(phy, ael2020_reset_regs);
+	if (err)
+		return err;
+
+	/* determine module type and perform appropriate initialization */
+	err = ael2020_get_module_type(phy, 0);
+	if (err < 0)
+		return err;
+	phy->modtype = (u8)err;
+	if (err == phy_modtype_none || err == phy_modtype_unknown)
+		err = 0;
+	else if (err == phy_modtype_twinax || err == phy_modtype_twinax_long)
+		err = ael2020_setup_twinax_edc(phy, err);
+	else
+		err = ael2020_setup_sr_edc(phy);
+	if (err)
+		return err;
+
+	/* reset wipes out interrupts, reenable them if they were on */
+	if (lasi_ctrl & 1)
+		err = ael2020_intr_enable(phy);
+	return err;
+}
+
+/*
+ * Handle a PHY interrupt.
+ */
+static int ael2020_intr_handler(struct cphy *phy)
+{
+	unsigned int stat;
+	int ret, edc_needed, cause = 0;
+
+	ret = mdio_read(phy, MDIO_DEV_PMA_PMD, AEL2020_GPIO_INTR, &stat);
+	if (ret)
+		return ret;
+
+	if (stat & (0x1 << AEL2020_GPIO_MODDET)) {
+		/* modules have max 300 ms init time after hot plug */
+		ret = ael2020_get_module_type(phy, 300);
+		if (ret < 0)
+			return ret;
+
+		phy->modtype = (u8)ret;
+		if (ret == phy_modtype_none)
+			edc_needed = phy->priv;       /* on unplug retain EDC */
+		else if (ret == phy_modtype_twinax ||
+			 ret == phy_modtype_twinax_long)
+			edc_needed = edc_twinax;
+		else
+			edc_needed = edc_sr;
+
+		if (edc_needed != phy->priv) {
+			ret = ael2020_reset(phy, 0);
+			return ret ? ret : cphy_cause_module_change;
+		}
+		cause = cphy_cause_module_change;
+	}
+
+	ret = t3_phy_lasi_intr_handler(phy);
+	if (ret < 0)
+		return ret;
+
+	ret |= cause;
+	if (!ret)
+		ret |= cphy_cause_link_change;
+	return ret;
+}
+
+static struct cphy_ops ael2020_ops = {
+#ifdef C99_NOT_SUPPORTED
+	ael2020_reset,
+	ael2020_intr_enable,
+	ael2020_intr_disable,
+	ael2020_intr_clear,
+	ael2020_intr_handler,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	get_link_status_r,
+	ael1002_power_down,
+#else
+	.reset           = ael2020_reset,
+	.intr_enable     = ael2020_intr_enable,
+	.intr_disable    = ael2020_intr_disable,
+	.intr_clear      = ael2020_intr_clear,
+	.intr_handler    = ael2020_intr_handler,
+	.get_link_status = get_link_status_r,
+	.power_down      = ael1002_power_down,
+#endif
+};
+
+int t3_ael2020_phy_prep(pinfo_t *pinfo, int phy_addr,
+			const struct mdio_ops *mdio_ops)
+{
+	int err;
+	struct cphy *phy = &pinfo->phy;
+
+	cphy_init(phy, pinfo->adapter, pinfo, phy_addr, &ael2020_ops, mdio_ops,
+		SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE |
+		  SUPPORTED_IRQ, "10GBASE-R");
+	msleep(125);
+
+	err = set_phy_regs(phy, ael2020_reset_regs);
+	if (err)
+		return err;
+	err = ael2020_get_module_type(phy, 0);
+	if (err >= 0)
+		phy->modtype = err;
+
+	ael_laser_down(phy, 0);
+	return 0;
 }
 
 /*
@@ -1398,7 +2129,7 @@ static struct cphy_ops qt2045_ops = {
 	NULL,
 	NULL,
 	get_link_status_x,
-	ael1006_power_down,
+	ael1002_power_down,
 };
 #else
 static struct cphy_ops qt2045_ops = {
@@ -1408,16 +2139,17 @@ static struct cphy_ops qt2045_ops = {
 	.intr_clear      = t3_phy_lasi_intr_clear,
 	.intr_handler    = t3_phy_lasi_intr_handler,
 	.get_link_status = get_link_status_x,
-	.power_down      = ael1006_power_down,
+	.power_down      = ael1002_power_down,
 };
 #endif
 
-int t3_qt2045_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_qt2045_phy_prep(pinfo_t *pinfo, int phy_addr,
 		       const struct mdio_ops *mdio_ops)
 {
 	unsigned int stat;
+	struct cphy *phy = &pinfo->phy;
 
-	cphy_init(phy, adapter, phy_addr, &qt2045_ops, mdio_ops,
+	cphy_init(phy, pinfo->adapter, pinfo, phy_addr, &qt2045_ops, mdio_ops,
 		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_TP,
 		  "10GBASE-CX4");
 
@@ -1441,14 +2173,15 @@ static int xaui_direct_get_link_status(struct cphy *phy, int *link_ok,
 {
 	if (link_ok) {
 		unsigned int status;
+		adapter_t *adapter = phy->adapter;
 
-		status = t3_read_reg(phy->adapter,
+		status = t3_read_reg(adapter,
 				     XGM_REG(A_XGM_SERDES_STAT0, phy->addr)) |
-			 t3_read_reg(phy->adapter,
+			 t3_read_reg(adapter,
 				     XGM_REG(A_XGM_SERDES_STAT1, phy->addr)) |
-			 t3_read_reg(phy->adapter,
+			 t3_read_reg(adapter,
 				     XGM_REG(A_XGM_SERDES_STAT2, phy->addr)) |
-			 t3_read_reg(phy->adapter,
+			 t3_read_reg(adapter,
 				     XGM_REG(A_XGM_SERDES_STAT3, phy->addr));
 		*link_ok = !(status & F_LOWSIG0);
 	}
@@ -1491,10 +2224,10 @@ static struct cphy_ops xaui_direct_ops = {
 };
 #endif
 
-int t3_xaui_direct_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_xaui_direct_phy_prep(pinfo_t *pinfo, int phy_addr,
 			    const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, phy_addr, &xaui_direct_ops, mdio_ops,
+	cphy_init(&pinfo->phy, pinfo->adapter, pinfo, phy_addr, &xaui_direct_ops, mdio_ops,
 		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_TP,
 		  "10GBASE-CX4");
 	return 0;

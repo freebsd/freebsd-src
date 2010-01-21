@@ -37,7 +37,6 @@ $FreeBSD$
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/sx.h>
 #include <sys/rman.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -70,8 +69,6 @@ $FreeBSD$
 #include <dev/cxgb/ulp/toecore/cxgb_toedev.h>
 #endif
 
-#define USE_SX
-
 struct adapter;
 struct sge_qset;
 extern int cxgb_debug;
@@ -89,22 +86,9 @@ extern int cxgb_debug;
 		mtx_destroy((lock));					\
 	} while (0)
 
-#define SX_INIT(lock, lockname) \
-	do { \
-		printf("initializing %s at %s:%d\n", lockname, __FILE__, __LINE__); \
-		sx_init((lock), lockname);		\
-	} while (0)
-
-#define SX_DESTROY(lock) \
-	do { \
-		printf("destroying %s at %s:%d\n", (lock)->lock_object.lo_name, __FILE__, __LINE__); \
-		sx_destroy((lock));					\
-	} while (0)
 #else
 #define MTX_INIT mtx_init
 #define MTX_DESTROY mtx_destroy
-#define SX_INIT sx_init
-#define SX_DESTROY sx_destroy
 #endif
 
 enum {
@@ -117,20 +101,17 @@ struct port_info {
 	struct adapter	*adapter;
 	struct ifnet	*ifp;
 	int		if_flags;
+	int		flags;
 	const struct port_type_info *port_type;
 	struct cphy	phy;
 	struct cmac	mac;
 	struct link_config link_config;
 	struct ifmedia	media;
-#ifdef USE_SX	
-	struct sx	lock;
-#else	
 	struct mtx	lock;
-#endif	
-	uint8_t		port_id;
-	uint8_t		tx_chan;
-	uint8_t		txpkt_intf;
-	uint8_t         first_qset;
+	uint32_t	port_id;
+	uint32_t	tx_chan;
+	uint32_t	txpkt_intf;
+	uint32_t	first_qset;
 	uint32_t	nqsets;
 	int		link_fault;
 
@@ -144,17 +125,27 @@ struct port_info {
 	char            namebuf[PORT_NAME_LEN];
 };
 
-enum {				/* adapter flags */
+enum {
+	/* adapter flags */
 	FULL_INIT_DONE	= (1 << 0),
 	USING_MSI	= (1 << 1),
 	USING_MSIX	= (1 << 2),
 	QUEUES_BOUND	= (1 << 3),
-	FW_UPTODATE     = (1 << 4),
-	TPS_UPTODATE    = (1 << 5),
+	FW_UPTODATE	= (1 << 4),
+	TPS_UPTODATE	= (1 << 5),
 	CXGB_SHUTDOWN	= (1 << 6),
 	CXGB_OFLD_INIT	= (1 << 7),
-	TP_PARITY_INIT  = (1 << 8),
+	TP_PARITY_INIT	= (1 << 8),
+	CXGB_BUSY	= (1 << 9),
+
+	/* port flags */
+	DOOMED		= (1 << 0),
 };
+#define IS_DOOMED(p)	(p->flags & DOOMED)
+#define SET_DOOMED(p)	do {p->flags |= DOOMED;} while (0)
+#define IS_BUSY(sc)	(sc->flags & CXGB_BUSY)
+#define SET_BUSY(sc)	do {sc->flags |= CXGB_BUSY;} while (0)
+#define CLR_BUSY(sc)	do {sc->flags &= ~CXGB_BUSY;} while (0)
 
 #define FL_Q_SIZE	4096
 #define JUMBO_Q_SIZE	1024
@@ -329,7 +320,7 @@ struct adapter {
 	device_t		dev;
 	int			flags;
 	TAILQ_ENTRY(adapter)    adapter_entry;
-	
+
 	/* PCI register resources */
 	int			regs_rid;
 	struct resource		*regs_res;
@@ -378,8 +369,6 @@ struct adapter {
 	struct callout		cxgb_tick_ch;
 	struct callout		sge_timer_ch;
 
-	unsigned int		check_task_cnt;
-
 	/* Register lock for use by the hardware layer */
 	struct mtx		mdio_lock;
 	struct mtx		elmer_lock;
@@ -402,11 +391,7 @@ struct adapter {
 	char                    port_types[MAX_NPORTS + 1];
 	uint32_t                open_device_map;
 	uint32_t                registered_device_map;
-#ifdef USE_SX
-	struct sx               lock;
-#else	
 	struct mtx              lock;
-#endif	
 	driver_intr_t           *cxgb_intr;
 	int                     msi_count;
 
@@ -430,24 +415,11 @@ struct t3_rx_mode {
 #define ELMR_UNLOCK(adapter)	mtx_unlock(&(adapter)->elmer_lock)
 
 
-#ifdef USE_SX
-#define PORT_LOCK(port)		     sx_xlock(&(port)->lock);
-#define PORT_UNLOCK(port)	     sx_xunlock(&(port)->lock);
-#define PORT_LOCK_INIT(port, name)   SX_INIT(&(port)->lock, name)
-#define PORT_LOCK_DEINIT(port)       SX_DESTROY(&(port)->lock)
-#define PORT_LOCK_ASSERT_OWNED(port) sx_assert(&(port)->lock, SA_LOCKED)
-
-#define ADAPTER_LOCK(adap)	           sx_xlock(&(adap)->lock);
-#define ADAPTER_UNLOCK(adap)	           sx_xunlock(&(adap)->lock);
-#define ADAPTER_LOCK_INIT(adap, name)      SX_INIT(&(adap)->lock, name)
-#define ADAPTER_LOCK_DEINIT(adap)          SX_DESTROY(&(adap)->lock)
-#define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) sx_assert(&(adap)->lock, SA_UNLOCKED)
-#define ADAPTER_LOCK_ASSERT_OWNED(adap) sx_assert(&(adap)->lock, SA_LOCKED)
-#else
 #define PORT_LOCK(port)		     mtx_lock(&(port)->lock);
 #define PORT_UNLOCK(port)	     mtx_unlock(&(port)->lock);
 #define PORT_LOCK_INIT(port, name)   mtx_init(&(port)->lock, name, 0, MTX_DEF)
 #define PORT_LOCK_DEINIT(port)       mtx_destroy(&(port)->lock)
+#define PORT_LOCK_ASSERT_NOTOWNED(port) mtx_assert(&(port)->lock, MA_NOTOWNED)
 #define PORT_LOCK_ASSERT_OWNED(port) mtx_assert(&(port)->lock, MA_OWNED)
 
 #define ADAPTER_LOCK(adap)	mtx_lock(&(adap)->lock);
@@ -456,7 +428,6 @@ struct t3_rx_mode {
 #define ADAPTER_LOCK_DEINIT(adap) mtx_destroy(&(adap)->lock)
 #define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) mtx_assert(&(adap)->lock, MA_NOTOWNED)
 #define ADAPTER_LOCK_ASSERT_OWNED(adap) mtx_assert(&(adap)->lock, MA_OWNED)
-#endif
 
 
 static __inline uint32_t
@@ -537,7 +508,7 @@ int t3_os_find_pci_capability(adapter_t *adapter, int cap);
 int t3_os_pci_save_state(struct adapter *adapter);
 int t3_os_pci_restore_state(struct adapter *adapter);
 void t3_os_link_changed(adapter_t *adapter, int port_id, int link_status,
-			int speed, int duplex, int fc);
+			int speed, int duplex, int fc, int mac_was_reset);
 void t3_os_phymod_changed(struct adapter *adap, int port_id);
 void t3_sge_err_intr_handler(adapter_t *adapter);
 int t3_offload_tx(struct t3cdev *, struct mbuf *);
