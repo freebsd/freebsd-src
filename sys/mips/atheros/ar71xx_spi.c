@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 struct ar71xx_spi_softc {
 	device_t		sc_dev;
 	struct resource		*sc_mem_res;
-	uint32_t		sc_reg_ioctrl;
+	uint32_t		sc_reg_ctrl;
 };
 
 static int
@@ -102,12 +102,11 @@ ar71xx_spi_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->sc_reg_ioctrl  = SPI_READ(sc, AR71XX_SPI_IO_CTRL);
 
-	SPI_WRITE(sc, AR71XX_SPI_IO_CTRL, SPI_IO_CTRL_CS0 | SPI_IO_CTRL_CS1 |
-	    SPI_IO_CTRL_CS2);
-	SPI_WRITE(sc, AR71XX_SPI_CTRL, sc->sc_reg_ioctrl);
-	SPI_WRITE(sc, AR71XX_SPI_FS, 0);
+	SPI_WRITE(sc, AR71XX_SPI_FS, 1);
+	sc->sc_reg_ctrl  = SPI_READ(sc, AR71XX_SPI_CTRL);
+	SPI_WRITE(sc, AR71XX_SPI_CTRL, 0x43);
+	SPI_WRITE(sc, AR71XX_SPI_IO_CTRL, SPI_IO_CTRL_CSMASK);
 
 	device_add_child(dev, "spibus", 0);
 	return (bus_generic_attach(dev));
@@ -116,14 +115,12 @@ ar71xx_spi_attach(device_t dev)
 static void
 ar71xx_spi_chip_activate(struct ar71xx_spi_softc *sc, int cs)
 {
-	uint32_t ioctrl = SPI_IO_CTRL_CS0 |SPI_IO_CTRL_CS1 | SPI_IO_CTRL_CS2;
+	uint32_t ioctrl = SPI_IO_CTRL_CSMASK;
 	/*
 	 * Put respective CSx to low
 	 */
 	ioctrl &= ~(SPI_IO_CTRL_CS0 << cs);
 
-	SPI_WRITE(sc, AR71XX_SPI_FS, 1);
-	SPI_WRITE(sc, AR71XX_SPI_CTRL, 0x43);
 	SPI_WRITE(sc, AR71XX_SPI_IO_CTRL, ioctrl);
 }
 
@@ -133,18 +130,19 @@ ar71xx_spi_chip_deactivate(struct ar71xx_spi_softc *sc, int cs)
 	/*
 	 * Put all CSx to high
 	 */
-	SPI_WRITE(sc, AR71XX_SPI_IO_CTRL, SPI_IO_CTRL_CS0 | SPI_IO_CTRL_CS1 |
-	    SPI_IO_CTRL_CS2);
-	SPI_WRITE(sc, AR71XX_SPI_CTRL, sc->sc_reg_ioctrl);
-	SPI_WRITE(sc, AR71XX_SPI_FS, 0);
+	SPI_WRITE(sc, AR71XX_SPI_IO_CTRL, SPI_IO_CTRL_CSMASK);
 }
 
 static uint8_t
-ar71xx_spi_txrx(struct ar71xx_spi_softc *sc, uint8_t data)
+ar71xx_spi_txrx(struct ar71xx_spi_softc *sc, int cs, uint8_t data)
 {
 	int bit;
 	/* CS0 */
-	uint32_t ioctrl = SPI_IO_CTRL_CS1 | SPI_IO_CTRL_CS2;
+	uint32_t ioctrl = SPI_IO_CTRL_CSMASK;
+	/*
+	 * low-level for selected CS
+	 */
+	ioctrl &= ~(SPI_IO_CTRL_CS0 << cs);
 
 	uint32_t iod, rds;
 	for (bit = 7; bit >=0; bit--) {
@@ -156,6 +154,10 @@ ar71xx_spi_txrx(struct ar71xx_spi_softc *sc, uint8_t data)
 		SPI_WRITE(sc, AR71XX_SPI_IO_CTRL, iod | SPI_IO_CTRL_CLK);
 	}
 
+	/*
+	 * Provide falling edge for connected device by clear clock bit.
+	 */
+	SPI_WRITE(sc, AR71XX_SPI_IO_CTRL, iod);
 	rds = SPI_READ(sc, AR71XX_SPI_RDS);
 
 	return (rds & 0xff);
@@ -184,7 +186,7 @@ ar71xx_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	buf_out = (uint8_t *)cmd->tx_cmd;
 	buf_in = (uint8_t *)cmd->rx_cmd;
 	for (i = 0; i < cmd->tx_cmd_sz; i++)
-		buf_in[i] = ar71xx_spi_txrx(sc, buf_out[i]);
+		buf_in[i] = ar71xx_spi_txrx(sc, devi->cs, buf_out[i]);
 
 	/*
 	 * Receive/transmit data (depends on  command)
@@ -192,7 +194,7 @@ ar71xx_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	buf_out = (uint8_t *)cmd->tx_data;
 	buf_in = (uint8_t *)cmd->rx_data;
 	for (i = 0; i < cmd->tx_data_sz; i++)
-		buf_in[i] = ar71xx_spi_txrx(sc, buf_out[i]);
+		buf_in[i] = ar71xx_spi_txrx(sc, devi->cs, buf_out[i]);
 
 	ar71xx_spi_chip_deactivate(sc, devi->cs);
 
@@ -202,8 +204,15 @@ ar71xx_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 static int
 ar71xx_spi_detach(device_t dev)
 {
+	struct ar71xx_spi_softc *sc = device_get_softc(dev);
 
-	return (EBUSY);	/* XXX */
+	SPI_WRITE(sc, AR71XX_SPI_CTRL, sc->sc_reg_ctrl);
+	SPI_WRITE(sc, AR71XX_SPI_FS, 0);
+
+	if (sc->sc_mem_res)
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
+
+	return (0);
 }
 
 static device_method_t ar71xx_spi_methods[] = {
