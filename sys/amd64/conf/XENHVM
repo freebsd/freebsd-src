@@ -19,7 +19,7 @@
 # $FreeBSD$
 
 cpu		HAMMER
-ident		GENERIC
+ident		XENHVM
 
 # To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		# Default places to look for devices.
