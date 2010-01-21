@@ -689,6 +689,7 @@ dev/cxgb/common/cxgb_mc5.c	optional cxgb pci
 dev/cxgb/common/cxgb_vsc7323.c	optional cxgb pci
 dev/cxgb/common/cxgb_vsc8211.c	optional cxgb pci
 dev/cxgb/common/cxgb_ael1002.c	optional cxgb pci
+dev/cxgb/common/cxgb_aq100x.c	optional cxgb pci
 dev/cxgb/common/cxgb_mv88e1xxx.c	optional cxgb pci
 dev/cxgb/common/cxgb_xgmac.c	optional cxgb pci
 dev/cxgb/common/cxgb_t3_hw.c	optional cxgb pci
