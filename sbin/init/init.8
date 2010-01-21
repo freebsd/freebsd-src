@@ -148,12 +148,9 @@ dies, either because the user logged out
 or an abnormal termination occurred (a signal),
 the
 .Nm
-utility wakes up, deletes the user
-from the
-.Xr utmp 5
-file of current users and records the logout in the
-.Xr wtmp 5
-file.
+utility wakes up and records the logout in the the user accounting
+database (see
+.Xr getutxent 3 ).
 The cycle is
 then restarted by
 .Nm
@@ -207,13 +204,6 @@ If a line is commented out or deleted from
 .Xr ttys 5 ,
 .Nm
 will not do anything at all to that line.
-However, it will complain that the relationship between lines
-in the
-.Xr ttys 5
-file and records in the
-.Xr utmp 5
-file is out of sync,
-so this practice is not recommended.
 .Pp
 The
 .Nm
@@ -316,9 +306,9 @@ system console device
 .It Pa /dev/tty*
 terminal ports found in
 .Xr ttys 5
-.It Pa /var/run/utmp
+.It Pa /var/run/utx.active
 record of current users on the system
-.It Pa /var/log/wtmp
+.It Pa /var/log/utx.log
 record of all logins and logouts
 .It Pa /etc/ttys
 the terminal initialization information file

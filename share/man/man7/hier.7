@@ -735,10 +735,14 @@ kerberos server databases; see
 miscellaneous system log files
 .Pp
 .Bl -tag -width Fl -compact
-.It Pa wtmp
+.It Pa utx.lastlogin
+last login log;
+see
+.Xr getutxent 3
+.It Pa utx.log
 login/logout log;
 see
-.Xr wtmp 5
+.Xr getutxent 3
 .El
 .Pp
 .It Pa mail/
@@ -769,10 +773,10 @@ writable by the
 .Dq network
 group for command connection sockets; see
 .Xr ppp 8
-.It Pa utmp
+.It Pa utx.active
 database of current users;
 see
-.Xr utmp 5
+.Xr getutxent 5
 .El
 .Pp
 .It Pa rwho/

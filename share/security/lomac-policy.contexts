@@ -25,5 +25,5 @@
 (/mnt)?/cdrom(/.*)?		lomac/high
 (/usr)?/home/(ftp|samba)(/.*)?	lomac/high
 /var/log/sendmail\.st		lomac/low
-/var/run/utmp			lomac/equal
-/var/log/(lastlog|wtmp)		lomac/equal
+/var/run/utx.active		lomac/equal
+/var/log/utx.(lastlogin|log)	lomac/equal
