@@ -84,11 +84,9 @@ __FBSDID("$FreeBSD$");
 
 static int cxgb_setup_interrupts(adapter_t *);
 static void cxgb_teardown_interrupts(adapter_t *);
-static int cxgb_begin_op(struct port_info *, const char *);
-static int cxgb_begin_detach(struct port_info *);
-static int cxgb_end_op(struct port_info *);
 static void cxgb_init(void *);
-static int cxgb_init_synchronized(struct port_info *);
+static int cxgb_init_locked(struct port_info *);
+static int cxgb_uninit_locked(struct port_info *);
 static int cxgb_uninit_synchronized(struct port_info *);
 static int cxgb_ioctl(struct ifnet *, unsigned long, caddr_t);
 static int cxgb_media_change(struct ifnet *);
@@ -1113,7 +1111,14 @@ cxgb_port_detach(device_t dev)
 	p = device_get_softc(dev);
 	sc = p->adapter;
 
-	cxgb_begin_detach(p);
+	/* Tell cxgb_ioctl and if_init that the port is going away */
+	ADAPTER_LOCK(sc);
+	SET_DOOMED(p);
+	wakeup(&sc->flags);
+	while (IS_BUSY(sc))
+		mtx_sleep(&sc->flags, &sc->lock, 0, "cxgbdtch", 0);
+	SET_BUSY(sc);
+	ADAPTER_UNLOCK(sc);
 
 	if (p->port_cdev != NULL)
 		destroy_dev(p->port_cdev);
@@ -1133,7 +1138,10 @@ cxgb_port_detach(device_t dev)
 	if_free(p->ifp);
 	p->ifp = NULL;
 
-	cxgb_end_op(p);
+	ADAPTER_LOCK(sc);
+	CLR_BUSY(sc);
+	wakeup_one(&sc->flags);
+	ADAPTER_UNLOCK(sc);
 	return (0);
 }
 
@@ -1688,11 +1696,12 @@ cxgb_up(struct adapter *sc)
 {
 	int err = 0;
 
-	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 	KASSERT(sc->open_device_map == 0, ("%s: device(s) already open (%x)",
 					   __func__, sc->open_device_map));
 
 	if ((sc->flags & FULL_INIT_DONE) == 0) {
+
+		ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 
 		if ((sc->flags & FW_UPTODATE) == 0)
 			if ((err = upgrade_fw(sc)))
@@ -1755,8 +1764,6 @@ out:
 static void
 cxgb_down(struct adapter *sc)
 {
-	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
-
 	t3_sge_stop(sc);
 	t3_intr_disable(sc);
 }
@@ -1766,8 +1773,6 @@ offload_open(struct port_info *pi)
 {
 	struct adapter *sc = pi->adapter;
 	struct t3cdev *tdev = &sc->tdev;
-
-	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 
 	setbit(&sc->open_device_map, OFFLOAD_DEVMAP_BIT);
 
@@ -1803,120 +1808,55 @@ offload_close(struct t3cdev *tdev)
 }
 
 /*
- * Begin a synchronized operation.  If this call succeeds, it is guaranteed that
- * no one will remove the port or its ifp from underneath the caller.  Caller is
- * also granted exclusive access to open_device_map.
- *
- * operation here means init, uninit, detach, and ioctl service.
- *
- * May fail.
- * EINTR (ctrl-c pressed during ifconfig for example).
- * ENXIO (port is about to detach - due to kldunload for example).
- */
-int
-cxgb_begin_op(struct port_info *p, const char *wmsg)
-{
-	int rc = 0;
-	struct adapter *sc = p->adapter;
-
-	ADAPTER_LOCK(sc);
-
-	while (!IS_DOOMED(p) && IS_BUSY(sc)) {
-		if (mtx_sleep(&sc->flags, &sc->lock, PCATCH, wmsg, 0)) {
-			rc = EINTR;
-			goto done;
-		}
-	}
-
-	if (IS_DOOMED(p))
-		rc = ENXIO;
-	else if (!IS_BUSY(sc))
-		SET_BUSY(sc);
-	else {
-		KASSERT(0, ("%s: port %d, p->flags = %x , sc->flags = %x",
-			    __func__, p->port_id, p->flags, sc->flags));
-		rc = EDOOFUS;
-	}
-
-done:
-	ADAPTER_UNLOCK(sc);
-	return (rc);
-}
-
-/*
- * End a synchronized operation.  Read comment block above cxgb_begin_op.
- */
-int
-cxgb_end_op(struct port_info *p)
-{
-	struct adapter *sc = p->adapter;
-
-	ADAPTER_LOCK(sc);
-	KASSERT(IS_BUSY(sc), ("%s: not busy.", __func__));
-	CLR_BUSY(sc);
-	wakeup_one(&sc->flags);
-	ADAPTER_UNLOCK(sc);
-
-	return (0);
-}
-
-/*
- * Prepare for port detachment.  Detach is a special kind of synchronized
- * operation.  Also read comment before cxgb_begin_op.
- */
-static int
-cxgb_begin_detach(struct port_info *p)
-{
-	struct adapter *sc = p->adapter;
-
-	/*
-	 * Inform those waiting for this port that it is going to be destroyed
-	 * and they should not continue further.  (They'll return with ENXIO).
-	 */
-	ADAPTER_LOCK(sc);
-	SET_DOOMED(p);
-	wakeup(&sc->flags);
-	ADAPTER_UNLOCK(sc);
-
-	/*
-	 * Wait for in-progress operations.
-	 */
-	ADAPTER_LOCK(sc);
-	while (IS_BUSY(sc)) {
-		mtx_sleep(&sc->flags, &sc->lock, 0, "cxgbdtch", 0);
-	}
-	SET_BUSY(sc);
-	ADAPTER_UNLOCK(sc);
-
-	return (0);
-}
-
-/*
  * if_init for cxgb ports.
  */
 static void
 cxgb_init(void *arg)
 {
 	struct port_info *p = arg;
+	struct adapter *sc = p->adapter;
 
-	if (cxgb_begin_op(p, "cxgbinit"))
-		return;
-
-	cxgb_init_synchronized(p);
-	cxgb_end_op(p);
+	ADAPTER_LOCK(sc);
+	cxgb_init_locked(p); /* releases adapter lock */
+	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 }
 
 static int
-cxgb_init_synchronized(struct port_info *p)
+cxgb_init_locked(struct port_info *p)
 {
 	struct adapter *sc = p->adapter;
 	struct ifnet *ifp = p->ifp;
 	struct cmac *mac = &p->mac;
-	int i, rc;
+	int i, rc = 0, may_sleep = 0;
+
+	ADAPTER_LOCK_ASSERT_OWNED(sc);
+
+	while (!IS_DOOMED(p) && IS_BUSY(sc)) {
+		if (mtx_sleep(&sc->flags, &sc->lock, PCATCH, "cxgbinit", 0)) {
+			rc = EINTR;
+			goto done;
+		}
+	}
+	if (IS_DOOMED(p)) {
+		rc = ENXIO;
+		goto done;
+	}
+	KASSERT(!IS_BUSY(sc), ("%s: controller busy.", __func__));
+
+	/*
+	 * The code that runs during one-time adapter initialization can sleep
+	 * so it's important not to hold any locks across it.
+	 */
+	may_sleep = sc->flags & FULL_INIT_DONE ? 0 : 1;
+
+	if (may_sleep) {
+		SET_BUSY(sc);
+		ADAPTER_UNLOCK(sc);
+	}
 
 	if (sc->open_device_map == 0) {
 		if ((rc = cxgb_up(sc)) != 0)
-			return (rc);
+			goto done;
 
 		if (is_offload(sc) && !ofld_disable && offload_open(p))
 			log(LOG_WARNING,
@@ -1924,6 +1864,11 @@ cxgb_init_synchronized(struct port_info *p)
 	}
 
 	PORT_LOCK(p);
+	if (isset(&sc->open_device_map, p->port_id) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		PORT_UNLOCK(p);
+		goto done;
+	}
 	t3_port_intr_enable(sc, p->port_id);
 	if (!mac->multiport) 
 		t3_mac_init(mac);
@@ -1947,7 +1892,48 @@ cxgb_init_synchronized(struct port_info *p)
 	/* all ok */
 	setbit(&sc->open_device_map, p->port_id);
 
-	return (0);
+done:
+	if (may_sleep) {
+		ADAPTER_LOCK(sc);
+		KASSERT(IS_BUSY(sc), ("%s: controller not busy.", __func__));
+		CLR_BUSY(sc);
+		wakeup_one(&sc->flags);
+	}
+	ADAPTER_UNLOCK(sc);
+	return (rc);
+}
+
+static int
+cxgb_uninit_locked(struct port_info *p)
+{
+	struct adapter *sc = p->adapter;
+	int rc;
+
+	ADAPTER_LOCK_ASSERT_OWNED(sc);
+
+	while (!IS_DOOMED(p) && IS_BUSY(sc)) {
+		if (mtx_sleep(&sc->flags, &sc->lock, PCATCH, "cxgbunin", 0)) {
+			rc = EINTR;
+			goto done;
+		}
+	}
+	if (IS_DOOMED(p)) {
+		rc = ENXIO;
+		goto done;
+	}
+	KASSERT(!IS_BUSY(sc), ("%s: controller busy.", __func__));
+	SET_BUSY(sc);
+	ADAPTER_UNLOCK(sc);
+
+	rc = cxgb_uninit_synchronized(p);
+
+	ADAPTER_LOCK(sc);
+	KASSERT(IS_BUSY(sc), ("%s: controller not busy.", __func__));
+	CLR_BUSY(sc);
+	wakeup_one(&sc->flags);
+done:
+	ADAPTER_UNLOCK(sc);
+	return (rc);
 }
 
 /*
@@ -1958,6 +1944,11 @@ cxgb_uninit_synchronized(struct port_info *pi)
 {
 	struct adapter *sc = pi->adapter;
 	struct ifnet *ifp = pi->ifp;
+
+	/*
+	 * taskqueue_drain may cause a deadlock if the adapter lock is held.
+	 */
+	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 
 	/*
 	 * Clear this port's bit from the open device map, and then drain all
@@ -2036,19 +2027,21 @@ static int
 cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 {
 	struct port_info *p = ifp->if_softc;
+	struct adapter *sc = p->adapter;
 	struct ifreq *ifr = (struct ifreq *)data;
-	int flags, error = 0, mtu, handle_unsynchronized = 0;
+	int flags, error = 0, mtu;
 	uint32_t mask;
 
-	if ((error = cxgb_begin_op(p, "cxgbioct")) != 0)
-		return (error);
-
-	/*
-	 * Only commands that should be handled within begin-op/end-op are
-	 * serviced in this switch statement.  See handle_unsynchronized.
-	 */
 	switch (command) {
 	case SIOCSIFMTU:
+		ADAPTER_LOCK(sc);
+		error = IS_DOOMED(p) ? ENXIO : (IS_BUSY(sc) ? EBUSY : 0);
+		if (error) {
+fail:
+			ADAPTER_UNLOCK(sc);
+			return (error);
+		}
+
 		mtu = ifr->ifr_mtu;
 		if ((mtu < ETHERMIN) || (mtu > ETHERMTU_JUMBO)) {
 			error = EINVAL;
@@ -2058,35 +2051,57 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			cxgb_update_mac_settings(p);
 			PORT_UNLOCK(p);
 		}
-
+		ADAPTER_UNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
+		ADAPTER_LOCK(sc);
+		if (IS_DOOMED(p)) {
+			error = ENXIO;
+			goto fail;
+		}
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				flags = p->if_flags;
 				if (((ifp->if_flags ^ flags) & IFF_PROMISC) ||
 				    ((ifp->if_flags ^ flags) & IFF_ALLMULTI)) {
+					if (IS_BUSY(sc)) {
+						error = EBUSY;
+						goto fail;
+					}
 					PORT_LOCK(p);
 					cxgb_update_mac_settings(p);
 					PORT_UNLOCK(p);
 				}
+				ADAPTER_UNLOCK(sc);
 			} else
-				error = cxgb_init_synchronized(p);
+				error = cxgb_init_locked(p);
 			p->if_flags = ifp->if_flags;
 		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			error = cxgb_uninit_synchronized(p);
-		
+			error = cxgb_uninit_locked(p);
+
+		ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		ADAPTER_LOCK(sc);
+		error = IS_DOOMED(p) ? ENXIO : (IS_BUSY(sc) ? EBUSY : 0);
+		if (error)
+			goto fail;
+
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			PORT_LOCK(p);
 			cxgb_update_mac_settings(p);
 			PORT_UNLOCK(p);
 		}
+		ADAPTER_UNLOCK(sc);
 
 		break;
 	case SIOCSIFCAP:
+		ADAPTER_LOCK(sc);
+		error = IS_DOOMED(p) ? ENXIO : (IS_BUSY(sc) ? EBUSY : 0);
+		if (error)
+			goto fail;
+
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if (mask & IFCAP_TXCSUM) {
 			if (IFCAP_TXCSUM & ifp->if_capenable) {
@@ -2136,34 +2151,20 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 				PORT_UNLOCK(p);
 			}
 		}
-		if (mask & IFCAP_VLAN_HWCSUM) {
+		if (mask & IFCAP_VLAN_HWCSUM)
 			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
-		}
 
 #ifdef VLAN_CAPABILITIES
 		VLAN_CAPABILITIES(ifp);
 #endif
+		ADAPTER_UNLOCK(sc);
+		break;
+	case SIOCSIFMEDIA:
+	case SIOCGIFMEDIA:
+		error = ifmedia_ioctl(ifp, ifr, &p->media, command);
 		break;
 	default:
-		handle_unsynchronized = 1;
-		break;
-	}
-
-	/*
-	 * We don't want to call anything outside the driver while inside a
-	 * begin-op/end-op block.  If it calls us back (eg.  ether_ioctl may
-	 * call cxgb_init) we may deadlock if the state is already marked busy.
-	 *
-	 * XXX: this probably opens a small race window with kldunload...
-	 */
-	cxgb_end_op(p);
-
-	/* The IS_DOOMED check is racy, we're clutching at straws here */
-	if (handle_unsynchronized && !IS_DOOMED(p)) {
-		if (command == SIOCSIFMEDIA || command == SIOCGIFMEDIA)
-			error = ifmedia_ioctl(ifp, ifr, &p->media, command);
-		else
-			error = ether_ioctl(ifp, command, data);
+		error = ether_ioctl(ifp, command, data);
 	}
 
 	return (error);

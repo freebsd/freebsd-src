@@ -136,7 +136,6 @@ enum {
 };
 #define IS_DOOMED(p)	(p->flags & DOOMED)
 #define SET_DOOMED(p)	do {p->flags |= DOOMED;} while (0)
-#define DOOMED(p)	(p->flags & DOOMED)
 #define IS_BUSY(sc)	(sc->flags & CXGB_BUSY)
 #define SET_BUSY(sc)	do {sc->flags |= CXGB_BUSY;} while (0)
 #define CLR_BUSY(sc)	do {sc->flags &= ~CXGB_BUSY;} while (0)
