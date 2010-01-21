@@ -343,7 +343,7 @@ taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 	va_list ap;
 	struct taskqueue *tq;
 	struct thread *td;
-	char ktname[MAXCOMLEN];
+	char ktname[MAXCOMLEN + 1];
 	int i, error;
 
 	if (count <= 0)
@@ -351,7 +351,7 @@ taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 	tq = *tqp;
 
 	va_start(ap, name);
-	vsnprintf(ktname, MAXCOMLEN, name, ap);
+	vsnprintf(ktname, sizeof(ktname), name, ap);
 	va_end(ap);
 
 	tq->tq_pproc = malloc(sizeof(struct proc *) * count, M_TASKQUEUE,

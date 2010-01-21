@@ -559,9 +559,9 @@ interpret:
 	execsigs(p);
 
 	/* name this process - nameiexec(p, ndp) */
+	bzero(p->p_comm, sizeof(p->p_comm));
 	len = min(ndp->ni_cnd.cn_namelen,MAXCOMLEN);
 	bcopy(ndp->ni_cnd.cn_nameptr, p->p_comm, len);
-	p->p_comm[len] = 0;
 
 	/*
 	 * mark as execed, wakeup the process that vforked (if any) and tell
