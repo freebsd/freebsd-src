@@ -4,14 +4,9 @@
 PROG=		bc
 SRCS=		bc.y scan.l
 CFLAGS+=	-I. -I${.CURDIR}
-WARNS?=		6
-#SUBDIR+=	USD.doc
+SUBDIR+=	USD.doc
 
 FILES+=		bc.library
 FILESDIR=	${SHAREDIR}/misc
-
-#beforeinstall:
-#	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/bc.library \
-#	    ${DESTDIR}/usr/share/misc
 
 .include <bsd.prog.mk>
