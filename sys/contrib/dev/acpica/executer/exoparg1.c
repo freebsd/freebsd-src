@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -368,8 +368,8 @@ AcpiExOpcode_1A_1T_1R (
     ACPI_OPERAND_OBJECT     *ReturnDesc2 = NULL;
     UINT32                  Temp32;
     UINT32                  i;
-    ACPI_INTEGER            PowerOfTen;
-    ACPI_INTEGER            Digit;
+    UINT64                  PowerOfTen;
+    UINT64                  Digit;
 
 
     ACPI_FUNCTION_TRACE_STR (ExOpcode_1A_1T_1R,
@@ -477,7 +477,7 @@ AcpiExOpcode_1A_1T_1R (
                 /* Sum the digit into the result with the current power of 10 */
 
                 ReturnDesc->Integer.Value +=
-                    (((ACPI_INTEGER) Temp32) * PowerOfTen);
+                    (((UINT64) Temp32) * PowerOfTen);
 
                 /* Shift to next BCD digit */
 
@@ -506,7 +506,7 @@ AcpiExOpcode_1A_1T_1R (
                  * remainder from above
                  */
                 ReturnDesc->Integer.Value |=
-                    (((ACPI_INTEGER) Temp32) << ACPI_MUL_4 (i));
+                    (((UINT64) Temp32) << ACPI_MUL_4 (i));
             }
 
             /* Overflow if there is any data left in Digit */
@@ -553,7 +553,7 @@ AcpiExOpcode_1A_1T_1R (
 
             /* The object exists in the namespace, return TRUE */
 
-            ReturnDesc->Integer.Value = ACPI_INTEGER_MAX;
+            ReturnDesc->Integer.Value = ACPI_UINT64_MAX;
             goto Cleanup;
 
 
@@ -719,7 +719,7 @@ AcpiExOpcode_1A_0T_1R (
     ACPI_OPERAND_OBJECT     *ReturnDesc = NULL;
     ACPI_STATUS             Status = AE_OK;
     UINT32                  Type;
-    ACPI_INTEGER            Value;
+    UINT64                  Value;
 
 
     ACPI_FUNCTION_TRACE_STR (ExOpcode_1A_0T_1R,
@@ -745,7 +745,7 @@ AcpiExOpcode_1A_0T_1R (
          */
         if (!Operand[0]->Integer.Value)
         {
-            ReturnDesc->Integer.Value = ACPI_INTEGER_MAX;
+            ReturnDesc->Integer.Value = ACPI_UINT64_MAX;
         }
         break;
 
