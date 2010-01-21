@@ -7091,19 +7091,19 @@ hdac_dump_dac(struct hdac_pcm_devinfo *pdevinfo)
 {
 	struct hdac_devinfo *devinfo = pdevinfo->devinfo;
 	struct hdac_softc *sc = devinfo->codec->sc;
+	struct hdac_audio_as *as;
 	struct hdac_widget *w;
 	int i, printed = 0;
 
 	if (pdevinfo->play < 0)
 		return;
 
-	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
-		w = hdac_widget_get(devinfo, i);
+	as = &devinfo->function.audio.as[sc->chans[pdevinfo->play].as];
+	for (i = 0; i < 16; i++) {
+		if (as->pins[i] <= 0)
+			continue;
+		w = hdac_widget_get(devinfo, as->pins[i]);
 		if (w == NULL || w->enable == 0)
-			continue;
-		if (w->type != HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
-			continue;
-		if (w->bindas != sc->chans[pdevinfo->play].as)
 			continue;
 		if (printed == 0) {
 			printed = 1;
@@ -7111,7 +7111,7 @@ hdac_dump_dac(struct hdac_pcm_devinfo *pdevinfo)
 			device_printf(pdevinfo->dev, "Playback:\n");
 		}
 		device_printf(pdevinfo->dev, "\n");
-		hdac_dump_dst_nid(pdevinfo, i, 0);
+		hdac_dump_dst_nid(pdevinfo, as->pins[i], 0);
 	}
 }
 
