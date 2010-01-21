@@ -1520,6 +1520,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	vnode.v_type = VDIR;
 	vnode.v_data = rootzp;
 	rootzp->z_vnode = &vnode;
+	VN_LOCK_ASHARE(vp);
 
 	bzero(&zfsvfs, sizeof (zfsvfs_t));
 

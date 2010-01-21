@@ -134,7 +134,7 @@ vop_open {
 };
 
 
-%% close	vp	E E E
+%% close	vp	L L L
 
 vop_close {
 	IN struct vnode *vp;

@@ -918,12 +918,20 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	if (nd.ni_vp->v_type != VREG ||
-	    (error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred, td))) {
-		VOP_UNLOCK(nd.ni_vp, 0, td);
-		(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
-		return (error ? error : EINVAL);
+	if (nd.ni_vp->v_type != VREG) {
+		error = EINVAL;
+		goto bad;
+	}	
+	error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred, td);
+	if (error != 0)
+		goto bad;
+	if (VOP_ISLOCKED(nd.ni_vp, td) != LK_EXCLUSIVE) {
+		vn_lock(nd.ni_vp, LK_UPGRADE | LK_RETRY, td);
+		if (nd.ni_vp->v_iflag & VI_DOOMED) {
+			/* Forced unmount. */
+			error = EBADF;
+			goto bad;
+		}
 	}
 	nd.ni_vp->v_vflag |= VV_MD;
 	VOP_UNLOCK(nd.ni_vp, 0, td);
@@ -942,13 +950,15 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		sc->vnode = NULL;
 		vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY, td);
 		nd.ni_vp->v_vflag &= ~VV_MD;
-		VOP_UNLOCK(nd.ni_vp, 0, td);
-		(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
-		return (error);
+		goto bad;
 	}
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
+bad:
+	VOP_UNLOCK(nd.ni_vp, 0, td);
+	(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
 }
 
 static int
