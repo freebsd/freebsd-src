@@ -151,6 +151,10 @@ Force the mount protocol to use UDP transport, even for TCP NFS mounts.
 (Necessary for some old
 .Bx
 servers.)
+.It Cm negnametimeo Ns = Ns Aq Ar value
+Override the default of NFS_DEFAULT_NEGNAMETIMEO for the timeout (in seconds)
+for negative name cache entries. If this is set to 0 it disables negative
+name caching for the mount point.
 .It Cm nfsv2
 Use the NFS Version 2 protocol (the default is to try version 3 first
 then version 2).
