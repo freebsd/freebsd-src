@@ -90,12 +90,13 @@ static bus_activate_resource_t nexus_activate_resource;
 static bus_deactivate_resource_t nexus_deactivate_resource;
 static bus_release_resource_t nexus_release_resource;
 static bus_get_resource_list_t nexus_get_resource_list;
+#ifdef SMP
+static bus_bind_intr_t nexus_bind_intr;
+#endif
+static bus_describe_intr_t nexus_describe_intr;
 static bus_get_dma_tag_t nexus_get_dma_tag;
 static ofw_bus_get_devinfo_t nexus_get_devinfo;
 
-#ifdef SMP
-static int nexus_bind_intr(device_t, device_t, struct resource *, int);
-#endif
 static int nexus_inlist(const char *, const char *const *);
 static struct nexus_devinfo * nexus_setup_dinfo(device_t, phandle_t);
 static void nexus_destroy_dinfo(struct nexus_devinfo *);
@@ -128,6 +129,7 @@ static device_method_t nexus_methods[] = {
 #ifdef SMP
 	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
 #endif
+	DEVMETHOD(bus_describe_intr,	nexus_describe_intr),
 	DEVMETHOD(bus_get_dma_tag,	nexus_get_dma_tag),
 
 	/* ofw_bus interface */
@@ -327,6 +329,14 @@ nexus_bind_intr(device_t dev, device_t child, struct resource *r, int cpu)
 	return (intr_bind(rman_get_start(r), cpu));
 }
 #endif
+
+static int
+nexus_describe_intr(device_t dev, device_t child, struct resource *r,
+    void *cookie, const char *descr)
+{
+
+	return (intr_describe(rman_get_start(r), cookie, descr));
+}
 
 static struct resource *
 nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
