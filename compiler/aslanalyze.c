@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -667,8 +667,8 @@ AnCheckForReservedName (
     {
         /* The next two characters must be hex digits */
 
-        if ((isxdigit (Name[2])) &&
-            (isxdigit (Name[3])))
+        if ((isxdigit ((int) Name[2])) &&
+            (isxdigit ((int) Name[3])))
         {
             return (ACPI_EVENT_RESERVED_NAME);
         }
@@ -1236,7 +1236,7 @@ AnMethodAnalysisWalkBegin (
                      */
                     for (i = 0; Next->Asl.Value.String[i]; i++)
                     {
-                        if (!isalnum (Next->Asl.Value.String[i]))
+                        if (!isalnum ((int) Next->Asl.Value.String[i]))
                         {
                             AslError (ASL_ERROR, ASL_MSG_ALPHANUMERIC_STRING,
                                 Next, Next->Asl.Value.String);
@@ -2157,7 +2157,7 @@ AnOtherSemanticAnalysisWalkBegin (
          */
         if (((ArgNode->Asl.ParseOpcode == PARSEOP_WORDCONST) ||
              (ArgNode->Asl.ParseOpcode == PARSEOP_INTEGER))  &&
-             (ArgNode->Asl.Value.Integer >= (ACPI_INTEGER) ACPI_WAIT_FOREVER))
+             (ArgNode->Asl.Value.Integer >= (UINT64) ACPI_WAIT_FOREVER))
         {
             break;
         }

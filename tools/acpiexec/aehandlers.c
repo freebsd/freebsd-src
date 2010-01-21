@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -653,7 +653,7 @@ AeRegionHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext)
 {
@@ -918,8 +918,8 @@ AeRegionHandler (
      * NOTE: RegionElement->Length is in bytes, therefore it we compare against
      * ByteWidth (see above)
      */
-    if (((ACPI_INTEGER) Address + ByteWidth) >
-        ((ACPI_INTEGER)(RegionElement->Address) + RegionElement->Length))
+    if (((UINT64) Address + ByteWidth) >
+        ((UINT64)(RegionElement->Address) + RegionElement->Length))
     {
         ACPI_WARNING ((AE_INFO,
             "Request on [%4.4s] is beyond region limit Req-%X+%X, Base=%X, Len-%X",
@@ -934,7 +934,7 @@ AeRegionHandler (
      * Get BufferValue to point to the "address" in the buffer
      */
     BufferValue = ((UINT8 *) RegionElement->Buffer +
-                    ((ACPI_INTEGER) Address - (ACPI_INTEGER) RegionElement->Address));
+                    ((UINT64) Address - (UINT64) RegionElement->Address));
 
 DoFunction:
 

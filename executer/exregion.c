@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -149,7 +149,7 @@ AcpiExSystemMemorySpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext)
 {
@@ -198,7 +198,7 @@ AcpiExSystemMemorySpaceHandler (
      * Hardware does not support non-aligned data transfers, we must verify
      * the request.
      */
-    (void) AcpiUtShortDivide ((ACPI_INTEGER) Address, Length, NULL, &Remainder);
+    (void) AcpiUtShortDivide ((UINT64) Address, Length, NULL, &Remainder);
     if (Remainder != 0)
     {
         return_ACPI_STATUS (AE_AML_ALIGNMENT);
@@ -211,8 +211,8 @@ AcpiExSystemMemorySpaceHandler (
      *    2) Address beyond the current mapping?
      */
     if ((Address < MemInfo->MappedPhysicalAddress) ||
-        (((ACPI_INTEGER) Address + Length) >
-            ((ACPI_INTEGER)
+        (((UINT64) Address + Length) >
+            ((UINT64)
             MemInfo->MappedPhysicalAddress + MemInfo->MappedLength)))
     {
         /*
@@ -282,7 +282,7 @@ AcpiExSystemMemorySpaceHandler (
      * access
      */
     LogicalAddrPtr = MemInfo->MappedLogicalAddress +
-        ((ACPI_INTEGER) Address - (ACPI_INTEGER) MemInfo->MappedPhysicalAddress);
+        ((UINT64) Address - (UINT64) MemInfo->MappedPhysicalAddress);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "System-Memory (width %d) R/W %d Address=%8.8X%8.8X\n",
@@ -304,19 +304,19 @@ AcpiExSystemMemorySpaceHandler (
         switch (BitWidth)
         {
         case 8:
-            *Value = (ACPI_INTEGER) ACPI_GET8 (LogicalAddrPtr);
+            *Value = (UINT64) ACPI_GET8 (LogicalAddrPtr);
             break;
 
         case 16:
-            *Value = (ACPI_INTEGER) ACPI_GET16 (LogicalAddrPtr);
+            *Value = (UINT64) ACPI_GET16 (LogicalAddrPtr);
             break;
 
         case 32:
-            *Value = (ACPI_INTEGER) ACPI_GET32 (LogicalAddrPtr);
+            *Value = (UINT64) ACPI_GET32 (LogicalAddrPtr);
             break;
 
         case 64:
-            *Value = (ACPI_INTEGER) ACPI_GET64 (LogicalAddrPtr);
+            *Value = (UINT64) ACPI_GET64 (LogicalAddrPtr);
             break;
 
         default:
@@ -383,7 +383,7 @@ AcpiExSystemIoSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext)
 {
@@ -447,7 +447,7 @@ AcpiExPciConfigSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext)
 {
@@ -527,7 +527,7 @@ AcpiExCmosSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext)
 {
@@ -564,7 +564,7 @@ AcpiExPciBarSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext)
 {
@@ -601,7 +601,7 @@ AcpiExDataTableSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext)
 {

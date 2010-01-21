@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -127,7 +127,7 @@
 #define IntelAcpiCA                 "Intel ACPI Component Architecture"
 #define CompilerId                  "ASL Optimizing Compiler"
 #define DisassemblerId              "AML Disassembler"
-#define CompilerCopyright           "Copyright (C) 2000 - 2009 Intel Corporation"
+#define CompilerCopyright           "Copyright (c) 2000 - 2010 Intel Corporation"
 #define CompilerCompliance          "Supports ACPI Specification Revision 4.0"
 #define CompilerName                "iasl"
 #define CompilerCreatorId           "INTL"

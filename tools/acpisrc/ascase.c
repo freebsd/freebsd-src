@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -197,7 +197,7 @@ AsLowerCaseString (
 
             for (i = 0; i < TargetLength; i++)
             {
-                SubString1[i] = (char) tolower (SubString1[i]);
+                SubString1[i] = (char) tolower ((int) SubString1[i]);
             }
 
             SubBuffer = SubString1 + TargetLength;
@@ -294,7 +294,7 @@ AsMixedCaseToUnderscores (
             continue;
         }
 
-        if (islower (*SubBuffer))
+        if (islower ((int) *SubBuffer))
         {
             HasLowerCase = TRUE;
         }
@@ -323,7 +323,7 @@ AsMixedCaseToUnderscores (
                 (SubBuffer[1] == 'X'))
             {
                 SubBuffer += 2;
-                while (isxdigit (*SubBuffer))
+                while (isxdigit ((int) *SubBuffer))
                 {
                     SubBuffer++;
                 }
@@ -367,9 +367,9 @@ AsMixedCaseToUnderscores (
             /* Check the rest of the identifier for any lower case letters */
 
             SubString = SubBuffer;
-            while ((isalnum (*SubString)) || (*SubString == '_'))
+            while ((isalnum ((int) *SubString)) || (*SubString == '_'))
             {
-                if (islower (*SubString))
+                if (islower ((int) *SubString))
                 {
                     HasLowerCase = TRUE;
                 }
@@ -387,7 +387,7 @@ AsMixedCaseToUnderscores (
 
         /* A capital letter may indicate the start of a token; save it */
 
-        if (isupper (SubBuffer[0]))
+        if (isupper ((int) SubBuffer[0]))
         {
             TokenStart = SubBuffer;
         }
@@ -399,15 +399,15 @@ AsMixedCaseToUnderscores (
          * to
          *      <LowerCase><Underscore><LowerCase>
          */
-        else if ((islower (SubBuffer[0]) || isdigit (SubBuffer[0])) &&
-                 (isupper (SubBuffer[1])))
+        else if ((islower ((int) SubBuffer[0]) || isdigit ((int) SubBuffer[0])) &&
+                 (isupper ((int) SubBuffer[1])))
         {
-            if (isdigit (SubBuffer[0]))
+            if (isdigit ((int) SubBuffer[0]))
             {
                 /* Ignore <UpperCase><Digit><UpperCase> */
                 /* Ignore <Underscore><Digit><UpperCase> */
 
-                if (isupper (*(SubBuffer-1)) ||
+                if (isupper ((int) *(SubBuffer-1)) ||
                     *(SubBuffer-1) == '_')
                 {
                     SubBuffer++;
@@ -420,7 +420,7 @@ AsMixedCaseToUnderscores (
              * Find the end of this identifier (token)
              */
             TokenEnd = SubBuffer;
-            while ((isalnum (*TokenEnd)) || (*TokenEnd == '_'))
+            while ((isalnum ((int) *TokenEnd)) || (*TokenEnd == '_'))
             {
                 TokenEnd++;
             }
@@ -428,7 +428,7 @@ AsMixedCaseToUnderscores (
             /* Force the UpperCase letter (#2) to lower case */
 
             Gbl_MadeChanges = TRUE;
-            SubBuffer[1] = (char) tolower (SubBuffer[1]);
+            SubBuffer[1] = (char) tolower ((int) SubBuffer[1]);
 
             SubString = TokenEnd;
             Length = 0;
@@ -463,7 +463,7 @@ AsMixedCaseToUnderscores (
 
             if (TokenStart)
             {
-                *TokenStart = (char) tolower (*TokenStart);
+                *TokenStart = (char) tolower ((int) *TokenStart);
                 TokenStart = NULL;
             }
         }
@@ -554,11 +554,11 @@ AsLowerCaseIdentifiers (
          * Only lower case if we have an upper followed by a lower
          * This leaves the all-uppercase things (macros, etc.) intact
          */
-        if ((isupper (SubBuffer[0])) &&
-            (islower (SubBuffer[1])))
+        if ((isupper ((int) SubBuffer[0])) &&
+            (islower ((int) SubBuffer[1])))
         {
             Gbl_MadeChanges = TRUE;
-            *SubBuffer = (char) tolower (*SubBuffer);
+            *SubBuffer = (char) tolower ((int) *SubBuffer);
         }
 
         SubBuffer++;
@@ -595,15 +595,15 @@ AsUppercaseTokens (
         if (SubBuffer)
         {
             TokenEnd = SubBuffer;
-            while ((isalnum (*TokenEnd)) || (*TokenEnd == '_'))
+            while ((isalnum ((int) *TokenEnd)) || (*TokenEnd == '_'))
             {
                 TokenEnd++;
             }
 
             for (i = 0; i < (TokenEnd - SubBuffer); i++)
             {
-                if ((islower (SubBuffer[i])) &&
-                    (isupper (SubBuffer[i+1])))
+                if ((islower ((int) SubBuffer[i])) &&
+                    (isupper ((int) SubBuffer[i+1])))
                 {
 
                     SubString = TokenEnd;
@@ -635,7 +635,7 @@ AsUppercaseTokens (
 
             for (i = 0; i < (TokenEnd - SubBuffer); i++)
             {
-                SubBuffer[i] = (char) toupper (SubBuffer[i]);
+                SubBuffer[i] = (char) toupper ((int) SubBuffer[i]);
             }
 
             SubBuffer = TokenEnd;
