@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -787,7 +787,7 @@ AcpiDsInitObjectFromOp (
 
             case AML_ONES_OP:
 
-                ObjDesc->Integer.Value = ACPI_INTEGER_MAX;
+                ObjDesc->Integer.Value = ACPI_UINT64_MAX;
 
                 /* Truncate value if we are executing from a 32-bit ACPI table */
 

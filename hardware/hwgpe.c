@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -320,7 +320,7 @@ AcpiHwGetGpeStatus (
     Status = AcpiHwRead (&InByte, &GpeRegisterInfo->StatusAddress);
     if (ACPI_FAILURE (Status))
     {
-        goto UnlockAndExit;
+        return (Status);
     }
 
     if (RegisterBit & InByte)
@@ -331,10 +331,7 @@ AcpiHwGetGpeStatus (
     /* Set return value */
 
     (*EventStatus) = LocalEventStatus;
-
-
-UnlockAndExit:
-    return (Status);
+    return (AE_OK);
 }
 
 

@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -191,8 +191,8 @@ AsStricmp (
 
     do
     {
-        c1 = tolower (*String1);
-        c2 = tolower (*String2);
+        c1 = tolower ((int) *String1);
+        c2 = tolower ((int) *String2);
 
         String1++;
         String2++;

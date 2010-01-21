@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -336,9 +336,10 @@ FlSplitInputPathname (
  *
  * FUNCTION:    AsDoWildcard
  *
- * PARAMETERS:  None
+ * PARAMETERS:  DirectoryPathname   - Path to parent directory
+ *              FileSpecifier       - the wildcard specification (*.c, etc.)
  *
- * RETURN:      None
+ * RETURN:      Pointer to a list of filenames
  *
  * DESCRIPTION: Process files via wildcards. This function is for the Windows
  *              case only.
@@ -393,6 +394,11 @@ AsDoWildcard (
     return (FileList);
 
 #else
+    if (!FileSpecifier)
+    {
+        return (NULL);
+    }
+
     /*
      * Linux/Unix cases - Wildcards are expanded by the shell automatically.
      * Just return the filename in a null terminated list

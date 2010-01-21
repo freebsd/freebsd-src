@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,7 +119,6 @@
 #include "acpi.h"
 #include "accommon.h"
 #include "acnamesp.h"
-#include "acpredef.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nsrepair2")
@@ -177,7 +176,7 @@ AcpiNsCheckSortedList (
     UINT8                   SortDirection,
     char                    *SortKeyName);
 
-static ACPI_STATUS
+static void
 AcpiNsSortList (
     ACPI_OPERAND_OBJECT     **Elements,
     UINT32                  Count,
@@ -557,7 +556,6 @@ AcpiNsCheckSortedList (
     ACPI_OPERAND_OBJECT     *ObjDesc;
     UINT32                  i;
     UINT32                  PreviousValue;
-    ACPI_STATUS             Status;
 
 
     ACPI_FUNCTION_NAME (NsCheckSortedList);
@@ -616,19 +614,15 @@ AcpiNsCheckSortedList (
 
         /*
          * The list must be sorted in the specified order. If we detect a
-         * discrepancy, issue a warning and sort the entire list
+         * discrepancy, sort the entire list.
          */
         if (((SortDirection == ACPI_SORT_ASCENDING) &&
                 (ObjDesc->Integer.Value < PreviousValue)) ||
             ((SortDirection == ACPI_SORT_DESCENDING) &&
                 (ObjDesc->Integer.Value > PreviousValue)))
         {
-            Status = AcpiNsSortList (ReturnObject->Package.Elements,
-                        OuterElementCount, SortIndex, SortDirection);
-            if (ACPI_FAILURE (Status))
-            {
-                return (Status);
-            }
+            AcpiNsSortList (ReturnObject->Package.Elements,
+                OuterElementCount, SortIndex, SortDirection);
 
             Data->Flags |= ACPI_OBJECT_REPAIRED;
 
@@ -648,99 +642,6 @@ AcpiNsCheckSortedList (
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiNsRemoveNullElements
- *
- * PARAMETERS:  Data                - Pointer to validation data structure
- *              PackageType         - An AcpiReturnPackageTypes value
- *              ObjDesc             - A Package object
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Remove all NULL package elements from packages that contain
- *              a variable number of sub-packages.
- *
- *****************************************************************************/
-
-void
-AcpiNsRemoveNullElements (
-    ACPI_PREDEFINED_DATA    *Data,
-    UINT8                   PackageType,
-    ACPI_OPERAND_OBJECT     *ObjDesc)
-{
-    ACPI_OPERAND_OBJECT     **Source;
-    ACPI_OPERAND_OBJECT     **Dest;
-    UINT32                  Count;
-    UINT32                  NewCount;
-    UINT32                  i;
-
-
-    ACPI_FUNCTION_NAME (NsRemoveNullElements);
-
-
-    /*
-     * PTYPE1 packages contain no subpackages.
-     * PTYPE2 packages contain a variable number of sub-packages. We can
-     * safely remove all NULL elements from the PTYPE2 packages.
-     */
-    switch (PackageType)
-    {
-    case ACPI_PTYPE1_FIXED:
-    case ACPI_PTYPE1_VAR:
-    case ACPI_PTYPE1_OPTION:
-        return;
-
-    case ACPI_PTYPE2:
-    case ACPI_PTYPE2_COUNT:
-    case ACPI_PTYPE2_PKG_COUNT:
-    case ACPI_PTYPE2_FIXED:
-    case ACPI_PTYPE2_MIN:
-    case ACPI_PTYPE2_REV_FIXED:
-        break;
-
-    default:
-        return;
-    }
-
-    Count = ObjDesc->Package.Count;
-    NewCount = Count;
-
-    Source = ObjDesc->Package.Elements;
-    Dest = Source;
-
-    /* Examine all elements of the package object, remove nulls */
-
-    for (i = 0; i < Count; i++)
-    {
-        if (!*Source)
-        {
-            NewCount--;
-        }
-        else
-        {
-            *Dest = *Source;
-            Dest++;
-        }
-        Source++;
-    }
-
-    /* Update parent package if any null elements were removed */
-
-    if (NewCount < Count)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
-            "%s: Found and removed %u NULL elements\n",
-            Data->Pathname, (Count - NewCount)));
-
-        /* NULL terminate list and update the package count */
-
-        *Dest = NULL;
-        ObjDesc->Package.Count = NewCount;
-    }
-}
-
-
-/******************************************************************************
- *
  * FUNCTION:    AcpiNsSortList
  *
  * PARAMETERS:  Elements            - Package object element list
@@ -748,15 +649,16 @@ AcpiNsRemoveNullElements (
  *              Index               - Sort by which package element
  *              SortDirection       - Ascending or Descending sort
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Sort the objects that are in a package element list.
  *
- * NOTE: Assumes that all NULL elements have been removed from the package.
+ * NOTE: Assumes that all NULL elements have been removed from the package,
+ *       and that all elements have been verified to be of type Integer.
  *
  *****************************************************************************/
 
-static ACPI_STATUS
+static void
 AcpiNsSortList (
     ACPI_OPERAND_OBJECT     **Elements,
     UINT32                  Count,
@@ -791,6 +693,4 @@ AcpiNsSortList (
             }
         }
     }
-
-    return (AE_OK);
 }

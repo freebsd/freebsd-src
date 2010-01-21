@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -153,9 +153,9 @@ AsMatchExactWord (
     NextChar = Word[WordLength];
     PrevChar = * (Word -1);
 
-    if (isalnum (NextChar) ||
+    if (isalnum ((int) NextChar) ||
         (NextChar == '_')  ||
-        isalnum (PrevChar) ||
+        isalnum ((int) PrevChar) ||
         (PrevChar == '_'))
     {
         return (FALSE);
@@ -700,7 +700,7 @@ AsBracesOnSameLine (
          * Check for digit will ignore initializer lists surrounded by braces.
          * This will work until we we need more complex detection.
          */
-        if ((*SubBuffer == '{') && !isdigit (SubBuffer[1]))
+        if ((*SubBuffer == '{') && !isdigit ((int) SubBuffer[1]))
         {
             if (BlockBegin)
             {

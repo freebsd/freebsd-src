@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -235,7 +235,7 @@ AcpiUtGetEventName (
 
 char
 AcpiUtHexToAsciiChar (
-    ACPI_INTEGER            Integer,
+    UINT64                  Integer,
     UINT32                  Position);
 
 BOOLEAN
@@ -470,7 +470,7 @@ AcpiUtValueExit (
     const char              *FunctionName,
     const char              *ModuleName,
     UINT32                  ComponentId,
-    ACPI_INTEGER            Value);
+    UINT64                  Value);
 
 void
 AcpiUtPtrExit (
@@ -550,7 +550,7 @@ ACPI_STATUS
 AcpiUtEvaluateNumericObject (
     char                    *ObjectName,
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_INTEGER            *Value);
+    UINT64                  *Value);
 
 ACPI_STATUS
 AcpiUtExecute_STA (
@@ -720,16 +720,16 @@ AcpiUtDeleteGenericState (
  */
 ACPI_STATUS
 AcpiUtDivide (
-    ACPI_INTEGER            InDividend,
-    ACPI_INTEGER            InDivisor,
-    ACPI_INTEGER            *OutQuotient,
-    ACPI_INTEGER            *OutRemainder);
+    UINT64                  InDividend,
+    UINT64                  InDivisor,
+    UINT64                  *OutQuotient,
+    UINT64                  *OutRemainder);
 
 ACPI_STATUS
 AcpiUtShortDivide (
-    ACPI_INTEGER            InDividend,
+    UINT64                  InDividend,
     UINT32                  Divisor,
-    ACPI_INTEGER            *OutQuotient,
+    UINT64                  *OutQuotient,
     UINT32                  *OutRemainder);
 
 /*
@@ -788,7 +788,7 @@ ACPI_STATUS
 AcpiUtStrtoul64 (
     char                    *String,
     UINT32                  Base,
-    ACPI_INTEGER            *RetInteger);
+    UINT64                  *RetInteger);
 
 void ACPI_INTERNAL_VAR_XFACE
 AcpiUtPredefinedWarning (

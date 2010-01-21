@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -149,9 +149,9 @@
 
 ACPI_STATUS
 AcpiUtShortDivide (
-    ACPI_INTEGER            Dividend,
+    UINT64                  Dividend,
     UINT32                  Divisor,
-    ACPI_INTEGER            *OutQuotient,
+    UINT64                  *OutQuotient,
     UINT32                  *OutRemainder)
 {
     UINT64_OVERLAY          DividendOvl;
@@ -213,10 +213,10 @@ AcpiUtShortDivide (
 
 ACPI_STATUS
 AcpiUtDivide (
-    ACPI_INTEGER            InDividend,
-    ACPI_INTEGER            InDivisor,
-    ACPI_INTEGER            *OutQuotient,
-    ACPI_INTEGER            *OutRemainder)
+    UINT64                  InDividend,
+    UINT64                  InDivisor,
+    UINT64                  *OutQuotient,
+    UINT64                  *OutRemainder)
 {
     UINT64_OVERLAY          Dividend;
     UINT64_OVERLAY          Divisor;
@@ -293,8 +293,8 @@ AcpiUtDivide (
          * The 64-bit remainder must be generated.
          */
         Partial1      = Quotient.Part.Lo * Divisor.Part.Hi;
-        Partial2.Full = (ACPI_INTEGER) Quotient.Part.Lo * Divisor.Part.Lo;
-        Partial3.Full = (ACPI_INTEGER) Partial2.Part.Hi + Partial1;
+        Partial2.Full = (UINT64) Quotient.Part.Lo * Divisor.Part.Lo;
+        Partial3.Full = (UINT64) Partial2.Part.Hi + Partial1;
 
         Remainder.Part.Hi = Partial3.Part.Lo;
         Remainder.Part.Lo = Partial2.Part.Lo;
@@ -362,9 +362,9 @@ AcpiUtDivide (
 
 ACPI_STATUS
 AcpiUtShortDivide (
-    ACPI_INTEGER            InDividend,
+    UINT64                  InDividend,
     UINT32                  Divisor,
-    ACPI_INTEGER            *OutQuotient,
+    UINT64                  *OutQuotient,
     UINT32                  *OutRemainder)
 {
 
@@ -395,10 +395,10 @@ AcpiUtShortDivide (
 
 ACPI_STATUS
 AcpiUtDivide (
-    ACPI_INTEGER            InDividend,
-    ACPI_INTEGER            InDivisor,
-    ACPI_INTEGER            *OutQuotient,
-    ACPI_INTEGER            *OutRemainder)
+    UINT64                  InDividend,
+    UINT64                  InDivisor,
+    UINT64                  *OutQuotient,
+    UINT64                  *OutRemainder)
 {
     ACPI_FUNCTION_TRACE (UtDivide);
 

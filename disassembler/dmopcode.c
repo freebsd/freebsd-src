@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -473,8 +473,8 @@ AcpiDmDisassembleOneOp (
 
     case AML_QWORD_OP:
 
-        AcpiOsPrintf ("0x%8.8X%8.8X", Op->Common.Value.Integer64.Hi,
-                                      Op->Common.Value.Integer64.Lo);
+        AcpiOsPrintf ("0x%8.8X%8.8X",
+            ACPI_FORMAT_UINT64 (Op->Common.Value.Integer));
         break;
 
 

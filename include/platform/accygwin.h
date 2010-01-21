@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -154,6 +154,9 @@
 #ifdef _ANSI
 #define inline
 #endif
+
+#define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq) if (GLptr) Acq=1; else Acq=0;
+#define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Pending) Pending = 1
 
 
 /* Cygwin uses GCC */

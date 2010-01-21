@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -929,12 +929,12 @@ ACPI_STATUS
 AcpiUtStrtoul64 (
     char                    *String,
     UINT32                  Base,
-    ACPI_INTEGER            *RetInteger)
+    UINT64                  *RetInteger)
 {
     UINT32                  ThisDigit = 0;
-    ACPI_INTEGER            ReturnValue = 0;
-    ACPI_INTEGER            Quotient;
-    ACPI_INTEGER            Dividend;
+    UINT64                  ReturnValue = 0;
+    UINT64                  Quotient;
+    UINT64                  Dividend;
     UINT32                  ToIntegerOp = (Base == ACPI_ANY_BASE);
     UINT32                  Mode32 = (AcpiGbl_IntegerByteWidth == 4);
     UINT8                   ValidDigits = 0;
@@ -1071,7 +1071,7 @@ AcpiUtStrtoul64 (
 
         /* Divide the digit into the correct position */
 
-        (void) AcpiUtShortDivide ((Dividend - (ACPI_INTEGER) ThisDigit),
+        (void) AcpiUtShortDivide ((Dividend - (UINT64) ThisDigit),
                     Base, &Quotient, NULL);
 
         if (ReturnValue > Quotient)
