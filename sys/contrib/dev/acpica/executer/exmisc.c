@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -508,11 +508,11 @@ Cleanup:
  *
  ******************************************************************************/
 
-ACPI_INTEGER
+UINT64
 AcpiExDoMathOp (
     UINT16                  Opcode,
-    ACPI_INTEGER            Integer0,
-    ACPI_INTEGER            Integer1)
+    UINT64                  Integer0,
+    UINT64                  Integer1)
 {
 
     ACPI_FUNCTION_ENTRY ();
@@ -615,8 +615,8 @@ AcpiExDoMathOp (
 ACPI_STATUS
 AcpiExDoLogicalNumericOp (
     UINT16                  Opcode,
-    ACPI_INTEGER            Integer0,
-    ACPI_INTEGER            Integer1,
+    UINT64                  Integer0,
+    UINT64                  Integer1,
     BOOLEAN                 *LogicalResult)
 {
     ACPI_STATUS             Status = AE_OK;
@@ -690,8 +690,8 @@ AcpiExDoLogicalOp (
     BOOLEAN                 *LogicalResult)
 {
     ACPI_OPERAND_OBJECT     *LocalOperand1 = Operand1;
-    ACPI_INTEGER            Integer0;
-    ACPI_INTEGER            Integer1;
+    UINT64                  Integer0;
+    UINT64                  Integer1;
     UINT32                  Length0;
     UINT32                  Length1;
     ACPI_STATUS             Status = AE_OK;

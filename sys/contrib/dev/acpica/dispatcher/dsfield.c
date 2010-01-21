@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -314,7 +314,7 @@ AcpiDsGetFieldNames (
     ACPI_PARSE_OBJECT       *Arg)
 {
     ACPI_STATUS             Status;
-    ACPI_INTEGER            Position;
+    UINT64                  Position;
 
 
     ACPI_FUNCTION_TRACE_PTR (DsGetFieldNames, Info);
@@ -338,8 +338,8 @@ AcpiDsGetFieldNames (
         {
         case AML_INT_RESERVEDFIELD_OP:
 
-            Position = (ACPI_INTEGER) Info->FieldBitPosition
-                        + (ACPI_INTEGER) Arg->Common.Value.Size;
+            Position = (UINT64) Info->FieldBitPosition
+                        + (UINT64) Arg->Common.Value.Size;
 
             if (Position > ACPI_UINT32_MAX)
             {
@@ -406,8 +406,8 @@ AcpiDsGetFieldNames (
 
             /* Keep track of bit position for the next field */
 
-            Position = (ACPI_INTEGER) Info->FieldBitPosition
-                        + (ACPI_INTEGER) Arg->Common.Value.Size;
+            Position = (UINT64) Info->FieldBitPosition
+                        + (UINT64) Arg->Common.Value.Size;
 
             if (Position > ACPI_UINT32_MAX)
             {
