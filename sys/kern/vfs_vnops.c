@@ -185,6 +185,8 @@ restart:
 		ndp->ni_cnd.cn_flags = ISOPEN |
 		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) |
 		    LOCKLEAF | MPSAFE | AUDITVNODE1;
+		if (!(fmode & FWRITE))
+			ndp->ni_cnd.cn_flags |= LOCKSHARED;
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		if (!mpsafe)
@@ -235,7 +237,7 @@ restart:
 	if (fmode & FWRITE)
 		vp->v_writecount++;
 	*flagp = fmode;
-	ASSERT_VOP_ELOCKED(vp, "vn_open_cred");
+	ASSERT_VOP_LOCKED(vp, "vn_open_cred");
 	if (!mpsafe)
 		VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
@@ -280,12 +282,18 @@ vn_close(vp, flags, file_cred, td)
 	struct thread *td;
 {
 	struct mount *mp;
-	int error;
+	int error, lock_flags;
+
+	if (!(flags & FWRITE) && vp->v_mount != NULL &&
+	    vp->v_mount->mnt_kern_flag & MNTK_EXTENDED_SHARED)
+		lock_flags = LK_SHARED;
+	else
+		lock_flags = LK_EXCLUSIVE;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 
 	vn_start_write(vp, &mp, V_WAIT);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, lock_flags | LK_RETRY, td);
 	if (flags & FWRITE) {
 		VNASSERT(vp->v_writecount > 0, vp, 
 		    ("vn_close: negative writecount"));
