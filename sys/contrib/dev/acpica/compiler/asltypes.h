@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -571,11 +571,6 @@ char                    *AslErrorLevel [ASL_NUM_REPORT_LEVELS] = {
 
 #define ASL_ERROR_LEVEL_LENGTH          8       /* Length of strings above */
 
-/* Exception counters */
-
-UINT32                  Gbl_ExceptionCount[ASL_NUM_REPORT_LEVELS] = {0,0,0,0,0,0};
-
-#endif
-
+#endif  /* ASL_EXCEPTIONS */
 
 #endif  /* __ASLTYPES_H */
