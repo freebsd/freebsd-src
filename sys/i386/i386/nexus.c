@@ -96,6 +96,9 @@ static	int nexus_bind_intr(device_t, device_t, struct resource *, int);
 #endif
 static	int nexus_config_intr(device_t, int, enum intr_trigger,
 			      enum intr_polarity);
+static	int nexus_describe_intr(device_t dev, device_t child,
+				struct resource *irq, void *cookie,
+				const char *descr);
 static	int nexus_activate_resource(device_t, device_t, int, int,
 				    struct resource *);
 static	int nexus_deactivate_resource(device_t, device_t, int, int,
@@ -141,6 +144,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
 #endif
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
+	DEVMETHOD(bus_describe_intr,	nexus_describe_intr),
 	DEVMETHOD(bus_get_resource_list, nexus_get_reslist),
 	DEVMETHOD(bus_set_resource,	nexus_set_resource),
 	DEVMETHOD(bus_get_resource,	nexus_get_resource),
@@ -524,6 +528,14 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	return (intr_config_intr(irq, trig, pol));
+}
+
+static int
+nexus_describe_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookie, const char *descr)
+{
+
+	return (intr_describe(rman_get_start(irq), cookie, descr));
 }
 
 static struct resource_list *
