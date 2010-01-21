@@ -45,7 +45,7 @@
 .Op Ar users ...
 .Sh DESCRIPTION
 If the file
-.Pa /var/log/wtmp
+.Pa /var/log/utx.log
 exists, a record of individual login and logout
 times are written to it by
 .Xr login 1
@@ -86,7 +86,7 @@ flags may be specified.
 Read connect time data from
 .Ar wtmp
 instead of the default file,
-.Pa /var/log/wtmp .
+.Pa /var/log/utx.log .
 .It Ar users ...
 Display totals for the given individuals only.
 .El
@@ -95,20 +95,20 @@ If no arguments are given,
 .Nm
 displays the total connect time for all
 accounts with login sessions recorded in
-.Pa wtmp .
+.Pa utx.log .
 .Pp
 The default
-.Pa wtmp
+.Pa utx.log
 file will increase without bound unless it is truncated.
 It is normally truncated by the daily scripts run
 by
 .Xr cron 8 ,
 which rename and rotate the
-.Pa wtmp
+.Pa utx.log
 files, keeping a week's worth of data on
 hand.
 No login or connect time accounting is performed if
-.Pa /var/log/wtmp
+.Pa /var/log/utx.log
 does not exist.
 .Pp
 For example,
@@ -122,15 +122,15 @@ allows times recorded in
 to be charged out at a different rate than
 .Pa other .
 .Sh FILES
-.Bl -tag -width /var/log/wtmp -compact
-.It Pa /var/log/wtmp
+.Bl -tag -width /var/log/utx.log -compact
+.It Pa /var/log/utx.log
 connect time accounting file
 .El
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
 .Xr login 1 ,
-.Xr utmp 5 ,
+.Xr getutxent 3 ,
 .Xr init 8 ,
 .Xr sa 8
 .\" .Sh NOTES
