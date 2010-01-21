@@ -20,6 +20,7 @@ MAN=	aac.4 \
 	ale.4 \
 	altq.4 \
 	amd.4 \
+	${_amdtemp.4} \
 	${_amdsmb.4} \
 	amr.4 \
 	an.4 \
@@ -146,7 +147,6 @@ MAN=	aac.4 \
 	ixgb.4 \
 	jme.4 \
 	joy.4 \
-	${_k8temp.4} \
 	kbdmux.4 \
 	keyboard.4 \
 	kld.4 \
@@ -561,6 +561,7 @@ MLINKS+=xl.4 if_xl.4
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _acpi_dock.4=	acpi_dock.4
 _amdsmb.4=	amdsmb.4
+_amdtemp.4=	amdtemp.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
 _hptiop.4=	hptiop.4
@@ -572,7 +573,6 @@ _if_nve.4=	if_nve.4
 _if_nxge.4=	if_nxge.4
 _if_wpi.4=	if_wpi.4
 _ipmi.4=	ipmi.4
-_k8temp.4=	k8temp.4
 _lindev.4=	lindev.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
