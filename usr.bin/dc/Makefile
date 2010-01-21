@@ -6,8 +6,6 @@ SRCS=	dc.c bcode.c inout.c mem.c stack.c
 LDADD=	-lcrypto
 DPADD=	${LIBCRYPTO}
 
-#SUBDIR+=	USD.doc
-
-WARNS?=	6
+SUBDIR+=	USD.doc
 
 .include <bsd.prog.mk>
