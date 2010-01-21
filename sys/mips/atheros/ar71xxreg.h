@@ -23,6 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+/* $FreeBSD$ */
+
 #ifndef _AR71XX_REG_H_
 #define _AR71XX_REG_H_
 
@@ -422,6 +425,7 @@
 #define			SPI_IO_CTRL_CS2			(1 << 18)
 #define			SPI_IO_CTRL_CS1			(1 << 17)
 #define			SPI_IO_CTRL_CS0			(1 << 16)
+#define			SPI_IO_CTRL_CSMASK		(7 << 16)
 #define			SPI_IO_CTRL_CLK			(1 << 8)
 #define			SPI_IO_CTRL_DO			1
 #define		AR71XX_SPI_RDS		0x0C
