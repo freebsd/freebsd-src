@@ -332,10 +332,8 @@ pipe(td, uap)
 	rpipe = &pp->pp_rpipe;
 	wpipe = &pp->pp_wpipe;
 
-	knlist_init(&rpipe->pipe_sel.si_note, PIPE_MTX(rpipe), NULL, NULL,
-	    NULL);
-	knlist_init(&wpipe->pipe_sel.si_note, PIPE_MTX(wpipe), NULL, NULL,
-	    NULL);
+	knlist_init_mtx(&rpipe->pipe_sel.si_note, PIPE_MTX(rpipe));
+	knlist_init_mtx(&wpipe->pipe_sel.si_note, PIPE_MTX(wpipe));
 
 	/* Only the forward direction pipe is backed by default */
 	if ((error = pipe_create(rpipe, 1)) != 0 ||

@@ -258,7 +258,7 @@ apm_create_clone(struct cdev *dev, struct acpi_softc *acpi_sc)
 	clone->acpi_sc = acpi_sc;
 	clone->notify_status = APM_EV_NONE;
 	bzero(&clone->sel_read, sizeof(clone->sel_read));
-	knlist_init(&clone->sel_read.si_note, &acpi_mutex, NULL, NULL, NULL);
+	knlist_init_mtx(&clone->sel_read.si_note, &acpi_mutex);
 
 	/*
 	 * The acpi device is always managed by devd(8) and is considered

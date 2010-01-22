@@ -425,7 +425,7 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 #endif
 	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
 	callout_init(&d->bd_callout, CALLOUT_MPSAFE);
-	knlist_init(&d->bd_sel.si_note, &d->bd_mtx, NULL, NULL, NULL);
+	knlist_init_mtx(&d->bd_sel.si_note, &d->bd_mtx);
 
 	return (0);
 }

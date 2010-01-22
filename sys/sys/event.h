@@ -209,6 +209,7 @@ struct kevent_copyops {
 struct thread;
 struct proc;
 struct knlist;
+struct mtx;
 
 extern void	knote(struct knlist *list, long hint, int lockflags);
 extern void	knote_fork(struct knlist *list, int pid);
@@ -219,6 +220,7 @@ extern int	knlist_empty(struct knlist *knl);
 extern void	knlist_init(struct knlist *knl, void *lock,
     void (*kl_lock)(void *), void (*kl_unlock)(void *),
     int (*kl_locked)(void *));
+extern void	knlist_init_mtx(struct knlist *knl, struct mtx *lock);
 extern void	knlist_destroy(struct knlist *knl);
 extern void	knlist_cleardel(struct knlist *knl, struct thread *td,
 	int islocked, int killkn);

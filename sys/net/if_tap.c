@@ -462,7 +462,7 @@ tapcreate(struct cdev *dev)
 	tp->tap_flags |= TAP_INITED;
 	mtx_unlock(&tp->tap_mtx);
 
-	knlist_init(&tp->tap_rsel.si_note, NULL, NULL, NULL, NULL);
+	knlist_init_mtx(&tp->tap_rsel.si_note, NULL);
 
 	TAPDEBUG("interface %s is created. minor = %#x\n", 
 		ifp->if_xname, minor(dev));

@@ -107,7 +107,6 @@ static void	vnlru_free(int);
 static void	vgonel(struct vnode *);
 static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
-static int	vfs_knllocked(void *arg);
 static void	destroy_vpollinfo(struct vpollinfo *vi);
 
 /*
@@ -3227,7 +3226,7 @@ v_addpollinfo(struct vnode *vp)
 	vi = uma_zalloc(vnodepoll_zone, M_WAITOK);
 	mtx_init(&vi->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
 	knlist_init(&vi->vpi_selinfo.si_note, vp, vfs_knllock,
-	    vfs_knlunlock, vfs_knllocked);
+	    vfs_knlunlock, NULL);
 	VI_LOCK(vp);
 	if (vp->v_pollinfo != NULL) {
 		VI_UNLOCK(vp);
@@ -3945,7 +3944,7 @@ static struct knlist fs_knlist;
 static void
 vfs_event_init(void *arg)
 {
-	knlist_init(&fs_knlist, NULL, NULL, NULL, NULL);
+	knlist_init_mtx(&fs_knlist, NULL);
 }
 /* XXX - correct order? */
 SYSINIT(vfs_knlist, SI_SUB_VFS, SI_ORDER_ANY, vfs_event_init, NULL);
@@ -4058,14 +4057,6 @@ vfs_knlunlock(void *arg)
 	VOP_UNLOCK(vp, 0, curthread);
 }
 
-static int
-vfs_knllocked(void *arg)
-{
-	struct vnode *vp = arg;
-
-	return (VOP_ISLOCKED(vp, curthread) == LK_EXCLUSIVE);
-}
-
 int
 vfs_kqfilter(struct vop_kqfilter_args *ap)
 {
@@ -4116,27 +4107,37 @@ filt_vfsread(struct knote *kn, long hint)
 {
 	struct vnode *vp = (struct vnode *)kn->kn_hook;
 	struct vattr va;
+	int res;
 
 	/*
 	 * filesystem is gone, so set the EOF flag and schedule
 	 * the knote for deletion.
 	 */
 	if (hint == NOTE_REVOKE) {
+		VI_LOCK(vp);
 		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
+		VI_UNLOCK(vp);
 		return (1);
 	}
 
 	if (VOP_GETATTR(vp, &va, curthread->td_ucred, curthread))
 		return (0);
 
+	VI_LOCK(vp);
 	kn->kn_data = va.va_size - kn->kn_fp->f_offset;
-	return (kn->kn_data != 0);
+	res = (kn->kn_data != 0);
+	VI_UNLOCK(vp);
+	return (res);
 }
 
 /*ARGSUSED*/
 static int
 filt_vfswrite(struct knote *kn, long hint)
 {
+	struct vnode *vp = (struct vnode *)kn->kn_hook;
+
+	VI_LOCK(vp);
+
 	/*
 	 * filesystem is gone, so set the EOF flag and schedule
 	 * the knote for deletion.
@@ -4145,19 +4146,27 @@ filt_vfswrite(struct knote *kn, long hint)
 		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
 
 	kn->kn_data = 0;
+	VI_UNLOCK(vp);
 	return (1);
 }
 
 static int
 filt_vfsvnode(struct knote *kn, long hint)
 {
+	struct vnode *vp = (struct vnode *)kn->kn_hook;
+	int res;
+
+	VI_LOCK(vp);
 	if (kn->kn_sfflags & hint)
 		kn->kn_fflags |= hint;
 	if (hint == NOTE_REVOKE) {
 		kn->kn_flags |= EV_EOF;
+		VI_UNLOCK(vp);
 		return (1);
 	}
-	return (kn->kn_fflags != 0);
+	res = (kn->kn_fflags != 0);
+	VI_UNLOCK(vp);
+	return (res);
 }
 
 int
