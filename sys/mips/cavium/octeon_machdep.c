@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #define MAX_APP_DESC_ADDR     0xafffffff
 #endif
 
+static struct pcpu pcpu0;
 extern int	*edata;
 extern int	*end;
 
@@ -86,6 +87,16 @@ void ciu_dump_interrutps_enabled(int core_num, int intx, int enx, int ciu_ip);
 static void octeon_boot_params_init(register_t ptr);
 static uint64_t ciu_get_intr_sum_reg_addr(int core_num, int intx, int enx);
 static uint64_t ciu_get_intr_en_reg_addr(int core_num, int intx, int enx);
+
+static __inline void
+mips_wr_ebase(u_int32_t a0)
+{
+	__asm __volatile("mtc0 %[a0], $15, 1 ;"
+	    :
+	    :     [a0] "r"(a0));
+
+	mips_barrier();
+}
 
 void
 platform_cpu_init()
@@ -638,52 +649,122 @@ void ciu_enable_interrupts(int core_num, int intx, int enx,
 	octeon_set_interrupts(cpu_status_bits);
 }
 
+unsigned long
+octeon_get_clock_rate(void)
+{
+	return octeon_cpu_clock;
+}
+
+static void
+octeon_memory_init(void)
+{
+	uint32_t realmem_bytes;
+
+	if (octeon_board_real()) {
+		printf("octeon_dram == %llx\n", octeon_dram);
+		printf("reduced to ram: %u MB", (uint32_t) octeon_dram >> 20);
+
+		realmem_bytes = (octeon_dram - PAGE_SIZE);
+		realmem_bytes &= ~(PAGE_SIZE - 1);
+		printf("Real memory bytes is %x\n", realmem_bytes);
+	} else {
+		/* Simulator we limit to 96 meg */
+		realmem_bytes = (96 << 20);
+	}
+	/* phys_avail regions are in bytes */
+	phys_avail[0] = (MIPS_KSEG0_TO_PHYS((vm_offset_t)&end) + PAGE_SIZE) & ~(PAGE_SIZE - 1);
+	if (octeon_board_real()) {
+		if (realmem_bytes > OCTEON_DRAM_FIRST_256_END)
+			phys_avail[1] = OCTEON_DRAM_FIRST_256_END;
+		else
+			phys_avail[1] = realmem_bytes;
+		realmem_bytes -= OCTEON_DRAM_FIRST_256_END;
+		realmem_bytes &= ~(PAGE_SIZE - 1);
+		printf("phys_avail[0] = %x phys_avail[1] = %x\n",
+		    phys_avail[0], phys_avail[1]);
+	} else {
+		/* Simulator gets 96Meg period. */
+		phys_avail[1] = (96 << 20);
+	}
+	/*-
+	 * Octeon Memory looks as follows:
+         *   PA
+	 * 0000 0000 to                                       0x0 0000 0000 0000
+	 * 0FFF FFFF      First 256 MB memory   Maps to       0x0 0000 0FFF FFFF
+	 *
+	 * 1000 0000 to                                       0x1 0000 1000 0000
+	 * 1FFF FFFF      Uncached Bu I/O space.converted to  0x1 0000 1FFF FFFF
+	 *
+	 * 2FFF FFFF to            Cached                     0x0 0000 2000 0000
+	 * FFFF FFFF      all dram mem above the first 512M   0x3 FFFF FFFF FFFF
+	 *
+	 */
+	physmem = btoc(phys_avail[1] - phys_avail[0]);
+	if ((octeon_board_real()) &&
+	    (realmem_bytes > OCTEON_DRAM_FIRST_256_END)) {
+		/* take out the upper non-cached 1/2 */
+		realmem_bytes -= OCTEON_DRAM_FIRST_256_END;
+		realmem_bytes &= ~(PAGE_SIZE - 1);
+		/* Now map the rest of the memory */
+		phys_avail[2] = 0x20000000;
+		printf("realmem_bytes is now at %x\n", realmem_bytes);
+		phys_avail[3] = ((uint32_t) 0x20000000 + realmem_bytes);
+		printf("Next block of memory goes from %x to %x\n",
+		    phys_avail[2], phys_avail[3]);
+		physmem += btoc(phys_avail[3] - phys_avail[2]);
+	} else {
+		printf("realmem_bytes is %d\n", realmem_bytes);
+	}
+	realmem = physmem;
+
+	printf("\nTotal DRAM Size 0x%X", (uint32_t) octeon_dram);
+	printf("\nBank 0 = 0x%8X   ->  0x%8X", phys_avail[0], phys_avail[1]);
+	printf("\nBank 1 = 0x%8X   ->  0x%8X\n", phys_avail[2], phys_avail[3]);
+	printf("\nphysmem: 0x%lx", physmem);
+
+	Maxmem = physmem;
+
+}
+
 void
 platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
     __register_t a3)
 {
 	uint64_t platform_counter_freq;
-	int i, mem = 0;
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
-
-	octeon_boot_params_init(a3);
-	/* XXX octeon boot decriptor has args in it... */
-        octeon_ciu_reset();
-    	octeon_uart_write_string(0, "Platform Starting\n");
-
-	bootverbose = 1;
-	if (mem > 0)
-		realmem = btoc(mem << 20);
-	else
-		realmem = btoc(32 << 20);
-
-	for (i = 0; i < 10; i++)
-		phys_avail[i] = 0;
-
-	/* phys_avail regions are in bytes */
-	phys_avail[0] = MIPS_KSEG0_TO_PHYS((vm_offset_t)&end);
-	phys_avail[1] = ctob(realmem);
-
-	physmem = realmem;
-
-	pmap_bootstrap();
-	mips_proc0_init();
-
-	init_param1();
-	/* TODO: parse argc,argv */
-	platform_counter_freq = 330000000UL; /* XXX: from idt */
-	mips_timer_init_params(platform_counter_freq, 1);
+	mips_timer_early_init(OCTEON_CLOCK_DEFAULT);
 	cninit();
+
+	octeon_ciu_reset();
+	octeon_boot_params_init(a3);
+	bootverbose = 1;
+	cpuid_to_pcpu[0] = &pcpu0;
+
+	/*
+	 * For some reason on the cn38xx simulator ebase register is set to
+	 * 0x80001000 at bootup time.  Move it back to the default, but
+	 * when we move to having support for multiple executives, we need
+	 * to rethink this.
+	 */
+	mips_wr_ebase(0x80000000);
+
+	octeon_memory_init();
+	init_param1();
 	init_param2(physmem);
 	mips_cpu_init();
+	pmap_bootstrap();
+	mips_proc0_init();
 	mutex_init();
 #ifdef DDB
 	kdb_init();
 #endif
+	platform_counter_freq = octeon_get_clock_rate();
+	mips_timer_init_params(platform_counter_freq, 1);
 }
 
+/* impSTART: This stuff should move back into the Cavium SDK */
 /*
  ****************************************************************************************
  *
@@ -788,7 +869,6 @@ uint8_t octeon_mac_addr[6] = { 0 };
 int octeon_core_mask, octeon_mac_addr_count;
 int octeon_chip_rev_major = 0, octeon_chip_rev_minor = 0, octeon_chip_type = 0;
 
-extern int32_t app_descriptor_addr;
 static octeon_boot_descriptor_t *app_desc_ptr;
 static cvmx_bootinfo_t *cvmx_desc_ptr;
 
@@ -821,7 +901,6 @@ octeon_process_app_desc_ver_unknown(void)
         octeon_dram = OCTEON_DRAM_DEFAULT;
         octeon_board_rev_major = octeon_board_rev_minor = octeon_board_type = 0;
         octeon_core_mask = 1;
-        octeon_cpu_clock  = OCTEON_CLOCK_DEFAULT;
         octeon_chip_type = octeon_chip_rev_major = octeon_chip_rev_minor = 0;
         octeon_mac_addr[0] = 0x00; octeon_mac_addr[1] = 0x0f;
         octeon_mac_addr[2] = 0xb7; octeon_mac_addr[3] = 0x10;
@@ -844,13 +923,10 @@ octeon_process_app_desc_ver_6(void)
 	    (cvmx_bootinfo_t *) ((intptr_t)cvmx_desc_ptr | MIPS_KSEG0_START);
         octeon_cvmx_bd_ver = (cvmx_desc_ptr->major_version * 100) +
 	    cvmx_desc_ptr->minor_version;
-	/* Too early for panic? */
         if (cvmx_desc_ptr->major_version != 1) {
-            	printf("Incompatible CVMX descriptor from bootloader: %d.%d %p\n",
+            	panic("Incompatible CVMX descriptor from bootloader: %d.%d %p\n",
                        (int) cvmx_desc_ptr->major_version,
                        (int) cvmx_desc_ptr->minor_version, cvmx_desc_ptr);
-                while (1);	/*  Never return */
-                return 1;	/*  Satisfy the compiler */
         }
 
         octeon_core_mask = cvmx_desc_ptr->core_mask;
@@ -876,53 +952,15 @@ octeon_process_app_desc_ver_6(void)
         return 0;
 }
 
-static int
-octeon_process_app_desc_ver_3_4_5(void)
-{
-
-    	octeon_cvmx_bd_ver = octeon_bd_ver;
-        octeon_core_mask = app_desc_ptr->core_mask;
-
-        if (app_desc_ptr->desc_version > 3)
-            	octeon_cpu_clock = app_desc_ptr->eclock_hz;
-	else
-            	octeon_cpu_clock  = OCTEON_CLOCK_DEFAULT;
-        if (app_desc_ptr->dram_size > 16*1024*1024)
-            	octeon_dram = (uint64_t)app_desc_ptr->dram_size;
-	else
-            	octeon_dram = (uint64_t)app_desc_ptr->dram_size << 20;
-
-        if (app_desc_ptr->desc_version > 4) {
-            	octeon_board_type = app_desc_ptr->board_type;
-                octeon_board_rev_major = app_desc_ptr->board_rev_major;
-                octeon_board_rev_minor = app_desc_ptr->board_rev_minor;
-                octeon_chip_type = app_desc_ptr->chip_type;
-                octeon_chip_rev_major = app_desc_ptr->chip_rev_major;
-                octeon_chip_rev_minor = app_desc_ptr->chip_rev_minor;
-
-                octeon_mac_addr[0] = app_desc_ptr->mac_addr_base[0];
-                octeon_mac_addr[1] = app_desc_ptr->mac_addr_base[1];
-                octeon_mac_addr[2] = app_desc_ptr->mac_addr_base[2];
-                octeon_mac_addr[3] = app_desc_ptr->mac_addr_base[3];
-                octeon_mac_addr[4] = app_desc_ptr->mac_addr_base[4];
-                octeon_mac_addr[5] = app_desc_ptr->mac_addr_base[5];
-                octeon_mac_addr_count = app_desc_ptr->mac_addr_count;
-        }
-        return 0;
-}
-
-
 static void
 octeon_boot_params_init(register_t ptr)
 {
 	int bad_desc = 1;
-
+	
     	if (ptr != 0 && ptr < MAX_APP_DESC_ADDR) {
 	        app_desc_ptr = (octeon_boot_descriptor_t *)(intptr_t)ptr;
 		octeon_bd_ver = app_desc_ptr->desc_version;
-                if ((octeon_bd_ver >= 3) && (octeon_bd_ver <= 5))
-			bad_desc = octeon_process_app_desc_ver_3_4_5();
-		else if (app_desc_ptr->desc_version == 6)
+		if (app_desc_ptr->desc_version == 6)
 			bad_desc = octeon_process_app_desc_ver_6();
         }
         if (bad_desc)
@@ -937,7 +975,9 @@ octeon_boot_params_init(register_t ptr)
         printf("  Octeon Chip: %u  Rev %u/%u",
                octeon_chip_type, octeon_chip_rev_major, octeon_chip_rev_minor);
 
-        printf("  Mac Address %02X.%02X.%02X.%02X.%02X.%02X\n",
-               octeon_mac_addr[0], octeon_mac_addr[1], octeon_mac_addr[2],
-               octeon_mac_addr[3], octeon_mac_addr[4], octeon_mac_addr[5]);
+        printf("  Mac Address %02X.%02X.%02X.%02X.%02X.%02X (%d)\n",
+	    octeon_mac_addr[0], octeon_mac_addr[1], octeon_mac_addr[2],
+	    octeon_mac_addr[3], octeon_mac_addr[4], octeon_mac_addr[5],
+	    octeon_mac_addr_count);
 }
+/* impEND: This stuff should move back into the Cavium SDK */
