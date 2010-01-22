@@ -2744,9 +2744,8 @@ bge_attach(device_t dev)
 		    & BGE_HWCFG_ASF) {
 			sc->bge_asf_mode |= ASF_ENABLE;
 			sc->bge_asf_mode |= ASF_STACKUP;
-			if (sc->bge_asicrev == BGE_ASICREV_BCM5750) {
+			if (BGE_IS_575X_PLUS(sc))
 				sc->bge_asf_mode |= ASF_NEW_HANDSHAKE;
-			}
 		}
 	}
 
