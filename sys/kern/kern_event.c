@@ -264,7 +264,7 @@ static struct {
 	{ &proc_filtops },			/* EVFILT_PROC */
 	{ &sig_filtops },			/* EVFILT_SIGNAL */
 	{ &timer_filtops },			/* EVFILT_TIMER */
-	{ &file_filtops },			/* EVFILT_NETDEV */
+	{ &null_filtops },			/* former EVFILT_NETDEV */
 	{ &fs_filtops },			/* EVFILT_FS */
 	{ &null_filtops },			/* EVFILT_LIO */
 	{ &user_filtops },			/* EVFILT_USER */
