@@ -2364,6 +2364,15 @@ zfs_zaccess(znode_t *zp, int mode, int flags, boolean_t skipaclchk, cred_t *cr)
 	is_attr = ((zp->z_phys->zp_flags & ZFS_XATTR) &&
 	    (ZTOV(zp)->v_type == VDIR));
 
+#ifdef __FreeBSD__
+	/*
+	 * In FreeBSD, we don't care about permissions of individual ADS.
+	 * Note that not checking them is not just an optimization - without
+	 * this shortcut, EA operations may bogusly fail with EACCES.
+	 */
+	if (zp->z_phys->zp_flags & ZFS_XATTR)
+		return (0);
+#else
 	/*
 	 * If attribute then validate against base file
 	 */
@@ -2389,6 +2398,7 @@ zfs_zaccess(znode_t *zp, int mode, int flags, boolean_t skipaclchk, cred_t *cr)
 			mode |= ACE_READ_NAMED_ATTRS;
 		}
 	}
+#endif
 
 	if ((error = zfs_zaccess_common(check_zp, mode, &working_mode,
 	    &check_privs, skipaclchk, cr)) == 0) {
