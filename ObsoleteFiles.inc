@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100122: move BSDL bc/dc USD documents to /usr/share/doc/usd
+OLD_FILES+=usr/share/doc/papers/bc.ascii.gz
+OLD_FILES+=usr/share/doc/papers/dc.ascii.gz
 # 20100120: replacing GNU bc/dc with BSDL versions
 OLD_FILES+=usr/share/examples/bc/ckbook.b
 OLD_FILES+=usr/share/examples/bc/pi.b
