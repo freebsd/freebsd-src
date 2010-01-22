@@ -1278,7 +1278,6 @@ static int
 _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m, 
     vm_page_t *free)
 {
-	vm_offset_t pteva;
 
 	/*
 	 * unmap the page table page
@@ -1287,19 +1286,16 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		/* PDP page */
 		pml4_entry_t *pml4;
 		pml4 = pmap_pml4e(pmap, va);
-		pteva = (vm_offset_t) PDPmap + amd64_ptob(m->pindex - (NUPDE + NUPDPE));
 		*pml4 = 0;
 	} else if (m->pindex >= NUPDE) {
 		/* PD page */
 		pdp_entry_t *pdp;
 		pdp = pmap_pdpe(pmap, va);
-		pteva = (vm_offset_t) PDmap + amd64_ptob(m->pindex - NUPDE);
 		*pdp = 0;
 	} else {
 		/* PTE page */
 		pd_entry_t *pd;
 		pd = pmap_pde(pmap, va);
-		pteva = (vm_offset_t) PTmap + amd64_ptob(m->pindex);
 		*pd = 0;
 	}
 	--pmap->pm_stats.resident_count;
@@ -1324,12 +1320,6 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 * down is begun.
 	 */
 	atomic_subtract_rel_int(&cnt.v_wire_count, 1);
-
-	/*
-	 * Do an invltlb to make the invalidated mapping
-	 * take effect immediately.
-	 */
-	pmap_invalidate_page(pmap, pteva);
 
 	/* 
 	 * Put page on a list so that it is released after
@@ -2287,9 +2277,10 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	pde_store(pde, newpde);	
 
 	/*
-	 * Invalidate a stale mapping of the page table page.
+	 * Invalidate a stale recursive mapping of the page table page.
 	 */
-	pmap_invalidate_page(pmap, (vm_offset_t)vtopte(va));
+	if (va >= VM_MAXUSER_ADDRESS)
+		pmap_invalidate_page(pmap, (vm_offset_t)vtopte(va));
 
 	/*
 	 * Demote the pv entry.  This depends on the earlier demotion
@@ -3737,7 +3728,7 @@ pmap_page_is_mapped(vm_page_t m)
 void
 pmap_remove_pages(pmap_t pmap)
 {
-	pd_entry_t *pde;
+	pd_entry_t ptepde;
 	pt_entry_t *pte, tpte;
 	vm_page_t free = NULL;
 	vm_page_t m, mpte, mt;
@@ -3766,23 +3757,19 @@ pmap_remove_pages(pmap_t pmap)
 				pv = &pc->pc_pventry[idx];
 				inuse &= ~bitmask;
 
-				pde = vtopde(pv->pv_va);
-				tpte = *pde;
-				if ((tpte & PG_PS) != 0)
-					pte = pde;
-				else {
+				pte = pmap_pdpe(pmap, pv->pv_va);
+				ptepde = *pte;
+				pte = pmap_pdpe_to_pde(pte, pv->pv_va);
+				tpte = *pte;
+				if ((tpte & (PG_PS | PG_V)) == PG_V) {
+					ptepde = tpte;
 					pte = (pt_entry_t *)PHYS_TO_DMAP(tpte &
 					    PG_FRAME);
 					pte = &pte[pmap_pte_index(pv->pv_va)];
 					tpte = *pte & ~PG_PTE_PAT;
 				}
-
-				if (tpte == 0) {
-					printf(
-					    "TPTE at %p  IS ZERO @ VA %08lx\n",
-					    pte, pv->pv_va);
+				if ((tpte & PG_V) == 0)
 					panic("bad pte");
-				}
 
 /*
  * We cannot remove wired pages from a process' mapping at this time
@@ -3839,8 +3826,6 @@ pmap_remove_pages(pmap_t pmap)
 						pmap_add_delayed_free_list(mpte, &free, FALSE);
 						atomic_subtract_int(&cnt.v_wire_count, 1);
 					}
-					pmap_unuse_pt(pmap, pv->pv_va,
-					    *pmap_pdpe(pmap, pv->pv_va), &free);
 				} else {
 					pmap->pm_stats.resident_count--;
 					TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
@@ -3849,8 +3834,8 @@ pmap_remove_pages(pmap_t pmap)
 						if (TAILQ_EMPTY(&pvh->pv_list))
 							vm_page_flag_clear(m, PG_WRITEABLE);
 					}
-					pmap_unuse_pt(pmap, pv->pv_va, *pde, &free);
 				}
+				pmap_unuse_pt(pmap, pv->pv_va, ptepde, &free);
 			}
 		}
 		if (allfree) {
