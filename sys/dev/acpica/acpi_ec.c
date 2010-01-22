@@ -467,6 +467,7 @@ acpi_ec_attach(device_t dev)
     sc->ec_gpehandle = params->gpe_handle;
     sc->ec_uid = params->uid;
     sc->ec_suspending = FALSE;
+    acpi_set_private(dev, NULL);
     free(params, M_TEMP);
 
     /* Attach bus resources for data and command/status ports. */
