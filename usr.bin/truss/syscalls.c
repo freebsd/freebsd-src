@@ -259,7 +259,7 @@ struct xlat {
 static struct xlat kevent_filters[] = {
 	X(EVFILT_READ) X(EVFILT_WRITE) X(EVFILT_AIO) X(EVFILT_VNODE)
 	X(EVFILT_PROC) X(EVFILT_SIGNAL) X(EVFILT_TIMER)
-	X(EVFILT_NETDEV) X(EVFILT_FS) X(EVFILT_READ) XEND
+	X(EVFILT_FS) X(EVFILT_READ) XEND
 };
 
 static struct xlat kevent_flags[] = {
