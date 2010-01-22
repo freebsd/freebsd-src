@@ -1750,7 +1750,7 @@ mskc_attach(device_t dev)
 		sc->msk_pflags |= MSK_FLAG_JUMBO;
 		break;
 	case CHIP_ID_YUKON_UL_2:
-		sc->msk_clock = 156;	/* 156 MHz */
+		sc->msk_clock = 125;	/* 125 MHz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO;
 		break;
 	default:
