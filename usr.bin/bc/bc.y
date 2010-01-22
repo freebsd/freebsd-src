@@ -129,7 +129,6 @@ extern char		*__progname;
 
 const struct option long_options[] =
 {
-	{"debug",	no_argument,		NULL,	'd'},
 	{"expression",	required_argument,	NULL,	'e'},
 	{"help",	no_argument,		NULL,	'h'},
 	{"mathlib",	no_argument,		NULL,	'l'},
@@ -1014,7 +1013,7 @@ init(void)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: %s [-cdhlqv] [-e expression] [file ...]\n",
+	fprintf(stderr, "usage: %s [-chlqv] [-e expression] [file ...]\n",
 	    __progname);
 	exit(1);
 }
