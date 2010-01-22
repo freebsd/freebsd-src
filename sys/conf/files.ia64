@@ -56,6 +56,7 @@ dev/atkbdc/psm.c		optional	psm atkbdc
 dev/fb/fb.c			optional	fb | vga
 dev/fb/vga.c			optional	vga
 dev/hwpmc/hwpmc_ia64.c		optional	hwpmc
+dev/io/iodev.c			optional	io
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd | usb2_input_kbd
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvgarndr.c		optional	sc vga
@@ -89,6 +90,7 @@ ia64/ia64/gdb_machdep.c		optional	gdb
 ia64/ia64/highfp.c		standard
 ia64/ia64/in_cksum.c		optional	inet
 ia64/ia64/interrupt.c		standard
+ia64/ia64/iodev_machdep.c	optional	io
 ia64/ia64/locore.S		standard	no-obj
 ia64/ia64/machdep.c		standard
 ia64/ia64/mca.c			standard
