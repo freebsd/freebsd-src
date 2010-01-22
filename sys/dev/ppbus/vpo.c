@@ -176,9 +176,6 @@ vpo_attach(device_t dev)
 		return (ENXIO);
 	}
 	ppb_unlock(ppbus);
-
-	/* all went ok */
-
 	vpo_cam_rescan(vpo);	/* have CAM rescan the bus */
 
 	return (0);
@@ -194,12 +191,15 @@ vpo_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 static void
 vpo_cam_rescan(struct vpo_data *vpo)
 {
+	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	struct cam_path *path;
 	union ccb *ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO);
 
+	ppb_lock(ppbus);
 	if (xpt_create_path(&path, xpt_periph, cam_sim_path(vpo->sim), 0, 0)
 	    != CAM_REQ_CMP) {
 		/* A failure is benign as the user can do a manual rescan */
+		ppb_unlock(ppbus);
 		free(ccb, M_TEMP);
 		return;
 	}
@@ -209,6 +209,7 @@ vpo_cam_rescan(struct vpo_data *vpo)
 	ccb->ccb_h.cbfcnp = vpo_cam_rescan_callback;
 	ccb->crcn.flags = CAM_FLAG_NONE;
 	xpt_action(ccb);
+	ppb_unlock(ppbus);
 
 	/* The scan is in progress now. */
 }
