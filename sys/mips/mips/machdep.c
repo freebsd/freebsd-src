@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cache.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/cpuregs.h>
 #include <machine/hwfunc.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
@@ -356,6 +357,17 @@ mips_vector_init(void)
 	/* Clear BEV in SR so we start handling our own exceptions */
 	mips_cp0_status_write(mips_cp0_status_read() & ~SR_BOOT_EXC_VEC);
 
+}
+
+/*
+ * Many SoCs have a means to reset the core itself.  Others do not, or
+ * the method is unknown to us.  For those cases, we jump to the mips
+ * reset vector and hope for the best.  This works well in practice.
+ */
+void
+mips_generic_reset()
+{
+	((void(*)(void))(intptr_t)MIPS_VEC_RESET)();
 }
 
 /*
