@@ -29,6 +29,8 @@
 #ifndef _MACHINE_IODEV_H_
 #define	_MACHINE_IODEV_H_
 
+#include <sys/uuid.h>
+
 struct iodev_pio_req {
 	u_int access;
 #define	IODEV_PIO_READ		0
@@ -39,6 +41,22 @@ struct iodev_pio_req {
 };
 
 #define	IODEV_PIO	_IOWR('I', 0, struct iodev_pio_req)
+
+struct iodev_efivar_req {
+	u_int	access;
+#define	IODEV_EFIVAR_GETVAR	0
+#define	IODEV_EFIVAR_NEXTNAME	1
+#define	IODEV_EFIVAR_SETVAR	2
+	u_int	result;			/* errno value */
+	size_t	namesize;
+	u_short	*name;			/* UCS-2 */
+	struct uuid vendor;
+	uint32_t attrib;
+	size_t	datasize;
+	void	*data;
+};
+
+#define	IODEV_EFIVAR	_IOWR('I', 1, struct iodev_efivar_req)
 
 #ifdef _KERNEL
 
