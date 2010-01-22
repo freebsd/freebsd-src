@@ -99,7 +99,7 @@ platform_cpu_init()
 void
 platform_reset(void)
 {
-	((void(*)(void))0x1fc00000)();	/* Jump to this hex address */
+	((void(*)(void))(long)0x9fc00000)();	/* Jump to MIPS reset vector */
 }
 
 
