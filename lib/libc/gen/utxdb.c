@@ -83,7 +83,6 @@ utx_to_futx(const struct utmpx *ut, struct futx *fu)
 	case LOGIN_PROCESS:
 		UTOF_ID(ut, fu);
 		UTOF_STRING(ut, fu, user);
-		/* XXX: bug in the specification? Needed for getutxline(). */
 		UTOF_STRING(ut, fu, line);
 		UTOF_PID(ut, fu);
 		break;
@@ -156,7 +155,6 @@ futx_to_utx(const struct futx *fu)
 	case LOGIN_PROCESS:
 		FTOU_ID(fu, ut);
 		FTOU_STRING(fu, ut, user);
-		/* XXX: bug in the specification? Needed for getutxline(). */
 		FTOU_STRING(fu, ut, line);
 		FTOU_PID(fu, ut);
 		break;
