@@ -377,15 +377,8 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 				lock_flags = LK_EXCLUSIVE;
 			}
 			vn_lock(vp, lock_flags | LK_RETRY, td);
-		} else {
-			/*
-			 * XXX This should be LK_SHARED but the VFS in releng7
-			 * needs some patches before this can be done.
-			 * The same applies to the lock_flags above and to a
-			 * similar place below.
-			 */
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		}
+		} else
+			vn_lock(vp, LK_SHARED | LK_RETRY, td);
 
 	}
 	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");
