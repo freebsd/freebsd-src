@@ -643,14 +643,7 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
     __register_t a3)
 {
 	uint64_t platform_counter_freq;
-	vm_offset_t kernend;
-	int argc = a0;
-	char **argv = (char **)a1;
-	int i, mem;
-
-	/* clear the BSS and SBSS segments */
-	kernend = round_page((vm_offset_t)&end);
-	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
+	int i, mem = 0;
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
@@ -659,17 +652,6 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 	/* XXX octeon boot decriptor has args in it... */
         octeon_ciu_reset();
     	octeon_uart_write_string(0, "Platform Starting\n");
-
-	/*
-	 * Looking for mem=XXM argument
-	 */
-	mem = 0; /* Just something to start with */
-	for (i=0; i < argc; i++) {
-		if (strncmp(argv[i], "mem=", 4) == 0) {
-			mem = strtol(argv[i] + 4, NULL, 0);
-			break;
-		}
-	}
 
 	bootverbose = 1;
 	if (mem > 0)
@@ -694,10 +676,6 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 	platform_counter_freq = 330000000UL; /* XXX: from idt */
 	mips_timer_init_params(platform_counter_freq, 1);
 	cninit();
-	printf("cmd line: ");
-	for (i=0; i < argc; i++)
-		printf("%s ", argv[i]);
-	printf("\n");
 	init_param2(physmem);
 	mips_cpu_init();
 	mutex_init();
