@@ -161,7 +161,6 @@ cpu_startup(void *dummy)
 	if (boothowto & RB_VERBOSE)
 		bootverbose++;
 
-	bootverbose++;
 	printf("real memory  = %lu (%luK bytes)\n", ptoa(realmem),
 	    ptoa(realmem) / 1024);
 
