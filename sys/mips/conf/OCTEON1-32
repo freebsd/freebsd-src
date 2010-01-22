@@ -21,14 +21,10 @@ machine		mips
 cpu		CPU_MIPS4KC
 ident		OCTEON1
 
-#makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
-#makeoptions	LDSCRIPT_NAME=	ldscript.mips.mips64
-
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
 makeoptions     TARGET_BIG_ENDIAN=defined
 makeoptions     LDSCRIPT_NAME=ldscript.mips.octeon1.32
-#makeoptions     TARGET_64BIT=defined
 
 options		KERNVIRTADDR=0x80100000
 makeoptions	KERNLOADADDR=0x80100000
