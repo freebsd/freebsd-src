@@ -1697,15 +1697,15 @@ mskc_attach(device_t dev)
 
 	switch (sc->msk_hw_id) {
 	case CHIP_ID_YUKON_EC:
-		sc->msk_clock = 125;	/* 125 Mhz */
+		sc->msk_clock = 125;	/* 125 MHz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO;
 		break;
 	case CHIP_ID_YUKON_EC_U:
-		sc->msk_clock = 125;	/* 125 Mhz */
+		sc->msk_clock = 125;	/* 125 MHz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO | MSK_FLAG_JUMBO_NOCSUM;
 		break;
 	case CHIP_ID_YUKON_EX:
-		sc->msk_clock = 125;	/* 125 Mhz */
+		sc->msk_clock = 125;	/* 125 MHz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO | MSK_FLAG_DESCV2 |
 		    MSK_FLAG_AUTOTX_CSUM;
 		/*
@@ -1723,11 +1723,11 @@ mskc_attach(device_t dev)
 			sc->msk_pflags |= MSK_FLAG_JUMBO_NOCSUM;
 		break;
 	case CHIP_ID_YUKON_FE:
-		sc->msk_clock = 100;	/* 100 Mhz */
+		sc->msk_clock = 100;	/* 100 MHz */
 		sc->msk_pflags |= MSK_FLAG_FASTETHER;
 		break;
 	case CHIP_ID_YUKON_FE_P:
-		sc->msk_clock = 50;	/* 50 Mhz */
+		sc->msk_clock = 50;	/* 50 MHz */
 		sc->msk_pflags |= MSK_FLAG_FASTETHER | MSK_FLAG_DESCV2 |
 		    MSK_FLAG_AUTOTX_CSUM;
 		if (sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0) {
@@ -1746,15 +1746,15 @@ mskc_attach(device_t dev)
 		}
 		break;
 	case CHIP_ID_YUKON_XL:
-		sc->msk_clock = 156;	/* 156 Mhz */
+		sc->msk_clock = 156;	/* 156 MHz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO;
 		break;
 	case CHIP_ID_YUKON_UL_2:
-		sc->msk_clock = 156;	/* 156 Mhz */
+		sc->msk_clock = 156;	/* 156 MHz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO;
 		break;
 	default:
-		sc->msk_clock = 156;	/* 156 Mhz */
+		sc->msk_clock = 156;	/* 156 MHz */
 		break;
 	}
 
