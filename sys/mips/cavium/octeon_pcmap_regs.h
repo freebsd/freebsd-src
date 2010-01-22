@@ -1,7 +1,9 @@
 /*
  *    This product includes software developed by the University of
  *    California, Berkeley and its contributors."
-*/
+ */
+
+/* $FreeBSD$ */
 
 #ifndef __OCTEON_PCMAP_REGS_H__
 #define __OCTEON_PCMAP_REGS_H__
@@ -904,8 +906,7 @@ extern uint64_t ciu_get_int_summary(int core_num, int intx, int enx);
 extern void octeon_ciu_start_gtimer(int timer, u_int one_shot, uint64_t time_cycles);
 extern void octeon_ciu_stop_gtimer(int timer);
 extern int octeon_board_real(void);
-
-
+extern unsigned long octeon_get_clock_rate(void);
 
 typedef union {
     uint64_t word64;
