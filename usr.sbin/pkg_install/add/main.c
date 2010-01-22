@@ -81,13 +81,16 @@ struct {
 	{ 604000, 604099, "/packages-6.4-release" },
 	{ 700000, 700099, "/packages-7.0-release" },
 	{ 701000, 701099, "/packages-7.1-release" },
+	{ 702000, 702099, "/packages-7.2-release" },
+	{ 800000, 800499, "/packages-8.0-release" },
 	{ 300000, 399000, "/packages-3-stable" },
 	{ 400000, 499000, "/packages-4-stable" },
 	{ 502100, 502128, "/packages-5-current" },
 	{ 503100, 599000, "/packages-5-stable" },
 	{ 600100, 699000, "/packages-6-stable" },
 	{ 700100, 799000, "/packages-7-stable" },
-	{ 800000, 899000, "/packages-8-current" },
+	{ 800500, 899000, "/packages-8-stable" },
+	{ 900000, 999000, "/packages-9-current" },
 	{ 0, 9999999, "/packages-current" },
 	{ 0, 0, NULL }
 };
@@ -341,7 +344,7 @@ getpackagesite(void)
 }
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, "%s\n%s\n",
 	"usage: pkg_add [-viInfFrRMSK] [-t template] [-p prefix] [-P prefix] [-C chrootdir]",

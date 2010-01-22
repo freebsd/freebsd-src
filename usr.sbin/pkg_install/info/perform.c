@@ -85,8 +85,6 @@ pkg_perform(char **pkgs)
     return err_cnt;
 }
 
-static char *Home;
-
 static int
 pkg_do(char *pkg)
 {
@@ -96,7 +94,7 @@ pkg_do(char *pkg)
     Package plist;
     FILE *fp;
     struct stat sb;
-    char *cp = NULL;
+    const char *cp = NULL;
     int code = 0;
 
     if (isURL(pkg)) {
@@ -138,7 +136,7 @@ pkg_do(char *pkg)
 	        code = 1;
 	        goto bail;
 	    }
-	    Home = make_playpen(PlayPen, sb.st_size / 2);
+	    make_playpen(PlayPen, sb.st_size / 2);
 	    if (unpack(fname, "'+*'")) {
 		warnx("error during unpacking, no info for '%s' available", pkg);
 		code = 1;

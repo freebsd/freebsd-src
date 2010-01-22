@@ -52,9 +52,6 @@ pkg_perform(char **pkgs)
     return err_cnt;
 }
 
-static Package Plist;
-static char *Home;
-
 /*
  * This is seriously ugly code following.  Written very fast!
  * [And subsequently made even worse..  Sigh!  This code was just born
@@ -63,10 +60,12 @@ static char *Home;
 static int
 pkg_do(char *pkg)
 {
+    Package Plist;
     char pkg_fullname[FILENAME_MAX];
     char playpen[FILENAME_MAX];
     char extract_contents[FILENAME_MAX];
-    char *where_to, *extract;
+    char *extract;
+    const char *where_to;
     FILE *cfile;
     int code;
     PackingList p;
@@ -87,6 +86,8 @@ pkg_do(char *pkg)
     strcpy(playpen, FirstPen);
     inPlace = 0;
 
+    memset(&Plist, '\0', sizeof(Plist));
+
     /* Are we coming in for a second pass, everything already extracted? */
     if (!pkg) {
 	fgets(playpen, FILENAME_MAX, stdin);
@@ -102,11 +103,10 @@ pkg_do(char *pkg)
     else {
 	/* Is it an ftp://foo.bar.baz/file.t[bg]z specification? */
 	if (isURL(pkg)) {
-	    if (!(Home = fileGetURL(NULL, pkg, KeepPackage))) {
+	    if (!(where_to = fileGetURL(NULL, pkg, KeepPackage))) {
 		warnx("unable to fetch '%s' by URL", pkg);
 		return 1;
 	    }
-	    where_to = Home;
 	    strcpy(pkg_fullname, pkg);
 	    cfile = fopen(CONTENTS_FNAME, "r");
 	    if (!cfile) {
@@ -135,13 +135,11 @@ pkg_do(char *pkg)
 		extract = NULL;
 		sb.st_size = 100000;	/* Make up a plausible average size */
 	    }
-	    Home = make_playpen(playpen, sb.st_size * 4);
-	    if (!Home)
+	    if (!(where_to = make_playpen(playpen, sb.st_size * 4)))
 		errx(1, "unable to make playpen for %lld bytes", (long long)sb.st_size * 4);
-	    where_to = Home;
 	    /* Since we can call ourselves recursively, keep notes on where we came from */
 	    if (!getenv("_TOP"))
-		setenv("_TOP", Home, 1);
+		setenv("_TOP", where_to, 1);
 	    if (unpack(pkg_fullname, extract)) {
 		warnx(
 	"unable to extract table of contents file from '%s' - not a package?",
@@ -280,6 +278,44 @@ pkg_do(char *pkg)
 	    warnx("-f specified; proceeding anyway");
     }
 
+#if ENSURE_THAT_ALL_REQUIREMENTS_ARE_MET
+    /*
+     * Before attempting to do the slave mode bit, ensure that we've
+     * downloaded & processed everything we need.
+     * It's possible that we haven't already installed all of our
+     * dependencies if the dependency list was misgenerated due to
+     * other dynamic dependencies or if a dependency was added to a
+     * package without all REQUIRED_BY packages being regenerated.
+     */
+    for (p = pkg ? Plist.head : NULL; p; p = p->next) {
+	const char *ext;
+	char *deporigin;
+
+	if (p->type != PLIST_PKGDEP)
+	    continue;
+	deporigin = (p->next->type == PLIST_DEPORIGIN) ? p->next->name : NULL;
+
+	if (isinstalledpkg(p->name) <= 0 &&
+	    !(deporigin != NULL && matchbyorigin(deporigin, NULL) != NULL)) {
+	    char subpkg[FILENAME_MAX], *sep;
+
+	    strlcpy(subpkg, pkg, sizeof subpkg);
+	    if ((sep = strrchr(subpkg, '/')) != NULL) {
+		*sep = '\0';
+		if ((sep = strrchr(subpkg, '/')) != NULL) {
+		    *sep = '\0';
+		    strlcat(subpkg, "/All/", sizeof subpkg);
+		    strlcat(subpkg, p->name, sizeof subpkg);
+		    if ((ext = strrchr(pkg, '.')) == NULL)
+			ext = ".tbz";
+		    strlcat(subpkg, ext, sizeof subpkg);
+		    pkg_do(subpkg);
+		}
+	    }
+	}
+    }
+#endif
+
     /* Now check the packing list for dependencies */
     for (p = Plist.head; p ; p = p->next) {
 	char *deporigin;
@@ -295,7 +331,8 @@ pkg_do(char *pkg)
 	}
 	if (isinstalledpkg(p->name) <= 0 &&
 	    !(deporigin != NULL && matchbyorigin(deporigin, NULL) != NULL)) {
-	    char path[FILENAME_MAX], *cp = NULL;
+	    char path[FILENAME_MAX];
+	    const char *cp = NULL;
 
 	    if (!Fake) {
 		char prefixArg[2 + MAXPATHLEN]; /* "-P" + Prefix */
@@ -333,7 +370,7 @@ pkg_do(char *pkg)
 		}
 		else if ((cp = fileGetURL(pkg, p->name, KeepPackage)) != NULL) {
 		    if (Verbose)
-			printf("Finished loading %s over FTP.\n", p->name);
+			printf("Finished loading %s via a URL\n", p->name);
 		    if (!fexists("+CONTENTS")) {
 			warnx("autoloaded package %s has no +CONTENTS file?",
 				p->name);
@@ -645,7 +682,8 @@ cleanup(int sig)
 	    printf("Signal %d received, cleaning up..\n", sig);
     	if (!Fake && zapLogDir && LogDir[0])
 	    vsystem("%s -rf %s", REMOVE_CMD, LogDir);
-    	leave_playpen();
+    	while (leave_playpen())
+	    ;
     }
     if (sig)
 	exit(1);
