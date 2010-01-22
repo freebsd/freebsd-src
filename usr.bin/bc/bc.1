@@ -35,7 +35,7 @@
 .\"
 .\"	@(#)bc.1	6.8 (Berkeley) 8/8/91
 .\"
-.Dd May 31 2007
+.Dd January 22, 2010
 .Dt BC 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd arbitrary-precision arithmetic language and calculator
 .Sh SYNOPSIS
 .Nm bc
-.Op Fl cl
+.Op Fl chlqv
 .Op Fl e Ar expression
 .Op Ar file ...
 .Sh DESCRIPTION
@@ -56,8 +56,6 @@ any files given, then reads the standard input.
 Options available:
 .Bl -tag -width Ds
 .It Fl c
-.It Fl d
-.It Fl Fl debug
 .Nm
 is actually a preprocessor for
 .Xr dc 1 ,
@@ -71,24 +69,22 @@ instructions are sent to the standard output,
 instead of being interpreted by a running
 .Xr dc 1
 process.
-.It Fl e Ar exp
-.It Fl Fl expression Ar exp
+.It Fl e Ar expression , Fl Fl expression Ar expression
 Evaluate
 .Ar expression .
 If multiple
 .Fl e
 options are specified, they are processed in the order given,
 separated by newlines.
-.It Fl h
-.It Fl Fl help
+.It Fl h , Fl Fl help
 Prints usage information.
-.It Fl l
-.It Fl Fl mathlib
+.It Fl l , Fl Fl mathlib
 Allow specification of an arbitrary precision math library.
 The definitions in the library are available to command line
 expressions.
-.It Fl v
-.It Fl Fl version
+Synonym for
+.Fl l .
+.It Fl v , Fl Fl version
 Prints version information.
 .El
 .Pp
@@ -373,7 +369,7 @@ are extensions to that specification.
 .Sh HISTORY
 The
 .Nm
-first command appeared in
+command first appeared in
 .At v6 .
 A complete rewrite of the
 .Nm
