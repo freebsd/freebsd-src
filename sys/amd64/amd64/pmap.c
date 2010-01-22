@@ -3265,17 +3265,12 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 					return (mpte);
 			}
 		}
+		pte = (pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mpte));
+		pte = &pte[pmap_pte_index(va)];
 	} else {
 		mpte = NULL;
+		pte = vtopte(va);
 	}
-
-	/*
-	 * This call to vtopte makes the assumption that we are
-	 * entering the page into the current pmap.  In order to support
-	 * quick entry into any pmap, one would likely use pmap_pte.
-	 * But that isn't as quick as vtopte.
-	 */
-	pte = vtopte(va);
 	if (*pte) {
 		if (mpte != NULL) {
 			mpte->wire_count--;
