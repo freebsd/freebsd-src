@@ -144,6 +144,7 @@ mips_timer_init_params(uint64_t platform_counter_freq, int double_count)
 	/*
 	 * XXX: Some MIPS32 cores update the Count register only every two
 	 * pipeline cycles.
+	 * We know this because of status registers in CP0, make it automatic.
 	 */
 	if (double_count != 0)
 		counter_freq /= 2;
