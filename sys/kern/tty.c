@@ -2904,8 +2904,8 @@ ttyalloc()
 	mtx_lock(&tty_list_mutex);
 	TAILQ_INSERT_TAIL(&tty_list, tp, t_list);
 	mtx_unlock(&tty_list_mutex);
-	knlist_init(&tp->t_rsel.si_note, &tp->t_mtx, NULL, NULL, NULL);
-	knlist_init(&tp->t_wsel.si_note, &tp->t_mtx, NULL, NULL, NULL);
+	knlist_init_mtx(&tp->t_rsel.si_note, &tp->t_mtx);
+	knlist_init_mtx(&tp->t_wsel.si_note, &tp->t_mtx);
 	return (tp);
 }
 
