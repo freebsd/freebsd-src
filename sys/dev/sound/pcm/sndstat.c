@@ -81,7 +81,7 @@ static int sndstat_files = 0;
 
 static SLIST_HEAD(, sndstat_entry) sndstat_devlist = SLIST_HEAD_INITIALIZER(none);
 
-int snd_verbose = 1;
+int snd_verbose = 0;
 TUNABLE_INT("hw.snd.verbose", &snd_verbose);
 
 #ifdef SND_DEBUG
@@ -372,12 +372,10 @@ sndstat_prepare(struct sbuf *s)
 			PCM_ACQUIRE_QUICK(d);
 			sbuf_printf(s, "%s:", device_get_nameunit(ent->dev));
 			sbuf_printf(s, " <%s>", device_get_desc(ent->dev));
-			sbuf_printf(s, " %s [%s]", ent->str,
-			    (d->flags & SD_F_MPSAFE) ? "MPSAFE" : "GIANT");
+			if (snd_verbose > 0)
+				sbuf_printf(s, " %s", ent->str);
 			if (ent->handler)
 				ent->handler(s, ent->dev, snd_verbose);
-			else
-				sbuf_printf(s, " [no handler]");
 			sbuf_printf(s, "\n");
 			PCM_RELEASE_QUICK(d);
 		}
