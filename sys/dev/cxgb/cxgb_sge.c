@@ -1562,8 +1562,6 @@ addq_exit:	mbufq_tail(&q->sendq, m);
 
 		struct sge_qset *qs = txq_to_qset(q, qid);
 
-		printf("stopping q\n");
-		
 		setbit(&qs->txq_stopped, qid);
 		smp_mb();
 
