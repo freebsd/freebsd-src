@@ -366,8 +366,7 @@ acpi_ec_probe(device_t dev)
     if (params != NULL) {
 	ecdt = 1;
 	ret = 0;
-    } else if (!acpi_disabled("ec") &&
-	ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids)) {
+    } else if (ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids)) {
 	params = malloc(sizeof(struct acpi_ec_params), M_TEMP,
 			M_WAITOK | M_ZERO);
 	h = acpi_get_handle(dev);
