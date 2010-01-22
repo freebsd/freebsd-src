@@ -414,12 +414,30 @@ The
 .Fn endutxent ,
 .Fn getutxent ,
 .Fn getutxid ,
-.Fn getutxline ,
-.Fn pututxline
+.Fn getutxline
 and
 .Fn setutxent
 functions are expected to conform to
 .St -p1003.1-2008 .
+.Pp
+The
+.Fn pututxline
+function deviates from the standard by writing its records to multiple
+database files, depending on its
+.Fa ut_type .
+This prevents the need for special utility functions to update the other
+databases, such as the
+.Fn updwtmpx
+function which is often available in other implementations.
+It also tries to replace
+.Dv DEAD_PROCESS
+entries in the active sessions database when storing
+.Dv USER_PROCESS
+entries and no entry with the same value for
+.Fa ut_id
+has been found.
+The standard always requires a new entry to be allocated, which could
+cause an unbounded growth to the database.
 .Pp
 The
 .Fn getutxuser
