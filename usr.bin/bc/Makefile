@@ -4,7 +4,6 @@
 PROG=		bc
 SRCS=		bc.y scan.l
 CFLAGS+=	-I. -I${.CURDIR}
-SUBDIR+=	USD.doc
 
 FILES+=		bc.library
 FILESDIR=	${SHAREDIR}/misc
