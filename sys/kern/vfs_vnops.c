@@ -370,13 +370,9 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
 			    != 0)
 				return (error);
-			if (mp != NULL &&
-			    (mp->mnt_kern_flag & MNTK_SHARED_WRITES)) {
-				/*
-				 * XXX See the next comment what should
-				 * be done here too.
-				 */
-				lock_flags = LK_EXCLUSIVE;
+			if (MNT_SHARED_WRITES(mp) ||
+			    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount))) {
+				lock_flags = LK_SHARED;
 			} else {
 				lock_flags = LK_EXCLUSIVE;
 			}
@@ -594,15 +590,10 @@ vn_write(fp, uio, active_cred, flags, td)
 	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto unlock;
  
-	if (vp->v_mount != NULL &&
-	    (vp->v_mount->mnt_kern_flag & MNTK_SHARED_WRITES) &&
+	if ((MNT_SHARED_WRITES(mp) ||
+	    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount))) &&
 	    (flags & FOF_OFFSET) != 0) {
-		/*
-		 * XXX This should be LK_SHARED but the VFS in releng7
-		 * needs some patches before this can be done.
-		 * See the similar comment above.
-		 */
-		lock_flags = LK_EXCLUSIVE;
+		lock_flags = LK_SHARED;
 	} else {
 		lock_flags = LK_EXCLUSIVE;
 	}
