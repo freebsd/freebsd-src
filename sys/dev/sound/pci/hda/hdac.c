@@ -6226,6 +6226,15 @@ hdac_audio_assign_mixers(struct hdac_devinfo *devinfo)
 			hdac_audio_ctl_dest_amp(devinfo, w->nid, -1,
 			    SOUND_MIXER_VOLUME, 0, 1);
 		}
+		if (w->ossdev == SOUND_MIXER_IMIX) {
+			if (hdac_audio_ctl_source_amp(devinfo, w->nid, -1,
+			    w->ossdev, 1, 0, 1)) {
+				/* If we are unable to control input monitor
+				   as source - try to control it as destination. */
+				hdac_audio_ctl_dest_amp(devinfo, w->nid, -1,
+				    w->ossdev, 0, 1);
+			}
+		}
 		if (w->pflags & HDA_ADC_MONITOR) {
 			for (j = 0; j < w->nconns; j++) {
 				if (!w->connsenable[j])
@@ -6239,7 +6248,7 @@ hdac_audio_assign_mixers(struct hdac_devinfo *devinfo)
 				    as[cw->bindas].dir != HDA_CTL_IN)
 					continue;
 				hdac_audio_ctl_dest_amp(devinfo,
-				    w->nid, j, SOUND_MIXER_IMIX, 0, 1);
+				    w->nid, j, SOUND_MIXER_IGAIN, 0, 1);
 			}
 		}
 	}
@@ -6739,8 +6748,8 @@ hdac_dump_ctls(struct hdac_pcm_devinfo *pdevinfo, const char *banner, uint32_t f
 	if (flag == 0) {
 		flag = ~(SOUND_MASK_VOLUME | SOUND_MASK_PCM |
 		    SOUND_MASK_CD | SOUND_MASK_LINE | SOUND_MASK_RECLEV |
-		    SOUND_MASK_MIC | SOUND_MASK_SPEAKER | SOUND_MASK_OGAIN |
-		    SOUND_MASK_IMIX | SOUND_MASK_MONITOR);
+		    SOUND_MASK_MIC | SOUND_MASK_SPEAKER | SOUND_MASK_IGAIN |
+		    SOUND_MASK_OGAIN | SOUND_MASK_IMIX | SOUND_MASK_MONITOR);
 	}
 
 	for (j = 0; j < SOUND_MIXER_NRDEVICES; j++) {
@@ -8150,7 +8159,8 @@ hdac_pcm_attach(device_t dev)
 		hdac_dump_ctls(pdevinfo, "Line-in Volume", SOUND_MASK_LINE);
 		hdac_dump_ctls(pdevinfo, "Speaker/Beep Volume", SOUND_MASK_SPEAKER);
 		hdac_dump_ctls(pdevinfo, "Recording Level", SOUND_MASK_RECLEV);
-		hdac_dump_ctls(pdevinfo, "Input Monitoring Level", SOUND_MASK_IMIX);
+		hdac_dump_ctls(pdevinfo, "Input Mix Level", SOUND_MASK_IMIX);
+		hdac_dump_ctls(pdevinfo, "Input Monitoring Level", SOUND_MASK_IGAIN);
 		hdac_dump_ctls(pdevinfo, NULL, 0);
 		device_printf(dev, "\n");
 	);
