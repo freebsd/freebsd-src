@@ -7,6 +7,7 @@ mips/atheros/ar71xx_ohci.c	optional ohci
 mips/atheros/ar71xx_pci.c	optional pci
 mips/atheros/ar71xx_pci_bus_space.c	optional pci
 mips/atheros/ar71xx_spi.c	optional ar71xx_spi
+mips/atheros/pcf2123_rtc.c	optional pcf2123_rtc ar71xx_spi
 mips/atheros/ar71xx_wdog.c	optional ar71xx_wdog
 mips/atheros/if_arge.c		optional arge
 mips/atheros/uart_bus_ar71xx.c	optional uart

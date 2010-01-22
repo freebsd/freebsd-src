@@ -55,5 +55,11 @@ hint.spi.0.msize=0x10
 hint.mx25l.0.at="spibus0"
 hint.mx25l.0.cs=0
 
+# shares the same bus with mx25l. 
+# CE low for flash, CE high for RTC
+# at the moment it's just stub until SPI bus is ready for such hacks
+# hint.rtc.0.at="spibus0"
+# hint.rtc.0.cs=0
+
 # Watchdog
 hint.ar71xx_wdog.0.at="nexus0"
