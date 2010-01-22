@@ -618,18 +618,14 @@ msgring_process_fast_intr(void *arg)
 	 */
 	disable_msgring_int(NULL);
 	it->i_pending = 1;
+	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
-		thread_lock(td);
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
 		    p->p_comm);
 		TD_CLR_IWAIT(td);
 		sched_add(td, SRQ_INTR);
-		thread_unlock(td);
-	} else {
-		CTR4(KTR_INTR, "%s: pid %d (%s): state %d",
-		    __func__, p->p_pid, p->p_comm, td->td_state);
 	}
-
+	thread_unlock(td);
 }
 
 #define MIT_DEAD 4
@@ -668,13 +664,17 @@ msgring_process(void *arg)
 			atomic_store_rel_int(&ithd->i_pending, 0);
 			xlr_msgring_handler(NULL);
 		}
+		enable_msgring_int(NULL);
 		if (!ithd->i_pending && !(ithd->i_flags & MIT_DEAD)) {
 			thread_lock(td);
+			if (ithd->i_pending) {
+			  thread_unlock(td);
+			  continue;
+			}
 			sched_class(td, PRI_ITHD);
 			TD_SET_IWAIT(td);
-			thread_unlock(td);
-			enable_msgring_int(NULL);
 			mi_switch(SW_VOL, NULL);
+			thread_unlock(td);
 		}
 	}
 
