@@ -282,7 +282,7 @@ main(int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 	"usage: pkg_info [-bcdDEfgGiIjkKLmopPqQrRsvVxX] [-e package] [-l prefix]",
