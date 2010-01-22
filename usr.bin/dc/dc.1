@@ -35,7 +35,7 @@
 .\"
 .\"	@(#)dc.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd Jan 28 2009
+.Dd January 22, 2010
 .Dt DC 1
 .Os
 .Sh NAME
@@ -67,8 +67,7 @@ which implements functions and reasonable control
 structures for programs.
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl e Ar expr
-.It Fl Fl expression Ar expr
+.It Fl e Ar expr , Fl Fl expression Ar expr
 Evaluate
 .Ar expression .
 If multiple
@@ -80,17 +79,14 @@ argument is given, execution will stop after processing the expressions
 given on the command line,
 otherwise processing will continue with the contents of
 .Ar filename .
-.It Fl f Ar filename
-.It Fl Fl file Ar filename
+.It Fl f Ar filename , Fl Fl file Ar filename
 Process the content of the given file before further calculations are done.
 If multiple
 .Fl f
 options are specified, they will be processed in the order given.
-.It Fl h
-.It Fl Fl help
+.It Fl h , Fl Fl help
 Print short usage info.
-.It Fl V
-.It Fl Fl version
+.It Fl V , Fl Fl version
 Print version info.
 .It Fl x
 Enable extended register mode.
@@ -513,12 +509,12 @@ operator.
 .El
 .Sh SEE ALSO
 .Xr bc 1
-.Rs
-.%B USD:05
-.%A L. L. Cherry
-.%A R. Morris
-.%T "DC \- An Interactive Desk Calculator"
-.Re
+.Pp
+.An -nosplit
+.An L. L. Cherry ,
+.An R. Morris
+"DC \- An Interactive Desk Calculator"
+.Pa /usr/share/doc/usd/05.dc/ .
 .Sh STANDARDS
 The arithmetic operations of the
 .Nm
