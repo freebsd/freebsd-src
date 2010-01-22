@@ -185,7 +185,7 @@ vop_read {
 };
 
 
-%% write	vp	E E E
+%% write	vp	L L L
 %! write	pre	VOP_WRITE_PRE
 %! write	post	VOP_WRITE_POST
 
@@ -245,7 +245,7 @@ vop_revoke {
 };
 
 
-%% fsync	vp	E E E
+%% fsync	vp	L L L
 
 vop_fsync {
 	IN struct vnode *vp;
