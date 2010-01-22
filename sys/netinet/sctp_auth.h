@@ -60,7 +60,7 @@ typedef union sctp_hash_context {
 
 typedef struct sctp_key {
 	uint32_t keylen;
-	uint8_t key[0];
+	uint8_t key[];
 }        sctp_key_t;
 
 typedef struct sctp_shared_key {
@@ -83,7 +83,7 @@ typedef struct sctp_auth_chklist {
 typedef struct sctp_hmaclist {
 	uint16_t max_algo;	/* max algorithms allocated */
 	uint16_t num_algo;	/* num algorithms used */
-	uint16_t hmac[0];
+	uint16_t hmac[];
 }             sctp_hmaclist_t;
 
 /* authentication info */
