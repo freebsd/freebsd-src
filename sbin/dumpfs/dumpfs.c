@@ -160,7 +160,7 @@ dumpfs(const char *name)
 		fstime = afs.fs_old_time;
 		printf("magic\t%x (UFS1)\ttime\t%s",
 		    afs.fs_magic, ctime(&fstime));
-		printf("id\t[ %x %x ]\n", afs.fs_id[0], afs.fs_id[1]);
+		printf("id\t[ %08x %08x ]\n", afs.fs_id[0], afs.fs_id[1]);
 		printf("ncg\t%d\tsize\t%jd\tblocks\t%jd\n",
 		    afs.fs_ncg, (intmax_t)fssize, (intmax_t)afs.fs_dsize);
 		break;
