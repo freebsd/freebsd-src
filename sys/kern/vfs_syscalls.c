@@ -200,19 +200,21 @@ quotactl(td, uap)
 	AUDIT_ARG(uid, uap->uid);
 	if (jailed(td->td_ucred) && !prison_quotas)
 		return (EPERM);
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE | AUDITVNODE1,
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
 	   UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	mp = nd.ni_vp->v_mount;
-	if ((error = vfs_busy(mp, 0, NULL, td))) {
-		vrele(nd.ni_vp);
+	vfs_ref(mp);
+	vput(nd.ni_vp);
+	error = vfs_busy(mp, 0, NULL, td);
+	vfs_rel(mp);
+	if (error) {
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-	vrele(nd.ni_vp);
 	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg, td);
 	vfs_unbusy(mp, td);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -306,6 +308,12 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	vfs_ref(mp);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
+	error = vfs_busy(mp, 0, NULL, td);
+	vfs_rel(mp);
+	if (error) {
+		VFS_UNLOCK_GIANT(vfslocked);
+		return (error);
+	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error)
@@ -329,7 +337,7 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	}
 	*buf = *sp;
 out:
-	vfs_rel(mp);
+	vfs_unbusy(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (mtx_owned(&Giant))
 		printf("statfs(%d): %s: %d\n", vfslocked, path, error);
@@ -387,9 +395,15 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 		vfs_ref(mp);
 	VOP_UNLOCK(vp, 0, td);
 	fdrop(fp, td);
-	if (vp->v_iflag & VI_DOOMED) {
+	if (mp == NULL) {
 		error = EBADF;
 		goto out;
+	}
+	error = vfs_busy(mp, 0, NULL, td);
+	vfs_rel(mp);
+	if (error) {
+		VFS_UNLOCK_GIANT(vfslocked);
+		return (error);
 	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
@@ -415,7 +429,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	*buf = *sp;
 out:
 	if (mp)
-		vfs_rel(mp);
+		vfs_unbusy(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
@@ -4177,13 +4191,16 @@ fhopen(td, uap)
 			goto bad;
 	}
 	if (fmode & O_TRUNC) {
+		vfs_ref(mp);
 		VOP_UNLOCK(vp, 0, td);				/* XXX */
 		if ((error = vn_start_write(NULL, &mp, V_WAIT | PCATCH)) != 0) {
 			vrele(vp);
+			vfs_rel(mp);
 			goto out;
 		}
 		VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);	/* XXX */
+		vfs_rel(mp);
 #ifdef MAC
 		/*
 		 * We don't yet have fp->f_cred, so use td->td_ucred, which
@@ -4261,7 +4278,6 @@ fhopen(td, uap)
 
 	VOP_UNLOCK(vp, 0, td);
 	fdrop(fp, td);
-	vfs_rel(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	td->td_retval[0] = indx;
 	return (0);
