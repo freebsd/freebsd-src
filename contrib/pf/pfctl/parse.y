@@ -128,7 +128,7 @@ enum	{ PF_STATE_OPT_MAX, PF_STATE_OPT_NOSYNC, PF_STATE_OPT_SRCTRACK,
 	    PF_STATE_OPT_MAX_SRC_STATES, PF_STATE_OPT_MAX_SRC_CONN,
 	    PF_STATE_OPT_MAX_SRC_CONN_RATE, PF_STATE_OPT_MAX_SRC_NODES,
 	    PF_STATE_OPT_OVERLOAD, PF_STATE_OPT_STATELOCK,
-	    PF_STATE_OPT_TIMEOUT };
+	    PF_STATE_OPT_TIMEOUT, PF_STATE_OPT_SLOPPY };
 
 enum	{ PF_SRCTRACK_NONE, PF_SRCTRACK, PF_SRCTRACK_GLOBAL, PF_SRCTRACK_RULE };
 
@@ -423,7 +423,7 @@ typedef struct {
 %token	QUEUE PRIORITY QLIMIT RTABLE
 %token	LOAD RULESET_OPTIMIZATION
 %token	STICKYADDRESS MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
-%token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH
+%token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY ROUTE
 %token	<v.string>		STRING
 %token	<v.i>			PORTBINARY
@@ -1891,6 +1891,14 @@ pfrule		: action dir logquick interface route af proto fromto
 					statelock = 1;
 					r.rule_flag |= o->data.statelock;
 					break;
+				case PF_STATE_OPT_SLOPPY:
+					if (r.rule_flag & PFRULE_STATESLOPPY) {
+						yyerror("state sloppy option: "
+						    "multiple definitions");
+						YYERROR;
+					}
+					r.rule_flag |= PFRULE_STATESLOPPY;
+					break;
 				case PF_STATE_OPT_TIMEOUT:
 					if (o->data.timeout.number ==
 					    PFTM_ADAPTIVE_START ||
@@ -3216,6 +3224,14 @@ state_opt_item	: MAXIMUM number		{
 			$$->next = NULL;
 			$$->tail = $$;
 		}
+		| SLOPPY {
+			$$ = calloc(1, sizeof(struct node_state_opt));
+			if ($$ == NULL)
+				err(1, "state_opt_item: calloc");
+			$$->type = PF_STATE_OPT_SLOPPY;
+			$$->next = NULL;
+			$$->tail = $$;
+		}
 		| STRING number			{
 			int	i;
 
@@ -4101,6 +4117,13 @@ filter_consistent(struct pf_rule *r, int anchor_call)
 		yyerror("keep state on block rules doesn't make sense");
 		problems++;
 	}
+	if (r->rule_flag & PFRULE_STATESLOPPY &&
+	    (r->keep_state == PF_STATE_MODULATE ||
+	    r->keep_state == PF_STATE_SYNPROXY)) {
+		yyerror("sloppy state matching cannot be used with "
+		    "synproxy state or modulate state");
+		problems++;
+	}
 	return (-problems);
 }
 
@@ -4969,6 +4992,7 @@ lookup(char *s)
 		{ "scrub",		SCRUB},
 		{ "set",		SET},
 		{ "skip",		SKIP},
+		{ "sloppy",		SLOPPY},
 		{ "source-hash",	SOURCEHASH},
 		{ "source-track",	SOURCETRACK},
 		{ "state",		STATE},
