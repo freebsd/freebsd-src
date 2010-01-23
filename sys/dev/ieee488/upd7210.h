@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005 Poul-Henning Kamp <phk@FreeBSD.org>
+ * Copyright (c) 2010 Joerg Wunsch <joerg@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +49,7 @@ typedef int upd7210_irq_t(struct upd7210 *, int);
 
 struct upd7210 {
 	struct resource		*reg_res[8];
-	u_int			reg_offset[8];
+	struct resource		*irq_clear_res;
 	int			dmachan;
 	int			unit;
 
