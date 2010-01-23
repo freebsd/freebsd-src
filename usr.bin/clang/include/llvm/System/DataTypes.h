@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
-/* include/llvm/Support/DataTypes.h.  Generated from DataTypes.h.in by configure.  */
-/*===-- include/Support/DataTypes.h - Define fixed size types -----*- C -*-===*\
+/* include/llvm/System/DataTypes.h.  Generated from DataTypes.h.in by configure.  */
+/*===-- include/System/DataTypes.h - Define fixed size types -----*- C -*-===*\
 |*                                                                            *|
 |*                     The LLVM Compiler Infrastructure                       *|
 |*                                                                            *|
@@ -38,19 +38,17 @@
 #include <math.h>
 #endif
 
-#ifndef _MSC_VER
-
 /* Note that this header's correct operation depends on __STDC_LIMIT_MACROS
    being defined.  We would define it here, but in order to prevent Bad Things
    happening when system headers or C++ STL headers include stdint.h before we
    define it here, we define it on the g++ command line (in Makefile.rules). */
 #if !defined(__STDC_LIMIT_MACROS)
-# error "Must #define __STDC_LIMIT_MACROS before #including Support/DataTypes.h"
+# error "Must #define __STDC_LIMIT_MACROS before #including System/DataTypes.h"
 #endif
 
 #if !defined(__STDC_CONSTANT_MACROS)
 # error "Must #define __STDC_CONSTANT_MACROS before " \
-        "#including Support/DataTypes.h"
+        "#including System/DataTypes.h"
 #endif
 
 /* Note that <inttypes.h> includes <stdint.h>, if this is a C99 system. */
@@ -67,7 +65,7 @@
 #endif
 
 #ifdef _AIX
-#include "llvm/Support/AIXDataTypesFix.h"
+#include "llvm/System/AIXDataTypesFix.h"
 #endif
 
 /* Handle incorrect definition of uint64_t as u_int64_t */
@@ -90,40 +88,6 @@ typedef u_int64_t uint64_t;
 #define INT32_MIN -2147483648
 #define UINT32_MAX 4294967295U
 #endif
-
-#else /* _MSC_VER */
-/* Visual C++ doesn't provide standard integer headers, but it does provide
-   built-in data types. */
-#include <stdlib.h>
-#include <stddef.h>
-#include <sys/types.h>
-typedef __int64 int64_t;
-typedef unsigned __int64 uint64_t;
-typedef signed int int32_t;
-typedef unsigned int uint32_t;
-typedef short int16_t;
-typedef unsigned short uint16_t;
-typedef signed char int8_t;
-typedef unsigned char uint8_t;
-typedef signed int ssize_t;
-#define INT8_MAX 127
-#define INT8_MIN -128
-#define UINT8_MAX 255
-#define INT16_MAX 32767
-#define INT16_MIN -32768
-#define UINT16_MAX 65535
-#define INT32_MAX 2147483647
-#define INT32_MIN -2147483648
-#define UINT32_MAX 4294967295U
-#define INT8_C(C)   C
-#define UINT8_C(C)  C
-#define INT16_C(C)  C
-#define UINT16_C(C) C
-#define INT32_C(C)  C
-#define UINT32_C(C) C ## U
-#define INT64_C(C)  ((int64_t) C ## LL)
-#define UINT64_C(C) ((uint64_t) C ## ULL)
-#endif /* _MSC_VER */
 
 /* Set defaults for constants which we cannot find. */
 #if !defined(INT64_MAX)
