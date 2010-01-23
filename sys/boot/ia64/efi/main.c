@@ -50,7 +50,6 @@ extern char bootprog_rev[];
 extern char bootprog_date[];
 extern char bootprog_maker[];
 
-struct devdesc currdev;		/* our current device */
 struct arch_switch archsw;	/* MI/MD interface boundary */
 
 extern u_int64_t	ia64_pal_entry;
@@ -101,10 +100,49 @@ find_pal_proc(void)
 	return;
 }
 
+static int
+usc2cmp(CHAR16 *s1, CHAR16 *s2)
+{
+
+	while (*s1 == *s2++) {
+		if (*s1++ == 0)
+			return (0);
+	}
+	return (*s1 - *(s2 - 1));
+}
+
+static char *
+get_dev_option(int argc, CHAR16 *argv[])
+{
+	static char dev[32];
+	CHAR16 *arg;
+	char *devp;
+	int i, j;
+
+	devp = NULL;
+	for (i = 0; i < argc; i++) {
+		if (usc2cmp(argv[i], L"-dev") == 0 && i < argc - 1) {
+			arg = argv[i + 1];
+			j = 0;
+			while (j < sizeof(dev) && *arg != 0)
+				dev[j++] = *arg++;
+			if (j == sizeof(dev))
+				j--;
+			dev[j] = '\0';
+			devp = dev;
+			break;
+		}
+	}
+
+	return (devp);
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
+	struct devdesc currdev;
 	EFI_LOADED_IMAGE *img;
+	char *dev;
 	int i;
 
 	/* 
@@ -115,6 +153,10 @@ main(int argc, CHAR16 *argv[])
 	 */
 	cons_probe();
 
+	printf("\n");
+	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
+	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+
 	find_pal_proc();
 
 	/*
@@ -123,16 +165,6 @@ main(int argc, CHAR16 *argv[])
 	for (i = 0; devsw[i] != NULL; i++)
 		if (devsw[i]->dv_init != NULL)
 			(devsw[i]->dv_init)();
-
-	/* Get our loaded image protocol interface structure. */
-	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
-
-	printf("\n");
-	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
-
-	efi_handle_lookup(img->DeviceHandle, &currdev.d_dev, &currdev.d_unit);
-	currdev.d_type = currdev.d_dev->dv_type;
 
 	/*
 	 * Disable the watchdog timer. By default the boot manager sets
@@ -145,13 +177,24 @@ main(int argc, CHAR16 *argv[])
 	 */
 	BS->SetWatchdogTimer(0, 0, 0, NULL);
 
-	env_setenv("currdev", EV_VOLATILE, ia64_fmtdev(&currdev),
-	    ia64_setcurrdev, env_nounset);
+	/* Get our loaded image protocol interface structure. */
+	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
+
+	bzero(&currdev, sizeof(currdev));
+	efi_handle_lookup(img->DeviceHandle, &currdev.d_dev, &currdev.d_unit);
+	currdev.d_type = currdev.d_dev->dv_type;
+
 	env_setenv("loaddev", EV_VOLATILE, ia64_fmtdev(&currdev), env_noset,
 	    env_nounset);
 
+	dev = get_dev_option(argc, argv);
+	if (dev == NULL)
+		dev = ia64_fmtdev(&currdev);
+
+	env_setenv("currdev", EV_VOLATILE, dev, ia64_setcurrdev, env_nounset);
+
 	setenv("LINES", "24", 1);	/* optional */
-    
+
 	archsw.arch_autoload = ia64_autoload;
 	archsw.arch_getdev = ia64_getdev;
 	archsw.arch_copyin = ia64_copyin;
