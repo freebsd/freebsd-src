@@ -230,11 +230,28 @@ platform_trap_exit(void)
 
 }
 
+static void
+kseg0_map_coherent(void)
+{
+	uint32_t config;
+	const int CFG_K0_COHERENT = 5;
+
+	config = mips_rd_config();
+	config &= ~CFG_K0_MASK;
+	config |= CFG_K0_COHERENT;
+	mips_wr_config(config);
+}
+
 void
 platform_start(__register_t a0, __register_t a1, __register_t a2,
 	       __register_t a3)
 {
 	vm_offset_t kernend;
+
+	/*
+	 * Make sure that kseg0 is mapped cacheable-coherent
+	 */
+	kseg0_map_coherent();
 
 	/* clear the BSS and SBSS segments */
 	memset(&edata, 0, (vm_offset_t)&end - (vm_offset_t)&edata);

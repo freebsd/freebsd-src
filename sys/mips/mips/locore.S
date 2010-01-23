@@ -128,11 +128,7 @@ VECTOR(_locore, unknown)
 	mtc0	t2, COP_0_STATUS_REG
 	COP0_SYNC
 	/* Make sure KSEG0 is cached */
-#ifdef CPU_SB1
-	li	t0, CFG_K0_COHERENT
-#else
 	li	t0, CFG_K0_CACHED
-#endif
 	mtc0	t0, MIPS_COP_0_CONFIG
 	COP0_SYNC
 

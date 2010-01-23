@@ -163,11 +163,8 @@
  * The bits in the CONFIG register
  */
 #define CFG_K0_UNCACHED	2
-#if defined(CPU_SB1)
-#define CFG_K0_COHERENT	5	/* cacheable coherent */
-#else
 #define	CFG_K0_CACHED	3
-#endif
+#define	CFG_K0_MASK	0x7
 
 /*
  * The bits in the context register.
