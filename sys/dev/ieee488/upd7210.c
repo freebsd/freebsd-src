@@ -72,7 +72,7 @@ upd7210_rd(struct upd7210 *u, enum upd7210_rreg reg)
 {
 	u_int r;
 
-	r = bus_read_1(u->reg_res[reg], 0);
+	r = bus_read_1(u->reg_res[reg], u->reg_offset[reg]);
 	u->rreg[reg] = r;
 	return (r);
 }
@@ -81,7 +81,7 @@ void
 upd7210_wr(struct upd7210 *u, enum upd7210_wreg reg, u_int val)
 {
 
-	bus_write_1(u->reg_res[reg], 0, val);
+	bus_write_1(u->reg_res[reg], u->reg_offset[reg], val);
 	u->wreg[reg] = val;
 	if (reg == AUXMR)
 		u->wreg[8 + (val >> 5)] = val & 0x1f;
@@ -125,7 +125,8 @@ upd7210intr(void *arg)
 		 * Some clones apparently don't implement this
 		 * feature, but National Instrument cards do.
 		 */
-		bus_write_1(u->irq_clear_res, 0, 42);
+		if (u->irq_clear_res != NULL)
+			bus_write_1(u->irq_clear_res, 0, 42);
 	}
 	mtx_unlock(&u->mutex);
 }
