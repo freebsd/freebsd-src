@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2008
+.Dd January 8, 2010
 .Dt CPUSET 2
 .Os
 .Sh NAME
@@ -216,7 +216,9 @@ for allocation.
 .Xr cpuset 1 ,
 .Xr cpuset_getaffinity 2 ,
 .Xr cpuset_setaffinity 2 ,
-.Xr CPU_SET 3
+.Xr CPU_SET 3 ,
+.Xr pthread_affinity_np 3 ,
+.Xr pthread_attr_affinity_np 3
 .Sh HISTORY
 The
 .Nm
