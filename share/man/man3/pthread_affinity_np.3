@@ -1,5 +1,5 @@
-.\" Copyright (c) 2008 Christian Brueffer
-.\" Copyright (c) 2008 Jeffrey Roberson
+.\"-
+.\" Copyright (c) 2010 Xin LI <delphij@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -26,45 +26,25 @@
 .\" $FreeBSD$
 .\"
 .Dd January 8, 2010
-.Dt CPUSET 2
+.Dt PTHREAD_AFFINITY_NP 3
 .Os
 .Sh NAME
-.Nm cpuset_getaffinity ,
-.Nm cpuset_setaffinity
+.Nm pthread_getaffinity_np ,
+.Nm pthread_setaffinity_np
 .Nd manage CPU affinity
 .Sh LIBRARY
-.Lb libc
+.Lb libpthread
 .Sh SYNOPSIS
-.In sys/param.h
-.In sys/cpuset.h
+.In pthread_np.h
 .Ft int
-.Fn cpuset_getaffinity "cpulevel_t level" "cpuwhich_t which" "id_t id" "size_t setsize" "cpuset_t *mask"
+.Fn pthread_getaffinity_np "pthread_t td" "size_t cpusetsize" "cpuset_t *cpusetp"
 .Ft int
-.Fn cpuset_setaffinity "cpulevel_t level" "cpuwhich_t which" "id_t id" "size_t setsize" "const cpuset_t *mask"
+.Fn pthread_setaffinity_np "pthread_t td" "size_t cpusetsize" "const cpuset_t *cpusetp"
 .Sh DESCRIPTION
-.Fn cpuset_getaffinity
+.Fn pthread_getaffinity_np
 and
-.Fn cpuset_setaffinity
-allow the manipulation of sets of CPUs available to processes, threads, 
-interrupts, jails and other resources.
-These functions may manipulate sets of CPUs that contain many processes
-or per-object anonymous masks that effect only a single object.
-.Pp
-The valid values for the
-.Fa level
-and
-.Fa which
-arguments are documented in
-.Xr cpuset 2 .
-These arguments specify which object and which set of the object we are
-referring to.
-Not all possible combinations are valid.
-For example, only processes may belong to a numbered set accessed by a
-.Fa level
-argument of
-.Dv CPU_LEVEL_CPUSET .
-All resources, however, have a mask which may be manipulated with
-.Dv CPU_LEVEL_WHICH .
+.Fn pthread_setaffinity_np
+allow the manipulation of sets of CPUs available to specified thread.
 .Pp
 Masks of type
 .Ft cpuset_t
@@ -74,72 +54,69 @@ macros.
 The kernel tolerates large sets as long as all CPUs specified
 in the set exist.
 Sets smaller than the kernel uses generate an error on calls to
-.Fn cpuset_getaffinity
+.Fn  pthread_getaffinity_np
 even if the result set would fit within the user supplied set.
 Calls to
-.Fn cpuset_setaffinity
+.Fn pthread_setaffinity_np
 tolerate small sets with no restrictions.
 .Pp
 The supplied mask should have a size of
-.Fa setsize
+.Fa cpusetsize
 bytes.
 This size is usually provided by calling
-.Li sizeof(mask)
+.Li sizeof(cpuset_t)
 which is ultimately determined by the value of
 .Dv CPU_SETSIZE
 as defined in
 .In sys/cpuset.h .
 .Pp
-.Fn cpuset_getaffinity
+.Fn pthread_getaffinity_np
 retrieves the
-mask from the object specified by
-.Fa level ,
-.Fa which
-and
-.Fa id
+mask from the thread specified by
+.Fa td ,
 and stores it in the space provided by
-.Fa mask .
+.Fa cpumaskp .
 .Pp
-.Fn cpuset_setaffinity
-attempts to set the mask for the object specified by
-.Fa level ,
-.Fa which
-and
-.Fa id
+.Fn pthread_setaffinity_np
+attempts to set the mask for the thread specified by
+.Fa td
 to the value in
-.Fa mask .
+.Fa cpumaskp .
 .Pp
 .Sh RETURN VALUES
-.Rv -std
+If successful, the
+.Fn pthread_getaffinity_np
+and
+.Fn pthread_setaffinity_np
+functions will return zero.
+Otherwise an error number will be returned
+to indicate the error.
 .Sh ERRORS
-The following error codes may be set in
-.Va errno :
-.Bl -tag -width Er
-.It Bq Er EINVAL
 The
-.Fa level
-or
-.Fa which
-argument was not a valid value.
+.Fn pthread_getaffinity_np
+and
+.Fn pthread_setaffinity_np
+functions may fail if:
+.Bl -tag -width Er
 .It Bq Er EDEADLK
 The
-.Fn cpuset_setaffinity
+.Fn pthread_setaffinity_np
 call would leave a thread without a valid CPU to run on because the set
 does not overlap with the thread's anonymous mask.
 .It Bq Er EFAULT
-The mask pointer passed was invalid.
+The
+.Fa cpumaskp
+pointer passed was invalid.
 .It Bq Er ESRCH
-The object specified by the
-.Fa id
-and
-.Fa which
-arguments could not be found.
+The thread specified by the
+.Fa td
+argument could not be found.
 .It Bq Er ERANGE
 The
 .Fa cpusetsize
 was either preposterously large or smaller than the kernel set size.
 .It Bq Er EPERM
-The calling process did not have the credentials required to complete the
+The calling thread did not have the credentials required to complete the
 operation.
 .El
 .Sh SEE ALSO
@@ -148,12 +125,33 @@ operation.
 .Xr cpuset_getid 2 ,
 .Xr cpuset_setid 2 ,
 .Xr CPU_SET 3 ,
-.Xr pthread_affinity_np 3 ,
-.Xr pthread_attr_affinity_np 3
+.Xr pthread 3 ,
+.Xr pthread_attr_get_affinity_np 3 ,
+.Xr pthread_attr_set_affinity_np 3 .
+.Sh STANDARDS
+The
+.Nm pthread_getaffinity_np
+and
+.Nm pthread_setaffinity_np
+functions are non-standard
+.Fx
+extensions and may be not available on other operating systems.
 .Sh HISTORY
 The
-.Nm
-family of system calls first appeared in
-.Fx 7.1 .
-.Sh AUTHOR
-.An Jeffrey Roberson Aq jeff@FreeBSD.org
+.Nm pthread_getaffinity_np
+and
+.Nm pthread_setaffinity_np
+function first appeared in
+.Fx 7.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm pthread_getaffinity_np
+and
+.Nm pthread_setaffinity_np
+functions were written by
+.An David Xu
+.Aq davidxu@FreeBSD.org ,
+and this manpage was written by
+.An Xin LI
+.Aq delphij@FreeBSD.org .
