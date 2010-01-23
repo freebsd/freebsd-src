@@ -243,8 +243,9 @@ struct sysmaps {
 	caddr_t	CADDR2;
 };
 static struct sysmaps sysmaps_pcpu[MAXCPU];
-pt_entry_t *CMAP1 = 0;
+pt_entry_t *CMAP1 = 0, *KPTmap;
 static pt_entry_t *CMAP3;
+static pd_entry_t *KPTD;
 caddr_t CADDR1 = 0, ptvmmap = 0;
 static caddr_t CADDR3;
 struct msgbuf *msgbufp = 0;
@@ -419,6 +420,21 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	 * msgbufp is used to map the system message buffer.
 	 */
 	SYSMAP(struct msgbuf *, unused, msgbufp, atop(round_page(MSGBUF_SIZE)))
+
+	/*
+	 * KPTmap is used by pmap_kextract().
+	 */
+	SYSMAP(pt_entry_t *, KPTD, KPTmap, KVA_PAGES)
+
+	for (i = 0; i < NKPT; i++)
+		KPTD[i] = (KPTphys + (i << PAGE_SHIFT)) | PG_RW | PG_V;
+
+	/*
+	 * Adjust the start of the KPTD and KPTmap so that the implementation
+	 * of pmap_kextract() and pmap_growkernel() can be made simpler.
+	 */
+	KPTD -= KPTDI;
+	KPTmap -= i386_btop(KPTDI << PDRSHIFT);
 
 	/*
 	 * ptemap is used for pmap_pte_quick
@@ -1839,6 +1855,7 @@ pmap_growkernel(vm_offset_t addr)
 	vm_page_t nkpg;
 	pd_entry_t newpdir;
 	pt_entry_t *pde;
+	boolean_t updated_PTD;
 
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
 	if (kernel_vm_end == 0) {
@@ -1878,14 +1895,20 @@ pmap_growkernel(vm_offset_t addr)
 			pmap_zero_page(nkpg);
 		ptppaddr = VM_PAGE_TO_PHYS(nkpg);
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
-		pdir_pde(PTD, kernel_vm_end) = newpdir;
+		pdir_pde(KPTD, kernel_vm_end) = newpdir;
 
+		updated_PTD = FALSE;
 		mtx_lock_spin(&allpmaps_lock);
 		LIST_FOREACH(pmap, &allpmaps, pm_list) {
+			if ((pmap->pm_pdir[PTDPTDI] & PG_FRAME) == (PTDpde[0] &
+			    PG_FRAME))
+				updated_PTD = TRUE;
 			pde = pmap_pde(pmap, kernel_vm_end);
 			pde_store(pde, newpdir);
 		}
 		mtx_unlock_spin(&allpmaps_lock);
+		KASSERT(updated_PTD,
+		    ("pmap_growkernel: current page table is not in allpmaps"));
 		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
 		if (kernel_vm_end - 1 >= kernel_map->max_offset) {
 			kernel_vm_end = kernel_map->max_offset;
