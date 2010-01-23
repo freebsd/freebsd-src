@@ -102,6 +102,17 @@ bool Decl::isFunctionOrFunctionTemplate() const {
   return isa<FunctionDecl>(this) || isa<FunctionTemplateDecl>(this);
 }
 
+bool Decl::isDefinedOutsideFunctionOrMethod() const {
+  for (const DeclContext *DC = getDeclContext(); 
+       DC && !DC->isTranslationUnit(); 
+       DC = DC->getParent())
+    if (DC->isFunctionOrMethod())
+      return false;
+
+  return true;
+}
+
+
 //===----------------------------------------------------------------------===//
 // PrettyStackTraceDecl Implementation
 //===----------------------------------------------------------------------===//
@@ -399,8 +410,13 @@ SourceLocation Decl::getBodyRBrace() const {
 
 #ifndef NDEBUG
 void Decl::CheckAccessDeclContext() const {
-  // If the decl is the toplevel translation unit or if we're not in a
-  // record decl context, we don't need to check anything.
+  // Suppress this check if any of the following hold:
+  // 1. this is the translation unit (and thus has no parent)
+  // 2. this is a template parameter (and thus doesn't belong to its context)
+  // 3. this is a ParmVarDecl (which can be in a record context during
+  //    the brief period between its creation and the creation of the
+  //    FunctionDecl)
+  // 4. the context is not a record
   if (isa<TranslationUnitDecl>(this) ||
       !isa<CXXRecordDecl>(getDeclContext()))
     return;

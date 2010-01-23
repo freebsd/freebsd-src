@@ -61,6 +61,7 @@ namespace clang {
   class TypedefDecl;
   class UsingDecl;
   class UsingShadowDecl;
+  class UnresolvedSetIterator;
 
   namespace Builtin { class Context; }
 
@@ -397,6 +398,11 @@ public:
   /// BlockPointer.
   QualType getNoReturnType(QualType T, bool AddNoReturn = true);
 
+  /// getCallConvType - Adds the specified calling convention attribute to
+  /// the given type, which must be a FunctionType or a pointer to an
+  /// allowable type.
+  QualType getCallConvType(QualType T, CallingConv CallConv);
+
   /// getComplexType - Return the uniqued reference to the type for a complex
   /// number with the specified element type.
   QualType getComplexType(QualType T);
@@ -513,7 +519,8 @@ public:
 
   /// getFunctionNoProtoType - Return a K&R style C function type like 'int()'.
   ///
-  QualType getFunctionNoProtoType(QualType ResultTy, bool NoReturn = false);
+  QualType getFunctionNoProtoType(QualType ResultTy, bool NoReturn = false,
+                                  CallingConv CallConv = CC_Default);
 
   /// getFunctionType - Return a normal function type with a typed argument
   /// list.  isVariadic indicates whether the argument list includes '...'.
@@ -522,7 +529,8 @@ public:
                            unsigned TypeQuals, bool hasExceptionSpec = false,
                            bool hasAnyExceptionSpec = false,
                            unsigned NumExs = 0, const QualType *ExArray = 0,
-                           bool NoReturn = false);
+                           bool NoReturn = false,
+                           CallingConv CallConv = CC_Default);
 
   /// getTypeDeclType - Return the unique reference to the type for
   /// the specified type declaration.
@@ -746,8 +754,8 @@ public:
 
   DeclarationName getNameForTemplate(TemplateName Name);
 
-  TemplateName getOverloadedTemplateName(NamedDecl * const *Begin,
-                                         NamedDecl * const *End);
+  TemplateName getOverloadedTemplateName(UnresolvedSetIterator Begin,
+                                         UnresolvedSetIterator End);
 
   TemplateName getQualifiedTemplateName(NestedNameSpecifier *NNS,
                                         bool TemplateKeyword,

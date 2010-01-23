@@ -385,6 +385,14 @@ public:
   }
 };
 
+/// CallingConv - Specifies the calling convention that a function uses.
+enum CallingConv {
+  CC_Default,
+  CC_C,           // __attribute__((cdecl))
+  CC_X86StdCall,  // __attribute__((stdcall))
+  CC_X86FastCall  // __attribute__((fastcall))
+};
+
 
 /// QualType - For efficiency, we don't store CV-qualified types as nodes on
 /// their own: instead each reference to a type stores the qualifiers.  This
@@ -668,6 +676,10 @@ public:
   /// getNoReturnAttr - Returns true if the type has the noreturn attribute,
   /// false otherwise.
   bool getNoReturnAttr() const;
+
+  /// getCallConv - Returns the calling convention of the type if the type
+  /// is a function type, CC_Default otherwise.
+  CallingConv getCallConv() const;
 
 private:
   // These methods are implemented in a separate translation unit;
@@ -1691,21 +1703,25 @@ class FunctionType : public Type {
   /// NoReturn - Indicates if the function type is attribute noreturn.
   unsigned NoReturn : 1;
 
+  /// CallConv - The calling convention used by the function.
+  unsigned CallConv : 2;
+
   // The type returned by the function.
   QualType ResultType;
 protected:
   FunctionType(TypeClass tc, QualType res, bool SubclassInfo,
                unsigned typeQuals, QualType Canonical, bool Dependent,
-               bool noReturn = false)
+               bool noReturn = false, CallingConv callConv = CC_Default)
     : Type(tc, Canonical, Dependent),
       SubClassData(SubclassInfo), TypeQuals(typeQuals), NoReturn(noReturn),
-      ResultType(res) {}
+      CallConv(callConv), ResultType(res) {}
   bool getSubClassData() const { return SubClassData; }
   unsigned getTypeQuals() const { return TypeQuals; }
 public:
 
   QualType getResultType() const { return ResultType; }
   bool getNoReturnAttr() const { return NoReturn; }
+  CallingConv getCallConv() const { return (CallingConv)CallConv; }
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == FunctionNoProto ||
@@ -1718,9 +1734,9 @@ public:
 /// no information available about its arguments.
 class FunctionNoProtoType : public FunctionType, public llvm::FoldingSetNode {
   FunctionNoProtoType(QualType Result, QualType Canonical,
-                      bool NoReturn = false)
+                      bool NoReturn = false, CallingConv CallConv = CC_Default)
     : FunctionType(FunctionNoProto, Result, false, 0, Canonical,
-                   /*Dependent=*/false, NoReturn) {}
+                   /*Dependent=*/false, NoReturn, CallConv) {}
   friend class ASTContext;  // ASTContext creates these.
 public:
   // No additional state past what FunctionType provides.
@@ -1762,10 +1778,12 @@ class FunctionProtoType : public FunctionType, public llvm::FoldingSetNode {
   FunctionProtoType(QualType Result, const QualType *ArgArray, unsigned numArgs,
                     bool isVariadic, unsigned typeQuals, bool hasExs,
                     bool hasAnyExs, const QualType *ExArray,
-                    unsigned numExs, QualType Canonical, bool NoReturn)
+                    unsigned numExs, QualType Canonical, bool NoReturn,
+                    CallingConv CallConv)
     : FunctionType(FunctionProto, Result, isVariadic, typeQuals, Canonical,
                    (Result->isDependentType() ||
-                    hasAnyDependentType(ArgArray, numArgs)), NoReturn),
+                    hasAnyDependentType(ArgArray, numArgs)), NoReturn,
+                   CallConv),
       NumArgs(numArgs), NumExceptions(numExs), HasExceptionSpec(hasExs),
       AnyExceptionSpec(hasAnyExs) {
     // Fill in the trailing argument array.
@@ -2496,26 +2514,31 @@ class ObjCInterfaceType : public Type, public llvm::FoldingSetNode {
 
   // List of protocols for this protocol conforming object type
   // List is sorted on protocol name. No protocol is enterred more than once.
-  llvm::SmallVector<ObjCProtocolDecl*, 4> Protocols;
+  ObjCProtocolDecl **Protocols;
+  unsigned NumProtocols;
 
-  ObjCInterfaceType(QualType Canonical, ObjCInterfaceDecl *D,
-                    ObjCProtocolDecl **Protos, unsigned NumP) :
-    Type(ObjCInterface, Canonical, /*Dependent=*/false),
-    Decl(D), Protocols(Protos, Protos+NumP) { }
+  ObjCInterfaceType(ASTContext &Ctx, QualType Canonical, ObjCInterfaceDecl *D,
+                    ObjCProtocolDecl **Protos, unsigned NumP);
   friend class ASTContext;  // ASTContext creates these.
 public:
+  void Destroy(ASTContext& C);
+
   ObjCInterfaceDecl *getDecl() const { return Decl; }
 
   /// getNumProtocols - Return the number of qualifying protocols in this
   /// interface type, or 0 if there are none.
-  unsigned getNumProtocols() const { return Protocols.size(); }
+  unsigned getNumProtocols() const { return NumProtocols; }
 
   /// qual_iterator and friends: this provides access to the (potentially empty)
   /// list of protocols qualifying this interface.
-  typedef llvm::SmallVector<ObjCProtocolDecl*, 8>::const_iterator qual_iterator;
-  qual_iterator qual_begin() const { return Protocols.begin(); }
-  qual_iterator qual_end() const   { return Protocols.end(); }
-  bool qual_empty() const { return Protocols.size() == 0; }
+  typedef ObjCProtocolDecl*  const * qual_iterator;
+  qual_iterator qual_begin() const {
+    return Protocols;
+  }
+  qual_iterator qual_end() const   {
+    return Protocols ? Protocols + NumProtocols : 0;
+  }
+  bool qual_empty() const { return NumProtocols == 0; }
 
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
@@ -2541,15 +2564,16 @@ class ObjCObjectPointerType : public Type, public llvm::FoldingSetNode {
 
   // List of protocols for this protocol conforming object type
   // List is sorted on protocol name. No protocol is entered more than once.
-  llvm::SmallVector<ObjCProtocolDecl*, 8> Protocols;
+  ObjCProtocolDecl **Protocols;
+  unsigned NumProtocols;
 
-  ObjCObjectPointerType(QualType Canonical, QualType T,
-                        ObjCProtocolDecl **Protos, unsigned NumP) :
-    Type(ObjCObjectPointer, Canonical, /*Dependent=*/false),
-    PointeeType(T), Protocols(Protos, Protos+NumP) { }
+  ObjCObjectPointerType(ASTContext &Ctx, QualType Canonical, QualType T,
+                        ObjCProtocolDecl **Protos, unsigned NumP);
   friend class ASTContext;  // ASTContext creates these.
 
 public:
+  void Destroy(ASTContext& C);
+
   // Get the pointee type. Pointee will either be:
   // - a built-in type (for 'id' and 'Class').
   // - an interface type (for user-defined types).
@@ -2567,35 +2591,39 @@ public:
   /// isObjCIdType - true for "id".
   bool isObjCIdType() const {
     return getPointeeType()->isSpecificBuiltinType(BuiltinType::ObjCId) &&
-           !Protocols.size();
+           !NumProtocols;
   }
   /// isObjCClassType - true for "Class".
   bool isObjCClassType() const {
     return getPointeeType()->isSpecificBuiltinType(BuiltinType::ObjCClass) &&
-           !Protocols.size();
+           !NumProtocols;
   }
   
   /// isObjCQualifiedIdType - true for "id <p>".
   bool isObjCQualifiedIdType() const {
     return getPointeeType()->isSpecificBuiltinType(BuiltinType::ObjCId) &&
-           Protocols.size();
+           NumProtocols;
   }
   /// isObjCQualifiedClassType - true for "Class <p>".
   bool isObjCQualifiedClassType() const {
     return getPointeeType()->isSpecificBuiltinType(BuiltinType::ObjCClass) &&
-           Protocols.size();
+           NumProtocols;
   }
   /// qual_iterator and friends: this provides access to the (potentially empty)
   /// list of protocols qualifying this interface.
-  typedef llvm::SmallVector<ObjCProtocolDecl*, 8>::const_iterator qual_iterator;
+  typedef ObjCProtocolDecl*  const * qual_iterator;
 
-  qual_iterator qual_begin() const { return Protocols.begin(); }
-  qual_iterator qual_end() const   { return Protocols.end(); }
-  bool qual_empty() const { return Protocols.size() == 0; }
+  qual_iterator qual_begin() const {
+    return Protocols;
+  }
+  qual_iterator qual_end() const   {
+    return Protocols ? Protocols + NumProtocols : NULL;
+  }
+  bool qual_empty() const { return NumProtocols == 0; }
 
   /// getNumProtocols - Return the number of qualifying protocols in this
   /// interface type, or 0 if there are none.
-  unsigned getNumProtocols() const { return Protocols.size(); }
+  unsigned getNumProtocols() const { return NumProtocols; }
 
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
@@ -2795,6 +2823,26 @@ inline bool QualType::getNoReturnAttr() const {
     return FT->getNoReturnAttr();
 
   return false;
+}
+
+/// getCallConv - Returns the calling convention of the type if the type
+/// is a function type, CC_Default otherwise.
+inline CallingConv QualType::getCallConv() const {
+  if (const PointerType *PT = getTypePtr()->getAs<PointerType>())
+    return PT->getPointeeType().getCallConv();
+  else if (const ReferenceType *RT = getTypePtr()->getAs<ReferenceType>())
+    return RT->getPointeeType().getCallConv();
+  else if (const MemberPointerType *MPT =
+           getTypePtr()->getAs<MemberPointerType>())
+    return MPT->getPointeeType().getCallConv();
+  else if (const BlockPointerType *BPT =
+           getTypePtr()->getAs<BlockPointerType>()) {
+    if (const FunctionType *FT = BPT->getPointeeType()->getAs<FunctionType>())
+      return FT->getCallConv();
+  } else if (const FunctionType *FT = getTypePtr()->getAs<FunctionType>())
+    return FT->getCallConv();
+
+  return CC_Default;
 }
 
 /// isMoreQualifiedThan - Determine whether this type is more

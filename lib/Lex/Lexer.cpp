@@ -210,6 +210,7 @@ void Lexer::Stringify(llvm::SmallVectorImpl<char> &Str) {
   }
 }
 
+static bool isWhitespace(unsigned char c);
 
 /// MeasureTokenLength - Relex the token at the specified location and return
 /// its length in bytes in the input file.  If the token needs cleaning (e.g.
@@ -230,6 +231,9 @@ unsigned Lexer::MeasureTokenLength(SourceLocation Loc,
   std::pair<FileID, unsigned> LocInfo = SM.getDecomposedLoc(Loc);
   std::pair<const char *,const char *> Buffer = SM.getBufferData(LocInfo.first);
   const char *StrData = Buffer.first+LocInfo.second;
+
+  if (isWhitespace(StrData[0]))
+    return 0;
 
   // Create a lexer starting at the beginning of this token.
   Lexer TheLexer(Loc, LangOpts, Buffer.first, StrData, Buffer.second);
@@ -902,8 +906,10 @@ bool Lexer::SkipWhitespace(Token &Result, const char *CurPtr) {
 
 // SkipBCPLComment - We have just read the // characters from input.  Skip until
 // we find the newline character thats terminate the comment.  Then update
-/// BufferPtr and return.  If we're in KeepCommentMode, this will form the token
-/// and return true.
+/// BufferPtr and return.
+///
+/// If we're in KeepCommentMode or any CommentHandler has inserted
+/// some tokens, this will store the first token and return true.
 bool Lexer::SkipBCPLComment(Token &Result, const char *CurPtr) {
   // If BCPL comments aren't explicitly enabled for this language, emit an
   // extension warning.
@@ -980,9 +986,12 @@ bool Lexer::SkipBCPLComment(Token &Result, const char *CurPtr) {
   } while (C != '\n' && C != '\r');
 
   // Found but did not consume the newline.
-  if (PP)
-    PP->HandleComment(SourceRange(getSourceLocation(BufferPtr),
-                                  getSourceLocation(CurPtr)));
+  if (PP && PP->HandleComment(Result,
+                              SourceRange(getSourceLocation(BufferPtr),
+                                          getSourceLocation(CurPtr)))) {
+    BufferPtr = CurPtr;
+    return true; // A token has to be returned.
+  }
 
   // If we are returning comments as tokens, return this comment as a token.
   if (inKeepCommentMode())
@@ -1108,8 +1117,8 @@ static bool isEndOfBlockCommentWithEscapedNewLine(const char *CurPtr,
 /// happen is the comment could end with an escaped newline between the */ end
 /// of comment.
 ///
-/// If KeepCommentMode is enabled, this forms a token from the comment and
-/// returns true.
+/// If we're in KeepCommentMode or any CommentHandler has inserted
+/// some tokens, this will store the first token and return true.
 bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr) {
   // Scan one character past where we should, looking for a '/' character.  Once
   // we find it, check to see if it was preceeded by a *.  This common
@@ -1226,9 +1235,12 @@ bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr) {
     C = *CurPtr++;
   }
 
-  if (PP)
-    PP->HandleComment(SourceRange(getSourceLocation(BufferPtr),
-                                  getSourceLocation(CurPtr)));
+  if (PP && PP->HandleComment(Result,
+                              SourceRange(getSourceLocation(BufferPtr),
+                                          getSourceLocation(CurPtr)))) {
+    BufferPtr = CurPtr;
+    return true; // A token has to be returned.
+  }
 
   // If we are returning comments as tokens, return this comment as a token.
   if (inKeepCommentMode()) {
@@ -1606,10 +1618,12 @@ LexNextToken:
     // too (without going through the big switch stmt).
     if (CurPtr[0] == '/' && CurPtr[1] == '/' && !inKeepCommentMode() &&
         Features.BCPLComment) {
-      SkipBCPLComment(Result, CurPtr+2);
+      if (SkipBCPLComment(Result, CurPtr+2))
+        return; // There is a token to return.
       goto SkipIgnoredUnits;
     } else if (CurPtr[0] == '/' && CurPtr[1] == '*' && !inKeepCommentMode()) {
-      SkipBlockComment(Result, CurPtr+2);
+      if (SkipBlockComment(Result, CurPtr+2))
+        return; // There is a token to return.
       goto SkipIgnoredUnits;
     } else if (isHorizontalWhitespace(*CurPtr)) {
       goto SkipHorizontalWhitespace;
@@ -1795,7 +1809,7 @@ LexNextToken:
       if (Features.BCPLComment ||
           getCharAndSize(CurPtr+SizeTmp, SizeTmp2) != '*') {
         if (SkipBCPLComment(Result, ConsumeChar(CurPtr, SizeTmp, Result)))
-          return; // KeepCommentMode
+          return; // There is a token to return.
 
         // It is common for the tokens immediately after a // comment to be
         // whitespace (indentation for the next line).  Instead of going through
@@ -1806,7 +1820,7 @@ LexNextToken:
 
     if (Char == '*') {  // /**/ comment.
       if (SkipBlockComment(Result, ConsumeChar(CurPtr, SizeTmp, Result)))
-        return; // KeepCommentMode
+        return; // There is a token to return.
       goto LexNextToken;   // GCC isn't tail call eliminating.
     }
 

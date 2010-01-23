@@ -3082,15 +3082,9 @@ Sema::LookupMemberExpr(LookupResult &R, Expr *&BaseExpr,
     if (Setter && DiagnoseUseOfDecl(Setter, MemberLoc))
       return ExprError();
 
-    if (Getter || Setter) {
+    if (Getter) {
       QualType PType;
-
-      if (Getter)
-        PType = Getter->getResultType();
-      else
-        // Get the expression type from Setter's incoming parameter.
-        PType = (*(Setter->param_end() -1))->getType();
-      // FIXME: we must check that the setter has property type.
+      PType = Getter->getResultType();
       return Owned(new (Context) ObjCImplicitSetterGetterRefExpr(Getter, PType,
                                       Setter, MemberLoc, BaseExpr));
     }
@@ -3663,11 +3657,21 @@ Action::OwningExprResult
 Sema::ActOnCompoundLiteral(SourceLocation LParenLoc, TypeTy *Ty,
                            SourceLocation RParenLoc, ExprArg InitExpr) {
   assert((Ty != 0) && "ActOnCompoundLiteral(): missing type");
-  
-  QualType literalType = GetTypeFromParser(Ty);  
-  
   // FIXME: put back this assert when initializers are worked out.
   //assert((InitExpr != 0) && "ActOnCompoundLiteral(): missing expression");
+
+  TypeSourceInfo *TInfo;
+  QualType literalType = GetTypeFromParser(Ty, &TInfo);
+  if (!TInfo)
+    TInfo = Context.getTrivialTypeSourceInfo(literalType);
+
+  return BuildCompoundLiteralExpr(LParenLoc, TInfo, RParenLoc, move(InitExpr));
+}
+
+Action::OwningExprResult
+Sema::BuildCompoundLiteralExpr(SourceLocation LParenLoc, TypeSourceInfo *TInfo,
+                               SourceLocation RParenLoc, ExprArg InitExpr) {
+  QualType literalType = TInfo->getType();
   Expr *literalExpr = static_cast<Expr*>(InitExpr.get());
 
   if (literalType->isArrayType()) {
@@ -3703,8 +3707,7 @@ Sema::ActOnCompoundLiteral(SourceLocation LParenLoc, TypeTy *Ty,
 
   Result.release();
   
-  // FIXME: Store the TInfo to preserve type information better.
-  return Owned(new (Context) CompoundLiteralExpr(LParenLoc, literalType,
+  return Owned(new (Context) CompoundLiteralExpr(LParenLoc, TInfo, literalType,
                                                  literalExpr, isFileScope));
 }
 
@@ -3906,26 +3909,38 @@ bool Sema::CheckExtVectorCast(SourceRange R, QualType DestTy, Expr *&CastExpr,
 Action::OwningExprResult
 Sema::ActOnCastExpr(Scope *S, SourceLocation LParenLoc, TypeTy *Ty,
                     SourceLocation RParenLoc, ExprArg Op) {
-  CastExpr::CastKind Kind = CastExpr::CK_Unknown;
-
   assert((Ty != 0) && (Op.get() != 0) &&
          "ActOnCastExpr(): missing type or expr");
 
-  Expr *castExpr = (Expr *)Op.get();
-  //FIXME: Preserve type source info.
-  QualType castType = GetTypeFromParser(Ty);
+  TypeSourceInfo *castTInfo;
+  QualType castType = GetTypeFromParser(Ty, &castTInfo);
+  if (!castTInfo)
+    castTInfo = Context.getTrivialTypeSourceInfo(castType);
 
   // If the Expr being casted is a ParenListExpr, handle it specially.
+  Expr *castExpr = (Expr *)Op.get();
   if (isa<ParenListExpr>(castExpr))
-    return ActOnCastOfParenListExpr(S, LParenLoc, RParenLoc, move(Op),castType);
+    return ActOnCastOfParenListExpr(S, LParenLoc, RParenLoc, move(Op),
+                                    castTInfo);
+
+  return BuildCStyleCastExpr(LParenLoc, castTInfo, RParenLoc, move(Op));
+}
+
+Action::OwningExprResult
+Sema::BuildCStyleCastExpr(SourceLocation LParenLoc, TypeSourceInfo *Ty,
+                          SourceLocation RParenLoc, ExprArg Op) {
+  Expr *castExpr = static_cast<Expr*>(Op.get());
+
   CXXMethodDecl *Method = 0;
-  if (CheckCastTypes(SourceRange(LParenLoc, RParenLoc), castType, castExpr,
+  CastExpr::CastKind Kind = CastExpr::CK_Unknown;
+  if (CheckCastTypes(SourceRange(LParenLoc, RParenLoc), Ty->getType(), castExpr,
                      Kind, Method))
     return ExprError();
 
   if (Method) {
-    OwningExprResult CastArg = BuildCXXCastArgument(LParenLoc, castType, Kind,
-                                                    Method, move(Op));
+    // FIXME: preserve type source info here
+    OwningExprResult CastArg = BuildCXXCastArgument(LParenLoc, Ty->getType(),
+                                                    Kind, Method, move(Op));
 
     if (CastArg.isInvalid())
       return ExprError();
@@ -3935,8 +3950,8 @@ Sema::ActOnCastExpr(Scope *S, SourceLocation LParenLoc, TypeTy *Ty,
     Op.release();
   }
 
-  return Owned(new (Context) CStyleCastExpr(castType.getNonReferenceType(),
-                                            Kind, castExpr, castType,
+  return Owned(new (Context) CStyleCastExpr(Ty->getType().getNonReferenceType(),
+                                            Kind, castExpr, Ty,
                                             LParenLoc, RParenLoc));
 }
 
@@ -3961,8 +3976,9 @@ Sema::MaybeConvertParenListExprToParenExpr(Scope *S, ExprArg EA) {
 Action::OwningExprResult
 Sema::ActOnCastOfParenListExpr(Scope *S, SourceLocation LParenLoc,
                                SourceLocation RParenLoc, ExprArg Op,
-                               QualType Ty) {
+                               TypeSourceInfo *TInfo) {
   ParenListExpr *PE = (ParenListExpr *)Op.get();
+  QualType Ty = TInfo->getType();
 
   // If this is an altivec initializer, '(' type ')' '(' init, ..., init ')'
   // then handle it as such.
@@ -3982,13 +3998,12 @@ Sema::ActOnCastOfParenListExpr(Scope *S, SourceLocation LParenLoc,
     InitListExpr *E = new (Context) InitListExpr(LParenLoc, &initExprs[0],
                                                  initExprs.size(), RParenLoc);
     E->setType(Ty);
-    return ActOnCompoundLiteral(LParenLoc, Ty.getAsOpaquePtr(), RParenLoc,
-                                Owned(E));
+    return BuildCompoundLiteralExpr(LParenLoc, TInfo, RParenLoc, Owned(E));
   } else {
     // This is not an AltiVec-style cast, so turn the ParenListExpr into a
     // sequence of BinOp comma operators.
     Op = MaybeConvertParenListExprToParenExpr(S, move(Op));
-    return ActOnCastExpr(S, LParenLoc, Ty.getAsOpaquePtr(), RParenLoc,move(Op));
+    return BuildCStyleCastExpr(LParenLoc, TInfo, RParenLoc, move(Op));
   }
 }
 
@@ -4702,8 +4717,9 @@ static void ConstructTransparentUnion(ASTContext &C, Expr *&E,
 
   // Build a compound literal constructing a value of the transparent
   // union type from this initializer list.
-  E = new (C) CompoundLiteralExpr(SourceLocation(), UnionType, Initializer,
-                                  false);
+  TypeSourceInfo *unionTInfo = C.getTrivialTypeSourceInfo(UnionType);
+  E = new (C) CompoundLiteralExpr(SourceLocation(), unionTInfo, UnionType,
+                                  Initializer, false);
 }
 
 Sema::AssignConvertType
@@ -6785,10 +6801,13 @@ void Sema::ActOnBlockArguments(Declarator &ParamInfo, Scope *CurScope) {
   CurBlock->TheDecl->setIsVariadic(CurBlock->isVariadic);
   ProcessDeclAttributes(CurScope, CurBlock->TheDecl, ParamInfo);
   for (BlockDecl::param_iterator AI = CurBlock->TheDecl->param_begin(),
-       E = CurBlock->TheDecl->param_end(); AI != E; ++AI)
+         E = CurBlock->TheDecl->param_end(); AI != E; ++AI) {
+    (*AI)->setOwningFunction(CurBlock->TheDecl);
+
     // If this has an identifier, add it to the scope stack.
     if ((*AI)->getIdentifier())
       PushOnScopeChains(*AI, CurBlock->TheScope);
+  }
 
   // Check for a valid sentinel attribute on this block.
   if (!CurBlock->isVariadic &&
@@ -6868,6 +6887,26 @@ Sema::OwningExprResult Sema::ActOnBlockStmtExpr(SourceLocation CaretLoc,
   CurFunctionNeedsScopeChecking = BSI->SavedFunctionNeedsScopeChecking;
 
   BSI->TheDecl->setBody(body.takeAs<CompoundStmt>());
+
+  bool Good = true;
+  // Check goto/label use.
+  for (llvm::DenseMap<IdentifierInfo*, LabelStmt*>::iterator
+         I = BSI->LabelMap.begin(), E = BSI->LabelMap.end(); I != E; ++I) {
+    LabelStmt *L = I->second;
+
+    // Verify that we have no forward references left.  If so, there was a goto
+    // or address of a label taken, but no definition of it.
+    if (L->getSubStmt() != 0)
+      continue;
+
+    // Emit error.
+    Diag(L->getIdentLoc(), diag::err_undeclared_label_use) << L->getName();
+    Good = false;
+  }
+  BSI->LabelMap.clear();
+  if (!Good)
+    return ExprError();
+
   AnalysisContext AC(BSI->TheDecl);
   CheckFallThroughForBlock(BlockTy, BSI->TheDecl->getBody(), AC);
   CheckUnreachable(AC);
@@ -7203,8 +7242,15 @@ void Sema::MarkDeclarationReferenced(SourceLocation Loc, Decl *D) {
           AlreadyInstantiated = true;
       }
       
-      if (!AlreadyInstantiated)
-        PendingImplicitInstantiations.push_back(std::make_pair(Function, Loc));
+      if (!AlreadyInstantiated) {
+        if (isa<CXXRecordDecl>(Function->getDeclContext()) &&
+            cast<CXXRecordDecl>(Function->getDeclContext())->isLocalClass())
+          PendingLocalImplicitInstantiations.push_back(std::make_pair(Function,
+                                                                      Loc));
+        else
+          PendingImplicitInstantiations.push_back(std::make_pair(Function, 
+                                                                 Loc));
+      }
     }
     
     // FIXME: keep track of references to static functions

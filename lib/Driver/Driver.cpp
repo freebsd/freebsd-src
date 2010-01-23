@@ -26,6 +26,7 @@
 #include "clang/Basic/Version.h"
 
 #include "llvm/ADT/StringSet.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
@@ -66,6 +67,14 @@ Driver::Driver(llvm::StringRef _Name, llvm::StringRef _Dir,
 
     CCCUseClangCXX = false;
   }
+
+  // Compute the path to the resource directory.
+  llvm::sys::Path P(Dir);
+  P.eraseComponent(); // Remove /bin from foo/bin
+  P.appendComponent("lib");
+  P.appendComponent("clang");
+  P.appendComponent(CLANG_VERSION_STRING);
+  ResourceDir = P.str();
 }
 
 Driver::~Driver() {
@@ -273,15 +282,7 @@ void Driver::PrintHelp(bool ShowHidden) const {
 void Driver::PrintVersion(const Compilation &C, llvm::raw_ostream &OS) const {
   // FIXME: The following handlers should use a callback mechanism, we don't
   // know what the client would like to do.
-#ifdef CLANG_VENDOR
-  OS << CLANG_VENDOR;
-#endif
-  OS << "clang version " CLANG_VERSION_STRING " ("
-     << getClangSubversionPath();
-  if (unsigned Revision = getClangSubversionRevision())
-    OS << " " << Revision;
-  OS << ")" << '\n';
-
+  OS << getClangFullVersion() << '\n';
   const ToolChain &TC = C.getDefaultToolChain();
   OS << "Target: " << TC.getTripleString() << '\n';
 
@@ -675,7 +676,7 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
     }
 
     // Build the pipeline for this file.
-    Action *Current = new InputAction(*InputArg, InputType);
+    llvm::OwningPtr<Action> Current(new InputAction(*InputArg, InputType));
     for (unsigned i = 0; i != NumSteps; ++i) {
       phases::ID Phase = types::getCompilationPhase(InputType, i);
 
@@ -686,8 +687,7 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
       // Queue linker inputs.
       if (Phase == phases::Link) {
         assert(i + 1 == NumSteps && "linking must be final compilation step.");
-        LinkerInputs.push_back(Current);
-        Current = 0;
+        LinkerInputs.push_back(Current.take());
         break;
       }
 
@@ -698,14 +698,14 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
         continue;
 
       // Otherwise construct the appropriate action.
-      Current = ConstructPhaseAction(Args, Phase, Current);
+      Current.reset(ConstructPhaseAction(Args, Phase, Current.take()));
       if (Current->getType() == types::TY_Nothing)
         break;
     }
 
     // If we ended with something, add to the output list.
     if (Current)
-      Actions.push_back(Current);
+      Actions.push_back(Current.take());
   }
 
   // Add a link action if necessary.

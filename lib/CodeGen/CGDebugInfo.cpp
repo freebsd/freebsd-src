@@ -460,58 +460,15 @@ llvm::DIType CGDebugInfo::CreateType(const FunctionType *Ty,
   return DbgTy;
 }
 
-/// CreateType - get structure or union type.
-llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty,
-                                     llvm::DICompileUnit Unit) {
-  RecordDecl *Decl = Ty->getDecl();
-
-  unsigned Tag;
-  if (Decl->isStruct())
-    Tag = llvm::dwarf::DW_TAG_structure_type;
-  else if (Decl->isUnion())
-    Tag = llvm::dwarf::DW_TAG_union_type;
-  else {
-    assert(Decl->isClass() && "Unknown RecordType!");
-    Tag = llvm::dwarf::DW_TAG_class_type;
-  }
-
-  SourceManager &SM = CGM.getContext().getSourceManager();
-
-  // Get overall information about the record type for the debug info.
-  PresumedLoc PLoc = SM.getPresumedLoc(Decl->getLocation());
-  llvm::DICompileUnit DefUnit;
-  unsigned Line = 0;
-  if (!PLoc.isInvalid()) {
-    DefUnit = getOrCreateCompileUnit(Decl->getLocation());
-    Line = PLoc.getLine();
-  }
-
-  // Records and classes and unions can all be recursive.  To handle them, we
-  // first generate a debug descriptor for the struct as a forward declaration.
-  // Then (if it is a definition) we go through and get debug info for all of
-  // its members.  Finally, we create a descriptor for the complete type (which
-  // may refer to the forward decl if the struct is recursive) and replace all
-  // uses of the forward declaration with the final definition.
-  llvm::DICompositeType FwdDecl =
-    DebugFactory.CreateCompositeType(Tag, Unit, Decl->getName(),
-                                     DefUnit, Line, 0, 0, 0, 0,
-                                     llvm::DIType(), llvm::DIArray());
-
-  // If this is just a forward declaration, return it.
-  if (!Decl->getDefinition(CGM.getContext()))
-    return FwdDecl;
-
-  llvm::TrackingVH<llvm::MDNode> FwdDeclNode = FwdDecl.getNode();
-  // Otherwise, insert it into the TypeCache so that recursive uses will find
-  // it.
-  TypeCache[QualType(Ty, 0).getAsOpaquePtr()] = FwdDecl.getNode();
-
-  // Convert all the elements.
-  llvm::SmallVector<llvm::DIDescriptor, 16> EltTys;
-
-  const ASTRecordLayout &RL = CGM.getContext().getASTRecordLayout(Decl);
-
+/// CollectRecordFields - A helper function to collect debug info for
+/// record fields. This is used while creating debug info entry for a Record.
+void CGDebugInfo::
+CollectRecordFields(const RecordDecl *Decl,
+                    llvm::DICompileUnit Unit,
+                    llvm::SmallVectorImpl<llvm::DIDescriptor> &EltTys) {
   unsigned FieldNo = 0;
+  SourceManager &SM = CGM.getContext().getSourceManager();
+  const ASTRecordLayout &RL = CGM.getContext().getASTRecordLayout(Decl);
   for (RecordDecl::field_iterator I = Decl->field_begin(),
                                   E = Decl->field_end();
        I != E; ++I, ++FieldNo) {
@@ -560,6 +517,125 @@ llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty,
                                              FieldOffset, 0, FieldTy);
     EltTys.push_back(FieldTy);
   }
+}
+
+/// CollectCXXMemberFunctions - A helper function to collect debug info for
+/// C++ member functions.This is used while creating debug info entry for 
+/// a Record.
+void CGDebugInfo::
+CollectCXXMemberFunctions(const CXXRecordDecl *Decl,
+                          llvm::DICompileUnit Unit,
+                          llvm::SmallVectorImpl<llvm::DIDescriptor> &EltTys,
+                          llvm::DICompositeType &RecordTy) {
+  SourceManager &SM = CGM.getContext().getSourceManager();
+  for(CXXRecordDecl::method_iterator I = Decl->method_begin(),
+        E = Decl->method_end(); I != E; ++I) {
+    CXXMethodDecl *Method = *I;
+    llvm::StringRef MethodName;
+    llvm::StringRef MethodLinkageName;
+    llvm::DIType MethodTy = getOrCreateType(Method->getType(), Unit);
+    if (CXXConstructorDecl *CDecl = dyn_cast<CXXConstructorDecl>(Method)) {
+      if (CDecl->isImplicit())
+        continue;
+      MethodName = Decl->getName();
+      // FIXME : Find linkage name.
+    } else if (CXXDestructorDecl *DDecl = dyn_cast<CXXDestructorDecl>(Method)) {
+      if (DDecl->isImplicit())
+        continue;
+      MethodName = getFunctionName(Method);
+      // FIXME : Find linkage name.
+    } else {
+      if (Method->isImplicit())
+        continue;
+      // regular method
+      MethodName = getFunctionName(Method);
+      MethodLinkageName = CGM.getMangledName(Method);
+    }
+
+    // Get the location for the method.
+    SourceLocation MethodDefLoc = Method->getLocation();
+    PresumedLoc PLoc = SM.getPresumedLoc(MethodDefLoc);
+    llvm::DICompileUnit MethodDefUnit;
+    unsigned MethodLine = 0;
+
+    if (!PLoc.isInvalid()) {
+      MethodDefUnit = getOrCreateCompileUnit(MethodDefLoc);
+      MethodLine = PLoc.getLine();
+    }
+
+    llvm::DISubprogram SP =
+      DebugFactory.CreateSubprogram(RecordTy , MethodName, MethodName, 
+                                    MethodLinkageName,
+                                    MethodDefUnit, MethodLine,
+                                    MethodTy, false, 
+                                    Method->isThisDeclarationADefinition(),
+                                    0 /*Virtuality*/, 0 /*VIndex*/, 
+                                    llvm::DIType() /*ContainingType*/);
+    if (Method->isThisDeclarationADefinition())
+      SPCache[cast<FunctionDecl>(Method)] = llvm::WeakVH(SP.getNode());
+    EltTys.push_back(SP);
+  }
+}                                 
+
+/// CreateType - get structure or union type.
+llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty,
+                                     llvm::DICompileUnit Unit) {
+  RecordDecl *Decl = Ty->getDecl();
+
+  unsigned Tag;
+  if (Decl->isStruct())
+    Tag = llvm::dwarf::DW_TAG_structure_type;
+  else if (Decl->isUnion())
+    Tag = llvm::dwarf::DW_TAG_union_type;
+  else {
+    assert(Decl->isClass() && "Unknown RecordType!");
+    Tag = llvm::dwarf::DW_TAG_class_type;
+  }
+
+  SourceManager &SM = CGM.getContext().getSourceManager();
+
+  // Get overall information about the record type for the debug info.
+  PresumedLoc PLoc = SM.getPresumedLoc(Decl->getLocation());
+  llvm::DICompileUnit DefUnit;
+  unsigned Line = 0;
+  if (!PLoc.isInvalid()) {
+    DefUnit = getOrCreateCompileUnit(Decl->getLocation());
+    Line = PLoc.getLine();
+  }
+
+  // Records and classes and unions can all be recursive.  To handle them, we
+  // first generate a debug descriptor for the struct as a forward declaration.
+  // Then (if it is a definition) we go through and get debug info for all of
+  // its members.  Finally, we create a descriptor for the complete type (which
+  // may refer to the forward decl if the struct is recursive) and replace all
+  // uses of the forward declaration with the final definition.
+
+  // A Decl->getName() is not unique. However, the debug info descriptors 
+  // are uniqued. The debug info descriptor describing record's context is
+  // necessary to keep two Decl's descriptor unique if their name match.
+  // FIXME : Use RecordDecl's DeclContext's descriptor. As a temp. step
+  // use type's name in FwdDecl.
+  std::string STy = QualType(Ty, 0).getAsString();
+  llvm::DICompositeType FwdDecl =
+    DebugFactory.CreateCompositeType(Tag, Unit, STy.c_str(),
+                                     DefUnit, Line, 0, 0, 0, 0,
+                                     llvm::DIType(), llvm::DIArray());
+
+  // If this is just a forward declaration, return it.
+  if (!Decl->getDefinition(CGM.getContext()))
+    return FwdDecl;
+
+  llvm::TrackingVH<llvm::MDNode> FwdDeclNode = FwdDecl.getNode();
+  // Otherwise, insert it into the TypeCache so that recursive uses will find
+  // it.
+  TypeCache[QualType(Ty, 0).getAsOpaquePtr()] = FwdDecl.getNode();
+
+  // Convert all the elements.
+  llvm::SmallVector<llvm::DIDescriptor, 16> EltTys;
+
+  CollectRecordFields(Decl, Unit, EltTys);
+  if (CXXRecordDecl *CXXDecl = dyn_cast<CXXRecordDecl>(Decl))
+    CollectCXXMemberFunctions(CXXDecl, Unit, EltTys, FwdDecl);
 
   llvm::DIArray Elements =
     DebugFactory.GetOrCreateArray(EltTys.data(), EltTys.size());
@@ -1000,18 +1076,27 @@ void CGDebugInfo::EmitFunctionStart(GlobalDecl GD, QualType FnType,
 
   const Decl *D = GD.getDecl();
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+    // If there is a DISubprogram for  this function available then use it.
+    llvm::DenseMap<const FunctionDecl *, llvm::WeakVH>::iterator
+      FI = SPCache.find(FD);
+    if (FI != SPCache.end()) {
+      llvm::DISubprogram SP(dyn_cast_or_null<llvm::MDNode>(FI->second));
+      if (!SP.isNull() && SP.isSubprogram() && SP.isDefinition()) {
+        RegionStack.push_back(SP.getNode());
+        return;
+      }
+    }
     Name = getFunctionName(FD);
-    if (Name[0] == '\01')
+    if (!Name.empty() && Name[0] == '\01')
       Name = Name.substr(1);
     // Use mangled name as linkage name for c/c++ functions.
     LinkageName = CGM.getMangledName(GD);
   } else {
     // Use llvm function name as linkage name.
     Name = Fn->getName();
-    // Skip the asm prefix if it exists.
-    if (Name[0] == '\01')
-      Name = Name.substr(1);
     LinkageName = Name;
+    if (!Name.empty() && Name[0] == '\01')
+      Name = Name.substr(1);
   }
 
   // It is expected that CurLoc is set before using EmitFunctionStart.

@@ -232,8 +232,8 @@ public:
     return llvm::ConstantExpr::getBitCast(m, Ptr8Ty);
   }
 
-#define D1(x)
-//#define D1(X) do { if (getenv("DEBUG")) { X; } } while (0)
+//#define D1(x)
+#define D1(X) do { if (getenv("DEBUG")) { X; } } while (0)
 
   void GenerateVBaseOffsets(const CXXRecordDecl *RD, uint64_t Offset,
                             bool updateVBIndex, Index_t current_vbindex) {
@@ -254,7 +254,7 @@ public:
         D1(printf("  vbase for %s at %d delta %d most derived %s\n",
                   Base->getNameAsCString(),
                   (int)-VCalls.size()-3, (int)BaseOffset,
-                  Class->getNameAsCString()));
+                  MostDerivedClass->getNameAsCString()));
       }
       // We also record offsets for non-virtual bases to closest enclosing
       // virtual base.  We do this so that we don't have to search
@@ -376,12 +376,13 @@ public:
                        CurrentVBaseOffset))
       return;
 
+    D1(printf("  vfn for %s at %d\n",
+              dyn_cast<CXXMethodDecl>(GD.getDecl())->getNameAsCString(),
+              (int)Methods.size()));
+
     // We didn't find an entry in the vtable that we could use, add a new
     // entry.
     Methods.AddMethod(GD);
-
-    D1(printf("  vfn for %s at %d\n", MD->getNameAsString().c_str(),
-              (int)Index[GD]));
 
     VCallOffset[GD] = Offset/8;
     if (MorallyVirtual) {
@@ -392,7 +393,8 @@ public:
         idx = VCalls.size()+1;
         VCalls.push_back(0);
         D1(printf("  vcall for %s at %d with delta %d\n",
-                  MD->getNameAsString().c_str(), (int)-VCalls.size()-3, 0));
+                  dyn_cast<CXXMethodDecl>(GD.getDecl())->getNameAsCString(),
+                  (int)-VCalls.size()-3, 0));
       }
     }
   }
@@ -429,12 +431,11 @@ public:
         continue;
       const CXXRecordDecl *Base =
         cast<CXXRecordDecl>(i->getType()->getAs<RecordType>()->getDecl());
-      if (Base != PrimaryBase || PrimaryBaseWasVirtual) {
-        uint64_t o = Offset + Layout.getBaseClassOffset(Base);
-        StartNewTable();
-        GenerateVtableForBase(Base, o, MorallyVirtual, false,
-                              CurrentVBaseOffset, Path);
-      }
+      uint64_t o = Offset + Layout.getBaseClassOffset(Base);
+      StartNewTable();
+      GenerateVtableForBase(Base, o, MorallyVirtual, false,
+                            true, Base == PrimaryBase && !PrimaryBaseWasVirtual,
+                            CurrentVBaseOffset, Path);
     }
     Path->pop_back();
   }
@@ -463,7 +464,7 @@ public:
   void AddAddressPoints(const CXXRecordDecl *RD, uint64_t Offset,
                        Index_t AddressPoint) {
     D1(printf("XXX address point for %s in %s layout %s at offset %d is %d\n",
-              RD->getNameAsCString(), Class->getNameAsCString(),
+              RD->getNameAsCString(), MostDerivedClass->getNameAsCString(),
               LayoutClass->getNameAsCString(), (int)Offset, (int)AddressPoint));
     subAddressPoints[std::make_pair(RD, Offset)] = AddressPoint;
     AddressPoints[BaseSubobject(RD, Offset)] = AddressPoint;
@@ -480,7 +481,7 @@ public:
           BLayout.getVBaseClassOffset(RD) != Offset)
         break;
       D1(printf("XXX address point for %s in %s layout %s at offset %d is %d\n",
-                RD->getNameAsCString(), Class->getNameAsCString(),
+                RD->getNameAsCString(), MostDerivedClass->getNameAsCString(),
                 LayoutClass->getNameAsCString(), (int)Offset, (int)AddressPoint));
       subAddressPoints[std::make_pair(RD, Offset)] = AddressPoint;
       AddressPoints[BaseSubobject(RD, Offset)] = AddressPoint;
@@ -491,6 +492,7 @@ public:
   void FinishGenerateVtable(const CXXRecordDecl *RD,
                             const ASTRecordLayout &Layout,
                             const CXXRecordDecl *PrimaryBase,
+                            bool ForNPNVBases, bool WasPrimaryBase,
                             bool PrimaryBaseWasVirtual,
                             bool MorallyVirtual, int64_t Offset,
                             bool ForVirtualBase, int64_t CurrentVBaseOffset,
@@ -503,23 +505,27 @@ public:
 
     StartNewTable();
     extra = 0;
-    bool DeferVCalls = MorallyVirtual || ForVirtualBase;
-    int VCallInsertionPoint = VtableComponents.size();
-    if (!DeferVCalls) {
-      insertVCalls(VCallInsertionPoint);
-    } else
-      // FIXME: just for extra, or for all uses of VCalls.size post this?
-      extra = -VCalls.size();
+    Index_t AddressPoint = 0;
+    int VCallInsertionPoint = 0;
+    if (!ForNPNVBases || !WasPrimaryBase) {
+      bool DeferVCalls = MorallyVirtual || ForVirtualBase;
+      VCallInsertionPoint = VtableComponents.size();
+      if (!DeferVCalls) {
+        insertVCalls(VCallInsertionPoint);
+      } else
+        // FIXME: just for extra, or for all uses of VCalls.size post this?
+        extra = -VCalls.size();
 
-    // Add the offset to top.
-    VtableComponents.push_back(BuildVtable ? wrap(-((Offset-LayoutOffset)/8)) : 0);
+      // Add the offset to top.
+      VtableComponents.push_back(BuildVtable ? wrap(-((Offset-LayoutOffset)/8)) : 0);
     
-    // Add the RTTI information.
-    VtableComponents.push_back(rtti);
+      // Add the RTTI information.
+      VtableComponents.push_back(rtti);
     
-    Index_t AddressPoint = VtableComponents.size();
+      AddressPoint = VtableComponents.size();
 
-    AppendMethodsToVtable();
+      AppendMethodsToVtable();
+    }
 
     // and then the non-virtual bases.
     NonVirtualBases(RD, Layout, PrimaryBase, PrimaryBaseWasVirtual,
@@ -537,7 +543,8 @@ public:
       insertVCalls(VCallInsertionPoint);
     }
     
-    AddAddressPoints(RD, Offset, AddressPoint);
+    if (!ForNPNVBases || !WasPrimaryBase)
+      AddAddressPoints(RD, Offset, AddressPoint);
 
     if (alloc) {
       delete Path;
@@ -557,13 +564,13 @@ public:
     // vtables are composed from the chain of primaries.
     if (PrimaryBase && !PrimaryBaseWasVirtual) {
       D1(printf(" doing primaries for %s most derived %s\n",
-                RD->getNameAsCString(), Class->getNameAsCString()));
+                RD->getNameAsCString(), MostDerivedClass->getNameAsCString()));
       Primaries(PrimaryBase, PrimaryBaseWasVirtual|MorallyVirtual, Offset,
                 updateVBIndex, current_vbindex, CurrentVBaseOffset);
     }
 
     D1(printf(" doing vcall entries for %s most derived %s\n",
-              RD->getNameAsCString(), Class->getNameAsCString()));
+              RD->getNameAsCString(), MostDerivedClass->getNameAsCString()));
 
     // And add the virtuals for the class to the primary vtable.
     AddMethods(RD, MorallyVirtual, Offset, CurrentVBaseOffset);
@@ -589,7 +596,7 @@ public:
       }
 
       D1(printf(" doing primaries for %s most derived %s\n",
-                RD->getNameAsCString(), Class->getNameAsCString()));
+                RD->getNameAsCString(), MostDerivedClass->getNameAsCString()));
       
       VBPrimaries(PrimaryBase, PrimaryBaseWasVirtual|MorallyVirtual, Offset,
                   updateVBIndex, current_vbindex, PrimaryBaseWasVirtual,
@@ -597,7 +604,7 @@ public:
     }
 
     D1(printf(" doing vbase entries for %s most derived %s\n",
-              RD->getNameAsCString(), Class->getNameAsCString()));
+              RD->getNameAsCString(), MostDerivedClass->getNameAsCString()));
     GenerateVBaseOffsets(RD, Offset, updateVBIndex, current_vbindex);
 
     if (RDisVirtualBase || bottom) {
@@ -609,6 +616,8 @@ public:
   void GenerateVtableForBase(const CXXRecordDecl *RD, int64_t Offset = 0,
                              bool MorallyVirtual = false, 
                              bool ForVirtualBase = false,
+                             bool ForNPNVBases = false,
+                             bool WasPrimaryBase = true,
                              int CurrentVBaseOffset = 0,
                              Path_t *Path = 0) {
     if (!RD->isDynamicClass())
@@ -626,20 +635,22 @@ public:
 
     extra = 0;
     D1(printf("building entries for base %s most derived %s\n",
-              RD->getNameAsCString(), Class->getNameAsCString()));
+              RD->getNameAsCString(), MostDerivedClass->getNameAsCString()));
 
     if (ForVirtualBase)
       extra = VCalls.size();
 
-    VBPrimaries(RD, MorallyVirtual, Offset, !ForVirtualBase, 0, ForVirtualBase,
-                CurrentVBaseOffset, true);
+    if (!ForNPNVBases || !WasPrimaryBase) {
+      VBPrimaries(RD, MorallyVirtual, Offset, !ForVirtualBase, 0,
+                  ForVirtualBase, CurrentVBaseOffset, true);
 
-    if (Path)
-      OverrideMethods(Path, MorallyVirtual, Offset, CurrentVBaseOffset);
+      if (Path)
+        OverrideMethods(Path, MorallyVirtual, Offset, CurrentVBaseOffset);
+    }
 
-    FinishGenerateVtable(RD, Layout, PrimaryBase, PrimaryBaseWasVirtual,
-                         MorallyVirtual, Offset, ForVirtualBase,
-                         CurrentVBaseOffset, Path);
+    FinishGenerateVtable(RD, Layout, PrimaryBase, ForNPNVBases, WasPrimaryBase,
+                         PrimaryBaseWasVirtual, MorallyVirtual, Offset,
+                         ForVirtualBase, CurrentVBaseOffset, Path);
   }
 
   void GenerateVtableForVBases(const CXXRecordDecl *RD,
@@ -665,9 +676,9 @@ public:
         int64_t BaseOffset = BLayout.getVBaseClassOffset(Base);
         int64_t CurrentVBaseOffset = BaseOffset;
         D1(printf("vtable %s virtual base %s\n",
-                  Class->getNameAsCString(), Base->getNameAsCString()));
-        GenerateVtableForBase(Base, BaseOffset, true, true, CurrentVBaseOffset,
-                              Path);
+                  MostDerivedClass->getNameAsCString(), Base->getNameAsCString()));
+        GenerateVtableForBase(Base, BaseOffset, true, true, false,
+                              true, CurrentVBaseOffset, Path);
       }
       int64_t BaseOffset;
       if (i->isVirtual())
@@ -823,14 +834,14 @@ bool VtableBuilder::OverrideMethod(GlobalDecl GD, bool MorallyVirtual,
         VCalls.push_back(0);
         D1(printf("  vcall for %s at %d with delta %d most derived %s\n",
                   MD->getNameAsString().c_str(), (int)-idx-3,
-                  (int)VCalls[idx-1], Class->getNameAsCString()));
+                  (int)VCalls[idx-1], MostDerivedClass->getNameAsCString()));
       } else {
         NonVirtualOffset[GD] = NonVirtualOffset[OGD];
         VCallOffset[GD] = VCallOffset[OGD];
         VCalls[idx-1] = -VCallOffset[OGD] + OverrideOffset/8;
         D1(printf("  vcall patch for %s at %d with delta %d most derived %s\n",
                   MD->getNameAsString().c_str(), (int)-idx-3,
-                  (int)VCalls[idx-1], Class->getNameAsCString()));
+                  (int)VCalls[idx-1], MostDerivedClass->getNameAsCString()));
       }
       int64_t NonVirtualAdjustment = NonVirtualOffset[GD];
       int64_t VirtualAdjustment = 
@@ -1205,284 +1216,6 @@ CGVtableInfo::GenerateVtable(llvm::GlobalVariable::LinkageTypes Linkage,
   return GV;
 }
 
-namespace {
-class VTTBuilder {
-  /// Inits - The list of values built for the VTT.
-  std::vector<llvm::Constant *> &Inits;
-  /// Class - The most derived class that this vtable is being built for.
-  const CXXRecordDecl *Class;
-  CodeGenModule &CGM;  // Per-module state.
-  llvm::SmallSet<const CXXRecordDecl *, 32> SeenVBase;
-  /// BLayout - Layout for the most derived class that this vtable is being
-  /// built for.
-  const ASTRecordLayout &BLayout;
-  CGVtableInfo::AddrMap_t &AddressPoints;
-  // vtbl - A pointer to the vtable for Class.
-  llvm::Constant *ClassVtbl;
-  llvm::LLVMContext &VMContext;
-
-  llvm::DenseMap<const CXXRecordDecl *, uint64_t> SubVTTIndicies;
-  
-  bool GenerateDefinition;
-
-  llvm::DenseMap<BaseSubobject, llvm::Constant *> CtorVtables;
-  llvm::DenseMap<std::pair<const CXXRecordDecl *, BaseSubobject>, uint64_t> 
-    CtorVtableAddressPoints;
-  
-  llvm::Constant *getCtorVtable(const BaseSubobject &Base) {
-    if (!GenerateDefinition)
-      return 0;
-
-    llvm::Constant *&CtorVtable = CtorVtables[Base];
-    if (!CtorVtable) {
-      // Build the vtable.
-      CGVtableInfo::CtorVtableInfo Info
-        = CGM.getVtableInfo().getCtorVtable(Class, Base);
-      
-      CtorVtable = Info.Vtable;
-      
-      // Add the address points for this base.
-      for (CGVtableInfo::AddressPointsMapTy::const_iterator I =
-           Info.AddressPoints.begin(), E = Info.AddressPoints.end(); 
-           I != E; ++I) {
-        uint64_t &AddressPoint = 
-          CtorVtableAddressPoints[std::make_pair(Base.getBase(), I->first)];
-        
-        // Check if we already have the address points for this base.
-        if (AddressPoint)
-          break;
-
-        // Otherwise, insert it.
-        AddressPoint = I->second;
-      }      
-    }
-    
-    return CtorVtable;
-  }
-  
-  
-  /// BuildVtablePtr - Build up a referene to the given secondary vtable
-  llvm::Constant *BuildVtablePtr(llvm::Constant *Vtable,
-                                 const CXXRecordDecl *VtableClass,
-                                 const CXXRecordDecl *RD,
-                                 uint64_t Offset) {
-    int64_t AddressPoint = 
-      (*AddressPoints[VtableClass])[std::make_pair(RD, Offset)];
-    
-    // FIXME: We can never have 0 address point.  Do this for now so gepping
-    // retains the same structure.  Later we'll just assert.
-    if (AddressPoint == 0)
-      AddressPoint = 1;
-    D1(printf("XXX address point for %s in %s layout %s at offset %d was %d\n",
-              RD->getNameAsCString(), VtblClass->getNameAsCString(),
-              Class->getNameAsCString(), (int)Offset, (int)AddressPoint));
-
-    llvm::Value *Idxs[] = {
-      llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext), 0),
-      llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext), AddressPoint)
-    };
-    
-    llvm::Constant *Init = 
-      llvm::ConstantExpr::getInBoundsGetElementPtr(Vtable, Idxs, 2);
-
-    const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(VMContext);
-    return llvm::ConstantExpr::getBitCast(Init, Int8PtrTy);
-  }
-
-  /// Secondary - Add the secondary vtable pointers to Inits.  Offset is the
-  /// current offset in bits to the object we're working on.
-  void Secondary(const CXXRecordDecl *RD, llvm::Constant *vtbl,
-                 const CXXRecordDecl *VtblClass, uint64_t Offset=0,
-                 bool MorallyVirtual=false) {
-    if (RD->getNumVBases() == 0 && ! MorallyVirtual)
-      return;
-
-    for (CXXRecordDecl::base_class_const_iterator i = RD->bases_begin(),
-           e = RD->bases_end(); i != e; ++i) {
-      const CXXRecordDecl *Base =
-        cast<CXXRecordDecl>(i->getType()->getAs<RecordType>()->getDecl());
-      const ASTRecordLayout &Layout = CGM.getContext().getASTRecordLayout(RD);
-      const CXXRecordDecl *PrimaryBase = Layout.getPrimaryBase();
-      const bool PrimaryBaseWasVirtual = Layout.getPrimaryBaseWasVirtual();
-      bool NonVirtualPrimaryBase;
-      NonVirtualPrimaryBase = !PrimaryBaseWasVirtual && Base == PrimaryBase;
-      bool BaseMorallyVirtual = MorallyVirtual | i->isVirtual();
-      uint64_t BaseOffset;
-      if (!i->isVirtual()) {
-        const ASTRecordLayout &Layout = CGM.getContext().getASTRecordLayout(RD);
-        BaseOffset = Offset + Layout.getBaseClassOffset(Base);
-      } else
-        BaseOffset = BLayout.getVBaseClassOffset(Base);
-      llvm::Constant *subvtbl = vtbl;
-      const CXXRecordDecl *subVtblClass = VtblClass;
-      if ((Base->getNumVBases() || BaseMorallyVirtual)
-          && !NonVirtualPrimaryBase) {
-        // FIXME: Slightly too many of these for __ZTT8test8_B2
-        llvm::Constant *init;
-        if (BaseMorallyVirtual)
-          init = GenerateDefinition ? 
-            BuildVtablePtr(vtbl, VtblClass, RD, Offset) : 0;
-        else {
-          init = GenerateDefinition ?
-            getCtorVtable(BaseSubobject(Base, BaseOffset)) : 0;
-          
-          subvtbl = init;
-          subVtblClass = Base;
-          
-          init = GenerateDefinition ?
-          BuildVtablePtr(init, Class, Base, BaseOffset) : 0;
-        }
-        Inits.push_back(init);
-      }
-      Secondary(Base, subvtbl, subVtblClass, BaseOffset, BaseMorallyVirtual);
-    }
-  }
-
-  /// BuiltVTT - Add the VTT to Inits.  Offset is the offset in bits to the
-  /// currnet object we're working on.
-  void BuildVTT(const CXXRecordDecl *RD, uint64_t Offset, bool MorallyVirtual) {
-    if (RD->getNumVBases() == 0 && !MorallyVirtual)
-      return;
-
-    llvm::Constant *Vtable;
-    const CXXRecordDecl *VtableClass;
-
-    // First comes the primary virtual table pointer...
-    if (MorallyVirtual) {
-      Vtable = GenerateDefinition ? ClassVtbl : 0;
-      VtableClass = Class;
-    } else {
-      Vtable = GenerateDefinition ? 
-        getCtorVtable(BaseSubobject(RD, Offset)) : 0;
-      VtableClass = RD;
-    }
-    
-    llvm::Constant *Init = GenerateDefinition ?
-      BuildVtablePtr(Vtable, VtableClass, RD, Offset) : 0;
-    Inits.push_back(Init);
-
-    // then the secondary VTTs....
-    SecondaryVTTs(RD, Offset, MorallyVirtual);
-
-    // and last the secondary vtable pointers.
-    Secondary(RD, Vtable, VtableClass, Offset, MorallyVirtual);
-  }
-
-  /// SecondaryVTTs - Add the secondary VTTs to Inits.  The secondary VTTs are
-  /// built from each direct non-virtual proper base that requires a VTT in
-  /// declaration order.
-  void SecondaryVTTs(const CXXRecordDecl *RD, uint64_t Offset=0,
-                     bool MorallyVirtual=false) {
-    for (CXXRecordDecl::base_class_const_iterator i = RD->bases_begin(),
-           e = RD->bases_end(); i != e; ++i) {
-      const CXXRecordDecl *Base =
-        cast<CXXRecordDecl>(i->getType()->getAs<RecordType>()->getDecl());
-      if (i->isVirtual())
-        continue;
-      const ASTRecordLayout &Layout = CGM.getContext().getASTRecordLayout(RD);
-      uint64_t BaseOffset = Offset + Layout.getBaseClassOffset(Base);
-      
-      // Remember the sub-VTT index.
-      SubVTTIndicies[Base] = Inits.size();
-
-      BuildVTT(Base, BaseOffset, MorallyVirtual);
-    }
-  }
-
-  /// VirtualVTTs - Add the VTT for each proper virtual base in inheritance
-  /// graph preorder.
-  void VirtualVTTs(const CXXRecordDecl *RD) {
-    for (CXXRecordDecl::base_class_const_iterator i = RD->bases_begin(),
-           e = RD->bases_end(); i != e; ++i) {
-      const CXXRecordDecl *Base =
-        cast<CXXRecordDecl>(i->getType()->getAs<RecordType>()->getDecl());
-      if (i->isVirtual() && !SeenVBase.count(Base)) {
-        // Remember the sub-VTT index.
-        SubVTTIndicies[Base] = Inits.size();
-
-        SeenVBase.insert(Base);
-        uint64_t BaseOffset = BLayout.getVBaseClassOffset(Base);
-        BuildVTT(Base, BaseOffset, true);
-      }
-      VirtualVTTs(Base);
-    }
-  }
-
-public:
-  VTTBuilder(std::vector<llvm::Constant *> &inits, const CXXRecordDecl *c,
-             CodeGenModule &cgm, bool GenerateDefinition)
-    : Inits(inits), Class(c), CGM(cgm),
-      BLayout(cgm.getContext().getASTRecordLayout(c)),
-      AddressPoints(*cgm.getVtableInfo().AddressPoints[c]),
-      VMContext(cgm.getModule().getContext()),
-      GenerateDefinition(GenerateDefinition) {
-    
-    // First comes the primary virtual table pointer for the complete class...
-    ClassVtbl = CGM.getVtableInfo().getVtable(Class);
-    llvm::Constant *Init = GenerateDefinition ? 
-      BuildVtablePtr(ClassVtbl, Class, Class, 0) : 0;
-    Inits.push_back(Init);
-    
-    // then the secondary VTTs...
-    SecondaryVTTs(Class);
-
-    // then the secondary vtable pointers...
-    Secondary(Class, ClassVtbl, Class);
-
-    // and last, the virtual VTTs.
-    VirtualVTTs(Class);
-  }
-  
-  llvm::DenseMap<const CXXRecordDecl *, uint64_t> &getSubVTTIndicies() {
-    return SubVTTIndicies;
-  }
-};
-}
-
-llvm::GlobalVariable *
-CGVtableInfo::GenerateVTT(llvm::GlobalVariable::LinkageTypes Linkage,
-                          bool GenerateDefinition,
-                          const CXXRecordDecl *RD) {
-  // Only classes that have virtual bases need a VTT.
-  if (RD->getNumVBases() == 0)
-    return 0;
-
-  llvm::SmallString<256> OutName;
-  CGM.getMangleContext().mangleCXXVTT(RD, OutName);
-  llvm::StringRef Name = OutName.str();
-
-  D1(printf("vtt %s\n", RD->getNameAsCString()));
-
-  llvm::GlobalVariable *GV = CGM.getModule().getGlobalVariable(Name);
-  if (GV == 0 || GV->isDeclaration()) {
-    const llvm::Type *Int8PtrTy = 
-      llvm::Type::getInt8PtrTy(CGM.getLLVMContext());
-
-    std::vector<llvm::Constant *> inits;
-    VTTBuilder b(inits, RD, CGM, GenerateDefinition);
-
-    const llvm::ArrayType *Type = llvm::ArrayType::get(Int8PtrTy, inits.size());
-    llvm::Constant *Init = 0;
-    if (GenerateDefinition)
-      Init = llvm::ConstantArray::get(Type, inits);
-
-    llvm::GlobalVariable *OldGV = GV;
-    GV = new llvm::GlobalVariable(CGM.getModule(), Type, /*isConstant=*/true, 
-                                  Linkage, Init, Name);
-    CGM.setGlobalVisibility(GV, RD);
-    
-    if (OldGV) {
-      GV->takeName(OldGV);
-      llvm::Constant *NewPtr = 
-        llvm::ConstantExpr::getBitCast(GV, OldGV->getType());
-      OldGV->replaceAllUsesWith(NewPtr);
-      OldGV->eraseFromParent();
-    }
-  }
-  
-  return GV;
-}
-
 void CGVtableInfo::GenerateClassData(llvm::GlobalVariable::LinkageTypes Linkage,
                                      const CXXRecordDecl *RD) {
   llvm::GlobalVariable *&Vtable = Vtables[RD];
@@ -1509,25 +1242,6 @@ llvm::GlobalVariable *CGVtableInfo::getVtable(const CXXRecordDecl *RD) {
 
   return Vtable;
 }
-
-CGVtableInfo::CtorVtableInfo 
-CGVtableInfo::getCtorVtable(const CXXRecordDecl *RD, 
-                            const BaseSubobject &Base) {
-  CtorVtableInfo Info;
-  
-  Info.Vtable = GenerateVtable(llvm::GlobalValue::InternalLinkage,
-                               /*GenerateDefinition=*/true,
-                               RD, Base.getBase(), Base.getBaseOffset(),
-                               Info.AddressPoints);
-  return Info;
-}
- 
-llvm::GlobalVariable *CGVtableInfo::getVTT(const CXXRecordDecl *RD) {
-  return GenerateVTT(llvm::GlobalValue::ExternalLinkage, 
-                     /*GenerateDefinition=*/false, RD);
-  
-}
-
 
 void CGVtableInfo::MaybeEmitVtable(GlobalDecl GD) {
   const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
@@ -1562,47 +1276,3 @@ void CGVtableInfo::MaybeEmitVtable(GlobalDecl GD) {
   }
 }
 
-bool CGVtableInfo::needsVTTParameter(GlobalDecl GD) {
-  const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
-  
-  // We don't have any virtual bases, just return early.
-  if (!MD->getParent()->getNumVBases())
-    return false;
-  
-  // Check if we have a base constructor.
-  if (isa<CXXConstructorDecl>(MD) && GD.getCtorType() == Ctor_Base)
-    return true;
-
-  // Check if we have a base destructor.
-  if (isa<CXXDestructorDecl>(MD) && GD.getDtorType() == Dtor_Base)
-    return true;
-  
-  return false;
-}
-
-uint64_t CGVtableInfo::getSubVTTIndex(const CXXRecordDecl *RD, 
-                                      const CXXRecordDecl *Base) {
-  ClassPairTy ClassPair(RD, Base);
-
-  SubVTTIndiciesTy::iterator I = 
-    SubVTTIndicies.find(ClassPair);
-  if (I != SubVTTIndicies.end())
-    return I->second;
-  
-  std::vector<llvm::Constant *> inits;
-  VTTBuilder Builder(inits, RD, CGM, /*GenerateDefinition=*/false);
-
-  for (llvm::DenseMap<const CXXRecordDecl *, uint64_t>::iterator I =
-       Builder.getSubVTTIndicies().begin(), 
-       E = Builder.getSubVTTIndicies().end(); I != E; ++I) {
-    // Insert all indices.
-    ClassPairTy ClassPair(RD, I->first);
-    
-    SubVTTIndicies.insert(std::make_pair(ClassPair, I->second));
-  }
-    
-  I = SubVTTIndicies.find(ClassPair);
-  assert(I != SubVTTIndicies.end() && "Did not find index!");
-  
-  return I->second;
-}

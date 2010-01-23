@@ -47,6 +47,11 @@ public:
     /// \brief The entity being initialized is an exception object that
     /// is being thrown.
     EK_Exception,
+    /// \brief The entity being initialized is a non-static data member 
+    /// subobject.
+    EK_Member,
+    /// \brief The entity being initialized is an element of an array.
+    EK_ArrayElement,
     /// \brief The entity being initialized is an object (or array of
     /// objects) allocated via new.
     EK_New,
@@ -54,12 +59,10 @@ public:
     EK_Temporary,
     /// \brief The entity being initialized is a base member subobject.
     EK_Base,
-    /// \brief The entity being initialized is a non-static data member 
-    /// subobject.
-    EK_Member,
-    /// \brief The entity being initialized is an element of an array
+    /// \brief The entity being initialized is an element of a vector.
     /// or vector.
-    EK_ArrayOrVectorElement
+    EK_VectorElement
+
   };
   
 private:
@@ -211,7 +214,7 @@ public:
   /// \brief If this is already the initializer for an array or vector
   /// element, sets the element index.
   void setElementIndex(unsigned Index) {
-    assert(getKind() == EK_ArrayOrVectorElement);
+    assert(getKind() == EK_ArrayElement || getKind() == EK_VectorElement);
     this->Index = Index;
   }
 };

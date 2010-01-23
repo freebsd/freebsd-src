@@ -317,16 +317,16 @@ void LookupResult::resolveKind() {
  
   // Fast case: no possible ambiguity.
   if (N == 0) {
-    assert(ResultKind == NotFound);
+    assert(ResultKind == NotFound || ResultKind == NotFoundInCurrentInstantiation);
     return;
   }
 
   // If there's a single decl, we need to examine it to decide what
   // kind of lookup this is.
   if (N == 1) {
-    if (isa<FunctionTemplateDecl>(Decls[0]))
+    if (isa<FunctionTemplateDecl>(*Decls.begin()))
       ResultKind = FoundOverloaded;
-    else if (isa<UnresolvedUsingValueDecl>(Decls[0]))
+    else if (isa<UnresolvedUsingValueDecl>(*Decls.begin()))
       ResultKind = FoundUnresolvedValue;
     return;
   }
@@ -445,8 +445,9 @@ static bool LookupDirect(LookupResult &R, const DeclContext *DC) {
 
   DeclContext::lookup_const_iterator I, E;
   for (llvm::tie(I, E) = DC->lookup(R.getLookupName()); I != E; ++I) {
-    if (R.isAcceptableDecl(*I)) {
-      R.addDecl(*I);
+    NamedDecl *D = *I;
+    if (R.isAcceptableDecl(D)) {
+      R.addDecl(D);
       Found = true;
     }
   }
@@ -463,10 +464,9 @@ static bool LookupDirect(LookupResult &R, const DeclContext *DC) {
     if (!Record->isDefinition())
       return Found;
 
-    const UnresolvedSet *Unresolved = Record->getConversionFunctions();
-    for (UnresolvedSet::iterator U = Unresolved->begin(), 
-                              UEnd = Unresolved->end();
-         U != UEnd; ++U) {
+    const UnresolvedSetImpl *Unresolved = Record->getConversionFunctions();
+    for (UnresolvedSetImpl::iterator U = Unresolved->begin(), 
+           UEnd = Unresolved->end(); U != UEnd; ++U) {
       FunctionTemplateDecl *ConvTemplate = dyn_cast<FunctionTemplateDecl>(*U);
       if (!ConvTemplate)
         continue;
@@ -967,6 +967,8 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
   // Perform qualified name lookup into the LookupCtx.
   if (LookupDirect(R, LookupCtx)) {
     R.resolveKind();
+    if (isa<CXXRecordDecl>(LookupCtx))
+      R.setNamingClass(cast<CXXRecordDecl>(LookupCtx));
     return true;
   }
 
@@ -1039,6 +1041,8 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
                                 R.getLookupName().getAsOpaquePtr(), Paths))
     return false;
 
+  R.setNamingClass(LookupRec);
+
   // C++ [class.member.lookup]p2:
   //   [...] If the resulting set of declarations are not all from
   //   sub-objects of the same type, or the set has a nonstatic member
@@ -1048,10 +1052,15 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
   // FIXME: support using declarations!
   QualType SubobjectType;
   int SubobjectNumber = 0;
+  AccessSpecifier SubobjectAccess = AS_private;
   for (CXXBasePaths::paths_iterator Path = Paths.begin(), PathEnd = Paths.end();
        Path != PathEnd; ++Path) {
     const CXXBasePathElement &PathElement = Path->back();
 
+    // Pick the best (i.e. most permissive i.e. numerically lowest) access
+    // across all paths.
+    SubobjectAccess = std::min(SubobjectAccess, Path->Access);
+    
     // Determine whether we're looking at a distinct sub-object or not.
     if (SubobjectType.isNull()) {
       // This is the first subobject we've looked at. Record its type.
@@ -1106,8 +1115,12 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
   // Lookup in a base class succeeded; return these results.
 
   DeclContext::lookup_iterator I, E;
-  for (llvm::tie(I,E) = Paths.front().Decls; I != E; ++I)
-    R.addDecl(*I);
+  for (llvm::tie(I,E) = Paths.front().Decls; I != E; ++I) {
+    NamedDecl *D = *I;
+    AccessSpecifier AS = CXXRecordDecl::MergeAccess(SubobjectAccess,
+                                                    D->getAccess());
+    R.addDecl(D, AS);
+  }
   R.resolveKind();
   return true;
 }
@@ -1243,7 +1256,12 @@ bool Sema::DiagnoseAmbiguousLookup(LookupResult &Result) {
         Diag((*DI)->getLocation(), diag::note_hiding_object);
 
     // For recovery purposes, go ahead and implement the hiding.
-    Result.hideDecls(TagDecls);
+    LookupResult::Filter F = Result.makeFilter();
+    while (F.hasNext()) {
+      if (TagDecls.count(F.next()))
+        F.erase();
+    }
+    F.done();
 
     return true;
   }

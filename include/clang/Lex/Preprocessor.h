@@ -602,7 +602,12 @@ public:
   /// the returned source location would not be meaningful (e.g., if
   /// it points into a macro), this routine returns an invalid
   /// source location.
-  SourceLocation getLocForEndOfToken(SourceLocation Loc);
+  ///
+  /// \param Offset an offset from the end of the token, where the source
+  /// location should refer to. The default offset (0) produces a source
+  /// location pointing just past the end of the token; an offset of 1 produces
+  /// a source location pointing to the last character in the token, etc.
+  SourceLocation getLocForEndOfToken(SourceLocation Loc, unsigned Offset = 0);
 
   /// DumpToken - Print the token to stderr, used for debugging.
   ///
@@ -697,8 +702,7 @@ public:
   /// return null on failure.  isAngled indicates whether the file reference is
   /// for system #include's or not (i.e. using <> instead of "").
   const FileEntry *LookupFile(llvm::StringRef Filename,
-                              SourceLocation FilenameTokLoc, bool isAngled,
-                              const DirectoryLookup *FromDir,
+                              bool isAngled, const DirectoryLookup *FromDir,
                               const DirectoryLookup *&CurDir);
 
   /// GetCurLookup - The DirectoryLookup structure used to find the current
@@ -884,7 +888,9 @@ public:
   void HandlePragmaSystemHeader(Token &SysHeaderTok);
   void HandlePragmaDependency(Token &DependencyTok);
   void HandlePragmaComment(Token &CommentTok);
-  void HandleComment(SourceRange Comment);
+  // Return true and store the first token only if any CommentHandler
+  // has inserted some tokens and getCommentRetentionState() is false.
+  bool HandleComment(Token &Token, SourceRange Comment);
 };
 
 /// \brief Abstract base class that describes a handler that will receive
@@ -893,7 +899,9 @@ class CommentHandler {
 public:
   virtual ~CommentHandler();
 
-  virtual void HandleComment(Preprocessor &PP, SourceRange Comment) = 0;
+  // The handler shall return true if it has pushed any tokens
+  // to be read using e.g. EnterToken or EnterTokenStream.
+  virtual bool HandleComment(Preprocessor &PP, SourceRange Comment) = 0;
 };
 
 }  // end namespace clang

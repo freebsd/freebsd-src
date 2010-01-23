@@ -9,7 +9,6 @@
 
 #include "Tools.h"
 
-#include "clang/Basic/Version.h"
 #include "clang/Driver/Action.h"
 #include "clang/Driver/Arg.h"
 #include "clang/Driver/ArgList.h"
@@ -864,15 +863,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_nobuiltininc);
 
   // Pass the path to compiler resource files.
-  //
-  // FIXME: Get this from a configuration object.
-  llvm::sys::Path P(D.Dir);
-  P.eraseComponent(); // Remove /bin from foo/bin
-  P.appendComponent("lib");
-  P.appendComponent("clang");
-  P.appendComponent(CLANG_VERSION_STRING);
   CmdArgs.push_back("-resource-dir");
-  CmdArgs.push_back(Args.MakeArgString(P.str()));
+  CmdArgs.push_back(D.ResourceDir.c_str());
 
   // Add preprocessing options like -I, -D, etc. if we are using the
   // preprocessor.
@@ -1857,87 +1849,17 @@ static bool isSourceSuffix(const char *Str) {
            .Default(false);
 }
 
-// FIXME: Can we tablegen this?
-static const char *GetArmArchForMArch(llvm::StringRef Value) {
-  if (Value == "armv6k")
-    return "armv6";
-
-  if (Value == "armv5tej")
-    return "armv5";
-
-  if (Value == "xscale")
-    return "xscale";
-
-  if (Value == "armv4t")
-    return "armv4t";
-
-  if (Value == "armv7" || Value == "armv7-a" || Value == "armv7-r" ||
-      Value == "armv7-m" || Value == "armv7a" || Value == "armv7r" ||
-      Value == "armv7m")
-    return "armv7";
-
-  return 0;
-}
-
-// FIXME: Can we tablegen this?
-static const char *GetArmArchForMCpu(llvm::StringRef Value) {
-  if (Value == "arm10tdmi" || Value == "arm1020t" || Value == "arm9e" ||
-      Value == "arm946e-s" || Value == "arm966e-s" ||
-      Value == "arm968e-s" || Value == "arm10e" ||
-      Value == "arm1020e" || Value == "arm1022e" || Value == "arm926ej-s" ||
-      Value == "arm1026ej-s")
-    return "armv5";
-
-  if (Value == "xscale")
-    return "xscale";
-
-  if (Value == "arm1136j-s" || Value == "arm1136jf-s" ||
-      Value == "arm1176jz-s" || Value == "arm1176jzf-s")
-    return "armv6";
-
-  if (Value == "cortex-a8" || Value == "cortex-r4" || Value == "cortex-m3")
-    return "armv7";
-
-  return 0;
-}
-
 void darwin::DarwinTool::AddDarwinArch(const ArgList &Args,
                                        ArgStringList &CmdArgs) const {
+  llvm::StringRef ArchName = getDarwinToolChain().getDarwinArchName(Args);
+
   // Derived from darwin_arch spec.
   CmdArgs.push_back("-arch");
+  CmdArgs.push_back(Args.MakeArgString(ArchName));
 
-  switch (getToolChain().getTriple().getArch()) {
-  default:
-    CmdArgs.push_back(Args.MakeArgString(getToolChain().getArchName()));
-    break;
-
-  case llvm::Triple::arm: {
-    if (const Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
-      if (const char *Arch = GetArmArchForMArch(A->getValue(Args))) {
-        CmdArgs.push_back(Arch);
-        return;
-      }
-    }
-
-    if (const Arg *A = Args.getLastArg(options::OPT_mcpu_EQ)) {
-      if (const char *Arch = GetArmArchForMCpu(A->getValue(Args))) {
-        CmdArgs.push_back(Arch);
-        return;
-      }
-    }
-
-    CmdArgs.push_back("arm");
+  // FIXME: Is this needed anymore?
+  if (ArchName == "arm")
     CmdArgs.push_back("-force_cpusubtype_ALL");
-    return;
-  }
-  }
-}
-
-void darwin::DarwinTool::AddDarwinSubArch(const ArgList &Args,
-                                          ArgStringList &CmdArgs) const {
-  // Derived from darwin_subarch spec, not sure what the distinction
-  // exists for but at least for this chain it is the same.
-  AddDarwinArch(Args, CmdArgs);
 }
 
 void darwin::Link::AddLinkArgs(const ArgList &Args,
@@ -1954,11 +1876,9 @@ void darwin::Link::AddLinkArgs(const ArgList &Args,
   }
 
   if (!Args.hasArg(options::OPT_dynamiclib)) {
-    if (Args.hasArg(options::OPT_force__cpusubtype__ALL)) {
-      AddDarwinArch(Args, CmdArgs);
-      CmdArgs.push_back("-force_cpusubtype_ALL");
-    } else
-      AddDarwinSubArch(Args, CmdArgs);
+    AddDarwinArch(Args, CmdArgs);
+    // FIXME: Why do this only on this path?
+    Args.AddLastArg(CmdArgs, options::OPT_force__cpusubtype__ALL);
 
     Args.AddLastArg(CmdArgs, options::OPT_bundle);
     Args.AddAllArgs(CmdArgs, options::OPT_bundle__loader);
@@ -1992,11 +1912,7 @@ void darwin::Link::AddLinkArgs(const ArgList &Args,
     Args.AddAllArgsTranslated(CmdArgs, options::OPT_current__version,
                               "-dylib_current_version");
 
-    if (Args.hasArg(options::OPT_force__cpusubtype__ALL)) {
-      AddDarwinArch(Args, CmdArgs);
-      // NOTE: We don't add -force_cpusubtype_ALL on this path. Ok.
-    } else
-      AddDarwinSubArch(Args, CmdArgs);
+    AddDarwinArch(Args, CmdArgs);
 
     Args.AddAllArgsTranslated(CmdArgs, options::OPT_install__name,
                               "-dylib_install_name");

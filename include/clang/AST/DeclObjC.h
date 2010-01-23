@@ -75,6 +75,24 @@ public:
   }
 };
 
+/// \brief A list of Objective-C protocols, along with the source
+/// locations at which they were referenced.
+class ObjCProtocolList : public ObjCList<ObjCProtocolDecl> {
+  SourceLocation *Locations;
+
+  using ObjCList<ObjCProtocolDecl>::set;
+
+public:
+  ObjCProtocolList() : ObjCList<ObjCProtocolDecl>(), Locations(0) { }
+
+  typedef const SourceLocation *loc_iterator;
+  loc_iterator loc_begin() const { return Locations; }
+  loc_iterator loc_end() const { return Locations + size(); }
+
+  void set(ObjCProtocolDecl* const* InList, unsigned Elts, 
+           const SourceLocation *Locs, ASTContext &Ctx);
+  void Destroy(ASTContext &Ctx);
+};
 
 
 /// ObjCMethodDecl - Represents an instance or class method declaration.
@@ -410,9 +428,9 @@ class ObjCInterfaceDecl : public ObjCContainerDecl {
   ObjCInterfaceDecl *SuperClass;
 
   /// Protocols referenced in interface header declaration
-  ObjCList<ObjCProtocolDecl> ReferencedProtocols;
+  ObjCProtocolList ReferencedProtocols;
 
-  /// Instance variables in the interface.
+  /// Instance variables in the interface. This list is completely redundant.
   ObjCList<ObjCIvarDecl> IVars;
 
   /// List of categories defined for this class.
@@ -442,7 +460,7 @@ public:
                                    SourceLocation ClassLoc = SourceLocation(),
                                    bool ForwardDecl = false,
                                    bool isInternal = false);
-  const ObjCList<ObjCProtocolDecl> &getReferencedProtocols() const {
+  const ObjCProtocolList &getReferencedProtocols() const {
     return ReferencedProtocols;
   }
 
@@ -459,9 +477,16 @@ public:
                       : getClassMethod(Sel);
   }
 
-  typedef ObjCList<ObjCProtocolDecl>::iterator protocol_iterator;
+  typedef ObjCProtocolList::iterator protocol_iterator;
   protocol_iterator protocol_begin() const {return ReferencedProtocols.begin();}
   protocol_iterator protocol_end() const { return ReferencedProtocols.end(); }
+  typedef ObjCProtocolList::loc_iterator protocol_loc_iterator;
+  protocol_loc_iterator protocol_loc_begin() const { 
+    return ReferencedProtocols.loc_begin(); 
+  }
+  protocol_loc_iterator protocol_loc_end() const { 
+    return ReferencedProtocols.loc_end(); 
+  }
   unsigned protocol_size() const { return ReferencedProtocols.size(); }
 
   typedef ObjCList<ObjCIvarDecl>::iterator ivar_iterator;
@@ -473,14 +498,16 @@ public:
   /// setProtocolList - Set the list of protocols that this interface
   /// implements.
   void setProtocolList(ObjCProtocolDecl *const* List, unsigned Num,
-                       ASTContext &C) {
-    ReferencedProtocols.set(List, Num, C);
+                       const SourceLocation *Locs, ASTContext &C) {
+    ReferencedProtocols.set(List, Num, Locs, C);
   }
 
   /// mergeClassExtensionProtocolList - Merge class extension's protocol list
   /// into the protocol list for this class.
-  void mergeClassExtensionProtocolList(ObjCProtocolDecl *const* List, unsigned Num,
-                       ASTContext &C);
+  void mergeClassExtensionProtocolList(ObjCProtocolDecl *const* List, 
+                                       unsigned Num,
+                                       const SourceLocation *Locs,
+                                       ASTContext &C);
 
   void setIVarList(ObjCIvarDecl * const *List, unsigned Num, ASTContext &C) {
     IVars.set(List, Num, C);
@@ -660,7 +687,7 @@ public:
 ///
 class ObjCProtocolDecl : public ObjCContainerDecl {
   /// Referenced protocols
-  ObjCList<ObjCProtocolDecl> ReferencedProtocols;
+  ObjCProtocolList ReferencedProtocols;
 
   bool isForwardProtoDecl; // declared with @protocol.
 
@@ -680,19 +707,26 @@ public:
   /// Destroy - Call destructors and release memory.
   virtual void Destroy(ASTContext& C);
 
-  const ObjCList<ObjCProtocolDecl> &getReferencedProtocols() const {
+  const ObjCProtocolList &getReferencedProtocols() const {
     return ReferencedProtocols;
   }
-  typedef ObjCList<ObjCProtocolDecl>::iterator protocol_iterator;
+  typedef ObjCProtocolList::iterator protocol_iterator;
   protocol_iterator protocol_begin() const {return ReferencedProtocols.begin();}
   protocol_iterator protocol_end() const { return ReferencedProtocols.end(); }
+  typedef ObjCProtocolList::loc_iterator protocol_loc_iterator;
+  protocol_loc_iterator protocol_loc_begin() const { 
+    return ReferencedProtocols.loc_begin(); 
+  }
+  protocol_loc_iterator protocol_loc_end() const { 
+    return ReferencedProtocols.loc_end(); 
+  }
   unsigned protocol_size() const { return ReferencedProtocols.size(); }
 
   /// setProtocolList - Set the list of protocols that this interface
   /// implements.
   void setProtocolList(ObjCProtocolDecl *const*List, unsigned Num,
-                       ASTContext &C) {
-    ReferencedProtocols.set(List, Num, C);
+                       const SourceLocation *Locs, ASTContext &C) {
+    ReferencedProtocols.set(List, Num, Locs, C);
   }
 
   ObjCProtocolDecl *lookupProtocolNamed(IdentifierInfo *PName);
@@ -772,31 +806,45 @@ public:
 /// @protocol NSTextInput, NSChangeSpelling, NSDraggingInfo;
 ///
 class ObjCForwardProtocolDecl : public Decl {
-  ObjCList<ObjCProtocolDecl> ReferencedProtocols;
+  ObjCProtocolList ReferencedProtocols;
 
   ObjCForwardProtocolDecl(DeclContext *DC, SourceLocation L,
                           ObjCProtocolDecl *const *Elts, unsigned nElts,
-                          ASTContext &C);
+                          const SourceLocation *Locs, ASTContext &C);
   virtual ~ObjCForwardProtocolDecl() {}
 
 public:
   static ObjCForwardProtocolDecl *Create(ASTContext &C, DeclContext *DC,
                                          SourceLocation L,
-                                         ObjCProtocolDecl *const *Elts = 0,
-                                         unsigned Num = 0);
+                                         ObjCProtocolDecl *const *Elts,
+                                         unsigned Num,
+                                         const SourceLocation *Locs);
+
+  static ObjCForwardProtocolDecl *Create(ASTContext &C, DeclContext *DC,
+                                         SourceLocation L) {
+    return Create(C, DC, L, 0, 0, 0);
+  }
 
   /// Destroy - Call destructors and release memory.
   virtual void Destroy(ASTContext& C);
 
-  typedef ObjCList<ObjCProtocolDecl>::iterator protocol_iterator;
+  typedef ObjCProtocolList::iterator protocol_iterator;
   protocol_iterator protocol_begin() const {return ReferencedProtocols.begin();}
   protocol_iterator protocol_end() const { return ReferencedProtocols.end(); }
+  typedef ObjCProtocolList::loc_iterator protocol_loc_iterator;
+  protocol_loc_iterator protocol_loc_begin() const { 
+    return ReferencedProtocols.loc_begin(); 
+  }
+  protocol_loc_iterator protocol_loc_end() const { 
+    return ReferencedProtocols.loc_end(); 
+  }
+
   unsigned protocol_size() const { return ReferencedProtocols.size(); }
 
   /// setProtocolList - Set the list of forward protocols.
   void setProtocolList(ObjCProtocolDecl *const*List, unsigned Num,
-                       ASTContext &C) {
-    ReferencedProtocols.set(List, Num, C);
+                       const SourceLocation *Locs, ASTContext &C) {
+    ReferencedProtocols.set(List, Num, Locs, C);
   }
   static bool classof(const Decl *D) {
     return D->getKind() == ObjCForwardProtocol;
@@ -826,22 +874,32 @@ class ObjCCategoryDecl : public ObjCContainerDecl {
   ObjCInterfaceDecl *ClassInterface;
 
   /// referenced protocols in this category.
-  ObjCList<ObjCProtocolDecl> ReferencedProtocols;
+  ObjCProtocolList ReferencedProtocols;
 
   /// Next category belonging to this class.
   /// FIXME: this should not be a singly-linked list.  Move storage elsewhere.
   ObjCCategoryDecl *NextClassCategory;
 
-  SourceLocation EndLoc; // marks the '>' or identifier.
+  /// \brief The location of the '@' in '@interface'
+  SourceLocation AtLoc;
 
-  ObjCCategoryDecl(DeclContext *DC, SourceLocation L, IdentifierInfo *Id)
-    : ObjCContainerDecl(ObjCCategory, DC, L, Id),
-      ClassInterface(0), NextClassCategory(0){
+  /// \brief The location of the category name in this declaration.
+  SourceLocation CategoryNameLoc;
+
+  ObjCCategoryDecl(DeclContext *DC, SourceLocation AtLoc, 
+                   SourceLocation ClassNameLoc, SourceLocation CategoryNameLoc,
+                   IdentifierInfo *Id)
+    : ObjCContainerDecl(ObjCCategory, DC, ClassNameLoc, Id),
+      ClassInterface(0), NextClassCategory(0), AtLoc(AtLoc), 
+      CategoryNameLoc(CategoryNameLoc) {
   }
 public:
 
   static ObjCCategoryDecl *Create(ASTContext &C, DeclContext *DC,
-                                  SourceLocation L, IdentifierInfo *Id);
+                                  SourceLocation AtLoc, 
+                                  SourceLocation ClassNameLoc,
+                                  SourceLocation CategoryNameLoc,
+                                  IdentifierInfo *Id);
 
   ObjCInterfaceDecl *getClassInterface() { return ClassInterface; }
   const ObjCInterfaceDecl *getClassInterface() const { return ClassInterface; }
@@ -853,18 +911,25 @@ public:
   /// setProtocolList - Set the list of protocols that this interface
   /// implements.
   void setProtocolList(ObjCProtocolDecl *const*List, unsigned Num,
-                              ASTContext &C) {
-    ReferencedProtocols.set(List, Num, C);
+                       const SourceLocation *Locs, ASTContext &C) {
+    ReferencedProtocols.set(List, Num, Locs, C);
   }
 
-  const ObjCList<ObjCProtocolDecl> &getReferencedProtocols() const {
+  const ObjCProtocolList &getReferencedProtocols() const {
     return ReferencedProtocols;
   }
 
-  typedef ObjCList<ObjCProtocolDecl>::iterator protocol_iterator;
+  typedef ObjCProtocolList::iterator protocol_iterator;
   protocol_iterator protocol_begin() const {return ReferencedProtocols.begin();}
   protocol_iterator protocol_end() const { return ReferencedProtocols.end(); }
   unsigned protocol_size() const { return ReferencedProtocols.size(); }
+  typedef ObjCProtocolList::loc_iterator protocol_loc_iterator;
+  protocol_loc_iterator protocol_loc_begin() const { 
+    return ReferencedProtocols.loc_begin(); 
+  }
+  protocol_loc_iterator protocol_loc_end() const { 
+    return ReferencedProtocols.loc_end(); 
+  }
 
   ObjCCategoryDecl *getNextClassCategory() const { return NextClassCategory; }
   void setNextClassCategory(ObjCCategoryDecl *Cat) {
@@ -874,10 +939,16 @@ public:
     NextClassCategory = ClassInterface->getCategoryList();
     ClassInterface->setCategoryList(this);
   }
-  // Location information, modeled after the Stmt API.
-  SourceLocation getLocStart() const { return getLocation(); } // '@'interface
-  SourceLocation getLocEnd() const { return EndLoc; }
-  void setLocEnd(SourceLocation LE) { EndLoc = LE; }
+
+  SourceLocation getAtLoc() const { return AtLoc; }
+  void setAtLoc(SourceLocation At) { AtLoc = At; }
+
+  SourceLocation getCategoryNameLoc() const { return CategoryNameLoc; }
+  void setCategoryNameLoc(SourceLocation Loc) { CategoryNameLoc = Loc; }
+
+  virtual SourceRange getSourceRange() const {
+    return SourceRange(AtLoc, getAtEndRange().getEnd());
+  }
 
   static bool classof(const Decl *D) { return D->getKind() == ObjCCategory; }
   static bool classof(const ObjCCategoryDecl *D) { return true; }
@@ -1133,6 +1204,7 @@ public:
   enum SetterKind { Assign, Retain, Copy };
   enum PropertyControl { None, Required, Optional };
 private:
+  SourceLocation AtLoc;   // location of @property
   QualType DeclType;
   unsigned PropertyAttributes : 8;
 
@@ -1147,8 +1219,8 @@ private:
   ObjCIvarDecl *PropertyIvarDecl;   // Synthesize ivar for this property
 
   ObjCPropertyDecl(DeclContext *DC, SourceLocation L, IdentifierInfo *Id,
-                   QualType T)
-    : NamedDecl(ObjCProperty, DC, L, Id), DeclType(T),
+                   SourceLocation AtLocation, QualType T)
+    : NamedDecl(ObjCProperty, DC, L, Id), AtLoc(AtLocation), DeclType(T),
       PropertyAttributes(OBJC_PR_noattr), PropertyImplementation(None),
       GetterName(Selector()),
       SetterName(Selector()),
@@ -1156,8 +1228,12 @@ private:
 public:
   static ObjCPropertyDecl *Create(ASTContext &C, DeclContext *DC,
                                   SourceLocation L,
-                                  IdentifierInfo *Id, QualType T,
+                                  IdentifierInfo *Id, SourceLocation AtLocation,
+                                  QualType T,
                                   PropertyControl propControl = None);
+  SourceLocation getAtLoc() const { return AtLoc; }
+  void setAtLoc(SourceLocation L) { AtLoc = L; }
+  
   QualType getType() const { return DeclType; }
   void setType(QualType T) { DeclType = T; }
 
