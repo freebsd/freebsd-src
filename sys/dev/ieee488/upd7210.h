@@ -50,6 +50,7 @@ typedef int upd7210_irq_t(struct upd7210 *, int);
 struct upd7210 {
 	struct resource		*reg_res[8];
 	struct resource		*irq_clear_res;
+	u_int			reg_offset[8];
 	int			dmachan;
 	int			unit;
 
