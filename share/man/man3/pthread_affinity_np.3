@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2010
+.Dd January 12, 2010
 .Dt PTHREAD_AFFINITY_NP 3
 .Os
 .Sh NAME
@@ -44,17 +44,17 @@
 .Fn pthread_getaffinity_np
 and
 .Fn pthread_setaffinity_np
-allow the manipulation of sets of CPUs available to specified thread.
+allow the manipulation of sets of CPUs available to the specified thread.
 .Pp
 Masks of type
 .Ft cpuset_t
 are composed using the
-.Xr CPU_SET 2
+.Xr CPU_SET 3
 macros.
 The kernel tolerates large sets as long as all CPUs specified
 in the set exist.
 Sets smaller than the kernel uses generate an error on calls to
-.Fn  pthread_getaffinity_np
+.Fn pthread_getaffinity_np
 even if the result set would fit within the user supplied set.
 Calls to
 .Fn pthread_setaffinity_np
@@ -75,14 +75,13 @@ retrieves the
 mask from the thread specified by
 .Fa td ,
 and stores it in the space provided by
-.Fa cpumaskp .
+.Fa cpusetp .
 .Pp
 .Fn pthread_setaffinity_np
 attempts to set the mask for the thread specified by
 .Fa td
 to the value in
-.Fa cpumaskp .
-.Pp
+.Fa cpusetp .
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_getaffinity_np
@@ -105,7 +104,7 @@ call would leave a thread without a valid CPU to run on because the set
 does not overlap with the thread's anonymous mask.
 .It Bq Er EFAULT
 The
-.Fa cpumaskp
+.Fa cpusetp
 pointer passed was invalid.
 .It Bq Er ESRCH
 The thread specified by the
@@ -127,7 +126,7 @@ operation.
 .Xr CPU_SET 3 ,
 .Xr pthread 3 ,
 .Xr pthread_attr_get_affinity_np 3 ,
-.Xr pthread_attr_set_affinity_np 3 .
+.Xr pthread_attr_set_affinity_np 3
 .Sh STANDARDS
 The
 .Nm pthread_getaffinity_np
