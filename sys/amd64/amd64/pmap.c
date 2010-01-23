@@ -105,7 +105,6 @@ __FBSDID("$FreeBSD$");
  *	and to when physical maps must be made correct.
  */
 
-#include "opt_msgbuf.h"
 #include "opt_pmap.h"
 #include "opt_vm.h"
 
@@ -116,7 +115,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
-#include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sx.h>
@@ -206,7 +204,6 @@ static int shpgperproc = PMAP_SHPGPERPROC;
  */
 pt_entry_t *CMAP1 = 0;
 caddr_t CADDR1 = 0;
-struct msgbuf *msgbufp = 0;
 
 /*
  * Crashdump maps.
@@ -569,11 +566,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 * Crashdump maps.
 	 */
 	SYSMAP(caddr_t, unused, crashdumpmap, MAXDUMPPGS)
-
-	/*
-	 * msgbufp is used to map the system message buffer.
-	 */
-	SYSMAP(struct msgbuf *, unused, msgbufp, atop(round_page(MSGBUF_SIZE)))
 
 	virtual_avail = va;
 
