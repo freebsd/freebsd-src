@@ -132,13 +132,6 @@ utx_active_remove(struct futx *fu)
 			if (memcmp(fu->fu_id, fe.fu_id, sizeof fe.fu_id) != 0)
 				continue;
 
-			/*
-			 * Prevent login sessions from having a negative
-			 * timespan.
-			 */
-			if (be64toh(fu->fu_tv) < be64toh(fe.fu_tv))
-				fu->fu_tv = fe.fu_tv;
-
 			/* Terminate session. */
 			fseeko(fp, -(off_t)sizeof fe, SEEK_CUR);
 			fwrite(fu, sizeof *fu, 1, fp);
@@ -175,17 +168,12 @@ utx_lastlogin_add(const struct futx *fu)
 	while (fread(&fe, sizeof fe, 1, fp) == 1) {
 		if (strncmp(fu->fu_user, fe.fu_user, sizeof fe.fu_user) != 0)
 			continue;
-
-		/* Prevent lowering the time value. */
-		if (be64toh(fu->fu_tv) <= be64toh(fe.fu_tv))
-			goto done;
 		
 		/* Found a previous lastlogin entry for this user. */
 		fseeko(fp, -(off_t)sizeof fe, SEEK_CUR);
 		break;
 	}
 	fwrite(fu, sizeof *fu, 1, fp);
-done:
 	fclose(fp);
 }
 
