@@ -112,6 +112,12 @@ namespace {
     // C++ Statements
     void VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E);
     void VisitCXXConstructExpr(CXXConstructExpr *E);
+    void VisitCXXNamedCastExpr(CXXNamedCastExpr *E);
+    void VisitCXXStaticCastExpr(CXXStaticCastExpr *E);
+    void VisitCXXDynamicCastExpr(CXXDynamicCastExpr *E);
+    void VisitCXXReinterpretCastExpr(CXXReinterpretCastExpr *E);
+    void VisitCXXConstCastExpr(CXXConstCastExpr *E);
+    void VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E);
   };
 }
 
@@ -477,7 +483,7 @@ void PCHStmtWriter::VisitImplicitCastExpr(ImplicitCastExpr *E) {
 
 void PCHStmtWriter::VisitExplicitCastExpr(ExplicitCastExpr *E) {
   VisitCastExpr(E);
-  Writer.AddTypeRef(E->getTypeAsWritten(), Record);
+  Writer.AddTypeSourceInfo(E->getTypeInfoAsWritten(), Record);
 }
 
 void PCHStmtWriter::VisitCStyleCastExpr(CStyleCastExpr *E) {
@@ -490,6 +496,7 @@ void PCHStmtWriter::VisitCStyleCastExpr(CStyleCastExpr *E) {
 void PCHStmtWriter::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
   VisitExpr(E);
   Writer.AddSourceLocation(E->getLParenLoc(), Record);
+  Writer.AddTypeSourceInfo(E->getTypeSourceInfo(), Record);
   Writer.WriteSubStmt(E->getInitializer());
   Record.push_back(E->isFileScope());
   Code = pch::EXPR_COMPOUND_LITERAL;
@@ -793,6 +800,38 @@ void PCHStmtWriter::VisitCXXConstructExpr(CXXConstructExpr *E) {
   for (unsigned I = 0, N = E->getNumArgs(); I != N; ++I)
     Writer.WriteSubStmt(E->getArg(I));
   Code = pch::EXPR_CXX_CONSTRUCT;
+}
+
+void PCHStmtWriter::VisitCXXNamedCastExpr(CXXNamedCastExpr *E) {
+  VisitExplicitCastExpr(E);
+  Writer.AddSourceLocation(E->getOperatorLoc(), Record);
+}
+
+void PCHStmtWriter::VisitCXXStaticCastExpr(CXXStaticCastExpr *E) {
+  VisitCXXNamedCastExpr(E);
+  Code = pch::EXPR_CXX_STATIC_CAST;
+}
+
+void PCHStmtWriter::VisitCXXDynamicCastExpr(CXXDynamicCastExpr *E) {
+  VisitCXXNamedCastExpr(E);
+  Code = pch::EXPR_CXX_DYNAMIC_CAST;
+}
+
+void PCHStmtWriter::VisitCXXReinterpretCastExpr(CXXReinterpretCastExpr *E) {
+  VisitCXXNamedCastExpr(E);
+  Code = pch::EXPR_CXX_REINTERPRET_CAST;
+}
+
+void PCHStmtWriter::VisitCXXConstCastExpr(CXXConstCastExpr *E) {
+  VisitCXXNamedCastExpr(E);
+  Code = pch::EXPR_CXX_CONST_CAST;
+}
+
+void PCHStmtWriter::VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E) {
+  VisitExplicitCastExpr(E);
+  Writer.AddSourceLocation(E->getTypeBeginLoc(), Record);
+  Writer.AddSourceLocation(E->getRParenLoc(), Record);
+  Code = pch::EXPR_CXX_FUNCTIONAL_CAST;
 }
 
 //===----------------------------------------------------------------------===//

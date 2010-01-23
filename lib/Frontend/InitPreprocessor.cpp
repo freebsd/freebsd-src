@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/Utils.h"
+#include "clang/Basic/MacroBuilder.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/FrontendOptions.h"
@@ -137,7 +138,10 @@ static void DefineFloatMacros(MacroBuilder &Builder, llvm::StringRef Prefix,
                "1.79769313486231580793728971405301e+308L",
                "1.18973149535723176508575932662800702e+4932L");
 
-  llvm::Twine DefPrefix = "__" + Prefix + "_";
+  llvm::SmallString<32> DefPrefix;
+  DefPrefix = "__";
+  DefPrefix += Prefix;
+  DefPrefix += "_";
 
   Builder.defineMacro(DefPrefix + "DENORM_MIN__", DenormMin);
   Builder.defineMacro(DefPrefix + "HAS_DENORM__");
@@ -420,23 +424,15 @@ static void InitializeFileRemapping(Diagnostic &Diags,
                                     SourceManager &SourceMgr,
                                     FileManager &FileMgr,
                                     const PreprocessorOptions &InitOpts) {
-  // Remap files in the source manager.
-  for (PreprocessorOptions::remapped_file_iterator
-         Remap = InitOpts.remapped_file_begin(),
-         RemapEnd = InitOpts.remapped_file_end();
+  // Remap files in the source manager (with buffers).
+  for (PreprocessorOptions::remapped_file_buffer_iterator
+         Remap = InitOpts.remapped_file_buffer_begin(),
+         RemapEnd = InitOpts.remapped_file_buffer_end();
        Remap != RemapEnd;
        ++Remap) {
-    // Find the file that we're mapping to.
-    const FileEntry *ToFile = FileMgr.getFile(Remap->second);
-    if (!ToFile) {
-      Diags.Report(diag::err_fe_remap_missing_to_file)
-        << Remap->first << Remap->second;
-      continue;
-    }
-
     // Create the file entry for the file that we're mapping from.
     const FileEntry *FromFile = FileMgr.getVirtualFile(Remap->first,
-                                                       ToFile->getSize(),
+                                                Remap->second->getBufferSize(),
                                                        0);
     if (!FromFile) {
       Diags.Report(diag::err_fe_remap_missing_from_file)
@@ -444,16 +440,45 @@ static void InitializeFileRemapping(Diagnostic &Diags,
       continue;
     }
 
+    // Override the contents of the "from" file with the contents of
+    // the "to" file.
+    SourceMgr.overrideFileContents(FromFile, Remap->second);
+  }
+
+  // Remap files in the source manager (with other files).
+  for (PreprocessorOptions::remapped_file_iterator
+       Remap = InitOpts.remapped_file_begin(),
+       RemapEnd = InitOpts.remapped_file_end();
+       Remap != RemapEnd;
+       ++Remap) {
+    // Find the file that we're mapping to.
+    const FileEntry *ToFile = FileMgr.getFile(Remap->second);
+    if (!ToFile) {
+      Diags.Report(diag::err_fe_remap_missing_to_file)
+      << Remap->first << Remap->second;
+      continue;
+    }
+    
+    // Create the file entry for the file that we're mapping from.
+    const FileEntry *FromFile = FileMgr.getVirtualFile(Remap->first,
+                                                       ToFile->getSize(),
+                                                       0);
+    if (!FromFile) {
+      Diags.Report(diag::err_fe_remap_missing_from_file)
+      << Remap->first;
+      continue;
+    }
+    
     // Load the contents of the file we're mapping to.
     std::string ErrorStr;
     const llvm::MemoryBuffer *Buffer
-      = llvm::MemoryBuffer::getFile(ToFile->getName(), &ErrorStr);
+    = llvm::MemoryBuffer::getFile(ToFile->getName(), &ErrorStr);
     if (!Buffer) {
       Diags.Report(diag::err_fe_error_opening)
-        << Remap->second << ErrorStr;
+      << Remap->second << ErrorStr;
       continue;
     }
-
+    
     // Override the contents of the "from" file with the contents of
     // the "to" file.
     SourceMgr.overrideFileContents(FromFile, Buffer);

@@ -506,7 +506,9 @@ APValue PointerExprEvaluator::VisitCastExpr(CastExpr* E) {
 
 APValue PointerExprEvaluator::VisitCallExpr(CallExpr *E) {
   if (E->isBuiltinCall(Info.Ctx) ==
-        Builtin::BI__builtin___CFStringMakeConstantString)
+        Builtin::BI__builtin___CFStringMakeConstantString ||
+      E->isBuiltinCall(Info.Ctx) ==
+        Builtin::BI__builtin___NSStringMakeConstantString)
     return APValue(E);
   return APValue();
 }
@@ -971,6 +973,8 @@ bool IntExprEvaluator::VisitCallExpr(const CallExpr *E) {
   case Builtin::BI__builtin_object_size: {
     const Expr *Arg = E->getArg(0)->IgnoreParens();
     Expr::EvalResult Base;
+    
+    // TODO: Perhaps we should let LLVM lower this?
     if (Arg->EvaluateAsAny(Base, Info.Ctx)
         && Base.Val.getKind() == APValue::LValue
         && !Base.HasSideEffects)
@@ -992,7 +996,8 @@ bool IntExprEvaluator::VisitCallExpr(const CallExpr *E) {
           }
         }
 
-    // TODO: Perhaps we should let LLVM lower this?
+    // If evaluating the argument has side-effects we can't determine
+    // the size of the object and lower it to unknown now.
     if (E->getArg(0)->HasSideEffects(Info.Ctx)) {
       if (E->getArg(1)->EvaluateAsInt(Info.Ctx).getZExtValue() <= 1)
         return Success(-1ULL, E);

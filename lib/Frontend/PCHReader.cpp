@@ -1399,17 +1399,10 @@ PCHReader::ReadPCHBlock() {
       NumComments = BlobLen / sizeof(SourceRange);
       break;
         
-    case pch::SVN_BRANCH_REVISION: {
-      unsigned CurRevision = getClangSubversionRevision();
-      if (Record[0] && CurRevision && Record[0] != CurRevision) {
-        Diag(Record[0] < CurRevision? diag::warn_pch_version_too_old
-                                    : diag::warn_pch_version_too_new);
-        return IgnorePCH;
-      }
-      
-      const char *CurBranch = getClangSubversionPath();
-      if (strncmp(CurBranch, BlobStart, BlobLen)) {
-        std::string PCHBranch(BlobStart, BlobLen);
+    case pch::VERSION_CONTROL_BRANCH_REVISION: {
+      llvm::StringRef CurBranch = getClangFullRepositoryVersion();
+      llvm::StringRef PCHBranch(BlobStart, BlobLen);
+      if (CurBranch != PCHBranch) {
         Diag(diag::warn_pch_different_branch) << PCHBranch << CurBranch;
         return IgnorePCH;
       }
@@ -1909,18 +1902,20 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
   }
 
   case pch::TYPE_FUNCTION_NO_PROTO: {
-    if (Record.size() != 2) {
+    if (Record.size() != 3) {
       Error("incorrect encoding of no-proto function type");
       return QualType();
     }
     QualType ResultType = GetType(Record[0]);
-    return Context->getFunctionNoProtoType(ResultType, Record[1]);
+    return Context->getFunctionNoProtoType(ResultType, Record[1],
+                                           (CallingConv)Record[2]);
   }
 
   case pch::TYPE_FUNCTION_PROTO: {
     QualType ResultType = GetType(Record[0]);
     bool NoReturn = Record[1];
-    unsigned Idx = 2;
+    CallingConv CallConv = (CallingConv)Record[2];
+    unsigned Idx = 3;
     unsigned NumParams = Record[Idx++];
     llvm::SmallVector<QualType, 16> ParamTypes;
     for (unsigned I = 0; I != NumParams; ++I)
@@ -1936,7 +1931,7 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
     return Context->getFunctionType(ResultType, ParamTypes.data(), NumParams,
                                     isVariadic, Quals, hasExceptionSpec,
                                     hasAnyExceptionSpec, NumExceptions,
-                                    Exceptions.data(), NoReturn);
+                                    Exceptions.data(), NoReturn, CallConv);
   }
 
   case pch::TYPE_UNRESOLVED_USING:
@@ -2040,7 +2035,13 @@ void TypeLocReader::VisitQualifiedTypeLoc(QualifiedTypeLoc TL) {
   // nothing to do
 }
 void TypeLocReader::VisitBuiltinTypeLoc(BuiltinTypeLoc TL) {
-  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  TL.setBuiltinLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  if (TL.needsExtraLocalData()) {
+    TL.setWrittenTypeSpec(static_cast<DeclSpec::TST>(Record[Idx++]));
+    TL.setWrittenSignSpec(static_cast<DeclSpec::TSS>(Record[Idx++]));
+    TL.setWrittenWidthSpec(static_cast<DeclSpec::TSW>(Record[Idx++]));
+    TL.setModeAttr(Record[Idx++]);
+  }
 }
 void TypeLocReader::VisitComplexTypeLoc(ComplexTypeLoc TL) {
   TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));

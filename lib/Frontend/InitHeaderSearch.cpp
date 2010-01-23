@@ -189,10 +189,12 @@ void InitHeaderSearch::AddGnuCPlusPlusIncludePaths(llvm::StringRef Base,
 void InitHeaderSearch::AddMinGWCPlusPlusIncludePaths(llvm::StringRef Base,
                                                      llvm::StringRef Arch,
                                                      llvm::StringRef Version) {
-  llvm::Twine localBase = Base + "/" + Arch + "/" + Version + "/include";
-  AddPath(localBase, System, true, false, false);
-  AddPath(localBase + "/c++", System, true, false, false);
-  AddPath(localBase + "/c++/backward", System, true, false, false);
+  AddPath(Base + "/" + Arch + "/" + Version + "/include",
+          System, true, false, false);
+  AddPath(Base + "/" + Arch + "/" + Version + "/include/c++",
+          System, true, false, false);
+  AddPath(Base + "/" + Arch + "/" + Version + "/include/c++/backward",
+          System, true, false, false);
 }
 
   // FIXME: This probably should goto to some platform utils place.
@@ -206,8 +208,8 @@ void InitHeaderSearch::AddMinGWCPlusPlusIncludePaths(llvm::StringRef Base,
   // I.e. "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\$VERSION".
   // There can be additional characters in the component.  Only the numberic
   // characters are compared.
-bool getSystemRegistryString(const char *keyPath, const char *valueName,
-                       char *value, size_t maxLength) {
+static bool getSystemRegistryString(const char *keyPath, const char *valueName,
+                                    char *value, size_t maxLength) {
   HKEY hRootKey = NULL;
   HKEY hKey = NULL;
   const char* subKey = NULL;
@@ -312,13 +314,13 @@ bool getSystemRegistryString(const char *keyPath, const char *valueName,
 }
 #else // _MSC_VER
   // Read registry string.
-bool getSystemRegistryString(const char *, const char *, char *, size_t) {
+static bool getSystemRegistryString(const char*, const char*, char*, size_t) {
   return(false);
 }
 #endif // _MSC_VER
 
   // Get Visual Studio installation directory.
-bool getVisualStudioDir(std::string &path) {
+static bool getVisualStudioDir(std::string &path) {
   char vsIDEInstallDir[256];
   // Try the Windows registry first.
   bool hasVCDir = getSystemRegistryString(
@@ -365,7 +367,7 @@ bool getVisualStudioDir(std::string &path) {
 }
 
   // Get Windows SDK installation directory.
-bool getWindowsSDKDir(std::string &path) {
+static bool getWindowsSDKDir(std::string &path) {
   char windowsSDKInstallDir[256];
   // Try the Windows registry.
   bool hasSDKDir = getSystemRegistryString(
@@ -508,6 +510,10 @@ void InitHeaderSearch::AddDefaultCPlusPlusIncludePaths(const llvm::Triple &tripl
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3.2",
                                 "i386-redhat-linux","", "", triple);
 
+    // Fedora 10 x86_64
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3.2",
+                                "x86_64-redhat-linux", "32", "", triple);
+
     // Fedora 11
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.1",
                                 "i586-redhat-linux","", "", triple);
@@ -556,7 +562,7 @@ void InitHeaderSearch::AddDefaultCPlusPlusIncludePaths(const llvm::Triple &tripl
         "i686-pc-linux-gnu", "", "", triple);
     break;
   case llvm::Triple::FreeBSD:
-    AddPath("/usr/include/c++/4.2", System, true, false, false);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2", "", "", "", triple);
     break;
   case llvm::Triple::Solaris:
     // Solaris - Fall though..

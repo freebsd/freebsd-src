@@ -16,7 +16,7 @@
 
 #include "clang/Basic/TypeTraits.h"
 #include "clang/AST/Expr.h"
-#include "clang/AST/Decl.h"
+#include "clang/AST/UnresolvedSet.h"
 #include "clang/AST/TemplateBase.h"
 
 namespace clang {
@@ -118,8 +118,11 @@ private:
 
 protected:
   CXXNamedCastExpr(StmtClass SC, QualType ty, CastKind kind, Expr *op,
-                   QualType writtenTy, SourceLocation l)
+                   TypeSourceInfo *writtenTy, SourceLocation l)
     : ExplicitCastExpr(SC, ty, kind, op, writtenTy), Loc(l) {}
+
+  explicit CXXNamedCastExpr(StmtClass SC, EmptyShell Shell)
+    : ExplicitCastExpr(SC, Shell) { }
 
 public:
   const char *getCastName() const;
@@ -154,8 +157,11 @@ public:
 class CXXStaticCastExpr : public CXXNamedCastExpr {
 public:
   CXXStaticCastExpr(QualType ty, CastKind kind, Expr *op,
-                    QualType writtenTy, SourceLocation l)
+                    TypeSourceInfo *writtenTy, SourceLocation l)
     : CXXNamedCastExpr(CXXStaticCastExprClass, ty, kind, op, writtenTy, l) {}
+
+  explicit CXXStaticCastExpr(EmptyShell Empty)
+    : CXXNamedCastExpr(CXXStaticCastExprClass, Empty) { }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXStaticCastExprClass;
@@ -171,9 +177,12 @@ public:
 /// @c dynamic_cast<Derived*>(BasePtr).
 class CXXDynamicCastExpr : public CXXNamedCastExpr {
 public:
-  CXXDynamicCastExpr(QualType ty, CastKind kind, Expr *op, QualType writtenTy,
-                     SourceLocation l)
+  CXXDynamicCastExpr(QualType ty, CastKind kind, Expr *op,
+                     TypeSourceInfo *writtenTy, SourceLocation l)
     : CXXNamedCastExpr(CXXDynamicCastExprClass, ty, kind, op, writtenTy, l) {}
+
+  explicit CXXDynamicCastExpr(EmptyShell Empty)
+    : CXXNamedCastExpr(CXXDynamicCastExprClass, Empty) { }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXDynamicCastExprClass;
@@ -190,9 +199,12 @@ public:
 class CXXReinterpretCastExpr : public CXXNamedCastExpr {
 public:
   CXXReinterpretCastExpr(QualType ty, CastKind kind, Expr *op, 
-                         QualType writtenTy, SourceLocation l)
+                         TypeSourceInfo *writtenTy, SourceLocation l)
     : CXXNamedCastExpr(CXXReinterpretCastExprClass, ty, kind, op,
                        writtenTy, l) {}
+
+  explicit CXXReinterpretCastExpr(EmptyShell Empty)
+    : CXXNamedCastExpr(CXXReinterpretCastExprClass, Empty) { }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXReinterpretCastExprClass;
@@ -207,9 +219,12 @@ public:
 /// @c const_cast<char*>(PtrToConstChar).
 class CXXConstCastExpr : public CXXNamedCastExpr {
 public:
-  CXXConstCastExpr(QualType ty, Expr *op, QualType writtenTy,
+  CXXConstCastExpr(QualType ty, Expr *op, TypeSourceInfo *writtenTy,
                    SourceLocation l)
     : CXXNamedCastExpr(CXXConstCastExprClass, ty, CK_NoOp, op, writtenTy, l) {}
+
+  explicit CXXConstCastExpr(EmptyShell Empty)
+    : CXXNamedCastExpr(CXXConstCastExprClass, Empty) { }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXConstCastExprClass;
@@ -625,15 +640,20 @@ class CXXFunctionalCastExpr : public ExplicitCastExpr {
   SourceLocation TyBeginLoc;
   SourceLocation RParenLoc;
 public:
-  CXXFunctionalCastExpr(QualType ty, QualType writtenTy,
+  CXXFunctionalCastExpr(QualType ty, TypeSourceInfo *writtenTy,
                         SourceLocation tyBeginLoc, CastKind kind,
                         Expr *castExpr, SourceLocation rParenLoc) 
     : ExplicitCastExpr(CXXFunctionalCastExprClass, ty, kind, castExpr, 
                        writtenTy),
       TyBeginLoc(tyBeginLoc), RParenLoc(rParenLoc) {}
 
+  explicit CXXFunctionalCastExpr(EmptyShell Shell)
+    : ExplicitCastExpr(CXXFunctionalCastExprClass, Shell) { }
+
   SourceLocation getTypeBeginLoc() const { return TyBeginLoc; }
+  void setTypeBeginLoc(SourceLocation L) { TyBeginLoc = L; }
   SourceLocation getRParenLoc() const { return RParenLoc; }
+  void setRParenLoc(SourceLocation L) { RParenLoc = L; }
 
   virtual SourceRange getSourceRange() const {
     return SourceRange(TyBeginLoc, RParenLoc);
@@ -1052,7 +1072,7 @@ public:
 class UnresolvedLookupExpr : public Expr {
   /// The results.  These are undesugared, which is to say, they may
   /// include UsingShadowDecls.
-  UnresolvedSet Results;
+  UnresolvedSet<4> Results;
 
   /// The name declared.
   DeclarationName Name;
@@ -1113,15 +1133,15 @@ public:
 
   /// Computes whether an unresolved lookup on the given declarations
   /// and optional template arguments is type- and value-dependent.
-  static bool ComputeDependence(NamedDecl * const *Begin,
-                                NamedDecl * const *End,
+  static bool ComputeDependence(UnresolvedSetImpl::const_iterator Begin,
+                                UnresolvedSetImpl::const_iterator End,
                                 const TemplateArgumentListInfo *Args);
 
   void addDecl(NamedDecl *Decl) {
     Results.addDecl(Decl);
   }
 
-  typedef UnresolvedSet::iterator decls_iterator;
+  typedef UnresolvedSetImpl::iterator decls_iterator;
   decls_iterator decls_begin() const { return Results.begin(); }
   decls_iterator decls_end() const { return Results.end(); }
 
@@ -1696,7 +1716,7 @@ public:
 class UnresolvedMemberExpr : public Expr {
   /// The results.  These are undesugared, which is to say, they may
   /// include UsingShadowDecls.
-  UnresolvedSet Results;
+  UnresolvedSet<4> Results;
 
   /// \brief The expression for the base pointer or class reference,
   /// e.g., the \c x in x.f.  This can be null if this is an 'unbased'
@@ -1775,7 +1795,7 @@ public:
     Results.addDecl(Decl);
   }
 
-  typedef UnresolvedSet::iterator decls_iterator;
+  typedef UnresolvedSetImpl::iterator decls_iterator;
   decls_iterator decls_begin() const { return Results.begin(); }
   decls_iterator decls_end() const { return Results.end(); }
 

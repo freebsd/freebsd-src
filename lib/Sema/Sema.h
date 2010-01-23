@@ -1291,6 +1291,17 @@ public:
                                  ObjCContainerDecl* IDecl,
                                  bool IncompleteImpl = false);
   
+  /// DiagnoseUnimplementedProperties - This routine warns on those properties
+  /// which must be implemented by this implementation.
+  void DiagnoseUnimplementedProperties(ObjCImplDecl* IMPDecl,
+                                       ObjCContainerDecl *CDecl,
+                                       const llvm::DenseSet<Selector>& InsMap);
+  
+  /// CollectImmediateProperties - This routine collects all properties in
+  /// the class and its conforming protocols; but not those it its super class.
+  void CollectImmediateProperties(ObjCContainerDecl *CDecl,
+                  llvm::DenseMap<IdentifierInfo *, ObjCPropertyDecl*>& PropMap);
+  
   /// AtomicPropertySetterGetterRules - This routine enforces the rule (via
   /// warning) when atomic property has one but not the other user-declared
   /// setter or getter.
@@ -1651,6 +1662,11 @@ public:
   virtual OwningExprResult ActOnCastExpr(Scope *S, SourceLocation LParenLoc,
                                          TypeTy *Ty, SourceLocation RParenLoc,
                                          ExprArg Op);
+  OwningExprResult BuildCStyleCastExpr(SourceLocation LParenLoc,
+                                       TypeSourceInfo *Ty,
+                                       SourceLocation RParenLoc,
+                                       ExprArg Op);
+
   virtual bool TypeIsVectorType(TypeTy *Ty) {
     return GetTypeFromParser(Ty)->isVectorType();
   }
@@ -1658,12 +1674,17 @@ public:
   OwningExprResult MaybeConvertParenListExprToParenExpr(Scope *S, ExprArg ME);
   OwningExprResult ActOnCastOfParenListExpr(Scope *S, SourceLocation LParenLoc,
                                             SourceLocation RParenLoc, ExprArg E,
-                                            QualType Ty);
+                                            TypeSourceInfo *TInfo);
 
   virtual OwningExprResult ActOnCompoundLiteral(SourceLocation LParenLoc,
                                                 TypeTy *Ty,
                                                 SourceLocation RParenLoc,
                                                 ExprArg Op);
+
+  OwningExprResult BuildCompoundLiteralExpr(SourceLocation LParenLoc,
+                                            TypeSourceInfo *TInfo,
+                                            SourceLocation RParenLoc,
+                                            ExprArg InitExpr);
 
   virtual OwningExprResult ActOnInitList(SourceLocation LParenLoc,
                                          MultiExprArg InitList,
@@ -1920,6 +1941,13 @@ public:
                                              ExprArg E,
                                              SourceLocation RParenLoc);
 
+  OwningExprResult BuildCXXNamedCast(SourceLocation OpLoc,
+                                     tok::TokenKind Kind,
+                                     TypeSourceInfo *Ty,
+                                     ExprArg E,
+                                     SourceRange AngleBrackets,
+                                     SourceRange Parens);
+
   /// ActOnCXXTypeid - Parse typeid( something ).
   virtual OwningExprResult ActOnCXXTypeid(SourceLocation OpLoc,
                                           SourceLocation LParenLoc, bool isType,
@@ -2033,7 +2061,6 @@ public:
   bool isDependentScopeSpecifier(const CXXScopeSpec &SS);
   CXXRecordDecl *getCurrentInstantiationOf(NestedNameSpecifier *NNS);
   bool isUnknownSpecialization(const CXXScopeSpec &SS);
-  bool isCurrentInstantiationWithDependentBases(const CXXScopeSpec &SS);
 
   /// ActOnCXXGlobalScopeSpecifier - Return the object that represents the
   /// global scope ('::').
@@ -2333,6 +2360,9 @@ public:
   const CXXBaseSpecifier *FindInaccessibleBase(QualType Derived, QualType Base,
                                                CXXBasePaths &Paths,
                                                bool NoPrivileges = false);
+
+  void CheckAccess(const LookupResult &R);
+  bool CheckAccess(const LookupResult &R, NamedDecl *D, AccessSpecifier Access);
 
   bool CheckBaseClassAccess(QualType Derived, QualType Base,
                             unsigned InaccessibleBaseID,
@@ -3153,13 +3183,17 @@ public:
     /// relevant to this particular scope).
     LocalInstantiationScope *Outer;
 
+    /// \brief Whether we have already exited this scope.
+    bool Exited;
+
     // This class is non-copyable
     LocalInstantiationScope(const LocalInstantiationScope &);
     LocalInstantiationScope &operator=(const LocalInstantiationScope &);
 
   public:
     LocalInstantiationScope(Sema &SemaRef, bool CombineWithOuterScope = false)
-      : SemaRef(SemaRef), Outer(SemaRef.CurrentInstantiationScope) {
+      : SemaRef(SemaRef), Outer(SemaRef.CurrentInstantiationScope), 
+        Exited(false) {
       if (!CombineWithOuterScope)
         SemaRef.CurrentInstantiationScope = this;
       else
@@ -3168,7 +3202,15 @@ public:
     }
 
     ~LocalInstantiationScope() {
+      if (!Exited)
+        SemaRef.CurrentInstantiationScope = Outer;
+    }
+
+    /// \brief Exit this local instantiation scope early.
+    void Exit() {
       SemaRef.CurrentInstantiationScope = Outer;
+      LocalDecls.clear();
+      Exited = true;
     }
 
     Decl *getInstantiationOf(const Decl *D) {
@@ -3215,7 +3257,16 @@ public:
   /// but have not yet been performed.
   std::deque<PendingImplicitInstantiation> PendingImplicitInstantiations;
 
-  void PerformPendingImplicitInstantiations();
+  /// \brief The queue of implicit template instantiations that are required
+  /// and must be performed within the current local scope.
+  ///
+  /// This queue is only used for member functions of local classes in
+  /// templates, which must be instantiated in the same scope as their
+  /// enclosing function, so that they can reference function-local
+  /// types, static variables, enumerators, etc.
+  std::deque<PendingImplicitInstantiation> PendingLocalImplicitInstantiations;
+
+  void PerformPendingImplicitInstantiations(bool LocalOnly = false);
 
   TypeSourceInfo *SubstType(TypeSourceInfo *T,
                             const MultiLevelTemplateArgumentList &TemplateArgs,
@@ -3300,6 +3351,7 @@ public:
                                              SourceLocation SuperLoc,
                                              const DeclPtrTy *ProtoRefs,
                                              unsigned NumProtoRefs,
+                                             const SourceLocation *ProtoLocs,
                                              SourceLocation EndProtoLoc,
                                              AttributeList *AttrList);
 
@@ -3317,6 +3369,7 @@ public:
                     SourceLocation AtProtoInterfaceLoc,
                     IdentifierInfo *ProtocolName, SourceLocation ProtocolLoc,
                     const DeclPtrTy *ProtoRefNames, unsigned NumProtoRefs,
+                    const SourceLocation *ProtoLocs,
                     SourceLocation EndProtoLoc,
                     AttributeList *AttrList);
 
@@ -3327,6 +3380,7 @@ public:
                                                 SourceLocation CategoryLoc,
                                                 const DeclPtrTy *ProtoRefs,
                                                 unsigned NumProtoRefs,
+                                                const SourceLocation *ProtoLocs,
                                                 SourceLocation EndProtoLoc);
 
   virtual DeclPtrTy ActOnStartClassImplementation(
@@ -3373,14 +3427,13 @@ public:
                                          ObjCMethodDecl *MethodDecl,
                                          bool IsInstance);
 
-  void MergeProtocolPropertiesIntoClass(Decl *CDecl,
-                                        DeclPtrTy MergeProtocols);
+  void CompareProperties(Decl *CDecl, DeclPtrTy MergeProtocols);
 
   void DiagnoseClassExtensionDupMethods(ObjCCategoryDecl *CAT,
                                         ObjCInterfaceDecl *ID);
 
-  void MergeOneProtocolPropertiesIntoClass(Decl *CDecl,
-                                           ObjCProtocolDecl *PDecl);
+  void MatchOneProtocolPropertiesInClass(Decl *CDecl,
+                                         ObjCProtocolDecl *PDecl);
 
   virtual void ActOnAtEnd(SourceRange AtEnd,
                           DeclPtrTy classDecl,

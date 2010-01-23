@@ -449,8 +449,8 @@ Sema::DeclPtrTy Sema::ActOnTypeParameter(Scope *S, bool Typename, bool Ellipsis,
     Loc = KeyLoc;
 
   TemplateTypeParmDecl *Param
-    = TemplateTypeParmDecl::Create(Context, CurContext, Loc,
-                                   Depth, Position, ParamName, Typename,
+    = TemplateTypeParmDecl::Create(Context, Context.getTranslationUnitDecl(),
+                                   Loc, Depth, Position, ParamName, Typename,
                                    Ellipsis);
   if (Invalid)
     Param->setInvalidDecl();
@@ -572,7 +572,8 @@ Sema::DeclPtrTy Sema::ActOnNonTypeTemplateParameter(Scope *S, Declarator &D,
   }
 
   NonTypeTemplateParmDecl *Param
-    = NonTypeTemplateParmDecl::Create(Context, CurContext, D.getIdentifierLoc(),
+    = NonTypeTemplateParmDecl::Create(Context, Context.getTranslationUnitDecl(),
+                                      D.getIdentifierLoc(),
                                       Depth, Position, ParamName, T, TInfo);
   if (Invalid)
     Param->setInvalidDecl();
@@ -625,8 +626,8 @@ Sema::DeclPtrTy Sema::ActOnTemplateTemplateParameter(Scope* S,
 
   // Construct the parameter object.
   TemplateTemplateParmDecl *Param =
-    TemplateTemplateParmDecl::Create(Context, CurContext, TmpLoc, Depth,
-                                     Position, Name,
+    TemplateTemplateParmDecl::Create(Context, Context.getTranslationUnitDecl(),
+                                     TmpLoc, Depth, Position, Name,
                                      (TemplateParameterList*)Params);
 
   // Make sure the parameter is valid.
@@ -1586,9 +1587,12 @@ Sema::ActOnDependentTemplateName(SourceLocation TemplateKWLoc,
                                  UnqualifiedId &Name,
                                  TypeTy *ObjectType,
                                  bool EnteringContext) {
-  if ((ObjectType &&
-       computeDeclContext(QualType::getFromOpaquePtr(ObjectType))) ||
-      (SS.isSet() && computeDeclContext(SS, EnteringContext))) {
+  DeclContext *LookupCtx = 0;
+  if (SS.isSet())
+    LookupCtx = computeDeclContext(SS, EnteringContext);
+  if (!LookupCtx && ObjectType)
+    LookupCtx = computeDeclContext(QualType::getFromOpaquePtr(ObjectType));
+  if (LookupCtx) {
     // C++0x [temp.names]p5:
     //   If a name prefixed by the keyword template is not the name of
     //   a template, the program is ill-formed. [Note: the keyword
@@ -1608,8 +1612,9 @@ Sema::ActOnDependentTemplateName(SourceLocation TemplateKWLoc,
     TemplateTy Template;
     TemplateNameKind TNK = isTemplateName(0, SS, Name, ObjectType,
                                           EnteringContext, Template);
-    if (TNK == TNK_Non_template && 
-        isCurrentInstantiationWithDependentBases(SS)) {
+    if (TNK == TNK_Non_template && LookupCtx->isDependentContext() &&
+        isa<CXXRecordDecl>(LookupCtx) &&
+        cast<CXXRecordDecl>(LookupCtx)->hasAnyDependentBases()) {
       // This is a dependent template.
     } else if (TNK == TNK_Non_template) {
       Diag(Name.getSourceRange().getBegin(), 

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -faccess-control -verify %s
+// RUN: %clang_cc1 -fsyntax-only -faccess-control -verify %s -std=c++0x
 namespace T1 {
 
 class A {
@@ -197,3 +197,59 @@ namespace PR5920 {
     virtual Derived<int>* Method();
   };
 }
+
+// Look through template types and typedefs to see whether return types are
+// pointers or references.
+namespace PR6110 {
+  class Base {};
+  class Derived : public Base {};
+
+  typedef Base* BaseP;
+  typedef Derived* DerivedP;
+
+  class X { virtual BaseP f(); };
+  class X1 : public X { virtual DerivedP f(); };
+
+  template <typename T> class Y { virtual T f(); };
+  template <typename T1, typename T> class Y1 : public Y<T> { virtual T1 f(); };
+  Y1<Derived*, Base*> y;
+}
+
+namespace T10 {
+  struct A { };
+  struct B : A { };
+
+  struct C { 
+    virtual A&& f();
+  };
+
+  struct D : C {
+    virtual B&& f();
+  };
+};
+
+namespace T11 {
+  struct A { };
+  struct B : A { };
+
+  struct C { 
+    virtual A& f(); // expected-note {{overridden virtual function is here}}
+  };
+
+  struct D : C {
+    virtual B&& f(); // expected-error {{virtual function 'f' has a different return type ('struct T11::B &&') than the function it overrides (which has return type 'struct T11::A &')}}
+  };
+};
+
+namespace T12 {
+  struct A { };
+  struct B : A { };
+
+  struct C { 
+    virtual A&& f(); // expected-note {{overridden virtual function is here}}
+  };
+
+  struct D : C {
+    virtual B& f(); // expected-error {{virtual function 'f' has a different return type ('struct T12::B &') than the function it overrides (which has return type 'struct T12::A &&')}}
+  };
+};

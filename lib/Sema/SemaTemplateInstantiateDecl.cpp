@@ -150,6 +150,7 @@ Decl *TemplateDeclInstantiator::VisitTypedefDecl(TypedefDecl *D) {
     Typedef->setPreviousDeclaration(cast<TypedefDecl>(InstPrev));
   }
 
+  Typedef->setAccess(D->getAccess());
   Owner->addDecl(Typedef);
 
   return Typedef;
@@ -207,6 +208,8 @@ Decl *TemplateDeclInstantiator::VisitVarDecl(VarDecl *D) {
   // context (which will be a namespace scope) as the template.
   if (D->isOutOfLine())
     Var->setLexicalDeclContext(D->getLexicalDeclContext());
+
+  Var->setAccess(D->getAccess());
 
   // FIXME: In theory, we could have a previous declaration for variables that
   // are not static data members.
@@ -375,6 +378,7 @@ Decl *TemplateDeclInstantiator::VisitFieldDecl(FieldDecl *D) {
   }
 
   Field->setImplicit(D->isImplicit());
+  Field->setAccess(D->getAccess());
   Owner->addDecl(Field);
 
   return Field;
@@ -559,6 +563,7 @@ Decl *TemplateDeclInstantiator::VisitClassTemplateDecl(ClassTemplateDecl *D) {
     return Inst;
   }
   
+  Inst->setAccess(D->getAccess());
   Owner->addDecl(Inst);
   
   // First, we sort the partial specializations by location, so 
@@ -633,6 +638,8 @@ TemplateDeclInstantiator::VisitFunctionTemplateDecl(FunctionTemplateDecl *D) {
   
   if (!Instantiated)
     return 0;
+
+  Instantiated->setAccess(D->getAccess());
 
   // Link the instantiated function template declaration to the function
   // template from which it was instantiated.
@@ -717,7 +724,10 @@ Decl *TemplateDeclInstantiator::VisitFunctionDecl(FunctionDecl *D,
       return Info->Function;
   }
 
-  Sema::LocalInstantiationScope Scope(SemaRef, TemplateParams != 0);
+  bool MergeWithParentScope = (TemplateParams != 0) ||
+    !(isa<Decl>(Owner) && 
+      cast<Decl>(Owner)->isDefinedOutsideFunctionOrMethod());
+  Sema::LocalInstantiationScope Scope(SemaRef, MergeWithParentScope);
 
   llvm::SmallVector<ParmVarDecl *, 4> Params;
   QualType T = SubstFunctionType(D, Params);
@@ -844,7 +854,10 @@ TemplateDeclInstantiator::VisitCXXMethodDecl(CXXMethodDecl *D,
       return Info->Function;
   }
 
-  Sema::LocalInstantiationScope Scope(SemaRef, TemplateParams != 0);
+  bool MergeWithParentScope = (TemplateParams != 0) ||
+    !(isa<Decl>(Owner) && 
+      cast<Decl>(Owner)->isDefinedOutsideFunctionOrMethod());
+  Sema::LocalInstantiationScope Scope(SemaRef, MergeWithParentScope);
 
   llvm::SmallVector<ParmVarDecl *, 4> Params;
   QualType T = SubstFunctionType(D, Params);
@@ -958,6 +971,8 @@ TemplateDeclInstantiator::VisitCXXMethodDecl(CXXMethodDecl *D,
   if (D->isPure())
     SemaRef.CheckPureMethod(Method, SourceRange());
 
+  Method->setAccess(D->getAccess());
+
   if (!FunctionTemplate && (!Method->isInvalidDecl() || Previous.empty()) &&
       !Method->getFriendObjectKind())
     Owner->addDecl(Method);
@@ -997,7 +1012,9 @@ ParmVarDecl *TemplateDeclInstantiator::VisitParmVarDecl(ParmVarDecl *D) {
 
   // Allocate the parameter
   ParmVarDecl *Param
-    = ParmVarDecl::Create(SemaRef.Context, Owner, D->getLocation(),
+    = ParmVarDecl::Create(SemaRef.Context,
+                          SemaRef.Context.getTranslationUnitDecl(),
+                          D->getLocation(),
                           D->getIdentifier(), T, DI, D->getStorageClass(), 0);
 
   // Mark the default argument as being uninstantiated.
@@ -1542,7 +1559,8 @@ TemplateDeclInstantiator::InitFunctionInstantiation(FunctionDecl *New,
                                                  Proto->hasAnyExceptionSpec(),
                                                  Exceptions.size(),
                                                  Exceptions.data(),
-                                                 Proto->getNoReturnAttr()));
+                                                 Proto->getNoReturnAttr(),
+                                                 Proto->getCallConv()));
   }
 
   return false;
@@ -1647,8 +1665,14 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
   ActOnStartOfFunctionDef(0, DeclPtrTy::make(Function));
 
   // Introduce a new scope where local variable instantiations will be
-  // recorded.
-  LocalInstantiationScope Scope(*this);
+  // recorded, unless we're actually a member function within a local
+  // class, in which case we need to merge our results with the parent
+  // scope (of the enclosing function).
+  bool MergeWithParentScope = false;
+  if (CXXRecordDecl *Rec = dyn_cast<CXXRecordDecl>(Function->getDeclContext()))
+    MergeWithParentScope = Rec->isLocalClass();
+
+  LocalInstantiationScope Scope(*this, MergeWithParentScope);
 
   // Introduce the instantiated function parameters into the local
   // instantiation scope.
@@ -1684,6 +1708,11 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
 
   DeclGroupRef DG(Function);
   Consumer.HandleTopLevelDecl(DG);
+
+  // This class may have local implicit instantiations that need to be
+  // instantiation within this scope.
+  PerformPendingImplicitInstantiations(/*LocalOnly=*/true);
+  Scope.Exit();
 
   if (Recursive) {
     // Instantiate any pending implicit instantiations found during the
@@ -2217,10 +2246,18 @@ NamedDecl *Sema::FindInstantiatedDecl(NamedDecl *D,
 
 /// \brief Performs template instantiation for all implicit template
 /// instantiations we have seen until this point.
-void Sema::PerformPendingImplicitInstantiations() {
-  while (!PendingImplicitInstantiations.empty()) {
-    PendingImplicitInstantiation Inst = PendingImplicitInstantiations.front();
-    PendingImplicitInstantiations.pop_front();
+void Sema::PerformPendingImplicitInstantiations(bool LocalOnly) {
+  while (!PendingLocalImplicitInstantiations.empty() ||
+         (!LocalOnly && !PendingImplicitInstantiations.empty())) {
+    PendingImplicitInstantiation Inst;
+
+    if (PendingLocalImplicitInstantiations.empty()) {
+      Inst = PendingImplicitInstantiations.front();
+      PendingImplicitInstantiations.pop_front();
+    } else {
+      Inst = PendingLocalImplicitInstantiations.front();
+      PendingLocalImplicitInstantiations.pop_front();
+    }
 
     // Instantiate function definitions
     if (FunctionDecl *Function = dyn_cast<FunctionDecl>(Inst.first)) {

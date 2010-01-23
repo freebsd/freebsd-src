@@ -145,7 +145,11 @@ bool CXXRecordDecl::lookupInBases(BaseMatchesCallback *BaseMatches,
                                   void *UserData,
                                   CXXBasePaths &Paths) const {
   bool FoundPath = false;
-  
+
+  // The access of the path down to this record.
+  AccessSpecifier AccessToHere = Paths.ScratchPath.Access;
+  bool IsFirstStep = Paths.ScratchPath.empty();
+
   ASTContext &Context = getASTContext();
   for (base_class_const_iterator BaseSpec = bases_begin(),
          BaseSpecEnd = bases_end(); BaseSpec != BaseSpecEnd; ++BaseSpec) {
@@ -189,10 +193,31 @@ bool CXXRecordDecl::lookupInBases(BaseMatchesCallback *BaseMatches,
       else
         Element.SubobjectNumber = Subobjects.second;
       Paths.ScratchPath.push_back(Element);
+
+      // Calculate the "top-down" access to this base class.
+      // The spec actually describes this bottom-up, but top-down is
+      // equivalent because the definition works out as follows:
+      // 1. Write down the access along each step in the inheritance
+      //    chain, followed by the access of the decl itself.
+      //    For example, in
+      //      class A { public: int foo; };
+      //      class B : protected A {};
+      //      class C : public B {};
+      //      class D : private C {};
+      //    we would write:
+      //      private public protected public
+      // 2. If 'private' appears anywhere except far-left, access is denied.
+      // 3. Otherwise, overall access is determined by the most restrictive
+      //    access in the sequence.
+      if (IsFirstStep)
+        Paths.ScratchPath.Access = BaseSpec->getAccessSpecifier();
+      else
+        Paths.ScratchPath.Access
+          = MergeAccess(AccessToHere, BaseSpec->getAccessSpecifier());
     }
         
     if (BaseMatches(BaseSpec, Paths.ScratchPath, UserData)) {
-      // We've found a path that terminates that this base.
+      // We've found a path that terminates at this base.
       FoundPath = true;
       if (Paths.isRecordingPaths()) {
         // We have a path. Make a copy of it before moving on.
@@ -223,13 +248,18 @@ bool CXXRecordDecl::lookupInBases(BaseMatchesCallback *BaseMatches,
     
     // Pop this base specifier off the current path (if we're
     // collecting paths).
-    if (Paths.isRecordingPaths())
+    if (Paths.isRecordingPaths()) {
       Paths.ScratchPath.pop_back();
+    }
+
     // If we set a virtual earlier, and this isn't a path, forget it again.
     if (SetVirtual && !FoundPath) {
       Paths.DetectedVirtual = 0;
     }
   }
+
+  // Reset the scratch path access.
+  Paths.ScratchPath.Access = AccessToHere;
   
   return FoundPath;
 }

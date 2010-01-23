@@ -116,11 +116,26 @@ Sema::ActOnCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
                         SourceLocation RAngleBracketLoc,
                         SourceLocation LParenLoc, ExprArg E,
                         SourceLocation RParenLoc) {
+  
+  TypeSourceInfo *DestTInfo;
+  QualType DestType = GetTypeFromParser(Ty, &DestTInfo);
+  if (!DestTInfo)
+    DestTInfo = Context.getTrivialTypeSourceInfo(DestType, SourceLocation());
+
+  return BuildCXXNamedCast(OpLoc, Kind, DestTInfo, move(E),
+                           SourceRange(LAngleBracketLoc, RAngleBracketLoc),
+                           SourceRange(LParenLoc, RParenLoc));
+}
+
+Action::OwningExprResult
+Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
+                        TypeSourceInfo *DestTInfo, ExprArg E,
+                        SourceRange AngleBrackets, SourceRange Parens) {
   Expr *Ex = E.takeAs<Expr>();
-  // FIXME: Preserve type source info.
-  QualType DestType = GetTypeFromParser(Ty);
-  SourceRange OpRange(OpLoc, RParenLoc);
-  SourceRange DestRange(LAngleBracketLoc, RAngleBracketLoc);
+  QualType DestType = DestTInfo->getType();
+
+  SourceRange OpRange(OpLoc, Parens.getEnd());
+  SourceRange DestRange = AngleBrackets;
 
   // If the type is dependent, we won't do the semantic analysis now.
   // FIXME: should we check this in a more fine-grained manner?
@@ -133,14 +148,14 @@ Sema::ActOnCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     if (!TypeDependent)
       CheckConstCast(*this, Ex, DestType, OpRange, DestRange);
     return Owned(new (Context) CXXConstCastExpr(DestType.getNonReferenceType(),
-                                                Ex, DestType, OpLoc));
+                                                Ex, DestTInfo, OpLoc));
 
   case tok::kw_dynamic_cast: {
     CastExpr::CastKind Kind = CastExpr::CK_Unknown;
     if (!TypeDependent)
       CheckDynamicCast(*this, Ex, DestType, OpRange, DestRange, Kind);
     return Owned(new (Context)CXXDynamicCastExpr(DestType.getNonReferenceType(),
-                                                 Kind, Ex, DestType, OpLoc));
+                                                 Kind, Ex, DestTInfo, OpLoc));
   }
   case tok::kw_reinterpret_cast: {
     CastExpr::CastKind Kind = CastExpr::CK_Unknown;
@@ -148,7 +163,7 @@ Sema::ActOnCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
       CheckReinterpretCast(*this, Ex, DestType, OpRange, DestRange, Kind);
     return Owned(new (Context) CXXReinterpretCastExpr(
                                   DestType.getNonReferenceType(),
-                                  Kind, Ex, DestType, OpLoc));
+                                  Kind, Ex, DestTInfo, OpLoc));
   }
   case tok::kw_static_cast: {
     CastExpr::CastKind Kind = CastExpr::CK_Unknown;
@@ -169,7 +184,7 @@ Sema::ActOnCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     }
     
     return Owned(new (Context) CXXStaticCastExpr(DestType.getNonReferenceType(),
-                                                 Kind, Ex, DestType, OpLoc));
+                                                 Kind, Ex, DestTInfo, OpLoc));
   }
   }
 

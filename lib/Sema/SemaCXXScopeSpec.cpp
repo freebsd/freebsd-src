@@ -30,9 +30,9 @@ getCurrentInstantiationOf(ASTContext &Context, DeclContext *CurContext,
   if (T.isNull())
     return 0;
   
-  T = Context.getCanonicalType(T);
+  T = Context.getCanonicalType(T).getUnqualifiedType();
   
-  for (DeclContext *Ctx = CurContext; Ctx; Ctx = Ctx->getParent()) {
+  for (DeclContext *Ctx = CurContext; Ctx; Ctx = Ctx->getLookupParent()) {
     // If we've hit a namespace or the global scope, then the
     // nested-name-specifier can't refer to the current instantiation.
     if (Ctx->isFileContext())
@@ -208,28 +208,6 @@ bool Sema::isUnknownSpecialization(const CXXScopeSpec &SS) {
   NestedNameSpecifier *NNS
     = static_cast<NestedNameSpecifier *>(SS.getScopeRep());
   return getCurrentInstantiationOf(NNS) == 0;
-}
-
-/// \brief Determine whether the given scope specifier refers to a
-/// current instantiation that has any dependent base clases.
-///
-/// This check is typically used when we've performed lookup into the
-/// current instantiation of a template, but that lookup failed. When
-/// there are dependent bases present, however, the lookup needs to be
-/// delayed until template instantiation time.
-bool Sema::isCurrentInstantiationWithDependentBases(const CXXScopeSpec &SS) {
-  if (!SS.isSet())
-    return false;
-
-  NestedNameSpecifier *NNS = (NestedNameSpecifier*)SS.getScopeRep();
-  if (!NNS->isDependent())
-    return false;
-
-  CXXRecordDecl *CurrentInstantiation = getCurrentInstantiationOf(NNS);
-  if (!CurrentInstantiation)
-    return false;
-
-  return CurrentInstantiation->hasAnyDependentBases();
 }
 
 /// \brief If the given nested name specifier refers to the current

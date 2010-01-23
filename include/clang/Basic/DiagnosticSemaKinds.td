@@ -412,6 +412,15 @@ def err_class_redeclared_with_different_access : Error<
   "%0 redeclared with '%1' access">;
 def note_previous_access_declaration : Note<
   "previously declared '%1' here">;
+def err_access_outside_class : Error<
+  "access to %select{private|protected}0 member outside any class context">;
+def note_access_natural : Note<"declared %select{private|protected}0 here">;
+def note_access_constrained_by_path : Note<
+  "access to decl constrained by %select{private|protected}0 inheritance">;
+def err_access_protected : Error<
+  "access to protected member of %0 from %1, which is not a subclass">;
+def err_access_private : Error<
+  "access to private member of %0 from %1">;
   
 // C++ name lookup
 def err_incomplete_nested_name_spec : Error<
@@ -537,8 +546,9 @@ def err_destructor_name : Error<
 // C++ initialization
 def err_init_conversion_failed : Error<
   "cannot initialize %select{a variable|a parameter|return object|an "
-  "exception object|a value|a base class|a member subobject|an array element}0"
-  " of type %1 with an %select{rvalue|lvalue}2 of type %3">;
+  "exception object|a member subobject|an array element|a new value|a value|a "
+  "base class|an array element}0 of type %1 with an %select{rvalue|lvalue}2 of "
+  "type %3">;
 
 def err_lvalue_to_rvalue_ref : Error<"rvalue reference cannot bind to lvalue">;
 def err_invalid_initialization : Error<
@@ -913,10 +923,24 @@ def note_ovl_candidate_arity : Note<"candidate "
     "function (the implicit copy assignment operator)}0 not viable: requires"
     "%select{ at least| at most|}2 %3 argument%s3, but %4 %plural{1:was|:were}4 "
     "provided">;
+
 def note_ovl_candidate_deleted : Note<
   "candidate %select{function|function|constructor|"
   "function |function |constructor |||}0%1 "
   "has been explicitly %select{made unavailable|deleted}2">;
+
+// Giving the index of the bad argument really clutters this message, and
+// it's relatively unimportant because 1) it's generally obvious which
+// argument(s) are of the given object type and 2) the fix is usually
+// to complete the type, which doesn't involve changes to the call line
+// anyway.  If people complain, we can change it.
+def note_ovl_candidate_bad_conv_incomplete : Note<"candidate "
+    "%select{function|function|constructor|"
+    "function |function |constructor |"
+    "constructor (the implicit default constructor)|"
+    "constructor (the implicit copy constructor)|"
+    "function (the implicit copy assignment operator)}0%1 "
+    "not viable: cannot convert argument of incomplete type %2 to %3">;
 def note_ovl_candidate_bad_conv : Note<"candidate "
     "%select{function|function|constructor|"
     "function |function |constructor |"
@@ -1840,6 +1864,9 @@ def err_illegal_super_cast : Error<
 def warn_setter_getter_impl_required : Warning<
   "property %0 requires method %1 to be defined - "
   "use @synthesize, @dynamic or provide a method implementation">;
+def warn_setter_getter_impl_required_in_category : Warning<
+  "property %0 requires method %1 to be defined - "
+  "use @dynamic or provide a method implementation in category">;
 def note_property_impl_required : Note<
   "implementation is here">;
 
@@ -2458,8 +2485,6 @@ def warn_stringcompare : Warning<
 def err_blocks_disable : Error<"blocks support disabled - compile with -fblocks"
   " or pick a deployment target that supports them">;
 def err_expected_block_lbrace : Error<"expected '{' in block literal">;
-def err_goto_in_block : Error<
-  "goto not allowed in block literal">;
 def err_return_in_block_expression : Error<
   "return not allowed in block expression literal">;
 def err_block_returns_array : Error<

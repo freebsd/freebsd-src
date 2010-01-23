@@ -18,13 +18,10 @@
 #include "clang/AST/APValue.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
-#include "clang/Analysis/CFG.h"
 #include "clang/AST/CXXInheritance.h"
-#include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtCXX.h"
-#include "clang/AST/StmtObjC.h"
 #include "clang/Parse/DeclSpec.h"
 #include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Parse/Template.h"
@@ -34,13 +31,10 @@
 // FIXME: layering (ideally, Sema shouldn't be dependent on Lex API's)
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/HeaderSearch.h"
-#include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Triple.h"
 #include <algorithm>
 #include <cstring>
 #include <functional>
-#include <queue>
 using namespace clang;
 
 /// getDeclName - Return a pretty name for the specified decl if possible, or
@@ -1305,382 +1299,9 @@ void Sema::MergeVarDecl(VarDecl *New, LookupResult &Previous) {
 
   // Keep a chain of previous declarations.
   New->setPreviousDeclaration(Old);
-}
 
-static void MarkLive(CFGBlock *e, llvm::BitVector &live) {
-  std::queue<CFGBlock*> workq;
-  // Prep work queue
-  workq.push(e);
-  // Solve
-  while (!workq.empty()) {
-    CFGBlock *item = workq.front();
-    workq.pop();
-    live.set(item->getBlockID());
-    for (CFGBlock::succ_iterator I=item->succ_begin(),
-           E=item->succ_end();
-         I != E;
-         ++I) {
-      if ((*I) && !live[(*I)->getBlockID()]) {
-        live.set((*I)->getBlockID());
-        workq.push(*I);
-      }
-    }
-  }
-}
-
-static SourceLocation MarkLiveTop(CFGBlock *e, llvm::BitVector &live,
-                               SourceManager &SM) {
-  std::queue<CFGBlock*> workq;
-  // Prep work queue
-  workq.push(e);
-  SourceLocation top;
-  if (!e->empty())
-    top = e[0][0].getStmt()->getLocStart();
-  bool FromMainFile = false;
-  bool FromSystemHeader = false;
-  bool TopValid = false;
-  if (top.isValid()) {
-    FromMainFile = SM.isFromMainFile(top);
-    FromSystemHeader = SM.isInSystemHeader(top);
-    TopValid = true;
-  }
-  // Solve
-  while (!workq.empty()) {
-    CFGBlock *item = workq.front();
-    workq.pop();
-    SourceLocation c;
-    if (!item->empty())
-      c = item[0][0].getStmt()->getLocStart();
-    else if (item->getTerminator())
-      c = item->getTerminator()->getLocStart();
-    if (c.isValid()
-        && (!TopValid
-            || (SM.isFromMainFile(c) && !FromMainFile)
-            || (FromSystemHeader && !SM.isInSystemHeader(c))
-            || SM.isBeforeInTranslationUnit(c, top))) {
-      top = c;
-      FromMainFile = SM.isFromMainFile(top);
-      FromSystemHeader = SM.isInSystemHeader(top);
-    }
-    live.set(item->getBlockID());
-    for (CFGBlock::succ_iterator I=item->succ_begin(),
-           E=item->succ_end();
-         I != E;
-         ++I) {
-      if ((*I) && !live[(*I)->getBlockID()]) {
-        live.set((*I)->getBlockID());
-        workq.push(*I);
-      }
-    }
-  }
-  return top;
-}
-
-namespace {
-class LineCmp {
-  SourceManager &SM;
-public:
-  LineCmp(SourceManager &sm) : SM(sm) {
-  }
-  bool operator () (SourceLocation l1, SourceLocation l2) {
-    return l1 < l2;
-  }
-};
-}
-
-/// CheckUnreachable - Check for unreachable code.
-void Sema::CheckUnreachable(AnalysisContext &AC) {
-  // We avoid checking when there are errors, as the CFG won't faithfully match
-  // the user's code.
-  if (getDiagnostics().hasErrorOccurred())
-    return;
-  if (Diags.getDiagnosticLevel(diag::warn_unreachable) == Diagnostic::Ignored)
-    return;
-
-  CFG *cfg = AC.getCFG();
-  if (cfg == 0)
-    return;
-  
-  llvm::BitVector live(cfg->getNumBlockIDs());
-  // Mark all live things first.
-  MarkLive(&cfg->getEntry(), live);
-
-  llvm::SmallVector<SourceLocation, 24> lines;
-  // First, give warnings for blocks with no predecessors, as they
-  // can't be part of a loop.
-  for (CFG::iterator I = cfg->begin(), E = cfg->end(); I != E; ++I) {
-    CFGBlock &b = **I;
-    if (!live[b.getBlockID()]) {
-      if (b.pred_begin() == b.pred_end()) {
-        if (!b.empty())
-          lines.push_back(b[0].getStmt()->getLocStart());
-        else if (b.getTerminator())
-          lines.push_back(b.getTerminator()->getLocStart());
-        // Avoid excessive errors by marking everything reachable from here
-        MarkLive(&b, live);
-      }
-    }
-  }
-
-  // And then give warnings for the tops of loops.
-  for (CFG::iterator I = cfg->begin(), E = cfg->end(); I != E; ++I) {
-    CFGBlock &b = **I;
-    if (!live[b.getBlockID()])
-      // Avoid excessive errors by marking everything reachable from here
-      lines.push_back(MarkLiveTop(&b, live, Context.getSourceManager()));
-  }
-
-  std::sort(lines.begin(), lines.end(), LineCmp(Context.getSourceManager()));
-  for (llvm::SmallVector<SourceLocation, 24>::iterator I = lines.begin(),
-         E = lines.end();
-       I != E;
-       ++I)
-    if (I->isValid())
-      Diag(*I, diag::warn_unreachable);
-}
-
-/// CheckFallThrough - Check that we don't fall off the end of a
-/// Statement that should return a value.
-///
-/// \returns AlwaysFallThrough iff we always fall off the end of the statement,
-/// MaybeFallThrough iff we might or might not fall off the end,
-/// NeverFallThroughOrReturn iff we never fall off the end of the statement or
-/// return.  We assume NeverFallThrough iff we never fall off the end of the
-/// statement but we may return.  We assume that functions not marked noreturn
-/// will return.
-Sema::ControlFlowKind Sema::CheckFallThrough(AnalysisContext &AC) {
-  CFG *cfg = AC.getCFG();
-  if (cfg == 0)
-    // FIXME: This should be NeverFallThrough
-    return NeverFallThroughOrReturn;
-
-  // The CFG leaves in dead things, and we don't want to dead code paths to
-  // confuse us, so we mark all live things first.
-  std::queue<CFGBlock*> workq;
-  llvm::BitVector live(cfg->getNumBlockIDs());
-  MarkLive(&cfg->getEntry(), live);
-
-  // Now we know what is live, we check the live precessors of the exit block
-  // and look for fall through paths, being careful to ignore normal returns,
-  // and exceptional paths.
-  bool HasLiveReturn = false;
-  bool HasFakeEdge = false;
-  bool HasPlainEdge = false;
-  for (CFGBlock::pred_iterator I=cfg->getExit().pred_begin(),
-         E = cfg->getExit().pred_end();
-       I != E;
-       ++I) {
-    CFGBlock& B = **I;
-    if (!live[B.getBlockID()])
-      continue;
-    if (B.size() == 0) {
-      // A labeled empty statement, or the entry block...
-      HasPlainEdge = true;
-      continue;
-    }
-    Stmt *S = B[B.size()-1];
-    if (isa<ReturnStmt>(S)) {
-      HasLiveReturn = true;
-      continue;
-    }
-    if (isa<ObjCAtThrowStmt>(S)) {
-      HasFakeEdge = true;
-      continue;
-    }
-    if (isa<CXXThrowExpr>(S)) {
-      HasFakeEdge = true;
-      continue;
-    }
-    if (const AsmStmt *AS = dyn_cast<AsmStmt>(S)) {
-      if (AS->isMSAsm()) {
-        HasFakeEdge = true;
-        HasLiveReturn = true;
-        continue;
-      }
-    }
-
-    bool NoReturnEdge = false;
-    if (CallExpr *C = dyn_cast<CallExpr>(S)) {
-      Expr *CEE = C->getCallee()->IgnoreParenCasts();
-      if (CEE->getType().getNoReturnAttr()) {
-        NoReturnEdge = true;
-        HasFakeEdge = true;
-      } else if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CEE)) {
-        ValueDecl *VD = DRE->getDecl();
-        if (VD->hasAttr<NoReturnAttr>()) {
-          NoReturnEdge = true;
-          HasFakeEdge = true;
-        }
-      }
-    }
-    // FIXME: Add noreturn message sends.
-    if (NoReturnEdge == false)
-      HasPlainEdge = true;
-  }
-  if (!HasPlainEdge) {
-    if (HasLiveReturn)
-      return NeverFallThrough;
-    return NeverFallThroughOrReturn;
-  }
-  if (HasFakeEdge || HasLiveReturn)
-    return MaybeFallThrough;
-  // This says AlwaysFallThrough for calls to functions that are not marked
-  // noreturn, that don't return.  If people would like this warning to be more
-  // accurate, such functions should be marked as noreturn.
-  return AlwaysFallThrough;
-}
-
-/// CheckFallThroughForFunctionDef - Check that we don't fall off the end of a
-/// function that should return a value.  Check that we don't fall off the end
-/// of a noreturn function.  We assume that functions and blocks not marked
-/// noreturn will return.
-void Sema::CheckFallThroughForFunctionDef(Decl *D, Stmt *Body,
-                                          AnalysisContext &AC) {
-  // FIXME: Would be nice if we had a better way to control cascading errors,
-  // but for now, avoid them.  The problem is that when Parse sees:
-  //   int foo() { return a; }
-  // The return is eaten and the Sema code sees just:
-  //   int foo() { }
-  // which this code would then warn about.
-  if (getDiagnostics().hasErrorOccurred())
-    return;
-  
-  bool ReturnsVoid = false;
-  bool HasNoReturn = false;
-  if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
-    // If the result type of the function is a dependent type, we don't know
-    // whether it will be void or not, so don't 
-    if (FD->getResultType()->isDependentType())
-      return;
-    if (FD->getResultType()->isVoidType())
-      ReturnsVoid = true;
-    if (FD->hasAttr<NoReturnAttr>())
-      HasNoReturn = true;
-  } else if (ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
-    if (MD->getResultType()->isVoidType())
-      ReturnsVoid = true;
-    if (MD->hasAttr<NoReturnAttr>())
-      HasNoReturn = true;
-  }
-
-  // Short circuit for compilation speed.
-  if ((Diags.getDiagnosticLevel(diag::warn_maybe_falloff_nonvoid_function)
-       == Diagnostic::Ignored || ReturnsVoid)
-      && (Diags.getDiagnosticLevel(diag::warn_noreturn_function_has_return_expr)
-          == Diagnostic::Ignored || !HasNoReturn)
-      && (Diags.getDiagnosticLevel(diag::warn_suggest_noreturn_block)
-          == Diagnostic::Ignored || !ReturnsVoid))
-    return;
-  // FIXME: Function try block
-  if (CompoundStmt *Compound = dyn_cast<CompoundStmt>(Body)) {
-    switch (CheckFallThrough(AC)) {
-    case MaybeFallThrough:
-      if (HasNoReturn)
-        Diag(Compound->getRBracLoc(), diag::warn_falloff_noreturn_function);
-      else if (!ReturnsVoid)
-        Diag(Compound->getRBracLoc(),diag::warn_maybe_falloff_nonvoid_function);
-      break;
-    case AlwaysFallThrough:
-      if (HasNoReturn)
-        Diag(Compound->getRBracLoc(), diag::warn_falloff_noreturn_function);
-      else if (!ReturnsVoid)
-        Diag(Compound->getRBracLoc(), diag::warn_falloff_nonvoid_function);
-      break;
-    case NeverFallThroughOrReturn:
-      if (ReturnsVoid && !HasNoReturn)
-        Diag(Compound->getLBracLoc(), diag::warn_suggest_noreturn_function);
-      break;
-    case NeverFallThrough:
-      break;
-    }
-  }
-}
-
-/// CheckFallThroughForBlock - Check that we don't fall off the end of a block
-/// that should return a value.  Check that we don't fall off the end of a
-/// noreturn block.  We assume that functions and blocks not marked noreturn
-/// will return.
-void Sema::CheckFallThroughForBlock(QualType BlockTy, Stmt *Body,
-                                    AnalysisContext &AC) {
-  // FIXME: Would be nice if we had a better way to control cascading errors,
-  // but for now, avoid them.  The problem is that when Parse sees:
-  //   int foo() { return a; }
-  // The return is eaten and the Sema code sees just:
-  //   int foo() { }
-  // which this code would then warn about.
-  if (getDiagnostics().hasErrorOccurred())
-    return;
-  bool ReturnsVoid = false;
-  bool HasNoReturn = false;
-  if (const FunctionType *FT =BlockTy->getPointeeType()->getAs<FunctionType>()){
-    if (FT->getResultType()->isVoidType())
-      ReturnsVoid = true;
-    if (FT->getNoReturnAttr())
-      HasNoReturn = true;
-  }
-
-  // Short circuit for compilation speed.
-  if (ReturnsVoid
-      && !HasNoReturn
-      && (Diags.getDiagnosticLevel(diag::warn_suggest_noreturn_block)
-          == Diagnostic::Ignored || !ReturnsVoid))
-    return;
-  // FIXME: Funtion try block
-  if (CompoundStmt *Compound = dyn_cast<CompoundStmt>(Body)) {
-    switch (CheckFallThrough(AC)) {
-    case MaybeFallThrough:
-      if (HasNoReturn)
-        Diag(Compound->getRBracLoc(), diag::err_noreturn_block_has_return_expr);
-      else if (!ReturnsVoid)
-        Diag(Compound->getRBracLoc(), diag::err_maybe_falloff_nonvoid_block);
-      break;
-    case AlwaysFallThrough:
-      if (HasNoReturn)
-        Diag(Compound->getRBracLoc(), diag::err_noreturn_block_has_return_expr);
-      else if (!ReturnsVoid)
-        Diag(Compound->getRBracLoc(), diag::err_falloff_nonvoid_block);
-      break;
-    case NeverFallThroughOrReturn:
-      if (ReturnsVoid)
-        Diag(Compound->getLBracLoc(), diag::warn_suggest_noreturn_block);
-      break;
-    case NeverFallThrough:
-      break;
-    }
-  }
-}
-
-/// CheckParmsForFunctionDef - Check that the parameters of the given
-/// function are appropriate for the definition of a function. This
-/// takes care of any checks that cannot be performed on the
-/// declaration itself, e.g., that the types of each of the function
-/// parameters are complete.
-bool Sema::CheckParmsForFunctionDef(FunctionDecl *FD) {
-  bool HasInvalidParm = false;
-  for (unsigned p = 0, NumParams = FD->getNumParams(); p < NumParams; ++p) {
-    ParmVarDecl *Param = FD->getParamDecl(p);
-
-    // C99 6.7.5.3p4: the parameters in a parameter type list in a
-    // function declarator that is part of a function definition of
-    // that function shall not have incomplete type.
-    //
-    // This is also C++ [dcl.fct]p6.
-    if (!Param->isInvalidDecl() &&
-        RequireCompleteType(Param->getLocation(), Param->getType(),
-                               diag::err_typecheck_decl_incomplete_type)) {
-      Param->setInvalidDecl();
-      HasInvalidParm = true;
-    }
-
-    // C99 6.9.1p5: If the declarator includes a parameter type list, the
-    // declaration of each parameter shall include an identifier.
-    if (Param->getIdentifier() == 0 &&
-        !Param->isImplicit() &&
-        !getLangOptions().CPlusPlus)
-      Diag(Param->getLocation(), diag::err_parameter_name_omitted);
-  }
-
-  return HasInvalidParm;
+  // Inherit access appropriately.
+  New->setAccess(Old->getAccess());
 }
 
 /// ParsedFreeStandingDeclSpec - This method is invoked when a declspec with
@@ -1773,6 +1394,7 @@ Sema::DeclPtrTy Sema::ParsedFreeStandingDeclSpec(Scope *S, DeclSpec &DS) {
 /// \return true if this is a forbidden redeclaration
 static bool CheckAnonMemberRedeclaration(Sema &SemaRef,
                                          Scope *S,
+                                         DeclContext *Owner,
                                          DeclarationName Name,
                                          SourceLocation NameLoc,
                                          unsigned diagnostic) {
@@ -1785,6 +1407,11 @@ static bool CheckAnonMemberRedeclaration(Sema &SemaRef,
 
   // Pick a representative declaration.
   NamedDecl *PrevDecl = R.getRepresentativeDecl()->getUnderlyingDecl();
+  if (PrevDecl && Owner->isRecord()) {
+    RecordDecl *Record = cast<RecordDecl>(Owner);
+    if (!SemaRef.isDeclInScope(PrevDecl, Record, S))
+      return false;
+  }
 
   SemaRef.Diag(NameLoc, diagnostic) << Name;
   SemaRef.Diag(PrevDecl->getLocation(), diag::note_previous_declaration);
@@ -1819,7 +1446,7 @@ bool Sema::InjectAnonymousStructOrUnionMembers(Scope *S, DeclContext *Owner,
                                FEnd = AnonRecord->field_end();
        F != FEnd; ++F) {
     if ((*F)->getDeclName()) {
-      if (CheckAnonMemberRedeclaration(*this, S, (*F)->getDeclName(),
+      if (CheckAnonMemberRedeclaration(*this, S, Owner, (*F)->getDeclName(),
                                        (*F)->getLocation(), diagKind)) {
         // C++ [class.union]p2:
         //   The names of the members of an anonymous union shall be
@@ -3243,7 +2870,7 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
     // Synthesize a parameter for each argument type.
     for (FunctionProtoType::arg_type_iterator AI = FT->arg_type_begin(),
          AE = FT->arg_type_end(); AI != AE; ++AI) {
-      ParmVarDecl *Param = ParmVarDecl::Create(Context, DC,
+      ParmVarDecl *Param = ParmVarDecl::Create(Context, NewFD,
                                                SourceLocation(), 0,
                                                *AI, /*TInfo=*/0,
                                                VarDecl::None, 0);
@@ -3322,6 +2949,10 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
   }
 
   if (D.getCXXScopeSpec().isSet() && !NewFD->isInvalidDecl()) {
+    // Fake up an access specifier if it's supposed to be a class member.
+    if (isa<CXXRecordDecl>(NewFD->getDeclContext()))
+      NewFD->setAccess(AS_public);
+
     // An out-of-line member function declaration must also be a
     // definition (C++ [dcl.meaning]p1).
     // Note that this is not the case for explicit specializations of
@@ -3332,7 +2963,8 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
       Diag(NewFD->getLocation(), diag::err_out_of_line_declaration)
         << D.getCXXScopeSpec().getRange();
       NewFD->setInvalidDecl();
-    } else if (!Redeclaration) {
+    } else if (!Redeclaration && 
+               !(isFriend && CurContext->isDependentContext())) {
       // The user tried to provide an out-of-line definition for a
       // function that is a member of a class or namespace, but there
       // was no such member function declared (C++ [class.mfct]p2,
@@ -4236,8 +3868,13 @@ Sema::ActOnParamDeclarator(Scope *S, Declarator &D) {
 
   QualType T = adjustParameterType(parmDeclType);
 
+  // Temporarily put parameter variables in the translation unit, not
+  // the enclosing context.  This prevents them from accidentally
+  // looking like class members in C++.
+  DeclContext *DC = Context.getTranslationUnitDecl();
+
   ParmVarDecl *New
-    = ParmVarDecl::Create(Context, CurContext, D.getIdentifierLoc(), II,
+    = ParmVarDecl::Create(Context, DC, D.getIdentifierLoc(), II,
                           T, TInfo, StorageClass, 0);
 
   if (D.isInvalidType())
@@ -4476,7 +4113,9 @@ Sema::DeclPtrTy Sema::ActOnFinishFunctionBody(DeclPtrTy D, StmtArg BodyArg,
   Decl *dcl = D.getAs<Decl>();
   Stmt *Body = BodyArg.takeAs<Stmt>();
 
-  AnalysisContext AC(dcl);
+  // Don't generate EH edges for CallExprs as we'd like to avoid the n^2
+  // explosion for destrutors that can result and the compile time hit.
+  AnalysisContext AC(dcl, false);
   FunctionDecl *FD = 0;
   FunctionTemplateDecl *FunTmpl = dyn_cast_or_null<FunctionTemplateDecl>(dcl);
   if (FunTmpl)
@@ -6064,7 +5703,8 @@ Sema::DeclPtrTy Sema::ActOnEnumConstant(Scope *S, DeclPtrTy theEnumDecl,
 
   // Verify that there isn't already something declared with this name in this
   // scope.
-  NamedDecl *PrevDecl = LookupSingleName(S, Id, LookupOrdinaryName);
+  NamedDecl *PrevDecl = LookupSingleName(S, Id, LookupOrdinaryName,
+                                         ForRedeclaration);
   if (PrevDecl && PrevDecl->isTemplateParameter()) {
     // Maybe we will complain about the shadowed template parameter.
     DiagnoseTemplateParameterShadow(IdLoc, PrevDecl);
@@ -6092,8 +5732,10 @@ Sema::DeclPtrTy Sema::ActOnEnumConstant(Scope *S, DeclPtrTy theEnumDecl,
                                             IdLoc, Id, Owned(Val));
 
   // Register this decl in the current scope stack.
-  if (New)
+  if (New) {
+    New->setAccess(TheEnumDecl->getAccess());
     PushOnScopeChains(New, S);
+  }
 
   return DeclPtrTy::make(New);
 }

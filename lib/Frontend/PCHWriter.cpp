@@ -139,6 +139,8 @@ void PCHTypeWriter::VisitExtVectorType(const ExtVectorType *T) {
 void PCHTypeWriter::VisitFunctionType(const FunctionType *T) {
   Writer.AddTypeRef(T->getResultType(), Record);
   Record.push_back(T->getNoReturnAttr());
+  // FIXME: need to stabilize encoding of calling convention...
+  Record.push_back(T->getCallConv());
 }
 
 void PCHTypeWriter::VisitFunctionNoProtoType(const FunctionNoProtoType *T) {
@@ -275,7 +277,13 @@ void TypeLocWriter::VisitQualifiedTypeLoc(QualifiedTypeLoc TL) {
   // nothing to do
 }
 void TypeLocWriter::VisitBuiltinTypeLoc(BuiltinTypeLoc TL) {
-  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+  Writer.AddSourceLocation(TL.getBuiltinLoc(), Record);
+  if (TL.needsExtraLocalData()) {
+    Record.push_back(TL.getWrittenTypeSpec());
+    Record.push_back(TL.getWrittenSignSpec());
+    Record.push_back(TL.getWrittenWidthSpec());
+    Record.push_back(TL.hasModeAttr());
+  }
 }
 void TypeLocWriter::VisitComplexTypeLoc(ComplexTypeLoc TL) {
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
@@ -535,7 +543,7 @@ void PCHWriter::WriteBlockInfoBlock() {
   RECORD(STAT_CACHE);
   RECORD(EXT_VECTOR_DECLS);
   RECORD(COMMENT_RANGES);
-  RECORD(SVN_BRANCH_REVISION);
+  RECORD(VERSION_CONTROL_BRANCH_REVISION);
   
   // SourceManager Block.
   BLOCK(SOURCE_MANAGER_BLOCK);
@@ -699,16 +707,15 @@ void PCHWriter::WriteMetadata(ASTContext &Context, const char *isysroot) {
     Stream.EmitRecordWithBlob(FileAbbrevCode, Record, MainFileNameStr);
   }
   
-  // Subversion branch/version information.
-  BitCodeAbbrev *SvnAbbrev = new BitCodeAbbrev();
-  SvnAbbrev->Add(BitCodeAbbrevOp(pch::SVN_BRANCH_REVISION));
-  SvnAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // SVN revision
-  SvnAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // SVN branch/tag
-  unsigned SvnAbbrevCode = Stream.EmitAbbrev(SvnAbbrev);
+  // Repository branch/version information.
+  BitCodeAbbrev *RepoAbbrev = new BitCodeAbbrev();
+  RepoAbbrev->Add(BitCodeAbbrevOp(pch::VERSION_CONTROL_BRANCH_REVISION));
+  RepoAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // SVN branch/tag
+  unsigned RepoAbbrevCode = Stream.EmitAbbrev(RepoAbbrev);
   Record.clear();
-  Record.push_back(pch::SVN_BRANCH_REVISION);
-  Record.push_back(getClangSubversionRevision());
-  Stream.EmitRecordWithBlob(SvnAbbrevCode, Record, getClangSubversionPath());
+  Record.push_back(pch::VERSION_CONTROL_BRANCH_REVISION);
+  Stream.EmitRecordWithBlob(RepoAbbrevCode, Record,
+                            getClangFullRepositoryVersion());
 }
 
 /// \brief Write the LangOptions structure.
@@ -1263,7 +1270,7 @@ void PCHWriter::WriteType(QualType T) {
       // For all of the concrete, non-dependent types, call the
       // appropriate visitor function.
 #define TYPE(Class, Base) \
-      case Type::Class: W.Visit##Class##Type(cast<Class##Type>(T)); break;
+    case Type::Class: W.Visit##Class##Type(cast<Class##Type>(T)); break;
 #define ABSTRACT_TYPE(Class, Base)
 #define DEPENDENT_TYPE(Class, Base)
 #include "clang/AST/TypeNodes.def"

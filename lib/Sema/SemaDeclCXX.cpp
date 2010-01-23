@@ -1062,8 +1062,23 @@ Sema::ActOnMemInitializer(DeclPtrTy ConstructorD,
     if (!TyD) {
       if (R.isAmbiguous()) return true;
 
+      if (SS.isSet() && isDependentScopeSpecifier(SS)) {
+        bool NotUnknownSpecialization = false;
+        DeclContext *DC = computeDeclContext(SS, false);
+        if (CXXRecordDecl *Record = dyn_cast_or_null<CXXRecordDecl>(DC)) 
+          NotUnknownSpecialization = !Record->hasAnyDependentBases();
+
+        if (!NotUnknownSpecialization) {
+          // When the scope specifier can refer to a member of an unknown
+          // specialization, we take it as a type name.
+          BaseType = CheckTypenameType((NestedNameSpecifier *)SS.getScopeRep(),
+                                       *MemberOrBase, SS.getRange());
+          R.clear();
+        }
+      }
+
       // If no results were found, try to correct typos.
-      if (R.empty() && 
+      if (R.empty() && BaseType.isNull() &&
           CorrectTypo(R, S, &SS, ClassDecl) && R.isSingleResult()) {
         if (FieldDecl *Member = R.getAsSingle<FieldDecl>()) {
           if (Member->getDeclContext()->getLookupContext()->Equals(ClassDecl)) {
@@ -1106,20 +1121,22 @@ Sema::ActOnMemInitializer(DeclPtrTy ConstructorD,
         }
       }
 
-      if (!TyD) {
+      if (!TyD && BaseType.isNull()) {
         Diag(IdLoc, diag::err_mem_init_not_member_or_class)
           << MemberOrBase << SourceRange(IdLoc, RParenLoc);
         return true;
       }
     }
 
-    BaseType = Context.getTypeDeclType(TyD);
-    if (SS.isSet()) {
-      NestedNameSpecifier *Qualifier =
-        static_cast<NestedNameSpecifier*>(SS.getScopeRep());
+    if (BaseType.isNull()) {
+      BaseType = Context.getTypeDeclType(TyD);
+      if (SS.isSet()) {
+        NestedNameSpecifier *Qualifier =
+          static_cast<NestedNameSpecifier*>(SS.getScopeRep());
 
-      // FIXME: preserve source range information
-      BaseType = Context.getQualifiedNameType(Qualifier, BaseType);
+        // FIXME: preserve source range information
+        BaseType = Context.getQualifiedNameType(Qualifier, BaseType);
+      }
     }
   }
 
@@ -4470,9 +4487,9 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
       = dyn_cast<CXXRecordDecl>(T2->getAs<RecordType>()->getDecl());
 
     OverloadCandidateSet CandidateSet;
-    const UnresolvedSet *Conversions
+    const UnresolvedSetImpl *Conversions
       = T2RecordDecl->getVisibleConversionFunctions();
-    for (UnresolvedSet::iterator I = Conversions->begin(),
+    for (UnresolvedSetImpl::iterator I = Conversions->begin(),
            E = Conversions->end(); I != E; ++I) {
       NamedDecl *D = *I;
       CXXRecordDecl *ActingDC = cast<CXXRecordDecl>(D->getDeclContext());
@@ -5594,26 +5611,24 @@ bool Sema::CheckOverridingFunctionReturnType(const CXXMethodDecl *New,
   QualType NewTy = New->getType()->getAs<FunctionType>()->getResultType();
   QualType OldTy = Old->getType()->getAs<FunctionType>()->getResultType();
 
-  QualType CNewTy = Context.getCanonicalType(NewTy);
-  QualType COldTy = Context.getCanonicalType(OldTy);
-
-  if (CNewTy == COldTy &&
-      CNewTy.getLocalCVRQualifiers() == COldTy.getLocalCVRQualifiers())
+  if (Context.hasSameType(NewTy, OldTy))
     return false;
 
   // Check if the return types are covariant
   QualType NewClassTy, OldClassTy;
 
   /// Both types must be pointers or references to classes.
-  if (PointerType *NewPT = dyn_cast<PointerType>(NewTy)) {
-    if (PointerType *OldPT = dyn_cast<PointerType>(OldTy)) {
+  if (const PointerType *NewPT = NewTy->getAs<PointerType>()) {
+    if (const PointerType *OldPT = OldTy->getAs<PointerType>()) {
       NewClassTy = NewPT->getPointeeType();
       OldClassTy = OldPT->getPointeeType();
     }
-  } else if (ReferenceType *NewRT = dyn_cast<ReferenceType>(NewTy)) {
-    if (ReferenceType *OldRT = dyn_cast<ReferenceType>(OldTy)) {
-      NewClassTy = NewRT->getPointeeType();
-      OldClassTy = OldRT->getPointeeType();
+  } else if (const ReferenceType *NewRT = NewTy->getAs<ReferenceType>()) {
+    if (const ReferenceType *OldRT = OldTy->getAs<ReferenceType>()) {
+      if (NewRT->getTypeClass() == OldRT->getTypeClass()) {
+        NewClassTy = NewRT->getPointeeType();
+        OldClassTy = OldRT->getPointeeType();
+      }
     }
   }
 
@@ -5661,7 +5676,7 @@ bool Sema::CheckOverridingFunctionReturnType(const CXXMethodDecl *New,
   }
 
   // The qualifiers of the return types must be the same.
-  if (CNewTy.getLocalCVRQualifiers() != COldTy.getLocalCVRQualifiers()) {
+  if (NewTy.getLocalCVRQualifiers() != OldTy.getLocalCVRQualifiers()) {
     Diag(New->getLocation(),
          diag::err_covariant_return_type_different_qualifications)
     << New->getDeclName() << NewTy << OldTy;

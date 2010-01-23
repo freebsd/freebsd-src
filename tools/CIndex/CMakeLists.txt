@@ -3,8 +3,7 @@ set(SHARED_LIBRARY TRUE)
 set(LLVM_NO_RTTI 1)
 
 set(LLVM_USED_LIBS
-  clangIndex
-  clangFrontend
+ clangFrontend
   clangDriver
   clangSema
   clangAnalysis
@@ -24,6 +23,7 @@ add_clang_library(CIndex
   CIndexCodeCompletion.cpp
   CIndexUSRs.cpp
   CIndexer.cpp
+  CXCursor.cpp
 )
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")

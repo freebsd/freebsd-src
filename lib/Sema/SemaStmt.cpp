@@ -412,10 +412,10 @@ static bool CheckCXXSwitchCondition(Sema &S, SourceLocation SwitchLoc,
   llvm::SmallVector<CXXConversionDecl *, 4> ViableConversions;
   llvm::SmallVector<CXXConversionDecl *, 4> ExplicitConversions;
   if (const RecordType *RecordTy = CondType->getAs<RecordType>()) {
-    const UnresolvedSet *Conversions
+    const UnresolvedSetImpl *Conversions
       = cast<CXXRecordDecl>(RecordTy->getDecl())
                                              ->getVisibleConversionFunctions();
-    for (UnresolvedSet::iterator I = Conversions->begin(),
+    for (UnresolvedSetImpl::iterator I = Conversions->begin(),
            E = Conversions->end(); I != E; ++I) {
       if (CXXConversionDecl *Conversion = dyn_cast<CXXConversionDecl>(*I))
         if (Conversion->getConversionType().getNonReferenceType()
@@ -879,10 +879,6 @@ Sema::ActOnObjCForCollectionStmt(SourceLocation ForLoc,
 Action::OwningStmtResult
 Sema::ActOnGotoStmt(SourceLocation GotoLoc, SourceLocation LabelLoc,
                     IdentifierInfo *LabelII) {
-  // If we are in a block, reject all gotos for now.
-  if (CurBlock)
-    return StmtError(Diag(GotoLoc, diag::err_goto_in_block));
-
   // Look up the record for this label identifier.
   LabelStmt *&LabelDecl = getLabelMap()[LabelII];
 
