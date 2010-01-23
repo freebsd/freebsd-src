@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 static int	build_stream(struct archive_read *);
 static int	choose_format(struct archive_read *);
+static int	cleanup_filters(struct archive_read *);
 static struct archive_vtable *archive_read_vtable(void);
 static int	_archive_read_close(struct archive *);
 static int	_archive_read_finish(struct archive *);
@@ -393,14 +394,13 @@ build_stream(struct archive_read *a)
 			free(filter);
 			return (r);
 		}
+		a->filter = filter;
 		/* Verify the filter by asking it for some data. */
 		__archive_read_filter_ahead(filter, 1, &avail);
 		if (avail < 0) {
-			/* If the read failed, bail out now. */
-			free(filter);
-			return (avail);
+			cleanup_filters(a);
+			return (ARCHIVE_FATAL);
 		}
-		a->filter = filter;
 	}
 }
 
@@ -738,18 +738,10 @@ _archive_read_close(struct archive *_a)
 
 	/* TODO: Clean up the formatters. */
 
-	/* Clean up the filter pipeline. */
-	while (a->filter != NULL) {
-		struct archive_read_filter *t = a->filter->upstream;
-		if (a->filter->close != NULL) {
-			r1 = (a->filter->close)(a->filter);
-			if (r1 < r)
-				r = r1;
-		}
-		free(a->filter->buffer);
-		free(a->filter);
-		a->filter = t;
-	}
+	/* Release the filter objects. */
+	r1 = cleanup_filters(a);
+	if (r1 < r)
+		r = r1;
 
 	/* Release the bidder objects. */
 	n = sizeof(a->bidders)/sizeof(a->bidders[0]);
@@ -762,6 +754,25 @@ _archive_read_close(struct archive *_a)
 	}
 
 	return (r);
+}
+
+static int
+cleanup_filters(struct archive_read *a)
+{
+	int r = ARCHIVE_OK;
+	/* Clean up the filter pipeline. */
+	while (a->filter != NULL) {
+		struct archive_read_filter *t = a->filter->upstream;
+		if (a->filter->close != NULL) {
+			int r1 = (a->filter->close)(a->filter);
+			if (r1 < r)
+				r = r1;
+		}
+		free(a->filter->buffer);
+		free(a->filter);
+		a->filter = t;
+	}
+	return r;
 }
 
 /*
