@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuregs.h>
 #include <machine/cpufunc.h>
 #include <mips/cavium/octeon_pcmap_regs.h>
-#include <mips/cavium/octeonreg.h>
 #include <machine/hwfunc.h>
 #include <machine/intr_machdep.h>
 #include <machine/locore.h>
