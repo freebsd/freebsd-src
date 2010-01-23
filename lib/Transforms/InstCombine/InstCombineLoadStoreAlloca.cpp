@@ -366,7 +366,7 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
   // alloca dead.
   // If the RHS is an alloca with a two uses, the other one being a 
   // llvm.dbg.declare, zapify the store and the declare, making the
-  // alloca dead.  We must do this to prevent declare's from affecting
+  // alloca dead.  We must do this to prevent declares from affecting
   // codegen.
   if (!SI.isVolatile()) {
     if (Ptr->hasOneUse()) {
@@ -408,8 +408,6 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
     --BBI;
     // Don't count debug info directives, lest they affect codegen,
     // and we skip pointer-to-pointer bitcasts, which are NOPs.
-    // It is necessary for correctness to skip those that feed into a
-    // llvm.dbg.declare, as these are not present when debugging is off.
     if (isa<DbgInfoIntrinsic>(BBI) ||
         (isa<BitCastInst>(BBI) && isa<PointerType>(BBI->getType()))) {
       ScanInsts++;
@@ -475,9 +473,8 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
 
   
   // If this store is the last instruction in the basic block (possibly
-  // excepting debug info instructions and the pointer bitcasts that feed
-  // into them), and if the block ends with an unconditional branch, try
-  // to move it to the successor block.
+  // excepting debug info instructions), and if the block ends with an
+  // unconditional branch, try to move it to the successor block.
   BBI = &SI; 
   do {
     ++BBI;

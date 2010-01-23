@@ -23,8 +23,9 @@
 
 namespace llvm {
   class AsmPrinter;
-  class Dwarf;
+  class DwarfPrinter;
   class TargetData;
+  class MCSymbol;
 
   //===--------------------------------------------------------------------===//
   /// DIEAbbrevData - Dwarf abbreviation data, describes the one attribute of a
@@ -100,7 +101,7 @@ namespace llvm {
 
     /// Emit - Print the abbreviation using the specified asm printer.
     ///
-    void Emit(const AsmPrinter *Asm) const;
+    void Emit(const DwarfPrinter *DP) const;
 
 #ifndef NDEBUG
     void print(raw_ostream &O);
@@ -221,7 +222,7 @@ namespace llvm {
 
     /// EmitValue - Emit value via the Dwarf writer.
     ///
-    virtual void EmitValue(Dwarf *D, unsigned Form) const = 0;
+    virtual void EmitValue(DwarfPrinter *D, unsigned Form) const = 0;
 
     /// SizeOf - Return the size of a value in bytes.
     ///
@@ -261,7 +262,7 @@ namespace llvm {
 
     /// EmitValue - Emit integer of appropriate size.
     ///
-    virtual void EmitValue(Dwarf *D, unsigned Form) const;
+    virtual void EmitValue(DwarfPrinter *D, unsigned Form) const;
 
     /// SizeOf - Determine size of integer value in bytes.
     ///
@@ -287,7 +288,7 @@ namespace llvm {
 
     /// EmitValue - Emit string value.
     ///
-    virtual void EmitValue(Dwarf *D, unsigned Form) const;
+    virtual void EmitValue(DwarfPrinter *D, unsigned Form) const;
 
     /// SizeOf - Determine size of string value in bytes.
     ///
@@ -314,7 +315,7 @@ namespace llvm {
 
     /// EmitValue - Emit label value.
     ///
-    virtual void EmitValue(Dwarf *D, unsigned Form) const;
+    virtual void EmitValue(DwarfPrinter *D, unsigned Form) const;
 
     /// SizeOf - Determine size of label value in bytes.
     ///
@@ -333,14 +334,14 @@ namespace llvm {
   /// DIEObjectLabel - A label to an object in code or data.
   //
   class DIEObjectLabel : public DIEValue {
-    const std::string Label;
+    const MCSymbol *Sym;
   public:
-    explicit DIEObjectLabel(const std::string &L)
-      : DIEValue(isAsIsLabel), Label(L) {}
+    explicit DIEObjectLabel(const MCSymbol *S)
+      : DIEValue(isAsIsLabel), Sym(S) {}
 
     /// EmitValue - Emit label value.
     ///
-    virtual void EmitValue(Dwarf *D, unsigned Form) const;
+    virtual void EmitValue(DwarfPrinter *D, unsigned Form) const;
 
     /// SizeOf - Determine size of label value in bytes.
     ///
@@ -373,7 +374,7 @@ namespace llvm {
 
     /// EmitValue - Emit section offset.
     ///
-    virtual void EmitValue(Dwarf *D, unsigned Form) const;
+    virtual void EmitValue(DwarfPrinter *D, unsigned Form) const;
 
     /// SizeOf - Determine size of section offset value in bytes.
     ///
@@ -402,7 +403,7 @@ namespace llvm {
 
     /// EmitValue - Emit delta value.
     ///
-    virtual void EmitValue(Dwarf *D, unsigned Form) const;
+    virtual void EmitValue(DwarfPrinter *D, unsigned Form) const;
 
     /// SizeOf - Determine size of delta value in bytes.
     ///
@@ -431,7 +432,7 @@ namespace llvm {
 
     /// EmitValue - Emit debug information entry offset.
     ///
-    virtual void EmitValue(Dwarf *D, unsigned Form) const;
+    virtual void EmitValue(DwarfPrinter *D, unsigned Form) const;
 
     /// SizeOf - Determine size of debug information entry in bytes.
     ///
@@ -473,7 +474,7 @@ namespace llvm {
 
     /// EmitValue - Emit block data.
     ///
-    virtual void EmitValue(Dwarf *D, unsigned Form) const;
+    virtual void EmitValue(DwarfPrinter *D, unsigned Form) const;
 
     /// SizeOf - Determine size of block data in bytes.
     ///

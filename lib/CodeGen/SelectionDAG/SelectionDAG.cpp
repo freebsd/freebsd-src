@@ -593,7 +593,7 @@ void SelectionDAG::DeallocateNode(SDNode *N) {
   NodeAllocator.Deallocate(AllNodes.remove(N));
 
   // Remove the ordering of this node.
-  if (Ordering) Ordering->remove(N);
+  Ordering->remove(N);
 }
 
 /// RemoveNodeFromCSEMaps - Take the specified node out of the CSE map that
@@ -790,8 +790,7 @@ SelectionDAG::SelectionDAG(TargetLowering &tli, FunctionLoweringInfo &fli)
               getVTList(MVT::Other)),
     Root(getEntryNode()), Ordering(0) {
   AllNodes.push_back(&EntryNode);
-  if (DisableScheduling)
-    Ordering = new SDNodeOrdering();
+  Ordering = new SDNodeOrdering();
 }
 
 void SelectionDAG::init(MachineFunction &mf, MachineModuleInfo *mmi,
@@ -830,8 +829,7 @@ void SelectionDAG::clear() {
   EntryNode.UseList = 0;
   AllNodes.push_back(&EntryNode);
   Root = getEntryNode();
-  if (DisableScheduling)
-    Ordering = new SDNodeOrdering();
+  Ordering = new SDNodeOrdering();
 }
 
 SDValue SelectionDAG::getSExtOrTrunc(SDValue Op, DebugLoc DL, EVT VT) {
@@ -5172,6 +5170,7 @@ unsigned SelectionDAG::AssignTopologicalOrder() {
   // count of outstanding operands.
   for (allnodes_iterator I = allnodes_begin(),E = allnodes_end(); I != E; ) {
     SDNode *N = I++;
+    checkForCycles(N);
     unsigned Degree = N->getNumOperands();
     if (Degree == 0) {
       // A node with no uses, add it to the result array immediately.
@@ -5179,6 +5178,7 @@ unsigned SelectionDAG::AssignTopologicalOrder() {
       allnodes_iterator Q = N;
       if (Q != SortedPos)
         SortedPos = AllNodes.insert(SortedPos, AllNodes.remove(Q));
+      assert(SortedPos != AllNodes.end() && "Overran node list");
       ++SortedPos;
     } else {
       // Temporarily use the Node Id as scratch space for the degree count.
@@ -5190,21 +5190,33 @@ unsigned SelectionDAG::AssignTopologicalOrder() {
   // such that by the time the end is reached all nodes will be sorted.
   for (allnodes_iterator I = allnodes_begin(),E = allnodes_end(); I != E; ++I) {
     SDNode *N = I;
+    checkForCycles(N);
+    // N is in sorted position, so all its uses have one less operand
+    // that needs to be sorted.
     for (SDNode::use_iterator UI = N->use_begin(), UE = N->use_end();
          UI != UE; ++UI) {
       SDNode *P = *UI;
       unsigned Degree = P->getNodeId();
+      assert(Degree != 0 && "Invalid node degree");
       --Degree;
       if (Degree == 0) {
         // All of P's operands are sorted, so P may sorted now.
         P->setNodeId(DAGSize++);
         if (P != SortedPos)
           SortedPos = AllNodes.insert(SortedPos, AllNodes.remove(P));
+        assert(SortedPos != AllNodes.end() && "Overran node list");
         ++SortedPos;
       } else {
         // Update P's outstanding operand count.
         P->setNodeId(Degree);
       }
+    }
+    if (I == SortedPos) {
+      allnodes_iterator J = I;
+      SDNode *S = ++J;
+      dbgs() << "Offending node:\n";
+      S->dumprFull();
+      assert(0 && "Overran sorted position");
     }
   }
 
@@ -5227,14 +5239,13 @@ unsigned SelectionDAG::AssignTopologicalOrder() {
 /// AssignOrdering - Assign an order to the SDNode.
 void SelectionDAG::AssignOrdering(SDNode *SD, unsigned Order) {
   assert(SD && "Trying to assign an order to a null node!");
-  if (Ordering)
-    Ordering->add(SD, Order);
+  Ordering->add(SD, Order);
 }
 
 /// GetOrdering - Get the order for the SDNode.
 unsigned SelectionDAG::GetOrdering(const SDNode *SD) const {
   assert(SD && "Trying to get the order of a null node!");
-  return Ordering ? Ordering->getOrder(SD) : 0;
+  return Ordering->getOrder(SD);
 }
 
 
@@ -5893,6 +5904,45 @@ void SDNode::print(raw_ostream &OS, const SelectionDAG *G) const {
   print_details(OS, G);
 }
 
+static void printrWithDepthHelper(raw_ostream &OS, const SDNode *N,
+                                  const SelectionDAG *G, unsigned depth,
+                                  unsigned indent) 
+{
+  if (depth == 0)
+    return;
+
+  OS.indent(indent);
+
+  N->print(OS, G);
+
+  if (depth < 1)
+    return;
+
+  for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
+    OS << '\n';
+    printrWithDepthHelper(OS, N->getOperand(i).getNode(), G, depth-1, indent+2);
+  }
+}
+
+void SDNode::printrWithDepth(raw_ostream &OS, const SelectionDAG *G,
+                            unsigned depth) const {
+  printrWithDepthHelper(OS, this, G, depth, 0);
+} 
+
+void SDNode::printrFull(raw_ostream &OS, const SelectionDAG *G) const {
+  // Don't print impossibly deep things.
+  printrWithDepth(OS, G, 100);
+}
+
+void SDNode::dumprWithDepth(const SelectionDAG *G, unsigned depth) const {
+  printrWithDepth(dbgs(), G, depth);
+}
+
+void SDNode::dumprFull(const SelectionDAG *G) const {
+  // Don't print impossibly deep things.
+  dumprWithDepth(G, 100);
+} 
+
 static void DumpNodes(const SDNode *N, unsigned indent, const SelectionDAG *G) {
   for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
     if (N->getOperand(i).getNode()->hasOneUse())
@@ -6227,4 +6277,36 @@ bool ShuffleVectorSDNode::isSplatMask(const int *Mask, EVT VT) {
     if (Mask[i] >= 0 && Mask[i] != Idx)
       return false;
   return true;
+}
+
+static void checkForCyclesHelper(const SDNode *N,
+                                 std::set<const SDNode *> &visited) {
+  if (visited.find(N) != visited.end()) {
+    dbgs() << "Offending node:\n";
+    N->dumprFull();
+    assert(0 && "Detected cycle in SelectionDAG");
+  }
+
+  std::set<const SDNode*>::iterator i;
+  bool inserted;
+
+  tie(i, inserted) = visited.insert(N);
+  assert(inserted && "Missed cycle");
+
+  for(unsigned i = 0; i < N->getNumOperands(); ++i) {
+    checkForCyclesHelper(N->getOperand(i).getNode(), visited);
+  }
+  visited.erase(i);
+}
+
+void llvm::checkForCycles(const llvm::SDNode *N) {
+#ifdef XDEBUG
+  assert(N && "Checking nonexistant SDNode");
+  std::set<const SDNode *> visited;
+  checkForCyclesHelper(N, visited);
+#endif
+}
+
+void llvm::checkForCycles(const llvm::SelectionDAG *DAG) {
+  checkForCycles(DAG->getRoot().getNode());
 }

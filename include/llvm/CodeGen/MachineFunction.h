@@ -26,6 +26,7 @@
 
 namespace llvm {
 
+class DILocation;
 class Value;
 class Function;
 class MachineRegisterInfo;
@@ -174,9 +175,6 @@ public:
                                                       AlignOf<Ty>::Alignment));
         MFInfo = new (Loc) Ty(*this);
     }
-
-    assert((void*)dynamic_cast<Ty*>(MFInfo) == (void*)MFInfo &&
-           "Invalid concrete type or multiple inheritence for getInfo");
     return static_cast<Ty*>(MFInfo);
   }
 
@@ -368,8 +366,8 @@ public:
   // Debug location.
   //
 
-  /// getDebugLocTuple - Get the DebugLocTuple for a given DebugLoc object.
-  DebugLocTuple getDebugLocTuple(DebugLoc DL) const;
+  /// getDILocation - Get the DILocation for a given DebugLoc object.
+  DILocation getDILocation(DebugLoc DL) const;
 
   /// getDefaultDebugLoc - Get the default debug location for the machine
   /// function.

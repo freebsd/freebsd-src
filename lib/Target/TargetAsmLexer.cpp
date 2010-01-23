@@ -1,4 +1,4 @@
-//===-- MCAsmParser.cpp - Abstract Asm Parser Interface -------------------===//
+//===-- llvm/Target/TargetAsmLexer.cpp - Target Assembly Lexer ------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,12 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/MC/MCAsmParser.h"
-
+#include "llvm/Target/TargetAsmLexer.h"
 using namespace llvm;
 
-MCAsmParser::MCAsmParser() {
-}
-
-MCAsmParser::~MCAsmParser() {
-}
+TargetAsmLexer::TargetAsmLexer(const Target &T) : TheTarget(T) {}
+TargetAsmLexer::~TargetAsmLexer() {}

@@ -144,7 +144,7 @@ namespace llvm {
     if (TLI.getSchedulingPreference() == TargetLowering::SchedulingForLatency)
       return createTDListDAGScheduler(IS, OptLevel);
     assert(TLI.getSchedulingPreference() ==
-         TargetLowering::SchedulingForRegPressure && "Unknown sched type!");
+           TargetLowering::SchedulingForRegPressure && "Unknown sched type!");
     return createBURRListDAGScheduler(IS, OptLevel);
   }
 }
@@ -1426,7 +1426,7 @@ void SelectionDAGISel::CannotYetSelect(SDNode *N) {
   std::string msg;
   raw_string_ostream Msg(msg);
   Msg << "Cannot yet select: ";
-  N->print(Msg, CurDAG);
+  N->printrFull(Msg, CurDAG);
   llvm_report_error(Msg.str());
 }
 

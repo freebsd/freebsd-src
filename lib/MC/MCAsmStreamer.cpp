@@ -8,7 +8,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCStreamer.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
@@ -17,26 +16,68 @@
 #include "llvm/MC/MCInstPrinter.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Format.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/FormattedStream.h"
 using namespace llvm;
 
 namespace {
 
 class MCAsmStreamer : public MCStreamer {
-  raw_ostream &OS;
+  formatted_raw_ostream &OS;
   const MCAsmInfo &MAI;
+  bool IsLittleEndian, IsVerboseAsm;
   MCInstPrinter *InstPrinter;
   MCCodeEmitter *Emitter;
+  
+  SmallString<128> CommentToEmit;
+  raw_svector_ostream CommentStream;
 public:
-  MCAsmStreamer(MCContext &Context, raw_ostream &_OS, const MCAsmInfo &tai,
-                MCInstPrinter *_Printer, MCCodeEmitter *_Emitter)
-    : MCStreamer(Context), OS(_OS), MAI(tai), InstPrinter(_Printer),
-      Emitter(_Emitter) {}
+  MCAsmStreamer(MCContext &Context, formatted_raw_ostream &os,
+                const MCAsmInfo &mai,
+                bool isLittleEndian, bool isVerboseAsm, MCInstPrinter *printer,
+                MCCodeEmitter *emitter)
+    : MCStreamer(Context), OS(os), MAI(mai), IsLittleEndian(isLittleEndian),
+      IsVerboseAsm(isVerboseAsm), InstPrinter(printer), Emitter(emitter),
+      CommentStream(CommentToEmit) {}
   ~MCAsmStreamer() {}
 
+  bool isLittleEndian() const { return IsLittleEndian; }
+  
+  
+  inline void EmitEOL() {
+    // If we don't have any comments, just emit a \n.
+    if (!IsVerboseAsm) {
+      OS << '\n';
+      return;
+    }
+    EmitCommentsAndEOL();
+  }
+  void EmitCommentsAndEOL();
+  
+  /// AddComment - Add a comment that can be emitted to the generated .s
+  /// file if applicable as a QoI issue to make the output of the compiler
+  /// more readable.  This only affects the MCAsmStreamer, and only when
+  /// verbose assembly output is enabled.
+  virtual void AddComment(const Twine &T);
+  
+  /// GetCommentOS - Return a raw_ostream that comments can be written to.
+  /// Unlike AddComment, you are required to terminate comments with \n if you
+  /// use this method.
+  virtual raw_ostream &GetCommentOS() {
+    if (!IsVerboseAsm)
+      return nulls();  // Discard comments unless in verbose asm mode.
+    return CommentStream;
+  }
+  
+  /// AddBlankLine - Emit a blank line to a .s file to pretty it up.
+  virtual void AddBlankLine() {
+    EmitEOL();
+  }
+  
   /// @name MCStreamer Interface
   /// @{
 
@@ -44,23 +85,33 @@ public:
 
   virtual void EmitLabel(MCSymbol *Symbol);
 
-  virtual void EmitAssemblerFlag(AssemblerFlag Flag);
+  virtual void EmitAssemblerFlag(MCAssemblerFlag Flag);
 
   virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value);
 
-  virtual void EmitSymbolAttribute(MCSymbol *Symbol, SymbolAttr Attribute);
+  virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute);
 
   virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue);
 
-  virtual void EmitCommonSymbol(MCSymbol *Symbol, unsigned Size,
+  virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                 unsigned ByteAlignment);
 
+  /// EmitLocalCommonSymbol - Emit a local common (.lcomm) symbol.
+  ///
+  /// @param Symbol - The common symbol to emit.
+  /// @param Size - The size of the common symbol.
+  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size);
+  
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
                             unsigned Size = 0, unsigned ByteAlignment = 0);
 
-  virtual void EmitBytes(StringRef Data);
+  virtual void EmitBytes(StringRef Data, unsigned AddrSpace);
 
-  virtual void EmitValue(const MCExpr *Value, unsigned Size);
+  virtual void EmitValue(const MCExpr *Value, unsigned Size,unsigned AddrSpace);
+  virtual void EmitIntValue(uint64_t Value, unsigned Size, unsigned AddrSpace);
+
+  virtual void EmitFill(uint64_t NumBytes, uint8_t FillValue,
+                        unsigned AddrSpace);
 
   virtual void EmitValueToAlignment(unsigned ByteAlignment, int64_t Value = 0,
                                     unsigned ValueSize = 1,
@@ -77,6 +128,50 @@ public:
 };
 
 } // end anonymous namespace.
+
+/// AddComment - Add a comment that can be emitted to the generated .s
+/// file if applicable as a QoI issue to make the output of the compiler
+/// more readable.  This only affects the MCAsmStreamer, and only when
+/// verbose assembly output is enabled.
+void MCAsmStreamer::AddComment(const Twine &T) {
+  if (!IsVerboseAsm) return;
+  
+  // Make sure that CommentStream is flushed.
+  CommentStream.flush();
+  
+  T.toVector(CommentToEmit);
+  // Each comment goes on its own line.
+  CommentToEmit.push_back('\n');
+  
+  // Tell the comment stream that the vector changed underneath it.
+  CommentStream.resync();
+}
+
+void MCAsmStreamer::EmitCommentsAndEOL() {
+  if (CommentToEmit.empty() && CommentStream.GetNumBytesInBuffer() == 0) {
+    OS << '\n';
+    return;
+  }
+  
+  CommentStream.flush();
+  StringRef Comments = CommentToEmit.str();
+  
+  assert(Comments.back() == '\n' &&
+         "Comment array not newline terminated");
+  do {
+    // Emit a line of comments.
+    OS.PadToColumn(MAI.getCommentColumn());
+    size_t Position = Comments.find('\n');
+    OS << MAI.getCommentString() << ' ' << Comments.substr(0, Position) << '\n';
+    
+    Comments = Comments.substr(Position+1);
+  } while (!Comments.empty());
+  
+  CommentToEmit.clear();
+  // Tell the comment stream that the vector changed underneath it.
+  CommentStream.resync();
+}
+
 
 static inline int64_t truncateToSize(int64_t Value, unsigned Bytes) {
   assert(Bytes && "Invalid size!");
@@ -101,17 +196,17 @@ void MCAsmStreamer::EmitLabel(MCSymbol *Symbol) {
   assert(Symbol->isUndefined() && "Cannot define a symbol twice!");
   assert(CurSection && "Cannot emit before setting section!");
 
-  Symbol->print(OS, &MAI);
-  OS << ":\n";
+  OS << *Symbol << ":";
+  EmitEOL();
   Symbol->setSection(*CurSection);
 }
 
-void MCAsmStreamer::EmitAssemblerFlag(AssemblerFlag Flag) {
+void MCAsmStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
   switch (Flag) {
   default: assert(0 && "Invalid flag!");
-  case SubsectionsViaSymbols: OS << ".subsections_via_symbols"; break;
+  case MCAF_SubsectionsViaSymbols: OS << ".subsections_via_symbols"; break;
   }
-  OS << '\n';
+  EmitEOL();
 }
 
 void MCAsmStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
@@ -119,10 +214,8 @@ void MCAsmStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
   assert((Symbol->isUndefined() || Symbol->isAbsolute()) &&
          "Cannot define a symbol twice!");
 
-  Symbol->print(OS, &MAI);
-  OS << " = ";
-  Value->print(OS, &MAI);
-  OS << '\n';
+  OS << *Symbol << " = " << *Value;
+  EmitEOL();
 
   // FIXME: Lift context changes into super class.
   // FIXME: Set associated section.
@@ -130,41 +223,54 @@ void MCAsmStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
 }
 
 void MCAsmStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
-                                        SymbolAttr Attribute) {
+                                        MCSymbolAttr Attribute) {
   switch (Attribute) {
-  case Global:         OS << ".globl";           break;
-  case Hidden:         OS << ".hidden";          break;
-  case IndirectSymbol: OS << ".indirect_symbol"; break;
-  case Internal:       OS << ".internal";        break;
-  case LazyReference:  OS << ".lazy_reference";  break;
-  case NoDeadStrip:    OS << ".no_dead_strip";   break;
-  case PrivateExtern:  OS << ".private_extern";  break;
-  case Protected:      OS << ".protected";       break;
-  case Reference:      OS << ".reference";       break;
-  case Weak:           OS << ".weak";            break;
-  case WeakDefinition: OS << ".weak_definition"; break;
-  case WeakReference:  OS << ".weak_reference";  break;
+  case MCSA_Invalid: assert(0 && "Invalid symbol attribute");
+  case MCSA_Global:         OS << MAI.getGlobalDirective(); break; // .globl
+  case MCSA_Hidden:         OS << ".hidden ";          break;
+  case MCSA_IndirectSymbol: OS << ".indirect_symbol "; break;
+  case MCSA_Internal:       OS << ".internal ";        break;
+  case MCSA_LazyReference:  OS << ".lazy_reference ";  break;
+  case MCSA_Local:          OS << ".local ";           break;
+  case MCSA_NoDeadStrip:    OS << ".no_dead_strip ";   break;
+  case MCSA_PrivateExtern:  OS << ".private_extern ";  break;
+  case MCSA_Protected:      OS << ".protected ";       break;
+  case MCSA_Reference:      OS << ".reference ";       break;
+  case MCSA_Weak:           OS << ".weak ";            break;
+  case MCSA_WeakDefinition: OS << ".weak_definition "; break;
+      // .weak_reference
+  case MCSA_WeakReference:  OS << MAI.getWeakRefDirective(); break;
   }
 
-  OS << ' ';
-  Symbol->print(OS, &MAI);
-  OS << '\n';
+  OS << *Symbol;
+  EmitEOL();
 }
 
 void MCAsmStreamer::EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) {
-  OS << ".desc" << ' ';
-  Symbol->print(OS, &MAI);
-  OS << ',' << DescValue << '\n';
+  OS << ".desc" << ' ' << *Symbol << ',' << DescValue;
+  EmitEOL();
 }
 
-void MCAsmStreamer::EmitCommonSymbol(MCSymbol *Symbol, unsigned Size,
+void MCAsmStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                      unsigned ByteAlignment) {
-  OS << ".comm ";
-  Symbol->print(OS, &MAI);
-  OS << ',' << Size;
-  if (ByteAlignment != 0)
-    OS << ',' << Log2_32(ByteAlignment);
-  OS << '\n';
+  OS << "\t.comm\t" << *Symbol << ',' << Size;
+  if (ByteAlignment != 0 && MAI.getCOMMDirectiveTakesAlignment()) {
+    if (MAI.getAlignmentIsInBytes())
+      OS << ',' << ByteAlignment;
+    else
+      OS << ',' << Log2_32(ByteAlignment);
+  }
+  EmitEOL();
+}
+
+/// EmitLocalCommonSymbol - Emit a local common (.lcomm) symbol.
+///
+/// @param Symbol - The common symbol to emit.
+/// @param Size - The size of the common symbol.
+void MCAsmStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) {
+  assert(MAI.hasLCOMMDirective() && "Doesn't have .lcomm, can't emit it!");
+  OS << "\t.lcomm\t" << *Symbol << ',' << Size;
+  EmitEOL();
 }
 
 void MCAsmStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
@@ -177,36 +283,130 @@ void MCAsmStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
   OS << MOSection->getSegmentName() << "," << MOSection->getSectionName();
   
   if (Symbol != NULL) {
-    OS << ',';
-    Symbol->print(OS, &MAI);
-    OS << ',' << Size;
+    OS << ',' << *Symbol << ',' << Size;
     if (ByteAlignment != 0)
       OS << ',' << Log2_32(ByteAlignment);
   }
-  OS << '\n';
+  EmitEOL();
 }
 
-void MCAsmStreamer::EmitBytes(StringRef Data) {
-  assert(CurSection && "Cannot emit contents before setting section!");
-  for (unsigned i = 0, e = Data.size(); i != e; ++i)
-    OS << ".byte " << (unsigned) (unsigned char) Data[i] << '\n';
-}
+static inline char toOctal(int X) { return (X&7)+'0'; }
 
-void MCAsmStreamer::EmitValue(const MCExpr *Value, unsigned Size) {
+void MCAsmStreamer::EmitBytes(StringRef Data, unsigned AddrSpace) {
   assert(CurSection && "Cannot emit contents before setting section!");
-  // Need target hooks to know how to print this.
-  switch (Size) {
-  default:
-    llvm_unreachable("Invalid size for machine code value!");
-  case 1: OS << ".byte"; break;
-  case 2: OS << ".short"; break;
-  case 4: OS << ".long"; break;
-  case 8: OS << ".quad"; break;
+  if (Data.empty()) return;
+  
+  if (Data.size() == 1) {
+    OS << MAI.getData8bitsDirective(AddrSpace);
+    OS << (unsigned)(unsigned char)Data[0];
+    EmitEOL();
+    return;
   }
 
-  OS << ' ';
-  truncateToSize(Value, Size)->print(OS, &MAI);
-  OS << '\n';
+  // If the data ends with 0 and the target supports .asciz, use it, otherwise
+  // use .ascii
+  if (MAI.getAscizDirective() && Data.back() == 0) {
+    OS << MAI.getAscizDirective();
+    Data = Data.substr(0, Data.size()-1);
+  } else {
+    OS << MAI.getAsciiDirective();
+  }
+
+  OS << " \"";
+  for (unsigned i = 0, e = Data.size(); i != e; ++i) {
+    unsigned char C = Data[i];
+    if (C == '"' || C == '\\') {
+      OS << '\\' << (char)C;
+      continue;
+    }
+    
+    if (isprint((unsigned char)C)) {
+      OS << (char)C;
+      continue;
+    }
+    
+    switch (C) {
+    case '\b': OS << "\\b"; break;
+    case '\f': OS << "\\f"; break;
+    case '\n': OS << "\\n"; break;
+    case '\r': OS << "\\r"; break;
+    case '\t': OS << "\\t"; break;
+    default:
+      OS << '\\';
+      OS << toOctal(C >> 6);
+      OS << toOctal(C >> 3);
+      OS << toOctal(C >> 0);
+      break;
+    }
+  }
+  OS << '"';
+  EmitEOL();
+}
+
+/// EmitIntValue - Special case of EmitValue that avoids the client having
+/// to pass in a MCExpr for constant integers.
+void MCAsmStreamer::EmitIntValue(uint64_t Value, unsigned Size,
+                                 unsigned AddrSpace) {
+  assert(CurSection && "Cannot emit contents before setting section!");
+  const char *Directive = 0;
+  switch (Size) {
+  default: break;
+  case 1: Directive = MAI.getData8bitsDirective(AddrSpace); break;
+  case 2: Directive = MAI.getData16bitsDirective(AddrSpace); break;
+  case 4: Directive = MAI.getData32bitsDirective(AddrSpace); break;
+  case 8:
+    Directive = MAI.getData64bitsDirective(AddrSpace);
+    // If the target doesn't support 64-bit data, emit as two 32-bit halves.
+    if (Directive) break;
+    if (isLittleEndian()) {
+      EmitIntValue((uint32_t)(Value >> 0 ), 4, AddrSpace);
+      EmitIntValue((uint32_t)(Value >> 32), 4, AddrSpace);
+    } else {
+      EmitIntValue((uint32_t)(Value >> 32), 4, AddrSpace);
+      EmitIntValue((uint32_t)(Value >> 0 ), 4, AddrSpace);
+    }
+    return;
+  }
+  
+  assert(Directive && "Invalid size for machine code value!");
+  OS << Directive << truncateToSize(Value, Size);
+  EmitEOL();
+}
+
+void MCAsmStreamer::EmitValue(const MCExpr *Value, unsigned Size,
+                              unsigned AddrSpace) {
+  assert(CurSection && "Cannot emit contents before setting section!");
+  const char *Directive = 0;
+  switch (Size) {
+  default: break;
+  case 1: Directive = MAI.getData8bitsDirective(AddrSpace); break;
+  case 2: Directive = MAI.getData16bitsDirective(AddrSpace); break;
+  case 4: Directive = MAI.getData32bitsDirective(AddrSpace); break;
+  case 8: Directive = MAI.getData64bitsDirective(AddrSpace); break;
+  }
+  
+  assert(Directive && "Invalid size for machine code value!");
+  OS << Directive << *truncateToSize(Value, Size);
+  EmitEOL();
+}
+
+/// EmitFill - Emit NumBytes bytes worth of the value specified by
+/// FillValue.  This implements directives such as '.space'.
+void MCAsmStreamer::EmitFill(uint64_t NumBytes, uint8_t FillValue,
+                             unsigned AddrSpace) {
+  if (NumBytes == 0) return;
+  
+  if (AddrSpace == 0)
+    if (const char *ZeroDirective = MAI.getZeroDirective()) {
+      OS << ZeroDirective << NumBytes;
+      if (FillValue != 0)
+        OS << ',' << (int)FillValue;
+      EmitEOL();
+      return;
+    }
+
+  // Emit a byte at a time.
+  MCStreamer::EmitFill(NumBytes, FillValue, AddrSpace);
 }
 
 void MCAsmStreamer::EmitValueToAlignment(unsigned ByteAlignment, int64_t Value,
@@ -236,7 +436,7 @@ void MCAsmStreamer::EmitValueToAlignment(unsigned ByteAlignment, int64_t Value,
       if (MaxBytesToEmit) 
         OS << ", " << MaxBytesToEmit;
     }
-    OS << '\n';
+    EmitEOL();
     return;
   }
   
@@ -254,15 +454,14 @@ void MCAsmStreamer::EmitValueToAlignment(unsigned ByteAlignment, int64_t Value,
   OS << ", " << truncateToSize(Value, ValueSize);
   if (MaxBytesToEmit) 
     OS << ", " << MaxBytesToEmit;
-  OS << '\n';
+  EmitEOL();
 }
 
 void MCAsmStreamer::EmitValueToOffset(const MCExpr *Offset,
                                       unsigned char Value) {
   // FIXME: Verify that Offset is associated with the current section.
-  OS << ".org ";
-  Offset->print(OS, &MAI);
-  OS << ", " << (unsigned) Value << '\n';
+  OS << ".org " << *Offset << ", " << (unsigned) Value;
+  EmitEOL();
 }
 
 void MCAsmStreamer::EmitInstruction(const MCInst &Inst) {
@@ -271,7 +470,7 @@ void MCAsmStreamer::EmitInstruction(const MCInst &Inst) {
   // If we have an AsmPrinter, use that to print.
   if (InstPrinter) {
     InstPrinter->printInst(&Inst);
-    OS << '\n';
+    EmitEOL();
 
     // Show the encoding if we have a code emitter.
     if (Emitter) {
@@ -296,15 +495,18 @@ void MCAsmStreamer::EmitInstruction(const MCInst &Inst) {
   // Otherwise fall back to a structural printing for now. Eventually we should
   // always have access to the target specific printer.
   Inst.print(OS, &MAI);
-  OS << '\n';
+  EmitEOL();
 }
 
 void MCAsmStreamer::Finish() {
   OS.flush();
 }
     
-MCStreamer *llvm::createAsmStreamer(MCContext &Context, raw_ostream &OS,
-                                    const MCAsmInfo &MAI, MCInstPrinter *IP,
+MCStreamer *llvm::createAsmStreamer(MCContext &Context,
+                                    formatted_raw_ostream &OS,
+                                    const MCAsmInfo &MAI, bool isLittleEndian,
+                                    bool isVerboseAsm, MCInstPrinter *IP,
                                     MCCodeEmitter *CE) {
-  return new MCAsmStreamer(Context, OS, MAI, IP, CE);
+  return new MCAsmStreamer(Context, OS, MAI, isLittleEndian, isVerboseAsm,
+                           IP, CE);
 }

@@ -45,6 +45,7 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetELFWriterInfo.h"
 #include "llvm/Target/TargetLowering.h"
@@ -52,9 +53,8 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/Mangler.h"
 #include "llvm/Support/raw_ostream.h"
-
+#include "llvm/ADT/SmallString.h"
 using namespace llvm;
 
 char ELFWriter::ID = 0;
@@ -119,7 +119,7 @@ bool ELFWriter::doInitialization(Module &M) {
   // Initialize TargetLoweringObjectFile.
   const_cast<TargetLoweringObjectFile&>(TLOF).Initialize(OutContext, TM);
   
-  Mang = new Mangler(M);
+  Mang = new Mangler(*MAI);
 
   // ELF Header
   // ----------
@@ -703,10 +703,6 @@ bool ELFWriter::doFinalization(Module &M) {
        I != E; ++I)
     SymbolList.push_back(ELFSym::getExtSym(*I));
 
-  // Emit non-executable stack note
-  if (MAI->getNonexecutableStackDirective())
-    getNonExecStackSection();
-
   // Emit a symbol for each section created until now, skip null section
   for (unsigned i = 1, e = SectionList.size(); i < e; ++i) {
     ELFSection &ES = *SectionList[i];
@@ -906,9 +902,11 @@ void ELFWriter::EmitStringTable(const std::string &ModuleName) {
     ELFSym &Sym = *(*I);
 
     std::string Name;
-    if (Sym.isGlobalValue())
-      Name.append(Mang->getMangledName(Sym.getGlobalValue()));
-    else if (Sym.isExternalSym())
+    if (Sym.isGlobalValue()) {
+      SmallString<40> NameStr;
+      Mang->getNameWithPrefix(NameStr, Sym.getGlobalValue(), false);
+      Name.append(NameStr.begin(), NameStr.end());
+    } else if (Sym.isExternalSym())
       Name.append(Sym.getExternalSymbol());
     else if (Sym.isFileType())
       Name.append(ModuleName);

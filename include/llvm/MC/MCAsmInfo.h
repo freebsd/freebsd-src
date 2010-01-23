@@ -16,9 +16,13 @@
 #ifndef LLVM_TARGET_ASM_INFO_H
 #define LLVM_TARGET_ASM_INFO_H
 
+#include "llvm/MC/MCDirectives.h"
 #include <cassert>
 
 namespace llvm {
+  class MCSection;
+  class MCContext;
+  
   /// MCAsmInfo - This class is intended to be used as a base class for asm
   /// properties and features specific to the target.
   namespace ExceptionHandling { enum ExceptionsType { None, Dwarf, SjLj }; }
@@ -29,15 +33,20 @@ namespace llvm {
     // Properties to be set by the target writer, used to configure asm printer.
     //
 
-    /// ZeroFillDirective - Directive for emitting a global to the ZeroFill
-    /// section on this target.  Null if this target doesn't support zerofill.
-    const char *ZeroFillDirective;           // Default is null.
-
-    /// NonexecutableStackDirective - Directive for declaring to the
-    /// linker and beyond that the emitted code does not require stack
-    /// memory to be executable.
-    const char *NonexecutableStackDirective; // Default is null.
-
+    /// HasSubsectionsViaSymbols - True if this target has the MachO
+    /// .subsections_via_symbols directive.
+    bool HasSubsectionsViaSymbols;           // Default is false.
+    
+    /// HasMachoZeroFillDirective - True if this is a MachO target that supports
+    /// the macho-specific .zerofill directive for emitting BSS Symbols.
+    bool HasMachoZeroFillDirective;               // Default is false.
+    
+    /// HasStaticCtorDtorReferenceInStaticMode - True if the compiler should
+    /// emit a ".reference .constructors_used" or ".reference .destructors_used"
+    /// directive after the a static ctor/dtor list.  This directive is only
+    /// emitted in Static relocation model.
+    bool HasStaticCtorDtorReferenceInStaticMode;  // Default is false.
+    
     /// NeedsSet - True if target asm treats expressions in data directives
     /// as linktime-relocatable.  For assembly-time computation, we need to
     /// use a .set.  Thus:
@@ -107,7 +116,6 @@ namespace llvm {
     /// "\t.zero\t" and "\t.space\t".  If this is set to null, the
     /// Data*bitsDirective's will be used to emit zero bytes.
     const char *ZeroDirective;               // Defaults to "\t.zero\t"
-    const char *ZeroDirectiveSuffix;         // Defaults to ""
 
     /// AsciiDirective - This directive allows emission of an ascii string with
     /// the standard C escape characters embedded into it.
@@ -183,15 +191,10 @@ namespace llvm {
     /// the assembler to set the value of a variable to some expression.
     const char *SetDirective;                // Defaults to null.
     
-    /// LCOMMDirective - This is the name of a directive (if supported) that can
-    /// be used to efficiently declare a local (internal) block of zero
-    /// initialized data in the .bss/.data section.  The syntax expected is:
-    /// @verbatim <LCOMMDirective> SYMBOLNAME LENGTHINBYTES, ALIGNMENT
-    /// @endverbatim
-    const char *LCOMMDirective;              // Defaults to null.
+    /// HasLCOMMDirective - This is true if the target supports the .lcomm
+    /// directive.
+    bool HasLCOMMDirective;              // Defaults to false.
     
-    const char *COMMDirective;               // Defaults to "\t.comm\t".
-
     /// COMMDirectiveTakesAlignment - True if COMMDirective take a third
     /// argument that specifies the alignment of the declaration.
     bool COMMDirectiveTakesAlignment;        // Defaults to true.
@@ -204,10 +207,9 @@ namespace llvm {
     /// .file directive, this is true for ELF targets.
     bool HasSingleParameterDotFile;          // Defaults to true.
 
-    /// UsedDirective - This directive, if non-null, is used to declare a global
-    /// as being used somehow that the assembler can't see.  This prevents dead
-    /// code elimination on some targets.
-    const char *UsedDirective;               // Defaults to NULL.
+    /// HasNoDeadStrip - True if this target supports the MachO .no_dead_strip
+    /// directive.
+    bool HasNoDeadStrip;                     // Defaults to false.
 
     /// WeakRefDirective - This directive, if non-null, is used to declare a
     /// global as being a weak undefined symbol.
@@ -216,14 +218,18 @@ namespace llvm {
     /// WeakDefDirective - This directive, if non-null, is used to declare a
     /// global as being a weak defined symbol.
     const char *WeakDefDirective;            // Defaults to NULL.
-    
-    /// HiddenDirective - This directive, if non-null, is used to declare a
-    /// global or function as having hidden visibility.
-    const char *HiddenDirective;             // Defaults to "\t.hidden\t".
 
-    /// ProtectedDirective - This directive, if non-null, is used to declare a
-    /// global or function as having protected visibility.
-    const char *ProtectedDirective;          // Defaults to "\t.protected\t".
+    /// LinkOnceDirective - This directive, if non-null is used to declare a
+    /// global as being a weak defined symbol.  This is used on cygwin/mingw.
+    const char *LinkOnceDirective;           // Defaults to NULL.
+    
+    /// HiddenVisibilityAttr - This attribute, if not MCSA_Invalid, is used to
+    /// declare a symbol as having hidden visibility.
+    MCSymbolAttr HiddenVisibilityAttr;       // Defaults to MCSA_Hidden.
+
+    /// ProtectedVisibilityAttr - This attribute, if not MCSA_Invalid, is used
+    /// to declare a symbol as having protected visibility.
+    MCSymbolAttr ProtectedVisibilityAttr;    // Defaults to MCSA_Protected
 
     //===--- Dwarf Emission Directives -----------------------------------===//
 
@@ -279,14 +285,12 @@ namespace llvm {
     explicit MCAsmInfo();
     virtual ~MCAsmInfo();
 
-    /// getSLEB128Size - Compute the number of bytes required for a signed
-    /// leb128 value.
+    // FIXME: move these methods to DwarfPrinter when the JIT stops using them.
     static unsigned getSLEB128Size(int Value);
-
-    /// getULEB128Size - Compute the number of bytes required for an unsigned
-    /// leb128 value.
     static unsigned getULEB128Size(unsigned Value);
 
+    bool hasSubsectionsViaSymbols() const { return HasSubsectionsViaSymbols; }
+    
     // Data directive accessors.
     //
     const char *getData8bitsDirective(unsigned AS = 0) const {
@@ -302,6 +306,12 @@ namespace llvm {
       return AS == 0 ? Data64bitsDirective : getDataASDirective(64, AS);
     }
 
+    /// getNonexecutableStackSection - Targets can implement this method to
+    /// specify a section to switch to if the translation unit doesn't have any
+    /// trampolines that require an executable stack.
+    virtual MCSection *getNonexecutableStackSection(MCContext &Ctx) const {
+      return 0;
+    }
     
     bool usesSunStyleELFSectionSwitchSyntax() const {
       return SunStyleELFSectionSwitchSyntax;
@@ -313,11 +323,9 @@ namespace llvm {
 
     // Accessors.
     //
-    const char *getZeroFillDirective() const {
-      return ZeroFillDirective;
-    }
-    const char *getNonexecutableStackDirective() const {
-      return NonexecutableStackDirective;
+    bool hasMachoZeroFillDirective() const { return HasMachoZeroFillDirective; }
+    bool hasStaticCtorDtorReferenceInStaticMode() const {
+      return HasStaticCtorDtorReferenceInStaticMode;
     }
     bool needsSet() const {
       return NeedsSet;
@@ -364,9 +372,6 @@ namespace llvm {
     const char *getZeroDirective() const {
       return ZeroDirective;
     }
-    const char *getZeroDirectiveSuffix() const {
-      return ZeroDirectiveSuffix;
-    }
     const char *getAsciiDirective() const {
       return AsciiDirective;
     }
@@ -394,35 +399,20 @@ namespace llvm {
     const char *getSetDirective() const {
       return SetDirective;
     }
-    const char *getLCOMMDirective() const {
-      return LCOMMDirective;
-    }
-    const char *getCOMMDirective() const {
-      return COMMDirective;
-    }
+    bool hasLCOMMDirective() const { return HasLCOMMDirective; }
     bool getCOMMDirectiveTakesAlignment() const {
       return COMMDirectiveTakesAlignment;
     }
-    bool hasDotTypeDotSizeDirective() const {
-      return HasDotTypeDotSizeDirective;
-    }
-    bool hasSingleParameterDotFile() const {
-      return HasSingleParameterDotFile;
-    }
-    const char *getUsedDirective() const {
-      return UsedDirective;
-    }
-    const char *getWeakRefDirective() const {
-      return WeakRefDirective;
-    }
-    const char *getWeakDefDirective() const {
-      return WeakDefDirective;
-    }
-    const char *getHiddenDirective() const {
-      return HiddenDirective;
-    }
-    const char *getProtectedDirective() const {
-      return ProtectedDirective;
+    bool hasDotTypeDotSizeDirective() const {return HasDotTypeDotSizeDirective;}
+    bool hasSingleParameterDotFile() const { return HasSingleParameterDotFile; }
+    bool hasNoDeadStrip() const { return HasNoDeadStrip; }
+    const char *getWeakRefDirective() const { return WeakRefDirective; }
+    const char *getWeakDefDirective() const { return WeakDefDirective; }
+    const char *getLinkOnceDirective() const { return LinkOnceDirective; }
+    
+    MCSymbolAttr getHiddenVisibilityAttr() const { return HiddenVisibilityAttr;}
+    MCSymbolAttr getProtectedVisibilityAttr() const {
+      return ProtectedVisibilityAttr;
     }
     bool isAbsoluteDebugSectionOffsets() const {
       return AbsoluteDebugSectionOffsets;

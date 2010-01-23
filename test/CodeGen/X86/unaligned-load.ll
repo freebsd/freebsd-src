@@ -1,4 +1,4 @@
-; RUN: llc < %s -mtriple=x86_64-apple-darwin10.0 -relocation-model=dynamic-no-pic | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-apple-darwin10.0 -relocation-model=dynamic-no-pic --asm-verbose=0 | FileCheck %s
 
 @.str1 = internal constant [31 x i8] c"DHRYSTONE PROGRAM, SOME STRING\00", align 8
 @.str3 = internal constant [31 x i8] c"DHRYSTONE PROGRAM, 2'ND STRING\00", align 8
@@ -23,5 +23,5 @@ declare void @llvm.memcpy.i64(i8* nocapture, i8* nocapture, i64, i32) nounwind
 ; CHECK: .align  3
 ; CHECK-NEXT: _.str1:
 ; CHECK-NEXT: .asciz "DHRYSTONE PROGRAM, SOME STRING"
-; CHECK-NEXT: .align 3
+; CHECK: .align 3
 ; CHECK-NEXT: _.str3:

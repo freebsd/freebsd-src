@@ -28,7 +28,6 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/Mangler.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/ADT/Statistic.h"
 using namespace llvm;
@@ -53,7 +52,6 @@ namespace {
     void printOp(const MachineOperand &MO, bool IsCallOp = false);
     void printOperand(const MachineInstr *MI, int opNum);
     void printBaseOffsetPair(const MachineInstr *MI, int i, bool brackets=true);
-    void PrintGlobalVariable(const GlobalVariable *GVar);
     bool runOnMachineFunction(MachineFunction &F);
     void EmitStartOfAsmFile(Module &M);
 
@@ -95,7 +93,7 @@ void AlphaAsmPrinter::printOp(const MachineOperand &MO, bool IsCallOp) {
     return;
 
   case MachineOperand::MO_MachineBasicBlock:
-    GetMBBSymbol(MO.getMBB()->getNumber())->print(O, MAI);
+    O << *GetMBBSymbol(MO.getMBB()->getNumber());
     return;
 
   case MachineOperand::MO_ConstantPoolIndex:
@@ -108,7 +106,7 @@ void AlphaAsmPrinter::printOp(const MachineOperand &MO, bool IsCallOp) {
     return;
 
   case MachineOperand::MO_GlobalAddress:
-    O << Mang->getMangledName(MO.getGlobal());
+    O << *GetGlobalValueSymbol(MO.getGlobal());
     return;
 
   case MachineOperand::MO_JumpTableIndex:
@@ -148,29 +146,29 @@ bool AlphaAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   case Function::PrivateLinkage:
   case Function::LinkerPrivateLinkage:
     break;
-   case Function::ExternalLinkage:
-     O << "\t.globl " << CurrentFnName << "\n";
-     break;
+  case Function::ExternalLinkage:
+    O << "\t.globl " << *CurrentFnSym << '\n';
+    break;
   case Function::WeakAnyLinkage:
   case Function::WeakODRLinkage:
   case Function::LinkOnceAnyLinkage:
   case Function::LinkOnceODRLinkage:
-    O << MAI->getWeakRefDirective() << CurrentFnName << "\n";
+    O << MAI->getWeakRefDirective() << *CurrentFnSym << '\n';
     break;
   }
 
-  printVisibility(CurrentFnName, F->getVisibility());
+  printVisibility(CurrentFnSym, F->getVisibility());
 
-  O << "\t.ent " << CurrentFnName << "\n";
+  O << "\t.ent " << *CurrentFnSym << "\n";
 
-  O << CurrentFnName << ":\n";
+  O << *CurrentFnSym << ":\n";
 
   // Print out code for the function.
   for (MachineFunction::const_iterator I = MF.begin(), E = MF.end();
        I != E; ++I) {
-    if (I != MF.begin()) {
+    if (I != MF.begin())
       EmitBasicBlockStart(I);
-    }
+
     for (MachineBasicBlock::const_iterator II = I->begin(), E = I->end();
          II != E; ++II) {
       // Print the assembly for the instruction.
@@ -185,7 +183,7 @@ bool AlphaAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
     }
   }
 
-  O << "\t.end " << CurrentFnName << "\n";
+  O << "\t.end " << *CurrentFnSym << "\n";
 
   // We didn't modify anything.
   return false;
@@ -197,62 +195,6 @@ void AlphaAsmPrinter::EmitStartOfAsmFile(Module &M) {
   else
     O << "\t.arch ev6\n";
   O << "\t.set noat\n";
-}
-
-void AlphaAsmPrinter::PrintGlobalVariable(const GlobalVariable *GVar) {
-  const TargetData *TD = TM.getTargetData();
-
-  if (!GVar->hasInitializer()) return;  // External global require no code
-
-  // Check to see if this is a special global used by LLVM, if so, emit it.
-  if (EmitSpecialLLVMGlobal(GVar))
-    return;
-
-  std::string name = Mang->getMangledName(GVar);
-  Constant *C = GVar->getInitializer();
-  unsigned Size = TD->getTypeAllocSize(C->getType());
-  unsigned Align = TD->getPreferredAlignmentLog(GVar);
-
-  // 0: Switch to section
-  OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(GVar, Mang,
-                                                                  TM));
-
-  // 1: Check visibility
-  printVisibility(name, GVar->getVisibility());
-
-  // 2: Kind
-  switch (GVar->getLinkage()) {
-   case GlobalValue::LinkOnceAnyLinkage:
-   case GlobalValue::LinkOnceODRLinkage:
-   case GlobalValue::WeakAnyLinkage:
-   case GlobalValue::WeakODRLinkage:
-   case GlobalValue::CommonLinkage:
-    O << MAI->getWeakRefDirective() << name << '\n';
-    break;
-   case GlobalValue::AppendingLinkage:
-   case GlobalValue::ExternalLinkage:
-      O << MAI->getGlobalDirective() << name << "\n";
-      break;
-    case GlobalValue::InternalLinkage:
-    case GlobalValue::PrivateLinkage:
-    case GlobalValue::LinkerPrivateLinkage:
-      break;
-    default:
-      llvm_unreachable("Unknown linkage type!");
-    }
-
-  // 3: Type, Size, Align
-  if (MAI->hasDotTypeDotSizeDirective()) {
-    O << "\t.type\t" << name << ", @object\n";
-    O << "\t.size\t" << name << ", " << Size << "\n";
-  }
-
-  EmitAlignment(Align, GVar);
-
-  O << name << ":\n";
-
-  EmitGlobalConstant(C);
-  O << '\n';
 }
 
 /// PrintAsmOperand - Print out an operand for an inline asm expression.

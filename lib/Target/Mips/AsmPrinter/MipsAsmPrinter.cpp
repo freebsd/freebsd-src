@@ -37,7 +37,6 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/Mangler.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Debug.h"
@@ -45,7 +44,6 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/MathExtras.h"
 #include <cctype>
-
 using namespace llvm;
 
 STATISTIC(EmittedInsts, "Number of machine instrs printed");
@@ -72,7 +70,6 @@ namespace {
                          const char *Modifier = 0);
     void printFCCOperand(const MachineInstr *MI, int opNum, 
                          const char *Modifier = 0);
-    void PrintGlobalVariable(const GlobalVariable *GVar);
     void printSavedRegsBitmask(MachineFunction &MF);
     void printHex32(unsigned int Value);
 
@@ -219,15 +216,15 @@ void MipsAsmPrinter::emitFunctionStart(MachineFunction &MF) {
   // 2 bits aligned
   EmitAlignment(MF.getAlignment(), F);
 
-  O << "\t.globl\t"  << CurrentFnName << '\n';
-  O << "\t.ent\t"    << CurrentFnName << '\n';
+  O << "\t.globl\t" << *CurrentFnSym << '\n';
+  O << "\t.ent\t" << *CurrentFnSym << '\n';
 
-  printVisibility(CurrentFnName, F->getVisibility());
+  printVisibility(CurrentFnSym, F->getVisibility());
 
   if ((MAI->hasDotTypeDotSizeDirective()) && Subtarget->isLinux())
-    O << "\t.type\t"   << CurrentFnName << ", @function\n";
+    O << "\t.type\t" << *CurrentFnSym << ", @function\n";
 
-  O << CurrentFnName << ":\n";
+  O << *CurrentFnSym << ":\n";
 
   emitFrameDirective(MF);
   printSavedRegsBitmask(MF);
@@ -243,9 +240,9 @@ void MipsAsmPrinter::emitFunctionEnd(MachineFunction &MF) {
   O << "\t.set\tmacro\n"; 
   O << "\t.set\treorder\n"; 
 
-  O << "\t.end\t" << CurrentFnName << '\n';
+  O << "\t.end\t" << *CurrentFnSym << '\n';
   if (MAI->hasDotTypeDotSizeDirective() && !Subtarget->isLinux())
-    O << "\t.size\t" << CurrentFnName << ", .-" << CurrentFnName << '\n';
+    O << "\t.size\t" << *CurrentFnSym << ", .-" << *CurrentFnSym << '\n';
 }
 
 /// runOnMachineFunction - This uses the printMachineInstruction()
@@ -346,20 +343,20 @@ void MipsAsmPrinter::printOperand(const MachineInstr *MI, int opNum) {
       break;
 
     case MachineOperand::MO_MachineBasicBlock:
-      GetMBBSymbol(MO.getMBB()->getNumber())->print(O, MAI);
+      O << *GetMBBSymbol(MO.getMBB()->getNumber());
       return;
 
     case MachineOperand::MO_GlobalAddress:
-      O << Mang->getMangledName(MO.getGlobal());
+      O << *GetGlobalValueSymbol(MO.getGlobal());
       break;
 
     case MachineOperand::MO_ExternalSymbol:
-      O << MO.getSymbolName();
+      O << *GetExternalSymbolSymbol(MO.getSymbolName());
       break;
 
     case MachineOperand::MO_JumpTableIndex:
       O << MAI->getPrivateGlobalPrefix() << "JTI" << getFunctionNumber()
-      << '_' << MO.getIndex();
+        << '_' << MO.getIndex();
       break;
 
     case MachineOperand::MO_ConstantPoolIndex:
@@ -424,102 +421,6 @@ void MipsAsmPrinter::EmitStartOfAsmFile(Module &M) {
   // return to previous section
   O << "\t.previous" << '\n'; 
 }
-
-void MipsAsmPrinter::PrintGlobalVariable(const GlobalVariable *GVar) {
-  const TargetData *TD = TM.getTargetData();
-
-  if (!GVar->hasInitializer())
-    return;   // External global require no code
-
-  // Check to see if this is a special global used by LLVM, if so, emit it.
-  if (EmitSpecialLLVMGlobal(GVar))
-    return;
-
-  O << "\n\n";
-  std::string name = Mang->getMangledName(GVar);
-  Constant *C = GVar->getInitializer();
-  const Type *CTy = C->getType();
-  unsigned Size = TD->getTypeAllocSize(CTy);
-  const ConstantArray *CVA = dyn_cast<ConstantArray>(C);
-  bool printSizeAndType = true;
-
-  // A data structure or array is aligned in memory to the largest
-  // alignment boundary required by any data type inside it (this matches
-  // the Preferred Type Alignment). For integral types, the alignment is
-  // the type size.
-  unsigned Align;
-  if (CTy->getTypeID() == Type::IntegerTyID ||
-      CTy->getTypeID() == Type::VoidTyID) {
-    assert(!(Size & (Size-1)) && "Alignment is not a power of two!");
-    Align = Log2_32(Size);
-  } else
-    Align = TD->getPreferredTypeAlignmentShift(CTy);
-
-  printVisibility(name, GVar->getVisibility());
-
-  OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(GVar, Mang,
-                                                                  TM));
-
-  if (C->isNullValue() && !GVar->hasSection()) {
-    if (!GVar->isThreadLocal() &&
-        (GVar->hasLocalLinkage() || GVar->isWeakForLinker())) {
-      if (Size == 0) Size = 1;   // .comm Foo, 0 is undefined, avoid it.
-
-      if (GVar->hasLocalLinkage())
-        O << "\t.local\t" << name << '\n';
-
-      O << MAI->getCOMMDirective() << name << ',' << Size;
-      if (MAI->getCOMMDirectiveTakesAlignment())
-        O << ',' << (1 << Align);
-
-      O << '\n';
-      return;
-    }
-  }
-  switch (GVar->getLinkage()) {
-   case GlobalValue::LinkOnceAnyLinkage:
-   case GlobalValue::LinkOnceODRLinkage:
-   case GlobalValue::CommonLinkage:
-   case GlobalValue::WeakAnyLinkage:
-   case GlobalValue::WeakODRLinkage:
-    // FIXME: Verify correct for weak.
-    // Nonnull linkonce -> weak
-    O << "\t.weak " << name << '\n';
-    break;
-   case GlobalValue::AppendingLinkage:
-    // FIXME: appending linkage variables should go into a section of their name
-    // or something.  For now, just emit them as external.
-   case GlobalValue::ExternalLinkage:
-    // If external or appending, declare as a global symbol
-    O << MAI->getGlobalDirective() << name << '\n';
-    // Fall Through
-   case GlobalValue::PrivateLinkage:
-   case GlobalValue::LinkerPrivateLinkage:
-   case GlobalValue::InternalLinkage:
-    if (CVA && CVA->isCString())
-      printSizeAndType = false;
-    break;
-   case GlobalValue::GhostLinkage:
-    llvm_unreachable("Should not have any unmaterialized functions!");
-   case GlobalValue::DLLImportLinkage:
-    llvm_unreachable("DLLImport linkage is not supported by this target!");
-   case GlobalValue::DLLExportLinkage:
-    llvm_unreachable("DLLExport linkage is not supported by this target!");
-   default:
-    llvm_unreachable("Unknown linkage type!");
-  }
-
-  EmitAlignment(Align, GVar);
-
-  if (MAI->hasDotTypeDotSizeDirective() && printSizeAndType) {
-    O << "\t.type " << name << ",@object\n";
-    O << "\t.size " << name << ',' << Size << '\n';
-  }
-
-  O << name << ":\n";
-  EmitGlobalConstant(C);
-}
-
 
 // Force static initialization.
 extern "C" void LLVMInitializeMipsAsmPrinter() { 

@@ -475,7 +475,7 @@ namespace llvm {
   /// is not associated with any DWARF tag.
   class DILocation : public DIDescriptor {
   public:
-    explicit DILocation(MDNode *N) : DIDescriptor(N) { ; }
+    explicit DILocation(MDNode *N) : DIDescriptor(N) { }
 
     unsigned getLineNumber() const     { return getUnsignedField(0); }
     unsigned getColumnNumber() const   { return getUnsignedField(1); }
@@ -587,7 +587,7 @@ namespace llvm {
                                   StringRef DisplayName,
                                   StringRef LinkageName,
                                   DICompileUnit CompileUnit, unsigned LineNo,
-                                  DIType Type, bool isLocalToUnit,
+                                  DIType Ty, bool isLocalToUnit,
                                   bool isDefinition,
                                   unsigned VK = 0,
                                   unsigned VIndex = 0,
@@ -603,21 +603,21 @@ namespace llvm {
                          StringRef DisplayName,
                          StringRef LinkageName,
                          DICompileUnit CompileUnit,
-                         unsigned LineNo, DIType Type, bool isLocalToUnit,
+                         unsigned LineNo, DIType Ty, bool isLocalToUnit,
                          bool isDefinition, llvm::GlobalVariable *GV);
 
     /// CreateVariable - Create a new descriptor for the specified variable.
     DIVariable CreateVariable(unsigned Tag, DIDescriptor Context,
                               StringRef Name,
                               DICompileUnit CompileUnit, unsigned LineNo,
-                              DIType Type);
+                              DIType Ty);
 
     /// CreateComplexVariable - Create a new descriptor for the specified
     /// variable which has a complex address expression for its address.
     DIVariable CreateComplexVariable(unsigned Tag, DIDescriptor Context,
                                      const std::string &Name,
                                      DICompileUnit CompileUnit, unsigned LineNo,
-                                     DIType Type,
+                                     DIType Ty,
                                      SmallVector<Value *, 9> &addr);
 
     /// CreateLexicalBlock - This creates a descriptor for a lexical block
@@ -655,13 +655,6 @@ namespace llvm {
   private:
     Constant *GetTagConstant(unsigned TAG);
   };
-
-  /// Finds the dbg.declare intrinsic corresponding to this value if any.
-  /// It looks through pointer casts too.
-  const DbgDeclareInst *findDbgDeclare(const Value *V);
-
-  /// Find the debug info descriptor corresponding to this global variable.
-  Value *findDbgGlobalDeclare(GlobalVariable *V);
 
   bool getLocationInfo(const Value *V, std::string &DisplayName,
                        std::string &Type, unsigned &LineNo, std::string &File,

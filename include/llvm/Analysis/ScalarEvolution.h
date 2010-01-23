@@ -167,7 +167,7 @@ namespace llvm {
     };
 
     friend class SCEVCallbackVH;
-    friend struct SCEVExpander;
+    friend class SCEVExpander;
 
     /// F - The function we are analyzing.
     ///
@@ -180,6 +180,10 @@ namespace llvm {
     /// TD - The target data information for the target we are targetting.
     ///
     TargetData *TD;
+
+    /// DT - The dominator tree.
+    ///
+    DominatorTree *DT;
 
     /// CouldNotCompute - This SCEV is used to represent unknown trip
     /// counts and things.

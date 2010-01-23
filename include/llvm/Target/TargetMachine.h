@@ -81,6 +81,14 @@ namespace CodeGenOpt {
   };
 }
 
+// Specify if we should encode the LSDA pointer in the FDE as 4- or 8-bytes.
+namespace DwarfLSDAEncoding {
+  enum Encoding {
+    Default,
+    FourByte,
+    EightByte
+  };
+}
 
 //===----------------------------------------------------------------------===//
 ///
@@ -129,10 +137,7 @@ public:
   /// TargetSubtarget.  In debug builds, it verifies that the object being
   /// returned is of the correct type.
   template<typename STC> const STC &getSubtarget() const {
-    const TargetSubtarget *TST = getSubtargetImpl();
-    assert(TST && dynamic_cast<const STC*>(TST) &&
-           "Not the right kind of subtarget!");
-    return *static_cast<const STC*>(TST);
+    return *static_cast<const STC*>(getSubtargetImpl());
   }
 
   /// getRegisterInfo - If register information is available, return it.  If
@@ -191,6 +196,20 @@ public:
   /// setAsmVerbosityDefault - Set the default value of asm verbosity. Default
   /// is false.
   static void setAsmVerbosityDefault(bool);
+
+  /// getLSDAEncoding - Returns the LSDA pointer encoding. The choices are
+  /// 4-byte, 8-byte, and target default. The CIE is hard-coded to indicate that
+  /// the LSDA pointer in the FDE section is an "sdata4", and should be encoded
+  /// as a 4-byte pointer by default. However, some systems may require a
+  /// different size due to bugs or other conditions. We will default to a
+  /// 4-byte encoding unless the system tells us otherwise.
+  ///
+  /// FIXME: This call-back isn't good! We should be using the correct encoding
+  /// regardless of the system. However, there are some systems which have bugs
+  /// that prevent this from occuring.
+  virtual DwarfLSDAEncoding::Encoding getLSDAEncoding() const {
+    return DwarfLSDAEncoding::Default;
+  }
 
   /// CodeGenFileType - These enums are meant to be passed into
   /// addPassesToEmitFile to indicate what type of file to emit.
@@ -452,6 +471,14 @@ public:
   bool addAssemblyEmitter(PassManagerBase &, CodeGenOpt::Level,
                           bool /* VerboseAsmDefault */,
                           formatted_raw_ostream &);
+
+  /// addObjectFileEmitter - Helper function which creates a target specific
+  /// object files emitter, if available.  This interface is temporary, for
+  /// bringing up MCAssembler-based object file emitters.
+  ///
+  /// \return Returns 'false' on success.
+  bool addObjectFileEmitter(PassManagerBase &, CodeGenOpt::Level,
+                            formatted_raw_ostream &);
 };
 
 } // End llvm namespace

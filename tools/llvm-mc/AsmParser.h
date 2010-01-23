@@ -25,21 +25,28 @@
 
 namespace llvm {
 class AsmCond;
+class AsmToken;
 class MCContext;
 class MCExpr;
 class MCInst;
 class MCStreamer;
 class MCAsmInfo;
 class MCValue;
+class SourceMgr;
 class TargetAsmParser;
 class Twine;
 
 class AsmParser : public MCAsmParser {
-private:  
+private:
   AsmLexer Lexer;
   MCContext &Ctx;
   MCStreamer &Out;
+  SourceMgr &SrcMgr;
   TargetAsmParser *TargetParser;
+  
+  /// This is the current buffer index we're lexing from as managed by the
+  /// SourceMgr object.
+  int CurBuffer;
 
   AsmCond TheCondState;
   std::vector<AsmCond> TheCondStack;
@@ -79,8 +86,11 @@ public:
   virtual void Warning(SMLoc L, const Twine &Meg);
   virtual bool Error(SMLoc L, const Twine &Msg);
 
-  virtual bool ParseExpression(const MCExpr *&Res);
-  virtual bool ParseParenExpression(const MCExpr *&Res);
+  const AsmToken &Lex();
+
+  bool ParseExpression(const MCExpr *&Res);
+  virtual bool ParseExpression(const MCExpr *&Res, SMLoc &EndLoc);
+  virtual bool ParseParenExpression(const MCExpr *&Res, SMLoc &EndLoc);
   virtual bool ParseAbsoluteExpression(int64_t &Res);
 
   /// }
@@ -99,15 +109,20 @@ private:
 
   bool TokError(const char *Msg);
   
+  void PrintMessage(SMLoc Loc, const std::string &Msg, const char *Type) const;
+    
+  /// EnterIncludeFile - Enter the specified file. This returns true on failure.
+  bool EnterIncludeFile(const std::string &Filename);
+  
   bool ParseConditionalAssemblyDirectives(StringRef Directive,
                                           SMLoc DirectiveLoc);
   void EatToEndOfStatement();
   
   bool ParseAssignment(const StringRef &Name);
 
-  bool ParsePrimaryExpr(const MCExpr *&Res);
-  bool ParseBinOpRHS(unsigned Precedence, const MCExpr *&Res);
-  bool ParseParenExpr(const MCExpr *&Res);
+  bool ParsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc);
+  bool ParseBinOpRHS(unsigned Precedence, const MCExpr *&Res, SMLoc &EndLoc);
+  bool ParseParenExpr(const MCExpr *&Res, SMLoc &EndLoc);
 
   /// ParseIdentifier - Parse an identifier or string (as a quoted identifier)
   /// and set \arg Res to the identifier contents.

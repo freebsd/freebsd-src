@@ -37,7 +37,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Support/Mangler.h"
 #include "llvm/Support/MathExtras.h"
 #include <algorithm>
 #include <cctype>
@@ -69,11 +68,10 @@ namespace {
     bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
                         unsigned AsmVariant, const char *ExtraCode);
 
-    void emitGlobalDirective(const std::string &name);
-    void emitExternDirective(const std::string &name);
+    void emitGlobalDirective(const MCSymbol *Sym);
     
-    void emitArrayBound(const std::string &name, const GlobalVariable *GV);
-    virtual void PrintGlobalVariable(const GlobalVariable *GV);
+    void emitArrayBound(const MCSymbol *Sym, const GlobalVariable *GV);
+    virtual void EmitGlobalVariable(const GlobalVariable *GV);
 
     void emitFunctionStart(MachineFunction &MF);
     void emitFunctionEnd(MachineFunction &MF);
@@ -95,55 +93,44 @@ namespace {
 
 #include "XCoreGenAsmWriter.inc"
 
-void XCoreAsmPrinter::
-emitGlobalDirective(const std::string &name)
-{
-  O << MAI->getGlobalDirective() << name;
-  O << "\n";
+void XCoreAsmPrinter::emitGlobalDirective(const MCSymbol *Sym) {
+  O << MAI->getGlobalDirective() << *Sym << "\n";
 }
 
-void XCoreAsmPrinter::
-emitExternDirective(const std::string &name)
-{
-  O << "\t.extern\t" << name;
-  O << '\n';
-}
-
-void XCoreAsmPrinter::
-emitArrayBound(const std::string &name, const GlobalVariable *GV)
-{
+void XCoreAsmPrinter::emitArrayBound(const MCSymbol *Sym,
+                                     const GlobalVariable *GV) {
   assert(((GV->hasExternalLinkage() ||
     GV->hasWeakLinkage()) ||
     GV->hasLinkOnceLinkage()) && "Unexpected linkage");
   if (const ArrayType *ATy = dyn_cast<ArrayType>(
-    cast<PointerType>(GV->getType())->getElementType()))
-  {
-    O << MAI->getGlobalDirective() << name << ".globound" << "\n";
-    O << MAI->getSetDirective() << name << ".globound" << ","
-      << ATy->getNumElements() << "\n";
+    cast<PointerType>(GV->getType())->getElementType())) {
+    O << MAI->getGlobalDirective() << *Sym;
+    O << ".globound" << "\n";
+    O << MAI->getSetDirective() << *Sym;
+    O << ".globound" << "," << ATy->getNumElements() << "\n";
     if (GV->hasWeakLinkage() || GV->hasLinkOnceLinkage()) {
       // TODO Use COMDAT groups for LinkOnceLinkage
-      O << MAI->getWeakDefDirective() << name << ".globound" << "\n";
+      O << MAI->getWeakDefDirective() << *Sym << ".globound" << "\n";
     }
   }
 }
 
-void XCoreAsmPrinter::PrintGlobalVariable(const GlobalVariable *GV) {
+void XCoreAsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
   // Check to see if this is a special global used by LLVM, if so, emit it.
   if (!GV->hasInitializer() ||
       EmitSpecialLLVMGlobal(GV))
     return;
 
   const TargetData *TD = TM.getTargetData();
-  
   OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(GV, Mang,TM));
+
   
-  std::string name = Mang->getMangledName(GV);
+  MCSymbol *GVSym = GetGlobalValueSymbol(GV);
   Constant *C = GV->getInitializer();
   unsigned Align = (unsigned)TD->getPreferredTypeAlignmentShift(C->getType());
   
   // Mark the start of the global
-  O << "\t.cc_top " << name << ".data," << name << "\n";
+  O << "\t.cc_top " << *GVSym << ".data," << *GVSym << "\n";
 
   switch (GV->getLinkage()) {
   case GlobalValue::AppendingLinkage:
@@ -153,12 +140,11 @@ void XCoreAsmPrinter::PrintGlobalVariable(const GlobalVariable *GV) {
   case GlobalValue::WeakAnyLinkage:
   case GlobalValue::WeakODRLinkage:
   case GlobalValue::ExternalLinkage:
-    emitArrayBound(name, GV);
-    emitGlobalDirective(name);
+    emitArrayBound(GVSym, GV);
+    emitGlobalDirective(GVSym);
     // TODO Use COMDAT groups for LinkOnceLinkage
-    if (GV->hasWeakLinkage() || GV->hasLinkOnceLinkage()) {
-      O << MAI->getWeakDefDirective() << name << "\n";
-    }
+    if (GV->hasWeakLinkage() || GV->hasLinkOnceLinkage())
+      O << MAI->getWeakDefDirective() << *GVSym << "\n";
     // FALL THROUGH
   case GlobalValue::InternalLinkage:
   case GlobalValue::PrivateLinkage:
@@ -181,25 +167,23 @@ void XCoreAsmPrinter::PrintGlobalVariable(const GlobalVariable *GV) {
     Size *= MaxThreads;
   }
   if (MAI->hasDotTypeDotSizeDirective()) {
-    O << "\t.type " << name << ",@object\n";
-    O << "\t.size " << name << "," << Size << "\n";
+    O << "\t.type " << *GVSym << ",@object\n";
+    O << "\t.size " << *GVSym << "," << Size << "\n";
   }
-  O << name << ":\n";
+  O << *GVSym << ":\n";
   
   EmitGlobalConstant(C);
   if (GV->isThreadLocal()) {
-    for (unsigned i = 1; i < MaxThreads; ++i) {
+    for (unsigned i = 1; i < MaxThreads; ++i)
       EmitGlobalConstant(C);
-    }
   }
-  if (Size < 4) {
-    // The ABI requires that unsigned scalar types smaller than 32 bits
-    // are are padded to 32 bits.
-    EmitZeros(4 - Size);
-  }
+  // The ABI requires that unsigned scalar types smaller than 32 bits
+  // are padded to 32 bits.
+  if (Size < 4)
+    OutStreamer.EmitZeros(4 - Size, 0);
   
   // Mark the end of the global
-  O << "\t.cc_bottom " << name << ".data\n";
+  O << "\t.cc_bottom " << *GVSym << ".data\n";
 }
 
 /// Emit the directives on the start of functions
@@ -210,7 +194,7 @@ void XCoreAsmPrinter::emitFunctionStart(MachineFunction &MF) {
   OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(F, Mang, TM));
   
   // Mark the start of the function
-  O << "\t.cc_top " << CurrentFnName << ".function," << CurrentFnName << "\n";
+  O << "\t.cc_top " << *CurrentFnSym << ".function," << *CurrentFnSym << "\n";
 
   switch (F->getLinkage()) {
   default: llvm_unreachable("Unknown linkage type!");
@@ -219,31 +203,29 @@ void XCoreAsmPrinter::emitFunctionStart(MachineFunction &MF) {
   case Function::LinkerPrivateLinkage:
     break;
   case Function::ExternalLinkage:
-    emitGlobalDirective(CurrentFnName);
+    emitGlobalDirective(CurrentFnSym);
     break;
   case Function::LinkOnceAnyLinkage:
   case Function::LinkOnceODRLinkage:
   case Function::WeakAnyLinkage:
   case Function::WeakODRLinkage:
     // TODO Use COMDAT groups for LinkOnceLinkage
-    O << MAI->getGlobalDirective() << CurrentFnName << "\n";
-    O << MAI->getWeakDefDirective() << CurrentFnName << "\n";
+    O << MAI->getGlobalDirective() << *CurrentFnSym << "\n";
+    O << MAI->getWeakDefDirective() << *CurrentFnSym << "\n";
     break;
   }
   // (1 << 1) byte aligned
   EmitAlignment(MF.getAlignment(), F, 1);
-  if (MAI->hasDotTypeDotSizeDirective()) {
-    O << "\t.type " << CurrentFnName << ",@function\n";
-  }
-  O << CurrentFnName << ":\n";
+  if (MAI->hasDotTypeDotSizeDirective())
+    O << "\t.type " << *CurrentFnSym << ",@function\n";
+
+  O << *CurrentFnSym << ":\n";
 }
 
 /// Emit the directives on the end of functions
-void XCoreAsmPrinter::
-emitFunctionEnd(MachineFunction &MF) 
-{
+void XCoreAsmPrinter::emitFunctionEnd(MachineFunction &MF) {
   // Mark the end of the function
-  O << "\t.cc_bottom " << CurrentFnName << ".function\n";
+  O << "\t.cc_bottom " << *CurrentFnSym << ".function\n";
 }
 
 /// runOnMachineFunction - This uses the printMachineInstruction()
@@ -318,10 +300,10 @@ void XCoreAsmPrinter::printOperand(const MachineInstr *MI, int opNum) {
     O << MO.getImm();
     break;
   case MachineOperand::MO_MachineBasicBlock:
-    GetMBBSymbol(MO.getMBB()->getNumber())->print(O, MAI);
+    O << *GetMBBSymbol(MO.getMBB()->getNumber());
     break;
   case MachineOperand::MO_GlobalAddress:
-    O << Mang->getMangledName(MO.getGlobal());
+    O << *GetGlobalValueSymbol(MO.getGlobal());
     break;
   case MachineOperand::MO_ExternalSymbol:
     O << MO.getSymbolName();
@@ -333,8 +315,9 @@ void XCoreAsmPrinter::printOperand(const MachineInstr *MI, int opNum) {
   case MachineOperand::MO_JumpTableIndex:
     O << MAI->getPrivateGlobalPrefix() << "JTI" << getFunctionNumber()
       << '_' << MO.getIndex();
+    break;
   case MachineOperand::MO_BlockAddress:
-    GetBlockAddressSymbol(MO.getBlockAddress())->print(O, MAI);
+    O << *GetBlockAddressSymbol(MO.getBlockAddress());
     break;
   default:
     llvm_unreachable("not implemented");

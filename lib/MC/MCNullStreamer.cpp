@@ -31,23 +31,25 @@ namespace {
 
     virtual void EmitLabel(MCSymbol *Symbol) {}
 
-    virtual void EmitAssemblerFlag(AssemblerFlag Flag) {}
+    virtual void EmitAssemblerFlag(MCAssemblerFlag Flag) {}
 
     virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {}
 
-    virtual void EmitSymbolAttribute(MCSymbol *Symbol, SymbolAttr Attribute) {}
+    virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute){}
 
     virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) {}
 
-    virtual void EmitCommonSymbol(MCSymbol *Symbol, unsigned Size,
+    virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                   unsigned ByteAlignment) {}
+    virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) {}
 
     virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
                               unsigned Size = 0, unsigned ByteAlignment = 0) {}
 
-    virtual void EmitBytes(StringRef Data) {}
+    virtual void EmitBytes(StringRef Data, unsigned AddrSpace) {}
 
-    virtual void EmitValue(const MCExpr *Value, unsigned Size) {}
+    virtual void EmitValue(const MCExpr *Value, unsigned Size,
+                           unsigned AddrSpace) {}
 
     virtual void EmitValueToAlignment(unsigned ByteAlignment, int64_t Value = 0,
                                       unsigned ValueSize = 1,

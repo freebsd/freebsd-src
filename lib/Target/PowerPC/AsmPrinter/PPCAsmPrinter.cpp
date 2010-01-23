@@ -27,21 +27,21 @@
 #include "llvm/Assembly/Writer.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/DwarfWriter.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineModuleInfoImpls.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegistry.h"
-#include "llvm/Support/Mangler.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -58,48 +58,7 @@ STATISTIC(EmittedInsts, "Number of machine instrs printed");
 namespace {
   class PPCAsmPrinter : public AsmPrinter {
   protected:
-    struct FnStubInfo {
-      MCSymbol *Stub, *LazyPtr, *AnonSymbol;
-      
-      FnStubInfo() {
-        Stub = LazyPtr = AnonSymbol = 0;
-      }
-      
-      void Init(const GlobalValue *GV, Mangler *Mang, MCContext &Ctx) {
-        // Already initialized.
-        if (Stub != 0) return;
-
-        // Get the names.
-        SmallString<128> TmpStr;
-        Mang->getNameWithPrefix(TmpStr, GV, true);
-        MakeSymbols(TmpStr, Ctx);
-      }
-
-      void Init(StringRef GVName, Mangler *Mang, MCContext &Ctx) {
-        assert(!GVName.empty() && "external symbol name shouldn't be empty");
-        if (Stub != 0) return; // Already initialized.
-        // Get the names for the external symbol name.
-        SmallString<128> TmpStr;
-        Mang->getNameWithPrefix(TmpStr, GVName, Mangler::Private);
-        MakeSymbols(TmpStr, Ctx);
-      }
-      
-      void MakeSymbols(SmallString<128> &TmpStr, MCContext &Ctx) {
-        TmpStr += "$stub";
-        Stub = Ctx.GetOrCreateSymbol(TmpStr.str());
-        TmpStr.erase(TmpStr.end()-5, TmpStr.end()); // Remove $stub
-
-        TmpStr += "$lazy_ptr";
-        LazyPtr = Ctx.GetOrCreateSymbol(TmpStr.str());
-        TmpStr.erase(TmpStr.end()-9, TmpStr.end()); // Remove $lazy_ptr
-        
-        TmpStr += "$stub$tmp";
-        AnonSymbol = Ctx.GetOrCreateSymbol(TmpStr.str());
-      }
-    };
-    
-    StringMap<FnStubInfo> FnStubs;
-    StringMap<std::string> GVStubs, HiddenGVStubs, TOC;
+    DenseMap<const MCSymbol*, const MCSymbol*> TOC;
     const PPCSubtarget &Subtarget;
     uint64_t LabelID;
   public:
@@ -240,18 +199,26 @@ namespace {
           GlobalValue *GV = MO.getGlobal();
           if (GV->isDeclaration() || GV->isWeakForLinker()) {
             // Dynamically-resolved functions need a stub for the function.
-            FnStubInfo &FnInfo = FnStubs[Mang->getMangledName(GV)];
-            FnInfo.Init(GV, Mang, OutContext);
-            FnInfo.Stub->print(O, MAI);
+            MCSymbol *Sym = GetSymbolWithGlobalValueBase(GV, "$stub");
+            const MCSymbol *&StubSym =
+              MMI->getObjFileInfo<MachineModuleInfoMachO>().getFnStubEntry(Sym);
+            if (StubSym == 0)
+              StubSym = GetGlobalValueSymbol(GV);
+            O << *Sym;
             return;
           }
         }
         if (MO.getType() == MachineOperand::MO_ExternalSymbol) {
-          SmallString<128> MangledName;
-          Mang->getNameWithPrefix(MangledName, MO.getSymbolName());
-          FnStubInfo &FnInfo = FnStubs[MangledName.str()];
-          FnInfo.Init(MO.getSymbolName(), Mang, OutContext);
-          FnInfo.Stub->print(O, MAI);
+          SmallString<128> TempNameStr;
+          TempNameStr += StringRef(MO.getSymbolName());
+          TempNameStr += StringRef("$stub");
+          
+          const MCSymbol *Sym = GetExternalSymbolSymbol(TempNameStr.str());
+          const MCSymbol *&StubSym =
+            MMI->getObjFileInfo<MachineModuleInfoMachO>().getFnStubEntry(Sym);
+          if (StubSym == 0)
+            StubSym = GetExternalSymbolSymbol(MO.getSymbolName());
+          O << *Sym;
           return;
         }
       }
@@ -338,21 +305,16 @@ namespace {
 
       assert(MO.getType() == MachineOperand::MO_GlobalAddress);
 
-      GlobalValue *GV = MO.getGlobal();
-
-      std::string Name = Mang->getMangledName(GV);
+      const MCSymbol *Sym = GetGlobalValueSymbol(MO.getGlobal());
 
       // Map symbol -> label of TOC entry.
-      if (TOC.count(Name) == 0) {
-        std::string Label;
-        Label += MAI->getPrivateGlobalPrefix();
-        Label += "C";
-        Label += utostr(LabelID++);
+      const MCSymbol *&TOCEntry = TOC[Sym];
+      if (TOCEntry == 0)
+        TOCEntry = OutContext.
+          GetOrCreateSymbol(StringRef(MAI->getPrivateGlobalPrefix()) + "C" +
+                            Twine(LabelID++));
 
-        TOC[Name] = Label;
-      }
-
-      O << TOC[Name] << "@toc";
+      O << *TOCEntry << "@toc";
     }
 
     void printPredicateOperand(const MachineInstr *MI, unsigned OpNo,
@@ -381,8 +343,6 @@ namespace {
       AU.addRequired<DwarfWriter>();
       PPCAsmPrinter::getAnalysisUsage(AU);
     }
-
-    void PrintGlobalVariable(const GlobalVariable *GVar);
   };
 
   /// PPCDarwinAsmPrinter - PowerPC assembly printer, customized for Darwin/Mac
@@ -402,14 +362,14 @@ namespace {
     bool doFinalization(Module &M);
     void EmitStartOfAsmFile(Module &M);
 
+    void EmitFunctionStubs(const MachineModuleInfoMachO::SymbolListTy &Stubs);
+    
     void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();
       AU.addRequired<MachineModuleInfo>();
       AU.addRequired<DwarfWriter>();
       PPCAsmPrinter::getAnalysisUsage(AU);
     }
-
-    void PrintGlobalVariable(const GlobalVariable *GVar);
   };
 } // end of anonymous namespace
 
@@ -422,7 +382,7 @@ void PPCAsmPrinter::printOp(const MachineOperand &MO) {
     llvm_unreachable("printOp() does not handle immediate values");
 
   case MachineOperand::MO_MachineBasicBlock:
-    GetMBBSymbol(MO.getMBB()->getNumber())->print(O, MAI);
+    O << *GetMBBSymbol(MO.getMBB()->getNumber());
     return;
   case MachineOperand::MO_JumpTableIndex:
     O << MAI->getPrivateGlobalPrefix() << "JTI" << getFunctionNumber()
@@ -434,42 +394,57 @@ void PPCAsmPrinter::printOp(const MachineOperand &MO) {
       << '_' << MO.getIndex();
     return;
   case MachineOperand::MO_BlockAddress:
-    GetBlockAddressSymbol(MO.getBlockAddress())->print(O, MAI);
+    O << *GetBlockAddressSymbol(MO.getBlockAddress());
     return;
   case MachineOperand::MO_ExternalSymbol: {
     // Computing the address of an external symbol, not calling it.
-    std::string Name(MAI->getGlobalPrefix());
-    Name += MO.getSymbolName();
-    
-    if (TM.getRelocationModel() != Reloc::Static) {
-      GVStubs[Name] = Name+"$non_lazy_ptr";
-      Name += "$non_lazy_ptr";
+    if (TM.getRelocationModel() == Reloc::Static) {
+      O << *GetExternalSymbolSymbol(MO.getSymbolName());
+      return;
     }
-    O << Name;
+
+    const MCSymbol *NLPSym = 
+      OutContext.GetOrCreateSymbol(StringRef(MAI->getGlobalPrefix())+
+                                   MO.getSymbolName()+"$non_lazy_ptr");
+    const MCSymbol *&StubSym = 
+      MMI->getObjFileInfo<MachineModuleInfoMachO>().getGVStubEntry(NLPSym);
+    if (StubSym == 0)
+      StubSym = GetExternalSymbolSymbol(MO.getSymbolName());
+    
+    O << *NLPSym;
     return;
   }
   case MachineOperand::MO_GlobalAddress: {
     // Computing the address of a global symbol, not calling it.
     GlobalValue *GV = MO.getGlobal();
-    std::string Name;
+    MCSymbol *SymToPrint;
 
     // External or weakly linked global variables need non-lazily-resolved stubs
     if (TM.getRelocationModel() != Reloc::Static &&
         (GV->isDeclaration() || GV->isWeakForLinker())) {
       if (!GV->hasHiddenVisibility()) {
-        Name = Mang->getMangledName(GV, "$non_lazy_ptr", true);
-        GVStubs[Mang->getMangledName(GV)] = Name;
+        SymToPrint = GetSymbolWithGlobalValueBase(GV, "$non_lazy_ptr");
+        const MCSymbol *&StubSym = 
+       MMI->getObjFileInfo<MachineModuleInfoMachO>().getGVStubEntry(SymToPrint);
+        if (StubSym == 0)
+          StubSym = GetGlobalValueSymbol(GV);
       } else if (GV->isDeclaration() || GV->hasCommonLinkage() ||
                  GV->hasAvailableExternallyLinkage()) {
-        Name = Mang->getMangledName(GV, "$non_lazy_ptr", true);
-        HiddenGVStubs[Mang->getMangledName(GV)] = Name;
+        SymToPrint = GetSymbolWithGlobalValueBase(GV, "$non_lazy_ptr");
+        
+        const MCSymbol *&StubSym = 
+          MMI->getObjFileInfo<MachineModuleInfoMachO>().
+                    getHiddenGVStubEntry(SymToPrint);
+        if (StubSym == 0)
+          StubSym = GetGlobalValueSymbol(GV);
       } else {
-        Name = Mang->getMangledName(GV);
+        SymToPrint = GetGlobalValueSymbol(GV);
       }
     } else {
-      Name = Mang->getMangledName(GV);
+      SymToPrint = GetGlobalValueSymbol(GV);
     }
-    O << Name;
+    
+    O << *SymToPrint;
 
     printOffset(MO.getOffset());
     return;
@@ -641,34 +616,34 @@ bool PPCLinuxAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   case Function::InternalLinkage:  // Symbols default to internal.
     break;
   case Function::ExternalLinkage:
-    O << "\t.global\t" << CurrentFnName << '\n'
-      << "\t.type\t" << CurrentFnName << ", @function\n";
+    O << "\t.global\t" << *CurrentFnSym << '\n' << "\t.type\t";
+    O << *CurrentFnSym << ", @function\n";
     break;
   case Function::LinkerPrivateLinkage:
   case Function::WeakAnyLinkage:
   case Function::WeakODRLinkage:
   case Function::LinkOnceAnyLinkage:
   case Function::LinkOnceODRLinkage:
-    O << "\t.global\t" << CurrentFnName << '\n';
-    O << "\t.weak\t" << CurrentFnName << '\n';
+    O << "\t.global\t" << *CurrentFnSym << '\n';
+    O << "\t.weak\t" << *CurrentFnSym << '\n';
     break;
   }
 
-  printVisibility(CurrentFnName, F->getVisibility());
+  printVisibility(CurrentFnSym, F->getVisibility());
 
   EmitAlignment(MF.getAlignment(), F);
 
   if (Subtarget.isPPC64()) {
     // Emit an official procedure descriptor.
-    // FIXME 64-bit SVR4: Use MCSection here?
+    // FIXME 64-bit SVR4: Use MCSection here!
     O << "\t.section\t\".opd\",\"aw\"\n";
     O << "\t.align 3\n";
-    O << CurrentFnName << ":\n";
-    O << "\t.quad .L." << CurrentFnName << ",.TOC.@tocbase\n";
+    O << *CurrentFnSym << ":\n";
+    O << "\t.quad .L." << *CurrentFnSym << ",.TOC.@tocbase\n";
     O << "\t.previous\n";
-    O << ".L." << CurrentFnName << ":\n";
+    O << ".L." << *CurrentFnSym << ":\n";
   } else {
-    O << CurrentFnName << ":\n";
+    O << *CurrentFnSym << ":\n";
   }
 
   // Emit pre-function debug information.
@@ -688,7 +663,7 @@ bool PPCLinuxAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
     }
   }
 
-  O << "\t.size\t" << CurrentFnName << ",.-" << CurrentFnName << '\n';
+  O << "\t.size\t" << *CurrentFnSym << ",.-" << *CurrentFnSym << '\n';
 
   OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(F, Mang, TM));
 
@@ -702,92 +677,6 @@ bool PPCLinuxAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   return false;
 }
 
-void PPCLinuxAsmPrinter::PrintGlobalVariable(const GlobalVariable *GVar) {
-  const TargetData *TD = TM.getTargetData();
-
-  if (!GVar->hasInitializer())
-    return;   // External global require no code
-
-  // Check to see if this is a special global used by LLVM, if so, emit it.
-  if (EmitSpecialLLVMGlobal(GVar))
-    return;
-
-  std::string name = Mang->getMangledName(GVar);
-
-  printVisibility(name, GVar->getVisibility());
-
-  Constant *C = GVar->getInitializer();
-  const Type *Type = C->getType();
-  unsigned Size = TD->getTypeAllocSize(Type);
-  unsigned Align = TD->getPreferredAlignmentLog(GVar);
-
-  OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(GVar, Mang,
-                                                                  TM));
-
-  if (C->isNullValue() && /* FIXME: Verify correct */
-      !GVar->hasSection() &&
-      (GVar->hasLocalLinkage() || GVar->hasExternalLinkage() ||
-       GVar->isWeakForLinker())) {
-      if (Size == 0) Size = 1;   // .comm Foo, 0 is undefined, avoid it.
-
-      if (GVar->hasExternalLinkage()) {
-        O << "\t.global " << name << '\n';
-        O << "\t.type " << name << ", @object\n";
-        O << name << ":\n";
-        O << "\t.zero " << Size << '\n';
-      } else if (GVar->hasLocalLinkage()) {
-        O << MAI->getLCOMMDirective() << name << ',' << Size;
-      } else {
-        O << ".comm " << name << ',' << Size;
-      }
-      if (VerboseAsm) {
-        O << "\t\t" << MAI->getCommentString() << " '";
-        WriteAsOperand(O, GVar, /*PrintType=*/false, GVar->getParent());
-        O << "'";
-      }
-      O << '\n';
-      return;
-  }
-
-  switch (GVar->getLinkage()) {
-   case GlobalValue::LinkOnceAnyLinkage:
-   case GlobalValue::LinkOnceODRLinkage:
-   case GlobalValue::WeakAnyLinkage:
-   case GlobalValue::WeakODRLinkage:
-   case GlobalValue::CommonLinkage:
-   case GlobalValue::LinkerPrivateLinkage:
-    O << "\t.global " << name << '\n'
-      << "\t.type " << name << ", @object\n"
-      << "\t.weak " << name << '\n';
-    break;
-   case GlobalValue::AppendingLinkage:
-    // FIXME: appending linkage variables should go into a section of
-    // their name or something.  For now, just emit them as external.
-   case GlobalValue::ExternalLinkage:
-    // If external or appending, declare as a global symbol
-    O << "\t.global " << name << '\n'
-      << "\t.type " << name << ", @object\n";
-    // FALL THROUGH
-   case GlobalValue::InternalLinkage:
-   case GlobalValue::PrivateLinkage:
-    break;
-   default:
-    llvm_unreachable("Unknown linkage type!");
-  }
-
-  EmitAlignment(Align, GVar);
-  O << name << ":";
-  if (VerboseAsm) {
-    O << "\t\t\t\t" << MAI->getCommentString() << " '";
-    WriteAsOperand(O, GVar, /*PrintType=*/false, GVar->getParent());
-    O << "'";
-  }
-  O << '\n';
-
-  EmitGlobalConstant(C);
-  O << '\n';
-}
-
 bool PPCLinuxAsmPrinter::doFinalization(Module &M) {
   const TargetData *TD = TM.getTargetData();
 
@@ -797,10 +686,11 @@ bool PPCLinuxAsmPrinter::doFinalization(Module &M) {
     // FIXME 64-bit SVR4: Use MCSection here?
     O << "\t.section\t\".toc\",\"aw\"\n";
 
-    for (StringMap<std::string>::iterator I = TOC.begin(), E = TOC.end();
-         I != E; ++I) {
-      O << I->second << ":\n";
-      O << "\t.tc " << I->getKeyData() << "[TC]," << I->getKeyData() << '\n';
+    // FIXME: This is nondeterminstic!
+    for (DenseMap<const MCSymbol*, const MCSymbol*>::iterator I = TOC.begin(),
+         E = TOC.end(); I != E; ++I) {
+      O << *I->second << ":\n";
+      O << "\t.tc " << *I->first << "[TC]," << *I->first << '\n';
     }
   }
 
@@ -829,22 +719,22 @@ bool PPCDarwinAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   case Function::InternalLinkage:  // Symbols default to internal.
     break;
   case Function::ExternalLinkage:
-    O << "\t.globl\t" << CurrentFnName << '\n';
+    O << "\t.globl\t" << *CurrentFnSym << '\n';
     break;
   case Function::WeakAnyLinkage:
   case Function::WeakODRLinkage:
   case Function::LinkOnceAnyLinkage:
   case Function::LinkOnceODRLinkage:
   case Function::LinkerPrivateLinkage:
-    O << "\t.globl\t" << CurrentFnName << '\n';
-    O << "\t.weak_definition\t" << CurrentFnName << '\n';
+    O << "\t.globl\t" << *CurrentFnSym << '\n';
+    O << "\t.weak_definition\t" << *CurrentFnSym << '\n';
     break;
   }
 
-  printVisibility(CurrentFnName, F->getVisibility());
+  printVisibility(CurrentFnSym, F->getVisibility());
 
   EmitAlignment(MF.getAlignment(), F);
-  O << CurrentFnName << ":\n";
+  O << *CurrentFnSym << ":\n";
 
   // Emit pre-function debug information.
   DW->BeginFunction(&MF);
@@ -926,203 +816,110 @@ void PPCDarwinAsmPrinter::EmitStartOfAsmFile(Module &M) {
   OutStreamer.SwitchSection(getObjFileLowering().getTextSection());
 }
 
-void PPCDarwinAsmPrinter::PrintGlobalVariable(const GlobalVariable *GVar) {
-  const TargetData *TD = TM.getTargetData();
-
-  if (!GVar->hasInitializer())
-    return;   // External global require no code
-
-  // Check to see if this is a special global used by LLVM, if so, emit it.
-  if (EmitSpecialLLVMGlobal(GVar)) {
-    if (TM.getRelocationModel() == Reloc::Static) {
-      if (GVar->getName() == "llvm.global_ctors")
-        O << ".reference .constructors_used\n";
-      else if (GVar->getName() == "llvm.global_dtors")
-        O << ".reference .destructors_used\n";
-    }
-    return;
-  }
-
-  std::string name = Mang->getMangledName(GVar);
-  printVisibility(name, GVar->getVisibility());
-
-  Constant *C = GVar->getInitializer();
-  const Type *Type = C->getType();
-  unsigned Size = TD->getTypeAllocSize(Type);
-  unsigned Align = TD->getPreferredAlignmentLog(GVar);
-
-  const MCSection *TheSection =
-    getObjFileLowering().SectionForGlobal(GVar, Mang, TM);
-  OutStreamer.SwitchSection(TheSection);
-
-  /// FIXME: Drive this off the section!
-  if (C->isNullValue() && /* FIXME: Verify correct */
-      !GVar->hasSection() &&
-      (GVar->hasLocalLinkage() || GVar->hasExternalLinkage() ||
-       GVar->isWeakForLinker()) &&
-      // Don't put things that should go in the cstring section into "comm".
-      !TheSection->getKind().isMergeableCString()) {
-    if (Size == 0) Size = 1;   // .comm Foo, 0 is undefined, avoid it.
-
-    if (GVar->hasExternalLinkage()) {
-      O << "\t.globl " << name << '\n';
-      O << "\t.zerofill __DATA, __common, " << name << ", "
-        << Size << ", " << Align;
-    } else if (GVar->hasLocalLinkage()) {
-      O << MAI->getLCOMMDirective() << name << ',' << Size << ',' << Align;
-    } else if (!GVar->hasCommonLinkage()) {
-      O << "\t.globl " << name << '\n'
-        << MAI->getWeakDefDirective() << name << '\n';
-      EmitAlignment(Align, GVar);
-      O << name << ":";
-      if (VerboseAsm) {
-        O << "\t\t\t\t" << MAI->getCommentString() << " ";
-        WriteAsOperand(O, GVar, /*PrintType=*/false, GVar->getParent());
-      }
-      O << '\n';
-      EmitGlobalConstant(C);
-      return;
-    } else {
-      O << ".comm " << name << ',' << Size;
-      // Darwin 9 and above support aligned common data.
-      if (Subtarget.isDarwin9())
-        O << ',' << Align;
-    }
-    if (VerboseAsm) {
-      O << "\t\t" << MAI->getCommentString() << " '";
-      WriteAsOperand(O, GVar, /*PrintType=*/false, GVar->getParent());
-      O << "'";
-    }
-    O << '\n';
-    return;
-  }
-
-  switch (GVar->getLinkage()) {
-   case GlobalValue::LinkOnceAnyLinkage:
-   case GlobalValue::LinkOnceODRLinkage:
-   case GlobalValue::WeakAnyLinkage:
-   case GlobalValue::WeakODRLinkage:
-   case GlobalValue::CommonLinkage:
-   case GlobalValue::LinkerPrivateLinkage:
-    O << "\t.globl " << name << '\n'
-      << "\t.weak_definition " << name << '\n';
-    break;
-   case GlobalValue::AppendingLinkage:
-    // FIXME: appending linkage variables should go into a section of
-    // their name or something.  For now, just emit them as external.
-   case GlobalValue::ExternalLinkage:
-    // If external or appending, declare as a global symbol
-    O << "\t.globl " << name << '\n';
-    // FALL THROUGH
-   case GlobalValue::InternalLinkage:
-   case GlobalValue::PrivateLinkage:
-    break;
-   default:
-    llvm_unreachable("Unknown linkage type!");
-  }
-
-  EmitAlignment(Align, GVar);
-  O << name << ":";
-  if (VerboseAsm) {
-    O << "\t\t\t\t" << MAI->getCommentString() << " '";
-    WriteAsOperand(O, GVar, /*PrintType=*/false, GVar->getParent());
-    O << "'";
-  }
-  O << '\n';
-
-  EmitGlobalConstant(C);
-  O << '\n';
+static const MCSymbol *GetLazyPtr(const MCSymbol *Sym, MCContext &Ctx) {
+  // Remove $stub suffix, add $lazy_ptr.
+  SmallString<128> TmpStr(Sym->getName().begin(), Sym->getName().end()-5);
+  TmpStr += "$lazy_ptr";
+  return Ctx.GetOrCreateSymbol(TmpStr.str());
 }
 
-bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
-  const TargetData *TD = TM.getTargetData();
+static const MCSymbol *GetAnonSym(const MCSymbol *Sym, MCContext &Ctx) {
+  // Add $tmp suffix to $stub, yielding $stub$tmp.
+  SmallString<128> TmpStr(Sym->getName().begin(), Sym->getName().end());
+  TmpStr += "$tmp";
+  return Ctx.GetOrCreateSymbol(TmpStr.str());
+}
 
-  bool isPPC64 = TD->getPointerSizeInBits() == 64;
-
-  // Darwin/PPC always uses mach-o.
+void PPCDarwinAsmPrinter::
+EmitFunctionStubs(const MachineModuleInfoMachO::SymbolListTy &Stubs) {
+  bool isPPC64 = TM.getTargetData()->getPointerSizeInBits() == 64;
+  
   TargetLoweringObjectFileMachO &TLOFMacho = 
     static_cast<TargetLoweringObjectFileMachO &>(getObjFileLowering());
 
-  
-  const MCSection *LSPSection = 0;
-  if (!FnStubs.empty()) // .lazy_symbol_pointer
-    LSPSection = TLOFMacho.getLazySymbolPointerSection();
-    
+  // .lazy_symbol_pointer
+  const MCSection *LSPSection = TLOFMacho.getLazySymbolPointerSection();
   
   // Output stubs for dynamically-linked functions
-  if (TM.getRelocationModel() == Reloc::PIC_ && !FnStubs.empty()) {
+  if (TM.getRelocationModel() == Reloc::PIC_) {
     const MCSection *StubSection = 
-      TLOFMacho.getMachOSection("__TEXT", "__picsymbolstub1",
-                                MCSectionMachO::S_SYMBOL_STUBS |
-                                MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
-                                32, SectionKind::getText());
-    for (StringMap<FnStubInfo>::iterator I = FnStubs.begin(), E = FnStubs.end();
-         I != E; ++I) {
+    TLOFMacho.getMachOSection("__TEXT", "__picsymbolstub1",
+                              MCSectionMachO::S_SYMBOL_STUBS |
+                              MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
+                              32, SectionKind::getText());
+    for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
       OutStreamer.SwitchSection(StubSection);
       EmitAlignment(4);
-      const FnStubInfo &Info = I->second;
-      Info.Stub->print(O, MAI);
-      O << ":\n";
-      O << "\t.indirect_symbol " << I->getKeyData() << '\n';
+      
+      const MCSymbol *Stub = Stubs[i].first;
+      const MCSymbol *RawSym = Stubs[i].second;
+      const MCSymbol *LazyPtr = GetLazyPtr(Stub, OutContext);
+      const MCSymbol *AnonSymbol = GetAnonSym(Stub, OutContext);
+                                           
+      O << *Stub << ":\n";
+      O << "\t.indirect_symbol " << *RawSym << '\n';
       O << "\tmflr r0\n";
-      O << "\tbcl 20,31,";
-      Info.AnonSymbol->print(O, MAI);
-      O << '\n';
-      Info.AnonSymbol->print(O, MAI);
-      O << ":\n";
+      O << "\tbcl 20,31," << *AnonSymbol << '\n';
+      O << *AnonSymbol << ":\n";
       O << "\tmflr r11\n";
-      O << "\taddis r11,r11,ha16(";
-      Info.LazyPtr->print(O, MAI);
-      O << '-';
-      Info.AnonSymbol->print(O, MAI);
-      O << ")\n";
+      O << "\taddis r11,r11,ha16(" << *LazyPtr << '-' << *AnonSymbol
+      << ")\n";
       O << "\tmtlr r0\n";
-      O << (isPPC64 ? "\tldu" : "\tlwzu") << " r12,lo16(";
-      Info.LazyPtr->print(O, MAI);
-      O << '-';
-      Info.AnonSymbol->print(O, MAI);
-      O << ")(r11)\n";
+      O << (isPPC64 ? "\tldu" : "\tlwzu") << " r12,lo16(" << *LazyPtr
+      << '-' << *AnonSymbol << ")(r11)\n";
       O << "\tmtctr r12\n";
       O << "\tbctr\n";
       
       OutStreamer.SwitchSection(LSPSection);
-      Info.LazyPtr->print(O, MAI);
-      O << ":\n";
-      O << "\t.indirect_symbol " << I->getKeyData() << '\n';
+      O << *LazyPtr << ":\n";
+      O << "\t.indirect_symbol " << *RawSym << '\n';
       O << (isPPC64 ? "\t.quad" : "\t.long") << " dyld_stub_binding_helper\n";
     }
-  } else if (!FnStubs.empty()) {
-    const MCSection *StubSection =
-      TLOFMacho.getMachOSection("__TEXT","__symbol_stub1",
-                                MCSectionMachO::S_SYMBOL_STUBS |
-                                MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
-                                16, SectionKind::getText());
-    
-    for (StringMap<FnStubInfo>::iterator I = FnStubs.begin(), E = FnStubs.end();
-         I != E; ++I) {
-      OutStreamer.SwitchSection(StubSection);
-      EmitAlignment(4);
-      const FnStubInfo &Info = I->second;
-      Info.Stub->print(O, MAI);
-      O << ":\n";
-      O << "\t.indirect_symbol " << I->getKeyData() << '\n';
-      O << "\tlis r11,ha16(";
-      Info.LazyPtr->print(O, MAI);
-      O << ")\n";
-      O << (isPPC64 ? "\tldu" :  "\tlwzu") << " r12,lo16(";
-      Info.LazyPtr->print(O, MAI);
-      O << ")(r11)\n";
-      O << "\tmtctr r12\n";
-      O << "\tbctr\n";
-      OutStreamer.SwitchSection(LSPSection);
-      Info.LazyPtr->print(O, MAI);
-      O << ":\n";
-      O << "\t.indirect_symbol " << I->getKeyData() << '\n';
-      O << (isPPC64 ? "\t.quad" : "\t.long") << " dyld_stub_binding_helper\n";
-    }
+    O << '\n';
+    return;
   }
+  
+  const MCSection *StubSection =
+    TLOFMacho.getMachOSection("__TEXT","__symbol_stub1",
+                              MCSectionMachO::S_SYMBOL_STUBS |
+                              MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
+                              16, SectionKind::getText());
+  for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
+    const MCSymbol *Stub = Stubs[i].first;
+    const MCSymbol *RawSym = Stubs[i].second;
+    const MCSymbol *LazyPtr = GetLazyPtr(Stub, OutContext);
 
+    OutStreamer.SwitchSection(StubSection);
+    EmitAlignment(4);
+    O << *Stub << ":\n";
+    O << "\t.indirect_symbol " << *RawSym << '\n';
+    O << "\tlis r11,ha16(" << *LazyPtr << ")\n";
+    O << (isPPC64 ? "\tldu" :  "\tlwzu") << " r12,lo16(" << *LazyPtr
+    << ")(r11)\n";
+    O << "\tmtctr r12\n";
+    O << "\tbctr\n";
+    OutStreamer.SwitchSection(LSPSection);
+    O << *LazyPtr << ":\n";
+    O << "\t.indirect_symbol " << *RawSym << '\n';
+    O << (isPPC64 ? "\t.quad" : "\t.long") << " dyld_stub_binding_helper\n";
+  }
+  
   O << '\n';
+}
+
+
+bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
+  bool isPPC64 = TM.getTargetData()->getPointerSizeInBits() == 64;
+
+  // Darwin/PPC always uses mach-o.
+  TargetLoweringObjectFileMachO &TLOFMacho = 
+    static_cast<TargetLoweringObjectFileMachO &>(getObjFileLowering());
+  MachineModuleInfoMachO &MMIMacho =
+    MMI->getObjFileInfo<MachineModuleInfoMachO>();
+  
+  MachineModuleInfoMachO::SymbolListTy Stubs = MMIMacho.GetFnStubList();
+  if (!Stubs.empty())
+    EmitFunctionStubs(Stubs);
 
   if (MAI->doesSupportExceptionHandling() && MMI) {
     // Add the (possibly multiple) personalities to the set of global values.
@@ -1130,33 +927,39 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
     const std::vector<Function *> &Personalities = MMI->getPersonalities();
     for (std::vector<Function *>::const_iterator I = Personalities.begin(),
          E = Personalities.end(); I != E; ++I) {
-      if (*I)
-        GVStubs[Mang->getMangledName(*I)] =
-          Mang->getMangledName(*I, "$non_lazy_ptr", true);
+      if (*I) {
+        const MCSymbol *NLPSym = 
+          GetSymbolWithGlobalValueBase(*I, "$non_lazy_ptr");
+        const MCSymbol *&StubSym = MMIMacho.getGVStubEntry(NLPSym);
+        StubSym = GetGlobalValueSymbol(*I);
+      }
     }
   }
 
+  // Output stubs for dynamically-linked functions.
+  Stubs = MMIMacho.GetGVStubList();
+  
   // Output macho stubs for external and common global variables.
-  if (!GVStubs.empty()) {
+  if (!Stubs.empty()) {
     // Switch with ".non_lazy_symbol_pointer" directive.
     OutStreamer.SwitchSection(TLOFMacho.getNonLazySymbolPointerSection());
     EmitAlignment(isPPC64 ? 3 : 2);
     
-    for (StringMap<std::string>::iterator I = GVStubs.begin(),
-         E = GVStubs.end(); I != E; ++I) {
-      O << I->second << ":\n";
-      O << "\t.indirect_symbol " << I->getKeyData() << '\n';
+    for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
+      O << *Stubs[i].first << ":\n";
+      O << "\t.indirect_symbol " << *Stubs[i].second << '\n';
       O << (isPPC64 ? "\t.quad\t0\n" : "\t.long\t0\n");
     }
   }
 
-  if (!HiddenGVStubs.empty()) {
+  Stubs = MMIMacho.GetHiddenGVStubList();
+  if (!Stubs.empty()) {
     OutStreamer.SwitchSection(getObjFileLowering().getDataSection());
     EmitAlignment(isPPC64 ? 3 : 2);
-    for (StringMap<std::string>::iterator I = HiddenGVStubs.begin(),
-         E = HiddenGVStubs.end(); I != E; ++I) {
-      O << I->second << ":\n";
-      O << (isPPC64 ? "\t.quad\t" : "\t.long\t") << I->getKeyData() << '\n';
+    
+    for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
+      O << *Stubs[i].first << ":\n";
+      O << (isPPC64 ? "\t.quad\t" : "\t.long\t") << *Stubs[i].second << '\n';
     }
   }
 
@@ -1165,7 +968,7 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
   // implementation of multiple entry points).  If this doesn't occur, the
   // linker can safely perform dead code stripping.  Since LLVM never generates
   // code that does this, it is always safe to set.
-  OutStreamer.EmitAssemblerFlag(MCStreamer::SubsectionsViaSymbols);
+  OutStreamer.EmitAssemblerFlag(MCAF_SubsectionsViaSymbols);
 
   return AsmPrinter::doFinalization(M);
 }

@@ -32,13 +32,13 @@
 #include "llvm/CodeGen/FileWriters.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Support/Mangler.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/StandardPasses.h"
 #include "llvm/Support/SystemUtils.h"
 #include "llvm/System/Host.h"
 #include "llvm/System/Program.h"
 #include "llvm/System/Signals.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/SubtargetFeature.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/MC/MCAsmInfo.h"
@@ -323,19 +323,18 @@ void LTOCodeGenerator::applyScopeRestrictions()
 
         // mark which symbols can not be internalized 
         if ( !_mustPreserveSymbols.empty() ) {
-            Mangler mangler(*mergedModule, 
-                                _target->getMCAsmInfo()->getGlobalPrefix());
+            Mangler mangler(*_target->getMCAsmInfo());
             std::vector<const char*> mustPreserveList;
             for (Module::iterator f = mergedModule->begin(), 
                                         e = mergedModule->end(); f != e; ++f) {
                 if ( !f->isDeclaration() 
-                  && _mustPreserveSymbols.count(mangler.getMangledName(f)) )
+                  && _mustPreserveSymbols.count(mangler.getNameWithPrefix(f)) )
                   mustPreserveList.push_back(::strdup(f->getNameStr().c_str()));
             }
             for (Module::global_iterator v = mergedModule->global_begin(), 
                                  e = mergedModule->global_end(); v !=  e; ++v) {
                 if ( !v->isDeclaration()
-                  && _mustPreserveSymbols.count(mangler.getMangledName(v)) )
+                  && _mustPreserveSymbols.count(mangler.getNameWithPrefix(v)) )
                   mustPreserveList.push_back(::strdup(v->getNameStr().c_str()));
             }
             passes.add(createInternalizePass(mustPreserveList));
@@ -403,14 +402,12 @@ bool LTOCodeGenerator::generateAssemblyCode(formatted_raw_ostream& out,
     switch (_target->addPassesToEmitFile(*codeGenPasses, out,
                                          TargetMachine::AssemblyFile,
                                          CodeGenOpt::Aggressive)) {
-        case FileModel::MachOFile:
-            oce = AddMachOWriter(*codeGenPasses, out, *_target);
-            break;
         case FileModel::ElfFile:
             oce = AddELFWriter(*codeGenPasses, out, *_target);
             break;
         case FileModel::AsmFile:
             break;
+        case FileModel::MachOFile:
         case FileModel::Error:
         case FileModel::None:
             errMsg = "target file type not supported";

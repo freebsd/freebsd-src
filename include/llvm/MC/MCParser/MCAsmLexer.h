@@ -12,11 +12,11 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/System/DataTypes.h"
+#include "llvm/Support/SMLoc.h"
 
 namespace llvm {
 class MCAsmLexer;
 class MCInst;
-class SMLoc;
 class Target;
 
 /// AsmToken - Target independent representation for an assembler token.
@@ -32,6 +32,9 @@ public:
     
     // Integer values.
     Integer,
+    
+    // Register values (stored in IntVal).  Only used by TargetAsmLexer.
+    Register,
     
     // No-value.
     EndOfStatement,
@@ -96,6 +99,13 @@ public:
     assert(Kind == Integer && "This token isn't an integer!");
     return IntVal; 
   }
+  
+  /// getRegVal - Get the register number for the current token, which should
+  /// be a register.
+  unsigned getRegVal() const {
+    assert(Kind == Register && "This token isn't a register!");
+    return static_cast<unsigned>(IntVal);
+  }
 };
 
 /// MCAsmLexer - Generic assembler lexer interface, for use by target specific
@@ -103,6 +113,10 @@ public:
 class MCAsmLexer {
   /// The current token, stored in the base class for faster access.
   AsmToken CurTok;
+  
+  /// The location and description of the current error
+  SMLoc ErrLoc;
+  std::string Err;
 
   MCAsmLexer(const MCAsmLexer &);   // DO NOT IMPLEMENT
   void operator=(const MCAsmLexer &);  // DO NOT IMPLEMENT
@@ -110,7 +124,12 @@ protected: // Can only create subclasses.
   MCAsmLexer();
 
   virtual AsmToken LexToken() = 0;
-
+  
+  void SetError(const SMLoc &errLoc, const std::string &err) {
+    ErrLoc = errLoc;
+    Err = err;
+  }
+  
 public:
   virtual ~MCAsmLexer();
 
@@ -125,6 +144,16 @@ public:
   /// getTok - Get the current (last) lexed token.
   const AsmToken &getTok() {
     return CurTok;
+  }
+  
+  /// getErrLoc - Get the current error location
+  const SMLoc &getErrLoc() {
+    return ErrLoc;
+  }
+           
+  /// getErr - Get the current error string
+  const std::string &getErr() {
+    return Err;
   }
 
   /// getKind - Get the kind of current token.

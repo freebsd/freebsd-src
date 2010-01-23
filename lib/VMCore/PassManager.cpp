@@ -127,6 +127,9 @@ public:
   bool doFinalization(Module &M);
   bool doFinalization(Function &F);
 
+  virtual PMDataManager *getAsPMDataManager() { return this; }
+  virtual Pass *getAsPass() { return this; }
+
   virtual const char *getPassName() const {
     return "BasicBlock Pass Manager";
   }
@@ -169,7 +172,7 @@ private:
 public:
   static char ID;
   explicit FunctionPassManagerImpl(int Depth) : 
-    Pass(&ID), PMDataManager(Depth), 
+    Pass(PT_PassManager, &ID), PMDataManager(Depth), 
     PMTopLevelManager(TLM_Function), wasRun(false) { }
 
   /// add - Add a pass to the queue of passes to run.  This passes ownership of
@@ -196,15 +199,17 @@ public:
   ///
   bool doFinalization(Module &M);
 
+                                  
+  virtual PMDataManager *getAsPMDataManager() { return this; }
+  virtual Pass *getAsPass() { return this; }
+
   /// Pass Manager itself does not invalidate any analysis info.
   void getAnalysisUsage(AnalysisUsage &Info) const {
     Info.setPreservesAll();
   }
 
   inline void addTopLevelPass(Pass *P) {
-
-    if (ImmutablePass *IP = dynamic_cast<ImmutablePass *> (P)) {
-      
+    if (ImmutablePass *IP = P->getAsImmutablePass()) {
       // P is a immutable pass and it will be managed by this
       // top level manager. Set up analysis resolver to connect them.
       AnalysisResolver *AR = new AnalysisResolver(*this);
@@ -236,7 +241,7 @@ class MPPassManager : public Pass, public PMDataManager {
 public:
   static char ID;
   explicit MPPassManager(int Depth) :
-    Pass(&ID), PMDataManager(Depth) { }
+    Pass(PT_PassManager, &ID), PMDataManager(Depth) { }
 
   // Delete on the fly managers.
   virtual ~MPPassManager() {
@@ -270,6 +275,9 @@ public:
   virtual const char *getPassName() const {
     return "Module Pass Manager";
   }
+
+  virtual PMDataManager *getAsPMDataManager() { return this; }
+  virtual Pass *getAsPass() { return this; }
 
   // Print passes managed by this manager
   void dumpPassStructure(unsigned Offset) {
@@ -313,7 +321,8 @@ class PassManagerImpl : public Pass,
 public:
   static char ID;
   explicit PassManagerImpl(int Depth) :
-    Pass(&ID), PMDataManager(Depth), PMTopLevelManager(TLM_Pass) { }
+    Pass(PT_PassManager, &ID), PMDataManager(Depth),
+                               PMTopLevelManager(TLM_Pass) { }
 
   /// add - Add a pass to the queue of passes to run.  This passes ownership of
   /// the Pass to the PassManager.  When the PassManager is destroyed, the pass
@@ -333,8 +342,7 @@ public:
   }
 
   inline void addTopLevelPass(Pass *P) {
-    if (ImmutablePass *IP = dynamic_cast<ImmutablePass *> (P)) {
-      
+    if (ImmutablePass *IP = P->getAsImmutablePass()) {
       // P is a immutable pass and it will be managed by this
       // top level manager. Set up analysis resolver to connect them.
       AnalysisResolver *AR = new AnalysisResolver(*this);
@@ -346,6 +354,9 @@ public:
       P->assignPassManager(activeStack);
     }
   }
+
+  virtual PMDataManager *getAsPMDataManager() { return this; }
+  virtual Pass *getAsPass() { return this; }
 
   MPPassManager *getContainedManager(unsigned N) {
     assert(N < PassManagers.size() && "Pass number out of range!");
@@ -390,7 +401,7 @@ public:
   /// passStarted - This method creates a timer for the given pass if it doesn't
   /// already have one, and starts the timer.
   Timer *passStarted(Pass *P) {
-    if (dynamic_cast<PMDataManager *>(P)) 
+    if (P->getAsPMDataManager()) 
       return 0;
 
     sys::SmartScopedLock<true> Lock(*TimingInfoMutex);
@@ -584,11 +595,11 @@ void PMTopLevelManager::dumpPasses() const {
   
   // Every class that derives from PMDataManager also derives from Pass
   // (sometimes indirectly), but there's no inheritance relationship
-  // between PMDataManager and Pass, so we have to dynamic_cast to get
+  // between PMDataManager and Pass, so we have to getAsPass to get
   // from a PMDataManager* to a Pass*.
   for (SmallVector<PMDataManager *, 8>::const_iterator I = PassManagers.begin(),
          E = PassManagers.end(); I != E; ++I)
-    dynamic_cast<Pass *>(*I)->dumpPassStructure(1);
+    (*I)->getAsPass()->dumpPassStructure(1);
 }
 
 void PMTopLevelManager::dumpArguments() const {
@@ -670,7 +681,7 @@ bool PMDataManager::preserveHigherLevelAnalysis(Pass *P) {
   for (SmallVector<Pass *, 8>::iterator I = HigherLevelAnalysis.begin(),
          E = HigherLevelAnalysis.end(); I  != E; ++I) {
     Pass *P1 = *I;
-    if (!dynamic_cast<ImmutablePass*>(P1) &&
+    if (P1->getAsImmutablePass() == 0 &&
         std::find(PreservedSet.begin(), PreservedSet.end(),
                   P1->getPassInfo()) == 
            PreservedSet.end())
@@ -713,8 +724,8 @@ void PMDataManager::removeNotPreservedAnalysis(Pass *P) {
   for (std::map<AnalysisID, Pass*>::iterator I = AvailableAnalysis.begin(),
          E = AvailableAnalysis.end(); I != E; ) {
     std::map<AnalysisID, Pass*>::iterator Info = I++;
-    if (!dynamic_cast<ImmutablePass*>(Info->second)
-        && std::find(PreservedSet.begin(), PreservedSet.end(), Info->first) == 
+    if (Info->second->getAsImmutablePass() == 0 &&
+        std::find(PreservedSet.begin(), PreservedSet.end(), Info->first) == 
         PreservedSet.end()) {
       // Remove this analysis
       if (PassDebugging >= Details) {
@@ -737,7 +748,7 @@ void PMDataManager::removeNotPreservedAnalysis(Pass *P) {
            I = InheritedAnalysis[Index]->begin(),
            E = InheritedAnalysis[Index]->end(); I != E; ) {
       std::map<AnalysisID, Pass *>::iterator Info = I++;
-      if (!dynamic_cast<ImmutablePass*>(Info->second) &&
+      if (Info->second->getAsImmutablePass() == 0 &&
           std::find(PreservedSet.begin(), PreservedSet.end(), Info->first) == 
              PreservedSet.end()) {
         // Remove this analysis
@@ -854,12 +865,12 @@ void PMDataManager::add(Pass *P, bool ProcessAnalysis) {
   // Set P as P's last user until someone starts using P.
   // However, if P is a Pass Manager then it does not need
   // to record its last user.
-  if (!dynamic_cast<PMDataManager *>(P))
+  if (P->getAsPMDataManager() == 0)
     LastUses.push_back(P);
   TPM->setLastUser(LastUses, P);
 
   if (!TransferLastUses.empty()) {
-    Pass *My_PM = dynamic_cast<Pass *>(this);
+    Pass *My_PM = getAsPass();
     TPM->setLastUser(TransferLastUses, My_PM);
     TransferLastUses.clear();
   }
@@ -968,7 +979,7 @@ void PMDataManager::dumpLastUses(Pass *P, unsigned Offset) const{
 void PMDataManager::dumpPassArguments() const {
   for (SmallVector<Pass *, 8>::const_iterator I = PassVector.begin(),
         E = PassVector.end(); I != E; ++I) {
-    if (PMDataManager *PMD = dynamic_cast<PMDataManager *>(*I))
+    if (PMDataManager *PMD = (*I)->getAsPMDataManager())
       PMD->dumpPassArguments();
     else
       if (const PassInfo *PI = (*I)->getPassInfo())
@@ -1469,7 +1480,7 @@ Pass* MPPassManager::getOnTheFlyPass(Pass *MP, const PassInfo *PI, Function &F){
   
   FPP->releaseMemoryOnTheFly();
   FPP->run(F);
-  return (dynamic_cast<PMTopLevelManager *>(FPP))->findAnalysisPass(PI);
+  return ((PMTopLevelManager*)FPP)->findAnalysisPass(PI);
 }
 
 
@@ -1586,7 +1597,7 @@ void PMStack::push(PMDataManager *PM) {
 void PMStack::dump() {
   for (std::deque<PMDataManager *>::iterator I = S.begin(),
          E = S.end(); I != E; ++I)
-    printf("%s ", dynamic_cast<Pass *>(*I)->getPassName());
+    printf("%s ", (*I)->getAsPass()->getPassName());
 
   if (!S.empty())
     printf("\n");
@@ -1616,16 +1627,18 @@ void FunctionPass::assignPassManager(PMStack &PMS,
                                      PassManagerType PreferredType) {
 
   // Find Module Pass Manager
-  while(!PMS.empty()) {
+  while (!PMS.empty()) {
     if (PMS.top()->getPassManagerType() > PMT_FunctionPassManager)
       PMS.pop();
     else
       break; 
   }
-  FPPassManager *FPP = dynamic_cast<FPPassManager *>(PMS.top());
 
-  // Create new Function Pass Manager
-  if (!FPP) {
+  // Create new Function Pass Manager if needed.
+  FPPassManager *FPP;
+  if (PMS.top()->getPassManagerType() == PMT_FunctionPassManager) {
+    FPP = (FPPassManager *)PMS.top();
+  } else {
     assert(!PMS.empty() && "Unable to create Function Pass Manager");
     PMDataManager *PMD = PMS.top();
 
@@ -1653,17 +1666,16 @@ void FunctionPass::assignPassManager(PMStack &PMS,
 /// in the PM Stack and add self into that manager. 
 void BasicBlockPass::assignPassManager(PMStack &PMS,
                                        PassManagerType PreferredType) {
-  BBPassManager *BBP = NULL;
+  BBPassManager *BBP;
 
   // Basic Pass Manager is a leaf pass manager. It does not handle
   // any other pass manager.
-  if (!PMS.empty())
-    BBP = dynamic_cast<BBPassManager *>(PMS.top());
-
-  // If leaf manager is not Basic Block Pass manager then create new
-  // basic Block Pass manager.
-
-  if (!BBP) {
+  if (!PMS.empty() && 
+      PMS.top()->getPassManagerType() == PMT_BasicBlockPassManager) {
+    BBP = (BBPassManager *)PMS.top();
+  } else {
+    // If leaf manager is not Basic Block Pass manager then create new
+    // basic Block Pass manager.
     assert(!PMS.empty() && "Unable to create BasicBlock Pass Manager");
     PMDataManager *PMD = PMS.top();
 

@@ -18,14 +18,17 @@ using namespace llvm;
 
 MCAsmInfoCOFF::MCAsmInfoCOFF() {
   GlobalPrefix = "_";
-  LCOMMDirective = "\t.lcomm\t";
+  HasLCOMMDirective = true;
   COMMDirectiveTakesAlignment = false;
   HasDotTypeDotSizeDirective = false;
   HasSingleParameterDotFile = false;
-  HiddenDirective = NULL;
   PrivateGlobalPrefix = "L";  // Prefix for private global symbols
   WeakRefDirective = "\t.weak\t";
+  LinkOnceDirective = "\t.linkonce same_size\n";
   SetDirective = "\t.set\t";
+  
+  // Doesn't support visibility:
+  HiddenVisibilityAttr = ProtectedVisibilityAttr = MCSA_Invalid;
 
   // Set up DWARF directives
   HasLEB128 = true;  // Target asm supports leb128 directives (little-endian)

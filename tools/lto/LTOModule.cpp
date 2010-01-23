@@ -22,12 +22,12 @@
 #include "llvm/ADT/Triple.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/Support/SystemUtils.h"
-#include "llvm/Support/Mangler.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/System/Host.h"
 #include "llvm/System/Path.h"
 #include "llvm/System/Process.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/SubtargetFeature.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Target/TargetMachine.h"
@@ -320,7 +320,7 @@ void LTOModule::addDefinedSymbol(GlobalValue* def, Mangler &mangler,
         return;
 
     // string is owned by _defines
-    const char* symbolName = ::strdup(mangler.getMangledName(def).c_str());
+    const char* symbolName = ::strdup(mangler.getNameWithPrefix(def).c_str());
 
     // set alignment part log2() can have rounding errors
     uint32_t align = def->getAlignment();
@@ -393,7 +393,7 @@ void LTOModule::addPotentialUndefinedSymbol(GlobalValue* decl, Mangler &mangler)
     if (isa<GlobalAlias>(decl))
         return;
 
-    std::string name = mangler.getMangledName(decl);
+    std::string name = mangler.getNameWithPrefix(decl);
 
     // we already have the symbol
     if (_undefines.find(name) != _undefines.end())
@@ -439,15 +439,7 @@ void LTOModule::lazyParseSymbols()
         _symbolsParsed = true;
         
         // Use mangler to add GlobalPrefix to names to match linker names.
-        Mangler mangler(*_module, _target->getMCAsmInfo()->getGlobalPrefix());
-        // add chars used in ObjC method names so method names aren't mangled
-        mangler.markCharAcceptable('[');
-        mangler.markCharAcceptable(']');
-        mangler.markCharAcceptable('(');
-        mangler.markCharAcceptable(')');
-        mangler.markCharAcceptable('-');
-        mangler.markCharAcceptable('+');
-        mangler.markCharAcceptable(' ');
+        Mangler mangler(*_target->getMCAsmInfo());
 
         // add functions
         for (Module::iterator f = _module->begin(); f != _module->end(); ++f) {

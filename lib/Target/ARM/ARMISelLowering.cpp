@@ -340,7 +340,7 @@ ARMTargetLowering::ARMTargetLowering(TargetMachine &TM)
 
   // ARM does not have ROTL.
   setOperationAction(ISD::ROTL,  MVT::i32, Expand);
-  setOperationAction(ISD::CTTZ,  MVT::i32, Expand);
+  setOperationAction(ISD::CTTZ,  MVT::i32, Custom);
   setOperationAction(ISD::CTPOP, MVT::i32, Expand);
   if (!Subtarget->hasV5TOps() || Subtarget->isThumb1Only())
     setOperationAction(ISD::CTLZ, MVT::i32, Expand);
@@ -387,7 +387,8 @@ ARMTargetLowering::ARMTargetLowering(TargetMachine &TM)
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i1, Expand);
 
   if (!UseSoftFloat && Subtarget->hasVFP2() && !Subtarget->isThumb1Only())
-    // Turn f64->i64 into VMOVRRD, i64 -> f64 to VMOVDRR iff target supports vfp2.
+    // Turn f64->i64 into VMOVRRD, i64 -> f64 to VMOVDRR
+    // iff target supports vfp2.
     setOperationAction(ISD::BIT_CONVERT, MVT::i64, Custom);
 
   // We want to custom lower some of our intrinsics.
@@ -481,6 +482,8 @@ const char *ARMTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case ARMISD::FMSTAT:        return "ARMISD::FMSTAT";
   case ARMISD::CMOV:          return "ARMISD::CMOV";
   case ARMISD::CNEG:          return "ARMISD::CNEG";
+
+  case ARMISD::RBIT:          return "ARMISD::RBIT";
 
   case ARMISD::FTOSI:         return "ARMISD::FTOSI";
   case ARMISD::FTOUI:         return "ARMISD::FTOUI";
@@ -2231,6 +2234,18 @@ SDValue ARMTargetLowering::LowerShiftLeftParts(SDValue Op, SelectionDAG &DAG) {
   return DAG.getMergeValues(Ops, 2, dl);
 }
 
+static SDValue LowerCTTZ(SDNode *N, SelectionDAG &DAG,
+                         const ARMSubtarget *ST) {
+  EVT VT = N->getValueType(0);
+  DebugLoc dl = N->getDebugLoc();
+
+  if (!ST->hasV6T2Ops())
+    return SDValue();
+
+  SDValue rbit = DAG.getNode(ARMISD::RBIT, dl, VT, N->getOperand(0));
+  return DAG.getNode(ISD::CTLZ, dl, VT, rbit);
+}
+
 static SDValue LowerShift(SDNode *N, SelectionDAG &DAG,
                           const ARMSubtarget *ST) {
   EVT VT = N->getValueType(0);
@@ -3016,6 +3031,7 @@ SDValue ARMTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) {
   case ISD::SHL_PARTS:     return LowerShiftLeftParts(Op, DAG);
   case ISD::SRL_PARTS:
   case ISD::SRA_PARTS:     return LowerShiftRightParts(Op, DAG);
+  case ISD::CTTZ:          return LowerCTTZ(Op.getNode(), DAG, Subtarget);
   case ISD::VSETCC:        return LowerVSETCC(Op, DAG);
   case ISD::BUILD_VECTOR:  return LowerBUILD_VECTOR(Op, DAG);
   case ISD::VECTOR_SHUFFLE: return LowerVECTOR_SHUFFLE(Op, DAG);
@@ -3516,7 +3532,8 @@ static SDValue PerformSUBCombine(SDNode *N,
   return SDValue();
 }
 
-/// PerformVMOVRRDCombine - Target-specific dag combine xforms for ARMISD::VMOVRRD.
+/// PerformVMOVRRDCombine - Target-specific dag combine xforms for
+/// ARMISD::VMOVRRD.
 static SDValue PerformVMOVRRDCombine(SDNode *N,
                                    TargetLowering::DAGCombinerInfo &DCI) {
   // fmrrd(fmdrr x, y) -> x,y
