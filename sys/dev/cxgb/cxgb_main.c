@@ -2061,6 +2061,8 @@ fail:
 			p->if_flags = ifp->if_flags;
 		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			error = cxgb_uninit_locked(p);
+		else
+			ADAPTER_UNLOCK(sc);
 
 		ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 		break;
