@@ -138,9 +138,10 @@ pcii_probe(device_t dev)
 	 * 1989 Edition, National Instruments.)
 	 */
 	if ((start & 0x3ff) != 0x2e1) {
-		printf("pcii_probe: PCIIA base address 0x%lx not "
-		       "0x2e1/0x22e1/0x42e1/0x62e1\n",
-		       start);
+		if (bootverbose)
+			printf("pcii_probe: PCIIA base address 0x%lx not "
+			       "0x2e1/0x22e1/0x42e1/0x62e1\n",
+			       start);
 		return (ENXIO);
 	}
 
@@ -234,6 +235,7 @@ pcii_attach(device_t dev)
 
 	for (rid = 0; rid < 8; rid++) {
 		sc->upd7210.reg_res[rid] = sc->res[2 + rid];
+		sc->upd7210.reg_offset[rid] = 0;
 	}
 	sc->upd7210.irq_clear_res = sc->res[10];
 
