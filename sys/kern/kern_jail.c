@@ -77,6 +77,21 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_PRISON, "prison", "Prison structures");
 
+/* Keep struct prison prison0 and some code in kern_jail_set() readable. */
+#ifdef INET
+#ifdef INET6
+#define	_PR_IP_SADDRSEL	PR_IP4_SADDRSEL|PR_IP6_SADDRSEL
+#else
+#define	_PR_IP_SADDRSEL	PR_IP4_SADDRSEL
+#endif
+#else /* !INET */
+#ifdef INET6
+#define	_PR_IP_SADDRSEL	PR_IP6_SADDRSEL
+#else
+#define	_PR_IP_SADDRSEL	0
+#endif
+#endif
+
 /* prison0 describes what is "real" about the system. */
 struct prison prison0 = {
 	.pr_id		= 0,
@@ -89,9 +104,9 @@ struct prison prison0 = {
 	.pr_hostuuid	= DEFAULT_HOSTUUID,
 	.pr_children	= LIST_HEAD_INITIALIZER(&prison0.pr_children),
 #ifdef VIMAGE
-	.pr_flags	= PR_HOST|PR_VNET,
+	.pr_flags	= PR_HOST|PR_VNET|_PR_IP_SADDRSEL,
 #else
-	.pr_flags	= PR_HOST,
+	.pr_flags	= PR_HOST|_PR_IP_SADDRSEL,
 #endif
 	.pr_allow	= PR_ALLOW_ALL,
 };
@@ -129,10 +144,22 @@ static int prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6);
  */
 static char *pr_flag_names[] = {
 	[0] = "persist",
+#ifdef INET
+	[7] = "ip4.saddrsel",
+#endif
+#ifdef INET6
+	[8] = "ip6.saddrsel",
+#endif
 };
 
 static char *pr_flag_nonames[] = {
 	[0] = "nopersist",
+#ifdef INET
+	[7] = "ip4.nosaddrsel",
+#endif
+#ifdef INET6
+	[8] = "ip6.nosaddrsel",
+#endif
 };
 
 struct jailsys_flags {
@@ -1199,6 +1226,9 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 		}
 #endif
+		/* Source address selection is always on by default. */
+		pr->pr_flags |= _PR_IP_SADDRSEL;
+
 		pr->pr_securelevel = ppr->pr_securelevel;
 		pr->pr_allow = JAIL_DEFAULT_ALLOW & ppr->pr_allow;
 		pr->pr_enforce_statfs = JAIL_DEFAULT_ENFORCE_STATFS;
@@ -2659,6 +2689,41 @@ prison_get_ip4(struct ucred *cred, struct in_addr *ia)
 }
 
 /*
+ * Return 1 if we should do proper source address selection or are not jailed.
+ * We will return 0 if we should bypass source address selection in favour
+ * of the primary jail IPv4 address. Only in this case *ia will be updated and
+ * returned in NBO.
+ * Return EAFNOSUPPORT, in case this jail does not allow IPv4.
+ */
+int
+prison_saddrsel_ip4(struct ucred *cred, struct in_addr *ia)
+{
+	struct prison *pr;
+	struct in_addr lia;
+	int error;
+
+	KASSERT(cred != NULL, ("%s: cred is NULL", __func__));
+	KASSERT(ia != NULL, ("%s: ia is NULL", __func__));
+
+	if (!jailed(cred))
+		return (1);
+
+	pr = cred->cr_prison;
+	if (pr->pr_flags & PR_IP4_SADDRSEL)
+		return (1);
+
+	lia.s_addr = INADDR_ANY;
+	error = prison_get_ip4(cred, &lia);
+	if (error)
+		return (error);
+	if (lia.s_addr == INADDR_ANY)
+		return (1);
+
+	ia->s_addr = lia.s_addr;
+	return (0);
+}
+
+/*
  * Return true if pr1 and pr2 have the same IPv4 address restrictions.
  */
 int
@@ -2960,6 +3025,41 @@ prison_get_ip6(struct ucred *cred, struct in6_addr *ia6)
 
 	bcopy(&pr->pr_ip6[0], ia6, sizeof(struct in6_addr));
 	mtx_unlock(&pr->pr_mtx);
+	return (0);
+}
+
+/*
+ * Return 1 if we should do proper source address selection or are not jailed.
+ * We will return 0 if we should bypass source address selection in favour
+ * of the primary jail IPv6 address. Only in this case *ia will be updated and
+ * returned in NBO.
+ * Return EAFNOSUPPORT, in case this jail does not allow IPv6.
+ */
+int
+prison_saddrsel_ip6(struct ucred *cred, struct in6_addr *ia6)
+{
+	struct prison *pr;
+	struct in6_addr lia6;
+	int error;
+
+	KASSERT(cred != NULL, ("%s: cred is NULL", __func__));
+	KASSERT(ia6 != NULL, ("%s: ia6 is NULL", __func__));
+
+	if (!jailed(cred))
+		return (1);
+
+	pr = cred->cr_prison;
+	if (pr->pr_flags & PR_IP6_SADDRSEL)
+		return (1);
+
+	lia6 = in6addr_any;
+	error = prison_get_ip6(cred, &lia6);
+	if (error)
+		return (error);
+	if (IN6_IS_ADDR_UNSPECIFIED(&lia6))
+		return (1);
+
+	bcopy(&lia6, ia6, sizeof(struct in6_addr));
 	return (0);
 }
 
@@ -4116,12 +4216,18 @@ SYSCTL_JAIL_PARAM_SYS_NODE(ip4, CTLFLAG_RDTUN,
     "Jail IPv4 address virtualization");
 SYSCTL_JAIL_PARAM_STRUCT(_ip4, addr, CTLFLAG_RW, sizeof(struct in_addr),
     "S,in_addr,a", "Jail IPv4 addresses");
+SYSCTL_JAIL_PARAM(_ip4, saddrsel, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Do (not) use IPv4 source address selection rather than the "
+    "primary jail IPv4 address.");
 #endif
 #ifdef INET6
 SYSCTL_JAIL_PARAM_SYS_NODE(ip6, CTLFLAG_RDTUN,
     "Jail IPv6 address virtualization");
 SYSCTL_JAIL_PARAM_STRUCT(_ip6, addr, CTLFLAG_RW, sizeof(struct in6_addr),
     "S,in6_addr,a", "Jail IPv6 addresses");
+SYSCTL_JAIL_PARAM(_ip6, saddrsel, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Do (not) use IPv6 source address selection rather than the "
+    "primary jail IPv6 address.");
 #endif
 
 SYSCTL_JAIL_PARAM_NODE(allow, "Jail permission flags");
