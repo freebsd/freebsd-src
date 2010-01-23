@@ -920,9 +920,11 @@ sched_sleep(struct thread *td, int pri)
 void
 sched_switch(struct thread *td, struct thread *newtd, int flags)
 {
+	struct mtx *tmtx;
 	struct td_sched *ts;
 	struct proc *p;
 
+	tmtx = NULL;
 	ts = td->td_sched;
 	p = td->td_proc;
 
@@ -931,10 +933,11 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	/* 
 	 * Switch to the sched lock to fix things up and pick
 	 * a new thread.
+	 * Block the td_lock in order to avoid breaking the critical path.
 	 */
 	if (td->td_lock != &sched_lock) {
 		mtx_lock_spin(&sched_lock);
-		thread_unlock(td);
+		tmtx = thread_lock_block(td);
 	}
 
 	if ((td->td_flags & TDF_NOLOAD) == 0)
@@ -1004,7 +1007,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			(*dtrace_vtime_switch_func)(newtd);
 #endif
 
-		cpu_switch(td, newtd, td->td_lock);
+		cpu_switch(td, newtd, tmtx != NULL ? tmtx : td->td_lock);
 		lock_profile_obtain_lock_success(&sched_lock.lock_object,
 		    0, 0, __FILE__, __LINE__);
 		/*
