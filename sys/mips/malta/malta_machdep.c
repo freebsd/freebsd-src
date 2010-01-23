@@ -189,8 +189,10 @@ mips_init(void)
 	pmap_bootstrap();
 	mips_proc0_init();
 	mutex_init();
-#ifdef DDB
 	kdb_init();
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
 }
 
