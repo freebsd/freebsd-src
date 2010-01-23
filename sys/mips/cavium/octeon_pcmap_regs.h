@@ -52,8 +52,7 @@ extern struct pcpu *cpuid_to_pcpu[];
 #define OCTEON_SYNCW	__asm __volatile (".word  0x10f" : : )
 #define OCTEON_SYNCWS	__asm __volatile (".word  0x14f" : : )
 
-//#if defined(__mips_n32) || defined(__mips_n64)
-#if defined(__not_used)
+#if defined(__mips_n32) || defined(__mips_n64)
 
 static inline void oct_write64 (uint64_t csr_addr, uint64_t val64)
 {
@@ -951,6 +950,8 @@ typedef union {
 /*
  * Octeon UART unit
  */
+#define  OCTEON_MIO_UART0               0x8001180000000800ull
+#define  OCTEON_MIO_UART1               0x8001180000000C00ull
 #define  OCTEON_MIO_UART0_THR           0x8001180000000840ull
 #define  OCTEON_MIO_UART1_THR           0x8001180000000C40ull
 #define  OCTEON_MIO_UART0_LSR           0x8001180000000828ull
@@ -960,6 +961,7 @@ typedef union {
 #define  OCTEON_MIO_UART0_USR           0x8001180000000938ull
 #define  OCTEON_MIO_UART1_USR           0x8001180000000D38ull
 #define  OCTEON_MIO_ADDR_HI24           0x800118
+#define  OCTEON_MIO_UART_SIZE           0x400ull
 
 
 /*
