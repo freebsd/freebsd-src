@@ -46,8 +46,8 @@ public:
   ~X86COFFMachineModuleInfo();
   
   
-  void DecorateCygMingName(std::string &Name, const GlobalValue *GV,
-                           const TargetData &TD);
+  void DecorateCygMingName(MCSymbol* &Name, MCContext &Ctx,
+                           const GlobalValue *GV, const TargetData &TD);
   void DecorateCygMingName(SmallVectorImpl<char> &Name, const GlobalValue *GV,
                            const TargetData &TD);
   

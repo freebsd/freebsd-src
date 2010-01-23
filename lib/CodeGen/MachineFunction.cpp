@@ -26,6 +26,7 @@
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLowering.h"
@@ -426,12 +427,12 @@ unsigned MachineFunction::addLiveIn(unsigned PReg,
   return VReg;
 }
 
-/// getDebugLocTuple - Get the DebugLocTuple for a given DebugLoc object.
-DebugLocTuple MachineFunction::getDebugLocTuple(DebugLoc DL) const {
+/// getDILocation - Get the DILocation for a given DebugLoc object.
+DILocation MachineFunction::getDILocation(DebugLoc DL) const {
   unsigned Idx = DL.getIndex();
   assert(Idx < DebugLocInfo.DebugLocations.size() &&
          "Invalid index into debug locations!");
-  return DebugLocInfo.DebugLocations[Idx];
+  return DILocation(DebugLocInfo.DebugLocations[Idx]);
 }
 
 //===----------------------------------------------------------------------===//

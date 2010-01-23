@@ -107,6 +107,8 @@ def ARMMemBarrierV6  : SDNode<"ARMISD::MEMBARRIER", SDT_ARMMEMBARRIERV6,
 def ARMSyncBarrierV6 : SDNode<"ARMISD::SYNCBARRIER", SDT_ARMMEMBARRIERV6,
                               [SDNPHasChain]>;
 
+def ARMrbit          : SDNode<"ARMISD::RBIT", SDTIntUnaryOp>;
+
 //===----------------------------------------------------------------------===//
 // ARM Instruction Predicate Definitions.
 //
@@ -1455,6 +1457,15 @@ def CLZ  : AMiscA1I<0b000010110, (outs GPR:$dst), (ins GPR:$src), IIC_iUNAr,
   let Inst{19-16} = 0b1111;
 }
 
+def RBIT : AMiscA1I<0b01101111, (outs GPR:$dst), (ins GPR:$src), IIC_iUNAr,
+              "rbit", "\t$dst, $src",
+              [(set GPR:$dst, (ARMrbit GPR:$src))]>,
+           Requires<[IsARM, HasV6T2]> {
+  let Inst{7-4}   = 0b0011;
+  let Inst{11-8}  = 0b1111;
+  let Inst{19-16} = 0b1111;
+}
+
 def REV  : AMiscA1I<0b01101011, (outs GPR:$dst), (ins GPR:$src), IIC_iUNAr,
               "rev", "\t$dst, $src",
               [(set GPR:$dst, (bswap GPR:$src))]>, Requires<[IsARM, HasV6]> {
@@ -1528,8 +1539,10 @@ def : ARMV6Pat<(or (and GPR:$src1, 0xFFFF0000),
 
 defm CMP  : AI1_cmp_irs<0b1010, "cmp",
                         BinOpFrag<(ARMcmp node:$LHS, node:$RHS)>>;
-defm CMN  : AI1_cmp_irs<0b1011, "cmn",
-                        BinOpFrag<(ARMcmp node:$LHS,(ineg node:$RHS))>>;
+//FIXME: Disable CMN, as CCodes are backwards from compare expectations
+//       Compare-to-zero still works out, just not the relationals
+//defm CMN  : AI1_cmp_irs<0b1011, "cmn",
+//                        BinOpFrag<(ARMcmp node:$LHS,(ineg node:$RHS))>>;
 
 // Note that TST/TEQ don't set all the same flags that CMP does!
 defm TST  : AI1_cmp_irs<0b1000, "tst",
@@ -1542,11 +1555,11 @@ defm CMPz  : AI1_cmp_irs<0b1010, "cmp",
 defm CMNz  : AI1_cmp_irs<0b1011, "cmn",
                          BinOpFrag<(ARMcmpZ node:$LHS,(ineg node:$RHS))>>;
 
-def : ARMPat<(ARMcmp GPR:$src, so_imm_neg:$imm),
-             (CMNri  GPR:$src, so_imm_neg:$imm)>;
+//def : ARMPat<(ARMcmp GPR:$src, so_imm_neg:$imm),
+//             (CMNri  GPR:$src, so_imm_neg:$imm)>;
 
 def : ARMPat<(ARMcmpZ GPR:$src, so_imm_neg:$imm),
-             (CMNri  GPR:$src, so_imm_neg:$imm)>;
+             (CMNzri  GPR:$src, so_imm_neg:$imm)>;
 
 
 // Conditional moves

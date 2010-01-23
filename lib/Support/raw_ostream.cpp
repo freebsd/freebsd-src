@@ -562,6 +562,17 @@ raw_svector_ostream::~raw_svector_ostream() {
   flush();
 }
 
+/// resync - This is called when the SmallVector we're appending to is changed
+/// outside of the raw_svector_ostream's control.  It is only safe to do this
+/// if the raw_svector_ostream has previously been flushed.
+void raw_svector_ostream::resync() {
+  assert(GetNumBytesInBuffer() == 0 && "Didn't flush before mutating vector");
+
+  if (OS.capacity() - OS.size() < 64)
+    OS.reserve(OS.capacity() * 2);
+  SetBuffer(OS.end(), OS.capacity() - OS.size());
+}
+
 void raw_svector_ostream::write_impl(const char *Ptr, size_t Size) {
   assert(Ptr == OS.end() && OS.size() + Size <= OS.capacity() &&
          "Invalid write_impl() call!");

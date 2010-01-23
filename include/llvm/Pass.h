@@ -64,6 +64,16 @@ enum PassManagerType {
   PMT_Last
 };
 
+// Different types of passes.
+enum PassKind {
+  PT_BasicBlock,
+  PT_Loop,
+  PT_Function,
+  PT_CallGraphSCC,
+  PT_Module,
+  PT_PassManager
+};
+  
 //===----------------------------------------------------------------------===//
 /// Pass interface - Implemented by all 'passes'.  Subclass this if you are an
 /// interprocedural optimization or you do not fit into any of the more
@@ -72,19 +82,23 @@ enum PassManagerType {
 class Pass {
   AnalysisResolver *Resolver;  // Used to resolve analysis
   intptr_t PassID;
-
+  PassKind Kind;
   void operator=(const Pass&);  // DO NOT IMPLEMENT
   Pass(const Pass &);           // DO NOT IMPLEMENT
   
 public:
-  explicit Pass(intptr_t pid) : Resolver(0), PassID(pid) {
+  explicit Pass(PassKind K, intptr_t pid) : Resolver(0), PassID(pid), Kind(K) {
     assert(pid && "pid cannot be 0");
   }
-  explicit Pass(const void *pid) : Resolver(0), PassID((intptr_t)pid) {
+  explicit Pass(PassKind K, const void *pid)
+    : Resolver(0), PassID((intptr_t)pid), Kind(K) {
     assert(pid && "pid cannot be 0"); 
   }
   virtual ~Pass();
 
+  
+  PassKind getPassKind() const { return Kind; }
+  
   /// getPassName - Return a nice clean name for a pass.  This usually
   /// implemented in terms of the name that is registered by one of the
   /// Registration templates, but can be overloaded directly.
@@ -118,7 +132,7 @@ public:
 
   // Access AnalysisResolver
   inline void setResolver(AnalysisResolver *AR) { 
-    assert (!Resolver && "Resolver is already set");
+    assert(!Resolver && "Resolver is already set");
     Resolver = AR; 
   }
   inline AnalysisResolver *getResolver() { 
@@ -145,6 +159,16 @@ public:
   ///
   virtual void releaseMemory();
 
+  /// getAdjustedAnalysisPointer - This method is used when a pass implements
+  /// an analysis interface through multiple inheritance.  If needed, it should
+  /// override this to adjust the this pointer as needed for the specified pass
+  /// info.
+  virtual void *getAdjustedAnalysisPointer(const PassInfo *PI) {
+    return this;
+  }
+  virtual ImmutablePass *getAsImmutablePass() { return 0; }
+  virtual PMDataManager *getAsPMDataManager() { return 0; }
+  
   /// verifyAnalysis() - This member can be implemented by a analysis pass to
   /// check state of analysis information. 
   virtual void verifyAnalysis() const;
@@ -219,8 +243,8 @@ public:
   ///  Return what kind of Pass Manager can manage this pass.
   virtual PassManagerType getPotentialPassManagerType() const;
 
-  explicit ModulePass(intptr_t pid) : Pass(pid) {}
-  explicit ModulePass(const void *pid) : Pass(pid) {}
+  explicit ModulePass(intptr_t pid) : Pass(PT_Module, pid) {}
+  explicit ModulePass(const void *pid) : Pass(PT_Module, pid) {}
   // Force out-of-line virtual method.
   virtual ~ModulePass();
 };
@@ -240,6 +264,8 @@ public:
   /// these passes with getAnalysis<>.
   ///
   virtual void initializePass();
+
+  virtual ImmutablePass *getAsImmutablePass() { return this; }
 
   /// ImmutablePasses are never run.
   ///
@@ -264,8 +290,8 @@ public:
 ///
 class FunctionPass : public Pass {
 public:
-  explicit FunctionPass(intptr_t pid) : Pass(pid) {}
-  explicit FunctionPass(const void *pid) : Pass(pid) {}
+  explicit FunctionPass(intptr_t pid) : Pass(PT_Function, pid) {}
+  explicit FunctionPass(const void *pid) : Pass(PT_Function, pid) {}
 
   /// doInitialization - Virtual method overridden by subclasses to do
   /// any necessary per-module initialization.
@@ -314,8 +340,8 @@ public:
 ///
 class BasicBlockPass : public Pass {
 public:
-  explicit BasicBlockPass(intptr_t pid) : Pass(pid) {}
-  explicit BasicBlockPass(const void *pid) : Pass(pid) {}
+  explicit BasicBlockPass(intptr_t pid) : Pass(PT_BasicBlock, pid) {}
+  explicit BasicBlockPass(const void *pid) : Pass(PT_BasicBlock, pid) {}
 
   /// doInitialization - Virtual method overridden by subclasses to do
   /// any necessary per-module initialization.

@@ -35,8 +35,6 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Support/Mangler.h"
-
 using namespace llvm;
 
 STATISTIC(EmittedInsts, "Number of machine instrs printed");
@@ -73,7 +71,6 @@ namespace {
 
     void emitFunctionHeader(const MachineFunction &MF);
     bool runOnMachineFunction(MachineFunction &F);
-    void PrintGlobalVariable(const GlobalVariable* GVar);
 
     void getAnalysisUsage(AnalysisUsage &AU) const {
       AsmPrinter::getAnalysisUsage(AU);
@@ -99,20 +96,20 @@ void SystemZAsmPrinter::emitFunctionHeader(const MachineFunction &MF) {
   case Function::LinkerPrivateLinkage:
     break;
   case Function::ExternalLinkage:
-    O << "\t.globl\t" << CurrentFnName << '\n';
+    O << "\t.globl\t" << *CurrentFnSym << '\n';
     break;
   case Function::LinkOnceAnyLinkage:
   case Function::LinkOnceODRLinkage:
   case Function::WeakAnyLinkage:
   case Function::WeakODRLinkage:
-    O << "\t.weak\t" << CurrentFnName << '\n';
+    O << "\t.weak\t" << *CurrentFnSym << '\n';
     break;
   }
 
-  printVisibility(CurrentFnName, F->getVisibility());
+  printVisibility(CurrentFnSym, F->getVisibility());
 
-  O << "\t.type\t" << CurrentFnName << ",@function\n"
-    << CurrentFnName << ":\n";
+  O << "\t.type\t" << *CurrentFnSym << ",@function\n";
+  O << *CurrentFnSym << ":\n";
 }
 
 bool SystemZAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
@@ -138,7 +135,7 @@ bool SystemZAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   }
 
   if (MAI->hasDotTypeDotSizeDirective())
-    O << "\t.size\t" << CurrentFnName << ", .-" << CurrentFnName << '\n';
+    O << "\t.size\t" << *CurrentFnSym << ", .-" << *CurrentFnSym << '\n';
 
   // Print out jump tables referenced by the function.
   EmitJumpTableInfo(MF.getJumpTableInfo(), MF);
@@ -169,13 +166,11 @@ void SystemZAsmPrinter::printPCRelImmOperand(const MachineInstr *MI, int OpNum){
     O << MO.getImm();
     return;
   case MachineOperand::MO_MachineBasicBlock:
-    GetMBBSymbol(MO.getMBB()->getNumber())->print(O, MAI);
+    O << *GetMBBSymbol(MO.getMBB()->getNumber());
     return;
   case MachineOperand::MO_GlobalAddress: {
     const GlobalValue *GV = MO.getGlobal();
-    std::string Name = Mang->getMangledName(GV);
-
-    O << Name;
+    O << *GetGlobalValueSymbol(GV);
 
     // Assemble calls via PLT for externally visible symbols if PIC.
     if (TM.getRelocationModel() == Reloc::PIC_ &&
@@ -226,7 +221,7 @@ void SystemZAsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
     O << MO.getImm();
     return;
   case MachineOperand::MO_MachineBasicBlock:
-    GetMBBSymbol(MO.getMBB()->getNumber())->print(O, MAI);
+    O << *GetMBBSymbol(MO.getMBB()->getNumber());
     return;
   case MachineOperand::MO_JumpTableIndex:
     O << MAI->getPrivateGlobalPrefix() << "JTI" << getFunctionNumber() << '_'
@@ -239,17 +234,11 @@ void SystemZAsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
 
     printOffset(MO.getOffset());
     break;
-  case MachineOperand::MO_GlobalAddress: {
-    const GlobalValue *GV = MO.getGlobal();
-    std::string Name = Mang->getMangledName(GV);
-
-    O << Name;
+  case MachineOperand::MO_GlobalAddress:
+    O << *GetGlobalValueSymbol(MO.getGlobal());
     break;
-  }
   case MachineOperand::MO_ExternalSymbol: {
-    std::string Name(MAI->getGlobalPrefix());
-    Name += MO.getSymbolName();
-    O << Name;
+    O << *GetExternalSymbolSymbol(MO.getSymbolName());
     break;
   }
   default:
@@ -302,87 +291,6 @@ void SystemZAsmPrinter::printRRIAddrOperand(const MachineInstr *MI, int OpNum,
     O << ')';
   } else
     assert(!Index.getReg() && "Should allocate base register first!");
-}
-
-void SystemZAsmPrinter::PrintGlobalVariable(const GlobalVariable* GVar) {
-  const TargetData *TD = TM.getTargetData();
-
-  if (!GVar->hasInitializer())
-    return;   // External global require no code
-
-  // Check to see if this is a special global used by LLVM, if so, emit it.
-  if (EmitSpecialLLVMGlobal(GVar))
-    return;
-
-  std::string name = Mang->getMangledName(GVar);
-  Constant *C = GVar->getInitializer();
-  unsigned Size = TD->getTypeAllocSize(C->getType());
-  unsigned Align = std::max(1U, TD->getPreferredAlignmentLog(GVar));
-
-  printVisibility(name, GVar->getVisibility());
-
-  O << "\t.type\t" << name << ",@object\n";
-
-  OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(GVar, Mang,
-                                                                  TM));
-
-  if (C->isNullValue() && !GVar->hasSection() &&
-      !GVar->isThreadLocal() &&
-      (GVar->hasLocalLinkage() || GVar->isWeakForLinker())) {
-
-    if (Size == 0) Size = 1;   // .comm Foo, 0 is undefined, avoid it.
-
-    if (GVar->hasLocalLinkage())
-      O << "\t.local\t" << name << '\n';
-
-    O << MAI->getCOMMDirective()  << name << ',' << Size;
-    if (MAI->getCOMMDirectiveTakesAlignment())
-      O << ',' << (MAI->getAlignmentIsInBytes() ? (1 << Align) : Align);
-
-    if (VerboseAsm) {
-      O << "\t\t" << MAI->getCommentString() << ' ';
-      WriteAsOperand(O, GVar, /*PrintType=*/false, GVar->getParent());
-    }
-    O << '\n';
-    return;
-  }
-
-  switch (GVar->getLinkage()) {
-  case GlobalValue::CommonLinkage:
-  case GlobalValue::LinkOnceAnyLinkage:
-  case GlobalValue::LinkOnceODRLinkage:
-  case GlobalValue::WeakAnyLinkage:
-  case GlobalValue::WeakODRLinkage:
-    O << "\t.weak\t" << name << '\n';
-    break;
-  case GlobalValue::DLLExportLinkage:
-  case GlobalValue::AppendingLinkage:
-    // FIXME: appending linkage variables should go into a section of
-    // their name or something.  For now, just emit them as external.
-  case GlobalValue::ExternalLinkage:
-    // If external or appending, declare as a global symbol
-    O << "\t.globl " << name << '\n';
-    // FALL THROUGH
-  case GlobalValue::PrivateLinkage:
-  case GlobalValue::LinkerPrivateLinkage:
-  case GlobalValue::InternalLinkage:
-     break;
-  default:
-    assert(0 && "Unknown linkage type!");
-  }
-
-  // Use 16-bit alignment by default to simplify bunch of stuff
-  EmitAlignment(Align, GVar, 1);
-  O << name << ":";
-  if (VerboseAsm) {
-    O << "\t\t\t\t" << MAI->getCommentString() << ' ';
-    WriteAsOperand(O, GVar, /*PrintType=*/false, GVar->getParent());
-  }
-  O << '\n';
-  if (MAI->hasDotTypeDotSizeDirective())
-    O << "\t.size\t" << name << ", " << Size << '\n';
-
-  EmitGlobalConstant(C);
 }
 
 // Force static initialization.

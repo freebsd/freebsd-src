@@ -44,6 +44,8 @@ template <typename T> struct DenseMapInfo;
 template <typename T> struct simplify_type;
 template <typename T> struct ilist_traits;
 
+void checkForCycles(const SDNode *N);
+  
 /// SDVTList - This represents a list of ValueType's that has been intern'd by
 /// a SelectionDAG.  Instances of this simple value class are returned by
 /// SelectionDAG::getVTList(...).
@@ -1285,10 +1287,55 @@ public:
   void print_details(raw_ostream &OS, const SelectionDAG *G) const;
   void print(raw_ostream &OS, const SelectionDAG *G = 0) const;
   void printr(raw_ostream &OS, const SelectionDAG *G = 0) const;
+
+  /// printrFull - Print a SelectionDAG node and all children down to
+  /// the leaves.  The given SelectionDAG allows target-specific nodes
+  /// to be printed in human-readable form.  Unlike printr, this will
+  /// print the whole DAG, including children that appear multiple
+  /// times.
+  ///
+  void printrFull(raw_ostream &O, const SelectionDAG *G = 0) const;
+
+  /// printrWithDepth - Print a SelectionDAG node and children up to
+  /// depth "depth."  The given SelectionDAG allows target-specific
+  /// nodes to be printed in human-readable form.  Unlike printr, this
+  /// will print children that appear multiple times wherever they are
+  /// used.
+  ///
+  void printrWithDepth(raw_ostream &O, const SelectionDAG *G = 0,
+                       unsigned depth = 100) const;
+
+
+  /// dump - Dump this node, for debugging.
   void dump() const;
+
+  /// dumpr - Dump (recursively) this node and its use-def subgraph.
   void dumpr() const;
+
+  /// dump - Dump this node, for debugging.
+  /// The given SelectionDAG allows target-specific nodes to be printed
+  /// in human-readable form.
   void dump(const SelectionDAG *G) const;
+
+  /// dumpr - Dump (recursively) this node and its use-def subgraph.
+  /// The given SelectionDAG allows target-specific nodes to be printed
+  /// in human-readable form.
   void dumpr(const SelectionDAG *G) const;
+
+  /// dumprFull - printrFull to dbgs().  The given SelectionDAG allows
+  /// target-specific nodes to be printed in human-readable form.
+  /// Unlike dumpr, this will print the whole DAG, including children
+  /// that appear multiple times.
+  ///
+  void dumprFull(const SelectionDAG *G = 0) const;
+
+  /// dumprWithDepth - printrWithDepth to dbgs().  The given
+  /// SelectionDAG allows target-specific nodes to be printed in
+  /// human-readable form.  Unlike dumpr, this will print children
+  /// that appear multiple times wherever they are used.
+  ///
+  void dumprWithDepth(const SelectionDAG *G = 0, unsigned depth = 100) const;
+
 
   static bool classof(const SDNode *) { return true; }
 
@@ -1318,6 +1365,7 @@ protected:
       OperandList[i].setUser(this);
       OperandList[i].setInitial(Ops[i]);
     }
+    checkForCycles(this);
   }
 
   /// This constructor adds no operands itself; operands can be
@@ -1334,6 +1382,7 @@ protected:
     Ops[0].setInitial(Op0);
     NumOperands = 1;
     OperandList = Ops;
+    checkForCycles(this);
   }
 
   /// InitOperands - Initialize the operands list of this with 2 operands.
@@ -1344,6 +1393,7 @@ protected:
     Ops[1].setInitial(Op1);
     NumOperands = 2;
     OperandList = Ops;
+    checkForCycles(this);
   }
 
   /// InitOperands - Initialize the operands list of this with 3 operands.
@@ -1357,6 +1407,7 @@ protected:
     Ops[2].setInitial(Op2);
     NumOperands = 3;
     OperandList = Ops;
+    checkForCycles(this);
   }
 
   /// InitOperands - Initialize the operands list of this with 4 operands.
@@ -1372,6 +1423,7 @@ protected:
     Ops[3].setInitial(Op3);
     NumOperands = 4;
     OperandList = Ops;
+    checkForCycles(this);
   }
 
   /// InitOperands - Initialize the operands list of this with N operands.
@@ -1382,6 +1434,7 @@ protected:
     }
     NumOperands = N;
     OperandList = Ops;
+    checkForCycles(this);
   }
 
   /// DropOperands - Release the operands and set this node to have

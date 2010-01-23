@@ -29,7 +29,6 @@ PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit) {
   CommentString = "#";
   GlobalPrefix = "";
   PrivateGlobalPrefix = ".L";
-  UsedDirective = "\t# .no_dead_strip\t";
   WeakRefDirective = "\t.weak\t";
   
   // Uses '.section' before '.bss' directive
@@ -53,7 +52,7 @@ PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit) {
   SetDirective = "\t.set";
   Data64bitsDirective = is64Bit ? "\t.quad\t" : 0;
   AlignmentIsInBytes = false;
-  LCOMMDirective = "\t.lcomm\t";
+  HasLCOMMDirective = true;
   AssemblerDialect = 0;           // Old-Style mnemonics.
 }
 

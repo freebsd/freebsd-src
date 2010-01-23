@@ -438,6 +438,12 @@ bool X86RegisterInfo::hasFP(const MachineFunction &MF) const {
           (MMI && MMI->callsUnwindInit()));
 }
 
+bool X86RegisterInfo::canRealignStack(const MachineFunction &MF) const {
+  const MachineFrameInfo *MFI = MF.getFrameInfo();
+  return (RealignStack &&
+          !MFI->hasVarSizedObjects());
+}
+
 bool X86RegisterInfo::needsStackRealignment(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   bool requiresRealignment =
@@ -591,15 +597,6 @@ X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   int FrameIndex = MI.getOperand(i).getIndex();
   unsigned BasePtr;
 
-  // DEBUG_VALUE has a special representation, and is only robust enough to
-  // represent SP(or BP) +- offset addressing modes.  We rewrite the
-  // FrameIndex to be a constant; implicitly positive constants are relative
-  // to ESP and negative ones to EBP.
-  if (MI.getOpcode()==TargetInstrInfo::DEBUG_VALUE) {
-    MI.getOperand(i).ChangeToImmediate(getFrameIndexOffset(MF, FrameIndex));
-    return 0;
-  }
-
   if (needsStackRealignment(MF))
     BasePtr = (FrameIndex < 0 ? FramePtr : StackPtr);
   else
@@ -685,8 +682,7 @@ void emitSPUpdate(MachineBasicBlock &MBB, MachineBasicBlock::iterator &MBBI,
        (Is64Bit ? X86::ADD64ri8 : X86::ADD32ri8) :
        (Is64Bit ? X86::ADD64ri32 : X86::ADD32ri));
   uint64_t Chunk = (1LL << 31) - 1;
-  DebugLoc DL = (MBBI != MBB.end() ? MBBI->getDebugLoc() :
-                 DebugLoc::getUnknownLoc());
+  DebugLoc DL = MBB.findDebugLoc(MBBI);
 
   while (Offset) {
     uint64_t ThisVal = (Offset > Chunk) ? Chunk : Offset;
@@ -1035,8 +1031,7 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
     }
   }
 
-  if (MBBI != MBB.end())
-    DL = MBBI->getDebugLoc();
+  DL = MBB.findDebugLoc(MBBI);
 
   // Adjust stack pointer: ESP -= numbytes.
   if (NumBytes >= 4096 && Subtarget->isTargetCygMing()) {

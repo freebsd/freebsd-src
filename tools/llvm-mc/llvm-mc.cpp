@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/MC/MCAsmLexer.h"
+#include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCInstPrinter.h"
@@ -28,10 +28,11 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Signals.h"
 #include "llvm/Target/TargetAsmParser.h"
+#include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Target/TargetMachine.h"  // FIXME.
 #include "llvm/Target/TargetSelect.h"
-#include "AsmParser.h"
+#include "llvm/MC/MCParser/AsmParser.h"
 #include "Disassembler.h"
 using namespace llvm;
 
@@ -133,14 +134,14 @@ static int AsLexInput(const char *ProgName) {
   const MCAsmInfo *MAI = TheTarget->createAsmInfo(TripleName);
   assert(MAI && "Unable to create target asm info!");
 
-  AsmLexer Lexer(SrcMgr, *MAI);
+  AsmLexer Lexer(*MAI);
   
   bool Error = false;
   
   while (Lexer.Lex().isNot(AsmToken::Eof)) {
     switch (Lexer.getKind()) {
     default:
-      Lexer.PrintMessage(Lexer.getLoc(), "unknown token", "warning");
+      SrcMgr.PrintMessage(Lexer.getLoc(), "unknown token", "warning");
       Error = true;
       break;
     case AsmToken::Error:
@@ -263,7 +264,9 @@ static int AssembleInput(const char *ProgName) {
     IP.reset(TheTarget->createMCInstPrinter(OutputAsmVariant, *MAI, *Out));
     if (ShowEncoding)
       CE.reset(TheTarget->createCodeEmitter(*TM));
-    Str.reset(createAsmStreamer(Ctx, *Out, *MAI, IP.get(), CE.get()));
+    Str.reset(createAsmStreamer(Ctx, *Out, *MAI,
+                                TM->getTargetData()->isLittleEndian(),
+                                /*asmverbose*/true, IP.get(), CE.get()));
   } else {
     assert(FileType == OFT_ObjectFile && "Invalid file type!");
     CE.reset(TheTarget->createCodeEmitter(*TM));

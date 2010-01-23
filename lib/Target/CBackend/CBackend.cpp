@@ -33,6 +33,7 @@
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/IntrinsicLowering.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCSymbol.h"
@@ -44,7 +45,6 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/InstVisitor.h"
-#include "llvm/Support/Mangler.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/System/Host.h"
 #include "llvm/Config/config.h"
@@ -58,6 +58,13 @@ extern "C" void LLVMInitializeCBackendTarget() {
 }
 
 namespace {
+  class CBEMCAsmInfo : public MCAsmInfo {
+  public:
+    CBEMCAsmInfo() {
+      GlobalPrefix = "";
+      PrivateGlobalPrefix = "";
+    }
+  };
   /// CBackendNameAllUsedStructsAndMergeFunctions - This pass inserts names for
   /// any unnamed structure types that are used by the program, and merges
   /// external functions with the same name.
@@ -344,11 +351,19 @@ namespace {
 char CWriter::ID = 0;
 
 
-static std::string Mangle(const std::string &S) {
+static std::string CBEMangle(const std::string &S) {
   std::string Result;
-  raw_string_ostream OS(Result);
-  MCSymbol::printMangledName(S, OS, 0);
-  return OS.str();
+  
+  for (unsigned i = 0, e = S.size(); i != e; ++i)
+    if (isalnum(S[i]) || S[i] == '_') {
+      Result += S[i];
+    } else {
+      Result += '_';
+      Result += 'A'+(S[i]&15);
+      Result += 'A'+((S[i]>>4)&15);
+      Result += '_';
+    }
+  return Result;
 }
 
 
@@ -1445,7 +1460,7 @@ std::string CWriter::GetValueName(const Value *Operand) {
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand)) {
     SmallString<128> Str;
     Mang->getNameWithPrefix(Str, GV, false);
-    return Mangle(Str.str().str());
+    return CBEMangle(Str.str().str());
   }
     
   std::string Name = Operand->getName();
@@ -1869,8 +1884,17 @@ bool CWriter::doInitialization(Module &M) {
   IL = new IntrinsicLowering(*TD);
   IL->AddPrototypes(M);
 
-  // Ensure that all structure types have names...
-  Mang = new Mangler(M);
+#if 0
+  std::string Triple = TheModule->getTargetTriple();
+  if (Triple.empty())
+    Triple = llvm::sys::getHostTriple();
+  
+  std::string E;
+  if (const Target *Match = TargetRegistry::lookupTarget(Triple, E))
+    TAsm = Match->createAsmInfo(Triple);
+#endif    
+  TAsm = new CBEMCAsmInfo();
+  Mang = new Mangler(*TAsm);
 
   // Keep track of which functions are static ctors/dtors so they can have
   // an attribute added to their prototypes.
@@ -2223,7 +2247,7 @@ void CWriter::printModuleTypes(const TypeSymbolTable &TST) {
   // Print out forward declarations for structure types before anything else!
   Out << "/* Structure forward decls */\n";
   for (; I != End; ++I) {
-    std::string Name = "struct " + Mangle("l_"+I->first);
+    std::string Name = "struct " + CBEMangle("l_"+I->first);
     Out << Name << ";\n";
     TypeNames.insert(std::make_pair(I->second, Name));
   }
@@ -2234,7 +2258,7 @@ void CWriter::printModuleTypes(const TypeSymbolTable &TST) {
   // for struct or opaque types.
   Out << "/* Typedefs */\n";
   for (I = TST.begin(); I != End; ++I) {
-    std::string Name = Mangle("l_"+I->first);
+    std::string Name = CBEMangle("l_"+I->first);
     Out << "typedef ";
     printType(Out, I->second, false, Name);
     Out << ";\n";
@@ -3240,30 +3264,31 @@ bool CWriter::visitBuiltinCall(CallInst &I, Intrinsic::ID ID,
 //      of the per target tables
 //      handle multiple constraint codes
 std::string CWriter::InterpretASMConstraint(InlineAsm::ConstraintInfo& c) {
-
   assert(c.Codes.size() == 1 && "Too many asm constraint codes to handle");
 
-  const char *const *table = 0;
-  
   // Grab the translation table from MCAsmInfo if it exists.
-  if (!TAsm) {
-    std::string Triple = TheModule->getTargetTriple();
-    if (Triple.empty())
-      Triple = llvm::sys::getHostTriple();
-
-    std::string E;
-    if (const Target *Match = TargetRegistry::lookupTarget(Triple, E))
-      TAsm = Match->createAsmInfo(Triple);
-  }
-  if (TAsm)
-    table = TAsm->getAsmCBE();
+  const MCAsmInfo *TargetAsm;
+  std::string Triple = TheModule->getTargetTriple();
+  if (Triple.empty())
+    Triple = llvm::sys::getHostTriple();
+  
+  std::string E;
+  if (const Target *Match = TargetRegistry::lookupTarget(Triple, E))
+    TargetAsm = Match->createAsmInfo(Triple);
+  else
+    return c.Codes[0];
+  
+  const char *const *table = TargetAsm->getAsmCBE();
 
   // Search the translation table if it exists.
   for (int i = 0; table && table[i]; i += 2)
-    if (c.Codes[0] == table[i])
+    if (c.Codes[0] == table[i]) {
+      delete TargetAsm;
       return table[i+1];
+    }
 
   // Default is identity.
+  delete TargetAsm;
   return c.Codes[0];
 }
 

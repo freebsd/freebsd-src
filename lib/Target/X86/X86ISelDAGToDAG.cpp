@@ -384,8 +384,11 @@ static void MoveBelowTokenFactor(SelectionDAG *CurDAG, SDValue Load,
 /// 
 static bool isRMWLoad(SDValue N, SDValue Chain, SDValue Address,
                       SDValue &Load) {
-  if (N.getOpcode() == ISD::BIT_CONVERT)
+  if (N.getOpcode() == ISD::BIT_CONVERT) {
+    if (!N.hasOneUse())
+      return false;
     N = N.getOperand(0);
+  }
 
   LoadSDNode *LD = dyn_cast<LoadSDNode>(N);
   if (!LD || LD->isVolatile())
@@ -595,6 +598,7 @@ void X86DAGToDAGISel::PreprocessForRMW() {
     if (RModW) {
       MoveBelowTokenFactor(CurDAG, Load, SDValue(I, 0), Chain);
       ++NumLoadMoved;
+      checkForCycles(I);
     }
   }
 }
@@ -940,7 +944,7 @@ bool X86DAGToDAGISel::MatchAddressRecursively(SDValue N, X86ISelAddressMode &AM,
         // Okay, we know that we have a scale by now.  However, if the scaled
         // value is an add of something and a constant, we can fold the
         // constant into the disp field here.
-        if (ShVal.getNode()->getOpcode() == ISD::ADD && ShVal.hasOneUse() &&
+        if (ShVal.getNode()->getOpcode() == ISD::ADD &&
             isa<ConstantSDNode>(ShVal.getNode()->getOperand(1))) {
           AM.IndexReg = ShVal.getNode()->getOperand(0);
           ConstantSDNode *AddVal =

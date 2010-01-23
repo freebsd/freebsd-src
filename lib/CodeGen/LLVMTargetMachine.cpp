@@ -17,6 +17,7 @@
 #include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/FileWriters.h"
 #include "llvm/CodeGen/GCStrategy.h"
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
 #include "llvm/Target/TargetOptions.h"
@@ -38,6 +39,8 @@ static cl::opt<bool> DisableBranchFold("disable-branch-fold", cl::Hidden,
     cl::desc("Disable branch folding"));
 static cl::opt<bool> DisableTailDuplicate("disable-tail-duplicate", cl::Hidden,
     cl::desc("Disable tail duplication"));
+static cl::opt<bool> DisableEarlyTailDup("disable-early-taildup", cl::Hidden,
+    cl::desc("Disable pre-register allocation tail duplication"));
 static cl::opt<bool> DisableCodePlace("disable-code-place", cl::Hidden,
     cl::desc("Disable code placement"));
 static cl::opt<bool> DisableSSC("disable-ssc", cl::Hidden,
@@ -76,9 +79,6 @@ EnableFastISelOption("fast-isel", cl::Hidden,
 static cl::opt<bool> EnableSplitGEPGVN("split-gep-gvn", cl::Hidden,
     cl::desc("Split GEPs and run no-load GVN"));
 
-static cl::opt<bool> PreAllocTailDup("pre-regalloc-taildup", cl::Hidden,
-    cl::desc("Pre-register allocation tail duplication"));
-
 LLVMTargetMachine::LLVMTargetMachine(const Target &T,
                                      const std::string &TargetTriple)
   : TargetMachine(T) {
@@ -115,12 +115,11 @@ LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
       return FileModel::Error;
     return FileModel::AsmFile;
   case TargetMachine::ObjectFile:
-    if (getMachOWriterInfo())
+    if (!addObjectFileEmitter(PM, OptLevel, Out))
       return FileModel::MachOFile;
     else if (getELFWriterInfo())
-      return FileModel::ElfFile;
+      return FileModel::ElfFile; 
   }
-
   return FileModel::Error;
 }
 
@@ -134,6 +133,17 @@ bool LLVMTargetMachine::addAssemblyEmitter(PassManagerBase &PM,
     return true;
 
   PM.add(Printer);
+  return false;
+}
+
+bool LLVMTargetMachine::addObjectFileEmitter(PassManagerBase &PM,
+                                             CodeGenOpt::Level OptLevel,
+                                             formatted_raw_ostream &Out) {
+  MCCodeEmitter *Emitter = getTarget().createCodeEmitter(*this);
+  if (!Emitter)
+    return true;
+  
+  PM.add(createMachOWriter(Out, *this, getMCAsmInfo(), Emitter));
   return false;
 }
 
@@ -340,8 +350,7 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
   }
 
   // Pre-ra tail duplication.
-  if (OptLevel != CodeGenOpt::None &&
-      !DisableTailDuplicate && PreAllocTailDup) {
+  if (OptLevel != CodeGenOpt::None && !DisableEarlyTailDup) {
     PM.add(createTailDuplicatePass(true));
     printAndVerify(PM, "After Pre-RegAlloc TailDuplicate",
                    /* allowDoubleDefs= */ true);

@@ -599,7 +599,7 @@ void DIVariable::dump() const {
 //===----------------------------------------------------------------------===//
 
 DIFactory::DIFactory(Module &m)
-  : M(m), VMContext(M.getContext()), DeclareFn(0) {}
+  : M(m), VMContext(M.getContext()), DeclareFn(0), ValueFn(0) {}
 
 Constant *DIFactory::GetTagConstant(unsigned TAG) {
   assert((TAG & LLVMDebugVersionMask) == 0 &&
@@ -854,7 +854,7 @@ DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
                                          StringRef DisplayName,
                                          StringRef LinkageName,
                                          DICompileUnit CompileUnit,
-                                         unsigned LineNo, DIType Type,
+                                         unsigned LineNo, DIType Ty,
                                          bool isLocalToUnit,
                                          bool isDefinition,
                                          unsigned VK, unsigned VIndex,
@@ -869,7 +869,7 @@ DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
     MDString::get(VMContext, LinkageName),
     CompileUnit.getNode(),
     ConstantInt::get(Type::getInt32Ty(VMContext), LineNo),
-    Type.getNode(),
+    Ty.getNode(),
     ConstantInt::get(Type::getInt1Ty(VMContext), isLocalToUnit),
     ConstantInt::get(Type::getInt1Ty(VMContext), isDefinition),
     ConstantInt::get(Type::getInt32Ty(VMContext), (unsigned)VK),
@@ -911,7 +911,7 @@ DIFactory::CreateGlobalVariable(DIDescriptor Context, StringRef Name,
                                 StringRef DisplayName,
                                 StringRef LinkageName,
                                 DICompileUnit CompileUnit,
-                                unsigned LineNo, DIType Type,bool isLocalToUnit,
+                                unsigned LineNo, DIType Ty,bool isLocalToUnit,
                                 bool isDefinition, llvm::GlobalVariable *Val) {
   Value *Elts[] = {
     GetTagConstant(dwarf::DW_TAG_variable),
@@ -922,7 +922,7 @@ DIFactory::CreateGlobalVariable(DIDescriptor Context, StringRef Name,
     MDString::get(VMContext, LinkageName),
     CompileUnit.getNode(),
     ConstantInt::get(Type::getInt32Ty(VMContext), LineNo),
-    Type.getNode(),
+    Ty.getNode(),
     ConstantInt::get(Type::getInt1Ty(VMContext), isLocalToUnit),
     ConstantInt::get(Type::getInt1Ty(VMContext), isDefinition),
     Val
@@ -943,14 +943,14 @@ DIFactory::CreateGlobalVariable(DIDescriptor Context, StringRef Name,
 DIVariable DIFactory::CreateVariable(unsigned Tag, DIDescriptor Context,
                                      StringRef Name,
                                      DICompileUnit CompileUnit, unsigned LineNo,
-                                     DIType Type) {
+                                     DIType Ty) {
   Value *Elts[] = {
     GetTagConstant(Tag),
     Context.getNode(),
     MDString::get(VMContext, Name),
     CompileUnit.getNode(),
     ConstantInt::get(Type::getInt32Ty(VMContext), LineNo),
-    Type.getNode(),
+    Ty.getNode(),
   };
   return DIVariable(MDNode::get(VMContext, &Elts[0], 6));
 }
@@ -962,14 +962,15 @@ DIVariable DIFactory::CreateComplexVariable(unsigned Tag, DIDescriptor Context,
                                             const std::string &Name,
                                             DICompileUnit CompileUnit,
                                             unsigned LineNo,
-                                   DIType Type, SmallVector<Value *, 9> &addr) {
+                                            DIType Ty, 
+                                            SmallVector<Value *, 9> &addr) {
   SmallVector<Value *, 9> Elts;
   Elts.push_back(GetTagConstant(Tag));
   Elts.push_back(Context.getNode());
   Elts.push_back(MDString::get(VMContext, Name));
   Elts.push_back(CompileUnit.getNode());
   Elts.push_back(ConstantInt::get(Type::getInt32Ty(VMContext), LineNo));
-  Elts.push_back(Type.getNode());
+  Elts.push_back(Ty.getNode());
   Elts.insert(Elts.end(), addr.begin(), addr.end());
 
   return DIVariable(MDNode::get(VMContext, &Elts[0], 6+addr.size()));
@@ -1035,8 +1036,8 @@ Instruction *DIFactory::InsertDeclare(Value *Storage, DIVariable D,
   if (!DeclareFn)
     DeclareFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_declare);
 
-  Value *Elts[] = { Storage };
-  Value *Args[] = { MDNode::get(Storage->getContext(), Elts, 1), D.getNode() };
+  Value *Args[] = { MDNode::get(Storage->getContext(), &Storage, 1),
+                    D.getNode() };
   return CallInst::Create(DeclareFn, Args, Args+2, "", InsertBefore);
 }
 
@@ -1046,8 +1047,8 @@ Instruction *DIFactory::InsertDeclare(Value *Storage, DIVariable D,
   if (!DeclareFn)
     DeclareFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_declare);
 
-  Value *Elts[] = { Storage };
-  Value *Args[] = { MDNode::get(Storage->getContext(), Elts, 1), D.getNode() };
+  Value *Args[] = { MDNode::get(Storage->getContext(), &Storage, 1),
+                    D.getNode() };
   return CallInst::Create(DeclareFn, Args, Args+2, "", InsertAtEnd);
 }
 
@@ -1059,8 +1060,7 @@ Instruction *DIFactory::InsertDbgValueIntrinsic(Value *V, uint64_t Offset,
   if (!ValueFn)
     ValueFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_value);
 
-  Value *Elts[] = { V };
-  Value *Args[] = { MDNode::get(V->getContext(), Elts, 1),
+  Value *Args[] = { MDNode::get(V->getContext(), &V, 1),
                     ConstantInt::get(Type::getInt64Ty(V->getContext()), Offset),
                     D.getNode() };
   return CallInst::Create(ValueFn, Args, Args+3, "", InsertBefore);
@@ -1074,8 +1074,7 @@ Instruction *DIFactory::InsertDbgValueIntrinsic(Value *V, uint64_t Offset,
   if (!ValueFn)
     ValueFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_value);
 
-  Value *Elts[] = { V };
-  Value *Args[] = { MDNode::get(V->getContext(), Elts, 1), 
+  Value *Args[] = { MDNode::get(V->getContext(), &V, 1), 
                     ConstantInt::get(Type::getInt64Ty(V->getContext()), Offset),
                     D.getNode() };
   return CallInst::Create(ValueFn, Args, Args+3, "", InsertAtEnd);
@@ -1139,9 +1138,9 @@ void DebugInfoFinder::processType(DIType DT) {
     if (!DA.isNull())
       for (unsigned i = 0, e = DA.getNumElements(); i != e; ++i) {
         DIDescriptor D = DA.getElement(i);
-        DIType TypeE = DIType(D.getNode());
-        if (!TypeE.isNull())
-          processType(TypeE);
+        DIType TyE = DIType(D.getNode());
+        if (!TyE.isNull())
+          processType(TyE);
         else
           processSubprogram(DISubprogram(D.getNode()));
       }
@@ -1234,7 +1233,8 @@ bool DebugInfoFinder::addSubprogram(DISubprogram SP) {
   return true;
 }
 
-Value *llvm::findDbgGlobalDeclare(GlobalVariable *V) {
+/// Find the debug info descriptor corresponding to this global variable.
+static Value *findDbgGlobalDeclare(GlobalVariable *V) {
   const Module *M = V->getParent();
   NamedMDNode *NMD = M->getNamedMetadata("llvm.dbg.gv");
   if (!NMD)
@@ -1252,7 +1252,7 @@ Value *llvm::findDbgGlobalDeclare(GlobalVariable *V) {
 
 /// Finds the llvm.dbg.declare intrinsic corresponding to this value if any.
 /// It looks through pointer casts too.
-const DbgDeclareInst *llvm::findDbgDeclare(const Value *V) {
+static const DbgDeclareInst *findDbgDeclare(const Value *V) {
   V = V->stripPointerCasts();
   
   if (!isa<Instruction>(V) && !isa<Argument>(V))
@@ -1320,23 +1320,15 @@ bool llvm::getLocationInfo(const Value *V, std::string &DisplayName,
 /// from DILocation.
 DebugLoc llvm::ExtractDebugLocation(DILocation &Loc,
                                     DebugLocTracker &DebugLocInfo) {
-  DebugLoc DL;
-  MDNode *Context = Loc.getScope().getNode();
-  MDNode *InlinedLoc = NULL;
-  if (!Loc.getOrigLocation().isNull())
-    InlinedLoc = Loc.getOrigLocation().getNode();
-  // If this location is already tracked then use it.
-  DebugLocTuple Tuple(Context, InlinedLoc, Loc.getLineNumber(),
-                      Loc.getColumnNumber());
-  DenseMap<DebugLocTuple, unsigned>::iterator II
-    = DebugLocInfo.DebugIdMap.find(Tuple);
+  DenseMap<MDNode *, unsigned>::iterator II
+    = DebugLocInfo.DebugIdMap.find(Loc.getNode());
   if (II != DebugLocInfo.DebugIdMap.end())
     return DebugLoc::get(II->second);
 
   // Add a new location entry.
   unsigned Id = DebugLocInfo.DebugLocations.size();
-  DebugLocInfo.DebugLocations.push_back(Tuple);
-  DebugLocInfo.DebugIdMap[Tuple] = Id;
+  DebugLocInfo.DebugLocations.push_back(Loc.getNode());
+  DebugLocInfo.DebugIdMap[Loc.getNode()] = Id;
 
   return DebugLoc::get(Id);
 }

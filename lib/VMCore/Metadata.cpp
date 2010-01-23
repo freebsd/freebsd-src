@@ -28,7 +28,7 @@ using namespace llvm;
 //
 
 MDString::MDString(LLVMContext &C, StringRef S)
-  : MetadataBase(Type::getMetadataTy(C), Value::MDStringVal), Str(S) {}
+  : Value(Type::getMetadataTy(C), Value::MDStringVal), Str(S) {}
 
 MDString *MDString::get(LLVMContext &Context, StringRef Str) {
   LLVMContextImpl *pImpl = Context.pImpl;
@@ -93,7 +93,7 @@ static MDNodeOperand *getOperandPtr(MDNode *N, unsigned Op) {
 
 MDNode::MDNode(LLVMContext &C, Value *const *Vals, unsigned NumVals,
                bool isFunctionLocal)
-: MetadataBase(Type::getMetadataTy(C), Value::MDNodeVal) {
+: Value(Type::getMetadataTy(C), Value::MDNodeVal) {
   NumOperands = NumVals;
 
   if (isFunctionLocal)
@@ -121,67 +121,60 @@ MDNode::~MDNode() {
     Op->~MDNodeOperand();
 }
 
-#ifndef NDEBUG
-static Function *assertLocalFunction(const MDNode *N,
-                                     SmallPtrSet<const MDNode *, 32> &Visited) {
-  Function *F = NULL;
-  // Only visit each MDNode once.
-  if (!Visited.insert(N)) return F;
-  
-  for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
-    Value *V = N->getOperand(i);
-    Function *NewF = NULL;
-    if (!V) continue;
-    if (Instruction *I = dyn_cast<Instruction>(V))
-      NewF = I->getParent()->getParent();
-    else if (BasicBlock *BB = dyn_cast<BasicBlock>(V))
-      NewF = BB->getParent();
-    else if (Argument *A = dyn_cast<Argument>(V))
-      NewF = A->getParent();
-    else if (MDNode *MD = dyn_cast<MDNode>(V))
-      if (MD->isFunctionLocal())
-        NewF = assertLocalFunction(MD, Visited);
-    if (F && NewF) assert(F == NewF && "inconsistent function-local metadata");
-    if (!F) F = NewF;
-  }
-  return F;
+static const Function *getFunctionForValue(Value *V) {
+  assert(!isa<MDNode>(V) && "does not iterate over metadata operands");
+  if (!V) return NULL;
+  if (Instruction *I = dyn_cast<Instruction>(V))
+    return I->getParent()->getParent();
+  if (BasicBlock *BB = dyn_cast<BasicBlock>(V))
+    return BB->getParent();
+  if (Argument *A = dyn_cast<Argument>(V))
+    return A->getParent();
+  return NULL;
 }
-#endif
 
-static Function *getFunctionHelper(const MDNode *N,
-                                   SmallPtrSet<const MDNode *, 32> &Visited) {
-  assert(N->isFunctionLocal() && "Should only be called on function-local MD");
 #ifndef NDEBUG
-  return assertLocalFunction(N, Visited);
-#endif
-  Function *F = NULL;
-  // Only visit each MDNode once.
-  if (!Visited.insert(N)) return F;
-  
+static const Function *assertLocalFunction(const MDNode *N) {
+  if (!N->isFunctionLocal()) return 0;
+
+  const Function *F = 0, *NewF = 0;
   for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
-    Value *V = N->getOperand(i);
-    if (!V) continue;
-    if (Instruction *I = dyn_cast<Instruction>(V))
-      F = I->getParent()->getParent();
-    else if (BasicBlock *BB = dyn_cast<BasicBlock>(V))
-      F = BB->getParent();
-    else if (Argument *A = dyn_cast<Argument>(V))
-      F = A->getParent();
-    else if (MDNode *MD = dyn_cast<MDNode>(V))
-      if (MD->isFunctionLocal())
-        F = getFunctionHelper(MD, Visited);
-    if (F) break;
+    if (Value *V = N->getOperand(i)) {
+      if (MDNode *MD = dyn_cast<MDNode>(V))
+        NewF = assertLocalFunction(MD);
+      else
+        NewF = getFunctionForValue(V);
+    }
+    if (F == 0)
+      F = NewF;
+    else 
+      assert((NewF == 0 || F == NewF) &&"inconsistent function-local metadata");
   }
   return F;
 }
+#endif
 
 // getFunction - If this metadata is function-local and recursively has a
 // function-local operand, return the first such operand's parent function.
-// Otherwise, return null. 
-Function *MDNode::getFunction() const {
+// Otherwise, return null. getFunction() should not be used for performance-
+// critical code because it recursively visits all the MDNode's operands.  
+const Function *MDNode::getFunction() const {
+#ifndef NDEBUG
+  return assertLocalFunction(this);
+#endif
   if (!isFunctionLocal()) return NULL;
-  SmallPtrSet<const MDNode *, 32> Visited;
-  return getFunctionHelper(this, Visited);
+
+  for (unsigned i = 0, e = getNumOperands(); i != e; ++i) {
+    if (Value *V = getOperand(i)) {
+      if (MDNode *MD = dyn_cast<MDNode>(V)) {
+        if (const Function *F = MD->getFunction())
+          return F;
+      } else {
+        return getFunctionForValue(V);
+      }
+    }
+  }
+  return NULL;
 }
 
 // destroy - Delete this node.  Only when there are no uses.

@@ -117,8 +117,7 @@ typedef enum {
     LLVMNoCaptureAttribute  = 1<<21,
     LLVMNoRedZoneAttribute  = 1<<22,
     LLVMNoImplicitFloatAttribute = 1<<23,
-    LLVMNakedAttribute      = 1<<24,
-    LLVMInlineHintAttribute = 1<<25
+    LLVMNakedAttribute      = 1<<24
 } LLVMAttribute;
 
 typedef enum {
@@ -1008,7 +1007,7 @@ namespace llvm {
                                                         \
     template<typename T>                                \
     inline T *unwrap(ref P) {                           \
-      T *Q = dynamic_cast<T*>(unwrap(P));               \
+      T *Q = (T*)unwrap(P);                             \
       assert(Q && "Invalid cast!");                     \
       return Q;                                         \
     }

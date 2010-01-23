@@ -48,10 +48,12 @@ namespace llvm {
   class MCSection;
   class MCStreamer;
   class MCSymbol;
+  class MDNode;
   class DwarfWriter;
   class Mangler;
   class MCAsmInfo;
   class TargetLoweringObjectFile;
+  class Twine;
   class Type;
   class formatted_raw_ostream;
 
@@ -131,10 +133,10 @@ namespace llvm {
     ///
     Mangler *Mang;
 
-    /// Cache of mangled name for current function. This is recalculated at the
+    /// The symbol for the current function. This is recalculated at the
     /// beginning of each call to runOnMachineFunction().
     ///
-    std::string CurrentFnName;
+    MCSymbol *CurrentFnSym;
     
     /// getCurrentSection() - Return the current section we are emitting to.
     const MCSection *getCurrentSection() const;
@@ -151,7 +153,7 @@ namespace llvm {
     mutable unsigned Counter;
     
     // Private state for processDebugLoc()
-    mutable DebugLocTuple PrevDLT;
+    mutable const MDNode *PrevDLT;
 
   protected:
     explicit AsmPrinter(formatted_raw_ostream &o, TargetMachine &TM,
@@ -213,10 +215,6 @@ namespace llvm {
                                        unsigned AsmVariant, 
                                        const char *ExtraCode);
     
-    /// PrintGlobalVariable - Emit the specified global variable and its
-    /// initializer to the output stream.
-    virtual void PrintGlobalVariable(const GlobalVariable *GV) = 0;
-
     /// SetupMachineFunction - This should be called when a new MachineFunction
     /// is being processed from runOnMachineFunction.
     void SetupMachineFunction(MachineFunction &MF);
@@ -238,6 +236,9 @@ namespace llvm {
     ///
     void EmitJumpTableInfo(MachineJumpTableInfo *MJTI, MachineFunction &MF);
     
+    /// EmitGlobalVariable - Emit the specified global variable to the .s file.
+    virtual void EmitGlobalVariable(const GlobalVariable *GV);
+    
     /// EmitSpecialLLVMGlobal - Check to see if the specified global is a
     /// special global used by LLVM.  If so, emit it and return true, otherwise
     /// do nothing and return false.
@@ -245,39 +246,9 @@ namespace llvm {
 
   public:
     //===------------------------------------------------------------------===//
-    /// LEB 128 number encoding.
-
-    /// PrintULEB128 - Print a series of hexidecimal values(separated by commas)
-    /// representing an unsigned leb128 value.
-    void PrintULEB128(unsigned Value) const;
-
-    /// PrintSLEB128 - Print a series of hexidecimal values(separated by commas)
-    /// representing a signed leb128 value.
-    void PrintSLEB128(int Value) const;
-
-    //===------------------------------------------------------------------===//
     // Emission and print routines
     //
 
-    /// PrintHex - Print a value as a hexidecimal value.
-    ///
-    void PrintHex(int Value) const;
-
-    /// EOL - Print a newline character to asm stream.  If a comment is present
-    /// then it will be printed first.  Comments should not contain '\n'.
-    void EOL() const;
-    void EOL(const std::string &Comment) const;
-    void EOL(const char* Comment) const;
-    void EOL(const char *Comment, unsigned Encoding) const;
-
-    /// EmitULEB128Bytes - Emit an assembler byte data directive to compose an
-    /// unsigned leb128 value.
-    void EmitULEB128Bytes(unsigned Value) const;
-    
-    /// EmitSLEB128Bytes - print an assembler byte data directive to compose a
-    /// signed leb128 value.
-    void EmitSLEB128Bytes(int Value) const;
-    
     /// EmitInt8 - Emit a byte directive and value.
     ///
     void EmitInt8(int Value) const;
@@ -294,14 +265,8 @@ namespace llvm {
     ///
     void EmitInt64(uint64_t Value) const;
 
-    /// EmitString - Emit a string with quotes and a null terminator.
-    /// Special characters are emitted properly.
-    /// @verbatim (Eg. '\t') @endverbatim
-    void EmitString(const StringRef String) const;
-    void EmitString(const char *String, unsigned Size) const;
-
     /// EmitFile - Emit a .file directive.
-    void EmitFile(unsigned Number, const std::string &Name) const;
+    void EmitFile(unsigned Number, StringRef Name) const;
 
     //===------------------------------------------------------------------===//
 
@@ -336,13 +301,32 @@ namespace llvm {
 
     /// EmitComments - Pretty-print comments for instructions
     void EmitComments(const MachineInstr &MI) const;
-    /// EmitComments - Pretty-print comments for basic blocks
-    void EmitComments(const MachineBasicBlock &MBB) const;
 
+    /// GetGlobalValueSymbol - Return the MCSymbol for the specified global
+    /// value.
+    MCSymbol *GetGlobalValueSymbol(const GlobalValue *GV) const;
+
+    /// GetSymbolWithGlobalValueBase - Return the MCSymbol for a symbol with
+    /// global value name as its base, with the specified suffix, and where the
+    /// symbol is forced to have private linkage if ForcePrivate is true.
+    MCSymbol *GetSymbolWithGlobalValueBase(const GlobalValue *GV,
+                                           StringRef Suffix,
+                                           bool ForcePrivate = true) const;
+    
+    /// GetExternalSymbolSymbol - Return the MCSymbol for the specified
+    /// ExternalSymbol.
+    MCSymbol *GetExternalSymbolSymbol(StringRef Sym) const;
+    
     /// GetMBBSymbol - Return the MCSymbol corresponding to the specified basic
     /// block label.
     MCSymbol *GetMBBSymbol(unsigned MBBID) const;
     
+    /// GetCPISymbol - Return the symbol for the specified constant pool entry.
+    MCSymbol *GetCPISymbol(unsigned CPID) const;
+
+    /// GetJTISymbol - Return the symbol for the specified jump table entry.
+    MCSymbol *GetJTISymbol(unsigned JTID, bool isLinkerPrivate = false) const;
+
     /// GetBlockAddressSymbol - Return the MCSymbol used to satisfy BlockAddress
     /// uses of the specified basic block.
     MCSymbol *GetBlockAddressSymbol(const BlockAddress *BA,
@@ -355,22 +339,14 @@ namespace llvm {
     /// MachineBasicBlock, an alignment (if present) and a comment describing
     /// it if appropriate.
     void EmitBasicBlockStart(const MachineBasicBlock *MBB) const;
-  protected:
-    /// EmitZeros - Emit a block of zeros.
-    ///
-    void EmitZeros(uint64_t NumZeros, unsigned AddrSpace = 0) const;
-
-    /// EmitString - Emit a zero-byte-terminated string constant.
-    ///
-    virtual void EmitString(const ConstantArray *CVA) const;
-
-    /// EmitConstantValueOnly - Print out the specified constant, without a
-    /// storage class.  Only constants of first-class type are allowed here.
-    void EmitConstantValueOnly(const Constant *CV);
-
+    
+    
+    // Data emission.
+    
     /// EmitGlobalConstant - Print a general LLVM constant to the .s file.
     void EmitGlobalConstant(const Constant* CV, unsigned AddrSpace = 0);
-
+    
+  protected:
     virtual void EmitMachineConstantPoolValue(MachineConstantPoolValue *MCPV);
 
     /// processDebugLoc - Processes the debug information of each machine
@@ -398,26 +374,16 @@ namespace llvm {
                                         const MachineBasicBlock *MBB,
                                         unsigned uid) const;
     
-    /// printDataDirective - This method prints the asm directive for the
-    /// specified type.
-    void printDataDirective(const Type *type, unsigned AddrSpace = 0);
-
     /// printVisibility - This prints visibility information about symbol, if
     /// this is suported by the target.
-    void printVisibility(const std::string& Name, unsigned Visibility) const;
-
+    void printVisibility(MCSymbol *Sym, unsigned Visibility) const;
+    
     /// printOffset - This is just convenient handler for printing offsets.
     void printOffset(int64_t Offset) const;
  
   private:
     void EmitLLVMUsedList(Constant *List);
     void EmitXXStructorList(Constant *List);
-    void EmitGlobalConstantStruct(const ConstantStruct* CVS,
-                                  unsigned AddrSpace);
-    void EmitGlobalConstantArray(const ConstantArray* CVA, unsigned AddrSpace);
-    void EmitGlobalConstantVector(const ConstantVector* CP);
-    void EmitGlobalConstantFP(const ConstantFP* CFP, unsigned AddrSpace);
-    void EmitGlobalConstantLargeInt(const ConstantInt* CI, unsigned AddrSpace);
     GCMetadataPrinter *GetOrCreateGCPrinter(GCStrategy *C);
   };
 }

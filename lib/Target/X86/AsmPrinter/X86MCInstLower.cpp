@@ -16,16 +16,15 @@
 #include "X86AsmPrinter.h"
 #include "X86MCAsmInfo.h"
 #include "X86COFFMachineModuleInfo.h"
+#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCStreamer.h"
-#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Support/Mangler.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/Analysis/DebugInfo.h"
 using namespace llvm;
 
 
@@ -83,33 +82,24 @@ GetGlobalAddressSymbol(const MachineOperand &MO) const {
     MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name.str());
 
     const MCSymbol *&StubSym = getMachOMMI().getGVStubEntry(Sym);
-    if (StubSym == 0) {
-      Name.clear();
-      Mang->getNameWithPrefix(Name, GV, false);
-      StubSym = Ctx.GetOrCreateSymbol(Name.str());
-    }
+    if (StubSym == 0)
+      StubSym = AsmPrinter.GetGlobalValueSymbol(GV);
     return Sym;
   }
   case X86II::MO_DARWIN_HIDDEN_NONLAZY_PIC_BASE: {
     Name += "$non_lazy_ptr";
     MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name.str());
     const MCSymbol *&StubSym = getMachOMMI().getHiddenGVStubEntry(Sym);
-    if (StubSym == 0) {
-      Name.clear();
-      Mang->getNameWithPrefix(Name, GV, false);
-      StubSym = Ctx.GetOrCreateSymbol(Name.str());
-    }
+    if (StubSym == 0)
+      StubSym = AsmPrinter.GetGlobalValueSymbol(GV);
     return Sym;
   }
   case X86II::MO_DARWIN_STUB: {
     Name += "$stub";
     MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name.str());
     const MCSymbol *&StubSym = getMachOMMI().getFnStubEntry(Sym);
-    if (StubSym == 0) {
-      Name.clear();
-      Mang->getNameWithPrefix(Name, GV, false);
-      StubSym = Ctx.GetOrCreateSymbol(Name.str());
-    }
+    if (StubSym == 0)
+      StubSym = AsmPrinter.GetGlobalValueSymbol(GV);
     return Sym;
   }
   // FIXME: These probably should be a modifier on the symbol or something??
@@ -173,6 +163,8 @@ GetExternalSymbolSymbol(const MachineOperand &MO) const {
 
 MCSymbol *X86MCInstLower::GetJumpTableSymbol(const MachineOperand &MO) const {
   SmallString<256> Name;
+  // FIXME: Use AsmPrinter.GetJTISymbol.  @TLSGD shouldn't be part of the symbol
+  // name!
   raw_svector_ostream(Name) << AsmPrinter.MAI->getPrivateGlobalPrefix() << "JTI"
     << AsmPrinter.getFunctionNumber() << '_' << MO.getIndex();
   
@@ -204,6 +196,8 @@ MCSymbol *X86MCInstLower::GetJumpTableSymbol(const MachineOperand &MO) const {
 MCSymbol *X86MCInstLower::
 GetConstantPoolIndexSymbol(const MachineOperand &MO) const {
   SmallString<256> Name;
+  // FIXME: USe AsmPrinter.GetCPISymbol.  @TLSGD shouldn't be part of the symbol
+  // name!
   raw_svector_ostream(Name) << AsmPrinter.MAI->getPrivateGlobalPrefix() << "CPI"
     << AsmPrinter.getFunctionNumber() << '_' << MO.getIndex();
   
@@ -422,22 +416,28 @@ void X86AsmPrinter::printInstructionThroughMCStreamer(const MachineInstr *MI) {
     printLabel(MI);
     return;
   case TargetInstrInfo::DEBUG_VALUE: {
+    // FIXME: if this is implemented for another target before it goes
+    // away completely, the common part should be moved into AsmPrinter.
     if (!VerboseAsm)
       return;
     O << '\t' << MAI->getCommentString() << "DEBUG_VALUE: ";
-    // cast away const; DIetc do not take const operands for some reason
-    DIVariable V((MDNode*)(MI->getOperand(2).getMetadata()));
+    unsigned NOps = MI->getNumOperands();
+    // cast away const; DIetc do not take const operands for some reason.
+    DIVariable V((MDNode*)(MI->getOperand(NOps-1).getMetadata()));
     O << V.getName();
     O << " <- ";
-    if (MI->getOperand(0).getType()==MachineOperand::MO_Register)
+    if (NOps==3) {
+      // Variable is in register
+      assert(MI->getOperand(0).getType()==MachineOperand::MO_Register);
       printOperand(MI, 0);
-    else {
-      assert(MI->getOperand(0).getType()==MachineOperand::MO_Immediate);
-      int64_t imm = MI->getOperand(0).getImm();
-      O << '[' << ((imm<0) ? "EBP" : "ESP+") << imm << ']';
+    } else {
+      // Frame address.  Currently handles register +- offset only.
+      assert(MI->getOperand(0).getType()==MachineOperand::MO_Register);
+      assert(MI->getOperand(3).getType()==MachineOperand::MO_Immediate);
+      O << '['; printOperand(MI, 0); O << '+'; printOperand(MI, 3); O << ']';
     }
     O << "+";
-    printOperand(MI, 1);
+    printOperand(MI, NOps-2);
     return;
   }
   case TargetInstrInfo::INLINEASM:

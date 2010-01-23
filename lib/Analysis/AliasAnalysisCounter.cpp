@@ -31,7 +31,6 @@ namespace {
   class AliasAnalysisCounter : public ModulePass, public AliasAnalysis {
     unsigned No, May, Must;
     unsigned NoMR, JustRef, JustMod, MR;
-    const char *Name;
     Module *M;
   public:
     static char ID; // Class identification, replacement for typeinfo
@@ -49,7 +48,7 @@ namespace {
       unsigned MRSum = NoMR+JustRef+JustMod+MR;
       if (AASum + MRSum) { // Print a report if any counted queries occurred...
         errs() << "\n===== Alias Analysis Counter Report =====\n"
-               << "  Analysis counted: " << Name << "\n"
+               << "  Analysis counted:\n"
                << "  " << AASum << " Total Alias Queries Performed\n";
         if (AASum) {
           printLine("no alias",     No, AASum);
@@ -75,7 +74,6 @@ namespace {
     bool runOnModule(Module &M) {
       this->M = &M;
       InitializeAliasAnalysis(this);
-      Name = dynamic_cast<Pass*>(&getAnalysis<AliasAnalysis>())->getPassName();
       return false;
     }
 
@@ -85,6 +83,16 @@ namespace {
       AU.setPreservesAll();
     }
 
+    /// getAdjustedAnalysisPointer - This method is used when a pass implements
+    /// an analysis interface through multiple inheritance.  If needed, it
+    /// should override this to adjust the this pointer as needed for the
+    /// specified pass info.
+    virtual void *getAdjustedAnalysisPointer(const PassInfo *PI) {
+      if (PI->isPassID(&AliasAnalysis::ID))
+        return (AliasAnalysis*)this;
+      return this;
+    }
+    
     // FIXME: We could count these too...
     bool pointsToConstantMemory(const Value *P) {
       return getAnalysis<AliasAnalysis>().pointsToConstantMemory(P);

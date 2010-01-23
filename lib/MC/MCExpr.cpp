@@ -15,7 +15,7 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
+void MCExpr::print(raw_ostream &OS) const {
   switch (getKind()) {
   case MCExpr::Constant:
     OS << cast<MCConstantExpr>(*this).getValue();
@@ -26,13 +26,10 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
     
     // Parenthesize names that start with $ so that they don't look like
     // absolute names.
-    if (Sym.getName()[0] == '$') {
-      OS << '(';
-      Sym.print(OS, MAI);
-      OS << ')';
-    } else {
-      Sym.print(OS, MAI);
-    }
+    if (Sym.getName()[0] == '$')
+      OS << '(' << Sym << ')';
+    else
+      OS << Sym;
     return;
   }
 
@@ -45,7 +42,7 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
     case MCUnaryExpr::Not:   OS << '~'; break;
     case MCUnaryExpr::Plus:  OS << '+'; break;
     }
-    UE.getSubExpr()->print(OS, MAI);
+    OS << *UE.getSubExpr();
     return;
   }
 
@@ -54,11 +51,9 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
     
     // Only print parens around the LHS if it is non-trivial.
     if (isa<MCConstantExpr>(BE.getLHS()) || isa<MCSymbolRefExpr>(BE.getLHS())) {
-      BE.getLHS()->print(OS, MAI);
+      OS << *BE.getLHS();
     } else {
-      OS << '(';
-      BE.getLHS()->print(OS, MAI);
-      OS << ')';
+      OS << '(' << *BE.getLHS() << ')';
     }
     
     switch (BE.getOpcode()) {
@@ -95,11 +90,9 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
     
     // Only print parens around the LHS if it is non-trivial.
     if (isa<MCConstantExpr>(BE.getRHS()) || isa<MCSymbolRefExpr>(BE.getRHS())) {
-      BE.getRHS()->print(OS, MAI);
+      OS << *BE.getRHS();
     } else {
-      OS << '(';
-      BE.getRHS()->print(OS, MAI);
-      OS << ')';
+      OS << '(' << *BE.getRHS() << ')';
     }
     return;
   }
@@ -109,7 +102,7 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
 }
 
 void MCExpr::dump() const {
-  print(dbgs(), 0);
+  print(dbgs());
   dbgs() << '\n';
 }
 

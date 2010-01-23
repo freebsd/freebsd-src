@@ -2079,25 +2079,26 @@ unsigned CastInst::isEliminableCastPair(
       return secondOp;
     case 3: 
       // no-op cast in second op implies firstOp as long as the DestTy 
-      // is integer
-      if (DstTy->isInteger())
+      // is integer and we are not converting between a vector and a
+      // non vector type.
+      if (!isa<VectorType>(SrcTy) && DstTy->isInteger())
         return firstOp;
       return 0;
     case 4:
       // no-op cast in second op implies firstOp as long as the DestTy
-      // is floating point
+      // is floating point.
       if (DstTy->isFloatingPoint())
         return firstOp;
       return 0;
     case 5: 
       // no-op cast in first op implies secondOp as long as the SrcTy
-      // is an integer
+      // is an integer.
       if (SrcTy->isInteger())
         return secondOp;
       return 0;
     case 6:
       // no-op cast in first op implies secondOp as long as the SrcTy
-      // is a floating point
+      // is a floating point.
       if (SrcTy->isFloatingPoint())
         return secondOp;
       return 0;
@@ -2713,6 +2714,8 @@ BitCastInst::BitCastInst(
 //===----------------------------------------------------------------------===//
 //                               CmpInst Classes
 //===----------------------------------------------------------------------===//
+
+void CmpInst::Anchor() const {}
 
 CmpInst::CmpInst(const Type *ty, OtherOps op, unsigned short predicate,
                  Value *LHS, Value *RHS, const Twine &Name,

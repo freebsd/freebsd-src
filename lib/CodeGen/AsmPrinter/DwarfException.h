@@ -32,21 +32,21 @@ class raw_ostream;
 //===----------------------------------------------------------------------===//
 /// DwarfException - Emits Dwarf exception handling directives.
 ///
-class DwarfException : public Dwarf {
+class DwarfException : public DwarfPrinter {
   struct FunctionEHFrameInfo {
-    std::string FnName;
+    MCSymbol *FunctionEHSym;  // L_foo.eh
     unsigned Number;
     unsigned PersonalityIndex;
     bool hasCalls;
     bool hasLandingPads;
     std::vector<MachineMove> Moves;
-    const Function * function;
+    const Function *function;
 
-    FunctionEHFrameInfo(const std::string &FN, unsigned Num, unsigned P,
+    FunctionEHFrameInfo(MCSymbol *EHSym, unsigned Num, unsigned P,
                         bool hC, bool hL,
                         const std::vector<MachineMove> &M,
                         const Function *f):
-      FnName(FN), Number(Num), PersonalityIndex(P),
+      FunctionEHSym(EHSym), Number(Num), PersonalityIndex(P),
       hasCalls(hC), hasLandingPads(hL), Moves(M), function (f) { }
   };
 

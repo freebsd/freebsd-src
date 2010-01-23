@@ -24,6 +24,7 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
   NeedsSet = true;
   AllowQuotesInName = true;
   HasSingleParameterDotFile = false;
+  HasSubsectionsViaSymbols = true;
 
   AlignmentIsInBytes = false;
   InlineAsmStart = " InlineAsm Start";
@@ -32,14 +33,20 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
   // Directives:
   WeakDefDirective = "\t.weak_definition ";
   WeakRefDirective = "\t.weak_reference ";
-  HiddenDirective = "\t.private_extern ";
-  LCOMMDirective = "\t.lcomm\t";
   ZeroDirective = "\t.space\t";  // ".space N" emits N zeros.
-  ZeroFillDirective = "\t.zerofill\t";  // Uses .zerofill
+  HasMachoZeroFillDirective = true;  // Uses .zerofill
+  HasStaticCtorDtorReferenceInStaticMode = true;
   SetDirective = "\t.set";
-  ProtectedDirective = "\t.globl\t";
+  
+  HiddenVisibilityAttr = MCSA_PrivateExtern;
+  // Doesn't support protected visibility.
+  ProtectedVisibilityAttr = MCSA_Global;
+
+  
   HasDotTypeDotSizeDirective = false;
-  UsedDirective = "\t.no_dead_strip\t";
+  HasNoDeadStrip = true;
+  // Note: Even though darwin has the .lcomm directive, it is just a synonym for
+  // zerofill, so we prefer to use .zerofill.
 
   // _foo.eh symbols are currently always exported so that the linker knows
   // about them.  This is not necessary on 10.6 and later, but it

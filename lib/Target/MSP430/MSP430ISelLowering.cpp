@@ -675,21 +675,53 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
   case ISD::SETULE:
     std::swap(LHS, RHS);        // FALLTHROUGH
   case ISD::SETUGE:
+    // Turn lhs u>= rhs with lhs constant into rhs u< lhs+1, this allows us to
+    // fold constant into instruction.
+    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
+      LHS = RHS;
+      RHS = DAG.getConstant(C->getSExtValue() + 1, C->getValueType(0));
+      TCC = MSP430CC::COND_LO;
+      break;
+    }
     TCC = MSP430CC::COND_HS;    // aka COND_C
     break;
   case ISD::SETUGT:
     std::swap(LHS, RHS);        // FALLTHROUGH
   case ISD::SETULT:
+    // Turn lhs u< rhs with lhs constant into rhs u>= lhs+1, this allows us to
+    // fold constant into instruction.
+    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
+      LHS = RHS;
+      RHS = DAG.getConstant(C->getSExtValue() + 1, C->getValueType(0));
+      TCC = MSP430CC::COND_HS;
+      break;
+    }
     TCC = MSP430CC::COND_LO;    // aka COND_NC
     break;
   case ISD::SETLE:
     std::swap(LHS, RHS);        // FALLTHROUGH
   case ISD::SETGE:
+    // Turn lhs >= rhs with lhs constant into rhs < lhs+1, this allows us to
+    // fold constant into instruction.
+    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
+      LHS = RHS;
+      RHS = DAG.getConstant(C->getSExtValue() + 1, C->getValueType(0));
+      TCC = MSP430CC::COND_L;
+      break;
+    }
     TCC = MSP430CC::COND_GE;
     break;
   case ISD::SETGT:
     std::swap(LHS, RHS);        // FALLTHROUGH
   case ISD::SETLT:
+    // Turn lhs < rhs with lhs constant into rhs >= lhs+1, this allows us to
+    // fold constant into instruction.
+    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
+      LHS = RHS;
+      RHS = DAG.getConstant(C->getSExtValue() + 1, C->getValueType(0));
+      TCC = MSP430CC::COND_GE;
+      break;
+    }
     TCC = MSP430CC::COND_L;
     break;
   }
@@ -723,6 +755,8 @@ SDValue MSP430TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) {
   // If we are doing an AND and testing against zero, then the CMP
   // will not be generated.  The AND (or BIT) will generate the condition codes,
   // but they are different from CMP.
+  // FIXME: since we're doing a post-processing, use a pseudoinstr here, so
+  // lowering & isel wouldn't diverge.
   bool andCC = false;
   if (ConstantSDNode *RHSC = dyn_cast<ConstantSDNode>(RHS)) {
     if (RHSC->isNullValue() && LHS.hasOneUse() &&
@@ -750,11 +784,11 @@ SDValue MSP430TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) {
    case MSP430CC::COND_HS:
      // Res = SRW & 1, no processing is required
      break;
-    case MSP430CC::COND_LO:
+   case MSP430CC::COND_LO:
      // Res = ~(SRW & 1)
      Invert = true;
      break;
-    case MSP430CC::COND_NE:
+   case MSP430CC::COND_NE:
      if (andCC) {
        // C = ~Z, thus Res = SRW & 1, no processing is required
      } else {
@@ -762,7 +796,7 @@ SDValue MSP430TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) {
        Shift = true;
      }
      break;
-    case MSP430CC::COND_E:
+   case MSP430CC::COND_E:
      if (andCC) {
        // C = ~Z, thus Res = ~(SRW & 1)
      } else {
@@ -776,7 +810,7 @@ SDValue MSP430TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) {
   SDValue One  = DAG.getConstant(1, VT);
   if (Convert) {
     SDValue SR = DAG.getCopyFromReg(DAG.getEntryNode(), dl, MSP430::SRW,
-                                     MVT::i16, Flag);
+                                    MVT::i16, Flag);
     if (Shift)
       // FIXME: somewhere this is turned into a SRL, lower it MSP specific?
       SR = DAG.getNode(ISD::SRA, dl, MVT::i16, SR, One);
@@ -931,6 +965,31 @@ const char *MSP430TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case MSP430ISD::SHL:                return "MSP430ISD::SHL";
   case MSP430ISD::SRA:                return "MSP430ISD::SRA";
   }
+}
+
+bool MSP430TargetLowering::isTruncateFree(const Type *Ty1,
+                                          const Type *Ty2) const {
+  if (!Ty1->isInteger() || !Ty2->isInteger())
+    return false;
+
+  return (Ty1->getPrimitiveSizeInBits() > Ty2->getPrimitiveSizeInBits());
+}
+
+bool MSP430TargetLowering::isTruncateFree(EVT VT1, EVT VT2) const {
+  if (!VT1.isInteger() || !VT2.isInteger())
+    return false;
+
+  return (VT1.getSizeInBits() > VT2.getSizeInBits());
+}
+
+bool MSP430TargetLowering::isZExtFree(const Type *Ty1, const Type *Ty2) const {
+  // MSP430 implicitly zero-extends 8-bit results in 16-bit registers.
+  return 0 && Ty1->isInteger(8) && Ty2->isInteger(16);
+}
+
+bool MSP430TargetLowering::isZExtFree(EVT VT1, EVT VT2) const {
+  // MSP430 implicitly zero-extends 8-bit results in 16-bit registers.
+  return 0 && VT1 == MVT::i8 && VT2 == MVT::i16;
 }
 
 //===----------------------------------------------------------------------===//

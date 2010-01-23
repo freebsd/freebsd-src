@@ -19,14 +19,14 @@
 #include "llvm/System/DataTypes.h"
 
 namespace llvm {
-  class MCAsmInfo;
   class MCExpr;
   class MCSection;
   class MCContext;
   class raw_ostream;
 
   /// MCSymbol - Instances of this class represent a symbol name in the MC file,
-  /// and MCSymbols are created and unique'd by the MCContext class.
+  /// and MCSymbols are created and unique'd by the MCContext class.  MCSymbols
+  /// should only be constructed with valid names for the object file.
   ///
   /// If the symbol is defined/emitted into the current translation unit, the
   /// Section member is set to indicate what section it lives in.  Otherwise, if
@@ -53,7 +53,7 @@ namespace llvm {
     /// typically does not survive in the .o file's symbol table.  Usually
     /// "Lfoo" or ".foo".
     unsigned IsTemporary : 1;
-
+    
   private:  // MCContext creates and uniques these.
     friend class MCContext;
     MCSymbol(StringRef _Name, bool _IsTemporary)
@@ -132,17 +132,16 @@ namespace llvm {
     /// @}
 
     /// print - Print the value to the stream \arg OS.
-    void print(raw_ostream &OS, const MCAsmInfo *MAI) const;
+    void print(raw_ostream &OS) const;
 
     /// dump - Print the value to stderr.
     void dump() const;
-    
-    /// printMangledName - Print the specified string in mangled form if it uses
-    /// any unusual characters.
-    static void printMangledName(StringRef Str, raw_ostream &OS,
-                                 const MCAsmInfo *MAI);
   };
 
+  inline raw_ostream &operator<<(raw_ostream &OS, const MCSymbol &Sym) {
+    Sym.print(OS);
+    return OS;
+  }
 } // end namespace llvm
 
 #endif

@@ -21,7 +21,7 @@
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/FormattedStream.h"
 using namespace llvm;
 
 namespace {
@@ -105,8 +105,7 @@ void OcamlGCMetadataPrinter::finishAssembly(raw_ostream &OS, AsmPrinter &AP,
   AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getDataSection());
   EmitCamlGlobal(getModule(), OS, AP, MAI, "data_end");
 
-  OS << AddressDirective << 0; // FIXME: Why does ocaml emit this??
-  AP.EOL();
+  OS << AddressDirective << 0 << '\n'; // FIXME: Why does ocaml emit this??
 
   AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getDataSection());
   EmitCamlGlobal(getModule(), OS, AP, MAI, "frametable");
@@ -140,14 +139,11 @@ void OcamlGCMetadataPrinter::finishAssembly(raw_ostream &OS, AsmPrinter &AP,
       }
 
       OS << AddressDirective
-         << MAI.getPrivateGlobalPrefix() << "label" << J->Num;
-      AP.EOL("call return address");
+        << MAI.getPrivateGlobalPrefix() << "label" << J->Num << '\n';
 
       AP.EmitInt16(FrameSize);
-      AP.EOL("stack frame size");
 
       AP.EmitInt16(LiveCount);
-      AP.EOL("live root count");
 
       for (GCFunctionInfo::live_iterator K = FI.live_begin(J),
                                          KE = FI.live_end(J); K != KE; ++K) {
@@ -155,8 +151,7 @@ void OcamlGCMetadataPrinter::finishAssembly(raw_ostream &OS, AsmPrinter &AP,
                "GC root stack offset is outside of fixed stack frame and out "
                "of range for ocaml GC!");
 
-        OS << "\t.word\t" << K->StackOffset;
-        AP.EOL("stack offset");
+        AP.EmitInt32(K->StackOffset);
       }
 
       AP.EmitAlignment(AddressAlignLog);

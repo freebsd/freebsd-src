@@ -20,6 +20,7 @@
 #include "llvm/Constants.h"
 #include "llvm/Module.h"
 #include "llvm/DerivedTypes.h"
+#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/CodeGen/JITCodeEmitter.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
@@ -368,12 +369,12 @@ namespace {
     // the stub is unused.
     DenseMap<void *, SmallPtrSet<const Function*, 1> > StubFnRefs;
 
-    DebugLocTuple PrevDLT;
+    DILocation PrevDLT;
 
   public:
     JITEmitter(JIT &jit, JITMemoryManager *JMM, TargetMachine &TM)
       : SizeEstimate(0), Resolver(jit, *this), MMI(0), CurFn(0),
-          EmittedFunctions(this) {
+        EmittedFunctions(this), PrevDLT(NULL) {
       MemMgr = JMM ? JMM : JITMemoryManager::CreateDefaultMemManager();
       if (jit.getJITInfo().needsGOT()) {
         MemMgr->AllocateGOT();
@@ -806,10 +807,11 @@ void JITEmitter::AddStubToCurrentFunction(void *StubAddr) {
 
 void JITEmitter::processDebugLoc(DebugLoc DL, bool BeforePrintingInsn) {
   if (!DL.isUnknown()) {
-    DebugLocTuple CurDLT = EmissionDetails.MF->getDebugLocTuple(DL);
+    DILocation CurDLT = EmissionDetails.MF->getDILocation(DL);
 
     if (BeforePrintingInsn) {
-      if (CurDLT.Scope != 0 && PrevDLT != CurDLT) {
+      if (CurDLT.getScope().getNode() != 0 
+          && PrevDLT.getNode() != CurDLT.getNode()) {
         JITEvent_EmittedFunctionDetails::LineStart NextLine;
         NextLine.Address = getCurrentPCValue();
         NextLine.Loc = DL;

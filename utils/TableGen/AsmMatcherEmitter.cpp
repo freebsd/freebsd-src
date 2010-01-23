@@ -465,6 +465,10 @@ struct InstructionInfo {
     if (Operands.size() != RHS.Operands.size())
       return false;
 
+    // Otherwise, make sure the ordering of the two instructions is unambiguous
+    // by checking that either (a) a token or operand kind discriminates them,
+    // or (b) the ordering among equivalent kinds is consistent.
+
     // Tokens and operand kinds are unambiguous (assuming a correct target
     // specific parser).
     for (unsigned i = 0, e = Operands.size(); i != e; ++i)
@@ -1386,9 +1390,7 @@ static void EmitMatchRegisterName(CodeGenTarget &Target, Record *AsmParser,
                                  "return " + utostr(i + 1) + ";"));
   }
   
-  OS << "unsigned " << Target.getName() 
-     << AsmParser->getValueAsString("AsmParserClassName")
-     << "::MatchRegisterName(const StringRef &Name) {\n";
+  OS << "static unsigned MatchRegisterName(const StringRef &Name) {\n";
 
   EmitStringMatcher("Name", Matches, OS);
   
@@ -1447,6 +1449,8 @@ void AsmMatcherEmitter::run(raw_ostream &OS) {
 
   // Emit the function to match a register name to number.
   EmitMatchRegisterName(Target, AsmParser, OS);
+  
+  OS << "#ifndef REGISTERS_ONLY\n\n";
 
   // Generate the unified function to convert operands into an MCInst.
   EmitConvertToMCInst(Target, Info.Instructions, OS);
@@ -1546,4 +1550,6 @@ void AsmMatcherEmitter::run(raw_ostream &OS) {
 
   OS << "  return true;\n";
   OS << "}\n\n";
+  
+  OS << "#endif // REGISTERS_ONLY\n";
 }
