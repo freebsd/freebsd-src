@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005 Poul-Henning Kamp <phk@FreeBSD.org>
+ * Copyright (c) 2010 Joerg Wunsch <joerg@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +34,8 @@
  *
  *    Tested and known working:
  *	"B&C Microsystems PC488A-0"
+ *	"National Instruments GPIB-PCII/PCIIA" (in PCIIa mode)
+ *	"Axiom AX5488"
  *
  */
 
@@ -56,7 +59,7 @@ __FBSDID("$FreeBSD$");
 
 struct pcii_softc {
 	int foo;
-	struct resource	*res[3];
+	struct resource	*res[11];
 	void *intr_handler;
 	struct upd7210	upd7210;
 };
@@ -79,6 +82,14 @@ static struct resource_spec pcii_res_spec[] = {
 	{ SYS_RES_IRQ,		0, RF_ACTIVE | RF_SHAREABLE},
 	{ SYS_RES_DRQ,		0, RF_ACTIVE | RF_SHAREABLE | RF_OPTIONAL},
 	{ SYS_RES_IOPORT,	0, RF_ACTIVE},
+	{ SYS_RES_IOPORT,	1, RF_ACTIVE},
+	{ SYS_RES_IOPORT,	2, RF_ACTIVE},
+	{ SYS_RES_IOPORT,	3, RF_ACTIVE},
+	{ SYS_RES_IOPORT,	4, RF_ACTIVE},
+	{ SYS_RES_IOPORT,	5, RF_ACTIVE},
+	{ SYS_RES_IOPORT,	6, RF_ACTIVE},
+	{ SYS_RES_IOPORT,	7, RF_ACTIVE},
+	{ SYS_RES_IOPORT,	8, RF_ACTIVE | RF_SHAREABLE},
 	{ -1, 0, 0 }
 };
 
@@ -92,7 +103,7 @@ static int
 pcii_probe(device_t dev)
 {
 	int rid, i, j;
-	u_long start, count;
+	u_long start, count, addr;
 	int error = 0;
 	struct pcii_softc *sc;
 
@@ -102,30 +113,89 @@ pcii_probe(device_t dev)
 	rid = 0;
 	if (bus_get_resource(dev, SYS_RES_IOPORT, rid, &start, &count) != 0)
 		return ENXIO;
-	if ((start & 0x3ff) != 0x2e1)
+	/*
+	 * The PCIIA decodes a fixed pattern of 0x2e1 for the lower 10
+	 * address bits A0 ... A9.  Bits A10 through A12 are used by
+	 * the µPD7210 register select lines.  This makes the
+	 * individual 7210 register being 0x400 bytes apart in the ISA
+	 * bus address space.  Address bits A13 and A14 are compared
+	 * to a DIP switch setting on the card, allowing for up to 4
+	 * different cards being installed (at base addresses 0x2e1,
+	 * 0x22e1, 0x42e1, and 0x62e1, respectively).  A15 has been
+	 * used to select an optional on-board time-of-day clock chip
+	 * (MM58167A) on the original PCIIA rather than the µPD7210
+	 * (which is not implemented on later boards).  The
+	 * documentation states the respective addresses for that chip
+	 * should be handled as reserved addresses, which we don't do
+	 * (right now).  Finally, the IO addresses 0x2f0 ... 0x2f7 for
+	 * a "special interrupt handling feature" (re-enable
+	 * interrupts so the IRQ can be shared).
+	 *
+	 * Usually, the user will only set the base address in the
+	 * device hints, so we handle the rest here.
+	 *
+	 * (Source: GPIB-PCIIA Technical Reference Manual, September
+	 * 1989 Edition, National Instruments.)
+	 */
+	if ((start & 0x3ff) != 0x2e1) {
+		printf("pcii_probe: PCIIA base address 0x%lx not "
+		       "0x2e1/0x22e1/0x42e1/0x62e1\n",
+		       start);
 		return (ENXIO);
-	count = 1;
-	if (bus_set_resource(dev, SYS_RES_IOPORT, rid, start, count) != 0)
+	}
+
+	for (rid = 0, addr = start; rid < 8; rid++, addr += 0x400) {
+		if (bus_set_resource(dev, SYS_RES_IOPORT, rid, addr, 1) != 0) {
+			printf("pcii_probe: could not set IO port 0x%lx\n",
+			       addr);
+			return (ENXIO);
+		}
+	}
+	if (bus_get_resource(dev, SYS_RES_IRQ, 0, &start, &count) != 0) {
+		printf("pcii_probe: cannot obtain IRQ level\n");
 		return ENXIO;
+	}
+	if (start > 7) {
+		printf("pcii_probe: IRQ level %lu too high\n", start);
+		return ENXIO;
+	}
+
+	if (bus_set_resource(dev, SYS_RES_IOPORT, 8, 0x2f0 + start, 1) != 0) {
+		printf("pcii_probe: could not set IO port 0x%3lx\n",
+		       0x2f0 + start);
+		return (ENXIO);
+	}
+
 	error = bus_alloc_resources(dev, pcii_res_spec, sc->res);
-	if (error)
+	if (error) {
+		printf("pcii_probe: Could not allocate resources\n");
 		return (error);
+	}
 	error = ENXIO;
+	/*
+	 * Perform some basic tests on the µPD7210 registers.  At
+	 * least *some* register must read different from 0x00 or
+	 * 0xff.
+	 */
 	for (i = 0; i < 8; i++) {
-		j = bus_read_1(sc->res[2], i * 0x400);
+		j = bus_read_1(sc->res[2 + i], 0);
 		if (j != 0x00 && j != 0xff)
 			error = 0;
 	}
+	/* SPSR/SPMR read/write test */
 	if (!error) {
-		bus_write_1(sc->res[2], 3 * 0x400, 0x55);
-		if (bus_read_1(sc->res[2], 3 * 0x400) != 0x55)
+		bus_write_1(sc->res[2 + 3], 0, 0x55);
+		if (bus_read_1(sc->res[2 + 3], 0) != 0x55)
 			error = ENXIO;
 	}
 	if (!error) {
-		bus_write_1(sc->res[2], 3 * 0x400, 0xaa);
-		if (bus_read_1(sc->res[2], 3 * 0x400) != 0xaa)
+		bus_write_1(sc->res[2 + 3], 0, 0xaa);
+		if (bus_read_1(sc->res[2 + 3], 0) != 0xaa)
 			error = ENXIO;
 	}
+	if (error)
+		printf("pcii_probe: probe failure\n");
+
 	bus_release_resources(dev, pcii_res_spec, sc->res);
 	return (error);
 }
@@ -134,6 +204,7 @@ static int
 pcii_attach(device_t dev)
 {
 	struct pcii_softc *sc;
+	u_long		start, count;
 	int		unit;
 	int		rid;
 	int		error = 0;
@@ -143,6 +214,11 @@ pcii_attach(device_t dev)
 	memset(sc, 0, sizeof *sc);
 
 	device_set_desc(dev, "PCII IEEE-4888 controller");
+
+	if (bus_get_resource(dev, SYS_RES_IRQ, 0, &start, &count) != 0) {
+		printf("pcii_attach: cannot obtain IRQ number\n");
+		return ENXIO;
+	}
 
 	error = bus_alloc_resources(dev, pcii_res_spec, sc->res);
 	if (error)
@@ -157,9 +233,9 @@ pcii_attach(device_t dev)
 	}
 
 	for (rid = 0; rid < 8; rid++) {
-		sc->upd7210.reg_res[rid] = sc->res[2];
-		sc->upd7210.reg_offset[rid] = 0x400 * rid;
+		sc->upd7210.reg_res[rid] = sc->res[2 + rid];
 	}
+	sc->upd7210.irq_clear_res = sc->res[10];
 
 	if (sc->res[1] == NULL)
 		sc->upd7210.dmachan = -1;

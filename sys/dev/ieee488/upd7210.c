@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005 Poul-Henning Kamp <phk@FreeBSD.org>
+ * Copyright (c) 2010 Joerg Wunsch <joerg@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,7 +72,7 @@ upd7210_rd(struct upd7210 *u, enum upd7210_rreg reg)
 {
 	u_int r;
 
-	r = bus_read_1(u->reg_res[reg], u->reg_offset[reg]);
+	r = bus_read_1(u->reg_res[reg], 0);
 	u->rreg[reg] = r;
 	return (r);
 }
@@ -80,7 +81,7 @@ void
 upd7210_wr(struct upd7210 *u, enum upd7210_wreg reg, u_int val)
 {
 
-	bus_write_1(u->reg_res[reg], u->reg_offset[reg], val);
+	bus_write_1(u->reg_res[reg], 0, val);
 	u->wreg[reg] = val;
 	if (reg == AUXMR)
 		u->wreg[8 + (val >> 5)] = val & 0x1f;
@@ -96,19 +97,35 @@ upd7210intr(void *arg)
 	mtx_lock(&u->mutex);
 	isr1 = upd7210_rd(u, ISR1);
 	isr2 = upd7210_rd(u, ISR2);
-	if (u->busy == 0 || u->irq == NULL || !u->irq(u, 1)) {
+	if (isr1 != 0 || isr2 != 0) {
+		if (u->busy == 0 || u->irq == NULL || !u->irq(u, 1)) {
 #if 0
-		printf("upd7210intr [%02x %02x %02x",
-		    upd7210_rd(u, DIR), isr1, isr2);
-		printf(" %02x %02x %02x %02x %02x] ",
-		    upd7210_rd(u, SPSR),
-		    upd7210_rd(u, ADSR),
-		    upd7210_rd(u, CPTR),
-		    upd7210_rd(u, ADR0),
+			printf("upd7210intr [%02x %02x %02x",
+			       upd7210_rd(u, DIR), isr1, isr2);
+			printf(" %02x %02x %02x %02x %02x] ",
+			       upd7210_rd(u, SPSR),
+			       upd7210_rd(u, ADSR),
+			       upd7210_rd(u, CPTR),
+			       upd7210_rd(u, ADR0),
 		    upd7210_rd(u, ADR1));
-		upd7210_print_isr(isr1, isr2);
-		printf("\n");
+			upd7210_print_isr(isr1, isr2);
+			printf("\n");
 #endif
+		}
+		/*
+		 * "special interrupt handling"
+		 *
+		 * In order to implement shared IRQs, the original
+		 * PCIIa uses IO locations 0x2f0 + (IRQ#) as an output
+		 * location.  If an ISR for a particular card has
+		 * detected this card triggered the IRQ, it must reset
+		 * the card's IRQ by writing (anything) to that IO
+		 * location.
+		 *
+		 * Some clones apparently don't implement this
+		 * feature, but National Instrument cards do.
+		 */
+		bus_write_1(u->irq_clear_res, 0, 42);
 	}
 	mtx_unlock(&u->mutex);
 }
