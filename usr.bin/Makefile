@@ -18,7 +18,7 @@ SUBDIR=	alias \
 	awk \
 	banner \
 	basename \
-	bc \
+	${_bc} \
 	${_biff} \
 	${_bluetooth} \
 	brandelf \
@@ -50,7 +50,7 @@ SUBDIR=	alias \
 	${_csup} \
 	${_ctags} \
 	cut \
-	dc \
+	${_dc} \
 	${_dig} \
 	dirname \
 	du \
@@ -280,7 +280,9 @@ _hesinfo=	hesinfo
 .endif
 
 .if ${MK_OPENSSL} != "no"
+_bc=		bc
 _chkey=		chkey
+_dc=		dc
 _newkey=	newkey
 .if ${MK_LIBTHR} != "no"
 _csup=		csup
