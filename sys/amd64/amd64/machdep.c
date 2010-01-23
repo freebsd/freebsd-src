@@ -157,6 +157,8 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 extern vm_offset_t ksym_start, ksym_end;
 #endif
 
+struct msgbuf *msgbufp;
+
 /* Intel ICH registers */
 #define ICH_PMBASE	0x400
 #define ICH_SMI_EN	ICH_PMBASE + 0x30
@@ -1275,7 +1277,7 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 static void
 getmemsize(caddr_t kmdp, u_int64_t first)
 {
-	int i, off, physmap_idx, pa_indx, da_indx;
+	int i, physmap_idx, pa_indx, da_indx;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
 	u_long physmem_tunable;
 	pt_entry_t *pte;
@@ -1508,9 +1510,7 @@ do_next:
 	phys_avail[pa_indx] -= round_page(MSGBUF_SIZE);
 
 	/* Map the message buffer. */
-	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
-		pmap_kenter((vm_offset_t)msgbufp + off, phys_avail[pa_indx] +
-		    off);
+	msgbufp = (struct msgbuf *)PHYS_TO_DMAP(phys_avail[pa_indx]);
 }
 
 u_int64_t
