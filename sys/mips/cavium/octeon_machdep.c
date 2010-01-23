@@ -110,7 +110,7 @@ platform_cpu_init()
 void
 platform_reset(void)
 {
-	((void(*)(void))(long)0x9fc00000)();	/* Jump to MIPS reset vector */
+	mips_generic_reset();
 }
 
 
@@ -757,8 +757,10 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 	pmap_bootstrap();
 	mips_proc0_init();
 	mutex_init();
-#ifdef DDB
 	kdb_init();
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
 	platform_counter_freq = octeon_get_clock_rate();
 	mips_timer_init_params(platform_counter_freq, 1);
