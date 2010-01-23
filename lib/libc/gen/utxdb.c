@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/endian.h>
 #include <sys/param.h>
+#include <sys/time.h>
 #include <stdlib.h>
 #include <string.h>
 #include <utmpx.h>
@@ -50,9 +51,11 @@ __FBSDID("$FreeBSD$");
 #define	UTOF_TYPE(ut, fu) do { \
 	(fu)->fu_type = (ut)->ut_type;					\
 } while (0)
-#define	UTOF_TV(ut, fu) do { \
-	(fu)->fu_tv = htobe64((uint64_t)(ut)->ut_tv.tv_sec * 1000000 +	\
-	    (uint64_t)(ut)->ut_tv.tv_usec);				\
+#define	UTOF_TV(fu) do { \
+	struct timeval tv;						\
+	gettimeofday(&tv, NULL);					\
+	(fu)->fu_tv = htobe64((uint64_t)tv.tv_sec * 1000000 +		\
+	    (uint64_t)tv.tv_usec);					\
 } while (0)
 
 void
@@ -96,7 +99,7 @@ utx_to_futx(const struct utmpx *ut, struct futx *fu)
 	}
 
 	UTOF_TYPE(ut, fu);
-	UTOF_TV(ut, fu);
+	UTOF_TV(fu);
 }
 
 #define	FTOU_STRING(fu, ut, field) do { \
