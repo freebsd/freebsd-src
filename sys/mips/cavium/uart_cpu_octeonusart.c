@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <mips/cavium/octeonreg.h>
 #include <mips/cavium/octeon_pcmap_regs.h>
 
 bus_space_tag_t uart_bus_space_io;
@@ -177,7 +176,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	 */
 	di->ops = uart_getops(class);
 	di->bas.chan = 0;
-	if (bus_space_map(di->bas.bst, OCTEON_UART0ADR, OCTEON_UART_SIZE,
+	if (bus_space_map(di->bas.bst, OCTEON_MIO_UART0, OCTEON_MIO_UART_SIZE,
 	    0, &di->bas.bsh) != 0)
 		return (ENXIO);
 	di->bas.regshft = 0;
