@@ -191,6 +191,10 @@ struct prison {
 #define	PR_VNET		0x00000010	/* Virtual network stack */
 #define	PR_IP4_DISABLE	0x00000020	/* Disable IPv4 */
 #define	PR_IP6_DISABLE	0x00000040	/* Disable IPv6 */
+#define	PR_IP4_SADDRSEL	0x00000080	/* Do IPv4 src addr sel. or use the */
+					/* primary jail address. */
+#define	PR_IP6_SADDRSEL	0x00000100	/* Do IPv6 src addr sel. or use the */
+					/* primary jail address. */
 
 /* Internal flag bits */
 #define	PR_REMOVE	0x01000000	/* In process of being removed */
@@ -362,12 +366,14 @@ int prison_get_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_local_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_remote_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_check_ip4(struct ucred *cred, struct in_addr *ia);
+int prison_saddrsel_ip4(struct ucred *, struct in_addr *);
 #ifdef INET6
 int prison_equal_ip6(struct prison *, struct prison *);
 int prison_get_ip6(struct ucred *, struct in6_addr *);
 int prison_local_ip6(struct ucred *, struct in6_addr *, int);
 int prison_remote_ip6(struct ucred *, struct in6_addr *);
 int prison_check_ip6(struct ucred *, struct in6_addr *);
+int prison_saddrsel_ip6(struct ucred *, struct in6_addr *);
 #endif
 int prison_check_af(struct ucred *cred, int af);
 int prison_if(struct ucred *cred, struct sockaddr *sa);

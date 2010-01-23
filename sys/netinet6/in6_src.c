@@ -271,6 +271,13 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	}
 
 	/*
+	 * Bypass source address selection and use the primary jail IP
+	 * if requested.
+	 */
+	if (cred != NULL && !prison_saddrsel_ip6(cred, srcp))
+		return (0);
+
+	/*
 	 * If the address is not specified, choose the best one based on
 	 * the outgoing interface and the destination address.
 	 */

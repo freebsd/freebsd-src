@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 18, 2009
+.Dd January 17, 2010
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -252,6 +252,13 @@ match.
 It is only possible to start multiple jails with the same IP address,
 if none of the jails has more than this single overlapping IP address
 assigned to itself.
+.It Va ip4.saddrsel
+A boolean option to change the formerly mentioned behaviour and disable
+IPv4 source address selection for the prison in favour of the primary
+IPv4 address of the jail.
+Source address selection is enabled by default for all jails and a
+.Va ip4.nosaddrsel
+setting of a parent jail is not inherited for any child jails.
 .It Va ip4
 Control the availablity of IPv4 addresses.
 Possible values are
@@ -267,9 +274,10 @@ Setting the
 .Va ip4.addr
 parameter implies a value of
 .Dq new .
-.It Va ip6.addr , Va ip6
-A list of IPv6 addresses assigned to the prison, the counterpart to
-.Va ip4.addr
+.It Va ip6.addr , Va ip6.saddrsel , Va ip6
+A set of IPv6 options for the prison, the counterparts to
+.Va ip4.addr ,
+.Va ip4.saddrsel
 and
 .Va ip4
 above.
