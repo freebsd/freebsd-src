@@ -373,13 +373,6 @@ cpu_startup(void *dummy)
 SYSINIT(cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 void
-cpu_boot(int howto)
-{
-
-	efi_reset_system();
-}
-
-void
 cpu_flush_dcache(void *ptr, size_t len)
 {
 	vm_offset_t lim, va;
@@ -434,7 +427,7 @@ void
 cpu_reset()
 {
 
-	cpu_boot(0);
+	efi_reset_system();
 }
 
 void
