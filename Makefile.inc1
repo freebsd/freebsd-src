@@ -1136,19 +1136,25 @@ _cddl_lib= cddl/lib
 _secure_lib_libcrypto= secure/lib/libcrypto
 _secure_lib_libssl= secure/lib/libssl
 lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
-.if ${MK_OPENSSH} != "no"
-_secure_lib_libssh= secure/lib/libssh
-secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
 .if ${MK_KERBEROS} != "no"
 kerberos5/lib/libgssapi_krb5__L: lib/libgssapi__L kerberos5/lib/libkrb5__L \
     kerberos5/lib/libhx509__L kerberos5/lib/libasn1__L lib/libcom_err__L \
     lib/libmd__L kerberos5/lib/libroken__L secure/lib/libcrypto__L \
     lib/libcrypt__L
+.endif
+.if ${MK_OPENSSH} != "no"
+_secure_lib_libssh= secure/lib/libssh
+secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
+.if ${MK_KERBEROS_SUPPORT} != "no"
 secure/lib/libssh__L: lib/libgssapi__L kerberos5/lib/libgssapi_krb5__L
 .endif
 .endif
 .endif
 _secure_lib=	secure/lib
+.endif
+
+.if ${MK_GSSAPI} != "no"
+_lib_libgssapi=	lib/libgssapi
 .endif
 
 .if ${MK_IPX} != "no"
@@ -1163,7 +1169,6 @@ _kerberos5_lib_libhx509= kerberos5/lib/libhx509
 _kerberos5_lib_libroken= kerberos5/lib/libroken
 _kerberos5_lib_libheimntlm= kerberos5/lib/libheimntlm
 _kerberos5_lib_libgssapi_krb5= kerberos5/lib/libgssapi_krb5
-_lib_libgssapi=	lib/libgssapi
 .endif
 
 .if ${MK_NIS} != "no"
