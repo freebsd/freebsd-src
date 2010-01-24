@@ -95,6 +95,22 @@ SYSCTL_INT(_security_jail, OID_AUTO, allow_raw_sockets, CTLFLAG_RW,
     &jail_allow_raw_sockets, 0,
     "Prison root can create raw sockets");
 
+#ifdef INET
+static int	jail_ip4_saddrsel = 1;
+SYSCTL_INT(_security_jail, OID_AUTO, ip4_saddrsel, CTLFLAG_RW,
+    &jail_ip4_saddrsel, 0,
+   "Do (not) use IPv4 source address selection rather than the "
+   "primary jail IPv4 address.");
+#endif
+
+#ifdef INET6
+static int	jail_ip6_saddrsel = 1;
+SYSCTL_INT(_security_jail, OID_AUTO, ip6_saddrsel, CTLFLAG_RW,
+    &jail_ip6_saddrsel, 0,
+   "Do (not) use IPv6 source address selection rather than the "
+   "primary jail IPv6 address.");
+#endif
+
 int	jail_chflags_allowed = 0;
 SYSCTL_INT(_security_jail, OID_AUTO, chflags_allowed, CTLFLAG_RW,
     &jail_chflags_allowed, 0,
@@ -867,6 +883,39 @@ prison_get_ip4(struct ucred *cred, struct in_addr *ia)
 }
 
 /*
+ * Return 1 if we should do proper source address selection or are not jailed.
+ * We will return 0 if we should bypass source address selection in favour
+ * of the primary jail IPv4 address. Only in this case *ia will be updated and
+ * returned in NBO.
+ * Return EAFNOSUPPORT, in case this jail does not allow IPv4.
+ */
+int
+prison_saddrsel_ip4(struct ucred *cred, struct in_addr *ia)
+{
+	struct in_addr lia;
+	int error;
+
+	KASSERT(cred != NULL, ("%s: cred is NULL", __func__));
+	KASSERT(ia != NULL, ("%s: ia is NULL", __func__));
+
+	if (!jailed(cred))
+		return (1);
+
+	if (jail_ip4_saddrsel != 0)
+		return (1);
+
+	lia.s_addr = INADDR_ANY;
+	error = prison_get_ip4(cred, &lia);
+	if (error)
+		return (error);
+	if (lia.s_addr == INADDR_ANY)
+		return (1);
+
+	ia->s_addr = lia.s_addr;
+	return (0);
+}
+
+/*
  * Make sure our (source) address is set to something meaningful to this
  * jail.
  *
@@ -1009,6 +1058,39 @@ prison_get_ip6(struct ucred *cred, struct in6_addr *ia6)
 		return (EAFNOSUPPORT);
 
 	bcopy(&cred->cr_prison->pr_ip6[0], ia6, sizeof(struct in6_addr));
+	return (0);
+}
+
+/*
+ * Return 1 if we should do proper source address selection or are not jailed.
+ * We will return 0 if we should bypass source address selection in favour
+ * of the primary jail IPv6 address. Only in this case *ia will be updated and
+ * returned in NBO.
+ * Return EAFNOSUPPORT, in case this jail does not allow IPv6.
+ */
+int
+prison_saddrsel_ip6(struct ucred *cred, struct in6_addr *ia6)
+{
+	struct in6_addr lia6;
+	int error;
+
+	KASSERT(cred != NULL, ("%s: cred is NULL", __func__));
+	KASSERT(ia6 != NULL, ("%s: ia6 is NULL", __func__));
+
+	if (!jailed(cred))
+		return (1);
+
+	if (jail_ip6_saddrsel != 0)
+		return (1);
+
+	lia6 = in6addr_any;
+	error = prison_get_ip6(cred, &lia6);
+	if (error)
+		return (error);
+	if (IN6_IS_ADDR_UNSPECIFIED(&lia6))
+		return (1);
+
+	bcopy(&lia6, ia6, sizeof(struct in6_addr));
 	return (0);
 }
 
