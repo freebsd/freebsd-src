@@ -597,10 +597,8 @@ static inline mipsx_addr_size octeon_ptr_to_phys (void *ptr)
 
 
 #define OCTEON_CIU_PP_RST	OCTEON_ADD_IO_SEG(0x0001070000000700ull)
+#define OCTEON_CIU_SOFT_RST	OCTEON_ADD_IO_SEG(0x0001070000000740ull)
 #define OCTEON_OCTEON_DID_TAG	12ULL
-
-
-
 
 /*
  * octeon_addr_t
