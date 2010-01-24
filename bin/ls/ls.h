@@ -35,6 +35,10 @@
 
 #define NO_PRINT	1
 
+#define HUMANVALSTR_LEN	5
+#define DEVSTR_LEN	8
+#define DEVSTR_HEX_LEN	15
+
 extern long blocksize;		/* block size units */
 
 extern int f_accesstime;	/* use time of last access */
@@ -62,7 +66,6 @@ extern int f_color;		/* add type in color for non-regular files */
 typedef struct {
 	FTSENT *list;
 	u_long btotal;
-	int bcfile;
 	int entries;
 	int maxlen;
 	u_int s_block;
