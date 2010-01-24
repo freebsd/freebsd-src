@@ -109,7 +109,7 @@ platform_cpu_init()
 void
 platform_reset(void)
 {
-	mips_generic_reset();
+	oct_write64(OCTEON_CIU_SOFT_RST, 1);
 }
 
 
@@ -961,7 +961,9 @@ octeon_boot_params_init(register_t ptr)
     	if (ptr != 0 && ptr < MAX_APP_DESC_ADDR) {
 	        app_desc_ptr = (octeon_boot_descriptor_t *)(intptr_t)ptr;
 		octeon_bd_ver = app_desc_ptr->desc_version;
-		if (app_desc_ptr->desc_version == 6)
+		if (app_desc_ptr->desc_version < 6)
+			panic("Your boot code is too old to be supported.\n");
+		if (app_desc_ptr->desc_version >= 6)
 			bad_desc = octeon_process_app_desc_ver_6();
         }
         if (bad_desc)
