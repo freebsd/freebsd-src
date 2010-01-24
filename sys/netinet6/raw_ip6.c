@@ -328,7 +328,7 @@ rip6_output(m, va_alist)
 	struct ifnet *oifp = NULL;
 	int type = 0, code = 0;		/* for ICMPv6 output statistics only */
 	int scope_ambiguous = 0;
-	struct in6_addr *in6a;
+	struct in6_addr in6a;
 	va_list ap;
 
 	va_start(ap, m);
@@ -389,16 +389,14 @@ rip6_output(m, va_alist)
 	/*
 	 * Source address selection.
 	 */
-	if ((in6a = in6_selectsrc(dstsock, optp, in6p, NULL, so->so_cred,
-	    &oifp, &error)) == NULL) {
-		if (error == 0)
-			error = EADDRNOTAVAIL;
+	error = in6_selectsrc(dstsock, optp, in6p, NULL, so->so_cred,
+	    &oifp, &in6a);
+	if (error)
 		goto bad;
-	}
-	error = prison_get_ip6(in6p->inp_cred, in6a);
+	error = prison_get_ip6(in6p->inp_cred, &in6a);
 	if (error != 0)
 		goto bad;
-	ip6->ip6_src = *in6a;
+	ip6->ip6_src = in6a;
 
 	if (oifp && scope_ambiguous) {
 		/*
@@ -685,7 +683,7 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp;
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
-	struct in6_addr *in6a = NULL;
+	struct in6_addr in6a;
 	struct ifnet *ifp = NULL;
 	int error = 0, scope_ambiguous = 0;
 
@@ -715,13 +713,12 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	INP_INFO_WLOCK(&ripcbinfo);
 	INP_WLOCK(inp);
 	/* Source address selection. XXX: need pcblookup? */
-	in6a = in6_selectsrc(addr, inp->in6p_outputopts,
-			     inp, NULL, so->so_cred,
-			     &ifp, &error);
-	if (in6a == NULL) {
+	error = in6_selectsrc(addr, inp->in6p_outputopts,
+	    inp, NULL, so->so_cred, &ifp, &in6a);
+	if (error) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&ripcbinfo);
-		return (error ? error : EADDRNOTAVAIL);
+		return (error);
 	}
 
 	/* XXX: see above */
@@ -732,7 +729,7 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (error);
 	}
 	inp->in6p_faddr = addr->sin6_addr;
-	inp->in6p_laddr = *in6a;
+	inp->in6p_laddr = in6a;
 	soisconnected(so);
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
