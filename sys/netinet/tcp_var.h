@@ -526,7 +526,6 @@ int	 tcp_ctloutput(struct socket *, struct sockopt *);
 struct tcpcb *
 	 tcp_drop(struct tcpcb *, int);
 void	 tcp_drain(void);
-void	 tcp_fasttimo(void);
 void	 tcp_init(void);
 void	 tcp_fini(void *);
 void	 tcp_reass_init(void);
