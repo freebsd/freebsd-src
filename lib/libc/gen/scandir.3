@@ -28,7 +28,7 @@
 .\"     @(#)scandir.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd January 3, 2010
 .Dt SCANDIR 3
 .Os
 .Sh NAME
@@ -38,12 +38,11 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
 .In dirent.h
 .Ft int
-.Fn scandir "const char *dirname" "struct dirent ***namelist" "int \\*(lp*select\\*(rp\\*(lpstruct dirent *\\*(rp" "int \\*(lp*compar\\*(rp\\*(lpconst void *, const void *\\*(rp"
+.Fn scandir "const char *dirname" "struct dirent ***namelist" "int \\*(lp*select\\*(rp\\*(lpconst struct dirent *\\*(rp" "int \\*(lp*compar\\*(rp\\*(lpconst struct dirent **, const struct dirent **\\*(rp"
 .Ft int
-.Fn alphasort "const void *d1" "const void *d2"
+.Fn alphasort "const struct dirent **d1" "const struct dirent **d2"
 .Sh DESCRIPTION
 The
 .Fn scandir
@@ -82,7 +81,8 @@ The
 function
 is a routine which can be used for the
 .Fa compar
-argument to sort the array alphabetically.
+argument to sort the array alphabetically using
+.Xr strcoll 3 .
 .Pp
 The memory allocated for the array can be deallocated with
 .Xr free 3 ,
@@ -95,7 +95,8 @@ cannot allocate enough memory to hold all the data structures.
 .Xr directory 3 ,
 .Xr malloc 3 ,
 .Xr qsort 3 ,
-.Xr dir 5
+.Xr dir 5 ,
+.Xr strcoll 3
 .Sh HISTORY
 The
 .Fn scandir
