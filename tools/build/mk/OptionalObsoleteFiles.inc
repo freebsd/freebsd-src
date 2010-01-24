@@ -633,6 +633,18 @@ OLD_FILES+=usr/share/man/man1/cpp.1.gz
 # to be filled in
 #.endif
 
+.if ${MK_CTM} == no
+OLD_FILES+=usr/sbin/ctm
+OLD_FILES+=usr/sbin/ctm_dequeue
+OLD_FILES+=usr/sbin/ctm_rmail
+OLD_FILES+=usr/sbin/ctm_smail
+OLD_FILES+=usr/share/man/man1/ctm.1.gz
+OLD_FILES+=usr/share/man/man1/ctm_dequeue.1.gz
+OLD_FILES+=usr/share/man/man1/ctm_rmail.1.gz
+OLD_FILES+=usr/share/man/man1/ctm_smail.1.gz
+OLD_FILES+=usr/share/man/man5/ctm.5.gz
+.endif
+
 #.if ${MK_CVS} == no
 # to be filled in
 #.endif
