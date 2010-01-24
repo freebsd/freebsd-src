@@ -473,9 +473,9 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 			dst_sa.sin6_len = sizeof(dst_sa);
 			dst_sa.sin6_addr = ip6->ip6_dst;
 
-			src = in6_selectsrc(&dst_sa, NULL,
-			    NULL, &ro, NULL, NULL, &error);
-			if (src == NULL) {
+			error = in6_selectsrc(&dst_sa, NULL,
+			    NULL, &ro, NULL, NULL, &src_in);
+			if (error) {
 				char ip6buf[INET6_ADDRSTRLEN];
 				nd6log((LOG_DEBUG,
 				    "nd6_ns_output: source can't be "
@@ -484,6 +484,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 				    error));
 				goto bad;
 			}
+			src = &src_in;
 		}
 	} else {
 		/*
@@ -883,7 +884,7 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_advert *nd_na;
 	struct ip6_moptions im6o;
-	struct in6_addr *src, daddr6;
+	struct in6_addr src, daddr6;
 	struct sockaddr_in6 dst_sa;
 	int icmp6len, maxlen, error;
 	caddr_t mac = NULL;
@@ -956,15 +957,15 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	 * Select a source whose scope is the same as that of the dest.
 	 */
 	bcopy(&dst_sa, &ro.ro_dst, sizeof(dst_sa));
-	src = in6_selectsrc(&dst_sa, NULL, NULL, &ro, NULL, NULL, &error);
-	if (src == NULL) {
+	error = in6_selectsrc(&dst_sa, NULL, NULL, &ro, NULL, NULL, &src);
+	if (error) {
 		char ip6buf[INET6_ADDRSTRLEN];
 		nd6log((LOG_DEBUG, "nd6_na_output: source can't be "
 		    "determined: dst=%s, error=%d\n",
 		    ip6_sprintf(ip6buf, &dst_sa.sin6_addr), error));
 		goto bad;
 	}
-	ip6->ip6_src = *src;
+	ip6->ip6_src = src;
 	nd_na = (struct nd_neighbor_advert *)(ip6 + 1);
 	nd_na->nd_na_type = ND_NEIGHBOR_ADVERT;
 	nd_na->nd_na_code = 0;

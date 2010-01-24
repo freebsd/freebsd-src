@@ -2032,7 +2032,7 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	int plen;
 	int type, code;
 	struct ifnet *outif = NULL;
-	struct in6_addr origdst, *src = NULL;
+	struct in6_addr origdst, src, *srcp = NULL;
 
 	/* too short to reflect */
 	if (off < sizeof(struct ip6_hdr)) {
@@ -2100,7 +2100,7 @@ icmp6_reflect(struct mbuf *m, size_t off)
 		if ((ia = ip6_getdstifaddr(m))) {
 			if (!(ia->ia6_flags &
 			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY)))
-				src = &ia->ia_addr.sin6_addr;
+				srcp = &ia->ia_addr.sin6_addr;
 		} else {
 			struct sockaddr_in6 d;
 
@@ -2113,12 +2113,12 @@ icmp6_reflect(struct mbuf *m, size_t off)
 			if (ia &&
 			    !(ia->ia6_flags &
 			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY))) {
-				src = &ia->ia_addr.sin6_addr;
+				srcp = &ia->ia_addr.sin6_addr;
 			}
 		}
 	}
 
-	if (src == NULL) {
+	if (srcp == NULL) {
 		int e;
 		struct sockaddr_in6 sin6;
 		struct route_in6 ro;
@@ -2134,10 +2134,10 @@ icmp6_reflect(struct mbuf *m, size_t off)
 		sin6.sin6_addr = ip6->ip6_dst; /* zone ID should be embedded */
 
 		bzero(&ro, sizeof(ro));
-		src = in6_selectsrc(&sin6, NULL, NULL, &ro, NULL, &outif, &e);
+		e = in6_selectsrc(&sin6, NULL, NULL, &ro, NULL, &outif, &src);
 		if (ro.ro_rt)
 			RTFREE(ro.ro_rt); /* XXX: we could use this */
-		if (src == NULL) {
+		if (e) {
 			char ip6buf[INET6_ADDRSTRLEN];
 			nd6log((LOG_DEBUG,
 			    "icmp6_reflect: source can't be determined: "
@@ -2145,9 +2145,10 @@ icmp6_reflect(struct mbuf *m, size_t off)
 			    ip6_sprintf(ip6buf, &sin6.sin6_addr), e));
 			goto bad;
 		}
+		srcp = &src;
 	}
 
-	ip6->ip6_src = *src;
+	ip6->ip6_src = *srcp;
 	ip6->ip6_flow = 0;
 	ip6->ip6_vfc &= ~IPV6_VERSION_MASK;
 	ip6->ip6_vfc |= IPV6_VERSION;

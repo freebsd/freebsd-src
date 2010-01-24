@@ -278,12 +278,13 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
  */
 int
 in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
-    struct in6_addr **plocal_addr6)
+    struct in6_addr *plocal_addr6)
 {
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	int error = 0;
 	struct ifnet *ifp = NULL;
 	int scope_ambiguous = 0;
+	struct in6_addr in6a;
 
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
@@ -311,25 +312,25 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 	if ((error = prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr)) != 0)
 		return (error);
 
-	/*
-	 * XXX: in6_selectsrc might replace the bound local address
-	 * with the address specified by setsockopt(IPV6_PKTINFO).
-	 * Is it the intended behavior?
-	 */
-	*plocal_addr6 = in6_selectsrc(sin6, inp->in6p_outputopts,
-				      inp, NULL,
-				      inp->inp_cred,
-				      &ifp, &error);
+	error = in6_selectsrc(sin6, inp->in6p_outputopts,
+	    inp, NULL, inp->inp_cred, &ifp, &in6a);
+	if (error)
+		return (error);
+
 	if (ifp && scope_ambiguous &&
 	    (error = in6_setscope(&sin6->sin6_addr, ifp, NULL)) != 0) {
 		return(error);
 	}
 
-	if (*plocal_addr6 == NULL) {
-		if (error == 0)
-			error = EADDRNOTAVAIL;
-		return (error);
-	}
+	/*
+	 * Do not update this earlier, in case we return with an error.
+	 *
+	 * XXX: this in6_selectsrc result might replace the bound local
+	 * aaddress with the address specified by setsockopt(IPV6_PKTINFO).
+	 * Is it the intended behavior?
+	 */
+	*plocal_addr6 = in6a;
+
 	/*
 	 * Don't do pcblookup call here; return interface in
 	 * plocal_addr6
@@ -350,8 +351,8 @@ int
 in6_pcbconnect(register struct inpcb *inp, struct sockaddr *nam,
     struct ucred *cred)
 {
-	struct in6_addr *addr6;
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
+	struct in6_addr addr6;
 	int error;
 
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
@@ -367,7 +368,7 @@ in6_pcbconnect(register struct inpcb *inp, struct sockaddr *nam,
 	if (in6_pcblookup_hash(inp->inp_pcbinfo, &sin6->sin6_addr,
 			       sin6->sin6_port,
 			      IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)
-			      ? addr6 : &inp->in6p_laddr,
+			      ? &addr6 : &inp->in6p_laddr,
 			      inp->inp_lport, 0, NULL) != NULL) {
 		return (EADDRINUSE);
 	}
@@ -377,7 +378,7 @@ in6_pcbconnect(register struct inpcb *inp, struct sockaddr *nam,
 			if (error)
 				return (error);
 		}
-		inp->in6p_laddr = *addr6;
+		inp->in6p_laddr = addr6;
 	}
 	inp->in6p_faddr = sin6->sin6_addr;
 	inp->inp_fport = sin6->sin6_port;
