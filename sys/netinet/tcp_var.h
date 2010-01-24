@@ -639,7 +639,6 @@ int	 tcp_ctloutput(struct socket *, struct sockopt *);
 struct tcpcb *
 	 tcp_drop(struct tcpcb *, int);
 void	 tcp_drain(void);
-void	 tcp_fasttimo(void);
 void	 tcp_init(void);
 #ifdef VIMAGE
 void	 tcp_destroy(void);
