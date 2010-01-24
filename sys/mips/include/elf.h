@@ -256,4 +256,9 @@ __ElfType(Auxinfo);
 
 #define	ET_DYN_LOAD_ADDR 0x0120000
 
+/*
+ * Constant to mark start of symtab/strtab saved by trampoline
+ */
+#define	SYMTAB_MAGIC	0x64656267
+
 #endif /* !_MACHINE_ELF_H_ */

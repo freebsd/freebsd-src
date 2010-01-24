@@ -96,12 +96,17 @@ load_kernel(void * kstart)
 #ifdef __mips_n64
 	Elf64_Ehdr *eh;
 	Elf64_Phdr phdr[64] /* XXX */;
+	Elf64_Phdr shdr[64] /* XXX */;
 #else
 	Elf32_Ehdr *eh;
 	Elf32_Phdr phdr[64] /* XXX */;
+	Elf32_Shdr shdr[64] /* XXX */;
 #endif
-	int i;
+	int i, j;
 	void *entry_point;
+	vm_offset_t lastaddr = 0;
+	int symtabindex = -1;
+	int symstrindex = -1;
 	
 #ifdef __mips_n64
 	eh = (Elf64_Ehdr *)kstart;
@@ -112,6 +117,27 @@ load_kernel(void * kstart)
 	memcpy(phdr, (void *)(kstart + eh->e_phoff ),
 	    eh->e_phnum * sizeof(phdr[0]));
 
+	memcpy(shdr, (void *)(kstart + eh->e_shoff),
+	    sizeof(*shdr) * eh->e_shnum);
+
+	if (eh->e_shnum * eh->e_shentsize != 0 && eh->e_shoff != 0) {
+		for (i = 0; i < eh->e_shnum; i++) {
+			if (shdr[i].sh_type == SHT_SYMTAB) {
+				/*
+				 * XXX: check if .symtab is in PT_LOAD?
+				 */
+				if (shdr[i].sh_offset != 0 && 
+				    shdr[i].sh_size != 0) {
+					symtabindex = i;
+					symstrindex = shdr[i].sh_link;
+				}
+			}
+		}
+	}
+
+	/*
+	 * Copy loadable segments
+	 */
 	for (i = 0; i < eh->e_phnum; i++) {
 		volatile char c;
 
@@ -120,11 +146,43 @@ load_kernel(void * kstart)
 		
 		memcpy((void *)(phdr[i].p_vaddr),
 		    (void*)(kstart + phdr[i].p_offset), phdr[i].p_filesz);
+
 		/* Clean space from oversized segments, eg: bss. */
 		if (phdr[i].p_filesz < phdr[i].p_memsz)
 			bzero((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 
 			    phdr[i].p_memsz - phdr[i].p_filesz);
+
+		if (lastaddr < phdr[i].p_vaddr + phdr[i].p_memsz)
+			lastaddr = phdr[i].p_vaddr + phdr[i].p_memsz;
 	}
+
+	/* Now grab the symbol tables. */
+	if (symtabindex >= 0 && symstrindex >= 0) {
+		*(Elf_Size *)lastaddr = SYMTAB_MAGIC;
+		lastaddr += sizeof(Elf_Size);
+		*(Elf_Size *)lastaddr = shdr[symtabindex].sh_size +
+		    shdr[symstrindex].sh_size + 2*sizeof(Elf_Size);
+		lastaddr += sizeof(Elf_Size);
+		/* .symtab size */
+		*(Elf_Size *)lastaddr = shdr[symtabindex].sh_size;
+		lastaddr += sizeof(shdr[symtabindex].sh_size);
+		/* .symtab data */
+		memcpy((void*)lastaddr,
+		    shdr[symtabindex].sh_offset + kstart,
+		    shdr[symtabindex].sh_size);
+		lastaddr += shdr[symtabindex].sh_size;
+
+		/* .strtab size */
+		*(Elf_Size *)lastaddr = shdr[symstrindex].sh_size;
+		lastaddr += sizeof(shdr[symstrindex].sh_size);
+
+		/* .strtab data */
+		memcpy((void*)lastaddr,
+		    shdr[symstrindex].sh_offset + kstart,
+		    shdr[symstrindex].sh_size);
+	} else
+		/* Do not take any chances */
+		*(Elf_Size *)lastaddr = 0;
 
 	return entry_point;
 }
