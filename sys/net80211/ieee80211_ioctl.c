@@ -3199,15 +3199,18 @@ ieee80211_ioctl_updatemulti(struct ieee80211com *ic)
 	void *ioctl;
 
 	IEEE80211_LOCK(ic);
-	if_purgemaddrs(parent);
+	if_delallmulti(parent);
 	ioctl = parent->if_ioctl;	/* XXX WAR if_allmulti */
 	parent->if_ioctl = NULL;
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		struct ifnet *ifp = vap->iv_ifp;
 		struct ifmultiaddr *ifma;
 
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
 			(void) if_addmulti(parent, ifma->ifma_addr, NULL);
+		}
 	}
 	parent->if_ioctl = ioctl;
 	ieee80211_runtask(ic, &ic->ic_mcast_task);
