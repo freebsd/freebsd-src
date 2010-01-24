@@ -624,9 +624,10 @@ OLD_FILES+=usr/share/man/man8/zfs.8.gz
 OLD_FILES+=usr/share/man/man8/zpool.8.gz
 .endif
 
-#.if ${MK_CPP} == no
-# to be filled in
-#.endif
+.if ${MK_CPP} == no
+OLD_FILES+=usr/bin/cpp
+OLD_FILES+=usr/share/man/man1/cpp.1.gz
+.endif
 
 #.if ${MK_CRYPT} == no
 # to be filled in
