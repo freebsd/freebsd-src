@@ -740,9 +740,10 @@ if_purgeaddrs(struct ifnet *ifp)
 }
 
 /*
- * Remove any multicast network addresses from an interface.
+ * Remove any multicast network addresses from an interface when an ifnet
+ * is going away.
  */
-void
+static void
 if_purgemaddrs(struct ifnet *ifp)
 {
 	struct ifmultiaddr *ifma;
@@ -2937,6 +2938,22 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	}
 
 	return (0);
+}
+
+/*
+ * Delete all multicast group membership for an interface.
+ * Should be used to quickly flush all multicast filters.
+ */
+void
+if_delallmulti(struct ifnet *ifp)
+{
+	struct ifmultiaddr *ifma;
+	struct ifmultiaddr *next;
+
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next)
+		if_delmulti_locked(ifp, ifma, 0);
+	IF_ADDR_UNLOCK(ifp);
 }
 
 /*
