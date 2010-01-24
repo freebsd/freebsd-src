@@ -645,9 +645,34 @@ OLD_FILES+=usr/share/man/man1/ctm_smail.1.gz
 OLD_FILES+=usr/share/man/man5/ctm.5.gz
 .endif
 
-#.if ${MK_CVS} == no
-# to be filled in
-#.endif
+.if ${MK_CVS} == no
+OLD_FILES+=usr/bin/cvs
+OLD_FILES+=usr/bin/cvsbug
+OLD_FILES+=usr/share/examples/cvs/contrib/README
+OLD_FILES+=usr/share/examples/cvs/contrib/clmerge
+OLD_FILES+=usr/share/examples/cvs/contrib/cln_hist
+OLD_FILES+=usr/share/examples/cvs/contrib/commit_prep
+OLD_FILES+=usr/share/examples/cvs/contrib/cvs2vendor
+OLD_FILES+=usr/share/examples/cvs/contrib/cvs_acls
+OLD_FILES+=usr/share/examples/cvs/contrib/cvscheck
+OLD_FILES+=usr/share/examples/cvs/contrib/cvscheck.man
+OLD_FILES+=usr/share/examples/cvs/contrib/cvshelp.man
+OLD_FILES+=usr/share/examples/cvs/contrib/descend.man
+OLD_FILES+=usr/share/examples/cvs/contrib/easy-import
+OLD_FILES+=usr/share/examples/cvs/contrib/intro.doc
+OLD_FILES+=usr/share/examples/cvs/contrib/log
+OLD_FILES+=usr/share/examples/cvs/contrib/log_accum
+OLD_FILES+=usr/share/examples/cvs/contrib/mfpipe
+OLD_FILES+=usr/share/examples/cvs/contrib/rcs-to-cvs
+OLD_FILES+=usr/share/examples/cvs/contrib/rcs2log
+OLD_FILES+=usr/share/examples/cvs/contrib/rcslock
+OLD_FILES+=usr/share/examples/cvs/contrib/sccs2rcs
+OLD_FILES+=usr/share/info/cvs.info.gz
+OLD_FILES+=usr/share/info/cvsclient.info.gz
+OLD_FILES+=usr/share/man/man1/cvs.1.gz
+OLD_FILES+=usr/share/man/man5/cvs.5.gz
+OLD_FILES+=usr/share/man/man8/cvsbug.8.gz
+.endif
 
 #.if ${MK_CXX} == no
 # to be filled in
