@@ -44,6 +44,7 @@ extern	char	sigcode[];
 extern	int	szsigcode, szosigcode;
 
 extern vm_offset_t kstack0;
+extern vm_offset_t kernel_kseg0_end;
 
 void	MipsSaveCurFPState(struct thread *);
 void	fork_trampoline(void);
@@ -69,6 +70,7 @@ void	cpu_identify(void);
 void	mips_cpu_init(void);
 void	mips_pcpu0_init(void);
 void	mips_proc0_init(void);
+void	mips_postboot_fixup(void);
 
 /* Platform call-downs. */
 void	platform_identify(void);
