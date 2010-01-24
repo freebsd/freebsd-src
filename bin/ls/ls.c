@@ -559,7 +559,8 @@ display(const FTSENT *p, FTSENT *list, int options)
 	long maxblock;
 	u_long btotal, labelstrlen, maxinode, maxlen, maxnlink;
 	u_long maxlabelstr;
-	int bcfile, maxflags;
+	u_int devstrlen;
+	int maxflags;
 	gid_t maxgroup;
 	uid_t maxuser;
 	size_t flen, ulen, glen;
@@ -651,7 +652,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 		MAKENINES(maxsize);
 		free(jinitmax);
 	}
-	bcfile = 0;
+	devstrlen = 0;
 	flags = NULL;
 	for (cur = list, entries = 0; cur; cur = cur->fts_link) {
 		if (cur->fts_info == FTS_ERR || cur->fts_info == FTS_NS) {
@@ -791,9 +792,15 @@ label_out:
 				np->group = &np->data[ulen + 1];
 				(void)strcpy(np->group, group);
 
-				if (S_ISCHR(sp->st_mode) ||
-				    S_ISBLK(sp->st_mode))
-					bcfile = 1;
+				if ((S_ISCHR(sp->st_mode) ||
+				    S_ISBLK(sp->st_mode)) &&
+				    devstrlen < DEVSTR_HEX_LEN) {
+					if (minor(sp->st_rdev) > 255 ||
+					    minor(sp->st_rdev) < 0)
+						devstrlen = DEVSTR_HEX_LEN;
+					else
+						devstrlen = DEVSTR_LEN;
+				}
 
 				if (f_flags) {
 					np->flags = &np->data[ulen + glen + 2];
@@ -825,7 +832,6 @@ label_out:
 	d.entries = entries;
 	d.maxlen = maxlen;
 	if (needstats) {
-		d.bcfile = bcfile;
 		d.btotal = btotal;
 		(void)snprintf(buf, sizeof(buf), "%lu", maxblock);
 		d.s_block = strlen(buf);
@@ -836,8 +842,14 @@ label_out:
 		d.s_inode = strlen(buf);
 		(void)snprintf(buf, sizeof(buf), "%lu", maxnlink);
 		d.s_nlink = strlen(buf);
-		(void)snprintf(buf, sizeof(buf), "%ju", maxsize);
-		d.s_size = strlen(buf);
+		if (f_humanval)
+			d.s_size = HUMANVALSTR_LEN;
+		else {
+			(void)snprintf(buf, sizeof(buf), "%ju", maxsize);
+			d.s_size = strlen(buf);
+		}
+		if (d.s_size < devstrlen)
+			d.s_size = devstrlen;
 		d.s_user = maxuser;
 	}
 	printfcn(&d);
