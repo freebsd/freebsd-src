@@ -617,8 +617,8 @@ msgring_process_fast_intr(void *arg)
 	 * messages
 	 */
 	disable_msgring_int(NULL);
-	it->i_pending = 1;
 	thread_lock(td);
+	it->i_pending = 1;
 	if (TD_AWAITING_INTR(td)) {
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
 		    p->p_comm);
