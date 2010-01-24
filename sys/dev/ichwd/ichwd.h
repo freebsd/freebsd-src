@@ -83,6 +83,7 @@ struct ichwd_softc {
 #define DEVICEID_ICH7		0x27b8
 #define DEVICEID_ICH7DH		0x27b0
 #define DEVICEID_ICH7M		0x27b9
+#define DEVICEID_NM10		0x27bc
 #define DEVICEID_ICH7MDH	0x27bd
 #define DEVICEID_ICH8		0x2810
 #define DEVICEID_ICH8DH		0x2812
