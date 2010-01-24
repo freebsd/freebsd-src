@@ -943,8 +943,10 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_rem();
 
-	if (newtd)
+	if (newtd) {
+		MPASS(newtd->td_lock == &sched_lock);
 		newtd->td_flags |= (td->td_flags & TDF_NEEDRESCHED);
+	}
 
 	td->td_lastcpu = td->td_oncpu;
 	td->td_flags &= ~TDF_NEEDRESCHED;
@@ -987,8 +989,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			sched_load_add();
 	} else {
 		newtd = choosethread();
+		MPASS(newtd->td_lock == &sched_lock);
 	}
-	MPASS(newtd->td_lock == &sched_lock);
 
 	if (td != newtd) {
 #ifdef	HWPMC_HOOKS
