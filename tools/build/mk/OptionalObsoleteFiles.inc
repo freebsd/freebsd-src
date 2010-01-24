@@ -678,9 +678,14 @@ OLD_FILES+=usr/share/man/man8/cvsbug.8.gz
 # to be filled in
 #.endif
 
-#.if ${MK_DICT} == no
-# to be filled in
-#.endif
+.if ${MK_DICT} == no
+OLD_FILES+=usr/share/dict/README
+OLD_FILES+=usr/share/dict/freebsd
+OLD_FILES+=usr/share/dict/propernames
+OLD_FILES+=usr/share/dict/web2
+OLD_FILES+=usr/share/dict/web2a
+OLD_FILES+=usr/share/dict/words
+.endif
 
 #.if ${MK_EXAMPLES} == no
 # to be filled in
