@@ -1471,6 +1471,163 @@ out:
 
 #ifdef UFS_ACL
 static int
+ufs_do_posix1e_acl_inheritance_dir(struct vnode *dvp, struct vnode *tvp,
+    mode_t dmode, struct ucred *cred, struct thread *td)
+{
+	int error;
+	struct inode *ip = VTOI(tvp);
+	struct acl *dacl, *acl;
+
+	acl = acl_alloc(M_WAITOK);
+	dacl = acl_alloc(M_WAITOK);
+
+	/*
+	 * Retrieve default ACL from parent, if any.
+	 */
+	error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cred, td);
+	switch (error) {
+	case 0:
+		/*
+		 * Retrieved a default ACL, so merge mode and ACL if
+		 * necessary.  If the ACL is empty, fall through to
+		 * the "not defined or available" case.
+		 */
+		if (acl->acl_cnt != 0) {
+			dmode = acl_posix1e_newfilemode(dmode, acl);
+			ip->i_mode = dmode;
+			DIP_SET(ip, i_mode, dmode);
+			*dacl = *acl;
+			ufs_sync_acl_from_inode(ip, acl);
+			break;
+		}
+		/* FALLTHROUGH */
+
+	case EOPNOTSUPP:
+		/*
+		 * Just use the mode as-is.
+		 */
+		ip->i_mode = dmode;
+		DIP_SET(ip, i_mode, dmode);
+		error = 0;
+		goto out;
+	
+	default:
+		goto out;
+	}
+
+	/*
+	 * XXX: If we abort now, will Soft Updates notify the extattr
+	 * code that the EAs for the file need to be released?
+	 */
+	error = VOP_SETACL(tvp, ACL_TYPE_ACCESS, acl, cred, td);
+	if (error == 0)
+		error = VOP_SETACL(tvp, ACL_TYPE_DEFAULT, dacl, cred, td);
+	switch (error) {
+	case 0:
+		break;
+
+	case EOPNOTSUPP:
+		/*
+		 * XXX: This should not happen, as EOPNOTSUPP above
+		 * was supposed to free acl.
+		 */
+		printf("ufs_mkdir: VOP_GETACL() but no VOP_SETACL()\n");
+		/*
+		panic("ufs_mkdir: VOP_GETACL() but no VOP_SETACL()");
+		 */
+		break;
+
+	default:
+		goto out;
+	}
+
+out:
+	acl_free(acl);
+	acl_free(dacl);
+
+	return (error);
+}
+
+static int
+ufs_do_posix1e_acl_inheritance_file(struct vnode *dvp, struct vnode *tvp,
+    mode_t mode, struct ucred *cred, struct thread *td)
+{
+	int error;
+	struct inode *ip = VTOI(tvp);
+	struct acl *acl;
+
+	acl = acl_alloc(M_WAITOK);
+
+	/*
+	 * Retrieve default ACL for parent, if any.
+	 */
+	error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cred, td);
+	switch (error) {
+	case 0:
+		/*
+		 * Retrieved a default ACL, so merge mode and ACL if
+		 * necessary.
+		 */
+		if (acl->acl_cnt != 0) {
+			/*
+			 * Two possible ways for default ACL to not
+			 * be present.  First, the EA can be
+			 * undefined, or second, the default ACL can
+			 * be blank.  If it's blank, fall through to
+			 * the it's not defined case.
+			 */
+			mode = acl_posix1e_newfilemode(mode, acl);
+			ip->i_mode = mode;
+			DIP_SET(ip, i_mode, mode);
+			ufs_sync_acl_from_inode(ip, acl);
+			break;
+		}
+		/* FALLTHROUGH */
+
+	case EOPNOTSUPP:
+		/*
+		 * Just use the mode as-is.
+		 */
+		ip->i_mode = mode;
+		DIP_SET(ip, i_mode, mode);
+		error = 0;
+		goto out;
+
+	default:
+		goto out;
+	}
+
+	/*
+	 * XXX: If we abort now, will Soft Updates notify the extattr
+	 * code that the EAs for the file need to be released?
+	 */
+	error = VOP_SETACL(tvp, ACL_TYPE_ACCESS, acl, cred, td);
+	switch (error) {
+	case 0:
+		break;
+
+	case EOPNOTSUPP:
+		/*
+		 * XXX: This should not happen, as EOPNOTSUPP above was
+		 * supposed to free acl.
+		 */
+		printf("ufs_makeinode: VOP_GETACL() but no "
+		    "VOP_SETACL()\n");
+		/* panic("ufs_makeinode: VOP_GETACL() but no "
+		    "VOP_SETACL()"); */
+		break;
+
+	default:
+		goto out;
+	}
+
+out:
+	acl_free(acl);
+
+	return (error);
+}
+
+static int
 ufs_do_nfs4_acl_inheritance(struct vnode *dvp, struct vnode *tvp,
     mode_t child_mode, struct ucred *cred, struct thread *td)
 {
@@ -1516,9 +1673,6 @@ ufs_mkdir(ap)
 	struct buf *bp;
 	struct dirtemplate dirtemplate, *dtp;
 	struct direct newdir;
-#ifdef UFS_ACL
-	struct acl *acl, *dacl;
-#endif
 	int error, dmode;
 	long blkoff;
 
@@ -1607,59 +1761,8 @@ ufs_mkdir(ap)
 #endif
 #endif	/* !SUIDDIR */
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
-#ifdef UFS_ACL
-	acl = dacl = NULL;
-	if ((dvp->v_mount->mnt_flag & MNT_ACLS) != 0) {
-		acl = acl_alloc(M_WAITOK);
-		dacl = acl_alloc(M_WAITOK);
-
-		/*
-		 * Retrieve default ACL from parent, if any.
-		 */
-		error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cnp->cn_cred,
-		    cnp->cn_thread);
-		switch (error) {
-		case 0:
-			/*
-			 * Retrieved a default ACL, so merge mode and ACL if
-			 * necessary.  If the ACL is empty, fall through to
-			 * the "not defined or available" case.
-			 */
-			if (acl->acl_cnt != 0) {
-				dmode = acl_posix1e_newfilemode(dmode, acl);
-				ip->i_mode = dmode;
-				DIP_SET(ip, i_mode, dmode);
-				*dacl = *acl;
-				ufs_sync_acl_from_inode(ip, acl);
-				break;
-			}
-			/* FALLTHROUGH */
-	
-		case EOPNOTSUPP:
-			/*
-			 * Just use the mode as-is.
-			 */
-			ip->i_mode = dmode;
-			DIP_SET(ip, i_mode, dmode);
-			acl_free(acl);
-			acl_free(dacl);
-			dacl = acl = NULL;
-			break;
-		
-		default:
-			UFS_VFREE(tvp, ip->i_number, dmode);
-			vput(tvp);
-			acl_free(acl);
-			acl_free(dacl);
-			return (error);
-		}
-	} else {
-#endif /* !UFS_ACL */
-		ip->i_mode = dmode;
-		DIP_SET(ip, i_mode, dmode);
-#ifdef UFS_ACL
-	}
-#endif
+	ip->i_mode = dmode;
+	DIP_SET(ip, i_mode, dmode);
 	tvp->v_type = VDIR;	/* Rest init'd in getnewvnode(). */
 	ip->i_effnlink = 2;
 	ip->i_nlink = 2;
@@ -1694,43 +1797,12 @@ ufs_mkdir(ap)
 	}
 #endif
 #ifdef UFS_ACL
-	if (acl != NULL) {
-		/*
-		 * XXX: If we abort now, will Soft Updates notify the extattr
-		 * code that the EAs for the file need to be released?
-		 */
-		error = VOP_SETACL(tvp, ACL_TYPE_ACCESS, acl, cnp->cn_cred,
-		    cnp->cn_thread);
-		if (error == 0)
-			error = VOP_SETACL(tvp, ACL_TYPE_DEFAULT, dacl,
-			    cnp->cn_cred, cnp->cn_thread);
-		switch (error) {
-		case 0:
-			break;
-
-		case EOPNOTSUPP:
-			/*
-			 * XXX: This should not happen, as EOPNOTSUPP above
-			 * was supposed to free acl.
-			 */
-			printf("ufs_mkdir: VOP_GETACL() but no VOP_SETACL()\n");
-			/*
-			panic("ufs_mkdir: VOP_GETACL() but no VOP_SETACL()");
-			 */
-			break;
-
-		default:
-			acl_free(acl);
-			acl_free(dacl);
-			dacl = acl = NULL;
+	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
+		error = ufs_do_posix1e_acl_inheritance_dir(dvp, tvp, dmode,
+		    cnp->cn_cred, cnp->cn_thread);
+		if (error)
 			goto bad;
-		}
-		acl_free(acl);
-		acl_free(dacl);
-		dacl = acl = NULL;
-	}
-
-	if (dvp->v_mount->mnt_flag & MNT_NFS4ACLS) {
+	} else if (dvp->v_mount->mnt_flag & MNT_NFS4ACLS) {
 		error = ufs_do_nfs4_acl_inheritance(dvp, tvp, dmode,
 		    cnp->cn_cred, cnp->cn_thread);
 		if (error)
@@ -1797,12 +1869,6 @@ bad:
 	if (error == 0) {
 		*ap->a_vpp = tvp;
 	} else {
-#ifdef UFS_ACL
-		if (acl != NULL)
-			acl_free(acl);
-		if (dacl != NULL)
-			acl_free(dacl);
-#endif
 		dp->i_effnlink--;
 		dp->i_nlink--;
 		DIP_SET(dp, i_nlink, dp->i_nlink);
@@ -2387,9 +2453,6 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	struct inode *ip, *pdir;
 	struct direct newdir;
 	struct vnode *tvp;
-#ifdef UFS_ACL
-	struct acl *acl;
-#endif
 	int error;
 
 	pdir = VTOI(dvp);
@@ -2469,62 +2532,8 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #endif
 #endif	/* !SUIDDIR */
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
-#ifdef UFS_ACL
-	acl = NULL;
-	if ((dvp->v_mount->mnt_flag & MNT_ACLS) != 0) {
-		acl = acl_alloc(M_WAITOK);
-
-		/*
-		 * Retrieve default ACL for parent, if any.
-		 */
-		error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cnp->cn_cred,
-		    cnp->cn_thread);
-		switch (error) {
-		case 0:
-			/*
-			 * Retrieved a default ACL, so merge mode and ACL if
-			 * necessary.
-			 */
-			if (acl->acl_cnt != 0) {
-				/*
-				 * Two possible ways for default ACL to not
-				 * be present.  First, the EA can be
-				 * undefined, or second, the default ACL can
-				 * be blank.  If it's blank, fall through to
-				 * the it's not defined case.
-				 */
-				mode = acl_posix1e_newfilemode(mode, acl);
-				ip->i_mode = mode;
-				DIP_SET(ip, i_mode, mode);
-				ufs_sync_acl_from_inode(ip, acl);
-				break;
-			}
-			/* FALLTHROUGH */
-	
-		case EOPNOTSUPP:
-			/*
-			 * Just use the mode as-is.
-			 */
-			ip->i_mode = mode;
-			DIP_SET(ip, i_mode, mode);
-			acl_free(acl);
-			acl = NULL;
-			break;
-	
-		default:
-			UFS_VFREE(tvp, ip->i_number, mode);
-			vput(tvp);
-			acl_free(acl);
-			acl = NULL;
-			return (error);
-		}
-	} else {
-#endif
-		ip->i_mode = mode;
-		DIP_SET(ip, i_mode, mode);
-#ifdef UFS_ACL
-	}
-#endif
+	ip->i_mode = mode;
+	DIP_SET(ip, i_mode, mode);
 	tvp->v_type = IFTOVT(mode);	/* Rest init'd in getnewvnode(). */
 	ip->i_effnlink = 1;
 	ip->i_nlink = 1;
@@ -2557,36 +2566,12 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	}
 #endif
 #ifdef UFS_ACL
-	if (acl != NULL) {
-		/*
-		 * XXX: If we abort now, will Soft Updates notify the extattr
-		 * code that the EAs for the file need to be released?
-		 */
-		error = VOP_SETACL(tvp, ACL_TYPE_ACCESS, acl, cnp->cn_cred,
-		    cnp->cn_thread);
-		switch (error) {
-		case 0:
-			break;
-
-		case EOPNOTSUPP:
-			/*
-			 * XXX: This should not happen, as EOPNOTSUPP above was
-			 * supposed to free acl.
-			 */
-			printf("ufs_makeinode: VOP_GETACL() but no "
-			    "VOP_SETACL()\n");
-			/* panic("ufs_makeinode: VOP_GETACL() but no "
-			    "VOP_SETACL()"); */
-			break;
-
-		default:
-			acl_free(acl);
+	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
+		error = ufs_do_posix1e_acl_inheritance_file(dvp, tvp, mode,
+		    cnp->cn_cred, cnp->cn_thread);
+		if (error)
 			goto bad;
-		}
-		acl_free(acl);
-	}
-
-	if (dvp->v_mount->mnt_flag & MNT_NFS4ACLS) {
+	} else if (dvp->v_mount->mnt_flag & MNT_NFS4ACLS) {
 		error = ufs_do_nfs4_acl_inheritance(dvp, tvp, mode,
 		    cnp->cn_cred, cnp->cn_thread);
 		if (error)
