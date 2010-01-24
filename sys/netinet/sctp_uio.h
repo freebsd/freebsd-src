@@ -526,7 +526,6 @@ struct sctp_hmacalgo {
 /* AUTH hmac_id */
 #define SCTP_AUTH_HMAC_ID_RSVD		0x0000
 #define SCTP_AUTH_HMAC_ID_SHA1		0x0001	/* default, mandatory */
-#define SCTP_AUTH_HMAC_ID_MD5		0x0002	/* deprecated */
 #define SCTP_AUTH_HMAC_ID_SHA256	0x0003
 #define SCTP_AUTH_HMAC_ID_SHA224	0x0004
 #define SCTP_AUTH_HMAC_ID_SHA384	0x0005
