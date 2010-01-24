@@ -534,7 +534,6 @@ int	 tcp_ctloutput(struct socket *, struct sockopt *);
 struct tcpcb *
 	 tcp_drop(struct tcpcb *, int);
 void	 tcp_drain(void);
-void	 tcp_fasttimo(void);
 void	 tcp_init(void);
 void	 tcp_fini(void *);
 char 	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
