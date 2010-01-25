@@ -48,14 +48,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
+#include <sys/kthread.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
+#include <sys/sleepqueue.h>
 #include <sys/smp.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -158,6 +160,124 @@ sysctl_kern_cp_times(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_kern, OID_AUTO, cp_times, CTLTYPE_LONG|CTLFLAG_RD|CTLFLAG_MPSAFE,
     0,0, sysctl_kern_cp_times, "LU", "per-CPU time statistics");
+
+#ifdef DEADLKRES
+static int slptime_threshold = 1800;
+static int blktime_threshold = 900;
+static int sleepfreq = 3;
+
+static void
+deadlkres(void)
+{
+	struct proc *p;
+	struct thread *td;
+	void *wchan;
+	int blkticks, slpticks, slptype, tryl, tticks;
+
+	tryl = 0;
+	for (;;) {
+		blkticks = blktime_threshold * hz;
+		slpticks = slptime_threshold * hz;
+
+		/*
+		 * Avoid to sleep on the sx_lock in order to avoid a possible
+		 * priority inversion problem leading to starvation.
+		 * If the lock can't be held after 100 tries, panic.
+		 */
+		if (!sx_try_slock(&allproc_lock)) {
+			if (tryl > 100)
+		panic("%s: possible deadlock detected on allproc_lock\n",
+				    __func__);
+			tryl++;
+			pause("allproc_lock deadlkres", sleepfreq * hz);
+			continue;
+		}
+		tryl = 0;
+		FOREACH_PROC_IN_SYSTEM(p) {
+			PROC_LOCK(p);
+			FOREACH_THREAD_IN_PROC(p, td) {
+				thread_lock(td);
+				if (TD_ON_LOCK(td)) {
+
+					/*
+					 * The thread should be blocked on a
+					 * turnstile, simply check if the
+					 * turnstile channel is in good state.
+					 */
+					MPASS(td->td_blocked != NULL);
+					tticks = ticks - td->td_blktick;
+					thread_unlock(td);
+					if (tticks > blkticks) {
+
+						/*
+						 * Accordingly with provided
+						 * thresholds, this thread is
+						 * stuck for too long on a
+						 * turnstile.
+						 */
+						PROC_UNLOCK(p);
+						sx_sunlock(&allproc_lock);
+	panic("%s: possible deadlock detected for %p, blocked for %d ticks\n",
+						    __func__, td, tticks);
+					}
+				} else if (TD_IS_SLEEPING(td)) {
+
+					/*
+					 * Check if the thread is sleeping on a
+					 * lock, otherwise skip the check.
+					 * Drop the thread lock in order to
+					 * avoid a LOR with the sleepqueue
+					 * spinlock.
+					 */
+					wchan = td->td_wchan;
+					tticks = ticks - td->td_slptick;
+					thread_unlock(td);
+					slptype = sleepq_type(wchan);
+					if ((slptype == SLEEPQ_SX ||
+					    slptype == SLEEPQ_LK) &&
+					    tticks > slpticks) {
+
+						/*
+						 * Accordingly with provided
+						 * thresholds, this thread is
+						 * stuck for too long on a
+						 * sleepqueue.
+						 */
+						PROC_UNLOCK(p);
+						sx_sunlock(&allproc_lock);
+	panic("%s: possible deadlock detected for %p, blocked for %d ticks\n",
+						    __func__, td, tticks);
+					}
+				} else
+					thread_unlock(td);
+			}
+			PROC_UNLOCK(p);
+		}
+		sx_sunlock(&allproc_lock);
+
+		/* Sleep for sleepfreq seconds. */
+		pause("deadlkres", sleepfreq * hz);
+	}
+}
+
+static struct kthread_desc deadlkres_kd = {
+	"deadlkres",
+	deadlkres,
+	(struct thread **)NULL
+};
+
+SYSINIT(deadlkres, SI_SUB_CLOCKS, SI_ORDER_ANY, kthread_start, &deadlkres_kd);
+
+SYSCTL_NODE(_debug, OID_AUTO, deadlkres, CTLFLAG_RW, 0, "Deadlock resolver");
+SYSCTL_INT(_debug_deadlkres, OID_AUTO, slptime_threshold, CTLFLAG_RW,
+    &slptime_threshold, 0,
+    "Number of seconds within is valid to sleep on a sleepqueue");
+SYSCTL_INT(_debug_deadlkres, OID_AUTO, blktime_threshold, CTLFLAG_RW,
+    &blktime_threshold, 0,
+    "Number of seconds within is valid to block on a turnstile");
+SYSCTL_INT(_debug_deadlkres, OID_AUTO, sleepfreq, CTLFLAG_RW, &sleepfreq, 0,
+    "Number of seconds between any deadlock resolver thread run");
+#endif	/* DEADLKRES */
 
 void
 read_cpu_time(long *cp_time)

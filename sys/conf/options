@@ -72,6 +72,7 @@ COMPAT_FREEBSD6	opt_compat.h
 COMPAT_FREEBSD7	opt_compat.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
+DEADLKRES	opt_watchdog.h
 DIRECTIO
 FULL_PREEMPTION	opt_sched.h
 IPI_PREEMPTION	opt_sched.h
