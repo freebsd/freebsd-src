@@ -15,6 +15,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20100125:
+	Introduce the kernel thread "deadlock resolver" (which can be enabled
+	via the DEADLKRES option, see NOTES for more details) and the
+	sleepq_type() function for sleepqueues.
+
 20090929:
 	802.11s D3.03 support was committed. This is incompatible with
 	the previous code, which was based on D3.0.

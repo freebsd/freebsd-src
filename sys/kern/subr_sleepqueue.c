@@ -122,8 +122,8 @@ struct sleepqueue {
 	LIST_ENTRY(sleepqueue) sq_hash;		/* (c) Chain and free list. */
 	LIST_HEAD(, sleepqueue) sq_free;	/* (c) Free queues. */
 	void	*sq_wchan;			/* (c) Wait channel. */
-#ifdef INVARIANTS
 	int	sq_type;			/* (c) Queue type. */
+#ifdef INVARIANTS
 	struct lock_object *sq_lock;		/* (c) Associated lock. */
 #endif
 };
@@ -317,7 +317,6 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 		    ("thread's sleep queue has a non-empty free list"));
 		KASSERT(sq->sq_wchan == NULL, ("stale sq_wchan pointer"));
 		sq->sq_lock = lock;
-		sq->sq_type = flags & SLEEPQ_TYPE;
 #endif
 #ifdef SLEEPQUEUE_PROFILING
 		sc->sc_depth++;
@@ -330,6 +329,7 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 		sq = td->td_sleepqueue;
 		LIST_INSERT_HEAD(&sc->sc_queues, sq, sq_hash);
 		sq->sq_wchan = wchan;
+		sq->sq_type = flags & SLEEPQ_TYPE;
 	} else {
 		MPASS(wchan == sq->sq_wchan);
 		MPASS(lock == sq->sq_lock);
@@ -666,6 +666,28 @@ sleepq_timedwait_sig(void *wchan, int pri)
 	if (rvals)
 		return (rvals);
 	return (rvalt);
+}
+
+/*
+ * Returns the type of sleepqueue given a waitchannel.
+ */
+int
+sleepq_type(void *wchan)
+{
+	struct sleepqueue *sq;
+	int type;
+
+	MPASS(wchan != NULL);
+
+	sleepq_lock(wchan);
+	sq = sleepq_lookup(wchan);
+	if (sq == NULL) {
+		sleepq_release(wchan);
+		return (-1);
+	}
+	type = sq->sq_type;
+	sleepq_release(wchan);
+	return (type);
 }
 
 /*
@@ -1176,8 +1198,8 @@ DB_SHOW_COMMAND(sleepq, db_show_sleepqueue)
 	return;
 found:
 	db_printf("Wait channel: %p\n", sq->sq_wchan);
-#ifdef INVARIANTS
 	db_printf("Queue type: %d\n", sq->sq_type);
+#ifdef INVARIANTS
 	if (sq->sq_lock) {
 		lock = sq->sq_lock;
 		db_printf("Associated Interlock: %p - (%s) %s\n", lock,
