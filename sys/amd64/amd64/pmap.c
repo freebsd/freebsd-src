@@ -528,7 +528,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 * Initialize the kernel pmap (which is statically allocated).
 	 */
 	PMAP_LOCK_INIT(kernel_pmap);
-	kernel_pmap->pm_pml4 = (pdp_entry_t *) (KERNBASE + KPML4phys);
+	kernel_pmap->pm_pml4 = (pdp_entry_t *)PHYS_TO_DMAP(KPML4phys);
 	kernel_pmap->pm_root = NULL;
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
@@ -1351,7 +1351,7 @@ pmap_pinit0(pmap_t pmap)
 {
 
 	PMAP_LOCK_INIT(pmap);
-	pmap->pm_pml4 = (pml4_entry_t *)(KERNBASE + KPML4phys);
+	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(KPML4phys);
 	pmap->pm_root = NULL;
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvchunk);
@@ -4569,7 +4569,7 @@ if (oldpmap)	/* XXX FIXME */
 	oldpmap->pm_active &= ~PCPU_GET(cpumask);
 	pmap->pm_active |= PCPU_GET(cpumask);
 #endif
-	cr3 = vtophys(pmap->pm_pml4);
+	cr3 = DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4);
 	td->td_pcb->pcb_cr3 = cr3;
 	load_cr3(cr3);
 	critical_exit();
