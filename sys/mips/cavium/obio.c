@@ -36,8 +36,8 @@
  */
 
 /*
- * On-board device autoconfiguration support for Intel IQ80321
- * evaluation boards.
+ * On-board device autoconfiguration support for Cavium OCTEON 1 family of
+ * SoC devices.
  */
 
 #include <sys/cdefs.h>
@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/cavium/octeon_pcmap_regs.h>
 #include <mips/cavium/obiovar.h>
+
+extern struct bus_space octeon_uart_tag;
 
 int	obio_probe(device_t);
 int	obio_attach(device_t);
@@ -125,7 +127,7 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		return (NULL);
 	case SYS_RES_IOPORT:
 		rm = &sc->oba_rman;
-		bt = sc->oba_st;
+		bt = &octeon_uart_tag;
 		bh = device_get_unit(child) ?
 		    OCTEON_MIO_UART1 : OCTEON_MIO_UART0;
 		start = bh;
