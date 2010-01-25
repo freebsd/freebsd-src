@@ -119,6 +119,10 @@ _libvgl=	libvgl
 _libsmb=	libsmb
 .endif
 
+.if ${MACHINE_ARCH} == "sparc64"
+_libsmb=	libsmb
+.endif
+
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
 .endif

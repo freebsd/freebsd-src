@@ -390,4 +390,8 @@ _smbutil=	smbutil
 _smbutil=	smbutil
 .endif
 
+.if ${MACHINE_ARCH} == "sparc64"
+_smbutil=	smbutil
+.endif
+
 .include <bsd.subdir.mk>
