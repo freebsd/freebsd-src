@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.313.20.7.12.1 2009/11/18 23:58:04 marka Exp $ */
+/* $Id: query.c,v 1.313.20.7.12.4 2009/12/31 22:53:03 each Exp $ */
 
 /*! \file */
 
@@ -1160,7 +1160,8 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 			goto cleanup;
 	}
 	result = dns_db_find(db, name, version, type,
-			     client->query.dboptions | DNS_DBFIND_GLUEOK,
+			     client->query.dboptions |
+			     DNS_DBFIND_GLUEOK | DNS_DBFIND_ADDITIONALOK,
 			     client->now, &node, fname, rdataset,
 			     sigrdataset);
 	if (result == DNS_R_GLUE &&
@@ -1645,7 +1646,8 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 		goto try_glue;
 
 	result = dns_db_find(db, name, version, type,
-			     client->query.dboptions | DNS_DBFIND_GLUEOK,
+			     client->query.dboptions |
+			     DNS_DBFIND_GLUEOK | DNS_DBFIND_ADDITIONALOK,
 			     client->now, &node, fname, NULL, NULL);
 	if (result == ISC_R_SUCCESS)
 		goto found;
@@ -3718,8 +3720,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	dns_rdataset_t *noqname;
 	isc_boolean_t resuming;
 	int line = -1;
-	dns_rdataset_t tmprdataset;
-	unsigned int dboptions;
 
 	CTRACE("query_find");
 
@@ -3937,49 +3937,9 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	/*
 	 * Now look for an answer in the database.
 	 */
-	dboptions = client->query.dboptions;
-	if (sigrdataset == NULL && client->view->enablednssec) {
-		/*
-		 * If the client doesn't want DNSSEC we still want to
-		 * look for any data pending validation to save a remote
-		 * lookup if possible.
-		 */
-		dns_rdataset_init(&tmprdataset);
-		sigrdataset = &tmprdataset;
-		dboptions |= DNS_DBFIND_PENDINGOK;
-	}
- refind:
 	result = dns_db_find(db, client->query.qname, version, type,
-			     dboptions, client->now, &node, fname,
-			     rdataset, sigrdataset);
-	/*
-	 * If we have found pending data try to validate it.
-	 * If the data does not validate as secure and we can't
-	 * use the unvalidated data requery the database with
-	 * pending disabled to prevent infinite looping.
-	 */
-	if (result != ISC_R_SUCCESS || !DNS_TRUST_PENDING(rdataset->trust))
-		goto validation_done;
-	if (validate(client, db, fname, rdataset, sigrdataset))
-		goto validation_done;
-	if (rdataset->trust != dns_trust_pending_answer ||
-	    !PENDINGOK(client->query.dboptions)) {
-		dns_rdataset_disassociate(rdataset);
-		if (sigrdataset != NULL &&
-		    dns_rdataset_isassociated(sigrdataset))
-			dns_rdataset_disassociate(sigrdataset);
-		if (sigrdataset == &tmprdataset)
-			sigrdataset = NULL;
-		dns_db_detachnode(db, &node);
-		dboptions &= ~DNS_DBFIND_PENDINGOK;
-		goto refind;
-	}
- validation_done:
-	if (sigrdataset == &tmprdataset) {
-		if (dns_rdataset_isassociated(sigrdataset))
-			dns_rdataset_disassociate(sigrdataset);
-		sigrdataset = NULL;
-	}
+			     client->query.dboptions, client->now,
+			     &node, fname, rdataset, sigrdataset);
 
  resume:
 	CTRACE("query_find: resume");
