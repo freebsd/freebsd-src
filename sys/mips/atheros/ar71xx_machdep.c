@@ -57,8 +57,8 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/atheros/ar71xxreg.h>
 
-extern int *edata;
-extern int *end;
+extern char edata[], end[];
+
 uint32_t ar711_base_mac[ETHER_ADDR_LEN];
 /* 4KB static data aread to keep a copy of the bootload env until
    the dynamic kenv is setup */
@@ -142,15 +142,20 @@ void
 platform_start(__register_t a0 __unused, __register_t a1 __unused, 
     __register_t a2 __unused, __register_t a3 __unused)
 {
-	vm_offset_t kernend;
 	uint64_t platform_counter_freq;
 	uint32_t reg;
 	int argc, i, count = 0;
 	char **argv, **envp;
+	vm_offset_t kernend;
 
-	/* clear the BSS and SBSS segments */
-	kernend = round_page((vm_offset_t)&end);
+	/* 
+	 * clear the BSS and SBSS segments, this should be first call in
+	 * the function
+	 */
+	kernend = (vm_offset_t)&end;
 	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
+
+	mips_postboot_fixup();
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
@@ -186,7 +191,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 		realmem = btoc(32*1024*1024);
 
 	/* phys_avail regions are in bytes */
-	phys_avail[0] = MIPS_KSEG0_TO_PHYS((vm_offset_t)&end);
+	phys_avail[0] = MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
 	phys_avail[1] = ctob(realmem);
 
 	physmem = realmem;
