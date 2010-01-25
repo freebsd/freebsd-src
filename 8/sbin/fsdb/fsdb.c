@@ -396,7 +396,8 @@ const char *typename[] = {
     "unregistered #13",
     "whiteout",
 };
-    
+
+int diroff; 
 int slot;
 
 int
@@ -404,9 +405,10 @@ scannames(struct inodesc *idesc)
 {
 	struct direct *dirp = idesc->id_dirp;
 
-	printf("slot %d ino %d reclen %d: %s, `%.*s'\n",
-	       slot++, dirp->d_ino, dirp->d_reclen, typename[dirp->d_type],
-	       dirp->d_namlen, dirp->d_name);
+	printf("slot %d off %d ino %d reclen %d: %s, `%.*s'\n",
+	       slot++, diroff, dirp->d_ino, dirp->d_reclen,
+	       typename[dirp->d_type], dirp->d_namlen, dirp->d_name);
+	diroff += dirp->d_reclen;
 	return (KEEPON);
 }
 
@@ -416,6 +418,7 @@ CMDFUNCSTART(ls)
     checkactivedir();			/* let it go on anyway */
 
     slot = 0;
+    diroff = 0;
     idesc.id_number = curinum;
     idesc.id_func = scannames;
     idesc.id_type = DATA;

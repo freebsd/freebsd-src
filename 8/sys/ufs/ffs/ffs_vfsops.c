@@ -290,7 +290,8 @@ ffs_mount(struct mount *mp)
 			if (fs->fs_clean == 0) {
 				fs->fs_flags |= FS_UNCLEAN;
 				if ((mp->mnt_flag & MNT_FORCE) ||
-				    ((fs->fs_flags & FS_NEEDSFSCK) == 0 &&
+				    ((fs->fs_flags &
+				     (FS_SUJ | FS_NEEDSFSCK)) == 0 &&
 				     (fs->fs_flags & FS_DOSOFTDEP))) {
 					printf("WARNING: %s was not %s\n",
 					   fs->fs_fsmnt, "properly dismounted");
@@ -298,6 +299,9 @@ ffs_mount(struct mount *mp)
 					printf(
 "WARNING: R/W mount of %s denied.  Filesystem is not clean - run fsck\n",
 					    fs->fs_fsmnt);
+					if (fs->fs_flags & FS_SUJ)
+						printf(
+"WARNING: Forced mount will invalidated journal contents\n");
 					return (EPERM);
 				}
 			}
@@ -691,7 +695,7 @@ ffs_mountfs(devvp, mp, td)
 	if (fs->fs_clean == 0) {
 		fs->fs_flags |= FS_UNCLEAN;
 		if (ronly || (mp->mnt_flag & MNT_FORCE) ||
-		    ((fs->fs_flags & FS_NEEDSFSCK) == 0 &&
+		    ((fs->fs_flags & (FS_SUJ | FS_NEEDSFSCK)) == 0 &&
 		     (fs->fs_flags & FS_DOSOFTDEP))) {
 			printf(
 "WARNING: %s was not properly dismounted\n",
@@ -700,6 +704,9 @@ ffs_mountfs(devvp, mp, td)
 			printf(
 "WARNING: R/W mount of %s denied.  Filesystem is not clean - run fsck\n",
 			    fs->fs_fsmnt);
+			if (fs->fs_flags & FS_SUJ)
+				printf(
+"WARNING: Forced mount will invalidated journal contents\n");
 			error = EPERM;
 			goto out;
 		}

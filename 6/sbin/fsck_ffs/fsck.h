@@ -385,4 +385,4 @@ void		rwerror(const char *mesg, ufs2_daddr_t blk);
 void		sblock_init(void);
 void		setinodebuf(ino_t);
 int		setup(char *dev);
-void		suj_check(const char *filesys);
+int		suj_check(const char *filesys);

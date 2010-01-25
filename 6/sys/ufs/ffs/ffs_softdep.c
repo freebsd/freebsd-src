@@ -574,23 +574,24 @@ static	int handle_written_indirdep(struct indirdep *, struct buf *,
 	    struct buf**);
 static	int handle_written_inodeblock(struct inodedep *, struct buf *);
 static	int handle_written_bmsafemap(struct bmsafemap *, struct buf *);
-static	void handle_written_jaddref(struct jaddref *, struct jseg *);
-static	void handle_written_jremref(struct jremref *, struct jseg *);
+static	void handle_written_jaddref(struct jaddref *);
+static	void handle_written_jremref(struct jremref *);
 static	void handle_written_jseg(struct jseg *, struct buf *);
-static	void handle_written_jnewblk(struct jnewblk *, struct jseg *);
-static	void handle_written_jfreeblk(struct jfreeblk *, struct jseg *);
-static	void handle_written_jfreefrag(struct jfreefrag *, struct jseg *);
+static	void handle_written_jnewblk(struct jnewblk *);
+static	void handle_written_jfreeblk(struct jfreeblk *);
+static	void handle_written_jfreefrag(struct jfreefrag *);
 static	void complete_jseg(struct jseg *);
 static	void jseg_write(struct fs *, struct jblocks *, struct jseg *,
 	    uint8_t *);
-static	void jaddref_write(struct jaddref *, uint8_t *);
-static	void jremref_write(struct jremref *, uint8_t *);
-static	void jmvref_write(struct jmvref *, uint8_t *);
-static	void jtrunc_write(struct jtrunc *, uint8_t *);
-static	void jnewblk_write(struct jnewblk *, uint8_t *);
-static	void jfreeblk_write(struct jfreeblk *, uint8_t *);
-static	void jfreefrag_write(struct jfreefrag *, uint8_t *);
-static	inline void inoref_write(struct inoref *, struct jrefrec *);
+static	void jaddref_write(struct jaddref *, struct jseg *, uint8_t *);
+static	void jremref_write(struct jremref *, struct jseg *, uint8_t *);
+static	void jmvref_write(struct jmvref *, struct jseg *, uint8_t *);
+static	void jtrunc_write(struct jtrunc *, struct jseg *, uint8_t *);
+static	void jnewblk_write(struct jnewblk *, struct jseg *, uint8_t *);
+static	void jfreeblk_write(struct jfreeblk *, struct jseg *, uint8_t *);
+static	void jfreefrag_write(struct jfreefrag *, struct jseg *, uint8_t *);
+static	inline void inoref_write(struct inoref *, struct jseg *,
+	    struct jrefrec *);
 static	void handle_allocdirect_partdone(struct allocdirect *,
 	    struct workhead *);
 static	void cancel_newblk(struct newblk *, struct workhead *);
@@ -702,7 +703,7 @@ static	struct jaddref *newjaddref(struct inode *, ino_t, off_t, int16_t,
 	    uint16_t);
 static inline void newinoref(struct inoref *, ino_t, ino_t, off_t, nlink_t,
 	    uint16_t);
-static inline struct jsegdep *inoref_segattach(struct inoref *, struct jseg *);
+static inline struct jsegdep *inoref_jseg(struct inoref *);
 static	struct jmvref *newjmvref(struct inode *, ino_t, off_t, off_t);
 static	struct jfreeblk *newjfreeblk(struct freeblks *, ufs_lbn_t,
 	    ufs2_daddr_t, int);
@@ -950,6 +951,10 @@ static int stat_indir_blk_ptrs;	/* bufs redirtied as indir ptrs not written */
 static int stat_inode_bitmap;	/* bufs redirtied as inode bitmap not written */
 static int stat_direct_blk_ptrs;/* bufs redirtied as direct ptrs not written */
 static int stat_dir_entry;	/* bufs redirtied as dir entry cannot write */
+static int stat_jaddref;	/* bufs redirtied as ino bitmap can not write */
+static int stat_jnewblk;	/* bufs redirtied as blk bitmap can not write */
+static int stat_journal_min;	/* Times hit journal min threshold */
+static int stat_journal_low;	/* Times hit journal low threshold */
 
 SYSCTL_INT(_debug_softdep, OID_AUTO, max_softdeps, CTLFLAG_RW,
     &max_softdeps, 0, "");
@@ -977,6 +982,14 @@ SYSCTL_INT(_debug_softdep, OID_AUTO, direct_blk_ptrs, CTLFLAG_RW,
     &stat_direct_blk_ptrs, 0, "");
 SYSCTL_INT(_debug_softdep, OID_AUTO, dir_entry, CTLFLAG_RW,
     &stat_dir_entry, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, jaddref_rollback, CTLFLAG_RW,
+    &stat_jaddref, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, jnewblk_rollback, CTLFLAG_RW,
+    &stat_jnewblk, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, journal_low, CTLFLAG_RW,
+    &stat_journal_low, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, journal_min, CTLFLAG_RW,
+    &stat_journal_min, 0, "");
 
 SYSCTL_DECL(_vfs_ffs);
 
@@ -2149,6 +2162,7 @@ journal_suspend(ump)
 	jblocks = ump->softdep_jblocks;
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) == 0) {
+		stat_journal_min++;
 		mp->mnt_kern_flag |= MNTK_SUSPEND;
 		mp->mnt_susp_owner = FIRST_THREAD_IN_PROC(softdepproc);
 	}
@@ -2185,6 +2199,7 @@ softdep_prealloc(vp, waitok)
 		FREE_LOCK(&lk);
 		return (0);
 	}
+	stat_journal_low++;
 	FREE_LOCK(&lk);
 	if (waitok == MNT_NOWAIT)
 		return (ENOSPC);
@@ -2218,6 +2233,7 @@ softdep_prelink(dvp, vp)
 	mtx_assert(&lk, MA_OWNED);
 	if (journal_space(ump, jblocks->jb_low))
 		return;
+	stat_journal_low++;
 	FREE_LOCK(&lk);
 	if (vp)
 		ffs_syncvnode(vp, MNT_NOWAIT);
@@ -2250,15 +2266,19 @@ jseg_write(fs, jblocks, jseg, data)
 	rec->jsr_seq = jseg->js_seq;
 	rec->jsr_oldest = jblocks->jb_oldestseq;
 	rec->jsr_cnt = jseg->js_cnt;
+	rec->jsr_blocks = jseg->js_size / DEV_BSIZE;
 	rec->jsr_crc = 0;
 	rec->jsr_time = fs->fs_mtime;
 }
 
 static inline void
-inoref_write(inoref, rec)
+inoref_write(inoref, jseg, rec)
 	struct inoref *inoref;
+	struct jseg *jseg;
 	struct jrefrec *rec;
 {
+
+	inoref->if_jsegdep->jd_seg = jseg;
 	rec->jr_ino = inoref->if_ino;
 	rec->jr_parent = inoref->if_parent;
 	rec->jr_nlink = inoref->if_nlink;
@@ -2267,32 +2287,35 @@ inoref_write(inoref, rec)
 }
 
 static void
-jaddref_write(jaddref, data)
+jaddref_write(jaddref, jseg, data)
 	struct jaddref *jaddref;
+	struct jseg *jseg;
 	uint8_t *data;
 {
 	struct jrefrec *rec;
 
 	rec = (struct jrefrec *)data;
 	rec->jr_op = JOP_ADDREF;
-	inoref_write(&jaddref->ja_ref, rec);
+	inoref_write(&jaddref->ja_ref, jseg, rec);
 }
 
 static void
-jremref_write(jremref, data)
+jremref_write(jremref, jseg, data)
 	struct jremref *jremref;
+	struct jseg *jseg;
 	uint8_t *data;
 {
 	struct jrefrec *rec;
 
 	rec = (struct jrefrec *)data;
 	rec->jr_op = JOP_REMREF;
-	inoref_write(&jremref->jr_ref, rec);
+	inoref_write(&jremref->jr_ref, jseg, rec);
 }
 
 static	void
-jmvref_write(jmvref, data)
+jmvref_write(jmvref, jseg, data)
 	struct jmvref *jmvref;
+	struct jseg *jseg;
 	uint8_t *data;
 {
 	struct jmvrec *rec;
@@ -2306,12 +2329,14 @@ jmvref_write(jmvref, data)
 }
 
 static void
-jnewblk_write(jnewblk, data)
+jnewblk_write(jnewblk, jseg, data)
 	struct jnewblk *jnewblk;
+	struct jseg *jseg;
 	uint8_t *data;
 {
 	struct jblkrec *rec;
 
+	jnewblk->jn_jsegdep->jd_seg = jseg;
 	rec = (struct jblkrec *)data;
 	rec->jb_op = JOP_NEWBLK;
 	rec->jb_ino = jnewblk->jn_ino;
@@ -2322,12 +2347,14 @@ jnewblk_write(jnewblk, data)
 }
 
 static void
-jfreeblk_write(jfreeblk, data)
+jfreeblk_write(jfreeblk, jseg, data)
 	struct jfreeblk *jfreeblk;
+	struct jseg *jseg;
 	uint8_t *data;
 {
 	struct jblkrec *rec;
 
+	jfreeblk->jf_jsegdep->jd_seg = jseg;
 	rec = (struct jblkrec *)data;
 	rec->jb_op = JOP_FREEBLK;
 	rec->jb_ino = jfreeblk->jf_ino;
@@ -2338,12 +2365,14 @@ jfreeblk_write(jfreeblk, data)
 }
 
 static void
-jfreefrag_write(jfreefrag, data)
+jfreefrag_write(jfreefrag, jseg, data)
 	struct jfreefrag *jfreefrag;
+	struct jseg *jseg;
 	uint8_t *data;
 {
 	struct jblkrec *rec;
 
+	jfreefrag->fr_jsegdep->jd_seg = jseg;
 	rec = (struct jblkrec *)data;
 	rec->jb_op = JOP_FREEBLK;
 	rec->jb_ino = jfreefrag->fr_ino;
@@ -2354,8 +2383,9 @@ jfreefrag_write(jfreefrag, data)
 }
 
 static void
-jtrunc_write(jtrunc, data)
+jtrunc_write(jtrunc, jseg, data)
 	struct jtrunc *jtrunc;
+	struct jseg *jseg;
 	uint8_t *data;
 {
 	struct jtrncrec *rec;
@@ -2383,10 +2413,11 @@ softdep_process_journal(mp, flags)
 	uint8_t *data;
 	struct fs *fs;
 	int segwritten;
-	int jrecmin;	/* Minimum write size. */
-	int jrecmax;	/* Maximum write size. */
+	int jrecmin;	/* Minimum records per block. */
+	int jrecmax;	/* Maximum records per block. */
 	int size;
 	int cnt;
+	int off;
 
 	if ((mp->mnt_flag & MNT_SUJ) == 0)
 		return;
@@ -2398,8 +2429,8 @@ softdep_process_journal(mp, flags)
 	 * bound is picked to prevent buffer cache fragmentation and limit
 	 * processing time per I/O.
 	 */
-	jrecmax = fs->fs_bsize / JREC_SIZE;
-	jrecmin = DEV_BSIZE / JREC_SIZE;
+	jrecmin = (DEV_BSIZE / JREC_SIZE) - 1; /* -1 for seg header */
+	jrecmax = (fs->fs_bsize / DEV_BSIZE) * jrecmin;
 	segwritten = 0;
 	while ((cnt = ump->softdep_on_journal) != 0) {
 		/*
@@ -2407,15 +2438,15 @@ softdep_process_journal(mp, flags)
 		 * entries and add them to the segment.  Notice cnt is
 		 * off by one to account for the space required by the
 		 * jsegrec.  If we don't have a full block to log skip it
-		 * unless we haven't written anything in 10 seconds.
+		 * unless we haven't written anything in 5 seconds.
 		 */
 		cnt++;
 		if (cnt < jrecmax) {
 			if (segwritten)
-				return;
-			if (flags != MNT_WAIT &&
-			   (ticks - jblocks->jb_age) > hz*10)
-			break;
+				break;
+			if (flags == MNT_NOWAIT &&
+			   (ticks - jblocks->jb_age) < hz*5)
+				break;
 		}
 		/*
 		 * Verify some free journal space.  softdep_prealloc() should
@@ -2435,9 +2466,7 @@ softdep_process_journal(mp, flags)
 		workitem_alloc(&jseg->js_list, D_JSEG, mp);
 		LIST_INIT(&jseg->js_entries);
 		jseg->js_state = ATTACHED;
-		jseg->js_refs = 1;	/* Self reference. */
 		jseg->js_jblocks = jblocks;
-		size = roundup2(cnt * JREC_SIZE, DEV_BSIZE);
 		bp = geteblk(fs->fs_bsize, 0);
 		ACQUIRE_LOCK(&lk);
 		/*
@@ -2459,31 +2488,31 @@ softdep_process_journal(mp, flags)
 		 * Calculate the disk block size required for the available
 		 * records rounded to the min size.
 		 */
-		cnt = ump->softdep_on_journal + 1;
+		cnt = ump->softdep_on_journal;
 		if (cnt < jrecmax)
-			cnt = roundup2(cnt, jrecmin);
+			size = howmany(cnt, jrecmin) * DEV_BSIZE;
 		else
-			cnt = jrecmax;
-		size = cnt * JREC_SIZE;
+			size = fs->fs_bsize;
 		/*
 		 * Allocate a disk block for this journal data and account
 		 * for truncation of the requested size if enough contiguous
 		 * space was not available.
 		 */
-		bp->b_blkno = bp->b_lblkno = jblocks_alloc(jblocks, size,
-		    &size);
+		bp->b_blkno = jblocks_alloc(jblocks, size, &size);
+		bp->b_lblkno = bp->b_blkno;
 		bp->b_offset = bp->b_blkno * DEV_BSIZE;
 		bp->b_bcount = size;
 		bp->b_bufobj = &ump->um_devvp->v_bufobj;
 		bp->b_flags &= ~B_INVAL;
 		/*
-		 * Initialize our jseg with as many as cnt - 1 records.
-		 * Assign the next sequence number to it and link it
-		 * in-order.
+		 * Initialize our jseg with cnt records.  Assign the next
+		 * sequence number to it and link it in-order.
 		 */
-		cnt = MIN(ump->softdep_on_journal, (size / JREC_SIZE) - 1);
+		cnt = MIN(ump->softdep_on_journal,
+		    (size / DEV_BSIZE) * jrecmin);
 		jseg->js_buf = bp;
 		jseg->js_cnt = cnt;
+		jseg->js_refs = cnt + 1;	/* Self ref. */
 		jseg->js_size = size;
 		jseg->js_seq = jblocks->jb_nextseq++;
 		if (TAILQ_EMPTY(&jblocks->jb_segs))
@@ -2495,43 +2524,49 @@ softdep_process_journal(mp, flags)
 		 * Start filling in records from the pending list.
 		 */
 		data = bp->b_data;
-		jseg_write(fs, jblocks, jseg, data);
-		data += JREC_SIZE;
+		off = 0;
 		while ((wk = LIST_FIRST(&ump->softdep_journal_pending))
 		    != NULL) {
+			/* Place a segment header on every device block. */
+			if ((off % DEV_BSIZE) == 0) {
+				jseg_write(fs, jblocks, jseg, data);
+				off += JREC_SIZE;
+				data = bp->b_data + off;
+			}
 			remove_from_journal(wk);
 			wk->wk_state |= IOSTARTED;
 			WORKLIST_INSERT(&jseg->js_entries, wk);
 			switch (wk->wk_type) {
 			case D_JADDREF:
-				jaddref_write(WK_JADDREF(wk), data);
+				jaddref_write(WK_JADDREF(wk), jseg, data);
 				break;
 			case D_JREMREF:
-				jremref_write(WK_JREMREF(wk), data);
+				jremref_write(WK_JREMREF(wk), jseg, data);
 				break;
 			case D_JMVREF:
-				jmvref_write(WK_JMVREF(wk), data);
+				jmvref_write(WK_JMVREF(wk), jseg, data);
 				break;
 			case D_JNEWBLK:
-				jnewblk_write(WK_JNEWBLK(wk), data);
+				jnewblk_write(WK_JNEWBLK(wk), jseg, data);
 				break;
 			case D_JFREEBLK:
-				jfreeblk_write(WK_JFREEBLK(wk), data);
+				jfreeblk_write(WK_JFREEBLK(wk), jseg, data);
 				break;
 			case D_JFREEFRAG:
-				jfreefrag_write(WK_JFREEFRAG(wk), data);
+				jfreefrag_write(WK_JFREEFRAG(wk), jseg, data);
 				break;
 			case D_JTRUNC:
-				jtrunc_write(WK_JTRUNC(wk), data);
+				jtrunc_write(WK_JTRUNC(wk), jseg, data);
 				break;
 			default:
 				panic("process_journal: Unknown type %s",
 				    TYPENAME(wk->wk_type));
 				/* NOTREACHED */
 			}
-			data += JREC_SIZE;
 			if (--cnt == 0)
 				break;
+			off += JREC_SIZE;
+			data = bp->b_data + off;
 		}
 		/*
 		 * Write this one buffer and continue.
@@ -2598,29 +2633,29 @@ complete_jseg(jseg)
 		KASSERT(i < jseg->js_cnt,
 		    ("handle_written_jseg: overflow %d >= %d",
 		    i, jseg->js_cnt));
-		jseg->js_refs++; /* Ref goes to the jsegdep below. */
 		switch (wk->wk_type) {
 		case D_JADDREF:
-			handle_written_jaddref(WK_JADDREF(wk), jseg);
+			handle_written_jaddref(WK_JADDREF(wk));
 			break;
 		case D_JREMREF:
-			handle_written_jremref(WK_JREMREF(wk), jseg);
+			handle_written_jremref(WK_JREMREF(wk));
 			break;
 		case D_JMVREF:
-			jseg->js_refs--;	/* No jsegdep here. */
+			/* No jsegdep here. */
+			free_jseg(jseg);
 			jmvref = WK_JMVREF(wk);
 			LIST_REMOVE(jmvref, jm_deps);
 			free_pagedep(jmvref->jm_pagedep);
 			WORKITEM_FREE(jmvref, D_JMVREF);
 			break;
 		case D_JNEWBLK:
-			handle_written_jnewblk(WK_JNEWBLK(wk), jseg);
+			handle_written_jnewblk(WK_JNEWBLK(wk));
 			break;
 		case D_JFREEBLK:
-			handle_written_jfreeblk(WK_JFREEBLK(wk), jseg);
+			handle_written_jfreeblk(WK_JFREEBLK(wk));
 			break;
 		case D_JFREEFRAG:
-			handle_written_jfreefrag(WK_JFREEFRAG(wk), jseg);
+			handle_written_jfreefrag(WK_JFREEFRAG(wk));
 			break;
 		case D_JTRUNC:
 			WK_JTRUNC(wk)->jt_jsegdep->jd_seg = jseg;
@@ -2675,15 +2710,13 @@ handle_written_jseg(jseg, bp)
 }
 
 static inline struct jsegdep *
-inoref_segattach(inoref, jseg)
+inoref_jseg(inoref)
 	struct inoref *inoref;
-	struct jseg *jseg;
 {
 	struct jsegdep *jsegdep;
 
 	jsegdep = inoref->if_jsegdep;
 	inoref->if_jsegdep = NULL;
-	jsegdep->jd_seg = jseg;
 
 	return (jsegdep);
 }
@@ -2694,18 +2727,15 @@ inoref_segattach(inoref, jseg)
  * for the jremref to complete will be awoken by free_jremref.
  */
 static void
-handle_written_jremref(jremref, jseg)
+handle_written_jremref(jremref)
 	struct jremref *jremref;
-	struct jseg *jseg;
 {
 	struct inodedep *inodedep;
 	struct jsegdep *jsegdep;
 	struct dirrem *dirrem;
 
-	/*
-	 * Attach the jsegdep to the jseg.
-	 */
-	jsegdep = inoref_segattach(&jremref->jr_ref, jseg);
+	/* Grab the jsegdep. */
+	jsegdep = inoref_jseg(&jremref->jr_ref);
 	/*
 	 * Remove us from the inoref list.
 	 */
@@ -2735,19 +2765,16 @@ handle_written_jremref(jremref, jseg)
  * bmsafemap dependency and attempt to remove the jaddref from the bmsafemap.
  */
 static void
-handle_written_jaddref(jaddref, jseg)
+handle_written_jaddref(jaddref)
 	struct jaddref *jaddref;
-	struct jseg *jseg;
 {
 	struct jsegdep *jsegdep;
 	struct inodedep *inodedep;
 	struct diradd *diradd;
 	struct mkdir *mkdir;
 
-	/*
-	 * Attach the jsegdep to the jseg.
-	 */
-	jsegdep = inoref_segattach(&jaddref->ja_ref, jseg);
+	/* Grab the jsegdep. */
+	jsegdep = inoref_jseg(&jaddref->ja_ref);
 	mkdir = NULL;
 	diradd = NULL;
 	if (inodedep_lookup(jaddref->ja_list.wk_mp, jaddref->ja_ino,
@@ -2797,20 +2824,16 @@ handle_written_jaddref(jaddref, jseg)
  * is placed in the bmsafemap to await notification of a written bitmap.
  */
 static void
-handle_written_jnewblk(jnewblk, jseg)
+handle_written_jnewblk(jnewblk)
 	struct jnewblk *jnewblk;
-	struct jseg *jseg;
 {
 	struct bmsafemap *bmsafemap;
 	struct jsegdep *jsegdep;
 	struct newblk *newblk;
 
-	/*
-	 * Attach the jsegdep to the jseg.
-	 */
+	/* Grab the jsegdep. */
 	jsegdep = jnewblk->jn_jsegdep;
 	jnewblk->jn_jsegdep = NULL;
-	jsegdep->jd_seg = jseg;
 	/*
 	 * Add the written block to the bmsafemap so it can be notified when
 	 * the bitmap is on disk.
@@ -2873,19 +2896,15 @@ free_jfreefrag(jfreefrag)
  * freefrag is added to the worklist if this completes its dependencies.
  */
 static void
-handle_written_jfreefrag(jfreefrag, jseg)
+handle_written_jfreefrag(jfreefrag)
 	struct jfreefrag *jfreefrag;
-	struct jseg *jseg;
 {
 	struct jsegdep *jsegdep;
 	struct freefrag *freefrag;
 
-	/*
-	 * Attach the jsegdep to the jseg.
-	 */
+	/* Grab the jsegdep. */
 	jsegdep = jfreefrag->fr_jsegdep;
 	jfreefrag->fr_jsegdep = NULL;
-	jsegdep->jd_seg = jseg;
 	freefrag = jfreefrag->fr_freefrag;
 	if (freefrag == NULL)
 		panic("handle_written_jfreefrag: No freefrag.");
@@ -2905,17 +2924,15 @@ handle_written_jfreefrag(jfreefrag, jseg)
  * have been reclaimed.
  */
 static void
-handle_written_jfreeblk(jfreeblk, jseg)
+handle_written_jfreeblk(jfreeblk)
 	struct jfreeblk *jfreeblk;
-	struct jseg *jseg;
 {
 	struct freeblks *freeblks;
 	struct jsegdep *jsegdep;
 
-	/* Attach the jsegdep to the jseg. */
+	/* Grab the jsegdep. */
 	jsegdep = jfreeblk->jf_jsegdep;
 	jfreeblk->jf_jsegdep = NULL;
-	jsegdep->jd_seg = jseg;
 	freeblks = jfreeblk->jf_freeblks;
 	LIST_REMOVE(jfreeblk, jf_deps);
 	WORKLIST_INSERT(&freeblks->fb_jwork, &jsegdep->jd_list);
@@ -3162,10 +3179,6 @@ move_newblock_dep(jaddref, inodedep)
 	}
 	if (jaddrefn == NULL)
 		return;
-	if (inodedep == NULL)
-		if (inodedep_lookup(jaddref->ja_list.wk_mp, jaddref->ja_ino,
-		    0, &inodedep) == 0)
-			panic("move_newblock_dep: Lost inodedep");
 	jaddrefn->ja_state &= ~(ATTACHED | UNDONE);
 	jaddrefn->ja_state |= jaddref->ja_state &
 	    (ATTACHED | UNDONE | NEWBLOCK);
@@ -3194,6 +3207,7 @@ cancel_jaddref(jaddref, inodedep, wkhd)
 	struct workhead *wkhd;
 {
 	struct inoref *inoref;
+	struct jsegdep *jsegdep;
 	int needsj;
 
 	KASSERT((jaddref->ja_state & COMPLETE) == 0,
@@ -3202,19 +3216,22 @@ cancel_jaddref(jaddref, inodedep, wkhd)
 		needsj = 1;
 	else
 		needsj = 0;
+	if (inodedep == NULL)
+		if (inodedep_lookup(jaddref->ja_list.wk_mp, jaddref->ja_ino,
+		    0, &inodedep) == 0)
+			panic("cancel_jaddref: Lost inodedep");
 	/*
-	 * If we're not journaling this remove we must adjust the nlink of
-	 * any reference operation that follows us so that it is consistent
-	 * with the in-memory reference.
+	 * We must adjust the nlink of any reference operation that follows
+	 * us so that it is consistent with the in-memory reference.  This
+	 * ensures that inode nlink rollbacks always have the correct link.
+	 * Entries which have already been copied into the journal buffer
+	 * will be unaltered on disk but the subsequent remove record will
+	 * correct them.
 	 */
-	if (needsj == 0)
-		for (inoref = TAILQ_NEXT(&jaddref->ja_ref, if_deps); inoref;
-		    inoref = TAILQ_NEXT(inoref, if_deps))
-			inoref->if_nlink--;
-	if (jaddref->ja_ref.if_jsegdep) {
-		free_jsegdep(jaddref->ja_ref.if_jsegdep);
-		jaddref->ja_ref.if_jsegdep = NULL;
-	}
+	for (inoref = TAILQ_NEXT(&jaddref->ja_ref, if_deps); inoref;
+	    inoref = TAILQ_NEXT(inoref, if_deps))
+		inoref->if_nlink--;
+	jsegdep = inoref_jseg(&jaddref->ja_ref);
 	if (jaddref->ja_state & NEWBLOCK)
 		move_newblock_dep(jaddref, inodedep);
 	if (jaddref->ja_state & IOWAITING) {
@@ -3225,8 +3242,24 @@ cancel_jaddref(jaddref, inodedep, wkhd)
 	if (jaddref->ja_state & IOSTARTED) {
 		jaddref->ja_state &= ~IOSTARTED;
 		WORKLIST_REMOVE(&jaddref->ja_list);
-	} else
+		WORKLIST_INSERT(wkhd, &jsegdep->jd_list);
+	} else {
+		free_jsegdep(jsegdep);
 		remove_from_journal(&jaddref->ja_list);
+	}
+	/*
+	 * Leave NEWBLOCK jaddrefs on the inodedep so handle_workitem_remove
+	 * can arrange for them to be freed with the bitmap.  Otherwise we
+	 * no longer need this addref attached to the inoreflst and it
+	 * will incorrectly adjust nlink if we leave it.
+	 */
+	if ((jaddref->ja_state & NEWBLOCK) == 0) {
+		TAILQ_REMOVE(&inodedep->id_inoreflst, &jaddref->ja_ref,
+		    if_deps);
+		jaddref->ja_state |= COMPLETE;
+		free_jaddref(jaddref);
+		return (needsj);
+	}
 	jaddref->ja_state |= GOINGAWAY;
 	/*
 	 * Leave the head of the list for jsegdeps for fast merging.
@@ -3308,15 +3341,11 @@ cancel_jnewblk(jnewblk, wkhd)
 	struct jnewblk *jnewblk;
 	struct workhead *wkhd;
 {
+	struct jsegdep *jsegdep;
 
-	if (jnewblk->jn_jsegdep) {
-		free_jsegdep(jnewblk->jn_jsegdep);
-		jnewblk->jn_jsegdep = NULL;
-	}
-	if (jnewblk->jn_state & IOWAITING) {
-		jnewblk->jn_state &= ~IOWAITING;
-		wakeup(&jnewblk->jn_list);
-	}
+	jsegdep = jnewblk->jn_jsegdep;
+	jnewblk->jn_jsegdep  = NULL;
+	free_jsegdep(jsegdep);
 	jnewblk->jn_newblk = NULL;
 	jnewblk->jn_state |= GOINGAWAY;
 	if (jnewblk->jn_state & IOSTARTED) {
@@ -3332,6 +3361,10 @@ cancel_jnewblk(jnewblk, wkhd)
 		LIST_INSERT_AFTER(LIST_FIRST(wkhd), &jnewblk->jn_list, wk_list);
 	} else
 		WORKLIST_INSERT(wkhd, &jnewblk->jn_list);
+	if (jnewblk->jn_state & IOWAITING) {
+		jnewblk->jn_state &= ~IOWAITING;
+		wakeup(&jnewblk->jn_list);
+	}
 }
 
 static void
@@ -6681,6 +6714,7 @@ cancel_mkdir_dotdot(ip, dirrem, jremref)
 		panic("cancel_mkdir_dotdot: Unable to find mkdir\n");
 	if ((jaddref = mkdir->md_jaddref) != NULL) {
 		mkdir->md_jaddref = NULL;
+		jaddref->ja_state &= ~MKDIR_PARENT;
 		if (inodedep_lookup(UFSTOVFS(ip->i_ump), jaddref->ja_ino, 0,
 		    &inodedep) == 0)
 			panic("cancel_mkdir_dotdot: Lost parent inodedep");
@@ -8511,6 +8545,7 @@ initiate_write_bmsafemap(bmsafemap, bp)
 				clrbit(inosused, ino);
 				jaddref->ja_state &= ~ATTACHED;
 				jaddref->ja_state |= UNDONE;
+				stat_jaddref++;
 			} else if ((bp->b_xflags & BX_BKGRDMARKER) == 0)
 				panic("initiate_write_bmsafemap: inode %d "
 				    "marked free", jaddref->ja_ino);
@@ -8539,6 +8574,7 @@ initiate_write_bmsafemap(bmsafemap, bp)
 			 * it.
 			 */
 			if (cleared) {
+				stat_jnewblk++;
 				jnewblk->jn_state &= ~ATTACHED;
 				jnewblk->jn_state |= UNDONE;
 			} else if ((bp->b_xflags & BX_BKGRDMARKER) == 0)
@@ -10529,6 +10565,7 @@ softdep_request_cleanup(fs, vp)
 		if (error != 0)
 			return (0);
 	}
+	process_removes(vp);
 	while (fs->fs_pendingblocks > 0 && fs->fs_cstotal.cs_nbfree <= needed) {
 		if (time_second > starttime)
 			return (0);

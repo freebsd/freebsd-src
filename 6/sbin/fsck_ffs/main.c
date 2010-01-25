@@ -229,8 +229,9 @@ checkfilesys(char *filesys)
 		if ((fsreadfd = open(filesys, O_RDONLY)) < 0 || readsb(0) == 0)
 			exit(3);	/* Cannot read superblock */
 		close(fsreadfd);
-		if (sblock.fs_flags & FS_NEEDSFSCK)
-			exit(4);	/* Earlier background failed */
+		/* Earlier background failed or journaled */
+		if (sblock.fs_flags & (FS_NEEDSFSCK | FS_SUJ))
+			exit(4);
 		if ((sblock.fs_flags & FS_DOSOFTDEP) == 0)
 			exit(5);	/* Not running soft updates */
 		size = MIBSIZE;
@@ -360,6 +361,23 @@ checkfilesys(char *filesys)
 		    sblock.fs_cstotal.cs_nffree * 100.0 / sblock.fs_dsize);
 		return (0);
 	}
+	/*
+	 * Determine if we can and should do journal recovery.
+	 */
+	if ((sblock.fs_flags & (FS_SUJ | FS_NEEDSFSCK)) == FS_SUJ) {
+		if (preen || reply("USE JOURNAL?")) {
+			if (suj_check(filesys) == 0)
+				goto out;
+			/* suj_check failed, fall through. */
+		}
+		printf("** Skipping journal, falling through to full fsck\n");
+		/*
+		 * Write the superblock so we don't try to recover the
+		 * journal on another pass.
+		 */
+		sblock.fs_mtime = time(NULL);
+		sbdirty();
+	}
 	
 	/*
 	 * Cleared if any questions answered no. Used to decide if
@@ -454,7 +472,6 @@ checkfilesys(char *filesys)
 	inocleanup();
 	if (fsmodified) {
 		sblock.fs_time = time(NULL);
-		sblock.fs_mtime = time(NULL);
 		sbdirty();
 	}
 	if (cvtlevel && sblk.b_dirty) {
@@ -485,6 +502,7 @@ checkfilesys(char *filesys)
 		printf("\n***** FILE SYSTEM WAS MODIFIED *****\n");
 	if (rerun)
 		printf("\n***** PLEASE RERUN FSCK *****\n");
+out:
 	if (mntp != NULL) {
 		/*
 		 * We modified a mounted file system.  Do a mount update on

@@ -407,13 +407,13 @@ CTASSERT(sizeof(struct fs) == 1376);
 #define FS_UNCLEAN	0x0001	/* filesystem not clean at mount */
 #define FS_DOSOFTDEP	0x0002	/* filesystem using soft dependencies */
 #define FS_NEEDSFSCK	0x0004	/* filesystem needs sync fsck before mount */
-#define FS_INDEXDIRS	0x0008	/* kernel supports indexed directories */
+#define	FS_SUJ       	0x0008	/* Filesystem using softupdate journal */
 #define FS_ACLS		0x0010	/* file system has POSIX.1e ACLs enabled */
 #define FS_MULTILABEL	0x0020	/* file system is MAC multi-label */
 #define FS_GJOURNAL	0x0040	/* gjournaled file system */
 #define FS_FLAGS_UPDATED 0x0080	/* flags have been moved to new location */
 #define FS_NFS4ACLS	0x0100	/* file system has NFSv4 ACLs enabled */
-#define	FS_SUJ       0x200	/* Filesystem using softupdate journal */
+#define FS_INDEXDIRS	0x0200	/* kernel supports indexed directories */
 
 /*
  * Macros to access bits in the fs_active array.
@@ -652,17 +652,19 @@ lbn_level(ufs_lbn_t lbn)
 #define	JREC_SIZE	32	/* Record and segment header size. */
 
 #define	SUJ_MIN		(1 * 1024 * 1024)	/* Minimum journal size */
-#define	SUJ_MAX		(64 * SUJ_MIN)		/* Maximum journal size */
+#define	SUJ_MAX		(32 * SUJ_MIN)		/* Maximum journal size */
 
 /*
  * Size of the segment record header.  There is at most one for each disk
  * block and at least one for each filesystem block in the journal.  The
- * segment header is followed by an array of records.
+ * segment header is followed by an array of records.  fsck depends on
+ * the first element in each record being 'op' and the second being 'ino'.
  */
 struct jsegrec {
 	uint64_t	jsr_seq;	/* Our sequence number */
 	uint64_t	jsr_oldest;	/* Oldest valid sequence number */
-	uint32_t	jsr_cnt;	/* Count of valid records */
+	uint16_t	jsr_cnt;	/* Count of valid records */
+	uint16_t	jsr_blocks;	/* Count of DEV_BSIZE blocks. */
 	uint32_t	jsr_crc;	/* 32bit crc of the valid space */
 	ufs_time_t	jsr_time;	/* timestamp for mount instance */
 };

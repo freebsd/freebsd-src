@@ -185,6 +185,7 @@ ffs_truncate(vp, length, flags, cred, td)
 	 * (e.g., the file is being unlinked), then pick it off with
 	 * soft updates below.
 	 */
+	allerror = 0;
 	needextclean = 0;
 	softdepslowdown = DOINGSOFTDEP(vp) && softdep_slowdown(vp);
 	extblocks = 0;
@@ -410,7 +411,13 @@ ffs_truncate(vp, length, flags, cred, td)
 			DIP_SET(ip, i_db[i], 0);
 	}
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
-	allerror = ffs_update(vp, 1);
+	/*
+	 * When doing softupdate journaling we must preserve the size along
+	 * with the old pointers until they are freed or we might not
+	 * know how many fragments remain.
+	 */
+	if (!DOINGSUJ(vp))
+		allerror = ffs_update(vp, 1);
 	
 	/*
 	 * Having written the new inode to disk, save its new configuration
