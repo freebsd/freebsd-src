@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.384.14.14.8.1 2009/11/18 23:58:04 marka Exp $ */
+/* $Id: resolver.c,v 1.384.14.14.8.2 2010/01/07 17:17:19 each Exp $ */
 
 /*! \file */
 
@@ -4289,11 +4289,19 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_adbaddrinfo_t *addrinfo,
 			rdataset->ttl = res->view->maxcachettl;
 
 		/*
-		 * If this rrset is in a secure domain, do DNSSEC validation
-		 * for it, unless it is glue.
+		 * If this RRset is in a secure domain, is in bailiwick,
+		 * and is not glue, attempt DNSSEC validation.	(We do not
+		 * attempt to validate glue or out-of-bailiwick data--even
+		 * though there might be some performance benefit to doing
+		 * so--because it makes it simpler and safer to ensure that
+		 * records from a secure domain are only cached if validated
+		 * within the context of a query to the domain that owns
+		 * them.)
 		 */
-		if (secure_domain && rdataset->trust != dns_trust_glue) {
+		if (secure_domain && rdataset->trust != dns_trust_glue &&
+		    !EXTERNAL(rdataset)) {
 			dns_trust_t trust;
+
 			/*
 			 * RRSIGs are validated as part of validating the
 			 * type they cover.
@@ -4330,22 +4338,6 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_adbaddrinfo_t *addrinfo,
 			}
 
 			/*
-			 * Reject out of bailiwick additional records
-			 * without RRSIGs as they can't possibly validate
-			 * as "secure" and as we will never never want to
-			 * store these as "answers" after validation.
-			 */
-			if (rdataset->trust == dns_trust_additional &&
-			    sigrdataset == NULL && EXTERNAL(rdataset))
-				continue;
-				
-			/*
-                         * XXXMPA: If we store as "answer" after validating
-                         * then we need to do bailiwick processing and
-                         * also need to track whether RRsets are in or
-                         * out of bailiwick.  This will require a another 
-                         * pending trust level.
-                         *
 			 * Cache this rdataset/sigrdataset pair as
 			 * pending data.  Track whether it was additional
 			 * or not.
@@ -5463,9 +5455,7 @@ answer_response(fetchctx_t *fctx) {
 						/*
 						 * This data is outside of
 						 * our query domain, and
-						 * may only be cached if it
-						 * comes from a secure zone
-						 * and validates.
+						 * may not be cached.
 						 */
 						rdataset->attributes |=
 						    DNS_RDATASETATTR_EXTERNAL;
