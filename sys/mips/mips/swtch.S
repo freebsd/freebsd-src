@@ -282,9 +282,10 @@ NON_LEAF(mips_cpu_throw, STAND_FRAME_SIZE, ra)
 END(mips_cpu_throw)
 
 /*
- *XXX Fixme:	should be written to new interface that requires lock
- *		storage.  We fake it for now.
- * cpu_switch(struct thread *old, struct thread *new);
+ * cpu_switch(struct thread *old, struct thread *new, struct mutex *mtx);
+ *	a0 - old
+ *	a1 - new
+ *	a2 - mtx
  * Find the highest priority process and resume it.
  */
 NON_LEAF(cpu_switch, STAND_FRAME_SIZE, ra)
@@ -323,7 +324,7 @@ getpc:
 	 * to be saved with the other registers do so here.
 	 */
 
-	sw	a3, TD_LOCK(a0)			# Switchout td_lock 
+	sw	a2, TD_LOCK(a3)			# Switchout td_lock 
 
 mips_sw1:
 #if defined(SMP) && defined(SCHED_ULE)
