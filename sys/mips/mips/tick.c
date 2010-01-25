@@ -240,10 +240,10 @@ DELAY(int n)
 	}
 }
 
-#ifdef TARGET_OCTEON
+#if 0 /* TARGET_OCTEON */
 int64_t wheel_run = 0;
 
-void octeon_led_run_wheel(void);
+void octeon_led_run_wheel();
 
 #endif
 /*
@@ -295,7 +295,7 @@ clock_intr(void *arg)
 			profclock(USERMODE(tf->sr), tf->pc);
 	}
 	critical_exit();
-#ifdef TARGET_OCTEON
+#if 0 /* TARGET_OCTEON */
 	/* Run the FreeBSD display once every hz ticks  */
 	wheel_run += cycles_per_tick;
 	if (wheel_run >= cycles_per_sec) {
