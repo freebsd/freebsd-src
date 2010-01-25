@@ -126,17 +126,17 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 		}
 	}
 	switch (regnum) {
-	case 16: return (&kdb_thrctx->pcb_context.val[0]);
-	case 17: return (&kdb_thrctx->pcb_context.val[1]);
-	case 18: return (&kdb_thrctx->pcb_context.val[2]);
-	case 19: return (&kdb_thrctx->pcb_context.val[3]);
-	case 20: return (&kdb_thrctx->pcb_context.val[4]);
-	case 21: return (&kdb_thrctx->pcb_context.val[5]);
-	case 22: return (&kdb_thrctx->pcb_context.val[6]);
-	case 23: return (&kdb_thrctx->pcb_context.val[7]);
-	case 29: return (&kdb_thrctx->pcb_context.val[8]);
-	case 30: return (&kdb_thrctx->pcb_context.val[9]);
-	case 31: return (&kdb_thrctx->pcb_context.val[10]);
+	case 16: return (&kdb_thrctx->pcb_context[0]);
+	case 17: return (&kdb_thrctx->pcb_context[1]);
+	case 18: return (&kdb_thrctx->pcb_context[2]);
+	case 19: return (&kdb_thrctx->pcb_context[3]);
+	case 20: return (&kdb_thrctx->pcb_context[4]);
+	case 21: return (&kdb_thrctx->pcb_context[5]);
+	case 22: return (&kdb_thrctx->pcb_context[6]);
+	case 23: return (&kdb_thrctx->pcb_context[7]);
+	case 29: return (&kdb_thrctx->pcb_context[8]);
+	case 30: return (&kdb_thrctx->pcb_context[9]);
+	case 31: return (&kdb_thrctx->pcb_context[10]);
 	}
 	return (NULL);
 }
@@ -146,7 +146,7 @@ gdb_cpu_setreg(int regnum, void *val)
 {
 	switch (regnum) {
 	case GDB_REG_PC:
-		kdb_thrctx->pcb_context.val[10] = *(register_t *)val;
+		kdb_thrctx->pcb_context[10] = *(register_t *)val;
 		if (kdb_thread	== PCPU_GET(curthread))
 			kdb_frame->pc = *(register_t *)val;
 	}

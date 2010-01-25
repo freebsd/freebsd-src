@@ -38,16 +38,24 @@
 .Nm sbp_targ
 .Nd Serial Bus Protocol 2 (SBP-2) Target Mode devices driver
 .Sh SYNOPSIS
-.Cd "kldload firewire"
-.Cd "kldload cam"
-.Cd "kldload sbp_targ"
-.Pp
-or
-.Pp
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device sbp_targ"
 .Cd "device firewire"
 .Cd "device scbus"
 .Cd "device targ"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+firewire_load="YES"
+cam_load="YES"
+sbp_targ_load"YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

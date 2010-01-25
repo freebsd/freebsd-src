@@ -453,6 +453,9 @@ and
 .Xr close 2
 system calls.
 .Bd -literal -offset indent
+#ifdef __linux__
+#define	_FILE_OFFSET_BITS 64
+#endif
 #include <sys/stat.h>
 #include <archive.h>
 #include <archive_entry.h>

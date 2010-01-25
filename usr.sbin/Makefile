@@ -167,6 +167,7 @@ SUBDIR=	${_ac} \
 	${_sa} \
 	${_sade} \
 	${_sendmail} \
+	service \
 	setfib \
 	setfmac \
 	setpmac \
@@ -188,6 +189,7 @@ SUBDIR=	${_ac} \
 	tzsetup \
 	${_uathload} \
 	ugidfw \
+	${_uhsoctl} \
 	${_usbdevs} \
 	${_usbconfig} \
 	${_vidcontrol} \
@@ -409,6 +411,7 @@ _crunch=	crunch
 .if ${MACHINE_ARCH} != "ia64"
 _uathload=	uathload
 .endif
+_uhsoctl=	uhsoctl
 #_usbdevs=	usbdevs
 _usbconfig=	usbconfig
 .endif

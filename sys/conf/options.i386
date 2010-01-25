@@ -105,6 +105,7 @@ NETGRAPH_CRONYX		opt_ng_cronyx.h
 
 # Device options
 DEV_APIC		opt_apic.h
+DEV_ATPIC		opt_atpic.h
 DEV_NPX			opt_npx.h
 ASR_COMPAT		opt_asr.h
 

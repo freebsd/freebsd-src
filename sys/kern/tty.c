@@ -102,21 +102,22 @@ static const char	*dev_console_filename;
 static void
 tty_watermarks(struct tty *tp)
 {
-	size_t bs;
+	size_t bs = 0;
 
 	/* Provide an input buffer for 0.2 seconds of data. */
-	bs = MIN(tp->t_termios.c_ispeed / 5, TTYBUF_MAX);
+	if (tp->t_termios.c_cflag & CREAD)
+		bs = MIN(tp->t_termios.c_ispeed / 5, TTYBUF_MAX);
 	ttyinq_setsize(&tp->t_inq, tp, bs);
 
 	/* Set low watermark at 10% (when 90% is available). */
-	tp->t_inlow = (ttyinq_getsize(&tp->t_inq) * 9) / 10;
+	tp->t_inlow = (ttyinq_getallocatedsize(&tp->t_inq) * 9) / 10;
 
 	/* Provide an ouput buffer for 0.2 seconds of data. */
 	bs = MIN(tp->t_termios.c_ospeed / 5, TTYBUF_MAX);
 	ttyoutq_setsize(&tp->t_outq, tp, bs);
 
 	/* Set low watermark at 10% (when 90% is available). */
-	tp->t_outlow = (ttyoutq_getsize(&tp->t_outq) * 9) / 10;
+	tp->t_outlow = (ttyoutq_getallocatedsize(&tp->t_outq) * 9) / 10;
 }
 
 static int
@@ -355,6 +356,7 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 {
 	struct proc *p = td->td_proc;
 	struct pgrp *pg;
+	ksiginfo_t ksi;
 	int error;
 
 	MPASS(sig == SIGTTIN || sig == SIGTTOU);
@@ -396,8 +398,14 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 		 * Send the signal and sleep until we're the new
 		 * foreground process group.
 		 */
+		if (sig != 0) {
+			ksiginfo_init(&ksi);
+			ksi.ksi_code = SI_KERNEL;
+			ksi.ksi_signo = sig;
+			sig = 0;
+		}
 		PGRP_LOCK(pg);
-		pgsignal(pg, sig, 1);
+		pgsignal(pg, ksi.ksi_signo, 1, &ksi);
 		PGRP_UNLOCK(pg);
 
 		error = tty_wait(tp, &tp->t_bgwait);
@@ -497,12 +505,12 @@ ttydev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	case TIOCSPGRP:
 	case TIOCSTART:
 	case TIOCSTAT:
+	case TIOCSTI:
 	case TIOCSTOP:
 	case TIOCSWINSZ:
 #if 0
 	case TIOCSDRAINWAIT:
 	case TIOCSETD:
-	case TIOCSTI:
 #endif
 #ifdef COMPAT_43TTY
 	case  TIOCLBIC:
@@ -523,7 +531,35 @@ ttydev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			goto done;
 	}
 
-	error = tty_ioctl(tp, cmd, data, td);
+	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
+		struct termios *old = &tp->t_termios;
+		struct termios *new = (struct termios *)data;
+		struct termios *lock = TTY_CALLOUT(tp, dev) ?
+		    &tp->t_termios_lock_out : &tp->t_termios_lock_in;
+		int cc;
+
+		/*
+		 * Lock state devices.  Just overwrite the values of the
+		 * commands that are currently in use.
+		 */
+		new->c_iflag = (old->c_iflag & lock->c_iflag) |
+		    (new->c_iflag & ~lock->c_iflag);
+		new->c_oflag = (old->c_oflag & lock->c_oflag) |
+		    (new->c_oflag & ~lock->c_oflag);
+		new->c_cflag = (old->c_cflag & lock->c_cflag) |
+		    (new->c_cflag & ~lock->c_cflag);
+		new->c_lflag = (old->c_lflag & lock->c_lflag) |
+		    (new->c_lflag & ~lock->c_lflag);
+		for (cc = 0; cc < NCCS; ++cc)
+			if (lock->c_cc[cc])
+				new->c_cc[cc] = old->c_cc[cc];
+		if (lock->c_ispeed)
+			new->c_ispeed = old->c_ispeed;
+		if (lock->c_ospeed)
+			new->c_ospeed = old->c_ospeed;
+	}
+
+	error = tty_ioctl(tp, cmd, data, fflag, td);
 done:	tty_unlock(tp);
 
 	return (error);
@@ -567,7 +603,8 @@ ttydev_poll(struct cdev *dev, int events, struct thread *td)
 }
 
 static int
-ttydev_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+ttydev_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
 	struct tty *tp = dev->si_drv1;
 	int error;
@@ -577,7 +614,7 @@ ttydev_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 	error = ttydev_enter(tp);
 	if (error)
 		return (-1);
-	error = ttydevsw_mmap(tp, offset, paddr, nprot);
+	error = ttydevsw_mmap(tp, offset, paddr, nprot, memattr);
 	tty_unlock(tp);
 
 	return (error);
@@ -842,8 +879,20 @@ static int
 ttydevsw_defparam(struct tty *tp, struct termios *t)
 {
 
-	/* Use a fake baud rate, we're not a real device. */
-	t->c_ispeed = t->c_ospeed = TTYDEF_SPEED;
+	/*
+	 * Allow the baud rate to be adjusted for pseudo-devices, but at
+	 * least restrict it to 115200 to prevent excessive buffer
+	 * usage.  Also disallow 0, to prevent foot shooting.
+	 */
+	if (t->c_ispeed < B50)
+		t->c_ispeed = B50;
+	else if (t->c_ispeed > B115200)
+		t->c_ispeed = B115200;
+	if (t->c_ospeed < B50)
+		t->c_ospeed = B50;
+	else if (t->c_ospeed > B115200)
+		t->c_ospeed = B115200;
+	t->c_cflag |= CREAD;
 
 	return (0);
 }
@@ -857,8 +906,8 @@ ttydevsw_defmodem(struct tty *tp, int sigon, int sigoff)
 }
 
 static int
-ttydevsw_defmmap(struct tty *tp, vm_offset_t offset, vm_paddr_t *paddr,
-    int nprot)
+ttydevsw_defmmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
 
 	return (-1);
@@ -1201,6 +1250,8 @@ tty_signal_sessleader(struct tty *tp, int sig)
 void
 tty_signal_pgrp(struct tty *tp, int sig)
 {
+	ksiginfo_t ksi;
+
 	tty_lock_assert(tp, MA_OWNED);
 	MPASS(sig >= 1 && sig < NSIG);
 
@@ -1210,8 +1261,11 @@ tty_signal_pgrp(struct tty *tp, int sig)
 	if (sig == SIGINFO && !(tp->t_termios.c_lflag & NOKERNINFO))
 		tty_info(tp);
 	if (tp->t_pgrp != NULL) {
+		ksiginfo_init(&ksi);
+		ksi.ksi_signo = sig;
+		ksi.ksi_code = SI_KERNEL;
 		PGRP_LOCK(tp->t_pgrp);
-		pgsignal(tp->t_pgrp, sig, 1);
+		pgsignal(tp->t_pgrp, sig, 1, &ksi);
 		PGRP_UNLOCK(tp->t_pgrp);
 	}
 }
@@ -1296,7 +1350,8 @@ tty_flush(struct tty *tp, int flags)
 }
 
 static int
-tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
+tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
+    struct thread *td)
 {
 	int error;
 
@@ -1623,17 +1678,26 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 	case TIOCSTAT:
 		tty_info(tp);
 		return (0);
+	case TIOCSTI:
+		if ((fflag & FREAD) == 0 && priv_check(td, PRIV_TTY_STI))
+			return (EPERM);
+		if (!tty_is_ctty(tp, td->td_proc) &&
+		    priv_check(td, PRIV_TTY_STI))
+			return (EACCES);
+		ttydisc_rint(tp, *(char *)data, 0);
+		ttydisc_rint_done(tp);
+		return (0);
 	}
 
 #ifdef COMPAT_43TTY
-	return tty_ioctl_compat(tp, cmd, data, td);
+	return tty_ioctl_compat(tp, cmd, data, fflag, td);
 #else /* !COMPAT_43TTY */
 	return (ENOIOCTL);
 #endif /* COMPAT_43TTY */
 }
 
 int
-tty_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
+tty_ioctl(struct tty *tp, u_long cmd, void *data, int fflag, struct thread *td)
 {
 	int error;
 
@@ -1644,7 +1708,7 @@ tty_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 	
 	error = ttydevsw_ioctl(tp, cmd, data, td);
 	if (error == ENOIOCTL)
-		error = tty_generic_ioctl(tp, cmd, data, td);
+		error = tty_generic_ioctl(tp, cmd, data, fflag, td);
 
 	return (error);
 }

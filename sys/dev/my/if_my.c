@@ -126,7 +126,8 @@ static int      my_ioctl(struct ifnet *, u_long, caddr_t);
 static void     my_init(void *);
 static void     my_init_locked(struct my_softc *);
 static void     my_stop(struct my_softc *);
-static void     my_watchdog(struct ifnet *);
+static void     my_autoneg_timeout(void *);
+static void     my_watchdog(void *);
 static int      my_shutdown(device_t);
 static int      my_ifmedia_upd(struct ifnet *);
 static void     my_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -382,6 +383,15 @@ my_autoneg_xmit(struct my_softc * sc)
 	return;
 }
 
+static void
+my_autoneg_timeout(void *arg)
+{
+	struct my_softc *sc;
+
+	sc = arg;
+	MY_LOCK_ASSERT(sc);
+	my_autoneg_mii(sc, MY_FLAG_DELAYTIMEO, 1);
+}
 
 /*
  * Invoke autonegotiation on a PHY.
@@ -439,12 +449,13 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 			return;
 		}
 		my_autoneg_xmit(sc);
-		ifp->if_timer = 5;
+		callout_reset(&sc->my_autoneg_timer, hz * 5, my_autoneg_timeout,
+		    sc);
 		sc->my_autoneg = 1;
 		sc->my_want_auto = 0;
 		return;
 	case MY_FLAG_DELAYTIMEO:
-		ifp->if_timer = 0;
+		callout_stop(&sc->my_autoneg_timer);
 		sc->my_autoneg = 0;
 		break;
 	default:
@@ -661,7 +672,8 @@ my_setmode_mii(struct my_softc * sc, int media)
 	 */
 	if (sc->my_autoneg) {
 		device_printf(sc->my_dev, "canceling autoneg session\n");
-		ifp->if_timer = sc->my_autoneg = sc->my_want_auto = 0;
+		callout_stop(&sc->my_autoneg_timer);
+		sc->my_autoneg = sc->my_want_auto = 0;
 		bmcr = my_phy_readreg(sc, PHY_BMCR);
 		bmcr &= ~PHY_BMCR_AUTONEGENBL;
 		my_phy_writereg(sc, PHY_BMCR, bmcr);
@@ -808,6 +820,8 @@ my_attach(device_t dev)
 	sc->my_dev = dev;
 	mtx_init(&sc->my_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
+	callout_init_mtx(&sc->my_autoneg_timer, &sc->my_mtx, 0);
+	callout_init_mtx(&sc->my_watchdog, &sc->my_mtx, 0);
 
 	/*
 	 * Map control/status registers.
@@ -886,7 +900,6 @@ my_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = my_ioctl;
 	ifp->if_start = my_start;
-	ifp->if_watchdog = my_watchdog;
 	ifp->if_init = my_init;
 	ifp->if_baudrate = 10000000;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
@@ -984,13 +997,15 @@ my_detach(device_t dev)
 	struct ifnet   *ifp;
 
 	sc = device_get_softc(dev);
+	ifp = sc->my_ifp;
+	ether_ifdetach(ifp);
 	MY_LOCK(sc);
 	my_stop(sc);
 	MY_UNLOCK(sc);
 	bus_teardown_intr(dev, sc->my_irq, sc->my_intrhand);
+	callout_drain(&sc->my_watchdog);
+	callout_drain(&sc->my_autoneg_timer);
 
-	ifp = sc->my_ifp;
-	ether_ifdetach(ifp);
 	if_free(ifp);
 	free(sc->my_ldata_ptr, M_DEVBUF);
 
@@ -1188,7 +1203,7 @@ my_txeof(struct my_softc * sc)
 	MY_LOCK_ASSERT(sc);
 	ifp = sc->my_ifp;
 	/* Clear the timeout timer. */
-	ifp->if_timer = 0;
+	sc->my_timer = 0;
 	if (sc->my_cdata.my_tx_head == NULL) {
 		return;
 	}
@@ -1240,7 +1255,7 @@ my_txeoc(struct my_softc * sc)
 
 	MY_LOCK_ASSERT(sc);
 	ifp = sc->my_ifp;
-	ifp->if_timer = 0;
+	sc->my_timer = 0;
 	if (sc->my_cdata.my_tx_head == NULL) {
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		sc->my_cdata.my_tx_tail = NULL;
@@ -1249,7 +1264,7 @@ my_txeoc(struct my_softc * sc)
 	} else {
 		if (MY_TXOWN(sc->my_cdata.my_tx_head) == MY_UNSENT) {
 			MY_TXOWN(sc->my_cdata.my_tx_head) = MY_OWNByNIC;
-			ifp->if_timer = 5;
+			sc->my_timer = 5;
 			CSR_WRITE_4(sc, MY_TXPDR, 0xFFFFFFFF);
 		}
 	}
@@ -1455,7 +1470,7 @@ my_start_locked(struct ifnet * ifp)
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
-	ifp->if_timer = 5;
+	sc->my_timer = 5;
 	return;
 }
 
@@ -1555,6 +1570,8 @@ my_init_locked(struct my_softc *sc)
 		my_phy_writereg(sc, PHY_BMCR, phy_bmcr);
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+	callout_reset(&sc->my_watchdog, hz, my_watchdog, sc);
 	return;
 }
 
@@ -1680,17 +1697,18 @@ my_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 }
 
 static void
-my_watchdog(struct ifnet * ifp)
+my_watchdog(void *arg)
 {
 	struct my_softc *sc;
+	struct ifnet *ifp;
 
-	sc = ifp->if_softc;
-	MY_LOCK(sc);
-	if (sc->my_autoneg) {
-		my_autoneg_mii(sc, MY_FLAG_DELAYTIMEO, 1);
-		MY_UNLOCK(sc);
+	sc = arg;
+	MY_LOCK_ASSERT(sc);
+	callout_reset(&sc->my_watchdog, hz, my_watchdog, sc);
+	if (sc->my_timer == 0 || --sc->my_timer > 0)
 		return;
-	}
+
+	ifp = sc->my_ifp;
 	ifp->if_oerrors++;
 	if_printf(ifp, "watchdog timeout\n");
 	if (!(my_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_LINKSTAT))
@@ -1700,8 +1718,6 @@ my_watchdog(struct ifnet * ifp)
 	my_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		my_start_locked(ifp);
-	MY_UNLOCK(sc);
-	return;
 }
 
 
@@ -1716,7 +1732,9 @@ my_stop(struct my_softc * sc)
 
 	MY_LOCK_ASSERT(sc);
 	ifp = sc->my_ifp;
-	ifp->if_timer = 0;
+
+	callout_stop(&sc->my_autoneg_timer);
+	callout_stop(&sc->my_watchdog);
 
 	MY_CLRBIT(sc, MY_TCRRCR, (MY_RE | MY_TE));
 	CSR_WRITE_4(sc, MY_IMR, 0x00000000);

@@ -6,7 +6,7 @@
 # 
 # EDIT THIS FILE WITH CAUTION  (ntpdsim-opts.texi)
 # 
-# It has been AutoGen-ed  Sunday August 17, 2008 at 05:20:17 AM EDT
+# It has been AutoGen-ed  Tuesday December  8, 2009 at 08:13:15 AM EST
 # From the definitions    ntpdsim-opts.def
 # and the template file   aginfo.tpl
 @end ignore
@@ -69,7 +69,66 @@ This is the automatically generated usage text for ntpdsim:
 
 @exampleindent 0
 @example
-ntpdsim is unavailable - no --help
+ntpd - NTP daemon program - Ver. 4.2.5p247-RC
+USAGE:  ntpdsim [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]...
+  Flg Arg Option-Name    Description
+   -4 no  ipv4           Force IPv4 DNS name resolution
+                                - prohibits these options:
+                                ipv6
+   -6 no  ipv6           Force IPv6 DNS name resolution
+                                - prohibits these options:
+                                ipv4
+   -a no  authreq        Require crypto authentication
+                                - prohibits these options:
+                                authnoreq
+   -A no  authnoreq      Do not require crypto authentication
+                                - prohibits these options:
+                                authreq
+   -b no  bcastsync      Allow us to sync to broadcast servers
+   -c Str configfile     configuration file name
+   -d no  debug-level    Increase output debug message level
+                                - may appear multiple times
+   -D Str set-debug-level Set the output debug message level
+                                - may appear multiple times
+   -f Str driftfile      frequency drift file name
+   -g no  panicgate      Allow the first adjustment to be Big
+                                - may appear multiple times
+   -i --- jaildir        built without --enable-clockctl or --enable-linuxcaps
+   -I Str interface      Listen on an interface name or address
+                                - may appear multiple times
+   -k Str keyfile        path to symmetric keys
+   -l Str logfile        path to the log file
+   -L no  novirtualips   Do not listen to virtual interfaces
+   -n no  nofork         Do not fork
+   -N no  nice           Run at high priority
+   -p Str pidfile        path to the PID file
+   -P Num priority       Process priority
+   -q no  quit           Set the time and quit
+   -r Str propagationdelay Broadcast/propagation delay
+      Str saveconfigquit Save parsed configuration and quit
+   -s Str statsdir       Statistics file location
+   -t Str trustedkey     Trusted key number
+                                - may appear multiple times
+   -u --- user           built without --enable-clockctl or --enable-linuxcaps
+   -U Num updateinterval interval in seconds between scans for new or dropped interfaces
+      Str var            make ARG an ntp variable (RW)
+                                - may appear multiple times
+      Str dvar           make ARG an ntp variable (RW|DEF)
+                                - may appear multiple times
+   -x no  slew           Slew up to 600 seconds
+      opt version        Output version information and exit
+   -? no  help           Display extended usage information and exit
+   -! no  more-help      Extended usage information passed thru pager
+
+Options are specified by doubled hyphens and their name
+or by a single hyphen and the flag character.
+
+The following option preset mechanisms are supported:
+ - examining environment variables named NTPD_*
+
+
+
+please send bug reports to:  http://bugs.ntp.org, bugs@@ntp.org
 @end example
 @exampleindent 4
 

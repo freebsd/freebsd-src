@@ -42,11 +42,11 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 FILE *
-funopen(cookie, readfn, writefn, seekfn, closefn)
-	const void *cookie;
-	int (*readfn)(), (*writefn)();
-	fpos_t (*seekfn)(void *cookie, fpos_t off, int whence);
-	int (*closefn)();
+funopen(const void *cookie,
+	int (*readfn)(void *, char *, int),
+	int (*writefn)(void *, const char *, int),
+	fpos_t (*seekfn)(void *, fpos_t, int),
+	int (*closefn)(void *))
 {
 	FILE *fp;
 	int flags;

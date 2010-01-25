@@ -101,9 +101,16 @@ device		usb		# USB Bus (required)
 device		uhid		# "Human Interface Devices"
 device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da
-device		ural		# Ralink Technology RT2500USB wireless NICs
-device		rum		# Ralink Technology RT2501USB wireless NICs
 device		urio		# Diamond Rio 500 MP3 player
+# USB Serial devices
+device		uark		# Technologies ARK3116 based serial adapters
+device		ubsa		# Belkin F5U103 and compatible serial adapters
+device		uftdi		# For FTDI usb serial adapters
+device		uipaq		# Some WinCE based devices
+device		uplcom		# Prolific PL-2303 serial adapters
+device		uslcom		# SI Labs CP2101/CP2102 serial adapters
+device		uvisor		# Visor and Palm devices
+device		uvscom		# USB serial support for DDI pocket's PHS
 # USB Ethernet, requires miibus
 device		miibus
 device		aue		# ADMtek USB Ethernet
@@ -112,15 +119,12 @@ device		cdce		# Generic USB over Ethernet
 device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 device		rue		# RealTek RTL8150 USB Ethernet
-device		udav
-# usb serial
-device		uark
-device		ubsa
-device		uftdi
-device		uipaq
-device		uplcom
-device		uvisor
-device		uvscom
+device		udav		# Davicom DM9601E USB
+# USB Wireless
+device		rum		# Ralink Technology RT2501USB wireless NICs
+device		uath		# Atheros AR5523 wireless NICs
+device		ural		# Ralink Technology RT2500USB wireless NICs
+device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
 # SCSI peripherals
 device		scbus		# SCSI bus (required for SCSI)
 device		da		# Direct Access (disks)

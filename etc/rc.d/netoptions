@@ -53,7 +53,7 @@ netoptions_inet()
 		${SYSCTL_W} net.inet.tcp.rfc1323=1 >/dev/null
 	else
 		netoptions_init
-		echo -n ' rfc1323 extensions=${tcp_extensions}'
+		echo -n " rfc1323 extensions=${tcp_extensions}"
 		${SYSCTL_W} net.inet.tcp.rfc1323=0 >/dev/null
 	fi
 
@@ -61,13 +61,13 @@ netoptions_inet()
 		${SYSCTL_W} net.inet.tcp.always_keepalive=1 >/dev/null
 	else
 		netoptions_init
-		echo -n ' TCP keepalive=${tcp_keepalive}'
+		echo -n " TCP keepalive=${tcp_keepalive}"
 		${SYSCTL_W} net.inet.tcp.always_keepalive=0 >/dev/null
 	fi
 
 	if checkyesno tcp_drop_synfin; then
 		netoptions_init
-		echo -n ' drop SYN+FIN packets=${tcp_drop_synfin}'
+		echo -n " drop SYN+FIN packets=${tcp_drop_synfin}"
 		${SYSCTL_W} net.inet.tcp.drop_synfin=1 >/dev/null
 	else
 		${SYSCTL_W} net.inet.tcp.drop_synfin=0 >/dev/null

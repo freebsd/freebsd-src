@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/uhci.h>
+#include <dev/usb/controller/uhcireg.h>
 
 #define	alt_next next
 #define	UHCI_BUS2SC(bus) \
@@ -90,6 +91,10 @@ SYSCTL_INT(_hw_usb_uhci, OID_AUTO, debug, CTLFLAG_RW,
     &uhcidebug, 0, "uhci debug level");
 SYSCTL_INT(_hw_usb_uhci, OID_AUTO, loop, CTLFLAG_RW,
     &uhcinoloop, 0, "uhci noloop");
+
+TUNABLE_INT("hw.usb.uhci.debug", &uhcidebug);
+TUNABLE_INT("hw.usb.uhci.loop", &uhcinoloop);
+
 static void uhci_dumpregs(uhci_softc_t *sc);
 static void uhci_dump_tds(uhci_td_t *td);
 
@@ -822,33 +827,6 @@ uhci_dump_all(uhci_softc_t *sc)
 	uhci_dump_qh(sc->sc_fs_ctl_p_last);
 	uhci_dump_qh(sc->sc_bulk_p_last);
 	uhci_dump_qh(sc->sc_last_qh_p);
-}
-
-static void
-uhci_dump_qhs(uhci_qh_t *sqh)
-{
-	uint8_t temp;
-
-	temp = uhci_dump_qh(sqh);
-
-	/*
-	 * uhci_dump_qhs displays all the QHs and TDs from the given QH
-	 * onwards Traverses sideways first, then down.
-	 *
-	 * QH1 QH2 No QH TD2.1 TD2.2 TD1.1 etc.
-	 *
-	 * TD2.x being the TDs queued at QH2 and QH1 being referenced from QH1.
-	 */
-
-	if (temp & 1)
-		uhci_dump_qhs(sqh->h_next);
-	else
-		DPRINTF("No QH\n");
-
-	if (temp & 2)
-		uhci_dump_tds(sqh->e_next);
-	else
-		DPRINTF("No TD\n");
 }
 
 static void

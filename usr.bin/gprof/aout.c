@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <a.out.h>
 #include <err.h>
+#include <string.h>
 
 #include "gprof.h"
 

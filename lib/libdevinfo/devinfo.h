@@ -32,20 +32,12 @@
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
+#include <sys/bus.h>
 
 typedef __uintptr_t	devinfo_handle_t;
 #define DEVINFO_ROOT_DEVICE	((devinfo_handle_t)0)
 
-/*
- * State of the device.
- */
-/* XXX not sure if I want a copy here, or expose sys/bus.h */
-typedef enum devinfo_state {
-	DIS_NOTPRESENT = 10,		/* not probed or probe failed */
-	DIS_ALIVE = 20,			/* probe succeeded */
-	DIS_ATTACHED = 30,		/* attach method called */
-	DIS_BUSY = 40			/* device is open */
-} devinfo_state_t;
+typedef enum device_state devinfo_state_t;
 
 struct devinfo_dev {
 	devinfo_handle_t	dd_handle;	/* device handle */

@@ -99,9 +99,6 @@ static Distribution DistTable[] = {
 /* The kernel distributions */
 static Distribution KernelDistTable[] = {
     DTE_TARBALL("GENERIC",  &KernelDists, KERNEL_GENERIC, "/boot"),
-#ifdef WITH_SMP
-    DTE_TARBALL("SMP", 	    &KernelDists, KERNEL_SMP,	  "/boot"),
-#endif
     DTE_END,
 };
 
@@ -207,12 +204,7 @@ distConfig(dialogMenuItem *self)
 int
 selectKernel(void)
 {
-#ifdef WITH_SMP
-    /* select default kernel based on deduced cpu count */
-    return NCpus > 1 ? DIST_KERNEL_SMP : DIST_KERNEL_GENERIC;
-#else
     return DIST_KERNEL_GENERIC;
-#endif
 }
 
 int

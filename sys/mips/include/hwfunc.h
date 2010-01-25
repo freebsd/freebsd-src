@@ -29,7 +29,7 @@
 #define	_MACHINE_HWFUNC_H_
 
 struct trapframe;
-
+struct timecounter;
 /*
  * Hooks downward into hardware functionality.
  */
@@ -39,4 +39,12 @@ void platform_intr(struct trapframe *);
 void platform_reset(void);
 void platform_start(__register_t, __register_t,  __register_t, __register_t);
 
+/* For clocks and ticks and such */
+void platform_initclocks(void);
+uint64_t platform_get_frequency(void);
+unsigned platform_get_timecount(struct timecounter *);
+
+/* For hardware specific CPU initialization */
+void platform_cpu_init(void);
+void platform_secondary_init(void);
 #endif /* !_MACHINE_HWFUNC_H_ */

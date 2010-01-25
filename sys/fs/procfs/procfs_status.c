@@ -82,7 +82,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	sid = sess->s_leader ? sess->s_leader->p_pid : 0;
 
 /* comm pid ppid pgid sid tty ctty,sldr start ut st wmsg
-				euid ruid rgid,egid,groups[1 .. NGROUPS]
+				euid ruid rgid,egid,groups[1 .. ngroups]
 */
 
 	pc = p->p_comm;

@@ -239,6 +239,12 @@ main(int ac, char **av)
 		if ((trussinfo->outfile = fopen(fname, "w")) == NULL)
 			errx(1, "cannot open %s", fname);
 	}
+	/*
+	 * Set FD_CLOEXEC, so that the output file is not shared with
+	 * the traced process.
+	 */
+	if (fcntl(fileno(trussinfo->outfile), F_SETFD, FD_CLOEXEC) == -1)
+		warn("fcntl()");
 
 	/*
 	 * If truss starts the process itself, it will ignore some signals --

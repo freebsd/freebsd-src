@@ -116,7 +116,7 @@ struct command bltins[]={
 	{"cd","Change working directory","cd [dir]","cd /etc",cd},
 	{"pwd","Print current directory","pwd","pwd",pwd},
 	{"exit","Exit from shell()","exit","exit",xit},
-	{"set","Set environment variable","set [VAR=value]","set TERM=cons25",set},
+	{"set","Set environment variable","set [VAR=value]","set TERM=xterm",set},
 	{"unset","Unset environment variable","unset VAR","unset EDITOR",unset},
 	{"echo","Echo arguments on stdout","echo arg1 arg2 ...","echo Hello World!",echo},
 	{"env","Print all environment variables","env","env",env},
@@ -572,7 +572,7 @@ start_session(int vty, int argc, char **argv)
 	if(fd>2) close(fd);
 	login_tty(fd);
 	setpgid(0,getpid());
-	putenv("TERM=cons25");
+	putenv("TERM=xterm");
 	putenv("HOME=/");
 	putenv("PATH=/stand:/bin:/usr/bin:/sbin:.");
 	signal(SIGHUP,SIG_DFL);

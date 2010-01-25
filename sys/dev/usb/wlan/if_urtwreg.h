@@ -26,18 +26,29 @@
 #define	URTW_MAC3			0x0003		/* 1 byte  */
 #define	URTW_MAC4			0x0004		/* 1 byte  */
 #define	URTW_MAC5			0x0005		/* 1 byte  */
+#define	URTW_MAR			0x0008		/* 6 byte  */
+#define	URTW_RXFIFO_CNT			0x0010		/* 1 byte  */
+#define	URTW_TXFIFO_CNT			0x0012		/* 1 byte  */
+#define	URTW_BQREQ			0x0013		/* 1 byte  */
+#define	URTW_TSFT			0x0018		/* 6 byte  */
+#define	URTW_TLPDA			0x0020		/* 4 byte  */
+#define	URTW_TNPDA			0x0024		/* 4 byte  */
+#define	URTW_THPDA			0x0028		/* 4 byte  */
 #define	URTW_BRSR			0x002c		/* 2 byte  */
 #define	URTW_BRSR_MBR_8185		(0x0fff)
+#define	URTW_8187B_EIFS			0x002d		/* 1 byte for 8187B  */
 #define	URTW_BSSID			0x002e		/* 6 byte  */
-#define	URTW_RESP_RATE			0x0034		/* 1 byte  */
+#define	URTW_BRSR_8187B			0x0034		/* 2 byte for 8187B  */
+#define	URTW_RESP_RATE			0x0034		/* 1 byte for 8187L  */
 #define	URTW_RESP_MAX_RATE_SHIFT	(4)
 #define	URTW_RESP_MIN_RATE_SHIFT	(0)
 #define	URTW_EIFS			0x0035		/* 1 byte  */
-#define	URTW_INTR_MASK			0x003c		/* 2 byte  */
 #define	URTW_CMD			0x0037		/* 1 byte  */
 #define	URTW_CMD_TX_ENABLE		(0x4)
 #define	URTW_CMD_RX_ENABLE		(0x8)
 #define	URTW_CMD_RST			(0x10)
+#define	URTW_INTR_MASK			0x003c		/* 2 byte  */
+#define	URTW_INTR_STATUS		0x003e		/* 2 byte  */
 #define	URTW_TX_CONF			0x0040		/* 4 byte  */
 #define	URTW_TX_LOOPBACK_SHIFT		(17)
 #define	URTW_TX_LOOPBACK_NONE		(0 << URTW_TX_LOOPBACK_SHIFT)
@@ -56,6 +67,9 @@
 #define	URTW_TX_MXDMA_SHIFT		(21)
 #define	URTW_TX_DISCW			(1 << 20)
 #define	URTW_TX_SWPLCPLEN		(1 << 24)
+#define	URTW_TX_R8187vD			(5 << 25)
+#define	URTW_TX_R8187vD_B		(6 << 25)
+#define	URTW_TX_HWMASK			(7 << 25)
 #define	URTW_TX_DISREQQSIZE		(1 << 28)
 #define	URTW_TX_HW_SEQNUM		(1 << 30)
 #define	URTW_TX_CWMIN			(1 << 31)
@@ -94,6 +108,7 @@
 #define	URTW_MAX_RX_DMA_SHIFT		(10)
 #define	URTW_RCR_ONLYERLPKT		(1 << 31)
 #define	URTW_INT_TIMEOUT		0x0048		/* 4 byte  */
+#define	URTW_INT_TBDA			0x004c		/* 4 byte  */
 #define	URTW_EPROM_CMD			0x0050		/* 1 byte  */
 #define	URTW_EPROM_CMD_NORMAL		(0x0)
 #define	URTW_EPROM_CMD_NORMAL_MODE				\
@@ -109,6 +124,7 @@
 #define	URTW_EPROM_WRITEBIT		(0x2)
 #define	URTW_EPROM_CK			(0x4)
 #define	URTW_EPROM_CS			(0x8)
+#define	URTW_CONFIG0			0x0051		/* 1 byte  */
 #define	URTW_CONFIG1			0x0052		/* 1 byte  */
 #define	URTW_CONFIG2			0x0053		/* 1 byte  */
 #define	URTW_ANAPARAM			0x0054		/* 4 byte  */
@@ -132,6 +148,7 @@
 #define	URTW_CONFIG4_VCOOFF		(1 << 7)
 #define	URTW_TESTR			0x005b		/* 1 byte  */
 #define	URTW_PSR			0x005e		/* 1 byte  */
+#define	URTW_SECURITY			0x005f		/* 1 byte  */
 #define	URTW_ANAPARAM2			0x0060		/* 4 byte  */
 #define	URTW_8225_ANAPARAM2_ON		(0x860c7312)
 #define	URTW_8225_ANAPARAM2_OFF		(0x840dec11)
@@ -141,6 +158,7 @@
 #define	URTW_ATIM_WND			0x0072		/* 2 byte  */
 #define	URTW_BEACON_INTERVAL_TIME	0x0074		/* 2 byte  */
 #define	URTW_ATIM_TR_ITV		0x0076		/* 2 byte  */
+#define	URTW_PHY_DELAY			0x0078		/* 1 byte  */
 #define	URTW_CARRIER_SCOUNT		0x0079		/* 1 byte  */
 #define	URTW_PHY_MAGIC1			0x007c		/* 1 byte  */
 #define	URTW_PHY_MAGIC2			0x007d		/* 1 byte  */
@@ -185,13 +203,23 @@
 #define	URTW_RATE_FALLBACK		0x00be		/* 1 byte  */
 #define	URTW_RATE_FALLBACK_ENABLE	(0x80)
 #define	URTW_ACM_CONTROL		0x00bf		/* 1 byte  */
+#define	URTW_CONFIG5			0x00d8		/* 1 byte  */
+#define	URTW_TXDMA_POLLING		0x00d9		/* 1 byte  */
+#define	URTW_CWR			0x00dc		/* 2 byte  */
+#define	URTW_RETRY_CTR			0x00de		/* 1 byte  */
 #define	URTW_INT_MIG			0x00e2		/* 2 byte  */
+#define	URTW_RDSAR			0x00e4		/* 4 byte  */
 #define	URTW_TID_AC_MAP			0x00e8		/* 2 byte  */
 #define	URTW_ANAPARAM3			0x00ee		/* 1 byte  */
 #define	URTW_8187B_8225_ANAPARAM3_ON	(0x0)
 #define	URTW_8187B_8225_ANAPARAM3_OFF	(0x0)
-
+#define	URTW_8187B_AC_VO		0x00f0		/* 4 byte for 8187B  */
+#define	URTW_FEMR			0x00f4		/* 2 byte  */
+#define	URTW_8187B_AC_VI		0x00f4		/* 4 byte for 8187B  */
+#define	URTW_8187B_AC_BE		0x00f8		/* 4 byte for 8187B  */
+#define	URTW_TALLY_CNT			0x00fa		/* 2 byte  */
 #define	URTW_TALLY_SEL			0x00fc		/* 1 byte  */
+#define	URTW_8187B_AC_BK		0x00fc		/* 4 byte for 8187B  */
 #define	URTW_ADDR_MAGIC2		0x00fe		/* 2 byte  */
 #define	URTW_ADDR_MAGIC3		0x00ff		/* 1 byte  */
 
@@ -224,6 +252,7 @@
 #define	URTW_8225_ADDR_C_DATA_MAGIC2	(0x050)
 
 /* for EEPROM  */
+#define	URTW_EPROM_CHANPLAN		0x03
 #define	URTW_EPROM_TXPW_BASE		0x05
 #define	URTW_EPROM_RFCHIPID		0x06
 #define	URTW_EPROM_RFCHIPID_RTL8225U	(5)
@@ -278,26 +307,126 @@
 #define	URTW_DEFAULT_TX_RETRY		7
 #define	URTW_DEFAULT_RTS_THRESHOLD	2342U
 
+#define	URTW_ASIFS_TIME			10
+#define	URTW_ACKCTS_LEN			14	/* len for ACK and CTS */
+
 struct urtw_8187b_rxhdr {
-	uint32_t		flags;
+	uint32_t		flag;
+#define	URTW_RX_FLAG_LEN			/*  0 ~ 11 bits */
+#define	URTW_RX_FLAG_ICV_ERR	(1 << 12)
+#define	URTW_RX_FLAG_CRC32_ERR	(1 << 13)
+#define	URTW_RX_FLAG_PM		(1 << 14)
+#define	URTW_RX_FLAG_RX_ERR	(1 << 15)
+#define	URTW_RX_FLAG_BCAST	(1 << 16)
+#define	URTW_RX_FLAG_PAM	(1 << 17)
+#define	URTW_RX_FLAG_MCAST	(1 << 18)
+#define	URTW_RX_FLAG_QOS	(1 << 19)	/* only for RTL8187B */
+#define	URTW_RX_FLAG_RXRATE			/* 20 ~ 23 bits */
+#define	URTW_RX_FLAG_RXRATE_SHIFT	20
+#define	URTW_RX_FLAG_TRSW	(1 << 24)	/* only for RTL8187B */
+#define	URTW_RX_FLAG_SPLCP	(1 << 25)
+#define	URTW_RX_FLAG_FOF	(1 << 26)
+#define	URTW_RX_FLAG_DMA_FAIL	(1 << 27)
+#define	URTW_RX_FLAG_LAST	(1 << 28)
+#define	URTW_RX_FLAG_FIRST	(1 << 29)
+#define	URTW_RX_FLAG_EOR	(1 << 30)
+#define	URTW_RX_FLAG_OWN	(1 << 31)
 	uint64_t		mactime;
-	uint8_t			sq;
+	uint8_t			noise;
 	uint8_t			rssi;
+#define	URTW_RX_RSSI				/*  0 ~  6 bits */
+#define	URTW_RX_RSSI_MASK	0x3f
+#define	URTW_RX_ANTENNA		(1 << 7)
 	uint8_t			agc;
-	uint8_t			flags2;
-	uint16_t		unknown;
+	uint8_t			flag2;
+#define	URTW_RX_FLAG2_DECRYPTED	(1 << 0)
+#define	URTW_RX_FLAG2_WAKUP	(1 << 1)
+#define	URTW_RX_FLAG2_SHIFT	(1 << 2)
+#define	URTW_RX_FLAG2_RSVD0			/*  3 ~  7 bits */
+	uint16_t		flag3;
+#define	URTW_RX_FLAG3_NUMMCSI			/*  0 ~  3 bits */
+#define	URTW_RX_FLAG3_SNR_L2E			/*  4 ~  9 bits */
+#define	URTW_RX_FLAG3_CFO_BIAS			/* 10 ~ 15 bits */
 	int8_t			pwdb;
 	uint8_t			fot;
 } __packed;
 
 struct urtw_8187b_txhdr {
-	uint32_t		flags;
-	uint16_t		rts_duration;
+	uint32_t		flag;
+#define	URTW_TX_FLAG_PKTLEN			/*  0 ~ 11 bits */
+#define	URTW_TX_FLAG_RSVD0			/* 12 ~ 14 bits */
+#define	URTW_TX_FLAG_NO_ENC	(1 << 15)
+#define	URTW_TX_FLAG_SPLCP	(1 << 16)
+#define	URTW_TX_FLAG_MOREFRAG	(1 << 17)
+#define	URTW_TX_FLAG_CTS	(1 << 18)
+#define	URTW_TX_FLAG_RTSRATE			/* 19 ~ 22 bits */
+#define	URTW_TX_FLAG_RTSRATE_SHIFT	19
+#define	URTW_TX_FLAG_RTS	(1 << 23)
+#define	URTW_TX_FLAG_TXRATE			/* 24 ~ 27 bits */
+#define	URTW_TX_FLAG_TXRATE_SHIFT	24
+#define	URTW_TX_FLAG_LAST	(1 << 28)
+#define	URTW_TX_FLAG_FIRST	(1 << 29)
+#define	URTW_TX_FLAG_DMA	(1 << 30)
+#define	URTW_TX_FLAG_OWN	(1 << 31)
+	uint16_t		rtsdur;
 	uint16_t		len;
-	uint32_t		unknown1;
-	uint16_t		unknown2;
-	uint16_t		tx_duration;
-	uint32_t		unknown3;
+#define	URTW_TX_LEN				/*  0 ~ 14 bits */
+#define	URTW_TX_LEN_EXT		(1 << 15)
+	uint32_t		bufaddr;
+	uint16_t		flag1;
+#define	URTW_TX_FLAG1_RXLEN			/*  0 ~ 11 bits */
+#define	URTW_TX_FLAG1_RSVD0			/* 12 ~ 14 bits */
+#define	URTW_TX_FLAG1_MICCAL	(1 << 15)
+	uint16_t		txdur;
+	uint32_t		nextdescaddr;
+	uint8_t			rtsagc;
+	uint8_t			retry;
+	uint16_t		flag2;
+#define	URTW_TX_FLAG2_RTDB	(1 << 0)
+#define	URTW_TX_FLAG2_NOACM	(1 << 1)
+#define	URTW_TX_FLAG2_PIFS	(1 << 2)
+#define	URTW_TX_FLAG2_RSVD0			/*  3 ~  6 bits */
+#define	URTW_TX_FLAG2_RTSRATEFALLBACK		/*  7 ~ 10 bits */
+#define	URTW_TX_FLAG2_RATEFALLBACK		/* 11 ~ 15 bits */
+	uint16_t		delaybound;
+	uint16_t		flag3;
+#define	URTW_TX_FLAG3_RSVD0			/*  0 ~  3 bits */
+#define	URTW_TX_FLAG3_AGC			/*  4 ~ 11 bits */
+#define	URTW_TX_FLAG3_ANTENNA	(1 << 12)
+#define	URTW_TX_FLAG3_SPC			/* 13 ~ 14 bits */
+#define	URTW_TX_FLAG3_RSVD1	(1 << 15)
+	uint32_t		flag4;
+#define	URTW_TX_FLAG4_LENADJUST			/*  0 ~  1 bits */
+#define	URTW_TX_FLAG4_RSVD0	(1 << 2)
+#define	URTW_TX_FLAG4_TPCDESEN	(1 << 3)
+#define	URTW_TX_FLAG4_TPCPOLARITY		/*  4 ~  5 bits */
+#define	URTW_TX_FLAG4_TPCEN	(1 << 6)
+#define	URTW_TX_FLAG4_PTEN	(1 << 7)
+#define	URTW_TX_FLAG4_BCKEY			/*  8 ~ 13 bits */
+#define	URTW_TX_FLAG4_ENBCKEY	(1 << 14)
+#define	URTW_TX_FLAG4_ENPMPD	(1 << 15)
+#define	URTW_TX_FLAG4_FRAGQSZ			/* 16 ~ 31 bits */
+} __packed;
+
+struct urtw_8187l_rxhdr {
+	uint32_t		flag;
+	uint8_t			noise;
+	uint8_t			rssi;
+#define	URTW_RX_8187L_RSSI			/*  0 ~  6 bits */
+#define	URTW_RX_8187L_RSSI_MASK	0x3f
+#define	URTW_RX_8187L_ANTENNA	(1 << 7)
+	uint8_t			agc;
+	uint8_t			flag2;
+#define	URTW_RX_8187L_DECRYPTED	(1 << 0)
+#define	URTW_RX_8187L_WAKEUP	(1 << 1)
+#define	URTW_RX_8187L_SHIFT	(1 << 2)
+#define	URTW_RX_8187L_RSVD0			/*  3 ~ 7 bits */
+	uint64_t		mactime;
+} __packed;
+
+struct urtw_8187l_txhdr {
+	uint32_t		flag;
+	uint16_t		rtsdur;
+	uint16_t		len;
 	uint32_t		retry;
-	uint32_t		unknown4[2];
 } __packed;

@@ -269,7 +269,7 @@ main(int argc, char *argv[])
 				printf("\n");
 				continue;
 			} else {
-				fwrite(buf, buflen, 1, stdout);
+				fwrite(buf, error, 1, stdout);
 				printf("\n");
 				continue;
 			}

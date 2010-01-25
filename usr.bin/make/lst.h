@@ -48,8 +48,6 @@
  *	Header for using the list library
  */
 
-#include "util.h"
-
 /*
  * Structure of a list node.
  */

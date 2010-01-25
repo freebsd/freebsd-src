@@ -826,7 +826,7 @@ int mach64_dma_vertex(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv)
 {
 	drm_mach64_private_t *dev_priv = dev->dev_private;
-	drm_mach64_sarea_t *sarea_priv = dev_priv->sarea_priv;
+	drm_mach64_sarea_t *sarea_priv;
 	drm_mach64_vertex_t *vertex = data;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
@@ -835,6 +835,7 @@ int mach64_dma_vertex(struct drm_device *dev, void *data,
 		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
+	sarea_priv = dev_priv->sarea_priv;
 
 	DRM_DEBUG("pid=%d buf=%p used=%lu discard=%d\n",
 		  DRM_CURRENTPID,

@@ -37,8 +37,6 @@ struct usb_device_request;
 
 typedef usb_error_t	(usb_temp_setup_by_index_t)(struct usb_device *udev,
 			    uint16_t index);
-typedef usb_error_t	(usb_test_huawei_autoinst_t)(struct usb_device *udev, 
-			    struct usb_attach_arg *uaa);
 typedef uint8_t		(usb_test_quirk_t)(const struct usbd_lookup_info *info,
 			    uint16_t quirk);
 typedef int		(usb_quirk_ioctl_t)(unsigned long cmd, caddr_t data,
@@ -51,13 +49,11 @@ extern usb_handle_req_t *usb_temp_get_desc_p;
 extern usb_temp_setup_by_index_t *usb_temp_setup_by_index_p;
 extern usb_temp_unsetup_t *usb_temp_unsetup_p;
 extern usb_test_quirk_t *usb_test_quirk_p;
-extern usb_test_huawei_autoinst_t *usb_test_huawei_autoinst_p;
 extern usb_quirk_ioctl_t *usb_quirk_ioctl_p;
 extern devclass_t usb_devclass_ptr;
 
 /* function prototypes */
 
-void	usb_test_huawei_unload(void *);
 void	usb_temp_unload(void *);
 void	usb_quirk_unload(void *);
 void	usb_bus_unload(void *);

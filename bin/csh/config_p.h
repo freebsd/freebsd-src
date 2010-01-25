@@ -85,6 +85,7 @@
 /* Use LC_MESSAGES locale category to open the message catalog */
 #define MCLoadBySet NL_CAT_LOCALE
 #define BUFSIZE 8192
+#define UTMPX_FILE "/var/run/utx.active"
 #endif
 
 #if defined(__bsdi__)

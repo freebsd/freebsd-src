@@ -282,6 +282,74 @@ ia64_ptc_l(u_int64_t va, u_int64_t log2size)
 }
 
 /*
+ * Unordered memory load.
+ */
+
+static __inline uint8_t
+ia64_ld1(uint8_t *p)
+{
+	uint8_t v;
+
+	__asm __volatile("ld1 %0=[%1];;" : "=r"(v) : "r"(p));
+	return (v);
+}
+
+static __inline uint16_t
+ia64_ld2(uint16_t *p)        
+{
+	uint16_t v;
+
+	__asm __volatile("ld2 %0=[%1];;" : "=r"(v) : "r"(p));
+	return (v);
+}
+
+static __inline uint32_t
+ia64_ld4(uint32_t *p)        
+{
+	uint32_t v;
+
+	__asm __volatile("ld4 %0=[%1];;" : "=r"(v) : "r"(p));
+	return (v);
+}
+
+static __inline uint64_t
+ia64_ld8(uint64_t *p)        
+{
+	uint64_t v;
+
+	__asm __volatile("ld8 %0=[%1];;" : "=r"(v) : "r"(p));
+	return (v);
+}
+
+/*
+ * Unordered memory store.
+ */
+
+static __inline void
+ia64_st1(uint8_t *p, uint8_t v)
+{
+	__asm __volatile("st1 [%0]=%1;;" :: "r"(p), "r"(v));
+}
+
+static __inline void
+ia64_st2(uint16_t *p, uint16_t v)
+{
+	__asm __volatile("st2 [%0]=%1;;" :: "r"(p), "r"(v));
+}
+
+static __inline void
+ia64_st4(uint32_t *p, uint32_t v)
+{
+	__asm __volatile("st4 [%0]=%1;;" :: "r"(p), "r"(v));
+}
+
+static __inline void
+ia64_st8(uint64_t *p, uint64_t v)
+{
+	__asm __volatile("st8 [%0]=%1;;" :: "r"(p), "r"(v));
+}
+
+/*
  * Read the value of psr.
  */
 static __inline u_int64_t

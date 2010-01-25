@@ -6,4 +6,6 @@ MAN=	vmstat.8
 DPADD=	${LIBDEVSTAT} ${LIBKVM} ${LIBMEMSTAT} ${LIBUTIL}
 LDADD=	-ldevstat -lkvm -lmemstat -lutil
 
+WARNS?=	1
+
 .include <bsd.prog.mk>

@@ -103,6 +103,8 @@
 /* CPU dependent mtc0 hazard hook */
 #ifdef TARGET_OCTEON
 #define	COP0_SYNC  nop; nop; nop; nop; nop;
+#elif defined(CPU_SB1)
+#define COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop
 #else
 #define	COP0_SYNC		/* nothing */
 #endif
@@ -848,6 +850,10 @@
 #define	MIPS_4KEc_R2	0x90	/* MIPS 4KEc_R2			ISA 32  Rel 2 */
 #define	MIPS_4KEmp_R2	0x91	/* MIPS 4KEm/4KEp_R2		ISA 32  Rel 2 */
 #define	MIPS_4KSd	0x92	/* MIPS 4KSd			ISA 32  Rel 2 */
+#define	MIPS_24K	0x93	/* MIPS 24Kc/24Kf		ISA 32  Rel 2 */
+#define	MIPS_34K	0x95	/* MIPS 34K			ISA 32  R2 MT */
+#define	MIPS_24KE	0x96	/* MIPS 24KEc			ISA 32  Rel 2 */
+#define	MIPS_74K	0x97	/* MIPS 74Kc/74Kf		ISA 32  Rel 2 */
 
 /*
  * AMD (company ID 3) use the processor ID field to donote the CPU core

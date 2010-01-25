@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <libutil.h>
 #include <stdlib.h>
-#include <utmp.h>
 
 #include "telnetd.h"
 #include "pathnames.h"
@@ -54,19 +53,6 @@ __FBSDID("$FreeBSD$");
 
 int cleanopen(char *);
 void scrub_env(void);
-
-struct	utmp wtmp;
-
-#ifdef _PATH_WTMP
-char    wtmpf[] = _PATH_WTMP;
-#else
-char	wtmpf[]	= "/var/log/wtmp";
-#endif
-#ifdef _PATH_UTMP
-char    utmpf[] = _PATH_UTMP;
-#else
-char	utmpf[] = "/var/run/utmp";
-#endif
 
 char	*envinit[3];
 extern char **environ;
@@ -1317,24 +1303,7 @@ scrub_env(void)
 void
 cleanup(int sig __unused)
 {
-	char *p;
-	sigset_t mask;
 
-	p = line + sizeof(_PATH_DEV) - 1;
-	/*
-	 * Block all signals before clearing the utmp entry.  We don't want to
-	 * be called again after calling logout() and then not add the wtmp
-	 * entry because of not finding the corresponding entry in utmp.
-	 */
-	sigfillset(&mask);
-	sigprocmask(SIG_SETMASK, &mask, NULL);
-	if (logout(p))
-		logwtmp(p, "", "");
-	(void)chmod(line, 0666);
-	(void)chown(line, 0, 0);
-	*p = 'p';
-	(void)chmod(line, 0666);
-	(void)chown(line, 0, 0);
-	(void) shutdown(net, 2);
+	(void) shutdown(net, SHUT_RDWR);
 	_exit(1);
 }

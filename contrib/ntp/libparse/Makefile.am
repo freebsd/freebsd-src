@@ -165,4 +165,4 @@ parsesolaris.o: sys/systm.h
 
 sys/systm.h:
 	mkdir sys && \
-	sed -e 's/ffs(long)/ffs(int)/' < /usr/include/sys/systm.h > sys/systm.h
+	sed -e '/ffs(.*)/d' < /usr/include/sys/systm.h > sys/systm.h

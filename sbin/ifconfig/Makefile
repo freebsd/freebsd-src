@@ -47,6 +47,6 @@ LDADD+=	-lipx
 MAN=	ifconfig.8
 
 CFLAGS+= -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wnested-externs
-WARNS?=	0
+WARNS?=	2
 
 .include <bsd.prog.mk>

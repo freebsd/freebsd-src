@@ -2863,14 +2863,14 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 	if (pvzone != NULL && (m = vm_phys_paddr_to_vm_page(pa))) {
 		vm_page_lock_queues();
 		if (!TAILQ_EMPTY(&m->md.pv_list) || m->md.pv_kva) {
-				/* release vm_page lock for pv_entry UMA */
+			/* release vm_page lock for pv_entry UMA */
 			vm_page_unlock_queues();
 			if ((pve = pmap_get_pv_entry()) == NULL)
 				panic("pmap_kenter_internal: no pv entries");	
 			vm_page_lock_queues();
 			PMAP_LOCK(pmap_kernel());
 			pmap_enter_pv(m, pve, pmap_kernel(), va,
-					 PVF_WRITE | PVF_UNMAN);
+			    PVF_WRITE | PVF_UNMAN);
 			pmap_fix_cache(m, pmap_kernel(), va);
 			PMAP_UNLOCK(pmap_kernel());
 		} else {
@@ -4564,6 +4564,12 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 	printf("pmap_mincore()\n");
 	
 	return (0);
+}
+
+
+void
+pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
+{
 }
 
 

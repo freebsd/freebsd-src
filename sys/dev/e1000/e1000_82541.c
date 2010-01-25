@@ -59,6 +59,7 @@ static s32  e1000_set_d3_lplu_state_82541(struct e1000_hw *hw,
 static s32  e1000_setup_led_82541(struct e1000_hw *hw);
 static s32  e1000_cleanup_led_82541(struct e1000_hw *hw);
 static void e1000_clear_hw_cntrs_82541(struct e1000_hw *hw);
+static s32  e1000_read_mac_addr_82541(struct e1000_hw *hw);
 static s32  e1000_config_dsp_after_link_change_82541(struct e1000_hw *hw,
                                                      bool link_up);
 static s32  e1000_phy_init_script_82541(struct e1000_hw *hw);
@@ -261,6 +262,8 @@ static s32 e1000_init_mac_params_82541(struct e1000_hw *hw)
 	mac->ops.clear_vfta = e1000_clear_vfta_generic;
 	/* setting MTA */
 	mac->ops.mta_set = e1000_mta_set_generic;
+	/* read mac address */
+	mac->ops.read_mac_addr = e1000_read_mac_addr_82541;
 	/* ID LED init */
 	mac->ops.id_led_init = e1000_id_led_init_generic;
 	/* setup LED */
@@ -1292,3 +1295,35 @@ static void e1000_clear_hw_cntrs_82541(struct e1000_hw *hw)
 	E1000_READ_REG(hw, E1000_MGTPDC);
 	E1000_READ_REG(hw, E1000_MGTPTC);
 }
+
+/**
+ *  e1000_read_mac_addr_82541 - Read device MAC address
+ *  @hw: pointer to the HW structure
+ *
+ *  Reads the device MAC address from the EEPROM and stores the value.
+ **/
+static s32 e1000_read_mac_addr_82541(struct e1000_hw *hw)
+{
+	s32  ret_val = E1000_SUCCESS;
+	u16 offset, nvm_data, i;
+
+	DEBUGFUNC("e1000_read_mac_addr");
+
+	for (i = 0; i < ETH_ADDR_LEN; i += 2) {
+		offset = i >> 1;
+		ret_val = hw->nvm.ops.read(hw, offset, 1, &nvm_data);
+		if (ret_val) {
+			DEBUGOUT("NVM Read Error\n");
+			goto out;
+		}
+		hw->mac.perm_addr[i] = (u8)(nvm_data & 0xFF);
+		hw->mac.perm_addr[i+1] = (u8)(nvm_data >> 8);
+	}
+
+	for (i = 0; i < ETH_ADDR_LEN; i++)
+		hw->mac.addr[i] = hw->mac.perm_addr[i];
+
+out:
+	return ret_val;
+}
+

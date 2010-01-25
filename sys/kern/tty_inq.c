@@ -379,7 +379,7 @@ ttyinq_findchar(struct ttyinq *ti, const char *breakc, size_t maxlen,
 void
 ttyinq_flush(struct ttyinq *ti)
 {
-	struct ttyinq_block *tib = ti->ti_lastblock;
+	struct ttyinq_block *tib;
 
 	ti->ti_begin = 0;
 	ti->ti_linestart = 0;

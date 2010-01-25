@@ -44,9 +44,15 @@ DEFINE_TEST(test_read_format_pax_bz2)
 {
 	struct archive_entry *ae;
 	struct archive *a;
+	int r;
 
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a,ARCHIVE_OK, archive_read_support_compression_all(a));
+	r = archive_read_support_compression_bzip2(a);
+	if (r != ARCHIVE_OK) {
+		archive_read_close(a);
+		skipping("Bzip2 unavailable");
+		return;
+	}
 	assertEqualIntA(a,ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a,ARCHIVE_OK,
 	    archive_read_open_memory(a, archive, sizeof(archive)));

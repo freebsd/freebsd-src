@@ -675,6 +675,8 @@ g_stripe_check_and_run(struct g_stripe_softc *sc)
 	}
 	sc->sc_provider->sectorsize = sectorsize;
 	sc->sc_provider->mediasize = mediasize * sc->sc_ndisks;
+	sc->sc_provider->stripesize = sc->sc_stripesize;
+	sc->sc_provider->stripeoffset = 0;
 	g_error_provider(sc->sc_provider, 0);
 
 	G_STRIPE_DEBUG(0, "Device %s activated.", sc->sc_name);

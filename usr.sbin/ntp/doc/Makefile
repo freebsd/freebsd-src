@@ -24,7 +24,7 @@ FILES=	accopt.html assoc.html audio.html authopt.html build.html \
 .endif
 
 MAN=	ntp.conf.5 ntp.keys.5
-MAN+=	ntp-keygen.8 ntpd.8 ntpdate.8 ntpdc.8 ntpq.8 ntptime.8 ntptrace.8
+MAN+=	ntp-keygen.8 ntpd.8 ntpdate.8 ntpdc.8 ntpq.8 ntptime.8
 
 .PATH: ${.CURDIR}/../../../contrib/ntp/html \
 	${.CURDIR}/../../../contrib/ntp/html/build \

@@ -76,3 +76,12 @@ ioclose(struct cdev *dev __unused, int flags __unused, int fmt __unused,
 
 	return (0);
 }
+
+/* ARGSUSED */
+int
+ioioctl(struct cdev *dev __unused, u_long cmd __unused, caddr_t data __unused,
+    int fflag __unused, struct thread *td __unused)
+{
+
+	return (ENXIO);
+}

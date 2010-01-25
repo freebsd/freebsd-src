@@ -40,6 +40,8 @@ RPCCOM=		rpcgen
 MOUNT_X=	${DESTDIR}/usr/include/rpcsvc/mount.x
 NFS_PROT_X=	${DESTDIR}/usr/include/rpcsvc/nfs_prot.x
 
+WARNS?=	1
+
 .if exists(${.CURDIR}/../../Makefile.inc)
 .include "${.CURDIR}/../../Makefile.inc"
 .endif

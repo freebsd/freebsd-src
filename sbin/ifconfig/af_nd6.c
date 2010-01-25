@@ -56,17 +56,9 @@ static const char rcsid[] =
 #include "ifconfig.h"
 
 #define	MAX_SYSCTL_TRY	5
-
-static struct nd6_opt_list {
-	const char *label;
-	u_int mask;
-} nd6_opts[]  = {
-	{ "IFDISABLED",		ND6_IFF_IFDISABLED, },
-	{ "PERFORMNUD",		ND6_IFF_PERFORMNUD, },
-	{ "ACCEPT_RTADV",	ND6_IFF_ACCEPT_RTADV,	},
-	{ "PREFER_SOURCE",	ND6_IFF_PREFER_SOURCE,	},
-	{ "AUTO_LINKLOCAL",	ND6_IFF_AUTO_LINKLOCAL,	},
-};
+#define	ND6BITS	"\020\001PERFORMNUD\002ACCEPT_RTADV\003PREFER_SOURCE" \
+		"\004IFDISABLED\005DONT_SET_IFROUTE\006AUTO_LINKLOCAL" \
+		"\020DEFAULTIF"
 
 static int isnd6defif(int);
 void setnd6flags(const char *, int, int, const struct afswtch *);
@@ -153,9 +145,8 @@ nd6_status(int s)
 	char *buf, *next;
 	int mib[6], ntry;
 	int s6;
-	int i, error;
+	int error;
 	int isinet6, isdefif;
-	int nopts;
 
 	/* Check if the interface has at least one IPv6 address. */
 	mib[0] = CTL_NET;
@@ -220,22 +211,9 @@ nd6_status(int s)
 	close(s6);
 	if (nd.ndi.flags == 0 && !isdefif)
 		return;
-
-	nopts = 0;
-	printf("\tnd6 options=%d<", nd.ndi.flags);
-	for (i=0; i < sizeof(nd6_opts)/sizeof(nd6_opts[0]); i++) {
-		if (nd.ndi.flags & nd6_opts[i].mask) {
-			if (nopts++)
-				printf(",");
-			printf("%s", nd6_opts[i].label);
-		}
-	}
-	if (isdefif) {
-		if (nopts)
-			printf(",");
-		printf("DEFAULTIF");
-	}
-	printf(">\n");
+	printb("\tnd6 options",
+	    (unsigned int)(nd.ndi.flags | (isdefif << 15)), ND6BITS);
+	putchar('\n');
 }
 
 static struct afswtch af_nd6 = {

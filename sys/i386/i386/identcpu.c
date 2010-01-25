@@ -265,7 +265,7 @@ printcpuinfo(void)
 				        strcat(cpu_model, "/P54C");
 					break;
 				case 0x30:
-				        strcat(cpu_model, "/P54T Overdrive");
+				        strcat(cpu_model, "/P24T");
 					break;
 				case 0x40:
 				        strcat(cpu_model, "/P55C");
@@ -746,7 +746,7 @@ printcpuinfo(void)
 				"\024SSE4.1"
 				"\025SSE4.2"
 				"\026x2APIC"	/* xAPIC Extensions */
-				"\027<b22>"
+				"\027MOVBE"
 				"\030POPCNT"
 				"\031<b24>"
 				"\032<b25>"
@@ -1303,6 +1303,21 @@ print_AMD_info(void)
 			    (amd_whcr & 0x0100) ? "Enable" : "Disable");
 		}
 	}
+
+	/*
+	 * Opteron Rev E shows a bug as in very rare occasions a read memory
+	 * barrier is not performed as expected if it is followed by a
+	 * non-atomic read-modify-write instruction.
+	 * As long as that bug pops up very rarely (intensive machine usage
+	 * on other operating systems generally generates one unexplainable
+	 * crash any 2 months) and as long as a model specific fix would be
+	 * impratical at this stage, print out a warning string if the broken
+	 * model and family are identified.
+	 */
+	if (CPUID_TO_FAMILY(cpu_id) == 0xf && CPUID_TO_MODEL(cpu_id) >= 0x20 &&
+	    CPUID_TO_MODEL(cpu_id) <= 0x3f)
+		printf("WARNING: This architecture revision has known SMP "
+		    "hardware bugs which may cause random instability\n");
 }
 
 static void

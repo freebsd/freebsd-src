@@ -13,6 +13,7 @@ LINKS=	${BINDIR}/bsdlabel ${BINDIR}/disklabel
 MLINKS=	bsdlabel.8 disklabel.8
 .endif
 
+WARNS?=	2
 DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF}
 LDADD=	-lgeom -lbsdxml -lsbuf
 

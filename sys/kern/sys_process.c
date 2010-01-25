@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
 #ifdef COMPAT_IA32
@@ -213,10 +214,10 @@ int
 proc_rwmem(struct proc *p, struct uio *uio)
 {
 	vm_map_t map;
-	vm_object_t backing_object, object = NULL;
-	vm_offset_t pageno = 0;		/* page number */
+	vm_object_t backing_object, object;
+	vm_offset_t pageno;		/* page number */
 	vm_prot_t reqprot;
-	int error, fault_flags, writing;
+	int error, writing;
 
 	/*
 	 * Assert that someone has locked this vmspace.  (Should be
@@ -232,9 +233,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	map = &p->p_vmspace->vm_map;
 
 	writing = uio->uio_rw == UIO_WRITE;
-	reqprot = writing ? (VM_PROT_WRITE | VM_PROT_OVERRIDE_WRITE) :
-	    VM_PROT_READ;
-	fault_flags = writing ? VM_FAULT_DIRTY : VM_FAULT_NORMAL; 
+	reqprot = writing ? VM_PROT_COPY | VM_PROT_READ : VM_PROT_READ;
 
 	/*
 	 * Only map in one page at a time.  We don't have to, but it
@@ -269,7 +268,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		/*
 		 * Fault the page on behalf of the process
 		 */
-		error = vm_fault(map, pageno, reqprot, fault_flags);
+		error = vm_fault(map, pageno, reqprot, VM_FAULT_NORMAL);
 		if (error) {
 			if (error == KERN_RESOURCE_SHORTAGE)
 				error = ENOMEM;
@@ -279,8 +278,8 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		}
 
 		/*
-		 * Now we need to get the page.  out_entry, out_prot, wired,
-		 * and single_use aren't used.  One would think the vm code
+		 * Now we need to get the page.  out_entry and wired
+		 * aren't used.  One would think the vm code
 		 * would be a *bit* nicer...  We use tmap because
 		 * vm_map_lookup() can change the map argument.
 		 */
@@ -302,6 +301,10 @@ proc_rwmem(struct proc *p, struct uio *uio)
 			pindex += OFF_TO_IDX(object->backing_object_offset);
 			VM_OBJECT_UNLOCK(object);
 			object = backing_object;
+		}
+		if (writing && m != NULL) {
+			vm_page_dirty(m);
+			vm_pager_page_unswapped(m);
 		}
 		VM_OBJECT_UNLOCK(object);
 		if (m == NULL) {
@@ -326,6 +329,10 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		 * Now do the i/o move.
 		 */
 		error = uiomove_fromphys(&m, page_offset, len, uio);
+
+		/* Make the I-cache coherent for breakpoints. */
+		if (!error && writing && (out_prot & VM_PROT_EXECUTE))
+			vm_sync_icache(map, uva, len);
 
 		/*
 		 * Release the page.
@@ -809,6 +816,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 	case PT_WRITE_I:
 	case PT_WRITE_D:
+		td2->td_dbgflags |= TDB_USERWR;
 		write = 1;
 		/* FALLTHROUGH */
 	case PT_READ_I:
@@ -877,6 +885,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			break;
 		case PIOD_WRITE_D:
 		case PIOD_WRITE_I:
+			td2->td_dbgflags |= TDB_USERWR;
 			uio.uio_rw = UIO_WRITE;
 			break;
 		default:
@@ -899,6 +908,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		goto sendsig;	/* in PT_CONTINUE above */
 
 	case PT_SETREGS:
+		td2->td_dbgflags |= TDB_USERWR;
 		error = PROC_WRITE(regs, td2, addr);
 		break;
 
@@ -907,6 +917,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_SETFPREGS:
+		td2->td_dbgflags |= TDB_USERWR;
 		error = PROC_WRITE(fpregs, td2, addr);
 		break;
 
@@ -915,6 +926,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_SETDBREGS:
+		td2->td_dbgflags |= TDB_USERWR;
 		error = PROC_WRITE(dbregs, td2, addr);
 		break;
 

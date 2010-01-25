@@ -790,7 +790,7 @@ struct ieee80211req_scan_result {
 	uint16_t	isr_flags;		/* channel flags */
 	int8_t		isr_noise;
 	int8_t		isr_rssi;
-	uint8_t		isr_intval;		/* beacon interval */
+	uint16_t	isr_intval;		/* beacon interval */
 	uint8_t		isr_capinfo;		/* capabilities */
 	uint8_t		isr_erp;		/* ERP element */
 	uint8_t		isr_bssid[IEEE80211_ADDR_LEN];

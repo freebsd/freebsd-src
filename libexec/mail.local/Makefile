@@ -8,6 +8,8 @@ PROG=	mail.local
 SRCS=	mail.local.c
 MAN=	mail.local.8
 CFLAGS+=-I${SENDMAIL_DIR}/include -I.
+
+WARNS?=	2
 WFORMAT=0
 
 LIBSMDIR=	${.OBJDIR}/../../lib/libsm

@@ -259,7 +259,7 @@ get_freq_id(int freq, int *freqs, int numfreqs)
  * to APM.  If nothing succeeds, we'll just run in default mode.
  */
 static void
-acline_init()
+acline_init(void)
 {
 	acline_mib_len = 4;
 

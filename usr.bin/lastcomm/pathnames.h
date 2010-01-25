@@ -31,8 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/6/93
+ *
+ * $FreeBSD$
  */
-
-#include <paths.h>
 
 #define	_PATH_ACCT	"/var/account/acct"

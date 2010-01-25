@@ -90,36 +90,36 @@ Equivalent to
 By default,
 .Nm
 gathers information from the file
-.Pa /var/run/utmp .
+.Pa /var/run/utx.active .
 An alternate
 .Ar file
 may be specified which is usually
-.Pa /var/log/wtmp
+.Pa /var/log/utx.log
 (or
-.Pa /var/log/wtmp.[0-6]
+.Pa /var/log/utx.log.[0-6]
 depending on site policy as
-.Pa wtmp
+.Pa utx.log
 can grow quite large and daily versions may or may not
 be kept around after compression by
 .Xr ac 8 ) .
 The
-.Pa wtmp
+.Pa utx.log
 file contains a record of every login, logout,
 crash, shutdown and date change
 since
-.Pa wtmp
+.Pa utx.log
 was last truncated or
 created.
 .Pp
 If
-.Pa /var/log/wtmp
+.Pa /var/log/utx.log
 is being used as the file, the user name may be empty
 or one of the special characters '|', '}' and '~'.
 Logouts produce
 an output line without any user name.
 For more information on the
 special characters, see
-.Xr utmp 5 .
+.Xr getutxent 3 .
 .Sh ENVIRONMENT
 The
 .Ev COLUMNS , LANG , LC_ALL
@@ -130,10 +130,10 @@ environment variables affect the execution of
 as described in
 .Xr environ 7 .
 .Sh FILES
-.Bl -tag -width /var/log/wtmp.[0-6] -compact
-.It Pa /var/run/utmp
-.It Pa /var/log/wtmp
-.It Pa /var/log/wtmp.[0-6]
+.Bl -tag -width /var/log/utx.log.[0-6] -compact
+.It Pa /var/run/utx.active
+.It Pa /var/log/utx.log
+.It Pa /var/log/utx.log.[0-6]
 .El
 .Sh EXIT STATUS
 .Ex -std
@@ -141,7 +141,7 @@ as described in
 .Xr last 1 ,
 .Xr users 1 ,
 .Xr w 1 ,
-.Xr utmp 5
+.Xr getutxent 3
 .Sh STANDARDS
 The
 .Nm

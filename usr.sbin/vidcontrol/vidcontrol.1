@@ -38,6 +38,7 @@
 .Op Fl r Ar foreground Ar background
 .Op Fl S Cm on | off
 .Op Fl s Ar number
+.Op Fl T Cm xterm | cons25
 .Op Fl t Ar N | Cm off
 .Op Ar mode
 .Op Ar foreground Op Ar background
@@ -243,6 +244,8 @@ is supposed to be physically secure.
 .It Fl s Ar number
 Set the current vty to
 .Ar number .
+.It Fl T Cm xterm | cons25
+Switch between xterm and cons25 style terminal emulation.
 .It Fl t Ar N | Cm off
 Set the screensaver timeout to
 .Ar N

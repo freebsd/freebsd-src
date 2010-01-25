@@ -543,3 +543,4 @@ DEV_MODULE(dtnfsclient, dtnfsclient_modevent, NULL);
 MODULE_VERSION(dtnfsclient, 1);
 MODULE_DEPEND(dtnfsclient, dtrace, 1, 1, 1);
 MODULE_DEPEND(dtnfsclient, opensolaris, 1, 1, 1);
+MODULE_DEPEND(dtnfsclient, nfs, 1, 1, 1);

@@ -67,6 +67,8 @@ SYSCTL_NODE(_hw, OID_AUTO, usb, CTLFLAG_RW, 0, "USB debugging");
 SYSCTL_INT(_hw_usb, OID_AUTO, debug, CTLFLAG_RW,
     &usb_debug, 0, "Debug level");
 
+TUNABLE_INT("hw.usb.debug", &usb_debug);
+
 /*------------------------------------------------------------------------*
  *	usb_dump_iface
  *

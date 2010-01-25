@@ -368,6 +368,7 @@ MainParseArgs(int argc, char **argv)
 {
 	int c;
 	Boolean	found_dd = FALSE;
+	char found_dir[MAXPATHLEN + 1];	/* for searching for sys.mk */
 
 rearg:
 	optind = 1;	/* since we're called more than once */
@@ -394,6 +395,8 @@ rearg:
 		case 'C':
 			if (chdir(optarg) == -1)
 				err(1, "chdir %s", optarg);
+			if (getcwd(curdir, MAXPATHLEN) == NULL)
+				err(2, NULL);
 			break;
 		case 'D':
 			Var_SetGlobal(optarg, "1");
@@ -492,7 +495,15 @@ rearg:
 			MFLAGS_append("-k", NULL);
 			break;
 		case 'm':
-			Path_AddDir(&sysIncPath, optarg);
+			/* look for magic parent directory search string */
+			if (strncmp(".../", optarg, 4) == 0) {
+				if (!Dir_FindHereOrAbove(curdir, optarg + 4,
+				    found_dir, sizeof(found_dir)))
+					break;		/* nothing doing */
+				Path_AddDir(&sysIncPath, found_dir);
+			} else {
+				Path_AddDir(&sysIncPath, optarg);
+			}
 			MFLAGS_append("-m", optarg);
 			break;
 		case 'n':
@@ -706,6 +717,7 @@ Main_AddSourceMakefile(const char *name)
 static void
 Remake_Makefiles(void)
 {
+	Lst cleanup;
 	LstNode *ln;
 	int error_cnt = 0;
 	int remade_cnt = 0;
@@ -716,6 +728,7 @@ Remake_Makefiles(void)
 			Fatal("Failed to change directory to %s.", curdir);
 	}
 
+	Lst_Init(&cleanup);
 	LST_FOREACH(ln, &source_makefiles) {
 		LstNode *ln2;
 		struct GNode *gn;
@@ -791,21 +804,7 @@ Remake_Makefiles(void)
 			    gn->name);
 			error_cnt++;
 		} else if (gn->made == UPTODATE) {
-			Lst examine;
-
-			Lst_Init(&examine);
-			Lst_EnQueue(&examine, gn);
-			while (!Lst_IsEmpty(&examine)) {
-				LstNode	*eln;
-				GNode *egn = Lst_DeQueue(&examine);
-
-				egn->make = FALSE;
-				LST_FOREACH(eln, &egn->children) {
-					GNode *cgn = Lst_Datum(eln);
-
-					Lst_EnQueue(&examine, cgn);
-				}
-			}
+			Lst_EnQueue(&cleanup, gn);
 		}
 	}
 
@@ -824,6 +823,24 @@ Remake_Makefiles(void)
 		if (execvp(save_argv[0], save_argv) < 0) {
 			Fatal("Can't restart `%s': %s.",
 			    save_argv[0], strerror(errno));
+		}
+	}
+
+	while (!Lst_IsEmpty(&cleanup)) {
+		GNode *gn = Lst_DeQueue(&cleanup);
+
+		gn->unmade = 0;
+		gn->make = FALSE;
+		gn->made = UNMADE;
+		gn->childMade = FALSE;
+		gn->mtime = gn->cmtime = 0;
+		gn->cmtime_gn = NULL;
+
+		LST_FOREACH(ln, &gn->children) {
+			GNode *cgn = Lst_Datum(ln);
+
+			gn->unmade++;
+			Lst_EnQueue(&cleanup, cgn);
 		}
 	}
 
@@ -863,6 +880,7 @@ main(int argc, char **argv)
 	char mdpath[MAXPATHLEN];
 	char obpath[MAXPATHLEN];
 	char cdpath[MAXPATHLEN];
+	char found_dir[MAXPATHLEN + 1];	/* for searching for sys.mk */
 	char *cp = NULL, *start;
 
 	save_argv = argv;
@@ -1016,6 +1034,12 @@ main(int argc, char **argv)
 	Job_SetPrefix();
 
 	/*
+	 * Find where we are...
+	 */
+	if (getcwd(curdir, MAXPATHLEN) == NULL)
+		err(2, NULL);
+
+	/*
 	 * First snag things out of the MAKEFLAGS environment
 	 * variable.  Then parse the command line arguments.
 	 */
@@ -1024,11 +1048,8 @@ main(int argc, char **argv)
 	MainParseArgs(argc, argv);
 
 	/*
-	 * Find where we are...
+	 * Verify that cwd is sane (after -C may have changed it).
 	 */
-	if (getcwd(curdir, MAXPATHLEN) == NULL)
-		err(2, NULL);
-
 	{
 	struct stat sa;
 
@@ -1126,18 +1147,37 @@ main(int argc, char **argv)
 	 * as dir1:...:dirn) to the system include path.
 	 */
 	if (TAILQ_EMPTY(&sysIncPath)) {
-		char syspath[] = PATH_DEFSYSPATH;
+		char defsyspath[] = PATH_DEFSYSPATH;
+		char *syspath = getenv("MAKESYSPATH");
+
+		/*
+		 * If no user-supplied system path was given (thru -m option)
+		 * add the directories from the DEFSYSPATH (more than one may
+		 * be given as dir1:...:dirn) to the system include path.
+		 */
+		if (syspath == NULL || *syspath == '\0')
+			syspath = defsyspath;
+		else
+			syspath = estrdup(syspath);
 
 		for (start = syspath; *start != '\0'; start = cp) {
 			for (cp = start; *cp != '\0' && *cp != ':'; cp++)
 				continue;
-			if (*cp == '\0') {
-				Path_AddDir(&sysIncPath, start);
-			} else {
+			if (*cp == ':') {
 				*cp++ = '\0';
+			}
+			/* look for magic parent directory search string */
+			if (strncmp(".../", start, 4) == 0) {
+				if (Dir_FindHereOrAbove(curdir, start + 4,
+				    found_dir, sizeof(found_dir))) {
+					Path_AddDir(&sysIncPath, found_dir);
+				}
+			} else {
 				Path_AddDir(&sysIncPath, start);
 			}
 		}
+		if (syspath != defsyspath)
+			free(syspath);
 	}
 
 	/*

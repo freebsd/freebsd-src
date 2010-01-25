@@ -303,10 +303,30 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
 
 #define TMPFS_NODE_LOCK(node) mtx_lock(&(node)->tn_interlock)
 #define TMPFS_NODE_UNLOCK(node) mtx_unlock(&(node)->tn_interlock)
-#define        TMPFS_NODE_MTX(node) (&(node)->tn_interlock)
+#define TMPFS_NODE_MTX(node) (&(node)->tn_interlock)
+
+#ifdef INVARIANTS
+#define TMPFS_ASSERT_LOCKED(node) do {					\
+		MPASS(node != NULL);					\
+		MPASS(node->tn_vnode != NULL);				\
+		if (!VOP_ISLOCKED(node->tn_vnode) &&			\
+		    !mtx_owned(TMPFS_NODE_MTX(node)))			\
+			panic("tmpfs: node is not locked: %p", node);	\
+	} while (0)
+#define TMPFS_ASSERT_ELOCKED(node) do {					\
+		MPASS((node) != NULL);					\
+		MPASS((node)->tn_vnode != NULL);			\
+		mtx_assert(TMPFS_NODE_MTX(node), MA_OWNED);		\
+		ASSERT_VOP_LOCKED((node)->tn_vnode, "tmpfs");		\
+	} while (0)
+#else
+#define TMPFS_ASSERT_LOCKED(node) (void)0
+#define TMPFS_ASSERT_ELOCKED(node) (void)0
+#endif
 
 #define TMPFS_VNODE_ALLOCATING	1
 #define TMPFS_VNODE_WANT	2
+#define TMPFS_VNODE_DOOMED	4
 /* --------------------------------------------------------------------- */
 
 /*
@@ -472,10 +492,6 @@ int	tmpfs_truncate(struct vnode *, off_t);
 /*
  * Returns information about the number of available memory pages,
  * including physical and virtual ones.
- *
- * If 'total' is TRUE, the value returned is the total amount of memory
- * pages configured for the system (either in use or free).
- * If it is FALSE, the value returned is the amount of free memory pages.
  *
  * Remember to remove TMPFS_PAGES_RESERVED from the returned value to avoid
  * excessive memory usage.

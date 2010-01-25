@@ -177,7 +177,7 @@ getnum(const char *com, const char *str, int *val)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
 "usage: renice priority [[-p] pid ...] [[-g] pgrp ...] [[-u] user ...]",

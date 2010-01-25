@@ -5,6 +5,7 @@ PROG= iscontrol
 DPADD= ${LIBCAM} ${LIBMD}
 LDADD= -lcam -lmd
 
+WARNS?=	2
 CFLAGS += -I${.CURDIR}/../../sys/dev/iscsi/initiator
 #CFLAGS += -g -DDEBUG
 

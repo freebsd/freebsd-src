@@ -152,7 +152,7 @@ struct g_class g_md_class = {
 DECLARE_GEOM_CLASS(g_md_class, g_md);
 
 
-static LIST_HEAD(, md_s) md_softc_list = LIST_HEAD_INITIALIZER(&md_softc_list);
+static LIST_HEAD(, md_s) md_softc_list = LIST_HEAD_INITIALIZER(md_softc_list);
 
 #define NINDIR	(PAGE_SIZE / sizeof(uintptr_t))
 #define NMASK	(NINDIR-1)

@@ -43,8 +43,8 @@ struct pmap;
 	struct thread	*pc_vecthread;		/* current vec user */  \
 	uintptr_t	pc_hwref;					\
 	uint32_t	pc_pir;						\
-	int		pc_bsp:1;					\
-	int		pc_awake:1;					\
+	int		pc_bsp;						\
+	volatile int	pc_awake;					\
 	uint32_t	pc_ipimask;					\
 	register_t	pc_tempsave[CPUSAVE_LEN];			\
 	register_t	pc_disisave[CPUSAVE_LEN];			\

@@ -747,7 +747,7 @@ void yyFlexLexer::LexerOutput( const char* buf, int size )
  */
 
 %-
-static int yy_get_next_buffer()
+static int yy_get_next_buffer(void)
 %+
 int yyFlexLexer::yy_get_next_buffer()
 %*
@@ -883,7 +883,7 @@ int yyFlexLexer::yy_get_next_buffer()
 /* yy_get_previous_state - get the state just before the EOB char was reached */
 
 %-
-static yy_state_type yy_get_previous_state()
+static yy_state_type yy_get_previous_state(void)
 %+
 yy_state_type yyFlexLexer::yy_get_previous_state()
 %*
@@ -982,7 +982,7 @@ void yyFlexLexer::yyunput( int c, char* yy_bp )
 #ifdef __cplusplus
 static int yyinput()
 #else
-static int input()
+static int input(void)
 #endif
 %+
 int yyFlexLexer::yyinput()

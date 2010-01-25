@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/ehci.h>
+#include <dev/usb/controller/ehcireg.h>
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
@@ -164,8 +165,6 @@ ehci_mbus_attach(device_t self)
 	    USB_GET_DMA_TAG(self), &ehci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
-
-	sc->sc_bus.usbrev = USB_REV_2_0;
 
 	rid = 0;
 	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);

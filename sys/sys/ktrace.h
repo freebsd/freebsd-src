@@ -52,7 +52,7 @@ struct ktr_header {
 	int	ktr_len;		/* length of buf */
 	short	ktr_type;		/* trace record type */
 	pid_t	ktr_pid;		/* process id */
-	char	ktr_comm[MAXCOMLEN+1];	/* command name */
+	char	ktr_comm[MAXCOMLEN + 1];/* command name */
 	struct	timeval ktr_time;	/* timestamp */
 	intptr_t	ktr_tid;	/* was ktr_buffer */
 };

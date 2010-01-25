@@ -1,5 +1,5 @@
 /*
- * apm / zzz	APM BIOS utility for FreeBSD
+ * APM BIOS utility for FreeBSD
  *
  * Copyright (C) 1994-1996 by Tatsumi Hosokawa <hosokawa@jp.FreeBSD.org>
  *
@@ -43,10 +43,9 @@ int cmos_wall = 0;	/* True when wall time is in cmos clock, else UTC */
 static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n",
+	fprintf(stderr,
 		"usage: apm [-ablstzZ] [-d enable ] [ -e enable ] "
-		"[ -h enable ] [-r delta]",
-		"       zzz");
+		"[ -h enable ] [-r delta]\n");
 	exit(1);
 }
 
@@ -397,11 +396,6 @@ main(int argc, char *argv[])
 	else
 		cmdname = argv[0];
 
-	if (strcmp(cmdname, "zzz") == 0) {
-		dosleep = 1;
-		all_info = 0;
-		goto finish_option;
-	}
 	while ((c = getopt(argc, argv, "abe:h:lRr:stzd:Z")) != -1) {
 		switch (c) {
 		case 'a':
@@ -457,7 +451,6 @@ main(int argc, char *argv[])
 		argc -= optind;
 		argv += optind;
 	}
-finish_option:
 	if (haltcpu != -1 || enable != -1 || display != -1 || delta || dosleep
 	    || standby) {
 		fd = open(APMDEV, O_RDWR);

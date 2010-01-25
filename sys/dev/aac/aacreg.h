@@ -1363,7 +1363,7 @@ struct aac_close_command {
 /*
  * SCSI Passthrough structures
  */
-struct aac_srb32 {
+struct aac_srb {
 	u_int32_t		function;
 	u_int32_t		bus;
 	u_int32_t		target;

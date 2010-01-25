@@ -624,8 +624,8 @@ ofwfb_blank_display(video_adapter_t *adp, int mode)
 }
 
 static int
-ofwfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
-    int prot)
+ofwfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 	struct ofwfb_softc *sc;
 	int i;

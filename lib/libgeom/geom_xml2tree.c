@@ -230,6 +230,16 @@ EndElement(void *userData, const char *name)
 		free(p);
 		return;
 	}
+	if (!strcmp(name, "stripesize") && mt->provider != NULL) {
+		mt->provider->lg_stripesize = strtoumax(p, NULL, 0);
+		free(p);
+		return;
+	}
+	if (!strcmp(name, "stripeoffset") && mt->provider != NULL) {
+		mt->provider->lg_stripeoffset = strtoumax(p, NULL, 0);
+		free(p);
+		return;
+	}
 
 	if (!strcmp(name, "config")) {
 		mt->config = NULL;

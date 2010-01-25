@@ -100,8 +100,7 @@ of the remote host when used in conjunction with the
 .Fl h
 option.
 .It Fl k
-Disable all use of
-.Xr utmp 5 .
+Disable all use of the user accounting database.
 .It Fl l
 Produce a multi-line format displaying all of the information
 described for the
@@ -221,10 +220,10 @@ This variable may be set with favored options to
 .Nm .
 .El
 .Sh FILES
-.Bl -tag -width /var/log/lastlog -compact
+.Bl -tag -width /var/log/utx.lastlogin -compact
 .It Pa /etc/finger.conf
 alias definition data base
-.It Pa /var/log/lastlog
+.It Pa /var/log/utx.lastlogin
 last login data base
 .El
 .Sh SEE ALSO

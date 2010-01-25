@@ -508,7 +508,7 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 		thres /= 10;
 	thres = mtu > thres ? (mtu - thres + 7) / 8 : 0;
 	thres = max(thres, 8U);                          /* need at least 8 */
-	ipg = (adap->params.rev == T3_REV_C) ? 0 : 1;
+	ipg = (port_type == 9 || adap->params.rev != T3_REV_C) ? 1 : 0;
 	t3_set_reg_field(adap, A_XGM_TXFIFO_CFG + mac->offset,
 			 V_TXFIFOTHRESH(M_TXFIFOTHRESH) | V_TXIPG(M_TXIPG),
 			 V_TXFIFOTHRESH(thres) | V_TXIPG(ipg));

@@ -170,11 +170,11 @@ main(int argc, char *argv[])
 	int i;				/* counter in a for loop */
 	char *p;			/* used to obtain the key */
 	DES_cblock msgbuf;		/* I/O buffer */
-	int kflag;			/* command-line encryptiooon key */
+	int kflag;			/* command-line encryption key */
 
 	setproctitle("-");		/* Hide command-line arguments */
 
-	/* initialize the initialization vctor */
+	/* initialize the initialization vector */
 	MEMZERO(ivec, 8);
 
 	/* process the argument list */

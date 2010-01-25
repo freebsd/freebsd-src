@@ -6,4 +6,6 @@ CFLAGS+=-DNFS
 DPADD=  ${LIBKVM}
 LDADD= -lkvm
 
+WARNS?=	3
+
 .include <bsd.prog.mk>

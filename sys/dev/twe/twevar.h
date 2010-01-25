@@ -59,6 +59,7 @@ struct twe_drive
     /* unit state and type */
     u_int8_t		td_state;
     u_int8_t		td_type;
+    u_int8_t		td_stripe;
 
     /* handle for attached driver */
     device_t		td_disk;

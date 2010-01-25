@@ -452,7 +452,7 @@ parse_term(struct fail_point_entries *ents, char *p)
 		} else if (*p == '*') {
 			if (!units || decimal)
 				return 0;
-			ent->fe_count = units;;
+			ent->fe_count = units;
 
 		} else {
 			return 0;
@@ -497,7 +497,7 @@ parse_number(int *out_units, int *out_decimal, char *p)
 
 	/* whole part */
 	old_p = p;
-	*out_units = strtol(p, &p, 10);;
+	*out_units = strtol(p, &p, 10);
 	if (p == old_p && *p != '.')
 		return 0;
 

@@ -3,8 +3,6 @@
 PROG=	ac
 MAN=	ac.8
 
-WARNS?=	4
-
 # Temporary, while tracking down problem wrt 64-bit time_t's on sparc64
 .if ${MACHINE_ARCH} == "sparc64"
 CFLAGS+=-DDEBUG

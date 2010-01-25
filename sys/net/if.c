@@ -96,8 +96,6 @@ struct ifindex_entry {
 	struct  ifnet *ife_ifnet;
 };
 
-static int slowtimo_started;
-
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
@@ -125,10 +123,8 @@ static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
 static void	if_init(void *);
 static void	if_grow(void);
-static void	if_check(void *);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
-static void	if_slowtimo(void *);
 static int	if_transmit(struct ifnet *ifp, struct mbuf *m);
 static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
@@ -184,11 +180,6 @@ struct sx ifnet_sxlock;
 
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
-
-/*
- * System initialization
- */
-SYSINIT(interface_check, SI_SUB_PROTO_IF, SI_ORDER_FIRST, if_check, NULL);
 
 MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
@@ -373,18 +364,6 @@ if_grow(void)
 		free((caddr_t)V_ifindex_table, M_IFNET);
 	}
 	V_ifindex_table = e;
-}
-
-static void
-if_check(void *dummy __unused)
-{
-
-	/*
-	 * If at least one interface added during boot uses
-	 * if_watchdog then start the timer.
-	 */
-	if (slowtimo_started)
-		if_slowtimo(0);
 }
 
 /*
@@ -670,18 +649,6 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 
 	/* Announce the interface. */
 	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
-
-	if (!vmove && ifp->if_watchdog != NULL) {
-		if_printf(ifp,
-		    "WARNING: using obsoleted if_watchdog interface\n");
-
-		/*
-		 * Note that we need if_slowtimo().  If this happens after
-		 * boot, then call if_slowtimo() directly.
-		 */
-		if (atomic_cmpset_int(&slowtimo_started, 0, 1) && !cold)
-			if_slowtimo(0);
-	}
 }
 
 static void
@@ -773,9 +740,10 @@ if_purgeaddrs(struct ifnet *ifp)
 }
 
 /*
- * Remove any multicast network addresses from an interface.
+ * Remove any multicast network addresses from an interface when an ifnet
+ * is going away.
  */
-void
+static void
 if_purgemaddrs(struct ifnet *ifp)
 {
 	struct ifmultiaddr *ifma;
@@ -1852,7 +1820,7 @@ if_route(struct ifnet *ifp, int flag, int fam)
 #endif
 }
 
-void	(*vlan_link_state_p)(struct ifnet *, int);	/* XXX: private from if_vlan */
+void	(*vlan_link_state_p)(struct ifnet *);	/* XXX: private from if_vlan */
 void	(*vlan_trunk_cap_p)(struct ifnet *);		/* XXX: private from if_vlan */
 
 /*
@@ -1878,19 +1846,12 @@ do_link_state_change(void *arg, int pending)
 {
 	struct ifnet *ifp = (struct ifnet *)arg;
 	int link_state = ifp->if_link_state;
-	int link;
 	CURVNET_SET(ifp->if_vnet);
 
 	/* Notify that the link state has changed. */
 	rt_ifmsg(ifp);
-	if (link_state == LINK_STATE_UP)
-		link = NOTE_LINKUP;
-	else if (link_state == LINK_STATE_DOWN)
-		link = NOTE_LINKDOWN;
-	else
-		link = NOTE_LINKINV;
 	if (ifp->if_vlantrunk != NULL)
-		(*vlan_link_state_p)(ifp, link);
+		(*vlan_link_state_p)(ifp);
 
 	if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
 	    IFP2AC(ifp)->ac_netgraph != NULL)
@@ -1970,39 +1931,6 @@ if_qflush(struct ifnet *ifp)
 	ifq->ifq_tail = 0;
 	ifq->ifq_len = 0;
 	IFQ_UNLOCK(ifq);
-}
-
-/*
- * Handle interface watchdog timer routines.  Called
- * from softclock, we decrement timers (if set) and
- * call the appropriate interface routine on expiration.
- *
- * XXXRW: Note that because timeouts run with Giant, if_watchdog() is called
- * holding Giant.
- */
-static void
-if_slowtimo(void *arg)
-{
-	VNET_ITERATOR_DECL(vnet_iter);
-	struct ifnet *ifp;
-	int s = splimp();
-
-	VNET_LIST_RLOCK_NOSLEEP();
-	IFNET_RLOCK_NOSLEEP();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-			if (ifp->if_timer == 0 || --ifp->if_timer)
-				continue;
-			if (ifp->if_watchdog)
-				(*ifp->if_watchdog)(ifp);
-		}
-		CURVNET_RESTORE();
-	}
-	IFNET_RUNLOCK_NOSLEEP();
-	VNET_LIST_RUNLOCK_NOSLEEP();
-	splx(s);
-	timeout(if_slowtimo, (void *)0, hz / IFNET_SLOWHZ);
 }
 
 /*
@@ -2161,6 +2089,14 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (EINVAL);
 		if (ifunit(new_name) != NULL)
 			return (EEXIST);
+
+		/*
+		 * XXX: Locking.  Nothing else seems to lock if_flags,
+		 * and there are numerous other races with the
+		 * ifunit() checks not being atomic with namespace
+		 * changes (renames, vmoves, if_attach, etc).
+		 */
+		ifp->if_flags |= IFF_RENAMING;
 		
 		/* Announce the departure of the interface. */
 		rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
@@ -2195,6 +2131,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
 		/* Announce the return of the interface. */
 		rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
+
+		ifp->if_flags &= ~IFF_RENAMING;
 		break;
 
 #ifdef VIMAGE
@@ -2331,6 +2269,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		error = if_setlladdr(ifp,
 		    ifr->ifr_addr.sa_data, ifr->ifr_addr.sa_len);
+		EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 		break;
 
 	case SIOCAIFGROUP:
@@ -2999,6 +2938,22 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	}
 
 	return (0);
+}
+
+/*
+ * Delete all multicast group membership for an interface.
+ * Should be used to quickly flush all multicast filters.
+ */
+void
+if_delallmulti(struct ifnet *ifp)
+{
+	struct ifmultiaddr *ifma;
+	struct ifmultiaddr *next;
+
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next)
+		if_delmulti_locked(ifp, ifma, 0);
+	IF_ADDR_UNLOCK(ifp);
 }
 
 /*

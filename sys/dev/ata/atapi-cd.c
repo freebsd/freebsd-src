@@ -126,7 +126,7 @@ acd_attach(device_t dev)
     }
     cdp->block_size = 2048;
     device_set_ivars(dev, cdp);
-    ATA_SETMODE(device_get_parent(dev), dev);
+    ata_setmode(dev);
     ata_controlcmd(dev, ATA_DEVICE_RESET, 0, 0, 0);
     acd_get_cap(dev);
     g_post_event(acd_geom_attach, dev, M_WAITOK, NULL);
@@ -163,7 +163,7 @@ acd_reinit(device_t dev)
     if (!(ch->devices & (ATA_ATAPI_MASTER << atadev->unit)))
 	return 1;
 
-    ATA_SETMODE(device_get_parent(dev), dev);
+    ata_setmode(dev);
     return 0;
 }
 
@@ -700,7 +700,7 @@ acd_geom_access(struct g_provider *pp, int dr, int dw, int de)
 	request->dev = dev;
 	bcopy(ccb, request->u.atapi.ccb, 16);
 	request->flags = ATA_R_ATAPI;
-	request->timeout = 5;
+	request->timeout = ATA_REQUEST_TIMEOUT;
 	ata_queue_request(request);
 	if (!request->error &&
 	    (request->u.atapi.sense.key == 2 ||
@@ -863,9 +863,7 @@ acd_strategy(struct bio *bp)
     }
     request->dev = dev;
     request->bio = bp;
-    bcopy(ccb, request->u.atapi.ccb,
-	  (atadev->param.config & ATA_PROTO_MASK) == 
-	  ATA_PROTO_ATAPI_12 ? 16 : 12);
+    bcopy(ccb, request->u.atapi.ccb, 16);
     request->data = bp->bio_data;
     request->bytecount = count * blocksize;
     request->transfersize = min(request->bytecount, 65534);
@@ -1208,6 +1206,7 @@ acd_read_track_info(device_t dev, int32_t lba, struct acd_track_info *info)
     if ((error = ata_atapicmd(dev, ccb, (caddr_t)info, sizeof(*info),
 			      ATA_R_READ, 30)))
 	return error;
+    info->data_length = ntohs(info->data_length);
     info->track_start_addr = ntohl(info->track_start_addr);
     info->next_writeable_addr = ntohl(info->next_writeable_addr);
     info->free_blocks = ntohl(info->free_blocks);
@@ -1646,12 +1645,17 @@ acd_get_cap(device_t dev)
     for (count = 0 ; count < 5 ; count++) {
 	if (!ata_atapicmd(dev, ccb, (caddr_t)&cdp->cap, sizeof(cdp->cap),
 			  ATA_R_READ | ATA_R_QUIET, 5)) {
+	    cdp->cap.data_length = ntohs(cdp->cap.data_length);
+	    cdp->cap.blk_desc_len = ntohs(cdp->cap.blk_desc_len);
+	    cdp->cap.media = ntohs(cdp->cap.media);
+	    cdp->cap.capabilities = ntohs(cdp->cap.capabilities);
 	    cdp->cap.max_read_speed = ntohs(cdp->cap.max_read_speed);
+	    cdp->cap.max_vol_levels = ntohs(cdp->cap.max_vol_levels);
+	    cdp->cap.buf_size = ntohs(cdp->cap.buf_size);
 	    cdp->cap.cur_read_speed = ntohs(cdp->cap.cur_read_speed);
 	    cdp->cap.max_write_speed = ntohs(cdp->cap.max_write_speed);
 	    cdp->cap.cur_write_speed = max(ntohs(cdp->cap.cur_write_speed),177);
-	    cdp->cap.max_vol_levels = ntohs(cdp->cap.max_vol_levels);
-	    cdp->cap.buf_size = ntohs(cdp->cap.buf_size);
+	    cdp->cap.copy_protect_rev = ntohs(cdp->cap.copy_protect_rev);
 	}
     }
 }
@@ -1726,7 +1730,8 @@ acd_describe(device_t dev)
 	    printf("%s %dKB buffer", comma ? "," : "", cdp->cap.buf_size);
 	    comma = 1;
 	}
-	printf("%s %s\n", comma ? "," : "", ata_mode2str(atadev->mode));
+	printf("%s %s %s\n", comma ? "," : "", ata_mode2str(atadev->mode),
+	    ata_satarev2str(ATA_GETREV(device_get_parent(dev), atadev->unit)));
 
 	device_printf(dev, "Reads:");
 	comma = 0;
@@ -1876,10 +1881,11 @@ acd_describe(device_t dev)
 			  "CDROM");
 	if (cdp->changer_info)
 	    printf("with %d CD changer ", cdp->changer_info->slots);
-	printf("<%.40s/%.8s> at ata%d-%s %s\n",
+	printf("<%.40s/%.8s> at ata%d-%s %s %s\n",
 	       atadev->param.model, atadev->param.revision,
 	       device_get_unit(ch->dev), ata_unit2str(atadev),
-	       ata_mode2str(atadev->mode) );
+	       ata_mode2str(atadev->mode),
+	       ata_satarev2str(ATA_GETREV(device_get_parent(dev), atadev->unit)));
     }
 }
 
@@ -1907,8 +1913,7 @@ static devclass_t acd_devclass;
 static int
 acd_modevent(module_t mod, int what, void *arg)  
 {
-    g_modevent(0, what, &acd_class);
-    return 0;
+    return g_modevent(0, what, &acd_class);
 }
  
 DRIVER_MODULE(acd, ata, acd_driver, acd_devclass, acd_modevent, NULL);

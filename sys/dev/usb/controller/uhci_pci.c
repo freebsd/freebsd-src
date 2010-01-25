@@ -81,13 +81,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/uhci.h>
+#include <dev/usb/controller/uhcireg.h>
 
 #define	PCI_UHCI_VENDORID_INTEL		0x8086
 #define	PCI_UHCI_VENDORID_VIA		0x1106
 
 /* PIIX4E has no separate stepping */
-
-#define	PCI_UHCI_BASE_REG               0x20
 
 static device_probe_t uhci_pci_probe;
 static device_attach_t uhci_pci_attach;
@@ -231,6 +230,18 @@ uhci_pci_match(device_t self)
 		return ("Intel 82801I (ICH9) USB controller");
 	case 0x29398086:
 		return ("Intel 82801I (ICH9) USB controller");
+	case 0x3a348086:
+		return ("Intel 82801JI (ICH10) USB controller USB-A");
+	case 0x3a358086:
+		return ("Intel 82801JI (ICH10) USB controller USB-B");
+	case 0x3a368086:
+		return ("Intel 82801JI (ICH10) USB controller USB-C");
+	case 0x3a378086:
+		return ("Intel 82801JI (ICH10) USB controller USB-D");
+	case 0x3a388086:
+		return ("Intel 82801JI (ICH10) USB controller USB-E");
+	case 0x3a398086:
+		return ("Intel 82801JI (ICH10) USB controller USB-F");
 
 	case 0x719a8086:
 		return ("Intel 82443MX USB controller");

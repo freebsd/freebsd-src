@@ -411,6 +411,8 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 			/* Consume the stream trailer; release the
 			 * decompression library. */
 			ret = consume_trailer(self);
+			if (ret < ARCHIVE_OK)
+				return (ret);
 			break;
 		default:
 			/* Return an error. */

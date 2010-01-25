@@ -220,7 +220,7 @@ MTX_SYSINIT(pcm_syncgroup, &snd_pcm_syncgroups_mtx, "PCM channel sync group lock
  *
  * See SNDCTL_DSP_SYNCGROUP for more information.
  */
-struct pcm_synclist snd_pcm_syncgroups = SLIST_HEAD_INITIALIZER(head);
+struct pcm_synclist snd_pcm_syncgroups = SLIST_HEAD_INITIALIZER(snd_pcm_syncgroups);
 
 static void
 chn_lockinit(struct pcm_channel *c, int dir)

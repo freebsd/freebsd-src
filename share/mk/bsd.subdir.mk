@@ -24,9 +24,9 @@
 # 		This is a variant of install, which will
 # 		put the stuff into the right "distribution".
 #
-#	afterinstall, all, all-man, beforeinstall, checkdpadd,
-#	clean, cleandepend, cleandir, depend, install, lint, maninstall,
-#	manlint, obj, objlink, realinstall, regress, tags
+#	afterinstall, all, all-man, beforeinstall, checkdpadd, clean,
+#	cleandepend, cleandir, cleanilinks depend, install, lint,
+#	maninstall, manlint, obj, objlink, realinstall, regress, tags
 #
 
 .include <bsd.init.mk>
@@ -66,9 +66,8 @@ ${SUBDIR}: .PHONY
 	${MAKE} all
 
 .for __target in all all-man checkdpadd clean cleandepend cleandir \
-    depend distribute lint maninstall manlint \
-    obj objlink realinstall regress tags \
-    ${SUBDIR_TARGETS}
+    cleanilinks depend distribute lint maninstall manlint obj objlink \
+    realinstall regress tags ${SUBDIR_TARGETS}
 ${__target}: _SUBDIR
 .endfor
 

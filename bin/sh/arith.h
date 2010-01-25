@@ -34,8 +34,8 @@
 
 #define DIGITS(var) (3 + (2 + CHAR_BIT * sizeof((var))) / 3)
 
-extern char *arith_buf, *arith_startbuf;
+extern const char *arith_buf, *arith_startbuf;
 
-arith_t arith(char *);
+arith_t arith(const char *);
 void arith_lex_reset(void);
 int expcmd(int, char **);

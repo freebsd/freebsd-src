@@ -15,6 +15,7 @@ MAN=	aac.4 \
 	${_acpi_toshiba.4} \
 	acpi_video.4 \
 	${_acpi_wmi.4} \
+	ada.4 \
 	adv.4 \
 	adw.4 \
 	ae.4 \
@@ -30,8 +31,9 @@ MAN=	aac.4 \
 	ale.4 \
 	altq.4 \
 	amd.4 \
-	${_amdtemp.4} \
+	${_amdsbwd.4} \
 	${_amdsmb.4} \
+	${_amdtemp.4} \
 	amr.4 \
 	an.4 \
 	arcmsr.4 \
@@ -44,6 +46,7 @@ MAN=	aac.4 \
 	ath_hal.4 \
 	atkbd.4 \
 	atkbdc.4 \
+	${_atp.4} \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
@@ -117,6 +120,7 @@ MAN=	aac.4 \
 	geom_linux_lvm.4 \
 	geom_uzip.4 \
 	gif.4 \
+	gpib.4 \
 	gre.4 \
 	harp.4 \
 	hatm.4 \
@@ -153,10 +157,12 @@ MAN=	aac.4 \
 	ips.4 \
 	ipsec.4 \
 	ipw.4 \
+	ipwfw.4 \
 	iscsi_initiator.4 \
 	isp.4 \
 	ispfw.4 \
 	iwi.4 \
+	iwifw.4 \
 	iwn.4 \
 	iwnfw.4 \
 	ixgb.4 \
@@ -198,6 +204,7 @@ MAN=	aac.4 \
 	meteor.4 \
 	mfi.4 \
 	miibus.4 \
+	mk48txx.4 \
 	mld.4 \
 	mlx.4 \
 	mly.4 \
@@ -296,6 +303,7 @@ MAN=	aac.4 \
 	pci.4 \
 	pcib.4 \
 	pcic.4 \
+	pcii.4 \
 	pcm.4 \
 	pcn.4 \
 	pim.4 \
@@ -334,6 +342,7 @@ MAN=	aac.4 \
 	ses.4 \
 	sf.4 \
 	si.4 \
+	siba.4 \
 	sio.4 \
 	siis.4 \
 	sis.4 \
@@ -393,6 +402,7 @@ MAN=	aac.4 \
 	textdump.4 \
 	ti.4 \
 	tl.4 \
+	tnt4882.4 \
 	trm.4 \
 	tty.4 \
 	tun.4 \
@@ -420,6 +430,7 @@ MAN=	aac.4 \
 	ugen.4 \
 	uhci.4 \
 	uhid.4 \
+	uhso.4 \
 	uipaq.4 \
 	ukbd.4 \
 	ulpt.4 \
@@ -608,9 +619,11 @@ _acpi_panasonic.4=acpi_panasonic.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
+_amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
+_atp.4=		atp.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
 _dpms.4=	dpms.4
@@ -640,6 +653,10 @@ _urtw.4=	urtw.4
 _wpi.4=		wpi.4
 
 MLINKS+=lindev.4 full.4
+.endif
+
+.if ${MACHINE_ARCH} == "powerpc"
+_atp.4=		atp.4
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_ARCH})

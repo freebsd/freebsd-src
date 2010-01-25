@@ -409,6 +409,7 @@ process_private(
 	int mod_okay
 	)
 {
+	static u_long quiet_until;
 	struct req_pkt *inpkt;
 	struct req_pkt_tail *tailinpkt;
 	struct sockaddr_storage *srcadr;
@@ -444,8 +445,14 @@ process_private(
 	    || (++ec, INFO_MBZ(inpkt->mbz_itemsize) != 0)
 	    || (++ec, rbufp->recv_length < REQ_LEN_HDR)
 		) {
-		msyslog(LOG_ERR, "process_private: INFO_ERR_FMT: test %d failed, pkt from %s", ec, stoa(srcadr));
-		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
+		NLOG(NLOG_SYSEVENT)
+			if (current_time >= quiet_until) {
+				msyslog(LOG_ERR,
+					"process_private: drop test %d"
+					" failed, pkt from %s",
+					ec, stoa(srcadr));
+				quiet_until = current_time + 60;
+			}
 		return;
 	}
 
@@ -496,10 +503,10 @@ process_private(
 	 */
 	temp_size = INFO_ITEMSIZE(inpkt->mbz_itemsize);
 	if ((temp_size != proc->sizeofitem &&
-	    temp_size != proc->v6_sizeofitem) &&
+	     temp_size != proc->v6_sizeofitem) &&
 	    !(inpkt->implementation == IMPL_XNTPD &&
-	    inpkt->request == REQ_CONFIG &&
-	    temp_size == sizeof(struct old_conf_peer))) {
+	      inpkt->request == REQ_CONFIG &&
+	      temp_size == sizeof(struct old_conf_peer))) {
 #ifdef DEBUG
 		if (debug > 2)
 			printf("process_private: wrong item size, received %d, should be %d or %d\n",
@@ -1319,6 +1326,7 @@ do_conf(
 	struct req_pkt *inpkt
 	)
 {
+	static u_long soonest_ifrescan_time = 0;
 	int items;
 	u_int fl;
 	struct conf_peer *cp; 
@@ -1412,6 +1420,23 @@ do_conf(
 			req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);
 			return;
 		}
+
+		/*
+		 * ntp_intres.c uses REQ_CONFIG/doconf() to add each
+		 * server after its name is resolved.  If we have been
+		 * disconnected from the network, it may notice the
+		 * network has returned and add the first server while
+		 * the relevant interface is still disabled, awaiting
+		 * the next interface rescan.  To get things moving
+		 * more quickly, trigger an interface scan now, except
+		 * if we have done so in the last half minute.
+		 */
+		if (soonest_ifrescan_time < current_time) {
+			soonest_ifrescan_time = current_time + 30;
+			timer_interfacetimeout(current_time);
+			DPRINTF(1, ("do_conf triggering interface rescan\n"));
+		}
+
 		cp = (struct conf_peer *)
 		    ((char *)cp + INFO_ITEMSIZE(inpkt->mbz_itemsize));
 	}

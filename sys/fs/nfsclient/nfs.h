@@ -67,7 +67,6 @@ int ncl_vinvalbuf(struct vnode *, int, struct thread *, int);
 int ncl_asyncio(struct nfsmount *, struct buf *, struct ucred *,
     struct thread *);
 int ncl_doio(struct vnode *, struct buf *, struct ucred *, struct thread *);
-int ncl_msleep(struct thread *, void *, struct mtx *, int, char *, int);
 void ncl_nhinit(void);
 void ncl_nhuninit(void);
 void ncl_nodelock(struct nfsnode *);

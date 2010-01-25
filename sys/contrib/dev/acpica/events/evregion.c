@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -128,6 +128,11 @@
 
 /* Local prototypes */
 
+static BOOLEAN
+AcpiEvHasDefaultHandler (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_ADR_SPACE_TYPE     SpaceId);
+
 static ACPI_STATUS
 AcpiEvRegRun (
     ACPI_HANDLE             ObjHandle,
@@ -233,6 +238,57 @@ UnlockAndExit:
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiEvHasDefaultHandler
+ *
+ * PARAMETERS:  Node                - Namespace node for the device
+ *              SpaceId             - The address space ID
+ *
+ * RETURN:      TRUE if default handler is installed, FALSE otherwise
+ *
+ * DESCRIPTION: Check if the default handler is installed for the requested
+ *              space ID.
+ *
+ ******************************************************************************/
+
+static BOOLEAN
+AcpiEvHasDefaultHandler (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_ADR_SPACE_TYPE     SpaceId)
+{
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_OPERAND_OBJECT     *HandlerObj;
+
+
+    /* Must have an existing internal object */
+
+    ObjDesc = AcpiNsGetAttachedObject (Node);
+    if (ObjDesc)
+    {
+        HandlerObj = ObjDesc->Device.Handler;
+
+        /* Walk the linked list of handlers for this object */
+
+        while (HandlerObj)
+        {
+            if (HandlerObj->AddressSpace.SpaceId == SpaceId)
+            {
+                if (HandlerObj->AddressSpace.HandlerFlags &
+                        ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)
+                {
+                    return (TRUE);
+                }
+            }
+
+            HandlerObj = HandlerObj->AddressSpace.Next;
+        }
+    }
+
+    return (FALSE);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiEvInitializeOpRegions
  *
  * PARAMETERS:  None
@@ -266,11 +322,16 @@ AcpiEvInitializeOpRegions (
     for (i = 0; i < ACPI_NUM_DEFAULT_SPACES; i++)
     {
         /*
-         * TBD: Make sure handler is the DEFAULT handler, otherwise
-         * _REG will have already been run.
+         * Make sure the installed handler is the DEFAULT handler. If not the
+         * default, the _REG methods will have already been run (when the
+         * handler was installed)
          */
-        Status = AcpiEvExecuteRegMethods (AcpiGbl_RootNode,
-                    AcpiGbl_DefaultAddressSpaces[i]);
+        if (AcpiEvHasDefaultHandler (AcpiGbl_RootNode,
+               AcpiGbl_DefaultAddressSpaces[i]))
+        {
+            Status = AcpiEvExecuteRegMethods (AcpiGbl_RootNode,
+                        AcpiGbl_DefaultAddressSpaces[i]);
+        }
     }
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
@@ -339,25 +400,21 @@ AcpiEvExecuteRegMethod (
      *  connection status 1 for connecting the handler, 0 for disconnecting
      *  the handler (Passed as a parameter)
      */
-    Args[0] = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+    Args[0] = AcpiUtCreateIntegerObject ((UINT64) RegionObj->Region.SpaceId);
     if (!Args[0])
     {
         Status = AE_NO_MEMORY;
         goto Cleanup1;
     }
 
-    Args[1] = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+    Args[1] = AcpiUtCreateIntegerObject ((UINT64) Function);
     if (!Args[1])
     {
         Status = AE_NO_MEMORY;
         goto Cleanup2;
     }
 
-    /* Setup the parameter objects */
-
-    Args[0]->Integer.Value = RegionObj->Region.SpaceId;
-    Args[1]->Integer.Value = Function;
-    Args[2] = NULL;
+    Args[2] = NULL; /* Terminate list */
 
     /* Execute the method, no return value */
 
@@ -385,7 +442,7 @@ Cleanup1:
  *              RegionOffset        - Where in the region to read or write
  *              BitWidth            - Field width in bits (8, 16, 32, or 64)
  *              Value               - Pointer to in or out value, must be
- *                                    full 64-bit ACPI_INTEGER
+ *                                    a full 64-bit integer
  *
  * RETURN:      Status
  *
@@ -400,7 +457,7 @@ AcpiEvAddressSpaceDispatch (
     UINT32                  Function,
     UINT32                  RegionOffset,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value)
+    UINT64                  *Value)
 {
     ACPI_STATUS             Status;
     ACPI_ADR_SPACE_HANDLER  Handler;
@@ -788,7 +845,7 @@ AcpiEvInstallHandler (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsMapHandleToNode (ObjHandle);
+    Node = AcpiNsValidateHandle (ObjHandle);
     if (!Node)
     {
         return (AE_BAD_PARAMETER);
@@ -1112,7 +1169,7 @@ AcpiEvInstallSpaceHandler (
      * of the branch
      */
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, Node, ACPI_UINT32_MAX,
-                ACPI_NS_WALK_UNLOCK, AcpiEvInstallHandler,
+                ACPI_NS_WALK_UNLOCK, AcpiEvInstallHandler, NULL,
                 HandlerObj, NULL);
 
 UnlockAndExit:
@@ -1152,7 +1209,7 @@ AcpiEvExecuteRegMethods (
      * regions of this Space ID before we can run any _REG methods)
      */
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, Node, ACPI_UINT32_MAX,
-                ACPI_NS_WALK_UNLOCK, AcpiEvRegRun,
+                ACPI_NS_WALK_UNLOCK, AcpiEvRegRun, NULL,
                 &SpaceId, NULL);
 
     return_ACPI_STATUS (Status);
@@ -1186,7 +1243,7 @@ AcpiEvRegRun (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsMapHandleToNode (ObjHandle);
+    Node = AcpiNsValidateHandle (ObjHandle);
     if (!Node)
     {
         return (AE_BAD_PARAMETER);

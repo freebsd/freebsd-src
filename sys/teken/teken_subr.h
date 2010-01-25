@@ -903,7 +903,7 @@ teken_subr_reset_dec_mode(teken_t *t, unsigned int cmd)
 
 	switch (cmd) {
 	case 1: /* Cursor keys mode. */
-		teken_funcs_param(t, TP_CURSORKEYS, 0);
+		t->t_stateflags &= ~TS_CURSORKEYS;
 		break;
 	case 2: /* DECANM: ANSI/VT52 mode. */
 		teken_printf("DECRST VT52\n");
@@ -1052,7 +1052,7 @@ teken_subr_set_dec_mode(teken_t *t, unsigned int cmd)
 
 	switch (cmd) {
 	case 1: /* Cursor keys mode. */
-		teken_funcs_param(t, TP_CURSORKEYS, 1);
+		t->t_stateflags |= TS_CURSORKEYS;
 		break;
 	case 2: /* DECANM: ANSI/VT52 mode. */
 		teken_printf("DECSET VT52\n");
@@ -1237,16 +1237,17 @@ teken_subr_set_top_and_bottom_margins(teken_t *t, unsigned int top,
 		bottom = t->t_winsize.tp_row;
 	}
 
+	/* Apply scrolling region. */
 	t->t_scrollreg.ts_begin = top;
 	t->t_scrollreg.ts_end = bottom;
-	if (t->t_stateflags & TS_ORIGIN) {
-		/* XXX: home cursor? */
+	if (t->t_stateflags & TS_ORIGIN)
 		t->t_originreg = t->t_scrollreg;
-		t->t_cursor.tp_row = t->t_originreg.ts_begin;
-		t->t_cursor.tp_col = 0;
-		t->t_stateflags &= ~TS_WRAPPED;
-		teken_funcs_cursor(t);
-	}
+
+	/* Home cursor to the top left of the scrolling region. */
+	t->t_cursor.tp_row = t->t_originreg.ts_begin;
+	t->t_cursor.tp_col = 0;
+	t->t_stateflags &= ~TS_WRAPPED;
+	teken_funcs_cursor(t);
 }
 
 static void

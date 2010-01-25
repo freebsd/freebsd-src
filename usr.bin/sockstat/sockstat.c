@@ -496,8 +496,8 @@ printaddr(int af, struct sockaddr_storage *ss)
 {
 	char addrstr[INET6_ADDRSTRLEN] = { '\0', '\0' };
 	struct sockaddr_un *sun;
-	void *addr;
-	int off, port;
+	void *addr = NULL; /* Keep compiler happy. */
+	int off, port = 0;
 
 	switch (af) {
 	case AF_INET:

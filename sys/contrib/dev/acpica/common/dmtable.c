@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -216,7 +216,6 @@ static const char           *AcpiDmIvrsSubnames[] =
     "Memory Definition Block",
     "Unknown SubTable Type"         /* Reserved */
 };
-
 
 
 #define ACPI_FADT_PM_RESERVED       8
@@ -954,7 +953,7 @@ AcpiDmCheckAscii (
 
     for (i = 0; i < Count; i++)
     {
-        RepairedName[i] = Name[i];
+        RepairedName[i] = (char) Name[i];
 
         if (!Name[i])
         {

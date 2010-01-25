@@ -48,7 +48,6 @@ iostat(8)	ken	Pre-commit review requested.
 cd(4)		ken	Pre-commit review requested.
 pass(4)		ken	Pre-commit review requested.
 ch(4)		ken	Pre-commit review requested.
-isp(4)		mjacob	Pre-commit review requested.
 em(4)		jfv	Pre-commit review requested.
 tdfx(4)		cokane  Just keep me informed of changes, try not to break it.
 sendmail	gshapiro	Pre-commit review requested.
@@ -124,6 +123,8 @@ usr.bin/bluetooth	emax	Pre-commit review preferred.
 usr.sbin/bluetooth	emax	Pre-commit review preferred.
 gnu/usr.bin/send-pr	bugmaster	Pre-commit review requested.
 ncurses		rafan	Heads-up appreciated, try not to break it.
+*env(3)		secteam	Due to the problematic security history of this
+			code, please have patches reviewed by secteam.
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.

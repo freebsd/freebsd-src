@@ -204,7 +204,7 @@ mwl_pci_attach(device_t dev)
 			       BUS_SPACE_MAXADDR,	/* maxsize */
 			       MWL_TXDESC,		/* nsegments */
 			       BUS_SPACE_MAXADDR,	/* maxsegsize */
-			       BUS_DMA_ALLOCNOW,	/* flags */
+			       0,			/* flags */
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockarg */
 			       &sc->sc_dmat)) {

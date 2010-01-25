@@ -181,10 +181,10 @@ struct tcp_info {
 	u_int8_t	tcpi_snd_wscale:4,	/* RFC1323 send shift value. */
 			tcpi_rcv_wscale:4;	/* RFC1323 recv shift value. */
 
-	u_int32_t	__tcpi_rto;
+	u_int32_t	tcpi_rto;		/* Retransmission timeout (usec). */
 	u_int32_t	__tcpi_ato;
-	u_int32_t	__tcpi_snd_mss;
-	u_int32_t	__tcpi_rcv_mss;
+	u_int32_t	tcpi_snd_mss;		/* Max segment size for send. */
+	u_int32_t	tcpi_rcv_mss;		/* Max segment size for receive. */
 
 	u_int32_t	__tcpi_unacked;
 	u_int32_t	__tcpi_sacked;
@@ -195,7 +195,7 @@ struct tcp_info {
 	/* Times; measurements in usecs. */
 	u_int32_t	__tcpi_last_data_sent;
 	u_int32_t	__tcpi_last_ack_sent;	/* Also unimpl. on Linux? */
-	u_int32_t	__tcpi_last_data_recv;
+	u_int32_t	tcpi_last_data_recv;	/* Time since last recv data. */
 	u_int32_t	__tcpi_last_ack_recv;
 
 	/* Metrics; variable units. */

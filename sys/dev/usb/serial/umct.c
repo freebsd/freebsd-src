@@ -263,7 +263,7 @@ umct_attach(device_t dev)
 
 	if (error) {
 		device_printf(dev, "allocating USB "
-		    "transfers failed!\n");
+		    "transfers failed\n");
 		goto detach;
 	}
 

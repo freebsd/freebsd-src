@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	uuencode
-WARNS?=	4
 MAN=	uuencode.1 uuencode.format.5
 LINKS=	${BINDIR}/uuencode ${BINDIR}/b64encode
 MLINKS=	uuencode.1 uudecode.1 \

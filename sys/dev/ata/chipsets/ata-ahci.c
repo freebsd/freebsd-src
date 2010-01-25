@@ -52,6 +52,12 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 /* local prototypes */
+static int ata_ahci_ch_attach(device_t dev);
+static int ata_ahci_ch_detach(device_t dev);
+static int ata_ahci_ch_suspend(device_t dev);
+static int ata_ahci_ch_resume(device_t dev);
+static int ata_ahci_ctlr_reset(device_t dev);
+static void ata_ahci_reset(device_t dev);
 static int ata_ahci_suspend(device_t dev);
 static int ata_ahci_status(device_t dev);
 static int ata_ahci_begin_transaction(struct ata_request *request);
@@ -97,6 +103,49 @@ ata_ahci_probe(device_t dev)
     return (BUS_PROBE_GENERIC);
 }
 
+static int
+ata_ahci_ata_probe(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+
+    if ((intptr_t)device_get_ivars(dev) >= 0)
+	    return (ENXIO);
+    device_set_desc_copy(dev, "AHCI SATA controller");
+    ctlr->chipinit = ata_ahci_chipinit;
+    return (BUS_PROBE_GENERIC);
+}
+
+static int
+ata_ahci_ata_attach(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    device_t child;
+    int unit;
+
+    /* do chipset specific setups only needed once */
+    ctlr->legacy = 0;
+    ctlr->ichannels = -1;
+    ctlr->ch_attach = ata_pci_ch_attach;
+    ctlr->ch_detach = ata_pci_ch_detach;
+    ctlr->dev = dev;
+    if (ctlr->chipinit(dev))
+	return ENXIO;
+    /* attach all channels on this controller */
+    for (unit = 0; unit < ctlr->channels; unit++) {
+	if ((ctlr->ichannels & (1 << unit)) == 0)
+	    continue;
+	child = device_add_child(dev, "ata",
+	    ((unit == 0 || unit == 1) && ctlr->legacy) ?
+	    unit : devclass_find_free_unit(ata_devclass, 2));
+	if (child == NULL)
+	    device_printf(dev, "failed to add ata child device\n");
+	else
+	    device_set_ivars(child, (void *)(intptr_t)unit);
+    }
+    bus_generic_attach(dev);
+    return 0;
+}
+
 int
 ata_ahci_chipinit(device_t dev)
 {
@@ -129,9 +178,15 @@ ata_ahci_chipinit(device_t dev)
 
     /* get the number of HW channels */
     ctlr->ichannels = ATA_INL(ctlr->r_res2, ATA_AHCI_PI);
-    ctlr->channels =
-	MAX(flsl(ctlr->ichannels),
+    ctlr->channels = MAX(flsl(ctlr->ichannels),
 	    (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_NPMASK) + 1);
+    if (pci_get_devid(dev) == ATA_M88SX6111)
+	    ctlr->channels = 1;
+    else if (pci_get_devid(dev) == ATA_M88SX6121)
+	    ctlr->channels = 2;
+    else if (pci_get_devid(dev) == ATA_M88SX6141 ||
+	pci_get_devid(dev) == ATA_M88SX6145)
+	    ctlr->channels = 4;
 
     ctlr->reset = ata_ahci_reset;
     ctlr->ch_attach = ata_ahci_ch_attach;
@@ -139,6 +194,7 @@ ata_ahci_chipinit(device_t dev)
     ctlr->ch_suspend = ata_ahci_ch_suspend;
     ctlr->ch_resume = ata_ahci_ch_resume;
     ctlr->setmode = ata_sata_setmode;
+    ctlr->getrev = ata_sata_getrev;
     ctlr->suspend = ata_ahci_suspend;
     ctlr->resume = ata_ahci_ctlr_reset;
 
@@ -183,7 +239,7 @@ ata_ahci_chipinit(device_t dev)
 	return 0;
 }
 
-int
+static int
 ata_ahci_ctlr_reset(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
@@ -228,7 +284,7 @@ ata_ahci_suspend(device_t dev)
     return 0;
 }
 
-int
+static int
 ata_ahci_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -254,12 +310,14 @@ ata_ahci_ch_attach(device_t dev)
     ch->hw.softreset = ata_ahci_softreset;
     ch->hw.pm_read = ata_ahci_pm_read;
     ch->hw.pm_write = ata_ahci_pm_write;
+    ch->flags |= ATA_NO_SLAVE;
+    ch->flags |= ATA_SATA;
 
     ata_ahci_ch_resume(dev);
     return 0;
 }
 
-int
+static int
 ata_ahci_ch_detach(device_t dev)
 {
 
@@ -268,7 +326,7 @@ ata_ahci_ch_detach(device_t dev)
     return (0);
 }
 
-int
+static int
 ata_ahci_ch_suspend(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -293,7 +351,7 @@ ata_ahci_ch_suspend(device_t dev)
     return (0);
 }
 
-int
+static int
 ata_ahci_ch_resume(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -385,23 +443,22 @@ ata_ahci_status(device_t dev)
 static int
 ata_ahci_begin_transaction(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
-    struct ata_device *atadev = device_get_softc(request->dev);
     struct ata_ahci_cmd_tab *ctp;
     struct ata_ahci_cmd_list *clp;
     int offset = ch->unit << 7;
-    int port = atadev->unit & 0x0f;
+    int port = request->unit & 0x0f;
     int entries = 0;
     int fis_size;
 	
     /* get a piece of the workspace for this request */
     ctp = (struct ata_ahci_cmd_tab *)
-	  (ch->dma.work + ATA_AHCI_CT_OFFSET + (ATA_AHCI_CT_SIZE*request->tag));
+	  (ch->dma.work + ATA_AHCI_CT_OFFSET);
 
     /* setup the FIS for this request */
     if (!(fis_size = ata_ahci_setup_fis(ctp, request))) {
-	device_printf(request->dev, "setting up SATA FIS failed\n");
+	device_printf(request->parent, "setting up SATA FIS failed\n");
 	request->result = EIO;
 	return ATA_OP_FINISHED;
     }
@@ -409,7 +466,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
     /* if request moves data setup and load SG list */
     if (request->flags & (ATA_R_READ | ATA_R_WRITE)) {
 	if (ch->dma.load(request, ctp->prd_tab, &entries)) {
-	    device_printf(request->dev, "setting up DMA failed\n");
+	    device_printf(request->parent, "setting up DMA failed\n");
 	    request->result = EIO;
 	    return ATA_OP_FINISHED;
 	}
@@ -417,7 +474,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
 
     /* setup the command list entry */
     clp = (struct ata_ahci_cmd_list *)
-	  (ch->dma.work + ATA_AHCI_CL_OFFSET + (ATA_AHCI_CL_SIZE*request->tag));
+	  (ch->dma.work + ATA_AHCI_CL_OFFSET);
 
     clp->prd_length = entries;
     clp->cmd_flags = (request->flags & ATA_R_WRITE ? ATA_AHCI_CMD_WRITE : 0) |
@@ -426,12 +483,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
 		     (fis_size / sizeof(u_int32_t)) |
     		     (port << 12);
     clp->bytecount = 0;
-    clp->cmd_table_phys = htole64(ch->dma.work_bus + ATA_AHCI_CT_OFFSET +
-				  (ATA_AHCI_CT_SIZE * request->tag));
-
-    /* clear eventual ACTIVE bit */
-    ATA_IDX_OUTL(ch, ATA_SACTIVE,
-		 ATA_IDX_INL(ch, ATA_SACTIVE) & (1 << request->tag));
+    clp->cmd_table_phys = htole64(ch->dma.work_bus + ATA_AHCI_CT_OFFSET);
 
     /* set command type bit */
     if (request->flags & ATA_R_ATAPI)
@@ -444,7 +496,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
 		 ~ATA_AHCI_P_CMD_ATAPI);
 
     /* issue command to controller */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CI + offset, (1 << request->tag));
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CI + offset, 1);
     
     if (!(request->flags & ATA_R_ATAPI)) {
 	/* device reset doesn't interrupt */
@@ -476,7 +528,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
 static int
 ata_ahci_end_transaction(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
     struct ata_ahci_cmd_list *clp;
     u_int32_t tf_data;
@@ -495,13 +547,12 @@ ata_ahci_end_transaction(struct ata_request *request)
 
     /* on control commands read back registers to the request struct */
     if (request->flags & ATA_R_CONTROL) {
-	struct ata_device *atadev = device_get_softc(request->dev);
 	u_int8_t *fis = ch->dma.work + ATA_AHCI_FB_OFFSET + 0x40;
 
 	request->u.ata.count = fis[12] | ((u_int16_t)fis[13] << 8);
 	request->u.ata.lba = fis[4] | ((u_int64_t)fis[5] << 8) |
 			     ((u_int64_t)fis[6] << 16);
-	if (atadev->flags & ATA_D_48BIT_ACTIVE)
+	if (request->flags & ATA_R_48BIT)
 	    request->u.ata.lba |= ((u_int64_t)fis[8] << 24) |
 				  ((u_int64_t)fis[9] << 32) |
 				  ((u_int64_t)fis[10] << 40);
@@ -511,7 +562,7 @@ ata_ahci_end_transaction(struct ata_request *request)
 
     /* record how much data we actually moved */
     clp = (struct ata_ahci_cmd_list *)
-	  (ch->dma.work + ATA_AHCI_CL_OFFSET + (ATA_AHCI_CL_SIZE*request->tag));
+	  (ch->dma.work + ATA_AHCI_CL_OFFSET);
     request->donecount = clp->bytecount;
 
     /* release SG list etc */
@@ -605,9 +656,9 @@ ata_ahci_pm_write(device_t dev, int port, int reg, u_int32_t value)
     ctp->cfis[3] = reg;
     ctp->cfis[7] = port | ATA_D_LBA;
     ctp->cfis[12] = value & 0xff;
-    ctp->cfis[4] = (value >> 8) & 0xff;;
-    ctp->cfis[5] = (value >> 16) & 0xff;;
-    ctp->cfis[6] = (value >> 24) & 0xff;;
+    ctp->cfis[4] = (value >> 8) & 0xff;
+    ctp->cfis[5] = (value >> 16) & 0xff;
+    ctp->cfis[6] = (value >> 24) & 0xff;
     ctp->cfis[15] = ATA_A_4BIT;
 
     if (ata_ahci_issue_cmd(dev, 0, 100)) {
@@ -776,11 +827,10 @@ ata_ahci_hardreset(device_t dev, int port, uint32_t *signature)
 static u_int32_t
 ata_ahci_softreset(device_t dev, int port)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    int offset = ch->unit << 7;
     struct ata_ahci_cmd_tab *ctp =
 	(struct ata_ahci_cmd_tab *)(ch->dma.work + ATA_AHCI_CT_OFFSET);
+    u_int8_t *fis = ch->dma.work + ATA_AHCI_FB_OFFSET + 0x40;
 
     if (bootverbose)
 	device_printf(dev, "software reset port %d...\n", port);
@@ -817,10 +867,13 @@ ata_ahci_softreset(device_t dev, int port)
 	return (-1);
     }
 
-    return ATA_INL(ctlr->r_res2, ATA_AHCI_P_SIG + offset);
+    return (((u_int32_t)fis[6] << 24) |
+	    ((u_int32_t)fis[5] << 16) |
+	    ((u_int32_t)fis[4] << 8) |
+	     (u_int32_t)fis[12]);
 }
 
-void
+static void
 ata_ahci_reset(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -852,9 +905,12 @@ ata_ahci_reset(device_t dev)
 	      ((ch->pm_level == 0) ? ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC : 0) |
 	      ATA_AHCI_P_IX_DP | ATA_AHCI_P_IX_UF | ATA_AHCI_P_IX_SDB |
 	      ATA_AHCI_P_IX_DS | ATA_AHCI_P_IX_PS | ATA_AHCI_P_IX_DHR));
-
-    /* only probe for PortMultiplier if HW has support */
-    if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM) {
+    /*
+     * Only probe for PortMultiplier if HW has support.
+     * Ignore Marvell, which is not working,
+     */
+    if ((ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM) &&
+	    pci_get_vendor(ctlr->dev) != 0x11ab) {
 	signature = ata_ahci_softreset(dev, ATA_PM);
 	/* Workaround for some ATI chips, failing to soft-reset
 	 * when port multiplicator supported, but absent.
@@ -931,3 +987,26 @@ ata_ahci_setup_fis(struct ata_ahci_cmd_tab *ctp, struct ata_request *request)
 }
 
 ATA_DECLARE_DRIVER(ata_ahci);
+static device_method_t ata_ahci_ata_methods[] = {
+    DEVMETHOD(device_probe,     ata_ahci_ata_probe),
+    DEVMETHOD(device_attach,    ata_ahci_ata_attach),
+    DEVMETHOD(device_detach,    ata_pci_detach),
+    DEVMETHOD(device_suspend,   ata_pci_suspend),
+    DEVMETHOD(device_resume,    ata_pci_resume),
+    DEVMETHOD(device_shutdown,  bus_generic_shutdown),
+    DEVMETHOD(bus_read_ivar,		ata_pci_read_ivar),
+    DEVMETHOD(bus_write_ivar,		ata_pci_write_ivar),
+    DEVMETHOD(bus_alloc_resource,       ata_pci_alloc_resource),
+    DEVMETHOD(bus_release_resource,     ata_pci_release_resource),
+    DEVMETHOD(bus_activate_resource,    bus_generic_activate_resource),
+    DEVMETHOD(bus_deactivate_resource,  bus_generic_deactivate_resource),
+    DEVMETHOD(bus_setup_intr,           ata_pci_setup_intr),
+    DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr),
+    { 0, 0 }
+};
+static driver_t ata_ahci_ata_driver = {
+        "atapci",
+        ata_ahci_ata_methods,
+        sizeof(struct ata_pci_controller)
+};
+DRIVER_MODULE(ata_ahci_ata, atapci, ata_ahci_ata_driver, ata_pci_devclass, 0, 0);

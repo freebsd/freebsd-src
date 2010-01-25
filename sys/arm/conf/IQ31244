@@ -27,8 +27,6 @@ options 	LOADERRAMADDR=0x00000000
 
 options STARTUP_PAGETABLE_ADDR=0xa0000000
 include		"../xscale/i80321/std.iq31244"
-#To statically compile in device wiring instead of /boot/device.hints
-#hints		"GENERIC.hints"		#Default places to look for devices.
 makeoptions	MODULES_OVERRIDE=""
 
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols

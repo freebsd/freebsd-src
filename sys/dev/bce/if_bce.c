@@ -293,12 +293,12 @@ static void bce_dump_enet           (struct bce_softc *, struct mbuf *);
 static void bce_dump_mbuf 			(struct bce_softc *, struct mbuf *);
 static void bce_dump_tx_mbuf_chain	(struct bce_softc *, u16, int);
 static void bce_dump_rx_mbuf_chain	(struct bce_softc *, u16, int);
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 static void bce_dump_pg_mbuf_chain	(struct bce_softc *, u16, int);
 #endif
 static void bce_dump_txbd			(struct bce_softc *, int, struct tx_bd *);
 static void bce_dump_rxbd			(struct bce_softc *, int, struct rx_bd *);
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 static void bce_dump_pgbd			(struct bce_softc *, int, struct rx_bd *);
 #endif
 static void bce_dump_l2fhdr			(struct bce_softc *, int, struct l2_fhdr *);
@@ -306,7 +306,7 @@ static void bce_dump_ctx			(struct bce_softc *, u16);
 static void bce_dump_ftqs			(struct bce_softc *);
 static void bce_dump_tx_chain		(struct bce_softc *, u16, int);
 static void bce_dump_rx_chain		(struct bce_softc *, u16, int);
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 static void bce_dump_pg_chain		(struct bce_softc *, u16, int);
 #endif
 static void bce_dump_status_block	(struct bce_softc *);
@@ -371,6 +371,9 @@ static void bce_release_resources	(struct bce_softc *);
 static int  bce_fw_sync				(struct bce_softc *, u32);
 static void bce_load_rv2p_fw		(struct bce_softc *, u32 *, u32, u32);
 static void bce_load_cpu_fw			(struct bce_softc *, struct cpu_reg *, struct fw_info *);
+static void bce_start_cpu           (struct bce_softc *, struct cpu_reg *);
+static void bce_halt_cpu            (struct bce_softc *, struct cpu_reg *);
+static void bce_start_rxp_cpu       (struct bce_softc *);
 static void bce_init_rxp_cpu		(struct bce_softc *);
 static void bce_init_txp_cpu 		(struct bce_softc *);
 static void bce_init_tpat_cpu		(struct bce_softc *);
@@ -393,7 +396,7 @@ static int  bce_init_rx_chain		(struct bce_softc *);
 static void bce_fill_rx_chain		(struct bce_softc *);
 static void bce_free_rx_chain		(struct bce_softc *);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 static int  bce_get_pg_buf			(struct bce_softc *, struct mbuf *, u16 *, u16 *);
 static int  bce_init_pg_chain		(struct bce_softc *);
 static void bce_fill_pg_chain		(struct bce_softc *);
@@ -602,10 +605,11 @@ bce_print_adapter_info(struct bce_softc *sc)
 	/* Firmware version and device features. */
 	printf("B/C (%s); Flags (", sc->bce_bc_ver);
 
-#ifdef ZERO_COPY_SOCKETS
-	printf("SPLT ");
+#ifdef BCE_JUMBO_HDRSPLIT
+	printf("SPLT");
     i++;
 #endif
+
     if (sc->bce_flags & BCE_USING_MSI_FLAG) {
         if (i > 0) printf("|");
 		printf("MSI"); i++;
@@ -613,7 +617,7 @@ bce_print_adapter_info(struct bce_softc *sc)
 
     if (sc->bce_flags & BCE_USING_MSIX_FLAG) {
         if (i > 0) printf("|");
-		printf("MSI-X "); i++;
+		printf("MSI-X"); i++;
     }
 
     if (sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG) {
@@ -1066,7 +1070,7 @@ bce_attach(device_t dev)
 	 * This may change later if the MTU size is set to
 	 * something other than 1500.
 	 */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	sc->rx_bd_mbuf_alloc_size = MHLEN;
 	/* Make sure offset is 16 byte aligned for hardware. */
 	sc->rx_bd_mbuf_align_pad  = roundup2((MSIZE - MHLEN), 16) -
@@ -2835,7 +2839,7 @@ bce_dma_free(struct bce_softc *sc)
 	}
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	/* Free, unmap and destroy all page buffer descriptor chain pages. */
 	for (i = 0; i < PG_PAGES; i++ ) {
 		if (sc->pg_bd_chain[i] != NULL) {
@@ -2899,7 +2903,7 @@ bce_dma_free(struct bce_softc *sc)
 		sc->rx_mbuf_tag = NULL;
 	}
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	/* Unload and destroy the page mbuf maps. */
 	for (i = 0; i < TOTAL_PG_BD; i++) {
 		if (sc->pg_mbuf_map[i] != NULL) {
@@ -2976,6 +2980,7 @@ bce_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 /* |PG Buffers       |   none   |   none   |   none   |   none   |          */
 /* |TX Buffers       |   none   |   none   |   none   |   none   |          */
 /* |Chain Pages(1)   |   4KiB   |   4KiB   |   4KiB   |   4KiB   |          */
+/* |Context Memory   |          |          |          |          |          */
 /* +-----------------+----------+----------+----------+----------+          */
 /*                                                                          */
 /* (1) Must align with CPU page size (BCM_PAGE_SZIE).                       */
@@ -3345,7 +3350,7 @@ bce_dma_alloc(device_t dev)
 	/*
 	 * Create a DMA tag for RX mbufs.
 	 */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	max_size = max_seg_size = ((sc->rx_bd_mbuf_alloc_size < MCLBYTES) ?
 		MCLBYTES : sc->rx_bd_mbuf_alloc_size);
 #else
@@ -3386,7 +3391,7 @@ bce_dma_alloc(device_t dev)
 		}
 	}
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	/*
 	 * Create a DMA tag for the page buffer descriptor chain,
 	 * allocate and clear the memory, and fetch the physical
@@ -3665,15 +3670,10 @@ bce_load_cpu_fw(struct bce_softc *sc, struct cpu_reg *cpu_reg,
 	struct fw_info *fw)
 {
 	u32 offset;
-	u32 val;
 
 	DBENTER(BCE_VERBOSE_RESET);
 
-	/* Halt the CPU. */
-	val = REG_RD_IND(sc, cpu_reg->mode);
-	val |= cpu_reg->mode_value_halt;
-	REG_WR_IND(sc, cpu_reg->mode, val);
-	REG_WR_IND(sc, cpu_reg->state, cpu_reg->state_value_clear);
+    bce_halt_cpu(sc, cpu_reg);
 
 	/* Load the Text area. */
 	offset = cpu_reg->spad_base + (fw->text_addr - cpu_reg->mips_view_base);
@@ -3726,15 +3726,90 @@ bce_load_cpu_fw(struct bce_softc *sc, struct cpu_reg *cpu_reg,
 		}
 	}
 
-	/* Clear the pre-fetch instruction. */
-	REG_WR_IND(sc, cpu_reg->inst, 0);
-	REG_WR_IND(sc, cpu_reg->pc, fw->start_addr);
+    /* Clear the pre-fetch instruction and set the FW start address. */
+    REG_WR_IND(sc, cpu_reg->inst, 0);
+    REG_WR_IND(sc, cpu_reg->pc, fw->start_addr);
+
+	DBEXIT(BCE_VERBOSE_RESET);
+}
+
+
+/****************************************************************************/
+/* Starts the RISC processor.                                               */
+/*                                                                          */
+/* Assumes the CPU starting address has already been set.                   */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   Nothing.                                                               */
+/****************************************************************************/
+static void
+bce_start_cpu(struct bce_softc *sc, struct cpu_reg *cpu_reg)
+{
+	u32 val;
+
+	DBENTER(BCE_VERBOSE_RESET);
 
 	/* Start the CPU. */
 	val = REG_RD_IND(sc, cpu_reg->mode);
 	val &= ~cpu_reg->mode_value_halt;
 	REG_WR_IND(sc, cpu_reg->state, cpu_reg->state_value_clear);
 	REG_WR_IND(sc, cpu_reg->mode, val);
+
+	DBEXIT(BCE_VERBOSE_RESET);
+}
+
+
+/****************************************************************************/
+/* Halts the RISC processor.                                                */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   Nothing.                                                               */
+/****************************************************************************/
+static void
+bce_halt_cpu(struct bce_softc *sc, struct cpu_reg *cpu_reg)
+{
+	u32 val;
+
+	DBENTER(BCE_VERBOSE_RESET);
+
+    /* Halt the CPU. */
+    val = REG_RD_IND(sc, cpu_reg->mode);
+    val |= cpu_reg->mode_value_halt;
+    REG_WR_IND(sc, cpu_reg->mode, val);
+    REG_WR_IND(sc, cpu_reg->state, cpu_reg->state_value_clear);
+
+	DBEXIT(BCE_VERBOSE_RESET);
+}
+
+
+/****************************************************************************/
+/* Initialize the RX CPU.                                                   */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   Nothing.                                                               */
+/****************************************************************************/
+static void
+bce_start_rxp_cpu(struct bce_softc *sc)
+{
+	struct cpu_reg cpu_reg;
+
+	DBENTER(BCE_VERBOSE_RESET);
+
+	cpu_reg.mode = BCE_RXP_CPU_MODE;
+	cpu_reg.mode_value_halt = BCE_RXP_CPU_MODE_SOFT_HALT;
+	cpu_reg.mode_value_sstep = BCE_RXP_CPU_MODE_STEP_ENA;
+	cpu_reg.state = BCE_RXP_CPU_STATE;
+	cpu_reg.state_value_clear = 0xffffff;
+	cpu_reg.gpr0 = BCE_RXP_CPU_REG_FILE;
+	cpu_reg.evmask = BCE_RXP_CPU_EVENT_MASK;
+	cpu_reg.pc = BCE_RXP_CPU_PROGRAM_COUNTER;
+	cpu_reg.inst = BCE_RXP_CPU_INSTRUCTION;
+	cpu_reg.bp = BCE_RXP_CPU_HW_BREAKPOINT;
+	cpu_reg.spad_base = BCE_RXP_SCRATCH;
+	cpu_reg.mips_view_base = 0x8000000;
+
+	DBPRINT(sc, BCE_INFO_RESET, "Starting RX firmware.\n");
+	bce_start_cpu(sc, &cpu_reg);
 
 	DBEXIT(BCE_VERBOSE_RESET);
 }
@@ -3833,6 +3908,8 @@ bce_init_rxp_cpu(struct bce_softc *sc)
 	DBPRINT(sc, BCE_INFO_RESET, "Loading RX firmware.\n");
 	bce_load_cpu_fw(sc, &cpu_reg, &fw);
 
+    /* Delay RXP start until initialization is complete. */
+
 	DBEXIT(BCE_VERBOSE_RESET);
 }
 
@@ -3929,6 +4006,7 @@ bce_init_txp_cpu(struct bce_softc *sc)
 
 	DBPRINT(sc, BCE_INFO_RESET, "Loading TX firmware.\n");
 	bce_load_cpu_fw(sc, &cpu_reg, &fw);
+    bce_start_cpu(sc, &cpu_reg);
 
 	DBEXIT(BCE_VERBOSE_RESET);
 }
@@ -4026,6 +4104,7 @@ bce_init_tpat_cpu(struct bce_softc *sc)
 
 	DBPRINT(sc, BCE_INFO_RESET, "Loading TPAT firmware.\n");
 	bce_load_cpu_fw(sc, &cpu_reg, &fw);
+    bce_start_cpu(sc, &cpu_reg);
 
 	DBEXIT(BCE_VERBOSE_RESET);
 }
@@ -4123,6 +4202,7 @@ bce_init_cp_cpu(struct bce_softc *sc)
 
 	DBPRINT(sc, BCE_INFO_RESET, "Loading CP firmware.\n");
 	bce_load_cpu_fw(sc, &cpu_reg, &fw);
+    bce_start_cpu(sc, &cpu_reg);
 
 	DBEXIT(BCE_VERBOSE_RESET);
 }
@@ -4220,6 +4300,7 @@ bce_init_com_cpu(struct bce_softc *sc)
 
 	DBPRINT(sc, BCE_INFO_RESET, "Loading COM firmware.\n");
 	bce_load_cpu_fw(sc, &cpu_reg, &fw);
+    bce_start_cpu(sc, &cpu_reg);
 
 	DBEXIT(BCE_VERBOSE_RESET);
 }
@@ -4473,7 +4554,7 @@ bce_stop(struct bce_softc *sc)
 	bce_disable_intr(sc);
 
 	/* Free RX buffers. */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	bce_free_pg_chain(sc);
 #endif
 	bce_free_rx_chain(sc);
@@ -4665,6 +4746,12 @@ bce_chipinit(struct bce_softc *sc)
 	/* Initialize the on-boards CPUs */
 	bce_init_cpus(sc);
 
+    /* Enable management frames (NC-SI) to flow to the MCP. */
+    if (sc->bce_flags & BCE_MFW_ENABLE_FLAG) {
+        val = REG_RD(sc, BCE_RPM_MGMT_PKT_CTRL) | BCE_RPM_MGMT_PKT_CTRL_MGMT_EN;
+        REG_WR(sc, BCE_RPM_MGMT_PKT_CTRL, val);
+    }
+
 	/* Prepare NVRAM for access. */
 	if (bce_init_nvram(sc)) {
 		rc = ENODEV;
@@ -4845,6 +4932,15 @@ bce_blockinit(struct bce_softc *sc)
 	/* Enable link state change interrupt generation. */
 	REG_WR(sc, BCE_HC_ATTN_BITS_ENABLE, STATUS_ATTN_BITS_LINK_STATE);
 
+    /* Enable the RXP. */
+    bce_start_rxp_cpu(sc);
+
+    /* Disable management frames (NC-SI) from flowing to the MCP. */
+    if (sc->bce_flags & BCE_MFW_ENABLE_FLAG) {
+        val = REG_RD(sc, BCE_RPM_MGMT_PKT_CTRL) & ~BCE_RPM_MGMT_PKT_CTRL_MGMT_EN;
+        REG_WR(sc, BCE_RPM_MGMT_PKT_CTRL, val);
+    }
+
 	/* Enable all remaining blocks in the MAC. */
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709)	||
 		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716))
@@ -4910,7 +5006,7 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 			goto bce_get_rx_buf_exit);
 
 		/* This is a new mbuf allocation. */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 #else
 		if (sc->rx_bd_mbuf_alloc_size <= MCLBYTES)
@@ -4991,7 +5087,7 @@ bce_get_rx_buf_exit:
 }
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 /****************************************************************************/
 /* Encapsulate an mbuf cluster into the page chain.                        */
 /*                                                                          */
@@ -5100,7 +5196,7 @@ bce_get_pg_buf_exit:
 
 	return(rc);
 }
-#endif /* ZERO_COPY_SOCKETS */
+#endif /* BCE_JUMBO_HDRSPLIT */
 
 /****************************************************************************/
 /* Initialize the TX context memory.                                        */
@@ -5456,7 +5552,7 @@ bce_free_rx_chain(struct bce_softc *sc)
 }
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 /****************************************************************************/
 /* Allocate memory and initialize the page data structures.                 */
 /* Assumes that bce_init_rx_chain() has not already been called.            */
@@ -5620,7 +5716,7 @@ bce_free_pg_chain(struct bce_softc *sc)
 
 	DBEXIT(BCE_VERBOSE_RESET | BCE_VERBOSE_RECV | BCE_VERBOSE_UNLOAD);
 }
-#endif /* ZERO_COPY_SOCKETS */
+#endif /* BCE_JUMBO_HDRSPLIT */
 
 
 /****************************************************************************/
@@ -5793,7 +5889,7 @@ bce_rx_intr(struct bce_softc *sc)
 	unsigned int pkt_len;
 	u16 sw_rx_cons, sw_rx_cons_idx, hw_rx_cons;
 	u32 status;
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	unsigned int rem_len;
 	u16 sw_pg_cons, sw_pg_cons_idx;
 #endif
@@ -5809,7 +5905,7 @@ bce_rx_intr(struct bce_softc *sc)
 		bus_dmamap_sync(sc->rx_bd_chain_tag,
 		    sc->rx_bd_chain_map[i], BUS_DMASYNC_POSTREAD);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	/* Prepare the page chain pages to be accessed by the host CPU. */
 	for (int i = 0; i < PG_PAGES; i++)
 		bus_dmamap_sync(sc->pg_bd_chain_tag,
@@ -5821,7 +5917,7 @@ bce_rx_intr(struct bce_softc *sc)
 
 	/* Get working copies of the driver's view of the consumer indices. */
 	sw_rx_cons = sc->rx_cons;
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	sw_pg_cons = sc->pg_cons;
 #endif
 
@@ -5851,22 +5947,29 @@ bce_rx_intr(struct bce_softc *sc)
 		DBRUN(sc->debug_rx_mbuf_alloc--);
 		sc->free_rx_bd++;
 
-		/*
-		 * Frames received on the NetXteme II are prepended	with an
-		 * l2_fhdr structure which provides status information about
-		 * the received frame (including VLAN tags and checksum info).
-		 * The frames are also automatically adjusted to align the IP
-		 * header (i.e. two null bytes are inserted before the Ethernet
-		 * header).  As a result the data DMA'd by the controller into
-		 * the mbuf is as follows:
-		 * 
-		 * +---------+-----+---------------------+-----+
-		 * | l2_fhdr | pad | packet data         | FCS |
-		 * +---------+-----+---------------------+-----+
-		 * 
-		 * The l2_fhdr needs to be checked and skipped and the FCS needs
-		 * to be stripped before sending the packet up the stack.
-		 */
+        if(m0 == NULL) {
+            DBPRINT(sc, BCE_EXTREME_RECV, "%s(): Oops! Empty mbuf pointer "
+                "found in sc->rx_mbuf_ptr[0x%04X]!\n",
+                __FUNCTION__, sw_rx_cons_idx);
+            goto bce_rx_int_next_rx;
+        }
+
+        /*
+         * Frames received on the NetXteme II are prepended	with an
+         * l2_fhdr structure which provides status information about
+         * the received frame (including VLAN tags and checksum info).
+         * The frames are also automatically adjusted to align the IP
+         * header (i.e. two null bytes are inserted before the Ethernet
+         * header).  As a result the data DMA'd by the controller into
+         * the mbuf is as follows:
+         * 
+         * +---------+-----+---------------------+-----+
+         * | l2_fhdr | pad | packet data         | FCS |
+         * +---------+-----+---------------------+-----+
+         * 
+         * The l2_fhdr needs to be checked and skipped and the FCS needs
+         * to be stripped before sending the packet up the stack.
+         */
 		l2fhdr  = mtod(m0, struct l2_fhdr *);
 
 		/* Get the packet data + FCS length and the status. */
@@ -5882,7 +5985,7 @@ bce_rx_intr(struct bce_softc *sc)
 		 */
 		m_adj(m0, sizeof(struct l2_fhdr) + ETHER_ALIGN);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 		/*
 		 * Check whether the received frame fits in a single
 		 * mbuf or not (i.e. packet data + FCS <=
@@ -6056,7 +6159,7 @@ bce_rx_int_next_rx:
 		if (m0) {
 			/* Make sure we don't lose our place when we release the lock. */
 			sc->rx_cons = sw_rx_cons;
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 			sc->pg_cons = sw_pg_cons;
 #endif
 
@@ -6066,7 +6169,7 @@ bce_rx_int_next_rx:
 
 			/* Recover our place. */
 			sw_rx_cons = sc->rx_cons;
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 			sw_pg_cons = sc->pg_cons;
 #endif
 		}
@@ -6077,7 +6180,7 @@ bce_rx_int_next_rx:
 	}
 
 	/* No new packets to process.  Refill the RX and page chains and exit. */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	sc->pg_cons = sw_pg_cons;
 	bce_fill_pg_chain(sc);
 #endif
@@ -6090,7 +6193,7 @@ bce_rx_int_next_rx:
 		bus_dmamap_sync(sc->rx_bd_chain_tag,
 		    sc->rx_bd_chain_map[i], BUS_DMASYNC_PREWRITE);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	for (int i = 0; i < PG_PAGES; i++)
 		bus_dmamap_sync(sc->pg_bd_chain_tag,
 		    sc->pg_bd_chain_map[i], BUS_DMASYNC_PREWRITE);
@@ -6336,7 +6439,7 @@ bce_init_locked(struct bce_softc *sc)
 	 * Calculate and program the hardware Ethernet MTU
 	 * size. Be generous on the receive if we have room.
 	 */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	if (ifp->if_mtu <= (sc->rx_bd_mbuf_data_len + sc->pg_bd_mbuf_alloc_size))
 		ether_mtu = sc->rx_bd_mbuf_data_len + sc->pg_bd_mbuf_alloc_size;
 #else
@@ -6368,7 +6471,7 @@ bce_init_locked(struct bce_softc *sc)
 	/* Program appropriate promiscuous/multicast filtering. */
 	bce_set_rx_mode(sc);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	DBPRINT(sc, BCE_INFO_LOAD, "%s(): pg_bd_mbuf_alloc_size = %d\n",
 		__FUNCTION__, sc->pg_bd_mbuf_alloc_size);
 
@@ -6387,6 +6490,7 @@ bce_init_locked(struct bce_softc *sc)
 
 	bce_ifmedia_upd_locked(ifp);
 
+	/* Let the OS know the driver is up and running. */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
@@ -6881,7 +6985,7 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			BCE_LOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 			/* No buffer allocation size changes are necessary. */
 #else
 			/* Recalculate our buffer allocation sizes. */
@@ -7584,7 +7688,7 @@ bce_tick(void *xsc)
 	bce_stats_update(sc);
 
 	/* Top off the receive and page chains. */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	bce_fill_pg_chain(sc);
 #endif
 	bce_fill_rx_chain(sc);
@@ -7764,7 +7868,7 @@ bce_sysctl_dump_tx_chain(SYSCTL_HANDLER_ARGS)
 }
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 /****************************************************************************/
 /* Provides a sysctl interface to allow dumping the page chain.             */
 /*                                                                          */
@@ -8392,7 +8496,7 @@ bce_add_sysctls(struct bce_softc *sc)
 		(void *)sc, 0,
 		bce_sysctl_dump_tx_chain, "I", "Dump tx_bd chain");
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 		"dump_pg_chain", CTLTYPE_INT | CTLFLAG_RW,
 		(void *)sc, 0,
@@ -8687,7 +8791,7 @@ bce_dump_rx_mbuf_chain(struct bce_softc *sc, u16 chain_prod, int count)
 }
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 /****************************************************************************/
 /* Prints out the mbufs in the mbuf page chain.                             */
 /*                                                                          */
@@ -8811,7 +8915,7 @@ bce_dump_rxbd(struct bce_softc *sc, int idx, struct rx_bd *rxbd)
 }
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 /****************************************************************************/
 /* Prints out a rx_bd structure in the page chain.                          */
 /*                                                                          */
@@ -9298,7 +9402,7 @@ bce_dump_rx_chain(struct bce_softc *sc, u16 rx_prod, int count)
 }
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 /****************************************************************************/
 /* Prints out the page chain.                                               */
 /*                                                                          */
@@ -9779,7 +9883,7 @@ bce_dump_driver_state(struct bce_softc *sc)
 		"0x%08X:%08X - (sc->rx_bd_chain) rx_bd chain virtual address\n",
 		val_hi, val_lo);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	val_hi = BCE_ADDR_HI(sc->pg_bd_chain);
 	val_lo = BCE_ADDR_LO(sc->pg_bd_chain);
 	BCE_PRINTF(
@@ -9799,7 +9903,7 @@ bce_dump_driver_state(struct bce_softc *sc)
 		"0x%08X:%08X - (sc->rx_mbuf_ptr) rx mbuf chain virtual address\n",
 		val_hi, val_lo);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	val_hi = BCE_ADDR_HI(sc->pg_mbuf_ptr);
 	val_lo = BCE_ADDR_LO(sc->pg_mbuf_ptr);
 	BCE_PRINTF(
@@ -9852,7 +9956,7 @@ bce_dump_driver_state(struct bce_softc *sc)
 	BCE_PRINTF("         0x%08X - (sc->free_rx_bd) free rx_bd's\n",
 		sc->free_rx_bd);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	BCE_PRINTF("     0x%04X(0x%04X) - (sc->pg_prod) page producer index\n",
 		sc->pg_prod, (u16) PG_CHAIN_IDX(sc->pg_prod));
 
@@ -10038,9 +10142,9 @@ bce_dump_bc_state(struct bce_softc *sc)
 	BCE_PRINTF("0x%08X - (0x%06X) state\n",
 		val, BCE_BC_STATE);
 
-	val = bce_shmem_rd(sc, BCE_BC_CONDITION);
+	val = bce_shmem_rd(sc, BCE_BC_STATE_CONDITION);
 	BCE_PRINTF("0x%08X - (0x%06X) condition\n",
-		val, BCE_BC_CONDITION);
+		val, BCE_BC_STATE_CONDITION);
 
 	val = bce_shmem_rd(sc, BCE_BC_STATE_DEBUG_CMD);
 	BCE_PRINTF("0x%08X - (0x%06X) debug_cmd\n",
@@ -10358,7 +10462,7 @@ bce_breakpoint(struct bce_softc *sc)
 		bce_dump_tpat_state(sc, 0);
 		bce_dump_cp_state(sc, 0);
 		bce_dump_com_state(sc, 0);
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 		bce_dump_pgbd(sc, 0, NULL);
 		bce_dump_pg_mbuf_chain(sc, 0, USABLE_PG_BD);
 		bce_dump_pg_chain(sc, 0, USABLE_PG_BD);

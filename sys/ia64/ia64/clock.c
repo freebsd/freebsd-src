@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/efi.h>
+#include <machine/md_var.h>
 
 uint64_t ia64_clock_reload;
 
@@ -64,9 +65,9 @@ void
 pcpu_initclock(void)
 {
 
-	PCPU_SET(clockadj, 0);
-	PCPU_SET(clock, ia64_get_itc());
-	ia64_set_itm(PCPU_GET(clock) + ia64_clock_reload);
+	PCPU_SET(md.clockadj, 0);
+	PCPU_SET(md.clock, ia64_get_itc());
+	ia64_set_itm(PCPU_GET(md.clock) + ia64_clock_reload);
 	ia64_set_itv(CLOCK_VECTOR);	/* highest priority class */
 	ia64_srlz_d();
 }
@@ -78,15 +79,15 @@ pcpu_initclock(void)
 void
 cpu_initclocks()
 {
+	u_long itc_freq;
 
-	if (itc_frequency == 0)
-		panic("Unknown clock frequency");
+	itc_freq = (u_long)ia64_itc_freq() * 1000000ul;
 
 	stathz = hz;
-	ia64_clock_reload = (itc_frequency + hz/2) / hz;
+	ia64_clock_reload = (itc_freq + hz/2) / hz;
 
 #ifndef SMP
-	ia64_timecounter.tc_frequency = itc_frequency;
+	ia64_timecounter.tc_frequency = itc_freq;
 	tc_init(&ia64_timecounter);
 #endif
 

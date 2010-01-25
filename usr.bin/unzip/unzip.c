@@ -383,7 +383,7 @@ extract_dir(struct archive *a, struct archive_entry *e, const char *path)
 {
 	int mode;
 
-	mode = archive_entry_filetype(e) & 0777;
+	mode = archive_entry_mode(e) & 0777;
 	if (mode == 0)
 		mode = 0755;
 
@@ -425,7 +425,7 @@ extract_file(struct archive *a, struct archive_entry *e, const char *path)
 	ssize_t len;
 	unsigned char *p, *q, *end;
 
-	mode = archive_entry_filetype(e) & 0777;
+	mode = archive_entry_mode(e) & 0777;
 	if (mode == 0)
 		mode = 0644;
 	mtime = archive_entry_mtime(e);
@@ -814,7 +814,8 @@ unzip(const char *fn)
 	ac(archive_read_support_format_zip(a));
 	ac(archive_read_open_fd(a, fd, 8192));
 
-	printf("Archive:  %s\n", fn);
+	if (!p_opt && !q_opt)
+		printf("Archive:  %s\n", fn);
 	if (v_opt == 1) {
 		printf("  Length     Date   Time    Name\n");
 		printf(" --------    ----   ----    ----\n");

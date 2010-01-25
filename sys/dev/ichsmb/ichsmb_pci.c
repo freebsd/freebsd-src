@@ -75,6 +75,10 @@ __FBSDID("$FreeBSD$");
 #define ID_82801EB			0x24D38086
 #define ID_82801FB			0x266A8086
 #define ID_82801GB			0x27da8086
+#define ID_82801H			0x283e8086
+#define ID_82801I			0x29308086
+#define ID_82801JI			0x3a308086
+#define ID_PCH				0x3b308086
 #define ID_6300ESB			0x25a48086
 #define	ID_631xESB			0x269b8086
 
@@ -152,6 +156,18 @@ ichsmb_pci_probe(device_t dev)
 	case ID_82801GB:
 		device_set_desc(dev, "Intel 82801GB (ICH7) SMBus controller");
 		break;
+	case ID_82801H:
+		device_set_desc(dev, "Intel 82801H (ICH8) SMBus controller");
+		break;
+	case ID_82801I:
+		device_set_desc(dev, "Intel 82801I (ICH9) SMBus controller");
+		break;
+	case ID_82801JI:
+		device_set_desc(dev, "Intel 82801JI (ICH10) SMBus controller");
+		break;
+	case ID_PCH:
+		device_set_desc(dev, "Intel PCH SMBus controller");
+		break;
 	case ID_6300ESB:
 		device_set_desc(dev, "Intel 6300ESB (ICH) SMBus controller");
 		break;
@@ -159,12 +175,6 @@ ichsmb_pci_probe(device_t dev)
 		device_set_desc(dev, "Intel 631xESB/6321ESB (ESB2) SMBus controller");
 		break;
 	default:
-		if (pci_get_class(dev) == PCIC_SERIALBUS
-		    && pci_get_subclass(dev) == PCIS_SERIALBUS_SMBUS
-		    && pci_get_progif(dev) == PCIS_SERIALBUS_SMBUS_PROGIF) {
-			device_set_desc(dev, "SMBus controller");
-			return (BUS_PROBE_DEFAULT); /* XXX */
-		}
 		return (ENXIO);
 	}
 

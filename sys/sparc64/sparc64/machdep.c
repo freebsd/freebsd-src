@@ -383,8 +383,9 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 */
 	for (va = KERNBASE + (kernel_tlb_slots - 1) * PAGE_SIZE_4M;
 	    va >= roundup2(end, PAGE_SIZE_4M); va -= PAGE_SIZE_4M) {
-		printf("demapping unused kernel TLB slot (va %#lx - %#lx)\n",
-		    va, va + PAGE_SIZE_4M - 1);
+		if (bootverbose)
+			printf("demapping unused kernel TLB slot "
+			    "(va %#lx - %#lx)\n", va, va + PAGE_SIZE_4M - 1);
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE,
 		    ASI_DMMU_DEMAP, 0);
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE,
@@ -653,25 +654,12 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	if (error != 0)
 		return (error);
 
-	PROC_LOCK(p);
-	td->td_sigmask = uc.uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	CTR4(KTR_SIG, "sigreturn: return td=%p pc=%#lx sp=%#lx tstate=%#lx",
 	    td, mc->mc_tpc, mc->mc_sp, mc->mc_tstate);
 	return (EJUSTRETURN);
 }
-
-#ifdef COMPAT_FREEBSD4
-int
-freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
-{
-
-	return sigreturn(td, (struct sigreturn_args *)uap);
-}
-#endif
 
 /*
  * Construct a PCB from a trapframe. This is called from kdb_trap() where
@@ -696,12 +684,39 @@ get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 
 	tf = td->td_frame;
 	pcb = td->td_pcb;
-	bcopy(tf, mc, sizeof(*tf));
+	/*
+	 * Copy the registers which will be restored by tl0_ret() from the
+	 * trapframe.
+	 * Note that we skip %g7 which is used as the userland TLS register
+	 * and %wstate.
+	 */
+	mc->mc_flags = _MC_VERSION;
+	mc->mc_global[1] = tf->tf_global[1];
+	mc->mc_global[2] = tf->tf_global[2];
+	mc->mc_global[3] = tf->tf_global[3];
+	mc->mc_global[4] = tf->tf_global[4];
+	mc->mc_global[5] = tf->tf_global[5];
+	mc->mc_global[6] = tf->tf_global[6];
 	if (flags & GET_MC_CLEAR_RET) {
 		mc->mc_out[0] = 0;
 		mc->mc_out[1] = 0;
+	} else {
+		mc->mc_out[0] = tf->tf_out[0];
+		mc->mc_out[1] = tf->tf_out[1];
 	}
-	mc->mc_flags = _MC_VERSION;
+	mc->mc_out[2] = tf->tf_out[2];
+	mc->mc_out[3] = tf->tf_out[3];
+	mc->mc_out[4] = tf->tf_out[4];
+	mc->mc_out[5] = tf->tf_out[5];
+	mc->mc_out[6] = tf->tf_out[6];
+	mc->mc_out[7] = tf->tf_out[7];
+	mc->mc_fprs = tf->tf_fprs;
+	mc->mc_fsr = tf->tf_fsr;
+	mc->mc_gsr = tf->tf_gsr;
+	mc->mc_tnpc = tf->tf_tnpc;
+	mc->mc_tpc = tf->tf_tpc;
+	mc->mc_tstate = tf->tf_tstate;
+	mc->mc_y = tf->tf_y;
 	critical_enter();
 	if ((tf->tf_fprs & FPRS_FEF) != 0) {
 		savefpctx(pcb->pcb_ufp);
@@ -721,7 +736,6 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 {
 	struct trapframe *tf;
 	struct pcb *pcb;
-	uint64_t wstate;
 
 	if (!TSTATE_SECURE(mc->mc_tstate) ||
 	    (mc->mc_flags & ((1L << _MC_VERSION_BITS) - 1)) != _MC_VERSION)
@@ -730,9 +744,33 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 	pcb = td->td_pcb;
 	/* Make sure the windows are spilled first. */
 	flushw();
-	wstate = tf->tf_wstate;
-	bcopy(mc, tf, sizeof(*tf));
-	tf->tf_wstate = wstate;
+	/*
+	 * Copy the registers which will be restored by tl0_ret() to the
+	 * trapframe.
+	 * Note that we skip %g7 which is used as the userland TLS register
+	 * and %wstate.
+	 */
+	tf->tf_global[1] = mc->mc_global[1];
+	tf->tf_global[2] = mc->mc_global[2];
+	tf->tf_global[3] = mc->mc_global[3];
+	tf->tf_global[4] = mc->mc_global[4];
+	tf->tf_global[5] = mc->mc_global[5];
+	tf->tf_global[6] = mc->mc_global[6];
+	tf->tf_out[0] = mc->mc_out[0];
+	tf->tf_out[1] = mc->mc_out[1];
+	tf->tf_out[2] = mc->mc_out[2];
+	tf->tf_out[3] = mc->mc_out[3];
+	tf->tf_out[4] = mc->mc_out[4];
+	tf->tf_out[5] = mc->mc_out[5];
+	tf->tf_out[6] = mc->mc_out[6];
+	tf->tf_out[7] = mc->mc_out[7];
+	tf->tf_fprs = mc->mc_fprs;
+	tf->tf_fsr = mc->mc_fsr;
+	tf->tf_gsr = mc->mc_gsr;
+	tf->tf_tnpc = mc->mc_tnpc;
+	tf->tf_tpc = mc->mc_tpc;
+	tf->tf_tstate = mc->mc_tstate;
+	tf->tf_y = mc->mc_y;
 	if ((mc->mc_fprs & FPRS_FEF) != 0) {
 		tf->tf_fprs = 0;
 		bcopy(mc->mc_fp, pcb->pcb_ufp, sizeof(pcb->pcb_ufp));

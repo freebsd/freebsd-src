@@ -66,7 +66,8 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * driver for WinChipHead CH341/340, the worst USB-serial chip in the world.
+ * Driver for WinChipHead CH341/340, the worst USB-serial chip in the
+ * world.
  */
 
 #include <sys/stdint.h>
@@ -206,6 +207,7 @@ static const struct uchcom_divider_record dividers[] =
 
 static const struct usb_device_id uchcom_devs[] = {
 	{USB_VPI(USB_VENDOR_WCH, USB_PRODUCT_WCH_CH341SER, 0)},
+	{USB_VPI(USB_VENDOR_WCH2, USB_PRODUCT_WCH2_CH341SER, 0)},
 };
 
 /* protypes */
@@ -213,6 +215,7 @@ static const struct usb_device_id uchcom_devs[] = {
 static int	uchcom_pre_param(struct ucom_softc *, struct termios *);
 static void	uchcom_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
+static void	uchcom_cfg_open(struct ucom_softc *ucom);
 static void	uchcom_cfg_param(struct ucom_softc *, struct termios *);
 static void	uchcom_cfg_set_break(struct ucom_softc *, uint8_t);
 static void	uchcom_cfg_set_dtr(struct ucom_softc *, uint8_t);
@@ -224,12 +227,9 @@ static void	uchcom_stop_write(struct ucom_softc *);
 static void	uchcom_update_version(struct uchcom_softc *);
 static void	uchcom_convert_status(struct uchcom_softc *, uint8_t);
 static void	uchcom_update_status(struct uchcom_softc *);
-static void	uchcom_set_dtrrts(struct uchcom_softc *);
+static void	uchcom_set_dtr_rts(struct uchcom_softc *);
 static int	uchcom_calc_divider_settings(struct uchcom_divider *, uint32_t);
-static void	uchcom_set_dte_rate(struct uchcom_softc *, uint32_t);
-static void	uchcom_set_line_control(struct uchcom_softc *, tcflag_t);
-static void	uchcom_clear_chip(struct uchcom_softc *);
-static void	uchcom_reset_chip(struct uchcom_softc *);
+static void	uchcom_set_baudrate(struct uchcom_softc *, uint32_t);
 static void	uchcom_poll(struct ucom_softc *ucom);
 
 static device_probe_t uchcom_probe;
@@ -275,6 +275,7 @@ static struct ucom_callback uchcom_callback = {
 	.ucom_cfg_set_dtr = &uchcom_cfg_set_dtr,
 	.ucom_cfg_set_rts = &uchcom_cfg_set_rts,
 	.ucom_cfg_set_break = &uchcom_cfg_set_break,
+	.ucom_cfg_open = &uchcom_cfg_open,
 	.ucom_cfg_param = &uchcom_cfg_param,
 	.ucom_pre_param = &uchcom_pre_param,
 	.ucom_start_read = &uchcom_start_read,
@@ -341,17 +342,6 @@ uchcom_attach(device_t dev)
 		    "error=%s\n", usbd_errstr(error));
 		goto detach;
 	}
-	/*
-	 * Do the initialization during attach so that the system does not
-	 * sleep during open:
-	 */
-	uchcom_update_version(sc);
-	uchcom_clear_chip(sc);
-	uchcom_reset_chip(sc);
-	uchcom_update_status(sc);
-
-	sc->sc_dtr = 1;
-	sc->sc_rts = 1;
 
 	/* clear stall at first run */
 	mtx_lock(&sc->sc_mtx);
@@ -458,8 +448,7 @@ uchcom_get_version(struct uchcom_softc *sc, uint8_t *rver)
 {
 	uint8_t buf[UCHCOM_INPUT_BUF_SIZE];
 
-	uchcom_ctrl_read(
-	    sc, UCHCOM_REQ_GET_VERSION, 0, 0, buf, sizeof(buf));
+	uchcom_ctrl_read(sc, UCHCOM_REQ_GET_VERSION, 0, 0, buf, sizeof(buf));
 
 	if (rver)
 		*rver = buf[0];
@@ -472,13 +461,13 @@ uchcom_get_status(struct uchcom_softc *sc, uint8_t *rval)
 }
 
 static void
-uchcom_set_dtrrts_10(struct uchcom_softc *sc, uint8_t val)
+uchcom_set_dtr_rts_10(struct uchcom_softc *sc, uint8_t val)
 {
 	uchcom_write_reg(sc, UCHCOM_REG_STAT1, val, UCHCOM_REG_STAT1, val);
 }
 
 static void
-uchcom_set_dtrrts_20(struct uchcom_softc *sc, uint8_t val)
+uchcom_set_dtr_rts_20(struct uchcom_softc *sc, uint8_t val)
 {
 	uchcom_ctrl_write(sc, UCHCOM_REQ_SET_DTRRTS, val, 0);
 }
@@ -515,7 +504,7 @@ uchcom_update_status(struct uchcom_softc *sc)
 
 
 static void
-uchcom_set_dtrrts(struct uchcom_softc *sc)
+uchcom_set_dtr_rts(struct uchcom_softc *sc)
 {
 	uint8_t val = 0;
 
@@ -525,9 +514,9 @@ uchcom_set_dtrrts(struct uchcom_softc *sc)
 		val |= UCHCOM_RTS_MASK;
 
 	if (sc->sc_version < UCHCOM_VER_20)
-		uchcom_set_dtrrts_10(sc, ~val);
+		uchcom_set_dtr_rts_10(sc, ~val);
 	else
-		uchcom_set_dtrrts_20(sc, ~val);
+		uchcom_set_dtr_rts_20(sc, ~val);
 }
 
 static void
@@ -583,16 +572,16 @@ found:
 		dp->dv_div = (uint8_t)-div;
 	}
 
-	mod = UCHCOM_BPS_MOD_BASE / rate + UCHCOM_BPS_MOD_BASE_OFS;
-	mod = mod + mod / 2;
+	mod = (UCHCOM_BPS_MOD_BASE / rate) + UCHCOM_BPS_MOD_BASE_OFS;
+	mod = mod + (mod / 2);
 
-	dp->dv_mod = mod / 0x100;
+	dp->dv_mod = (mod + 0xFF) / 0x100;
 
 	return (0);
 }
 
 static void
-uchcom_set_dte_rate(struct uchcom_softc *sc, uint32_t rate)
+uchcom_set_baudrate(struct uchcom_softc *sc, uint32_t rate)
 {
 	struct uchcom_divider dv;
 
@@ -605,76 +594,6 @@ uchcom_set_dte_rate(struct uchcom_softc *sc, uint32_t rate)
 	uchcom_write_reg(sc,
 	    UCHCOM_REG_BPS_MOD, dv.dv_mod,
 	    UCHCOM_REG_BPS_PAD, 0);
-}
-
-static void
-uchcom_set_line_control(struct uchcom_softc *sc, tcflag_t cflag)
-{
-	uint8_t lcr1 = 0;
-	uint8_t lcr2 = 0;
-
-	uchcom_read_reg(sc, UCHCOM_REG_LCR1, &lcr1, UCHCOM_REG_LCR2, &lcr2);
-
-	lcr1 &= ~UCHCOM_LCR1_MASK;
-	lcr2 &= ~UCHCOM_LCR2_MASK;
-
-	/*
-	 * XXX: it is difficult to handle the line control appropriately:
-	 *   - CS8, !CSTOPB and any parity mode seems ok, but
-	 *   - the chip doesn't have the function to calculate parity
-	 *     in !CS8 mode.
-	 *   - it is unclear that the chip supports CS5,6 mode.
-	 *   - it is unclear how to handle stop bits.
-	 */
-
-	if (cflag & PARENB) {
-		lcr1 |= UCHCOM_LCR1_PARENB;
-		if (cflag & PARODD)
-			lcr2 |= UCHCOM_LCR2_PARODD;
-		else
-			lcr2 |= UCHCOM_LCR2_PAREVEN;
-	}
-	uchcom_write_reg(sc, UCHCOM_REG_LCR1, lcr1, UCHCOM_REG_LCR2, lcr2);
-}
-
-static void
-uchcom_clear_chip(struct uchcom_softc *sc)
-{
-	DPRINTF("\n");
-	uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, 0, 0);
-}
-
-static void
-uchcom_reset_chip(struct uchcom_softc *sc)
-{
-	uint16_t val;
-	uint16_t idx;
-	uint8_t lcr1;
-	uint8_t lcr2;
-	uint8_t pre;
-	uint8_t div;
-	uint8_t mod;
-
-	uchcom_read_reg(sc, UCHCOM_REG_LCR1, &lcr1, UCHCOM_REG_LCR2, &lcr2);
-	uchcom_read_reg(sc, UCHCOM_REG_BPS_PRE, &pre, UCHCOM_REG_BPS_DIV, &div);
-	uchcom_read_reg(sc, UCHCOM_REG_BPS_MOD, &mod, UCHCOM_REG_BPS_PAD, NULL);
-
-	val = 0;
-	idx = 0;
-	val |= (uint16_t)(lcr1 & 0xF0) << 8;
-	val |= 0x01;
-	val |= (uint16_t)(lcr2 & 0x0F) << 8;
-	val |= 0x02;
-	idx |= pre & 0x07;
-	val |= 0x04;
-	idx |= (uint16_t)div << 8;
-	val |= 0x08;
-	idx |= mod & 0xF8;
-	val |= 0x10;
-
-	DPRINTF("reset v=0x%04X, i=0x%04X\n", val, idx);
-
-	uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, val, idx);
 }
 
 /* ----------------------------------------------------------------------
@@ -699,7 +618,7 @@ uchcom_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 	DPRINTF("onoff = %d\n", onoff);
 
 	sc->sc_dtr = onoff;
-	uchcom_set_dtrrts(sc);
+	uchcom_set_dtr_rts(sc);
 }
 
 static void
@@ -710,7 +629,18 @@ uchcom_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 	DPRINTF("onoff = %d\n", onoff);
 
 	sc->sc_rts = onoff;
-	uchcom_set_dtrrts(sc);
+	uchcom_set_dtr_rts(sc);
+}
+
+static void
+uchcom_cfg_open(struct ucom_softc *ucom)
+{
+	struct uchcom_softc *sc = ucom->sc_parent;
+
+	DPRINTF("\n");
+
+	uchcom_update_version(sc);
+	uchcom_update_status(sc);
 }
 
 static int
@@ -719,12 +649,10 @@ uchcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 	struct uchcom_divider dv;
 
 	switch (t->c_cflag & CSIZE) {
-	case CS5:
-	case CS6:
-	case CS7:
-		return (EIO);
-	default:
+	case CS8:
 		break;
+	default:
+		return (EIO);
 	}
 
 	if (uchcom_calc_divider_settings(&dv, t->c_ospeed)) {
@@ -738,8 +666,16 @@ uchcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
 
-	uchcom_set_line_control(sc, t->c_cflag);
-	uchcom_set_dte_rate(sc, t->c_ospeed);
+	uchcom_get_version(sc, 0);
+	uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, 0, 0);
+	uchcom_set_baudrate(sc, t->c_ospeed);
+	uchcom_read_reg(sc, 0x18, 0, 0x25, 0);
+	uchcom_write_reg(sc, 0x18, 0x50, 0x25, 0x00);
+	uchcom_update_status(sc);
+	uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, 0x501f, 0xd90a);
+	uchcom_set_baudrate(sc, t->c_ospeed);
+	uchcom_set_dtr_rts(sc);
+	uchcom_update_status(sc);
 }
 
 static void
@@ -840,14 +776,14 @@ uchcom_write_callback(struct usb_xfer *xfer, usb_error_t error)
 tr_setup:
 		pc = usbd_xfer_get_frame(xfer, 0);
 		if (ucom_get_data(&sc->sc_ucom, pc, 0,
-		    UCHCOM_BULK_BUF_SIZE, &actlen)) {
+		    usbd_xfer_max_len(xfer), &actlen)) {
 
 			DPRINTF("actlen = %d\n", actlen);
 
 			usbd_xfer_set_frame_len(xfer, 0, actlen);
 			usbd_transfer_submit(xfer);
 		}
-		return;
+		break;
 
 	default:			/* Error */
 		if (error != USB_ERR_CANCELLED) {
@@ -855,8 +791,7 @@ tr_setup:
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		return;
-
+		break;
 	}
 }
 
@@ -871,14 +806,17 @@ uchcom_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		pc = usbd_xfer_get_frame(xfer, 0);
-		ucom_put_data(&sc->sc_ucom, pc, 0, actlen);
+
+		if (actlen > 0) {
+			pc = usbd_xfer_get_frame(xfer, 0);
+			ucom_put_data(&sc->sc_ucom, pc, 0, actlen);
+		}
 
 	case USB_ST_SETUP:
 tr_setup:
 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
-		return;
+		break;
 
 	default:			/* Error */
 		if (error != USB_ERR_CANCELLED) {
@@ -886,7 +824,7 @@ tr_setup:
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		return;
+		break;
 	}
 }
 

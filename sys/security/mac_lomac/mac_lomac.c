@@ -2470,7 +2470,7 @@ lomac_vnode_check_open(struct ucred *cred, struct vnode *vp,
 	obj = SLOT(vplabel);
 
 	/* XXX privilege override for admin? */
-	if (accmode & (VWRITE | VAPPEND | VADMIN)) {
+	if (accmode & VMODIFY_PERMS) {
 		if (!lomac_subject_dominate(subj, obj))
 			return (EACCES);
 	}

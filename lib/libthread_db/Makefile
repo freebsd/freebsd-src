@@ -9,7 +9,6 @@ SRCS+=	libpthread_md.c
 SRCS+=	libpthread_db.c
 SRCS+=	libthr_db.c
 INCS=	thread_db.h
-WARNS?= 6
 
 CFLAGS+=-I. -I${.CURDIR}
 SYM_MAPS+=${.CURDIR}/Symbol.map

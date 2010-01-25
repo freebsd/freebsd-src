@@ -692,8 +692,8 @@ creator_blank_display(video_adapter_t *adp, int mode)
 }
 
 static int
-creator_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
-    int prot)
+creator_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 
 	return (EINVAL);
@@ -1048,8 +1048,8 @@ creator_fb_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 }
 
 static int
-creator_fb_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
-    int prot)
+creator_fb_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 	struct creator_softc *sc;
 	int i;

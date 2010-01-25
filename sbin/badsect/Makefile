@@ -5,5 +5,6 @@ PROG=	badsect
 DPADD=	${LIBUFS}
 LDADD=	-lufs
 MAN=	badsect.8
+WARNS?=	2
 
 .include <bsd.prog.mk>

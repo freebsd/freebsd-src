@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -574,7 +574,7 @@ AcpiDsBuildInternalPackageObj (
          *
          * Note: technically, this is an error, from ACPI spec: "It is an error
          * for NumElements to be less than the number of elements in the
-         * PackageList". However, we just print an error message and
+         * PackageList". However, we just print a message and
          * no exception is returned. This provides Windows compatibility. Some
          * BIOSs will alter the NumElements on the fly, creating this type
          * of ill-formed package object.
@@ -598,8 +598,8 @@ AcpiDsBuildInternalPackageObj (
             Arg = Arg->Common.Next;
         }
 
-        ACPI_ERROR ((AE_INFO,
-            "Package List length (0x%X) larger than NumElements count (0x%X), truncated\n",
+        ACPI_INFO ((AE_INFO,
+            "Actual Package length (0x%X) is larger than NumElements field (0x%X), truncated\n",
             i, ElementCount));
     }
     else if (i < ElementCount)
@@ -787,7 +787,7 @@ AcpiDsInitObjectFromOp (
 
             case AML_ONES_OP:
 
-                ObjDesc->Integer.Value = ACPI_INTEGER_MAX;
+                ObjDesc->Integer.Value = ACPI_UINT64_MAX;
 
                 /* Truncate value if we are executing from a 32-bit ACPI table */
 

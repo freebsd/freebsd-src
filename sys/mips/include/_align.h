@@ -44,10 +44,10 @@
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value for all
- * data types (int, long, ...).	  The result is u_int and must be cast to
+ * data types (int, long, ...).	  The result is u_long and must be cast to
  * any desired pointer type.
  */
 #define	_ALIGNBYTES	7
-#define	_ALIGN(p)	(((u_int)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
+#define	_ALIGN(p)	(((u_long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
 
 #endif /* !_MIPS_INCLUDE__ALIGN_H_ */

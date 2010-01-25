@@ -295,6 +295,16 @@ gem_pci_attach(device_t dev)
 	    GEM_PCI_ROM_OFFSET + j + PCI_VPDRES_LARGE_SIZE + PCI_VPD_SIZE,
 	    sc->sc_enaddr, ETHER_ADDR_LEN);
 #endif
+	/*
+	 * The Xserve G5 has a fake GMAC with an all-zero MAC address.
+	 * Check for this, and don't attach in this case.
+	 */
+
+	for (i = 0; i < ETHER_ADDR_LEN && sc->sc_enaddr[i] == 0; i++) {}
+	if (i == ETHER_ADDR_LEN) {
+		device_printf(dev, "invalid MAC address\n");
+		goto fail;
+	}
 
 	if (gem_attach(sc) != 0) {
 		device_printf(dev, "could not be attached\n");

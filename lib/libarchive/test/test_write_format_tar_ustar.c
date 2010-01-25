@@ -133,7 +133,8 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	assert((entry = archive_entry_new()) != NULL);
 	archive_entry_set_mtime(entry, 3, 30);
 	archive_entry_set_pathname(entry, "symlink");
-	archive_entry_set_mode(entry, S_IFLNK | 0664);
+	archive_entry_set_mode(entry, 0664);
+	archive_entry_set_filetype(entry, AE_IFLNK);
 	archive_entry_set_symlink(entry,"file");
 	archive_entry_set_size(entry, 0);
 	archive_entry_set_uid(entry, 88);

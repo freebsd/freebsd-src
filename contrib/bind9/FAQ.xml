@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: FAQ.xml,v 1.46.56.4 2009/02/19 01:51:58 tbox Exp $ -->
+<!-- $Id: FAQ.xml,v 1.46.56.4.12.1 2009/12/31 23:17:56 tbox Exp $ -->
 
 <article class="faq">
   <title>Frequently Asked Questions about BIND 9</title>
@@ -319,24 +319,29 @@ Slave: 10.0.1.3 (internal), 10.0.1.4 (external, IP alias)
 	  <programlisting>
 Master 10.0.1.1:
 	key "external" {
-		algorithm hmac-md5;
-		secret "xxxxxxxx";
+		algorithm hmac-sha256;
+		secret "xxxxxxxxxxxxxxxxxxxxxxxx";
 	};
 	view "internal" {
-		match-clients { !key external; 10.0.1/24; };
+		match-clients { !key external; // reject message ment for the
+					       // external view.
+				10.0.1/24; };  // accept from these addresses.
 		...
 	};
 	view "external" {
 		match-clients { key external; any; };
-		server 10.0.1.2 { keys external; };
+		server 10.0.1.2 { keys external; };  // tag messages from the
+						     // external view to the
+						     // other servers for the
+						     // view.
 		recursion no;
 		...
 	};
 
 Slave 10.0.1.2:
 	key "external" {
-		algorithm hmac-md5;
-		secret "xxxxxxxx";
+		algorithm hmac-sha256;
+		secret "xxxxxxxxxxxxxxxxxxxxxxxx";
 	};
 	view "internal" {
 		match-clients { !key external; 10.0.1/24; };
@@ -424,13 +429,13 @@ named-checkzone example.com tmp</programlisting>
 	  <programlisting>
 Master 10.0.1.1:
 	key "external" {
-		algorithm hmac-md5;
-		secret "xxxxxxxx";
+		algorithm hmac-sha256;
+		secret "xxxxxxxxxxxxxxxxxxxxxxxx";
 	};
 
 	key "mykey" {
-		algorithm hmac-md5;
-		secret "yyyyyyyy";
+		algorithm hmac-sha256;
+		secret "yyyyyyyyyyyyyyyyyyyyyyyy";
 	};
 
 	view "internal" {
@@ -443,7 +448,7 @@ Master 10.0.1.1:
 			type master;
 			file "internal/example.db";
 			allow-update { key mykey; };
-			notify-also { 10.0.1.1; };
+			also-notify { 10.0.1.1; };
 		};
 	};
 
@@ -453,7 +458,7 @@ Master 10.0.1.1:
 			type slave;
 			file "external/example.db";
 			masters { 10.0.1.1; };
-			transfer-source { 10.0.1.1; };
+			transfer-source 10.0.1.1;
 			// allow-update-forwarding { any; };
 			// allow-notify { ... };
 		};

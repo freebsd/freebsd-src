@@ -88,11 +88,14 @@ VNET_DEFINE(int, useloopback) = 1;	/* use loopback interface for
 /* timer values */
 static VNET_DEFINE(int, arpt_keep) = (20*60);	/* once resolved, good for 20
 						 * minutes */
+static VNET_DEFINE(int, arpt_down) = 20;      /* keep incomplete entries for
+					       * 20 seconds */
 static VNET_DEFINE(int, arp_maxtries) = 5;
 static VNET_DEFINE(int, arp_proxyall);
 static VNET_DEFINE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
 
 #define	V_arpt_keep		VNET(arpt_keep)
+#define	V_arpt_down		VNET(arpt_down)
 #define	V_arp_maxtries		VNET(arp_maxtries)
 #define	V_arp_proxyall		VNET(arp_proxyall)
 #define	V_arpstat		VNET(arpstat)
@@ -172,17 +175,23 @@ arptimer(void *arg)
 	CURVNET_SET(ifp->if_vnet);
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(lle);
-	if (((lle->la_flags & LLE_DELETED) ||
-	    (time_second >= lle->la_expire)) &&
-	    (!callout_pending(&lle->la_timer) &&
-	    callout_active(&lle->la_timer))) {
-		(void) llentry_free(lle);
-		ARPSTAT_INC(timeouts);
-	} else {
-		/*
-		 * Still valid, just drop our reference
-		 */
-		LLE_FREE_LOCKED(lle);
+	if (lle->la_flags & LLE_STATIC)
+		LLE_WUNLOCK(lle);
+	else {
+		if (!callout_pending(&lle->la_timer) &&
+		    callout_active(&lle->la_timer)) {
+			(void) llentry_free(lle);
+			ARPSTAT_INC(timeouts);
+		} 
+#ifdef DIAGNOSTIC
+		else {
+			struct sockaddr *l3addr = L3_ADDR(lle);
+			log(LOG_INFO, 
+			    "arptimer issue: %p, IPv4 address: \"%s\"\n", lle,
+			    inet_ntoa(
+			        ((const struct sockaddr_in *)l3addr)->sin_addr));
+		}
+#endif
 	}
 	IF_AFDATA_UNLOCK(ifp);
 	CURVNET_RESTORE();
@@ -309,7 +318,7 @@ retry:
 	} 
 
 	if ((la->la_flags & LLE_VALID) &&
-	    ((la->la_flags & LLE_STATIC) || la->la_expire > time_uptime)) {
+	    ((la->la_flags & LLE_STATIC) || la->la_expire > time_second)) {
 		bcopy(&la->ll_addr, desten, ifp->if_addrlen);
 		/*
 		 * If entry has an expiry time and it is approaching,
@@ -317,7 +326,7 @@ retry:
 		 * arpt_down interval.
 		 */
 		if (!(la->la_flags & LLE_STATIC) &&
-		    time_uptime + la->la_preempt > la->la_expire) {
+		    time_second + la->la_preempt > la->la_expire) {
 			arprequest(ifp, NULL,
 			    &SIN(dst)->sin_addr, IF_LLADDR(ifp));
 
@@ -337,7 +346,7 @@ retry:
 		goto done;
 	}
 
-	renew = (la->la_asked == 0 || la->la_expire != time_uptime);
+	renew = (la->la_asked == 0 || la->la_expire != time_second);
 	if ((renew || m != NULL) && (flags & LLE_EXCLUSIVE) == 0) {
 		flags |= LLE_EXCLUSIVE;
 		LLE_RUNLOCK(la);
@@ -369,13 +378,13 @@ retry:
 	if (la->la_asked < V_arp_maxtries)
 		error = EWOULDBLOCK;	/* First request. */
 	else
-		error =
-		    (rt0->rt_flags & RTF_GATEWAY) ? EHOSTDOWN : EHOSTUNREACH;
+		error = rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) ?
+		    EHOSTUNREACH : EHOSTDOWN;
 
 	if (renew) {
 		LLE_ADDREF(la);
-		la->la_expire = time_uptime;
-		callout_reset(&la->la_timer, hz, arptimer, la);
+		la->la_expire = time_second + V_arpt_down;
+		callout_reset(&la->la_timer, hz * V_arpt_down, arptimer, la);
 		la->la_asked++;
 		LLE_WUNLOCK(la);
 		arprequest(ifp, NULL, &SIN(dst)->sin_addr,
@@ -687,7 +696,7 @@ match:
 		EVENTHANDLER_INVOKE(arp_update_event, la);
 
 		if (!(la->la_flags & LLE_STATIC)) {
-			la->la_expire = time_uptime + V_arpt_keep;
+			la->la_expire = time_second + V_arpt_keep;
 			callout_reset(&la->la_timer, hz * V_arpt_keep,
 			    arptimer, la);
 		}

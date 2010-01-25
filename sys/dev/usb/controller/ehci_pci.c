@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/ehci.h>
+#include <dev/usb/controller/ehcireg.h>
 
 #define	PCI_EHCI_VENDORID_ACERLABS	0x10b9
 #define	PCI_EHCI_VENDORID_AMD		0x1022
@@ -192,6 +193,14 @@ ehci_pci_match(device_t self)
 		return "Intel 82801I (ICH9) USB 2.0 controller";
 	case 0x293c8086:
 		return "Intel 82801I (ICH9) USB 2.0 controller";
+	case 0x3a3a8086:
+		return "Intel 82801JI (ICH10) USB 2.0 controller USB-A";
+	case 0x3a3c8086:
+		return "Intel 82801JI (ICH10) USB 2.0 controller USB-B";
+	case 0x3b348086:
+		return ("Intel PCH USB 2.0 controller USB-A");
+	case 0x3b3c8086:
+		return ("Intel PCH USB 2.0 controller USB-B");
 
 	case 0x00e01033:
 		return ("NEC uPD 720100 USB 2.0 controller");
@@ -208,6 +217,12 @@ ehci_pci_match(device_t self)
 		return "NVIDIA nForce4 USB 2.0 controller";
 	case 0x03f210de:
 		return "NVIDIA nForce MCP61 USB 2.0 controller";
+	case 0x0aa610de:
+		return "NVIDIA nForce MCP79 USB 2.0 controller";
+	case 0x0aa910de:
+		return "NVIDIA nForce MCP79 USB 2.0 controller";
+	case 0x0aaa10de:
+		return "NVIDIA nForce MCP79 USB 2.0 controller";
 
 	case 0x15621131:
 		return "Philips ISP156x USB 2.0 controller";
@@ -317,13 +332,11 @@ ehci_pci_attach(device_t self)
 		device_printf(self, "pre-2.0 USB revision (ignored)\n");
 		/* fallthrough */
 	case PCI_USB_REV_2_0:
-		sc->sc_bus.usbrev = USB_REV_2_0;
 		break;
 	default:
 		/* Quirk for Parallels Desktop 4.0 */
 		device_printf(self, "USB revision is unknown. Assuming v2.0.\n");
-		sc->sc_bus.usbrev = USB_REV_2_0;
-                break;
+		break;
 	}
 
 	rid = PCI_CBMEM;
@@ -436,6 +449,19 @@ ehci_pci_attach(device_t self)
 		ehci_pci_via_quirk(self);
 		break;
 
+	default:
+		break;
+	}
+
+	/* Dropped interrupts workaround */
+	switch (pci_get_vendor(self)) {
+	case PCI_EHCI_VENDORID_ATI:
+	case PCI_EHCI_VENDORID_VIA:
+		sc->sc_flags |= EHCI_SCFLG_LOSTINTRBUG;
+		if (bootverbose)
+			device_printf(self,
+			    "Dropped interrupts workaround enabled\n");
+		break;
 	default:
 		break;
 	}

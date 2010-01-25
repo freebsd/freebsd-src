@@ -47,7 +47,10 @@ compat_bzip2(const char *name)
 	int i;
 
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	if (ARCHIVE_OK != archive_read_support_compression_bzip2(a)) {
+		skipping("Unsupported bzip2");
+		return;
+	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	extract_reference_file(name);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 2));

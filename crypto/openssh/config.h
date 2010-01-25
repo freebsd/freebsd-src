@@ -85,13 +85,13 @@
 /* #undef CONF_UTMPX_FILE */
 
 /* Define if you want to specify the path to your utmp file */
-#define CONF_UTMP_FILE "/var/run/utmp"
+/* #undef CONF_UTMP_FILE */
 
 /* Define if you want to specify the path to your wtmpx file */
 /* #undef CONF_WTMPX_FILE */
 
 /* Define if you want to specify the path to your wtmp file */
-#define CONF_WTMP_FILE "/var/log/wtmp"
+/* #undef CONF_WTMP_FILE */
 
 /* Define if your platform needs to skip post auth file descriptor passing */
 /* #undef DISABLE_FD_PASSING */
@@ -112,13 +112,13 @@
 /* #undef DISABLE_SHADOW */
 
 /* Define if you don't want to use utmp */
-/* #undef DISABLE_UTMP */
+#define DISABLE_UTMP 1
 
 /* Define if you don't want to use utmpx */
-#define DISABLE_UTMPX 1
+/* #undef DISABLE_UTMPX */
 
 /* Define if you don't want to use wtmp */
-/* #undef DISABLE_WTMP */
+#define DISABLE_WTMP 1
 
 /* Define if you don't want to use wtmpx */
 #define DISABLE_WTMPX 1
@@ -319,7 +319,7 @@
 /* #undef HAVE_ENDUTENT */
 
 /* Define to 1 if you have the `endutxent' function. */
-/* #undef HAVE_ENDUTXENT */
+#define HAVE_ENDUTXENT 1
 
 /* Define if your system has /etc/default/login */
 /* #undef HAVE_ETC_DEFAULT_LOGIN */
@@ -445,13 +445,13 @@
 /* #undef HAVE_GETUTLINE */
 
 /* Define to 1 if you have the `getutxent' function. */
-/* #undef HAVE_GETUTXENT */
+#define HAVE_GETUTXENT 1
 
 /* Define to 1 if you have the `getutxid' function. */
-/* #undef HAVE_GETUTXID */
+#define HAVE_GETUTXID 1
 
 /* Define to 1 if you have the `getutxline' function. */
-/* #undef HAVE_GETUTXLINE */
+#define HAVE_GETUTXLINE 1
 
 /* Define to 1 if you have the `get_default_context_with_level' function. */
 /* #undef HAVE_GET_DEFAULT_CONTEXT_WITH_LEVEL */
@@ -484,10 +484,10 @@
 #define HAVE_HEADER_AD 1
 
 /* Define if you have ut_host in utmp.h */
-#define HAVE_HOST_IN_UTMP 1
+/* #undef HAVE_HOST_IN_UTMP */
 
 /* Define if you have ut_host in utmpx.h */
-/* #undef HAVE_HOST_IN_UTMPX */
+#define HAVE_HOST_IN_UTMPX 1
 
 /* Define to 1 if you have the <iaf.h> header file. */
 /* #undef HAVE_IAF_H */
@@ -499,7 +499,7 @@
 /* #undef HAVE_ID_IN_UTMP */
 
 /* Define if you have ut_id in utmpx.h */
-/* #undef HAVE_ID_IN_UTMPX */
+#define HAVE_ID_IN_UTMPX 1
 
 /* Define to 1 if you have the `inet_aton' function. */
 #define HAVE_INET_ATON 1
@@ -574,7 +574,7 @@
 /* #undef HAVE_LINUX_IF_TUN_H */
 
 /* Define if your libraries define login() */
-#define HAVE_LOGIN 1
+/* #undef HAVE_LOGIN */
 
 /* Define to 1 if you have the <login_cap.h> header file. */
 #define HAVE_LOGIN_CAP_H 1
@@ -586,10 +586,10 @@
 /* #undef HAVE_LOGIN_H */
 
 /* Define to 1 if you have the `logout' function. */
-#define HAVE_LOGOUT 1
+/* #undef HAVE_LOGOUT */
 
 /* Define to 1 if you have the `logwtmp' function. */
-#define HAVE_LOGWTMP 1
+/* #undef HAVE_LOGWTMP */
 
 /* Define to 1 if the system has the type `long double'. */
 #define HAVE_LONG_DOUBLE 1
@@ -704,7 +704,7 @@
 /* #undef HAVE_PUTUTLINE */
 
 /* Define to 1 if you have the `pututxline' function. */
-/* #undef HAVE_PUTUTXLINE */
+#define HAVE_PUTUTXLINE 1
 
 /* Define if your password has a pw_change field */
 #define HAVE_PW_CHANGE_IN_PASSWD 1
@@ -800,7 +800,7 @@
 /* #undef HAVE_SETUTENT */
 
 /* Define to 1 if you have the `setutxent' function. */
-/* #undef HAVE_SETUTXENT */
+#define HAVE_SETUTXENT 1
 
 /* Define to 1 if you have the `setvbuf' function. */
 #define HAVE_SETVBUF 1
@@ -1025,7 +1025,7 @@
 #define HAVE_TIME_H 1
 
 /* Define if you have ut_time in utmp.h */
-#define HAVE_TIME_IN_UTMP 1
+/* #undef HAVE_TIME_IN_UTMP */
 
 /* Define if you have ut_time in utmpx.h */
 /* #undef HAVE_TIME_IN_UTMPX */
@@ -1043,13 +1043,13 @@
 /* #undef HAVE_TV_IN_UTMP */
 
 /* Define if you have ut_tv in utmpx.h */
-/* #undef HAVE_TV_IN_UTMPX */
+#define HAVE_TV_IN_UTMPX 1
 
 /* Define if you have ut_type in utmp.h */
 /* #undef HAVE_TYPE_IN_UTMP */
 
 /* Define if you have ut_type in utmpx.h */
-/* #undef HAVE_TYPE_IN_UTMPX */
+#define HAVE_TYPE_IN_UTMPX 1
 
 /* Define to 1 if you have the <ucred.h> header file. */
 /* #undef HAVE_UCRED_H */
@@ -1091,10 +1091,10 @@
 /* #undef HAVE_UTMPXNAME */
 
 /* Define to 1 if you have the <utmpx.h> header file. */
-/* #undef HAVE_UTMPX_H */
+#define HAVE_UTMPX_H 1
 
 /* Define to 1 if you have the <utmp.h> header file. */
-#define HAVE_UTMP_H 1
+/* #undef HAVE_UTMP_H */
 
 /* define if you have u_char data type */
 #define HAVE_U_CHAR 1

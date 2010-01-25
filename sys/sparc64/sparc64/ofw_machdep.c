@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 by Thomas Moestl <tmm@FreeBSD.org>.
- * Copyright (c) 2005 by Marius Strobl <marius@FreeBSD.org>.
+ * Copyright (c) 2005 - 2009 by Marius Strobl <marius@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -64,34 +64,32 @@ OF_getetheraddr(device_t dev, u_char *addr)
 
 	node = OF_peer(0);
 	if (node <= 0 || OF_getprop(node, "idprom", &idp, sizeof(idp)) == -1)
-		panic("Could not determine the machine ethernet address");
+		panic("Could not determine the machine Ethernet address");
 	bcopy(&idp.id_ether, addr, ETHER_ADDR_LEN);
 }
 
 static __inline uint32_t
 phys_hi_mask_space(const char *bus, uint32_t phys_hi)
 {
-	uint32_t space;
 
-	space = phys_hi;
 	if (strcmp(bus, "ebus") == 0 || strcmp(bus, "isa") == 0)
-		space &= 0x1;
+		phys_hi &= 0x1;
 	else if (strcmp(bus, "pci") == 0)
-		space &= OFW_PCI_PHYS_HI_SPACEMASK;
+		phys_hi &= OFW_PCI_PHYS_HI_SPACEMASK;
 	/* The phys.hi cells of the other busses only contain space bits. */
-	return (space);
+	return (phys_hi);
 }
 
 /*
  * Return the physical address and the bus space to use for a node
  * referenced by its package handle and the index of the register bank
- * to decode. Intended to be used to together with sparc64_fake_bustag()
+ * to decode.  Intended to be used to together with sparc64_fake_bustag()
  * by console drivers in early boot only.
  * Works by mapping the address of the node's bank given in the address
  * space of its parent upward in the device tree at each bridge along the
  * path.
  * Currently only really deals with max. 64-bit addresses, i.e. addresses
- * consisting of max. 2 phys cells (phys.hi and phys.lo). If we encounter
+ * consisting of max. 2 phys cells (phys.hi and phys.lo).  If we encounter
  * a 3 phys cells address (as with PCI addresses) we assume phys.hi can
  * be ignored except for the space bits (generally contained in phys.hi)
  * and treat phys.mid as phys.hi.
@@ -100,26 +98,26 @@ int
 OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 {
 	char name[32];
-	uint64_t cend, cstart, end, phys, sz, start;
+	uint64_t cend, cstart, end, phys, pphys, sz, start;
 	pcell_t addrc, szc, paddrc;
 	phandle_t bus, lbus, pbus;
 	uint32_t banks[10 * 5];	/* 10 PCI banks */
-	uint32_t cspace, spc;
+	uint32_t cspc, pspc, spc;
 	int i, j, nbank;
 
 	/*
 	 * In general the addresses are contained in the "reg" property
-	 * of a node. The first address in the "reg" property of a PCI
+	 * of a node.  The first address in the "reg" property of a PCI
 	 * node however is the address of its configuration registers in
-	 * the configuration space of the host bridge. Additional entries
-	 * denote the memory and I/O addresses. For relocatable addresses
+	 * the configuration space of the host bridge.  Additional entries
+	 * denote the memory and I/O addresses.  For relocatable addresses
 	 * the "reg" property contains the BAR, for non-relocatable
-	 * addresses it contains the absolute PCI address. The PCI-only
+	 * addresses it contains the absolute PCI address.  The PCI-only
 	 * "assigned-addresses" property however always contains the
 	 * absolute PCI addresses.
 	 * The "assigned-addresses" and "reg" properties are arrays of
 	 * address structures consisting of #address-cells 32-bit phys
-	 * cells and #size-cells 32-bit size cells. If a parent lacks
+	 * cells and #size-cells 32-bit size cells.  If a parent lacks
 	 * the "#address-cells" or "#size-cells" property the default
 	 * for #address-cells to use is 2 and for #size-cells 1.
 	 */
@@ -150,17 +148,18 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 	nbank /= sizeof(banks[0]) * (addrc + szc);
 	if (bank < 0 || bank > nbank - 1)
 		return (ENXIO);
+	bank *= addrc + szc;
+	spc = phys_hi_mask_space(name, banks[bank]);
+	/* Skip the high cell for 3-cell addresses. */
+	bank += addrc - 2;
 	phys = 0;
 	for (i = 0; i < MIN(2, addrc); i++)
-		phys |= (uint64_t)banks[(addrc + szc) * bank + addrc - 2 + i] <<
-		    32 * (MIN(2, addrc) - i - 1);
+		phys = ((uint64_t)phys << 32) | banks[bank++];
 	sz = 0;
 	for (i = 0; i < szc; i++)
-		sz |= (uint64_t)banks[(addrc + szc) * bank + addrc + i] <<
-		    32 * (szc - i - 1);
+		sz = ((uint64_t)sz << 32) | banks[bank++];
 	start = phys;
 	end = phys + sz - 1;
-	spc = phys_hi_mask_space(name, banks[(addrc + szc) * bank]);
 
 	/*
 	 * Map upward in the device tree at every bridge we encounter
@@ -172,7 +171,7 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 	 * If a bridge doesn't have a "ranges" property no mapping is
 	 * necessary at that bridge.
 	 */
-	cspace = 0;
+	cspc = 0;
 	lbus = bus;
 	while ((pbus = OF_parent(bus)) != 0) {
 		if (OF_getprop(pbus, "#address-cells", &paddrc,
@@ -195,42 +194,40 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 				return (ENXIO);
 		}
 		nbank /= sizeof(banks[0]) * (addrc + paddrc + szc);
+		bank = 0;
 		for (i = 0; i < nbank; i++) {
-			cspace = phys_hi_mask_space(name,
-			    banks[(addrc + paddrc + szc) * i]);
-			if (cspace != spc)
+			cspc = phys_hi_mask_space(name, banks[bank]);
+			if (cspc != spc) {
+				bank += addrc + paddrc + szc;
 				continue;
+			}
+			/* Skip the high cell for 3-cell addresses. */
+			bank += addrc - 2;
 			phys = 0;
 			for (j = 0; j < MIN(2, addrc); j++)
-				phys |= (uint64_t)banks[
-				    (addrc + paddrc + szc) * i +
-				    addrc - 2 + j] <<
-				    32 * (MIN(2, addrc) - j - 1);
+				phys = ((uint64_t)phys << 32) | banks[bank++];
+			pspc = banks[bank];
+			/* Skip the high cell for 3-cell addresses. */
+			bank += paddrc - 2;
+			pphys = 0;
+			for (j = 0; j < MIN(2, paddrc); j++)
+				pphys =
+				    ((uint64_t)pphys << 32) | banks[bank++];
 			sz = 0;
 			for (j = 0; j < szc; j++)
-				sz |= (uint64_t)banks[
-				    (addrc + paddrc + szc) * i + addrc +
-				    paddrc + j] <<
-				    32 * (szc - j - 1);
+				sz = ((uint64_t)sz << 32) | banks[bank++];
 			cstart = phys;
 			cend = phys + sz - 1;
 			if (start < cstart || start > cend)
 				continue;
 			if (end < cstart || end > cend)
 				return (ENXIO);
-			phys = 0;
-			for (j = 0; j < MIN(2, paddrc); j++)
-				phys |= (uint64_t)banks[
-				    (addrc + paddrc + szc) * i + addrc +
-				    paddrc - 2 + j] <<
-				    32 * (MIN(2, paddrc) - j - 1);
-			start += phys - cstart;
-			end += phys - cstart;
 			if (OF_getprop(pbus, "name", name, sizeof(name)) == -1)
 				return (ENXIO);
 			name[sizeof(name) - 1] = '\0';
-			spc = phys_hi_mask_space(name,
-			    banks[(addrc + paddrc + szc) * i + addrc]);
+			spc = phys_hi_mask_space(name, pspc);
+			start += pphys - cstart;
+			end += pphys - cstart;
 			break;
 		}
 		if (i == nbank)
@@ -241,8 +238,8 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 		bus = pbus;
 	}
 
-	/* Done with mapping. Return the bus space as used by FreeBSD. */
 	*addr = start;
+	/* Determine the bus space based on the last bus we mapped. */
 	if (OF_parent(lbus) == 0) {
 		*space = NEXUS_BUS_SPACE;
 		return (0);
@@ -250,11 +247,12 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 	if (OF_getprop(lbus, "name", name, sizeof(name)) == -1)
 		return (ENXIO);
 	name[sizeof(name) - 1] = '\0';
-	if (strcmp(name, "central") == 0 || strcmp(name, "upa") == 0) {
+	if (strcmp(name, "central") == 0 || strcmp(name, "ebus") == 0 ||
+	    strcmp(name, "upa") == 0) {
 		*space = NEXUS_BUS_SPACE;
 		return (0);
 	} else if (strcmp(name, "pci") == 0) {
-		switch (cspace) {
+		switch (cspc) {
 		case OFW_PCI_PHYS_HI_SPACE_IO:
 			*space = PCI_IO_BUS_SPACE;
 			return (0);

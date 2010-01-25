@@ -144,10 +144,10 @@ vga_ioctl(struct cdev *dev, vga_softc_t *sc, u_long cmd, caddr_t arg, int flag,
 }
 
 int
-vga_mmap(struct cdev *dev, vga_softc_t *sc, vm_offset_t offset, vm_offset_t *paddr,
-	 int prot)
+vga_mmap(struct cdev *dev, vga_softc_t *sc, vm_ooffset_t offset,
+    vm_offset_t *paddr, int prot, vm_memattr_t *memattr)
 {
-	return genfbmmap(&sc->gensc, sc->adp, offset, paddr, prot);
+	return genfbmmap(&sc->gensc, sc->adp, offset, paddr, prot, memattr);
 }
 
 #endif /* FB_INSTALL_CDEV */
@@ -2465,8 +2465,8 @@ vga_blank_display(video_adapter_t *adp, int mode)
  * all adapters
  */
 static int
-vga_mmap_buf(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
-   	     int prot)
+vga_mmap_buf(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
+   	     int prot, vm_memattr_t *memattr)
 {
     if (adp->va_info.vi_flags & V_INFO_LINEAR)
 	return -1;

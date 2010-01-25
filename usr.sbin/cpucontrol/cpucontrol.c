@@ -83,7 +83,7 @@ struct datadir {
 	const char		*path;
 	SLIST_ENTRY(datadir)	next;
 };
-static SLIST_HEAD(, datadir) datadirs = SLIST_HEAD_INITIALIZER(&datadirs);
+static SLIST_HEAD(, datadir) datadirs = SLIST_HEAD_INITIALIZER(datadirs);
 
 struct ucode_handler {
 	ucode_probe_t *probe;
@@ -102,7 +102,7 @@ static int	do_update(const char *dev);
 static void	datadir_add(const char *path);
 
 static void __dead2
-usage()
+usage(void)
 {
 	const char *name;
 

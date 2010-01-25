@@ -164,6 +164,11 @@ main(int argc, char *argv[])
 	for (rval = 0; *argv; ++argv) {
 		/* See if the file exists. */
 		if (stat_f(*argv, &sb) != 0) {
+			if (errno != ENOENT) {
+				rval = 1;
+				warn("%s", *argv);
+				continue;
+			}
 			if (!cflag) {
 				/* Create the file. */
 				fd = open(*argv,
@@ -206,7 +211,7 @@ main(int argc, char *argv[])
 			continue;
 
 		/* If the user specified a time, nothing else we can do. */
-		if (timeset) {
+		if (timeset || Aflag) {
 			rval = 1;
 			warn("%s", *argv);
 			continue;
@@ -222,11 +227,13 @@ main(int argc, char *argv[])
 			continue;
 
 		/* Try reading/writing. */
-		if (!S_ISLNK(sb.st_mode) && !S_ISDIR(sb.st_mode) &&
-		    rw(*argv, &sb, fflag))
+		if (!S_ISLNK(sb.st_mode) && !S_ISDIR(sb.st_mode)) {
+			if (rw(*argv, &sb, fflag))
+				rval = 1;
+		} else {
 			rval = 1;
-		else
 			warn("%s", *argv);
+		}
 	}
 	exit(rval);
 }

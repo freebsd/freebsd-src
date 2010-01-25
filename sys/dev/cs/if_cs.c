@@ -475,7 +475,7 @@ int
 cs_attach(device_t dev)
 {
 	int error, media=0;
-	struct cs_softc *sc = device_get_softc(dev);;
+	struct cs_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp;
 
 	sc->dev = dev;
@@ -852,7 +852,7 @@ cs_write_mbufs( struct cs_softc *sc, struct mbuf *m )
 		 * Ignore empty parts
 		 */
 		if (!len)
-		continue;
+			continue;
 
 		/*
 		 * Find actual data address

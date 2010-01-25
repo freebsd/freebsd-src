@@ -60,6 +60,7 @@
 .ds doc-str-Lb-libthr      1:1 Threading Library (libthr, \-lthr)
 .ds doc-str-Lb-libufs      UFS File System Access Library (libufs, \-lufs)
 .ds doc-str-Lb-libugidfw   File System Firewall Interface Library (libugidfw, \-lugidfw)
+.ds doc-str-Lb-libulog     User Login Record Library (libulog, \-lulog)
 .ds doc-str-Lb-libvgl      Video Graphics Library (libvgl, \-lvgl)
 .
 .\" FreeBSD architectures not found in doc-common
@@ -69,9 +70,6 @@
 .ds doc-default-operating-system FreeBSD\~9.0
 .
 .\" FreeBSD releases not found in doc-common
-.ds doc-operating-system-FreeBSD-6.3    6.3
-.ds doc-operating-system-FreeBSD-6.4    6.4
-.ds doc-operating-system-FreeBSD-7.1    7.1
 .ds doc-operating-system-FreeBSD-7.2    7.2
 .ds doc-operating-system-FreeBSD-7.3    7.3
 .ds doc-operating-system-FreeBSD-8.0    8.0

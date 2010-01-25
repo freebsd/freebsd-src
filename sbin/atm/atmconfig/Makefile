@@ -29,8 +29,6 @@ CLEANFILES+= oid.h
 
 .if ${MACHINE_ARCH} == "arm"
 WARNS?= 3
-.else
-WARNS?=	6
 .endif
 
 FILES=	atmconfig.help atmconfig_device.help

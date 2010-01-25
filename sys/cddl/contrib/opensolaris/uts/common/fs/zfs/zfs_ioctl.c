@@ -1491,6 +1491,14 @@ zfs_set_prop_nvlist(const char *name, nvlist_t *nvl)
 			if (zpl_earlier_version(name, ZPL_VERSION_FUID))
 				return (ENOTSUP);
 			break;
+
+		case ZFS_PROP_ACLINHERIT:
+			if (nvpair_type(elem) == DATA_TYPE_UINT64 &&
+			    nvpair_value_uint64(elem, &intval) == 0)
+				if (intval == ZFS_ACL_PASSTHROUGH_X &&
+				    zfs_earlier_version(name,
+				    SPA_VERSION_PASSTHROUGH_X))
+					return (ENOTSUP);
 		}
 	}
 

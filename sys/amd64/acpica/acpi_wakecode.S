@@ -88,6 +88,11 @@ wakeup_start:
 	movb	$0, reset_video - wakeup_start
 	lcall	$0xc000, $3
 
+	/* When we reach here, int 0x10 should be ready.  Hide cursor. */
+	movb	$0x01, %ah
+	movb	$0x20, %ch
+	int	$0x10
+
 	/* Re-start in case the previous BIOS call clobbers them. */
 	jmp	wakeup_start
 1:

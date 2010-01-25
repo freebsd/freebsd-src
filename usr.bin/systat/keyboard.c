@@ -39,8 +39,10 @@ __FBSDID("$FreeBSD$");
 static const char sccsid[] = "@(#)keyboard.c	8.1 (Berkeley) 6/6/93";
 #endif
 
+#include <errno.h>
 #include <ctype.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <termios.h>
 
 #include "systat.h"
@@ -57,10 +59,11 @@ keyboard(void)
                 move(CMDLINE, 0);
                 do {
                         refresh();
-                        ch = getch() & 0177;
-                        if (ch == 0177 && ferror(stdin)) {
-                                clearerr(stdin);
-                                continue;
+                        ch = getch();
+                        if (ch == ERR) {
+                                if (errno == EINTR)
+                                        continue;
+                                exit(1);
                         }
                         if (ch >= 'A' && ch <= 'Z')
                                 ch += 'a' - 'A';

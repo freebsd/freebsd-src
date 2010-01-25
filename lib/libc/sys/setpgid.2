@@ -54,6 +54,11 @@ to the specified
 If
 .Fa pid
 is zero, then the call applies to the current process.
+If
+.Fa pgrp
+is zero, then the process id of the process specified by
+.Fa pid
+is used instead.
 .Pp
 If the affected process is not the invoking process, then it must be a
 child of the invoking process, it must not have performed an

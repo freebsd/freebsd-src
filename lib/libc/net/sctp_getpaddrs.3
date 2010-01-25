@@ -33,7 +33,7 @@
 .\" $FreeBSD$
 .\"
 .Dd December 15, 2006
-.Dt SCTP_GETPADDR 3
+.Dt SCTP_GETPADDRS 3
 .Os
 .Sh NAME
 .Nm sctp_getpaddrs ,
@@ -64,7 +64,7 @@ array of socket addresses returned in the argument
 .Fa addrs
 upon success.
 .Pp
-After the caller is through the function
+After the caller is finished, the function
 .Fn sctp_freepaddrs
 or
 .Fn sctp_freeladdrs
@@ -76,7 +76,7 @@ the number of addresses returned in
 .Fa addrs
 upon success.
 .Sh ERRORS
-The functions can return the following errors.
+The functions can return the following errors:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 An address listed has an invalid family or no

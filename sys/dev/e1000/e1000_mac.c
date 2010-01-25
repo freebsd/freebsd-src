@@ -230,7 +230,6 @@ s32 e1000_get_bus_info_pcie_generic(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	struct e1000_bus_info *bus = &hw->bus;
-
 	s32 ret_val;
 	u16 pcie_link_status;
 
@@ -408,6 +407,11 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 
 	if (hw->bus.func == E1000_FUNC_1)
 		nvm_alt_mac_addr_offset += E1000_ALT_MAC_ADDRESS_OFFSET_LAN1;
+	if (hw->bus.func == E1000_FUNC_2)
+		nvm_alt_mac_addr_offset += E1000_ALT_MAC_ADDRESS_OFFSET_LAN2;
+
+	if (hw->bus.func == E1000_FUNC_3)
+		nvm_alt_mac_addr_offset += E1000_ALT_MAC_ADDRESS_OFFSET_LAN3;
 	for (i = 0; i < ETH_ADDR_LEN; i += 2) {
 		offset = nvm_alt_mac_addr_offset + (i >> 1);
 		ret_val = hw->nvm.ops.read(hw, offset, 1, &nvm_data);
@@ -750,12 +754,6 @@ s32 e1000_check_for_copper_link_generic(struct e1000_hw *hw)
 
 	mac->get_link_status = FALSE;
 
-	if (hw->phy.type == e1000_phy_82578) {
-		ret_val = e1000_link_stall_workaround_hv(hw);
-		if (ret_val)
-			goto out;
-	}
-
 	/*
 	 * Check if there was DownShift, must be checked
 	 * immediately after link-up
@@ -994,9 +992,8 @@ s32 e1000_setup_link_generic(struct e1000_hw *hw)
 	 * In the case of the phy reset being blocked, we already have a link.
 	 * We do not need to set it up again.
 	 */
-	if (hw->phy.ops.check_reset_block)
-		if (hw->phy.ops.check_reset_block(hw))
-			goto out;
+	if (e1000_check_reset_block(hw))
+		goto out;
 
 	/*
 	 * If requested flow control is set to default, set flow control
@@ -1512,7 +1509,7 @@ s32 e1000_config_fc_after_link_up_generic(struct e1000_hw *hw)
 			/*
 			 * Now we need to check if the user selected Rx ONLY
 			 * of pause frames.  In this case, we had to advertise
-			 * FULL flow control because we could not advertise RX
+			 * FULL flow control because we could not advertise Rx
 			 * ONLY. Hence, we must now check to see if we need to
 			 * turn OFF  the TRANSMISSION of PAUSE frames.
 			 */
@@ -2033,7 +2030,7 @@ out:
  *  e1000_disable_pcie_master_generic - Disables PCI-express master access
  *  @hw: pointer to the HW structure
  *
- *  Returns 0 (E1000_SUCCESS) if successful, else returns -10
+ *  Returns E1000_SUCCESS if successful, else returns -10
  *  (-E1000_ERR_MASTER_REQUESTS_PENDING) if master disable bit has not caused
  *  the master requests to be disabled.
  *
@@ -2151,7 +2148,7 @@ out:
  *  Verify that when not using auto-negotiation that MDI/MDIx is correctly
  *  set, which is forced to MDI mode only.
  **/
-s32 e1000_validate_mdi_setting_generic(struct e1000_hw *hw)
+static s32 e1000_validate_mdi_setting_generic(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_SUCCESS;
 

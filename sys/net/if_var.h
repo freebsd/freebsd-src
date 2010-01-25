@@ -141,7 +141,7 @@ struct ifnet {
 	struct	carp_if *if_carp;	/* carp interface structure */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
 	u_short	if_index;		/* numeric abbreviation for this if  */
-	short	if_timer;		/* time 'til if_watchdog called */
+	short	if_index_reserved;	/* spare space to grow if_index */
 	struct  ifvlantrunk *if_vlantrunk; /* pointer to 802.1q data */
 	int	if_flags;		/* up/down, broadcast, etc. */
 	int	if_capabilities;	/* interface features & capabilities */
@@ -161,8 +161,6 @@ struct ifnet {
 		(struct ifnet *);
 	int	(*if_ioctl)		/* ioctl routine */
 		(struct ifnet *, u_long, caddr_t);
-	void	(*if_watchdog)		/* timer routine */
-		(struct ifnet *);
 	void	(*if_init)		/* Init routine */
 		(void *);
 	int	(*if_resolvemulti)	/* validate/resolve multicast */
@@ -341,6 +339,9 @@ void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
 } while(0)
 
 #ifdef _KERNEL
+/* interface link layer address change event */
+typedef void (*iflladdr_event_handler_t)(void *, struct ifnet *);
+EVENTHANDLER_DECLARE(iflladdr_event, iflladdr_event_handler_t);
 /* interface address change event */
 typedef void (*ifaddr_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(ifaddr_event, ifaddr_event_handler_t);
@@ -712,6 +713,7 @@ struct ifaddr {
 	struct mtx ifa_mtx;
 };
 #define	IFA_ROUTE	RTF_UP		/* route installed */
+#define IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 
 /* for compatibility with other BSDs */
 #define	ifa_list	ifa_link
@@ -831,7 +833,7 @@ void	if_delmulti_ifma(struct ifmultiaddr *);
 void	if_detach(struct ifnet *);
 void	if_vmove(struct ifnet *, struct vnet *);
 void	if_purgeaddrs(struct ifnet *);
-void	if_purgemaddrs(struct ifnet *);
+void	if_delallmulti(struct ifnet *);
 void	if_down(struct ifnet *);
 struct ifmultiaddr *
 	if_findmulti(struct ifnet *, struct sockaddr *);
@@ -845,7 +847,6 @@ void	if_ref(struct ifnet *);
 void	if_rele(struct ifnet *);
 int	if_setlladdr(struct ifnet *, const u_char *, int);
 void	if_up(struct ifnet *);
-/*void	ifinit(void);*/ /* declared in systm.h for main() */
 int	ifioctl(struct socket *, u_long, caddr_t, struct thread *);
 int	ifpromisc(struct ifnet *, int);
 struct	ifnet *ifunit(const char *);

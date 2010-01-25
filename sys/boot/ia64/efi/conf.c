@@ -49,15 +49,16 @@ __FBSDID("$FreeBSD$");
 
 /* Exported for libstand */
 struct devsw *devsw[] = {
-	&efifs_dev,
+	&efipart_dev,
 	&efinet_dev,
 	NULL
 };
 
 struct fs_ops *file_system[] = {
-	&efifs_fsops,
-	&nfs_fsops,
+	&dosfs_fsops,
 	&ufs_fsops,
+	&cd9660_fsops,
+	&nfs_fsops,
 	&gzipfs_fsops,
 	NULL
 };

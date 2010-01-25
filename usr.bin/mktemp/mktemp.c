@@ -143,7 +143,7 @@ main(int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 		"usage: mktemp [-d] [-q] [-t prefix] [-u] template ...\n");

@@ -36,6 +36,7 @@ struct mca_record {
 	uint64_t	mr_misc;
 	uint64_t	mr_tsc;
 	int		mr_apic_id;
+	int		mr_bank;
 };
 
 #ifdef _KERNEL

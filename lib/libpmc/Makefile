@@ -5,8 +5,6 @@ LIB=	pmc
 SRCS=	libpmc.c pmclog.c
 INCS=	pmc.h pmclog.h
 
-WARNS?=	6
-
 MAN=	pmc.3
 MAN+=	pmc_allocate.3
 MAN+=	pmc_attach.3
@@ -35,6 +33,8 @@ MAN+=	pmc.p4.3
 MAN+=	pmc.p5.3
 MAN+=	pmc.p6.3
 MAN+=	pmc.tsc.3
+.elif ${MACHINE_ARCH} == "arm" && ${CPUTYPE} == "xscale"
+MAN+=	pmc.xscale.3
 .endif
 
 MLINKS+= \

@@ -397,18 +397,14 @@ dma_idata(struct upd7210 *u, u_char *data, int len)
 	KASSERT(u->dmachan >= 0, ("Bogus dmachan %d", u->dmachan));
 	ib = u->ibfoo;
 	ib->mode = DMA_IDATA;
-	mtx_lock(&Giant);
 	isa_dmastart(ISADMA_READ, data, len, u->dmachan);
-	mtx_unlock(&Giant);
 	mtx_lock(&u->mutex);
 	upd7210_wr(u, IMR1, IXR1_ENDRX);
 	upd7210_wr(u, IMR2, IMR2_DMAI);
 	gpib_ib_wait_xfer(u, ib);
 	mtx_unlock(&u->mutex);
-	mtx_lock(&Giant);
 	j = isa_dmastatus(u->dmachan);
 	isa_dmadone(ISADMA_READ, data, len, u->dmachan);
-	mtx_unlock(&Giant);
 	return (len - j);
 }
 
@@ -790,14 +786,12 @@ gpib_ib_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	mtx_unlock(&u->mutex);
 
 	if (u->dmachan >= 0) {
-		mtx_lock(&Giant);
 		error = isa_dma_acquire(u->dmachan);
 		if (!error) {
 			error = isa_dma_init(u->dmachan, PAGE_SIZE, M_WAITOK);
 			if (error)
 				isa_dma_release(u->dmachan);
 		}
-		mtx_unlock(&Giant);
 	}
 
 	if (error) {
@@ -855,9 +849,7 @@ gpib_ib_close(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	free(ib, M_IBFOO);
 
 	if (u->dmachan >= 0) {
-		mtx_lock(&Giant);
 		isa_dma_release(u->dmachan);
-		mtx_unlock(&Giant);
 	}
 	mtx_lock(&u->mutex);
 	u->busy = 0;

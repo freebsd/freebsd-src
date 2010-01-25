@@ -789,15 +789,21 @@ METHOD boolean_t dev_direct_mapped {
 
 
 /**
- * @brief Evaluate if a physical page has an executable mapping
+ * @brief Enforce instruction cache coherency. Typically called after a
+ * region of memory has been modified and before execution of or within
+ * that region is attempted. Setting breakpoints in a process through
+ * ptrace(2) is one example of when the instruction cache needs to be
+ * made coherent.
  *
- * @param _pg		physical page
- *
- * @retval bool		TRUE if a physical mapping exists for the given page.
+ * @param _pm		the physical map of the virtual address
+ * @param _va		the virtual address of the modified region
+ * @param _sz		the size of the modified region
  */
-METHOD boolean_t page_executable {
+METHOD void sync_icache {
 	mmu_t		_mmu;
-	vm_page_t	_pg;
+	pmap_t		_pm;
+	vm_offset_t	_va;
+	vm_size_t	_sz;
 };
 
 

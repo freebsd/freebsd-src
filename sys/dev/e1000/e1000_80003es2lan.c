@@ -171,7 +171,7 @@ static s32 e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw)
 		break;
 	}
 
-	nvm->type               = e1000_nvm_eeprom_spi;
+	nvm->type = e1000_nvm_eeprom_spi;
 
 	size = (u16)((eecd & E1000_EECD_SIZE_EX_MASK) >>
 	                  E1000_EECD_SIZE_EX_SHIFT);
@@ -206,17 +206,22 @@ static s32 e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw)
 static s32 e1000_init_mac_params_80003es2lan(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
-	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_init_mac_params_80003es2lan");
 
-	/* Set media type */
+	/* Set media type and media-dependent function pointers */
 	switch (hw->device_id) {
 	case E1000_DEV_ID_80003ES2LAN_SERDES_DPT:
 		hw->phy.media_type = e1000_media_type_internal_serdes;
+		mac->ops.check_for_link = e1000_check_for_serdes_link_generic;
+		mac->ops.setup_physical_interface =
+			e1000_setup_fiber_serdes_link_generic;
 		break;
 	default:
 		hw->phy.media_type = e1000_media_type_copper;
+		mac->ops.check_for_link = e1000_check_for_copper_link_generic;
+		mac->ops.setup_physical_interface =
+			e1000_setup_copper_link_80003es2lan;
 		break;
 	}
 
@@ -230,6 +235,8 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_hw *hw)
 	mac->arc_subsystem_valid =
 	        (E1000_READ_REG(hw, E1000_FWSM) & E1000_FWSM_MODE_MASK)
 	                ? TRUE : FALSE;
+	/* Adaptive IFS not supported */
+	mac->adaptive_ifs = FALSE;
 
 	/* Function pointers */
 
@@ -241,27 +248,6 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_hw *hw)
 	mac->ops.init_hw = e1000_init_hw_80003es2lan;
 	/* link setup */
 	mac->ops.setup_link = e1000_setup_link_generic;
-	/* physical interface link setup */
-	mac->ops.setup_physical_interface =
-	        (hw->phy.media_type == e1000_media_type_copper)
-	                ? e1000_setup_copper_link_80003es2lan
-	                : e1000_setup_fiber_serdes_link_generic;
-	/* check for link */
-	switch (hw->phy.media_type) {
-	case e1000_media_type_copper:
-		mac->ops.check_for_link = e1000_check_for_copper_link_generic;
-		break;
-	case e1000_media_type_fiber:
-		mac->ops.check_for_link = e1000_check_for_fiber_link_generic;
-		break;
-	case e1000_media_type_internal_serdes:
-		mac->ops.check_for_link = e1000_check_for_serdes_link_generic;
-		break;
-	default:
-		ret_val = -E1000_ERR_CONFIG;
-		goto out;
-		break;
-	}
 	/* check management mode */
 	mac->ops.check_mng_mode = e1000_check_mng_mode_generic;
 	/* multicast address update */
@@ -290,8 +276,10 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_hw *hw)
 	/* link info */
 	mac->ops.get_link_up_info = e1000_get_link_up_info_80003es2lan;
 
-out:
-	return ret_val;
+	/* set lan id for port to determine which phy lock to use */
+	hw->mac.ops.set_lan_id(hw);
+
+	return E1000_SUCCESS;
 }
 
 /**
@@ -307,7 +295,6 @@ void e1000_init_function_pointers_80003es2lan(struct e1000_hw *hw)
 	hw->mac.ops.init_params = e1000_init_mac_params_80003es2lan;
 	hw->nvm.ops.init_params = e1000_init_nvm_params_80003es2lan;
 	hw->phy.ops.init_params = e1000_init_phy_params_80003es2lan;
-	e1000_get_bus_info_pcie_generic(hw);
 }
 
 /**
@@ -341,7 +328,6 @@ static void e1000_release_phy_80003es2lan(struct e1000_hw *hw)
 	mask = hw->bus.func ? E1000_SWFW_PHY1_SM : E1000_SWFW_PHY0_SM;
 	e1000_release_swfw_sync_80003es2lan(hw, mask);
 }
-
 
 /**
  *  e1000_acquire_mac_csr_80003es2lan - Acquire rights to access Kumeran register
@@ -532,28 +518,36 @@ static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 		goto out;
 	}
 
-	/*
-	 * The "ready" bit in the MDIC register may be incorrectly set
-	 * before the device has completed the "Page Select" MDI
-	 * transaction.  So we wait 200us after each MDI command...
-	 */
-	usec_delay(200);
+	if (hw->dev_spec._80003es2lan.mdic_wa_enable == TRUE) {
+		/*
+		 * The "ready" bit in the MDIC register may be incorrectly set
+		 * before the device has completed the "Page Select" MDI
+		 * transaction.  So we wait 200us after each MDI command...
+		 */
+		usec_delay(200);
 
-	/* ...and verify the command was successful. */
-	ret_val = e1000_read_phy_reg_mdic(hw, page_select, &temp);
+		/* ...and verify the command was successful. */
+		ret_val = e1000_read_phy_reg_mdic(hw, page_select, &temp);
 
-	if (((u16)offset >> GG82563_PAGE_SHIFT) != temp) {
-		ret_val = -E1000_ERR_PHY;
-		e1000_release_phy_80003es2lan(hw);
-		goto out;
+		if (((u16)offset >> GG82563_PAGE_SHIFT) != temp) {
+			ret_val = -E1000_ERR_PHY;
+			e1000_release_phy_80003es2lan(hw);
+			goto out;
+		}
+
+		usec_delay(200);
+
+		ret_val = e1000_read_phy_reg_mdic(hw,
+		                                  MAX_PHY_REG_ADDRESS & offset,
+		                                  data);
+
+		usec_delay(200);
+	} else {
+		ret_val = e1000_read_phy_reg_mdic(hw,
+		                                  MAX_PHY_REG_ADDRESS & offset,
+		                                  data);
 	}
 
-	usec_delay(200);
-
-	ret_val = e1000_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
-	                                   data);
-
-	usec_delay(200);
 	e1000_release_phy_80003es2lan(hw);
 
 out:
@@ -599,29 +593,36 @@ static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 		goto out;
 	}
 
+	if (hw->dev_spec._80003es2lan.mdic_wa_enable == TRUE) {
+		/*
+		 * The "ready" bit in the MDIC register may be incorrectly set
+		 * before the device has completed the "Page Select" MDI
+		 * transaction.  So we wait 200us after each MDI command...
+		 */
+		usec_delay(200);
 
-	/*
-	 * The "ready" bit in the MDIC register may be incorrectly set
-	 * before the device has completed the "Page Select" MDI
-	 * transaction.  So we wait 200us after each MDI command...
-	 */
-	usec_delay(200);
+		/* ...and verify the command was successful. */
+		ret_val = e1000_read_phy_reg_mdic(hw, page_select, &temp);
 
-	/* ...and verify the command was successful. */
-	ret_val = e1000_read_phy_reg_mdic(hw, page_select, &temp);
+		if (((u16)offset >> GG82563_PAGE_SHIFT) != temp) {
+			ret_val = -E1000_ERR_PHY;
+			e1000_release_phy_80003es2lan(hw);
+			goto out;
+		}
 
-	if (((u16)offset >> GG82563_PAGE_SHIFT) != temp) {
-		ret_val = -E1000_ERR_PHY;
-		e1000_release_phy_80003es2lan(hw);
-		goto out;
+		usec_delay(200);
+
+		ret_val = e1000_write_phy_reg_mdic(hw,
+		                                  MAX_PHY_REG_ADDRESS & offset,
+		                                  data);
+
+		usec_delay(200);
+	} else {
+		ret_val = e1000_write_phy_reg_mdic(hw,
+		                                  MAX_PHY_REG_ADDRESS & offset,
+		                                  data);
 	}
 
-	usec_delay(200);
-
-	ret_val = e1000_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
-	                                  data);
-
-	usec_delay(200);
 	e1000_release_phy_80003es2lan(hw);
 
 out:
@@ -802,13 +803,13 @@ static s32 e1000_get_cable_length_80003es2lan(struct e1000_hw *hw)
 
 	index = phy_data & GG82563_DSPD_CABLE_LENGTH;
 
-	if (index >= GG82563_CABLE_LENGTH_TABLE_SIZE + 5) {
-		ret_val = E1000_ERR_PHY;
+	if (index >= GG82563_CABLE_LENGTH_TABLE_SIZE - 5) {
+		ret_val = -E1000_ERR_PHY;
 		goto out;
 	}
 
 	phy->min_cable_length = e1000_gg82563_cable_length_table[index];
-	phy->max_cable_length = e1000_gg82563_cable_length_table[index+5];
+	phy->max_cable_length = e1000_gg82563_cable_length_table[index + 5];
 
 	phy->cable_length = (phy->min_cable_length + phy->max_cable_length) / 2;
 
@@ -916,10 +917,9 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 
 	/* Initialize identification LED */
 	ret_val = mac->ops.id_led_init(hw);
-	if (ret_val) {
+	if (ret_val)
 		DEBUGOUT("Error initializing identification LED\n");
 		/* This is not fatal and we should not stop init due to this */
-	}
 
 	/* Disabling VLAN filtering */
 	DEBUGOUT("Initializing the IEEE VLAN\n");
@@ -968,6 +968,19 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 	reg_data = E1000_READ_REG_ARRAY(hw, E1000_FFLT, 0x0001);
 	reg_data &= ~0x00100000;
 	E1000_WRITE_REG_ARRAY(hw, E1000_FFLT, 0x0001, reg_data);
+
+	/* default to TRUE to enable the MDIC W/A */
+	hw->dev_spec._80003es2lan.mdic_wa_enable = TRUE;
+
+	ret_val = e1000_read_kmrn_reg_80003es2lan(hw,
+	                              E1000_KMRNCTRLSTA_OFFSET >>
+	                              E1000_KMRNCTRLSTA_OFFSET_SHIFT,
+	                              &i);
+	if (!ret_val) {
+		if ((i & E1000_KMRNCTRLSTA_OPMODE_MASK) ==
+		     E1000_KMRNCTRLSTA_OPMODE_INBAND_MDIO)
+			hw->dev_spec._80003es2lan.mdic_wa_enable = FALSE;
+	}
 
 	/*
 	 * Clear all of the statistics registers (clear on read).  It is
@@ -1303,7 +1316,6 @@ static s32 e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex)
 	tipg |= DEFAULT_TIPG_IPGT_10_100_80003ES2LAN;
 	E1000_WRITE_REG(hw, E1000_TIPG, tipg);
 
-
 	do {
 		ret_val = hw->phy.ops.read_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,
 		                               &reg_data);
@@ -1356,7 +1368,6 @@ static s32 e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw)
 	tipg &= ~E1000_TIPG_IPGT_MASK;
 	tipg |= DEFAULT_TIPG_IPGT_1000_80003ES2LAN;
 	E1000_WRITE_REG(hw, E1000_TIPG, tipg);
-
 
 	do {
 		ret_val = hw->phy.ops.read_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,

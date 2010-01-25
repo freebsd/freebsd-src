@@ -15,7 +15,7 @@
 #
 # type The initial terminal type for this port.  For hardwired
 #      terminal lines, this will contain the type of terminal used.
-#      For virtual consoles, the correct type is typically cons25.
+#      For virtual consoles, the correct type is typically xterm.
 #      Other common values include network for network connections on
 #      pseudo-terminals, dialup for incoming modem ports, and unknown
 #      when the terminal type cannot be predetermined.

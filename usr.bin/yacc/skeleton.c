@@ -140,7 +140,11 @@ const char *header[] =
 const char *body[] =
 {
     "/* allocate initial stack or double stack size, up to YYMAXDEPTH */",
+    "#if defined(__cplusplus) || __STDC__",
+    "static int yygrowstack(void)",
+    "#else",
     "static int yygrowstack()",
+    "#endif",
     "{",
     "    int newsize, i;",
     "    short *newss;",

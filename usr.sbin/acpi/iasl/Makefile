@@ -5,7 +5,8 @@ SRCS=	adfile.c adisasm.c adwalk.c
 SRCS+=	osunixxf.c
 
 # common
-SRCS+=	dmrestag.c dmtable.c dmtbdump.c	dmtbinfo.c getopt.c
+SRCS+=	dmextern.c dmrestag.c dmtable.c dmtbdump.c dmtbinfo.c	\
+	getopt.c
 
 # compiler
 SRCS+=	aslanalyze.c aslcodegen.c aslcompile.c aslcompiler.y.h	\
@@ -48,6 +49,8 @@ SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c	\
 	utglobal.c utinit.c utlock.c utmath.c utmisc.c		\
 	utmutex.c utobject.c utresrc.c utstate.c utxface.c
+
+WARNS?=	2
 
 MAN=	iasl.8
 

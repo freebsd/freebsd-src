@@ -39,6 +39,34 @@
 #ifndef _LIBUTIL_H_
 #define	_LIBUTIL_H_
 
+#include <sys/cdefs.h>
+#include <sys/_types.h>
+
+#ifndef _GID_T_DECLARED
+typedef	__gid_t		gid_t;
+#define	_GID_T_DECLARED
+#endif
+
+#ifndef _INT64_T_DECLARED
+typedef	__int64_t	int64_t;
+#define	_INT64_T_DECLARED
+#endif
+
+#ifndef _PID_T_DECLARED
+typedef	__pid_t		pid_t;
+#define	_PID_T_DECLARED
+#endif
+
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
+#endif
+
+#ifndef _UID_T_DECLARED
+typedef	__uid_t		uid_t;
+#define	_UID_T_DECLARED
+#endif
+
 #define PROPERTY_MAX_NAME	64
 #define PROPERTY_MAX_VALUE	512
 
@@ -62,7 +90,6 @@ struct pidfh {
 /* Avoid pulling in all the include files for no need */
 struct termios;
 struct winsize;
-struct utmp;
 struct in_addr;
 struct kinfo_file;
 struct kinfo_vmentry;
@@ -74,10 +101,7 @@ int	extattr_namespace_to_string(int _attrnamespace, char **_string);
 int	extattr_string_to_namespace(const char *_string, int *_attrnamespace);
 int	flopen(const char *_path, int _flags, ...);
 void	hexdump(const void *ptr, int length, const char *hdr, int flags);
-void	login(struct utmp *_ut);
 int	login_tty(int _fd);
-int	logout(const char *_line);
-void	logwtmp(const char *_line, const char *_name, const char *_host);
 void	trimdomain(char *_fullhost, int _hostsize);
 int	openpty(int *_amaster, int *_aslave, char *_name,
 		     struct termios *_termp, struct winsize *_winp);

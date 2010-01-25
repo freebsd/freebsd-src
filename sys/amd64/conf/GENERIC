@@ -21,15 +21,6 @@
 cpu		HAMMER
 ident		GENERIC
 
-# To statically compile in device wiring instead of /boot/device.hints
-#hints		"GENERIC.hints"		# Default places to look for devices.
-
-# Use the following to compile in values accessible to the kernel
-# through getenv() (or kenv(1) in userland). The format of the file
-# is 'variable=value', see kenv(1)
-#
-# env		"GENERIC.env"
-
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
 options 	SCHED_ULE		# ULE scheduler
@@ -75,6 +66,7 @@ options 	MAC			# TrustedBSD MAC Framework
 options		FLOWTABLE		# per-cpu routing cache
 #options 	KDTRACE_FRAME		# Ensure frames are compiled in
 #options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
 # Debugging for use in -current
 options 	KDB			# Enable kernel debugger support.
@@ -274,6 +266,7 @@ device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support
+device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
 device		pty		# BSD-style compatibility pseudo ttys
 device		md		# Memory "disks"
@@ -297,10 +290,6 @@ device		ukbd		# Keyboard
 device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
-device		rum		# Ralink Technology RT2501USB wireless NICs
-device		uath		# Atheros AR5523 wireless NICs
-device		ural		# Ralink Technology RT2500USB wireless NICs
-device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
 device		urio		# Diamond Rio 500 MP3 player
 # USB Serial devices
 device		uark		# Technologies ARK3116 based serial adapters
@@ -319,6 +308,11 @@ device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 device		rue		# RealTek RTL8150 USB Ethernet
 device		udav		# Davicom DM9601E USB
+# USB Wireless
+device		rum		# Ralink Technology RT2501USB wireless NICs
+device		uath		# Atheros AR5523 wireless NICs
+device		ural		# Ralink Technology RT2500USB wireless NICs
+device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
 
 # FireWire support
 device		firewire	# FireWire bus code

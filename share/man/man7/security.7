@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2006
+.Dd January 7, 2010
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -88,7 +88,7 @@ incur on the system under adverse conditions.
 Brute-force network attacks are harder to deal with.
 A spoofed-packet attack, for example, is
 nearly impossible to stop short of cutting your system off from the Internet.
-It may not be able to take your machine down, but it can fill up Internet
+It may not be able to take your machine down, but it can fill up your Internet
 pipe.
 .Pp
 A user account compromise is even more common than a DoS attack.
@@ -175,7 +175,7 @@ outside of the console or possibly even with a
 .Xr su 1
 utility.
 For example, make sure that your PTYs are specified as being
-.Dq Li unsecure
+.Dq Li insecure
 in the
 .Pa /etc/ttys
 file

@@ -93,7 +93,7 @@ static char mbuf[BUFSIZ];
 static const char *nosync, *whom;
 
 static void badtime(void);
-static void die_you_gravy_sucking_pig_dog(void);
+static void perform_shutdown(void);
 static void finish(int);
 static void getoffset(char *);
 static void loop(void);
@@ -258,7 +258,7 @@ loop(void)
 		if (!tp->timeleft)
 			break;
 	}
-	die_you_gravy_sucking_pig_dog();
+	perform_shutdown();
 }
 
 static jmp_buf alarmbuf;
@@ -325,7 +325,7 @@ timeout(int signo __unused)
 }
 
 static void
-die_you_gravy_sucking_pig_dog()
+perform_shutdown(void)
 {
 	char *empty_environ[] = { NULL };
 
@@ -499,7 +499,7 @@ finish(int signo __unused)
 }
 
 static void
-badtime()
+badtime(void)
 {
 	errx(1, "bad time format");
 }

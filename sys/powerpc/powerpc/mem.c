@@ -161,7 +161,8 @@ kmem_direct_mapped:	v = uio->uio_offset;
  * instead of going through read/write
  */
 int
-memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 	/*
 	 * /dev/mem is the only one that makes sense through this

@@ -728,10 +728,10 @@ sched_exit_thread(struct thread *td, struct thread *child)
 	thread_lock(td);
 	td->td_estcpu = ESTCPULIM(td->td_estcpu + child->td_estcpu);
 	thread_unlock(td);
-	mtx_lock_spin(&sched_lock);
-	if ((child->td_proc->p_flag & P_NOLOAD) == 0)
+	thread_lock(child);
+	if ((child->td_flags & TDF_NOLOAD) == 0)
 		sched_load_rem();
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(child);
 }
 
 void
@@ -913,16 +913,18 @@ sched_sleep(struct thread *td, int pri)
 	td->td_sched->ts_slptime = 0;
 	if (pri)
 		sched_prio(td, pri);
-	if (TD_IS_SUSPENDED(td) || pri <= PSOCK)
+	if (TD_IS_SUSPENDED(td) || pri >= PSOCK)
 		td->td_flags |= TDF_CANSWAP;
 }
 
 void
 sched_switch(struct thread *td, struct thread *newtd, int flags)
 {
+	struct mtx *tmtx;
 	struct td_sched *ts;
 	struct proc *p;
 
+	tmtx = NULL;
 	ts = td->td_sched;
 	p = td->td_proc;
 
@@ -931,17 +933,20 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	/* 
 	 * Switch to the sched lock to fix things up and pick
 	 * a new thread.
+	 * Block the td_lock in order to avoid breaking the critical path.
 	 */
 	if (td->td_lock != &sched_lock) {
 		mtx_lock_spin(&sched_lock);
-		thread_unlock(td);
+		tmtx = thread_lock_block(td);
 	}
 
-	if ((p->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_rem();
 
-	if (newtd)
+	if (newtd) {
+		MPASS(newtd->td_lock == &sched_lock);
 		newtd->td_flags |= (td->td_flags & TDF_NEEDRESCHED);
+	}
 
 	td->td_lastcpu = td->td_oncpu;
 	td->td_flags &= ~TDF_NEEDRESCHED;
@@ -980,12 +985,12 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			("trying to run inhibited thread"));
 		newtd->td_flags |= TDF_DIDRUN;
         	TD_SET_RUNNING(newtd);
-		if ((newtd->td_proc->p_flag & P_NOLOAD) == 0)
+		if ((newtd->td_flags & TDF_NOLOAD) == 0)
 			sched_load_add();
 	} else {
 		newtd = choosethread();
+		MPASS(newtd->td_lock == &sched_lock);
 	}
-	MPASS(newtd->td_lock == &sched_lock);
 
 	if (td != newtd) {
 #ifdef	HWPMC_HOOKS
@@ -1004,7 +1009,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			(*dtrace_vtime_switch_func)(newtd);
 #endif
 
-		cpu_switch(td, newtd, td->td_lock);
+		cpu_switch(td, newtd, tmtx != NULL ? tmtx : td->td_lock);
 		lock_profile_obtain_lock_success(&sched_lock.lock_object,
 		    0, 0, __FILE__, __LINE__);
 		/*
@@ -1050,7 +1055,7 @@ sched_wakeup(struct thread *td)
 		updatepri(td);
 		resetpriority(td);
 	}
-	td->td_slptick = ticks;
+	td->td_slptick = 0;
 	ts->ts_slptime = 0;
 	sched_add(td, SRQ_BORING);
 }
@@ -1289,7 +1294,7 @@ sched_add(struct thread *td, int flags)
 		}
 	}
 
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_add();
 	runq_add(ts->ts_runq, td, flags);
 	if (cpu != NOCPU)
@@ -1338,7 +1343,7 @@ sched_add(struct thread *td, int flags)
 		if (maybe_preempt(td))
 			return;
 	}
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_add();
 	runq_add(ts->ts_runq, td, flags);
 	maybe_resched(td);
@@ -1360,7 +1365,7 @@ sched_rem(struct thread *td)
 	    "prio:%d", td->td_priority, KTR_ATTR_LINKED,
 	    sched_tdname(curthread));
 
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_rem();
 #ifdef SMP
 	if (ts->ts_runq != &runq)

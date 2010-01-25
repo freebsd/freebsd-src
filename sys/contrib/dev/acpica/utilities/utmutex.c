@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -128,7 +128,7 @@ static ACPI_STATUS
 AcpiUtCreateMutex (
     ACPI_MUTEX_HANDLE       MutexId);
 
-static ACPI_STATUS
+static void
 AcpiUtDeleteMutex (
     ACPI_MUTEX_HANDLE       MutexId);
 
@@ -216,7 +216,7 @@ AcpiUtMutexTerminate (
 
     for (i = 0; i < ACPI_NUM_MUTEX; i++)
     {
-        (void) AcpiUtDeleteMutex (i);
+        AcpiUtDeleteMutex (i);
     }
 
     /* Delete the spinlocks */
@@ -253,11 +253,6 @@ AcpiUtCreateMutex (
     ACPI_FUNCTION_TRACE_U32 (UtCreateMutex, MutexId);
 
 
-    if (MutexId > ACPI_MAX_MUTEX)
-    {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
-
     if (!AcpiGbl_MutexInfo[MutexId].Mutex)
     {
         Status = AcpiOsCreateMutex (&AcpiGbl_MutexInfo[MutexId].Mutex);
@@ -281,7 +276,7 @@ AcpiUtCreateMutex (
  *
  ******************************************************************************/
 
-static ACPI_STATUS
+static void
 AcpiUtDeleteMutex (
     ACPI_MUTEX_HANDLE       MutexId)
 {
@@ -289,17 +284,10 @@ AcpiUtDeleteMutex (
     ACPI_FUNCTION_TRACE_U32 (UtDeleteMutex, MutexId);
 
 
-    if (MutexId > ACPI_MAX_MUTEX)
-    {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
-
     AcpiOsDeleteMutex (AcpiGbl_MutexInfo[MutexId].Mutex);
 
     AcpiGbl_MutexInfo[MutexId].Mutex = NULL;
     AcpiGbl_MutexInfo[MutexId].ThreadId = ACPI_MUTEX_NOT_ACQUIRED;
-
-    return_ACPI_STATUS (AE_OK);
 }
 
 

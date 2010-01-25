@@ -244,7 +244,7 @@ void
 init(void)
 {
 	int		i;
-	const char	*sp;
+	const unsigned char	*sp;
 
 	for (i = 0; i < 256; i++) {
 		_wht[i] = _etk[i] = _itk[i] = _btk[i] = NO;

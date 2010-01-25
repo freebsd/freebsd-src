@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -123,7 +123,7 @@ bool e1000_check_mng_mode_generic(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_enable_tx_pkt_filtering_generic - Enable packet filtering on TX
+ *  e1000_enable_tx_pkt_filtering_generic - Enable packet filtering on Tx
  *  @hw: pointer to the HW structure
  *
  *  Enables packet filtering on transmit packets if manageability is enabled
@@ -159,11 +159,9 @@ bool e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw)
 	/* Read in the header.  Length and offset are in dwords. */
 	len    = E1000_MNG_DHCP_COOKIE_LENGTH >> 2;
 	offset = E1000_MNG_DHCP_COOKIE_OFFSET >> 2;
-	for (i = 0; i < len; i++) {
-		*(buffer + i) = E1000_READ_REG_ARRAY_DWORD(hw,
-		                                           E1000_HOST_IF,
+	for (i = 0; i < len; i++)
+		*(buffer + i) = E1000_READ_REG_ARRAY_DWORD(hw, E1000_HOST_IF,
 		                                           offset + i);
-	}
 	hdr_csum = hdr->checksum;
 	hdr->checksum = 0;
 	csum = e1000_calculate_checksum((u8 *)hdr,

@@ -4443,7 +4443,7 @@ int __devinit t3_prep_adapter(adapter_t *adapter,
 
 	adapter->params.info = ai;
 	adapter->params.nports = ai->nports0 + ai->nports1;
-	adapter->params.chan_map = !!ai->nports0 | (!!ai->nports1 << 1);
+	adapter->params.chan_map = (!!ai->nports0) | (!!ai->nports1 << 1);
 	adapter->params.rev = t3_read_reg(adapter, A_PL_REV);
 
 	/*
