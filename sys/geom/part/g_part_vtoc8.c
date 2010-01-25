@@ -177,7 +177,6 @@ g_part_vtoc8_add(struct g_part_table *basetable, struct g_part_entry *entry,
 static int
 g_part_vtoc8_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
-	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct g_part_entry *entry;
 	struct g_part_vtoc8_table *table;
@@ -185,7 +184,6 @@ g_part_vtoc8_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	uint32_t acyls, ncyls, pcyls;
 
 	pp = gpp->gpp_provider;
-	cp = LIST_FIRST(&pp->consumers);
 
 	if (pp->sectorsize < sizeof(struct vtoc8))
 		return (ENOSPC);
