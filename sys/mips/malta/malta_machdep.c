@@ -178,7 +178,7 @@ mips_init(void)
 	}
 
 	/* phys_avail regions are in bytes */
-	phys_avail[0] = MIPS_KSEG0_TO_PHYS((vm_offset_t)&end);
+	phys_avail[0] = MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
 	phys_avail[1] = ctob(realmem);
 
 	physmem = realmem;
@@ -293,8 +293,10 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	int i;
 
 	/* clear the BSS and SBSS segments */
-	kernend = round_page((vm_offset_t)&end);
+	kernend = (vm_offset_t)&end;
 	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
+
+	mips_postboot_fixup();
 
 	mips_pcpu0_init();
 	platform_counter_freq = malta_cpu_freq();
