@@ -44,6 +44,39 @@ IEC-625 (or just "IEC bus"), or HP-IB (Hewlett Packard Instrument
 Bus), or GPIB (General Purpose Instrument Bus).
 The device can become either a listener, talker, controller, and
 in particular a master controller on the bus.
+.Ss Example
+The following example code queries the device provided as
+.Va argv[1]
+for its identification response.
+.Bd -literal
+/* compile with:  cc -O -o ibtest ibtest.c -lgpib */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <err.h>
+#include <vis.h>
+
+#include <gpib/gpib.h>
+
+int
+main(int argc, char **argv)
+{
+	int dmm;
+        unsigned char buf[100];
+        char vbuf[sizeof buf * 4];
+
+        /* DVM */
+        dmm = ibdev(0, (argc > 1? atoi(argv[1]): 7), 0,
+		    T10s, 1, 0);
+        if (dmm < 0)
+                errx(1, "ibdev = %d\\n", dmm);
+        ibwrt(dmm, "*IDN?\\r\\n", 7);
+        ibrd(dmm, buf, sizeof buf - 1);
+        strvisx(vbuf, buf, ibcnt, VIS_WHITE | VIS_CSTYLE);
+        printf("%s\\n", vbuf);
+        return (0);
+}
+.Ed
 .Sh FILES
 .Bl -tag -width /dev/gpibNNib
 .It Pa /dev/gpib Ns Em N Ns "ib"
