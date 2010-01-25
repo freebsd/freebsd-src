@@ -186,7 +186,6 @@ g_part_bsd_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 static int
 g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
-	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct g_part_entry *baseentry;
 	struct g_part_bsd_entry *entry;
@@ -195,7 +194,6 @@ g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	uint32_t msize, ncyls, secpercyl;
 
 	pp = gpp->gpp_provider;
-	cp = LIST_FIRST(&pp->consumers);
 
 	if (pp->sectorsize < sizeof(struct disklabel))
 		return (ENOSPC);
