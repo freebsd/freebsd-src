@@ -52,21 +52,11 @@ _rc_subr_loaded="YES"
 
 SYSCTL="/sbin/sysctl"
 SYSCTL_N="${SYSCTL} -n"
-CMD_OSTYPE="${SYSCTL_N} kern.ostype"
-OSTYPE=`${CMD_OSTYPE}`
+SYSCTL_W="${SYSCTL}"
 ID="/usr/bin/id"
 IDCMD="if [ -x $ID ]; then $ID -un; fi"
 PS="/bin/ps -ww"
 JID=`$PS -p $$ -o jid=`
-
-case ${OSTYPE} in
-FreeBSD)
-	SYSCTL_W="${SYSCTL}"
-	;;
-NetBSD)
-	SYSCTL_W="${SYSCTL} -w"
-	;;
-esac
 
 #
 #	functions
