@@ -1050,7 +1050,7 @@ sched_wakeup(struct thread *td)
 		updatepri(td);
 		resetpriority(td);
 	}
-	td->td_slptick = ticks;
+	td->td_slptick = 0;
 	ts->ts_slptime = 0;
 	sched_add(td, SRQ_BORING);
 }
