@@ -18,7 +18,7 @@ __FBSDID("$FreeBSD$");
 #include "octeon_fpa.h"
 
 
-//#define FPA_DEBUG 1
+#define FPA_DEBUG 1
 
 /*
  * octeon_dump_fpa
@@ -112,7 +112,7 @@ void octeon_enable_fpa (void)
 }
 
 
-//#define FPA_DEBUG_TERSE 1
+#define FPA_DEBUG_TERSE 1
 
 /*
  * octeon_fpa_fill_pool_mem
@@ -165,13 +165,13 @@ void octeon_fpa_fill_pool_mem (u_int pool, u_int elem_size_words, u_int elem_num
      * already preallocated extra
      */
 #ifdef FPA_DEBUG
-    printf(" %% Huge MemBlock  0x%X   Bytes %u\n", memory, bytes);
+    printf(" %% Huge MemBlock  %p   Bytes %u\n", memory, bytes);
 #endif
 
     memory = (void *) OCTEON_ALIGN(memory);
 
 #ifdef FPA_DEBUG_TERSE
-    printf("FPA fill: %u  Count: %u  SizeBytes: %u  SizeBytesAligned: %u  1st: 0x%X = %p\n",
+    printf("FPA fill: %u  Count: %u  SizeBytes: %u  SizeBytesAligned: %u  1st: %p = 0x%X\n",
            pool, elem_num, elem_size_bytes, block_size, memory, (void *)OCTEON_PTR2PHYS(memory));
 #endif
 
@@ -180,7 +180,7 @@ void octeon_fpa_fill_pool_mem (u_int pool, u_int elem_size_words, u_int elem_num
     while (elem_num--) {
 #ifdef FPA_DEBUG
         if (((elems - elem_num) < 4) || (elem_num < 4))
-        printf(" %% Block %d:  0x%X  Phys 0x%X   Bytes %u\n", block, memory, OCTEON_PTR2PHYS(memory), elem_size_bytes);
+        printf(" %% Block %d:  %p  Phys 0x%X   Bytes %u\n", block, memory, OCTEON_PTR2PHYS(memory), elem_size_bytes);
         block++;
 #endif
         octeon_fpa_free(memory, pool, 0);
