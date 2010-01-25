@@ -107,11 +107,11 @@ SLIST_HEAD(listhead, catentry) cache =
 nl_catd
 catopen(const char *name, int type)
 {
-	int             spcleft, saverr;
-	char            path[PATH_MAX];
-	char            *nlspath, *lang, *base, *cptr, *pathP, *tmpptr;
-	char            *cptr1, *plang, *pter, *pcode;
-	struct stat     sbuf;
+	int		 spcleft, saverr;
+	char		 path[PATH_MAX];
+	char		*nlspath, *lang, *base, *cptr, *pathP, *tmpptr;
+	char		*cptr1, *plang, *pter, *pcode;
+	struct stat	 sbuf;
 	struct catentry	*np;
 
 	if (name == NULL || *name == '\0')
@@ -120,16 +120,16 @@ catopen(const char *name, int type)
 	if (strchr(name, '/') != NULL)
 		lang = NULL;
 	else {
-	if (type == NL_CAT_LOCALE)
-		lang = setlocale(LC_MESSAGES, NULL);
-	else
-		lang = getenv("LANG");
+		if (type == NL_CAT_LOCALE)
+			lang = setlocale(LC_MESSAGES, NULL);
+		else
+			lang = getenv("LANG");
 
-	if (lang == NULL || *lang == '\0' || strlen(lang) > ENCODING_LEN ||
-	    (lang[0] == '.' &&
-	     (lang[1] == '\0' || (lang[1] == '.' && lang[2] == '\0'))) ||
-	    strchr(lang, '/') != NULL)
-		lang = "C";
+		if (lang == NULL || *lang == '\0' || strlen(lang) > ENCODING_LEN ||
+		    (lang[0] == '.' &&
+		    (lang[1] == '\0' || (lang[1] == '.' && lang[2] == '\0'))) ||
+		    strchr(lang, '/') != NULL)
+			lang = "C";
 	}
 
 	/* Try to get it from the cache first */
@@ -247,10 +247,10 @@ catopen(const char *name, int type)
 char *
 catgets(nl_catd catd, int set_id, int msg_id, const char *s)
 {
-	struct _nls_cat_hdr *cat_hdr;
-	struct _nls_set_hdr *set_hdr;
-	struct _nls_msg_hdr *msg_hdr;
-	int l, u, i, r;
+	struct _nls_cat_hdr	*cat_hdr;
+	struct _nls_set_hdr	*set_hdr;
+	struct _nls_msg_hdr	*msg_hdr;
+	int			 l, u, i, r;
 
 	if (catd == NULL || catd == NLERR) {
 		errno = EBADF;
@@ -329,8 +329,8 @@ catclose(nl_catd catd)
 		    memcmp((const void *)np->catd, (const void *)catd, np->catd->__size) == 0) {
 			np->refcount--;
 			if (np->refcount == 0) {
-	munmap(catd->__data, (size_t)catd->__size);
-	free(catd);
+				munmap(catd->__data, (size_t)catd->__size);
+				free(catd);
 				SLIST_REMOVE(&cache, np, catentry, list);
 				free(np);
 			}
@@ -348,11 +348,11 @@ catclose(nl_catd catd)
 static nl_catd
 load_msgcat(const char *path, const char *name, const char *lang)
 {
-	struct stat st;
-	nl_catd catd;
+	struct stat	 st;
+	nl_catd		 catd;
 	struct catentry	*np;
-	void *data;
-	int fd;
+	void		*data;
+	int		 fd;
 
 	/* path/name will never be NULL here */
 
