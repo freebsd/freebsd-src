@@ -34,8 +34,6 @@ hints		"OCTEON1.hints"		#Default places to look for devices.
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
-#XXXimp: Need to make work with 64-bit too
-#options 	ISA_MIPS64
 options 	ISA_MIPS32
 
 options		DDB
@@ -69,14 +67,14 @@ device		ether
 device		md
 device		uart
 nodevice	uart_ns8250
-device 		rgmii
+device	 	rgmii
 #options 	VERBOSE_SYSINIT
 
 
 #
 # Use the following for  Compact Flash file-system
 device 		cf
-options         ROOTDEVNAME = \"ufs:cf0s2\"	# Unmask if compact flash is needed as RFS
+options         ROOTDEVNAME = \"ufs:cf0s2a\"	# Unmask if compact flash is needed as RFS
 
 #
 # Use the following for RFS in mem-device
