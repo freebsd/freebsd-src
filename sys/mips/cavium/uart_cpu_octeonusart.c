@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
  * 64-bit word bus that's on the octeon.  We only support simple read/write
  * in this space.  Everything else is undefined.
  */
-
 static uint8_t
 ou_bs_r_1(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
@@ -127,7 +126,7 @@ ou_bs_w_8(void *t, bus_space_handle_t bsh, bus_size_t offset, uint64_t value)
 	oct_write64(bsh + (offset << 3), value);
 }
 
-static struct bus_space octeon_uart_tag = {
+struct bus_space octeon_uart_tag = {
 	.bs_map = generic_bs_map,
 	.bs_unmap = generic_bs_unmap,
 	.bs_subregion = generic_bs_subregion,
