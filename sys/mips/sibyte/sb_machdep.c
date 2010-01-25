@@ -169,7 +169,7 @@ mips_init(void)
 			 * from CFE, omit the region at the start of physical
 			 * memory where the kernel has been loaded.
 			 */
-			phys_avail[i] += MIPS_KSEG0_TO_PHYS((vm_offset_t)&end);
+			phys_avail[i] += MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
 		}
 		phys_avail[i + 1] = addr + len;
 		physmem += len;
@@ -246,8 +246,6 @@ void
 platform_start(__register_t a0, __register_t a1, __register_t a2,
 	       __register_t a3)
 {
-	vm_offset_t kernend;
-
 	/*
 	 * Make sure that kseg0 is mapped cacheable-coherent
 	 */
@@ -255,7 +253,7 @@ platform_start(__register_t a0, __register_t a1, __register_t a2,
 
 	/* clear the BSS and SBSS segments */
 	memset(&edata, 0, (vm_offset_t)&end - (vm_offset_t)&edata);
-	kernend = round_page((vm_offset_t)&end);
+	mips_postboot_fixup();
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();

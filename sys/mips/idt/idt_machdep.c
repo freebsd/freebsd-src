@@ -134,8 +134,10 @@ platform_start(__register_t a0, __register_t a1,
 
 
 	/* clear the BSS and SBSS segments */
-	kernend = round_page((vm_offset_t)&end);
+	kernend = (vm_offset_t)&end;
 	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
+
+	mips_postboot_fixup();
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
@@ -162,7 +164,7 @@ platform_start(__register_t a0, __register_t a1,
 	}
 
 	/* phys_avail regions are in bytes */
-	phys_avail[0] = MIPS_KSEG0_TO_PHYS((vm_offset_t)&end);
+	phys_avail[0] = MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
 	phys_avail[1] = ctob(realmem);
 
 	physmem = realmem;
