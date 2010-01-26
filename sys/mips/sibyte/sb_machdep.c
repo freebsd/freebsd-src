@@ -93,6 +93,8 @@ extern void cfe_env_init(void);
 extern int *edata;
 extern int *end;
 
+extern char MipsTLBMiss[], MipsTLBMissEnd[];
+
 void
 platform_cpu_init()
 {
@@ -183,6 +185,28 @@ mips_init(void)
 	init_param1();
 	init_param2(physmem);
 	mips_cpu_init();
+
+	/*
+	 * XXX
+	 * The kernel is running in 32-bit mode but the CFE is running in
+	 * 64-bit mode. So the SR_KX bit in the status register is turned
+	 * on by the CFE every time we call into it - for e.g. CFE_CONSOLE.
+	 *
+	 * This means that if get a TLB miss for any address above 0xc0000000
+	 * and the SR_KX bit is set then we will end up in the XTLB exception
+	 * vector.
+	 *
+	 * For now work around this by copying the TLB exception handling
+	 * code to the XTLB exception vector.
+	 */
+	{
+		bcopy(MipsTLBMiss, (void *)XTLB_MISS_EXC_VEC,
+		      MipsTLBMissEnd - MipsTLBMiss);
+
+		mips_icache_sync_all();
+		mips_dcache_wbinv_all();
+	}
+
 	pmap_bootstrap();
 	mips_proc0_init();
 	mutex_init();
