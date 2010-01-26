@@ -877,6 +877,7 @@ ata_pcivendor2str(device_t dev)
     case ATA_ITE_ID:            return "ITE";
     case ATA_JMICRON_ID:        return "JMicron";
     case ATA_MARVELL_ID:        return "Marvell";
+    case ATA_MARVELL2_ID:       return "Marvell";
     case ATA_NATIONAL_ID:       return "National";
     case ATA_NETCELL_ID:        return "Netcell";
     case ATA_NVIDIA_ID:         return "nVidia";

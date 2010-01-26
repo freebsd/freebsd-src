@@ -234,6 +234,7 @@ struct ata_pci_controller {
 #define ATA_M88SX6121           0x612111ab
 #define ATA_M88SX6141           0x614111ab
 #define ATA_M88SX6145           0x614511ab
+#define ATA_MARVELL2_ID         0x1b4b
 
 #define ATA_MICRON_ID           0x1042
 #define ATA_MICRON_RZ1000       0x10001042
