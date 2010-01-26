@@ -71,6 +71,67 @@ gotit:
 	return (cgbase(fs, cgp->cg_cgx) + blkstofrags(fs, bno));
 }
 
+int
+cgbfree(struct uufsd *disk, ufs2_daddr_t bno, long size)
+{
+	u_int8_t *blksfree;
+	struct fs *fs;
+	struct cg *cgp;
+	ufs1_daddr_t fragno, cgbno;
+	int i, cg, blk, frags, bbase;
+
+	fs = &disk->d_fs;
+	cg = dtog(fs, bno);
+	if (cgread1(disk, cg) != 1)
+		return (-1);
+	cgp = &disk->d_cg;
+	cgbno = dtogd(fs, bno);
+	blksfree = cg_blksfree(cgp);
+	if (size == fs->fs_bsize) {
+		fragno = fragstoblks(fs, cgbno);
+		ffs_setblock(fs, blksfree, fragno);
+		ffs_clusteracct(fs, cgp, fragno, 1);
+		cgp->cg_cs.cs_nbfree++;
+		fs->fs_cstotal.cs_nbfree++;
+		fs->fs_cs(fs, cg).cs_nbfree++;
+	} else {
+		bbase = cgbno - fragnum(fs, cgbno);
+		/*
+		 * decrement the counts associated with the old frags
+		 */
+		blk = blkmap(fs, blksfree, bbase);
+		ffs_fragacct(fs, blk, cgp->cg_frsum, -1);
+		/*
+		 * deallocate the fragment
+		 */
+		frags = numfrags(fs, size);
+		for (i = 0; i < frags; i++)
+			setbit(blksfree, cgbno + i);
+		cgp->cg_cs.cs_nffree += i;
+		fs->fs_cstotal.cs_nffree += i;
+		fs->fs_cs(fs, cg).cs_nffree += i;
+		/*
+		 * add back in counts associated with the new frags
+		 */
+		blk = blkmap(fs, blksfree, bbase);
+		ffs_fragacct(fs, blk, cgp->cg_frsum, 1);
+		/*
+		 * if a complete block has been reassembled, account for it
+		 */
+		fragno = fragstoblks(fs, bbase);
+		if (ffs_isblock(fs, blksfree, fragno)) {
+			cgp->cg_cs.cs_nffree -= fs->fs_frag;
+			fs->fs_cstotal.cs_nffree -= fs->fs_frag;
+			fs->fs_cs(fs, cg).cs_nffree -= fs->fs_frag;
+			ffs_clusteracct(fs, cgp, fragno, 1);
+			cgp->cg_cs.cs_nbfree++;
+			fs->fs_cstotal.cs_nbfree++;
+			fs->fs_cs(fs, cg).cs_nbfree++;
+		}
+	}
+	return cgwrite(disk);
+}
+
 ino_t
 cgialloc(struct uufsd *disk)
 {

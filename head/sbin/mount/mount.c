@@ -113,7 +113,6 @@ static struct opt {
 	{ MNT_ACLS,		"acls" },
 	{ MNT_NFS4ACLS,		"nfsv4acls" },
 	{ MNT_GJOURNAL,		"gjournal" },
-	{ MNT_SUJ,		"journal" }, /* always soft-updates, journal */
 	{ 0, NULL }
 };
 

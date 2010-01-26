@@ -1902,7 +1902,7 @@ softdep_unmount(mp)
 	struct mount *mp;
 {
 
-	if (mp->mnt_flag & MNT_SUJ)
+	if (mp->mnt_kern_flag & MNTK_SUJ)
 		journal_unmount(mp);
 }
 
@@ -2044,16 +2044,36 @@ journal_mount(mp, fs, cred)
 	struct fs *fs;
 	struct ucred *cred;
 {
+	struct componentname cnp;
 	struct jblocks *jblocks;
+	struct vnode *dvp;
 	struct vnode *vp;
 	struct inode *ip;
 	ufs2_daddr_t blkno;
+	ino_t sujournal;
 	int bcount;
 	int error;
 	int i;
 
-	mp->mnt_flag |= MNT_SUJ;
-	error = VFS_VGET(mp, fs->fs_sujournal, LK_EXCLUSIVE, &vp);
+	mp->mnt_kern_flag |= MNTK_SUJ;
+	error = VFS_VGET(mp, ROOTINO, LK_EXCLUSIVE, &dvp);
+	if (error)
+		return (error);
+	bzero(&cnp, sizeof(cnp));
+	cnp.cn_nameiop = LOOKUP;
+	cnp.cn_flags = ISLASTCN;
+	cnp.cn_thread = curthread;
+	cnp.cn_cred = curthread->td_ucred;
+	cnp.cn_pnbuf = SUJ_FILE;
+	cnp.cn_nameptr = SUJ_FILE;
+	cnp.cn_namelen = strlen(SUJ_FILE);
+	error = ufs_lookup_ino(dvp, NULL, &cnp, &sujournal);
+	vput(dvp);
+	if (error != 0) {
+		printf("Failed to find journal.  Use tunefs to create one\n");
+		return (error);
+	}
+	error = VFS_VGET(mp, sujournal, LK_EXCLUSIVE, &vp);
 	if (error)
 		return (error);
 	ip = VTOI(vp);
@@ -2075,9 +2095,18 @@ journal_mount(mp, fs, cred)
 	}
 	jblocks->jb_low = jblocks->jb_free / 3;	/* Reserve 33%. */
 	jblocks->jb_min = jblocks->jb_free / 10; /* Suspend at 10%. */
-	DIP_SET(ip, i_modrev, fs->fs_mtime);
-	ip->i_flags |= IN_MODIFIED;
-	ffs_update(vp, 1);
+	/*
+	 * Only validate the journal contents if the filesystem is clean,
+	 * otherwise we write the logs but they'll never be used.  If the
+	 * filesystem was still dirty when we mounted it the journal is
+	 * invalid and a new journal can only be valid if it starts from a
+	 * clean mount.
+	 */
+	if (fs->fs_clean) {
+		DIP_SET(ip, i_modrev, fs->fs_mtime);
+		ip->i_flags |= IN_MODIFIED;
+		ffs_update(vp, 1);
+	}
 	VFSTOUFS(mp)->softdep_jblocks = jblocks;
 out:
 	vput(vp);
@@ -2159,6 +2188,11 @@ remove_from_journal(wk)
 	ump->softdep_on_journal -= 1;
 }
 
+/*
+ * Check for journal space as well as dependency limits so the prelink
+ * code can throttle both journaled and non-journaled filesystems.
+ * Threshold is 0 for low and 1 for min.
+ */
 static int
 journal_space(ump, thresh)
 	struct ufsmount *ump;
@@ -2167,7 +2201,20 @@ journal_space(ump, thresh)
 	struct jblocks *jblocks;
 	int avail;
 
+	/*
+	 * We use a tighter restriction here to prevent request_cleanup()
+	 * running in threads from running into locks we currently hold.
+	 */
+	if (num_inodedep > (max_softdeps / 10) * 9)
+		return (0);
+
 	jblocks = ump->softdep_jblocks;
+	if (jblocks == NULL)
+		return (1);
+	if (thresh)
+		thresh = jblocks->jb_min;
+	else
+		thresh = jblocks->jb_low;
 	avail = (ump->softdep_on_journal * JREC_SIZE) / DEV_BSIZE;
 	avail = jblocks->jb_free - avail;
 
@@ -2210,15 +2257,13 @@ softdep_prealloc(vp, waitok)
 	struct vnode *vp;
 	int waitok;
 {
-	struct jblocks *jblocks;
 	struct ufsmount *ump;
 
 	if (DOINGSUJ(vp) == 0)
 		return (0);
 	ump = VFSTOUFS(vp->v_mount);
-	jblocks = ump->softdep_jblocks;
 	ACQUIRE_LOCK(&lk);
-	if (journal_space(ump, jblocks->jb_low)) {
+	if (journal_space(ump, 0)) {
 		FREE_LOCK(&lk);
 		return (0);
 	}
@@ -2233,9 +2278,9 @@ softdep_prealloc(vp, waitok)
 	ffs_syncvnode(vp, waitok);
 	ACQUIRE_LOCK(&lk);
 	process_removes(vp);
-	if (journal_space(ump, jblocks->jb_low) == 0) {
+	if (journal_space(ump, 0) == 0) {
 		softdep_speedup();
-		if (journal_space(ump, jblocks->jb_min) == 0)
+		if (journal_space(ump, 1) == 0)
 			journal_suspend(ump);
 	}
 	FREE_LOCK(&lk);
@@ -2243,18 +2288,22 @@ softdep_prealloc(vp, waitok)
 	return (0);
 }
 
+/*
+ * Before adjusting a link count on a vnode verify that we have sufficient
+ * journal space.  If not, process operations that depend on the currently
+ * locked pair of vnodes to try to flush space as the syncer, buf daemon,
+ * and softdep flush threads can not acquire these locks to reclaim space.
+ */
 static void
 softdep_prelink(dvp, vp)
 	struct vnode *dvp;
 	struct vnode *vp;
 {
-	struct jblocks *jblocks;
 	struct ufsmount *ump;
 
 	ump = VFSTOUFS(dvp->v_mount);
-	jblocks = ump->softdep_jblocks;
 	mtx_assert(&lk, MA_OWNED);
-	if (journal_space(ump, jblocks->jb_low))
+	if (journal_space(ump, 0))
 		return;
 	stat_journal_low++;
 	FREE_LOCK(&lk);
@@ -2269,9 +2318,9 @@ softdep_prelink(dvp, vp)
 	softdep_speedup();
 	process_worklist_item(UFSTOVFS(ump), LK_NOWAIT);
 	process_worklist_item(UFSTOVFS(ump), LK_NOWAIT);
-	if (journal_space(ump, jblocks->jb_low) == 0) {
+	if (journal_space(ump, 0) == 0) {
 		softdep_speedup();
-		if (journal_space(ump, jblocks->jb_min) == 0)
+		if (journal_space(ump, 1) == 0)
 			journal_suspend(ump);
 	}
 }
@@ -2442,7 +2491,7 @@ softdep_process_journal(mp, flags)
 	int cnt;
 	int off;
 
-	if ((mp->mnt_flag & MNT_SUJ) == 0)
+	if ((mp->mnt_kern_flag & MNTK_SUJ) == 0)
 		return;
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
@@ -3571,8 +3620,8 @@ softdep_setup_create(dp, ip)
 		KASSERT(jaddref != NULL && jaddref->ja_parent == dp->i_number,
 		    ("softdep_setup_create: No addref structure present."));
 		jaddref->ja_mode = ip->i_mode;
-		softdep_prelink(dvp, NULL);
 	}
+	softdep_prelink(dvp, NULL);
 	FREE_LOCK(&lk);
 }
 
@@ -3590,8 +3639,10 @@ softdep_setup_dotdot_link(dp, ip)
 	struct inodedep *inodedep;
 	struct jaddref *jaddref;
 	struct vnode *dvp;
+	struct vnode *vp;
 
 	dvp = ITOV(dp);
+	vp = ITOV(ip);
 	jaddref = NULL;
 	/*
 	 * We don't set MKDIR_PARENT as this is not tied to a mkdir and
@@ -3602,11 +3653,10 @@ softdep_setup_dotdot_link(dp, ip)
 		    dp->i_effnlink - 1, dp->i_mode);
 	ACQUIRE_LOCK(&lk);
 	inodedep = inodedep_lookup_ip(dp);
-	if (jaddref) {
+	if (jaddref)
 		TAILQ_INSERT_TAIL(&inodedep->id_inoreflst, &jaddref->ja_ref,
 		    if_deps);
-		softdep_prelink(dvp, ITOV(ip));
-	}
+	softdep_prelink(dvp, ITOV(ip));
 	FREE_LOCK(&lk);
 }
 
@@ -3632,11 +3682,10 @@ softdep_setup_link(dp, ip)
 		    ip->i_mode);
 	ACQUIRE_LOCK(&lk);
 	inodedep = inodedep_lookup_ip(ip);
-	if (jaddref) {
+	if (jaddref)
 		TAILQ_INSERT_TAIL(&inodedep->id_inoreflst, &jaddref->ja_ref,
 		    if_deps);
-		softdep_prelink(dvp, ITOV(ip));
-	}
+	softdep_prelink(dvp, ITOV(ip));
 	FREE_LOCK(&lk);
 }
 
@@ -3682,11 +3731,10 @@ softdep_setup_mkdir(dp, ip)
 		    if_deps);
 	}
 	inodedep = inodedep_lookup_ip(dp);
-	if (DOINGSUJ(dvp)) {
+	if (DOINGSUJ(dvp))
 		TAILQ_INSERT_TAIL(&inodedep->id_inoreflst,
 		    &dotdotaddref->ja_ref, if_deps);
-		softdep_prelink(ITOV(dp), NULL);
-	}
+	softdep_prelink(ITOV(dp), NULL);
 	FREE_LOCK(&lk);
 }
 
@@ -3705,8 +3753,7 @@ softdep_setup_rmdir(dp, ip)
 	ACQUIRE_LOCK(&lk);
 	(void) inodedep_lookup_ip(ip);
 	(void) inodedep_lookup_ip(dp);
-	if (DOINGSUJ(dvp))
-		softdep_prelink(dvp, ITOV(ip));
+	softdep_prelink(dvp, ITOV(ip));
 	FREE_LOCK(&lk);
 }
 
@@ -3725,8 +3772,7 @@ softdep_setup_unlink(dp, ip)
 	ACQUIRE_LOCK(&lk);
 	(void) inodedep_lookup_ip(ip);
 	(void) inodedep_lookup_ip(dp);
-	if (DOINGSUJ(dvp))
-		softdep_prelink(dvp, ITOV(ip));
+	softdep_prelink(dvp, ITOV(ip));
 	FREE_LOCK(&lk);
 }
 
@@ -3918,7 +3964,7 @@ softdep_setup_inomapdep(bp, ip, newinum)
 	 * Allocate the journal reference add structure so that the bitmap
 	 * can be dependent on it.
 	 */
-	if (mp->mnt_flag & MNT_SUJ) {
+	if (mp->mnt_kern_flag & MNTK_SUJ) {
 		jaddref = newjaddref(ip, newinum, 0, 0, 0);
 		jaddref->ja_state |= NEWBLOCK;
 	}
@@ -3971,7 +4017,7 @@ softdep_setup_blkmapdep(bp, mp, newblkno, frags, oldfrags)
 	 * Add it to the dependency list for the buffer holding
 	 * the cylinder group map from which it was allocated.
 	 */
-	if (mp->mnt_flag & MNT_SUJ) {
+	if (mp->mnt_kern_flag & MNTK_SUJ) {
 		jnewblk = malloc(sizeof(*jnewblk), M_JNEWBLK, M_SOFTDEP_FLAGS);
 		workitem_alloc(&jnewblk->jn_list, D_JNEWBLK, mp);
 		jnewblk->jn_jsegdep = newjsegdep(&jnewblk->jn_list);
@@ -6058,7 +6104,7 @@ setup_newdir(dap, newinum, dinum, newdirbp, mkdirp)
 	mkdir2->md_state = ATTACHED | MKDIR_PARENT;
 	mkdir2->md_diradd = dap;
 	mkdir2->md_jaddref = NULL;
-	if ((mp->mnt_flag & MNT_SUJ) == 0) {
+	if ((mp->mnt_kern_flag & MNTK_SUJ) == 0) {
 		mkdir1->md_state |= DEPCOMPLETE;
 		mkdir2->md_state |= DEPCOMPLETE;
 	}
@@ -6096,7 +6142,7 @@ setup_newdir(dap, newinum, dinum, newdirbp, mkdirp)
 	 * been satisfied and mkdir2 can be freed.
 	 */
 	inodedep_lookup(mp, dinum, 0, &inodedep);
-	if (mp->mnt_flag & MNT_SUJ) {
+	if (mp->mnt_kern_flag & MNTK_SUJ) {
 		if (inodedep == NULL)
 			panic("setup_newdir: Lost parent.");
 		jaddref = (struct jaddref *)TAILQ_LAST(&inodedep->id_inoreflst,
@@ -6228,7 +6274,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	 * written place it on the bufwait list, otherwise do the post-inode
 	 * write processing to put it on the id_pendinghd list.
 	 */
-	if (mp->mnt_flag & MNT_SUJ) {
+	if (mp->mnt_kern_flag & MNTK_SUJ) {
 		jaddref = (struct jaddref *)TAILQ_LAST(&inodedep->id_inoreflst,
 		    inoreflst);
 		KASSERT(jaddref != NULL && jaddref->ja_parent == dp->i_number,
@@ -6244,7 +6290,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	 * Add the journal entries for . and .. links now that the primary
 	 * link is written.
 	 */
-	if (mkdir1 != NULL && mp->mnt_flag & MNT_SUJ) {
+	if (mkdir1 != NULL && mp->mnt_kern_flag & MNTK_SUJ) {
 		jaddref = (struct jaddref *)TAILQ_PREV(&jaddref->ja_ref,
 		    inoreflst, if_deps);
 		KASSERT(jaddref != NULL &&
@@ -6341,7 +6387,7 @@ softdep_change_directoryentry_offset(bp, dp, base, oldloc, newloc, entrysize)
 	 * determine if any affected adds or removes are present in the
 	 * journal.
 	 */
-	if (mp->mnt_flag & MNT_SUJ)  {
+	if (mp->mnt_kern_flag & MNTK_SUJ)  {
 		flags = DEPALLOC;
 		jmvref = newjmvref(dp, de->d_ino,
 		    dp->i_offset + (oldloc - base),
@@ -7068,7 +7114,7 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	 * processing to put it on the id_pendinghd list.
 	 */
 	inodedep_lookup(mp, newinum, DEPALLOC, &inodedep);
-	if (mp->mnt_flag & MNT_SUJ) {
+	if (mp->mnt_kern_flag & MNTK_SUJ) {
 		jaddref = (struct jaddref *)TAILQ_LAST(&inodedep->id_inoreflst,
 		    inoreflst);
 		KASSERT(jaddref != NULL && jaddref->ja_parent == dp->i_number,
@@ -7298,7 +7344,7 @@ unlinked_inodedep(mp, inodedep)
 {
 	struct ufsmount *ump;
 
-	if ((mp->mnt_flag & MNT_SUJ) == 0)
+	if ((mp->mnt_kern_flag & MNTK_SUJ) == 0)
 		return;
 	ump = VFSTOUFS(mp);
 	ump->um_fs->fs_fmod = 1;
