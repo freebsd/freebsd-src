@@ -73,6 +73,7 @@ static u_int32_t ata_promise_mio_softreset(device_t dev, int port);
 static void ata_promise_mio_dmainit(device_t dev);
 static void ata_promise_mio_setprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
 static int ata_promise_mio_setmode(device_t dev, int target, int mode);
+static int ata_promise_mio_getrev(device_t dev, int target);
 static void ata_promise_sx4_intr(void *data);
 static int ata_promise_sx4_command(struct ata_request *request);
 static int ata_promise_apkt(u_int8_t *bytep, struct ata_request *request);
@@ -341,6 +342,7 @@ sataii:
 	ctlr->ch_detach = ata_promise_mio_ch_detach;
 	ctlr->reset = ata_promise_mio_reset;
 	ctlr->setmode = ata_promise_mio_setmode;
+	ctlr->getrev = ata_promise_mio_getrev;
 
 	return 0;
     }
@@ -999,12 +1001,27 @@ ata_promise_mio_setmode(device_t dev, int target, int mode)
 
         if ( (ctlr->chip->cfg2 == PR_SATA) ||
     	    ((ctlr->chip->cfg2 == PR_CMBO) && (ch->unit < 2)) ||
-	    (ctlr->chip->cfg2 == PR_SATA2) ||
+	     (ctlr->chip->cfg2 == PR_SATA2) ||
 	    ((ctlr->chip->cfg2 == PR_CMBO2) && (ch->unit < 2)))
 		mode = ata_sata_setmode(dev, target, mode);
 	else
 		mode = ata_promise_setmode(dev, target, mode);
 	return (mode);
+}
+
+static int
+ata_promise_mio_getrev(device_t dev, int target)
+{
+        struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+        struct ata_channel *ch = device_get_softc(dev);
+
+        if ( (ctlr->chip->cfg2 == PR_SATA) ||
+    	    ((ctlr->chip->cfg2 == PR_CMBO) && (ch->unit < 2)) ||
+	     (ctlr->chip->cfg2 == PR_SATA2) ||
+	    ((ctlr->chip->cfg2 == PR_CMBO2) && (ch->unit < 2)))
+		return (ata_sata_getrev(dev, target));
+	else
+		return (0);
 }
 
 static void
