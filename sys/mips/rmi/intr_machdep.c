@@ -147,17 +147,17 @@ cpu_intr(struct trapframe *tf)
 		if ((i == IPI_AST) || (i == IPI_RENDEZVOUS) || (i == IPI_STOP)
 		    || (i == IPI_SMP_CALL_FUNCTION)) {
 			write_c0_eirr64(1ULL << i);
-			pic_ack(i,0);
+			pic_ack(i, 0);
 			smp_handle_ipi(tf, i);
-			pic_delayed_ack(i,0);
+			pic_delayed_ack(i, 0);
 			continue;
 		}
 #ifdef XLR_PERFMON
 		if (i == IPI_PERFMON) {
 			write_c0_eirr64(1ULL << i);
-			pic_ack(i,0);
+			pic_ack(i, 0);
 			xlr_perfmon_sampler(NULL);
-			pic_delayed_ack(i,0);
+			pic_delayed_ack(i, 0);
 			continue;
 		}
 #endif
