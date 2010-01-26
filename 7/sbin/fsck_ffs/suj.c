@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <stdint.h>
 #include <libufs.h>
+#include <string.h>
 #include <strings.h>
 #include <err.h>
 #include <assert.h>
@@ -63,6 +64,7 @@ struct suj_seg {
 struct suj_rec {
 	TAILQ_ENTRY(suj_rec) sr_next;
 	union jrec	*sr_rec;
+	int		sr_alt;	/* Is alternate address? */
 };
 TAILQ_HEAD(srechd, suj_rec);
 
@@ -127,6 +129,7 @@ TAILQ_HEAD(seghd, suj_seg) allsegs;
 uint64_t oldseq;
 static struct uufsd *disk = NULL;
 static struct fs *fs = NULL;
+ino_t sujino;
 
 /*
  * Summary statistics.
@@ -191,8 +194,7 @@ closedisk(const char *devnam)
 		fs->fs_cstotal.cs_nifree += cgsum->cs_nifree;
 		fs->fs_cstotal.cs_ndir += cgsum->cs_ndir;
 	}
-	/* XXX Don't set clean for now, we don't trust the journal. */
-	/* fs->fs_clean = 1; */
+	fs->fs_clean = 1;
 	fs->fs_time = time(NULL);
 	fs->fs_mtime = time(NULL);
 	if (sbwrite(disk, 0) == -1)
@@ -1823,6 +1825,7 @@ ino_append(union jrec *rec)
 	sino->si_hasrecs = 1;
 	srec = errmalloc(sizeof(*srec));
 	srec->sr_rec = rec;
+	srec->sr_alt = 0;
 	TAILQ_INSERT_TAIL(&sino->si_newrecs, srec, sr_next);
 }
 
@@ -1844,9 +1847,10 @@ ino_build_ref(struct suj_ino *sino, struct suj_rec *srec)
 
 	refrec = (struct jrefrec *)srec->sr_rec;
 	if (debug)
-		printf("ino_build: op %d, ino %d, nlink %d, parent %d, diroff %jd\n", 
-		    refrec->jr_op, refrec->jr_ino, refrec->jr_nlink, refrec->jr_parent,
-		    refrec->jr_diroff);
+		printf("ino_build: op %d, ino %d, nlink %d, "
+		    "parent %d, diroff %jd\n", 
+		    refrec->jr_op, refrec->jr_ino, refrec->jr_nlink,
+		    refrec->jr_parent, refrec->jr_diroff);
 
 	/*
 	 * Search for a mvrec that matches this offset.  Whether it's an add
@@ -1871,16 +1875,19 @@ ino_build_ref(struct suj_ino *sino, struct suj_rec *srec)
 				rrn = errmalloc(sizeof(*refrec));
 				*rrn = *refrec;
 				rrn->jr_op = JOP_ADDREF;
+				rrn->jr_diroff = mvrec->jm_oldoff;
 				srn = errmalloc(sizeof(*srec));
+				srn->sr_alt = 1;
 				srn->sr_rec = (union jrec *)rrn;
 				ino_build_ref(sino, srn);
-				refrec->jr_diroff = mvrec->jm_oldoff;
 			}
 		}
 	}
 	/*
 	 * We walk backwards so that adds and removes are evaluated in the
-	 * correct order.
+	 * correct order.  If a primary record conflicts with an alt keep
+	 * the primary and discard the alt.  We must track this to keep
+	 * the correct number of removes in the list.
 	 */
 	for (srn = TAILQ_LAST(&sino->si_recs, srechd); srn;
 	    srn = TAILQ_PREV(srn, srechd, sr_next)) {
@@ -1890,7 +1897,17 @@ ino_build_ref(struct suj_ino *sino, struct suj_rec *srec)
 			continue;
 		if (debug)
 			printf("Discarding dup.\n");
-		rrn->jr_mode = refrec->jr_mode;
+		if (srn->sr_alt == 0) {
+			rrn->jr_mode = refrec->jr_mode;
+			return;
+		}
+		/*
+		 * Replace the record in place with the old nlink in case
+		 * we replace the head of the list.  Abandon srec as a dup.
+		 */
+		refrec->jr_nlink = rrn->jr_nlink;
+		srn->sr_rec = srec->sr_rec;
+		srn->sr_alt = srec->sr_alt;
 		return;
 	}
 	TAILQ_INSERT_TAIL(&sino->si_recs, srec, sr_next);
@@ -1930,9 +1947,12 @@ ino_move_ref(struct suj_ino *sino, struct suj_rec *srec)
 		/*
 		 * When an entry is moved we don't know whether the write
 		 * to move has completed yet.  To resolve this we create
-		 * a new add dependency in the new location as if it were added
-		 * twice.  Only one will succeed.
+		 * a new add dependency in the new location as if it were
+		 * added twice.  Only one will succeed.  Consider the
+		 * new offset the primary location for the inode and the
+		 * old offset the alt.
 		 */
+		srn->sr_alt = 1;
 		refrec = errmalloc(sizeof(*refrec));
 		refrec->jr_op = JOP_ADDREF;
 		refrec->jr_ino = mvrec->jm_ino;
@@ -1941,12 +1961,14 @@ ino_move_ref(struct suj_ino *sino, struct suj_rec *srec)
 		refrec->jr_mode = rrn->jr_mode;
 		refrec->jr_nlink = rrn->jr_nlink;
 		srn = errmalloc(sizeof(*srn));
+		srn->sr_alt = 0;
 		srn->sr_rec = (union jrec *)refrec;
 		ino_build_ref(sino, srn);
 		break;
 	}
 	/*
-	 * Add this mvrec to the queue of pending mvs.
+	 * Add this mvrec to the queue of pending mvs, possibly collapsing
+	 * it with a prior move for the same inode and offset.
 	 */
 	for (srn = TAILQ_LAST(&sino->si_movs, srechd); srn;
 	    srn = TAILQ_PREV(srn, srechd, sr_next)) {
@@ -2195,19 +2217,25 @@ suj_verifyino(union dinode *ip)
 
 	if (DIP(ip, di_nlink) != 1) {
 		printf("Invalid link count %d for journal inode %d\n",
-		    DIP(ip, di_nlink), fs->fs_sujournal);
+		    DIP(ip, di_nlink), sujino);
 		return (-1);
 	}
 
-	if (DIP(ip, di_mode) != IFREG) {
-		printf("Invalid mode %d for journal inode %d\n",
-		    DIP(ip, di_mode), fs->fs_sujournal);
+	if (DIP(ip, di_flags) != (SF_IMMUTABLE | SF_NOUNLINK)) {
+		printf("Invalid flags 0x%X for journal inode %d\n",
+		    DIP(ip, di_flags), sujino);
+		return (-1);
+	}
+
+	if (DIP(ip, di_mode) != (IFREG | IREAD)) {
+		printf("Invalid mode %o for journal inode %d\n",
+		    DIP(ip, di_mode), sujino);
 		return (-1);
 	}
 
 	if (DIP(ip, di_size) < SUJ_MIN || DIP(ip, di_size) > SUJ_MAX) {
 		printf("Invalid size %jd for journal inode %d\n",
-		    DIP(ip, di_size), fs->fs_sujournal);
+		    DIP(ip, di_size), sujino);
 		return (-1);
 	}
 
@@ -2447,20 +2475,60 @@ restart:
 }
 
 /*
+ * Search a directory block for the SUJ_FILE.
+ */
+static void
+suj_find(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
+{
+	char block[MAXBSIZE];
+	struct direct *dp;
+	int bytes;
+	int off;
+
+	if (sujino)
+		return;
+	bytes = lfragtosize(fs, frags);
+	if (bread(disk, fsbtodb(fs, blk), block, bytes) <= 0)
+		err(1, "Failed to read ROOTINO directory block %jd", blk);
+	for (off = 0; off < bytes; off += dp->d_reclen) {
+		dp = (struct direct *)&block[off];
+		if (dp->d_reclen == 0)
+			break;
+		if (dp->d_ino == 0)
+			continue;
+		if (dp->d_namlen != strlen(SUJ_FILE))
+			continue;
+		if (bcmp(dp->d_name, SUJ_FILE, dp->d_namlen) != 0)
+			continue;
+		sujino = dp->d_ino;
+		return;
+	}
+}
+
+/*
  * Orchestrate the verification of a filesystem via the softupdates journal.
  */
 int
 suj_check(const char *filesys)
 {
 	union dinode *jip;
+	union dinode *ip;
 	uint64_t blocks;
 
 	opendisk(filesys);
 	TAILQ_INIT(&allsegs);
 	/*
+	 * Find the journal inode.
+	 */
+	ip = ino_read(ROOTINO);
+	sujino = 0;
+	ino_visit(ip, ROOTINO, suj_find, 0);
+	if (sujino == 0)
+		errx(1, "Journal inode removed.  Use tunefs to re-create.");
+	/*
 	 * Fetch the journal inode and verify it.
 	 */
-	jip = ino_read(fs->fs_sujournal);
+	jip = ino_read(sujino);
 	printf("** SU+J Recovering %s\n", filesys);
 	if (suj_verifyino(jip) != 0)
 		return (-1);
@@ -2469,11 +2537,11 @@ suj_check(const char *filesys)
 	 * available journal blocks in with suj_read().
 	 */
 	printf("** Reading %jd byte journal from inode %d.\n",
-	    DIP(jip, di_size), fs->fs_sujournal);
+	    DIP(jip, di_size), sujino);
 	suj_jblocks = jblocks_create();
-	blocks = ino_visit(jip, fs->fs_sujournal, suj_add_block, 0);
+	blocks = ino_visit(jip, sujino, suj_add_block, 0);
 	if (blocks != numfrags(fs, DIP(jip, di_size)))
-		errx(1, "Sparse journal inode %d.\n", fs->fs_sujournal);
+		errx(1, "Sparse journal inode %d.\n", sujino);
 	suj_read();
 	jblocks_destroy(suj_jblocks);
 	suj_jblocks = NULL;

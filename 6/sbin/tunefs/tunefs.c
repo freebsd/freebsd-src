@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+#include <ufs/ufs/dir.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -74,6 +75,7 @@ struct uufsd disk;
 void usage(void);
 void printfs(void);
 int journal_alloc(int64_t size);
+void journal_clear(void);
 void sbdirty(void);
 
 int
@@ -327,11 +329,11 @@ main(int argc, char *argv[])
 			if ((~sblock.fs_flags & FS_SUJ) == FS_SUJ) {
 				warnx("%s remains unchanged as disabled", name);
 			} else {
-				sbdirty();
+				journal_clear();
  				sblock.fs_flags &= ~(FS_DOSOFTDEP | FS_SUJ);
-				sblock.fs_sujournal = 0;
 				sblock.fs_sujfree = 0;
- 				warnx("%s cleared", name);
+ 				warnx("%s cleared, "
+				    "remove .sujournal to reclaim space", name);
 			}
  		}
 	}
@@ -452,11 +454,9 @@ journal_balloc(void)
 {
 	ufs2_daddr_t blk;
 	struct cg *cgp;
-	struct fs *fs;
 	int valid;
 
 	cgp = &disk.d_cg;
-	fs = &disk.d_fs;
 	for (;;) {
 		blk = cgballoc(&disk);
 		if (blk > 0)
@@ -482,11 +482,229 @@ journal_balloc(void)
 		warnx("Failed to find sufficient free blocks for the journal");
 		return -1;
 	}
-	if (bwrite(&disk, fsbtodb(fs, blk), clrbuf, fs->fs_bsize) <= 0) {
+	if (bwrite(&disk, fsbtodb(&sblock, blk), clrbuf,
+	    sblock.fs_bsize) <= 0) {
 		warn("Failed to initialize new block");
 		return -1;
 	}
 	return (blk);
+}
+
+/*
+ * Search a directory block for the SUJ_FILE.
+ */
+static ino_t
+dir_search(ufs2_daddr_t blk, int bytes)
+{
+	char block[MAXBSIZE];
+	struct direct *dp;
+	int off;
+
+	if (bread(&disk, fsbtodb(&sblock, blk), block, bytes) <= 0) {
+		warn("Failed to read dir block");
+		return (-1);
+	}
+	for (off = 0; off < bytes; off += dp->d_reclen) {
+		dp = (struct direct *)&block[off];
+		if (dp->d_reclen == 0)
+			break;
+		if (dp->d_ino == 0)
+			continue;
+		if (dp->d_namlen != strlen(SUJ_FILE))
+			continue;
+		if (bcmp(dp->d_name, SUJ_FILE, dp->d_namlen) != 0)
+			continue;
+		return (dp->d_ino);
+	}
+
+	return (0);
+}
+
+/*
+ * Search in the ROOTINO for the SUJ_FILE.  If it exists we can not enable
+ * journaling.
+ */
+static ino_t
+journal_findfile(void)
+{
+	struct ufs1_dinode *dp1;
+	struct ufs2_dinode *dp2;
+	int mode;
+	void *ip;
+	int i;
+
+	if (getino(&disk, &ip, ROOTINO, &mode) != 0) {
+		warn("Failed to get root inode");
+		return (-1);
+	}
+	dp2 = ip;
+	dp1 = ip;
+	if (sblock.fs_magic == FS_UFS1_MAGIC) {
+		if ((off_t)dp1->di_size >= lblktosize(&sblock, NDADDR)) {
+			warnx("ROOTINO extends beyond direct blocks.");
+			return (-1);
+		}
+		for (i = 0; i < NDADDR; i++) {
+			if (dp1->di_db[i] == 0)
+				break;
+			if (dir_search(dp1->di_db[i],
+			    sblksize(&sblock, (off_t)dp1->di_size, i)) != 0)
+				return (-1);
+		}
+	} else {
+		if ((off_t)dp1->di_size >= lblktosize(&sblock, NDADDR)) {
+			warnx("ROOTINO extends beyond direct blocks.");
+			return (-1);
+		}
+		for (i = 0; i < NDADDR; i++) {
+			if (dp2->di_db[i] == 0)
+				break;
+			if (dir_search(dp2->di_db[i],
+			    sblksize(&sblock, (off_t)dp2->di_size, i)) != 0)
+				return (-1);
+		}
+	}
+
+	return (0);
+}
+
+/*
+ * Insert the journal at inode 'ino' into directory blk 'blk' at the first
+ * free offset of 'off'.  DIRBLKSIZ blocks after off are initialized as
+ * empty.
+ */
+static int
+dir_insert(ufs2_daddr_t blk, off_t off, ino_t ino)
+{
+	struct direct *dp;
+	char block[MAXBSIZE];
+
+	if (bread(&disk, fsbtodb(&sblock, blk), block, sblock.fs_bsize) <= 0) {
+		warn("Failed to read dir block");
+		return (-1);
+	}
+	bzero(&block[off], sblock.fs_bsize - off);
+	dp = (struct direct *)&block[off];
+	dp->d_ino = ino;
+	dp->d_reclen = DIRBLKSIZ;
+	dp->d_type = DT_REG;
+	dp->d_namlen = strlen(SUJ_FILE);
+	bcopy(SUJ_FILE, &dp->d_name, strlen(SUJ_FILE));
+	off += DIRBLKSIZ;
+	for (; off < sblock.fs_bsize; off += DIRBLKSIZ) {
+		dp = (struct direct *)&block[off];
+		dp->d_ino = 0;
+		dp->d_reclen = DIRBLKSIZ;
+		dp->d_type = DT_UNKNOWN;
+	}
+	if (bwrite(&disk, fsbtodb(&sblock, blk), block, sblock.fs_bsize) <= 0) {
+		warn("Failed to write dir block");
+		return (-1);
+	}
+	return (0);
+}
+
+/*
+ * Extend a directory block in 'blk' by copying it to a full size block
+ * and inserting the new journal inode into .sujournal.
+ */
+static int
+dir_extend(ufs2_daddr_t blk, ufs2_daddr_t nblk, off_t size, ino_t ino)
+{
+	char block[MAXBSIZE];
+
+	if (bread(&disk, fsbtodb(&sblock, blk), block, size) <= 0) {
+		warn("Failed to read dir block");
+		return (-1);
+	}
+	if (bwrite(&disk, fsbtodb(&sblock, nblk), block, size) <= 0) {
+		warn("Failed to write dir block");
+		return (-1);
+	}
+
+	return dir_insert(nblk, size, ino);
+}
+
+/*
+ * Insert the journal file into the ROOTINO directory.  We always extend the
+ * last frag
+ */
+static int
+journal_insertfile(ino_t ino)
+{
+	struct ufs1_dinode *dp1;
+	struct ufs2_dinode *dp2;
+	void *ip;
+	ufs2_daddr_t nblk;
+	ufs2_daddr_t blk;
+	ufs_lbn_t lbn;
+	int size;
+	int mode;
+	int off;
+
+	if (getino(&disk, &ip, ROOTINO, &mode) != 0) {
+		warn("Failed to get root inode");
+		sbdirty();
+		return (-1);
+	}
+	dp2 = ip;
+	dp1 = ip;
+	blk = 0;
+	size = 0;
+	nblk = journal_balloc();
+	if (nblk <= 0)
+		return (-1);
+	/*
+	 * For simplicity sake we aways extend the ROOTINO into a new
+	 * directory block rather than searching for space and inserting
+	 * into an existing block.  However, if the rootino has frags
+	 * have to free them and extend the block.
+	 */
+	if (sblock.fs_magic == FS_UFS1_MAGIC) {
+		lbn = lblkno(&sblock, dp1->di_size);
+		off = blkoff(&sblock, dp1->di_size);
+		blk = dp1->di_db[lbn];
+		size = sblksize(&sblock, (off_t)dp1->di_size, lbn);
+	} else {
+		lbn = lblkno(&sblock, dp2->di_size);
+		off = blkoff(&sblock, dp2->di_size);
+		blk = dp2->di_db[lbn];
+		size = sblksize(&sblock, (off_t)dp2->di_size, lbn);
+	}
+	if (off != 0) {
+		if (dir_extend(blk, nblk, off, ino) == -1)
+			return (-1);
+	} else {
+		blk = 0;
+		if (dir_insert(nblk, 0, ino) == -1)
+			return (-1);
+	}
+	if (sblock.fs_magic == FS_UFS1_MAGIC) {
+		dp1->di_blocks += (sblock.fs_bsize - size) / DEV_BSIZE;
+		dp1->di_db[lbn] = nblk;
+		dp1->di_size = lblktosize(&sblock, lbn+1);
+	} else {
+		dp2->di_blocks += (sblock.fs_bsize - size) / DEV_BSIZE;
+		dp2->di_db[lbn] = nblk;
+		dp2->di_size = lblktosize(&sblock, lbn+1);
+	}
+	if (putino(&disk) < 0) {
+		warn("Failed to write root inode");
+		return (-1);
+	}
+	if (cgwrite(&disk) < 0) {
+		warn("Failed to write updated cg");
+		sbdirty();
+		return (-1);
+	}
+	if (blk) {
+		if (cgbfree(&disk, blk, size) < 0) {
+			warn("Failed to write cg");
+			return (-1);
+		}
+	}
+
+	return (0);
 }
 
 static int
@@ -496,22 +714,20 @@ indir_fill(ufs2_daddr_t blk, int level, int *resid)
 	ufs1_daddr_t *bap1;
 	ufs2_daddr_t *bap2;
 	ufs2_daddr_t nblk;
-	struct fs *fs;
 	int ncnt;
 	int cnt;
 	int i;
 
-	fs = &disk.d_fs;
 	bzero(indirbuf, sizeof(indirbuf));
 	bap1 = (ufs1_daddr_t *)indirbuf;
 	bap2 = (void *)bap1;
 	cnt = 0;
-	for (i = 0; i < NINDIR(fs) && *resid != 0; i++) {
+	for (i = 0; i < NINDIR(&sblock) && *resid != 0; i++) {
 		nblk = journal_balloc();
 		if (nblk <= 0)
 			return (-1);
 		cnt++;
-		if (fs->fs_magic == FS_UFS1_MAGIC)
+		if (sblock.fs_magic == FS_UFS1_MAGIC)
 			*bap1++ = nblk;
 		else
 			*bap2++ = nblk;
@@ -523,11 +739,45 @@ indir_fill(ufs2_daddr_t blk, int level, int *resid)
 		} else 
 			(*resid)--;
 	}
-	if (bwrite(&disk, fsbtodb(fs, blk), indirbuf, fs->fs_bsize) <= 0) {
+	if (bwrite(&disk, fsbtodb(&sblock, blk), indirbuf,
+	    sblock.fs_bsize) <= 0) {
 		warn("Failed to write indirect");
 		return (-1);
 	}
 	return (cnt);
+}
+
+/*
+ * Clear the flag bits so the journal can be removed.
+ */
+void
+journal_clear(void)
+{
+	struct ufs1_dinode *dp1;
+	struct ufs2_dinode *dp2;
+	ino_t ino;
+	int mode;
+	void *ip;
+
+	ino = journal_findfile();
+	if (ino <= 0) {
+		warnx("Journal file does not exist");
+		return;
+	}
+	if (getino(&disk, &ip, ino, &mode) != 0) {
+		warn("Failed to get journal inode");
+		return;
+	}
+	dp2 = ip;
+	dp1 = ip;
+	if (sblock.fs_magic == FS_UFS1_MAGIC)
+		dp1->di_flags = 0;
+	else
+		dp2->di_flags = 0;
+	if (putino(&disk) < 0) {
+		warn("Failed to write journal inode");
+		return;
+	}
 }
 
 int
@@ -538,17 +788,24 @@ journal_alloc(int64_t size)
 	ufs2_daddr_t blk;
 	void *ip;
 	struct cg *cgp;
-	struct fs *fs;
 	int resid;
 	ino_t ino;
 	int blks;
 	int mode;
 	int i;
 
-	fs = &disk.d_fs;
 	cgp = &disk.d_cg;
 	ino = 0;
 
+	/*
+	 * If the journal file exists we can't allocate it.
+	 */
+	ino = journal_findfile();
+	if (ino > 0)
+		warnx("Journal file %s already exists, please remove.",
+		    SUJ_FILE);
+	if (ino != 0)
+		return (-1);
 	/*
 	 * If the user didn't supply a size pick one based on the filesystem
 	 * size constrained with hardcoded MIN and MAX values.  We opt for
@@ -556,14 +813,14 @@ journal_alloc(int64_t size)
 	 * not less than the MIN.
 	 */
 	if (size == 0) {
-		size = (fs->fs_size * fs->fs_bsize) / 1024;
+		size = (sblock.fs_size * sblock.fs_bsize) / 1024;
 		size = MIN(SUJ_MAX, size);
-		if (size / fs->fs_fsize > fs->fs_fpg)
-			size = fs->fs_fpg * fs->fs_fsize;
+		if (size / sblock.fs_fsize > sblock.fs_fpg)
+			size = sblock.fs_fpg * sblock.fs_fsize;
 		size = MAX(SUJ_MIN, size);
 	}
-	resid = blocks = size / fs->fs_bsize;
-	if (fs->fs_cstotal.cs_nbfree < blocks) {
+	resid = blocks = size / sblock.fs_bsize;
+	if (sblock.fs_cstotal.cs_nbfree < blocks) {
 		warn("Insufficient free space for %jd byte journal", size);
 		return (-1);
 	}
@@ -576,9 +833,9 @@ journal_alloc(int64_t size)
 			continue;
 		/*
 		 * Try to minimize fragmentation by requiring at least a
-		 * 1/8th of the blocks be present in each cg we use.
+		 * 1/16th of the blocks be present in each cg we use.
 		 */
-		if (cgp->cg_cs.cs_nbfree < blocks / 8)
+		if (cgp->cg_cs.cs_nbfree < blocks / 16)
 			continue;
 		ino = cgialloc(&disk);
 		if (ino <= 0)
@@ -597,22 +854,24 @@ journal_alloc(int64_t size)
 		 */
 		dp2 = ip;
 		dp1 = ip;
-		if (fs->fs_magic == FS_UFS1_MAGIC) {
+		if (sblock.fs_magic == FS_UFS1_MAGIC) {
 			bzero(dp1, sizeof(*dp1));
 			dp1->di_size = size;
-			dp1->di_mode = IFREG;
+			dp1->di_mode = IFREG | IREAD;
 			dp1->di_nlink = 1;
+			dp1->di_flags = SF_IMMUTABLE | SF_NOUNLINK;
 		} else {
 			bzero(dp2, sizeof(*dp2));
 			dp2->di_size = size;
-			dp2->di_mode = IFREG;
+			dp2->di_mode = IFREG | IREAD;
 			dp2->di_nlink = 1;
+			dp2->di_flags = SF_IMMUTABLE | SF_NOUNLINK;
 		}
 		for (i = 0; i < NDADDR && resid; i++, resid--) {
 			blk = journal_balloc();
 			if (blk <= 0)
 				goto out;
-			if (fs->fs_magic == FS_UFS1_MAGIC) {
+			if (sblock.fs_magic == FS_UFS1_MAGIC) {
 				dp1->di_db[i] = blk;
 				dp1->di_blocks++;
 			} else {
@@ -629,7 +888,7 @@ journal_alloc(int64_t size)
 				sbdirty();
 				goto out;
 			}
-			if (fs->fs_magic == FS_UFS1_MAGIC) {
+			if (sblock.fs_magic == FS_UFS1_MAGIC) {
 				dp1->di_ib[i] = blk;
 				dp1->di_blocks += blks;
 			} else {
@@ -637,10 +896,10 @@ journal_alloc(int64_t size)
 				dp2->di_blocks += blks;
 			}
 		}
-		if (fs->fs_magic == FS_UFS1_MAGIC)
-			dp1->di_blocks *= fs->fs_bsize / disk.d_bsize;
+		if (sblock.fs_magic == FS_UFS1_MAGIC)
+			dp1->di_blocks *= sblock.fs_bsize / disk.d_bsize;
 		else
-			dp2->di_blocks *= fs->fs_bsize / disk.d_bsize;
+			dp2->di_blocks *= sblock.fs_bsize / disk.d_bsize;
 		if (putino(&disk) < 0) {
 			warn("Failed to write inode");
 			sbdirty();
@@ -651,8 +910,11 @@ journal_alloc(int64_t size)
 			sbdirty();
 			return (-1);
 		}
-		fs->fs_sujournal = ino;
-		fs->fs_sujfree = 0;
+		if (journal_insertfile(ino) < 0) {
+			sbdirty();
+			return (-1);
+		}
+		sblock.fs_sujfree = 0;
 		return (0);
 	}
 	warnx("Insufficient contiguous free space for the journal.");

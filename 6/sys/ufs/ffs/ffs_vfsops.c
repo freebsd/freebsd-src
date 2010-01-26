@@ -275,14 +275,14 @@ ffs_mount(struct mount *mp, struct thread *td)
 			mp->mnt_flag &= ~MNT_RDONLY;
 			MNT_IUNLOCK(mp);
 			fs->fs_mtime = time_second;
-			fs->fs_clean = 0;
-			if ((error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0) {
-				vn_finished_write(mp);
-				return (error);
-			}
 			/* check to see if we need to start softdep */
 			if ((fs->fs_flags & FS_DOSOFTDEP) &&
 			    (error = softdep_mount(devvp, mp, fs, td->td_ucred))){
+				vn_finished_write(mp);
+				return (error);
+			}
+			fs->fs_clean = 0;
+			if ((error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0) {
 				vn_finished_write(mp);
 				return (error);
 			}

@@ -1848,6 +1848,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, dephd)
 	ino_t inum;
 	struct workhead *dephd;
 {
+	struct mount *mp;
 	struct cg *cgp;
 	struct buf *bp;
 	ufs1_daddr_t fragno, cgbno;
@@ -1962,7 +1963,8 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, dephd)
 	fs->fs_fmod = 1;
 	ACTIVECLEAR(fs, cg);
 	UFS_UNLOCK(ump);
-	if (UFSTOVFS(ump)->mnt_flag & MNT_SOFTDEP)
+	mp = UFSTOVFS(ump);
+	if (mp->mnt_flag & MNT_SOFTDEP)
 		softdep_setup_blkfree(UFSTOVFS(ump), bp, bno,
 		    numfrags(fs, size), dephd);
 	bdwrite(bp);

@@ -110,6 +110,7 @@ ssize_t bwrite(struct uufsd *, ufs2_daddr_t, const void *, size_t);
  * cgroup.c
  */
 ufs2_daddr_t cgballoc(struct uufsd *);
+int cgbfree(struct uufsd *, ufs2_daddr_t, long);
 ino_t cgialloc(struct uufsd *);
 int cgread(struct uufsd *);
 int cgread1(struct uufsd *, int);

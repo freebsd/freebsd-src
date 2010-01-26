@@ -336,10 +336,9 @@ struct fs {
 	int32_t	 fs_avgfilesize;	/* expected average file size */
 	int32_t	 fs_avgfpdir;		/* expected # of files per directory */
 	int32_t	 fs_save_cgsize;	/* save real cg size to use fs_bsize */
-	int32_t  fs_sujournal;		/* SUJ journal file */
-	int32_t  fs_sujfree;		/* SUJ free list */
 	ufs_time_t fs_mtime;		/* Last mount or fsck time. */
-	int32_t	 fs_sparecon32[22];	/* reserved for future constants */
+	int32_t  fs_sujfree;		/* SUJ free list */
+	int32_t	 fs_sparecon32[23];	/* reserved for future constants */
 	int32_t  fs_flags;		/* see FS_ flags below */
 	int32_t	 fs_contigsumsize;	/* size of cluster summary array */ 
 	int32_t	 fs_maxsymlinklen;	/* max length of an internal symlink */
@@ -651,14 +650,16 @@ lbn_level(ufs_lbn_t lbn)
 
 #define	JREC_SIZE	32	/* Record and segment header size. */
 
-#define	SUJ_MIN		(1 * 1024 * 1024)	/* Minimum journal size */
-#define	SUJ_MAX		(32 * SUJ_MIN)		/* Maximum journal size */
+#define	SUJ_MIN		(4 * 1024 * 1024)	/* Minimum journal size */
+#define	SUJ_MAX		(32 * 1024 * 1024)	/* Maximum journal size */
+#define	SUJ_FILE	".sujournal"		/* Journal file name */
 
 /*
  * Size of the segment record header.  There is at most one for each disk
- * block and at least one for each filesystem block in the journal.  The
- * segment header is followed by an array of records.  fsck depends on
- * the first element in each record being 'op' and the second being 'ino'.
+ * block n the journal.  The segment header is followed by an array of
+ * records.  fsck depends on the first element in each record being 'op'
+ * and the second being 'ino'.  Segments may span multiple disk blocks but
+ * the header is present on each.
  */
 struct jsegrec {
 	uint64_t	jsr_seq;	/* Our sequence number */
@@ -669,6 +670,9 @@ struct jsegrec {
 	ufs_time_t	jsr_time;	/* timestamp for mount instance */
 };
 
+/*
+ * Reference record.  Records a single link count modification.
+ */
 struct jrefrec {
 	uint32_t	jr_op;
 	ino_t		jr_ino;
@@ -679,6 +683,10 @@ struct jrefrec {
 	uint64_t	jr_unused;
 };
 
+/*
+ * Move record.  Records a reference moving within a directory block.  The
+ * nlink is unchanged but we must search both locations.
+ */
 struct jmvrec {
 	uint32_t	jm_op;
 	ino_t		jm_ino;
@@ -688,6 +696,10 @@ struct jmvrec {
 	off_t		jm_newoff;
 };
 
+/*
+ * Block record.  A set of frags or tree of blocks starting at an indirect are
+ * freed or a set of frags are allocated.
+ */
 struct jblkrec {
 	uint32_t	jb_op;
 	uint32_t	jb_ino;
@@ -698,6 +710,10 @@ struct jblkrec {
 	uint32_t	jb_unused;
 };
 
+/*
+ * Truncation record.  Records a partial truncation so that it may be
+ * completed later.
+ */
 struct jtrncrec {
 	uint32_t	jt_op;
 	uint32_t	jt_ino;

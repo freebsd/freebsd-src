@@ -72,9 +72,6 @@ pass4(void)
 		for (i = 0; i < inostathead[cg].il_numalloced; i++, inumber++) {
 			if (inumber < ROOTINO)
 				continue;
-			if (sblock.fs_flags & FS_SUJ &&
-			    inumber == sblock.fs_sujournal)
-				continue;
 			idesc.id_number = inumber;
 			switch (inoinfo(inumber)->ino_state) {
 

@@ -111,6 +111,7 @@ int berase(struct uufsd *, ufs2_daddr_t, ufs2_daddr_t);
  * cgroup.c
  */
 ufs2_daddr_t cgballoc(struct uufsd *);
+int cgbfree(struct uufsd *, ufs2_daddr_t, long);
 ino_t cgialloc(struct uufsd *);
 int cgread(struct uufsd *);
 int cgread1(struct uufsd *, int);
