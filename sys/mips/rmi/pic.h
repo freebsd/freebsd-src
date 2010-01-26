@@ -29,6 +29,8 @@
  * RMI_BSD */
 #ifndef _RMI_PIC_H_
 #define _RMI_PIC_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 extern int rmi_spin_mutex_safe;
 
@@ -202,44 +204,44 @@ extern struct mtx xlr_pic_lock;
 
 
 static __inline__ __uint32_t 
-pic_read_control(void)
+pic_read_control(int haslock)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 	__uint32_t reg;
 
-	if (rmi_spin_mutex_safe)
+	if ((rmi_spin_mutex_safe) && (haslock == 0))
 	  mtx_lock_spin(&xlr_pic_lock);
 	xlr_read_reg(mmio, PIC_CTRL);
-	if (rmi_spin_mutex_safe)
+	if ((rmi_spin_mutex_safe) && (haslock == 0))
 	  mtx_unlock_spin(&xlr_pic_lock);
 	return reg;
 }
 
 static __inline__ void 
-pic_write_control(__uint32_t control)
+pic_write_control(__uint32_t control, int haslock)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
-	if (rmi_spin_mutex_safe)
+	if ((rmi_spin_mutex_safe) && (haslock == 0))
 	  mtx_lock_spin(&xlr_pic_lock);
 	xlr_write_reg(mmio, PIC_CTRL, control);
-	if (rmi_spin_mutex_safe)
+	if ((rmi_spin_mutex_safe) && (haslock == 0))
 	  mtx_unlock_spin(&xlr_pic_lock);
 }
 static __inline__ void 
-pic_update_control(__uint32_t control)
+pic_update_control(__uint32_t control, int haslock)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
-	if (rmi_spin_mutex_safe)
+	if ((rmi_spin_mutex_safe) && (haslock == 0))
 	  mtx_lock_spin(&xlr_pic_lock);
 	xlr_write_reg(mmio, PIC_CTRL, (control | xlr_read_reg(mmio, PIC_CTRL)));
-	if (rmi_spin_mutex_safe)
+	if ((rmi_spin_mutex_safe) && (haslock == 0))
 	  mtx_unlock_spin(&xlr_pic_lock);
 }
 
 static __inline__ void 
-pic_ack(int irq)
+pic_ack(int irq, int haslock)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
@@ -248,10 +250,10 @@ pic_ack(int irq)
 		return;
 
 	if (PIC_IRQ_IS_EDGE_TRIGGERED(irq)) {
-	  if (rmi_spin_mutex_safe)
+	  if ((rmi_spin_mutex_safe) && (haslock == 0))
 		mtx_lock_spin(&xlr_pic_lock);
 	  xlr_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE)));
-	  if (rmi_spin_mutex_safe)
+	  if ((rmi_spin_mutex_safe) && (haslock == 0))
 		mtx_unlock_spin(&xlr_pic_lock);
 		return;
 	}
@@ -259,7 +261,7 @@ pic_ack(int irq)
 }
 
 static inline void 
-pic_delayed_ack(int irq)
+pic_delayed_ack(int irq, int haslock)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
@@ -267,10 +269,10 @@ pic_delayed_ack(int irq)
 		return;
 
 	if (!PIC_IRQ_IS_EDGE_TRIGGERED(irq)) {
-	    if (rmi_spin_mutex_safe)
+		if ((rmi_spin_mutex_safe)&& (haslock == 0))
 		  mtx_lock_spin(&xlr_pic_lock);
 		xlr_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE)));
-		if (rmi_spin_mutex_safe)
+		if ((rmi_spin_mutex_safe) && (haslock == 0))
 		  mtx_unlock_spin(&xlr_pic_lock);
 		return;
 	}

@@ -147,17 +147,17 @@ cpu_intr(struct trapframe *tf)
 		if ((i == IPI_AST) || (i == IPI_RENDEZVOUS) || (i == IPI_STOP)
 		    || (i == IPI_SMP_CALL_FUNCTION)) {
 			write_c0_eirr64(1ULL << i);
-			pic_ack(i);
+			pic_ack(i,0);
 			smp_handle_ipi(tf, i);
-			pic_delayed_ack(i);
+			pic_delayed_ack(i,0);
 			continue;
 		}
 #ifdef XLR_PERFMON
 		if (i == IPI_PERFMON) {
 			write_c0_eirr64(1ULL << i);
-			pic_ack(i);
+			pic_ack(i,0);
 			xlr_perfmon_sampler(NULL);
-			pic_delayed_ack(i);
+			pic_delayed_ack(i,0);
 			continue;
 		}
 #endif
@@ -167,7 +167,7 @@ cpu_intr(struct trapframe *tf)
 		ie = mih->mih_event;
 
 		write_c0_eirr64(1ULL << i);
-		pic_ack(i);
+		pic_ack(i, 0);
 		if (!ie || TAILQ_EMPTY(&ie->ie_handlers)) {
 			printf("stray interrupt %d\n", i);
 			continue;
@@ -175,7 +175,7 @@ cpu_intr(struct trapframe *tf)
 		if (intr_event_handle(ie, tf) != 0) {
 			printf("stray interrupt %d\n", i);
 		}
-		pic_delayed_ack(i);
+		pic_delayed_ack(i, 0);
 	}
 	critical_exit();
 }
