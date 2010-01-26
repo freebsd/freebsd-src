@@ -1686,7 +1686,7 @@ mac_frin_replenish(void *args /* ignored */ )
 #endif
 }
 
-static volatile uint32_t g_tx_frm_tx_ok;
+static volatile uint32_t g_tx_frm_tx_ok=0;
 
 static void
 rge_tx_bkp_func(void *arg, int npending)
@@ -1835,6 +1835,8 @@ xlr_tx_q_wakeup(void *addr)
 			}
 		}
 	}
+	if (atomic_cmpset_int(&g_tx_frm_tx_ok, 0, 1))
+		rge_tx_bkp_func(NULL, 0);
 	callout_reset(&xlr_tx_stop_bkp, 5 * hz, xlr_tx_q_wakeup, NULL);
 }
 
