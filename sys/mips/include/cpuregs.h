@@ -106,7 +106,11 @@
 #elif defined(CPU_SB1)
 #define COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop
 #else
-#define	COP0_SYNC		/* nothing */
+/*
+ * Pick a reasonable default based on the "typical" spacing described in the
+ * "CP0 Hazards" chapter of MIPS Architecture Book Vol III.
+ */
+#define	COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop
 #endif
 #define	COP0_HAZARD_FPUENABLE	nop; nop; nop; nop;
 

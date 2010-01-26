@@ -171,13 +171,9 @@ LEAF(fork_trampoline)
 1:
 
 	mfc0	v0, COP_0_STATUS_REG	# set exeption level bit.
-	or	v0, SR_EXL
 	and     v0, ~(SR_INT_ENAB)
 	mtc0	v0, COP_0_STATUS_REG	# set exeption level bit.
-	nop
-	nop
-	nop
-	nop
+	COP0_SYNC
 	.set	noat
 	move	k1, a1	
 	RESTORE_U_PCB_REG(t0, MULLO, k1)
