@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -63,7 +63,6 @@ static s32  e1000_led_on_82543(struct e1000_hw *hw);
 static s32  e1000_led_off_82543(struct e1000_hw *hw);
 static void e1000_write_vfta_82543(struct e1000_hw *hw, u32 offset,
                                    u32 value);
-static void e1000_mta_set_82543(struct e1000_hw *hw, u32 hash_value);
 static void e1000_clear_hw_cntrs_82543(struct e1000_hw *hw);
 static s32  e1000_config_mac_to_phy_82543(struct e1000_hw *hw);
 static bool e1000_init_phy_disabled_82543(struct e1000_hw *hw);
@@ -246,8 +245,6 @@ static s32 e1000_init_mac_params_82543(struct e1000_hw *hw)
 	mac->ops.write_vfta = e1000_write_vfta_82543;
 	/* clearing VFTA */
 	mac->ops.clear_vfta = e1000_clear_vfta_generic;
-	/* setting MTA */
-	mac->ops.mta_set = e1000_mta_set_82543;
 	/* read mac address */
 	mac->ops.read_mac_addr = e1000_read_mac_addr_82543;
 	/* turn on/off LED */
@@ -1477,45 +1474,6 @@ static void e1000_write_vfta_82543(struct e1000_hw *hw, u32 offset, u32 value)
 		E1000_WRITE_FLUSH(hw);
 	} else {
 		e1000_write_vfta_generic(hw, offset, value);
-	}
-}
-
-/**
- *  e1000_mta_set_82543 - Set multicast filter table address
- *  @hw: pointer to the HW structure
- *  @hash_value: determines the MTA register and bit to set
- *
- *  The multicast table address is a register array of 32-bit registers.
- *  The hash_value is used to determine what register the bit is in, the
- *  current value is read, the new bit is OR'd in and the new value is
- *  written back into the register.
- **/
-static void e1000_mta_set_82543(struct e1000_hw *hw, u32 hash_value)
-{
-	u32 hash_bit, hash_reg, mta, temp;
-
-	DEBUGFUNC("e1000_mta_set_82543");
-
-	hash_reg = (hash_value >> 5);
-
-	/*
-	 * If we are on an 82544 and we are trying to write an odd offset
-	 * in the MTA, save off the previous entry before writing and
-	 * restore the old value after writing.
-	 */
-	if ((hw->mac.type == e1000_82544) && (hash_reg & 1)) {
-		hash_reg &= (hw->mac.mta_reg_count - 1);
-		hash_bit = hash_value & 0x1F;
-		mta = E1000_READ_REG_ARRAY(hw, E1000_MTA, hash_reg);
-		mta |= (1 << hash_bit);
-		temp = E1000_READ_REG_ARRAY(hw, E1000_MTA, hash_reg - 1);
-
-		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, hash_reg, mta);
-		E1000_WRITE_FLUSH(hw);
-		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, hash_reg - 1, temp);
-		E1000_WRITE_FLUSH(hw);
-	} else {
-		e1000_mta_set_generic(hw, hash_value);
 	}
 }
 

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -96,7 +96,6 @@ s32  e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data);
 s32  e1000_read_phy_reg_hv_locked(struct e1000_hw *hw, u32 offset, u16 *data);
 s32  e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data);
 s32  e1000_write_phy_reg_hv_locked(struct e1000_hw *hw, u32 offset, u16 data);
-s32  e1000_set_mdio_slow_mode_hv(struct e1000_hw *hw, bool slow);
 s32  e1000_link_stall_workaround_hv(struct e1000_hw *hw);
 s32  e1000_copper_link_setup_82577(struct e1000_hw *hw);
 s32  e1000_check_polarity_82577(struct e1000_hw *hw);

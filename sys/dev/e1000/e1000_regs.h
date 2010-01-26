@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -518,5 +518,4 @@
 
 /* PCIe Parity Status Register */
 #define E1000_PCIEERRSTS        0x05BA8
-#define E1000_ERFUSE            0x00000400
 #endif
