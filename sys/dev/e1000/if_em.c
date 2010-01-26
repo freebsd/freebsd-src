@@ -2224,6 +2224,7 @@ em_xmit(struct adapter *adapter, struct mbuf **m_headp)
 	 */
 	tx_buffer = &adapter->tx_buffer_area[first];
 	tx_buffer->next_eop = last;
+	adapter->watchdog_time = ticks;
 
 	/*
 	 * Advance the Transmit Descriptor Tail (TDT), this tells the E1000
