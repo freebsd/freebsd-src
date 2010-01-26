@@ -1645,6 +1645,7 @@ igb_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	 */
 	tx_buffer = &txr->tx_buffers[first];
 	tx_buffer->next_eop = last;
+	txr->watchdog_time = ticks;
 
 	/*
 	 * Advance the Transmit Descriptor Tail (TDT), this tells the E1000
