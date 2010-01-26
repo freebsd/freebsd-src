@@ -261,11 +261,6 @@ if [ -r "$HOME/.mergemasterrc" ]; then
   . "$HOME/.mergemasterrc"
 fi
 
-# Assign the location of the mtree database
-#
-MTREEDB=${MTREEDB:-${DESTDIR}/var/db}
-MTREEFILE="${MTREEDB}/mergemaster.mtree"
-
 # Check the command line options
 #
 while getopts ":ascrvhipCPm:t:du:w:D:A:FU" COMMAND_LINE_ARGUMENT ; do
@@ -341,6 +336,11 @@ while getopts ":ascrvhipCPm:t:du:w:D:A:FU" COMMAND_LINE_ARGUMENT ; do
     ;;
   esac
 done
+
+# Assign the location of the mtree database
+#
+MTREEDB=${MTREEDB:-${DESTDIR}/var/db}
+MTREEFILE="${MTREEDB}/mergemaster.mtree"
 
 # Don't force the user to set this in the mergemaster rc file
 if [ -n "${PRESERVE_FILES}" -a -z "${PRESERVE_FILES_DIR}" ]; then
