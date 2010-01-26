@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -2487,8 +2487,10 @@ em_local_timer(void *arg)
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
+#ifndef DEVICE_POLLING
 	taskqueue_enqueue(adapter->tq,
 	    &adapter->rxtx_task);
+#endif
 	em_update_link_status(adapter);
 	em_update_stats_counters(adapter);
 
@@ -3132,10 +3134,10 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 
-	/* Enable All WOL methods by default */
+	/* Limit WOL to MAGIC, not clear others are used */
 	if (adapter->wol) {
-		ifp->if_capabilities |= IFCAP_WOL;
-		ifp->if_capenable |= IFCAP_WOL;
+		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
+		ifp->if_capenable |= IFCAP_WOL_MAGIC;
 	}
 		
 	/*
@@ -4346,7 +4348,7 @@ em_free_receive_structures(struct adapter *adapter)
 static int
 em_rxeof(struct adapter *adapter, int count)
 {
-	struct ifnet	*ifp = adapter->ifp;
+	struct ifnet	*ifp = adapter->ifp;;
 	struct mbuf	*mp;
 	u8		status, accept_frame = 0, eop = 0;
 	u16 		len, desc_len, prev_len_adj;
