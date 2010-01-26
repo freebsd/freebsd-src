@@ -26,9 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * RMI_BSD */
+ * RMI_BSD 
+ */
 
 #include <sys/cdefs.h>		/* RCS ID & Copyright macro defns */
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -129,6 +131,8 @@ count_compare_clockhandler(struct trapframe *tf)
 	return (FILTER_HANDLED);
 }
 
+unsigned long clock_tick_foo=0;
+
 int
 pic_hardclockhandler(struct trapframe *tf)
 {
@@ -138,6 +142,12 @@ pic_hardclockhandler(struct trapframe *tf)
 
 	if (cpu == 0) {
 		scale_factor++;
+		clock_tick_foo++;
+/*
+		if ((clock_tick_foo % 10000) == 0) {
+			printf("Clock tick foo at %ld\n", clock_tick_foo);
+		}
+*/
 		hardclock(USERMODE(tf->sr), tf->pc);
 		if (scale_factor == STAT_PROF_CLOCK_SCALE_FACTOR) {
 			statclock(USERMODE(tf->sr));
@@ -179,7 +189,7 @@ rmi_early_counter_init()
 	xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_1, (0xffffffff & 0xffffffff));
 	xlr_write_reg(mmio, PIC_IRT_0_TIMER_6, (1 << cpu));
 	xlr_write_reg(mmio, PIC_IRT_1_TIMER_6, (1 << 31) | (0 << 30) | (1 << 6) | (PIC_TIMER_6_IRQ));
-	pic_update_control(1 << (8 + 6));
+	pic_update_control(1 << (8 + 6), 0);
 }
 
 void tick_init(void);
@@ -237,13 +247,13 @@ platform_initclocks(void)
 		/* Reg 80 is upper bits 63-32 and holds                              */
 		/* Valid   Edge    Local    IRQ */
 		xlr_write_reg(mmio, PIC_IRT_1_TIMER_7, (1 << 31) | (0 << 30) | (1 << 6) | (PIC_TIMER_7_IRQ));
-		pic_update_control(1 << (8 + 7));
 
+		pic_update_control(1 << (8 + 7), 1);
 		xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_0, (0xffffffff & 0xffffffff));
-		xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_1, (0x0 & 0xffffffff));
+		xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_1, (0xffffffff & 0xffffffff));
 		xlr_write_reg(mmio, PIC_IRT_0_TIMER_6, (1 << cpu));
 		xlr_write_reg(mmio, PIC_IRT_1_TIMER_6, (1 << 31) | (0 << 30) | (1 << 6) | (PIC_TIMER_6_IRQ));
-		pic_update_control(1 << (8 + 6));
+		pic_update_control(1 << (8 + 6), 1);
 		if (rmi_spin_mutex_safe)
 			mtx_unlock_spin(&xlr_pic_lock);
 	} else {
