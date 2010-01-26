@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2004, 2009 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@wiz.smi.sendmail.com on Fri May 2 20:38:59 PDT 2008
-##### in /extra/home/ca/sm-8.14.3/OpenSource/sendmail-8.14.3/cf/cf
+##### built by ca@wiz.smi.sendmail.com on Tue Dec 22 20:49:08 PST 2009
+##### in /extra/home/ca/sm-8.14.4/OpenSource/sendmail-8.14.4/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -27,7 +27,7 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: cfhead.m4,v 8.116 2004/01/28 22:02:22 ca Exp $  #####
+#####  $Id: cfhead.m4,v 8.120 2009/01/23 22:39:21 ca Exp $  #####
 #####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
 #####  $Id: generic-nextstep3.3.mc,v 8.10 1999/02/07 07:26:02 gshapiro Exp $  #####
 
@@ -41,7 +41,7 @@
 
 
 
-#####  $Id: proto.m4,v 8.734 2008/01/24 23:42:01 ca Exp $  #####
+#####  $Id: proto.m4,v 8.741 2009/12/11 00:04:53 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -122,7 +122,7 @@ DnMAILER-DAEMON
 CPREDIRECT
 
 # Configuration version number
-DZ8.14.3
+DZ8.14.4
 
 
 ###############
@@ -448,6 +448,7 @@ O OperatorChars=.:%@!^/[]+
 # once the threshold number of recipients have been rejected
 #O BadRcptThrottle=0
 
+
 # shall we get local names from our installed interfaces?
 #O DontProbeInterfaces=False
 
@@ -507,6 +508,7 @@ O MaxHeadersLength=32768
 
 # SMTP STARTTLS server options
 #O TLSSrvOptions
+
 
 # Input mail filters
 #O InputMailFilters
