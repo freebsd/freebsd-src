@@ -519,9 +519,6 @@ NNON_LEAF(MipsUserGenException, STAND_FRAME_SIZE, ra)
 	and	t0, t0, ~(MIPS_SR_INT_IE)
 	mtc0	t0, COP_0_STATUS_REG
 	ITLBNOPFIX
-	or	t0, t0, SR_EXL
-	mtc0	t0, COP_0_STATUS_REG	# set exeption level
-	ITLBNOPFIX
 
 /*
  * The use of k1 for storing the PCB pointer must be done only
@@ -750,9 +747,6 @@ NNON_LEAF(MipsUserIntr, STAND_FRAME_SIZE, ra)
 	mfc0	t0, COP_0_STATUS_REG	# disable int
 	and	t0, t0, ~(MIPS_SR_INT_IE)
 	mtc0	t0, COP_0_STATUS_REG
-	ITLBNOPFIX
-	or	t0, t0, SR_EXL
-	mtc0	t0, COP_0_STATUS_REG	# set exeption level
 	ITLBNOPFIX
 
 	GET_CPU_PCPU(k1)
