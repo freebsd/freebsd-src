@@ -352,14 +352,6 @@ mips_init(void)
 
 	mips_cpu_init();
 	pmap_bootstrap();
-
-	mips_proc0_init();
-	write_c0_register32(MIPS_COP_0_OSSCRATCH, 7, pcpup->pc_curthread);
-
-	mutex_init();
-
-	PMAP_LOCK_INIT(kernel_pmap);
-
 #ifdef DDB
 #ifdef SMP
 	setup_nmi();
@@ -369,6 +361,9 @@ mips_init(void)
 		kdb_enter("Boot flags requested debugger", NULL);
 	}
 #endif
+	mips_proc0_init();
+	write_c0_register32(MIPS_COP_0_OSSCRATCH, 7, pcpup->pc_curthread);
+	mutex_init();
 }
 
 void
@@ -604,31 +599,26 @@ msgring_process_fast_intr(void *arg)
 {
 	int cpu = PCPU_GET(cpuid);
 	volatile struct msgring_ithread *it;
-	struct proc *p;
 	struct thread *td;
 
 	/* wakeup an appropriate intr_thread for processing this interrupt */
 	it = (volatile struct msgring_ithread *)&msgring_ithreads[cpu];
 	td = it->i_thread;
-	p = td->td_proc;
 
 	/*
 	 * Interrupt thread will enable the interrupts after processing all
 	 * messages
 	 */
 	disable_msgring_int(NULL);
+	atomic_store_rel_int(&it->i_pending, 1);
 	thread_lock(td);
-	it->i_pending = 1;
 	if (TD_AWAITING_INTR(td)) {
-		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
-		    p->p_comm);
 		TD_CLR_IWAIT(td);
 		sched_add(td, SRQ_INTR);
 	}
 	thread_unlock(td);
 }
 
-#define MIT_DEAD 4
 static void
 msgring_process(void *arg)
 {
@@ -650,22 +640,17 @@ msgring_process(void *arg)
 	//printf("Started %s on CPU %d\n", __FUNCTION__, ithd->i_cpu);
 
 	while (1) {
-		if (ithd->i_flags & MIT_DEAD) {
-			CTR3(KTR_INTR, "%s: pid %d (%s) exiting", __func__,
-			    p->p_pid, p->p_comm);
-			kthread_exit();
-		}
 		while (ithd->i_pending) {
 			/*
 			 * This might need a full read and write barrier to
 			 * make sure that this write posts before any of the
 			 * memory or device accesses in the handlers.
 			 */
-			atomic_store_rel_int(&ithd->i_pending, 0);
 			xlr_msgring_handler(NULL);
+			atomic_store_rel_int(&ithd->i_pending, 0);
+			enable_msgring_int(NULL);
 		}
-		enable_msgring_int(NULL);
-		if (!ithd->i_pending && !(ithd->i_flags & MIT_DEAD)) {
+		if (!ithd->i_pending) {
 			thread_lock(td);
 			if (ithd->i_pending) {
 			  thread_unlock(td);
