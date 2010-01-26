@@ -86,7 +86,7 @@ confBUILDBIN	    ../../devtools/bin	The location of the build support
 					directory.
 confCC		    cc			The C compiler to use.
 confCCOPTS	    [empty]		Additional options to pass to confCC.
-*confCCOPTS_SO	    -fPIC		Additional options for compiling
+*confCCOPTS_SO	    [empty]		Additional options for compiling
 					shared object libraries.
 confCCLINK	    confCC		Linker to use (for executables).
 confCOPY	    cp			A program that copies files.
@@ -129,7 +129,7 @@ confINSTALL	    install		The BSD-compatible install program.
 confINSTALL_RAWMAN  [undefined]		Install the unformatted manual pages.
 *confLD		    confCC		Linker to use (for libraries).
 confLDOPTS	    [empty]		Linker options.
-*confLDOPTS_SO	    -shared -Wl		Additional linker options for
+*confLDOPTS_SO	    [empty]		Additional linker options for
 					linking shared object libraries.
 confLIBDIR	    /usr/lib		Where to install library files.
 confLIBDIRS	    [empty]		-L flags passed to ld.
@@ -395,4 +395,4 @@ files that make up the library.
 bldINSTALLABLE - This should be set if the library should be installed in
 confLIBDIR.
 
-$Revision: 8.102 $, Last updated $Date: 2008/02/12 16:40:05 $
+$Revision: 8.103 $, Last updated $Date: 2009/01/22 02:15:07 $

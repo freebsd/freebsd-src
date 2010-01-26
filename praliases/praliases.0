@@ -15,10 +15,12 @@ DDEESSCCRRIIPPTTIIOONN
 
        The options are as follows:
 
-       --CC     Read  the  specified  sendmail configuration file instead of the
+       --CC _f_i_l_e
+              Read  the  specified  sendmail configuration file instead of the
               default sseennddmmaaiill configuration file.
 
-       --ff     Read the specified file instead of the configured sseennddmmaaiill  sys-
+       --ff _f_i_l_e
+              Read the specified file instead of the configured sseennddmmaaiill  sys-
               tem aliases file(s).
 
        If  one  or  more  keys are specified on the command line, only entries
@@ -34,4 +36,4 @@ SSEEEE AALLSSOO
 
 
 
-                         $Date: 2000/12/15 19:53:45 $             PRALIASES(8)
+                         $Date: 2008/07/10 20:13:10 $             PRALIASES(8)
