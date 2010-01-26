@@ -775,6 +775,10 @@ distSetDoc(dialogMenuItem *self)
 {
     int i;
 
+    /* Assume no docs for non-interactive installs. */
+    if (variable_get(VAR_NONINTERACTIVE))
+	return DITEM_SUCCESS | DITEM_RESTORE;
+
     dialog_clear_norefresh();
     if (!dmenuOpenSimple(&MenuDocInstall, FALSE))
 	i = DITEM_FAILURE;
