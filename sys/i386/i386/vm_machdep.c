@@ -710,6 +710,39 @@ sf_buf_init(void *arg)
 }
 
 /*
+ * Invalidate the cache lines that may belong to the page, if
+ * (possibly old) mapping of the page by sf buffer exists.  Returns
+ * TRUE when mapping was found and cache invalidated.
+ */
+boolean_t
+sf_buf_invalidate_cache(vm_page_t m)
+{
+	struct sf_head *hash_list;
+	struct sf_buf *sf;
+	boolean_t ret;
+
+	hash_list = &sf_buf_active[SF_BUF_HASH(m)];
+	ret = FALSE;
+	mtx_lock(&sf_buf_lock);
+	LIST_FOREACH(sf, hash_list, list_entry) {
+		if (sf->m == m) {
+			/*
+			 * Use pmap_qenter to update the pte for
+			 * existing mapping, in particular, the PAT
+			 * settings are recalculated.
+			 */
+			pmap_qenter(sf->kva, &m, 1);
+			pmap_invalidate_cache_range(sf->kva, sf->kva +
+			    PAGE_SIZE);
+			ret = TRUE;
+			break;
+		}
+	}
+	mtx_unlock(&sf_buf_lock);
+	return (ret);
+}
+
+/*
  * Get an sf_buf from the freelist.  May block if none are available.
  */
 struct sf_buf *
@@ -775,7 +808,8 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	 */
 	ptep = vtopte(sf->kva);
 	opte = *ptep;
-	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V;
+	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V |
+	    pmap_cache_bits(m->md.pat_mode, 0);
 
 	/*
 	 * Avoid unnecessary TLB invalidations: If the sf_buf's old
