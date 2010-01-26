@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -281,10 +281,6 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
 	case E1000_DEV_ID_82580_COPPER_DUAL:
 		mac->type = e1000_82580;
 		break;
-	case E1000_DEV_ID_82580_ER:
-	case E1000_DEV_ID_82580_ER_DUAL:
-		mac->type = e1000_82580er;
-		break;
 	default:
 		/* Should never have loaded on this device */
 		ret_val = -E1000_ERR_MAC_INIT;
@@ -376,7 +372,6 @@ s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 	case e1000_82575:
 	case e1000_82576:
 	case e1000_82580:
-	case e1000_82580er:
 		e1000_init_function_pointers_82575(hw);
 		break;
 	default:
@@ -757,20 +752,6 @@ s32 e1000_validate_mdi_setting(struct e1000_hw *hw)
 		return hw->mac.ops.validate_mdi_setting(hw);
 
 	return E1000_SUCCESS;
-}
-
-/**
- *  e1000_mta_set - Sets multicast table bit
- *  @hw: pointer to the HW structure
- *  @hash_value: Multicast hash value.
- *
- *  This sets the bit in the multicast table corresponding to the
- *  hash value.  This is a function pointer entry point called by drivers.
- **/
-void e1000_mta_set(struct e1000_hw *hw, u32 hash_value)
-{
-	if (hw->mac.ops.mta_set)
-		hw->mac.ops.mta_set(hw, hash_value);
 }
 
 /**
@@ -1249,6 +1230,18 @@ void e1000_power_down_phy(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.power_down)
 		hw->phy.ops.power_down(hw);
+}
+
+/**
+ *  e1000_power_up_fiber_serdes_link - Power up serdes link
+ *  @hw: pointer to the HW structure
+ *
+ *  Power on the optics and PCS.
+ **/
+void e1000_power_up_fiber_serdes_link(struct e1000_hw *hw)
+{
+	if (hw->mac.ops.power_up_serdes)
+		hw->mac.ops.power_up_serdes(hw);
 }
 
 /**

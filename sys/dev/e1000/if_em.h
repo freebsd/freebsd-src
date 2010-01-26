@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -54,7 +54,7 @@
 #define EM_MIN_TXD		80
 #define EM_MAX_TXD_82543	256
 #define EM_MAX_TXD		4096
-#define EM_DEFAULT_TXD		EM_MAX_TXD_82543
+#define EM_DEFAULT_TXD		1024
 
 /*
  * EM_RXD - Maximum number of receive Descriptors
@@ -72,7 +72,7 @@
 #define EM_MIN_RXD		80
 #define EM_MAX_RXD_82543	256
 #define EM_MAX_RXD		4096
-#define EM_DEFAULT_RXD	EM_MAX_RXD_82543
+#define EM_DEFAULT_RXD		1024
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value
@@ -135,9 +135,9 @@
 #define EM_RADV                         64
 
 /*
- * This parameter controls the max duration of transmit watchdog.
+ * This parameter controls the duration of transmit watchdog.
  */
-#define EM_WATCHDOG                   (5 * hz)
+#define EM_WATCHDOG                   (10 * hz)
 
 /*
  * This parameter controls when the driver calls the routine to reclaim
@@ -240,6 +240,7 @@
 #define ETH_ZLEN		60
 #define ETH_ADDR_LEN		6
 #define CSUM_OFFLOAD		7	/* Offload bits in mbuf flag */
+#define M_TSO_LEN		66
 
 /*
  * 82574 has a nonstandard address for EIAC
@@ -282,111 +283,73 @@ struct em_int_delay_info {
 	int value;			/* Current value in usecs */
 };
 
-/* Our adapter structure */
-struct adapter {
-	struct ifnet	*ifp;
+/*
+** Driver queue struct: this is the interrupt container
+**  for the associated tx and rx ring.
+*/
+struct em_queue {
+	struct adapter		*adapter;
+	u32			msix;		/* This queue's MSIX vector */
+	u32			eims;		/* This queue's EIMS bit */
+	u32			eitr_setting;
+	struct resource		*res;
+	void			*tag;
+	struct tx_ring		*txr;
+	struct rx_ring		*rxr;
+	struct task		que_task;
+	struct taskqueue	*tq;
+	u64			irqs;
+};
+
+/*
+ * Transmit ring: one per queue
+ */
+struct tx_ring {
+	struct adapter		*adapter;
+	u32			me;
+	struct mtx		tx_mtx;
+	char			mtx_name[16];
+	struct em_dma_alloc	txdma;
+	struct e1000_tx_desc	*tx_base;
+	u32			next_avail_desc;
+	u32			next_to_clean;
+	volatile u16		tx_avail;
+	struct em_tx_buffer	*tx_buffers;
 #if __FreeBSD_version >= 800000
-	struct buf_ring	*br;
+	struct buf_ring		*br;
 #endif
-	struct e1000_hw	hw;
+	bus_dma_tag_t		txtag;
 
-	/* FreeBSD operating-system-specific structures. */
-	struct e1000_osdep osdep;
-	struct device	*dev;
+	u32			bytes;
+	u32			packets;
 
-	struct resource *memory;
-	struct resource *flash;
-	struct resource *msix;
+	bool			watchdog_check;
+	int			watchdog_time;
+	u64			no_desc_avail;
+	u64			tx_packets;
+};
 
-	struct resource	*ioport;
-	int		io_rid;
-
-	/* 82574 may use 3 int vectors */
-	struct resource	*res[3];
-	void		*tag[3];
-	int		rid[3];
-
-	struct ifmedia	media;
-	struct callout	timer;
-	struct callout	tx_fifo_timer;
-	bool		watchdog_check;
-	int		watchdog_time;
-	int		msi;
-	int		if_flags;
-	int		max_frame_size;
-	int		min_frame_size;
-	struct mtx	core_mtx;
-	struct mtx	tx_mtx;
-	struct mtx	rx_mtx;
-	int		em_insert_vlan_header;
-
-	/* Task for FAST handling */
-	struct task     link_task;
-	struct task     rxtx_task;
-	struct task     rx_task;
-	struct task     tx_task;
-	struct taskqueue *tq;           /* private task queue */
-
-#if __FreeBSD_version >= 700029
-	eventhandler_tag vlan_attach;
-	eventhandler_tag vlan_detach;
-	u32	num_vlans;
-#endif
-
-	/* Management and WOL features */
-	u32		wol;
-	bool		has_manage;
-	bool		has_amt;
-
-	/* Info about the board itself */
-	uint8_t		link_active;
-	uint16_t	link_speed;
-	uint16_t	link_duplex;
-	uint32_t	smartspeed;
-	struct em_int_delay_info tx_int_delay;
-	struct em_int_delay_info tx_abs_int_delay;
-	struct em_int_delay_info rx_int_delay;
-	struct em_int_delay_info rx_abs_int_delay;
-
-	/*
-	 * Transmit definitions
-	 *
-	 * We have an array of num_tx_desc descriptors (handled
-	 * by the controller) paired with an array of tx_buffers
-	 * (at tx_buffer_area).
-	 * The index of the next available descriptor is next_avail_tx_desc.
-	 * The number of remaining tx_desc is num_tx_desc_avail.
-	 */
-	struct em_dma_alloc	txdma;		/* bus_dma glue for tx desc */
-	struct e1000_tx_desc	*tx_desc_base;
-	uint32_t		next_avail_tx_desc;
-	uint32_t		next_tx_to_clean;
-	volatile uint16_t	num_tx_desc_avail;
-        uint16_t		num_tx_desc;
-        uint16_t		last_hw_offload;
-        uint32_t		txd_cmd;
-	struct em_buffer	*tx_buffer_area;
-	bus_dma_tag_t		txtag;		/* dma tag for tx */
-	uint32_t	   	tx_tso;		/* last tx was tso */
-
-	/* 
-	 * Receive definitions
-	 *
-	 * we have an array of num_rx_desc rx_desc (handled by the
-	 * controller), and paired with an array of rx_buffers
-	 * (at rx_buffer_area).
-	 * The next pair to check on receive is at offset next_rx_desc_to_check
-	 */
-	struct em_dma_alloc	rxdma;		/* bus_dma glue for rx desc */
-	struct e1000_rx_desc	*rx_desc_base;
-	uint32_t		next_rx_desc_to_check;
-	uint32_t		rx_buffer_len;
-	uint16_t		num_rx_desc;
-	int			rx_process_limit;
-	struct em_buffer	*rx_buffer_area;
-	bus_dma_tag_t		rxtag;
-	bus_dmamap_t		rx_sparemap;
-
+/*
+ * Receive ring: one per queue
+ */
+struct rx_ring {
+	struct adapter		*adapter;
+	u32			me;
+	struct em_dma_alloc	rxdma;
+	union e1000_adv_rx_desc	*rx_base;
+	struct lro_ctrl		lro;
+	bool			lro_enabled;
+	bool			hdr_split;
+	bool			discard;
+	struct mtx		rx_mtx;
+	char			mtx_name[16];
+	u32			last_cleaned;
+	u32			next_to_check;
+	struct em_rx_buf	*rx_buffers;
+	bus_dma_tag_t		rx_htag;	/* dma tag for rx head */
+	bus_dmamap_t		rx_hspare_map;
+	bus_dma_tag_t		rx_ptag;	/* dma tag for rx packet */
+	bus_dmamap_t		rx_pspare_map;
 	/*
 	 * First/last mbuf pointers, for
 	 * collecting multisegment RX packets.
@@ -394,19 +357,88 @@ struct adapter {
 	struct mbuf	       *fmp;
 	struct mbuf	       *lmp;
 
+	/* Temporary stats used by AIM */
+	u32			bytes;
+	u32			packets;
+
+	/* Soft stats */
+	u64			rx_split_packets;
+	u64			rx_discarded;
+	u64			rx_packets;
+	u64			rx_bytes;
+};
+
+struct adapter {
+	struct ifnet	*ifp;
+	struct e1000_hw	hw;
+
+	struct e1000_osdep osdep;
+	struct device	*dev;
+
+	struct resource *pci_mem;
+	struct resource *msix_mem;
+	struct resource	*res;
+	void		*tag;
+	u32		eims_mask;
+
+	int		linkvec;
+	int		link_mask;
+	int		link_irq;
+
+	struct ifmedia	media;
+	struct callout	timer;
+	int		msix;	/* total vectors allocated */
+	int		if_flags;
+	int		max_frame_size;
+	int		min_frame_size;
+	struct mtx	core_mtx;
+	int		em_insert_vlan_header;
+	struct task     rxtx_task;
+	struct taskqueue *tq;           /* private task queue */
+        u16		num_queues;
+
+	eventhandler_tag vlan_attach;
+	eventhandler_tag vlan_detach;
+	u32		num_vlans;
+
+	/* Management and WOL features */
+	int		wol;
+	int		has_manage;
+
+	/* Info about the board itself */
+	u8		link_active;
+	u16		link_speed;
+	u16		link_duplex;
+	u32		smartspeed;
+
+	/* Interface queues */
+	struct em_queue	*queues;
+
+	/*
+	 * Transmit rings
+	 */
+	struct tx_ring		*tx_rings;
+        u16			num_tx_desc;
+
+	/* 
+	 * Receive rings
+	 */
+	struct rx_ring		*rx_rings;
+	bool			rx_hdr_split;
+        u16			num_rx_desc;
+	int			rx_process_limit;
+	u32			rx_mbuf_sz;
+	u32			rx_mask;
+
 	/* Misc stats maintained by the driver */
 	unsigned long	dropped_pkts;
-	unsigned long	mbuf_alloc_failed;
-	unsigned long	mbuf_cluster_failed;
-	unsigned long	no_tx_desc_avail1;
-	unsigned long	no_tx_desc_avail2;
+	unsigned long	mbuf_defrag_failed;
+	unsigned long	mbuf_header_failed;
+	unsigned long	mbuf_packet_failed;
 	unsigned long	no_tx_map_avail;
         unsigned long	no_tx_dma_setup;
 	unsigned long	watchdog_events;
 	unsigned long	rx_overruns;
-	unsigned long	rx_irq;
-	unsigned long	tx_irq;
-	unsigned long	link_irq;
 
 	/* 82547 workaround */
 	uint32_t	tx_fifo_size;
@@ -416,10 +448,9 @@ struct adapter {
 	uint64_t	tx_fifo_wrk_cnt;
 	uint32_t	tx_head_addr;
 
-        /* For 82544 PCIX Workaround */
-	boolean_t       pcix_82544;
-	boolean_t       in_detach;
-
+	/* For 82544 PCIX Workaround */
+	boolean_t	pcix_82544;
+	boolean_t	in_detach;
 
 	struct e1000_hw_stats stats;
 };
