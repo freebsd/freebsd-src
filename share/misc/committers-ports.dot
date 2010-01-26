@@ -51,6 +51,7 @@ amdmi3 [label="Dmitry Marakasov\namdmi3@FreeBSD.org\n2008/06/19"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11"]
 araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2007/04/26"]
 arved [label="Tilman Linneweh\narved@FreeBSD.org\n2002/10/15"]
+avilla [label="Alberto Villa\navilla@FreeBSD.org\n2010/01/24"]
 avl [label="Alexander Logvinov\navl@FreeBSD.org\n2009/05/27"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03"]
 beat [label="Beat Gaetzi\nbeat@FreeBSD.org\n2009/01/28"]
@@ -278,6 +279,7 @@ mat -> thierry
 mezz -> tmclaugh
 
 miwi -> amdmi3
+miwi -> avilla
 miwi -> beat
 miwi -> farrokhi
 miwi -> gahr
@@ -331,6 +333,7 @@ stas -> araujo
 
 steve -> netchild
 
+tabthorpe -> avilla
 tabthorpe -> avl
 tabthorpe -> jadawin
 tabthorpe -> pgj
