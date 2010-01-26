@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2008 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1992, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1992, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: map.c,v 8.699 2007/10/10 00:06:45 ca Exp $")
+SM_RCSID("@(#)$Id: map.c,v 8.705 2009/08/11 22:22:40 ca Exp $")
 
 #if LDAPMAP
 # include <sm/ldap.h>
@@ -730,7 +730,7 @@ getcanonname(host, hbsize, trymx, pttl)
 	int mapno;
 	bool found = false;
 	bool got_tempfail = false;
-	auto int status;
+	auto int status = EX_UNAVAILABLE;
 	char *maptype[MAXMAPSTACK];
 	short mapreturn[MAXMAPACTIONS];
 #if defined(SUN_EXTENSIONS) && defined(SUN_INIT_DOMAIN)
@@ -1710,7 +1710,7 @@ lockdbm:
 		{
 			map->map_mflags |= MF_OPEN;
 			map->map_pid = CurrentPid;
-			if ((omode && O_ACCMODE) == O_RDWR)
+			if ((omode & O_ACCMODE) == O_RDWR)
 				map->map_mflags |= MF_WRITABLE;
 			goto lockdbm;
 		}
@@ -2359,7 +2359,7 @@ db_map_lookup(map, name, av, statp)
 		{
 			map->map_mflags |= MF_OPEN;
 			map->map_pid = CurrentPid;
-			if ((omode && O_ACCMODE) == O_RDWR)
+			if ((omode & O_ACCMODE) == O_RDWR)
 				map->map_mflags |= MF_WRITABLE;
 			db = (DB *) map->map_db2;
 			goto lockdb;
@@ -3415,6 +3415,18 @@ ldapmap_open(map, mode)
 	else
 		id = "localhost";
 
+	if (tTd(74, 104))
+	{
+		extern MAPCLASS NullMapClass;
+
+		/* debug mode: don't actually open an LDAP connection */
+		map->map_orgclass = map->map_class;
+		map->map_class = &NullMapClass;
+		map->map_mflags |= MF_OPEN;
+		map->map_pid = CurrentPid;
+		return true;
+	}
+
 	/* No connection yet, connect */
 	if (!sm_ldap_start(map->map_mname, lmap))
 	{
@@ -3514,12 +3526,12 @@ sunet_id_hash(str)
 	p_last = p;
 	while (*p != '\0')
 	{
-		if (islower(*p) || isdigit(*p))
+		if (isascii(*p) && (islower(*p) || isdigit(*p)))
 		{
 			*p_last = *p;
 			p_last++;
 		}
-		else if (isupper(*p))
+		else if (isascii(*p) && isupper(*p))
 		{
 			*p_last = tolower(*p);
 			p_last++;
@@ -3967,6 +3979,10 @@ ldapmap_parseargs(map, args)
 		map->map_coldelim = ' ';
 	}
 
+# if _FFR_LDAP_NETWORK_TIMEOUT
+	lmap->ldap_networktmo = 120;
+# endif /* _FFR_LDAP_NETWORK_TIMEOUT */
+
 	for (;;)
 	{
 		while (isascii(*p) && isspace(*p))
@@ -4066,7 +4082,7 @@ ldapmap_parseargs(map, args)
 		  case 'c':		/* network (connect) timeout */
 			while (isascii(*++p) && isspace(*p))
 				continue;
-			lmap->ldap_networktmo.tv_sec = atoi(p);
+			lmap->ldap_networktmo = atoi(p);
 			break;
 # endif /* _FFR_LDAP_NETWORK_TIMEOUT */
 
@@ -6687,6 +6703,13 @@ null_map_store(map, key, val)
 	return;
 }
 
+MAPCLASS	NullMapClass =
+{
+	"null-map",		NULL,			0,
+	NULL,			null_map_lookup,	null_map_store,
+	null_map_open,		null_map_close,
+};
+
 /*
 **  BOGUS stubs
 */
@@ -7325,7 +7348,8 @@ arith_map_lookup(map, name, av, statp)
 			if (LogLevel > 10)
 				sm_syslog(LOG_WARNING, NOQID,
 					  "arith_map: unknown operator %c",
-					  isprint(*name) ? *name : '?');
+					  (isascii(*name) && isprint(*name)) ?
+					  *name : '?');
 			return NULL;
 		}
 		if (boolres)
