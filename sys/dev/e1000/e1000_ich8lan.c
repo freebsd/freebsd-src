@@ -478,7 +478,6 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 		mac->ops.led_on = e1000_led_on_ich8lan;
 		mac->ops.led_off = e1000_led_off_ich8lan;
 		break;
-#if defined(NAHUM4) || defined(NAHUM5)
 	case e1000_pchlan:
 		/* save PCH revision_id */
 		e1000_read_pci_cfg(hw, 0x2, &pci_cfg);
@@ -493,7 +492,6 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 		mac->ops.led_on = e1000_led_on_pchlan;
 		mac->ops.led_off = e1000_led_off_pchlan;
 		break;
-#endif /* defined(NAHUM4) || defined(NAHUM5) */
 	default:
 		break;
 	}
@@ -612,11 +610,9 @@ void e1000_init_function_pointers_ich8lan(struct e1000_hw *hw)
 	case e1000_ich10lan:
 		hw->phy.ops.init_params = e1000_init_phy_params_ich8lan;
 		break;
-#if defined(NAHUM4) || defined(NAHUM5)
 	case e1000_pchlan:
 		hw->phy.ops.init_params = e1000_init_phy_params_pchlan;
 		break;
-#endif /* defined(NAHUM4) || defined(NAHUM5) */
 	default:
 		break;
 	}
@@ -834,7 +830,6 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 	cnf_base_addr = data & E1000_EXTCNF_CTRL_EXT_CNF_POINTER_MASK;
 	cnf_base_addr >>= E1000_EXTCNF_CTRL_EXT_CNF_POINTER_SHIFT;
 
-#if defined(NAHUM4) || defined(NAHUM5)
 	if (!(data & E1000_EXTCNF_CTRL_OEM_WRITE_ENABLE) &&
 	    (hw->mac.type == e1000_pchlan)) {
 		/*
@@ -859,7 +854,6 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 			goto out;
 	}
 
-#endif /* defined(NAHUM4) || defined(NAHUM5) */
 	/* Configure LCD from extended configuration region. */
 
 	/* cnf_base_addr is in DWORD */
@@ -2690,16 +2684,9 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 			DEBUGOUT("Auto Read Done did not complete\n");
 		}
 	}
-#if defined(NAHUM4) || defined(NAHUM5)
-	/* Dummy read to clear the phy wakeup bit after lcd reset */
-#if defined(NAHUM4) && defined(NAHUM5)
-	if ((hw->mac.type == e1000_pchlan) || (hw->mac.type == e1000_pch2lan))
-#else
 	if (hw->mac.type == e1000_pchlan)
-#endif
 		hw->phy.ops.read_reg(hw, BM_WUC, &reg);
 
-#endif /* defined(NAHUM4) || defined(NAHUM5) */
 	ret_val = e1000_sw_lcd_config_ich8lan(hw);
 	if (ret_val)
 		goto out;
