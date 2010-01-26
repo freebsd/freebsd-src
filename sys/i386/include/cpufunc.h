@@ -79,6 +79,13 @@ bsrl(u_int mask)
 }
 
 static __inline void
+clflush(u_long addr)
+{
+
+	__asm __volatile("clflush %0" : : "m" (*(char *)addr));
+}
+
+static __inline void
 disable_intr(void)
 {
 	__asm __volatile("cli" : : : "memory");
@@ -104,6 +111,13 @@ static __inline void
 enable_intr(void)
 {
 	__asm __volatile("sti");
+}
+
+static __inline void
+mfence(void)
+{
+
+	__asm __volatile("mfence" : : : "memory");
 }
 
 #ifdef _KERNEL

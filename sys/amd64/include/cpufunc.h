@@ -100,6 +100,13 @@ bsrq(u_long mask)
 }
 
 static __inline void
+clflush(u_long addr)
+{
+
+	__asm __volatile("clflush %0" : : "m" (*(char *)addr));
+}
+
+static __inline void
 disable_intr(void)
 {
 	__asm __volatile("cli" : : : "memory");
@@ -335,6 +342,13 @@ static __inline void
 outw(u_int port, u_short data)
 {
 	__asm __volatile("outw %0,%%dx" : : "a" (data), "d" (port));
+}
+
+static __inline void
+mfence(void)
+{
+
+	__asm__ __volatile("mfence" : : : "memory");
 }
 
 static __inline void
