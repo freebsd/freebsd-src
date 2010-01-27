@@ -106,6 +106,18 @@ SYSCTL_INT(_net_link, OID_AUTO, log_link_state_change, CTLFLAG_RW,
 	&log_link_state_change, 0,
 	"log interface link state change events");
 
+/* Interface description */
+static unsigned int ifdescr_maxlen = 1024;
+SYSCTL_UINT(_net, OID_AUTO, ifdescr_maxlen, CTLFLAG_RW,
+	&ifdescr_maxlen, 0,
+	"administrative maximum length for interface description");
+
+MALLOC_DEFINE(M_IFDESCR, "ifdescr", "ifnet descriptions");
+
+/* global sx for non-critical path ifdescr */
+static struct sx ifdescr_sx;
+SX_SYSINIT(ifdescr_sx, &ifdescr_sx, "ifnet descr");
+
 void	(*bstp_linkstate_p)(struct ifnet *ifp, int state);
 void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
 void	(*lagg_linkstate_p)(struct ifnet *ifp, int state);
@@ -442,6 +454,8 @@ if_free_internal(struct ifnet *ifp)
 #ifdef MAC
 	mac_ifnet_destroy(ifp);
 #endif /* MAC */
+	if (ifp->if_description != NULL)
+		free(ifp->if_description, M_IFDESCR);
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
 	ifq_delete(&ifp->if_snd);
@@ -1979,6 +1993,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	int error = 0;
 	int new_flags, temp_flags;
 	size_t namelen, onamelen;
+	size_t descrlen;
+	char *descrbuf, *odescrbuf;
 	char new_name[IFNAMSIZ];
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
@@ -2016,6 +2032,60 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 	case SIOCGIFPHYS:
 		ifr->ifr_phys = ifp->if_physical;
+		break;
+
+	case SIOCGIFDESCR:
+		error = 0;
+		sx_slock(&ifdescr_sx);
+		if (ifp->if_description == NULL) {
+			ifr->ifr_buffer.length = 0;
+			error = ENOMSG;
+		} else {
+			/* space for terminating nul */
+			descrlen = strlen(ifp->if_description) + 1;
+			if (ifr->ifr_buffer.length < descrlen)
+				error = ENAMETOOLONG;
+			else
+				error = copyout(ifp->if_description,
+				    ifr->ifr_buffer.buffer, descrlen);
+			ifr->ifr_buffer.length = descrlen;
+		}
+		sx_sunlock(&ifdescr_sx);
+		break;
+
+	case SIOCSIFDESCR:
+		error = priv_check(td, PRIV_NET_SETIFDESCR);
+		if (error)
+			return (error);
+
+		/*
+		 * Copy only (length-1) bytes to make sure that
+		 * if_description is always nul terminated.  The
+		 * length parameter is supposed to count the
+		 * terminating nul in.
+		 */
+		if (ifr->ifr_buffer.length > ifdescr_maxlen)
+			return (ENAMETOOLONG);
+		else if (ifr->ifr_buffer.length == 0)
+			descrbuf = NULL;
+		else {
+			descrbuf = malloc(ifr->ifr_buffer.length, M_IFDESCR,
+			    M_WAITOK | M_ZERO);
+			error = copyin(ifr->ifr_buffer.buffer, descrbuf,
+			    ifr->ifr_buffer.length - 1);
+			if (error) {
+				free(descrbuf, M_IFDESCR);
+				break;
+			}
+		}
+
+		sx_xlock(&ifdescr_sx);
+		odescrbuf = ifp->if_description;
+		ifp->if_description = descrbuf;
+		sx_xunlock(&ifdescr_sx);
+
+		getmicrotime(&ifp->if_lastchange);
+		free(odescrbuf, M_IFDESCR);
 		break;
 
 	case SIOCSIFFLAGS:
