@@ -244,6 +244,7 @@ static void	igb_add_rx_process_limit(struct adapter *, const char *,
 		    const char *, int *, int);
 static void	igb_handle_rxtx(void *context, int pending);
 static void	igb_handle_que(void *context, int pending);
+static void	igb_handle_link(void *context, int pending);
 
 /* These are MSIX only irq handlers */
 static void	igb_msix_que(void *);
@@ -1203,6 +1204,15 @@ igb_handle_que(void *context, int pending)
 	E1000_WRITE_REG(&adapter->hw, E1000_EIMS, que->eims);
 }
 
+/* Deal with link in a sleepable context */
+static void
+igb_handle_link(void *context, int pending)
+{
+	struct adapter *adapter = context;
+
+	adapter->hw.mac.get_link_status = 1;
+	igb_update_link_status(adapter);
+}
 
 /*********************************************************************
  *
@@ -1239,10 +1249,8 @@ igb_irq_fast(void *arg)
 	taskqueue_enqueue(adapter->tq, &adapter->rxtx_task);
 
 	/* Link status change */
-	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-		adapter->hw.mac.get_link_status = 1;
-		igb_update_link_status(adapter);
-	}
+	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))
+		taskqueue_enqueue(adapter->tq, &adapter->link_task);
 
 	if (reg_icr & E1000_ICR_RXO)
 		adapter->rx_overruns++;
@@ -1352,8 +1360,7 @@ igb_msix_link(void *arg)
 	icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
 	if (!(icr & E1000_ICR_LSC))
 		goto spurious;
-	adapter->hw.mac.get_link_status = 1;
-	igb_update_link_status(adapter);
+	taskqueue_enqueue(adapter->tq, &adapter->link_task);
 
 spurious:
 	/* Rearm */
@@ -1986,6 +1993,8 @@ igb_allocate_legacy(struct adapter *adapter)
 	 * processing contexts.
 	 */
 	TASK_INIT(&adapter->rxtx_task, 0, igb_handle_rxtx, adapter);
+	/* Make tasklet for deferred link handling */
+	TASK_INIT(&adapter->link_task, 0, igb_handle_link, adapter);
 	adapter->tq = taskqueue_create_fast("igb_taskq", M_NOWAIT,
 	    taskqueue_thread_enqueue, &adapter->tq);
 	taskqueue_start_threads(&adapter->tq, 1, PI_NET, "%s taskq",
@@ -2071,6 +2080,13 @@ igb_allocate_msix(struct adapter *adapter)
 		return (error);
 	}
 	adapter->linkvec = vector;
+
+	/* Make tasklet for deferred handling */
+	TASK_INIT(&adapter->link_task, 0, igb_handle_link, adapter);
+	adapter->tq = taskqueue_create_fast("igb_link", M_NOWAIT,
+	    taskqueue_thread_enqueue, &adapter->tq);
+	taskqueue_start_threads(&adapter->tq, 1, PI_NET, "%s link",
+	    device_get_nameunit(adapter->dev));
 
 	return (0);
 }
