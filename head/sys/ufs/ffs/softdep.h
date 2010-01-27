@@ -115,6 +115,7 @@
 #define	UNLINKED	0x040000 /* inodedep has been unlinked. */
 #define	UNLINKNEXT	0x080000 /* inodedep has valid di_freelink */
 #define	UNLINKPREV	0x100000 /* inodedep is pointed at in the unlink list */
+#define	UNLINKONLIST	0x200000 /* inodedep is in the unlinked list on disk */
 #define	UNLINKLINKS	(UNLINKNEXT | UNLINKPREV)
 
 #define	ALLCOMPLETE	(ATTACHED | COMPLETE | DEPCOMPLETE)
