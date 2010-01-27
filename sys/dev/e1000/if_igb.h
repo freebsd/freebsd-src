@@ -372,6 +372,7 @@ struct adapter {
 
 	int		linkvec;
 	int		link_mask;
+	struct task	link_task;
 	int		link_irq;
 
 	struct ifmedia	media;
@@ -383,7 +384,7 @@ struct adapter {
 	struct mtx	core_mtx;
 	int		igb_insert_vlan_header;
 	struct task     rxtx_task;
-	struct taskqueue *tq;           /* private task queue */
+	struct taskqueue *tq;	/* adapter task queue */
         u16		num_queues;
 
 	eventhandler_tag vlan_attach;
