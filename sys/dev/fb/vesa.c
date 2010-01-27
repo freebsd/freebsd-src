@@ -1367,10 +1367,11 @@ vesa_save_palette(video_adapter_t *adp, u_char *palette)
 {
 	int bits;
 
-	if ((adp == vesa_adp) &&
-	    (adp->va_info.vi_flags & V_INFO_NONVGA) != 0 &&
-	    (bits = vesa_bios_get_dac()) >= 6)
-		return (vesa_bios_save_palette(0, 256, palette, bits));
+	if (adp == vesa_adp && VESA_MODE(adp->va_mode)) {
+		bits = vesa_bios_get_dac();
+		if ((adp->va_info.vi_flags & V_INFO_NONVGA) != 0 || bits > 6)
+			return (vesa_bios_save_palette(0, 256, palette, bits));
+	}
 
 	return ((*prevvidsw->save_palette)(adp, palette));
 }
@@ -1380,10 +1381,11 @@ vesa_load_palette(video_adapter_t *adp, u_char *palette)
 {
 	int bits;
 
-	if ((adp == vesa_adp) &&
-	    (adp->va_info.vi_flags & V_INFO_NONVGA) != 0 &&
-	    (bits = vesa_bios_get_dac()) >= 6)
-		return (vesa_bios_load_palette(0, 256, palette, bits));
+	if (adp == vesa_adp && VESA_MODE(adp->va_mode)) {
+		bits = vesa_bios_get_dac();
+		if ((adp->va_info.vi_flags & V_INFO_NONVGA) != 0 || bits > 6)
+			return (vesa_bios_load_palette(0, 256, palette, bits));
+	}
 
 	return ((*prevvidsw->load_palette)(adp, palette));
 }
@@ -1581,12 +1583,14 @@ get_palette(video_adapter_t *adp, int base, int count,
 	int bits;
 	int error;
 
-	if ((base < 0) || (base >= 256) || (count < 0) || (count > 256))
+	if (base < 0 || base >= 256 || count < 0 || count > 256)
 		return (1);
 	if ((base + count) > 256)
 		return (1);
-	if ((adp->va_info.vi_flags & V_INFO_NONVGA) == 0 ||
-	    (bits = vesa_bios_get_dac()) < 6)
+	if (!VESA_MODE(adp->va_mode))
+		return (1);
+	bits = vesa_bios_get_dac();
+	if ((adp->va_info.vi_flags & V_INFO_NONVGA) == 0 && bits <= 6)
 		return (1);
 
 	r = malloc(count * 3, M_DEVBUF, M_WAITOK);
@@ -1617,10 +1621,14 @@ set_palette(video_adapter_t *adp, int base, int count,
 	int bits;
 	int error;
 
-	if ((base < 0) || (base >= 256) || (base + count > 256))
+	if (base < 0 || base >= 256 || count < 0 || count > 256)
 		return (1);
-	if ((adp->va_info.vi_flags & V_INFO_NONVGA) == 0 ||
-	    (bits = vesa_bios_get_dac()) < 6)
+	if ((base + count) > 256)
+		return (1);
+	if (!VESA_MODE(adp->va_mode))
+		return (1);
+	bits = vesa_bios_get_dac();
+	if ((adp->va_info.vi_flags & V_INFO_NONVGA) == 0 && bits <= 6)
 		return (1);
 
 	r = malloc(count * 3, M_DEVBUF, M_WAITOK);
