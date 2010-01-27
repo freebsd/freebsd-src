@@ -17,6 +17,13 @@
 #
 # $FreeBSD$
 
+##############################################################################
+###                                                                        ###
+### PLEASE NOTE: This file is the experimental 64-bit kernel.  If you want ###
+### a stable kernel, please use the 32-bit OCTEON1-32 instead.             ###
+###                                                                        ###
+##############################################################################
+
 machine		mips
 cpu		CPU_MIPS4KC
 ident		OCTEON1
