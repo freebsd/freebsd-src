@@ -2374,6 +2374,8 @@ dlip		7201/udp
 ftp-proxy	8021/tcp   # FTP proxy
 natd		8668/divert # Network Address Translation
 jetdirect	9100/tcp   #HP JetDirect card
+git		9418/tcp   #git pack transfer service
+git		9418/udp   #git pack transfer service
 man		9535/tcp
 man		9535/udp
 sd		9876/tcp   #Session Director
