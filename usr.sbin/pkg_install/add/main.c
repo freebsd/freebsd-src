@@ -82,6 +82,7 @@ struct {
 	{ 700000, 700099, "/packages-7.0-release" },
 	{ 701000, 701099, "/packages-7.1-release" },
 	{ 702000, 702099, "/packages-7.2-release" },
+	{ 703000, 703099, "/packages-7.3-release" },
 	{ 800000, 800499, "/packages-8.0-release" },
 	{ 300000, 399000, "/packages-3-stable" },
 	{ 400000, 499000, "/packages-4-stable" },
