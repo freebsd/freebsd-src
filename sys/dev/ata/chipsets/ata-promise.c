@@ -628,7 +628,7 @@ ata_promise_mio_status(device_t dev)
     }
 
     /* read and acknowledge interrupt */
-    vector = (uint32_t)ctlr->chipset_data;
+    vector = (uint32_t)(uintptr_t)ctlr->chipset_data;
 
     /* read and clear interface status */
     status = ATA_INL(ctlr->r_res2, stat_reg);
