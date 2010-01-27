@@ -2229,6 +2229,8 @@ rwhois		4321/tcp   #Remote Who Is
 rwhois		4321/udp   #Remote Who Is
 unicall		4343/tcp
 unicall		4343/udp
+epmd		4369/tcp   #Erlang Port Mapper Daemon
+epmd		4369/udp   #Erlang Port Mapper Daemon
 krb524		4444/tcp
 krb524		4444/udp
 # PROBLEM krb524 assigned the port,
