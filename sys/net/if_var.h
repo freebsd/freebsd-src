@@ -203,7 +203,8 @@ struct ifnet {
 	 * be used with care where binary compatibility is required.
 	 */
 	char	 if_cspare[3];
-	void	*if_pspare[8];
+	char	*if_description;	/* interface description */
+	void	*if_pspare[7];
 	int	if_ispare[4];
 };
 
