@@ -309,7 +309,7 @@ struct adapter {
 	struct ifmedia	media;
 	struct callout	timer;
 	struct callout	tx_fifo_timer;
-	bool		watchdog_check
+	bool		watchdog_check;
 	int		watchdog_time;
 	int		msi;
 	int		if_flags;
