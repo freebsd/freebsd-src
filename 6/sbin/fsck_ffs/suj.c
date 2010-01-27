@@ -194,6 +194,8 @@ closedisk(const char *devnam)
 		fs->fs_cstotal.cs_nifree += cgsum->cs_nifree;
 		fs->fs_cstotal.cs_ndir += cgsum->cs_ndir;
 	}
+	fs->fs_pendinginodes = 0;
+	fs->fs_pendingblocks = 0;
 	fs->fs_clean = 1;
 	fs->fs_time = time(NULL);
 	fs->fs_mtime = time(NULL);
@@ -444,25 +446,6 @@ iblk_write(struct ino_blk *iblk)
 	if (bwrite(disk, fsbtodb(fs, iblk->ib_blk), iblk->ib_buf,
 	    fs->fs_bsize) == -1)
 		err(1, "Failed to write inode block %jd", iblk->ib_blk);
-}
-
-/*
- * Return 1 if the inode was free and 0 if it is allocated.
- */
-static int
-ino_isfree(ino_t ino)
-{
-	struct suj_cg *sc;
-	uint8_t *inosused;
-	struct cg *cgp;
-	int cg;
-
-	cg = ino_to_cg(fs, ino);
-	ino = ino % fs->fs_ipg;
-	sc = cg_lookup(cg);
-	cgp = sc->sc_cgp;
-	inosused = cg_inosused(cgp);
-	return isclr(inosused, ino);
 }
 
 static int
@@ -1506,18 +1489,12 @@ ino_check(struct suj_ino *sino)
 	 * to worry about truncating directory entries as they must have
 	 * been removed for truncate to succeed.
 	 */
+	ino = sino->si_ino;
 	if (sino->si_trunc) {
 		ino_trunc(ino, sino->si_trunc->jt_size);
 		sino->si_trunc = NULL;
 	}
 	if (sino->si_hasrecs == 0)
-		return;
-	ino = sino->si_ino;
-	/*
-	 * XXX ino_isfree currently is skipping initialized inodes
-	 * that are unreferenced.
-	 */
-	if (0 && ino_isfree(ino))
 		return;
 	rrec = (struct jrefrec *)TAILQ_FIRST(&sino->si_recs)->sr_rec;
 	nlink = rrec->jr_nlink;
@@ -1596,6 +1573,7 @@ blk_check(struct suj_blk *sblk)
 	 * Each suj_blk actually contains records for any fragments in that
 	 * block.  As a result we must evaluate each record individually.
 	 */
+	sino = NULL;
 	TAILQ_FOREACH(srec, &sblk->sb_recs, sr_next) {
 		brec = (struct jblkrec *)srec->sr_rec;
 		frags = brec->jb_frags;
@@ -2566,13 +2544,13 @@ suj_check(const char *filesys)
 		cg_apply(cg_write);
 		dblk_write();
 		cg_apply(cg_write_inos);
+		/* Write back superblock. */
+		closedisk(filesys);
 	}
 	printf("** %jd journal records in %jd bytes for %.2f%% utilization\n",
 	    jrecs, jbytes, ((float)jrecs / (float)(jbytes / JREC_SIZE)) * 100);
 	printf("** Freed %jd inodes (%jd dirs) %jd blocks, and %jd frags.\n",
 	    freeinos, freedir, freeblocks, freefrags);
-	/* Write back superblock. */
-	closedisk(filesys);
 
 	return (0);
 }
