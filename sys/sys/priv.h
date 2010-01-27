@@ -335,6 +335,7 @@
 #define	PRIV_NET_LAGG		415	/* Administer lagg interface. */
 #define	PRIV_NET_GIF		416	/* Administer gif interface. */
 #define	PRIV_NET_SETIFVNET	417	/* Move interface to vnet. */
+#define	PRIV_NET_SETIFDESCR	418	/* Set interface description. */
 
 /*
  * 802.11-related privileges.
