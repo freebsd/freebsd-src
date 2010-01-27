@@ -309,6 +309,9 @@ tnt_attach(device_t dev)
 	/* No DMA help */
 	sc->upd7210.dmachan = -1;
 
+	/* No "special interrupt handling" needed here. */
+	sc->upd7210.irq_clear_res = NULL;
+
 	upd7210attach(&sc->upd7210);
 
 	return (0);
