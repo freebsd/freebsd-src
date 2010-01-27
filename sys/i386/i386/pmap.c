@@ -404,7 +404,6 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	}
 	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
 	SYSMAP(caddr_t, CMAP3, CADDR3, 1)
-	*CMAP3 = 0;
 
 	/*
 	 * Crashdump maps.
@@ -427,7 +426,7 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	SYSMAP(pt_entry_t *, KPTD, KPTmap, KVA_PAGES)
 
 	for (i = 0; i < NKPT; i++)
-		KPTD[i] = (KPTphys + (i << PAGE_SHIFT)) | PG_RW | PG_V;
+		KPTD[i] = (KPTphys + (i << PAGE_SHIFT)) | pgeflag | PG_RW | PG_V;
 
 	/*
 	 * Adjust the start of the KPTD and KPTmap so that the implementation
@@ -439,14 +438,12 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	/*
 	 * ptemap is used for pmap_pte_quick
 	 */
-	SYSMAP(pt_entry_t *, PMAP1, PADDR1, 1);
-	SYSMAP(pt_entry_t *, PMAP2, PADDR2, 1);
+	SYSMAP(pt_entry_t *, PMAP1, PADDR1, 1)
+	SYSMAP(pt_entry_t *, PMAP2, PADDR2, 1)
 
 	mtx_init(&PMAP2mutex, "PMAP2", NULL, MTX_DEF);
 
 	virtual_avail = va;
-
-	*CMAP1 = 0;
 
 	/*
 	 * Leave in place an identity mapping (virt == phys) for the low 1 MB
@@ -549,25 +546,19 @@ pmap_init_pat(void)
 static void
 pmap_set_pg(void)
 {
-	pd_entry_t pdir;
 	pt_entry_t *pte;
 	vm_offset_t va, endva;
-	int i; 
 
 	if (pgeflag == 0)
 		return;
 
-	i = KERNLOAD/NBPDR;
 	endva = KERNBASE + KERNend;
 
 	if (pseflag) {
 		va = KERNBASE + KERNLOAD;
 		while (va  < endva) {
-			pdir = kernel_pmap->pm_pdir[KPTDI+i];
-			pdir |= pgeflag;
-			kernel_pmap->pm_pdir[KPTDI+i] = PTD[KPTDI+i] = pdir;
+			pdir_pde(PTD, va) |= pgeflag;
 			invltlb();	/* Play it safe, invltlb() every time */
-			i++;
 			va += NBPDR;
 		}
 	} else {
@@ -1895,7 +1886,7 @@ pmap_growkernel(vm_offset_t addr)
 			pmap_zero_page(nkpg);
 		ptppaddr = VM_PAGE_TO_PHYS(nkpg);
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
-		pdir_pde(KPTD, kernel_vm_end) = newpdir;
+		pdir_pde(KPTD, kernel_vm_end) = pgeflag | newpdir;
 
 		updated_PTD = FALSE;
 		mtx_lock_spin(&allpmaps_lock);
@@ -2391,10 +2382,14 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	mptepa = VM_PAGE_TO_PHYS(mpte);
 
 	/*
-	 * Temporarily map the page table page (mpte) into the kernel's
-	 * address space at either PADDR1 or PADDR2.
+	 * If the page mapping is in the kernel's address space, then the
+	 * KPTmap can provide access to the page table page.  Otherwise,
+	 * temporarily map the page table page (mpte) into the kernel's
+	 * address space at either PADDR1 or PADDR2. 
 	 */
-	if (curthread->td_pinned > 0 && mtx_owned(&vm_page_queue_mtx)) {
+	if (va >= KERNBASE)
+		firstpte = &KPTmap[i386_btop(trunc_4mpage(va))];
+	else if (curthread->td_pinned > 0 && mtx_owned(&vm_page_queue_mtx)) {
 		if ((*PMAP1 & PG_FRAME) != mptepa) {
 			*PMAP1 = mptepa | PG_RW | PG_V | PG_A | PG_M;
 #ifdef SMP
@@ -2458,10 +2453,9 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 		/*
 		 * A harmless race exists between this loop and the bcopy()
 		 * in pmap_pinit() that initializes the kernel segment of
-		 * the new page table.  Specifically, that bcopy() may copy
-		 * the new PDE from the PTD, which is first in allpmaps, to
-		 * the new page table before this loop updates that new
-		 * page table.
+		 * the new page table directory.  Specifically, that bcopy()
+		 * may copy the new PDE from the PTD to the new page table
+		 * before this loop updates that new page table.
 		 */
 		mtx_lock_spin(&allpmaps_lock);
 		LIST_FOREACH(allpmaps_entry, &allpmaps, pm_list) {
