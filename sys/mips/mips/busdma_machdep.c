@@ -1066,10 +1066,22 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 			memcpy ((void*)buf_cl, tmp_cl, size_cl);
 		if (size_clend)
 			memcpy ((void*)buf_clend, tmp_clend, size_clend);
+		/* 
+		 * Copies above have brought corresponding memory
+		 * cache lines back into dirty state. Write them back
+		 * out and invalidate affected cache lines again if
+		 * necessary.
+		 */
+		if (size_cl)
+			mips_dcache_wbinv_range((vm_offset_t)buf_cl, size_cl);
+		if (size_clend && (size_cl == 0 ||
+                    buf_clend - buf_cl > mips_pdcache_linesize))
+			mips_dcache_wbinv_range((vm_offset_t)buf_clend,
+			   size_clend);
 		break;
 
 	case BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE:
-		mips_dcache_wbinv_range((vm_offset_t)buf, len);
+		mips_dcache_wbinv_range((vm_offset_t)buf_cl, len);
 		break;
 
 	case BUS_DMASYNC_PREREAD:
@@ -1088,6 +1100,18 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 			memcpy ((void *)buf_cl, tmp_cl, size_cl);
 		if (size_clend)
 			memcpy ((void *)buf_clend, tmp_clend, size_clend);
+		/* 
+		 * Copies above have brought corresponding memory
+		 * cache lines back into dirty state. Write them back
+		 * out and invalidate affected cache lines again if
+		 * necessary.
+		 */
+		if (size_cl)
+			mips_dcache_wbinv_range((vm_offset_t)buf_cl, size_cl);
+		if (size_clend && (size_cl == 0 ||
+                    buf_clend - buf_cl > mips_pdcache_linesize))
+			mips_dcache_wbinv_range((vm_offset_t)buf_clend,
+			   size_clend);
 		break;
 
 	case BUS_DMASYNC_PREWRITE:
