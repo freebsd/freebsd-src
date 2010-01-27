@@ -293,6 +293,7 @@ MAN=	aac.4 \
 	nsp.4 \
 	null.4 \
 	${_nve.4} \
+	${_nvram.4} \
 	${_nxge.4} \
 	ohci.4 \
 	orm.4 \
@@ -645,6 +646,7 @@ _ndis.4=	ndis.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
 _nve.4=		nve.4
+_nvram.4=	nvram.4
 _nxge.4=	nxge.4
 _rr232x.4=	rr232x.4
 _speaker.4=	speaker.4
