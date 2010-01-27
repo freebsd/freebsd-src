@@ -1677,6 +1677,7 @@ inodedep_lookup(mp, inum, flags, inodedeppp)
 	inodedep->id_savedino1 = NULL;
 	inodedep->id_savedsize = -1;
 	inodedep->id_savedextsize = -1;
+	inodedep->id_savednlink = -1;
 	inodedep->id_bmsafemap = NULL;
 	inodedep->id_mkdiradd = NULL;
 	LIST_INIT(&inodedep->id_dirremhd);
@@ -3273,13 +3274,11 @@ cancel_jaddref(jaddref, inodedep, wkhd)
 	 * We must adjust the nlink of any reference operation that follows
 	 * us so that it is consistent with the in-memory reference.  This
 	 * ensures that inode nlink rollbacks always have the correct link.
-	 * Entries which have already been copied into the journal buffer
-	 * will be unaltered on disk but the subsequent remove record will
-	 * correct them.
 	 */
-	for (inoref = TAILQ_NEXT(&jaddref->ja_ref, if_deps); inoref;
-	    inoref = TAILQ_NEXT(inoref, if_deps))
-		inoref->if_nlink--;
+	if (needsj == 0)
+		for (inoref = TAILQ_NEXT(&jaddref->ja_ref, if_deps); inoref;
+		    inoref = TAILQ_NEXT(inoref, if_deps))
+			inoref->if_nlink--;
 	jsegdep = inoref_jseg(&jaddref->ja_ref);
 	if (jaddref->ja_state & NEWBLOCK)
 		move_newblock_dep(jaddref, inodedep);
@@ -4909,6 +4908,8 @@ softdep_setup_freeblocks(ip, length, flags)
 	off_t length;		/* The new length for the file */
 	int flags;		/* IO_EXT and/or IO_NORMAL */
 {
+	struct ufs1_dinode *dp1;
+	struct ufs2_dinode *dp2;
 	struct freeblks *freeblks;
 	struct inodedep *inodedep;
 	struct allocdirect *adp;
@@ -5022,12 +5023,17 @@ softdep_setup_freeblocks(ip, length, flags)
 		brelse(bp);
 		softdep_error("softdep_setup_freeblocks", error);
 	}
-	if (ip->i_ump->um_fstype == UFS1)
-		*((struct ufs1_dinode *)bp->b_data +
-		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din1;
-	else
-		*((struct ufs2_dinode *)bp->b_data +
-		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din2;
+	if (ip->i_ump->um_fstype == UFS1) {
+		dp1 = ((struct ufs1_dinode *)bp->b_data +
+		    ino_to_fsbo(fs, ip->i_number));
+		ip->i_din1->di_freelink = dp1->di_freelink;
+		*dp1 = *ip->i_din1;
+	} else {
+		dp2 = ((struct ufs2_dinode *)bp->b_data +
+		    ino_to_fsbo(fs, ip->i_number));
+		ip->i_din2->di_freelink = dp2->di_freelink;
+		*dp2 = *ip->i_din2;
+	}
 	/*
 	 * Find and eliminate any inode dependencies.
 	 */
@@ -7293,16 +7299,17 @@ handle_written_sbdep(sbdep, bp)
 	if (inodedep_lookup(mp, fs->fs_sujfree, 0, &inodedep) == 0)
 		panic("handle_written_sbdep: lost inodedep");
 	/*
-	 * Now that we have a record of this indode in stable store we can
-	 * discard any pending work.
+	 * Now that we have a record of this indode in stable store allow it
+	 * to be written to free up pending work.  Inodes may see a lot of
+	 * write activity after they are unlinked which we must not hold up.
 	 */
 	for (; inodedep != NULL; inodedep = TAILQ_NEXT(inodedep, id_unlinked)) {
 		if ((inodedep->id_state & UNLINKLINKS) != UNLINKLINKS)
 			panic("handle_written_sbdep: Bad inodedep %p (0x%X)",
 			    inodedep, inodedep->id_state);
-		if (handle_bufwait(inodedep, NULL) != NULL)
-			panic("handle_written_sbdep: freefile on "
-			    "unlinked inodedep");
+		if (inodedep->id_state & UNLINKONLIST)
+			break;
+		inodedep->id_state |= DEPCOMPLETE | UNLINKONLIST;
 	}
 
 	return (0);
@@ -7926,10 +7933,7 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 		struct inodedep *inon;
 
 		inon = TAILQ_NEXT(inodedep, id_unlinked);
-		if (inon)
-			dp->di_freelink = inon->id_ino;
-		else
-			dp->di_freelink = 0;
+		dp->di_freelink = inon ? inon->id_ino : 0;
 	}
 	/*
 	 * If the bitmap is not yet written, then the allocated
@@ -8096,10 +8100,19 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 		struct inodedep *inon;
 
 		inon = TAILQ_NEXT(inodedep, id_unlinked);
-		if (inon)
-			dp->di_freelink = inon->id_ino;
-		else
-			dp->di_freelink = 0;
+		dp->di_freelink = inon ? inon->id_ino : 0;
+	}
+	if ((inodedep->id_state & (UNLINKED | UNLINKNEXT)) ==
+	    (UNLINKED | UNLINKNEXT)) {
+		struct inodedep *inon;
+		ino_t freelink;
+
+		inon = TAILQ_NEXT(inodedep, id_unlinked);
+		freelink = inon ? inon->id_ino : 0;
+		if (freelink != dp->di_freelink)
+			panic("ino %p(0x%X) %d, %d != %d",
+			    inodedep, inodedep->id_state, inodedep->id_ino,
+			    freelink, dp->di_freelink);
 	}
 	/*
 	 * If the bitmap is not yet written, then the allocated
@@ -8116,7 +8129,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 		*inodedep->id_savedino2 = *dp;
 		bzero((caddr_t)dp, sizeof(struct ufs2_dinode));
 		dp->di_gen = inodedep->id_savedino2->di_gen;
-		dp->di_freelink = inodedep->id_savedino1->di_freelink;
+		dp->di_freelink = inodedep->id_savedino2->di_freelink;
 		return;
 	}
 	/*
@@ -8131,10 +8144,6 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 		return;
 	/*
 	 * Revert the link count to that of the first unwritten journal entry.
-	 *
-	 * XXX What if it is canceled?  Could entries after it be expired
-	 * before we remove this?  Thus leaving us with an incorrect link on
-	 * disk with no journal entries to cover it?
 	 */
 	inoref = TAILQ_FIRST(&inodedep->id_inoreflst);
 	if (inoref)
@@ -9023,8 +9032,8 @@ handle_written_inodeblock(inodedep, bp)
 		freelink = dp2->di_freelink;
 	}
 	/*
-	 * If we wrote a freelink pointer during the last write record it
-	 * here.  If we did not, keep the buffer dirty until we do.
+	 * If we wrote a valid freelink pointer during the last write
+	 * record it here.
 	 */
 	if ((inodedep->id_state & (UNLINKED | UNLINKNEXT)) == UNLINKED) {
 		struct inodedep *inon;
@@ -9038,6 +9047,9 @@ handle_written_inodeblock(inodedep, bp)
 		} else
 			hadchanges = 1;
 	}
+	/* Leave this inodeblock dirty until it's in the list. */
+	if ((inodedep->id_state & (UNLINKED | DEPCOMPLETE)) == UNLINKED)
+		hadchanges = 1;
 	/*
 	 * If we had to rollback the inode allocation because of
 	 * bitmaps being incomplete, then simply restore it.
@@ -9195,7 +9207,7 @@ bufwait:
 	 * unlinked inodes are not processed until the unlinked
 	 * inode list is written or the last reference is removed.
 	 */
-	if ((inodedep->id_state & UNLINKED) == 0) {
+	if ((inodedep->id_state & (UNLINKED | UNLINKONLIST)) != UNLINKED) {
 		freefile = handle_bufwait(inodedep, NULL);
 		if (freefile && !LIST_EMPTY(&wkhd)) {
 			WORKLIST_INSERT(&wkhd, &freefile->fx_list);
@@ -9676,8 +9688,22 @@ softdep_update_inodeblock(ip, bp, waitfor)
 	struct worklist *wk;
 	struct mount *mp;
 	struct buf *ibp;
+	struct fs *fs;
 	int error;
 
+	mp = UFSTOVFS(ip->i_ump);
+	fs = ip->i_fs;
+	/*
+	 * Preserve the freelink that is on disk.  clear_unlinked_inodedep()
+	 * does not have access to the in-core ip so must write directly into
+	 * the inode block buffer when setting freelink.
+	 */
+	if (fs->fs_magic == FS_UFS1_MAGIC)
+		DIP_SET(ip, i_freelink, ((struct ufs1_dinode *)bp->b_data +
+		    ino_to_fsbo(fs, ip->i_number))->di_freelink);
+	else
+		DIP_SET(ip, i_freelink, ((struct ufs2_dinode *)bp->b_data +
+		    ino_to_fsbo(fs, ip->i_number))->di_freelink);
 	/*
 	 * If the effective link count is not equal to the actual link
 	 * count, then we must track the difference in an inodedep while
@@ -9685,7 +9711,6 @@ softdep_update_inodeblock(ip, bp, waitfor)
 	 * if there is no existing inodedep, then there are no dependencies
 	 * to track.
 	 */
-	mp = UFSTOVFS(ip->i_ump);
 	ACQUIRE_LOCK(&lk);
 again:
 	if (inodedep_lookup(mp, ip->i_number, 0, &inodedep) == 0) {
