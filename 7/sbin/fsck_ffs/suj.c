@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Jeffrey W. Roberson <jeff@FreeBSD.org>
+ * Copyright 2009, 2010 Jeffrey W. Roberson <jeff@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
 
 #include "fsck.h"
 
-static void	ino_decr(ino_t);
-
 #define	DOTDOT_OFFSET	DIRECTSIZ(1)
 #define	SUJ_HASHSIZE	2048
 #define	SUJ_HASHMASK	(SUJ_HASHSIZE - 1)
@@ -64,7 +62,6 @@ struct suj_seg {
 struct suj_rec {
 	TAILQ_ENTRY(suj_rec) sr_next;
 	union jrec	*sr_rec;
-	int		sr_alt;	/* Is alternate address? */
 };
 TAILQ_HEAD(srechd, suj_rec);
 
@@ -75,11 +72,14 @@ struct suj_ino {
 	struct srechd		si_movs;
 	struct jtrncrec		*si_trunc;
 	ino_t			si_ino;
-	int			si_nlinkadj;
-	int			si_skipparent;
-	int			si_linkadj;
-	int			si_hasrecs;
-	int			si_blkadj;
+	char			si_skipparent;
+	char			si_hasrecs;
+	char			si_blkadj;
+	char			si_linkadj;
+	int			si_mode;
+	nlink_t			si_nlinkadj;
+	nlink_t			si_nlink;
+	nlink_t			si_dotlinks;
 };
 LIST_HEAD(inohd, suj_ino);
 
@@ -143,6 +143,8 @@ uint64_t jrecs;
 
 typedef void (*ino_visitor)(ino_t, ufs_lbn_t, ufs2_daddr_t, int);
 static void ino_trunc(ino_t ino, off_t size);
+static void ino_decr(ino_t);
+static void ino_adjust(struct suj_ino *);
 static void ino_build(struct suj_ino *sino);
 
 static void *
@@ -266,7 +268,6 @@ ino_lookup(ino_t ino, int creat)
 	sino = errmalloc(sizeof(*sino));
 	bzero(sino, sizeof(*sino));
 	sino->si_ino = ino;
-	sino->si_nlinkadj = 0;
 	TAILQ_INIT(&sino->si_recs);
 	TAILQ_INIT(&sino->si_newrecs);
 	TAILQ_INIT(&sino->si_movs);
@@ -1095,6 +1096,9 @@ ino_setskip(struct suj_ino *sino, ino_t parent)
 		sino->si_skipparent = 1;
 }
 
+/*
+ * Free the children of a directory when the directory is discarded.
+ */
 static void
 ino_free_children(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 {
@@ -1136,9 +1140,19 @@ ino_free_children(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 		 * was valid and we have to adjust once more.
 		 */
 		sino = ino_lookup(dp->d_ino, 0);
-		if (sino == NULL || sino->si_linkadj || sino->si_hasrecs == 0) {
-			ino_decr(dp->d_ino);
+		if (sino == NULL || sino->si_hasrecs == 0) {
+			ino_decr(ino);
 			continue;
+		}
+		/*
+		 * Use ino_adjust() so if we lose the last non-dot reference
+		 * to a directory it can be discarded.
+		 */
+		if (sino->si_linkadj) {
+			sino->si_nlink--;
+			if (isparent)
+				sino->si_dotlinks--;
+			ino_adjust(sino);
 		}
 		/*
 		 * Tell any child directories we've already removed their
@@ -1234,12 +1248,39 @@ ino_decr(ino_t ino)
  * free it.
  */
 static void
-ino_adjust(ino_t ino, int lastmode, nlink_t nlink)
+ino_adjust(struct suj_ino *sino)
 {
+	struct jrefrec *rrec;
+	struct suj_rec *srec;
+	struct suj_ino *stmp;
 	union dinode *ip;
+	nlink_t nlink;
 	int reqlink;
 	int mode;
+	ino_t ino;
 
+	nlink = sino->si_nlink;
+	ino = sino->si_ino;
+	/*
+	 * If it's a directory with no real names pointing to it go ahead
+	 * and truncate it.  This will free any children.
+	 */
+	if ((sino->si_mode & IFMT) == IFDIR &&
+	    nlink - sino->si_dotlinks == 0) {
+		sino->si_nlink = nlink = 0;
+		/*
+		 * Mark any .. links so they know not to free this inode
+		 * when they are removed.
+		 */
+		TAILQ_FOREACH(srec, &sino->si_recs, sr_next) {
+			rrec = (struct jrefrec *)srec->sr_rec;
+			if (rrec->jr_diroff == DOTDOT_OFFSET) {
+				stmp = ino_lookup(rrec->jr_parent, 0);
+				if (stmp)
+					ino_setskip(stmp, ino);
+			}
+		}
+	}
 	ip = ino_read(ino);
 	mode = DIP(ip, di_mode) & IFMT;
 	if (nlink > LINK_MAX)
@@ -1248,16 +1289,16 @@ ino_adjust(ino_t ino, int lastmode, nlink_t nlink)
 		    ino, nlink, DIP(ip, di_nlink));
 	if (debug)
 		printf("Adjusting ino %d, nlink %d, old link %d lastmode %o\n",
-		    ino, nlink, DIP(ip, di_nlink), lastmode);
+		    ino, nlink, DIP(ip, di_nlink), sino->si_mode);
 	if (mode == 0) {
 		if (debug)
 			printf("ino %d, zero inode freeing bitmap\n", ino);
-		ino_free(ino, lastmode);
+		ino_free(ino, sino->si_mode);
 		return;
 	}
 	/* XXX Should be an assert? */
-	if (mode != lastmode && debug)
-		printf("ino %d, mode %o != %o\n", ino, mode, lastmode);
+	if (mode != sino->si_mode && debug)
+		printf("ino %d, mode %o != %o\n", ino, mode, sino->si_mode);
 	if ((mode & IFMT) == IFDIR)
 		reqlink = 2;
 	else
@@ -1426,10 +1467,12 @@ ino_trunc(ino_t ino, off_t size)
 	 * If we're truncating direct blocks we have to adjust frags
 	 * accordingly.
 	 */
-	if (visitlbn < NDADDR) {
+	if (visitlbn < NDADDR && totalfrags) {
 		long oldspace, newspace;
 
 		bn = DIP(ip, di_db[visitlbn]);
+		if (bn == 0)
+			errx(1, "Bad blk at ino %d lbn %jd\n", ino, visitlbn);
 		oldspace = sblksize(fs, cursize, visitlbn);
 		newspace = sblksize(fs, size, visitlbn);
 		if (oldspace != newspace) {
@@ -1474,7 +1517,6 @@ ino_check(struct suj_ino *sino)
 {
 	struct suj_rec *srec;
 	struct jrefrec *rrec;
-	struct suj_ino *stmp;
 	nlink_t dotlinks;
 	int newlinks;
 	int removes;
@@ -1484,18 +1526,9 @@ ino_check(struct suj_ino *sino)
 	int isat;
 	int mode;
 
-	/*
-	 * Handle truncations that were not complete.  We don't have
-	 * to worry about truncating directory entries as they must have
-	 * been removed for truncate to succeed.
-	 */
-	ino = sino->si_ino;
-	if (sino->si_trunc) {
-		ino_trunc(ino, sino->si_trunc->jt_size);
-		sino->si_trunc = NULL;
-	}
 	if (sino->si_hasrecs == 0)
 		return;
+	ino = sino->si_ino;
 	rrec = (struct jrefrec *)TAILQ_FIRST(&sino->si_recs)->sr_rec;
 	nlink = rrec->jr_nlink;
 	newlinks = 0;
@@ -1528,29 +1561,16 @@ ino_check(struct suj_ino *sino)
 	 * makes no change to the link count but an add increases
 	 * by one.
 	 */
+	if (debug)
+		printf("ino %d nlink %d newlinks %d removes %d dotlinks %d\n",
+		    ino, nlink, newlinks, removes, dotlinks);
 	nlink += newlinks;
 	nlink -= removes;
-	/*
-	 * If it's a directory with no real names pointing to it go ahead
-	 * and truncate it.  This will free any children.
-	 */
-	if ((mode & IFMT) == IFDIR && nlink - dotlinks == 0) {
-		nlink = 0;
-		/*
-		 * Mark any .. links so they know not to free this inode
-		 * when they are removed.
-		 */
-		TAILQ_FOREACH(srec, &sino->si_recs, sr_next) {
-			rrec = (struct jrefrec *)srec->sr_rec;
-			if (rrec->jr_diroff == DOTDOT_OFFSET) {
-				stmp = ino_lookup(rrec->jr_parent, 0);
-				if (stmp)
-					ino_setskip(stmp, ino);
-			}
-		}
-	}
 	sino->si_linkadj = 1;
-	ino_adjust(ino, mode, nlink);
+	sino->si_nlink = nlink;
+	sino->si_dotlinks = dotlinks;
+	sino->si_mode = mode;
+	ino_adjust(sino);
 }
 
 /*
@@ -1632,42 +1652,63 @@ cg_build(struct suj_cg *sc)
 }
 
 /*
- * Walk the list of inode and block records for this cg, recovering any
- * changes which were not complete at the time of crash.
+ * Handle inodes requiring truncation.  This must be done prior to
+ * looking up any inodes in directories.
  */
 static void
-cg_check(struct suj_cg *sc)
+cg_trunc(struct suj_cg *sc)
+{
+	struct suj_ino *sino;
+	int i;
+
+	for (i = 0; i < SUJ_HASHSIZE; i++)
+		LIST_FOREACH(sino, &sc->sc_inohash[i], si_next)
+			if (sino->si_trunc) {
+				ino_trunc(sino->si_ino,
+				    sino->si_trunc->jt_size);
+				sino->si_trunc = NULL;
+			}
+}
+
+/*
+ * Free any partially allocated blocks and then resolve inode block
+ * counts.
+ */
+static void
+cg_check_blk(struct suj_cg *sc)
 {
 	struct suj_ino *sino;
 	struct suj_blk *sblk;
 	int i;
 
-	if (debug)
-		printf("Recovering cg %d\n", sc->sc_cgx);
-
-	for (i = 0; i < SUJ_HASHSIZE; i++)
-		LIST_FOREACH(sino, &sc->sc_inohash[i], si_next)
-			ino_check(sino);
 
 	for (i = 0; i < SUJ_HASHSIZE; i++)
 		LIST_FOREACH(sblk, &sc->sc_blkhash[i], sb_next)
 			blk_check(sblk);
+	/*
+	 * Now that we've freed blocks which are not referenced we
+	 * make a second pass over all inodes to adjust their block
+	 * counts.
+	 */
+	for (i = 0; i < SUJ_HASHSIZE; i++)
+		LIST_FOREACH(sino, &sc->sc_inohash[i], si_next)
+			if (sino->si_blkadj)
+				ino_adjblks(sino);
 }
 
 /*
- * Now that we've freed blocks which are not referenced we make a second
- * pass over all inodes to adjust their block counts.
+ * Walk the list of inode records for this cg, recovering any
+ * changes which were not complete at the time of crash.
  */
 static void
-cg_check2(struct suj_cg *sc)
+cg_check_ino(struct suj_cg *sc)
 {
 	struct suj_ino *sino;
 	int i;
 
 	for (i = 0; i < SUJ_HASHSIZE; i++)
 		LIST_FOREACH(sino, &sc->sc_inohash[i], si_next)
-			if (sino->si_blkadj)
-				ino_adjblks(sino);
+			ino_check(sino);
 }
 
 /*
@@ -1789,9 +1830,23 @@ ino_unlinked(void)
 static void
 ino_append(union jrec *rec)
 {
+	struct jrefrec *refrec;
+	struct jmvrec *mvrec;
 	struct suj_ino *sino;
 	struct suj_rec *srec;
 
+	mvrec = &rec->rec_jmvrec;
+	refrec = &rec->rec_jrefrec;
+	if (debug && mvrec->jm_op == JOP_MVREF)
+		printf("ino move: ino %d, parent %d, diroff %jd, oldoff %jd\n", 
+		    mvrec->jm_ino, mvrec->jm_parent, mvrec->jm_newoff,
+		    mvrec->jm_oldoff);
+	else if (debug &&
+	    (refrec->jr_op == JOP_ADDREF || refrec->jr_op == JOP_REMREF))
+		printf("ino ref: op %d, ino %d, nlink %d, "
+		    "parent %d, diroff %jd\n", 
+		    refrec->jr_op, refrec->jr_ino, refrec->jr_nlink,
+		    refrec->jr_parent, refrec->jr_diroff);
 	/*
 	 * Lookup the ino and clear truncate if one is found.  Partial
 	 * truncates are always done synchronously so if we discover
@@ -1803,16 +1858,75 @@ ino_append(union jrec *rec)
 	sino->si_hasrecs = 1;
 	srec = errmalloc(sizeof(*srec));
 	srec->sr_rec = rec;
-	srec->sr_alt = 0;
 	TAILQ_INSERT_TAIL(&sino->si_newrecs, srec, sr_next);
 }
 
 /*
- * If we see two ops for the same inode to the same parent at the same
- * offset we could miscount the link with ino_isat() returning twice.
- * Keep only the first record because it has the valid link count but keep
- * the mode from the final op as that should be the correct mode in case
- * it changed.
+ * Add a reference adjustment to the sino list and eliminate dups.  The
+ * primary loop in ino_build_ref() checks for dups but new ones may be
+ * created as a result of offset adjustments.
+ */
+static void
+ino_add_ref(struct suj_ino *sino, struct suj_rec *srec)
+{
+	struct jrefrec *refrec;
+	struct suj_rec *srn;
+	struct jrefrec *rrn;
+
+	refrec = (struct jrefrec *)srec->sr_rec;
+	/*
+	 * We walk backwards so that the oldest link count is preserved.  If
+	 * an add record conflicts with a remove keep the remove.  Redundant
+	 * removes are eliminated in ino_build_ref.  Otherwise we keep the
+	 * oldest record at a given location.
+	 */
+	for (srn = TAILQ_LAST(&sino->si_recs, srechd); srn;
+	    srn = TAILQ_PREV(srn, srechd, sr_next)) {
+		rrn = (struct jrefrec *)srn->sr_rec;
+		if (rrn->jr_parent != refrec->jr_parent ||
+		    rrn->jr_diroff != refrec->jr_diroff)
+			continue;
+		if (rrn->jr_op == JOP_REMREF || refrec->jr_op == JOP_ADDREF) {
+			rrn->jr_mode = refrec->jr_mode;
+			return;
+		}
+		/*
+		 * Adding a remove.
+		 *
+		 * Replace the record in place with the old nlink in case
+		 * we replace the head of the list.  Abandon srec as a dup.
+		 */
+		refrec->jr_nlink = rrn->jr_nlink;
+		srn->sr_rec = srec->sr_rec;
+		return;
+	}
+	TAILQ_INSERT_TAIL(&sino->si_recs, srec, sr_next);
+}
+
+/*
+ * Create a duplicate of a reference at a previous location.
+ */
+static void
+ino_dup_ref(struct suj_ino *sino, struct jrefrec *refrec, off_t diroff)
+{
+	struct jrefrec *rrn;
+	struct suj_rec *srn;
+
+	rrn = errmalloc(sizeof(*refrec));
+	*rrn = *refrec;
+	rrn->jr_op = JOP_ADDREF;
+	rrn->jr_diroff = diroff;
+	srn = errmalloc(sizeof(*srn));
+	srn->sr_rec = (union jrec *)rrn;
+	ino_add_ref(sino, srn);
+}
+
+/*
+ * Add a reference to the list at all known locations.  We follow the offset
+ * changes for a single instance and create duplicate add refs at each so
+ * that we can tolerate any version of the directory block.  Eliminate
+ * removes which collide with adds that are seen in the journal.  They should
+ * not adjust the link count down.
  */
 static void
 ino_build_ref(struct suj_ino *sino, struct suj_rec *srec)
@@ -1822,142 +1936,85 @@ ino_build_ref(struct suj_ino *sino, struct suj_rec *srec)
 	struct suj_rec *srp;
 	struct suj_rec *srn;
 	struct jrefrec *rrn;
+	off_t diroff;
 
 	refrec = (struct jrefrec *)srec->sr_rec;
-	if (debug)
-		printf("ino_build: op %d, ino %d, nlink %d, "
-		    "parent %d, diroff %jd\n", 
-		    refrec->jr_op, refrec->jr_ino, refrec->jr_nlink,
-		    refrec->jr_parent, refrec->jr_diroff);
-
 	/*
 	 * Search for a mvrec that matches this offset.  Whether it's an add
-	 * or a remove we can delete the mvref.  It no longer applies to this
-	 * location.
-	 *
-	 * For removes, we have to find the original offset so we can create
-	 * a remove that matches the earlier add so it can be abandoned
-	 * if necessary.  We create an add in the new location so we can
-	 * tolerate the directory block as it existed before or after
-	 * the move.
+	 * or a remove we can delete the mvref after creating a dup record in
+	 * the old location.
 	 */
 	if (!TAILQ_EMPTY(&sino->si_movs)) {
+		diroff = refrec->jr_diroff;
 		for (srn = TAILQ_LAST(&sino->si_movs, srechd); srn; srn = srp) {
 			srp = TAILQ_PREV(srn, srechd, sr_next);
 			mvrec = (struct jmvrec *)srn->sr_rec;
 			if (mvrec->jm_parent != refrec->jr_parent ||
-			    mvrec->jm_newoff != refrec->jr_diroff)
+			    mvrec->jm_newoff != diroff)
 				continue;
+			diroff = mvrec->jm_oldoff;
 			TAILQ_REMOVE(&sino->si_movs, srn, sr_next);
-			if (refrec->jr_op == JOP_REMREF) {
-				rrn = errmalloc(sizeof(*refrec));
-				*rrn = *refrec;
-				rrn->jr_op = JOP_ADDREF;
-				rrn->jr_diroff = mvrec->jm_oldoff;
-				srn = errmalloc(sizeof(*srec));
-				srn->sr_alt = 1;
-				srn->sr_rec = (union jrec *)rrn;
-				ino_build_ref(sino, srn);
-			}
+			ino_dup_ref(sino, refrec, diroff);
 		}
 	}
 	/*
-	 * We walk backwards so that adds and removes are evaluated in the
-	 * correct order.  If a primary record conflicts with an alt keep
-	 * the primary and discard the alt.  We must track this to keep
-	 * the correct number of removes in the list.
+	 * If a remove wasn't eliminated by an earlier add just append it to
+	 * the list.
 	 */
-	for (srn = TAILQ_LAST(&sino->si_recs, srechd); srn;
-	    srn = TAILQ_PREV(srn, srechd, sr_next)) {
-		rrn = (struct jrefrec *)srn->sr_rec;
-		if (rrn->jr_parent != refrec->jr_parent ||
-		    rrn->jr_diroff != refrec->jr_diroff)
-			continue;
-		if (debug)
-			printf("Discarding dup.\n");
-		if (srn->sr_alt == 0) {
-			rrn->jr_mode = refrec->jr_mode;
+	if (refrec->jr_op == JOP_REMREF) {
+		ino_add_ref(sino, srec);
+		return;
+	}
+	/*
+	 * Walk the list of records waiting to be added to the list.  We
+	 * must check for moves that apply to our current offset and remove
+	 * them from the list.  Remove any duplicates to eliminate removes
+	 * with corresponding adds.
+	 */
+	TAILQ_FOREACH_SAFE(srn, &sino->si_newrecs, sr_next, srp) {
+		switch (srn->sr_rec->rec_jrefrec.jr_op) {
+		case JOP_ADDREF:
+			/*
+			 * This should actually be an error we should
+			 * have a remove for every add journaled.
+			 */
+			rrn = (struct jrefrec *)srn->sr_rec;
+			if (rrn->jr_parent != refrec->jr_parent ||
+			    rrn->jr_diroff != refrec->jr_diroff)
+				break;
+			TAILQ_REMOVE(&sino->si_newrecs, srn, sr_next);
+			break;
+		case JOP_REMREF:
+			/*
+			 * Once we remove the current iteration of the
+			 * record at this address we're done.
+			 */
+			rrn = (struct jrefrec *)srn->sr_rec;
+			if (rrn->jr_parent != refrec->jr_parent ||
+			    rrn->jr_diroff != refrec->jr_diroff)
+				break;
+			TAILQ_REMOVE(&sino->si_newrecs, srn, sr_next);
+			ino_add_ref(sino, srec);
 			return;
+		case JOP_MVREF:
+			/*
+			 * Update our diroff based on any moves that match
+			 * and remove the move.
+			 */
+			mvrec = (struct jmvrec *)srn->sr_rec;
+			if (mvrec->jm_parent != refrec->jr_parent ||
+			    mvrec->jm_oldoff != refrec->jr_diroff)
+				break;
+			ino_dup_ref(sino, refrec, mvrec->jm_oldoff);
+			refrec->jr_diroff = mvrec->jm_newoff;
+			TAILQ_REMOVE(&sino->si_newrecs, srn, sr_next);
+			break;
+		default:
+			errx(1, "ino_build_ref: Unknown op %d",
+			    srn->sr_rec->rec_jrefrec.jr_op);
 		}
-		/*
-		 * Replace the record in place with the old nlink in case
-		 * we replace the head of the list.  Abandon srec as a dup.
-		 */
-		refrec->jr_nlink = rrn->jr_nlink;
-		srn->sr_rec = srec->sr_rec;
-		srn->sr_alt = srec->sr_alt;
-		return;
 	}
-	TAILQ_INSERT_TAIL(&sino->si_recs, srec, sr_next);
-}
-
-/*
- * Apply a move record to an inode.  We must search for adds that preceed us
- * and add duplicates because we won't know which location to search first.
- * Then we add movs to a queue that is maintained until the moved location
- * is removed.  If a single record is moved multiple times we only maintain
- * one copy that contains the original and final diroffs.
- */
-static void
-ino_move_ref(struct suj_ino *sino, struct suj_rec *srec)
-{
-	struct jrefrec *refrec;
-	struct jmvrec *mvrn;
-	struct suj_rec *srn;
-	struct jrefrec *rrn;
-	struct jmvrec *mvrec;
-
-	mvrec = (struct jmvrec *)srec->sr_rec;
-	if (debug)
-		printf("ino_move: ino %d, parent %d, diroff %jd, oldoff %jd\n", 
-		    mvrec->jm_ino, mvrec->jm_parent, mvrec->jm_newoff,
-		    mvrec->jm_oldoff);
-	/*
-	 * We walk backwards so we only evaluate the most recent record at
-	 * this offset.
-	 */
-	for (srn = TAILQ_LAST(&sino->si_recs, srechd); srn;
-	    srn = TAILQ_PREV(srn, srechd, sr_next)) {
-		rrn = (struct jrefrec *)srn->sr_rec;
-		if (rrn->jr_parent != mvrec->jm_parent ||
-		    rrn->jr_diroff != mvrec->jm_oldoff)
-			continue;
-		/*
-		 * When an entry is moved we don't know whether the write
-		 * to move has completed yet.  To resolve this we create
-		 * a new add dependency in the new location as if it were
-		 * added twice.  Only one will succeed.  Consider the
-		 * new offset the primary location for the inode and the
-		 * old offset the alt.
-		 */
-		srn->sr_alt = 1;
-		refrec = errmalloc(sizeof(*refrec));
-		refrec->jr_op = JOP_ADDREF;
-		refrec->jr_ino = mvrec->jm_ino;
-		refrec->jr_parent = mvrec->jm_parent;
-		refrec->jr_diroff = mvrec->jm_newoff;
-		refrec->jr_mode = rrn->jr_mode;
-		refrec->jr_nlink = rrn->jr_nlink;
-		srn = errmalloc(sizeof(*srn));
-		srn->sr_alt = 0;
-		srn->sr_rec = (union jrec *)refrec;
-		ino_build_ref(sino, srn);
-		break;
-	}
-	/*
-	 * Add this mvrec to the queue of pending mvs, possibly collapsing
-	 * it with a prior move for the same inode and offset.
-	 */
-	for (srn = TAILQ_LAST(&sino->si_movs, srechd); srn;
-	    srn = TAILQ_PREV(srn, srechd, sr_next)) {
-		mvrn = (struct jmvrec *)srn->sr_rec;
-		if (mvrn->jm_parent != mvrec->jm_parent ||
-		    mvrn->jm_newoff != mvrec->jm_oldoff)
-			continue;
-		mvrn->jm_newoff = mvrec->jm_newoff;
-		return;
-	}
-	TAILQ_INSERT_TAIL(&sino->si_movs, srec, sr_next);
+	ino_add_ref(sino, srec);
 }
 
 /*
@@ -1977,7 +2034,10 @@ ino_build(struct suj_ino *sino)
 			ino_build_ref(sino, srec);
 			break;
 		case JOP_MVREF:
-			ino_move_ref(sino, srec);
+			/*
+			 * Add this mvrec to the queue of pending mvs.
+			 */
+			TAILQ_INSERT_TAIL(&sino->si_movs, srec, sr_next);
 			break;
 		default:
 			errx(1, "ino_build: Unknown op %d",
@@ -2531,8 +2591,9 @@ suj_check(const char *filesys)
 		printf("** Resolving unreferenced inode list.\n");
 		ino_unlinked();
 		printf("** Processing journal entries.\n");
-		cg_apply(cg_check);
-		cg_apply(cg_check2);
+		cg_apply(cg_trunc);
+		cg_apply(cg_check_blk);
+		cg_apply(cg_check_ino);
 	}
 	/*
 	 * To remain idempotent with partial truncations the free bitmaps
