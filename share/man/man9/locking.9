@@ -76,9 +76,9 @@ threads (including interrupt threads), and releases (unlocks) it afterwards.
 If the mutex cannot be acquired, the thread requesting it will sleep.
 Mutexes fully support priority propagation.
 .Pp
-See the
+See
 .Xr mutex 9
-page for more information.
+for details.
 .Ss Spin mutexes
 Spin mutexes are variation of basic mutexes; the main difference between
 the two is that spin mutexes never sleep - instead, they spin, waiting
@@ -100,9 +100,9 @@ a pool mutex, one uses address of the structure being protected with it,
 not the mutex itself.
 Pool mutexes are seldom used.
 .Pp
-See the
+See
 .Xr mtx_pool 9
-page for more information.
+for details.
 .Ss Reader/writer locks
 Reader/writer locks allow shared access to protected data by multiple threads,
 or exclusive access by a single thread.
@@ -131,9 +131,9 @@ can recurse, but exclusive locks are not allowed to recurse.
 This ability should not be used lightly and 
 .Em may go away.
 .Pp
-See the
+See
 .Xr rwlock 9
-page for more information.
+for details.
 .Ss Read-mostly locks
 Mostly reader locks are similar to
 .Em reader/writer
@@ -144,9 +144,9 @@ using a lock user supplied
 .Em tracker
 data structure.
 .Pp
-See the
+See
 .Xr rmlock 9
-page for more information.
+for details.
 .Ss Shared/exclusive locks
 Shared/exclusive locks are similar to reader/writer locks; the main difference
 between them is that shared/exclusive locks may be held during unbounded sleep
@@ -158,9 +158,9 @@ They should be considered to be closely related to
 In fact it could in some cases be 
 considered a conditional sleep.
 .Pp
-See the
+See
 .Xr sx 9
-page for more information.
+for details.
 .Ss Counting semaphores
 Counting semaphores provide a mechanism for synchronizing access
 to a pool of resources.
@@ -169,9 +169,9 @@ so they can be useful in situations where one thread needs
 to acquire a resource, and another thread needs to release it.
 They are largely deprecated.
 .Pp
-See the
+See
 .Xr sema 9
-page for more information.
+for details.
 .Ss Condition variables
 Condition variables are used in conjunction with mutexes to wait for
 conditions to occur.
@@ -182,9 +182,9 @@ When a thread waits on a condition, the mutex
 is atomically released before the thread is blocked, then reacquired
 before the function call returns.
 .Pp
-See the
+See
 .Xr condvar 9
-page for more information.
+for details.
 .Ss Giant
 Giant is an instance of a mutex, with some special characteristics:
 .Bl -enum
@@ -262,9 +262,9 @@ while the thread is suspended and will reacquire the
 .Va Giant
 mutex before the function returns.
 .Pp
-See the
+See
 .Xr sleep 9
-page for more information.
+for details.
 .Pp
 .Ss Lockmanager locks
 Shared/exclusive locks, used mostly in
@@ -276,9 +276,9 @@ They have features other lock types don't have, such as sleep timeout,
 writer starvation avoidance, draining, and interlock mutex, but this makes them
 complicated to implement; for this reason, they are deprecated.
 .Pp
-See the
+See
 .Xr lock 9
-page for more information.
+for details.
 .Sh INTERACTIONS
 .Ss Bounded vs. unbounded sleep
 The following primitives perform bounded sleep: mutexes, pool mutexes,
@@ -325,7 +325,7 @@ one of the synchronization primitives discussed here:
 .Xc
 .It Ic spin mtx  Ta \&ok-1 Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no-3
 .It Ic mutex     Ta \&ok Ta \&ok-1 Ta \&no Ta \&ok Ta \&ok Ta \&no-3
-.It Ic sxlock    Ta \&ok Ta \&ok Ta \&ok-2 Ta \&ok Ta \&ok Ta \&ok-4
+.It Ic sx        Ta \&ok Ta \&ok Ta \&ok-2 Ta \&ok Ta \&ok Ta \&ok-4
 .It Ic rwlock    Ta \&ok Ta \&ok Ta \&no Ta \&ok-2 Ta \&ok Ta \&no-3
 .It Ic rmlock    Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&ok-2 Ta \&no
 .El
