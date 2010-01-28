@@ -184,6 +184,8 @@ static struct nlist nl[] = {
 	{ .n_name = "_sctpstat" },
 #define	N_MFCTABLESIZE	54
 	{ .n_name = "_mfctablesize" },
+#define N_ARPSTAT       55
+	{ .n_name = "_arpstat" },
 	{ .n_name = NULL },
 };
 
@@ -232,6 +234,8 @@ struct protox {
 	  carp_stats,	NULL,		"carp",	1,	0 },
 	{ -1,		N_PFSYNCSTAT,	1,	NULL,
 	  pfsync_stats,	NULL,		"pfsync", 1,	0 },
+	{ -1,		N_ARPSTAT,	1,	NULL,
+	  arp_stats,	NULL,		"arp", 1,	0 },
 	{ -1,		-1,		0,	NULL,
 	  NULL,		NULL,		NULL,	0,	0 }
 };

@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 
 SYSCTL_DECL(_net_link_ether);
 SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
+SYSCTL_NODE(_net_link_ether, PF_ARP, arp, CTLFLAG_RW, 0, "");
 
 VNET_DEFINE(int, useloopback) = 1;	/* use loopback interface for
 					 * local traffic */
@@ -91,11 +92,13 @@ static VNET_DEFINE(int, arpt_down) = 20;      /* keep incomplete entries for
 					       * 20 seconds */
 static VNET_DEFINE(int, arp_maxtries) = 5;
 static VNET_DEFINE(int, arp_proxyall);
+static VNET_DEFINE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
 
 #define	V_arpt_keep		VNET(arpt_keep)
 #define	V_arpt_down		VNET(arpt_down)
 #define	V_arp_maxtries		VNET(arp_maxtries)
 #define	V_arp_proxyall		VNET(arp_proxyall)
+#define	V_arpstat		VNET(arpstat)
 
 SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW,
 	&VNET_NAME(arpt_keep), 0,
@@ -110,6 +113,9 @@ SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, useloopback, CTLFLAG_RW,
 SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_RW,
 	&VNET_NAME(arp_proxyall), 0,
 	"Enable proxy ARP for all suitable requests");
+SYSCTL_VNET_STRUCT(_net_link_ether_arp, OID_AUTO, stats, CTLFLAG_RW,
+	&VNET_NAME(arpstat), arpstat,
+	"ARP statistics (struct arpstat, net/if_arp.h)");
 
 static void	arp_init(void);
 void		arprequest(struct ifnet *,
@@ -166,6 +172,7 @@ arptimer(void *arg)
 		return;
 	}
 	ifp = lle->lle_tbl->llt_ifp;
+	CURVNET_SET(ifp->if_vnet);
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(lle);
 	if (lle->la_flags & LLE_STATIC)
@@ -174,6 +181,7 @@ arptimer(void *arg)
 		if (!callout_pending(&lle->la_timer) &&
 		    callout_active(&lle->la_timer)) {
 			(void) llentry_free(lle);
+			ARPSTAT_INC(timeouts);
 		} 
 #ifdef DIAGNOSTIC
 		else {
@@ -186,6 +194,7 @@ arptimer(void *arg)
 #endif
 	}
 	IF_AFDATA_UNLOCK(ifp);
+	CURVNET_RESTORE();
 }
 
 /*
@@ -247,6 +256,7 @@ arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr  *tip,
 	sa.sa_len = 2;
 	m->m_flags |= M_BCAST;
 	(*ifp->if_output)(ifp, m, &sa, NULL);
+	ARPSTAT_INC(txrequests);
 }
 
 /*
@@ -348,8 +358,10 @@ retry:
 	 * latest one.
 	 */
 	if (m != NULL) {
-		if (la->la_hold != NULL)
+		if (la->la_hold != NULL) {
 			m_freem(la->la_hold);
+			ARPSTAT_INC(dropped);
+		}
 		la->la_hold = m;
 		if (renew == 0 && (flags & LLE_EXCLUSIVE)) {
 			flags &= ~LLE_EXCLUSIVE;
@@ -422,6 +434,7 @@ arpintr(struct mbuf *m)
 		ar = mtod(m, struct arphdr *);
 	}
 
+	ARPSTAT_INC(received);
 	switch (ntohs(ar->ar_pro)) {
 #ifdef INET
 	case ETHERTYPE_IP:
@@ -501,6 +514,9 @@ in_arpinput(struct mbuf *m)
 	op = ntohs(ah->ar_op);
 	(void)memcpy(&isaddr, ar_spa(ah), sizeof (isaddr));
 	(void)memcpy(&itaddr, ar_tpa(ah), sizeof (itaddr));
+
+	if (op == ARPOP_REPLY)
+		ARPSTAT_INC(rxreplies);
 
 	/*
 	 * For a bridge, we want to check the address irrespective
@@ -612,6 +628,7 @@ match:
 		   ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
 		   inet_ntoa(isaddr), ifp->if_xname);
 		itaddr = myaddr;
+		ARPSTAT_INC(dupips);
 		goto reply;
 	}
 	if (ifp->if_flags & IFF_STATICARP)
@@ -695,6 +712,7 @@ match:
 reply:
 	if (op != ARPOP_REQUEST)
 		goto drop;
+	ARPSTAT_INC(rxrequests);
 
 	if (itaddr.s_addr == myaddr.s_addr) {
 		/* Shortcut.. the receiving interface is the target. */
@@ -791,6 +809,7 @@ reply:
 	sa.sa_family = AF_ARP;
 	sa.sa_len = 2;
 	(*ifp->if_output)(ifp, m, &sa, NULL);
+	ARPSTAT_INC(txreplies);
 	return;
 
 drop:
