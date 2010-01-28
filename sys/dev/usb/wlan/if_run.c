@@ -803,22 +803,25 @@ int
 run_load_microcode(struct run_softc *sc)
 {
 	usb_device_request_t req;
+	const struct firmware *fw;
 	const u_char *base;
 	uint32_t tmp;
 	int ntries, error;
 	const uint64_t *temp;
 	uint64_t bytes;
 
-	if((sc->fwp = firmware_get("runfw")) == NULL){
+	fw = firmware_get("runfw");
+	if(fw == NULL){
 		printf("%s: failed loadfirmware of file %s (error %d)\n",
 		    device_get_nameunit(sc->sc_dev), "runfw", ENOENT);
 		return ENOENT;
 	}
 
-	if (sc->fwp->datasize != 8192) {
+	if (fw->datasize != 8192) {
 		printf("%s: invalid firmware size (should be 8KB)\n",
 		    device_get_nameunit(sc->sc_dev));
-		return EINVAL;
+		error = EINVAL;
+		goto fail;
 	}
 
 	/*
@@ -827,7 +830,7 @@ run_load_microcode(struct run_softc *sc)
 	 * first half (4KB) is for rt2870,
 	 * last half is for rt3071.
 	 */
-	base = sc->fwp->data;
+	base = fw->data;
 	if ((sc->mac_rev >> 16) != 0x2860 &&
 	    (sc->mac_rev >> 16) != 0x2872 &&
 	    (sc->mac_rev >> 16) != 0x3070 &&
@@ -840,10 +843,14 @@ run_load_microcode(struct run_softc *sc)
 		    device_get_nameunit(sc->sc_dev));
 
 	/* cheap sanity check */
-	temp = sc->fwp->data;
+	temp = fw->data;
 	bytes = *temp;
-	if(bytes != be64toh(0xffffff0210280210))
-		return EINVAL;
+	if(bytes != be64toh(0xffffff0210280210)) {
+		printf("%s: firmware checksum failed\n",
+		    device_get_nameunit(sc->sc_dev));
+		error = EINVAL;
+		goto fail;
+	}
 
 	run_read(sc, RT2860_ASIC_VER_ID, &tmp);
 	/* write microcode image */
@@ -856,19 +863,23 @@ run_load_microcode(struct run_softc *sc)
 	USETW(req.wValue, 8);
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 0);
-	if ((error = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL)) != 0)
-		return error;
+	if ((error = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL)) != 0) {
+		printf("%s: firmware reset failed\n",
+		    device_get_nameunit(sc->sc_dev));
+		goto fail;
+	}
 
 	run_delay(sc, 10);
 
 	run_write(sc, RT2860_H2M_MAILBOX, 0);
 	if ((error = run_mcu_cmd(sc, RT2860_MCU_CMD_BOOT, 0)) != 0)
-		return error;
+		goto fail;
 
 	/* wait until microcontroller is ready */
 	for (ntries = 0; ntries < 1000; ntries++) {
-		if ((error = run_read(sc, RT2860_SYS_CTRL, &tmp)) != 0)
-			return error;
+		if ((error = run_read(sc, RT2860_SYS_CTRL, &tmp)) != 0) {
+			goto fail;
+		}
 		if (tmp & RT2860_MCU_READY)
 			break;
 		run_delay(sc, 10);
@@ -876,11 +887,14 @@ run_load_microcode(struct run_softc *sc)
 	if (ntries == 1000) {
 		printf("%s: timeout waiting for MCU to initialize\n",
 		    device_get_nameunit(sc->sc_dev));
-		return ETIMEDOUT;
+		error = ETIMEDOUT;
+		goto fail;
 	}
 	DPRINTF("microcode successfully loaded after %d tries\n", ntries);
 
-	return 0;
+fail:
+	firmware_put(fw, FIRMWARE_UNLOAD);
+	return (error);
 }
 
 int
