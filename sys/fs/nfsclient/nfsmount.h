@@ -71,8 +71,6 @@ struct	nfsmount {
 	int	nm_tprintf_delay;	/* interval for messages */
 
 	/* Newnfs additions */
-	int	nm_iothreadcnt;
-	struct proc *nm_iodwant[NFS_MAXRAHEAD];
 	struct	nfsclclient *nm_clp;
 	uid_t	nm_uid;			/* Uid for SetClientID etc. */
 	u_int64_t nm_clval;		/* identifies which clientid */

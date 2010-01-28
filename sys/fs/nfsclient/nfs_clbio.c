@@ -63,7 +63,7 @@ extern int newnfs_directio_allow_mmap;
 extern struct nfsstats newnfsstats;
 extern struct mtx ncl_iod_mutex;
 extern int ncl_numasync;
-extern struct proc *ncl_iodwant[NFS_MAXRAHEAD];
+extern enum nfsiod_state ncl_iodwant[NFS_MAXRAHEAD];
 extern struct nfsmount *ncl_iodmount[NFS_MAXRAHEAD];
 extern int newnfs_directio_enable;
 
@@ -1396,7 +1396,7 @@ again:
 	 * Find a free iod to process this request.
 	 */
 	for (iod = 0; iod < ncl_numasync; iod++)
-		if (ncl_iodwant[iod]) {
+		if (ncl_iodwant[iod] == NFSIOD_AVAILABLE) {
 			gotiod = TRUE;
 			break;
 		}
@@ -1405,7 +1405,7 @@ again:
 	 * Try to create one if none are free.
 	 */
 	if (!gotiod) {
-		iod = ncl_nfsiodnew();
+		iod = ncl_nfsiodnew(1);
 		if (iod != -1)
 			gotiod = TRUE;
 	}
@@ -1417,7 +1417,7 @@ again:
 		 */
 		NFS_DPF(ASYNCIO, ("ncl_asyncio: waking iod %d for mount %p\n",
 		    iod, nmp));
-		ncl_iodwant[iod] = NULL;
+		ncl_iodwant[iod] = NFSIOD_NOT_AVAILABLE;
 		ncl_iodmount[iod] = nmp;
 		nmp->nm_bufqiods++;
 		wakeup(&ncl_iodwant[iod]);
