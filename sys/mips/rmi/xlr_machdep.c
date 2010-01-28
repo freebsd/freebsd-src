@@ -583,7 +583,7 @@ disable_msgring_int(void *arg);
 void 
 enable_msgring_int(void *arg);
 void xlr_msgring_handler(struct trapframe *tf);
-void msgring_process_fast_intr(void *arg);
+int msgring_process_fast_intr(void *arg);
 
 struct msgring_ithread {
 	struct thread *i_thread;
@@ -594,7 +594,7 @@ struct msgring_ithread {
 struct msgring_ithread msgring_ithreads[MAXCPU];
 char ithd_name[MAXCPU][32];
 
-void
+int
 msgring_process_fast_intr(void *arg)
 {
 	int cpu = PCPU_GET(cpuid);
@@ -617,6 +617,7 @@ msgring_process_fast_intr(void *arg)
 		sched_add(td, SRQ_INTR);
 	}
 	thread_unlock(td);
+	return FILTER_HANDLED;
 }
 
 static void
