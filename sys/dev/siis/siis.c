@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
-#include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
 
 /* local prototypes */
@@ -740,6 +739,8 @@ siis_phy_check_events(device_t dev)
 	/* If we have a connection event, deal with it */
 	if (ch->pm_level == 0) {
 		u_int32_t status = ATA_INL(ch->r_mem, SIIS_P_SSTS);
+		union ccb *ccb;
+
 		if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
 		    ((status & ATA_SS_SPD_MASK) != ATA_SS_SPD_NO_SPEED) &&
 		    ((status & ATA_SS_IPM_MASK) == ATA_SS_IPM_ACTIVE)) {
@@ -751,6 +752,15 @@ siis_phy_check_events(device_t dev)
 				device_printf(dev, "DISCONNECT requested\n");
 			ch->devices = 0;
 		}
+		if ((ccb = xpt_alloc_ccb_nowait()) == NULL)
+			return;
+		if (xpt_create_path(&ccb->ccb_h.path, NULL,
+		    cam_sim_path(ch->sim),
+		    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+			xpt_free_ccb(ccb);
+			return;
+		}
+		xpt_rescan(ccb);
 	}
 }
 
@@ -1025,6 +1035,13 @@ siis_execute_transaction(struct siis_slot *slot)
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
 			ctp->control |= htole16(SIIS_PRB_PACKET_WRITE);
 	}
+	/* Special handling for Soft Reset command. */
+	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
+	    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) &&
+	    (ccb->ataio.cmd.control & ATA_A_RESET)) {
+		/* Kick controller into sane state */
+		siis_portinit(dev);
+	}
 	/* Setup the FIS for this request */
 	if (!siis_setup_fis(dev, ctp, ccb, slot->slot)) {
 		device_printf(ch->dev, "Setting up SATA FIS failed\n");
@@ -1081,10 +1098,11 @@ siis_timeout(struct siis_slot *slot)
 	if (slot->state < SIIS_SLOT_RUNNING)
 		return;
 	device_printf(dev, "Timeout on slot %d\n", slot->slot);
-device_printf(dev, "%s is %08x ss %08x rs %08x es %08x sts %08x serr %08x\n",
-    __func__, ATA_INL(ch->r_mem, SIIS_P_IS), ATA_INL(ch->r_mem, SIIS_P_SS), ch->rslots,
-    ATA_INL(ch->r_mem, SIIS_P_CMDERR), ATA_INL(ch->r_mem, SIIS_P_STS),
-    ATA_INL(ch->r_mem, SIIS_P_SERR));
+	device_printf(dev, "%s is %08x ss %08x rs %08x es %08x sts %08x serr %08x\n",
+	    __func__, ATA_INL(ch->r_mem, SIIS_P_IS),
+	    ATA_INL(ch->r_mem, SIIS_P_SS), ch->rslots,
+	    ATA_INL(ch->r_mem, SIIS_P_CMDERR), ATA_INL(ch->r_mem, SIIS_P_STS),
+	    ATA_INL(ch->r_mem, SIIS_P_SERR));
 
 	if (ch->toslots == 0)
 		xpt_freeze_simq(ch->sim, 1);
@@ -1368,8 +1386,6 @@ siis_devreset(device_t dev)
 			return (EBUSY);
 		}
 	}
-	if (bootverbose)
-		device_printf(dev, "device reset time=%dms\n", timeout);
 	return (0);
 }
 
@@ -1389,8 +1405,6 @@ siis_wait_ready(device_t dev, int t)
 			return (EBUSY);
 		}
 	}
-	if (bootverbose)
-		device_printf(dev, "ready wait time=%dms\n", timeout);
 	return (0);
 }
 
@@ -1401,6 +1415,7 @@ siis_reset(device_t dev)
 	int i, retry = 0, sata_rev;
 	uint32_t val;
 
+	xpt_freeze_simq(ch->sim, 1);
 	if (bootverbose)
 		device_printf(dev, "SIIS reset...\n");
 	if (!ch->readlog && !ch->recovery)
@@ -1466,6 +1481,7 @@ retry:
 			    "SIIS reset done: phy reset found no device\n");
 		/* Tell the XPT about the event */
 		xpt_async(AC_BUS_RESET, ch->path, NULL);
+		xpt_release_simq(ch->sim, TRUE);
 		return;
 	}
 	/* Wait for clearing busy status. */
@@ -1496,6 +1512,7 @@ retry:
 		device_printf(dev, "SIIS reset done: devices=%08x\n", ch->devices);
 	/* Tell the XPT about the event */
 	xpt_async(AC_BUS_RESET, ch->path, NULL);
+	xpt_release_simq(ch->sim, TRUE);
 }
 
 static int

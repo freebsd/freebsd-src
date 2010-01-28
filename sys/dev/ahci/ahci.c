@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
-#include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
 
 /* local prototypes */
@@ -86,7 +85,7 @@ static void ahci_start_fr(device_t dev);
 static void ahci_stop_fr(device_t dev);
 
 static int ahci_sata_connect(struct ahci_channel *ch);
-static int ahci_sata_phy_reset(device_t dev, int quick);
+static int ahci_sata_phy_reset(device_t dev);
 
 static void ahci_issue_read_log(device_t dev);
 static void ahci_process_read_log(device_t dev, union ccb *ccb);
@@ -348,6 +347,8 @@ ahci_attach(device_t dev)
 	ctlr->caps = ATA_INL(ctlr->r_mem, AHCI_CAP);
 	if (version >= 0x00010020)
 		ctlr->caps2 = ATA_INL(ctlr->r_mem, AHCI_CAP2);
+	if (ctlr->caps & AHCI_CAP_EMS)
+		ctlr->capsem = ATA_INL(ctlr->r_mem, AHCI_EM_CTL);
 	ctlr->ichannels = ATA_INL(ctlr->r_mem, AHCI_PI);
 	if (ctlr->quirks & AHCI_Q_1CH) {
 		ctlr->caps &= ~AHCI_CAP_NPMASK;
@@ -416,6 +417,17 @@ ahci_attach(device_t dev)
 		    (ctlr->caps2 & AHCI_CAP2_APST) ? " APST":"",
 		    (ctlr->caps2 & AHCI_CAP2_NVMP) ? " NVMP":"",
 		    (ctlr->caps2 & AHCI_CAP2_BOH) ? " BOH":"");
+	}
+	if (bootverbose && (ctlr->caps & AHCI_CAP_EMS)) {
+		device_printf(dev, "EM Caps: %s%s%s%s%s%s%s%s\n",
+		    (ctlr->capsem & AHCI_EM_PM) ? " PM":"",
+		    (ctlr->capsem & AHCI_EM_ALHD) ? " ALHD":"",
+		    (ctlr->capsem & AHCI_EM_XMT) ? " XMT":"",
+		    (ctlr->capsem & AHCI_EM_SMB) ? " SMB":"",
+		    (ctlr->capsem & AHCI_EM_SGPIO) ? " SGPIO":"",
+		    (ctlr->capsem & AHCI_EM_SES2) ? " SES-2":"",
+		    (ctlr->capsem & AHCI_EM_SAFTE) ? " SAF-TE":"",
+		    (ctlr->capsem & AHCI_EM_LED) ? " LED":"");
 	}
 	/* Attach all channels on this controller */
 	for (unit = 0; unit < ctlr->channels; unit++) {
@@ -1131,6 +1143,8 @@ ahci_phy_check_events(device_t dev, u_int32_t serr)
 
 	if ((serr & ATA_SE_PHY_CHANGED) && (ch->pm_level == 0)) {
 		u_int32_t status = ATA_INL(ch->r_mem, AHCI_P_SSTS);
+		union ccb *ccb;
+
 		if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
 		    ((status & ATA_SS_SPD_MASK) != ATA_SS_SPD_NO_SPEED) &&
 		    ((status & ATA_SS_IPM_MASK) == ATA_SS_IPM_ACTIVE)) {
@@ -1142,6 +1156,15 @@ ahci_phy_check_events(device_t dev, u_int32_t serr)
 				device_printf(dev, "DISCONNECT requested\n");
 			ch->devices = 0;
 		}
+		if ((ccb = xpt_alloc_ccb_nowait()) == NULL)
+			return;
+		if (xpt_create_path(&ccb->ccb_h.path, NULL,
+		    cam_sim_path(ch->sim),
+		    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+			xpt_free_ccb(ccb);
+			return;
+		}
+		xpt_rescan(ccb);
 	}
 }
 
@@ -1511,6 +1534,13 @@ ahci_execute_transaction(struct ahci_slot *slot)
 		if (timeout && (count >= timeout)) {
 			device_printf(ch->dev,
 			    "Poll timeout on slot %d\n", slot->slot);
+			device_printf(dev, "is %08x cs %08x ss %08x "
+			    "rs %08x tfd %02x serr %08x\n",
+			    ATA_INL(ch->r_mem, AHCI_P_IS),
+			    ATA_INL(ch->r_mem, AHCI_P_CI),
+			    ATA_INL(ch->r_mem, AHCI_P_SACT), ch->rslots,
+			    ATA_INL(ch->r_mem, AHCI_P_TFD),
+			    ATA_INL(ch->r_mem, AHCI_P_SERR));
 			et = AHCI_ERR_TIMEOUT;
 		}
 		if (et != AHCI_ERR_NONE) {
@@ -1935,7 +1965,7 @@ ahci_wait_ready(device_t dev, int t)
 	    (ATA_S_BUSY | ATA_S_DRQ)) {
 		DELAY(1000);
 		if (timeout++ > t) {
-			device_printf(dev, "port is not ready (timeout %dms) "
+			device_printf(dev, "device is not ready (timeout %dms) "
 			    "tfd = %08x\n", t, val);
 			return (EBUSY);
 		}
@@ -1952,6 +1982,7 @@ ahci_reset(device_t dev)
 	struct ahci_controller *ctlr = device_get_softc(device_get_parent(dev));
 	int i;
 
+	xpt_freeze_simq(ch->sim, 1);
 	if (bootverbose)
 		device_printf(dev, "AHCI reset...\n");
 	/* Requeue freezed command. */
@@ -1986,7 +2017,7 @@ ahci_reset(device_t dev)
 	/* Disable port interrupts */
 	ATA_OUTL(ch->r_mem, AHCI_P_IE, 0);
 	/* Reset and reconnect PHY, */
-	if (!ahci_sata_phy_reset(dev, 0)) {
+	if (!ahci_sata_phy_reset(dev)) {
 		if (bootverbose)
 			device_printf(dev,
 			    "AHCI reset done: phy reset found no device\n");
@@ -1994,13 +2025,12 @@ ahci_reset(device_t dev)
 		/* Enable wanted port interrupts */
 		ATA_OUTL(ch->r_mem, AHCI_P_IE,
 		    (AHCI_P_IX_CPD | AHCI_P_IX_PRC | AHCI_P_IX_PC));
+		xpt_release_simq(ch->sim, TRUE);
 		return;
 	}
 	/* Wait for clearing busy status. */
-	if (ahci_wait_ready(dev, 10000)) {
-		device_printf(dev, "device ready timeout\n");
+	if (ahci_wait_ready(dev, 15000))
 		ahci_clo(dev);
-	}
 	ahci_start(dev);
 	ch->devices = 1;
 	/* Enable wanted port interrupts */
@@ -2012,6 +2042,7 @@ ahci_reset(device_t dev)
 	      AHCI_P_IX_DS | AHCI_P_IX_PS | (ctlr->ccc ? 0 : AHCI_P_IX_DHR)));
 	if (bootverbose)
 		device_printf(dev, "AHCI reset done: device found\n");
+	xpt_release_simq(ch->sim, TRUE);
 }
 
 static int
@@ -2104,20 +2135,12 @@ ahci_sata_connect(struct ahci_channel *ch)
 }
 
 static int
-ahci_sata_phy_reset(device_t dev, int quick)
+ahci_sata_phy_reset(device_t dev)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
 	int sata_rev;
 	uint32_t val;
 
-	if (quick) {
-		val = ATA_INL(ch->r_mem, AHCI_P_SCTL);
-		if ((val & ATA_SC_DET_MASK) == ATA_SC_DET_IDLE)
-			return (ahci_sata_connect(ch));
-	}
-
-	if (bootverbose)
-		device_printf(dev, "hardware reset ...\n");
 	sata_rev = ch->user[ch->pm_present ? 15 : 0].revision;
 	if (sata_rev == 1)
 		val = ATA_SC_SPD_SPEED_GEN1;

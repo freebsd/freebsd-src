@@ -305,10 +305,10 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 		entry = cam_fetch_status_entry(status);
 
 		if (entry == NULL)
-			sbuf_printf(&sb, "CAM Status: Unknown (%#x)\n",
+			sbuf_printf(&sb, "CAM status: Unknown (%#x)\n",
 				    ccb->ccb_h.status);
 		else
-			sbuf_printf(&sb, "CAM Status: %s\n",
+			sbuf_printf(&sb, "CAM status: %s\n",
 				    entry->status_text);
 	}
 
@@ -338,7 +338,7 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 
 			if (proto_flags & CAM_ESF_PRINT_STATUS) {
 				sbuf_cat(&sb, path_str);
-				sbuf_printf(&sb, "SCSI Status: %s\n",
+				sbuf_printf(&sb, "SCSI status: %s\n",
 					    scsi_status_string(&ccb->csio));
 			}
 

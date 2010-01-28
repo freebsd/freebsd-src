@@ -98,6 +98,9 @@ struct pmp_softc {
 	int			reset;
 	int			frozen;
 	int			restart;
+	int			events;
+#define PMP_EV_RESET	1
+#define PMP_EV_RESCAN	2
 	union			ccb saved_ccb;
 	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
@@ -179,7 +182,8 @@ pmpfreeze(struct cam_periph *periph, int mask)
 		    i, 0) == CAM_REQ_CMP) {
 			softc->frozen |= (1 << i);
 			xpt_acquire_device(dpath->device);
-			cam_freeze_devq(dpath);
+			cam_freeze_devq_arg(dpath,
+			    RELSIM_RELEASE_RUNLEVEL, CAM_RL_BUS + 1);
 			xpt_free_path(dpath);
 		}
 	}
@@ -200,7 +204,8 @@ pmprelease(struct cam_periph *periph, int mask)
 		    xpt_path_path_id(periph->path),
 		    i, 0) == CAM_REQ_CMP) {
 			softc->frozen &= ~(1 << i);
-			cam_release_devq(dpath, 0, 0, 0, FALSE);
+			cam_release_devq(dpath,
+			    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_BUS + 1, FALSE);
 			xpt_release_device(dpath->device);
 			xpt_free_path(dpath);
 		}
@@ -298,19 +303,20 @@ pmpasync(void *callback_arg, u_int32_t code,
 	case AC_BUS_RESET:
 		softc = (struct pmp_softc *)periph->softc;
 		cam_periph_async(periph, code, path, arg);
-		if (code == AC_SCSI_AEN && softc->state != PMP_STATE_NORMAL &&
-		    softc->state != PMP_STATE_SCAN)
-			break;
-		if (softc->state != PMP_STATE_SCAN)
-			pmpfreeze(periph, softc->found);
+		if (code == AC_SCSI_AEN)
+			softc->events |= PMP_EV_RESCAN;
 		else
-			pmpfreeze(periph, softc->found & ~(1 << softc->pm_step));
+			softc->events |= PMP_EV_RESET;
+		if (code == AC_SCSI_AEN && softc->state != PMP_STATE_NORMAL)
+			break;
+		xpt_hold_boot();
+		pmpfreeze(periph, softc->found);
 		if (code == AC_SENT_BDR || code == AC_BUS_RESET)
 			softc->found = 0; /* We have to reset everything. */
 		if (softc->state == PMP_STATE_NORMAL) {
-			softc->state = PMP_STATE_PORTS;
+			softc->state = PMP_STATE_PRECONFIG;
 			cam_periph_acquire(periph);
-			xpt_schedule(periph, CAM_PRIORITY_BUS);
+			xpt_schedule(periph, CAM_PRIORITY_DEV);
 		} else
 			softc->restart = 1;
 		break;
@@ -353,7 +359,6 @@ static cam_status
 pmpregister(struct cam_periph *periph, void *arg)
 {
 	struct pmp_softc *softc;
-	struct ccb_pathinq cpi;
 	struct ccb_getdev *cgd;
 
 	cgd = (struct ccb_getdev *)arg;
@@ -377,16 +382,8 @@ pmpregister(struct cam_periph *periph, void *arg)
 	}
 	periph->softc = softc;
 
-	softc->state = PMP_STATE_PORTS;
 	softc->pm_pid = ((uint32_t *)&cgd->ident_data)[0];
 	softc->pm_prv = ((uint32_t *)&cgd->ident_data)[1];
-
-	/* Check if the SIM does not want queued commands */
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
-
 	TASK_INIT(&softc->sysctl_task, 0, pmpsysctlinit, periph);
 
 	xpt_announce_periph(periph, NULL);
@@ -408,7 +405,10 @@ pmpregister(struct cam_periph *periph, void *arg)
 	 * the end of probe.
 	 */
 	(void)cam_periph_acquire(periph);
-	xpt_schedule(periph, CAM_PRIORITY_BUS);
+	xpt_hold_boot();
+	softc->state = PMP_STATE_PORTS;
+	softc->events = PMP_EV_RESCAN;
+	xpt_schedule(periph, CAM_PRIORITY_DEV);
 
 	return(CAM_REQ_CMP);
 }
@@ -416,17 +416,35 @@ pmpregister(struct cam_periph *periph, void *arg)
 static void
 pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 {
+	struct ccb_trans_settings cts;
 	struct ccb_ataio *ataio;
 	struct pmp_softc *softc;
+	struct cam_path *dpath;
+	int revision = 0;
 
 	softc = (struct pmp_softc *)periph->softc;
 	ataio = &start_ccb->ataio;
 	
 	if (softc->restart) {
 		softc->restart = 0;
-		softc->state = PMP_STATE_PORTS;
+		softc->state = min(softc->state, PMP_STATE_PRECONFIG);
 	}
-
+	/* Fetch user wanted device speed. */
+	if (softc->state == PMP_STATE_RESET ||
+	    softc->state == PMP_STATE_CONNECT) {
+		if (xpt_create_path(&dpath, periph,
+		    xpt_path_path_id(periph->path),
+		    softc->pm_step, 0) == CAM_REQ_CMP) {
+			bzero(&cts, sizeof(cts));
+			xpt_setup_ccb(&cts.ccb_h, dpath, CAM_PRIORITY_NONE);
+			cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+			cts.type = CTS_TYPE_USER_SETTINGS;
+			xpt_action((union ccb *)&cts);
+			if (cts.xport_specific.sata.valid & CTS_SATA_VALID_REVISION)
+				revision = cts.xport_specific.sata.revision;
+			xpt_free_path(dpath);
+		}
+	}
 	switch (softc->state) {
 	case PMP_STATE_PORTS:
 		cam_fill_ataio(ataio,
@@ -460,7 +478,8 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 		      /*dxfer_len*/0,
 		      pmp_default_timeout * 1000);
 		ata_pm_write_cmd(ataio, 2, softc->pm_step,
-		    (softc->found & (1 << softc->pm_step)) ? 0 : 1);
+		    (revision << 4) |
+		    ((softc->found & (1 << softc->pm_step)) ? 0 : 1));
 		break;
 	case PMP_STATE_CONNECT:
 		cam_fill_ataio(ataio,
@@ -471,7 +490,8 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 		      /*data_ptr*/NULL,
 		      /*dxfer_len*/0,
 		      pmp_default_timeout * 1000);
-		ata_pm_write_cmd(ataio, 2, softc->pm_step, 0);
+		ata_pm_write_cmd(ataio, 2, softc->pm_step,
+		    (revision << 4));
 		break;
 	case PMP_STATE_CHECK:
 		cam_fill_ataio(ataio,
@@ -519,9 +539,9 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ccb_trans_settings cts;
 	struct pmp_softc *softc;
 	struct ccb_ataio *ataio;
-	union ccb *work_ccb;
 	struct cam_path *path, *dpath;
 	u_int32_t  priority, res;
+	int i;
 
 	softc = (struct pmp_softc *)periph->softc;
 	ataio = &done_ccb->ataio;
@@ -547,16 +567,8 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 
 	if (softc->restart) {
 		softc->restart = 0;
-		if (softc->state == PMP_STATE_SCAN) {
-			pmpfreeze(periph, 1 << softc->pm_step);
-			work_ccb = done_ccb;
-			done_ccb = (union ccb*)work_ccb->ccb_h.ppriv_ptr0;
-			/* Free the current request path- we're done with it. */
-		    	xpt_free_path(work_ccb->ccb_h.path);
-			xpt_free_ccb(work_ccb);
-		}
 		xpt_release_ccb(done_ccb);
-		softc->state = PMP_STATE_PORTS;
+		softc->state = min(softc->state, PMP_STATE_PRECONFIG);
 		xpt_schedule(periph, priority);
 		return;
 	}
@@ -645,7 +657,7 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 			    xpt_path_path_id(periph->path),
 			    softc->pm_step, 0) == CAM_REQ_CMP) {
 				bzero(&cts, sizeof(cts));
-				xpt_setup_ccb(&cts.ccb_h, dpath, CAM_PRIORITY_NORMAL);
+				xpt_setup_ccb(&cts.ccb_h, dpath, CAM_PRIORITY_NONE);
 				cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 				cts.type = CTS_TYPE_CURRENT_SETTINGS;
 				cts.xport_specific.sata.revision = (res & 0x0f0) >> 4;
@@ -705,53 +717,43 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 		xpt_schedule(periph, priority);
 		return;
 	case PMP_STATE_CONFIG:
-		if (softc->found) {
-			softc->pm_step = 0;
-			softc->state = PMP_STATE_SCAN;
-			work_ccb = xpt_alloc_ccb_nowait();
-			if (work_ccb != NULL)
-				goto do_scan;
-			xpt_release_ccb(done_ccb);
+		for (i = 0; i < softc->pm_ports; i++) {
+			union ccb *ccb;
+
+			if ((softc->found & (1 << i)) == 0)
+				continue;
+			if (xpt_create_path(&dpath, periph,
+			    xpt_path_path_id(periph->path),
+			    i, 0) != CAM_REQ_CMP) {
+				printf("pmpdone: xpt_create_path failed"
+				    ", bus scan halted\n");
+				xpt_free_ccb(done_ccb);
+				goto done;
+			}
+			/* If we did hard reset to this device, inform XPT. */
+			if ((softc->reset & softc->found & (1 << i)) != 0)
+				xpt_async(AC_SENT_BDR, dpath, NULL);
+			/* If rescan requested, scan this device. */
+			if (softc->events & PMP_EV_RESCAN) {
+				ccb = xpt_alloc_ccb_nowait();
+				if (ccb == NULL) {
+					xpt_free_path(dpath);
+					goto done;
+				}
+				xpt_setup_ccb(&ccb->ccb_h, dpath, CAM_PRIORITY_XPT);
+				xpt_rescan(ccb);
+			} else
+				xpt_free_path(dpath);
 		}
 		break;
-	case PMP_STATE_SCAN:
-		work_ccb = done_ccb;
-		done_ccb = (union ccb*)work_ccb->ccb_h.ppriv_ptr0;
-		/* Free the current request path- we're done with it. */
-		xpt_free_path(work_ccb->ccb_h.path);
-		softc->pm_step++;
-do_scan:
-		while (softc->pm_step < softc->pm_ports &&
-		    (softc->found & (1 << softc->pm_step)) == 0) {
-			softc->pm_step++;
-		}
-		if (softc->pm_step >= softc->pm_ports) {
-			xpt_free_ccb(work_ccb);
-			break;
-		}
-		if (xpt_create_path(&dpath, periph,
-		    done_ccb->ccb_h.path_id,
-		    softc->pm_step, 0) != CAM_REQ_CMP) {
-			printf("pmpdone: xpt_create_path failed"
-			    ", bus scan halted\n");
-			xpt_free_ccb(work_ccb);
-			break;
-		}
-		xpt_setup_ccb(&work_ccb->ccb_h, dpath,
-		    done_ccb->ccb_h.pinfo.priority);
-		work_ccb->ccb_h.func_code = XPT_SCAN_LUN;
-		work_ccb->ccb_h.cbfcnp = pmpdone;
-		work_ccb->ccb_h.ppriv_ptr0 = done_ccb;
-		work_ccb->crcn.flags = done_ccb->crcn.flags;
-		xpt_action(work_ccb);
-		pmprelease(periph, 1 << softc->pm_step);
-		return;
 	default:
 		break;
 	}
 done:
 	xpt_release_ccb(done_ccb);
 	softc->state = PMP_STATE_NORMAL;
+	softc->events = 0;
+	xpt_release_boot();
 	pmprelease(periph, -1);
 	cam_periph_release_locked(periph);
 }

@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_periph.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
-#include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
 #include <cam/scsi/scsi_all.h>
 
@@ -109,7 +108,6 @@ static int atapi_cam_event_handler(module_t mod, int what, void *arg);
 /* internal functions */
 static void reinit_bus(struct atapi_xpt_softc *scp, enum reinit_reason reason);
 static void setup_async_cb(struct atapi_xpt_softc *, uint32_t);
-static void cam_rescan_callback(struct cam_periph *, union ccb *);
 static void cam_rescan(struct cam_sim *);
 static void free_hcb_and_ccb_done(struct atapi_hcb *, u_int32_t);
 static struct atapi_hcb *allocate_hcb(struct atapi_xpt_softc *, int, int, union ccb *);
@@ -315,6 +313,7 @@ reinit_bus(struct atapi_xpt_softc *scp, enum reinit_reason reason) {
 
     switch (reason) {
 	case BOOT_ATTACH:
+	case ATTACH:
 	    break;
 	case RESET:
 	    xpt_async(AC_BUS_RESET, scp->path, NULL);
@@ -322,8 +321,6 @@ reinit_bus(struct atapi_xpt_softc *scp, enum reinit_reason reason) {
 	    if (!dev_changed)
 		break;
 
-	    /*FALLTHROUGH*/
-	case ATTACH:
 	    cam_rescan(scp->sim);
 	    break;
     }
@@ -822,41 +819,20 @@ atapi_async(void *callback_arg, u_int32_t code,
 }
 
 static void
-cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
-{
-	if (ccb->ccb_h.status != CAM_REQ_CMP) {
-	    CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
-		      ("Rescan failed, 0x%04x\n", ccb->ccb_h.status));
-	} else {
-	    CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
-		      ("Rescan succeeded\n"));
-	}
-	xpt_free_path(ccb->ccb_h.path);
-	xpt_free_ccb(ccb);
-}
-
-static void
 cam_rescan(struct cam_sim *sim)
 {
-    struct cam_path *path;
     union ccb *ccb;
 
     ccb = xpt_alloc_ccb_nowait();
     if (ccb == NULL)
 	return;
-
-    if (xpt_create_path(&path, xpt_periph, cam_sim_path(sim),
+    if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(sim),
 			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 	xpt_free_ccb(ccb);
 	return;
     }
-
-    CAM_DEBUG(path, CAM_DEBUG_TRACE, ("Rescanning ATAPI bus.\n"));
-    xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
-    ccb->ccb_h.func_code = XPT_SCAN_BUS;
-    ccb->ccb_h.cbfcnp = cam_rescan_callback;
-    ccb->crcn.flags = CAM_FLAG_NONE;
-    xpt_action(ccb);
+    CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("Rescanning ATAPI bus.\n"));
+    xpt_rescan(ccb);
     /* scan is in progress now */
 }
 
