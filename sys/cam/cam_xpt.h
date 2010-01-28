@@ -87,6 +87,9 @@ SLIST_HEAD(periph_list, cam_periph);
 
 void			xpt_action(union ccb *new_ccb);
 void			xpt_action_default(union ccb *new_ccb);
+union ccb		*xpt_alloc_ccb(void);
+union ccb		*xpt_alloc_ccb_nowait(void);
+void			xpt_free_ccb(union ccb *free_ccb);
 void			xpt_setup_ccb(struct ccb_hdr *ccb_h,
 				      struct cam_path *path,
 				      u_int32_t priority);
@@ -115,6 +118,8 @@ struct cam_periph	*xpt_path_periph(struct cam_path *path);
 void			xpt_async(u_int32_t async_code, struct cam_path *path,
 				  void *async_arg);
 void			xpt_rescan(union ccb *ccb);
+void			xpt_hold_boot(void);
+void			xpt_release_boot(void);
 void			xpt_lock_buses(void);
 void			xpt_unlock_buses(void);
 cam_status		xpt_register_async(int event, ac_callback_t *cbfunc,

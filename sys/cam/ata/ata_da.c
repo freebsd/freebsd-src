@@ -689,7 +689,7 @@ adaregister(struct cam_periph *periph, void *arg)
 
 	/* Check if the SIM does not want queued commands */
 	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 	if (cpi.ccb_h.status != CAM_REQ_CMP ||
