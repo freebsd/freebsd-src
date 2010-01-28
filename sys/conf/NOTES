@@ -2668,6 +2668,8 @@ device		uhso
 #
 # Ralink Technology RT2501USB/RT2601USB wireless driver
 device		rum
+# Ralink Technology RT2700U/RT2800U/RT3000U wireless driver
+device		run
 #
 # Atheros AR5523 wireless driver
 device		uath
