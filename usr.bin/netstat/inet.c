@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/route.h>
+#include <net/if_arp.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -870,6 +871,47 @@ ip_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 #undef p
 #undef p1a
 }
+
+/*
+ * Dump ARP statistics structure.
+ */
+void
+arp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
+{
+	struct arpstat arpstat, zerostat;
+	size_t len = sizeof(arpstat);
+
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.link.ether.arp.stats", &arpstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			warn("sysctl: net.link.ether.arp.stats");
+			return;
+		}
+	} else
+		kread(off, &arpstat, len);
+
+	printf("%s:\n", name);
+
+#define	p(f, m) if (arpstat.f || sflag <= 1) \
+    printf(m, arpstat.f, plural(arpstat.f))
+#define	p2(f, m) if (arpstat.f || sflag <= 1) \
+    printf(m, arpstat.f, pluralies(arpstat.f))
+
+	p(txrequests, "\t%lu ARP request%s sent\n");
+	p2(txreplies, "\t%lu ARP repl%s sent\n");
+	p(rxrequests, "\t%lu ARP request%s received\n");
+	p2(rxreplies, "\t%lu ARP repl%s received\n");
+	p(received, "\t%lu ARP packet%s received\n");
+	p(dropped, "\t%lu total packet%s dropped due to no ARP entry\n");
+	p(timeouts, "\t%lu ARP entry%s timed out\n");
+	p(dupips, "\t%lu Duplicate IP%s seen\n");
+#undef p
+#undef p2
+}
+
+
 
 static	const char *icmpnames[ICMP_MAXTYPE + 1] = {
 	"echo reply",			/* RFC 792 */
