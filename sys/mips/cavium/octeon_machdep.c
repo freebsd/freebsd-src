@@ -730,6 +730,8 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 {
 	uint64_t platform_counter_freq;
 
+	boothowto |= RB_SINGLE;
+
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
 	mips_timer_early_init(OCTEON_CLOCK_DEFAULT);
