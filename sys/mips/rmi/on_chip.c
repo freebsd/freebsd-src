@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  *
  * RMI_BSD */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/param.h>
@@ -272,9 +274,9 @@ register_msgring_handler(int major,
 	if (xlr_test_and_set(&msgring_int_enabled)) {
 		platform_prep_smp_launch();
 
-		cpu_establish_hardintr("msgring", (driver_filter_t *) NULL,
-		    (driver_intr_t *) msgring_process_fast_intr,
-		    NULL, IRQ_MSGRING, INTR_TYPE_NET | INTR_FAST, &cookie);
+		cpu_establish_hardintr("msgring", (driver_filter_t *) msgring_process_fast_intr,
+			NULL, NULL, IRQ_MSGRING, 
+			INTR_TYPE_NET | INTR_FAST, &cookie);
 
 		/* configure the msgring interrupt on cpu 0 */
 		enable_msgring_int(NULL);
