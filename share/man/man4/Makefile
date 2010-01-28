@@ -328,6 +328,7 @@ MAN=	aac.4 \
 	rp.4 \
 	rue.4 \
 	rum.4 \
+	run.4 \
 	sa.4 \
 	safe.4 \
 	sbp.4 \
