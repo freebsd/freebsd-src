@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 struct mtablist *mtabhead;
 
-static void badline(char *field, char *bad);
+static void badline(const char *field, const char *bad);
 
 /*
  * Add an entry to PATH_MOUNTTAB for each mounted NFS filesystem,
@@ -69,12 +69,12 @@ add_mtab(char *hostp, char *dirp) {
  * Read mounttab line for line and return struct mtablist.
  */
 int
-read_mtab() {
+read_mtab(void) {
 	struct mtablist **mtabpp, *mtabp;
 	char *hostp, *dirp, *cp;
 	char str[STRSIZ];
 	char *timep, *endp;
-	time_t time;
+	time_t actiontime;
 	u_long ultmp;
 	FILE *mtabfile;
 
@@ -86,7 +86,7 @@ read_mtab() {
 			return (0);
 		}
 	}
-	time = 0;
+	actiontime = 0;
 	mtabpp = &mtabhead;
 	while (fgets(str, STRSIZ, mtabfile) != NULL) {
 		cp = str;
@@ -113,13 +113,13 @@ read_mtab() {
 			badline("time", timep);
 			continue;
 		}
-		time = ultmp;
+		actiontime = ultmp;
 		if ((mtabp = malloc(sizeof (struct mtablist))) == NULL) {
 			syslog(LOG_ERR, "malloc");
 			fclose(mtabfile);
 			return (0);
 		}
-		mtabp->mtab_time = time;
+		mtabp->mtab_time = actiontime;
 		memmove(mtabp->mtab_host, hostp, MNTNAMLEN);
 		mtabp->mtab_host[MNTNAMLEN - 1] = '\0';
 		memmove(mtabp->mtab_dirp, dirp, MNTPATHLEN);
@@ -218,7 +218,7 @@ free_mtab() {
  * Print bad lines to syslog.
  */
 static void
-badline(char *field, char *bad) {
+badline(const char *field, const char *bad) {
 	syslog(LOG_ERR, "bad mounttab %s field '%s'", field,
 	    (bad == NULL) ? "<null>" : bad);
 }
