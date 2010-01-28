@@ -201,7 +201,7 @@ twe_add_unit(struct twe_softc *sc, int unit)
     int				table, error = 0;
     u_int16_t			dsize;
     TWE_Param			*drives = NULL, *param = NULL;
-    TWE_Unit_Descriptor		*ud;
+    TWE_Array_Descriptor	*ud;
 
     if (unit < 0 || unit > TWE_MAX_UNITS)
 	return (EINVAL);
@@ -244,8 +244,9 @@ twe_add_unit(struct twe_softc *sc, int unit)
 	error = EIO;
 	goto out;
     }
-    ud = (TWE_Unit_Descriptor *)param->data;
+    ud = (TWE_Array_Descriptor *)param->data;
     dr->td_type = ud->configuration;
+    dr->td_stripe = ud->stripe_size;
 
     /* build synthetic geometry as per controller internal rules */
     if (dr->td_size > 0x200000) {

@@ -5,6 +5,17 @@
 # the check-old and delete-old* targets.
 #
 
+.if ${MK_ACCT} == no
+OLD_FILES+=etc/periodic/daily/310.accounting
+OLD_FILES+=etc/periodic/monthly/200.accounting
+OLD_FILES+=usr/sbin/ac
+OLD_FILES+=usr/sbin/accton
+OLD_FILES+=usr/sbin/sa
+OLD_FILES+=usr/share/man/man8/ac.8.gz
+OLD_FILES+=usr/share/man/man8/accton.8.gz
+OLD_FILES+=usr/share/man/man8/sa.8.gz
+.endif
+
 .if ${MK_ACPI} == no
 OLD_FILES+=usr/sbin/acpiconf
 OLD_FILES+=usr/sbin/acpidb
@@ -16,9 +27,102 @@ OLD_FILES+=usr/share/man/man8/acpidump.8.gz
 OLD_FILES+=usr/share/man/man8/iasl.8.gz
 .endif
 
-#.if ${MK_ATM} == no
-# to be filled in
-#.endif
+.if ${MK_AMD} == no
+OLD_FILES+=etc/amd.map
+OLD_FILES+=usr/bin/pawd
+OLD_FILES+=usr/sbin/amd
+OLD_FILES+=usr/sbin/amq
+OLD_FILES+=usr/sbin/fixmount
+OLD_FILES+=usr/sbin/fsinfo
+OLD_FILES+=usr/sbin/hlfsd
+OLD_FILES+=usr/sbin/mk-amd-map
+OLD_FILES+=usr/sbin/wire-test
+OLD_FILES+=usr/share/examples/etc/amd.map
+OLD_FILES+=usr/share/info/am-utils.info.gz
+OLD_FILES+=usr/share/man/man1/pawd.1.gz
+OLD_FILES+=usr/share/man/man5/amd.conf.5.gz
+OLD_FILES+=usr/share/man/man8/amd.8.gz
+OLD_FILES+=usr/share/man/man8/amq.8.gz
+OLD_FILES+=usr/share/man/man8/fixmount.8.gz
+OLD_FILES+=usr/share/man/man8/fsinfo.8.gz
+OLD_FILES+=usr/share/man/man8/hlfsd.8.gz
+OLD_FILES+=usr/share/man/man8/mk-amd-map.8.gz
+OLD_FILES+=usr/share/man/man8/wire-test.8.gz
+.endif
+
+.if ${MK_APM} == no
+OLD_FILES+=etc/apmd.conf
+OLD_FILES+=usr/sbin/apm
+OLD_FILES+=usr/share/examples/etc/apmd.conf
+OLD_FILES+=usr/share/man/man8/amd64/apm.8.gz
+OLD_FILES+=usr/share/man/man8/amd64/apmconf.8.gz
+.endif
+
+.if ${MK_AT} == no
+OLD_FILES+=usr/bin/at
+OLD_FILES+=usr/bin/atq
+OLD_FILES+=usr/bin/atrm
+OLD_FILES+=usr/bin/batch
+OLD_FILES+=usr/libexec/atrun
+OLD_FILES+=usr/share/man/man1/at.1.gz
+OLD_FILES+=usr/share/man/man1/atq.1.gz
+OLD_FILES+=usr/share/man/man1/atrm.1.gz
+OLD_FILES+=usr/share/man/man1/batch.1.gz
+OLD_FILES+=usr/share/man/man8/atrun.8.gz
+.endif
+
+.if ${MK_ATM} == no
+OLD_FILES+=rescue/atmconfig
+OLD_FILES+=sbin/atmconfig
+OLD_FILES+=usr/bin/sscop
+OLD_FILES+=usr/include/bsnmp/snmp_atm.h
+OLD_FILES+=usr/include/netnatm/addr.h
+OLD_FILES+=usr/include/netnatm/api/atmapi.h
+OLD_FILES+=usr/include/netnatm/api/ccatm.h
+OLD_FILES+=usr/include/netnatm/api/unisap.h
+OLD_FILES+=usr/include/netnatm/msg/uni_config.h
+OLD_FILES+=usr/include/netnatm/msg/uni_hdr.h
+OLD_FILES+=usr/include/netnatm/msg/uni_ie.h
+OLD_FILES+=usr/include/netnatm/msg/uni_msg.h
+OLD_FILES+=usr/include/netnatm/msg/unimsglib.h
+OLD_FILES+=usr/include/netnatm/msg/uniprint.h
+OLD_FILES+=usr/include/netnatm/msg/unistruct.h
+OLD_FILES+=usr/include/netnatm/saal/sscfu.h
+OLD_FILES+=usr/include/netnatm/saal/sscfudef.h
+OLD_FILES+=usr/include/netnatm/saal/sscop.h
+OLD_FILES+=usr/include/netnatm/saal/sscopdef.h
+OLD_FILES+=usr/include/netnatm/sig/uni.h
+OLD_FILES+=usr/include/netnatm/sig/unidef.h
+OLD_FILES+=usr/include/netnatm/sig/unisig.h
+OLD_FILES+=usr/include/netnatm/unimsg.h
+OLD_FILES+=usr/lib/libngatm.a
+OLD_FILES+=usr/lib/libngatm.so
+OLD_LIBS+=usr/lib/libngatm.so.4
+OLD_FILES+=usr/lib/libngatm_p.a
+OLD_FILES+=usr/lib/snmp_atm.so
+OLD_LIBS+=usr/lib/snmp_atm.so.6
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libngatm.a
+OLD_FILES+=usr/lib32/libngatm.so
+OLD_LIBS+=usr/lib32/libngatm.so.4
+OLD_FILES+=usr/lib32/libngatm_p.a
+.endif
+OLD_FILES+=usr/share/doc/atm/atmconfig.help
+OLD_FILES+=usr/share/doc/atm/atmconfig_device.help
+OLD_FILES+=usr/share/man/man1/sscop.1.gz
+OLD_FILES+=usr/share/man/man3/libngatm.3.gz
+OLD_FILES+=usr/share/man/man3/snmp_atm.3.gz
+OLD_FILES+=usr/share/man/man3/uniaddr.3.gz
+OLD_FILES+=usr/share/man/man3/unifunc.3.gz
+OLD_FILES+=usr/share/man/man3/unimsg.3.gz
+OLD_FILES+=usr/share/man/man3/unisap.3.gz
+OLD_FILES+=usr/share/man/man3/unistruct.3.gz
+OLD_FILES+=usr/share/man/man8/atmconfig.8.gz
+OLD_FILES+=usr/share/snmp/defs/atm_freebsd.def
+OLD_FILES+=usr/share/snmp/defs/atm_tree.def
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM-FREEBSD-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM.txt
+.endif
 
 .if ${MK_AUDIT} == no
 OLD_FILES+=usr/sbin/audit
@@ -31,9 +135,10 @@ OLD_FILES+=usr/share/man/man8/audit.8.gz
 OLD_FILES+=usr/share/man/man8/auditd.8.gz
 .endif
 
-#.if ${MK_AUTHPF} == no
-# to be filled in
-#.endif
+.if ${MK_AUTHPF} == no
+OLD_FILES+=usr/sbin/authpf
+OLD_FILES+=usr/share/man/man8/authpf.8.gz
+.endif
 
 .if ${MK_BIND} == no
 OLD_FILES+=usr/bin/dig
@@ -233,33 +338,50 @@ OLD_DIRS+=var/named/etc/namedb/dynamic
 #.endif
 
 .if ${MK_BLUETOOTH} == no
+OLD_FILES+=etc/bluetooth/hcsecd.conf
+OLD_FILES+=etc/bluetooth/hosts
+OLD_FILES+=etc/bluetooth/protocols
 OLD_FILES+=usr/bin/bthost
 OLD_FILES+=usr/bin/btsockstat
 OLD_FILES+=usr/bin/rfcomm_sppd
+OLD_FILES+=usr/include/bluetooth.h
 OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_bluetooth.h
 OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_bt3c.h
 OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_btsocket.h
 OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_btsocket_hci_raw.h
 OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_btsocket_l2cap.h
 OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_btsocket_rfcomm.h
+OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_btsocket_sco.h
 OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_h4.h
 OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_hci.h
 OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_l2cap.h
 OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_ubt.h
 OLD_DIRS+=usr/include/netgraph/bluetooth/include
 OLD_DIRS+=usr/include/netgraph/bluetooth
-OLD_FILES+=usr/include/bluetooth.h
 OLD_FILES+=usr/include/sdp.h
 OLD_FILES+=usr/lib/libbluetooth.a
-OLD_FILES+=usr/lib/libbluetooth_p.a
-OLD_LIBS+=usr/lib/libbluetooth.so.2
 OLD_FILES+=usr/lib/libbluetooth.so
+OLD_LIBS+=usr/lib/libbluetooth.so.4
+OLD_FILES+=usr/lib/libbluetooth_p.a
 OLD_FILES+=usr/lib/libsdp.a
-OLD_FILES+=usr/lib/libsdp_p.a
-OLD_LIBS+=usr/lib/libsdp.so.2
 OLD_FILES+=usr/lib/libsdp.so
+OLD_LIBS+=usr/lib/libsdp.so.4
+OLD_FILES+=usr/lib/libsdp_p.a
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libbluetooth.a
+OLD_FILES+=usr/lib32/libbluetooth.so
+OLD_LIBS+=usr/lib32/libbluetooth.so.4
+OLD_FILES+=usr/lib32/libbluetooth_p.a
+OLD_FILES+=usr/lib32/libsdp.a
+OLD_FILES+=usr/lib32/libsdp.so
+OLD_LIBS+=usr/lib32/libsdp.so.4
+OLD_FILES+=usr/lib32/libsdp_p.a
+.endif
 OLD_FILES+=usr/sbin/bcmfw
 OLD_FILES+=usr/sbin/bt3cfw
+OLD_FILES+=usr/sbin/bthidcontrol
+OLD_FILES+=usr/sbin/bthidd
+OLD_FILES+=usr/sbin/btpand
 OLD_FILES+=usr/sbin/hccontrol
 OLD_FILES+=usr/sbin/hcsecd
 OLD_FILES+=usr/sbin/hcseriald
@@ -271,45 +393,67 @@ OLD_FILES+=usr/sbin/sdpd
 OLD_FILES+=usr/share/man/man1/bthost.1.gz
 OLD_FILES+=usr/share/man/man1/btsockstat.1.gz
 OLD_FILES+=usr/share/man/man1/rfcomm_sppd.1.gz
-OLD_FILES+=usr/share/man/man3/bluetooth.3.gz
-OLD_FILES+=usr/share/man/man3/bt_gethostbyname.3.gz
-OLD_FILES+=usr/share/man/man3/bt_gethostbyaddr.3.gz
-OLD_FILES+=usr/share/man/man3/bt_gethostent.3.gz
-OLD_FILES+=usr/share/man/man3/bt_sethostent.3.gz
-OLD_FILES+=usr/share/man/man3/bt_endhostent.3.gz
-OLD_FILES+=usr/share/man/man3/bt_getprotobyname.3.gz
-OLD_FILES+=usr/share/man/man3/bt_getprotobynumber.3.gz
-OLD_FILES+=usr/share/man/man3/bt_getprotoent.3.gz
-OLD_FILES+=usr/share/man/man3/bt_setprotoent.3.gz
-OLD_FILES+=usr/share/man/man3/bt_endprotoent.3.gz
-OLD_FILES+=usr/share/man/man3/bt_ntoa.3.gz
-OLD_FILES+=usr/share/man/man3/bt_aton.3.gz
-OLD_FILES+=usr/share/man/man3/sdp.3.gz
-OLD_FILES+=usr/share/man/man3/SDP_GET8.3.gz
+OLD_FILES+=usr/share/man/man3/SDP_GET128.3.gz
 OLD_FILES+=usr/share/man/man3/SDP_GET16.3.gz
 OLD_FILES+=usr/share/man/man3/SDP_GET32.3.gz
 OLD_FILES+=usr/share/man/man3/SDP_GET64.3.gz
-OLD_FILES+=usr/share/man/man3/SDP_GET128.3.gz
-OLD_FILES+=usr/share/man/man3/SDP_PUT8.3.gz
+OLD_FILES+=usr/share/man/man3/SDP_GET8.3.gz
+OLD_FILES+=usr/share/man/man3/SDP_PUT128.3.gz
 OLD_FILES+=usr/share/man/man3/SDP_PUT16.3.gz
 OLD_FILES+=usr/share/man/man3/SDP_PUT32.3.gz
 OLD_FILES+=usr/share/man/man3/SDP_PUT64.3.gz
-OLD_FILES+=usr/share/man/man3/SDP_PUT128.3.gz
-OLD_FILES+=usr/share/man/man3/sdp_open.3.gz
-OLD_FILES+=usr/share/man/man3/sdp_open_local.3.gz
+OLD_FILES+=usr/share/man/man3/SDP_PUT8.3.gz
+OLD_FILES+=usr/share/man/man3/bdaddr_any.3.gz
+OLD_FILES+=usr/share/man/man3/bdaddr_copy.3.gz
+OLD_FILES+=usr/share/man/man3/bdaddr_same.3.gz
+OLD_FILES+=usr/share/man/man3/bluetooth.3.gz
+OLD_FILES+=usr/share/man/man3/bt_aton.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devaddr.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devclose.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devenum.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devfilter.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devfilter_evt_clr.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devfilter_evt_set.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devfilter_evt_tst.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devfilter_pkt_clr.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devfilter_pkt_set.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devfilter_pkt_tst.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devinfo.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devinquiry.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devname.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devopen.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devreq.3.gz
+OLD_FILES+=usr/share/man/man3/bt_devsend.3.gz
+OLD_FILES+=usr/share/man/man3/bt_endhostent.3.gz
+OLD_FILES+=usr/share/man/man3/bt_endprotoent.3.gz
+OLD_FILES+=usr/share/man/man3/bt_gethostbyaddr.3.gz
+OLD_FILES+=usr/share/man/man3/bt_gethostbyname.3.gz
+OLD_FILES+=usr/share/man/man3/bt_gethostent.3.gz
+OLD_FILES+=usr/share/man/man3/bt_getprotobyname.3.gz
+OLD_FILES+=usr/share/man/man3/bt_getprotobynumber.3.gz
+OLD_FILES+=usr/share/man/man3/bt_getprotoent.3.gz
+OLD_FILES+=usr/share/man/man3/bt_ntoa.3.gz
+OLD_FILES+=usr/share/man/man3/bt_sethostent.3.gz
+OLD_FILES+=usr/share/man/man3/bt_setprotoent.3.gz
+OLD_FILES+=usr/share/man/man3/sdp.3.gz
+OLD_FILES+=usr/share/man/man3/sdp_attr2desc.3.gz
+OLD_FILES+=usr/share/man/man3/sdp_change_service.3.gz
 OLD_FILES+=usr/share/man/man3/sdp_close.3.gz
 OLD_FILES+=usr/share/man/man3/sdp_error.3.gz
-OLD_FILES+=usr/share/man/man3/sdp_search.3.gz
-OLD_FILES+=usr/share/man/man3/sdp_attr2desc.3.gz
-OLD_FILES+=usr/share/man/man3/sdp_uuid2desc.3.gz
+OLD_FILES+=usr/share/man/man3/sdp_open.3.gz
+OLD_FILES+=usr/share/man/man3/sdp_open_local.3.gz
 OLD_FILES+=usr/share/man/man3/sdp_register_service.3.gz
+OLD_FILES+=usr/share/man/man3/sdp_search.3.gz
 OLD_FILES+=usr/share/man/man3/sdp_unregister_service.3.gz
-OLD_FILES+=usr/share/man/man3/sdp_change_service.3.gz
+OLD_FILES+=usr/share/man/man3/sdp_uuid2desc.3.gz
 OLD_FILES+=usr/share/man/man5/hcsecd.conf.5.gz
 OLD_FILES+=usr/share/man/man8/bcmfw.8.gz
 OLD_FILES+=usr/share/man/man8/bt3cfw.8.gz
-OLD_FILES+=usr/share/man/man8/hcsecd.8.gz
+OLD_FILES+=usr/share/man/man8/bthidcontrol.8.gz
+OLD_FILES+=usr/share/man/man8/bthidd.8.gz
+OLD_FILES+=usr/share/man/man8/btpand.8.gz
 OLD_FILES+=usr/share/man/man8/hccontrol.8.gz
+OLD_FILES+=usr/share/man/man8/hcsecd.8.gz
 OLD_FILES+=usr/share/man/man8/hcseriald.8.gz
 OLD_FILES+=usr/share/man/man8/l2control.8.gz
 OLD_FILES+=usr/share/man/man8/l2ping.8.gz
@@ -322,60 +466,226 @@ OLD_FILES+=usr/share/man/man8/sdpd.8.gz
 # to be filled in
 #.endif
 
-#.if ${MK_CALENDAR} == no
-# to be filled in
-#.endif
+.if ${MK_CALENDAR} == no
+OLD_FILES+=etc/periodic/daily/300.calendar
+OLD_FILES+=usr/bin/calendar
+OLD_FILES+=usr/share/calendar/calendar.all
+OLD_FILES+=usr/share/calendar/calendar.australia
+OLD_FILES+=usr/share/calendar/calendar.birthday
+OLD_FILES+=usr/share/calendar/calendar.christian
+OLD_FILES+=usr/share/calendar/calendar.computer
+OLD_FILES+=usr/share/calendar/calendar.croatian
+OLD_FILES+=usr/share/calendar/calendar.dutch
+OLD_FILES+=usr/share/calendar/calendar.freebsd
+OLD_FILES+=usr/share/calendar/calendar.french
+OLD_FILES+=usr/share/calendar/calendar.german
+OLD_FILES+=usr/share/calendar/calendar.history
+OLD_FILES+=usr/share/calendar/calendar.holiday
+OLD_FILES+=usr/share/calendar/calendar.hungarian
+OLD_FILES+=usr/share/calendar/calendar.judaic
+OLD_FILES+=usr/share/calendar/calendar.lotr
+OLD_FILES+=usr/share/calendar/calendar.music
+OLD_FILES+=usr/share/calendar/calendar.newzealand
+OLD_FILES+=usr/share/calendar/calendar.russian
+OLD_FILES+=usr/share/calendar/calendar.southafrica
+OLD_FILES+=usr/share/calendar/calendar.ukrainian
+OLD_FILES+=usr/share/calendar/calendar.usholiday
+OLD_FILES+=usr/share/calendar/calendar.world
+OLD_DIRS+=usr/share/calendar/de_AT.ISO_8859-15
+OLD_FILES+=usr/share/calendar/de_AT.ISO_8859-15/calendar.feiertag
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.all
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.feiertag
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.geschichte
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.kirche
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.literatur
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.musik
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.wissenschaft
+OLD_FILES+=usr/share/calendar/de_DE.ISO8859-15
+OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.all
+OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.fetes
+OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.french
+OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.jferies
+OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.proverbes
+OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-15
+OLD_FILES+=usr/share/calendar/hr_HR.ISO8859-2/calendar.all
+OLD_FILES+=usr/share/calendar/hr_HR.ISO8859-2/calendar.praznici
+OLD_FILES+=usr/share/calendar/hu_HU.ISO8859-2/calendar.all
+OLD_FILES+=usr/share/calendar/hu_HU.ISO8859-2/calendar.nevnapok
+OLD_FILES+=usr/share/calendar/hu_HU.ISO8859-2/calendar.unnepek
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.all
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.common
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.holiday
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.military
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.msk
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.orthodox
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.pagan
+OLD_FILES+=usr/share/calendar/uk_UA.KOI8-U/calendar.all
+OLD_FILES+=usr/share/calendar/uk_UA.KOI8-U/calendar.holiday
+OLD_FILES+=usr/share/calendar/uk_UA.KOI8-U/calendar.misc
+OLD_FILES+=usr/share/calendar/uk_UA.KOI8-U/calendar.orthodox
+OLD_FILES+=usr/share/man/man1/calendar.1.gz
+.endif
 
 .if ${MK_CDDL} == no
-OLD_LIBS+=lib/libavl.so.1
-OLD_LIBS+=lib/libnvpair.so.1
-OLD_LIBS+=lib/libumem.so.1
-OLD_LIBS+=lib/libuutil.so.1
+OLD_LIBS+=lib/libavl.so.2
+OLD_LIBS+=lib/libctf.so.2
+OLD_LIBS+=lib/libdtrace.so.2
+OLD_LIBS+=lib/libnvpair.so.2
+OLD_LIBS+=lib/libumem.so.2
+OLD_LIBS+=lib/libuutil.so.2
+OLD_FILES+=usr/bin/ctfconvert
+OLD_FILES+=usr/bin/ctfdump
+OLD_FILES+=usr/bin/ctfmerge
+OLD_FILES+=usr/bin/sgsmsg
+OLD_FILES+=usr/lib/dtrace/drti.o
+OLD_FILES+=usr/lib/dtrace/errno.d
+OLD_FILES+=usr/lib/dtrace/psinfo.d
+OLD_FILES+=usr/lib/dtrace/signal.d
+OLD_FILES+=usr/lib/dtrace/unistd.d
 OLD_FILES+=usr/lib/libavl.a
 OLD_FILES+=usr/lib/libavl.so
+OLD_FILES+=usr/lib/libavl_p.a
+OLD_FILES+=usr/lib/libctf.a
+OLD_FILES+=usr/lib/libctf.so
+OLD_FILES+=usr/lib/libctf_p.a
+OLD_FILES+=usr/lib/libdtrace.a
+OLD_FILES+=usr/lib/libdtrace.so
+OLD_FILES+=usr/lib/libdtrace_p.a
 OLD_FILES+=usr/lib/libnvpair.a
 OLD_FILES+=usr/lib/libnvpair.so
+OLD_FILES+=usr/lib/libnvpair_p.a
 OLD_FILES+=usr/lib/libumem.a
 OLD_FILES+=usr/lib/libumem.so
+OLD_FILES+=usr/lib/libumem_p.a
 OLD_FILES+=usr/lib/libuutil.a
 OLD_FILES+=usr/lib/libuutil.so
+OLD_FILES+=usr/lib/libuutil_p.a
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/dtrace/drti.o
+OLD_FILES+=usr/lib32/libavl.a
+OLD_FILES+=usr/lib32/libavl.so
+OLD_LIBS+=usr/lib32/libavl.so.2
+OLD_FILES+=usr/lib32/libavl_p.a
+OLD_FILES+=usr/lib32/libctf.a
+OLD_FILES+=usr/lib32/libctf.so
+OLD_LIBS+=usr/lib32/libctf.so.2
+OLD_FILES+=usr/lib32/libctf_p.a
+OLD_FILES+=usr/lib32/libdtrace.a
+OLD_FILES+=usr/lib32/libdtrace.so
+OLD_LIBS+=usr/lib32/libdtrace.so.2
+OLD_FILES+=usr/lib32/libdtrace_p.a
+OLD_FILES+=usr/lib32/libnvpair.a
+OLD_FILES+=usr/lib32/libnvpair.so
+OLD_LIBS+=usr/lib32/libnvpair.so.2
+OLD_FILES+=usr/lib32/libnvpair_p.a
+OLD_FILES+=usr/lib32/libumem.a
+OLD_FILES+=usr/lib32/libumem.so
+OLD_LIBS+=usr/lib32/libumem.so.2
+OLD_FILES+=usr/lib32/libumem_p.a
+OLD_FILES+=usr/lib32/libuutil.a
+OLD_FILES+=usr/lib32/libuutil.so
+OLD_LIBS+=usr/lib32/libuutil.so.2
+OLD_FILES+=usr/lib32/libuutil_p.a
+.endif
+OLD_FILES+=usr/sbin/dtrace
+OLD_FILES+=usr/sbin/lockstat
+OLD_FILES+=usr/share/man/man1/dtrace.1.gz
 .endif
 
 .if ${MK_ZFS} == no
-OLD_LIBS+=lib/libzfs.so.1
-OLD_LIBS+=lib/libzpool.so.1
+OLD_FILES+=boot/gptzfsboot
+OLD_FILES+=boot/zfsboot
+OLD_FILES+=boot/zfsloader
+OLD_LIBS+=lib/libzfs.so.2
+OLD_LIBS+=lib/libzpool.so.2
+OLD_FILES+=rescue/zfs
+OLD_FILES+=rescue/zpool
 OLD_FILES+=sbin/zfs
 OLD_FILES+=sbin/zpool
+OLD_FILES+=usr/bin/zinject
+OLD_FILES+=usr/bin/ztest
 OLD_FILES+=usr/lib/libzfs.a
 OLD_FILES+=usr/lib/libzfs.so
+OLD_FILES+=usr/lib/libzfs_p.a
 OLD_FILES+=usr/lib/libzpool.a
 OLD_FILES+=usr/lib/libzpool.so
-OLD_FILES+=usr/bin/ztest
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libzfs.a
+OLD_FILES+=usr/lib32/libzfs.so
+OLD_LIBS+=usr/lib32/libzfs.so.2
+OLD_FILES+=usr/lib32/libzfs_p.a
+OLD_FILES+=usr/lib32/libzpool.a
+OLD_FILES+=usr/lib32/libzpool.so
+OLD_LIBS+=usr/lib32/libzpool.so.2
+.endif
 OLD_FILES+=usr/sbin/zdb
 OLD_FILES+=usr/share/man/man8/zdb.8.gz
 OLD_FILES+=usr/share/man/man8/zfs.8.gz
 OLD_FILES+=usr/share/man/man8/zpool.8.gz
 .endif
 
-#.if ${MK_CPP} == no
-# to be filled in
-#.endif
+.if ${MK_CPP} == no
+OLD_FILES+=usr/bin/cpp
+OLD_FILES+=usr/share/man/man1/cpp.1.gz
+.endif
 
 #.if ${MK_CRYPT} == no
 # to be filled in
 #.endif
 
-#.if ${MK_CVS} == no
-# to be filled in
-#.endif
+.if ${MK_CTM} == no
+OLD_FILES+=usr/sbin/ctm
+OLD_FILES+=usr/sbin/ctm_dequeue
+OLD_FILES+=usr/sbin/ctm_rmail
+OLD_FILES+=usr/sbin/ctm_smail
+OLD_FILES+=usr/share/man/man1/ctm.1.gz
+OLD_FILES+=usr/share/man/man1/ctm_dequeue.1.gz
+OLD_FILES+=usr/share/man/man1/ctm_rmail.1.gz
+OLD_FILES+=usr/share/man/man1/ctm_smail.1.gz
+OLD_FILES+=usr/share/man/man5/ctm.5.gz
+.endif
+
+.if ${MK_CVS} == no
+OLD_FILES+=usr/bin/cvs
+OLD_FILES+=usr/bin/cvsbug
+OLD_FILES+=usr/share/examples/cvs/contrib/README
+OLD_FILES+=usr/share/examples/cvs/contrib/clmerge
+OLD_FILES+=usr/share/examples/cvs/contrib/cln_hist
+OLD_FILES+=usr/share/examples/cvs/contrib/commit_prep
+OLD_FILES+=usr/share/examples/cvs/contrib/cvs2vendor
+OLD_FILES+=usr/share/examples/cvs/contrib/cvs_acls
+OLD_FILES+=usr/share/examples/cvs/contrib/cvscheck
+OLD_FILES+=usr/share/examples/cvs/contrib/cvscheck.man
+OLD_FILES+=usr/share/examples/cvs/contrib/cvshelp.man
+OLD_FILES+=usr/share/examples/cvs/contrib/descend.man
+OLD_FILES+=usr/share/examples/cvs/contrib/easy-import
+OLD_FILES+=usr/share/examples/cvs/contrib/intro.doc
+OLD_FILES+=usr/share/examples/cvs/contrib/log
+OLD_FILES+=usr/share/examples/cvs/contrib/log_accum
+OLD_FILES+=usr/share/examples/cvs/contrib/mfpipe
+OLD_FILES+=usr/share/examples/cvs/contrib/rcs-to-cvs
+OLD_FILES+=usr/share/examples/cvs/contrib/rcs2log
+OLD_FILES+=usr/share/examples/cvs/contrib/rcslock
+OLD_FILES+=usr/share/examples/cvs/contrib/sccs2rcs
+OLD_FILES+=usr/share/info/cvs.info.gz
+OLD_FILES+=usr/share/info/cvsclient.info.gz
+OLD_FILES+=usr/share/man/man1/cvs.1.gz
+OLD_FILES+=usr/share/man/man5/cvs.5.gz
+OLD_FILES+=usr/share/man/man8/cvsbug.8.gz
+.endif
 
 #.if ${MK_CXX} == no
 # to be filled in
 #.endif
 
-#.if ${MK_DICT} == no
-# to be filled in
-#.endif
+.if ${MK_DICT} == no
+OLD_FILES+=usr/share/dict/README
+OLD_FILES+=usr/share/dict/freebsd
+OLD_FILES+=usr/share/dict/propernames
+OLD_FILES+=usr/share/dict/web2
+OLD_FILES+=usr/share/dict/web2a
+OLD_FILES+=usr/share/dict/words
+.endif
 
 #.if ${MK_EXAMPLES} == no
 # to be filled in

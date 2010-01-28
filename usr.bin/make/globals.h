@@ -45,9 +45,6 @@
  * Global Variables
  */
 
-#include <time.h>
-#include <stdint.h>
-
 #include "lst.h"
 #include "util.h"
 

@@ -81,14 +81,12 @@
 #define	_MFC0	dmfc0
 #define	_MTC0	dmtc0
 #define WIRED_SHIFT 34
-#define PAGE_SHIFT 34
 #else
 #define _SLL	sll
 #define	_SRL	srl
 #define	_MFC0	mfc0
 #define	_MTC0	mtc0
 #define WIRED_SHIFT 2
-#define PAGE_SHIFT 2
 #endif
 	.set	noreorder			# Noreorder is default style!
 #if defined(ISA_MIPS32)
@@ -173,13 +171,9 @@ LEAF(fork_trampoline)
 1:
 
 	mfc0	v0, COP_0_STATUS_REG	# set exeption level bit.
-	or	v0, SR_EXL
 	and     v0, ~(SR_INT_ENAB)
 	mtc0	v0, COP_0_STATUS_REG	# set exeption level bit.
-	nop
-	nop
-	nop
-	nop
+	COP0_SYNC
 	.set	noat
 	move	k1, a1	
 	RESTORE_U_PCB_REG(t0, MULLO, k1)
@@ -205,10 +199,10 @@ LEAF(fork_trampoline)
 	RESTORE_U_PCB_REG(t1, T1, k1)
 	RESTORE_U_PCB_REG(t2, T2, k1)
 	RESTORE_U_PCB_REG(t3, T3, k1)
-	RESTORE_U_PCB_REG(t4, T4, k1)
-	RESTORE_U_PCB_REG(t5, T5, k1)
-	RESTORE_U_PCB_REG(t6, T6, k1)
-	RESTORE_U_PCB_REG(t7, T7, k1)
+	RESTORE_U_PCB_REG(ta0, TA0, k1)
+	RESTORE_U_PCB_REG(ta1, TA1, k1)
+	RESTORE_U_PCB_REG(ta2, TA2, k1)
+	RESTORE_U_PCB_REG(ta3, TA3, k1)
 	RESTORE_U_PCB_REG(s0, S0, k1)
 	RESTORE_U_PCB_REG(s1, S1, k1)
 	RESTORE_U_PCB_REG(s2, S2, k1)
@@ -224,6 +218,11 @@ LEAF(fork_trampoline)
 	RESTORE_U_PCB_REG(s8, S8, k1)
 	RESTORE_U_PCB_REG(ra, RA, k1)
 	RESTORE_U_PCB_REG(sp, SP, k1)
+	li	k1, ~SR_INT_MASK
+	and	k0, k0, k1
+	mfc0	k1, COP_0_STATUS_REG
+	and	k1, k1, SR_INT_MASK
+	or	k0, k0, k1
 	mtc0	k0, COP_0_STATUS_REG	# switch to user mode (when eret...)
 	HAZARD_DELAY
 	sync
@@ -279,9 +278,10 @@ NON_LEAF(mips_cpu_throw, STAND_FRAME_SIZE, ra)
 END(mips_cpu_throw)
 
 /*
- *XXX Fixme:	should be written to new interface that requires lock
- *		storage.  We fake it for now.
- * cpu_switch(struct thread *old, struct thread *new);
+ * cpu_switch(struct thread *old, struct thread *new, struct mutex *mtx);
+ *	a0 - old
+ *	a1 - new
+ *	a2 - mtx
  * Find the highest priority process and resume it.
  */
 NON_LEAF(cpu_switch, STAND_FRAME_SIZE, ra)
@@ -310,17 +310,21 @@ NON_LEAF(cpu_switch, STAND_FRAME_SIZE, ra)
 	SAVE_U_PCB_CONTEXT(ra, PREG_RA, a0)		# save return address
 	SAVE_U_PCB_CONTEXT(t0, PREG_SR, a0)		# save status register
 	SAVE_U_PCB_CONTEXT(gp, PREG_GP, a0)
+	jal	getpc
+	nop
+getpc:
+	SAVE_U_PCB_CONTEXT(ra, PREG_PC, a0)		# save return address
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:
 	 * In case there are CPU-specific registers that need
 	 * to be saved with the other registers do so here.
 	 */
 
-	sw	a3, TD_LOCK(a0)			# Switchout td_lock 
+	sw	a2, TD_LOCK(a3)			# Switchout td_lock 
 
 mips_sw1:
 #if defined(SMP) && defined(SCHED_ULE)
-	la	t0, _C_LABEL(blocked_lock)
+	PTR_LA	t0, _C_LABEL(blocked_lock)
 blocked_loop:
 	lw	t1, TD_LOCK(a1)
 	beq	t0, t1, blocked_loop
@@ -361,7 +365,7 @@ entry0:
 	nop
 pgm:
 	bltz	s0, entry0set
-	li	t1, MIPS_KSEG0_START + 0x0fff0000	# invalidate tlb entry
+	li	t1, MIPS_KSEG0_START		# invalidate tlb entry
 	sll	s0, PAGE_SHIFT + 1
 	addu	t1, s0
 	mtc0	t1, COP_0_TLB_HI
@@ -385,7 +389,7 @@ entry0set:
  * Now running on new u struct.
  */
 sw2:
-	la	t1, _C_LABEL(pmap_activate)	# s7 = new proc pointer
+	PTR_LA	t1, _C_LABEL(pmap_activate)	# s7 = new proc pointer
 	jalr	t1				# s7 = new proc pointer
 	move	a0, s7				# BDSLOT
 /*
@@ -410,6 +414,10 @@ sw2:
 	 * In case there are CPU-specific registers that need
 	 * to be restored with the other registers do so here.
 	 */
+	mfc0	t0, COP_0_STATUS_REG
+	and	t0, t0, SR_INT_MASK
+	and	v0, v0, ~SR_INT_MASK
+	or	v0, v0, t0
 	mtc0	v0, COP_0_STATUS_REG
 	ITLBNOPFIX
 

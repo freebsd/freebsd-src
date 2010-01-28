@@ -406,7 +406,7 @@ DEFINE_TEST(test_acl_pax)
 	struct archive *a;
 	struct archive_entry *ae;
 	size_t used;
-	int fd;
+	FILE *f;
 
 	/* Write an archive to memory. */
 	assert(NULL != (a = archive_write_new()));
@@ -453,14 +453,14 @@ DEFINE_TEST(test_acl_pax)
 #endif
 
 	/* Write out the data we generated to a file for manual inspection. */
-	assert(-1 < (fd = open("testout", O_WRONLY | O_CREAT | O_TRUNC, 0775)));
-	assert(used == (size_t)write(fd, buff, (unsigned int)used));
-	close(fd);
+	assert(NULL != (f = fopen("testout", "wb")));
+	assertEqualInt(used, (size_t)fwrite(buff, 1, (unsigned int)used, f));
+	fclose(f);
 
 	/* Write out the reference data to a file for manual inspection. */
-	assert(-1 < (fd = open("reference", O_WRONLY | O_CREAT | O_TRUNC, 0775)));
-	assert(sizeof(reference) == write(fd, reference, sizeof(reference)));
-	close(fd);
+	assert(NULL != (f = fopen("reference", "wb")));
+	assert(sizeof(reference) == fwrite(reference, 1, sizeof(reference), f));
+	fclose(f);
 
 	/* Assert that the generated data matches the built-in reference data.*/
 	failure("Generated pax archive does not match reference; check 'testout' and 'reference' files.");

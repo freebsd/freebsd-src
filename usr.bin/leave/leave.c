@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
-void doalarm(u_int);
+static void doalarm(u_int);
 static void usage(void);
 
 /*

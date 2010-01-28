@@ -2307,7 +2307,7 @@ make_sure_to_unlock:
 static void
 mmu_booke_change_wiring(mmu_t mmu, pmap_t pmap, vm_offset_t va, boolean_t wired)
 {
-	pte_t *pte;;
+	pte_t *pte;
 
 	PMAP_LOCK(pmap);
 	if ((pte = pte_find(mmu, pmap, va)) != NULL) {
@@ -2791,7 +2791,7 @@ tlb1_write_entry(unsigned int idx)
 	mtspr(SPR_MAS7, mas7);
 	__asm __volatile("isync; tlbwe; isync; msync");
 
-	//debugf("tlb1_write_entry: e\n");;
+	//debugf("tlb1_write_entry: e\n");
 }
 
 /*

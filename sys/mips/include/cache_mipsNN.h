@@ -36,6 +36,8 @@
  *
  * $FreeBSD$
  */
+#ifndef	_MACHINE_CACHE_MIPSNN_H_
+#define	_MACHINE_CACHE_MIPSNN_H_
 
 void	mipsNN_cache_init(struct mips_cpuinfo *);
 
@@ -65,3 +67,5 @@ void	mipsNN_pdcache_wbinv_range_index_128(vm_offset_t, vm_size_t);
 void	mipsNN_pdcache_inv_range_128(vm_offset_t, vm_size_t);
 void	mipsNN_pdcache_wb_range_128(vm_offset_t, vm_size_t);
 #endif
+
+#endif	/* _MACHINE_CACHE_MIPSNN_H_ */

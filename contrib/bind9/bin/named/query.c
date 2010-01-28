@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.313.20.7 2009/03/13 01:38:51 marka Exp $ */
+/* $Id: query.c,v 1.313.20.7.12.4 2009/12/31 22:53:03 each Exp $ */
 
 /*! \file */
 
@@ -115,6 +115,8 @@
 #define DNS_GETDB_NOEXACT 0x01U
 #define DNS_GETDB_NOLOG 0x02U
 #define DNS_GETDB_PARTIAL 0x04U
+
+#define PENDINGOK(x)	(((x) & DNS_DBFIND_PENDINGOK) != 0)
 
 typedef struct client_additionalctx {
 	ns_client_t *client;
@@ -1158,7 +1160,8 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 			goto cleanup;
 	}
 	result = dns_db_find(db, name, version, type,
-			     client->query.dboptions | DNS_DBFIND_GLUEOK,
+			     client->query.dboptions |
+			     DNS_DBFIND_GLUEOK | DNS_DBFIND_ADDITIONALOK,
 			     client->now, &node, fname, rdataset,
 			     sigrdataset);
 	if (result == DNS_R_GLUE &&
@@ -1643,7 +1646,8 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 		goto try_glue;
 
 	result = dns_db_find(db, name, version, type,
-			     client->query.dboptions | DNS_DBFIND_GLUEOK,
+			     client->query.dboptions |
+			     DNS_DBFIND_GLUEOK | DNS_DBFIND_ADDITIONALOK,
 			     client->now, &node, fname, NULL, NULL);
 	if (result == ISC_R_SUCCESS)
 		goto found;
@@ -1761,8 +1765,8 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 	 */
 	if (result == ISC_R_SUCCESS &&
 	    additionaltype == dns_rdatasetadditional_fromcache &&
-	    (rdataset->trust == dns_trust_pending ||
-	     rdataset->trust == dns_trust_glue) &&
+	    (DNS_TRUST_PENDING(rdataset->trust) ||
+	     DNS_TRUST_GLUE(rdataset->trust)) &&
 	    !validate(client, db, fname, rdataset, sigrdataset)) {
 		dns_rdataset_disassociate(rdataset);
 		if (dns_rdataset_isassociated(sigrdataset))
@@ -1801,8 +1805,8 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 	 */
 	if (result == ISC_R_SUCCESS &&
 	    additionaltype == dns_rdatasetadditional_fromcache &&
-	    (rdataset->trust == dns_trust_pending ||
-	     rdataset->trust == dns_trust_glue) &&
+	    (DNS_TRUST_PENDING(rdataset->trust) ||
+	     DNS_TRUST_GLUE(rdataset->trust)) &&
 	    !validate(client, db, fname, rdataset, sigrdataset)) {
 		dns_rdataset_disassociate(rdataset);
 		if (dns_rdataset_isassociated(sigrdataset))
@@ -2601,14 +2605,14 @@ query_addbestns(ns_client_t *client) {
 	/*
 	 * Attempt to validate RRsets that are pending or that are glue.
 	 */
-	if ((rdataset->trust == dns_trust_pending ||
-	     (sigrdataset != NULL && sigrdataset->trust == dns_trust_pending))
+	if ((DNS_TRUST_PENDING(rdataset->trust) ||
+	     (sigrdataset != NULL && DNS_TRUST_PENDING(sigrdataset->trust)))
 	    && !validate(client, db, fname, rdataset, sigrdataset) &&
-	    (client->query.dboptions & DNS_DBFIND_PENDINGOK) == 0)
+	    !PENDINGOK(client->query.dboptions))
 		goto cleanup;
 
-	if ((rdataset->trust == dns_trust_glue ||
-	     (sigrdataset != NULL && sigrdataset->trust == dns_trust_glue)) &&
+	if ((DNS_TRUST_GLUE(rdataset->trust) ||
+	     (sigrdataset != NULL && DNS_TRUST_GLUE(sigrdataset->trust))) &&
 	    !validate(client, db, fname, rdataset, sigrdataset) &&
 	    SECURE(client) && WANTDNSSEC(client))
 		goto cleanup;

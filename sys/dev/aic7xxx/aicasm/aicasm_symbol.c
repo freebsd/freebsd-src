@@ -129,7 +129,7 @@ symbol_delete(symbol_t *symbol)
 }
 
 void
-symtable_open()
+symtable_open(void)
 {
 	symtable = dbopen(/*filename*/NULL,
 			  O_CREAT | O_NONBLOCK | O_RDWR, /*mode*/0, DB_HASH,
@@ -143,7 +143,7 @@ symtable_open()
 }
 
 void
-symtable_close()
+symtable_close(void)
 {
 	if (symtable != NULL) {
 		DBT	 key;

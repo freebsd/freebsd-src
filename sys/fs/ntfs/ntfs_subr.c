@@ -278,6 +278,7 @@ ntfs_loadntnode(
 
 		bn = ntfs_cntobn(ntmp->ntm_mftcn) +
 			ntmp->ntm_bpmftrec * ip->i_number;
+		bn *= ntmp->ntm_multiplier;
 
 		error = bread(ntmp->ntm_devvp,
 			      bn, ntfs_bntob(ntmp->ntm_bpmftrec),
@@ -581,7 +582,7 @@ ntfs_attrtontvattr(
 		memcpy(vap->va_datap, (caddr_t) rap + rap->a_r.a_dataoff,
 		       rap->a_r.a_datalen);
 	}
-	ddprintf((", len: %d", vap->va_datalen));
+	ddprintf((", len: %lld", vap->va_datalen));
 
 	if (error)
 		free(vap, M_NTFSNTVATTR);
@@ -1491,11 +1492,13 @@ ntfs_writentvattr_plain(
 				(u_int32_t) left));
 			if ((off == 0) && (tocopy == ntfs_cntob(cl)))
 			{
-				bp = getblk(ntmp->ntm_devvp, ntfs_cntobn(cn),
+				bp = getblk(ntmp->ntm_devvp, ntfs_cntobn(cn)
+					    * ntmp->ntm_multiplier,
 					    ntfs_cntob(cl), 0, 0, 0);
 				clrbuf(bp);
 			} else {
-				error = bread(ntmp->ntm_devvp, ntfs_cntobn(cn),
+				error = bread(ntmp->ntm_devvp, ntfs_cntobn(cn)
+					      * ntmp->ntm_multiplier,
 					      ntfs_cntob(cl), NOCRED, &bp);
 				if (error) {
 					brelse(bp);
@@ -1602,7 +1605,8 @@ ntfs_readntvattr_plain(
 						(u_int32_t) tocopy, 
 						(u_int32_t) left));
 					error = bread(ntmp->ntm_devvp,
-						      ntfs_cntobn(cn),
+						      ntfs_cntobn(cn)
+						      * ntmp->ntm_multiplier,
 						      ntfs_cntob(cl),
 						      NOCRED, &bp);
 					if (error) {
@@ -1878,7 +1882,7 @@ ntfs_procfixups(
 		       fhp->fh_magic, magic);
 		return (EINVAL);
 	}
-	if ((fhp->fh_fnum - 1) * ntmp->ntm_bps != len) {
+	if ((fhp->fh_fnum - 1) * NTFS_BLOCK_SIZE != len) {
 		printf("ntfs_procfixups: " \
 		       "bad fixups number: %d for %ld bytes block\n", 
 		       fhp->fh_fnum, (long)len);	/* XXX printf kludge */
@@ -1889,7 +1893,7 @@ ntfs_procfixups(
 		return (EINVAL);
 	}
 	fxp = (u_int16_t *) (buf + fhp->fh_foff);
-	cfxp = (u_int16_t *) (buf + ntmp->ntm_bps - 2);
+	cfxp = (u_int16_t *) (buf + NTFS_BLOCK_SIZE - 2);
 	fixup = *fxp++;
 	for (i = 1; i < fhp->fh_fnum; i++, fxp++) {
 		if (*cfxp != fixup) {
@@ -1897,7 +1901,7 @@ ntfs_procfixups(
 			return (EINVAL);
 		}
 		*cfxp = *fxp;
-		cfxp = (u_int16_t *) ((caddr_t) cfxp + ntmp->ntm_bps);
+		cfxp = (u_int16_t *) ((caddr_t) cfxp + NTFS_BLOCK_SIZE);
 	}
 	return (0);
 }

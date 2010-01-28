@@ -511,10 +511,10 @@ int genfbioctl(genfb_softc_t *sc, video_adapter_t *adp, u_long cmd,
 	return error;
 }
 
-int genfbmmap(genfb_softc_t *sc, video_adapter_t *adp, vm_offset_t offset,
-	      vm_offset_t *paddr, int prot)
+int genfbmmap(genfb_softc_t *sc, video_adapter_t *adp, vm_ooffset_t offset,
+	      vm_offset_t *paddr, int prot, vm_memattr_t *memattr)
 {
-	return vidd_mmap(adp, offset, paddr, prot);
+	return vidd_mmap(adp, offset, paddr, prot, memattr);
 }
 
 #endif /* FB_INSTALL_CDEV */

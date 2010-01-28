@@ -134,6 +134,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/route.h>
 #include <netinet/ip_fw.h>
+#include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/ip_dummynet.h>
 
 /*
@@ -916,6 +917,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 			    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
 			sc->sc_ifaddr = fif;
 		}
+		EVENTHANDLER_INVOKE(iflladdr_event, sc->sc_ifp);
 	}
 
 	bridge_mutecaps(sc);	/* recalcuate now this interface is removed */
@@ -1032,6 +1034,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	    !memcmp(IF_LLADDR(sc->sc_ifp), sc->sc_defaddr, ETHER_ADDR_LEN)) {
 		bcopy(IF_LLADDR(ifs), IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
 		sc->sc_ifaddr = ifs;
+		EVENTHANDLER_INVOKE(iflladdr_event, sc->sc_ifp);
 	}
 
 	ifs->if_bridge = sc;
@@ -3038,20 +3041,28 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			goto bad;
 	}
 
-	if (V_ip_fw_chk_ptr && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
-		struct dn_pkt_tag *dn_tag;
+	/* XXX this section is also in if_ethersubr.c */
+	// XXX PFIL_OUT or DIR_OUT ?
+	if (V_ip_fw_chk_ptr && pfil_ipfw != 0 &&
+			dir == PFIL_OUT && ifp != NULL) {
+		struct m_tag *mtag;
 
 		error = -1;
-		dn_tag = ip_dn_claim_tag(*mp);
-		if (dn_tag != NULL) {
-			if (dn_tag->rule != NULL && V_fw_one_pass)
-				/* packet already partially processed */
+		/* fetch the start point from existing tags, if any */
+		mtag = m_tag_locate(*mp, MTAG_IPFW_RULE, 0, NULL);
+		if (mtag == NULL) {
+			args.rule.slot = 0;
+		} else {
+			struct dn_pkt_tag *dn_tag;
+
+			/* XXX can we free the tag after use ? */
+			mtag->m_tag_id = PACKET_TAG_NONE;
+			dn_tag = (struct dn_pkt_tag *)(mtag + 1);
+			/* packet already partially processed ? */
+			if (dn_tag->rule.slot != 0 && V_fw_one_pass)
 				goto ipfwpass;
-			args.rule = dn_tag->rule; /* matching rule to restart */
-			args.rule_id = dn_tag->rule_id;
-			args.chain_id = dn_tag->chain_id;
-		} else
-			args.rule = NULL;
+			args.rule = dn_tag->rule;
+		}
 
 		args.m = *mp;
 		args.oif = ifp;
@@ -3077,7 +3088,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			 * packet will return to us via bridge_dummynet().
 			 */
 			args.oif = ifp;
-			ip_dn_io_ptr(mp, DN_TO_IFB_FWD, &args);
+			ip_dn_io_ptr(mp, DIR_FWD | PROTO_IFB, &args);
 			return (error);
 		}
 

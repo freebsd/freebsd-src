@@ -670,7 +670,7 @@ isp_clear_commands(ispsoftc_t *isp)
 		} else {
 			ct_entry_t *ctio = (ct_entry_t *) local;
 			ctio->ct_syshandle = handle & 0xffff;
-			ctio->ct_status = CT_HBA_RESET & 0xff;;
+			ctio->ct_status = CT_HBA_RESET & 0xff;
 			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO;
 		}
 		isp_async(isp, ISPASYNC_TARGET_ACTION, local);

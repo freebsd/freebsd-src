@@ -17,6 +17,8 @@ SRCS=	auditd_lib.c
 #
 CFLAGS+=	-I${OPENBSMDIR} -I${LIBBSMDIR}
 
+WARNS?=		3
+
 NO_MAN=
 
 .include <bsd.lib.mk>

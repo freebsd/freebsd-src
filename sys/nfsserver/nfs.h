@@ -82,14 +82,13 @@
 #define IO_METASYNC	0
 #endif
 
-
 /* NFS state flags XXX -Wunused */
 #define	NFSRV_SNDLOCK		0x01000000  /* Send socket lock */
 #define	NFSRV_WANTSND		0x02000000  /* Want above */
 
 /*
- * Structures for the nfssvc(2) syscall. Not that anyone but nfsd and mount_nfs
- * should ever try and use it.
+ * Structures for the nfssvc(2) syscall.  Not that anyone but nfsd and
+ * mount_nfs should ever try and use it.
  */
 
 /*
@@ -240,6 +239,7 @@ extern int nfs_debug;
 
 #endif
 
+void	nfs_realign(struct mbuf **);
 struct mbuf *nfs_rephead(int, struct nfsrv_descript *, int, struct mbuf **,
 	    caddr_t *);
 void	nfsm_srvfattr(struct nfsrv_descript *, struct vattr *,

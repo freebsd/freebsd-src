@@ -42,7 +42,7 @@
 /* Default search path. */
 #define	_PATH_DEFPATH	"/usr/bin:/bin"
 /* All standard utilities path. */
-#define	_PATH_STDPATH	"/usr/bin:/bin:/usr/sbin:/sbin:"
+#define	_PATH_STDPATH	"/usr/bin:/bin:/usr/sbin:/sbin"
 /* Locate system binaries. */
 #define	_PATH_SYSPATH	"/sbin:/usr/sbin"
 

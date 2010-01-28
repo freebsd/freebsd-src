@@ -133,7 +133,9 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5708S),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5709CAX),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5722),
+	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5784),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5709C),
+	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5761),
 	MII_PHY_DESC(BROADCOM2, BCM5906),
 	MII_PHY_END
 };
@@ -195,6 +197,7 @@ brgphy_attach(device_t dev)
 	case MII_OUI_xxBROADCOM:
 		switch (bsc->mii_model) {
 			case MII_MODEL_xxBROADCOM_BCM5706:
+			case MII_MODEL_xxBROADCOM_BCM5714:
 				/*
 				 * The 5464 PHY used in the 5706 supports both copper
 				 * and fiber interfaces over GMII.  Need to check the

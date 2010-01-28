@@ -450,7 +450,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 					c = &s->cur[s->pushlevel];
 				} else {
 					DPRINTFN(0, "Cannot push "
-					    "item @ %d!\n", s->pushlevel);
+					    "item @ %d\n", s->pushlevel);
 				}
 				break;
 			case 11:	/* Pop */
@@ -468,7 +468,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 					c->loc.count = 0;
 				} else {
 					DPRINTFN(0, "Cannot pop "
-					    "item @ %d!\n", s->pushlevel);
+					    "item @ %d\n", s->pushlevel);
 				}
 				break;
 			default:
@@ -490,7 +490,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 					s->usages_max[s->nusage] = dval;
 					s->nusage ++;
 				} else {
-					DPRINTFN(0, "max usage reached!\n");
+					DPRINTFN(0, "max usage reached\n");
 				}
 
 				/* clear any pending usage sets */
@@ -525,7 +525,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 					    c->usage_maximum;
 					s->nusage ++;
 				} else {
-					DPRINTFN(0, "Usage set dropped!\n");
+					DPRINTFN(0, "Usage set dropped\n");
 				}
 				s->susage = 0;
 				break;

@@ -325,7 +325,7 @@ fqueue_compact(float th)
  * Flush the first-level aggregates queue.
  */
 static void
-fqueue_deleteall()
+fqueue_deleteall(void)
 {
 	struct aggent *agg;
 
@@ -472,7 +472,7 @@ fqueue_insertgen(void)
  * Flush the raw entries general queue.
  */
 static void
-general_deleteall()
+general_deleteall(void)
 {
 	struct entry *obj;
 

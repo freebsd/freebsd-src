@@ -11,6 +11,7 @@ LDADD=		-lsbuf
 
 MAN=		cam.3 cam_cdbparse.3
 
+WARNS?=		2
 
 MLINKS+=	cam.3 cam_open_device.3 \
 		cam.3 cam_open_spec_device.3 \

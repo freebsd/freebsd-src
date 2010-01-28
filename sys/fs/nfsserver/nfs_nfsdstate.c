@@ -1753,7 +1753,7 @@ tryagain:
 		(new_lop->lo_flags == NFSLCK_WRITE ||
 		 lop->lo_flags == NFSLCK_WRITE) &&
 		lckstp != lop->lo_stp &&
-		(lckstp->ls_clp != lop->lo_stp->ls_clp ||
+		(clp != lop->lo_stp->ls_clp ||
 		 lckstp->ls_ownerlen != lop->lo_stp->ls_ownerlen ||
 		 NFSBCMP(lckstp->ls_owner, lop->lo_stp->ls_owner,
 		    lckstp->ls_ownerlen))) {

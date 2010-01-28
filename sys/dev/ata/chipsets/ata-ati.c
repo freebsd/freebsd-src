@@ -53,7 +53,8 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_ati_chipinit(device_t dev);
-static void ata_ati_setmode(device_t dev, int mode);
+static int ata_ati_ixp700_ch_attach(device_t dev);
+static int ata_ati_setmode(device_t dev, int target, int mode);
 
 /* misc defines */
 #define ATI_PATA	0x01
@@ -121,7 +122,7 @@ ata_ati_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     device_t smbdev;
-    int satacfg;
+    uint8_t satacfg;
 
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
@@ -145,13 +146,16 @@ ata_ati_chipinit(device_t dev)
 		    (satacfg & 0x01) == 0 ? "disabled" : "enabled",
 		    (satacfg & 0x08) == 0 ? "" : "combined mode, ",
 		    (satacfg & 0x10) == 0 ? "primary" : "secondary");
-
+	    ctlr->chipset_data = (void *)(uintptr_t)satacfg;
 	    /*
 	     * If SATA controller is enabled but combined mode is disabled,
 	     * we have only one PATA channel.  Ignore a non-existent channel.
 	     */
 	    if ((satacfg & 0x09) == 0x01)
 		ctlr->ichannels &= ~(1 << ((satacfg & 0x10) >> 4));
+	    else {
+	        ctlr->ch_attach = ata_ati_ixp700_ch_attach;
+	    }
 	}
 	break;
     }
@@ -160,68 +164,78 @@ ata_ati_chipinit(device_t dev)
     return 0;
 }
 
-static void
-ata_ati_setmode(device_t dev, int mode)
+static int
+ata_ati_ixp700_ch_attach(device_t dev)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int devno = (ch->unit << 1) + atadev->unit;
-    int offset = (devno ^ 0x01) << 3;
-    int error;
-    u_int8_t piotimings[] = { 0x5d, 0x47, 0x34, 0x22, 0x20, 0x34, 0x22, 0x20,
-			      0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
-    u_int8_t dmatimings[] = { 0x77, 0x21, 0x20 };
+	struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+	struct ata_channel *ch = device_get_softc(dev);
+	uint8_t satacfg = (uint8_t)(uintptr_t)ctlr->chipset_data;
 
-    mode = ata_limit_mode(dev, mode, ctlr->chip->max_dma);
+	/* Setup the usual register normal pci style. */
+	if (ata_pci_ch_attach(dev))
+		return ENXIO;
 
-    mode = ata_check_80pin(dev, mode);
+	/* One of channels is PATA, another is SATA. */
+	if (ch->unit == ((satacfg & 0x10) >> 4))
+		ch->flags |= ATA_SATA;
+	return (0);
+}
 
-    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
+static int
+ata_ati_setmode(device_t dev, int target, int mode)
+{
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	struct ata_channel *ch = device_get_softc(dev);
+	int devno = (ch->unit << 1) + target;
+	int offset = (devno ^ 0x01) << 3;
+	int piomode;
+	u_int8_t piotimings[] = { 0x5d, 0x47, 0x34, 0x22, 0x20 };
+	u_int8_t dmatimings[] = { 0x77, 0x21, 0x20 };
 
-    if (bootverbose)
-	device_printf(dev, "%ssetting %s on %s chip\n",
-		      (error) ? "FAILURE " : "",
-		      ata_mode2str(mode), ctlr->chip->text);
-    if (!error) {
+	mode = min(mode, ctlr->chip->max_dma);
 	if (mode >= ATA_UDMA0) {
-	    pci_write_config(gparent, 0x56, 
-			     (pci_read_config(gparent, 0x56, 2) &
+	    /* Set UDMA mode, enable UDMA, set WDMA2/PIO4 */
+	    pci_write_config(parent, 0x56, 
+			     (pci_read_config(parent, 0x56, 2) &
 			      ~(0xf << (devno << 2))) |
 			     ((mode & ATA_MODE_MASK) << (devno << 2)), 2);
-	    pci_write_config(gparent, 0x54,
-			     pci_read_config(gparent, 0x54, 1) |
+	    pci_write_config(parent, 0x54,
+			     pci_read_config(parent, 0x54, 1) |
 			     (0x01 << devno), 1);
-	    pci_write_config(gparent, 0x44, 
-			     (pci_read_config(gparent, 0x44, 4) &
+	    pci_write_config(parent, 0x44, 
+			     (pci_read_config(parent, 0x44, 4) &
 			      ~(0xff << offset)) |
 			     (dmatimings[2] << offset), 4);
-	}
-	else if (mode >= ATA_WDMA0) {
-	    pci_write_config(gparent, 0x54,
-			     pci_read_config(gparent, 0x54, 1) &
+	    piomode = ATA_PIO4;
+	} else if (mode >= ATA_WDMA0) {
+	    /* Disable UDMA, set WDMA mode and timings, calculate PIO. */
+	    pci_write_config(parent, 0x54,
+			     pci_read_config(parent, 0x54, 1) &
 			      ~(0x01 << devno), 1);
-	    pci_write_config(gparent, 0x44, 
-			     (pci_read_config(gparent, 0x44, 4) &
+	    pci_write_config(parent, 0x44, 
+			     (pci_read_config(parent, 0x44, 4) &
 			      ~(0xff << offset)) |
 			     (dmatimings[mode & ATA_MODE_MASK] << offset), 4);
-	}
-	else
-	    pci_write_config(gparent, 0x54,
-			     pci_read_config(gparent, 0x54, 1) &
+	    piomode = (mode == ATA_WDMA0) ? ATA_PIO0 :
+		(mode == ATA_WDMA1) ? ATA_PIO3 : ATA_PIO4;
+	} else {
+	    /* Disable UDMA, set requested PIO. */
+	    pci_write_config(parent, 0x54,
+			     pci_read_config(parent, 0x54, 1) &
 			     ~(0x01 << devno), 1);
-
-	pci_write_config(gparent, 0x4a,
-			 (pci_read_config(gparent, 0x4a, 2) &
+	    piomode = mode;
+	}
+	/* Set PIO mode and timings, calculated above. */
+	pci_write_config(parent, 0x4a,
+			 (pci_read_config(parent, 0x4a, 2) &
 			  ~(0xf << (devno << 2))) |
-			 (((mode - ATA_PIO0) & ATA_MODE_MASK) << (devno<<2)),2);
-	pci_write_config(gparent, 0x40, 
-			 (pci_read_config(gparent, 0x40, 4) &
+			 ((piomode - ATA_PIO0) << (devno<<2)),2);
+	pci_write_config(parent, 0x40, 
+			 (pci_read_config(parent, 0x40, 4) &
 			  ~(0xff << offset)) |
-			 (piotimings[ata_mode2idx(mode)] << offset), 4);
-	atadev->mode = mode;
-    }
+			 (piotimings[ata_mode2idx(piomode)] << offset), 4);
+	return (mode);
 }
 
 ATA_DECLARE_DRIVER(ata_ati);

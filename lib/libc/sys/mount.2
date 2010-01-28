@@ -28,7 +28,7 @@
 .\"     @(#)mount.2	8.3 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2005
+.Dd January 26, 2010
 .Dt MOUNT 2
 .Os
 .Sh NAME
@@ -368,5 +368,9 @@ and
 .Fn unmount
 functions appeared in
 .At v6 .
+The
+.Fn nmount
+system call first appeared in
+.Fx 5.0 .
 .Sh BUGS
 Some of the error codes need translation to more obvious messages.

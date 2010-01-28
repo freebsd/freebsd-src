@@ -46,6 +46,7 @@ static const char copyright[] =
 #endif
 
 #include <locale.h>
+#include <unistd.h>
 
 #include "talk.h"
 

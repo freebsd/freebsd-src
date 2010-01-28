@@ -119,6 +119,8 @@ pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_SETSPECIFIC */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_SIGMASK */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_TESTCANCEL */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_CLEANUP_POP_IMP */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_CLEANUP_PUSH_IMP */
 };
 
 /*
@@ -265,6 +267,8 @@ STUB_FUNC2(pthread_kill, PJT_KILL, int, void *, int)
 STUB_FUNC2(pthread_setcancelstate, PJT_SETCANCELSTATE, int, int, void *)
 STUB_FUNC2(pthread_setcanceltype, PJT_SETCANCELTYPE, int, int, void *)
 STUB_FUNC(pthread_testcancel, PJT_TESTCANCEL, void)
+STUB_FUNC1(__pthread_cleanup_pop_imp, PJT_CLEANUP_POP_IMP, int, int)
+STUB_FUNC2(__pthread_cleanup_push_imp, PJT_CLEANUP_PUSH_IMP, void, void*, void *);
 
 static int
 stub_zero(void)

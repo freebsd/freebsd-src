@@ -157,8 +157,6 @@ ehci_ixp_attach(device_t self)
 		return (ENOMEM);
 	}
 
-	sc->sc_bus.usbrev = USB_REV_2_0;
-
 	/* NB: hints fix the memory location and irq */
 
 	rid = 0;
@@ -230,7 +228,6 @@ ehci_ixp_attach(device_t self)
 		     | EHCI_SCFLG_BIGEMMIO
 		     | EHCI_SCFLG_NORESTERM
 		     ;
-	(void) ehci_reset(sc);
 
 	err = ehci_init(sc);
 	if (!err) {

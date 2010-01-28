@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/socketvar.h>
 #include <sys/sf_buf.h>
+#include <sys/syscall.h>
+#include <sys/sysent.h>
 #include <sys/unistd.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
@@ -259,6 +261,57 @@ done:
 	mtx_unlock(&sf_buf_lock);
 	return (sf);
 #endif
+}
+
+void
+cpu_set_syscall_retval(struct thread *td, int error)
+{
+	trapframe_t *frame;
+	int fixup;
+#ifdef __ARMEB__
+	uint32_t insn;
+#endif
+
+	frame = td->td_frame;
+	fixup = 0;
+
+#ifdef __ARMEB__
+	insn = *(u_int32_t *)(frame->tf_pc - INSN_SIZE);
+	if ((insn & 0x000fffff) == SYS___syscall) {
+		register_t *ap = &frame->tf_r0;
+		register_t code = ap[_QUAD_LOWWORD];
+		if (td->td_proc->p_sysent->sv_mask)
+			code &= td->td_proc->p_sysent->sv_mask;
+		fixup = (code != SYS_freebsd6_lseek && code != SYS_lseek)
+		    ? 1 : 0;
+	}
+#endif
+
+	switch (error) {
+	case 0:
+		if (fixup) {
+			frame->tf_r0 = 0;
+			frame->tf_r1 = td->td_retval[0];
+		} else {
+			frame->tf_r0 = td->td_retval[0];
+			frame->tf_r1 = td->td_retval[1];
+		}
+		frame->tf_spsr &= ~PSR_C_bit;   /* carry bit */
+		break;
+	case ERESTART:
+		/*
+		 * Reconstruct the pc to point at the swi.
+		 */
+		frame->tf_pc -= INSN_SIZE;
+		break;
+	case EJUSTRETURN:
+		/* nothing to do */
+		break;
+	default:
+		frame->tf_r0 = error;
+		frame->tf_spsr |= PSR_C_bit;    /* carry bit */
+		break;
+	}
 }
 
 /*

@@ -269,6 +269,7 @@ struct video_info {
 #define V_INFO_GRAPHICS	(1 << 1)
 #define V_INFO_LINEAR	(1 << 2)
 #define V_INFO_VESA	(1 << 3)
+#define	V_INFO_NONVGA	(1 << 4)
     int			vi_width;
     int			vi_height;
     int			vi_cwidth;

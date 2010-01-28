@@ -75,8 +75,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Driver-specific flags.
  */
-#define	ATE_FLAG_DETACHING	0x01
-#define	ATE_FLAG_MULTICAST	0x02
+#define	ATE_FLAG_MULTICAST	0x01
 
 struct ate_softc
 {
@@ -196,6 +195,7 @@ ate_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	ATE_LOCK_INIT(sc);
+	callout_init_mtx(&sc->tick_ch, &sc->sc_mtx, 0);
 	
 	/*
 	 * Allocate resources.
@@ -233,7 +233,6 @@ ate_attach(device_t dev)
 	ATE_LOCK(sc);
 	atestop(sc);
 	ATE_UNLOCK(sc);
-	callout_init_mtx(&sc->tick_ch, &sc->sc_mtx, 0);
 
 	if ((err = ate_get_mac(sc, eaddr)) != 0) {
 		/*
@@ -276,7 +275,6 @@ ate_attach(device_t dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_timer = 0;
 	ifp->if_linkmib = &sc->mibdata;
 	ifp->if_linkmiblen = sizeof(sc->mibdata);
 	sc->mibdata.dot3Compliance = DOT3COMPLIANCE_COLLS;
@@ -311,12 +309,11 @@ ate_detach(device_t dev)
 	KASSERT(sc != NULL, ("[ate: %d]: sc is NULL", __LINE__));
 	ifp = sc->ifp;
 	if (device_is_attached(dev)) {
+		ether_ifdetach(ifp);
 		ATE_LOCK(sc);
-			sc->flags |= ATE_FLAG_DETACHING;
-			atestop(sc);
+		atestop(sc);
 		ATE_UNLOCK(sc);
 		callout_drain(&sc->tick_ch);
-		ether_ifdetach(ifp);
 	}
 	if (sc->miibus != NULL) {
 		device_delete_child(dev, sc->miibus);
@@ -999,7 +996,6 @@ atestop(struct ate_softc *sc)
 	ATE_ASSERT_LOCKED(sc);
 	ifp = sc->ifp;
 	if (ifp) {
-		ifp->if_timer = 0;
 		ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	}
 
@@ -1109,11 +1105,9 @@ ateioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 					ate_rxfilter(sc);
 			} else {
-				if ((sc->flags & ATE_FLAG_DETACHING) == 0)
-					ateinit_locked(sc);
+				ateinit_locked(sc);
 			}
 		} else if ((drv_flags & IFF_DRV_RUNNING) != 0) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			atestop(sc);
 		}
 		sc->if_flags = flags;

@@ -134,9 +134,11 @@
 #define MAX_LOOP	10
 
 /*
- * This parameter controls the duration of transmit watchdog timer.
+ * This is the max watchdog interval, ie. the time that can
+ * pass between any two TX clean operations, such only happening
+ * when the TX hardware is functioning.
  */
-#define IXGBE_TX_TIMEOUT                   5	/* set to 5 seconds */
+#define IXGBE_WATCHDOG                   (10 * hz)
 
 /*
  * This parameters control when the driver calls the routine to reclaim
@@ -148,7 +150,7 @@
 #define IXGBE_MAX_FRAME_SIZE	0x3F00
 
 /* Flow control constants */
-#define IXGBE_FC_PAUSE		0x680
+#define IXGBE_FC_PAUSE		0xFFFF
 #define IXGBE_FC_HI		0x20000
 #define IXGBE_FC_LO		0x10000
 
@@ -174,7 +176,7 @@
 #define MSIX_82599_BAR			4
 #define IXGBE_TSO_SIZE			65535
 #define IXGBE_TX_BUFFER_SIZE		((u32) 1514)
-#define IXGBE_RX_HDR			128
+#define IXGBE_RX_HDR			256
 #define IXGBE_VFTA_SIZE			128
 #define IXGBE_BR_SIZE			4096
 #define CSUM_OFFLOAD			7	/* Bits in csum flags */
@@ -253,14 +255,15 @@ struct tx_ring {
 	struct mtx		tx_mtx;
 	u32			me;
 	u32			msix;
-	u32			watchdog_timer;
+	bool			watchdog_check;
+	int			watchdog_time;
 	union ixgbe_adv_tx_desc	*tx_base;
 	volatile u32		tx_hwb;
 	struct ixgbe_dma_alloc	txdma;
 	struct task     	tx_task;
 	struct taskqueue	*tq;
-	u32			next_avail_tx_desc;
-	u32			next_tx_to_clean;
+	u32			next_avail_desc;
+	u32			next_to_clean;
 	struct ixgbe_tx_buf	*tx_buffers;
 	volatile u16		tx_avail;
 	u32			txd_cmd;
@@ -272,7 +275,10 @@ struct tx_ring {
 	/* Interrupt resources */
 	void			*tag;
 	struct resource		*res;
-
+#ifdef IXGBE_FDIR
+	u16			atr_sample;
+	u16			atr_count;
+#endif
 	/* Soft Stats */
 	u32			no_tx_desc_avail;
 	u32			no_tx_desc_late;
@@ -297,13 +303,12 @@ struct rx_ring {
 	struct lro_ctrl		lro;
 	bool			lro_enabled;
 	bool			hdr_split;
-        unsigned int		last_cleaned;
+	bool			hw_rsc;
+        unsigned int		last_refreshed;
         unsigned int		next_to_check;
 	struct ixgbe_rx_buf	*rx_buffers;
 	bus_dma_tag_t		rxtag;
 	bus_dmamap_t		spare_map;
-	struct mbuf		*fmp;
-	struct mbuf		*lmp;
 	char			mtx_name[16];
 
 	u32			bytes; /* Used for AIM calc */
@@ -318,6 +323,10 @@ struct rx_ring {
 	u64			rx_split_packets;
 	u64			rx_packets;
 	u64 			rx_bytes;
+	u64 			rsc_num;
+#ifdef IXGBE_FDIR
+	u64			flm;
+#endif
 };
 
 /* Our adapter structure */
@@ -349,21 +358,16 @@ struct adapter {
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
 
-	u32		num_vlans;
+	u16		num_vlans;
 	u16		num_queues;
 
 	/* Info about the board itself */
-	u32		part_num;
 	u32		optics;
 	bool		link_active;
 	u16		max_frame_size;
 	u32		link_speed;
 	bool		link_up;
 	u32 		linkvec;
-	u32		tx_int_delay;
-	u32		tx_abs_int_delay;
-	u32		rx_int_delay;
-	u32		rx_abs_int_delay;
 
 	/* Mbuf cluster size */
 	u32		rx_mbuf_sz;
@@ -373,6 +377,10 @@ struct adapter {
 	struct task     link_task; 	/* Link tasklet */
 	struct task     mod_task; 	/* SFP tasklet */
 	struct task     msf_task; 	/* Multispeed Fiber tasklet */
+#ifdef IXGBE_FDIR
+	int			fdir_reinit;
+	struct task     	fdir_task;
+#endif
 	struct taskqueue	*tq;
 
 	/*
@@ -423,12 +431,12 @@ struct adapter {
 #define IXGBE_CORE_LOCK_INIT(_sc, _name) \
         mtx_init(&(_sc)->core_mtx, _name, "IXGBE Core Lock", MTX_DEF)
 #define IXGBE_CORE_LOCK_DESTROY(_sc)      mtx_destroy(&(_sc)->core_mtx)
-#define IXGBE_TX_LOCK_DESTROY(_sc)                mtx_destroy(&(_sc)->tx_mtx)
-#define IXGBE_RX_LOCK_DESTROY(_sc)                mtx_destroy(&(_sc)->rx_mtx)
+#define IXGBE_TX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->tx_mtx)
+#define IXGBE_RX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->rx_mtx)
 #define IXGBE_CORE_LOCK(_sc)              mtx_lock(&(_sc)->core_mtx)
-#define IXGBE_TX_LOCK(_sc)                        mtx_lock(&(_sc)->tx_mtx)
-#define IXGBE_TX_TRYLOCK(_sc)                     mtx_trylock(&(_sc)->tx_mtx)
-#define IXGBE_RX_LOCK(_sc)                        mtx_lock(&(_sc)->rx_mtx)
+#define IXGBE_TX_LOCK(_sc)                mtx_lock(&(_sc)->tx_mtx)
+#define IXGBE_TX_TRYLOCK(_sc)             mtx_trylock(&(_sc)->tx_mtx)
+#define IXGBE_RX_LOCK(_sc)                mtx_lock(&(_sc)->rx_mtx)
 #define IXGBE_CORE_UNLOCK(_sc)            mtx_unlock(&(_sc)->core_mtx)
 #define IXGBE_TX_UNLOCK(_sc)              mtx_unlock(&(_sc)->tx_mtx)
 #define IXGBE_RX_UNLOCK(_sc)              mtx_unlock(&(_sc)->rx_mtx)

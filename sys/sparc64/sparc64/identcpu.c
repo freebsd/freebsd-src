@@ -27,6 +27,13 @@ static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
     cpu_model, 0, "Machine model");
 
+SYSCTL_NODE(_hw, OID_AUTO, freq, CTLFLAG_RD, 0, "");
+
+static u_int cpu_count;
+static u_int cpu_freq;
+SYSCTL_UINT(_hw_freq, OID_AUTO, cpu, CTLFLAG_RD, &cpu_freq, 0,
+    "CPU clock frequency");
+
 int cpu_impl;
 
 void
@@ -104,4 +111,11 @@ cpu_identify(u_long vers, u_int freq, u_int id)
 		printf("  mask=0x%lx maxtl=%ld maxwin=%ld\n", VER_MASK(vers),
 		    VER_MAXTL(vers), VER_MAXWIN(vers));
 	}
+
+	/*
+	 * Calculate the average CPU frequency.
+	 */
+	freq = (freq + 500000ul) / 1000000ul;
+	cpu_freq = (cpu_freq * cpu_count + freq) / (cpu_count + 1);
+	cpu_count++;
 }

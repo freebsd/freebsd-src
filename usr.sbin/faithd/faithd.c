@@ -791,7 +791,7 @@ exit_success(const char *fmt, ...)
 
 #ifdef USE_ROUTE
 static void
-grab_myaddrs()
+grab_myaddrs(void)
 {
 	struct ifaddrs *ifap, *ifa;
 	struct myaddrs *p;
@@ -847,7 +847,7 @@ grab_myaddrs()
 }
 
 static void
-free_myaddrs()
+free_myaddrs(void)
 {
 	struct myaddrs *p, *q;
 
@@ -861,7 +861,7 @@ free_myaddrs()
 }
 
 static void
-update_myaddrs()
+update_myaddrs(void)
 {
 	char msg[BUFSIZ];
 	int len;
@@ -900,7 +900,7 @@ update_myaddrs()
 #endif /*USE_ROUTE*/
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: %s [-dp] [-f conf] service [serverpath [serverargs]]\n",
 		faithdname);

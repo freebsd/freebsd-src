@@ -398,8 +398,10 @@ ip1000phy_mii_phy_auto(struct mii_softc *sc)
 
 	isc = (struct ip1000phy_softc *)sc;
 	reg = 0;
-	if (isc->model == MII_MODEL_ICPLUS_IP1001)
+	if (isc->model == MII_MODEL_ICPLUS_IP1001) {
 		reg = PHY_READ(sc, IP1000PHY_MII_ANAR);
+		reg |= IP1000PHY_ANAR_NP;
+	}
 	reg |= IP1000PHY_ANAR_10T | IP1000PHY_ANAR_10T_FDX |
 	    IP1000PHY_ANAR_100TX | IP1000PHY_ANAR_100TX_FDX |
 	    IP1000PHY_ANAR_PAUSE | IP1000PHY_ANAR_APAUSE;

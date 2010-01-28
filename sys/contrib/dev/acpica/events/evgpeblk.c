@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1110,7 +1110,7 @@ AcpiEvCreateGpeBlock (
 
     Status = AcpiNsWalkNamespace (ACPI_TYPE_METHOD, GpeDevice,
                 ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
-                AcpiEvSaveMethodInfo, GpeBlock, NULL);
+                AcpiEvSaveMethodInfo, NULL, GpeBlock, NULL);
 
     /* Return the new block */
 
@@ -1192,7 +1192,7 @@ AcpiEvInitializeGpeBlock (
 
         Status = AcpiNsWalkNamespace (ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
                     ACPI_UINT32_MAX, ACPI_NS_WALK_UNLOCK,
-                    AcpiEvMatchPrwAndGpe, &GpeInfo, NULL);
+                    AcpiEvMatchPrwAndGpe, NULL, &GpeInfo, NULL);
     }
 
     /*

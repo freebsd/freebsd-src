@@ -2,12 +2,10 @@
 
 .include <bsd.own.mk>
 
-SUBDIR= bc \
-	${_binutils} \
+SUBDIR= ${_binutils} \
 	${_cc} \
 	${_cpio} \
 	${_cvs} \
-	dc \
 	dialog \
 	diff \
 	diff3 \

@@ -104,7 +104,7 @@ static int mxge_verbose = 0;
 static int mxge_lro_cnt = 8;
 static int mxge_ticks;
 static int mxge_max_slices = 1;
-static int mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
+static int mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_DST_PORT;
 static int mxge_always_promisc = 0;
 static int mxge_initial_mtu = ETHERMTU_JUMBO;
 static int mxge_throttle = 0;
@@ -2774,6 +2774,7 @@ static struct mxge_media_type mxge_xfp_media_types[] =
 };
 static struct mxge_media_type mxge_sfp_media_types[] =
 {
+	{IFM_10G_TWINAX,      0,	"10GBASE-Twinax"},
 	{0,		(1 << 7),	"Reserved"},
 	{IFM_10G_LRM,	(1 << 6),	"10GBASE-LRM"},
 	{IFM_10G_LR, 	(1 << 5),	"10GBASE-LR"},
@@ -2908,7 +2909,7 @@ mxge_media_probe(mxge_softc_t *sc)
 		if (mxge_verbose)
 			device_printf(sc->dev, "%s:%s\n", cage_type,
 				      mxge_media_types[0].name);
-		mxge_set_media(sc, IFM_10G_CX4);
+		mxge_set_media(sc, mxge_media_types[0].flag);
 		return;
 	}
 	for (i = 1; i < mxge_media_type_entries; i++) {
@@ -3173,23 +3174,23 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	bytes = rx_ring_entries * sizeof (*ss->rx_small.shadow);
 	ss->rx_small.shadow = malloc(bytes, M_DEVBUF, M_ZERO|M_WAITOK);
 	if (ss->rx_small.shadow == NULL)
-		return err;;
+		return err;
 
 	bytes = rx_ring_entries * sizeof (*ss->rx_big.shadow);
 	ss->rx_big.shadow = malloc(bytes, M_DEVBUF, M_ZERO|M_WAITOK);
 	if (ss->rx_big.shadow == NULL)
-		return err;;
+		return err;
 
 	/* allocate the rx host info rings */
 	bytes = rx_ring_entries * sizeof (*ss->rx_small.info);
 	ss->rx_small.info = malloc(bytes, M_DEVBUF, M_ZERO|M_WAITOK);
 	if (ss->rx_small.info == NULL)
-		return err;;
+		return err;
 
 	bytes = rx_ring_entries * sizeof (*ss->rx_big.info);
 	ss->rx_big.info = malloc(bytes, M_DEVBUF, M_ZERO|M_WAITOK);
 	if (ss->rx_big.info == NULL)
-		return err;;
+		return err;
 
 	/* allocate the rx busdma resources */
 	err = bus_dma_tag_create(sc->parent_dmat,	/* parent */
@@ -3207,7 +3208,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d allocating rx_small dmat\n",
 			      err);
-		return err;;
+		return err;
 	}
 
 	err = bus_dma_tag_create(sc->parent_dmat,	/* parent */
@@ -3234,7 +3235,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d allocating rx_big dmat\n",
 			      err);
-		return err;;
+		return err;
 	}
 	for (i = 0; i <= ss->rx_small.mask; i++) {
 		err = bus_dmamap_create(ss->rx_small.dmat, 0, 
@@ -3242,7 +3243,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 		if (err != 0) {
 			device_printf(sc->dev, "Err %d  rx_small dmamap\n",
 				      err);
-			return err;;
+			return err;
 		}
 	}
 	err = bus_dmamap_create(ss->rx_small.dmat, 0, 
@@ -3250,7 +3251,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d extra rx_small dmamap\n",
 			      err);
-		return err;;
+		return err;
 	}
 
 	for (i = 0; i <= ss->rx_big.mask; i++) {
@@ -3259,7 +3260,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 		if (err != 0) {
 			device_printf(sc->dev, "Err %d  rx_big dmamap\n",
 				      err);
-			return err;;
+			return err;
 		}
 	}
 	err = bus_dmamap_create(ss->rx_big.dmat, 0, 
@@ -3267,7 +3268,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d extra rx_big dmamap\n",
 			      err);
-		return err;;
+		return err;
 	}
 
 	/* now allocate TX resouces */
@@ -3287,7 +3288,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 		sizeof (*ss->tx.req_list) * (ss->tx.max_desc + 4);
 	ss->tx.req_bytes = malloc(bytes, M_DEVBUF, M_WAITOK);
 	if (ss->tx.req_bytes == NULL)
-		return err;;
+		return err;
 	/* ensure req_list entries are aligned to 8 bytes */
 	ss->tx.req_list = (mcp_kreq_ether_send_t *)
 		((unsigned long)(ss->tx.req_bytes + 7) & ~7UL);
@@ -3297,13 +3298,13 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	ss->tx.seg_list = (bus_dma_segment_t *) 
 		malloc(bytes, M_DEVBUF, M_WAITOK);
 	if (ss->tx.seg_list == NULL)
-		return err;;
+		return err;
 
 	/* allocate the tx host info ring */
 	bytes = tx_ring_entries * sizeof (*ss->tx.info);
 	ss->tx.info = malloc(bytes, M_DEVBUF, M_ZERO|M_WAITOK);
 	if (ss->tx.info == NULL)
-		return err;;
+		return err;
 	
 	/* allocate the tx busdma resources */
 	err = bus_dma_tag_create(sc->parent_dmat,	/* parent */
@@ -3322,7 +3323,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d allocating tx dmat\n",
 			      err);
-		return err;;
+		return err;
 	}
 
 	/* now use these tags to setup dmamaps for each slot
@@ -3333,7 +3334,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 		if (err != 0) {
 			device_printf(sc->dev, "Err %d  tx dmamap\n",
 				      err);
-			return err;;
+			return err;
 		}
 	}
 	return 0;
@@ -3956,9 +3957,7 @@ mxge_tick(void *arg)
 	uint16_t cmd;
 
 	ticks = mxge_ticks;
-	mtx_lock(&sc->driver_mtx);
 	running = sc->ifp->if_drv_flags & IFF_DRV_RUNNING;
-	mtx_unlock(&sc->driver_mtx);
 	if (running) {
 		/* aggregate stats from different slices */
 		pkts = mxge_update_stats(sc);
@@ -4175,7 +4174,7 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 	sc->pause = mxge_flow_control;
 	if (mxge_rss_hash_type < MXGEFW_RSS_HASH_TYPE_IPV4 
 	    || mxge_rss_hash_type > MXGEFW_RSS_HASH_TYPE_MAX) {
-		mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
+		mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_DST_PORT;
 	}
 	if (mxge_initial_mtu > ETHERMTU_JUMBO ||
 	    mxge_initial_mtu < ETHER_MIN_LEN)

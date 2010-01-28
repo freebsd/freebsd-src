@@ -50,6 +50,8 @@ SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c	\
 	utglobal.c utinit.c utlock.c utmath.c utmisc.c		\
 	utmutex.c utobject.c utresrc.c utstate.c utxface.c
 
+WARNS?=	2
+
 MAN=	iasl.8
 
 CFLAGS+= -DACPI_ASL_COMPILER -I.

@@ -149,6 +149,7 @@ trapcmd(int argc, char **argv)
 {
 	char *action;
 	int signo;
+	int errors = 0;
 
 	if (argc <= 1) {
 		for (signo = 0 ; signo < sys_nsig ; signo++) {
@@ -183,8 +184,10 @@ trapcmd(int argc, char **argv)
 		}
 	}
 	while (*argv) {
-		if ((signo = sigstring_to_signum(*argv)) == -1)
-			error("bad signal %s", *argv);
+		if ((signo = sigstring_to_signum(*argv)) == -1) {
+			out2fmt_flush("trap: bad signal %s\n", *argv);
+			errors = 1;
+		}
 		INTOFF;
 		if (action)
 			action = savestr(action);
@@ -196,7 +199,7 @@ trapcmd(int argc, char **argv)
 		INTON;
 		argv++;
 	}
-	return 0;
+	return errors;
 }
 
 
@@ -244,7 +247,8 @@ void
 setsignal(int signo)
 {
 	int action;
-	sig_t sig, sigact = SIG_DFL;
+	sig_t sigact = SIG_DFL;
+	struct sigaction sa;
 	char *t;
 
 	if ((t = trap[signo]) == NULL)
@@ -320,9 +324,10 @@ setsignal(int signo)
 		case S_IGN:	sigact = SIG_IGN;	break;
 	}
 	*t = action;
-	sig = signal(signo, sigact);
-	if (sig != SIG_ERR && action == S_CATCH)
-		siginterrupt(signo, 1);
+	sa.sa_handler = sigact;
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
+	sigaction(signo, &sa, NULL);
 }
 
 

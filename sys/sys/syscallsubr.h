@@ -212,7 +212,7 @@ int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,
 	    off_t length);
 int	kern_unlink(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_unlinkat(struct thread *td, int fd, char *path,
-	    enum uio_seg pathseg);
+	    enum uio_seg pathseg, ino_t oldinum);
 int	kern_utimes(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct timeval *tptr, enum uio_seg tptrseg);
 int	kern_utimesat(struct thread *td, int fd, char *path,

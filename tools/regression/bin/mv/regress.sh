@@ -184,7 +184,7 @@ do
 	# Should fail per POSIX step 3a:
 	# Destination path is a file of type directory and
 	# source_file is not a file of type directory
-	mv 1/2/3/fa ${FS}db
+	mv 1/2/3/fa ${FS}db 2>/dev/null
 	ckfail $?
 	ckf fa 1/2/3/fa
 	end
@@ -238,7 +238,7 @@ do
 	mkd da1/da2/da3/da
 	mkdir -p ${FS}db1/db2/db3/da/full
 	# Should fail (per the semantics of rename(2))
-	mv da1/da2/da3/da ${FS}db1/db2/db3
+	mv da1/da2/da3/da ${FS}db1/db2/db3 2>/dev/null
 	ckfail $?
 	ckd da da1/da2/da3/da
 	end
@@ -250,7 +250,7 @@ do
 	# Should fail per POSIX step 3b:
 	# Destination path is a file not of type directory
 	# and source_file is a file of type directory
-	mv da1/da2/da3/da ${FS}db1/db2/db3/da
+	mv da1/da2/da3/da ${FS}db1/db2/db3/da 2>/dev/null
 	ckfail $?
 	ckd da da1/da2/da3/da
 	end

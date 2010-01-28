@@ -54,7 +54,7 @@ long num_inodes_by_path(char *path);
 void usage(void);
 
 void
-usage()
+usage(void)
 {
 
 	fprintf(stderr,

@@ -151,6 +151,7 @@ dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
 dev/agp/agp_intel.c		optional	agp
 dev/agp/agp_via.c		optional	agp
+dev/amdsbwd/amdsbwd.c		optional	amdsbwd
 dev/amdtemp/amdtemp.c		optional	amdtemp
 dev/arcmsr/arcmsr.c		optional	arcmsr pci
 dev/asmc/asmc.c			optional	asmc isa

@@ -249,7 +249,43 @@ VNET_DECLARE(struct pfil_head, inet_pfil_hook);	/* packet filter hooks */
 
 void	in_delayed_cksum(struct mbuf *m);
 
-/* ipfw and dummynet hooks. Most are declared in raw_ip.c */
+/* Hooks for ipfw, dummynet, divert etc. Most are declared in raw_ip.c */
+/*
+ * Reference to an ipfw or packet filter rule that can be carried
+ * outside critical sections.
+ * A rule is identified by rulenum:rule_id which is ordered.
+ * In version chain_id the rule can be found in slot 'slot', so
+ * we don't need a lookup if chain_id == chain->id.
+ *
+ * On exit from the firewall this structure refers to the rule after
+ * the matching one (slot points to the new rule; rulenum:rule_id-1
+ * is the matching rule), and additional info (e.g. info often contains
+ * the insn argument or tablearg in the low 16 bits, in host format).
+ * On entry, the structure is valid if slot>0, and refers to the starting
+ * rules. 'info' contains the reason for reinject, e.g. divert port,
+ * divert direction, and so on.
+ */
+struct ipfw_rule_ref {
+	uint32_t	slot;		/* slot for matching rule	*/
+	uint32_t	rulenum;	/* matching rule number		*/
+	uint32_t	rule_id;	/* matching rule id		*/
+	uint32_t	chain_id;	/* ruleset id			*/
+	uint32_t	info;		/* see below			*/
+};
+
+enum {
+	IPFW_INFO_MASK	= 0x0000ffff,
+	IPFW_INFO_OUT	= 0x00000000,	/* outgoing, just for convenience */
+	IPFW_INFO_IN	= 0x80000000,	/* incoming, overloads dir */
+	IPFW_ONEPASS	= 0x40000000,	/* One-pass, do not reinject */
+	IPFW_IS_MASK	= 0x30000000,	/* which source ? */
+	IPFW_IS_DIVERT	= 0x20000000,
+	IPFW_IS_DUMMYNET =0x10000000,
+	IPFW_IS_PIPE	= 0x08000000,	/* pip1=1, queue = 0 */
+};
+#define MTAG_IPFW	1148380143	/* IPFW-tagged cookie */
+#define MTAG_IPFW_RULE	1262273568	/* rule reference */
+
 struct ip_fw_args;
 typedef int	(*ip_fw_chk_ptr_t)(struct ip_fw_args *args);
 typedef int	(*ip_fw_ctl_ptr_t)(struct sockopt *);
@@ -258,9 +294,14 @@ VNET_DECLARE(ip_fw_ctl_ptr_t, ip_fw_ctl_ptr);
 #define	V_ip_fw_chk_ptr		VNET(ip_fw_chk_ptr)
 #define	V_ip_fw_ctl_ptr		VNET(ip_fw_ctl_ptr)
 
+/* Divert hooks. */
+extern void	(*ip_divert_ptr)(struct mbuf *m, int incoming);
+/* ng_ipfw hooks -- XXX make it the same as divert and dummynet */
+extern int	(*ng_ipfw_input_p)(struct mbuf **, int,
+			struct ip_fw_args *, int);
+
 extern int	(*ip_dn_ctl_ptr)(struct sockopt *);
-extern int	(*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa);
-extern void	(*ip_dn_ruledel_ptr)(void *);		/* in ip_fw2.c */
+extern int	(*ip_dn_io_ptr)(struct mbuf **, int, struct ip_fw_args *);
 
 VNET_DECLARE(int, ip_do_randomid);
 #define	V_ip_do_randomid	VNET(ip_do_randomid)

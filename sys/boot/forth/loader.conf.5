@@ -180,10 +180,15 @@ serial port speed setting.
 .Dq comconsole
 selects serial console,
 .Dq vidconsole
-selects the video console, and
+selects the video console,
 .Dq nullconsole
 selects a mute console
-(useful for systems with neither a video console nor a serial port).
+(useful for systems with neither a video console nor a serial port), and
+.Dq spinconsole
+selects the video console which prevents any input and hides all output
+replacing it with
+.Dq spinning
+character (useful for embedded products and such).
 .It Va kernel
 .Pq Dq Pa /boot/kernel/kernel
 .It Va loader_conf_files

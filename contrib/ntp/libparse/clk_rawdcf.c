@@ -229,7 +229,7 @@ convert_rawdcf(
 	unsigned char *c = dcfprm->zerobits;
 	int i;
 
-	parseprintf(DD_RAWDCF,("parse: convert_rawdcf: \"%.*s\"\n", size, buffer));
+	parseprintf(DD_RAWDCF,("parse: convert_rawdcf: \"%s\"\n", buffer));
 
 	if (size < 57)
 	{
@@ -320,7 +320,7 @@ convert_rawdcf(
 		 * bad format - not for us
 		 */
 #ifndef PARSEKERNEL
-		msyslog(LOG_ERR, "parse: convert_rawdcf: parity check FAILED for \"%.*s\"\n", size, buffer);
+		msyslog(LOG_ERR, "parse: convert_rawdcf: parity check FAILED for \"%s\"\n", buffer);
 #endif
 		return CVT_FAIL|CVT_BADFMT;
 	}

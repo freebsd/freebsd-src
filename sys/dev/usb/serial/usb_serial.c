@@ -1300,7 +1300,12 @@ CONSOLE_DRIVER(ucom);
 static void
 ucom_cnprobe(struct consdev  *cp)
 {
-	cp->cn_pri = CN_NORMAL;
+	if (ucom_cons_unit != -1)
+		cp->cn_pri = CN_NORMAL;
+	else
+		cp->cn_pri = CN_DEAD;
+
+	strlcpy(cp->cn_name, "ucom", sizeof(cp->cn_name));
 }
 
 static void

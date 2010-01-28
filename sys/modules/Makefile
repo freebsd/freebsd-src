@@ -21,6 +21,7 @@ SUBDIR=	${_3dfx} \
 	alc \
 	ale \
 	${_amd} \
+	${_amdsbwd} \
 	${_amdtemp} \
 	alq \
 	amr \
@@ -81,6 +82,7 @@ SUBDIR=	${_3dfx} \
 	${_em} \
 	en \
 	${_ep} \
+	${_epic} \
 	${_et} \
 	${_ex} \
 	${_exca} \
@@ -191,7 +193,7 @@ SUBDIR=	${_3dfx} \
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
-	netgraph \
+	${_netgraph} \
 	${_nfe} \
 	nfscl \
 	nfsclient \
@@ -327,6 +329,10 @@ _random=	random
 _ipfilter=	ipfilter
 .endif
 
+.if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)
+_netgraph=	netgraph
+.endif
+
 .if ${MK_PF} != "no" || defined(ALL_MODULES)
 _pf=		pf
 _pflog=		pflog
@@ -418,6 +424,7 @@ _zfs=		zfs
 _aac=		aac
 _acpi=		acpi
 _ahb=		ahb
+_amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
@@ -474,6 +481,7 @@ _aac=		aac
 _acpi=		acpi
 _agp=		agp
 _an=		an
+_amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
@@ -511,6 +519,8 @@ _ipmi=		ipmi
 _ips=		ips
 _ipw=		ipw
 _ipwfw=		ipwfw
+_iwi=		iwi
+_iwifw=		iwifw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
@@ -601,11 +611,13 @@ _sound=		sound
 .if ${MACHINE_ARCH} == "sparc64"
 _auxio=		auxio
 _em=		em
+_epic=		epic
 _i2c=		i2c
 _igb=		igb
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
+_smbfs=		smbfs
 _sound=		sound
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs

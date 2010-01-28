@@ -118,7 +118,7 @@ defrouter_probe(struct ifinfo *ifinfo)
 		goto closeandend;
 	}
 
-	for (i = 0; dr.defrouter[i].if_index && i < PRLSTSIZ; i++) {
+	for (i = 0; i < DRLSTSIZ && dr.defrouter[i].if_index; i++) {
 		if (ifindex && dr.defrouter[i].if_index == ifindex) {
 			/* sanity check */
 			if (!IN6_IS_ADDR_LINKLOCAL(&dr.defrouter[i].rtaddr)) {

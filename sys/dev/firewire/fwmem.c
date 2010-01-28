@@ -445,7 +445,8 @@ int
 #if defined(__DragonFly__) || __FreeBSD_version < 500102
 fwmem_mmap (struct cdev *dev, vm_offset_t offset, int nproto)
 #else
-fwmem_mmap (struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nproto)
+fwmem_mmap (struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nproto, vm_memattr_t *memattr)
 #endif
 {  
 	return EINVAL;

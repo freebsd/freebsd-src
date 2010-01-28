@@ -51,6 +51,8 @@ CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
 # Remove the date stamp to make it more obvious when real changes happen
 CFLAGS+=	-U__DATE__
 
+WARNS?=		0
+
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 

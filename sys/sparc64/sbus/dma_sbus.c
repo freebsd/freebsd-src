@@ -149,7 +149,13 @@ static driver_t dma_driver = {
 	sizeof(struct dma_softc),
 };
 
-DRIVER_MODULE(dma, sbus, dma_driver, dma_devclass, 0, 0);
+/*
+ * The probe order is handled by sbus(4) as we don't want the variants
+ * with children to be attached earlier than the stand-alone controllers
+ * in order to generally preserve the OFW device tree order.
+ */
+EARLY_DRIVER_MODULE(dma, sbus, dma_driver, dma_devclass, 0, 0,
+    BUS_PASS_DEFAULT);
 MODULE_DEPEND(dma, sbus, 1, 1, 1);
 MODULE_VERSION(dma, 1);
 

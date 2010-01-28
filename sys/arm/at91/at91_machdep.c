@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_map.h>
-#include <vm/vnode_pager.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>

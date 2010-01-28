@@ -99,8 +99,8 @@ static TAILQ_HEAD(, ggd_request) outqueue = TAILQ_HEAD_INITIALIZER(outqueue);
 pthread_mutex_t inqueue_mtx, outqueue_mtx;
 pthread_cond_t inqueue_cond, outqueue_cond;
 
-static SLIST_HEAD(, ggd_export) exports = SLIST_HEAD_INITIALIZER(&exports);
-static LIST_HEAD(, ggd_connection) connections = LIST_HEAD_INITIALIZER(&connection);
+static SLIST_HEAD(, ggd_export) exports = SLIST_HEAD_INITIALIZER(exports);
+static LIST_HEAD(, ggd_connection) connections = LIST_HEAD_INITIALIZER(connections);
 
 static void *recv_thread(void *arg);
 static void *disk_thread(void *arg);

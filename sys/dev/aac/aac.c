@@ -553,7 +553,7 @@ aac_alloc(struct aac_softc *sc)
 			       0,			/* flags */
 			       NULL, NULL,		/* No locking needed */
 			       &sc->aac_fib_dmat)) {
-		device_printf(sc->aac_dev, "can't allocate FIB DMA tag\n");;
+		device_printf(sc->aac_dev, "can't allocate FIB DMA tag\n");
 		return (ENOMEM);
 	}
 
@@ -604,7 +604,7 @@ aac_alloc(struct aac_softc *sc)
 	TAILQ_INIT(&sc->aac_fibmap_tqh);
 	sc->aac_commands = malloc(sc->aac_max_fibs * sizeof(struct aac_command),
 				  M_AACBUF, M_WAITOK|M_ZERO);
-	while (sc->total_fibs < AAC_PREALLOCATE_FIBS) {
+	while (sc->total_fibs < sc->aac_max_fibs) {
 		if (aac_alloc_commands(sc) != 0)
 			break;
 	}

@@ -75,6 +75,7 @@ argument may be one of:
 .It Li rpc Ta name number [alias ...]
 .It Li services Ta name port/protocol [alias ...]
 .It Li shells Ta /path/to/shell
+.It Li utmpx Ta [time] type: properties
 .El
 .Pp
 If one or more
@@ -109,6 +110,7 @@ utility exits 0 on success,
 or 3 if there is no support for enumeration on
 .Ar database .
 .Sh SEE ALSO
+.Xr getutxent 3 ,
 .Xr ethers 5 ,
 .Xr group 5 ,
 .Xr hosts 5 ,

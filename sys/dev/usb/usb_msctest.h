@@ -27,7 +27,16 @@
 #ifndef _USB_MSCTEST_H_
 #define	_USB_MSCTEST_H_
 
-usb_error_t usb_test_autoinstall(struct usb_device *udev,
-	    uint8_t iface_index, uint8_t do_eject);
+enum {
+	MSC_EJECT_STOPUNIT,
+	MSC_EJECT_REZERO,
+	MSC_EJECT_ZTESTOR,
+	MSC_EJECT_CMOTECH
+};
+
+int usb_iface_is_cdrom(struct usb_device *udev,
+	    uint8_t iface_index);
+usb_error_t usb_msc_eject(struct usb_device *udev,
+	    uint8_t iface_index, int method);
 
 #endif					/* _USB_MSCTEST_H_ */

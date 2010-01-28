@@ -6,6 +6,8 @@ SRCS=	main.c init.c subr.c chat.c
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 MAN=	gettytab.5 ttys.5 getty.8
+
+WARNS?=	1
 WFORMAT=0
 
 .include <bsd.prog.mk>

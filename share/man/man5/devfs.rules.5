@@ -100,13 +100,15 @@ The first line declares and starts a new ruleset, with the name
 .Va localrules
 and the number 10.
 .Pp
-To make all the
-.Xr ulpt 4
-devices accessible to their owner and the
+To give
+.Xr usbconfig 8
+and
+.Xr libusb 3
+enabled applications permission to all usb devices for their owner and the
 .Dq Li usb
 group, a similar rule may be used:
 .Pp
-.Dl "add path 'ulpt*' mode 0660 group usb"
+.Dl "add path 'usb/*' mode 0660 group usb"
 .Sh SEE ALSO
 .Xr glob 3 ,
 .Xr devfs 5 ,

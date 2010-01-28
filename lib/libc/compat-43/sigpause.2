@@ -28,21 +28,118 @@
 .\"     @(#)sigpause.2	8.1 (Berkeley) 6/2/93
 .\" $FreeBSD$
 .\"
+.\" Part of the content of the man page was derived from
+.\" The Open Group Base Specifications Issue 7
+.\" IEEE Std 1003.1-2008
+.\"
 .Dd June 2, 1993
 .Dt SIGPAUSE 2
 .Os
 .Sh NAME
-.Nm sigpause
-.Nd atomically release blocked signals and wait for interrupt
+.Nm sighold ,
+.Nm sigignore ,
+.Nm sigpause ,
+.Nm sigrelse ,
+.Nm sigset
+.Nd legacy interface for signal management
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In signal.h
 .Ft int
+.Fn sighold "int sig"
+.Ft int
+.Fn sigignore "int sig"
+.Ft int
+.Fn xsi_sigpause "int sigmask"
+.Ft int
+.Fn sigrelse "int sig"
+.Ft void (*)(int)
+.Fn sigset "int" "void (*disp)(int)"
+.Ft int
 .Fn sigpause "int sigmask"
 .Sh DESCRIPTION
 .Sy This interface is made obsolete by
-.Xr sigsuspend 2 .
+.Xr sigsuspend 2
+.Sy and
+.Xr sigaction 2
+.Pp
+The
+.Fn sigset
+function modifies signal dispositions.
+The
+.Fa sig
+argument specifies the signal, which may be any signal except
+.Dv SIGKILL
+and
+.Dv SIGSTOP .
+The
+.Fa disp
+argument specifies the signal's disposition,
+which may be
+.Dv SIG_DFL ,
+.Dv SIG_IGN ,
+or the address of a signal handler.
+If
+.Fn sigset
+is used, and
+.Fa disp
+is the address of a signal handler, the
+system adds
+.Fa sig
+to the signal mask of the calling process before executing the signal
+handler; when the signal handler returns, the system restores the
+signal mask of the calling process to its state prior to the delivery
+of the signal.
+In addition, if
+.Fn sigset
+is used, and
+.Fa disp
+is equal to
+.Dv SIG_HOLD ,
+.Fa sig
+is added to the signal
+mask of the calling process and
+.Fa sig 's
+disposition remains unchanged.
+If
+.Fn sigset
+is used, and
+.Fa disp
+is not equal to
+.Dv SIG_HOLD ,
+.Fa sig
+is removed from the signal mask of the calling process.
+.Pp
+The
+.Fn sighold
+function adds
+.Fa sig
+to the signal mask of the calling process.
+.Pp
+The
+.Fn sigrelse
+function removes
+.Fa sig
+from the signal mask of the calling process.
+.Pp
+The
+.Fn sigignore
+function sets the disposition of
+.Fa sig
+to
+.Dv SIG_IGN .
+.Pp
+The
+.Fn xsi_sigpause
+function removes
+.Fa sig
+from the signal mask of the calling process and suspend the calling process
+until a signal is received.
+The
+.Fn xsi_sigpause
+function restores the signal mask of the process to its original state before
+returning.
 .Pp
 The
 .Fn sigpause
@@ -57,13 +154,47 @@ The
 argument
 is usually 0 to indicate that no
 signals are to be blocked.
+.Sh RETURN VALUES
 The
 .Fn sigpause
-function
-always terminates by being interrupted, returning -1 with
+and
+.Fn xsi_sigpause
+functions
+always terminate by being interrupted, returning -1 with
 .Va errno
 set to
-.Er EINTR
+.Er EINTR .
+.Pp
+Upon successful completion,
+.Fn sigset
+returns
+.Dv SIG_HOLD
+if the signal had been blocked and the signal's previous disposition if
+it had not been blocked.
+Otherwise,
+.Dv SIG_ERR is returned and
+.Va errno
+set to indicate the error.
+.Pp
+For all other functions, upon successful completion, 0 is returned.
+Otherwise, -1 is returned and
+.Va errno
+is set to indicate the error:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa sig
+argument
+is not a valid signal number.
+.It Bq Er EINVAL
+For
+.Fn sigset
+and
+.Fn sigignore
+functions, an attempt was made to catch or ignore
+.Dv SIGKILL
+or
+.Dv SIGSTOP .
 .Sh SEE ALSO
 .Xr kill 2 ,
 .Xr sigaction 2 ,
@@ -85,9 +216,26 @@ and was copied from there into the
 .Pq Tn XSI
 option of
 .St -p1003.1-2001 .
+.Fx
+implements it under the name
+.Fn xsi_sigpause .
+The
+.Fn sighold ,
+.Fn sigignore ,
+.Fn sigrelse
+and
+.Fn sigset
+functions are implemented for compatibility with
+.Sy System V
+and
+.Sy XSI
+interfaces.
 .Sh HISTORY
 The
 .Fn sigpause
 function appeared in
 .Bx 4.2
 and has been deprecated.
+All other functions appeared in
+.Fx 9.0
+and were deprecated before being implemented.

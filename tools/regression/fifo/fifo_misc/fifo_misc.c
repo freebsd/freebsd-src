@@ -148,114 +148,6 @@ test_truncate(void)
 	cleanfifo("testfifo", -1, -1);
 }
 
-struct filter_entry {
-	int		 fe_filter;
-	const char	*fe_name;
-	int		 fe_error;
-	const char	*fe_errorname;
-};
-
-static const struct filter_entry good_filter_types[] = {
-	{ EVFILT_READ, "EVFILT_READ", 0, "0" },
-	{ EVFILT_WRITE, "EVFILT_WRITE", 0, "0" },
-#if WORKING_EVFILT_VNODE_ON_FIFOS
-	{ EVFILT_VNODE, "EVFILT_VNODE", EINVAL, "EINVAL" },
-#endif
-};
-static const int good_filter_types_len = sizeof(good_filter_types) /
-    sizeof(good_filter_types[0]);
-
-static const struct filter_entry bad_filter_types[] = {
-	{ EVFILT_NETDEV, "EVFILT_NETDEV", EINVAL, "EINVAL" },
-};
-static const int bad_filter_types_len = sizeof(bad_filter_types) /
-    sizeof(bad_filter_types[0]);
-
-/*
- * kqueue event-related tests are in fifo_io.c; however, that tests only
- * valid invocations of kqueue.  Check to make sure that some invalid filters
- * that are generally allowed on file descriptors are not allowed to be
- * registered with kqueue, and that if attempts are made, we get the right
- * error.
- */
-static void
-test_kqueue(void)
-{
-	int kqueue_fd, reader_fd, writer_fd;
-	struct kevent kev_set;
-	struct timespec timeout;
-	int i, ret;
-
-	makefifo("testfifo", __func__);
-
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd) < 0) {
-		warn("%s: openfifo", __func__);
-		cleanfifo("testfifo", -1, -1);
-		exit(-1);
-	}
-
-	kqueue_fd = kqueue();
-	if (kqueue_fd < 0) {
-		warn("%s: kqueue", __func__);
-		cleanfifo("testfifo", reader_fd, writer_fd);
-		exit(-1);
-	}
-
-	timeout.tv_sec = 0;
-	timeout.tv_nsec = 0;
-
-	for (i = 0; i < good_filter_types_len; i++) {
-		bzero(&kev_set, sizeof(kev_set));
-		EV_SET(&kev_set, reader_fd, good_filter_types[i].fe_filter,
-		    EV_ADD, 0, 0, 0);
-		ret = kevent(kqueue_fd, &kev_set, 1, NULL, 0, &timeout);
-		if (ret < 0) {
-			warn("%s: kevent: adding good filter %s", __func__,
-			    good_filter_types[i].fe_name);
-			close(kqueue_fd);
-			cleanfifo("testfifo", reader_fd, writer_fd);
-			exit(-1);
-		}
-		bzero(&kev_set, sizeof(kev_set));
-		EV_SET(&kev_set, reader_fd, good_filter_types[i].fe_filter,
-		    EV_DELETE, 0, 0, 0);
-		ret = kevent(kqueue_fd, &kev_set, 1, NULL, 0, &timeout);
-		if (ret < 0) {
-			warn("%s: kevent: deleting good filter %s", __func__,
-			    good_filter_types[i].fe_name);
-			close(kqueue_fd);
-			cleanfifo("testfifo", reader_fd, writer_fd);
-			exit(-1);
-		}
-	}
-
-	for (i = 0; i < bad_filter_types_len; i++) {
-		bzero(&kev_set, sizeof(kev_set));
-		EV_SET(&kev_set, reader_fd, bad_filter_types[i].fe_filter,
-		    EV_ADD, 0, 0, 0);
-		ret = kevent(kqueue_fd, &kev_set, 1, NULL, 0, &timeout);
-		if (ret >= 0) {
-			warnx("%s: kevent: bad filter %s succeeded, expected "
-			    "EINVAL", __func__, bad_filter_types[i].fe_name);
-			close(kqueue_fd);
-			cleanfifo("testfifo", reader_fd, writer_fd);
-			exit(-1);
-		}
-		if (errno != bad_filter_types[i].fe_error) {
-			warn("%s: kevent: bad filter %s failed with error "
-			    "not %s", __func__,
-			    bad_filter_types[i].fe_name,
-			    bad_filter_types[i].fe_errorname);
-			close(kqueue_fd);
-			cleanfifo("testfifo", reader_fd, writer_fd);
-			exit(-1);
-		}
-	}
-
-	close(kqueue_fd);
-	cleanfifo("testfifo", reader_fd, writer_fd);
-}
-
 static int
 test_ioctl_setclearflag(int fd, int flag, const char *testname,
     const char *fdname, const char *flagname)
@@ -345,7 +237,6 @@ main(int argc, char *argv[])
 
 	test_lseek();
 	test_truncate();
-	test_kqueue();
 	test_ioctl();
 
 	return (0);

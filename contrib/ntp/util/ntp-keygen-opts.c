@@ -1,7 +1,7 @@
 /*  
  *  EDIT THIS FILE WITH CAUTION  (ntp-keygen-opts.c)
  *  
- *  It has been AutoGen-ed  Sunday August 17, 2008 at 05:27:33 AM EDT
+ *  It has been AutoGen-ed  Tuesday December  8, 2009 at 08:14:56 AM EST
  *  From the definitions    ntp-keygen-opts.def
  *  and the template file   options
  *
@@ -19,7 +19,7 @@
  *
  * This source file is copyrighted and licensed under the following terms:
  *
- * ntp-keygen copyright 1970-2008 David L. Mills and/or others - all rights reserved
+ * ntp-keygen copyright 1970-2009 David L. Mills and/or others - all rights reserved
  *
  * see html/copyright.html
  */
@@ -34,7 +34,7 @@
 extern "C" {
 #endif
 tSCC zCopyright[] =
-       "ntp-keygen copyright (c) 1970-2008 David L. Mills and/or others, all rights reserved";
+       "ntp-keygen copyright (c) 1970-2009 David L. Mills and/or others, all rights reserved";
 tSCC zCopyrightNotice[] =
        
 /* extracted from ../include/copyright.def near line 8 */
@@ -799,7 +799,7 @@ static tOptDesc optDesc[ OPTION_CT ] = {
  */
 tSCC   zPROGNAME[]   = "NTP_KEYGEN";
 tSCC   zUsageTitle[] =
-"ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.4p5\n\
+"ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.4p8\n\
 USAGE:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]...\n";
 tSCC   zRcName[]     = ".ntprc";
 tSCC*  apzHomeList[] = {
@@ -807,13 +807,13 @@ tSCC*  apzHomeList[] = {
        ".",
        NULL };
 
-tSCC   zBugsAddr[]    = "http://bugs.ntp.isc.org, bugs@ntp.org";
+tSCC   zBugsAddr[]    = "http://bugs.ntp.org, bugs@ntp.org";
 #define zExplain NULL
 tSCC    zDetail[]     = "\n\
 If there is no new host key, look for an existing one.\n\
 If one is not found, create it.\n";
 tSCC    zFullVersion[] = NTP_KEYGEN_FULL_VERSION;
-/* extracted from /usr/local/gnu/share/autogen/optcode.tpl near line 408 */
+/* extracted from /usr/local/gnu/autogen-5.9.1/share/autogen/optcode.tpl near line 408 */
 
 #if defined(ENABLE_NLS)
 # define OPTPROC_BASE OPTPROC_TRANSLATE
@@ -937,7 +937,7 @@ doOptModulus(
 }
 #endif /* defined OPENSSL */
 
-/* extracted from /usr/local/gnu/share/autogen/optmain.tpl near line 92 */
+/* extracted from /usr/local/gnu/autogen-5.9.1/share/autogen/optmain.tpl near line 92 */
 
 #if defined(TEST_NTP_KEYGEN_OPTS) /* TEST MAIN PROCEDURE: */
 
@@ -953,7 +953,7 @@ main( int argc, char** argv )
     return res;
 }
 #endif  /* defined TEST_NTP_KEYGEN_OPTS */
-/* extracted from /usr/local/gnu/share/autogen/optcode.tpl near line 514 */
+/* extracted from /usr/local/gnu/autogen-5.9.1/share/autogen/optcode.tpl near line 514 */
 
 #if ENABLE_NLS
 #include <stdio.h>

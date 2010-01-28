@@ -13,13 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -33,17 +26,16 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: NetBSD: mk48txxvar.h,v 1.1 2003/11/01 22:41:42 tsutsui Exp
+ *	$NetBSD: mk48txxvar.h,v 1.6 2008/04/28 20:23:50 martin Exp $
  *
  * $FreeBSD$
  */
 
-typedef uint8_t (*mk48txx_nvrd_t)(device_t, int);
-typedef void (*mk48txx_nvwr_t)(device_t, int, uint8_t);
+typedef uint8_t (*mk48txx_nvrd_t)(device_t dev, int off);
+typedef void (*mk48txx_nvwr_t)(device_t dev, int off, uint8_t v);
 
 struct mk48txx_softc {
-	bus_space_tag_t		sc_bst;	/* bus space tag */
-	bus_space_handle_t	sc_bsh;	/* bus space handle */
+	struct resource		*sc_res;/* bus resource */
 
 	struct mtx		sc_mtx;	/* hardware mutex */
 	eventhandler_tag	sc_wet;	/* watchdog event handler tag */
@@ -53,17 +45,17 @@ struct mk48txx_softc {
 	bus_size_t	sc_clkoffset;	/* Offset in NVRAM to clock bits */
 	u_int		sc_year0;	/* year counter offset */
 	u_int		sc_flag;	/* MD flags */
-#define MK48TXX_NO_CENT_ADJUST	0x0001	/* don't manually adjust century */
-#define MK48TXX_WDOG_REGISTER	0x0002	/* register watchdog */
-#define MK48TXX_WDOG_ENABLE_WDS	0x0004	/* enable watchdog steering bit */
+#define	MK48TXX_NO_CENT_ADJUST	0x0001	/* don't manually adjust century */
+#define	MK48TXX_WDOG_REGISTER	0x0002	/* register watchdog */
+#define	MK48TXX_WDOG_ENABLE_WDS	0x0004	/* enable watchdog steering bit */
 
 	mk48txx_nvrd_t	sc_nvrd;	/* NVRAM/RTC read function */
 	mk48txx_nvwr_t	sc_nvwr;	/* NVRAM/RTC write function */
 };
 
 /* Chip attach function */
-int mk48txx_attach(device_t);
+int mk48txx_attach(device_t dev);
 
 /* Methods for the clock interface */
-int mk48txx_gettime(device_t, struct timespec *);
-int mk48txx_settime(device_t, struct timespec *);
+int mk48txx_gettime(device_t dev, struct timespec *ts);
+int mk48txx_settime(device_t dev, struct timespec *ts);

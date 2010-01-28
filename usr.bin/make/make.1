@@ -240,6 +240,36 @@ The system include path will always be appended to the search path used
 for "..."-style inclusions and makefile searches (see the
 .Fl I
 option).
+.Pp
+If a file or directory name in the
+.Fl m
+argument (or the
+.Ev MAKESYSPATH
+environment variable) starts with the string
+.Qq \&.../
+then
+.Nm
+will search for the specified file or directory named in the remaining part
+of the argument string.
+The search starts with the current directory of the Makefile and then works
+upward towards the root of the filesystem.
+If the search is successful,
+then the resulting directory replaces the
+.Qq \&.../
+specification in the
+.Fl m
+argument.
+If used, this feature allows
+.Nm
+to easily search in the current source tree for customized sys.mk files
+(e.g. by using
+.Qq \&.../mk/sys.mk
+as an argument).
+Note that a
+.Fl C
+that are earlier on the command line affect where
+.Fl m Qq \&.../
+searches.
 .It Fl n
 Display the commands that would have been executed, but do not actually
 execute them.
@@ -822,7 +852,7 @@ These directories will be searched for source files by
 .Nm
 after it has finished parsing all input makefiles.
 .El
-.Pp
+.Ss Variable Modifiers
 Variable expansion may be modified to select or modify each word of the
 variable (where a
 .Dq word
@@ -837,7 +867,7 @@ The colon may be escaped with a backslash
 .Pq Ql \e .
 .Bl -tag -width Cm
 .Sm off
-.It Cm C No / Ar pattern Xo
+.It Cm :C No / Ar pattern Xo
 .No / Ar replacement
 .No / Op Cm 1g
 .Xc
@@ -866,13 +896,13 @@ and
 are orthogonal; the former specifies whether multiple words are
 potentially affected, the latter whether multiple substitutions can
 potentially occur within each affected word.
-.It Cm E
+.It Cm :E
 Replaces each word in the variable with its suffix.
-.It Cm H
+.It Cm :H
 Replaces each word in the variable with everything but the last component.
-.It Cm L
+.It Cm :L
 Converts variable to lower-case letters.
-.It Cm M Ns Ar pattern
+.It Cm :M Ns Ar pattern
 Select only those words that match the rest of the modifier.
 The standard shell wildcard characters
 .Pf ( Ql * ,
@@ -883,21 +913,21 @@ may
 be used.
 The wildcard characters may be escaped with a backslash
 .Pq Ql \e .
-.It Cm N Ns Ar pattern
+.It Cm :N Ns Ar pattern
 This is identical to
-.Cm M ,
+.Cm :M ,
 but selects all words which do not match
 the rest of the modifier.
-.It Cm O
+.It Cm :O
 Order every word in the variable alphabetically.
-.It Cm Q
+.It Cm :Q
 Quotes every shell meta-character in the variable, so that it can be passed
 safely through recursive invocations of
 .Nm .
-.It Cm R
+.It Cm :R
 Replaces each word in the variable with everything but its suffix.
 .Sm off
-.It Cm S No / Ar old_string Xo
+.It Cm :S No / Ar old_string Xo
 .No / Ar new_string
 .No / Op Cm g
 .Xc
@@ -941,7 +971,7 @@ with the single exception that a backslash is used to prevent the expansion
 of a dollar sign
 .Pq Ql $ ,
 not a preceding dollar sign as is usual.
-.It Ar old_string=new_string
+.It Ar :old_string=new_string
 This is the
 .At V
 style variable substitution.
@@ -961,11 +991,11 @@ is the substring of
 .Ar old_string
 to be replaced in
 .Ar new_string
-.It Cm T
+.It Cm :T
 Replaces each word in the variable with its last component.
-.It Cm U
+.It Cm :U
 Converts variable to upper-case letters.
-.It Cm u
+.It Cm :u
 Remove adjacent duplicate words (like
 .Xr uniq 1 ) .
 .El
@@ -1665,8 +1695,9 @@ utility uses the following environment variables, if they exist:
 .Ev MAKE ,
 .Ev MAKEFLAGS ,
 .Ev MAKEOBJDIR ,
+.Ev MAKEOBJDIRPREFIX ,
 and
-.Ev MAKEOBJDIRPREFIX .
+.Ev MAKESYSPATH .
 .Sh FILES
 .Bl -tag -width /usr/share/doc/psd/12.make -compact
 .It Pa .depend

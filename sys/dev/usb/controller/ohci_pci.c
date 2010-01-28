@@ -175,6 +175,12 @@ ohci_pci_match(device_t self)
 
 	case 0x03f110de:
 		return ("nVidia nForce MCP61 USB Controller");
+	case 0x0aa510de:
+		return ("nVidia nForce MCP79 USB Controller");
+	case 0x0aa710de:
+		return ("nVidia nForce MCP79 USB Controller");
+	case 0x0aa810de:
+		return ("nVidia nForce MCP79 USB Controller");
 
 	case 0x70011039:
 		return ("SiS 5571 USB controller");

@@ -79,7 +79,8 @@ FILE	*Inf, *Dataf;
 void order_unstr(STRFILE *);
 
 /* ARGSUSED */
-int main(int ac, char **av)
+int
+main(int ac, char **av)
 {
 	static STRFILE	tbl;		/* description table */
 
@@ -109,8 +110,8 @@ int main(int ac, char **av)
 	exit(0);
 }
 
-void order_unstr(tbl)
-STRFILE	*tbl;
+void
+order_unstr(STRFILE *tbl)
 {
 	uint32_t i;
 	char	*sp;

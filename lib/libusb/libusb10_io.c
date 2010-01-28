@@ -32,6 +32,7 @@
 #include <time.h>
 #include <errno.h>
 #include <sys/queue.h>
+#include <sys/endian.h>
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -148,19 +149,19 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 		goto do_done;
 	}
 	for (i = 0; i != nfds; i++) {
-		if (fds[i].revents == 0)
-			continue;
 		if (ppdev[i] != NULL) {
 			dev = libusb_get_device(ppdev[i]);
 
-			err = libusb20_dev_process(ppdev[i]);
+			if (fds[i].revents == 0)
+				err = 0;	/* nothing to do */
+			else
+				err = libusb20_dev_process(ppdev[i]);
+
 			if (err) {
 				/* cancel all transfers - device is gone */
 				libusb10_cancel_all_transfer(dev);
-				/*
-				 * make sure we don't go into an infinite
-				 * loop
-				 */
+
+				/* remove USB device from polling loop */
 				libusb10_remove_pollfd(dev->ctx, &dev->dev_poll);
 			}
 			CTX_UNLOCK(ctx);
@@ -573,3 +574,160 @@ libusb_interrupt_transfer(libusb_device_handle *devh,
 	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_interrupt_transfer leave");
 	return (ret);
 }
+
+uint8_t *
+libusb_get_iso_packet_buffer(struct libusb_transfer *transfer, uint32_t index)
+{
+	uint8_t *ptr;
+	uint32_t n;
+
+	if (transfer->num_iso_packets < 0)
+		return (NULL);
+
+	if (index >= (uint32_t)transfer->num_iso_packets)
+		return (NULL);
+
+	ptr = transfer->buffer;
+	if (ptr == NULL)
+		return (NULL);
+
+	for (n = 0; n != index; n++) {
+		ptr += transfer->iso_packet_desc[n].length;
+	}
+	return (ptr);
+}
+
+uint8_t *
+libusb_get_iso_packet_buffer_simple(struct libusb_transfer *transfer, uint32_t index)
+{
+	uint8_t *ptr;
+
+	if (transfer->num_iso_packets < 0)
+		return (NULL);
+
+	if (index >= (uint32_t)transfer->num_iso_packets)
+		return (NULL);
+
+	ptr = transfer->buffer;
+	if (ptr == NULL)
+		return (NULL);
+
+	ptr += transfer->iso_packet_desc[0].length * index;
+
+	return (ptr);
+}
+
+void
+libusb_set_iso_packet_lengths(struct libusb_transfer *transfer, uint32_t length)
+{
+	int n;
+
+	if (transfer->num_iso_packets < 0)
+		return;
+
+	for (n = 0; n != transfer->num_iso_packets; n++)
+		transfer->iso_packet_desc[n].length = length;
+}
+
+uint8_t *
+libusb_control_transfer_get_data(struct libusb_transfer *transfer)
+{
+	if (transfer->buffer == NULL)
+		return (NULL);
+
+	return (transfer->buffer + LIBUSB_CONTROL_SETUP_SIZE);
+}
+
+struct libusb_control_setup *
+libusb_control_transfer_get_setup(struct libusb_transfer *transfer)
+{
+	return ((struct libusb_control_setup *)transfer->buffer);
+}
+
+void
+libusb_fill_control_setup(uint8_t *buf, uint8_t bmRequestType,
+    uint8_t bRequest, uint16_t wValue,
+    uint16_t wIndex, uint16_t wLength)
+{
+	struct libusb_control_setup *req = (struct libusb_control_setup *)buf;
+
+	/* The alignment is OK for all fields below. */
+	req->bmRequestType = bmRequestType;
+	req->bRequest = bRequest;
+	req->wValue = htole16(wValue);
+	req->wIndex = htole16(wIndex);
+	req->wLength = htole16(wLength);
+}
+
+void
+libusb_fill_control_transfer(struct libusb_transfer *transfer, 
+    libusb_device_handle *devh, uint8_t *buf,
+    libusb_transfer_cb_fn callback, void *user_data,
+    uint32_t timeout)
+{
+	struct libusb_control_setup *setup = (struct libusb_control_setup *)buf;
+
+	transfer->dev_handle = devh;
+	transfer->endpoint = 0;
+	transfer->type = LIBUSB_TRANSFER_TYPE_CONTROL;
+	transfer->timeout = timeout;
+	transfer->buffer = buf;
+	if (setup != NULL)
+		transfer->length = LIBUSB_CONTROL_SETUP_SIZE
+			+ le16toh(setup->wLength);
+	else
+		transfer->length = 0;
+	transfer->user_data = user_data;
+	transfer->callback = callback;
+
+}
+
+void
+libusb_fill_bulk_transfer(struct libusb_transfer *transfer, 
+    libusb_device_handle *devh, uint8_t endpoint, uint8_t *buf, 
+    int length, libusb_transfer_cb_fn callback, void *user_data,
+    uint32_t timeout)
+{
+	transfer->dev_handle = devh;
+	transfer->endpoint = endpoint;
+	transfer->type = LIBUSB_TRANSFER_TYPE_BULK;
+	transfer->timeout = timeout;
+	transfer->buffer = buf;
+	transfer->length = length;
+	transfer->user_data = user_data;
+	transfer->callback = callback;
+}
+
+void
+libusb_fill_interrupt_transfer(struct libusb_transfer *transfer,
+    libusb_device_handle *devh, uint8_t endpoint, uint8_t *buf,
+    int length, libusb_transfer_cb_fn callback, void *user_data,
+    uint32_t timeout)
+{
+	transfer->dev_handle = devh;
+	transfer->endpoint = endpoint;
+	transfer->type = LIBUSB_TRANSFER_TYPE_INTERRUPT;
+	transfer->timeout = timeout;
+	transfer->buffer = buf;
+	transfer->length = length;
+	transfer->user_data = user_data;
+	transfer->callback = callback;
+}
+
+void
+libusb_fill_iso_transfer(struct libusb_transfer *transfer, 
+    libusb_device_handle *devh, uint8_t endpoint, uint8_t *buf,
+    int length, int npacket, libusb_transfer_cb_fn callback,
+    void *user_data, uint32_t timeout)
+{
+	transfer->dev_handle = devh;
+	transfer->endpoint = endpoint;
+	transfer->type = LIBUSB_TRANSFER_TYPE_ISOCHRONOUS;
+	transfer->timeout = timeout;
+	transfer->buffer = buf;
+	transfer->length = length;
+	transfer->num_iso_packets = npacket;
+	transfer->user_data = user_data;
+	transfer->callback = callback;
+}
+

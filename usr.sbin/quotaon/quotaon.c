@@ -154,10 +154,7 @@ usage(void)
 }
 
 int
-quotaonoff(fs, offmode, type, qfpathname)
-	register struct fstab *fs;
-	int offmode, type;
-	char *qfpathname;
+quotaonoff(struct fstab *fs, int offmode, int type, char *qfpathname)
 {
 
 	if (strcmp(fs->fs_file, "/") && readonly(fs))

@@ -67,12 +67,14 @@ libkern/flsl.c			standard
 libkern/memmove.c		standard
 sparc64/central/central.c	optional	central
 sparc64/ebus/ebus.c		optional	ebus
+sparc64/ebus/epic.c		optional	epic ebus
 sparc64/fhc/clkbrd.c		optional	fhc
 sparc64/fhc/fhc.c		optional	fhc
 sparc64/isa/isa.c		optional	isa
 sparc64/isa/isa_dma.c		optional	isa
 sparc64/isa/ofw_isa.c		optional	ebus | isa
 sparc64/pci/apb.c		optional	pci
+sparc64/pci/fire.c		optional	pci
 sparc64/pci/ofw_pcib.c		optional	pci
 sparc64/pci/ofw_pcib_subr.c	optional	pci
 sparc64/pci/ofw_pcibus.c	optional	pci

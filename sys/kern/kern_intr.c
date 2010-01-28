@@ -1061,6 +1061,7 @@ int
 swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 	    void *arg, int pri, enum intr_type flags, void **cookiep)
 {
+	struct thread *td;
 	struct intr_event *ie;
 	int error;
 
@@ -1085,11 +1086,10 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 	if (error)
 		return (error);
 	if (pri == SWI_CLOCK) {
-		struct proc *p;
-		p = ie->ie_thread->it_thread->td_proc;
-		PROC_LOCK(p);
-		p->p_flag |= P_NOLOAD;
-		PROC_UNLOCK(p);
+		td = ie->ie_thread->it_thread;
+		thread_lock(td);
+		td->td_flags |= TDF_NOLOAD;
+		thread_unlock(td);
 	}
 	return (0);
 }
@@ -1378,6 +1378,12 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 			ret = ih->ih_filter(frame);
 		else
 			ret = ih->ih_filter(ih->ih_argument);
+		KASSERT(ret == FILTER_STRAY ||
+		    ((ret & (FILTER_SCHEDULE_THREAD | FILTER_HANDLED)) != 0 &&
+		    (ret & ~(FILTER_SCHEDULE_THREAD | FILTER_HANDLED)) == 0),
+		    ("%s: incorrect return value %#x from %s", __func__, ret,
+		    ih->ih_name));
+
 		/* 
 		 * Wrapper handler special handling:
 		 *
@@ -1546,7 +1552,11 @@ intr_filter_loop(struct intr_event *ie, struct trapframe *frame,
 			thread_only = 1;
 			continue;
 		}
-
+		KASSERT(ret == FILTER_STRAY ||
+		    ((ret & (FILTER_SCHEDULE_THREAD | FILTER_HANDLED)) != 0 &&
+		    (ret & ~(FILTER_SCHEDULE_THREAD | FILTER_HANDLED)) == 0),
+		    ("%s: incorrect return value %#x from %s", __func__, ret,
+		    ih->ih_name));
 		if (ret & FILTER_STRAY)
 			continue;
 		else { 

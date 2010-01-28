@@ -25,6 +25,10 @@
  * $FreeBSD$
  */
 
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
+
 #ifndef ARCHIVE_PRIVATE_H_INCLUDED
 #define	ARCHIVE_PRIVATE_H_INCLUDED
 
@@ -87,9 +91,11 @@ struct archive {
 	const char *compression_name;
 
 	/* Position in UNCOMPRESSED data stream. */
-	off_t		  file_position;
+	int64_t		  file_position;
 	/* Position in COMPRESSED data stream. */
-	off_t		  raw_position;
+	int64_t		  raw_position;
+	/* Number of file entries processed. */
+	int		  file_count;
 
 	int		  archive_error_number;
 	const char	 *error;
@@ -106,5 +112,13 @@ int	__archive_parse_options(const char *p, const char *fn,
 	    int keysize, char *key, int valsize, char *val);
 
 #define	err_combine(a,b)	((a) < (b) ? (a) : (b))
+
+#if defined(__BORLANDC__) || (defined(_MSC_VER) &&  _MSC_VER <= 1300)
+# define	ARCHIVE_LITERAL_LL(x)	x##i64
+# define	ARCHIVE_LITERAL_ULL(x)	x##ui64
+#else
+# define	ARCHIVE_LITERAL_LL(x)	x##ll
+# define	ARCHIVE_LITERAL_ULL(x)	x##ull
+#endif
 
 #endif

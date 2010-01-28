@@ -88,7 +88,7 @@ main(int argc, char *argv[])
 	setup_get();
 	flags = 0;
 
-	while ((ch = getopt(argc, argv, "aimnprsv")) != -1)
+	while ((ch = getopt(argc, argv, "aimnoprsv")) != -1)
 		switch(ch) {
 		case 'a':
 			flags |= (MFLAG | NFLAG | RFLAG | SFLAG | VFLAG);
@@ -109,6 +109,7 @@ main(int argc, char *argv[])
 			flags |= RFLAG;
 			break;
 		case 's':
+		case 'o':
 			flags |= SFLAG;
 			break;
 		case 'v':

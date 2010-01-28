@@ -77,6 +77,8 @@ struct cm_softc {
 	u_long	sc_reconcount_excessive; /* for the above */
 #define ARC_EXCESSIVE_RECONS 20
 #define ARC_EXCESSIVE_RECONS_REWARN 400
+	struct callout sc_watchdog_timer;
+	int	sc_timer;
 	u_char	sc_intmask;
 	u_char	sc_rx_act;		/* 2..3 */
 	u_char	sc_tx_act;		/* 0..1 */

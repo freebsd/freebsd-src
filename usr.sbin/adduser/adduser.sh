@@ -28,20 +28,20 @@
 #
 
 # err msg
-#       Display $msg on stderr, unless we're being quiet.
-# 
+#	Display $msg on stderr, unless we're being quiet.
+#
 err() {
 	if [ -z "$quietflag" ]; then
-        	echo 1>&2 ${THISCMD}: ERROR: $*
+		echo 1>&2 ${THISCMD}: ERROR: $*
 	fi
 }
 
 # info msg
-#       Display $msg on stdout, unless we're being quiet.
-# 
+#	Display $msg on stdout, unless we're being quiet.
+#
 info() {
 	if [ -z "$quietflag" ]; then
-        	echo ${THISCMD}: INFO: $*
+		echo ${THISCMD}: INFO: $*
 	fi
 }
 
@@ -50,7 +50,7 @@ info() {
 #	is not, output the value of the next higher uid that is available.
 #	If a uid is not specified, output the first available uid, as indicated
 #	by pw(8).
-# 
+#
 get_nextuid () {
 	_uid=$1
 	_nextuid=
@@ -163,8 +163,7 @@ fullpath_from_shell() {
 #	the path is invalid or it is not executable it
 #	will emit an informational message saying so.
 #
-shell_exists()
-{
+shell_exists() {
 	_sh="$1"
 	_shellchk="${GREPCMD} '^$_sh$' ${ETCSHELLS} > /dev/null 2>&1"
 
@@ -647,7 +646,6 @@ input_from_file() {
 #	the user database.
 #
 input_interactive() {
-
 	_disable=
 	_pass=
 	_passconfirm=
@@ -887,7 +885,7 @@ defaultshell="${DEFAULTSHELL}"
 defaultHomePerm=
 
 # Make sure the user running this program is root. This isn't a security
-# measure as much as it is a usefull method of reminding the user to
+# measure as much as it is a useful method of reminding the user to
 # 'su -' before he/she wastes time entering data that won't be saved.
 #
 procowner=${procowner:-`/usr/bin/id -u`}

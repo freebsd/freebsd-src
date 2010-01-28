@@ -107,7 +107,7 @@ STATIC void expmeta(char *, char *);
 STATIC void addfname(char *);
 STATIC struct strlist *expsort(struct strlist *);
 STATIC struct strlist *msort(struct strlist *, int);
-STATIC int pmatch(char *, char *, int);
+STATIC int pmatch(const char *, const char *, int);
 STATIC char *cvtnum(int, char *);
 STATIC int collate_range_cmp(int, int);
 
@@ -271,8 +271,13 @@ exptilde(char *p, int flag)
 
 	while ((c = *p) != '\0') {
 		switch(c) {
-		case CTLESC:
-			return (startp);
+		case CTLESC: /* This means CTL* are always considered quoted. */
+		case CTLVAR:
+		case CTLENDVAR:
+		case CTLBACKQ:
+		case CTLBACKQ | CTLQUOTE:
+		case CTLARI:
+		case CTLENDARI:
 		case CTLQUOTEMARK:
 			return (startp);
 		case ':':
@@ -521,7 +526,7 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 
 	case VSQUESTION:
 		if (*p != CTLENDVAR) {
-			outfmt(&errout, "%s\n", startp);
+			outfmt(out2, "%s\n", startp);
 			error((char *)NULL);
 		}
 		error("%.*s: parameter %snot set", (int)(p - str - 1),
@@ -850,7 +855,6 @@ varvalue(char *name, int quoted, int subtype, int flag)
 	int num;
 	char *p;
 	int i;
-	extern int oexitstatus;
 	char sep;
 	char **ap;
 	char const *syntax;
@@ -974,7 +978,7 @@ ifsbreakup(char *string, struct arglist *arglist)
 	char *start;
 	char *p;
 	char *q;
-	char *ifs;
+	const char *ifs;
 	const char *ifsspc;
 	int had_param_ch = 0;
 
@@ -1338,7 +1342,7 @@ msort(struct strlist *list, int len)
  */
 
 int
-patmatch(char *pattern, char *string, int squoted)
+patmatch(const char *pattern, const char *string, int squoted)
 {
 #ifdef notdef
 	if (pattern[0] == '!' && pattern[1] == '!')
@@ -1350,9 +1354,9 @@ patmatch(char *pattern, char *string, int squoted)
 
 
 STATIC int
-pmatch(char *pattern, char *string, int squoted)
+pmatch(const char *pattern, const char *string, int squoted)
 {
-	char *p, *q;
+	const char *p, *q;
 	char c;
 
 	p = pattern;
@@ -1400,7 +1404,7 @@ pmatch(char *pattern, char *string, int squoted)
 			} while (*q++ != '\0');
 			return 0;
 		case '[': {
-			char *endp;
+			const char *endp;
 			int invert, found;
 			char chr;
 
@@ -1504,7 +1508,7 @@ rmescapes(char *str)
  */
 
 int
-casematch(union node *pattern, char *val)
+casematch(union node *pattern, const char *val)
 {
 	struct stackmark smark;
 	int result;

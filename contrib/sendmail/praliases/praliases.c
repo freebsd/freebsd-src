@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001, 2008 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: praliases.c,v 8.94 2007/05/11 18:50:36 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: praliases.c,v 8.96 2008/07/10 20:13:10 ca Exp $")
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -99,7 +99,8 @@ main(argc, argv)
 		case '?':
 		default:
 			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
-			    "usage: praliases [-C cffile] [-f aliasfile]\n");
+			    "usage: praliases [-C cffile] [-f aliasfile]"
+			    " [key ...]\n");
 			exit(EX_USAGE);
 		}
 	}

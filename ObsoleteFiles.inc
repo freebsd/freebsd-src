@@ -14,6 +14,69 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100122: move BSDL bc/dc USD documents to /usr/share/doc/usd
+OLD_FILES+=usr/share/doc/papers/bc.ascii.gz
+OLD_FILES+=usr/share/doc/papers/dc.ascii.gz
+# 20100120: replacing GNU bc/dc with BSDL versions
+OLD_FILES+=usr/share/examples/bc/ckbook.b
+OLD_FILES+=usr/share/examples/bc/pi.b
+OLD_FILES+=usr/share/examples/bc/primes.b
+OLD_FILES+=usr/share/examples/bc/twins.b
+OLD_FILES+=usr/share/info/dc.info.gz
+OLD_DIRS+=usr/share/examples/bc
+# 20100114: removal of ttyslot(3)
+OLD_FILES+=usr/share/man/man3/ttyslot.3.gz
+# 20100113: remove utmp.h, replace it by utmpx.h
+OLD_FILES+=usr/share/man/man3/login.3.gz
+OLD_FILES+=usr/share/man/man3/logout.3.gz
+OLD_FILES+=usr/share/man/man3/logwtmp.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_endutxent.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_getutxent.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_getutxline.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_getutxuser.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_pututxline.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_setutxent.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_setutxfile.3.gz
+OLD_FILES+=usr/share/man/man5/lastlog.5.gz
+OLD_FILES+=usr/share/man/man5/utmp.5.gz
+OLD_FILES+=usr/share/man/man5/wtmp.5.gz
+OLD_LIBS+=lib/libutil.so.8
+# 20100105: new userland semaphore implementation
+OLD_FILES+=usr/include/sys/semaphore.h
+# 20100103: ntptrace(8) removed
+OLD_FILES+=usr/sbin/ntptrace
+OLD_FILES+=usr/share/man/man8/ntptrace.8.gz
+# 20091229: remove no longer relevant examples
+OLD_FILES+=usr/share/examples/pppd/auth-down.sample
+OLD_FILES+=usr/share/examples/pppd/auth-up.sample
+OLD_FILES+=usr/share/examples/pppd/chap-secrets.sample
+OLD_FILES+=usr/share/examples/pppd/chat.sh.sample
+OLD_FILES+=usr/share/examples/pppd/ip-down.sample
+OLD_FILES+=usr/share/examples/pppd/ip-up.sample
+OLD_FILES+=usr/share/examples/pppd/options.sample
+OLD_FILES+=usr/share/examples/pppd/pap-secrets.sample
+OLD_FILES+=usr/share/examples/pppd/ppp.deny.sample
+OLD_FILES+=usr/share/examples/pppd/ppp.shells.sample
+OLD_DIRS+=usr/share/examples/pppd
+OLD_FILES+=usr/share/examples/slattach/unit-command.sh
+OLD_DIRS+=usr/share/examples/slattach
+OLD_FILES+=usr/share/examples/sliplogin/slip.hosts
+OLD_FILES+=usr/share/examples/sliplogin/slip.login
+OLD_FILES+=usr/share/examples/sliplogin/slip.logout
+OLD_FILES+=usr/share/examples/sliplogin/slip.slparms
+OLD_DIRS+=usr/share/examples/sliplogin
+OLD_FILES+=usr/share/examples/startslip/sldown.sh
+OLD_FILES+=usr/share/examples/startslip/slip.sh
+OLD_FILES+=usr/share/examples/startslip/slup.sh
+OLD_DIRS+=usr/share/examples/startslip
+# 20091202: unify rc.firewall and rc.firewall6.
+OLD_FILES+=etc/rc.d/ip6fw
+OLD_FILES+=etc/rc.firewall6
+OLD_FILES+=usr/share/examples/etc/rc.firewall6
+# 20091117: removal of rc.early(8) link
+OLD_FILES+=usr/share/man/man8/rc.early.8.gz
+# 20091117: usr/share/zoneinfo/GMT link removed
+OLD_FILES+=usr/share/zoneinfo/GMT
 # 20091027: pselect.3 implemented as syscall
 OLD_FILES+=usr/share/man/man3/pselect.3.gz
 # 20091005: fusword.9 and susword.9 removed

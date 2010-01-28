@@ -4,8 +4,6 @@
 PROG=	rmt
 MAN=	rmt.8
 
-WARNS?=	4
-
 # called from /usr/src/etc/Makefile
 etc-rmt:
 	rm -f ${DESTDIR}/etc/rmt

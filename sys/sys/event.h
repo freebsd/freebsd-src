@@ -38,7 +38,7 @@
 #define EVFILT_PROC		(-5)	/* attached to struct proc */
 #define EVFILT_SIGNAL		(-6)	/* attached to struct proc */
 #define EVFILT_TIMER		(-7)	/* timers */
-#define EVFILT_NETDEV		(-8)	/* network devices */
+/*	EVFILT_NETDEV		(-8)	   no longer supported */
 #define EVFILT_FS		(-9)	/* filesystem events */
 #define EVFILT_LIO		(-10)	/* attached to lio requests */
 #define EVFILT_USER		(-11)	/* User events */
@@ -130,13 +130,6 @@ struct kevent {
 #define	NOTE_TRACK	0x00000001		/* follow across forks */
 #define	NOTE_TRACKERR	0x00000002		/* could not track child */
 #define	NOTE_CHILD	0x00000004		/* am a child process */
-
-/*
- * data/hint flags for EVFILT_NETDEV, shared with userspace
- */
-#define NOTE_LINKUP	0x0001			/* link is up */
-#define NOTE_LINKDOWN	0x0002			/* link is down */
-#define NOTE_LINKINV	0x0004			/* link state is invalid */
 
 struct knote;
 SLIST_HEAD(klist, knote);

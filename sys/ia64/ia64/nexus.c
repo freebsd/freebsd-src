@@ -389,26 +389,23 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 static int
 nexus_activate_resource(device_t bus, device_t child, int type, int rid,
-			struct resource *r)
+    struct resource *r)
 {
-	vm_paddr_t paddr, psize;
+	vm_paddr_t paddr;
 	void *vaddr;
 
-	/*
-	 * If this is a memory resource, map it into the kernel.
-	 */
+	paddr = rman_get_start(r);
+
 	switch (type) {
 	case SYS_RES_IOPORT:
 		rman_set_bustag(r, IA64_BUS_SPACE_IO);
-		rman_set_bushandle(r, rman_get_start(r));
+		rman_set_bushandle(r, paddr);
 		break;
 	case SYS_RES_MEMORY:
-		paddr = rman_get_start(r);
-		psize = rman_get_size(r);
-		vaddr = pmap_mapdev(paddr, psize);
-		rman_set_virtual(r, vaddr);
+		vaddr = pmap_mapdev(paddr, rman_get_size(r));
 		rman_set_bustag(r, IA64_BUS_SPACE_MEM);
-		rman_set_bushandle(r, (bus_space_handle_t) paddr);
+		rman_set_bushandle(r, (bus_space_handle_t) vaddr);
+		rman_set_virtual(r, vaddr);
 		break;
 	}
 	return (rman_activate_resource(r));
@@ -488,10 +485,26 @@ nexus_get_reslist(device_t dev, device_t child)
 }
 
 static int
-nexus_set_resource(device_t dev, device_t child, int type, int rid, u_long start, u_long count)
+nexus_set_resource(device_t dev, device_t child, int type, int rid,
+    u_long start, u_long count)
 {
 	struct nexus_device	*ndev = DEVTONX(child);
 	struct resource_list	*rl = &ndev->nx_resources;
+
+	if (type == SYS_RES_IOPORT && start > (0x10000 - count)) {
+		/*
+		 * Work around a firmware bug in the HP rx2660, where in ACPI
+		 * an I/O port is really a memory mapped I/O address. The bug
+		 * is in the GAS that describes the address and in particular
+		 * the SpaceId field. The field should not say the address is
+		 * an I/O port when it is in fact an I/O memory address.
+		 */
+		if (bootverbose)
+			printf("%s: invalid port range (%#lx-%#lx); "
+			    "assuming I/O memory range.\n", __func__, start,
+			    start + count - 1);
+		type = SYS_RES_MEMORY;
+	}
 
 	/* XXX this should return a success/failure indicator */
 	resource_list_add(rl, type, rid, start, start + count - 1, count);

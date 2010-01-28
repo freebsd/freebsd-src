@@ -898,7 +898,8 @@ cam_periph_runccb(union ccb *ccb,
 	 * If the user has supplied a stats structure, and if we understand
 	 * this particular type of ccb, record the transaction start.
 	 */
-	if ((ds != NULL) && (ccb->ccb_h.func_code == XPT_SCSI_IO))
+	if ((ds != NULL) && (ccb->ccb_h.func_code == XPT_SCSI_IO ||
+	    ccb->ccb_h.func_code == XPT_ATA_IO))
 		devstat_start_transaction(ds, NULL);
 
 	xpt_action(ccb);
@@ -921,15 +922,27 @@ cam_periph_runccb(union ccb *ccb,
 				 /* timeout */0,
 				 /* getcount_only */ FALSE);
 
-	if ((ds != NULL) && (ccb->ccb_h.func_code == XPT_SCSI_IO))
-		devstat_end_transaction(ds,
+	if (ds != NULL) {
+		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
+			devstat_end_transaction(ds,
 					ccb->csio.dxfer_len,
-					ccb->csio.tag_action & 0xf,
+					ccb->csio.tag_action & 0x3,
 					((ccb->ccb_h.flags & CAM_DIR_MASK) ==
 					CAM_DIR_NONE) ?  DEVSTAT_NO_DATA : 
 					(ccb->ccb_h.flags & CAM_DIR_OUT) ?
 					DEVSTAT_WRITE : 
 					DEVSTAT_READ, NULL, NULL);
+		} else if (ccb->ccb_h.func_code == XPT_ATA_IO) {
+			devstat_end_transaction(ds,
+					ccb->ataio.dxfer_len,
+					ccb->ataio.tag_action & 0x3,
+					((ccb->ccb_h.flags & CAM_DIR_MASK) ==
+					CAM_DIR_NONE) ?  DEVSTAT_NO_DATA : 
+					(ccb->ccb_h.flags & CAM_DIR_OUT) ?
+					DEVSTAT_WRITE : 
+					DEVSTAT_READ, NULL, NULL);
+		}
+	}
 
 	return(error);
 }
@@ -968,33 +981,27 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	union ccb      *saved_ccb;
 	cam_status	status;
-	int		frozen;
+	int		frozen = 0;
 	int		sense;
 	struct scsi_start_stop_unit *scsi_cmd;
 	u_int32_t	relsim_flags, timeout;
-	u_int32_t	qfrozen_cnt;
-	int		xpt_done_ccb;
+	int		xpt_done_ccb = FALSE;
 
-	xpt_done_ccb = FALSE;
 	status = done_ccb->ccb_h.status;
-	frozen = (status & CAM_DEV_QFRZN) != 0;
+	if (status & CAM_DEV_QFRZN) {
+		frozen = 1;
+		/*
+		 * Clear freeze flag now for case of retry,
+		 * freeze will be dropped later.
+		 */
+		done_ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
+	}
 	sense  = (status & CAM_AUTOSNS_VALID) != 0;
 	status &= CAM_STATUS_MASK;
 
 	timeout = 0;
 	relsim_flags = 0;
 	saved_ccb = (union ccb *)done_ccb->ccb_h.saved_ccb_ptr;
-
-	/* 
-	 * Unfreeze the queue once if it is already frozen..
-	 */
-	if (frozen != 0) {
-		qfrozen_cnt = cam_release_devq(done_ccb->ccb_h.path,
-					      /*relsim_flags*/0,
-					      /*openings*/0,
-					      /*timeout*/0,
-					      /*getcount_only*/0);
-	}
 
 	switch (status) {
 	case CAM_REQ_CMP:
@@ -1172,14 +1179,33 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	 */
 	if (done_ccb->ccb_h.retry_count > 0)
 		done_ccb->ccb_h.retry_count--;
-
-	qfrozen_cnt = cam_release_devq(done_ccb->ccb_h.path,
-				      /*relsim_flags*/relsim_flags,
-				      /*openings*/0,
-				      /*timeout*/timeout,
-				      /*getcount_only*/0);
-	if (xpt_done_ccb == TRUE)
+	/*
+	 * Drop freeze taken due to CAM_DEV_QFREEZE flag set on recovery
+	 * request.
+	 */
+	cam_release_devq(done_ccb->ccb_h.path,
+			 /*relsim_flags*/relsim_flags,
+			 /*openings*/0,
+			 /*timeout*/timeout,
+			 /*getcount_only*/0);
+	if (xpt_done_ccb == TRUE) {
+		/*
+		 * Copy frozen flag from recovery request if it is set there
+		 * for some reason.
+		 */
+		if (frozen != 0)
+			done_ccb->ccb_h.status |= CAM_DEV_QFRZN;
 		(*done_ccb->ccb_h.cbfcnp)(periph, done_ccb);
+	} else {
+		/* Drop freeze taken, if this recovery request got error. */
+		if (frozen != 0) {
+			cam_release_devq(done_ccb->ccb_h.path,
+				 /*relsim_flags*/0,
+				 /*openings*/0,
+				 /*timeout*/0,
+				 /*getcount_only*/0);
+		}
+	}
 }
 
 /*
@@ -1439,6 +1465,11 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 				action_string = "No recovery CCB supplied";
 				goto sense_error_done;
 			}
+			/*
+			 * Clear freeze flag for original request here, as
+			 * this freeze will be dropped as part of ERESTART.
+			 */
+			ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
 			bcopy(ccb, save_ccb, sizeof(*save_ccb));
 			print_ccb = save_ccb;
 			periph->flags |= CAM_PERIPH_RECOVERY_INPROG;
@@ -1612,6 +1643,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		if (bootverbose && printed == 0) {
 			xpt_print(ccb->ccb_h.path,
 			    "Request completed with CAM_ATA_STATUS_ERROR\n");
+			cam_error_print(ccb, CAM_ESF_ALL, CAM_EPF_ALL);
 			printed++;
 		}
 		/* FALLTHROUGH */

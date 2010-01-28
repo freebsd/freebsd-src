@@ -128,7 +128,7 @@ static struct buf_ops ffs_ops = {
 static const char *ffs_opts[] = { "acls", "async", "noatime", "noclusterr",
     "noclusterw", "noexec", "export", "force", "from", "multilabel", 
     "snapshot", "nosuid", "suiddir", "nosymfollow", "sync",
-    "union", NULL };
+    "union", "nfsv4acls", NULL };
 
 static int
 ffs_mount(struct mount *mp)
@@ -175,6 +175,15 @@ ffs_mount(struct mount *mp)
 		 */
 		vfs_deleteopt(mp->mnt_optnew, "snapshot");
 		vfs_deleteopt(mp->mnt_opt, "snapshot");
+	}
+
+	if (vfs_getopt(mp->mnt_optnew, "nfsv4acls", NULL, NULL) == 0) {
+		if (mntorflags & MNT_ACLS) {
+			printf("WARNING: \"acls\" and \"nfsv4acls\" "
+			    "options are mutually exclusive\n");
+			return (EINVAL);
+		}
+		mntorflags |= MNT_NFS4ACLS;
 	}
 
 	MNT_ILOCK(mp);
@@ -360,6 +369,13 @@ ffs_mount(struct mount *mp)
 			MNT_IUNLOCK(mp);
 		}
 
+		if ((fs->fs_flags & FS_NFS4ACLS) != 0) {
+			/* XXX: Set too late ? */
+			MNT_ILOCK(mp);
+			mp->mnt_flag |= MNT_NFS4ACLS;
+			MNT_IUNLOCK(mp);
+		}
+	
 		/*
 		 * If this is a snapshot request, take the snapshot.
 		 */
@@ -834,7 +850,13 @@ ffs_mountfs(devvp, mp, td)
 	if ((fs->fs_flags & FS_ACLS) != 0) {
 #ifdef UFS_ACL
 		MNT_ILOCK(mp);
+
+		if (mp->mnt_flag & MNT_NFS4ACLS)
+			printf("WARNING: ACLs flag on fs conflicts with "
+			    "\"nfsv4acls\" mount option; option ignored\n");
+		mp->mnt_flag &= ~MNT_NFS4ACLS;
 		mp->mnt_flag |= MNT_ACLS;
+
 		MNT_IUNLOCK(mp);
 #else
 		printf(
@@ -842,6 +864,24 @@ ffs_mountfs(devvp, mp, td)
 		    mp->mnt_stat.f_mntonname);
 #endif
 	}
+	if ((fs->fs_flags & FS_NFS4ACLS) != 0) {
+#ifdef UFS_ACL
+		MNT_ILOCK(mp);
+
+		if (mp->mnt_flag & MNT_ACLS)
+			printf("WARNING: NFSv4 ACLs flag on fs conflicts with "
+			    "\"acls\" mount option; option ignored\n");
+		mp->mnt_flag &= ~MNT_ACLS;
+		mp->mnt_flag |= MNT_NFS4ACLS;
+
+		MNT_IUNLOCK(mp);
+#else
+		printf(
+"WARNING: %s: NFSv4 ACLs flag on fs but no ACLs support\n",
+		    mp->mnt_stat.f_mntonname);
+#endif
+	}
+
 	ump->um_mountp = mp;
 	ump->um_dev = dev;
 	ump->um_devvp = devvp;

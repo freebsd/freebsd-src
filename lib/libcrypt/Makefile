@@ -33,6 +33,8 @@ SRCS+=		auth.c property.c
 CFLAGS+=	-D${sym}=__${sym}
 .endfor
 
+WARNS?=		2
+
 PRECIOUSLIB=
 
 .include <bsd.lib.mk>

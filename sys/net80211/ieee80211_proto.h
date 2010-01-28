@@ -315,7 +315,7 @@ struct ieee80211_beacon_offsets {
 	uint8_t		*bo_ath;	/* start of ATH parameters */
 	uint8_t		*bo_appie;	/* start of AppIE element */
 	uint16_t	bo_appie_len;	/* AppIE length in bytes */
-	uint16_t	bo_csa_trailer_len;;
+	uint16_t	bo_csa_trailer_len;
 	uint8_t		*bo_csa;	/* start of CSA element */
 	uint8_t		*bo_meshconf;	/* start of MESHCONF element */
 	uint8_t		*bo_spare[3];

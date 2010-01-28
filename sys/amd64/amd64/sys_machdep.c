@@ -420,13 +420,14 @@ user_ldt_alloc(struct proc *p, int force)
 		return (pldt);
 	}
 
-	mdp->md_ldt = new_ldt;
 	if (pldt != NULL) {
 		bcopy(pldt->ldt_base, new_ldt->ldt_base, max_ldt_segment *
 		    sizeof(struct user_segment_descriptor));
 		user_ldt_derefl(pldt);
 	}
 	ssdtosyssd(&sldt, &p->p_md.md_ldt_sd);
+	atomic_store_rel_ptr((volatile uintptr_t *)&mdp->md_ldt,
+	    (uintptr_t)new_ldt);
 	if (p == curproc)
 		set_user_ldt(mdp);
 

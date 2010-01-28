@@ -140,7 +140,7 @@ static int      nve_ioctl(struct ifnet *, u_long, caddr_t);
 static void     nve_intr(void *);
 static void     nve_tick(void *);
 static void     nve_setmulti(struct nve_softc *);
-static void     nve_watchdog(struct ifnet *);
+static void     nve_watchdog(struct nve_softc *);
 static void     nve_update_stats(struct nve_softc *);
 
 static int      nve_ifmedia_upd(struct ifnet *);
@@ -526,22 +526,12 @@ nve_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Probe device for MII interface to PHY */
-	DEBUGOUT(NVE_DEBUG_INIT, "nve: do mii_phy_probe\n");
-	if (mii_phy_probe(dev, &sc->miibus, nve_ifmedia_upd, nve_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
-		goto fail;
-	}
-
 	/* Setup interface parameters */
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = nve_ioctl;
 	ifp->if_start = nve_ifstart;
-	ifp->if_watchdog = nve_watchdog;
-	ifp->if_timer = 0;
 	ifp->if_init = nve_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = IF_Mbps(100);
@@ -550,6 +540,14 @@ nve_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
+
+	/* Probe device for MII interface to PHY */
+	DEBUGOUT(NVE_DEBUG_INIT, "nve: do mii_phy_probe\n");
+	if (mii_phy_probe(dev, &sc->miibus, nve_ifmedia_upd, nve_ifmedia_sts)) {
+		device_printf(dev, "MII without any phy!\n");
+		error = ENXIO;
+		goto fail;
+	}
 
 	/* Attach to OS's managers. */
 	ether_ifattach(ifp, eaddr);
@@ -709,7 +707,7 @@ nve_stop(struct nve_softc *sc)
 	DEBUGOUT(NVE_DEBUG_RUNNING, "nve: nve_stop - entry\n");
 
 	ifp = sc->ifp;
-	ifp->if_timer = 0;
+	sc->tx_timer = 0;
 
 	/* Cancel tick timer */
 	callout_stop(&sc->stat_callout);
@@ -983,7 +981,7 @@ nve_ifstart_locked(struct ifnet *ifp)
 			return;
 		}
 		/* Set watchdog timer. */
-		ifp->if_timer = 8;
+		sc->tx_timer = 8;
 
 		/* Copy packet to BPF tap */
 		BPF_MTAP(ifp, m0);
@@ -1095,7 +1093,7 @@ nve_intr(void *arg)
 
 	/* If no pending packets we don't need a timeout */
 	if (sc->pending_txs == 0)
-		sc->ifp->if_timer = 0;
+		sc->tx_timer = 0;
 	NVE_UNLOCK(sc);
 
 	DEBUGOUT(NVE_DEBUG_INTERRUPT, "nve: nve_intr - exit\n");
@@ -1236,6 +1234,9 @@ nve_tick(void *xsc)
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			nve_ifstart_locked(ifp);
 	}
+
+	if (sc->tx_timer > 0 && --sc->tx_timer == 0)
+		nve_watchdog(sc);
 	callout_reset(&sc->stat_callout, hz, nve_tick, sc);
 
 	return;
@@ -1307,12 +1308,13 @@ nve_miibus_writereg(device_t dev, int phy, int reg, int data)
 
 /* Watchdog timer to prevent PHY lockups */
 static void
-nve_watchdog(struct ifnet *ifp)
+nve_watchdog(struct nve_softc *sc)
 {
-	struct nve_softc *sc = ifp->if_softc;
+	struct ifnet *ifp;
 	int pending_txs_start;
 
-	NVE_LOCK(sc);
+	NVE_LOCK_ASSERT(sc);
+	ifp = sc->ifp;
 
 	/*
 	 * The nvidia driver blob defers tx completion notifications.
@@ -1328,24 +1330,18 @@ nve_watchdog(struct ifnet *ifp)
 	sc->hwapi->pfnDisableInterrupts(sc->hwapi->pADCX);
 	sc->hwapi->pfnHandleInterrupt(sc->hwapi->pADCX);
 	sc->hwapi->pfnEnableInterrupts(sc->hwapi->pADCX);
-	if (sc->pending_txs < pending_txs_start) {
-		NVE_UNLOCK(sc);
+	if (sc->pending_txs < pending_txs_start)
 		return;
-	}
 
 	device_printf(sc->dev, "device timeout (%d)\n", sc->pending_txs);
 
 	sc->tx_errors++;
 
 	nve_stop(sc);
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	nve_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		nve_ifstart_locked(ifp);
-	NVE_UNLOCK(sc);
-
-	return;
 }
 
 /* --- Start of NVOSAPI interface --- */

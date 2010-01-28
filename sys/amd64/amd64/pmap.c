@@ -105,7 +105,6 @@ __FBSDID("$FreeBSD$");
  *	and to when physical maps must be made correct.
  */
 
-#include "opt_msgbuf.h"
 #include "opt_pmap.h"
 #include "opt_vm.h"
 
@@ -116,7 +115,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
-#include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sx.h>
@@ -153,7 +151,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #if !defined(DIAGNOSTIC)
-#define PMAP_INLINE	__gnu89_inline
+#define PMAP_INLINE	extern inline
 #else
 #define PMAP_INLINE
 #endif
@@ -183,7 +181,7 @@ static int pat_works = 0;		/* Is page attribute table sane? */
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
 static int pg_ps_enabled = 1;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RD, &pg_ps_enabled, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
     "Are large page mappings enabled?");
 
 static u_int64_t	KPTphys;	/* phys addr of kernel level 1 */
@@ -206,7 +204,6 @@ static int shpgperproc = PMAP_SHPGPERPROC;
  */
 pt_entry_t *CMAP1 = 0;
 caddr_t CADDR1 = 0;
-struct msgbuf *msgbufp = 0;
 
 /*
  * Crashdump maps.
@@ -570,11 +567,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 */
 	SYSMAP(caddr_t, unused, crashdumpmap, MAXDUMPPGS)
 
-	/*
-	 * msgbufp is used to map the system message buffer.
-	 */
-	SYSMAP(struct msgbuf *, unused, msgbufp, atop(round_page(MSGBUF_SIZE)))
-
 	virtual_avail = va;
 
 	*CMAP1 = 0;
@@ -664,7 +656,6 @@ pmap_page_init(vm_page_t m)
 void
 pmap_init(void)
 {
-	pd_entry_t *pd;
 	vm_page_t mpte;
 	vm_size_t s;
 	int i, pv_npg;
@@ -673,18 +664,13 @@ pmap_init(void)
 	 * Initialize the vm page array entries for the kernel pmap's
 	 * page table pages.
 	 */ 
-	pd = pmap_pde(kernel_pmap, KERNBASE);
 	for (i = 0; i < NKPT; i++) {
-		if ((pd[i] & (PG_PS | PG_V)) == (PG_PS | PG_V))
-			continue;
-		KASSERT((pd[i] & PG_V) != 0,
-		    ("pmap_init: page table page is missing"));
-		mpte = PHYS_TO_VM_PAGE(pd[i] & PG_FRAME);
+		mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
 		KASSERT(mpte >= vm_page_array &&
 		    mpte < &vm_page_array[vm_page_array_size],
 		    ("pmap_init: page table page is out of range"));
 		mpte->pindex = pmap_pde_pindex(KERNBASE) + i;
-		mpte->phys_addr = pd[i] & PG_FRAME;
+		mpte->phys_addr = KPTphys + (i << PAGE_SHIFT);
 	}
 
 	/*

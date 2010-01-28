@@ -47,6 +47,7 @@ __RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
 #ifdef HAVE_SYS_STAT_H
 # include <sys/stat.h>
@@ -72,7 +73,6 @@ __RCSID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <utmp.h>
 
 #include <openssl/dh.h>
 #include <openssl/bn.h>
@@ -239,7 +239,7 @@ u_char *session_id2 = NULL;
 u_int session_id2_len = 0;
 
 /* record remote hostname or ip */
-u_int utmp_len = UT_HOSTSIZE;
+u_int utmp_len = MAXHOSTNAMELEN;
 
 /* options.max_startup sized array of fd ints */
 int *startup_pipes = NULL;
@@ -1292,6 +1292,10 @@ main(int ac, char **av)
 
 	/* Initialize configuration options to their default values. */
 	initialize_server_options(&options);
+
+	/* Avoid killing the process in high-pressure swapping environments. */
+	if (madvise(NULL, 0, MADV_PROTECT) != 0)
+		debug("madvise(): %.200s", strerror(errno));
 
 	/* Parse command-line arguments. */
 	while ((opt = getopt(ac, av, "f:p:b:k:h:g:u:o:C:dDeiqrtQRT46")) != -1) {

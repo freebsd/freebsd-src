@@ -567,7 +567,6 @@ nfe_attach(device_t dev)
 	ifp->if_start = nfe_start;
 	ifp->if_hwassist = 0;
 	ifp->if_capabilities = 0;
-	ifp->if_watchdog = NULL;
 	ifp->if_init = nfe_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, NFE_TX_RING_COUNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = NFE_TX_RING_COUNT - 1;

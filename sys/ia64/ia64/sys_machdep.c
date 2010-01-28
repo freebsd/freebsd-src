@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
 
+#include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/sysarch.h>
 
@@ -48,72 +49,9 @@ struct sysarch_args {
 int
 sysarch(struct thread *td, struct sysarch_args *uap)
 {
-	struct ia64_iodesc iod;
 	int error;
 
-	error = 0;
 	switch(uap->op) {
-	case IA64_IORD:
-		copyin(uap->parms, &iod, sizeof(iod));
-		switch (iod.width) {
-		case 1:
-			iod.val = inb(iod.port);
-			break;
-		case 2:
-			if (iod.port & 1) {
-				iod.val = inb(iod.port);
-				iod.val |= inb(iod.port + 1) << 8;
-			} else
-				iod.val = inw(iod.port);
-			break;
-		case 4:
-			if (iod.port & 3) {
-				if (iod.port & 1) {
-					iod.val = inb(iod.port);
-					iod.val |= inw(iod.port + 1) << 8;
-					iod.val |= inb(iod.port + 3) << 24;
-				} else {
-					iod.val = inw(iod.port);
-					iod.val |= inw(iod.port + 2) << 16;
-				}
-			} else
-				iod.val = inl(iod.port);
-			break;
-		default:
-			error = EINVAL;
-		}
-		copyout(&iod, uap->parms, sizeof(iod));
-		break;
-	case IA64_IOWR:
-		copyin(uap->parms, &iod, sizeof(iod));
-		switch (iod.width) {
-		case 1:
-			outb(iod.port, iod.val);
-			break;
-		case 2:
-			if (iod.port & 1) {
-				outb(iod.port, iod.val);
-				outb(iod.port + 1, iod.val >> 8);
-			} else
-				outw(iod.port, iod.val);
-			break;
-		case 4:
-			if (iod.port & 3) {
-				if (iod.port & 1) {
-					outb(iod.port, iod.val);
-					outw(iod.port + 1, iod.val >> 8);
-					outb(iod.port + 3, iod.val >> 24);
-				} else {
-					outw(iod.port, iod.val);
-					outw(iod.port + 2, iod.val >> 16);
-				}
-			} else
-				outl(iod.port, iod.val);
-			break;
-		default:
-			error = EINVAL;
-		}
-		break;
 	default:
 		error = EINVAL;
 		break;

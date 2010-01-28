@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2007
+.Dd November 8, 2009
 .Dt HPTRR 4
 .Os
 .Sh NAME
@@ -46,6 +46,14 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 hptrr_load="YES"
 .Ed
+.Pp
+The following tunables are settable from the loader:
+.Bl -ohang
+.It Va hw.hptrr.attach_generic
+set to 0 to deny driver attach to chips with generic Marvell (non-HighPoint)
+PCI identification. These chips are also supported by ata(4).
+Some vendors are using same chips, but without providing RAID BIOS.
+.El
 .Sh DESCRIPTION
 The
 .Nm
@@ -101,6 +109,7 @@ manual page for details on support.
 .Pp
 This driver supersedes the older rr232x driver.
 .Sh SEE ALSO
+.Xr ata 4 ,
 .Xr cam 4 ,
 .Xr hptmv 4 ,
 .Xr loader 8

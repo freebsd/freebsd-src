@@ -1402,6 +1402,8 @@
 #define	BGE_RDMAMODE_MBUF_SBD_CRPT_ATTN	0x00002000
 #define	BGE_RDMAMODE_FIFO_SIZE_128	0x00020000
 #define	BGE_RDMAMODE_FIFO_LONG_BURST	0x00030000
+#define	BGE_RDMAMODE_TSO4_ENABLE	0x08000000
+#define	BGE_RDMAMODE_TSO6_ENABLE	0x10000000
 
 /* Read DMA status register */
 #define	BGE_RDMASTAT_PCI_TGT_ABRT_ATTN	0x00000004
@@ -1705,11 +1707,8 @@
 /* MSI mode register */
 #define	BGE_MSIMODE_RESET		0x00000001
 #define	BGE_MSIMODE_ENABLE		0x00000002
-#define	BGE_MSIMODE_PCI_TGT_ABRT_ATTN	0x00000004
-#define	BGE_MSIMODE_PCI_MSTR_ABRT_ATTN	0x00000008
-#define	BGE_MSIMODE_PCI_PERR_ATTN	0x00000010
-#define	BGE_MSIMODE_MSI_FIFOUFLOW_ATTN	0x00000020
-#define	BGE_MSIMODE_MSI_FIFOOFLOW_ATTN	0x00000040
+#define	BGE_MSIMODE_ONE_SHOT_DISABLE	0x00000020
+#define	BGE_MSIMODE_MULTIVEC_ENABLE	0x00000080
 
 /* MSI status register */
 #define	BGE_MSISTAT_PCI_TGT_ABRT_ATTN	0x00000004
@@ -1910,7 +1909,7 @@
 /*
  * This magic number is written to the firmware mailbox at 0xb50
  * before a software reset is issued.  After the internal firmware
- * has completed its initialization it will write the opposite of 
+ * has completed its initialization it will write the opposite of
  * this value, ~BGE_MAGIC_NUMBER, to the same location, allowing the
  * driver to synchronize with the firmware.
  */
@@ -1952,11 +1951,11 @@ struct bge_tx_bd {
 	uint16_t		bge_flags;
 	uint16_t		bge_len;
 	uint16_t		bge_vlan_tag;
-	uint16_t		bge_rsvd;
+	uint16_t		bge_mss;
 #else
 	uint16_t		bge_len;
 	uint16_t		bge_flags;
-	uint16_t		bge_rsvd;
+	uint16_t		bge_mss;
 	uint16_t		bge_vlan_tag;
 #endif
 };
@@ -2139,6 +2138,7 @@ struct bge_status_block {
 #define	BCOM_DEVICEID_BCM5754M		0x1672
 #define	BCOM_DEVICEID_BCM5755		0x167B
 #define	BCOM_DEVICEID_BCM5755M		0x1673
+#define	BCOM_DEVICEID_BCM5756		0x1674
 #define	BCOM_DEVICEID_BCM5761		0x1681
 #define	BCOM_DEVICEID_BCM5761E		0x1680
 #define	BCOM_DEVICEID_BCM5761S		0x1688
@@ -2484,15 +2484,16 @@ struct bge_gib {
 #define	BGE_MSLOTS	256
 #define	BGE_JSLOTS	384
 
-#define	BGE_JRAWLEN (BGE_JUMBO_FRAMELEN + ETHER_ALIGN)
-#define	BGE_JLEN (BGE_JRAWLEN + (sizeof(uint64_t) - \
-	(BGE_JRAWLEN % sizeof(uint64_t))))
-#define	BGE_JPAGESZ PAGE_SIZE
-#define	BGE_RESID (BGE_JPAGESZ - (BGE_JLEN * BGE_JSLOTS) % BGE_JPAGESZ)
-#define	BGE_JMEM ((BGE_JLEN * BGE_JSLOTS) + BGE_RESID)
-
 #define	BGE_NSEG_JUMBO	4
-#define	BGE_NSEG_NEW 32
+#define	BGE_NSEG_NEW	32
+#define	BGE_TSOSEG_SZ	4096
+
+/* Maximum DMA address for controllers that have 40bit DMA address bug. */
+#if (BUS_SPACE_MAXADDR < 0xFFFFFFFFFF)
+#define	BGE_DMA_MAXADDR		BUS_SPACE_MAXADDR
+#else
+#define	BGE_DMA_MAXADDR		0xFFFFFFFFFF
+#endif
 
 /*
  * Ring structures. Most of these reside in host memory and we tell
@@ -2543,10 +2544,13 @@ struct bge_chain_data {
 	bus_dma_tag_t		bge_tx_ring_tag;
 	bus_dma_tag_t		bge_status_tag;
 	bus_dma_tag_t		bge_stats_tag;
-	bus_dma_tag_t		bge_mtag;	/* mbuf mapping tag */
-	bus_dma_tag_t		bge_mtag_jumbo;	/* mbuf mapping tag */
+	bus_dma_tag_t		bge_rx_mtag;	/* Rx mbuf mapping tag */
+	bus_dma_tag_t		bge_tx_mtag;	/* Tx mbuf mapping tag */
+	bus_dma_tag_t		bge_mtag_jumbo;	/* Jumbo mbuf mapping tag */
 	bus_dmamap_t		bge_tx_dmamap[BGE_TX_RING_CNT];
+	bus_dmamap_t		bge_rx_std_sparemap;
 	bus_dmamap_t		bge_rx_std_dmamap[BGE_STD_RX_RING_CNT];
+	bus_dmamap_t		bge_rx_jumbo_sparemap;
 	bus_dmamap_t		bge_rx_jumbo_dmamap[BGE_JUMBO_RX_RING_CNT];
 	bus_dmamap_t		bge_rx_std_ring_map;
 	bus_dmamap_t		bge_rx_jumbo_ring_map;
@@ -2591,19 +2595,26 @@ struct bge_softc {
 	struct resource		*bge_irq;
 	struct resource		*bge_res;
 	struct ifmedia		bge_ifmedia;	/* TBI media info */
+	int			bge_expcap;
+	int			bge_msicap;
+	int			bge_pcixcap;
 	uint32_t		bge_flags;
 #define	BGE_FLAG_TBI		0x00000001
 #define	BGE_FLAG_JUMBO		0x00000002
 #define	BGE_FLAG_WIRESPEED	0x00000004
 #define	BGE_FLAG_EADDR		0x00000008
+#define	BGE_FLAG_MII_SERDES	0x00000010
 #define	BGE_FLAG_MSI		0x00000100
 #define	BGE_FLAG_PCIX		0x00000200
 #define	BGE_FLAG_PCIE		0x00000400
+#define	BGE_FLAG_TSO		0x00000800
 #define	BGE_FLAG_5700_FAMILY	0x00001000
 #define	BGE_FLAG_5705_PLUS	0x00002000
 #define	BGE_FLAG_5714_FAMILY	0x00004000
 #define	BGE_FLAG_575X_PLUS	0x00008000
 #define	BGE_FLAG_5755_PLUS	0x00010000
+#define	BGE_FLAG_40BIT_BUG	0x00020000
+#define	BGE_FLAG_4G_BNDRY_BUG	0x00040000
 #define	BGE_FLAG_RX_ALIGNBUG	0x00100000
 #define	BGE_FLAG_NO_3LED	0x00200000
 #define	BGE_FLAG_ADC_BUG	0x00400000
@@ -2638,6 +2649,7 @@ struct bge_softc {
 	int			bge_link;	/* link state */
 	int			bge_link_evt;	/* pending link event */
 	int			bge_timer;
+	int			bge_forced_collapse;
 	struct callout		bge_stat_ch;
 	uint32_t		bge_rx_discards;
 	uint32_t		bge_tx_discards;
@@ -2645,6 +2657,8 @@ struct bge_softc {
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif /* DEVICE_POLLING */
+	struct task		bge_intr_task;
+	struct taskqueue	*bge_tq;
 };
 
 #define	BGE_LOCK_INIT(_sc, _name) \

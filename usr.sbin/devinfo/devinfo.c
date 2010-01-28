@@ -137,7 +137,7 @@ print_device(struct devinfo_dev *dev, void *arg)
 	struct indent_arg	ia;
 	int			i, indent;
 
-	if (vflag || (dev->dd_name[0] != 0 && dev->dd_state >= DIS_ATTACHED)) {
+	if (vflag || (dev->dd_name[0] != 0 && dev->dd_state >= DS_ATTACHED)) {
 		indent = (int)(intptr_t)arg;
 		for (i = 0; i < indent; i++)
 			printf(" ");

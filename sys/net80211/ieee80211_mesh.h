@@ -49,7 +49,7 @@ struct ieee80211_meshconf_ie {
 	uint8_t		conf_syncid;	/* Sync. Protocol ID */
 	uint8_t		conf_authid;	/* Auth. Protocol ID */
 	uint8_t		conf_form;	/* Formation Information */
-	uint8_t		conf_cap;
+	uint16_t	conf_cap;
 } __packed;
 
 /* Hybrid Wireless Mesh Protocol */
@@ -72,7 +72,8 @@ struct ieee80211_meshconf_ie {
 #define	IEEE80211_MESHCONF_CAP_FWRD 	0x08	/* forwarding enabled */
 #define	IEEE80211_MESHCONF_CAP_BTR	0x10	/* Beacon Timing Report Enab */
 #define	IEEE80211_MESHCONF_CAP_TBTTA	0x20	/* TBTT Adj. Enabled */
-#define	IEEE80211_MESHCONF_CAP_PSL	0x40	/* Power Save Level */
+#define	IEEE80211_MESHCONF_CAP_TBTT	0x40	/* TBTT Adjusting  */
+#define	IEEE80211_MESHCONF_CAP_PSL	0x80	/* Power Save Level */
 
 /* Mesh Identifier */
 struct ieee80211_meshid_ie {

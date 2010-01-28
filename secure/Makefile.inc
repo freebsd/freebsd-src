@@ -15,3 +15,5 @@ CFLAGS+= -DNO_IDEA
 .if ${MK_OPENSSH} != "no"
 SSHDIR=		${.CURDIR}/../../../crypto/openssh
 .endif
+
+WARNS?=		0

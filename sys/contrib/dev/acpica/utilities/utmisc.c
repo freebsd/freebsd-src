@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -929,12 +929,12 @@ ACPI_STATUS
 AcpiUtStrtoul64 (
     char                    *String,
     UINT32                  Base,
-    ACPI_INTEGER            *RetInteger)
+    UINT64                  *RetInteger)
 {
     UINT32                  ThisDigit = 0;
-    ACPI_INTEGER            ReturnValue = 0;
-    ACPI_INTEGER            Quotient;
-    ACPI_INTEGER            Dividend;
+    UINT64                  ReturnValue = 0;
+    UINT64                  Quotient;
+    UINT64                  Dividend;
     UINT32                  ToIntegerOp = (Base == ACPI_ANY_BASE);
     UINT32                  Mode32 = (AcpiGbl_IntegerByteWidth == 4);
     UINT8                   ValidDigits = 0;
@@ -1071,7 +1071,7 @@ AcpiUtStrtoul64 (
 
         /* Divide the digit into the correct position */
 
-        (void) AcpiUtShortDivide ((Dividend - (ACPI_INTEGER) ThisDigit),
+        (void) AcpiUtShortDivide ((Dividend - (UINT64) ThisDigit),
                     Base, &Quotient, NULL);
 
         if (ReturnValue > Quotient)
@@ -1434,6 +1434,54 @@ AcpiUtPredefinedWarning (
     }
 
     AcpiOsPrintf ("ACPI Warning for %s: ", Pathname);
+
+    va_start (args, Format);
+    AcpiOsVprintf (Format, args);
+    ACPI_COMMON_MSG_SUFFIX;
+    va_end (args);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtPredefinedInfo
+ *
+ * PARAMETERS:  ModuleName      - Caller's module name (for error output)
+ *              LineNumber      - Caller's line number (for error output)
+ *              Pathname        - Full pathname to the node
+ *              NodeFlags       - From Namespace node for the method/object
+ *              Format          - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Info messages for the predefined validation module. Messages
+ *              are only emitted the first time a problem with a particular
+ *              method/object is detected. This prevents a flood of
+ *              messages for methods that are repeatedly evaluated.
+ *
+ ******************************************************************************/
+
+void  ACPI_INTERNAL_VAR_XFACE
+AcpiUtPredefinedInfo (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Pathname,
+    UINT8                   NodeFlags,
+    const char              *Format,
+    ...)
+{
+    va_list                 args;
+
+
+    /*
+     * Warning messages for this method/object will be disabled after the
+     * first time a validation fails or an object is successfully repaired.
+     */
+    if (NodeFlags & ANOBJ_EVALUATED)
+    {
+        return;
+    }
+
+    AcpiOsPrintf ("ACPI Info for %s: ", Pathname);
 
     va_start (args, Format);
     AcpiOsVprintf (Format, args);

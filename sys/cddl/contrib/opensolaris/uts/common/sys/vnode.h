@@ -304,7 +304,6 @@ typedef struct xvattr {
  * VOP_ACCESS flags
  */
 #define	V_ACE_MASK	0x1	/* mask represents  NFSv4 ACE permissions */
-#define	V_APPEND	0x2	/* want to do append only check */
 
 /*
  * Flags for vnode operations.

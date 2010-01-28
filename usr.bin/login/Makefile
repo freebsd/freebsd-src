@@ -9,6 +9,8 @@ CFLAGS+=-DLOGALL
 DPADD=	${LIBUTIL} ${LIBPAM}
 LDADD=	-lutil ${MINUSLPAM}
 
+WARNS?=	5
+
 .if ${MK_AUDIT} != "no"
 SRCS+=	login_audit.c
 CFLAGS+= -DUSE_BSM_AUDIT

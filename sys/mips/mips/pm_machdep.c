@@ -39,6 +39,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_cputype.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -228,13 +230,13 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 /* #ifdef DEBUG */
 	if (ucp->uc_mcontext.mc_regs[ZERO] != UCONTEXT_MAGIC) {
 		printf("sigreturn: pid %d, ucp %p\n", td->td_proc->p_pid, ucp);
-		printf("  old sp %x ra %x pc %x\n",
-		    regs->sp, regs->ra, regs->pc);
-		printf("  new sp %x ra %x pc %x z %x\n",
-		    ucp->uc_mcontext.mc_regs[SP],
-		    ucp->uc_mcontext.mc_regs[RA],
-		    ucp->uc_mcontext.mc_regs[PC],
-		    ucp->uc_mcontext.mc_regs[ZERO]);
+		printf("  old sp %p ra %p pc %p\n",
+		    (void *)regs->sp, (void *)regs->ra, (void *)regs->pc);
+		printf("  new sp %p ra %p pc %p z %p\n",
+		    (void *)ucp->uc_mcontext.mc_regs[SP],
+		    (void *)ucp->uc_mcontext.mc_regs[RA],
+		    (void *)ucp->uc_mcontext.mc_regs[PC],
+		    (void *)ucp->uc_mcontext.mc_regs[ZERO]);
 		return EINVAL;
 	}
 /* #endif */
@@ -322,7 +324,7 @@ ptrace_single_step(struct thread *td)
 	/* compute next address after current location */
 	if(curinstr != 0) {
 		va = MipsEmulateBranch(locr0, locr0->pc, locr0->fsr,
-		    (u_int)&curinstr);
+		    (uintptr_t)&curinstr);
 	} else {
 		va = locr0->pc + 4;
 	}
@@ -408,9 +410,16 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 		bcopy((void *)&td->td_frame->f0, (void *)&mcp->mc_fpregs,
 		    sizeof(mcp->mc_fpregs));
 	}
+	if (flags & GET_MC_CLEAR_RET) {
+		mcp->mc_regs[V0] = 0;
+		mcp->mc_regs[V1] = 0;
+		mcp->mc_regs[A3] = 0;
+	}
+
 	mcp->mc_pc = td->td_frame->pc;
 	mcp->mullo = td->td_frame->mullo;
 	mcp->mulhi = td->td_frame->mulhi;
+	mcp->mc_tls = td->td_md.md_tls;
 	return (0);
 }
 
@@ -431,6 +440,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	td->td_frame->pc = mcp->mc_pc;
 	td->td_frame->mullo = mcp->mullo;
 	td->td_frame->mulhi = mcp->mulhi;
+	td->td_md.md_tls = mcp->mc_tls;
 	/* Dont let user to set any bits in Status and casue registers */
 
 	return (0);
@@ -477,7 +487,8 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 //	td->td_frame->sr = SR_KSU_USER | SR_EXL | SR_INT_ENAB;
 //?	td->td_frame->sr |=  idle_mask & ALL_INT_MASK;
 #else
-	td->td_frame->sr = SR_KSU_USER | SR_EXL;// mips2 also did COP_0_BIT
+	td->td_frame->sr = SR_KSU_USER | SR_EXL | SR_INT_ENAB |
+	    (mips_rd_status() & ALL_INT_MASK);
 #endif
 #ifdef TARGET_OCTEON
 	td->td_frame->sr |= MIPS_SR_COP_2_BIT | MIPS32_SR_PX | MIPS_SR_UX |

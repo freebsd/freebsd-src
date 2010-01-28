@@ -19,4 +19,6 @@ CFLAGS+= -DENABLE_ALTQ
 LDADD+= -lm -lmd -lutil
 DPADD+= ${LIBM} ${LIBMD} ${LIBUTIL}
 
+WARNS?=	3
+
 .include <bsd.prog.mk>

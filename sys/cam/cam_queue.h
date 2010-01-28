@@ -60,7 +60,6 @@ struct cam_ccbq {
 	int	dev_openings;	
 	int	dev_active;
 	int	held;
-	struct	ccb_hdr_tailq active_ccbs;
 };
 
 struct cam_ed;
@@ -209,9 +208,6 @@ static __inline void
 cam_ccbq_send_ccb(struct cam_ccbq *ccbq, union ccb *send_ccb)
 {
 
-	TAILQ_INSERT_TAIL(&ccbq->active_ccbs,
-			  &(send_ccb->ccb_h),
-			  xpt_links.tqe);
 	send_ccb->ccb_h.pinfo.index = CAM_ACTIVE_INDEX;
 	ccbq->dev_active++;
 	ccbq->dev_openings--;		
@@ -220,8 +216,7 @@ cam_ccbq_send_ccb(struct cam_ccbq *ccbq, union ccb *send_ccb)
 static __inline void
 cam_ccbq_ccb_done(struct cam_ccbq *ccbq, union ccb *done_ccb)
 {
-	TAILQ_REMOVE(&ccbq->active_ccbs, &done_ccb->ccb_h,
-		     xpt_links.tqe);
+
 	ccbq->dev_active--;
 	ccbq->dev_openings++;	
 	ccbq->held++;

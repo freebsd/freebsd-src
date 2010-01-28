@@ -543,8 +543,10 @@ getfslab(const char *str)
 	if ((fd = open(str, O_RDONLY)) == -1)
 		err(1, "cannot open `%s'", str);
 
-	if (ioctl(fd, DIOCGDINFO, &dl) == -1)
+	if (ioctl(fd, DIOCGDINFO, &dl) == -1) {
+		(void) close(fd);
 		return(NULL);
+	}
 
 	(void) close(fd);
 

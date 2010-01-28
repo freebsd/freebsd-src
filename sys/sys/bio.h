@@ -40,6 +40,22 @@
 
 #include <sys/queue.h>
 
+/* bio_cmd */
+#define BIO_READ	0x01
+#define BIO_WRITE	0x02
+#define BIO_DELETE	0x04
+#define BIO_GETATTR	0x08
+#define BIO_FLUSH	0x10
+#define BIO_CMD0	0x20	/* Available for local hacks */
+#define BIO_CMD1	0x40	/* Available for local hacks */
+#define BIO_CMD2	0x80	/* Available for local hacks */
+
+/* bio_flags */
+#define BIO_ERROR	0x01
+#define BIO_DONE	0x02
+#define BIO_ONQUEUE	0x04
+
+#ifdef _KERNEL
 struct disk;
 struct bio;
 
@@ -94,23 +110,6 @@ struct bio {
 	/* XXX: these go away when bio chaining is introduced */
 	daddr_t bio_pblkno;               /* physical block number */
 };
-
-/* bio_cmd */
-#define BIO_READ	0x01
-#define BIO_WRITE	0x02
-#define BIO_DELETE	0x04
-#define BIO_GETATTR	0x08
-#define BIO_FLUSH	0x10
-#define BIO_CMD0	0x20	/* Available for local hacks */
-#define BIO_CMD1	0x40	/* Available for local hacks */
-#define BIO_CMD2	0x80	/* Available for local hacks */
-
-/* bio_flags */
-#define BIO_ERROR	0x01
-#define BIO_DONE	0x02
-#define BIO_ONQUEUE	0x04
-
-#ifdef _KERNEL
 
 struct uio;
 struct devstat;

@@ -7,6 +7,5 @@ MAN=	hexdump.1 od.1
 MLINKS=	hexdump.1 hd.1
 LINKS=	${BINDIR}/hexdump ${BINDIR}/od
 LINKS+=	${BINDIR}/hexdump ${BINDIR}/hd
-WARNS?=	6
 
 .include <bsd.prog.mk>

@@ -44,10 +44,10 @@
 .In sys/wait.h
 .Ft pid_t
 .Fn wait "int *status"
-.In sys/time.h
-.In sys/resource.h
 .Ft pid_t
 .Fn waitpid "pid_t wpid" "int *status" "int options"
+.In sys/time.h
+.In sys/resource.h
 .Ft pid_t
 .Fn wait3 "int *status" "int options" "struct rusage *rusage"
 .Ft pid_t

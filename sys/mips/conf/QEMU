@@ -30,8 +30,6 @@ makeoptions	MODULES_OVERRIDE=""
 options 	KERNVIRTADDR=0x80100000
 include		"../adm5120/std.adm5120"
 
-#hints		"GENERIC.hints"		#Default places to look for devices.
-
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 options 	DDB

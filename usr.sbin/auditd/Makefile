@@ -14,4 +14,6 @@ MAN=	auditd.8
 DPADD=	${LIBBSM} ${LIBAUDITD}
 LDADD=	-lbsm -lauditd
 
+WARNS?=	3
+
 .include <bsd.prog.mk>

@@ -367,6 +367,7 @@ ae_attach(device_t dev)
 	if (ifp == NULL) {
 		device_printf(dev, "could not allocate ifnet structure.\n");
 		error = ENXIO;
+		goto fail;
 	}
 
 	ifp->if_softc = sc;
@@ -1047,7 +1048,7 @@ ae_get_reg_eaddr(ae_softc_t *sc, uint32_t *eaddr)
 	if (AE_CHECK_EADDR_VALID(eaddr) != 0) {
 		if (bootverbose)
 			device_printf(sc->dev,
-			    "Ethetnet address registers are invalid.\n");
+			    "Ethernet address registers are invalid.\n");
 		return (EINVAL);
 	}
 	return (0);

@@ -449,6 +449,8 @@ ugen20_get_config_desc_full(struct libusb20_device *pdev,
 	uint16_t len;
 	int error;
 
+	/* make sure memory is initialised */
+	memset(&cdesc, 0, sizeof(cdesc));
 	memset(&gen_desc, 0, sizeof(gen_desc));
 
 	gen_desc.ugd_data = &cdesc;
@@ -468,6 +470,10 @@ ugen20_get_config_desc_full(struct libusb20_device *pdev,
 	if (!ptr) {
 		return (LIBUSB20_ERROR_NO_MEM);
 	}
+
+	/* make sure memory is initialised */
+	memset(ptr, 0, len);
+
 	gen_desc.ugd_data = ptr;
 	gen_desc.ugd_maxlen = len;
 

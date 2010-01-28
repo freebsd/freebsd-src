@@ -574,7 +574,6 @@ int	 swapon(const char *);
 int	 swapoff(const char *);
 int	 syscall(int, ...);
 off_t	 __syscall(quad_t, ...);
-int	 ttyslot(void);
 int	 undelete(const char *);
 int	 unwhiteout(const char *);
 void	*valloc(size_t);			/* obsoleted by malloc() */

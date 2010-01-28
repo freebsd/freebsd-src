@@ -10,15 +10,22 @@ NATIVE_EMULATION=elf${_sz}btsmip_fbsd
 NATIVE_EMULATION=elf${_sz}ltsmip_fbsd
 .endif
 
-SRCS+=	e${NATIVE_EMULATION}.c 
-CLEANFILES+=	e${NATIVE_EMULATION}.c
-
+MIPS_ABIS=elf32btsmip_fbsd elf32ltsmip_fbsd elf64btsmip_fbsd elf64ltsmip_fbsd
+.for abi in ${MIPS_ABIS}
+#.if (${abi} != ${NATIVE_EMULATION})
+EMS+= ${abi}
+#.endif
+.for ext in ${ELF_SCR_EXT}
+LDSCRIPTS+= ${abi}.${ext}
+.endfor
+SRCS+=	e${abi}.c 
+CLEANFILES+=	e${abi}.c
 # nb: elf32 handles both elf32 and elf64 targets
-e${NATIVE_EMULATION}.c:	${.CURDIR}/${NATIVE_EMULATION}.sh emultempl/elf32.em \
+e${abi}.c:	${.CURDIR}/${abi}.sh emultempl/elf32.em \
     scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSERACHPATH} \
 	    ${TOOLS_PREFIX}/usr \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
-	    ${NATIVE_EMULATION} ""  no ${NATIVE_EMULATION} ${TARGET_TUPLE} \
-	    ${.CURDIR}/${NATIVE_EMULATION}.sh
-
+	    ${abi} ""  no ${abi} ${TARGET_TUPLE} \
+	    ${.CURDIR}/${abi}.sh
+.endfor

@@ -164,7 +164,6 @@ static char *vesa_revstr = NULL;
 static int int10_set_mode(int mode);
 static int vesa_bios_post(void);
 static int vesa_bios_get_mode(int mode, struct vesa_mode *vmode);
-static int vesa_bios_get_current_mode(void);
 static int vesa_bios_set_mode(int mode);
 static int vesa_bios_get_dac(void);
 static int vesa_bios_set_dac(int bits);
@@ -174,10 +173,8 @@ static int vesa_bios_save_palette2(int start, int colors, u_char *r, u_char *g,
 				   u_char *b, int bits);
 static int vesa_bios_load_palette(int start, int colors, u_char *palette,
 				  int bits);
-#ifdef notyet
 static int vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g,
 				   u_char *b, int bits);
-#endif
 #define STATE_SIZE	0
 #define STATE_SAVE	1
 #define STATE_LOAD	2
@@ -253,8 +250,8 @@ vesa_bios_post(void)
 	dc = devclass_find("vgapci");
 	if (dc != NULL && devclass_get_devices(dc, &devs, &count) == 0) {
 		for (dev = NULL, i = 0; dev == NULL && i < count; devs++, i++)
-			if (x86bios_match_device(0xc0000, *devs) &&
-			    device_get_flags(*devs) != 0) {
+			if (device_get_flags(*devs) != 0 &&
+			    x86bios_match_device(0xc0000, *devs)) {
 				dev = *devs;
 				is_pci = 1;
 				break;
@@ -318,22 +315,6 @@ vesa_bios_get_mode(int mode, struct vesa_mode *vmode)
 	x86bios_free(buf, sizeof(*vmode));
 
 	return (0);
-}
-
-static int
-vesa_bios_get_current_mode(void)
-{
-	x86regs_t regs;
-
-	x86bios_init_regs(&regs);
-	regs.R_AX = 0x4f03;
-
-	x86bios_intr(&regs, 0x10);
-
-	if (regs.R_AX != 0x004f)
-		return (-1);
-
-	return (regs.R_BX);
 }
 
 static int
@@ -415,9 +396,9 @@ vesa_bios_save_palette(int start, int colors, u_char *palette, int bits)
 
 	bits = 8 - bits;
 	for (i = 0; i < colors; ++i) {
-		palette[i*3]     = p[i*4 + 2] << bits;
-		palette[i*3 + 1] = p[i*4 + 1] << bits;
-		palette[i*3 + 2] = p[i*4] << bits;
+		palette[i * 3] = p[i * 4 + 2] << bits;
+		palette[i * 3 + 1] = p[i * 4 + 1] << bits;
+		palette[i * 3 + 2] = p[i * 4] << bits;
 	}
 	x86bios_free(p, colors * 4);
 
@@ -455,9 +436,9 @@ vesa_bios_save_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 
 	bits = 8 - bits;
 	for (i = 0; i < colors; ++i) {
-		r[i] = p[i*4 + 2] << bits;
-		g[i] = p[i*4 + 1] << bits;
-		b[i] = p[i*4] << bits;
+		r[i] = p[i * 4 + 2] << bits;
+		g[i] = p[i * 4 + 1] << bits;
+		b[i] = p[i * 4] << bits;
 	}
 	x86bios_free(p, colors * 4);
 
@@ -487,10 +468,10 @@ vesa_bios_load_palette(int start, int colors, u_char *palette, int bits)
 
 	bits = 8 - bits;
 	for (i = 0; i < colors; ++i) {
-		p[i*4]	   = palette[i*3 + 2] >> bits;
-		p[i*4 + 1] = palette[i*3 + 1] >> bits;
-		p[i*4 + 2] = palette[i*3] >> bits;
-		p[i*4 + 3] = 0;
+		p[i * 4] = palette[i * 3 + 2] >> bits;
+		p[i * 4 + 1] = palette[i * 3 + 1] >> bits;
+		p[i * 4 + 2] = palette[i * 3] >> bits;
+		p[i * 4 + 3] = 0;
 	}
 	x86bios_intr(&regs, 0x10);
 	x86bios_free(p, colors * 4);
@@ -498,7 +479,6 @@ vesa_bios_load_palette(int start, int colors, u_char *palette, int bits)
 	return (regs.R_AX != 0x004f);
 }
 
-#ifdef notyet
 static int
 vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 			int bits)
@@ -523,17 +503,16 @@ vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 
 	bits = 8 - bits;
 	for (i = 0; i < colors; ++i) {
-		p[i*4]	   = b[i] >> bits;
-		p[i*4 + 1] = g[i] >> bits;
-		p[i*4 + 2] = r[i] >> bits;
-		p[i*4 + 3] = 0;
+		p[i * 4] = b[i] >> bits;
+		p[i * 4 + 1] = g[i] >> bits;
+		p[i * 4 + 2] = r[i] >> bits;
+		p[i * 4 + 3] = 0;
 	}
 	x86bios_intr(&regs, 0x10);
 	x86bios_free(p, colors * 4);
 
 	return (regs.R_AX != 0x004f);
 }
-#endif
 
 static ssize_t
 vesa_bios_state_buf_size(void)
@@ -702,6 +681,7 @@ vesa_translate_flags(u_int16_t vflags)
 		{ V_MODECOLOR, V_INFO_COLOR, 0 },
 		{ V_MODEGRAPHICS, V_INFO_GRAPHICS, 0 },
 		{ V_MODELFB, V_INFO_LINEAR, 0 },
+		{ V_MODENONVGA, V_INFO_NONVGA, 0 },
 	};
 	int flags;
 	int i;
@@ -1275,7 +1255,8 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	 * the new mode correctly.
 	 */
 	if (VESA_MODE(adp->va_mode)) {
-		if ((*prevvidsw->get_info)(adp, mode, &info) == 0) {
+		if (!VESA_MODE(mode) &&
+		    (*prevvidsw->get_info)(adp, mode, &info) == 0) {
 			int10_set_mode(adp->va_initial_bios_mode);
 			if (adp->va_info.vi_flags & V_INFO_LINEAR)
 				vesa_unmap_buffer(adp->va_buffer,
@@ -1288,7 +1269,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	}
 
 	/* we may not need to handle this mode after all... */
-	if ((*prevvidsw->set_mode)(adp, mode) == 0)
+	if (!VESA_MODE(mode) && (*prevvidsw->set_mode)(adp, mode) == 0)
 		return (0);
 
 	/* is the new mode supported? */
@@ -1305,6 +1286,9 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 
 	if (vesa_bios_set_mode(mode | ((info.vi_flags & V_INFO_LINEAR) ? 0x4000 : 0)))
 		return (1);
+
+	if ((vesa_adp_info->v_flags & V_DAC8) != 0)
+		vesa_bios_set_dac(8);
 
 	if (adp->va_info.vi_flags & V_INFO_LINEAR)
 		vesa_unmap_buffer(adp->va_buffer,
@@ -1382,16 +1366,11 @@ static int
 vesa_save_palette(video_adapter_t *adp, u_char *palette)
 {
 	int bits;
-	int error;
 
-	if ((adp == vesa_adp) && (vesa_adp_info->v_flags & V_DAC8)
-	    && VESA_MODE(adp->va_mode)) {
+	if (adp == vesa_adp && VESA_MODE(adp->va_mode)) {
 		bits = vesa_bios_get_dac();
-		error = vesa_bios_save_palette(0, 256, palette, bits);
-		if (error == 0)
-			return (0);
-		if (bits != 6)
-			return (error);
+		if ((adp->va_info.vi_flags & V_INFO_NONVGA) != 0 || bits > 6)
+			return (vesa_bios_save_palette(0, 256, palette, bits));
 	}
 
 	return ((*prevvidsw->save_palette)(adp, palette));
@@ -1400,19 +1379,13 @@ vesa_save_palette(video_adapter_t *adp, u_char *palette)
 static int
 vesa_load_palette(video_adapter_t *adp, u_char *palette)
 {
-#ifdef notyet
 	int bits;
-	int error;
 
-	if ((adp == vesa_adp) && (vesa_adp_info->v_flags & V_DAC8) 
-	    && VESA_MODE(adp->va_mode) && ((bits = vesa_bios_set_dac(8)) > 6)) {
-		error = vesa_bios_load_palette(0, 256, palette, bits);
-		if (error == 0)
-			return (0);
-		if (vesa_bios_set_dac(6) != 6)
-			return (1);
+	if (adp == vesa_adp && VESA_MODE(adp->va_mode)) {
+		bits = vesa_bios_get_dac();
+		if ((adp->va_info.vi_flags & V_INFO_NONVGA) != 0 || bits > 6)
+			return (vesa_bios_load_palette(0, 256, palette, bits));
 	}
-#endif /* notyet */
 
 	return ((*prevvidsw->load_palette)(adp, palette));
 }
@@ -1450,7 +1423,6 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 static int
 vesa_load_state(video_adapter_t *adp, void *p)
 {
-	int flags, mode, ret;
 
 	if ((adp != vesa_adp) || (((adp_state_t *)p)->sig != V_STATE_SIG))
 		return ((*prevvidsw->load_state)(adp, p));
@@ -1458,34 +1430,12 @@ vesa_load_state(video_adapter_t *adp, void *p)
 	if (vesa_state_buf_size <= 0)
 		return (1);
 
-	/*
-	 * If the current mode is not the same, probably it was powered down.
-	 * Try BIOS POST to restore a sane state.
-	 */
-	mode = vesa_bios_get_current_mode();
-	if (mode >= 0 && (mode & 0x1ff) != adp->va_mode &&
-	    VESA_MODE(adp->va_mode))
-		(void)vesa_bios_post();
+	/* Try BIOS POST to restore a sane state. */
+	(void)vesa_bios_post();
+	(void)int10_set_mode(adp->va_initial_bios_mode);
 
-	ret = vesa_bios_save_restore(STATE_LOAD, ((adp_state_t *)p)->regs,
-	    vesa_state_buf_size);
-
-	/*
-	 * If the desired mode is not restored, force setting the mode.
-	 */
-	mode = vesa_bios_get_current_mode();
-	if (mode >= 0 && (mode & 0x1ff) != adp->va_mode &&
-	    VESA_MODE(adp->va_mode)) {
-		mode = adp->va_mode;
-		flags = adp->va_info.vi_flags;
-		if ((flags & V_INFO_GRAPHICS) != 0 &&
-		    (flags & V_INFO_LINEAR) != 0)
-			mode |= 0x4000;
-		(void)vesa_bios_set_mode(mode);
-		(void)(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
-	}
-
-	return (ret);
+	return (vesa_bios_save_restore(STATE_LOAD, ((adp_state_t *)p)->regs,
+	    vesa_state_buf_size));
 }
 
 #if 0
@@ -1580,12 +1530,12 @@ vesa_blank_display(video_adapter_t *adp, int mode)
 }
 
 static int
-vesa_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
-	  int prot)
+vesa_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
+	  int prot, vm_memattr_t *memattr)
 {
 
 #if VESA_DEBUG > 0
-	printf("vesa_mmap(): window:0x%tx, buffer:0x%tx, offset:0x%tx\n", 
+	printf("vesa_mmap(): window:0x%tx, buffer:0x%tx, offset:0x%jx\n", 
 	       adp->va_info.vi_window, adp->va_info.vi_buffer, offset);
 #endif
 
@@ -1598,7 +1548,7 @@ vesa_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
 		*paddr = adp->va_info.vi_buffer + offset;
 		return (0);
 	}
-	return ((*prevvidsw->mmap)(adp, offset, paddr, prot));
+	return ((*prevvidsw->mmap)(adp, offset, paddr, prot, memattr));
 }
 
 static int
@@ -1633,18 +1583,17 @@ get_palette(video_adapter_t *adp, int base, int count,
 	int bits;
 	int error;
 
-	if ((base < 0) || (base >= 256) || (count < 0) || (count > 256))
+	if (base < 0 || base >= 256 || count < 0 || count > 256)
 		return (1);
 	if ((base + count) > 256)
 		return (1);
-	if (!(vesa_adp_info->v_flags & V_DAC8) || !VESA_MODE(adp->va_mode))
+	if (!VESA_MODE(adp->va_mode))
 		return (1);
-
 	bits = vesa_bios_get_dac();
-	if (bits <= 6)
+	if ((adp->va_info.vi_flags & V_INFO_NONVGA) == 0 && bits <= 6)
 		return (1);
 
-	r = malloc(count*3, M_DEVBUF, M_WAITOK);
+	r = malloc(count * 3, M_DEVBUF, M_WAITOK);
 	g = r + count;
 	b = g + count;
 	error = vesa_bios_save_palette2(base, count, r, g, b, bits);
@@ -1659,7 +1608,6 @@ get_palette(video_adapter_t *adp, int base, int count,
 	}
 	free(r, M_DEVBUF);
 
-	/* if error && bits != 6 at this point, we are in trouble... XXX */
 	return (error);
 }
 
@@ -1667,21 +1615,23 @@ static int
 set_palette(video_adapter_t *adp, int base, int count,
 	    u_char *red, u_char *green, u_char *blue, u_char *trans)
 {
-	return (1);
-#ifdef notyet
 	u_char *r;
 	u_char *g;
 	u_char *b;
 	int bits;
 	int error;
 
-	if ((base < 0) || (base >= 256) || (base + count > 256))
+	if (base < 0 || base >= 256 || count < 0 || count > 256)
 		return (1);
-	if (!(vesa_adp_info->v_flags & V_DAC8) || !VESA_MODE(adp->va_mode)
-		|| ((bits = vesa_bios_set_dac(8)) <= 6))
+	if ((base + count) > 256)
+		return (1);
+	if (!VESA_MODE(adp->va_mode))
+		return (1);
+	bits = vesa_bios_get_dac();
+	if ((adp->va_info.vi_flags & V_INFO_NONVGA) == 0 && bits <= 6)
 		return (1);
 
-	r = malloc(count*3, M_DEVBUF, M_WAITOK);
+	r = malloc(count * 3, M_DEVBUF, M_WAITOK);
 	g = r + count;
 	b = g + count;
 	copyin(red, r, count);
@@ -1690,13 +1640,8 @@ set_palette(video_adapter_t *adp, int base, int count,
 
 	error = vesa_bios_load_palette2(base, count, r, g, b, bits);
 	free(r, M_DEVBUF);
-	if (error == 0)
-		return (0);
 
-	/* if the following call fails, we are in trouble... XXX */
-	vesa_bios_set_dac(6);
-	return (1);
-#endif /* notyet */
+	return (error);
 }
 
 static int

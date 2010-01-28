@@ -26,7 +26,7 @@ $ EBADF
 $ ECHILD
 10 Geen kindprocessen
 $ EDEADLK
-11 Een deadlock is vermeden
+11 Een deadlock op een bron is vermeden
 $ ENOMEM
 12 Kan geen geheugen meer verkrijgen
 $ EACCES
@@ -40,13 +40,13 @@ $ EBUSY
 $ EEXIST
 17 Bestand bestaat reeds
 $ EXDEV
-18 Verwijzing tussen bestanden op verschillende bestandssystemen
+18 Verwijzing tussen verschillende apparaten
 $ ENODEV
 19 Bewerking wordt niet ondersteund door dit apparaat
 $ ENOTDIR
 20 Dit is geen map
 $ EISDIR
-21 Dit is een map 
+21 Dit is een map
 $ EINVAL
 22 Ongeldig argument
 $ ENFILE
@@ -62,7 +62,7 @@ $ EFBIG
 $ ENOSPC
 28 Geen ruimte meer op dit apparaat
 $ ESPIPE
-29 Onuitvoerbare zoekopdracht
+29 Ongeldige zoekopdracht
 $ EROFS
 30 Van dit bestandssysteem kan alleen worden gelezen
 $ EMLINK
@@ -84,7 +84,7 @@ $ ENOTSOCK
 $ EDESTADDRREQ
 39 Een bestemmingsadres is vereist
 $ EMSGSIZE
-40 Te grote bericht
+40 Te groot bericht
 $ EPROTOTYPE
 41 Protocol past niet bij dit contactpunt
 $ ENOPROTOOPT
@@ -116,7 +116,7 @@ $ ECONNRESET
 $ ENOBUFS
 55 Geen bufferruimte meer beschikbaar
 $ EISCONN
-56 Dit contactpunt is al verbonden
+56 Contactpunt is al verbonden
 $ ENOTCONN
 57 Contactpunt is niet verbonden
 $ ESHUTDOWN
@@ -136,9 +136,9 @@ $ EHOSTDOWN
 $ EHOSTUNREACH
 65 Bestemming niet bereikbaar
 $ ENOTEMPTY
-66 Directory is niet leeg
+66 Map is niet leeg
 $ EPROCLIM
-67 Te veel taken
+67 Te veel processen
 $ EUSERS
 68 Te veel gebruikers
 $ EDQUOT
@@ -160,7 +160,7 @@ $ EPROCUNAVAIL
 $ ENOLCK
 77 Geen sloten beschikbaar
 $ ENOSYS
-78 Deze systeemfunctie is niet geimplementeerd
+78 Systeemfunctie is niet geimplementeerd
 $ EFTYPE
 79 Bestandsformaat niet van toepassing
 $ EAUTH
@@ -173,30 +173,24 @@ $ ENOMSG
 83 Geen bericht van het gewenste type
 $ EOVERFLOW
 84 Waarde te groot om te bewaren in gegevenstype
-$ EILSEQ
-85 Ongeldige bytereeks
-$ ENOTSUP
-86 Niet ondersteund
 $ ECANCELED
-87 Bewerking geannuleerd
-$ EBADMSG
-88 Verkeerd of defect bericht
-$ ENODATA
-89 Geen bericht beschikbaar
-$ ENOSR
-90 Geen STREAM-voorraad
-$ ENOSTR
-91 Dit is geen STREAM
-$ ETIME
-92 STREAM-ioctl verlopen
+85 Bewerking geannuleerd
+$ EILSEQ
+86 Ongeldige bytereeks
 $ ENOATTR
-93 Attribuut niet gevonden
+87 Attribuut niet gevonden
+$ EDOOFUS
+88 Programmeerfout
+$ EBADMSG
+89 Verkeerd of defect bericht
 $ EMULTIHOP
-94 Multihopverzoek
+90 Multihopverzoek
 $ ENOLINK
-95 Verbinding werd verstoord
+91 Verbinding werd verstoord
 $ EPROTO
-96 Protocolfout
+92 Protocolfout
+$ ENOTCAPABLE
+93 Onvoldoende mogelijkheden
 $
 $ strsignal() support catalog
 $
@@ -263,5 +257,38 @@ $ SIGUSR1
 30 Gebruikersignaal 1
 $ SIGUSR2
 31 Gebruikersignaal 2
-$ SIGPWR
-32 Stroomuitval/stroominschakeling
+$
+$ gai_strerror() support catalog
+$set 3
+$ 1 (obsolete)
+1 Adresfamilie voor hostnaam niet ondersteund
+$ EAI_AGAIN
+2 Tijdelijke fout in naamresolutie
+$ EAI_BADFLAGS
+3 Ongeldige waarde voor ai_flags
+$ EAI_FAIL
+4 Onherstelbare fout in naamresolutie
+$ EAI_FAMILY
+5 ai_familie niet ondersteund
+$ EAI_MEMORY
+6 Geheugenallocatiefout
+$ 7 (obsolete)
+7 Geen adres met hostnaam geassocieerd
+$ EAI_NONAME
+8 hostname noch servname gegeven, of onbekend
+$ EAI_SERVICE
+9 servname niet ondersteund voor ai_socktype
+$ EAI_SOCKTYPE
+10 ai_socktype niet ondersteund
+$ EAI_SYSTEM
+11 Systeemfout geretourneerd in errno
+$ EAI_BADHINTS
+12 Ongeldige waarde voor hints
+$ EAI_PROTOCOL
+13 Opgelost protocol is onbekend
+$ EAI_OVERFLOW
+14 Argumentbuffer overstroomd
+$ 0
+32766 Succes
+$ NL_MSGMAX
+32767 Onbekende fout

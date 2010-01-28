@@ -669,7 +669,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(3CH_01H, 0x3C, 0x01, IAP_F_FM | IAP_F_ALLCPUS),
     IAPDESCR(3CH_02H, 0x3C, 0x02, IAP_F_FM | IAP_F_ALLCPUS),
 
-    IAPDESCR(40H, 0x40, IAP_M_MESI, IAP_F_CC),
+    IAPDESCR(40H, 0x40, IAP_M_MESI, IAP_F_CC | IAP_F_CC2),
     IAPDESCR(40H_21H, 0x40, 0x21, IAP_F_FM | IAP_F_CA),
 
     IAPDESCR(41H, 0x41, IAP_M_MESI, IAP_F_CC | IAP_F_CC2),
@@ -1419,17 +1419,17 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 		mask = 0;
 
-		if (ie->iap_flags & IAP_M_CORE) {
+		if (ie->iap_umask & IAP_M_CORE) {
 			if ((c = (config & IAP_F_CORE)) != IAP_CORE_ALL &&
 			    c != IAP_CORE_THIS)
 				return (EINVAL);
 			mask |= IAP_F_CORE;
 		}
 
-		if (ie->iap_flags & IAP_M_AGENT)
+		if (ie->iap_umask & IAP_M_AGENT)
 			mask |= IAP_F_AGENT;
 
-		if (ie->iap_flags & IAP_M_PREFETCH) {
+		if (ie->iap_umask & IAP_M_PREFETCH) {
 
 			if ((c = (config & IAP_F_PREFETCH)) ==
 			    IAP_PREFETCH_RESERVED)
@@ -1438,16 +1438,16 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 			mask |= IAP_F_PREFETCH;
 		}
 
-		if (ie->iap_flags & IAP_M_MESI)
+		if (ie->iap_umask & IAP_M_MESI)
 			mask |= IAP_F_MESI;
 
-		if (ie->iap_flags & IAP_M_SNOOPRESPONSE)
+		if (ie->iap_umask & IAP_M_SNOOPRESPONSE)
 			mask |= IAP_F_SNOOPRESPONSE;
 
-		if (ie->iap_flags & IAP_M_SNOOPTYPE)
+		if (ie->iap_umask & IAP_M_SNOOPTYPE)
 			mask |= IAP_F_SNOOPTYPE;
 
-		if (ie->iap_flags & IAP_M_TRANSITION)
+		if (ie->iap_umask & IAP_M_TRANSITION)
 			mask |= IAP_F_TRANSITION;
 
 		/*

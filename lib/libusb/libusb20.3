@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2009
+.Dd November 18, 2009
 .Dt LIBUSB20 3
 .Os
 .Sh NAME
@@ -98,6 +98,8 @@ USB access library (libusb -lusb)
 .Fn libusb20_tr_setup_intr "struct libusb20_transfer *xfer" "void *pbuf" "uint32_t length" "uint32_t timeout"
 .Ft void
 .Fn libusb20_tr_setup_isoc "struct libusb20_transfer *xfer" "void *pbuf" "uint32_t length" "uint61_t fr_index"
+.Ft uint8_t
+.Fn libusb20_tr_bulk_intr_sync "struct libusb20_transfer *xfer" "void *pbuf" "uint32_t length" "uint32_t *pactlen" "uint32_t timeout"
 .Ft void
 .Fn libusb20_tr_start "struct libusb20_transfer *xfer"
 .Ft void
@@ -448,6 +450,29 @@ is a helper function for setting up a single frame USB INTERRUPT transfer.
 .
 .Fn libusb20_tr_setup_isoc
 is a helper function for setting up a multi frame USB ISOCHRONOUS transfer.
+.
+.Pp
+.
+.Fn libusb20_tr_bulk_intr_sync
+will perform a synchronous BULK or INTERRUPT transfer having length given by the
+.Fa length
+argument and buffer pointer given by the
+.Fa pbuf
+argument on the USB transfer given by the
+.Fa xfer
+argument.
+.
+If the
+.Fa pactlen
+argument is non-NULL the actual transfer length will be stored at the given pointer destination.
+.
+If the
+.Fa timeout
+argument is non-zero the transfer will timeout after the given value in milliseconds.
+.
+This function does not change the transfer flags, like short packet not ok.
+.
+This function returns zero on success else a LIBUSB20_TRANSFER_XXX value is returned.
 .
 .Pp
 .

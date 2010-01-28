@@ -39,6 +39,7 @@ struct mca_record_header {
 #define	MCA_RH_ERROR_CORRECTED		2
 	uint8_t		rh_flags;
 #define	MCA_RH_FLAGS_PLATFORM_ID	0x01	/* Platform_id present. */
+#define	MCA_RH_FLAGS_TIME_STAMP		0x02	/* Timestamp invalid. */
 	uint32_t	rh_length;		/* Size including header. */
 	uint8_t		rh_time[8];
 #define	MCA_RH_TIME_SEC		0

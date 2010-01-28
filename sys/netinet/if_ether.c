@@ -175,18 +175,24 @@ arptimer(void *arg)
 	CURVNET_SET(ifp->if_vnet);
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(lle);
-	if ((!callout_pending(&lle->la_timer) &&
-	    callout_active(&lle->la_timer))) {
-		(void) llentry_free(lle);
-		ARPSTAT_INC(timeouts);
-	} 
-#ifdef DIAGNOSTIC
+	if (lle->la_flags & LLE_STATIC)
+		LLE_WUNLOCK(lle);
 	else {
-		struct sockaddr *l3addr = L3_ADDR(lle);
-		log(LOG_INFO, "arptimer issue: %p, IPv4 address: \"%s\"\n", lle,
-		    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
-	}
+		if (!callout_pending(&lle->la_timer) &&
+		    callout_active(&lle->la_timer)) {
+			(void) llentry_free(lle);
+			ARPSTAT_INC(timeouts);
+		} 
+#ifdef DIAGNOSTIC
+		else {
+			struct sockaddr *l3addr = L3_ADDR(lle);
+			log(LOG_INFO, 
+			    "arptimer issue: %p, IPv4 address: \"%s\"\n", lle,
+			    inet_ntoa(
+			        ((const struct sockaddr_in *)l3addr)->sin_addr));
+		}
 #endif
+	}
 	IF_AFDATA_UNLOCK(ifp);
 	CURVNET_RESTORE();
 }
@@ -372,8 +378,8 @@ retry:
 	if (la->la_asked < V_arp_maxtries)
 		error = EWOULDBLOCK;	/* First request. */
 	else
-		error =
-			(rt0->rt_flags & RTF_GATEWAY) ? EHOSTUNREACH : EHOSTDOWN;
+		error = rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) ?
+		    EHOSTUNREACH : EHOSTDOWN;
 
 	if (renew) {
 		LLE_ADDREF(la);

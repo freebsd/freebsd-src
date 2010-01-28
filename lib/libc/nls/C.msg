@@ -257,3 +257,39 @@ $ SIGUSR1
 30 User defined signal 1
 $ SIGUSR2
 31 User defined signal 2
+$
+$ gai_strerror() support catalog
+$
+$set 3
+$ 1 (obsolete)
+1 Address family for hostname not supported
+$ EAI_AGAIN
+2 Temporary failure in name resolution
+$ EAI_BADFLAGS
+3 Invalid value for ai_flags
+$ EAI_FAIL
+4 Non-recoverable failure in name resolution
+$ EAI_FAMILY
+5 ai_family not supported
+$ EAI_MEMORY
+6 Memory allocation failure
+$ 7 (obsolete)
+7 No address associated with hostname
+$ EAI_NONAME
+8 hostname nor servname provided, or not known
+$ EAI_SERVICE
+9 servname not supported for ai_socktype
+$ EAI_SOCKTYPE
+10 ai_socktype not supported
+$ EAI_SYSTEM
+11 System error returned in errno
+$ EAI_BADHINTS
+12 Invalid value for hints
+$ EAI_PROTOCOL
+13 Resolved protocol is unknown
+$ EAI_OVERFLOW
+14 Argument buffer overflow
+$ 0
+32766 Success
+$ NL_MSGMAX
+32767 Unknown error

@@ -43,6 +43,7 @@ void		pci_add_children(device_t dev, int domain, int busno,
 void		pci_add_child(device_t bus, struct pci_devinfo *dinfo);
 void		pci_add_resources(device_t bus, device_t dev, int force,
 		    uint32_t prefetchmask);
+void		pci_delete_child(device_t dev, device_t child);
 void		pci_driver_added(device_t dev, driver_t *driver);
 int		pci_print_child(device_t dev, device_t child);
 void		pci_probe_nomatch(device_t dev, device_t child);
@@ -82,9 +83,9 @@ int		pci_msix_count_method(device_t dev, device_t child);
 struct resource	*pci_alloc_resource(device_t dev, device_t child, 
 		    int type, int *rid, u_long start, u_long end, u_long count,
 		    u_int flags);
-int		pci_release_resource(device_t dev, device_t child, int type,
-		    int rid, struct resource *r);
 int		pci_activate_resource(device_t dev, device_t child, int type,
+		    int rid, struct resource *r);
+int		pci_deactivate_resource(device_t dev, device_t child, int type,
 		    int rid, struct resource *r);
 void		pci_delete_resource(device_t dev, device_t child, 
 		    int type, int rid);

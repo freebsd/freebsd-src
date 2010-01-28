@@ -110,7 +110,8 @@ static periph_init_t probe_periph_init;
 static struct periph_driver probe_driver =
 {
 	probe_periph_init, "probe",
-	TAILQ_HEAD_INITIALIZER(probe_driver.units)
+	TAILQ_HEAD_INITIALIZER(probe_driver.units), /* generation */ 0,
+	CAM_PERIPH_DRV_EARLY
 };
 
 PERIPHDRIVER_DECLARE(probe, probe_driver);
@@ -1075,8 +1076,10 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 				else
 					PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM_0);
 
-				path->device->flags &= ~CAM_DEV_UNCONFIGURED;
-
+				if (path->device->flags & CAM_DEV_UNCONFIGURED) {
+					path->device->flags &= ~CAM_DEV_UNCONFIGURED;
+					xpt_acquire_device(path->device);
+				}
 				xpt_release_ccb(done_ccb);
 				xpt_schedule(periph, priority);
 				return;
@@ -1335,8 +1338,12 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
 			    ("Leave Domain Validation\n"));
 		}
+		if (path->device->flags & CAM_DEV_UNCONFIGURED) {
+			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
+			xpt_acquire_device(path->device);
+		}
 		path->device->flags &=
-		    ~(CAM_DEV_UNCONFIGURED|CAM_DEV_IN_DV|CAM_DEV_DV_HIT_BOTTOM);
+		    ~(CAM_DEV_IN_DV|CAM_DEV_DV_HIT_BOTTOM);
 		if ((softc->flags & PROBE_NO_ANNOUNCE) == 0) {
 			/* Inform the XPT that a new device has been found */
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
@@ -1386,8 +1393,12 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
 			    ("Leave Domain Validation Successfully\n"));
 		}
+		if (path->device->flags & CAM_DEV_UNCONFIGURED) {
+			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
+			xpt_acquire_device(path->device);
+		}
 		path->device->flags &=
-		    ~(CAM_DEV_UNCONFIGURED|CAM_DEV_IN_DV|CAM_DEV_DV_HIT_BOTTOM);
+		    ~(CAM_DEV_IN_DV|CAM_DEV_DV_HIT_BOTTOM);
 		if ((softc->flags & PROBE_NO_ANNOUNCE) == 0) {
 			/* Inform the XPT that a new device has been found */
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
@@ -2263,24 +2274,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 				device->tag_delay_count = CAM_TAG_DELAY_COUNT;
 				device->flags |= CAM_DEV_TAG_AFTER_COUNT;
 			} else {
-				struct ccb_relsim crs;
-
-				xpt_freeze_devq(cts->ccb_h.path, /*count*/1);
-		  		device->inq_flags &= ~SID_CmdQue;
-				xpt_dev_ccbq_resize(cts->ccb_h.path,
-						    sim->max_dev_openings);
-				device->flags &= ~CAM_DEV_TAG_AFTER_COUNT;
-				device->tag_delay_count = 0;
-
-				xpt_setup_ccb(&crs.ccb_h, cts->ccb_h.path,
-				    CAM_PRIORITY_NORMAL);
-				crs.ccb_h.func_code = XPT_REL_SIMQ;
-				crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
-				crs.openings
-				    = crs.release_timeout
-				    = crs.qfrozen_cnt
-				    = 0;
-				xpt_action((union ccb *)&crs);
+				xpt_stop_tags(cts->ccb_h.path);
 			}
 		}
 	}
@@ -2374,8 +2368,10 @@ scsi_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 				     CAM_EXPECT_INQ_CHANGE, NULL);
 		}
 		xpt_release_path(&newpath);
-	} else if (async_code == AC_LOST_DEVICE) {
+	} else if (async_code == AC_LOST_DEVICE &&
+	    (device->flags & CAM_DEV_UNCONFIGURED) == 0) {
 		device->flags |= CAM_DEV_UNCONFIGURED;
+		xpt_release_device(device);
 	} else if (async_code == AC_TRANSFER_NEG) {
 		struct ccb_trans_settings *settings;
 

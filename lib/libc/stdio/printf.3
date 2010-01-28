@@ -32,7 +32,7 @@
 .\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2009
+.Dd December 2, 2009
 .Dt PRINTF 3
 .Os
 .Sh NAME
@@ -55,7 +55,7 @@
 .Ft int
 .Fn asprintf "char **ret" "const char *format" ...
 .Ft int
-.Fn dprintf "int" "const char * restrict format" ...
+.Fn dprintf "int fd" "const char * restrict format" ...
 .In stdarg.h
 .Ft int
 .Fn vprintf "const char * restrict format" "va_list ap"

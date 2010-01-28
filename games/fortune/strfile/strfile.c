@@ -146,7 +146,8 @@ static void	usage(void);
  *	CHUNKSIZE blocks; if the latter, we just write each pointer,
  *	and then seek back to the beginning to write in the table.
  */
-int main(int ac, char *av[])
+int
+main(int ac, char *av[])
 {
 	char		*sp, dc;
 	FILE		*inf, *outf;
@@ -264,9 +265,8 @@ int main(int ac, char *av[])
 /*
  *	This routine evaluates arguments from the command line
  */
-void getargs(argc, argv)
-int	argc;
-char	**argv;
+void
+getargs(int argc, char **argv)
 {
 	int	ch;
 
@@ -318,7 +318,8 @@ char	**argv;
 	}
 }
 
-void usage()
+void
+usage(void)
 {
 	(void) fprintf(stderr,
 	    "strfile [-Ciorsx] [-c char] source_file [output_file]\n");
@@ -329,9 +330,8 @@ void usage()
  * add_offset:
  *	Add an offset to the list, or write it out, as appropriate.
  */
-void add_offset(fp, off)
-FILE	*fp;
-off_t	off;
+void
+add_offset(FILE *fp, off_t off)
 {
 	off_t beoff;
 
@@ -349,7 +349,8 @@ off_t	off;
  * do_order:
  *	Order the strings alphabetically (possibly ignoring case).
  */
-void do_order()
+void
+do_order(void)
 {
 	uint32_t i;
 	off_t	*lp;
@@ -368,8 +369,8 @@ void do_order()
 	Tbl.str_flags |= STR_ORDERED;
 }
 
-static int stable_collate_range_cmp(c1, c2)
-	int c1, c2;
+static int
+stable_collate_range_cmp(int c1, int c2)
 {
 	static char s1[2], s2[2];
 	int ret;
@@ -385,8 +386,8 @@ static int stable_collate_range_cmp(c1, c2)
  * cmp_str:
  *	Compare two strings in the file
  */
-int cmp_str(s1, s2)
-const void	*s1, *s2;
+int
+cmp_str(const void *s1, const void *s2)
 {
 	const STR	*p1, *p2;
 	int	c1, c2;
@@ -441,7 +442,8 @@ const void	*s1, *s2;
  *	not to randomize across delimiter boundaries.  All
  *	randomization is done within each block.
  */
-void randomize()
+void
+randomize(void)
 {
 	uint32_t cnt, i;
 	off_t	tmp;

@@ -552,6 +552,12 @@ dirloop:
 	else
 		cnp->cn_flags &= ~ISLASTCN;
 
+	if ((cnp->cn_flags & ISLASTCN) != 0 &&
+	    cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.' &&
+	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
+		error = EINVAL;
+		goto bad;
+	}
 
 	/*
 	 * Check for degenerate name (e.g. / or "")

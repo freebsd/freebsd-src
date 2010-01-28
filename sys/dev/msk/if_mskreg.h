@@ -144,6 +144,7 @@
 #define DEVICEID_MRVL_436A	0x436A
 #define DEVICEID_MRVL_436B	0x436B
 #define DEVICEID_MRVL_436C	0x436C
+#define DEVICEID_MRVL_4380	0x4380
 
 /*
  * D-Link gigabit ethernet device ID
@@ -891,6 +892,8 @@
 #define CHIP_ID_YUKON_EC	0xb6 /* Chip ID for YUKON-2 EC */
 #define CHIP_ID_YUKON_FE	0xb7 /* Chip ID for YUKON-2 FE */
 #define CHIP_ID_YUKON_FE_P	0xb8 /* Chip ID for YUKON-2 FE+ */
+#define CHIP_ID_YUKON_SUPR	0xb9 /* Chip ID for YUKON-2 Supreme */
+#define CHIP_ID_YUKON_UL_2	0xba /* Chip ID for YUKON-2 Ultra 2 */
 
 #define	CHIP_REV_YU_XL_A0	0 /* Chip Rev. for Yukon-2 A0 */
 #define	CHIP_REV_YU_XL_A1	1 /* Chip Rev. for Yukon-2 A1 */

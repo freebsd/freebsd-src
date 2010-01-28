@@ -404,7 +404,7 @@ ipv4_flow_lookup_hash_internal(struct mbuf *m, struct route *ro,
 		if (*flags & FL_HASH_PORTS)
 			goto noop;
 		/* no port - hence not a protocol we care about */
-		break;;
+		break;
 	
 	}
 	*protop = proto;

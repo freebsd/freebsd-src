@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <sys/watchdog.h>
 
+#include <isa/isavar.h>
 #include <dev/pci/pcivar.h>
 
 #include <dev/ichwd/ichwd.h>
@@ -92,6 +93,7 @@ static struct ichwd_device ichwd_devices[] = {
 	{ DEVICEID_ICH7DH,   "Intel ICH7DH watchdog timer",	7 },
 	{ DEVICEID_ICH7M,    "Intel ICH7M watchdog timer",	7 },
 	{ DEVICEID_ICH7MDH,  "Intel ICH7MDH watchdog timer",	7 },
+	{ DEVICEID_NM10,     "Intel NM10 watchdog timer",	7 },
 	{ DEVICEID_ICH8,     "Intel ICH8 watchdog timer",	8 },
 	{ DEVICEID_ICH8DH,   "Intel ICH8DH watchdog timer",	8 },
 	{ DEVICEID_ICH8DO,   "Intel ICH8DO watchdog timer",	8 },
@@ -108,6 +110,7 @@ static struct ichwd_device ichwd_devices[] = {
 	{ DEVICEID_ICH10D,   "Intel ICH10D watchdog timer",	10 },
 	{ DEVICEID_ICH10DO,  "Intel ICH10DO watchdog timer",	10 },
 	{ DEVICEID_ICH10R,   "Intel ICH10R watchdog timer",	10 },
+	{ DEVICEID_H55,      "Intel H55 watchdog timer",	10 },
 	{ 0, NULL, 0 },
 };
 
@@ -393,7 +396,9 @@ static int
 ichwd_probe(device_t dev)
 {
 
-	(void)dev;
+	/* Do not claim some ISA PnP device by accident. */
+	if (isa_get_logicalid(dev) != 0)
+		return (ENXIO);
 	return (0);
 }
 

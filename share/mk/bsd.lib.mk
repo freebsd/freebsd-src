@@ -67,7 +67,7 @@ PO_FLAG=-pg
 .endif
 
 .c.po:
-	${CC} ${PO_FLAG} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${PO_FLAG} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 .if defined(CTFCONVERT)
 	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
 .endif
@@ -79,7 +79,7 @@ PO_FLAG=-pg
 .endif
 
 .cc.po .C.po .cpp.po .cxx.po:
-	${CXX} ${PO_FLAG} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CXX} ${PO_FLAG} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.So .C.So .cpp.So .cxx.So:
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -115,7 +115,7 @@ PO_FLAG=-pg
 .endif
 
 .asm.po:
-	${CC} -x assembler-with-cpp -DPROF ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} -x assembler-with-cpp -DPROF ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 .if defined(CTFCONVERT)
 	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
 .endif
@@ -128,7 +128,7 @@ PO_FLAG=-pg
 .endif
 
 .S.po:
-	${CC} -DPROF ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} -DPROF ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 .if defined(CTFCONVERT)
 	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
 .endif

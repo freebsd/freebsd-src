@@ -47,16 +47,15 @@ CWARNFLAGS	+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch\
 .  endif
 # BDECFLAGS
 .  if ${WARNS} >= 6
-CWARNFLAGS	+=	-Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
+CWARNFLAGS	+=	-Wchar-subscripts -Winline -Wnested-externs\
+			-Wredundant-decls -Wold-style-definition
 .  endif
 .  if ${WARNS} >= 2 && ${WARNS} <= 4
 # XXX Delete -Wuninitialized by default for now -- the compiler doesn't
 # XXX always get it right.
 CWARNFLAGS	+=	-Wno-uninitialized
 .  endif
-.  if !defined(WITH_GCC3)
 CWARNFLAGS	+=	-Wno-pointer-sign
-.  endif
 . endif
 
 . if defined(FORMAT_AUDIT)

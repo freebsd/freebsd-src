@@ -14,6 +14,8 @@ SRCS+=		named-checkzone.c check-tool.c
 
 CFLAGS+=	-I${LIB_BIND_DIR}
 
+WARNS?=		3
+
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 

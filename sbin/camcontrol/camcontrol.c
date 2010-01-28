@@ -74,7 +74,10 @@ typedef enum {
 	CAM_CMD_DETACH		= 0x00000010,
 	CAM_CMD_REPORTLUNS	= 0x00000011,
 	CAM_CMD_READCAP		= 0x00000012,
-	CAM_CMD_IDENTIFY	= 0x00000013
+	CAM_CMD_IDENTIFY	= 0x00000013,
+	CAM_CMD_IDLE		= 0x00000014,
+	CAM_CMD_STANDBY		= 0x00000015,
+	CAM_CMD_SLEEP		= 0x00000016
 } cam_cmdmask;
 
 typedef enum {
@@ -122,7 +125,7 @@ struct camcontrol_opts {
 #ifndef MINIMALISTIC
 static const char scsicmd_opts[] = "a:c:i:o:r";
 static const char readdefect_opts[] = "f:GP";
-static const char negotiate_opts[] = "acD:O:qR:T:UW:";
+static const char negotiate_opts[] = "acD:M:O:qR:T:UW:";
 #endif
 
 struct camcontrol_opts option_table[] = {
@@ -154,6 +157,9 @@ struct camcontrol_opts option_table[] = {
 	{"rate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
 	{"debug", CAM_CMD_DEBUG, CAM_ARG_NONE, "IPTSXc"},
 	{"format", CAM_CMD_FORMAT, CAM_ARG_NONE, "qrwy"},
+	{"idle", CAM_CMD_IDLE, CAM_ARG_NONE, "t:"},
+	{"standby", CAM_CMD_STANDBY, CAM_ARG_NONE, "t:"},
+	{"sleep", CAM_CMD_SLEEP, CAM_ARG_NONE, ""},
 #endif /* MINIMALISTIC */
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -186,7 +192,7 @@ static int scsidoinquiry(struct cam_device *device, int argc, char **argv,
 			 char *combinedopt, int retry_count, int timeout);
 static int scsiinquiry(struct cam_device *device, int retry_count, int timeout);
 static int scsiserial(struct cam_device *device, int retry_count, int timeout);
-static int scsixferrate(struct cam_device *device);
+static int camxferrate(struct cam_device *device);
 #endif /* MINIMALISTIC */
 static int parse_btl(char *tstr, int *bus, int *target, int *lun,
 		     cam_argmask *arglst);
@@ -217,7 +223,15 @@ static int scsireportluns(struct cam_device *device, int argc, char **argv,
 			  char *combinedopt, int retry_count, int timeout);
 static int scsireadcapacity(struct cam_device *device, int argc, char **argv,
 			    char *combinedopt, int retry_count, int timeout);
+static int atapm(struct cam_device *device, int argc, char **argv,
+			    char *combinedopt, int retry_count, int timeout);
 #endif /* MINIMALISTIC */
+#ifndef min
+#define min(a,b) (((a)<(b))?(a):(b))
+#endif
+#ifndef max
+#define max(a,b) (((a)>(b))?(a):(b))
+#endif
 
 camcontrol_optret
 getoption(char *arg, cam_cmdmask *cmdnum, cam_argmask *argnum, 
@@ -663,7 +677,7 @@ scsidoinquiry(struct cam_device *device, int argc, char **argv,
 		return(error);
 
 	if (arglist & CAM_ARG_GET_XFERRATE)
-		error = scsixferrate(device);
+		error = camxferrate(device);
 
 	return(error);
 }
@@ -873,13 +887,17 @@ scsiserial(struct cam_device *device, int retry_count, int timeout)
 }
 
 static int
-scsixferrate(struct cam_device *device)
+camxferrate(struct cam_device *device)
 {
+	struct ccb_pathinq cpi;
 	u_int32_t freq = 0;
 	u_int32_t speed = 0;
 	union ccb *ccb;
 	u_int mb;
 	int retval = 0;
+
+	if ((retval = get_cpi(device, &cpi)) != 0)
+		return (1);
 
 	ccb = cam_getccb(device);
 
@@ -913,6 +931,8 @@ scsixferrate(struct cam_device *device)
 
 	}
 
+	speed = cpi.base_transfer_speed;
+	freq = 0;
 	if (ccb->cts.transport == XPORT_SPI) {
 		struct ccb_trans_settings_spi *spi =
 		    &ccb->cts.xport_specific.spi;
@@ -920,35 +940,54 @@ scsixferrate(struct cam_device *device)
 		if ((spi->valid & CTS_SPI_VALID_SYNC_RATE) != 0) {
 			freq = scsi_calc_syncsrate(spi->sync_period);
 			speed = freq;
-		} else {
-			struct ccb_pathinq cpi;
-
-			retval = get_cpi(device, &cpi);
-			if (retval == 0) {
-				speed = cpi.base_transfer_speed;
-				freq = 0;
-			}
 		}
-
-		fprintf(stdout, "%s%d: ", device->device_name,
-			device->dev_unit_num);
-
 		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0) {
 			speed *= (0x01 << spi->bus_width);
 		}
+	} else if (ccb->cts.transport == XPORT_FC) {
+		struct ccb_trans_settings_fc *fc =
+		    &ccb->cts.xport_specific.fc;
 
-		mb = speed / 1000;
+		if (fc->valid & CTS_FC_VALID_SPEED)
+			speed = fc->bitrate;
+	} else if (ccb->cts.transport == XPORT_SAS) {
+		struct ccb_trans_settings_sas *sas =
+		    &ccb->cts.xport_specific.sas;
 
-		if (mb > 0) 
-			fprintf(stdout, "%d.%03dMB/s transfers ",
-				mb, speed % 1000);
-		else
-			fprintf(stdout, "%dKB/s transfers ",
-				speed);
+		if (sas->valid & CTS_SAS_VALID_SPEED)
+			speed = sas->bitrate;
+	} else if (ccb->cts.transport == XPORT_ATA) {
+		struct ccb_trans_settings_ata *ata =
+		    &ccb->cts.xport_specific.ata;
+
+		if (ata->valid & CTS_ATA_VALID_MODE)
+			speed = ata_mode2speed(ata->mode);
+	} else if (ccb->cts.transport == XPORT_SATA) {
+		struct	ccb_trans_settings_sata *sata =
+		    &ccb->cts.xport_specific.sata;
+
+		if (sata->valid & CTS_SATA_VALID_REVISION)
+			speed = ata_revision2speed(sata->revision);
+	}
+
+	mb = speed / 1000;
+	if (mb > 0) {
+		fprintf(stdout, "%s%d: %d.%03dMB/s transfers",
+			device->device_name, device->dev_unit_num,
+			mb, speed % 1000);
+	} else {
+		fprintf(stdout, "%s%d: %dKB/s transfers",
+			device->device_name, device->dev_unit_num,
+			speed);
+	}
+
+	if (ccb->cts.transport == XPORT_SPI) {
+		struct ccb_trans_settings_spi *spi =
+		    &ccb->cts.xport_specific.spi;
 
 		if (((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) != 0)
 		 && (spi->sync_offset != 0))
-			fprintf(stdout, "(%d.%03dMHz, offset %d", freq / 1000,
+			fprintf(stdout, " (%d.%03dMHz, offset %d", freq / 1000,
 				freq % 1000, spi->sync_offset);
 
 		if (((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0)
@@ -964,25 +1003,28 @@ scsixferrate(struct cam_device *device)
 		 && (spi->sync_offset != 0)) {
 			fprintf(stdout, ")");
 		}
-	} else {
-		struct ccb_pathinq cpi;
+	} else if (ccb->cts.transport == XPORT_ATA) {
+		struct ccb_trans_settings_ata *ata =
+		    &ccb->cts.xport_specific.ata;
 
-		retval = get_cpi(device, &cpi);
+		printf(" (");
+		if (ata->valid & CTS_ATA_VALID_MODE)
+			printf("%s, ", ata_mode2string(ata->mode));
+		if (ata->valid & CTS_ATA_VALID_BYTECOUNT)
+			printf("PIO size %dbytes", ata->bytecount);
+		printf(")");
+	} else if (ccb->cts.transport == XPORT_SATA) {
+		struct ccb_trans_settings_sata *sata =
+		    &ccb->cts.xport_specific.sata;
 
-		if (retval != 0)
-			goto xferrate_bailout;
-
-		speed = cpi.base_transfer_speed;
-		freq = 0;
-
-		mb = speed / 1000;
-
-		if (mb > 0) 
-			fprintf(stdout, "%d.%03dMB/s transfers ",
-				mb, speed % 1000);
-		else
-			fprintf(stdout, "%dKB/s transfers ",
-				speed);
+		printf(" (");
+		if (sata->valid & CTS_SATA_VALID_REVISION)
+			printf("SATA %d.x, ", sata->revision);
+		if (sata->valid & CTS_SATA_VALID_MODE)
+			printf("%s, ", ata_mode2string(sata->mode));
+		if (sata->valid & CTS_SATA_VALID_BYTECOUNT)
+			printf("PIO size %dbytes", sata->bytecount);
+		printf(")");
 	}
 
 	if (ccb->cts.protocol == PROTO_SCSI) {
@@ -1045,6 +1087,10 @@ atacapprint(struct ata_params *parm)
 	printf("cylinders             %d\n", parm->cylinders);
 	printf("heads                 %d\n", parm->heads);
 	printf("sectors/track         %d\n", parm->sectors);
+	printf("sector size           logical %u, physical %lu, offset %lu\n",
+	    ata_logical_sector_size(parm),
+	    (unsigned long)ata_physical_sector_size(parm),
+	    (unsigned long)ata_logical_sector_offset(parm));
 
 	if (parm->config == ATA_PROTO_CFA ||
 	    (parm->support.command2 & ATA_SUPPORT_CFA))
@@ -1120,8 +1166,6 @@ atacapprint(struct ata_params *parm)
 	}
 	printf("\n");
 
-	printf("overlap%ssupported\n",
-		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? " " : " not ");
 	if (parm->media_rotation_rate == 1) {
 		printf("media RPM             non-rotating\n");
 	} else if (parm->media_rotation_rate >= 0x0401 &&
@@ -1141,20 +1185,26 @@ atacapprint(struct ata_params *parm)
 	printf("flush cache                    %s	%s\n",
 		parm->support.command2 & ATA_SUPPORT_FLUSHCACHE ? "yes" : "no",
 		parm->enabled.command2 & ATA_SUPPORT_FLUSHCACHE ? "yes" : "no");
-	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
-		printf("Native Command Queuing (NCQ)   %s	"
-			"	%d/0x%02X\n",
-			parm->satacapabilities & ATA_SUPPORT_NCQ ?
-				"yes" : "no",
-			(parm->satacapabilities & ATA_SUPPORT_NCQ) ?
-				ATA_QUEUE_LEN(parm->queue) : 0,
-			(parm->satacapabilities & ATA_SUPPORT_NCQ) ?
-				ATA_QUEUE_LEN(parm->queue) : 0);
-	}
-	printf("Tagged Command Queuing (TCQ)   %s	%s	%d/0x%02X\n",
+	printf("overlap                        %s\n",
+		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? "yes" : "no");
+	printf("Tagged Command Queuing (TCQ)   %s	%s",
 		parm->support.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
-		parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
-		ATA_QUEUE_LEN(parm->queue), ATA_QUEUE_LEN(parm->queue));
+		parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no");
+		if (parm->support.command2 & ATA_SUPPORT_QUEUED) {
+			printf("	%d tags\n",
+			    ATA_QUEUE_LEN(parm->queue) + 1);
+		} else
+			printf("\n");
+	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
+		printf("Native Command Queuing (NCQ)   %s	",
+			parm->satacapabilities & ATA_SUPPORT_NCQ ?
+				"yes" : "no");
+		if (parm->satacapabilities & ATA_SUPPORT_NCQ) {
+			printf("	%d tags\n",
+			    ATA_QUEUE_LEN(parm->queue) + 1);
+		} else
+			printf("\n");
+	}
 	printf("SMART                          %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_SMART ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_SMART ? "yes" : "no");
@@ -1195,6 +1245,8 @@ atacapprint(struct ata_params *parm)
 	printf("free-fall                      %s	%s\n",
 		parm->support2 & ATA_SUPPORT_FREEFALL ? "yes" : "no",
 		parm->enabled2 & ATA_SUPPORT_FREEFALL ? "yes" : "no");
+	printf("data set management (TRIM)     %s\n",
+		parm->support_dsm & ATA_SUPPORT_DSM_TRIM ? "yes" : "no");
 }
 
 
@@ -1281,8 +1333,18 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 
 	for (i = 0; i < sizeof(struct ata_params) / 2; i++)
 		ptr[i] = le16toh(ptr[i]);
+	if (arglist & CAM_ARG_VERBOSE) {
+		fprintf(stdout, "%s%d: Raw identify data:\n",
+		    device->device_name, device->dev_unit_num);
+		for (i = 0; i < sizeof(struct ata_params) / 2; i++) {
+			if ((i % 8) == 0)
+			    fprintf(stdout, " %3d: ", i);
+			fprintf(stdout, "%04x ", (uint16_t)ptr[i]);
+			if ((i % 8) == 7)
+			    fprintf(stdout, "\n");
+		}
+	}
 	ident_buf = (struct ata_params *)ptr;
-
 	if (strncmp(ident_buf->model, "FX", 2) &&
 	    strncmp(ident_buf->model, "NEC", 3) &&
 	    strncmp(ident_buf->model, "Pioneer", 7) &&
@@ -1305,6 +1367,7 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 	fprintf(stdout, "%s%d: ", device->device_name,
 		device->dev_unit_num);
 	ata_print_ident(ident_buf);
+	camxferrate(device);
 	atacapprint(ident_buf);
 
 	free(ident_buf);
@@ -2239,6 +2302,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 				error = 1;
 				goto scsicmd_bailout;
 			}
+			bzero(data_ptr, data_bytes);
 			/*
 			 * If the user supplied "-" instead of a format, he
 			 * wants the data to be read from stdin.
@@ -2728,7 +2792,44 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 				"enabled" : "disabled");
 		}
 	}
+	if (cts->transport == XPORT_ATA) {
+		struct ccb_trans_settings_ata *ata =
+		    &cts->xport_specific.ata;
 
+		if ((ata->valid & CTS_ATA_VALID_MODE) != 0) {
+			fprintf(stdout, "%sATA mode: %s\n", pathstr,
+				ata_mode2string(ata->mode));
+		}
+		if ((ata->valid & CTS_ATA_VALID_BYTECOUNT) != 0) {
+			fprintf(stdout, "%sPIO transaction length: %d\n",
+				pathstr, ata->bytecount);
+		}
+	}
+	if (cts->transport == XPORT_SATA) {
+		struct ccb_trans_settings_sata *sata =
+		    &cts->xport_specific.sata;
+
+		if ((sata->valid & CTS_SATA_VALID_REVISION) != 0) {
+			fprintf(stdout, "%sSATA revision: %d.x\n", pathstr,
+				sata->revision);
+		}
+		if ((sata->valid & CTS_SATA_VALID_MODE) != 0) {
+			fprintf(stdout, "%sATA mode: %s\n", pathstr,
+				ata_mode2string(sata->mode));
+		}
+		if ((sata->valid & CTS_SATA_VALID_BYTECOUNT) != 0) {
+			fprintf(stdout, "%sPIO transaction length: %d\n",
+				pathstr, sata->bytecount);
+		}
+		if ((sata->valid & CTS_SATA_VALID_PM) != 0) {
+			fprintf(stdout, "%sPMP presence: %d\n", pathstr,
+				sata->pm_present);
+		}
+		if ((sata->valid & CTS_SATA_VALID_TAGS) != 0) {
+			fprintf(stdout, "%sNumber of tags: %d\n", pathstr,
+				sata->tags);
+		}
+	}
 	if (cts->protocol == PROTO_SCSI) {
 		struct ccb_trans_settings_scsi *scsi=
 		    &cts->proto_specific.scsi;
@@ -3028,6 +3129,7 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 	int user_settings = 0;
 	int retval = 0;
 	int disc_enable = -1, tag_enable = -1;
+	int mode = -1;
 	int offset = -1;
 	double syncrate = -1;
 	int bus_width = -1;
@@ -3036,12 +3138,10 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 	struct ccb_pathinq cpi;
 
 	ccb = cam_getccb(device);
-
 	if (ccb == NULL) {
 		warnx("ratecontrol: error allocating ccb");
 		return(1);
 	}
-
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c){
 		case 'a':
@@ -3062,6 +3162,15 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 			}
 			change_settings = 1;
 			break;
+		case 'M':
+			mode = ata_string2mode(optarg);
+			if (mode < 0) {
+				warnx("unknown mode '%s'", optarg);
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+			change_settings = 1;
+			break;
 		case 'O':
 			offset = strtol(optarg, NULL, 0);
 			if (offset < 0) {
@@ -3076,7 +3185,6 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 			break;
 		case 'R':
 			syncrate = atof(optarg);
-
 			if (syncrate < 0) {
 				warnx("sync rate %f is < 0", syncrate);
 				retval = 1;
@@ -3112,17 +3220,14 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 			break;
 		}
 	}
-
 	bzero(&(&ccb->ccb_h)[1],
 	      sizeof(struct ccb_pathinq) - sizeof(struct ccb_hdr));
-
 	/*
 	 * Grab path inquiry information, so we can determine whether
 	 * or not the initiator is capable of the things that the user
 	 * requests.
 	 */
 	ccb->ccb_h.func_code = XPT_PATH_INQ;
-
 	if (cam_send_ccb(device, ccb) < 0) {
 		perror("error sending XPT_PATH_INQ CCB");
 		if (arglist & CAM_ARG_VERBOSE) {
@@ -3132,7 +3237,6 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 		retval = 1;
 		goto ratecontrol_bailout;
 	}
-
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		warnx("XPT_PATH_INQ CCB failed");
 		if (arglist & CAM_ARG_VERBOSE) {
@@ -3142,17 +3246,14 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 		retval = 1;
 		goto ratecontrol_bailout;
 	}
-
 	bcopy(&ccb->cpi, &cpi, sizeof(struct ccb_pathinq));
-
 	bzero(&(&ccb->ccb_h)[1],
 	      sizeof(struct ccb_trans_settings) - sizeof(struct ccb_hdr));
-
-	if (quiet == 0)
-		fprintf(stdout, "Current Parameters:\n");
-
+	if (quiet == 0) {
+		fprintf(stdout, "%s parameters:\n",
+		    user_settings ? "User" : "Current");
+	}
 	retval = get_print_cts(device, user_settings, quiet, &ccb->cts);
-
 	if (retval != 0)
 		goto ratecontrol_bailout;
 
@@ -3162,16 +3263,20 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 	if (change_settings) {
 		int didsettings = 0;
 		struct ccb_trans_settings_spi *spi = NULL;
+		struct ccb_trans_settings_ata *ata = NULL;
+		struct ccb_trans_settings_sata *sata = NULL;
 		struct ccb_trans_settings_scsi *scsi = NULL;
 
-		if (ccb->cts.transport == XPORT_SPI) {
+		if (ccb->cts.transport == XPORT_SPI)
 			spi = &ccb->cts.xport_specific.spi;
-			spi->valid = 0;
-		}
-		if (ccb->cts.protocol == PROTO_SCSI) {
+		if (ccb->cts.transport == XPORT_ATA)
+			ata = &ccb->cts.xport_specific.ata;
+		if (ccb->cts.transport == XPORT_SATA)
+			sata = &ccb->cts.xport_specific.sata;
+		if (ccb->cts.protocol == PROTO_SCSI)
 			scsi = &ccb->cts.proto_specific.scsi;
-			scsi->valid = 0;
-		}
+		ccb->cts.xport_specific.valid = 0;
+		ccb->cts.proto_specific.valid = 0;
 		if (spi && disc_enable != -1) {
 			spi->valid |= CTS_SPI_VALID_DISC;
 			if (disc_enable == 0)
@@ -3179,7 +3284,6 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 			else
 				spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
 		}
-
 		if (scsi && tag_enable != -1) {
 			if ((cpi.hba_inquiry & PI_TAG_ABLE) == 0) {
 				warnx("HBA does not support tagged queueing, "
@@ -3187,21 +3291,16 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				retval = 1;
 				goto ratecontrol_bailout;
 			}
-
 			scsi->valid |= CTS_SCSI_VALID_TQ;
-
 			if (tag_enable == 0)
 				scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
 			else
 				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
 			didsettings++;
 		}
-
 		if (spi && offset != -1) {
 			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
-				warnx("HBA at %s%d is not cable of changing "
-				      "offset", cpi.dev_name,
-				      cpi.unit_number);
+				warnx("HBA is not capable of changing offset");
 				retval = 1;
 				goto ratecontrol_bailout;
 			}
@@ -3209,28 +3308,23 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 			spi->sync_offset = offset;
 			didsettings++;
 		}
-
 		if (spi && syncrate != -1) {
 			int prelim_sync_period;
 			u_int freq;
 
 			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
-				warnx("HBA at %s%d is not cable of changing "
-				      "transfer rates", cpi.dev_name,
-				      cpi.unit_number);
+				warnx("HBA is not capable of changing "
+				      "transfer rates");
 				retval = 1;
 				goto ratecontrol_bailout;
 			}
-
 			spi->valid |= CTS_SPI_VALID_SYNC_RATE;
-
 			/*
 			 * The sync rate the user gives us is in MHz.
 			 * We need to translate it into KHz for this
 			 * calculation.
 			 */
 			syncrate *= 1000;
-
 			/*
 			 * Next, we calculate a "preliminary" sync period
 			 * in tenths of a nanosecond.
@@ -3239,14 +3333,43 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				prelim_sync_period = 0;
 			else
 				prelim_sync_period = 10000000 / syncrate;
-
 			spi->sync_period =
 				scsi_calc_syncparam(prelim_sync_period);
-
 			freq = scsi_calc_syncsrate(spi->sync_period);
 			didsettings++;
 		}
-
+		if (sata && syncrate != -1) {
+			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
+				warnx("HBA is not capable of changing "
+				      "transfer rates");
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+			sata->revision = ata_speed2revision(syncrate * 100);
+			if (sata->revision < 0) {
+				warnx("Invalid rate %f", syncrate);
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+			sata->valid |= CTS_SATA_VALID_REVISION;
+			didsettings++;
+		}
+		if ((ata || sata) && mode != -1) {
+			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
+				warnx("HBA is not capable of changing "
+				      "transfer rates");
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+			if (ata) {
+				ata->mode = mode;
+				ata->valid |= CTS_ATA_VALID_MODE;
+			} else {
+				sata->mode = mode;
+				sata->valid |= CTS_SATA_VALID_MODE;
+			}
+			didsettings++;
+		}
 		/*
 		 * The bus_width argument goes like this:
 		 * 0 == 8 bit
@@ -3257,7 +3380,6 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 		 * number.
 		 */
 		if (spi && bus_width != -1) {
-
 			/*
 			 * We might as well validate things here with a
 			 * decipherable error message, rather than what
@@ -3281,17 +3403,19 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				retval = 1;
 				goto ratecontrol_bailout;
 			}
-
 			spi->valid |= CTS_SPI_VALID_BUS_WIDTH;
 			spi->bus_width = bus_width >> 4;
 			didsettings++;
 		}
-
 		if  (didsettings == 0) {
 			goto ratecontrol_bailout;
 		}
+		if  (!user_settings && (ata || sata)) {
+			warnx("You can modify only user settings for ATA/SATA");
+			retval = 1;
+			goto ratecontrol_bailout;
+		}
 		ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
-
 		if (cam_send_ccb(device, ccb) < 0) {
 			perror("error sending XPT_SET_TRAN_SETTINGS CCB");
 			if (arglist & CAM_ARG_VERBOSE) {
@@ -3301,7 +3425,6 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 			retval = 1;
 			goto ratecontrol_bailout;
 		}
-
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			warnx("XPT_SET_TRANS_SETTINGS CCB failed");
 			if (arglist & CAM_ARG_VERBOSE) {
@@ -3312,11 +3435,9 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 			goto ratecontrol_bailout;
 		}
 	}
-
 	if (send_tur) {
 		retval = testunitready(device, retry_count, timeout,
 				       (arglist & CAM_ARG_VERBOSE) ? 0 : 1);
-
 		/*
 		 * If the TUR didn't succeed, just bail.
 		 */
@@ -3325,7 +3446,6 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				fprintf(stderr, "Test Unit Ready failed\n");
 			goto ratecontrol_bailout;
 		}
-
 		/*
 		 * If the user wants things quiet, there's no sense in
 		 * getting the transfer settings, if we're not going
@@ -3333,13 +3453,11 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 		 */
 		if (quiet != 0)
 			goto ratecontrol_bailout;
-
-		fprintf(stdout, "New Parameters:\n");
+		fprintf(stdout, "New parameters:\n");
 		retval = get_print_cts(device, user_settings, 0, NULL);
 	}
 
 ratecontrol_bailout:
-
 	cam_freeccb(ccb);
 	return(retval);
 }
@@ -4107,6 +4225,91 @@ bailout:
 	return (retval);
 }
 
+static int
+atapm(struct cam_device *device, int argc, char **argv,
+		 char *combinedopt, int retry_count, int timeout)
+{
+	union ccb *ccb;
+	int retval = 0;
+	int t = -1;
+	int c;
+	u_char cmd, sc;
+
+	ccb = cam_getccb(device);
+
+	if (ccb == NULL) {
+		warnx("%s: error allocating ccb", __func__);
+		return (1);
+	}
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 't':
+			t = atoi(optarg);
+			break;
+		default:
+			break;
+		}
+	}
+	if (strcmp(argv[1], "idle") == 0) {
+		if (t == -1)
+			cmd = ATA_IDLE_IMMEDIATE;
+		else
+			cmd = ATA_IDLE_CMD;
+	} else if (strcmp(argv[1], "standby") == 0) {
+		if (t == -1)
+			cmd = ATA_STANDBY_IMMEDIATE;
+		else
+			cmd = ATA_STANDBY_CMD;
+	} else {
+		cmd = ATA_SLEEP;
+		t = -1;
+	}
+	if (t < 0)
+		sc = 0;
+	else if (t <= (240 * 5))
+		sc = t / 5;
+	else if (t <= (11 * 30 * 60))
+		sc = t / (30 * 60) + 241;
+	else
+		sc = 253;
+	cam_fill_ataio(&ccb->ataio,
+		      retry_count,
+		      NULL,
+		      /*flags*/CAM_DIR_NONE,
+		      MSG_SIMPLE_Q_TAG,
+		      /*data_ptr*/NULL,
+		      /*dxfer_len*/0,
+		      timeout ? timeout : 30 * 1000);
+	ata_28bit_cmd(&ccb->ataio, cmd, 0, 0, sc);
+
+	/* Disable freezing the device queue */
+	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+	if (arglist & CAM_ARG_ERR_RECOVER)
+		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
+
+	if (cam_send_ccb(device, ccb) < 0) {
+		warn("error sending command");
+
+		if (arglist & CAM_ARG_VERBOSE)
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+
+		retval = 1;
+		goto bailout;
+	}
+
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		cam_error_print(device, ccb, CAM_ESF_ALL, CAM_EPF_ALL, stderr);
+		retval = 1;
+		goto bailout;
+	}
+bailout:
+	cam_freeccb(ccb);
+	return (retval);
+}
+
 #endif /* MINIMALISTIC */
 
 void 
@@ -4119,7 +4322,7 @@ usage(int verbose)
 "        camcontrol periphlist [dev_id][-n dev_name] [-u unit]\n"
 "        camcontrol tur        [dev_id][generic args]\n"
 "        camcontrol inquiry    [dev_id][generic args] [-D] [-S] [-R]\n"
-"        camcontrol identify   [dev_id][generic args]\n"
+"        camcontrol identify   [dev_id][generic args] [-v]\n"
 "        camcontrol reportluns [dev_id][generic args] [-c] [-l] [-r report]\n"
 "        camcontrol readcap    [dev_id][generic args] [-b] [-h] [-H] [-N]\n"
 "                              [-q] [-s]\n"
@@ -4141,10 +4344,13 @@ usage(int verbose)
 "                              <all|bus[:target[:lun]]|off>\n"
 "        camcontrol tags       [dev_id][generic args] [-N tags] [-q] [-v]\n"
 "        camcontrol negotiate  [dev_id][generic args] [-a][-c]\n"
-"                              [-D <enable|disable>][-O offset][-q]\n"
-"                              [-R syncrate][-v][-T <enable|disable>]\n"
+"                              [-D <enable|disable>][-M mode][-O offset]\n"
+"                              [-q][-R syncrate][-v][-T <enable|disable>]\n"
 "                              [-U][-W bus_width]\n"
 "        camcontrol format     [dev_id][generic args][-q][-r][-w][-y]\n"
+"        camcontrol idle       [dev_id][generic args][-t time]\n"
+"        camcontrol standby    [dev_id][generic args][-t time]\n"
+"        camcontrol sleep      [dev_id][generic args]\n"
 #endif /* MINIMALISTIC */
 "        camcontrol help\n");
 	if (!verbose)
@@ -4172,6 +4378,9 @@ usage(int verbose)
 "tags        report or set the number of transaction slots for a device\n"
 "negotiate   report or set device negotiation parameters\n"
 "format      send the SCSI FORMAT UNIT command to the named device\n"
+"idle        send the ATA IDLE command to the named device\n"
+"standby     send the ATA STANDBY command to the named device\n"
+"sleep       send the ATA SLEEP command to the named device\n"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -4227,6 +4436,7 @@ usage(int verbose)
 "-a                send a test unit ready after negotiation\n"
 "-c                report/set current negotiation settings\n"
 "-D <arg>          \"enable\" or \"disable\" disconnection\n"
+"-M mode           set ATA mode\n"
 "-O offset         set command delay offset\n"
 "-q                be quiet, don't report anything\n"
 "-R syncrate       synchronization rate in MHz\n"
@@ -4238,7 +4448,9 @@ usage(int verbose)
 "-q                be quiet, don't print status messages\n"
 "-r                run in report only mode\n"
 "-w                don't send immediate format command\n"
-"-y                don't ask any questions\n");
+"-y                don't ask any questions\n"
+"idle/standby arguments:\n"
+"-t <arg>          number of seconds before respective state.\n");
 #endif /* MINIMALISTIC */
 }
 
@@ -4531,6 +4743,13 @@ main(int argc, char **argv)
 			break;
 		case CAM_CMD_READCAP:
 			error = scsireadcapacity(cam_dev, argc, argv,
+						 combinedopt, retry_count,
+						 timeout);
+			break;
+		case CAM_CMD_IDLE:
+		case CAM_CMD_STANDBY:
+		case CAM_CMD_SLEEP:
+			error = atapm(cam_dev, argc, argv,
 						 combinedopt, retry_count,
 						 timeout);
 			break;

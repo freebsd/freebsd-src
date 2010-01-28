@@ -111,7 +111,7 @@ ast_attach(device_t dev)
 	return ENOMEM;
     }
     device_set_ivars(dev, stp);
-    ATA_SETMODE(device_get_parent(dev), dev);
+    ata_setmode(dev);
 
     if (ast_sense(dev)) {
 	device_set_ivars(dev, NULL);
@@ -193,7 +193,7 @@ ast_reinit(device_t dev)
     if (!(ch->devices & (ATA_ATAPI_MASTER << atadev->unit)))
 	return 1;
 
-    ATA_SETMODE(device_get_parent(dev), dev);
+    ata_setmode(dev);
     return 0;
 }
 
@@ -673,7 +673,8 @@ ast_describe(device_t dev)
 	printf("transfer limit %d blk%s, ",
 	       stp->cap.ctl, (stp->cap.ctl > 1) ? "s" : "");
 	printf("%dKB buffer, ", (stp->cap.buffer_size * DEV_BSIZE) / 1024);
-	printf("%s\n", ata_mode2str(atadev->mode));
+	printf("%s %s\n", ata_mode2str(atadev->mode),
+	    ata_satarev2str(ATA_GETREV(device_get_parent(dev), atadev->unit)));
 	device_printf(dev, "Medium: ");
 	switch (stp->cap.medium_type) {
 	    case 0x00:
@@ -704,10 +705,11 @@ ast_describe(device_t dev)
 	printf("\n");
     }
     else {
-	device_printf(dev, "TAPE <%.40s/%.8s> at ata%d-%s %s\n",
+	device_printf(dev, "TAPE <%.40s/%.8s> at ata%d-%s %s %s\n",
 		      atadev->param.model, atadev->param.revision,
 		      device_get_unit(ch->dev), ata_unit2str(atadev),
-		      ata_mode2str(atadev->mode));
+		      ata_mode2str(atadev->mode),
+		      ata_satarev2str(ATA_GETREV(device_get_parent(dev), atadev->unit)));
     }
 }
 

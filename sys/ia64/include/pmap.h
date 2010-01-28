@@ -125,6 +125,7 @@ extern int pmap_vhpt_log2size;
 #define	pmap_unmapbios(va, sz)	pmap_unmapdev(va, sz)
 
 vm_offset_t pmap_steal_memory(vm_size_t);
+vm_offset_t pmap_alloc_vhpt(void);
 void	pmap_bootstrap(void);
 void	pmap_kenter(vm_offset_t va, vm_offset_t pa);
 vm_paddr_t pmap_kextract(vm_offset_t va);
