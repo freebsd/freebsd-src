@@ -27,7 +27,7 @@ makeoptions	MODULES_OVERRIDE=""
 
 include		"../alchemy/std.alchemy"
 
-hints		"ALCHEMY.hints"		#Default places to look for devices.
+#hints		"ALCHEMY.hints"		#Default places to look for devices.
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
