@@ -24,15 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2007
+.Dd January 29, 2010
 .Dt LOCKING 9
 .Os
 .Sh NAME
 .Nm locking
 .Nd kernel synchronization primitives
-.Sh SYNOPSIS
-All sorts of stuff to go here.
-.Pp
 .Sh DESCRIPTION
 The
 .Em FreeBSD
@@ -43,21 +40,19 @@ to safely access and manipulate the many data types required.
 These include:
 .Bl -enum
 .It
-Spin Mutexes
+Mutexes
 .It
-Sleep Mutexes
+Spin mutexes
 .It
-pool Mutexes
+Pool mutexes
 .It
-Shared-Exclusive locks
+Shared/exclusive locks
 .It
-Reader-Writer locks
+Reader/writer locks
 .It
-Read-Mostly locks
+Read-mostly locks
 .It
-Turnstiles
-.It
-Semaphores
+Counting semaphores
 .It
 Condition variables
 .It
@@ -70,36 +65,17 @@ Lockmanager locks
 .Pp
 The primitives interact and have a number of rules regarding how
 they can and can not be combined.
-There are too many for the average
-human mind and they keep changing.
-(if you disagree, please write replacement text)  :-)
-.Pp
-Some of these primitives may be used at the low (interrupt) level and
-some may not.
-.Pp
-There are strict ordering requirements and for some of the types this
-is checked using the
+Many of these rules are checked using the
 .Xr witness 4
 code.
 .Pp
-.Ss SPIN Mutexes
-Mutexes are the basic primitive.
-You either hold it or you don't.
-If you don't own it then you just spin, waiting for the holder (on
-another CPU) to release it.
-Hopefully they are doing something fast.
-You 
-.Em must not
-do anything that deschedules the thread while you
-are holding a SPIN mutex.
 .Ss Mutexes
-Basically (regular) mutexes will deschedule the thread if the
-mutex can not be acquired.
-A non-spin mutex can be considered to be equivalent
-to getting a write lock on an 
-.Em rw_lock
-(see below), and in fact non-spin mutexes and rw_locks may soon become the same thing.
-As in spin mutexes, you either get it or you don't.
+Mutexes are the most commonly used synchronization primitive in the kernel.
+Thread acquires (locks) a mutex before accessing data shared with other
+threads (including interrupt threads), and releases (unlocks) it afterwards.
+If the mutex cannot be acquired, the thread requesting it will block.
+.Pp
+Sleeping while holding mutex is generally prohibited.
 You may only call the
 .Xr sleep 9
 call via
@@ -122,10 +98,35 @@ If any caller above you has any mutex or
 rwlock, your sleep, will cause a panic.
 If the sleep only happens rarely it may be years before the 
 bad code path is found.
-.Ss Pool Mutexes
-A variant of regular mutexes where the allocation of the mutex is handled
-more by the system.
-.Ss Rw_locks
+.Pp
+See the
+.Xr mutex 9
+page for more information.
+.Ss Spin mutexes
+Spin mutexes are variation of basic mutexes; the main difference between
+the two is that spin mutexes never block - instead, they spin, waiting
+for the thread holding the lock, which runs on another CPU, to release it.
+Differently from ordinary mutex, spin mutexes disable interrupts when acquired.
+Since disabling interrupts is expensive, they are also generally slower.
+Spin mutexes should only be used to protect data shared with primary
+(INTR_FILTER) interrupt code.
+You 
+.Em must not
+do anything that deschedules the thread while you
+are holding a spin mutex.
+.Ss Pool mutexes
+With most synchronisaton primitives, such as mutexes, programmer must
+provide a piece of allocated memory to hold the primitive.
+For example, a mutex may be embedded inside the structure it protects.
+Pool mutex is a variant of mutex without this requirement - to lock or unlock
+a pool mutex, one uses address of the structure being protected with it,
+not the mutex itself.
+Pool mutexes are seldom used.
+.Pp
+See the
+.Xr mtx_pool 9
+page for more information.
+.Ss Reader/writer locks
 Reader/writer locks allow shared access to protected data by multiple threads,
 or exclusive access by a single thread.
 The threads with shared access are known as
@@ -165,7 +166,11 @@ This ability should not be used lightly and
 .Em may go away.
 Users of recursion in any locks should be prepared to 
 defend their decision against vigorous criticism.
-.Ss Rm_locks
+.Pp
+See the
+.Xr rwlock 9
+page for more information.
+.Ss Read-mostly locks
 Mostly reader locks are similar to
 .Em Reader/write
 locks but optimized for very infrequent 
@@ -176,7 +181,11 @@ locks implement full priority propagation by tracking shared owners
 using a lock user supplied
 .Em tracker
 data structure.
-.Ss Sx_locks
+.Pp
+See the
+.Xr rmlock 9
+page for more information.
+.Ss Shared/exclusive locks
 Shared/exclusive locks are used to protect data that are read far more often
 than they are written.
 Mutexes are inherently more efficient than shared/exclusive locks, so
@@ -201,16 +210,21 @@ should be considered to be closely related to
 .Xr sleep 9 .
 In fact it could in some cases be 
 considered a conditional sleep.
-.Ss Turnstiles
-Turnstiles are used to hold a queue of threads blocked on
-non-sleepable locks.
-Sleepable locks use condition variables to implement their queues.
-Turnstiles differ from a sleep queue in that turnstile queue's
-are assigned to a lock held by an owning thread.
-Thus, when one thread is enqueued onto a turnstile, it can lend its
-priority to the owning thread.
-If this sounds confusing, we need to describe it better.
-.Ss Semaphores
+.Pp
+See the
+.Xr sx 9
+page for more information.
+.Ss Counting semaphores
+Counting semaphores provide a mechanism for synchronizing access
+to a pool of resources.
+Unlike mutexes, semaphores do not have the concept of an owner,
+so they can be useful in situations where one thread needs
+to acquire a resource, and another thread needs to release it.
+They are largely deprecated.
+.Pp
+See the
+.Xr sema 9
+page for more information.
 .Ss Condition variables
 Condition variables are used in conjunction with mutexes to wait for
 conditions to occur.
@@ -220,6 +234,10 @@ functions.
 When a thread waits on a condition, the mutex
 is atomically released before the thread is blocked, then reacquired
 before the function call returns.
+.Pp
+See the
+.Xr condvar 9
+page for more information.
 .Ss Giant
 Giant is a special instance of a sleep lock.
 It has several special characteristics.
@@ -298,13 +316,24 @@ while the thread is suspended and will reacquire the
 .Va Giant
 mutex before the function returns.
 .Pp
-.Ss lockmanager locks
-Largely deprecated.
+See the
+.Xr sleep 9
+page for more information.
+.Pp
+.Ss Lockmanager locks
+Shared/exclusive sleep locks, used mostly in
+.Xr VFS 9 ,
+in particular as a
+.Xr vnode 9
+lock.
+They have features other lock types don't have, such as sleep timeout,
+writer starvation avoidance, draining, and interlock mutex, but this makes them
+complicated to implement; for this reason, they are deprecated.
+.Pp
 See the
 .Xr lock 9
 page for more information.
-I don't know what the downsides are but I'm sure someone will fill in this part.
-.Sh Usage tables.
+.Sh INTERACTIONS
 .Ss Interaction table.
 The following table shows what you can and can not do if you hold
 one of the synchronization primitives discussed here:
@@ -362,11 +391,13 @@ At this time this is a rather easy to remember table.
 .Xr sema 9 ,
 .Xr sleep 9 ,
 .Xr sx 9 ,
-.Xr LOCK_PROFILING 9 ,
-.Xr WITNESS 9
+.Xr witness 9 ,
+.Xr LOCK_PROFILING 9
 .Sh HISTORY
 These
 functions appeared in
 .Bsx 4.1
 through
 .Fx 7.0
+.Sh BUGS
+There are too many locking primitives to choose from.
