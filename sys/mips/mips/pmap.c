@@ -2273,8 +2273,8 @@ pmap_zero_page(vm_page_t m)
 		PMAP_LGMEM_LOCK(sysm);
 		sched_pin();
 		sysm->CMAP1 = mips_paddr_to_tlbpfn(phys) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
-		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		sysm->valid1 = 1;
+		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		bzero(sysm->CADDR1, PAGE_SIZE);
 		pmap_TLB_invalidate_kernel((vm_offset_t)sysm->CADDR1);
 		sysm->CMAP1 = 0;
@@ -2446,7 +2446,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 				va_src = MIPS_PHYS_TO_CACHED(phy_src);
 				sysm->CMAP2 = mips_paddr_to_tlbpfn(phy_dst) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
 				pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR2, sysm->CMAP2);
-				sysm->valid2 = 2;
+				sysm->valid2 = 1;
 				va_dst = (vm_offset_t)sysm->CADDR2;
 			} else if (phy_dst < MIPS_KSEG0_LARGEST_PHYS) {
 				/* one side needs mapping - src */
