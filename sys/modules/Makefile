@@ -239,6 +239,7 @@ SUBDIR=	${_3dfx} \
 	re \
 	reiserfs \
 	rl \
+	runfw \
 	${_s3} \
 	${_safe} \
 	${_sbni} \
