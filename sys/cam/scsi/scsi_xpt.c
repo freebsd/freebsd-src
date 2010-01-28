@@ -616,6 +616,11 @@ proberegister(struct cam_periph *periph, void *arg)
 	 */
 	cam_periph_freeze_after_event(periph, &periph->path->bus->last_reset,
 				      scsi_delay);
+	/*
+	 * Ensure nobody slip in until probe finish.
+	 */
+	cam_freeze_devq_arg(periph->path,
+	    RELSIM_RELEASE_RUNLEVEL, CAM_RL_XPT + 1);
 	probeschedule(periph);
 	return(CAM_REQ_CMP);
 }
@@ -630,7 +635,7 @@ probeschedule(struct cam_periph *periph)
 	softc = (probe_softc *)periph->softc;
 	ccb = (union ccb *)TAILQ_FIRST(&softc->request_ccbs);
 
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 
@@ -668,7 +673,7 @@ probeschedule(struct cam_periph *periph)
 	else
 		softc->flags &= ~PROBE_NO_ANNOUNCE;
 
-	xpt_schedule(periph, ccb->ccb_h.pinfo.priority);
+	xpt_schedule(periph, CAM_PRIORITY_XPT);
 }
 
 static void
@@ -881,7 +886,7 @@ proberequestdefaultnegotiation(struct cam_periph *periph)
 {
 	struct ccb_trans_settings cts;
 
-	xpt_setup_ccb(&cts.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	xpt_setup_ccb(&cts.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_USER_SETTINGS;
 	xpt_action((union ccb *)&cts);
@@ -903,7 +908,7 @@ proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
 	struct ccb_trans_settings_spi *spi;
 
 	memset(&cts, 0, sizeof (cts));
-	xpt_setup_ccb(&cts.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	xpt_setup_ccb(&cts.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	xpt_action((union ccb *)&cts);
@@ -1420,6 +1425,8 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	done_ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(done_ccb);
 	if (TAILQ_FIRST(&softc->request_ccbs) == NULL) {
+		cam_release_devq(periph->path,
+		    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_XPT + 1, FALSE);
 		cam_periph_invalidate(periph);
 		cam_periph_release_locked(periph);
 	} else {
@@ -1491,7 +1498,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 	case XPT_SCAN_BUS:
 	{
 		scsi_scan_bus_info *scan_info;
-		union	ccb *work_ccb;
+		union	ccb *work_ccb, *reset_ccb;
 		struct	cam_path *path;
 		u_int	i;
 		u_int	max_target;
@@ -1524,6 +1531,26 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			xpt_free_ccb(work_ccb);
 			xpt_done(request_ccb);
 			return;
+		}
+
+		/* We may need to reset bus first, if we haven't done it yet. */
+		if ((work_ccb->cpi.hba_inquiry &
+		    (PI_WIDE_32|PI_WIDE_16|PI_SDTR_ABLE)) &&
+		    !(work_ccb->cpi.hba_misc & PIM_NOBUSRESET) &&
+		    !timevalisset(&request_ccb->ccb_h.path->bus->last_reset)) {
+			reset_ccb = xpt_alloc_ccb_nowait();
+			xpt_setup_ccb(&reset_ccb->ccb_h, request_ccb->ccb_h.path,
+			      CAM_PRIORITY_NONE);
+			reset_ccb->ccb_h.func_code = XPT_RESET_BUS;
+			xpt_action(reset_ccb);
+			if (reset_ccb->ccb_h.status != CAM_REQ_CMP) {
+				request_ccb->ccb_h.status = reset_ccb->ccb_h.status;
+				xpt_free_ccb(reset_ccb);
+				xpt_free_ccb(work_ccb);
+				xpt_done(request_ccb);
+				return;
+			}
+			xpt_free_ccb(reset_ccb);
 		}
 
 		/* Save some state for use while we probe for devices */
@@ -1756,10 +1783,9 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	struct cam_path *new_path;
 	struct cam_periph *old_periph;
 
-	CAM_DEBUG(request_ccb->ccb_h.path, CAM_DEBUG_TRACE,
-		  ("scsi_scan_lun\n"));
+	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("scsi_scan_lun\n"));
 
-	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
+	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 
@@ -1809,7 +1835,7 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			free(new_path, M_CAMXPT);
 			return;
 		}
-		xpt_setup_ccb(&request_ccb->ccb_h, new_path, CAM_PRIORITY_NORMAL);
+		xpt_setup_ccb(&request_ccb->ccb_h, new_path, CAM_PRIORITY_XPT);
 		request_ccb->ccb_h.cbfcnp = xptscandone;
 		request_ccb->ccb_h.func_code = XPT_SCAN_LUN;
 		request_ccb->crcn.flags = flags;
@@ -1907,7 +1933,7 @@ scsi_devise_transport(struct cam_path *path)
 	struct scsi_inquiry_data *inq_buf;
 
 	/* Get transport information from the SIM */
-	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
+	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 
@@ -1967,7 +1993,7 @@ scsi_devise_transport(struct cam_path *path)
 	 */
 
 	/* Tell the controller what we think */
-	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
 	cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	cts.transport = path->device->transport;
@@ -2095,7 +2121,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 
 	inq_data = &device->inq_data;
 	scsi = &cts->proto_specific.scsi;
-	xpt_setup_ccb(&cpi.ccb_h, cts->ccb_h.path, CAM_PRIORITY_NORMAL);
+	xpt_setup_ccb(&cpi.ccb_h, cts->ccb_h.path, CAM_PRIORITY_NONE);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 
@@ -2116,7 +2142,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 		 * Perform sanity checking against what the
 		 * controller and device can do.
 		 */
-		xpt_setup_ccb(&cur_cts.ccb_h, cts->ccb_h.path, CAM_PRIORITY_NORMAL);
+		xpt_setup_ccb(&cur_cts.ccb_h, cts->ccb_h.path, CAM_PRIORITY_NONE);
 		cur_cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 		cur_cts.type = cts->type;
 		xpt_action((union ccb *)&cur_cts);
@@ -2300,7 +2326,7 @@ scsi_toggle_tags(struct cam_path *path)
  	  && (dev->inq_flags & (SID_Sync|SID_WBus16|SID_WBus32)) != 0)) {
 		struct ccb_trans_settings cts;
 
-		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
 		cts.protocol = PROTO_SCSI;
 		cts.protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cts.transport = XPORT_UNSPECIFIED;
@@ -2350,11 +2376,18 @@ scsi_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 
 		/*
 		 * Allow transfer negotiation to occur in a
-		 * tag free environment.
+		 * tag free environment and after settle delay.
 		 */
 		if (async_code == AC_SENT_BDR
-		 || async_code == AC_BUS_RESET)
+		 || async_code == AC_BUS_RESET) {
+			cam_freeze_devq(&newpath); 
+			cam_release_devq(&newpath,
+				RELSIM_RELEASE_AFTER_TIMEOUT,
+				/*reduction*/0,
+				/*timeout*/scsi_delay,
+				/*getcount_only*/0);
 			scsi_toggle_tags(&newpath);
+		}
 
 		if (async_code == AC_INQ_CHANGED) {
 			/*

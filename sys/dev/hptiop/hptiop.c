@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
 #include <cam/cam_debug.h>
-#include <cam/cam_xpt_periph.h>
 #include <cam/cam_periph.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
@@ -105,7 +104,6 @@ static int  hptiop_do_ioctl_itl(struct hpt_iop_hba *hba,
 				struct hpt_iop_ioctl_param *pParams);
 static int  hptiop_do_ioctl_mv(struct hpt_iop_hba *hba,
 				struct hpt_iop_ioctl_param *pParams);
-static void hptiop_bus_scan_cb(struct cam_periph *periph, union ccb *ccb);
 static int  hptiop_rescan_bus(struct hpt_iop_hba *hba);
 static int hptiop_alloc_pci_res_itl(struct hpt_iop_hba *hba);
 static int hptiop_alloc_pci_res_mv(struct hpt_iop_hba *hba);
@@ -1035,26 +1033,17 @@ invalid:
 
 static int  hptiop_rescan_bus(struct hpt_iop_hba * hba)
 {
-	struct cam_path     *path;
 	union ccb           *ccb;
-	if (xpt_create_path(&path, xpt_periph, cam_sim_path(hba->sim),
-		CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)
-		return(EIO);
-	if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK)) == NULL)
-		return(ENOMEM);
-	bzero(ccb, sizeof(union ccb));
-	xpt_setup_ccb(&ccb->ccb_h, path, 5);
-	ccb->ccb_h.func_code = XPT_SCAN_BUS;
-	ccb->ccb_h.cbfcnp = hptiop_bus_scan_cb;
-	ccb->crcn.flags = CAM_FLAG_NONE;
-	xpt_action(ccb);
-	return(0);
-}
 
-static void hptiop_bus_scan_cb(struct cam_periph *periph, union ccb *ccb)
-{
-	xpt_free_path(ccb->ccb_h.path);
-	free(ccb, M_TEMP);
+	if ((ccb = xpt_alloc_ccb()) == NULL)
+		return(ENOMEM);
+	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(hba->sim),
+		CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		xpt_free_ccb(ccb);
+		return(EIO);
+	}
+	xpt_rescan(ccb);
+	return(0);
 }
 
 static  bus_dmamap_callback_t   hptiop_map_srb;
@@ -1538,8 +1527,6 @@ static int hptiop_attach(device_t dev)
 #if __FreeBSD_version < 503000
 	hba->ioctl_dev->si_drv1 = hba;
 #endif
-
-	hptiop_rescan_bus(hba);
 
 	return 0;
 

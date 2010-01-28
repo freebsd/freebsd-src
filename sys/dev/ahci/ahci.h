@@ -186,6 +186,20 @@
 #define		AHCI_CCCC_EN		0x00000001
 #define AHCI_CCCP                   0x18
 
+#define AHCI_EM_LOC                 0x1C
+#define AHCI_EM_CTL                 0x20
+#define 	AHCI_EM_MR              0x00000001
+#define 	AHCI_EM_TM              0x00000100
+#define 	AHCI_EM_RST             0x00000200
+#define 	AHCI_EM_LED             0x00010000
+#define 	AHCI_EM_SAFTE           0x00020000
+#define 	AHCI_EM_SES2            0x00040000
+#define 	AHCI_EM_SGPIO           0x00080000
+#define 	AHCI_EM_SMB             0x01000000
+#define 	AHCI_EM_XMT             0x02000000
+#define 	AHCI_EM_ALHD            0x04000000
+#define 	AHCI_EM_PM              0x08000000
+
 #define AHCI_CAP2                   0x24
 #define		AHCI_CAP2_BOH	0x00000001
 #define		AHCI_CAP2_NVMP	0x00000002
@@ -402,6 +416,7 @@ struct ahci_controller {
 	} irqs[16];
 	uint32_t		caps;		/* Controller capabilities */
 	uint32_t		caps2;		/* Controller capabilities */
+	uint32_t		capsem;		/* Controller capabilities */
 	int			quirks;
 	int			numirqs;
 	int			channels;
