@@ -456,6 +456,9 @@ platform_start(__register_t a0 __unused,
 				}
 				phys_avail[1] = boot_map->physmem_map[0].addr +
 				    boot_map->physmem_map[0].size;
+				printf("First segment: addr:%p -> %p \n",
+				       (void *)phys_avail[0], 
+				       (void *)phys_avail[1]);
 
 			} else {
 /*
@@ -467,9 +470,19 @@ platform_start(__register_t a0 __unused,
 				    boot_map->physmem_map[i].addr;
 				phys_avail[j + 1] = phys_avail[j] +
 				    boot_map->physmem_map[i].size;
-#if 0				/* FIXME TOD0 */
-				phys_avail[j] = phys_avail[j + 1] = 0;
-#endif
+				if (phys_avail[j + 1] < phys_avail[j] ) {
+					/* Houston we have an issue. Memory is
+					 * larger than possible. Its probably in
+					 * 64 bit > 4Gig and we are in 32 bit mode.
+					 */
+					phys_avail[j + 1] = 0xfffff000;
+					printf("boot map size was %llx\n", boot_map->physmem_map[i].size);
+					boot_map->physmem_map[i].size = phys_avail[j + 1] - phys_avail[j];
+					printf("reduced to %llx\n", boot_map->physmem_map[i].size);
+				}
+				printf("Next segment : addr:%p -> %p \n",
+				       (void *)phys_avail[j], 
+				       (void *)phys_avail[j+1]);
 			}
 			physsz += boot_map->physmem_map[i].size;
 		}
