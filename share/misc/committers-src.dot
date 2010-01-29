@@ -67,6 +67,7 @@ bmilekic [label="Bosko Milekic\nbmilekic@FreeBSD.org\n????/??/??"]
 bms [label="Bruce M Simpson\nbms@FreeBSD.org\n2003/08/06"]
 brian [label="Brian Somers\nbrian@FreeBSD.org\n1996/12/16"]
 brooks [label="Brooks Davis\nbrooks@FreeBSD.org\n2001/06/21"]
+brucec [label="Bruce Cran\nbrucec@FreeBSD.org\n2010/01/29"]
 brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2006/02/28"]
 bruno [label="Bruno Ducrot\nbruno@FreeBSD.org\n2005/07/18"]
 bz [label="Bjoern A. Zeeb\nbz@FreeBSD.org\n2004/07/27"]
@@ -408,6 +409,7 @@ rgrimes -> markm
 
 rpaulo -> avg
 
+rrs -> brucec
 rrs -> tuexen
 
 ru -> ceri
