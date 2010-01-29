@@ -25,14 +25,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ * __FBSDID("$FreeBSD$");
  *
  * RMI_BSD */
 #ifndef _RMI_PIC_H_
 #define _RMI_PIC_H_
 #include <sys/cdefs.h>
-/*
-__FBSDID("$FreeBSD$");
-*/
+
+
+
 
 extern int rmi_spin_mutex_safe;
 
