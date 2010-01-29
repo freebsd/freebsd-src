@@ -2101,14 +2101,20 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 	} else {
 		int cpu;
 		struct local_sysmaps *sysm;
-
+		/* If this is used other than for dumps, we may need to leave
+		 * interrupts disasbled on return. If crash dumps don't work when
+		 * we get to this point, we might want to consider this (leaving things
+		 * disabled as a starting point ;-)
+	 	 */
+		disableintr();
 		cpu = PCPU_GET(cpuid);
 		sysm = &sysmap_lmem[cpu];
 		/* Since this is for the debugger, no locks or any other fun */
 		sysm->CMAP1 = mips_paddr_to_tlbpfn(pa) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
-		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		sysm->valid1 = 1;
+		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		va = (vm_offset_t)sysm->CADDR1;
+		enableintr();
 	}
 	return ((void *)va);
 }
@@ -2126,7 +2132,9 @@ pmap_kenter_temporary_free(vm_paddr_t pa)
 	cpu = PCPU_GET(cpuid);
 	sysm = &sysmap_lmem[cpu];
 	if (sysm->valid1) {
+		disableintr();
 		pmap_TLB_invalidate_kernel((vm_offset_t)sysm->CADDR1);
+		enableintr();
 		sysm->CMAP1 = 0;
 		sysm->valid1 = 0;
 	}
@@ -2272,11 +2280,13 @@ pmap_zero_page(vm_page_t m)
 		sysm = &sysmap_lmem[cpu];
 		PMAP_LGMEM_LOCK(sysm);
 		sched_pin();
+		disableintr();
 		sysm->CMAP1 = mips_paddr_to_tlbpfn(phys) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
 		sysm->valid1 = 1;
 		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		bzero(sysm->CADDR1, PAGE_SIZE);
 		pmap_TLB_invalidate_kernel((vm_offset_t)sysm->CADDR1);
+		enableintr();
 		sysm->CMAP1 = 0;
 		sysm->valid1 = 0;
 		sched_unpin();
@@ -2326,12 +2336,14 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 		cpu = PCPU_GET(cpuid);
 		sysm = &sysmap_lmem[cpu];
 		PMAP_LGMEM_LOCK(sysm);
+		disableintr();
 		sched_pin();
 		sysm->CMAP1 = mips_paddr_to_tlbpfn(phys) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
-		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		sysm->valid1 = 1;
+		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		bzero((char *)sysm->CADDR1 + off, size);
 		pmap_TLB_invalidate_kernel((vm_offset_t)sysm->CADDR1);
+		enableintr();
 		sysm->CMAP1 = 0;
 		sysm->valid1 = 0;
 		sched_unpin();
@@ -2365,12 +2377,14 @@ pmap_zero_page_idle(vm_page_t m)
 		cpu = PCPU_GET(cpuid);
 		sysm = &sysmap_lmem[cpu];
 		PMAP_LGMEM_LOCK(sysm);
+		disableintr();
 		sched_pin();
 		sysm->CMAP1 = mips_paddr_to_tlbpfn(phys) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
-		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		sysm->valid1 = 1;
+		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		bzero(sysm->CADDR1, PAGE_SIZE);
 		pmap_TLB_invalidate_kernel((vm_offset_t)sysm->CADDR1);
+		enableintr();
 		sysm->CMAP1 = 0;
 		sysm->valid1 = 0;
 		sched_unpin();
@@ -2441,6 +2455,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 			sysm = &sysmap_lmem[cpu];
 			PMAP_LGMEM_LOCK(sysm);
 			sched_pin();
+			disableintr();
 			if (phy_src < MIPS_KSEG0_LARGEST_PHYS) {
 				/* one side needs mapping - dest */
 				va_src = MIPS_PHYS_TO_CACHED(phy_src);
@@ -2476,6 +2491,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 				sysm->CMAP2 = 0;
 				sysm->valid2 = 0;
 			}
+			enableintr();
 			sched_unpin();
 			PMAP_LGMEM_UNLOCK(sysm);
 		}
