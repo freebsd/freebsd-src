@@ -1340,25 +1340,22 @@ ehci_check_transfer(struct usb_xfer *xfer)
 		}
 	} else if (methods == &ehci_device_isoc_hs_methods) {
 		ehci_itd_t *td;
+		uint8_t n = (xfer->nframes & 7);
 
 		/* isochronous high speed transfer */
 
+		/* check last transfer */
 		td = xfer->td_transfer_last;
 		usb_pc_cpu_invalidate(td->page_cache);
-		status =
-		    td->itd_status[0] | td->itd_status[1] |
-		    td->itd_status[2] | td->itd_status[3] |
-		    td->itd_status[4] | td->itd_status[5] |
-		    td->itd_status[6] | td->itd_status[7];
+		if (n == 0)
+			status = td->itd_status[7];
+		else
+			status = td->itd_status[n-1];
 
 		/* also check first transfer */
 		td = xfer->td_transfer_first;
 		usb_pc_cpu_invalidate(td->page_cache);
-		status |=
-		    td->itd_status[0] | td->itd_status[1] |
-		    td->itd_status[2] | td->itd_status[3] |
-		    td->itd_status[4] | td->itd_status[5] |
-		    td->itd_status[6] | td->itd_status[7];
+		status |= td->itd_status[0];
 
 		/* if no transactions are active we continue */
 		if (!(status & htohc32(sc, EHCI_ITD_ACTIVE))) {
