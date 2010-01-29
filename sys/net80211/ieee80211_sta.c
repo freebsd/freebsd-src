@@ -759,7 +759,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 
 		/* copy to listener after decrypt */
 		if (ieee80211_radiotap_active_vap(vap))
-			ieee80211_radiotap_tx(vap, m);
+			ieee80211_radiotap_rx(vap, m);
 		need_tap = 0;
 
 		/*
