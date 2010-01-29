@@ -352,7 +352,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	}
 
 	ar5416AniSetup(ah);			/* Anti Noise Immunity */
-	ar5416InitNfHistBuff(AH5416(ah)->ah_cal.nfCalHist);
+	ar5416InitNfHistBuff(ah, AH5416(ah)->ah_cal.nfCalHist);
 
 	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: return\n", __func__);
 
