@@ -401,7 +401,7 @@ again:
 		char volno[sizeof("2147483647")];
 
 getpipecmdhdr:
-		(void)sprintf(volno, "%d", newvol);
+		(void)sprintf(volno, "%ld", newvol);
 		if (setenv("RESTORE_VOLUME", volno, 1) == -1) {
 			fprintf(stderr, "Cannot set $RESTORE_VOLUME: %s\n",
 			    strerror(errno));
@@ -433,7 +433,8 @@ gethdr:
 		goto again;
 	}
 	if (tmpbuf.c_volume != volno) {
-		fprintf(stderr, "Wrong volume (%ld)\n", tmpbuf.c_volume);
+		fprintf(stderr, "Wrong volume (%jd)\n",
+		    (intmax_t)tmpbuf.c_volume);
 		volno = 0;
 		goto again;
 	}
@@ -454,8 +455,8 @@ gethdr:
  	 * If coming to this volume at random, skip to the beginning
  	 * of the next record.
  	 */
-	dprintf(stdout, "last rec %qd, tape starts with %qd\n", prevtapea,
-	    tmpbuf.c_tapea);
+	dprintf(stdout, "last rec %jd, tape starts with %jd\n",
+	    (intmax_t)prevtapea, (intmax_t)tmpbuf.c_tapea);
  	if (tmpbuf.c_type == TS_TAPE) {
  		if (curfile.action != USING) {
 			/*
@@ -554,8 +555,8 @@ printdumpinfo(void)
 	    (spcl.c_ddate == 0) ? "the epoch\n" : ctime(&t));
 	if (spcl.c_host[0] == '\0')
 		return;
-	fprintf(stderr, "Level %ld dump of %s on %s:%s\n",
-		spcl.c_level, spcl.c_filesys, spcl.c_host, spcl.c_dev);
+	fprintf(stderr, "Level %jd dump of %s on %s:%s\n",
+	    (intmax_t)spcl.c_level, spcl.c_filesys, spcl.c_host, spcl.c_dev);
 	fprintf(stderr, "Label: %s\n", spcl.c_label);
 }
 
@@ -1282,7 +1283,7 @@ getmore:
 			return;
 		}
 		if (rd % TP_BSIZE != 0)
-			panic("partial block read: %d should be %d\n",
+			panic("partial block read: %ld should be %ld\n",
 				rd, ntrec * TP_BSIZE);
 		terminateinput();
 		memmove(&tapebuf[rd], &endoftapemark, (long)TP_BSIZE);
@@ -1465,8 +1466,8 @@ accthdr(struct s_spcl *header)
 	if (header->c_type == TS_TAPE) {
 		fprintf(stderr, "Volume header ");
  		if (header->c_firstrec)
- 			fprintf(stderr, "begins with record %qd",
- 				header->c_firstrec);
+ 			fprintf(stderr, "begins with record %jd",
+			    (intmax_t)header->c_firstrec);
  		fprintf(stderr, "\n");
 		previno = 0x7fffffff;
 		return;
