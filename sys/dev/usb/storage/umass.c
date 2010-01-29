@@ -2594,11 +2594,19 @@ umass_cam_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 
 	default:
 		/*
-		 * the wire protocol failed and will have recovered
-		 * (hopefully).  We return an error to CAM and let CAM retry
-		 * the command if necessary.
+		 * The wire protocol failed and will hopefully have
+		 * recovered. We return an error to CAM and let CAM
+		 * retry the command if necessary. In case of SCSI IO
+		 * commands we ask the CAM layer to check the
+		 * condition first. This is a quick hack to make
+		 * certain devices work.
 		 */
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
+			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
+			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
+		} else {
+			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		}
 		xpt_done(ccb);
 		break;
 	}
