@@ -250,6 +250,7 @@ int	libusb20_dev_request_sync(struct libusb20_device *pdev, struct LIBUSB20_CONT
 int	libusb20_dev_req_string_sync(struct libusb20_device *pdev, uint8_t index, uint16_t langid, void *ptr, uint16_t len);
 int	libusb20_dev_req_string_simple_sync(struct libusb20_device *pdev, uint8_t index, void *ptr, uint16_t len);
 int	libusb20_dev_reset(struct libusb20_device *pdev);
+int	libusb20_dev_check_connected(struct libusb20_device *pdev);
 int	libusb20_dev_set_power_mode(struct libusb20_device *pdev, uint8_t power_mode);
 uint8_t	libusb20_dev_get_power_mode(struct libusb20_device *pdev);
 int	libusb20_dev_set_alt_index(struct libusb20_device *pdev, uint8_t iface_index, uint8_t alt_index);
