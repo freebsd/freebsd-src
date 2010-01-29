@@ -2449,13 +2449,18 @@ tr_setup:
 		if (data != NULL)
 			zyd_tx_free(data, error);
 
-		if (error == USB_ERR_STALLED) {
-			/* try to clear stall first */
+		if (error != USB_ERR_CANCELLED) {
+			if (error == USB_ERR_TIMEOUT)
+				device_printf(sc->sc_dev, "device timeout\n");
+
+			/*
+			 * Try to clear stall first, also if other
+			 * errors occur, hence clearing stall
+			 * introduces a 50 ms delay:
+			 */
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		if (error == USB_ERR_TIMEOUT)
-			device_printf(sc->sc_dev, "device timeout\n");
 		break;
 	}
 }
