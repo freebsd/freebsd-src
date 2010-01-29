@@ -173,7 +173,59 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	ichan = ath_hal_checkchannel(ah, chan);
 	HALASSERT(ichan != AH_NULL);
 
-	if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
+	if (AR_SREV_KITE_12_OR_LATER(ah)) {
+		/* Clear the carrier leak cal bit */
+		OS_REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
+
+		if (IEEE80211_IS_CHAN_HT20(chan)) {
+			OS_REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL,
+			    AR_PHY_PARALLEL_CAL_ENABLE);
+			OS_REG_SET_BIT(ah, AR_PHY_TURBO, AR_PHY_FC_DYN2040_EN);
+			OS_REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
+			    AR_PHY_AGC_CONTROL_FLTR_CAL);
+			OS_REG_CLR_BIT(ah, AR_PHY_TPCRG1,
+			    AR_PHY_TPCRG1_PD_CAL_ENABLE);
+			OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
+			    AR_PHY_AGC_CONTROL_CAL);
+			/* Poll for offset calibration complete */
+			if (!ath_hal_wait(ah, AR_PHY_AGC_CONTROL,
+			    AR_PHY_AGC_CONTROL_CAL, 0)) {
+				HALDEBUG(ah, HAL_DEBUG_ANY,
+				    "%s: offset calibration failed to "
+				    "complete in 1ms; noisy environment?\n",
+				    __func__);
+				return AH_FALSE;
+			}
+			OS_REG_CLR_BIT(ah, AR_PHY_TURBO, AR_PHY_FC_DYN2040_EN);
+			OS_REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL,
+			    AR_PHY_PARALLEL_CAL_ENABLE);
+		}
+		OS_REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
+
+		/* Enable Rx Filter Cal */
+		OS_REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
+		OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
+		    AR_PHY_AGC_CONTROL_FLTR_CAL);
+		OS_REG_SET_BIT(ah, AR_PHY_TPCRG1, AR_PHY_TPCRG1_PD_CAL_ENABLE);
+
+		/* kick off the cal */
+		OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL);
+
+		/* Poll for offset calibration complete */
+		if (!ath_hal_wait(ah, AR_PHY_AGC_CONTROL,
+		    AR_PHY_AGC_CONTROL_CAL, 0)) {
+			HALDEBUG(ah, HAL_DEBUG_ANY,
+			    "%s: offset calibration did not complete in 1ms; "
+			    "noisy environment?\n", __func__);
+			return AH_FALSE;
+		}
+		/* Set the cl cal bit and rerun the cal a 2nd time */
+		/* Enable Rx Filter Cal */
+		OS_REG_SET_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
+		OS_REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
+		OS_REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
+		    AR_PHY_AGC_CONTROL_FLTR_CAL);
+	} else if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
 		/* Enable Rx Filter Cal */
 		OS_REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
 		OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
@@ -566,9 +618,15 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 }
 
 void
-ar5416InitNfHistBuff(struct ar5212NfCalHist *h)
+ar5416InitNfHistBuff(struct ath_hal *ah, struct ar5212NfCalHist *h)
 {
 	int i, j;
+	int16_t privNF;
+
+	if (AR_SREV_KITE(ah))
+		privNF = AR9285_CCA_MAX_GOOD_VALUE;
+	else
+		privNF = AR5416_CCA_MAX_GOOD_VALUE;
 
 	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++) {
 		h[i].currIndex = 0;

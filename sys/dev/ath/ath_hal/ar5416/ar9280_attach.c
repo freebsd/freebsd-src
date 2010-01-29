@@ -23,6 +23,7 @@
 #include "ah_devid.h"
 
 #include "ah_eeprom_v14.h"		/* XXX for tx/rx gain */
+#include "ah_eeprom_v4k.h"
 
 #include "ar5416/ar9280.h"
 #include "ar5416/ar5416reg.h"
@@ -30,6 +31,9 @@
 
 #include "ar5416/ar9280v1.ini"
 #include "ar5416/ar9280v2.ini"
+#include "ar5416/ar9285.ini"
+#include "ar5416/ar9285v2.ini"
+
 
 static const HAL_PERCAL_DATA ar9280_iq_cal = {		/* single sample */
 	.calName = "IQ", .calType = IQ_MISMATCH_CAL,
@@ -147,7 +151,18 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 	AH_PRIVATE(ah)->ah_ispcie = (val & AR_XSREV_TYPE_HOST_MODE) == 0;
 
 	/* setup common ini data; rf backends handle remainder */
-	if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
+	/* XXX power consumption higer if clkreq is on */
+	if (AR_SREV_KITE_12_OR_LATER(ah)) {
+		HAL_INI_INIT(&ahp->ah_ini_modes, ar9285Modes_v2, 6);
+		HAL_INI_INIT(&ahp->ah_ini_common, ar9285Common_v2, 2);
+		HAL_INI_INIT(&AH5416(ah)->ah_ini_pcieserdes,
+		    ar9285PciePhy_clkreq_always_on_L1_v2, 2);
+	} else if (AR_SREV_KITE_10_OR_LATER(ah)) {
+		HAL_INI_INIT(&ahp->ah_ini_modes, ar9285Modes, 6);
+		HAL_INI_INIT(&ahp->ah_ini_common, ar9285Common, 2);
+		HAL_INI_INIT(&AH5416(ah)->ah_ini_pcieserdes,
+		    ar9285PciePhy_clkreq_always_on_L1, 2);
+	} else if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
 		HAL_INI_INIT(&ahp->ah_ini_modes, ar9280Modes_v2, 6);
 		HAL_INI_INIT(&ahp->ah_ini_common, ar9280Common_v2, 2);
 		HAL_INI_INIT(&AH5416(ah)->ah_ini_pcieserdes,
@@ -162,7 +177,10 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 	}
 	ar5416AttachPCIE(ah);
 
-	ecode = ath_hal_v14EepromAttach(ah);
+	if (devid == AR9285_DEVID_PCIE)
+		ecode = ath_hal_v4kEepromAttach(ah);
+	else
+		ecode = ath_hal_v14EepromAttach(ah);
 	if (ecode != HAL_OK)
 		goto bad;
 
@@ -235,7 +253,19 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 			goto bad;		/* XXX ? try to continue */
 		}
 	}
-	if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
+
+	if (AR_SREV_KITE_12_OR_LATER(ah)) {
+		switch (ath_hal_eepromGet(ah, AR_EEP_TXGAIN_TYPE, AH_NULL)) {
+		case AR5416_EEP_TXGAIN_HIGH_POWER:
+			HAL_INI_INIT(&ahp9280->ah_ini_txgain,
+			    ar9285Modes_high_power_tx_gain_v2, 6);
+			break;
+		default:
+			HAL_INI_INIT(&ahp9280->ah_ini_txgain,
+			    ar9285Modes_original_tx_gain_v2, 6);
+			break;
+		}
+	} else if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
 		/* setp txgain table */
 		switch (ath_hal_eepromGet(ah, AR_EEP_TXGAIN_TYPE, AH_NULL)) {
 		case AR5416_EEP_TXGAIN_HIGH_POWER:
@@ -281,7 +311,7 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
 
 	ar9280AniSetup(ah);			/* Anti Noise Immunity */
-	ar5416InitNfHistBuff(AH5416(ah)->ah_cal.nfCalHist);
+	ar5416InitNfHistBuff(ah, AH5416(ah)->ah_cal.nfCalHist);
 
 	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: return\n", __func__);
 
@@ -301,7 +331,10 @@ ar9280ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
 		ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_pcieserdes, 1, 0);
 		OS_DELAY(1000);
 		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
-		OS_REG_WRITE(ah, AR_WA, AR9280_WA_DEFAULT);
+		if (AR_SREV_KITE(ah))
+			OS_REG_WRITE(ah, AR_WA, AR9285_WA_DEFAULT);
+		else
+			OS_REG_WRITE(ah, AR_WA, AR9280_WA_DEFAULT);
 	}
 }
 
@@ -344,6 +377,10 @@ ar9280WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		regWrites = ath_hal_ini_write(ah, &AH9280(ah)->ah_ini_txgain,
 		    modesIndex, regWrites);
 	}
+	if (AR_SREV_KITE_12_OR_LATER(ah))
+		regWrites = ath_hal_ini_write(ah, &AH9280(ah)->ah_ini_txgain,
+		    modesIndex, regWrites);
+
 	/* XXX Merlin 100us delay for shift registers */
 	regWrites = ath_hal_ini_write(ah, &AH5212(ah)->ah_ini_common,
 	    1, regWrites);
@@ -670,7 +707,10 @@ ar9280FillCapabilityInfo(struct ath_hal *ah)
 
 	if (!ar5416FillCapabilityInfo(ah))
 		return AH_FALSE;
-	pCap->halNumGpioPins = 10;
+	if (AR_SREV_KITE_10_OR_LATER(ah))
+		pCap->halNumGpioPins = 12;
+	else
+		pCap->halNumGpioPins = 10;
 	pCap->halWowSupport = AH_TRUE;
 	pCap->halWowMatchPatternExact = AH_TRUE;
 #if 0
@@ -730,9 +770,12 @@ ar9280SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 static const char*
 ar9280Probe(uint16_t vendorid, uint16_t devid)
 {
-	if (vendorid == ATHEROS_VENDOR_ID &&
-	    (devid == AR9280_DEVID_PCI || devid == AR9280_DEVID_PCIE))
-		return "Atheros 9280";
+	if (vendorid == ATHEROS_VENDOR_ID) {
+		if (devid == AR9280_DEVID_PCI || devid == AR9280_DEVID_PCIE)
+			return "Atheros 9280";
+		else if (devid == AR9285_DEVID_PCIE)
+			return "Atheros 9285";
+	}
 	return AH_NULL;
 }
 AH_CHIP(AR9280, ar9280Probe, ar9280Attach);

@@ -39,8 +39,6 @@
 #define AR5416_4K_NUM_CTLS              12
 #define AR5416_4K_NUM_BAND_EDGES       	4
 #define AR5416_4K_NUM_PD_GAINS         	2
-#define AR5416_4K_PD_GAINS_IN_MASK     	4
-#define AR5416_4K_PD_GAIN_ICEPTS        5
 #define AR5416_4K_MAX_CHAINS           	1
 
 /*
@@ -127,8 +125,8 @@ typedef struct CalCtlData4k {
 } __packed CAL_CTL_DATA_4K;
 
 typedef struct calDataPerFreq4k {
-	uint8_t		pwrPdg[AR5416_4K_NUM_PD_GAINS][AR5416_4K_PD_GAIN_ICEPTS];
-	uint8_t		vpdPdg[AR5416_4K_NUM_PD_GAINS][AR5416_4K_PD_GAIN_ICEPTS];
+	uint8_t		pwrPdg[AR5416_4K_NUM_PD_GAINS][AR5416_PD_GAIN_ICEPTS];
+	uint8_t		vpdPdg[AR5416_4K_NUM_PD_GAINS][AR5416_PD_GAIN_ICEPTS];
 } __packed CAL_DATA_PER_FREQ_4K;
 
 struct ar5416eeprom_4k {
