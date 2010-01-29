@@ -2085,7 +2085,7 @@ void *
 pmap_kenter_temporary(vm_paddr_t pa, int i)
 {
 	vm_offset_t va;
-
+	int int_level;
 	if (i != 0)
 		printf("%s: ERROR!!! More than one page of virtual address mapping not supported\n",
 		    __func__);
@@ -2106,7 +2106,7 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 		 * we get to this point, we might want to consider this (leaving things
 		 * disabled as a starting point ;-)
 	 	 */
-		disableintr();
+		int_level = disableintr();
 		cpu = PCPU_GET(cpuid);
 		sysm = &sysmap_lmem[cpu];
 		/* Since this is for the debugger, no locks or any other fun */
@@ -2114,7 +2114,7 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 		sysm->valid1 = 1;
 		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		va = (vm_offset_t)sysm->CADDR1;
-		enableintr();
+		restoreintr(int_level);
 	}
 	return ((void *)va);
 }
@@ -2123,6 +2123,7 @@ void
 pmap_kenter_temporary_free(vm_paddr_t pa)
 {
 	int cpu;
+	int int_level;
 	struct local_sysmaps *sysm;
 
 	if (pa < MIPS_KSEG0_LARGEST_PHYS) {
@@ -2132,9 +2133,9 @@ pmap_kenter_temporary_free(vm_paddr_t pa)
 	cpu = PCPU_GET(cpuid);
 	sysm = &sysmap_lmem[cpu];
 	if (sysm->valid1) {
-		disableintr();
+		int_level = disableintr();
 		pmap_TLB_invalidate_kernel((vm_offset_t)sysm->CADDR1);
-		enableintr();
+		restoreintr(int_level);
 		sysm->CMAP1 = 0;
 		sysm->valid1 = 0;
 	}
@@ -2245,7 +2246,7 @@ pmap_zero_page(vm_page_t m)
 {
 	vm_offset_t va;
 	vm_paddr_t phys = VM_PAGE_TO_PHYS(m);
-
+	int int_level;
 #ifdef VM_ALLOC_WIRED_TLB_PG_POOL
 	if (need_wired_tlb_page_pool) {
 		struct fpage *fp1;
@@ -2280,13 +2281,13 @@ pmap_zero_page(vm_page_t m)
 		sysm = &sysmap_lmem[cpu];
 		PMAP_LGMEM_LOCK(sysm);
 		sched_pin();
-		disableintr();
+		int_level = disableintr();
 		sysm->CMAP1 = mips_paddr_to_tlbpfn(phys) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
 		sysm->valid1 = 1;
 		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		bzero(sysm->CADDR1, PAGE_SIZE);
 		pmap_TLB_invalidate_kernel((vm_offset_t)sysm->CADDR1);
-		enableintr();
+		restoreintr(int_level);
 		sysm->CMAP1 = 0;
 		sysm->valid1 = 0;
 		sched_unpin();
@@ -2306,7 +2307,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 {
 	vm_offset_t va;
 	vm_paddr_t phys = VM_PAGE_TO_PHYS(m);
-
+	int int_level;
 #ifdef VM_ALLOC_WIRED_TLB_PG_POOL
 	if (need_wired_tlb_page_pool) {
 		struct fpage *fp1;
@@ -2336,14 +2337,14 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 		cpu = PCPU_GET(cpuid);
 		sysm = &sysmap_lmem[cpu];
 		PMAP_LGMEM_LOCK(sysm);
-		disableintr();
+		int_level = disableintr();
 		sched_pin();
 		sysm->CMAP1 = mips_paddr_to_tlbpfn(phys) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
 		sysm->valid1 = 1;
 		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		bzero((char *)sysm->CADDR1 + off, size);
 		pmap_TLB_invalidate_kernel((vm_offset_t)sysm->CADDR1);
-		enableintr();
+		restoreintr(int_level);
 		sysm->CMAP1 = 0;
 		sysm->valid1 = 0;
 		sched_unpin();
@@ -2356,7 +2357,7 @@ pmap_zero_page_idle(vm_page_t m)
 {
 	vm_offset_t va;
 	vm_paddr_t phys = VM_PAGE_TO_PHYS(m);
-
+	int int_level;
 #ifdef VM_ALLOC_WIRED_TLB_PG_POOL
 	if (need_wired_tlb_page_pool) {
 		sched_pin();
@@ -2377,14 +2378,14 @@ pmap_zero_page_idle(vm_page_t m)
 		cpu = PCPU_GET(cpuid);
 		sysm = &sysmap_lmem[cpu];
 		PMAP_LGMEM_LOCK(sysm);
-		disableintr();
+		int_level = disableintr();
 		sched_pin();
 		sysm->CMAP1 = mips_paddr_to_tlbpfn(phys) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
 		sysm->valid1 = 1;
 		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		bzero(sysm->CADDR1, PAGE_SIZE);
 		pmap_TLB_invalidate_kernel((vm_offset_t)sysm->CADDR1);
-		enableintr();
+		restoreintr(int_level);
 		sysm->CMAP1 = 0;
 		sysm->valid1 = 0;
 		sched_unpin();
@@ -2405,7 +2406,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	vm_offset_t va_src, va_dst;
 	vm_paddr_t phy_src = VM_PAGE_TO_PHYS(src);
 	vm_paddr_t phy_dst = VM_PAGE_TO_PHYS(dst);
-
+	int int_level;
 #ifdef VM_ALLOC_WIRED_TLB_PG_POOL
 	if (need_wired_tlb_page_pool) {
 		struct fpage *fp1, *fp2;
@@ -2455,7 +2456,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 			sysm = &sysmap_lmem[cpu];
 			PMAP_LGMEM_LOCK(sysm);
 			sched_pin();
-			disableintr();
+			int_level = disableintr();
 			if (phy_src < MIPS_KSEG0_LARGEST_PHYS) {
 				/* one side needs mapping - dest */
 				va_src = MIPS_PHYS_TO_CACHED(phy_src);
@@ -2491,7 +2492,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 				sysm->CMAP2 = 0;
 				sysm->valid2 = 0;
 			}
-			enableintr();
+			restoreintr(int_level);
 			sched_unpin();
 			PMAP_LGMEM_UNLOCK(sysm);
 		}
