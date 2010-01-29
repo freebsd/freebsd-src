@@ -146,7 +146,9 @@ ar5416GpioGet(struct ath_hal *ah, uint32_t gpio)
 	 * Read output value for all gpio's, shift it,
 	 * and verify whether the specific bit is set.
 	 */
-	if (AR_SREV_MERLIN_10_OR_LATER(ah))
+	if (AR_SREV_KITE_10_OR_LATER(ah))
+		bits = MS(OS_REG_READ(ah, AR_GPIO_IN_OUT), AR9285_GPIO_IN_VAL);
+	else if (AR_SREV_MERLIN_10_OR_LATER(ah))
 		bits = MS(OS_REG_READ(ah, AR_GPIO_IN_OUT), AR928X_GPIO_IN_VAL);
 	else
 		bits = MS(OS_REG_READ(ah, AR_GPIO_IN_OUT), AR_GPIO_IN_VAL);
