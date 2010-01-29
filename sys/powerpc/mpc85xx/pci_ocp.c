@@ -297,7 +297,7 @@ pci_ocp_probe(device_t dev)
 {
 	char buf[128];
 	struct pci_ocp_softc *sc;
-	const char *mpcid, *type;
+	const char *type;
 	device_t parent;
 	u_long start, size;
 	uintptr_t devtype;
@@ -327,33 +327,18 @@ pci_ocp_probe(device_t dev)
 	cfgreg = pci_ocp_cfgread(sc, 0, 0, 0, PCIR_VENDOR, 2);
 	if (cfgreg != 0x1057 && cfgreg != 0x1957)
 		goto out;
-	cfgreg = pci_ocp_cfgread(sc, 0, 0, 0, PCIR_DEVICE, 2);
-	switch (cfgreg) {
-	case 0x000a:
-		mpcid = "8555E";
-		break;
-	case 0x0012:
-		mpcid = "8548E";
-		break;
-	case 0x0013:
-		mpcid = "8548";
-		break;
-	/*
-	 * Documentation from Freescale is incorrect.
-	 * Use right values after documentation is corrected.
-	 */
-	case 0x0030:
-		mpcid = "8544E";
-		break;
-	case 0x0031:
-		mpcid = "8544";
-		break;
-	case 0x0032:
-		mpcid = "8544";
-		break;
-	default:
+
+	cfgreg = pci_ocp_cfgread(sc, 0, 0, 0, PCIR_CLASS, 1);
+	if (cfgreg != PCIC_PROCESSOR)
 		goto out;
-	}
+
+	cfgreg = pci_ocp_cfgread(sc, 0, 0, 0, PCIR_SUBCLASS, 1);
+	if (cfgreg != PCIS_PROCESSOR_POWERPC)
+		goto out;
+
+	cfgreg = pci_ocp_cfgread(sc, 0, 0, 0, PCIR_PROGIF, 1);
+	if (cfgreg != 0)	/* RC mode = 0, EP mode = 1 */
+		goto out;
 
 	type = "PCI";
 	cfgreg = pci_ocp_cfgread(sc, 0, 0, 0, PCIR_CAP_PTR, 1);
@@ -376,7 +361,7 @@ pci_ocp_probe(device_t dev)
 		goto out;
 
 	snprintf(buf, sizeof(buf),
-	    "Freescale MPC%s %s host controller", mpcid, type);
+	    "Freescale on-chip %s host controller", type);
 	device_set_desc_copy(dev, buf);
 	error = BUS_PROBE_DEFAULT;
 
