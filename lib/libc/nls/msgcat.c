@@ -107,12 +107,12 @@ SLIST_HEAD(listhead, catentry) cache =
 nl_catd
 catopen(const char *name, int type)
 {
-	int		 spcleft, saverr;
-	char		 path[PATH_MAX];
-	char		*nlspath, *lang, *base, *cptr, *pathP, *tmpptr;
-	char		*cptr1, *plang, *pter, *pcode;
-	struct stat	 sbuf;
-	struct catentry	*np;
+	struct stat sbuf;
+	struct catentry *np;
+	char *base, *cptr, *cptr1, *lang, *nlspath, *pathP, *pcode;
+	char *plang, *pter, *tmpptr;
+	int saverr, spcleft;
+	char path[PATH_MAX];
 
 	if (name == NULL || *name == '\0')
 		NLRETERR(EINVAL);
@@ -247,10 +247,10 @@ catopen(const char *name, int type)
 char *
 catgets(nl_catd catd, int set_id, int msg_id, const char *s)
 {
-	struct _nls_cat_hdr	*cat_hdr;
-	struct _nls_set_hdr	*set_hdr;
-	struct _nls_msg_hdr	*msg_hdr;
-	int			 l, u, i, r;
+	struct _nls_cat_hdr *cat_hdr;
+	struct _nls_msg_hdr *msg_hdr;
+	struct _nls_set_hdr *set_hdr;
+	int i, l, r, u;
 
 	if (catd == NULL || catd == NLERR) {
 		errno = EBADF;
@@ -315,7 +315,7 @@ notfound:
 int
 catclose(nl_catd catd)
 {
-	struct catentry		*np;
+	struct catentry *np;
 
 	if (catd == NULL || catd == NLERR) {
 		errno = EBADF;
@@ -348,11 +348,11 @@ catclose(nl_catd catd)
 static nl_catd
 load_msgcat(const char *path, const char *name, const char *lang)
 {
-	struct stat	 st;
-	nl_catd		 catd;
-	struct catentry	*np;
-	void		*data;
-	int		 fd;
+	struct stat st;
+	nl_catd	catd;
+	struct catentry *np;
+	void *data;
+	int fd;
 
 	/* path/name will never be NULL here */
 
@@ -418,4 +418,3 @@ load_msgcat(const char *path, const char *name, const char *lang)
 	UNLOCK;
 	return (catd);
 }
-
