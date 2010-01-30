@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2008-2009 Robert N. M. Watson
+.\" Copyright (c) 2008-2010 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
@@ -224,7 +224,7 @@ global scope for some objects.
 Permit
 .Xr kevent 2 ;
 .Dv CAP_EVENT
-may also be required on file descriptors to be monitored using
+is also required on file descriptors that will be monitored using
 .Xr kevent 2 .
 .It Dv CAP_LISTEN
 Permit
