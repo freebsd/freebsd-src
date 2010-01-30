@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability_host_io.c#4 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host_io.c#1 $
  */
 
 #include <sys/param.h>
@@ -48,9 +48,9 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "libcapability.h"
-#include "libcapability_internal.h"
-#include "libcapability_sandbox_api.h"
+#include "libcapsicum.h"
+#include "libcapsicum_internal.h"
+#include "libcapsicum_sandbox_api.h"
 
 /*
  * Simple I/O wrappers for capability sockets.  Possibly more keeping an eye
@@ -89,7 +89,7 @@ lch_recv_rights(struct lc_sandbox *lcsp, void *buf, size_t len, int flags,
 }
 
 /*
- * Simple libcapability RPC facility (lcrpc): send a request, get back a
+ * Simple libcapsicum RPC facility (lcrpc): send a request, get back a
  * reply (up to the size bound of the buffers passed in).  The caller is
  * responsible for retransmitting if the sandbox fails.
  *

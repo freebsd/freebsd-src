@@ -44,9 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-#include "libcapability.h"
-#include "libcapability_internal.h"
-#include "libcapability_sandbox_api.h"
+#include "libcapsicum.h"
+#include "libcapsicum_internal.h"
+#include "libcapsicum_sandbox_api.h"
 
 ssize_t
 lcs_recv(struct lc_host *lchp, void *buf, size_t len, int flags)
@@ -81,7 +81,7 @@ lcs_send_rights(struct lc_host *lchp, const void *msg, size_t len,
 }
 
 /*
- * libcapability RPC facility (lcrpc) sandbox routines.  Since arguments are
+ * libcapsicum RPC facility (lcrpc) sandbox routines.  Since arguments are
  * variable size, space is allocated by the RPC code rather than the caller,
  * who is expected to free it with free(3) if desired.
  */

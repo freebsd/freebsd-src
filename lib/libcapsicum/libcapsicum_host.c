@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability_host.c#23 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#1 $
  */
 
 #include <sys/param.h>
@@ -49,9 +49,9 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "libcapability.h"
-#include "libcapability_internal.h"
-#include "libcapability_sandbox_api.h"
+#include "libcapsicum.h"
+#include "libcapsicum_internal.h"
+#include "libcapsicum_sandbox_api.h"
 
 #define	LIBCAPABILITY_CAPMASK_DEVNULL	(CAP_EVENT | CAP_READ | CAP_WRITE)
 #define	LIBCAPABILITY_CAPMASK_SOCK	(CAP_EVENT | CAP_READ | CAP_WRITE)
@@ -66,7 +66,7 @@
 #define	_PATH_LIB	"/lib"
 #define	_PATH_USR_LIB	"/usr/lib"
 #define	LIBC_SO	"libc.so.7"
-#define	LIBCAPABILITY_SO	"libcapability.so.1"
+#define	LIBCAPABILITY_SO	"libcapsicum.so.1"
 #define	LIBSBUF_SO	"libsbuf.so.5"
 
 extern char **environ;
@@ -145,7 +145,7 @@ lch_installfds(u_int fd_count, int *fds)
 
 static void
 lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
-    int fd_libcapability, int fd_libsbuf, int fd_devnull, u_int flags,
+    int fd_libcapsicum, int fd_libsbuf, int fd_devnull, u_int flags,
     struct lc_library *lclp, u_int lcl_count, const char *binname,
     char *const argv[])
 {
@@ -163,7 +163,7 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 		return;
 	if (lc_limitfd(fd_libc, LIBCAPABILITY_CAPMASK_LIB) < 0)
 		return;
-	if (lc_limitfd(fd_libcapability, LIBCAPABILITY_CAPMASK_LIB) < 0)
+	if (lc_limitfd(fd_libcapsicum, LIBCAPABILITY_CAPMASK_LIB) < 0)
 		return;
 	if (lc_limitfd(fd_libsbuf, LIBCAPABILITY_CAPMASK_LIB) < 0)
 		return;
@@ -190,7 +190,7 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 	fd_array[4] = fd_sock;
 	fd_array[5] = fd_ldso;
 	fd_array[6] = fd_libc;
-	fd_array[7] = fd_libcapability;
+	fd_array[7] = fd_libcapsicum;
 	fd_array[8] = fd_libsbuf;
 	fd_array[9] = fd_devnull;
 	for (i = 0; i < lcl_count; i++) {
@@ -241,12 +241,12 @@ lch_startfd_libs(int fd_sandbox, const char *binname, char *const argv[],
     struct lc_sandbox **lcspp)
 {
 	struct lc_sandbox *lcsp;
-	int fd_devnull, fd_ldso, fd_libc, fd_libcapability, fd_libsbuf;
+	int fd_devnull, fd_ldso, fd_libc, fd_libcapsicum, fd_libsbuf;
 	int fd_procdesc, fd_sockpair[2];
 	int error, val;
 	pid_t pid;
 
-	fd_devnull = fd_ldso = fd_libc = fd_libcapability = fd_libsbuf =
+	fd_devnull = fd_ldso = fd_libc = fd_libcapsicum = fd_libsbuf =
 	    fd_procdesc = fd_sockpair[0] = fd_sockpair[1] = -1;
 
 	lcsp = malloc(sizeof(*lcsp));
@@ -260,7 +260,7 @@ lch_startfd_libs(int fd_sandbox, const char *binname, char *const argv[],
 		if (ld_libcache_lookup(LIBC_SO, &fd_libc) < 0)
 			goto out_error;
 		if (ld_libcache_lookup(LIBCAPABILITY_SO,
-		    &fd_libcapability) < 0)
+		    &fd_libcapsicum) < 0)
 			goto out_error;
 		if (ld_libcache_lookup(LIBSBUF_SO, &fd_libsbuf) < 0)
 			goto out_error;
@@ -277,9 +277,9 @@ lch_startfd_libs(int fd_sandbox, const char *binname, char *const argv[],
 		fd_libsbuf = open(_PATH_LIB "/" LIBSBUF_SO, O_RDONLY);
 		if (fd_libsbuf < 0)
 			goto out_error;
-		fd_libcapability = open(_PATH_USR_LIB "/" LIBCAPABILITY_SO,
+		fd_libcapsicum = open(_PATH_USR_LIB "/" LIBCAPABILITY_SO,
 		    O_RDONLY);
-		if (fd_libcapability < 0)
+		if (fd_libcapsicum < 0)
 			goto out_error;
 		fd_devnull = open(_PATH_DEVNULL, O_RDWR);
 		if (fd_devnull < 0)
@@ -303,14 +303,14 @@ lch_startfd_libs(int fd_sandbox, const char *binname, char *const argv[],
 	}
 	if (pid == 0) {
 		lch_sandbox(fd_sockpair[1], fd_sandbox, fd_ldso, fd_libc,
-		    fd_libcapability, fd_libsbuf, fd_devnull, flags, lclp,
+		    fd_libcapsicum, fd_libsbuf, fd_devnull, flags, lclp,
 		    lcl_count, binname, argv);
 		exit(-1);
 	}
 #ifndef IN_CAP_MODE
 	close(fd_devnull);
 	close(fd_libsbuf);
-	close(fd_libcapability);
+	close(fd_libcapsicum);
 	close(fd_libc);
 	close(fd_ldso);
 #endif
@@ -334,8 +334,8 @@ out_error:
 		close(fd_devnull);
 	if (fd_libsbuf != -1)
 		close(fd_libsbuf);
-	if (fd_libcapability != -1)
-		close(fd_libcapability);
+	if (fd_libcapsicum != -1)
+		close(fd_libcapsicum);
 	if (fd_libc != -1)
 		close(fd_libc);
 	if (fd_ldso != -1)

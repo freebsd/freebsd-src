@@ -36,14 +36,14 @@
 .Os
 .Dt LIBCAPABILITY_HOST 3
 .Sh NAME
-.Nm libcapability
+.Nm libcapsicum
 .Nd "library interface to capability-mode services"
 .Sh LIBRARY
-.Lb libcapability
+.Lb libcapsicum
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/capability.h
-.In libcapability.h
+.In libcapsicum.h
 .Ft int
 .Fn lch_start "const char *sandbox" "char *const argv[]" "u_int flags" "struct lc_sandbox **lcsp"
 .Ft int
@@ -88,9 +88,9 @@ This man page describes the host API.
 General information on
 .Nm
 may be found in
-.Xr libcapability 3 .
+.Xr libcapsicum 3 .
 Information on the sandbox API may be found in
-.Xr libcapability_sandbox 3 .
+.Xr libcapsicum_sandbox 3 .
 .Sh HOST API
 The
 .Nm
@@ -149,7 +149,7 @@ and
 .Nm
 implements a number of I/O functions as part of the host API, which are
 documented in
-.Xr libcapability_host 3 .
+.Xr libcapsicum_host 3 .
 .Fn lch_recv
 and
 .Fn lch_send
@@ -211,8 +211,8 @@ operation.
 .Xr send 2 ,
 .Xr writev 2 ,
 .Xr free 3 ,
-.Xr libcapability 3 ,
-.Xr libcapability_sandbox 3 ,
+.Xr libcapsicum 3 ,
+.Xr libcapsicum_sandbox 3 ,
 .Xr malloc 3 ,
 .Xr unix 4
 .Sh HISTORY

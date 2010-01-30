@@ -8,7 +8,7 @@ MAN=		gzip.1 gzexe.1 zdiff.1 zforce.1 zmore.1 znew.1
 SRCS=		gzip.c gzsandbox.c
 
 DPADD=		${LIBZ} ${LIBCAPABILITY}
-LDADD=		-lz -lcapability
+LDADD=		-lz -lcapsicum
 WARNS?=		6
 CFLAGS+=	-rdynamic			# For sandbox cap_main
 

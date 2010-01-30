@@ -29,53 +29,85 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability_sandbox_api.h#4 $
  */
 
-#ifndef _LIBCAPABILITY_SANDBOX_API_H_
-#define	_LIBCAPABILITY_SANDBOX_API_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-/*
- * This include file captures the assumptions libcapability sandboxs will
- * make about the runtime environment set up by libcapability hosts.
- */
-#define	LIBCAPABILITY_SANDBOX_API_ENV	"LIBCAPABILITY_SANDBOX"
-#define	LIBCAPABILITY_SANDBOX_API_SOCK	"sock"
+#include <sys/types.h>
+#include <sys/capability.h>
+#include <sys/socket.h>
+#include <sys/uio.h>
 
-/*
- * Maximum number of file descriptor rights we will ever send as part of an
- * RPC.
- */
-#define	LIBCAPABILITY_SANDBOX_API_MAXRIGHTS	16
+#include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
 
-/*
- * Simple libcapability RPC facility (lcrpc) definitions.
- */
-#define	LCRPC_REQUEST_HDR_MAGIC	0x29ee2d7eb9143d98
-struct lcrpc_request_hdr {
-	u_int64_t	lcrpc_reqhdr_magic;
-	u_int32_t	lcrpc_reqhdr_seqno;
-	u_int32_t	lcrpc_reqhdr_opno;
-	u_int64_t	lcrpc_reqhdr_datalen;
-	u_int64_t	lcrpc_reqhdr_maxrepdatalen;
-	u_int64_t	_lcrpc_reqhdr_spare3;
-	u_int64_t	_lcrpc_reqhdr_spare2;
-	u_int64_t	_lcrpc_reqhdr_spare1;
-	u_int64_t	_lcrpc_reqhdr_spare0;
-} __packed;
+#include "libcapsicum.h"
+#include "libcapsicum_internal.h"
+#include "libcapsicum_sandbox_api.h"
 
-#define	LCRPC_REPLY_HDR_MAGIC	0x37cc2e29f5cce29b
-struct lcrpc_reply_hdr {
-	u_int64_t	lcrpc_rephdr_magic;
-	u_int32_t	lcrpc_rephdr_seqno;
-	u_int32_t	lcrpc_rephdr_opno;
-	u_int64_t	lcrpc_rephdr_datalen;
-	u_int64_t	_lcrpc_rephdr_spare4;
-	u_int64_t	_lcrpc_rephdr_spare3;
-	u_int64_t	_lcrpc_rephdr_spare2;
-	u_int64_t	_lcrpc_rephdr_spare1;
-	u_int64_t	_lcrpc_rephdr_spare0;
-} __packed;
+static int		lch_initialized;
+static struct lc_host	lch_global;
 
-#endif /* !_LIBCAPABILITY_H_ */
+int
+lcs_get(struct lc_host **lchpp)
+{
+	char *endp, *env, *env_dup, *env_dup_free, *name, *token, *value;
+	int error, fd_sock;
+	long long ll;
+
+	if (lch_initialized) {
+		*lchpp = &lch_global;
+		return (0);
+	}
+
+	if (!ld_insandbox()) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	env = getenv(LIBCAPABILITY_SANDBOX_API_ENV);
+	if (env == NULL) {
+		errno = EINVAL;		/* XXXRW: Better errno? */
+		return (-1);
+	}
+
+	env_dup = env_dup_free = strdup(env);
+	if (env_dup == NULL)
+		return (-1);
+
+	fd_sock = -1;
+	while ((token = strsep(&env_dup, ",")) != NULL) {
+		name = strsep(&token, ":");
+		if (name == NULL)
+			continue;
+		value = token;
+		if (strcmp(name, LIBCAPABILITY_SANDBOX_API_SOCK) == 0) {
+			ll = strtoll(value, &endp, 10);
+			if (*endp != '\0' || ll < 0 || ll > INT_MAX)
+				continue;
+			fd_sock = ll;
+		}
+	}
+	if (fd_sock == -1) {
+		error = errno;
+		free(env_dup_free);
+		errno = error;
+		return (-1);
+	}
+	lch_global.lch_fd_sock = fd_sock;
+	lch_initialized = 1;
+	*lchpp = &lch_global;
+	free(env_dup_free);
+	return (0);
+}
+
+int
+lcs_getsock(struct lc_host *lchp, int *fdp)
+{
+
+	*fdp = lchp->lch_fd_sock;
+	return (0);
+}

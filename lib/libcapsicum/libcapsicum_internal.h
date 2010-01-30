@@ -29,85 +29,38 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_internal.h#1 $
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _LIBCAPABILITY_INTERNAL_H_
+#define	_LIBCAPABILITY_INTERNAL_H_
 
-#include <sys/types.h>
-#include <sys/capability.h>
-#include <sys/socket.h>
-#include <sys/uio.h>
+struct lc_host {
+	int	lch_fd_sock;
+};
 
-#include <errno.h>
-#include <limits.h>
-#include <stdlib.h>
-#include <string.h>
+struct lc_sandbox {
+	int	lcs_fd_sock;
+	int	lcs_fd_procdesc;
+	pid_t	lcs_pid;
+};
 
-#include "libcapability.h"
-#include "libcapability_internal.h"
-#include "libcapability_sandbox_api.h"
+/*
+ * Communications flags for recv/send calls (lc_flags).
+ */
+#define	LC_IGNOREEINTR	0x00000001
 
-static int		lch_initialized;
-static struct lc_host	lch_global;
+struct msghdr;
+void	_lc_dispose_rights(int *fdp, int fdcount);
+int	_lc_receive_rights(struct msghdr *msg, int *fdp, int *fdcountp);
 
-int
-lcs_get(struct lc_host **lchpp)
-{
-	char *endp, *env, *env_dup, *env_dup_free, *name, *token, *value;
-	int error, fd_sock;
-	long long ll;
+ssize_t	_lc_recv(int fd, void *buf, size_t len, int flags, int lc_flags);
+ssize_t	_lc_recv_rights(int fd, void *buf, size_t len, int flags,
+	    int lc_flags, int *fdp, int *fdcountp);
+ssize_t	_lc_send(int fd, const void *msg, size_t len, int flags,
+	    int lc_flags);
+ssize_t	_lc_send_rights(int fd, const void *msg, size_t len, int flags,
+	    int lc_flags, int *fdp, int fdcount);
 
-	if (lch_initialized) {
-		*lchpp = &lch_global;
-		return (0);
-	}
-
-	if (!ld_insandbox()) {
-		errno = EINVAL;
-		return (-1);
-	}
-
-	env = getenv(LIBCAPABILITY_SANDBOX_API_ENV);
-	if (env == NULL) {
-		errno = EINVAL;		/* XXXRW: Better errno? */
-		return (-1);
-	}
-
-	env_dup = env_dup_free = strdup(env);
-	if (env_dup == NULL)
-		return (-1);
-
-	fd_sock = -1;
-	while ((token = strsep(&env_dup, ",")) != NULL) {
-		name = strsep(&token, ":");
-		if (name == NULL)
-			continue;
-		value = token;
-		if (strcmp(name, LIBCAPABILITY_SANDBOX_API_SOCK) == 0) {
-			ll = strtoll(value, &endp, 10);
-			if (*endp != '\0' || ll < 0 || ll > INT_MAX)
-				continue;
-			fd_sock = ll;
-		}
-	}
-	if (fd_sock == -1) {
-		error = errno;
-		free(env_dup_free);
-		errno = error;
-		return (-1);
-	}
-	lch_global.lch_fd_sock = fd_sock;
-	lch_initialized = 1;
-	*lchpp = &lch_global;
-	free(env_dup_free);
-	return (0);
-}
-
-int
-lcs_getsock(struct lc_host *lchp, int *fdp)
-{
-
-	*fdp = lchp->lch_fd_sock;
-	return (0);
-}
+#endif /* !_LIBCAPABILITY_INTERNAL_H_ */

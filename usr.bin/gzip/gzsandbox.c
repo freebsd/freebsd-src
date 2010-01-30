@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <libcapability.h>
+#include <libcapsicum.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -361,7 +361,7 @@ cap_main(__unused int argc, __unused char *argv[])
 	size_t len;
 
 	if (lcs_get(&lchp) < 0)
-		errx(-1, "libcapability sandbox binary");
+		errx(-1, "libcapsicum sandbox binary");
 
 	while (1) {
 		fdcount = 2;

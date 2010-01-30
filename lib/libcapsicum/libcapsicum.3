@@ -36,14 +36,14 @@
 .Os
 .Dt LIBCAPABILITY 3
 .Sh NAME
-.Nm libcapability
+.Nm libcapsicum
 .Nd "library interface to capability-mode services"
 .Sh LIBRARY
-.Lb libcapability
+.Lb libcapsicum
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/capability.h
-.In libcapability.h
+.In libcapsicum.h
 .Ft int
 .Fn lc_limitfd "int fd" "cap_rights_t rights"
 .Sh DESCRIPTION
@@ -65,7 +65,7 @@ Host processes use the
 .Nm
 host API,
 described in
-.Xr libcapability_host 3 ,
+.Xr libcapsicum_host 3 ,
 to launch compartmentalized components in sandboxes.
 They may also use
 .Nm
@@ -79,7 +79,7 @@ Sandbox processes use the
 .Nm
 sandbox API,
 described in
-.Xr libcapability_sandbox 3 .
+.Xr libcapsicum_sandbox 3 .
 Sandboxed processes themselves may launch software components in further
 sandboxes, so a single program may use both host and sandbox APIs.
 .Sh CAPABILITY API
@@ -99,8 +99,8 @@ with the requested rights mask.
 .Xr cap_new 2 ,
 .Xr close 2 ,
 .Xr dup2 2 ,
-.Xr libcapability_host 3 ,
-.Xr libcapability_sandbox 3 ,
+.Xr libcapsicum_host 3 ,
+.Xr libcapsicum_sandbox 3 ,
 .Xr unix 4
 .Sh HISTORY
 Support for capabilities and capabilities mode was developed as part of the

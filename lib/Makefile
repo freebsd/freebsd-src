@@ -32,7 +32,7 @@ SUBDIR=	${_csu} libc libbsm libauditd libcom_err libcrypt libelf libkvm msun \
 	ncurses ${_libnetgraph} libradius librpcsvc libsbuf \
 	libtacplus libutil ${_libypclnt} libalias libarchive ${_libatm} \
 	libbegemot ${_libbluetooth} ${_libbsnmp} libbz2 \
-	libcalendar libcam libcapability libcompat \
+	libcalendar libcam libcapsicum libcompat \
 	libdevinfo libdevstat \
 	libdisk \
 	libdwarf libedit libexpat libfetch libftpio libgeom ${_libgpib} \

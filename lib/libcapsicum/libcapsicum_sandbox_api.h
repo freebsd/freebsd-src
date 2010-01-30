@@ -30,37 +30,52 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability_internal.h#4 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_sandbox_api.h#1 $
  */
 
-#ifndef _LIBCAPABILITY_INTERNAL_H_
-#define	_LIBCAPABILITY_INTERNAL_H_
-
-struct lc_host {
-	int	lch_fd_sock;
-};
-
-struct lc_sandbox {
-	int	lcs_fd_sock;
-	int	lcs_fd_procdesc;
-	pid_t	lcs_pid;
-};
+#ifndef _LIBCAPABILITY_SANDBOX_API_H_
+#define	_LIBCAPABILITY_SANDBOX_API_H_
 
 /*
- * Communications flags for recv/send calls (lc_flags).
+ * This include file captures the assumptions libcapsicum sandboxs will
+ * make about the runtime environment set up by libcapsicum hosts.
  */
-#define	LC_IGNOREEINTR	0x00000001
+#define	LIBCAPABILITY_SANDBOX_API_ENV	"LIBCAPABILITY_SANDBOX"
+#define	LIBCAPABILITY_SANDBOX_API_SOCK	"sock"
 
-struct msghdr;
-void	_lc_dispose_rights(int *fdp, int fdcount);
-int	_lc_receive_rights(struct msghdr *msg, int *fdp, int *fdcountp);
+/*
+ * Maximum number of file descriptor rights we will ever send as part of an
+ * RPC.
+ */
+#define	LIBCAPABILITY_SANDBOX_API_MAXRIGHTS	16
 
-ssize_t	_lc_recv(int fd, void *buf, size_t len, int flags, int lc_flags);
-ssize_t	_lc_recv_rights(int fd, void *buf, size_t len, int flags,
-	    int lc_flags, int *fdp, int *fdcountp);
-ssize_t	_lc_send(int fd, const void *msg, size_t len, int flags,
-	    int lc_flags);
-ssize_t	_lc_send_rights(int fd, const void *msg, size_t len, int flags,
-	    int lc_flags, int *fdp, int fdcount);
+/*
+ * Simple libcapsicum RPC facility (lcrpc) definitions.
+ */
+#define	LCRPC_REQUEST_HDR_MAGIC	0x29ee2d7eb9143d98
+struct lcrpc_request_hdr {
+	u_int64_t	lcrpc_reqhdr_magic;
+	u_int32_t	lcrpc_reqhdr_seqno;
+	u_int32_t	lcrpc_reqhdr_opno;
+	u_int64_t	lcrpc_reqhdr_datalen;
+	u_int64_t	lcrpc_reqhdr_maxrepdatalen;
+	u_int64_t	_lcrpc_reqhdr_spare3;
+	u_int64_t	_lcrpc_reqhdr_spare2;
+	u_int64_t	_lcrpc_reqhdr_spare1;
+	u_int64_t	_lcrpc_reqhdr_spare0;
+} __packed;
 
-#endif /* !_LIBCAPABILITY_INTERNAL_H_ */
+#define	LCRPC_REPLY_HDR_MAGIC	0x37cc2e29f5cce29b
+struct lcrpc_reply_hdr {
+	u_int64_t	lcrpc_rephdr_magic;
+	u_int32_t	lcrpc_rephdr_seqno;
+	u_int32_t	lcrpc_rephdr_opno;
+	u_int64_t	lcrpc_rephdr_datalen;
+	u_int64_t	_lcrpc_rephdr_spare4;
+	u_int64_t	_lcrpc_rephdr_spare3;
+	u_int64_t	_lcrpc_rephdr_spare2;
+	u_int64_t	_lcrpc_rephdr_spare1;
+	u_int64_t	_lcrpc_rephdr_spare0;
+} __packed;
+
+#endif /* !_LIBCAPABILITY_H_ */

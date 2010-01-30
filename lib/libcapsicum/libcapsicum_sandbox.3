@@ -36,14 +36,14 @@
 .Os
 .Dt LIBCAPABILITY_SANDBOX 3
 .Sh NAME
-.Nm libcapability
+.Nm libcapsicum
 .Nd "library interface to capability-mode services"
 .Sh LIBRARY
-.Lb libcapability
+.Lb libcapsicum
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/capability.h
-.In libcapability.h
+.In libcapsicum.h
 .Ft int
 .Fn lcs_get "struct lc_host **lchpp"
 .Ft int
@@ -82,7 +82,7 @@ This man page describes the sandbox API.
 General information on
 .Nm
 may be found in
-.Xr libcapability 3 .
+.Xr libcapsicum 3 .
 .Sh SANDBOX API
 The
 .Nm
@@ -102,7 +102,7 @@ The socket for the host may be queried using
 .Nm
 implements a number of I/O functions as part of the sandbox API, which are
 documented in
-.Xr libcapability_sandbox 3 .
+.Xr libcapsicum_sandbox 3 .
 .Fn lcs_recv
 and
 .Fn lcs_send
@@ -156,8 +156,8 @@ allow the receiving and sending of file descriptors along with the RPC.
 .Xr send 2 ,
 .Xr writev 2 ,
 .Xr free 3 ,
-.Xr libcapability 3 ,
-.Xr libcapability_host 3 ,
+.Xr libcapsicum 3 ,
+.Xr libcapsicum_host 3 ,
 .Xr malloc 3 ,
 .Xr unix 4
 .Sh HISTORY

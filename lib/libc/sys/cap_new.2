@@ -88,7 +88,7 @@ descriptor, including open file flags, blocking disposition, and file offset.
 Many applications will prefer to use the
 .Xr cap_limitfd 3
 library call, part of
-.Xr libcapability 3 ,
+.Xr libcapsicum 3 ,
 as it offers a more convenient interface.
 .Pp
 .Fn cap_getrights
@@ -455,7 +455,7 @@ argument is not a capability.
 .Xr unlinkat 2 ,
 .Xr write 2 ,
 .Xr cap_limitfd 3 ,
-.Xr libcapability 3 ,
+.Xr libcapsicum 3 ,
 .Xr sem_getvalue 3 ,
 .Xr sem_post 3 ,
 .Xr sem_trywait 3 ,
