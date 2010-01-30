@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)chmod.c	8.8 (Berkeley) 4/1/94";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 
 #include <err.h>
@@ -54,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 static void usage(void);
-static int may_have_nfs4acl(const FTSENT *ent);
+static int may_have_nfs4acl(const FTSENT *ent, int hflag);
 
 int
 main(int argc, char *argv[])
@@ -62,11 +63,10 @@ main(int argc, char *argv[])
 	FTS *ftsp;
 	FTSENT *p;
 	mode_t *set;
-	int Hflag, Lflag, Rflag, ch, fflag, fts_options, hflag, rval;
+	int Hflag, Lflag, Rflag, ch, fflag, fts_options, hflag, rval, error;
 	int vflag;
 	char *mode;
 	mode_t newmode;
-	int (*change_mode)(const char *, mode_t);
 
 	set = NULL;
 	Hflag = Lflag = Rflag = fflag = hflag = vflag = 0;
@@ -140,11 +140,6 @@ done:	argv += optind;
 	} else
 		fts_options = hflag ? FTS_PHYSICAL : FTS_LOGICAL;
 
-	if (hflag)
-		change_mode = lchmod;
-	else
-		change_mode = chmod;
-
 	mode = *argv;
 	if ((set = setmode(mode)) == NULL)
 		errx(1, "invalid file mode: %s", mode);
@@ -186,10 +181,14 @@ done:	argv += optind;
 		 * identical to the one computed from an ACL will change
 		 * that ACL.
 		 */
-		if (may_have_nfs4acl(p) == 0 &&
+		if (may_have_nfs4acl(p, hflag) == 0 &&
 		    (newmode & ALLPERMS) == (p->fts_statp->st_mode & ALLPERMS))
 				continue;
-		if ((*change_mode)(p->fts_accpath, newmode) && !fflag) {
+		if (hflag)
+			error = lchmod(p->fts_accpath, newmode);
+		else
+			error = chmod(p->fts_accpath, newmode);
+		if (error && !fflag) {
 			warn("%s", p->fts_path);
 			rval = 1;
 		} else {
@@ -228,17 +227,20 @@ usage(void)
 }
 
 static int
-may_have_nfs4acl(const FTSENT *ent)
+may_have_nfs4acl(const FTSENT *ent, int hflag)
 {
 	int ret;
-	static dev_t previous_dev = (dev_t)-1;
+	static dev_t previous_dev = NODEV;
 	static int supports_acls = -1;
 
 	if (previous_dev != ent->fts_statp->st_dev) {
 		previous_dev = ent->fts_statp->st_dev;
 		supports_acls = 0;
 
-		ret = pathconf(ent->fts_accpath, _PC_ACL_NFS4);
+		if (hflag)
+			ret = lpathconf(ent->fts_accpath, _PC_ACL_NFS4);
+		else
+			ret = pathconf(ent->fts_accpath, _PC_ACL_NFS4);
 		if (ret > 0)
 			supports_acls = 1;
 		else if (ret < 0 && errno != EINVAL)
