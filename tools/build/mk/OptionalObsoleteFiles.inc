@@ -691,6 +691,17 @@ OLD_FILES+=usr/share/dict/words
 # to be filled in
 #.endif
 
+.if ${MK_FLOPPY} == no
+OLD_FILES+=usr/sbin/fdcontrol
+OLD_FILES+=usr/sbin/fdformat
+OLD_FILES+=usr/sbin/fdread
+OLD_FILES+=usr/sbin/fdwrite
+OLD_FILES+=usr/share/man/man1/fdformat.1.gz
+OLD_FILES+=usr/share/man/man1/fdread.1.gz
+OLD_FILES+=usr/share/man/man1/fdwrite.1.gz
+OLD_FILES+=usr/share/man/man8/fdcontrol.8.gz
+.endif
+
 #.if ${MK_GAMES} == no
 # to be filled in
 #.endif
