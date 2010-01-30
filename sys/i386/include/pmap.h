@@ -201,6 +201,16 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
 #define	vtopte(va)	(PTmap + i386_btop(va))
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
+
+/*
+ * KPTmap is a linear mapping of the kernel page table.  It differs from the
+ * recursive mapping in two ways: (1) it only provides access to kernel page
+ * table pages, and not user page table pages, and (2) it provides access to
+ * a kernel page table page after the corresponding virtual addresses have
+ * been promoted to a 2/4MB page mapping.
+ */
+extern pt_entry_t *KPTmap;
+
 /*
  *	Routine:	pmap_kextract
  *	Function:
@@ -215,10 +225,17 @@ pmap_kextract(vm_offset_t va)
 	if ((pa = PTD[va >> PDRSHIFT]) & PG_PS) {
 		pa = (pa & PG_PS_FRAME) | (va & PDRMASK);
 	} else {
-		pa = *vtopte(va);
+		/*
+		 * Beware of a concurrent promotion that changes the PDE at
+		 * this point!  For example, vtopte() must not be used to
+		 * access the PTE because it would use the new PDE.  It is,
+		 * however, safe to use the old PDE because the page table
+		 * page is preserved by the promotion.
+		 */
+		pa = KPTmap[i386_btop(va)];
 		pa = (pa & PG_FRAME) | (va & PAGE_MASK);
 	}
-	return pa;
+	return (pa);
 }
 
 #ifdef PAE
