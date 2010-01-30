@@ -45,7 +45,7 @@ The
 is a version of
 .Xr ld-elf.so.1 1
 specific to the sandbox environment created using
-.Xr libcapability 3 ,
+.Xr libcapsicum 3 ,
 which provides certain extended or modified linker services for that
 environment:
 .Bl -bullet
@@ -72,7 +72,7 @@ environmental variable set by sandbox start routines, and implements
 allowing file descriptors for binaries and libraries passed across
 .Xr fexecve 2
 to be used by
-.Xr libcapability 3 ,
+.Xr libcapsicum 3 ,
 as well as applications.
 .It
 Implements a version of
@@ -88,7 +88,7 @@ will need to export it as a dynamic symbol, perhaps using
 command line flag.
 .Pp
 Most capability-mode applications will be started using the APIs defined in
-.Xr libcapability 3 ,
+.Xr libcapsicum 3 ,
 which properly set up the run-time environment for
 .Nm .
 .Sh SEE ALSO
@@ -96,7 +96,7 @@ which properly set up the run-time environment for
 .Xr ld-elf.so.1 1 ,
 .Xr cap_enter 2 ,
 .Xr fexecve 2 ,
-.Xr libcapability 3
+.Xr libcapsicum 3
 .Sh HISTORY
 Support for capabilities and capabilities mode was developed as part of the
 .Tn TrustedBSD
