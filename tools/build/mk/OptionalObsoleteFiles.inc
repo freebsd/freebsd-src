@@ -709,9 +709,54 @@ OLD_FILES+=usr/share/examples/etc/freebsd-update.conf
 OLD_FILES+=usr/share/man/man8/freebsd-update.8.gz
 .endif
 
-#.if ${MK_GAMES} == no
-# to be filled in
-#.endif
+.if ${MK_GAMES} == no
+OLD_FILES+=usr/games/bcd
+OLD_FILES+=usr/games/caesar
+OLD_FILES+=usr/games/factor
+OLD_FILES+=usr/games/fortune
+OLD_FILES+=usr/games/grdc
+OLD_FILES+=usr/games/morse
+OLD_FILES+=usr/games/number
+OLD_FILES+=usr/games/pom
+OLD_FILES+=usr/games/ppt
+OLD_FILES+=usr/games/primes
+OLD_FILES+=usr/games/random
+OLD_FILES+=usr/games/rot13
+OLD_FILES+=usr/games/strfile
+OLD_FILES+=usr/games/unstr
+OLD_FILES+=usr/share/games/fortune/fortunes
+OLD_FILES+=usr/share/games/fortune/fortunes-o
+OLD_FILES+=usr/share/games/fortune/fortunes-o.dat
+OLD_FILES+=usr/share/games/fortune/fortunes.dat
+OLD_FILES+=usr/share/games/fortune/freebsd-tips
+OLD_FILES+=usr/share/games/fortune/freebsd-tips.dat
+OLD_FILES+=usr/share/games/fortune/gerrold.limerick
+OLD_FILES+=usr/share/games/fortune/gerrold.limerick.dat
+OLD_FILES+=usr/share/games/fortune/limerick
+OLD_FILES+=usr/share/games/fortune/limerick.dat
+OLD_FILES+=usr/share/games/fortune/murphy
+OLD_FILES+=usr/share/games/fortune/murphy-o
+OLD_FILES+=usr/share/games/fortune/murphy-o.dat
+OLD_FILES+=usr/share/games/fortune/murphy.dat
+OLD_FILES+=usr/share/games/fortune/startrek
+OLD_FILES+=usr/share/games/fortune/startrek.dat
+OLD_FILES+=usr/share/games/fortune/zippy
+OLD_FILES+=usr/share/games/fortune/zippy.dat
+OLD_FILES+=usr/share/man/man6/bcd.6.gz
+OLD_FILES+=usr/share/man/man6/caesar.6.gz
+OLD_FILES+=usr/share/man/man6/factor.6.gz
+OLD_FILES+=usr/share/man/man6/fortune.6.gz
+OLD_FILES+=usr/share/man/man6/grdc.6.gz
+OLD_FILES+=usr/share/man/man6/morse.6.gz
+OLD_FILES+=usr/share/man/man6/number.6.gz
+OLD_FILES+=usr/share/man/man6/pom.6.gz
+OLD_FILES+=usr/share/man/man6/ppt.6.gz
+OLD_FILES+=usr/share/man/man6/primes.6.gz
+OLD_FILES+=usr/share/man/man6/random.6.gz
+OLD_FILES+=usr/share/man/man6/rot13.6.gz
+OLD_FILES+=usr/share/man/man8/strfile.8.gz
+OLD_FILES+=usr/share/man/man8/unstr.8.gz
+.endif
 
 .if ${MK_GCOV} == no
 OLD_FILES+=usr/bin/gcov
