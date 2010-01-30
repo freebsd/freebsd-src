@@ -30,13 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability.h#26 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability.h#27 $
  */
 
 #ifndef _LIBCAPABILITY_H_
 #define	_LIBCAPABILITY_H_
 
 #include <sys/cdefs.h>
+#include <sys/capability.h>
 
 __BEGIN_DECLS
 
@@ -52,29 +53,53 @@ struct lc_library {
 	int		 lcl_fd;
 };
 
+
+/* A list of file descriptors, which can be passed around in shared memory */
+struct lc_fdlist;
+
+
+struct lc_fdlist*	lc_fdlist_new(void);
+struct lc_fdlist*	lc_fdlist_dup(struct lc_fdlist *orig);
+void			lc_fdlist_free(struct lc_fdlist *l);
+
+/* Size of an FD list in bytes, including all associated string data */
+int	lc_fdlist_size(struct lc_fdlist *l);
+
+
 /*
- * A file descriptor "registry"
+ * Add a file descriptor to the list.
+ *
+ * l		the list to add to
+ * subsystem	a software component name, e.g. "org.freebsd.rtld-elf"
+ * classname	a class name, e.g. "libdir" or "library"
+ * name		an instance name, e.g. "system library dir" or "libc.so.6"
+ * fd		the file descriptor
  */
-struct lc_fdregistry_entry;
-struct lc_fdregistry {
-	struct lc_fdregistry_entry *entries;	/* registry entries */
-
-	unsigned int count;			/* number of entries */
-	unsigned int capacity;			/* entries that we can hold */
-};
+int	lc_fdlist_add(struct lc_fdlist **l,
+	              const char *subsystem, const char *classname,
+	              const char *name, int fd);
 
 /*
- * Registry operations
+ * Like lc_fdlist_add(), but allows capability rights to be specified. The file
+ * descriptor will be wrapped in a capability with the given rights (so if the
+ * descriptor *is* a capability, its rights will be constrained according to this
+ * rights mask)
  */
-struct lc_fdregistry*	lc_fdregistry_new(void);
-struct lc_fdregistry*	lc_fdregistry_dup(const struct lc_fdregistry *orig);
-void			lc_fdregistry_free(struct lc_fdregistry *registry);
+int	lc_fdlist_addcap(struct lc_fdlist **l,
+	                 const char *subsystem, const char *classname,
+	                 const char *name, int fd, cap_rights_t rights);
 
-int	lc_fdregistry_add(const struct lc_fdregistry *reg,
-	                  const char *id, const char *name, int fd);
-
-int	lc_fdregistry_lookup(const struct lc_fdregistry *reg,
-	                     const char *id, char **name, int *fdp);
+/*
+ * Look up a file descriptor.
+ *
+ * Multiple entries with the same classname are allowed, so iterating through
+ * all instances of a class is done by supplying an integer 'pos' which is used
+ * internally to skip entries which have already been seen. If 'pos' is 0 or NULL,
+ * the first matching entry will be returned.
+ */
+int	lc_fdlist_lookup(struct lc_fdlist *l,
+	                 const char *subsystem, const char *classname,
+	                 char **name, int *fdp, int *pos);
 
 /*
  * Capability interfaces.
