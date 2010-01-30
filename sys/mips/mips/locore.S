@@ -77,14 +77,9 @@
 GLOBAL(fenvp)
 	.space 4			# Assumes mips32?  Is that OK?
 #endif
-GLOBAL(stackspace)
-	.space NBPG /* Smaller than it should be since it's temp. */
-	.align 8
-GLOBAL(topstack)
 
-	
 	.set noreorder
-	
+
 	.text
 
 GLOBAL(btext)
@@ -133,6 +128,7 @@ VECTOR(_locore, unknown)
 	or	t2, t1
 	mtc0	t2, COP_0_STATUS_REG
 	COP0_SYNC
+
 	/* Make sure KSEG0 is cached */
 	li	t0, CFG_K0_CACHED
 	mtc0	t0, MIPS_COP_0_CONFIG
@@ -157,13 +153,6 @@ VECTOR(_locore, unknown)
 	sw	t0, _C_LABEL(cpu_id)
 	sw	t1, _C_LABEL(fpu_id)
 
-/*
- * Initialize stack and call machine startup.
- */
-	PTR_LA	sp, _C_LABEL(topstack) - START_FRAME
-	PTR_LA	gp, _C_LABEL(_gp)
-	sw	zero, START_FRAME - 4(sp)  # Zero out old ra for debugger
-
 	/*xxximp
 	 * now that we pass a0...a3 to the platform_init routine, do we need
 	 * to stash this stuff here?
@@ -174,58 +163,19 @@ VECTOR(_locore, unknown)
 #endif
 
 	/*
-	 * The following needs to be done differently for each platform and
-	 * there needs to be a good way to plug this in.
+	 * Initialize stack and call machine startup.
 	 */
-#if defined(SMP) && defined(CPU_XLR)
-/*
- * Block all the slave CPUs
- */
-	/* XXX a0, a1, a2 shouldn't be used here */
-	/*
-	 * Read the cpu id from the cp0 config register
-	 * cpuid[9:4], thrid[3: 0]
-	 */
-	mfc0	a0, COP_0_CONFIG, 7
-	srl	a1, a0, 4
-	andi	a1, a1, 0x3f
-	andi	a0, a0, 0xf
+	PTR_LA	sp, _C_LABEL(pcpu_space)
+	addiu	sp, (NBPG * 2) - START_FRAME
 
-	/* calculate linear cpuid */
-	sll     t0, a1, 2
-	addu    a2, t0, a0
-/* Initially, disable all hardware threads on each core except thread0 */
-	li	t1, VCPU_ID_0
-	li	t2, XLR_THREAD_ENABLE_IND
-	mtcr	t1, t2
-#endif
+	sw	zero, START_FRAME - 4(sp)	# Zero out old ra for debugger
+	sw	zero, START_FRAME - 8(sp)	# Zero out old fp for debugger
 
-
-#if defined(TARGET_OCTEON) /* Maybe this is mips32/64 generic? */
-	.set push
-	.set mips32r2
-	rdhwr	t0, $0
-	.set pop
-#else
-	move	t0, zero
-#endif
-
-	/* Stage the secondary cpu start until later */
-	bne	t0, zero, start_secondary
-	nop
-
-#ifdef SMP
-	PTR_LA	t0, _C_LABEL(__pcpu)
-	SET_CPU_PCPU(t0)
-	/* If not master cpu, jump... */
-/*XXX this assumes the above #if 0'd code runs */
-	bne    a2, zero, start_secondary
-	nop
-#endif
+	PTR_LA	gp, _C_LABEL(_gp)
 
 	/* Call the platform-specific startup code. */
 	jal	_C_LABEL(platform_start)
-	sw	zero, START_FRAME - 8(sp)	# Zero out old fp for debugger
+	nop
 
 	PTR_LA	sp, _C_LABEL(thread0)
 	lw      a0, TD_PCB(sp)
@@ -237,26 +187,5 @@ VECTOR(_locore, unknown)
 	sw	zero, START_FRAME - 8(sp)	# Zero out old fp for debugger
 
 	PANIC("Startup failed!")
-
-#ifdef SMP
-start_secondary:
-	move	a0, a1
-2:
-	addiu	t0, PCPU_SIZE
-	subu	a1, 1
-	bne	a1, zero, 2b
-	nop
-	SET_CPU_PCPU(t0)
-smp_wait:
-	lw	sp, PC_BOOT_STACK(t0)
-	beqz	sp, smp_wait
-	nop
-	jal	_C_LABEL(smp_init_secondary)
-	nop
-#else
-start_secondary:
-	b	start_secondary
-	nop
-#endif
 
 VECTOR_END(_locore)

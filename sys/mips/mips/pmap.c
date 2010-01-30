@@ -355,6 +355,17 @@ again:
 	virtual_avail = VM_MIN_KERNEL_ADDRESS + VM_KERNEL_ALLOC_OFFSET;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
+#ifdef SMP
+	/*
+	 * Steal some virtual address space to map the pcpu area.
+	 */
+	virtual_avail = roundup2(virtual_avail, PAGE_SIZE * 2);
+	pcpup = (struct pcpu *)virtual_avail;
+	virtual_avail += PAGE_SIZE * 2;
+	if (bootverbose)
+		printf("pcpu is available at virtual address %p.\n", pcpup);
+#endif
+
 	/*
 	 * Steal some virtual space that will not be in kernel_segmap. This
 	 * va memory space will be used to map in kernel pages that are
@@ -428,8 +439,8 @@ again:
 	kernel_pmap->pm_segtab = kernel_segmap;
 	kernel_pmap->pm_active = ~0;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
-	kernel_pmap->pm_asid[PCPU_GET(cpuid)].asid = PMAP_ASID_RESERVED;
-	kernel_pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
+	kernel_pmap->pm_asid[0].asid = PMAP_ASID_RESERVED;
+	kernel_pmap->pm_asid[0].gen = 0;
 	pmap_max_asid = VMNUM_PIDS;
 	MachSetPID(0);
 }
