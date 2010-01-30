@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/sys/sys/capability.h#28 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/sys/sys/capability.h#29 $
  */
 
 /*
@@ -98,7 +98,12 @@
 #define	CAP_FSCK		0x0004000000000000ULL	/* sysctl_ffs_fsck */
 #define	CAP_ATBASE		0x0008000000000000ULL	/* openat(2), etc. */
 #define CAP_ABSOLUTEPATH	0x0010000000000000ULL	/* abs. lookup from '/' */
-#define	CAP_MASK_VALID		0x001fffffffffffffULL
+#define CAP_CREATE		0x0020000000000000ULL	/* open, rename, etc. */
+#define CAP_DELETE		0x0040000000000000ULL	/* rename, remove, etc. */
+#define CAP_MKDIR		0x0080000000000000ULL	/* mkdirat(2), mknodat(2) */
+#define CAP_RMDIR		0x0100000000000000ULL	/* rmdirat(2) */
+#define CAP_MKFIFO		0x0200000000000000ULL	/* mkfifoat(2) */
+#define	CAP_MASK_VALID		0x03ffffffffffffffULL
 
 /*
  * Notes:
