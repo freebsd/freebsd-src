@@ -239,6 +239,7 @@ ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TD_KSTACK, offsetof(struct thread, td_kstack));
+ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
