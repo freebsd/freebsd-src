@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability.h#24 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability.h#25 $
  */
 
 #ifndef _LIBCAPABILITY_H_
@@ -148,7 +148,7 @@ int	lcs_sendrpc_rights(struct lc_host *lchp, u_int32_t opno,
  * Actually an rtld-elf-cap symbol, but declared here so it is available to
  * applications.
  */
-int	ld_caplibindex_lookup(const char *libname, int *fdp);
+int	ld_libcache_lookup(const char *libname, int *fdp);
 int	ld_insandbox(void);
 
 /*

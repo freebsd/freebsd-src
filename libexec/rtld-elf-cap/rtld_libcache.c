@@ -55,21 +55,21 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "rtld.h"
-#include "rtld_caplibindex.h"
+#include "rtld_libcache.h"
 
-struct libindex_entry {
+struct libcache_entry {
 	char				*lie_name;
 	int				 lie_fd;
-	TAILQ_ENTRY(libindex_entry)	 lie_list;
+	TAILQ_ENTRY(libcache_entry)	 lie_list;
 };
 
-static TAILQ_HEAD(, libindex_entry)	ld_caplibindex_list =
-    TAILQ_HEAD_INITIALIZER(ld_caplibindex_list);
+static TAILQ_HEAD(, libcache_entry)	ld_libcache_list =
+    TAILQ_HEAD_INITIALIZER(ld_libcache_list);
 
 static void
-ld_caplibindex_add(const char *name, const char *fdnumber)
+ld_libcache_add(const char *name, const char *fdnumber)
 {
-	struct libindex_entry *liep;
+	struct libcache_entry *liep;
 	long long l;
 	char *endp;
 
@@ -83,15 +83,15 @@ ld_caplibindex_add(const char *name, const char *fdnumber)
 	liep = xmalloc(sizeof(*liep));
 	liep->lie_name = xstrdup(name);
 	liep->lie_fd = l;
-	TAILQ_INSERT_TAIL(&ld_caplibindex_list, liep, lie_list);
+	TAILQ_INSERT_TAIL(&ld_libcache_list, liep, lie_list);
 }
 
 int
-ld_caplibindex_lookup(const char *libname, int *fdp)
+ld_libcache_lookup(const char *libname, int *fdp)
 {
-	struct libindex_entry *liep;
+	struct libcache_entry *liep;
 
-	TAILQ_FOREACH(liep, &ld_caplibindex_list, lie_list) {
+	TAILQ_FOREACH(liep, &ld_libcache_list, lie_list) {
 		if (strcmp(liep->lie_name, libname) == 0) {
 			*fdp = liep->lie_fd;
 			return (0);
@@ -101,17 +101,17 @@ ld_caplibindex_lookup(const char *libname, int *fdp)
 }
 
 void
-ld_caplibindex_init(const char *caplibindex)
+ld_libcache_init(const char *libcache)
 {
-	char *caplibindex_copy, *caplibindex_tofree;
+	char *libcache_copy, *libcache_tofree;
 	char *entry, *fdnumber;
 
-	caplibindex_copy = caplibindex_tofree = xstrdup(caplibindex);
-	while ((entry = strsep(&caplibindex_copy, ",")) != NULL) {
+	libcache_copy = libcache_tofree = xstrdup(libcache);
+	while ((entry = strsep(&libcache_copy, ",")) != NULL) {
 		fdnumber = strsep(&entry, ":");
 		if (fdnumber == NULL)
 			continue;
-		ld_caplibindex_add(entry, fdnumber);
+		ld_libcache_add(entry, fdnumber);
 	}
-	free(caplibindex_tofree);
+	free(libcache_tofree);
 }

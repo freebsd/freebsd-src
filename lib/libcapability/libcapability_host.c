@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability_host.c#22 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability_host.c#23 $
  */
 
 #include <sys/param.h>
@@ -214,7 +214,7 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 	sbuf_finish(sbufp);
 	if (sbuf_overflowed(sbufp))
 		return;
-	if (setenv("LD_CAPLIBINDEX", sbuf_data(sbufp), 1) == -1)
+	if (setenv("LD_LIBCACHE", sbuf_data(sbufp), 1) == -1)
 		return;
 	sbuf_delete(sbufp);
 
@@ -255,16 +255,16 @@ lch_startfd_libs(int fd_sandbox, const char *binname, char *const argv[],
 	bzero(lcsp, sizeof(*lcsp));
 
 	if (ld_insandbox()) {
-		if (ld_caplibindex_lookup(LD_ELF_CAP_SO, &fd_ldso) < 0)
+		if (ld_libcache_lookup(LD_ELF_CAP_SO, &fd_ldso) < 0)
 			goto out_error;
-		if (ld_caplibindex_lookup(LIBC_SO, &fd_libc) < 0)
+		if (ld_libcache_lookup(LIBC_SO, &fd_libc) < 0)
 			goto out_error;
-		if (ld_caplibindex_lookup(LIBCAPABILITY_SO,
+		if (ld_libcache_lookup(LIBCAPABILITY_SO,
 		    &fd_libcapability) < 0)
 			goto out_error;
-		if (ld_caplibindex_lookup(LIBSBUF_SO, &fd_libsbuf) < 0)
+		if (ld_libcache_lookup(LIBSBUF_SO, &fd_libsbuf) < 0)
 			goto out_error;
-		if (ld_caplibindex_lookup(_PATH_DEVNULL, &fd_devnull) < 0)
+		if (ld_libcache_lookup(_PATH_DEVNULL, &fd_devnull) < 0)
 			goto out_error;
 	} else {
 		fd_ldso = open(PATH_LD_ELF_CAP_SO "/" LD_ELF_CAP_SO,

@@ -34,7 +34,7 @@
 #ifndef RTLD_CAPLIBINDEX_H
 #define	RTLD_CAPLIBINDEX_H
 
-int	ld_caplibindex_lookup(const char *libname, int *fdp);
-void	ld_caplibindex_init(const char *caplibindex);
+int	ld_libcache_lookup(const char *libname, int *fdp);
+void	ld_libcache_init(const char *libcache);
 
 #endif /* !RTLD_CAPLIBINDEX_H */

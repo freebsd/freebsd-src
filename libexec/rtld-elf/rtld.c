@@ -60,7 +60,7 @@
 #include "rtld_tls.h"
 
 #ifdef IN_RTLD_CAP
-#include "rtld_caplibindex.h"
+#include "rtld_libcache.h"
 #include "rtld_sandbox.h"
 #endif
 
@@ -192,7 +192,7 @@ static char *ld_elf_hints_path;	/* Environment variable for alternative hints pa
 static char *ld_tracing;	/* Called from ldd to print libs */
 static char *ld_utrace;		/* Use utrace() to log events. */
 #ifdef IN_RTLD_CAP
-static char *ld_caplibindex;
+static char *ld_libcache;
 #endif
 static Obj_Entry *obj_list;	/* Head of linked list of shared objects */
 static Obj_Entry **obj_tail;	/* Link field of last object in list */
@@ -245,7 +245,7 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &_rtld_atfork_pre,
     (func_ptr_type) &_rtld_atfork_post,
 #ifdef IN_RTLD_CAP
-    (func_ptr_type) &ld_caplibindex_lookup,
+    (func_ptr_type) &ld_libcache_lookup,
     (func_ptr_type) &ld_insandbox,
 #endif
     NULL
@@ -439,7 +439,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     }
     ld_debug = getenv(LD_ "DEBUG");
 #ifdef IN_RTLD_CAP
-    ld_caplibindex = getenv(LD_ "CAPLIBINDEX");
+    ld_libcache = getenv(LD_ "LIBCACHE");
 #else
     libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
     libmap_override = getenv(LD_ "LIBMAP");
@@ -554,8 +554,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     sym_zero.st_value = -(uintptr_t)obj_main->relocbase;
 
 #ifdef IN_RTLD_CAP
-    if (ld_caplibindex != NULL)
-	ld_caplibindex_init(ld_caplibindex);
+    if (ld_libcache != NULL)
+	ld_libcache_init(ld_libcache);
 #endif
 
 #ifndef IN_RTLD_CAP
@@ -1632,8 +1632,8 @@ load_object(const char *name, const Obj_Entry *refobj, int flags)
 	return NULL;
     }
     path = xstrdup(name);
-    if (ld_caplibindex_lookup(path, &fd) < 0) {
-	_rtld_error("Unable to find \"%s\" in LD_CAPLIBINDEX", path);
+    if (ld_libcache_lookup(path, &fd) < 0) {
+	_rtld_error("Unable to find \"%s\" in LD_LIBCACHE", path);
 	return NULL;
     }
 #else

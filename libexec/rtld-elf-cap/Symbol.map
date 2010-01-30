@@ -3,6 +3,6 @@
  */
 
 FBSD_1.1 {
-    ld_caplibindex_lookup;
+    ld_libcache_lookup;
     ld_insandbox;
 };

@@ -33,9 +33,9 @@
 
 #include <errno.h>
 
-#pragma weak ld_caplibindex_lookup
+#pragma weak ld_libcache_lookup
 int
-ld_caplibindex_lookup(const char *libname, int *fdp)
+ld_libcache_lookup(const char *libname, int *fdp)
 {
 
 	errno = EOPNOTSUPP;
