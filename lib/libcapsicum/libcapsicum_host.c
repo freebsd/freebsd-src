@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#1 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#2 $
  */
 
 #include <sys/param.h>
@@ -349,7 +349,7 @@ out_error:
 
 int
 lch_startfd(int fd_sandbox, const char *binname, char *const argv[],
-    u_int flags, struct lc_sandbox **lcspp)
+    u_int flags, __unused struct lc_fdlist *fds, struct lc_sandbox **lcspp)
 {
 
 	return (lch_startfd_libs(fd_sandbox, binname, argv, flags, NULL, 0,

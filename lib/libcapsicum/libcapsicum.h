@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.h#1 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.h#2 $
  */
 
 #ifndef _LIBCAPABILITY_H_
@@ -121,7 +121,7 @@ int	lch_start_libs(const char *sandbox, char *const argv[], u_int flags,
 	    struct lc_library *lclp, u_int lcl_count,
 	    struct lc_sandbox **lcspp);
 int	lch_startfd(int fd_sandbox, const char *binname, char *const argv[],
-	    u_int flags, struct lc_sandbox **lcspp);
+	    u_int flags, struct lc_fdlist *fds, struct lc_sandbox **lcspp);
 int	lch_startfd_libs(int fd_sandbox, const char *binname,
 	    char *const argv[], u_int flags, struct lc_library *lclp,
 	    u_int lcl_count, struct lc_sandbox **lcspp);
