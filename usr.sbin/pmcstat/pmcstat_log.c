@@ -141,7 +141,7 @@ struct pmcstat_pmcrecord {
 };
 
 static LIST_HEAD(,pmcstat_pmcrecord)	pmcstat_pmcs =
-	LIST_HEAD_INITIALIZER(&pmcstat_pmcs);
+	LIST_HEAD_INITIALIZER(pmcstat_pmcs);
 
 
 /*
