@@ -115,12 +115,28 @@ int clocks_running = 0;
 
 vm_offset_t kstack0;
 
+/*
+ * Each entry in the pcpu_space[] array is laid out in the following manner:
+ * struct pcpu for cpu 'n'	pcpu_space[n]
+ * boot stack for cpu 'n'	pcpu_space[n] + PAGE_SIZE * 2 - START_FRAME
+ *
+ * Note that the boot stack grows downwards and we assume that we never
+ * use enough stack space to trample over the 'struct pcpu' that is at
+ * the beginning of the array.
+ *
+ * The array is aligned on a (PAGE_SIZE * 2) boundary so that the 'struct pcpu'
+ * is always in the even page frame of the wired TLB entry on SMP kernels.
+ *
+ * The array is in the .data section so that the stack does not get zeroed out
+ * when the .bss section is zeroed.
+ */
+char pcpu_space[MAXCPU][PAGE_SIZE * 2] \
+	__aligned(PAGE_SIZE * 2) __section(".data");
+
 #ifdef SMP
-struct pcpu __pcpu[MAXCPU];
-char pcpu_boot_stack[KSTACK_PAGES * PAGE_SIZE * MAXCPU]; 
+struct pcpu *pcpup = 0;		/* initialized in pmap_bootstrap() */
 #else
-struct pcpu pcpu;
-struct pcpu *pcpup = &pcpu;
+struct pcpu *pcpup = (struct pcpu *)pcpu_space;
 #endif
 
 vm_offset_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
@@ -269,11 +285,7 @@ void
 mips_pcpu0_init()
 {
 	/* Initialize pcpu info of cpu-zero */
-#ifdef SMP
-	pcpu_init(&__pcpu[0], 0, sizeof(struct pcpu));
-#else
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-#endif
+	pcpu_init(PCPU_ADDR(0), 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 }
 
@@ -283,6 +295,10 @@ mips_pcpu0_init()
 void
 mips_proc0_init(void)
 {
+#ifdef SMP
+	if (platform_processor_id() != 0)
+		panic("BSP must be processor number 0");
+#endif
 	proc_linkup0(&proc0, &thread0);
 
 	KASSERT((kstack0 & PAGE_MASK) == 0,
@@ -410,12 +426,27 @@ void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
 #ifdef SMP
-	if (cpuid != 0)
-		pcpu->pc_boot_stack = (void *)(pcpu_boot_stack + cpuid *
-		    (KSTACK_PAGES * PAGE_SIZE));
+	vm_paddr_t pa;
+	struct tlb tlb;
+	int lobits;
 #endif
+
 	pcpu->pc_next_asid = 1;
 	pcpu->pc_asid_generation = 1;
+
+#ifdef SMP
+	/*
+	 * Map the pcpu structure at the virtual address 'pcpup'.
+	 * We use a wired tlb index to do this one-time mapping.
+	 */
+	memset(&tlb, 0, sizeof(tlb));
+	pa = vtophys(pcpu);
+	lobits = PTE_RW | PTE_V | PTE_G | PTE_CACHE;
+	tlb.tlb_hi = (vm_offset_t)pcpup;
+	tlb.tlb_lo0 = mips_paddr_to_tlbpfn(pa) | lobits;
+	tlb.tlb_lo1 = mips_paddr_to_tlbpfn(pa + PAGE_SIZE) | lobits;
+	Mips_TLBWriteIndexed(PCPU_TLB_ENTRY, &tlb);
+#endif
 }
 
 int
