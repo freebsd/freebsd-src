@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Robert N. M. Watson
+ * Copyright (c) 2009-2010 Robert N. M. Watson
  * All rights reserved.
  *
  * WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
@@ -104,8 +104,8 @@ gzsandbox_initialize(void)
 			err(-1, "open: %s", gzsandbox_libs[i].lcl_libname);
 	}
 	if (lch_start_libs(LC_USR_BIN_GZIP_SANDBOX, lc_sandbox_argv,
-	    LCH_PERMIT_STDERR, gzsandbox_libs, gzsandbox_libs_count, &lcsp)
-	    < 0)
+	    LCH_PERMIT_STDERR, gzsandbox_libs, gzsandbox_libs_count, NULL,
+	    &lcsp) < 0)
 		err(-1, "lch_start %s", LC_USR_BIN_GZIP_SANDBOX);
 }
 
