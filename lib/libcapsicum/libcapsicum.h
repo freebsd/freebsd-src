@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.h#2 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.h#3 $
  */
 
 #ifndef _LIBCAPABILITY_H_
@@ -57,10 +57,11 @@ struct lc_library {
 /* A list of file descriptors, which can be passed around in shared memory */
 struct lc_fdlist;
 
-
 struct lc_fdlist*	lc_fdlist_new(void);
+struct lc_fdlist*	lc_fdlist_global(void);
 struct lc_fdlist*	lc_fdlist_dup(struct lc_fdlist *orig);
 void			lc_fdlist_free(struct lc_fdlist *l);
+
 
 /* Size of an FD list in bytes, including all associated string data */
 int	lc_fdlist_size(struct lc_fdlist *l);
