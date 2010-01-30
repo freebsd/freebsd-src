@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Robert N. M. Watson
+ * Copyright (c) 2009-2010 Robert N. M. Watson
  * All rights reserved.
  *
  * WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#4 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#6 $
  */
 
 #include <sys/param.h>
@@ -150,32 +150,36 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
     struct lc_library *lclp, u_int lcl_count, const char *binname,
     char *const argv[], struct lc_fdlist *fds)
 {
-	int *fd_array, fdcount;
+	int *fd_array, fdcount, fdnum;
 	struct sbuf *sbufp;
-	int shmfd, fdlistsize;
+	int shmfd = -1;
+	size_t fdlistsize;
 	void *shm;
 	char fdliststr[8];
 	u_int i;
 
+	/*
+	 * Create an anonymous shared memory segment for the FD list.
+	 */
+	if (fds != NULL) {
+		shmfd = shm_open(SHM_ANON, O_RDWR, 0600);
+		if (shmfd < 0)
+			return;
+		fdlistsize = lc_fdlist_size(fds);
+		if (ftruncate(shmfd, fdlistsize) < 0)
+			return;
 
-	/* create an anonymous shared memory segment for the FD list */
-	shmfd = shm_open(SHM_ANON, O_RDWR, 0600);
-	if (shmfd < 0) return;
-
-	fdlistsize = lc_fdlist_size(fds);
-	if (ftruncate(shmfd, fdlistsize) < 0) return;
-
-
-	/* map it and copy the list */
-	shm = mmap(NULL, fdlistsize, PROT_READ | PROT_WRITE,
-	           MAP_NOSYNC | MAP_SHARED, shmfd, 0);
-
-	if (shm == MAP_FAILED) return;
-	memcpy(shm, fds, fdlistsize);
-
-	if (munmap(shm, fdlistsize)) return;
-
-
+		/*
+		 * Map it and copy the list.
+		 */
+		shm = mmap(NULL, fdlistsize, PROT_READ | PROT_WRITE,
+		    MAP_NOSYNC | MAP_SHARED, shmfd, 0);
+		if (shm == MAP_FAILED)
+			return;
+		memcpy(shm, fds, fdlistsize);
+		if (munmap(shm, fdlistsize))
+			return;
+	}
 
 	if (lc_limitfd(fd_devnull, LIBCAPABILITY_CAPMASK_DEVNULL) < 0)
 		return;
@@ -192,7 +196,11 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 	if (lc_limitfd(fd_libsbuf, LIBCAPABILITY_CAPMASK_LIB) < 0)
 		return;
 
-	fdcount = 11 + lcl_count;
+	fdnum = 10;
+	if (shmfd != -1)
+		fdnum++;
+
+	fdcount = fdnum + lcl_count;
 	fd_array = malloc(fdcount * sizeof(int));
 	if (fd_array == NULL)
 		return;
@@ -217,11 +225,12 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 	fd_array[7] = fd_libcapsicum;
 	fd_array[8] = fd_libsbuf;
 	fd_array[9] = fd_devnull;
-	fd_array[10] = shmfd;
+	if (shmfd != -1)
+		fd_array[10] = shmfd;
 	for (i = 0; i < lcl_count; i++) {
 		if (lc_limitfd(lclp->lcl_fd, LIBCAPABILITY_CAPMASK_LIB) < 0)
 			return;
-		fd_array[i + 11] = lclp[i].lcl_fd;
+		fd_array[i + fdnum] = lclp[i].lcl_fd;
 	}
 
 	if (lch_installfds(fdcount, fd_array) < 0)
@@ -234,7 +243,7 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 	    3, binname, 5, LD_ELF_CAP_SO, 6, LIBC_SO, 7, LIBCAPABILITY_SO,
 	    8, LIBSBUF_SO, 9, _PATH_DEVNULL);
 	for (i = 0; i < lcl_count; i++)
-		(void)sbuf_printf(sbufp, ",%d:%s", i + 11,
+		(void)sbuf_printf(sbufp, ",%d:%s", i + fdnum,
 		    lclp[i].lcl_libname);
 	sbuf_finish(sbufp);
 	if (sbuf_overflowed(sbufp))
@@ -254,9 +263,11 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 		return;
 	sbuf_delete(sbufp);
 
-	sprintf(fdliststr, "%d", 10);
-	if (setenv(LIBCAPABILITY_SANDBOX_FDLIST, fdliststr, 1) == -1)
-		return;
+	if (shmfd != -1) {
+		sprintf(fdliststr, "%d", 10);
+		if (setenv(LIBCAPABILITY_SANDBOX_FDLIST, fdliststr, 1) == -1)
+			return;
+	}
 
 	if (cap_enter() < 0)
 		return;
