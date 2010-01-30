@@ -45,7 +45,6 @@ typedef void (*fptr)(void);
 extern void _fini(void);
 extern void _init(void);
 extern int main(int, char **, char **);
-extern int cap_main(int, char **, char **) __attribute__((weak));
 extern void _start(char *, ...);
 extern void _capstart(char *, ...);
 
@@ -130,8 +129,8 @@ _capstart(char *ap, ...)
 #endif
 	atexit(_fini);
 #ifdef GCRT
-	monstartup(&eprol, &etext);
-__asm__("eprol:");
+/*	monstartup(&eprol, &etext);
+__asm__("eprol:");*/
 #endif
 	_init();
 	exit( cap_main(argc, argv, env) );

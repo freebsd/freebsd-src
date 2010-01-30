@@ -44,7 +44,6 @@ typedef void (*fptr)(void);
 extern void _fini(void);
 extern void _init(void);
 extern int main(int, char **, char **);
-extern int cap_main(int, char **, char **) __attribute__((weak));
 extern void _start(char **, void (*)(void));
 extern void _capstart(char **, void (*)(void));
 
