@@ -58,5 +58,6 @@ int cap_main(int argc, char **argv, char **env)
 		"ERROR: attempting to run a regular binary in capability mode.\n\nIf you wish to run a binary in a sandbox, you must provide a cap_main() function which takes the same arguments as main().\n";
 
 	write(2, warning, sizeof(warning));
+	return 1;
 }
 
