@@ -76,6 +76,7 @@ extern int SIZE_BUF;
 #include <errno.h>
 #endif /* WIN32 */
 
+#include <sys/capability.h>
 
 #include "netdissect.h"
 #include "interface.h"
