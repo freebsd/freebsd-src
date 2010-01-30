@@ -334,7 +334,7 @@ struct kinfo_file {
 	struct sockaddr_storage	kf_sa_peer;	/* Peer address. */
 	pid_t	kf_pid;				/* Process identifier. */
 	int	_kf_ispare0;			/* Space for more stuff. */
-	cap_rights_t	kf_cap_rights;		/* Capabiity rights. */
+	cap_rights_t	kf_cap_rights;		/* Capability rights. */
 	int	_kf_ispare[12];			/* Space for more stuff. */
 	/* Truncated before copyout in sysctl */
 	char	kf_path[PATH_MAX];		/* Path to file, if any. */
