@@ -1083,8 +1083,6 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	return (kern_openat(td, AT_FDCWD, path, pathseg, flags, mode));
 }
 
-
-
 int
 kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
     int flags, int mode)

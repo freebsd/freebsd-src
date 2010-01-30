@@ -505,7 +505,7 @@ lookup(struct nameidata *ndp)
 	int dvfslocked;			/* VFS Giant state for parent */
 	int tvfslocked;
 	int lkflags_save;
-
+        
 	/*
 	 * Setup: break out flag bits into variables.
 	 */
@@ -531,7 +531,6 @@ lookup(struct nameidata *ndp)
 		cnp->cn_lkflags = LK_SHARED;
 	else
 		cnp->cn_lkflags = LK_EXCLUSIVE;
-
 	dp = ndp->ni_startdir;
 	ndp->ni_startdir = NULLVP;
 	vn_lock(dp,

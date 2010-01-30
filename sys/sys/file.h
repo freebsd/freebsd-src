@@ -274,6 +274,7 @@ fo_ioctl(fp, com, data, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
+
 	return ((*fp->f_ops->fo_ioctl)(fp, com, data, active_cred, td));
 }
 

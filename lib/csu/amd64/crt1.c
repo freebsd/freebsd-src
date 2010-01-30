@@ -94,8 +94,6 @@ __asm__("eprol:");
 	exit( main(argc, argv, env) );
 }
 
-
-
 /* The Capsicum entry function. */
 void
 _capstart(char **ap, void (*cleanup)(void))
