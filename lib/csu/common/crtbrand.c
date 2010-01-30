@@ -62,6 +62,5 @@ int cap_main(__unused int argc, __unused char **argv, __unused char **env)
 
 	write(2, warning, sizeof(warning));
 
-	return -1;
+	return (-1);
 }
-
