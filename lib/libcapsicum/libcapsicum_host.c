@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#3 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#4 $
  */
 
 #include <sys/param.h>
@@ -153,7 +153,7 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 	int *fd_array, fdcount;
 	struct sbuf *sbufp;
 	int shmfd, fdlistsize;
-	/*void *shm;*/
+	void *shm;
 	char fdliststr[8];
 	u_int i;
 
@@ -166,11 +166,7 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 	if (ftruncate(shmfd, fdlistsize) < 0) return;
 
 
-	printf("%dB of memory to mmap\n", fdlistsize);
-
-
 	/* map it and copy the list */
-	/*
 	shm = mmap(NULL, fdlistsize, PROT_READ | PROT_WRITE,
 	           MAP_NOSYNC | MAP_SHARED, shmfd, 0);
 
@@ -178,8 +174,6 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 	memcpy(shm, fds, fdlistsize);
 
 	if (munmap(shm, fdlistsize)) return;
-	*/
-
 
 
 

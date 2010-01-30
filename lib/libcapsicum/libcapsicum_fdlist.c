@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#3 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#4 $
  */
 
 #include <sys/mman.h>
@@ -42,6 +42,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "libcapsicum_sandbox_api.h"
 
@@ -96,7 +97,6 @@ lc_fdlist_global(void) {
 	if (global_fdlist == NULL) {
 
 		char *env = getenv(LIBCAPABILITY_SANDBOX_FDLIST);
-		printf("%s: %s\n", LIBCAPABILITY_SANDBOX_FDLIST, env);
 
 		if ((env != NULL) && (strnlen(env, 8) < 7)) {
 
@@ -111,20 +111,13 @@ lc_fdlist_global(void) {
 			if (fd < 0)
 				return NULL;
 
-			printf("testing FD %i...", fd); fflush(stdout);
 			struct stat stats;
 			if (fstat(fd, &stats) < 0)
 				return NULL;
 
-			printf(" done. Size: %lu\n", stats.st_size);
-
-			printf("mapping FD %i... ", fd); fflush(stdout);
-			/*
 			global_fdlist = mmap(NULL, stats.st_size,
 			                     PROT_READ | PROT_WRITE,
-			                     MAP_NOSYNC | MAP_PRIVATE, fd, 0);
-			*/
-			printf(" done.\n");
+			                     MAP_NOSYNC | MAP_SHARED, fd, 0);
 		}
 	}
 
@@ -166,9 +159,12 @@ lc_fdlist_dup(struct lc_fdlist *orig) {
 	LOCK(orig);
 
 	int size = lc_fdlist_size(orig);
+	struct lc_fdlist *copy = NULL;
 
-	struct lc_fdlist *copy = malloc(size);
-	if (copy == NULL) return (NULL);
+	if (size > 0) {
+		copy = malloc(size);
+		if (copy != NULL) memcpy(copy, orig, size);
+	}
 
 	UNLOCK(orig);
 
