@@ -64,5 +64,5 @@ branding_mismatch(int brand1, int brand2)
 		return (0);
 	if (brand1 != brand2)
 		return (1);
-	return (1);
+	return (0);
 }
