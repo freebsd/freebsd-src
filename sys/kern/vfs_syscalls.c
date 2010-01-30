@@ -159,23 +159,26 @@ getvnode_cap(struct filedesc *fdp, int fd, cap_rights_t rights,
 	return (0);
 }
 
-/*
+#ifdef CAPABILITIES
+/*-
  * Get the "base" vnode defined by a user file descriptor.
  *
- * Several *at() system calls are now supported in capability mode. This function
- * finds out what their "*at base" vnode, which is needed by namei(), should be:
+ * Several *at() system calls are now supported in capability mode.  This
+ * function finds out what their "*at base" vnode, which is needed by
+ * namei(), should be:
  *
- * 1. In non-capability (and thus unconstrained) mode, *base = 0.
- * 2. In capability mode, base is the vnode given by the fd parameter, subject to
- *    the condition that the supplied 'rights' parameter (OR'ed with CAP_LOOKUP
- *    and CAP_ATBASE) is satisfied. The vnode is returned with a shared lock.
+ * 1. In non-capability (and thus unconstrained) mode, *base = NULL.
+ * 2. In capability mode, base is the vnode given by the fd parameter,
+ *    subject to the condition that the supplied 'rights' parameter (OR'ed
+ *    with CAP_LOOKUP and CAP_ATBASE) is satisfied. The vnode is returned
+ *    with a shared lock.
  */
 int
 fgetbase(struct thread *td, int fd, cap_rights_t rights, struct vnode **base)
 {
-	if (!(td->td_ucred->cr_flags & CRED_FLAG_CAPMODE))
-		*base = 0;
 
+	if (!(td->td_ucred->cr_flags & CRED_FLAG_CAPMODE))
+		*base = NULL;
 	else {
 		int error;
 
@@ -188,10 +191,9 @@ fgetbase(struct thread *td, int fd, cap_rights_t rights, struct vnode **base)
 			return (error);
 		}
 	}
-
-	return 0;
+	return (0);
 }
-
+#endif
 
 /*
  * Sync each mounted filesystem.
@@ -1126,7 +1128,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct proc *p = td->td_proc;
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
-	struct vnode *vp, *base = 0;
+	struct vnode *vp, *base = NULL;
 	struct vattr vat;
 	struct mount *mp;
 	int cmode;
@@ -1152,9 +1154,9 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	else
 		flags = FFLAGS(flags);
 
+#ifdef CAPABILITIES
 	/* get capability info of base FD */
-	if (fd >= 0)
-	{
+	if (fd >= 0) {
 		struct file *f;
 		const cap_rights_t LOOKUP_RIGHTS = CAP_LOOKUP | CAP_ATBASE;
 
@@ -1169,16 +1171,14 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 			error = cap_fextract(f, LOOKUP_RIGHTS, &real_fp);
 
 			/* hold the underlying file, not the capability */
-			if (error == 0) fhold(real_fp);
+			if (error == 0)
+				fhold(real_fp);
 			fdrop(f, td);
 
 			f = real_fp;
-		}
-		else if (error == EINVAL)
+		} else if (error == EINVAL)
 			/* not a capability; get the real file pointer */
 			error = fget(td, fd, LOOKUP_RIGHTS, &f);
-
-
 
 		/* if in capability mode, get base vnode (for namei) */
 		if (!error && (td->td_ucred->cr_flags & CRED_FLAG_CAPMODE)) {
@@ -1186,18 +1186,17 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 			vref(base);
 		}
 
-
 		/* don't need to hold the base any more */
-		if (f != NULL) fdrop(f, td);
+		if (f != NULL)
+			fdrop(f, td);
 
 		if (error) {
 			FILEDESC_SUNLOCK(fdp);
 			return (error);
-		}
-		else
+		} else
 			FILEDESC_SUNLOCK(fdp);
 	}
-
+#endif
 
 	/*
 	 * allocate the file descriptor, but only add it to the descriptor
@@ -1241,7 +1240,10 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		 * Clean up the descriptor, but only if another thread hadn't
 		 * replaced or closed it.
 		 */
-		if (base) vrele(base);
+#ifdef CAPABILITIES
+		if (base)
+			vrele(base);
+#endif
 		fdclose(fdp, fp, indx, td);
 		fdrop(fp, td);
 
@@ -1301,26 +1303,35 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	VFS_UNLOCK_GIANT(vfslocked);
 
 success:
+#ifdef CAPABILITIES
 	if (baserights != -1) {
 		/* wrap the result in a capability */
 		struct file *cap;
 
 		error = kern_capwrap(td, fp, baserights, &cap, &indx);
-		if (error) goto bad_unlocked;
+		if (error)
+			goto bad_unlocked;
 	}
+#endif
 
 	/*
 	 * Release our private reference, leaving the one associated with
 	 * the descriptor table intact.
 	 */
-	if (base) vrele(base);
+#ifdef CAPABILITIES
+	if (base)
+		vrele(base);
+#endif
 	fdrop(fp, td);
 	td->td_retval[0] = indx;
 	return (0);
 bad:
 	VFS_UNLOCK_GIANT(vfslocked);
+#ifdef CAPABILITIES
 bad_unlocked:
-	if (base) vrele(base);
+	if (base)
+		vrele(base);
+#endif
 	fdclose(fdp, fp, indx, td);
 	fdrop(fp, td);
 	return (error);
@@ -2253,7 +2264,7 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
     int flags, int mode)
 {
 	struct ucred *cred, *tmpcred;
-	struct vnode *vp, *base = 0;
+	struct vnode *vp, *base = NULL;
 	struct nameidata nd;
 	int vfslocked;
 	int error;
@@ -2273,9 +2284,11 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		cred = tmpcred = td->td_ucred;
 	AUDIT_ARG_VALUE(mode);
 
+#ifdef CAPABILITIES
 	/* get *at base vnode for namei() */
 	if ((error = fgetbase(td, fd, CAP_FSTAT, &base)))
 		return (error);
+#endif
 
 	NDINIT_ATBASE(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
 	    AUDITVNODE1, pathseg, path, fd, base, td);
@@ -2293,7 +2306,10 @@ out1:
 		td->td_ucred = cred;
 		crfree(tmpcred);
 	}
-	if (base) vput(base);
+#ifdef CAPABILITIES
+	if (base)
+		vput(base);
+#endif
 	return (error);
 }
 
@@ -3042,17 +3058,22 @@ kern_fchmodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 	int vfslocked;
 	int follow;
-	struct vnode *base;
+	struct vnode *base = NULL;
 
 	AUDIT_ARG_MODE(mode);
 	follow = (flag & AT_SYMLINK_NOFOLLOW) ? NOFOLLOW : FOLLOW;
+#ifdef CAPABILITIES
 	if ((error = fgetbase(td, fd, CAP_FCHMOD, &base)))
 		return (error);
+#endif
 
-	NDINIT_ATBASE(&nd, LOOKUP,  follow | MPSAFE | AUDITVNODE1, pathseg, path,
-	    fd, base, td);
+	NDINIT_ATBASE(&nd, LOOKUP,  follow | MPSAFE | AUDITVNODE1, pathseg,
+	    path, fd, base, td);
 	error = namei(&nd);
-	if (base) vput(base);
+#ifdef CAPABILITIES
+	if (base)
+		vput(base);
+#endif
 	if (error)
 		return (error);
 
