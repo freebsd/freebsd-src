@@ -66,7 +66,7 @@ This makes it easy a single binary to select different behavior when run in
 the different environments.
 .It
 Interprets the
-.Dv LD_CAPLIBINDEX
+.Dv LD_LIBCACHE
 environmental variable set by sandbox start routines, and implements
 .Fn ld_libcache_lookup ,
 allowing file descriptors for binaries and libraries passed across
@@ -106,7 +106,7 @@ WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED ON IN
 PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND UNEXPECTED WAYS.
 .Pp
 The format of
-.Dv LD_CAPLIBINDEX
+.Dv LD_LIBCACHE
 is not documented, and may change.
 .Sh AUTHORS
 .Nm

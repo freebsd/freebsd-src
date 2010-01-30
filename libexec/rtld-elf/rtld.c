@@ -435,7 +435,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		die();
 	}
 #ifdef IN_RTLD_CAP
-	unsetenv(LD_ "CAPLIBINDEX");
+	unsetenv(LD_ "LIBCACHE");
 #endif
     }
     ld_debug = getenv(LD_ "DEBUG");

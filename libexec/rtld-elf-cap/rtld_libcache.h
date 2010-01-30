@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  */
 
-#ifndef RTLD_CAPLIBINDEX_H
-#define	RTLD_CAPLIBINDEX_H
+#ifndef RTLD_LIBCACHE_H
+#define	RTLD_LIBCACHE_H
 
+int	ld_libcache_add(const char *libname, int fd);
 int	ld_libcache_lookup(const char *libname, int *fdp);
 void	ld_libcache_init(const char *libcache);
 
-#endif /* !RTLD_CAPLIBINDEX_H */
+#endif /* !RTLD_LIBCACHE_H */
