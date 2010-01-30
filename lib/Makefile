@@ -33,8 +33,8 @@ SUBDIR=	${_csu} libc libbsm libauditd libcom_err libcrypt libelf libkvm msun \
 	libtacplus libutil ${_libypclnt} libalias libarchive \
 	${_libatm} libbegemot ${_libbluetooth} ${_libbsnmp} libbz2 \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
-	libdwarf libedit libexpat libfetch libftpio libgeom ${_libgpib} \
-	${_libgssapi} ${_librpcsec_gss} libipsec \
+	libdwarf libedit ${_libefi} libexpat libfetch libftpio libgeom \
+	${_libgpib} ${_libgssapi} ${_librpcsec_gss} libipsec \
 	${_libipx} libjail libkiconv libmagic libmemstat ${_libmilter} \
 	${_libmp} ${_libncp} ${_libngatm} libopie libpam libpcap \
 	${_libpmc} libproc librt ${_libsdp} ${_libsm} ${_libsmb} \
@@ -104,6 +104,7 @@ _libvgl=	libvgl
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
+_libefi=	libefi
 _libsmb=	libsmb
 .endif
 
