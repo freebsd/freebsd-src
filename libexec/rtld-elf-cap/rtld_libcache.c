@@ -74,7 +74,7 @@ static TAILQ_HEAD(, libcache_entry)	ld_libcache_list =
 /*
  * Add a library to the library cache.
  */
-void
+int
 ld_libcache_add(const char *name, int fd)
 {
 	struct libcache_entry *liep;
@@ -83,6 +83,7 @@ ld_libcache_add(const char *name, int fd)
 	liep->lie_name = xstrdup(name);
 	liep->lie_fd = fd;
 	TAILQ_INSERT_TAIL(&ld_libcache_list, liep, lie_list);
+	return (0);
 }
 
 /*
