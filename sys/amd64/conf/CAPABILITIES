@@ -1,0 +1,4 @@
+include GENERIC
+options CAPABILITIES
+options PROCDESC
+options KDTRACE_HOOKS
