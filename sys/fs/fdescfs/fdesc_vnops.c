@@ -391,6 +391,8 @@ fdesc_getattr(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
+
+#if 0
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
 
@@ -430,6 +432,9 @@ fdesc_getattr(ap)
 
 	vp->v_type = vap->va_type;
 	return (0);
+#else
+	return (EOPNOTSUPP);
+#endif
 }
 
 static int
