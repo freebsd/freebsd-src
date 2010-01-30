@@ -50,7 +50,7 @@
 #include "opt_capabilities.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$P4: //depot/projects/trustedbsd/capabilities/src/sys/kern/sys_capability.c#26 $");
+__FBSDID("$P4: //depot/projects/trustedbsd/capabilities/src/sys/kern/sys_capability.c#27 $");
 
 #include <sys/param.h>
 #include <sys/capability.h>
@@ -278,27 +278,51 @@ cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 int
 cap_new(struct thread *td, struct cap_new_args *uap)
 {
-	struct capability *c, *c_old;
-	struct file *fp, *fp_cap, *fp_object;
-	int error, fd_cap;
+	int error, capfd;
+	int fd = uap->fd;
+	struct file *fp, *cap;
+	cap_rights_t rights = uap->rights;
 
-	AUDIT_ARG_FD(uap->fd);
-	AUDIT_ARG_RIGHTS(uap->rights);
-	if ((uap->rights | CAP_MASK_VALID) != CAP_MASK_VALID)
-		return (EINVAL);
-
-	c = uma_zalloc(capability_zone, M_WAITOK | M_ZERO);
+	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_RIGHTS(rights);
 
 	/*
 	 * We always allow creating a capability referencing an existing
 	 * descriptor or capability, even if it's not of much use to the
 	 * application.
 	 */
-	error = fget(td, uap->fd, 0, &fp);
-	if (error)
-		goto fail;
+	error = fget(td, fd, 0, &fp);
+	if (error) return (error);
 
 	AUDIT_ARG_FILE(td->td_proc, fp);
+
+	error = kern_capwrap(td, fp, rights, &cap, &capfd);
+
+	/*
+	 * Release our reference to the file (another one has been taken for
+	 * the capability's sake if necessary).
+	 */
+	fdrop(fp, td);
+
+	return error;
+}
+
+
+/*
+ * Create a capability to wrap around an existing file.
+ */
+int kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
+                 struct file **cap, int *capfd)
+{
+	struct capability *c, *c_old;
+	struct file *fp_object;
+	int error;
+
+	if ((rights | CAP_MASK_VALID) != CAP_MASK_VALID)
+		return (EINVAL);
+
+	c = uma_zalloc(capability_zone, M_WAITOK | M_ZERO);
+
 
 	/*
 	 * If a new capability is being derived from an existing capability,
@@ -307,18 +331,18 @@ cap_new(struct thread *td, struct cap_new_args *uap)
 	 */
 	if (fp->f_type == DTYPE_CAPABILITY) {
 		c_old = fp->f_data;
-		if ((c_old->cap_rights | uap->rights) != c_old->cap_rights) {
+		if ((c_old->cap_rights | rights) != c_old->cap_rights) {
 			error = ENOTCAPABLE;
-			goto fail2;
+			goto fail;
 		}
 	}
 
 	/*
 	 * Allocate a new file descriptor to hang the capability off.
 	 */
-	error = falloc(td, &fp_cap, &fd_cap);
+	error = falloc(td, cap, capfd);
 	if (error)
-		goto fail2;
+		goto fail;
 
 	/*
 	 * Rather than nesting capabilities, directly reference the object an
@@ -332,10 +356,10 @@ cap_new(struct thread *td, struct cap_new_args *uap)
 	else
 		fp_object = fp;
 	fhold(fp_object);
-	c->cap_rights = uap->rights;
+	c->cap_rights = rights;
 	c->cap_object = fp_object;
-	c->cap_file = fp_cap;
-	finit(fp_cap, fp->f_flag, DTYPE_CAPABILITY, c, &capability_ops);
+	c->cap_file = *cap;
+	finit(*cap, fp->f_flag, DTYPE_CAPABILITY, c, &capability_ops);
 
 	/*
 	 * Add this capability to the per-file list of referencing
@@ -345,13 +369,15 @@ cap_new(struct thread *td, struct cap_new_args *uap)
 	LIST_INSERT_HEAD(&fp_object->f_caps, c, cap_filelist);
 	fp_object->f_capcount++;
 	mtx_pool_unlock(mtxpool_sleep, fp_object);
-	td->td_retval[0] = fd_cap;
-	fdrop(fp, td);
-	fdrop(fp_cap, td);
+	td->td_retval[0] = *capfd;
+
+	/*
+	 * Release our private reference (the proc filedesc still has one).
+	 */
+	fdrop(*cap, td);
+
 	return (0);
 
-fail2:
-	fdrop(fp, td);
 fail:
 	uma_zfree(capability_zone, c);
 	return (error);

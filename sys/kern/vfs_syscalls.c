@@ -1083,6 +1083,8 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	return (kern_openat(td, AT_FDCWD, path, pathseg, flags, mode));
 }
 
+
+
 int
 kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
     int flags, int mode)
@@ -1090,7 +1092,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct proc *p = td->td_proc;
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
-	struct vnode *vp;
+	struct vnode *vp, *base = 0;
 	struct vattr vat;
 	struct mount *mp;
 	int cmode;
@@ -1099,6 +1101,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct flock lf;
 	struct nameidata nd;
 	int vfslocked;
+	cap_rights_t baserights = -1;
 
 	AUDIT_ARG_FFLAGS(flags);
 	AUDIT_ARG_MODE(mode);
@@ -1115,16 +1118,69 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	else
 		flags = FFLAGS(flags);
 
-	error = falloc(td, &nfp, &indx);
+	/* get capability info of base FD */
+	if (fd >= 0)
+	{
+		struct file *f;
+		const cap_rights_t LOOKUP_RIGHTS = CAP_LOOKUP | CAP_ATBASE;
+
+		FILEDESC_SLOCK(fdp);
+
+		error = fgetcap(td, fd, &f);
+		if (error == 0) {
+			/* FD is a capability; get rights and unwrap */
+			struct file *real_fp = NULL;
+
+			baserights = cap_rights(f);
+			error = cap_fextract(f, LOOKUP_RIGHTS, &real_fp);
+
+			/* hold the underlying file, not the capability */
+			if (error == 0) fhold(real_fp);
+			fdrop(f, td);
+
+			f = real_fp;
+		}
+		else if (error == EINVAL)
+			/* not a capability; get the real file pointer */
+			error = fget(td, fd, LOOKUP_RIGHTS, &f);
+
+
+
+		/* if in capability mode, get base vnode (for namei) */
+		if (!error && (td->td_ucred->cr_flags & CRED_FLAG_CAPMODE)) {
+			base = f->f_vnode;
+			vref(base);
+		}
+
+
+		/* don't need to hold the base any more */
+		if (f != NULL) fdrop(f, td);
+
+		if (error) {
+			FILEDESC_SUNLOCK(fdp);
+			return (error);
+		}
+		else
+			FILEDESC_SUNLOCK(fdp);
+	}
+
+
+	/*
+	 * allocate the file descriptor, but only add it to the descriptor
+	 * array if fd isn't a capability (in which case we'll add the
+	 * capability instead, later)
+	 */
+	error = _falloc(td, &nfp, &indx, (baserights == -1));
 	if (error)
 		return (error);
-	/* An extra reference on `nfp' has been held for us by falloc(). */
+
+	/* An extra reference on `nfp' has been held for us by _falloc(). */
 	fp = nfp;
 	/* Set the flags early so the finit in devfs can pick them up. */
 	fp->f_flag = flags & FMASK;
 	cmode = ((mode &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
-	NDINIT_AT(&nd, LOOKUP, FOLLOW | AUDITVNODE1 | MPSAFE, pathseg, path, fd,
-	    td);
+	NDINIT_ATBASE(&nd, LOOKUP, FOLLOW | AUDITVNODE1 | MPSAFE, pathseg,
+	              path, fd, base, td);
 	td->td_dupfd = -1;		/* XXX check for fdopen */
 	error = vn_open(&nd, &flags, cmode, fp);
 	if (error) {
@@ -1133,11 +1189,8 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		 * wonderous happened deep below and we just pass it up
 		 * pretending we know what we do.
 		 */
-		if (error == ENXIO && fp->f_ops != &badfileops) {
-			fdrop(fp, td);
-			td->td_retval[0] = indx;
-			return (0);
-		}
+		if (error == ENXIO && fp->f_ops != &badfileops)
+			goto success;
 
 		/*
 		 * handle special fdopen() case.  bleh.  dupfdopen() is
@@ -1147,15 +1200,14 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		if ((error == ENODEV || error == ENXIO) &&
 		    td->td_dupfd >= 0 &&		/* XXX from fdopen */
 		    (error =
-			dupfdopen(td, fdp, indx, td->td_dupfd, flags, error)) == 0) {
-			td->td_retval[0] = indx;
-			fdrop(fp, td);
-			return (0);
-		}
+			dupfdopen(td, fdp, indx, td->td_dupfd, flags, error)) == 0)
+			goto success;
+
 		/*
 		 * Clean up the descriptor, but only if another thread hadn't
 		 * replaced or closed it.
 		 */
+		if (base) vrele(base);
 		fdclose(fdp, fp, indx, td);
 		fdrop(fp, td);
 
@@ -1213,15 +1265,28 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 			goto bad;
 	}
 	VFS_UNLOCK_GIANT(vfslocked);
+
+success:
+	if (baserights != -1) {
+		/* wrap the result in a capability */
+		struct file *cap;
+
+		error = kern_capwrap(td, fp, baserights, &cap, &indx);
+		if (error) goto bad_unlocked;
+	}
+
 	/*
 	 * Release our private reference, leaving the one associated with
 	 * the descriptor table intact.
 	 */
+	if (base) vrele(base);
 	fdrop(fp, td);
 	td->td_retval[0] = indx;
 	return (0);
 bad:
 	VFS_UNLOCK_GIANT(vfslocked);
+bad_unlocked:
+	if (base) vrele(base);
 	fdclose(fdp, fp, indx, td);
 	fdrop(fp, td);
 	return (error);

@@ -140,9 +140,11 @@ namei(struct nameidata *ndp)
 	int vfslocked;
 
 #ifdef KDB
-	if (td->td_ucred->cr_flags & CRED_FLAG_CAPMODE) {
+	if ((td->td_ucred->cr_flags & CRED_FLAG_CAPMODE)
+	    && (ndp->ni_dirfd == AT_FDCWD))
+	{
 		printf("namei: pid %d proc %s performed namei in capability "
-		    "mode\n", p->p_pid, p->p_comm);
+		    "mode (and it's not *at())\n", p->p_pid, p->p_comm);
 		kdb_backtrace();
 	}
 #endif
@@ -478,6 +480,7 @@ lookup(struct nameidata *ndp)
 	int dvfslocked;			/* VFS Giant state for parent */
 	int tvfslocked;
 	int lkflags_save;
+	int insidebasedir = 0;		/* we're under the *at() base */
 	
 	/*
 	 * Setup: break out flag bits into variables.
@@ -504,6 +507,11 @@ lookup(struct nameidata *ndp)
 		cnp->cn_lkflags = LK_SHARED;
 	else
 		cnp->cn_lkflags = LK_EXCLUSIVE;
+
+	/* we do not allow absolute lookups in capability mode */
+	if(ndp->ni_basedir && (ndp->ni_startdir == ndp->ni_rootdir))
+		return (error = EPERM);
+
 	dp = ndp->ni_startdir;
 	ndp->ni_startdir = NULLVP;
 	vn_lock(dp,
@@ -572,6 +580,11 @@ dirloop:
 		goto bad;
 	}
 
+
+	/* Check to see if we're at the *at directory */
+	if(dp == ndp->ni_basedir) insidebasedir = 1;
+
+
 	/*
 	 * Check for degenerate name (e.g. / or "")
 	 * which is a way of talking about a directory,
@@ -626,6 +639,13 @@ dirloop:
 			goto bad;
 		}
 		for (;;) {
+			/* attempting to wander out of the *at root */
+			if(dp == ndp->ni_basedir)
+			{
+				error = EPERM;
+				goto bad;
+			}
+
 			for (pr = cnp->cn_cred->cr_prison; pr != NULL;
 			     pr = pr->pr_parent)
 				if (dp == pr->pr_root)
@@ -885,6 +905,16 @@ nextname:
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0);
 success:
+	/*
+	 * If we're in capability mode and the syscall was *at(), ensure
+	 * that the *at() base was part of the path
+	 */
+	if(ndp->ni_basedir && !insidebasedir)
+	{
+		error = EPERM;
+		goto bad;
+	}
+
 	/*
 	 * Because of lookup_shared we may have the vnode shared locked, but
 	 * the caller may want it to be exclusively locked.

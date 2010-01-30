@@ -1544,12 +1544,30 @@ fdavail(struct thread *td, int n)
 int
 falloc(struct thread *td, struct file **resultfp, int *resultfd)
 {
+	return _falloc(td, resultfp, resultfd, 1);
+}
+
+/*
+ * Create a new open file structure and, optionally, allocate a file decriptor
+ * for the process that refers to it.
+ */
+int
+_falloc(struct thread *td, struct file **resultfp, int *resultfd,
+        int addfd)
+{
 	struct proc *p = td->td_proc;
 	struct file *fp;
-	int error, i;
+	int error, i = -1;
 	int maxuserfiles = maxfiles - (maxfiles / 20);
 	static struct timeval lastfail;
 	static int curfail;
+
+	/*
+	 * Cowardly refuse to create a referenceless file: if we're not adding
+	 * the file to the process descriptor array, then the calling code
+	 * MUST expect a pointer to be returned.
+	 */
+	if (!addfd && !resultfp) return (error = EINVAL);
 
 	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
 	if ((openfiles >= maxuserfiles &&
@@ -1562,14 +1580,16 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 		uma_zfree(file_zone, fp);
 		return (ENFILE);
 	}
-	atomic_add_int(&openfiles, 1);
+	if (addfd)
+		atomic_add_int(&openfiles, 1);
 
 	/*
+	 * If addfd:
 	 * If the process has file descriptor zero open, add the new file
 	 * descriptor to the list of open files at that point, otherwise
 	 * put it at the front of the list of open files.
 	 */
-	refcount_init(&fp->f_count, 1);
+	refcount_init(&fp->f_count, (addfd > 0));
 	if (resultfp)
 		fhold(fp);
 	fp->f_cred = crhold(td->td_ucred);
@@ -1578,16 +1598,20 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 	fp->f_vnode = NULL;
 	LIST_INIT(&fp->f_caps);
 	fp->f_capcount = 0;
-	FILEDESC_XLOCK(p->p_fd);
-	if ((error = fdalloc(td, 0, &i))) {
-		FILEDESC_XUNLOCK(p->p_fd);
-		fdrop(fp, td);
-		if (resultfp)
+
+	if (addfd) {
+		FILEDESC_XLOCK(p->p_fd);
+		if ((error = fdalloc(td, 0, &i))) {
+			FILEDESC_XUNLOCK(p->p_fd);
 			fdrop(fp, td);
-		return (error);
+			if (resultfp)
+				fdrop(fp, td);
+			return (error);
+		}
+		p->p_fd->fd_ofiles[i] = fp;
+		FILEDESC_XUNLOCK(p->p_fd);
 	}
-	p->p_fd->fd_ofiles[i] = fp;
-	FILEDESC_XUNLOCK(p->p_fd);
+
 	if (resultfp)
 		*resultfp = fp;
 	if (resultfd)

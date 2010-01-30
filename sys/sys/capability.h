@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/sys/sys/capability.h#25 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/sys/sys/capability.h#26 $
  */
 
 /*
@@ -96,7 +96,8 @@
 #define	CAP_TTYHOOK		0x0001000000000000ULL	/* register tty hook */
 #define	CAP_FCHDIR		0x0002000000000000ULL	/* fchdir(2) */
 #define	CAP_FSCK		0x0004000000000000ULL	/* sysctl_ffs_fsck */
-#define	CAP_MASK_VALID		0x0007ffffffffffffULL
+#define	CAP_ATBASE		0x0008000000000000ULL	/* openat(2), etc. */
+#define	CAP_MASK_VALID		0x000fffffffffffffULL
 
 /*
  * Notes:
@@ -138,6 +139,13 @@
 
 #ifdef _KERNEL
 struct file;
+struct thread;
+
+/*
+ * Create a capability to wrap a file object.
+ */
+int kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
+                 struct file **cap, int *capfd);
 
 /*
  * Given a file descriptor that may be a capability, check the requested
