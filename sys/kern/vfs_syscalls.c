@@ -3042,13 +3042,20 @@ kern_fchmodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 	int vfslocked;
 	int follow;
+	struct vnode *base;
 
 	AUDIT_ARG_MODE(mode);
 	follow = (flag & AT_SYMLINK_NOFOLLOW) ? NOFOLLOW : FOLLOW;
-	NDINIT_AT(&nd, LOOKUP,  follow | MPSAFE | AUDITVNODE1, pathseg, path,
-	    fd, td);
-	if ((error = namei(&nd)) != 0)
+	if ((error = fgetbase(td, fd, CAP_FCHMOD, &base)))
 		return (error);
+
+	NDINIT_ATBASE(&nd, LOOKUP,  follow | MPSAFE | AUDITVNODE1, pathseg, path,
+	    fd, base, td);
+	error = namei(&nd);
+	if (base) vput(base);
+	if (error)
+		return (error);
+
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = setfmode(td, nd.ni_vp, mode);
