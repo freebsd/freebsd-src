@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability.c#10 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability.c#11 $
  */
 
 #include <sys/types.h>
@@ -179,7 +179,6 @@ _lc_send_rights(int fd, const void *msg, size_t len, int flags, int lc_flags,
 	iov.iov_base = __DECONST(void *, msg);
 	iov.iov_len = len;
 
-	bzero(&msghdr, sizeof(msghdr));
 	bzero(&cmsgbuf, sizeof(cmsgbuf));
 	cmsg = (struct cmsghdr *)cmsgbuf;
 	cmsg->cmsg_len = CMSG_SPACE(fdcount * sizeof(int));
