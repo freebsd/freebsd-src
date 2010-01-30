@@ -62,17 +62,3 @@ int cap_main(int argc, char **argv, char **env)
 	write(2, warning, sizeof(warning));
 }
 
-
-int cap_main(int argc, char **argv, char **env)
-{
-	const char warning[] =
-		"ERROR: attempting to run a regular binary in capability mode."
-		"\n\n"
-		"If you wish to run a binary in a sandbox, you must provide a "
-		"cap_main() function which takes the same arguments as main()."
-		"\n";
-
-	write(2, warning, sizeof(warning));
-	return 1;
-}
-
