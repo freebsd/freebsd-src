@@ -160,6 +160,40 @@ getvnode_cap(struct filedesc *fdp, int fd, cap_rights_t rights,
 }
 
 /*
+ * Get the "base" vnode defined by a user file descriptor.
+ *
+ * Several *at() system calls are now supported in capability mode. This function
+ * finds out what their "*at base" vnode, which is needed by namei(), should be:
+ *
+ * 1. In non-capability (and thus unconstrained) mode, base = 0.
+ * 2. In capability mode, base is the vnode given by the fd parameter, subject to
+ *    the condition that the supplied 'rights' parameter (OR'ed with CAP_LOOKUP
+ *    and CAP_ATBASE) is satisfied. The vnode is returned with a shared lock.
+ */
+int
+fgetbase(struct thread *td, int fd, cap_rights_t rights, struct vnode **base)
+{
+	if (!(td->td_ucred->cr_flags & CRED_FLAG_CAPMODE))
+		base = 0;
+
+	else {
+		int error;
+
+		error = fgetvp(td, fd, rights | CAP_LOOKUP | CAP_ATBASE, base);
+		if (error)
+			return (error);
+
+		if ((error = vn_lock(*base, LK_SHARED))) {
+			vrele(*base);
+			return (error);
+		}
+	}
+
+	return 0;
+}
+
+
+/*
  * Sync each mounted filesystem.
  */
 #ifndef _SYS_SYSPROTO_H_
@@ -2239,21 +2273,9 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		cred = tmpcred = td->td_ucred;
 	AUDIT_ARG_VALUE(mode);
 
-	/*
-	 * if a relative base was specified and we're in capability mode, find
-	 * the vnode of the base so that namei() can restrict itself accordingly
-	 */
-	if ((cred->cr_flags & CRED_FLAG_CAPMODE) && (fd >= 0)) {
-
-		if ((error = fgetvp(td, fd, CAP_LOOKUP | CAP_ATBASE, &base)))
-			/* XXX: more CAP_FOO? */
-			return (error);
-
-		if ((error = vn_lock(base, LK_SHARED))) {
-			vrele (base);
-			return (error);
-		}
-	}
+	/* get *at base vnode for namei() */
+	if ((error = fgetbase(td, fd, CAP_FSTAT, &base)))
+		return (error);
 
 	NDINIT_ATBASE(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
 	    AUDITVNODE1, pathseg, path, fd, base, td);

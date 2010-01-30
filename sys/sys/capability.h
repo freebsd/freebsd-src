@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/sys/sys/capability.h#26 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/sys/sys/capability.h#27 $
  */
 
 /*
@@ -52,7 +52,7 @@
 #define	CAP_GETSOCKNAME		0x0000000000000010ULL	/* getsockname */
 #define	CAP_FCHFLAGS		0x0000000000000020ULL	/* fchflags */
 #define	CAP_IOCTL		0x0000000000000040ULL	/* ioctl */
-#define	CAP_FSTAT		0x0000000000000080ULL	/* fstat */
+#define	CAP_FSTAT		0x0000000000000080ULL	/* fstat, faccessat */
 #define	CAP_MMAP		0x0000000000000100ULL	/* mmap */
 #define	CAP_FCNTL		0x0000000000000200ULL	/* fcntl */
 #define	CAP_EVENT		0x0000000000000400ULL	/* select/poll */

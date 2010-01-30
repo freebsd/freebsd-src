@@ -130,6 +130,8 @@ struct filedesc_to_leader *
 int	getvnode(struct filedesc *fdp, int fd, struct file **fpp);
 int	getvnode_cap(struct filedesc *fdp, int fd, cap_rights_t rights,
 	    struct file **fpp);
+int	fgetbase(struct thread *td, int fd, cap_rights_t rights,
+	    struct vnode **base);
 void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 void	setugidsafety(struct thread *td);
 
