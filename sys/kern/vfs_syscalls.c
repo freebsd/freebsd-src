@@ -2219,7 +2219,7 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
     int flags, int mode)
 {
 	struct ucred *cred, *tmpcred;
-	struct vnode *vp;
+	struct vnode *vp, *base = 0;
 	struct nameidata nd;
 	int vfslocked;
 	int error;
@@ -2238,8 +2238,25 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	} else
 		cred = tmpcred = td->td_ucred;
 	AUDIT_ARG_VALUE(mode);
-	NDINIT_AT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
-	    AUDITVNODE1, pathseg, path, fd, td);
+
+	/*
+	 * if a relative base was specified and we're in capability mode, find
+	 * the vnode of the base so that namei() can restrict itself accordingly
+	 */
+	if ((cred->cr_flags & CRED_FLAG_CAPMODE) && (fd >= 0)) {
+
+		if ((error = fgetvp(td, fd, CAP_LOOKUP | CAP_ATBASE, &base)))
+			/* XXX: more CAP_FOO? */
+			return (error);
+
+		if ((error = vn_lock(base, LK_SHARED))) {
+			vrele (base);
+			return (error);
+		}
+	}
+
+	NDINIT_ATBASE(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
+	    AUDITVNODE1, pathseg, path, fd, base, td);
 	if ((error = namei(&nd)) != 0)
 		goto out1;
 	vfslocked = NDHASGIANT(&nd);
@@ -2254,6 +2271,7 @@ out1:
 		td->td_ucred = cred;
 		crfree(tmpcred);
 	}
+	if (base) vput(base);
 	return (error);
 }
 
