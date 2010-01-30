@@ -3,6 +3,7 @@
  */
 
 FBSD_1.1 {
+    ld_libcache_add;
     ld_libcache_lookup;
     ld_insandbox;
 };

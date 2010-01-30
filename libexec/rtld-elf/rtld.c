@@ -245,6 +245,7 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &_rtld_atfork_pre,
     (func_ptr_type) &_rtld_atfork_post,
 #ifdef IN_RTLD_CAP
+    (func_ptr_type) &ld_libcache_add,
     (func_ptr_type) &ld_libcache_lookup,
     (func_ptr_type) &ld_insandbox,
 #endif

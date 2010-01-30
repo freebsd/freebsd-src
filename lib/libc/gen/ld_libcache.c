@@ -33,6 +33,15 @@
 
 #include <errno.h>
 
+#pragma weak ld_libcache_add
+int
+ld_libcache_add(const char *libname, int fd)
+{
+
+	errno = EOPNOTSUPP;
+	return (-1);
+}
+
 #pragma weak ld_libcache_lookup
 int
 ld_libcache_lookup(const char *libname, int *fdp)

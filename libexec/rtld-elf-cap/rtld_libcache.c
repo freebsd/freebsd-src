@@ -35,15 +35,20 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * When running in a capability sandbox, rtld-elf-cap will be passed a set of
- * open file descriptors to potentially useful libraries, along with an index
- * to these in the LD_CAPLIBINDEX environmental variable.  These routines
- * parse that index, and allow lookups by library name.  A typical string
- * might be:
+ * rtld maintains a cache of library file descriptors, which is passed from
+ * host to sandbox at exec()-time in order to avoid the need for direct file
+ * system access from within sandboxes.  When rtld starts, it inspects
+ * LD_LIBCACHE to find library descriptors passed from the host.  This
+ * variable maps file descriptor numbers to library names:
  *
  * 6:libc.so.7,7:libm.so.5
  *
  * In the event of ambiguity, the earliest entry will be matched.
+ *
+ * XXXRW: There should be locking around the libcache list.
+ *
+ * XXXRW: ld_libcache_lookup() should dup the fd before returning it so that
+ * the caller is responsible for managing the returned fd reference.
  */
 
 #include <sys/types.h>
@@ -66,10 +71,27 @@ struct libcache_entry {
 static TAILQ_HEAD(, libcache_entry)	ld_libcache_list =
     TAILQ_HEAD_INITIALIZER(ld_libcache_list);
 
-static void
-ld_libcache_add(const char *name, const char *fdnumber)
+/*
+ * Add a library to the library cache.
+ */
+void
+ld_libcache_add(const char *name, int fd)
 {
 	struct libcache_entry *liep;
+
+	liep = xmalloc(sizeof(*liep));
+	liep->lie_name = xstrdup(name);
+	liep->lie_fd = fd;
+	TAILQ_INSERT_TAIL(&ld_libcache_list, liep, lie_list);
+}
+
+/*
+ * Add a library to the library cache, with file descriptor passed as a
+ * string.  Used internally when parsing LD_LIBCACHE.
+ */
+static void
+ld_libcache_add_string(const char *name, const char *fdnumber)
+{
 	long long l;
 	char *endp;
 
@@ -80,12 +102,14 @@ ld_libcache_add(const char *name, const char *fdnumber)
 	if (l < 0 || l > INT_MAX || *endp != '\0')
 		return;
 
-	liep = xmalloc(sizeof(*liep));
-	liep->lie_name = xstrdup(name);
-	liep->lie_fd = l;
-	TAILQ_INSERT_TAIL(&ld_libcache_list, liep, lie_list);
+	ld_libcache_add(name, l);
 }
 
+/*
+ * Given a library name, return its file descriptor (if defined).  Arguably,
+ * we should dup the cache-owned fd rather than returning it directly to the
+ * caller.
+ */
 int
 ld_libcache_lookup(const char *libname, int *fdp)
 {
@@ -100,6 +124,9 @@ ld_libcache_lookup(const char *libname, int *fdp)
 	return (-1);
 }
 
+/*
+ * Initialize the library cache given the LD_LIBCACHE environmental variable.
+ */
 void
 ld_libcache_init(const char *libcache)
 {
@@ -111,7 +138,7 @@ ld_libcache_init(const char *libcache)
 		fdnumber = strsep(&entry, ":");
 		if (fdnumber == NULL)
 			continue;
-		ld_libcache_add(entry, fdnumber);
+		ld_libcache_add_string(entry, fdnumber);
 	}
 	free(libcache_tofree);
 }
