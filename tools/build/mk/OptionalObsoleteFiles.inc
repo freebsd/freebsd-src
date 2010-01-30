@@ -782,9 +782,22 @@ OLD_FILES+=usr/share/info/cpio.info.gz
 OLD_FILES+=usr/share/man/man1/gcpio.1.gz
 .endif
 
-#.if ${MK_GPIB} == no
-# none
-#.endif
+.if ${MK_GPIB} == no
+OLD_FILES+=usr/include/dev/ieee488/ibfoo_int.h
+OLD_FILES+=usr/include/dev/ieee488/ugpib.h
+OLD_FILES+=usr/include/dev/ieee488/upd7210.h
+OLD_FILES+=usr/include/gpib/gpib.h
+OLD_FILES+=usr/lib/libgpib.a
+OLD_FILES+=usr/lib/libgpib.so
+OLD_LIBS+=usr/lib/libgpib.so.3
+OLD_FILES+=usr/lib/libgpib_p.a
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libgpib.a
+OLD_FILES+=usr/lib32/libgpib.so
+OLD_LIBS+=usr/lib32/libgpib.so.3
+OLD_FILES+=usr/lib32/libgpib_p.a
+.endif
+.endif
 
 #.if ${MK_GROFF} == no
 # to be filled in
