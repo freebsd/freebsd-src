@@ -74,6 +74,9 @@ __FBSDID("$FreeBSD$");
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+#ifdef KDB
+#include <sys/kdb.h>
+#endif
 
 #include <machine/stdarg.h>
 
@@ -1097,7 +1100,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct mount *mp;
 	int cmode;
 	struct file *nfp;
-	int type, indx, error;
+	int type, indx = -1, error;
 	struct flock lf;
 	struct nameidata nd;
 	int vfslocked;
@@ -1159,10 +1162,17 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		 * it ever should.
 		 */
 		if (!nd.ni_basedir && (error == ENODEV || error == ENXIO) &&
-		    td->td_dupfd >= 0 &&		/* XXX from fdopen */
-		    (error =
-			dupfdopen(td, fdp, indx, td->td_dupfd, flags, error)) == 0)
-			goto success;
+		    td->td_dupfd >= 0) {
+			/* XXX from fdopen */
+			int olderror = error;
+
+			if ((error = finstall(td, fp, &indx)) != 0)
+				goto bad_unlocked;
+
+			if ((error = dupfdopen(td, fdp, indx, td->td_dupfd,
+			                      flags, olderror)) == 0)
+				goto success;
+		}
 
 		/*
 		 * Clean up the descriptor, but only if another thread hadn't
@@ -1238,8 +1248,10 @@ success:
 	}
 	else
 #endif
-	if ((error = finstall(td, fp, &indx)) != 0)
-		goto bad_unlocked;
+	/* if we haven't already installed the FD (for dupfdopen), do so now */
+	if (indx == -1)
+	       if((error = finstall(td, fp, &indx)) != 0)
+			goto bad_unlocked;
 
 	/*
 	 * Release our private reference, leaving the one associated with
