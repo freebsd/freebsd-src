@@ -112,8 +112,8 @@ int	closef(struct file *fp, struct thread *td);
 int	dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd,
 	    int mode, int error);
 int	falloc(struct thread *td, struct file **resultfp, int *resultfd);
-int	_falloc(struct thread *td, struct file **resultfp, int *resultfd,
-	        int addfd);
+int	falloc_noinstall(struct thread *td, struct file **resultfp);
+int	finstall(struct thread *td, struct file *fp, int *resultfp);
 int	fdalloc(struct thread *td, int minfd, int *result);
 int	fdavail(struct thread *td, int n);
 int	fdcheckstd(struct thread *td);

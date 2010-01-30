@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capabilities.h"
 #include "opt_kdb.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
@@ -139,16 +140,6 @@ namei(struct nameidata *ndp)
 	struct proc *p = td->td_proc;
 	int vfslocked;
 
-#ifdef KDB
-	if ((td->td_ucred->cr_flags & CRED_FLAG_CAPMODE)
-	    && (ndp->ni_dirfd == AT_FDCWD))
-	{
-		printf("namei: pid %d proc %s performed namei in capability "
-		    "mode (and it's not *at())\n", p->p_pid, p->p_comm);
-		kdb_backtrace();
-	}
-#endif
-
 	KASSERT((cnp->cn_flags & MPSAFE) != 0 || mtx_owned(&Giant) != 0,
 	    ("NOT MPSAFE and Giant not held"));
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
@@ -206,6 +197,7 @@ namei(struct nameidata *ndp)
 		ktrnamei(cnp->cn_pnbuf);
 	}
 #endif
+
 	/*
 	 * Get starting point for the translation.
 	 */
@@ -214,7 +206,18 @@ namei(struct nameidata *ndp)
 	ndp->ni_topdir = fdp->fd_jdir;
 
 	dp = NULL;
+#ifdef CAPABILITIES
+	/*
+	 * in capability mode, lookups must be performed relative to a real file
+	 * descriptor, not the pseudo-descriptor AT_FDCWD
+	 */
+	if (IN_CAPABILITY_MODE(td) && (ndp->ni_dirfd == AT_FDCWD)) {
+		error = EOPNOTSUPP;
+	} else {
+#else /* !CAPABILITIES */
+	/* this optimisation doesn't apply if we have capabilities */
 	if (cnp->cn_pnbuf[0] != '/') {
+#endif
 		if (ndp->ni_startdir != NULL) {
 			dp = ndp->ni_startdir;
 			error = 0;
@@ -223,26 +226,39 @@ namei(struct nameidata *ndp)
 				AUDIT_ARG_ATFD1(ndp->ni_dirfd);
 			if (cnp->cn_flags & AUDITVNODE2)
 				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
-			error = fgetvp(td, ndp->ni_dirfd, CAP_LOOKUP, &dp);
-		}
-		if (error != 0 || dp != NULL) {
-			FILEDESC_SUNLOCK(fdp);
-			if (error == 0 && dp->v_type != VDIR) {
-				vfslocked = VFS_LOCK_GIANT(dp->v_mount);
-				vrele(dp);
-				VFS_UNLOCK_GIANT(vfslocked);
-				error = ENOTDIR;
-			}
-		}
-		if (error) {
-			uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
-			cnp->cn_pnbuf = NULL;
-			cnp->cn_nameptr = NULL;
+			error = fgetvp_rights(td, ndp->ni_dirfd,
+			                      ndp->ni_rightsneeded | CAP_LOOKUP,
+			                      &(ndp->ni_baserights), &dp);
+
+#ifdef CAPABILITIES
+			/*
+			 * only set ni_basedir if base was a capability or we are
+			 * in capability mode
+			 */
+			if ((ndp->ni_baserights != -1) || (IN_CAPABILITY_MODE(td)))
+				ndp->ni_basedir = dp;
 #endif
-			return (error);
 		}
 	}
+	if (error != 0 || dp != NULL) {
+		FILEDESC_SUNLOCK(fdp);
+		if (error == 0 && dp->v_type != VDIR) {
+			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
+			vrele(dp);
+			VFS_UNLOCK_GIANT(vfslocked);
+			error = ENOTDIR;
+		}
+	}
+
+	if (error) {
+		uma_zfree(namei_zone, cnp->cn_pnbuf);
+#ifdef DIAGNOSTIC
+		cnp->cn_pnbuf = NULL;
+		cnp->cn_nameptr = NULL;
+#endif
+		return (error);
+	}
+
 	if (dp == NULL) {
 		dp = fdp->fd_cdir;
 		VREF(dp);
@@ -260,6 +276,8 @@ namei(struct nameidata *ndp)
 		/*
 		 * Check if root directory should replace current directory.
 		 * Done at start of translation and after symbolic link.
+		 * This is illegal if looking up relative to a capability unless
+		 * that capability is for '/' and has CAP_ABSOLUTEPATH.
 		 */
 		cnp->cn_nameptr = cnp->cn_pnbuf;
 		if (*(cnp->cn_nameptr) == '/') {
@@ -269,6 +287,21 @@ namei(struct nameidata *ndp)
 				cnp->cn_nameptr++;
 				ndp->ni_pathlen--;
 			}
+#ifdef CAPABILITIES
+			if (ndp->ni_basedir)
+				printf("ABSOLUTE namei(); "
+				       "basedir: %016lx, rootdir: %016lx"
+				       ", baserights: %016lx\n",
+				       (unsigned long) ndp->ni_basedir,
+				       (unsigned long) ndp->ni_rootdir,
+				       (unsigned long) ndp->ni_baserights);
+
+			if (ndp->ni_basedir
+			    && !((ndp->ni_basedir == ndp->ni_rootdir)
+			         && (ndp->ni_baserights & CAP_ABSOLUTEPATH)))
+				return (ENOTCAPABLE);
+#endif
+
 			dp = ndp->ni_rootdir;
 			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 			VREF(dp);
@@ -480,8 +513,7 @@ lookup(struct nameidata *ndp)
 	int dvfslocked;			/* VFS Giant state for parent */
 	int tvfslocked;
 	int lkflags_save;
-	int insidebasedir = 0;		/* we're under the *at() base */
-	
+
 	/*
 	 * Setup: break out flag bits into variables.
 	 */
@@ -507,10 +539,6 @@ lookup(struct nameidata *ndp)
 		cnp->cn_lkflags = LK_SHARED;
 	else
 		cnp->cn_lkflags = LK_EXCLUSIVE;
-
-	/* we do not allow absolute lookups in capability mode */
-	if(ndp->ni_basedir && (ndp->ni_startdir == ndp->ni_rootdir))
-		return (error = EPERM);
 
 	dp = ndp->ni_startdir;
 	ndp->ni_startdir = NULLVP;
@@ -580,11 +608,6 @@ dirloop:
 		goto bad;
 	}
 
-
-	/* Check to see if we're at the *at directory */
-	if(dp == ndp->ni_basedir) insidebasedir = 1;
-
-
 	/*
 	 * Check for degenerate name (e.g. / or "")
 	 * which is a way of talking about a directory,
@@ -619,17 +642,18 @@ dirloop:
 	}
 
 	/*
-	 * Handle "..": four special cases.
+	 * Handle "..": five special cases.
 	 * 1. Return an error if this is the last component of
 	 *    the name and the operation is DELETE or RENAME.
-	 * 2. If at root directory (e.g. after chroot)
+	 * 2. If at the base of a capability *at call, return ENOTCAPABLE.
+	 * 3. If at root directory (e.g. after chroot)
 	 *    or at absolute root directory
 	 *    then ignore it so can't get out.
-	 * 3. If this vnode is the root of a mounted
+	 * 4. If this vnode is the root of a mounted
 	 *    filesystem, then replace it with the
 	 *    vnode which was mounted on so we take the
 	 *    .. in the other filesystem.
-	 * 4. If the vnode is the top directory of
+	 * 5. If the vnode is the top directory of
 	 *    the jail or chroot, don't let them out.
 	 */
 	if (cnp->cn_flags & ISDOTDOT) {
@@ -639,13 +663,17 @@ dirloop:
 			goto bad;
 		}
 		for (;;) {
-			/* attempting to wander out of the *at root */
-			if(dp == ndp->ni_basedir)
-			{
-				error = EPERM;
+#ifdef CAPABILITIES
+			/*
+			 * Attempting to wander out of the *at root; whether or
+			 * not this is allowed is a capability option on the
+			 * '/' capability.
+			 */
+			if (dp == ndp->ni_basedir) {
+				error = ENOTCAPABLE;
 				goto bad;
 			}
-
+#endif
 			for (pr = cnp->cn_cred->cr_prison; pr != NULL;
 			     pr = pr->pr_parent)
 				if (dp == pr->pr_root)
@@ -905,16 +933,6 @@ nextname:
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0);
 success:
-	/*
-	 * If we're in capability mode and the syscall was *at(), ensure
-	 * that the *at() base was part of the path
-	 */
-	if(ndp->ni_basedir && !insidebasedir)
-	{
-		error = EPERM;
-		goto bad;
-	}
-
 	/*
 	 * Because of lookup_shared we may have the vnode shared locked, but
 	 * the caller may want it to be exclusively locked.

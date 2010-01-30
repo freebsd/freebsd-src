@@ -206,6 +206,8 @@ fo_close_t	soo_close;
 void finit(struct file *, u_int, short, void *, struct fileops *);
 int fgetvp(struct thread *td, int fd, cap_rights_t rights,
     struct vnode **vpp);
+int fgetvp_rights(struct thread *td, int fd, cap_rights_t need, cap_rights_t *have,
+    struct vnode **vpp);
 int fgetvp_read(struct thread *td, int fd, cap_rights_t rights,
     struct vnode **vpp);
 int fgetvp_write(struct thread *td, int fd, cap_rights_t rights,

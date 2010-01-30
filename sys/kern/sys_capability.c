@@ -50,7 +50,7 @@
 #include "opt_capabilities.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$P4: //depot/projects/trustedbsd/capabilities/src/sys/kern/sys_capability.c#27 $");
+__FBSDID("$P4: //depot/projects/trustedbsd/capabilities/src/sys/kern/sys_capability.c#28 $");
 
 #include <sys/param.h>
 #include <sys/capability.h>
@@ -153,8 +153,11 @@ static int
 cap_check(struct capability *c, cap_rights_t rights)
 {
 
-	if ((c->cap_rights | rights) != c->cap_rights)
+	if ((c->cap_rights | rights) != c->cap_rights) {
+		printf("ENOTCAPABLE: %016x < %016x\n",
+		       (unsigned int) c->cap_rights, (unsigned int) rights);
 		return (ENOTCAPABLE);
+	}
 	return (0);
 }
 
