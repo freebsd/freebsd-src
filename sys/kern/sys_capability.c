@@ -50,7 +50,7 @@
 #include "opt_capabilities.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$P4: //depot/projects/trustedbsd/capabilities/src/sys/kern/sys_capability.c#29 $");
+__FBSDID("$P4: //depot/projects/trustedbsd/capabilities/src/sys/kern/sys_capability.c#30 $");
 
 #include <sys/param.h>
 #include <sys/capability.h>
@@ -117,6 +117,9 @@ static struct fileops capability_ops = {
 	 * don't have DFLAG_PASSABLE.  On the other hand, there are no such
 	 * objects, which raises the question as to why the flag exists at
 	 * all.
+	 *
+	 * XXXRW: Actually, this is not true: kqueue's aren't passable, so we
+	 * do need to do this.
 	 *
 	 * No need to set DFLAG_SEEKABLE as any seek operations will fall
 	 * through to the underlying object once the capability is verified.
