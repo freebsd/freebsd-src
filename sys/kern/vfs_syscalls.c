@@ -165,7 +165,7 @@ getvnode_cap(struct filedesc *fdp, int fd, cap_rights_t rights,
  * Several *at() system calls are now supported in capability mode. This function
  * finds out what their "*at base" vnode, which is needed by namei(), should be:
  *
- * 1. In non-capability (and thus unconstrained) mode, base = 0.
+ * 1. In non-capability (and thus unconstrained) mode, *base = 0.
  * 2. In capability mode, base is the vnode given by the fd parameter, subject to
  *    the condition that the supplied 'rights' parameter (OR'ed with CAP_LOOKUP
  *    and CAP_ATBASE) is satisfied. The vnode is returned with a shared lock.
@@ -174,7 +174,7 @@ int
 fgetbase(struct thread *td, int fd, cap_rights_t rights, struct vnode **base)
 {
 	if (!(td->td_ucred->cr_flags & CRED_FLAG_CAPMODE))
-		base = 0;
+		*base = 0;
 
 	else {
 		int error;
