@@ -74,9 +74,6 @@ __FBSDID("$FreeBSD$");
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
-#ifdef KDB
-#include <sys/kdb.h>
-#endif
 
 #include <machine/stdarg.h>
 
