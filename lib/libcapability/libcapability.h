@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability.h#25 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapability/libcapability.h#26 $
  */
 
 #ifndef _LIBCAPABILITY_H_
@@ -51,6 +51,30 @@ struct lc_library {
 	const char	*lcl_libname;
 	int		 lcl_fd;
 };
+
+/*
+ * A file descriptor "registry"
+ */
+struct lc_fdregistry_entry;
+struct lc_fdregistry {
+	struct lc_fdregistry_entry *entries;	/* registry entries */
+
+	unsigned int count;			/* number of entries */
+	unsigned int capacity;			/* entries that we can hold */
+};
+
+/*
+ * Registry operations
+ */
+struct lc_fdregistry*	lc_fdregistry_new(void);
+struct lc_fdregistry*	lc_fdregistry_dup(const struct lc_fdregistry *orig);
+void			lc_fdregistry_free(struct lc_fdregistry *registry);
+
+int	lc_fdregistry_add(const struct lc_fdregistry *reg,
+	                  const char *id, const char *name, int fd);
+
+int	lc_fdregistry_lookup(const struct lc_fdregistry *reg,
+	                     const char *id, char **name, int *fdp);
 
 /*
  * Capability interfaces.

@@ -9,7 +9,8 @@ SRCS=					\
 	libcapability_sandbox.c		\
 	libcapability_sandbox_io.c	\
 	libcapability_host.c		\
-	libcapability_host_io.c
+	libcapability_host_io.c		\
+	libcapability_registry.c
 
 INCS=	libcapability.h
 
