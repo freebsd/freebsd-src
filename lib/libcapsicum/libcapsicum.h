@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.h#3 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.h#4 $
  */
 
 #ifndef _LIBCAPABILITY_H_
@@ -117,15 +117,15 @@ int	lch_autosandbox_isenabled(const char *servicename);
  * Interfaces to start and stop capability mode sandboxs.
  */
 int	lch_start(const char *sandbox, char *const argv[], u_int flags,
-	    struct lc_sandbox **lcspp);
+	    struct lc_fdlist *fds, struct lc_sandbox **lcspp);
 int	lch_start_libs(const char *sandbox, char *const argv[], u_int flags,
-	    struct lc_library *lclp, u_int lcl_count,
+	    struct lc_library *lclp, u_int lcl_count, struct lc_fdlist *fds,
 	    struct lc_sandbox **lcspp);
 int	lch_startfd(int fd_sandbox, const char *binname, char *const argv[],
 	    u_int flags, struct lc_fdlist *fds, struct lc_sandbox **lcspp);
 int	lch_startfd_libs(int fd_sandbox, const char *binname,
 	    char *const argv[], u_int flags, struct lc_library *lclp,
-	    u_int lcl_count, struct lc_sandbox **lcspp);
+	    u_int lcl_count, struct lc_fdlist *fds, struct lc_sandbox **lcspp);
 void	lch_stop(struct lc_sandbox *lcsp);
 
 /*

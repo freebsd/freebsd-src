@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host_io.c#1 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host_io.c#2 $
  */
 
 #include <sys/param.h>

@@ -30,11 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#2 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#3 $
  */
 
 #include <sys/param.h>
 #include <sys/capability.h>
+#include <sys/mman.h>
 #include <sys/procdesc.h>
 #include <sys/sbuf.h>
 #include <sys/socket.h>
@@ -147,11 +148,40 @@ static void
 lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
     int fd_libcapsicum, int fd_libsbuf, int fd_devnull, u_int flags,
     struct lc_library *lclp, u_int lcl_count, const char *binname,
-    char *const argv[])
+    char *const argv[], struct lc_fdlist *fds)
 {
 	int *fd_array, fdcount;
 	struct sbuf *sbufp;
+	int shmfd, fdlistsize;
+	/*void *shm;*/
+	char fdliststr[8];
 	u_int i;
+
+
+	/* create an anonymous shared memory segment for the FD list */
+	shmfd = shm_open(SHM_ANON, O_RDWR, 0600);
+	if (shmfd < 0) return;
+
+	fdlistsize = lc_fdlist_size(fds);
+	if (ftruncate(shmfd, fdlistsize) < 0) return;
+
+
+	printf("%dB of memory to mmap\n", fdlistsize);
+
+
+	/* map it and copy the list */
+	/*
+	shm = mmap(NULL, fdlistsize, PROT_READ | PROT_WRITE,
+	           MAP_NOSYNC | MAP_SHARED, shmfd, 0);
+
+	if (shm == MAP_FAILED) return;
+	memcpy(shm, fds, fdlistsize);
+
+	if (munmap(shm, fdlistsize)) return;
+	*/
+
+
+
 
 	if (lc_limitfd(fd_devnull, LIBCAPABILITY_CAPMASK_DEVNULL) < 0)
 		return;
@@ -168,7 +198,7 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 	if (lc_limitfd(fd_libsbuf, LIBCAPABILITY_CAPMASK_LIB) < 0)
 		return;
 
-	fdcount = 10 + lcl_count;
+	fdcount = 11 + lcl_count;
 	fd_array = malloc(fdcount * sizeof(int));
 	if (fd_array == NULL)
 		return;
@@ -193,10 +223,11 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 	fd_array[7] = fd_libcapsicum;
 	fd_array[8] = fd_libsbuf;
 	fd_array[9] = fd_devnull;
+	fd_array[10] = shmfd;
 	for (i = 0; i < lcl_count; i++) {
 		if (lc_limitfd(lclp->lcl_fd, LIBCAPABILITY_CAPMASK_LIB) < 0)
 			return;
-		fd_array[i + 10] = lclp[i].lcl_fd;
+		fd_array[i + 11] = lclp[i].lcl_fd;
 	}
 
 	if (lch_installfds(fdcount, fd_array) < 0)
@@ -209,7 +240,7 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 	    3, binname, 5, LD_ELF_CAP_SO, 6, LIBC_SO, 7, LIBCAPABILITY_SO,
 	    8, LIBSBUF_SO, 9, _PATH_DEVNULL);
 	for (i = 0; i < lcl_count; i++)
-		(void)sbuf_printf(sbufp, ",%d:%s", i + 10,
+		(void)sbuf_printf(sbufp, ",%d:%s", i + 11,
 		    lclp[i].lcl_libname);
 	sbuf_finish(sbufp);
 	if (sbuf_overflowed(sbufp))
@@ -229,6 +260,10 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 		return;
 	sbuf_delete(sbufp);
 
+	sprintf(fdliststr, "%d", 10);
+	if (setenv(LIBCAPABILITY_SANDBOX_FDLIST, fdliststr, 1) == -1)
+		return;
+
 	if (cap_enter() < 0)
 		return;
 
@@ -238,7 +273,7 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 int
 lch_startfd_libs(int fd_sandbox, const char *binname, char *const argv[],
     u_int flags, struct lc_library *lclp, u_int lcl_count,
-    struct lc_sandbox **lcspp)
+    struct lc_fdlist *fds, struct lc_sandbox **lcspp)
 {
 	struct lc_sandbox *lcsp;
 	int fd_devnull, fd_ldso, fd_libc, fd_libcapsicum, fd_libsbuf;
@@ -304,7 +339,7 @@ lch_startfd_libs(int fd_sandbox, const char *binname, char *const argv[],
 	if (pid == 0) {
 		lch_sandbox(fd_sockpair[1], fd_sandbox, fd_ldso, fd_libc,
 		    fd_libcapsicum, fd_libsbuf, fd_devnull, flags, lclp,
-		    lcl_count, binname, argv);
+		    lcl_count, binname, argv, fds);
 		exit(-1);
 	}
 #ifndef IN_CAP_MODE
@@ -353,12 +388,13 @@ lch_startfd(int fd_sandbox, const char *binname, char *const argv[],
 {
 
 	return (lch_startfd_libs(fd_sandbox, binname, argv, flags, NULL, 0,
-	    lcspp));
+	    fds, lcspp));
 }
 
 int
 lch_start_libs(const char *sandbox, char *const argv[], u_int flags,
-    struct lc_library *lclp, u_int lcl_count, struct lc_sandbox **lcspp)
+    struct lc_library *lclp, u_int lcl_count, struct lc_fdlist *fds,
+    struct lc_sandbox **lcspp)
 {
 	char binname[MAXPATHLEN];
 	int error, fd_sandbox, ret;
@@ -371,7 +407,7 @@ lch_start_libs(const char *sandbox, char *const argv[], u_int flags,
 		return (-1);
 
 	ret = lch_startfd_libs(fd_sandbox, binname, argv, flags, lclp,
-	    lcl_count, lcspp);
+	    lcl_count, fds, lcspp);
 	error = errno;
 	close(fd_sandbox);
 	errno = error;
@@ -380,10 +416,10 @@ lch_start_libs(const char *sandbox, char *const argv[], u_int flags,
 
 int
 lch_start(const char *sandbox, char *const argv[], u_int flags,
-    struct lc_sandbox **lcspp)
+    struct lc_fdlist *fds, struct lc_sandbox **lcspp)
 {
 
-	return (lch_start_libs(sandbox, argv, flags, NULL, 0, lcspp));
+	return (lch_start_libs(sandbox, argv, flags, NULL, 0, fds, lcspp));
 }
 
 void

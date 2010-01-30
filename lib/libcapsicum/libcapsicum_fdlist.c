@@ -30,14 +30,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#2 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#3 $
  */
+
+#include <sys/mman.h>
+#include <sys/stat.h>
 
 #include <errno.h>
 #include <libcapsicum.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "libcapsicum_sandbox_api.h"
 
 
 struct lc_fdlist_entry {
@@ -86,6 +92,41 @@ struct lc_fdlist *global_fdlist = NULL;
 
 struct lc_fdlist*
 lc_fdlist_global(void) {
+
+	if (global_fdlist == NULL) {
+
+		char *env = getenv(LIBCAPABILITY_SANDBOX_FDLIST);
+		printf("%s: %s\n", LIBCAPABILITY_SANDBOX_FDLIST, env);
+
+		if ((env != NULL) && (strnlen(env, 8) < 7)) {
+
+			for (int i = 0; (i < 7) && env[i]; i++)
+				if ((env[i] < '0') || (env[i] > '9'))
+					return NULL;
+
+			int fd = -1;
+			if (sscanf(env, "%d", &fd) != 1)
+				return NULL;
+
+			if (fd < 0)
+				return NULL;
+
+			printf("testing FD %i...", fd); fflush(stdout);
+			struct stat stats;
+			if (fstat(fd, &stats) < 0)
+				return NULL;
+
+			printf(" done. Size: %lu\n", stats.st_size);
+
+			printf("mapping FD %i... ", fd); fflush(stdout);
+			/*
+			global_fdlist = mmap(NULL, stats.st_size,
+			                     PROT_READ | PROT_WRITE,
+			                     MAP_NOSYNC | MAP_PRIVATE, fd, 0);
+			*/
+			printf(" done.\n");
+		}
+	}
 
 	return global_fdlist;
 }

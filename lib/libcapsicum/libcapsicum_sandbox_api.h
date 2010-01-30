@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_sandbox_api.h#1 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_sandbox_api.h#2 $
  */
 
 #ifndef _LIBCAPABILITY_SANDBOX_API_H_
@@ -41,6 +41,7 @@
  * make about the runtime environment set up by libcapsicum hosts.
  */
 #define	LIBCAPABILITY_SANDBOX_API_ENV	"LIBCAPABILITY_SANDBOX"
+#define LIBCAPABILITY_SANDBOX_FDLIST	"LIBCAPABILITY_FDLIST"
 #define	LIBCAPABILITY_SANDBOX_API_SOCK	"sock"
 
 /*
