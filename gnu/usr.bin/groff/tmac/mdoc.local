@@ -38,7 +38,7 @@
 .ds doc-str-Lb-libc_r      Reentrant C\~Library (libc_r, \-lc_r)
 .ds doc-str-Lb-libcalendar Calendar Arithmetic Library (libcalendar, \-lcalendar)
 .ds doc-str-Lb-libcam      Common Access Method User Library (libcam, \-lcam)
-.ds doc-str-Lb-libcapability	Capability Services Library (libcapability, \-lcapability)
+.ds doc-str-Lb-libcapsicum	Capability Services Library (libcapsicum, \-lcapsicum)
 .ds doc-str-Lb-libcipher   FreeSec Crypt Library (libcipher, \-lcipher)
 .ds doc-str-Lb-libdevinfo  Device and Resource Information Utility Library (libdevinfo, \-ldevinfo)
 .ds doc-str-Lb-libdevstat  Device Statistics Library (libdevstat, \-ldevstat)
