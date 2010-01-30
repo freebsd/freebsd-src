@@ -288,14 +288,6 @@ namei(struct nameidata *ndp)
 				ndp->ni_pathlen--;
 			}
 #ifdef CAPABILITIES
-			if (ndp->ni_basedir)
-				printf("ABSOLUTE namei(); "
-				       "basedir: %016lx, rootdir: %016lx"
-				       ", baserights: %016lx\n",
-				       (unsigned long) ndp->ni_basedir,
-				       (unsigned long) ndp->ni_rootdir,
-				       (unsigned long) ndp->ni_baserights);
-
 			if (ndp->ni_basedir
 			    && !((ndp->ni_basedir == ndp->ni_rootdir)
 			         && (ndp->ni_baserights & CAP_ABSOLUTEPATH)))
