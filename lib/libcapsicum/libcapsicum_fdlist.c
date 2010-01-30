@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#1 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#2 $
  */
 
 #include <errno.h>
@@ -79,6 +79,16 @@ struct lc_fdlist {
 /* Where an FD list's name byte array starts */
 char*	lc_fdlist_names(struct lc_fdlist *l);
 
+
+
+struct lc_fdlist *global_fdlist = NULL;
+
+
+struct lc_fdlist*
+lc_fdlist_global(void) {
+
+	return global_fdlist;
+}
 
 
 #define INITIAL_ENTRIES		16
@@ -142,6 +152,12 @@ lc_fdlist_add(struct lc_fdlist **fdlist,
               const char *name, int fd) {
 
 	struct lc_fdlist *l = *fdlist;
+
+	if (l == NULL) {
+
+		errno = EINVAL;
+		return -1;
+	}
 
 	LOCK(l);
 
@@ -257,6 +273,11 @@ int
 lc_fdlist_lookup(struct lc_fdlist *l,
                  const char *subsystem, const char *id, char **name, int *fdp,
                  int *pos) {
+
+	if (l == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
 
 	LOCK(l);
 
