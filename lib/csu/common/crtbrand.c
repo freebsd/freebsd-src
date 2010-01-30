@@ -27,6 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <unistd.h>
 
 #define ABI_VENDOR	"FreeBSD"
 #define ABI_SECTION	".note.ABI-tag"
@@ -50,3 +51,12 @@ static const struct {
     ABI_VENDOR,
     __FreeBSD_version
 };
+
+int cap_main(int argc, char **argv, char **env)
+{
+	const char warning[] =
+		"ERROR: attempting to run a regular binary in capability mode.\n\nIf you wish to run a binary in a sandbox, you must provide a cap_main() function which takes the same arguments as main().\n";
+
+	write(2, warning, sizeof(warning));
+}
+

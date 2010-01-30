@@ -45,7 +45,9 @@ typedef void (*fptr)(void);
 extern void _fini(void);
 extern void _init(void);
 extern int main(int, char **, char **);
+extern int cap_main(int, char **, char **) __attribute__((weak));
 extern void _start(char *, ...);
+extern void _capstart(char *, ...);
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -90,6 +92,49 @@ __asm__("eprol:");
 #endif
 	_init();
 	exit( main(argc, argv, env) );
+}
+
+
+/* The Capsicum entry function. */
+void
+_capstart(char *ap, ...)
+{
+	fptr cleanup;
+	int argc;
+	char **argv;
+	char **env;
+	const char *s;
+
+#ifdef __GNUC__
+	__asm__("and $0xfffffff0,%esp");
+#endif
+	cleanup = get_rtld_cleanup();
+	argv = &ap;
+	argc = *(long *)(void *)(argv - 1);
+	env = argv + argc + 1;
+	environ = env;
+	if (argc > 0 && argv[0] != NULL) {
+		__progname = argv[0];
+		for (s = __progname; *s != '\0'; s++)
+			if (*s == '/')
+				__progname = s + 1;
+	}
+
+	if (&_DYNAMIC != NULL)
+		atexit(cleanup);
+	else
+		_init_tls();
+
+#ifdef GCRT
+	atexit(_mcleanup);
+#endif
+	atexit(_fini);
+#ifdef GCRT
+/*	monstartup(&eprol, &etext);
+__asm__("eprol:");*/        /* XXX: does this interfere with profiling? */
+#endif
+	_init();
+	exit( cap_main(argc, argv, env) );
 }
 
 __asm(".hidden	_start1");
