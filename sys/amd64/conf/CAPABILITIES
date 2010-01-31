@@ -4,6 +4,7 @@ ident CAPABILITIES
 options CAPABILITIES
 options PROCDESC
 options KDTRACE_HOOKS
+options INVARIANTS
 options WITNESS
 options KDB
 options DDB
