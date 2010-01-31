@@ -839,12 +839,15 @@ dev/drm/drm_dma.c		optional drm
 dev/drm/drm_drawable.c		optional drm
 dev/drm/drm_drv.c		optional drm
 dev/drm/drm_fops.c		optional drm
+dev/drm/drm_hashtab.c		optional drm
 dev/drm/drm_ioctl.c		optional drm
 dev/drm/drm_irq.c		optional drm
 dev/drm/drm_lock.c		optional drm
 dev/drm/drm_memory.c		optional drm
+dev/drm/drm_mm.c		optional drm
 dev/drm/drm_pci.c		optional drm
 dev/drm/drm_scatter.c		optional drm
+dev/drm/drm_sman.c		optional drm
 dev/drm/drm_sysctl.c		optional drm
 dev/drm/drm_vm.c		optional drm
 dev/drm/i915_dma.c		optional i915drm
