@@ -27,17 +27,14 @@
 # $FreeBSD$
 #
 
-# This is a wrapper script to run tools-posix.test on UFS filesystem.
+# This is a wrapper script to run tools-crossfs.test between UFS without
+# ACLs, UFS with POSIX.1e ACLs, and ZFS with NFSv4 ACLs.
 #
-# If any of the tests fails, here is how to debug it: go to
-# the directory with problematic filesystem mounted on it,
-# and do /path/to/test run /path/to/test tools-posix.test, e.g.
-#
-# /usr/src/tools/regression/acltools/run /usr/src/tools/regression/acltools/tools-posix.test
+# WARNING: It uses hardcoded ZFS pool name "acltools"
 #
 # Output should be obvious.
 
-echo "1..4"
+echo "1..5"
 
 if [ `whoami` != "root" ]; then
 	echo "not ok 1 - you need to be root to run this test."
@@ -45,41 +42,69 @@ if [ `whoami` != "root" ]; then
 fi
 
 TESTDIR=`dirname $0`
+MNTROOT=`mktemp -dt acltools`
 
-# Set up the test filesystem.
-MD=`mdconfig -at swap -s 10m`
-MNT=`mktemp -dt acltools`
-newfs /dev/$MD > /dev/null
-mount -o acls /dev/$MD $MNT
+# Set up the test filesystems.
+MD1=`mdconfig -at swap -s 64m`
+MNT1=$MNTROOT/nfs4
+mkdir $MNT1
+zpool create -R $MNT1 acltools /dev/$MD1
 if [ $? -ne 0 ]; then
-	echo "not ok 1 - mount failed."
+	echo "not ok 1 - 'zpool create' failed."
 	exit 1
 fi
 
 echo "ok 1"
 
-cd $MNT
+MD2=`mdconfig -at swap -s 10m`
+MNT2=$MNTROOT/posix
+mkdir $MNT2
+newfs /dev/$MD2 > /dev/null
+mount -o acls /dev/$MD2 $MNT2
+if [ $? -ne 0 ]; then
+	echo "not ok 2 - mount failed."
+	exit 1
+fi
 
-# First, check whether we can crash the kernel by creating too many
-# entries.  For some reason this won't work in the test file.
-touch xxx
-i=0;
-while :; do i=$(($i+1)); setfacl -m u:$i:rwx xxx 2> /dev/null; if [ $? -ne 0 ]; then break; fi; done
-chmod 600 xxx
-rm xxx
 echo "ok 2"
 
-perl $TESTDIR/run $TESTDIR/tools-posix.test > /dev/null
+MD3=`mdconfig -at swap -s 10m`
+MNT3=$MNTROOT/none
+mkdir $MNT3
+newfs /dev/$MD3 > /dev/null
+mount /dev/$MD3 $MNT3
+if [ $? -ne 0 ]; then
+	echo "not ok 3 - mount failed."
+	exit 1
+fi
+
+echo "ok 3"
+
+cd $MNTROOT
+
+perl $TESTDIR/run $TESTDIR/tools-crossfs.test > /dev/null
 
 if [ $? -eq 0 ]; then
-	echo "ok 3"
+	echo "ok 4"
 else
-	echo "not ok 3"
+	echo "not ok 4"
 fi
 
 cd /
-umount -f $MNT
-rmdir $MNT
-mdconfig -du $MD
 
-echo "ok 4"
+umount -f $MNT3
+rmdir $MNT3
+mdconfig -du $MD3
+
+umount -f $MNT2
+rmdir $MNT2
+mdconfig -du $MD2
+
+zpool destroy -f acltools
+rmdir $MNT1
+mdconfig -du $MD1
+
+rmdir $MNTROOT
+
+echo "ok 5"
+
