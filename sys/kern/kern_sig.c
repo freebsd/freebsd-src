@@ -275,7 +275,7 @@ sigqueue_init(sigqueue_t *list, struct proc *p)
  * 	0	-	signal not found
  *	others	-	signal number
  */ 
-int
+static int
 sigqueue_get(sigqueue_t *sq, int signo, ksiginfo_t *si)
 {
 	struct proc *p = sq->sq_proc;
@@ -337,7 +337,7 @@ sigqueue_take(ksiginfo_t *ksi)
 		SIGDELSET(sq->sq_signals, ksi->ksi_signo);
 }
 
-int
+static int
 sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 {
 	struct proc *p = sq->sq_proc;
@@ -422,7 +422,7 @@ sigqueue_flush(sigqueue_t *sq)
 	SIGEMPTYSET(sq->sq_kill);
 }
 
-void
+static void
 sigqueue_collect_set(sigqueue_t *sq, sigset_t *set)
 {
 	ksiginfo_t *ksi;
@@ -434,7 +434,7 @@ sigqueue_collect_set(sigqueue_t *sq, sigset_t *set)
 	SIGSETOR(*set, sq->sq_kill);
 }
 
-void
+static void
 sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, sigset_t *setp)
 {
 	sigset_t tmp, set;
@@ -478,7 +478,7 @@ sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, sigset_t *setp)
 	sigqueue_collect_set(src, &src->sq_signals);
 }
 
-void
+static void
 sigqueue_move(sigqueue_t *src, sigqueue_t *dst, int signo)
 {
 	sigset_t set;
@@ -488,7 +488,7 @@ sigqueue_move(sigqueue_t *src, sigqueue_t *dst, int signo)
 	sigqueue_move_set(src, dst, &set);
 }
 
-void
+static void
 sigqueue_delete_set(sigqueue_t *sq, sigset_t *set)
 {
 	struct proc *p = sq->sq_proc;
@@ -522,7 +522,7 @@ sigqueue_delete(sigqueue_t *sq, int signo)
 }
 
 /* Remove a set of signals for a process */
-void
+static void
 sigqueue_delete_set_proc(struct proc *p, sigset_t *set)
 {
 	sigqueue_t worklist;
@@ -549,7 +549,7 @@ sigqueue_delete_proc(struct proc *p, int signo)
 	sigqueue_delete_set_proc(p, &set);
 }
 
-void
+static void
 sigqueue_delete_stopmask_proc(struct proc *p)
 {
 	sigset_t set;

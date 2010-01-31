@@ -355,18 +355,10 @@ void	ksiginfo_free(ksiginfo_t *);
 void	sigqueue_init(struct sigqueue *queue, struct proc *p);
 void	sigqueue_flush(struct sigqueue *queue);
 void	sigqueue_delete_proc(struct proc *p, int sig);
-void	sigqueue_delete_set(struct sigqueue *queue, sigset_t *set);
 void	sigqueue_delete(struct sigqueue *queue, int sig);
-void	sigqueue_move_set(struct sigqueue *src, sigqueue_t *dst, sigset_t *);
-int	sigqueue_get(struct sigqueue *queue, int sig, ksiginfo_t *info);
-int	sigqueue_add(struct sigqueue *queue, int sig, ksiginfo_t *info);
-void	sigqueue_collect_set(struct sigqueue *queue, sigset_t *set);
-void	sigqueue_move(struct sigqueue *, struct sigqueue *, int sig);
-void	sigqueue_delete_set_proc(struct proc *, sigset_t *);
-void	sigqueue_delete_stopmask_proc(struct proc *);
 void	sigqueue_take(ksiginfo_t *ksi);
 int	kern_sigtimedwait(struct thread *, sigset_t,
-		ksiginfo_t *, struct timespec *);
+	    ksiginfo_t *, struct timespec *);
 int	kern_sigprocmask(struct thread *td, int how,
 	    sigset_t *set, sigset_t *oset, int flags);
 /*
