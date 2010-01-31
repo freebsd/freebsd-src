@@ -32,7 +32,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 26, 2009
+.Dd January 31, 2010
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -55,9 +55,7 @@
 .Ft const char *
 .Va _malloc_options ;
 .Ft void
-.Fo \*(lp*_malloc_message\*(rp
-.Fa "const char *p1" "const char *p2" "const char *p3" "const char *p4"
-.Fc
+.Fn \*(lp*_malloc_message\*(rp "const char *p1" "const char *p2" "const char *p3" "const char *p4"
 .In malloc_np.h
 .Ft size_t
 .Fn malloc_usable_size "const void *ptr"
@@ -124,7 +122,9 @@ will free the passed pointer when the requested memory cannot be allocated.
 This is a
 .Fx
 specific API designed to ease the problems with traditional coding styles
-for realloc causing memory leaks in libraries.
+for
+.Fn realloc
+causing memory leaks in libraries.
 .Pp
 The
 .Fn free
@@ -184,18 +184,6 @@ flags being set) become fatal.
 The process will call
 .Xr abort 3
 in these cases.
-.It B
-Double/halve the per-arena lock contention threshold at which a thread is
-randomly re-assigned to an arena.
-This dynamic load balancing tends to push threads away from highly contended
-arenas, which avoids worst case contention scenarios in which threads
-disproportionately utilize arenas.
-However, due to the highly dynamic load that applications may place on the
-allocator, it is impossible for the allocator to know in advance how sensitive
-it should be to contention over arenas.
-Therefore, some applications may benefit from increasing or decreasing this
-threshold parameter.
-This option is not available for some configurations (non-PIC).
 .It C
 Double/halve the size of the maximum size class that is a multiple of the
 cacheline size (64).
@@ -209,44 +197,62 @@ This option is enabled by default.
 See the
 .Dq M
 option for related information and interactions.
+.It E
+Double/halve the size of the maximum medium size class.
+The valid range is from one page to one half chunk.
+The default value is 32 KiB.
 .It F
-Double/halve the per-arena maximum number of dirty unused pages that are
-allowed to accumulate before informing the kernel about at least half of those
-pages via
+Halve/double the per-arena minimum ratio of active to dirty pages.
+Some dirty unused pages may be allowed to accumulate, within the limit set by
+the ratio, before informing the kernel about at least half of those pages via
 .Xr madvise 2 .
 This provides the kernel with sufficient information to recycle dirty pages if
 physical memory becomes scarce and the pages remain unused.
-The default is 512 pages per arena;
-.Ev MALLOC_OPTIONS=10f
-will prevent any dirty unused pages from accumulating.
+The default minimum ratio is 32:1;
+.Ev MALLOC_OPTIONS=6F
+will disable dirty page purging.
 .It G
-When there are multiple threads, use thread-specific caching for objects that
-are smaller than one page.
-This option is enabled by default.
-Thread-specific caching allows many allocations to be satisfied without
-performing any thread synchronization, at the cost of increased memory use.
+Double/halve the approximate interval (counted in terms of
+thread-specific cache allocation/deallocation events) between full
+thread-specific cache garbage collection sweeps.
+Garbage collection is actually performed incrementally, one size
+class at a time, in order to avoid large collection pauses.
+The default sweep interval is 8192;
+.Ev JEMALLOC_OPTIONS=14g
+will disable garbage collection.
+.It H
+Double/halve the number of thread-specific cache slots per size
+class.
+When there are multiple threads, each thread uses a
+thread-specific cache for small and medium objects.
+Thread-specific caching allows many allocations to be satisfied
+without performing any thread synchronization, at the cost of
+increased memory use.
 See the
-.Dq R
+.Dq G
 option for related tuning information.
-This option is not available for some configurations (non-PIC).
+The default number of cache slots is 128;
+.Ev JEMALLOC_OPTIONS=7h
+will disable thread-specific caching.
+Note that one cache slot per size class is not a valid
+configuration due to implementation details.
 .It J
 Each byte of new memory allocated by
 .Fn malloc ,
-.Fn realloc
+.Fn realloc ,
 or
 .Fn reallocf
 will be initialized to 0xa5.
 All memory returned by
 .Fn free ,
-.Fn realloc
+.Fn realloc ,
 or
 .Fn reallocf
 will be initialized to 0x5a.
 This is intended for debugging and will impact performance negatively.
 .It K
 Double/halve the virtual memory chunk size.
-The default chunk size is the maximum of 1 MB and the largest
-page size that is less than or equal to 4 MB.
+The default chunk size is 4 MiB.
 .It M
 Use
 .Xr mmap 2
@@ -279,14 +285,6 @@ Double/halve the size of the maximum size class that is a multiple of the
 quantum (8 or 16 bytes, depending on architecture).
 Above this size, cacheline spacing is used for size classes.
 The default value is 128 bytes.
-.It R
-Double/halve magazine size, which approximately doubles/halves the number of
-rounds in each magazine.
-Magazines are used by the thread-specific caching machinery to acquire and
-release objects in bulk.
-Increasing the magazine size decreases locking overhead, at the expense of
-increased memory usage.
-This option is not available for some configurations (non-PIC).
 .It U
 Generate
 .Dq utrace
@@ -297,8 +295,7 @@ Consult the source for details on this option.
 .It V
 Attempting to allocate zero bytes will return a
 .Dv NULL
-pointer instead of
-a valid pointer.
+pointer instead of a valid pointer.
 (The default behavior is to make a minimal allocation and return a
 pointer to it.)
 This option is provided for System V compatibility.
@@ -306,21 +303,20 @@ This option is incompatible with the
 .Dq X
 option.
 .It X
-Rather than return failure for any allocation function,
-display a diagnostic message on
-.Dv stderr
-and cause the program to drop
-core (using
+Rather than return failure for any allocation function, display a diagnostic
+message on
+.Dv STDERR_FILENO
+and cause the program to drop core (using
 .Xr abort 3 ) .
-This option should be set at compile time by including the following in
-the source code:
+This option should be set at compile time by including the following in the
+source code:
 .Bd -literal -offset indent
 _malloc_options = "X";
 .Ed
 .It Z
 Each byte of new memory allocated by
 .Fn malloc ,
-.Fn realloc
+.Fn realloc ,
 or
 .Fn reallocf
 will be initialized to 0.
@@ -378,9 +374,9 @@ improve performance, mainly due to reduced cache performance.
 However, it may make sense to reduce the number of arenas if an application
 does not make much use of the allocation functions.
 .Pp
-In addition to multiple arenas, this allocator supports thread-specific
-caching for small objects (smaller than one page), in order to make it
-possible to completely avoid synchronization for most small allocation requests.
+In addition to multiple arenas, this allocator supports thread-specific caching
+for small and medium objects, in order to make it possible to completely avoid
+synchronization for most small and medium allocation requests.
 Such caching allows very fast allocation in the common case, but it increases
 memory usage and fragmentation, since a bounded number of objects can remain
 allocated in each thread cache.
@@ -391,23 +387,27 @@ Chunks are always aligned to multiples of the chunk size.
 This alignment makes it possible to find metadata for user objects very
 quickly.
 .Pp
-User objects are broken into three categories according to size: small, large,
-and huge.
+User objects are broken into four categories according to size: small, medium,
+large, and huge.
 Small objects are smaller than one page.
+Medium objects range from one page to an upper limit determined at run time (see
+the
+.Dq E
+option).
 Large objects are smaller than the chunk size.
 Huge objects are a multiple of the chunk size.
-Small and large objects are managed by arenas; huge objects are managed
+Small, medium, and large objects are managed by arenas; huge objects are managed
 separately in a single data structure that is shared by all threads.
 Huge objects are used by applications infrequently enough that this single
 data structure is not a scalability issue.
 .Pp
 Each chunk that is managed by an arena tracks its contents as runs of
-contiguous pages (unused, backing a set of small objects, or backing one large
-object).
+contiguous pages (unused, backing a set of small or medium objects, or backing
+one large object).
 The combination of chunk alignment and chunk page maps makes it possible to
 determine all metadata regarding small and large allocations in constant time.
 .Pp
-Small objects are managed in groups by page runs.
+Small and medium objects are managed in groups by page runs.
 Each run maintains a bitmap that tracks which regions are in use.
 Allocation requests that are no more than half the quantum (8 or 16, depending
 on architecture) are rounded up to the nearest power of two.
@@ -419,10 +419,17 @@ Allocation requests that are more than the minumum cacheline-multiple size
 class, but no more than the minimum subpage-multiple size class (see the
 .Dq C
 option) are rounded up to the nearest multiple of the cacheline size (64).
-Allocation requests that are more than the minimum subpage-multiple size class
-are rounded up to the nearest multiple of the subpage size (256).
-Allocation requests that are more than one page, but small enough to fit in
-an arena-managed chunk (see the
+Allocation requests that are more than the minimum subpage-multiple size class,
+but no more than the maximum subpage-multiple size class are rounded up to the
+nearest multiple of the subpage size (256).
+Allocation requests that are more than the maximum subpage-multiple size class,
+but no more than the maximum medium size class (see the
+.Dq M
+option) are rounded up to the nearest medium size class; spacing is an
+automatically determined power of two and ranges from the subpage size to the
+page size.
+Allocation requests that are more than the maximum medium size class, but small
+enough to fit in an arena-managed chunk (see the
 .Dq K
 option), are rounded up to the nearest run size.
 Allocation requests that are too large to fit in an arena-managed chunk are
@@ -480,13 +487,12 @@ option is set, all warnings are treated as errors.
 .Pp
 The
 .Va _malloc_message
-variable allows the programmer to override the function which emits
-the text strings forming the errors and warnings if for some reason
-the
-.Dv stderr
+variable allows the programmer to override the function which emits the text
+strings forming the errors and warnings if for some reason the
+.Dv STDERR_FILENO
 file descriptor is not suitable for this.
-Please note that doing anything which tries to allocate memory in
-this function is likely to result in a crash or deadlock.
+Please note that doing anything which tries to allocate memory in this function
+is likely to result in a crash or deadlock.
 .Pp
 All messages are prefixed by
 .Dq Ao Ar progname Ac Ns Li : (malloc) .
