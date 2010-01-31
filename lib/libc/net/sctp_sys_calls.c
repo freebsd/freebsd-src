@@ -784,7 +784,7 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
 	free(buf);
 	if (ret != 0) {
 		if (errno == EALREADY) {
-			no_end_cx = 1;;
+			no_end_cx = 1;
 			goto continue_send;
 		}
 		return (ret);
