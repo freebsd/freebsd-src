@@ -28,7 +28,7 @@
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2007
+.Dd January 31, 2010
 .Dt SYSCTL 8
 .Os
 .Sh NAME
@@ -82,6 +82,12 @@ or
 is specified, or a variable is being set.
 .It Fl h
 Format output for human, rather than machine, readability.
+.It Fl i
+Ignore unknown OIDs.
+The purpose is to make use of
+.Nm
+for collecting data from a variety of machines (not all of which
+are necessarily running exactly the same software) easier.
 .It Fl N
 Show only variable names, not their values.
 This is particularly useful with shells that offer programmable
