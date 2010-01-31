@@ -97,7 +97,7 @@ typedef void __osiginfohandler_t(int, osiginfo_t *, void *);
 
 /* additional signal action values, used only temporarily/internally */
 #define	SIG_CATCH	((__sighandler_t *)2)
-#define SIG_HOLD        ((__sighandler_t *)3)
+/* #define SIG_HOLD        ((__sighandler_t *)3) See signal.h */
 
 /*
  * get signal action for process and signal; currently only for current process
