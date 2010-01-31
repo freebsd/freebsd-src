@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2002, 2009 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -14,13 +14,13 @@
 #include <sm/gen.h>
 
 SM_IDSTR(copyright,
-"@(#) Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1999-2002, 2009 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1983, 1987, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n\
      Copyright (c) 1983 Eric P. Allman.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: vacation.c,v 8.144 2007/05/11 18:50:36 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: vacation.c,v 8.146 2009/08/07 21:28:39 ca Exp $")
 
 
 #include <ctype.h>
@@ -153,7 +153,7 @@ main(argc, argv)
 	char *dbfilename = NULL;
 	char *msgfilename = NULL;
 	char *cfpath = NULL;
-	char *name;
+	char *name = NULL;
 	char *returnaddr = NULL;
 	SMDB_USER_INFO user_info;
 	static char rnamebuf[MAXNAME];
@@ -299,7 +299,7 @@ main(argc, argv)
 			       "vacation: no such user uid %u.\n", getuid());
 			EXITM(EX_NOUSER);
 		}
-		name = pw->pw_name;
+		name = strdup(pw->pw_name);
 		user_info.smdbu_id = pw->pw_uid;
 		user_info.smdbu_group_id = pw->pw_gid;
 		(void) sm_strlcpy(user_info.smdbu_name, pw->pw_name,
@@ -314,7 +314,7 @@ main(argc, argv)
 	}
 	else if (runasuser)
 	{
-		name = *argv;
+		name = strdup(*argv);
 		if (dbfilename == NULL || msgfilename == NULL)
 		{
 			msglog(LOG_NOTICE,
@@ -358,7 +358,7 @@ main(argc, argv)
 			       sm_strexit(err));
 			EXITM(err);
 		}
-		name = user.mbdb_name;
+		name = strdup(user.mbdb_name);
 		if (chdir(user.mbdb_homedir) != 0)
 		{
 			msglog(LOG_NOTICE,
@@ -370,6 +370,12 @@ main(argc, argv)
 		user_info.smdbu_group_id = user.mbdb_gid;
 		(void) sm_strlcpy(user_info.smdbu_name, user.mbdb_name,
 			       SMDB_MAX_USER_NAME_LEN);
+	}
+	if (name == NULL)
+	{
+		msglog(LOG_ERR,
+		       "vacation: can't allocate memory for username.\n");
+		EXITM(EX_OSERR);
 	}
 
 	if (dbfilename == NULL)
@@ -1032,6 +1038,14 @@ sendmessage(myname, msgfn, sender)
 			      (void *) &(pvect[1]),
 			      SM_IO_WRONLY, NULL)) != NULL)
 	{
+#if _FFR_VAC_WAIT4SM
+# ifdef WAITUNION
+		union wait st;
+# else /* WAITUNION */
+		auto int st;
+# endif /* WAITUNION */
+#endif /* _FFR_VAC_WAIT4SM */
+
 		(void) sm_io_fprintf(sfp, SM_TIME_DEFAULT, "To: %s\n", From);
 		(void) sm_io_fprintf(sfp, SM_TIME_DEFAULT,
 				     "Auto-Submitted: auto-replied\n");
@@ -1039,6 +1053,9 @@ sendmessage(myname, msgfn, sender)
 			(void) sm_io_fputs(sfp, SM_TIME_DEFAULT, buf);
 		(void) sm_io_close(mfp, SM_TIME_DEFAULT);
 		(void) sm_io_close(sfp, SM_TIME_DEFAULT);
+#if _FFR_VAC_WAIT4SM
+		(void) wait(&st);
+#endif /* _FFR_VAC_WAIT4SM */
 	}
 	else
 	{
