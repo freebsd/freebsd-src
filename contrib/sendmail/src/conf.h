@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 8.574 2006/11/29 00:36:06 ca Exp $
+ *	$Id: conf.h,v 8.575 2009/03/25 20:04:00 ca Exp $
  */
 
 /*
@@ -123,9 +123,18 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #define DATA_PROGRESS_TIMEOUT	300	/* how often to check DATA progress */
 #define ENHSCLEN	10		/* max len of enhanced status code */
 #define DEFAULT_MAX_RCPT	100	/* max number of RCPTs per envelope */
-#define MAXQUEUEGROUPS	50		/* max # of queue groups */
+#ifndef MAXQUEUEGROUPS
+# define MAXQUEUEGROUPS	50		/* max # of queue groups */
 	/* must be less than BITMAPBITS for DoQueueRun */
-#define MAXWORKGROUPS	50		/* max # of work groups */
+#endif /* MAXQUEUEGROUPS */
+#if MAXQUEUEGROUPS >= BITMAPBITS
+  ERROR _MAXQUEUEGROUPS must be less than _BITMAPBITS
+#endif /* MAXQUEUEGROUPS >= BITMAPBITS */
+
+#ifndef MAXWORKGROUPS
+# define MAXWORKGROUPS	50		/* max # of work groups */
+#endif /* MAXWORKGROUPS */
+
 #define MAXFILESYS	BITMAPBITS	/* max # of queue file systems
 					 * must be <= BITMAPBITS */
 #ifndef FILESYS_UPDATE_INTERVAL
