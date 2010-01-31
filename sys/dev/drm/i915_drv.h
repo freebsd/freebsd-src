@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #ifndef _I915_DRV_H_
 #define _I915_DRV_H_
 
+#include "dev/drm/drm_mm.h"
 #include "dev/drm/i915_reg.h"
 
 /* General customization:
@@ -236,9 +237,8 @@ typedef struct drm_i915_private {
 	u8 saveCR[37];
 
 	struct {
-#ifdef __linux__
 		struct drm_mm gtt_space;
-#endif
+
 		/**
 		 * List of objects currently involved in rendering from the
 		 * ringbuffer.
