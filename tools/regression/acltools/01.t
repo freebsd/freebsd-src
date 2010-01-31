@@ -27,13 +27,15 @@
 # $FreeBSD$
 #
 
-# This is a wrapper script to run tools-posix.test.
+# This is a wrapper script to run tools-nfs4.test on ZFS filesystem.
+#
+# WARNING: It uses hardcoded ZFS pool name "acltools"
 #
 # If any of the tests fails, here is how to debug it: go to
 # the directory with problematic filesystem mounted on it,
-# and do /path/to/test run /path/to/test tools-posix.test, e.g.
+# and do /path/to/test run /path/to/test tools-nfs4.test, e.g.
 #
-# /usr/src/tools/regression/acltools/run /usr/src/tools/regression/acltools/tools-posix.test
+# /usr/src/tools/regression/acltools/run /usr/src/tools/regression/acltools/tools-nfs4.test
 #
 # Output should be obvious.
 
@@ -47,12 +49,11 @@ fi
 TESTDIR=`dirname $0`
 
 # Set up the test filesystem.
-MD=`mdconfig -at swap -s 10m`
+MD=`mdconfig -at swap -s 64m`
 MNT=`mktemp -dt acltools`
-newfs /dev/$MD > /dev/null
-mount -o acls /dev/$MD $MNT
+zpool create -R $MNT acltools /dev/$MD
 if [ $? -ne 0 ]; then
-	echo "not ok 1 - mount failed."
+	echo "not ok 1 - 'zpool create' failed."
 	exit 1
 fi
 
@@ -63,13 +64,13 @@ cd $MNT
 # First, check whether we can crash the kernel by creating too many
 # entries.  For some reason this won't work in the test file.
 touch xxx
-i=0;
-while :; do i=$(($i+1)); setfacl -m u:$i:rwx xxx 2> /dev/null; if [ $? -ne 0 ]; then break; fi; done
+setfacl -x5 xxx
+while :; do setfacl -a0 u:42:rwx:allow xxx 2> /dev/null; if [ $? -ne 0 ]; then break; fi; done
 chmod 600 xxx
 rm xxx
 echo "ok 2"
 
-perl $TESTDIR/run $TESTDIR/tools-posix.test > /dev/null
+perl $TESTDIR/run $TESTDIR/tools-nfs4.test > /dev/null
 
 if [ $? -eq 0 ]; then
 	echo "ok 3"
@@ -78,7 +79,7 @@ else
 fi
 
 cd /
-umount -f $MNT
+zpool destroy -f acltools
 rmdir $MNT
 mdconfig -du $MD
 
