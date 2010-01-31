@@ -61,7 +61,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	    "usage: mknod name [b | c] major minor [owner:group]\n");
+	    "usage: mknod name\n"
+	    "       mknod name [b | c] major minor [owner:group]\n");
 	exit(1);
 }
 
@@ -115,31 +116,36 @@ main(int argc, char **argv)
 	char *cp, *endp;
 	long mymajor, myminor;
 
-	if (argc != 5 && argc != 6)
+	if (argc != 2 && argc != 5 && argc != 6)
 		usage();
 
-	mode = 0666;
-	if (argv[2][0] == 'c')
-		mode |= S_IFCHR;
-	else if (argv[2][0] == 'b')
-		mode |= S_IFBLK;
-	else
-		errx(1, "node must be type 'b' or 'c'");
+	if (argc >= 5) {
+		mode = 0666;
+		if (argv[2][0] == 'c')
+			mode |= S_IFCHR;
+		else if (argv[2][0] == 'b')
+			mode |= S_IFBLK;
+		else
+			errx(1, "node must be type 'b' or 'c'");
 
-	errno = 0;
-	mymajor = (long)strtoul(argv[3], &endp, 0);
-	if (endp == argv[3] || *endp != '\0')
-		errx(1, "%s: non-numeric major number", argv[3]);
-	range_error = errno;
-	errno = 0;
-	myminor = (long)strtoul(argv[4], &endp, 0);
-	if (endp == argv[4] || *endp != '\0')
-		errx(1, "%s: non-numeric minor number", argv[4]);
-	range_error |= errno;
-	dev = makedev(mymajor, myminor);
-	if (range_error || major(dev) != (u_int) mymajor ||
-	    (long)(u_int)minor(dev) != myminor)
-		errx(1, "major or minor number too large");
+		errno = 0;
+		mymajor = (long)strtoul(argv[3], &endp, 0);
+		if (endp == argv[3] || *endp != '\0')
+			errx(1, "%s: non-numeric major number", argv[3]);
+		range_error = errno;
+		errno = 0;
+		myminor = (long)strtoul(argv[4], &endp, 0);
+		if (endp == argv[4] || *endp != '\0')
+			errx(1, "%s: non-numeric minor number", argv[4]);
+		range_error |= errno;
+		dev = makedev(mymajor, myminor);
+		if (range_error || major(dev) != (u_int) mymajor ||
+		    (long)(u_int)minor(dev) != myminor)
+			errx(1, "major or minor number too large");
+	} else {
+		mode = 0666 | S_IFCHR;
+		dev = 0;
+	}
 
 	uid = gid = -1;
 	if (6 == argc) {
