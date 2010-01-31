@@ -392,7 +392,6 @@ fdesc_getattr(ap)
 	} */ *ap;
 {
 
-#if 0
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
 
@@ -432,9 +431,6 @@ fdesc_getattr(ap)
 
 	vp->v_type = vap->va_type;
 	return (0);
-#else
-	return (EOPNOTSUPP);
-#endif
 }
 
 static int
@@ -445,6 +441,7 @@ fdesc_setattr(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
+#if 0
 	struct vattr *vap = ap->a_vap;
 	struct vnode *vp;
 	struct mount *mp;
@@ -488,6 +485,9 @@ fdesc_setattr(ap)
 	}
 	fdrop(fp, td);
 	return (error);
+#else
+	return (EOPNOTSUPP);
+#endif
 }
 
 #define UIO_MX 16
