@@ -37,7 +37,7 @@ ATH_RATE?=	sample		# tx rate control algorithm
 KMOD=	if_ath
 SRCS=	if_ath.c if_ath_pci.c
 # NB: v3 eeprom support used by both AR5211 and AR5212; just include it
-SRCS+=	ah_osdep.c ah.c ah_regdomain.c ah_eeprom_v3.c
+SRCS+=	ah_osdep.c ah.c ah_regdomain.c ah_eeprom_v3.c ah_eeprom_v4k.c
 SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
 
 #
@@ -89,6 +89,7 @@ SRCS+=	ah_eeprom_v14.c \
 	ar5416_misc.c ar5416_phy.c ar5416_power.c ar5416_recv.c \
 	ar5416_reset.c ar5416_xmit.c
 SRCS+=	ar9160_attach.c
+SRCS+=	ar9280_attach.c
 # RF backend for 5416 and 9160
 SRCS+=	ar2133.c
 
