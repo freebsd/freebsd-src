@@ -2401,7 +2401,7 @@ options	NFSD	# for NFS server</programlisting>
 	one of <application>ISC BIND</application> 9.4.3.</para>
 
       <para role="7.1"><application>sendmail</application> has been updated from
-	version 8.14.2 to version 8.14.3.</para>
+	version 8.14.2 to version 8.14.4.</para>
     </sect2>
 
     <sect2 id="ports">
