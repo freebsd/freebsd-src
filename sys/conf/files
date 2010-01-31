@@ -886,6 +886,14 @@ dev/drm/sis_drv.c		optional sisdrm
 dev/drm/sis_ds.c		optional sisdrm
 dev/drm/sis_mm.c		optional sisdrm
 dev/drm/tdfx_drv.c		optional tdfxdrm
+dev/drm/via_dma.c		optional viadrm
+dev/drm/via_dmablit.c		optional viadrm
+dev/drm/via_drv.c		optional viadrm
+dev/drm/via_irq.c		optional viadrm
+dev/drm/via_map.c		optional viadrm
+dev/drm/via_mm.c		optional viadrm
+dev/drm/via_verifier.c		optional viadrm
+dev/drm/via_video.c		optional viadrm
 dev/ed/if_ed.c			optional ed
 dev/ed/if_ed_novell.c		optional ed
 dev/ed/if_ed_rtl80x9.c		optional ed
