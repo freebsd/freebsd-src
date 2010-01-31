@@ -60,13 +60,17 @@ struct drm_file;
 #include <sys/filio.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <sys/queue.h>
 #include <sys/signalvar.h>
 #include <sys/poll.h>
+#include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/vm_param.h>
 #include <machine/param.h>
 #include <machine/pmap.h>
