@@ -59,6 +59,7 @@ char **environ;
 const char *__progname = "";
 
 void _start1(fptr, int, char *[]) __dead2;
+void _capstart1(fptr, int, char *[]) __dead2;
 
 /* The entry function, C part. */
 void
@@ -93,23 +94,15 @@ __asm__("eprol:");
 	exit( main(argc, argv, env) );
 }
 
+__asm(".hidden	_start1");
 
 /* The Capsicum entry function. */
 void
-_capstart(char *ap, ...)
+_capstart1(fptr cleanup, int argc, char *argv[])
 {
-	fptr cleanup;
-	int argc;
-	char **argv;
 	char **env;
 	const char *s;
 
-#ifdef __GNUC__
-	__asm__("and $0xfffffff0,%esp");
-#endif
-	cleanup = get_rtld_cleanup();
-	argv = &ap;
-	argc = *(long *)(void *)(argv - 1);
 	env = argv + argc + 1;
 	environ = env;
 	if (argc > 0 && argv[0] != NULL) {
@@ -129,11 +122,11 @@ _capstart(char *ap, ...)
 #endif
 	atexit(_fini);
 #ifdef GCRT
-/*	monstartup(&eprol, &etext);
-__asm__("eprol:");*/
+/* XXXCAP:	monstartup(&eprol, &etext); */
+/* XXXCAP: __asm__("eprol:"); */
 #endif
 	_init();
 	exit( cap_main(argc, argv, env) );
 }
 
-__asm(".hidden	_start1");
+__asm(".hidden	_capstart1");
