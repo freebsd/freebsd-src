@@ -76,6 +76,9 @@ __FBSDID("$FreeBSD$");
 #define	REG_PIWBEAR(n)	(0x0e0c - 0x20 * (n))
 #define	REG_PIWAR(n)	(0x0e10 - 0x20 * (n))
 
+#define	PCIR_FSL_LTSSM	0x404
+#define	FSL_LTSSM_L0	0x16
+
 #define	DEVFN(b, s, f)	((b << 16) | (s << 8) | f)
 
 struct pci_ocp_softc {
@@ -274,6 +277,18 @@ pci_ocp_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 	if (bus == sc->sc_busnr && !sc->sc_pcie_cap && slot < 10)
 		return (~0);
 	devfn = DEVFN(bus, slot, func);
+	/*
+	 * For the host controller itself, pretend to be a standard
+	 * PCI bridge, rather than a PowerPC processor. That way the
+	 * generic PCI code will enumerate all subordinate busses
+	 * and devices as usual.
+	 */
+	if (sc->sc_pcie_cap && devfn == 0) {
+		if (reg == PCIR_CLASS && bytes == 1)
+			return (PCIC_BRIDGE);
+		if (reg == PCIR_SUBCLASS && bytes == 1)
+			return (PCIS_BRIDGE_PCI);
+	}
 	if (devfn == sc->sc_devfn_tundra)
 		return (~0);
 	if (devfn == sc->sc_devfn_via_ide && reg == PCIR_INTPIN)
@@ -738,6 +753,17 @@ pci_ocp_attach(device_t dev)
 
 	sc->sc_devfn_tundra = -1;
 	sc->sc_devfn_via_ide = -1;
+
+	/*
+	 * PCI Express host controllers require a link. We don't
+	 * fail the attach if there's no link, but we also don't
+	 * create a child pci(4) device.
+	 */
+	if (sc->sc_pcie_cap) {
+		cfgreg = pci_ocp_cfgread(sc, 0, 0, 0, PCIR_FSL_LTSSM, 4);
+		if (cfgreg < FSL_LTSSM_L0)
+			return (0);
+	}
 
 	maxslot = (sc->sc_pcie_cap) ? 1 : 31;
 	pci_ocp_init(sc, sc->sc_busnr, maxslot);
