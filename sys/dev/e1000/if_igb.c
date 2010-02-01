@@ -36,6 +36,7 @@
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
 #include "opt_inet.h"
+#include "opt_altq.h"
 #endif
 
 #include <sys/param.h>
@@ -249,6 +250,10 @@ static void	igb_handle_link(void *context, int pending);
 /* These are MSIX only irq handlers */
 static void	igb_msix_que(void *);
 static void	igb_msix_link(void *);
+
+#ifdef DEVICE_POLLING
+static poll_handler_t igb_poll;
+#endif /* POLLING */
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
@@ -624,6 +629,11 @@ igb_detach(device_t dev)
 		return (EBUSY);
 	}
 
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		ether_poll_deregister(ifp);
+#endif
+
 	IGB_CORE_LOCK(adapter);
 	adapter->in_detach = 1;
 	igb_stop(adapter);
@@ -974,6 +984,9 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			IGB_CORE_LOCK(adapter);
 			igb_disable_intr(adapter);
 			igb_set_multi(adapter);
+#ifdef DEVICE_POLLING
+			if (!(ifp->if_capenable & IFCAP_POLLING))
+#endif
 				igb_enable_intr(adapter);
 			IGB_CORE_UNLOCK(adapter);
 		}
@@ -1000,6 +1013,26 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFCAP (Set Capabilities)");
 		reinit = 0;
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+#ifdef DEVICE_POLLING
+		if (mask & IFCAP_POLLING) {
+			if (ifr->ifr_reqcap & IFCAP_POLLING) {
+				error = ether_poll_register(igb_poll, ifp);
+				if (error)
+					return (error);
+				IGB_CORE_LOCK(adapter);
+				igb_disable_intr(adapter);
+				ifp->if_capenable |= IFCAP_POLLING;
+				IGB_CORE_UNLOCK(adapter);
+			} else {
+				error = ether_poll_deregister(ifp);
+				/* Enable interrupt even in error case */
+				IGB_CORE_LOCK(adapter);
+				igb_enable_intr(adapter);
+				ifp->if_capenable &= ~IFCAP_POLLING;
+				IGB_CORE_UNLOCK(adapter);
+			}
+		}
+#endif
 		if (mask & IFCAP_HWCSUM) {
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 			reinit = 1;
@@ -1123,8 +1156,19 @@ igb_init_locked(struct adapter *adapter)
 
 	/* this clears any pending interrupts */
 	E1000_READ_REG(&adapter->hw, E1000_ICR);
+#ifdef DEVICE_POLLING
+	/*
+	 * Only enable interrupts if we are not polling, make sure
+	 * they are off otherwise.
+	 */
+	if (ifp->if_capenable & IFCAP_POLLING)
+		igb_disable_intr(adapter);
+	else
+#endif /* DEVICE_POLLING */
+	{
 	igb_enable_intr(adapter);
 	E1000_WRITE_REG(&adapter->hw, E1000_ICS, E1000_ICS_LSC);
+	}
 
 	/* Don't reset the phy next time init gets called */
 	adapter->hw.phy.reset_disable = TRUE;
@@ -1201,6 +1245,9 @@ igb_handle_que(void *context, int pending)
 	}
 
 	/* Reenable this interrupt */
+#ifdef DEVICE_POLLING
+	if (!(ifp->if_capenable & IFCAP_POLLING))
+#endif
 	E1000_WRITE_REG(&adapter->hw, E1000_EIMS, que->eims);
 }
 
@@ -1257,6 +1304,63 @@ igb_irq_fast(void *arg)
 	return FILTER_HANDLED;
 }
 
+#ifdef DEVICE_POLLING
+/*********************************************************************
+ *
+ *  Legacy polling routine  
+ *
+ *********************************************************************/
+#if __FreeBSD_version >= 800000
+#define POLL_RETURN_COUNT(a) (a)
+static int
+#else
+#define POLL_RETURN_COUNT(a)
+static void
+#endif
+igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct adapter *adapter = ifp->if_softc;
+	struct rx_ring	*rxr = adapter->rx_rings;
+	struct tx_ring	*txr = adapter->tx_rings;
+	u32		reg_icr, rx_done = 0;
+	u32		loop = IGB_MAX_LOOP;
+	bool		more;
+
+	IGB_CORE_LOCK(adapter);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		IGB_CORE_UNLOCK(adapter);
+		return POLL_RETURN_COUNT(rx_done);
+	}
+
+	if (cmd == POLL_AND_CHECK_STATUS) {
+		reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
+		/* Link status change */
+		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))
+			taskqueue_enqueue(adapter->tq, &adapter->link_task);
+
+		if (reg_icr & E1000_ICR_RXO)
+			adapter->rx_overruns++;
+	}
+	IGB_CORE_UNLOCK(adapter);
+
+	/* TODO: rx_count */
+	rx_done = igb_rxeof(rxr, count) ? 1 : 0;
+
+	IGB_TX_LOCK(txr);
+	do {
+		more = igb_txeof(txr);
+	} while (loop-- && more);
+#if __FreeBSD_version >= 800000
+	if (!drbr_empty(ifp, txr->br))
+		igb_mq_start_locked(ifp, txr, NULL);
+#else
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		igb_start_locked(txr, ifp);
+#endif
+	IGB_TX_UNLOCK(txr);
+	return POLL_RETURN_COUNT(rx_done);
+}
+#endif /* DEVICE_POLLING */
 
 /*********************************************************************
  *
@@ -1783,6 +1887,9 @@ igb_local_timer(void *arg)
 	}
 
 	/* Trigger an RX interrupt on all queues */
+#ifdef DEVICE_POLLING
+	if (!(ifp->if_capenable & IFCAP_POLLING))
+#endif
 	E1000_WRITE_REG(&adapter->hw, E1000_EICS, adapter->rx_mask);
 	callout_reset(&adapter->timer, hz, igb_local_timer, adapter);
 	return;
@@ -2544,6 +2651,9 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 		ifp->if_capabilities |= IFCAP_LRO;
 
 	ifp->if_capenable = ifp->if_capabilities;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
@@ -2808,7 +2918,9 @@ err_tx_desc:
 		igb_dma_free(adapter, &txr->txdma);
 	free(adapter->rx_rings, M_DEVBUF);
 rx_fail:
+#if __FreeBSD_version >= 800000
 	buf_ring_free(txr->br, M_DEVBUF);
+#endif
 	free(adapter->tx_rings, M_DEVBUF);
 tx_fail:
 	free(adapter->queues, M_DEVBUF);
