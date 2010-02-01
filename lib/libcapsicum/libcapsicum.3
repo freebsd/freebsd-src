@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2009 Robert N. M. Watson
+.\" Copyright (c) 2009-2010 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
@@ -82,6 +82,13 @@ described in
 .Xr libcapsicum_sandbox 3 .
 Sandboxed processes themselves may launch software components in further
 sandboxes, so a single program may use both host and sandbox APIs.
+.Pp
+In addition, the
+.Nm
+file descriptor list API, described in
+.Xr libcapsicum_fdlist 3 ,
+may be used to manage the delegation of file descriptors/capabilities to
+sandboxes using a namespace.
 .Sh CAPABILITY API
 .Fn lc_limitfd
 is a wrapper around
@@ -99,6 +106,7 @@ with the requested rights mask.
 .Xr cap_new 2 ,
 .Xr close 2 ,
 .Xr dup2 2 ,
+.Xr libcapsicum_fdlist 3 ,
 .Xr libcapsicum_host 3 ,
 .Xr libcapsicum_sandbox 3 ,
 .Xr unix 4
@@ -111,6 +119,9 @@ WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED ON IN
 PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND UNEXPECTED WAYS.
 .Sh AUTHORS
 These functions and the capability facility were created by
+.An -nosplit
 .An "Robert N. M. Watson"
+and
+.An "Jonathan Anderson"
 at the University of Cambridge Computer Laboratory with support from a grant
 from Google, Inc.

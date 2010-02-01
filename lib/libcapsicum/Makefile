@@ -21,9 +21,17 @@ SHLIB_MAJOR=	1
 WARNS?=	6
 
 MAN=	libcapsicum.3
+MAN+=	libcapsicum_fdlist.3
 MAN+=	libcapsicum_host.3
 MAN+=	libcapsicum_sandbox.3
 MLINKS=	libcapsicum.3 lc_limitfd.3		\
+	libcapsicum_fdlist.3 lc_fdlist_new.3	\
+	libcapsicum_fdlist.3 lc_fdlist_global.3	\
+	libcapsicum_fdlist.3 lc_fdlist_dup.3	\
+	libcapsicum_fdlist.3 lc_fdlist_free.3	\
+	libcapsicum_fdlist.3 lc_fdlist_add.3	\
+	libcapsicum_fdlist.3 lc_fdlist_addcap.3	\
+	libcapsicum_fdlist.3 lc_fdlist_lookup.3	\
 	libcapsicum_host.3 lch_autosandbox_isenabled.3	\
 	libcapsicum_host.3 lch_start.3	\
 	libcapsicum_host.3 lch_startfd.3	\

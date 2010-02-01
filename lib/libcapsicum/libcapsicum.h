@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Robert N. M. Watson
+ * Copyright (c) 2009-2010 Robert N. M. Watson
  * All rights reserved.
  *
  * WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
@@ -53,54 +53,76 @@ struct lc_library {
 	int		 lcl_fd;
 };
 
-
-/* A list of file descriptors, which can be passed around in shared memory */
+/*
+ * A list of file descriptors, which can be passed around in shared memory.
+ */
 struct lc_fdlist;
+struct lc_fdlist	*lc_fdlist_new(void);
+struct lc_fdlist	*lc_fdlist_global(void);
+struct lc_fdlist	*lc_fdlist_dup(struct lc_fdlist *lfp_orig);
+void			 lc_fdlist_free(struct lc_fdlist *lfp);
 
-struct lc_fdlist*	lc_fdlist_new(void);
-struct lc_fdlist*	lc_fdlist_global(void);
-struct lc_fdlist*	lc_fdlist_dup(struct lc_fdlist *orig);
-void			lc_fdlist_free(struct lc_fdlist *l);
-
-
-/* Size of an FD list in bytes, including all associated string data */
-int	lc_fdlist_size(struct lc_fdlist *l);
-
+/*
+ * Size of an FD list in bytes, including all associated string data.
+ *
+ * XXX: This will probably become library-private soon.
+ */
+u_int	lc_fdlist_size(struct lc_fdlist *lfp);
 
 /*
  * Add a file descriptor to the list.
  *
- * l		the list to add to
+ * lfp		the list to add to
  * subsystem	a software component name, e.g. "org.freebsd.rtld-elf"
  * classname	a class name, e.g. "libdir" or "library"
  * name		an instance name, e.g. "system library dir" or "libc.so.6"
  * fd		the file descriptor
  */
-int	lc_fdlist_add(struct lc_fdlist **l,
-	              const char *subsystem, const char *classname,
-	              const char *name, int fd);
+int	lc_fdlist_add(struct lc_fdlist *lfp, const char *subsystem,
+	    const char *classname, const char *name, int fd);
 
 /*
- * Like lc_fdlist_add(), but allows capability rights to be specified. The file
- * descriptor will be wrapped in a capability with the given rights (so if the
- * descriptor *is* a capability, its rights will be constrained according to this
- * rights mask)
+ * Append the contents of one list to another.
  */
-int	lc_fdlist_addcap(struct lc_fdlist **l,
-	                 const char *subsystem, const char *classname,
-	                 const char *name, int fd, cap_rights_t rights);
+int	lc_fdlist_append(struct lc_fdlist *to, struct lc_fdlist *from);
+
+
+/*
+ * Like lc_fdlist_add(), but allows capability rights to be specified.  The
+ * file descriptor will be wrapped in a capability with the given rights (so
+ * if the descriptor *is* a capability, its rights will be constrained
+ * according to this rights mask.)
+ */
+int	lc_fdlist_addcap(struct lc_fdlist *l, const char *subsystem,
+	    const char *classname, const char *name, int fd,
+	    cap_rights_t rights);
 
 /*
  * Look up a file descriptor.
  *
  * Multiple entries with the same classname are allowed, so iterating through
- * all instances of a class is done by supplying an integer 'pos' which is used
- * internally to skip entries which have already been seen. If 'pos' is 0 or NULL,
- * the first matching entry will be returned.
+ * all instances of a class is done by supplying an integer 'pos' which is
+ * used internally to skip entries which have already been seen.  If 'pos' is
+ * 0 or NULL, the first matching entry will be returned.
  */
-int	lc_fdlist_lookup(struct lc_fdlist *l,
-	                 const char *subsystem, const char *classname,
-	                 char **name, int *fdp, int *pos);
+int	lc_fdlist_lookup(struct lc_fdlist *lfp, const char *subsystem,
+	    const char *classname, char **name, int *fdp, int *pos);
+
+/*
+ * Look up a file descriptor without a name.  Repeated calls to this function
+ * will iterate through all descriptors in the list.
+ */
+int	lc_fdlist_getentry(struct lc_fdlist *lfp, char **subsystem,
+	    char **classname, char **name, int *fdp, int *pos);
+
+/*
+ * Reorder FD list (WARNING: this could be dangerous!).
+ *
+ * This call takes all of the file descriptors in the FD list, and moves them
+ * into a continuous array, starting at the FD given by 'start'.  Any file
+ * descriptors above 'start' which are not in the FD list are closed.
+ */
+int	lc_fdlist_reorder(struct lc_fdlist *lfp);
 
 /*
  * Capability interfaces.
@@ -200,6 +222,9 @@ int	lcs_sendrpc_rights(struct lc_host *lchp, u_int32_t opno,
  */
 int	ld_libcache_lookup(const char *libname, int *fdp);
 int	ld_insandbox(void);
+
+/* If this call is successful, the caller is responsible for freeing 'fds'. */
+int	ld_libdirs(int **fds);
 
 /*
  * Applications may declare an alternative entry point to the default ELF

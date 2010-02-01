@@ -161,26 +161,62 @@ lch_sandbox(int fd_sock, int fd_sandbox, int fd_ldso, int fd_libc,
 	/*
 	 * Create an anonymous shared memory segment for the FD list.
 	 */
-	if (fds != NULL) {
-		shmfd = shm_open(SHM_ANON, O_RDWR, 0600);
-		if (shmfd < 0)
-			return;
-		fdlistsize = lc_fdlist_size(fds);
-		if (ftruncate(shmfd, fdlistsize) < 0)
-			return;
+	if (fds == NULL) fds = lc_fdlist_new();
 
-		/*
-		 * Map it and copy the list.
-		 */
-		shm = mmap(NULL, fdlistsize, PROT_READ | PROT_WRITE,
-		    MAP_NOSYNC | MAP_SHARED, shmfd, 0);
-		if (shm == MAP_FAILED)
-			return;
-		memcpy(shm, fds, fdlistsize);
-		if (munmap(shm, fdlistsize))
-			return;
+	shmfd = shm_open(SHM_ANON, O_RDWR, 0600);
+	if (shmfd < 0)
+		return;
+	fdlistsize = lc_fdlist_size(fds);
+	if (ftruncate(shmfd, fdlistsize) < 0)
+		return;
+
+	/*
+	 * Map it and copy the list.
+	 */
+	shm = mmap(NULL, fdlistsize, PROT_READ | PROT_WRITE,
+	    MAP_NOSYNC | MAP_SHARED, shmfd, 0);
+	if (shm == MAP_FAILED)
+		return;
+	memcpy(shm, fds, fdlistsize);
+	if (munmap(shm, fdlistsize))
+		return;
+
+	if (lc_fdlist_addcap(fds, "org.freebsd.libcapsicum", "/dev/null", "",
+	                     fd_devnull, LIBCAPABILITY_CAPMASK_DEVNULL) < 0)
+		return;
+	if (lc_fdlist_addcap(fds, "org.freebsd.libcapsicum", "sandbox", "",
+	                     fd_sandbox, LIBCAPABILITY_CAPMASK_SANDBOX) < 0)
+		return;
+	if (lc_fdlist_addcap(fds, "org.freebsd.libcapsicum", "socket", "",
+	                     fd_sock, LIBCAPABILITY_CAPMASK_SOCK) < 0)
+		return;
+	if (lc_fdlist_addcap(fds, "org.freebsd.rtld-elf-cap", "ldso", "",
+	                     fd_ldso, LIBCAPABILITY_CAPMASK_LDSO) < 0)
+		return;
+	if (lc_fdlist_addcap(fds, "org.freebsd.rtld-elf-cap", "lib", "libc",
+	                     fd_libc, LIBCAPABILITY_CAPMASK_LIB) < 0)
+		return;
+	if (lc_fdlist_addcap(fds, "org.freebsd.rtld-elf-cap", "lib", "libcapsicum",
+	                     fd_libcapsicum, LIBCAPABILITY_CAPMASK_LIB) < 0)
+		return;
+	if (lc_fdlist_addcap(fds, "org.freebsd.rtld-elf-cap", "lib", "libsbuf",
+	                     fd_libsbuf, LIBCAPABILITY_CAPMASK_LIB) < 0)
+		return;
+/*
+	{
+		int pos = 0;
+		char *subsystem;
+		char *class;
+		char *name;
+		int fd;
+
+		while (lc_fdlist_getentry(fds, &subsystem, &class, &name, &fd, &pos)
+		        >= 0) {
+			printf("%d\t'%s'.'%s': '%s' (%d)\n",
+			       pos, subsystem, class, name, fd);
+		}
 	}
-
+*/
 	if (lc_limitfd(fd_devnull, LIBCAPABILITY_CAPMASK_DEVNULL) < 0)
 		return;
 	if (lc_limitfd(fd_sandbox, LIBCAPABILITY_CAPMASK_SANDBOX) < 0)

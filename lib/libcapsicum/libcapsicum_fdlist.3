@@ -1,0 +1,182 @@
+.\"
+.\" Copyright (c) 2010 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
+.\" ON IN PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND
+.\" UNEXPECTED WAYS.
+.\"
+.\" This software was developed at the University of Cambridge Computer
+.\" Laboratory with support from a grant from Google, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 31, 2010
+.Os
+.Dt LIBCAPABILITY_FDLIST 3
+.Sh NAME
+.Nm libcapsicum
+.Nd "library interface to file descriptor lists"
+.Sh LIBRARY
+.Lb libcapsicum
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/capability.h
+.In libcapsicum.h
+.Ft struct lc_fdlist *
+.Fn lc_fdlist_new "void"
+.Ft struct lc_fdlist *
+.Fn lc_fdlist_global "void"
+.Ft struct lc_fdlist *
+.Fn lc_fdlist_dup "struct lc_fdlist *lfp"
+.Ft void
+.Fn lc_fdlist_free "struct lc_fdlist *lfp"
+.Ft int
+.Fn lc_fdlist_add "struct lc_fdlist *lfp" "const char *subsystem" "const char *classname" "const char *name" "int fd"
+.Ft int
+.Fn lc_fdlist_addcap "struct lc_fdlist *lfp" "const char *subsystem" "const char *classname" "const char *name" "int fd" "cap_rights_t rights"
+.Ft int
+.Fn lc_fdlist_lookup "struct lc_fdlist *lfp" "const char *subsystem" "const char **name" "int *fdp" "int *pos"
+.Sh DESCRIPTION
+These
+.Nm
+library routines create, manage, and destroy file descriptor lists.
+File descriptor lists are used by
+.Nm
+to describe sets of rights that should be delegated to newly created
+sandboxes, as well as binding them to names so that sandboxed code can look
+up file descriptors provided by code in the host without using hard-coded
+file descriptor numbers.
+This is necessary because file descriptors may not be the same in the host
+and sandbox environments.
+.Nm
+will arrange for all necessary name and descriptor information to be
+available in the sandbox, and file descriptor numbers returned in the sandbox
+are with respect to the sandbox's file descriptor assignments.
+.Pp
+Note that the file descriptor list code is not aware of any changes in file
+descriptor status that may happen as a result of application behavior, such
+as calls to
+.Xr open 2 ,
+.Xr dup 2,
+or
+.Xr close 2.
+As such, applications must update any file descriptor lists referring to
+manipulated descriptors if the descriptor list will later be queried for
+them, or used in creating a new sandbox.
+.Ss File descriptor list creation and destruction
+These functions create, duplicate, and free file descriptor lists:
+.Pp
+.Fn lc_fdlist_new
+allocates a new file descriptor list containing no file descriptor
+registrations.
+Sandboxed code may also use
+.Fn lc_fdlist_global
+to query the global file descriptor list passed in when the sandbox was
+created.
+.Pp
+.Fn lc_fdlist_dup
+duplicates an existing file descriptor list, creating a new list with
+identical entries.
+Once duplicated, the lists may diverge; this allows the creation of a
+template list for a class of sandbox, followed by duplication and
+customization for a specific sandbox instance.
+.Pp
+.Fn lc_fdlist_free
+frees an existing file descriptor list; note that this does not close or
+otherwise modify file descriptors described by the list.
+.Ss File descriptor list entries
+Each file descriptor list entry is described by a three-part character string
+namespace:
+.Bl -tag -width "subsystem"
+.It Fa subsystem
+Application or library name, globally unique in order to prevent collisions
+between software components in the same host/sandbox pair.
+.It Fa classname
+An application-specific or library-specific name, intended to reflect a
+specific software component within that application or library.
+.It Fa name
+A per-subsystem, per-class namespace, which might contain file names or other
+specific object instance description.
+.El
+.Pp
+These functions insert and look up file descriptor list entries:
+.Pp
+.Fn lc_fdlist_add
+adds a file descriptor,
+.Fa fd ,
+with the three-part name
+.Fa subsystem ,
+.Fa classname ,
+and
+.Fa name
+to the file descriptor list
+.Fa lfp .
+.Fn lc_fdlist_add
+is identical except that it further registers a capability mask to apply to
+the descriptor during sandbox creation, avoiding the need for separate calls
+to .Xr cap_new
+in application code.
+.Pp
+.Fn lc_fdlist_lookup
+looks up a file descriptor using the three-part name
+.Fa subsystem ,
+.Fa classname ,
+and
+.Fa name
+from the file descriptor list
+.Fa lfp .
+.Sh RETURN VALUES
+The
+.Fn lc_fdlist_new ,
+.Fn lc_flist_global ,
+and
+.Fn lc_fdlist_dup
+functions return a pointer to the desired file descriptor list if successful;
+otherwise the value
+.Dv NULL
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+.Rv -std lc_fdlist_add lc_fdlist_addcap lc_fdlist_lookup
+.Sh SEE ALSO
+.Xr cap_new 2 ,
+.Xr close 2 ,
+.Xr dup 2 ,
+.Xr open 2 ,
+.Xr libcapsicum 3 ,
+.Xr libcapsicum_host 3 ,
+.Xr libcapsicum_sandbox 3 ,
+.Sh HISTORY
+Support for capabilities and capabilities mode was developed as part of the
+.Tn TrustedBSD
+Project.
+.Sh BUGS
+WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED ON IN
+PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND UNEXPECTED WAYS.
+.Sh AUTHORS
+These functions were created by
+.An "Jonathan Anderson"
+at the University of Cambridge Computer Laboratory.
