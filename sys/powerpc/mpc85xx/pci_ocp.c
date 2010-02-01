@@ -94,7 +94,7 @@ struct pci_ocp_softc {
 	int		sc_rid;
 
 	int		sc_busnr;
-	int		sc_pcie:1;
+	uint8_t		sc_pcie_cap;
 
 	/* Devices that need special attention. */
 	int		sc_devfn_tundra;
@@ -168,7 +168,7 @@ pci_ocp_cfgread(struct pci_ocp_softc *sc, u_int bus, u_int slot, u_int func,
 	addr |= (slot & 0x1f) << 11;
 	addr |= (func & 0x7) << 8;
 	addr |= reg & 0xfc;
-	if (sc->sc_pcie)
+	if (sc->sc_pcie_cap)
 		addr |= (reg & 0xf00) << 16;
 	bus_space_write_4(sc->sc_bst, sc->sc_bsh, REG_CFG_ADDR, addr);
 
@@ -206,7 +206,7 @@ pci_ocp_cfgwrite(struct pci_ocp_softc *sc, u_int bus, u_int slot, u_int func,
 	addr |= (slot & 0x1f) << 11;
 	addr |= (func & 0x7) << 8;
 	addr |= reg & 0xfc;
-	if (sc->sc_pcie)
+	if (sc->sc_pcie_cap)
 		addr |= (reg & 0xf00) << 16;
 	bus_space_write_4(sc->sc_bst, sc->sc_bsh, REG_CFG_ADDR, addr);
 
@@ -261,7 +261,7 @@ pci_ocp_maxslots(device_t dev)
 {
 	struct pci_ocp_softc *sc = device_get_softc(dev);
 
-	return ((sc->sc_pcie) ? 0 : 30);
+	return ((sc->sc_pcie_cap) ? 0 : 30);
 }
 
 static uint32_t
@@ -271,7 +271,7 @@ pci_ocp_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 	struct pci_ocp_softc *sc = device_get_softc(dev);
 	u_int devfn;
 
-	if (bus == sc->sc_busnr && !sc->sc_pcie && slot < 10)
+	if (bus == sc->sc_busnr && !sc->sc_pcie_cap && slot < 10)
 		return (~0);
 	devfn = DEVFN(bus, slot, func);
 	if (devfn == sc->sc_devfn_tundra)
@@ -287,7 +287,7 @@ pci_ocp_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 {
 	struct pci_ocp_softc *sc = device_get_softc(dev);
 
-	if (bus == sc->sc_busnr && !sc->sc_pcie && slot < 10)
+	if (bus == sc->sc_busnr && !sc->sc_pcie_cap && slot < 10)
 		return;
 	pci_ocp_cfgwrite(sc, bus, slot, func, reg, val, bytes);
 }
@@ -302,6 +302,7 @@ pci_ocp_probe(device_t dev)
 	u_long start, size;
 	uintptr_t devtype;
 	uint32_t cfgreg;
+	uint8_t capptr;
 	int error;
 
 	parent = device_get_parent(dev);
@@ -341,19 +342,19 @@ pci_ocp_probe(device_t dev)
 		goto out;
 
 	type = "PCI";
-	cfgreg = pci_ocp_cfgread(sc, 0, 0, 0, PCIR_CAP_PTR, 1);
-	while (cfgreg != 0) {
-		cfgreg = pci_ocp_cfgread(sc, 0, 0, 0, cfgreg, 2);
+	capptr = pci_ocp_cfgread(sc, 0, 0, 0, PCIR_CAP_PTR, 1);
+	while (capptr != 0) {
+		cfgreg = pci_ocp_cfgread(sc, 0, 0, 0, capptr, 2);
 		switch (cfgreg & 0xff) {
 		case PCIY_PCIX:		/* PCI-X */
 			type = "PCI-X";
 			break;
 		case PCIY_EXPRESS:	/* PCI Express */
 			type = "PCI Express";
-			sc->sc_pcie = 1;
+			sc->sc_pcie_cap = capptr;
 			break;
 		}
-		cfgreg = (cfgreg >> 8) & 0xff;
+		capptr = (cfgreg >> 8) & 0xff;
 	}
 
 	error = bus_get_resource(dev, SYS_RES_MEMORY, 1, &start, &size);
@@ -738,7 +739,7 @@ pci_ocp_attach(device_t dev)
 	sc->sc_devfn_tundra = -1;
 	sc->sc_devfn_via_ide = -1;
 
-	maxslot = (sc->sc_pcie) ? 1 : 31;
+	maxslot = (sc->sc_pcie_cap) ? 1 : 31;
 	pci_ocp_init(sc, sc->sc_busnr, maxslot);
 
 	device_add_child(dev, "pci", -1);
