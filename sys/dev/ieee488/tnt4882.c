@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005 Poul-Henning Kamp
+ * Copyright (c) 2010 Joerg Wunsch
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +47,7 @@
 
 #define UPD7210_HW_DRIVER 1
 #include <dev/ieee488/upd7210.h>
+#include <dev/ieee488/tnt4882.h>
 
 struct tnt_softc {
 	int foo;
@@ -60,55 +62,6 @@ static struct resource_spec tnt_res_spec[] = {
 	{ SYS_RES_MEMORY,	PCIR_BAR(1),	RF_ACTIVE},
 	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE},
 	{ -1, 0 }
-};
-
-enum tnt4882reg {
-	dir = 0x00,
-	cdor = 0x00,
-	isr1 = 0x02,
-	imr1 = 0x02,
-	isr2 = 0x04,
-	imr2 = 0x04,
-	accwr = 0x05,
-	spsr = 0x06,
-	spmr = 0x06,
-	intr = 0x07,
-	adsr = 0x08,
-	admr = 0x08,
-	cnt2 = 0x09,
-	cptr = 0x0a,
-	auxmr = 0x0a,
-	tauxcr = 0x0a,	/* 9914 mode register */
-	cnt3 = 0x0b,
-	adr0 = 0x0c,
-	adr = 0x0c,
-	hssel = 0x0d,
-	adr1 = 0x0e,
-	eosr = 0x0e,
-	sts1 = 0x10,
-	cfg = 0x10,
-	dsr = 0x11,
-	sh_cnt = 0x11,
-	imr3 = 0x12,
-	hier = 0x13,
-	cnt0 = 0x14,
-	misc = 0x15,
-	cnt1 = 0x16,
-	csr = 0x17,
-	keyreg = 0x17,
-	fifob = 0x18,
-	fifoa = 0x19,
-	isr3 = 0x1a,
-	ccr = 0x1a,
-	sasr = 0x1b,
-	dcr = 0x1b,
-	sts2 = 0x1c,
-	cmdr = 0x1c,
-	isr0 = 0x1d,
-	imr0 = 0x1d,
-	timer = 0x1e,
-	bsr = 0x1f,
-	bcr = 0x1f
 };
 
 struct tst {
@@ -276,6 +229,7 @@ tnt_attach(device_t dev)
 {
 	struct tnt_softc *sc;
 	int error, i;
+	uint8_t version;
 
 	sc = device_get_softc(dev);
 
@@ -286,7 +240,7 @@ tnt_attach(device_t dev)
 	error = bus_setup_intr(dev, sc->res[2], INTR_TYPE_MISC | INTR_MPSAFE,
 	    NULL, upd7210intr, &sc->upd7210, &sc->intr_handler);
 
-	/* Necessary magic for MITE */
+	/* IO Device Window Base Size Register (IODWBSR) */
 	bus_write_4(sc->res[0], 0xc0, rman_get_start(sc->res[1]) | 0x80);
 
 	tst_exec(sc, tst_reset, "Reset");
@@ -297,6 +251,18 @@ tnt_attach(device_t dev)
 	tst_exec(sc, tst_spmr_spsr, "CPMR/SPSR");
 	tst_exec(sc, tst_count0_1, "COUNT0:1");
 	tst_exec(sc, tst_reset, "Reset");
+
+	version = bus_read_1(sc->res[1], csr);
+	version = (version >> 4) & 0x0f;
+	device_printf(dev, "Chip version 0x%02x (TNT%s)\n",
+		      version,
+		      version >= 4? "5004 or above": "4882");
+	if (version >= 4) {
+		device_printf(dev, "Forcing FIFO mode\n");
+		sc->upd7210.use_fifo = 1;
+	} else {
+		sc->upd7210.use_fifo = 0;
+	}
 
 	/* pass 7210 interrupts through */
 	bus_write_1(sc->res[1], imr3, 0x02);
@@ -313,6 +279,11 @@ tnt_attach(device_t dev)
 	sc->upd7210.irq_clear_res = NULL;
 
 	upd7210attach(&sc->upd7210);
+	device_printf(dev, "attached gpib%d\n", sc->upd7210.unit);
+
+	if (sc->upd7210.use_fifo)
+		bus_write_1(sc->res[0], hssel, 0x01); /* one-chip mode */
+
 
 	return (0);
 }
