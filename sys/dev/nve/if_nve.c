@@ -526,14 +526,6 @@ nve_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Probe device for MII interface to PHY */
-	DEBUGOUT(NVE_DEBUG_INIT, "nve: do mii_phy_probe\n");
-	if (mii_phy_probe(dev, &sc->miibus, nve_ifmedia_upd, nve_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
-		goto fail;
-	}
-
 	/* Setup interface parameters */
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
@@ -551,6 +543,14 @@ nve_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
+
+	/* Probe device for MII interface to PHY */
+	DEBUGOUT(NVE_DEBUG_INIT, "nve: do mii_phy_probe\n");
+	if (mii_phy_probe(dev, &sc->miibus, nve_ifmedia_upd, nve_ifmedia_sts)) {
+		device_printf(dev, "MII without any phy!\n");
+		error = ENXIO;
+		goto fail;
+	}
 
 	/* Attach to OS's managers. */
 	ether_ifattach(ifp, eaddr);
