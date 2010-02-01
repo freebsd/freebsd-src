@@ -35,6 +35,7 @@
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
 #include "opt_inet.h"
+#include "opt_altq.h"
 #endif
 
 #include <sys/param.h>
@@ -1545,13 +1546,13 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
+		/* Link status change */
 		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-			callout_stop(&adapter->timer);
 			adapter->hw.mac.get_link_status = 1;
 			em_update_link_status(adapter);
-			callout_reset(&adapter->timer, hz,
-			    em_local_timer, adapter);
 		}
+		if (reg_icr & E1000_ICR_RXO)
+			adapter->rx_overruns++;
 	}
 	EM_CORE_UNLOCK(adapter);
 
