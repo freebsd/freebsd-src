@@ -2767,7 +2767,7 @@ igb_allocate_transmit_buffers(struct tx_ring *txr)
 	 * Setup DMA descriptor areas.
 	 */
 	if ((error = bus_dma_tag_create(NULL,		/* parent */
-			       PAGE_SIZE, 0,		/* alignment, bounds */
+			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
@@ -3392,7 +3392,7 @@ igb_allocate_receive_buffers(struct rx_ring *rxr)
 	}
 
 	if ((error = bus_dma_tag_create(NULL,		/* parent */
-				   PAGE_SIZE, 0,	/* alignment, bounds */
+				   1, 0,		/* alignment, bounds */
 				   BUS_SPACE_MAXADDR,	/* lowaddr */
 				   BUS_SPACE_MAXADDR,	/* highaddr */
 				   NULL, NULL,		/* filter, filterarg */
