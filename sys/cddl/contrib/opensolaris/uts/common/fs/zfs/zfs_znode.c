@@ -1017,6 +1017,7 @@ zfs_zinactive(znode_t *zp)
 	vnode_t	*vp = ZTOV(zp);
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 	uint64_t z_id = zp->z_id;
+	int vfslocked;
 
 	ASSERT(zp->z_dbuf && zp->z_phys);
 
@@ -1049,7 +1050,9 @@ zfs_zinactive(znode_t *zp)
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, z_id);
 		ASSERT(vp->v_count == 0);
 		vrecycle(vp, curthread);
+		vfslocked = VFS_LOCK_GIANT(zfsvfs->z_vfs);
 		zfs_rmnode(zp);
+		VFS_UNLOCK_GIANT(vfslocked);
 		return;
 	}
 	mutex_exit(&zp->z_lock);
