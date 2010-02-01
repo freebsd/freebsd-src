@@ -68,7 +68,7 @@
 #
 PROG=	testcdev
 NO_MAN=
-WARNS=	5
+WARNS?=	5
 
 MODSTAT= /sbin/kldstat
 
