@@ -46,6 +46,7 @@
 .ds doc-str-Lb-libelf      ELF Parsing Library (libelf, \-lelf)
 .ds doc-str-Lb-libfetch    File Transfer Library (libfetch, \-lfetch)
 .ds doc-str-Lb-libgeom     Userland API Library for kernel GEOM subsystem (libgeom, \-lgeom)
+.ds doc-str-Lb-libgpib     General-Purpose Instrument Bus (GPIB) library (libgpib, \-lgpib)
 .ds doc-str-Lb-libipx      IPX Address Conversion Support Library (libipx, \-lipx)
 .ds doc-str-Lb-libjail     Jail Library (libjail, \-ljail)
 .ds doc-str-Lb-libkiconv   Kernel side iconv library (libkiconv, \-lkiconv)
