@@ -837,7 +837,6 @@ autoifprobe(void)
 		if (!argv[n])
 			err(1, "malloc");
 		n++;
-		argv[n] = NULL;
 	}
 
 	if (n) {
