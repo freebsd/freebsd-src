@@ -45,6 +45,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "auth.h"
 #include "config.h"
 #include "detailer.h"
 #include "fattr.h"
@@ -74,7 +75,6 @@ static void		 killer_stop(struct killer *);
 static int		 proto_waitconnect(int);
 static int		 proto_greet(struct config *);
 static int		 proto_negproto(struct config *);
-static int		 proto_login(struct config *);
 static int		 proto_fileattr(struct config *);
 static int		 proto_xchgcoll(struct config *);
 static struct mux	*proto_mux(struct config *);
@@ -248,56 +248,6 @@ proto_negproto(struct config *config)
 	return (STATUS_SUCCESS);
 bad:
 	lprintf(-1, "Invalid PROTO command from server\n");
-	return (STATUS_FAILURE);
-}
-
-static int
-proto_login(struct config *config)
-{
-	struct stream *s;
-	char hostbuf[MAXHOSTNAMELEN];
-	char *line, *login, *host, *cmd, *realm, *challenge, *msg;
-	int error;
-
-	s = config->server;
-	error = gethostname(hostbuf, sizeof(hostbuf));
-	hostbuf[sizeof(hostbuf) - 1] = '\0';
-	if (error)
-		host = NULL;
-	else
-		host = hostbuf;
-	login = getlogin();
-	proto_printf(s, "USER %s %s\n", login != NULL ? login : "?",
-	    host != NULL ? host : "?");
-	stream_flush(s);
-	line = stream_getln(s, NULL);
-	cmd = proto_get_ascii(&line);
-	realm = proto_get_ascii(&line);
-	challenge = proto_get_ascii(&line);
-	if (challenge == NULL || line != NULL)
-		goto bad;
-	if (strcmp(realm, ".") != 0 || strcmp(challenge, ".") != 0) {
-		lprintf(-1, "Authentication required by the server and not "
-		    "supported by client\n");
-		return (STATUS_FAILURE);
-	}
-	proto_printf(s, "AUTHMD5 . . .\n");
-	stream_flush(s);
-	line = stream_getln(s, NULL);
-	cmd = proto_get_ascii(&line);
-	if (cmd == NULL || line == NULL)
-		goto bad;
-	if (strcmp(cmd, "OK") == 0)
-		return (STATUS_SUCCESS);
-	if (strcmp(cmd, "!") == 0) {
-		msg = proto_get_rest(&line);
-		if (msg == NULL)
-			goto bad;
-		lprintf(-1, "Server error: %s\n", msg);
-		return (STATUS_FAILURE);
-	}
-bad:
-	lprintf(-1, "Invalid server reply to AUTHMD5\n");
 	return (STATUS_FAILURE);
 }
 
@@ -601,7 +551,7 @@ proto_run(struct config *config)
 	if (status == STATUS_SUCCESS)
 		status = proto_negproto(config);
 	if (status == STATUS_SUCCESS)
-		status = proto_login(config);
+		status = auth_login(config);
 	if (status == STATUS_SUCCESS)
 		status = proto_fileattr(config);
 	if (status == STATUS_SUCCESS)

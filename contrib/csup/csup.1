@@ -32,7 +32,7 @@
 .Nd network distribution package for CVS repositories
 .Sh SYNOPSIS
 .Nm
-.Op Fl 146ksvzZ
+.Op Fl 146aksvzZ
 .Op Fl A Ar addr
 .Op Fl b Ar base
 .Op Fl c Ar collDir
@@ -106,6 +106,12 @@ to use IPv4 addresses only.
 Forces
 .Nm
 to use IPv6 addresses only.
+.It Fl a
+Requires the server to authenticate itself (prove its identity) to
+the client.  If authentication of the server fails, the update is
+canceled.  See
+.Sx AUTHENTICATION ,
+below.
 .It Fl A Ar addr
 Specifies a local address to bind to when connecting to the server.
 The local address might be a hostname or a numeric host address string
@@ -793,6 +799,102 @@ as well:
 .It
 .Pa /bar/stool/src-all/refuse.cvs:RELENG_3
 .El
+.Sh AUTHENTICATION
+.Nm
+implements an optional authentication mechanism which can be used by the
+client and server to verify each other's identities.
+Public CVSup servers normally do not enable authentication.
+.Nm
+users may ignore this section unless they have been informed
+that authentication is required by the administrator of their server.
+.Pp
+The authentication subsystem uses a
+challenge-response protocol which is immune to packet sniffing and
+replay attacks.  No passwords are sent over the network in either
+direction.  Both the client and the server can independently verify
+the identities of each other.
+.Pp
+The file
+.Li $ Ns Ev HOME Ns Pa /.csup/auth
+holds the information used for authentication.  This file contains a
+record for each server that the client is allowed to access.  Each
+record occupies one line in the file.  Lines beginning with
+.Ql #
+are ignored, as are lines containing only white space.  White space is
+significant everywhere else in the file.  Fields are separated by
+.Ql \&:
+characters.
+.Pp
+Each record of the file has the following form:
+.Bd -literal -offset indent
+.Sm off
+.Xo Ar serverName No : Ar clientName No :
+.Ar password No : Ar comment
+.Xc
+.Sm on
+.Ed
+.Pp
+All fields must be present even if some of them are empty.
+.Ar ServerName
+is the name of the server to which the record applies.  By convention,
+it is the canonical fully-qualified domain name of the server, e.g.,
+.Ql CVSup177.FreeBSD.ORG .
+This must agree with the server's own idea of its name.  The name is
+case-insensitive.
+.Pp
+.Ar ClientName
+is the name the client uses to gain access to the server.  By
+convention, e-mail addresses are used for all client names, e.g.,
+.Ql BillyJoe@FreeBSD.ORG .
+Client names are case-insensitive.
+.Pp
+.Ar Password
+is a secret string of characters that the client uses to prove its
+identity.  It may not contain any
+.Ql \&:
+or newline characters.
+.Pp
+.Ar Comment
+may contain any additional information to identify the record.  It
+is not interpreted by the program.
+.Pp
+To set up authentication for a given server, one must perform the
+following steps:
+.Bl -enum
+.It
+Obtain the official
+.Ar serverName
+from the administrator of the server or from some other source.
+.It
+Choose an appropriate
+.Ar clientName .
+It should be in the form of a valid e-mail address, to make it easy
+for the server administrator to contact the user if necessary.
+.It
+Choose an arbitrary secret
+.Ar password .
+.It
+Run the
+.Nm cpasswd
+utility, and type in the
+.Ar password
+when prompted for it.  The utility will print out a line to send
+to the server administrator, and instruct you how to modify your
+.Li $ Ns Ev HOME Ns Pa /.csup/auth
+file.  You should use a secure channel to send the line to the
+server administrator.
+.El
+.Pp
+Since
+.Li $ Ns Ev HOME Ns Pa /.csup/auth
+contains passwords, you should ensure that it is not readable by
+anyone except yourself.
+.Pp
+Authentication works independently in both directions.  The server
+administrator controls whether you must prove your identity.
+You control whether to check the server's identity, by means of the
+.Fl a
+command line option.
 .Sh csup AND FIREWALLS
 In its default mode,
 .Nm
@@ -865,6 +967,7 @@ subdirectory.
 List files.
 .El
 .Sh SEE ALSO
+.Xr cpasswd 1 ,
 .Xr cvs 1 ,
 .Xr rcsintro 1 ,
 .Xr ssh 1 .

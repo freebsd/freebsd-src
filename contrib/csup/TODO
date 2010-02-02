@@ -17,7 +17,6 @@ BUGS:
 
 MISSING FEATURES:
 
-- Add support for authentication.
 - Add support for shell commands sent by the server.
 - Add missing support for various CVSup options : -D, -a (requires
   authentication support), -e and -E (requires shell commands support)

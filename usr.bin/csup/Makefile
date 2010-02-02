@@ -4,6 +4,7 @@
 
 PROG=	csup
 SRCS=	attrstack.c \
+	auth.c \
 	config.c \
 	detailer.c \
 	diff.c \
@@ -36,5 +37,8 @@ WARNS?=	1
 
 DPADD=	${LIBCRYPTO} ${LIBZ} ${LIBPTHREAD}
 LDADD=	-lcrypto -lz -lpthread
+
+SCRIPTS=	cpasswd.sh
+MAN=		csup.1 cpasswd.1
 
 .include <bsd.prog.mk>
