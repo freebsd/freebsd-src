@@ -395,6 +395,11 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     assert(aux_info[AT_BASE] != NULL);
     init_rtld((caddr_t) aux_info[AT_BASE]->a_un.a_ptr);
 
+    /* XXXRW: Need to do something about program names in capability mode. */
+    __progname = obj_rtld.path; /* TODO: binary name */
+    argv0 = argv[0] != NULL ? argv[0] : "(null)";
+    environ = env;
+
 #ifdef IN_RTLD_CAP
     /*
      * In capability mode, the kernel has executed ld-elf-cap.so directly,
@@ -404,22 +409,31 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      * descriptor using AT_EXECFD.
      */
     if (aux_info[AT_EXECFD] == NULL) {
-	bzero(&aux_execfd, sizeof(aux_execfd));
-	aux_execfd.a_type = AT_EXECFD;
-	aux_execfd.a_un.a_val = 7; /* TODO: stop hardcoding */
-	aux_info[AT_EXECFD] = &aux_execfd;
-	if (fstat(7, &sb) < 0) {
+	const char *ld_binary;
+	char *endp;
+	long ld_binary_fd;
+
+	ld_binary = getenv(LD_ "BINARY");
+	if (ld_binary == NULL) {
+	    _rtld_error("LD_BINARY unset; aborting");
+	    die();
+	}
+	ld_binary_fd = strtol(ld_binary, &endp, 10);
+	if (ld_binary_fd < 0 || ld_binary_fd > __INT_MAX || *endp != 0) {
+	    _rtld_error("LD_BINARY invalid");
+	    die();
+	}
+	if (fstat(ld_binary_fd, &sb) < 0) {
 	    __progname = "ld-elf-cap.so";
 	    _rtld_error("executable file descriptor unusable");
 	    die();
 	}
+	bzero(&aux_execfd, sizeof(aux_execfd));
+	aux_execfd.a_type = AT_EXECFD;
+	aux_execfd.a_un.a_val = ld_binary_fd;
+	aux_info[AT_EXECFD] = &aux_execfd;
     }
 #endif
-
-    /* XXXRW: Need to do something about program names in capability mode. */
-    __progname = obj_rtld.path; /* TODO: binary name */
-    argv0 = argv[0] != NULL ? argv[0] : "(null)";
-    environ = env;
 
     trust = !issetugid();
 
