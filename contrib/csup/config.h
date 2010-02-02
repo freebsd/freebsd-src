@@ -108,6 +108,7 @@ struct config {
 	struct chan *chan1;
 	struct stream *server;
 	fattr_support_t fasupport;
+	int reqauth;
 };
 
 struct config	*config_init(const char *, struct coll *, int);
