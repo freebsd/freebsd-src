@@ -1334,7 +1334,20 @@ ata_device_transport(struct cam_path *path)
 	cts.protocol = path->device->protocol;
 	cts.protocol_version = path->device->protocol_version;
 	cts.proto_specific.valid = 0;
-	cts.xport_specific.valid = 0;
+	if (ident_buf) {
+		if (path->device->transport == XPORT_ATA) {
+			cts.xport_specific.ata.atapi = 
+			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_16) ? 16 :
+			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12) ? 12 : 0;
+			cts.xport_specific.ata.valid = CTS_ATA_VALID_ATAPI;
+		} else {
+			cts.xport_specific.sata.atapi = 
+			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_16) ? 16 :
+			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12) ? 12 : 0;
+			cts.xport_specific.sata.valid = CTS_SATA_VALID_ATAPI;
+		}
+	} else
+		cts.xport_specific.valid = 0;
 	xpt_action((union ccb *)&cts);
 }
 
@@ -1365,6 +1378,27 @@ ata_action(union ccb *start_ccb)
 		sim = start_ccb->ccb_h.path->bus->sim;
 		(*(sim->sim_action))(sim, start_ccb);
 		break;
+	}
+	case XPT_SCSI_IO:
+	{
+		struct cam_ed *device;
+		u_int	maxlen = 0;
+
+		device = start_ccb->ccb_h.path->device;
+		if (device->protocol == PROTO_SCSI &&
+		    (device->flags & CAM_DEV_IDENTIFY_DATA_VALID)) {
+			uint16_t p =
+			    device->ident_data.config & ATA_PROTO_MASK;
+
+			maxlen = (p == ATA_PROTO_ATAPI_16) ? 16 :
+			    (p == ATA_PROTO_ATAPI_12) ? 12 : 0;
+		}
+		if (start_ccb->csio.cdb_len > maxlen) {
+			start_ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(start_ccb);
+			break;
+		}
+		/* FALLTHROUGH */
 	}
 	default:
 		xpt_action_default(start_ccb);
