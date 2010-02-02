@@ -271,10 +271,11 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	const void *yp_domain, *yp_server;
 #endif
 	char salt[SALTSIZE + 1];
-	login_cap_t * lc;
+	login_cap_t *lc;
 	struct passwd *pwd, *old_pwd;
 	const char *user, *old_pass, *new_pass;
 	char *encrypted;
+	time_t passwordtime;
 	int pfd, tfd, retval;
 
 	if (openpam_get_option(pamh, PAM_OPT_AUTH_AS_SELF))
@@ -377,11 +378,17 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		if ((old_pwd = pw_dup(pwd)) == NULL)
 			return (PAM_BUF_ERR);
 
-		pwd->pw_change = 0;
 		lc = login_getclass(pwd->pw_class);
 		if (login_setcryptfmt(lc, password_hash, NULL) == NULL)
 			openpam_log(PAM_LOG_ERROR,
 			    "can't set password cipher, relying on default");
+		
+		/* set password expiry date */
+		pwd->pw_change = 0;
+		passwordtime = login_getcaptime(lc, "passwordtime", 0, 0);
+		if (passwordtime > 0)
+			pwd->pw_change = time(NULL) + passwordtime;
+		
 		login_close(lc);
 		makesalt(salt);
 		pwd->pw_passwd = crypt(new_pass, salt);
