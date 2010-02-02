@@ -49,26 +49,9 @@ __FBSDID("$FreeBSD$");
 
 #include "gzip.h"
 
-/*
- * In the future, these library dependencies won't need to be explicit, so
- * this will go away.
- */
-#define	LC_LIB_LIBZ_SO	"/lib/libz.so.5"
-#define	LC_LIBZ_SO	"libz.so.5"
-
-#define	LC_USR_LIB_LIBBZ2_SO	"/usr/lib/libbz2.so.4"
-#define	LC_LIBBZ2_SO		"libbz2.so.4"
-
 #define	LC_USR_BIN_GZIP_SANDBOX	"/usr/bin/gzip"
 
 #ifndef NO_SANDBOX_SUPPORT
-
-struct lc_library gzsandbox_libs[] = {
-	{ LC_LIB_LIBZ_SO,		LC_LIBZ_SO,	-1 },
-	{ LC_USR_LIB_LIBBZ2_SO,		LC_LIBBZ2_SO,	-1 },
-};
-static const u_int gzsandbox_libs_count = sizeof(gzsandbox_libs) /
-	    sizeof(gzsandbox_libs[0]);
 
 static char *lc_sandbox_argv[] = { __DECONST(char *, LC_USR_BIN_GZIP_SANDBOX),
 				    NULL };
@@ -84,7 +67,6 @@ static int			 gzsandbox_enabled;
 static void
 gzsandbox_initialize(void)
 {
-	u_int i;
 
 	if (gzsandbox_initialized)
 		return;
@@ -93,17 +75,7 @@ gzsandbox_initialize(void)
 	if (!gzsandbox_enabled)
 		return;
 
-	/*
-	 * If sandboxes are in use, open libraries that we'll require in the
-	 * sandbox and kick it off.
-	 */
-	for (i = 0; i < gzsandbox_libs_count; i++) {
-		gzsandbox_libs[i].lcl_fd =
-		    open(gzsandbox_libs[i].lcl_libpath, O_RDONLY);
-		if (gzsandbox_libs[i].lcl_fd < 0)
-			err(-1, "open: %s", gzsandbox_libs[i].lcl_libname);
-	}
-	if (lch_start_libs(LC_USR_BIN_GZIP_SANDBOX, lc_sandbox_argv,
+	if (lch_start(LC_USR_BIN_GZIP_SANDBOX, lc_sandbox_argv,
 	    LCH_PERMIT_STDERR, NULL, &lcsp) < 0)
 		err(-1, "lch_start %s", LC_USR_BIN_GZIP_SANDBOX);
 }
