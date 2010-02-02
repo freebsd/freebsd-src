@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/md5.h>
 #include <sys/interrupt.h>
 #include <sys/sbuf.h>
 
@@ -124,10 +123,9 @@ typedef enum {
 
 typedef struct {
 	TAILQ_HEAD(, ccb_hdr) request_ccbs;
+	struct ata_params	ident_data;
 	probe_action	action;
-	union ccb	saved_ccb;
 	probe_flags	flags;
-	u_int8_t	digest[16];
 	uint32_t	pm_pid;
 	uint32_t	pm_prv;
 	int		restart;
@@ -303,29 +301,13 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		ata_reset_cmd(ataio);
 		break;
 	case PROBE_IDENTIFY:
-		if ((periph->path->device->flags & CAM_DEV_UNCONFIGURED) == 0) {
-			/* Prepare check that it is the same device. */
-			MD5_CTX context;
-
-			MD5Init(&context);
-			MD5Update(&context,
-			    (unsigned char *)ident_buf->model,
-			    sizeof(ident_buf->model));
-			MD5Update(&context,
-			    (unsigned char *)ident_buf->revision,
-			    sizeof(ident_buf->revision));
-			MD5Update(&context,
-			    (unsigned char *)ident_buf->serial,
-			    sizeof(ident_buf->serial));
-			MD5Final(softc->digest, &context);
-		}
 		cam_fill_ataio(ataio,
 		      1,
 		      probedone,
 		      /*flags*/CAM_DIR_IN,
 		      0,
-		      /*data_ptr*/(u_int8_t *)ident_buf,
-		      /*dxfer_len*/sizeof(struct ata_params),
+		      /*data_ptr*/(u_int8_t *)&softc->ident_data,
+		      /*dxfer_len*/sizeof(softc->ident_data),
 		      30 * 1000);
 		if (periph->path->device->protocol == PROTO_ATA)
 			ata_28bit_cmd(ataio, ATA_ATA_IDENTIFY, 0, 0, 0);
@@ -695,8 +677,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	ident_buf = &path->device->ident_data;
 
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-device_fail:	if (cam_periph_error(done_ccb, 0, 0,
-		    &softc->saved_ccb) == ERESTART) {
+device_fail:	if (cam_periph_error(done_ccb, 0, 0, NULL) == ERESTART) {
 			return;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
@@ -724,6 +705,8 @@ device_fail:	if (cam_periph_error(done_ccb, 0, 0,
 		goto done;
 	}
 noerror:
+	if (softc->restart)
+		goto done;
 	switch (softc->action) {
 	case PROBE_RESET:
 	{
@@ -766,6 +749,7 @@ noerror:
 	{
 		int16_t *ptr;
 
+		ident_buf = &softc->ident_data;
 		for (ptr = (int16_t *)ident_buf;
 		     ptr < (int16_t *)ident_buf + sizeof(struct ata_params)/2; ptr++) {
 			*ptr = le16toh(*ptr);
@@ -784,28 +768,22 @@ noerror:
 		ata_bpack(ident_buf->revision, ident_buf->revision, sizeof(ident_buf->revision));
 		ata_btrim(ident_buf->serial, sizeof(ident_buf->serial));
 		ata_bpack(ident_buf->serial, ident_buf->serial, sizeof(ident_buf->serial));
+		ident_buf = &path->device->ident_data;
 
 		if ((periph->path->device->flags & CAM_DEV_UNCONFIGURED) == 0) {
 			/* Check that it is the same device. */
-			MD5_CTX context;
-			u_int8_t digest[16];
-
-			MD5Init(&context);
-			MD5Update(&context,
-			    (unsigned char *)ident_buf->model,
-			    sizeof(ident_buf->model));
-			MD5Update(&context,
-			    (unsigned char *)ident_buf->revision,
-			    sizeof(ident_buf->revision));
-			MD5Update(&context,
-			    (unsigned char *)ident_buf->serial,
-			    sizeof(ident_buf->serial));
-			MD5Final(digest, &context);
-			if (bcmp(digest, softc->digest, sizeof(digest))) {
+			if (bcmp(softc->ident_data.model, ident_buf->model,
+			     sizeof(ident_buf->model)) ||
+			    bcmp(softc->ident_data.revision, ident_buf->revision,
+			     sizeof(ident_buf->revision)) ||
+			    bcmp(softc->ident_data.serial, ident_buf->serial,
+			     sizeof(ident_buf->serial))) {
 				/* Device changed. */
 				xpt_async(AC_LOST_DEVICE, path, NULL);
-			}
+			} else
+				bcopy(&softc->ident_data, ident_buf, sizeof(struct ata_params));
 		} else {
+			bcopy(&softc->ident_data, ident_buf, sizeof(struct ata_params));
 			/* Clean up from previous instance of this device */
 			if (path->device->serial_num != NULL) {
 				free(path->device->serial_num, M_CAMXPT);
