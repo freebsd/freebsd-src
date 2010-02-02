@@ -227,9 +227,6 @@ int	ld_insandbox(void);
  */
 int	ld_libdirs(int *fds, int *fdlen);
 
-/* If this call is successful, the caller is responsible for freeing 'fds'. */
-int	ld_libdirs(int **fds);
-
 /*
  * Applications may declare an alternative entry point to the default ELF
  * entry point for their binary, which will be used in preference to 'main'
