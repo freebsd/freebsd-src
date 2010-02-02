@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Robert N. M. Watson
+ * Copyright (c) 2009-2010 Robert N. M. Watson
  * All rights reserved.
  *
  * WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
@@ -33,6 +33,12 @@
 
 #ifndef _GZIP_H_
 #define	_GZIP_H_
+
+/*
+ * We need to forward the global variable 'numflag' to the sandbox as well as
+ * function arguments.
+ */
+extern int	numflag;
 
 off_t	gz_compress(int in, int out, off_t *gsizep, const char *origname,
 	    uint32_t mtime);

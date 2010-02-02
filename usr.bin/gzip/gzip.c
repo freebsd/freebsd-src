@@ -186,7 +186,7 @@ static	const char	gzip_copyright[] = \
 static	int	cflag;			/* stdout mode */
 static	int	dflag;			/* decompress mode */
 static	int	lflag;			/* list mode */
-static	int	numflag = 6;		/* gzip -1..-9 value */
+int	numflag = 6;			/* gzip -1..-9 value */
 
 #ifndef SMALL
 static	int	fflag;			/* force mode */

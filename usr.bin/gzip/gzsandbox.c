@@ -110,6 +110,7 @@ gzsandbox_initialize(void)
 
 struct host_gz_compress_req {
 	char		hgc_req_origname[PATH_MAX];
+	int		hgc_req_numflag;
 	uint32_t	hgc_req_mtime;
 } __packed;
 
@@ -131,6 +132,7 @@ gz_compress_insandbox(int in, int out, off_t *gsizep, const char *origname,
 	bzero(&req, sizeof(req));
 	strlcpy(req.hgc_req_origname, origname,
 	    sizeof(req.hgc_req_origname));
+	req.hgc_req_numflag = numflag;
 	req.hgc_req_mtime = mtime;
 	iov_req.iov_base = &req;
 	iov_req.iov_len = sizeof(req);
@@ -165,6 +167,7 @@ sandbox_gz_compress_buffer(struct lc_host *lchp, uint32_t opno,
 
 	bcopy(buffer, &req, sizeof(req));
 	bzero(&rep, sizeof(rep));
+	numflag = req.hgc_req_numflag;
 	rep.hgc_rep_retval = gz_compress(fd_in, fd_out, &rep.hgc_rep_gsize,
 	    req.hgc_req_origname, req.hgc_req_mtime);
 	iov.iov_base = &rep;
