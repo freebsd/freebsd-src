@@ -1348,6 +1348,8 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 		    ccb->csio.cdb_io.cdb_ptr : ccb->csio.cdb_io.cdb_bytes,
 		    request->u.atapi.ccb, ccb->csio.cdb_len);
 		request->flags |= ATA_R_ATAPI;
+		if (ch->curr[ccb->ccb_h.target_id].atapi == 16)
+			request->flags |= ATA_R_ATAPI16;
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE &&
 		    ch->curr[ccb->ccb_h.target_id].mode >= ATA_DMA)
 			request->flags |= ATA_R_DMA;
@@ -1358,7 +1360,6 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 	}
 	request->transfersize = min(request->bytecount,
 	    ch->curr[ccb->ccb_h.target_id].bytecount);
-//	request->callback = ad_done;
 	request->retries = 0;
 	request->timeout = (ccb->ccb_h.timeout + 999) / 1000;
 	callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);
@@ -1491,7 +1492,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		if (ch->flags & ATA_SATA) {
 			if (cts->xport_specific.sata.valid & CTS_SATA_VALID_REVISION)
 				d->revision = cts->xport_specific.sata.revision;
-			if (cts->xport_specific.ata.valid & CTS_SATA_VALID_MODE) {
+			if (cts->xport_specific.sata.valid & CTS_SATA_VALID_MODE) {
 				if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
 					d->mode = ATA_SETMODE(ch->dev,
 					    ccb->ccb_h.target_id,
@@ -1499,8 +1500,10 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 				} else
 					d->mode = cts->xport_specific.sata.mode;
 			}
-			if (cts->xport_specific.ata.valid & CTS_SATA_VALID_BYTECOUNT)
+			if (cts->xport_specific.sata.valid & CTS_SATA_VALID_BYTECOUNT)
 				d->bytecount = min(8192, cts->xport_specific.sata.bytecount);
+			if (cts->xport_specific.sata.valid & CTS_SATA_VALID_ATAPI)
+				d->atapi = cts->xport_specific.sata.atapi;
 		} else {
 			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_MODE) {
 				if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
@@ -1512,6 +1515,8 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			}
 			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_BYTECOUNT)
 				d->bytecount = cts->xport_specific.ata.bytecount;
+			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_ATAPI)
+				d->atapi = cts->xport_specific.ata.atapi;
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -1541,6 +1546,8 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			} else
 				cts->xport_specific.sata.revision = d->revision;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
+			cts->xport_specific.sata.atapi = d->atapi;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_ATAPI;
 		} else {
 			cts->transport = XPORT_ATA;
 			cts->transport_version = XPORT_VERSION_UNSPECIFIED;
@@ -1548,6 +1555,8 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			cts->xport_specific.ata.valid |= CTS_ATA_VALID_MODE;
 			cts->xport_specific.ata.bytecount = d->bytecount;
 			cts->xport_specific.ata.valid |= CTS_ATA_VALID_BYTECOUNT;
+			cts->xport_specific.ata.atapi = d->atapi;
+			cts->xport_specific.ata.valid |= CTS_ATA_VALID_ATAPI;
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
