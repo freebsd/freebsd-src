@@ -2392,9 +2392,7 @@ xptsetasyncfunc(struct cam_ed *device, void *arg)
 {
 	struct cam_path path;
 	struct ccb_getdev cgd;
-	struct async_node *cur_entry;
-
-	cur_entry = (struct async_node *)arg;
+	struct ccb_setasync *csa = (struct ccb_setasync *)arg;
 
 	/*
 	 * Don't report unconfigured devices (Wildcard devs,
@@ -2413,7 +2411,7 @@ xptsetasyncfunc(struct cam_ed *device, void *arg)
 	xpt_setup_ccb(&cgd.ccb_h, &path, CAM_PRIORITY_NORMAL);
 	cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 	xpt_action((union ccb *)&cgd);
-	cur_entry->callback(cur_entry->callback_arg,
+	csa->callback(csa->callback_arg,
 			    AC_FOUND_DEVICE,
 			    &path, &cgd);
 	xpt_release_path(&path);
@@ -2426,9 +2424,7 @@ xptsetasyncbusfunc(struct cam_eb *bus, void *arg)
 {
 	struct cam_path path;
 	struct ccb_pathinq cpi;
-	struct async_node *cur_entry;
-
-	cur_entry = (struct async_node *)arg;
+	struct ccb_setasync *csa = (struct ccb_setasync *)arg;
 
 	xpt_compile_path(&path, /*periph*/NULL,
 			 bus->sim->path_id,
@@ -2437,41 +2433,12 @@ xptsetasyncbusfunc(struct cam_eb *bus, void *arg)
 	xpt_setup_ccb(&cpi.ccb_h, &path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
-	cur_entry->callback(cur_entry->callback_arg,
+	csa->callback(csa->callback_arg,
 			    AC_PATH_REGISTERED,
 			    &path, &cpi);
 	xpt_release_path(&path);
 
 	return(1);
-}
-
-static void
-xpt_action_sasync_cb(void *context, int pending)
-{
-	struct async_node *cur_entry;
-	struct xpt_task *task;
-	uint32_t added;
-
-	task = (struct xpt_task *)context;
-	cur_entry = (struct async_node *)task->data1;
-	added = task->data2;
-
-	if ((added & AC_FOUND_DEVICE) != 0) {
-		/*
-		 * Get this peripheral up to date with all
-		 * the currently existing devices.
-		 */
-		xpt_for_all_devices(xptsetasyncfunc, cur_entry);
-	}
-	if ((added & AC_PATH_REGISTERED) != 0) {
-		/*
-		 * Get this peripheral up to date with all
-		 * the currently existing busses.
-		 */
-		xpt_for_all_busses(xptsetasyncbusfunc, cur_entry);
-	}
-
-	free(task, M_CAMXPT);
 }
 
 void
@@ -2885,11 +2852,12 @@ xpt_action_default(union ccb *start_ccb)
 			if (csa->event_enable == 0) {
 				SLIST_REMOVE(async_head, cur_entry,
 					     async_node, links);
-				csa->ccb_h.path->device->refcount--;
+				xpt_release_device(csa->ccb_h.path->device);
 				free(cur_entry, M_CAMXPT);
 			} else {
 				cur_entry->event_enable = csa->event_enable;
 			}
+			csa->event_enable = added;
 		} else {
 			cur_entry = malloc(sizeof(*cur_entry), M_CAMXPT,
 					   M_NOWAIT);
@@ -2901,29 +2869,8 @@ xpt_action_default(union ccb *start_ccb)
 			cur_entry->callback_arg = csa->callback_arg;
 			cur_entry->callback = csa->callback;
 			SLIST_INSERT_HEAD(async_head, cur_entry, links);
-			csa->ccb_h.path->device->refcount++;
+			xpt_acquire_device(csa->ccb_h.path->device);
 		}
-
-		/*
-		 * Need to decouple this operation via a taqskqueue so that
-		 * the locking doesn't become a mess.
-		 */
-		if ((added & (AC_FOUND_DEVICE | AC_PATH_REGISTERED)) != 0) {
-			struct xpt_task *task;
-
-			task = malloc(sizeof(struct xpt_task), M_CAMXPT,
-				      M_NOWAIT);
-			if (task == NULL) {
-				csa->ccb_h.status = CAM_RESRC_UNAVAIL;
-				break;
-			}
-
-			TASK_INIT(&task->task, 0, xpt_action_sasync_cb, task);
-			task->data1 = cur_entry;
-			task->data2 = added;
-			taskqueue_enqueue(taskqueue_thread, &task->task);
-		}
-
 		start_ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -4823,6 +4770,23 @@ xpt_register_async(int event, ac_callback_t *cbfunc, void *cbarg,
 	if (xptpath) {
 		xpt_free_path(path);
 		mtx_unlock(&xsoftc.xpt_lock);
+
+		if ((status == CAM_REQ_CMP) &&
+		    (csa.event_enable & AC_FOUND_DEVICE)) {
+			/*
+			 * Get this peripheral up to date with all
+			 * the currently existing devices.
+			 */
+			xpt_for_all_devices(xptsetasyncfunc, &csa);
+		}
+		if ((status == CAM_REQ_CMP) &&
+		    (csa.event_enable & AC_PATH_REGISTERED)) {
+			/*
+			 * Get this peripheral up to date with all
+			 * the currently existing busses.
+			 */
+			xpt_for_all_busses(xptsetasyncbusfunc, &csa);
+		}
 	}
 	return (status);
 }
