@@ -5,9 +5,9 @@
  * WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
  * ON IN PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND
  * UNEXPECTED WAYS.
- * 
+ *
  * This software was developed at the University of Cambridge Computer
- * Laboratory with support from a grant from Google, Inc. 
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.h#11 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.h#12 $
  */
 
 #ifndef _LIBCAPSICUM_H_
@@ -43,15 +43,6 @@ __BEGIN_DECLS
 
 struct lc_sandbox;
 struct lc_host;
-
-/*
- * Description of a library passed to lch_start_libs().
- */
-struct lc_library {
-	const char	*lcl_libpath;
-	const char	*lcl_libname;
-	int		 lcl_fd;
-};
 
 /*
  * A list of file descriptors, which can be passed around in shared memory.

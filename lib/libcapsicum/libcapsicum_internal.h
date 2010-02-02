@@ -5,9 +5,9 @@
  * WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
  * ON IN PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND
  * UNEXPECTED WAYS.
- * 
+ *
  * This software was developed at the University of Cambridge Computer
- * Laboratory with support from a grant from Google, Inc. 
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,14 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_internal.h#5 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_internal.h#6 $
  */
 
 #ifndef _LIBCAPSICUM_INTERNAL_H_
 #define	_LIBCAPSICUM_INTERNAL_H_
 
-#define LIBCAPSICUM_FQNAME	"org.freebsd.libcapsicum"
-#define RTLD_CAP_FQNAME		"org.freebsd.rtld-elf-cap"
+#define	LIBCAPSICUM_FQNAME	"org.freebsd.libcapsicum"
+#define	RTLD_CAP_FQNAME		"org.freebsd.rtld-elf-cap"
 
 struct lc_host {
 	int	lch_fd_sock;

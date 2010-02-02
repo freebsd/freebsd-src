@@ -5,9 +5,9 @@
  * WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
  * ON IN PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND
  * UNEXPECTED WAYS.
- * 
+ *
  * This software was developed at the University of Cambridge Computer
- * Laboratory with support from a grant from Google, Inc. 
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_sandbox_api.h#3 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_sandbox_api.h#4 $
  */
 
 #ifndef _LIBCAPSICUM_SANDBOX_API_H_
@@ -41,7 +41,7 @@
  * make about the runtime environment set up by libcapsicum hosts.
  */
 #define	LIBCAPSICUM_SANDBOX_API_ENV	"LIBCAPSICUM_SANDBOX"
-#define LIBCAPSICUM_SANDBOX_FDLIST	"LIBCAPSICUM_FDLIST"
+#define	LIBCAPSICUM_SANDBOX_FDLIST	"LIBCAPSICUM_FDLIST"
 #define	LIBCAPSICUM_SANDBOX_API_SOCK	"sock"
 
 /*

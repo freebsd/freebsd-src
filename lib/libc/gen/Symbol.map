@@ -340,8 +340,6 @@ FBSD_1.1 {
 	fts_read;
 	fts_set;
 	fts_set_clientptr;
-	ld_libcache_add;
-	ld_libcache_lookup;
 	ld_insandbox;
 	ld_libdirs;
 	posix_spawn;

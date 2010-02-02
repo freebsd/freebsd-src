@@ -5,9 +5,9 @@
  * WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
  * ON IN PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND
  * UNEXPECTED WAYS.
- * 
+ *
  * This software was developed at the University of Cambridge Computer
- * Laboratory with support from a grant from Google, Inc. 
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#10 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#15 $
  */
 
 #include <sys/param.h>
@@ -55,7 +55,6 @@
 #include "libcapsicum_internal.h"
 #include "libcapsicum_sandbox_api.h"
 
-#define	LIBCAPSICUM_CAPMASK_DEVNULL	(CAP_EVENT | CAP_READ | CAP_WRITE)
 #define	LIBCAPSICUM_CAPMASK_SOCK	(CAP_EVENT | CAP_READ | CAP_WRITE)
 #define	LIBCAPSICUM_CAPMASK_BIN	(CAP_READ | CAP_EVENT | CAP_FSTAT | \
 					    CAP_FSTATFS | \
@@ -63,17 +62,10 @@
 					    CAP_MAPEXEC)
 #define	LIBCAPSICUM_CAPMASK_SANDBOX	LIBCAPSICUM_CAPMASK_BIN
 #define	LIBCAPSICUM_CAPMASK_LDSO	LIBCAPSICUM_CAPMASK_BIN
-#define	LIBCAPSICUM_CAPMASK_LIB		LIBCAPSICUM_CAPMASK_BIN
-#define LIBCAPSICUM_CAPMASK_LIBDIR	LIBCAPSICUM_CAPMASK_LIB \
+#define LIBCAPSICUM_CAPMASK_LIBDIR	LIBCAPSICUM_CAPMASK_BIN \
 					 | CAP_LOOKUP | CAP_ATBASE
 #define LIBCAPSICUM_CAPMASK_FDLIST	CAP_READ | CAP_WRITE | CAP_FTRUNCATE \
 					 | CAP_FSTAT | CAP_MMAP
-
-#define	_PATH_LIB	"/lib"
-#define	_PATH_USR_LIB	"/usr/lib"
-#define	LIBC_SO		"libc.so.7"
-#define	LIBCAPSICUM_SO	"libcapsicum.so.1"
-#define	LIBSBUF_SO	"libsbuf.so.5"
 
 extern char **environ;
 
@@ -89,10 +81,15 @@ lch_autosandbox_isenabled(__unused const char *servicename)
 	return (1);
 }
 
-
+/*
+ * Once in the child process, create the new sandbox.
+ *
+ * XXX: A number of things happen here that are not safe after fork(),
+ * especially calls to err().
+ */
 static void
-lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, int fd_devnull, u_int flags,
-    const char *binname, char *const argv[], __unused struct lc_fdlist *userfds)
+lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, u_int flags,
+    const char *binname, char *const argv[], struct lc_fdlist *userfds)
 {
 	struct sbuf *sbufp;
 	int shmfd = -1;
@@ -109,7 +106,7 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, int fd_devnull, u_int flags
 	/*
 	 * Create an anonymous shared memory segment for the FD list.
 	 */
-	shmfd = open("/tmp/jon-foo"/*SHM_ANON*/, O_RDWR | O_CREAT | O_TRUNC, 0600);
+	shmfd = shm_open(SHM_ANON, O_RDWR | O_CREAT | O_TRUNC, 0600);
 	if (shmfd < 0)
 		err(-1, "Error creating shared memory segment");
 
@@ -138,10 +135,6 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, int fd_devnull, u_int flags
 	                     fd_sock, LIBCAPSICUM_CAPMASK_SOCK) < 0)
 		err(-1, "Error in lc_fdlist_addcap(fd_sock)");
 
-	if (lc_fdlist_addcap(fds, LIBCAPSICUM_FQNAME, "/dev/null", "",
-	                     fd_devnull, LIBCAPSICUM_CAPMASK_DEVNULL) < 0)
-		err(-1, "Error in lc_fdlist_addcap(fd_devnull)");
-
 	if (lc_fdlist_addcap(fds, LIBCAPSICUM_FQNAME, "fdlist", "",
 	                     shmfd, LIBCAPSICUM_CAPMASK_FDLIST) < 0)
 		err(-1, "Error in lc_fdlist_addcap(shmfd)");
@@ -160,41 +153,38 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, int fd_devnull, u_int flags
 	/*
 	 * Ask RTLD for library path descriptors.
 	 *
-	 * NOTE: This is FreeBSD-specific; porting to other operating systems will
-	 *       require dynamic linkers capable of answering similar queries.
+	 * NOTE: This is FreeBSD-specific; porting to other operating systems
+	 * will require dynamic linkers capable of answering similar queries.
 	 */
 	int size = 16;
 	int *libdirs;
 
 	while (1) {
 		libdirs = malloc(size * sizeof(int));
-
 		if (ld_libdirs(libdirs, &size) < 0) {
 			free(libdirs);
-
-			if (size > 0) continue;
-			else err(-1, "Error in ld_libdirs()");
-		}
-		else break;
+			if (size > 0)
+				continue;
+			err(-1, "Error in ld_libdirs()");
+		} else
+			break;
 	}
-
 
 	for (int j = 0; j < size; j++)
 		if (lc_fdlist_addcap(fds, RTLD_CAP_FQNAME, "libdir", "",
-	        	libdirs[j], LIBCAPSICUM_CAPMASK_LIBDIR) < 0)
+		    libdirs[j], LIBCAPSICUM_CAPMASK_LIBDIR) < 0)
 			err(-1, "Error in lc_fdlist_addcap(libdirs[%d]: %d)",
 			    j, libdirs[j]);
 
 	if (lc_fdlist_reorder(fds) < 0)
 		err(-1, "Error in lc_fdlist_reorder()");
 
-
 	/*
 	 * Find the fdlist shared memory segment.
 	 */
 	int pos = 0;
-	if (lc_fdlist_lookup(fds, LIBCAPSICUM_FQNAME, "fdlist", NULL,
-	                     &shmfd, &pos) < 0)
+	if (lc_fdlist_lookup(fds, LIBCAPSICUM_FQNAME, "fdlist", NULL, &shmfd,
+	    &pos) < 0)
 		err(-1, "Error in lc_fdlist_lookup(fdlist)");
 
 	char tmp[8];
@@ -229,8 +219,8 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, int fd_devnull, u_int flags
 	/*
 	 * Find the binary for RTLD.
 	 */
-	if (lc_fdlist_lookup(fds, RTLD_CAP_FQNAME, "binary", NULL, &fd_binary,
-	                     NULL) < 0)
+	if (lc_fdlist_lookup(fds, RTLD_CAP_FQNAME, "binary", NULL,
+	    &fd_binary, NULL) < 0)
 		err(-1, "Error in lc_fdlist_lookup(RTLD binary)");
 
 	sprintf(tmp, "%d", fd_binary);
@@ -240,8 +230,9 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, int fd_devnull, u_int flags
 	/*
 	 * Build LD_LIBRARY_DIRS for RTLD.
 	 *
-	 * NOTE: This is FreeBSD-specific; porting to other operating systems will
-	 *       require dynamic linkers capable of operating on file descriptors.
+	 * NOTE: This is FreeBSD-specific; porting to other operating systems
+	 * will require dynamic linkers capable of operating on file
+	 * descriptors.
 	 */
 	sbufp = sbuf_new_auto();
 	if (sbufp == NULL)
@@ -249,8 +240,8 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, int fd_devnull, u_int flags
 
 	{
 		int fd;
-		while (lc_fdlist_lookup(fds, RTLD_CAP_FQNAME, "libdir",
-		                        NULL, &fd, &pos) >= 0)
+		while (lc_fdlist_lookup(fds, RTLD_CAP_FQNAME, "libdir", NULL,
+		    &fd, &pos) >= 0)
 			sbuf_printf(sbufp, "%d:", fd);
 	}
 
@@ -261,7 +252,6 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, int fd_devnull, u_int flags
 		err(-1, "Error in setenv(LD_LIBRARY_DIRS)");
 	sbuf_delete(sbufp);
 
-
 	if (cap_enter() < 0)
 		err(-1, "cap_enter() failed");
 
@@ -269,17 +259,16 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, int fd_devnull, u_int flags
 }
 
 int
-lch_startfd_libs(int fd_binary, const char *binname, char *const argv[],
+lch_startfd(int fd_binary, const char *binname, char *const argv[],
     u_int flags, struct lc_fdlist *fds, struct lc_sandbox **lcspp)
 {
 	struct lc_sandbox *lcsp;
-	int fd_devnull, fd_rtld, fd_libc, fd_libcapsicum, fd_libsbuf;
+	int fd_rtld;
 	int fd_procdesc, fd_sockpair[2];
 	int error, val;
 	pid_t pid;
 
-	fd_devnull = fd_rtld = fd_libc = fd_libcapsicum = fd_libsbuf =
-	    fd_procdesc = fd_sockpair[0] = fd_sockpair[1] = -1;
+	fd_rtld = fd_procdesc = fd_sockpair[0] = fd_sockpair[1] = -1;
 
 	lcsp = malloc(sizeof(*lcsp));
 	if (lcsp == NULL)
@@ -287,34 +276,19 @@ lch_startfd_libs(int fd_binary, const char *binname, char *const argv[],
 	bzero(lcsp, sizeof(*lcsp));
 
 	if (ld_insandbox()) {
-		if (ld_libcache_lookup(LD_ELF_CAP_SO, &fd_rtld) < 0)
+		struct lc_fdlist *globals;
+		int pos = 0;
+
+		globals = lc_fdlist_global();
+		if (globals == NULL)
 			goto out_error;
-		if (ld_libcache_lookup(LIBC_SO, &fd_libc) < 0)
-			goto out_error;
-		if (ld_libcache_lookup(LIBCAPSICUM_SO,
-		    &fd_libcapsicum) < 0)
-			goto out_error;
-		if (ld_libcache_lookup(LIBSBUF_SO, &fd_libsbuf) < 0)
-			goto out_error;
-		if (ld_libcache_lookup(_PATH_DEVNULL, &fd_devnull) < 0)
+		if (lc_fdlist_lookup(globals, RTLD_CAP_FQNAME, "rtld", NULL,
+		    &fd_rtld, &pos) < 0)
 			goto out_error;
 	} else {
 		fd_rtld = open(PATH_LD_ELF_CAP_SO "/" LD_ELF_CAP_SO,
 		    O_RDONLY);
 		if (fd_rtld < 0)
-			goto out_error;
-		fd_libc = open(_PATH_LIB "/" LIBC_SO, O_RDONLY);
-		if (fd_libc < 0)
-			goto out_error;
-		fd_libsbuf = open(_PATH_LIB "/" LIBSBUF_SO, O_RDONLY);
-		if (fd_libsbuf < 0)
-			goto out_error;
-		fd_libcapsicum = open(_PATH_USR_LIB "/" LIBCAPSICUM_SO,
-		    O_RDONLY);
-		if (fd_libcapsicum < 0)
-			goto out_error;
-		fd_devnull = open(_PATH_DEVNULL, O_RDWR);
-		if (fd_devnull < 0)
 			goto out_error;
 	}
 
@@ -334,15 +308,11 @@ lch_startfd_libs(int fd_binary, const char *binname, char *const argv[],
 		goto out_error;
 	}
 	if (pid == 0) {
-		lch_sandbox(fd_sockpair[1], fd_binary, fd_rtld, fd_devnull, flags,
+		lch_sandbox(fd_sockpair[1], fd_binary, fd_rtld, flags,
 		    binname, argv, fds);
 		exit(-1);
 	}
 #ifndef IN_CAP_MODE
-	close(fd_devnull);
-	close(fd_libsbuf);
-	close(fd_libcapsicum);
-	close(fd_libc);
 	close(fd_rtld);
 #endif
 	close(fd_sockpair[1]);
@@ -361,14 +331,6 @@ out_error:
 	if (fd_sockpair[1] != -1)
 		close(fd_sockpair[1]);
 #ifndef IN_CAP_MODE
-	if (fd_devnull != -1)
-		close(fd_devnull);
-	if (fd_libsbuf != -1)
-		close(fd_libsbuf);
-	if (fd_libcapsicum != -1)
-		close(fd_libcapsicum);
-	if (fd_libc != -1)
-		close(fd_libc);
 	if (fd_rtld != -1)
 		close(fd_rtld);
 #endif
@@ -379,16 +341,7 @@ out_error:
 }
 
 int
-lch_startfd(int fd_binary, const char *binname, char *const argv[],
-    u_int flags, __unused struct lc_fdlist *fds, struct lc_sandbox **lcspp)
-{
-
-	return (lch_startfd_libs(fd_binary, binname, argv, flags,
-	    fds, lcspp));
-}
-
-int
-lch_start_libs(const char *sandbox, char *const argv[], u_int flags,
+lch_start(const char *sandbox, char *const argv[], u_int flags,
     struct lc_fdlist *fds, struct lc_sandbox **lcspp)
 {
 	char binname[MAXPATHLEN];
@@ -401,19 +354,11 @@ lch_start_libs(const char *sandbox, char *const argv[], u_int flags,
 	if (fd_binary < 0)
 		return (-1);
 
-	ret = lch_startfd_libs(fd_binary, binname, argv, flags, fds, lcspp);
+	ret = lch_startfd(fd_binary, binname, argv, flags, fds, lcspp);
 	error = errno;
 	close(fd_binary);
 	errno = error;
 	return (ret);
-}
-
-int
-lch_start(const char *sandbox, char *const argv[], u_int flags,
-    struct lc_fdlist *fds, struct lc_sandbox **lcspp)
-{
-
-	return (lch_start_libs(sandbox, argv, flags, fds, lcspp));
 }
 
 void

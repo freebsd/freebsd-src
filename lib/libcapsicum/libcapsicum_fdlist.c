@@ -6,9 +6,9 @@
  * WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
  * ON IN PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND
  * UNEXPECTED WAYS.
- * 
+ *
  * This software was developed at the University of Cambridge Computer
- * Laboratory with support from a grant from Google, Inc. 
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#9 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#10 $
  */
 
 #include <sys/mman.h>
@@ -99,7 +99,6 @@ lc_fdlist_global(void)
 		UNLOCK(&global_fdlist);
 		return (&global_fdlist);
 	}
-
 	env = getenv(LIBCAPSICUM_SANDBOX_FDLIST);
 	if ((env != NULL) && (strnlen(env, 8) < 7)) {
 		struct lc_fdlist_storage *lfsp;
@@ -430,8 +429,8 @@ lc_fdlist_getentry(struct lc_fdlist *lfp, char **subsystem, char **classname,
 	LOCK(lfp);
 	lfsp = lfp->lf_storage;
 
-	if ((subsystem == NULL) || (classname == NULL) || (name == NULL)
-	    || (fdp == NULL) || ((pos != NULL) && (*pos >= (int) lfsp->count))) {
+	if ((subsystem == NULL) || (classname == NULL) || (name == NULL) ||
+	    (fdp == NULL) || ((pos != NULL) && (*pos >= (int) lfsp->count))) {
 		errno = EINVAL;
 		return (-1);
 	}
@@ -441,23 +440,22 @@ lc_fdlist_getentry(struct lc_fdlist *lfp, char **subsystem, char **classname,
 	int size = entry->syslen + entry->classnamelen + entry->namelen;
 	char *head = malloc(size);
 
-	strncpy(head,	names + entry->sysoff,		entry->syslen + 1);
+	strncpy(head, names + entry->sysoff, entry->syslen + 1);
 	*subsystem = head;
 	head += size;
 
-	strncpy(head,	names + entry->classoff,	entry->classnamelen + 1);
+	strncpy(head, names + entry->classoff, entry->classnamelen + 1);
 	*classname = head;
 	head += size;
 
-	strncpy(head,	names + entry->nameoff,		entry->namelen + 1);
+	strncpy(head, names + entry->nameoff, entry->namelen + 1);
 	*name = head;
 	head += size;
 
 	*fdp = entry->fd;
 	UNLOCK(lfp);
-
-	if (pos) (*pos)++;
-
+	if (pos)
+		(*pos)++;
 	return (0);
 }
 
@@ -547,7 +545,8 @@ lc_fdlist_storage_names(struct lc_fdlist_storage *lfsp)
 }
 
 void*
-_lc_fdlist_getstorage(struct lc_fdlist* lfp) {
-	return lfp->lf_storage;
-}
+_lc_fdlist_getstorage(struct lc_fdlist* lfp)
+{
 
+	return (lfp->lf_storage);
+}
