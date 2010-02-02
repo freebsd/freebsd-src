@@ -1201,8 +1201,10 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		printf(" (");
 		if (ata->valid & CTS_ATA_VALID_MODE)
 			printf("%s, ", ata_mode2string(ata->mode));
+		if ((ata->valid & CTS_ATA_VALID_ATAPI) && ata->atapi != 0)
+			printf("ATAPI %dbytes, ", ata->atapi);
 		if (ata->valid & CTS_ATA_VALID_BYTECOUNT)
-			printf("PIO size %dbytes", ata->bytecount);
+			printf("PIO %dbytes", ata->bytecount);
 		printf(")");
 	}
 	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SATA) {
@@ -1214,8 +1216,10 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 			printf("SATA %d.x, ", sata->revision);
 		if (sata->valid & CTS_SATA_VALID_MODE)
 			printf("%s, ", ata_mode2string(sata->mode));
+		if ((sata->valid & CTS_ATA_VALID_ATAPI) && sata->atapi != 0)
+			printf("ATAPI %dbytes, ", sata->atapi);
 		if (sata->valid & CTS_SATA_VALID_BYTECOUNT)
-			printf("PIO size %dbytes", sata->bytecount);
+			printf("PIO %dbytes", sata->bytecount);
 		printf(")");
 	}
 	if (path->device->inq_flags & SID_CmdQue
