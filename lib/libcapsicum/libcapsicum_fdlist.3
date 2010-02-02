@@ -57,7 +57,11 @@
 .Ft int
 .Fn lc_fdlist_addcap "struct lc_fdlist *lfp" "const char *subsystem" "const char *classname" "const char *name" "int fd" "cap_rights_t rights"
 .Ft int
-.Fn lc_fdlist_lookup "struct lc_fdlist *lfp" "const char *subsystem" "const char **name" "int *fdp" "int *pos"
+.Fn lc_fdlist_append "struct lc_fdlist *to" "struct lc_fdlist *from"
+.Ft int
+.Fn lc_fdlist_getentry "struct lc_fdlist *lfp" "char **subsystem" "char **classname" "char **name" "int *fdp" "int *pos"
+.Ft int
+.Fn lc_fdlist_lookup "struct lc_fdlist *lfp" "const char *subsystem" "const char *classname" "const char **name" "int *fdp" "int *pos"
 .Sh DESCRIPTION
 These
 .Nm
@@ -147,6 +151,8 @@ and
 .Fa name
 from the file descriptor list
 .Fa lfp .
+.Fn lc_fdlist_getentry
+may be used to iterate through all descriptors in the list.
 .Sh RETURN VALUES
 The
 .Fn lc_fdlist_new ,
