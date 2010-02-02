@@ -123,7 +123,6 @@ struct ada_softc {
 	int	 trim_running;
 	struct	 disk_params params;
 	struct	 disk *disk;
-	union	 ccb saved_ccb;
 	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
@@ -1098,8 +1097,7 @@ adaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct ada_softc *)periph->softc;
 
-	return(cam_periph_error(ccb, cam_flags, sense_flags,
-				&softc->saved_ccb));
+	return(cam_periph_error(ccb, cam_flags, sense_flags, NULL));
 }
 
 static void
