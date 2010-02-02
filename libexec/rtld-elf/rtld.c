@@ -60,7 +60,6 @@
 #include "rtld_tls.h"
 
 #ifdef IN_RTLD_CAP
-#include "rtld_libcache.h"
 #include "rtld_sandbox.h"
 #endif
 
@@ -77,6 +76,8 @@
 #define PATH_RTLD	"/libexec/ld-elf32.so.1"
 #endif
 #endif
+
+#define INITIAL_FDLEN	16
 
 /* Types. */
 typedef void (*func_ptr_type)();
@@ -117,6 +118,7 @@ static void init_dag1(Obj_Entry *, Obj_Entry *, DoneList *);
 static void init_rtld(caddr_t);
 static void initlist_add_neededs(Needed_Entry *, Objlist *);
 static void initlist_add_objects(Obj_Entry *, Obj_Entry **, Objlist *);
+static void init_libdirs(void);
 static bool is_exported(const Elf_Sym *);
 static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
@@ -167,6 +169,8 @@ static void object_add_name(Obj_Entry *, const char *);
 static int  object_match_name(const Obj_Entry *, const char *);
 static void ld_utrace_log(int, void *, void *, size_t, int, const char *);
 
+int ld_libdirs(int *, int *);
+
 void r_debug_state(struct r_debug *, struct link_map *);
 
 /*
@@ -183,6 +187,8 @@ static bool dangerous_ld_env;	/* True if environment variables have been
 				   used to affect the libraries loaded */
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
+static int *ld_library_dirs = NULL; /* File descriptors of lib path (end: -1) */
+static int ld_library_dirlen;	/* Capacity of ld_library_dirs */
 #ifndef IN_RTLD_CAP
 static char *ld_library_path;	/* Environment variable for search path */
 static char *ld_preload;	/* Environment variable for libraries to
@@ -191,9 +197,6 @@ static char *ld_elf_hints_path;	/* Environment variable for alternative hints pa
 #endif
 static char *ld_tracing;	/* Called from ldd to print libs */
 static char *ld_utrace;		/* Use utrace() to log events. */
-#ifdef IN_RTLD_CAP
-static char *ld_libcache;
-#endif
 static Obj_Entry *obj_list;	/* Head of linked list of shared objects */
 static Obj_Entry **obj_tail;	/* Link field of last object in list */
 static Obj_Entry *obj_main;	/* The main program shared object */
@@ -245,10 +248,10 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &_rtld_atfork_pre,
     (func_ptr_type) &_rtld_atfork_post,
 #ifdef IN_RTLD_CAP
-    (func_ptr_type) &ld_libcache_add,
-    (func_ptr_type) &ld_libcache_lookup,
     (func_ptr_type) &ld_insandbox,
 #endif
+    (func_ptr_type) &ld_libdirs,
+ 
     NULL
 };
 
@@ -403,9 +406,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (aux_info[AT_EXECFD] == NULL) {
 	bzero(&aux_execfd, sizeof(aux_execfd));
 	aux_execfd.a_type = AT_EXECFD;
-	aux_execfd.a_un.a_val = 3;
+	aux_execfd.a_un.a_val = 7; /* TODO: stop hardcoding */
 	aux_info[AT_EXECFD] = &aux_execfd;
-	if (fstat(3, &sb) < 0) {
+	if (fstat(7, &sb) < 0) {
 	    __progname = "ld-elf-cap.so";
 	    _rtld_error("executable file descriptor unusable");
 	    die();
@@ -414,7 +417,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 #endif
 
     /* XXXRW: Need to do something about program names in capability mode. */
-    __progname = obj_rtld.path;
+    __progname = obj_rtld.path; /* TODO: binary name */
     argv0 = argv[0] != NULL ? argv[0] : "(null)";
     environ = env;
 
@@ -439,9 +442,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 #endif
     }
     ld_debug = getenv(LD_ "DEBUG");
-#ifdef IN_RTLD_CAP
-    ld_libcache = getenv(LD_ "LIBCACHE");
-#else
+#ifndef IN_RTLD_CAP
     libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
     libmap_override = getenv(LD_ "LIBMAP");
     ld_library_path = getenv(LD_ "LIBRARY_PATH");
@@ -553,11 +554,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     sym_zero.st_info = ELF_ST_INFO(STB_GLOBAL, STT_NOTYPE);
     sym_zero.st_shndx = SHN_UNDEF;
     sym_zero.st_value = -(uintptr_t)obj_main->relocbase;
-
-#ifdef IN_RTLD_CAP
-    if (ld_libcache != NULL)
-	ld_libcache_init(ld_libcache);
-#endif
 
 #ifndef IN_RTLD_CAP
     if (!libmap_disable)
@@ -1224,6 +1220,26 @@ elf_hash(const char *name)
     return h;
 }
 
+#ifdef IN_RTLD_CAP
+/*
+ * Find the library with the given name, and return an open file descriptor to it.
+ */
+static int
+find_library_fd(const char *name) {
+
+    if (ld_library_dirs == NULL)
+	    init_libdirs();
+
+    for (int i = 0; (i < ld_library_dirlen) && (ld_library_dirs[i] != -1); i++) {
+
+	int fd = openat(ld_library_dirs[i], name, O_RDONLY);
+	if (fd >= 0)
+		return fd;
+    }
+
+    return (-1);
+}
+#else
 /*
  * Find the library with the given name, and return its full pathname.
  * The returned string is dynamically allocated.  Generates an error
@@ -1238,7 +1254,6 @@ elf_hash(const char *name)
  *   ldconfig hints
  *   /lib:/usr/lib
  */
-#ifndef IN_RTLD_CAP
 static char *
 find_library(const char *xname, const Obj_Entry *refobj)
 {
@@ -1633,27 +1648,28 @@ load_object(const char *name, const Obj_Entry *refobj, int flags)
 	return NULL;
     }
     path = xstrdup(name);
-    if (ld_libcache_lookup(path, &fd) < 0) {
-	_rtld_error("Unable to find \"%s\" in LD_LIBCACHE", path);
-	return NULL;
+    if ((fd = find_library_fd(path)) < 0) {
+	_rtld_error("Unable to find \"%s\" in LD_LIBRARY_DIRS", path);
     }
 #else
-    path = find_library(name, refobj);
-    if (path == NULL)
+    if (fd == -1) {
+	path = find_library(name, refobj);
+	if (path == NULL)
 	return NULL;
 
-    /*
-     * If we didn't find a match by pathname, open the file and check
-     * again by device and inode.  This avoids false mismatches caused
-     * by multiple links or ".." in pathnames.
-     *
-     * To avoid a race, we open the file and use fstat() rather than
-     * using stat().
-     */
-    if ((fd = open(path, O_RDONLY)) == -1) {
+	/*
+	 * If we didn't find a match by pathname, open the file and check
+	 * again by device and inode.  This avoids false mismatches caused
+	 * by multiple links or ".." in pathnames.
+	 *
+	 * To avoid a race, we open the file and use fstat() rather than
+	 * using stat().
+	 */
+	if ((fd = open(path, O_RDONLY)) == -1) {
 	_rtld_error("Cannot open \"%s\"", path);
 	free(path);
 	return NULL;
+	}
     }
 #endif
     if (fstat(fd, &sb) == -1) {
@@ -2023,6 +2039,7 @@ path_enumerate(const char *path, path_enum_proc callback, void *arg)
 
     return (NULL);
 }
+#endif
 
 struct try_library_args {
     const char	*name;
@@ -2058,6 +2075,7 @@ try_library_path(const char *dir, size_t dirlen, void *param)
     return (NULL);
 }
 
+#ifndef IN_RTLD_CAP
 static char *
 search_library_path(const char *name, const char *path)
 {
@@ -2079,6 +2097,139 @@ search_library_path(const char *name, const char *path)
     return (p);
 }
 #endif
+
+/*
+ * Add a file descriptor to ld_library_dirs.
+ */
+static void
+add_libdir_fd(int fd) {
+
+	if (ld_library_dirs == NULL) {
+	    /* Initialize the FD list. */
+
+	    ld_library_dirlen = INITIAL_FDLEN;
+	    ld_library_dirs = xmalloc(ld_library_dirlen * sizeof(int));
+	    memset(ld_library_dirs, 0xff, ld_library_dirlen * sizeof(int));
+	}
+
+	/* Find the next available FD slot. */
+	int i;
+	for (i = 0; (i < ld_library_dirlen) && (ld_library_dirs[i] != -1); i++) ;
+
+	if (i == ld_library_dirlen) {
+	    /* We need more space. */
+	    int old_size = ld_library_dirlen + sizeof(int);
+
+	    ld_library_dirlen *= 2;
+	    ld_library_dirs = realloc(ld_library_dirs, 2 * old_size);
+	    memset(ld_library_dirs + old_size, 0xff, old_size);
+
+	    if (ld_library_dirs == NULL)
+		err(-1, "realloc() failed");
+	}
+
+	ld_library_dirs[i] = fd;
+}
+
+/*
+ * Add file descriptors for a path list (e.g. '/lib:/usr/lib') to ld_library_dirs.
+ */
+static void
+add_libdir_paths(const char *path) {
+
+    if (path == NULL)
+	return;
+
+    char *pathcopy, *dirname, *tokcontext;
+    int pathlen = strnlen(path, PATH_MAX);
+
+    pathcopy = malloc(pathlen + 1);
+    strncpy(pathcopy, path, pathlen + 1);
+
+    for (dirname = strtok_r(pathcopy, ":", &tokcontext); dirname;
+         dirname = strtok_r(NULL, ":", &tokcontext)) {
+
+	int fd;
+
+	struct try_library_args arg;
+	arg.name = "";
+	arg.namelen = 0;
+	arg.buffer = xmalloc(PATH_MAX);
+	arg.buflen = PATH_MAX;
+
+	if (try_library_path(dirname, strnlen(dirname, PATH_MAX), &arg))
+	    fd = open(dirname, O_RDONLY);
+
+	else {
+	    /* 'dirname' is not a directory path; perhaps it's a descriptor? */
+	    fd = (int) strtol(dirname, NULL, 0);
+	    if ((fd == 0) && (errno == 0))
+		    continue;
+	}
+
+	if (fd >= 0)
+	    add_libdir_fd(fd);
+    }
+
+    free(pathcopy);
+}
+
+/*
+ * Build the list of library file descriptors.
+ */
+static void
+init_libdirs(void) {
+#ifdef IN_RTLD_CAP
+
+    char *envvar = getenv(LD_ "LIBRARY_DIRS");
+    if (envvar == NULL)
+	err(-1, "No %s set in capability mode", LD_ "LIBRARY_DIRS");
+
+    add_libdir_paths(envvar);
+
+#else /* !IN_RTLD_CAP */
+
+    /* Look for directories a la find_library (TODO: refactor!). */
+    add_libdir_paths(ld_library_path);
+    add_libdir_paths(gethints());
+    add_libdir_paths(STANDARD_LIBRARY_PATH);
+#endif
+
+    /* If all else fails, create an empty array */
+    if (ld_library_dirlen == 0) {
+	ld_library_dirs = malloc(sizeof(int));
+	ld_library_dirs[0] = -1;
+    }
+}
+/*
+ * Return an array of file descriptors for the library search paths.
+ */
+int
+ld_libdirs(int *fds, int *fdcount) {
+
+	if (fdcount == NULL)
+	    return (-1);
+
+	else if (fds == NULL) {
+	    *fdcount = -1;
+	    return (-1);
+	}
+
+	if (ld_library_dirs == NULL)
+	    init_libdirs();
+
+	int i = 0;
+	for (i = 0; (i < ld_library_dirlen) && (ld_library_dirs[i] != -1); i++) ;
+
+	if (*fdcount < i) {
+		*fdcount = i;
+		return (-1);
+	}
+
+	*fdcount = i;
+	memcpy(fds, ld_library_dirs, i * sizeof(int));
+	return 0;
+}
 
 int
 dlclose(void *handle)

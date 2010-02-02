@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.c#2 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.c#3 $
  */
 
 #include <sys/types.h>
@@ -154,7 +154,7 @@ ssize_t
 _lc_send_rights(int fd, const void *msg, size_t len, int flags, int lc_flags,
     int *fdp, int fdcount)
 {
-	char cmsgbuf[CMSG_SPACE(LIBCAPABILITY_SANDBOX_API_MAXRIGHTS *
+	char cmsgbuf[CMSG_SPACE(LIBCAPSICUM_SANDBOX_API_MAXRIGHTS *
 	    sizeof(int))];
 	struct cmsghdr *cmsg;
 	struct msghdr msghdr;
@@ -170,7 +170,7 @@ _lc_send_rights(int fd, const void *msg, size_t len, int flags, int lc_flags,
 		return (-1);
 	}
 
-	if (fdcount > LIBCAPABILITY_SANDBOX_API_MAXRIGHTS) {
+	if (fdcount > LIBCAPSICUM_SANDBOX_API_MAXRIGHTS) {
 		errno = EMSGSIZE;
 		return (-1);
 	}
@@ -224,7 +224,7 @@ ssize_t
 _lc_recv_rights(int fd, void *buf, size_t len, int flags, int lc_flags,
     int *fdp, int *fdcountp)
 {
-	char cmsgbuf[CMSG_SPACE(LIBCAPABILITY_SANDBOX_API_MAXRIGHTS *
+	char cmsgbuf[CMSG_SPACE(LIBCAPSICUM_SANDBOX_API_MAXRIGHTS *
 	    sizeof(int))];
 	struct msghdr msghdr;
 	struct iovec iov;
@@ -238,7 +238,7 @@ _lc_recv_rights(int fd, void *buf, size_t len, int flags, int lc_flags,
 		return (-1);
 	}
 
-	if (*fdcountp > LIBCAPABILITY_SANDBOX_API_MAXRIGHTS) {
+	if (*fdcountp > LIBCAPSICUM_SANDBOX_API_MAXRIGHTS) {
 		errno = EMSGSIZE;
 		return (-1);
 	}

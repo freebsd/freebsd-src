@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $P4: //depot/projects/trustedbsd/capabilities/src/libexec/rtld-elf-cap/Makefile#18 $
+# $P4: //depot/projects/trustedbsd/capabilities/src/libexec/rtld-elf-cap/Makefile#21 $
 
 WITHOUT_SSP=
 
@@ -9,7 +9,7 @@ PROG?=		ld-elf-cap.so.1
 SRCS=		rtld_start.S \
 		reloc.c rtld.c rtld_lock.c map_object.c \
 		malloc.c xmalloc.c debug.c \
-		crtbrand.c rtld_libcache.c rtld_sandbox.c
+		crtbrand.c rtld_sandbox.c
 MAN=		rtld-elf-cap.1
 CSTD?=		gnu99
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD -DIN_RTLD_CAP -g

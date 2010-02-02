@@ -30,25 +30,25 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_sandbox_api.h#2 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_sandbox_api.h#3 $
  */
 
-#ifndef _LIBCAPABILITY_SANDBOX_API_H_
-#define	_LIBCAPABILITY_SANDBOX_API_H_
+#ifndef _LIBCAPSICUM_SANDBOX_API_H_
+#define	_LIBCAPSICUM_SANDBOX_API_H_
 
 /*
  * This include file captures the assumptions libcapsicum sandboxs will
  * make about the runtime environment set up by libcapsicum hosts.
  */
-#define	LIBCAPABILITY_SANDBOX_API_ENV	"LIBCAPABILITY_SANDBOX"
-#define LIBCAPABILITY_SANDBOX_FDLIST	"LIBCAPABILITY_FDLIST"
-#define	LIBCAPABILITY_SANDBOX_API_SOCK	"sock"
+#define	LIBCAPSICUM_SANDBOX_API_ENV	"LIBCAPSICUM_SANDBOX"
+#define LIBCAPSICUM_SANDBOX_FDLIST	"LIBCAPSICUM_FDLIST"
+#define	LIBCAPSICUM_SANDBOX_API_SOCK	"sock"
 
 /*
  * Maximum number of file descriptor rights we will ever send as part of an
  * RPC.
  */
-#define	LIBCAPABILITY_SANDBOX_API_MAXRIGHTS	16
+#define	LIBCAPSICUM_SANDBOX_API_MAXRIGHTS	16
 
 /*
  * Simple libcapsicum RPC facility (lcrpc) definitions.
@@ -79,4 +79,4 @@ struct lcrpc_reply_hdr {
 	u_int64_t	_lcrpc_rephdr_spare0;
 } __packed;
 
-#endif /* !_LIBCAPABILITY_H_ */
+#endif /* !_LIBCAPSICUM_H_ */

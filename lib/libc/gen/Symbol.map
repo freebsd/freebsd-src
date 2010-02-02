@@ -343,6 +343,7 @@ FBSD_1.1 {
 	ld_libcache_add;
 	ld_libcache_lookup;
 	ld_insandbox;
+	ld_libdirs;
 	posix_spawn;
 	posix_spawn_file_actions_addclose;
 	posix_spawn_file_actions_adddup2;

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#4 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#9 $
  */
 
 #include <sys/mman.h>
@@ -45,6 +45,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "libcapsicum_internal.h"
 #include "libcapsicum_sandbox_api.h"
 
 struct lc_fdlist_entry {
@@ -99,7 +100,7 @@ lc_fdlist_global(void)
 		return (&global_fdlist);
 	}
 
-	env = getenv(LIBCAPABILITY_SANDBOX_FDLIST);
+	env = getenv(LIBCAPSICUM_SANDBOX_FDLIST);
 	if ((env != NULL) && (strnlen(env, 8) < 7)) {
 		struct lc_fdlist_storage *lfsp;
 		struct stat sb;
@@ -118,7 +119,7 @@ lc_fdlist_global(void)
 			goto fail;
 		lfsp = mmap(NULL, sb.st_size, PROT_READ | PROT_WRITE,
 		    MAP_NOSYNC | MAP_SHARED, fd, 0);
-		if (lfsp == NULL)
+		if (lfsp == MAP_FAILED)
 			goto fail;
 
 		/*
@@ -126,8 +127,8 @@ lc_fdlist_global(void)
 		 * to make sure sizes/etc are internally consistent.
 		 */
 		global_fdlist.lf_storage = lfsp;
+		return (&global_fdlist);
 	}
-	return (&global_fdlist);
 
 fail:
 	/* XXX: We don't always set errno before returning. */
@@ -309,6 +310,13 @@ int
 lc_fdlist_append(struct lc_fdlist *to, struct lc_fdlist *from)
 {
 	int pos = 0;
+	if (to == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	if (from == NULL)
+		return (0);
 
 	/* Use address to order lc_fdlist locks. */
 	if ((uintptr_t)to < (uintptr_t)from) {
@@ -401,7 +409,7 @@ lc_fdlist_lookup(struct lc_fdlist *lfp, const char *subsystem,
 			}
 
 			*fdp = entry->fd;
-			if (pos) *pos = i + 1;
+			if (pos != NULL) *pos = i + 1;
 			successful = 1;
 			break;
 		}
@@ -421,14 +429,14 @@ lc_fdlist_getentry(struct lc_fdlist *lfp, char **subsystem, char **classname,
 
 	LOCK(lfp);
 	lfsp = lfp->lf_storage;
-	if ((pos == NULL) || (*pos < 0) || (*pos >= (int) lfsp->count)
-	    || (subsystem == NULL) || (classname == NULL)
-	    || (name == NULL) || (fdp == NULL)) {
+
+	if ((subsystem == NULL) || (classname == NULL) || (name == NULL)
+	    || (fdp == NULL) || ((pos != NULL) && (*pos >= (int) lfsp->count))) {
 		errno = EINVAL;
 		return (-1);
 	}
 
-	struct lc_fdlist_entry *entry = lfsp->entries + *pos;
+	struct lc_fdlist_entry *entry = lfsp->entries + (pos ? *pos : 0);
 	char *names = lc_fdlist_storage_names(lfsp);
 	int size = entry->syslen + entry->classnamelen + entry->namelen;
 	char *head = malloc(size);
@@ -448,7 +456,8 @@ lc_fdlist_getentry(struct lc_fdlist *lfp, char **subsystem, char **classname,
 	*fdp = entry->fd;
 	UNLOCK(lfp);
 
-	(*pos)++;
+	if (pos) (*pos)++;
+
 	return (0);
 }
 
@@ -536,3 +545,9 @@ lc_fdlist_storage_names(struct lc_fdlist_storage *lfsp)
 	return (((char *) lfsp) + lc_fdlist_storage_size(lfsp) -
 	    lfsp->namecapacity);
 }
+
+void*
+_lc_fdlist_getstorage(struct lc_fdlist* lfp) {
+	return lfp->lf_storage;
+}
+

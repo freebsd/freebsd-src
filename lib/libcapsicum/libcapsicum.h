@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.h#4 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.h#11 $
  */
 
-#ifndef _LIBCAPABILITY_H_
-#define	_LIBCAPABILITY_H_
+#ifndef _LIBCAPSICUM_H_
+#define	_LIBCAPSICUM_H_
 
 #include <sys/cdefs.h>
 #include <sys/capability.h>
@@ -73,7 +73,7 @@ u_int	lc_fdlist_size(struct lc_fdlist *lfp);
  * Add a file descriptor to the list.
  *
  * lfp		the list to add to
- * subsystem	a software component name, e.g. "org.freebsd.rtld-elf"
+ * subsystem	a software component name, e.g. "org.freebsd.rtld-elf-cap"
  * classname	a class name, e.g. "libdir" or "library"
  * name		an instance name, e.g. "system library dir" or "libc.so.6"
  * fd		the file descriptor
@@ -141,13 +141,12 @@ int	lch_autosandbox_isenabled(const char *servicename);
 int	lch_start(const char *sandbox, char *const argv[], u_int flags,
 	    struct lc_fdlist *fds, struct lc_sandbox **lcspp);
 int	lch_start_libs(const char *sandbox, char *const argv[], u_int flags,
-	    struct lc_library *lclp, u_int lcl_count, struct lc_fdlist *fds,
-	    struct lc_sandbox **lcspp);
+	    struct lc_fdlist *fds, struct lc_sandbox **lcspp);
 int	lch_startfd(int fd_sandbox, const char *binname, char *const argv[],
 	    u_int flags, struct lc_fdlist *fds, struct lc_sandbox **lcspp);
 int	lch_startfd_libs(int fd_sandbox, const char *binname,
-	    char *const argv[], u_int flags, struct lc_library *lclp,
-	    u_int lcl_count, struct lc_fdlist *fds, struct lc_sandbox **lcspp);
+	    char *const argv[], u_int flags, struct lc_fdlist *fds,
+	    struct lc_sandbox **lcspp);
 void	lch_stop(struct lc_sandbox *lcsp);
 
 /*
@@ -222,6 +221,11 @@ int	lcs_sendrpc_rights(struct lc_host *lchp, u_int32_t opno,
  */
 int	ld_libcache_lookup(const char *libname, int *fdp);
 int	ld_insandbox(void);
+/*
+ * If this call fails because the buffer 'fds' is too small, 'fdlen' will contain
+ * the size of the array which is actually required.
+ */
+int	ld_libdirs(int *fds, int *fdlen);
 
 /* If this call is successful, the caller is responsible for freeing 'fds'. */
 int	ld_libdirs(int **fds);
@@ -235,4 +239,4 @@ int	cap_main(int argc, char *argv[]);
 
 __END_DECLS
 
-#endif /* !_LIBCAPABILITY_H_ */
+#endif /* !_LIBCAPSICUM_H_ */

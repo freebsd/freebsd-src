@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Robert N. M. Watson
+ * Copyright (c) 2010 Jonathan Anderson
  * All rights reserved.
  *
  * WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
@@ -31,11 +31,14 @@
  * SUCH DAMAGE.
  */
 
-#ifndef RTLD_LIBCACHE_H
-#define	RTLD_LIBCACHE_H
+#include <errno.h>
 
-int	ld_libcache_add(const char *libname, int fd);
-int	ld_libcache_lookup(const char *libname, int *fdp);
-void	ld_libcache_init(const char *libcache);
+#pragma weak ld_libdirs
+int
+ld_libdirs(int *fds, int *fdlen)
+{
 
-#endif /* !RTLD_LIBCACHE_H */
+	errno = EOPNOTSUPP;
+	return (-1);
+}
+

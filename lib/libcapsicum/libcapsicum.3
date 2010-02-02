@@ -34,7 +34,7 @@
 .\"
 .Dd June 11, 2009
 .Os
-.Dt LIBCAPABILITY 3
+.Dt LIBCAPSICUM 3
 .Sh NAME
 .Nm libcapsicum
 .Nd "library interface to capability-mode services"
@@ -89,7 +89,7 @@ file descriptor list API, described in
 .Xr libcapsicum_fdlist 3 ,
 may be used to manage the delegation of file descriptors/capabilities to
 sandboxes using a namespace.
-.Sh CAPABILITY API
+.Sh CAPSICUM API
 .Fn lc_limitfd
 is a wrapper around
 .Xr cap_new 2 ,

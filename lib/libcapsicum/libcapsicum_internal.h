@@ -30,11 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_internal.h#2 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_internal.h#5 $
  */
 
-#ifndef _LIBCAPABILITY_INTERNAL_H_
-#define	_LIBCAPABILITY_INTERNAL_H_
+#ifndef _LIBCAPSICUM_INTERNAL_H_
+#define	_LIBCAPSICUM_INTERNAL_H_
+
+#define LIBCAPSICUM_FQNAME	"org.freebsd.libcapsicum"
+#define RTLD_CAP_FQNAME		"org.freebsd.rtld-elf-cap"
 
 struct lc_host {
 	int	lch_fd_sock;
@@ -45,6 +48,8 @@ struct lc_sandbox {
 	int	lcs_fd_procdesc;
 	pid_t	lcs_pid;
 };
+
+void*	_lc_fdlist_getstorage(struct lc_fdlist*);
 
 /*
  * Communications flags for recv/send calls (lc_flags).
@@ -63,4 +68,4 @@ ssize_t	_lc_send(int fd, const void *msg, size_t len, int flags,
 ssize_t	_lc_send_rights(int fd, const void *msg, size_t len, int flags,
 	    int lc_flags, int *fdp, int fdcount);
 
-#endif /* !_LIBCAPABILITY_INTERNAL_H_ */
+#endif /* !_LIBCAPSICUM_INTERNAL_H_ */

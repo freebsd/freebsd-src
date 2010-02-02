@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <limits.h>
+#include <stdio.h>   /* TODO: temporary */
 #include <stdlib.h>
 #include <string.h>
 
@@ -54,9 +55,7 @@ static struct lc_host	lch_global;
 int
 lcs_get(struct lc_host **lchpp)
 {
-	char *endp, *env, *env_dup, *env_dup_free, *name, *token, *value;
-	int error, fd_sock;
-	long long ll;
+	int fd_sock;
 
 	if (lch_initialized) {
 		*lchpp = &lch_global;
@@ -68,39 +67,16 @@ lcs_get(struct lc_host **lchpp)
 		return (-1);
 	}
 
-	env = getenv(LIBCAPABILITY_SANDBOX_API_ENV);
-	if (env == NULL) {
-		errno = EINVAL;		/* XXXRW: Better errno? */
+	struct lc_fdlist *fds = lc_fdlist_global();
+	if (lc_fdlist_lookup(fds, LIBCAPSICUM_FQNAME, "socket", NULL,
+	                     &fd_sock, NULL) < 0)
 		return (-1);
-	}
-
-	env_dup = env_dup_free = strdup(env);
-	if (env_dup == NULL)
+	if (fd_sock == -1)
 		return (-1);
 
-	fd_sock = -1;
-	while ((token = strsep(&env_dup, ",")) != NULL) {
-		name = strsep(&token, ":");
-		if (name == NULL)
-			continue;
-		value = token;
-		if (strcmp(name, LIBCAPABILITY_SANDBOX_API_SOCK) == 0) {
-			ll = strtoll(value, &endp, 10);
-			if (*endp != '\0' || ll < 0 || ll > INT_MAX)
-				continue;
-			fd_sock = ll;
-		}
-	}
-	if (fd_sock == -1) {
-		error = errno;
-		free(env_dup_free);
-		errno = error;
-		return (-1);
-	}
 	lch_global.lch_fd_sock = fd_sock;
 	lch_initialized = 1;
 	*lchpp = &lch_global;
-	free(env_dup_free);
 	return (0);
 }
 
