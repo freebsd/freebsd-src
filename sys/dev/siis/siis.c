@@ -1659,6 +1659,8 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 			else
 				ATA_OUTL(ch->r_mem, SIIS_P_CTLCLR, SIIS_P_CTL_PME);
 		}
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_TAGS)
+			d->atapi = cts->xport_specific.sata.atapi;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -1702,6 +1704,8 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_PM;
 		cts->xport_specific.sata.tags = d->tags;
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_TAGS;
+		cts->xport_specific.sata.atapi = d->atapi;
+		cts->xport_specific.sata.valid |= CTS_SATA_VALID_ATAPI;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
