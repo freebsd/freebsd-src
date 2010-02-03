@@ -144,7 +144,6 @@ int	addText(pdu_t *pp, char *fmt, ...);
 void	freePDU(pdu_t *pp);
 int	xmitpdu(isess_t *sess, pdu_t *pp);
 int	recvpdu(isess_t *sess, pdu_t *pp);
-void	pukeText(char *it, pdu_t *pp);
 
 int	lookup(token_t *tbl, char *m);
 
