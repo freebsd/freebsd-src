@@ -2864,8 +2864,7 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
 	}
 
 	/*
-	 * The magic thing is we should set c_has_waiters to 1 before
-	 * releasing user mutex.
+	 * set waiters byte and sleep.
 	 */
 	suword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters), 1);
 
