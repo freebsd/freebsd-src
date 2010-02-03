@@ -193,6 +193,7 @@ ALPHANUM	[a-z_0-9]
 static void
 init_strbuf(void)
 {
+
 	if (strbuf == NULL) {
 		strbuf = malloc(strbuf_sz);
 		if (strbuf == NULL)
@@ -204,7 +205,7 @@ init_strbuf(void)
 static void
 add_str(const char *str)
 {
-	size_t	 arglen;
+	size_t arglen;
 
 	arglen = strlen(str);
 
@@ -228,8 +229,8 @@ add_str(const char *str)
 void
 abort_line(int sig)
 {
-	static const char	 str[] = "[\n]P\n";
-	int			 save_errno;
+	static const char str[] = "[\n]P\n";
+	int save_errno;
 
 	switch (sig) {
 	default:
@@ -243,8 +244,8 @@ abort_line(int sig)
 int
 yywrap(void)
 {
-	static int		 state;
-	static YY_BUFFER_STATE	 buf;
+	static YY_BUFFER_STATE buf;
+	static int state;
 
 	if (fileindex == 0 && sargc > 0 && strcmp(sargv[0], _PATH_LIBB) == 0) {
 		filename = sargv[fileindex++];
@@ -285,4 +286,3 @@ yywrap(void)
 	}
 	return (1);
 }
-
