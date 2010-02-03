@@ -288,11 +288,6 @@
 #define	QENTRY_LEN			64
 
 /*
- * Special Internal Handle for IOCBs
- */
-#define	ISP_SPCL_HANDLE			0xa5dead5a
-
-/*
  * Command Structure Definitions
  */
 
