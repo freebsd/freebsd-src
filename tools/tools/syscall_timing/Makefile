@@ -3,7 +3,8 @@
 #
 
 PROG=	syscall_timing
-CFLAGS+=	-static -O
+CFLAGS+=	-O -Wall -rdynamic
 NO_MAN=
+LDADD=	-lcapsicum -lsbuf
 
 .include <bsd.prog.mk>
