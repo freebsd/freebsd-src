@@ -1,0 +1,24 @@
+TARGET_BIG_ENDIAN must die
+
+Changes in MACHINE_ARCH:
+
+mips (big endian)	mipseb
+mips (little endian)	mipsel
+arm (little endian)	arm		For historical reasons
+arm (big endian)	armeb
+
+What we call today MACHINE_ARCH is really MACHINE_CPUARCH.  This is
+called MACHINE_CPU on NetBSD, but FreeBSD already uses MACHINE_CPU for
+other purposes.  In general $MACHINE_ARCH -> $MACHINE_CPUARCH in most
+places in the tree.  MACHINE_CPUARCH is defined in bsd.own.mk, since
+it is dependent on the bsd tree, actually.  All the translation from
+MACHINE_ARCH to MACHINE_CPUARCH assumes that all members of that
+family are supported by one set of files on FreeBSD.  So mips files
+have support for both big and little endian.  But MACHINE_ARCH
+determines the default binaries that are generated.
+
+We'll likely need to have a MACHINE_ABI at some point.  Both MIPS and
+ARM have multiple ABIs, and we'll need something to be the default,
+and different CPUs within a family might have different defaults.
+Etc.  Plus there's t he need for multilib.  However, issues like this
+are beyond the scope of this branch.
