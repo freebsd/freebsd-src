@@ -565,6 +565,38 @@ test_pdfork_exec(int num)
 	benchmark_stop();
 }
 
+void
+test_chroot(int num)
+{
+	int i;
+
+	if (chroot("/") < 0)
+		err(-1, "test_chroot: chroot");
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (chroot("/") < 0)
+			err(-1, "test_chroot: chroot");
+	}
+	benchmark_stop();
+}
+
+void
+test_setuid(int num)
+{
+	uid_t uid;
+	int i;
+
+	uid = getuid();
+	if (setuid(uid) < 0)
+		err(-1, "test_setuid: setuid");
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (setuid(uid) < 0)
+			err(-1, "test_setuid: setuid");
+	}
+	benchmark_stop();
+}
+
 /*
  * A bit like sandbox, in that a process is forked, IPC ping-pong is done,
  * but with none of the sandboxing goo.
@@ -773,6 +805,8 @@ static const struct test tests[] = {
 	{ "fork_exec", test_fork_exec },
 	{ "vfork_exec", test_vfork_exec },
 	{ "pdfork_exec", test_pdfork_exec },
+	{ "chroot", test_chroot },
+	{ "setuid", test_setuid },
 	{ "pingpong", test_pingpong },
 	{ "sandbox", test_sandbox },
 };
