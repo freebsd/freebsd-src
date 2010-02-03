@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include "iscsi.h"
 #include "iscontrol.h"
 
+static void	pukeText(char *it, pdu_t *pp);
+
 int
 xmitpdu(isess_t *sess, pdu_t *pp)
 {
@@ -153,7 +155,7 @@ freePDU(pdu_t *pp)
      pp->ds_size = pp->ds_len = 0;
 }
 
-void
+static void
 pukeText(char *it, pdu_t *pp)
 {
      char	*ptr;
