@@ -82,15 +82,7 @@ main(int argc, char *argv[])
 {
 	int		 ch;
 	bool		 extended_regs = false;
-	char		*buf;
 	bool		 preproc_done = false;
-
-	if ((buf = strdup("")) == NULL)
-		err(1, NULL);
-
-	init_bmachine(extended_regs);
-	setlinebuf(stdout);
-	setlinebuf(stderr);
 
 	/* accept and ignore a single dash to be 4.4BSD dc(1) compatible */
 	while ((ch = getopt_long(argc, argv, "e:f:Vx", long_options, NULL)) != -1) {
@@ -122,6 +114,10 @@ main(int argc, char *argv[])
 	}
 	argc -= optind;
 	argv += optind;
+
+	init_bmachine(extended_regs);
+	setlinebuf(stdout);
+	setlinebuf(stderr);
 
 	if (argc > 1)
 		usage();
