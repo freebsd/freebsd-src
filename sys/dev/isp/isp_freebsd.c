@@ -1653,7 +1653,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 		cto->ct_timeout = 10;
 	}
 
-	if (isp_save_xs_tgt(isp, ccb, &handle)) {
+	if (isp_allocate_xs_tgt(isp, ccb, &handle)) {
 		xpt_print(ccb->ccb_h.path, "No XFLIST pointers for %s\n", __func__);
 		ccb->ccb_h.status = CAM_REQUEUE_REQ;
 		goto out;
@@ -3834,21 +3834,41 @@ isp_watchdog(void *arg)
 	isp = XS_ISP(xs);
 
 	handle = isp_find_handle(isp, xs);
-	if (handle) {
+	if (handle != ISP_HANDLE_FREE) {
 		/*
-		 * Make sure the command is *really* dead before we
-		 * release the handle (and DMA resources) for reuse.
+		 * Try and make sure the command is really dead before
+		 * we release the handle (and DMA resources) for reuse.
+		 *
+		 * If we are successful in aborting the command then
+		 * we're done here because we'll get the command returned
+		 * back separately.
 		 */
-		(void) isp_control(isp, ISPCTL_ABORT_CMD, xs);
+		if (isp_control(isp, ISPCTL_ABORT_CMD, xs) == 0) {
+			return;
+		}
 
 		/*
-		 * After this point, the comamnd is really dead.
+		 * Note that after calling the above, the command may in
+		 * fact have been completed.
+		 */
+		xs = isp_find_xs(isp, handle);
+
+		/*
+		 * If the command no longer exists, then we won't
+		 * be able to find the xs again with this handle.
+		 */
+		if (xs == NULL) {
+			return;
+		}
+
+		/*
+		 * After this point, the command is really dead.
 		 */
 		if (XS_XFRLEN(xs)) {
 			ISP_DMAFREE(isp, xs, handle);
 		} 
 		isp_destroy_handle(isp, handle);
-		xpt_print(xs->ccb_h.path, "watchdog timeout for handle 0x%x\n", handle);
+		isp_prt(isp, ISP_LOGERR, "%s: timeout for handle 0x%x", __func__, handle);
 		XS_SETERR(xs, CAM_CMD_TIMEOUT);
 		isp_done(xs);
 	}
