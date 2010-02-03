@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#15 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#16 $
  */
 
 #include <sys/param.h>
@@ -312,9 +312,8 @@ lch_startfd(int fd_binary, const char *binname, char *const argv[],
 		    binname, argv, fds);
 		exit(-1);
 	}
-#ifndef IN_CAP_MODE
-	close(fd_rtld);
-#endif
+	if (fd_rtld != -1)
+		close(fd_rtld);
 	close(fd_sockpair[1]);
 
 	lcsp->lcs_fd_procdesc = fd_procdesc;
@@ -330,10 +329,8 @@ out_error:
 		close(fd_sockpair[0]);
 	if (fd_sockpair[1] != -1)
 		close(fd_sockpair[1]);
-#ifndef IN_CAP_MODE
 	if (fd_rtld != -1)
 		close(fd_rtld);
-#endif
 	if (lcsp != NULL)
 		free(lcsp);
 	errno = error;

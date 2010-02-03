@@ -188,7 +188,9 @@ static bool dangerous_ld_env;	/* True if environment variables have been
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
 static int *ld_library_dirs = NULL; /* File descriptors of lib path (end: -1) */
+static int ld_library_dirs_done; /* ld_library_dirs has been initialized */
 static int ld_library_dirlen;	/* Capacity of ld_library_dirs */
+static int ld_library_dircount;	/* Number of entries in ld_library_dirs */
 #ifndef IN_RTLD_CAP
 static char *ld_library_path;	/* Environment variable for search path */
 static char *ld_preload;	/* Environment variable for libraries to
@@ -251,7 +253,6 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &ld_insandbox,
 #endif
     (func_ptr_type) &ld_libdirs,
- 
     NULL
 };
 
@@ -836,19 +837,19 @@ origin_subst(const char *real, const char *origin_path)
 static void *
 find_capstart(const Obj_Entry *obj)
 {
-	const char *capstart_str = "_capstart";
-	const Elf_Sym *def;
-	const Obj_Entry *defobj;
-	unsigned long hash;
+    const char *capstart_str = "_capstart";
+    const Elf_Sym *def;
+    const Obj_Entry *defobj;
+    unsigned long hash;
 
-	hash = elf_hash(capstart_str);
-	def = symlook_default(capstart_str, hash, obj, &defobj, NULL,
-	    SYMLOOK_IN_PLT);
-	if (def == NULL)
-		return (NULL);
-	if (ELF_ST_TYPE(def->st_info) != STT_FUNC)
-		return (NULL);
-	return (make_function_pointer(def, defobj));
+    hash = elf_hash(capstart_str);
+    def = symlook_default(capstart_str, hash, obj, &defobj, NULL,
+	SYMLOOK_IN_PLT);
+    if (def == NULL)
+	return (NULL);
+    if (ELF_ST_TYPE(def->st_info) != STT_FUNC)
+	return (NULL);
+    return (make_function_pointer(def, defobj));
 }
 #endif
 
@@ -1236,23 +1237,24 @@ elf_hash(const char *name)
 
 #ifdef IN_RTLD_CAP
 /*
- * Find the library with the given name, and return an open file descriptor to it.
+ * Find the library with the given name, and return an open file descriptor
+ * to it.
  */
 static int
-find_library_fd(const char *name) {
+find_library_fd(const char *name)
+{
+    int fd, i;
 
-    if (ld_library_dirs == NULL)
-	    init_libdirs();
-
-    for (int i = 0; (i < ld_library_dirlen) && (ld_library_dirs[i] != -1); i++) {
-
-	int fd = openat(ld_library_dirs[i], name, O_RDONLY);
+    if (!ld_library_dirs_done)
+	init_libdirs();
+    for (i = 0; i < ld_library_dircount); i++) {
+	fd = openat(ld_library_dirs[i], name, O_RDONLY);
 	if (fd >= 0)
-		return fd;
+	    return (fd);
     }
-
     return (-1);
 }
+
 #else
 /*
  * Find the library with the given name, and return its full pathname.
@@ -1664,26 +1666,26 @@ load_object(const char *name, const Obj_Entry *refobj, int flags)
     path = xstrdup(name);
     if ((fd = find_library_fd(path)) < 0) {
 	_rtld_error("Unable to find \"%s\" in LD_LIBRARY_DIRS", path);
+	free(path);
+	return NULL;
     }
 #else
-    if (fd == -1) {
-	path = find_library(name, refobj);
-	if (path == NULL)
+    path = find_library(name, refobj);
+    if (path == NULL)
 	return NULL;
 
-	/*
-	 * If we didn't find a match by pathname, open the file and check
-	 * again by device and inode.  This avoids false mismatches caused
-	 * by multiple links or ".." in pathnames.
-	 *
-	 * To avoid a race, we open the file and use fstat() rather than
-	 * using stat().
-	 */
-	if ((fd = open(path, O_RDONLY)) == -1) {
+    /*
+     * If we didn't find a match by pathname, open the file and check
+     * again by device and inode.  This avoids false mismatches caused
+     * by multiple links or ".." in pathnames.
+     *
+     * To avoid a race, we open the file and use fstat() rather than
+     * using stat().
+     */
+    if ((fd = open(path, O_RDONLY)) == -1) {
 	_rtld_error("Cannot open \"%s\"", path);
 	free(path);
 	return NULL;
-	}
     }
 #endif
     if (fstat(fd, &sb) == -1) {
@@ -2114,42 +2116,48 @@ search_library_path(const char *name, const char *path)
 
 /*
  * Add a file descriptor to ld_library_dirs.
+ *
+ * XXX: This may be called from either the rtld startup code, or from
+ * ld_libdirs.  We have no way to distinguish them on error, so die()
+ * unconditionally.  Perhaps the latter case should allow graceful failure.
+ *
+ * XXX: Synchronization?
  */
 static void
-add_libdir_fd(int fd) {
+add_libdir_fd(int fd)
+{
 
+    /* Initialize the FD list. */
+    if (!ld_library_dirs_done) {
+	ld_library_dirlen = INITIAL_FDLEN;
+	ld_library_dircount = 0;
+	ld_library_dirs = xmalloc(ld_library_dirlen * sizeof(int));
+	ld_library_dirs_done = 1;
+    }
+
+    /* Do we need to grow? */
+    if (ld_library_dirlen == ld_library_dircount) {
+	ld_library_dirlen *= 2;
+	ld_library_dirs = realloc(ld_library_dirs,
+	    ld_library_dirlen * sizeof(int));
 	if (ld_library_dirs == NULL) {
-	    /* Initialize the FD list. */
-
-	    ld_library_dirlen = INITIAL_FDLEN;
-	    ld_library_dirs = xmalloc(ld_library_dirlen * sizeof(int));
-	    memset(ld_library_dirs, 0xff, ld_library_dirlen * sizeof(int));
+	    _rtld_error("add_libdir_fd: realloc failed");
+	    die();
 	}
+    }
 
-	/* Find the next available FD slot. */
-	int i;
-	for (i = 0; (i < ld_library_dirlen) && (ld_library_dirs[i] != -1); i++) ;
-
-	if (i == ld_library_dirlen) {
-	    /* We need more space. */
-	    int old_size = ld_library_dirlen + sizeof(int);
-
-	    ld_library_dirlen *= 2;
-	    ld_library_dirs = realloc(ld_library_dirs, 2 * old_size);
-	    memset(ld_library_dirs + old_size, 0xff, old_size);
-
-	    if (ld_library_dirs == NULL)
-		err(-1, "realloc() failed");
-	}
-
-	ld_library_dirs[i] = fd;
+    /* Add the new library directory fd to the end. */
+    ld_library_dirs[ld_library_dircount] = fd;
+    ld_library_dircount++;
 }
 
 /*
- * Add file descriptors for a path list (e.g. '/lib:/usr/lib') to ld_library_dirs.
+ * Add file descriptors for a path list (e.g. '/lib:/usr/lib') to
+ * ld_library_dirs.
  */
 static void
-add_libdir_paths(const char *path) {
+add_libdir_paths(const char *path)
+{
 
     if (path == NULL)
 	return;
@@ -2161,24 +2169,22 @@ add_libdir_paths(const char *path) {
     strncpy(pathcopy, path, pathlen + 1);
 
     for (dirname = strtok_r(pathcopy, ":", &tokcontext); dirname;
-         dirname = strtok_r(NULL, ":", &tokcontext)) {
-
+	dirname = strtok_r(NULL, ":", &tokcontext)) {
+	struct try_library_args arg;
 	int fd;
 
-	struct try_library_args arg;
 	arg.name = "";
 	arg.namelen = 0;
 	arg.buffer = xmalloc(PATH_MAX);
 	arg.buflen = PATH_MAX;
 
-	if (try_library_path(dirname, strnlen(dirname, PATH_MAX), &arg))
+	if (try_library_path(dirname, strnlen(dirname, PATH_MAX), &arg)) {
 	    fd = open(dirname, O_RDONLY);
-
-	else {
+	} else {
 	    /* 'dirname' is not a directory path; perhaps it's a descriptor? */
 	    fd = (int) strtol(dirname, NULL, 0);
 	    if ((fd == 0) && (errno == 0))
-		    continue;
+		continue;
 	}
 
 	if (fd >= 0)
@@ -2192,57 +2198,47 @@ add_libdir_paths(const char *path) {
  * Build the list of library file descriptors.
  */
 static void
-init_libdirs(void) {
+init_libdirs(void)
+{
 #ifdef IN_RTLD_CAP
-
     char *envvar = getenv(LD_ "LIBRARY_DIRS");
+
     if (envvar == NULL)
 	err(-1, "No %s set in capability mode", LD_ "LIBRARY_DIRS");
 
     add_libdir_paths(envvar);
-
 #else /* !IN_RTLD_CAP */
-
     /* Look for directories a la find_library (TODO: refactor!). */
     add_libdir_paths(ld_library_path);
     add_libdir_paths(gethints());
     add_libdir_paths(STANDARD_LIBRARY_PATH);
 #endif
-
-    /* If all else fails, create an empty array */
-    if (ld_library_dirlen == 0) {
-	ld_library_dirs = malloc(sizeof(int));
-	ld_library_dirs[0] = -1;
-    }
 }
+
 /*
  * Return an array of file descriptors for the library search paths.
+ *
+ * XXX: synchronization of ld_library_dirs?
  */
 int
-ld_libdirs(int *fds, int *fdcount) {
+ld_libdirs(int *fds, int *fdcount)
+{
 
-	if (fdcount == NULL)
-	    return (-1);
-
-	else if (fds == NULL) {
-	    *fdcount = -1;
-	    return (-1);
-	}
-
-	if (ld_library_dirs == NULL)
-	    init_libdirs();
-
-	int i = 0;
-	for (i = 0; (i < ld_library_dirlen) && (ld_library_dirs[i] != -1); i++) ;
-
-	if (*fdcount < i) {
-		*fdcount = i;
-		return (-1);
-	}
-
-	*fdcount = i;
-	memcpy(fds, ld_library_dirs, i * sizeof(int));
-	return 0;
+    if (fdcount == NULL)
+	return (-1);
+    else if (fds == NULL) {
+	*fdcount = -1;
+	return (-1);
+    }
+    if (!ld_library_dirs_done)
+	init_libdirs();
+    if (*fdcount < ld_library_dircount) {
+	*fdcount = ld_library_dircount;
+	return (-1);
+    }
+    *fdcount = ld_library_dircount;
+    memcpy(fds, ld_library_dirs, ld_library_dircount * sizeof(int));
+    return (0);
 }
 
 int
