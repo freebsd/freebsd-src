@@ -1,9 +1,8 @@
 # $FreeBSD$
 # $P4: //depot/projects/trustedbsd/capabilities/src/libexec/rtld-elf-cap/Makefile#21 $
 
-WITHOUT_SSP=
-
 .include <bsd.own.mk>
+MK_SSP=		no
 
 PROG?=		ld-elf-cap.so.1
 SRCS=		rtld_start.S \
@@ -15,6 +14,7 @@ CSTD?=		gnu99
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD -DIN_RTLD_CAP -g
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../rtld-elf/${MACHINE_ARCH} -I${.CURDIR}/../rtld-elf
 LDFLAGS+=	-nostdlib -Wl,-e,.rtld_start
+WARNS?=		2
 INSTALLFLAGS=	-C -b
 PRECIOUSPROG=
 BINDIR=		/libexec
@@ -23,7 +23,7 @@ MLINKS=		rtld-elf-cap.1 ld-elf-cap.so.1.1
 CFLAGS+=	-fpic -DPIC
 LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
-LDADD=		-lc_pic
+LDADD=		-lc_pic -lssp_nonshared
 
 .if ${MACHINE_ARCH} != "ia64"
 .if ${MK_SYMVER} == "yes"
