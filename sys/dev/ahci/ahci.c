@@ -2297,7 +2297,12 @@ ahci_sata_phy_reset(device_t dev)
 	    ATA_SC_DET_IDLE | val | ((ch->pm_level > 0) ? 0 :
 	    (ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER)));
 	DELAY(5000);
-	return (ahci_sata_connect(ch));
+	if (!ahci_sata_connect(ch)) {
+		if (ch->pm_level > 0)
+			ATA_OUTL(ch->r_mem, AHCI_P_SCTL, ATA_SC_DET_DISABLE);
+		return (0);
+	}
+	return (1);
 }
 
 static void
