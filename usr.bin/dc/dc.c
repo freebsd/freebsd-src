@@ -59,8 +59,8 @@ usage(void)
 
 static void
 procfile(char *fname) {
-	FILE		*file;
-	struct stat	 st;
+	struct stat st;
+	FILE *file;
 
 	file = fopen(fname, "r");
 	if (file == NULL)
@@ -80,9 +80,8 @@ procfile(char *fname) {
 int
 main(int argc, char *argv[])
 {
-	int		 ch;
-	bool		 extended_regs = false;
-	bool		 preproc_done = false;
+	int ch;
+	bool extended_regs = false, preproc_done = false;
 
 	/* accept and ignore a single dash to be 4.4BSD dc(1) compatible */
 	while ((ch = getopt_long(argc, argv, "e:f:Vx", long_options, NULL)) != -1) {
