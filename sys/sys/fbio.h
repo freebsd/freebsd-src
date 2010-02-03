@@ -295,8 +295,10 @@ struct video_info {
     /* for MM_DIRECT only */
     int			vi_pixel_fields[4];	/* RGB and reserved fields */
     int			vi_pixel_fsizes[4];
+    /* XXX for VESA only */
+    int			vi_line_width;
     /* reserved */
-    u_char		vi_reserved[64];
+    u_char		vi_reserved[60];
     vm_offset_t		vi_registers;	/* physical address */
     vm_offset_t		vi_registers_size;
 };
