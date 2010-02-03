@@ -201,7 +201,7 @@ atapi_cam_attach(device_t dev)
     scp->parent = device_get_parent(dev);
     scp->ata_ch = device_get_softc(scp->parent);
     TAILQ_INIT(&scp->pending_hcbs);
-    unit = device_get_unit(dev);
+    unit = device_get_unit(device_get_parent(dev));
 
     if ((devq = cam_simq_alloc(16)) == NULL) {
 	error = ENOMEM;
