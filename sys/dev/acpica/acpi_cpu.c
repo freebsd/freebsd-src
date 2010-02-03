@@ -378,7 +378,8 @@ acpi_cpu_attach(device_t dev)
 	arg[3].Type = ACPI_TYPE_BUFFER;
 	arg[3].Buffer.Length = sizeof(cap_set);	/* Capabilities buffer */
 	arg[3].Buffer.Pointer = (uint8_t *)cap_set;
-	cap_set[0] = 0;
+	cap_set[0] = 0;				/* status */
+	cap_set[1] = sc->cpu_features;
 	AcpiEvaluateObject(sc->cpu_handle, "_OSC", &arglist, NULL);
     }
 
