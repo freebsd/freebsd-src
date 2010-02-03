@@ -341,7 +341,6 @@ FBSD_1.1 {
 	fts_set;
 	fts_set_clientptr;
 	ld_insandbox;
-	ld_libdirs;
 	posix_spawn;
 	posix_spawn_file_actions_addclose;
 	posix_spawn_file_actions_adddup2;
@@ -370,6 +369,7 @@ FBSD_1.1 {
 
 FBSD_1.2 {
 	getpagesizes;
+	ld_libdirs;
 };
 
 FBSDprivate_1.0 {
