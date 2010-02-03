@@ -11,8 +11,7 @@ SRCS+=	archive.c archive64.c archures.c bfd.c bfdwin.c binary.c cache.c \
 	section.c srec.c stab-syms.c stabs.c syms.c targets.c tekhex.c \
 	targmatch.h dwarf1.c dwarf2.c config.h bfdver.h bfdio.c simple.c
 WARNS?=	0
-.if (${TARGET_ARCH} == "alpha" || ${TARGET_ARCH} == "ia64" || \
-    ${TARGET_ARCH} == "sparc64")
+.if (${TARGET_ARCH} == "ia64" || ${TARGET_ARCH} == "sparc64")
 WARNS?=	2
 .endif
 CFLAGS+= -D_GNU_SOURCE
