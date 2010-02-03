@@ -334,12 +334,12 @@ enum {
 };
 
 struct ieee80211req_mesh_route {
-	uint8_t		imr_flags;
-#define	IEEE80211_MESHRT_FLAGS_VALID	0x01
-#define	IEEE80211_MESHRT_FLAGS_PROXY	0x02
 	uint8_t		imr_dest[IEEE80211_ADDR_LEN];
 	uint8_t		imr_nexthop[IEEE80211_ADDR_LEN];
 	uint16_t	imr_nhops;
+	uint8_t		imr_flags;
+#define	IEEE80211_MESHRT_FLAGS_VALID	0x01
+#define	IEEE80211_MESHRT_FLAGS_PROXY	0x02
 	uint8_t		imr_pad;
 	uint32_t	imr_metric;
 	uint32_t	imr_lifetime;
