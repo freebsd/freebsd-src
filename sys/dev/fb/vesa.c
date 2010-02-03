@@ -1317,7 +1317,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	} else {
 		vesa_adp->va_buffer = 0;
 		vesa_adp->va_buffer_size = info.vi_buffer_size;
-		vesa_adp->va_window = BIOS_PADDRTOVADDR(info.vi_window);
+		vesa_adp->va_window = (vm_offset_t)x86bios_offset(info.vi_window);
 		vesa_adp->va_window_size = info.vi_window_size;
 		vesa_adp->va_window_gran = info.vi_window_gran;
 	}
