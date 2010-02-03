@@ -371,7 +371,7 @@ test_fork(int num)
 	if (pid < 0)
 		err(-1, "test_fork: fork");
 	if (pid == 0)
-		exit(0);
+		_exit(0);
 	if (waitpid(pid, NULL, 0) < 0)
 		err(-1, "test_fork: waitpid");
 	benchmark_start();
@@ -380,7 +380,7 @@ test_fork(int num)
 		if (pid < 0)
 			err(-1, "test_fork: fork");
 		if (pid == 0)
-			exit(0);
+			_exit(0);
 		if (waitpid(pid, NULL, 0) < 0)
 			err(-1, "test_fork: waitpid");
 	}
@@ -397,7 +397,7 @@ test_vfork(int num)
 	if (pid < 0)
 		err(-1, "test_vfork: vfork");
 	if (pid == 0)
-		exit(0);
+		_exit(0);
 	if (waitpid(pid, NULL, 0) < 0)
 		err(-1, "test_vfork: waitpid");
 	benchmark_start();
@@ -406,7 +406,7 @@ test_vfork(int num)
 		if (pid < 0)
 			err(-1, "test_vfork: vfork");
 		if (pid == 0)
-			exit(0);
+			_exit(0);
 		if (waitpid(pid, NULL, 0) < 0)
 			err(-1, "test_vfork: waitpid");
 	}
@@ -424,15 +424,15 @@ test_pdfork(int num)
 	if (pid < 0)
 		err(-1, "test_pdfork: pdfork");
 	if (pid == 0)
-		exit(0);
+		_exit(0);
 	pollfd.fd = fd;
 	pollfd.events = POLLHUP;
 	pollfd.revents = 0;
 	n = poll(&pollfd, 1, INFTIM);
 	if (n < 0)
-		err(-1, "poll");
+		err(-1, "test_pdfork: poll");
 	if (n != 1)
-		errx(-1, "poll returned %d", n);
+		errx(-1, "test_pdfork: poll returned %d", n);
 	close(fd);
 
 	benchmark_start();
@@ -441,15 +441,15 @@ test_pdfork(int num)
 		if (pid < 0)
 			err(-1, "test_pdfork: pdfork");
 		if (pid == 0)
-			exit(0);
+			_exit(0);
 		pollfd.fd = fd;
 		pollfd.events = POLLHUP;
 		pollfd.revents = 0;
 		n = poll(&pollfd, 1, INFTIM);
 		if (n < 0)
-			err(-1, "poll");
+			err(-1, "test_pdfork: poll");
 		if (n != 1)
-			errx(-1, "poll returned %d", n);
+			errx(-1, "test_pdfork: poll returned %d", n);
 		close(fd);
 	}
 	benchmark_stop();
@@ -467,7 +467,7 @@ test_fork_exec(int num)
 
 	pid = fork();
 	if (pid < 0)
-		err(-1, "test_fork: fork");
+		err(-1, "test_fork_exec: fork");
 	if (pid == 0) {
 		(void)execve(USR_BIN_TRUE, execve_args, environ);
 		err(-1, "execve");
@@ -478,13 +478,13 @@ test_fork_exec(int num)
 	for (i = 0; i < num; i++) {
 		pid = fork();
 		if (pid < 0)
-			err(-1, "test_fork: fork");
+			err(-1, "test_fork_exec: fork");
 		if (pid == 0) {
 			(void)execve(USR_BIN_TRUE, execve_args, environ);
-			err(-1, "execve");
+			err(-1, "test_fork_exec: execve");
 		}
 		if (waitpid(pid, NULL, 0) < 0)
-			err(-1, "test_fork: waitpid");
+			err(-1, "test_fork_exec: waitpid");
 	}
 	benchmark_stop();
 }
@@ -497,24 +497,24 @@ test_vfork_exec(int num)
 
 	pid = vfork();
 	if (pid < 0)
-		err(-1, "test_vfork: vfork");
+		err(-1, "test_vfork_exec: vfork");
 	if (pid == 0) {
 		(void)execve(USR_BIN_TRUE, execve_args, environ);
-		err(-1, "execve");
+		err(-1, "test_vfork_exec: execve");
 	}
 	if (waitpid(pid, NULL, 0) < 0)
-		err(-1, "test_vfork: waitpid");
+		err(-1, "test_vfork_exec: waitpid");
 	benchmark_start();
 	for (i = 0; i < num; i++) {
 		pid = vfork();
 		if (pid < 0)
-			err(-1, "test_vfork: vfork");
+			err(-1, "test_vfork_exec: vfork");
 		if (pid == 0) {
 			(void)execve(USR_BIN_TRUE, execve_args, environ);
 			err(-1, "execve");
 		}
 		if (waitpid(pid, NULL, 0) < 0)
-			err(-1, "test_vfork: waitpid");
+			err(-1, "test_vfork_exec: waitpid");
 	}
 	benchmark_stop();
 }
@@ -528,39 +528,127 @@ test_pdfork_exec(int num)
 
 	pid = pdfork(&fd);
 	if (pid < 0)
-		err(-1, "test_pdfork: pdfork");
+		err(-1, "test_pdfork_exec: pdfork");
 	if (pid == 0) {
 		(void)execve(USR_BIN_TRUE, execve_args, environ);
-		err(-1, "execve");
+		err(-1, "test_pdfork_exec: execve");
 	}
 	pollfd.fd = fd;
 	pollfd.events = POLLHUP;
 	pollfd.revents = 0;
 	n = poll(&pollfd, 1, INFTIM);
 	if (n < 0)
-		err(-1, "poll");
+		err(-1, "test_pdfork_exec: poll");
 	if (n != 1)
-		errx(-1, "poll returned %d", n);
+		errx(-1, "test_pdfork_exec: poll returned %d", n);
 	close(fd);
 
 	benchmark_start();
 	for (i = 0; i < num; i++) {
 		pid = pdfork(&fd);
 		if (pid < 0)
-			err(-1, "test_pdfork: pdfork");
+			err(-1, "test_pdfork_exec: pdfork");
 		if (pid == 0) {
 			(void)execve(USR_BIN_TRUE, execve_args, environ);
-			err(-1, "execve");
+			err(-1, "test_pdfork_exec: execve");
 		}
 		pollfd.fd = fd;
 		pollfd.events = POLLHUP;
 		pollfd.revents = 0;
 		n = poll(&pollfd, 1, INFTIM);
 		if (n < 0)
-			err(-1, "poll");
+			err(-1, "test_pdfork_exec: poll");
 		if (n != 1)
-			errx(-1, "poll returned %d", n);
+			errx(-1, "test_pdfork_exec: poll returned %d", n);
 		close(fd);
+	}
+	benchmark_stop();
+}
+
+/*
+ * A bit like sandbox, in that a process is forked, IPC ping-pong is done,
+ * but with none of the sandboxing goo.
+ */
+void
+test_pingpong(int num)
+{
+	char ch;
+	int so[2];
+	pid_t pid;
+	ssize_t len;
+	int i;
+
+	if (socketpair(PF_LOCAL, SOCK_STREAM, 0, so) < 0)
+		err(-1, "test_pingpong: socketpair");
+	pid = fork();
+	if (pid < 0)
+		err(-1, "test_pingpong: fork");
+	if (pid == 0) {
+		close(so[0]);
+		len = recv(so[1], &ch, sizeof(ch), 0);
+		if (len < 0)
+			err(-1, "test_pingpong: child: recv");
+		if (len != 1)
+			errx(-1, "test_pingpong: child: recv %d", (int)len);
+		len = send(so[1], &ch, sizeof(ch), 0);
+		if (len < 0)
+			err(-1, "test_pingpong: child: send");
+		if (len != 1)
+			errx(-1, "test_pingpong: child: send %d", (int)len);
+		_exit(0);
+	}
+	close(so[1]);
+	len = send(so[0], &ch, sizeof(ch), 0);
+	if (len < 0)
+		err(-1, "test_pingpong: parent: send");
+	if (len != 1)
+		errx(-1, "test_pingpong: parent: send %d", (int)len);
+	len = recv(so[0], &ch, sizeof(ch), 0);
+	if (len < 0)
+		err(-1, "test_pingpong: parent: recv");
+	if (len != 1)
+		errx(-1, "test_pingpong: parent: recv %d", (int)len);
+	close(so[0]);
+	if (waitpid(pid, NULL, 0) < 0)
+		err(-1, "test_pingpong: waitpid");
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (socketpair(PF_LOCAL, SOCK_STREAM, 0, so) < 0)
+			err(-1, "test_pingpong: socketpair");
+		pid = fork();
+		if (pid < 0)
+			err(-1, "test_pingpong: fork");
+		if (pid == 0) {
+			close(so[0]);
+			len = recv(so[1], &ch, sizeof(ch), 0);
+			if (len < 0)
+				err(-1, "test_pingpong: child: recv");
+			if (len != 1)
+				errx(-1, "test_pingpong: child: recv %d",
+				    (int)len);
+			len = send(so[1], &ch, sizeof(ch), 0);
+			if (len < 0)
+				err(-1, "test_pingpong: child: send");
+			if (len != 1)
+				errx(-1, "test_pingpong: child: send %d",
+				    (int)len);
+			_exit(0);
+		}
+		close(so[1]);
+		len = send(so[0], &ch, sizeof(ch), 0);
+		if (len < 0)
+			err(-1, "test_pingpong: parent: send");
+		if (len != 1)
+			errx(-1, "test_pingpong: parent: send %d", (int)len);
+		len = recv(so[0], &ch, sizeof(ch), 0);
+		if (len < 0)
+			err(-1, "test_pingpong: parent: recv");
+		if (len != 1)
+			errx(-1, "test_pingpong: parent: recv %d", (int)len);
+		close(so[0]);
+		if (waitpid(pid, NULL, 0) < 0)
+			err(-1, "test_pingpong: waitpid");
 	}
 	benchmark_stop();
 }
@@ -674,8 +762,8 @@ static const struct test tests[] = {
 	{ "socketpair_dgram", test_socketpair_dgram },
 	{ "dup", test_dup },
 	{ "cap_new", test_cap_new },
-	{ "test_shmfd", test_shmfd },
-	{ "test_cap_shmfd", test_cap_shmfd },
+	{ "shmfd", test_shmfd },
+	{ "cap_shmfd", test_cap_shmfd },
 	{ "fstat_shmfd", test_fstat_shmfd },
 	{ "fstat_cap_shmfd", test_fstat_cap_shmfd },
 	{ "cap_enter", test_cap_enter },
@@ -685,6 +773,7 @@ static const struct test tests[] = {
 	{ "fork_exec", test_fork_exec },
 	{ "vfork_exec", test_vfork_exec },
 	{ "pdfork_exec", test_pdfork_exec },
+	{ "pingpong", test_pingpong },
 	{ "sandbox", test_sandbox },
 };
 static const int tests_count = sizeof(tests) / sizeof(tests[0]);
@@ -710,7 +799,7 @@ main(int argc, char *argv[])
 	int i, j, k;
 	int iterations, loops;
 
-	if (argc < 3)
+	if (argc < 4)
 		usage();
 
 	ll = strtoll(argv[1], &endp, 10);
