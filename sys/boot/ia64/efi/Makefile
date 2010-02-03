@@ -9,21 +9,21 @@ PROG=		loader.sym
 INTERNALPROG=
 SRCS=		conf.c efimd.c main.c pal.S start.S vers.c
 
-.PATH: ${.CURDIR}/../../../${MACHINE_ARCH}/${MACHINE_ARCH}
+.PATH: ${.CURDIR}/../../../${MACHINE_CPUARCH}/${MACHINE_CPUARCH}
 
 CFLAGS+=	-I${.CURDIR}/../common
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../efi/include
-CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_ARCH}
+CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
 
-LDSCRIPT=	${.CURDIR}/ldscript.${MACHINE_ARCH}
+LDSCRIPT=	${.CURDIR}/ldscript.${MACHINE_CPUARCH}
 LDFLAGS=	-Wl,-T${LDSCRIPT} -shared -symbolic
 
 ${PROG}: ${LDSCRIPT}
 
-NEWVERSWHAT=	"EFI boot" ${MACHINE_ARCH}
+NEWVERSWHAT=	"EFI boot" ${MACHINE_CPUARCH}
 
 vers.c: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
@@ -42,7 +42,7 @@ loader.efi: loader.sym
 	fi
 	${OBJCOPY} -j .data -j .dynamic -j .dynstr -j .dynsym -j .hash \
 	    -j .rela.dyn -j .reloc -j .sdata -j .text \
-	    --target=efi-app-${MACHINE_ARCH} ${.ALLSRC} ${.TARGET}
+	    --target=efi-app-${MACHINE_CPUARCH} ${.ALLSRC} ${.TARGET}
 
 CLEANFILES=	vers.c loader.efi
 

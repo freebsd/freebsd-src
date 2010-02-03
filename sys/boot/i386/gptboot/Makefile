@@ -67,7 +67,7 @@ gptboot.out: ${BTXCRT} gptboot.o sio.o
 
 gptboot.o: ${.CURDIR}/../../common/ufsread.c
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 beforedepend gptboot.o: machine
 CLEANFILES+=	machine
 machine:

@@ -19,7 +19,7 @@ CFLAGS+= -DDISK_DEBUG
 .endif
 
 machine:
-	ln -sf ${.CURDIR}/../../../${MACHINE_ARCH}/include machine
+	ln -sf ${.CURDIR}/../../../${MACHINE_CPUARCH}/include machine
 
 CLEANFILES+=	machine
 

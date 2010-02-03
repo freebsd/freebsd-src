@@ -393,11 +393,11 @@ _sendmail=	sendmail
 .endif
 
 .if ${MK_SYSINSTALL} != "no"
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
-    ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
+    ${MACHINE_CPUARCH} == "sparc64"
 _sade=		sade
 .endif
-.if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
+.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 _sysinstall=	sysinstall
 .endif
 .endif
@@ -408,7 +408,7 @@ _crunch=	crunch
 .endif
 
 .if ${MK_USB} != "no"
-.if ${MACHINE_ARCH} != "ia64"
+.if ${MACHINE_CPUARCH} != "ia64"
 _uathload=	uathload
 .endif
 _uhsoctl=	uhsoctl
@@ -422,11 +422,11 @@ _wlandebug=	wlandebug
 _wpa=		wpa
 .endif
 
-.if ${MACHINE_ARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "arm"
 _kgmon=		kgmon
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 .if ${MK_APM} != "no"
 _apm=		apm
 _apmd=		apmd
@@ -467,7 +467,7 @@ _boot98cfg=	boot98cfg
 # kgzip: builds, but missing support files
 # mptable: broken (not 64 bit clean)
 # pnpinfo: crashes (not really useful anyway)
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 .if ${MK_ACPI} != "no"
 _acpi=		acpi
 .endif
@@ -495,7 +495,7 @@ _spkrtest=	spkrtest
 _zzz=		zzz
 .endif
 
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 .if ${MK_ACPI} != "no"
 _acpi=		acpi
 .endif
@@ -504,13 +504,13 @@ _mount_smbfs=	mount_smbfs
 _zzz=		zzz
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 _mount_smbfs=	mount_smbfs
 _nvram=		nvram
 _ofwdump=	ofwdump
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 _eeprom=	eeprom
 _mount_smbfs=	mount_smbfs
 _ofwdump=	ofwdump

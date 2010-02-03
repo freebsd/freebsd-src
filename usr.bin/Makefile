@@ -238,7 +238,7 @@ SUBDIR=	alias \
 	${_ypmatch} \
 	${_ypwhich}
 
-.if ${MACHINE_ARCH} != "arm"
+.if ${MACHINE_CPUARCH} != "arm"
 _truss=		truss
 .endif
 
@@ -366,7 +366,7 @@ _usbhidaction=	usbhidaction
 _usbhidctl=	usbhidctl
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 .if ${MK_NCP} != "no"
 _ncplist=	ncplist
 _ncplogin=	ncplogin
@@ -374,11 +374,11 @@ _ncplogin=	ncplogin
 _smbutil=	smbutil
 .endif
 
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 _smbutil=	smbutil
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 .if ${MK_NCP} != "no"
 _ncplist=	ncplist
 _ncplogin=	ncplogin
@@ -386,11 +386,11 @@ _ncplogin=	ncplogin
 _smbutil=	smbutil
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 _smbutil=	smbutil
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 _smbutil=	smbutil
 .endif
 

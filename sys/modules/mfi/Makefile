@@ -4,7 +4,7 @@
 
 SUBDIR= mfip
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 SUBDIR+= mfi_linux
 .endif
 

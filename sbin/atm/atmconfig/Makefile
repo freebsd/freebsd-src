@@ -27,7 +27,8 @@ LDADD=	-lbsnmp
 CLEANFILES+= oid.h
 .endif
 
-.if ${MACHINE_ARCH} == "arm"
+# XXX - this is verboten
+.if ${MACHINE_CPUARCH} == "arm"
 WARNS?= 3
 .endif
 

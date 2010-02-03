@@ -8,13 +8,7 @@ GDBDIR= ${.CURDIR}/../../../../contrib/gdb
 .PATH: ${SRCDIR}/opcodes ${SRCDIR}/binutils
 
 #	For FSF GDB files, use their CPU (arch) name; for our files use ours.
-.if ${TARGET_ARCH} == "sparc64"
-GDB_CPU=	sparc
-.elif ${TARGET_ARCH} == "amd64"
-GDB_CPU=	i386
-.else
-GDB_CPU=	${TARGET_ARCH}
-.endif
+GDB_CPU=${TARGET_CPUARCH:C/amd64/i386/:C/powerpc/rs6000/:C/sparc64/sparc/}
 
 NO_SHARED?=yes
 PROG=	gdb
@@ -55,7 +49,7 @@ WARNS?=	0
 CFLAGS+=	-DCROSS_COMPILE=1
 .endif
 CFLAGS+=	-DDEFAULT_BFD_ARCH=bfd_${GDB_CPU}_arch
-CFLAGS+=	-I${.CURDIR}/${TARGET_ARCH}
+CFLAGS+=	-I${.CURDIR}/${TARGET_CPUARCH}
 CFLAGS+=	-I${SRCDIR}/binutils -I${SRCDIR}/bfd
 CFLAGS+=	-I${GDBDIR}/gdb -I${GDBDIR}/gdb/config
 CFLAGS+=        -I$(.CURDIR)
@@ -121,8 +115,8 @@ init.c: ${XSRCS}
 
 tm.h:
 	echo '#include "${GDB_CPU}/tm-fbsd.h"'		> ${.TARGET}
-.if exists(${.CURDIR}/fbsd-kgdb-${TARGET_ARCH}.h)
-	echo '#include "fbsd-kgdb-${TARGET_ARCH}.h"'	>> ${.TARGET}
+.if exists(${.CURDIR}/fbsd-kgdb-${TARGET_CPUARCH}.h)
+	echo '#include "fbsd-kgdb-${TARGET_CPUARCH}.h"'	>> ${.TARGET}
 .endif
 
 .for H in nm-fbsd xm-${GDB_CPU}
@@ -131,7 +125,7 @@ ${H:C/-.*$//}.h:
 .endfor
 
 kvm-fbsd-machine.h:
-	ln -sf ${.CURDIR}/kvm-fbsd-${TARGET_ARCH}.h ${.TARGET}
+	ln -sf ${.CURDIR}/kvm-fbsd-${TARGET_CPUARCH}.h ${.TARGET}
 
 GDB_VERSION=	"5.2.1 (FreeBSD)"
 gdbversion.c: Makefile

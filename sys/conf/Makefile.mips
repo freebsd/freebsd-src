@@ -32,9 +32,6 @@ LDSCRIPT_NAME?=ldscript.$M
 SYSTEM_LD:= ${SYSTEM_LD:$S/conf/${LDSCRIPT_NAME}=${LDSCRIPT_NAME}}
 SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/${LDSCRIPT_NAME}=${LDSCRIPT_NAME}}
 
-# XXX: Such sweeping assumptions...
-MACHINE=mips
-MACHINE_ARCH=mips
 KERNLOADADDR?=0x80001000
 # This obscure value is defined by CFE for WR160N
 # To be changed later

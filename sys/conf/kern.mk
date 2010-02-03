@@ -29,20 +29,20 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # operations inside the kernel itself.  These operations are exclusively
 # reserved for user applications.
 #
-.if ${MACHINE_ARCH} == "i386" && ${CC} != "icc"
+.if ${MACHINE_CPUARCH} == "i386" && ${CC} != "icc"
 CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2 \
 		-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3
 INLINE_LIMIT?=	8000
 .endif
 
-.if ${MACHINE_ARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "arm"
 INLINE_LIMIT?=	8000
 .endif
 #
 # For IA-64, we use r13 for the kernel globals pointer and we only use
 # a very small subset of float registers for integer divides.
 #
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 CFLAGS+=	-ffixed-r13 -mfixed-range=f32-f127 -fpic #-mno-sdata
 INLINE_LIMIT?=	15000
 .endif
@@ -52,7 +52,7 @@ INLINE_LIMIT?=	15000
 # point emulation.  This avoids using floating point registers for integer
 # operations which it has a tendency to do.
 #
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 CFLAGS+=	-mcmodel=medany -msoft-float
 INLINE_LIMIT?=	15000
 .endif
@@ -62,7 +62,7 @@ INLINE_LIMIT?=	15000
 # operations inside the kernel itself.  These operations are exclusively
 # reserved for user applications.
 #
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-mcmodel=kernel -mno-red-zone \
 		-mfpmath=387 -mno-sse -mno-sse2 -mno-sse3 -mno-mmx -mno-3dnow \
 		-msoft-float -fno-asynchronous-unwind-tables
@@ -74,7 +74,7 @@ INLINE_LIMIT?=	8000
 # floating point registers for integer operations which it has a tendency to do.
 # Also explicitly disable Altivec instructions inside the kernel.
 #
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+=	-msoft-float -mno-altivec
 INLINE_LIMIT?=	15000
 .endif
@@ -82,7 +82,7 @@ INLINE_LIMIT?=	15000
 #
 # For MIPS we also tell gcc to use floating point emulation
 #
-.if ${MACHINE_ARCH} == "mips"
+.if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-msoft-float
 INLINE_LIMIT?=	8000
 .endif
@@ -104,7 +104,7 @@ CFLAGS+=	-restrict
 #
 # GCC SSP support.
 #
-.if ${MK_SSP} != "no" && ${CC} != "icc" && ${MACHINE_ARCH} != "ia64" && \
-	${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
+.if ${MK_SSP} != "no" && ${CC} != "icc" && ${MACHINE_CPUARCH} != "ia64" && \
+	${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 CFLAGS+=	-fstack-protector
 .endif

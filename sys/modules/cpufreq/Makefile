@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .PATH:	${.CURDIR}/../../dev/cpufreq		\
-	${.CURDIR}/../../${MACHINE_ARCH}/cpufreq
+	${.CURDIR}/../../${MACHINE_CPUARCH}/cpufreq
 
 KMOD=	cpufreq
 SRCS=	ichss.c

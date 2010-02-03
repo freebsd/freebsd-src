@@ -7,7 +7,8 @@ MAN=   routed.8
 SUBDIR= rtquery
 LDADD=	-lmd
 DPADD=	${LIBMD}
-.if ${MACHINE_ARCH} != "i386" && ${MACHINE_ARCH} != "amd64" 
+# XXX this is verboten
+.if ${MACHINE_CPUARCH} != "i386" && ${MACHINE_CPUARCH} != "amd64" 
 WARNS?=	0
 .endif
 

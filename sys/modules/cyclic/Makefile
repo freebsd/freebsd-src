@@ -4,13 +4,13 @@
 
 KMOD=		cyclic
 SRCS=		cyclic.c
-		
+
 SRCS+=		vnode_if.h
 
 CFLAGS+=	-I${.CURDIR}/../../cddl/compat/opensolaris		\
 		-I${.CURDIR}/../../cddl/contrib/opensolaris/uts/common	\
 		-I${.CURDIR}/../..					\
-		-I${.CURDIR}/../../cddl/dev/cyclic/${MACHINE_ARCH}
+		-I${.CURDIR}/../../cddl/dev/cyclic/${MACHINE_CPUARCH}
 
 CFLAGS+=	-DDEBUG=1
 

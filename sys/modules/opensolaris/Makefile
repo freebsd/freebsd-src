@@ -8,8 +8,8 @@ SRCS=		opensolaris.c		\
 		opensolaris_kmem.c	\
 		opensolaris_misc.c
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "sparc64"
-.PATH:	${.CURDIR}/../../cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "ia64" || ${MACHINE_CPUARCH} == "sparc64"
+.PATH:	${.CURDIR}/../../cddl/contrib/opensolaris/common/atomic/${MACHINE_CPUARCH}
 SRCS+=		opensolaris_atomic.S
 .else
 SRCS+=		opensolaris_atomic.c

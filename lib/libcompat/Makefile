@@ -7,9 +7,9 @@ NO_PIC=
 
 WARNS?=	1
 
-.PATH:	${.CURDIR}/4.1/${MACHINE_ARCH} ${.CURDIR}/4.1 \
-	${.CURDIR}/4.3/${MACHINE_ARCH} ${.CURDIR}/4.3 \
-	${.CURDIR}/4.4/${MACHINE_ARCH} ${.CURDIR}/4.4 \
+.PATH:	${.CURDIR}/4.1/${MACHINE_CPUARCH} ${.CURDIR}/4.1 \
+	${.CURDIR}/4.3/${MACHINE_CPUARCH} ${.CURDIR}/4.3 \
+	${.CURDIR}/4.4/${MACHINE_CPUARCH} ${.CURDIR}/4.4 \
 	${.CURDIR}/regexp
 
 # compat 4.1 sources

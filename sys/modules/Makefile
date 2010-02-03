@@ -310,7 +310,7 @@ SUBDIR=	${_3dfx} \
 	${_zfs} \
 	zlib \
 
-.if ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_CPUARCH} != "powerpc"
 _syscons=	syscons
 _vpo=		vpo
 .endif
@@ -338,7 +338,7 @@ _pf=		pf
 _pflog=		pflog
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 # XXX some of these can move to the general case when de-i386'ed
 # XXX some of these can move now, but are untested on other architectures.
 _3dfx=		3dfx
@@ -476,7 +476,7 @@ _snc=		snc
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 _aac=		aac
 _acpi=		acpi
 _agp=		agp
@@ -564,7 +564,7 @@ _zfs=		zfs
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 # Modules not enabled on ia64 (as compared to i386) include:
 #	aac acpi aout apm atspeaker drm ibcs2 linprocfs linux ncv
 #	nsp s3 sbni stg vesa
@@ -599,7 +599,7 @@ _wi=		wi
 _xe=		xe
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 _an=		an
 _bm=		bm
 _cpufreq=	cpufreq
@@ -608,7 +608,7 @@ _smbfs=		smbfs
 _sound=		sound
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 _auxio=		auxio
 _em=		em
 _epic=		epic

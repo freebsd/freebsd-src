@@ -4,6 +4,18 @@
 unix		?=	We run FreeBSD, not UNIX.
 .FreeBSD	?=	true
 
+.if !defined(%POSIX)
+#
+# MACHINE_CPUARCH defines a collection of MACHINE_ARCH.  Machines with
+# the same MACHINE_ARCH can run reach-other's binaries, so it
+# necessarily has word size and endian swizzled in.  However, support
+# files for these machines often are shared amongst all combinations
+# of size and/or endian.  This is called MACHINE_CPU in NetBSD, but
+# that's used for something different in FreeBSD.
+#
+MACHINE_CPUARCH=${MACHINE_ARCH:C/mipse[lb]/mips/:C/armeb/arm/}
+.endif
+
 # If the special target .POSIX appears (without prerequisites or
 # commands) before the first noncomment line in the makefile, make shall
 # process the makefile as specified by the Posix 1003.2 specification.
@@ -35,7 +47,7 @@ CC		?=	c89
 CFLAGS		?=	-O
 .else
 CC		?=	cc
-.if ${MACHINE_ARCH} == "arm" || ${MACHINE_ARCH} == "mips"
+.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "mips"
 CFLAGS		?=	-O -pipe
 .else
 CFLAGS		?=	-O2 -pipe

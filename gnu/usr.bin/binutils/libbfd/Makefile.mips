@@ -1,7 +1,10 @@
 # $FreeBSD$
 
-#xxxIMPxxx: endian and size
+.if ${TARGET_ARCH} == "mipsel"
+DEFAULT_VECTOR=	bfd_elf32_tradlittlemips_vec
+.else
 DEFAULT_VECTOR=	bfd_elf32_tradbigmips_vec
+.endif
 
 SRCS+=	coff-mips.c \
 	cpu-mips.c \

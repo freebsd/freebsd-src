@@ -5,7 +5,7 @@
 .if ${MACHINE} == "sparc64"
 scc_bfe= scc_bfe_ebus.c scc_bfe_sbus.c
 .endif
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 scc_bfe= scc_bfe_macio.c scc_bfe_quicc.c
 .endif
 

@@ -44,7 +44,7 @@ CLEANFILES+=	feeder_eq_gen.h feeder_rate_gen.h snd_fxdiv_gen.h
 
 EXPORT_SYMS=	YES	# XXX evaluate
 
-.if ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "sparc64" || ${MACHINE_CPUARCH} == "powerpc"
 # Create an empty opt_isa.h in order to keep kmod.mk from linking in an
 # existing one from KERNBUILDDIR which possibly has DEV_ISA defined so
 # sound.ko is always built without isadma support.

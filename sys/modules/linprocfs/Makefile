@@ -8,7 +8,7 @@ SRCS=	vnode_if.h \
 	linprocfs.c \
 	opt_compat.h
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=-DCOMPAT_LINUX32
 .endif
 

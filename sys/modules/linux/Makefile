@@ -1,11 +1,11 @@
 # $FreeBSD$
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 SFX= 32
 CFLAGS+=-DCOMPAT_IA32 -DCOMPAT_LINUX32
 .endif
 
-.PATH: ${.CURDIR}/../../compat/linux ${.CURDIR}/../../${MACHINE_ARCH}/linux${SFX}
+.PATH: ${.CURDIR}/../../compat/linux ${.CURDIR}/../../${MACHINE_CPUARCH}/linux${SFX}
 
 KMOD=	linux
 SRCS=	linux${SFX}_dummy.c linux_emul.c linux_file.c \
@@ -18,13 +18,13 @@ SRCS=	linux${SFX}_dummy.c linux_emul.c linux_file.c \
 
 # XXX: for assym.s
 SRCS+=  opt_kstack_pages.h opt_nfs.h opt_compat.h opt_hwpmc_hooks.h
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	opt_apic.h
 .endif
 
 OBJS=	linux${SFX}_locore.o linux${SFX}_support.o
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	linux_ptrace.c imgact_linux.c opt_cpu.h
 .endif
 

@@ -11,8 +11,8 @@
 # LIST_SRCS
 .PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/os
 # ATOMIC_SRCS
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64"
-.PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "ia64"
+.PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_CPUARCH}
 ATOMIC_SRCS=	opensolaris_atomic.S
 .else
 .PATH: ${.CURDIR}/../../../sys/cddl/compat/opensolaris/kern
@@ -50,7 +50,7 @@ CFLAGS+=	-I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libnvpair
 CFLAGS+=	-DWANTS_MUTEX_OWNED
 CFLAGS+=	-I${.CURDIR}/../../../lib/libpthread/thread
 CFLAGS+=	-I${.CURDIR}/../../../lib/libpthread/sys
-CFLAGS+=	-I${.CURDIR}/../../../lib/libthr/arch/${MACHINE_ARCH}/include
+CFLAGS+=	-I${.CURDIR}/../../../lib/libthr/arch/${MACHINE_CPUARCH}/include
 
 DPADD=		${LIBPTHREAD} ${LIBZ}
 LDADD=		-lpthread -lz

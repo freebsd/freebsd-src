@@ -43,10 +43,10 @@ SUBDIR=	${_csu} libc libbsm libauditd libcom_err libcrypt libelf libkvm msun \
 	${_libusbhid} ${_libusb} ${_libvgl} libwrap liby libz \
 	${_bind}
 
-.if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
-_csu=csu/${MACHINE_ARCH}-elf
-.elif exists(${.CURDIR}/csu/${MACHINE_ARCH}/Makefile)
-_csu=csu/${MACHINE_ARCH}
+.if exists(${.CURDIR}/csu/${MACHINE_CPUARCH}-elf)
+_csu=csu/${MACHINE_CPUARCH}-elf
+.elif exists(${.CURDIR}/csu/${MACHINE_CPUARCH}/Makefile)
+_csu=csu/${MACHINE_CPUARCH}
 .else
 _csu=csu
 .endif
@@ -95,7 +95,7 @@ _libnetgraph=	libnetgraph
 _libypclnt=	libypclnt
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 .if ${MK_NCP} != "no"
 _libncp=	libncp
 .endif
@@ -103,12 +103,12 @@ _libsmb=	libsmb
 _libvgl=	libvgl
 .endif
 
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
 _libsmb=	libsmb
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 .if ${MK_NCP} != "no"
 _libncp=	libncp
 .endif
@@ -116,11 +116,11 @@ _libsmb=	libsmb
 _libvgl=	libvgl
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 _libsmb=	libsmb
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 _libsmb=	libsmb
 .endif
 

@@ -64,7 +64,7 @@ gptzfsboot.out: ${BTXCRT} zfsboot.o sio.o
 
 zfsboot.o: ${.CURDIR}/../../zfs/zfsimpl.c
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 beforedepend zfsboot.o: machine
 CLEANFILES+=	machine
 machine:

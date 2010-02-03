@@ -5,8 +5,16 @@ WARNS?=		0
 
 .PATH:		${.CURDIR}/../common
 
+# These assignments duplicate much of the functionality of
+# MACHINE_CPUARCH, but there's no easy way to export make functions...
+
+.if defined(TARGET_ARCH)
+TARGET_CPUARCH=${TARGET_ARCH:C/mipse[bl]/mips/:C/armeb/arm/}
+.else
+TARGET_CPUARCH=${MACHINE_CPUARCH}
+.endif
 TARGET_ARCH?=	${MACHINE_ARCH}
-CFLAGS+=	-I${.CURDIR}/../arch/${TARGET_ARCH}
+CFLAGS+=	-I${.CURDIR}/../arch/${TARGET_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/../common
 
 OBJECT_FMT=	ELF

@@ -29,7 +29,7 @@
 
 .include <bsd.own.mk>
 
-.if ${MACHINE_ARCH} == "mips"
+.if ${MACHINE_CPUARCH} == "mips"
 MK_RESCUE=no	# not yet
 .endif
 
@@ -129,7 +129,7 @@ TARGET=		${TARGET_ARCH}
 TARGET?=	${MACHINE}
 TARGET_ARCH?=	${MACHINE_ARCH}
 
-KNOWN_ARCHES?=	amd64 arm i386 i386/pc98 ia64 mips powerpc sparc64 sparc64/sun4v
+KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mipsel/mips mipseb/mips powerpc sparc64 sparc64/sun4v
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -1095,10 +1095,10 @@ _prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc
 # all shared libraries for ELF.
 #
 _startup_libs=	gnu/lib/csu
-.if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-elf)
-_startup_libs+=	lib/csu/${MACHINE_ARCH}-elf
+.if exists(${.CURDIR}/lib/csu/${MACHINE_CPUARCH}-elf)
+_startup_libs+=	lib/csu/${MACHINE_CPUARCH}-elf
 .else
-_startup_libs+=	lib/csu/${MACHINE_ARCH}
+_startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 .endif
 _startup_libs+=	gnu/lib/libgcc
 _startup_libs+=	lib/libc

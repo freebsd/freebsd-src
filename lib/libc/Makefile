@@ -15,7 +15,7 @@ LIB=c
 SHLIB_MAJOR= 7
 WARNS?=	2
 CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
-CFLAGS+=-I${.CURDIR}/${MACHINE_ARCH}
+CFLAGS+=-I${.CURDIR}/${MACHINE_CPUARCH}
 CFLAGS+=-DNLS
 CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=
@@ -36,7 +36,7 @@ MDASM=
 MIASM=
 NOASM=
 
-.include "${.CURDIR}/${MACHINE_ARCH}/Makefile.inc"
+.include "${.CURDIR}/${MACHINE_CPUARCH}/Makefile.inc"
 .include "${.CURDIR}/db/Makefile.inc"
 .include "${.CURDIR}/compat-43/Makefile.inc"
 .include "${.CURDIR}/gdtoa/Makefile.inc"
@@ -49,9 +49,9 @@ NOASM=
 .include "${.CURDIR}/net/Makefile.inc"
 .include "${.CURDIR}/nls/Makefile.inc"
 .include "${.CURDIR}/posix1e/Makefile.inc"
-.if ${MACHINE_ARCH} != "amd64" && \
-    ${MACHINE_ARCH} != "ia64" && \
-    ${MACHINE_ARCH} != "sparc64"
+.if ${MACHINE_CPUARCH} != "amd64" && \
+    ${MACHINE_CPUARCH} != "ia64" && \
+    ${MACHINE_CPUARCH} != "sparc64"
 .include "${.CURDIR}/quad/Makefile.inc"
 .endif
 .include "${.CURDIR}/regex/Makefile.inc"
@@ -64,7 +64,7 @@ NOASM=
 .include "${.CURDIR}/rpc/Makefile.inc"
 .include "${.CURDIR}/uuid/Makefile.inc"
 .include "${.CURDIR}/xdr/Makefile.inc"
-.if ${MACHINE_ARCH} == "arm" || ${MACHINE_ARCH} == "mips"
+.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "mips"
 .include "${.CURDIR}/softfloat/Makefile.inc"
 .endif
 .if ${MK_NIS} != "no"
@@ -109,16 +109,16 @@ KQSRCS=	adddi3.c anddi3.c ashldi3.c ashrdi3.c cmpdi2.c divdi3.c iordi3.c \
 KSRCS=	bcmp.c ffs.c ffsl.c fls.c flsl.c index.c mcount.c rindex.c \
 	strcat.c strcmp.c strcpy.c strlen.c strncpy.c
 
-libkern: libkern.gen libkern.${MACHINE_ARCH}
+libkern: libkern.gen libkern.${MACHINE_CPUARCH}
 
 libkern.gen: ${KQSRCS} ${KSRCS}
 	cp -p ${.CURDIR}/quad/quad.h ${.ALLSRC} ${DESTDIR}/sys/libkern
 
-libkern.${MACHINE_ARCH}:: ${KMSRCS}
+libkern.${MACHINE_CPUARCH}:: ${KMSRCS}
 .if defined(KMSRCS) && !empty(KMSRCS)
-	cp -p ${.ALLSRC} ${DESTDIR}/sys/libkern/${MACHINE_ARCH}
+	cp -p ${.ALLSRC} ${DESTDIR}/sys/libkern/${MACHINE_CPUARCH}
 .endif
-        
+
 .include <bsd.lib.mk>
 
 # Disable warnings in contributed sources.
