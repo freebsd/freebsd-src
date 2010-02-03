@@ -1247,7 +1247,7 @@ find_library_fd(const char *name)
 
     if (!ld_library_dirs_done)
 	init_libdirs();
-    for (i = 0; i < ld_library_dircount); i++) {
+    for (i = 0; i < ld_library_dircount; i++) {
 	fd = openat(ld_library_dirs[i], name, O_RDONLY);
 	if (fd >= 0)
 	    return (fd);
