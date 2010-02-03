@@ -1620,11 +1620,9 @@ skipN(void)
 static void
 skip_until_mark(void)
 {
-	int	 ch;
 
 	for (;;) {
-		ch = readch();
-		switch (ch) {
+		switch (readch()) {
 		case 'M':
 			return;
 		case EOF:
@@ -1649,7 +1647,7 @@ skip_until_mark(void)
 			free(read_string(&bmachine.readstack[bmachine.readsp]));
 			break;
 		case '!':
-			switch (ch = readch()) {
+			switch (readch()) {
 				case '<':
 				case '>':
 				case '=':
