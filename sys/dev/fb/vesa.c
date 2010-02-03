@@ -803,9 +803,9 @@ vesa_bios_init(void)
 
 	if (vers < 0x0102) {
 		printf("VESA: VBE version %d.%d is not supported; "
-		       "version 1.2 or later is required.\n",
-		       ((vers & 0xf000) >> 12) * 10 + ((vers & 0x0f00) >> 8),
-		       ((vers & 0x00f0) >> 4) * 10 + (vers & 0x000f));
+		    "version 1.2 or later is required.\n",
+		    ((vers & 0xf000) >> 12) * 10 + ((vers & 0x0f00) >> 8),
+		    ((vers & 0x00f0) >> 4) * 10 + (vers & 0x000f));
 		return (1);
 	}
 
@@ -823,9 +823,8 @@ vesa_bios_init(void)
 
 	vesa_vmodetab = x86bios_offset(BIOS_SADDRTOLADDR(buf.v_modetable));
 
-	for (i = 0, modes = 0; 
-		(i < (M_VESA_MODE_MAX - M_VESA_BASE + 1))
-		&& (vesa_vmodetab[i] != 0xffff); ++i) {
+	for (i = 0, modes = 0; (i < (M_VESA_MODE_MAX - M_VESA_BASE + 1)) &&
+	    (vesa_vmodetab[i] != 0xffff); ++i) {
 		vesa_vmodetab[i] = le16toh(vesa_vmodetab[i]);
 		if (vesa_bios_get_mode(vesa_vmodetab[i], &vmode))
 			continue;
@@ -847,16 +846,17 @@ vesa_bios_init(void)
 
 		/* reject unsupported modes */
 #if 0
-		if ((vmode.v_modeattr & (V_MODESUPP | V_MODEOPTINFO 
-					| V_MODENONVGA))
-		    != (V_MODESUPP | V_MODEOPTINFO))
+		if ((vmode.v_modeattr &
+		    (V_MODESUPP | V_MODEOPTINFO | V_MODENONVGA)) !=
+		    (V_MODESUPP | V_MODEOPTINFO))
 			continue;
 #else
 		if ((vmode.v_modeattr & V_MODEOPTINFO) == 0) {
 #if VESA_DEBUG > 1
-			printf(
-		"Rejecting VESA %s mode: %d x %d x %d bpp  attr = %x\n",
-			    vmode.v_modeattr & V_MODEGRAPHICS ? "graphics" : "text",
+			printf("Rejecting VESA %s mode: %d x %d x %d bpp "
+			    " attr = %x\n",
+			    vmode.v_modeattr & V_MODEGRAPHICS ?
+			    "graphics" : "text",
 			    vmode.v_width, vmode.v_height, vmode.v_bpp,
 			    vmode.v_modeattr);
 #endif
@@ -867,11 +867,11 @@ vesa_bios_init(void)
 		/* expand the array if necessary */
 		if (modes >= vesa_vmode_max) {
 			vesa_vmode_max += MODE_TABLE_DELTA;
-			p = malloc(sizeof(*vesa_vmode)*(vesa_vmode_max + 1),
-				   M_DEVBUF, M_WAITOK);
+			p = malloc(sizeof(*vesa_vmode) * (vesa_vmode_max + 1),
+			    M_DEVBUF, M_WAITOK);
 #if VESA_DEBUG > 1
 			printf("vesa_bios_init(): modes:%d, vesa_mode_max:%d\n",
-			       modes, vesa_vmode_max);
+			    modes, vesa_vmode_max);
 #endif
 			if (modes > 0) {
 				bcopy(vesa_vmode, p, sizeof(*vesa_vmode)*modes);
@@ -901,76 +901,87 @@ vesa_bios_init(void)
 		vesa_vmode[modes].vi_planes = vmode.v_planes;
 		vesa_vmode[modes].vi_cwidth = vmode.v_cwidth;
 		vesa_vmode[modes].vi_cheight = vmode.v_cheight;
-		vesa_vmode[modes].vi_window = (u_int)vmode.v_waseg << 4;
+		vesa_vmode[modes].vi_window = (vm_offset_t)vmode.v_waseg << 4;
 		/* XXX window B */
-		vesa_vmode[modes].vi_window_size = vmode.v_wsize*1024;
-		vesa_vmode[modes].vi_window_gran = vmode.v_wgran*1024;
+		vesa_vmode[modes].vi_window_size = vmode.v_wsize * 1024;
+		vesa_vmode[modes].vi_window_gran = vmode.v_wgran * 1024;
 		if (vmode.v_modeattr & V_MODELFB) {
 			vesa_vmode[modes].vi_buffer = vmode.v_lfb;
 			vesa_vmode[modes].vi_line_width = vers >= 0x0300 ?
 			    vmode.v_linbpscanline : vmode.v_bpscanline;
-		} else {
-			vesa_vmode[modes].vi_buffer = 0;
+		} else
 			vesa_vmode[modes].vi_line_width = vmode.v_bpscanline;
-		}
 		/* XXX */
-		vesa_vmode[modes].vi_buffer_size
-			= vesa_adp_info->v_memsize*64*1024;
+		vesa_vmode[modes].vi_buffer_size =
+		    vesa_adp_info->v_memsize * 64 * 1024;
 #if 0
 		if (vmode.v_offscreen > vmode.v_lfb)
-			vesa_vmode[modes].vi_buffer_size
-				= vmode.v_offscreen + vmode.v_offscreensize*1024
-				      - vmode.v_lfb;
+			vesa_vmode[modes].vi_buffer_size = vmode.v_offscreen +
+			    vmode.v_offscreensize * 1024 - vmode.v_lfb;
 		else
-			vesa_vmode[modes].vi_buffer_size
-				= vmode.v_offscreen + vmode.v_offscreensize * 1024;
+			vesa_vmode[modes].vi_buffer_size = vmode.v_offscreen +
+			    vmode.v_offscreensize * 1024;
 #endif
-		vesa_vmode[modes].vi_mem_model 
-			= vesa_translate_mmodel(vmode.v_memmodel);
-		vesa_vmode[modes].vi_pixel_fields[0] = 0;
-		vesa_vmode[modes].vi_pixel_fields[1] = 0;
-		vesa_vmode[modes].vi_pixel_fields[2] = 0;
-		vesa_vmode[modes].vi_pixel_fields[3] = 0;
-		vesa_vmode[modes].vi_pixel_fsizes[0] = 0;
-		vesa_vmode[modes].vi_pixel_fsizes[1] = 0;
-		vesa_vmode[modes].vi_pixel_fsizes[2] = 0;
-		vesa_vmode[modes].vi_pixel_fsizes[3] = 0;
-		if (vesa_vmode[modes].vi_mem_model == V_INFO_MM_PACKED) {
-			vesa_vmode[modes].vi_pixel_size = (vmode.v_bpp + 7)/8;
-		} else if (vesa_vmode[modes].vi_mem_model == V_INFO_MM_DIRECT) {
-			vesa_vmode[modes].vi_pixel_size = (vmode.v_bpp + 7)/8;
-			vesa_vmode[modes].vi_pixel_fields[0]
-			    = vmode.v_redfieldpos;
-			vesa_vmode[modes].vi_pixel_fields[1]
-			    = vmode.v_greenfieldpos;
-			vesa_vmode[modes].vi_pixel_fields[2]
-			    = vmode.v_bluefieldpos;
-			vesa_vmode[modes].vi_pixel_fields[3]
-			    = vmode.v_resfieldpos;
-			vesa_vmode[modes].vi_pixel_fsizes[0]
-			    = vmode.v_redmasksize;
-			vesa_vmode[modes].vi_pixel_fsizes[1]
-			    = vmode.v_greenmasksize;
-			vesa_vmode[modes].vi_pixel_fsizes[2]
-			    = vmode.v_bluemasksize;
-			vesa_vmode[modes].vi_pixel_fsizes[3]
-			    = vmode.v_resmasksize;
-		} else {
-			vesa_vmode[modes].vi_pixel_size = 0;
+		vesa_vmode[modes].vi_mem_model =
+		    vesa_translate_mmodel(vmode.v_memmodel);
+		if (vesa_vmode[modes].vi_mem_model == V_INFO_MM_PACKED ||
+		    vesa_vmode[modes].vi_mem_model == V_INFO_MM_DIRECT)
+			vesa_vmode[modes].vi_pixel_size = (vmode.v_bpp + 7) / 8;
+#if 0
+		if (vesa_vmode[modes].vi_mem_model == V_INFO_MM_DIRECT) {
+			if ((vmode.v_modeattr & V_MODELFB) != 0 &&
+			    vers >= 0x0300) {
+				vesa_vmode[modes].vi_pixel_fields[0] =
+				    vmode.v_linredfieldpos;
+				vesa_vmode[modes].vi_pixel_fields[1] =
+				    vmode.v_lingreenfieldpos;
+				vesa_vmode[modes].vi_pixel_fields[2] =
+				    vmode.v_linbluefieldpos;
+				vesa_vmode[modes].vi_pixel_fields[3] =
+				    vmode.v_linresfieldpos;
+				vesa_vmode[modes].vi_pixel_fsizes[0] =
+				    vmode.v_linredmasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[1] =
+				    vmode.v_lingreenmasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[2] =
+				    vmode.v_linbluemasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[3] =
+				    vmode.v_linresmasksize;
+			} else {
+				vesa_vmode[modes].vi_pixel_fields[0] =
+				    vmode.v_redfieldpos;
+				vesa_vmode[modes].vi_pixel_fields[1] =
+				    vmode.v_greenfieldpos;
+				vesa_vmode[modes].vi_pixel_fields[2] =
+				    vmode.v_bluefieldpos;
+				vesa_vmode[modes].vi_pixel_fields[3] =
+				    vmode.v_resfieldpos;
+				vesa_vmode[modes].vi_pixel_fsizes[0] =
+				    vmode.v_redmasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[1] =
+				    vmode.v_greenmasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[2] =
+				    vmode.v_bluemasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[3] =
+				    vmode.v_resmasksize;
+			}
 		}
+#endif
 		
-		vesa_vmode[modes].vi_flags 
-			= vesa_translate_flags(vmode.v_modeattr) | V_INFO_VESA;
+		vesa_vmode[modes].vi_flags =
+		    vesa_translate_flags(vmode.v_modeattr) | V_INFO_VESA;
 
 		/* Does it have enough memory to support this mode? */
 		bsize = (size_t)vesa_vmode[modes].vi_line_width *
 		    vesa_vmode[modes].vi_height;
 		if (bsize > vesa_vmode[modes].vi_buffer_size) {
 #if VESA_DEBUG > 1
-			printf(
-		"Rejecting VESA %s mode: %d x %d x %d bpp  attr = %x, not enough memory\n",
-			    (vmode.v_modeattr & V_MODEGRAPHICS) != 0 ? "graphics" : "text",
-			    vmode.v_width, vmode.v_height, vmode.v_bpp, vmode.v_modeattr);
+			printf("Rejecting VESA %s mode: %d x %d x %d bpp "
+			    " attr = %x, not enough memory\n",
+			    (vmode.v_modeattr & V_MODEGRAPHICS) != 0 ?
+			    "graphics" : "text",
+			    vmode.v_width, vmode.v_height, vmode.v_bpp,
+			    vmode.v_modeattr);
 #endif
 			continue;
 		}
