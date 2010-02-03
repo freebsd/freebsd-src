@@ -153,7 +153,7 @@ static struct xpt_softc xsoftc;
 TUNABLE_INT("kern.cam.boot_delay", &xsoftc.boot_delay);
 SYSCTL_INT(_kern_cam, OID_AUTO, boot_delay, CTLFLAG_RDTUN,
            &xsoftc.boot_delay, 0, "Bus registration wait time");
-static int	xpt_power_down = 1;
+static int	xpt_power_down = 0;
 TUNABLE_INT("kern.cam.power_down", &xpt_power_down);
 SYSCTL_INT(_kern_cam, OID_AUTO, power_down, CTLFLAG_RW,
            &xpt_power_down, 0, "Power down devices on shutdown");
