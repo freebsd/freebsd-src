@@ -44,9 +44,11 @@
 VNET_DECLARE(int, tcp_do_rfc1323);
 VNET_DECLARE(int, tcp_reass_qsize);
 VNET_DECLARE(struct uma_zone *, tcp_reass_zone);
+VNET_DECLARE(struct pfil_head, tcpest_pfil_hook);
 #define	V_tcp_do_rfc1323	VNET(tcp_do_rfc1323)
 #define	V_tcp_reass_qsize	VNET(tcp_reass_qsize)
 #define	V_tcp_reass_zone	VNET(tcp_reass_zone)
+#define	V_tcpest_pfil_hook	VNET(tcpest_pfil_hook)
 
 #endif /* _KERNEL */
 
@@ -204,6 +206,8 @@ struct tcpcb {
 	uint64_t _pad[12];		/* 7 UTO, 5 TBD (1-2 CC/RTT?) */
 	struct cc_algo	*cc_algo;	/* the algorithm that will manage congestion control*/
 	void	*cc_data;		/* pointer to a struct containing data required for the cc algorithm in use */
+	uintptr_t	*helper_data;		/* */
+	int		nhelpers;
 };
 
 /*
@@ -241,6 +245,12 @@ struct tcpcb {
 #define EXIT_FASTRECOVERY(tp)	tp->t_flags &= ~TF_FASTRECOVERY
 
 #define BYTES_ACKED(tp, th)	(th->th_ack - tp->snd_una)
+
+/*
+ * TCP specific PFIL hook point identifiers
+ */
+#define	PFIL_TCP_ALL		0
+#define	PFIL_TCP_ESTABLISHED	1
 
 /*
  * Flags for the t_oobflags field.

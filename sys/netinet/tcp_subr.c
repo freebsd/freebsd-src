@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/route.h>
 #include <net/if.h>
+#include <net/pfil.h>
 #include <net/vnet.h>
 
 #include <netinet/cc.h>
@@ -84,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <netinet/ip_icmp.h>
 #include <netinet/tcp_fsm.h>
+#include <netinet/tcp_helper.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
@@ -119,6 +121,7 @@ VNET_DEFINE(int, tcp_v6mssdflt);
 #endif
 VNET_DEFINE(int, tcp_minmss);
 VNET_DEFINE(int, tcp_do_rfc1323);
+VNET_DEFINE(struct pfil_head, tcpest_pfil_hook);
 
 static VNET_DEFINE(int, icmp_may_rst);
 static VNET_DEFINE(int, tcp_isn_reseed_interval);
@@ -375,6 +378,12 @@ tcp_init(void)
 	V_tcp_sack_globalholes = 0;
 
 	V_tcp_inflight_rttthresh = TCPTV_INFLIGHT_RTTTHRESH;
+
+	V_tcpest_pfil_hook.ph_type = PFIL_TYPE_TCP;
+	V_tcpest_pfil_hook.ph_af = PFIL_TCP_ESTABLISHED;
+
+	if(pfil_head_register(&V_tcpest_pfil_hook) != 0)
+		printf("%s: WARNING: unable to register pfil hook\n", __func__);
 
 	cc_init();
 
@@ -768,6 +777,11 @@ tcp_newtcpcb(struct inpcb *inp)
 			return NULL;
 		}
 
+	KASSERT(tp->helper_data == NULL, ("tp->hlpr_data NOT NULL!"));
+	init_datablocks(&tp->helper_data, &tp->nhelpers);
+	printf("tp->helper_data = %p, tp->nhelpers = %d\n", tp->helper_data,
+	tp->nhelpers);
+
 #ifdef VIMAGE
 	tp->t_vnet = inp->inp_vnet;
 #endif
@@ -936,6 +950,8 @@ tcp_discardcb(struct tcpcb *tp)
 	/* Allow the CC algorithm to clean up after itself. */
 	if (CC_ALGO(tp)->cb_destroy != NULL)
 		CC_ALGO(tp)->cb_destroy(tp);
+
+	destroy_datablocks(&tp->helper_data, tp->nhelpers);
 
 	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;

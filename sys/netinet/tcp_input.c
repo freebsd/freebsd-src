@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/pfil.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -2121,6 +2122,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    ((to.to_flags & TOF_SACK) ||
 		     !TAILQ_EMPTY(&tp->snd_holes)))
 			tcp_sack_doack(tp, &to, th->th_ack);
+
+		if (tp->nhelpers > 0 && PFIL_HOOKED(&V_tcpest_pfil_hook))
+			pfil_run_hooks(&V_tcpest_pfil_hook, &m, NULL, PFIL_IN,
+			    tp->t_inpcb);
+
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
 			if (tlen == 0 && tiwin == tp->snd_wnd) {
 				TCPSTAT_INC(tcps_rcvdupack);
