@@ -114,7 +114,7 @@ static __inline int
 feclearexcept(int __excepts)
 {
 	fenv_t __env;
-	int __mxcsr;
+	__uint32_t __mxcsr;
 
 	if (__excepts == FE_ALL_EXCEPT) {
 		__fnclex();
@@ -134,7 +134,8 @@ feclearexcept(int __excepts)
 static __inline int
 fegetexceptflag(fexcept_t *__flagp, int __excepts)
 {
-	int __mxcsr, __status;
+	__uint32_t __mxcsr;
+	__uint16_t __status;
 
 	__fnstsw(&__status);
 	if (__HAS_SSE())
@@ -151,7 +152,8 @@ int feraiseexcept(int __excepts);
 static __inline int
 fetestexcept(int __excepts)
 {
-	int __mxcsr, __status;
+	__uint32_t __mxcsr;
+	__uint16_t __status;
 
 	__fnstsw(&__status);
 	if (__HAS_SSE())
@@ -164,7 +166,7 @@ fetestexcept(int __excepts)
 static __inline int
 fegetround(void)
 {
-	int __control;
+	__uint16_t __control;
 
 	/*
 	 * We assume that the x87 and the SSE unit agree on the
@@ -179,7 +181,8 @@ fegetround(void)
 static __inline int
 fesetround(int __round)
 {
-	int __mxcsr, __control;
+	__uint32_t __mxcsr;
+	__uint16_t __control;
 
 	if (__round & ~_ROUND_MASK)
 		return (-1);
@@ -206,7 +209,7 @@ static __inline int
 fesetenv(const fenv_t *__envp)
 {
 	fenv_t __env = *__envp;
-	int __mxcsr;
+	__uint32_t __mxcsr;
 
 	__mxcsr = __get_mxcsr(__env);
 	__set_mxcsr(__env, 0xffffffff);
@@ -234,7 +237,7 @@ int fedisableexcept(int __mask);
 static __inline int
 fegetexcept(void)
 {
-	int __control;
+	__uint16_t __control;
 
 	/*
 	 * We assume that the masks for the x87 and the SSE unit are
