@@ -146,6 +146,9 @@ ata_op_string(struct ata_cmd *cmd)
 	        case 0x03: return ("SETFEATURES SET TRANSFER MODE");
 	        case 0x02: return ("SETFEATURES ENABLE WCACHE");
 	        case 0x82: return ("SETFEATURES DISABLE WCACHE");
+	        case 0x06: return ("SETFEATURES ENABLE PUIS");
+	        case 0x86: return ("SETFEATURES DISABLE PUIS");
+	        case 0x07: return ("SETFEATURES SPIN-UP");
 	        case 0xaa: return ("SETFEATURES ENABLE RCACHE");
 	        case 0x55: return ("SETFEATURES DISABLE RCACHE");
 	        }
