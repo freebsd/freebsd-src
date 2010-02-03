@@ -42,14 +42,26 @@ __FBSDID("$FreeBSD$");
 #endif /* LIBC_SCCS and not lint */
 
 LEAF(ptrace)
+	.frame	sp,40,ra
+	.mask	0x80000000, -8
 #ifdef __ABICALLS__
 	.set    noreorder
 	.cpload t9
 	.set    reorder
 #endif
+	subu	sp, sp, 40
+	sw	ra,  32(sp)
+#ifdef __ABICALLS__
+	.cprestore 16
+#endif
 	la	t9, _C_LABEL(__error)	# locate address of errno
-	jalr	t9
+	jalr	t9	
+#ifdef __ABICALLS__
+	lw	gp, 16(sp)
+#endif
 	sw	zero, 0(v0)
+	lw	ra, 32(sp)
+	addu	sp, sp, 40
 	li	v0, SYS_ptrace
 	syscall
 	bne	a3, zero, 1f
