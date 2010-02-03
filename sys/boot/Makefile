@@ -8,21 +8,21 @@ SUBDIR+=		ficl
 .endif
 
 # Build EFI library.
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE} == "i386" || ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE} == "i386" || ${MACHINE_CPUARCH} == "ia64"
 SUBDIR+=		efi
 .endif
 
 # Build Open Firmware library.
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "sparc64"
 SUBDIR+=		ofw
 .endif
 
 # Build U-Boot library.
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm"
 SUBDIR+=		uboot
 .endif
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE} == "i386"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE} == "i386"
 SUBDIR+=		zfs
 .endif
 

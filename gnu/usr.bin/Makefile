@@ -21,7 +21,7 @@ SUBDIR= ${_binutils} \
 	sort \
 	${_texinfo}
 
-.if ${MACHINE_ARCH} == "mips"
+.if ${MACHINE_CPUARCH} == "mips"
 MK_GDB=no	# not yet
 .endif
 

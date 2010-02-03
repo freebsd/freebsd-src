@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "ia64"
 .error "ACPI can only be compiled into the kernel on the amd64 and ia64 platforms"
 .endif
 
@@ -22,7 +22,7 @@
 	${.CURDIR}/../../../pci \
 	${.CURDIR}/../../../dev/acpica \
 	${.CURDIR}/../../../dev/acpica/Osd \
-	${.CURDIR}/../../../${MACHINE_ARCH}/acpica
+	${.CURDIR}/../../../${MACHINE_CPUARCH}/acpica
 
 KMOD=	acpi
 
@@ -97,13 +97,13 @@ opt_ddb.h: Makefile
 SRCS+=	acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
 SRCS+=	assym.s madt.c
 CLEANFILES+=	acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	opt_global.h
 CLEANFILES+=	acpi_wakedata.h
 .endif
 
 acpi_wakecode.h: acpi_wakecode.S assym.s
-	${MAKE} -f ${.CURDIR}/../../../${MACHINE_ARCH}/acpica/Makefile \
-		MAKESRCPATH=${.CURDIR}/../../../${MACHINE_ARCH}/acpica
+	${MAKE} -f ${.CURDIR}/../../../${MACHINE_CPUARCH}/acpica/Makefile \
+		MAKESRCPATH=${.CURDIR}/../../../${MACHINE_CPUARCH}/acpica
 
 .include <bsd.kmod.mk>

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-ARCHDIR=	${MACHINE_ARCH}
+ARCHDIR=	${MACHINE_CPUARCH}
 
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/uts/common/dtrace
 .PATH: ${.CURDIR}/../../../cddl/kern
@@ -12,7 +12,7 @@ SRCS=		dtrace.c \
 		dtrace_asm.S \
 		dtrace_subr.c
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SRCS+=		dis_tables.c \
 		instr_size.c
 .endif
@@ -25,7 +25,7 @@ SRCS+=		assym.s
 # These are needed for assym.s
 SRCS+=		opt_compat.h opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=		opt_apic.h
 .endif
 

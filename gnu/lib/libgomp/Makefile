@@ -23,8 +23,9 @@ CFLAGS+= -I${.CURDIR} -I. -I${SRCDIR} -I${SRCDIR}/config/posix
 VERSION_MAP=	${SRCDIR}/libgomp.map
 
 # Target-specific OpenMP configuration
-.if ${MACHINE_ARCH} == arm || ${MACHINE_ARCH} == i386 || \
-    ${MACHINE_ARCH} == mips || ${MACHINE_ARCH} == powerpc
+.if ${MACHINE_CPUARCH} == arm || ${MACHINE_CPUARCH} == i386 || \
+    ${MACHINE_ARCH} == mipsel || ${MACHINE_ARCH} == mipseb || \
+    ${MACHINE_ARCH} == powerpc ||
 OMP_LOCK_ALIGN	=	4
 OMP_LOCK_KIND=		4
 OMP_LOCK_SIZE=		4

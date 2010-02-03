@@ -2,7 +2,7 @@
 
 SUBDIR=	doc libgdb gdb gdbtui kgdb
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "arm" || ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "powerpc"
 SUBDIR+=gdbserver
 .endif
 

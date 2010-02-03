@@ -23,7 +23,7 @@ BIN1=	auth.conf \
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
 BIN1+=	etc.${MACHINE}/ttys
 .else
-BIN1+=	etc.${MACHINE_ARCH}/ttys
+BIN1+=	etc.${MACHINE_CPUARCH}/ttys
 .endif
 
 OPENBSMDIR=			${.CURDIR}/../contrib/openbsm

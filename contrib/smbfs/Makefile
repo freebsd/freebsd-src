@@ -9,7 +9,7 @@
 #	deinstall-src	undo corresponding install-* target
 #	clean		cleanup source tree
 
-.if ${MACHINE_ARCH} != "i386"
+.if ${MACHINE_CPUARCH} != "i386"
 .	error "only IA32 machines supported"
 .endif
 

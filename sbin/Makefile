@@ -115,7 +115,7 @@ _ping6=		ping6
 _rtsol=		rtsol
 .endif
 
-.if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_CPUARCH} != "ia64" && ${MACHINE_CPUARCH} != "powerpc"
 _bsdlabel=	bsdlabel
 .endif
 
@@ -127,7 +127,7 @@ _quotacheck=	quotacheck
 _routed=	routed
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 .if ${MACHINE} == "i386"
 _fdisk=		fdisk
 .elif ${MACHINE} == "pc98"
@@ -136,19 +136,19 @@ _fdisk_pc98=	fdisk_pc98
 _sconfig=	sconfig
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 _fdisk=		fdisk
 .endif
 
-.if ${MACHINE_ARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "arm"
 _fdisk=		fdisk
 .endif
 
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 _mca=		mca
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 _sunlabel=	sunlabel
 .endif
 

@@ -2,7 +2,7 @@
 
 NO_WERROR=
 PROG=	truss
-SRCS=	main.c setup.c syscalls.c syscalls.h ioctl.c ${MACHINE_ARCH}-fbsd.c
+SRCS=	main.c setup.c syscalls.c syscalls.h ioctl.c ${MACHINE_CPUARCH}-fbsd.c
 
 CFLAGS+= -I${.CURDIR} -I.
 CLEANFILES= syscalls.master syscalls.h ioctl.c
@@ -19,7 +19,7 @@ syscalls.h:	syscalls.master
 ioctl.c: ${.CURDIR}/../kdump/mkioctls
 	sh ${.CURDIR}/../kdump/mkioctls ${DESTDIR}/usr/include > ${.TARGET}
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	i386-linux.c linux_syscalls.h
 CLEANFILES+=i386l-syscalls.master linux_syscalls.h
 
@@ -31,7 +31,7 @@ linux_syscalls.h:	i386l-syscalls.master
 		${.CURDIR}/i386linux.conf
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	amd64-linux32.c linux32_syscalls.h
 CLEANFILES+=amd64l32-syscalls.master linux32_syscalls.h
 

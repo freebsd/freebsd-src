@@ -22,7 +22,7 @@ MAN+=	pmc_start.3
 MAN+=	pmclog.3
 
 # PMC-dependent manual pages
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 MAN+=	pmc.atom.3
 MAN+=	pmc.core.3
 MAN+=	pmc.core2.3
@@ -33,7 +33,7 @@ MAN+=	pmc.p4.3
 MAN+=	pmc.p5.3
 MAN+=	pmc.p6.3
 MAN+=	pmc.tsc.3
-.elif ${MACHINE_ARCH} == "arm" && ${CPUTYPE} == "xscale"
+.elif ${MACHINE_CPUARCH} == "arm" && ${CPUTYPE} == "xscale"
 MAN+=	pmc.xscale.3
 .endif
 

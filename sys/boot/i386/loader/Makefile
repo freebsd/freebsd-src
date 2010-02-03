@@ -119,7 +119,7 @@ LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFS} ${LIBI386} -lstand
 
 .include <bsd.prog.mk>
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 beforedepend ${OBJS}: machine
 CLEANFILES+=	machine
 machine:

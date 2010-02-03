@@ -610,7 +610,7 @@ MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
 MLINKS+=zyd.4 if_zyd.4
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _acpi_aiboost.4=acpi_aiboost.4
 _acpi_asus.4=	acpi_asus.4
 _acpi_dock.4=	acpi_dock.4
@@ -658,12 +658,12 @@ _wpi.4=		wpi.4
 MLINKS+=lindev.4 full.4
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 _atp.4=		atp.4
 .endif
 
-.if exists(${.CURDIR}/man4.${MACHINE_ARCH})
-SUBDIR=	man4.${MACHINE_ARCH}
+.if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
+SUBDIR=	man4.${MACHINE_CPUARCH}
 .endif
 
 .include <bsd.prog.mk>

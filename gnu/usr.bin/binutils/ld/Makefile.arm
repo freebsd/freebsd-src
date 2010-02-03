@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if defined(TARGET_BIG_ENDIAN)
+.if ${TARGET_ARCH} == "armeb"
 NATIVE_EMULATION= armelfb_fbsd
 .else
 NATIVE_EMULATION= armelf_fbsd

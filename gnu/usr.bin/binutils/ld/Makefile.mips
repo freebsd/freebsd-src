@@ -1,10 +1,8 @@
 # $FreeBSD$
 
-#xxxIMPxxx: size?
-#xxxIMPxxx: TARGET_BIG_ENDIAN is lame.  We should use the netbsd convention
-# of mipsel and mips.
+# XXX still need to swizle in size
 _sz?=32
-.if defined(TARGET_BIG_ENDIAN)
+.if ${TARGET_ARCH} == "mipseb"
 NATIVE_EMULATION=elf${_sz}btsmip_fbsd
 .else
 NATIVE_EMULATION=elf${_sz}ltsmip_fbsd

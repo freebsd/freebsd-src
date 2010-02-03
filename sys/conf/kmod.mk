@@ -120,11 +120,11 @@ CFLAGS+=	-fno-common
 LDFLAGS+=	-d -warn-common
 
 CFLAGS+=	${DEBUG_FLAGS}
-.if ${MACHINE_ARCH} == amd64
+.if ${MACHINE_CPUARCH} == amd64
 CFLAGS+=	-fno-omit-frame-pointer
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+=	-mlongcall -fno-omit-frame-pointer
 .endif
 
@@ -174,7 +174,7 @@ ${PROG}.symbols: ${FULLPROG}
 	${OBJCOPY} --only-keep-debug ${FULLPROG} ${.TARGET}
 .endif
 
-.if ${MACHINE_ARCH} != amd64
+.if ${MACHINE_CPUARCH} != amd64
 ${FULLPROG}: ${KMOD}.kld
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
@@ -187,7 +187,7 @@ EXPORT_SYMS?=	NO
 CLEANFILES+=	export_syms
 .endif
 
-.if ${MACHINE_ARCH} != amd64
+.if ${MACHINE_CPUARCH} != amd64
 ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
@@ -206,13 +206,13 @@ ${FULLPROG}: ${OBJS}
 	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
 .endif
-.if !defined(DEBUG_FLAGS) && ${MACHINE_ARCH} == amd64
+.if !defined(DEBUG_FLAGS) && ${MACHINE_CPUARCH} == amd64
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
 
 _ILINKS=@ machine
-.if ${MACHINE} != ${MACHINE_ARCH}
-_ILINKS+=${MACHINE_ARCH}
+.if ${MACHINE} != ${MACHINE_CPUARCH}
+_ILINKS+=${MACHINE_CPUARCH}
 .endif
 
 all: objwarn ${PROG}
@@ -239,8 +239,8 @@ SYSDIR=	${_dir}
 
 ${_ILINKS}:
 	@case ${.TARGET} in \
-	${MACHINE_ARCH}) \
-		path=${SYSDIR}/${MACHINE_ARCH}/include ;; \
+	${MACHINE_CPUARCH}) \
+		path=${SYSDIR}/${MACHINE_CPUARCH}/include ;; \
 	machine) \
 		path=${SYSDIR}/${MACHINE}/include ;; \
 	@) \
@@ -433,11 +433,11 @@ assym.s: @/kern/genassym.sh
 .endif
 	sh @/kern/genassym.sh genassym.o > ${.TARGET}
 .if exists(@)
-genassym.o: @/${MACHINE_ARCH}/${MACHINE_ARCH}/genassym.c
+genassym.o: @/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
 .endif
 genassym.o: @ machine ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-fno-common} \
-	    @/${MACHINE_ARCH}/${MACHINE_ARCH}/genassym.c
+	    @/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
 .endif
 
 lint: ${SRCS}

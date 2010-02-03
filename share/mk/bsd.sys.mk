@@ -76,8 +76,8 @@ CWARNFLAGS	+=	-Werror
 CWARNFLAGS	+=	-Wno-unknown-pragmas
 .endif
 
-.if ${MK_SSP} != "no" && ${CC} != "icc" && ${MACHINE_ARCH} != "ia64" && \
-	${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
+.if ${MK_SSP} != "no" && ${CC} != "icc" && ${MACHINE_CPUARCH} != "ia64" && \
+	${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 # Don't use -Wstack-protector as it breaks world with -Werror.
 SSP_CFLAGS	?=	-fstack-protector
 CFLAGS		+=	${SSP_CFLAGS}

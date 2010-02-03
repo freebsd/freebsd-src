@@ -6,7 +6,7 @@ MAN=	powerd.8
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 CFLAGS+=-DUSE_APM
 .endif
 
