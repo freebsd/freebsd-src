@@ -44,7 +44,7 @@
  */
 struct mdthread {
 	int	md_flags;		/* machine-dependent flags */
-	int	md_upte[KSTACK_PAGES];	/* ptes for mapping u pcb */
+	int	md_upte[KSTACK_PAGES - 1]; /* ptes for mapping u pcb */
 	int	md_ss_addr;		/* single step address for ptrace */
 	int	md_ss_instr;		/* single step instruction for ptrace */
 	register_t	md_saved_intr;
