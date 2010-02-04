@@ -3065,6 +3065,7 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
      */
     if ((error = ciss_get_request(sc, &cr)) != 0) {
 	xpt_freeze_simq(sim, 1);
+	csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 	csio->ccb_h.status |= CAM_REQUEUE_REQ;
 	return(error);
     }
@@ -3116,8 +3117,8 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
      */
     if ((error = ciss_start(cr)) != 0) {
 	xpt_freeze_simq(sim, 1);
+	csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 	if (error == EINPROGRESS) {
-	    csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 	    error = 0;
 	} else {
 	    csio->ccb_h.status |= CAM_REQUEUE_REQ;
@@ -3145,7 +3146,7 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
 
     if (CISS_IS_PHYSICAL(bus)) {
 	if (sc->ciss_physical[CISS_CAM_TO_PBUS(bus)][target].cp_online != 1) {
-	    csio->ccb_h.status = CAM_SEL_TIMEOUT;
+	    csio->ccb_h.status |= CAM_SEL_TIMEOUT;
 	    xpt_done((union ccb *)csio);
 	    return(1);
 	} else
@@ -3158,7 +3159,7 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
      * Other errors might be better.
      */
     if (sc->ciss_logical[bus][target].cl_status != CISS_LD_ONLINE) {
-	csio->ccb_h.status = CAM_SEL_TIMEOUT;
+	csio->ccb_h.status |= CAM_SEL_TIMEOUT;
 	xpt_done((union ccb *)csio);
 	return(1);
     }
@@ -3172,7 +3173,7 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
 	if (((csio->ccb_h.flags & CAM_CDB_POINTER) ?
 	     *(u_int8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes[0]) == SYNCHRONIZE_CACHE) {
 	    ciss_flush_adapter(sc);
-	    csio->ccb_h.status = CAM_REQ_CMP;
+	    csio->ccb_h.status |= CAM_REQ_CMP;
 	    xpt_done((union ccb *)csio);
 	    return(1);
 	}
@@ -3233,13 +3234,13 @@ ciss_cam_complete(struct ciss_request *cr)
 	/* no status due to adapter error */
     case -1:
 	debug(0, "adapter error");
-	csio->ccb_h.status = CAM_REQ_CMP_ERR;
+	csio->ccb_h.status |= CAM_REQ_CMP_ERR;
 	break;
 
 	/* no status due to command completed OK */
     case SCSI_STATUS_OK:		/* CISS_SCSI_STATUS_GOOD */
 	debug(2, "SCSI_STATUS_OK");
-	csio->ccb_h.status = CAM_REQ_CMP;
+	csio->ccb_h.status |= CAM_REQ_CMP;
 	break;
 
 	/* check condition, sense data included */
@@ -3250,7 +3251,7 @@ ciss_cam_complete(struct ciss_request *cr)
 	bcopy(&ce->sense_info[0], &csio->sense_data, ce->sense_length);
 	csio->sense_len = ce->sense_length;
 	csio->resid = ce->residual_count;
-	csio->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
+	csio->ccb_h.status |= CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
 #ifdef CISS_DEBUG
 	{
 	    struct scsi_sense_data	*sns = (struct scsi_sense_data *)&ce->sense_info[0];
@@ -3261,20 +3262,17 @@ ciss_cam_complete(struct ciss_request *cr)
 
     case SCSI_STATUS_BUSY:		/* CISS_SCSI_STATUS_BUSY */
 	debug(0, "SCSI_STATUS_BUSY");
-	csio->ccb_h.status = CAM_SCSI_BUSY;
+	csio->ccb_h.status |= CAM_SCSI_BUSY;
 	break;
 
     default:
 	debug(0, "unknown status 0x%x", csio->scsi_status);
-	csio->ccb_h.status = CAM_REQ_CMP_ERR;
+	csio->ccb_h.status |= CAM_REQ_CMP_ERR;
 	break;
     }
 
     /* handle post-command fixup */
     ciss_cam_complete_fixup(sc, csio);
-
-    /* tell CAM we're ready for more commands */
-    csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 
     ciss_release_request(cr);
     xpt_done((union ccb *)csio);
