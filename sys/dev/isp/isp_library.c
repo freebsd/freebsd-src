@@ -668,7 +668,7 @@ isp_clear_commands(ispsoftc_t *isp)
 			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 		} else {
 			ct_entry_t *ctio = (ct_entry_t *) local;
-			ctio->ct_syshandle = handle & 0xffff;
+			ctio->ct_syshandle = hdp->handle & 0xffff;
 			ctio->ct_status = CT_HBA_RESET & 0xff;
 			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO;
 		}
@@ -2275,7 +2275,7 @@ isp_find_tgt_handle(ispsoftc_t *isp, void *xs)
 void
 isp_destroy_tgt_handle(ispsoftc_t *isp, uint32_t handle)
 {
-	if (!ISP_VALID_TGT_HANDLE(handle)) {
+	if (!ISP_VALID_TGT_HANDLE(isp, handle)) {
 		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
 	} else {
 		isp->isp_tgtlist[(handle & ISP_HANDLE_CMD_MASK)].handle = ISP_HANDLE_FREE;
