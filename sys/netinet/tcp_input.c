@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #define TCPSTATES		/* for logging */
 
 #include <netinet/cc.h>
+#include <netinet/hhooks.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
@@ -1174,7 +1175,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	int rstreason, todrop, win;
 	u_long tiwin;
 	struct tcpopt to;
-
+	struct tcp_hhook_data hhook_data;
 #ifdef TCPDEBUG
 	/*
 	 * The size of tcp_saveipgen must be the size of the max ip header,
@@ -2123,9 +2124,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		     !TAILQ_EMPTY(&tp->snd_holes)))
 			tcp_sack_doack(tp, &to, th->th_ack);
 
-		if (tp->nhelpers > 0 && PFIL_HOOKED(&V_tcpest_pfil_hook))
-			pfil_run_hooks(&V_tcpest_pfil_hook, &m, NULL, PFIL_IN,
-			    tp->t_inpcb);
+		hhook_data.curack = th->th_ack;
+		run_hhooks(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED, &hhook_data);
 
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
 			if (tlen == 0 && tiwin == tp->snd_wnd) {

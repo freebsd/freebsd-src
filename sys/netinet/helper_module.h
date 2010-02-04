@@ -44,8 +44,8 @@
 
 int	hlpr_modevent(module_t mod, int type, void *data);
 
-MALLOC_DECLARE(M_HLPR);
-MALLOC_DEFINE(M_HLPR, "helper data", "Blah");
+MALLOC_DECLARE(M_HELPER);
+MALLOC_DEFINE(M_HELPER, "helper data", "Blah");
 
 
 #endif

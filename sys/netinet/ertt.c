@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/helper.h>
 #include <netinet/helper_module.h>
+#include <netinet/hhooks.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
@@ -55,41 +56,40 @@ struct ertt {
 	int test;
 };
 
-int ertt_tcpest_hook(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
-    struct inpcb *inp);
+void ertt_tcpest_hook(void *udata, void *ctx_data);
 int ertt_mod_init(void);
 int ertt_mod_destroy(void);
 int ertt_block_init(uintptr_t *block);
 int ertt_block_destroy(uintptr_t *block);
 
-int
-ertt_tcpest_hook(void *arg, struct mbuf **m, struct ifnet *ifp, int dir, struct inpcb *inp)
+void
+ertt_tcpest_hook(void *udata, void *ctx_data)
 {
-	struct ertt *e = (struct ertt *)(((struct tcpcb *)inp->inp_ppcb)->helper_data[0]);
+	//struct ertt *e = (struct ertt *)(((struct tcpcb *)inp->inp_ppcb)->helper_data[0]);
 	//struct ertt *e = (struct ertt *)arg;
-	printf("In the hook with pkt: 0x%p, ertt->test = %d\n", *m, e->test++);
-	return (0);
+	printf("In the hook with ctx_data: %p, curack = %d\n", ctx_data,
+	((struct tcp_hhook_data *)ctx_data)->curack);
 }
 
 
 int
 ertt_mod_init(void)
 {
-	return pfil_add_hook(&ertt_tcpest_hook, NULL, PFIL_IN | PFIL_WAITOK,
-	    pfil_head_get(PFIL_TYPE_TCP, PFIL_TCP_ESTABLISHED));
+	return register_hhook(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED,
+	&ertt_tcpest_hook, NULL, HHOOK_WAITOK);
 }
 
 int
 ertt_mod_destroy(void)
 {
-	return pfil_remove_hook(&ertt_tcpest_hook, NULL, PFIL_IN | PFIL_WAITOK,
-	    pfil_head_get(PFIL_TYPE_TCP, PFIL_TCP_ESTABLISHED));
+	return deregister_hhook(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED,
+	    &ertt_tcpest_hook, NULL, 0);
 }
 
 int
 ertt_block_init(uintptr_t *block)
 {
-	*block = (uintptr_t)malloc(sizeof(struct ertt), M_HLPR, M_NOWAIT);
+	*block = (uintptr_t)malloc(sizeof(struct ertt), M_HELPER, M_NOWAIT);
 
 	((struct ertt *)*block)->test = 5;
 
@@ -103,7 +103,7 @@ int
 ertt_block_destroy(uintptr_t *block)
 {
 	KASSERT(block != NULL, ("Block is NULL!"));
-	free((void *)*block, M_HLPR);
+	free((void *)*block, M_HELPER);
 
 	return (0);
 }

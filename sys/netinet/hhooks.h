@@ -30,39 +30,39 @@
  * $FreeBSD$
  */
 
-#ifndef	_NETINET_HELPER_H_
-#define	_NETINET_HELPER_H_
+#ifndef _NETINET_HHOOKS_H_
+#define _NETINET_HHOOKS_H_
+
+#define	HHOOK_WAITOK	0x01
+#define	HHOOK_NOWAIT	0x02
+
+#define	HHOOK_TYPE_TCP		1
+
+typedef void (*hhook_func_t)(void *udata, void *ctx_data);
+
+struct hhook_head;
+
+int	register_hhook_head(int hhook_type, int hhook_id, int flags);
+int	deregister_hhook_head(int hhook_type, int hhook_id);
+int	register_hhook(int hhook_type, int hhook_id, hhook_func_t hook,
+    void *udata, int flags);
+int	deregister_hhook(int hhook_type, int hhook_id, hhook_func_t hook,
+    void *udata, int flags);
+void	run_hhooks(int hhook_type, int hhook_id, void *ctx_data);
 
 
-struct helper {
-	/* Init global module state on kldload. */
-	int (*mod_init) (void);
+#define	HHOOKED(hh) ((hh)->hh_nhooks > 0)
 
-	/* Cleanup global module state on kldunload. */
-	int (*mod_destroy) (void);
+#define	HHOOK_HEAD_LIST_LOCK() mtx_lock(&hhook_head_list_lock)
+#define	HHOOK_HEAD_LIST_UNLOCK() mtx_unlock(&hhook_head_list_lock)
+#define	HHOOK_HEAD_LIST_LOCK_ASSERT() mtx_assert(&hhook_head_list_lock, MA_OWNED)
 
-	int (*block_init) (uintptr_t *data);
-	int (*block_destroy) (uintptr_t *data);
+#define	HHOOK_HEAD_LOCK_INIT(hh) rm_init(&(hh)->hh_lock, "hhook_head rm lock")
+#define	HHOOK_HEAD_LOCK_DESTROY(hh) rm_destroy(&(hh)->hh_lock)
+#define	HHOOK_HEAD_WLOCK(hh) rm_wlock(&(hh)->hh_lock)
+#define	HHOOK_HEAD_WUNLOCK(hh) rm_wunlock(&(hh)->hh_lock)
+#define	HHOOK_HEAD_RLOCK(hh,rmpt) rm_rlock(&(hh)->hh_lock, (rmpt))
+#define	HHOOK_HEAD_RUNLOCK(hh,rmpt) rm_runlock(&(hh)->hh_lock, (rmpt))
 
-	uint16_t	flags;
+#endif /* _NETINET_HHOOKS_H_ */
 
-	//STAILQ hooks; /* which hooks does this helper want to be called from */
-	//STAILQ struct helper_data;
-	int dynamic_id; /* ID assigned by system to this hlpr's data in the
-	dynamic array */
-
-
-	STAILQ_ENTRY(helper) entries;
-};
-
-/* Helper flags */
-#define HLPR_NEEDS_DATABLOCK	0x0001
-
-extern	STAILQ_HEAD(hlpr_head, helper) helpers;
-
-int	init_datablocks(uintptr_t **array_head, int *nblocks);
-int	destroy_datablocks(uintptr_t **array_head, int nblocks);
-int	register_helper(struct helper *h);
-int	deregister_helper(struct helper *h);
-
-#endif /* _NETINET_HELPER_H_ */

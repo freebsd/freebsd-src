@@ -62,11 +62,11 @@ __FBSDID("$FreeBSD$");
 
 #include <net/route.h>
 #include <net/if.h>
-#include <net/pfil.h>
 #include <net/vnet.h>
 
 #include <netinet/cc.h>
 #include <netinet/helper.h>
+#include <netinet/hhooks.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -121,7 +121,6 @@ VNET_DEFINE(int, tcp_v6mssdflt);
 #endif
 VNET_DEFINE(int, tcp_minmss);
 VNET_DEFINE(int, tcp_do_rfc1323);
-VNET_DEFINE(struct pfil_head, tcpest_pfil_hook);
 
 static VNET_DEFINE(int, icmp_may_rst);
 static VNET_DEFINE(int, tcp_isn_reseed_interval);
@@ -379,11 +378,9 @@ tcp_init(void)
 
 	V_tcp_inflight_rttthresh = TCPTV_INFLIGHT_RTTTHRESH;
 
-	V_tcpest_pfil_hook.ph_type = PFIL_TYPE_TCP;
-	V_tcpest_pfil_hook.ph_af = PFIL_TCP_ESTABLISHED;
-
-	if(pfil_head_register(&V_tcpest_pfil_hook) != 0)
-		printf("%s: WARNING: unable to register pfil hook\n", __func__);
+	if (register_hhook_head(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED,
+	    HHOOK_NOWAIT) != 0)
+		printf("%s: WARNING: unable to register helper hook\n", __func__);
 
 	cc_init();
 

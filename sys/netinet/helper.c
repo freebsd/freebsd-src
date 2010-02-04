@@ -56,7 +56,7 @@ init_datablocks(uintptr_t **array_head, int *nblocks)
 		return (0);
 
 
-	*array_head = malloc(num_datablocks * sizeof(uintptr_t), M_HLPR, M_NOWAIT
+	*array_head = malloc(num_datablocks * sizeof(uintptr_t), M_HELPER, M_NOWAIT
 	| M_ZERO);
 
 	printf("Malloced ptr %p for %d data blocks\n", *array_head, num_datablocks);

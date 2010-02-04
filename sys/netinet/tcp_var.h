@@ -44,11 +44,11 @@
 VNET_DECLARE(int, tcp_do_rfc1323);
 VNET_DECLARE(int, tcp_reass_qsize);
 VNET_DECLARE(struct uma_zone *, tcp_reass_zone);
-VNET_DECLARE(struct pfil_head, tcpest_pfil_hook);
+VNET_DECLARE(struct hhook_head, tcpest_hhook);
 #define	V_tcp_do_rfc1323	VNET(tcp_do_rfc1323)
 #define	V_tcp_reass_qsize	VNET(tcp_reass_qsize)
 #define	V_tcp_reass_zone	VNET(tcp_reass_zone)
-#define	V_tcpest_pfil_hook	VNET(tcpest_pfil_hook)
+#define	V_tcpest_hhook		VNET(tcpest_hhook)
 
 #endif /* _KERNEL */
 
@@ -247,10 +247,13 @@ struct tcpcb {
 #define BYTES_ACKED(tp, th)	(th->th_ack - tp->snd_una)
 
 /*
- * TCP specific PFIL hook point identifiers
+ * TCP specific helper hook point identifiers
  */
-#define	PFIL_TCP_ALL		0
-#define	PFIL_TCP_ESTABLISHED	1
+#define	HHOOK_TCP_ESTABLISHED	1
+
+struct tcp_hhook_data {
+	tcp_seq		curack;
+};
 
 /*
  * Flags for the t_oobflags field.
