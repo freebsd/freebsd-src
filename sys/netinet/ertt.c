@@ -44,12 +44,12 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/pfil.h>
 
+#include <netinet/helper.h>
+#include <netinet/helper_module.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/tcp_var.h>
-#include <netinet/tcp_helper.h>
-#include <netinet/tcp_helper_module.h>
 
 struct ertt {
 	int test;

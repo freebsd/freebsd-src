@@ -38,8 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/systm.h>
 
-#include <netinet/tcp_helper.h>
-#include <netinet/tcp_helper_module.h>
+#include <netinet/helper.h>
+#include <netinet/helper_module.h>
 
 
 struct hlpr_head helpers = STAILQ_HEAD_INITIALIZER(helpers);
