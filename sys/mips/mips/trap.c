@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_global.h"
+#include "opt_ktrace.h"
 
 #define	NO_REG_DEFS	1	/* Prevent asm.h from including regdef.h */
 #include <sys/param.h>
@@ -747,7 +748,7 @@ dofault:
 			    td->td_locks));
 			userret(td, trapframe);
 #ifdef KTRACE
-			if (KTRPOINT(p, KTR_SYSRET))
+			if (KTRPOINT(td, KTR_SYSRET))
 				ktrsysret(code, i, td->td_retval[0]);
 #endif
 			/*
