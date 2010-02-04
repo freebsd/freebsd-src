@@ -5,6 +5,9 @@ PROG=	bc
 SRCS=	bc.y scan.l
 CFLAGS+= -I. -I${.CURDIR}
 
+DPADD=	${LIBEDIT} ${LIBTERMCAP}
+LDADD=	-ledit -ltermcap
+
 FILES+=	bc.library
 FILESDIR=${SHAREDIR}/misc
 
