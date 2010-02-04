@@ -650,7 +650,7 @@ isp_clear_commands(ispsoftc_t *isp)
 #ifdef	ISP_TARGET_MODE
 	for (tmp = 0; isp->isp_tgtlist && tmp < isp->isp_maxcmds; tmp++) {
 		uint8_t local[QENTRY_LEN];
-		hdp = &isp->isp_tgt_xflist[tmp];
+		hdp = &isp->isp_tgtlist[tmp];
 		if (hdp->handle == ISP_HANDLE_FREE) {
 			continue;
 		}
