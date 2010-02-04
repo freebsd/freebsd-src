@@ -63,6 +63,9 @@ static const char rcsid[] =
 #include <termios.h>
 #include <unistd.h>
 
+/* Always use the speaker, let the open fail if -p is selected */
+#define SPEAKER "/dev/speaker"
+
 #ifdef SPEAKER
 #include <dev/speaker/speaker.h>
 #endif
