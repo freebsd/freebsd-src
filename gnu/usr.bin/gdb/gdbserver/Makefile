@@ -14,16 +14,10 @@ SRCS=	inferiors.c mem-break.c regcache.c remote-utils.c	\
 	server.c signals.c target.c utils.c
 SRCS+=	fbsd-low.c
 
+SRCS+=	fbsd-${MACHINE_CPUARCH}-low.c reg-${MACHINE_CPUARCH}.c
+
 .if ${MACHINE_CPUARCH} == "i386"
-SRCS+= fbsd-i386-low.c i387-fp.c reg-i386.c
-.endif
-
-.if ${MACHINE_CPUARCH} == "arm"
-SRCS+= fbsd-arm-low.c reg-arm.c
-.endif
-
-.if ${MACHINE_CPUARCH} == "powerpc"
-SRCS+= fbsd-ppc-low.c reg-ppc.c
+SRCS+= i387-fp.c
 .endif
 
 #CFLAGS+=	-I${.CURDIR}/../arch/${MACHINE_CPUARCH}
