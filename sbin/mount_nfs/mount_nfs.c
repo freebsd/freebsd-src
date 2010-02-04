@@ -697,12 +697,17 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 {
 	struct addrinfo hints, *ai_nfs, *ai;
 	enum tryret ret;
-	int ecode, speclen, remoteerr;
+	int ecode, speclen, remoteerr, offset, have_bracket = 0;
 	char *hostp, *delimp, *errstr;
 	size_t len;
 	static char nam[MNAMELEN + 1], pname[MAXHOSTNAMELEN + 5];
 
-	if ((delimp = strrchr(spec, ':')) != NULL) {
+	if (*spec == '[' && (delimp = strchr(spec + 1, ']')) != NULL &&
+	    *(delimp + 1) == ':') {
+		hostp = spec + 1;
+		spec = delimp + 2;
+		have_bracket = 1;
+	} else if ((delimp = strrchr(spec, ':')) != NULL) {
 		hostp = spec;
 		spec = delimp + 1;
 	} else if ((delimp = strrchr(spec, '@')) != NULL) {
@@ -730,10 +735,15 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 	/* Make both '@' and ':' notations equal */
 	if (*hostp != '\0') {
 		len = strlen(hostp);
-		memmove(nam, hostp, len);
-		nam[len] = ':';
-		memmove(nam + len + 1, spec, speclen);
-		nam[len + speclen + 1] = '\0';
+		offset = 0;
+		if (have_bracket)
+			nam[offset++] = '[';
+		memmove(nam + offset, hostp, len);
+		if (have_bracket)
+			nam[len + offset++] = ']';
+		nam[len + offset++] = ':';
+		memmove(nam + len + offset, spec, speclen);
+		nam[len + speclen + offset] = '\0';
 	}
 
 	/*
