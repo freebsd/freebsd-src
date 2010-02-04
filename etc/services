@@ -2223,6 +2223,8 @@ nuts_dem	4132/tcp   #NUTS Daemon
 nuts_dem	4132/udp   #NUTS Daemon
 nuts_bootp	4133/tcp   #NUTS Bootp Server
 nuts_bootp	4133/udp   #NUTS Bootp Server
+sieve		4190/tcp   #ManageSieve Protocol
+sieve		4190/udp   #ManageSieve Protocol
 rwhois		4321/tcp   #Remote Who Is
 rwhois		4321/udp   #Remote Who Is
 unicall		4343/tcp
