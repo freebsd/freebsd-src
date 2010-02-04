@@ -56,6 +56,9 @@ LEAF(ptrace)
 #endif
 	la	t9, _C_LABEL(__error)	# locate address of errno
 	jalr	t9
+#ifdef __ABICALLS__
+	lw	gp, 16(sp)
+#endif
 	sw	zero, 0(v0)
 	lw	ra, 32(sp)
 	addu	sp, sp, 40
