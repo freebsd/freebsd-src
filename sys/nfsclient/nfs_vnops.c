@@ -981,7 +981,6 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 * We only accept a negative hit in the cache if the
 		 * modification time of the parent directory matches
 		 * our cached copy.  Otherwise, we discard all of the
-		 * negative cache entries for this directory.
 		 * negative cache entries for this directory. We also
 		 * only trust -ve cache entries for less than
 		 * nm_negative_namecache_timeout seconds.
