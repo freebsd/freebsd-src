@@ -301,7 +301,7 @@ static int
 bc_yyinput(char *buf, int maxlen)
 {
 	int num;
-	if (interactive) {
+	if (yyin == stdin && interactive) {
 		const char *bp;
 
 		if ((bp = el_gets(el, &num)) == NULL || num == 0)
