@@ -230,20 +230,10 @@ static int
 siis_resume(device_t dev)
 {
 	struct siis_controller *ctlr = device_get_softc(dev);
-	int cap;
-	uint16_t val;
 
 	/* Set PCIe max read request size to at least 1024 bytes */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
-		val = pci_read_config(dev,
-		    cap + PCIR_EXPRESS_DEVICE_CTL, 2);
-		if ((val & PCIM_EXP_CTL_MAX_READ_REQUEST) < 0x3000) {
-			val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
-			val |= 0x3000;
-			pci_write_config(dev,
-			    cap + PCIR_EXPRESS_DEVICE_CTL, val, 2);
-		}
-	}
+	if (pci_get_max_read_req(dev) < 1024)
+		pci_set_max_read_req(dev, 1024);
 	/* Put controller into reset state. */
 	ctlr->gctl |= SIIS_GCTL_GRESET;
 	ATA_OUTL(ctlr->r_gmem, SIIS_GCTL, ctlr->gctl);
