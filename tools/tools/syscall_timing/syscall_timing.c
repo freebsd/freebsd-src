@@ -860,6 +860,10 @@ main(int argc, char *argv[])
 		if (the_test == NULL)
 			usage();
 
+		/*
+		 * Run one warmup, then do the real thing (loops) times.
+		 */
+		the_test->t_func(iterations);
 		for (k = 0; k < loops; k++) {
 			the_test->t_func(iterations);
 			timespecsub(&ts_end, &ts_start);
