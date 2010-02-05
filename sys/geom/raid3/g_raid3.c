@@ -1271,9 +1271,9 @@ g_raid3_done(struct bio *bp)
 	G_RAID3_LOGREQ(3, bp, "Regular request done (error=%d).", bp->bio_error);
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_insert_head(&sc->sc_queue, bp);
+	mtx_unlock(&sc->sc_queue_mtx);
 	wakeup(sc);
 	wakeup(&sc->sc_queue);
-	mtx_unlock(&sc->sc_queue_mtx);
 }
 
 static void
@@ -1379,9 +1379,9 @@ g_raid3_sync_done(struct bio *bp)
 	bp->bio_cflags |= G_RAID3_BIO_CFLAG_SYNC;
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_insert_head(&sc->sc_queue, bp);
+	mtx_unlock(&sc->sc_queue_mtx);
 	wakeup(sc);
 	wakeup(&sc->sc_queue);
-	mtx_unlock(&sc->sc_queue_mtx);
 }
 
 static void
@@ -1459,9 +1459,9 @@ g_raid3_start(struct bio *bp)
 	}
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_insert_tail(&sc->sc_queue, bp);
+	mtx_unlock(&sc->sc_queue_mtx);
 	G_RAID3_DEBUG(4, "%s: Waking up %p.", __func__, sc);
 	wakeup(sc);
-	mtx_unlock(&sc->sc_queue_mtx);
 }
 
 /*
