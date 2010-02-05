@@ -199,24 +199,10 @@ static int vesa_translate_flags(u_int16_t vflags);
 static int vesa_translate_mmodel(u_int8_t vmodel);
 static int vesa_bios_init(void);
 static void vesa_clear_modes(video_info_t *info, int color);
-static vm_offset_t vesa_map_buffer(u_int paddr, size_t size);
-static void vesa_unmap_buffer(vm_offset_t vaddr, size_t size);
 
 #if 0
 static int vesa_get_origin(video_adapter_t *adp, off_t *offset);
 #endif
-
-static void
-dump_buffer(u_char *buf, size_t len)
-{
-    int i;
-
-    for(i = 0; i < len;) {
-	printf("%02x ", buf[i]);
-	if ((++i % 16) == 0)
-	    printf("\n");
-    }
-}
 
 /* INT 10 BIOS calls */
 static int
@@ -788,7 +774,7 @@ vesa_bios_init(void)
 	vesa_adp_info = &buf;
 	if (bootverbose) {
 		printf("VESA: information block\n");
-		dump_buffer((u_char *)&buf, sizeof(buf));
+		hexdump(&buf, sizeof(buf), NULL, HD_OMIT_CHARS);
 	}
 
 	vers = buf.v_version = le16toh(buf.v_version);
@@ -1032,31 +1018,6 @@ vesa_clear_modes(video_info_t *info, int color)
 	}
 }
 
-static vm_offset_t
-vesa_map_buffer(u_int paddr, size_t size)
-{
-	vm_offset_t vaddr;
-	u_int off;
-
-	off = paddr - trunc_page(paddr);
-	vaddr = (vm_offset_t)pmap_mapdev_attr(paddr - off, size + off,
-	    PAT_WRITE_COMBINING);
-#if VESA_DEBUG > 1
-	printf("vesa_map_buffer: paddr:%x vaddr:%tx size:%zx off:%x\n",
-	       paddr, vaddr, size, off);
-#endif
-	return (vaddr + off);
-}
-
-static void
-vesa_unmap_buffer(vm_offset_t vaddr, size_t size)
-{
-#if VESA_DEBUG > 1
-	printf("vesa_unmap_buffer: vaddr:%tx size:%zx\n", vaddr, size);
-#endif
-	kmem_free(kernel_map, vaddr, size);
-}
-
 /* entry points */
 
 static int
@@ -1246,8 +1207,8 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		    (*prevvidsw->get_info)(adp, mode, &info) == 0) {
 			int10_set_mode(adp->va_initial_bios_mode);
 			if (adp->va_info.vi_flags & V_INFO_LINEAR)
-				vesa_unmap_buffer(adp->va_buffer,
-						  vesa_adp_info->v_memsize*64*1024);
+				pmap_unmapdev(adp->va_buffer,
+				    vesa_adp_info->v_memsize * 64 * 1024);
 			/* 
 			 * Once (*prevvidsw->get_info)() succeeded, 
 			 * (*prevvidsw->set_mode)() below won't fail...
@@ -1278,8 +1239,8 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		vesa_bios_set_dac(8);
 
 	if (adp->va_info.vi_flags & V_INFO_LINEAR)
-		vesa_unmap_buffer(adp->va_buffer,
-				  vesa_adp_info->v_memsize*64*1024);
+		pmap_unmapdev(adp->va_buffer,
+		    vesa_adp_info->v_memsize * 64 * 1024);
 
 #if VESA_DEBUG > 0
 	printf("VESA: mode set!\n");
@@ -1295,8 +1256,8 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		printf("VESA: setting up LFB\n");
 #endif
 		vesa_adp->va_buffer =
-			vesa_map_buffer(info.vi_buffer,
-					vesa_adp_info->v_memsize*64*1024);
+		    (vm_offset_t)pmap_mapdev_attr(info.vi_buffer,
+		    vesa_adp_info->v_memsize * 64 * 1024, PAT_WRITE_COMBINING);
 		vesa_adp->va_buffer_size = info.vi_buffer_size;
 		vesa_adp->va_window = vesa_adp->va_buffer;
 		vesa_adp->va_window_size = info.vi_buffer_size/info.vi_planes;
