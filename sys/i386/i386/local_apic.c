@@ -450,7 +450,7 @@ lapic_setup_clock(void)
 		panic("lapic: Divisor too big");
 	value /= 2;
 	if (bootverbose)
-		printf("lapic: Divisor %lu, Frequency %lu hz\n",
+		printf("lapic: Divisor %lu, Frequency %lu Hz\n",
 		    lapic_timer_divisor, value);
 
 	/*
