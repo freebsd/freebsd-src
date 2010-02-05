@@ -218,7 +218,7 @@ static int
 ata_promise_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    int fake_reg, stat_reg;
+    int stat_reg;
 
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
@@ -312,7 +312,6 @@ ata_promise_chipinit(device_t dev)
 	case PR_SATA:
 	    ctlr->channels = 4;
 sata150:
-	    fake_reg = 0x60;
 	    stat_reg = 0x6c;
 	    break;
 
@@ -323,13 +322,12 @@ sata150:
 	default:
 	    ctlr->channels = 4;
 sataii:
-	    fake_reg = 0x54;
 	    stat_reg = 0x60;
 	    break;
 	}
 
 	/* prime fake interrupt register */
-	ATA_OUTL(ctlr->r_res2, fake_reg, 0xffffffff);
+	ctlr->chipset_data = (void *)(uintptr_t)0xffffffff;
 
 	/* clear SATA status and unmask interrupts */
 	ATA_OUTL(ctlr->r_res2, stat_reg, 0x000000ff);
@@ -590,38 +588,23 @@ ata_promise_mio_intr(void *data)
     struct ata_pci_controller *ctlr = data;
     struct ata_channel *ch;
     u_int32_t vector;
-    int unit, fake_reg;
-
-    switch (ctlr->chip->cfg2) {
-    case PR_PATA:
-    case PR_CMBO:
-    case PR_SATA:
-	fake_reg = 0x60;
-	break;
-    case PR_CMBO2: 
-    case PR_SATA2:
-    default:
-	fake_reg = 0x54;
-	break;
-    }
+    int unit;
 
     /*
      * since reading interrupt status register on early "mio" chips
      * clears the status bits we cannot read it for each channel later on
      * in the generic interrupt routine.
-     * store the bits in an unused register in the chip so we can read
-     * it from there safely to get around this "feature".
      */
     vector = ATA_INL(ctlr->r_res2, 0x040);
     ATA_OUTL(ctlr->r_res2, 0x040, vector);
-    ATA_OUTL(ctlr->r_res2, fake_reg, vector);
+    ctlr->chipset_data = (void *)(uintptr_t)vector;
 
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if ((ch = ctlr->interrupt[unit].argument))
 	    ctlr->interrupt[unit].function(ch);
     }
 
-    ATA_OUTL(ctlr->r_res2, fake_reg, 0xffffffff);
+    ctlr->chipset_data = (void *)(uintptr_t)0xffffffff;
 }
 
 static int
@@ -629,25 +612,23 @@ ata_promise_mio_status(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    u_int32_t fake_reg, stat_reg, vector, status;
+    u_int32_t stat_reg, vector, status;
 
     switch (ctlr->chip->cfg2) {
     case PR_PATA:
     case PR_CMBO:
     case PR_SATA:
-	fake_reg = 0x60;
 	stat_reg = 0x6c;
 	break;
     case PR_CMBO2: 
     case PR_SATA2:
     default:
-	fake_reg = 0x54;
 	stat_reg = 0x60;
 	break;
     }
 
     /* read and acknowledge interrupt */
-    vector = ATA_INL(ctlr->r_res2, fake_reg);
+    vector = (uint32_t)(uintptr_t)ctlr->chipset_data;
 
     /* read and clear interface status */
     status = ATA_INL(ctlr->r_res2, stat_reg);
