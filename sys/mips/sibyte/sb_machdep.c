@@ -102,6 +102,22 @@ platform_cpu_init()
 }
 
 static void
+sb_intr_init(int cpuid)
+{
+	int intrnum, intsrc;
+
+	/*
+	 * Disable all sources to the interrupt mapper and setup the mapping
+	 * between an interrupt source and the mips hard interrupt number.
+	 */
+	for (intsrc = 0; intsrc < NUM_INTSRC; ++intsrc) {
+		intrnum = sb_route_intsrc(intsrc);
+		sb_disable_intsrc(cpuid, intsrc);
+		sb_write_intmap(cpuid, intsrc, intrnum);
+	}
+}
+
+static void
 mips_init(void)
 {
 	int i, cfe_mem_idx, tmp;
@@ -278,6 +294,8 @@ platform_start(__register_t a0, __register_t a1, __register_t a2,
 	/* clear the BSS and SBSS segments */
 	memset(&edata, 0, (vm_offset_t)&end - (vm_offset_t)&edata);
 	mips_postboot_fixup();
+
+	sb_intr_init(0);
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
