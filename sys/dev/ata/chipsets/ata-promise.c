@@ -821,7 +821,8 @@ ata_promise_mio_reset(device_t dev)
 		    device_printf(dev, "promise_mio_reset devices=%08x\n",
 		    		  ch->devices);
 
-	    }
+	    } else
+		ch->devices = 0;
 
 	    /* reset and enable plug/unplug intr */
 	    ATA_OUTL(ctlr->r_res2, 0x060, (0x00000011 << ch->unit));
