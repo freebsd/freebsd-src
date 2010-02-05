@@ -83,9 +83,8 @@ zbpci_attach(device_t dev)
 	size = (PCI_BUSMAX + 1) * (PCI_SLOTMAX + 1) * (PCI_FUNCMAX + 1) * 256;
 	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, CFG_PADDR_BASE,
 				 CFG_PADDR_BASE + size - 1, size, 0);
-	if (res == NULL) {
+	if (res == NULL)
 		panic("Cannot allocate resource for config space accesses.");
-	}
 
 	/*
 	 * Allocate KVA for accessing PCI config space.
@@ -97,25 +96,21 @@ zbpci_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	for (n = 0; n < mp_ncpus; ++n) {
+	for (n = 0; n < mp_ncpus; ++n)
 		zbpci_config_space[n].vaddr = va + n * PAGE_SIZE;
-	}
 
 	/*
 	 * Sibyte has the PCI bus hierarchy rooted at bus 0 and HT-PCI
 	 * hierarchy rooted at bus 1.
 	 */
-	if (device_add_child(dev, "pci", 0) == NULL) {
+	if (device_add_child(dev, "pci", 0) == NULL)
 		panic("zbpci_attach: could not add pci bus 0.\n");
-	}
 
-	if (device_add_child(dev, "pci", 1) == NULL) {
+	if (device_add_child(dev, "pci", 1) == NULL)
 		panic("zbpci_attach: could not add pci bus 1.\n");
-	}
 
-	if (bootverbose) {
+	if (bootverbose)
 		device_printf(dev, "attached.\n");
-	}
 
 	return (bus_generic_attach(dev));
 }
