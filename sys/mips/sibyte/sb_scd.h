@@ -22,6 +22,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _SB_SCD_H_
@@ -33,14 +35,11 @@ uint64_t	sb_cpu_speed(void);
 void		sb_system_reset(void);
 
 int		sb_route_intsrc(int src);
-void		sb_enable_intsrc(int src);
-void		sb_disable_intsrc(int src);
-uint64_t	sb_read_intsrc_mask(void);
-
-int		sb_read_intmap(int intsrc);
-void		sb_write_intmap(int intsrc, int intrnum);
-
-uint64_t	sb_read_syscfg(void);
-void		sb_write_syscfg(uint64_t val);
+void		sb_enable_intsrc(int cpu, int src);
+void		sb_disable_intsrc(int cpu, int src);
+uint64_t	sb_read_intsrc_mask(int cpu);
+void		sb_write_intsrc_mask(int cpu, uint64_t mask);
+void		sb_write_intmap(int cpu, int intsrc, int intrnum);
+int		sb_read_intmap(int cpu, int intsrc);
 
 #endif	/* _SB_SCD_H_ */
