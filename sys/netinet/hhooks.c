@@ -53,6 +53,7 @@ MALLOC_DEFINE(M_HHOOK, "helper hook related memory", "Blah");
 struct hhook {
 	hhook_func_t h_func;
 	void	*h_udata;
+	struct helper *h_helper;
         STAILQ_ENTRY(hhook) h_next;
 };
 
@@ -138,31 +139,24 @@ deregister_hhook_head(int hhook_type, int hhook_id)
 	}
 
 	HHOOK_HEAD_LIST_UNLOCK();
-
-	/*
-	TAILQ_FOREACH_SAFE(pfh, &ph->ph_in, pfil_link, pfnext)
-		free(pfh, M_IFADDR);
-	TAILQ_FOREACH_SAFE(pfh, &ph->ph_out, pfil_link, pfnext)
-		free(pfh, M_IFADDR);
-	*/
-
 	return (error);
 }
 
 int
-register_hhook(int hhook_type, int hhook_id, hhook_func_t hook, void *udata,
-    int flags)
+register_hhook(int hhook_type, int hhook_id, struct helper *helper,
+    hhook_func_t hook, void *udata, int flags)
 {
 	struct hhook *h, *tmp;
 	struct hhook_head *hh;
 	int error = 0;
 
-	h = malloc(sizeof(struct hhook), M_HHOOK, (flags & HHOOK_WAITOK) ?
-	    M_WAITOK : M_NOWAIT);
+	h = malloc(sizeof(struct hhook), M_HHOOK,
+	    M_ZERO | ((flags & HHOOK_WAITOK) ? M_WAITOK : M_NOWAIT));
 
 	if (h == NULL)
 		return (ENOMEM);
 
+	h->h_helper = helper;
 	h->h_func = hook;
 	h->h_udata = udata;
 
@@ -181,7 +175,7 @@ register_hhook(int hhook_type, int hhook_id, hhook_func_t hook, void *udata,
 	}
 
 	if (!error) {
-		STAILQ_INSERT_HEAD(&hh->hh_hooks, h, h_next);
+		STAILQ_INSERT_TAIL(&hh->hh_hooks, h, h_next);
 		hh->hh_nhooks++;
 	}
 	else
@@ -218,19 +212,34 @@ deregister_hhook(int hhook_type, int hhook_id, hhook_func_t hook, void *udata,
 }
 
 void
-run_hhooks(int hhook_type, int hhook_id, void *ctx_data)
+run_hhooks(int hhook_type, int hhook_id, void *ctx_data,
+    struct helper_dblock *dblocks, int n_dblocks)
 {
 	struct hhook_head *hh;
 	struct hhook *tmp;
 	struct rm_priotracker rmpt;
+	int i = 0;
+	void *dblock = NULL;
 
 	hh = get_hhook_head(hhook_type, hhook_id, &rmpt, RLOCK_HHOOK_HEAD);
 
 	if (hh == NULL)
 		return;
 
-	STAILQ_FOREACH(tmp, &hh->hh_hooks, h_next)
-		tmp->h_func(tmp->h_udata, ctx_data);
+	STAILQ_FOREACH(tmp, &hh->hh_hooks, h_next) {
+		printf("Running hook %p for helper %d\n", tmp,
+		tmp->h_helper->id);
+		if (tmp->h_helper->flags & HELPER_NEEDS_DBLOCK) {
+			if (n_dblocks == 0
+			    || i >= n_dblocks
+			    || tmp->h_helper->id != dblocks[i].id)
+				continue;
+			dblock = dblocks[i].block;
+			i++;
+		}
+		tmp->h_func(tmp->h_udata, ctx_data, dblock);
+		dblock = NULL;
+	}
 
 	HHOOK_HEAD_RUNLOCK(hh, &rmpt);
 }

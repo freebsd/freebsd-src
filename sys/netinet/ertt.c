@@ -52,23 +52,32 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/tcp_var.h>
 
+void ertt_tcpest_hook(void *udata, void *ctx_data, void *dblock);
+int ertt_mod_init(void);
+int ertt_mod_destroy(void);
+int ertt_block_init(void **block);
+int ertt_block_destroy(void *block);
+
 struct ertt {
 	int test;
 };
 
-void ertt_tcpest_hook(void *udata, void *ctx_data);
-int ertt_mod_init(void);
-int ertt_mod_destroy(void);
-int ertt_block_init(uintptr_t *block);
-int ertt_block_destroy(uintptr_t *block);
+struct helper ertt_helper = {
+	.mod_init = ertt_mod_init,
+	.mod_destroy = ertt_mod_destroy,
+	.block_init = ertt_block_init,
+	.block_destroy = ertt_block_destroy,
+	.flags = HELPER_NEEDS_DBLOCK
+};
+
 
 void
-ertt_tcpest_hook(void *udata, void *ctx_data)
+ertt_tcpest_hook(void *udata, void *ctx_data, void *dblock)
 {
 	//struct ertt *e = (struct ertt *)(((struct tcpcb *)inp->inp_ppcb)->helper_data[0]);
-	//struct ertt *e = (struct ertt *)arg;
-	printf("In the hook with ctx_data: %p, curack = %d\n", ctx_data,
-	((struct tcp_hhook_data *)ctx_data)->curack);
+	struct ertt *e = (struct ertt *)dblock;
+	printf("In the hook with errt->test: %d, ctx_data: %p, curack = %u\n",
+	e->test, ctx_data, ((struct tcp_hhook_data *)ctx_data)->curack);
 }
 
 
@@ -76,7 +85,7 @@ int
 ertt_mod_init(void)
 {
 	return register_hhook(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED,
-	&ertt_tcpest_hook, NULL, HHOOK_WAITOK);
+	    &ertt_helper, &ertt_tcpest_hook, NULL, HHOOK_WAITOK);
 }
 
 int
@@ -87,9 +96,9 @@ ertt_mod_destroy(void)
 }
 
 int
-ertt_block_init(uintptr_t *block)
+ertt_block_init(void **block)
 {
-	*block = (uintptr_t)malloc(sizeof(struct ertt), M_HELPER, M_NOWAIT);
+	*block = malloc(sizeof(struct ertt), M_HELPER, M_NOWAIT);
 
 	((struct ertt *)*block)->test = 5;
 
@@ -100,20 +109,12 @@ ertt_block_init(uintptr_t *block)
 }
 
 int
-ertt_block_destroy(uintptr_t *block)
+ertt_block_destroy(void *block)
 {
 	KASSERT(block != NULL, ("Block is NULL!"));
-	free((void *)*block, M_HELPER);
+	free(block, M_HELPER);
 
 	return (0);
 }
-
-struct helper ertt_helper = {
-	.mod_init = ertt_mod_init,
-	.mod_destroy = ertt_mod_destroy,
-	.block_init = ertt_block_init,
-	.block_destroy = ertt_block_destroy,
-	.flags = HLPR_NEEDS_DATABLOCK
-};
 
 DECLARE_HELPER(ertt, &ertt_helper);

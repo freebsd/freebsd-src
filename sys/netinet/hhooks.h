@@ -38,20 +38,20 @@
 
 #define	HHOOK_TYPE_TCP		1
 
-typedef void (*hhook_func_t)(void *udata, void *ctx_data);
+typedef void (*hhook_func_t)(void *udata, void *ctx_data, void *helper_dblock);
 
+struct helper;
+struct helper_dblock;
 struct hhook_head;
 
 int	register_hhook_head(int hhook_type, int hhook_id, int flags);
 int	deregister_hhook_head(int hhook_type, int hhook_id);
-int	register_hhook(int hhook_type, int hhook_id, hhook_func_t hook,
-    void *udata, int flags);
+int	register_hhook(int hhook_type, int hhook_id, struct helper *helper,
+    hhook_func_t hook, void *udata, int flags);
 int	deregister_hhook(int hhook_type, int hhook_id, hhook_func_t hook,
     void *udata, int flags);
-void	run_hhooks(int hhook_type, int hhook_id, void *ctx_data);
-
-
-#define	HHOOKED(hh) ((hh)->hh_nhooks > 0)
+void	run_hhooks(int hhook_type, int hhook_id, void *ctx_data,
+    struct helper_dblock *dblocks, int n_dblocks);
 
 #define	HHOOK_HEAD_LIST_LOCK() mtx_lock(&hhook_head_list_lock)
 #define	HHOOK_HEAD_LIST_UNLOCK() mtx_unlock(&hhook_head_list_lock)

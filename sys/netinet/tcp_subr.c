@@ -774,10 +774,9 @@ tcp_newtcpcb(struct inpcb *inp)
 			return NULL;
 		}
 
-	KASSERT(tp->helper_data == NULL, ("tp->hlpr_data NOT NULL!"));
-	init_datablocks(&tp->helper_data, &tp->nhelpers);
-	printf("tp->helper_data = %p, tp->nhelpers = %d\n", tp->helper_data,
-	tp->nhelpers);
+	KASSERT(tp->dblocks == NULL, ("tp->dblocks NOT NULL!"));
+	init_helper_dblocks(&tp->dblocks, &tp->n_dblocks);
+	printf("tp->dblocks = %p, tp->n_dblocks = %d\n", tp->dblocks, tp->n_dblocks);
 
 #ifdef VIMAGE
 	tp->t_vnet = inp->inp_vnet;
@@ -948,7 +947,7 @@ tcp_discardcb(struct tcpcb *tp)
 	if (CC_ALGO(tp)->cb_destroy != NULL)
 		CC_ALGO(tp)->cb_destroy(tp);
 
-	destroy_datablocks(&tp->helper_data, tp->nhelpers);
+	destroy_helper_dblocks(tp->dblocks, tp->n_dblocks);
 
 	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;

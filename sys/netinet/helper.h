@@ -34,6 +34,13 @@
 #define	_NETINET_HELPER_H_
 
 
+struct helper_dblock {
+	/* ID of the helper this data block is associated with */
+	int id;
+
+	void *block;
+};
+
 struct helper {
 	/* Init global module state on kldload. */
 	int (*mod_init) (void);
@@ -41,28 +48,34 @@ struct helper {
 	/* Cleanup global module state on kldunload. */
 	int (*mod_destroy) (void);
 
-	int (*block_init) (uintptr_t *data);
-	int (*block_destroy) (uintptr_t *data);
+	int (*block_init) (void **data);
+	int (*block_destroy) (void *data);
 
 	uint16_t	flags;
 
 	//STAILQ hooks; /* which hooks does this helper want to be called from */
-	//STAILQ struct helper_data;
-	int dynamic_id; /* ID assigned by system to this hlpr's data in the
+	unsigned int id; /* ID assigned by system to this hlpr's data in the
 	dynamic array */
 
 
-	STAILQ_ENTRY(helper) entries;
+	STAILQ_ENTRY(helper) h_next;
 };
 
 /* Helper flags */
-#define HLPR_NEEDS_DATABLOCK	0x0001
+#define HELPER_NEEDS_DBLOCK	0x0001
 
-extern	STAILQ_HEAD(hlpr_head, helper) helpers;
 
-int	init_datablocks(uintptr_t **array_head, int *nblocks);
-int	destroy_datablocks(uintptr_t **array_head, int nblocks);
+int	init_helper_dblocks(struct helper_dblock **dblocks, int *nblocks);
+int	destroy_helper_dblocks(struct helper_dblock *array_head, int nblocks);
 int	register_helper(struct helper *h);
 int	deregister_helper(struct helper *h);
+/*struct helper_dblock * get_helper_dblock(struct helper_dblock *array_head, int
+id);*/
+
+#define	HELPER_LIST_WLOCK() rw_wlock(&helper_list_lock)
+#define	HELPER_LIST_WUNLOCK() rw_wunlock(&helper_list_lock)
+#define	HELPER_LIST_RLOCK() rw_rlock(&helper_list_lock)
+#define	HELPER_LIST_RUNLOCK() rw_runlock(&helper_list_lock)
+#define	HELPER_LIST_LOCK_ASSERT() rw_assert(&helper_list_lock, RA_LOCKED)
 
 #endif /* _NETINET_HELPER_H_ */
