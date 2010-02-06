@@ -725,9 +725,11 @@ vesa_bios_init(void)
 	video_info_t *p;
 	x86regs_t regs;
 	size_t bsize;
+	size_t msize;
 	void *vmbuf;
 	uint32_t offs;
 	uint16_t vers;
+	int bpsl;
 	int is_via_cle266;
 	int modes;
 	int i;
@@ -807,6 +809,8 @@ vesa_bios_init(void)
 	if (buf.v_modetable == 0)
 		goto fail;
 
+	msize = (size_t)buf.v_memsize * 64 * 1024;
+
 	vesa_vmodetab = x86bios_offset(BIOS_SADDRTOLADDR(buf.v_modetable));
 
 	for (i = 0, modes = 0; (i < (M_VESA_MODE_MAX - M_VESA_BASE + 1)) &&
@@ -850,6 +854,25 @@ vesa_bios_init(void)
 		}
 #endif
 
+		bpsl = (vmode.v_modeattr & V_MODELFB) != 0 && vers >= 0x0300 ?
+		    vmode.v_linbpscanline : vmode.v_bpscanline;
+		bsize = bpsl * vmode.v_height;
+		if ((vmode.v_modeattr & V_MODEGRAPHICS) != 0)
+			bsize *= vmode.v_planes;
+
+		/* Does it have enough memory to support this mode? */
+		if (msize < bsize) {
+#if VESA_DEBUG > 1
+			printf("Rejecting VESA %s mode: %d x %d x %d bpp "
+			    " attr = %x, not enough memory\n",
+			    vmode.v_modeattr & V_MODEGRAPHICS ?
+			    "graphics" : "text",
+			    vmode.v_width, vmode.v_height, vmode.v_bpp,
+			    vmode.v_modeattr);
+#endif
+			continue;
+		}
+
 		/* expand the array if necessary */
 		if (modes >= vesa_vmode_max) {
 			vesa_vmode_max += MODE_TABLE_DELTA;
@@ -891,86 +914,16 @@ vesa_bios_init(void)
 		/* XXX window B */
 		vesa_vmode[modes].vi_window_size = vmode.v_wsize * 1024;
 		vesa_vmode[modes].vi_window_gran = vmode.v_wgran * 1024;
-		if (vmode.v_modeattr & V_MODELFB) {
+		if (vmode.v_modeattr & V_MODELFB)
 			vesa_vmode[modes].vi_buffer = vmode.v_lfb;
-			vesa_vmode[modes].vi_line_width = vers >= 0x0300 ?
-			    vmode.v_linbpscanline : vmode.v_bpscanline;
-		} else
-			vesa_vmode[modes].vi_line_width = vmode.v_bpscanline;
-		/* XXX */
-		vesa_vmode[modes].vi_buffer_size =
-		    vesa_adp_info->v_memsize * 64 * 1024;
-#if 0
-		if (vmode.v_offscreen > vmode.v_lfb)
-			vesa_vmode[modes].vi_buffer_size = vmode.v_offscreen +
-			    vmode.v_offscreensize * 1024 - vmode.v_lfb;
-		else
-			vesa_vmode[modes].vi_buffer_size = vmode.v_offscreen +
-			    vmode.v_offscreensize * 1024;
-#endif
+		vesa_vmode[modes].vi_buffer_size = bsize;
 		vesa_vmode[modes].vi_mem_model =
 		    vesa_translate_mmodel(vmode.v_memmodel);
 		if (vesa_vmode[modes].vi_mem_model == V_INFO_MM_PACKED ||
 		    vesa_vmode[modes].vi_mem_model == V_INFO_MM_DIRECT)
 			vesa_vmode[modes].vi_pixel_size = (vmode.v_bpp + 7) / 8;
-#if 0
-		if (vesa_vmode[modes].vi_mem_model == V_INFO_MM_DIRECT) {
-			if ((vmode.v_modeattr & V_MODELFB) != 0 &&
-			    vers >= 0x0300) {
-				vesa_vmode[modes].vi_pixel_fields[0] =
-				    vmode.v_linredfieldpos;
-				vesa_vmode[modes].vi_pixel_fields[1] =
-				    vmode.v_lingreenfieldpos;
-				vesa_vmode[modes].vi_pixel_fields[2] =
-				    vmode.v_linbluefieldpos;
-				vesa_vmode[modes].vi_pixel_fields[3] =
-				    vmode.v_linresfieldpos;
-				vesa_vmode[modes].vi_pixel_fsizes[0] =
-				    vmode.v_linredmasksize;
-				vesa_vmode[modes].vi_pixel_fsizes[1] =
-				    vmode.v_lingreenmasksize;
-				vesa_vmode[modes].vi_pixel_fsizes[2] =
-				    vmode.v_linbluemasksize;
-				vesa_vmode[modes].vi_pixel_fsizes[3] =
-				    vmode.v_linresmasksize;
-			} else {
-				vesa_vmode[modes].vi_pixel_fields[0] =
-				    vmode.v_redfieldpos;
-				vesa_vmode[modes].vi_pixel_fields[1] =
-				    vmode.v_greenfieldpos;
-				vesa_vmode[modes].vi_pixel_fields[2] =
-				    vmode.v_bluefieldpos;
-				vesa_vmode[modes].vi_pixel_fields[3] =
-				    vmode.v_resfieldpos;
-				vesa_vmode[modes].vi_pixel_fsizes[0] =
-				    vmode.v_redmasksize;
-				vesa_vmode[modes].vi_pixel_fsizes[1] =
-				    vmode.v_greenmasksize;
-				vesa_vmode[modes].vi_pixel_fsizes[2] =
-				    vmode.v_bluemasksize;
-				vesa_vmode[modes].vi_pixel_fsizes[3] =
-				    vmode.v_resmasksize;
-			}
-		}
-#endif
-		
 		vesa_vmode[modes].vi_flags =
 		    vesa_translate_flags(vmode.v_modeattr) | V_INFO_VESA;
-
-		/* Does it have enough memory to support this mode? */
-		bsize = (size_t)vesa_vmode[modes].vi_line_width *
-		    vesa_vmode[modes].vi_height;
-		if (bsize > vesa_vmode[modes].vi_buffer_size) {
-#if VESA_DEBUG > 1
-			printf("Rejecting VESA %s mode: %d x %d x %d bpp "
-			    " attr = %x, not enough memory\n",
-			    (vmode.v_modeattr & V_MODEGRAPHICS) != 0 ?
-			    "graphics" : "text",
-			    vmode.v_width, vmode.v_height, vmode.v_bpp,
-			    vmode.v_modeattr);
-#endif
-			continue;
-		}
 
 		++modes;
 	}
@@ -1208,7 +1161,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 			int10_set_mode(adp->va_initial_bios_mode);
 			if (adp->va_info.vi_flags & V_INFO_LINEAR)
 				pmap_unmapdev(adp->va_buffer,
-				    vesa_adp_info->v_memsize * 64 * 1024);
+				    adp->va_buffer_size);
 			/* 
 			 * Once (*prevvidsw->get_info)() succeeded, 
 			 * (*prevvidsw->set_mode)() below won't fail...
@@ -1239,8 +1192,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		vesa_bios_set_dac(8);
 
 	if (adp->va_info.vi_flags & V_INFO_LINEAR)
-		pmap_unmapdev(adp->va_buffer,
-		    vesa_adp_info->v_memsize * 64 * 1024);
+		pmap_unmapdev(adp->va_buffer, adp->va_buffer_size);
 
 #if VESA_DEBUG > 0
 	printf("VESA: mode set!\n");
@@ -1257,20 +1209,21 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 #endif
 		vesa_adp->va_buffer =
 		    (vm_offset_t)pmap_mapdev_attr(info.vi_buffer,
-		    vesa_adp_info->v_memsize * 64 * 1024, PAT_WRITE_COMBINING);
-		vesa_adp->va_buffer_size = info.vi_buffer_size;
+		    info.vi_buffer_size, PAT_WRITE_COMBINING);
 		vesa_adp->va_window = vesa_adp->va_buffer;
-		vesa_adp->va_window_size = info.vi_buffer_size/info.vi_planes;
-		vesa_adp->va_window_gran = info.vi_buffer_size/info.vi_planes;
+		vesa_adp->va_window_size = info.vi_buffer_size / info.vi_planes;
+		vesa_adp->va_window_gran = info.vi_buffer_size / info.vi_planes;
 	} else {
 		vesa_adp->va_buffer = 0;
-		vesa_adp->va_buffer_size = info.vi_buffer_size;
 		vesa_adp->va_window = (vm_offset_t)x86bios_offset(info.vi_window);
 		vesa_adp->va_window_size = info.vi_window_size;
 		vesa_adp->va_window_gran = info.vi_window_gran;
 	}
+	vesa_adp->va_buffer_size = info.vi_buffer_size;
 	vesa_adp->va_window_orig = 0;
-	vesa_adp->va_line_width = info.vi_line_width;
+	vesa_adp->va_line_width = info.vi_buffer_size / info.vi_height;
+	if ((info.vi_flags & V_INFO_GRAPHICS) != 0)
+		vesa_adp->va_line_width /= info.vi_planes;
 	vesa_adp->va_disp_start.x = 0;
 	vesa_adp->va_disp_start.y = 0;
 #if VESA_DEBUG > 0
