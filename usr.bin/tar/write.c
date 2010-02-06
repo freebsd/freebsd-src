@@ -185,32 +185,31 @@ tar_mode_c(struct bsdtar *bsdtar)
 	} else {
 		switch (bsdtar->create_compression) {
 		case 0:
-			archive_write_set_compression_none(a);
+			r = archive_write_set_compression_none(a);
 			break;
-#ifdef HAVE_LIBBZ2
 		case 'j': case 'y':
-			archive_write_set_compression_bzip2(a);
+			r = archive_write_set_compression_bzip2(a);
 			break;
-#endif
-#ifdef HAVE_LIBLZMA
 		case 'J':
-			archive_write_set_compression_xz(a);
+			r = archive_write_set_compression_xz(a);
 			break;
 		case OPTION_LZMA:
-			archive_write_set_compression_lzma(a);
+			r = archive_write_set_compression_lzma(a);
 			break;
-#endif
-#ifdef HAVE_LIBZ
 		case 'z':
-			archive_write_set_compression_gzip(a);
+			r = archive_write_set_compression_gzip(a);
 			break;
-#endif
 		case 'Z':
-			archive_write_set_compression_compress(a);
+			r = archive_write_set_compression_compress(a);
 			break;
 		default:
 			bsdtar_errc(1, 0,
 			    "Unrecognized compression option -%c",
+			    bsdtar->create_compression);
+		}
+		if (r != ARCHIVE_OK) {
+			bsdtar_errc(1, 0,
+			    "Unsupported compression option -%c",
 			    bsdtar->create_compression);
 		}
 	}
