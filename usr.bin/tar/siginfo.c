@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "bsdtar.h"
+#include "err.h"
 
 /* Is there a pending SIGINFO or SIGUSR1? */
 static volatile sig_atomic_t siginfo_received = 0;
@@ -73,7 +74,7 @@ siginfo_init(struct bsdtar *bsdtar)
 
 	/* Allocate space for internal structure. */
 	if ((bsdtar->siginfo = malloc(sizeof(struct siginfo_data))) == NULL)
-		bsdtar_errc(bsdtar, 1, errno, "malloc failed");
+		bsdtar_errc(1, errno, "malloc failed");
 
 	/* Set the strings to NULL so that free() is safe. */
 	bsdtar->siginfo->path = bsdtar->siginfo->oper = NULL;
@@ -99,9 +100,9 @@ siginfo_setinfo(struct bsdtar *bsdtar, const char * oper, const char * path,
 
 	/* Duplicate strings and store entry size. */
 	if ((bsdtar->siginfo->oper = strdup(oper)) == NULL)
-		bsdtar_errc(bsdtar, 1, errno, "Cannot strdup");
+		bsdtar_errc(1, errno, "Cannot strdup");
 	if ((bsdtar->siginfo->path = strdup(path)) == NULL)
-		bsdtar_errc(bsdtar, 1, errno, "Cannot strdup");
+		bsdtar_errc(1, errno, "Cannot strdup");
 	bsdtar->siginfo->size = size;
 }
 
