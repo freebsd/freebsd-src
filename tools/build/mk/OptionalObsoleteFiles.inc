@@ -899,7 +899,6 @@ OLD_FILES+=usr/include/openssl/idea.h
 .endif
 
 .if ${MK_INET6} == no
-OLD_FILES+=rescue/ping6
 OLD_FILES+=sbin/ping6
 OLD_FILES+=sbin/rtsol
 OLD_FILES+=usr/sbin/faithd
@@ -925,6 +924,10 @@ OLD_FILES+=usr/share/man/man8/rtadvd.8.gz
 OLD_FILES+=usr/share/man/man8/rtsol.8.gz
 OLD_FILES+=usr/share/man/man8/rtsold.8.gz
 OLD_FILES+=usr/share/man/man8/traceroute6.8.gz
+.endif
+
+.if ${MK_INET6_SUPPORT} == no
+OLD_FILES+=rescue/ping6
 .endif
 
 #.if ${MK_INFO} == no
