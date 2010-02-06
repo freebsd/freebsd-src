@@ -142,16 +142,13 @@ int	exclude_from_file(struct bsdtar *, const char *pathname);
 int	excluded(struct bsdtar *, const char *pathname);
 int	include(struct bsdtar *, const char *pattern);
 int	include_from_file(struct bsdtar *, const char *pathname);
+int	need_report(void);
 int	pathcmp(const char *a, const char *b);
 int	process_lines(struct bsdtar *bsdtar, const char *pathname,
 	    int (*process)(struct bsdtar *, const char *));
 void	safe_fprintf(FILE *, const char *fmt, ...);
 void	set_chdir(struct bsdtar *, const char *newdir);
-void	siginfo_init(struct bsdtar *);
-void	siginfo_setinfo(struct bsdtar *, const char * oper,
-	    const char * path, int64_t size);
-void	siginfo_printinfo(struct bsdtar *, off_t progress);
-void	siginfo_done(struct bsdtar *);
+const char *tar_i64toa(int64_t);
 void	tar_mode_c(struct bsdtar *bsdtar);
 void	tar_mode_r(struct bsdtar *bsdtar);
 void	tar_mode_t(struct bsdtar *bsdtar);
