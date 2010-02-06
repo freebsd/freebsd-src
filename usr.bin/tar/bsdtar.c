@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_PATHS_H
 #include <paths.h>
 #endif
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -82,7 +85,32 @@ __FBSDID("$FreeBSD$");
 #define	_PATH_DEFTAPE "/dev/tape"
 #endif
 
-/* External function to parse a date/time string (from getdate.y) */
+#if defined(HAVE_SIGACTION) && (defined(SIGINFO) || defined(SIGUSR1))
+static volatile int siginfo_occurred;
+
+static void
+siginfo_handler(int sig)
+{
+	(void)sig; /* UNUSED */
+	siginfo_occurred = 1;
+}
+
+int
+need_report(void)
+{
+	int r = siginfo_occurred;
+	siginfo_occurred = 0;
+	return (r);
+}
+#else
+int
+need_report(void)
+{
+	return (0);
+}
+#endif
+
+/* External function to parse a date/time string */
 time_t get_date(time_t, const char *);
 
 static void		 long_help(void);
@@ -114,11 +142,23 @@ main(int argc, char **argv)
 	memset(bsdtar, 0, sizeof(*bsdtar));
 	bsdtar->fd = -1; /* Mark as "unused" */
 	option_o = 0;
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Make sure open() function will be used with a binary mode. */
-	/* on cygwin, we need something similar, but instead link against */
-	/* a special startup object, binmode.o */
-	_set_fmode(_O_BINARY);
+
+#if defined(HAVE_SIGACTION) && (defined(SIGINFO) || defined(SIGUSR1))
+	{ /* Catch SIGINFO and SIGUSR1, if they exist. */
+		struct sigaction sa;
+		sa.sa_handler = siginfo_handler;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+#ifdef SIGINFO
+		if (sigaction(SIGINFO, &sa, NULL))
+			bsdtar_errc(1, errno, "sigaction(SIGINFO) failed");
+#endif
+#ifdef SIGUSR1
+		/* ... and treat SIGUSR1 the same way as SIGINFO. */
+		if (sigaction(SIGUSR1, &sa, NULL))
+			bsdtar_errc(1, errno, "sigaction(SIGUSR1) failed");
+#endif
+	}
 #endif
 
 	/* Need bsdtar_progname before calling bsdtar_warnc. */

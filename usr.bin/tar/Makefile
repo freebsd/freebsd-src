@@ -9,7 +9,6 @@ SRCS=	bsdtar.c	\
 	getdate.c	\
 	matching.c	\
 	read.c		\
-	siginfo.c	\
 	subst.c		\
 	tree.c		\
 	util.c		\
