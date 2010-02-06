@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -328,7 +328,7 @@ OpcSetOptimalIntegerSize (
             }
             break;
 
-        case ACPI_INTEGER_MAX:
+        case ACPI_UINT64_MAX:
 
             /* Check for table integer width (32 or 64) */
 
@@ -568,7 +568,7 @@ OpcDoEisaId (
 
             if (i < 3)
             {
-                if (!isupper (InString[i]))
+                if (!isupper ((int) InString[i]))
                 {
                     Status = AE_BAD_PARAMETER;
                 }
@@ -576,7 +576,7 @@ OpcDoEisaId (
 
             /* Last 4 characters must be hex digits */
 
-            else if (!isxdigit (InString[i]))
+            else if (!isxdigit ((int) InString[i]))
             {
                 Status = AE_BAD_PARAMETER;
             }
@@ -666,7 +666,7 @@ OpcDoUuId (
             }
             else
             {
-                if (!isxdigit (InString[i]))
+                if (!isxdigit ((int) InString[i]))
                 {
                     Status = AE_BAD_PARAMETER;
                 }

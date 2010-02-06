@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -232,7 +232,8 @@ MpDisplayReservedNames (
  *
  * Name         - The ACPI reserved name
  * Args         - Number of arguments to the method
- * Flags        - Whether this method must return a value or not
+ * Flags        - Whether this method must return a value or not. Or if the
+ *                name is a resource descriptor label.
  *
  ******************************************************************************/
 
@@ -264,24 +265,30 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_ALP",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_ALR",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_ALT",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_ART",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_ASI",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_ASZ",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_BAS",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_BBN",     0,      ASL_RSVD_RETURN_VALUE},
     {"_BCL",     0,      ASL_RSVD_RETURN_VALUE},
     {"_BCM",     1,      0},
+    {"_BCT",     1,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_BDN",     0,      ASL_RSVD_RETURN_VALUE},
     {"_BFS",     1,      0},
     {"_BIF",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_BIX",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_BLT",     3,      0},                        /* Acpi 3.0 */
     {"_BM_",     0,      ASL_RSVD_RESOURCE_NAME},
+    {"_BMA",     1,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_BMC",     1,      0},                        /* Acpi 3.0 */
     {"_BMD",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_BMS",     1,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_BQC",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_BST",     0,      ASL_RSVD_RETURN_VALUE},
     {"_BTM",     1,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_BTP",     1,      0},
     {"_CBA",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_CDM",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_CID",     0,      ASL_RSVD_RETURN_VALUE},
     {"_CRS",     0,      ASL_RSVD_RETURN_VALUE},
     {"_CRT",     0,      ASL_RSVD_RETURN_VALUE},
@@ -300,6 +307,7 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_DSM",     4,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_DSS",     1,      0},
     {"_DSW",     3,      0},                        /* Acpi 3.0 */
+    {"_DTI",     1,      0},                        /* Acpi 4.0 */
     {"_EC_",     0,      ASL_RSVD_RETURN_VALUE},
     {"_EDL",     0,      ASL_RSVD_RETURN_VALUE},
     {"_EJ0",     1,      0},
@@ -312,7 +320,13 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_FDE",     0,      ASL_RSVD_RETURN_VALUE},
     {"_FDI",     0,      ASL_RSVD_RETURN_VALUE},
     {"_FDM",     1,      0},
+    {"_FIF",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_FIX",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_FPS",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
+    {"_FSL",     1,      0},                        /* Acpi 4.0 */
+    {"_FST",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
+    {"_GAI",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
+    {"_GHL",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_GL_",     0,      ASL_RSVD_RETURN_VALUE},
     {"_GLK",     0,      ASL_RSVD_RETURN_VALUE},
     {"_GPD",     0,      ASL_RSVD_RETURN_VALUE},
@@ -338,28 +352,39 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_MAF",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_MAT",     0,      ASL_RSVD_RETURN_VALUE},
     {"_MAX",     0,      ASL_RSVD_RESOURCE_NAME},
+    {"_MBM",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_MEM",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_MIF",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_MIN",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_MLS",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_MSG",     1,      0},
+    {"_MSM",     4,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_MTP",     0,      ASL_RSVD_RESOURCE_NAME},
+    {"_NTT",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_OFF",     0,      0},
     {"_ON_",     0,      0},
     {"_OS_",     0,      ASL_RSVD_RETURN_VALUE},
     {"_OSC",     4,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_OSI",     1,      ASL_RSVD_RETURN_VALUE},
     {"_OST",     3,      0},                        /* Acpi 3.0 */
+    {"_PAI",     1,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_PCL",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PCT",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PDC",     1,      0},
+    {"_PDL",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_PIC",     1,      0},
+    {"_PIF",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_PLD",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_PMC",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
+    {"_PMD",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
+    {"_PMM",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_PPC",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PPE",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_PR0",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PR1",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PR2",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_PR3",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
+    {"_PRL",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_PRS",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PRT",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PRW",     0,      ASL_RSVD_RETURN_VALUE},
@@ -375,7 +400,9 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_PSV",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PSW",     1,      0},
     {"_PTC",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_PTP",     2,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_PTS",     1,      0},
+    {"_PUR",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_PXM",     0,      ASL_RSVD_RETURN_VALUE},
     {"_RBO",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_RBW",     0,      ASL_RSVD_RESOURCE_NAME},
@@ -407,6 +434,7 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_SCP",     0x13,   0},                        /* Acpi 1.0 - one arg; Acpi 3.0 - three args */
     {"_SDD",     1,      0},                        /* Acpi 3.0 */
     {"_SEG",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_SHL",     1,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_SHR",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_SI_",     0,      ASL_RSVD_SCOPE},
     {"_SIZ",     0,      ASL_RSVD_RESOURCE_NAME},
@@ -417,12 +445,16 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_SST",     1,      0},
     {"_STA",     0,      ASL_RSVD_RETURN_VALUE},
     {"_STM",     3,      0},
+    {"_STP",     2,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_STR",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_STV",     2,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_SUN",     0,      ASL_RSVD_RETURN_VALUE},
     {"_SWS",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_TC1",     0,      ASL_RSVD_RETURN_VALUE},
     {"_TC2",     0,      ASL_RSVD_RETURN_VALUE},
     {"_TDL",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0b */
+    {"_TIP",     1,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
+    {"_TIV",     1,      ASL_RSVD_RETURN_VALUE},    /* Acpi 4.0 */
     {"_TMP",     0,      ASL_RSVD_RETURN_VALUE},
     {"_TPC",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_TPT",     1,      0},                        /* Acpi 3.0 */
@@ -681,6 +713,7 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /* REGIONSPACE_CMOS */          OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          REGION_CMOS,                    0,                  0),
 /* REGIONSPACE_EC */            OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          REGION_EC,                      0,                  0),
 /* REGIONSPACE_IO */            OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          REGION_IO,                      0,                  0),
+/* REGIONSPACE_IPMI */          OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          REGION_IPMI,                    0,                  0),
 /* REGIONSPACE_MEM */           OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          REGION_MEMORY,                  0,                  0),
 /* REGIONSPACE_PCI */           OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          REGION_PCI_CONFIG,              0,                  0),
 /* REGIONSPACE_PCIBAR */        OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          REGION_PCI_BAR,                 0,                  0),

@@ -21,7 +21,7 @@ fulldirs="common compiler debugger disassembler dispatcher events	\
 # files to remove
 stripdirs="acpisrc acpixtract examples generate os_specific"
 stripfiles="Makefile README acintel.h aclinux.h acmsvc.h acnetbsd.h	\
-	acos2.h accygwin.h acefi.h actbl2.h acwin.h acwin64.h aeexec.c	\
+	acos2.h accygwin.h acefi.h acwin.h acwin64.h aeexec.c		\
 	aehandlers.c aemain.c aetables.c osunixdir.c readme.txt		\
 	utclib.c"
 
@@ -31,8 +31,8 @@ src_headers="acapps.h accommon.h acconfig.h acdebug.h acdisasm.h	\
 	aclocal.h acmacros.h acnames.h acnamesp.h acobject.h acopcode.h	\
 	acoutput.h acparser.h acpi.h acpiosxf.h acpixf.h acpredef.h	\
 	acresrc.h acrestyp.h acstruct.h actables.h actbl.h actbl1.h	\
-	actypes.h acutils.h amlcode.h amlresrc.h platform/acenv.h	\
-	platform/acfreebsd.h platform/acgcc.h"
+	actbl2.h actypes.h acutils.h amlcode.h amlresrc.h		\
+	platform/acenv.h platform/acfreebsd.h platform/acgcc.h"
 comp_headers="aslcompiler.h asldefine.h aslglobal.h asltypes.h"
 platform_headers="acfreebsd.h acgcc.h"
 

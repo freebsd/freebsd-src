@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -519,7 +519,7 @@ AcpiDsCallControlMethod (
 
     if (ObjDesc->Method.MethodFlags & AML_METHOD_INTERNAL_ONLY)
     {
-        Status = ObjDesc->Method.Implementation (NextWalkState);
+        Status = ObjDesc->Method.Extra.Implementation (NextWalkState);
         if (Status == AE_OK)
         {
             Status = AE_CTRL_TERMINATE;
@@ -693,10 +693,15 @@ AcpiDsTerminateControlMethod (
         }
 
         /*
-         * Delete any namespace objects created anywhere within
-         * the namespace by the execution of this method
+         * Delete any namespace objects created anywhere within the
+         * namespace by the execution of this method. Unless this method
+         * is a module-level executable code method, in which case we
+         * want make the objects permanent.
          */
-        AcpiNsDeleteNamespaceByOwner (MethodDesc->Method.OwnerId);
+        if (!(MethodDesc->Method.Flags & AOPOBJ_MODULE_LEVEL))
+        {
+            AcpiNsDeleteNamespaceByOwner (MethodDesc->Method.OwnerId);
+        }
     }
 
     /* Decrement the thread count on the method */
@@ -745,7 +750,10 @@ AcpiDsTerminateControlMethod (
 
         /* No more threads, we can free the OwnerId */
 
-        AcpiUtReleaseOwnerId (&MethodDesc->Method.OwnerId);
+        if (!(MethodDesc->Method.Flags & AOPOBJ_MODULE_LEVEL))
+        {
+            AcpiUtReleaseOwnerId (&MethodDesc->Method.OwnerId);
+        }
     }
 
     return_VOID;

@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -144,7 +144,7 @@
 
 static UINT32
 AcpiExDigitsNeeded (
-    ACPI_INTEGER            Value,
+    UINT64                  Value,
     UINT32                  Base);
 
 
@@ -334,7 +334,7 @@ AcpiExTruncateFor32bitTable (
          * We are running a method that exists in a 32-bit ACPI table.
          * Truncate the value to 32 bits by zeroing out the upper 32-bit field
          */
-        ObjDesc->Integer.Value &= (ACPI_INTEGER) ACPI_UINT32_MAX;
+        ObjDesc->Integer.Value &= (UINT64) ACPI_UINT32_MAX;
     }
 }
 
@@ -446,17 +446,17 @@ AcpiExReleaseGlobalLock (
 
 static UINT32
 AcpiExDigitsNeeded (
-    ACPI_INTEGER            Value,
+    UINT64                  Value,
     UINT32                  Base)
 {
     UINT32                  NumDigits;
-    ACPI_INTEGER            CurrentValue;
+    UINT64                  CurrentValue;
 
 
     ACPI_FUNCTION_TRACE (ExDigitsNeeded);
 
 
-    /* ACPI_INTEGER is unsigned, so we don't worry about a '-' prefix */
+    /* UINT64 is unsigned, so we don't worry about a '-' prefix */
 
     if (Value == 0)
     {
@@ -482,59 +482,76 @@ AcpiExDigitsNeeded (
  *
  * FUNCTION:    AcpiExEisaIdToString
  *
- * PARAMETERS:  NumericId       - EISA ID to be converted
+ * PARAMETERS:  CompressedId    - EISAID to be converted
  *              OutString       - Where to put the converted string (8 bytes)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Convert a numeric EISA ID to string representation
+ * DESCRIPTION: Convert a numeric EISAID to string representation. Return
+ *              buffer must be large enough to hold the string. The string
+ *              returned is always exactly of length ACPI_EISAID_STRING_SIZE
+ *              (includes null terminator). The EISAID is always 32 bits.
  *
  ******************************************************************************/
 
 void
 AcpiExEisaIdToString (
-    UINT32                  NumericId,
-    char                    *OutString)
+    char                    *OutString,
+    UINT64                  CompressedId)
 {
-    UINT32                  EisaId;
+    UINT32                  SwappedId;
 
 
     ACPI_FUNCTION_ENTRY ();
 
 
+    /* The EISAID should be a 32-bit integer */
+
+    if (CompressedId > ACPI_UINT32_MAX)
+    {
+        ACPI_WARNING ((AE_INFO,
+            "Expected EISAID is larger than 32 bits: 0x%8.8X%8.8X, truncating",
+            ACPI_FORMAT_UINT64 (CompressedId)));
+    }
+
     /* Swap ID to big-endian to get contiguous bits */
 
-    EisaId = AcpiUtDwordByteSwap (NumericId);
+    SwappedId = AcpiUtDwordByteSwap ((UINT32) CompressedId);
 
-    OutString[0] = (char) ('@' + (((unsigned long) EisaId >> 26) & 0x1f));
-    OutString[1] = (char) ('@' + ((EisaId >> 21) & 0x1f));
-    OutString[2] = (char) ('@' + ((EisaId >> 16) & 0x1f));
-    OutString[3] = AcpiUtHexToAsciiChar ((ACPI_INTEGER) EisaId, 12);
-    OutString[4] = AcpiUtHexToAsciiChar ((ACPI_INTEGER) EisaId, 8);
-    OutString[5] = AcpiUtHexToAsciiChar ((ACPI_INTEGER) EisaId, 4);
-    OutString[6] = AcpiUtHexToAsciiChar ((ACPI_INTEGER) EisaId, 0);
+    /* First 3 bytes are uppercase letters. Next 4 bytes are hexadecimal */
+
+    OutString[0] = (char) (0x40 + (((unsigned long) SwappedId >> 26) & 0x1F));
+    OutString[1] = (char) (0x40 + ((SwappedId >> 21) & 0x1F));
+    OutString[2] = (char) (0x40 + ((SwappedId >> 16) & 0x1F));
+    OutString[3] = AcpiUtHexToAsciiChar ((UINT64) SwappedId, 12);
+    OutString[4] = AcpiUtHexToAsciiChar ((UINT64) SwappedId, 8);
+    OutString[5] = AcpiUtHexToAsciiChar ((UINT64) SwappedId, 4);
+    OutString[6] = AcpiUtHexToAsciiChar ((UINT64) SwappedId, 0);
     OutString[7] = 0;
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiExUnsignedIntegerToString
+ * FUNCTION:    AcpiExIntegerToString
  *
- * PARAMETERS:  Value           - Value to be converted
- *              OutString       - Where to put the converted string (8 bytes)
+ * PARAMETERS:  OutString       - Where to put the converted string. At least
+ *                                21 bytes are needed to hold the largest
+ *                                possible 64-bit integer.
+ *              Value           - Value to be converted
  *
  * RETURN:      None, string
  *
- * DESCRIPTION: Convert a number to string representation. Assumes string
- *              buffer is large enough to hold the string.
+ * DESCRIPTION: Convert a 64-bit integer to decimal string representation.
+ *              Assumes string buffer is large enough to hold the string. The
+ *              largest string is (ACPI_MAX64_DECIMAL_DIGITS + 1).
  *
  ******************************************************************************/
 
 void
-AcpiExUnsignedIntegerToString (
-    ACPI_INTEGER            Value,
-    char                    *OutString)
+AcpiExIntegerToString (
+    char                    *OutString,
+    UINT64                  Value)
 {
     UINT32                  Count;
     UINT32                  DigitsNeeded;

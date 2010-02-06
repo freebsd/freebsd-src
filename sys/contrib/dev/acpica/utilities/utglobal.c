@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -172,7 +172,16 @@ const char                  *AcpiGbl_SleepStateNames[ACPI_S_STATE_COUNT] =
     "\\_S5_"
 };
 
-const char                  *AcpiGbl_HighestDstateNames[4] =
+const char                  *AcpiGbl_LowestDstateNames[ACPI_NUM_SxW_METHODS] =
+{
+    "_S0W",
+    "_S1W",
+    "_S2W",
+    "_S3W",
+    "_S4W"
+};
+
+const char                  *AcpiGbl_HighestDstateNames[ACPI_NUM_SxD_METHODS] =
 {
     "_S1D",
     "_S2D",
@@ -322,7 +331,7 @@ static const char           AcpiGbl_HexToAscii[] =
 
 char
 AcpiUtHexToAsciiChar (
-    ACPI_INTEGER            Integer,
+    UINT64                  Integer,
     UINT32                  Position)
 {
 
@@ -398,6 +407,7 @@ const char        *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS] =
     "SMBus",
     "SystemCMOS",
     "PCIBARTarget",
+    "IPMI",
     "DataTable"
 };
 
@@ -928,6 +938,7 @@ AcpiUtInitGlobals (
 
     /* Namespace */
 
+    AcpiGbl_ModuleCodeList              = NULL;
     AcpiGbl_RootNode                    = NULL;
     AcpiGbl_RootNodeStruct.Name.Integer = ACPI_ROOT_NAME;
     AcpiGbl_RootNodeStruct.DescriptorType = ACPI_DESC_TYPE_NAMED;
@@ -937,6 +948,10 @@ AcpiUtInitGlobals (
     AcpiGbl_RootNodeStruct.Object       = NULL;
     AcpiGbl_RootNodeStruct.Flags        = ANOBJ_END_OF_PEER_LIST;
 
+
+#ifdef ACPI_DISASSEMBLER
+    AcpiGbl_ExternalList                = NULL;
+#endif
 
 #ifdef ACPI_DEBUG_OUTPUT
     AcpiGbl_LowestStackPointer          = ACPI_CAST_PTR (ACPI_SIZE, ACPI_SIZE_MAX);

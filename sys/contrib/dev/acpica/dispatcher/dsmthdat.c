@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -524,13 +524,12 @@ AcpiDsMethodDataGetValue (
 
         if (AcpiGbl_EnableInterpreterSlack)
         {
-            Object = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+            Object = AcpiUtCreateIntegerObject ((UINT64) 0);
             if (!Object)
             {
                 return_ACPI_STATUS (AE_NO_MEMORY);
             }
 
-            Object->Integer.Value = 0;
             Node->Object = Object;
         }
 
@@ -548,9 +547,10 @@ AcpiDsMethodDataGetValue (
 
         case ACPI_REFCLASS_LOCAL:
 
-            ACPI_ERROR ((AE_INFO,
-                "Uninitialized Local[%d] at node %p", Index, Node));
-
+            /*
+             * No error message for this case, will be trapped again later to
+             * detect and ignore cases of Store(LocalX,LocalX)
+             */
             return_ACPI_STATUS (AE_AML_UNINITIALIZED_LOCAL);
 
         default:

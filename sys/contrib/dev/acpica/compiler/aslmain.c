@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -150,6 +150,25 @@ AslCommandLine (
     int                     argc,
     char                    **argv);
 
+static int
+AslDoOptions (
+    int                     argc,
+    char                    **argv,
+    BOOLEAN                 IsResponseFile);
+
+static void
+AslMergeOptionTokens (
+    char                    *InBuffer,
+    char                    *OutBuffer);
+
+static int
+AslDoResponseFile (
+    char                    *Filename);
+
+
+#define ASL_TOKEN_SEPARATORS    " \t\n"
+#define ASL_SUPPORTED_OPTIONS   "@:2b:cd^e:fgh^i^I:l^o:p:r:s:t:v:w:x:"
+
 
 /*******************************************************************************
  *
@@ -168,8 +187,12 @@ Options (
     void)
 {
 
-    printf ("General Output:\n");
-    printf ("  -p <prefix>    Specify path/filename prefix for all output files\n");
+    printf ("Global:\n");
+    printf ("  -@<file>       Specify command file\n");
+    printf ("  -I<dir>        Specify additional include directory\n");
+
+    printf ("\nGeneral Output:\n");
+    printf ("  -p<prefix>     Specify path/filename prefix for all output files\n");
     printf ("  -va            Disable all errors and warnings (summary only)\n");
     printf ("  -vi            Less verbose errors and warnings for use with IDEs\n");
     printf ("  -vo            Enable optimization comments\n");
@@ -310,39 +333,149 @@ AslInitialize (
 
 /*******************************************************************************
  *
- * FUNCTION:    AslCommandLine
+ * FUNCTION:    AslMergeOptionTokens
  *
- * PARAMETERS:  argc/argv
+ * PARAMETERS:  InBuffer            - Input containing an option string
+ *              OutBuffer           - Merged output buffer
  *
  * RETURN:      None
  *
- * DESCRIPTION: Command line processing
+ * DESCRIPTION: Remove all whitespace from an option string.
+ *
+ ******************************************************************************/
+
+static void
+AslMergeOptionTokens (
+    char                    *InBuffer,
+    char                    *OutBuffer)
+{
+    char                    *Token;
+
+
+    *OutBuffer = 0;
+
+    Token = strtok (InBuffer, ASL_TOKEN_SEPARATORS);
+    while (Token)
+    {
+        strcat (OutBuffer, Token);
+        Token = strtok (NULL, ASL_TOKEN_SEPARATORS);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AslDoResponseFile
+ *
+ * PARAMETERS:  Filename        - Name of the response file
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Open a response file and process all options within.
  *
  ******************************************************************************/
 
 static int
-AslCommandLine (
-    int                     argc,
-    char                    **argv)
+AslDoResponseFile (
+    char                    *Filename)
 {
-    BOOLEAN                 BadCommandLine = FALSE;
+    char                    *argv = StringBuffer2;
+    FILE                    *ResponseFile;
+    int                     OptStatus = 0;
+    int                     Opterr;
+    int                     Optind;
+
+
+    ResponseFile = fopen (Filename, "r");
+    if (!ResponseFile)
+    {
+        printf ("Could not open command file %s, %s\n",
+            Filename, strerror (errno));
+        return -1;
+    }
+
+    /* Must save the current GetOpt globals */
+
+    Opterr = AcpiGbl_Opterr;
+    Optind = AcpiGbl_Optind;
+
+    /*
+     * Process all lines in the response file. There must be one complete
+     * option per line
+     */
+    while (fgets (StringBuffer, ASL_MSG_BUFFER_SIZE, ResponseFile))
+    {
+        /* Compress all tokens, allowing us to use a single argv entry */
+
+        AslMergeOptionTokens (StringBuffer, StringBuffer2);
+
+        /* Process the option */
+
+        AcpiGbl_Opterr = 0;
+        AcpiGbl_Optind = 0;
+
+        OptStatus = AslDoOptions (1, &argv, TRUE);
+        if (OptStatus)
+        {
+            printf ("Invalid option in command file %s: %s\n",
+                Filename, StringBuffer);
+            break;
+        }
+    }
+
+    /* Restore the GetOpt globals */
+
+    AcpiGbl_Opterr = Opterr;
+    AcpiGbl_Optind = Optind;
+
+    fclose (ResponseFile);
+    return (OptStatus);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AslDoOptions
+ *
+ * PARAMETERS:  argc/argv           - Standard argc/argv
+ *              IsResponseFile      - TRUE if executing a response file.
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Command line option processing
+ *
+ ******************************************************************************/
+
+static int
+AslDoOptions (
+    int                     argc,
+    char                    **argv,
+    BOOLEAN                 IsResponseFile)
+{
     int                     j;
 
 
-    /* Minimum command line contains at least one option or an input file */
-
-    if (argc < 2)
-    {
-        AslCompilerSignon (ASL_FILE_STDOUT);
-        Usage ();
-        exit (1);
-    }
-
     /* Get the command line options */
 
-    while ((j = AcpiGetopt (argc, argv, "2b:cd^e:fgh^i^l^o:p:r:s:t:v:w:x:")) != EOF) switch (j)
+    while ((j = AcpiGetopt (argc, argv, ASL_SUPPORTED_OPTIONS)) != EOF) switch (j)
     {
+    case '@':   /* Begin a response file */
+
+        if (IsResponseFile)
+        {
+            printf ("Nested command files are not supported\n");
+            return -1;
+        }
+
+        if (AslDoResponseFile (AcpiGbl_Optarg))
+        {
+            return -1;
+        }
+        break;
+
+
     case '2':
+
         Gbl_Acpi2 = TRUE;
         break;
 
@@ -364,8 +497,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -b%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
 
         /* Produce debug output file */
@@ -394,8 +526,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -d%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
 
         Gbl_DisasmFlag = TRUE;
@@ -444,9 +575,14 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -h%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
+        break;
+
+
+    case 'I': /* Add an include file search directory */
+
+        FlAddIncludeDirectory (AcpiGbl_Optarg);
         break;
 
 
@@ -470,8 +606,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -s%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -500,8 +635,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -l%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -549,8 +683,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -c%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -589,8 +722,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -s%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -611,8 +743,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -t%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -647,8 +778,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -v%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -671,8 +801,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -w%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -685,9 +814,45 @@ AslCommandLine (
 
     default:
 
-        BadCommandLine = TRUE;
-        break;
+        return (-1);
     }
+
+    return (0);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AslCommandLine
+ *
+ * PARAMETERS:  argc/argv
+ *
+ * RETURN:      Last argv index
+ *
+ * DESCRIPTION: Command line processing
+ *
+ ******************************************************************************/
+
+static int
+AslCommandLine (
+    int                     argc,
+    char                    **argv)
+{
+    int                     BadCommandLine = 0;
+
+
+    /* Minimum command line contains at least the command and an input file */
+
+    if (argc < 2)
+    {
+        AslCompilerSignon (ASL_FILE_STDOUT);
+        Usage ();
+        exit (1);
+    }
+
+    /* Process all command line options */
+
+    BadCommandLine = AslDoOptions (argc, argv, FALSE);
 
     /* Next parameter must be the input filename */
 

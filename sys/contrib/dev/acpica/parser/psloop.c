@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -170,6 +170,13 @@ AcpiPsCompleteFinalOp (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op,
     ACPI_STATUS             Status);
+
+static void
+AcpiPsLinkModuleCode (
+    ACPI_PARSE_OBJECT       *ParentOp,
+    UINT8                   *AmlStart,
+    UINT32                  AmlLength,
+    ACPI_OWNER_ID           OwnerId);
 
 
 /*******************************************************************************
@@ -502,6 +509,7 @@ AcpiPsGetArguments (
 {
     ACPI_STATUS             Status = AE_OK;
     ACPI_PARSE_OBJECT       *Arg = NULL;
+    const ACPI_OPCODE_INFO  *OpInfo;
 
 
     ACPI_FUNCTION_TRACE_PTR (PsGetArguments, WalkState);
@@ -558,13 +566,11 @@ AcpiPsGetArguments (
         }
 
 
-        /* Special processing for certain opcodes */
-
-        /* TBD (remove): Temporary mechanism to disable this code if needed */
-
-#ifdef ACPI_ENABLE_MODULE_LEVEL_CODE
-
-        if ((WalkState->PassNumber <= ACPI_IMODE_LOAD_PASS1) &&
+        /*
+         * Handle executable code at "module-level". This refers to
+         * executable opcodes that appear outside of any control method.
+         */
+        if ((WalkState->PassNumber <= ACPI_IMODE_LOAD_PASS2) &&
             ((WalkState->ParseFlags & ACPI_PARSE_DISASSEMBLE) == 0))
         {
             /*
@@ -580,6 +586,19 @@ AcpiPsGetArguments (
             case AML_ELSE_OP:
             case AML_WHILE_OP:
 
+                /*
+                 * Currently supported module-level opcodes are:
+                 * IF/ELSE/WHILE. These appear to be the most common,
+                 * and easiest to support since they open an AML
+                 * package.
+                 */
+                if (WalkState->PassNumber == ACPI_IMODE_LOAD_PASS1)
+                {
+                    AcpiPsLinkModuleCode (Op->Common.Parent, AmlOpStart,
+                        (UINT32) (WalkState->ParserState.PkgEnd - AmlOpStart),
+                        WalkState->OwnerId);
+                }
+
                 ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
                     "Pass1: Skipping an If/Else/While body\n"));
 
@@ -590,10 +609,33 @@ AcpiPsGetArguments (
                 break;
 
             default:
+                /*
+                 * Check for an unsupported executable opcode at module
+                 * level. We must be in PASS1, the parent must be a SCOPE,
+                 * The opcode class must be EXECUTE, and the opcode must
+                 * not be an argument to another opcode.
+                 */
+                if ((WalkState->PassNumber == ACPI_IMODE_LOAD_PASS1) &&
+                    (Op->Common.Parent->Common.AmlOpcode == AML_SCOPE_OP))
+                {
+                    OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
+                    if ((OpInfo->Class == AML_CLASS_EXECUTE) &&
+                        (!Arg))
+                    {
+                        ACPI_WARNING ((AE_INFO,
+                            "Detected an unsupported executable opcode "
+                            "at module-level: [0x%.4X] at table offset 0x%.4X",
+                            Op->Common.AmlOpcode,
+                            (UINT32) (ACPI_PTR_DIFF (AmlOpStart,
+                                WalkState->ParserState.AmlStart) +
+                                sizeof (ACPI_TABLE_HEADER))));
+                    }
+                }
                 break;
             }
         }
-#endif
+
+        /* Special processing for certain opcodes */
 
         switch (Op->Common.AmlOpcode)
         {
@@ -656,6 +698,97 @@ AcpiPsGetArguments (
     }
 
     return_ACPI_STATUS (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiPsLinkModuleCode
+ *
+ * PARAMETERS:  ParentOp            - Parent parser op
+ *              AmlStart            - Pointer to the AML
+ *              AmlLength           - Length of executable AML
+ *              OwnerId             - OwnerId of module level code
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Wrap the module-level code with a method object and link the
+ *              object to the global list. Note, the mutex field of the method
+ *              object is used to link multiple module-level code objects.
+ *
+ ******************************************************************************/
+
+static void
+AcpiPsLinkModuleCode (
+    ACPI_PARSE_OBJECT       *ParentOp,
+    UINT8                   *AmlStart,
+    UINT32                  AmlLength,
+    ACPI_OWNER_ID           OwnerId)
+{
+    ACPI_OPERAND_OBJECT     *Prev;
+    ACPI_OPERAND_OBJECT     *Next;
+    ACPI_OPERAND_OBJECT     *MethodObj;
+    ACPI_NAMESPACE_NODE     *ParentNode;
+
+
+    /* Get the tail of the list */
+
+    Prev = Next = AcpiGbl_ModuleCodeList;
+    while (Next)
+    {
+        Prev = Next;
+        Next = Next->Method.Mutex;
+    }
+
+    /*
+     * Insert the module level code into the list. Merge it if it is
+     * adjacent to the previous element.
+     */
+    if (!Prev ||
+       ((Prev->Method.AmlStart + Prev->Method.AmlLength) != AmlStart))
+    {
+        /* Create, initialize, and link a new temporary method object */
+
+        MethodObj = AcpiUtCreateInternalObject (ACPI_TYPE_METHOD);
+        if (!MethodObj)
+        {
+            return;
+        }
+
+        if (ParentOp->Common.Node)
+        {
+            ParentNode = ParentOp->Common.Node;
+        }
+        else
+        {
+            ParentNode = AcpiGbl_RootNode;
+        }
+
+        MethodObj->Method.AmlStart = AmlStart;
+        MethodObj->Method.AmlLength = AmlLength;
+        MethodObj->Method.OwnerId = OwnerId;
+        MethodObj->Method.Flags |= AOPOBJ_MODULE_LEVEL;
+
+        /*
+         * Save the parent node in NextObject. This is cheating, but we
+         * don't want to expand the method object.
+         */
+        MethodObj->Method.NextObject =
+            ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, ParentNode);
+
+        if (!Prev)
+        {
+            AcpiGbl_ModuleCodeList = MethodObj;
+        }
+        else
+        {
+            Prev->Method.Mutex = MethodObj;
+        }
+    }
+    else
+    {
+        Prev->Method.AmlLength += AmlLength;
+    }
 }
 
 

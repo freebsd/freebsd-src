@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,6 +119,7 @@
 #include <contrib/dev/acpica/include/actables.h>
 #include <contrib/dev/acpica/include/acevents.h>
 #include <contrib/dev/acpica/include/acinterp.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslstubs")
@@ -134,6 +135,12 @@ AeLocalGetRootPointer (
     void)
 {
     return 0;
+}
+
+void
+AcpiNsExecModuleCodeList (
+    void)
+{
 }
 
 ACPI_STATUS

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -125,18 +125,6 @@
 #define BLOCK_COMMA_LIST        4
 #define ACPI_DEFAULT_RESNAME    *(UINT32 *) "__RD"
 
-typedef struct acpi_external_list
-{
-    char                        *Path;
-    char                        *InternalPath;
-    struct acpi_external_list   *Next;
-    UINT32                      Value;
-    UINT16                      Length;
-    UINT8                       Type;
-
-} ACPI_EXTERNAL_LIST;
-
-extern ACPI_EXTERNAL_LIST       *AcpiGbl_ExternalList;
 
 typedef const struct acpi_dmtable_info
 {
@@ -183,6 +171,9 @@ typedef const struct acpi_dmtable_info
 #define ACPI_DMT_EXIT                   30
 #define ACPI_DMT_SIG                    31
 #define ACPI_DMT_FADTPM                 32
+#define ACPI_DMT_BUF16                  33
+#define ACPI_DMT_IVRS                   34
+
 
 typedef
 void (*ACPI_DMTABLE_HANDLER) (
@@ -250,6 +241,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmarScope[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmar0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmar1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmar2[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmar3[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoEcdt[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoEinj[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoEinj0[];
@@ -263,15 +255,22 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHeader[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest1[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest3[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest4[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest5[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest6[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest7[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest8[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest9[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHestNotify[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHestBank[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHpet[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrs[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrs0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrs1[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrs4[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrs8a[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrs8b[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrs8c[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrsHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt1[];
@@ -287,6 +286,8 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt10[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadtHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMcfg[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMcfg0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMsct[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMsct0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRsdp1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRsdp2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSbst[];
@@ -300,6 +301,10 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTcpa[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoUefi[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWaet[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWdat[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWdat0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWdrt[];
 
 
@@ -364,11 +369,19 @@ AcpiDmDumpHest (
     ACPI_TABLE_HEADER       *Table);
 
 void
+AcpiDmDumpIvrs (
+    ACPI_TABLE_HEADER       *Table);
+
+void
 AcpiDmDumpMcfg (
     ACPI_TABLE_HEADER       *Table);
 
 void
 AcpiDmDumpMadt (
+    ACPI_TABLE_HEADER       *Table);
+
+void
+AcpiDmDumpMsct (
     ACPI_TABLE_HEADER       *Table);
 
 UINT32
@@ -385,6 +398,10 @@ AcpiDmDumpSlit (
 
 void
 AcpiDmDumpSrat (
+    ACPI_TABLE_HEADER       *Table);
+
+void
+AcpiDmDumpWdat (
     ACPI_TABLE_HEADER       *Table);
 
 void
@@ -444,14 +461,6 @@ AcpiDmRegionFlags (
 
 void
 AcpiDmMatchOp (
-    ACPI_PARSE_OBJECT       *Op);
-
-BOOLEAN
-AcpiDmCommaIfListMember (
-    ACPI_PARSE_OBJECT       *Op);
-
-void
-AcpiDmCommaIfFieldMember (
     ACPI_PARSE_OBJECT       *Op);
 
 
@@ -527,6 +536,33 @@ AcpiDmIsStringBuffer (
 
 
 /*
+ * dmextern
+ */
+void
+AcpiDmAddToExternalList (
+    ACPI_PARSE_OBJECT       *Op,
+    char                    *Path,
+    UINT8                   Type,
+    UINT32                  Value);
+
+void
+AcpiDmAddExternalsToNamespace (
+    void);
+
+UINT32
+AcpiDmGetExternalMethodCount (
+    void);
+
+void
+AcpiDmClearExternalList (
+    void);
+
+void
+AcpiDmEmitExternals (
+    void);
+
+
+/*
  * dmresrc
  */
 void
@@ -561,16 +597,8 @@ AcpiDmIsResourceTemplate (
     ACPI_PARSE_OBJECT       *Op);
 
 void
-AcpiDmIndent (
-    UINT32                  Level);
-
-void
 AcpiDmBitList (
     UINT16                  Mask);
-
-void
-AcpiDmDecodeAttribute (
-    UINT8                   Attribute);
 
 void
 AcpiDmDescriptorName (
@@ -698,10 +726,21 @@ AcpiDmVendorSmallDescriptor (
  * dmutils
  */
 void
-AcpiDmAddToExternalList (
-    char                    *Path,
-    UINT8                   Type,
-    UINT32                  Value);
+AcpiDmDecodeAttribute (
+    UINT8                   Attribute);
+
+void
+AcpiDmIndent (
+    UINT32                  Level);
+
+BOOLEAN
+AcpiDmCommaIfListMember (
+    ACPI_PARSE_OBJECT       *Op);
+
+void
+AcpiDmCommaIfFieldMember (
+    ACPI_PARSE_OBJECT       *Op);
+
 
 /*
  * dmrestag

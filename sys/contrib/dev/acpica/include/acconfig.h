@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -177,9 +177,9 @@
 
 #define ACPI_MAX_REFERENCE_COUNT        0x800
 
-/* Size of cached memory mapping for system memory operation region */
+/* Default page size for use in mapping memory for operation regions */
 
-#define ACPI_SYSMEM_REGION_WINDOW_SIZE  4096
+#define ACPI_DEFAULT_PAGE_SIZE          4096    /* Must be power of 2 */
 
 /* OwnerId tracking. 8 entries allows for 255 OwnerIds */
 
@@ -236,7 +236,7 @@
 
 /* Operation regions */
 
-#define ACPI_NUM_PREDEFINED_REGIONS     8
+#define ACPI_NUM_PREDEFINED_REGIONS     9
 #define ACPI_USER_REGION_BEGIN          0x80
 
 /* Maximum SpaceIds for Operation Regions */
@@ -252,9 +252,15 @@
 #define ACPI_RSDP_CHECKSUM_LENGTH       20
 #define ACPI_RSDP_XCHECKSUM_LENGTH      36
 
-/* SMBus bidirectional buffer size */
+/* SMBus and IPMI bidirectional buffer size */
 
 #define ACPI_SMBUS_BUFFER_SIZE          34
+#define ACPI_IPMI_BUFFER_SIZE           66
+
+/* _SxD and _SxW control methods */
+
+#define ACPI_NUM_SxD_METHODS            4
+#define ACPI_NUM_SxW_METHODS            5
 
 
 /******************************************************************************

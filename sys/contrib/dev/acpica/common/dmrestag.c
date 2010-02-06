@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -387,7 +387,7 @@ static ACPI_RESOURCE_TAG        *AcpiGbl_ResourceTags [] =
 
 static UINT32                   AcpiGbl_NextResourceId = 0;
 static UINT8                    AcpiGbl_NextPrefix = 0;
-static UINT8                    AcpiGbl_Prefix[ACPI_NUM_RES_PREFIX] =
+static char                     AcpiGbl_Prefix[ACPI_NUM_RES_PREFIX] =
                                     {'Y','Z','J','K','X'};
 
 

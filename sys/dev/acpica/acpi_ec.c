@@ -223,7 +223,7 @@ static ACPI_STATUS	EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function,
 				void *Context, void **return_Context);
 static ACPI_STATUS	EcSpaceHandler(UINT32 Function,
 				ACPI_PHYSICAL_ADDRESS Address,
-				UINT32 width, ACPI_INTEGER *Value,
+				UINT32 width, UINT64 *Value,
 				void *Context, void *RegionContext);
 static ACPI_STATUS	EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event,
 				u_int gen_count);
@@ -238,9 +238,9 @@ static int		acpi_ec_suspend(device_t dev);
 static int		acpi_ec_resume(device_t dev);
 static int		acpi_ec_shutdown(device_t dev);
 static int		acpi_ec_read_method(device_t dev, u_int addr,
-				ACPI_INTEGER *val, int width);
+				UINT64 *val, int width);
 static int		acpi_ec_write_method(device_t dev, u_int addr,
-				ACPI_INTEGER val, int width);
+				UINT64 val, int width);
 
 static device_method_t acpi_ec_methods[] = {
     /* Device interface */
@@ -581,7 +581,7 @@ acpi_ec_shutdown(device_t dev)
 
 /* Methods to allow other devices (e.g., smbat) to read/write EC space. */
 static int
-acpi_ec_read_method(device_t dev, u_int addr, ACPI_INTEGER *val, int width)
+acpi_ec_read_method(device_t dev, u_int addr, UINT64 *val, int width)
 {
     struct acpi_ec_softc *sc;
     ACPI_STATUS status;
@@ -594,7 +594,7 @@ acpi_ec_read_method(device_t dev, u_int addr, ACPI_INTEGER *val, int width)
 }
 
 static int
-acpi_ec_write_method(device_t dev, u_int addr, ACPI_INTEGER val, int width)
+acpi_ec_write_method(device_t dev, u_int addr, UINT64 val, int width)
 {
     struct acpi_ec_softc *sc;
     ACPI_STATUS status;
@@ -724,7 +724,7 @@ EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, void *Context,
 
 static ACPI_STATUS
 EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
-	       ACPI_INTEGER *Value, void *Context, void *RegionContext)
+	       UINT64 *Value, void *Context, void *RegionContext)
 {
     struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
     ACPI_STATUS			Status;
@@ -765,7 +765,7 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
 	case ACPI_READ:
 	    Status = EcRead(sc, EcAddr, &EcData);
 	    if (ACPI_SUCCESS(Status))
-		*Value |= ((ACPI_INTEGER)EcData) << i;
+		*Value |= ((UINT64)EcData) << i;
 	    break;
 	case ACPI_WRITE:
 	    EcData = (UINT8)((*Value) >> i);

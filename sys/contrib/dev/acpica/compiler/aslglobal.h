@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -148,7 +148,7 @@ extern char                         HexLookup[];
 #define ASL_LINE_BUFFER_SIZE        512
 #define ASL_MSG_BUFFER_SIZE         4096
 #define HEX_TABLE_LINE_SIZE         8
-#define HEX_LISTING_LINE_SIZE       16
+#define HEX_LISTING_LINE_SIZE       8
 
 
 /* Source code buffers and pointers for error reporting */
@@ -165,7 +165,6 @@ ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_LineBufPtr, Gbl_Curren
 
 ASL_EXTERN ASL_ERROR_MSG            ASL_INIT_GLOBAL (*Gbl_ErrorLog,NULL);
 ASL_EXTERN ASL_ERROR_MSG            ASL_INIT_GLOBAL (*Gbl_NextError,NULL);
-extern UINT32                       Gbl_ExceptionCount[];
 
 
 /* Option flags */
@@ -212,6 +211,7 @@ ASL_EXTERN char                     *Gbl_DirectoryPath;
 ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_ExternalFilename, NULL);
 ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_IncludeFilename, NULL);
 ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_OutputFilenamePrefix, NULL);
+ASL_EXTERN ASL_INCLUDE_DIR          ASL_INIT_GLOBAL (*Gbl_IncludeDirList, NULL);
 ASL_EXTERN char                     *Gbl_CurrentInputFilename;
 
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_HasIncludeFiles, FALSE);
@@ -276,6 +276,13 @@ ASL_EXTERN UINT8                    Gbl_AmlBuffer[HEX_LISTING_LINE_SIZE];
 ASL_EXTERN char                     MsgBuffer[ASL_MSG_BUFFER_SIZE];
 ASL_EXTERN char                     StringBuffer[ASL_MSG_BUFFER_SIZE];
 ASL_EXTERN char                     StringBuffer2[ASL_MSG_BUFFER_SIZE];
+
+
+#ifdef _DECLARE_GLOBALS
+UINT32                              Gbl_ExceptionCount[ASL_NUM_REPORT_LEVELS] = {0,0,0,0,0,0};
+#else
+extern UINT32                       Gbl_ExceptionCount[ASL_NUM_REPORT_LEVELS];
+#endif
 
 #endif /* __ASLGLOBAL_H */
 
