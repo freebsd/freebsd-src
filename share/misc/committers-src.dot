@@ -70,6 +70,7 @@ brooks [label="Brooks Davis\nbrooks@FreeBSD.org\n2001/06/21"]
 brucec [label="Bruce Cran\nbrucec@FreeBSD.org\n2010/01/29"]
 brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2006/02/28"]
 bruno [label="Bruno Ducrot\nbruno@FreeBSD.org\n2005/07/18"]
+bschmidt [label="Bernhard Schmidt\nbschmidt@FreeBSD.org\n2010/02/06"]
 bz [label="Bjoern A. Zeeb\nbz@FreeBSD.org\n2004/07/27"]
 ceri [label="Ceri Davies\nceri@FreeBSD.org\n2006/11/07"]
 cokane [label="Coleman Kane\ncokane@FreeBSD.org\n2000/06/19"]
@@ -410,6 +411,7 @@ pjd -> lulf
 rgrimes -> markm
 
 rpaulo -> avg
+rpaulo -> bschmidt
 
 rrs -> brucec
 rrs -> tuexen
