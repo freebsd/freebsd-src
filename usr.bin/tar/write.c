@@ -215,9 +215,9 @@ tar_mode_c(struct bsdtar *bsdtar)
 	}
 
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
-		bsdtar_errc(1, 0, archive_error_string(a));
+		bsdtar_errc(1, 0, "%s", archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_file(a, bsdtar->filename))
-		bsdtar_errc(1, 0, archive_error_string(a));
+		bsdtar_errc(1, 0, "%s", archive_error_string(a));
 	write_archive(a, bsdtar);
 }
 
@@ -228,7 +228,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 void
 tar_mode_r(struct bsdtar *bsdtar)
 {
-	off_t	end_offset;
+	int64_t	end_offset;
 	int	format;
 	struct archive *a;
 	struct archive_entry *entry;
@@ -302,11 +302,12 @@ tar_mode_r(struct bsdtar *bsdtar)
 			format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
 		archive_write_set_format(a, format);
 	}
-	lseek(bsdtar->fd, end_offset, SEEK_SET); /* XXX check return val XXX */
+	if (lseek(bsdtar->fd, end_offset, SEEK_SET) < 0)
+		bsdtar_errc(1, errno, "Could not seek to archive end");
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
-		bsdtar_errc(1, 0, archive_error_string(a));
+		bsdtar_errc(1, 0, "%s", archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
-		bsdtar_errc(1, 0, archive_error_string(a));
+		bsdtar_errc(1, 0, "%s", archive_error_string(a));
 
 	write_archive(a, bsdtar); /* XXX check return val XXX */
 
@@ -317,7 +318,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 void
 tar_mode_u(struct bsdtar *bsdtar)
 {
-	off_t			 end_offset;
+	int64_t			 end_offset;
 	struct archive		*a;
 	struct archive_entry	*entry;
 	int			 format;
@@ -384,12 +385,12 @@ tar_mode_u(struct bsdtar *bsdtar)
 		    bsdtar->bytes_per_block);
 	} else
 		archive_write_set_bytes_per_block(a, DEFAULT_BYTES_PER_BLOCK);
-	lseek(bsdtar->fd, end_offset, SEEK_SET);
-	ftruncate(bsdtar->fd, end_offset);
+	if (lseek(bsdtar->fd, end_offset, SEEK_SET) < 0)
+		bsdtar_errc(1, errno, "Could not seek to archive end");
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
-		bsdtar_errc(1, 0, archive_error_string(a));
+		bsdtar_errc(1, 0, "%s", archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
-		bsdtar_errc(1, 0, archive_error_string(a));
+		bsdtar_errc(1, 0, "%s", archive_error_string(a));
 
 	write_archive(a, bsdtar);
 
@@ -438,7 +439,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 				bsdtar->argv++;
 				arg = *bsdtar->argv;
 				if (arg == NULL) {
-					bsdtar_warnc(1, 0,
+					bsdtar_warnc(0, "%s",
 					    "Missing argument for -C");
 					bsdtar->return_value = 1;
 					goto cleanup;
@@ -558,7 +559,7 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 
 	rc = append_archive(bsdtar, a, ina);
 
-	if (archive_errno(ina)) {
+	if (rc != ARCHIVE_OK) {
 		bsdtar_warnc(0, "Error reading archive %s: %s",
 		    filename, archive_error_string(ina));
 		bsdtar->return_value = 1;
@@ -623,7 +624,7 @@ copy_file_data(struct bsdtar *bsdtar, struct archive *a,
 {
 	ssize_t	bytes_read;
 	ssize_t	bytes_written;
-	off_t	progress = 0;
+	int64_t	progress = 0;
 
 	bytes_read = archive_read_data(ina, bsdtar->buff, FILEDATABUFLEN);
 	while (bytes_read > 0) {
@@ -771,7 +772,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		    entry, -1, st);
 		if (r != ARCHIVE_OK)
 			bsdtar_warnc(archive_errno(bsdtar->diskreader),
-			    archive_error_string(bsdtar->diskreader));
+			    "%s", archive_error_string(bsdtar->diskreader));
 		if (r < ARCHIVE_WARN)
 			continue;
 
@@ -935,7 +936,7 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a,
 {
 	ssize_t	bytes_read;
 	ssize_t	bytes_written;
-	off_t	progress = 0;
+	int64_t	progress = 0;
 
 	bytes_read = read(fd, bsdtar->buff, FILEDATABUFLEN);
 	while (bytes_read > 0) {
