@@ -1013,6 +1013,17 @@ OLD_FILES+=usr/share/man/man8/ipnat.8.gz
 OLD_FILES+=usr/share/man/man8/ippool.8.gz
 .endif
 
+.if ${MK_IPFW} == no
+OLD_FILES+=etc/periodic/security/500.ipfwdenied
+OLD_FILES+=etc/periodic/security/550.ipfwlimit
+OLD_FILES+=sbin/ipfw
+OLD_FILES+=sbin/natd
+OLD_FILES+=usr/sbin/ipfwpcap
+OLD_FILES+=usr/share/man/man8/ipfw.8.gz
+OLD_FILES+=usr/share/man/man8/ipfwpcap.8.gz
+OLD_FILES+=usr/share/man/man8/natd.8.gz
+.endif
+
 .if ${MK_IPX} == no
 OLD_LIBS+=lib/libipx.so.4
 OLD_FILES+=usr/lib/libipx.a
