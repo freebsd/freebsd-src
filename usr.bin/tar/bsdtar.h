@@ -78,7 +78,6 @@ struct bsdtar {
 
 	/* Miscellaneous state information */
 	struct archive	 *archive;
-	const char	 *progname;
 	int		  argc;
 	char		**argv;
 	const char	 *optarg;
@@ -134,11 +133,7 @@ enum {
 	OPTION_VERSION
 };
 
-
-void	bsdtar_errc(struct bsdtar *, int _eval, int _code,
-	    const char *fmt, ...) __LA_DEAD;
 int	bsdtar_getopt(struct bsdtar *);
-void	bsdtar_warnc(struct bsdtar *, int _code, const char *fmt, ...);
 void	cleanup_exclusions(struct bsdtar *);
 void	do_chdir(struct bsdtar *);
 int	edit_pathname(struct bsdtar *, struct archive_entry *);
@@ -164,7 +159,7 @@ void	tar_mode_u(struct bsdtar *bsdtar);
 void	tar_mode_x(struct bsdtar *bsdtar);
 int	unmatched_inclusions(struct bsdtar *bsdtar);
 int	unmatched_inclusions_warn(struct bsdtar *bsdtar, const char *msg);
-void	usage(struct bsdtar *);
+void	usage(void);
 int	yes(const char *fmt, ...);
 
 #if HAVE_REGEX_H
