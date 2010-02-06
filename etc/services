@@ -2340,6 +2340,8 @@ sge_execd	6445/tcp   #Grid Engine Execution Service
 sge_execd	6445/udp   #Grid Engine Execution Service
 xdsxdm		6558/tcp
 xdsxdm		6558/udp
+sane-port	6566/tcp   #Scanner Access Now Easy (SANE) Control Port
+sane-port	6566/udp   #Scanner Access Now Easy (SANE) Control Port
 ircd		6667/tcp   #Internet Relay Chat (unoffical)
 acmsoda		6969/tcp
 acmsoda		6969/udp
