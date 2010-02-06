@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "bsdtar.h"
+#include "err.h"
 
 struct match {
 	struct match	 *next;
@@ -53,7 +54,7 @@ struct matching {
 };
 
 
-static void	add_pattern(struct bsdtar *, struct match **list,
+static void	add_pattern(struct match **list,
 		    const char *pattern);
 static int	bsdtar_fnmatch(const char *p, const char *s);
 static void	initialize_matching(struct bsdtar *);
@@ -80,7 +81,7 @@ exclude(struct bsdtar *bsdtar, const char *pattern)
 	if (bsdtar->matching == NULL)
 		initialize_matching(bsdtar);
 	matching = bsdtar->matching;
-	add_pattern(bsdtar, &(matching->exclusions), pattern);
+	add_pattern(&(matching->exclusions), pattern);
 	matching->exclusions_count++;
 	return (0);
 }
@@ -99,7 +100,7 @@ include(struct bsdtar *bsdtar, const char *pattern)
 	if (bsdtar->matching == NULL)
 		initialize_matching(bsdtar);
 	matching = bsdtar->matching;
-	add_pattern(bsdtar, &(matching->inclusions), pattern);
+	add_pattern(&(matching->inclusions), pattern);
 	matching->inclusions_count++;
 	matching->inclusions_unmatched_count++;
 	return (0);
@@ -112,13 +113,13 @@ include_from_file(struct bsdtar *bsdtar, const char *pathname)
 }
 
 static void
-add_pattern(struct bsdtar *bsdtar, struct match **list, const char *pattern)
+add_pattern(struct match **list, const char *pattern)
 {
 	struct match *match;
 
 	match = malloc(sizeof(*match) + strlen(pattern) + 1);
 	if (match == NULL)
-		bsdtar_errc(bsdtar, 1, errno, "Out of memory");
+		bsdtar_errc(1, errno, "Out of memory");
 	strcpy(match->pattern, pattern);
 	/* Both "foo/" and "foo" should match "foo/bar". */
 	if (match->pattern[strlen(match->pattern)-1] == '/')
@@ -242,7 +243,7 @@ initialize_matching(struct bsdtar *bsdtar)
 {
 	bsdtar->matching = malloc(sizeof(*bsdtar->matching));
 	if (bsdtar->matching == NULL)
-		bsdtar_errc(bsdtar, 1, errno, "No memory");
+		bsdtar_errc(1, errno, "No memory");
 	memset(bsdtar->matching, 0, sizeof(*bsdtar->matching));
 }
 
@@ -272,7 +273,7 @@ unmatched_inclusions_warn(struct bsdtar *bsdtar, const char *msg)
 	while (p != NULL) {
 		if (p->matches == 0) {
 			bsdtar->return_value = 1;
-			bsdtar_warnc(bsdtar, 0, "%s: %s",
+			bsdtar_warnc(0, "%s: %s",
 			    p->pattern, msg);
 		}
 		p = p->next;
