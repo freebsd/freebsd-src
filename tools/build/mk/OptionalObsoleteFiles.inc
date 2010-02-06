@@ -1042,6 +1042,15 @@ OLD_FILES+=usr/share/man/man3/ipx_ntoa.3.gz
 OLD_FILES+=usr/share/man/man8/IPXrouted.8.gz
 .endif
 
+.if ${MK_JAIL} == no
+OLD_FILES+=usr/sbin/jail
+OLD_FILES+=usr/sbin/jexec
+OLD_FILES+=usr/sbin/jls
+OLD_FILES+=usr/share/man/man8/jail.8.gz
+OLD_FILES+=usr/share/man/man8/jexec.8.gz
+OLD_FILES+=usr/share/man/man8/jls.8.gz
+.endif
+
 .if ${MK_KERBEROS} == no
 OLD_FILES+=usr/bin/ksu
 OLD_FILES+=usr/bin/kadmin
