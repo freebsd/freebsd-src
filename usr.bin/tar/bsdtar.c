@@ -299,30 +299,18 @@ main(int argc, char **argv)
 				    bsdtar->optarg);
 			break;
 		case 'j': /* GNU tar */
-#if HAVE_LIBBZ2
 			if (bsdtar->create_compression != '\0')
 				bsdtar_errc(1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
-#else
-			bsdtar_warnc(0,
-			    "bzip2 compression not supported by this version of bsdtar");
-			usage();
-#endif
 			break;
 		case 'J': /* GNU tar 1.21 and later */
-#if HAVE_LIBLZMA
 			if (bsdtar->create_compression != '\0')
 				bsdtar_errc(1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
-#else
-			bsdtar_warnc(0,
-			    "xz compression not supported by this version of bsdtar");
-			usage();
-#endif
 			break;
 		case 'k': /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_NO_OVERWRITE;
@@ -338,17 +326,11 @@ main(int argc, char **argv)
 			bsdtar->option_warn_links = 1;
 			break;
 		case OPTION_LZMA:
-#if HAVE_LIBLZMA
 			if (bsdtar->create_compression != '\0')
 				bsdtar_errc(1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
-#else
-			bsdtar_warnc(0,
-			    "lzma compression not supported by this version of bsdtar");
-			usage();
-#endif
 			break;
 		case 'm': /* SUSv2 */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_TIME;
@@ -510,17 +492,11 @@ main(int argc, char **argv)
 			set_mode(bsdtar, opt);
 			break;
 		case 'y': /* FreeBSD version of GNU tar */
-#if HAVE_LIBBZ2
 			if (bsdtar->create_compression != '\0')
 				bsdtar_errc(1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
-#else
-			bsdtar_warnc(0,
-			    "bzip2 compression not supported by this version of bsdtar");
-			usage();
-#endif
 			break;
 		case 'Z': /* GNU tar */
 			if (bsdtar->create_compression != '\0')
@@ -530,17 +506,11 @@ main(int argc, char **argv)
 			bsdtar->create_compression = opt;
 			break;
 		case 'z': /* GNU tar, star, many others */
-#if HAVE_LIBZ
 			if (bsdtar->create_compression != '\0')
 				bsdtar_errc(1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
-#else
-			bsdtar_warnc(0,
-			    "gzip compression not supported by this version of bsdtar");
-			usage();
-#endif
 			break;
 		case OPTION_USE_COMPRESS_PROGRAM:
 			bsdtar->compress_program = bsdtar->optarg;
