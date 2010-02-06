@@ -159,8 +159,10 @@ main(int argc, char **argv)
 	/* Default: Perform basic security checks. */
 	bsdtar->extract_flags |= SECURITY;
 
-	/* Defaults for root user: */
-	if (bsdtar_is_privileged(bsdtar)) {
+#ifndef _WIN32
+	/* On POSIX systems, assume --same-owner and -p when run by
+	 * the root user.  This doesn't make any sense on Windows. */
+	if (bsdtar->user_uid == 0) {
 		/* --same-owner */
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
 		/* -p */
@@ -169,6 +171,7 @@ main(int argc, char **argv)
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_XATTR;
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 	}
+#endif
 
 	bsdtar->argv = argv;
 	bsdtar->argc = argc;
