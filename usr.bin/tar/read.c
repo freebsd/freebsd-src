@@ -70,6 +70,12 @@ __FBSDID("$FreeBSD$");
 #include "bsdtar.h"
 #include "err.h"
 
+struct progress_data {
+	struct bsdtar *bsdtar;
+	struct archive *archive;
+	struct archive_entry *entry;
+};
+
 static void	list_item_verbose(struct bsdtar *, FILE *,
 		    struct archive_entry *);
 static void	read_archive(struct bsdtar *bsdtar, char mode);
@@ -84,22 +90,40 @@ tar_mode_t(struct bsdtar *bsdtar)
 void
 tar_mode_x(struct bsdtar *bsdtar)
 {
-	/* We want to catch SIGINFO and SIGUSR1. */
-	siginfo_init(bsdtar);
-
 	read_archive(bsdtar, 'x');
 
 	unmatched_inclusions_warn(bsdtar, "Not found in archive");
-	/* Restore old SIGINFO + SIGUSR1 handlers. */
-	siginfo_done(bsdtar);
 }
 
 static void
-progress_func(void * cookie)
+progress_func(void *cookie)
 {
-	struct bsdtar * bsdtar = cookie;
+	struct progress_data *progress_data = cookie;
+	struct bsdtar *bsdtar = progress_data->bsdtar;
+	struct archive *a = progress_data->archive;
+	struct archive_entry *entry = progress_data->entry;
+	uint64_t comp, uncomp;
 
-	siginfo_printinfo(bsdtar, 0);
+	if (!need_report())
+		return;
+
+	if (bsdtar->verbose)
+		fprintf(stderr, "\n");
+	if (a != NULL) {
+		comp = archive_position_compressed(a);
+		uncomp = archive_position_uncompressed(a);
+		fprintf(stderr,
+		    "In: %s bytes, compression %d%%;",
+		    tar_i64toa(comp), (int)((uncomp - comp) * 100 / uncomp));
+		fprintf(stderr, "  Out: %d files, %s bytes\n",
+		    archive_file_count(a), tar_i64toa(uncomp));
+	}
+	if (entry != NULL) {
+		safe_fprintf(stderr, "Current: %s",
+		    archive_entry_pathname(entry));
+		fprintf(stderr, " (%s bytes)\n",
+		    tar_i64toa(archive_entry_size(entry)));
+	}
 }
 
 /*
@@ -108,6 +132,7 @@ progress_func(void * cookie)
 static void
 read_archive(struct bsdtar *bsdtar, char mode)
 {
+	struct progress_data	progress_data;
 	FILE			 *out;
 	struct archive		 *a;
 	struct archive_entry	 *entry;
@@ -140,8 +165,10 @@ read_archive(struct bsdtar *bsdtar, char mode)
 
 	if (mode == 'x') {
 		/* Set an extract callback so that we can handle SIGINFO. */
+		progress_data.bsdtar = bsdtar;
+		progress_data.archive = a;
 		archive_read_extract_set_progress_callback(a, progress_func,
-		    bsdtar);
+		    &progress_data);
 	}
 
 	if (mode == 'x' && bsdtar->option_chroot) {
@@ -161,6 +188,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			break;
 
 		r = archive_read_next_header(a, &entry);
+		progress_data.entry = entry;
 		if (r == ARCHIVE_EOF)
 			break;
 		if (r < ARCHIVE_OK)
@@ -268,10 +296,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 				fflush(stderr);
 			}
 
-			/* Tell the SIGINFO-handler code what we're doing. */
-			siginfo_setinfo(bsdtar, "extracting",
-			    archive_entry_pathname(entry), 0);
-			siginfo_printinfo(bsdtar, 0);
+			// TODO siginfo_printinfo(bsdtar, 0);
 
 			if (bsdtar->option_stdout)
 				r = archive_read_data_into_fd(a, 1);

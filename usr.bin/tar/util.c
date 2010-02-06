@@ -559,6 +559,28 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 }
 
 /*
+ * It would be nice to just use printf() for formatting large numbers,
+ * but the compatibility problems are quite a headache.  Hence the
+ * following simple utility function.
+ */
+const char *
+tar_i64toa(int64_t n0)
+{
+	static char buff[24];
+	int64_t n = n0 < 0 ? -n0 : n0;
+	char *p = buff + sizeof(buff);
+
+	*--p = '\0';
+	do {
+		*--p = '0' + (int)(n % 10);
+		n /= 10;
+	} while (n > 0);
+	if (n0 < 0)
+		*--p = '-';
+	return p;
+}
+
+/*
  * Like strcmp(), but try to be a little more aware of the fact that
  * we're comparing two paths.  Right now, it just handles leading
  * "./" and trailing '/' specially, so that "a/b/" == "./a/b"
