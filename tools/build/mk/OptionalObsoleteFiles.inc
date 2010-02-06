@@ -1025,14 +1025,14 @@ OLD_FILES+=usr/share/man/man8/natd.8.gz
 .endif
 
 .if ${MK_IPX} == no
-OLD_LIBS+=lib/libipx.so.4
+OLD_LIBS+=lib/libipx.so.5
 OLD_FILES+=usr/lib/libipx.a
 OLD_FILES+=usr/lib/libipx.so
 OLD_FILES+=usr/lib/libipx_p.a
 .if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libipx.a
 OLD_FILES+=usr/lib32/libipx.so
-OLD_LIBS+=usr/lib32/libipx.so.4
+OLD_LIBS+=usr/lib32/libipx.so.5
 OLD_FILES+=usr/lib32/libipx_p.a
 .endif
 OLD_FILES+=usr/sbin/IPXrouted
