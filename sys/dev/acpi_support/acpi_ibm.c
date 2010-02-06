@@ -526,7 +526,7 @@ out:
 static int
 acpi_ibm_sysctl_get(struct acpi_ibm_softc *sc, int method)
 {
-	ACPI_INTEGER	val_ec;
+	UINT64		val_ec;
 	int 		val = 0, key;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -657,7 +657,7 @@ static int
 acpi_ibm_sysctl_set(struct acpi_ibm_softc *sc, int method, int arg)
 {
 	int			val, step;
-	ACPI_INTEGER		val_ec;
+	UINT64			val_ec;
 	ACPI_OBJECT		Arg;
 	ACPI_OBJECT_LIST	Args;
 	ACPI_STATUS		status;

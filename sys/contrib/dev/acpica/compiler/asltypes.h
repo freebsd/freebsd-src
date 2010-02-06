@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -255,6 +255,14 @@ typedef enum
 #define ASL_NUM_FILES           (ASL_MAX_FILE_TYPE + 1)
 
 
+typedef struct asl_include_dir
+{
+    char                        *Dir;
+    struct asl_include_dir      *Next;
+
+} ASL_INCLUDE_DIR;
+
+
 /* An entry in the exception list, one for each error/warning */
 
 typedef struct asl_error_msg
@@ -361,7 +369,8 @@ typedef enum
     ASL_MSG_INVALID_TIME,
     ASL_MSG_INVALID_TYPE,
     ASL_MSG_INVALID_UUID,
-    ASL_MSG_LIST_LENGTH,
+    ASL_MSG_LIST_LENGTH_LONG,
+    ASL_MSG_LIST_LENGTH_SHORT,
     ASL_MSG_LISTING_FILE_OPEN,
     ASL_MSG_LISTING_FILENAME,
     ASL_MSG_LOCAL_INIT,
@@ -480,7 +489,8 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_INVALID_TIME */               "Time parameter too long (255 max)",
 /*    ASL_MSG_INVALID_TYPE */               "Invalid type",
 /*    ASL_MSG_INVALID_UUID */               "UUID string must be of the form \"aabbccdd-eeff-gghh-iijj-kkllmmnnoopp\"",
-/*    ASL_MSG_LIST_LENGTH */                "Initializer list too long",
+/*    ASL_MSG_LIST_LENGTH_LONG */           "Initializer list longer than declared package length",
+/*    ASL_MSG_LIST_LENGTH_SHORT */          "Initializer list shorter than declared package length",
 /*    ASL_MSG_LISTING_FILE_OPEN */          "Could not open listing file",
 /*    ASL_MSG_LISTING_FILENAME */           "Could not create listing filename",
 /*    ASL_MSG_LOCAL_INIT */                 "Method local variable is not initialized",
@@ -561,11 +571,6 @@ char                    *AslErrorLevel [ASL_NUM_REPORT_LEVELS] = {
 
 #define ASL_ERROR_LEVEL_LENGTH          8       /* Length of strings above */
 
-/* Exception counters */
-
-UINT32                  Gbl_ExceptionCount[ASL_NUM_REPORT_LEVELS] = {0,0,0,0,0,0};
-
-#endif
-
+#endif  /* ASL_EXCEPTIONS */
 
 #endif  /* __ASLTYPES_H */

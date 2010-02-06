@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -211,9 +211,12 @@ AcpiDsCreateBufferField (
         Flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE |
                 ACPI_NS_ERROR_IF_FOUND;
 
-        /* Mark node temporary if we are executing a method */
-
-        if (WalkState->MethodNode)
+        /*
+         * Mark node temporary if we are executing a normal control
+         * method. (Don't mark if this is a module-level code method)
+         */
+        if (WalkState->MethodNode &&
+            !(WalkState->ParseFlags & ACPI_PARSE_MODULE_LEVEL))
         {
             Flags |= ACPI_NS_TEMPORARY;
         }
@@ -311,7 +314,7 @@ AcpiDsGetFieldNames (
     ACPI_PARSE_OBJECT       *Arg)
 {
     ACPI_STATUS             Status;
-    ACPI_INTEGER            Position;
+    UINT64                  Position;
 
 
     ACPI_FUNCTION_TRACE_PTR (DsGetFieldNames, Info);
@@ -335,8 +338,8 @@ AcpiDsGetFieldNames (
         {
         case AML_INT_RESERVEDFIELD_OP:
 
-            Position = (ACPI_INTEGER) Info->FieldBitPosition
-                        + (ACPI_INTEGER) Arg->Common.Value.Size;
+            Position = (UINT64) Info->FieldBitPosition
+                        + (UINT64) Arg->Common.Value.Size;
 
             if (Position > ACPI_UINT32_MAX)
             {
@@ -403,8 +406,8 @@ AcpiDsGetFieldNames (
 
             /* Keep track of bit position for the next field */
 
-            Position = (ACPI_INTEGER) Info->FieldBitPosition
-                        + (ACPI_INTEGER) Arg->Common.Value.Size;
+            Position = (UINT64) Info->FieldBitPosition
+                        + (UINT64) Arg->Common.Value.Size;
 
             if (Position > ACPI_UINT32_MAX)
             {
@@ -566,9 +569,12 @@ AcpiDsInitFieldObjects (
     Flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE |
             ACPI_NS_ERROR_IF_FOUND;
 
-    /* Mark node(s) temporary if we are executing a method */
-
-    if (WalkState->MethodNode)
+    /*
+     * Mark node(s) temporary if we are executing a normal control
+     * method. (Don't mark if this is a module-level code method)
+     */
+    if (WalkState->MethodNode &&
+        !(WalkState->ParseFlags & ACPI_PARSE_MODULE_LEVEL))
     {
         Flags |= ACPI_NS_TEMPORARY;
     }

@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -140,6 +140,209 @@ AcpiHwWriteMultiple (
     ACPI_GENERIC_ADDRESS    *RegisterB);
 
 
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiHwValidateRegister
+ *
+ * PARAMETERS:  Reg                 - GAS register structure
+ *              MaxBitWidth         - Max BitWidth supported (32 or 64)
+ *              Address             - Pointer to where the gas->address
+ *                                    is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Validate the contents of a GAS register. Checks the GAS
+ *              pointer, Address, SpaceId, BitWidth, and BitOffset.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiHwValidateRegister (
+    ACPI_GENERIC_ADDRESS    *Reg,
+    UINT8                   MaxBitWidth,
+    UINT64                  *Address)
+{
+
+    /* Must have a valid pointer to a GAS structure */
+
+    if (!Reg)
+    {
+        return (AE_BAD_PARAMETER);
+    }
+
+    /*
+     * Copy the target address. This handles possible alignment issues.
+     * Address must not be null. A null address also indicates an optional
+     * ACPI register that is not supported, so no error message.
+     */
+    ACPI_MOVE_64_TO_64 (Address, &Reg->Address);
+    if (!(*Address))
+    {
+        return (AE_BAD_ADDRESS);
+    }
+
+    /* Validate the SpaceID */
+
+    if ((Reg->SpaceId != ACPI_ADR_SPACE_SYSTEM_MEMORY) &&
+        (Reg->SpaceId != ACPI_ADR_SPACE_SYSTEM_IO))
+    {
+        ACPI_ERROR ((AE_INFO,
+            "Unsupported address space: 0x%X", Reg->SpaceId));
+        return (AE_SUPPORT);
+    }
+
+    /* Validate the BitWidth */
+
+    if ((Reg->BitWidth != 8) &&
+        (Reg->BitWidth != 16) &&
+        (Reg->BitWidth != 32) &&
+        (Reg->BitWidth != MaxBitWidth))
+    {
+        ACPI_ERROR ((AE_INFO,
+            "Unsupported register bit width: 0x%X", Reg->BitWidth));
+        return (AE_SUPPORT);
+    }
+
+    /* Validate the BitOffset. Just a warning for now. */
+
+    if (Reg->BitOffset != 0)
+    {
+        ACPI_WARNING ((AE_INFO,
+            "Unsupported register bit offset: 0x%X", Reg->BitOffset));
+    }
+
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiHwRead
+ *
+ * PARAMETERS:  Value               - Where the value is returned
+ *              Reg                 - GAS register structure
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Read from either memory or IO space. This is a 32-bit max
+ *              version of AcpiRead, used internally since the overhead of
+ *              64-bit values is not needed.
+ *
+ * LIMITATIONS: <These limitations also apply to AcpiHwWrite>
+ *      BitWidth must be exactly 8, 16, or 32.
+ *      SpaceID must be SystemMemory or SystemIO.
+ *      BitOffset and AccessWidth are currently ignored, as there has
+ *          not been a need to implement these.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiHwRead (
+    UINT32                  *Value,
+    ACPI_GENERIC_ADDRESS    *Reg)
+{
+    UINT64                  Address;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_NAME (HwRead);
+
+
+    /* Validate contents of the GAS register */
+
+    Status = AcpiHwValidateRegister (Reg, 32, &Address);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    /* Initialize entire 32-bit return value to zero */
+
+    *Value = 0;
+
+    /*
+     * Two address spaces supported: Memory or IO. PCI_Config is
+     * not supported here because the GAS structure is insufficient
+     */
+    if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+    {
+        Status = AcpiOsReadMemory ((ACPI_PHYSICAL_ADDRESS)
+                    Address, Value, Reg->BitWidth);
+    }
+    else /* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
+    {
+        Status = AcpiHwReadPort ((ACPI_IO_ADDRESS)
+                    Address, Value, Reg->BitWidth);
+    }
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_IO,
+        "Read:  %8.8X width %2d from %8.8X%8.8X (%s)\n",
+        *Value, Reg->BitWidth, ACPI_FORMAT_UINT64 (Address),
+        AcpiUtGetRegionName (Reg->SpaceId)));
+
+    return (Status);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiHwWrite
+ *
+ * PARAMETERS:  Value               - Value to be written
+ *              Reg                 - GAS register structure
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Write to either memory or IO space. This is a 32-bit max
+ *              version of AcpiWrite, used internally since the overhead of
+ *              64-bit values is not needed.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiHwWrite (
+    UINT32                  Value,
+    ACPI_GENERIC_ADDRESS    *Reg)
+{
+    UINT64                  Address;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_NAME (HwWrite);
+
+
+    /* Validate contents of the GAS register */
+
+    Status = AcpiHwValidateRegister (Reg, 32, &Address);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    /*
+     * Two address spaces supported: Memory or IO. PCI_Config is
+     * not supported here because the GAS structure is insufficient
+     */
+    if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+    {
+        Status = AcpiOsWriteMemory ((ACPI_PHYSICAL_ADDRESS)
+                    Address, Value, Reg->BitWidth);
+    }
+    else /* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
+    {
+        Status = AcpiHwWritePort ((ACPI_IO_ADDRESS)
+                    Address, Value, Reg->BitWidth);
+    }
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_IO,
+        "Wrote: %8.8X width %2d   to %8.8X%8.8X (%s)\n",
+        Value, Reg->BitWidth, ACPI_FORMAT_UINT64 (Address),
+        AcpiUtGetRegionName (Reg->SpaceId)));
+
+    return (Status);
+}
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiHwClearAcpiStatus
@@ -245,7 +448,7 @@ AcpiHwWritePm1Control (
     ACPI_FUNCTION_TRACE (HwWritePm1Control);
 
 
-    Status = AcpiWrite (Pm1aControl, &AcpiGbl_FADT.XPm1aControlBlock);
+    Status = AcpiHwWrite (Pm1aControl, &AcpiGbl_FADT.XPm1aControlBlock);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -253,7 +456,7 @@ AcpiHwWritePm1Control (
 
     if (AcpiGbl_FADT.XPm1bControlBlock.Address)
     {
-        Status = AcpiWrite (Pm1bControl, &AcpiGbl_FADT.XPm1bControlBlock);
+        Status = AcpiHwWrite (Pm1bControl, &AcpiGbl_FADT.XPm1bControlBlock);
     }
     return_ACPI_STATUS (Status);
 }
@@ -319,13 +522,13 @@ AcpiHwRegisterRead (
 
     case ACPI_REGISTER_PM2_CONTROL:          /* 8-bit access */
 
-        Status = AcpiRead (&Value, &AcpiGbl_FADT.XPm2ControlBlock);
+        Status = AcpiHwRead (&Value, &AcpiGbl_FADT.XPm2ControlBlock);
         break;
 
 
     case ACPI_REGISTER_PM_TIMER:             /* 32-bit access */
 
-        Status = AcpiRead (&Value, &AcpiGbl_FADT.XPmTimerBlock);
+        Status = AcpiHwRead (&Value, &AcpiGbl_FADT.XPmTimerBlock);
         break;
 
 
@@ -450,7 +653,7 @@ AcpiHwRegisterWrite (
          * For control registers, all reserved bits must be preserved,
          * as per the ACPI spec.
          */
-        Status = AcpiRead (&ReadValue, &AcpiGbl_FADT.XPm2ControlBlock);
+        Status = AcpiHwRead (&ReadValue, &AcpiGbl_FADT.XPm2ControlBlock);
         if (ACPI_FAILURE (Status))
         {
             goto Exit;
@@ -460,13 +663,13 @@ AcpiHwRegisterWrite (
 
         ACPI_INSERT_BITS (Value, ACPI_PM2_CONTROL_PRESERVED_BITS, ReadValue);
 
-        Status = AcpiWrite (Value, &AcpiGbl_FADT.XPm2ControlBlock);
+        Status = AcpiHwWrite (Value, &AcpiGbl_FADT.XPm2ControlBlock);
         break;
 
 
     case ACPI_REGISTER_PM_TIMER:             /* 32-bit access */
 
-        Status = AcpiWrite (Value, &AcpiGbl_FADT.XPmTimerBlock);
+        Status = AcpiHwWrite (Value, &AcpiGbl_FADT.XPmTimerBlock);
         break;
 
 
@@ -517,7 +720,7 @@ AcpiHwReadMultiple (
 
     /* The first register is always required */
 
-    Status = AcpiRead (&ValueA, RegisterA);
+    Status = AcpiHwRead (&ValueA, RegisterA);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -527,7 +730,7 @@ AcpiHwReadMultiple (
 
     if (RegisterB->Address)
     {
-        Status = AcpiRead (&ValueB, RegisterB);
+        Status = AcpiHwRead (&ValueB, RegisterB);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -574,7 +777,7 @@ AcpiHwWriteMultiple (
 
     /* The first register is always required */
 
-    Status = AcpiWrite (Value, RegisterA);
+    Status = AcpiHwWrite (Value, RegisterA);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -594,7 +797,7 @@ AcpiHwWriteMultiple (
      */
     if (RegisterB->Address)
     {
-        Status = AcpiWrite (Value, RegisterB);
+        Status = AcpiHwWrite (Value, RegisterB);
     }
 
     return (Status);

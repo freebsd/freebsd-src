@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -415,7 +415,7 @@ typedef UINT32                          ACPI_PHYSICAL_ADDRESS;
 
 /* PM Timer ticks per second (HZ) */
 
-#define PM_TIMER_FREQUENCY  3579545
+#define PM_TIMER_FREQUENCY              3579545
 
 
 /*******************************************************************************
@@ -470,22 +470,7 @@ typedef union uint64_overlay
 
 } UINT64_OVERLAY;
 
-typedef struct uint32_struct
-{
-    UINT32                          Lo;
-    UINT32                          Hi;
 
-} UINT32_STRUCT;
-
-
-/*
- * Acpi integer width. In ACPI version 1, integers are 32 bits. In ACPI
- * version 2, integers are 64 bits. Note that this pertains to the ACPI integer
- * type only, not other integers used in the implementation of the ACPI CA
- * subsystem.
- */
-typedef UINT64                          ACPI_INTEGER;
-#define ACPI_INTEGER_MAX                ACPI_UINT64_MAX
 #define ACPI_INTEGER_BIT_SIZE           64
 #define ACPI_MAX_DECIMAL_DIGITS         20  /* 2^64 = 18,446,744,073,709,551,616 */
 #define ACPI_MAX64_DECIMAL_DIGITS       20
@@ -499,6 +484,19 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_ROOT_OBJECT                ACPI_ADD_PTR (ACPI_HANDLE, NULL, ACPI_MAX_PTR)
 #define ACPI_WAIT_FOREVER               0xFFFF  /* UINT16, as per ACPI spec */
 #define ACPI_DO_NOT_WAIT                0
+
+/*
+ * Obsolete: Acpi integer width. In ACPI version 1 (1996), integers are 32 bits.
+ * In ACPI version 2 (2000) and later, integers are 64 bits. Note that this
+ * pertains to the ACPI integer type only, not to other integers used in the
+ * implementation of the ACPICA subsystem.
+ *
+ * 01/2010: This type is obsolete and has been removed from the entire ACPICA
+ * code base. It remains here for compatibility with device drivers that use
+ * the type. However, it will be removed in the future.
+ */
+typedef UINT64                          ACPI_INTEGER;
+#define ACPI_INTEGER_MAX                ACPI_UINT64_MAX
 
 
 /*******************************************************************************
@@ -816,7 +814,8 @@ typedef UINT8                           ACPI_ADR_SPACE_TYPE;
 #define ACPI_ADR_SPACE_SMBUS            (ACPI_ADR_SPACE_TYPE) 4
 #define ACPI_ADR_SPACE_CMOS             (ACPI_ADR_SPACE_TYPE) 5
 #define ACPI_ADR_SPACE_PCI_BAR_TARGET   (ACPI_ADR_SPACE_TYPE) 6
-#define ACPI_ADR_SPACE_DATA_TABLE       (ACPI_ADR_SPACE_TYPE) 7
+#define ACPI_ADR_SPACE_IPMI             (ACPI_ADR_SPACE_TYPE) 7
+#define ACPI_ADR_SPACE_DATA_TABLE       (ACPI_ADR_SPACE_TYPE) 8
 #define ACPI_ADR_SPACE_FIXED_HARDWARE   (ACPI_ADR_SPACE_TYPE) 127
 
 
@@ -889,7 +888,7 @@ typedef union acpi_object
     struct
     {
         ACPI_OBJECT_TYPE                Type;       /* ACPI_TYPE_INTEGER */
-        ACPI_INTEGER                    Value;      /* The actual number */
+        UINT64                          Value;      /* The actual number */
     } Integer;
 
     struct
@@ -1056,7 +1055,6 @@ void (*ACPI_NOTIFY_HANDLER) (
 typedef
 void (*ACPI_OBJECT_HANDLER) (
     ACPI_HANDLE                     Object,
-    UINT32                          Function,
     void                            *Data);
 
 typedef
@@ -1094,7 +1092,7 @@ ACPI_STATUS (*ACPI_ADR_SPACE_HANDLER) (
     UINT32                          Function,
     ACPI_PHYSICAL_ADDRESS           Address,
     UINT32                          BitWidth,
-    ACPI_INTEGER                    *Value,
+    UINT64                          *Value,
     void                            *HandlerContext,
     void                            *RegionContext);
 
@@ -1123,46 +1121,67 @@ ACPI_STATUS (*ACPI_WALK_CALLBACK) (
 #define ACPI_INTERRUPT_NOT_HANDLED      0x00
 #define ACPI_INTERRUPT_HANDLED          0x01
 
+/* Length of 32-bit EISAID values when converted back to a string */
 
-/* Length of _HID, _UID, _CID, and UUID values */
+#define ACPI_EISAID_STRING_SIZE         8   /* Includes null terminator */
 
-#define ACPI_DEVICE_ID_LENGTH           0x09
-#define ACPI_MAX_CID_LENGTH             48
+/* Length of UUID (string) values */
+
 #define ACPI_UUID_LENGTH                16
 
-/* Common string version of device HIDs and UIDs */
+
+/* Structures used for device/processor HID, UID, CID */
 
 typedef struct acpi_device_id
 {
-    char                            Value[ACPI_DEVICE_ID_LENGTH];
+    UINT32                          Length;             /* Length of string + null */
+    char                            *String;
 
 } ACPI_DEVICE_ID;
 
-/* Common string version of device CIDs */
-
-typedef struct acpi_compatible_id
+typedef struct acpi_device_id_list
 {
-    char                            Value[ACPI_MAX_CID_LENGTH];
+    UINT32                          Count;              /* Number of IDs in Ids array */
+    UINT32                          ListSize;           /* Size of list, including ID strings */
+    ACPI_DEVICE_ID                  Ids[1];             /* ID array */
 
-} ACPI_COMPATIBLE_ID;
+} ACPI_DEVICE_ID_LIST;
 
-typedef struct acpi_compatible_id_list
+/*
+ * Structure returned from AcpiGetObjectInfo.
+ * Optimized for both 32- and 64-bit builds
+ */
+typedef struct acpi_device_info
 {
-    UINT32                          Count;
-    UINT32                          Size;
-    ACPI_COMPATIBLE_ID              Id[1];
+    UINT32                          InfoSize;           /* Size of info, including ID strings */
+    UINT32                          Name;               /* ACPI object Name */
+    ACPI_OBJECT_TYPE                Type;               /* ACPI object Type */
+    UINT8                           ParamCount;         /* If a method, required parameter count */
+    UINT8                           Valid;              /* Indicates which optional fields are valid */
+    UINT8                           Flags;              /* Miscellaneous info */
+    UINT8                           HighestDstates[4];  /* _SxD values: 0xFF indicates not valid */
+    UINT8                           LowestDstates[5];   /* _SxW values: 0xFF indicates not valid */
+    UINT32                          CurrentStatus;      /* _STA value */
+    UINT64                          Address;            /* _ADR value */
+    ACPI_DEVICE_ID                  HardwareId;         /* _HID value */
+    ACPI_DEVICE_ID                  UniqueId;           /* _UID value */
+    ACPI_DEVICE_ID_LIST             CompatibleIdList;   /* _CID list <must be last> */
 
-} ACPI_COMPATIBLE_ID_LIST;
+} ACPI_DEVICE_INFO;
 
+/* Values for Flags field above (AcpiGetObjectInfo) */
 
-/* Structure and flags for AcpiGetObjectInfo */
+#define ACPI_PCI_ROOT_BRIDGE            0x01
 
-#define ACPI_VALID_STA                  0x0001
-#define ACPI_VALID_ADR                  0x0002
-#define ACPI_VALID_HID                  0x0004
-#define ACPI_VALID_UID                  0x0008
-#define ACPI_VALID_CID                  0x0010
-#define ACPI_VALID_SXDS                 0x0020
+/* Flags for Valid field above (AcpiGetObjectInfo) */
+
+#define ACPI_VALID_STA                  0x01
+#define ACPI_VALID_ADR                  0x02
+#define ACPI_VALID_HID                  0x04
+#define ACPI_VALID_UID                  0x08
+#define ACPI_VALID_CID                  0x10
+#define ACPI_VALID_SXDS                 0x20
+#define ACPI_VALID_SXWS                 0x40
 
 /* Flags for _STA method */
 
@@ -1172,36 +1191,6 @@ typedef struct acpi_compatible_id_list
 #define ACPI_STA_DEVICE_FUNCTIONING     0x08
 #define ACPI_STA_DEVICE_OK              0x08 /* Synonym */
 #define ACPI_STA_BATTERY_PRESENT        0x10
-
-
-#define ACPI_COMMON_OBJ_INFO \
-    ACPI_OBJECT_TYPE                Type;           /* ACPI object type */ \
-    ACPI_NAME                       Name            /* ACPI object Name */
-
-
-typedef struct acpi_obj_info_header
-{
-    ACPI_COMMON_OBJ_INFO;
-
-} ACPI_OBJ_INFO_HEADER;
-
-
-/* Structure returned from Get Object Info */
-
-typedef struct acpi_device_info
-{
-    ACPI_COMMON_OBJ_INFO;
-
-    UINT32                          ParamCount;         /* If a method, required parameter count */
-    UINT32                          Valid;              /* Indicates which fields below are valid */
-    UINT32                          CurrentStatus;      /* _STA value */
-    ACPI_INTEGER                    Address;            /* _ADR value if any */
-    ACPI_DEVICE_ID                  HardwareId;         /* _HID value if any */
-    ACPI_DEVICE_ID                  UniqueId;           /* _UID value if any */
-    UINT8                           HighestDstates[4];  /* _SxD values: 0xFF indicates not valid */
-    ACPI_COMPATIBLE_ID_LIST         CompatibilityId;    /* List of _CIDs if any */
-
-} ACPI_DEVICE_INFO;
 
 
 /* Context structs for address space handlers */
@@ -1214,7 +1203,6 @@ typedef struct acpi_pci_id
     UINT16                          Function;
 
 } ACPI_PCI_ID;
-
 
 typedef struct acpi_mem_space_context
 {

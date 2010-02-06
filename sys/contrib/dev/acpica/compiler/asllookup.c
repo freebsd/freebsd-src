@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -526,7 +526,7 @@ LsDisplayNamespace (
     /* Walk entire namespace from the root */
 
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
-                ACPI_UINT32_MAX, FALSE, LsDoOneNamespaceObject,
+                ACPI_UINT32_MAX, FALSE, LsDoOneNamespaceObject, NULL,
                 NULL, NULL);
 
     /* Print the full pathname for each namespace node */
@@ -534,7 +534,7 @@ LsDisplayNamespace (
     FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "\nNamespace pathnames\n\n");
 
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
-                ACPI_UINT32_MAX, FALSE, LsDoOnePathname,
+                ACPI_UINT32_MAX, FALSE, LsDoOnePathname, NULL,
                 NULL, NULL);
 
     return (Status);
@@ -598,7 +598,7 @@ LkObjectExists (
     /* Walk entire namespace from the supplied root */
 
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
-                ACPI_UINT32_MAX, FALSE, LsCompareOneNamespaceObject,
+                ACPI_UINT32_MAX, FALSE, LsCompareOneNamespaceObject, NULL,
                 Name, NULL);
     if (Status == AE_CTRL_TRUE)
     {
@@ -753,7 +753,7 @@ LkFindUnreferencedObjects (
     /* Walk entire namespace from the supplied root */
 
     (void) AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
-                ACPI_UINT32_MAX, FALSE, LkIsObjectUsed,
+                ACPI_UINT32_MAX, FALSE, LkIsObjectUsed, NULL,
                 NULL, NULL);
 }
 
@@ -1337,6 +1337,7 @@ LkNamespaceLocateBegin (
                 break;
 
             case REGION_SMBUS:
+            case REGION_IPMI:
 
                 if ((UINT8) Op->Asl.Parent->Asl.Value.Integer != AML_FIELD_ACCESS_BUFFER)
                 {

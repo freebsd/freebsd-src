@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -543,7 +543,7 @@ AcpiEvGpeDetect (
 
             /* Read the Status Register */
 
-            Status = AcpiRead (&StatusReg, &GpeRegisterInfo->StatusAddress);
+            Status = AcpiHwRead (&StatusReg, &GpeRegisterInfo->StatusAddress);
             if (ACPI_FAILURE (Status))
             {
                 goto UnlockAndExit;
@@ -551,7 +551,7 @@ AcpiEvGpeDetect (
 
             /* Read the Enable Register */
 
-            Status = AcpiRead (&EnableReg, &GpeRegisterInfo->EnableAddress);
+            Status = AcpiHwRead (&EnableReg, &GpeRegisterInfo->EnableAddress);
             if (ACPI_FAILURE (Status))
             {
                 goto UnlockAndExit;

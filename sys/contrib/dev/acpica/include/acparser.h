@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -137,6 +137,7 @@
 #define ACPI_PARSE_DEFERRED_OP          0x0100
 #define ACPI_PARSE_DISASSEMBLE          0x0200
 
+#define ACPI_PARSE_MODULE_LEVEL         0x0400
 
 /******************************************************************************
  *

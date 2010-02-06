@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -124,6 +124,12 @@
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utmisc")
 
+/*
+ * Common suffix for messages
+ */
+#define ACPI_COMMON_MSG_SUFFIX \
+    AcpiOsPrintf (" (%8.8X/%s-%u)\n", ACPI_CA_VERSION, ModuleName, LineNumber)
+
 
 /*******************************************************************************
  *
@@ -202,6 +208,40 @@ AcpiUtValidateException (
     }
 
     return (ACPI_CAST_PTR (const char, Exception));
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtIsPciRootBridge
+ *
+ * PARAMETERS:  Id              - The HID/CID in string format
+ *
+ * RETURN:      TRUE if the Id is a match for a PCI/PCI-Express Root Bridge
+ *
+ * DESCRIPTION: Determine if the input ID is a PCI Root Bridge ID.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcpiUtIsPciRootBridge (
+    char                    *Id)
+{
+
+    /*
+     * Check if this is a PCI root bridge.
+     * ACPI 3.0+: check for a PCI Express root also.
+     */
+    if (!(ACPI_STRCMP (Id,
+            PCI_ROOT_HID_STRING)) ||
+
+        !(ACPI_STRCMP (Id,
+            PCI_EXPRESS_ROOT_HID_STRING)))
+    {
+        return (TRUE);
+    }
+
+    return (FALSE);
 }
 
 
@@ -889,12 +929,12 @@ ACPI_STATUS
 AcpiUtStrtoul64 (
     char                    *String,
     UINT32                  Base,
-    ACPI_INTEGER            *RetInteger)
+    UINT64                  *RetInteger)
 {
     UINT32                  ThisDigit = 0;
-    ACPI_INTEGER            ReturnValue = 0;
-    ACPI_INTEGER            Quotient;
-    ACPI_INTEGER            Dividend;
+    UINT64                  ReturnValue = 0;
+    UINT64                  Quotient;
+    UINT64                  Dividend;
     UINT32                  ToIntegerOp = (Base == ACPI_ANY_BASE);
     UINT32                  Mode32 = (AcpiGbl_IntegerByteWidth == 4);
     UINT8                   ValidDigits = 0;
@@ -1031,7 +1071,7 @@ AcpiUtStrtoul64 (
 
         /* Divide the digit into the correct position */
 
-        (void) AcpiUtShortDivide ((Dividend - (ACPI_INTEGER) ThisDigit),
+        (void) AcpiUtShortDivide ((Dividend - (UINT64) ThisDigit),
                     Base, &Quotient, NULL);
 
         if (ReturnValue > Quotient)
@@ -1283,7 +1323,7 @@ AcpiError (
 
     va_start (args, Format);
     AcpiOsVprintf (Format, args);
-    AcpiOsPrintf (" %8.8X %s-%u\n", ACPI_CA_VERSION, ModuleName, LineNumber);
+    ACPI_COMMON_MSG_SUFFIX;
     va_end (args);
 }
 
@@ -1302,7 +1342,7 @@ AcpiException (
 
     va_start (args, Format);
     AcpiOsVprintf (Format, args);
-    AcpiOsPrintf (" %8.8X %s-%u\n", ACPI_CA_VERSION, ModuleName, LineNumber);
+    ACPI_COMMON_MSG_SUFFIX;
     va_end (args);
 }
 
@@ -1320,7 +1360,7 @@ AcpiWarning (
 
     va_start (args, Format);
     AcpiOsVprintf (Format, args);
-    AcpiOsPrintf (" %8.8X %s-%u\n", ACPI_CA_VERSION, ModuleName, LineNumber);
+    ACPI_COMMON_MSG_SUFFIX;
     va_end (args);
 }
 
@@ -1353,3 +1393,98 @@ ACPI_EXPORT_SYMBOL (AcpiWarning)
 ACPI_EXPORT_SYMBOL (AcpiInfo)
 
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtPredefinedWarning
+ *
+ * PARAMETERS:  ModuleName      - Caller's module name (for error output)
+ *              LineNumber      - Caller's line number (for error output)
+ *              Pathname        - Full pathname to the node
+ *              NodeFlags       - From Namespace node for the method/object
+ *              Format          - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Warnings for the predefined validation module. Messages are
+ *              only emitted the first time a problem with a particular
+ *              method/object is detected. This prevents a flood of error
+ *              messages for methods that are repeatedly evaluated.
+ *
+ ******************************************************************************/
+
+void  ACPI_INTERNAL_VAR_XFACE
+AcpiUtPredefinedWarning (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Pathname,
+    UINT8                   NodeFlags,
+    const char              *Format,
+    ...)
+{
+    va_list                 args;
+
+
+    /*
+     * Warning messages for this method/object will be disabled after the
+     * first time a validation fails or an object is successfully repaired.
+     */
+    if (NodeFlags & ANOBJ_EVALUATED)
+    {
+        return;
+    }
+
+    AcpiOsPrintf ("ACPI Warning for %s: ", Pathname);
+
+    va_start (args, Format);
+    AcpiOsVprintf (Format, args);
+    ACPI_COMMON_MSG_SUFFIX;
+    va_end (args);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtPredefinedInfo
+ *
+ * PARAMETERS:  ModuleName      - Caller's module name (for error output)
+ *              LineNumber      - Caller's line number (for error output)
+ *              Pathname        - Full pathname to the node
+ *              NodeFlags       - From Namespace node for the method/object
+ *              Format          - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Info messages for the predefined validation module. Messages
+ *              are only emitted the first time a problem with a particular
+ *              method/object is detected. This prevents a flood of
+ *              messages for methods that are repeatedly evaluated.
+ *
+ ******************************************************************************/
+
+void  ACPI_INTERNAL_VAR_XFACE
+AcpiUtPredefinedInfo (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Pathname,
+    UINT8                   NodeFlags,
+    const char              *Format,
+    ...)
+{
+    va_list                 args;
+
+
+    /*
+     * Warning messages for this method/object will be disabled after the
+     * first time a validation fails or an object is successfully repaired.
+     */
+    if (NodeFlags & ANOBJ_EVALUATED)
+    {
+        return;
+    }
+
+    AcpiOsPrintf ("ACPI Info for %s: ", Pathname);
+
+    va_start (args, Format);
+    AcpiOsVprintf (Format, args);
+    ACPI_COMMON_MSG_SUFFIX;
+    va_end (args);
+}

@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -346,10 +346,13 @@ AcpiEnterSleepState (
 
     if (SleepState != ACPI_STATE_S5)
     {
-        /* Disable BM arbitration */
-
+        /*
+         * Disable BM arbitration. This feature is contained within an
+         * optional register (PM2 Control), so ignore a BAD_ADDRESS
+         * exception.
+         */
         Status = AcpiWriteBitRegister (ACPI_BITREG_ARB_DISABLE, 1);
-        if (ACPI_FAILURE (Status))
+        if (ACPI_FAILURE (Status) && (Status != AE_BAD_ADDRESS))
         {
             return_ACPI_STATUS (Status);
         }
@@ -694,10 +697,13 @@ AcpiLeaveSleepState (
             AcpiGbl_FixedEventInfo[ACPI_EVENT_POWER_BUTTON].StatusRegisterId,
             ACPI_CLEAR_STATUS);
 
-    /* Enable BM arbitration */
-
+    /*
+     * Enable BM arbitration. This feature is contained within an
+     * optional register (PM2 Control), so ignore a BAD_ADDRESS
+     * exception.
+     */
     Status = AcpiWriteBitRegister (ACPI_BITREG_ARB_DISABLE, 0);
-    if (ACPI_FAILURE (Status))
+    if (ACPI_FAILURE (Status) && (Status != AE_BAD_ADDRESS))
     {
         return_ACPI_STATUS (Status);
     }

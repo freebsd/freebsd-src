@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -682,42 +682,52 @@ AcpiDbDisplayObjectType (
     char                    *ObjectArg)
 {
     ACPI_HANDLE             Handle;
-    ACPI_BUFFER             Buffer;
     ACPI_DEVICE_INFO        *Info;
     ACPI_STATUS             Status;
     UINT32                  i;
 
 
     Handle = ACPI_TO_POINTER (ACPI_STRTOUL (ObjectArg, NULL, 16));
-    Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
 
-    Status = AcpiGetObjectInfo (Handle, &Buffer);
-    if (ACPI_SUCCESS (Status))
+    Status = AcpiGetObjectInfo (Handle, &Info);
+    if (ACPI_FAILURE (Status))
     {
-        Info = Buffer.Pointer;
-        AcpiOsPrintf (
-            "S1D-%2.2X S2D-%2.2X S3D-%2.2X S4D-%2.2X    HID: %s, ADR: %8.8X%8.8X, Status %8.8X\n",
-            Info->HighestDstates[0], Info->HighestDstates[1],
-            Info->HighestDstates[2], Info->HighestDstates[3],
-            Info->HardwareId.Value,
-            ACPI_FORMAT_UINT64 (Info->Address),
-            Info->CurrentStatus);
+        AcpiOsPrintf ("Could not get object info, %s\n",
+            AcpiFormatException (Status));
+        return;
+    }
 
-        if (Info->Valid & ACPI_VALID_CID)
+    AcpiOsPrintf ("ADR: %8.8X%8.8X, STA: %8.8X, Flags: %X\n",
+        ACPI_FORMAT_UINT64 (Info->Address),
+        Info->CurrentStatus, Info->Flags);
+
+    AcpiOsPrintf ("S1D-%2.2X S2D-%2.2X S3D-%2.2X S4D-%2.2X\n",
+        Info->HighestDstates[0], Info->HighestDstates[1],
+        Info->HighestDstates[2], Info->HighestDstates[3]);
+
+    AcpiOsPrintf ("S0W-%2.2X S1W-%2.2X S2W-%2.2X S3W-%2.2X S4W-%2.2X\n",
+        Info->LowestDstates[0], Info->LowestDstates[1],
+        Info->LowestDstates[2], Info->LowestDstates[3],
+        Info->LowestDstates[4]);
+
+    if (Info->Valid & ACPI_VALID_HID)
+    {
+        AcpiOsPrintf ("HID: %s\n", Info->HardwareId.String);
+    }
+    if (Info->Valid & ACPI_VALID_UID)
+    {
+        AcpiOsPrintf ("UID: %s\n", Info->UniqueId.String);
+    }
+    if (Info->Valid & ACPI_VALID_CID)
+    {
+        for (i = 0; i < Info->CompatibleIdList.Count; i++)
         {
-            for (i = 0; i < Info->CompatibilityId.Count; i++)
-            {
-                AcpiOsPrintf ("CID #%d: %s\n", i,
-                    Info->CompatibilityId.Id[i].Value);
-            }
+            AcpiOsPrintf ("CID %d: %s\n", i,
+                Info->CompatibleIdList.Ids[i].String);
         }
+    }
 
-        ACPI_FREE (Info);
-    }
-    else
-    {
-        AcpiOsPrintf ("%s\n", AcpiFormatException (Status));
-    }
+    ACPI_FREE (Info);
 }
 
 

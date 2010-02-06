@@ -5,7 +5,8 @@ SRCS=	adfile.c adisasm.c adwalk.c
 SRCS+=	osunixxf.c
 
 # common
-SRCS+=	dmrestag.c dmtable.c dmtbdump.c	dmtbinfo.c getopt.c
+SRCS+=	dmextern.c dmrestag.c dmtable.c dmtbdump.c dmtbinfo.c	\
+	getopt.c
 
 # compiler
 SRCS+=	aslanalyze.c aslcodegen.c aslcompile.c aslcompiler.y.h	\
