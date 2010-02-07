@@ -42,14 +42,21 @@ __FBSDID("$FreeBSD$");
 #define _COMPONENT	ACPI_OEM
 ACPI_MODULE_NAME("Sony")
 
-#define ACPI_SONY_GET_BRIGHTNESS "GBRT"
-#define ACPI_SONY_SET_BRIGHTNESS "SBRT"
 #define ACPI_SONY_GET_PID "GPID"
 
 /*
  * SNY5001
+ *   This is the ACPI handle for the "Sony Notebook Control" driver under
+ *   Windows.
+ *   It provides several methods within the ACPI namespace, including:
  *  [GS]BRT [GS]PBR [GS]CTR [GS]PCR [GS]CMI [CDPW GCDP]? GWDP PWAK PWRN 
  *
+ * SNY6001
+ *   This is the ACPI handle for the "Sony Programmable I/O" driver under
+ *   Windows.
+ *   It is not yet supported by this driver, but provides control over the
+ *   power to the bluetooth, built-in camera and HSDPA modem devices in some
+ *   laptops, and also allows some control of the fan speed.
  */
 
 struct acpi_sony_softc {
@@ -63,14 +70,17 @@ static struct acpi_sony_name_list
 	char *comment;
 } acpi_sony_oids[] = {
 	{ "brightness", "GBRT", "SBRT", "Display Brightness"},
-	{ "ctr", "GCTR", "SCTR", "??"},
+	{ "brightness_default", "GPBR", "SPBR", "Default Display Brightness"},
+	{ "contrast", "GCTR", "SCTR", "Display Contrast"},
+	{ "bass_gain", "GMGB", "SMGB", "Multimedia Bass Gain"},
 	{ "pcr", "GPCR", "SPCR", "???"},
 #if 0
-	{ "cmi", "GCMI", "SCMI", "????"},
+	{ "cmi", "GCMI", "SCMI", "???"},
 #endif
-	{ "wdp", "GWDP", NULL, "?????"},
+	{ "wdp", "GWDP", NULL, "???"},
 	{ "cdp", "GCDP", "CDPW", "CD Power"},  /*shares [\GL03]&0x8 flag*/
 	{ "azp", "GAZP", "AZPW", "Audio Power"}, 
+	{ "lnp", "GLNP", "LNPW", "LAN Power"},
 	{ NULL, NULL, NULL }
 };
 
