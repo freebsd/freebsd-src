@@ -152,7 +152,7 @@ VNET_DECLARE(int, udp6_recvspace);
 struct rwlock in6_ifaddr_lock;
 RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
 
-struct pfil_head inet6_pfil_hook;
+VNET_DEFINE (struct pfil_head, inet6_pfil_hook);
 
 static void ip6_init2(void *);
 static struct ip6aux *ip6_setdstifaddr(struct mbuf *, struct in6_ifaddr *);
@@ -247,6 +247,13 @@ ip6_init(void)
 
 	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 
+	/* Initialize packet filter hooks. */
+	V_inet6_pfil_hook.ph_type = PFIL_TYPE_AF;
+	V_inet6_pfil_hook.ph_af = AF_INET6;
+	if ((i = pfil_head_register(&V_inet6_pfil_hook)) != 0)
+		printf("%s: WARNING: unable to register pfil hook, "
+			"error %d\n", __func__, i);
+
 	/* Skip global initialization stuff for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
@@ -274,13 +281,6 @@ ip6_init(void)
 			if (pr->pr_protocol < IPPROTO_MAX)
 				ip6_protox[pr->pr_protocol] = pr - inet6sw;
 		}
-
-	/* Initialize packet filter hooks. */
-	inet6_pfil_hook.ph_type = PFIL_TYPE_AF;
-	inet6_pfil_hook.ph_af = AF_INET6;
-	if ((i = pfil_head_register(&inet6_pfil_hook)) != 0)
-		printf("%s: WARNING: unable to register pfil hook, "
-			"error %d\n", __func__, i);
 
 	netisr_register(&ip6_nh);
 }
@@ -515,10 +515,11 @@ ip6_input(struct mbuf *m)
 	odst = ip6->ip6_dst;
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (!PFIL_HOOKED(&inet6_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
 		goto passin;
 
-	if (pfil_run_hooks(&inet6_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN, NULL))
+	if (pfil_run_hooks(&V_inet6_pfil_hook, &m,
+	    m->m_pkthdr.rcvif, PFIL_IN, NULL))
 		return;
 	if (m == NULL)			/* consumed by filter */
 		return;
