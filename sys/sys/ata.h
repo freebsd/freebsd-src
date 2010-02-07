@@ -48,6 +48,7 @@ struct ata_params {
 #define ATA_DRQ_SLOW                    0x0000  /* cpu 3 ms delay */
 #define ATA_DRQ_INTR                    0x0020  /* interrupt 10 ms delay */
 #define ATA_DRQ_FAST                    0x0040  /* accel 50 us delay */
+#define ATA_RESP_INCOMPLETE             0x0004
 
 /*001*/ u_int16_t       cylinders;              /* # of cylinders */
 	u_int16_t       reserved2;
@@ -345,6 +346,9 @@ struct ata_params {
 #define         ATA_SF_SETXFER          0x03    /* set transfer mode */
 #define         ATA_SF_ENAB_WCACHE      0x02    /* enable write cache */
 #define         ATA_SF_DIS_WCACHE       0x82    /* disable write cache */
+#define         ATA_SF_ENAB_PUIS        0x06    /* enable PUIS */
+#define         ATA_SF_DIS_PUIS         0x86    /* disable PUIS */
+#define         ATA_SF_PUIS_SPINUP      0x07    /* PUIS spin-up */
 #define         ATA_SF_ENAB_RCACHE      0xaa    /* enable readahead cache */
 #define         ATA_SF_DIS_RCACHE       0x55    /* disable readahead cache */
 #define         ATA_SF_ENAB_RELIRQ      0x5d    /* enable release interrupt */

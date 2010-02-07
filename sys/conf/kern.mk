@@ -11,7 +11,7 @@
 CWARNFLAGS=
 .else
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
-		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
+		-Wmissing-prototypes -Wpointer-arith -Wcast-qual \
 		-Wundef -Wno-pointer-sign -fformat-extensions
 .endif
 #
@@ -84,7 +84,7 @@ INLINE_LIMIT?=	15000
 #
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-msoft-float
-INLINE_LIMIT?=	8000
+INLINE_LIMIT?=	80
 .endif
 
 #

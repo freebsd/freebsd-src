@@ -345,27 +345,10 @@ acpi_cpu_attach(device_t dev)
     }
 
     /*
-     * CPU capabilities are specified as a buffer of 32-bit integers:
-     * revision, count, and one or more capabilities.  The revision of
-     * "1" is not specified anywhere but seems to match Linux.
+     * CPU capabilities are specified in
+     * Intel Processor Vendor-Specific ACPI Interface Specification.
      */
     if (sc->cpu_features) {
-	arglist.Pointer = arg;
-	arglist.Count = 1;
-	arg[0].Type = ACPI_TYPE_BUFFER;
-	arg[0].Buffer.Length = sizeof(cap_set);
-	arg[0].Buffer.Pointer = (uint8_t *)cap_set;
-	cap_set[0] = 1; /* revision */
-	cap_set[1] = 1; /* number of capabilities integers */
-	cap_set[2] = sc->cpu_features;
-	AcpiEvaluateObject(sc->cpu_handle, "_PDC", &arglist, NULL);
-
-	/*
-	 * On some systems we need to evaluate _OSC so that the ASL
-	 * loads the _PSS and/or _PDC methods at runtime.
-	 *
-	 * TODO: evaluate failure of _OSC.
-	 */
 	arglist.Pointer = arg;
 	arglist.Count = 4;
 	arg[0].Type = ACPI_TYPE_BUFFER;
@@ -378,8 +361,24 @@ acpi_cpu_attach(device_t dev)
 	arg[3].Type = ACPI_TYPE_BUFFER;
 	arg[3].Buffer.Length = sizeof(cap_set);	/* Capabilities buffer */
 	arg[3].Buffer.Pointer = (uint8_t *)cap_set;
-	cap_set[0] = 0;
-	AcpiEvaluateObject(sc->cpu_handle, "_OSC", &arglist, NULL);
+	cap_set[0] = 0;				/* status */
+	cap_set[1] = sc->cpu_features;
+	status = AcpiEvaluateObject(sc->cpu_handle, "_OSC", &arglist, NULL);
+	if (ACPI_SUCCESS(status)) {
+	    if (cap_set[0] != 0)
+		device_printf(dev, "_OSC returned status %#x\n", cap_set[0]);
+	}
+	else {
+	    arglist.Pointer = arg;
+	    arglist.Count = 1;
+	    arg[0].Type = ACPI_TYPE_BUFFER;
+	    arg[0].Buffer.Length = sizeof(cap_set);
+	    arg[0].Buffer.Pointer = (uint8_t *)cap_set;
+	    cap_set[0] = 1; /* revision */
+	    cap_set[1] = 1; /* number of capabilities integers */
+	    cap_set[2] = sc->cpu_features;
+	    AcpiEvaluateObject(sc->cpu_handle, "_PDC", &arglist, NULL);
+	}
     }
 
     /* Probe for Cx state support. */

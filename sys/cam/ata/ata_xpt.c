@@ -86,6 +86,7 @@ PERIPHDRIVER_DECLARE(aprobe, probe_driver);
 typedef enum {
 	PROBE_RESET,
 	PROBE_IDENTIFY,
+	PROBE_SPINUP,
 	PROBE_SETMODE,
 	PROBE_SET_MULTI,
 	PROBE_INQUIRY,
@@ -98,6 +99,7 @@ typedef enum {
 static char *probe_action_text[] = {
 	"PROBE_RESET",
 	"PROBE_IDENTIFY",
+	"PROBE_SPINUP",
 	"PROBE_SETMODE",
 	"PROBE_SET_MULTI",
 	"PROBE_INQUIRY",
@@ -129,6 +131,7 @@ typedef struct {
 	uint32_t	pm_pid;
 	uint32_t	pm_prv;
 	int		restart;
+	int		spinup;
 	struct cam_periph *periph;
 } probe_softc;
 
@@ -212,7 +215,7 @@ proberegister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	softc = (probe_softc *)malloc(sizeof(*softc), M_CAMXPT, M_NOWAIT);
+	softc = (probe_softc *)malloc(sizeof(*softc), M_CAMXPT, M_ZERO | M_NOWAIT);
 
 	if (softc == NULL) {
 		printf("proberegister: Unable to probe new device. "
@@ -313,6 +316,19 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 			ata_28bit_cmd(ataio, ATA_ATA_IDENTIFY, 0, 0, 0);
 		else
 			ata_28bit_cmd(ataio, ATA_ATAPI_IDENTIFY, 0, 0, 0);
+		break;
+	case PROBE_SPINUP:
+		if (bootverbose)
+			xpt_print(path, "Spinning up device\n");
+		cam_fill_ataio(ataio,
+		      1,
+		      probedone,
+		      /*flags*/CAM_DIR_NONE | CAM_HIGH_POWER,
+		      0,
+		      /*data_ptr*/NULL,
+		      /*dxfer_len*/0,
+		      30 * 1000);
+		ata_28bit_cmd(ataio, ATA_SETFEATURES, ATA_SF_PUIS_SPINUP, 0, 0);
 		break;
 	case PROBE_SETMODE:
 	{
@@ -677,7 +693,8 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	ident_buf = &path->device->ident_data;
 
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-device_fail:	if (cam_periph_error(done_ccb, 0, 0, NULL) == ERESTART) {
+device_fail:	if ((!softc->restart) &&
+		    cam_periph_error(done_ccb, 0, 0, NULL) == ERESTART) {
 			return;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
@@ -768,8 +785,18 @@ noerror:
 		ata_bpack(ident_buf->revision, ident_buf->revision, sizeof(ident_buf->revision));
 		ata_btrim(ident_buf->serial, sizeof(ident_buf->serial));
 		ata_bpack(ident_buf->serial, ident_buf->serial, sizeof(ident_buf->serial));
+		/* Device may need spin-up before IDENTIFY become valid. */
+		if ((ident_buf->config & ATA_RESP_INCOMPLETE) ||
+		    ((ident_buf->support.command2 & ATA_SUPPORT_STANDBY) &&
+		     (ident_buf->enabled.command2 & ATA_SUPPORT_STANDBY) &&
+		     (ident_buf->support.command2 & ATA_SUPPORT_SPINUP) &&
+		      softc->spinup == 0)) {
+			PROBE_SET_ACTION(softc, PROBE_SPINUP);
+			xpt_release_ccb(done_ccb);
+			xpt_schedule(periph, priority);
+			return;
+		}
 		ident_buf = &path->device->ident_data;
-
 		if ((periph->path->device->flags & CAM_DEV_UNCONFIGURED) == 0) {
 			/* Check that it is the same device. */
 			if (bcmp(softc->ident_data.model, ident_buf->model,
@@ -829,6 +856,14 @@ noerror:
 		xpt_schedule(periph, priority);
 		return;
 	}
+	case PROBE_SPINUP:
+		if (bootverbose)
+			xpt_print(path, "Spin-up done\n");
+		softc->spinup = 1;
+		PROBE_SET_ACTION(softc, PROBE_IDENTIFY);
+		xpt_release_ccb(done_ccb);
+		xpt_schedule(periph, priority);
+		return;
 	case PROBE_SETMODE:
 		if (path->device->protocol == PROTO_ATA) {
 			PROBE_SET_ACTION(softc, PROBE_SET_MULTI);

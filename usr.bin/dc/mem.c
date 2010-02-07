@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 struct number *
 new_number(void)
 {
-	struct number	*n;
+	struct number *n;
 
 	n = bmalloc(sizeof(*n));
 	n->scale = 0;
@@ -51,7 +51,7 @@ free_number(struct number *n)
 struct number *
 dup_number(const struct number *a)
 {
-	struct number	*n;
+	struct number *n;
 
 	n = bmalloc(sizeof(*n));
 	n->scale = a->scale;
@@ -63,7 +63,7 @@ dup_number(const struct number *a)
 void *
 bmalloc(size_t sz)
 {
-	void	*p;
+	void *p;
 
 	p = malloc(sz);
 	if (p == NULL)
@@ -74,7 +74,7 @@ bmalloc(size_t sz)
 void *
 brealloc(void *p, size_t sz)
 {
-	void	*q;
+	void *q;
 
 	q = realloc(p, sz);
 	if (q == NULL)
@@ -85,7 +85,7 @@ brealloc(void *p, size_t sz)
 char *
 bstrdup(const char *p)
 {
-	char	*q;
+	char *q;
 
 	q = strdup(p);
 	if (q == NULL)

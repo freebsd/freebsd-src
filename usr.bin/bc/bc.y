@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <getopt.h>
+#include <histedit.h>
 #include <limits.h>
 #include <search.h>
 #include <signal.h>
@@ -60,11 +61,11 @@ extern char	*yytext;
 extern FILE	*yyin;
 
 struct tree {
-	ssize_t			index;
 	union {
 		char		*astr;
 		const char	*cstr;
 	} u;
+	ssize_t			index;
 };
 
 int			 yyparse(void);
@@ -143,10 +144,10 @@ const struct option long_options[] =
 %start program
 
 %union {
-	ssize_t		 node;
 	struct lvalue	 lvalue;
 	const char	*str;
 	char		*astr;
+	ssize_t		 node;
 }
 
 %token COMMA SEMICOLON LPAR RPAR LBRACE RBRACE LBRACKET RBRACKET DOT
@@ -299,7 +300,7 @@ statement	: expression
 			}
 		| QUIT
 			{
-				sigset_t	 mask;
+				sigset_t mask;
 
 				putchar('q');
 				fflush(stdout);
@@ -321,7 +322,7 @@ statement	: expression
 		     opt_relational_expression SEMICOLON
 		     opt_expression RPAR opt_statement pop_nesting
 			{
-				ssize_t	 n;
+				ssize_t n;
 
 				if (st_has_continue)
 					n = node($10, cs("M"), $8, cs("s."),
@@ -351,7 +352,7 @@ statement	: expression
 		| WHILE LPAR alloc_macro relational_expression RPAR
 		      opt_statement pop_nesting
 			{
-				ssize_t	 n;
+				ssize_t n;
 
 				if (st_has_continue)
 					n = node($6, cs("M"), $4, $3, END_NODE);
@@ -766,8 +767,8 @@ print_expression
 static void
 grow(void)
 {
-	struct tree	*p;
-	size_t		 newsize;
+	struct tree *p;
+	size_t newsize;
 
 	if (current == instr_sz) {
 		newsize = instr_sz * 2 + 1;
@@ -784,6 +785,7 @@ grow(void)
 static ssize_t
 cs(const char *str)
 {
+
 	grow();
 	instructions[current].index = CONST_STRING;
 	instructions[current].u.cstr = str;
@@ -793,6 +795,7 @@ cs(const char *str)
 static ssize_t
 as(const char *str)
 {
+
 	grow();
 	instructions[current].index = ALLOC_STRING;
 	instructions[current].u.astr = strdup(str);
@@ -804,8 +807,8 @@ as(const char *str)
 static ssize_t
 node(ssize_t arg, ...)
 {
-	va_list		 ap;
-	ssize_t		 ret;
+	va_list ap;
+	ssize_t ret;
 
 	va_start(ap, arg);
 
@@ -826,6 +829,7 @@ node(ssize_t arg, ...)
 static void
 emit(ssize_t i)
 {
+
 	if (instructions[i].index >= 0)
 		while (instructions[i].index != END_NODE)
 			emit(instructions[i++].index);
@@ -836,6 +840,7 @@ emit(ssize_t i)
 static void
 emit_macro(int nodeidx, ssize_t code)
 {
+
 	putchar('[');
 	emit(code);
 	printf("]s%s\n", instructions[nodeidx].u.cstr);
@@ -845,7 +850,7 @@ emit_macro(int nodeidx, ssize_t code)
 static void
 free_tree(void)
 {
-	ssize_t	 i;
+	ssize_t	i;
 
 	for (i = 0; i < current; i++)
 		if (instructions[i].index == ALLOC_STRING)
@@ -856,7 +861,7 @@ free_tree(void)
 static ssize_t
 numnode(int num)
 {
-	const char	*p;
+	const char *p;
 
 	if (num < 10)
 		p = str_table['0' + num];
@@ -871,9 +876,9 @@ numnode(int num)
 static ssize_t
 lookup(char * str, size_t len, char type)
 {
-	ENTRY		 entry, *found;
-	u_short		 num;
-	u_char		*p;
+	ENTRY entry, *found;
+	u_char *p;
+	u_short num;
 
 	/* The scanner allocated an extra byte already */
 	if (str[len-1] != type) {
@@ -908,7 +913,7 @@ lookup(char * str, size_t len, char type)
 static ssize_t
 letter_node(char *str)
 {
-	size_t	 len;
+	size_t len;
 
 	len = strlen(str);
 	if (len == 1 && str[0] != '_')
@@ -920,7 +925,7 @@ letter_node(char *str)
 static ssize_t
 array_node(char *str)
 {
-	size_t	 len;
+	size_t len;
 
 	len = strlen(str);
 	if (len == 1 && str[0] != '_')
@@ -932,7 +937,7 @@ array_node(char *str)
 static ssize_t
 function_node(char *str)
 {
-	size_t	 len;
+	size_t len;
 
 	len = strlen(str);
 	if (len == 1 && str[0] != '_')
@@ -944,6 +949,7 @@ function_node(char *str)
 static void
 add_par(ssize_t n)
 {
+
 	prologue = node(cs("S"), n, prologue, END_NODE);
 	epilogue = node(epilogue, cs("L"), n, cs("s."), END_NODE);
 }
@@ -951,6 +957,7 @@ add_par(ssize_t n)
 static void
 add_local(ssize_t n)
 {
+
 	prologue = node(cs("0S"), n, prologue, END_NODE);
 	epilogue = node(epilogue, cs("L"), n, cs("s."), END_NODE);
 }
@@ -958,8 +965,8 @@ add_local(ssize_t n)
 void
 yyerror(const char *s)
 {
-	char	*str, *p;
-	int	 n;
+	char *p, *str;
+	int n;
 
 	if (yyin != NULL && feof(yyin))
 		n = asprintf(&str, "%s: %s:%d: %s: unexpected EOF",
@@ -987,19 +994,21 @@ yyerror(const char *s)
 void
 fatal(const char *s)
 {
+
 	errx(1, "%s:%d: %s", filename, lineno, s);
 }
 
 static void
 warning(const char *s)
 {
+
 	warnx("%s:%d: %s", filename, lineno, s);
 }
 
 static void
 init(void)
 {
-	unsigned int	 i;
+	unsigned int i;
 
 	for (i = 0; i < UCHAR_MAX; i++) {
 		str_table[i][0] = i;
@@ -1013,6 +1022,7 @@ init(void)
 static void
 usage(void)
 {
+
 	fprintf(stderr, "usage: %s [-chlqv] [-e expression] [file ...]\n",
 	    __progname);
 	exit(1);
@@ -1021,7 +1031,7 @@ usage(void)
 static char *
 escape(const char *str)
 {
-	char	*ret, *p;
+	char *p, *ret;
 
 	ret = malloc(strlen(str) + 1);
 	if (ret == NULL)
@@ -1077,8 +1087,8 @@ escape(const char *str)
 void
 sigchld(int signo)
 {
-	pid_t	 pid;
-	int	 status;
+	pid_t pid;
+	int status;
 
 	switch (signo) {
 	default:
@@ -1097,12 +1107,19 @@ sigchld(int signo)
 	}
 }
 
+static const char *
+dummy_prompt(void)
+{
+
+        return ("");
+}
+
 int
 main(int argc, char *argv[])
 {
-	int	 i, ch;
-	int	 p[2];
-	char	*q;
+	char *q;
+	int p[2];
+	int ch, i;
 
 	init();
 	setlinebuf(stdout);
@@ -1164,6 +1181,16 @@ main(int argc, char *argv[])
 			dup(p[1]);
 			close(p[0]);
 			close(p[1]);
+			if (interactive) {
+				el = el_init("bc", stdin, stderr, stderr);
+				hist = history_init();
+				history(hist, &he, H_SETSIZE, 100);
+				el_set(el, EL_HIST, history, hist);
+				el_set(el, EL_EDITOR, "emacs");
+				el_set(el, EL_SIGNAL, 1);
+				el_set(el, EL_PROMPT, dummy_prompt);
+				el_source(el, NULL);
+			}
 		} else {
 			close(STDIN_FILENO);
 			dup(p[0]);
