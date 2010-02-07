@@ -6,7 +6,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice, this list of conditions and the following disclaimer
+ *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -25,45 +26,17 @@
  * $FreeBSD$
  */
 
-/* A default configuration for FreeBSD, used if there is no config.h. */
-#include <sys/param.h>  /* __FreeBSD_version */
+#ifndef LAFE_PATHMATCH_H
+#define LAFE_PATHMATCH_H
 
-#undef	HAVE_ATTR_XATTR_H
-#define	HAVE_CHROOT 1
-#define	HAVE_DIRENT_D_NAMLEN 1
-#define	HAVE_DIRENT_H 1
-#define	HAVE_D_MD_ORDER 1
-#define	HAVE_ERRNO_H 1
-#undef	HAVE_EXT2FS_EXT2_FS_H
-#define	HAVE_FCHDIR 1
-#define	HAVE_FCNTL_H 1
-#define	HAVE_GRP_H 1
-#define	HAVE_LANGINFO_H 1
-#define	HAVE_LIBARCHIVE 1
-#define	HAVE_LIMITS_H 1
-#undef	HAVE_LINUX_EXT2_FS_H
-#undef	HAVE_LINUX_FS_H
-#define	HAVE_LOCALE_H 1
-#if __FreeBSD_version >= 450002 /* nl_langinfo introduced */
-#define	HAVE_NL_LANGINFO 1
+/* Don't anchor at beginning unless the pattern starts with "^" */
+#define PATHMATCH_NO_ANCHOR_START	1
+/* Don't anchor at end unless the pattern ends with "$" */
+#define PATHMATCH_NO_ANCHOR_END 	2
+
+/* Note that "^" and "$" are not special unless you set the corresponding
+ * flag above. */
+
+int lafe_pathmatch(const char *p, const char *s, int flags);
+
 #endif
-#define	HAVE_PATHS_H 1
-#define	HAVE_PWD_H 1
-#define	HAVE_REGEX_H 1
-#define	HAVE_SETLOCALE 1
-#define	HAVE_STDARG_H 1
-#define	HAVE_STDLIB_H 1
-#define	HAVE_STRING_H 1
-#define	HAVE_STRUCT_STAT_ST_FLAGS 1
-#undef	HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
-#define	HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC 1
-#define	HAVE_SYS_IOCTL_H 1
-#define	HAVE_SYS_PARAM_H 1
-#define	HAVE_SYS_STAT_H 1
-#define	HAVE_TIME_H 1
-#define	HAVE_SYS_TYPES_H 1
-#define	HAVE_UINTMAX_T 1
-#define	HAVE_UNISTD_H 1
-#define	HAVE_UNSIGNED_LONG_LONG
-#define	HAVE_WCTYPE_H 1
-#undef	MAJOR_IN_MKDEV
