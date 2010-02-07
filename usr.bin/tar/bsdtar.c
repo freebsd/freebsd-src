@@ -82,6 +82,10 @@ __FBSDID("$FreeBSD$");
 #define	_PATH_DEFTAPE "/dev/tape"
 #endif
 
+#ifdef __MINGW32__
+int _CRT_glob = 0; /* Disable broken CRT globbing. */
+#endif
+
 #if defined(HAVE_SIGACTION) && (defined(SIGINFO) || defined(SIGUSR1))
 static volatile int siginfo_occurred;
 
