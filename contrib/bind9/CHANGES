@@ -1,3 +1,15 @@
+	--- 9.6.1-P3 released ---
+
+2831.	[security]	Do not attempt to validate or cache
+			out-of-bailiwick data returned with a secure
+			answer; it must be re-fetched from its original
+			source and validated in that context. [RT #20819]
+
+2828.	[security]	Cached CNAME or DNAME RR could be returned to clients
+			without DNSSEC validation. [RT #20737]
+
+2827.	[security]	Bogus NXDOMAIN could be cached as if valid. [RT #20712]
+
 	--- 9.6.1-P2 released ---
 
 2772.	[security]	When validating, track whether pending data was from
