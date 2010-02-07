@@ -44,9 +44,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#ifdef HAVE_FNMATCH_H
-#include <fnmatch.h>
-#endif
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
@@ -514,7 +511,7 @@ cleanup:
  * cause the next line to be a directory to pass to chdir().  If
  * --null is specified, then a line "-C" is just another filename.
  */
-void
+static void
 archive_names_from_file(struct bsdtar *bsdtar, struct archive *a)
 {
 	bsdtar->archive = a;
@@ -679,7 +676,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		return;
 	}
 
-	while ((tree_ret = tree_next(tree))) {
+	while ((tree_ret = tree_next(tree)) != 0) {
 		int r;
 		const char *name = tree_current_path(tree);
 		const struct stat *st = NULL; /* info to use for this entry */
@@ -882,7 +879,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			    archive_entry_pathname(entry));
 
 		/* Non-regular files get archived with zero size. */
-		if (!S_ISREG(st->st_mode))
+		if (archive_entry_filetype(entry) != AE_IFREG)
 			archive_entry_set_size(entry, 0);
 
 		archive_entry_linkify(bsdtar->resolver, &entry, &spare_entry);
@@ -1016,7 +1013,7 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a,
 /*
  * Test if the specified file is new enough to include in the archive.
  */
-int
+static int
 new_enough(struct bsdtar *bsdtar, const char *path, const struct stat *st)
 {
 	struct archive_dir_entry *p;
@@ -1103,7 +1100,7 @@ add_dir_list(struct bsdtar *bsdtar, const char *path,
 	}
 }
 
-void
+static void
 test_for_append(struct bsdtar *bsdtar)
 {
 	struct stat s;
