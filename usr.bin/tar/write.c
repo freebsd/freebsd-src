@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
+#ifdef HAVE_IO_H
+#include <io.h>
+#endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
@@ -67,6 +70,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -80,6 +86,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bsdtar.h"
 #include "err.h"
+#include "line_reader.h"
 #include "tree.h"
 
 /* Size of buffer for holding file data prior to writing. */
@@ -119,8 +126,6 @@ static int		 append_archive_filename(struct bsdtar *,
 			     struct archive *, const char *fname);
 static void		 archive_names_from_file(struct bsdtar *bsdtar,
 			     struct archive *a);
-static int		 archive_names_from_file_helper(struct bsdtar *bsdtar,
-			     const char *line);
 static int		 copy_file_data(struct bsdtar *, struct archive *a,
 			     struct archive *ina, struct archive_entry *);
 static int		 new_enough(struct bsdtar *, const char *path,
@@ -514,31 +519,29 @@ cleanup:
 static void
 archive_names_from_file(struct bsdtar *bsdtar, struct archive *a)
 {
-	bsdtar->archive = a;
+	struct lafe_line_reader *lr;
+	const char *line;
 
 	bsdtar->next_line_is_dir = 0;
-	process_lines(bsdtar, bsdtar->names_from_file,
-	    archive_names_from_file_helper);
+
+	lr = lafe_line_reader(bsdtar->names_from_file, bsdtar->option_null);
+	while ((line = lafe_line_reader_next(lr)) != NULL) {
+		if (bsdtar->next_line_is_dir) {
+			set_chdir(bsdtar, line);
+			bsdtar->next_line_is_dir = 0;
+		} else if (!bsdtar->option_null && strcmp(line, "-C") == 0)
+			bsdtar->next_line_is_dir = 1;
+		else {
+			if (*line != '/')
+				do_chdir(bsdtar); /* Handle a deferred -C */
+			write_hierarchy(bsdtar, a, line);
+		}
+	}
+	lafe_line_reader_free(lr);
 	if (bsdtar->next_line_is_dir)
 		bsdtar_errc(1, errno,
 		    "Unexpected end of filename list; "
 		    "directory expected after -C");
-}
-
-static int
-archive_names_from_file_helper(struct bsdtar *bsdtar, const char *line)
-{
-	if (bsdtar->next_line_is_dir) {
-		set_chdir(bsdtar, line);
-		bsdtar->next_line_is_dir = 0;
-	} else if (!bsdtar->option_null && strcmp(line, "-C") == 0)
-		bsdtar->next_line_is_dir = 1;
-	else {
-		if (*line != '/')
-			do_chdir(bsdtar); /* Handle a deferred -C */
-		write_hierarchy(bsdtar, bsdtar->archive, line);
-	}
-	return (0);
 }
 
 /*
@@ -589,7 +592,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		if (!new_enough(bsdtar, archive_entry_pathname(in_entry),
 			archive_entry_stat(in_entry)))
 			continue;
-		if (excluded(bsdtar, archive_entry_pathname(in_entry)))
+		if (lafe_excluded(bsdtar->matching, archive_entry_pathname(in_entry)))
 			continue;
 		if (bsdtar->option_interactive &&
 		    !yes("copy '%s'", archive_entry_pathname(in_entry)))
@@ -699,7 +702,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		 * If this file/dir is excluded by a filename
 		 * pattern, skip it.
 		 */
-		if (excluded(bsdtar, name))
+		if (lafe_excluded(bsdtar->matching, name))
 			continue;
 
 		/*

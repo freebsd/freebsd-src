@@ -48,6 +48,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -79,7 +82,8 @@ void
 tar_mode_t(struct bsdtar *bsdtar)
 {
 	read_archive(bsdtar, 't');
-	unmatched_inclusions_warn(bsdtar, "Not found in archive");
+	if (lafe_unmatched_inclusions_warn(bsdtar->matching, "Not found in archive") != 0)
+		bsdtar->return_value = 1;
 }
 
 void
@@ -87,7 +91,8 @@ tar_mode_x(struct bsdtar *bsdtar)
 {
 	read_archive(bsdtar, 'x');
 
-	unmatched_inclusions_warn(bsdtar, "Not found in archive");
+	if (lafe_unmatched_inclusions_warn(bsdtar->matching, "Not found in archive") != 0)
+		bsdtar->return_value = 1;
 }
 
 static void
@@ -135,12 +140,13 @@ read_archive(struct bsdtar *bsdtar, char mode)
 	int			  r;
 
 	while (*bsdtar->argv) {
-		include(bsdtar, *bsdtar->argv);
+		lafe_include(&bsdtar->matching, *bsdtar->argv);
 		bsdtar->argv++;
 	}
 
 	if (bsdtar->names_from_file != NULL)
-		include_from_file(bsdtar, bsdtar->names_from_file);
+		lafe_include_from_file(&bsdtar->matching,
+		    bsdtar->names_from_file, bsdtar->option_null);
 
 	a = archive_read_new();
 	if (bsdtar->compress_program != NULL)
@@ -179,7 +185,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 	for (;;) {
 		/* Support --fast-read option */
 		if (bsdtar->option_fast_read &&
-		    unmatched_inclusions(bsdtar) == 0)
+		    lafe_unmatched_inclusions(bsdtar->matching) == 0)
 			break;
 
 		r = archive_read_next_header(a, &entry);
@@ -233,7 +239,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		 * rewrite, there would be no way to exclude foo1/bar
 		 * while allowing foo2/bar.)
 		 */
-		if (excluded(bsdtar, archive_entry_pathname(entry)))
+		if (lafe_excluded(bsdtar->matching, archive_entry_pathname(entry)))
 			continue; /* Excluded by a pattern test. */
 
 		if (mode == 't') {
