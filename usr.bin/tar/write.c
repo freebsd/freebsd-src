@@ -29,9 +29,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-#ifdef HAVE_SYS_ACL_H
-#include <sys/acl.h>
-#endif
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif
