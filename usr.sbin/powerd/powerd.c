@@ -46,6 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#ifdef __i386__
+#define USE_APM
+#endif
+
 #ifdef USE_APM
 #include <machine/apm_bios.h>
 #endif

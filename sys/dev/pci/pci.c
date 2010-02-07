@@ -1626,6 +1626,40 @@ pci_ht_map_msi(device_t dev, uint64_t addr)
 	}
 }
 
+int
+pci_get_max_read_req(device_t dev)
+{
+	int cap;
+	uint16_t val;
+
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) != 0)
+		return (0);
+	val = pci_read_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, 2);
+	val &= PCIM_EXP_CTL_MAX_READ_REQUEST;
+	val >>= 12;
+	return (1 << (val + 7));
+}
+
+int
+pci_set_max_read_req(device_t dev, int size)
+{
+	int cap;
+	uint16_t val;
+
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) != 0)
+		return (0);
+	if (size < 128)
+		size = 128;
+	if (size > 4096)
+		size = 4096;
+	size = (1 << (fls(size) - 1));
+	val = pci_read_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, 2);
+	val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
+	val |= (fls(size) - 8) << 12;
+	pci_write_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, val, 2);
+	return (size);
+}
+
 /*
  * Support for MSI message signalled interrupts.
  */

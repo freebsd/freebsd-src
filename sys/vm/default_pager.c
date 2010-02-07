@@ -80,7 +80,7 @@ default_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t offset, struct ucred *cred)
 {
 	vm_object_t object;
-	struct uidinfo *uip;
+	struct uidinfo *uip = NULL;
 
 	if (handle != NULL)
 		panic("default_pager_alloc: handle specified");

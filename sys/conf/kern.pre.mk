@@ -24,7 +24,7 @@ SIZE?=		size
 COPTFLAGS?=	-O
 .else
 . if defined(DEBUG)
-_MINUS_O=	-O
+_MINUS_O=	-Os
 CTFFLAGS+=	-g
 . else
 _MINUS_O=	-O2
@@ -90,10 +90,10 @@ INCLUDES+= -I$S/dev/cxgb
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
 .if ${CC} != "icc"
-CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
-CFLAGS+= --param inline-unit-growth=100
-CFLAGS+= --param large-function-growth=1000
-WERROR?= -Werror
+CFLAGS+= -fno-common -finline-limit=0
+CFLAGS+= --param inline-unit-growth=0
+CFLAGS+= --param large-function-growth=0
+WERROR?=
 .endif
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".

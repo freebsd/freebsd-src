@@ -118,7 +118,7 @@ sb_intmap_activate(int intrnum, device_t dev, int rid)
 
 	map = sb_intmap_lookup(intrnum, dev, rid);
 	if (map) {
-		sb_enable_intsrc(map->intsrc);
+		sb_enable_intsrc(0, map->intsrc);
 	} else {
 		/*
 		 * In zbbus_setup_intr() we blindly call sb_intmap_activate()

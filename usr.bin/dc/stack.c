@@ -46,7 +46,7 @@ stack_init(struct stack *stack)
 static __inline bool
 stack_empty(const struct stack *stack)
 {
-	bool	 empty = stack->sp == -1;
+	bool empty = stack->sp == -1;
 
 	if (empty)
 		warnx("stack empty");
@@ -109,8 +109,8 @@ stack_size(const struct stack *stack)
 void
 stack_dup(struct stack *stack)
 {
-	struct value	*value;
-	struct value	 copy;
+	struct value *value;
+	struct value copy;
 
 	value = stack_tos(stack);
 	if (value == NULL) {
@@ -123,7 +123,7 @@ stack_dup(struct stack *stack)
 void
 stack_swap(struct stack *stack)
 {
-	struct value	 copy;
+	struct value copy;
 
 	if (stack->sp < 1) {
 		warnx("stack empty");
@@ -137,7 +137,7 @@ stack_swap(struct stack *stack)
 static void
 stack_grow(struct stack *stack)
 {
-	size_t	 new_size, i;
+	size_t i, new_size;
 
 	if (++stack->sp == stack->size) {
 		new_size = stack->size * 2 + 1;
@@ -267,7 +267,7 @@ stack_clear(struct stack *stack)
 void
 stack_print(FILE *f, const struct stack *stack, const char *prefix, u_int base)
 {
-	ssize_t	 i;
+	ssize_t i;
 
 	for (i = stack->sp; i >= 0; i--) {
 		print_value(f, &stack->stack[i], prefix, base);
@@ -279,7 +279,7 @@ stack_print(FILE *f, const struct stack *stack, const char *prefix, u_int base)
 static struct array *
 array_new(void)
 {
-	struct array	*a;
+	struct array *a;
 
 	a = bmalloc(sizeof(*a));
 	a->data = NULL;
@@ -290,7 +290,7 @@ array_new(void)
 static __inline void
 array_free(struct array *a)
 {
-	size_t	 i;
+	size_t i;
 
 	if (a == NULL)
 		return;
@@ -303,8 +303,8 @@ array_free(struct array *a)
 static struct array *
 array_dup(const struct array *a)
 {
-	struct array	*n;
-	size_t		 i;
+	struct array *n;
+	size_t i;
 
 	if (a == NULL)
 		return (NULL);
@@ -318,7 +318,7 @@ array_dup(const struct array *a)
 static __inline void
 array_grow(struct array *array, size_t newsize)
 {
-	size_t	 i;
+	size_t i;
 
 	array->data = brealloc(array->data, newsize * sizeof(*array->data));
 	for (i = array->size; i < newsize; i++) {
@@ -350,8 +350,8 @@ array_retrieve(const struct array *array, size_t i)
 void
 frame_assign(struct stack *stack, size_t i, const struct value *v)
 {
-	struct array	*a;
-	struct value	 n;
+	struct array *a;
+	struct value n;
 
 	if (stack->sp == -1) {
 		n.type = BCODE_NONE;
@@ -368,7 +368,7 @@ frame_assign(struct stack *stack, size_t i, const struct value *v)
 struct value *
 frame_retrieve(const struct stack *stack, size_t i)
 {
-	struct array	*a;
+	struct array *a;
 
 	if (stack->sp == -1)
 		return (NULL);

@@ -201,7 +201,7 @@ atapi_cam_attach(device_t dev)
     scp->parent = device_get_parent(dev);
     scp->ata_ch = device_get_softc(scp->parent);
     TAILQ_INIT(&scp->pending_hcbs);
-    unit = device_get_unit(dev);
+    unit = device_get_unit(device_get_parent(dev));
 
     if ((devq = cam_simq_alloc(16)) == NULL) {
 	error = ENOMEM;
@@ -682,8 +682,12 @@ action_invalid:
 static void
 atapi_poll(struct cam_sim *sim)
 {
-    /* do nothing - we do not actually service any interrupts */
-    printf("atapi_poll called!\n");
+	struct atapi_xpt_softc *softc =
+	    (struct atapi_xpt_softc*)cam_sim_softc(sim);
+
+	mtx_unlock(&softc->state_lock);
+	ata_interrupt(softc->ata_ch);
+	mtx_lock(&softc->state_lock);
 }
 
 static void

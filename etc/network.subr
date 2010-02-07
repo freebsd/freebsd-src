@@ -882,7 +882,9 @@ ipv6_accept_rtadv_up()
 {
 	if ipv6_autoconfif $1; then
 		ifconfig $1 inet6 accept_rtadv up
-		rtsol ${rtsol_flags} $1
+		if ! checkyesno rtsold_enable; then
+			rtsol ${rtsol_flags} $1
+		fi
 	fi
 }
 

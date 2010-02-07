@@ -28,6 +28,8 @@
 #include "bsdtar_platform.h"
 #include <stdio.h>
 
+#include "matching.h"
+
 #define	DEFAULT_BYTES_PER_BLOCK	(20*512)
 
 /*
@@ -77,8 +79,6 @@ struct bsdtar {
 	int		  fd;
 
 	/* Miscellaneous state information */
-	struct archive	 *archive;
-	const char	 *progname;
 	int		  argc;
 	char		**argv;
 	const char	 *optarg;
@@ -98,7 +98,7 @@ struct bsdtar {
 	struct archive_dir	*archive_dir;	/* for write.c */
 	struct name_cache	*gname_cache;	/* for write.c */
 	char			*buff;		/* for write.c */
-	struct matching		*matching;	/* for matching.c */
+	struct lafe_matching	*matching;	/* for matching.c */
 	struct security		*security;	/* for read.c */
 	struct name_cache	*uname_cache;	/* for write.c */
 	struct siginfo_data	*siginfo;	/* for siginfo.c */
@@ -134,37 +134,20 @@ enum {
 	OPTION_VERSION
 };
 
-
-void	bsdtar_errc(struct bsdtar *, int _eval, int _code,
-	    const char *fmt, ...) __LA_DEAD;
 int	bsdtar_getopt(struct bsdtar *);
-void	bsdtar_warnc(struct bsdtar *, int _code, const char *fmt, ...);
-void	cleanup_exclusions(struct bsdtar *);
 void	do_chdir(struct bsdtar *);
 int	edit_pathname(struct bsdtar *, struct archive_entry *);
-int	exclude(struct bsdtar *, const char *pattern);
-int	exclude_from_file(struct bsdtar *, const char *pathname);
-int	excluded(struct bsdtar *, const char *pathname);
-int	include(struct bsdtar *, const char *pattern);
-int	include_from_file(struct bsdtar *, const char *pathname);
+int	need_report(void);
 int	pathcmp(const char *a, const char *b);
-int	process_lines(struct bsdtar *bsdtar, const char *pathname,
-	    int (*process)(struct bsdtar *, const char *));
 void	safe_fprintf(FILE *, const char *fmt, ...);
 void	set_chdir(struct bsdtar *, const char *newdir);
-void	siginfo_init(struct bsdtar *);
-void	siginfo_setinfo(struct bsdtar *, const char * oper,
-	    const char * path, int64_t size);
-void	siginfo_printinfo(struct bsdtar *, off_t progress);
-void	siginfo_done(struct bsdtar *);
+const char *tar_i64toa(int64_t);
 void	tar_mode_c(struct bsdtar *bsdtar);
 void	tar_mode_r(struct bsdtar *bsdtar);
 void	tar_mode_t(struct bsdtar *bsdtar);
 void	tar_mode_u(struct bsdtar *bsdtar);
 void	tar_mode_x(struct bsdtar *bsdtar);
-int	unmatched_inclusions(struct bsdtar *bsdtar);
-int	unmatched_inclusions_warn(struct bsdtar *bsdtar, const char *msg);
-void	usage(struct bsdtar *);
+void	usage(void);
 int	yes(const char *fmt, ...);
 
 #if HAVE_REGEX_H

@@ -96,6 +96,7 @@ setcarp_passwd(const char *val, int d, int s, const struct afswtch *afp)
 	if (ioctl(s, SIOCGVH, (caddr_t)&ifr) == -1)
 		err(1, "SIOCGVH");
 
+	memset(carpr.carpr_key, 0, sizeof(carpr.carpr_key));
 	/* XXX Should hash the password into the key here, perhaps? */
 	strlcpy(carpr.carpr_key, val, CARP_KEY_LEN);
 

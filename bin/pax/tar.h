@@ -96,7 +96,7 @@ typedef struct {
 	char chksum[CHK_LEN];		/* checksum */
 	char linkflag;			/* norm, hard, or sym. */
 	char linkname[TNMSZ];		/* linked to name */
-} HD_TAR;
+} HD_TAR __aligned(1);
 
 #ifdef _PAX_
 /*
@@ -142,4 +142,4 @@ typedef struct {
 	char devmajor[8];		/* major device number */
 	char devminor[8];		/* minor device number */
 	char prefix[TPFSZ];		/* linked to name */
-} HD_USTAR;
+} HD_USTAR __aligned(1);

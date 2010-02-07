@@ -499,13 +499,13 @@ usage()
 	    getprogname(),
 	    " [device-type]");
 	fprintf(stderr, "where fsoptions are:\n");
-	fprintf(stderr, "\t-E Erase previuos disk content\n");
+	fprintf(stderr, "\t-E Erase previous disk content\n");
 	fprintf(stderr, "\t-J Enable journaling via gjournal\n");
 	fprintf(stderr, "\t-L volume label to add to superblock\n");
 	fprintf(stderr,
 	    "\t-N do not create file system, just print out parameters\n");
 	fprintf(stderr, "\t-O file system format: 1 => UFS1, 2 => UFS2\n");
-	fprintf(stderr, "\t-R regression test, supress random factors\n");
+	fprintf(stderr, "\t-R regression test, suppress random factors\n");
 	fprintf(stderr, "\t-S sector size\n");
 	fprintf(stderr, "\t-T disktype\n");
 	fprintf(stderr, "\t-U enable soft updates\n");
