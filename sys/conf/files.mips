@@ -71,6 +71,7 @@ geom/geom_mbr.c			optional	geom_mbr
 geom/geom_mbr_enc.c		optional	geom_mbr
 libkern/ashldi3.c		standard
 libkern/ashrdi3.c		standard
+libkern/cmpdi2.c		standard
 libkern/divdi3.c		optional	isa_mips32
 libkern/ffsl.c			standard
 libkern/fls.c			standard
@@ -79,6 +80,7 @@ libkern/lshrdi3.c		standard
 libkern/memmove.c		standard
 libkern/moddi3.c		optional	isa_mips32
 libkern/qdivrem.c		optional	isa_mips32
+libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		optional	isa_mips32
 libkern/umoddi3.c		optional	isa_mips32
 
