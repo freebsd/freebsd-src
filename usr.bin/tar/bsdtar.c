@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bsdtar.h"
 #include "err.h"
+#include "matching.h"
 
 /*
  * Per POSIX.1-1988, tar defaults to reading/writing archives to/from
@@ -248,7 +249,7 @@ main(int argc, char **argv)
 			bsdtar->option_chroot = 1;
 			break;
 		case OPTION_EXCLUDE: /* GNU tar */
-			if (exclude(bsdtar, bsdtar->optarg))
+			if (lafe_exclude(&bsdtar->matching, bsdtar->optarg))
 				bsdtar_errc(1, 0,
 				    "Couldn't exclude %s\n", bsdtar->optarg);
 			break;
@@ -294,7 +295,7 @@ main(int argc, char **argv)
 			 * noone else needs this to filter entries
 			 * when transforming archives.
 			 */
-			if (include(bsdtar, bsdtar->optarg))
+			if (lafe_include(&bsdtar->matching, bsdtar->optarg))
 				bsdtar_errc(1, 0,
 				    "Failed to add %s to inclusion list",
 				    bsdtar->optarg);
@@ -484,7 +485,7 @@ main(int argc, char **argv)
 			bsdtar->option_interactive = 1;
 			break;
 		case 'X': /* GNU tar */
-			if (exclude_from_file(bsdtar, bsdtar->optarg))
+			if (lafe_exclude_from_file(&bsdtar->matching, bsdtar->optarg))
 				bsdtar_errc(1, 0,
 				    "failed to process exclusions from file %s",
 				    bsdtar->optarg);
@@ -607,7 +608,7 @@ main(int argc, char **argv)
 		break;
 	}
 
-	cleanup_exclusions(bsdtar);
+	lafe_cleanup_exclusions(&bsdtar->matching);
 #if HAVE_REGEX_H
 	cleanup_substitution(bsdtar);
 #endif
