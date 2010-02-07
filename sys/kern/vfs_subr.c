@@ -2149,37 +2149,44 @@ vrefcnt(struct vnode *vp)
 	return (usecnt);
 }
 
+#define	VPUTX_VRELE	1
+#define	VPUTX_VPUT	2
+#define	VPUTX_VUNREF	3
 
-/*
- * Vnode put/release.
- * If count drops to zero, call inactive routine and return to freelist.
- */
-void
-vrele(struct vnode *vp)
+static void
+vputx(struct vnode *vp, int func)
 {
-	struct thread *td = curthread;	/* XXX */
+	int error;
 
-	KASSERT(vp != NULL, ("vrele: null vp"));
+	KASSERT(vp != NULL, ("vputx: null vp"));
+	if (func == VPUTX_VUNREF)
+		ASSERT_VOP_ELOCKED(vp, "vunref");
+	else if (func == VPUTX_VPUT)
+		ASSERT_VOP_LOCKED(vp, "vput");
+	else
+		KASSERT(func == VPUTX_VRELE, ("vputx: wrong func"));
 	VFS_ASSERT_GIANT(vp->v_mount);
-
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 	VI_LOCK(vp);
 
 	/* Skip this v_writecount check if we're going to panic below. */
 	VNASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1, vp,
-	    ("vrele: missed vn_close"));
-	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	    ("vputx: missed vn_close"));
+	error = 0;
 
 	if (vp->v_usecount > 1 || ((vp->v_iflag & VI_DOINGINACT) &&
 	    vp->v_usecount == 1)) {
+		if (func == VPUTX_VPUT)
+			VOP_UNLOCK(vp, 0);
 		v_decr_usecount(vp);
 		return;
 	}
+
 	if (vp->v_usecount != 1) {
 #ifdef DIAGNOSTIC
-		vprint("vrele: negative ref count", vp);
+		vprint("vputx: negative ref count", vp);
 #endif
-		VI_UNLOCK(vp);
-		panic("vrele: negative ref cnt");
+		panic("vputx: negative ref cnt");
 	}
 	CTR2(KTR_VFS, "%s: return vnode %p to the freelist", __func__, vp);
 	/*
@@ -2193,19 +2200,33 @@ vrele(struct vnode *vp)
 	 * as VI_DOINGINACT to avoid recursion.
 	 */
 	vp->v_iflag |= VI_OWEINACT;
-	if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK) == 0) {
+	if (func == VPUTX_VRELE) {
+		error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK);
 		VI_LOCK(vp);
-		if (vp->v_usecount > 0)
-			vp->v_iflag &= ~VI_OWEINACT;
+	} else if (func == VPUTX_VPUT && VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+		error = VOP_LOCK(vp, LK_UPGRADE | LK_INTERLOCK | LK_NOWAIT);
+		VI_LOCK(vp);
+	}
+	if (vp->v_usecount > 0)
+		vp->v_iflag &= ~VI_OWEINACT;
+	if (error == 0) {
 		if (vp->v_iflag & VI_OWEINACT)
-			vinactive(vp, td);
-		VOP_UNLOCK(vp, 0);
-	} else {
-		VI_LOCK(vp);
-		if (vp->v_usecount > 0)
-			vp->v_iflag &= ~VI_OWEINACT;
+			vinactive(vp, curthread);
+		if (func != VPUTX_VUNREF)
+			VOP_UNLOCK(vp, 0);
 	}
 	vdropl(vp);
+}
+
+/*
+ * Vnode put/release.
+ * If count drops to zero, call inactive routine and return to freelist.
+ */
+void
+vrele(struct vnode *vp)
+{
+
+	vputx(vp, VPUTX_VRELE);
 }
 
 /*
@@ -2216,56 +2237,18 @@ vrele(struct vnode *vp)
 void
 vput(struct vnode *vp)
 {
-	struct thread *td = curthread;	/* XXX */
-	int error;
 
-	KASSERT(vp != NULL, ("vput: null vp"));
-	ASSERT_VOP_LOCKED(vp, "vput");
-	VFS_ASSERT_GIANT(vp->v_mount);
-	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	VI_LOCK(vp);
-	/* Skip this v_writecount check if we're going to panic below. */
-	VNASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1, vp,
-	    ("vput: missed vn_close"));
-	error = 0;
+	vputx(vp, VPUTX_VPUT);
+}
 
-	if (vp->v_usecount > 1 || ((vp->v_iflag & VI_DOINGINACT) &&
-	    vp->v_usecount == 1)) {
-		VOP_UNLOCK(vp, 0);
-		v_decr_usecount(vp);
-		return;
-	}
+/*
+ * Release an exclusively locked vnode. Do not unlock the vnode lock.
+ */
+void
+vunref(struct vnode *vp)
+{
 
-	if (vp->v_usecount != 1) {
-#ifdef DIAGNOSTIC
-		vprint("vput: negative ref count", vp);
-#endif
-		panic("vput: negative ref cnt");
-	}
-	CTR2(KTR_VFS, "%s: return to freelist the vnode %p", __func__, vp);
-	/*
-	 * We want to hold the vnode until the inactive finishes to
-	 * prevent vgone() races.  We drop the use count here and the
-	 * hold count below when we're done.
-	 */
-	v_decr_useonly(vp);
-	vp->v_iflag |= VI_OWEINACT;
-	if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
-		error = VOP_LOCK(vp, LK_UPGRADE|LK_INTERLOCK|LK_NOWAIT);
-		VI_LOCK(vp);
-		if (error) {
-			if (vp->v_usecount > 0)
-				vp->v_iflag &= ~VI_OWEINACT;
-			goto done;
-		}
-	}
-	if (vp->v_usecount > 0)
-		vp->v_iflag &= ~VI_OWEINACT;
-	if (vp->v_iflag & VI_OWEINACT)
-		vinactive(vp, td);
-	VOP_UNLOCK(vp, 0);
-done:
-	vdropl(vp);
+	vputx(vp, VPUTX_VUNREF);
 }
 
 /*
