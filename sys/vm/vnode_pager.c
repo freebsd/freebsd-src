@@ -250,13 +250,16 @@ static void
 vnode_pager_dealloc(object)
 	vm_object_t object;
 {
-	struct vnode *vp = object->handle;
+	struct vnode *vp;
+	int refs;
 
+	vp = object->handle;
 	if (vp == NULL)
 		panic("vnode_pager_dealloc: pager already dealloced");
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	vm_object_pip_wait(object, "vnpdea");
+	refs = object->ref_count;
 
 	object->handle = NULL;
 	object->type = OBJT_DEAD;
@@ -267,6 +270,8 @@ vnode_pager_dealloc(object)
 	ASSERT_VOP_ELOCKED(vp, "vnode_pager_dealloc");
 	vp->v_object = NULL;
 	vp->v_vflag &= ~VV_TEXT;
+	while (refs-- > 0)
+		vunref(vp);
 }
 
 static boolean_t
