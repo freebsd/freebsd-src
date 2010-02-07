@@ -7,7 +7,9 @@ SRCS=	bsdtar.c	\
 	cmdline.c	\
 	err.c		\
 	getdate.c	\
+	line_reader.c	\
 	matching.c	\
+	pathmatch.c	\
 	read.c		\
 	subst.c		\
 	tree.c		\
