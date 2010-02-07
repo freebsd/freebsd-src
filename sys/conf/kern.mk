@@ -84,7 +84,7 @@ INLINE_LIMIT?=	15000
 #
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-msoft-float
-INLINE_LIMIT?=	80
+INLINE_LIMIT?=	8000
 .endif
 
 #
