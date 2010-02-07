@@ -139,6 +139,23 @@ static int		 write_file_data(struct bsdtar *, struct archive *,
 static void		 write_hierarchy(struct bsdtar *, struct archive *,
 			     const char *);
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+/* Not a full lseek() emulation, but enough for our needs here. */
+static int
+seek_file(int fd, int64_t offset, int whence)
+{
+	LARGE_INTEGER distance;
+	(void)whence; /* UNUSED */
+	distance.QuadPart = offset;
+	return (SetFilePointerEx((HANDLE)_get_osfhandle(fd),
+		distance, NULL, FILE_BEGIN) ? 1 : -1);
+}
+#define open _open
+#define close _close
+#define read _read
+#define lseek seek_file
+#endif
+
 void
 tar_mode_c(struct bsdtar *bsdtar)
 {
@@ -236,7 +253,11 @@ tar_mode_r(struct bsdtar *bsdtar)
 
 	format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
 
+#if defined(__BORLANDC__)
+	bsdtar->fd = open(bsdtar->filename, O_RDWR | O_CREAT);
+#else
 	bsdtar->fd = open(bsdtar->filename, O_RDWR | O_CREAT, 0666);
+#endif
 	if (bsdtar->fd < 0)
 		bsdtar_errc(1, errno,
 		    "Cannot open %s", bsdtar->filename);
@@ -451,12 +472,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 				    arg + 1) != 0)
 					break;
 			} else
-#if defined(_WIN32) && !defined(__CYGWIN__)
-				write_hierarchy_win(bsdtar, a, arg,
-				    write_hierarchy);
-#else
 				write_hierarchy(bsdtar, a, arg);
-#endif
 		}
 		bsdtar->argv++;
 	}
@@ -786,6 +802,22 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		 * calling this so we can pass in an fd and shorten
 		 * the race to query metadata.  The linkify dance
 		 * makes this more complex than it might sound. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		/* TODO: tree.c uses stat(), which is badly broken
+		 * on Windows.  To fix this, we should
+		 * deprecate tree_current_stat() and provide a new
+		 * call tree_populate_entry(t, entry).  This call
+		 * would use stat() internally on POSIX and
+		 * GetInfoByFileHandle() internally on Windows.
+		 * This would be another step towards a tree-walker
+		 * that can be integrated deep into libarchive.
+		 * For now, just set st to NULL on Windows;
+		 * archive_read_disk_entry_from_file() should
+		 * be smart enough to use platform-appropriate
+		 * ways to probe file information.
+		 */
+		st = NULL;
+#endif
 		r = archive_read_disk_entry_from_file(bsdtar->diskreader,
 		    entry, -1, st);
 		if (r != ARCHIVE_OK)
@@ -801,7 +833,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		 * If this file/dir is flagged "nodump" and we're
 		 * honoring such flags, skip this file/dir.
 		 */
-#ifdef HAVE_STRUCT_STAT_ST_FLAGS
+#if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
 		/* BSD systems store flags in struct stat */
 		if (bsdtar->option_honor_nodump &&
 		    (lst->st_flags & UF_NODUMP))
@@ -1092,4 +1124,11 @@ test_for_append(struct bsdtar *bsdtar)
 		bsdtar_errc(1, 0,
 		    "Cannot append to %s: not a regular file.",
 		    bsdtar->filename);
+
+/* Is this an appropriate check here on Windows? */
+/*
+	if (GetFileType(handle) != FILE_TYPE_DISK)
+		bsdtar_errc(1, 0, "Cannot append");
+*/
+
 }
