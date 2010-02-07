@@ -29,11 +29,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-#ifdef MAJOR_IN_MKDEV
-#include <sys/mkdev.h>
-#elif defined(MAJOR_IN_SYSMACROS)
-#include <sys/sysmacros.h>
-#endif
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
@@ -346,15 +341,12 @@ read_archive(struct bsdtar *bsdtar, char mode)
 static void
 list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 {
-	const struct stat	*st;
 	char			 tmp[100];
 	size_t			 w;
 	const char		*p;
 	const char		*fmt;
 	time_t			 tim;
 	static time_t		 now;
-
-	st = archive_entry_stat(entry);
 
 	/*
 	 * We avoid collecting the entire list in memory at once by
@@ -371,12 +363,13 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 		time(&now);
 	fprintf(out, "%s %d ",
 	    archive_entry_strmode(entry),
-	    (int)(st->st_nlink));
+	    archive_entry_nlink(entry));
 
 	/* Use uname if it's present, else uid. */
 	p = archive_entry_uname(entry);
 	if ((p == NULL) || (*p == '\0')) {
-		sprintf(tmp, "%lu ", (unsigned long)st->st_uid);
+		sprintf(tmp, "%lu ",
+		    (unsigned long)archive_entry_uid(entry));
 		p = tmp;
 	}
 	w = strlen(p);
@@ -390,7 +383,8 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 		fprintf(out, "%s", p);
 		w = strlen(p);
 	} else {
-		sprintf(tmp, "%lu", (unsigned long)st->st_gid);
+		sprintf(tmp, "%lu",
+		    (unsigned long)archive_entry_gid(entry));
 		w = strlen(tmp);
 		fprintf(out, "%s", tmp);
 	}
@@ -400,37 +394,30 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	 * total width of group and devnum/filesize fields be gs_width.
 	 * If gs_width is too small, grow it.
 	 */
-	if (S_ISCHR(st->st_mode) || S_ISBLK(st->st_mode)) {
+	if (archive_entry_filetype(entry) == AE_IFCHR
+	    || archive_entry_filetype(entry) == AE_IFBLK) {
 		sprintf(tmp, "%lu,%lu",
-		    (unsigned long)major(st->st_rdev),
-		    (unsigned long)minor(st->st_rdev)); /* ls(1) also casts here. */
+		    (unsigned long)archive_entry_rdevmajor(entry),
+		    (unsigned long)archive_entry_rdevminor(entry));
 	} else {
-		/*
-		 * Note the use of platform-dependent macros to format
-		 * the filesize here.  We need the format string and the
-		 * corresponding type for the cast.
-		 */
-		sprintf(tmp, BSDTAR_FILESIZE_PRINTF,
-		    (BSDTAR_FILESIZE_TYPE)st->st_size);
+		strcpy(tmp, tar_i64toa(archive_entry_size(entry)));
 	}
 	if (w + strlen(tmp) >= bsdtar->gs_width)
 		bsdtar->gs_width = w+strlen(tmp)+1;
 	fprintf(out, "%*s", (int)(bsdtar->gs_width - w), tmp);
 
 	/* Format the time using 'ls -l' conventions. */
-	tim = (time_t)st->st_mtime;
+	tim = archive_entry_mtime(entry);
+#define HALF_YEAR (time_t)365 * 86400 / 2
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Windows' strftime function does not support %e format. */
-	if (abs(tim - now) > (365/2)*86400)
-		fmt = bsdtar->day_first ? "%d %b  %Y" : "%b %d  %Y";
-	else
-		fmt = bsdtar->day_first ? "%d %b %H:%M" : "%b %d %H:%M";
+#define DAY_FMT  "%d"  /* Windows' strftime function does not support %e format. */
 #else
-	if (abs(tim - now) > (365/2)*86400)
-		fmt = bsdtar->day_first ? "%e %b  %Y" : "%b %e  %Y";
-	else
-		fmt = bsdtar->day_first ? "%e %b %H:%M" : "%b %e %H:%M";
+#define DAY_FMT  "%e"  /* Day number without leading zeros */
 #endif
+	if (tim < now - HALF_YEAR || tim > now + HALF_YEAR)
+		fmt = bsdtar->day_first ? DAY_FMT " %b  %Y" : "%b " DAY_FMT "  %Y";
+	else
+		fmt = bsdtar->day_first ? DAY_FMT " %b %H:%M" : "%b " DAY_FMT " %H:%M";
 	strftime(tmp, sizeof(tmp), fmt, localtime(&tim));
 	fprintf(out, " %s ", tmp);
 	safe_fprintf(out, "%s", archive_entry_pathname(entry));
@@ -439,6 +426,6 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	if (archive_entry_hardlink(entry)) /* Hard link */
 		safe_fprintf(out, " link to %s",
 		    archive_entry_hardlink(entry));
-	else if (S_ISLNK(st->st_mode)) /* Symbolic link */
+	else if (archive_entry_symlink(entry)) /* Symbolic link */
 		safe_fprintf(out, " -> %s", archive_entry_symlink(entry));
 }
