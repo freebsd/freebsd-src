@@ -64,29 +64,6 @@
 #endif
 
 /*
- * Does this platform have complete-looking POSIX-style ACL support,
- * including some variant of the acl_get_perm() function (which was
- * omitted from the POSIX.1e draft)?
- */
-#if HAVE_SYS_ACL_H && HAVE_ACL_PERMSET_T && HAVE_ACL_USER
-#if HAVE_ACL_GET_PERM || HAVE_ACL_GET_PERM_NP
-#define	HAVE_POSIX_ACL	1
-#endif
-#endif
-
-#ifdef HAVE_LIBACL
-#include <acl/libacl.h>
-#endif
-
-#if HAVE_ACL_GET_PERM
-#define	ACL_GET_PERM acl_get_perm
-#else
-#if HAVE_ACL_GET_PERM_NP
-#define	ACL_GET_PERM acl_get_perm_np
-#endif
-#endif
-
-/*
  * Include "dirent.h" (or it's equivalent on several different platforms).
  *
  * This is slightly modified from the GNU autoconf recipe.

@@ -63,9 +63,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if HAVE_ZLIB_H
-#include <zlib.h>
-#endif
 
 #include "bsdtar.h"
 #include "err.h"
