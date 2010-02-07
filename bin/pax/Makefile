@@ -33,6 +33,4 @@ SRCS=	ar_io.c ar_subs.c buf_subs.c cache.c cpio.c file_subs.c ftree.c \
 #MAN=	pax.1 tar.1 cpio.1
 #LINKS=	${BINDIR}/pax ${BINDIR}/tar ${BINDIR}/pax ${BINDIR}/cpio
 
-WARNS?=	3
-
 .include <bsd.prog.mk>
