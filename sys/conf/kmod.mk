@@ -108,8 +108,8 @@ CFLAGS+=	-I@/contrib/altq
 
 .if ${CC} != "icc"
 CFLAGS+=	-finline-limit=${INLINE_LIMIT}
-CFLAGS+= --param inline-unit-growth=32
-CFLAGS+= --param large-function-growth=128
+CFLAGS+= --param inline-unit-growth=100
+CFLAGS+= --param large-function-growth=1000
 .endif
 
 # Disallow common variables, and if we end up with commons from
