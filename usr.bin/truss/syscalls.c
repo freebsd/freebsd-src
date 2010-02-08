@@ -1161,15 +1161,15 @@ print_summary(struct trussinfo *trussinfo)
 	ncall = nerror = 0;
 	for (sc = syscalls; sc->name != NULL; sc++)
 		if (sc->ncalls) {
-			fprintf(trussinfo->outfile, "%-20s%5d.%09ld%8d%8d\n",
-			    sc->name, sc->time.tv_sec, sc->time.tv_nsec,
-			    sc->ncalls, sc->nerror);
+			fprintf(trussinfo->outfile, "%-20s%5jd.%09ld%8d%8d\n",
+			    sc->name, (intmax_t)sc->time.tv_sec,
+			    sc->time.tv_nsec, sc->ncalls, sc->nerror);
 			timespecadd(&total, &sc->time, &total);
 			ncall += sc->ncalls;
 			nerror += sc->nerror;
 		}
 	fprintf(trussinfo->outfile, "%20s%15s%8s%8s\n",
 		"", "-------------", "-------", "-------");
-	fprintf(trussinfo->outfile, "%-20s%5d.%09ld%8d%8d\n",
-		"", total.tv_sec, total.tv_nsec, ncall, nerror);
+	fprintf(trussinfo->outfile, "%-20s%5jd.%09ld%8d%8d\n",
+		"", (intmax_t)total.tv_sec, total.tv_nsec, ncall, nerror);
 }
