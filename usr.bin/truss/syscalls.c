@@ -242,6 +242,8 @@ struct syscall syscalls[] = {
 	  .args = { { Name | IN, 0 }, { Hex, 1 } } },
 	{ .name = "pathconf", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Pathconf, 1 } } },
+	{ .name = "pipe", .ret_type = 1, .nargs = 1,
+	  .args = { { Ptr, 0 } } },
 	{ .name = "truncate", .ret_type = 1, .nargs = 3,
 	  .args = { { Name | IN, 0 }, { Int | IN, 1 }, { Quad | IN, 2 } } },
 	{ .name = "ftruncate", .ret_type = 1, .nargs = 3,
@@ -1137,6 +1139,12 @@ print_syscall_ret(struct trussinfo *trussinfo, const char *name, int nargs,
 	if (errorp) {
 		fprintf(trussinfo->outfile, " ERR#%ld '%s'\n", retval, strerror(retval));
 	} else {
+		/*
+		 * Because pipe(2) has a special assembly glue to provide the
+		 * libc API, we have to adjust retval.
+		 */
+		if (name != NULL && !strcmp(name, "pipe"))
+			retval = 0;
 		fprintf(trussinfo->outfile, " = %ld (0x%lx)\n", retval, retval);
 	}
 }
