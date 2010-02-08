@@ -497,23 +497,6 @@ s/\$//g
 		syscall++
 		next
 	}
-	type("LIBCOMPAT") {
-		ncompat++
-		parseline()
-		printf("%s\to%s();\n", rettype, funcname) > syscompatdcl
-		printf("\t{ compat(%s,%s), %s, NULL, 0, 0, %s },",
-		    argssize, funcname, auditev, flags) > sysent
-		align_sysent_comment(8 + 9 + \
-		    length(argssize) + 1 + length(funcname) + length(auditev) + length(flags) + 4)
-		printf("/* %d = old %s */\n", syscall, funcalias) > sysent
-		printf("\t\"old.%s\",\t\t/* %d = old %s */\n",
-		    funcalias, syscall, funcalias) > sysnames
-		printf("#define\t%s%s\t%d\t/* compatibility; still used by libc */\n",
-		    syscallprefix, funcalias, syscall) > syshdr
-		printf(" \\\n\t%s.o", funcalias) > sysmk
-		syscall++
-		next
-	}
 	type("OBSOL") {
 		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0 },") > sysent
 		align_sysent_comment(34)
