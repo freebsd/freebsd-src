@@ -14,6 +14,7 @@ name="ipfw"
 rcvar="firewall_enable"
 start_cmd="ipfw_start"
 start_precmd="ipfw_prestart"
+start_postcmd="ipfw_poststart"
 stop_cmd="ipfw_stop"
 required_modules="ipfw"
 
@@ -42,9 +43,6 @@ ipfw_start()
 	[ -z "${firewall_script}" ] && firewall_script=/etc/rc.firewall
 
 	if [ -r "${firewall_script}" ]; then
-		if [ -f /etc/rc.d/natd ] ; then
-			/etc/rc.d/natd quietstart
-		fi
 		/bin/sh "${firewall_script}" "${_firewall_type}"
 		echo 'Firewall rules loaded.'
 	elif [ "`ipfw list 65535`" = "65535 deny ip from any to any" ]; then
@@ -59,6 +57,19 @@ ipfw_start()
 		echo 'Firewall logging enabled.'
 		sysctl net.inet.ip.fw.verbose=1 >/dev/null
 	fi
+}
+
+ipfw_poststart()
+{
+	local	_coscript
+
+	# Start firewall coscripts
+	#
+	for _coscript in ${firewall_coscripts} ; do
+		if [ -f "${_coscript}" ]; then
+			${_coscript} quietstart
+		fi
+	done
 
 	# Enable the firewall
 	#
@@ -75,16 +86,25 @@ ipfw_start()
 
 ipfw_stop()
 {
+	local	_coscript
+
 	# Disable the firewall
 	#
 	${SYSCTL_W} net.inet.ip.fw.enable=0
 	if afexists inet6; then
 		${SYSCTL_W} net.inet6.ip6.fw.enable=0
 	fi
-	if [ -f /etc/rc.d/natd ] ; then
-		/etc/rc.d/natd quietstop
-	fi
+
+	# Stop firewall coscripts
+	#
+	for _coscript in `reverse_list ${firewall_coscripts}` ; do
+		if [ -f "${_coscript}" ]; then
+			${_coscript} quietstop
+		fi
+	done
 }
 
 load_rc_config $name
+firewall_coscripts="/etc/rc.d/natd ${firewall_coscripts}"
+
 run_rc_command $*
