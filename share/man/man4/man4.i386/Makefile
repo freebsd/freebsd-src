@@ -20,7 +20,6 @@ MAN=	aic.4 \
 	mcd.4 \
 	mse.4 \
 	npx.4 \
-	padlock.4 \
 	pae.4 \
 	pbio.4 \
 	pcf.4 \
