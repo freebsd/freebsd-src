@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rmlock.h>
 #include <sys/systm.h>
 
+#include <vm/uma.h>
+
 #include <net/vnet.h>
 
 #include <netinet/helper.h>
@@ -227,8 +229,8 @@ run_hhooks(int hhook_type, int hhook_id, void *ctx_data,
 		return;
 
 	STAILQ_FOREACH(tmp, &hh->hh_hooks, h_next) {
-		printf("Running hook %p for helper %d\n", tmp,
-		tmp->h_helper->id);
+		//printf("Running hook %p for helper %d\n", tmp,
+		//tmp->h_helper->id);
 		if (tmp->h_helper->flags & HELPER_NEEDS_DBLOCK) {
 			if (n_dblocks == 0
 			    || i >= n_dblocks

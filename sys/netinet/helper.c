@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/systm.h>
 
+#include <vm/uma.h>
+
 #include <netinet/helper.h>
 #include <netinet/helper_module.h>
 
@@ -78,16 +80,23 @@ init_helper_dblocks(struct helper_dblock **dblocks, int *nblocks)
 	if (*dblocks != NULL) {
 		printf("Malloced ptr %p for %d data blocks\n", *dblocks, num_dblocks);
 		STAILQ_FOREACH(h, &helpers, h_next) {
-			if (h->block_init != NULL) {
+			if (h->flags & HELPER_NEEDS_DBLOCK) {
 				dblock = dblocks[i];
-				h->block_init(&dblock->block);
+				dblock->block = uma_zalloc(h->zone, M_NOWAIT);
+				/*
+				if (dblock[i]->block == NULL) {
+					XXX: Free all previous dblocks.
+					error = ENOMEM
+					break;
+				}
+				*/
 				dblock->id = h->id;
 				printf("dblock[%d]: id=%d, block=%p\n", i,
 				dblock->id, dblock->block);
+				i++;
 			}
-			i++;
 		}
-		*nblocks = num_dblocks;
+		*nblocks = i;
 	} else
 		error = ENOMEM;
 
@@ -96,26 +105,26 @@ init_helper_dblocks(struct helper_dblock **dblocks, int *nblocks)
 }
 
 int
-destroy_helper_dblocks(struct helper_dblock *array_head, int nblocks)
+destroy_helper_dblocks(struct helper_dblock *dblocks, int nblocks)
 {
 	struct helper *h;
 
 	HELPER_LIST_WLOCK();
 
 	for (nblocks--; nblocks >= 0; nblocks--) {
-		h = get_helper(array_head[nblocks].id);
-		if (h->block_destroy != NULL)
-			h->block_destroy(array_head[nblocks].block);
+		h = get_helper(dblocks[nblocks].id);
+		uma_zfree(h->zone, dblocks[nblocks].block);
 	}
 
 	HELPER_LIST_WUNLOCK();
+	free(dblocks, M_HELPER);
 	return (0);
 }
 
 int
 register_helper(struct helper *h)
 {
-	printf("Register helper 0x%p\n", h);
+	printf("Register helper %p\n", h);
 
 	HELPER_LIST_WLOCK();
 
@@ -123,26 +132,27 @@ register_helper(struct helper *h)
 		num_dblocks++;
 
 	h->id = helper_id++;
-
 	STAILQ_INSERT_TAIL(&helpers, h, h_next);
-
 	HELPER_LIST_WUNLOCK();
-
 	return (0);
 }
 
 int
 deregister_helper(struct helper *h)
 {
-	printf("Deregister helper 0x%p\n", h);
+	printf("Deregister helper %p\n", h);
+
+	/*
+	HHOOK_WLOCK
+	Remove this helper's hooks
+	HHOOK_WUNLOCK
+	*/
 
 	HELPER_LIST_WLOCK();
 	STAILQ_REMOVE(&helpers, h, helper, h_next);
-	num_dblocks--;
+	if (h->flags | HELPER_NEEDS_DBLOCK)
+		num_dblocks--;
 	HELPER_LIST_WUNLOCK();
-
-	/* Block unload if there are still consumers to avoid mem leak*/
-
 	return (0);
 }
 
@@ -167,23 +177,38 @@ get_helper(int id)
  * Handles kld related events. Returns 0 on success, non-zero on failure.
  */
 int
-hlpr_modevent(module_t mod, int event_type, void *data)
+helper_modevent(module_t mod, int event_type, void *data)
 {
 	int error = 0;
-	struct helper *h = (struct helper *)data;
+	struct helper_modevent_data *hmd = (struct helper_modevent_data *)data;
 
 	switch(event_type) {
 		case MOD_LOAD:
-			if (h->mod_init != NULL)
-				error = h->mod_init();
+			if (hmd->helper->flags & HELPER_NEEDS_DBLOCK) {
+				if (hmd->uma_zsize <= 0) {
+					printf("Use DECLARE_HELPER_UMA() instead!\n");
+					error = EDOOFUS;
+					break;
+				}
+				hmd->helper->zone = uma_zcreate(hmd->name,
+				    hmd->uma_zsize, hmd->umactor, hmd->umadtor,
+				    NULL, NULL, 0, 0);
+				if (hmd->helper->zone == NULL) {
+					error = ENOMEM;
+					break;
+				}
+			}
+			if (hmd->helper->mod_init != NULL)
+				error = hmd->helper->mod_init();
 			if (!error)
-				error = register_helper(h);
+				error = register_helper(hmd->helper);
 			break;
 
 		case MOD_QUIESCE:
-			error = deregister_helper(h);
-			if (!error && h->mod_destroy != NULL)
-				h->mod_destroy();
+			error = deregister_helper(hmd->helper);
+			uma_zdestroy(hmd->helper->zone);
+			if (!error && hmd->helper->mod_destroy != NULL)
+				hmd->helper->mod_destroy();
 			break;
 
 		case MOD_SHUTDOWN:

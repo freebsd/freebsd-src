@@ -48,10 +48,10 @@ struct helper {
 	/* Cleanup global module state on kldunload. */
 	int (*mod_destroy) (void);
 
-	int (*block_init) (void **data);
-	int (*block_destroy) (void *data);
-
 	uint16_t	flags;
+	uint32_t	class;
+
+	uma_zone_t	zone;
 
 	//STAILQ hooks; /* which hooks does this helper want to be called from */
 	unsigned int id; /* ID assigned by system to this hlpr's data in the
@@ -64,6 +64,8 @@ struct helper {
 /* Helper flags */
 #define HELPER_NEEDS_DBLOCK	0x0001
 
+/* Helper classes */
+#define HELPER_CLASS_TCP	0x00000001
 
 int	init_helper_dblocks(struct helper_dblock **dblocks, int *nblocks);
 int	destroy_helper_dblocks(struct helper_dblock *array_head, int nblocks);

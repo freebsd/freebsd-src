@@ -55,8 +55,8 @@ __FBSDID("$FreeBSD$");
 void ertt_tcpest_hook(void *udata, void *ctx_data, void *dblock);
 int ertt_mod_init(void);
 int ertt_mod_destroy(void);
-int ertt_block_init(void **block);
-int ertt_block_destroy(void *block);
+int ertt_uma_ctor(void *mem, int size, void *arg, int flags);
+void ertt_uma_dtor(void *mem, int size, void *arg);
 
 struct ertt {
 	int test;
@@ -65,9 +65,8 @@ struct ertt {
 struct helper ertt_helper = {
 	.mod_init = ertt_mod_init,
 	.mod_destroy = ertt_mod_destroy,
-	.block_init = ertt_block_init,
-	.block_destroy = ertt_block_destroy,
-	.flags = HELPER_NEEDS_DBLOCK
+	.flags = HELPER_NEEDS_DBLOCK,
+	.class = HELPER_CLASS_TCP
 };
 
 
@@ -96,25 +95,19 @@ ertt_mod_destroy(void)
 }
 
 int
-ertt_block_init(void **block)
+ertt_uma_ctor(void *mem, int size, void *arg, int flags)
 {
-	*block = malloc(sizeof(struct ertt), M_HELPER, M_NOWAIT);
+	printf("Creating ertt block %p\n", mem);
 
-	((struct ertt *)*block)->test = 5;
-
-	printf("Malloced %ld bytes for ertt and set the value to %d\n",
-	sizeof(struct ertt), ((struct ertt *)*block)->test);
+	((struct ertt *)mem)->test = 5;
 
 	return (0);
 }
 
-int
-ertt_block_destroy(void *block)
+void
+ertt_uma_dtor(void *mem, int size, void *arg)
 {
-	KASSERT(block != NULL, ("Block is NULL!"));
-	free(block, M_HELPER);
-
-	return (0);
+	printf("Destroying ertt block %p\n", mem);
 }
 
-DECLARE_HELPER(ertt, &ertt_helper);
+DECLARE_HELPER_UMA(ertt, &ertt_helper, sizeof(struct ertt), ertt_uma_ctor, ertt_uma_dtor);

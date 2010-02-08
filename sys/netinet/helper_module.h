@@ -30,22 +30,50 @@
  * $FreeBSD$
  */
 
-#ifndef _NETINET_TCP_HELPER_MODULE_H_
-#define _NETINET_TCP_HELPER_MODULE_H_
+#ifndef _NETINET_HELPER_MODULE_H_
+#define _NETINET_HELPER_MODULE_H_
 
-#define	DECLARE_HELPER(hlprname, hlpr_data) 				\
-	static moduledata_t hlpr_##hlprname = {				\
-		#hlprname,						\
-		hlpr_modevent,						\
-		hlpr_data						\
+struct helper_modevent_data {
+	char *name;
+	struct helper *helper;
+	int uma_zsize;
+	uma_ctor umactor;
+	uma_dtor umadtor;
+};
+
+#define	DECLARE_HELPER(hname, hdata) 					\
+	static struct helper_modevent_data hmd_##hname = {		\
+		.name = #hname,						\
+		.helper = hdata						\
 	};								\
-	DECLARE_MODULE(hlprname, hlpr_##hlprname, SI_SUB_PROTO_IFATTACHDOMAIN, \
+	static moduledata_t h_##hname = {				\
+		.name = #hname,						\
+		.evhand = helper_modevent,				\
+		.priv = &hmd_##hname					\
+	};								\
+	DECLARE_MODULE(hname, h_##hname, SI_SUB_PROTO_IFATTACHDOMAIN, \
 	    SI_ORDER_ANY)
 
-int	hlpr_modevent(module_t mod, int type, void *data);
+#define	DECLARE_HELPER_UMA(hname, hdata, size, ctor, dtor)		\
+	static struct helper_modevent_data hmd_##hname = {		\
+		.name = #hname,						\
+		.helper = hdata,					\
+		.uma_zsize = size,					\
+		.umactor = ctor,					\
+		.umadtor = dtor						\
+	};								\
+	static moduledata_t h_##hname = {				\
+		.name = #hname,						\
+		.evhand = helper_modevent,				\
+		.priv = &hmd_##hname					\
+	};								\
+	DECLARE_MODULE(hname, h_##hname, SI_SUB_PROTO_IFATTACHDOMAIN, \
+	    SI_ORDER_ANY)
+
+int	helper_modevent(module_t mod, int type, void *data);
 
 MALLOC_DECLARE(M_HELPER);
 MALLOC_DEFINE(M_HELPER, "helper data", "Blah");
 
 
-#endif
+#endif /* _NETINET_HELPER_MODULE_H_ */
