@@ -48,6 +48,7 @@
 #define AR_PHY_FC_SHORT_GI_40       0x00000080      /* allow short GI for HT 40 */
 #define AR_PHY_FC_WALSH             0x00000100      /* walsh spatial spreading for 2 chains,2 streams TX */
 #define AR_PHY_FC_SINGLE_HT_LTF1    0x00000200      /* single length (4us) 1st HT long training symbol */
+#define	AR_PHY_FC_ENABLE_DAC_FIFO   0x00000800
 
 #define AR_PHY_TIMING2      0x9810      /* Timing Control 2 */
 #define AR_PHY_TIMING2_USE_FORCE    0x00001000
@@ -77,6 +78,20 @@
 #define AR_PHY_GAIN_2GHZ_BSW_MARGIN_S	10
 #define AR_PHY_GAIN_2GHZ_BSW_ATTEN	0x0000001F
 #define AR_PHY_GAIN_2GHZ_BSW_ATTEN_S	0
+
+#define AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN	    0x003E0000
+#define AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN_S   17
+#define AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN     0x0001F000
+#define AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN_S   12
+#define AR_PHY_GAIN_2GHZ_XATTEN2_DB         0x00000FC0
+#define AR_PHY_GAIN_2GHZ_XATTEN2_DB_S       6
+#define AR_PHY_GAIN_2GHZ_XATTEN1_DB         0x0000003F
+#define AR_PHY_GAIN_2GHZ_XATTEN1_DB_S       0
+
+#define AR9280_PHY_RXGAIN_TXRX_ATTEN	0x00003F80
+#define AR9280_PHY_RXGAIN_TXRX_ATTEN_S	7
+#define AR9280_PHY_RXGAIN_TXRX_MARGIN	0x001FC000
+#define AR9280_PHY_RXGAIN_TXRX_MARGIN_S	14
 
 #define AR_PHY_EXT_CCA          0x99bc
 #define AR_PHY_EXT_CCA_CYCPWR_THR1      0x0000FE00

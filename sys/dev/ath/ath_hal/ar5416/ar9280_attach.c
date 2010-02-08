@@ -123,6 +123,10 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_writeIni		= ar9280WriteIni;
 	AH5416(ah)->ah_rx_chainmask	= AR9280_DEFAULT_RXCHAINMASK;
 	AH5416(ah)->ah_tx_chainmask	= AR9280_DEFAULT_TXCHAINMASK;
+	if (AR_SREV_KITE(ah)) {
+		AH5416(ah)->ah_rx_chainmask = AR9285_DEFAULT_RXCHAINMASK;
+		AH5416(ah)->ah_tx_chainmask = AR9285_DEFAULT_TXCHAINMASK;
+	}
 
 	if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON)) {
 		/* reset chip */

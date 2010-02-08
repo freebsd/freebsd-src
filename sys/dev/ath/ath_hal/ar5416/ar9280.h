@@ -30,7 +30,9 @@ struct ath_hal_9280 {
 #define	AH9280(_ah)	((struct ath_hal_9280 *)(_ah))
 
 #define	AR9280_DEFAULT_RXCHAINMASK	3
+#define	AR9285_DEFAULT_RXCHAINMASK	1
 #define	AR9280_DEFAULT_TXCHAINMASK	1
+#define	AR9285_DEFAULT_TXCHAINMASK	1
 
 HAL_BOOL ar9280RfAttach(struct ath_hal *, HAL_STATUS *);
 
