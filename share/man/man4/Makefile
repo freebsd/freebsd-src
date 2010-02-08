@@ -297,6 +297,7 @@ MAN=	aac.4 \
 	${_nxge.4} \
 	ohci.4 \
 	orm.4 \
+	${_padlock.4} \
 	pass.4 \
 	patm.4 \
 	pccard.4 \
@@ -649,6 +650,7 @@ _nfsmb.4=	nfsmb.4
 _nve.4=		nve.4
 _nvram.4=	nvram.4
 _nxge.4=	nxge.4
+_padlock.4=	padlock.4
 _rr232x.4=	rr232x.4
 _speaker.4=	speaker.4
 _spkr.4=	spkr.4
