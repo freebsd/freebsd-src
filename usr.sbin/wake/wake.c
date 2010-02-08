@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2007, 2008, 2009 Marc Balmer <marc@msys.ch>
+ * Copyright (C) 2006, 2007, 2008, 2009, 2010 Marc Balmer <marc@msys.ch>
  * Copyright (C) 2000 Eugene M. Kim.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
 #include <err.h>
 #include <fcntl.h>
+#include <ifaddrs.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,38 +56,29 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static int	bind_if_to_bpf(char const *ifname, int bpf);
+static int	find_ether(char *dst, size_t len);
 static int	get_ether(char const *text, struct ether_addr *addr);
 static int	send_wakeup(int bpf, struct ether_addr const *addr);
 static void	usage(void);
-static int	wake(const char *iface, const char *host);
+static int	wake(int bpf, const char *host);
 
 static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: wake interface lladdr [lladdr ...]\n");
+	(void)fprintf(stderr, "usage: wake [interface] lladdr [lladdr ...]\n");
 	exit(1);
 }
 
 static int
-wake(const char *iface, const char *host)
+wake(int bpf, const char *host)
 {
 	struct ether_addr macaddr;
-	int bpf, res;
 
-	bpf = open(_PATH_BPF, O_RDWR);
-	if (bpf == -1) {
-		warn("no bpf");
+	if (get_ether(host, &macaddr) == -1)
 		return (-1);
-	}
-	if (bind_if_to_bpf(iface, bpf) == -1 ||
-	    get_ether(host, &macaddr) == -1) {
-		(void)close(bpf);
-		return (-1);
-	}
-	res = send_wakeup(bpf, &macaddr);
-	(void)close(bpf);
-	return (res);
+
+	return send_wakeup(bpf, &macaddr);
 }
 
 static int
@@ -94,23 +88,47 @@ bind_if_to_bpf(char const *ifname, int bpf)
 	u_int dlt;
 
 	if (strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name)) >=
-	    sizeof(ifr.ifr_name)) {
-		warnx("interface name too long: %s", ifname);
+	    sizeof(ifr.ifr_name))
 		return (-1);
-	}
-	if (ioctl(bpf, BIOCSETIF, &ifr) == -1) {
-		warn("ioctl(%s)", "BIOCSETIF");
+
+	if (ioctl(bpf, BIOCSETIF, &ifr) == -1)
 		return (-1);
-	}
-	if (ioctl(bpf, BIOCGDLT, &dlt) == -1) {
-		warn("ioctl(%s)", "BIOCGDLT");
+
+	if (ioctl(bpf, BIOCGDLT, &dlt) == -1)
 		return (-1);
-	}
-	if (dlt != DLT_EN10MB) {
-		warnx("incompatible media");
+
+	if (dlt != DLT_EN10MB)
 		return (-1);
-	}
+
 	return (0);
+}
+
+static int
+find_ether(char *dst, size_t len)
+{
+	struct ifaddrs *ifap, *ifa;
+	struct sockaddr_dl *sdl = NULL;
+	int nifs;
+
+	if (dst == NULL || len == 0)
+		return 0;
+
+	if (getifaddrs(&ifap) != 0)
+		return -1;
+
+	/* XXX also check the link state */
+	for (nifs = 0, ifa = ifap; ifa; ifa = ifa->ifa_next)
+		if (ifa->ifa_addr->sa_family == AF_LINK &&
+		    ifa->ifa_flags & IFF_UP && ifa->ifa_flags & IFF_RUNNING) {
+			sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+			if (sdl->sdl_type == IFT_ETHER) {
+				strlcpy(dst, ifa->ifa_name, len);
+				nifs++;
+			}
+		}
+
+	freeifaddrs(ifap);
+	return nifs == 1 ? 0 : -1;
 }
 
 static int
@@ -165,14 +183,31 @@ send_wakeup(int bpf, struct ether_addr const *addr)
 int
 main(int argc, char *argv[])
 {
-	int n;
+	int bpf, n;
+	char ifname[IF_NAMESIZE];
 
-	if (argc < 3)
+	if (argc < 2)
 		usage();
 
-	for (n = 2; n < argc; n++)
-		if (wake(argv[1], argv[n]))
-			warnx("error sending Wake on LAN frame over %s to %s",
-			    argv[1], argv[n]);
+	if ((bpf = open(_PATH_BPF, O_RDWR)) == -1)
+		err(1, "Cannot open bpf interface");
+
+	n = 2;
+	if (bind_if_to_bpf(argv[1], bpf) == -1) {
+		if (find_ether(ifname, sizeof(ifname)))
+			err(1, "Failed to determine ethernet interface");
+		if (bind_if_to_bpf(ifname, bpf) == -1)
+			err(1, "Cannot bind to interface `%s'", ifname);
+		--n;
+	} else
+		strlcpy(ifname, argv[1], sizeof(ifname));
+
+	if (n >= argc)
+		usage();
+	for (; n < argc; n++)
+		if (wake(bpf, argv[n]))
+			warn("Cannot send Wake on LAN frame over `%s' to `%s'",
+			    ifname, argv[n]);
+
 	return (0);
 }
