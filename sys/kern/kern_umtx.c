@@ -2853,6 +2853,8 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
 	umtxq_insert(uq);
 	umtxq_unlock(&uq->uq_key);
 
+	suword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters), 1);
+
 	count = fuword32(__DEVOLATILE(uint32_t *, &sem->_count));
 	if (count != 0) {
 		umtxq_lock(&uq->uq_key);
@@ -2862,11 +2864,6 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
 		umtx_key_release(&uq->uq_key);
 		return (0);
 	}
-
-	/*
-	 * set waiters byte and sleep.
-	 */
-	suword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters), 1);
 
 	umtxq_lock(&uq->uq_key);
 	umtxq_unbusy(&uq->uq_key);
