@@ -48,6 +48,7 @@ extern nfstype nfsv3_type[];
 int	nfs_adv(struct mbuf **, caddr_t *, int, int);
 u_quad_t nfs_curusec(void);
 void	*nfsm_disct(struct mbuf **, caddr_t *, int, int, int);
+int	nfs_realign(struct mbuf **, int);
 
 /* ****************************** */
 /* Build request/reply phase macros */
