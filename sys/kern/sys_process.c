@@ -346,6 +346,92 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	return (error);
 }
 
+static int
+ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
+{
+	vm_map_t map;
+	vm_map_entry_t entry;
+	vm_object_t obj, tobj, lobj;
+	struct vnode *vp;
+	char *freepath, *fullpath;
+	u_int pathlen;
+	int error, vfslocked;
+
+	map = &p->p_vmspace->vm_map;
+	entry = map->header.next;
+	if (pve->pve_cookie != NULL) {
+		while (entry != &map->header && entry != pve->pve_cookie)
+			entry = entry->next;
+		if (entry != pve->pve_cookie)
+			return (EINVAL);
+		entry = entry->next;
+	}
+	while (entry != &map->header && (entry->eflags & MAP_ENTRY_IS_SUB_MAP))
+		entry = entry->next;
+	if (entry == &map->header)
+		return (ENOENT);
+
+	/* We got an entry. */
+	pve->pve_cookie = entry;
+	pve->pve_start = entry->start;
+	pve->pve_end = entry->end - 1;
+	pve->pve_offset = entry->offset;
+	pve->pve_prot = entry->protection;
+
+	/* Backing object's path needed? */
+	if (pve->pve_pathlen == 0)
+		return (0);
+
+	pathlen = pve->pve_pathlen;
+	pve->pve_pathlen = 0;
+
+	obj = entry->object.vm_object;
+	if (obj == NULL)
+		return (0);
+
+	VM_OBJECT_LOCK(obj);
+	for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
+		if (tobj != obj)
+			VM_OBJECT_LOCK(tobj);
+		if (lobj != obj)
+			VM_OBJECT_UNLOCK(lobj);
+		lobj = tobj;
+		pve->pve_offset += tobj->backing_object_offset;
+	}
+	if (lobj != NULL) {
+		vp = (lobj->type == OBJT_VNODE) ? lobj->handle : NULL;
+		if (vp != NULL)
+			vref(vp);
+		if (lobj != obj)
+			VM_OBJECT_UNLOCK(lobj);
+		VM_OBJECT_UNLOCK(obj);
+	} else
+		vp = NULL;
+
+	if (vp == NULL)
+		return (0);
+
+	freepath = NULL;
+	fullpath = NULL;
+	vn_fullpath(td, vp, &fullpath, &freepath);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	vrele(vp);
+	VFS_UNLOCK_GIANT(vfslocked);
+
+	error = 0;
+	if (fullpath != NULL) {
+		pve->pve_pathlen = strlen(fullpath) + 1;
+		if (pve->pve_pathlen <= pathlen) {
+			error = copyout(fullpath, pve->pve_path,
+			    pve->pve_pathlen);
+		} else
+			error = ENAMETOOLONG;
+	}
+	if (freepath != NULL)
+		free(freepath, M_TEMP);
+	return (error);
+}
+
 /*
  * Process debugging system call.
  */
@@ -389,6 +475,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	union {
 		struct ptrace_io_desc piod;
 		struct ptrace_lwpinfo pl;
+		struct ptrace_vm_entry pve;
 		struct dbreg dbreg;
 		struct fpreg fpreg;
 		struct reg reg;
@@ -429,6 +516,9 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_IO:
 		error = COPYIN(uap->addr, &r.piod, sizeof r.piod);
 		break;
+	case PT_VM_ENTRY:
+		error = COPYIN(uap->addr, &r.pve, sizeof r.pve);
+		break;
 	default:
 		addr = uap->addr;
 		break;
@@ -441,6 +531,9 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		return (error);
 
 	switch (uap->req) {
+	case PT_VM_ENTRY:
+		error = COPYOUT(&r.pve, uap->addr, sizeof r.pve);
+		break;
 	case PT_IO:
 		error = COPYOUT(&r.piod, uap->addr, sizeof r.piod);
 		break;
@@ -974,6 +1067,16 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		free(buf, M_TEMP);
 		if (!error)
 			td->td_retval[0] = tmp;
+		PROC_LOCK(p);
+		break;
+
+	case PT_VM_TIMESTAMP:
+		td->td_retval[0] = p->p_vmspace->vm_map.timestamp;
+		break;
+
+	case PT_VM_ENTRY:
+		PROC_UNLOCK(p);
+		error = ptrace_vm_entry(td, p, addr);
 		PROC_LOCK(p);
 		break;
 
