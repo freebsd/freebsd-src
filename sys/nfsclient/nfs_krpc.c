@@ -87,8 +87,6 @@ uint32_t	nfsclient_nfs3_start_probes[NFS_NPROCS];
 uint32_t	nfsclient_nfs3_done_probes[NFS_NPROCS];
 #endif
 
-static int	nfs_realign_test;
-static int	nfs_realign_count;
 static int	nfs_bufpackets = 4;
 static int	nfs_reconnects;
 static int	nfs3_jukebox_delay = 10;
@@ -97,10 +95,6 @@ static int	fake_wchan;
 
 SYSCTL_DECL(_vfs_nfs);
 
-SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test, 0,
-    "Number of realign tests done");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count, 0,
-    "Number of mbuf realignments done");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0,
     "Buffer reservation size 2 < x < 64");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, reconnects, CTLFLAG_RD, &nfs_reconnects, 0,
@@ -403,65 +397,6 @@ nfs_feedback(int type, int proc, void *arg)
 }
 
 /*
- *	nfs_realign:
- *
- *	Check for badly aligned mbuf data and realign by copying the unaligned
- *	portion of the data into a new mbuf chain and freeing the portions
- *	of the old chain that were replaced.
- *
- *	We cannot simply realign the data within the existing mbuf chain
- *	because the underlying buffers may contain other rpc commands and
- *	we cannot afford to overwrite them.
- *
- *	We would prefer to avoid this situation entirely.  The situation does
- *	not occur with NFS/UDP and is supposed to only occassionally occur
- *	with TCP.  Use vfs.nfs.realign_count and realign_test to check this.
- *
- */
-static int
-nfs_realign(struct mbuf **pm, int hsiz)
-{
-	struct mbuf *m, *n;
-	int off, space;
-
-	++nfs_realign_test;
-	while ((m = *pm) != NULL) {
-		if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
-			/*
-			 * NB: we can't depend on m_pkthdr.len to help us
-			 * decide what to do here.  May not be worth doing
-			 * the m_length calculation as m_copyback will
-			 * expand the mbuf chain below as needed.
-			 */
-			space = m_length(m, NULL);
-			if (space >= MINCLSIZE) {
-				/* NB: m_copyback handles space > MCLBYTES */
-				n = m_getcl(M_DONTWAIT, MT_DATA, 0);
-			} else
-				n = m_get(M_DONTWAIT, MT_DATA);
-			if (n == NULL)
-				return (ENOMEM);
-			/*
-			 * Align the remainder of the mbuf chain.
-			 */
-			n->m_len = 0;
-			off = 0;
-			while (m != NULL) {
-				m_copyback(n, off, m->m_len, mtod(m, caddr_t));
-				off += m->m_len;
-				m = m->m_next;
-			}
-			m_freem(*pm);
-			*pm = n;
-			++nfs_realign_count;
-			break;
-		}
-		pm = &m->m_next;
-	}
-	return (0);
-}
-
-/*
  * nfs_request - goes something like this
  *	- fill in request struct
  *	- links it into list
@@ -589,7 +524,7 @@ tryagain:
 	 * These could cause pointer alignment problems, so copy them to
 	 * well aligned mbufs.
 	 */
-	error = nfs_realign(&mrep, 2 * NFSX_UNSIGNED);
+	error = nfs_realign(&mrep, M_DONTWAIT);
 	if (error == ENOMEM) {
 		m_freem(mrep);
 		AUTH_DESTROY(auth);
