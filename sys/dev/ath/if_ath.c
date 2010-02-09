@@ -2236,7 +2236,6 @@ ath_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 				"%s: bogus group key\n", __func__);
 			return 0;
 		}
-		 */
 		if (vap->iv_opmode != IEEE80211_M_HOSTAP ||
 		    !(k->wk_flags & IEEE80211_KEY_GROUP) ||
 		    !sc->sc_mcastkey) {
