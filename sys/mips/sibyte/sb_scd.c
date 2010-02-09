@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <machine/resource.h>
-#include <machine/intr_machdep.h>
+#include <machine/hwfunc.h>
 
 #include "sb_scd.h"
 
@@ -189,10 +189,50 @@ sb_route_intsrc(int intsrc)
 	 * Interrupt 5 is used by sources internal to the CPU (e.g. timer).
 	 * Use a deterministic mapping for the remaining sources.
 	 */
+#ifdef SMP
+	KASSERT(platform_ipi_intrnum() == 4,
+		("Unexpected interrupt number used for IPI"));
+	intrnum = intsrc % 4;
+#else
 	intrnum = intsrc % 5;
+#endif
 
 	return (intrnum);
 }
+
+#ifdef SMP
+static uint64_t
+sb_read_sysrev(void)
+{
+
+	return (sb_load64(SYSREV_ADDR));
+}
+
+void
+sb_set_mailbox(int cpu, uint64_t val)
+{
+	uint32_t regaddr;
+
+	regaddr = MAILBOX_SET_ADDR(cpu);
+	sb_store64(regaddr, val);
+}
+
+void
+sb_clear_mailbox(int cpu, uint64_t val)
+{
+	uint32_t regaddr;
+
+	regaddr = MAILBOX_CLEAR_ADDR(cpu);
+	sb_store64(regaddr, val);
+}
+
+int
+platform_num_processors(void)
+{
+
+	return (SYSREV_NUM_PROCESSORS(sb_read_sysrev()));
+}
+#endif	/* SMP */
 
 #define	SCD_PHYSADDR	0x10000000
 #define	SCD_SIZE	0x00060000
