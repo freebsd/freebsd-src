@@ -824,9 +824,11 @@ sched_sleep(struct thread *td)
 void
 sched_switch(struct thread *td, struct thread *newtd, int flags)
 {
+	struct mtx *tmtx;
 	struct td_sched *ts;
 	struct proc *p;
 
+	tmtx = NULL;
 	ts = td->td_sched;
 	p = td->td_proc;
 
@@ -835,17 +837,20 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	/*
 	 * Switch to the sched lock to fix things up and pick
 	 * a new thread.
+	 * Block the td_lock in order to avoid breaking the critical path.
 	 */
 	if (td->td_lock != &sched_lock) {
 		mtx_lock_spin(&sched_lock);
-		thread_unlock(td);
+		tmtx = thread_lock_block(td);
 	}
 
 	if ((p->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
 
-	if (newtd)
+	if (newtd) {
+		MPASS(newtd->td_lock == &sched_lock);
 		newtd->td_flags |= (td->td_flags & TDF_NEEDRESCHED);
+	}
 
 	td->td_lastcpu = td->td_oncpu;
 	td->td_flags &= ~TDF_NEEDRESCHED;
@@ -888,8 +893,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			sched_load_add();
 	} else {
 		newtd = choosethread();
+		MPASS(newtd->td_lock == &sched_lock);
 	}
-	MPASS(newtd->td_lock == &sched_lock);
 
 	if (td != newtd) {
 #ifdef	HWPMC_HOOKS
@@ -907,7 +912,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			(*dtrace_vtime_switch_func)(newtd);
 #endif
                 /* I feel sleepy */
-		cpu_switch(td, newtd, td->td_lock);
+		cpu_switch(td, newtd, tmtx != NULL ? tmtx : td->td_lock);
 		/*
 		 * Where am I?  What year is it?
 		 * We are in the same thread that went to sleep above,
