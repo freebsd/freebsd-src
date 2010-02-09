@@ -25,24 +25,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Januari 29, 2010
+.Dd January 29, 2010
 .Dt LIBEFI 3
 .Os
 .Sh NAME
 .Nm efi_getvar , efi_nextvarname , efi_setvar
-.Nd Interface for accessing the EFI variable services
+.Nd "interface for accessing the EFI variable services"
 .Sh LIBRARY
 .Lb libefi
 .Sh SYNOPSIS
 .In libefi.h
 .Ft int
-.Fn efi_getvar "char *name" "uuid_t *vendor" "uint32_t *attrib" \
-        "size_t *datasize" "void *data"
+.Fo efi_getvar
+.Fa "char *name" "uuid_t *vendor" "uint32_t *attrib"
+.Fa "size_t *datasize" "void *data"
+.Fc
 .Ft int
 .Fn efi_nextvarname "size_t *namesize" "char *name" "uuid_t *vendor"
 .Ft int
-.Fn efi_setvar "char *name" "uuid_t *vendor" "uint32_t attrib" \
-        "size_t datasize" "void *data"
+.Fo efi_setvar
+.Fa "char *name" "uuid_t *vendor" "uint32_t attrib"
+.Fa "size_t datasize" "void *data"
+.Fc
 .Sh DESCRIPTION
 The
 .Nm libefi
@@ -53,18 +57,19 @@ The
 .Fn efi_nextvarname
 function is used to enumerate the variables.
 The
-.Nm namesize
+.Fa namesize
 parameter needs to be set to the size of the buffer pointed to by
-.Nm name .
+.Fa name .
 On return,
-.Nm namesize
-is set to the length of the variable name (including the terminating '\\0')
+.Fa namesize
+is set to the length of the variable name (including the terminating
+.Ql \e0 )
 irrespective of whether the buffer was big enough.
 The buffer pointed to by
-.Nm name
+.Fa name
 contains the full or partial variable name on return.
 Only on successful completion of the request is the
-.Nm vendor
+.Fa vendor
 updated.
 The values returned should be passed to successive calls to
 .Fn efi_nextvarname
@@ -76,11 +81,11 @@ can be passed to
 .Fn efi_getvar
 to obtain the value and attribute of the variable.
 The buffer that is to contain the value is specified by
-.Nm data
+.Fa data
 and the size of the buffer is given by
-.Nm datasize .
+.Fa datasize .
 The attribute pointed to by
-.Nm attrib
+.Fa attrib
 consists of the bit values defined by the EFI specification.
 .Pp
 Variables can be created, modified and deleted using the
@@ -91,15 +96,17 @@ order for the request to succeed.
 Note that for runtime accessable variables the boottime accessable bit must
 be set as well.
 To delete a variable, set
-.Nm datasize
+.Fa datasize
 to 0.
 .Pp
 The vendor UUID is used to avoid collisions between variable names of
 different vendors.
-Variables created for use by FreeBSD should use the
-.Nm EFI_FREEBSD_VARIABLE
+Variables created for use by
+.Fx
+should use the
+.Dv EFI_FREEBSD_VARIABLE
 UUID as defined in the
-.Nm libefi
+.In libefi.h
 header file.
 .Sh RETURN VALUES
 Upon successful completion, these functions return 0.
@@ -127,10 +134,10 @@ the buffer provided.
 The
 .Nm libefi
 library first appeared in
-.Fx 9
+.Fx 9.0
 for the ia64 architecture.
 .Sh AUTHORS
 The
 .Nm libefi
-library and corresponding manual page were written by
+library and this manual page were written by
 .An Marcel Moolenaar Aq marcel@FreeBSD.org .
