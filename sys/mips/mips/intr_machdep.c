@@ -50,6 +50,9 @@ static mips_intrcnt_t mips_intr_counters[NSOFT_IRQS + NHARD_IRQS];
 
 static int intrcnt_index;
 
+static cpu_intr_mask_t		hardintr_mask_func;
+static cpu_intr_unmask_t	hardintr_unmask_func;
+
 mips_intrcnt_t
 mips_intrcnt_create(const char* name)
 {
@@ -128,38 +131,54 @@ cpu_init_interrupts()
 }
 
 void
+cpu_set_hardintr_mask_func(cpu_intr_mask_t func)
+{
+
+	hardintr_mask_func = func;
+}
+
+void
+cpu_set_hardintr_unmask_func(cpu_intr_unmask_t func)
+{
+
+	hardintr_unmask_func = func;
+}
+
+void
 cpu_establish_hardintr(const char *name, driver_filter_t *filt,
     void (*handler)(void*), void *arg, int irq, int flags, void **cookiep)
 {
 	struct intr_event *event;
 	int error;
 
-#if 0
-	printf("Establish HARD IRQ %d: filt %p handler %p arg %p\n",
-	    irq, filt, handler, arg);
-#endif
 	/*
 	 * We have 6 levels, but thats 0 - 5 (not including 6)
 	 */
 	if (irq < 0 || irq >= NHARD_IRQS)
 		panic("%s called for unknown hard intr %d", __func__, irq);
 
+	if (hardintr_mask_func == NULL)
+		hardintr_mask_func = mips_mask_hard_irq;
+
+	if (hardintr_unmask_func == NULL)
+		hardintr_unmask_func = mips_unmask_hard_irq;
+
 	event = hardintr_events[irq];
 	if (event == NULL) {
 		error = intr_event_create(&event, (void *)(uintptr_t)irq, 0,
-		    irq, mips_mask_hard_irq, mips_unmask_hard_irq,
+		    irq, hardintr_mask_func, hardintr_unmask_func,
 		    NULL, NULL, "int%d", irq);
 		if (error)
 			return;
 		hardintr_events[irq] = event;
+		mips_unmask_hard_irq((void*)(uintptr_t)irq);
 	}
 
 	intr_event_add_handler(event, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 
-	mips_intrcnt_setname(mips_intr_counters[NSOFT_IRQS + irq], event->ie_fullname);
-
-	mips_unmask_hard_irq((void*)(uintptr_t)irq);
+	mips_intrcnt_setname(mips_intr_counters[NSOFT_IRQS + irq],
+			     event->ie_fullname);
 }
 
 void
@@ -185,14 +204,13 @@ cpu_establish_softintr(const char *name, driver_filter_t *filt,
 		if (error)
 			return;
 		softintr_events[irq] = event;
+		mips_unmask_soft_irq((void*)(uintptr_t)irq);
 	}
 
 	intr_event_add_handler(event, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 
 	mips_intrcnt_setname(mips_intr_counters[irq], event->ie_fullname);
-
-	mips_unmask_soft_irq((void*)(uintptr_t)irq);
 }
 
 void

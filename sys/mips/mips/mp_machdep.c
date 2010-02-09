@@ -1,124 +1,110 @@
+/*-
+ * Copyright (c) 2009 Neelkanth Natu
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ktr.h>
 #include <sys/proc.h>
-#include <sys/cons.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
-#include <sys/sysctl.h>
+#include <sys/sched.h>
 #include <sys/bus.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_map.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 
-#include <machine/atomic.h>
 #include <machine/clock.h>
-#include <machine/md_var.h>
-#include <machine/pcb.h>
-#include <machine/pmap.h>
 #include <machine/smp.h>
+#include <machine/hwfunc.h>
+#include <machine/intr_machdep.h>
+#include <machine/cache.h>
 
+static void *dpcpu;
 static struct mtx ap_boot_mtx;
-extern struct pcpu __pcpu[];
-extern int num_tlbentries;
-void mips_start_timer(void);
-static volatile int aps_ready = 0;
 
-u_int32_t boot_cpu_id;
+static volatile int aps_ready;
+static volatile int mp_naps;
 
-
-void
-cpu_mp_announce(void)
+static void
+ipi_send(struct pcpu *pc, int ipi)
 {
+
+	CTR3(KTR_SMP, "%s: cpu=%d, ipi=%x", __func__, pc->pc_cpuid, ipi);
+
+	atomic_set_32(&pc->pc_pending_ipis, ipi);
+	platform_ipi_send(pc->pc_cpuid);
+
+	CTR1(KTR_SMP, "%s: sent", __func__);
 }
 
-/*
- * To implement IPIs on MIPS CPU, we use the Interrupt Line 2 ( bit 4 of cause
- * register) and a bitmap to avoid redundant IPI interrupts. To interrupt a
- * set of CPUs, the sender routine runs in a ' loop ' sending interrupts to
- * all the specified CPUs. A single Mutex (smp_ipi_mtx) is used for all IPIs
- * that spinwait for delivery. This includes the following IPIs
- * IPI_RENDEZVOUS
- * IPI_INVLPG
- * IPI_INVLTLB
- * IPI_INVLRNG
- */
-
-/*
- * send an IPI to a set of cpus.
- */
+/* Send an IPI to a set of cpus. */
 void
-ipi_selected(u_int32_t cpus, u_int ipi)
+ipi_selected(cpumask_t cpus, int ipi)
 {
-	struct pcpu *pcpu;
-	u_int cpuid, new_pending, old_pending;
+	struct pcpu *pc;
 
 	CTR3(KTR_SMP, "%s: cpus: %x, ipi: %x\n", __func__, cpus, ipi);
 
-	while ((cpuid = ffs(cpus)) != 0) {
-		cpuid--;
-		cpus &= ~(1 << cpuid);
-		pcpu = pcpu_find(cpuid);
-
-		if (pcpu) {
-			do {
-				old_pending = pcpu->pc_pending_ipis;
-				new_pending = old_pending | ipi;
-			} while (!atomic_cmpset_int(&pcpu->pc_pending_ipis,
-			    old_pending, new_pending));	
-
-			if (old_pending)
-				continue;
-
-			mips_ipi_send (cpuid);
-		}
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		if ((cpus & pc->pc_cpumask) != 0)
+			ipi_send(pc, ipi);
 	}
-}
-
-/*
- * send an IPI to all CPUs EXCEPT myself
- */
-void
-ipi_all_but_self(u_int ipi)
-{
-
-	ipi_selected(PCPU_GET(other_cpus), ipi);
 }
 
 /*
  * Handle an IPI sent to this processor.
  */
-intrmask_t
-smp_handle_ipi(struct trapframe *frame)
+static int
+mips_ipi_handler(void *arg)
 {
-	cpumask_t cpumask;		/* This cpu mask */
+	cpumask_t cpumask;
 	u_int	ipi, ipi_bitmap;
+	int	bit;
+
+	platform_ipi_clear();	/* quiesce the pending ipi interrupt */
 
 	ipi_bitmap = atomic_readandclear_int(PCPU_PTR(pending_ipis));
-	cpumask = PCPU_GET(cpumask);
+	if (ipi_bitmap == 0)
+		return (FILTER_STRAY);
 
 	CTR1(KTR_SMP, "smp_handle_ipi(), ipi_bitmap=%x", ipi_bitmap);
-	while (ipi_bitmap) {
-		/*
-		 * Find the lowest set bit.
-		 */
-		ipi = ipi_bitmap & ~(ipi_bitmap - 1);
+
+	while ((bit = ffs(ipi_bitmap))) {
+		bit = bit - 1;
+		ipi = 1 << bit;
 		ipi_bitmap &= ~ipi;
 		switch (ipi) {
-		case IPI_INVLTLB:
-			CTR0(KTR_SMP, "IPI_INVLTLB");
-			break;
-
 		case IPI_RENDEZVOUS:
 			CTR0(KTR_SMP, "IPI_RENDEZVOUS");
 			smp_rendezvous_action();
@@ -129,51 +115,136 @@ smp_handle_ipi(struct trapframe *frame)
 			break;
 
 		case IPI_STOP:
-
 			/*
 			 * IPI_STOP_HARD is mapped to IPI_STOP so it is not
 			 * necessary to add it in the switch.
 			 */
 			CTR0(KTR_SMP, "IPI_STOP or IPI_STOP_HARD");
+			cpumask = PCPU_GET(cpumask);
 			atomic_set_int(&stopped_cpus, cpumask);
-
 			while ((started_cpus & cpumask) == 0)
-			    ;
+				cpu_spinwait();
 			atomic_clear_int(&started_cpus, cpumask);
 			atomic_clear_int(&stopped_cpus, cpumask);
+			CTR0(KTR_SMP, "IPI_STOP (restart)");
 			break;
+		default:
+			panic("Unknown IPI 0x%0x on cpu %d", ipi, curcpu);
 		}
 	}
-	return CR_INT_IPI;
+
+	return (FILTER_HANDLED);
+}
+
+static int
+start_ap(int cpuid)
+{
+	int cpus, ms;
+
+	cpus = mp_naps;
+	dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+
+	if (platform_start_ap(cpuid) != 0)
+		return (-1);			/* could not start AP */
+
+	for (ms = 0; ms < 5000; ++ms) {
+		if (mp_naps > cpus)
+			return (0);		/* success */
+		else
+			DELAY(1000);
+	}
+
+	return (-2);				/* timeout initializing AP */
 }
 
 void
 cpu_mp_setmaxid(void)
 {
 
-	mp_maxid = MAXCPU - 1;
+	mp_ncpus = platform_num_processors();
+	if (mp_ncpus <= 0)
+		mp_ncpus = 1;
+
+	mp_maxid = min(mp_ncpus, MAXCPU) - 1;
+}
+
+void
+cpu_mp_announce(void)
+{
+	/* NOTHING */
+}
+
+struct cpu_group *
+cpu_topo(void)
+{
+
+	return (smp_topo_none());
+}
+
+int
+cpu_mp_probe(void)
+{
+
+	return (mp_ncpus > 1);
+}
+
+void
+cpu_mp_start(void)
+{
+	int error, cpuid;
+
+	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
+
+	all_cpus = 1;		/* BSP */
+	for (cpuid = 1; cpuid < platform_num_processors(); ++cpuid) {
+		if (cpuid >= MAXCPU) {
+			printf("cpu_mp_start: ignoring AP #%d.\n", cpuid);
+			continue;
+		}
+
+		if ((error = start_ap(cpuid)) != 0) {
+			printf("AP #%d failed to start: %d\n", cpuid, error);
+			continue;
+		}
+		
+		if (bootverbose)
+			printf("AP #%d started!\n", cpuid);
+
+		all_cpus |= 1 << cpuid;
+	}
+
+	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
 }
 
 void
 smp_init_secondary(u_int32_t cpuid)
 {
+	int ipi_int_mask, clock_int_mask;
 
-	if (cpuid >=  MAXCPU)
-		panic ("cpu id exceeds MAXCPU\n");
+	/* TLB */
+	Mips_SetWIRED(0);
+	Mips_TLBFlush(num_tlbentries);
+	Mips_SetWIRED(VMWIRED_ENTRIES);
 
-	/* tlb init */
-	R4K_SetWIRED(0);
-	R4K_TLBFlush(num_tlbentries);
-	R4K_SetWIRED(VMWIRED_ENTRIES);
+	/*
+	 * We assume that the L1 cache on the APs is identical to the one
+	 * on the BSP.
+	 */
+	mips_dcache_wbinv_all();
+	mips_icache_sync_all();
+
 	MachSetPID(0);
 
-	Mips_SyncCache();
+	pcpu_init(PCPU_ADDR(cpuid), cpuid, sizeof(struct pcpu));
+	dpcpu_init(dpcpu, cpuid);
 
-	mips_cp0_status_write(0);
+	/* The AP has initialized successfully - allow the BSP to proceed */
+	++mp_naps;
+
+	/* Spin until the BSP is ready to release the APs */
 	while (!aps_ready)
 		;
 
-	mips_sync(); mips_sync();
 	/* Initialize curthread. */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	PCPU_SET(curthread, PCPU_GET(idlethread));
@@ -182,15 +253,16 @@ smp_init_secondary(u_int32_t cpuid)
 
 	smp_cpus++;
 
-	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", PCPU_GET(cpuid));
+	CTR1(KTR_SMP, "SMP: AP CPU #%d launched", PCPU_GET(cpuid));
 
 	/* Build our map of 'other' CPUs. */
 	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
 
-	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
+	if (bootverbose)
+		printf("SMP: AP CPU #%d launched.\n", PCPU_GET(cpuid));
 
 	if (smp_cpus == mp_ncpus) {
-		smp_started = 1;
+		atomic_store_rel_int(&smp_started, 1);
 		smp_active = 1;
 	}
 
@@ -198,103 +270,46 @@ smp_init_secondary(u_int32_t cpuid)
 
 	while (smp_started == 0)
 		; /* nothing */
-	/* Enable Interrupt */
-	mips_cp0_status_write(SR_INT_ENAB);
-	/* ok, now grab sched_lock and enter the scheduler */
-	mtx_lock_spin(&sched_lock);
 
 	/*
-	 * Correct spinlock nesting.  The idle thread context that we are
-	 * borrowing was created so that it would start out with a single
-	 * spin lock (sched_lock) held in fork_trampoline().  Since we've
-	 * explicitly acquired locks in this function, the nesting count
-	 * is now 2 rather than 1.  Since we are nested, calling
-	 * spinlock_exit() will simply adjust the counts without allowing
-	 * spin lock using code to interrupt us.
+	 * Unmask the clock and ipi interrupts.
 	 */
-	spinlock_exit();
-	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
+	clock_int_mask = hard_int_mask(5);
+	ipi_int_mask = hard_int_mask(platform_ipi_intrnum());
+	set_intr_mask(ALL_INT_MASK & ~(ipi_int_mask | clock_int_mask));
 
-	binuptime(PCPU_PTR(switchtime));
-	PCPU_SET(switchticks, ticks);
+	/*
+	 * Bootstrap the compare register.
+	 */
+	mips_wr_compare(mips_rd_count() + counter_freq / hz);
 
-	/* kick off the clock on this cpu */
-	mips_start_timer();
-	cpu_throw(NULL, choosethread());	/* doesn't return */
+	enableintr();
+
+	/* enter the scheduler */
+	sched_throw(NULL);
 
 	panic("scheduler returned us to %s", __func__);
-}
-
-static int
-smp_start_secondary(int cpuid)
-{
-	struct pcpu *pcpu;
-	void *dpcpu;
-	int i;
-
-	if (bootverbose)
-		printf("smp_start_secondary: starting cpu %d\n", cpuid);
-
-	dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
-	pcpu_init(&__pcpu[cpuid], cpuid, sizeof(struct pcpu));
-	dpcpu_init(dpcpu, cpuid);
-
-	if (bootverbose)
-		printf("smp_start_secondary: cpu %d started\n", cpuid);
-
-	return 1;
-}
-
-int
-cpu_mp_probe(void)
-{
-	int i, cpus;
-
-	/* XXX: Need to check for valid platforms here. */
-
-	boot_cpu_id = PCPU_GET(cpuid);
-	KASSERT(boot_cpu_id == 0, ("cpu_mp_probe() called on non-primary CPU"));
-	all_cpus = PCPU_GET(cpumask);
-	mp_ncpus = 1;
-
-	/* Make sure we have at least one secondary CPU. */
-	cpus = 0;
-	for (i = 0; i < MAXCPU; i++) {
-		cpus++;
-	}
-	return (cpus);
-}
-
-void
-cpu_mp_start(void)
-{
-	int i, cpuid;
-
-	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
-
-	cpuid = 1;
-	for (i = 0; i < MAXCPU; i++) {
-
-		if (i == boot_cpu_id)
-			continue;
-		if (smp_start_secondary(i)) {
-			all_cpus |= (1 << cpuid);
-			mp_ncpus++;
-		cpuid++;
-		}
-	}
-	idle_mask |= CR_INT_IPI;
-	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
+	/* NOTREACHED */
 }
 
 static void
 release_aps(void *dummy __unused)
 {
-	if (bootverbose && mp_ncpus > 1)
-		printf("%s: releasing secondary CPUs\n", __func__);
+	int ipi_irq;
+
+	if (mp_ncpus == 1)
+		return;
+
+	/*
+	 * IPI handler
+	 */
+	ipi_irq = platform_ipi_intrnum();
+	cpu_establish_hardintr("ipi", mips_ipi_handler, NULL, NULL, ipi_irq,
+			       INTR_TYPE_MISC | INTR_EXCL | INTR_FAST, NULL);
+
 	atomic_store_rel_int(&aps_ready, 1);
 
-	while (mp_ncpus > 1 && smp_started == 0)
+	while (smp_started == 0)
 		; /* nothing */
 }
 
