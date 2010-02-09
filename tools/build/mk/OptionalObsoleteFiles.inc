@@ -1539,7 +1539,6 @@ OLD_FILES+=usr/share/man/man8/pac.8.gz
 .if ${MK_MAIL} == no
 OLD_FILES+=usr/bin/Mail
 OLD_FILES+=usr/bin/biff
-OLD_FILES+=usr/bin/fmt
 OLD_FILES+=usr/bin/from
 OLD_FILES+=usr/bin/mail
 OLD_FILES+=usr/bin/mailx

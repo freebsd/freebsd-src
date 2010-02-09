@@ -66,7 +66,7 @@ SUBDIR=	alias \
 	${_file2c} \
 	find \
 	finger \
-	${_fmt} \
+	fmt \
 	fold \
 	${_from} \
 	fstat \
@@ -296,7 +296,6 @@ _locate=	locate
 # XXX msgs?
 .if ${MK_MAIL} != "no"
 _biff=		biff
-_fmt=		fmt
 _from=		from
 _mail=		mail
 _msgs=		msgs
