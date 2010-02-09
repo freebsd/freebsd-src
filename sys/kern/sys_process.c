@@ -73,6 +73,17 @@ struct ptrace_io_desc32 {
 	u_int32_t	piod_addr;
 	u_int32_t	piod_len;
 };
+
+struct ptrace_vm_entry32 {
+	uint32_t	pve_cookie;
+	uint32_t	pve_start;
+	uint32_t	pve_end;
+	uint32_t	pve_offset;
+	u_int		pve_prot;
+	u_int		pve_pathlen;
+	uint32_t	pve_path;
+};
+
 #endif
 
 /*
@@ -484,6 +495,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		struct fpreg32 fpreg32;
 		struct reg32 reg32;
 		struct ptrace_io_desc32 piod32;
+		struct ptrace_vm_entry32 pve32;
 #endif
 	} r;
 	void *addr;
@@ -1075,6 +1087,13 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_VM_ENTRY:
+#ifdef COMPAT_IA32
+		/* XXX to be implemented. */
+		if (wrap32) {
+			error = EDOOFUS;
+			break;
+		}
+#endif
 		PROC_UNLOCK(p);
 		error = ptrace_vm_entry(td, p, addr);
 		PROC_LOCK(p);
