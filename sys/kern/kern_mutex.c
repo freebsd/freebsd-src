@@ -557,7 +557,6 @@ thread_lock_block(struct thread *td)
 {
 	struct mtx *lock;
 
-	spinlock_enter();
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	lock = td->td_lock;
 	td->td_lock = &blocked_lock;
@@ -572,7 +571,6 @@ thread_lock_unblock(struct thread *td, struct mtx *new)
 	mtx_assert(new, MA_OWNED);
 	MPASS(td->td_lock == &blocked_lock);
 	atomic_store_rel_ptr((volatile void *)&td->td_lock, (uintptr_t)new);
-	spinlock_exit();
 }
 
 void
