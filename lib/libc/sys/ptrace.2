@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd March 27, 2009
+.Dd February 8, 2010
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -327,6 +327,61 @@ This request will trace the specified process on each system call exit.
 .It PT_SYSCALL
 This request will trace the specified process
 on each system call entry and exit.
+.It PT_VM_TIMESTAMP
+This request returns the generation number or timestamp of the memory map of
+the traced process as the return value from
+.Fn ptrace .
+This provides a low-cost way for the tracing process to determine if the
+VM map changed since the last time this request was made.
+.It PT_VM_ENTRY
+This request is used to iterate over the entries of the VM map of the traced
+process.
+The
+.Fa addr
+argument specifies a pointer to a 
+.Vt "struct ptrace_vm_entry" ,
+which is defined as follows:
+.Bd -literal
+struct ptrace_vm_entry {
+	void	*pve_cookie;
+	u_long	pve_start;
+	u_long	pve_end;
+	u_long	pve_offset;
+	u_int	pve_prot;
+	u_int	pve_pathlen;
+	char	*pve_path;
+};
+.Ed
+.Pp
+The first entry is returned by setting
+.Va pve_cookie
+to
+.Dv NULL .
+Subsequent entries are returned by leaving
+.Va pve_cookie
+unmodified from the value returned by previous requests.
+By setting
+.Va pve_pathlen
+to a non-zero value on entry, the pathname of the backing object is returned
+in the buffer pointed to by
+.Va pve_path ,
+provided the entry is backed by a vnode.
+The
+.Va pve_pathlen
+field is updated with the actual length of the pathname (including the
+terminating null character).
+The
+.Va pve_offset
+field is the offset within the backing object at which the range starts.
+The range is located in the VM space at
+.Va pve_start
+and extends up to
+.Va pve_end
+(inclusive).
+.Pp
+The
+.Fa data
+argument is ignored.
 .El
 .Pp
 Additionally, machine-specific requests can exist.
@@ -376,6 +431,10 @@ or
 .Dv PT_SETDBREGS
 was attempted on a process with no valid register set.
 (This is normally true only of system processes.)
+.It
+.Dv PT_VM_ENTRY
+was given an invalid value for
+.Fa pve_cookie .
 .El
 .It Bq Er EBUSY
 .Bl -bullet -compact
@@ -404,6 +463,22 @@ An attempt was made to use
 on a process in violation of the requirements listed under
 .Dv PT_ATTACH
 above.
+.El
+.It Bq Er ENOENT
+.Bl -bullet -compact
+.It
+.Dv PT_VM_ENTRY
+previously returned the last entry of the memory map.
+No more entries exist.
+.El
+.It Bq Er ENAMETOOLONG
+.Bl -bullet -compact
+.It
+.Dv PT_VM_ENTRY
+cannot return the pathname of the backing object because the buffer is not big
+enough.
+.Fa pve_pathlen
+holds the minimum buffer size required on return.
 .El
 .El
 .Sh SEE ALSO
