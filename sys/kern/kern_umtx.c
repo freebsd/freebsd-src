@@ -2463,6 +2463,12 @@ do_rw_rdlock(struct thread *td, struct urwlock *rwlock, long fflag, int timo)
 		umtxq_busy(&uq->uq_key);
 		umtxq_unlock(&uq->uq_key);
 
+		/*
+		 * re-read the state, in case it changed between the try-lock above
+		 * and the check below
+		 */
+		state = fuword32(__DEVOLATILE(int32_t *, &rwlock->rw_state));
+
 		/* set read contention bit */
 		while ((state & wrflags) && !(state & URWLOCK_READ_WAITERS)) {
 			oldstate = casuword32(&rwlock->rw_state, state, state | URWLOCK_READ_WAITERS);
@@ -2594,6 +2600,12 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, int timo)
 		umtxq_lock(&uq->uq_key);
 		umtxq_busy(&uq->uq_key);
 		umtxq_unlock(&uq->uq_key);
+
+		/*
+		 * re-read the state, in case it changed between the try-lock above
+		 * and the check below
+		 */
+		state = fuword32(__DEVOLATILE(int32_t *, &rwlock->rw_state));
 
 		while (((state & URWLOCK_WRITE_OWNER) || URWLOCK_READER_COUNT(state) != 0) &&
 		       (state & URWLOCK_WRITE_WAITERS) == 0) {
