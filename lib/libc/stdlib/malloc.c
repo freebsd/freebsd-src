@@ -3861,6 +3861,7 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 					arena_dalloc_small(arena, chunk, ptr,
 					    mapelm);
 					malloc_spin_unlock(&arena->lock);
+					return;
 				}
 				mag_rack = rack;
 			}
