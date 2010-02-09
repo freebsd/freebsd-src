@@ -75,6 +75,7 @@ ftpd_logwtmp(char *id, char *user, struct sockaddr *addr)
 	ut.ut_pid = getpid();
 	gettimeofday(&ut.ut_tv, NULL);
 	(void)strncpy(ut.ut_id, id, sizeof(ut.ut_id));
+	(void)strncpy(ut.ut_line, "ftpd", sizeof(ut.ut_line));
 
 	pututxline(&ut);
 }
