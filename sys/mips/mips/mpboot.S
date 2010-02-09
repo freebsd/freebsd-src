@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Neelkanth Natu
+ * Copyright (c) 2010 Neelkanth Natu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,26 +26,47 @@
  * $FreeBSD$
  */
 
-#ifndef _SB_SCD_H_
-#define	_SB_SCD_H_
+#include <machine/asm.h>
+#include <machine/cpu.h>
+#include <machine/cpuregs.h>
 
-#define	NUM_INTSRC		64	/* total number of interrupt sources */
+#include "assym.s"
 
-uint64_t	sb_cpu_speed(void);
-void		sb_system_reset(void);
+	.text
+	.set	noat
+	.set	noreorder
 
-int		sb_route_intsrc(int src);
-void		sb_enable_intsrc(int cpu, int src);
-void		sb_disable_intsrc(int cpu, int src);
-uint64_t	sb_read_intsrc_mask(int cpu);
-void		sb_write_intsrc_mask(int cpu, uint64_t mask);
-void		sb_write_intmap(int cpu, int intsrc, int intrnum);
-int		sb_read_intmap(int cpu, int intsrc);
+GLOBAL(mpentry)
+	mtc0	zero, COP_0_STATUS_REG	/* disable interrupts */
 
-#ifdef SMP
-#define	INTSRC_MAILBOX3		29
-void		sb_set_mailbox(int cpuid, uint64_t val);
-void		sb_clear_mailbox(int cpuid, uint64_t val);
-#endif
+	mtc0	zero, COP_0_CAUSE_REG	/* clear soft interrupts */
 
-#endif	/* _SB_SCD_H_ */
+	li	t0, CFG_K0_CACHED	/* make sure kseg0 is cached */
+	mtc0	t0, MIPS_COP_0_CONFIG
+	COP0_SYNC
+
+	jal	platform_processor_id	/* get the processor number */
+	nop
+	move	s0, v0
+
+	/*
+	 * Initialize stack and call machine startup
+	 */
+	PTR_LA	sp, _C_LABEL(pcpu_space)
+	addiu	sp, (NBPG * 2) - START_FRAME
+	sll	t0, s0, PAGE_SHIFT + 1
+	addu	sp, sp, t0
+
+	/* Zero out old ra and old fp for debugger */
+	sw      zero, START_FRAME - 4(sp)
+	sw      zero, START_FRAME - 8(sp)
+
+	PTR_LA	gp, _C_LABEL(_gp)
+
+	jal	platform_init_ap
+	move	a0, s0
+
+	jal	smp_init_secondary
+	move	a0, s0
+
+	PANIC("AP startup failed!")

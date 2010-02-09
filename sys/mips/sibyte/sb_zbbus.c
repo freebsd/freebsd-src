@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -31,21 +34,29 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <machine/resource.h>
 #include <machine/intr_machdep.h>
 
 #include "sb_scd.h"
 
-__FBSDID("$FreeBSD$");
-
 static MALLOC_DEFINE(M_INTMAP, "sb1250 intmap", "Sibyte 1250 Interrupt Mapper");
 
-#define	NUM_HARD_IRQS	6
+static struct mtx zbbus_intr_mtx;
+MTX_SYSINIT(zbbus_intr_mtx, &zbbus_intr_mtx, "zbbus_intr_mask/unmask lock",
+	    MTX_SPIN);
+
+/*
+ * This array holds the mapping between a MIPS hard interrupt and the
+ * interrupt sources that feed into that it.
+ */
+static uint64_t hardint_to_intsrc_mask[NHARD_IRQS];
 
 struct sb_intmap {
 	int intsrc;		/* interrupt mapper register number (0 - 63) */
-	int hardint;		/* cpu interrupt from 0 to NUM_HARD_IRQS - 1 */
+	int hardint;		/* cpu interrupt from 0 to NHARD_IRQS - 1 */
 
 	/*
 	 * The device that the interrupt belongs to. Note that multiple
@@ -86,7 +97,7 @@ sb_intmap_add(int intrnum, device_t dev, int rid, int intsrc)
 {
 	struct sb_intmap *map;
 	
-	KASSERT(intrnum >= 0 && intrnum < NUM_HARD_IRQS,
+	KASSERT(intrnum >= 0 && intrnum < NHARD_IRQS,
 		("intrnum is out of range: %d", intrnum));
 
 	map = sb_intmap_lookup(intrnum, dev, rid);
@@ -113,12 +124,18 @@ sb_intmap_activate(int intrnum, device_t dev, int rid)
 {
 	struct sb_intmap *map;
 	
-	KASSERT(intrnum >= 0 && intrnum < NUM_HARD_IRQS,
+	KASSERT(intrnum >= 0 && intrnum < NHARD_IRQS,
 		("intrnum is out of range: %d", intrnum));
 
 	map = sb_intmap_lookup(intrnum, dev, rid);
 	if (map) {
+		/*
+		 * Deliver all interrupts to CPU0.
+		 */
+		mtx_lock_spin(&zbbus_intr_mtx);
+		hardint_to_intsrc_mask[intrnum] |= 1ULL << map->intsrc;
 		sb_enable_intsrc(0, map->intsrc);
+		mtx_unlock_spin(&zbbus_intr_mtx);
 	} else {
 		/*
 		 * In zbbus_setup_intr() we blindly call sb_intmap_activate()
@@ -131,6 +148,52 @@ sb_intmap_activate(int intrnum, device_t dev, int rid)
 		       "for device %s%d rid %d.\n", intrnum,
 		       device_get_name(dev), device_get_unit(dev), rid);
 	}
+}
+
+/*
+ * Replace the default interrupt mask and unmask routines in intr_machdep.c
+ * with routines that are SMP-friendly. In contrast to the default mask/unmask
+ * routines in intr_machdep.c these routines do not change the SR.int_mask bits.
+ *
+ * Instead they use the interrupt mapper to either mask or unmask all
+ * interrupt sources feeding into a particular interrupt line of the processor.
+ *
+ * This means that these routines have an identical effect irrespective of
+ * which cpu is executing them. This is important because the ithread may
+ * be scheduled to run on either of the cpus.
+ */
+static void
+zbbus_intr_mask(void *arg)
+{
+	uint64_t mask;
+	int irq;
+	
+	irq = (uintptr_t)arg;
+
+	mtx_lock_spin(&zbbus_intr_mtx);
+
+	mask = sb_read_intsrc_mask(0);
+	mask |= hardint_to_intsrc_mask[irq];
+	sb_write_intsrc_mask(0, mask);
+
+	mtx_unlock_spin(&zbbus_intr_mtx);
+}
+
+static void
+zbbus_intr_unmask(void *arg)
+{
+	uint64_t mask;
+	int irq;
+	
+	irq = (uintptr_t)arg;
+
+	mtx_lock_spin(&zbbus_intr_mtx);
+
+	mask = sb_read_intsrc_mask(0);
+	mask &= ~hardint_to_intsrc_mask[irq];
+	sb_write_intsrc_mask(0, mask);
+
+	mtx_unlock_spin(&zbbus_intr_mtx);
 }
 
 struct zbbus_devinfo {
@@ -154,6 +217,9 @@ zbbus_attach(device_t dev)
 	if (bootverbose) {
 		device_printf(dev, "attached.\n");
 	}
+
+	cpu_set_hardintr_mask_func(zbbus_intr_mask);
+	cpu_set_hardintr_unmask_func(zbbus_intr_unmask);
 
 	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);

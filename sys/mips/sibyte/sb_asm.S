@@ -27,6 +27,7 @@
  */
 
 #include <machine/asm.h>
+#include <machine/cpuregs.h>
 
 /*
  * We compile a 32-bit kernel to run on the SB-1 processor which is a 64-bit
@@ -80,3 +81,20 @@ LEAF(sb_store64)
 	jr	ra
 	sd	t0, 0(a0)
 END(sb_store64)
+
+#ifdef SMP
+/*
+ * This function must be implemented in assembly because it is called early
+ * in AP boot without a valid stack.
+ *
+ * This cpu number is available in bits 25 to 27 of the coprocessor 0 PRID
+ * register. This is not documented in the BCM1250 user manual but can be
+ * gleaned from the CFE source code - see sb1250_altcpu.S
+ */
+LEAF(platform_processor_id)
+	mfc0	v0, MIPS_COP_0_PRID
+	srl	v0, v0, 25
+	jr	ra
+	and	v0, v0, 7
+END(platform_processor_id)
+#endif	/* SMP */

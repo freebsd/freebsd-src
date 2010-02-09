@@ -47,4 +47,51 @@ unsigned platform_get_timecount(struct timecounter *);
 /* For hardware specific CPU initialization */
 void platform_cpu_init(void);
 void platform_secondary_init(void);
+
+#ifdef SMP
+
+/*
+ * Spin up the AP so that it starts executing MP bootstrap entry point: mpentry
+ *
+ * Returns 0 on sucess and non-zero on failure.
+ */
+int platform_start_ap(int processor_id);
+
+/*
+ * Platform-specific initialization that needs to be done when an AP starts
+ * running. This function is called from the MP bootstrap code in mpboot.S
+ */
+void platform_init_ap(int processor_id);
+
+/*
+ * Return a plaform-specific interrrupt number that is used to deliver IPIs.
+ *
+ * This hardware interrupt is used to deliver IPIs exclusively and must
+ * not be used for any other interrupt source.
+ */
+int platform_ipi_intrnum(void);
+
+/*
+ * Trigger a IPI interrupt on 'cpuid'.
+ */
+void platform_ipi_send(int cpuid);
+
+/*
+ * Quiesce the IPI interrupt source on the current cpu.
+ */
+void platform_ipi_clear(void);
+
+/*
+ * Return the processor id.
+ *
+ * Note that this function is called in early boot when stack is not available.
+ */
+extern int platform_processor_id(void);
+
+/*
+ * Return the number of processors available on this platform.
+ */
+extern int platform_num_processors(void);
+
+#endif	/* SMP */
 #endif /* !_MACHINE_HWFUNC_H_ */

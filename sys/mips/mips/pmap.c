@@ -362,6 +362,15 @@ again:
 	virtual_avail = roundup2(virtual_avail, PAGE_SIZE * 2);
 	pcpup = (struct pcpu *)virtual_avail;
 	virtual_avail += PAGE_SIZE * 2;
+
+	/*
+	 * Initialize the wired TLB entry mapping the pcpu region for
+	 * the BSP at 'pcpup'. Up until this point we were operating
+	 * with the 'pcpup' for the BSP pointing to a virtual address
+	 * in KSEG0 so there was no need for a TLB mapping.
+	 */
+	mips_pcpu_tlb_init(PCPU_ADDR(0));
+
 	if (bootverbose)
 		printf("pcpu is available at virtual address %p.\n", pcpup);
 #endif
