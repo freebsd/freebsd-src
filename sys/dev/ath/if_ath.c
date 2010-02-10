@@ -621,7 +621,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	}
 	sc->sc_hasclrkey = ath_hal_ciphersupported(ah, HAL_CIPHER_CLR);
 	/*
-	 * Check for multicast key sarch support.
+	 * Check for multicast key search support.
 	 */
 	if (ath_hal_hasmcastkeysearch(sc->sc_ah) &&
 	    !ath_hal_getmcastkeysearch(sc->sc_ah)) {
