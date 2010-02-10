@@ -55,7 +55,7 @@ uint64_t counter_freq;
 uint64_t cycles_per_tick;
 uint64_t cycles_per_usec;
 uint64_t cycles_per_sec;
-uint64_t cycles_per_hz;
+uint64_t cycles_per_hz, cycles_per_stathz, cycles_per_profhz;
 
 u_int32_t counter_upper = 0;
 u_int32_t counter_lower_last = 0;
@@ -136,6 +136,9 @@ void
 mips_timer_init_params(uint64_t platform_counter_freq, int double_count)
 {
 
+	stathz = hz;
+	profhz = hz;
+
 	/*
 	 * XXX: Do not use printf here: uart code 8250 may use DELAY so this
 	 * function should  be called before cninit.
@@ -151,18 +154,23 @@ mips_timer_init_params(uint64_t platform_counter_freq, int double_count)
 
 	cycles_per_tick = counter_freq / 1000;
 	cycles_per_hz = counter_freq / hz;
+	cycles_per_stathz = counter_freq / stathz;
+	cycles_per_profhz = counter_freq / profhz;
 	cycles_per_usec = counter_freq / (1 * 1000 * 1000);
 	cycles_per_sec =  counter_freq ;
 	
 	counter_timecounter.tc_frequency = counter_freq;
-	printf("hz=%d cyl_per_hz:%jd cyl_per_usec:%jd freq:%jd cyl_per_hz:%jd cyl_per_sec:%jd\n",
+	printf("hz=%d cyl_per_tick:%jd cyl_per_usec:%jd freq:%jd "
+	       "cyl_per_hz:%jd cyl_per_stathz:%jd cyl_per_profhz:%jd "
+	       "cyl_per_sec:%jd\n",
 	       hz,
 	       cycles_per_tick,
 	       cycles_per_usec,
 	       counter_freq,
 	       cycles_per_hz,
-	       cycles_per_sec
-	       );
+	       cycles_per_stathz,
+	       cycles_per_profhz,
+	       cycles_per_sec);
 	set_cputicker(tick_ticker, counter_freq, 1);
 }
 
@@ -280,17 +288,18 @@ clock_intr(void *arg)
 		else
 			hardclock_cpu(USERMODE(tf->sr));
 	}
+
 	/* Fire statclock at stathz. */
-	cpu_ticks->stat_ticks += stathz;
-	if (cpu_ticks->stat_ticks >= cycles_per_hz) {
-		cpu_ticks->stat_ticks -= cycles_per_hz;
+	cpu_ticks->stat_ticks += cycles_per_tick;
+	if (cpu_ticks->stat_ticks >= cycles_per_stathz) {
+		cpu_ticks->stat_ticks -= cycles_per_stathz;
 		statclock(USERMODE(tf->sr));
 	}
 
 	/* Fire profclock at profhz, but only when needed. */
-	cpu_ticks->prof_ticks += profhz;
-	if (cpu_ticks->prof_ticks >= cycles_per_hz) {
-		cpu_ticks->prof_ticks -= cycles_per_hz;
+	cpu_ticks->prof_ticks += cycles_per_tick;
+	if (cpu_ticks->prof_ticks >= cycles_per_profhz) {
+		cpu_ticks->prof_ticks -= cycles_per_profhz;
 		if (profprocs != 0)
 			profclock(USERMODE(tf->sr), tf->pc);
 	}
