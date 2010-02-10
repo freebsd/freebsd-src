@@ -47,21 +47,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/timetc.h>
 
+#include <machine/hwfunc.h>
 #include <machine/clock.h>
 #include <machine/locore.h>
 #include <machine/md_var.h>
 
 uint64_t counter_freq;
-uint64_t cycles_per_tick;
-uint64_t cycles_per_usec;
-uint64_t cycles_per_sec;
-uint64_t cycles_per_hz, cycles_per_stathz, cycles_per_profhz;
 
-u_int32_t counter_upper = 0;
-u_int32_t counter_lower_last = 0;
-int	tick_started = 0;
+static uint64_t cycles_per_tick;
+static uint64_t cycles_per_usec;
+static uint64_t cycles_per_hz, cycles_per_stathz, cycles_per_profhz;
 
-void platform_initclocks(void);
+static u_int32_t counter_upper = 0;
+static u_int32_t counter_lower_last = 0;
 
 struct clk_ticks
 {
@@ -103,10 +101,8 @@ mips_timer_early_init(uint64_t clock_hz)
 void
 platform_initclocks(void)
 {
-	if (!tick_started) {
-	        tc_init(&counter_timecounter);
-		tick_started++;
-	}
+
+	tc_init(&counter_timecounter);
 }
 
 static uint64_t
@@ -157,20 +153,17 @@ mips_timer_init_params(uint64_t platform_counter_freq, int double_count)
 	cycles_per_stathz = counter_freq / stathz;
 	cycles_per_profhz = counter_freq / profhz;
 	cycles_per_usec = counter_freq / (1 * 1000 * 1000);
-	cycles_per_sec =  counter_freq ;
 	
 	counter_timecounter.tc_frequency = counter_freq;
 	printf("hz=%d cyl_per_tick:%jd cyl_per_usec:%jd freq:%jd "
-	       "cyl_per_hz:%jd cyl_per_stathz:%jd cyl_per_profhz:%jd "
-	       "cyl_per_sec:%jd\n",
+	       "cyl_per_hz:%jd cyl_per_stathz:%jd cyl_per_profhz:%jd\n",
 	       hz,
 	       cycles_per_tick,
 	       cycles_per_usec,
 	       counter_freq,
 	       cycles_per_hz,
 	       cycles_per_stathz,
-	       cycles_per_profhz,
-	       cycles_per_sec);
+	       cycles_per_profhz);
 	set_cputicker(tick_ticker, counter_freq, 1);
 }
 
@@ -307,7 +300,7 @@ clock_intr(void *arg)
 #if 0 /* TARGET_OCTEON */
 	/* Run the FreeBSD display once every hz ticks  */
 	wheel_run += cycles_per_tick;
-	if (wheel_run >= cycles_per_sec) {
+	if (wheel_run >= cycles_per_usec * 1000000ULL) {
 		wheel_run = 0;
 		octeon_led_run_wheel();
 	}
