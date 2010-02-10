@@ -245,6 +245,6 @@ NATIVE_SYSCTLNAME_GET(ident, "kern.ident") {
 void
 usage(void)
 {
-	fprintf(stderr, "usage: uname [-aimnprsv]\n");
+	fprintf(stderr, "usage: uname [-aimnoprsv]\n");
 	exit(1);
 }
