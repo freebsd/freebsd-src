@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpi_hpet.h>
 
+#define HPET_VENDID_AMD		0x4353
+#define HPET_VENDID_INTEL	0x8086
+
 ACPI_SERIAL_DECL(hpet, "ACPI HPET support");
 
 static devclass_t acpi_hpet_devclass;
@@ -155,9 +158,10 @@ static int
 acpi_hpet_attach(device_t dev)
 {
 	struct acpi_hpet_softc *sc;
-	int rid;
+	int rid, num_timers;
 	uint32_t val, val2;
 	uintmax_t freq;
+	uint16_t vendor;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
@@ -194,10 +198,21 @@ acpi_hpet_attach(device_t dev)
 	freq = (1000000000000000LL + val / 2) / val;
 	if (bootverbose) {
 		val = bus_read_4(sc->mem_res, HPET_CAPABILITIES);
+
+		/*
+		 * ATI/AMD violates IA-PC HPET (High Precision Event Timers)
+		 * Specification and provides an off by one number
+		 * of timers/comparators.
+		 * Additionally, they use unregistered value in VENDOR_ID field.
+		 */
+		num_timers = 1 + ((val & HPET_CAP_NUM_TIM) >> 8);
+		vendor = val >> 16;
+		if (vendor == HPET_VENDID_AMD && num_timers > 0)
+			num_timers--;
 		device_printf(dev,
 		    "vend: 0x%x rev: 0x%x num: %d hz: %jd opts:%s%s\n",
-		    val >> 16, val & HPET_CAP_REV_ID,
-		    (val & HPET_CAP_NUM_TIM) >> 8, freq,
+		    vendor, val & HPET_CAP_REV_ID,
+		    num_timers, freq,
 		    (val & HPET_CAP_LEG_RT) ? " legacy_route" : "",
 		    (val & HPET_CAP_COUNT_SIZE) ? " 64-bit" : "");
 	}
