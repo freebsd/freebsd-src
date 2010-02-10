@@ -27,6 +27,7 @@ options 	BOOTP_WIRED_TO=kr0
 options 	BOOTP_COMPAT
 
 # Debugging for use in -current
+#options	DEADLKRES		#Enable the deadlock resolver
 options 	INVARIANTS		#Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 
