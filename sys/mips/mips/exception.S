@@ -728,6 +728,18 @@ NNON_LEAF(MipsUserIntr, STAND_FRAME_SIZE, ra)
 	sw	a3, STAND_RA_OFFSET(sp)	# for debugging
 
 /*
+ * Enable interrupts before doing ast().
+ *
+ * On SMP kernels the AST processing might trigger IPI to other processors.
+ * If that processor is also doing AST processing with interrupts disabled
+ * then we may deadlock.
+ */
+	mfc0	a0, COP_0_STATUS_REG
+	or	a0, a0, SR_INT_ENAB
+	mtc0	a0, COP_0_STATUS_REG
+	ITLBNOPFIX
+
+/*
  * DO_AST enabled interrupts
  */
 	DO_AST
