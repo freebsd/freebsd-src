@@ -152,7 +152,8 @@ Shared/exclusive locks are similar to reader/writer locks; the main difference
 between them is that shared/exclusive locks may be held during unbounded sleep
 (and may thus perform an unbounded sleep).
 They are inherently less efficient than mutexes, reader/writer locks
-and read-mostly locks.  They don't support priority propagation.
+and read-mostly locks.
+They don't support priority propagation.
 They should be considered to be closely related to
 .Xr sleep 9 .
 In fact it could in some cases be 
@@ -192,9 +193,9 @@ Giant is an instance of a mutex, with some special characteristics:
 It is recursive.
 .It
 Drivers and filesystems can request that Giant be locked around them
-by not marking themselves MPSAFE.  Note that infrastructure to do this
-is slowly going away as non-MPSAFE drivers either became properly locked
-or disappear.
+by not marking themselves MPSAFE.
+Note that infrastructure to do this is slowly going away as non-MPSAFE
+drivers either became properly locked or disappear.
 .It
 Giant must be locked first before other locks.
 .It
