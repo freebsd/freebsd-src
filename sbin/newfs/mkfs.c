@@ -118,6 +118,8 @@ mkfs(struct partition *pp, char *fsys)
 	time_t utime;
 	quad_t sizepb;
 	int width;
+	ino_t maxinum;
+	int minfragsperinode;	/* minimum ratio of frags to inodes */
 	char tmpbuf[100];	/* XXX this will break in about 2,500 years */
 	union {
 		struct fs fdummy;
@@ -170,6 +172,8 @@ mkfs(struct partition *pp, char *fsys)
 	if (sblock.fs_avgfpdir <= 0)
 		printf("illegal expected number of files per directory %d\n",
 		    sblock.fs_avgfpdir), exit(15);
+
+restart:
 	/*
 	 * collect and verify the block and fragment sizes
 	 */
@@ -216,6 +220,8 @@ mkfs(struct partition *pp, char *fsys)
 		    sblock.fs_fsize, MAXFRAG, sblock.fs_bsize / MAXFRAG);
 		sblock.fs_fsize = sblock.fs_bsize / MAXFRAG;
 	}
+	if (maxbsize == 0)
+		maxbsize = bsize;
 	if (maxbsize < bsize || !POWEROF2(maxbsize)) {
 		sblock.fs_maxbsize = sblock.fs_bsize;
 		printf("Extent size set to %d\n", sblock.fs_maxbsize);
@@ -225,6 +231,14 @@ mkfs(struct partition *pp, char *fsys)
 	} else {
 		sblock.fs_maxbsize = maxbsize;
 	}
+	/*
+	 * Maxcontig sets the default for the maximum number of blocks
+	 * that may be allocated sequentially. With file system clustering
+	 * it is possible to allocate contiguous blocks up to the maximum
+	 * transfer size permitted by the controller or buffering.
+	 */
+	if (maxcontig == 0)
+		maxcontig = MAX(1, MAXPHYS / bsize);
 	sblock.fs_maxcontig = maxcontig;
 	if (sblock.fs_maxcontig < sblock.fs_maxbsize / sblock.fs_bsize) {
 		sblock.fs_maxcontig = sblock.fs_maxbsize / sblock.fs_bsize;
@@ -315,9 +329,26 @@ mkfs(struct partition *pp, char *fsys)
 	 * can put into each cylinder group. If this is too big, we reduce
 	 * the density until it fits.
 	 */
+	maxinum = (((int64_t)(1)) << 32) - INOPB(&sblock);
+	minfragsperinode = 1 + fssize / maxinum;
+	if (density == 0) {
+		density = MAX(NFPI, minfragsperinode) * fsize;
+	} else if (density < minfragsperinode * fsize) {
+		origdensity = density;
+		density = minfragsperinode * fsize;
+		fprintf(stderr, "density increased from %d to %d\n",
+		    origdensity, density);
+	}
 	origdensity = density;
 	for (;;) {
 		fragsperinode = MAX(numfrags(&sblock, density), 1);
+		if (fragsperinode < minfragsperinode) {
+			bsize <<= 1;
+			fsize <<= 1;
+			printf("Block size too small for a file system %s %d\n",
+			     "of this size. Increasing blocksize to", bsize);
+			goto restart;
+		}
 		minfpg = fragsperinode * INOPB(&sblock);
 		if (minfpg > sblock.fs_size)
 			minfpg = sblock.fs_size;
@@ -406,7 +437,10 @@ mkfs(struct partition *pp, char *fsys)
 	if (sblock.fs_sbsize > SBLOCKSIZE)
 		sblock.fs_sbsize = SBLOCKSIZE;
 	sblock.fs_minfree = minfree;
-	sblock.fs_maxbpg = maxbpg;
+	if (maxbpg == 0)
+		sblock.fs_maxbpg = MAXBLKPG(sblock.fs_bsize);
+	else
+		sblock.fs_maxbpg = maxbpg;
 	sblock.fs_optim = opt;
 	sblock.fs_cgrotor = 0;
 	sblock.fs_pendingblocks = 0;
