@@ -420,7 +420,7 @@ umtxq_insert_queue(struct umtx_q *uq, int q)
 	uc = umtxq_getchain(&uq->uq_key);
 	UMTXQ_LOCKED_ASSERT(uc);
 	KASSERT((uq->uq_flags & UQF_UMTXQ) == 0, ("umtx_q is already on queue"));
-	uh = umtxq_queue_lookup(&uq->uq_key, UMTX_SHARED_QUEUE);
+	uh = umtxq_queue_lookup(&uq->uq_key, q);
 	if (uh != NULL) {
 		LIST_INSERT_HEAD(&uc->uc_spare_queue, uq->uq_spare_queue, link);
 	} else {
