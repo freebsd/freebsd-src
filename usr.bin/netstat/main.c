@@ -332,6 +332,7 @@ int	hflag;		/* show counters in human readable format */
 int	iflag;		/* show interfaces */
 int	Lflag;		/* show size of listen queues */
 int	mflag;		/* show memory stats */
+int	noutputs = 0;	/* how much outputs before we exit */
 int	numeric_addr;	/* show addresses numerically */
 int	numeric_port;	/* show ports numerically */
 static int pflag;	/* show given protocol */
@@ -358,7 +359,7 @@ main(int argc, char *argv[])
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "AaBbdf:ghI:iLlM:mN:np:rSstuWw:xz")) != -1)
+	while ((ch = getopt(argc, argv, "AaBbdf:ghI:iLlM:mN:np:q:rSstuWw:xz")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
@@ -443,6 +444,11 @@ main(int argc, char *argv[])
 				     optarg);
 			}
 			pflag = 1;
+			break;
+		case 'q':
+			noutputs = atoi(optarg);
+			if (noutputs != 0)
+				noutputs++;
 			break;
 		case 'r':
 			rflag = 1;
@@ -780,7 +786,7 @@ usage(void)
 "               [-M core] [-N system]",
 "       netstat -i | -I interface [-abdhntW] [-f address_family]\n"
 "               [-M core] [-N system]",
-"       netstat -w wait [-I interface] [-d] [-M core] [-N system]",
+"       netstat -w wait [-I interface] [-d] [-M core] [-N system] [-q howmany]",
 "       netstat -s [-s] [-z] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat -i | -I interface -s [-f protocol_family | -p protocol]\n"
