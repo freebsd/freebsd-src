@@ -50,6 +50,7 @@ options		PSEUDOFS		#Pseudo-filesystem framework
 options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
 # Debugging for use in -current
+#options	DEADLKRES
 options		INVARIANTS
 options		INVARIANT_SUPPORT
 options		WITNESS
