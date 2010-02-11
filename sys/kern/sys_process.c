@@ -75,12 +75,15 @@ struct ptrace_io_desc32 {
 };
 
 struct ptrace_vm_entry32 {
-	uint32_t	pve_cookie;
+	int		pve_entry;
+	int		pve_timestamp;
 	uint32_t	pve_start;
 	uint32_t	pve_end;
 	uint32_t	pve_offset;
 	u_int		pve_prot;
 	u_int		pve_pathlen;
+	int32_t		pve_fileid;
+	u_int		pve_fsid;
 	uint32_t	pve_path;
 };
 
@@ -360,88 +363,141 @@ proc_rwmem(struct proc *p, struct uio *uio)
 static int
 ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 {
+	struct vattr vattr;
 	vm_map_t map;
 	vm_map_entry_t entry;
 	vm_object_t obj, tobj, lobj;
+	struct vmspace *vm;
 	struct vnode *vp;
 	char *freepath, *fullpath;
 	u_int pathlen;
-	int error, vfslocked;
+	int error, index, vfslocked;
 
-	map = &p->p_vmspace->vm_map;
-	entry = map->header.next;
-	if (pve->pve_cookie != NULL) {
-		while (entry != &map->header && entry != pve->pve_cookie)
+	error = 0;
+	obj = NULL;
+
+	vm = vmspace_acquire_ref(p);
+	map = &vm->vm_map;
+	vm_map_lock_read(map);
+
+	do {
+		entry = map->header.next;
+		index = 0;
+		while (index < pve->pve_entry && entry != &map->header) {
 			entry = entry->next;
-		if (entry != pve->pve_cookie)
-			return (EINVAL);
-		entry = entry->next;
-	}
-	while (entry != &map->header && (entry->eflags & MAP_ENTRY_IS_SUB_MAP))
-		entry = entry->next;
-	if (entry == &map->header)
-		return (ENOENT);
+			index++;
+		}
+		if (index != pve->pve_entry) {
+			error = EINVAL;
+			break;
+		}
+		while (entry != &map->header &&
+		    (entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0) {
+			entry = entry->next;
+			index++;
+		}
+		if (entry == &map->header) {
+			error = ENOENT;
+			break;
+		}
 
-	/* We got an entry. */
-	pve->pve_cookie = entry;
-	pve->pve_start = entry->start;
-	pve->pve_end = entry->end - 1;
-	pve->pve_offset = entry->offset;
-	pve->pve_prot = entry->protection;
+		/* We got an entry. */
+		pve->pve_entry = index + 1;
+		pve->pve_timestamp = map->timestamp;
+		pve->pve_start = entry->start;
+		pve->pve_end = entry->end - 1;
+		pve->pve_offset = entry->offset;
+		pve->pve_prot = entry->protection;
 
-	/* Backing object's path needed? */
-	if (pve->pve_pathlen == 0)
-		return (0);
+		/* Backing object's path needed? */
+		if (pve->pve_pathlen == 0)
+			break;
 
-	pathlen = pve->pve_pathlen;
-	pve->pve_pathlen = 0;
+		pathlen = pve->pve_pathlen;
+		pve->pve_pathlen = 0;
 
-	obj = entry->object.vm_object;
-	if (obj == NULL)
-		return (0);
+		obj = entry->object.vm_object;
+		if (obj != NULL)
+			VM_OBJECT_LOCK(obj);
+	} while (0);
 
-	VM_OBJECT_LOCK(obj);
-	for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
-		if (tobj != obj)
-			VM_OBJECT_LOCK(tobj);
-		if (lobj != obj)
-			VM_OBJECT_UNLOCK(lobj);
-		lobj = tobj;
-		pve->pve_offset += tobj->backing_object_offset;
-	}
-	if (lobj != NULL) {
+	vm_map_unlock_read(map);
+	vmspace_free(vm);
+
+	if (error == 0 && obj != NULL) {
+		lobj = obj;
+		for (tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
+			if (tobj != obj)
+				VM_OBJECT_LOCK(tobj);
+			if (lobj != obj)
+				VM_OBJECT_UNLOCK(lobj);
+			lobj = tobj;
+			pve->pve_offset += tobj->backing_object_offset;
+		}
 		vp = (lobj->type == OBJT_VNODE) ? lobj->handle : NULL;
 		if (vp != NULL)
 			vref(vp);
 		if (lobj != obj)
 			VM_OBJECT_UNLOCK(lobj);
 		VM_OBJECT_UNLOCK(obj);
-	} else
-		vp = NULL;
 
-	if (vp == NULL)
-		return (0);
+		if (vp != NULL) {
+			freepath = NULL;
+			fullpath = NULL;
+			vn_fullpath(td, vp, &fullpath, &freepath);
+			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+			vn_lock(vp, LK_SHARED | LK_RETRY);
+			if (VOP_GETATTR(vp, &vattr, td->td_ucred) == 0) {
+				pve->pve_fileid = vattr.va_fileid;
+				pve->pve_fsid = vattr.va_fsid;
+			}
+			vput(vp);
+			VFS_UNLOCK_GIANT(vfslocked);
 
-	freepath = NULL;
-	fullpath = NULL;
-	vn_fullpath(td, vp, &fullpath, &freepath);
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vrele(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
-
-	error = 0;
-	if (fullpath != NULL) {
-		pve->pve_pathlen = strlen(fullpath) + 1;
-		if (pve->pve_pathlen <= pathlen) {
-			error = copyout(fullpath, pve->pve_path,
-			    pve->pve_pathlen);
-		} else
-			error = ENAMETOOLONG;
+			if (fullpath != NULL) {
+				pve->pve_pathlen = strlen(fullpath) + 1;
+				if (pve->pve_pathlen <= pathlen) {
+					error = copyout(fullpath, pve->pve_path,
+					    pve->pve_pathlen);
+				} else
+					error = ENAMETOOLONG;
+			}
+			if (freepath != NULL)
+				free(freepath, M_TEMP);
+		}
 	}
-	if (freepath != NULL)
-		free(freepath, M_TEMP);
+
 	return (error);
 }
+
+#ifdef COMPAT_IA32
+static int      
+ptrace_vm_entry32(struct thread *td, struct proc *p,
+    struct ptrace_vm_entry32 *pve32)
+{
+	struct ptrace_vm_entry pve;
+	int error;
+
+	pve.pve_entry = pve32->pve_entry;
+	pve.pve_pathlen = pve32->pve_pathlen;
+	pve.pve_path = (void *)(uintptr_t)pve32->pve_path;
+
+	error = ptrace_vm_entry(td, p, &pve);
+	if (error == 0) {
+		pve32->pve_entry = pve.pve_entry;
+		pve32->pve_timestamp = pve.pve_timestamp;
+		pve32->pve_start = pve.pve_start;
+		pve32->pve_end = pve.pve_end;
+		pve32->pve_offset = pve.pve_offset;
+		pve32->pve_prot = pve.pve_prot;
+		pve32->pve_fileid = pve.pve_fileid;
+		pve32->pve_fsid = pve.pve_fsid;
+	}
+
+	pve32->pve_pathlen = pve.pve_pathlen;
+	return (error);
+}
+#endif /* COMPAT_IA32 */
 
 /*
  * Process debugging system call.
@@ -1087,14 +1143,12 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_VM_ENTRY:
-#ifdef COMPAT_IA32
-		/* XXX to be implemented. */
-		if (wrap32) {
-			error = EDOOFUS;
-			break;
-		}
-#endif
 		PROC_UNLOCK(p);
+#ifdef COMPAT_IA32
+		if (wrap32)
+			error = ptrace_vm_entry32(td, p, addr);
+		else
+#endif
 		error = ptrace_vm_entry(td, p, addr);
 		PROC_LOCK(p);
 		break;

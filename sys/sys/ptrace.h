@@ -104,13 +104,16 @@ struct ptrace_lwpinfo {
 
 /* Argument structure for PT_VM_ENTRY. */
 struct ptrace_vm_entry {
-	void	*pve_cookie;		/* Token used to iterate. */
-	u_long	pve_start;		/* Start VA of range. */
-	u_long	pve_end;		/* End VA of range (incl). */
-	u_long	pve_offset;		/* Offset in backing object. */
-	u_int	pve_prot;		/* Protection of memory range. */
-	u_int	pve_pathlen;		/* Size of path. */
-	char	*pve_path;		/* Path name of object. */
+	int		pve_entry;	/* Entry number used for iteration. */
+	int		pve_timestamp;	/* Generation number of VM map. */
+	u_long		pve_start;	/* Start VA of range. */
+	u_long		pve_end;	/* End VA of range (incl). */
+	u_long		pve_offset;	/* Offset in backing object. */
+	u_int		pve_prot;	/* Protection of memory range. */
+	u_int		pve_pathlen;	/* Size of path. */
+	long		pve_fileid;	/* File ID. */
+	uint32_t	pve_fsid;	/* File system ID. */
+	char		*pve_path;	/* Path name of object. */
 };
 
 #ifdef _KERNEL
