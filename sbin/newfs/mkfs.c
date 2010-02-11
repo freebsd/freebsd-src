@@ -114,7 +114,8 @@ void
 mkfs(struct partition *pp, char *fsys)
 {
 	int fragsperinode, optimalfpg, origdensity, minfpg, lastminfpg;
-	long i, j, cylno, csfrags;
+	long i, j, csfrags;
+	uint cg;
 	time_t utime;
 	quad_t sizepb;
 	int width;
@@ -510,9 +511,9 @@ restart:
 			fsdummy.fs_magic = 0;
 			bwrite(&disk, part_ofs + SBLOCK_UFS1 / disk.d_bsize,
 			    chdummy, SBLOCKSIZE);
-			for (i = 0; i < fsdummy.fs_ncg; i++)
+			for (cg = 0; cg < fsdummy.fs_ncg; cg++)
 				bwrite(&disk, part_ofs + fsbtodb(&fsdummy,
-				    cgsblock(&fsdummy, i)), chdummy, SBLOCKSIZE);
+				  cgsblock(&fsdummy, cg)), chdummy, SBLOCKSIZE);
 		}
 	}
 	if (!Nflag)
@@ -550,11 +551,11 @@ restart:
 	 * writing out in each cylinder group.
 	 */
 	bcopy((char *)&sblock, iobuf, SBLOCKSIZE);
-	for (cylno = 0; cylno < sblock.fs_ncg; cylno++) {
-		initcg(cylno, utime);
+	for (cg = 0; cg < sblock.fs_ncg; cg++) {
+		initcg(cg, utime);
 		j = snprintf(tmpbuf, sizeof(tmpbuf), " %jd%s",
-		    (intmax_t)fsbtodb(&sblock, cgsblock(&sblock, cylno)),
-		    cylno < (sblock.fs_ncg-1) ? "," : "");
+		    (intmax_t)fsbtodb(&sblock, cgsblock(&sblock, cg)),
+		    cg < (sblock.fs_ncg-1) ? "," : "");
 		if (j < 0)
 			tmpbuf[j = 0] = '\0';
 		if (i + j >= width) {
@@ -608,7 +609,8 @@ restart:
 void
 initcg(int cylno, time_t utime)
 {
-	long i, j, d, dlower, dupper, blkno, start;
+	long blkno, start;
+	uint i, j, d, dlower, dupper;
 	ufs2_daddr_t cbase, dmax;
 	struct ufs1_dinode *dp1;
 	struct ufs2_dinode *dp2;
@@ -665,7 +667,7 @@ initcg(int cylno, time_t utime)
 		acg.cg_nextfreeoff = acg.cg_clusteroff +
 		    howmany(fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
 	}
-	if (acg.cg_nextfreeoff > sblock.fs_cgsize) {
+	if (acg.cg_nextfreeoff > (unsigned)sblock.fs_cgsize) {
 		printf("Panic: cylinder group too big\n");
 		exit(37);
 	}
@@ -914,7 +916,8 @@ makedir(struct direct *protodir, int entries)
 ufs2_daddr_t
 alloc(int size, int mode)
 {
-	int i, d, blkno, frag;
+	int i, blkno, frag;
+	uint d;
 
 	bread(&disk, part_ofs + fsbtodb(&sblock, cgtod(&sblock, 0)), (char *)&acg,
 	    sblock.fs_cgsize);
