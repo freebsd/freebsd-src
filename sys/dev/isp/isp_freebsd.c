@@ -133,33 +133,37 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		}
 #endif
 	} else {
+		fcparam *fcp = FCPARAM(isp, chan);
 		struct isp_fc *fc = ISP_FC_PC(isp, chan);
 
+		ISP_LOCK(isp);
 		fc->sim = sim;
 		fc->path = path;
 		fc->isp = isp;
+		fc->ready = 1;
 
 		callout_init_mtx(&fc->ldt, &isp->isp_osinfo.lock, 0);
 		callout_init_mtx(&fc->gdt, &isp->isp_osinfo.lock, 0);
-
-		if (THREAD_CREATE(isp_kthread, fc, &fc->kproc, 0, 0, "%s: fc_thrd%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
-			xpt_free_path(fc->path);
-			ISP_LOCK(isp);
-			xpt_bus_deregister(cam_sim_path(fc->sim));
-			ISP_UNLOCK(isp);
-			cam_sim_free(fc->sim, FALSE);
-		}
 		/*
 		 * We start by being "loop down" if we have an initiator role
 		 */
-		ISP_LOCK(isp);
-		if ((FCPARAM(isp, chan)->role & ISP_ROLE_INITIATOR) && fc->ldt_running == 0) {
+		if (fcp->role & ISP_ROLE_INITIATOR) {
 			isp_freeze_loopdown(isp, chan, "isp_attach");
-			fc->ldt_running = 1;
 			callout_reset(&fc->ldt, isp_quickboot_time * hz, isp_ldt, fc);
 			isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Starting Initial Loop Down Timer @ %lu", (unsigned long) time_uptime);
 		}
 		ISP_UNLOCK(isp);
+		if (THREAD_CREATE(isp_kthread, fc, &fc->kproc, 0, 0, "%s: fc_thrd%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
+			xpt_free_path(fc->path);
+			ISP_LOCK(isp);
+			if (callout_active(&fc->ldt)) {
+				callout_stop(&fc->ldt);
+			}
+			xpt_bus_deregister(cam_sim_path(fc->sim));
+			ISP_UNLOCK(isp);
+			cam_sim_free(fc->sim, FALSE);
+			return (ENOMEM);
+		}
 #ifdef	ISP_INTERNAL_TARGET
 		ISP_SET_PC(isp, chan, proc_active, 1);
 		if (THREAD_CREATE(isp_target_thread_fc, fc, &fc->target_proc, 0, 0, "%s: isp_test_tgt%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
@@ -343,6 +347,17 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 			break;
 		}
 		if (IS_FC(isp)) {
+			/*
+			 * We don't really support dual role at present on FC cards.
+			 *
+			 * We should, but a bunch of things are currently broken,
+			 * so don't allow it.
+			 */
+			if (nr == ISP_ROLE_BOTH) {
+				isp_prt(isp, ISP_LOGERR, "cannot support dual role at present");
+				retval = EINVAL;
+				break;
+			}
 			*(int *)addr = FCPARAM(isp, chan)->role;
 #ifdef	ISP_INTERNAL_TARGET
 			ISP_LOCK(isp);
@@ -1638,7 +1653,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 		cto->ct_timeout = 10;
 	}
 
-	if (isp_save_xs_tgt(isp, ccb, &handle)) {
+	if (isp_allocate_xs_tgt(isp, ccb, &handle)) {
 		xpt_print(ccb->ccb_h.path, "No XFLIST pointers for %s\n", __func__);
 		ccb->ccb_h.status = CAM_REQUEUE_REQ;
 		goto out;
@@ -2943,8 +2958,8 @@ isp_target_mark_aborted_early(ispsoftc_t *isp, tstate_t *tptr, uint32_t tag_id)
 
 #ifdef	ISP_INTERNAL_TARGET
 // #define	ISP_FORCE_TIMEOUT		1
-#define	ISP_TEST_WWNS			1
-#define	ISP_TEST_SEPARATE_STATUS	1
+// #define	ISP_TEST_WWNS			1
+// #define	ISP_TEST_SEPARATE_STATUS	1
 
 #define	ccb_data_offset		ppriv_field0
 #define	ccb_atio		ppriv_ptr1
@@ -3819,21 +3834,41 @@ isp_watchdog(void *arg)
 	isp = XS_ISP(xs);
 
 	handle = isp_find_handle(isp, xs);
-	if (handle) {
+	if (handle != ISP_HANDLE_FREE) {
 		/*
-		 * Make sure the command is *really* dead before we
-		 * release the handle (and DMA resources) for reuse.
+		 * Try and make sure the command is really dead before
+		 * we release the handle (and DMA resources) for reuse.
+		 *
+		 * If we are successful in aborting the command then
+		 * we're done here because we'll get the command returned
+		 * back separately.
 		 */
-		(void) isp_control(isp, ISPCTL_ABORT_CMD, xs);
+		if (isp_control(isp, ISPCTL_ABORT_CMD, xs) == 0) {
+			return;
+		}
 
 		/*
-		 * After this point, the comamnd is really dead.
+		 * Note that after calling the above, the command may in
+		 * fact have been completed.
+		 */
+		xs = isp_find_xs(isp, handle);
+
+		/*
+		 * If the command no longer exists, then we won't
+		 * be able to find the xs again with this handle.
+		 */
+		if (xs == NULL) {
+			return;
+		}
+
+		/*
+		 * After this point, the command is really dead.
 		 */
 		if (XS_XFRLEN(xs)) {
 			ISP_DMAFREE(isp, xs, handle);
 		} 
 		isp_destroy_handle(isp, handle);
-		xpt_print(xs->ccb_h.path, "watchdog timeout for handle 0x%x\n", handle);
+		isp_prt(isp, ISP_LOGERR, "%s: timeout for handle 0x%x", __func__, handle);
 		XS_SETERR(xs, CAM_CMD_TIMEOUT);
 		isp_done(xs);
 	}
@@ -3924,12 +3959,12 @@ isp_gdt(void *arg)
 		isp_prt(isp, ISP_LOGCONFIG, prom3, chan, lp->portid, tgt, "Gone Device Timeout");
 		isp_make_gone(isp, chan, tgt);
 	}
-	if (more_to_do) {
-		fc->gdt_running = 1;
-		callout_reset(&fc->gdt, hz, isp_gdt, fc);
-	} else {
-		isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d stopping Gone Device Timer", chan);
-		fc->gdt_running = 0;
+	if (fc->ready) {
+		if (more_to_do) {
+			callout_reset(&fc->gdt, hz, isp_gdt, fc);
+		} else {
+			isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d stopping Gone Device Timer", chan);
+		}
 	}
 }
 
@@ -4006,6 +4041,7 @@ isp_kthread(void *arg)
 	ispsoftc_t *isp = fc->isp;
 	int chan = fc - isp->isp_osinfo.pc.fc;
 	int slp = 0;
+
 	mtx_lock(&isp->isp_osinfo.lock);
 
 	for (;;) {
@@ -4238,6 +4274,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			isp_disable_lun(isp, ccb);
 		}
 		break;
+	case XPT_IMMED_NOTIFY:
 	case XPT_IMMEDIATE_NOTIFY:	/* Add Immediate Notify Resource */
 	case XPT_ACCEPT_TARGET_IO:	/* Add Accept Target IO Resource */
 	{
@@ -4287,11 +4324,19 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			SLIST_INSERT_HEAD(&tptr->inots, &ccb->ccb_h, sim_links.sle);
 			ISP_PATH_PRT(isp, ISP_LOGTDEBUG0, ccb->ccb_h.path, "Put FREE INOT, (seq id 0x%x) count now %d\n",
 			    ((struct ccb_immediate_notify *)ccb)->seq_id, tptr->inot_count);
+		} else if (ccb->ccb_h.func_code == XPT_IMMED_NOTIFY) {
+			tptr->inot_count++;
+			SLIST_INSERT_HEAD(&tptr->inots, &ccb->ccb_h, sim_links.sle);
+			ISP_PATH_PRT(isp, ISP_LOGTDEBUG0, ccb->ccb_h.path, "Put FREE INOT, (seq id 0x%x) count now %d\n",
+			    ((struct ccb_immediate_notify *)ccb)->seq_id, tptr->inot_count);
 		}
 		rls_lun_statep(isp, tptr);
 		ccb->ccb_h.status = CAM_REQ_INPROG;
 		break;
 	}
+	case XPT_NOTIFY_ACK:
+		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		break;
 	case XPT_NOTIFY_ACKNOWLEDGE:		/* notify ack */
 	{
 		tstate_t *tptr;
@@ -4601,10 +4646,21 @@ isp_prt(isp, ISP_LOGALL, "Setting Channel %d wwns to 0x%jx 0x%jx", bus, fcp->isp
 				}
 				break;
 			case KNOB_ROLE_BOTH:
+#if 0
 				if (fcp->role != ISP_ROLE_BOTH) {
 					rchange = 1;
 					newrole = ISP_ROLE_BOTH;
 				}
+#else
+				/*
+				 * We don't really support dual role at present on FC cards.
+				 *
+				 * We should, but a bunch of things are currently broken,
+				 * so don't allow it.
+				 */
+				isp_prt(isp, ISP_LOGERR, "cannot support dual role at present");
+				ccb->ccb_h.status = CAM_REQ_INVALID;
+#endif
 				break;
 			}
 			if (rchange) {
@@ -4771,6 +4827,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 	char *msg = NULL;
 	target_id_t tgt;
 	fcportdb_t *lp;
+	struct isp_fc *fc;
 	struct cam_path *tmppath;
 	va_list ap;
 
@@ -4855,7 +4912,6 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		/* FALLTHROUGH */
 	case ISPASYNC_LOOP_DOWN:
 	{
-		struct isp_fc *fc;
 		if (msg == NULL) {
 			msg = "LOOP Down";
 		}
@@ -4863,20 +4919,21 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		bus = va_arg(ap, int);
 		va_end(ap);
 
-		FCPARAM(isp, bus)->link_active = 1;
+		FCPARAM(isp, bus)->link_active = 0;
 
 		fc = ISP_FC_PC(isp, bus);
-		/*
-		 * We don't do any simq freezing if we are only in target mode
-		 */
-		if (fc->role & ISP_ROLE_INITIATOR) {
-			if (fc->path) {
-				isp_freeze_loopdown(isp, bus, msg);
-			}
-			if (fc->ldt_running == 0) {
-				fc->ldt_running = 1;
-				callout_reset(&fc->ldt, fc->loop_down_limit * hz, isp_ldt, fc);
-				isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "starting Loop Down Timer @ %lu", (unsigned long) time_uptime);
+		if (cmd == ISPASYNC_LOOP_DOWN && fc->ready) {
+			/*
+			 * We don't do any simq freezing if we are only in target mode
+			 */
+			if (fc->role & ISP_ROLE_INITIATOR) {
+				if (fc->path) {
+					isp_freeze_loopdown(isp, bus, msg);
+				}
+				if (!callout_active(&fc->ldt)) {
+					callout_reset(&fc->ldt, fc->loop_down_limit * hz, isp_ldt, fc);
+					isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "starting Loop Down Timer @ %lu", (unsigned long) time_uptime);
+				}
 			}
 		}
 		isp_prt(isp, ISP_LOGINFO, "Chan %d: %s", bus, msg);
@@ -4886,6 +4943,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		va_start(ap, cmd);
 		bus = va_arg(ap, int);
 		va_end(ap);
+		fc = ISP_FC_PC(isp, bus);
 		/*
 		 * Now we just note that Loop has come up. We don't
 		 * actually do anything because we're waiting for a
@@ -4893,8 +4951,8 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		 * thread to look at the state of the loop again.
 		 */
 		FCPARAM(isp, bus)->link_active = 1;
-		ISP_FC_PC(isp, bus)->loop_dead = 0;
-		ISP_FC_PC(isp, bus)->loop_down_time = 0;
+		fc->loop_dead = 0;
+		fc->loop_down_time = 0;
 		isp_prt(isp, ISP_LOGINFO, "Chan %d Loop UP", bus);
 		break;
 	case ISPASYNC_DEV_ARRIVED:
@@ -4902,8 +4960,9 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		bus = va_arg(ap, int);
 		lp = va_arg(ap, fcportdb_t *);
 		va_end(ap);
+		fc = ISP_FC_PC(isp, bus);
 		lp->reserved = 0;
-		if ((ISP_FC_PC(isp, bus)->role & ISP_ROLE_INITIATOR) && (lp->roles & (SVC3_TGT_ROLE >> SVC3_ROLE_SHIFT))) {
+		if ((fc->role & ISP_ROLE_INITIATOR) && (lp->roles & (SVC3_TGT_ROLE >> SVC3_ROLE_SHIFT))) {
 			int dbidx = lp - FCPARAM(isp, bus)->portdb;
 			int i;
 
@@ -4936,6 +4995,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		bus = va_arg(ap, int);
 		lp = va_arg(ap, fcportdb_t *);
 		va_end(ap);
+		fc = ISP_FC_PC(isp, bus);
 		lp->reserved = 0;
 		if (isp_change_is_bad) {
 			lp->state = FC_PORTDB_STATE_NIL;
@@ -4982,6 +5042,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		bus = va_arg(ap, int);
 		lp = va_arg(ap, fcportdb_t *);
 		va_end(ap);
+		fc = ISP_FC_PC(isp, bus);
 		/*
 		 * If this has a virtual target and we haven't marked it
 		 * that we're going to have isp_gdt tell the OS it's gone,
@@ -4994,10 +5055,9 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			lp->reserved = 1;
 			lp->new_reserved = ISP_FC_PC(isp, bus)->gone_device_time;
 			lp->state = FC_PORTDB_STATE_ZOMBIE;
-			if (ISP_FC_PC(isp, bus)->gdt_running == 0) {
+			if (fc->ready && !callout_active(&fc->gdt)) {
 				isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d starting Gone Device Timer", bus);
-				ISP_FC_PC(isp, bus)->gdt_running = 1;
-				callout_reset(&ISP_FC_PC(isp, bus)->gdt, hz, isp_gdt, ISP_FC_PC(isp, bus));
+				callout_reset(&fc->gdt, hz, isp_gdt, fc);
 			}
 			tgt = lp->dev_map_idx - 1;
 			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, roles[lp->roles], "gone zombie at", tgt, (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
@@ -5022,6 +5082,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			nlstate = reason = 0;
 		}
 		va_end(ap);
+		fc = ISP_FC_PC(isp, bus);
 
 		if (evt == ISPASYNC_CHANGE_PDB) {
 			msg = "Chan %d Port Database Changed";
@@ -5034,16 +5095,15 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		/*
 		 * If the loop down timer is running, cancel it.
 		 */
-		if (ISP_FC_PC(isp, bus)->ldt_running) {
+		if (fc->ready && callout_active(&fc->ldt)) {
 			isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Stopping Loop Down Timer @ %lu", (unsigned long) time_uptime);
-			ISP_FC_PC(isp, bus)->ldt_running = 0;
-			callout_stop(&ISP_FC_PC(isp, bus)->ldt);
+			callout_stop(&fc->ldt);
 		}
 		isp_prt(isp, ISP_LOGINFO, msg, bus);
-		if (ISP_FC_PC(isp, bus)->role & ISP_ROLE_INITIATOR) {
+		if (fc->role & ISP_ROLE_INITIATOR) {
 			isp_freeze_loopdown(isp, bus, msg);
 		}
-		wakeup(ISP_FC_PC(isp, bus));
+		wakeup(fc);
 		break;
 	}
 #ifdef	ISP_TARGET_MODE

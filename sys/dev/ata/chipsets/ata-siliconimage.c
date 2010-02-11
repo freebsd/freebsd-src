@@ -716,9 +716,9 @@ ata_siiprb_pm_write(device_t dev, int port, int reg, u_int32_t value)
     prb->fis[3] = reg;
     prb->fis[7] = port;
     prb->fis[12] = value & 0xff;
-    prb->fis[4] = (value >> 8) & 0xff;;
-    prb->fis[5] = (value >> 16) & 0xff;;
-    prb->fis[6] = (value >> 24) & 0xff;;
+    prb->fis[4] = (value >> 8) & 0xff;
+    prb->fis[5] = (value >> 16) & 0xff;
+    prb->fis[6] = (value >> 24) & 0xff;
     if (ata_siiprb_issue_cmd(dev)) {
 	device_printf(dev, "error writing PM port\n");
 	return ATA_E_ABORT;

@@ -836,7 +836,7 @@ hatm_init_rx_buffer_pool(struct hatm_softc *sc,
 	uint32_t lbuf_addr;	/* address of current buffer */
 	u_int i;
 
-	row_size = sc->bytes_per_row;;
+	row_size = sc->bytes_per_row;
 	row_addr = start * row_size;
 	lbuf_size = sc->cells_per_lbuf * 48;
 	lbufs_per_row = sc->cells_per_row / sc->cells_per_lbuf;
@@ -889,7 +889,7 @@ hatm_init_tx_buffer_pool(struct hatm_softc *sc,
 	uint32_t lbuf_addr;	/* address of current buffer */
 	u_int i;
 
-	row_size = sc->bytes_per_row;;
+	row_size = sc->bytes_per_row;
 	row_addr = start * row_size;
 	lbuf_size = sc->cells_per_lbuf * 48;
 	lbufs_per_row = sc->cells_per_row / sc->cells_per_lbuf;

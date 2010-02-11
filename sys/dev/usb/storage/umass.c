@@ -3036,7 +3036,7 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 	case 0xad:			/* READ_DVD_STRUCTURE */
 	case 0xbb:			/* SET_CD_SPEED */
 	case 0xe5:			/* READ_TRACK_INFO_PHILIPS */
-		break;;
+		break;
 
 	case READ_12:
 	case WRITE_12:
@@ -3044,7 +3044,7 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		DPRINTF(sc, UDMASS_SCSI, "Unsupported ATAPI "
 		    "command 0x%02x - trying anyway\n",
 		    cmd_ptr[0]);
-		break;;
+		break;
 	}
 
 	bcopy(cmd_ptr, sc->sc_transfer.cmd_data, cmd_len);

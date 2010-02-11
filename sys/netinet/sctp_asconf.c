@@ -2224,7 +2224,7 @@ sctp_asconf_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				}
 				if (stcb->asoc.ipv4_local_scope == 0 &&
 				    IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)) {
-					continue;;
+					continue;
 				}
 				if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
 				    SCTP_IPV6_V6ONLY(inp6)) {

@@ -1799,7 +1799,7 @@ musbotg_init(struct musbotg_softc *sc)
 		MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, temp);
 
 		fsize = MUSB2_READ_1(sc, MUSB2_REG_FSIZE);
-		frx = (fsize & MUSB2_MASK_RX_FSIZE) / 16;;
+		frx = (fsize & MUSB2_MASK_RX_FSIZE) / 16;
 		ftx = (fsize & MUSB2_MASK_TX_FSIZE);
 
 		DPRINTF("Endpoint %u FIFO size: IN=%u, OUT=%u, DYN=%d\n",

@@ -3174,23 +3174,23 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	bytes = rx_ring_entries * sizeof (*ss->rx_small.shadow);
 	ss->rx_small.shadow = malloc(bytes, M_DEVBUF, M_ZERO|M_WAITOK);
 	if (ss->rx_small.shadow == NULL)
-		return err;;
+		return err;
 
 	bytes = rx_ring_entries * sizeof (*ss->rx_big.shadow);
 	ss->rx_big.shadow = malloc(bytes, M_DEVBUF, M_ZERO|M_WAITOK);
 	if (ss->rx_big.shadow == NULL)
-		return err;;
+		return err;
 
 	/* allocate the rx host info rings */
 	bytes = rx_ring_entries * sizeof (*ss->rx_small.info);
 	ss->rx_small.info = malloc(bytes, M_DEVBUF, M_ZERO|M_WAITOK);
 	if (ss->rx_small.info == NULL)
-		return err;;
+		return err;
 
 	bytes = rx_ring_entries * sizeof (*ss->rx_big.info);
 	ss->rx_big.info = malloc(bytes, M_DEVBUF, M_ZERO|M_WAITOK);
 	if (ss->rx_big.info == NULL)
-		return err;;
+		return err;
 
 	/* allocate the rx busdma resources */
 	err = bus_dma_tag_create(sc->parent_dmat,	/* parent */
@@ -3208,7 +3208,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d allocating rx_small dmat\n",
 			      err);
-		return err;;
+		return err;
 	}
 
 	err = bus_dma_tag_create(sc->parent_dmat,	/* parent */
@@ -3235,7 +3235,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d allocating rx_big dmat\n",
 			      err);
-		return err;;
+		return err;
 	}
 	for (i = 0; i <= ss->rx_small.mask; i++) {
 		err = bus_dmamap_create(ss->rx_small.dmat, 0, 
@@ -3243,7 +3243,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 		if (err != 0) {
 			device_printf(sc->dev, "Err %d  rx_small dmamap\n",
 				      err);
-			return err;;
+			return err;
 		}
 	}
 	err = bus_dmamap_create(ss->rx_small.dmat, 0, 
@@ -3251,7 +3251,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d extra rx_small dmamap\n",
 			      err);
-		return err;;
+		return err;
 	}
 
 	for (i = 0; i <= ss->rx_big.mask; i++) {
@@ -3260,7 +3260,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 		if (err != 0) {
 			device_printf(sc->dev, "Err %d  rx_big dmamap\n",
 				      err);
-			return err;;
+			return err;
 		}
 	}
 	err = bus_dmamap_create(ss->rx_big.dmat, 0, 
@@ -3268,7 +3268,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d extra rx_big dmamap\n",
 			      err);
-		return err;;
+		return err;
 	}
 
 	/* now allocate TX resouces */
@@ -3288,7 +3288,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 		sizeof (*ss->tx.req_list) * (ss->tx.max_desc + 4);
 	ss->tx.req_bytes = malloc(bytes, M_DEVBUF, M_WAITOK);
 	if (ss->tx.req_bytes == NULL)
-		return err;;
+		return err;
 	/* ensure req_list entries are aligned to 8 bytes */
 	ss->tx.req_list = (mcp_kreq_ether_send_t *)
 		((unsigned long)(ss->tx.req_bytes + 7) & ~7UL);
@@ -3298,13 +3298,13 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	ss->tx.seg_list = (bus_dma_segment_t *) 
 		malloc(bytes, M_DEVBUF, M_WAITOK);
 	if (ss->tx.seg_list == NULL)
-		return err;;
+		return err;
 
 	/* allocate the tx host info ring */
 	bytes = tx_ring_entries * sizeof (*ss->tx.info);
 	ss->tx.info = malloc(bytes, M_DEVBUF, M_ZERO|M_WAITOK);
 	if (ss->tx.info == NULL)
-		return err;;
+		return err;
 	
 	/* allocate the tx busdma resources */
 	err = bus_dma_tag_create(sc->parent_dmat,	/* parent */
@@ -3323,7 +3323,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d allocating tx dmat\n",
 			      err);
-		return err;;
+		return err;
 	}
 
 	/* now use these tags to setup dmamaps for each slot
@@ -3334,7 +3334,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 		if (err != 0) {
 			device_printf(sc->dev, "Err %d  tx dmamap\n",
 				      err);
-			return err;;
+			return err;
 		}
 	}
 	return 0;

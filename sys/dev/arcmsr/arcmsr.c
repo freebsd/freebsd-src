@@ -1940,7 +1940,7 @@ static void arcmsr_handle_virtual_command(struct AdapterControlBlock *acb,
 	switch (pccb->csio.cdb_io.cdb_bytes[0]) {
 	case INQUIRY: {
 		unsigned char inqdata[36];
-		char *buffer=pccb->csio.data_ptr;;
+		char *buffer=pccb->csio.data_ptr;
 	
 		if (pccb->ccb_h.target_lun) {
 			pccb->ccb_h.status |= CAM_SEL_TIMEOUT;
