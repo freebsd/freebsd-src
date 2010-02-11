@@ -424,6 +424,9 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 	vm_map_unlock_read(map);
 	vmspace_free(vm);
 
+	pve->pve_fsid = VNOVAL;
+	pve->pve_fileid = VNOVAL;
+
 	if (error == 0 && obj != NULL) {
 		lobj = obj;
 		for (tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
