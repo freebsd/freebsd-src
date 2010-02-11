@@ -29,12 +29,7 @@
 
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/endian.h>
 
-#include <stdint.h>
-#include <time.h>
-#include <string.h>
-#include <pthread.h>
 
 
 #ifdef __cplusplus
