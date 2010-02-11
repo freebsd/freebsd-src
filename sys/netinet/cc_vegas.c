@@ -1,11 +1,14 @@
 /*-
  * Copyright (c) 2009-2010
  * 	Swinburne University of Technology, Melbourne, Australia
+ * Copyright (c) 2010 Lawrence Stewart <lstewart@freebsd.org>
+ * All rights reserved.
  *
  * This software was developed at the Centre for Advanced Internet
  * Architectures, Swinburne University, by David Hayes and Lawrence Stewart,
- * made possible in part by a grant from the Cisco University Research Program
- * Fund at Community Foundation Silicon Valley.
+ * made possible in part by grants from the FreeBSD Foundation and
+ * Cisco University Research Program Fund at Community Foundation
+ * Silicon Valley.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -56,6 +59,8 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/cc.h>
 #include <netinet/cc_module.h>
+#include <netinet/h_ertt.h>
+#include <netinet/helper.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
@@ -63,26 +68,42 @@ __FBSDID("$FreeBSD$");
 #define CAST_PTR_INT(X) (*((int*)(X)))
 
 int vegas_mod_init(void);
-void vegas_pre_fr(struct tcpcb *tp, struct tcphdr *th);
-void vegas_post_fr(struct tcpcb *tp, struct tcphdr *th);
+int vegas_cb_init(struct tcpcb *tp);
+void vegas_cb_destroy(struct tcpcb *tp);
+void vegas_ack_received(struct tcpcb *tp, struct tcphdr *th);
+void vegas_conn_init(struct tcpcb *tp);
+
+struct vegas {
+	int rtt_ctr; /*counts rtts for vegas slow start */
+};
+
+MALLOC_DECLARE(M_VEGAS);
+MALLOC_DEFINE(M_VEGAS, "vegas data",
+    "Per connection data required for the VEGAS congestion algorithm");
 
 /* function pointers for various hooks into the TCP stack */
 struct cc_algo vegas_cc_algo = {
 	.name = "vegas",
 	.mod_init = vegas_mod_init,
-	.pre_fr = vegas_pre_fr,
-	.post_fr = vegas_post_fr,
+	.ack_received = vegas_ack_received,
+	.cb_init = vegas_cb_init,
+	.cb_destroy = vegas_cb_destroy
+	/* newreno fastrecovery and timout mechanisms are used in this implementation */
 };
 
-static uint32_t vegas_alpha = 1;
-static uint32_t vegas_beta = 3;
+static VNET_DEFINE(uint32_t, vegas_alpha);
+static VNET_DEFINE(uint32_t, vegas_beta);
+static VNET_DEFINE(int, ertt_id);
+#define	V_vegas_alpha	VNET(vegas_alpha)
+#define	V_vegas_beta	VNET(vegas_beta)
+#define	V_ertt_id	VNET(ertt_id)
 
 static int
 vegas_alpha_handler(SYSCTL_HANDLER_ARGS)
 {
 	if(req->newptr != NULL) {
 		if(CAST_PTR_INT(req->newptr) < 1 ||
-		    CAST_PTR_INT(req->newptr) > vegas_beta)
+		    CAST_PTR_INT(req->newptr) > V_vegas_beta)
 			return (EINVAL);
 	}
 
@@ -94,7 +115,7 @@ vegas_beta_handler(SYSCTL_HANDLER_ARGS)
 {
 	if(req->newptr != NULL) {
 		if(CAST_PTR_INT(req->newptr) < 1 ||
-		    CAST_PTR_INT(req->newptr) <= vegas_alpha)
+		    CAST_PTR_INT(req->newptr) < V_vegas_alpha)
 			return (EINVAL);
 	}
 
@@ -102,38 +123,76 @@ vegas_beta_handler(SYSCTL_HANDLER_ARGS)
 }
 
 void
-vegas_post_fr(struct tcpcb *tp, struct tcphdr *th)
+vegas_ack_received(struct tcpcb *tp, struct tcphdr *th)
 {
-/*	struct enhanced_timing *e_t;
-	struct rateinfo *r_i;
-	e_t = &tp->e_t;
-	r_i = &e_t->r_i;
+	struct ertt *e_t = (struct ertt *) get_helper_dblock(tp->dblocks,
+	    tp->n_dblocks, V_ertt_id);
+	struct vegas *vegas_data = CC_DATA(tp);
+	long expected_tx_rate, actual_tx_rate;
 
-	if (!IN_FASTRECOVERY(tp) && (tp->e_t.flags & DRCC_NEW_MEASUREMENT)) {
+	if (!IN_FASTRECOVERY(tp) && (e_t->flags & ERTT_NEW_MEASUREMENT)) {
 
-		long diff = r_i->expected_tx_rate - r_i->actual_tx_rate;
-		if (diff < V_ratecc_vegas_alpha*tp->t_maxseg/e_t->minrtt)
-			tp->snd_cwnd = min(tp->snd_cwnd + tp->t_maxseg, TCP_MAXWIN<<tp->snd_scale);
-		else if (diff > V_ratecc_vegas_beta*tp->t_maxseg/e_t->minrtt)
-			tp->snd_cwnd = max(2*tp->t_maxseg,tp->snd_cwnd-tp->t_maxseg);
+		expected_tx_rate = e_t->marked_snd_cwnd/e_t->minrtt;
+		actual_tx_rate = e_t->bytes_tx_in_marked_rtt/e_t->markedpkt_rtt;
 
-		e_t->flags &= ~DRCC_NEW_MEASUREMENT;
+		long ndiff = (expected_tx_rate - actual_tx_rate)*e_t->minrtt/tp->t_maxseg;
 
+
+		if (ndiff < V_vegas_alpha)
+			if (tp->snd_cwnd < tp->snd_ssthresh) {
+				vegas_data->rtt_ctr += 1;
+				if (vegas_data->rtt_ctr > 1) {
+					newreno_cc_algo.ack_received(tp, th); /* reno slow start every second RTT */
+					vegas_data->rtt_ctr = 0;
+				}
+			} else {
+				tp->snd_cwnd = min(tp->snd_cwnd + tp->t_maxseg, TCP_MAXWIN<<tp->snd_scale);
+			}
+			else if (ndiff > V_vegas_beta) {
+				tp->snd_cwnd = max(2*tp->t_maxseg,tp->snd_cwnd-tp->t_maxseg);
+				if (tp->snd_cwnd < tp->snd_ssthresh)
+					tp->snd_ssthresh = tp->snd_cwnd; /* exit slow start */
+
+				e_t->flags &= ~ERTT_NEW_MEASUREMENT;
+			}
 	}
-*/
 }
 
-void
-vegas_pre_fr(struct tcpcb *tp, struct tcphdr *th)
+/* Create struct to store VEGAS specific data */
+int
+vegas_cb_init(struct tcpcb *tp)
 {
-	//EXIT_RATE_AVOID(tp);
-	//EXIT_DELAYRATERECOVERY(tp);
+	struct vegas *vegas_data;
+	
+	vegas_data = malloc(sizeof(struct vegas), M_VEGAS, M_NOWAIT);
+	
+	if (vegas_data == NULL)
+		return (ENOMEM);
+	
+	vegas_data->rtt_ctr = 1;
+	
+	CC_DATA(tp) = vegas_data;
+
+	return (0);
+}
+
+/*
+ * Free the struct used to store VEGAS specific data for the specified
+ * TCP control block.
+ */
+void
+vegas_cb_destroy(struct tcpcb *tp)
+{
+	if (CC_DATA(tp) != NULL)
+		free(CC_DATA(tp), M_VEGAS);
 }
 
 int
 vegas_mod_init(void)
 {
-	vegas_cc_algo.ack_received = newreno_cc_algo.ack_received;
+	V_vegas_alpha = 1;
+	V_vegas_beta = 3;
+	V_ertt_id = get_helper_id("ertt");
 	return (0);
 }
 
@@ -142,13 +201,14 @@ SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, vegas, CTLFLAG_RW, NULL,
     "VEGAS related settings");
 
 SYSCTL_OID(_net_inet_tcp_cc_vegas, OID_AUTO, vegas_alpha,
-    CTLTYPE_UINT|CTLFLAG_RW, &vegas_alpha, 0,
+    CTLTYPE_UINT|CTLFLAG_RW, &V_vegas_alpha, 0,
     &vegas_alpha_handler, "IU",
     "vegas alpha parameter - Entered in terms of number \"buffers\" (0 < alpha < beta)");
 
 SYSCTL_OID(_net_inet_tcp_cc_vegas, OID_AUTO, vegas_beta,
-    CTLTYPE_UINT|CTLFLAG_RW, &vegas_beta, 0,
+    CTLTYPE_UINT|CTLFLAG_RW, &V_vegas_beta, 0,
     &vegas_beta_handler, "IU",
     "vegas beta parameter - Entered in terms of number \"buffers\" (0 < alpha < beta)");
 
 DECLARE_CC_MODULE(vegas, &vegas_cc_algo);
+MODULE_DEPEND(vegas, ertt, 1, 1, 1);
