@@ -287,7 +287,7 @@ struct fs {
 	int32_t	 fs_spare1[2];		/* old fs_csmask */
 					/* old fs_csshift */
 	int32_t	 fs_nindir;		/* value of NINDIR */
-	int32_t	 fs_inopb;		/* value of INOPB */
+	u_int32_t fs_inopb;		/* value of INOPB */
 	int32_t	 fs_old_nspf;		/* value of NSPF */
 /* yet another configuration parameter */
 	int32_t	 fs_optim;		/* optimization preference, see below */
