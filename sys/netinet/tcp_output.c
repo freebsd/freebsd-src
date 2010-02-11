@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/cc.h>
+#include <netinet/hhooks.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -161,6 +162,7 @@ tcp_output(struct tcpcb *tp)
 	struct sackhole *p;
 	int tso = 0;
 	struct tcpopt to;
+	struct tcp_hhook_data hhook_data;
 #if 0
 	int maxburst = TCP_MAXBURST;
 #endif
@@ -1111,6 +1113,15 @@ timer:
 		if (SEQ_GT(tp->snd_nxt + xlen, tp->snd_max))
 			tp->snd_max = tp->snd_nxt + len;
 	}
+
+	hhook_data.th = th;
+	hhook_data.tp = tp;
+	hhook_data.to = &to;
+	hhook_data.len = len;
+	hhook_data.tso = tso;
+	run_hhooks(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED_OUT, &hhook_data,
+	    tp->dblocks, tp->n_dblocks);
+
 
 #ifdef TCPDEBUG
 	/*

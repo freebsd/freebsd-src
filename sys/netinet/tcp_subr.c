@@ -378,7 +378,10 @@ tcp_init(void)
 
 	V_tcp_inflight_rttthresh = TCPTV_INFLIGHT_RTTTHRESH;
 
-	if (register_hhook_head(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED,
+	if (register_hhook_head(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED_IN,
+	    HHOOK_NOWAIT) != 0)
+		printf("%s: WARNING: unable to register helper hook\n", __func__);
+	if (register_hhook_head(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED_OUT,
 	    HHOOK_NOWAIT) != 0)
 		printf("%s: WARNING: unable to register helper hook\n", __func__);
 

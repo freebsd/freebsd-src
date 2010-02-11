@@ -2119,14 +2119,20 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			TCPSTAT_INC(tcps_rcvacktoomuch);
 			goto dropafterack;
 		}
+		hhook_data.new_sacked_bytes = 0;
 		if ((tp->t_flags & TF_SACK_PERMIT) &&
 		    ((to.to_flags & TOF_SACK) ||
-		     !TAILQ_EMPTY(&tp->snd_holes)))
+		     !TAILQ_EMPTY(&tp->snd_holes))) {
 			tcp_sack_doack(tp, &to, th->th_ack);
+			/* XXXDH: should only be one if a productive SACK */
+			hhook_data.new_sacked_bytes = 1;
+		}
 
-		hhook_data.curack = th->th_ack;
-		run_hhooks(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED, &hhook_data,
-		tp->dblocks, tp->n_dblocks);
+		hhook_data.tp = tp;
+		hhook_data.th = th;
+		hhook_data.to = &to;
+		run_hhooks(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED_IN, &hhook_data,
+		    tp->dblocks, tp->n_dblocks);
 
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
 			if (tlen == 0 && tiwin == tp->snd_wnd) {
