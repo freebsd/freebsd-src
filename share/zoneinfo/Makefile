@@ -68,7 +68,7 @@ afterinstall:
 				optC="-C ${DESTDIR}"; \
 			fi; \
 			echo "Updating /etc/localtime"; \
-			tzsetup ${optC} -r; \
+			tzsetup $${optC} -r; \
 		fi; \
 	else \
 		echo "Run tzsetup(8) manually to update /etc/localtime."; \
