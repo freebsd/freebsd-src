@@ -301,7 +301,7 @@ main(int argc, char *argv[])
 	}
 	if (fflag) {
 		name = "average file size";
-		if (sblock.fs_avgfilesize == fvalue) {
+		if (sblock.fs_avgfilesize == (unsigned)fvalue) {
 			warnx("%s remains unchanged as %d", name, fvalue);
 		}
 		else {
@@ -427,7 +427,7 @@ main(int argc, char *argv[])
 	}
 	if (sflag) {
 		name = "expected number of files per directory";
-		if (sblock.fs_avgfpdir == svalue) {
+		if (sblock.fs_avgfpdir == (unsigned)svalue) {
 			warnx("%s remains unchanged as %d", name, svalue);
 		}
 		else {
