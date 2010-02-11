@@ -1653,14 +1653,7 @@ acpi_probe_children(device_t bus)
     bus_generic_probe(bus);
 
     /* Probe/attach all children, created staticly and from the namespace. */
-    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "first bus_generic_attach\n"));
-    bus_generic_attach(bus);
-
-    /*
-     * Some of these children may have attached others as part of their attach
-     * process (eg. the root PCI bus driver), so rescan.
-     */
-    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "second bus_generic_attach\n"));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "acpi bus_generic_attach\n"));
     bus_generic_attach(bus);
 
     /* Attach wake sysctls. */
