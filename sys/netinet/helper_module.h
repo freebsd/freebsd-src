@@ -41,7 +41,7 @@ struct helper_modevent_data {
 	uma_dtor umadtor;
 };
 
-#define	DECLARE_HELPER(hname, hdata) 					\
+#define	DECLARE_HELPER(hname, hdata, version)				\
 	static struct helper_modevent_data hmd_##hname = {		\
 		.name = #hname,						\
 		.helper = hdata						\
@@ -52,9 +52,10 @@ struct helper_modevent_data {
 		.priv = &hmd_##hname					\
 	};								\
 	DECLARE_MODULE(hname, h_##hname, SI_SUB_PROTO_IFATTACHDOMAIN, \
-	    SI_ORDER_ANY)
+	    SI_ORDER_ANY);						\
+	MODULE_VERSION(hname, version);
 
-#define	DECLARE_HELPER_UMA(hname, hdata, size, ctor, dtor)		\
+#define	DECLARE_HELPER_UMA(hname, hdata, version, size, ctor, dtor)	\
 	static struct helper_modevent_data hmd_##hname = {		\
 		.name = #hname,						\
 		.helper = hdata,					\
@@ -68,7 +69,8 @@ struct helper_modevent_data {
 		.priv = &hmd_##hname					\
 	};								\
 	DECLARE_MODULE(hname, h_##hname, SI_SUB_PROTO_IFATTACHDOMAIN, \
-	    SI_ORDER_ANY)
+	    SI_ORDER_ANY);						\
+	MODULE_VERSION(hname, version);
 
 int	helper_modevent(module_t mod, int type, void *data);
 

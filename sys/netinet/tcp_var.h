@@ -76,7 +76,7 @@ struct sackhole {
 struct sackhint {
 	struct sackhole	*nexthole;
 	int		sack_bytes_rexmit;
-
+        tcp_seq		last_sack_ack; /* Last sack block acked with current pkt - used for enhanced RTT calculations*/
 	int		ispare;		/* explicit pad for 64bit alignment */
 	uint64_t	_pad[2];	/* 1 sacked_bytes, 1 TBD */
 };
@@ -247,12 +247,19 @@ struct tcpcb {
 #define BYTES_ACKED(tp, th)	(th->th_ack - tp->snd_una)
 
 /*
- * TCP specific helper hook point identifiers
+ * TCP specific helper hook point identifiers.
  */
-#define	HHOOK_TCP_ESTABLISHED	1
+#define	HHOOK_TCP_ESTABLISHED_IN	1
+#define	HHOOK_TCP_ESTABLISHED_OUT	2
 
 struct tcp_hhook_data {
-	tcp_seq		curack;
+	struct tcpcb *tp;
+	struct tcphdr *th;
+	struct tcpopt *to;
+	long len;
+	int tso;
+	tcp_seq  curack;
+	int new_sacked_bytes;
 };
 
 /*
