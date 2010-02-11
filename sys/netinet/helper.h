@@ -41,7 +41,9 @@ struct helper_dblock {
 	void *block;
 };
 
+#define HELPER_NAME_MAXLEN 16
 struct helper {
+	char		name[HELPER_NAME_MAXLEN];
 	/* Init global module state on kldload. */
 	int (*mod_init) (void);
 
@@ -68,11 +70,12 @@ struct helper {
 #define HELPER_CLASS_TCP	0x00000001
 
 int	init_helper_dblocks(struct helper_dblock **dblocks, int *nblocks);
-int	destroy_helper_dblocks(struct helper_dblock *array_head, int nblocks);
+int	destroy_helper_dblocks(struct helper_dblock *dblocks, int nblocks);
 int	register_helper(struct helper *h);
 int	deregister_helper(struct helper *h);
-/*struct helper_dblock * get_helper_dblock(struct helper_dblock *array_head, int
-id);*/
+int	get_helper_id(char *hname);
+void *	get_helper_dblock(struct helper_dblock *dblocks,
+    int nblocks, int id);
 
 #define	HELPER_LIST_WLOCK() rw_wlock(&helper_list_lock)
 #define	HELPER_LIST_WUNLOCK() rw_wunlock(&helper_list_lock)

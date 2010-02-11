@@ -34,7 +34,7 @@
 #define _NETINET_HELPER_MODULE_H_
 
 struct helper_modevent_data {
-	char *name;
+	char name[HELPER_NAME_MAXLEN];
 	struct helper *helper;
 	int uma_zsize;
 	uma_ctor umactor;

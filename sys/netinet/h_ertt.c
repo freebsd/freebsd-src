@@ -74,9 +74,9 @@ void
 ertt_tcpest_hook(void *udata, void *ctx_data, void *dblock)
 {
 	//struct ertt *e = (struct ertt *)(((struct tcpcb *)inp->inp_ppcb)->helper_data[0]);
-	struct ertt *e = (struct ertt *)dblock;
-	printf("In the hook with errt->test: %d, ctx_data: %p, curack = %u\n",
-	e->test, ctx_data, ((struct tcp_hhook_data *)ctx_data)->curack);
+	//struct ertt *e = (struct ertt *)dblock;
+	//printf("In the hook with errt->test: %d, ctx_data: %p, curack = %u\n",
+	//e->test, ctx_data, ((struct tcp_hhook_data *)ctx_data)->curack);
 }
 
 

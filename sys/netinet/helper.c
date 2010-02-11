@@ -112,8 +112,8 @@ destroy_helper_dblocks(struct helper_dblock *dblocks, int nblocks)
 	HELPER_LIST_WLOCK();
 
 	for (nblocks--; nblocks >= 0; nblocks--) {
-		h = get_helper(dblocks[nblocks].id);
-		uma_zfree(h->zone, dblocks[nblocks].block);
+		if ((h = get_helper(dblocks[nblocks].id)) != NULL)
+			uma_zfree(h->zone, dblocks[nblocks].block);
 	}
 
 	HELPER_LIST_WUNLOCK();
@@ -154,6 +154,33 @@ deregister_helper(struct helper *h)
 		num_dblocks--;
 	HELPER_LIST_WUNLOCK();
 	return (0);
+}
+
+int
+get_helper_id(char *hname)
+{
+	struct helper *h;
+	int id = -1;
+
+	HELPER_LIST_RLOCK();
+	STAILQ_FOREACH(h, &helpers, h_next) {
+		if (strncmp(h->name, hname, HELPER_NAME_MAXLEN) == 0) {
+			id = h->id;
+			break;
+		}
+	}
+	HELPER_LIST_RUNLOCK();
+	return (id);
+}
+
+void *
+get_helper_dblock(struct helper_dblock *dblocks, int nblocks, int id)
+{
+	for (nblocks--; nblocks >= 0; nblocks--) {
+		if (dblocks[nblocks].id == id)
+			return (dblocks[nblocks].block);
+	}
+	return (NULL);
 }
 
 /*
@@ -198,6 +225,8 @@ helper_modevent(module_t mod, int event_type, void *data)
 					break;
 				}
 			}
+			strlcpy(hmd->helper->name, hmd->name,
+			    HELPER_NAME_MAXLEN);
 			if (hmd->helper->mod_init != NULL)
 				error = hmd->helper->mod_init();
 			if (!error)
@@ -206,6 +235,7 @@ helper_modevent(module_t mod, int event_type, void *data)
 
 		case MOD_QUIESCE:
 			error = deregister_helper(hmd->helper);
+			uma_zfree_all(hmd->helper->zone);
 			uma_zdestroy(hmd->helper->zone);
 			if (!error && hmd->helper->mod_destroy != NULL)
 				hmd->helper->mod_destroy();
