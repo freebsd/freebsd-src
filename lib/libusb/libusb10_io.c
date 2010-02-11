@@ -32,7 +32,6 @@
 #include <time.h>
 #include <errno.h>
 #include <sys/queue.h>
-#include <sys/endian.h>
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
