@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd February 8, 2010
+.Dd February 11, 2010
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -343,23 +343,30 @@ argument specifies a pointer to a
 which is defined as follows:
 .Bd -literal
 struct ptrace_vm_entry {
-	void	*pve_cookie;
-	u_long	pve_start;
-	u_long	pve_end;
-	u_long	pve_offset;
-	u_int	pve_prot;
-	u_int	pve_pathlen;
-	char	*pve_path;
+	int		pve_entry;
+	int		pve_timestamp;
+	u_long		pve_start;
+	u_long		pve_end;
+	u_long		pve_offset;
+	u_int		pve_prot;
+	u_int		pve_pathlen;
+	long		pve_fileid;
+	uint32_t	pve_fsid;
+	char		*pve_path;
 };
 .Ed
 .Pp
 The first entry is returned by setting
-.Va pve_cookie
-to
-.Dv NULL .
+.Va pve_entry
+to zero.
 Subsequent entries are returned by leaving
-.Va pve_cookie
+.Va pve_entry
 unmodified from the value returned by previous requests.
+The
+.Va pve_timestamp
+field can be used to detect changes to the VM map while iterating over the
+entries.
+The tracing process can then take appropriate action, such as restarting.
 By setting
 .Va pve_pathlen
 to a non-zero value on entry, the pathname of the backing object is returned
@@ -434,7 +441,8 @@ was attempted on a process with no valid register set.
 .It
 .Dv PT_VM_ENTRY
 was given an invalid value for
-.Fa pve_cookie .
+.Fa pve_entry .
+This can also be caused by changes to the VM map of the process.
 .El
 .It Bq Er EBUSY
 .Bl -bullet -compact
