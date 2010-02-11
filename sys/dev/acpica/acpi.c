@@ -1685,14 +1685,14 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
      * 100000. CPUs
      */
     AcpiGetType(handle, &type);
-    if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02"))
+    if (type == ACPI_TYPE_PROCESSOR)
 	*order = 1;
-    else if (acpi_MatchHid(handle, "PNP0C09"))
+    else if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02"))
 	*order = 2;
-    else if (acpi_MatchHid(handle, "PNP0C0F"))
+    else if (acpi_MatchHid(handle, "PNP0C09"))
 	*order = 3;
-    else if (type == ACPI_TYPE_PROCESSOR)
-	*order = 100000;
+    else if (acpi_MatchHid(handle, "PNP0C0F"))
+	*order = 4;
 }
 
 /*
