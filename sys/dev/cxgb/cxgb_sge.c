@@ -152,7 +152,7 @@ struct rx_desc {
 	uint32_t	len_gen;
 	uint32_t	gen2;
 	uint32_t	addr_hi;
-} __packed;;
+} __packed;
 
 struct rsp_desc {               /* response queue descriptor */
 	struct rss_header	rss_hdr;

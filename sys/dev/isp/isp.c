@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 /*
  * General defines
  */
-
 #define	MBOX_DELAY_COUNT	1000000 / 100
 #define	ISP_MARK_PORTDB(a, b, c)				\
     isp_prt(isp, ISP_LOGSANCFG, 				\
@@ -695,7 +694,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	mbs.logval = MBLOGALL;
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		isp_prt(isp, ISP_LOGERR, "NOP ommand failed (%x)", mbs.param[0]);
+		isp_prt(isp, ISP_LOGERR, "NOP command failed (%x)", mbs.param[0]);
 		ISP_RESET0(isp);
 		return;
 	}
@@ -1547,24 +1546,18 @@ isp_fibre_init(ispsoftc_t *isp)
 	}
 
 	icbp->icb_maxfrmlen = DEFAULT_FRAMESIZE(isp);
-	if (icbp->icb_maxfrmlen < ICB_MIN_FRMLEN ||
-	    icbp->icb_maxfrmlen > ICB_MAX_FRMLEN) {
-		isp_prt(isp, ISP_LOGERR,
-		    "bad frame length (%d) from NVRAM- using %d",
-		    DEFAULT_FRAMESIZE(isp), ICB_DFLT_FRMLEN);
+	if (icbp->icb_maxfrmlen < ICB_MIN_FRMLEN || icbp->icb_maxfrmlen > ICB_MAX_FRMLEN) {
+		isp_prt(isp, ISP_LOGERR, "bad frame length (%d) from NVRAM- using %d", DEFAULT_FRAMESIZE(isp), ICB_DFLT_FRMLEN);
 		icbp->icb_maxfrmlen = ICB_DFLT_FRMLEN;
 	}
 	icbp->icb_maxalloc = fcp->isp_maxalloc;
 	if (icbp->icb_maxalloc < 1) {
-		isp_prt(isp, ISP_LOGERR,
-		    "bad maximum allocation (%d)- using 16", fcp->isp_maxalloc);
+		isp_prt(isp, ISP_LOGERR, "bad maximum allocation (%d)- using 16", fcp->isp_maxalloc);
 		icbp->icb_maxalloc = 16;
 	}
 	icbp->icb_execthrottle = DEFAULT_EXEC_THROTTLE(isp);
 	if (icbp->icb_execthrottle < 1) {
-		isp_prt(isp, ISP_LOGERR,
-		    "bad execution throttle of %d- using %d",
-		    DEFAULT_EXEC_THROTTLE(isp), ICB_DFLT_THROTTLE);
+		isp_prt(isp, ISP_LOGERR, "bad execution throttle of %d- using %d", DEFAULT_EXEC_THROTTLE(isp), ICB_DFLT_THROTTLE);
 		icbp->icb_execthrottle = ICB_DFLT_THROTTLE;
 	}
 	icbp->icb_retry_delay = fcp->isp_retry_delay;
@@ -1658,18 +1651,18 @@ isp_fibre_init(ispsoftc_t *isp)
 
 	/*
 	 * For 22XX > 2.1.26 && 23XX, set some options.
-	 * XXX: Probably okay for newer 2100 f/w too.
 	 */
 	if (ISP_FW_NEWER_THAN(isp, 2, 26, 0)) {
-		/*
-		 * Turn on LIP F8 async event (1)
-		 * Turn on generate AE 8013 on all LIP Resets (2)
-		 * Disable LIP F7 switching (8)
-		 */
 		MBSINIT(&mbs, MBOX_SET_FIRMWARE_OPTIONS, MBLOGALL, 0);
-		mbs.param[1] = 0xb;
+		mbs.param[1] = IFCOPT1_DISF7SWTCH|IFCOPT1_LIPASYNC|IFCOPT1_LIPF8;
 		mbs.param[2] = 0;
 		mbs.param[3] = 0;
+		if (ISP_FW_NEWER_THAN(isp, 3, 16, 0)) {
+			mbs.param[1] |= IFCOPT1_EQFQASYNC|IFCOPT1_CTIO_RETRY;
+			if (fcp->role & ISP_ROLE_TARGET) {
+				mbs.param[3] = IFCOPT3_NOPRLI;
+			}
+		}
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			return;
@@ -2093,8 +2086,7 @@ isp_mark_portdb(ispsoftc_t *isp, int chan, int disposition)
  * or via FABRIC LOGIN/FABRIC LOGOUT for other cards.
  */
 static int
-isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid,
-    int flags, int gs)
+isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags, int gs)
 {
 	mbreg_t mbs;
 	uint8_t q[QENTRY_LEN];
@@ -2771,21 +2763,15 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 	/*
 	 * Make sure we're okay for doing this right now.
 	 */
-	if (fcp->isp_loopstate != LOOP_PDB_RCVD &&
-	    fcp->isp_loopstate != LOOP_FSCAN_DONE &&
-	    fcp->isp_loopstate != LOOP_LSCAN_DONE) {
-		isp_prt(isp, ISP_LOGWARN, "isp_pdb_sync: bad loopstate %d",
-		    fcp->isp_loopstate);
+	if (fcp->isp_loopstate != LOOP_PDB_RCVD && fcp->isp_loopstate != LOOP_FSCAN_DONE && fcp->isp_loopstate != LOOP_LSCAN_DONE) {
+		isp_prt(isp, ISP_LOGWARN, "isp_pdb_sync: bad loopstate %d", fcp->isp_loopstate);
 		return (-1);
 	}
 
-	if (fcp->isp_topo == TOPO_FL_PORT ||
-	    fcp->isp_topo == TOPO_NL_PORT ||
-	    fcp->isp_topo == TOPO_N_PORT) {
+	if (fcp->isp_topo == TOPO_FL_PORT || fcp->isp_topo == TOPO_NL_PORT || fcp->isp_topo == TOPO_N_PORT) {
 		if (fcp->isp_loopstate < LOOP_LSCAN_DONE) {
 			if (isp_scan_loop(isp, chan) != 0) {
-				isp_prt(isp, ISP_LOGWARN,
-				    "isp_pdb_sync: isp_scan_loop failed");
+				isp_prt(isp, ISP_LOGWARN, "isp_pdb_sync: isp_scan_loop failed");
 				return (-1);
 			}
 		}
@@ -2794,15 +2780,13 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 	if (fcp->isp_topo == TOPO_F_PORT || fcp->isp_topo == TOPO_FL_PORT) {
 		if (fcp->isp_loopstate < LOOP_FSCAN_DONE) {
 			if (isp_scan_fabric(isp, chan) != 0) {
-				isp_prt(isp, ISP_LOGWARN,
-				    "isp_pdb_sync: isp_scan_fabric failed");
+				isp_prt(isp, ISP_LOGWARN, "isp_pdb_sync: isp_scan_fabric failed");
 				return (-1);
 			}
 		}
 	}
 
-	isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0,
-	    "Chan %d Synchronizing PDBs", chan);
+	isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d Synchronizing PDBs", chan);
 
 	fcp->isp_loopstate = LOOP_SYNCING_PDB;
 
@@ -2831,11 +2815,7 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 			lp->state = FC_PORTDB_STATE_NIL;
 			isp_async(isp, ISPASYNC_DEV_GONE, chan, lp);
 			if (lp->autologin == 0) {
-				(void) isp_plogx(isp, chan, lp->handle,
-				    lp->portid,
-				    PLOGX_FLG_CMD_LOGO |
-				    PLOGX_FLG_IMPLICIT |
-				    PLOGX_FLG_FREE_NPHDL, 0);
+				(void) isp_plogx(isp, chan, lp->handle, lp->portid, PLOGX_FLG_CMD_LOGO | PLOGX_FLG_IMPLICIT | PLOGX_FLG_FREE_NPHDL, 0);
 			} else {
 				lp->autologin = 0;
 			}
@@ -3081,8 +3061,7 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 		for (i = 0; i < MAX_FC_TARG; i++) {
 			lp = &fcp->portdb[i];
 
-			if (lp->state == FC_PORTDB_STATE_NIL ||
-			    lp->target_mode) {
+			if (lp->state == FC_PORTDB_STATE_NIL || lp->target_mode) {
 				continue;
 			}
 			if (lp->node_wwn != tmp.node_wwn) {
@@ -3600,8 +3579,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		for (dbidx = 0; dbidx < MAX_FC_TARG; dbidx++) {
 			lp = &fcp->portdb[dbidx];
 
-			if (lp->state != FC_PORTDB_STATE_PROBATIONAL ||
-			    lp->target_mode) {
+			if (lp->state != FC_PORTDB_STATE_PROBATIONAL || lp->target_mode) {
 				continue;
 			}
 			if (lp->portid == portid) {
@@ -3838,8 +3816,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 			if (fcp->portdb[dbidx].target_mode) {
 				continue;
 			}
-			if (fcp->portdb[dbidx].node_wwn == wwnn &&
-			    fcp->portdb[dbidx].port_wwn == wwpn) {
+			if (fcp->portdb[dbidx].node_wwn == wwnn && fcp->portdb[dbidx].port_wwn == wwpn) {
 				break;
 			}
 		}
@@ -4425,7 +4402,7 @@ isp_start(XS_T *xs)
 		*tptr = 0x1999;
 	}
 
-	if (isp_save_xs(isp, xs, &handle)) {
+	if (isp_allocate_xs(isp, xs, &handle)) {
 		isp_prt(isp, ISP_LOGDEBUG0, "out of xflist pointers");
 		XS_SETERR(xs, HBA_BOTCH);
 		return (CMD_EAGAIN);
@@ -5171,8 +5148,8 @@ again:
 			}
 		}
 
-		if ((sp->req_handle != ISP_SPCL_HANDLE) && (sp->req_handle > isp->isp_maxcmds || sp->req_handle < 1)) {
-			isp_prt(isp, ISP_LOGERR, "bad request handle %d (type 0x%x)", sp->req_handle, etype);
+		if (!ISP_VALID_HANDLE(isp, sp->req_handle)) {
+			isp_prt(isp, ISP_LOGERR, "bad request handle 0x%x (iocb type 0x%x)", sp->req_handle, etype);
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			ISP_WRITE(isp, isp->isp_respoutrp, optr);
 			continue;
@@ -5186,14 +5163,13 @@ again:
 			 */
 			if (etype != RQSTYPE_RESPONSE) {
 				isp_prt(isp, ISP_LOGERR, "cannot find handle 0x%x (type 0x%x)", sp->req_handle, etype);
-			} else if (ts != RQCS_ABORTED && ts != RQCS_RESET_OCCURRED && sp->req_handle != ISP_SPCL_HANDLE) {
+			} else if (ts != RQCS_ABORTED && ts != RQCS_RESET_OCCURRED) {
 				isp_prt(isp, ISP_LOGERR, "cannot find handle 0x%x (status 0x%x)", sp->req_handle, ts);
 			}
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			ISP_WRITE(isp, isp->isp_respoutrp, optr);
 			continue;
 		}
-		isp_destroy_handle(isp, sp->req_handle);
 		if (req_status_flags & RQSTF_BUS_RESET) {
 			XS_SETERR(xs, HBA_BUSRESET);
 			ISP_SET_SENDMARKER(isp, XS_CHANNEL(xs), 1);
@@ -5329,6 +5305,7 @@ again:
 		if (XS_XFRLEN(xs)) {
 			ISP_DMAFREE(isp, xs, sp->req_handle);
 		}
+		isp_destroy_handle(isp, sp->req_handle);
 
 		if (((isp->isp_dblev & (ISP_LOGDEBUG1|ISP_LOGDEBUG2|ISP_LOGDEBUG3))) ||
 		    ((isp->isp_dblev & ISP_LOGDEBUG0) && ((!XS_NOERR(xs)) ||
@@ -5689,16 +5666,19 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 			 * commands that complete (with no apparent error) after
 			 * we receive a LIP. This has been observed mostly on
 			 * Local Loop topologies. To be safe, let's just mark
-			 * all active commands as dead.
+			 * all active initiator commands as dead.
 			 */
 			if (topo == TOPO_NL_PORT || topo == TOPO_FL_PORT) {
 				int i, j;
 				for (i = j = 0; i < isp->isp_maxcmds; i++) {
 					XS_T *xs;
-					xs = isp->isp_xflist[i];
-					if (xs == NULL) {
+					isp_hdl_t *hdp;
+
+					hdp = &isp->isp_xflist[i];
+					if (ISP_H2HT(hdp->handle) != ISP_HANDLE_INITIATOR) {
 						continue;
 					}
+					xs = hdp->cmd;
 					if (XS_CHANNEL(xs) != chan) {
 						continue;
 					}
@@ -6666,8 +6646,8 @@ isp_mbox_continue(ispsoftc_t *isp)
 	ptr = isp->isp_mbxworkp;
 	switch (isp->isp_lastmbxcmd) {
 	case MBOX_WRITE_RAM_WORD:
-		mbs.param[1] = isp->isp_mbxwrk1++;;
-		mbs.param[2] = *ptr++;;
+		mbs.param[1] = isp->isp_mbxwrk1++;
+		mbs.param[2] = *ptr++;
 		break;
 	case MBOX_READ_RAM_WORD:
 		*ptr++ = isp->isp_mboxtmp[2];
@@ -6677,7 +6657,7 @@ isp_mbox_continue(ispsoftc_t *isp)
 		offset = isp->isp_mbxwrk1;
 		offset |= isp->isp_mbxwrk8 << 16;
 
-		mbs.param[2] = *ptr++;;
+		mbs.param[2] = *ptr++;
 		mbs.param[1] = offset;
 		mbs.param[8] = offset >> 16;
 		isp->isp_mbxwrk1 = ++offset;
@@ -8293,6 +8273,8 @@ isp_parse_nvram_2100(ispsoftc_t *isp, uint8_t *nvram_data)
 			if ((wwn >> 60) == 0) {
 				wwn |= (((uint64_t) 2)<< 60);
 			}
+		} else {
+			wwn = fcp->isp_wwpn_nvram & ~((uint64_t) 0xfff << 48);
 		}
 	} else {
 		wwn &= ~((uint64_t) 0xfff << 48);
@@ -8358,11 +8340,6 @@ isp_parse_nvram_2400(ispsoftc_t *isp, uint8_t *nvram_data)
 	    ISP2400_NVRAM_FIRMWARE_OPTIONS3(nvram_data));
 
 	wwn = ISP2400_NVRAM_PORT_NAME(nvram_data);
-	if (wwn) {
-		if ((wwn >> 60) != 2 && (wwn >> 60) != 5) {
-			wwn = 0;
-		}
-	}
 	fcp->isp_wwpn_nvram = wwn;
 
 	wwn = ISP2400_NVRAM_NODE_NAME(nvram_data);
@@ -8370,6 +8347,10 @@ isp_parse_nvram_2400(ispsoftc_t *isp, uint8_t *nvram_data)
 		if ((wwn >> 60) != 2 && (wwn >> 60) != 5) {
 			wwn = 0;
 		}
+	}
+	if (wwn == 0 && (fcp->isp_wwpn_nvram >> 60) == 2) {
+		wwn = fcp->isp_wwpn_nvram;
+		wwn &= ~((uint64_t) 0xfff << 48);
 	}
 	fcp->isp_wwnn_nvram = wwn;
 

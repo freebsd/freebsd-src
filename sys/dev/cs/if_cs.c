@@ -475,7 +475,7 @@ int
 cs_attach(device_t dev)
 {
 	int error, media=0;
-	struct cs_softc *sc = device_get_softc(dev);;
+	struct cs_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp;
 
 	sc->dev = dev;

@@ -158,7 +158,7 @@ _attach_handler(struct proto_handler *p)
 static int
 _detach_handler(struct proto_handler *p)
 {
-	struct proto_handler *b, *b_tmp;;
+	struct proto_handler *b, *b_tmp;
 
 	LIBALIAS_WLOCK_ASSERT();	
 	LIST_FOREACH_SAFE(b, &handler_chain, entries, b_tmp) {

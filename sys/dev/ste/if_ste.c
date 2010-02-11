@@ -1119,7 +1119,7 @@ ste_attach(device_t dev)
 	 */
 	if (ste_read_eeprom(sc, eaddr, STE_EEADDR_NODE0, ETHER_ADDR_LEN / 2)) {
 		device_printf(dev, "failed to read station address\n");
-		error = ENXIO;;
+		error = ENXIO;
 		goto fail;
 	}
 	ste_sysctl_node(sc);

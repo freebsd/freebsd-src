@@ -763,7 +763,7 @@ agp_allocate_user(device_t dev, agp_allocate *alloc)
 static int
 agp_deallocate_user(device_t dev, int id)
 {
-	struct agp_memory *mem = agp_find_memory(dev, id);;
+	struct agp_memory *mem = agp_find_memory(dev, id);
 
 	if (mem) {
 		AGP_FREE_MEMORY(dev, mem);
