@@ -241,7 +241,7 @@ usage:
 	fflush(stdout);
 	for (i = 0; i < nworkers; i++) {
 		if (pthread_create(&workers[i].w_thread, NULL, work,
-		    &workers[i]) == -1)
+		    &workers[i]) != 0)
 			err(1, "creating worker %u", i);
 		printf("%u%s", i, i == nworkers - 1 ? ".\n" : ", ");
 		fflush(stdout);
