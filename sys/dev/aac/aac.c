@@ -107,28 +107,6 @@ static int	aac_dequeue_fib(struct aac_softc *sc, int queue,
 static int	aac_enqueue_response(struct aac_softc *sc, int queue,
 				     struct aac_fib *fib);
 
-/* Falcon/PPC interface */
-static int	aac_fa_get_fwstatus(struct aac_softc *sc);
-static void	aac_fa_qnotify(struct aac_softc *sc, int qbit);
-static int	aac_fa_get_istatus(struct aac_softc *sc);
-static void	aac_fa_clear_istatus(struct aac_softc *sc, int mask);
-static void	aac_fa_set_mailbox(struct aac_softc *sc, u_int32_t command,
-				   u_int32_t arg0, u_int32_t arg1,
-				   u_int32_t arg2, u_int32_t arg3);
-static int	aac_fa_get_mailbox(struct aac_softc *sc, int mb);
-static void	aac_fa_set_interrupts(struct aac_softc *sc, int enable);
-
-struct aac_interface aac_fa_interface = {
-	aac_fa_get_fwstatus,
-	aac_fa_qnotify,
-	aac_fa_get_istatus,
-	aac_fa_clear_istatus,
-	aac_fa_set_mailbox,
-	aac_fa_get_mailbox,
-	aac_fa_set_interrupts,
-	NULL, NULL, NULL
-};
-
 /* StrongARM interface */
 static int	aac_sa_get_fwstatus(struct aac_softc *sc);
 static void	aac_sa_qnotify(struct aac_softc *sc, int qbit);
@@ -2417,17 +2395,6 @@ aac_rx_get_fwstatus(struct aac_softc *sc)
 }
 
 static int
-aac_fa_get_fwstatus(struct aac_softc *sc)
-{
-	int val;
-
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-
-	val = AAC_MEM0_GETREG4(sc, AAC_FA_FWSTATUS);
-	return (val);
-}
-
-static int
 aac_rkt_get_fwstatus(struct aac_softc *sc)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
@@ -2454,15 +2421,6 @@ aac_rx_qnotify(struct aac_softc *sc, int qbit)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	AAC_MEM0_SETREG4(sc, AAC_RX_IDBR, qbit);
-}
-
-static void
-aac_fa_qnotify(struct aac_softc *sc, int qbit)
-{
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-
-	AAC_MEM0_SETREG2(sc, AAC_FA_DOORBELL1, qbit);
-	AAC_FA_HACK(sc);
 }
 
 static void
@@ -2493,17 +2451,6 @@ aac_rx_get_istatus(struct aac_softc *sc)
 }
 
 static int
-aac_fa_get_istatus(struct aac_softc *sc)
-{
-	int val;
-
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-
-	val = AAC_MEM0_GETREG2(sc, AAC_FA_DOORBELL0);
-	return (val);
-}
-
-static int
 aac_rkt_get_istatus(struct aac_softc *sc)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
@@ -2528,15 +2475,6 @@ aac_rx_clear_istatus(struct aac_softc *sc, int mask)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	AAC_MEM0_SETREG4(sc, AAC_RX_ODBR, mask);
-}
-
-static void
-aac_fa_clear_istatus(struct aac_softc *sc, int mask)
-{
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-
-	AAC_MEM0_SETREG2(sc, AAC_FA_DOORBELL0_CLEAR, mask);
-	AAC_FA_HACK(sc);
 }
 
 static void
@@ -2577,24 +2515,6 @@ aac_rx_set_mailbox(struct aac_softc *sc, u_int32_t command,
 }
 
 static void
-aac_fa_set_mailbox(struct aac_softc *sc, u_int32_t command,
-		u_int32_t arg0, u_int32_t arg1, u_int32_t arg2, u_int32_t arg3)
-{
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-
-	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX, command);
-	AAC_FA_HACK(sc);
-	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX + 4, arg0);
-	AAC_FA_HACK(sc);
-	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX + 8, arg1);
-	AAC_FA_HACK(sc);
-	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX + 12, arg2);
-	AAC_FA_HACK(sc);
-	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX + 16, arg3);
-	AAC_FA_HACK(sc);
-}
-
-static void
 aac_rkt_set_mailbox(struct aac_softc *sc, u_int32_t command, u_int32_t arg0,
 		    u_int32_t arg1, u_int32_t arg2, u_int32_t arg3)
 {
@@ -2624,17 +2544,6 @@ aac_rx_get_mailbox(struct aac_softc *sc, int mb)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	return(AAC_MEM1_GETREG4(sc, AAC_RX_MAILBOX + (mb * 4)));
-}
-
-static int
-aac_fa_get_mailbox(struct aac_softc *sc, int mb)
-{
-	int val;
-
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-
-	val = AAC_MEM1_GETREG4(sc, AAC_FA_MAILBOX + (mb * 4));
-	return (val);
 }
 
 static int
@@ -2672,20 +2581,6 @@ aac_rx_set_interrupts(struct aac_softc *sc, int enable)
 			AAC_MEM0_SETREG4(sc, AAC_RX_OIMR, ~AAC_DB_INTERRUPTS);
 	} else {
 		AAC_MEM0_SETREG4(sc, AAC_RX_OIMR, ~0);
-	}
-}
-
-static void
-aac_fa_set_interrupts(struct aac_softc *sc, int enable)
-{
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "%sable interrupts", enable ? "en" : "dis");
-
-	if (enable) {
-		AAC_MEM0_SETREG2((sc), AAC_FA_MASK0_CLEAR, AAC_DB_INTERRUPTS);
-		AAC_FA_HACK(sc);
-	} else {
-		AAC_MEM0_SETREG2((sc), AAC_FA_MASK0, ~0);
-		AAC_FA_HACK(sc);
 	}
 }
 

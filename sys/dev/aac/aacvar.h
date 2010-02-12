@@ -319,7 +319,6 @@ struct aac_softc
 	int			aac_hwif;
 #define AAC_HWIF_I960RX		0
 #define AAC_HWIF_STRONGARM	1
-#define AAC_HWIF_FALCON		2
 #define AAC_HWIF_RKT		3
 #define	AAC_HWIF_NARK		4
 #define AAC_HWIF_UNKNOWN	-1

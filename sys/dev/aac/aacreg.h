@@ -1453,24 +1453,6 @@ enum {
 };
 
 /*
- * Register set for adapters based on the Falcon bridge and PPC core
- */
-
-#define AAC_FA_DOORBELL0_CLEAR		0x00
-#define AAC_FA_DOORBELL1_CLEAR		0x02
-#define AAC_FA_DOORBELL0		0x04
-#define AAC_FA_DOORBELL1		0x06
-#define AAC_FA_MASK0_CLEAR		0x08
-#define AAC_FA_MASK1_CLEAR		0x0a
-#define	AAC_FA_MASK0			0x0c
-#define AAC_FA_MASK1			0x0e
-#define AAC_FA_MAILBOX			0x10
-#define	AAC_FA_FWSTATUS			0x2c	/* Mailbox 7 */
-#define	AAC_FA_INTSRC			0x900
-
-#define AAC_FA_HACK(sc)	(void)AAC_MEM0_GETREG4(sc, AAC_FA_INTSRC)
-
-/*
  * Register definitions for the Adaptec AAC-364 'Jalapeno I/II' adapters, based
  * on the SA110 'StrongArm'.
  */
