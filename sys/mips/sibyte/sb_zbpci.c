@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/rman.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
 
@@ -45,6 +46,7 @@
 
 #include <machine/pmap.h>
 #include <machine/resource.h>
+#include <machine/bus.h>
 
 #include "pcib_if.h"
 
@@ -58,7 +60,11 @@ static struct {
 } zbpci_config_space[MAXCPU];
 
 static const vm_paddr_t CFG_PADDR_BASE = 0xFE000000;
-	
+static const u_long PCI_IOSPACE_ADDR = 0xFC000000;
+static const u_long PCI_IOSPACE_SIZE = 0x02000000;
+
+static struct rman port_rman;
+
 static int
 zbpci_probe(device_t dev)
 {
@@ -73,13 +79,32 @@ zbpci_attach(device_t dev)
 	int n, rid, size;
 	vm_offset_t va;
 	struct resource *res;
+	
+	/*
+	 * Reserve the physical memory window used to map PCI I/O space.
+	 */
+	rid = 0;
+	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+				 PCI_IOSPACE_ADDR,
+				 PCI_IOSPACE_ADDR + PCI_IOSPACE_SIZE - 1,
+				 PCI_IOSPACE_SIZE, 0);
+	if (res == NULL)
+		panic("Cannot allocate resource for PCI I/O space mapping.");
+
+	port_rman.rm_start = 0;
+	port_rman.rm_end = PCI_IOSPACE_SIZE - 1;
+	port_rman.rm_type = RMAN_ARRAY;
+	port_rman.rm_descr = "PCI I/O ports";
+	if (rman_init(&port_rman) != 0 ||
+	    rman_manage_region(&port_rman, 0, PCI_IOSPACE_SIZE - 1) != 0)
+		panic("%s: port_rman", __func__);
 
 	/*
 	 * Reserve the the physical memory that is used to read/write to the
 	 * pci config space but don't activate it. We are using a page worth
 	 * of KVA as a window over this region.
 	 */
-	rid = 0;
+	rid = 1;
 	size = (PCI_BUSMAX + 1) * (PCI_SLOTMAX + 1) * (PCI_FUNCMAX + 1) * 256;
 	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, CFG_PADDR_BASE,
 				 CFG_PADDR_BASE + size - 1, size, 0);
@@ -113,6 +138,101 @@ zbpci_attach(device_t dev)
 		device_printf(dev, "attached.\n");
 
 	return (bus_generic_attach(dev));
+}
+
+static struct resource *
+zbpci_alloc_resource(device_t bus, device_t child, int type, int *rid,
+		     u_long start, u_long end, u_long count, u_int flags)
+{
+	struct resource *res;
+
+	/*
+	 * Handle PCI I/O port resources here and pass everything else to nexus.
+	 */
+	if (type != SYS_RES_IOPORT) {
+		res = bus_generic_alloc_resource(bus, child, type, rid,
+						 start, end, count, flags);
+		return (res);
+	}
+
+	res = rman_reserve_resource(&port_rman, start, end, count,
+				    flags, child);
+	if (res == NULL)
+		return (NULL);
+
+	rman_set_rid(res, *rid);
+
+	/* Activate the resource is requested */
+	if (flags & RF_ACTIVE) {
+		if (bus_activate_resource(child, type, *rid, res) != 0) {
+			rman_release_resource(res);
+			return (NULL);
+		}
+	}
+
+	return (res);
+}
+
+static int
+zbpci_activate_resource(device_t bus, device_t child, int type, int rid,
+			struct resource *res)
+{
+	void *vaddr;
+	u_long paddr, psize;
+
+	if (type != SYS_RES_IOPORT) {
+		return (bus_generic_activate_resource(bus, child, type,
+						      rid, res));
+	}
+
+	/*
+	 * Map the I/O space resource through the memory window starting
+	 * at PCI_IOSPACE_ADDR.
+	 */
+	paddr = rman_get_start(res) + PCI_IOSPACE_ADDR;
+	psize = rman_get_size(res);
+	vaddr = pmap_mapdev(paddr, psize);
+
+	rman_set_virtual(res, vaddr);
+	rman_set_bustag(res, mips_bus_space_generic);
+	rman_set_bushandle(res, (bus_space_handle_t)vaddr);
+
+	return (rman_activate_resource(res));
+}
+
+static int
+zbpci_release_resource(device_t bus, device_t child, int type, int rid,
+		       struct resource *r)
+{
+	int error;
+
+	if (type != SYS_RES_IOPORT)
+		return (bus_generic_release_resource(bus, child, type, rid, r));
+
+	if (rman_get_flags(r) & RF_ACTIVE) {
+		error = bus_deactivate_resource(child, type, rid, r);
+		if (error)
+			return (error);
+	}
+
+	return (rman_release_resource(r));
+}
+
+static int
+zbpci_deactivate_resource(device_t bus, device_t child, int type, int rid,
+			  struct resource *r)
+{
+	vm_offset_t va;
+
+	if (type != SYS_RES_IOPORT) {
+		return (bus_generic_deactivate_resource(bus, child, type,
+							rid, r));
+	}
+	
+	va = (vm_offset_t)rman_get_virtual(r);
+	pmap_unmapdev(va, rman_get_size(r));
+
+	return (rman_deactivate_resource(r));
 }
 
 static int
@@ -248,10 +368,10 @@ static device_method_t zbpci_methods[] ={
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	zbpci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_alloc_resource,	zbpci_alloc_resource),
+	DEVMETHOD(bus_activate_resource, zbpci_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, zbpci_deactivate_resource),
+	DEVMETHOD(bus_release_resource,	zbpci_release_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
