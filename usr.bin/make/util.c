@@ -181,7 +181,7 @@ Punt(const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	fprintf(stderr, "make: ");
+	fprintf(stderr, PROG_NAME ": ");
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fprintf(stderr, "\n");

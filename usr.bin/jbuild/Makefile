@@ -17,7 +17,7 @@ NO_MAN=
 IGNORE_PRAGMA=	YES
 DEBUG_FLAGS+=	-g
 
-CFLAGS+=	-DMAKE_VERSION=\"8000000000\"
+CFLAGS+=	-DMAKE_VERSION=\"8000000000\" -DPROG_NAME=\"${PROG}\"
 
 # We're building 'build', not 'make' so the behaviour is different in
 # some areas like defaulting to silent.

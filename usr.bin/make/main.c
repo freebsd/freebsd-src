@@ -1502,13 +1502,13 @@ main(int argc, char **argv)
 
 		Path_Expand(defsysmk, &sysIncPath, &sysMkPath);
 		if (Lst_IsEmpty(&sysMkPath))
-			Fatal("make: no system rules (%s).", PATH_DEFSYSMK);
+			Fatal(PROG_NAME ": no system rules (%s).", PATH_DEFSYSMK);
 		LST_FOREACH(ln, &sysMkPath) {
 			if (!ReadMakefile(Lst_Datum(ln)))
 				break;
 		}
 		if (ln != NULL)
-			Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
+			Fatal(PROG_NAME ": cannot open %s.", (char *)Lst_Datum(ln));
 		Lst_Destroy(&sysMkPath, free);
 	}
 
@@ -1520,7 +1520,7 @@ main(int argc, char **argv)
 				break;
 		}
 		if (ln != NULL)
-			Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
+			Fatal(PROG_NAME ": cannot open %s.", (char *)Lst_Datum(ln));
 #ifdef JBUILD
 	} else
 		TryReadMakefile("Buildfile");

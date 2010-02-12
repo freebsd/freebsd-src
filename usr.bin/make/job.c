@@ -1731,7 +1731,7 @@ Job_CheckCommands(GNode *gn, void (*abortProc)(const char *, ...))
 			 * this node's parents so they never get examined.
 			 */
 			static const char msg[] =
-			    "make: don't know how to make";
+			    PROG_NAME ": don't know how to make";
 
 			if (gn->type & OP_OPTIONAL) {
 				fprintf(stdout, "%s %s(ignored)\n",

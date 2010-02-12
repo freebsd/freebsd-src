@@ -11,7 +11,7 @@ SRCS=	arch.c buf.c cond.c dir.c for.c hash.c hash_tables.c job.c	\
 WARNS?=	6
 NO_SHARED?=	YES
 
-CFLAGS+=-DMAKE_VERSION=\"5200408120\"
+CFLAGS+=-DMAKE_VERSION=\"5200408120\" -DPROG_NAME=\"${PROG}\"
 # There is no obvious performance improvement currently.
 # CFLAGS+=-DUSE_KQUEUE
 
