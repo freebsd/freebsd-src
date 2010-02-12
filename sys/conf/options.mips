@@ -61,14 +61,6 @@ TICK_USE_YAMON_FREQ	opt_global.h
 TICK_USE_MALTA_RTC	opt_global.h
 
 #
-# The MIPS architecture does not have separate memory and i/o address space
-# like x86. However some MIPS processors provide a memory-mapped window that
-# maps onto the PCI I/O space.
-#
-PCI_IOSPACE_SIZE        opt_global.h
-PCI_IOSPACE_ADDR        opt_global.h
-
-#
 # The highest memory address that can be used by the kernel in units of KB.
 #
 MAXMEM			opt_global.h
