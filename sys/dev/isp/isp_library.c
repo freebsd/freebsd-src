@@ -650,7 +650,7 @@ isp_clear_commands(ispsoftc_t *isp)
 #ifdef	ISP_TARGET_MODE
 	for (tmp = 0; isp->isp_tgtlist && tmp < isp->isp_maxcmds; tmp++) {
 		uint8_t local[QENTRY_LEN];
-		hdp = &isp->isp_tgt_xflist[tmp];
+		hdp = &isp->isp_tgtlist[tmp];
 		if (hdp->handle == ISP_HANDLE_FREE) {
 			continue;
 		}
@@ -2275,7 +2275,7 @@ isp_find_tgt_handle(ispsoftc_t *isp, void *xs)
 void
 isp_destroy_tgt_handle(ispsoftc_t *isp, uint32_t handle)
 {
-	if (!ISP_VALID_TGT_HANDLE(handle)) {
+	if (!ISP_VALID_TGT_HANDLE(isp, handle)) {
 		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
 	} else {
 		isp->isp_tgtlist[(handle & ISP_HANDLE_CMD_MASK)].handle = ISP_HANDLE_FREE;
