@@ -8,9 +8,6 @@ options		CPU_SB1
 files		"../sibyte/files.sibyte"
 hints		"SWARM.hints"
 
-options		PCI_IOSPACE_ADDR=0xFC000000
-options		PCI_IOSPACE_SIZE=0x02000000
-
 #
 # 32-bit kernel cannot deal with physical memory beyond 4GB
 # XXX pmap assumes that all the memory can be mapped using KSEG0
