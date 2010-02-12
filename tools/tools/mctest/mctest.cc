@@ -368,7 +368,7 @@ int source(char *interface, struct in_addr *group, int pkt_size,
         args[i].packets = received[i];
         args[i].number = number / clients;
 	args[i].client = base_port + i;
-	if (pthread_create(&thread[i], NULL, server, &args[i]) < 0) {
+	if (pthread_create(&thread[i], NULL, server, &args[i]) != 0) {
 	    perror("failed to create server thread");
 	    return -1;
         }
@@ -393,7 +393,7 @@ int source(char *interface, struct in_addr *group, int pkt_size,
     }
 
     for (int i = 0; i < clients; i++) {
-        if (pthread_join(thread[i], NULL) < 0) {
+        if (pthread_join(thread[i], NULL) != 0) {
  	    perror("failed to join thread");
  	    return -1;
         }
