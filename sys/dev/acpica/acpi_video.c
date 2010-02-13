@@ -645,7 +645,7 @@ acpi_video_vo_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 
 	vo = context;
 	ACPI_SERIAL_BEGIN(video_output);
-	if (vo->handle == NULL) {
+	if (vo->handle != handle) {
 		ACPI_SERIAL_END(video_output);
 		return;
 	}
@@ -655,7 +655,7 @@ acpi_video_vo_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 	case VID_NOTIFY_DEC_BRN:
 		if (vo->vo_levels == NULL)
 			break;
-		level = vo_get_brightness(vo->handle);
+		level = vo_get_brightness(handle);
 		if (level < 0)
 			break;
 		new_level = level;
@@ -672,13 +672,13 @@ acpi_video_vo_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 			}
 		}
 		if (new_level != level) {
-			vo_set_brightness(vo->handle, new_level);
+			vo_set_brightness(handle, new_level);
 			vo->vo_brightness = new_level;
 		}
 		break;
 	default:
-		printf("%s: unknown notify event 0x%x\n",
-		    acpi_name(vo->handle), notify);
+		printf("unknown notify event 0x%x from %s\n",
+		    notify, acpi_name(handle));
 	}
 	ACPI_SERIAL_END(video_output);
 }
