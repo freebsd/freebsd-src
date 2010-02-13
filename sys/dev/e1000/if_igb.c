@@ -842,9 +842,13 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	}
 
 	enq = 0;
-	if (m == NULL)
+	if (m == NULL) {
 		next = drbr_dequeue(ifp, txr->br);
-	else
+	} else if (drbr_needs_enqueue(ifp, txr->br)) {
+		if ((err = drbr_enqueue(ifp, txr->br, m)) != 0)
+			return (err);
+		next = drbr_dequeue(ifp, txr->br);
+	} else
 		next = m;
 	/* Process the queue */
 	while (next != NULL) {
