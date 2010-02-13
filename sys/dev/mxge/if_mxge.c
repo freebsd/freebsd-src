@@ -2249,7 +2249,7 @@ mxge_transmit_locked(struct mxge_slice_state *ss, struct mbuf *m)
 		return (err);
 	}
 
-	if (drbr_empty(ifp, tx->br) &&
+	if (!drbr_needs_enqueue(ifp, tx->br) &&
 	    ((tx->mask - (tx->req - tx->done)) > tx->max_desc)) {
 		/* let BPF see it */
 		BPF_MTAP(ifp, m);
