@@ -27,12 +27,12 @@
 #include <sys/queue.h>
 #include <sys/types.h>
 
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <fcntl.h>
-#include <errno.h>
+#include <unistd.h>
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
