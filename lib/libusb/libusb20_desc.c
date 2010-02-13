@@ -24,10 +24,11 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/queue.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/queue.h>
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
