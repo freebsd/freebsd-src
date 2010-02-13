@@ -146,7 +146,7 @@ deget(pmp, dirclust, diroffset, depp)
 	/*
 	 * Do the malloc before the getnewvnode since doing so afterward
 	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if MALLOC should block.
+	 * elsewhere if malloc should block.
 	 */
 	ldep = malloc(sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK | M_ZERO);
 
