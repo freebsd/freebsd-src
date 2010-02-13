@@ -2060,12 +2060,12 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		if (entry->wired_count == 0) {
 			if ((entry->protection & (VM_PROT_READ|VM_PROT_EXECUTE))
 			    == 0) {
+				entry->eflags |= MAP_ENTRY_WIRE_SKIPPED;
 				if ((flags & VM_MAP_WIRE_HOLESOK) == 0) {
 					end = entry->end;
 					rv = KERN_INVALID_ADDRESS;
 					goto done;
 				}
-				entry->eflags |= MAP_ENTRY_WIRE_SKIPPED;
 				goto next_entry;
 			}
 			entry->wired_count++;
