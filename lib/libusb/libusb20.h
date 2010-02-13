@@ -29,13 +29,13 @@
 #ifndef _LIBUSB20_H_
 #define	_LIBUSB20_H_
 
-#include <stdint.h>
-#include <time.h>
-#include <string.h>
-
+#include <sys/endian.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/endian.h>
+
+#include <stdint.h>
+#include <string.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern	"C" {
