@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 9, 2010
+.Dd February 13, 2010
 .Os
 .Dt VNODE 9
 .Sh NAME
@@ -137,7 +137,7 @@ Advisory locking will not work on this.
 A FIFO (named pipe).
 Advisory locking will not work on this.
 .It Dv VBAD
-An old style bad sector map
+Indicates that the vnode has been reclaimed.
 .El
 .Sh IMPLEMENTATION NOTES
 VFIFO uses the "struct fileops" from
