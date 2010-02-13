@@ -603,12 +603,8 @@ drbr_flush(struct ifnet *ifp, struct buf_ring *br)
 	struct mbuf *m;
 
 #ifdef ALTQ
-	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
-		while (!IFQ_IS_EMPTY(&ifp->if_snd)) {
-			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-			m_freem(m);
-		}
-	}
+	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd))
+		IFQ_PURGE(&ifp->if_snd);
 #endif	
 	while ((m = buf_ring_dequeue_sc(br)) != NULL)
 		m_freem(m);
@@ -629,7 +625,7 @@ drbr_dequeue(struct ifnet *ifp, struct buf_ring *br)
 	struct mbuf *m;
 
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {	
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		IFQ_DEQUEUE(&ifp->if_snd, m);
 		return (m);
 	}
 #endif
@@ -642,11 +638,15 @@ drbr_dequeue_cond(struct ifnet *ifp, struct buf_ring *br,
 {
 	struct mbuf *m;
 #ifdef ALTQ
-	/*
-	 * XXX need to evaluate / requeue 
-	 */
-	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {	
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		IFQ_LOCK(&ifp->if_snd);
+		IFQ_POLL_NOLOCK(&ifp->if_snd, m);
+		if (m != NULL && func(m, arg) == 0) {
+			IFQ_UNLOCK(&ifp->if_snd);
+			return (NULL);
+		}
+		IFQ_DEQUEUE(&ifp->if_snd, m);
+		IFQ_UNLOCK(&ifp->if_snd);
 		return (m);
 	}
 #endif
@@ -662,9 +662,19 @@ drbr_empty(struct ifnet *ifp, struct buf_ring *br)
 {
 #ifdef ALTQ
 	if (ALTQ_IS_ENABLED(&ifp->if_snd))
-		return (IFQ_DRV_IS_EMPTY(&ifp->if_snd));
+		return (IFQ_IS_EMPTY(&ifp->if_snd));
 #endif
 	return (buf_ring_empty(br));
+}
+
+static __inline int
+drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+	if (ALTQ_IS_ENABLED(&ifp->if_snd))
+		return (1);
+#endif
+	return (!buf_ring_empty(br));
 }
 
 static __inline int
