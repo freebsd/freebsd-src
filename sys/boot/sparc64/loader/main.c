@@ -590,16 +590,16 @@ mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 			index = dtlb_slot_max - dtlb_slot - 1;
 			if (dtlb_enter_sun4u(index, data, va) < 0)
 				panic("%s: can't enter dTLB slot %d data "
-				    "%#lx va %#lx index %d", __func__, index,
-				    data, va);
+				    "%#lx va %#lx", __func__, index, data,
+				    va);
 			dtlb_slot++;
 			itlb_store[itlb_slot].te_pa = pa;
 			itlb_store[itlb_slot].te_va = va;
 			index = itlb_slot_max - itlb_slot - 1;
 			if (itlb_enter_sun4u(index, data, va) < 0)
 				panic("%s: can't enter iTLB slot %d data "
-				    "%#lx va %#lx index %d", __func__, index,
-				    data, va);
+				    "%#lx va %#lxd", __func__, index, data,
+				    va);
 			itlb_slot++;
 			pa = (vm_offset_t)-1;
 		}
