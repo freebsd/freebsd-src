@@ -97,10 +97,10 @@ typedef void kernel_entry_t(vm_offset_t mdp, u_long o1, u_long o2, u_long o3,
     void *openfirmware);
 
 static inline u_long dtlb_get_data_sun4u(u_int);
-static void dtlb_enter_sun4u(u_long, u_long);
+static int dtlb_enter_sun4u(u_int, u_long data, vm_offset_t);
 static vm_offset_t dtlb_va_to_pa_sun4u(vm_offset_t);
 static inline u_long itlb_get_data_sun4u(u_int);
-static void itlb_enter_sun4u(u_long, u_long);
+static int itlb_enter_sun4u(u_int, u_long data, vm_offset_t);
 static vm_offset_t itlb_va_to_pa_sun4u(vm_offset_t);
 static void itlb_relocate_locked0_sun4u(void);
 extern vm_offset_t md_load(char *, vm_offset_t *);
@@ -482,55 +482,24 @@ itlb_va_to_pa_sun4u(vm_offset_t va)
 	return (-1);
 }
 
-static void
-dtlb_enter_sun4u(u_long vpn, u_long data)
+static int
+dtlb_enter_sun4u(u_int index, u_long data, vm_offset_t virt)
 {
-	u_long reg;
 
-	reg = rdpr(pstate);
-	wrpr(pstate, reg & ~PSTATE_IE, 0);
-	stxa(AA_DMMU_TAR, ASI_DMMU,
-	    TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
-	stxa(0, ASI_DTLB_DATA_IN_REG, data);
-	membar(Sync);
-	wrpr(pstate, reg, 0);
+	return (OF_call_method("SUNW,dtlb-load", mmu, 3, 0, index, data,
+	    virt));
 }
 
-static void
-itlb_enter_sun4u(u_long vpn, u_long data)
+static int
+itlb_enter_sun4u(u_int index, u_long data, vm_offset_t virt)
 {
-	u_long reg;
-	int i;
 
-	reg = rdpr(pstate);
-	wrpr(pstate, reg & ~PSTATE_IE, 0);
-
-	if (cpu_impl == CPU_IMPL_ULTRASPARCIIIp) {
-		/*
-		 * Search an unused slot != 0 and explicitly enter the data
-		 * and tag there in order to avoid Cheetah+ erratum 34.
-		 */
-		for (i = 1; i < itlb_slot_max; i++) {
-			if ((itlb_get_data_sun4u(i) & TD_V) != 0)
-				continue;
-
-			stxa(AA_IMMU_TAR, ASI_IMMU,
-			    TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
-			stxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG, data);
-			flush(PROMBASE);
-			break;
-		}
-		wrpr(pstate, reg, 0);
-		if (i == itlb_slot_max)
-			panic("%s: could not find an unused slot", __func__);
-		return;
-	}
-
-	stxa(AA_IMMU_TAR, ASI_IMMU,
-	    TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
-	stxa(0, ASI_ITLB_DATA_IN_REG, data);
-	flush(PROMBASE);
-	wrpr(pstate, reg, 0);
+	if (cpu_impl == CPU_IMPL_ULTRASPARCIIIp && index == 0 &&
+	    (data & TD_L) != 0)
+		panic("%s: won't enter locked TLB entry at index 0 on USIII+",
+		    __func__);
+	return (OF_call_method("SUNW,itlb-load", mmu, 3, 0, index, data,
+	    virt));
 }
 
 static void
@@ -580,6 +549,7 @@ mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 {
 	vm_offset_t pa, mva;
 	u_long data;
+	u_int index;
 
 	if (va + len > curkva)
 		curkva = va + len;
@@ -617,12 +587,20 @@ mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 			    TD_CV | TD_P | TD_W;
 			dtlb_store[dtlb_slot].te_pa = pa;
 			dtlb_store[dtlb_slot].te_va = va;
+			index = dtlb_slot_max - dtlb_slot - 1;
+			if (dtlb_enter_sun4u(index, data, va) < 0)
+				panic("%s: can't enter dTLB slot %d data "
+				    "%#lx va %#lx index %d", __func__, index,
+				    data, va);
+			dtlb_slot++;
 			itlb_store[itlb_slot].te_pa = pa;
 			itlb_store[itlb_slot].te_va = va;
-			dtlb_slot++;
+			index = itlb_slot_max - itlb_slot - 1;
+			if (itlb_enter_sun4u(index, data, va) < 0)
+				panic("%s: can't enter iTLB slot %d data "
+				    "%#lx va %#lx index %d", __func__, index,
+				    data, va);
 			itlb_slot++;
-			dtlb_enter_sun4u(va, data);
-			itlb_enter_sun4u(va, data);
 			pa = (vm_offset_t)-1;
 		}
 		len -= len > PAGE_SIZE_4M ? PAGE_SIZE_4M : len;
