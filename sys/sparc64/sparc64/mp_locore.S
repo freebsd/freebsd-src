@@ -44,12 +44,14 @@ __FBSDID("$FreeBSD$");
 	.text
 	_ALIGN_TEXT
 	/*
-	 * Initialize misc. state to known values: interrupts disabled,
-	 * normal globals, no clean windows, PIL 0, and floating point
-	 * disabled.
+	 * Initialize misc. state to known values: interrupts disabled, normal
+	 * globals, windows flushed (cr = 0, cs = nwindows - 1), PIL 0 and
+	 * floating point disabled.
+	 * Note that some firmware versions don't implement a clean window
+	 * trap handler so we unfortunately can't clear the windows by setting
+	 * %cleanwin to zero here.
 	 */
 1:	wrpr	%g0, PSTATE_NORMAL, %pstate
-	wrpr	%g0, 0, %cleanwin
 	wrpr	%g0, 0, %pil
 	wr	%g0, 0, %fprs
 
@@ -68,7 +70,7 @@ __FBSDID("$FreeBSD$");
 
 	setx	TD_V | TD_L, %l1, %l0
 	/*
-	 * We read ASI_DTLB_DATA_ACCESS_REG twice in order to work
+	 * We read ASI_ITLB_DATA_ACCESS_REG twice in order to work
 	 * around errata of USIII and beyond.
 	 */
 	ldxa	[%g0] ASI_ITLB_DATA_ACCESS_REG, %g0
@@ -94,7 +96,7 @@ __FBSDID("$FreeBSD$");
 	mov	(1 << TLB_DAR_SLOT_SHIFT), %l4
 	setx	TD_V, %l1, %l0
 	/*
-	 * We read ASI_DTLB_DATA_ACCESS_REG twice in order to work
+	 * We read ASI_ITLB_DATA_ACCESS_REG twice in order to work
 	 * around errata of USIII and beyond.
 	 */
 2:	ldxa	[%l4] ASI_ITLB_DATA_ACCESS_REG, %g0
@@ -136,7 +138,7 @@ __FBSDID("$FreeBSD$");
 	mov	(1 << TLB_DAR_SLOT_SHIFT), %l0
 	setx	TD_V, %o1, %o0
 	/*
-	 * We read ASI_DTLB_DATA_ACCESS_REG twice in order to work
+	 * We read ASI_ITLB_DATA_ACCESS_REG twice in order to work
 	 * around errata of USIII and beyond.
 	 */
 5:	ldxa	[%l0] ASI_ITLB_DATA_ACCESS_REG, %g0
