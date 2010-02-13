@@ -270,8 +270,8 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.wled_set	= "WLED",
 		.brn_get	= "GPLV",
 		.brn_set	= "SPLV",
-		.lcd_get	= "\\_SB.PCI0.SBRG.EC0.RPIN",
-		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
+		.lcd_get	= "GBTL",
+		.lcd_set	= "SBTL",
 		.disp_get	= "\\_SB.PCI0.PCE2.VGA.GETD",
 		.disp_set	= "SDSP",
 	},
@@ -1134,26 +1134,7 @@ acpi_asus_sysctl_init(struct acpi_asus_softc *sc, int method)
 		return (FALSE);
 	case ACPI_ASUS_METHOD_LCD:
 		if (sc->model->lcd_get) {
-			if (strncmp(sc->model->name, "G2K", 3) == 0) {
-				ACPI_BUFFER		Buf;
-				ACPI_OBJECT		Arg, Obj;
-				ACPI_OBJECT_LIST	Args;
-
-				Arg.Type = ACPI_TYPE_INTEGER;
-				Arg.Integer.Value = 0x11;
-				Args.Count = 1;
-				Args.Pointer = &Arg;
-				Buf.Length = sizeof(Obj);
-				Buf.Pointer = &Obj;
-
-				status = AcpiEvaluateObject(sc->handle,
-				    sc->model->lcd_get, &Args, &Buf);
-				if (ACPI_SUCCESS(status) &&
-				    Obj.Type == ACPI_TYPE_INTEGER) {
-					sc->s_lcd = Obj.Integer.Value;
-					return (TRUE);
-				}
-			} else if (strncmp(sc->model->name, "L3H", 3) == 0) {
+			if (strncmp(sc->model->name, "L3H", 3) == 0) {
 				ACPI_BUFFER		Buf;
 				ACPI_OBJECT		Arg[2], Obj;
 				ACPI_OBJECT_LIST	Args;
