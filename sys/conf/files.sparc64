@@ -124,6 +124,7 @@ sparc64/sparc64/rwindow.c	standard
 sparc64/sparc64/sc_machdep.c	optional	sc
 sparc64/sparc64/schppm.c	standard
 sparc64/sparc64/spitfire.c	standard
+sparc64/sparc64/ssm.c		standard
 sparc64/sparc64/stack_machdep.c	optional	ddb | stack
 sparc64/sparc64/support.S	standard				\
 	compile-with "${NORMAL_S} -mcpu=ultrasparc"
