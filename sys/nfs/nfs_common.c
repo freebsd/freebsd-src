@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * These functions support the macros and help fiddle mbuf chains for
- * the nfs op functions. They do things like create the rpc header and
+ * the nfs op functions.  They do things like create the rpc header and
  * copy data between mbuf chains and uio lists.
  */
 
@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/sysent.h>
 #include <sys/syscall.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -75,10 +76,21 @@ nfstype nfsv3_type[9] = {
 	NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK, NFSOCK, NFFIFO, NFNON
 };
 
-static void *nfsm_dissect_xx_sub(int s, struct mbuf **md, caddr_t *dpos, int how);
+static void *nfsm_dissect_xx_sub(int s, struct mbuf **md, caddr_t *dpos,
+    int how);
+
+SYSCTL_DECL(_vfs_nfs);
+
+static int nfs_realign_test;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RD, &nfs_realign_test,
+    0, "Number of realign tests done");
+
+static int nfs_realign_count;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RD, &nfs_realign_count,
+    0, "Number of mbuf realignments done");
 
 u_quad_t
-nfs_curusec(void) 
+nfs_curusec(void)
 {
 	struct timeval tv;
 
@@ -176,7 +188,7 @@ nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left, int how)
 	while (left == 0) {
 		*mdp = mp = mp->m_next;
 		if (mp == NULL)
-			return NULL;
+			return (NULL);
 		left = mp->m_len;
 		*dposp = mtod(mp, caddr_t);
 	}
@@ -184,13 +196,13 @@ nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left, int how)
 		ret = *dposp;
 		*dposp += siz;
 	} else if (mp->m_next == NULL) {
-		return NULL;
+		return (NULL);
 	} else if (siz > MHLEN) {
 		panic("nfs S too big");
 	} else {
 		MGET(mp2, how, MT_DATA);
 		if (mp2 == NULL)
-			return NULL;
+			return (NULL);
 		mp2->m_len = siz;
 		mp2->m_next = mp->m_next;
 		mp->m_next = mp2;
@@ -206,7 +218,7 @@ nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left, int how)
 		/* Loop around copying up the siz2 bytes */
 		while (siz2 > 0) {
 			if (mp2 == NULL)
-				return NULL;
+				return (NULL);
 			xfer = (siz2 > mp2->m_len) ? mp2->m_len : siz2;
 			if (xfer > 0) {
 				bcopy(mtod(mp2, caddr_t), ptr, xfer);
@@ -229,7 +241,7 @@ nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left, int how)
 			*dposp = npos;
 		}
 	}
-	return ret;
+	return (ret);
 }
 
 /*
@@ -273,19 +285,21 @@ nfsm_build_xx(int s, struct mbuf **mb, caddr_t *bpos)
 	ret = *bpos;
 	(*mb)->m_len += s;
 	*bpos += s;
-	return ret;
+	return (ret);
 }
 
 void *
 nfsm_dissect_xx(int s, struct mbuf **md, caddr_t *dpos)
 {
-	return nfsm_dissect_xx_sub(s, md, dpos, M_WAIT);
+
+	return (nfsm_dissect_xx_sub(s, md, dpos, M_WAIT));
 }
 
 void *
 nfsm_dissect_xx_nonblock(int s, struct mbuf **md, caddr_t *dpos)
 {
-	return nfsm_dissect_xx_sub(s, md, dpos, M_DONTWAIT);
+
+	return (nfsm_dissect_xx_sub(s, md, dpos, M_DONTWAIT));
 }
 
 static void *
@@ -299,10 +313,10 @@ nfsm_dissect_xx_sub(int s, struct mbuf **md, caddr_t *dpos, int how)
 	if (t1 >= s) {
 		ret = *dpos;
 		*dpos += s;
-		return ret;
+		return (ret);
 	}
-	cp2 = nfsm_disct(md, dpos, s, t1, how); 
-	return cp2;
+	cp2 = nfsm_disct(md, dpos, s, t1, how);
+	return (cp2);
 }
 
 int
@@ -312,11 +326,11 @@ nfsm_strsiz_xx(int *s, int m, struct mbuf **mb, caddr_t *bpos)
 
 	tl = nfsm_dissect_xx(NFSX_UNSIGNED, mb, bpos);
 	if (tl == NULL)
-		return EBADRPC;
+		return (EBADRPC);
 	*s = fxdr_unsigned(int32_t, *tl);
 	if (*s > m)
-		return EBADRPC;
-	return 0;
+		return (EBADRPC);
+	return (0);
 }
 
 int
@@ -327,10 +341,66 @@ nfsm_adv_xx(int s, struct mbuf **md, caddr_t *dpos)
 	t1 = mtod(*md, caddr_t) + (*md)->m_len - *dpos;
 	if (t1 >= s) {
 		*dpos += s;
-		return 0;
+		return (0);
 	}
 	t1 = nfs_adv(md, dpos, s, t1);
 	if (t1)
-		return t1;
-	return 0;
+		return (t1);
+	return (0);
+}
+
+/*
+ * Check for badly aligned mbuf data and realign by copying the unaligned
+ * portion of the data into a new mbuf chain and freeing the portions of the
+ * old chain that were replaced.
+ *
+ * We cannot simply realign the data within the existing mbuf chain because
+ * the underlying buffers may contain other rpc commands and we cannot afford
+ * to overwrite them.
+ *
+ * We would prefer to avoid this situation entirely.  The situation does not
+ * occur with NFS/UDP and is supposed to only occassionally occur with TCP.
+ * Use vfs.nfs.realign_count and realign_test to check this.
+ */
+int
+nfs_realign(struct mbuf **pm, int how)
+{
+	struct mbuf *m, *n;
+	int off;
+
+	++nfs_realign_test;
+	while ((m = *pm) != NULL) {
+		if (!nfsm_aligned(m->m_len, u_int32_t) ||
+		    !nfsm_aligned(mtod(m, intptr_t), u_int32_t)) {
+			/*
+			 * NB: we can't depend on m_pkthdr.len to help us
+			 * decide what to do here.  May not be worth doing
+			 * the m_length calculation as m_copyback will
+			 * expand the mbuf chain below as needed.
+			 */
+			if (m_length(m, NULL) >= MINCLSIZE) {
+				/* NB: m_copyback handles space > MCLBYTES */
+				n = m_getcl(how, MT_DATA, 0);
+			} else
+				n = m_get(how, MT_DATA);
+			if (n == NULL)
+				return (ENOMEM);
+			/*
+			 * Align the remainder of the mbuf chain.
+			 */
+			n->m_len = 0;
+			off = 0;
+			while (m != NULL) {
+				m_copyback(n, off, m->m_len, mtod(m, caddr_t));
+				off += m->m_len;
+				m = m->m_next;
+			}
+			m_freem(*pm);
+			*pm = n;
+			++nfs_realign_count;
+			break;
+		}
+		pm = &m->m_next;
+	}
+	return (0);
 }

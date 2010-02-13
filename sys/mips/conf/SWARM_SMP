@@ -1,0 +1,7 @@
+#
+# $FreeBSD$
+#
+options		SMP
+options		PRINTF_BUFR_SIZE=128
+
+include		SWARM

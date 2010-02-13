@@ -580,14 +580,12 @@ void	ath_intr(void *);
 	ath_hal_setcapability(_ah, HAL_CAP_TPC, 1, _v, NULL)
 #define	ath_hal_hasbursting(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_BURST, 0, NULL) == HAL_OK)
-#ifdef notyet
+#define	ath_hal_setmcastkeysearch(_ah, _v) \
+	ath_hal_setcapability(_ah, HAL_CAP_MCAST_KEYSRCH, 0, _v, NULL)
 #define	ath_hal_hasmcastkeysearch(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_MCAST_KEYSRCH, 0, NULL) == HAL_OK)
 #define	ath_hal_getmcastkeysearch(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_MCAST_KEYSRCH, 1, NULL) == HAL_OK)
-#else
-#define	ath_hal_getmcastkeysearch(_ah)	0
-#endif
 #define	ath_hal_hasfastframes(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_FASTFRAME, 0, NULL) == HAL_OK)
 #define	ath_hal_hasbssidmask(_ah) \

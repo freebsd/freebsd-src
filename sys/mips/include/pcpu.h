@@ -55,6 +55,13 @@ extern struct pcpu *pcpup;
 #define	PCPU_SET(member,value)	(PCPUP->pc_ ## member = (value))
 #define PCPU_LAZY_INC(member)   (++PCPUP->pc_ ## member)
 
+#ifdef SMP
+/*
+ * Instantiate the wired TLB entry at PCPU_TLB_ENTRY to map 'pcpu' at 'pcpup'.
+ */
+void	mips_pcpu_tlb_init(struct pcpu *pcpu);
+#endif
+
 #endif	/* _KERNEL */
 
 #endif	/* !_MACHINE_PCPU_H_ */

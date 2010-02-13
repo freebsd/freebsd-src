@@ -577,6 +577,8 @@ build_frag_list(struct mbuf *m_head, struct msgrng_msg *p2p_msg, struct p2d_tx_d
 				taddr = (vm_offset_t)m->m_data + len1;
 				p2 = vtophys(taddr);
 				len2 = m->m_len - len1;
+				if (len2 == 0)
+					continue;
 				if (nfrag >= XLR_MAX_TX_FRAGS)
 					panic("TX frags exceeded");
 

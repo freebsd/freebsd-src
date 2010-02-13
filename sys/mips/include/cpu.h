@@ -122,6 +122,8 @@
 #define	SOFT_INT_MASK		(SOFT_INT_MASK_0 | SOFT_INT_MASK_1)
 #define	HW_INT_MASK		(ALL_INT_MASK & ~SOFT_INT_MASK)
 
+#define	soft_int_mask(softintr)	(1 << ((softintr) + 8))
+#define	hard_int_mask(hardintr)	(1 << ((hardintr) + 10))
 
 /*
  * The bits in the cause register.

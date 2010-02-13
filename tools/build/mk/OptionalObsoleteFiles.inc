@@ -1539,7 +1539,6 @@ OLD_FILES+=usr/share/man/man8/pac.8.gz
 .if ${MK_MAIL} == no
 OLD_FILES+=usr/bin/Mail
 OLD_FILES+=usr/bin/biff
-OLD_FILES+=usr/bin/fmt
 OLD_FILES+=usr/bin/from
 OLD_FILES+=usr/bin/mail
 OLD_FILES+=usr/bin/mailx
@@ -1560,7 +1559,9 @@ OLD_FILES+=usr/share/misc/mail.tildehelp
 
 .if ${MK_MAILWRAPPER} == no
 OLD_FILES+=etc/mail/mailer.conf
+.if ${MK_SENDMAIL} == no
 OLD_FILES+=usr/sbin/mailwrapper
+.endif
 OLD_FILES+=usr/share/man/man8/mailwrapper.8.gz
 .endif
 

@@ -384,12 +384,30 @@ acpi_cpu_attach(device_t dev)
     /* Probe for Cx state support. */
     acpi_cpu_cx_probe(sc);
 
-    /* Finally,  call identify and probe/attach for child devices. */
-    bus_generic_probe(dev);
-    bus_generic_attach(dev);
-
     return (0);
 }
+
+static void
+acpi_cpu_postattach(void *unused __unused)
+{
+    device_t *devices;
+    int err;
+    int i, n;
+
+    err = devclass_get_devices(acpi_cpu_devclass, &devices, &n);
+    if (err != 0) {
+	printf("devclass_get_devices(acpi_cpu_devclass) failed\n");
+	return;
+    }
+    for (i = 0; i < n; i++)
+	bus_generic_probe(devices[i]);
+    for (i = 0; i < n; i++)
+	bus_generic_attach(devices[i]);
+    free(devices, M_TEMP);
+}
+
+SYSINIT(acpi_cpu, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE,
+    acpi_cpu_postattach, NULL);
 
 /*
  * Disable any entry to the idle function during suspend and re-enable it

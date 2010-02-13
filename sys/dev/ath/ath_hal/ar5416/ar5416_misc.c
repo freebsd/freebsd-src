@@ -30,7 +30,7 @@
 #include "ar5416/ar5416phy.h"
 
 /*
- * Return the wireless modes (a,b,g,t) supported by hardware.
+ * Return the wireless modes (a,b,g,n,t) supported by hardware.
  *
  * This value is what is actually supported by the hardware
  * and is unaffected by regulatory/country code settings.

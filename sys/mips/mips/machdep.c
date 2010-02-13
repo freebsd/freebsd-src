@@ -133,11 +133,7 @@ vm_offset_t kstack0;
 char pcpu_space[MAXCPU][PAGE_SIZE * 2] \
 	__aligned(PAGE_SIZE * 2) __section(".data");
 
-#ifdef SMP
-struct pcpu *pcpup = 0;		/* initialized in pmap_bootstrap() */
-#else
 struct pcpu *pcpup = (struct pcpu *)pcpu_space;
-#endif
 
 vm_offset_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
 vm_offset_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
@@ -419,22 +415,14 @@ mips_generic_reset()
 	((void(*)(void))(intptr_t)MIPS_VEC_RESET)();
 }
 
-/*
- * Initialise a struct pcpu.
- */
-void
-cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
-{
 #ifdef SMP
+void
+mips_pcpu_tlb_init(struct pcpu *pcpu)
+{
 	vm_paddr_t pa;
 	struct tlb tlb;
 	int lobits;
-#endif
 
-	pcpu->pc_next_asid = 1;
-	pcpu->pc_asid_generation = 1;
-
-#ifdef SMP
 	/*
 	 * Map the pcpu structure at the virtual address 'pcpup'.
 	 * We use a wired tlb index to do this one-time mapping.
@@ -446,6 +434,21 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 	tlb.tlb_lo0 = mips_paddr_to_tlbpfn(pa) | lobits;
 	tlb.tlb_lo1 = mips_paddr_to_tlbpfn(pa + PAGE_SIZE) | lobits;
 	Mips_TLBWriteIndexed(PCPU_TLB_ENTRY, &tlb);
+}
+#endif
+
+/*
+ * Initialise a struct pcpu.
+ */
+void
+cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
+{
+
+	pcpu->pc_next_asid = 1;
+	pcpu->pc_asid_generation = 1;
+#ifdef SMP
+	if ((vm_offset_t)pcpup >= VM_MIN_KERNEL_ADDRESS)
+		mips_pcpu_tlb_init(pcpu);
 #endif
 }
 
