@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2010
+.Dd February 13, 2010
 .Dt LOCKING 9
 .Os
 .Sh NAME
@@ -36,41 +36,9 @@ The
 kernel is written to run across multiple CPUs and as such requires
 several different synchronization primitives to allow the developers
 to safely access and manipulate the many data types required.
-.Pp
-These include:
-.Bl -enum
-.It
-Mutexes
-.It
-Spin mutexes
-.It
-Pool mutexes
-.It
-Shared/exclusive locks
-.It
-Reader/writer locks
-.It
-Read-mostly locks
-.It
-Counting semaphores
-.It
-Condition variables
-.It
-Sleep/wakeup
-.It
-Giant
-.It
-Lockmanager locks
-.El
-.Pp
-The primitives interact and have a number of rules regarding how
-they can and can not be combined.
-Many of these rules are checked using the
-.Xr witness 4
-code.
-.Pp
 .Ss Mutexes
-Mutexes are the most commonly used synchronization primitive in the kernel.
+Mutexes (also called "sleep mutexes") are the most commonly used
+synchronization primitive in the kernel.
 Thread acquires (locks) a mutex before accessing data shared with other
 threads (including interrupt threads), and releases (unlocks) it afterwards.
 If the mutex cannot be acquired, the thread requesting it will sleep.
@@ -85,12 +53,10 @@ the two is that spin mutexes never sleep - instead, they spin, waiting
 for the thread holding the lock, which runs on another CPU, to release it.
 Differently from ordinary mutex, spin mutexes disable interrupts when acquired.
 Since disabling interrupts is expensive, they are also generally slower.
-Spin mutexes should only be used to protect data shared with primary
-(INTR_FILTER) interrupt code.
-You 
-.Em must not
-do anything that deschedules the thread while you
-are holding a spin mutex.
+Spin mutexes should be used only when neccessary, e.g. to protect data shared
+with interrupt filter code (see
+.Xr bus_setup_intr 9
+for details).
 .Ss Pool mutexes
 With most synchronisaton primitives, such as mutexes, programmer must
 provide a piece of allocated memory to hold the primitive.
@@ -284,6 +250,11 @@ See
 .Xr lock 9
 for details.
 .Sh INTERACTIONS
+The primitives interact and have a number of rules regarding how
+they can and can not be combined.
+Many of these rules are checked using the
+.Xr witness 4
+code.
 .Ss Bounded vs. unbounded sleep
 The following primitives perform bounded sleep: mutexes, pool mutexes,
 reader/writer locks and read-mostly locks.
@@ -320,21 +291,23 @@ rwlock, your sleep, will cause a panic.
 If the sleep only happens rarely it may be years before the 
 bad code path is found.
 .Pp
+It is an error to do any operation that could result in any kind of sleep when
+running inside an interrupt filter.
+.Pp
 It is an error to do any operation that could result in unbounded sleep when
 running inside an interrupt thread.
 .Ss Interaction table
-The following table shows what you can and can not do if you hold
-one of the synchronization primitives discussed here:
-(someone who knows what they are talking about should write this table)
+The following table shows what you can and can not do while holding
+one of the synchronization primitives discussed:
 .Bl -column ".Ic xxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXX" -offset indent
 .It Xo
 .Em "You have: You want:" Ta spin mtx Ta mutex Ta sx Ta rwlock Ta rmlock Ta sleep
 .Xc
-.It Ic spin mtx  Ta \&ok-1 Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no-3
-.It Ic mutex     Ta \&ok Ta \&ok-1 Ta \&no Ta \&ok Ta \&ok Ta \&no-3
-.It Ic sx        Ta \&ok Ta \&ok Ta \&ok-2 Ta \&ok Ta \&ok Ta \&ok-4
-.It Ic rwlock    Ta \&ok Ta \&ok Ta \&no Ta \&ok-2 Ta \&ok Ta \&no-3
-.It Ic rmlock    Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&ok-2 Ta \&no
+.It spin mtx  Ta \&ok-1 Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no-3
+.It mutex     Ta \&ok Ta \&ok-1 Ta \&no Ta \&ok Ta \&ok Ta \&no-3
+.It sx        Ta \&ok Ta \&ok Ta \&ok-2 Ta \&ok Ta \&ok Ta \&ok-4
+.It rwlock    Ta \&ok Ta \&ok Ta \&no Ta \&ok-2 Ta \&ok Ta \&no-3
+.It rmlock    Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&ok-2 Ta \&no
 .El
 .Pp
 .Em *1
@@ -364,10 +337,12 @@ The next table shows what can be used in different contexts.
 At this time this is a rather easy to remember table.
 .Bl -column ".Ic Xxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXX" -offset indent
 .It Xo
-.Em "Context:" Ta spin mtx Ta mutex Ta sx Ta rwlock Ta rmlock Ta sleep
+.Em "Context:"  Ta spin mtx Ta mutex Ta sx Ta rwlock Ta rmlock Ta sleep
 .Xc
-.It interrupt:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no 
-.It idle:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no 
+.It interrupt filter:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no 
+.It ithread:    Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&ok Ta \&no 
+.It callout:    Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&no Ta \&no 
+.It syscall:    Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok 
 .El
 .Sh SEE ALSO
 .Xr condvar 9 ,
