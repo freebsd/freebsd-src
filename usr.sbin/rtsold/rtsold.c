@@ -32,15 +32,20 @@
  */
 
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/param.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_var.h>
 
 #include <netinet/in.h>
 #include <netinet/icmp6.h>
+#include <netinet/in_var.h>
+
+#include <netinet6/nd6.h>
 
 #include <signal.h>
 #include <unistd.h>
@@ -789,8 +794,9 @@ autoifprobe(void)
 	static char **argv = NULL;
 	static int n = 0;
 	char **a;
-	int i, found;
+	int s, i, found;
 	struct ifaddrs *ifap, *ifa, *target;
+	struct in6_ndireq nd;
 
 	/* initialize */
 	while (n--)
@@ -803,6 +809,11 @@ autoifprobe(void)
 
 	if (getifaddrs(&ifap) != 0)
 		return NULL;
+
+	if (!Fflag && (s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+		err(1, "socket");
+		/* NOTREACHED */
+	}
 
 	target = NULL;
 	/* find an ethernet */
@@ -828,6 +839,23 @@ autoifprobe(void)
 		}
 		if (found)
 			continue;
+
+		/*
+		 * Skip the interfaces which IPv6 and/or accepting RA
+		 * is disabled.
+		 */
+		if (!Fflag) {
+			memset(&nd, 0, sizeof(nd));
+			strlcpy(nd.ifname, ifa->ifa_name, sizeof(nd.ifname));
+			if (ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&nd) < 0) {
+				err(1, "ioctl(SIOCGIFINFO_IN6)");
+				/* NOTREACHED */
+			}
+			if ((nd.ndi.flags & ND6_IFF_IFDISABLED))
+				continue;
+			if (!(nd.ndi.flags & ND6_IFF_ACCEPT_RTADV))
+				continue;
+		}
 
 		/* if we find multiple candidates, just warn. */
 		if (n != 0 && dflag > 1)
@@ -855,6 +883,8 @@ autoifprobe(void)
 				warnx("probing %s", argv[i]);
 		}
 	}
+	if (!Fflag)
+		close(s);
 	freeifaddrs(ifap);
 	return argv;
 }
