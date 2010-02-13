@@ -450,13 +450,11 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 			acg.cg_cs.cs_nifree--;
 		}
 	/*
-	 * XXX Newfs writes out two blocks of initialized inodes
-	 *     unconditionally.  Should we check here to make sure that they
-	 *     were actually written?
+	 * For the old file system, we have to initialize all the inodes.
 	 */
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		bzero(iobuf, sblock.fs_bsize);
-		for (i = 2 * sblock.fs_frag; i < sblock.fs_ipg / INOPF(&sblock);
+		for (i = 0; i < sblock.fs_ipg / INOPF(&sblock);
 		     i += sblock.fs_frag) {
 			dp1 = (struct ufs1_dinode *)iobuf;
 #ifdef FSIRAND
