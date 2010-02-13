@@ -227,7 +227,7 @@ setup(void)
 	volno = 1;
 	setdumpnum();
 	FLUSHTAPEBUF();
-	if (!pipein && !bflag)
+	if (!pipein && !pipecmdin && !bflag)
 		findtapeblksize();
 	if (gethead(&spcl) == FAIL) {
 		fprintf(stderr, "Tape is not a dump tape\n");
