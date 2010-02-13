@@ -42,4 +42,10 @@ void		sb_write_intsrc_mask(int cpu, uint64_t mask);
 void		sb_write_intmap(int cpu, int intsrc, int intrnum);
 int		sb_read_intmap(int cpu, int intsrc);
 
+#ifdef SMP
+#define	INTSRC_MAILBOX3		29
+void		sb_set_mailbox(int cpuid, uint64_t val);
+void		sb_clear_mailbox(int cpuid, uint64_t val);
+#endif
+
 #endif	/* _SB_SCD_H_ */

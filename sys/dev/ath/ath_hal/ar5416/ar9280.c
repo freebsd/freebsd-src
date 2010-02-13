@@ -277,12 +277,15 @@ ar9280GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 	    "NF calibrated [ctl] [chain 0] is %d\n", nf);
 	nfarray[0] = nf;
 
-	nf = MS(OS_REG_READ(ah, AR_PHY_CH1_CCA), AR9280_PHY_CH1_MINCCA_PWR);
-	if (nf & 0x100)
-		nf = 0 - ((nf ^ 0x1ff) + 1);
-	HALDEBUG(ah, HAL_DEBUG_NFCAL,
-	    "NF calibrated [ctl] [chain 1] is %d\n", nf);
-	nfarray[1] = nf;
+	if (!AR_SREV_KITE(ah)) {
+		nf = MS(OS_REG_READ(ah, AR_PHY_CH1_CCA),
+		    AR9280_PHY_CH1_MINCCA_PWR);
+		if (nf & 0x100)
+			nf = 0 - ((nf ^ 0x1ff) + 1);
+		HALDEBUG(ah, HAL_DEBUG_NFCAL,
+		    "NF calibrated [ctl] [chain 1] is %d\n", nf);
+		nfarray[1] = nf;
+	}
 
 	nf = MS(OS_REG_READ(ah, AR_PHY_EXT_CCA), AR9280_PHY_EXT_MINCCA_PWR);
 	if (nf & 0x100)
@@ -291,12 +294,15 @@ ar9280GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 	    "NF calibrated [ext] [chain 0] is %d\n", nf);
 	nfarray[3] = nf;
 
-	nf = MS(OS_REG_READ(ah, AR_PHY_CH1_EXT_CCA), AR9280_PHY_CH1_EXT_MINCCA_PWR);
-	if (nf & 0x100)
+	if (AR_SREV_KITE(ah)) {
+		nf = MS(OS_REG_READ(ah, AR_PHY_CH1_EXT_CCA),
+		    AR9280_PHY_CH1_EXT_MINCCA_PWR);
+		if (nf & 0x100)
 		nf = 0 - ((nf ^ 0x1ff) + 1);
-	HALDEBUG(ah, HAL_DEBUG_NFCAL,
-	    "NF calibrated [ext] [chain 1] is %d\n", nf);
-	nfarray[4] = nf;
+		HALDEBUG(ah, HAL_DEBUG_NFCAL,
+		    "NF calibrated [ext] [chain 1] is %d\n", nf);
+		nfarray[4] = nf;
+	}
 }
 
 /*

@@ -350,6 +350,7 @@ typedef struct ehci_softc {
 #define	EHCI_SCFLG_BIGEMMIO	0x0010	/* big-endian byte order MMIO */
 #define	EHCI_SCFLG_TT		0x0020	/* transaction translator present */
 #define	EHCI_SCFLG_LOSTINTRBUG	0x0040	/* workaround for VIA / ATI chipsets */
+#define	EHCI_SCFLG_IAADBUG	0x0080	/* workaround for nVidia chipsets */
 
 	uint8_t	sc_offs;		/* offset to operational registers */
 	uint8_t	sc_doorbell_disable;	/* set on doorbell failure */

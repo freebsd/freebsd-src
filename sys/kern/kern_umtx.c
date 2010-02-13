@@ -420,7 +420,7 @@ umtxq_insert_queue(struct umtx_q *uq, int q)
 	uc = umtxq_getchain(&uq->uq_key);
 	UMTXQ_LOCKED_ASSERT(uc);
 	KASSERT((uq->uq_flags & UQF_UMTXQ) == 0, ("umtx_q is already on queue"));
-	uh = umtxq_queue_lookup(&uq->uq_key, UMTX_SHARED_QUEUE);
+	uh = umtxq_queue_lookup(&uq->uq_key, q);
 	if (uh != NULL) {
 		LIST_INSERT_HEAD(&uc->uc_spare_queue, uq->uq_spare_queue, link);
 	} else {
@@ -2853,6 +2853,8 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
 	umtxq_insert(uq);
 	umtxq_unlock(&uq->uq_key);
 
+	suword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters), 1);
+
 	count = fuword32(__DEVOLATILE(uint32_t *, &sem->_count));
 	if (count != 0) {
 		umtxq_lock(&uq->uq_key);
@@ -2862,11 +2864,6 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
 		umtx_key_release(&uq->uq_key);
 		return (0);
 	}
-
-	/*
-	 * set waiters byte and sleep.
-	 */
-	suword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters), 1);
 
 	umtxq_lock(&uq->uq_key);
 	umtxq_unbusy(&uq->uq_key);

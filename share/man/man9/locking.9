@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 29, 2010
+.Dd February 10, 2010
 .Dt LOCKING 9
 .Os
 .Sh NAME
@@ -152,7 +152,8 @@ Shared/exclusive locks are similar to reader/writer locks; the main difference
 between them is that shared/exclusive locks may be held during unbounded sleep
 (and may thus perform an unbounded sleep).
 They are inherently less efficient than mutexes, reader/writer locks
-and read-mostly locks.  They don't support priority propagation.
+and read-mostly locks.
+They don't support priority propagation.
 They should be considered to be closely related to
 .Xr sleep 9 .
 In fact it could in some cases be 
@@ -191,12 +192,15 @@ Giant is an instance of a mutex, with some special characteristics:
 .It
 It is recursive.
 .It
-Drivers can request that Giant be locked around them, but this is
-going away.
-.It
-You can sleep while it has recursed, but other recursive locks cannot.
+Drivers and filesystems can request that Giant be locked around them
+by not marking themselves MPSAFE.
+Note that infrastructure to do this is slowly going away as non-MPSAFE
+drivers either became properly locked or disappear.
 .It
 Giant must be locked first before other locks.
+.It
+It is OK to hold Giant while performing unbounded sleep; in such case,
+Giant will be dropped before sleeping and picked up after wakeup.
 .It
 There are places in the kernel that drop Giant and pick it back up
 again.
@@ -315,6 +319,9 @@ If any caller above you has any mutex or
 rwlock, your sleep, will cause a panic.
 If the sleep only happens rarely it may be years before the 
 bad code path is found.
+.Pp
+It is an error to do any operation that could result in unbounded sleep when
+running inside an interrupt thread.
 .Ss Interaction table
 The following table shows what you can and can not do if you hold
 one of the synchronization primitives discussed here:

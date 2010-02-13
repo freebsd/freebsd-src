@@ -59,6 +59,7 @@ main(argc, argv)
 int argc;
 char **argv;
 {
+struct timespec ts;
 long t, a;
 int i, j, s, k;
 int n;
@@ -136,9 +137,9 @@ int t12;
 
 		attrset(COLOR_PAIR(2));
 	}
+	time(&now);
 	do {
 		mask = 0;
-		time(&now);
 		tm = localtime(&now);
 		set(tm->tm_sec%10, 0);
 		set(tm->tm_sec/10, 4);
@@ -193,7 +194,19 @@ int t12;
 		}
 		movto(6, 0);
 		refresh();
-		sleep(1);
+		clock_gettime(CLOCK_REALTIME_FAST, &ts);
+		if (ts.tv_sec == now) {
+			if (ts.tv_nsec > 0) {
+				ts.tv_sec = 0;
+				ts.tv_nsec = 1000000000 - ts.tv_nsec;
+			} else {
+				ts.tv_sec = 1;
+				ts.tv_nsec = 0;
+			}
+			nanosleep(&ts, NULL);
+			now = ts.tv_sec + 1;
+		} else
+			now = ts.tv_sec;
 		if (sigtermed) {
 			standend();
 			clear();

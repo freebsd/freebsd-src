@@ -92,15 +92,23 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int ehcidebug = 0;
 static int ehcinohighspeed = 0;
+static int ehciiaadbug = 0;
+static int ehcilostintrbug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ehci, CTLFLAG_RW, 0, "USB ehci");
 SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RW,
     &ehcidebug, 0, "Debug level");
 SYSCTL_INT(_hw_usb_ehci, OID_AUTO, no_hs, CTLFLAG_RW,
     &ehcinohighspeed, 0, "Disable High Speed USB");
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, iaadbug, CTLFLAG_RW,
+    &ehciiaadbug, 0, "Enable doorbell bug workaround");
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, lostintrbug, CTLFLAG_RW,
+    &ehcilostintrbug, 0, "Enable lost interrupt bug workaround");
 
 TUNABLE_INT("hw.usb.ehci.debug", &ehcidebug);
 TUNABLE_INT("hw.usb.ehci.no_hs", &ehcinohighspeed);
+TUNABLE_INT("hw.usb.ehci.iaadbug", &ehciiaadbug);
+TUNABLE_INT("hw.usb.ehci.lostintrbug", &ehcilostintrbug);
 
 static void ehci_dump_regs(ehci_softc_t *sc);
 static void ehci_dump_sqh(ehci_softc_t *sc, ehci_qh_t *sqh);
@@ -251,6 +259,10 @@ ehci_init(ehci_softc_t *sc)
 	usb_callout_init_mtx(&sc->sc_tmo_poll, &sc->sc_bus.bus_mtx, 0);
 
 #if USB_DEBUG
+	if (ehciiaadbug)
+		sc->sc_flags |= EHCI_SCFLG_IAADBUG;
+	if (ehcilostintrbug)
+		sc->sc_flags |= EHCI_SCFLG_LOSTINTRBUG;
 	if (ehcidebug > 2) {
 		ehci_dump_regs(sc);
 	}
@@ -2279,6 +2291,13 @@ ehci_device_bulk_start(struct usb_xfer *xfer)
 
 	/* put transfer on interrupt queue */
 	ehci_transfer_intr_enqueue(xfer);
+
+	/* 
+	 * XXX Certain nVidia chipsets choke when using the IAAD
+	 * feature too frequently.
+	 */
+	if (sc->sc_flags & EHCI_SCFLG_IAADBUG)
+		return;
 
 	/* XXX Performance quirk: Some Host Controllers have a too low
 	 * interrupt rate. Issue an IAAD to stimulate the Host
