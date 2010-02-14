@@ -1374,7 +1374,7 @@ struct aac_srb {
 	u_int32_t		retry_limit;
 	u_int32_t		cdb_len;
 	u_int8_t		cdb[16];
-	struct aac_sg_table	sg_map32;
+	struct aac_sg_table	sg_map;
 };
 
 enum {

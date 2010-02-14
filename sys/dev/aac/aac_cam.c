@@ -405,10 +405,10 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 				if (ccb->ccb_h.flags & CAM_DATA_PHYS) {
 					/* Send a 32bit command */
 					fib->Header.Command = ScsiPortCommand;
-					srb->sg_map32.SgCount = 1;
-					srb->sg_map32.SgEntry[0].SgAddress =
+					srb->sg_map.SgCount = 1;
+					srb->sg_map.SgEntry[0].SgAddress =
 					    (uint32_t)(uintptr_t)csio->data_ptr;
-					srb->sg_map32.SgEntry[0].SgByteCount =
+					srb->sg_map.SgEntry[0].SgByteCount =
 					    csio->dxfer_len;
 				} else {
 					/*
@@ -417,15 +417,15 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 					 */
 					cm->cm_data = (void *)csio->data_ptr;
 					cm->cm_datalen = csio->dxfer_len;
-					cm->cm_sgtable = &srb->sg_map32;
+					cm->cm_sgtable = &srb->sg_map;
 				}
 			} else {
 				/* XXX Need to handle multiple s/g elements */
 				panic("aac_cam: multiple s/g elements");
 			}
 		} else {
-			srb->sg_map32.SgCount = 0;
-			srb->sg_map32.SgEntry[0].SgByteCount = 0;
+			srb->sg_map.SgCount = 0;
+			srb->sg_map.SgEntry[0].SgByteCount = 0;
 			srb->data_len = 0;
 		}
 
