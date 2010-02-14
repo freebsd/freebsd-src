@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
-#include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
 #endif
 
@@ -289,12 +288,26 @@ ata_detach(device_t dev)
 static void
 ata_conn_event(void *context, int dummy)
 {
-    device_t dev = (device_t)context;
-    struct ata_channel *ch = device_get_softc(dev);
+	device_t dev = (device_t)context;
+	struct ata_channel *ch = device_get_softc(dev);
+#ifdef ATA_CAM
+	union ccb *ccb;
+#endif
 
-    mtx_lock(&ch->state_mtx);
-    ata_reinit(dev);
-    mtx_unlock(&ch->state_mtx);
+	mtx_lock(&ch->state_mtx);
+	ata_reinit(dev);
+	mtx_unlock(&ch->state_mtx);
+#ifdef ATA_CAM
+	if ((ccb = xpt_alloc_ccb()) == NULL)
+		return;
+	if (xpt_create_path(&ccb->ccb_h.path, NULL,
+	    cam_sim_path(ch->sim),
+	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		xpt_free_ccb(ccb);
+		return;
+	}
+	xpt_rescan(ccb);
+#endif
 }
 
 int
@@ -390,6 +403,7 @@ ata_reinit(device_t dev)
     /* kick off requests on the queue */
     ata_start(dev);
 #else
+	xpt_freeze_simq(ch->sim, 1);
 	if ((request = ch->running)) {
 		ch->running = NULL;
 		if (ch->state == ATA_ACTIVE)
@@ -404,6 +418,7 @@ ata_reinit(device_t dev)
 	ATA_RESET(dev);
 	/* Tell the XPT about the event */
 	xpt_async(AC_BUS_RESET, ch->path, NULL);
+	xpt_release_simq(ch->sim, TRUE);
 #endif
 	return(0);
 }

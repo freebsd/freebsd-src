@@ -56,7 +56,6 @@
 static TW_VOID	twa_action(struct cam_sim *sim, union ccb *ccb);
 static TW_VOID	twa_poll(struct cam_sim *sim);
 static TW_VOID	twa_timeout(TW_VOID *arg);
-static TW_VOID	twa_bus_scan_cb(struct cam_periph *periph, union ccb *ccb);
 
 static TW_INT32	tw_osli_execute_scsi(struct tw_osli_req_context *req,
 	union ccb *ccb);
@@ -76,7 +75,6 @@ TW_INT32
 tw_osli_cam_attach(struct twa_softc *sc)
 {
 	struct cam_devq		*devq;
-	TW_INT32		error;
 
 	tw_osli_dbg_dprintf(3, sc, "entered");
 
@@ -149,23 +147,8 @@ tw_osli_cam_attach(struct twa_softc *sc)
 		mtx_unlock(sc->sim_lock);
 		return(ENXIO);
 	}
-
-	tw_osli_dbg_dprintf(3, sc, "Calling xpt_setup_ccb");
 	mtx_unlock(sc->sim_lock);
 
-	tw_osli_dbg_dprintf(3, sc, "Calling tw_osli_request_bus_scan");
-	/*
-	 * Request a bus scan, so that CAM gets to know of
-	 * the logical units that we control.
-	 */
-	if ((error = tw_osli_request_bus_scan(sc)))
-		tw_osli_printf(sc, "error = %d",
-			TW_CL_SEVERITY_ERROR_STRING,
-			TW_CL_MESSAGE_SOURCE_FREEBSD_DRIVER,
-			0x2104,
-			"Bus scan request to CAM failed",
-			error);
-	
 	tw_osli_dbg_dprintf(3, sc, "exiting");
 	return(0);
 }
@@ -561,7 +544,6 @@ twa_timeout(TW_VOID *arg)
 TW_INT32
 tw_osli_request_bus_scan(struct twa_softc *sc)
 {
-	struct cam_path	*path;
 	union ccb	*ccb;
 
 	tw_osli_dbg_dprintf(3, sc, "entering");
@@ -569,13 +551,12 @@ tw_osli_request_bus_scan(struct twa_softc *sc)
 	/* If we get here before sc->sim is initialized, return an error. */
 	if (!(sc->sim))
 		return(ENXIO);
-	if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK)) == NULL)
+	if ((ccb = xpt_alloc_ccb()) == NULL)
 		return(ENOMEM);
-	bzero(ccb, sizeof(union ccb));
 	mtx_lock(sc->sim_lock);
-	if (xpt_create_path(&path, xpt_periph, cam_sim_path(sc->sim),
-			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		free(ccb, M_TEMP);
+	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(sc->sim),
+	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		xpt_free_ccb(ccb);
 		mtx_unlock(sc->sim_lock);
 		return(EIO);
 	}
@@ -586,39 +567,9 @@ tw_osli_request_bus_scan(struct twa_softc *sc)
 		sc->state &= ~TW_OSLI_CTLR_STATE_SIMQ_FROZEN;
 	}
 
-	xpt_setup_ccb(&ccb->ccb_h, path, 5);
-	ccb->ccb_h.func_code = XPT_SCAN_BUS;
-	ccb->ccb_h.cbfcnp = twa_bus_scan_cb;
-	ccb->crcn.flags = CAM_FLAG_NONE;
-	xpt_action(ccb);
+	xpt_rescan(ccb);
 	mtx_unlock(sc->sim_lock);
 	return(0);
-}
-
-
-
-/*
- * Function name:	twa_bus_scan_cb
- * Description:		Callback from CAM on a bus scan request.
- *
- * Input:		periph	-- we don't use this
- *			ccb	-- bus scan request ccb that we sent to CAM
- * Output:		None
- * Return value:	None
- */
-static TW_VOID
-twa_bus_scan_cb(struct cam_periph *periph, union ccb *ccb)
-{
-	tw_osli_dbg_printf(3, "entering");
-
-	if (ccb->ccb_h.status != CAM_REQ_CMP)
-		printf("cam_scan_callback: failure status = %x\n",
-			ccb->ccb_h.status);
-	else
-		tw_osli_dbg_printf(3, "success");
-
-	xpt_free_path(ccb->ccb_h.path);
-	free(ccb, M_TEMP);
 }
 
 
