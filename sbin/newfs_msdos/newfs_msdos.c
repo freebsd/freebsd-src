@@ -62,12 +62,12 @@ static const char rcsid[] =
 #define DEFBLK16  2048		/* default block size FAT16 */
 #define DEFRDE	  512		/* default root directory entries */
 #define RESFTE	  2		/* reserved FAT entries */
-#define MINCLS12  1		/* minimum FAT12 clusters */
-#define MINCLS16  0x1000	/* minimum FAT16 clusters */
-#define MINCLS32  2		/* minimum FAT32 clusters */
-#define MAXCLS12  0xfed 	/* maximum FAT12 clusters */
-#define MAXCLS16  0xfff5	/* maximum FAT16 clusters */
-#define MAXCLS32  0xffffff5	/* maximum FAT32 clusters */
+#define MINCLS12  1U		/* minimum FAT12 clusters */
+#define MINCLS16  0x1000U	/* minimum FAT16 clusters */
+#define MINCLS32  2U		/* minimum FAT32 clusters */
+#define MAXCLS12  0xfedU 	/* maximum FAT12 clusters */
+#define MAXCLS16  0xfff5U	/* maximum FAT16 clusters */
+#define MAXCLS32  0xffffff5U	/* maximum FAT32 clusters */
 
 #define mincls(fat)  ((fat) == 12 ? MINCLS12 :	\
 		      (fat) == 16 ? MINCLS16 :	\
@@ -165,20 +165,23 @@ struct bpb {
 
 #define BPBGAP 0, 0, 0, 0, 0, 0
 
+#define INIT(a, b, c, d, e, f, g, h, i, j) \
+    { .bps = a, .spc = b, .res = c, .nft = d, .rde = e, \
+      .sec = f, .mid = g, .spf = h, .spt = i, .hds = j, }
 static struct {
     const char *name;
     struct bpb bpb;
 } const stdfmt[] = {
-    {"160",  {512, 1, 1, 2,  64,  320, 0xfe, 1,  8, 1, BPBGAP}},
-    {"180",  {512, 1, 1, 2,  64,  360, 0xfc, 2,  9, 1, BPBGAP}},
-    {"320",  {512, 2, 1, 2, 112,  640, 0xff, 1,  8, 2, BPBGAP}},
-    {"360",  {512, 2, 1, 2, 112,  720, 0xfd, 2,  9, 2, BPBGAP}},
-    {"640",  {512, 2, 1, 2, 112, 1280, 0xfb, 2,  8, 2, BPBGAP}},    
-    {"720",  {512, 2, 1, 2, 112, 1440, 0xf9, 3,  9, 2, BPBGAP}},
-    {"1200", {512, 1, 1, 2, 224, 2400, 0xf9, 7, 15, 2, BPBGAP}},
-    {"1232", {1024,1, 1, 2, 192, 1232, 0xfe, 2,  8, 2, BPBGAP}},    
-    {"1440", {512, 1, 1, 2, 224, 2880, 0xf0, 9, 18, 2, BPBGAP}},
-    {"2880", {512, 2, 1, 2, 240, 5760, 0xf0, 9, 36, 2, BPBGAP}}
+    {"160",  INIT(512, 1, 1, 2,  64,  320, 0xfe, 1,  8, 1)},
+    {"180",  INIT(512, 1, 1, 2,  64,  360, 0xfc, 2,  9, 1)},
+    {"320",  INIT(512, 2, 1, 2, 112,  640, 0xff, 1,  8, 2)},
+    {"360",  INIT(512, 2, 1, 2, 112,  720, 0xfd, 2,  9, 2)},
+    {"640",  INIT(512, 2, 1, 2, 112, 1280, 0xfb, 2,  8, 2)},    
+    {"720",  INIT(512, 2, 1, 2, 112, 1440, 0xf9, 3,  9, 2)},
+    {"1200", INIT(512, 1, 1, 2, 224, 2400, 0xf9, 7, 15, 2)},
+    {"1232", INIT(1024,1, 1, 2, 192, 1232, 0xfe, 2,  8, 2)},    
+    {"1440", INIT(512, 1, 1, 2, 224, 2880, 0xf0, 9, 18, 2)},
+    {"2880", INIT(512, 2, 1, 2, 240, 5760, 0xf0, 9, 36, 2)}
 };
 
 static const u_int8_t bootcode[] = {
@@ -533,7 +536,7 @@ main(int argc, char *argv[])
     if (!bpb.res)
 	bpb.res = fat == 32 ? MAX(x, MAX(16384 / bpb.bps, 4)) : x;
     else if (bpb.res < x)
-	errx(1, "too few reserved sectors");
+	errx(1, "too few reserved sectors (need %d have %d)", x, bpb.res);
     if (fat != 32 && !bpb.rde)
 	bpb.rde = DEFRDE;
     rds = howmany(bpb.rde, bpb.bps / sizeof(struct de));
@@ -657,7 +660,7 @@ main(int argc, char *argv[])
 			 ((u_int)tm->tm_hour << 8 |
 			  (u_int)tm->tm_min));
 		mk4(bsx->volid, x);
-		mklabel(bsx->label, opt_L ? opt_L : "NO NAME");
+		mklabel(bsx->label, opt_L ? opt_L : "NO_NAME");
 		sprintf(buf, "FAT%u", fat);
 		setstr(bsx->type, buf, sizeof(bsx->type));
 		if (!opt_B) {
@@ -666,7 +669,7 @@ main(int argc, char *argv[])
 		    mk1(bs->jmp[0], 0xeb);
 		    mk1(bs->jmp[1], x1 - 2);
 		    mk1(bs->jmp[2], 0x90);
-		    setstr(bs->oem, opt_O ? opt_O : "BSD  4.4",
+		    setstr(bs->oem, opt_O ? opt_O : "BSD4.4  ",
 			   sizeof(bs->oem));
 		    memcpy(img + x1, bootcode, sizeof(bootcode));
 		    mk2(img + MINBPS - 2, DOSMAGIC);
