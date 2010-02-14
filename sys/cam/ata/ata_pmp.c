@@ -101,7 +101,6 @@ struct pmp_softc {
 	int			events;
 #define PMP_EV_RESET	1
 #define PMP_EV_RESCAN	2
-	union			ccb saved_ccb;
 	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
@@ -552,8 +551,7 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 	priority = done_ccb->ccb_h.pinfo.priority;
 
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		if (cam_periph_error(done_ccb, 0, 0,
-		    &softc->saved_ccb) == ERESTART) {
+		if (cam_periph_error(done_ccb, 0, 0, NULL) == ERESTART) {
 			return;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			cam_release_devq(done_ccb->ccb_h.path,
