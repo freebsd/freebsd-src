@@ -1663,6 +1663,45 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	return;
 }
 
+/* Must be called with channel locked. */
+static void
+ahci_process_timeout(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+	int i;
+
+	mtx_assert(&ch->mtx, MA_OWNED);
+	/* Handle the rest of commands. */
+	for (i = 0; i < ch->numslots; i++) {
+		/* Do we have a running request on slot? */
+		if (ch->slot[i].state < AHCI_SLOT_RUNNING)
+			continue;
+		ahci_end_transaction(&ch->slot[i], AHCI_ERR_TIMEOUT);
+	}
+}
+
+/* Must be called with channel locked. */
+static void
+ahci_rearm_timeout(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+	int i;
+
+	mtx_assert(&ch->mtx, MA_OWNED);
+	for (i = 0; i < ch->numslots; i++) {
+		struct ahci_slot *slot = &ch->slot[i];
+
+		/* Do we have a running request on slot? */
+		if (slot->state < AHCI_SLOT_RUNNING)
+			continue;
+		if ((ch->toslots & (1 << i)) == 0)
+			continue;
+		callout_reset(&slot->timeout,
+		    (int)slot->ccb->ccb_h.timeout * hz / 2000,
+		    (timeout_t*)ahci_timeout, slot);
+	}
+}
+
 /* Locked by callout mechanism. */
 static void
 ahci_timeout(struct ahci_slot *slot)
@@ -1699,7 +1738,6 @@ ahci_timeout(struct ahci_slot *slot)
 	    ATA_INL(ch->r_mem, AHCI_P_SACT), ch->rslots,
 	    ATA_INL(ch->r_mem, AHCI_P_TFD), ATA_INL(ch->r_mem, AHCI_P_SERR));
 
-	ch->fatalerr = 1;
 	/* Handle frozen command. */
 	if (ch->frozen) {
 		union ccb *fccb = ch->frozen;
@@ -1711,14 +1749,28 @@ ahci_timeout(struct ahci_slot *slot)
 		}
 		xpt_done(fccb);
 	}
-	/* Handle command with timeout. */
-	ahci_end_transaction(&ch->slot[slot->slot], AHCI_ERR_TIMEOUT);
-	/* Handle the rest of commands. */
-	for (i = 0; i < ch->numslots; i++) {
-		/* Do we have a running request on slot? */
-		if (ch->slot[i].state < AHCI_SLOT_RUNNING)
-			continue;
-		ahci_end_transaction(&ch->slot[i], AHCI_ERR_INNOCENT);
+	if (!ch->fbs_enabled) {
+		/* Without FBS we know real timeout source. */
+		ch->fatalerr = 1;
+		/* Handle command with timeout. */
+		ahci_end_transaction(&ch->slot[slot->slot], AHCI_ERR_TIMEOUT);
+		/* Handle the rest of commands. */
+		for (i = 0; i < ch->numslots; i++) {
+			/* Do we have a running request on slot? */
+			if (ch->slot[i].state < AHCI_SLOT_RUNNING)
+				continue;
+			ahci_end_transaction(&ch->slot[i], AHCI_ERR_INNOCENT);
+		}
+	} else {
+		/* With FBS we wait for other commands timeout and pray. */
+		if (ch->toslots == 0)
+			xpt_freeze_simq(ch->sim, 1);
+		ch->toslots |= (1 << slot->slot);
+		if ((ch->rslots & ~ch->toslots) == 0)
+			ahci_process_timeout(dev);
+		else
+			device_printf(dev, " ... waiting for slots %08x\n",
+			    ch->rslots & ~ch->toslots);
 	}
 }
 
@@ -1815,10 +1867,6 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		ccb->ccb_h.status |= CAM_UNCOR_PARITY;
 		break;
 	case AHCI_ERR_TIMEOUT:
-		/* Do no treat soft-reset timeout as fatal here. */
-		if (ccb->ccb_h.func_code != XPT_ATA_IO ||
-	            !(ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL))
-			ch->fatalerr = 1;
 		if (!ch->readlog) {
 			xpt_freeze_simq(ch->sim, 1);
 			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
@@ -1834,6 +1882,11 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	ch->oslots &= ~(1 << slot->slot);
 	ch->rslots &= ~(1 << slot->slot);
 	ch->aslots &= ~(1 << slot->slot);
+	if (et != AHCI_ERR_TIMEOUT) {
+		if (ch->toslots == (1 << slot->slot))
+			xpt_release_simq(ch->sim, TRUE);
+		ch->toslots &= ~(1 << slot->slot);
+	}
 	slot->state = AHCI_SLOT_EMPTY;
 	slot->ccb = NULL;
 	/* Update channel stats. */
@@ -1873,7 +1926,7 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	/* If we have no other active commands, ... */
 	if (ch->rslots == 0) {
 		/* if there was fatal error - reset port. */
-		if (ch->fatalerr) {
+		if (ch->toslots != 0 || ch->fatalerr) {
 			ahci_reset(dev);
 		} else {
 			/* if we have slots in error, we can reinit port. */
@@ -1885,7 +1938,10 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 			if (!ch->readlog && ch->numhslots)
 				ahci_issue_read_log(dev);
 		}
-	}
+	/* If all the rest of commands are in timeout - give them chance. */
+	} else if ((ch->rslots & ~ch->toslots) == 0 &&
+	    et != AHCI_ERR_TIMEOUT)
+		ahci_rearm_timeout(dev);
 	/* Start PM timer. */
 	if (ch->numrslots == 0 && ch->pm_level > 3) {
 		callout_schedule(&ch->pm_timer,
@@ -2149,7 +2205,10 @@ ahci_reset(device_t dev)
 		ch->hold[i] = NULL;
 		ch->numhslots--;
 	}
+	if (ch->toslots != 0)
+		xpt_release_simq(ch->sim, TRUE);
 	ch->eslots = 0;
+	ch->toslots = 0;
 	ch->fatalerr = 0;
 	/* Tell the XPT about the event */
 	xpt_async(AC_BUS_RESET, ch->path, NULL);
