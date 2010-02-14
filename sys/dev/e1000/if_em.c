@@ -955,7 +955,7 @@ em_mq_start_locked(struct ifnet *ifp, struct mbuf *m)
 	    || (!adapter->link_active)) {
 		error = drbr_enqueue(ifp, adapter->br, m);
 		return (error);
-	} else if (drbr_empty(ifp, adapter->br) &&
+	} else if (!drbr_needs_enqueue(ifp, adapter->br) &&
 	    (adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)) {
 		if ((error = em_xmit(adapter, &m)) != 0) {
 			if (m)

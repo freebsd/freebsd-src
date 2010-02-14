@@ -241,6 +241,7 @@ PMAP_STATS_VAR(pmap_nnew_thread_oc);
  */
 static int mr_cmp(const void *a, const void *b);
 static int om_cmp(const void *a, const void *b);
+
 static int
 mr_cmp(const void *a, const void *b)
 {
@@ -256,6 +257,7 @@ mr_cmp(const void *a, const void *b)
 	else
 		return (0);
 }
+
 static int
 om_cmp(const void *a, const void *b)
 {
@@ -1111,10 +1113,9 @@ pmap_release(pmap_t pm)
 	 *   to a kernel thread, leaving the pmap pointer unchanged.
 	 */
 	mtx_lock_spin(&sched_lock);
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu)
 		if (pc->pc_pmap == pm)
 			pc->pc_pmap = NULL;
-	}
 	mtx_unlock_spin(&sched_lock);
 
 	obj = pm->pm_tsb_obj;
@@ -1150,7 +1151,7 @@ pmap_growkernel(vm_offset_t addr)
 
 int
 pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
-		vm_offset_t va)
+    vm_offset_t va)
 {
 	vm_page_t m;
 	u_long data;
@@ -1198,12 +1199,10 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 		tsb_foreach(pm, NULL, start, end, pmap_remove_tte);
 		tlb_context_demap(pm);
 	} else {
-		for (va = start; va < end; va += PAGE_SIZE) {
-			if ((tp = tsb_tte_lookup(pm, va)) != NULL) {
-				if (!pmap_remove_tte(pm, NULL, tp, va))
-					break;
-			}
-		}
+		for (va = start; va < end; va += PAGE_SIZE)
+			if ((tp = tsb_tte_lookup(pm, va)) != NULL &&
+			    !pmap_remove_tte(pm, NULL, tp, va))
+				break;
 		tlb_range_demap(pm, start, end - 1);
 	}
 	PMAP_UNLOCK(pm);
@@ -1245,7 +1244,7 @@ pmap_remove_all(vm_page_t m)
 
 int
 pmap_protect_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
-		 vm_offset_t va)
+    vm_offset_t va)
 {
 	u_long data;
 	vm_page_t m;
@@ -1287,10 +1286,9 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		tsb_foreach(pm, NULL, sva, eva, pmap_protect_tte);
 		tlb_context_demap(pm);
 	} else {
-		for (va = sva; va < eva; va += PAGE_SIZE) {
+		for (va = sva; va < eva; va += PAGE_SIZE)
 			if ((tp = tsb_tte_lookup(pm, va)) != NULL)
 				pmap_protect_tte(pm, NULL, tp, va);
-		}
 		tlb_range_demap(pm, sva, eva - 1);
 	}
 	PMAP_UNLOCK(pm);
@@ -1386,21 +1384,18 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 */
 		if ((prot & VM_PROT_WRITE) != 0) {
 			tp->tte_data |= TD_SW;
-			if (wired) {
+			if (wired)
 				tp->tte_data |= TD_W;
-			}
 			vm_page_flag_set(m, PG_WRITEABLE);
-		} else if ((data & TD_W) != 0) {
+		} else if ((data & TD_W) != 0)
 			vm_page_dirty(m);
-		}
 
 		/*
 		 * If we're turning on execute permissions, flush the icache.
 		 */
 		if ((prot & VM_PROT_EXECUTE) != 0) {
-			if ((data & TD_EXEC) == 0) {
+			if ((data & TD_EXEC) == 0)
 				icache_page_inval(pa);
-			}
 			tp->tte_data |= TD_EXEC;
 		}
 
@@ -1495,7 +1490,7 @@ pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 
 void
 pmap_object_init_pt(pmap_t pm, vm_offset_t addr, vm_object_t object,
-		    vm_pindex_t pindex, vm_size_t size)
+    vm_pindex_t pindex, vm_size_t size)
 {
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
@@ -1529,7 +1524,8 @@ pmap_change_wiring(pmap_t pm, vm_offset_t va, boolean_t wired)
 }
 
 static int
-pmap_copy_tte(pmap_t src_pmap, pmap_t dst_pmap, struct tte *tp, vm_offset_t va)
+pmap_copy_tte(pmap_t src_pmap, pmap_t dst_pmap, struct tte *tp,
+    vm_offset_t va)
 {
 	vm_page_t m;
 	u_long data;
@@ -1567,10 +1563,9 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 		    pmap_copy_tte);
 		tlb_context_demap(dst_pmap);
 	} else {
-		for (va = src_addr; va < src_addr + len; va += PAGE_SIZE) {
+		for (va = src_addr; va < src_addr + len; va += PAGE_SIZE)
 			if ((tp = tsb_tte_lookup(src_pmap, va)) != NULL)
 				pmap_copy_tte(src_pmap, dst_pmap, tp, va);
-		}
 		tlb_range_demap(dst_pmap, src_addr, src_addr + len - 1);
 	}
 	vm_page_unlock_queues();
@@ -1823,10 +1818,9 @@ pmap_page_is_mapped(vm_page_t m)
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
 		return (FALSE);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
+	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link)
 		if ((tp->tte_data & TD_PV) != 0)
 			return (TRUE);
-	}
 	return (FALSE);
 }
 
@@ -2004,6 +1998,7 @@ pmap_activate(struct thread *td)
 void
 pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 {
+
 }
 
 /*
