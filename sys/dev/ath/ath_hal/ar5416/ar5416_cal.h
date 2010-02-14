@@ -116,5 +116,5 @@ void	ar5416AdcGainCalCollect(struct ath_hal *ah);
 void	ar5416AdcGainCalibration(struct ath_hal *ah, uint8_t numChains);
 void	ar5416AdcDcCalCollect(struct ath_hal *ah);
 void	ar5416AdcDcCalibration(struct ath_hal *ah, uint8_t numChains);
-void	ar5416InitNfHistBuff(struct ath_hal *ah, struct ar5212NfCalHist *h);
+void	ar5416InitNfHistBuff(struct ar5212NfCalHist *h);
 #endif /* _ATH_AR5416_CAL_H_ */
