@@ -37,7 +37,6 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <stdio.h>
 #include <unistd.h>
 #include <time.h>
 
@@ -223,12 +222,24 @@ resetDosDirSection(struct bootblock *boot, struct fatEntry *fat)
 	b1 = boot->RootDirEnts * 32;
 	b2 = boot->SecPerClust * boot->BytesPerSec;
 
-	if (!(buffer = malloc(b1 > b2 ? b1 : b2))
-	    || !(delbuf = malloc(b2))
-	    || !(rootDir = newDosDirEntry())) {
-		perror("No space for directory");
+	if ((buffer = malloc( b1 > b2 ? b1 : b2)) == NULL) {
+		perror("No space for directory buffer");
 		return FSFATAL;
 	}
+
+	if ((delbuf = malloc(b2)) == NULL) {
+		free(buffer);
+		perror("No space for directory delbuf");
+		return FSFATAL;
+	}
+
+	if ((rootDir = newDosDirEntry()) == NULL) {
+		free(buffer);
+		free(delbuf);
+		perror("No space for directory entry");
+		return FSFATAL;
+	}
+
 	memset(rootDir, 0, sizeof *rootDir);
 	if (boot->flags & FAT32) {
 		if (boot->RootCl < CLUST_FIRST || boot->RootCl >= boot->NumClusters) {
@@ -360,7 +371,8 @@ removede(int f, struct bootblock *boot, struct fatEntry *fat, u_char *start,
 				return FSFATAL;
 			start = buffer;
 		}
-		if (endcl == curcl)
+		/* startcl is < CLUST_FIRST for !fat32 root */
+		if ((endcl == curcl) || (startcl < CLUST_FIRST))
 			for (; start < end; start += 32)
 				*start = SLOT_DELETED;
 		return FSDIRMOD;
@@ -378,7 +390,7 @@ checksize(struct bootblock *boot, struct fatEntry *fat, u_char *p,
 	/*
 	 * Check size on ordinary files
 	 */
-	int32_t physicalSize;
+	u_int32_t physicalSize;
 
 	if (dir->head == CLUST_FREE)
 		physicalSize = 0;
@@ -637,7 +649,8 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 				dirent.head |= (p[20] << 16) | (p[21] << 24);
 			dirent.size = p[28] | (p[29] << 8) | (p[30] << 16) | (p[31] << 24);
 			if (vallfn) {
-				strcpy(dirent.lname, longName);
+				strlcpy(dirent.lname, longName,
+				    sizeof(dirent.lname));
 				longName[0] = '\0';
 				shortSum = -1;
 			}
@@ -825,6 +838,10 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 			}
 			boot->NumFiles++;
 		}
+
+		if (!(boot->flags & FAT32) && !dir->parent)
+			break;
+
 		if (mod & THISMOD) {
 			last *= 32;
 			if (lseek(f, off, SEEK_SET) != off
@@ -840,6 +857,19 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 				invlfn ? invlfn : vallfn, p,
 				invlfn ? invcl : valcl, -1, 0,
 				fullpath(dir), 1);
+
+	/* The root directory of non fat32 filesystems is in a special
+	 * area and may have been modified above without being written out.
+	 */
+	if ((mod & FSDIRMOD) && !(boot->flags & FAT32) && !dir->parent) {
+		last *= 32;
+		if (lseek(f, off, SEEK_SET) != off
+		    || write(f, buffer, last) != last) {
+			perror("Unable to write directory");
+			return FSFATAL;
+		}
+		mod &= ~THISMOD;
+	}
 	return mod & ~THISMOD;
 }
 
@@ -929,7 +959,7 @@ reconnect(int dosfs, struct bootblock *boot, struct fatEntry *fat, cl_t head)
 		lfoff = lfcl * boot->ClusterSize
 		    + boot->ClusterOffset * boot->BytesPerSec;
 		if (lseek(dosfs, lfoff, SEEK_SET) != lfoff
-		    || read(dosfs, lfbuf, boot->ClusterSize) != boot->ClusterSize) {
+		    || (size_t)read(dosfs, lfbuf, boot->ClusterSize) != boot->ClusterSize) {
 			perror("could not read LOST.DIR");
 			return FSFATAL;
 		}
@@ -959,7 +989,7 @@ reconnect(int dosfs, struct bootblock *boot, struct fatEntry *fat, cl_t head)
 	p[31] = (u_char)(d.size >> 24);
 	fat[head].flags |= FAT_USED;
 	if (lseek(dosfs, lfoff, SEEK_SET) != lfoff
-	    || write(dosfs, lfbuf, boot->ClusterSize) != boot->ClusterSize) {
+	    || (size_t)write(dosfs, lfbuf, boot->ClusterSize) != boot->ClusterSize) {
 		perror("could not write LOST.DIR");
 		return FSFATAL;
 	}
