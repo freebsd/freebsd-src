@@ -2213,6 +2213,8 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 			d->tags = min(ch->numslots, cts->xport_specific.sata.tags);
 		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_PM)
 			ch->pm_present = cts->xport_specific.sata.pm_present;
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_ATAPI)
+			d->atapi = cts->xport_specific.sata.atapi;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -2256,6 +2258,8 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_PM;
 		cts->xport_specific.sata.tags = d->tags;
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_TAGS;
+		cts->xport_specific.sata.atapi = d->atapi;
+		cts->xport_specific.sata.valid |= CTS_SATA_VALID_ATAPI;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;

@@ -539,6 +539,7 @@ struct ata_cam_device {
 	u_int			revision;
 	int			mode;
 	u_int			bytecount;
+	u_int			atapi;
 };
 #endif
 
