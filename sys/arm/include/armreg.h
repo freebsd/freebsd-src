@@ -151,7 +151,8 @@
 #define CPU_ID_MV88FR131	0x56251310 /* Marvell Feroceon 88FR131 Core */
 #define CPU_ID_MV88FR571_VD	0x56155710 /* Marvell Feroceon 88FR571-VD Core (ID from datasheet) */
 #define	CPU_ID_MV88FR571_41	0x41159260 /* Marvell Feroceon 88FR571-VD Core (actual ID from CPU reg) */
-#define	CPU_ID_FA526		0x66015260
+#define	CPU_ID_FA526		0x66015261
+#define	CPU_ID_FA626TE		0x66056261
 #define CPU_ID_SA1110		0x6901b110
 #define CPU_ID_IXP1200		0x6901c120
 #define CPU_ID_80200		0x69052000
