@@ -555,7 +555,7 @@ dev/ath/ath_hal/ah_eeprom_v14.c \
 	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_hal/ah_eeprom_v4k.c \
-	optional ath_hal | ath_ar9285 \
+	optional ath_hal | ath_ar9280 | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_hal/ah_regdomain.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
