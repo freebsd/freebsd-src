@@ -1010,8 +1010,10 @@ camxferrate(struct cam_device *device)
 		printf(" (");
 		if (ata->valid & CTS_ATA_VALID_MODE)
 			printf("%s, ", ata_mode2string(ata->mode));
+		if ((ata->valid & CTS_ATA_VALID_ATAPI) && ata->atapi != 0)
+			printf("ATAPI %dbytes, ", ata->atapi);
 		if (ata->valid & CTS_ATA_VALID_BYTECOUNT)
-			printf("PIO size %dbytes", ata->bytecount);
+			printf("PIO %dbytes", ata->bytecount);
 		printf(")");
 	} else if (ccb->cts.transport == XPORT_SATA) {
 		struct ccb_trans_settings_sata *sata =
@@ -1022,8 +1024,10 @@ camxferrate(struct cam_device *device)
 			printf("SATA %d.x, ", sata->revision);
 		if (sata->valid & CTS_SATA_VALID_MODE)
 			printf("%s, ", ata_mode2string(sata->mode));
+		if ((sata->valid & CTS_SATA_VALID_ATAPI) && sata->atapi != 0)
+			printf("ATAPI %dbytes, ", sata->atapi);
 		if (sata->valid & CTS_SATA_VALID_BYTECOUNT)
-			printf("PIO size %dbytes", sata->bytecount);
+			printf("PIO %dbytes", sata->bytecount);
 		printf(")");
 	}
 
@@ -2800,6 +2804,10 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 			fprintf(stdout, "%sATA mode: %s\n", pathstr,
 				ata_mode2string(ata->mode));
 		}
+		if ((ata->valid & CTS_ATA_VALID_ATAPI) != 0) {
+			fprintf(stdout, "%sATAPI packet length: %d\n", pathstr,
+				ata->atapi);
+		}
 		if ((ata->valid & CTS_ATA_VALID_BYTECOUNT) != 0) {
 			fprintf(stdout, "%sPIO transaction length: %d\n",
 				pathstr, ata->bytecount);
@@ -2816,6 +2824,10 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 		if ((sata->valid & CTS_SATA_VALID_MODE) != 0) {
 			fprintf(stdout, "%sATA mode: %s\n", pathstr,
 				ata_mode2string(sata->mode));
+		}
+		if ((sata->valid & CTS_SATA_VALID_ATAPI) != 0) {
+			fprintf(stdout, "%sATAPI packet length: %d\n", pathstr,
+				sata->atapi);
 		}
 		if ((sata->valid & CTS_SATA_VALID_BYTECOUNT) != 0) {
 			fprintf(stdout, "%sPIO transaction length: %d\n",

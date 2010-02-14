@@ -358,6 +358,7 @@ struct ahci_device {
 	int			revision;
 	int			mode;
 	u_int			bytecount;
+	u_int			atapi;
 	u_int			tags;
 };
 
