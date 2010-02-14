@@ -45,6 +45,7 @@ enum {	/* keep in sync with usb_quirk_str table */
 	UQ_BUS_POWERED,		/* device is bus powered, despite claim */
 	UQ_HID_IGNORE,		/* device should be ignored by hid class */
 	UQ_KBD_IGNORE,		/* device should be ignored by kbd class */
+	UQ_KBD_BOOTPROTO,	/* device should set the boot protocol */
 	UQ_MS_BAD_CLASS,	/* doesn't identify properly */
 	UQ_MS_LEADING_BYTE,	/* mouse sends an unknown leading byte */
 	UQ_MS_REVZ,		/* mouse has Z-axis reversed */
