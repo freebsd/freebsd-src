@@ -247,8 +247,11 @@
 #define         AHCI_P_CMD_CPS      0x00010000
 #define         AHCI_P_CMD_PMA      0x00020000
 #define         AHCI_P_CMD_HPCP     0x00040000
-#define         AHCI_P_CMD_ISP      0x00080000
+#define         AHCI_P_CMD_MPSP     0x00080000
 #define         AHCI_P_CMD_CPD      0x00100000
+#define         AHCI_P_CMD_ESP      0x00200000
+#define         AHCI_P_CMD_FBSCP    0x00400000
+#define         AHCI_P_CMD_APSTE    0x00800000
 #define         AHCI_P_CMD_ATAPI    0x01000000
 #define         AHCI_P_CMD_DLAE     0x02000000
 #define         AHCI_P_CMD_ALPE     0x04000000
@@ -268,6 +271,15 @@
 #define AHCI_P_CI                   0x38
 #define AHCI_P_SNTF                 0x3C
 #define AHCI_P_FBS                  0x40
+#define 	AHCI_P_FBS_EN       0x00000001
+#define 	AHCI_P_FBS_DEC      0x00000002
+#define 	AHCI_P_FBS_SDE      0x00000004
+#define 	AHCI_P_FBS_DEV      0x00000f00
+#define 	AHCI_P_FBS_DEV_SHIFT 8
+#define 	AHCI_P_FBS_ADO      0x0000f000
+#define 	AHCI_P_FBS_ADO_SHIFT 12
+#define 	AHCI_P_FBS_DWE      0x000f0000
+#define 	AHCI_P_FBS_DWE_SHIFT 16
 
 /* Just to be sure, if building as module. */
 #if MAXPHYS < 512 * 1024
@@ -374,6 +386,7 @@ struct ahci_channel {
 	struct cam_path		*path;
 	uint32_t		caps;		/* Controller capabilities */
 	uint32_t		caps2;		/* Controller capabilities */
+	uint32_t		chcaps;		/* Channel capabilities */
 	int			quirks;
 	int			numslots;	/* Number of present slots */
 	int			pm_level;	/* power management level */
@@ -383,11 +396,16 @@ struct ahci_channel {
 	struct mtx		mtx;		/* state lock */
 	int			devices;        /* What is present */
 	int			pm_present;	/* PM presence reported */
+	int			fbs_enabled;	/* FIS-based switching enabled */
 	uint32_t		oslots;		/* Occupied slots */
 	uint32_t		rslots;		/* Running slots */
 	uint32_t		aslots;		/* Slots with atomic commands  */
+	uint32_t		eslots;		/* Slots in error */
 	int			numrslots;	/* Number of running slots */
+	int			numrslotspd[16];/* Number of running slots per dev */
 	int			numtslots;	/* Number of tagged slots */
+	int			numtslotspd[16];/* Number of tagged slots per dev */
+	int			numhslots;	/* Number of holden slots */
 	int			readlog;	/* Our READ LOG active */
 	int			fatalerr;	/* Fatal error happend */
 	int			lastslot;	/* Last used slot */
