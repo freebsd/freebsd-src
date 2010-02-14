@@ -693,7 +693,8 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	ident_buf = &path->device->ident_data;
 
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-device_fail:	if (cam_periph_error(done_ccb, 0, 0, NULL) == ERESTART) {
+device_fail:	if ((!softc->restart) &&
+		    cam_periph_error(done_ccb, 0, 0, NULL) == ERESTART) {
 			return;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
