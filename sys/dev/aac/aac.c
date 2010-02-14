@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Driver for the Adaptec 'FSA' family of PCI/SCSI RAID adapters.
  */
-#define AAC_DRIVER_VERSION		0x02000000
 #define AAC_DRIVERNAME			"aac"
 
 #include "opt_aac.h"
@@ -2767,10 +2766,8 @@ aac_describe_controller(struct aac_softc *sc)
 	}
 	device_printf(sc->aac_dev, "%s, aac driver %d.%d.%d-%d\n",
 		adapter_type,
-		AAC_DRIVER_VERSION >> 24,
-		(AAC_DRIVER_VERSION >> 16) & 0xFF,
-		AAC_DRIVER_VERSION & 0xFF,
-		AAC_DRIVER_BUILD);
+		AAC_DRIVER_MAJOR_VERSION, AAC_DRIVER_MINOR_VERSION,
+		AAC_DRIVER_BUGFIX_LEVEL, AAC_DRIVER_BUILD);
 
 	aac_release_sync_fib(sc);
 	mtx_unlock(&sc->aac_io_lock);
@@ -3255,10 +3252,16 @@ aac_rev_check(struct aac_softc *sc, caddr_t udata)
 	 * Doctor up the response struct.
 	 */
 	rev_check_resp.possiblyCompatible = 1;
-	rev_check_resp.adapterSWRevision.external.ul =
-	    sc->aac_revision.external.ul;
+	rev_check_resp.adapterSWRevision.external.comp.major =
+	    AAC_DRIVER_MAJOR_VERSION;
+	rev_check_resp.adapterSWRevision.external.comp.minor =
+	    AAC_DRIVER_MINOR_VERSION;
+	rev_check_resp.adapterSWRevision.external.comp.type =
+	    AAC_DRIVER_TYPE;
+	rev_check_resp.adapterSWRevision.external.comp.dash =
+	    AAC_DRIVER_BUGFIX_LEVEL;
 	rev_check_resp.adapterSWRevision.buildNumber =
-	    sc->aac_revision.buildNumber;
+	    AAC_DRIVER_BUILD;
 
 	return(copyout((caddr_t)&rev_check_resp, udata,
 			sizeof(struct aac_rev_check_resp)));
