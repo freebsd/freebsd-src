@@ -1062,6 +1062,7 @@ mpt_adjust_queue_depth(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol,
 
 	xpt_setup_ccb(&crs.ccb_h, path, /*priority*/5);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
+	crs.ccb_h.flags = CAM_DEV_QFREEZE;
 	crs.release_flags = RELSIM_ADJUST_OPENINGS;
 	crs.openings = mpt->raid_queue_depth;
 	xpt_action((union ccb *)&crs);
