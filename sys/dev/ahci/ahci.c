@@ -98,6 +98,7 @@ MALLOC_DEFINE(M_AHCI, "AHCI driver", "AHCI driver data buffers");
 
 static struct {
 	uint32_t	id;
+	uint8_t		rev;
 	const char	*name;
 	int		quirks;
 #define AHCI_Q_NOFORCE	1
@@ -107,135 +108,138 @@ static struct {
 #define AHCI_Q_2CH	16
 #define AHCI_Q_4CH	32
 #define AHCI_Q_EDGEIS	64
+#define AHCI_Q_SATA2	128
 } ahci_ids[] = {
-	{0x43801002, "ATI IXP600",	0},
-	{0x43901002, "ATI IXP700",	0},
-	{0x43911002, "ATI IXP700",	0},
-	{0x43921002, "ATI IXP700",	0},
-	{0x43931002, "ATI IXP700",	0},
-	{0x43941002, "ATI IXP800",	0},
-	{0x43951002, "ATI IXP800",	0},
-	{0x26528086, "Intel ICH6",	AHCI_Q_NOFORCE},
-	{0x26538086, "Intel ICH6M",	AHCI_Q_NOFORCE},
-	{0x26818086, "Intel ESB2",	0},
-	{0x26828086, "Intel ESB2",	0},
-	{0x26838086, "Intel ESB2",	0},
-	{0x27c18086, "Intel ICH7",	0},
-	{0x27c38086, "Intel ICH7",	0},
-	{0x27c58086, "Intel ICH7M",	0},
-	{0x27c68086, "Intel ICH7M",	0},
-	{0x28218086, "Intel ICH8",	0},
-	{0x28228086, "Intel ICH8",	0},
-	{0x28248086, "Intel ICH8",	0},
-	{0x28298086, "Intel ICH8M",	0},
-	{0x282a8086, "Intel ICH8M",	0},
-	{0x29228086, "Intel ICH9",	0},
-	{0x29238086, "Intel ICH9",	0},
-	{0x29248086, "Intel ICH9",	0},
-	{0x29258086, "Intel ICH9",	0},
-	{0x29278086, "Intel ICH9",	0},
-	{0x29298086, "Intel ICH9M",	0},
-	{0x292a8086, "Intel ICH9M",	0},
-	{0x292b8086, "Intel ICH9M",	0},
-	{0x292c8086, "Intel ICH9M",	0},
-	{0x292f8086, "Intel ICH9M",	0},
-	{0x294d8086, "Intel ICH9",	0},
-	{0x294e8086, "Intel ICH9M",	0},
-	{0x3a058086, "Intel ICH10",	0},
-	{0x3a228086, "Intel ICH10",	0},
-	{0x3a258086, "Intel ICH10",	0},
-	{0x3b228086, "Intel PCH",	0},
-	{0x3b238086, "Intel PCH",	0},
-	{0x3b248086, "Intel PCH",	0},
-	{0x3b258086, "Intel PCH",	0},
-	{0x3b298086, "Intel PCH",	0},
-	{0x3b2b8086, "Intel PCH",	0},
-	{0x3b2c8086, "Intel PCH",	0},
-	{0x3b2f8086, "Intel PCH",	0},
-	{0x2361197b, "JMicron JMB361",	AHCI_Q_NOFORCE},
-	{0x2363197b, "JMicron JMB363",	AHCI_Q_NOFORCE},
-	{0x2365197b, "JMicron JMB365",	AHCI_Q_NOFORCE},
-	{0x2366197b, "JMicron JMB366",	AHCI_Q_NOFORCE},
-	{0x2368197b, "JMicron JMB368",	AHCI_Q_NOFORCE},
-	{0x611111ab, "Marvell 88SX6111", AHCI_Q_NOFORCE|AHCI_Q_1CH|AHCI_Q_EDGEIS},
-	{0x612111ab, "Marvell 88SX6121", AHCI_Q_NOFORCE|AHCI_Q_2CH|AHCI_Q_EDGEIS},
-	{0x614111ab, "Marvell 88SX6141", AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
-	{0x614511ab, "Marvell 88SX6145", AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
-	{0x044c10de, "NVIDIA MCP65",	0},
-	{0x044d10de, "NVIDIA MCP65",	0},
-	{0x044e10de, "NVIDIA MCP65",	0},
-	{0x044f10de, "NVIDIA MCP65",	0},
-	{0x045c10de, "NVIDIA MCP65",	0},
-	{0x045d10de, "NVIDIA MCP65",	0},
-	{0x045e10de, "NVIDIA MCP65",	0},
-	{0x045f10de, "NVIDIA MCP65",	0},
-	{0x055010de, "NVIDIA MCP67",	0},
-	{0x055110de, "NVIDIA MCP67",	0},
-	{0x055210de, "NVIDIA MCP67",	0},
-	{0x055310de, "NVIDIA MCP67",	0},
-	{0x055410de, "NVIDIA MCP67",	0},
-	{0x055510de, "NVIDIA MCP67",	0},
-	{0x055610de, "NVIDIA MCP67",	0},
-	{0x055710de, "NVIDIA MCP67",	0},
-	{0x055810de, "NVIDIA MCP67",	0},
-	{0x055910de, "NVIDIA MCP67",	0},
-	{0x055A10de, "NVIDIA MCP67",	0},
-	{0x055B10de, "NVIDIA MCP67",	0},
-	{0x058410de, "NVIDIA MCP67",	0},
-	{0x07f010de, "NVIDIA MCP73",	0},
-	{0x07f110de, "NVIDIA MCP73",	0},
-	{0x07f210de, "NVIDIA MCP73",	0},
-	{0x07f310de, "NVIDIA MCP73",	0},
-	{0x07f410de, "NVIDIA MCP73",	0},
-	{0x07f510de, "NVIDIA MCP73",	0},
-	{0x07f610de, "NVIDIA MCP73",	0},
-	{0x07f710de, "NVIDIA MCP73",	0},
-	{0x07f810de, "NVIDIA MCP73",	0},
-	{0x07f910de, "NVIDIA MCP73",	0},
-	{0x07fa10de, "NVIDIA MCP73",	0},
-	{0x07fb10de, "NVIDIA MCP73",	0},
-	{0x0ad010de, "NVIDIA MCP77",	0},
-	{0x0ad110de, "NVIDIA MCP77",	0},
-	{0x0ad210de, "NVIDIA MCP77",	0},
-	{0x0ad310de, "NVIDIA MCP77",	0},
-	{0x0ad410de, "NVIDIA MCP77",	0},
-	{0x0ad510de, "NVIDIA MCP77",	0},
-	{0x0ad610de, "NVIDIA MCP77",	0},
-	{0x0ad710de, "NVIDIA MCP77",	0},
-	{0x0ad810de, "NVIDIA MCP77",	0},
-	{0x0ad910de, "NVIDIA MCP77",	0},
-	{0x0ada10de, "NVIDIA MCP77",	0},
-	{0x0adb10de, "NVIDIA MCP77",	0},
-	{0x0ab410de, "NVIDIA MCP79",	0},
-	{0x0ab510de, "NVIDIA MCP79",	0},
-	{0x0ab610de, "NVIDIA MCP79",	0},
-	{0x0ab710de, "NVIDIA MCP79",	0},
-	{0x0ab810de, "NVIDIA MCP79",	0},
-	{0x0ab910de, "NVIDIA MCP79",	0},
-	{0x0aba10de, "NVIDIA MCP79",	0},
-	{0x0abb10de, "NVIDIA MCP79",	0},
-	{0x0abc10de, "NVIDIA MCP79",	0},
-	{0x0abd10de, "NVIDIA MCP79",	0},
-	{0x0abe10de, "NVIDIA MCP79",	0},
-	{0x0abf10de, "NVIDIA MCP79",	0},
-	{0x0d8410de, "NVIDIA MCP89",	0},
-	{0x0d8510de, "NVIDIA MCP89",	0},
-	{0x0d8610de, "NVIDIA MCP89",	0},
-	{0x0d8710de, "NVIDIA MCP89",	0},
-	{0x0d8810de, "NVIDIA MCP89",	0},
-	{0x0d8910de, "NVIDIA MCP89",	0},
-	{0x0d8a10de, "NVIDIA MCP89",	0},
-	{0x0d8b10de, "NVIDIA MCP89",	0},
-	{0x0d8c10de, "NVIDIA MCP89",	0},
-	{0x0d8d10de, "NVIDIA MCP89",	0},
-	{0x0d8e10de, "NVIDIA MCP89",	0},
-	{0x0d8f10de, "NVIDIA MCP89",	0},
-	{0x33491106, "VIA VT8251",	0},
-	{0x62871106, "VIA VT8251",	0},
-	{0x11841039, "SiS 966",		0},
-	{0x11851039, "SiS 968",		0},
-	{0x01861039, "SiS 968",		0},
-	{0,	     NULL,		0}
+	{0x43801002, 0x00, "ATI IXP600",	0},
+	{0x43901002, 0x00, "ATI IXP700",	0},
+	{0x43911002, 0x00, "ATI IXP700",	0},
+	{0x43921002, 0x00, "ATI IXP700",	0},
+	{0x43931002, 0x00, "ATI IXP700",	0},
+	{0x43941002, 0x00, "ATI IXP800",	0},
+	{0x43951002, 0x00, "ATI IXP800",	0},
+	{0x26528086, 0x00, "Intel ICH6",	AHCI_Q_NOFORCE},
+	{0x26538086, 0x00, "Intel ICH6M",	AHCI_Q_NOFORCE},
+	{0x26818086, 0x00, "Intel ESB2",	0},
+	{0x26828086, 0x00, "Intel ESB2",	0},
+	{0x26838086, 0x00, "Intel ESB2",	0},
+	{0x27c18086, 0x00, "Intel ICH7",	0},
+	{0x27c38086, 0x00, "Intel ICH7",	0},
+	{0x27c58086, 0x00, "Intel ICH7M",	0},
+	{0x27c68086, 0x00, "Intel ICH7M",	0},
+	{0x28218086, 0x00, "Intel ICH8",	0},
+	{0x28228086, 0x00, "Intel ICH8",	0},
+	{0x28248086, 0x00, "Intel ICH8",	0},
+	{0x28298086, 0x00, "Intel ICH8M",	0},
+	{0x282a8086, 0x00, "Intel ICH8M",	0},
+	{0x29228086, 0x00, "Intel ICH9",	0},
+	{0x29238086, 0x00, "Intel ICH9",	0},
+	{0x29248086, 0x00, "Intel ICH9",	0},
+	{0x29258086, 0x00, "Intel ICH9",	0},
+	{0x29278086, 0x00, "Intel ICH9",	0},
+	{0x29298086, 0x00, "Intel ICH9M",	0},
+	{0x292a8086, 0x00, "Intel ICH9M",	0},
+	{0x292b8086, 0x00, "Intel ICH9M",	0},
+	{0x292c8086, 0x00, "Intel ICH9M",	0},
+	{0x292f8086, 0x00, "Intel ICH9M",	0},
+	{0x294d8086, 0x00, "Intel ICH9",	0},
+	{0x294e8086, 0x00, "Intel ICH9M",	0},
+	{0x3a058086, 0x00, "Intel ICH10",	0},
+	{0x3a228086, 0x00, "Intel ICH10",	0},
+	{0x3a258086, 0x00, "Intel ICH10",	0},
+	{0x3b228086, 0x00, "Intel PCH",		0},
+	{0x3b238086, 0x00, "Intel PCH",		0},
+	{0x3b248086, 0x00, "Intel PCH",		0},
+	{0x3b258086, 0x00, "Intel PCH",		0},
+	{0x3b298086, 0x00, "Intel PCH",		0},
+	{0x3b2b8086, 0x00, "Intel PCH",		0},
+	{0x3b2c8086, 0x00, "Intel PCH",		0},
+	{0x3b2f8086, 0x00, "Intel PCH",		0},
+	{0x2361197b, 0x00, "JMicron JMB361",	AHCI_Q_NOFORCE},
+	{0x2363197b, 0x00, "JMicron JMB363",	AHCI_Q_NOFORCE},
+	{0x2365197b, 0x00, "JMicron JMB365",	AHCI_Q_NOFORCE},
+	{0x2366197b, 0x00, "JMicron JMB366",	AHCI_Q_NOFORCE},
+	{0x2368197b, 0x00, "JMicron JMB368",	AHCI_Q_NOFORCE},
+	{0x611111ab, 0x00, "Marvell 88SX6111",	AHCI_Q_NOFORCE|AHCI_Q_1CH|AHCI_Q_EDGEIS},
+	{0x612111ab, 0x00, "Marvell 88SX6121",	AHCI_Q_NOFORCE|AHCI_Q_2CH|AHCI_Q_EDGEIS},
+	{0x614111ab, 0x00, "Marvell 88SX6141",	AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
+	{0x614511ab, 0x00, "Marvell 88SX6145",	AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
+	{0x91231b4b, 0x11, "Marvell 88SE912x",	0},
+	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2},
+	{0x044c10de, 0x00, "NVIDIA MCP65",	0},
+	{0x044d10de, 0x00, "NVIDIA MCP65",	0},
+	{0x044e10de, 0x00, "NVIDIA MCP65",	0},
+	{0x044f10de, 0x00, "NVIDIA MCP65",	0},
+	{0x045c10de, 0x00, "NVIDIA MCP65",	0},
+	{0x045d10de, 0x00, "NVIDIA MCP65",	0},
+	{0x045e10de, 0x00, "NVIDIA MCP65",	0},
+	{0x045f10de, 0x00, "NVIDIA MCP65",	0},
+	{0x055010de, 0x00, "NVIDIA MCP67",	0},
+	{0x055110de, 0x00, "NVIDIA MCP67",	0},
+	{0x055210de, 0x00, "NVIDIA MCP67",	0},
+	{0x055310de, 0x00, "NVIDIA MCP67",	0},
+	{0x055410de, 0x00, "NVIDIA MCP67",	0},
+	{0x055510de, 0x00, "NVIDIA MCP67",	0},
+	{0x055610de, 0x00, "NVIDIA MCP67",	0},
+	{0x055710de, 0x00, "NVIDIA MCP67",	0},
+	{0x055810de, 0x00, "NVIDIA MCP67",	0},
+	{0x055910de, 0x00, "NVIDIA MCP67",	0},
+	{0x055A10de, 0x00, "NVIDIA MCP67",	0},
+	{0x055B10de, 0x00, "NVIDIA MCP67",	0},
+	{0x058410de, 0x00, "NVIDIA MCP67",	0},
+	{0x07f010de, 0x00, "NVIDIA MCP73",	0},
+	{0x07f110de, 0x00, "NVIDIA MCP73",	0},
+	{0x07f210de, 0x00, "NVIDIA MCP73",	0},
+	{0x07f310de, 0x00, "NVIDIA MCP73",	0},
+	{0x07f410de, 0x00, "NVIDIA MCP73",	0},
+	{0x07f510de, 0x00, "NVIDIA MCP73",	0},
+	{0x07f610de, 0x00, "NVIDIA MCP73",	0},
+	{0x07f710de, 0x00, "NVIDIA MCP73",	0},
+	{0x07f810de, 0x00, "NVIDIA MCP73",	0},
+	{0x07f910de, 0x00, "NVIDIA MCP73",	0},
+	{0x07fa10de, 0x00, "NVIDIA MCP73",	0},
+	{0x07fb10de, 0x00, "NVIDIA MCP73",	0},
+	{0x0ad010de, 0x00, "NVIDIA MCP77",	0},
+	{0x0ad110de, 0x00, "NVIDIA MCP77",	0},
+	{0x0ad210de, 0x00, "NVIDIA MCP77",	0},
+	{0x0ad310de, 0x00, "NVIDIA MCP77",	0},
+	{0x0ad410de, 0x00, "NVIDIA MCP77",	0},
+	{0x0ad510de, 0x00, "NVIDIA MCP77",	0},
+	{0x0ad610de, 0x00, "NVIDIA MCP77",	0},
+	{0x0ad710de, 0x00, "NVIDIA MCP77",	0},
+	{0x0ad810de, 0x00, "NVIDIA MCP77",	0},
+	{0x0ad910de, 0x00, "NVIDIA MCP77",	0},
+	{0x0ada10de, 0x00, "NVIDIA MCP77",	0},
+	{0x0adb10de, 0x00, "NVIDIA MCP77",	0},
+	{0x0ab410de, 0x00, "NVIDIA MCP79",	0},
+	{0x0ab510de, 0x00, "NVIDIA MCP79",	0},
+	{0x0ab610de, 0x00, "NVIDIA MCP79",	0},
+	{0x0ab710de, 0x00, "NVIDIA MCP79",	0},
+	{0x0ab810de, 0x00, "NVIDIA MCP79",	0},
+	{0x0ab910de, 0x00, "NVIDIA MCP79",	0},
+	{0x0aba10de, 0x00, "NVIDIA MCP79",	0},
+	{0x0abb10de, 0x00, "NVIDIA MCP79",	0},
+	{0x0abc10de, 0x00, "NVIDIA MCP79",	0},
+	{0x0abd10de, 0x00, "NVIDIA MCP79",	0},
+	{0x0abe10de, 0x00, "NVIDIA MCP79",	0},
+	{0x0abf10de, 0x00, "NVIDIA MCP79",	0},
+	{0x0d8410de, 0x00, "NVIDIA MCP89",	0},
+	{0x0d8510de, 0x00, "NVIDIA MCP89",	0},
+	{0x0d8610de, 0x00, "NVIDIA MCP89",	0},
+	{0x0d8710de, 0x00, "NVIDIA MCP89",	0},
+	{0x0d8810de, 0x00, "NVIDIA MCP89",	0},
+	{0x0d8910de, 0x00, "NVIDIA MCP89",	0},
+	{0x0d8a10de, 0x00, "NVIDIA MCP89",	0},
+	{0x0d8b10de, 0x00, "NVIDIA MCP89",	0},
+	{0x0d8c10de, 0x00, "NVIDIA MCP89",	0},
+	{0x0d8d10de, 0x00, "NVIDIA MCP89",	0},
+	{0x0d8e10de, 0x00, "NVIDIA MCP89",	0},
+	{0x0d8f10de, 0x00, "NVIDIA MCP89",	0},
+	{0x33491106, 0x00, "VIA VT8251",	0},
+	{0x62871106, 0x00, "VIA VT8251",	0},
+	{0x11841039, 0x00, "SiS 966",		0},
+	{0x11851039, 0x00, "SiS 968",		0},
+	{0x01861039, 0x00, "SiS 968",		0},
+	{0x00000000, 0x00, NULL,		0}
 };
 
 static int
@@ -244,6 +248,7 @@ ahci_probe(device_t dev)
 	char buf[64];
 	int i, valid = 0;
 	uint32_t devid = pci_get_devid(dev);
+	uint8_t revid = pci_get_revid(dev);
 
 	/* Is this a possible AHCI candidate? */
 	if (pci_get_class(dev) == PCIC_STORAGE &&
@@ -253,6 +258,7 @@ ahci_probe(device_t dev)
 	/* Is this a known AHCI chip? */
 	for (i = 0; ahci_ids[i].id != 0; i++) {
 		if (ahci_ids[i].id == devid &&
+		    ahci_ids[i].rev <= revid &&
 		    (valid || !(ahci_ids[i].quirks & AHCI_Q_NOFORCE))) {
 			/* Do not attach JMicrons with single PCI function. */
 			if (pci_get_vendor(dev) == 0x197b &&
@@ -276,12 +282,14 @@ ahci_ata_probe(device_t dev)
 	char buf[64];
 	int i;
 	uint32_t devid = pci_get_devid(dev);
+	uint8_t revid = pci_get_revid(dev);
 
 	if ((intptr_t)device_get_ivars(dev) >= 0)
 		return (ENXIO);
 	/* Is this a known AHCI chip? */
 	for (i = 0; ahci_ids[i].id != 0; i++) {
-		if (ahci_ids[i].id == devid) {
+		if (ahci_ids[i].id == devid &&
+		    ahci_ids[i].rev <= revid) {
 			snprintf(buf, sizeof(buf), "%s AHCI SATA controller",
 			    ahci_ids[i].name);
 			device_set_desc_copy(dev, buf);
@@ -299,11 +307,14 @@ ahci_attach(device_t dev)
 	device_t child;
 	int	error, unit, speed, i;
 	uint32_t devid = pci_get_devid(dev);
+	uint8_t revid = pci_get_revid(dev);
 	u_int32_t version;
 
 	ctlr->dev = dev;
 	i = 0;
-	while (ahci_ids[i].id != 0 && ahci_ids[i].id != devid)
+	while (ahci_ids[i].id != 0 &&
+	    (ahci_ids[i].id != devid ||
+	     ahci_ids[i].rev > revid))
 		i++;
 	ctlr->quirks = ahci_ids[i].quirks;
 	resource_int_value(device_get_name(dev),
@@ -800,6 +811,8 @@ ahci_ch_attach(device_t dev)
 	    pci_get_subdevice(ctlr->dev) == 0x81e4 &&
 	    ch->unit == 0)
 		sata_rev = 1;
+	if (ch->quirks & AHCI_Q_SATA2)
+		sata_rev = 2;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "sata_rev", &sata_rev);
 	for (i = 0; i < 16; i++) {
