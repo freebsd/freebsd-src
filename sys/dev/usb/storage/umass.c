@@ -469,8 +469,6 @@ static void	umass_cbi_start_status(struct umass_softc *);
 static void	umass_t_cbi_data_clear_stall_callback(struct usb_xfer *,
 		    uint8_t, uint8_t, usb_error_t);
 static int	umass_cam_attach_sim(struct umass_softc *);
-static void	umass_cam_rescan_callback(struct cam_periph *, union ccb *);
-static void	umass_cam_rescan(struct umass_softc *);
 static void	umass_cam_attach(struct umass_softc *);
 static void	umass_cam_detach_sim(struct umass_softc *);
 static void	umass_cam_action(struct cam_sim *, union ccb *);
@@ -2145,68 +2143,6 @@ umass_cam_attach_sim(struct umass_softc *sc)
 }
 
 static void
-umass_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
-{
-#if USB_DEBUG
-	struct umass_softc *sc = NULL;
-
-	if (ccb->ccb_h.status != CAM_REQ_CMP) {
-		DPRINTF(sc, UDMASS_SCSI, "%s:%d Rescan failed, 0x%04x\n",
-		    periph->periph_name, periph->unit_number,
-		    ccb->ccb_h.status);
-	} else {
-		DPRINTF(sc, UDMASS_SCSI, "%s%d: Rescan succeeded\n",
-		    periph->periph_name, periph->unit_number);
-	}
-#endif
-
-	xpt_free_path(ccb->ccb_h.path);
-	free(ccb, M_USBDEV);
-}
-
-static void
-umass_cam_rescan(struct umass_softc *sc)
-{
-	struct cam_path *path;
-	union ccb *ccb;
-
-	DPRINTF(sc, UDMASS_SCSI, "scbus%d: scanning for %d:%d:%d\n",
-	    cam_sim_path(sc->sc_sim),
-	    cam_sim_path(sc->sc_sim),
-	    sc->sc_unit, CAM_LUN_WILDCARD);
-
-	ccb = malloc(sizeof(*ccb), M_USBDEV, M_WAITOK | M_ZERO);
-
-	if (ccb == NULL) {
-		return;
-	}
-#if (__FreeBSD_version >= 700037)
-	mtx_lock(&sc->sc_mtx);
-#endif
-
-	if (xpt_create_path(&path, xpt_periph, cam_sim_path(sc->sc_sim),
-	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD)
-	    != CAM_REQ_CMP) {
-#if (__FreeBSD_version >= 700037)
-		mtx_unlock(&sc->sc_mtx);
-#endif
-		free(ccb, M_USBDEV);
-		return;
-	}
-	xpt_setup_ccb(&ccb->ccb_h, path, 5 /* priority (low) */ );
-	ccb->ccb_h.func_code = XPT_SCAN_BUS;
-	ccb->ccb_h.cbfcnp = &umass_cam_rescan_callback;
-	ccb->crcn.flags = CAM_FLAG_NONE;
-	xpt_action(ccb);
-
-#if (__FreeBSD_version >= 700037)
-	mtx_unlock(&sc->sc_mtx);
-#endif
-
-	/* The scan is in progress now. */
-}
-
-static void
 umass_cam_attach(struct umass_softc *sc)
 {
 #ifndef USB_DEBUG
@@ -2216,19 +2152,6 @@ umass_cam_attach(struct umass_softc *sc)
 		    sc->sc_name, cam_sim_path(sc->sc_sim),
 		    sc->sc_unit, CAM_LUN_WILDCARD,
 		    cam_sim_path(sc->sc_sim));
-
-	if (!cold) {
-		/*
-		 * Notify CAM of the new device after a short delay. Any
-		 * failure is benign, as the user can still do it by hand
-		 * (camcontrol rescan <busno>). Only do this if we are not
-		 * booting, because CAM does a scan after booting has
-		 * completed, when interrupts have been enabled.
-		 */
-
-		/* scan the new sim */
-		umass_cam_rescan(sc);
-	}
 }
 
 /* umass_cam_detach

@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
-#include <cam/cam_xpt_periph.h>
 #include <cam/cam_xpt_sim.h>
 
 #if __FreeBSD_version < 500000
@@ -656,14 +655,6 @@ mpt_terminate_raid_thread(struct mpt_softc *mpt)
 }
 
 static void
-mpt_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
-{
-
-	xpt_free_path(ccb->ccb_h.path);
-	xpt_free_ccb(ccb);
-}
-
-static void
 mpt_raid_thread(void *arg)
 {
 	struct mpt_softc *mpt;
@@ -715,13 +706,7 @@ mpt_raid_thread(void *arg)
 				xpt_free_ccb(ccb);
 				mpt_prt(mpt, "Unable to rescan RAID Bus!\n");
 			} else {
-				xpt_setup_ccb(&ccb->ccb_h, path, 5);
-				ccb->ccb_h.func_code = XPT_SCAN_BUS;
-				ccb->ccb_h.cbfcnp = mpt_cam_rescan_callback;
-				ccb->crcn.flags = CAM_FLAG_NONE;
-				MPTLOCK_2_CAMLOCK(mpt);
-				xpt_action(ccb);
-				CAMLOCK_2_MPTLOCK(mpt);
+				xpt_rescan(ccb);
 			}
 		}
 	}
