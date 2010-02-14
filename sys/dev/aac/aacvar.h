@@ -37,6 +37,16 @@
 #include <sys/selinfo.h>
 #include <geom/geom_disk.h>
 
+#define	AAC_TYPE_DEVO			1
+#define	AAC_TYPE_ALPHA			2
+#define	AAC_TYPE_BETA			3
+#define	AAC_TYPE_RELEASE		4
+
+#define	AAC_DRIVER_MAJOR_VERSION	2
+#define	AAC_DRIVER_MINOR_VERSION	1
+#define	AAC_DRIVER_BUGFIX_LEVEL		9
+#define	AAC_DRIVER_TYPE			AAC_TYPE_RELEASE
+
 #ifndef AAC_DRIVER_BUILD
 # define AAC_DRIVER_BUILD 1
 #endif
