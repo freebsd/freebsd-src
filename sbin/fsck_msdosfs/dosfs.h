@@ -39,31 +39,31 @@ typedef	u_int32_t	cl_t;	/* type holding a cluster number */
  * FAT boot block.
  */
 struct bootblock {
-	u_int	BytesPerSec;		/* bytes per sector */
-	u_int	SecPerClust;		/* sectors per cluster */
-	u_int	ResSectors;		/* number of reserved sectors */
-	u_int	FATs;			/* number of FATs */
-	u_int	RootDirEnts;		/* number of root directory entries */
-	u_int	Media;			/* media descriptor */
-	u_int	FATsmall;		/* number of sectors per FAT */
+	u_int	bpbBytesPerSec;		/* bytes per sector */
+	u_int	bpbSecPerClust;		/* sectors per cluster */
+	u_int	bpbResSectors;		/* number of reserved sectors */
+	u_int	bpbFATs;		/* number of bpbFATs */
+	u_int	bpbRootDirEnts;		/* number of root directory entries */
+	u_int32_t bpbSectors;		/* total number of sectors */
+	u_int	bpbMedia;		/* media descriptor */
+	u_int	bpbFATsmall;		/* number of sectors per FAT */
 	u_int	SecPerTrack;		/* sectors per track */
-	u_int	Heads;			/* number of heads */
-	u_int32_t HiddenSecs;		/* # of hidden sectors */
-	u_int32_t Sectors;		/* total number of sectors */
-#define	FAT32		1		/* this is a FAT32 file system */
-					/*
-					 * Maybe, we should separate out
-					 * various parts of FAT32?	XXX
-					 */
-	u_int32_t HugeSectors;		/* # of sectors if bpbSectors == 0 */
-	u_int	FSInfo;			/* FSInfo sector */
-	u_int	Backup;			/* Backup of Bootblocks */
-	cl_t	RootCl;			/* Start of Root Directory */
+	u_int	bpbHeads;		/* number of heads */
+	u_int32_t bpbHiddenSecs;	/* # of hidden sectors */
+	u_int32_t bpbHugeSectors;	/* # of sectors if bpbbpbSectors == 0 */
+	cl_t	bpbRootClust;		/* Start of Root Directory */
+	u_int	bpbFSInfo;		/* FSInfo sector */
+	u_int	bpbBackup;		/* Backup of Bootblocks */
 	cl_t	FSFree;			/* Number of free clusters acc. FSInfo */
 	cl_t	FSNext;			/* Next free cluster acc. FSInfo */
 
 	/* and some more calculated values */
 	u_int	flags;			/* some flags: */
+#define	FAT32		1		/* this is a FAT32 file system */
+					/*
+					 * Maybe, we should separate out
+					 * various parts of FAT32?	XXX
+					 */
 	int	ValidFat;		/* valid fat if FAT32 non-mirrored */
 	cl_t	ClustMask;		/* mask for entries in FAT */
 	cl_t	NumClusters;		/* # of entries in a FAT */
