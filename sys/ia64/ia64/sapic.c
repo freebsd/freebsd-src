@@ -42,6 +42,9 @@
 #include <machine/sapicreg.h>
 #include <machine/sapicvar.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 static MALLOC_DEFINE(M_SAPIC, "sapic", "I/O SAPIC devices");
 
 static int sysctl_machdep_apic(SYSCTL_HANDLER_ARGS);
@@ -51,8 +54,6 @@ SYSCTL_OID(_machdep, OID_AUTO, apic, CTLTYPE_STRING|CTLFLAG_RD,
 
 struct sapic *ia64_sapics[16]; /* XXX make this resizable */
 int ia64_sapic_count;
-
-u_int64_t ia64_lapic_address = PAL_PIB_DEFAULT_ADDR;
 
 struct sapic_rte {
 	u_int64_t	rte_vector		:8;
@@ -165,7 +166,7 @@ sapic_create(u_int id, u_int base, u_int64_t address)
 
 	sa->sa_id = id;
 	sa->sa_base = base;
-	sa->sa_registers = IA64_PHYS_TO_RR6(address);
+	sa->sa_registers = (uintptr_t)pmap_mapdev(address, 1048576);
 
 	mtx_init(&sa->sa_mtx, "I/O SAPIC lock", NULL, MTX_SPIN);
 
