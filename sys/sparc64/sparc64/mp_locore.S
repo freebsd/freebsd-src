@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/ktr.h>
 #include <machine/pstate.h>
 #include <machine/smp.h>
-#include <machine/upa.h>
 #include <machine/ver.h>
 
 #include "assym.s"
@@ -44,12 +43,14 @@ __FBSDID("$FreeBSD$");
 	.text
 	_ALIGN_TEXT
 	/*
-	 * Initialize misc. state to known values: interrupts disabled,
-	 * normal globals, no clean windows, PIL 0, and floating point
-	 * disabled.
+	 * Initialize misc. state to known values: interrupts disabled, normal
+	 * globals, windows flushed (cr = 0, cs = nwindows - 1), PIL 0 and
+	 * floating point disabled.
+	 * Note that some firmware versions don't implement a clean window
+	 * trap handler so we unfortunately can't clear the windows by setting
+	 * %cleanwin to zero here.
 	 */
 1:	wrpr	%g0, PSTATE_NORMAL, %pstate
-	wrpr	%g0, 0, %cleanwin
 	wrpr	%g0, 0, %pil
 	wr	%g0, 0, %fprs
 
@@ -68,7 +69,7 @@ __FBSDID("$FreeBSD$");
 
 	setx	TD_V | TD_L, %l1, %l0
 	/*
-	 * We read ASI_DTLB_DATA_ACCESS_REG twice in order to work
+	 * We read ASI_ITLB_DATA_ACCESS_REG twice in order to work
 	 * around errata of USIII and beyond.
 	 */
 	ldxa	[%g0] ASI_ITLB_DATA_ACCESS_REG, %g0
@@ -94,7 +95,7 @@ __FBSDID("$FreeBSD$");
 	mov	(1 << TLB_DAR_SLOT_SHIFT), %l4
 	setx	TD_V, %l1, %l0
 	/*
-	 * We read ASI_DTLB_DATA_ACCESS_REG twice in order to work
+	 * We read ASI_ITLB_DATA_ACCESS_REG twice in order to work
 	 * around errata of USIII and beyond.
 	 */
 2:	ldxa	[%l4] ASI_ITLB_DATA_ACCESS_REG, %g0
@@ -136,7 +137,7 @@ __FBSDID("$FreeBSD$");
 	mov	(1 << TLB_DAR_SLOT_SHIFT), %l0
 	setx	TD_V, %o1, %o0
 	/*
-	 * We read ASI_DTLB_DATA_ACCESS_REG twice in order to work
+	 * We read ASI_ITLB_DATA_ACCESS_REG twice in order to work
 	 * around errata of USIII and beyond.
 	 */
 5:	ldxa	[%l0] ASI_ITLB_DATA_ACCESS_REG, %g0
@@ -210,14 +211,8 @@ ENTRY(mp_startup)
 	 nop
 	wr	%l1, 0, %asr24
 
-3:	UPA_GET_MID(%o0)
-
-#if KTR_COMPILE & KTR_SMP
-	CATR(KTR_SMP, "mp_start: CPU %d entered kernel"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
+3:	call	cpu_get_mid
+	 nop
 
 	/*
 	 * Inform the boot processor we have inited.
@@ -233,13 +228,6 @@ ENTRY(mp_startup)
 	cmp	%l1, %o0
 	bne	%xcc, 4b
 	 nop
-
-#if KTR_COMPILE & KTR_SMP
-	CATR(KTR_SMP, "_mp_start: CPU %d got start signal"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 
 	add	%l0, CSA_TTES, %l1
 	clr	%l2
@@ -281,7 +269,7 @@ ENTRY(mp_startup)
 
 #if KTR_COMPILE & KTR_SMP
 	CATR(KTR_SMP,
-	    "_mp_start: bootstrap cpuid=%d mid=%d pcpu=%#lx data=%#lx sp=%#lx"
+	    "mp_startup: bootstrap cpuid=%d mid=%d pcpu=%#lx data=%#lx sp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	lduw	[%l1 + PC_CPUID], %g2
 	stx	%g2, [%g1 + KTR_PARM1]

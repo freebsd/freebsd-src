@@ -46,16 +46,19 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <stand.h>
-#include <sys/exec.h>
 #include <sys/param.h>
-#include <sys/queue.h>
+#include <sys/exec.h>
 #include <sys/linker.h>
+#include <sys/queue.h>
 #include <sys/types.h>
 
 #include <vm/vm.h>
 #include <machine/asi.h>
+#include <machine/cmt.h>
 #include <machine/cpufunc.h>
 #include <machine/elf.h>
+#include <machine/fireplane.h>
+#include <machine/jbus.h>
 #include <machine/lsu.h>
 #include <machine/metadata.h>
 #include <machine/tte.h>
@@ -68,6 +71,12 @@ __FBSDID("$FreeBSD$");
 #include "libofw.h"
 #include "dev_net.h"
 
+#ifndef CTASSERT
+#define	CTASSERT(x)		_CTASSERT(x, __LINE__)
+#define	_CTASSERT(x, y)		__CTASSERT(x, y)
+#define	__CTASSERT(x, y)	typedef char __assert ## y[(x) ? 1 : -1]
+#endif
+
 extern char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 
 enum {
@@ -75,6 +84,9 @@ enum {
 	HEAPSZ		= 0x1000000,
 	LOADSZ		= 0x1000000	/* for kernel and modules */
 };
+
+/* At least Sun Fire V1280 require page sized allocations to be claimed. */
+CTASSERT(HEAPSZ % PAGE_SIZE == 0);
 
 static struct mmu_ops {
 	void (*tlb_init)(void);
@@ -84,11 +96,11 @@ static struct mmu_ops {
 typedef void kernel_entry_t(vm_offset_t mdp, u_long o1, u_long o2, u_long o3,
     void *openfirmware);
 
-static inline u_long dtlb_get_data_sun4u(int slot);
-static void dtlb_enter_sun4u(u_long vpn, u_long data);
+static inline u_long dtlb_get_data_sun4u(u_int);
+static int dtlb_enter_sun4u(u_int, u_long data, vm_offset_t);
 static vm_offset_t dtlb_va_to_pa_sun4u(vm_offset_t);
-static inline u_long itlb_get_data_sun4u(int slot);
-static void itlb_enter_sun4u(u_long vpn, u_long data);
+static inline u_long itlb_get_data_sun4u(u_int);
+static int itlb_enter_sun4u(u_int, u_long data, vm_offset_t);
 static vm_offset_t itlb_va_to_pa_sun4u(vm_offset_t);
 static void itlb_relocate_locked0_sun4u(void);
 extern vm_offset_t md_load(char *, vm_offset_t *);
@@ -104,6 +116,9 @@ static int __elfN(exec)(struct preloaded_file *);
 static int mmu_mapin_sun4u(vm_offset_t, vm_size_t);
 static int mmu_mapin_sun4v(vm_offset_t, vm_size_t);
 static vm_offset_t init_heap(void);
+static phandle_t find_bsp_sun4u(phandle_t, uint32_t);
+const char *cpu_cpuid_prop_sun4u(void);
+uint32_t cpu_get_mid_sun4u(void);
 static void tlb_init_sun4u(void);
 static void tlb_init_sun4v(void);
 
@@ -120,11 +135,11 @@ static struct mmu_ops mmu_ops_sun4v = { tlb_init_sun4v, mmu_mapin_sun4v };
 /* sun4u */
 struct tlb_entry *dtlb_store;
 struct tlb_entry *itlb_store;
-int dtlb_slot;
-int itlb_slot;
+u_int dtlb_slot;
+u_int itlb_slot;
 int cpu_impl;
-static int dtlb_slot_max;
-static int itlb_slot_max;
+static u_int dtlb_slot_max;
+static u_int itlb_slot_max;
 
 /* sun4v */
 static struct tlb_entry *tlb_store;
@@ -398,7 +413,7 @@ __elfN(exec)(struct preloaded_file *fp)
 }
 
 static inline u_long
-dtlb_get_data_sun4u(int slot)
+dtlb_get_data_sun4u(u_int slot)
 {
 
 	/*
@@ -410,7 +425,7 @@ dtlb_get_data_sun4u(int slot)
 }
 
 static inline u_long
-itlb_get_data_sun4u(int slot)
+itlb_get_data_sun4u(u_int slot)
 {
 
 	/*
@@ -467,55 +482,24 @@ itlb_va_to_pa_sun4u(vm_offset_t va)
 	return (-1);
 }
 
-static void
-dtlb_enter_sun4u(u_long vpn, u_long data)
+static int
+dtlb_enter_sun4u(u_int index, u_long data, vm_offset_t virt)
 {
-	u_long reg;
 
-	reg = rdpr(pstate);
-	wrpr(pstate, reg & ~PSTATE_IE, 0);
-	stxa(AA_DMMU_TAR, ASI_DMMU,
-	    TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
-	stxa(0, ASI_DTLB_DATA_IN_REG, data);
-	membar(Sync);
-	wrpr(pstate, reg, 0);
+	return (OF_call_method("SUNW,dtlb-load", mmu, 3, 0, index, data,
+	    virt));
 }
 
-static void
-itlb_enter_sun4u(u_long vpn, u_long data)
+static int
+itlb_enter_sun4u(u_int index, u_long data, vm_offset_t virt)
 {
-	u_long reg;
-	int i;
 
-	reg = rdpr(pstate);
-	wrpr(pstate, reg & ~PSTATE_IE, 0);
-
-	if (cpu_impl == CPU_IMPL_ULTRASPARCIIIp) {
-		/*
-		 * Search an unused slot != 0 and explicitly enter the data
-		 * and tag there in order to avoid Cheetah+ erratum 34.
-		 */
-		for (i = 1; i < itlb_slot_max; i++) {
-			if ((itlb_get_data_sun4u(i) & TD_V) != 0)
-				continue;
-
-			stxa(AA_IMMU_TAR, ASI_IMMU,
-			    TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
-			stxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG, data);
-			flush(PROMBASE);
-			break;
-		}
-		wrpr(pstate, reg, 0);
-		if (i == itlb_slot_max)
-			panic("%s: could not find an unused slot", __func__);
-		return;
-	}
-
-	stxa(AA_IMMU_TAR, ASI_IMMU,
-	    TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
-	stxa(0, ASI_ITLB_DATA_IN_REG, data);
-	flush(PROMBASE);
-	wrpr(pstate, reg, 0);
+	if (cpu_impl == CPU_IMPL_ULTRASPARCIIIp && index == 0 &&
+	    (data & TD_L) != 0)
+		panic("%s: won't enter locked TLB entry at index 0 on USIII+",
+		    __func__);
+	return (OF_call_method("SUNW,itlb-load", mmu, 3, 0, index, data,
+	    virt));
 }
 
 static void
@@ -565,6 +549,7 @@ mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 {
 	vm_offset_t pa, mva;
 	u_long data;
+	u_int index;
 
 	if (va + len > curkva)
 		curkva = va + len;
@@ -602,12 +587,20 @@ mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 			    TD_CV | TD_P | TD_W;
 			dtlb_store[dtlb_slot].te_pa = pa;
 			dtlb_store[dtlb_slot].te_va = va;
+			index = dtlb_slot_max - dtlb_slot - 1;
+			if (dtlb_enter_sun4u(index, data, va) < 0)
+				panic("%s: can't enter dTLB slot %d data "
+				    "%#lx va %#lx", __func__, index, data,
+				    va);
+			dtlb_slot++;
 			itlb_store[itlb_slot].te_pa = pa;
 			itlb_store[itlb_slot].te_va = va;
-			dtlb_slot++;
+			index = itlb_slot_max - itlb_slot - 1;
+			if (itlb_enter_sun4u(index, data, va) < 0)
+				panic("%s: can't enter iTLB slot %d data "
+				    "%#lx va %#lxd", __func__, index, data,
+				    va);
 			itlb_slot++;
-			dtlb_enter_sun4u(va, data);
-			itlb_enter_sun4u(va, data);
 			pa = (vm_offset_t)-1;
 		}
 		len -= len > PAGE_SIZE_4M ? PAGE_SIZE_4M : len;
@@ -668,33 +661,98 @@ init_heap(void)
 	return (heapva);
 }
 
+static phandle_t
+find_bsp_sun4u(phandle_t node, uint32_t bspid)
+{
+	char type[sizeof("cpu")];
+	phandle_t child;
+	uint32_t cpuid;
+
+	for (; node > 0; node = OF_peer(node)) {
+		child = OF_child(node);
+		if (child > 0) {
+			child = find_bsp_sun4u(child, bspid);
+			if (child > 0)
+				return (child);
+		} else {
+			if (OF_getprop(node, "device_type", type,
+			    sizeof(type)) <= 0)
+				continue;
+			if (strcmp(type, "cpu") != 0)
+				continue;
+			if (OF_getprop(node, cpu_cpuid_prop_sun4u(), &cpuid,
+			    sizeof(cpuid)) <= 0)
+				continue;
+			if (cpuid == bspid)
+				return (node);
+		}
+	}
+	return (0);
+}
+
+const char *
+cpu_cpuid_prop_sun4u(void)
+{
+
+	switch (cpu_impl) {
+	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_ULTRASPARCI:
+	case CPU_IMPL_ULTRASPARCII:
+	case CPU_IMPL_ULTRASPARCIIi:
+	case CPU_IMPL_ULTRASPARCIIe:
+		return ("upa-portid");
+	case CPU_IMPL_ULTRASPARCIII:
+	case CPU_IMPL_ULTRASPARCIIIp:
+	case CPU_IMPL_ULTRASPARCIIIi:
+	case CPU_IMPL_ULTRASPARCIIIip:
+		return ("portid");
+	case CPU_IMPL_ULTRASPARCIV:
+	case CPU_IMPL_ULTRASPARCIVp:
+		return ("cpuid");
+	default:
+		return ("");
+	}
+}
+
+uint32_t
+cpu_get_mid_sun4u(void)
+{
+
+	switch (cpu_impl) {
+	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_ULTRASPARCI:
+	case CPU_IMPL_ULTRASPARCII:
+	case CPU_IMPL_ULTRASPARCIIi:
+	case CPU_IMPL_ULTRASPARCIIe:
+		return (UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG)));
+	case CPU_IMPL_ULTRASPARCIII:
+	case CPU_IMPL_ULTRASPARCIIIp:
+		return (FIREPLANE_CR_GET_AID(ldxa(AA_FIREPLANE_CONFIG,
+		    ASI_FIREPLANE_CONFIG_REG)));
+	case CPU_IMPL_ULTRASPARCIIIi:
+	case CPU_IMPL_ULTRASPARCIIIip:
+		return (JBUS_CR_GET_JID(ldxa(0, ASI_JBUS_CONFIG_REG)));
+	case CPU_IMPL_ULTRASPARCIV:
+	case CPU_IMPL_ULTRASPARCIVp:
+		return (INTR_ID_GET_ID(ldxa(AA_INTR_ID, ASI_INTR_ID)));
+	default:
+		return (0);
+	}
+}
+
 static void
 tlb_init_sun4u(void)
 {
-	phandle_t child;
-	char buf[128];
-	u_int bootcpu;
-	u_int cpu;
+	phandle_t bsp;
 
 	cpu_impl = VER_IMPL(rdpr(ver));
-	bootcpu = UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG));
-	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
-		if (OF_getprop(child, "device_type", buf, sizeof(buf)) <= 0)
-			continue;
-		if (strcmp(buf, "cpu") != 0)
-			continue;
-		if (OF_getprop(child, cpu_impl < CPU_IMPL_ULTRASPARCIII ?
-		    "upa-portid" : "portid", &cpu, sizeof(cpu)) <= 0)
-			continue;
-		if (cpu == bootcpu)
-			break;
-	}
-	if (cpu != bootcpu)
+	bsp = find_bsp_sun4u(OF_child(root), cpu_get_mid_sun4u());
+	if (bsp == 0)
 		panic("%s: no node for bootcpu?!?!", __func__);
 
-	if (OF_getprop(child, "#dtlb-entries", &dtlb_slot_max,
+	if (OF_getprop(bsp, "#dtlb-entries", &dtlb_slot_max,
 	    sizeof(dtlb_slot_max)) == -1 ||
-	    OF_getprop(child, "#itlb-entries", &itlb_slot_max,
+	    OF_getprop(bsp, "#itlb-entries", &itlb_slot_max,
 	    sizeof(itlb_slot_max)) == -1)
 		panic("%s: can't get TLB slot max.", __func__);
 
@@ -749,13 +807,14 @@ main(int (*openfirm)(void *))
 	archsw.arch_autoload = sparc64_autoload;
 	archsw.arch_maphint = sparc64_maphint;
 
-	init_heap();
-	setheap((void *)heapva, (void *)(heapva + HEAPSZ));
-
 	/*
 	 * Probe for a console.
 	 */
 	cons_probe();
+
+	if (init_heap() == (vm_offset_t)-1)
+		panic("%s: can't claim heap", __func__);
+	setheap((void *)heapva, (void *)(heapva + HEAPSZ));
 
 	if ((root = OF_peer(0)) == -1)
 		panic("%s: can't get root phandle", __func__);

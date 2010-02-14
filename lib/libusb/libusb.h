@@ -30,8 +30,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-
-
 #ifdef __cplusplus
 extern	"C" {
 #endif
