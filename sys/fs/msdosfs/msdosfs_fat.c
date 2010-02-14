@@ -944,7 +944,8 @@ fillinusemap(pmp)
 		if (readcn == 0)
 			usemap_free(pmp, cn);
 	}
-	brelse(bp);
+	if (bp != NULL)
+		brelse(bp);
 	return (0);
 }
 
