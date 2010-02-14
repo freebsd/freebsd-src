@@ -728,17 +728,15 @@ siis_phy_check_events(device_t dev)
 		u_int32_t status = ATA_INL(ch->r_mem, SIIS_P_SSTS);
 		union ccb *ccb;
 
-		if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
-		    ((status & ATA_SS_SPD_MASK) != ATA_SS_SPD_NO_SPEED) &&
-		    ((status & ATA_SS_IPM_MASK) == ATA_SS_IPM_ACTIVE)) {
-			if (bootverbose)
+		if (bootverbose) {
+			if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
+			    ((status & ATA_SS_SPD_MASK) != ATA_SS_SPD_NO_SPEED) &&
+			    ((status & ATA_SS_IPM_MASK) == ATA_SS_IPM_ACTIVE)) {
 				device_printf(dev, "CONNECT requested\n");
-			siis_reset(dev);
-		} else {
-			if (bootverbose)
+			} else
 				device_printf(dev, "DISCONNECT requested\n");
-			ch->devices = 0;
 		}
+		siis_reset(dev);
 		if ((ccb = xpt_alloc_ccb_nowait()) == NULL)
 			return;
 		if (xpt_create_path(&ccb->ccb_h.path, NULL,
