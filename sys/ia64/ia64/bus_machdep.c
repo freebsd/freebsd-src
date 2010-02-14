@@ -29,11 +29,32 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <machine/bus.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 extern u_long ia64_port_base;
 
 #define __PIO_ADDR(port)        \
         (void *)(ia64_port_base | (((port) & 0xfffc) << 10) | ((port) & 0xFFF))
+
+int
+bus_space_map(bus_space_tag_t bst, bus_addr_t addr, bus_size_t size,
+    int flags __unused, bus_space_handle_t *bshp)
+{
+
+        *bshp = (__predict_false(bst == IA64_BUS_SPACE_IO))
+            ? addr : (uintptr_t)pmap_mapdev(addr, size);
+        return (0);
+}
+
+
+void
+bus_space_unmap(bus_space_tag_t bst __unused, bus_space_handle_t bsh,
+    bus_size_t size)
+{
+
+	pmap_unmapdev(bsh, size);
+}
 
 uint8_t
 bus_space_read_io_1(u_long port)
