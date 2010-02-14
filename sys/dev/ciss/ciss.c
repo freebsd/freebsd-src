@@ -3322,10 +3322,15 @@ ciss_cam_complete_fixup(struct ciss_softc *sc, struct ccb_scsiio *csio)
 {
     struct scsi_inquiry_data	*inq;
     struct ciss_ldrive		*cl;
+    uint8_t			*cdb;
     int				bus, target;
 
-    if (((csio->ccb_h.flags & CAM_CDB_POINTER) ?
-	 *(u_int8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes[0]) == INQUIRY) {
+    cdb = (csio->ccb_h.flags & CAM_CDB_POINTER) ?
+	 (uint8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes;
+    if (cdb[0] == INQUIRY && 
+	(cdb[1] & SI_EVPD) == 0 &&
+	(csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN &&
+	csio->dxfer_len >= SHORT_INQUIRY_LENGTH) {
 
 	inq = (struct scsi_inquiry_data *)csio->data_ptr;
 	target = csio->ccb_h.target_id;
