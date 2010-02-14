@@ -106,7 +106,6 @@ void
 interrupt(struct trapframe *tf)
 {
 	struct thread *td;
-	volatile struct ia64_interrupt_block *ib = IA64_INTERRUPT_BLOCK;
 	uint64_t adj, clk, itc;
 	int64_t delta;
 	u_int vector;
@@ -128,7 +127,7 @@ interrupt(struct trapframe *tf)
 	 */
 	if (vector == 0) {
 		PCPU_INC(md.stats.pcs_nextints);
-		inta = ib->ib_inta;
+		inta = ia64_ld1(&ia64_pib->ib_inta);
 		if (inta == 15) {
 			PCPU_INC(md.stats.pcs_nstrays);
 			__asm __volatile("mov cr.eoi = r0;; srlz.d");
