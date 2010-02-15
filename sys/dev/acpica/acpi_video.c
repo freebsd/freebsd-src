@@ -103,8 +103,10 @@ static void	vo_set_device_state(ACPI_HANDLE, UINT32);
 /* events */
 #define VID_NOTIFY_SWITCHED	0x80
 #define VID_NOTIFY_REPROBE	0x81
+#define	VID_NOTIFY_CYC_BRN	0x85
 #define	VID_NOTIFY_INC_BRN	0x86
 #define	VID_NOTIFY_DEC_BRN	0x87
+#define	VID_NOTIFY_ZRO_BRN	0x88
 
 /* _DOS (Enable/Disable Output Switching) argument bits */
 #define DOS_SWITCH_MASK		3
@@ -645,20 +647,41 @@ acpi_video_vo_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 
 	vo = context;
 	ACPI_SERIAL_BEGIN(video_output);
-	if (vo->handle != handle) {
-		ACPI_SERIAL_END(video_output);
-		return;
-	}
+	if (vo->handle != handle)
+		goto out;
 
 	switch (notify) {
+	case VID_NOTIFY_CYC_BRN:
+		if (vo->vo_numlevels <= 3)
+			goto out;
+		/* FALLTHROUGH */
 	case VID_NOTIFY_INC_BRN:
 	case VID_NOTIFY_DEC_BRN:
+	case VID_NOTIFY_ZRO_BRN:
 		if (vo->vo_levels == NULL)
-			break;
+			goto out;
 		level = vo_get_brightness(handle);
 		if (level < 0)
-			break;
-		new_level = level;
+			goto out;
+		break;
+	default:
+		printf("unknown notify event 0x%x from %s\n",
+		    notify, acpi_name(handle));
+		goto out;
+	}
+
+	new_level = level;
+	switch (notify) {
+	case VID_NOTIFY_CYC_BRN:
+		for (i = 2; i < vo->vo_numlevels; i++)
+			if (vo->vo_levels[i] == level) {
+				new_level = vo->vo_numlevels > i + 1 ?
+				     vo->vo_levels[i + 1] : vo->vo_levels[2];
+				break;
+			}
+		break;
+	case VID_NOTIFY_INC_BRN:
+	case VID_NOTIFY_DEC_BRN:
 		for (i = 0; i < vo->vo_numlevels; i++) {
 			j = vo->vo_levels[i];
 			if (notify == VID_NOTIFY_INC_BRN) {
@@ -671,15 +694,21 @@ acpi_video_vo_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 					new_level = j;
 			}
 		}
-		if (new_level != level) {
-			vo_set_brightness(handle, new_level);
-			vo->vo_brightness = new_level;
-		}
 		break;
-	default:
-		printf("unknown notify event 0x%x from %s\n",
-		    notify, acpi_name(handle));
+	case VID_NOTIFY_ZRO_BRN:
+		for (i = 0; i < vo->vo_numlevels; i++)
+			if (vo->vo_levels[i] == 0) {
+				new_level = 0;
+				break;
+			}
+		break;
 	}
+	if (new_level != level) {
+		vo_set_brightness(handle, new_level);
+		vo->vo_brightness = new_level;
+	}
+
+out:
 	ACPI_SERIAL_END(video_output);
 }
 
