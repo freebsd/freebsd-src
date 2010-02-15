@@ -92,6 +92,7 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 #define	U3GINIT_CMOTECH		6	/* Requires CMOTECH SCSI command */
 #define	U3GINIT_WAIT		7	/* Device reappears after a delay */
 #define	U3GINIT_SAEL_M460	8	/* Requires vendor init */
+#define	U3GINIT_HUAWEISCSI	9	/* Requires Huawei SCSI init command */
 
 enum {
 	U3G_BULK_WR,
@@ -281,6 +282,7 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(HUAWEI, E220, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220BIS, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, MOBILE, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1752, U3GINIT_HUAWEISCSI),
 	U3G_DEV(KYOCERA2, CDMA_MSM_K, 0),
 	U3G_DEV(KYOCERA2, KPC680, 0),
 	U3G_DEV(MERLIN, V620, 0),
@@ -648,6 +650,9 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 	switch (USB_GET_DRIVER_INFO(uaa)) {
 		case U3GINIT_HUAWEI:
 			error = u3g_huawei_init(udev);
+			break;
+		case U3GINIT_HUAWEISCSI:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_HUAWEI);
 			break;
 		case U3GINIT_SCSIEJECT:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_STOPUNIT);
