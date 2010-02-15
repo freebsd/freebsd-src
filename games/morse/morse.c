@@ -71,8 +71,8 @@ static const char rcsid[] =
 #endif
 
 struct morsetab {
-	char            inchar;
-	char           *morse;
+	const char      inchar;
+	const char     *morse;
 };
 
 static const struct morsetab mtab[] = {
