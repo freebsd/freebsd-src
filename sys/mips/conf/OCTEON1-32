@@ -56,7 +56,7 @@ options         UFS_DIRHASH             #Improve performance on big directories
 
 
 # Debugging for use in -current
-#options	DEADLKRES		#Enable the deadlock resolver
+#options		DEADLKRES	#Enable the deadlock resolver
 options		INVARIANTS		#Enable calls of extra sanity checking
 options		INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 #options		WITNESS			#Enable checks to detect deadlocks and cycles
