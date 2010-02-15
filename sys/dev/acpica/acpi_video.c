@@ -101,54 +101,54 @@ static UINT32	vo_get_graphics_state(ACPI_HANDLE);
 static void	vo_set_device_state(ACPI_HANDLE, UINT32);
 
 /* events */
-#define VID_NOTIFY_SWITCHED	0x80
-#define VID_NOTIFY_REPROBE	0x81
-#define	VID_NOTIFY_CYC_BRN	0x85
+#define	VID_NOTIFY_SWITCHED	0x80
+#define	VID_NOTIFY_REPROBE	0x81
+#define	VID_NOTIFY_CYCLE_BRN	0x85
 #define	VID_NOTIFY_INC_BRN	0x86
 #define	VID_NOTIFY_DEC_BRN	0x87
-#define	VID_NOTIFY_ZRO_BRN	0x88
+#define	VID_NOTIFY_ZERO_BRN	0x88
 
 /* _DOS (Enable/Disable Output Switching) argument bits */
-#define DOS_SWITCH_MASK		3
-#define DOS_SWITCH_BY_OSPM	0
-#define DOS_SWITCH_BY_BIOS	1
-#define DOS_SWITCH_LOCKED	2
-#define DOS_BRIGHTNESS_BY_BIOS	(1 << 2)
+#define	DOS_SWITCH_MASK		3
+#define	DOS_SWITCH_BY_OSPM	0
+#define	DOS_SWITCH_BY_BIOS	1
+#define	DOS_SWITCH_LOCKED	2
+#define	DOS_BRIGHTNESS_BY_OSPM	(1 << 2)
 
 /* _DOD and subdev's _ADR */
-#define DOD_DEVID_MASK		0x0f00
-#define DOD_DEVID_MASK_FULL	0xffff
-#define DOD_DEVID_MASK_DISPIDX	0x000f
-#define DOD_DEVID_MASK_DISPPORT	0x00f0
-#define DOD_DEVID_MONITOR	0x0100
-#define DOD_DEVID_LCD		0x0110
-#define DOD_DEVID_TV		0x0200
-#define DOD_DEVID_EXT		0x0300
-#define DOD_DEVID_INTDFP	0x0400
-#define DOD_BIOS		(1 << 16)
-#define DOD_NONVGA		(1 << 17)
-#define DOD_HEAD_ID_SHIFT	18
-#define DOD_HEAD_ID_BITS	3
-#define DOD_HEAD_ID_MASK \
+#define	DOD_DEVID_MASK		0x0f00
+#define	DOD_DEVID_MASK_FULL	0xffff
+#define	DOD_DEVID_MASK_DISPIDX	0x000f
+#define	DOD_DEVID_MASK_DISPPORT	0x00f0
+#define	DOD_DEVID_MONITOR	0x0100
+#define	DOD_DEVID_LCD		0x0110
+#define	DOD_DEVID_TV		0x0200
+#define	DOD_DEVID_EXT		0x0300
+#define	DOD_DEVID_INTDFP	0x0400
+#define	DOD_BIOS		(1 << 16)
+#define	DOD_NONVGA		(1 << 17)
+#define	DOD_HEAD_ID_SHIFT	18
+#define	DOD_HEAD_ID_BITS	3
+#define	DOD_HEAD_ID_MASK \
 		(((1 << DOD_HEAD_ID_BITS) - 1) << DOD_HEAD_ID_SHIFT)
-#define DOD_DEVID_SCHEME_STD	(1 << 31)
+#define	DOD_DEVID_SCHEME_STD	(1 << 31)
 
 /* _BCL related constants */
-#define BCL_FULLPOWER		0
-#define BCL_ECONOMY		1
+#define	BCL_FULLPOWER		0
+#define	BCL_ECONOMY		1
 
 /* _DCS (Device Currrent Status) value bits and masks. */
-#define DCS_EXISTS		(1 << 0)
-#define DCS_ACTIVE		(1 << 1)
-#define DCS_READY		(1 << 2)
-#define DCS_FUNCTIONAL		(1 << 3)
-#define DCS_ATTACHED		(1 << 4)
+#define	DCS_EXISTS		(1 << 0)
+#define	DCS_ACTIVE		(1 << 1)
+#define	DCS_READY		(1 << 2)
+#define	DCS_FUNCTIONAL		(1 << 3)
+#define	DCS_ATTACHED		(1 << 4)
 
 /* _DSS (Device Set Status) argument bits and masks. */
-#define DSS_INACTIVE		0
-#define DSS_ACTIVE		(1 << 0)
-#define DSS_SETNEXT		(1 << 30)
-#define DSS_COMMIT		(1 << 31)
+#define	DSS_INACTIVE		0
+#define	DSS_ACTIVE		(1 << 0)
+#define	DSS_SETNEXT		(1 << 30)
+#define	DSS_COMMIT		(1 << 31)
 
 static device_method_t acpi_video_methods[] = {
 	DEVMETHOD(device_identify, acpi_video_identify),
@@ -275,7 +275,7 @@ acpi_video_attach(device_t dev)
 	 * brightness levels.
 	 */
 	vid_set_switch_policy(sc->handle, DOS_SWITCH_BY_OSPM |
-	    DOS_BRIGHTNESS_BY_BIOS);
+	    DOS_BRIGHTNESS_BY_OSPM);
 
 	acpi_video_power_profile(sc);
 
@@ -651,13 +651,13 @@ acpi_video_vo_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 		goto out;
 
 	switch (notify) {
-	case VID_NOTIFY_CYC_BRN:
+	case VID_NOTIFY_CYCLE_BRN:
 		if (vo->vo_numlevels <= 3)
 			goto out;
 		/* FALLTHROUGH */
 	case VID_NOTIFY_INC_BRN:
 	case VID_NOTIFY_DEC_BRN:
-	case VID_NOTIFY_ZRO_BRN:
+	case VID_NOTIFY_ZERO_BRN:
 		if (vo->vo_levels == NULL)
 			goto out;
 		level = vo_get_brightness(handle);
@@ -672,7 +672,7 @@ acpi_video_vo_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 
 	new_level = level;
 	switch (notify) {
-	case VID_NOTIFY_CYC_BRN:
+	case VID_NOTIFY_CYCLE_BRN:
 		for (i = 2; i < vo->vo_numlevels; i++)
 			if (vo->vo_levels[i] == level) {
 				new_level = vo->vo_numlevels > i + 1 ?
@@ -695,7 +695,7 @@ acpi_video_vo_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 			}
 		}
 		break;
-	case VID_NOTIFY_ZRO_BRN:
+	case VID_NOTIFY_ZERO_BRN:
 		for (i = 0; i < vo->vo_numlevels; i++)
 			if (vo->vo_levels[i] == 0) {
 				new_level = 0;
