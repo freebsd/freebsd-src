@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2010
+.Dd February 15, 2010
 .Dt LOCKING 9
 .Os
 .Sh NAME
@@ -106,7 +106,7 @@ Mostly reader locks are similar to
 locks but optimized for very infrequent write locking.
 .Em Read-mostly
 locks implement full priority propagation by tracking shared owners
-using a lock user supplied
+using a caller-supplied
 .Em tracker
 data structure.
 .Pp
@@ -272,24 +272,18 @@ holding mutex, or to try to allocate memory with M_WAITOK while holding
 read-write lock.
 .Pp
 As a special case, it is possible to call
-.Fn sleep 9
+.Fn sleep
 or
-.Fn mtx_sleep 9
-while holding a mutex.
-It will atomically drop the mutex and reacquire it
-as part of waking up.
-This is often however a bad
-idea because it generally relies on you having
-such a good knowledge of all the call graph above you
-and what assumptions it is making that there are a lot
-of ways to make hard-to-find mistakes.
-For example you must re-test all the assumptions you made before,
-all the way up the call graph to where you got the lock.
-You can not just assume that mtx_sleep can be inserted anywhere.
-If any caller above you has any mutex or
-rwlock, your sleep, will cause a panic.
-If the sleep only happens rarely it may be years before the 
-bad code path is found.
+.Fn mtx_sleep
+while holding a single mutex.
+It will atomically drop that mutex and reacquire it as part of waking up.
+This is often a bad idea because it generally relies on the programmer having
+good knowledge of all of the call graph above the place where
+.Fn mtx_sleep
+is being called and assumptions the calling code has made.
+Because the lock gets dropped during sleep, one one must re-test all
+the assumptions that were made before, all the way up the call graph to the
+place where the lock was acquired.
 .Pp
 It is an error to do any operation that could result in any kind of sleep when
 running inside an interrupt filter.
@@ -315,11 +309,11 @@ Recursion is defined per lock.
 Lock order is important.
 .Pp
 .Em *2
-readers can recurse though writers can not.
+Readers can recurse though writers can not.
 Lock order is important.
 .Pp
 .Em *3
-There are calls atomically release this primitive when going to sleep
+There are calls that atomically release this primitive when going to sleep
 and reacquire it on wakeup (e.g.
 .Fn mtx_sleep ,
 .Fn rw_sleep
@@ -330,7 +324,7 @@ and
 .Em *4
 Though one can sleep holding an sx lock, one can also use
 .Fn sx_sleep
-which atomically release this primitive when going to sleep and
+which will atomically release this primitive when going to sleep and
 reacquire it on wakeup.
 .Ss Context mode table
 The next table shows what can be used in different contexts.
@@ -345,6 +339,7 @@ At this time this is a rather easy to remember table.
 .It syscall:    Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok 
 .El
 .Sh SEE ALSO
+.Xr witness 4 ,
 .Xr condvar 9 ,
 .Xr lock 9 ,
 .Xr mtx_pool 9 ,
@@ -354,7 +349,6 @@ At this time this is a rather easy to remember table.
 .Xr sema 9 ,
 .Xr sleep 9 ,
 .Xr sx 9 ,
-.Xr witness 9 ,
 .Xr LOCK_PROFILING 9
 .Sh HISTORY
 These
