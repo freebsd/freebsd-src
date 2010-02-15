@@ -169,12 +169,14 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(CENTURY, EX35QUAT, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
 	    UQ_MSC_FORCE_PROTO_SCSI, UQ_MSC_FORCE_SHORT_INQ,
 	    UQ_MSC_NO_START_STOP, UQ_MSC_IGNORE_RESIDUE),
+	USB_QUIRK(CENTURY, EX35SW4_SB4, 0x0000, 0xffff, UQ_MSC_NO_SYNC_CACHE),
 	USB_QUIRK(CYPRESS, XX6830XX, 0x0000, 0xffff, UQ_MSC_NO_GETMAXLUN,
 	    UQ_MSC_NO_SYNC_CACHE),
 	USB_QUIRK(DESKNOTE, UCR_61S2B, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
 	    UQ_MSC_FORCE_PROTO_SCSI),
 	USB_QUIRK(DMI, CFSM_RW, 0x0000, 0xffff, UQ_MSC_FORCE_PROTO_SCSI,
 	    UQ_MSC_NO_GETMAXLUN),
+	USB_QUIRK(DMI, DISK, 0x000, 0xffff, UQ_MSC_NO_SYNC_CACHE),
 	USB_QUIRK(EPSON, STYLUS_875DC, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_CBI,
 	    UQ_MSC_FORCE_PROTO_SCSI, UQ_MSC_NO_INQUIRY),
 	USB_QUIRK(EPSON, STYLUS_895, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
@@ -259,8 +261,6 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	    UQ_MSC_FORCE_PROTO_SCSI),
 	USB_QUIRK(MITSUMI, CDRRW, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_CBI |
 	    UQ_MSC_FORCE_PROTO_ATAPI),
-	USB_QUIRK(MITSUMI, FDD, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
-	    UQ_MSC_FORCE_PROTO_SCSI, UQ_MSC_NO_GETMAXLUN),
 	USB_QUIRK(MOTOROLA2, E398, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
 	    UQ_MSC_FORCE_PROTO_SCSI, UQ_MSC_FORCE_SHORT_INQ,
 	    UQ_MSC_NO_INQUIRY_EVPD, UQ_MSC_NO_GETMAXLUN),
@@ -459,6 +459,7 @@ static const char *usb_quirk_str[USB_QUIRK_MAX] = {
 	[UQ_BUS_POWERED]	= "UQ_BUS_POWERED",
 	[UQ_HID_IGNORE]		= "UQ_HID_IGNORE",
 	[UQ_KBD_IGNORE]		= "UQ_KBD_IGNORE",
+	[UQ_KBD_BOOTPROTO]	= "UQ_KBD_BOOTPROTO",
 	[UQ_MS_BAD_CLASS]	= "UQ_MS_BAD_CLASS",
 	[UQ_MS_LEADING_BYTE]	= "UQ_MS_LEADING_BYTE",
 	[UQ_MS_REVZ]		= "UQ_MS_REVZ",
@@ -680,6 +681,10 @@ usb_quirk_ioctl(unsigned long cmd, caddr_t data,
 		mtx_lock(&usb_quirk_mtx);
 		pqe = usb_quirk_get_entry(pgq->vid, pgq->pid,
 		    pgq->bcdDeviceLow, pgq->bcdDeviceHigh, 1);
+		if (pqe == NULL) {
+			mtx_unlock(&usb_quirk_mtx);
+			return (EINVAL);
+		}
 		for (x = 0; x != USB_SUB_QUIRKS_MAX; x++) {
 			if (pqe->quirks[x] == UQ_NONE) {
 				pqe->quirks[x] = y;
@@ -714,6 +719,10 @@ usb_quirk_ioctl(unsigned long cmd, caddr_t data,
 		mtx_lock(&usb_quirk_mtx);
 		pqe = usb_quirk_get_entry(pgq->vid, pgq->pid,
 		    pgq->bcdDeviceLow, pgq->bcdDeviceHigh, 0);
+		if (pqe == NULL) {
+			mtx_unlock(&usb_quirk_mtx);
+			return (EINVAL);
+		}
 		for (x = 0; x != USB_SUB_QUIRKS_MAX; x++) {
 			if (pqe->quirks[x] == y) {
 				pqe->quirks[x] = UQ_NONE;

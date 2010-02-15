@@ -60,6 +60,8 @@ usage(char *argv0)
 	    "(same as \"-r 0\")");
 	lprintf(-1, USAGE_OPTFMT, "-4", "Force usage of IPv4 addresses");
 	lprintf(-1, USAGE_OPTFMT, "-6", "Force usage of IPv6 addresses");
+	lprintf(-1, USAGE_OPTFMT, "-a",
+		"Require server to authenticate itself to us");
 	lprintf(-1, USAGE_OPTFMT, "-A addr",
 	    "Bind local socket to a specific address");
 	lprintf(-1, USAGE_OPTFMT, "-b base",
@@ -107,7 +109,7 @@ main(int argc, char *argv[])
 	struct stream *lock;
 	char *argv0, *file, *lockfile;
 	int family, error, lockfd, lflag, overridemask;
-	int c, i, deletelim, port, retries, status;
+	int c, i, deletelim, port, retries, status, reqauth;
 	time_t nexttry;
 
 	error = 0;
@@ -124,9 +126,10 @@ main(int argc, char *argv[])
 	lockfile = NULL;
 	override = coll_new(NULL);
 	overridemask = 0;
+	reqauth = 0;
 
 	while ((c = getopt(argc, argv,
-	    "146A:b:c:d:gh:i:kl:L:p:P:r:svzZ")) != -1) {
+	    "146aA:b:c:d:gh:i:kl:L:p:P:r:svzZ")) != -1) {
 		switch (c) {
 		case '1':
 			retries = 0;
@@ -136,6 +139,10 @@ main(int argc, char *argv[])
 			break;
 		case '6':
 			family = AF_INET6;
+			break;
+		case 'a':
+			/* Require server authentication */
+			reqauth = 1;
 			break;
 		case 'A':
 			error = getaddrinfo(optarg, NULL, NULL, &res);
@@ -303,6 +310,7 @@ main(int argc, char *argv[])
 		config->laddrlen = laddrlen;
 	}
 	config->deletelim = deletelim;
+	config->reqauth = reqauth;
 	lprintf(2, "Connecting to %s\n", config->host);
 
 	i = 0;

@@ -60,13 +60,17 @@ struct drm_file;
 #include <sys/filio.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <sys/queue.h>
 #include <sys/signalvar.h>
 #include <sys/poll.h>
+#include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/vm_param.h>
 #include <machine/param.h>
 #include <machine/pmap.h>
@@ -91,9 +95,9 @@ struct drm_file;
 #include <sys/bus.h>
 
 #include "dev/drm/drm.h"
-#include "dev/drm/drm_linux_list.h"
 #include "dev/drm/drm_atomic.h"
 #include "dev/drm/drm_internal.h"
+#include "dev/drm/drm_linux_list.h"
 
 #include <opt_drm.h>
 #ifdef DRM_DEBUG
@@ -147,6 +151,8 @@ MALLOC_DECLARE(DRM_MEM_AGPLISTS);
 MALLOC_DECLARE(DRM_MEM_CTXBITMAP);
 MALLOC_DECLARE(DRM_MEM_SGLISTS);
 MALLOC_DECLARE(DRM_MEM_DRAWABLE);
+MALLOC_DECLARE(DRM_MEM_MM);
+MALLOC_DECLARE(DRM_MEM_HASHTAB);
 
 SYSCTL_DECL(_hw_drm);
 
@@ -192,6 +198,11 @@ SYSCTL_DECL(_hw_drm);
 typedef void			irqreturn_t;
 #define IRQ_HANDLED		/* nothing */
 #define IRQ_NONE		/* nothing */
+
+#define unlikely(x)            __builtin_expect(!!(x), 0)
+#define container_of(ptr, type, member) ({			\
+	__typeof( ((type *)0)->member ) *__mptr = (ptr);	\
+	(type *)( (char *)__mptr - offsetof(type,member) );})
 
 enum {
 	DRM_IS_NOT_AGP,

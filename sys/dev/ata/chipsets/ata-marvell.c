@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 static int ata_marvell_chipinit(device_t dev);
 static int ata_marvell_ch_attach(device_t dev);
 static int ata_marvell_setmode(device_t dev, int target, int mode);
+static int ata_marvell_dummy_chipinit(device_t dev);
 static int ata_marvell_edma_ch_attach(device_t dev);
 static int ata_marvell_edma_ch_detach(device_t dev);
 static int ata_marvell_edma_status(device_t dev);
@@ -70,7 +71,7 @@ static void ata_marvell_edma_dmainit(device_t dev);
 #define MV_6042		62
 #define MV_7042		72
 #define MV_61XX		61
-
+#define MV_91XX		91
 
 /*
  * Marvell chipset support functions
@@ -113,9 +114,11 @@ ata_marvell_probe(device_t dev)
      { ATA_M88SX6121, 0, 2, MV_61XX, ATA_UDMA6, "88SX6121" },
      { ATA_M88SX6141, 0, 4, MV_61XX, ATA_UDMA6, "88SX6141" },
      { ATA_M88SX6145, 0, 4, MV_61XX, ATA_UDMA6, "88SX6145" },
+     { 0x91a41b4b,    0, 0, MV_91XX, ATA_UDMA6, "88SE912x" },
      { 0, 0, 0, 0, 0, 0}};
 
-    if (pci_get_vendor(dev) != ATA_MARVELL_ID)
+    if (pci_get_vendor(dev) != ATA_MARVELL_ID &&
+	pci_get_vendor(dev) != ATA_MARVELL2_ID)
 	return ENXIO;
 
     if (!(ctlr->chip = ata_match_chip(dev, ids)))
@@ -132,6 +135,9 @@ ata_marvell_probe(device_t dev)
 	break;
     case MV_61XX:
 	ctlr->chipinit = ata_marvell_chipinit;
+	break;
+    case MV_91XX:
+	ctlr->chipinit = ata_marvell_dummy_chipinit;
 	break;
     }
     return (BUS_PROBE_DEFAULT);
@@ -188,6 +194,15 @@ ata_marvell_setmode(device_t dev, int target, int mode)
 	}
 	/* Nothing to do to setup mode, the controller snoop SET_FEATURE cmd. */
 	return (mode);
+}
+
+static int
+ata_marvell_dummy_chipinit(device_t dev)
+{
+	struct ata_pci_controller *ctlr = device_get_softc(dev);
+
+        ctlr->channels = 0;
+        return (0);
 }
 
 int

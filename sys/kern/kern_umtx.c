@@ -420,7 +420,7 @@ umtxq_insert_queue(struct umtx_q *uq, int q)
 	uc = umtxq_getchain(&uq->uq_key);
 	UMTXQ_LOCKED_ASSERT(uc);
 	KASSERT((uq->uq_flags & UQF_UMTXQ) == 0, ("umtx_q is already on queue"));
-	uh = umtxq_queue_lookup(&uq->uq_key, UMTX_SHARED_QUEUE);
+	uh = umtxq_queue_lookup(&uq->uq_key, q);
 	if (uh != NULL) {
 		LIST_INSERT_HEAD(&uc->uc_spare_queue, uq->uq_spare_queue, link);
 	} else {
@@ -2526,6 +2526,12 @@ do_rw_rdlock(struct thread *td, struct urwlock *rwlock, long fflag, int timo)
 		umtxq_busy(&uq->uq_key);
 		umtxq_unlock(&uq->uq_key);
 
+		/*
+		 * re-read the state, in case it changed between the try-lock above
+		 * and the check below
+		 */
+		state = fuword32(__DEVOLATILE(int32_t *, &rwlock->rw_state));
+
 		/* set read contention bit */
 		while ((state & wrflags) && !(state & URWLOCK_READ_WAITERS)) {
 			oldstate = casuword32(&rwlock->rw_state, state, state | URWLOCK_READ_WAITERS);
@@ -2657,6 +2663,12 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, int timo)
 		umtxq_lock(&uq->uq_key);
 		umtxq_busy(&uq->uq_key);
 		umtxq_unlock(&uq->uq_key);
+
+		/*
+		 * re-read the state, in case it changed between the try-lock above
+		 * and the check below
+		 */
+		state = fuword32(__DEVOLATILE(int32_t *, &rwlock->rw_state));
 
 		while (((state & URWLOCK_WRITE_OWNER) || URWLOCK_READER_COUNT(state) != 0) &&
 		       (state & URWLOCK_WRITE_WAITERS) == 0) {
@@ -2841,6 +2853,8 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
 	umtxq_insert(uq);
 	umtxq_unlock(&uq->uq_key);
 
+	suword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters), 1);
+
 	count = fuword32(__DEVOLATILE(uint32_t *, &sem->_count));
 	if (count != 0) {
 		umtxq_lock(&uq->uq_key);
@@ -2850,12 +2864,6 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
 		umtx_key_release(&uq->uq_key);
 		return (0);
 	}
-
-	/*
-	 * The magic thing is we should set c_has_waiters to 1 before
-	 * releasing user mutex.
-	 */
-	suword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters), 1);
 
 	umtxq_lock(&uq->uq_key);
 	umtxq_unbusy(&uq->uq_key);

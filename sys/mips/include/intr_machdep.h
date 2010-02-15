@@ -60,6 +60,16 @@ void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void*),
 void cpu_intr(struct trapframe *);
 
 /*
+ * Allow a platform to override the default hard interrupt mask and unmask
+ * functions. The 'arg' can be cast safely to an 'int' and holds the mips
+ * hard interrupt number to mask or unmask.
+ */
+typedef void (*cpu_intr_mask_t)(void *arg);
+typedef void (*cpu_intr_unmask_t)(void *arg);
+void cpu_set_hardintr_mask_func(cpu_intr_mask_t func);
+void cpu_set_hardintr_unmask_func(cpu_intr_unmask_t func);
+
+/*
  * Opaque datatype that represents intr counter
  */
 typedef unsigned long* mips_intrcnt_t;

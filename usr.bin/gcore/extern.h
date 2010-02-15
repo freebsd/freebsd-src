@@ -38,3 +38,4 @@ struct dumpers {
 	int (*ident)(int efd, pid_t pid, char *binfile);
 	void (*dump)(int efd, int fd, pid_t pid);
 };
+extern int sflag;

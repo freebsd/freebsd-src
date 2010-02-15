@@ -694,7 +694,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	mbs.logval = MBLOGALL;
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		isp_prt(isp, ISP_LOGERR, "NOP ommand failed (%x)", mbs.param[0]);
+		isp_prt(isp, ISP_LOGERR, "NOP command failed (%x)", mbs.param[0]);
 		ISP_RESET0(isp);
 		return;
 	}
@@ -4417,7 +4417,7 @@ isp_start(XS_T *xs)
 		*tptr = 0x1999;
 	}
 
-	if (isp_save_xs(isp, xs, &handle)) {
+	if (isp_allocate_xs(isp, xs, &handle)) {
 		isp_prt(isp, ISP_LOGDEBUG0, "out of xflist pointers");
 		XS_SETERR(xs, HBA_BOTCH);
 		return (CMD_EAGAIN);
@@ -5163,8 +5163,8 @@ again:
 			}
 		}
 
-		if ((sp->req_handle != ISP_SPCL_HANDLE) && (sp->req_handle > isp->isp_maxcmds || sp->req_handle < 1)) {
-			isp_prt(isp, ISP_LOGERR, "bad request handle %d (type 0x%x)", sp->req_handle, etype);
+		if (!ISP_VALID_HANDLE(isp, sp->req_handle)) {
+			isp_prt(isp, ISP_LOGERR, "bad request handle 0x%x (iocb type 0x%x)", sp->req_handle, etype);
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			ISP_WRITE(isp, isp->isp_respoutrp, optr);
 			continue;
@@ -5178,7 +5178,7 @@ again:
 			 */
 			if (etype != RQSTYPE_RESPONSE) {
 				isp_prt(isp, ISP_LOGERR, "cannot find handle 0x%x (type 0x%x)", sp->req_handle, etype);
-			} else if (ts != RQCS_ABORTED && ts != RQCS_RESET_OCCURRED && sp->req_handle != ISP_SPCL_HANDLE) {
+			} else if (ts != RQCS_ABORTED && ts != RQCS_RESET_OCCURRED) {
 				isp_prt(isp, ISP_LOGERR, "cannot find handle 0x%x (status 0x%x)", sp->req_handle, ts);
 			}
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
@@ -5681,16 +5681,19 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 			 * commands that complete (with no apparent error) after
 			 * we receive a LIP. This has been observed mostly on
 			 * Local Loop topologies. To be safe, let's just mark
-			 * all active commands as dead.
+			 * all active initiator commands as dead.
 			 */
 			if (topo == TOPO_NL_PORT || topo == TOPO_FL_PORT) {
 				int i, j;
 				for (i = j = 0; i < isp->isp_maxcmds; i++) {
 					XS_T *xs;
-					xs = isp->isp_xflist[i];
-					if (xs == NULL) {
+					isp_hdl_t *hdp;
+
+					hdp = &isp->isp_xflist[i];
+					if (ISP_H2HT(hdp->handle) != ISP_HANDLE_INITIATOR) {
 						continue;
 					}
+					xs = hdp->cmd;
 					if (XS_CHANNEL(xs) != chan) {
 						continue;
 					}

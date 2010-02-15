@@ -512,6 +512,7 @@ _ofwdump=	ofwdump
 
 .if ${MACHINE_ARCH} == "sparc64"
 _eeprom=	eeprom
+_mount_smbfs=	mount_smbfs
 _ofwdump=	ofwdump
 .endif
 

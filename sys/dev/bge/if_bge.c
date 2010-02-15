@@ -1993,10 +1993,6 @@ bge_probe(device_t dev)
 			snprintf(buf, 96, "%s, %sASIC rev. %#08x", model,
 			    br != NULL ? "" : "unknown ", id);
 			device_set_desc_copy(dev, buf);
-			if (pci_get_subvendor(dev) == DELL_VENDORID)
-				sc->bge_flags |= BGE_FLAG_NO_3LED;
-			if (did == BCOM_DEVICEID_BCM5755M)
-				sc->bge_flags |= BGE_FLAG_ADJUST_TRIM;
 			return (0);
 		}
 		t++;
@@ -2607,6 +2603,10 @@ bge_attach(device_t dev)
 		sc->bge_flags |= BGE_FLAG_ADC_BUG;
 	if (sc->bge_chipid == BGE_CHIPID_BCM5704_A0)
 		sc->bge_flags |= BGE_FLAG_5704_A0_BUG;
+	if (pci_get_subvendor(dev) == DELL_VENDORID)
+		sc->bge_flags |= BGE_FLAG_NO_3LED;
+	if (pci_get_device(dev) == BCOM_DEVICEID_BCM5755M)
+		sc->bge_flags |= BGE_FLAG_ADJUST_TRIM;
 	if (BGE_IS_5705_PLUS(sc) &&
 	    !(sc->bge_flags & BGE_FLAG_ADJUST_TRIM)) {
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
@@ -3136,14 +3136,17 @@ bge_reset(struct bge_softc *sc)
 		devctl = pci_read_config(dev,
 		    sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
 		/* Clear enable no snoop and disable relaxed ordering. */
-		devctl &= ~(0x0010 | 0x0800);
+		devctl &= ~(PCIM_EXP_CTL_RELAXED_ORD_ENABLE |
+		    PCIM_EXP_CTL_NOSNOOP_ENABLE);
 		/* Set PCIE max payload size to 128. */
 		devctl &= ~PCIM_EXP_CTL_MAX_PAYLOAD;
 		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL,
 		    devctl, 2);
 		/* Clear error status. */
 		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_STA,
-		    0, 2);
+		    PCIM_EXP_STA_CORRECTABLE_ERROR |
+		    PCIM_EXP_STA_NON_FATAL_ERROR | PCIM_EXP_STA_FATAL_ERROR |
+		    PCIM_EXP_STA_UNSUPPORTED_REQ, 2);
 	}
 
 	/* Reset some of the PCI state that got zapped by reset. */

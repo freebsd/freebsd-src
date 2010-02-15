@@ -27,13 +27,12 @@
 #include <sys/queue.h>
 #include <sys/types.h>
 
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <poll.h>
-#include <fcntl.h>
-#include <errno.h>
+#include <unistd.h>
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -67,6 +66,7 @@ static libusb20_get_config_index_t ugen20_get_config_index;
 static libusb20_set_config_index_t ugen20_set_config_index;
 static libusb20_set_alt_index_t ugen20_set_alt_index;
 static libusb20_reset_device_t ugen20_reset_device;
+static libusb20_check_connected_t ugen20_check_connected;
 static libusb20_set_power_mode_t ugen20_set_power_mode;
 static libusb20_get_power_mode_t ugen20_get_power_mode;
 static libusb20_kernel_driver_active_t ugen20_kernel_driver_active;
@@ -550,6 +550,25 @@ ugen20_reset_device(struct libusb20_device *pdev)
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	return (ugen20_tr_renew(pdev));
+}
+
+static int
+ugen20_check_connected(struct libusb20_device *pdev)
+{
+	uint32_t plugtime;
+	int error = 0;
+
+	if (ioctl(pdev->file_ctrl, USB_GET_PLUGTIME, &plugtime)) {
+		error = LIBUSB20_ERROR_NO_DEVICE;
+		goto done;
+	}
+
+	if (pdev->session_data.plugtime != plugtime) {
+		error = LIBUSB20_ERROR_NO_DEVICE;
+		goto done;
+	}
+done:
+	return (error);
 }
 
 static int

@@ -1,8 +1,7 @@
 /*-
  * Copyright (c) 2009-2010
  * 	Swinburne University of Technology, Melbourne, Australia
- * Copyright (c) 2010 Lawrence Stewart <lstewart@freebsd.org>
- * All rights reserved.
+* All rights reserved.
  *
  * This software was developed at the Centre for Advanced Internet
  * Architectures, Swinburne University, by David Hayes and Lawrence Stewart,
@@ -86,6 +85,10 @@ struct txseginfo {
 	/* flags for operation */
 	u_int flags;
 };
+/* txseginfo flags */
+#define TXSI_TSO               0x01 /* TSO was used for this entry */
+#define TXSI_RTT_MEASURE_START 0x02 /* a rate measure starts here based on this txsi's rtt */
+#define TXSI_RX_MEASURE_END    0x04 /* measure the received rate until this txsi */
 
 /* txseginfo flags */
 #define TXSI_TSO               0x01 /* TSO was used for this entry */
@@ -146,9 +149,6 @@ ertt_packet_measurement_hook(void *udata, void *ctx_data, void *dblock,
 	struct tcpopt *to = ((struct tcp_hhook_data *)ctx_data)->to;
 	int new_sacked_bytes = ((struct tcp_hhook_data *)ctx_data)->new_sacked_bytes;
 	struct ertt *e_t = (struct ertt *)dblock;
-
-	printf("In the hook with e_t->rtt: %d, ctx_data: %p, curack = %u\n",
-			e_t->rtt, ctx_data, th->th_ack);
 
 	struct txseginfo *txsi;
 	u_int32_t  rts=0;
@@ -240,6 +240,8 @@ ertt_packet_measurement_hook(void *udata, void *ctx_data, void *dblock,
 				e_t->rtt = ticks - txsi->tx_ts + 1; /* new measurement */
 				if (e_t->rtt < e_t->minrtt || e_t->minrtt==0)
 					e_t->minrtt=e_t->rtt;
+				if (e_t->rtt > e_t->maxrtt || e_t->maxrtt==0)
+					e_t->maxrtt=e_t->rtt;
 			}
 
 			if (txsi->flags & TXSI_RTT_MEASURE_START || measurenext)
@@ -311,7 +313,6 @@ ertt_add_tx_segment_info_hook(void *udata, void *ctx_data, void *dblock,
 			}
 			TAILQ_INSERT_TAIL(&e_t->txsegi_q, txsi, txsegi_lnk);
 		}
-		printf("** A %u %ld %d\n", ntohl(th->th_seq), len, tso); 
 	}
 }
 
@@ -361,8 +362,6 @@ ertt_uma_ctor(void *mem, int size, void *arg, int flags)
 	e_t->bytes_tx_in_rtt = 0;
 	e_t->markedpkt_rtt = 0;
 
-	printf("Creating ertt block %p\n", mem);
-
 	return (0);
 }
 
@@ -379,7 +378,6 @@ ertt_uma_dtor(void *mem, int size, void *arg)
 		txsi = n_txsi;
 	}
 
-	printf("Destroying ertt block %p\n", mem);
 }
 
 DECLARE_HELPER_UMA(ertt, &ertt_helper, 1, sizeof(struct ertt), ertt_uma_ctor, ertt_uma_dtor);

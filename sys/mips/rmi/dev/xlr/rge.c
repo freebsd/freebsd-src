@@ -577,6 +577,8 @@ build_frag_list(struct mbuf *m_head, struct msgrng_msg *p2p_msg, struct p2d_tx_d
 				taddr = (vm_offset_t)m->m_data + len1;
 				p2 = vtophys(taddr);
 				len2 = m->m_len - len1;
+				if (len2 == 0)
+					continue;
 				if (nfrag >= XLR_MAX_TX_FRAGS)
 					panic("TX frags exceeded");
 
@@ -1686,7 +1688,7 @@ mac_frin_replenish(void *args /* ignored */ )
 #endif
 }
 
-static volatile uint32_t g_tx_frm_tx_ok;
+static volatile uint32_t g_tx_frm_tx_ok=0;
 
 static void
 rge_tx_bkp_func(void *arg, int npending)
@@ -1835,6 +1837,8 @@ xlr_tx_q_wakeup(void *addr)
 			}
 		}
 	}
+	if (atomic_cmpset_int(&g_tx_frm_tx_ok, 0, 1))
+		rge_tx_bkp_func(NULL, 0);
 	callout_reset(&xlr_tx_stop_bkp, 5 * hz, xlr_tx_q_wakeup, NULL);
 }
 

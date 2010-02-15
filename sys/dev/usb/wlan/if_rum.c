@@ -104,6 +104,7 @@ static const struct usb_device_id rum_devs[] = {
     RUM_DEV(COREGA, CGWLUSB2GPX),
     RUM_DEV(DICKSMITH, CWD854F),
     RUM_DEV(DICKSMITH, RT2573),
+    RUM_DEV(EDIMAX, EW7318USG),
     RUM_DEV(DLINK2, DWLG122C1),
     RUM_DEV(DLINK2, WUA1340),
     RUM_DEV(DLINK2, DWA111),
@@ -844,13 +845,18 @@ tr_setup:
 			usbd_xfer_set_priv(xfer, NULL);
 		}
 
-		if (error == USB_ERR_STALLED) {
-			/* try to clear stall first */
+		if (error != USB_ERR_CANCELLED) {
+			if (error == USB_ERR_TIMEOUT)
+				device_printf(sc->sc_dev, "device timeout\n");
+
+			/*
+			 * Try to clear stall first, also if other
+			 * errors occur, hence clearing stall
+			 * introduces a 50 ms delay:
+			 */
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		if (error == USB_ERR_TIMEOUT)
-			device_printf(sc->sc_dev, "device timeout\n");
 		break;
 	}
 }

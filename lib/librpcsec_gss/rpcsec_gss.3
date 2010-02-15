@@ -24,7 +24,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd July 4, 2008
+.Dd January 26, 2010
 .Dt RPC_GSS_SECCREATE 3
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@ subsequent communication between client and server are properly
 authenticated.
 Optionally, extra protection can be applied to the connection.
 The integrity service uses checksums to ensure that all data sent by
-a peer is recieved without modification.
+a peer is received without modification.
 The privacy service uses encryption to ensure that no third party can
 access the data for a connection.
 .Pp
@@ -111,7 +111,7 @@ typedef struct {
 } *rpc_gss_principal_t;
 .Ed
 .It Vt rpc_gss_rawcred_t
-This structure is used to access the raw credentions associated with a
+This structure is used to access the raw credentials associated with a
 security context.
 .Bd -literal
 typedef struct {
@@ -222,7 +222,7 @@ Calculate maximum server message sizes.
 .Sh HISTORY
 The
 .Nm
-manual page example first appeared in
+library first appeared in
 .Fx 8.0 .
 .Sh AUTHORS
 This

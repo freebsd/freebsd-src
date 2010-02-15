@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -1004,7 +1004,6 @@
 #define E1000_ERR_SWFW_SYNC 13
 #define E1000_NOT_IMPLEMENTED 14
 #define E1000_ERR_MBX      15
-#define E1000_ERFUSE_FAILURE 16
 
 /* Loop limit on how long we wait for auto-negotiation to complete */
 #define FIBER_LINK_UP_LIMIT               50

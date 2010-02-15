@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Short options for cpio.  Please keep this sorted.
  */
-static const char *short_options = "0AaBC:F:O:cdE:f:H:hijLlmnopR:rtuvW:yZz";
+static const char *short_options = "0AaBC:F:O:cdE:f:H:hijLlmnopR:rtuvVW:yZz";
 
 /*
  * Long options for cpio.  Please keep this sorted.
@@ -61,6 +61,7 @@ static const struct option {
 	int equivalent;	/* Equivalent short option. */
 } cpio_longopts[] = {
 	{ "create",			0, 'o' },
+	{ "dot",			0, 'V' },
 	{ "extract",			0, 'i' },
 	{ "file",			1, 'F' },
 	{ "format",             	1, 'H' },

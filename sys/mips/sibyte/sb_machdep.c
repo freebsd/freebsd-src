@@ -74,6 +74,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
+#ifdef SMP
+#include <machine/smp.h>
+#endif
+
 #ifdef CFE
 #include <dev/cfe/cfe_api.h>
 #endif
@@ -93,10 +97,41 @@ extern void cfe_env_init(void);
 extern int *edata;
 extern int *end;
 
+extern char MipsTLBMiss[], MipsTLBMissEnd[];
+
 void
 platform_cpu_init()
 {
 	/* Nothing special */
+}
+
+static void
+sb_intr_init(int cpuid)
+{
+	int intrnum, intsrc;
+
+	/*
+	 * Disable all sources to the interrupt mapper and setup the mapping
+	 * between an interrupt source and the mips hard interrupt number.
+	 */
+	for (intsrc = 0; intsrc < NUM_INTSRC; ++intsrc) {
+		intrnum = sb_route_intsrc(intsrc);
+		sb_disable_intsrc(cpuid, intsrc);
+		sb_write_intmap(cpuid, intsrc, intrnum);
+#ifdef SMP
+		/*
+		 * Set up the mailbox interrupt mapping.
+		 *
+		 * The mailbox interrupt is "special" in that it is not shared
+		 * with any other interrupt source.
+		 */
+		if (intsrc == INTSRC_MAILBOX3) {
+			intrnum = platform_ipi_intrnum();
+			sb_write_intmap(cpuid, INTSRC_MAILBOX3, intrnum);
+			sb_enable_intsrc(cpuid, INTSRC_MAILBOX3);
+		}
+#endif
+	}
 }
 
 static void
@@ -183,6 +218,28 @@ mips_init(void)
 	init_param1();
 	init_param2(physmem);
 	mips_cpu_init();
+
+	/*
+	 * XXX
+	 * The kernel is running in 32-bit mode but the CFE is running in
+	 * 64-bit mode. So the SR_KX bit in the status register is turned
+	 * on by the CFE every time we call into it - for e.g. CFE_CONSOLE.
+	 *
+	 * This means that if get a TLB miss for any address above 0xc0000000
+	 * and the SR_KX bit is set then we will end up in the XTLB exception
+	 * vector.
+	 *
+	 * For now work around this by copying the TLB exception handling
+	 * code to the XTLB exception vector.
+	 */
+	{
+		bcopy(MipsTLBMiss, (void *)XTLB_MISS_EXC_VEC,
+		      MipsTLBMissEnd - MipsTLBMiss);
+
+		mips_icache_sync_all();
+		mips_dcache_wbinv_all();
+	}
+
 	pmap_bootstrap();
 	mips_proc0_init();
 	mutex_init();
@@ -242,6 +299,64 @@ kseg0_map_coherent(void)
 	mips_wr_config(config);
 }
 
+#ifdef SMP
+void
+platform_ipi_send(int cpuid)
+{
+	KASSERT(cpuid == 0 || cpuid == 1,
+		("platform_ipi_send: invalid cpuid %d", cpuid));
+
+	sb_set_mailbox(cpuid, 1ULL);
+}
+
+void
+platform_ipi_clear(void)
+{
+	int cpuid;
+
+	cpuid = PCPU_GET(cpuid);
+	sb_clear_mailbox(cpuid, 1ULL);
+}
+
+int
+platform_ipi_intrnum(void)
+{
+
+	return (4);
+}
+
+void
+platform_init_ap(int cpuid)
+{
+
+	KASSERT(cpuid == 1, ("AP has an invalid cpu id %d", cpuid));
+
+	/*
+	 * Make sure that kseg0 is mapped cacheable-coherent
+	 */
+	kseg0_map_coherent();
+
+	sb_intr_init(cpuid);
+}
+
+int
+platform_start_ap(int cpuid)
+{
+#ifdef CFE
+	int error;
+
+	if ((error = cfe_cpu_start(cpuid, mpentry, 0, 0, 0))) {
+		printf("cfe_cpu_start error: %d\n", error);
+		return (-1);
+	} else {
+		return (0);
+	}
+#else
+	return (-1);
+#endif	/* CFE */
+}
+#endif	/* SMP */
+
 void
 platform_start(__register_t a0, __register_t a1, __register_t a2,
 	       __register_t a3)
@@ -254,6 +369,8 @@ platform_start(__register_t a0, __register_t a1, __register_t a2,
 	/* clear the BSS and SBSS segments */
 	memset(&edata, 0, (vm_offset_t)&end - (vm_offset_t)&edata);
 	mips_postboot_fixup();
+
+	sb_intr_init(0);
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();

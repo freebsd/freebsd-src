@@ -55,8 +55,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
 
 #include <net/if.h>
+#include <net/vnet.h>
 
 #include <netinet/cc.h>
 #include <netinet/cc_module.h>
@@ -69,17 +71,20 @@ __FBSDID("$FreeBSD$");
 #define CAST_PTR_INT(X) (*((int*)(X)))
 
 int hd_mod_init(void);
+void hd_conn_init(struct tcpcb *tp);
+int hd_cb_init(struct tcpcb *tp);
+void hd_cb_destroy(struct tcpcb *tp);
 void hd_pre_fr(struct tcpcb *tp, struct tcphdr *th);
 void hd_post_fr(struct tcpcb *tp, struct tcphdr *th);
 void hd_ack_received(struct tcpcb *tp, struct tcphdr *th);
+void hd_after_idle(struct tcpcb *tp);
+void hd_after_timeout(struct tcpcb *tp);
 
 
 struct cc_algo hd_cc_algo = {
 	.name = "hd",
 	.mod_init = hd_mod_init,
 	.ack_received = hd_ack_received
-	/* the rest behaves as newreno */
-	/* XXXLAS: Need to explicitly initialise to newreno funcs in mod_init */
 };
 
 static VNET_DEFINE(uint32_t, hd_qthresh);
@@ -92,6 +97,20 @@ static VNET_DEFINE(int, ertt_id);
 #define V_hd_pmax	VNET(hd_pmax)
 #define V_ertt_id	VNET(ertt_id)
 
+int
+hd_mod_init(void)
+{
+	V_ertt_id = get_helper_id("ertt");
+	V_hd_pmax = 5;
+	V_hd_qthresh = 20;
+	V_hd_qmin = 5;
+	hd_cc_algo.pre_fr = newreno_cc_algo.pre_fr;
+	hd_cc_algo.post_fr = newreno_cc_algo.post_fr;
+	hd_cc_algo.after_idle = newreno_cc_algo.after_idle;
+	hd_cc_algo.after_timeout = newreno_cc_algo.after_timeout;
+	return (0);
+}
+
 static int
 hd_qthresh_handler(SYSCTL_HANDLER_ARGS)
 {
@@ -100,19 +119,6 @@ hd_qthresh_handler(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);
 	}
 	return sysctl_handle_int(oidp, arg1, arg2, req);
-
-	/* INIT_VNET_INET(TD_TO_VNET(req->td)); */
-	/* int error, new; */
-
-	/* new = V_hd_qthresh; */
-	/* error = sysctl_handle_int(oidp, &new, 0, req); */
-	/* if (error == 0 && req->newptr) { */
-	/*   if (new*hz < 1000) /\* if less than kernel tick rate *\/ */
-	/*     error = EINVAL; */
-	/*   else */
-	/*     V_hd_qthresh = new*hz/1000; /\* number of kernel ticks *\/ */
-	/* } */
-	/* return (error); */
 }
 
 static int
@@ -124,30 +130,17 @@ hd_qmin_handler(SYSCTL_HANDLER_ARGS)
 	}
 	return sysctl_handle_int(oidp, arg1, arg2, req);
 
-	/* INIT_VNET_INET(TD_TO_VNET(req->td)); */
-	/* int error, new; */
-
-	/* new = V_hd_qmin; */
-	/* error = sysctl_handle_int(oidp, &new, 0, req); */
-	/* if (error == 0 && req->newptr) { */
-	/*   if (1000*new < hz) /\* if less than kernel tick rate *\/ */
-	/*     error = EINVAL; */
-	/*   else */
-	/*     V_hd_qmin = new*hz/1000; /\* number of kernel ticks *\/ */
-	/* } */
-	/* return (error); */
 }
 
 
 static int
 hd_pmax_handler(SYSCTL_HANDLER_ARGS)
 {
-	if(req->newptr != NULL) {
+	if (req->newptr != NULL) {
 		if(CAST_PTR_INT(req->newptr) == 0 ||
 		    CAST_PTR_INT(req->newptr) > 100)
 			return (EINVAL);
 	}
-
 	return sysctl_handle_int(oidp, arg1, arg2, req);
 }
 
@@ -172,23 +165,6 @@ prob_backoff_func(int Qdly, int maxQdly)
 	return(p);
 }
 
-/* half cwnd backoff */
-/* XXXLAS: I don't think we need this. */
-static void inline
-hd_congestion_exp(struct tcpcb *tp)
-{
-	u_int win, decr;
-	win =  min(tp->snd_wnd, tp->snd_cwnd) / tp->t_maxseg;
-	decr = win>>1;
-	win -= decr;
-	if (win < 2)
-		win = 2;
-	tp->snd_ssthresh = win * tp->t_maxseg;
-	tp->snd_recover = tp->snd_max;
-	if (tp->t_flags & TF_ECN_PERMIT)
-		tp->t_flags |= TF_ECN_SND_CWR;
-	tp->snd_cwnd = tp->snd_ssthresh;
-}
 
 /* Hamilton delay based congestion control detection and response */
 void
@@ -204,21 +180,18 @@ hd_ack_received(struct tcpcb *tp, struct tcphdr *th)
 			/* based on algorithm developed at the Hamilton Institute, Ireland
 			   See Lukasz Budzisz, Rade Stanojevic, Robert Shorton and Fred Baker,
 			   "A stratagy for fair coexistence of loss and delay-based congestion
-			   control algorithms", to be published IEEE Communication Letters 2009 */
+			   control algorithms", published IEEE Communication Letters Volume 13,
+			   Issue 7,  July 2009 Page(s):555 - 557 */
 			int p;
 			p = prob_backoff_func(Qdly, e_t->maxrtt - e_t->minrtt);
 			if (random() < p) {
-				hd_congestion_exp(tp); /* halve cwnd */
+				newreno_cc_algo.pre_fr(tp, th);  /* ssthresh update to half cwnd */
+				tp->snd_cwnd = tp->snd_ssthresh;
+				return;
 			}
 		}
 	}
-}
-
-int
-hd_mod_init(void)
-{
-	V_ertt_id = get_helper_id("ertt");
-	return (0);
+	newreno_cc_algo.ack_received(tp, th); /* as for reno*/
 }
 
 SYSCTL_DECL(_net_inet_tcp_cc_hd);

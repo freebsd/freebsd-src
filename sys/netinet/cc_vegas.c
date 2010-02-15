@@ -68,10 +68,14 @@ __FBSDID("$FreeBSD$");
 #define CAST_PTR_INT(X) (*((int*)(X)))
 
 int vegas_mod_init(void);
+void vegas_conn_init(struct tcpcb *tp);
 int vegas_cb_init(struct tcpcb *tp);
 void vegas_cb_destroy(struct tcpcb *tp);
 void vegas_ack_received(struct tcpcb *tp, struct tcphdr *th);
-void vegas_conn_init(struct tcpcb *tp);
+void vegas_pre_fr(struct tcpcb *tp, struct tcphdr *th);
+void vegas_post_fr(struct tcpcb *tp, struct tcphdr *th);
+void vegas_after_idle(struct tcpcb *tp);
+void vegas_after_timeout(struct tcpcb *tp);
 
 struct vegas {
 	int rtt_ctr; /*counts rtts for vegas slow start */
@@ -85,10 +89,9 @@ MALLOC_DEFINE(M_VEGAS, "vegas data",
 struct cc_algo vegas_cc_algo = {
 	.name = "vegas",
 	.mod_init = vegas_mod_init,
-	.ack_received = vegas_ack_received,
 	.cb_init = vegas_cb_init,
-	.cb_destroy = vegas_cb_destroy
-	/* newreno fastrecovery and timout mechanisms are used in this implementation */
+	.cb_destroy = vegas_cb_destroy,
+	.ack_received = vegas_ack_received
 };
 
 static VNET_DEFINE(uint32_t, vegas_alpha);
@@ -98,10 +101,56 @@ static VNET_DEFINE(int, ertt_id);
 #define	V_vegas_beta	VNET(vegas_beta)
 #define	V_ertt_id	VNET(ertt_id)
 
+
+int
+vegas_mod_init(void)
+{
+	V_vegas_alpha = 1;
+	V_vegas_beta = 3;
+	V_ertt_id = get_helper_id("ertt");
+	vegas_cc_algo.pre_fr = newreno_cc_algo.pre_fr;
+	vegas_cc_algo.post_fr = newreno_cc_algo.post_fr;
+	vegas_cc_algo.after_idle = newreno_cc_algo.after_idle;
+	vegas_cc_algo.after_timeout = newreno_cc_algo.after_timeout;
+
+	return (0);
+}
+
+/* Create struct to store VEGAS specific data */
+int
+vegas_cb_init(struct tcpcb *tp)
+{
+	struct vegas *vegas_data;
+	
+	vegas_data = malloc(sizeof(struct vegas), M_VEGAS, M_NOWAIT);
+
+	
+	if (vegas_data == NULL)
+		return (ENOMEM);
+	
+	vegas_data->rtt_ctr = 1;
+
+	CC_DATA(tp) = vegas_data;
+	
+
+	return (0);
+}
+
+/*
+ * Free the struct used to store VEGAS specific data for the specified
+ * TCP control block.
+ */
+void
+vegas_cb_destroy(struct tcpcb *tp)
+{
+	if (CC_DATA(tp) != NULL)
+		free(CC_DATA(tp), M_VEGAS);
+}
+
 static int
 vegas_alpha_handler(SYSCTL_HANDLER_ARGS)
 {
-	if(req->newptr != NULL) {
+	if (req->newptr != NULL) {
 		if(CAST_PTR_INT(req->newptr) < 1 ||
 		    CAST_PTR_INT(req->newptr) > V_vegas_beta)
 			return (EINVAL);
@@ -113,7 +162,7 @@ vegas_alpha_handler(SYSCTL_HANDLER_ARGS)
 static int
 vegas_beta_handler(SYSCTL_HANDLER_ARGS)
 {
-	if(req->newptr != NULL) {
+	if (req->newptr != NULL) {
 		if(CAST_PTR_INT(req->newptr) < 1 ||
 		    CAST_PTR_INT(req->newptr) < V_vegas_alpha)
 			return (EINVAL);
@@ -130,15 +179,14 @@ vegas_ack_received(struct tcpcb *tp, struct tcphdr *th)
 	struct vegas *vegas_data = CC_DATA(tp);
 	long expected_tx_rate, actual_tx_rate;
 
-	if (!IN_FASTRECOVERY(tp) && (e_t->flags & ERTT_NEW_MEASUREMENT)) {
+	if (e_t->flags & ERTT_NEW_MEASUREMENT) {
 
 		expected_tx_rate = e_t->marked_snd_cwnd/e_t->minrtt;
 		actual_tx_rate = e_t->bytes_tx_in_marked_rtt/e_t->markedpkt_rtt;
 
 		long ndiff = (expected_tx_rate - actual_tx_rate)*e_t->minrtt/tp->t_maxseg;
 
-
-		if (ndiff < V_vegas_alpha)
+		if (ndiff < V_vegas_alpha) {
 			if (tp->snd_cwnd < tp->snd_ssthresh) {
 				vegas_data->rtt_ctr += 1;
 				if (vegas_data->rtt_ctr > 1) {
@@ -148,65 +196,30 @@ vegas_ack_received(struct tcpcb *tp, struct tcphdr *th)
 			} else {
 				tp->snd_cwnd = min(tp->snd_cwnd + tp->t_maxseg, TCP_MAXWIN<<tp->snd_scale);
 			}
-			else if (ndiff > V_vegas_beta) {
-				tp->snd_cwnd = max(2*tp->t_maxseg,tp->snd_cwnd-tp->t_maxseg);
-				if (tp->snd_cwnd < tp->snd_ssthresh)
-					tp->snd_ssthresh = tp->snd_cwnd; /* exit slow start */
+		} else if (ndiff > V_vegas_beta) {
+			tp->snd_cwnd = max(2*tp->t_maxseg,tp->snd_cwnd-tp->t_maxseg);
+			if (tp->snd_cwnd < tp->snd_ssthresh)
+				tp->snd_ssthresh = tp->snd_cwnd; /* exit slow start */
 
-				e_t->flags &= ~ERTT_NEW_MEASUREMENT;
-			}
+		}
+		e_t->flags &= ~ERTT_NEW_MEASUREMENT;
 	}
 }
 
-/* Create struct to store VEGAS specific data */
-int
-vegas_cb_init(struct tcpcb *tp)
-{
-	struct vegas *vegas_data;
-	
-	vegas_data = malloc(sizeof(struct vegas), M_VEGAS, M_NOWAIT);
-	
-	if (vegas_data == NULL)
-		return (ENOMEM);
-	
-	vegas_data->rtt_ctr = 1;
-	
-	CC_DATA(tp) = vegas_data;
 
-	return (0);
-}
 
-/*
- * Free the struct used to store VEGAS specific data for the specified
- * TCP control block.
- */
-void
-vegas_cb_destroy(struct tcpcb *tp)
-{
-	if (CC_DATA(tp) != NULL)
-		free(CC_DATA(tp), M_VEGAS);
-}
-
-int
-vegas_mod_init(void)
-{
-	V_vegas_alpha = 1;
-	V_vegas_beta = 3;
-	V_ertt_id = get_helper_id("ertt");
-	return (0);
-}
 
 SYSCTL_DECL(_net_inet_tcp_cc_vegas);
 SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, vegas, CTLFLAG_RW, NULL,
     "VEGAS related settings");
 
 SYSCTL_OID(_net_inet_tcp_cc_vegas, OID_AUTO, vegas_alpha,
-    CTLTYPE_UINT|CTLFLAG_RW, &V_vegas_alpha, 0,
+    CTLTYPE_UINT|CTLFLAG_RW, &V_vegas_alpha, 1,
     &vegas_alpha_handler, "IU",
     "vegas alpha parameter - Entered in terms of number \"buffers\" (0 < alpha < beta)");
 
 SYSCTL_OID(_net_inet_tcp_cc_vegas, OID_AUTO, vegas_beta,
-    CTLTYPE_UINT|CTLFLAG_RW, &V_vegas_beta, 0,
+    CTLTYPE_UINT|CTLFLAG_RW, &V_vegas_beta, 3,
     &vegas_beta_handler, "IU",
     "vegas beta parameter - Entered in terms of number \"buffers\" (0 < alpha < beta)");
 

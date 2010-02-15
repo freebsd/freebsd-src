@@ -81,7 +81,6 @@ struct g_class g_mountver_class = {
 static void
 g_mountver_done(struct bio *bp)
 {
-	struct g_mountver_softc *sc;
 	struct g_geom *gp;
 	struct bio *pbp;
 
@@ -97,7 +96,6 @@ g_mountver_done(struct bio *bp)
 	 * that failed with ENXIO, in order to send them later.
 	 */
 	gp = bp->bio_from->geom;
-	sc = gp->softc;
 
 	pbp = bp->bio_parent;
 	KASSERT(pbp->bio_to == LIST_FIRST(&gp->provider),

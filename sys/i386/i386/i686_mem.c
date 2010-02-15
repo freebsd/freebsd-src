@@ -707,11 +707,8 @@ i686_mem_drvinit(void *unused)
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_INTEL:
 	case CPU_VENDOR_AMD:
-		break;
 	case CPU_VENDOR_CENTAUR:
-		if (cpu_exthigh >= 0x80000008)
-			break;
-		/* FALLTHROUGH */
+		break;
 	default:
 		return;
 	}

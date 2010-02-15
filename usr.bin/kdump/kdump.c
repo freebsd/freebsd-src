@@ -182,14 +182,16 @@ main(int argc, char *argv[])
 		if (ktr_header.ktr_type & KTR_DROP) {
 			ktr_header.ktr_type &= ~KTR_DROP;
 			if (!drop_logged && threads) {
-				(void)printf("%6d %6d %-8.*s Events dropped.\n",
-				    ktr_header.ktr_pid, ktr_header.ktr_tid >
-				    0 ? ktr_header.ktr_tid : 0, MAXCOMLEN,
-				    ktr_header.ktr_comm);
+				(void)printf(
+				    "%6jd %6jd %-8.*s Events dropped.\n",
+				    (intmax_t)ktr_header.ktr_pid,
+				    ktr_header.ktr_tid > 0 ?
+				    (intmax_t)ktr_header.ktr_tid : 0,
+				    MAXCOMLEN, ktr_header.ktr_comm);
 				drop_logged = 1;
 			} else if (!drop_logged) {
-				(void)printf("%6d %-8.*s Events dropped.\n",
-				    ktr_header.ktr_pid, MAXCOMLEN,
+				(void)printf("%6jd %-8.*s Events dropped.\n",
+				    (intmax_t)ktr_header.ktr_pid, MAXCOMLEN,
 				    ktr_header.ktr_comm);
 				drop_logged = 1;
 			}
@@ -309,10 +311,11 @@ dumpheader(struct ktr_header *kth)
 	 * negative tid's as 0.
 	 */
 	if (threads)
-		(void)printf("%6d %6d %-8.*s ", kth->ktr_pid, kth->ktr_tid >
-		    0 ? kth->ktr_tid : 0, MAXCOMLEN, kth->ktr_comm);
+		(void)printf("%6jd %6jd %-8.*s ", (intmax_t)kth->ktr_pid,
+		    kth->ktr_tid > 0 ? (intmax_t)kth->ktr_tid : 0,
+		    MAXCOMLEN, kth->ktr_comm);
 	else
-		(void)printf("%6d %-8.*s ", kth->ktr_pid, MAXCOMLEN,
+		(void)printf("%6jd %-8.*s ", (intmax_t)kth->ktr_pid, MAXCOMLEN,
 		    kth->ktr_comm);
 	if (timestamp) {
 		if (timestamp == 3) {
@@ -325,8 +328,8 @@ dumpheader(struct ktr_header *kth)
 			timevalsub(&kth->ktr_time, &prevtime);
 			prevtime = temp;
 		}
-		(void)printf("%ld.%06ld ",
-		    kth->ktr_time.tv_sec, kth->ktr_time.tv_usec);
+		(void)printf("%jd.%06ld ", (intmax_t)kth->ktr_time.tv_sec,
+		    kth->ktr_time.tv_usec);
 	}
 	(void)printf("%s  ", type);
 }
@@ -821,7 +824,7 @@ ktrsysret(struct ktr_sysret *ktr)
 
 	if (error == 0) {
 		if (fancy) {
-			(void)printf("%d", ret);
+			(void)printf("%ld", (long)ret);
 			if (ret < 0 || ret > 9)
 				(void)printf("/%#lx", (long)ret);
 		} else {
@@ -1267,7 +1270,7 @@ ktrstat(struct stat *statp)
 	printf("rdev=%ju, ", (uintmax_t)statp->st_rdev);
 	printf("atime=");
 	if (resolv == 0)
-		printf("%ld", statp->st_atimespec.tv_sec);
+		printf("%jd", (intmax_t)statp->st_atimespec.tv_sec);
 	else {
 		tm = localtime(&statp->st_atimespec.tv_sec);
 		(void)strftime(timestr, sizeof(timestr), TIME_FORMAT, tm);
@@ -1279,7 +1282,7 @@ ktrstat(struct stat *statp)
 		printf(", ");
 	printf("stime=");
 	if (resolv == 0)
-		printf("%ld", statp->st_mtimespec.tv_sec);
+		printf("%jd", (intmax_t)statp->st_mtimespec.tv_sec);
 	else {
 		tm = localtime(&statp->st_mtimespec.tv_sec);
 		(void)strftime(timestr, sizeof(timestr), TIME_FORMAT, tm);
@@ -1291,7 +1294,7 @@ ktrstat(struct stat *statp)
 		printf(", ");
 	printf("ctime=");
 	if (resolv == 0)
-		printf("%ld", statp->st_ctimespec.tv_sec);
+		printf("%jd", (intmax_t)statp->st_ctimespec.tv_sec);
 	else {
 		tm = localtime(&statp->st_ctimespec.tv_sec);
 		(void)strftime(timestr, sizeof(timestr), TIME_FORMAT, tm);
@@ -1303,7 +1306,7 @@ ktrstat(struct stat *statp)
 		printf(", ");
 	printf("birthtime=");
 	if (resolv == 0)
-		printf("%ld", statp->st_birthtimespec.tv_sec);
+		printf("%jd", (intmax_t)statp->st_birthtimespec.tv_sec);
 	else {
 		tm = localtime(&statp->st_birthtimespec.tv_sec);
 		(void)strftime(timestr, sizeof(timestr), TIME_FORMAT, tm);

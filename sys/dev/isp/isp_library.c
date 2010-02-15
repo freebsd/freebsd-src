@@ -246,65 +246,70 @@ copy_and_sync:
 }
 
 int
-isp_save_xs(ispsoftc_t *isp, XS_T *xs, uint32_t *handlep)
+isp_allocate_xs(ispsoftc_t *isp, XS_T *xs, uint32_t *handlep)
 {
-	uint16_t i, j;
+	isp_hdl_t *hdp;
 
-	for (j = isp->isp_lasthdls, i = 0; i < isp->isp_maxcmds; i++) {
-		if (isp->isp_xflist[j] == NULL) {
-			break;
-		}
-		if (++j == isp->isp_maxcmds) {
-			j = 0;
-		}
-	}
-	if (i == isp->isp_maxcmds) {
+	hdp = isp->isp_xffree;
+	if (hdp == NULL) {
 		return (-1);
 	}
-	isp->isp_xflist[j] = xs;
-	*handlep = j+1;
-	if (++j == isp->isp_maxcmds) {
-		j = 0;
-	}
-	isp->isp_lasthdls = (uint32_t)j;
+	isp->isp_xffree = hdp->cmd;
+	hdp->cmd = xs;
+	hdp->handle = (hdp - isp->isp_xflist);
+	hdp->handle |= (ISP_HANDLE_INITIATOR << ISP_HANDLE_USAGE_SHIFT);
+	hdp->handle |= (isp->isp_seqno++ << ISP_HANDLE_SEQ_SHIFT);
+	*handlep = hdp->handle;
 	return (0);
 }
 
 XS_T *
 isp_find_xs(ispsoftc_t *isp, uint32_t handle)
 {
-	if (handle < 1 || handle > (uint32_t) isp->isp_maxcmds) {
+	if (!ISP_VALID_INI_HANDLE(isp, handle)) {
+		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
 		return (NULL);
-	} else {
-		return (isp->isp_xflist[handle - 1]);
 	}
+	return (isp->isp_xflist[(handle & ISP_HANDLE_CMD_MASK)].cmd);
 }
 
 uint32_t
 isp_find_handle(ispsoftc_t *isp, XS_T *xs)
 {
-	uint16_t i;
+	uint32_t i, foundhdl = ISP_HANDLE_FREE;
+
 	if (xs != NULL) {
 		for (i = 0; i < isp->isp_maxcmds; i++) {
-			if (isp->isp_xflist[i] == xs) {
-				return ((uint32_t) (i+1));
+			if (isp->isp_xflist[i].cmd != xs) {
+				continue;
 			}
+			foundhdl = isp->isp_xflist[i].handle;
+			break;
 		}
 	}
-	return (0);
+	return (foundhdl);
 }
 
 uint32_t
-isp_handle_index(uint32_t handle)
+isp_handle_index(ispsoftc_t *isp, uint32_t handle)
 {
-	return (handle - 1);
+	if (!ISP_VALID_HANDLE(isp, handle)) {
+		return (handle & ISP_HANDLE_CMD_MASK);
+	} else {
+		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
+		return (ISP_BAD_HANDLE_INDEX);
+	}
 }
 
 void
 isp_destroy_handle(ispsoftc_t *isp, uint32_t handle)
 {
-	if (handle > 0 && handle <= (uint32_t) isp->isp_maxcmds) {
-		isp->isp_xflist[handle - 1] = NULL;
+	if (!ISP_VALID_INI_HANDLE(isp, handle)) {
+		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
+	} else {
+		isp->isp_xflist[(handle & ISP_HANDLE_CMD_MASK)].handle = ISP_HANDLE_FREE;
+		isp->isp_xflist[(handle & ISP_HANDLE_CMD_MASK)].cmd = isp->isp_xffree;
+		isp->isp_xffree = &isp->isp_xflist[(handle & ISP_HANDLE_CMD_MASK)];
 	}
 }
 
@@ -617,59 +622,53 @@ isp_fc_change_role(ispsoftc_t *isp, int chan, int new_role)
 void
 isp_clear_commands(ispsoftc_t *isp)
 {
-	XS_T *xs;
-	uint32_t tmp, handle;
+	uint32_t tmp;
+	isp_hdl_t *hdp;
 #ifdef	ISP_TARGET_MODE
 	isp_notify_t notify;
 #endif
 
 	for (tmp = 0; isp->isp_xflist && tmp < isp->isp_maxcmds; tmp++) {
-		xs = isp->isp_xflist[tmp];
-		if (xs == NULL) {
+		XS_T *xs;
+
+		hdp = &isp->isp_xflist[tmp];
+		if (hdp->handle == ISP_HANDLE_FREE) {
 			continue;
 		}
-		handle = isp_find_handle(isp, xs);
-		if (handle == 0) {
-			continue;
-		}
+		xs = hdp->cmd;
 		if (XS_XFRLEN(xs)) {
-			ISP_DMAFREE(isp, xs, handle);
+			ISP_DMAFREE(isp, xs, hdp->handle);
 			XS_SET_RESID(xs, XS_XFRLEN(xs));
 		} else {
 			XS_SET_RESID(xs, 0);
 		}
-		isp_destroy_handle(isp, handle);
+		hdp->handle = 0;
+		hdp->cmd = NULL;
 		XS_SETERR(xs, HBA_BUSRESET);
 		isp_done(xs);
 	}
 #ifdef	ISP_TARGET_MODE
 	for (tmp = 0; isp->isp_tgtlist && tmp < isp->isp_maxcmds; tmp++) {
 		uint8_t local[QENTRY_LEN];
-
-		xs = isp->isp_tgtlist[tmp];
-		if (xs == NULL) {
+		hdp = &isp->isp_tgtlist[tmp];
+		if (hdp->handle == ISP_HANDLE_FREE) {
 			continue;
 		}
-		handle = isp_find_tgt_handle(isp, xs);
-		if (handle == 0) {
-			continue;
-		}
-		ISP_DMAFREE(isp, xs, handle);
-
+		ISP_DMAFREE(isp, hdp->cmd, hdp->handle);
 		ISP_MEMZERO(local, QENTRY_LEN);
 		if (IS_24XX(isp)) {
 			ct7_entry_t *ctio = (ct7_entry_t *) local;
-			ctio->ct_syshandle = handle;
+			ctio->ct_syshandle = hdp->handle;
 			ctio->ct_nphdl = CT_HBA_RESET;
 			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO7;
 		} else if (IS_FC(isp)) {
 			ct2_entry_t *ctio = (ct2_entry_t *) local;
-			ctio->ct_syshandle = handle;
+			ctio->ct_syshandle = hdp->handle;
 			ctio->ct_status = CT_HBA_RESET;
 			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 		} else {
 			ct_entry_t *ctio = (ct_entry_t *) local;
-			ctio->ct_syshandle = handle & 0xffff;
+			ctio->ct_syshandle = hdp->handle & 0xffff;
 			ctio->ct_status = CT_HBA_RESET & 0xff;
 			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO;
 		}
@@ -2229,59 +2228,59 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 }
 
 int
-isp_save_xs_tgt(ispsoftc_t *isp, void *xs, uint32_t *handlep)
+isp_allocate_xs_tgt(ispsoftc_t *isp, void *xs, uint32_t *handlep)
 {
-	int i;
+	isp_hdl_t *hdp;
 
-	for (i = 0; i < (int) isp->isp_maxcmds; i++) {
-		if (isp->isp_tgtlist[i] == NULL) {
-			break;
-		}
-	}
-	if (i == isp->isp_maxcmds) {
+	hdp = isp->isp_tgtfree;
+	if (hdp == NULL) {
 		return (-1);
 	}
-	isp->isp_tgtlist[i] = xs;
-	*handlep = (i+1) | 0x8000;
+	isp->isp_tgtfree = hdp->cmd;
+	hdp->cmd = xs;
+	hdp->handle = (hdp - isp->isp_tgtlist);
+	hdp->handle |= (ISP_HANDLE_TARGET << ISP_HANDLE_USAGE_SHIFT);
+	hdp->handle |= (isp->isp_seqno++ << ISP_HANDLE_SEQ_SHIFT);
+	*handlep = hdp->handle;
 	return (0);
 }
 
 void *
 isp_find_xs_tgt(ispsoftc_t *isp, uint32_t handle)
 {
-	if (handle == 0 || IS_TARGET_HANDLE(handle) == 0 || (handle & ISP_HANDLE_MASK) > isp->isp_maxcmds) {
-		isp_prt(isp, ISP_LOGERR, "bad handle %u in isp_find_xs_tgt", handle);
+	if (!ISP_VALID_TGT_HANDLE(isp, handle)) {
+		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
 		return (NULL);
-	} else {
-		return (isp->isp_tgtlist[(handle & ISP_HANDLE_MASK) - 1]);
 	}
+	return (isp->isp_tgtlist[(handle & ISP_HANDLE_CMD_MASK)].cmd);
 }
 
 uint32_t
 isp_find_tgt_handle(ispsoftc_t *isp, void *xs)
 {
-	int i;
+	uint32_t i, foundhdl = ISP_HANDLE_FREE;
+
 	if (xs != NULL) {
 		for (i = 0; i < isp->isp_maxcmds; i++) {
-			if (isp->isp_tgtlist[i] == xs) {
-				uint32_t handle = i;
-				handle += 1;
-				handle &= ISP_HANDLE_MASK;
-				handle |= 0x8000;
-				return (handle);
+			if (isp->isp_tgtlist[i].cmd != xs) {
+				continue;
 			}
+			foundhdl = isp->isp_tgtlist[i].handle;
+			break;
 		}
 	}
-	return (0);
+	return (foundhdl);
 }
 
 void
 isp_destroy_tgt_handle(ispsoftc_t *isp, uint32_t handle)
 {
-	if (handle == 0 || IS_TARGET_HANDLE(handle) == 0 || (handle & ISP_HANDLE_MASK) > isp->isp_maxcmds) {
-		isp_prt(isp, ISP_LOGERR, "bad handle in isp_destroy_tgt_handle");
+	if (!ISP_VALID_TGT_HANDLE(isp, handle)) {
+		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
 	} else {
-		isp->isp_tgtlist[(handle & ISP_HANDLE_MASK) - 1] = NULL;
+		isp->isp_tgtlist[(handle & ISP_HANDLE_CMD_MASK)].handle = ISP_HANDLE_FREE;
+		isp->isp_tgtlist[(handle & ISP_HANDLE_CMD_MASK)].cmd = isp->isp_tgtfree;
+		isp->isp_tgtfree = &isp->isp_tgtlist[(handle & ISP_HANDLE_CMD_MASK)];
 	}
 }
 

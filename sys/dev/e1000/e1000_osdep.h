@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -82,7 +82,7 @@
 /* Mutex used in the shared code */
 #define E1000_MUTEX                     struct mtx
 #define E1000_MUTEX_INIT(mutex)         mtx_init((mutex), #mutex, \
-                                        "E1000 Shared Lock", MTX_DEF)
+                                            MTX_NETWORK_LOCK, MTX_DEF)
 #define E1000_MUTEX_DESTROY(mutex)      mtx_destroy(mutex)
 #define E1000_MUTEX_LOCK(mutex)         mtx_lock(mutex)
 #define E1000_MUTEX_TRYLOCK(mutex)      mtx_trylock(mutex)

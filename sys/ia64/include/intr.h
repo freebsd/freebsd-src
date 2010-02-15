@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2007-2010 Marcel Moolenaar
  * Copyright (c) 1998 Doug Rabson
  * All rights reserved.
  *
@@ -27,26 +28,23 @@
  */
 
 #ifndef _MACHINE_INTR_H_
-#define _MACHINE_INTR_H_
+#define	_MACHINE_INTR_H_
 
 /*
  * Layout of the Processor Interrupt Block.
  */
-struct ia64_interrupt_block
+struct ia64_pib
 {
-	u_int64_t	ib_ipi[0x20000];	/* 1Mb of IPI interrupts */
-	u_int8_t	ib_reserved1[0xe0000];
-	u_int8_t	ib_inta;		/* Generate INTA cycle */
-	u_int8_t	ib_reserved2[7];
-	u_int8_t	ib_xtp;			/* XTP cycle */
-	u_int8_t	ib_reserved3[7];
-	u_int8_t	ib_reserved4[0x1fff0];
+	uint64_t	ib_ipi[65536][2];	/* 64K-way IPIs (1MB area). */
+	uint8_t		_rsvd1[0xe0000];
+	uint8_t		ib_inta;		/* Generate INTA cycle. */
+	uint8_t		_rsvd2[7];
+	uint8_t		ib_xtp;			/* External Task Priority. */
+	uint8_t		_rsvd3[7];
+	uint8_t		_rsvd4[0x1fff0];
 };
 
-extern u_int64_t ia64_lapic_address;
-
-#define IA64_INTERRUPT_BLOCK	\
-	(struct ia64_interrupt_block *)IA64_PHYS_TO_RR6(ia64_lapic_address)
+extern struct ia64_pib *ia64_pib;
 
 int ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
     driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep);

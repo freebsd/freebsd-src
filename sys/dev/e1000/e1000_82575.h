@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -443,6 +443,9 @@ struct e1000_adv_tx_context_desc {
 #define E1000_RPLOLR_STRVLAN   0x40000000
 #define E1000_RPLOLR_STRCRC    0x80000000
 
+#define E1000_TCTL_EXT_COLD       0x000FFC00
+#define E1000_TCTL_EXT_COLD_SHIFT 10
+
 #define E1000_DTXCTL_8023LL     0x0004
 #define E1000_DTXCTL_VLAN_ADDED 0x0008
 #define E1000_DTXCTL_OOS_ENABLE 0x0010
@@ -456,5 +459,4 @@ struct e1000_adv_tx_context_desc {
 void e1000_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable);
 void e1000_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable);
 u16 e1000_rxpbs_adjust_82580(u32 data);
-s32 e1000_erfuse_check_82580(struct e1000_hw *);
 #endif /* _E1000_82575_H_ */

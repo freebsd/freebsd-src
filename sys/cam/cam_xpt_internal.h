@@ -172,7 +172,6 @@ struct cam_ed *		xpt_alloc_device(struct cam_eb *bus,
 					 lun_id_t lun_id);
 void			xpt_acquire_device(struct cam_ed *device);
 void			xpt_release_device(struct cam_ed *device);
-void			xpt_run_dev_sendq(struct cam_eb *bus);
 int			xpt_schedule_dev(struct camq *queue, cam_pinfo *dev_pinfo,
 					 u_int32_t new_priority);
 u_int32_t		xpt_dev_ccbq_resize(struct cam_path *path, int newopenings);

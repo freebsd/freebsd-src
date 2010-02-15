@@ -241,6 +241,7 @@ SUBDIR=	${_3dfx} \
 	re \
 	reiserfs \
 	rl \
+	runfw \
 	${_s3} \
 	${_safe} \
 	${_sbni} \
@@ -250,6 +251,7 @@ SUBDIR=	${_3dfx} \
 	sdhci \
 	sem \
 	sf \
+	siba_bwn \
 	siis \
 	sis \
 	sk \
@@ -617,6 +619,7 @@ _igb=		igb
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
+_smbfs=		smbfs
 _sound=		sound
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs

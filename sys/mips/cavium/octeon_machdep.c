@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #define MAX_APP_DESC_ADDR     0xafffffff
 #endif
 
-static struct pcpu pcpu0;
 extern int	*edata;
 extern int	*end;
 
@@ -731,6 +730,8 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 {
 	uint64_t platform_counter_freq;
 
+	boothowto |= RB_SINGLE;
+
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
 	mips_timer_early_init(OCTEON_CLOCK_DEFAULT);
@@ -739,7 +740,6 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 	octeon_ciu_reset();
 	octeon_boot_params_init(a3);
 	bootverbose = 1;
-	cpuid_to_pcpu[0] = &pcpu0;
 
 	/*
 	 * For some reason on the cn38xx simulator ebase register is set to

@@ -82,7 +82,7 @@ init_helper_dblocks(struct helper_dblocks *hdbs)
 
 	if (hdbs->blocks != NULL) {
 		printf("Malloced ptr %p for %d data blocks\n", hdbs->blocks,
-		    hdbs->nblocks);
+		    num_dblocks);
 		STAILQ_FOREACH(h, &helpers, h_next) {
 			if (h->h_flags & HELPER_NEEDS_DBLOCK) {
 				dblock = hdbs->blocks+i;

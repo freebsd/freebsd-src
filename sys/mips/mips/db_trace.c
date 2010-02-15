@@ -344,7 +344,7 @@ done:
 			(*printfn)("?");
 	}
 
-	(*printfn) (") ra %x sz %d\n", ra, stksize);
+	(*printfn) (") ra %x sp %x sz %d\n", ra, sp, stksize);
 
 	if (ra) {
 		if (pc == ra && stksize == 0)

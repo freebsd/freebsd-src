@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -256,8 +256,6 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_hw *hw)
 	mac->ops.write_vfta = e1000_write_vfta_generic;
 	/* clearing VFTA */
 	mac->ops.clear_vfta = e1000_clear_vfta_generic;
-	/* setting MTA */
-	mac->ops.mta_set = e1000_mta_set_generic;
 	/* read mac address */
 	mac->ops.read_mac_addr = e1000_read_mac_addr_80003es2lan;
 	/* ID LED init */
@@ -1048,72 +1046,73 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_copper_link_setup_gg82563_80003es2lan");
 
-	if (!phy->reset_disable) {
-		ret_val = hw->phy.ops.read_reg(hw, GG82563_PHY_MAC_SPEC_CTRL,
-		                             &data);
-		if (ret_val)
-			goto out;
+	if (phy->reset_disable)
+		goto skip_reset;
 
-		data |= GG82563_MSCR_ASSERT_CRS_ON_TX;
-		/* Use 25MHz for both link down and 1000Base-T for Tx clock. */
-		data |= GG82563_MSCR_TX_CLK_1000MBPS_25;
+	ret_val = hw->phy.ops.read_reg(hw, GG82563_PHY_MAC_SPEC_CTRL,
+				     &data);
+	if (ret_val)
+		goto out;
 
-		ret_val = hw->phy.ops.write_reg(hw, GG82563_PHY_MAC_SPEC_CTRL,
-		                              data);
-		if (ret_val)
-			goto out;
+	data |= GG82563_MSCR_ASSERT_CRS_ON_TX;
+	/* Use 25MHz for both link down and 1000Base-T for Tx clock. */
+	data |= GG82563_MSCR_TX_CLK_1000MBPS_25;
 
-		/*
-		 * Options:
-		 *   MDI/MDI-X = 0 (default)
-		 *   0 - Auto for all speeds
-		 *   1 - MDI mode
-		 *   2 - MDI-X mode
-		 *   3 - Auto for 1000Base-T only (MDI-X for 10/100Base-T modes)
-		 */
-		ret_val = hw->phy.ops.read_reg(hw, GG82563_PHY_SPEC_CTRL, &data);
-		if (ret_val)
-			goto out;
+	ret_val = hw->phy.ops.write_reg(hw, GG82563_PHY_MAC_SPEC_CTRL,
+				      data);
+	if (ret_val)
+		goto out;
 
-		data &= ~GG82563_PSCR_CROSSOVER_MODE_MASK;
+	/*
+	 * Options:
+	 *   MDI/MDI-X = 0 (default)
+	 *   0 - Auto for all speeds
+	 *   1 - MDI mode
+	 *   2 - MDI-X mode
+	 *   3 - Auto for 1000Base-T only (MDI-X for 10/100Base-T modes)
+	 */
+	ret_val = hw->phy.ops.read_reg(hw, GG82563_PHY_SPEC_CTRL, &data);
+	if (ret_val)
+		goto out;
 
-		switch (phy->mdix) {
-		case 1:
-			data |= GG82563_PSCR_CROSSOVER_MODE_MDI;
-			break;
-		case 2:
-			data |= GG82563_PSCR_CROSSOVER_MODE_MDIX;
-			break;
-		case 0:
-		default:
-			data |= GG82563_PSCR_CROSSOVER_MODE_AUTO;
-			break;
-		}
+	data &= ~GG82563_PSCR_CROSSOVER_MODE_MASK;
 
-		/*
-		 * Options:
-		 *   disable_polarity_correction = 0 (default)
-		 *       Automatic Correction for Reversed Cable Polarity
-		 *   0 - Disabled
-		 *   1 - Enabled
-		 */
-		data &= ~GG82563_PSCR_POLARITY_REVERSAL_DISABLE;
-		if (phy->disable_polarity_correction)
-			data |= GG82563_PSCR_POLARITY_REVERSAL_DISABLE;
-
-		ret_val = hw->phy.ops.write_reg(hw, GG82563_PHY_SPEC_CTRL, data);
-		if (ret_val)
-			goto out;
-
-		/* SW Reset the PHY so all changes take effect */
-		ret_val = hw->phy.ops.commit(hw);
-		if (ret_val) {
-			DEBUGOUT("Error Resetting the PHY\n");
-			goto out;
-		}
-
+	switch (phy->mdix) {
+	case 1:
+		data |= GG82563_PSCR_CROSSOVER_MODE_MDI;
+		break;
+	case 2:
+		data |= GG82563_PSCR_CROSSOVER_MODE_MDIX;
+		break;
+	case 0:
+	default:
+		data |= GG82563_PSCR_CROSSOVER_MODE_AUTO;
+		break;
 	}
 
+	/*
+	 * Options:
+	 *   disable_polarity_correction = 0 (default)
+	 *       Automatic Correction for Reversed Cable Polarity
+	 *   0 - Disabled
+	 *   1 - Enabled
+	 */
+	data &= ~GG82563_PSCR_POLARITY_REVERSAL_DISABLE;
+	if (phy->disable_polarity_correction)
+		data |= GG82563_PSCR_POLARITY_REVERSAL_DISABLE;
+
+	ret_val = hw->phy.ops.write_reg(hw, GG82563_PHY_SPEC_CTRL, data);
+	if (ret_val)
+		goto out;
+
+	/* SW Reset the PHY so all changes take effect */
+	ret_val = hw->phy.ops.commit(hw);
+	if (ret_val) {
+		DEBUGOUT("Error Resetting the PHY\n");
+		goto out;
+	}
+
+skip_reset:
 	/* Bypass Rx and Tx FIFO's */
 	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
 					E1000_KMRNCTRLSTA_OFFSET_FIFO_CTRL,

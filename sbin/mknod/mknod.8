@@ -28,13 +28,15 @@
 .\"     @(#)mknod.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2009
+.Dd January 31, 2010
 .Dt MKNOD 8
 .Os
 .Sh NAME
 .Nm mknod
 .Nd build special file
 .Sh SYNOPSIS
+.Nm
+.Ar name
 .Nm
 .Ar name
 .Op Cm b | c
@@ -52,14 +54,14 @@ systems.
 The
 .Nm
 utility creates device special files.
-To make nodes manually, the four required arguments are:
+To make nodes manually, the arguments are:
 .Pp
 .Bl -tag -width indent
 .It Ar name
 Device name, for example
-.Dq sd
-for a SCSI disk on an HP300 or a
-.Dq pty
+.Pa /dev/da0
+for a SCSI disk or
+.Pa /dev/pts/0
 for pseudo-terminals.
 .It Cm b | c
 Type of device.
@@ -110,13 +112,13 @@ The
 .Nm
 utility can be used to recreate deleted device nodes under a
 .Xr devfs 5
-mount point by invoking it using dummy arguments.
+mount point by invoking it with only a filename as an argument.
 Example:
 .Pp
-.Dl "mknod cd0 c 0 0"
+.Dl "mknod /dev/cd0"
 .Pp
 where
-.Dq Li cd0
+.Pa /dev/cd0
 is the name of the deleted device node.
 .Sh COMPATIBILITY
 The

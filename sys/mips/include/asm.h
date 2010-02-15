@@ -497,17 +497,8 @@ _C_LABEL(x):
 #define	DYNAMIC_STATUS_MASK_TOUSER(sr,scratch1)
 #endif
 
-#ifdef SMP
-	/*
-	 * FREEBSD_DEVELOPERS_FIXME
-	 * In multiprocessor case, store/retrieve the pcpu structure
-	 * address for current CPU in scratch register for fast access.
-	 */
-#error "Write GET_CPU_PCPU for SMP"
-#else
 #define	GET_CPU_PCPU(reg)		\
 	lw	reg, _C_LABEL(pcpup);
-#endif
 
 /*
  * Description of the setjmp buffer

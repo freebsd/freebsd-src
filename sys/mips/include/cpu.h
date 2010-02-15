@@ -122,6 +122,8 @@
 #define	SOFT_INT_MASK		(SOFT_INT_MASK_0 | SOFT_INT_MASK_1)
 #define	HW_INT_MASK		(ALL_INT_MASK & ~SOFT_INT_MASK)
 
+#define	soft_int_mask(softintr)	(1 << ((softintr) + 8))
+#define	hard_int_mask(hardintr)	(1 << ((hardintr) + 10))
 
 /*
  * The bits in the cause register.
@@ -309,8 +311,16 @@
 
 /*
  * The first TLB entry that write random hits.
+ * TLB entry 0 maps the kernel stack of the currently running thread
+ * TLB entry 1 maps the pcpu area of processor (only for SMP builds)
  */
+#define	KSTACK_TLB_ENTRY	0
+#ifdef SMP
+#define	PCPU_TLB_ENTRY		1
+#define	VMWIRED_ENTRIES		2
+#else
 #define	VMWIRED_ENTRIES		1
+#endif	/* SMP */
 
 /*
  * The number of process id entries.

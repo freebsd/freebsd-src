@@ -24,12 +24,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/queue.h>
+
+#include <ctype.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <poll.h>
-#include <ctype.h>
-#include <sys/queue.h>
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -67,6 +68,7 @@ dummy_callback(struct libusb20_transfer *xfer)
 #define	dummy_set_config_index (void *)dummy_int
 #define	dummy_set_alt_index (void *)dummy_int
 #define	dummy_reset_device (void *)dummy_int
+#define	dummy_check_connected (void *)dummy_int
 #define	dummy_set_power_mode (void *)dummy_int
 #define	dummy_get_power_mode (void *)dummy_int
 #define	dummy_kernel_driver_active (void *)dummy_int
@@ -669,6 +671,15 @@ libusb20_dev_reset(struct libusb20_device *pdev)
 	int error;
 
 	error = pdev->methods->reset_device(pdev);
+	return (error);
+}
+
+int
+libusb20_dev_check_connected(struct libusb20_device *pdev)
+{
+	int error;
+
+	error = pdev->methods->check_connected(pdev);
 	return (error);
 }
 

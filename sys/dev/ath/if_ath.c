@@ -620,6 +620,13 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			sc->sc_wmetkipmic = 1;
 	}
 	sc->sc_hasclrkey = ath_hal_ciphersupported(ah, HAL_CIPHER_CLR);
+	/*
+	 * Check for multicast key search support.
+	 */
+	if (ath_hal_hasmcastkeysearch(sc->sc_ah) &&
+	    !ath_hal_getmcastkeysearch(sc->sc_ah)) {
+		ath_hal_setmcastkeysearch(sc->sc_ah, 1);
+	}
 	sc->sc_mcastkey = ath_hal_getmcastkeysearch(ah);
 	/*
 	 * Mark key cache slots associated with global keys
@@ -2038,7 +2045,7 @@ ath_keyset(struct ath_softc *sc, const struct ieee80211_key *k,
 	if ((k->wk_flags & IEEE80211_KEY_GROUP) && sc->sc_mcastkey) {
 		/*
 		 * Group keys on hardware that supports multicast frame
-		 * key search use a mac that is the sender's address with
+		 * key search use a MAC that is the sender's address with
 		 * the high bit set instead of the app-specified address.
 		 */
 		IEEE80211_ADDR_COPY(gmac, bss->ni_macaddr);
@@ -2218,8 +2225,10 @@ ath_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 	 * it permits us to support multiple users for adhoc and/or
 	 * multi-station operation.
 	 */
-	if (k->wk_keyix != IEEE80211_KEYIX_NONE ||	/* global key */
-	    ((k->wk_flags & IEEE80211_KEY_GROUP) && !sc->sc_mcastkey)) {
+	if (k->wk_keyix != IEEE80211_KEYIX_NONE) {
+		/*
+		 * Only global keys should have key index assigned.
+		 */
 		if (!(&vap->iv_nw_keys[0] <= k &&
 		      k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])) {
 			/* should not happen */
@@ -2227,12 +2236,21 @@ ath_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 				"%s: bogus group key\n", __func__);
 			return 0;
 		}
+		if (vap->iv_opmode != IEEE80211_M_HOSTAP ||
+		    !(k->wk_flags & IEEE80211_KEY_GROUP) ||
+		    !sc->sc_mcastkey) {
+			/*
+			 * XXX we pre-allocate the global keys so
+			 * have no way to check if they've already
+			 * been allocated.
+			 */
+			*keyix = *rxkeyix = k - vap->iv_nw_keys;
+			return 1;
+		}
 		/*
-		 * XXX we pre-allocate the global keys so
-		 * have no way to check if they've already been allocated.
+		 * Group key and device supports multicast key search.
 		 */
-		*keyix = *rxkeyix = k - vap->iv_nw_keys;
-		return 1;
+		k->wk_keyix = IEEE80211_KEYIX_NONE;
 	}
 
 	/*
@@ -6944,6 +6962,8 @@ ath_announce(struct ath_softc *sc)
 		if_printf(ifp, "using %u rx buffers\n", ath_rxbuf);
 	if (ath_txbuf != ATH_TXBUF)
 		if_printf(ifp, "using %u tx buffers\n", ath_txbuf);
+	if (sc->sc_mcastkey && bootverbose)
+		if_printf(ifp, "using multicast key search\n");
 }
 
 #ifdef IEEE80211_SUPPORT_TDMA

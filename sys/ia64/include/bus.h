@@ -132,28 +132,14 @@
 
 
 /*
- * Map a region of device bus space into CPU virtual address space.
+ * Map and unmap a region of device bus space into CPU virtual address space.
  */
-static __inline int
-bus_space_map(bus_space_tag_t bst, bus_addr_t addr, bus_size_t size __unused,
-    int flags __unused, bus_space_handle_t *bshp)
-{
+int
+bus_space_map(bus_space_tag_t, bus_addr_t, bus_size_t, int,
+    bus_space_handle_t *);
 
-	*bshp = (__predict_false(bst == IA64_BUS_SPACE_IO))
-	    ? addr : IA64_PHYS_TO_RR6(addr);
-	return (0);
-}
-
-
-/*
- * Unmap a region of device bus space.
- */
-static __inline void
-bus_space_unmap(bus_space_tag_t bst __unused, bus_space_handle_t bsh __unused,
-    bus_size_t size __unused)
-{
-}
-
+void
+bus_space_unmap(bus_space_tag_t, bus_space_handle_t, bus_size_t size);
 
 /*
  * Get a new handle for a subregion of an already-mapped area of bus space.

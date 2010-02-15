@@ -46,15 +46,14 @@ ENTRY(cpu_throw)
 	save	%sp, -CCFSZ, %sp
 	flushw
 	ba	%xcc, .Lsw1
-	 mov	%i1, %i0
+	 mov	%g0, %i2
 END(cpu_throw)
 
 /*
- * void cpu_switch(struct thread *old, struct thread *new)
+ * void cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
  */
 ENTRY(cpu_switch)
 	save	%sp, -CCFSZ, %sp
-	mov	%i1, %i0
 
 	/*
 	 * If the current thread was using floating point in the kernel, save
@@ -63,7 +62,7 @@ ENTRY(cpu_switch)
 	 */
 	rd	%fprs, %l2
 	andcc	%l2, FPRS_FEF, %g0
-	bz,a,pt %xcc, 1f
+	bz,a,pt	%xcc, 1f
 	 nop
 	call	savefpctx
 	 add	PCB_REG, PCB_KFP, %o0
@@ -104,24 +103,24 @@ ENTRY(cpu_switch)
 .Lsw1:
 #if KTR_COMPILE & KTR_PROC
 	CATR(KTR_PROC, "cpu_switch: new td=%p pc=%#lx fp=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%i0, [%g1 + KTR_PARM1]
-	ldx	[%i0 + TD_PCB], %g2
+	    , %g1, %g2, %g3, 8, 9, 10)
+	stx	%i1, [%g1 + KTR_PARM1]
+	ldx	[%i1 + TD_PCB], %g2
 	ldx	[%g2 + PCB_PC], %g3
 	stx	%g3, [%g1 + KTR_PARM2]
 	ldx	[%g2 + PCB_SP], %g3
 	stx	%g3, [%g1 + KTR_PARM3]
-9:
+10:
 #endif
-	ldx	[%i0 + TD_PCB], %i1
+	ldx	[%i1 + TD_PCB], %l0
 
-	stx	%i0, [PCPU(CURTHREAD)]
-	stx	%i1, [PCPU(CURPCB)]
+	stx	%i1, [PCPU(CURTHREAD)]
+	stx	%l0, [PCPU(CURPCB)]
 
 	wrpr	%g0, PSTATE_NORMAL, %pstate
-	mov	%i1, PCB_REG
+	mov	%l0, PCB_REG
 	wrpr	%g0, PSTATE_ALT, %pstate
-	mov	%i1, PCB_REG
+	mov	%l0, PCB_REG
 	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	ldx	[PCB_REG + PCB_SP], %fp
@@ -132,24 +131,24 @@ ENTRY(cpu_switch)
 	 * Point to the pmaps of the new process, and of the last non-kernel
 	 * process to run.
 	 */
-	ldx	[%i0 + TD_PROC], %i2
+	ldx	[%i1 + TD_PROC], %l1
 	ldx	[PCPU(PMAP)], %l2
-	ldx	[%i2 + P_VMSPACE], %i5
-	add	%i5, VM_PMAP, %i2
+	ldx	[%l1 + P_VMSPACE], %i5
+	add	%i5, VM_PMAP, %l1
 
 #if KTR_COMPILE & KTR_PROC
 	CATR(KTR_PROC, "cpu_switch: new pmap=%p old pmap=%p"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%i2, [%g1 + KTR_PARM1]
+	    , %g1, %g2, %g3, 8, 9, 10)
+	stx	%l1, [%g1 + KTR_PARM1]
 	stx	%l2, [%g1 + KTR_PARM2]
-9:
+10:
 #endif
 
 	/*
 	 * If they are the same we are done.
 	 */
-	cmp	%l2, %i2
-	be,a,pn %xcc, 5f
+	cmp	%l2, %l1
+	be,a,pn	%xcc, 7f
 	 nop
 
 	/*
@@ -158,21 +157,20 @@ ENTRY(cpu_switch)
 	 */
 	SET(vmspace0, %i4, %i3)
 	cmp	%i5, %i3
-	be,a,pn %xcc, 5f
+	be,a,pn	%xcc, 7f
 	 nop
 
 	/*
 	 * If there was no non-kernel pmap, don't try to deactivate it.
 	 */
-	brz,a,pn %l2, 3f
-	 nop
+	brz,pn	%l2, 3f
+	 lduw	[PCPU(CPUMASK)], %l4
 
 	/*
 	 * Mark the pmap of the last non-kernel vmspace to run as no longer
 	 * active on this CPU.
 	 */
 	lduw	[%l2 + PM_ACTIVE], %l3
-	lduw	[PCPU(CPUMASK)], %l4
 	andn	%l3, %l4, %l3
 	stw	%l3, [%l2 + PM_ACTIVE]
 
@@ -185,25 +183,28 @@ ENTRY(cpu_switch)
 	mov	-1, %l5
 	stw	%l5, [%l3 + %l4]
 
+3:	cmp	%i2, %g0
+	be,pn	%xcc, 4f
+	 lduw	[PCPU(TLB_CTX_MAX)], %i4
+	stx	%i2, [%i0 + TD_LOCK]
+
 	/*
 	 * Find a new TLB context.  If we've run out we have to flush all
 	 * user mappings from the TLB and reset the context numbers.
 	 */
-3:	lduw	[PCPU(TLB_CTX)], %i3
-	lduw	[PCPU(TLB_CTX_MAX)], %i4
+4:	lduw	[PCPU(TLB_CTX)], %i3
 	cmp	%i3, %i4
-	bne,a,pt %xcc, 4f
+	bne,a,pt %xcc, 5f
 	 nop
 	SET(tlb_flush_user, %i5, %i4)
 	ldx	[%i4], %i5
 	call	%i5
-	 nop
-	lduw	[PCPU(TLB_CTX_MIN)], %i3
+	 lduw	[PCPU(TLB_CTX_MIN)], %i3
 
 	/*
 	 * Advance next free context.
 	 */
-4:	add	%i3, 1, %i4
+5:	add	%i3, 1, %i4
 	stw	%i4, [PCPU(TLB_CTX)]
 
 	/*
@@ -211,36 +212,36 @@ ENTRY(cpu_switch)
 	 */
 	lduw	[PCPU(CPUID)], %i4
 	sllx	%i4, INT_SHIFT, %i4
-	add	%i2, PM_CONTEXT, %i5
+	add	%l1, PM_CONTEXT, %i5
 	stw	%i3, [%i4 + %i5]
 
 	/*
 	 * Mark the pmap as active on this CPU.
 	 */
-	lduw	[%i2 + PM_ACTIVE], %i4
+	lduw	[%l1 + PM_ACTIVE], %i4
 	lduw	[PCPU(CPUMASK)], %i5
 	or	%i4, %i5, %i4
-	stw	%i4, [%i2 + PM_ACTIVE]
+	stw	%i4, [%l1 + PM_ACTIVE]
 
 	/*
 	 * Make note of the change in pmap.
 	 */
-	stx	%i2, [PCPU(PMAP)]
+	stx	%l1, [PCPU(PMAP)]
 
 	/*
 	 * Fiddle the hardware bits.  Set the TSB registers and install the
 	 * new context number in the CPU.
 	 */
-	ldx	[%i2 + PM_TSB], %i4
+	ldx	[%l1 + PM_TSB], %i4
 	mov	AA_DMMU_TSB, %i5
 	stxa	%i4, [%i5] ASI_DMMU
 	mov	AA_IMMU_TSB, %i5
 	stxa	%i4, [%i5] ASI_IMMU
 	setx	TLB_PCXR_PGSZ_MASK, %i5, %i4
 	mov	AA_DMMU_PCXR, %i5
-	ldxa	[%i5] ASI_DMMU, %i2
-	and	%i2, %i4, %i2
-	or	%i3, %i2, %i3
+	ldxa	[%i5] ASI_DMMU, %l1
+	and	%l1, %i4, %l1
+	or	%i3, %l1, %i3
 	sethi	%hi(KERNBASE), %i4
 	stxa	%i3, [%i5] ASI_DMMU
 	flush	%i4
@@ -248,7 +249,15 @@ ENTRY(cpu_switch)
 	/*
 	 * Done, return and load the new process's window from the stack.
 	 */
-5:	ret
+
+6:	ret
+	 restore
+
+7:	cmp	%i2, %g0
+	be,a,pn	%xcc, 6b
+	 nop
+	stx	%i2, [%i0 + TD_LOCK]
+	ret
 	 restore
 END(cpu_switch)
 

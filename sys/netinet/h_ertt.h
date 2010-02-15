@@ -58,6 +58,7 @@ struct ertt {
 	int flags;              /* flags*/
 };
 
+/* flags */
 #define ERTT_NEW_MEASUREMENT          0x01 /* new measurement */
 #define ERTT_MEASUREMENT_IN_PROGRESS  0x02 /* measuring marked RTT */
 #define ERTT_TSO_DISABLED             0x04 /* indicates TSO has been temporarily disabled */

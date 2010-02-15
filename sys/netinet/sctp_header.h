@@ -62,7 +62,7 @@ struct sctp_ipv6addr_param {
 struct sctp_cookie_perserve_param {
 	struct sctp_paramhdr ph;/* type=SCTP_COOKIE_PRESERVE, len=8 */
 	uint32_t time;		/* time in ms to extend cookie */
-};
+}                          SCTP_PACKED;
 
 #define SCTP_ARRAY_MIN_LEN 1
 /* Host Name Address */
@@ -495,7 +495,7 @@ struct sctp_stream_reset_add_strm {
 	uint32_t request_seq;
 	uint16_t number_of_streams;
 	uint16_t reserved;
-};
+}                          SCTP_PACKED;
 
 #define SCTP_STREAM_RESET_NOTHING   0x00000000	/* Nothing for me to do */
 #define SCTP_STREAM_RESET_PERFORMED 0x00000001	/* Did it */

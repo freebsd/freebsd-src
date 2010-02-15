@@ -15,7 +15,7 @@
 #include <sm/io.h>
 #include <sm/errstring.h>
 
-SM_RCSID("@(#)$Id: safefile.c,v 8.128 2004/09/30 18:15:49 ca Exp $")
+SM_RCSID("@(#)$Id: safefile.c,v 8.129 2008/08/04 18:07:04 gshapiro Exp $")
 
 
 /*
@@ -699,7 +699,6 @@ safeopen(fn, omode, cmode, sff)
 	if (bitset(O_CREAT, omode))
 		sff |= SFF_CREAT;
 	omode &= ~O_CREAT;
-	smode = 0;
 	switch (omode & O_ACCMODE)
 	{
 	  case O_RDONLY:
