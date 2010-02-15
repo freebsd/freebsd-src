@@ -638,15 +638,14 @@ cdregister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	softc = (struct cd_softc *)malloc(sizeof(*softc),M_DEVBUF,M_NOWAIT);
-
+	softc = (struct cd_softc *)malloc(sizeof(*softc),M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
 	if (softc == NULL) {
 		printf("cdregister: Unable to probe new device. "
 		       "Unable to allocate softc\n");				
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	bzero(softc, sizeof(*softc));
 	LIST_INIT(&softc->pending_ccbs);
 	STAILQ_INIT(&softc->mode_queue);
 	softc->state = CD_STATE_PROBE;
@@ -861,8 +860,7 @@ cdregister(struct cam_periph *periph, void *arg)
 		 */
 		else {
 			nchanger = malloc(sizeof(struct cdchanger),
-				M_DEVBUF, M_NOWAIT);
-
+				M_DEVBUF, M_NOWAIT | M_ZERO);
 			if (nchanger == NULL) {
 				softc->flags &= ~CD_FLAG_CHANGER;
 				printf("cdregister: unable to malloc "
@@ -875,10 +873,6 @@ cdregister(struct cam_periph *periph, void *arg)
 				 */
 				goto cdregisterexit;
 			}
-
-			/* zero the structure */
-			bzero(nchanger, sizeof(struct cdchanger));
-
 			if (camq_init(&nchanger->devq, 1) != 0) {
 				softc->flags &= ~CD_FLAG_CHANGER;
 				printf("cdregister: changer support "
@@ -1506,8 +1500,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 	{
 
 		rcap = (struct scsi_read_capacity_data *)malloc(sizeof(*rcap),
-								M_SCSICD,
-								M_NOWAIT);
+		    M_SCSICD, M_NOWAIT | M_ZERO);
 		if (rcap == NULL) {
 			xpt_print(periph->path,
 			    "cdstart: Couldn't malloc read_capacity data\n");
@@ -2073,7 +2066,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 			u_int32_t len = args->data_len;
 
 			data = malloc(sizeof(struct cd_sub_channel_info), 
-				      M_SCSICD, M_WAITOK);
+				      M_SCSICD, M_WAITOK | M_ZERO);
 
 			cam_periph_lock(periph);
 			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE, 
@@ -2125,7 +2118,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 			struct ioc_toc_header *th;
 
 			th = malloc(sizeof(struct ioc_toc_header), M_SCSICD,
-				    M_WAITOK);
+				    M_WAITOK | M_ZERO);
 
 			cam_periph_lock(periph);
 			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE, 
@@ -2162,8 +2155,8 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 			u_int32_t len, readlen, idx, num;
 			u_int32_t starting_track = te->starting_track;
 
-			data = malloc(sizeof(*data), M_SCSICD, M_WAITOK);
-			lead = malloc(sizeof(*lead), M_SCSICD, M_WAITOK);
+			data = malloc(sizeof(*data), M_SCSICD, M_WAITOK | M_ZERO);
+			lead = malloc(sizeof(*lead), M_SCSICD, M_WAITOK | M_ZERO);
 
 			cam_periph_lock(periph);
 			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE, 
@@ -2291,7 +2284,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 			struct ioc_toc_header *th;
 			u_int32_t track;
 
-			data = malloc(sizeof(*data), M_SCSICD, M_WAITOK);
+			data = malloc(sizeof(*data), M_SCSICD, M_WAITOK | M_ZERO);
 
 			cam_periph_lock(periph);
 			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE, 
@@ -2906,7 +2899,7 @@ cdsize(struct cam_periph *periph, u_int32_t *size)
 
 	/* XXX Should be M_WAITOK */
 	rcap_buf = malloc(sizeof(struct scsi_read_capacity_data), 
-			  M_SCSICD, M_NOWAIT);
+			  M_SCSICD, M_NOWAIT | M_ZERO);
 	if (rcap_buf == NULL)
 		return (ENOMEM);
 
@@ -2925,6 +2918,9 @@ cdsize(struct cam_periph *periph, u_int32_t *size)
 
 	softc->params.disksize = scsi_4btoul(rcap_buf->addr) + 1;
 	softc->params.blksize  = scsi_4btoul(rcap_buf->length);
+	/* Make sure we got at least some block size. */
+	if (error == 0 && softc->params.blksize == 0)
+		error = EIO;
 	/*
 	 * SCSI-3 mandates that the reported blocksize shall be 2048.
 	 * Older drives sometimes report funny values, trim it down to
