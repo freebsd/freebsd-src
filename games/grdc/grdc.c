@@ -48,24 +48,22 @@ void movto(int, int);
 void sighndl(int);
 void usage(void);
 
-void sighndl(signo)
-int signo;
+void
+sighndl(int signo)
 {
 	sigtermed=signo;
 }
 
 int
-main(argc, argv)
-int argc;
-char **argv;
+main(int argc, char *argv[])
 {
-struct timespec ts;
-long t, a;
-int i, j, s, k;
-int n;
-int ch;
-int scrol;
-int t12;
+	struct timespec ts;
+	long t, a;
+	int i, j, s, k;
+	int n;
+	int ch;
+	int scrol;
+	int t12;
 
 	t12 = scrol = 0;
 
@@ -225,7 +223,7 @@ int t12;
 void
 set(int t, int n)
 {
-int i, m;
+	int i, m;
 
 	m = 7<<n;
 	for(i=0; i<5; i++) {
