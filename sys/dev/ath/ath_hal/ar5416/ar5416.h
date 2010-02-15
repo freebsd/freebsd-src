@@ -21,6 +21,7 @@
 
 #include "ar5212/ar5212.h"
 #include "ar5416_cal.h"
+#include "ah_eeprom_v14.h"	/* for CAL_TARGET_POWER_* */
 
 #define	AR5416_MAGIC	0x20065416
 
@@ -179,12 +180,27 @@ extern	HAL_RFGAIN ar5416GetRfgain(struct ath_hal *ah);
 extern	HAL_BOOL ar5416Disable(struct ath_hal *ah);
 extern	HAL_BOOL ar5416ChipReset(struct ath_hal *ah,
 		const struct ieee80211_channel *);
+extern	HAL_BOOL ar5416SetBoardValues(struct ath_hal *,
+		const struct ieee80211_channel *);
 extern	HAL_BOOL ar5416SetResetReg(struct ath_hal *, uint32_t type);
 extern	HAL_BOOL ar5416SetTxPowerLimit(struct ath_hal *ah, uint32_t limit);
+extern	HAL_BOOL ar5416SetTransmitPower(struct ath_hal *,
+    		const struct ieee80211_channel *, uint16_t *);
 extern	HAL_BOOL ar5416GetChipPowerLimits(struct ath_hal *ah,
 		struct ieee80211_channel *chan);
 extern	void ar5416GetChannelCenters(struct ath_hal *,
 		const struct ieee80211_channel *chan, CHAN_CENTERS *centers);
+extern	void ar5416GetTargetPowers(struct ath_hal *ah, 
+		const struct ieee80211_channel *chan,
+		CAL_TARGET_POWER_HT *powInfo,
+		uint16_t numChannels, CAL_TARGET_POWER_HT *pNewPower,
+		uint16_t numRates, HAL_BOOL isHt40Target);
+extern	void ar5416GetTargetPowersLeg(struct ath_hal *ah, 
+		const struct ieee80211_channel *chan,
+		CAL_TARGET_POWER_LEG *powInfo,
+		uint16_t numChannels, CAL_TARGET_POWER_LEG *pNewPower,
+		uint16_t numRates, HAL_BOOL isExtTarget);
+
 
 extern	HAL_BOOL ar5416StopTxDma(struct ath_hal *ah, u_int q);
 extern	HAL_BOOL ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
