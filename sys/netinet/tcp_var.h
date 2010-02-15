@@ -206,8 +206,7 @@ struct tcpcb {
 	uint64_t _pad[12];		/* 7 UTO, 5 TBD (1-2 CC/RTT?) */
 	struct cc_algo	*cc_algo;	/* the algorithm that will manage congestion control*/
 	void	*cc_data;		/* pointer to a struct containing data required for the cc algorithm in use */
-	struct helper_dblock	*dblocks;	/* */
-	int		n_dblocks;
+	struct helper_dblocks	*hdbs;
 };
 
 /*

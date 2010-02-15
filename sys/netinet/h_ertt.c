@@ -63,8 +63,10 @@ static VNET_DEFINE(uma_zone_t, txseginfo_zone);
 #define DLYACK_SMOOTH  5 /* smoothing factor for delayed ack guess */
 #define MAX_TS_ERR    10 /* maximum number of time stamp errors allowed in a session */
 
-void ertt_packet_measurement_hook(void *udata, void *ctx_data, void *dblock);
-void ertt_add_tx_segment_info_hook(void *udata, void *ctx_data, void *dblock);
+void ertt_packet_measurement_hook(void *udata, void *ctx_data, void *dblock,
+    struct helper_dblocks *hdbs);
+void ertt_add_tx_segment_info_hook(void *udata, void *ctx_data, void *dblock,
+    struct helper_dblocks *hdbs);
 int ertt_mod_init(void);
 int ertt_mod_destroy(void);
 int ertt_uma_ctor(void *mem, int size, void *arg, int flags);
@@ -93,8 +95,8 @@ struct txseginfo {
 struct helper ertt_helper = {
 	.mod_init = ertt_mod_init,
 	.mod_destroy = ertt_mod_destroy,
-	.flags = HELPER_NEEDS_DBLOCK,
-	.class = HELPER_CLASS_TCP
+	.h_flags = HELPER_NEEDS_DBLOCK,
+	.h_class = HELPER_CLASS_TCP
 };
 
 #define MULTI_ACK 1 
@@ -135,7 +137,8 @@ marked_packet_rtt(struct txseginfo *txsi, struct ertt *e_t, struct tcpcb *tp, st
  * congestion control algorithms which require a more accurate time.
 */
 	void
-ertt_packet_measurement_hook(void *udata, void *ctx_data, void *dblock)
+ertt_packet_measurement_hook(void *udata, void *ctx_data, void *dblock,
+    struct helper_dblocks *hdbs)
 {
 	//struct ertt *e = (struct ertt *)(((struct tcpcb *)inp->inp_ppcb)->helper_data[0]);
 	struct tcpcb *tp = ((struct tcp_hhook_data *)ctx_data)->tp;
@@ -264,7 +267,8 @@ ertt_packet_measurement_hook(void *udata, void *ctx_data, void *dblock)
 
 /* add transmitted segment info to the list */
 void
-ertt_add_tx_segment_info_hook(void *udata, void *ctx_data, void *dblock)
+ertt_add_tx_segment_info_hook(void *udata, void *ctx_data, void *dblock,
+    struct helper_dblocks *hdbs)
 {
 	struct tcpcb *tp = ((struct tcp_hhook_data *)ctx_data)->tp;
 	struct tcphdr *th = ((struct tcp_hhook_data *)ctx_data)->th;

@@ -2131,8 +2131,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		hhook_data.tp = tp;
 		hhook_data.th = th;
 		hhook_data.to = &to;
-		run_hhooks(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED_IN, &hhook_data,
-		    tp->dblocks, tp->n_dblocks);
+		run_hhooks(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED_IN,
+		    &hhook_data, tp->hdbs);
 
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
 			if (tlen == 0 && tiwin == tp->snd_wnd) {

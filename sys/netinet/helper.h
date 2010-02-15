@@ -35,31 +35,25 @@
 
 
 struct helper_dblock {
-	/* ID of the helper this data block is associated with */
-	int id;
-
-	void *block;
+	int32_t		hd_id;
+	void		*hd_block;
 };
 
-#define HELPER_NAME_MAXLEN 16
+struct helper_dblocks {
+	struct helper_dblock	*blocks;
+	int32_t			nblocks;
+	uint32_t		class;
+};
+
 struct helper {
-	char		name[HELPER_NAME_MAXLEN];
-	/* Init global module state on kldload. */
 	int (*mod_init) (void);
-
-	/* Cleanup global module state on kldunload. */
 	int (*mod_destroy) (void);
-
-	uint16_t	flags;
-	uint32_t	class;
-
-	uma_zone_t	zone;
-
-	//STAILQ hooks; /* which hooks does this helper want to be called from */
-	unsigned int id; /* ID assigned by system to this hlpr's data in the
-	dynamic array */
-
-
+	uma_zone_t	h_zone;
+#define HELPER_NAME_MAXLEN 16
+	char		h_name[HELPER_NAME_MAXLEN];
+	uint16_t	h_flags;
+	uint32_t	h_class;
+	int32_t		h_id;
 	STAILQ_ENTRY(helper) h_next;
 };
 
@@ -69,13 +63,12 @@ struct helper {
 /* Helper classes */
 #define HELPER_CLASS_TCP	0x00000001
 
-int	init_helper_dblocks(struct helper_dblock **dblocks, int *nblocks);
-int	destroy_helper_dblocks(struct helper_dblock *dblocks, int nblocks);
+int	init_helper_dblocks(struct helper_dblocks *hdbs);
+int	destroy_helper_dblocks(struct helper_dblocks *hdbs);
 int	register_helper(struct helper *h);
 int	deregister_helper(struct helper *h);
-int	get_helper_id(char *hname);
-void *	get_helper_dblock(struct helper_dblock *dblocks,
-    int nblocks, int id);
+int32_t	get_helper_id(char *hname);
+void *	get_helper_dblock(struct helper_dblocks *hdbs, int32_t id);
 
 #define	HELPER_LIST_WLOCK() rw_wlock(&helper_list_lock)
 #define	HELPER_LIST_WUNLOCK() rw_wunlock(&helper_list_lock)

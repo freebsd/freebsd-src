@@ -294,6 +294,7 @@ static void	tcp_isn_tick(void *);
 struct tcpcb_mem {
 	struct	tcpcb		tcb;
 	struct	tcp_timer	tt;
+	struct	helper_dblocks	hdbs;
 };
 
 static VNET_DEFINE(uma_zone_t, tcpcb_zone);
@@ -773,13 +774,16 @@ tcp_newtcpcb(struct inpcb *inp)
 
 	if (CC_ALGO(tp)->cb_init != NULL)
 		if (CC_ALGO(tp)->cb_init(tp) > 0) {
-			uma_zfree(V_tcpcb_zone, tp);
-			return NULL;
+			uma_zfree(V_tcpcb_zone, tm);
+			return (NULL);
 		}
 
-	KASSERT(tp->dblocks == NULL, ("tp->dblocks NOT NULL!"));
-	init_helper_dblocks(&tp->dblocks, &tp->n_dblocks);
-	printf("tp->dblocks = %p, tp->n_dblocks = %d\n", tp->dblocks, tp->n_dblocks);
+	tp->hdbs = &tm->hdbs;
+	tp->hdbs->class = HELPER_CLASS_TCP;
+	if (init_helper_dblocks(tp->hdbs)) {
+		uma_zfree(V_tcpcb_zone, tm);
+		return (NULL);
+	}
 
 #ifdef VIMAGE
 	tp->t_vnet = inp->inp_vnet;
@@ -950,7 +954,7 @@ tcp_discardcb(struct tcpcb *tp)
 	if (CC_ALGO(tp)->cb_destroy != NULL)
 		CC_ALGO(tp)->cb_destroy(tp);
 
-	destroy_helper_dblocks(tp->dblocks, tp->n_dblocks);
+	destroy_helper_dblocks(tp->hdbs);
 
 	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;

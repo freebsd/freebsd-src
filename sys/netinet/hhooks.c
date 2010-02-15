@@ -215,13 +215,14 @@ deregister_hhook(int hhook_type, int hhook_id, hhook_func_t hook, void *udata,
 
 void
 run_hhooks(int hhook_type, int hhook_id, void *ctx_data,
-    struct helper_dblock *dblocks, int n_dblocks)
+    struct helper_dblocks *hdbs)
 {
 	struct hhook_head *hh;
 	struct hhook *tmp;
 	struct rm_priotracker rmpt;
 	int i = 0;
 	void *dblock = NULL;
+	uint32_t nblocks = hdbs->nblocks;
 
 	hh = get_hhook_head(hhook_type, hhook_id, &rmpt, RLOCK_HHOOK_HEAD);
 
@@ -231,15 +232,15 @@ run_hhooks(int hhook_type, int hhook_id, void *ctx_data,
 	STAILQ_FOREACH(tmp, &hh->hh_hooks, h_next) {
 		//printf("Running hook %p for helper %d\n", tmp,
 		//tmp->h_helper->id);
-		if (tmp->h_helper->flags & HELPER_NEEDS_DBLOCK) {
-			if (n_dblocks == 0
-			    || i >= n_dblocks
-			    || tmp->h_helper->id != dblocks[i].id)
+		if (tmp->h_helper->h_flags & HELPER_NEEDS_DBLOCK) {
+			if (nblocks == 0
+			    || i >= nblocks
+			    || tmp->h_helper->h_id != hdbs->blocks[i].hd_id)
 				continue;
-			dblock = dblocks[i].block;
+			dblock = hdbs->blocks[i].hd_block;
 			i++;
 		}
-		tmp->h_func(tmp->h_udata, ctx_data, dblock);
+		tmp->h_func(tmp->h_udata, ctx_data, dblock, hdbs);
 		dblock = NULL;
 	}
 

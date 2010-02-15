@@ -1120,7 +1120,7 @@ timer:
 	hhook_data.len = len;
 	hhook_data.tso = tso;
 	run_hhooks(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED_OUT, &hhook_data,
-	    tp->dblocks, tp->n_dblocks);
+	    tp->hdbs);
 
 
 #ifdef TCPDEBUG
