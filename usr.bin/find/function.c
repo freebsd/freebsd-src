@@ -1164,6 +1164,8 @@ c_newer(OPTION *option, char ***argvp)
 			new->t_data = sb.st_ctime;
 		else if (option->flags & F_TIME2_A)
 			new->t_data = sb.st_atime;
+		else if (option->flags & F_TIME2_B)
+			new->t_data = sb.st_birthtime;
 		else
 			new->t_data = sb.st_mtime;
 	}

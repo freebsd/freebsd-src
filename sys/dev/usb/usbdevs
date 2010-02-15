@@ -1472,6 +1472,7 @@ product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
 product FTDI SERIAL_8U232AM4	0x6004	8U232AM Serial
 product FTDI SERIAL_2232C	0x6010	FT2232C Dual port Serial
 product FTDI SERIAL_2232D	0x9e90	FT2232D Dual port Serial
+product FTDI SERIAL_4232H	0x6011	FT4232H Quad port Serial
 /* Gude Analog- und Digitalsysteme products also uses FTDI's id: */
 product FTDI TACTRIX_OPENPORT_13M 0xcc48 OpenPort 1.3 Mitsubishi
 product FTDI TACTRIX_OPENPORT_13S 0xcc49 OpenPort 1.3 Subaru
@@ -1723,6 +1724,7 @@ product HUAWEI E143C		0x143c	3G modem
 product HUAWEI E143D		0x143d	3G modem
 product HUAWEI E143E		0x143e	3G modem
 product HUAWEI E143F		0x143f	3G modem
+product HUAWEI E1752		0x1446	3G modem
 product HUAWEI E14AC		0x14ac	3G modem
 
 /* HUAWEI 3com products */

@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2007-2010 Marcel Moolenaar
- * Copyright (c) 1998 Doug Rabson
+ * Copyright (c) 2010 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,31 +22,53 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _MACHINE_INTR_H_
-#define	_MACHINE_INTR_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
- * Layout of the Processor Interrupt Block.
+ * Glue allowing devices beneath the scalable shared memory node to be
+ * treated like nexus(4) children
  */
-struct ia64_pib
-{
-	uint64_t	ib_ipi[65536][2];	/* 64K-way IPIs (1MB area). */
-	uint8_t		_rsvd1[0xe0000];
-	uint8_t		ib_inta;		/* Generate INTA cycle. */
-	uint8_t		_rsvd2[7];
-	uint8_t		ib_xtp;			/* External Task Priority. */
-	uint8_t		_rsvd3[7];
-	uint8_t		_rsvd4[0x1fff0];
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+
+#include <dev/ofw/ofw_bus.h>
+
+#include <machine/nexusvar.h>
+
+static device_probe_t ssm_probe;
+
+static device_method_t ssm_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ssm_probe),
+
+	/* Bus interface */
+
+	/* ofw_bus interface */
+
+	KOBJMETHOD_END
 };
 
-extern struct ia64_pib *ia64_pib;
+static devclass_t ssm_devclass;
 
-int ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
-    driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep);
-int ia64_teardown_intr(void *cookie);
+DEFINE_CLASS_1(ssm, ssm_driver, ssm_methods, 1 /* no softc */, nexus_driver);
+EARLY_DRIVER_MODULE(ssm, nexus, ssm_driver, ssm_devclass, 0, 0, BUS_PASS_BUS);
+MODULE_DEPEND(ssm, nexus, 1, 1, 1);
+MODULE_VERSION(ssm, 1);
 
-#endif /* !_MACHINE_INTR_H_ */
+static int
+ssm_probe(device_t dev)
+{
+
+	if (strcmp(ofw_bus_get_name(dev), "ssm") == 0) {
+		device_set_desc(dev, "Scalable Shared Memory");
+		return (BUS_PROBE_DEFAULT);
+	}
+	return (ENXIO);
+}

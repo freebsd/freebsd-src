@@ -401,6 +401,7 @@ struct ahci_channel {
 	uint32_t		rslots;		/* Running slots */
 	uint32_t		aslots;		/* Slots with atomic commands  */
 	uint32_t		eslots;		/* Slots in error */
+	uint32_t		toslots;	/* Slots in timeout */
 	int			numrslots;	/* Number of running slots */
 	int			numrslotspd[16];/* Number of running slots per dev */
 	int			numtslots;	/* Number of tagged slots */

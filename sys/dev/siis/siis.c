@@ -1074,6 +1074,28 @@ siis_process_timeout(device_t dev)
 	}
 }
 
+/* Must be called with channel locked. */
+static void
+siis_rearm_timeout(device_t dev)
+{
+	struct siis_channel *ch = device_get_softc(dev);
+	int i;
+
+	mtx_assert(&ch->mtx, MA_OWNED);
+	for (i = 0; i < SIIS_MAX_SLOTS; i++) {
+		struct siis_slot *slot = &ch->slot[i];
+
+		/* Do we have a running request on slot? */
+		if (slot->state < SIIS_SLOT_RUNNING)
+			continue;
+		if ((ch->toslots & (1 << i)) == 0)
+			continue;
+		callout_reset(&slot->timeout,
+		    (int)slot->ccb->ccb_h.timeout * hz / 1000,
+		    (timeout_t*)siis_timeout, slot);
+	}
+}
+
 /* Locked by callout mechanism. */
 static void
 siis_timeout(struct siis_slot *slot)
@@ -1235,8 +1257,9 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 				siis_issue_read_log(dev);
 		}
 	/* If all the reset of commands are in timeout - abort them. */
-	} else if ((ch->rslots & ~ch->toslots) == 0)
-		siis_process_timeout(dev);
+	} else if ((ch->rslots & ~ch->toslots) == 0 &&
+	    et != SIIS_ERR_TIMEOUT)
+		siis_rearm_timeout(dev);
 }
 
 static void
