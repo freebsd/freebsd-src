@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/cc.h>
 #include <netinet/cc_module.h>
-#include <netinet/h_ertt.h>i
+#include <netinet/h_ertt.h>
 #include <netinet/helper.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -191,12 +191,12 @@ hd_congestion_exp(struct tcpcb *tp)
 }
 
 /* Hamilton delay based congestion control detection and response */
-	void
+void
 hd_ack_received(struct tcpcb *tp, struct tcphdr *th)
 { 
 
-	struct ertt *e_t = (struct ertt *)get_helper_dblock(tp->dblocks,
-	    tp->n_dblocks, V_ertt_id);
+	struct ertt *e_t = (struct ertt *)get_helper_dblock(tp->hdbs,
+	    V_ertt_id);
 
 	if (e_t->rtt && e_t->minrtt && (V_hd_qthresh > 0)) {
 		int Qdly = e_t->rtt - e_t->minrtt;

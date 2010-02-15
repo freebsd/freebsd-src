@@ -125,8 +125,8 @@ vegas_beta_handler(SYSCTL_HANDLER_ARGS)
 void
 vegas_ack_received(struct tcpcb *tp, struct tcphdr *th)
 {
-	struct ertt *e_t = (struct ertt *) get_helper_dblock(tp->dblocks,
-	    tp->n_dblocks, V_ertt_id);
+	struct ertt *e_t = (struct ertt *) get_helper_dblock(tp->hdbs,
+	    V_ertt_id);
 	struct vegas *vegas_data = CC_DATA(tp);
 	long expected_tx_rate, actual_tx_rate;
 
