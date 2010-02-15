@@ -1199,79 +1199,38 @@ pmap_tlb_flushD(pmap_t pm)
 		cpu_tlb_flushD();
 }
 
-static PMAP_INLINE void
-pmap_l2cache_wbinv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
+static int
+pmap_has_valid_mapping(pmap_t pm, vm_offset_t va)
 {
-	vm_size_t rest;
 	pd_entry_t *pde;
 	pt_entry_t *ptep;
 
-	rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
+	if (pmap_get_pde_pte(pm, va, &pde, &ptep) &&
+	    ptep && ((*ptep & L2_TYPE_MASK) != L2_TYPE_INV))
+		return (1);
 
-	while (len > 0) {
-		CTR4(KTR_PMAP, "pmap_l2cache_wbinv_range: pmap %p is_kernel %d "
-		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
-		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep))
-			cpu_l2cache_wbinv_range(va, rest);
-
-		len -= rest;
-		va += rest;
-
-		rest = MIN(PAGE_SIZE, len);
-	}
+	return (0);
 }
 
 static PMAP_INLINE void
 pmap_idcache_wbinv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
 {
-
-	if (pmap_is_current(pm)) {
-		cpu_idcache_wbinv_range(va, len);
-		pmap_l2cache_wbinv_range(pm, va, len);
-	}
-}
-
-static PMAP_INLINE void
-pmap_l2cache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len)
-{
 	vm_size_t rest;
-	pd_entry_t *pde;
-	pt_entry_t *ptep;
 
-	rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
+	CTR4(KTR_PMAP, "pmap_dcache_wbinv_range: pmap %p is_kernel %d va 0x%08x"
+	    " len 0x%x ", pm, pm == pmap_kernel(), va, len);
 
-	while (len > 0) {
-		CTR4(KTR_PMAP, "pmap_l2cache_wb_range: pmap %p is_kernel %d "
-		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
-		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep))
-			cpu_l2cache_wb_range(va, rest);
-
-		len -= rest;
-		va += rest;
-
-		rest = MIN(PAGE_SIZE, len);
-	}
-}
-
-static PMAP_INLINE void
-pmap_l2cache_inv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
-{
-	vm_size_t rest;
-	pd_entry_t *pde;
-	pt_entry_t *ptep;
-
-	rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
-
-	while (len > 0) {
-		CTR4(KTR_PMAP, "pmap_l2cache_wb_range: pmap %p is_kernel %d "
-		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
-		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep)) 
-		    cpu_l2cache_inv_range(va, rest);
-
-		len -= rest;
-		va += rest;
-
-		rest = MIN(PAGE_SIZE, len);
+	if (pmap_is_current(pm) || pm == pmap_kernel()) {
+		rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
+		while (len > 0) {
+			if (pmap_has_valid_mapping(pm, va)) {
+				cpu_idcache_wbinv_range(va, rest);
+				cpu_l2cache_wbinv_range(va, rest);
+			}
+			len -= rest;
+			va += rest;
+			rest = MIN(PAGE_SIZE, len);
+		}
 	}
 }
 
@@ -1279,24 +1238,31 @@ static PMAP_INLINE void
 pmap_dcache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len, boolean_t do_inv,
     boolean_t rd_only)
 {
+	vm_size_t rest;
 
 	CTR4(KTR_PMAP, "pmap_dcache_wb_range: pmap %p is_kernel %d va 0x%08x "
 	    "len 0x%x ", pm, pm == pmap_kernel(), va, len);
 	CTR2(KTR_PMAP, " do_inv %d rd_only %d", do_inv, rd_only);
 
 	if (pmap_is_current(pm)) {
-		if (do_inv) {
-			if (rd_only) {
-				cpu_dcache_inv_range(va, len);
-				pmap_l2cache_inv_range(pm, va, len);
+		rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
+		while (len > 0) {
+			if (pmap_has_valid_mapping(pm, va)) {
+				if (do_inv && rd_only) {
+					cpu_dcache_inv_range(va, rest);
+					cpu_l2cache_inv_range(va, rest);
+				} else if (do_inv) {
+					cpu_dcache_wbinv_range(va, rest);
+					cpu_l2cache_wbinv_range(va, rest);
+				} else if (!rd_only) {
+					cpu_dcache_wb_range(va, rest);
+					cpu_l2cache_wb_range(va, rest);
+				}
 			}
-			else {
-				cpu_dcache_wbinv_range(va, len);
-				pmap_l2cache_wbinv_range(pm, va, len);
-			}
-		} else if (!rd_only) {
-			cpu_dcache_wb_range(va, len);
-			pmap_l2cache_wb_range(pm, va, len);
+			len -= rest;
+			va += rest;
+
+			rest = MIN(PAGE_SIZE, len);
 		}
 	}
 }
@@ -3225,7 +3191,8 @@ pmap_remove_all(vm_page_t m)
 		 */
 		if (pmap_is_current(pv->pv_pmap)) {
 			cpu_dcache_inv_range(pv->pv_va, PAGE_SIZE);
-			cpu_l2cache_inv_range(pv->pv_va, PAGE_SIZE);
+			if (pmap_has_valid_mapping(pv->pv_pmap, pv->pv_va))
+				cpu_l2cache_inv_range(pv->pv_va, PAGE_SIZE);
 		}
 
 		if (pv->pv_flags & PVF_UNMAN) {
@@ -3512,9 +3479,10 @@ do_l2b_alloc:
 		if (pmap_is_current(pmap) &&
 		    (oflags & PVF_NC) == 0 &&
 		    (opte & L2_S_PROT_W) != 0 &&
-		    (prot & VM_PROT_WRITE) == 0) {
+		    (prot & VM_PROT_WRITE) == 0 &&
+		    (opte & L2_TYPE_MASK) != L2_TYPE_INV) {
 			cpu_dcache_wb_range(va, PAGE_SIZE);
-			pmap_l2cache_wb_range(pmap, va, PAGE_SIZE);
+			cpu_l2cache_wb_range(va, PAGE_SIZE);
 		}
 	} else {
 		/*
