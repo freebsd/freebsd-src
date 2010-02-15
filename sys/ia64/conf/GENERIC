@@ -31,7 +31,7 @@ options 	COMPAT_43TTY	# BSD 4.3 TTY compat (sgtty)
 options 	COMPAT_FREEBSD6	# Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7	# Compatible with FreeBSD7
 options 	DDB		# Support DDB
-options		DEADLKRES	# Enable the deadlock resolver
+options 	DEADLKRES	# Enable the deadlock resolver
 options 	FFS		# Berkeley Fast Filesystem
 options 	GDB		# Support remote GDB
 options 	GEOM_LABEL	# Provides labelization
