@@ -158,17 +158,6 @@ utility is only able to process ZIP archives handled by
 Depending on the installed version of
 .Xr libarchive ,
 this may or may not include self-extracting archives.
-.Sh BUGS
-The
-.Nm
-utility currently does not support asking the user whether to
-overwrite or skip a file that already exists on disk.
-To be on the safe side, it will fail if it encounters a file that
-already exists and neither the
-.Fl n
-nor the
-.Fl o
-command line option was specified.
 .Sh SEE ALSO
 .Xr libarchive 3
 .Sh HISTORY
