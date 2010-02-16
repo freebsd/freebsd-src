@@ -384,7 +384,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	init_param1();
 
 	/* Start initializing proc0 and thread0. */
-	proc_linkup(&proc0, &thread0);
+	proc_linkup0(&proc0, &thread0);
 	thread0.td_frame = &frame0;
 
 	/* Set up per-cpu data and store the pointer in SPR general 0. */

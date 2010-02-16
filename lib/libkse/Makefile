@@ -10,15 +10,7 @@
 
 .include <bsd.own.mk>
 
-.if ${DEFAULT_THREAD_LIB} == "libkse" || ${MK_LIBTHR} == "no"
-LIB=kse
-.if ${SHLIBDIR} == "/usr/lib"
-SHLIBDIR= /lib
-.endif
-.else
 SHLIB=kse
-.endif
-
 SHLIB_MAJOR= 4
 CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
@@ -50,17 +42,5 @@ PRECIOUSLIB=
 .include "${.CURDIR}/support/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
-
-.if ${DEFAULT_THREAD_LIB} == "libkse" || ${MK_LIBTHR} == "no"
-.if ${MK_INSTALLLIB} != "no"
-SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
-.endif
-.if !defined(NO_PIC)
-SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
-.endif
-.if ${MK_PROFILE} != "no"
-SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
-.endif
-.endif
 
 .include <bsd.lib.mk>

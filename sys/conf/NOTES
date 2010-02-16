@@ -2547,7 +2547,7 @@ options 	SW_WATCHDOG
 #
 # Add the software deadlock resolver thread.
 #
-options		DEADLKRES
+options 	DEADLKRES
 
 #
 # Disable swapping of stack pages.  This option removes all

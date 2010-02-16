@@ -600,7 +600,7 @@
 	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_MERLIN)
 #define	AR_SREV_MERLIN_20(_ah) \
 	(AR_SREV_MERLIN(_ah) && \
-	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_MERLIN_20)
+	 AH_PRIVATE((_ah))->ah_macRev == AR_XSREV_REVISION_MERLIN_20)
 #define	AR_SREV_MERLIN_20_OR_LATER(_ah) \
 	(AR_SREV_MERLIN_20(_ah) || \
 	 AH_PRIVATE((_ah))->ah_macVersion > AR_XSREV_VERSION_MERLIN)
@@ -613,12 +613,12 @@
 	(AR_SREV_KITE(ah) && \
 	 AH_PRIVATE((_ah))->ah_macRev == AR_XSREV_REVISION_KITE_11)
 #define	AR_SREV_KITE_11_OR_LATER(_ah) \
-	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_KITE || \
+	(AR_SREV_KITE_11(_ah) || \
 	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KITE_11)
 #define	AR_SREV_KITE_12(_ah) \
 	(AR_SREV_KITE(ah) && \
 	 AH_PRIVATE((_ah))->ah_macRev == AR_XSREV_REVISION_KITE_12)
 #define	AR_SREV_KITE_12_OR_LATER(_ah) \
-	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_KITE || \
+	(AR_SREV_KITE_12(_ah) || \
 	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KITE_12)
 #endif /* _DEV_ATH_AR5416REG_H */

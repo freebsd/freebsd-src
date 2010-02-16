@@ -75,7 +75,7 @@ options 	DDB			# Support DDB.
 #options 	TRAP_TRACING		# Enable trap tracing.
 #options 	TRAP_TRACE_ENTRIES=256	# Trap trace buffer entries.
 #options 	GDB			# Support remote GDB.
-#options	DEADLKRES		# Enable the deadlock resolver
+#options 	DEADLKRES		# Enable the deadlock resolver
 #options 	INVARIANTS		# Enable calls of extra sanity checking
 #options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
 #options 	WITNESS			# Enable checks to detect deadlocks and cycles
