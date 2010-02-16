@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.c,v 1.119.18.41.2.2 2009/11/19 00:25:18 marka Exp $ */
+/* $Id: validator.c,v 1.119.18.51 2009/12/30 06:44:05 each Exp $ */
 
 /*! \file */
 
@@ -89,7 +89,7 @@
 #define VALID_VALIDATOR(v)		ISC_MAGIC_VALID(v, VALIDATOR_MAGIC)
 
 #define VALATTR_SHUTDOWN		0x0001	/*%< Shutting down. */
-#define VALATTR_CANCELED		0x0002	/*%< Cancelled. */
+#define VALATTR_CANCELED		0x0002	/*%< Canceled. */
 #define VALATTR_TRIEDVERIFY		0x0004  /*%< We have found a key and
 						 * have attempted a verify. */
 #define VALATTR_INSECURITY		0x0010	/*%< Attempting proveunsecure. */
@@ -1128,7 +1128,7 @@ get_dst_key(dns_validator_t *val, dns_rdata_rrsig_t *siginfo,
 }
 
 /*%
- * Get the key that genertated this signature.
+ * Get the key that generated this signature.
  */
 static isc_result_t
 get_key(dns_validator_t *val, dns_rdata_rrsig_t *siginfo) {
@@ -1141,7 +1141,7 @@ get_key(dns_validator_t *val, dns_rdata_rrsig_t *siginfo) {
 	 * Is the signer name appropriate for this signature?
 	 *
 	 * The signer name must be at the same level as the owner name
-	 * or closer to the the DNS root.
+	 * or closer to the DNS root.
 	 */
 	namereln = dns_name_fullcompare(val->event->name, &siginfo->signer,
 					&order, &nlabels);
@@ -1163,6 +1163,23 @@ get_key(dns_validator_t *val, dns_rdata_rrsig_t *siginfo) {
 		 */
 		if (dns_rdatatype_atparent(val->event->rdataset->type))
 			return (DNS_R_CONTINUE);
+	} else {
+		/*
+		 * SOA and NS RRsets can only be signed by a key with
+		 * the same name.
+		 */
+		if (val->event->rdataset->type == dns_rdatatype_soa ||
+		    val->event->rdataset->type == dns_rdatatype_ns) {
+			const char *typename;
+
+			if (val->event->rdataset->type == dns_rdatatype_soa)
+				typename = "SOA";
+			else
+				typename = "NS";
+			validator_log(val, ISC_LOG_DEBUG(3),
+				      "%s signer mismatch", typename);
+			return (DNS_R_CONTINUE);
+		}
 	}
 
 	/*
@@ -1620,6 +1637,7 @@ dlv_validatezonekey(dns_validator_t *val) {
 				break;
 		}
 		if (result != ISC_R_SUCCESS) {
+			dns_rdataset_disassociate(&trdataset);
 			validator_log(val, ISC_LOG_DEBUG(3),
 				      "no DNSKEY matching DLV");
 			continue;
@@ -1734,6 +1752,10 @@ validatezonekey(dns_validator_t *val) {
 					     &sigrdata);
 			result = dns_rdata_tostruct(&sigrdata, &sig, NULL);
 			RUNTIME_CHECK(result == ISC_R_SUCCESS);
+
+			if (!dns_name_equal(val->event->name, &sig.signer))
+				continue;
+
 			result = dns_keytable_findkeynode(val->keytable,
 							  val->event->name,
 							  sig.algorithm,
@@ -1957,6 +1979,7 @@ validatezonekey(dns_validator_t *val) {
 				break;
 		}
 		if (result != ISC_R_SUCCESS) {
+			dns_rdataset_disassociate(&trdataset);
 			validator_log(val, ISC_LOG_DEBUG(3),
 				      "no DNSKEY matching DS");
 			continue;
@@ -1974,7 +1997,11 @@ validatezonekey(dns_validator_t *val) {
 			if (ds.key_tag != sig.keyid ||
 			    ds.algorithm != sig.algorithm)
 				continue;
-
+			if (!dns_name_equal(val->event->name, &sig.signer)) {
+				validator_log(val, ISC_LOG_DEBUG(3),
+					      "DNSKEY signer mismatch");
+				continue;
+			}
 			dstkey = NULL;
 			result = dns_dnssec_keyfromrdata(val->event->name,
 							 &keyrdata,
@@ -2380,7 +2407,7 @@ dlvfetched(isc_task_t *task, isc_event_t *event) {
 }
 
 /*%
- * Start the DLV lookup proccess.
+ * Start the DLV lookup process.
  *
  * Returns
  * \li	ISC_R_SUCCESS
@@ -2424,7 +2451,7 @@ startfinddlvsep(dns_validator_t *val, dns_name_t *unsecure) {
 		validator_log(val, ISC_LOG_DEBUG(3), "DLV %s found", namebuf);
 		dlv_validator_start(val);
 		return (DNS_R_WAIT);
-	} 
+	}
 	validator_log(val, ISC_LOG_DEBUG(3), "DLV %s found with no supported "
 		      "algorithms", namebuf);
 	markanswer(val);
@@ -2572,20 +2599,20 @@ proveunsecure(dns_validator_t *val, isc_boolean_t have_ds, isc_boolean_t resume)
 	if (val->havedlvsep)
 		dns_name_copy(dns_fixedname_name(&val->dlvsep), secroot, NULL);
 	else {
+		unsigned int labels;
 		dns_name_copy(val->event->name, secroot, NULL);
 		/*
 		 * If this is a response to a DS query, we need to look in
 		 * the parent zone for the trust anchor.
 		 */
-		if (val->event->type == dns_rdatatype_ds &&
-		    dns_name_countlabels(secroot) > 1U)
-			dns_name_split(secroot, 1, NULL, secroot);
+
+		labels = dns_name_countlabels(secroot);
+		if (val->event->type == dns_rdatatype_ds && labels > 1U)
+			dns_name_getlabelsequence(secroot, 1, labels - 1,
+						  secroot);
 		result = dns_keytable_finddeepestmatch(val->keytable,
 						       secroot, secroot);
-
 		if (result == ISC_R_NOTFOUND) {
-			validator_log(val, ISC_LOG_DEBUG(3),
-				      "not beneath secure root");
 			if (val->mustbesecure) {
 				validator_log(val, ISC_LOG_WARNING,
 					      "must be secure failure");
@@ -2808,7 +2835,7 @@ dlv_validator_start(dns_validator_t *val) {
 /*%
  * Start the validation process.
  *
- * Attempt to valididate the answer based on the category it appears to
+ * Attempt to validate the answer based on the category it appears to
  * fall in.
  * \li	1. secure positive answer.
  * \li	2. unsecure positive answer.
@@ -2829,7 +2856,7 @@ validator_start(isc_task_t *task, isc_event_t *event) {
 	vevent = (dns_validatorevent_t *)event;
 	val = vevent->validator;
 
-	/* If the validator has been cancelled, val->event == NULL */
+	/* If the validator has been canceled, val->event == NULL */
 	if (val->event == NULL)
 		return;
 

@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005, 2009  Internet Systems Consortium, Inc. ("ISC")
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipseckey_45.c,v 1.2.2.1 2005/07/07 03:17:36 marka Exp $ */
+/* $Id: ipseckey_45.c,v 1.2.2.4 2009/09/18 21:57:08 jinmei Exp $ */
 
 #ifndef RDATA_GENERIC_IPSECKEY_45_C
 #define RDATA_GENERIC_IPSECKEY_45_C
@@ -131,15 +131,15 @@ totext_ipseckey(ARGS_TOTEXT) {
 
 	dns_name_init(&name, NULL);
 	dns_name_init(&prefix, NULL);
-	
+
 	if (rdata->data[1] > 3U)
 		return (ISC_R_NOTIMPLEMENTED);
 
-        if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
-                RETERR(str_totext("( ", target));
+	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
+		RETERR(str_totext("( ", target));
 
 	/*
-	 * Precendence.
+	 * Precedence.
 	 */
 	dns_rdata_toregion(rdata, &region);
 	num = uint8_fromregion(&region);
@@ -198,14 +198,14 @@ totext_ipseckey(ARGS_TOTEXT) {
 					 tctx->linebreak, target));
 	}
 
-        if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
-                RETERR(str_totext(" )", target));
+	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
+		RETERR(str_totext(" )", target));
 	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
 fromwire_ipseckey(ARGS_FROMWIRE) {
-        dns_name_t name;
+	dns_name_t name;
 	isc_region_t region;
 
 	REQUIRE(type == 45);
@@ -215,7 +215,7 @@ fromwire_ipseckey(ARGS_FROMWIRE) {
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
-        dns_name_init(&name, NULL);
+	dns_name_init(&name, NULL);
 
 	isc_buffer_activeregion(source, &region);
 	if (region.length < 3)
@@ -243,6 +243,7 @@ fromwire_ipseckey(ARGS_FROMWIRE) {
 		isc_buffer_forward(source, 3);
 		RETERR(dns_name_fromwire(&name, source, dctx, options, target));
 		isc_buffer_activeregion(source, &region);
+		isc_buffer_forward(source, region.length);
 		return(mem_tobuffer(target, region.base, region.length));
 
 	default:

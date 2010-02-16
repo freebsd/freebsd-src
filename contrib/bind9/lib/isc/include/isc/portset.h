@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,10 +14,10 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: portset.h,v 1.3.4.1 2008/06/24 03:42:10 marka Exp $ */
+/* $Id: portset.h,v 1.3.4.4 2009/06/25 05:33:47 marka Exp $ */
 
 /*! \file isc/portset.h
- * \brief Transport Protocol Port Manipuration Module
+ * \brief Transport Protocol Port Manipulation Module
  *
  * This module provides simple utilities to handle a set of transport protocol
  * (UDP or TCP) port numbers, e.g., for creating an ACL list.  An isc_portset_t
@@ -138,4 +138,4 @@ isc_portset_removerange(isc_portset_t *portset, in_port_t port_lo,
 
 ISC_LANG_ENDDECLS
 
-#endif	/* ISC_NETADDR_H */
+#endif	/* ISC_PORTSET_H */

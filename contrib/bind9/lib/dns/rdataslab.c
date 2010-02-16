@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataslab.c,v 1.35.18.8 2007/08/28 07:20:05 tbox Exp $ */
+/* $Id: rdataslab.c,v 1.35.18.10 2009/01/19 23:46:15 tbox Exp $ */
 
 /*! \file */
 
@@ -65,7 +65,7 @@
  *
  * DNSSEC order traversal is performed by walking the data records.
  *
- * The order is stored with record to allow for efficient reconstuction of
+ * The order is stored with record to allow for efficient reconstruction
  * of the offset table following a merge or subtraction.
  *
  * The iterator methods here currently only support DNSSEC order iteration.
@@ -246,7 +246,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 		result = ISC_R_NOMEMORY;
 		goto free_rdatas;
 	}
-	
+
 #if DNS_RDATASET_FIXED
 	/* Allocate temporary offset table. */
 	offsettable = isc_mem_get(mctx, nalloc * sizeof(unsigned int));
@@ -288,7 +288,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 		memcpy(rawbuf, x[i].rdata.data, x[i].rdata.length);
 		rawbuf += x[i].rdata.length;
 	}
-	
+
 #if DNS_RDATASET_FIXED
 	fillin_offsets(offsetbase, offsettable, nalloc);
 	isc_mem_put(mctx, offsettable, nalloc * sizeof(unsigned int));
@@ -368,7 +368,7 @@ rdataset_current(dns_rdataset_t *rdataset, dns_rdata_t *rdata) {
 	raw += 4;
 #else
 	raw += 2;
-#endif 
+#endif
 	r.base = raw;
 	dns_rdata_fromregion(rdata, rdataset->rdclass, rdataset->type, &r);
 }
@@ -511,7 +511,7 @@ rdata_in_slab(unsigned char *slab, unsigned int reservelen,
 
 	for (i = 0; i < count; i++) {
 		rdata_from_slab(&current, rdclass, type, &trdata);
-		
+
 		n = dns_rdata_compare(&trdata, rdata);
 		if (n == 0)
 			return (ISC_TRUE);

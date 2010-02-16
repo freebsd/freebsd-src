@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001, 2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-AC_REVISION($Revision: 1.90.18.43 $)
+AC_REVISION($Revision: 1.90.18.45 $)
 
 AC_INIT(resolv/herror.c)
 AC_PREREQ(2.13)
@@ -23,7 +23,7 @@ AC_CONFIG_HEADER(config.h)
 AC_CANONICAL_HOST
 
 AC_PROG_MAKE_SET
-AC_PROG_RANLIB
+AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 
 AC_SUBST(STD_CINCLUDES)

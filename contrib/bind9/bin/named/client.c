@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.219.18.31 2008/05/22 23:46:03 tbox Exp $ */
+/* $Id: client.c,v 1.219.18.33 2009/01/19 23:46:14 tbox Exp $ */
 
 #include <config.h>
 
@@ -1218,7 +1218,7 @@ allowed(isc_netaddr_t *addr, dns_name_t *signer, dns_acl_t *acl) {
  * delivered to 'myview'.
  *
  * We run this unlocked as both the view list and the interface list
- * are updated when the approprite task has exclusivity.
+ * are updated when the appropriate task has exclusivity.
  */
 isc_boolean_t
 ns_client_isself(dns_view_t *myview, dns_tsigkey_t *mykey,
@@ -2115,7 +2115,7 @@ client_newconn(isc_task_t *task, isc_event_t *event) {
 		 * Let a new client take our place immediately, before
 		 * we wait for a request packet.  If we don't,
 		 * telnetting to port 53 (once per CPU) will
-		 * deny service to legititmate TCP clients.
+		 * deny service to legitimate TCP clients.
 		 */
 		result = isc_quota_attach(&ns_g_server->tcpquota,
 					  &client->tcpquota);

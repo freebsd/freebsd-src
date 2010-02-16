@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: fsaccess.h,v 1.8.18.2 2005/04/29 00:16:55 marka Exp $ */
+/* $Id: fsaccess.h,v 1.8.18.4 2009/01/19 23:46:16 tbox Exp $ */
 
 #ifndef ISC_FSACCESS_H
 #define ISC_FSACCESS_H 1
@@ -25,8 +25,8 @@
  * and directory access permissions into one API that is meant to be
  * portable to multiple operating systems.
  *
- * The two primary operating system flavors that are initially accomodated are
- * POSIX and Windows NT 4.0 and later.  The Windows NT access model is
+ * The two primary operating system flavors that are initially accommodated
+ * are POSIX and Windows NT 4.0 and later.  The Windows NT access model is
  * considerable more flexible than POSIX's model (as much as I am loathe to
  * admit it), and so the ISC API has a higher degree of complexity than would
  * be needed to simply address POSIX's needs.
@@ -88,7 +88,7 @@
  *
  * The rest of this comment discusses a few of the incompatibilities
  * between the two systems that need more thought if this API is to
- * be extended to accomodate them.
+ * be extended to accommodate them.
  *
  * The Windows standard access right "DELETE" doesn't have a direct
  * equivalent in the Unix world, so it isn't clear what should be done
@@ -98,7 +98,7 @@
  * of allowing users to create files in a directory but not delete or
  * rename them, it does not have a concept of allowing them to be deleted
  * if they are owned by the user trying to delete/rename.  While it is
- * probable that something could be cobbled together in NT 5 with inheritence,
+ * probable that something could be cobbled together in NT 5 with inheritance,
  * it can't really be done in NT 4 as a single property that you could
  * set on a directory.  You'd need to coordinate something with file creation
  * so that every file created had DELETE set for the owner but noone else.
@@ -155,7 +155,7 @@
  * Adding any permission bits beyond 0x200 would mean typedef'ing
  * isc_fsaccess_t as isc_uint64_t, and redefining this value to
  * reflect the new range of permission types, Probably to 21 for
- * maximum flexibility.  The number of bits has to accomodate all of
+ * maximum flexibility.  The number of bits has to accommodate all of
  * the permission types, and three full sets of them have to fit
  * within an isc_fsaccess_t.
  */

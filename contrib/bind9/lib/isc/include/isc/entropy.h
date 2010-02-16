@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy.h,v 1.25.18.2 2005/04/29 00:16:54 marka Exp $ */
+/* $Id: entropy.h,v 1.25.18.4 2009/01/19 23:46:16 tbox Exp $ */
 
 #ifndef ISC_ENTROPY_H
 #define ISC_ENTROPY_H 1
@@ -74,7 +74,7 @@ typedef void (*isc_entropystop_t)(isc_entropysource_t *source, void *arg);
  ***/
 
 /*!
- * \brief 
+ * \brief
  *	Extract only "good" data; return failure if there is not enough
  *	data available and there are no sources which we can poll to get
  *	data, or those sources are empty.
@@ -103,7 +103,7 @@ typedef void (*isc_entropystop_t)(isc_entropysource_t *source, void *arg);
 /*!
  * \brief
  *	Estimate the amount of entropy contained in the sample pool.
- *	If this is not set, the source will be gathered and perodically
+ *	If this is not set, the source will be gathered and periodically
  *	mixed into the entropy pool, but no increment in contained entropy
  *	will be assumed.  This flag only makes sense on sample sources.
  */
@@ -113,12 +113,12 @@ typedef void (*isc_entropystop_t)(isc_entropysource_t *source, void *arg);
  * For use with isc_entropy_usebestsource().
  */
 /*!
- * \brief 
+ * \brief
  *	Use the keyboard as the only entropy source.
  */
 #define ISC_ENTROPY_KEYBOARDYES		1
 /*!
- * \brief 
+ * \brief
  *	Never use the keyboard as an entropy source.
  */
 #define ISC_ENTROPY_KEYBOARDNO		2
@@ -194,7 +194,7 @@ isc_entropy_createcallbacksource(isc_entropy_t *ent,
 				 void *arg,
 				 isc_entropysource_t **sourcep);
 /*!<
- * \brief Create an entropy source that is polled via a callback.  
+ * \brief Create an entropy source that is polled via a callback.
  *
  * This would
  * be used when keyboard input is used, or a GUI input method.  It can
@@ -220,7 +220,7 @@ isc_result_t
 isc_entropy_addsample(isc_entropysource_t *source, isc_uint32_t sample,
 		      isc_uint32_t extra);
 /*!<
- * \brief Add a sample to the sample source.  
+ * \brief Add a sample to the sample source.
  *
  * The sample MUST be a timestamp
  * that increases over time, with the exception of wrap-around for
@@ -275,11 +275,11 @@ isc_entropy_usebestsource(isc_entropy_t *ectx, isc_entropysource_t **source,
  *
  * Notes:
  *\li	If "randomfile" is not NULL, open it with
- *	isc_entropy_createfilesource(). 
+ *	isc_entropy_createfilesource().
  *
  *\li	If "randomfile" is NULL and the system's random device was detected
  *	when the program was configured and built, open that device with
- *	isc_entropy_createfilesource(). 
+ *	isc_entropy_createfilesource().
  *
  *\li	If "use_keyboard" is #ISC_ENTROPY_KEYBOARDYES, then always open
  *	the keyboard as an entropy source (possibly in addition to

@@ -1,8 +1,8 @@
 <!--
- - Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  - 
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.dig.html,v 1.2.2.65 2008/10/18 01:29:59 tbox Exp $ -->
+<!-- $Id: man.dig.html,v 1.2.2.73 2009/09/25 01:33:41 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -52,7 +52,7 @@
 <div class="cmdsynopsis"><p><code class="command">dig</code>  [global-queryopt...] [query...]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2563849"></a><h2>DESCRIPTION</h2>
+<a name="id2563811"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dig</strong></span>
       (domain information groper) is a flexible tool
       for interrogating DNS name servers.  It performs DNS lookups and
@@ -98,7 +98,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2563944"></a><h2>SIMPLE USAGE</h2>
+<a name="id2571483"></a><h2>SIMPLE USAGE</h2>
 <p>
       A typical invocation of <span><strong class="command">dig</strong></span> looks like:
       </p>
@@ -144,7 +144,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2569789"></a><h2>OPTIONS</h2>
+<a name="id2571594"></a><h2>OPTIONS</h2>
 <p>
       The <code class="option">-b</code> option sets the source IP address of the query
       to <em class="parameter"><code>address</code></em>.  This must be a valid
@@ -248,7 +248,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2624336"></a><h2>QUERY OPTIONS</h2>
+<a name="id2625116"></a><h2>QUERY OPTIONS</h2>
 <p><span><strong class="command">dig</strong></span>
       provides a number of query options which affect
       the way in which lookups are made and the results displayed.  Some of
@@ -326,13 +326,15 @@
             </p></dd>
 <dt><span class="term"><code class="option">+[no]adflag</code></span></dt>
 <dd><p>
-              Set [do not set] the AD (authentic data) bit in the query.  The
-              AD bit
-              currently has a standard meaning only in responses, not in
-              queries,
-              but the ability to set the bit in the query is provided for
-              completeness.
-            </p></dd>
+	      Set [do not set] the AD (authentic data) bit in the
+	      query.  This requests the server to return whether
+	      all of the answer and authority sections have all
+	      been validated as secure according to the security
+	      policy of the server.  AD=1 indicates that all records
+	      have been validated as secure and the answer is not
+	      from a OPT-OUT range.  AD=0 indicate that some part
+	      of the answer was insecure or not validated.
+	    </p></dd>
 <dt><span class="term"><code class="option">+[no]cdflag</code></span></dt>
 <dd><p>
               Set [do not set] the CD (checking disabled) bit in the query.
@@ -547,7 +549,7 @@
 	      on its own line.
             </p>
 <p>
-	      If not specified <span><strong class="command">dig</strong></span> will look for
+	      If not specified, <span><strong class="command">dig</strong></span> will look for
 	      <code class="filename">/etc/trusted-key.key</code> then
 	      <code class="filename">trusted-key.key</code> in the current directory.
 	    </p>
@@ -567,7 +569,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2625254"></a><h2>MULTIPLE QUERIES</h2>
+<a name="id2626171"></a><h2>MULTIPLE QUERIES</h2>
 <p>
       The BIND 9 implementation of <span><strong class="command">dig </strong></span>
       supports
@@ -613,7 +615,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2625408"></a><h2>IDN SUPPORT</h2>
+<a name="id2626325"></a><h2>IDN SUPPORT</h2>
 <p>
       If <span><strong class="command">dig</strong></span> has been built with IDN (internationalized
       domain name) support, it can accept and display non-ASCII domain names.
@@ -627,14 +629,14 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2625436"></a><h2>FILES</h2>
+<a name="id2626354"></a><h2>FILES</h2>
 <p><code class="filename">/etc/resolv.conf</code>
     </p>
 <p><code class="filename">${HOME}/.digrc</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2625458"></a><h2>SEE ALSO</h2>
+<a name="id2626443"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
@@ -642,7 +644,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2625495"></a><h2>BUGS</h2>
+<a name="id2626481"></a><h2>BUGS</h2>
 <p>
       There are probably too many query options.
     </p>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resource.c,v 1.12.18.6 2008/08/05 07:17:05 marka Exp $ */
+/* $Id: resource.c,v 1.12.18.8 2009/02/13 23:46:06 tbox Exp $ */
 
 #include <config.h>
 
@@ -159,7 +159,11 @@ isc_resource_setlimit(isc_resource_t resource, isc_resourcevalue_t value) {
 		if (unixresult == 0)
 			return (ISC_R_SUCCESS);
 	}
-#elif defined(NR_OPEN) && defined(__linux__)
+#elif defined(__linux__)
+#ifndef NR_OPEN
+#define NR_OPEN (1024*1024)
+#endif
+
 	/*
 	 * Some Linux kernels don't accept RLIM_INFINIT; the maximum
 	 * possible value is the NR_OPEN defined in linux/fs.h.
