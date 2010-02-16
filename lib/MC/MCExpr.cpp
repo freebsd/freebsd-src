@@ -17,6 +17,8 @@ using namespace llvm;
 
 void MCExpr::print(raw_ostream &OS) const {
   switch (getKind()) {
+  case MCExpr::Target:
+    return cast<MCTargetExpr>(this)->PrintImpl(OS);
   case MCExpr::Constant:
     OS << cast<MCConstantExpr>(*this).getValue();
     return;
@@ -131,6 +133,7 @@ const MCSymbolRefExpr *MCSymbolRefExpr::Create(StringRef Name, MCContext &Ctx) {
   return Create(Ctx.GetOrCreateSymbol(Name), Ctx);
 }
 
+void MCTargetExpr::Anchor() {}
 
 /* *** */
 
@@ -168,6 +171,9 @@ static bool EvaluateSymbolicAdd(const MCValue &LHS, const MCSymbol *RHS_A,
 
 bool MCExpr::EvaluateAsRelocatable(MCValue &Res) const {
   switch (getKind()) {
+  case Target:
+    return cast<MCTargetExpr>(this)->EvaluateAsRelocatableImpl(Res);
+      
   case Constant:
     Res = MCValue::get(cast<MCConstantExpr>(this)->getValue());
     return true;
@@ -246,8 +252,8 @@ bool MCExpr::EvaluateAsRelocatable(MCValue &Res) const {
     }
 
     // FIXME: We need target hooks for the evaluation. It may be limited in
-    // width, and gas defines the result of comparisons differently from Apple
-    // as (the result is sign extended).
+    // width, and gas defines the result of comparisons and right shifts
+    // differently from Apple as.
     int64_t LHS = LHSValue.getConstant(), RHS = RHSValue.getConstant();
     int64_t Result = 0;
     switch (ABE->getOpcode()) {

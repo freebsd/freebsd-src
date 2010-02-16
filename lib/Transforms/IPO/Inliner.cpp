@@ -38,8 +38,15 @@ STATISTIC(NumDeleted, "Number of functions deleted because all callers found");
 STATISTIC(NumMergedAllocas, "Number of allocas merged together");
 
 static cl::opt<int>
-InlineLimit("inline-threshold", cl::Hidden, cl::init(200), cl::ZeroOrMore,
-        cl::desc("Control the amount of inlining to perform (default = 200)"));
+InlineLimit("inline-threshold", cl::Hidden, cl::init(225), cl::ZeroOrMore,
+        cl::desc("Control the amount of inlining to perform (default = 225)"));
+
+static cl::opt<int>
+HintThreshold("inlinehint-threshold", cl::Hidden, cl::init(325),
+              cl::desc("Threshold for inlining functions with inline hint"));
+
+// Threshold to use when optsize is specified (and there is no -inline-limit).
+const int OptSizeThreshold = 75;
 
 Inliner::Inliner(void *ID) 
   : CallGraphSCCPass(ID), InlineThreshold(InlineLimit) {}
@@ -172,13 +179,23 @@ static bool InlineCallIfPossible(CallSite CS, CallGraph &CG,
   return true;
 }
 
-unsigned Inliner::getInlineThreshold(Function* Caller) const {
+unsigned Inliner::getInlineThreshold(CallSite CS) const {
+  int thres = InlineThreshold;
+
+  // Listen to optsize when -inline-limit is not given.
+  Function *Caller = CS.getCaller();
   if (Caller && !Caller->isDeclaration() &&
       Caller->hasFnAttr(Attribute::OptimizeForSize) &&
       InlineLimit.getNumOccurrences() == 0)
-    return 50;
-  else
-    return InlineThreshold;
+    thres = OptSizeThreshold;
+
+  // Listen to inlinehint when it would increase the threshold.
+  Function *Callee = CS.getCalledFunction();
+  if (HintThreshold > thres && Callee && !Callee->isDeclaration() &&
+      Callee->hasFnAttr(Attribute::InlineHint))
+    thres = HintThreshold;
+
+  return thres;
 }
 
 /// shouldInline - Return true if the inliner should attempt to inline
@@ -200,7 +217,7 @@ bool Inliner::shouldInline(CallSite CS) {
   
   int Cost = IC.getValue();
   Function *Caller = CS.getCaller();
-  int CurrentThreshold = getInlineThreshold(Caller);
+  int CurrentThreshold = getInlineThreshold(CS);
   float FudgeFactor = getInlineFudgeFactor(CS);
   if (Cost >= (int)(CurrentThreshold * FudgeFactor)) {
     DEBUG(dbgs() << "    NOT Inlining: cost=" << Cost
@@ -236,8 +253,7 @@ bool Inliner::shouldInline(CallSite CS) {
 
       outerCallsFound = true;
       int Cost2 = IC2.getValue();
-      Function *Caller2 = CS2.getCaller();
-      int CurrentThreshold2 = getInlineThreshold(Caller2);
+      int CurrentThreshold2 = getInlineThreshold(CS2);
       float FudgeFactor2 = getInlineFudgeFactor(CS2);
 
       if (Cost2 >= (int)(CurrentThreshold2 * FudgeFactor2))

@@ -50,6 +50,7 @@ namespace llvm {
 //===----------------------------------------------------------------------===//
 // Forward declarations.
 class Constant;
+class MCSymbol;
 class MDNode;
 class GlobalVariable;
 class MachineBasicBlock;
@@ -66,6 +67,12 @@ class StructType;
 class MachineModuleInfoImpl {
 public:
   virtual ~MachineModuleInfoImpl();
+
+  typedef std::vector<std::pair<MCSymbol*, MCSymbol*> >
+      SymbolListTy;
+protected:
+    static SymbolListTy
+    GetSortedStubs(const DenseMap<MCSymbol*, MCSymbol*> &Map);
 };
   
   
@@ -113,7 +120,14 @@ class MachineModuleInfo : public ImmutablePass {
   // LandingPads - List of LandingPadInfo describing the landing pad information
   // in the current function.
   std::vector<LandingPadInfo> LandingPads;
-  
+
+  // Map of invoke call site index values to associated begin EH_LABEL for
+  // the current function.
+  DenseMap<unsigned, unsigned> CallSiteMap;
+
+  // The current call site index being processed, if any. 0 if none.
+  unsigned CurCallSite;
+
   // TypeInfos - List of C++ TypeInfo used in the current function.
   //
   std::vector<GlobalVariable *> TypeInfos;
@@ -157,10 +171,6 @@ public:
   bool doInitialization();
   bool doFinalization();
 
-  /// BeginFunction - Begin gathering function meta information.
-  ///
-  void BeginFunction(MachineFunction *) {}
-  
   /// EndFunction - Discard function meta information.
   ///
   void EndFunction();
@@ -298,7 +308,26 @@ public:
   const std::vector<LandingPadInfo> &getLandingPads() const {
     return LandingPads;
   }
-  
+
+  /// setCallSiteBeginLabel - Map the begin label for a call site
+  void setCallSiteBeginLabel(unsigned BeginLabel, unsigned Site) {
+    CallSiteMap[BeginLabel] = Site;
+  }
+
+  /// getCallSiteBeginLabel - Get the call site number for a begin label
+  unsigned getCallSiteBeginLabel(unsigned BeginLabel) {
+    assert(CallSiteMap.count(BeginLabel) &&
+           "Missing call site number for EH_LABEL!");
+    return CallSiteMap[BeginLabel];
+  }
+
+  /// setCurrentCallSite - Set the call site currently being processed.
+  void setCurrentCallSite(unsigned Site) { CurCallSite = Site; }
+
+  /// getCurrentCallSite - Get the call site currently being processed, if any.
+  /// return zero if none.
+  unsigned getCurrentCallSite(void) { return CurCallSite; }
+
   /// getTypeInfos - Return a reference to the C++ typeinfo for the current
   /// function.
   const std::vector<GlobalVariable *> &getTypeInfos() const {

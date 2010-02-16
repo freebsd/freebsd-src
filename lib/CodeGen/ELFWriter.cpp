@@ -37,7 +37,6 @@
 #include "llvm/PassManager.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/CodeGen/BinaryObject.h"
-#include "llvm/CodeGen/FileWriters.h"
 #include "llvm/CodeGen/MachineCodeEmitter.h"
 #include "llvm/CodeGen/ObjectCodeEmitter.h"
 #include "llvm/CodeGen/MachineCodeEmitter.h"
@@ -58,15 +57,6 @@
 using namespace llvm;
 
 char ELFWriter::ID = 0;
-
-/// AddELFWriter - Add the ELF writer to the function pass manager
-ObjectCodeEmitter *llvm::AddELFWriter(PassManagerBase &PM,
-                                      raw_ostream &O,
-                                      TargetMachine &TM) {
-  ELFWriter *EW = new ELFWriter(O, TM);
-  PM.add(EW);
-  return EW->getObjectCodeEmitter();
-}
 
 //===----------------------------------------------------------------------===//
 //                          ELFWriter Implementation

@@ -21,7 +21,6 @@ add_llvm_library(LLVMCodeGen
   LiveStackAnalysis.cpp
   LiveVariables.cpp
   LowerSubregs.cpp
-  MachOWriter.cpp
   MachineBasicBlock.cpp
   MachineDominators.cpp
   MachineFunction.cpp
@@ -40,6 +39,7 @@ add_llvm_library(LLVMCodeGen
   ObjectCodeEmitter.cpp
   OcamlGC.cpp
   OptimizeExts.cpp
+  OptimizePHIs.cpp
   PHIElimination.cpp
   Passes.cpp
   PostRASchedulerList.cpp
@@ -67,6 +67,7 @@ add_llvm_library(LLVMCodeGen
   StrongPHIElimination.cpp
   TailDuplication.cpp
   TargetInstrInfoImpl.cpp
+  TargetLoweringObjectFileImpl.cpp
   TwoAddressInstructionPass.cpp
   UnreachableBlockElim.cpp
   VirtRegMap.cpp

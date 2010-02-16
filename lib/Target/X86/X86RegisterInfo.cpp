@@ -473,9 +473,9 @@ bool X86RegisterInfo::hasReservedSpillSlot(MachineFunction &MF, unsigned Reg,
 }
 
 int
-X86RegisterInfo::getFrameIndexOffset(MachineFunction &MF, int FI) const {
+X86RegisterInfo::getFrameIndexOffset(const MachineFunction &MF, int FI) const {
   const TargetFrameInfo &TFI = *MF.getTarget().getFrameInfo();
-  MachineFrameInfo *MFI = MF.getFrameInfo();
+  const MachineFrameInfo *MFI = MF.getFrameInfo();
   int Offset = MFI->getObjectOffset(FI) - TFI.getOffsetOfLocalArea();
   uint64_t StackSize = MFI->getStackSize();
 
@@ -485,7 +485,7 @@ X86RegisterInfo::getFrameIndexOffset(MachineFunction &MF, int FI) const {
       Offset += SlotSize;
     } else {
       unsigned Align = MFI->getObjectAlignment(FI);
-      assert( (-(Offset + StackSize)) % Align == 0);
+      assert((-(Offset + StackSize)) % Align == 0);
       Align = 0;
       return Offset + StackSize;
     }
@@ -498,7 +498,7 @@ X86RegisterInfo::getFrameIndexOffset(MachineFunction &MF, int FI) const {
     Offset += SlotSize;
 
     // Skip the RETADDR move area
-    X86MachineFunctionInfo *X86FI = MF.getInfo<X86MachineFunctionInfo>();
+    const X86MachineFunctionInfo *X86FI = MF.getInfo<X86MachineFunctionInfo>();
     int TailCallReturnAddrDelta = X86FI->getTCReturnAddrDelta();
     if (TailCallReturnAddrDelta < 0)
       Offset -= TailCallReturnAddrDelta;
@@ -626,10 +626,6 @@ void
 X86RegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                                       RegScavenger *RS) const {
   MachineFrameInfo *MFI = MF.getFrameInfo();
-
-  // Calculate and set max stack object alignment early, so we can decide
-  // whether we will need stack realignment (and thus FP).
-  MFI->calculateMaxStackAlignment();
 
   X86MachineFunctionInfo *X86FI = MF.getInfo<X86MachineFunctionInfo>();
   int32_t TailCallReturnAddrDelta = X86FI->getTCReturnAddrDelta();
@@ -1242,13 +1238,19 @@ void X86RegisterInfo::emitEpilogue(MachineFunction &MF,
     }
 
     // Jump to label or value in register.
-    if (RetOpcode == X86::TCRETURNdi|| RetOpcode == X86::TCRETURNdi64)
+    if (RetOpcode == X86::TCRETURNdi|| RetOpcode == X86::TCRETURNdi64) {
       BuildMI(MBB, MBBI, DL, TII.get(X86::TAILJMPd)).
-        addGlobalAddress(JumpTarget.getGlobal(), JumpTarget.getOffset());
-    else if (RetOpcode== X86::TCRETURNri64)
+        addGlobalAddress(JumpTarget.getGlobal(), JumpTarget.getOffset(),
+                         JumpTarget.getTargetFlags());
+    } else if (RetOpcode == X86::TCRETURNri64) {
       BuildMI(MBB, MBBI, DL, TII.get(X86::TAILJMPr64), JumpTarget.getReg());
-    else
+    } else {
       BuildMI(MBB, MBBI, DL, TII.get(X86::TAILJMPr), JumpTarget.getReg());
+    }
+
+    MachineInstr *NewMI = prior(MBBI);
+    for (unsigned i = 2, e = MBBI->getNumOperands(); i != e; ++i)
+      NewMI->addOperand(MBBI->getOperand(i));
 
     // Delete the pseudo instruction TCRETURN.
     MBB.erase(MBBI);

@@ -78,8 +78,9 @@ typedef struct LLVMOpaqueValue *LLVMValueRef;
 typedef struct LLVMOpaqueBasicBlock *LLVMBasicBlockRef;
 typedef struct LLVMOpaqueBuilder *LLVMBuilderRef;
 
-/* Used to provide a module to JIT or interpreter.
- * See the llvm::ModuleProvider class.
+/* Interface used to provide a module to JIT or interpreter.  This is now just a
+ * synonym for llvm::Module, but we have to keep using the different type to
+ * keep binary compatibility.
  */
 typedef struct LLVMOpaqueModuleProvider *LLVMModuleProviderRef;
 
@@ -117,63 +118,76 @@ typedef enum {
     LLVMNoCaptureAttribute  = 1<<21,
     LLVMNoRedZoneAttribute  = 1<<22,
     LLVMNoImplicitFloatAttribute = 1<<23,
-    LLVMNakedAttribute      = 1<<24
+    LLVMNakedAttribute      = 1<<24,
+    LLVMInlineHintAttribute = 1<<25
 } LLVMAttribute;
 
 typedef enum {
+  /* Terminator Instructions */
   LLVMRet            = 1,
   LLVMBr             = 2,
   LLVMSwitch         = 3,
-  LLVMInvoke         = 4,
-  LLVMUnwind         = 5,
-  LLVMUnreachable    = 6,
-  LLVMAdd            = 7,
-  LLVMFAdd           = 8,
-  LLVMSub            = 9,
-  LLVMFSub           = 10,
-  LLVMMul            = 11,
-  LLVMFMul           = 12,
-  LLVMUDiv           = 13,
-  LLVMSDiv           = 14,
-  LLVMFDiv           = 15,
-  LLVMURem           = 16,
-  LLVMSRem           = 17,
-  LLVMFRem           = 18,
-  LLVMShl            = 19,
-  LLVMLShr           = 20,
-  LLVMAShr           = 21,
-  LLVMAnd            = 22,
-  LLVMOr             = 23,
-  LLVMXor            = 24,
-  LLVMMalloc         = 25,
-  LLVMFree           = 26,
-  LLVMAlloca         = 27,
-  LLVMLoad           = 28,
-  LLVMStore          = 29,
-  LLVMGetElementPtr  = 30,
-  LLVMTrunk          = 31,
-  LLVMZExt           = 32,
-  LLVMSExt           = 33,
-  LLVMFPToUI         = 34,
-  LLVMFPToSI         = 35,
-  LLVMUIToFP         = 36,
-  LLVMSIToFP         = 37,
-  LLVMFPTrunc        = 38,
-  LLVMFPExt          = 39,
-  LLVMPtrToInt       = 40,
-  LLVMIntToPtr       = 41,
-  LLVMBitCast        = 42,
-  LLVMICmp           = 43,
-  LLVMFCmp           = 44,
-  LLVMPHI            = 45,
-  LLVMCall           = 46,
-  LLVMSelect         = 47,
-  LLVMVAArg          = 50,
-  LLVMExtractElement = 51,
-  LLVMInsertElement  = 52,
-  LLVMShuffleVector  = 53,
-  LLVMExtractValue   = 54,
-  LLVMInsertValue    = 55
+  LLVMIndirectBr     = 4,
+  LLVMInvoke         = 5,
+  LLVMUnwind         = 6,
+  LLVMUnreachable    = 7,
+
+  /* Standard Binary Operators */
+  LLVMAdd            = 8,
+  LLVMFAdd           = 9,
+  LLVMSub            = 10,
+  LLVMFSub           = 11,
+  LLVMMul            = 12,
+  LLVMFMul           = 13,
+  LLVMUDiv           = 14,
+  LLVMSDiv           = 15,
+  LLVMFDiv           = 16,
+  LLVMURem           = 17,
+  LLVMSRem           = 18,
+  LLVMFRem           = 19,
+
+  /* Logical Operators */
+  LLVMShl            = 20,
+  LLVMLShr           = 21,
+  LLVMAShr           = 22,
+  LLVMAnd            = 23,
+  LLVMOr             = 24,
+  LLVMXor            = 25,
+
+  /* Memory Operators */
+  LLVMAlloca         = 26,
+  LLVMLoad           = 27,
+  LLVMStore          = 28,
+  LLVMGetElementPtr  = 29,
+
+  /* Cast Operators */
+  LLVMTrunc          = 30,
+  LLVMZExt           = 31,
+  LLVMSExt           = 32,
+  LLVMFPToUI         = 33,
+  LLVMFPToSI         = 34,
+  LLVMUIToFP         = 35,
+  LLVMSIToFP         = 36,
+  LLVMFPTrunc        = 37,
+  LLVMFPExt          = 38,
+  LLVMPtrToInt       = 39,
+  LLVMIntToPtr       = 40,
+  LLVMBitCast        = 41,
+
+  /* Other Operators */
+  LLVMICmp           = 42,
+  LLVMFCmp           = 43,
+  LLVMPHI            = 44,
+  LLVMCall           = 45,
+  LLVMSelect         = 46,
+  /* UserOp1 */
+  /* UserOp2 */
+  LLVMVAArg          = 49,
+  LLVMExtractElement = 50,
+  LLVMInsertElement  = 51,
+  LLVMShuffleVector  = 52,
+  LLVMExtractValue   = 53,
+  LLVMInsertValue    = 54
 } LLVMOpcode;
 
 typedef enum {
@@ -191,7 +205,8 @@ typedef enum {
   LLVMPointerTypeKind,     /**< Pointers */
   LLVMOpaqueTypeKind,      /**< Opaque: type with unknown structure */
   LLVMVectorTypeKind,      /**< SIMD 'packed' format, or other vector type */
-  LLVMMetadataTypeKind     /**< Metadata */
+  LLVMMetadataTypeKind,    /**< Metadata */
+  LLVMUnionTypeKind        /**< Unions */
 } LLVMTypeKind;
 
 typedef enum {
@@ -210,8 +225,7 @@ typedef enum {
   LLVMDLLImportLinkage,   /**< Function to be imported from DLL */
   LLVMDLLExportLinkage,   /**< Function to be accessible from DLL */
   LLVMExternalWeakLinkage,/**< ExternalWeak linkage description */
-  LLVMGhostLinkage,       /**< Stand-in functions for streaming fns from
-                               bitcode */
+  LLVMGhostLinkage,       /**< Obsolete */
   LLVMCommonLinkage,      /**< Tentative definitions */
   LLVMLinkerPrivateLinkage /**< Like Private, but linker removes. */
 } LLVMLinkage;
@@ -370,6 +384,13 @@ LLVMTypeRef LLVMStructType(LLVMTypeRef *ElementTypes, unsigned ElementCount,
 unsigned LLVMCountStructElementTypes(LLVMTypeRef StructTy);
 void LLVMGetStructElementTypes(LLVMTypeRef StructTy, LLVMTypeRef *Dest);
 LLVMBool LLVMIsPackedStruct(LLVMTypeRef StructTy);
+
+/* Operations on union types */
+LLVMTypeRef LLVMUnionTypeInContext(LLVMContextRef C, LLVMTypeRef *ElementTypes,
+                                   unsigned ElementCount);
+LLVMTypeRef LLVMUnionType(LLVMTypeRef *ElementTypes, unsigned ElementCount);
+unsigned LLVMCountUnionElementTypes(LLVMTypeRef UnionTy);
+void LLVMGetUnionElementTypes(LLVMTypeRef UnionTy, LLVMTypeRef *Dest);
 
 /* Operations on array, pointer, and vector types (sequence types) */
 LLVMTypeRef LLVMArrayType(LLVMTypeRef ElementType, unsigned ElementCount);
@@ -914,17 +935,15 @@ LLVMValueRef LLVMBuildPtrDiff(LLVMBuilderRef, LLVMValueRef LHS,
 
 /*===-- Module providers --------------------------------------------------===*/
 
-/* Encapsulates the module M in a module provider, taking ownership of the
- * module.
- * See the constructor llvm::ExistingModuleProvider::ExistingModuleProvider.
+/* Changes the type of M so it can be passed to FunctionPassManagers and the
+ * JIT.  They take ModuleProviders for historical reasons.
  */
 LLVMModuleProviderRef
 LLVMCreateModuleProviderForExistingModule(LLVMModuleRef M);
 
-/* Destroys the module provider MP as well as the contained module.
- * See the destructor llvm::ModuleProvider::~ModuleProvider.
+/* Destroys the module M.
  */
-void LLVMDisposeModuleProvider(LLVMModuleProviderRef MP);
+void LLVMDisposeModuleProvider(LLVMModuleProviderRef M);
 
 
 /*===-- Memory buffers ----------------------------------------------------===*/
@@ -981,7 +1000,6 @@ void LLVMDisposePassManager(LLVMPassManagerRef PM);
 }
 
 namespace llvm {
-  class ModuleProvider;
   class MemoryBuffer;
   class PassManagerBase;
   
@@ -1018,11 +1036,16 @@ namespace llvm {
   DEFINE_SIMPLE_CONVERSION_FUNCTIONS(BasicBlock,         LLVMBasicBlockRef    )
   DEFINE_SIMPLE_CONVERSION_FUNCTIONS(IRBuilder<>,        LLVMBuilderRef       )
   DEFINE_SIMPLE_CONVERSION_FUNCTIONS(PATypeHolder,       LLVMTypeHandleRef    )
-  DEFINE_SIMPLE_CONVERSION_FUNCTIONS(ModuleProvider,     LLVMModuleProviderRef)
   DEFINE_SIMPLE_CONVERSION_FUNCTIONS(MemoryBuffer,       LLVMMemoryBufferRef  )
   DEFINE_SIMPLE_CONVERSION_FUNCTIONS(LLVMContext,        LLVMContextRef       )
   DEFINE_SIMPLE_CONVERSION_FUNCTIONS(Use,                LLVMUseIteratorRef           )
   DEFINE_STDCXX_CONVERSION_FUNCTIONS(PassManagerBase,    LLVMPassManagerRef   )
+  /* LLVMModuleProviderRef exists for historical reasons, but now just holds a
+   * Module.
+   */
+  inline Module *unwrap(LLVMModuleProviderRef MP) {
+    return reinterpret_cast<Module*>(MP);
+  }
   
   #undef DEFINE_STDCXX_CONVERSION_FUNCTIONS
   #undef DEFINE_ISA_CONVERSION_FUNCTIONS

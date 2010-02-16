@@ -26,6 +26,9 @@ PPCMCAsmInfoDarwin::PPCMCAsmInfoDarwin(bool is64Bit) {
 }
 
 PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit) {
+  // ".comm align is in bytes but .align is pow-2."
+  AlignmentIsInBytes = false;
+
   CommentString = "#";
   GlobalPrefix = "";
   PrivateGlobalPrefix = ".L";
@@ -49,9 +52,7 @@ PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit) {
   AbsoluteEHSectionOffsets = false;
     
   ZeroDirective = "\t.space\t";
-  SetDirective = "\t.set";
   Data64bitsDirective = is64Bit ? "\t.quad\t" : 0;
-  AlignmentIsInBytes = false;
   HasLCOMMDirective = true;
   AssemblerDialect = 0;           // Old-Style mnemonics.
 }

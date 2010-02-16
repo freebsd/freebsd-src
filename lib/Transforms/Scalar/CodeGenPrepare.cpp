@@ -32,16 +32,12 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/Support/CallSite.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/PatternMatch.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 using namespace llvm::PatternMatch;
-
-static cl::opt<bool> FactorCommonPreds("split-critical-paths-tweak",
-                                       cl::init(false), cl::Hidden);
 
 namespace {
   class CodeGenPrepare : public FunctionPass {
@@ -61,6 +57,10 @@ namespace {
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addPreserved<ProfileInfo>();
+    }
+
+    virtual void releaseMemory() {
+      BackEdges.clear();
     }
 
   private:
@@ -297,6 +297,70 @@ void CodeGenPrepare::EliminateMostlyEmptyBlock(BasicBlock *BB) {
   DEBUG(dbgs() << "AFTER:\n" << *DestBB << "\n\n\n");
 }
 
+/// FindReusablePredBB - Check all of the predecessors of the block DestPHI
+/// lives in to see if there is a block that we can reuse as a critical edge
+/// from TIBB.
+static BasicBlock *FindReusablePredBB(PHINode *DestPHI, BasicBlock *TIBB) {
+  BasicBlock *Dest = DestPHI->getParent();
+  
+  /// TIPHIValues - This array is lazily computed to determine the values of
+  /// PHIs in Dest that TI would provide.
+  SmallVector<Value*, 32> TIPHIValues;
+  
+  /// TIBBEntryNo - This is a cache to speed up pred queries for TIBB.
+  unsigned TIBBEntryNo = 0;
+  
+  // Check to see if Dest has any blocks that can be used as a split edge for
+  // this terminator.
+  for (unsigned pi = 0, e = DestPHI->getNumIncomingValues(); pi != e; ++pi) {
+    BasicBlock *Pred = DestPHI->getIncomingBlock(pi);
+    // To be usable, the pred has to end with an uncond branch to the dest.
+    BranchInst *PredBr = dyn_cast<BranchInst>(Pred->getTerminator());
+    if (!PredBr || !PredBr->isUnconditional())
+      continue;
+    // Must be empty other than the branch and debug info.
+    BasicBlock::iterator I = Pred->begin();
+    while (isa<DbgInfoIntrinsic>(I))
+      I++;
+    if (&*I != PredBr)
+      continue;
+    // Cannot be the entry block; its label does not get emitted.
+    if (Pred == &Dest->getParent()->getEntryBlock())
+      continue;
+    
+    // Finally, since we know that Dest has phi nodes in it, we have to make
+    // sure that jumping to Pred will have the same effect as going to Dest in
+    // terms of PHI values.
+    PHINode *PN;
+    unsigned PHINo = 0;
+    unsigned PredEntryNo = pi;
+    
+    bool FoundMatch = true;
+    for (BasicBlock::iterator I = Dest->begin();
+         (PN = dyn_cast<PHINode>(I)); ++I, ++PHINo) {
+      if (PHINo == TIPHIValues.size()) {
+        if (PN->getIncomingBlock(TIBBEntryNo) != TIBB)
+          TIBBEntryNo = PN->getBasicBlockIndex(TIBB);
+        TIPHIValues.push_back(PN->getIncomingValue(TIBBEntryNo));
+      }
+      
+      // If the PHI entry doesn't work, we can't use this pred.
+      if (PN->getIncomingBlock(PredEntryNo) != Pred)
+        PredEntryNo = PN->getBasicBlockIndex(Pred);
+      
+      if (TIPHIValues[PHINo] != PN->getIncomingValue(PredEntryNo)) {
+        FoundMatch = false;
+        break;
+      }
+    }
+    
+    // If we found a workable predecessor, change TI to branch to Succ.
+    if (FoundMatch)
+      return Pred;
+  }
+  return 0;  
+}
+
 
 /// SplitEdgeNicely - Split the critical edge from TI to its specified
 /// successor if it will improve codegen.  We only do this if the successor has
@@ -311,13 +375,12 @@ static void SplitEdgeNicely(TerminatorInst *TI, unsigned SuccNum,
   BasicBlock *Dest = TI->getSuccessor(SuccNum);
   assert(isa<PHINode>(Dest->begin()) &&
          "This should only be called if Dest has a PHI!");
+  PHINode *DestPHI = cast<PHINode>(Dest->begin());
 
   // Do not split edges to EH landing pads.
-  if (InvokeInst *Invoke = dyn_cast<InvokeInst>(TI)) {
+  if (InvokeInst *Invoke = dyn_cast<InvokeInst>(TI))
     if (Invoke->getSuccessor(1) == Dest)
       return;
-  }
-  
 
   // As a hack, never split backedges of loops.  Even though the copy for any
   // PHIs inserted on the backedge would be dead for exits from the loop, we
@@ -325,92 +388,16 @@ static void SplitEdgeNicely(TerminatorInst *TI, unsigned SuccNum,
   if (BackEdges.count(std::make_pair(TIBB, Dest)))
     return;
 
-  if (!FactorCommonPreds) {
-    /// TIPHIValues - This array is lazily computed to determine the values of
-    /// PHIs in Dest that TI would provide.
-    SmallVector<Value*, 32> TIPHIValues;
-
-    // Check to see if Dest has any blocks that can be used as a split edge for
-    // this terminator.
-    for (pred_iterator PI = pred_begin(Dest), E = pred_end(Dest); PI != E; ++PI) {
-      BasicBlock *Pred = *PI;
-      // To be usable, the pred has to end with an uncond branch to the dest.
-      BranchInst *PredBr = dyn_cast<BranchInst>(Pred->getTerminator());
-      if (!PredBr || !PredBr->isUnconditional())
-        continue;
-      // Must be empty other than the branch and debug info.
-      BasicBlock::iterator I = Pred->begin();
-      while (isa<DbgInfoIntrinsic>(I))
-        I++;
-      if (dyn_cast<Instruction>(I) != PredBr)
-        continue;
-      // Cannot be the entry block; its label does not get emitted.
-      if (Pred == &(Dest->getParent()->getEntryBlock()))
-        continue;
-
-      // Finally, since we know that Dest has phi nodes in it, we have to make
-      // sure that jumping to Pred will have the same effect as going to Dest in
-      // terms of PHI values.
-      PHINode *PN;
-      unsigned PHINo = 0;
-      bool FoundMatch = true;
-      for (BasicBlock::iterator I = Dest->begin();
-           (PN = dyn_cast<PHINode>(I)); ++I, ++PHINo) {
-        if (PHINo == TIPHIValues.size())
-          TIPHIValues.push_back(PN->getIncomingValueForBlock(TIBB));
-
-        // If the PHI entry doesn't work, we can't use this pred.
-        if (TIPHIValues[PHINo] != PN->getIncomingValueForBlock(Pred)) {
-          FoundMatch = false;
-          break;
-        }
-      }
-
-      // If we found a workable predecessor, change TI to branch to Succ.
-      if (FoundMatch) {
-        ProfileInfo *PFI = P->getAnalysisIfAvailable<ProfileInfo>();
-        if (PFI)
-          PFI->splitEdge(TIBB, Dest, Pred);
-        Dest->removePredecessor(TIBB);
-        TI->setSuccessor(SuccNum, Pred);
-        return;
-      }
-    }
-
-    SplitCriticalEdge(TI, SuccNum, P, true);
+  if (BasicBlock *ReuseBB = FindReusablePredBB(DestPHI, TIBB)) {
+    ProfileInfo *PFI = P->getAnalysisIfAvailable<ProfileInfo>();
+    if (PFI)
+      PFI->splitEdge(TIBB, Dest, ReuseBB);
+    Dest->removePredecessor(TIBB);
+    TI->setSuccessor(SuccNum, ReuseBB);
     return;
   }
 
-  PHINode *PN;
-  SmallVector<Value*, 8> TIPHIValues;
-  for (BasicBlock::iterator I = Dest->begin();
-       (PN = dyn_cast<PHINode>(I)); ++I)
-    TIPHIValues.push_back(PN->getIncomingValueForBlock(TIBB));
-
-  SmallVector<BasicBlock*, 8> IdenticalPreds;
-  for (pred_iterator PI = pred_begin(Dest), E = pred_end(Dest); PI != E; ++PI) {
-    BasicBlock *Pred = *PI;
-    if (BackEdges.count(std::make_pair(Pred, Dest)))
-      continue;
-    if (PI == TIBB)
-      IdenticalPreds.push_back(Pred);
-    else {
-      bool Identical = true;
-      unsigned PHINo = 0;
-      for (BasicBlock::iterator I = Dest->begin();
-           (PN = dyn_cast<PHINode>(I)); ++I, ++PHINo)
-        if (TIPHIValues[PHINo] != PN->getIncomingValueForBlock(Pred)) {
-          Identical = false;
-          break;
-        }
-      if (Identical)
-        IdenticalPreds.push_back(Pred);
-    }
-  }
-
-  assert(!IdenticalPreds.empty());
-  SplitBlockPredecessors(Dest, &IdenticalPreds[0], IdenticalPreds.size(),
-                         ".critedge", P);
+  SplitCriticalEdge(TI, SuccNum, P, true);
 }
 
 

@@ -193,7 +193,9 @@ namespace llvm {
       FlagFwdDecl          = 1 << 2,
       FlagAppleBlock       = 1 << 3,
       FlagBlockByrefStruct = 1 << 4,
-      FlagVirtual          = 1 << 5
+      FlagVirtual          = 1 << 5,
+      FlagArtificial       = 1 << 6  // To identify artificial arguments in
+                                     // a subroutine type. e.g. "this" in c++.
     };
 
   protected:
@@ -240,6 +242,9 @@ namespace llvm {
     }
     bool isVirtual() const {
       return (getFlags() & FlagVirtual) != 0;
+    }
+    bool isArtificial() const {
+      return (getFlags() & FlagArtificial) != 0;
     }
 
     /// dump - print type.
@@ -298,6 +303,9 @@ namespace llvm {
 
     DIArray getTypeArray() const { return getFieldAs<DIArray>(10); }
     unsigned getRunTimeLang() const { return getUnsignedField(11); }
+    DICompositeType getContainingType() const {
+      return getFieldAs<DICompositeType>(12);
+    }
 
     /// Verify - Verify that a composite type descriptor is well formed.
     bool Verify() const;
@@ -372,6 +380,7 @@ namespace llvm {
     DICompositeType getContainingType() const {
       return getFieldAs<DICompositeType>(13);
     }
+    unsigned isArtificial() const    { return getUnsignedField(14); }
 
     StringRef getFilename() const    { return getCompileUnit().getFilename();}
     StringRef getDirectory() const   { return getCompileUnit().getDirectory();}
@@ -567,7 +576,11 @@ namespace llvm {
                                         uint64_t OffsetInBits, unsigned Flags,
                                         DIType DerivedFrom,
                                         DIArray Elements,
-                                        unsigned RunTimeLang = 0);
+                                        unsigned RunTimeLang = 0,
+                                        MDNode *ContainingType = 0);
+
+    /// CreateArtificialType - Create a new DIType with "artificial" flag set.
+    DIType CreateArtificialType(DIType Ty);
 
     /// CreateCompositeType - Create a composite type like array, struct, etc.
     DICompositeType CreateCompositeTypeEx(unsigned Tag, DIDescriptor Context,
@@ -591,7 +604,8 @@ namespace llvm {
                                   bool isDefinition,
                                   unsigned VK = 0,
                                   unsigned VIndex = 0,
-                                  DIType = DIType());
+                                  DIType = DIType(),
+                                  bool isArtificial = 0);
 
     /// CreateSubprogramDefinition - Create new subprogram descriptor for the
     /// given declaration. 

@@ -1,6 +1,7 @@
 add_executable(tblgen
   AsmMatcherEmitter.cpp
   AsmWriterEmitter.cpp
+  AsmWriterInst.cpp
   CallingConvEmitter.cpp
   ClangDiagnosticsEmitter.cpp
   CodeEmitterGen.cpp
@@ -8,7 +9,11 @@ add_executable(tblgen
   CodeGenInstruction.cpp
   CodeGenTarget.cpp
   DAGISelEmitter.cpp
+  DAGISelMatcherEmitter.cpp
+  DAGISelMatcherGen.cpp
+  DAGISelMatcher.cpp
   DisassemblerEmitter.cpp
+  EDEmitter.cpp
   FastISelEmitter.cpp
   InstrEnumEmitter.cpp
   InstrInfoEmitter.cpp

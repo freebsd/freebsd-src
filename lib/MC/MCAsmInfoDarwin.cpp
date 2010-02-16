@@ -21,12 +21,12 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
   GlobalPrefix = "_";
   PrivateGlobalPrefix = "L";
   LinkerPrivateGlobalPrefix = "l";
-  NeedsSet = true;
   AllowQuotesInName = true;
   HasSingleParameterDotFile = false;
   HasSubsectionsViaSymbols = true;
 
   AlignmentIsInBytes = false;
+  COMMDirectiveAlignmentIsInBytes = false;
   InlineAsmStart = " InlineAsm Start";
   InlineAsmEnd = " InlineAsm End";
 
@@ -36,7 +36,6 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
   ZeroDirective = "\t.space\t";  // ".space N" emits N zeros.
   HasMachoZeroFillDirective = true;  // Uses .zerofill
   HasStaticCtorDtorReferenceInStaticMode = true;
-  SetDirective = "\t.set";
   
   HiddenVisibilityAttr = MCSA_PrivateExtern;
   // Doesn't support protected visibility.

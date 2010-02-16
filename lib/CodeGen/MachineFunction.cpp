@@ -16,7 +16,6 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Config/config.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -26,12 +25,16 @@
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetFrameInfo.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/GraphWriter.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -70,9 +73,9 @@ FunctionPass *llvm::createMachineFunctionPrinterPass(raw_ostream &OS,
   return new Printer(OS, Banner);
 }
 
-//===---------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 // MachineFunction implementation
-//===---------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 
 // Out of line virtual method.
 MachineFunctionInfo::~MachineFunctionInfo() {}
@@ -81,8 +84,8 @@ void ilist_traits<MachineBasicBlock>::deleteNode(MachineBasicBlock *MBB) {
   MBB->getParent()->DeleteMachineBasicBlock(MBB);
 }
 
-MachineFunction::MachineFunction(Function *F,
-                                 const TargetMachine &TM)
+MachineFunction::MachineFunction(Function *F, const TargetMachine &TM,
+                                 unsigned FunctionNum)
   : Fn(F), Target(TM) {
   if (TM.getRegisterInfo())
     RegInfo = new (Allocator.Allocate<MachineRegisterInfo>())
@@ -95,16 +98,8 @@ MachineFunction::MachineFunction(Function *F,
   ConstantPool = new (Allocator.Allocate<MachineConstantPool>())
                      MachineConstantPool(TM.getTargetData());
   Alignment = TM.getTargetLowering()->getFunctionAlignment(F);
-
-  // Set up jump table.
-  const TargetData &TD = *TM.getTargetData();
-  bool IsPic = TM.getRelocationModel() == Reloc::PIC_;
-  unsigned EntrySize = IsPic ? 4 : TD.getPointerSize();
-  unsigned TyAlignment = IsPic ?
-                       TD.getABITypeAlignment(Type::getInt32Ty(F->getContext()))
-                               : TD.getPointerABIAlignment();
-  JumpTableInfo = new (Allocator.Allocate<MachineJumpTableInfo>())
-                      MachineJumpTableInfo(EntrySize, TyAlignment);
+  FunctionNumber = FunctionNum;
+  JumpTableInfo = 0;
 }
 
 MachineFunction::~MachineFunction() {
@@ -121,9 +116,23 @@ MachineFunction::~MachineFunction() {
   }
   FrameInfo->~MachineFrameInfo();         Allocator.Deallocate(FrameInfo);
   ConstantPool->~MachineConstantPool();   Allocator.Deallocate(ConstantPool);
-  JumpTableInfo->~MachineJumpTableInfo(); Allocator.Deallocate(JumpTableInfo);
+  
+  if (JumpTableInfo) {
+    JumpTableInfo->~MachineJumpTableInfo();
+    Allocator.Deallocate(JumpTableInfo);
+  }
 }
 
+/// getOrCreateJumpTableInfo - Get the JumpTableInfo for this function, if it
+/// does already exist, allocate one.
+MachineJumpTableInfo *MachineFunction::
+getOrCreateJumpTableInfo(unsigned EntryKind) {
+  if (JumpTableInfo) return JumpTableInfo;
+  
+  JumpTableInfo = new (Allocator.Allocate<MachineJumpTableInfo>())
+    MachineJumpTableInfo((MachineJumpTableInfo::JTEntryKind)EntryKind);
+  return JumpTableInfo;
+}
 
 /// RenumberBlocks - This discards all of the MachineBasicBlock numbers and
 /// recomputes them.  This guarantees that the MBB numbers are sequential,
@@ -178,7 +187,7 @@ MachineFunction::CreateMachineInstr(const TargetInstrDesc &TID,
 }
 
 /// CloneMachineInstr - Create a new MachineInstr which is a copy of the
-/// 'Orig' instruction, identical in all ways except the the instruction
+/// 'Orig' instruction, identical in all ways except the instruction
 /// has no parent, prev, or next.
 ///
 MachineInstr *
@@ -311,7 +320,8 @@ void MachineFunction::print(raw_ostream &OS) const {
   FrameInfo->print(*this, OS);
   
   // Print JumpTable Information
-  JumpTableInfo->print(OS);
+  if (JumpTableInfo)
+    JumpTableInfo->print(OS);
 
   // Print Constant Pool
   ConstantPool->print(OS);
@@ -435,6 +445,26 @@ DILocation MachineFunction::getDILocation(DebugLoc DL) const {
   return DILocation(DebugLocInfo.DebugLocations[Idx]);
 }
 
+
+/// getJTISymbol - Return the MCSymbol for the specified non-empty jump table.
+/// If isLinkerPrivate is specified, an 'l' label is returned, otherwise a
+/// normal 'L' label is returned.
+MCSymbol *MachineFunction::getJTISymbol(unsigned JTI, MCContext &Ctx, 
+                                        bool isLinkerPrivate) const {
+  assert(JumpTableInfo && "No jump tables");
+  
+  assert(JTI < JumpTableInfo->getJumpTables().size() && "Invalid JTI!");
+  const MCAsmInfo &MAI = *getTarget().getMCAsmInfo();
+  
+  const char *Prefix = isLinkerPrivate ? MAI.getLinkerPrivateGlobalPrefix() :
+                                         MAI.getPrivateGlobalPrefix();
+  SmallString<60> Name;
+  raw_svector_ostream(Name)
+    << Prefix << "JTI" << getFunctionNumber() << '_' << JTI;
+  return Ctx.GetOrCreateSymbol(Name.str());
+}
+
+
 //===----------------------------------------------------------------------===//
 //  MachineFrameInfo implementation
 //===----------------------------------------------------------------------===//
@@ -528,6 +558,39 @@ void MachineFrameInfo::dump(const MachineFunction &MF) const {
 //  MachineJumpTableInfo implementation
 //===----------------------------------------------------------------------===//
 
+/// getEntrySize - Return the size of each entry in the jump table.
+unsigned MachineJumpTableInfo::getEntrySize(const TargetData &TD) const {
+  // The size of a jump table entry is 4 bytes unless the entry is just the
+  // address of a block, in which case it is the pointer size.
+  switch (getEntryKind()) {
+  case MachineJumpTableInfo::EK_BlockAddress:
+    return TD.getPointerSize();
+  case MachineJumpTableInfo::EK_GPRel32BlockAddress:
+  case MachineJumpTableInfo::EK_LabelDifference32:
+  case MachineJumpTableInfo::EK_Custom32:
+    return 4;
+  }
+  assert(0 && "Unknown jump table encoding!");
+  return ~0;
+}
+
+/// getEntryAlignment - Return the alignment of each entry in the jump table.
+unsigned MachineJumpTableInfo::getEntryAlignment(const TargetData &TD) const {
+  // The alignment of a jump table entry is the alignment of int32 unless the
+  // entry is just the address of a block, in which case it is the pointer
+  // alignment.
+  switch (getEntryKind()) {
+  case MachineJumpTableInfo::EK_BlockAddress:
+    return TD.getPointerABIAlignment();
+  case MachineJumpTableInfo::EK_GPRel32BlockAddress:
+  case MachineJumpTableInfo::EK_LabelDifference32:
+  case MachineJumpTableInfo::EK_Custom32:
+    return TD.getABIIntegerTypeAlignment(32);
+  }
+  assert(0 && "Unknown jump table encoding!");
+  return ~0;
+}
+
 /// getJumpTableIndex - Create a new jump table entry in the jump table info
 /// or return an existing one.
 ///
@@ -538,11 +601,11 @@ unsigned MachineJumpTableInfo::getJumpTableIndex(
   return JumpTables.size()-1;
 }
 
+
 /// ReplaceMBBInJumpTables - If Old is the target of any jump tables, update
 /// the jump tables to branch to New instead.
-bool
-MachineJumpTableInfo::ReplaceMBBInJumpTables(MachineBasicBlock *Old,
-                                             MachineBasicBlock *New) {
+bool MachineJumpTableInfo::ReplaceMBBInJumpTables(MachineBasicBlock *Old,
+                                                  MachineBasicBlock *New) {
   assert(Old != New && "Not making a change?");
   bool MadeChange = false;
   for (size_t i = 0, e = JumpTables.size(); i != e; ++i)
@@ -552,10 +615,9 @@ MachineJumpTableInfo::ReplaceMBBInJumpTables(MachineBasicBlock *Old,
 
 /// ReplaceMBBInJumpTable - If Old is a target of the jump tables, update
 /// the jump table to branch to New instead.
-bool
-MachineJumpTableInfo::ReplaceMBBInJumpTable(unsigned Idx,
-                                            MachineBasicBlock *Old,
-                                            MachineBasicBlock *New) {
+bool MachineJumpTableInfo::ReplaceMBBInJumpTable(unsigned Idx,
+                                                 MachineBasicBlock *Old,
+                                                 MachineBasicBlock *New) {
   assert(Old != New && "Not making a change?");
   bool MadeChange = false;
   MachineJumpTableEntry &JTE = JumpTables[Idx];

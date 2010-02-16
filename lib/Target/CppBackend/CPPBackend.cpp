@@ -307,8 +307,6 @@ namespace {
       Out << "GlobalValue::DLLExportLinkage"; break;
     case GlobalValue::ExternalWeakLinkage:
       Out << "GlobalValue::ExternalWeakLinkage"; break;
-    case GlobalValue::GhostLinkage:
-      Out << "GlobalValue::GhostLinkage"; break;
     case GlobalValue::CommonLinkage:
       Out << "GlobalValue::CommonLinkage"; break;
     }
@@ -346,7 +344,7 @@ namespace {
 
   std::string CppWriter::getCppName(const Type* Ty) {
     // First, handle the primitive types .. easy
-    if (Ty->isPrimitiveType() || Ty->isInteger()) {
+    if (Ty->isPrimitiveType() || Ty->isIntegerTy()) {
       switch (Ty->getTypeID()) {
       case Type::VoidTyID:   return "Type::getVoidTy(getGlobalContext())";
       case Type::IntegerTyID: {
@@ -472,6 +470,7 @@ namespace {
         HANDLE_ATTR(Nest);
         HANDLE_ATTR(ReadNone);
         HANDLE_ATTR(ReadOnly);
+        HANDLE_ATTR(InlineHint);
         HANDLE_ATTR(NoInline);
         HANDLE_ATTR(AlwaysInline);
         HANDLE_ATTR(OptimizeForSize);
@@ -494,7 +493,7 @@ namespace {
 
   bool CppWriter::printTypeInternal(const Type* Ty) {
     // We don't print definitions for primitive types
-    if (Ty->isPrimitiveType() || Ty->isInteger())
+    if (Ty->isPrimitiveType() || Ty->isIntegerTy())
       return false;
 
     // If we already defined this type, we don't need to define it again.
@@ -687,7 +686,7 @@ namespace {
 
       // For primitive types and types already defined, just add a name
       TypeMap::const_iterator TNI = TypeNames.find(TI->second);
-      if (TI->second->isInteger() || TI->second->isPrimitiveType() ||
+      if (TI->second->isIntegerTy() || TI->second->isPrimitiveType() ||
           TNI != TypeNames.end()) {
         Out << "mod->addTypeName(\"";
         printEscapedString(TI->first);
@@ -2011,7 +2010,7 @@ bool CPPTargetMachine::addPassesToEmitWholeFile(PassManager &PM,
                                                 formatted_raw_ostream &o,
                                                 CodeGenFileType FileType,
                                                 CodeGenOpt::Level OptLevel) {
-  if (FileType != TargetMachine::AssemblyFile) return true;
+  if (FileType != TargetMachine::CGFT_AssemblyFile) return true;
   PM.add(new CppWriter(o));
   return false;
 }

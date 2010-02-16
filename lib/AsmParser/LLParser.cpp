@@ -947,6 +947,7 @@ bool LLParser::ParseOptionalAttrs(unsigned &Attrs, unsigned AttrKind) {
     case lltok::kw_noinline:        Attrs |= Attribute::NoInline; break;
     case lltok::kw_readnone:        Attrs |= Attribute::ReadNone; break;
     case lltok::kw_readonly:        Attrs |= Attribute::ReadOnly; break;
+    case lltok::kw_inlinehint:      Attrs |= Attribute::InlineHint; break;
     case lltok::kw_alwaysinline:    Attrs |= Attribute::AlwaysInline; break;
     case lltok::kw_optsize:         Attrs |= Attribute::OptimizeForSize; break;
     case lltok::kw_ssp:             Attrs |= Attribute::StackProtect; break;
@@ -955,6 +956,14 @@ bool LLParser::ParseOptionalAttrs(unsigned &Attrs, unsigned AttrKind) {
     case lltok::kw_noimplicitfloat: Attrs |= Attribute::NoImplicitFloat; break;
     case lltok::kw_naked:           Attrs |= Attribute::Naked; break;
 
+    case lltok::kw_alignstack: {
+      unsigned Alignment;
+      if (ParseOptionalStackAlignment(Alignment))
+        return true;
+      Attrs |= Attribute::constructStackAlignmentFromInt(Alignment);
+      continue;
+    }
+
     case lltok::kw_align: {
       unsigned Alignment;
       if (ParseOptionalAlignment(Alignment))
@@ -962,6 +971,7 @@ bool LLParser::ParseOptionalAttrs(unsigned &Attrs, unsigned AttrKind) {
       Attrs |= Attribute::constructAlignmentFromInt(Alignment);
       continue;
     }
+
     }
     Lex.Lex();
   }
@@ -1130,6 +1140,25 @@ bool LLParser::ParseOptionalCommaAlign(unsigned &Alignment,
   return false;
 }
 
+/// ParseOptionalStackAlignment
+///   ::= /* empty */
+///   ::= 'alignstack' '(' 4 ')'
+bool LLParser::ParseOptionalStackAlignment(unsigned &Alignment) {
+  Alignment = 0;
+  if (!EatIfPresent(lltok::kw_alignstack))
+    return false;
+  LocTy ParenLoc = Lex.getLoc();
+  if (!EatIfPresent(lltok::lparen))
+    return Error(ParenLoc, "expected '('");
+  LocTy AlignLoc = Lex.getLoc();
+  if (ParseUInt32(Alignment)) return true;
+  ParenLoc = Lex.getLoc();
+  if (!EatIfPresent(lltok::rparen))
+    return Error(ParenLoc, "expected ')'");
+  if (!isPowerOf2_32(Alignment))
+    return Error(AlignLoc, "stack alignment is not a power of two");
+  return false;
+}
 
 /// ParseIndexList - This parses the index list for an insert/extractvalue
 /// instruction.  This sets AteExtraComma in the case where we eat an extra
@@ -1264,6 +1293,11 @@ bool LLParser::ParseTypeRec(PATypeHolder &Result) {
   case lltok::lbrace:
     // TypeRec ::= '{' ... '}'
     if (ParseStructType(Result, false))
+      return true;
+    break;
+  case lltok::kw_union:
+    // TypeRec ::= 'union' '{' ... '}'
+    if (ParseUnionType(Result))
       return true;
     break;
   case lltok::lsquare:
@@ -1572,6 +1606,38 @@ bool LLParser::ParseStructType(PATypeHolder &Result, bool Packed) {
   for (unsigned i = 0, e = ParamsList.size(); i != e; ++i)
     ParamsListTy.push_back(ParamsList[i].get());
   Result = HandleUpRefs(StructType::get(Context, ParamsListTy, Packed));
+  return false;
+}
+
+/// ParseUnionType
+///   TypeRec
+///     ::= 'union' '{' TypeRec (',' TypeRec)* '}'
+bool LLParser::ParseUnionType(PATypeHolder &Result) {
+  assert(Lex.getKind() == lltok::kw_union);
+  Lex.Lex(); // Consume the 'union'
+
+  if (ParseToken(lltok::lbrace, "'{' expected after 'union'")) return true;
+
+  SmallVector<PATypeHolder, 8> ParamsList;
+  do {
+    LocTy EltTyLoc = Lex.getLoc();
+    if (ParseTypeRec(Result)) return true;
+    ParamsList.push_back(Result);
+
+    if (Result->isVoidTy())
+      return Error(EltTyLoc, "union element can not have void type");
+    if (!UnionType::isValidElementType(Result))
+      return Error(EltTyLoc, "invalid element type for union");
+
+  } while (EatIfPresent(lltok::comma)) ;
+
+  if (ParseToken(lltok::rbrace, "expected '}' at end of union"))
+    return true;
+
+  SmallVector<const Type*, 8> ParamsListTy;
+  for (unsigned i = 0, e = ParamsList.size(); i != e; ++i)
+    ParamsListTy.push_back(ParamsList[i].get());
+  Result = HandleUpRefs(UnionType::get(&ParamsListTy[0], ParamsListTy.size()));
   return false;
 }
 
@@ -1991,8 +2057,8 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
     if (Elts.empty())
       return Error(ID.Loc, "constant vector must not be empty");
 
-    if (!Elts[0]->getType()->isInteger() &&
-        !Elts[0]->getType()->isFloatingPoint())
+    if (!Elts[0]->getType()->isIntegerTy() &&
+        !Elts[0]->getType()->isFloatingPointTy())
       return Error(FirstEltLoc,
                    "vector elements must have integer or floating point type");
 
@@ -2134,8 +2200,8 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
         ParseToken(lltok::rparen, "expected ')' in extractvalue constantexpr"))
       return true;
 
-    if (!isa<StructType>(Val->getType()) && !isa<ArrayType>(Val->getType()))
-      return Error(ID.Loc, "extractvalue operand must be array or struct");
+    if (!Val->getType()->isAggregateType())
+      return Error(ID.Loc, "extractvalue operand must be aggregate type");
     if (!ExtractValueInst::getIndexedType(Val->getType(), Indices.begin(),
                                           Indices.end()))
       return Error(ID.Loc, "invalid indices for extractvalue");
@@ -2155,8 +2221,8 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
         ParseIndexList(Indices) ||
         ParseToken(lltok::rparen, "expected ')' in insertvalue constantexpr"))
       return true;
-    if (!isa<StructType>(Val0->getType()) && !isa<ArrayType>(Val0->getType()))
-      return Error(ID.Loc, "extractvalue operand must be array or struct");
+    if (!Val0->getType()->isAggregateType())
+      return Error(ID.Loc, "insertvalue operand must be aggregate type");
     if (!ExtractValueInst::getIndexedType(Val0->getType(), Indices.begin(),
                                           Indices.end()))
       return Error(ID.Loc, "invalid indices for insertvalue");
@@ -2184,12 +2250,12 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
     CmpInst::Predicate Pred = (CmpInst::Predicate)PredVal;
 
     if (Opc == Instruction::FCmp) {
-      if (!Val0->getType()->isFPOrFPVector())
+      if (!Val0->getType()->isFPOrFPVectorTy())
         return Error(ID.Loc, "fcmp requires floating point operands");
       ID.ConstantVal = ConstantExpr::getFCmp(Pred, Val0, Val1);
     } else {
       assert(Opc == Instruction::ICmp && "Unexpected opcode for CmpInst!");
-      if (!Val0->getType()->isIntOrIntVector() &&
+      if (!Val0->getType()->isIntOrIntVectorTy() &&
           !isa<PointerType>(Val0->getType()))
         return Error(ID.Loc, "icmp requires pointer or integer operands");
       ID.ConstantVal = ConstantExpr::getICmp(Pred, Val0, Val1);
@@ -2240,7 +2306,7 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
       return true;
     if (Val0->getType() != Val1->getType())
       return Error(ID.Loc, "operands of constexpr must have same type");
-    if (!Val0->getType()->isIntOrIntVector()) {
+    if (!Val0->getType()->isIntOrIntVectorTy()) {
       if (NUW)
         return Error(ModifierLoc, "nuw only applies to integer operations");
       if (NSW)
@@ -2248,8 +2314,8 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
     }
     // API compatibility: Accept either integer or floating-point types with
     // add, sub, and mul.
-    if (!Val0->getType()->isIntOrIntVector() &&
-        !Val0->getType()->isFPOrFPVector())
+    if (!Val0->getType()->isIntOrIntVectorTy() &&
+        !Val0->getType()->isFPOrFPVectorTy())
       return Error(ID.Loc,"constexpr requires integer, fp, or vector operands");
     unsigned Flags = 0;
     if (NUW)   Flags |= OverflowingBinaryOperator::NoUnsignedWrap;
@@ -2279,7 +2345,7 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
       return true;
     if (Val0->getType() != Val1->getType())
       return Error(ID.Loc, "operands of constexpr must have same type");
-    if (!Val0->getType()->isIntOrIntVector())
+    if (!Val0->getType()->isIntOrIntVectorTy())
       return Error(ID.Loc,
                    "constexpr requires integer or integer vector operands");
     ID.ConstantVal = ConstantExpr::get(Opc, Val0, Val1);
@@ -2449,7 +2515,7 @@ bool LLParser::ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
     V = ConstantInt::get(Context, ID.APSIntVal);
     return false;
   case ValID::t_APFloat:
-    if (!Ty->isFloatingPoint() ||
+    if (!Ty->isFloatingPointTy() ||
         !ConstantFP::isValueValidForType(Ty, ID.APFloatVal))
       return Error(ID.Loc, "floating point constant invalid for type");
 
@@ -2492,8 +2558,17 @@ bool LLParser::ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
     V = Constant::getNullValue(Ty);
     return false;
   case ValID::t_Constant:
-    if (ID.ConstantVal->getType() != Ty)
+    if (ID.ConstantVal->getType() != Ty) {
+      // Allow a constant struct with a single member to be converted
+      // to a union, if the union has a member which is the same type
+      // as the struct member.
+      if (const UnionType* utype = dyn_cast<UnionType>(Ty)) {
+        return ParseUnionValue(utype, ID, V);
+      }
+
       return Error(ID.Loc, "constant expression type mismatch");
+    }
+
     V = ID.ConstantVal;
     return false;
   }
@@ -2521,6 +2596,22 @@ bool LLParser::ParseTypeAndBasicBlock(BasicBlock *&BB, LocTy &Loc,
     return Error(Loc, "expected a basic block");
   BB = cast<BasicBlock>(V);
   return false;
+}
+
+bool LLParser::ParseUnionValue(const UnionType* utype, ValID &ID, Value *&V) {
+  if (const StructType* stype = dyn_cast<StructType>(ID.ConstantVal->getType())) {
+    if (stype->getNumContainedTypes() != 1)
+      return Error(ID.Loc, "constant expression type mismatch");
+    int index = utype->getElementTypeIndex(stype->getContainedType(0));
+    if (index < 0)
+      return Error(ID.Loc, "initializer type is not a member of the union");
+
+    V = ConstantUnion::get(
+        utype, cast<Constant>(ID.ConstantVal->getOperand(0)));
+    return false;
+  }
+
+  return Error(ID.Loc, "constant expression type mismatch");
 }
 
 
@@ -2566,7 +2657,6 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
       return Error(LinkageLoc, "invalid linkage for function declaration");
     break;
   case GlobalValue::AppendingLinkage:
-  case GlobalValue::GhostLinkage:
   case GlobalValue::CommonLinkage:
     return Error(LinkageLoc, "invalid function linkage type");
   }
@@ -2873,7 +2963,7 @@ int LLParser::ParseInstruction(Instruction *&Inst, BasicBlock *BB,
     // API compatibility: Accept either integer or floating-point types.
     bool Result = ParseArithmetic(Inst, PFS, KeywordVal, 0);
     if (!Result) {
-      if (!Inst->getType()->isIntOrIntVector()) {
+      if (!Inst->getType()->isIntOrIntVectorTy()) {
         if (NUW)
           return Error(ModifierLoc, "nuw only applies to integer operations");
         if (NSW)
@@ -3292,11 +3382,11 @@ bool LLParser::ParseArithmetic(Instruction *&Inst, PerFunctionState &PFS,
   switch (OperandType) {
   default: llvm_unreachable("Unknown operand type!");
   case 0: // int or FP.
-    Valid = LHS->getType()->isIntOrIntVector() ||
-            LHS->getType()->isFPOrFPVector();
+    Valid = LHS->getType()->isIntOrIntVectorTy() ||
+            LHS->getType()->isFPOrFPVectorTy();
     break;
-  case 1: Valid = LHS->getType()->isIntOrIntVector(); break;
-  case 2: Valid = LHS->getType()->isFPOrFPVector(); break;
+  case 1: Valid = LHS->getType()->isIntOrIntVectorTy(); break;
+  case 2: Valid = LHS->getType()->isFPOrFPVectorTy(); break;
   }
 
   if (!Valid)
@@ -3316,7 +3406,7 @@ bool LLParser::ParseLogical(Instruction *&Inst, PerFunctionState &PFS,
       ParseValue(LHS->getType(), RHS, PFS))
     return true;
 
-  if (!LHS->getType()->isIntOrIntVector())
+  if (!LHS->getType()->isIntOrIntVectorTy())
     return Error(Loc,"instruction requires integer or integer vector operands");
 
   Inst = BinaryOperator::Create((Instruction::BinaryOps)Opc, LHS, RHS);
@@ -3340,12 +3430,12 @@ bool LLParser::ParseCompare(Instruction *&Inst, PerFunctionState &PFS,
     return true;
 
   if (Opc == Instruction::FCmp) {
-    if (!LHS->getType()->isFPOrFPVector())
+    if (!LHS->getType()->isFPOrFPVectorTy())
       return Error(Loc, "fcmp requires floating point operands");
     Inst = new FCmpInst(CmpInst::Predicate(Pred), LHS, RHS);
   } else {
     assert(Opc == Instruction::ICmp && "Unknown opcode for CmpInst!");
-    if (!LHS->getType()->isIntOrIntVector() &&
+    if (!LHS->getType()->isIntOrIntVectorTy() &&
         !isa<PointerType>(LHS->getType()))
       return Error(Loc, "icmp requires integer operands");
     Inst = new ICmpInst(CmpInst::Predicate(Pred), LHS, RHS);
@@ -3643,7 +3733,7 @@ int LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS,
     }
   }
 
-  if (Size && !Size->getType()->isInteger(32))
+  if (Size && !Size->getType()->isIntegerTy(32))
     return Error(SizeLoc, "element count must be i32");
 
   if (isAlloca) {
@@ -3783,8 +3873,8 @@ int LLParser::ParseExtractValue(Instruction *&Inst, PerFunctionState &PFS) {
       ParseIndexList(Indices, AteExtraComma))
     return true;
 
-  if (!isa<StructType>(Val->getType()) && !isa<ArrayType>(Val->getType()))
-    return Error(Loc, "extractvalue operand must be array or struct");
+  if (!Val->getType()->isAggregateType())
+    return Error(Loc, "extractvalue operand must be aggregate type");
 
   if (!ExtractValueInst::getIndexedType(Val->getType(), Indices.begin(),
                                         Indices.end()))
@@ -3805,8 +3895,8 @@ int LLParser::ParseInsertValue(Instruction *&Inst, PerFunctionState &PFS) {
       ParseIndexList(Indices, AteExtraComma))
     return true;
   
-  if (!isa<StructType>(Val0->getType()) && !isa<ArrayType>(Val0->getType()))
-    return Error(Loc0, "extractvalue operand must be array or struct");
+  if (!Val0->getType()->isAggregateType())
+    return Error(Loc0, "insertvalue operand must be aggregate type");
 
   if (!ExtractValueInst::getIndexedType(Val0->getType(), Indices.begin(),
                                         Indices.end()))

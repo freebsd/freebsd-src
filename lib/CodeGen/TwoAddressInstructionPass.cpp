@@ -213,6 +213,9 @@ bool TwoAddressInstructionPass::Sink3AddrInstruction(MachineBasicBlock *MBB,
   unsigned NumVisited = 0;
   for (MachineBasicBlock::iterator I = llvm::next(OldPos); I != KillPos; ++I) {
     MachineInstr *OtherMI = I;
+    // DBG_VALUE cannot be counted against the limit.
+    if (OtherMI->isDebugValue())
+      continue;
     if (NumVisited > 30)  // FIXME: Arbitrary limit to reduce compile time cost.
       return false;
     ++NumVisited;
@@ -316,7 +319,7 @@ bool TwoAddressInstructionPass::NoUseAfterLastDef(unsigned Reg,
          E = MRI->reg_end(); I != E; ++I) {
     MachineOperand &MO = I.getOperand();
     MachineInstr *MI = MO.getParent();
-    if (MI->getParent() != MBB)
+    if (MI->getParent() != MBB || MI->isDebugValue())
       continue;
     DenseMap<MachineInstr*, unsigned>::iterator DI = DistanceMap.find(MI);
     if (DI == DistanceMap.end())
@@ -339,7 +342,7 @@ MachineInstr *TwoAddressInstructionPass::FindLastUseInMBB(unsigned Reg,
          E = MRI->reg_end(); I != E; ++I) {
     MachineOperand &MO = I.getOperand();
     MachineInstr *MI = MO.getParent();
-    if (MI->getParent() != MBB)
+    if (MI->getParent() != MBB || MI->isDebugValue())
       continue;
     DenseMap<MachineInstr*, unsigned>::iterator DI = DistanceMap.find(MI);
     if (DI == DistanceMap.end())
@@ -365,13 +368,13 @@ static bool isCopyToReg(MachineInstr &MI, const TargetInstrInfo *TII,
   DstReg = 0;
   unsigned SrcSubIdx, DstSubIdx;
   if (!TII->isMoveInstr(MI, SrcReg, DstReg, SrcSubIdx, DstSubIdx)) {
-    if (MI.getOpcode() == TargetInstrInfo::EXTRACT_SUBREG) {
+    if (MI.isExtractSubreg()) {
       DstReg = MI.getOperand(0).getReg();
       SrcReg = MI.getOperand(1).getReg();
-    } else if (MI.getOpcode() == TargetInstrInfo::INSERT_SUBREG) {
+    } else if (MI.isInsertSubreg()) {
       DstReg = MI.getOperand(0).getReg();
       SrcReg = MI.getOperand(2).getReg();
-    } else if (MI.getOpcode() == TargetInstrInfo::SUBREG_TO_REG) {
+    } else if (MI.isSubregToReg()) {
       DstReg = MI.getOperand(0).getReg();
       SrcReg = MI.getOperand(2).getReg();
     }
@@ -429,8 +432,7 @@ static bool isKilled(MachineInstr &MI, unsigned Reg,
 /// as a two-address use. If so, return the destination register by reference.
 static bool isTwoAddrUse(MachineInstr &MI, unsigned Reg, unsigned &DstReg) {
   const TargetInstrDesc &TID = MI.getDesc();
-  unsigned NumOps = (MI.getOpcode() == TargetInstrInfo::INLINEASM)
-    ? MI.getNumOperands() : TID.getNumOperands();
+  unsigned NumOps = MI.isInlineAsm() ? MI.getNumOperands():TID.getNumOperands();
   for (unsigned i = 0; i != NumOps; ++i) {
     const MachineOperand &MO = MI.getOperand(i);
     if (!MO.isReg() || !MO.isUse() || MO.getReg() != Reg)
@@ -452,11 +454,11 @@ MachineInstr *findOnlyInterestingUse(unsigned Reg, MachineBasicBlock *MBB,
                                      const TargetInstrInfo *TII,
                                      bool &IsCopy,
                                      unsigned &DstReg, bool &IsDstPhys) {
-  MachineRegisterInfo::use_iterator UI = MRI->use_begin(Reg);
-  if (UI == MRI->use_end())
+  MachineRegisterInfo::use_nodbg_iterator UI = MRI->use_nodbg_begin(Reg);
+  if (UI == MRI->use_nodbg_end())
     return 0;
   MachineInstr &UseMI = *UI;
-  if (++UI != MRI->use_end())
+  if (++UI != MRI->use_nodbg_end())
     // More than one use.
     return 0;
   if (UseMI.getParent() != MBB)
@@ -924,6 +926,10 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &MF) {
     for (MachineBasicBlock::iterator mi = mbbi->begin(), me = mbbi->end();
          mi != me; ) {
       MachineBasicBlock::iterator nmi = llvm::next(mi);
+      if (mi->isDebugValue()) {
+        mi = nmi;
+        continue;
+      }
       const TargetInstrDesc &TID = mi->getDesc();
       bool FirstTied = true;
 
@@ -933,7 +939,7 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &MF) {
 
       // First scan through all the tied register uses in this instruction
       // and record a list of pairs of tied operands for each register.
-      unsigned NumOps = (mi->getOpcode() == TargetInstrInfo::INLINEASM)
+      unsigned NumOps = mi->isInlineAsm()
         ? mi->getNumOperands() : TID.getNumOperands();
       for (unsigned SrcIdx = 0; SrcIdx < NumOps; ++SrcIdx) {
         unsigned DstIdx = 0;

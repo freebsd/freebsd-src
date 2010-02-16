@@ -132,6 +132,14 @@ PseudoInst<(outs), (ins i32imm:$amt), NoItinerary,
            [(ARMcallseq_start imm:$amt)]>, Requires<[IsThumb1Only]>;
 }
 
+// The i32imm operand $val can be used by a debugger to store more information
+// about the breakpoint.
+def tBKPT : T1I<(outs), (ins i32imm:$val), NoItinerary, "bkpt\t$val",
+                [/* For disassembly only; pattern left blank */]>,
+            T1Encoding<0b101111> {
+  let Inst{9-8} = 0b10;
+}
+
 // For both thumb1 and thumb2.
 let isNotDuplicable = 1 in
 def tPICADD : TIt<(outs GPR:$dst), (ins GPR:$lhs, pclabel:$cp), IIC_iALUr,
@@ -775,7 +783,7 @@ def tMOVCCr : T1pIt<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs), IIC_iCMOVr,
                     "mov", "\t$dst, $rhs", []>,
               T1Special<{1,0,?,?}>;
 
-def tMOVCCi : T1pIt<(outs GPR:$dst), (ins GPR:$lhs, i32imm:$rhs), IIC_iCMOVi,
+def tMOVCCi : T1pIt<(outs tGPR:$dst), (ins tGPR:$lhs, i32imm:$rhs), IIC_iCMOVi,
                     "mov", "\t$dst, $rhs", []>,
               T1General<{1,0,0,?,?}>;
 
@@ -813,23 +821,20 @@ let isCall = 1,
 //   except for our own input by listing the relevant registers in Defs. By
 //   doing so, we also cause the prologue/epilogue code to actively preserve
 //   all of the callee-saved resgisters, which is exactly what we want.
+//   The current SP is passed in $val, and we reuse the reg as a scratch.
 let Defs =
   [ R0,  R1,  R2,  R3,  R4,  R5,  R6,  R7, R12 ] in {
-  def tInt_eh_sjlj_setjmp : ThumbXI<(outs), (ins GPR:$src),
+  def tInt_eh_sjlj_setjmp : ThumbXI<(outs),(ins tGPR:$src, tGPR:$val),
                               AddrModeNone, SizeSpecial, NoItinerary,
-                              "mov\tr12, r1\t@ begin eh.setjmp\n"
-                              "\tmov\tr1, sp\n"
-                              "\tstr\tr1, [$src, #8]\n"
-                              "\tadr\tr1, 0f\n"
-                              "\tadds\tr1, #1\n"
-                              "\tstr\tr1, [$src, #4]\n"
-                              "\tmov\tr1, r12\n"
+                              "str\t$val, [$src, #8]\t@ begin eh.setjmp\n"
+                              "\tmov\t$val, pc\n"
+                              "\tadds\t$val, #9\n"
+                              "\tstr\t$val, [$src, #4]\n"
                               "\tmovs\tr0, #0\n"
                               "\tb\t1f\n"
-                              ".align 2\n"
-                              "0:\tmovs\tr0, #1\t@ end eh.setjmp\n"
+                              "\tmovs\tr0, #1\t@ end eh.setjmp\n"
                               "1:", "",
-                              [(set R0, (ARMeh_sjlj_setjmp GPR:$src))]>;
+                   [(set R0, (ARMeh_sjlj_setjmp tGPR:$src, tGPR:$val))]>;
 }
 //===----------------------------------------------------------------------===//
 // Non-Instruction Patterns

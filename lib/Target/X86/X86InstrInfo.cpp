@@ -1060,8 +1060,7 @@ void X86InstrInfo::reMaterialize(MachineBasicBlock &MBB,
                                  unsigned DestReg, unsigned SubIdx,
                                  const MachineInstr *Orig,
                                  const TargetRegisterInfo *TRI) const {
-  DebugLoc DL = DebugLoc::getUnknownLoc();
-  if (I != MBB.end()) DL = I->getDebugLoc();
+  DebugLoc DL = MBB.findDebugLoc(I);
 
   if (SubIdx && TargetRegisterInfo::isPhysicalRegister(DestReg)) {
     DestReg = TRI->getSubReg(DestReg, SubIdx);
@@ -1588,44 +1587,44 @@ X86InstrInfo::commuteInstruction(MachineInstr *MI, bool NewMI) const {
 static X86::CondCode GetCondFromBranchOpc(unsigned BrOpc) {
   switch (BrOpc) {
   default: return X86::COND_INVALID;
-  case X86::JE:  return X86::COND_E;
-  case X86::JNE: return X86::COND_NE;
-  case X86::JL:  return X86::COND_L;
-  case X86::JLE: return X86::COND_LE;
-  case X86::JG:  return X86::COND_G;
-  case X86::JGE: return X86::COND_GE;
-  case X86::JB:  return X86::COND_B;
-  case X86::JBE: return X86::COND_BE;
-  case X86::JA:  return X86::COND_A;
-  case X86::JAE: return X86::COND_AE;
-  case X86::JS:  return X86::COND_S;
-  case X86::JNS: return X86::COND_NS;
-  case X86::JP:  return X86::COND_P;
-  case X86::JNP: return X86::COND_NP;
-  case X86::JO:  return X86::COND_O;
-  case X86::JNO: return X86::COND_NO;
+  case X86::JE_4:  return X86::COND_E;
+  case X86::JNE_4: return X86::COND_NE;
+  case X86::JL_4:  return X86::COND_L;
+  case X86::JLE_4: return X86::COND_LE;
+  case X86::JG_4:  return X86::COND_G;
+  case X86::JGE_4: return X86::COND_GE;
+  case X86::JB_4:  return X86::COND_B;
+  case X86::JBE_4: return X86::COND_BE;
+  case X86::JA_4:  return X86::COND_A;
+  case X86::JAE_4: return X86::COND_AE;
+  case X86::JS_4:  return X86::COND_S;
+  case X86::JNS_4: return X86::COND_NS;
+  case X86::JP_4:  return X86::COND_P;
+  case X86::JNP_4: return X86::COND_NP;
+  case X86::JO_4:  return X86::COND_O;
+  case X86::JNO_4: return X86::COND_NO;
   }
 }
 
 unsigned X86::GetCondBranchFromCond(X86::CondCode CC) {
   switch (CC) {
   default: llvm_unreachable("Illegal condition code!");
-  case X86::COND_E:  return X86::JE;
-  case X86::COND_NE: return X86::JNE;
-  case X86::COND_L:  return X86::JL;
-  case X86::COND_LE: return X86::JLE;
-  case X86::COND_G:  return X86::JG;
-  case X86::COND_GE: return X86::JGE;
-  case X86::COND_B:  return X86::JB;
-  case X86::COND_BE: return X86::JBE;
-  case X86::COND_A:  return X86::JA;
-  case X86::COND_AE: return X86::JAE;
-  case X86::COND_S:  return X86::JS;
-  case X86::COND_NS: return X86::JNS;
-  case X86::COND_P:  return X86::JP;
-  case X86::COND_NP: return X86::JNP;
-  case X86::COND_O:  return X86::JO;
-  case X86::COND_NO: return X86::JNO;
+  case X86::COND_E:  return X86::JE_4;
+  case X86::COND_NE: return X86::JNE_4;
+  case X86::COND_L:  return X86::JL_4;
+  case X86::COND_LE: return X86::JLE_4;
+  case X86::COND_G:  return X86::JG_4;
+  case X86::COND_GE: return X86::JGE_4;
+  case X86::COND_B:  return X86::JB_4;
+  case X86::COND_BE: return X86::JBE_4;
+  case X86::COND_A:  return X86::JA_4;
+  case X86::COND_AE: return X86::JAE_4;
+  case X86::COND_S:  return X86::JS_4;
+  case X86::COND_NS: return X86::JNS_4;
+  case X86::COND_P:  return X86::JP_4;
+  case X86::COND_NP: return X86::JNP_4;
+  case X86::COND_O:  return X86::JO_4;
+  case X86::COND_NO: return X86::JNO_4;
   }
 }
 
@@ -1695,7 +1694,7 @@ bool X86InstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
       return true;
 
     // Handle unconditional branches.
-    if (I->getOpcode() == X86::JMP) {
+    if (I->getOpcode() == X86::JMP_4) {
       if (!AllowModify) {
         TBB = I->getOperand(0).getMBB();
         continue;
@@ -1779,7 +1778,7 @@ unsigned X86InstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
 
   while (I != MBB.begin()) {
     --I;
-    if (I->getOpcode() != X86::JMP &&
+    if (I->getOpcode() != X86::JMP_4 &&
         GetCondFromBranchOpc(I->getOpcode()) == X86::COND_INVALID)
       break;
     // Remove the branch.
@@ -1805,7 +1804,7 @@ X86InstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
   if (Cond.empty()) {
     // Unconditional branch?
     assert(!FBB && "Unconditional branch with multiple successors!");
-    BuildMI(&MBB, dl, get(X86::JMP)).addMBB(TBB);
+    BuildMI(&MBB, dl, get(X86::JMP_4)).addMBB(TBB);
     return 1;
   }
 
@@ -1815,16 +1814,16 @@ X86InstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
   switch (CC) {
   case X86::COND_NP_OR_E:
     // Synthesize NP_OR_E with two branches.
-    BuildMI(&MBB, dl, get(X86::JNP)).addMBB(TBB);
+    BuildMI(&MBB, dl, get(X86::JNP_4)).addMBB(TBB);
     ++Count;
-    BuildMI(&MBB, dl, get(X86::JE)).addMBB(TBB);
+    BuildMI(&MBB, dl, get(X86::JE_4)).addMBB(TBB);
     ++Count;
     break;
   case X86::COND_NE_OR_P:
     // Synthesize NE_OR_P with two branches.
-    BuildMI(&MBB, dl, get(X86::JNE)).addMBB(TBB);
+    BuildMI(&MBB, dl, get(X86::JNE_4)).addMBB(TBB);
     ++Count;
-    BuildMI(&MBB, dl, get(X86::JP)).addMBB(TBB);
+    BuildMI(&MBB, dl, get(X86::JP_4)).addMBB(TBB);
     ++Count;
     break;
   default: {
@@ -1835,7 +1834,7 @@ X86InstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
   }
   if (FBB) {
     // Two-way Conditional branch. Insert the second branch.
-    BuildMI(&MBB, dl, get(X86::JMP)).addMBB(FBB);
+    BuildMI(&MBB, dl, get(X86::JMP_4)).addMBB(FBB);
     ++Count;
   }
   return Count;
@@ -1851,8 +1850,7 @@ bool X86InstrInfo::copyRegToReg(MachineBasicBlock &MBB,
                                 unsigned DestReg, unsigned SrcReg,
                                 const TargetRegisterClass *DestRC,
                                 const TargetRegisterClass *SrcRC) const {
-  DebugLoc DL = DebugLoc::getUnknownLoc();
-  if (MI != MBB.end()) DL = MI->getDebugLoc();
+  DebugLoc DL = MBB.findDebugLoc(MI);
 
   // Determine if DstRC and SrcRC have a common superclass in common.
   const TargetRegisterClass *CommonRC = DestRC;
@@ -2079,8 +2077,7 @@ void X86InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   const MachineFunction &MF = *MBB.getParent();
   bool isAligned = (RI.getStackAlignment() >= 16) || RI.canRealignStack(MF);
   unsigned Opc = getStoreRegOpcode(SrcReg, RC, isAligned, TM);
-  DebugLoc DL = DebugLoc::getUnknownLoc();
-  if (MI != MBB.end()) DL = MI->getDebugLoc();
+  DebugLoc DL = MBB.findDebugLoc(MI);
   addFrameReference(BuildMI(MBB, MI, DL, get(Opc)), FrameIdx)
     .addReg(SrcReg, getKillRegState(isKill));
 }
@@ -2173,8 +2170,7 @@ void X86InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   const MachineFunction &MF = *MBB.getParent();
   bool isAligned = (RI.getStackAlignment() >= 16) || RI.canRealignStack(MF);
   unsigned Opc = getLoadRegOpcode(DestReg, RC, isAligned, TM);
-  DebugLoc DL = DebugLoc::getUnknownLoc();
-  if (MI != MBB.end()) DL = MI->getDebugLoc();
+  DebugLoc DL = MBB.findDebugLoc(MI);
   addFrameReference(BuildMI(MBB, MI, DL, get(Opc), DestReg), FrameIdx);
 }
 
@@ -3018,22 +3014,11 @@ isSafeToMoveRegClassDefs(const TargetRegisterClass *RC) const {
            RC == &X86::RFP64RegClass || RC == &X86::RFP80RegClass);
 }
 
-unsigned X86InstrInfo::sizeOfImm(const TargetInstrDesc *Desc) {
-  switch (Desc->TSFlags & X86II::ImmMask) {
-  case X86II::Imm8:   return 1;
-  case X86II::Imm16:  return 2;
-  case X86II::Imm32:  return 4;
-  case X86II::Imm64:  return 8;
-  default: llvm_unreachable("Immediate size not set!");
-    return 0;
-  }
-}
 
-/// isX86_64ExtendedReg - Is the MachineOperand a x86-64 extended register?
-/// e.g. r8, xmm8, etc.
-bool X86InstrInfo::isX86_64ExtendedReg(const MachineOperand &MO) {
-  if (!MO.isReg()) return false;
-  switch (MO.getReg()) {
+/// isX86_64ExtendedReg - Is the MachineOperand a x86-64 extended (r8 or higher)
+/// register?  e.g. r8, xmm8, xmm13, etc.
+bool X86InstrInfo::isX86_64ExtendedReg(unsigned RegNo) {
+  switch (RegNo) {
   default: break;
   case X86::R8:    case X86::R9:    case X86::R10:   case X86::R11:
   case X86::R12:   case X86::R13:   case X86::R14:   case X86::R15:
@@ -3387,24 +3372,24 @@ static unsigned GetInstSizeWithDesc(const MachineInstr &MI,
     switch (Opcode) {
     default: 
       break;
-    case TargetInstrInfo::INLINEASM: {
+    case TargetOpcode::INLINEASM: {
       const MachineFunction *MF = MI.getParent()->getParent();
       const TargetInstrInfo &TII = *MF->getTarget().getInstrInfo();
       FinalSize += TII.getInlineAsmLength(MI.getOperand(0).getSymbolName(),
                                           *MF->getTarget().getMCAsmInfo());
       break;
     }
-    case TargetInstrInfo::DBG_LABEL:
-    case TargetInstrInfo::EH_LABEL:
+    case TargetOpcode::DBG_LABEL:
+    case TargetOpcode::EH_LABEL:
       break;
-    case TargetInstrInfo::IMPLICIT_DEF:
-    case TargetInstrInfo::KILL:
+    case TargetOpcode::IMPLICIT_DEF:
+    case TargetOpcode::KILL:
     case X86::FP_REG_KILL:
       break;
     case X86::MOVPC32r: {
       // This emits the "call" portion of this pseudo instruction.
       ++FinalSize;
-      FinalSize += sizeConstant(X86InstrInfo::sizeOfImm(Desc));
+      FinalSize += sizeConstant(X86II::getSizeOfImm(Desc->TSFlags));
       break;
     }
     }
@@ -3422,7 +3407,7 @@ static unsigned GetInstSizeWithDesc(const MachineInstr &MI,
       } else if (MO.isSymbol()) {
         FinalSize += sizeExternalSymbolAddress(false);
       } else if (MO.isImm()) {
-        FinalSize += sizeConstant(X86InstrInfo::sizeOfImm(Desc));
+        FinalSize += sizeConstant(X86II::getSizeOfImm(Desc->TSFlags));
       } else {
         llvm_unreachable("Unknown RawFrm operand!");
       }
@@ -3435,7 +3420,7 @@ static unsigned GetInstSizeWithDesc(const MachineInstr &MI,
     
     if (CurOp != NumOps) {
       const MachineOperand &MO1 = MI.getOperand(CurOp++);
-      unsigned Size = X86InstrInfo::sizeOfImm(Desc);
+      unsigned Size = X86II::getSizeOfImm(Desc->TSFlags);
       if (MO1.isImm())
         FinalSize += sizeConstant(Size);
       else {
@@ -3460,7 +3445,7 @@ static unsigned GetInstSizeWithDesc(const MachineInstr &MI,
     CurOp += 2;
     if (CurOp != NumOps) {
       ++CurOp;
-      FinalSize += sizeConstant(X86InstrInfo::sizeOfImm(Desc));
+      FinalSize += sizeConstant(X86II::getSizeOfImm(Desc->TSFlags));
     }
     break;
   }
@@ -3470,7 +3455,7 @@ static unsigned GetInstSizeWithDesc(const MachineInstr &MI,
     CurOp +=  X86AddrNumOperands + 1;
     if (CurOp != NumOps) {
       ++CurOp;
-      FinalSize += sizeConstant(X86InstrInfo::sizeOfImm(Desc));
+      FinalSize += sizeConstant(X86II::getSizeOfImm(Desc->TSFlags));
     }
     break;
   }
@@ -3481,7 +3466,7 @@ static unsigned GetInstSizeWithDesc(const MachineInstr &MI,
     CurOp += 2;
     if (CurOp != NumOps) {
       ++CurOp;
-      FinalSize += sizeConstant(X86InstrInfo::sizeOfImm(Desc));
+      FinalSize += sizeConstant(X86II::getSizeOfImm(Desc->TSFlags));
     }
     break;
 
@@ -3498,7 +3483,7 @@ static unsigned GetInstSizeWithDesc(const MachineInstr &MI,
     CurOp += AddrOperands + 1;
     if (CurOp != NumOps) {
       ++CurOp;
-      FinalSize += sizeConstant(X86InstrInfo::sizeOfImm(Desc));
+      FinalSize += sizeConstant(X86II::getSizeOfImm(Desc->TSFlags));
     }
     break;
   }
@@ -3523,7 +3508,7 @@ static unsigned GetInstSizeWithDesc(const MachineInstr &MI,
 
     if (CurOp != NumOps) {
       const MachineOperand &MO1 = MI.getOperand(CurOp++);
-      unsigned Size = X86InstrInfo::sizeOfImm(Desc);
+      unsigned Size = X86II::getSizeOfImm(Desc->TSFlags);
       if (MO1.isImm())
         FinalSize += sizeConstant(Size);
       else {
@@ -3553,7 +3538,7 @@ static unsigned GetInstSizeWithDesc(const MachineInstr &MI,
 
     if (CurOp != NumOps) {
       const MachineOperand &MO = MI.getOperand(CurOp++);
-      unsigned Size = X86InstrInfo::sizeOfImm(Desc);
+      unsigned Size = X86II::getSizeOfImm(Desc->TSFlags);
       if (MO.isImm())
         FinalSize += sizeConstant(Size);
       else {
@@ -3570,6 +3555,14 @@ static unsigned GetInstSizeWithDesc(const MachineInstr &MI,
           FinalSize += sizeJumpTableAddress(dword);
       }
     }
+    break;
+    
+  case X86II::MRM_C1:
+  case X86II::MRM_C8:
+  case X86II::MRM_C9:
+  case X86II::MRM_E8:
+  case X86II::MRM_F0:
+    FinalSize += 2;
     break;
   }
 
@@ -3619,8 +3612,7 @@ unsigned X86InstrInfo::getGlobalBaseReg(MachineFunction *MF) const {
   // Insert the set of GlobalBaseReg into the first MBB of the function
   MachineBasicBlock &FirstMBB = MF->front();
   MachineBasicBlock::iterator MBBI = FirstMBB.begin();
-  DebugLoc DL = DebugLoc::getUnknownLoc();
-  if (MBBI != FirstMBB.end()) DL = MBBI->getDebugLoc();
+  DebugLoc DL = FirstMBB.findDebugLoc(MBBI);
   MachineRegisterInfo &RegInfo = MF->getRegInfo();
   unsigned PC = RegInfo.createVirtualRegister(X86::GR32RegisterClass);
   

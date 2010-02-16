@@ -365,31 +365,33 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
   // the indices index into the element or field type selected by the
   // preceding index.
   for (;;) {
-    const SCEV *ElSize = SE.getAllocSizeExpr(ElTy);
     // If the scale size is not 0, attempt to factor out a scale for
     // array indexing.
     SmallVector<const SCEV *, 8> ScaledOps;
-    if (ElTy->isSized() && !ElSize->isZero()) {
-      SmallVector<const SCEV *, 8> NewOps;
-      for (unsigned i = 0, e = Ops.size(); i != e; ++i) {
-        const SCEV *Op = Ops[i];
-        const SCEV *Remainder = SE.getIntegerSCEV(0, Ty);
-        if (FactorOutConstant(Op, Remainder, ElSize, SE, SE.TD)) {
-          // Op now has ElSize factored out.
-          ScaledOps.push_back(Op);
-          if (!Remainder->isZero())
-            NewOps.push_back(Remainder);
-          AnyNonZeroIndices = true;
-        } else {
-          // The operand was not divisible, so add it to the list of operands
-          // we'll scan next iteration.
-          NewOps.push_back(Ops[i]);
+    if (ElTy->isSized()) {
+      const SCEV *ElSize = SE.getSizeOfExpr(ElTy);
+      if (!ElSize->isZero()) {
+        SmallVector<const SCEV *, 8> NewOps;
+        for (unsigned i = 0, e = Ops.size(); i != e; ++i) {
+          const SCEV *Op = Ops[i];
+          const SCEV *Remainder = SE.getIntegerSCEV(0, Ty);
+          if (FactorOutConstant(Op, Remainder, ElSize, SE, SE.TD)) {
+            // Op now has ElSize factored out.
+            ScaledOps.push_back(Op);
+            if (!Remainder->isZero())
+              NewOps.push_back(Remainder);
+            AnyNonZeroIndices = true;
+          } else {
+            // The operand was not divisible, so add it to the list of operands
+            // we'll scan next iteration.
+            NewOps.push_back(Ops[i]);
+          }
         }
-      }
-      // If we made any changes, update Ops.
-      if (!ScaledOps.empty()) {
-        Ops = NewOps;
-        SimplifyAddOperands(Ops, Ty, SE);
+        // If we made any changes, update Ops.
+        if (!ScaledOps.empty()) {
+          Ops = NewOps;
+          SimplifyAddOperands(Ops, Ty, SE);
+        }
       }
     }
 
@@ -427,22 +429,22 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
             }
           }
       } else {
-        // Without TargetData, just check for a SCEVFieldOffsetExpr of the
+        // Without TargetData, just check for an offsetof expression of the
         // appropriate struct type.
         for (unsigned i = 0, e = Ops.size(); i != e; ++i)
-          if (const SCEVFieldOffsetExpr *FO =
-                dyn_cast<SCEVFieldOffsetExpr>(Ops[i]))
-            if (FO->getStructType() == STy) {
-              unsigned FieldNo = FO->getFieldNo();
-              GepIndices.push_back(
-                  ConstantInt::get(Type::getInt32Ty(Ty->getContext()),
-                                   FieldNo));
-              ElTy = STy->getTypeAtIndex(FieldNo);
+          if (const SCEVUnknown *U = dyn_cast<SCEVUnknown>(Ops[i])) {
+            const Type *CTy;
+            Constant *FieldNo;
+            if (U->isOffsetOf(CTy, FieldNo) && CTy == STy) {
+              GepIndices.push_back(FieldNo);
+              ElTy =
+                STy->getTypeAtIndex(cast<ConstantInt>(FieldNo)->getZExtValue());
               Ops[i] = SE.getConstant(Ty, 0);
               AnyNonZeroIndices = true;
               FoundFieldNo = true;
               break;
             }
+          }
       }
       // If no struct field offsets were found, tentatively assume that
       // field zero was selected (since the zero offset would obviously
@@ -639,8 +641,52 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
   // Reuse a previously-inserted PHI, if present.
   for (BasicBlock::iterator I = L->getHeader()->begin();
        PHINode *PN = dyn_cast<PHINode>(I); ++I)
-    if (isInsertedInstruction(PN) && SE.getSCEV(PN) == Normalized)
-      return PN;
+    if (SE.isSCEVable(PN->getType()) &&
+        (SE.getEffectiveSCEVType(PN->getType()) ==
+         SE.getEffectiveSCEVType(Normalized->getType())) &&
+        SE.getSCEV(PN) == Normalized)
+      if (BasicBlock *LatchBlock = L->getLoopLatch()) {
+        Instruction *IncV =
+          cast<Instruction>(PN->getIncomingValueForBlock(LatchBlock));
+
+        // Determine if this is a well-behaved chain of instructions leading
+        // back to the PHI. It probably will be, if we're scanning an inner
+        // loop already visited by LSR for example, but it wouldn't have
+        // to be.
+        do {
+          if (IncV->getNumOperands() == 0 || isa<PHINode>(IncV)) {
+            IncV = 0;
+            break;
+          }
+          IncV = dyn_cast<Instruction>(IncV->getOperand(0));
+          if (!IncV)
+            break;
+          if (IncV->mayHaveSideEffects()) {
+            IncV = 0;
+            break;
+          }
+        } while (IncV != PN);
+
+        if (IncV) {
+          // Ok, the add recurrence looks usable.
+          // Remember this PHI, even in post-inc mode.
+          InsertedValues.insert(PN);
+          // Remember the increment.
+          IncV = cast<Instruction>(PN->getIncomingValueForBlock(LatchBlock));
+          rememberInstruction(IncV);
+          if (L == IVIncInsertLoop)
+            do {
+              if (SE.DT->dominates(IncV, IVIncInsertPos))
+                break;
+              // Make sure the increment is where we want it. But don't move it
+              // down past a potential existing post-inc user.
+              IncV->moveBefore(IVIncInsertPos);
+              IVIncInsertPos = IncV;
+              IncV = cast<Instruction>(IncV->getOperand(0));
+            } while (IncV != PN);
+          return PN;
+        }
+      }
 
   // Save the original insertion point so we can restore it when we're done.
   BasicBlock *SaveInsertBB = Builder.GetInsertBlock();
@@ -711,7 +757,7 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
 
   // Restore the original insert point.
   if (SaveInsertBB)
-    Builder.SetInsertPoint(SaveInsertBB, SaveInsertPt);
+    restoreInsertPoint(SaveInsertBB, SaveInsertPt);
 
   // Remember this PHI, even in post-inc mode.
   InsertedValues.insert(PN);
@@ -774,6 +820,7 @@ Value *SCEVExpander::expandAddRecExprLiterally(const SCEVAddRecExpr *S) {
 
   // Re-apply any non-loop-dominating scale.
   if (PostLoopScale) {
+    Result = InsertNoopCastOfTo(Result, IntTy);
     Result = Builder.CreateMul(Result,
                                expandCodeFor(PostLoopScale, IntTy));
     rememberInstruction(Result);
@@ -785,6 +832,7 @@ Value *SCEVExpander::expandAddRecExprLiterally(const SCEVAddRecExpr *S) {
       const SCEV *const OffsetArray[1] = { PostLoopOffset };
       Result = expandAddToGEP(OffsetArray, OffsetArray+1, PTy, IntTy, Result);
     } else {
+      Result = InsertNoopCastOfTo(Result, IntTy);
       Result = Builder.CreateAdd(Result,
                                  expandCodeFor(PostLoopOffset, IntTy));
       rememberInstruction(Result);
@@ -825,7 +873,7 @@ Value *SCEVExpander::visitAddRecExpr(const SCEVAddRecExpr *S) {
     while (isa<PHINode>(NewInsertPt)) ++NewInsertPt;
     V = expandCodeFor(SE.getTruncateExpr(SE.getUnknown(V), Ty), 0,
                       NewInsertPt);
-    Builder.SetInsertPoint(SaveInsertBB, SaveInsertPt);
+    restoreInsertPoint(SaveInsertBB, SaveInsertPt);
     return V;
   }
 
@@ -1001,14 +1049,6 @@ Value *SCEVExpander::visitUMaxExpr(const SCEVUMaxExpr *S) {
   return LHS;
 }
 
-Value *SCEVExpander::visitFieldOffsetExpr(const SCEVFieldOffsetExpr *S) {
-  return ConstantExpr::getOffsetOf(S->getStructType(), S->getFieldNo());
-}
-
-Value *SCEVExpander::visitAllocSizeExpr(const SCEVAllocSizeExpr *S) {
-  return ConstantExpr::getSizeOf(S->getAllocType());
-}
-
 Value *SCEVExpander::expandCodeFor(const SCEV *SH, const Type *Ty) {
   // Expand the code for this SCEV.
   Value *V = expand(SH);
@@ -1059,8 +1099,30 @@ Value *SCEVExpander::expand(const SCEV *S) {
   if (!PostIncLoop)
     InsertedExpressions[std::make_pair(S, InsertPt)] = V;
 
-  Builder.SetInsertPoint(SaveInsertBB, SaveInsertPt);
+  restoreInsertPoint(SaveInsertBB, SaveInsertPt);
   return V;
+}
+
+void SCEVExpander::rememberInstruction(Value *I) {
+  if (!PostIncLoop)
+    InsertedValues.insert(I);
+
+  // If we just claimed an existing instruction and that instruction had
+  // been the insert point, adjust the insert point forward so that 
+  // subsequently inserted code will be dominated.
+  if (Builder.GetInsertPoint() == I) {
+    BasicBlock::iterator It = cast<Instruction>(I);
+    do { ++It; } while (isInsertedInstruction(It));
+    Builder.SetInsertPoint(Builder.GetInsertBlock(), It);
+  }
+}
+
+void SCEVExpander::restoreInsertPoint(BasicBlock *BB, BasicBlock::iterator I) {
+  // If we aquired more instructions since the old insert point was saved,
+  // advance past them.
+  while (isInsertedInstruction(I)) ++I;
+
+  Builder.SetInsertPoint(BB, I);
 }
 
 /// getOrInsertCanonicalInductionVariable - This method returns the
@@ -1070,13 +1132,13 @@ Value *SCEVExpander::expand(const SCEV *S) {
 Value *
 SCEVExpander::getOrInsertCanonicalInductionVariable(const Loop *L,
                                                     const Type *Ty) {
-  assert(Ty->isInteger() && "Can only insert integer induction variables!");
+  assert(Ty->isIntegerTy() && "Can only insert integer induction variables!");
   const SCEV *H = SE.getAddRecExpr(SE.getIntegerSCEV(0, Ty),
                                    SE.getIntegerSCEV(1, Ty), L);
   BasicBlock *SaveInsertBB = Builder.GetInsertBlock();
   BasicBlock::iterator SaveInsertPt = Builder.GetInsertPoint();
   Value *V = expandCodeFor(H, 0, L->getHeader()->begin());
   if (SaveInsertBB)
-    Builder.SetInsertPoint(SaveInsertBB, SaveInsertPt);
+    restoreInsertPoint(SaveInsertBB, SaveInsertPt);
   return V;
 }

@@ -87,6 +87,10 @@ private:
   /// model the GCC inline asm '&' constraint modifier.
   bool IsEarlyClobber : 1;
 
+  /// IsDebug - True if this MO_Register 'use' operand is in a debug pseudo,
+  /// not a real instruction.  Such uses should be ignored during codegen.
+  bool IsDebug : 1;
+
   /// ParentMI - This is the instruction that this operand is embedded into. 
   /// This is valid for all operand types, when the operand is in an instr.
   MachineInstr *ParentMI;
@@ -214,6 +218,11 @@ public:
     return IsEarlyClobber;
   }
 
+  bool isDebug() const {
+    assert(isReg() && "Wrong MachineOperand accessor");
+    return IsDebug;
+  }
+
   /// getNextOperandForReg - Return the next MachineOperand in the function that
   /// uses or defines this register.
   MachineOperand *getNextOperandForReg() const {
@@ -236,11 +245,13 @@ public:
   
   void setIsUse(bool Val = true) {
     assert(isReg() && "Wrong MachineOperand accessor");
+    assert((Val || !isDebug()) && "Marking a debug operation as def");
     IsDef = !Val;
   }
   
   void setIsDef(bool Val = true) {
     assert(isReg() && "Wrong MachineOperand accessor");
+    assert((!Val || !isDebug()) && "Marking a debug operation as def");
     IsDef = Val;
   }
 
@@ -251,6 +262,7 @@ public:
 
   void setIsKill(bool Val = true) {
     assert(isReg() && !IsDef && "Wrong MachineOperand accessor");
+    assert((!Val || !isDebug()) && "Marking a debug operation as kill");
     IsKill = Val;
   }
   
@@ -366,7 +378,7 @@ public:
   /// the setReg method should be used.
   void ChangeToRegister(unsigned Reg, bool isDef, bool isImp = false,
                         bool isKill = false, bool isDead = false,
-                        bool isUndef = false);
+                        bool isUndef = false, bool isDebug = false);
   
   //===--------------------------------------------------------------------===//
   // Construction methods.
@@ -388,7 +400,8 @@ public:
                                   bool isKill = false, bool isDead = false,
                                   bool isUndef = false,
                                   bool isEarlyClobber = false,
-                                  unsigned SubReg = 0) {
+                                  unsigned SubReg = 0,
+                                  bool isDebug = false) {
     MachineOperand Op(MachineOperand::MO_Register);
     Op.IsDef = isDef;
     Op.IsImp = isImp;
@@ -396,6 +409,7 @@ public:
     Op.IsDead = isDead;
     Op.IsUndef = isUndef;
     Op.IsEarlyClobber = isEarlyClobber;
+    Op.IsDebug = isDebug;
     Op.Contents.Reg.RegNo = Reg;
     Op.Contents.Reg.Prev = 0;
     Op.Contents.Reg.Next = 0;

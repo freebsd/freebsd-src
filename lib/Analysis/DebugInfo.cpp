@@ -725,6 +725,29 @@ DIBasicType DIFactory::CreateBasicTypeEx(DIDescriptor Context,
   return DIBasicType(MDNode::get(VMContext, &Elts[0], 10));
 }
 
+/// CreateArtificialType - Create a new DIType with "artificial" flag set.
+DIType DIFactory::CreateArtificialType(DIType Ty) {
+  if (Ty.isArtificial())
+    return Ty;
+
+  SmallVector<Value *, 9> Elts;
+  MDNode *N = Ty.getNode();
+  assert (N && "Unexpected input DIType!");
+  for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
+    if (Value *V = N->getOperand(i))
+      Elts.push_back(V);
+    else
+      Elts.push_back(Constant::getNullValue(Type::getInt32Ty(VMContext)));
+  }
+
+  unsigned CurFlags = Ty.getFlags();
+  CurFlags = CurFlags | DIType::FlagArtificial;
+
+  // Flags are stored at this slot.
+  Elts[8] =  ConstantInt::get(Type::getInt32Ty(VMContext), CurFlags);
+
+  return DIType(MDNode::get(VMContext, Elts.data(), Elts.size()));
+}
 
 /// CreateDerivedType - Create a derived type like const qualified type,
 /// pointer, typedef, etc.
@@ -794,7 +817,8 @@ DICompositeType DIFactory::CreateCompositeType(unsigned Tag,
                                                unsigned Flags,
                                                DIType DerivedFrom,
                                                DIArray Elements,
-                                               unsigned RuntimeLang) {
+                                               unsigned RuntimeLang,
+                                               MDNode *ContainingType) {
 
   Value *Elts[] = {
     GetTagConstant(Tag),
@@ -808,9 +832,10 @@ DICompositeType DIFactory::CreateCompositeType(unsigned Tag,
     ConstantInt::get(Type::getInt32Ty(VMContext), Flags),
     DerivedFrom.getNode(),
     Elements.getNode(),
-    ConstantInt::get(Type::getInt32Ty(VMContext), RuntimeLang)
+    ConstantInt::get(Type::getInt32Ty(VMContext), RuntimeLang),
+    ContainingType
   };
-  return DICompositeType(MDNode::get(VMContext, &Elts[0], 12));
+  return DICompositeType(MDNode::get(VMContext, &Elts[0], 13));
 }
 
 
@@ -858,7 +883,8 @@ DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
                                          bool isLocalToUnit,
                                          bool isDefinition,
                                          unsigned VK, unsigned VIndex,
-                                         DIType ContainingType) {
+                                         DIType ContainingType,
+                                         bool isArtificial) {
 
   Value *Elts[] = {
     GetTagConstant(dwarf::DW_TAG_subprogram),
@@ -874,9 +900,10 @@ DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
     ConstantInt::get(Type::getInt1Ty(VMContext), isDefinition),
     ConstantInt::get(Type::getInt32Ty(VMContext), (unsigned)VK),
     ConstantInt::get(Type::getInt32Ty(VMContext), VIndex),
-    ContainingType.getNode()
+    ContainingType.getNode(),
+    ConstantInt::get(Type::getInt1Ty(VMContext), isArtificial)
   };
-  return DISubprogram(MDNode::get(VMContext, &Elts[0], 14));
+  return DISubprogram(MDNode::get(VMContext, &Elts[0], 15));
 }
 
 /// CreateSubprogramDefinition - Create new subprogram descriptor for the
@@ -900,9 +927,10 @@ DISubprogram DIFactory::CreateSubprogramDefinition(DISubprogram &SPDeclaration) 
     ConstantInt::get(Type::getInt1Ty(VMContext), true),
     DeclNode->getOperand(11), // Virtuality
     DeclNode->getOperand(12), // VIndex
-    DeclNode->getOperand(13)  // Containting Type
+    DeclNode->getOperand(13), // Containting Type
+    DeclNode->getOperand(14)  // isArtificial
   };
-  return DISubprogram(MDNode::get(VMContext, &Elts[0], 14));
+  return DISubprogram(MDNode::get(VMContext, &Elts[0], 15));
 }
 
 /// CreateGlobalVariable - Create a new descriptor for the specified global.
@@ -1033,6 +1061,8 @@ DILocation DIFactory::CreateLocation(unsigned LineNo, unsigned ColumnNo,
 /// InsertDeclare - Insert a new llvm.dbg.declare intrinsic call.
 Instruction *DIFactory::InsertDeclare(Value *Storage, DIVariable D,
                                       Instruction *InsertBefore) {
+  assert(Storage && "no storage passed to dbg.declare");
+  assert(D.getNode() && "empty DIVariable passed to dbg.declare");
   if (!DeclareFn)
     DeclareFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_declare);
 
@@ -1044,19 +1074,27 @@ Instruction *DIFactory::InsertDeclare(Value *Storage, DIVariable D,
 /// InsertDeclare - Insert a new llvm.dbg.declare intrinsic call.
 Instruction *DIFactory::InsertDeclare(Value *Storage, DIVariable D,
                                       BasicBlock *InsertAtEnd) {
+  assert(Storage && "no storage passed to dbg.declare");
+  assert(D.getNode() && "empty DIVariable passed to dbg.declare");
   if (!DeclareFn)
     DeclareFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_declare);
 
   Value *Args[] = { MDNode::get(Storage->getContext(), &Storage, 1),
                     D.getNode() };
-  return CallInst::Create(DeclareFn, Args, Args+2, "", InsertAtEnd);
-}
+
+  // If this block already has a terminator then insert this intrinsic
+  // before the terminator.
+  if (TerminatorInst *T = InsertAtEnd->getTerminator()) 
+    return CallInst::Create(DeclareFn, Args, Args+2, "", T);
+  else
+    return CallInst::Create(DeclareFn, Args, Args+2, "", InsertAtEnd);}
 
 /// InsertDbgValueIntrinsic - Insert a new llvm.dbg.value intrinsic call.
 Instruction *DIFactory::InsertDbgValueIntrinsic(Value *V, uint64_t Offset,
                                                 DIVariable D,
                                                 Instruction *InsertBefore) {
   assert(V && "no value passed to dbg.value");
+  assert(D.getNode() && "empty DIVariable passed to dbg.value");
   if (!ValueFn)
     ValueFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_value);
 
@@ -1071,6 +1109,7 @@ Instruction *DIFactory::InsertDbgValueIntrinsic(Value *V, uint64_t Offset,
                                                 DIVariable D,
                                                 BasicBlock *InsertAtEnd) {
   assert(V && "no value passed to dbg.value");
+  assert(D.getNode() && "empty DIVariable passed to dbg.value");
   if (!ValueFn)
     ValueFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_value);
 

@@ -336,13 +336,18 @@ ComputeValueKnownInPredecessors(Value *V, BasicBlock *BB,PredValueInfo &Result){
       else
         InterestingVal = ConstantInt::getFalse(I->getContext());
       
-      // Scan for the sentinel.
+      // Scan for the sentinel.  If we find an undef, force it to the
+      // interesting value: x|undef -> true and x&undef -> false.
       for (unsigned i = 0, e = LHSVals.size(); i != e; ++i)
-        if (LHSVals[i].first == InterestingVal || LHSVals[i].first == 0)
+        if (LHSVals[i].first == InterestingVal || LHSVals[i].first == 0) {
           Result.push_back(LHSVals[i]);
+          Result.back().first = InterestingVal;
+        }
       for (unsigned i = 0, e = RHSVals.size(); i != e; ++i)
-        if (RHSVals[i].first == InterestingVal || RHSVals[i].first == 0)
+        if (RHSVals[i].first == InterestingVal || RHSVals[i].first == 0) {
           Result.push_back(RHSVals[i]);
+          Result.back().first = InterestingVal;
+        }
       return !Result.empty();
     }
     
@@ -400,7 +405,7 @@ ComputeValueKnownInPredecessors(Value *V, BasicBlock *BB,PredValueInfo &Result){
     // If comparing a live-in value against a constant, see if we know the
     // live-in value on any predecessors.
     if (LVI && isa<Constant>(Cmp->getOperand(1)) &&
-        Cmp->getType()->isInteger() && // Not vector compare.
+        Cmp->getType()->isIntegerTy() && // Not vector compare.
         (!isa<Instruction>(Cmp->getOperand(0)) ||
          cast<Instruction>(Cmp->getOperand(0))->getParent() != BB)) {
       Constant *RHSCst = cast<Constant>(Cmp->getOperand(1));
@@ -451,6 +456,12 @@ static unsigned GetBestDestForJumpOnUndef(BasicBlock *BB) {
 /// ProcessBlock - If there are any predecessors whose control can be threaded
 /// through to a successor, transform them now.
 bool JumpThreading::ProcessBlock(BasicBlock *BB) {
+  // If the block is trivially dead, just return and let the caller nuke it.
+  // This simplifies other transformations.
+  if (pred_begin(BB) == pred_end(BB) &&
+      BB != &BB->getParent()->getEntryBlock())
+    return false;
+  
   // If this block has a single predecessor, and if that pred has a single
   // successor, merge the blocks.  This encourages recursive jump threading
   // because now the condition in this block can be threaded through
@@ -1117,6 +1128,11 @@ bool JumpThreading::ProcessBranchOnXOR(BinaryOperator *BO) {
       isa<ConstantInt>(BO->getOperand(1)))
     return false;
   
+  // If the first instruction in BB isn't a phi, we won't be able to infer
+  // anything special about any particular predecessor.
+  if (!isa<PHINode>(BB->front()))
+    return false;
+  
   // If we have a xor as the branch input to this block, and we know that the
   // LHS or RHS of the xor in any predecessor is true/false, then we can clone
   // the condition into the predecessor and fix that value to true, saving some
@@ -1172,6 +1188,26 @@ bool JumpThreading::ProcessBranchOnXOR(BinaryOperator *BO) {
     if (XorOpValues[i].first != SplitVal && XorOpValues[i].first != 0) continue;
 
     BlocksToFoldInto.push_back(XorOpValues[i].second);
+  }
+  
+  // If we inferred a value for all of the predecessors, then duplication won't
+  // help us.  However, we can just replace the LHS or RHS with the constant.
+  if (BlocksToFoldInto.size() ==
+      cast<PHINode>(BB->front()).getNumIncomingValues()) {
+    if (SplitVal == 0) {
+      // If all preds provide undef, just nuke the xor, because it is undef too.
+      BO->replaceAllUsesWith(UndefValue::get(BO->getType()));
+      BO->eraseFromParent();
+    } else if (SplitVal->isZero()) {
+      // If all preds provide 0, replace the xor with the other input.
+      BO->replaceAllUsesWith(BO->getOperand(isLHS));
+      BO->eraseFromParent();
+    } else {
+      // If all preds provide 1, set the computed value to 1.
+      BO->setOperand(!isLHS, SplitVal);
+    }
+    
+    return true;
   }
   
   // Try to duplicate BB into PredBB.
@@ -1393,9 +1429,9 @@ bool JumpThreading::DuplicateCondBranchOnPHIIntoPred(BasicBlock *BB,
   
   // Unless PredBB ends with an unconditional branch, split the edge so that we
   // can just clone the bits from BB into the end of the new PredBB.
-  BranchInst *OldPredBranch = cast<BranchInst>(PredBB->getTerminator());
+  BranchInst *OldPredBranch = dyn_cast<BranchInst>(PredBB->getTerminator());
   
-  if (!OldPredBranch->isUnconditional()) {
+  if (OldPredBranch == 0 || !OldPredBranch->isUnconditional()) {
     PredBB = SplitEdge(PredBB, BB, this);
     OldPredBranch = cast<BranchInst>(PredBB->getTerminator());
   }

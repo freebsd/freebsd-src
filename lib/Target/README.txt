@@ -156,6 +156,45 @@ void f () {  /* this can be optimized to four additions... */
 This requires reassociating to forms of expressions that are already available,
 something that reassoc doesn't think about yet.
 
+
+//===---------------------------------------------------------------------===//
+
+This function: (derived from GCC PR19988)
+double foo(double x, double y) {
+  return ((x + 0.1234 * y) * (x + -0.1234 * y));
+}
+
+compiles to:
+_foo:
+	movapd	%xmm1, %xmm2
+	mulsd	LCPI1_1(%rip), %xmm1
+	mulsd	LCPI1_0(%rip), %xmm2
+	addsd	%xmm0, %xmm1
+	addsd	%xmm0, %xmm2
+	movapd	%xmm1, %xmm0
+	mulsd	%xmm2, %xmm0
+	ret
+
+Reassociate should be able to turn it into:
+
+double foo(double x, double y) {
+  return ((x + 0.1234 * y) * (x - 0.1234 * y));
+}
+
+Which allows the multiply by constant to be CSE'd, producing:
+
+_foo:
+	mulsd	LCPI1_0(%rip), %xmm1
+	movapd	%xmm1, %xmm2
+	addsd	%xmm0, %xmm2
+	subsd	%xmm1, %xmm0
+	mulsd	%xmm2, %xmm0
+	ret
+
+This doesn't need -ffast-math support at all.  This is particularly bad because
+the llvm-gcc frontend is canonicalizing the later into the former, but clang
+doesn't have this problem.
+
 //===---------------------------------------------------------------------===//
 
 These two functions should generate the same code on big-endian systems:
@@ -237,24 +276,6 @@ define void @test(i32* %P) {
 
 //===---------------------------------------------------------------------===//
 
-dag/inst combine "clz(x)>>5 -> x==0" for 32-bit x.
-
-Compile:
-
-int bar(int x)
-{
-  int t = __builtin_clz(x);
-  return -(t>>5);
-}
-
-to:
-
-_bar:   addic r3,r3,-1
-        subfe r3,r3,r3
-        blr
-
-//===---------------------------------------------------------------------===//
-
 quantum_sigma_x in 462.libquantum contains the following loop:
 
       for(i=0; i<reg->size; i++)
@@ -293,6 +314,8 @@ unsigned long reverse(unsigned v) {
 }
 
 //===---------------------------------------------------------------------===//
+
+[LOOP RECOGNITION]
 
 These idioms should be recognized as popcount (see PR1488):
 
@@ -356,9 +379,33 @@ this construct.
 
 //===---------------------------------------------------------------------===//
 
+[LOOP RECOGNITION]
+
 viterbi speeds up *significantly* if the various "history" related copy loops
 are turned into memcpy calls at the source level.  We need a "loops to memcpy"
 pass.
+
+//===---------------------------------------------------------------------===//
+
+[LOOP OPTIMIZATION]
+
+SingleSource/Benchmarks/Misc/dt.c shows several interesting optimization
+opportunities in its double_array_divs_variable function: it needs loop
+interchange, memory promotion (which LICM already does), vectorization and
+variable trip count loop unrolling (since it has a constant trip count). ICC
+apparently produces this very nice code with -ffast-math:
+
+..B1.70:                        # Preds ..B1.70 ..B1.69
+       mulpd     %xmm0, %xmm1                                  #108.2
+       mulpd     %xmm0, %xmm1                                  #108.2
+       mulpd     %xmm0, %xmm1                                  #108.2
+       mulpd     %xmm0, %xmm1                                  #108.2
+       addl      $8, %edx                                      #
+       cmpl      $131072, %edx                                 #108.2
+       jb        ..B1.70       # Prob 99%                      #108.2
+
+It would be better to count down to zero, but this is a lot better than what we
+do.
 
 //===---------------------------------------------------------------------===//
 
@@ -1218,8 +1265,15 @@ store->load.
 
 //===---------------------------------------------------------------------===//
 
+[ALIAS ANALYSIS]
+
 Type based alias analysis:
 http://gcc.gnu.org/bugzilla/show_bug.cgi?id=14705
+
+We should do better analysis of posix_memalign.  At the least it should
+no-capture its pointer argument, at best, we should know that the out-value
+result doesn't point to anything (like malloc).  One example of this is in
+SingleSource/Benchmarks/Misc/dt.c
 
 //===---------------------------------------------------------------------===//
 
@@ -1697,22 +1751,71 @@ from gcc.
 Missed instcombine transformation:
 define i32 @a(i32 %x) nounwind readnone {
 entry:
-  %shr = lshr i32 %x, 5                           ; <i32> [#uses=1]
-  %xor = xor i32 %shr, 67108864                   ; <i32> [#uses=1]
-  %sub = add i32 %xor, -67108864                  ; <i32> [#uses=1]
-  ret i32 %sub
+  %rem = srem i32 %x, 32
+  %shl = shl i32 1, %rem
+  ret i32 %shl
 }
 
-This function is equivalent to "ashr i32 %x, 5".  Testcase derived from gcc.
+The srem can be transformed to an and because if x is negative, the shift is
+undefined. Testcase derived from gcc.
 
 //===---------------------------------------------------------------------===//
 
-isSafeToLoadUnconditionally should allow a GEP of a global/alloca with constant
-indicies within the bounds of the allocated object. Reduced example:
+Missed instcombine/dagcombine transformation:
+define i32 @a(i32 %x, i32 %y) nounwind readnone {
+entry:
+  %mul = mul i32 %y, -8
+  %sub = sub i32 %x, %mul
+  ret i32 %sub
+}
 
-const int a[] = {3,6};
-int b(int y) { int* x = y ? &a[0] : &a[1]; return *x; }
+Should compile to something like x+y*8, but currently compiles to an
+inefficient result.  Testcase derived from gcc.
 
-All the loads should be eliminated.  Testcase derived from gcc.
+//===---------------------------------------------------------------------===//
+
+Missed instcombine/dagcombine transformation:
+define void @lshift_lt(i8 zeroext %a) nounwind {
+entry:
+  %conv = zext i8 %a to i32
+  %shl = shl i32 %conv, 3
+  %cmp = icmp ult i32 %shl, 33
+  br i1 %cmp, label %if.then, label %if.end
+
+if.then:
+  tail call void @bar() nounwind
+  ret void
+
+if.end:
+  ret void
+}
+declare void @bar() nounwind
+
+The shift should be eliminated.  Testcase derived from gcc.
+
+//===---------------------------------------------------------------------===//
+
+These compile into different code, one gets recognized as a switch and the
+other doesn't due to phase ordering issues (PR6212):
+
+int test1(int mainType, int subType) {
+  if (mainType == 7)
+    subType = 4;
+  else if (mainType == 9)
+    subType = 6;
+  else if (mainType == 11)
+    subType = 9;
+  return subType;
+}
+
+int test2(int mainType, int subType) {
+  if (mainType == 7)
+    subType = 4;
+  if (mainType == 9)
+    subType = 6;
+  if (mainType == 11)
+    subType = 9;
+  return subType;
+}
 
 //===---------------------------------------------------------------------===//

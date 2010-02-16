@@ -47,17 +47,6 @@ namespace llvm {
     /// emitted in Static relocation model.
     bool HasStaticCtorDtorReferenceInStaticMode;  // Default is false.
     
-    /// NeedsSet - True if target asm treats expressions in data directives
-    /// as linktime-relocatable.  For assembly-time computation, we need to
-    /// use a .set.  Thus:
-    /// .set w, x-y
-    /// .long w
-    /// is computed at assembly time, while
-    /// .long x-y
-    /// is relocated if the relative locations of x and y change at linktime.
-    /// We want both these things in different places.
-    bool NeedsSet;                           // Defaults to false.
-    
     /// MaxInstLength - This is the maximum possible length of an instruction,
     /// which is needed to compute the size of an inline asm.
     unsigned MaxInstLength;                  // Defaults to 4.
@@ -73,7 +62,7 @@ namespace llvm {
 
     /// CommentColumn - This indicates the comment num (zero-based) at
     /// which asm comments should be printed.
-    unsigned CommentColumn;                  // Defaults to 60
+    unsigned CommentColumn;                  // Defaults to 40
 
     /// CommentString - This indicates the comment character used by the
     /// assembler.
@@ -134,6 +123,11 @@ namespace llvm {
     const char *Data32bitsDirective;         // Defaults to "\t.long\t"
     const char *Data64bitsDirective;         // Defaults to "\t.quad\t"
 
+    /// GPRel32Directive - if non-null, a directive that is used to emit a word
+    /// which should be relocated as a 32-bit GP-relative offset, e.g. .gpword
+    /// on Mips or .gprel32 on Alpha.
+    const char *GPRel32Directive;            // Defaults to NULL.
+    
     /// getDataASDirective - Return the directive that should be used to emit
     /// data of the specified size to the specified numeric address space.
     virtual const char *getDataASDirective(unsigned Size, unsigned AS) const {
@@ -168,14 +162,6 @@ namespace llvm {
     /// space created as the result of a alignment directive.
     unsigned TextAlignFillValue;             // Defaults to 0
 
-    //===--- Section Switching Directives ---------------------------------===//
-    
-    /// JumpTableDirective - if non-null, the directive to emit before jump
-    /// table entries.  FIXME: REMOVE THIS.
-    const char *JumpTableDirective;          // Defaults to NULL.
-    const char *PICJumpTableDirective;       // Defaults to NULL.
-
-
     //===--- Global Variable Emission Directives --------------------------===//
     
     /// GlobalDirective - This is the directive used to declare a global entity.
@@ -187,17 +173,16 @@ namespace llvm {
     ///
     const char *ExternDirective;             // Defaults to NULL.
     
-    /// SetDirective - This is the name of a directive that can be used to tell
-    /// the assembler to set the value of a variable to some expression.
-    const char *SetDirective;                // Defaults to null.
+    /// HasSetDirective - True if the assembler supports the .set directive.
+    bool HasSetDirective;                    // Defaults to true.
     
     /// HasLCOMMDirective - This is true if the target supports the .lcomm
     /// directive.
-    bool HasLCOMMDirective;              // Defaults to false.
+    bool HasLCOMMDirective;                  // Defaults to false.
     
-    /// COMMDirectiveTakesAlignment - True if COMMDirective take a third
-    /// argument that specifies the alignment of the declaration.
-    bool COMMDirectiveTakesAlignment;        // Defaults to true.
+    /// COMMDirectiveAlignmentIsInBytes - True is COMMDirective's optional
+    /// alignment is to be specified in bytes instead of log2(n).
+    bool COMMDirectiveAlignmentIsInBytes;    // Defaults to true;
     
     /// HasDotTypeDotSizeDirective - True if the target has .type and .size
     /// directives, this is true for most ELF targets.
@@ -305,6 +290,7 @@ namespace llvm {
     const char *getData64bitsDirective(unsigned AS = 0) const {
       return AS == 0 ? Data64bitsDirective : getDataASDirective(64, AS);
     }
+    const char *getGPRel32Directive() const { return GPRel32Directive; }
 
     /// getNonexecutableStackSection - Targets can implement this method to
     /// specify a section to switch to if the translation unit doesn't have any
@@ -326,9 +312,6 @@ namespace llvm {
     bool hasMachoZeroFillDirective() const { return HasMachoZeroFillDirective; }
     bool hasStaticCtorDtorReferenceInStaticMode() const {
       return HasStaticCtorDtorReferenceInStaticMode;
-    }
-    bool needsSet() const {
-      return NeedsSet;
     }
     unsigned getMaxInstLength() const {
       return MaxInstLength;
@@ -378,9 +361,6 @@ namespace llvm {
     const char *getAscizDirective() const {
       return AscizDirective;
     }
-    const char *getJumpTableDirective(bool isPIC) const {
-      return isPIC ? PICJumpTableDirective : JumpTableDirective;
-    }
     const char *getAlignDirective() const {
       return AlignDirective;
     }
@@ -396,14 +376,12 @@ namespace llvm {
     const char *getExternDirective() const {
       return ExternDirective;
     }
-    const char *getSetDirective() const {
-      return SetDirective;
-    }
+    bool hasSetDirective() const { return HasSetDirective; }
     bool hasLCOMMDirective() const { return HasLCOMMDirective; }
-    bool getCOMMDirectiveTakesAlignment() const {
-      return COMMDirectiveTakesAlignment;
-    }
     bool hasDotTypeDotSizeDirective() const {return HasDotTypeDotSizeDirective;}
+    bool getCOMMDirectiveAlignmentIsInBytes() const {
+      return COMMDirectiveAlignmentIsInBytes;
+    }
     bool hasSingleParameterDotFile() const { return HasSingleParameterDotFile; }
     bool hasNoDeadStrip() const { return HasNoDeadStrip; }
     const char *getWeakRefDirective() const { return WeakRefDirective; }

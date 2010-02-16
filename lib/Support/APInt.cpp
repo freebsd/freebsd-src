@@ -273,7 +273,7 @@ APInt& APInt::operator-=(const APInt& RHS) {
   return clearUnusedBits();
 }
 
-/// Multiplies an integer array, x by a a uint64_t integer and places the result
+/// Multiplies an integer array, x, by a uint64_t integer and places the result
 /// into dest.
 /// @returns the carry out of the multiplication.
 /// @brief Multiply a multi-digit APInt by a single digit (64-bit) integer.
@@ -767,8 +767,23 @@ bool APInt::isPowerOf2() const {
 }
 
 unsigned APInt::countLeadingZerosSlowCase() const {
-  unsigned Count = 0;
-  for (unsigned i = getNumWords(); i > 0u; --i) {
+  // Treat the most significand word differently because it might have
+  // meaningless bits set beyond the precision.
+  unsigned BitsInMSW = BitWidth % APINT_BITS_PER_WORD;
+  integerPart MSWMask;
+  if (BitsInMSW) MSWMask = (integerPart(1) << BitsInMSW) - 1;
+  else {
+    MSWMask = ~integerPart(0);
+    BitsInMSW = APINT_BITS_PER_WORD;
+  }
+
+  unsigned i = getNumWords();
+  integerPart MSW = pVal[i-1] & MSWMask;
+  if (MSW)
+    return CountLeadingZeros_64(MSW) - (APINT_BITS_PER_WORD - BitsInMSW);
+
+  unsigned Count = BitsInMSW;
+  for (--i; i > 0u; --i) {
     if (pVal[i-1] == 0)
       Count += APINT_BITS_PER_WORD;
     else {
@@ -776,10 +791,7 @@ unsigned APInt::countLeadingZerosSlowCase() const {
       break;
     }
   }
-  unsigned remainder = BitWidth % APINT_BITS_PER_WORD;
-  if (remainder)
-    Count -= APINT_BITS_PER_WORD - remainder;
-  return std::min(Count, BitWidth);
+  return Count;
 }
 
 static unsigned countLeadingOnes_64(uint64_t V, unsigned skip) {
@@ -1754,7 +1766,7 @@ void APInt::divide(const APInt LHS, unsigned lhsWords,
 
   // First, compose the values into an array of 32-bit words instead of
   // 64-bit words. This is a necessity of both the "short division" algorithm
-  // and the the Knuth "classical algorithm" which requires there to be native
+  // and the Knuth "classical algorithm" which requires there to be native
   // operations for +, -, and * on an m bit value with an m*2 bit result. We
   // can't use 64-bit operands here because we don't have native results of
   // 128-bits. Furthermore, casting the 64-bit values to 32-bit values won't

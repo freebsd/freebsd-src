@@ -12,7 +12,7 @@
 //
 // Goal:
 //  The goal of this snippet is to create in the memory
-//  the LLVM module consisting of two functions as follow:
+//  the LLVM module consisting of two functions as follow: 
 //
 // int add1(int x) {
 //   return x+1;
@@ -39,7 +39,6 @@
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Instructions.h"
-#include "llvm/ModuleProvider.h"
 #include "llvm/ExecutionEngine/JIT.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
 #include "llvm/ExecutionEngine/GenericValue.h"

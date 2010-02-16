@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef XFAIL
 #include "llvm/ADT/BitVector.h"
 #include "gtest/gtest.h"
 
@@ -137,4 +138,45 @@ TEST(BitVectorTest, TrivialOperation) {
   EXPECT_TRUE(Vec.empty());
 }
 
+TEST(BitVectorTest, CompoundAssignment) {
+  BitVector A;
+  A.resize(10);
+  A.set(4);
+  A.set(7);
+
+  BitVector B;
+  B.resize(50);
+  B.set(5);
+  B.set(18);
+
+  A |= B;
+  EXPECT_TRUE(A.test(4));
+  EXPECT_TRUE(A.test(5));
+  EXPECT_TRUE(A.test(7));
+  EXPECT_TRUE(A.test(18));
+  EXPECT_EQ(4U, A.count());
+  EXPECT_EQ(50U, A.size());
+
+  B.resize(10);
+  B.set();
+  B.reset(2);
+  B.reset(7);
+  A &= B;
+  EXPECT_FALSE(A.test(2));
+  EXPECT_FALSE(A.test(7));
+  EXPECT_EQ(2U, A.count());
+  EXPECT_EQ(50U, A.size());
+
+  B.resize(100);
+  B.set();
+
+  A ^= B;
+  EXPECT_TRUE(A.test(2));
+  EXPECT_TRUE(A.test(7));
+  EXPECT_EQ(98U, A.count());
+  EXPECT_EQ(100U, A.size());
 }
+
+}
+
+#endif

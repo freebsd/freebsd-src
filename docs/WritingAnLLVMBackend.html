@@ -354,8 +354,6 @@ public:
   // Pass Pipeline Configuration
   virtual bool addInstSelector(PassManagerBase &amp;PM, bool Fast);
   virtual bool addPreEmitPass(PassManagerBase &amp;PM, bool Fast);
-  virtual bool addAssemblyEmitter(PassManagerBase &amp;PM, bool Fast, 
-                                  std::ostream &amp;Out);
 };
 
 } // end namespace llvm
@@ -2152,12 +2150,6 @@ in <tt>XXXGenAsmWriter.inc</tt> contains an implementation of the
 <li><tt>printImplicitDef</tt></li>
 
 <li><tt>printInlineAsm</tt></li>
-
-<li><tt>printLabel</tt></li>
-
-<li><tt>printPICJumpTableEntry</tt></li>
-
-<li><tt>printPICJumpTableSetLabel</tt></li>
 </ul>
 
 <p>
@@ -2563,7 +2555,7 @@ with assembler.
   <a href="http://www.woo.com">Mason Woo</a> and <a href="http://misha.brukman.net">Misha Brukman</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a>
   <br>
-  Last modified: $Date: 2009-09-13 00:57:37 +0200 (Sun, 13 Sep 2009) $
+  Last modified: $Date: 2010-02-02 19:44:12 +0100 (Tue, 02 Feb 2010) $
 </address>
 
 </body>

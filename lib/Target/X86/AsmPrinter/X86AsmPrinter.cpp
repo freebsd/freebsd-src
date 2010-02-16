@@ -8,12 +8,10 @@
 //===----------------------------------------------------------------------===//
 //
 // This file contains a printer that converts from our internal representation
-// of machine-dependent LLVM code to AT&T format assembly
-// language. This printer is the output mechanism used by `llc'.
+// of machine-dependent LLVM code to X86 machine code.
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "asm-printer"
 #include "X86AsmPrinter.h"
 #include "X86ATTInstPrinter.h"
 #include "X86IntelInstPrinter.h"
@@ -29,169 +27,70 @@
 #include "llvm/Type.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
+#include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/MC/MCAsmInfo.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/Statistic.h"
 using namespace llvm;
-
-STATISTIC(EmittedInsts, "Number of machine instrs printed");
 
 //===----------------------------------------------------------------------===//
 // Primitive Helper Functions.
 //===----------------------------------------------------------------------===//
 
-void X86AsmPrinter::printMCInst(const MCInst *MI) {
-  if (MAI->getAssemblerDialect() == 0)
-    X86ATTInstPrinter(O, *MAI).printInstruction(MI);
-  else
-    X86IntelInstPrinter(O, *MAI).printInstruction(MI);
-}
-
 void X86AsmPrinter::PrintPICBaseSymbol() const {
-  // FIXME: Gross const cast hack.
-  X86AsmPrinter *AP = const_cast<X86AsmPrinter*>(this);
-  O << *X86MCInstLower(OutContext, 0, *AP).GetPICBaseSymbol();
+  const TargetLowering *TLI = TM.getTargetLowering();
+  O << *static_cast<const X86TargetLowering*>(TLI)->getPICBaseSymbol(MF,
+                                                                    OutContext);
 }
 
-void X86AsmPrinter::emitFunctionHeader(const MachineFunction &MF) {
-  unsigned FnAlign = MF.getAlignment();
-  const Function *F = MF.getFunction();
+MCSymbol *X86AsmPrinter::GetGlobalValueSymbol(const GlobalValue *GV) const {
+  SmallString<60> NameStr;
+  Mang->getNameWithPrefix(NameStr, GV, false);
+  MCSymbol *Symb = OutContext.GetOrCreateSymbol(NameStr.str());
 
   if (Subtarget->isTargetCygMing()) {
-    X86COFFMachineModuleInfo &COFFMMI = 
+    X86COFFMachineModuleInfo &COFFMMI =
       MMI->getObjFileInfo<X86COFFMachineModuleInfo>();
-    COFFMMI.DecorateCygMingName(CurrentFnSym, OutContext, F,
-                                *TM.getTargetData());
+    COFFMMI.DecorateCygMingName(Symb, OutContext, GV, *TM.getTargetData());
+
+    // Save function name for later type emission.
+    if (const Function *F = dyn_cast<Function>(GV))
+      if (F->isDeclaration())
+        COFFMMI.addExternalFunction(Symb->getName());
+
   }
 
-  OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(F, Mang, TM));
-  EmitAlignment(FnAlign, F);
-
-  switch (F->getLinkage()) {
-  default: llvm_unreachable("Unknown linkage type!");
-  case Function::InternalLinkage:  // Symbols default to internal.
-  case Function::PrivateLinkage:
-    break;
-  case Function::DLLExportLinkage:
-  case Function::ExternalLinkage:
-    OutStreamer.EmitSymbolAttribute(CurrentFnSym, MCSA_Global);
-    break;
-  case Function::LinkerPrivateLinkage:
-  case Function::LinkOnceAnyLinkage:
-  case Function::LinkOnceODRLinkage:
-  case Function::WeakAnyLinkage:
-  case Function::WeakODRLinkage:
-    if (Subtarget->isTargetDarwin()) {
-      OutStreamer.EmitSymbolAttribute(CurrentFnSym, MCSA_Global);
-      O << MAI->getWeakDefDirective() << *CurrentFnSym << '\n';
-    } else if (Subtarget->isTargetCygMing()) {
-      OutStreamer.EmitSymbolAttribute(CurrentFnSym, MCSA_Global);
-      O << "\t.linkonce discard\n";
-    } else {
-      O << "\t.weak\t" << *CurrentFnSym << '\n';
-    }
-    break;
-  }
-
-  printVisibility(CurrentFnSym, F->getVisibility());
-
-  if (Subtarget->isTargetELF()) {
-    O << "\t.type\t" << *CurrentFnSym << ",@function\n";
-  } else if (Subtarget->isTargetCygMing()) {
-    O << "\t.def\t " << *CurrentFnSym;
-    O << ";\t.scl\t" <<
-      (F->hasInternalLinkage() ? COFF::C_STAT : COFF::C_EXT)
-      << ";\t.type\t" << (COFF::DT_FCN << COFF::N_BTSHFT)
-      << ";\t.endef\n";
-  }
-
-  O << *CurrentFnSym << ':';
-  if (VerboseAsm) {
-    O.PadToColumn(MAI->getCommentColumn());
-    O << MAI->getCommentString() << ' ';
-    WriteAsOperand(O, F, /*PrintType=*/false, F->getParent());
-  }
-  O << '\n';
-
-  // Add some workaround for linkonce linkage on Cygwin\MinGW
-  if (Subtarget->isTargetCygMing() &&
-      (F->hasLinkOnceLinkage() || F->hasWeakLinkage()))
-    O << "Lllvm$workaround$fake$stub$" << *CurrentFnSym << ":\n";
+  return Symb;
 }
 
-/// runOnMachineFunction - This uses the printMachineInstruction()
-/// method to print assembly for each instruction.
+/// runOnMachineFunction - Emit the function body.
 ///
 bool X86AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
-  const Function *F = MF.getFunction();
-  this->MF = &MF;
-  CallingConv::ID CC = F->getCallingConv();
-
   SetupMachineFunction(MF);
-  O << "\n\n";
 
   if (Subtarget->isTargetCOFF()) {
-    X86COFFMachineModuleInfo &COFFMMI = 
-    MMI->getObjFileInfo<X86COFFMachineModuleInfo>();
-
-    // Populate function information map.  Don't want to populate
-    // non-stdcall or non-fastcall functions' information right now.
-    if (CC == CallingConv::X86_StdCall || CC == CallingConv::X86_FastCall)
-      COFFMMI.AddFunctionInfo(F, *MF.getInfo<X86MachineFunctionInfo>());
+    const Function *F = MF.getFunction();
+    O << "\t.def\t " << *CurrentFnSym << ";\t.scl\t" <<
+    (F->hasInternalLinkage() ? COFF::C_STAT : COFF::C_EXT)
+    << ";\t.type\t" << (COFF::DT_FCN << COFF::N_BTSHFT)
+    << ";\t.endef\n";
   }
 
-  // Print out constants referenced by the function
-  EmitConstantPool(MF.getConstantPool());
+  // Have common code print out the function header with linkage info etc.
+  EmitFunctionHeader();
 
-  // Print the 'header' of function
-  emitFunctionHeader(MF);
-
-  // Emit pre-function debug and/or EH information.
-  if (MAI->doesSupportDebugInformation() || MAI->doesSupportExceptionHandling())
-    DW->BeginFunction(&MF);
-
-  // Print out code for the function.
-  bool hasAnyRealCode = false;
-  for (MachineFunction::const_iterator I = MF.begin(), E = MF.end();
-       I != E; ++I) {
-    // Print a label for the basic block.
-    EmitBasicBlockStart(I);
-    for (MachineBasicBlock::const_iterator II = I->begin(), IE = I->end();
-         II != IE; ++II) {
-      // Print the assembly for the instruction.
-      if (!II->isLabel())
-        hasAnyRealCode = true;
-      printMachineInstruction(II);
-    }
-  }
-
-  if (Subtarget->isTargetDarwin() && !hasAnyRealCode) {
-    // If the function is empty, then we need to emit *something*. Otherwise,
-    // the function's label might be associated with something that it wasn't
-    // meant to be associated with. We emit a noop in this situation.
-    // We are assuming inline asms are code.
-    O << "\tnop\n";
-  }
-
-  if (MAI->hasDotTypeDotSizeDirective())
-    O << "\t.size\t" << *CurrentFnSym << ", .-" << *CurrentFnSym << '\n';
-
-  // Emit post-function debug information.
-  if (MAI->doesSupportDebugInformation() || MAI->doesSupportExceptionHandling())
-    DW->EndFunction(&MF);
-
-  // Print out jump tables referenced by the function.
-  EmitJumpTableInfo(MF.getJumpTableInfo(), MF);
+  // Emit the rest of the function body.
+  EmitFunctionBody();
 
   // We didn't modify anything.
   return false;
@@ -223,12 +122,6 @@ void X86AsmPrinter::printSymbolOperand(const MachineOperand &MO) {
     else
       GVSym = GetGlobalValueSymbol(GV);
 
-    if (Subtarget->isTargetCygMing()) {
-      X86COFFMachineModuleInfo &COFFMMI =
-        MMI->getObjFileInfo<X86COFFMachineModuleInfo>();
-      COFFMMI.DecorateCygMingName(GVSym, OutContext, GV, *TM.getTargetData());
-    }
-    
     // Handle dllimport linkage.
     if (MO.getTargetFlags() == X86II::MO_DLLIMPORT)
       GVSym = OutContext.GetOrCreateSymbol(Twine("__imp_") + GVSym->getName());
@@ -237,20 +130,20 @@ void X86AsmPrinter::printSymbolOperand(const MachineOperand &MO) {
         MO.getTargetFlags() == X86II::MO_DARWIN_NONLAZY_PIC_BASE) {
       MCSymbol *Sym = GetSymbolWithGlobalValueBase(GV, "$non_lazy_ptr");
       
-      const MCSymbol *&StubSym = 
+      MCSymbol *&StubSym = 
         MMI->getObjFileInfo<MachineModuleInfoMachO>().getGVStubEntry(Sym);
       if (StubSym == 0)
         StubSym = GetGlobalValueSymbol(GV);
       
     } else if (MO.getTargetFlags() == X86II::MO_DARWIN_HIDDEN_NONLAZY_PIC_BASE){
       MCSymbol *Sym = GetSymbolWithGlobalValueBase(GV, "$non_lazy_ptr");
-      const MCSymbol *&StubSym =
+      MCSymbol *&StubSym =
         MMI->getObjFileInfo<MachineModuleInfoMachO>().getHiddenGVStubEntry(Sym);
       if (StubSym == 0)
         StubSym = GetGlobalValueSymbol(GV);
     } else if (MO.getTargetFlags() == X86II::MO_DARWIN_STUB) {
       MCSymbol *Sym = GetSymbolWithGlobalValueBase(GV, "$stub");
-      const MCSymbol *&StubSym =
+      MCSymbol *&StubSym =
         MMI->getObjFileInfo<MachineModuleInfoMachO>().getFnStubEntry(Sym);
       if (StubSym == 0)
         StubSym = GetGlobalValueSymbol(GV);
@@ -272,8 +165,8 @@ void X86AsmPrinter::printSymbolOperand(const MachineOperand &MO) {
       TempNameStr += StringRef(MO.getSymbolName());
       TempNameStr += StringRef("$stub");
       
-      const MCSymbol *Sym = GetExternalSymbolSymbol(TempNameStr.str());
-      const MCSymbol *&StubSym =
+      MCSymbol *Sym = GetExternalSymbolSymbol(TempNameStr.str());
+      MCSymbol *&StubSym =
         MMI->getObjFileInfo<MachineModuleInfoMachO>().getFnStubEntry(Sym);
       if (StubSym == 0) {
         TempNameStr.erase(TempNameStr.end()-5, TempNameStr.end());
@@ -338,7 +231,7 @@ void X86AsmPrinter::print_pcrel_imm(const MachineInstr *MI, unsigned OpNo) {
     O << MO.getImm();
     return;
   case MachineOperand::MO_MachineBasicBlock:
-    O << *GetMBBSymbol(MO.getMBB()->getNumber());
+    O << *MO.getMBB()->getSymbol(OutContext);
     return;
   case MachineOperand::MO_GlobalAddress:
   case MachineOperand::MO_ExternalSymbol:
@@ -451,52 +344,11 @@ void X86AsmPrinter::printMemReference(const MachineInstr *MI, unsigned Op,
   printLeaMemReference(MI, Op, Modifier);
 }
 
-void X86AsmPrinter::printPICJumpTableSetLabel(unsigned uid,
-                                           const MachineBasicBlock *MBB) const {
-  if (!MAI->getSetDirective())
-    return;
-
-  // We don't need .set machinery if we have GOT-style relocations
-  if (Subtarget->isPICStyleGOT())
-    return;
-
-  O << MAI->getSetDirective() << ' ' << MAI->getPrivateGlobalPrefix()
-    << getFunctionNumber() << '_' << uid << "_set_" << MBB->getNumber() << ',';
-  
-  O << *GetMBBSymbol(MBB->getNumber());
-  
-  if (Subtarget->isPICStyleRIPRel())
-    O << '-' << *GetJTISymbol(uid) << '\n';
-  else {
-    O << '-';
-    PrintPICBaseSymbol();
-    O << '\n';
-  }
-}
-
-
 void X86AsmPrinter::printPICLabel(const MachineInstr *MI, unsigned Op) {
   PrintPICBaseSymbol();
   O << '\n';
   PrintPICBaseSymbol();
   O << ':';
-}
-
-void X86AsmPrinter::printPICJumpTableEntry(const MachineJumpTableInfo *MJTI,
-                                           const MachineBasicBlock *MBB,
-                                           unsigned uid) const {
-  const char *JTEntryDirective = MJTI->getEntrySize() == 4 ?
-    MAI->getData32bitsDirective() : MAI->getData64bitsDirective();
-
-  O << JTEntryDirective << ' ';
-
-  if (Subtarget->isPICStyleRIPRel() || Subtarget->isPICStyleStubPIC()) {
-    O << MAI->getPrivateGlobalPrefix() << getFunctionNumber()
-      << '_' << uid << "_set_" << MBB->getNumber();
-  } else if (Subtarget->isPICStyleGOT())
-    O << *GetMBBSymbol(MBB->getNumber()) << "@GOTOFF";
-  else
-    O << *GetMBBSymbol(MBB->getNumber());
 }
 
 bool X86AsmPrinter::printAsmMRegister(const MachineOperand &MO, char Mode) {
@@ -625,24 +477,6 @@ bool X86AsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
 }
 
 
-
-/// printMachineInstruction -- Print out a single X86 LLVM instruction MI in
-/// AT&T syntax to the current output stream.
-///
-void X86AsmPrinter::printMachineInstruction(const MachineInstr *MI) {
-  ++EmittedInsts;
-
-  processDebugLoc(MI, true);
-  
-  printInstructionThroughMCStreamer(MI);
-  
-  if (VerboseAsm)
-    EmitComments(*MI);
-  O << '\n';
-
-  processDebugLoc(MI, false);
-}
-
 void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
   if (Subtarget->isTargetDarwin()) {
     // All darwin targets use mach-o.
@@ -666,14 +500,17 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
       OutStreamer.SwitchSection(TheSection);
 
       for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
-        O << *Stubs[i].first << ":\n";
-        // Get the MCSymbol without the $stub suffix.
-        O << "\t.indirect_symbol " << *Stubs[i].second;
-        O << "\n\thlt ; hlt ; hlt ; hlt ; hlt\n";
+        // L_foo$stub:
+        OutStreamer.EmitLabel(Stubs[i].first);
+        //   .indirect_symbol _foo
+        OutStreamer.EmitSymbolAttribute(Stubs[i].second, MCSA_IndirectSymbol);
+        // hlt; hlt; hlt; hlt; hlt     hlt = 0xf4 = -12.
+        const char HltInsts[] = { -12, -12, -12, -12, -12 };
+        OutStreamer.EmitBytes(StringRef(HltInsts, 5), 0/*addrspace*/);
       }
-      O << '\n';
       
       Stubs.clear();
+      OutStreamer.AddBlankLine();
     }
 
     // Output stubs for external and common global variables.
@@ -686,10 +523,15 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
       OutStreamer.SwitchSection(TheSection);
 
       for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
-        O << *Stubs[i].first << ":\n\t.indirect_symbol " << *Stubs[i].second;
-        O << "\n\t.long\t0\n";
+        // L_foo$non_lazy_ptr:
+        OutStreamer.EmitLabel(Stubs[i].first);
+        // .indirect_symbol _foo
+        OutStreamer.EmitSymbolAttribute(Stubs[i].second, MCSA_IndirectSymbol);
+        // .long 0
+        OutStreamer.EmitIntValue(0, 4/*size*/, 0/*addrspace*/);
       }
       Stubs.clear();
+      OutStreamer.AddBlankLine();
     }
 
     Stubs = MMIMacho.GetHiddenGVStubList();
@@ -698,10 +540,15 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
       EmitAlignment(2);
 
       for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
-        O << *Stubs[i].first << ":\n" << MAI->getData32bitsDirective();
-        O << *Stubs[i].second << '\n';
+        // L_foo$non_lazy_ptr:
+        OutStreamer.EmitLabel(Stubs[i].first);
+        // .long _foo
+        OutStreamer.EmitValue(MCSymbolRefExpr::Create(Stubs[i].second,
+                                                      OutContext),
+                              4/*size*/, 0/*addrspace*/);
       }
       Stubs.clear();
+      OutStreamer.AddBlankLine();
     }
 
     // Funny Darwin hack: This flag tells the linker that no global symbols
@@ -735,7 +582,6 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
       for (Module::const_iterator I = M.begin(), E = M.end(); I != E; ++I)
         if (I->hasDLLExportLinkage()) {
           MCSymbol *Sym = GetGlobalValueSymbol(I);
-          COFFMMI.DecorateCygMingName(Sym, OutContext, I, *TM.getTargetData());
           DLLExportedFns.push_back(Sym);
         }
 
@@ -755,6 +601,28 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
         for (unsigned i = 0, e = DLLExportedFns.size(); i != e; ++i)
           O << "\t.ascii \" -export:" << *DLLExportedFns[i] << "\"\n";
       }
+    }
+  }
+
+  if (Subtarget->isTargetELF()) {
+    TargetLoweringObjectFileELF &TLOFELF =
+      static_cast<TargetLoweringObjectFileELF &>(getObjFileLowering());
+
+    MachineModuleInfoELF &MMIELF = MMI->getObjFileInfo<MachineModuleInfoELF>();
+
+    // Output stubs for external and common global variables.
+    MachineModuleInfoELF::SymbolListTy Stubs = MMIELF.GetGVStubList();
+    if (!Stubs.empty()) {
+      OutStreamer.SwitchSection(TLOFELF.getDataRelSection());
+      const TargetData *TD = TM.getTargetData();
+
+      for (unsigned i = 0, e = Stubs.size(); i != e; ++i)
+        O << *Stubs[i].first << ":\n"
+          << (TD->getPointerSize() == 8 ?
+              MAI->getData64bitsDirective() : MAI->getData32bitsDirective())
+          << *Stubs[i].second << '\n';
+
+      Stubs.clear();
     }
   }
 }

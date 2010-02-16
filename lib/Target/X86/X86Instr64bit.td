@@ -187,7 +187,7 @@ def TCRETURNri64 : I<0, Pseudo, (outs), (ins GR64:$dst, i32imm:$offset,
 
 
 let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
-  def TAILJMPr64 : I<0xFF, MRM4r, (outs), (ins GR64:$dst),
+  def TAILJMPr64 : I<0xFF, MRM4r, (outs), (ins GR64:$dst, variable_ops),
                    "jmp{q}\t{*}$dst  # TAILCALL",
                    []>;     
 
@@ -435,7 +435,7 @@ def MOVZX64rm32 : I<0x8B, MRMSrcMem, (outs GR64:$dst), (ins i32mem:$src),
 // up to 64 bits.
 def def32 : PatLeaf<(i32 GR32:$src), [{
   return N->getOpcode() != ISD::TRUNCATE &&
-         N->getOpcode() != TargetInstrInfo::EXTRACT_SUBREG &&
+         N->getOpcode() != TargetOpcode::EXTRACT_SUBREG &&
          N->getOpcode() != ISD::CopyFromReg &&
          N->getOpcode() != X86ISD::CMOV;
 }]>;
@@ -893,35 +893,38 @@ def SAR64m1 : RI<0xD1, MRM7m, (outs), (ins i64mem:$dst),
 let isTwoAddress = 1 in {
 def RCL64r1 : RI<0xD1, MRM2r, (outs GR64:$dst), (ins GR64:$src),
                  "rcl{q}\t{1, $dst|$dst, 1}", []>;
-def RCL64m1 : RI<0xD1, MRM2m, (outs i64mem:$dst), (ins i64mem:$src),
-                 "rcl{q}\t{1, $dst|$dst, 1}", []>;
-let Uses = [CL] in {
-def RCL64rCL : RI<0xD3, MRM2r, (outs GR64:$dst), (ins GR64:$src),
-                  "rcl{q}\t{%cl, $dst|$dst, CL}", []>;
-def RCL64mCL : RI<0xD3, MRM2m, (outs i64mem:$dst), (ins i64mem:$src),
-                  "rcl{q}\t{%cl, $dst|$dst, CL}", []>;
-}
 def RCL64ri : RIi8<0xC1, MRM2r, (outs GR64:$dst), (ins GR64:$src, i8imm:$cnt),
-                   "rcl{q}\t{$cnt, $dst|$dst, $cnt}", []>;
-def RCL64mi : RIi8<0xC1, MRM2m, (outs i64mem:$dst), 
-                   (ins i64mem:$src, i8imm:$cnt),
                    "rcl{q}\t{$cnt, $dst|$dst, $cnt}", []>;
 
 def RCR64r1 : RI<0xD1, MRM3r, (outs GR64:$dst), (ins GR64:$src),
                  "rcr{q}\t{1, $dst|$dst, 1}", []>;
-def RCR64m1 : RI<0xD1, MRM3m, (outs i64mem:$dst), (ins i64mem:$src),
-                 "rcr{q}\t{1, $dst|$dst, 1}", []>;
-let Uses = [CL] in {
-def RCR64rCL : RI<0xD3, MRM3r, (outs GR64:$dst), (ins GR64:$src),
-                  "rcr{q}\t{%cl, $dst|$dst, CL}", []>;
-def RCR64mCL : RI<0xD3, MRM3m, (outs i64mem:$dst), (ins i64mem:$src),
-                  "rcr{q}\t{%cl, $dst|$dst, CL}", []>;
-}
 def RCR64ri : RIi8<0xC1, MRM3r, (outs GR64:$dst), (ins GR64:$src, i8imm:$cnt),
                    "rcr{q}\t{$cnt, $dst|$dst, $cnt}", []>;
-def RCR64mi : RIi8<0xC1, MRM3m, (outs i64mem:$dst), 
-                   (ins i64mem:$src, i8imm:$cnt),
+
+let Uses = [CL] in {
+def RCL64rCL : RI<0xD3, MRM2r, (outs GR64:$dst), (ins GR64:$src),
+                  "rcl{q}\t{%cl, $dst|$dst, CL}", []>;
+def RCR64rCL : RI<0xD3, MRM3r, (outs GR64:$dst), (ins GR64:$src),
+                  "rcr{q}\t{%cl, $dst|$dst, CL}", []>;
+}
+}
+
+let isTwoAddress = 0 in {
+def RCL64m1 : RI<0xD1, MRM2m, (outs), (ins i64mem:$dst),
+                 "rcl{q}\t{1, $dst|$dst, 1}", []>;
+def RCL64mi : RIi8<0xC1, MRM2m, (outs), (ins i64mem:$dst, i8imm:$cnt),
+                   "rcl{q}\t{$cnt, $dst|$dst, $cnt}", []>;
+def RCR64m1 : RI<0xD1, MRM3m, (outs), (ins i64mem:$dst),
+                 "rcr{q}\t{1, $dst|$dst, 1}", []>;
+def RCR64mi : RIi8<0xC1, MRM3m, (outs), (ins i64mem:$dst, i8imm:$cnt),
                    "rcr{q}\t{$cnt, $dst|$dst, $cnt}", []>;
+
+let Uses = [CL] in {
+def RCL64mCL : RI<0xD3, MRM2m, (outs), (ins i64mem:$dst),
+                  "rcl{q}\t{%cl, $dst|$dst, CL}", []>;
+def RCR64mCL : RI<0xD3, MRM3m, (outs), (ins i64mem:$dst),
+                  "rcr{q}\t{%cl, $dst|$dst, CL}", []>;
+}
 }
 
 let isTwoAddress = 1 in {
@@ -1466,9 +1469,13 @@ def CMOVNO64rm : RI<0x41, MRMSrcMem,       // if !overflow, GR64 = [mem64]
 } // isTwoAddress
 
 // Use sbb to materialize carry flag into a GPR.
+// FIXME: This are pseudo ops that should be replaced with Pat<> patterns.
+// However, Pat<> can't replicate the destination reg into the inputs of the
+// result.
+// FIXME: Change this to have encoding Pseudo when X86MCCodeEmitter replaces
+// X86CodeEmitter.
 let Defs = [EFLAGS], Uses = [EFLAGS], isCodeGenOnly = 1 in
-def SETB_C64r : RI<0x19, MRMInitReg, (outs GR64:$dst), (ins),
-                  "sbb{q}\t$dst, $dst",
+def SETB_C64r : RI<0x19, MRMInitReg, (outs GR64:$dst), (ins), "",
                  [(set GR64:$dst, (X86setcc_c X86_COND_B, EFLAGS))]>;
 
 def : Pat<(i64 (anyext (i8 (X86setcc_c X86_COND_B, EFLAGS)))),
@@ -1606,8 +1613,7 @@ def SLDT64m : RI<0x00, MRM0m, (outs i16mem:$dst), (ins),
 // when we have a better way to specify isel priority.
 let Defs = [EFLAGS],
     AddedComplexity = 1, isReMaterializable = 1, isAsCheapAsAMove = 1 in
-def MOV64r0   : I<0x31, MRMInitReg, (outs GR64:$dst), (ins),
-                 "",
+def MOV64r0   : I<0x31, MRMInitReg, (outs GR64:$dst), (ins), "",
                  [(set GR64:$dst, 0)]>;
 
 // Materialize i64 constant where top 32-bits are zero. This could theoretically
@@ -1768,7 +1774,7 @@ def LSL64rm : RI<0x03, MRMSrcMem, (outs GR64:$dst), (ins i64mem:$src),
 def LSL64rr : RI<0x03, MRMSrcReg, (outs GR64:$dst), (ins GR64:$src),
                  "lsl{q}\t{$src, $dst|$dst, $src}", []>, TB;
 
-def SWPGS : I<0x01, RawFrm, (outs), (ins), "swpgs", []>, TB;
+def SWAPGS : I<0x01, MRM_F8, (outs), (ins), "swapgs", []>, TB;
 
 def PUSHFS64 : I<0xa0, RawFrm, (outs), (ins),
                  "push{q}\t%fs", []>, TB;

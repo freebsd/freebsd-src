@@ -19,7 +19,6 @@
 #include "PPCJITInfo.h"
 #include "PPCInstrInfo.h"
 #include "PPCISelLowering.h"
-#include "PPCMachOWriterInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetData.h"
 
@@ -37,7 +36,6 @@ class PPCTargetMachine : public LLVMTargetMachine {
   PPCJITInfo          JITInfo;
   PPCTargetLowering   TLInfo;
   InstrItineraryData  InstrItins;
-  PPCMachOWriterInfo  MachOWriterInfo;
 
 public:
   PPCTargetMachine(const Target &T, const std::string &TT,
@@ -58,40 +56,12 @@ public:
   virtual const InstrItineraryData getInstrItineraryData() const {  
     return InstrItins;
   }
-  virtual const PPCMachOWriterInfo *getMachOWriterInfo() const {
-    return &MachOWriterInfo;
-  }
-
-  /// getLSDAEncoding - Returns the LSDA pointer encoding. The choices are
-  /// 4-byte, 8-byte, and target default. The CIE is hard-coded to indicate that
-  /// the LSDA pointer in the FDE section is an "sdata4", and should be encoded
-  /// as a 4-byte pointer by default. However, some systems may require a
-  /// different size due to bugs or other conditions. We will default to a
-  /// 4-byte encoding unless the system tells us otherwise.
-  ///
-  /// FIXME: This call-back isn't good! We should be using the correct encoding
-  /// regardless of the system. However, there are some systems which have bugs
-  /// that prevent this from occuring.
-  virtual DwarfLSDAEncoding::Encoding getLSDAEncoding() const;
 
   // Pass Pipeline Configuration
   virtual bool addInstSelector(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
   virtual bool addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
   virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
-                              MachineCodeEmitter &MCE);
-  virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
                               JITCodeEmitter &JCE);
-  virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
-                              ObjectCodeEmitter &OCE);
-  virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
-                                    CodeGenOpt::Level OptLevel,
-                                    MachineCodeEmitter &MCE);
-  virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
-                                    CodeGenOpt::Level OptLevel,
-                                    JITCodeEmitter &JCE);
-  virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
-                                    CodeGenOpt::Level OptLevel,
-                                    ObjectCodeEmitter &OCE);
   virtual bool getEnableTailMergeDefault() const;
 };
 

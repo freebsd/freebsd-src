@@ -10,7 +10,6 @@
 LEVEL = ../../..
 LIBRARYNAME = LLVMX86CodeGen
 TARGET = X86
-CXXFLAGS = -fno-rtti
 
 # Make sure that tblgen is run, first thing.
 BUILT_SOURCES = X86GenRegisterInfo.h.inc X86GenRegisterNames.inc \
@@ -19,6 +18,7 @@ BUILT_SOURCES = X86GenRegisterInfo.h.inc X86GenRegisterNames.inc \
                 X86GenAsmWriter1.inc X86GenDAGISel.inc  \
                 X86GenDisassemblerTables.inc X86GenFastISel.inc \
                 X86GenCallingConv.inc X86GenSubtarget.inc \
+		X86GenEDInfo.inc
 
 DIRS = AsmPrinter AsmParser Disassembler TargetInfo
 

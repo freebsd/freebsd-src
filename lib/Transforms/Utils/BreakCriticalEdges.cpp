@@ -179,7 +179,7 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
   // Create a new basic block, linking it into the CFG.
   BasicBlock *NewBB = BasicBlock::Create(TI->getContext(),
                       TIBB->getName() + "." + DestBB->getName() + "_crit_edge");
-  // Create our unconditional branch...
+  // Create our unconditional branch.
   BranchInst::Create(DestBB, NewBB);
 
   // Branch to the new block, breaking the edge.
@@ -192,16 +192,47 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
   
   // If there are any PHI nodes in DestBB, we need to update them so that they
   // merge incoming values from NewBB instead of from TIBB.
-  //
-  for (BasicBlock::iterator I = DestBB->begin(); isa<PHINode>(I); ++I) {
-    PHINode *PN = cast<PHINode>(I);
-    // We no longer enter through TIBB, now we come in through NewBB.  Revector
-    // exactly one entry in the PHI node that used to come from TIBB to come
-    // from NewBB.
-    int BBIdx = PN->getBasicBlockIndex(TIBB);
-    PN->setIncomingBlock(BBIdx, NewBB);
+  if (PHINode *APHI = dyn_cast<PHINode>(DestBB->begin())) {
+    // This conceptually does:
+    //  foreach (PHINode *PN in DestBB)
+    //    PN->setIncomingBlock(PN->getIncomingBlock(TIBB), NewBB);
+    // but is optimized for two cases.
+    
+    if (APHI->getNumIncomingValues() <= 8) {  // Small # preds case.
+      unsigned BBIdx = 0;
+      for (BasicBlock::iterator I = DestBB->begin(); isa<PHINode>(I); ++I) {
+        // We no longer enter through TIBB, now we come in through NewBB.
+        // Revector exactly one entry in the PHI node that used to come from
+        // TIBB to come from NewBB.
+        PHINode *PN = cast<PHINode>(I);
+        
+        // Reuse the previous value of BBIdx if it lines up.  In cases where we
+        // have multiple phi nodes with *lots* of predecessors, this is a speed
+        // win because we don't have to scan the PHI looking for TIBB.  This
+        // happens because the BB list of PHI nodes are usually in the same
+        // order.
+        if (PN->getIncomingBlock(BBIdx) != TIBB)
+          BBIdx = PN->getBasicBlockIndex(TIBB);
+        PN->setIncomingBlock(BBIdx, NewBB);
+      }
+    } else {
+      // However, the foreach loop is slow for blocks with lots of predecessors
+      // because PHINode::getIncomingBlock is O(n) in # preds.  Instead, walk
+      // the user list of TIBB to find the PHI nodes.
+      SmallPtrSet<PHINode*, 16> UpdatedPHIs;
+    
+      for (Value::use_iterator UI = TIBB->use_begin(), E = TIBB->use_end();
+           UI != E; ) {
+        Value::use_iterator Use = UI++;
+        if (PHINode *PN = dyn_cast<PHINode>(Use)) {
+          // Remove one entry from each PHI.
+          if (PN->getParent() == DestBB && UpdatedPHIs.insert(PN))
+            PN->setOperand(Use.getOperandNo(), NewBB);
+        }
+      }
+    }
   }
-  
+   
   // If there are any other edges from TIBB to DestBB, update those to go
   // through the split block, making those edges non-critical as well (and
   // reducing the number of phi entries in the DestBB if relevant).
@@ -221,6 +252,15 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
 
   // If we don't have a pass object, we can't update anything...
   if (P == 0) return NewBB;
+  
+  DominatorTree *DT = P->getAnalysisIfAvailable<DominatorTree>();
+  DominanceFrontier *DF = P->getAnalysisIfAvailable<DominanceFrontier>();
+  LoopInfo *LI = P->getAnalysisIfAvailable<LoopInfo>();
+  ProfileInfo *PI = P->getAnalysisIfAvailable<ProfileInfo>();
+  
+  // If we have nothing to update, just return.
+  if (DT == 0 && DF == 0 && LI == 0 && PI == 0)
+    return NewBB;
 
   // Now update analysis information.  Since the only predecessor of NewBB is
   // the TIBB, TIBB clearly dominates NewBB.  TIBB usually doesn't dominate
@@ -229,14 +269,23 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
   // loop header) then NewBB dominates DestBB.
   SmallVector<BasicBlock*, 8> OtherPreds;
 
-  for (pred_iterator I = pred_begin(DestBB), E = pred_end(DestBB); I != E; ++I)
-    if (*I != NewBB)
-      OtherPreds.push_back(*I);
+  // If there is a PHI in the block, loop over predecessors with it, which is
+  // faster than iterating pred_begin/end.
+  if (PHINode *PN = dyn_cast<PHINode>(DestBB->begin())) {
+    for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i)
+      if (PN->getIncomingBlock(i) != NewBB)
+        OtherPreds.push_back(PN->getIncomingBlock(i));
+  } else {
+    for (pred_iterator I = pred_begin(DestBB), E = pred_end(DestBB);
+         I != E; ++I)
+      if (*I != NewBB)
+        OtherPreds.push_back(*I);
+  }
   
   bool NewBBDominatesDestBB = true;
   
   // Should we update DominatorTree information?
-  if (DominatorTree *DT = P->getAnalysisIfAvailable<DominatorTree>()) {
+  if (DT) {
     DomTreeNode *TINode = DT->getNode(TIBB);
 
     // The new block is not the immediate dominator for any other nodes, but
@@ -267,7 +316,7 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
   }
 
   // Should we update DominanceFrontier information?
-  if (DominanceFrontier *DF = P->getAnalysisIfAvailable<DominanceFrontier>()) {
+  if (DF) {
     // If NewBBDominatesDestBB hasn't been computed yet, do so with DF.
     if (!OtherPreds.empty()) {
       // FIXME: IMPLEMENT THIS!
@@ -301,7 +350,7 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
   }
   
   // Update LoopInfo if it is around.
-  if (LoopInfo *LI = P->getAnalysisIfAvailable<LoopInfo>()) {
+  if (LI) {
     if (Loop *TIL = LI->getLoopFor(TIBB)) {
       // If one or the other blocks were not in a loop, the new block is not
       // either, and thus LI doesn't need to be updated.
@@ -382,9 +431,8 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
   }
 
   // Update ProfileInfo if it is around.
-  if (ProfileInfo *PI = P->getAnalysisIfAvailable<ProfileInfo>()) {
-    PI->splitEdge(TIBB,DestBB,NewBB,MergeIdenticalEdges);
-  }
+  if (PI)
+    PI->splitEdge(TIBB, DestBB, NewBB, MergeIdenticalEdges);
 
   return NewBB;
 }

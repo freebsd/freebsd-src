@@ -325,16 +325,23 @@ bool AsmParser::ParseExpression(const MCExpr *&Res) {
 ///  expr ::= primaryexpr
 ///
 bool AsmParser::ParseExpression(const MCExpr *&Res, SMLoc &EndLoc) {
+  // Parse the expression.
   Res = 0;
-  return ParsePrimaryExpr(Res, EndLoc) ||
-         ParseBinOpRHS(1, Res, EndLoc);
+  if (ParsePrimaryExpr(Res, EndLoc) || ParseBinOpRHS(1, Res, EndLoc))
+    return true;
+
+  // Try to constant fold it up front, if possible.
+  int64_t Value;
+  if (Res->EvaluateAsAbsolute(Value))
+    Res = MCConstantExpr::Create(Value, getContext());
+
+  return false;
 }
 
 bool AsmParser::ParseParenExpression(const MCExpr *&Res, SMLoc &EndLoc) {
-  if (ParseParenExpr(Res, EndLoc))
-    return true;
-
-  return false;
+  Res = 0;
+  return ParseParenExpr(Res, EndLoc) ||
+         ParseBinOpRHS(1, Res, EndLoc);
 }
 
 bool AsmParser::ParseAbsoluteExpression(int64_t &Res) {
@@ -1709,14 +1716,18 @@ bool AsmParser::ParseDirectiveFile(StringRef, SMLoc DirectiveLoc) {
   if (Lexer.isNot(AsmToken::String))
     return TokError("unexpected token in '.file' directive");
   
-  StringRef ATTRIBUTE_UNUSED FileName = getTok().getString();
+  StringRef Filename = getTok().getString();
+  Filename = Filename.substr(1, Filename.size()-2);
   Lex();
 
   if (Lexer.isNot(AsmToken::EndOfStatement))
     return TokError("unexpected token in '.file' directive");
 
-  // FIXME: Do something with the .file.
-
+  if (FileNumber == -1)
+    Out.EmitFileDirective(Filename);
+  else
+    Out.EmitDwarfFileDirective(FileNumber, Filename);
+  
   return false;
 }
 

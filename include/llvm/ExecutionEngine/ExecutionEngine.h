@@ -19,6 +19,7 @@
 #include <map>
 #include <string>
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/ValueMap.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/System/Mutex.h"
@@ -36,7 +37,6 @@ class JITEventListener;
 class JITMemoryManager;
 class MachineCodeInfo;
 class Module;
-class ModuleProvider;
 class MutexGuard;
 class TargetData;
 class Type;
@@ -95,9 +95,9 @@ class ExecutionEngine {
   friend class EngineBuilder;  // To allow access to JITCtor and InterpCtor.
 
 protected:
-  /// Modules - This is a list of ModuleProvider's that we are JIT'ing from.  We
-  /// use a smallvector to optimize for the case where there is only one module.
-  SmallVector<ModuleProvider*, 1> Modules;
+  /// Modules - This is a list of Modules that we are JIT'ing from.  We use a
+  /// smallvector to optimize for the case where there is only one module.
+  SmallVector<Module*, 1> Modules;
   
   void setTargetData(const TargetData *td) {
     TD = td;
@@ -109,13 +109,17 @@ protected:
   // To avoid having libexecutionengine depend on the JIT and interpreter
   // libraries, the JIT and Interpreter set these functions to ctor pointers
   // at startup time if they are linked in.
-  static ExecutionEngine *(*JITCtor)(ModuleProvider *MP,
-                                     std::string *ErrorStr,
-                                     JITMemoryManager *JMM,
-                                     CodeGenOpt::Level OptLevel,
-                                     bool GVsWithCode,
-				     CodeModel::Model CMM);
-  static ExecutionEngine *(*InterpCtor)(ModuleProvider *MP,
+  static ExecutionEngine *(*JITCtor)(
+    Module *M,
+    std::string *ErrorStr,
+    JITMemoryManager *JMM,
+    CodeGenOpt::Level OptLevel,
+    bool GVsWithCode,
+    CodeModel::Model CMM,
+    StringRef MArch,
+    StringRef MCPU,
+    const SmallVectorImpl<std::string>& MAttrs);
+  static ExecutionEngine *(*InterpCtor)(Module *M,
                                         std::string *ErrorStr);
 
   /// LazyFunctionCreator - If an unknown function is needed, this function
@@ -141,8 +145,8 @@ public:
 
   /// create - This is the factory method for creating an execution engine which
   /// is appropriate for the current machine.  This takes ownership of the
-  /// module provider.
-  static ExecutionEngine *create(ModuleProvider *MP,
+  /// module.
+  static ExecutionEngine *create(Module *M,
                                  bool ForceInterpreter = false,
                                  std::string *ErrorStr = 0,
                                  CodeGenOpt::Level OptLevel =
@@ -158,18 +162,13 @@ public:
                                  // default freeMachineCodeForFunction works.
                                  bool GVsWithCode = true);
 
-  /// create - This is the factory method for creating an execution engine which
-  /// is appropriate for the current machine.  This takes ownership of the
-  /// module.
-  static ExecutionEngine *create(Module *M);
-
   /// createJIT - This is the factory method for creating a JIT for the current
   /// machine, it does not fall back to the interpreter.  This takes ownership
-  /// of the ModuleProvider and JITMemoryManager if successful.
+  /// of the Module and JITMemoryManager if successful.
   ///
   /// Clients should make sure to initialize targets prior to calling this
   /// function.
-  static ExecutionEngine *createJIT(ModuleProvider *MP,
+  static ExecutionEngine *createJIT(Module *M,
                                     std::string *ErrorStr = 0,
                                     JITMemoryManager *JMM = 0,
                                     CodeGenOpt::Level OptLevel =
@@ -178,11 +177,11 @@ public:
 				    CodeModel::Model CMM =
 				      CodeModel::Default);
 
-  /// addModuleProvider - Add a ModuleProvider to the list of modules that we
-  /// can JIT from.  Note that this takes ownership of the ModuleProvider: when
-  /// the ExecutionEngine is destroyed, it destroys the MP as well.
-  virtual void addModuleProvider(ModuleProvider *P) {
-    Modules.push_back(P);
+  /// addModule - Add a Module to the list of modules that we can JIT from.
+  /// Note that this takes ownership of the Module: when the ExecutionEngine is
+  /// destroyed, it destroys the Module as well.
+  virtual void addModule(Module *M) {
+    Modules.push_back(M);
   }
   
   //===----------------------------------------------------------------------===//
@@ -190,16 +189,9 @@ public:
   const TargetData *getTargetData() const { return TD; }
 
 
-  /// removeModuleProvider - Remove a ModuleProvider from the list of modules.
-  /// Relases the Module from the ModuleProvider, materializing it in the
-  /// process, and returns the materialized Module.
-  virtual Module* removeModuleProvider(ModuleProvider *P,
-                                       std::string *ErrInfo = 0);
-
-  /// deleteModuleProvider - Remove a ModuleProvider from the list of modules,
-  /// and deletes the ModuleProvider and owned Module.  Avoids materializing 
-  /// the underlying module.
-  virtual void deleteModuleProvider(ModuleProvider *P,std::string *ErrInfo = 0);
+  /// removeModule - Remove a Module from the list of modules.  Returns true if
+  /// M is found.
+  virtual bool removeModule(Module *M);
 
   /// FindFunctionNamed - Search all of the active modules to find the one that
   /// defines FnName.  This is very slow operation and shouldn't be used for
@@ -393,7 +385,7 @@ public:
   }
 
 protected:
-  explicit ExecutionEngine(ModuleProvider *P);
+  explicit ExecutionEngine(Module *M);
 
   void emitGlobals();
 
@@ -422,13 +414,16 @@ namespace EngineKind {
 class EngineBuilder {
 
  private:
-  ModuleProvider *MP;
+  Module *M;
   EngineKind::Kind WhichEngine;
   std::string *ErrorStr;
   CodeGenOpt::Level OptLevel;
   JITMemoryManager *JMM;
   bool AllocateGVsWithCode;
   CodeModel::Model CMModel;
+  std::string MArch;
+  std::string MCPU;
+  SmallVector<std::string, 4> MAttrs;
 
   /// InitEngine - Does the common initialization of default options.
   ///
@@ -443,15 +438,10 @@ class EngineBuilder {
 
  public:
   /// EngineBuilder - Constructor for EngineBuilder.  If create() is called and
-  /// is successful, the created engine takes ownership of the module
-  /// provider.
-  EngineBuilder(ModuleProvider *mp) : MP(mp) {
+  /// is successful, the created engine takes ownership of the module.
+  EngineBuilder(Module *m) : M(m) {
     InitEngine();
   }
-
-  /// EngineBuilder - Overloaded constructor that automatically creates an
-  /// ExistingModuleProvider for an existing module.
-  EngineBuilder(Module *m);
 
   /// setEngineKind - Controls whether the user wants the interpreter, the JIT,
   /// or whichever engine works.  This option defaults to EngineKind::Either.
@@ -499,6 +489,26 @@ class EngineBuilder {
   /// manager and free machine code.
   EngineBuilder &setAllocateGVsWithCode(bool a) {
     AllocateGVsWithCode = a;
+    return *this;
+  }
+
+  /// setMArch - Override the architecture set by the Module's triple.
+  EngineBuilder &setMArch(StringRef march) {
+    MArch.assign(march.begin(), march.end());
+    return *this;
+  }
+
+  /// setMCPU - Target a specific cpu type.
+  EngineBuilder &setMCPU(StringRef mcpu) {
+    MCPU.assign(mcpu.begin(), mcpu.end());
+    return *this;
+  }
+
+  /// setMAttrs - Set cpu-specific attributes.
+  template<typename StringSequence>
+  EngineBuilder &setMAttrs(const StringSequence &mattrs) {
+    MAttrs.clear();
+    MAttrs.append(mattrs.begin(), mattrs.end());
     return *this;
   }
 

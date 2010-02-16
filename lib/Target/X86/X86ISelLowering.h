@@ -19,6 +19,7 @@
 #include "X86RegisterInfo.h"
 #include "X86MachineFunctionInfo.h"
 #include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/CodeGen/FastISel.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/CallingConvLower.h"
@@ -155,6 +156,11 @@ namespace llvm {
       /// WrapperRIP - Special wrapper used under X86-64 PIC mode for RIP
       /// relative displacements.
       WrapperRIP,
+
+      /// MOVQ2DQ - Copies a 64-bit value from a vector to another vector.
+      /// Can be used to move a vector value from a MMX register to a XMM
+      /// register.
+      MOVQ2DQ,
 
       /// PEXTRB - Extract an 8-bit value from a vector and zero extend it to
       /// i32, corresponds to X86::PEXTRB.
@@ -366,25 +372,33 @@ namespace llvm {
     unsigned VarArgsGPOffset;         // X86-64 vararg func int reg offset.
     unsigned VarArgsFPOffset;         // X86-64 vararg func fp reg offset.
     int BytesToPopOnReturn;           // Number of arg bytes ret should pop.
-    int BytesCallerReserves;          // Number of arg bytes caller makes.
 
   public:
     explicit X86TargetLowering(X86TargetMachine &TM);
 
+    /// getPICBaseSymbol - Return the X86-32 PIC base.
+    MCSymbol *getPICBaseSymbol(const MachineFunction *MF, MCContext &Ctx) const;
+    
+    virtual unsigned getJumpTableEncoding() const;
+
+    virtual const MCExpr *
+    LowerCustomJumpTableEntry(const MachineJumpTableInfo *MJTI,
+                              const MachineBasicBlock *MBB, unsigned uid,
+                              MCContext &Ctx) const;
+    
     /// getPICJumpTableRelocaBase - Returns relocation base for the given PIC
     /// jumptable.
-    SDValue getPICJumpTableRelocBase(SDValue Table,
-                                       SelectionDAG &DAG) const;
-
+    virtual SDValue getPICJumpTableRelocBase(SDValue Table,
+                                             SelectionDAG &DAG) const;
+    virtual const MCExpr *
+    getPICJumpTableRelocBaseExpr(const MachineFunction *MF,
+                                 unsigned JTI, MCContext &Ctx) const;
+    
     // Return the number of bytes that a function should pop when it returns (in
     // addition to the space used by the return address).
     //
     unsigned getBytesToPopOnReturn() const { return BytesToPopOnReturn; }
 
-    // Return the number of bytes that the caller reserves for arguments passed
-    // to this function.
-    unsigned getBytesCallerReserves() const { return BytesCallerReserves; }
- 
     /// getStackPtrReg - Return the stack pointer register we are using: either
     /// ESP or RSP.
     unsigned getStackPtrReg() const { return X86StackPtr; }
@@ -532,16 +546,6 @@ namespace llvm {
       return !X86ScalarSSEf64 || VT == MVT::f80;
     }
     
-    /// IsEligibleForTailCallOptimization - Check whether the call is eligible
-    /// for tail call optimization. Targets which want to do tail call
-    /// optimization should implement this function.
-    virtual bool
-    IsEligibleForTailCallOptimization(SDValue Callee,
-                                      CallingConv::ID CalleeCC,
-                                      bool isVarArg,
-                                      const SmallVectorImpl<ISD::InputArg> &Ins,
-                                      SelectionDAG& DAG) const;
-
     virtual const X86Subtarget* getSubtarget() {
       return Subtarget;
     }
@@ -619,13 +623,22 @@ namespace llvm {
                              ISD::ArgFlagsTy Flags);
 
     // Call lowering helpers.
+
+    /// IsEligibleForTailCallOptimization - Check whether the call is eligible
+    /// for tail call optimization. Targets which want to do tail call
+    /// optimization should implement this function.
+    bool IsEligibleForTailCallOptimization(SDValue Callee,
+                                           CallingConv::ID CalleeCC,
+                                           bool isVarArg,
+                                    const SmallVectorImpl<ISD::OutputArg> &Outs,
+                                    const SmallVectorImpl<ISD::InputArg> &Ins,
+                                           SelectionDAG& DAG) const;
     bool IsCalleePop(bool isVarArg, CallingConv::ID CallConv);
     SDValue EmitTailCallLoadRetAddr(SelectionDAG &DAG, SDValue &OutRetAddr,
                                 SDValue Chain, bool IsTailCall, bool Is64Bit,
                                 int FPDiff, DebugLoc dl);
 
     CCAssignFn *CCAssignFnForNode(CallingConv::ID CallConv) const;
-    NameDecorationStyle NameDecorationForCallConv(CallingConv::ID CallConv);
     unsigned GetAlignedArgumentStackSize(unsigned StackSize, SelectionDAG &DAG);
 
     std::pair<SDValue,SDValue> FP_TO_INTHelper(SDValue Op, SelectionDAG &DAG,
@@ -634,6 +647,7 @@ namespace llvm {
     SDValue LowerAsSplatVectorLoad(SDValue SrcOp, EVT VT, DebugLoc dl,
                                    SelectionDAG &DAG);
     SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG);
     SDValue LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG);
     SDValue LowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG);
     SDValue LowerEXTRACT_VECTOR_ELT_SSE4(SDValue Op, SelectionDAG &DAG);
@@ -693,7 +707,7 @@ namespace llvm {
                            SmallVectorImpl<SDValue> &InVals);
     virtual SDValue
       LowerCall(SDValue Chain, SDValue Callee,
-                CallingConv::ID CallConv, bool isVarArg, bool isTailCall,
+                CallingConv::ID CallConv, bool isVarArg, bool &isTailCall,
                 const SmallVectorImpl<ISD::OutputArg> &Outs,
                 const SmallVectorImpl<ISD::InputArg> &Ins,
                 DebugLoc dl, SelectionDAG &DAG,

@@ -27,6 +27,7 @@
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/TypeSymbolTable.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/CFG.h"
@@ -238,6 +239,19 @@ void TypePrinting::CalcTypeName(const Type *Ty,
       OS << '>';
     break;
   }
+  case Type::UnionTyID: {
+    const UnionType *UTy = cast<UnionType>(Ty);
+    OS << "union { ";
+    for (StructType::element_iterator I = UTy->element_begin(),
+         E = UTy->element_end(); I != E; ++I) {
+      CalcTypeName(*I, TypeStack, OS);
+      if (next(I) != UTy->element_end())
+        OS << ',';
+      OS << ' ';
+    }
+    OS << '}';
+    break;
+  }
   case Type::PointerTyID: {
     const PointerType *PTy = cast<PointerType>(Ty);
     CalcTypeName(PTy->getElementType(), TypeStack, OS);
@@ -417,13 +431,13 @@ static void AddModuleTypesToPrinter(TypePrinting &TP,
     // they are used too often to have a single useful name.
     if (const PointerType *PTy = dyn_cast<PointerType>(Ty)) {
       const Type *PETy = PTy->getElementType();
-      if ((PETy->isPrimitiveType() || PETy->isInteger()) &&
+      if ((PETy->isPrimitiveType() || PETy->isIntegerTy()) &&
           !isa<OpaqueType>(PETy))
         continue;
     }
 
     // Likewise don't insert primitives either.
-    if (Ty->isInteger() || Ty->isPrimitiveType())
+    if (Ty->isIntegerTy() || Ty->isPrimitiveType())
       continue;
 
     // Get the name as a string and insert it into TypeNames.
@@ -835,7 +849,7 @@ static void WriteOptimizationInfo(raw_ostream &Out, const User *U) {
 static void WriteConstantInt(raw_ostream &Out, const Constant *CV,
                              TypePrinting &TypePrinter, SlotTracker *Machine) {
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
-    if (CI->getType()->isInteger(1)) {
+    if (CI->getType()->isIntegerTy(1)) {
       Out << (CI->getZExtValue() ? "true" : "false");
       return;
     }
@@ -855,7 +869,8 @@ static void WriteConstantInt(raw_ostream &Out, const Constant *CV,
       bool isDouble = &CFP->getValueAPF().getSemantics()==&APFloat::IEEEdouble;
       double Val = isDouble ? CFP->getValueAPF().convertToDouble() :
                               CFP->getValueAPF().convertToFloat();
-      std::string StrVal = ftostr(CFP->getValueAPF());
+      SmallString<128> StrVal;
+      raw_svector_ostream(StrVal) << Val;
 
       // Check to make sure that the stringized number is not some string like
       // "Inf" or NaN, that atof will accept, but the lexer will not.  Check
@@ -866,7 +881,7 @@ static void WriteConstantInt(raw_ostream &Out, const Constant *CV,
            (StrVal[1] >= '0' && StrVal[1] <= '9'))) {
         // Reparse stringized version!
         if (atof(StrVal.c_str()) == Val) {
-          Out << StrVal;
+          Out << StrVal.str();
           return;
         }
       }
@@ -1250,14 +1265,13 @@ public:
   void printArgument(const Argument *FA, Attributes Attrs);
   void printBasicBlock(const BasicBlock *BB);
   void printInstruction(const Instruction &I);
-private:
 
+private:
   // printInfoComment - Print a little comment after the instruction indicating
   // which slot it occupies.
   void printInfoComment(const Value &V);
 };
 }  // end of anonymous namespace
-
 
 void AssemblyWriter::writeOperand(const Value *Operand, bool PrintType) {
   if (Operand == 0) {
@@ -1402,8 +1416,6 @@ static void PrintLinkage(GlobalValue::LinkageTypes LT,
   case GlobalValue::AvailableExternallyLinkage:
     Out << "available_externally ";
     break;
-    // This is invalid syntax and just a debugging aid.
-  case GlobalValue::GhostLinkage:	  Out << "ghost ";	    break;
   }
 }
 
@@ -1418,6 +1430,9 @@ static void PrintVisibility(GlobalValue::VisibilityTypes Vis,
 }
 
 void AssemblyWriter::printGlobal(const GlobalVariable *GV) {
+  if (GV->isMaterializable())
+    Out << "; Materializable\n";
+
   WriteAsOperandInternal(Out, GV, &TypePrinter, &Machine);
   Out << " = ";
 
@@ -1448,6 +1463,9 @@ void AssemblyWriter::printGlobal(const GlobalVariable *GV) {
 }
 
 void AssemblyWriter::printAlias(const GlobalAlias *GA) {
+  if (GA->isMaterializable())
+    Out << "; Materializable\n";
+
   // Don't crash when dumping partially built GA
   if (!GA->hasName())
     Out << "<<nameless>> = ";
@@ -1520,6 +1538,9 @@ void AssemblyWriter::printFunction(const Function *F) {
   Out << '\n';
 
   if (AnnotationWriter) AnnotationWriter->emitFunctionAnnot(F, Out);
+
+  if (F->isMaterializable())
+    Out << "; Materializable\n";
 
   if (F->isDeclaration())
     Out << "declare ";
@@ -1680,11 +1701,15 @@ void AssemblyWriter::printBasicBlock(const BasicBlock *BB) {
   if (AnnotationWriter) AnnotationWriter->emitBasicBlockEndAnnot(BB, Out);
 }
 
-
 /// printInfoComment - Print a little comment after the instruction indicating
 /// which slot it occupies.
 ///
 void AssemblyWriter::printInfoComment(const Value &V) {
+  if (AnnotationWriter) {
+    AnnotationWriter->printInfoComment(V, Out);
+    return;
+  }
+
   if (V.getType()->isVoidTy()) return;
   
   Out.PadToColumn(50);

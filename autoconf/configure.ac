@@ -727,13 +727,13 @@ fi
 
 dnl --enable-libffi : check whether the user wants to turn off libffi:
 AC_ARG_ENABLE(libffi,AS_HELP_STRING(
-  --enable-libffi,[Check for the presence of libffi (default is YES)]),,
-  enableval=yes)
-case "$enableval" in
-  yes) llvm_cv_enable_libffi="yes" ;;
-  no)  llvm_cv_enable_libffi="no"  ;;
-  *) AC_MSG_ERROR([Invalid setting for --enable-libffi. Use "yes" or "no"]) ;;
-esac
+  --enable-libffi,[Check for the presence of libffi (default is NO)]),
+  [case "$enableval" in
+    yes) llvm_cv_enable_libffi="yes" ;;
+    no)  llvm_cv_enable_libffi="no"  ;;
+    *) AC_MSG_ERROR([Invalid setting for --enable-libffi. Use "yes" or "no"]) ;;
+  esac],
+  llvm_cv_enable_libffi=no)
 
 dnl Only Windows needs dynamic libCompilerDriver to support plugins.
 if test "$llvm_cv_os_type" = "Win32" ; then
@@ -789,6 +789,7 @@ AC_PATH_PROG(GREP, [grep], [grep])
 AC_PATH_PROG(MKDIR,[mkdir],[mkdir])
 AC_PATH_PROG(MV,   [mv],   [mv])
 AC_PROG_RANLIB
+AC_CHECK_TOOL(AR, ar, false)
 AC_PATH_PROG(RM,   [rm],   [rm])
 AC_PATH_PROG(SED,  [sed],  [sed])
 AC_PATH_PROG(TAR,  [tar],  [gtar])
@@ -919,13 +920,6 @@ dnl before the AC_PROG_LIBTOOL check in order to enable dlopening libraries with
 dnl libtool).
 AC_LIBTOOL_DLOPEN
 AC_LIB_LTDL
-AC_PROG_LIBTOOL
-
-if test "$lt_cv_dlopen_self" = "yes" ; then
-  AC_DEFINE([CAN_DLOPEN_SELF],[1],
-              [Define if dlopen(0) will open the symbols of the program])
-fi
-
 
 if test "$WITH_LLVMGCCDIR" = "default" ; then
   LLVMGCC="llvm-gcc${EXEEXT}"
@@ -1027,7 +1021,7 @@ dnl libffi is optional; used to call external functions from the interpreter
 if test "$llvm_cv_enable_libffi" = "yes" ; then
   AC_SEARCH_LIBS(ffi_call,ffi,AC_DEFINE([HAVE_FFI_CALL],[1],
                  [Define if libffi is available on this platform.]),
-                 AC_MSG_WARN([libffi not found - disabling external calls from interpreter]))
+                 AC_MSG_ERROR([libffi not found - configure without --enable-libffi to compile without it]))
 fi
 
 dnl mallinfo is optional; the code can compile (minus features) without it
@@ -1148,7 +1142,7 @@ dnl===-----------------------------------------------------------------------===
 AC_HUGE_VAL_CHECK
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
-AC_TYPE_SIGNAL
+AC_DEFINE_UNQUOTED([RETSIGTYPE],[void],[Define as the return type of signal handlers (`int' or `void').])
 AC_STRUCT_TM
 AC_CHECK_TYPES([int64_t],,AC_MSG_ERROR([Type int64_t required but not found]))
 AC_CHECK_TYPES([uint64_t],,
@@ -1170,15 +1164,10 @@ AC_CHECK_FUNCS([strerror strerror_r strerror_s setenv ])
 AC_CHECK_FUNCS([strtoll strtoq sysconf malloc_zone_statistics ])
 AC_CHECK_FUNCS([setjmp longjmp sigsetjmp siglongjmp])
 AC_C_PRINTF_A
-dnl FIXME: This is no longer used, please remove (but test)!!!
-AC_FUNC_ALLOCA
 AC_FUNC_RAND48
 
 dnl Check for variations in the Standard C++ library and STL. These macros are
 dnl provided by LLVM in the autoconf/m4 directory.
-AC_CXX_HAVE_STD_ITERATOR
-AC_CXX_HAVE_BI_ITERATOR
-AC_CXX_HAVE_FWD_ITERATOR
 AC_FUNC_ISNAN
 AC_FUNC_ISINF
 

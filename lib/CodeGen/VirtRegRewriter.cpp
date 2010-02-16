@@ -62,6 +62,7 @@ VirtRegRewriter::~VirtRegRewriter() {}
 
 /// substitutePhysReg - Replace virtual register in MachineOperand with a
 /// physical register. Do the right thing with the sub-register index.
+/// Note that operands may be added, so the MO reference is no longer valid.
 static void substitutePhysReg(MachineOperand &MO, unsigned Reg,
                               const TargetRegisterInfo &TRI) {
   if (unsigned SubIdx = MO.getSubReg()) {
@@ -123,14 +124,15 @@ struct TrivialRewriter : public VirtRegRewriter {
           continue;
         unsigned pReg = VRM.getPhys(reg);
         mri->setPhysRegUsed(pReg);
-        for (MachineRegisterInfo::reg_iterator regItr = mri->reg_begin(reg),
-             regEnd = mri->reg_end(); regItr != regEnd;) {
-          MachineOperand &mop = regItr.getOperand();
-          assert(mop.isReg() && mop.getReg() == reg && "reg_iterator broken?");
-          ++regItr;
-          substitutePhysReg(mop, pReg, *tri);
-          changed = true;
-        }
+        // Copy the register use-list before traversing it.
+        SmallVector<std::pair<MachineInstr*, unsigned>, 32> reglist;
+        for (MachineRegisterInfo::reg_iterator I = mri->reg_begin(reg),
+               E = mri->reg_end(); I != E; ++I)
+          reglist.push_back(std::make_pair(&*I, I.getOperandNo()));
+        for (unsigned N=0; N != reglist.size(); ++N)
+          substitutePhysReg(reglist[N].first->getOperand(reglist[N].second),
+                            pReg, *tri);
+        changed |= !reglist.empty();
       }
     }
     
@@ -1759,7 +1761,7 @@ private:
 
             // Mark is killed.
             MachineInstr *CopyMI = prior(InsertLoc);
-            CopyMI->setAsmPrinterFlag(AsmPrinter::ReloadReuse);
+            CopyMI->setAsmPrinterFlag(MachineInstr::ReloadReuse);
             MachineOperand *KillOpnd = CopyMI->findRegisterUseOperand(InReg);
             KillOpnd->setIsKill();
             UpdateKills(*CopyMI, TRI, RegKills, KillOps);
@@ -1850,31 +1852,30 @@ private:
       KilledMIRegs.clear();
       for (unsigned j = 0, e = VirtUseOps.size(); j != e; ++j) {
         unsigned i = VirtUseOps[j];
-        MachineOperand &MO = MI.getOperand(i);
-        unsigned VirtReg = MO.getReg();
+        unsigned VirtReg = MI.getOperand(i).getReg();
         assert(TargetRegisterInfo::isVirtualRegister(VirtReg) &&
                "Not a virtual register?");
 
-        unsigned SubIdx = MO.getSubReg();
+        unsigned SubIdx = MI.getOperand(i).getSubReg();
         if (VRM.isAssignedReg(VirtReg)) {
           // This virtual register was assigned a physreg!
           unsigned Phys = VRM.getPhys(VirtReg);
           RegInfo->setPhysRegUsed(Phys);
-          if (MO.isDef())
+          if (MI.getOperand(i).isDef())
             ReusedOperands.markClobbered(Phys);
-          substitutePhysReg(MO, Phys, *TRI);
+          substitutePhysReg(MI.getOperand(i), Phys, *TRI);
           if (VRM.isImplicitlyDefined(VirtReg))
             // FIXME: Is this needed?
             BuildMI(MBB, &MI, MI.getDebugLoc(),
-                    TII->get(TargetInstrInfo::IMPLICIT_DEF), Phys);
+                    TII->get(TargetOpcode::IMPLICIT_DEF), Phys);
           continue;
         }
 
         // This virtual register is now known to be a spilled value.
-        if (!MO.isUse())
+        if (!MI.getOperand(i).isUse())
           continue;  // Handle defs in the loop below (handle use&def here though)
 
-        bool AvoidReload = MO.isUndef();
+        bool AvoidReload = MI.getOperand(i).isUndef();
         // Check if it is defined by an implicit def. It should not be spilled.
         // Note, this is for correctness reason. e.g.
         // 8   %reg1024<def> = IMPLICIT_DEF
@@ -1902,8 +1903,7 @@ private:
         //       = EXTRACT_SUBREG fi#1
         // fi#1 is available in EDI, but it cannot be reused because it's not in
         // the right register file.
-        if (PhysReg && !AvoidReload &&
-            (SubIdx || MI.getOpcode() == TargetInstrInfo::EXTRACT_SUBREG)) {
+        if (PhysReg && !AvoidReload && (SubIdx || MI.isExtractSubreg())) {
           const TargetRegisterClass* RC = RegInfo->getRegClass(VirtReg);
           if (!RC->contains(PhysReg))
             PhysReg = 0;
@@ -2038,7 +2038,7 @@ private:
           TII->copyRegToReg(MBB, InsertLoc, DesignatedReg, PhysReg, RC, RC);
 
           MachineInstr *CopyMI = prior(InsertLoc);
-          CopyMI->setAsmPrinterFlag(AsmPrinter::ReloadReuse);
+          CopyMI->setAsmPrinterFlag(MachineInstr::ReloadReuse);
           UpdateKills(*CopyMI, TRI, RegKills, KillOps);
 
           // This invalidates DesignatedReg.
@@ -2167,7 +2167,7 @@ private:
                 // virtual or needing to clobber any values if it's physical).
                 NextMII = &MI;
                 --NextMII;  // backtrack to the copy.
-                NextMII->setAsmPrinterFlag(AsmPrinter::ReloadReuse);
+                NextMII->setAsmPrinterFlag(MachineInstr::ReloadReuse);
                 // Propagate the sub-register index over.
                 if (SubIdx) {
                   DefMO = NextMII->findRegisterDefOperand(DestReg);

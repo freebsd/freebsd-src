@@ -106,7 +106,7 @@ bool CodePlacementOpt::HasAnalyzableTerminator(MachineBasicBlock *MBB) {
   // At the time of this writing, there are blocks which AnalyzeBranch
   // thinks end in single uncoditional branches, yet which have two CFG
   // successors. Code in this file is not prepared to reason about such things.
-  if (!MBB->empty() && MBB->back().getOpcode() == TargetInstrInfo::EH_LABEL)
+  if (!MBB->empty() && MBB->back().isEHLabel())
     return false;
 
   // Aggressively handle return blocks and similar constructs.
@@ -115,7 +115,7 @@ bool CodePlacementOpt::HasAnalyzableTerminator(MachineBasicBlock *MBB) {
   // Ask the target's AnalyzeBranch if it can handle this block.
   MachineBasicBlock *TBB = 0, *FBB = 0;
   SmallVector<MachineOperand, 4> Cond;
-  // Make the the terminator is understood.
+  // Make sure the terminator is understood.
   if (TII->AnalyzeBranch(*MBB, TBB, FBB, Cond))
     return false;
   // Make sure we have the option of reversing the condition.
