@@ -1,8 +1,8 @@
 <!--
- - Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  - 
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch06.html,v 1.82.18.88 2008/10/18 01:29:58 tbox Exp $ -->
+<!-- $Id: Bv9ARM.ch06.html,v 1.82.18.98 2009/09/25 01:33:41 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -48,52 +48,52 @@
 <dt><span class="sect1"><a href="Bv9ARM.ch06.html#configuration_file_elements">Configuration File Elements</a></span></dt>
 <dd><dl>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#address_match_lists">Address Match Lists</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2573436">Comment Syntax</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2573560">Comment Syntax</a></span></dt>
 </dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch06.html#Configuration_File_Grammar">Configuration File Grammar</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574117"><span><strong class="command">acl</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574164"><span><strong class="command">acl</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#acl"><span><strong class="command">acl</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574307"><span><strong class="command">controls</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574422"><span><strong class="command">controls</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#controls_statement_definition_and_usage"><span><strong class="command">controls</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574736"><span><strong class="command">include</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574753"><span><strong class="command">include</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574851"><span><strong class="command">include</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574868"><span><strong class="command">include</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574776"><span><strong class="command">key</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574800"><span><strong class="command">key</strong></span> Statement Definition and Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574958"><span><strong class="command">logging</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575084"><span><strong class="command">logging</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574891"><span><strong class="command">key</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574915"><span><strong class="command">key</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575005"><span><strong class="command">logging</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575200"><span><strong class="command">logging</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576435"><span><strong class="command">lwres</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576508"><span><strong class="command">lwres</strong></span> Statement Definition and Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576572"><span><strong class="command">masters</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576616"><span><strong class="command">masters</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577096"><span><strong class="command">lwres</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577238"><span><strong class="command">lwres</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577302"><span><strong class="command">masters</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577346"><span><strong class="command">masters</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576631"><span><strong class="command">options</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577361"><span><strong class="command">options</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#options"><span><strong class="command">options</strong></span> Statement Definition and
           Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#server_statement_grammar"><span><strong class="command">server</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#server_statement_definition_and_usage"><span><strong class="command">server</strong></span> Statement Definition and
             Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2585614"><span><strong class="command">trusted-keys</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2585666"><span><strong class="command">trusted-keys</strong></span> Statement Definition
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2586451"><span><strong class="command">trusted-keys</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2586502"><span><strong class="command">trusted-keys</strong></span> Statement Definition
             and Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#view_statement_grammar"><span><strong class="command">view</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2585748"><span><strong class="command">view</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2586652"><span><strong class="command">view</strong></span> Statement Definition and Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#zone_statement_grammar"><span><strong class="command">zone</strong></span>
             Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2587332"><span><strong class="command">zone</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2587989"><span><strong class="command">zone</strong></span> Statement Definition and Usage</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch06.html#id2589477">Zone File</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch06.html#id2590251">Zone File</a></span></dt>
 <dd><dl>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#types_of_resource_records_and_when_to_use_them">Types of Resource Records and When to Use Them</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2591500">Discussion of MX Records</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592275">Discussion of MX Records</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#Setting_TTLs">Setting TTLs</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592188">Inverse Mapping in IPv4</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592384">Other Zone File Directives</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592572"><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592890">Inverse Mapping in IPv4</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2593085">Other Zone File Directives</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2593342"><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#zonefile_format">Additional File Formats</a></span></dt>
 </dl></dd>
 </dl>
@@ -455,7 +455,7 @@
 <a name="address_match_lists"></a>Address Match Lists</h3></div></div></div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2573302"></a>Syntax</h4></div></div></div>
+<a name="id2573353"></a>Syntax</h4></div></div></div>
 <pre class="programlisting"><code class="varname">address_match_list</code> = address_match_list_element ;
   [<span class="optional"> address_match_list_element; ... </span>]
 <code class="varname">address_match_list_element</code> = [<span class="optional"> ! </span>] (ip_address [<span class="optional">/length</span>] |
@@ -464,7 +464,7 @@
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2573330"></a>Definition and Usage</h4></div></div></div>
+<a name="id2573381"></a>Definition and Usage</h4></div></div></div>
 <p>
             Address match lists are primarily used to determine access
             control for various server operations. They are also used in
@@ -520,7 +520,7 @@
             <span><strong class="command">allow-update</strong></span>,
             <span><strong class="command">allow-update-forwarding</strong></span>, and
             <span><strong class="command">blackhole</strong></span> all use address match
-            lists.  Similarly, the listen-on option will cause the
+            lists.  Similarly, the <span><strong class="command">listen-on</strong></span> option will cause the
             server to not accept queries on any of the machine's
             addresses which do not match the list.
           </p>
@@ -542,7 +542,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2573436"></a>Comment Syntax</h3></div></div></div>
+<a name="id2573560"></a>Comment Syntax</h3></div></div></div>
 <p>
           The <acronym class="acronym">BIND</acronym> 9 comment syntax allows for
           comments to appear
@@ -552,7 +552,7 @@
         </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2573588"></a>Syntax</h4></div></div></div>
+<a name="id2573575"></a>Syntax</h4></div></div></div>
 <p>
             </p>
 <pre class="programlisting">/* This is a <acronym class="acronym">BIND</acronym> comment as in C */</pre>
@@ -567,7 +567,7 @@
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2573618"></a>Definition and Usage</h4></div></div></div>
+<a name="id2573605"></a>Definition and Usage</h4></div></div></div>
 <p>
             Comments may appear anywhere that whitespace may appear in
             a <acronym class="acronym">BIND</acronym> configuration file.
@@ -598,8 +598,6 @@
             slash) and continue to the end of the physical line. They cannot
             be continued across multiple physical lines; to have one logical
             comment span multiple lines, each line must use the // pair.
-          </p>
-<p>
             For example:
           </p>
 <p>
@@ -617,8 +615,6 @@
             with the character <code class="literal">#</code> (number sign)
             and continue to the end of the
             physical line, as in C++ comments.
-          </p>
-<p>
             For example:
           </p>
 <p>
@@ -801,7 +797,7 @@
       </p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574117"></a><span><strong class="command">acl</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2574164"></a><span><strong class="command">acl</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">acl</strong></span> acl-name {
     address_match_list
 };
@@ -884,7 +880,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574307"></a><span><strong class="command">controls</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2574422"></a><span><strong class="command">controls</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">controls</strong></span> {
    [ inet ( ip_addr | * ) [ port ip_port ] allow { <em class="replaceable"><code> address_match_list </code></em> }
                 keys { <em class="replaceable"><code>key_list</code></em> }; ]
@@ -1006,12 +1002,12 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574736"></a><span><strong class="command">include</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2574851"></a><span><strong class="command">include</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">include</strong></span> <em class="replaceable"><code>filename</code></em>;</pre>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574753"></a><span><strong class="command">include</strong></span> Statement Definition and
+<a name="id2574868"></a><span><strong class="command">include</strong></span> Statement Definition and
           Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">include</strong></span> statement inserts the
@@ -1026,7 +1022,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574776"></a><span><strong class="command">key</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2574891"></a><span><strong class="command">key</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">key</strong></span> <em class="replaceable"><code>key_id</code></em> {
     algorithm <em class="replaceable"><code>string</code></em>;
     secret <em class="replaceable"><code>string</code></em>;
@@ -1035,7 +1031,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574800"></a><span><strong class="command">key</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2574915"></a><span><strong class="command">key</strong></span> Statement Definition and Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">key</strong></span> statement defines a shared
           secret key for use with TSIG (see <a href="Bv9ARM.ch04.html#tsig" title="TSIG">the section called &#8220;TSIG&#8221;</a>)
@@ -1082,10 +1078,10 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574958"></a><span><strong class="command">logging</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2575005"></a><span><strong class="command">logging</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">logging</strong></span> {
    [ <span><strong class="command">channel</strong></span> <em class="replaceable"><code>channel_name</code></em> {
-     ( <span><strong class="command">file</strong></span> <em class="replaceable"><code>path name</code></em>
+     ( <span><strong class="command">file</strong></span> <em class="replaceable"><code>path_name</code></em>
          [ <span><strong class="command">versions</strong></span> ( <em class="replaceable"><code>number</code></em> | <span><strong class="command">unlimited</strong></span> ) ]
          [ <span><strong class="command">size</strong></span> <em class="replaceable"><code>size spec</code></em> ]
        | <span><strong class="command">syslog</strong></span> <em class="replaceable"><code>syslog_facility</code></em>
@@ -1106,7 +1102,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2575084"></a><span><strong class="command">logging</strong></span> Statement Definition and
+<a name="id2575200"></a><span><strong class="command">logging</strong></span> Statement Definition and
           Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">logging</strong></span> statement configures a
@@ -1140,7 +1136,7 @@
         </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2575137"></a>The <span><strong class="command">channel</strong></span> Phrase</h4></div></div></div>
+<a name="id2575252"></a>The <span><strong class="command">channel</strong></span> Phrase</h4></div></div></div>
 <p>
             All log output goes to one or more <span class="emphasis"><em>channels</em></span>;
             you can make as many of them as you want.
@@ -1302,7 +1298,7 @@ notrace</strong></span>. All debugging messages in the server have a debug
             the date and time will be logged. <span><strong class="command">print-time</strong></span> may
             be specified for a <span><strong class="command">syslog</strong></span> channel,
             but is usually
-            pointless since <span><strong class="command">syslog</strong></span> also prints
+            pointless since <span><strong class="command">syslog</strong></span> also logs
             the date and
             time. If <span><strong class="command">print-category</strong></span> is
             requested, then the
@@ -1536,7 +1532,7 @@ category notify { null; };
                   </td>
 <td>
                     <p>
-                      Messages that named was unable to determine the
+                      Messages that <span><strong class="command">named</strong></span> was unable to determine the
                       class of or for which there was no matching <span><strong class="command">view</strong></span>.
                       A one line summary is also logged to the <span><strong class="command">client</strong></span> category.
                       This category is best sent to a file or stderr, by
@@ -1607,6 +1603,17 @@ category notify { null; };
 </tr>
 <tr>
 <td>
+                    <p><span><strong class="command">query-errors</strong></span></p>
+                  </td>
+<td>
+                    <p>
+                      Information about queries that resulted in some
+                      failure.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
                     <p><span><strong class="command">dispatch</strong></span></p>
                   </td>
 <td>
@@ -1645,21 +1652,248 @@ category notify { null; };
                   </td>
 <td>
                     <p>
-                      Delegation only.  Logs queries that have have
-                      been forced to NXDOMAIN as the result of a
-                      delegation-only zone or
-                      a <span><strong class="command">delegation-only</strong></span> in a
-                      hint or stub zone declaration.
+                      Delegation only.  Logs queries that have been
+                      forced to NXDOMAIN as the result of a
+                      delegation-only zone or a
+                      <span><strong class="command">delegation-only</strong></span> in a hint
+                      or stub zone declaration.
                     </p>
                   </td>
 </tr>
 </tbody>
 </table></div>
 </div>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2576508"></a>The <span><strong class="command">query-errors</strong></span> Category</h4></div></div></div>
+<p>
+            The <span><strong class="command">query-errors</strong></span> category is
+            specifically intended for debugging purposes: To identify
+            why and how specific queries result in responses which
+            indicate an error.
+            Messages of this category are therefore only logged
+            with <span><strong class="command">debug</strong></span> levels.
+          </p>
+<p>
+            At the debug levels of 1 or higher, each response with the
+            rcode of SERVFAIL is logged as follows:
+          </p>
+<p>
+            <code class="computeroutput">client 127.0.0.1#61502: query failed (SERVFAIL) for www.example.com/IN/AAAA at query.c:3880</code>
+          </p>
+<p>
+            This means an error resulting in SERVFAIL was
+            detected at line 3880 of source file
+            <code class="filename">query.c</code>.
+            Log messages of this level will particularly
+            help identify the cause of SERVFAIL for an
+            authoritative server.
+          </p>
+<p>
+            At the debug levels of 2 or higher, detailed context
+            information of recursive resolutions that resulted in
+            SERVFAIL is logged.
+            The log message will look like as follows:
+          </p>
+<p>
+
+            </p>
+<pre class="programlisting">
+fetch completed at resolver.c:2970 for www.example.com/A
+in 30.000183: timed out/success [domain:example.com,
+referral:2,restart:7,qrysent:8,timeout:5,lame:0,neterr:0,
+badresp:1,adberr:0,findfail:0,valfail:0]
+            </pre>
+<p>
+          </p>
+<p>
+            The first part before the colon shows that a recursive
+            resolution for AAAA records of www.example.com completed
+            in 30.000183 seconds and the final result that led to the
+            SERVFAIL was determined at line 2970 of source file
+            <code class="filename">resolver.c</code>.
+          </p>
+<p>
+            The following part shows the detected final result and the
+            latest result of DNSSEC validation.
+            The latter is always success when no validation attempt
+            is made.
+            In this example, this query resulted in SERVFAIL probably
+            because all name servers are down or unreachable, leading
+            to a timeout in 30 seconds.
+            DNSSEC validation was probably not attempted.
+          </p>
+<p>
+            The last part enclosed in square brackets shows statistics
+            information collected for this particular resolution
+            attempt.
+            The <code class="varname">domain</code> field shows the deepest zone
+            that the resolver reached;
+            it is the zone where the error was finally detected.
+            The meaning of the other fields is summarized in the
+            following table.
+          </p>
+<div class="informaltable"><table border="1">
+<colgroup>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td>
+                    <p><code class="varname">referral</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of referrals the resolver received
+                      throughout the resolution process.
+                      In the above example this is 2, which are most
+                      likely com and example.com.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">restart</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of cycles that the resolver tried
+                      remote servers at the <code class="varname">domain</code>
+                      zone.
+                      In each cycle the resolver sends one query
+                      (possibly resending it, depending on the response)
+                      to each known name server of
+                      the <code class="varname">domain</code> zone.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">qrysent</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of queries the resolver sent at the
+                      <code class="varname">domain</code> zone.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">timeout</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of timeouts since the resolver
+                      received the last response.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">lame</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of lame servers the resolver detected
+                      at the <code class="varname">domain</code> zone.
+                      A server is detected to be lame either by an
+                      invalid response or as a result of lookup in
+                      BIND9's address database (ADB), where lame
+                      servers are cached.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">neterr</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of erroneous results that the
+                      resolver encountered in sending queries
+                      at the <code class="varname">domain</code> zone.
+                      One common case is the remote server is
+                      unreachable and the resolver receives an ICMP
+                      unreachable error message.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">badresp</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of unexpected responses (other than
+                      <code class="varname">lame</code>) to queries sent by the
+                      resolver at the <code class="varname">domain</code> zone.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">adberr</code></p>
+                  </td>
+<td>
+                    <p>
+                      Failures in finding remote server addresses
+                      of the <code class="varname">domain</code> zone in the ADB.
+                      One common case of this is that the remote
+                      server's name does not have any address records.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">findfail</code></p>
+                  </td>
+<td>
+                    <p>
+                      Failures of resolving remote server addresses.
+                      This is a total number of failures throughout
+                      the resolution process.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">valfail</code></p>
+                  </td>
+<td>
+                    <p>
+                      Failures of DNSSEC validation.
+                      Validation failures are counted throughout
+                      the resolution process (not limited to
+                      the <code class="varname">domain</code> zone), but should
+                      only happen in <code class="varname">domain</code>.
+                    </p>
+                  </td>
+</tr>
+</tbody>
+</table></div>
+<p>
+            At the debug levels of 3 or higher, the same messages
+            as those at the debug 1 level are logged for other errors
+            than SERVFAIL.
+            Note that negative responses such as NXDOMAIN are not
+            regarded as errors here.
+          </p>
+<p>
+            At the debug levels of 4 or higher, the same messages
+            as those at the debug 2 level are logged for other errors
+            than SERVFAIL.
+            Unlike the above case of level 3, messages are logged for
+            negative responses.
+            This is because any unexpected results can be difficult to
+            debug in the recursion case.
+          </p>
+</div>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576435"></a><span><strong class="command">lwres</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2577096"></a><span><strong class="command">lwres</strong></span> Statement Grammar</h3></div></div></div>
 <p>
            This is the grammar of the <span><strong class="command">lwres</strong></span>
           statement in the <code class="filename">named.conf</code> file:
@@ -1674,7 +1908,7 @@ category notify { null; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576508"></a><span><strong class="command">lwres</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2577238"></a><span><strong class="command">lwres</strong></span> Statement Definition and Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">lwres</strong></span> statement configures the
           name
@@ -1725,14 +1959,14 @@ category notify { null; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576572"></a><span><strong class="command">masters</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2577302"></a><span><strong class="command">masters</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting">
 <span><strong class="command">masters</strong></span> <em class="replaceable"><code>name</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] { ( <em class="replaceable"><code>masters_list</code></em> | <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] [<span class="optional">key <em class="replaceable"><code>key</code></em></span>] ) ; [<span class="optional">...</span>] };
 </pre>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576616"></a><span><strong class="command">masters</strong></span> Statement Definition and
+<a name="id2577346"></a><span><strong class="command">masters</strong></span> Statement Definition and
           Usage</h3></div></div></div>
 <p><span><strong class="command">masters</strong></span>
           lists allow for a common set of masters to be easily used by
@@ -1741,7 +1975,7 @@ category notify { null; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576631"></a><span><strong class="command">options</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2577361"></a><span><strong class="command">options</strong></span> Statement Grammar</h3></div></div></div>
 <p>
           This is the grammar of the <span><strong class="command">options</strong></span>
           statement in the <code class="filename">named.conf</code> file:
@@ -1778,6 +2012,7 @@ category notify { null; };
     [<span class="optional"> rfc2308-type1 <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> use-id-pool <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> maintain-ixfr-base <em class="replaceable"><code>yes_or_no</code></em>; </span>]
+    [<span class="optional"> ixfr-from-differences (<em class="replaceable"><code>yes_or_no</code></em> | <code class="constant">master</code> | <code class="constant">slave</code>); </span>]
     [<span class="optional"> dnssec-enable <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> dnssec-validation <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> dnssec-lookaside <em class="replaceable"><code>domain</code></em> trust-anchor <em class="replaceable"><code>domain</code></em>; </span>]
@@ -2001,7 +2236,7 @@ digits</code>" + "<code class="varname">tkey-domain</code>". In most cases,
 <dd><p>
                 The pathname of the file the server writes its process ID
                 in. If not specified, the default is <code class="filename">/var/run/named.pid</code>.
-                The pid-file is used by programs that want to send signals to
+                The PID file is used by programs that want to send signals to
                 the running
                 name server. Specifying <span><strong class="command">pid-file none</strong></span> disables the
                 use of a PID file &#8212; no file will be written and any
@@ -2062,16 +2297,46 @@ digits</code>" + "<code class="varname">tkey-domain</code>". In most cases,
                 in the additional section of a query response.
                 The default is not to prefer any type (NONE).
               </p></dd>
-<dt><span class="term"><span><strong class="command">root-delegation-only</strong></span></span></dt>
+<dt>
+<a name="root_delegation_only"></a><span class="term"><span><strong class="command">root-delegation-only</strong></span></span>
+</dt>
 <dd>
 <p>
-                Turn on enforcement of delegation-only in TLDs (top level domains) and root zones
-                with an optional
+                Turn on enforcement of delegation-only in TLDs
+                (top level domains) and root zones with an optional
                 exclude list.
               </p>
 <p>
-                Note some TLDs are not delegation only (e.g. "DE", "LV", "US"
-                and "MUSEUM").
+                DS queries are expected to be made to and be answered by
+                delegation only zones.  Such queries and responses are
+                treated as a exception to delegation-only processing
+                and are not converted to NXDOMAIN responses provided
+                a CNAME is not discovered at the query name.
+              </p>
+<p>
+                If a delegation only zone server also serves a child
+                zone it is not always possible to determine whether
+                a answer comes from the delegation only zone or the
+                child zone.  SOA NS and DNSKEY records are apex
+                only records and a matching response that contains
+                these records or DS is treated as coming from a
+                child zone.  RRSIG records are also examined to see
+                if they are signed by a child zone or not.  The
+                authority section is also examined to see if there
+                is evidence that the answer is from the child zone.
+                Answers that are determined to be from a child zone
+                are not converted to NXDOMAIN responses.  Despite
+                all these checks there is still a possibility of
+                false negatives when a child zone is being served.
+              </p>
+<p>
+                Similarly false positives can arise from empty nodes
+                (no records at the name) in the delegation only zone
+                when the query type is not ANY.
+              </p>
+<p>
+                Note some TLDs are not delegation only (e.g. "DE", "LV",
+                "US" and "MUSEUM").  This list is not exhaustive.
               </p>
 <pre class="programlisting">
 options {
@@ -2096,7 +2361,7 @@ options {
                 top of a zone.  When a DNSKEY is at or below a domain
                 specified by the
                 deepest <span><strong class="command">dnssec-lookaside</strong></span>, and
-                the normal dnssec validation
+                the normal DNSSEC validation
                 has left the key untrusted, the trust-anchor will be append to
                 the key
                 name and a DLV record will be looked up to see if it can
@@ -2109,10 +2374,10 @@ options {
 <dd><p>
                 Specify hierarchies which must be or may not be secure (signed and
                 validated).
-                If <strong class="userinput"><code>yes</code></strong>, then named will only accept
+                If <strong class="userinput"><code>yes</code></strong>, then <span><strong class="command">named</strong></span> will only accept
                 answers if they
                 are secure.
-                If <strong class="userinput"><code>no</code></strong>, then normal dnssec validation
+                If <strong class="userinput"><code>no</code></strong>, then normal DNSSEC validation
                 applies
                 allowing for insecure answers to be accepted.
                 The specified domain must be under a <span><strong class="command">trusted-key</strong></span> or
@@ -2675,30 +2940,31 @@ options {
                   also accepts <span><strong class="command">master</strong></span> and
                   <span><strong class="command">slave</strong></span> at the view and options
                   levels which causes
-                  <span><strong class="command">ixfr-from-differences</strong></span> to apply to
+                  <span><strong class="command">ixfr-from-differences</strong></span> to be enabled for
                   all <span><strong class="command">master</strong></span> or
                   <span><strong class="command">slave</strong></span> zones respectively.
+                  It is off by default.
                 </p>
 </dd>
 <dt><span class="term"><span><strong class="command">multi-master</strong></span></span></dt>
 <dd><p>
                   This should be set when you have multiple masters for a zone
                   and the
-                  addresses refer to different machines.  If <strong class="userinput"><code>yes</code></strong>, named will
+                  addresses refer to different machines.  If <strong class="userinput"><code>yes</code></strong>, <span><strong class="command">named</strong></span> will
                   not log
-                  when the serial number on the master is less than what named
+                  when the serial number on the master is less than what <span><strong class="command">named</strong></span>
                   currently
                   has.  The default is <strong class="userinput"><code>no</code></strong>.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">dnssec-enable</strong></span></span></dt>
 <dd><p>
-                  Enable DNSSEC support in named.  Unless set to <strong class="userinput"><code>yes</code></strong>,
-                  named behaves as if it does not support DNSSEC.
+                  Enable DNSSEC support in <span><strong class="command">named</strong></span>.  Unless set to <strong class="userinput"><code>yes</code></strong>,
+                  <span><strong class="command">named</strong></span> behaves as if it does not support DNSSEC.
                   The default is <strong class="userinput"><code>yes</code></strong>.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">dnssec-validation</strong></span></span></dt>
 <dd><p>
-                  Enable DNSSEC validation in named.
+                  Enable DNSSEC validation in <span><strong class="command">named</strong></span>.
                   Note <span><strong class="command">dnssec-enable</strong></span> also needs to be
                   set to <strong class="userinput"><code>yes</code></strong> to be effective.
                   The default is <strong class="userinput"><code>no</code></strong>.
@@ -2707,11 +2973,11 @@ options {
 <dd><p>
                   Accept expired signatures when verifying DNSSEC signatures.
                   The default is <strong class="userinput"><code>no</code></strong>.
-                  Setting this option to "yes" leaves named vulnerable to replay attacks.
+                  Setting this option to "yes" leaves <span><strong class="command">named</strong></span> vulnerable to replay attacks.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">querylog</strong></span></span></dt>
 <dd><p>
-                  Specify whether query logging should be started when named
+                  Specify whether query logging should be started when <span><strong class="command">named</strong></span>
                   starts.
                   If <span><strong class="command">querylog</strong></span> is not specified,
                   then the query logging
@@ -2737,9 +3003,9 @@ options {
                   from RFC 952 and RFC 821 as modified by RFC 1123.
                 </p>
 <p><span><strong class="command">check-names</strong></span>
-                  applies to the owner names of A, AAA and MX records.
-                  It also applies to the domain names in the RDATA of NS, SOA
-                  and MX records.
+                  applies to the owner names of A, AAAA and MX records.
+                  It also applies to the domain names in the RDATA of NS, SOA,
+                  MX, and SRV records.
                   It also applies to the RDATA of PTR records where the owner
                   name indicated that it is a reverse lookup of a hostname
                   (the owner name ends in IN-ADDR.ARPA, IP6.ARPA, or IP6.INT).
@@ -2796,7 +3062,7 @@ options {
 <dt><span class="term"><span><strong class="command">zero-no-soa-ttl</strong></span></span></dt>
 <dd><p>
                   When returning authoritative negative responses to
-                  SOA queries set the TTL of the SOA recored returned in
+                  SOA queries set the TTL of the SOA record returned in
                   the authority section to zero.
                   The default is <span><strong class="command">yes</strong></span>.
                 </p></dd>
@@ -2820,7 +3086,7 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2580525"></a>Forwarding</h4></div></div></div>
+<a name="id2581241"></a>Forwarding</h4></div></div></div>
 <p>
             The forwarding facility can be used to create a large site-wide
             cache on a few servers, reducing traffic over links to external
@@ -2864,7 +3130,7 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2580721"></a>Dual-stack Servers</h4></div></div></div>
+<a name="id2581368"></a>Dual-stack Servers</h4></div></div></div>
 <p>
             Dual-stack servers are used as servers of last resort to work
             around
@@ -2935,8 +3201,9 @@ options {
                   from the cache.  If <span><strong class="command">allow-query-cache</strong></span>
                   is not set then <span><strong class="command">allow-recursion</strong></span>
                   is used if set, otherwise <span><strong class="command">allow-query</strong></span>
-                  is used if set, otherwise the default
-                  (<span><strong class="command">localnets;</strong></span>
+                  is used if set unless <span><strong class="command">recursion no;</strong></span> is
+                  set in which case <span><strong class="command">none;</strong></span> is used,
+                  otherwise the default (<span><strong class="command">localnets;</strong></span>
                   <span><strong class="command">localhost;</strong></span>) is used.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">allow-recursion</strong></span></span></dt>
@@ -3019,11 +3286,11 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2581142"></a>Interfaces</h4></div></div></div>
+<a name="id2581867"></a>Interfaces</h4></div></div></div>
 <p>
             The interfaces and ports that the server will answer queries
             from may be specified using the <span><strong class="command">listen-on</strong></span> option. <span><strong class="command">listen-on</strong></span> takes
-            an optional port, and an <code class="varname">address_match_list</code>.
+            an optional port and an <code class="varname">address_match_list</code>.
             The server will listen on all interfaces allowed by the address
             match list. If a port is not specified, port 53 will be used.
           </p>
@@ -3228,7 +3495,12 @@ avoid-v6-udp-ports {};
                   zone is loaded, in addition to the servers listed in the
                   zone's NS records.
                   This helps to ensure that copies of the zones will
-                  quickly converge on stealth servers. If an <span><strong class="command">also-notify</strong></span> list
+                  quickly converge on stealth servers.
+                  Optionally, a port may be specified with each
+                  <span><strong class="command">also-notify</strong></span> address to send
+                  the notify messages to a port other than the
+                  default of 53.
+                  If an <span><strong class="command">also-notify</strong></span> list
                   is given in a <span><strong class="command">zone</strong></span> statement,
                   it will override
                   the <span><strong class="command">options also-notify</strong></span>
@@ -3395,7 +3667,7 @@ avoid-v6-udp-ports {};
                   to be used, you should set
                   <span><strong class="command">use-alt-transfer-source</strong></span>
                   appropriately and you should not depend upon
-                  getting a answer back to the first refresh
+                  getting an answer back to the first refresh
                   query.
                 </div>
 </dd>
@@ -3447,7 +3719,7 @@ avoid-v6-udp-ports {};
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2582140"></a>UDP Port Lists</h4></div></div></div>
+<a name="id2582869"></a>UDP Port Lists</h4></div></div></div>
 <p>
             <span><strong class="command">use-v4-udp-ports</strong></span>,
             <span><strong class="command">avoid-v4-udp-ports</strong></span>,
@@ -3489,7 +3761,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2582200"></a>Operating System Resource Limits</h4></div></div></div>
+<a name="id2582929"></a>Operating System Resource Limits</h4></div></div></div>
 <p>
             The server's usage of many system resources can be limited.
             Scaled values are allowed when specifying resource limits.  For
@@ -3548,7 +3820,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2582452"></a>Server  Resource Limits</h4></div></div></div>
+<a name="server_resource_limits"></a>Server  Resource Limits</h4></div></div></div>
 <p>
             The following options set limits on the server's
             resource consumption that are enforced internally by the
@@ -3571,6 +3843,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   journal
                   will be automatically removed.  The default is
                   <code class="literal">unlimited</code>.
+                  This may also be set on a per-zone basis.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">host-statistics-max</strong></span></span></dt>
 <dd><p>
@@ -3602,7 +3875,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 <p>
                   The number of file descriptors reserved for TCP, stdio,
                   etc.  This needs to be big enough to cover the number of
-                  interfaces named listens on, tcp-clients as well as
+                  interfaces <span><strong class="command">named</strong></span> listens on, <span><strong class="command">tcp-clients</strong></span> as well as
                   to provide room for outgoing TCP queries and incoming zone
                   transfers.  The default is <code class="literal">512</code>.
                   The minimum value is <code class="literal">128</code> and the
@@ -3649,7 +3922,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2582682"></a>Periodic Task Intervals</h4></div></div></div>
+<a name="id2583488"></a>Periodic Task Intervals</h4></div></div></div>
 <div class="variablelist"><dl>
 <dt><span class="term"><span><strong class="command">cleaning-interval</strong></span></span></dt>
 <dd><p>
@@ -4037,22 +4310,23 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </dd>
 <dt><span class="term"><span><strong class="command">edns-udp-size</strong></span></span></dt>
 <dd><p>
-                  Sets the advertised EDNS UDP buffer size in bytes.  Valid
-                  values are 512 to 4096 (values outside this range
-                  will be silently adjusted).  The default value is
-                  4096.  The usual reason for setting edns-udp-size to
-                  a non-default value is to get UDP answers to pass
-                  through broken firewalls that block fragmented
-                  packets and/or block UDP packets that are greater
-                  than 512 bytes.
+                  Sets the advertised EDNS UDP buffer size in bytes
+                  to control the size of packets received.
+                  Valid values are 512 to 4096 (values outside this range
+                  will be silently adjusted).  The default value
+                  is 4096.  The usual reason for setting
+                  <span><strong class="command">edns-udp-size</strong></span> to a non-default
+                  value is to get UDP answers to pass through broken
+                  firewalls that block fragmented packets and/or
+                  block UDP packets that are greater than 512 bytes.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">max-udp-size</strong></span></span></dt>
 <dd><p>
-                  Sets the maximum EDNS UDP message size named will
+                  Sets the maximum EDNS UDP message size <span><strong class="command">named</strong></span> will
                   send in bytes.  Valid values are 512 to 4096 (values outside
                   this range will be silently adjusted).  The default
                   value is 4096.  The usual reason for setting
-                  max-udp-size to a non-default value is to get UDP
+                  <span><strong class="command">max-udp-size</strong></span> to a non-default value is to get UDP
                   answers to pass through broken firewalls that
                   block fragmented packets and/or block UDP packets
                   that are greater than 512 bytes.
@@ -4090,16 +4364,16 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 <dd>
 <p>These set the
                   initial value (minimum) and maximum number of recursive
-                  simultanious clients for any given query
+                  simultaneous clients for any given query
                   (&lt;qname,qtype,qclass&gt;) that the server will accept
-                  before dropping additional clients.  named will attempt to
+                  before dropping additional clients.  <span><strong class="command">named</strong></span> will attempt to
                   self tune this value and changes will be logged.  The
                   default values are 10 and 100.
                 </p>
 <p>
                   This value should reflect how many queries come in for
                   a given name in the time it takes to resolve that name.
-                  If the number of queries exceed this value, named will
+                  If the number of queries exceed this value, <span><strong class="command">named</strong></span> will
                   assume that it is dealing with a non-responsive zone
                   and will drop additional queries.  If it gets a response
                   after dropping queries, it will raise the estimate.  The
@@ -4179,7 +4453,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   identify which of a group of anycast servers is actually
                   answering your queries.  Specifying <span><strong class="command">server-id none;</strong></span>
                   disables processing of the queries.
-                  Specifying <span><strong class="command">server-id hostname;</strong></span> will cause named to
+                  Specifying <span><strong class="command">server-id hostname;</strong></span> will cause <span><strong class="command">named</strong></span> to
                   use the hostname as found by the gethostname() function.
                   The default <span><strong class="command">server-id</strong></span> is <span><strong class="command">none</strong></span>.
                 </p></dd>
@@ -4200,9 +4474,9 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
             loopback address and the IPv6 unknown addresss.
           </p>
 <p>
-            Named will attempt to determine if a built in zone already exists
+            Named will attempt to determine if a built-in zone already exists
             or is active (covered by a forward-only forwarding declaration)
-            and will not not create a empty zone in that case.
+            and will not create an empty zone in that case.
           </p>
 <p>
             The current list of empty zones is:
@@ -4248,7 +4522,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 <h3 class="title">Note</h3>
             The real parent servers for these zones should disable all
             empty zone under the parent zone they serve.  For the real
-            root servers, this is all built in empty zones.  This will
+            root servers, this is all built-in empty zones.  This will
             enable them to return referrals to deeper in the tree.
           </div>
 <div class="variablelist"><dl>
@@ -4266,12 +4540,12 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                 </p></dd>
 <dt><span class="term"><span><strong class="command">empty-zones-enable</strong></span></span></dt>
 <dd><p>
-                  Enable or disable all empty zones.  By default they
+                  Enable or disable all empty zones.  By default, they
                   are enabled.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">disable-empty-zone</strong></span></span></dt>
 <dd><p>
-                  Disable individual empty zones.  By default none are
+                  Disable individual empty zones.  By default, none are
                   disabled.  This option can be specified multiple times.
                 </p></dd>
 </dl></div>
@@ -4396,7 +4670,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 <td>
                     <p>
                       The number of queries which the server attempted to
-                      recurse but discover a existing query with the same
+                      recurse but discover an existing query with the same
                       IP address, port, query id, name, type and class
                       already being processed.
                     </p>
@@ -4409,7 +4683,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 <td>
                     <p>
                       The number of queries for which the server
-                      discovered a excessive number of existing
+                      discovered an excessive number of existing
                       recursive queries for the same name, type and
                       class and were subsequently dropped.
                     </p>
@@ -4628,7 +4902,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
           </p>
 <p>
             The <span><strong class="command">edns-udp-size</strong></span> option sets the EDNS UDP size
-            that is advertised by named when querying the remote server.
+            that is advertised by <span><strong class="command">named</strong></span> when querying the remote server.
             Valid values are 512 to 4096 bytes (values outside this range will be
             silently adjusted).  This option is useful when you wish to
             advertises a different value to this server than the value you
@@ -4637,11 +4911,11 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
           </p>
 <p>
             The <span><strong class="command">max-udp-size</strong></span> option sets the
-            maximum EDNS UDP message size named will send.  Valid
+            maximum EDNS UDP message size <span><strong class="command">named</strong></span> will send.  Valid
             values are 512 to 4096 bytes (values outside this range will
             be silently adjusted).  This option is useful when you
             know that there is a firewall that is blocking large
-            replies from named.
+            replies from <span><strong class="command">named</strong></span>.
           </p>
 <p>
             The server supports two zone transfer methods. The first, <span><strong class="command">one-answer</strong></span>,
@@ -4719,7 +4993,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2585614"></a><span><strong class="command">trusted-keys</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2586451"></a><span><strong class="command">trusted-keys</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">trusted-keys</strong></span> {
     <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ;
     [<span class="optional"> <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ; [<span class="optional">...</span>]</span>]
@@ -4728,7 +5002,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2585666"></a><span><strong class="command">trusted-keys</strong></span> Statement Definition
+<a name="id2586502"></a><span><strong class="command">trusted-keys</strong></span> Statement Definition
             and Usage</h3></div></div></div>
 <p>
             The <span><strong class="command">trusted-keys</strong></span> statement defines
@@ -4771,7 +5045,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2585748"></a><span><strong class="command">view</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2586652"></a><span><strong class="command">view</strong></span> Statement Definition and Usage</h3></div></div></div>
 <p>
             The <span><strong class="command">view</strong></span> statement is a powerful
             feature
@@ -4906,9 +5180,11 @@ view "external" {
     [<span class="optional"> file <em class="replaceable"><code>string</code></em> ; </span>]
     [<span class="optional"> masterfile-format (<code class="constant">text</code>|<code class="constant">raw</code>) ; </span>]
     [<span class="optional"> journal <em class="replaceable"><code>string</code></em> ; </span>]
+    [<span class="optional"> max-journal-size <em class="replaceable"><code>size_spec</code></em>; </span>]
     [<span class="optional"> forward (<code class="constant">only</code>|<code class="constant">first</code>) ; </span>]
     [<span class="optional"> forwarders { [<span class="optional"> <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; ... </span>] }; </span>]
     [<span class="optional"> ixfr-base <em class="replaceable"><code>string</code></em> ; </span>]
+    [<span class="optional"> ixfr-from-differences <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> ixfr-tmp-file <em class="replaceable"><code>string</code></em> ; </span>]
     [<span class="optional"> maintain-ixfr-base <em class="replaceable"><code>yes_or_no</code></em> ; </span>]
     [<span class="optional"> max-ixfr-log-size <em class="replaceable"><code>number</code></em> ; </span>]
@@ -4943,9 +5219,11 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
     [<span class="optional"> file <em class="replaceable"><code>string</code></em> ; </span>]
     [<span class="optional"> masterfile-format (<code class="constant">text</code>|<code class="constant">raw</code>) ; </span>]
     [<span class="optional"> journal <em class="replaceable"><code>string</code></em> ; </span>]
+    [<span class="optional"> max-journal-size <em class="replaceable"><code>size_spec</code></em>; </span>]
     [<span class="optional"> forward (<code class="constant">only</code>|<code class="constant">first</code>) ; </span>]
     [<span class="optional"> forwarders { [<span class="optional"> <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; ... </span>] }; </span>]
     [<span class="optional"> ixfr-base <em class="replaceable"><code>string</code></em> ; </span>]
+    [<span class="optional"> ixfr-from-differences <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> ixfr-tmp-file <em class="replaceable"><code>string</code></em> ; </span>]
     [<span class="optional"> maintain-ixfr-base <em class="replaceable"><code>yes_or_no</code></em> ; </span>]
     [<span class="optional"> masters [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] { ( <em class="replaceable"><code>masters_list</code></em> | <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] [<span class="optional">key <em class="replaceable"><code>key</code></em></span>] ) ; [<span class="optional">...</span>] }; </span>]
@@ -5023,10 +5301,10 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2587332"></a><span><strong class="command">zone</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2587989"></a><span><strong class="command">zone</strong></span> Statement Definition and Usage</h3></div></div></div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2587339"></a>Zone Types</h4></div></div></div>
+<a name="id2587996"></a>Zone Types</h4></div></div></div>
 <div class="informaltable"><table border="1">
 <colgroup>
 <col>
@@ -5089,7 +5367,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
                         <code class="filename">ex/example.com</code> where <code class="filename">ex/</code> is
                         just the first two letters of the zone name. (Most
                         operating systems
-                        behave very slowly if you put 100 000 files into
+                        behave very slowly if you put 100000 files into
                         a single directory.)
                       </p>
                     </td>
@@ -5215,18 +5493,20 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 <td>
                       <p>
                         This is used to enforce the delegation-only
-                        status of infrastructure zones (e.g. COM, NET, ORG).
-                        Any answer that
-                        is received without an explicit or implicit delegation
-                        in the authority
-                        section will be treated as NXDOMAIN.  This does not
-                        apply to the zone
-                        apex.  This should not be applied to leaf zones.
+                        status of infrastructure zones (e.g. COM,
+                        NET, ORG).  Any answer that is received
+                        without an explicit or implicit delegation
+                        in the authority section will be treated
+                        as NXDOMAIN.  This does not apply to the
+                        zone apex.  This should not be applied to
+                        leaf zones.
                       </p>
                       <p>
                         <code class="varname">delegation-only</code> has no
-                        effect on answers received
-                        from forwarders.
+                        effect on answers received from forwarders.
+                      </p>
+                      <p>
+                        See caveats in <a href="Bv9ARM.ch06.html#root_delegation_only"><span><strong class="command">root-delegation-only</strong></span></a>.
                       </p>
                     </td>
 </tr>
@@ -5235,7 +5515,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2587690"></a>Class</h4></div></div></div>
+<a name="id2588424"></a>Class</h4></div></div></div>
 <p>
               The zone's name may optionally be followed by a class. If
               a class is not specified, class <code class="literal">IN</code> (for <code class="varname">Internet</code>),
@@ -5257,7 +5537,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2587723"></a>Zone Options</h4></div></div></div>
+<a name="id2588457"></a>Zone Options</h4></div></div></div>
 <div class="variablelist"><dl>
 <dt><span class="term"><span><strong class="command">allow-notify</strong></span></span></dt>
 <dd><p>
@@ -5380,12 +5660,16 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
                     <span><strong class="command">dialup</strong></span> in <a href="Bv9ARM.ch06.html#boolean_options" title="Boolean Options">the section called &#8220;Boolean Options&#8221;</a>.
                   </p></dd>
 <dt><span class="term"><span><strong class="command">delegation-only</strong></span></span></dt>
-<dd><p>
+<dd>
+<p>
                     The flag only applies to hint and stub zones.  If set
                     to <strong class="userinput"><code>yes</code></strong>, then the zone will also be
-                    treated as if it
-                    is also a delegation-only type zone.
-                  </p></dd>
+                    treated as if it is also a delegation-only type zone.
+                  </p>
+<p>
+                    See caveats in <a href="Bv9ARM.ch06.html#root_delegation_only"><span><strong class="command">root-delegation-only</strong></span></a>.
+                  </p>
+</dd>
 <dt><span class="term"><span><strong class="command">forward</strong></span></span></dt>
 <dd><p>
                     Only meaningful if the zone has a forwarders
@@ -5423,6 +5707,11 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
                     Allow the default journal's filename to be overridden.
                     The default is the zone's filename with "<code class="filename">.jnl</code>" appended.
                     This is applicable to <span><strong class="command">master</strong></span> and <span><strong class="command">slave</strong></span> zones.
+                  </p></dd>
+<dt><span class="term"><span><strong class="command">max-journal-size</strong></span></span></dt>
+<dd><p>
+                    See the description of
+                    <span><strong class="command">max-journal-size</strong></span> in <a href="Bv9ARM.ch06.html#server_resource_limits" title="Server  Resource Limits">the section called &#8220;Server  Resource Limits&#8221;</a>.
                   </p></dd>
 <dt><span class="term"><span><strong class="command">max-transfer-time-in</strong></span></span></dt>
 <dd><p>
@@ -5521,6 +5810,10 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 <dd><p>
                     See the description of
                     <span><strong class="command">ixfr-from-differences</strong></span> in <a href="Bv9ARM.ch06.html#boolean_options" title="Boolean Options">the section called &#8220;Boolean Options&#8221;</a>.
+                    (Note that the <span><strong class="command">ixfr-from-differences</strong></span>
+                    <strong class="userinput"><code>master</code></strong> and
+                    <strong class="userinput"><code>slave</code></strong> choices are not
+                    available at the zone level.)
                   </p></dd>
 <dt><span class="term"><span><strong class="command">key-directory</strong></span></span></dt>
 <dd><p>
@@ -5745,7 +6038,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2589477"></a>Zone File</h2></div></div></div>
+<a name="id2590251"></a>Zone File</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="types_of_resource_records_and_when_to_use_them"></a>Types of Resource Records and When to Use Them</h3></div></div></div>
@@ -5758,7 +6051,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
           </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2589495"></a>Resource Records</h4></div></div></div>
+<a name="id2590269"></a>Resource Records</h4></div></div></div>
 <p>
               A domain name identifies a node.  Each node has a set of
               resource information, which may be empty.  The set of resource
@@ -6448,7 +6741,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2590912"></a>Textual expression of RRs</h4></div></div></div>
+<a name="id2591754"></a>Textual expression of RRs</h4></div></div></div>
 <p>
               RRs are represented in binary form in the packets of the DNS
               protocol, and are usually represented in highly encoded form
@@ -6651,7 +6944,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2591500"></a>Discussion of MX Records</h3></div></div></div>
+<a name="id2592275"></a>Discussion of MX Records</h3></div></div></div>
 <p>
             As described above, domain servers store information as a
             series of resource records, each of which contains a particular
@@ -6685,8 +6978,6 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
             the mail will be delivered to the server specified in the MX
             record
             pointed to by the CNAME.
-          </p>
-<p>
             For example:
           </p>
 <div class="informaltable"><table border="1">
@@ -6909,7 +7200,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2592188"></a>Inverse Mapping in IPv4</h3></div></div></div>
+<a name="id2592890"></a>Inverse Mapping in IPv4</h3></div></div></div>
 <p>
             Reverse name resolution (that is, translation from IP address
             to name) is achieved by means of the <span class="emphasis"><em>in-addr.arpa</em></span> domain
@@ -6970,7 +7261,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2592384"></a>Other Zone File Directives</h3></div></div></div>
+<a name="id2593085"></a>Other Zone File Directives</h3></div></div></div>
 <p>
             The Master File Format was initially defined in RFC 1035 and
             has subsequently been extended. While the Master File Format
@@ -6985,7 +7276,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
           </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2592406"></a>The <span><strong class="command">$ORIGIN</strong></span> Directive</h4></div></div></div>
+<a name="id2593108"></a>The <span><strong class="command">$ORIGIN</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$ORIGIN</strong></span>
               <em class="replaceable"><code>domain-name</code></em>
@@ -7013,7 +7304,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2592467"></a>The <span><strong class="command">$INCLUDE</strong></span> Directive</h4></div></div></div>
+<a name="id2593169"></a>The <span><strong class="command">$INCLUDE</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$INCLUDE</strong></span>
               <em class="replaceable"><code>filename</code></em>
@@ -7049,7 +7340,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2592536"></a>The <span><strong class="command">$TTL</strong></span> Directive</h4></div></div></div>
+<a name="id2593238"></a>The <span><strong class="command">$TTL</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$TTL</strong></span>
               <em class="replaceable"><code>default-ttl</code></em>
@@ -7068,7 +7359,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2592572"></a><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</h3></div></div></div>
+<a name="id2593342"></a><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</h3></div></div></div>
 <p>
             Syntax: <span><strong class="command">$GENERATE</strong></span>
             <em class="replaceable"><code>range</code></em>
@@ -7128,7 +7419,7 @@ $GENERATE 1-127 $ CNAME $.0</pre>
                       describes the owner name of the resource records
                       to be created.  Any single <span><strong class="command">$</strong></span>
                       (dollar sign)
-                      symbols within the <span><strong class="command">lhs</strong></span> side
+                      symbols within the <span><strong class="command">lhs</strong></span> string
                       are replaced by the iterator value.
 
                       To get a $ in the output, you need to escape the
@@ -7172,7 +7463,7 @@ $GENERATE 1-127 $ CNAME $.0</pre>
                     <p>
                       Specifies the time-to-live of the generated records. If
                       not specified this will be inherited using the
-                      normal ttl inheritance rules.
+                      normal TTL inheritance rules.
                     </p>
                     <p><span><strong class="command">class</strong></span>
                       and <span><strong class="command">ttl</strong></span> can be

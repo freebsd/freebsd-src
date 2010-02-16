@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cache.c,v 1.57.18.18 2008/02/07 23:45:56 tbox Exp $ */
+/* $Id: cache.c,v 1.57.18.20 2009/01/19 23:46:14 tbox Exp $ */
 
 /*! \file */
 
@@ -60,7 +60,7 @@
  ***/
 
 /*
- * A cache_cleaner_t encapsulsates the state of the periodic
+ * A cache_cleaner_t encapsulates the state of the periodic
  * cache cleaning.
  */
 
@@ -1002,7 +1002,7 @@ dns_cache_setcachesize(dns_cache_t *cache, isc_uint32_t size) {
 	REQUIRE(VALID_CACHE(cache));
 
 	/*
-	 * Impose a minumum cache size; pathological things happen if there
+	 * Impose a minimum cache size; pathological things happen if there
 	 * is too little room.
 	 */
 	if (size != 0 && size < DNS_CACHE_MINSIZE)

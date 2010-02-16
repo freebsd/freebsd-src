@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.h,v 1.73.18.8 2006/03/09 23:46:20 marka Exp $ */
+/* $Id: server.h,v 1.73.18.10 2009/07/11 23:46:06 tbox Exp $ */
 
 #ifndef NAMED_SERVER_H
 #define NAMED_SERVER_H 1
@@ -62,7 +62,7 @@ struct ns_server {
 	isc_boolean_t		server_usehostname;
 	char *			server_id;	/*%< User-specified server id */
 
-        /*%
+	/*%
 	 * Current ACL environment.  This defines the
 	 * current values of the localhost and localnets
 	 * ACLs.
@@ -207,7 +207,8 @@ ns_server_status(ns_server_t *server, isc_buffer_t *text);
  * Enable or disable updates for a zone.
  */
 isc_result_t
-ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args);
+ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args,
+		 isc_buffer_t *text);
 
 /*%
  * Dump the current recursive queries.

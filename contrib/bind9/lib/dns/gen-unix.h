@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gen-unix.h,v 1.14.18.3 2005/06/08 02:07:54 marka Exp $ */
+/* $Id: gen-unix.h,v 1.14.18.5 2009/01/19 23:46:15 tbox Exp $ */
 
 /*! \file
  * \brief
@@ -23,7 +23,7 @@
  * directly portable between Unix-like systems and Windows NT, option
  * parsing and directory scanning.  It is here because it was decided
  * that the "gen" build utility was not to depend on libisc.a, so
- * the functions delcared in isc/commandline.h and isc/dir.h could not
+ * the functions declared in isc/commandline.h and isc/dir.h could not
  * be used.
  *
  * The commandline stuff is really just a wrapper around getopt().

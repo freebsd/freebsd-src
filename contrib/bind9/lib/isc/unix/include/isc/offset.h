@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: offset.h,v 1.11.18.2 2005/04/29 00:17:10 marka Exp $ */
+/* $Id: offset.h,v 1.11.18.4 2008/12/01 23:45:57 tbox Exp $ */
 
 #ifndef ISC_OFFSET_H
 #define ISC_OFFSET_H 1
@@ -26,6 +26,7 @@
  */
 #include <limits.h>             /* Required for CHAR_BIT. */
 #include <sys/types.h>
+#include <stddef.h>		/* For Linux Standard Base. */
 
 typedef off_t isc_offset_t;
 

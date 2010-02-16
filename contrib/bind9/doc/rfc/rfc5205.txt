@@ -1,0 +1,955 @@
+
+
+
+
+
+
+Network Working Group                                        P. Nikander
+Request for Comments: 5205                  Ericsson Research NomadicLab
+Category: Experimental                                       J. Laganier
+                                                        DoCoMo Euro-Labs
+                                                              April 2008
+
+
+    Host Identity Protocol (HIP) Domain Name System (DNS) Extension
+
+Status of This Memo
+
+   This memo defines an Experimental Protocol for the Internet
+   community.  It does not specify an Internet standard of any kind.
+   Discussion and suggestions for improvement are requested.
+   Distribution of this memo is unlimited.
+
+Abstract
+
+   This document specifies a new resource record (RR) for the Domain
+   Name System (DNS), and how to use it with the Host Identity Protocol
+   (HIP).  This RR allows a HIP node to store in the DNS its Host
+   Identity (HI, the public component of the node public-private key
+   pair), Host Identity Tag (HIT, a truncated hash of its public key),
+   and the Domain Names of its rendezvous servers (RVSs).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Nikander & Laganier           Experimental                      [Page 1]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
+   2.  Conventions Used in This Document  . . . . . . . . . . . . . .  3
+   3.  Usage Scenarios  . . . . . . . . . . . . . . . . . . . . . . .  4
+     3.1.  Simple Static Singly Homed End-Host  . . . . . . . . . . .  5
+     3.2.  Mobile end-host  . . . . . . . . . . . . . . . . . . . . .  6
+   4.  Overview of Using the DNS with HIP . . . . . . . . . . . . . .  8
+     4.1.  Storing HI, HIT, and RVS in the DNS  . . . . . . . . . . .  8
+     4.2.  Initiating Connections Based on DNS Names  . . . . . . . .  8
+   5.  HIP RR Storage Format  . . . . . . . . . . . . . . . . . . . .  9
+     5.1.  HIT Length Format  . . . . . . . . . . . . . . . . . . . .  9
+     5.2.  PK Algorithm Format  . . . . . . . . . . . . . . . . . . .  9
+     5.3.  PK Length Format . . . . . . . . . . . . . . . . . . . . . 10
+     5.4.  HIT Format . . . . . . . . . . . . . . . . . . . . . . . . 10
+     5.5.  Public Key Format  . . . . . . . . . . . . . . . . . . . . 10
+     5.6.  Rendezvous Servers Format  . . . . . . . . . . . . . . . . 10
+   6.  HIP RR Presentation Format . . . . . . . . . . . . . . . . . . 10
+   7.  Examples . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+   8.  Security Considerations  . . . . . . . . . . . . . . . . . . . 12
+     8.1.  Attacker Tampering with an Insecure HIP RR . . . . . . . . 12
+     8.2.  Hash and HITs Collisions . . . . . . . . . . . . . . . . . 13
+     8.3.  DNSSEC . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+   9.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 13
+   10. Acknowledgments  . . . . . . . . . . . . . . . . . . . . . . . 14
+   11. References . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+     11.1. Normative references . . . . . . . . . . . . . . . . . . . 14
+     11.2. Informative references . . . . . . . . . . . . . . . . . . 15
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Nikander & Laganier           Experimental                      [Page 2]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+1.  Introduction
+
+   This document specifies a new resource record (RR) for the Domain
+   Name System (DNS) [RFC1034], and how to use it with the Host Identity
+   Protocol (HIP) [RFC5201].  This RR allows a HIP node to store in the
+   DNS its Host Identity (HI, the public component of the node public-
+   private key pair), Host Identity Tag (HIT, a truncated hash of its
+   HI), and the Domain Names of its rendezvous servers (RVSs) [RFC5204].
+
+   Currently, most of the Internet applications that need to communicate
+   with a remote host first translate a domain name (often obtained via
+   user input) into one or more IP address(es).  This step occurs prior
+   to communication with the remote host, and relies on a DNS lookup.
+
+   With HIP, IP addresses are intended to be used mostly for on-the-wire
+   communication between end hosts, while most Upper Layer Protocols
+   (ULP) and applications use HIs or HITs instead (ICMP might be an
+   example of an ULP not using them).  Consequently, we need a means to
+   translate a domain name into an HI.  Using the DNS for this
+   translation is pretty straightforward: We define a new HIP resource
+   record.  Upon query by an application or ULP for a name to IP address
+   lookup, the resolver would then additionally perform a name to HI
+   lookup, and use it to construct the resulting HI to IP address
+   mapping (which is internal to the HIP layer).  The HIP layer uses the
+   HI to IP address mapping to translate HIs and HITs into IP addresses
+   and vice versa.
+
+   The HIP Rendezvous Extension [RFC5204] allows a HIP node to be
+   reached via the IP address(es) of a third party, the node's
+   rendezvous server (RVS).  An Initiator willing to establish a HIP
+   association with a Responder served by an RVS would typically
+   initiate a HIP exchange by sending an I1 towards the RVS IP address
+   rather than towards the Responder IP address.  Consequently, we need
+   a means to find the name of a rendezvous server for a given host
+   name.
+
+   This document introduces the new HIP DNS resource record to store the
+   Rendezvous Server (RVS), Host Identity (HI), and Host Identity Tag
+   (HIT) information.
+
+2.  Conventions Used in This Document
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+
+
+
+
+
+Nikander & Laganier           Experimental                      [Page 3]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+3.  Usage Scenarios
+
+   In this section, we briefly introduce a number of usage scenarios
+   where the DNS is useful with the Host Identity Protocol.
+
+   With HIP, most applications and ULPs are unaware of the IP addresses
+   used to carry packets on the wire.  Consequently, a HIP node could
+   take advantage of having multiple IP addresses for fail-over,
+   redundancy, mobility, or renumbering, in a manner that is transparent
+   to most ULPs and applications (because they are bound to HIs; hence,
+   they are agnostic to these IP address changes).
+
+   In these situations, for a node to be reachable by reference to its
+   Fully Qualified Domain Name (FQDN), the following information should
+   be stored in the DNS:
+
+   o  A set of IP address(es) via A [RFC1035] and AAAA [RFC3596] RR sets
+      (RRSets [RFC2181]).
+
+   o  A Host Identity (HI), Host Identity Tag (HIT), and possibly a set
+      of rendezvous servers (RVS) through HIP RRs.
+
+   When a HIP node wants to initiate communication with another HIP
+   node, it first needs to perform a HIP base exchange to set up a HIP
+   association towards its peer.  Although such an exchange can be
+   initiated opportunistically, i.e., without prior knowledge of the
+   Responder's HI, by doing so both nodes knowingly risk man-in-the-
+   middle attacks on the HIP exchange.  To prevent these attacks, it is
+   recommended that the Initiator first obtain the HI of the Responder,
+   and then initiate the exchange.  This can be done, for example,
+   through manual configuration or DNS lookups.  Hence, a new HIP RR is
+   introduced.
+
+   When a HIP node is frequently changing its IP address(es), the
+   natural DNS latency for propagating changes may prevent it from
+   publishing its new IP address(es) in the DNS.  For solving this
+   problem, the HIP Architecture [RFC4423] introduces rendezvous servers
+   (RVSs) [RFC5204].  A HIP host uses a rendezvous server as a
+   rendezvous point to maintain reachability with possible HIP
+   initiators while moving [RFC5206].  Such a HIP node would publish in
+   the DNS its RVS domain name(s) in a HIP RR, while keeping its RVS up-
+   to-date with its current set of IP addresses.
+
+   When a HIP node wants to initiate a HIP exchange with a Responder, it
+   will perform a number of DNS lookups.  Depending on the type of
+   implementation, the order in which those lookups will be issued may
+   vary.  For instance, implementations using HIT in APIs may typically
+   first query for HIP resource records at the Responder FQDN, while
+
+
+
+Nikander & Laganier           Experimental                      [Page 4]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+   those using an IP address in APIs may typically first query for A
+   and/or AAAA resource records.
+
+   In the following, we assume that the Initiator first queries for HIP
+   resource records at the Responder FQDN.
+
+   If the query for the HIP type was responded to with a DNS answer with
+   RCODE=3 (Name Error), then the Responder's information is not present
+   in the DNS and further queries for the same owner name SHOULD NOT be
+   made.
+
+   In case the query for the HIP records returned a DNS answer with
+   RCODE=0 (No Error) and an empty answer section, it means that no HIP
+   information is available at the responder name.  In such a case, if
+   the Initiator has been configured with a policy to fallback to
+   opportunistic HIP (initiating without knowing the Responder's HI) or
+   plain IP, it would send out more queries for A and AAAA types at the
+   Responder's FQDN.
+
+   Depending on the combinations of answers, the situations described in
+   Section 3.1 and Section 3.2 can occur.
+
+   Note that storing HIP RR information in the DNS at an FQDN that is
+   assigned to a non-HIP node might have ill effects on its reachability
+   by HIP nodes.
+
+3.1.  Simple Static Singly Homed End-Host
+
+   A HIP node (R) with a single static network attachment, wishing to be
+   reachable by reference to its FQDN (www.example.com), would store in
+   the DNS, in addition to its IP address(es) (IP-R), its Host Identity
+   (HI-R) and Host Identity Tag (HIT-R) in a HIP resource record.
+
+   An Initiator willing to associate with a node would typically issue
+   the following queries:
+
+   o  QNAME=www.example.com, QTYPE=HIP
+
+   o  (QCLASS=IN is assumed and omitted from the examples)
+
+   Which returns a DNS packet with RCODE=0 and one or more HIP RRs with
+   the HIT and HI (e.g., HIT-R and HI-R) of the Responder in the answer
+   section, but no RVS.
+
+
+
+
+
+
+
+
+Nikander & Laganier           Experimental                      [Page 5]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+   o  QNAME=www.example.com, QTYPE=A QNAME=www.example.com, QTYPE=AAAA
+
+   Which returns DNS packets with RCODE=0 and one or more A or AAAA RRs
+   containing IP address(es) of the Responder (e.g., IP-R) in the answer
+   section.
+
+   Caption: In the remainder of this document, for the sake of keeping
+            diagrams simple and concise, several DNS queries and answers
+            are represented as one single transaction, while in fact
+            there are several queries and answers flowing back and
+            forth, as described in the textual examples.
+
+               [HIP? A?        ]
+               [www.example.com]            +-----+
+          +-------------------------------->|     |
+          |                                 | DNS |
+          | +-------------------------------|     |
+          | |  [HIP? A?        ]            +-----+
+          | |  [www.example.com]
+          | |  [HIP HIT-R HI-R ]
+          | |  [A IP-R         ]
+          | v
+        +-----+                              +-----+
+        |     |--------------I1------------->|     |
+        |  I  |<-------------R1--------------|  R  |
+        |     |--------------I2------------->|     |
+        |     |<-------------R2--------------|     |
+        +-----+                              +-----+
+
+                         Static Singly Homed Host
+
+   The Initiator would then send an I1 to the Responder's IP addresses
+   (IP-R).
+
+3.2.  Mobile end-host
+
+   A mobile HIP node (R) wishing to be reachable by reference to its
+   FQDN (www.example.com) would store in the DNS, possibly in addition
+   to its IP address(es) (IP-R), its HI (HI-R), HIT (HIT-R), and the
+   domain name(s) of its rendezvous server(s) (e.g., rvs.example.com) in
+   HIP resource record(s).  The mobile HIP node also needs to notify its
+   rendezvous servers of any change in its set of IP address(es).
+
+   An Initiator willing to associate with such a mobile node would
+   typically issue the following queries:
+
+   o  QNAME=www.example.com, QTYPE=HIP
+
+
+
+
+Nikander & Laganier           Experimental                      [Page 6]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+   Which returns a DNS packet with RCODE=0 and one or more HIP RRs with
+   the HIT, HI, and RVS domain name(s) (e.g., HIT-R, HI-R, and
+   rvs.example.com) of the Responder in the answer section.
+
+   o  QNAME=rvs.example.com, QTYPE=A QNAME=www.example.com, QTYPE=AAAA
+
+   Which returns DNS packets with RCODE=0 and one or more A or AAAA RRs
+   containing IP address(es) of the Responder's RVS (e.g., IP-RVS) in
+   the answer section.
+
+              [HIP?           ]
+              [www.example.com]
+
+              [A?             ]
+              [rvs.example.com]                     +-----+
+         +----------------------------------------->|     |
+         |                                          | DNS |
+         | +----------------------------------------|     |
+         | |  [HIP?                          ]      +-----+
+         | |  [www.example.com               ]
+         | |  [HIP HIT-R HI-R rvs.example.com]
+         | |
+         | |  [A?             ]
+         | |  [rvs.example.com]
+         | |  [A IP-RVS       ]
+         | |
+         | |                +-----+
+         | | +------I1----->| RVS |-----I1------+
+         | | |              +-----+             |
+         | | |                                  |
+         | | |                                  |
+         | v |                                  v
+        +-----+                              +-----+
+        |     |<---------------R1------------|     |
+        |  I  |----------------I2----------->|  R  |
+        |     |<---------------R2------------|     |
+        +-----+                              +-----+
+
+                              Mobile End-Host
+
+   The Initiator would then send an I1 to the RVS IP address (IP-RVS).
+   Following, the RVS will relay the I1 up to the mobile node's IP
+   address (IP-R), which will complete the HIP exchange.
+
+
+
+
+
+
+
+
+Nikander & Laganier           Experimental                      [Page 7]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+4.  Overview of Using the DNS with HIP
+
+4.1.  Storing HI, HIT, and RVS in the DNS
+
+   For any HIP node, its Host Identity (HI), the associated Host
+   Identity Tag (HIT), and the FQDN of its possible RVSs can be stored
+   in a DNS HIP RR.  Any conforming implementation may store a Host
+   Identity (HI) and its associated Host Identity Tag (HIT) in a DNS HIP
+   RDATA format.  HI and HIT are defined in Section 3 of the HIP
+   specification [RFC5201].
+
+   Upon return of a HIP RR, a host MUST always calculate the HI-
+   derivative HIT to be used in the HIP exchange, as specified in
+   Section 3 of the HIP specification [RFC5201], while the HIT possibly
+   embedded along SHOULD only be used as an optimization (e.g., table
+   lookup).
+
+   The HIP resource record may also contain one or more domain name(s)
+   of rendezvous server(s) towards which HIP I1 packets might be sent to
+   trigger the establishment of an association with the entity named by
+   this resource record [RFC5204].
+
+   The rendezvous server field of the HIP resource record stored at a
+   given owner name MAY include the owner name itself.  A semantically
+   equivalent situation occurs if no rendezvous server is present in the
+   HIP resource record stored at that owner name.  Such situations occur
+   in two cases:
+
+   o  The host is mobile, and the A and/or AAAA resource record(s)
+      stored at its host name contain the IP address(es) of its
+      rendezvous server rather than its own one.
+
+   o  The host is stationary, and can be reached directly at the IP
+      address(es) contained in the A and/or AAAA resource record(s)
+      stored at its host name.  This is a degenerated case of rendezvous
+      service where the host somewhat acts as a rendezvous server for
+      itself.
+
+   An RVS receiving such an I1 would then relay it to the appropriate
+   Responder (the owner of the I1 receiver HIT).  The Responder will
+   then complete the exchange with the Initiator, typically without
+   ongoing help from the RVS.
+
+4.2.  Initiating Connections Based on DNS Names
+
+   On a HIP node, a Host Identity Protocol exchange SHOULD be initiated
+   whenever a ULP attempts to communicate with an entity and the DNS
+   lookup returns HIP resource records.
+
+
+
+Nikander & Laganier           Experimental                      [Page 8]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+5.  HIP RR Storage Format
+
+   The RDATA for a HIP RR consists of a public key algorithm type, the
+   HIT length, a HIT, a public key, and optionally one or more
+   rendezvous server(s).
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |  HIT length   | PK algorithm  |          PK length            |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   ~                           HIT                                 ~
+   |                                                               |
+   +                     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                     |                                         |
+   +-+-+-+-+-+-+-+-+-+-+-+                                         +
+   |                           Public Key                          |
+   ~                                                               ~
+   |                                                               |
+   +                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                               |                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
+   |                                                               |
+   ~                       Rendezvous Servers                      ~
+   |                                                               |
+   +             +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |             |
+   +-+-+-+-+-+-+-+
+
+   The HIT length, PK algorithm, PK length, HIT, and Public Key fields
+   are REQUIRED.  The Rendezvous Servers field is OPTIONAL.
+
+5.1.  HIT Length Format
+
+   The HIT length indicates the length in bytes of the HIT field.  This
+   is an 8-bit unsigned integer.
+
+5.2.  PK Algorithm Format
+
+   The PK algorithm field indicates the public key cryptographic
+   algorithm and the implied public key field format.  This is an 8-bit
+   unsigned integer.  This document reuses the values defined for the
+   'algorithm type' of the IPSECKEY RR [RFC4025].
+
+   Presently defined values are listed in Section 9 for reference.
+
+
+
+
+
+Nikander & Laganier           Experimental                      [Page 9]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+5.3.  PK Length Format
+
+   The PK length indicates the length in bytes of the Public key field.
+   This is a 16-bit unsigned integer in network byte order.
+
+5.4.  HIT Format
+
+   The HIT is stored as a binary value in network byte order.
+
+5.5.  Public Key Format
+
+   Both of the public key types defined in this document (RSA and DSA)
+   reuse the public key formats defined for the IPSECKEY RR [RFC4025].
+
+   The DSA key format is defined in RFC 2536 [RFC2536].
+
+   The RSA key format is defined in RFC 3110 [RFC3110] and the RSA key
+   size limit (4096 bits) is relaxed in the IPSECKEY RR [RFC4025]
+   specification.
+
+5.6.  Rendezvous Servers Format
+
+   The Rendezvous Servers field indicates one or more variable length
+   wire-encoded domain names of rendezvous server(s), as described in
+   Section 3.3 of RFC 1035 [RFC1035].  The wire-encoded format is self-
+   describing, so the length is implicit.  The domain names MUST NOT be
+   compressed.  The rendezvous server(s) are listed in order of
+   preference (i.e., first rendezvous server(s) are preferred), defining
+   an implicit order amongst rendezvous servers of a single RR.  When
+   multiple HIP RRs are present at the same owner name, this implicit
+   order of rendezvous servers within an RR MUST NOT be used to infer a
+   preference order between rendezvous servers stored in different RRs.
+
+6.  HIP RR Presentation Format
+
+   This section specifies the representation of the HIP RR in a zone
+   master file.
+
+   The HIT length field is not represented, as it is implicitly known
+   thanks to the HIT field representation.
+
+   The PK algorithm field is represented as unsigned integers.
+
+   The HIT field is represented as the Base16 encoding [RFC4648] (a.k.a.
+   hex or hexadecimal) of the HIT.  The encoding MUST NOT contain
+   whitespaces to distinguish it from the public key field.
+
+
+
+
+
+Nikander & Laganier           Experimental                     [Page 10]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+   The Public Key field is represented as the Base64 encoding [RFC4648]
+   of the public key.  The encoding MUST NOT contain whitespace(s) to
+   distinguish it from the Rendezvous Servers field.
+
+   The PK length field is not represented, as it is implicitly known
+   thanks to the Public key field representation containing no
+   whitespaces.
+
+   The Rendezvous Servers field is represented by one or more domain
+   name(s) separated by whitespace(s).
+
+   The complete representation of the HPIHI record is:
+
+   IN  HIP   ( pk-algorithm
+               base16-encoded-hit
+               base64-encoded-public-key
+               rendezvous-server[1]
+                       ...
+               rendezvous-server[n] )
+
+   When no RVSs are present, the representation of the HPIHI record is:
+
+   IN  HIP   ( pk-algorithm
+               base16-encoded-hit
+               base64-encoded-public-key )
+
+7.  Examples
+
+   In the examples below, the public key field containing no whitespace
+   is wrapped since it does not fit in a single line of this document.
+
+   Example of a node with HI and HIT but no RVS:
+
+www.example.com.      IN  HIP ( 2 200100107B1A74DF365639CC39F1D578
+                                AwEAAbdxyhNuSutc5EMzxTs9LBPCIkOFH8cIvM4p
+9+LrV4e19WzK00+CI6zBCQTdtWsuxKbWIy87UOoJTwkUs7lBu+Upr1gsNrut79ryra+bSRGQ
+b1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D )
+
+   Example of a node with a HI, HIT, and one RVS:
+
+www.example.com.      IN  HIP ( 2 200100107B1A74DF365639CC39F1D578
+                                AwEAAbdxyhNuSutc5EMzxTs9LBPCIkOFH8cIvM4p
+9+LrV4e19WzK00+CI6zBCQTdtWsuxKbWIy87UOoJTwkUs7lBu+Upr1gsNrut79ryra+bSRGQ
+b1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D
+                                rvs.example.com. )
+
+
+
+
+
+
+Nikander & Laganier           Experimental                     [Page 11]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+   Example of a node with a HI, HIT, and two RVSs:
+
+www.example.com.      IN  HIP ( 2 200100107B1A74DF365639CC39F1D578
+                                AwEAAbdxyhNuSutc5EMzxTs9LBPCIkOFH8cIvM4p
+9+LrV4e19WzK00+CI6zBCQTdtWsuxKbWIy87UOoJTwkUs7lBu+Upr1gsNrut79ryra+bSRGQ
+b1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D
+                                rvs1.example.com.
+                                rvs2.example.com. )
+
+8.  Security Considerations
+
+   This section contains a description of the known threats involved
+   with the usage of the HIP DNS Extension.
+
+   In a manner similar to the IPSECKEY RR [RFC4025], the HIP DNS
+   Extension allows for the provision of two HIP nodes with the public
+   keying material (HI) of their peer.  These HIs will be subsequently
+   used in a key exchange between the peers.  Hence, the HIP DNS
+   Extension introduces the same kind of threats that IPSECKEY does,
+   plus threats caused by the possibility given to a HIP node to
+   initiate or accept a HIP exchange using "opportunistic" or
+   "unpublished Initiator HI" modes.
+
+   A HIP node SHOULD obtain HIP RRs from a trusted party trough a secure
+   channel ensuring data integrity and authenticity of the RRs.  DNSSEC
+   [RFC4033] [RFC4034] [RFC4035] provides such a secure channel.
+   However, it should be emphasized that DNSSEC only offers data
+   integrity and authenticity guarantees to the channel between the DNS
+   server publishing a zone and the HIP node.  DNSSEC does not ensure
+   that the entity publishing the zone is trusted.  Therefore, the RRSIG
+   signature of the HIP RRSet MUST NOT be misinterpreted as a
+   certificate binding the HI and/or the HIT to the owner name.
+
+   In the absence of a proper secure channel, both parties are
+   vulnerable to MitM and DoS attacks, and unrelated parties might be
+   subject to DoS attacks as well.  These threats are described in the
+   following sections.
+
+8.1.  Attacker Tampering with an Insecure HIP RR
+
+   The HIP RR contains public keying material in the form of the named
+   peer's public key (the HI) and its secure hash (the HIT).  Both of
+   these are not sensitive to attacks where an adversary gains knowledge
+   of them.  However, an attacker that is able to mount an active attack
+   on the DNS, i.e., tampers with this HIP RR (e.g., using DNS
+   spoofing), is able to mount Man-in-the-Middle attacks on the
+   cryptographic core of the eventual HIP exchange (Responder's HIP RR
+   rewritten by the attacker).
+
+
+
+Nikander & Laganier           Experimental                     [Page 12]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+   The HIP RR may contain a rendezvous server domain name resolved into
+   a destination IP address where the named peer is reachable by an I1,
+   as per the HIP Rendezvous Extension [RFC5204].  Thus, an attacker
+   able to tamper with this RR is able to redirect I1 packets sent to
+   the named peer to a chosen IP address for DoS or MitM attacks.  Note
+   that this kind of attack is not specific to HIP and exists
+   independently of whether or not HIP and the HIP RR are used.  Such an
+   attacker might tamper with A and AAAA RRs as well.
+
+   An attacker might obviously use these two attacks in conjunction: It
+   will replace the Responder's HI and RVS IP address by its own in a
+   spoofed DNS packet sent to the Initiator HI, then redirect all
+   exchanged packets to him and mount a MitM on HIP.  In this case, HIP
+   won't provide confidentiality nor Initiator HI protection from
+   eavesdroppers.
+
+8.2.  Hash and HITs Collisions
+
+   As with many cryptographic algorithms, some secure hashes (e.g.,
+   SHA1, used by HIP to generate a HIT from an HI) eventually become
+   insecure, because an exploit has been found in which an attacker with
+   reasonable computation power breaks one of the security features of
+   the hash (e.g., its supposed collision resistance).  This is why a
+   HIP end-node implementation SHOULD NOT authenticate its HIP peers
+   based solely on a HIT retrieved from the DNS, but SHOULD rather use
+   HI-based authentication.
+
+8.3.  DNSSEC
+
+   In the absence of DNSSEC, the HIP RR is subject to the threats
+   described in RFC 3833 [RFC3833].
+
+9.  IANA Considerations
+
+   IANA has allocated one new RR type code (55) for the HIP RR from the
+   standard RR type space.
+
+   IANA does not need to open a new registry for public key algorithms
+   of the HIP RR because the HIP RR reuses "algorithms types" defined
+   for the IPSECKEY RR [RFC4025].  Presently defined values are shown
+   here for reference only:
+
+      0 is reserved
+
+      1 is DSA
+
+      2 is RSA
+
+
+
+
+Nikander & Laganier           Experimental                     [Page 13]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+   In the future, if a new algorithm is to be used for the HIP RR, a new
+   algorithm type and corresponding public key encoding should be
+   defined for the IPSECKEY RR.  The HIP RR should reuse both the same
+   algorithm type and the same corresponding public key format as the
+   IPSECKEY RR.
+
+10.  Acknowledgments
+
+   As usual in the IETF, this document is the result of a collaboration
+   between many people.  The authors would like to thank the author
+   (Michael Richardson), contributors, and reviewers of the IPSECKEY RR
+   [RFC4025] specification, after which this document was framed.  The
+   authors would also like to thank the following people, who have
+   provided thoughtful and helpful discussions and/or suggestions, that
+   have helped improve this document: Jeff Ahrenholz, Rob Austein, Hannu
+   Flinck, Olafur Gudmundsson, Tom Henderson, Peter Koch, Olaf Kolkman,
+   Miika Komu, Andrew McGregor, Erik Nordmark, and Gabriel Montenegro.
+   Some parts of this document stem from the HIP specification
+   [RFC5201].
+
+11.  References
+
+11.1.  Normative references
+
+   [RFC1034]  Mockapetris, P., "Domain names - concepts and facilities",
+              STD 13, RFC 1034, November 1987.
+
+   [RFC1035]  Mockapetris, P., "Domain names - implementation and
+              specification", STD 13, RFC 1035, November 1987.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC2181]  Elz, R. and R. Bush, "Clarifications to the DNS
+              Specification", RFC 2181, July 1997.
+
+   [RFC3596]  Thomson, S., Huitema, C., Ksinant, V., and M. Souissi,
+              "DNS Extensions to Support IP Version 6", RFC 3596,
+              October 2003.
+
+   [RFC4025]  Richardson, M., "A Method for Storing IPsec Keying
+              Material in DNS", RFC 4025, March 2005.
+
+   [RFC4033]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
+              Rose, "DNS Security Introduction and Requirements",
+              RFC 4033, March 2005.
+
+
+
+
+
+Nikander & Laganier           Experimental                     [Page 14]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+   [RFC4034]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
+              Rose, "Resource Records for the DNS Security Extensions",
+              RFC 4034, March 2005.
+
+   [RFC4035]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
+              Rose, "Protocol Modifications for the DNS Security
+              Extensions", RFC 4035, March 2005.
+
+   [RFC4648]  Josefsson, S., "The Base16, Base32, and Base64 Data
+              Encodings", RFC 4648, October 2006.
+
+   [RFC5201]  Moskowitz, R., Nikander, P., Jokela, P., Ed., and T.
+              Henderson, "Host Identity Protocol", RFC 5201, April 2008.
+
+   [RFC5204]  Laganier, J. and L. Eggert, "Host Identity Protocol (HIP)
+              Rendezvous Extension", RFC 5204, April 2008.
+
+11.2.  Informative references
+
+   [RFC2536]  Eastlake, D., "DSA KEYs and SIGs in the Domain Name System
+              (DNS)", RFC 2536, March 1999.
+
+   [RFC3110]  Eastlake, D., "RSA/SHA-1 SIGs and RSA KEYs in the Domain
+              Name System (DNS)", RFC 3110, May 2001.
+
+   [RFC3833]  Atkins, D. and R. Austein, "Threat Analysis of the Domain
+              Name System (DNS)", RFC 3833, August 2004.
+
+   [RFC4423]  Moskowitz, R. and P. Nikander, "Host Identity Protocol
+              (HIP) Architecture", RFC 4423, May 2006.
+
+   [RFC5206]  Henderson, T., Ed., "End-Host Mobility and Multihoming
+              with the Host Identity Protocol", RFC 5206, April 2008.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Nikander & Laganier           Experimental                     [Page 15]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+Authors' Addresses
+
+   Pekka Nikander
+   Ericsson Research NomadicLab
+   JORVAS  FIN-02420
+   FINLAND
+
+   Phone: +358 9 299 1
+   EMail: pekka.nikander@nomadiclab.com
+
+
+   Julien Laganier
+   DoCoMo Communications Laboratories Europe GmbH
+   Landsberger Strasse 312
+   Munich  80687
+   Germany
+
+   Phone: +49 89 56824 231
+   EMail: julien.ietf@laposte.net
+   URI:   http://www.docomolab-euro.com/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Nikander & Laganier           Experimental                     [Page 16]
+
+RFC 5205                   HIP DNS Extension                  April 2008
+
+
+Full Copyright Statement
+
+   Copyright (C) The IETF Trust (2008).
+
+   This document is subject to the rights, licenses and restrictions
+   contained in BCP 78, and except as set forth therein, the authors
+   retain all their rights.
+
+   This document and the information contained herein are provided on an
+   "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE REPRESENTS
+   OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY, THE IETF TRUST AND
+   THE INTERNET ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF
+   THE INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+   WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+Intellectual Property
+
+   The IETF takes no position regarding the validity or scope of any
+   Intellectual Property Rights or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this document or the extent to which any license under such rights
+   might or might not be available; nor does it represent that it has
+   made any independent effort to identify any such rights.  Information
+   on the procedures with respect to rights in RFC documents can be
+   found in BCP 78 and BCP 79.
+
+   Copies of IPR disclosures made to the IETF Secretariat and any
+   assurances of licenses to be made available, or the result of an
+   attempt made to obtain a general license or permission for the use of
+   such proprietary rights by implementers or users of this
+   specification can be obtained from the IETF on-line IPR repository at
+   http://www.ietf.org/ipr.
+
+   The IETF invites any interested party to bring to its attention any
+   copyrights, patents or patent applications, or other proprietary
+   rights that may cover technology that may be required to implement
+   this standard.  Please address the information to the IETF at
+   ietf-ipr@ietf.org.
+
+
+
+
+
+
+
+
+
+
+
+
+Nikander & Laganier           Experimental                     [Page 17]
+

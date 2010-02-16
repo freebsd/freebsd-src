@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.241.18.97 2008/10/17 19:37:35 jreed Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.241.18.111 2009/09/24 21:38:50 jinmei Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -29,6 +29,7 @@
       <year>2006</year>
       <year>2007</year>
       <year>2008</year>
+      <year>2009</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -74,23 +75,23 @@
     <sect1>
       <title>Organization of This Document</title>
       <para>
-        In this document, <emphasis>Section 1</emphasis> introduces
-        the basic <acronym>DNS</acronym> and <acronym>BIND</acronym> concepts. <emphasis>Section 2</emphasis>
+        In this document, <emphasis>Chapter 1</emphasis> introduces
+        the basic <acronym>DNS</acronym> and <acronym>BIND</acronym> concepts. <emphasis>Chapter 2</emphasis>
         describes resource requirements for running <acronym>BIND</acronym> in various
-        environments. Information in <emphasis>Section 3</emphasis> is
+        environments. Information in <emphasis>Chapter 3</emphasis> is
         <emphasis>task-oriented</emphasis> in its presentation and is
         organized functionally, to aid in the process of installing the
         <acronym>BIND</acronym> 9 software. The task-oriented
         section is followed by
-        <emphasis>Section 4</emphasis>, which contains more advanced
+        <emphasis>Chapter 4</emphasis>, which contains more advanced
         concepts that the system administrator may need for implementing
-        certain options. <emphasis>Section 5</emphasis>
+        certain options. <emphasis>Chapter 5</emphasis>
         describes the <acronym>BIND</acronym> 9 lightweight
-        resolver.  The contents of <emphasis>Section 6</emphasis> are
+        resolver.  The contents of <emphasis>Chapter 6</emphasis> are
         organized as in a reference manual to aid in the ongoing
-        maintenance of the software. <emphasis>Section 7</emphasis> addresses
+        maintenance of the software. <emphasis>Chapter 7</emphasis> addresses
         security considerations, and
-        <emphasis>Section 8</emphasis> contains troubleshooting help. The
+        <emphasis>Chapter 8</emphasis> contains troubleshooting help. The
         main body of the document is followed by several
         <emphasis>appendices</emphasis> which contain useful reference
         information, such as a <emphasis>bibliography</emphasis> and
@@ -651,7 +652,7 @@
   <chapter id="Bv9ARM.ch03">
     <title>Name Server Configuration</title>
     <para>
-      In this section we provide some suggested configurations along
+      In this chapter we provide some suggested configurations along
       with guidelines for their use.  We suggest reasonable values for
       certain option settings.
     </para>
@@ -928,7 +929,7 @@ zone "eng.example.com" {
                   <arg>%<replaceable>comment</replaceable></arg>
                 </cmdsynopsis>
                 <para>
-                  The usual simple use of dig will take the form
+                  The usual simple use of <command>dig</command> will take the form
                 </para>
                 <simpara>
                   <command>dig @server domain query-type query-class</command>
@@ -1271,8 +1272,8 @@ zone "eng.example.com" {
                         Stop the server, making sure any recent changes
                         made through dynamic update or IXFR are first saved to
                         the master files of the updated zones.
-			If -p is specified named's process id is returned.
-			This allows an external process to determine when named
+			If <option>-p</option> is specified <command>named</command>'s process id is returned.
+			This allows an external process to determine when <command>named</command>
 			had completed stopping.
                       </para>
                     </listitem>
@@ -1286,8 +1287,8 @@ zone "eng.example.com" {
                         made through dynamic update or IXFR are not saved to
                         the master files, but will be rolled forward from the
 			journal files when the server is restarted.
-			If -p is specified named's process id is returned.
-			This allows an external process to determine when named
+			If <option>-p</option> is specified <command>named</command>'s process id is returned.
+			This allows an external process to determine when <command>named</command>
 			had completed halting.
                       </para>
                     </listitem>
@@ -1356,7 +1357,7 @@ zone "eng.example.com" {
                     <term><userinput>recursing</userinput></term>
                     <listitem>
                       <para>
-                        Dump the list of queries named is currently recursing
+                        Dump the list of queries <command>named</command> is currently recursing
                         on.
                       </para>
                     </listitem>
@@ -1426,7 +1427,7 @@ zone "eng.example.com" {
                   with
                   <command>named</command>.  Its syntax is
                   identical to the
-                  <command>key</command> statement in named.conf.
+                  <command>key</command> statement in <filename>named.conf</filename>.
                   The keyword <userinput>key</userinput> is
                   followed by a key name, which must be a valid
                   domain name, though it need not actually be hierarchical;
@@ -1599,10 +1600,10 @@ controls {
       </para>
 
       <note>
-	As a slave zone can also be a master to other slaves, named,
+	As a slave zone can also be a master to other slaves, <command>named</command>,
         by default, sends <command>NOTIFY</command> messages for every zone
 	it loads.  Specifying <command>notify master-only;</command> will
-	cause named to only send <command>NOTIFY</command> for master
+	cause <command>named</command> to only send <command>NOTIFY</command> for master
 	zones that it loads.
       </note>
 
@@ -2086,7 +2087,7 @@ key host1-host2. {
 </programlisting>
 
         <para>
-          The algorithm, hmac-md5, is the only one supported by <acronym>BIND</acronym>.
+          The algorithm, <literal>hmac-md5</literal>, is the only one supported by <acronym>BIND</acronym>.
           The secret is the one generated above. Since this is a secret, it
           is recommended that either <filename>named.conf</filename> be non-world
           readable, or the key directive be added to a non-world readable
@@ -2146,7 +2147,7 @@ server 10.1.2.3 {
           be denoted <command>key host1-host2.</command>
         </para>
         <para>
-          An example of an allow-update directive would be:
+          An example of an <command>allow-update</command> directive would be:
         </para>
 
 <programlisting>
@@ -2235,7 +2236,7 @@ allow-update { key host1-host2. ;};
 
       <para>
         <acronym>BIND</acronym> 9 partially supports DNSSEC SIG(0)
-            transaction signatures as specified in RFC 2535 and RFC2931.
+            transaction signatures as specified in RFC 2535 and RFC 2931.
         SIG(0)
         uses public/private keys to authenticate messages.  Access control
         is performed in the same manner as TSIG keys; privileges can be
@@ -2448,11 +2449,11 @@ allow-update { key host1-host2. ;};
 
 	<para>
 	  After DNSSEC gets established, a typical DNSSEC configuration
-	  will look something like the following.  It has a one or
+	  will look something like the following.  It has one or
 	  more public keys for the root.  This allows answers from
 	  outside the organization to be validated.  It will also
 	  have several keys for parts of the namespace the organization
-	  controls.  These are here to ensure that named is immune
+	  controls.  These are here to ensure that <command>named</command> is immune
 	  to compromises in the DNSSEC components of the security
 	  of parent zones.
 	</para>
@@ -3107,7 +3108,7 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
 	    <command>allow-update</command>,
 	    <command>allow-update-forwarding</command>, and
 	    <command>blackhole</command> all use address match
-	    lists.  Similarly, the listen-on option will cause the
+	    lists.  Similarly, the <command>listen-on</command> option will cause the
 	    server to not accept queries on any of the machine's
 	    addresses which do not match the list.
 	  </para>
@@ -3180,8 +3181,6 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
             slash) and continue to the end of the physical line. They cannot
             be continued across multiple physical lines; to have one logical
             comment span multiple lines, each line must use the // pair.
-          </para>
-          <para>
             For example:
           </para>
           <para>
@@ -3197,8 +3196,6 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
             with the character <literal>#</literal> (number sign)
             and continue to the end of the
             physical line, as in C++ comments.
-          </para>
-          <para>
             For example:
           </para>
 
@@ -3688,7 +3685,7 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
 
 <programlisting><command>logging</command> {
    [ <command>channel</command> <replaceable>channel_name</replaceable> {
-     ( <command>file</command> <replaceable>path name</replaceable>
+     ( <command>file</command> <replaceable>path_name</replaceable>
          [ <command>versions</command> ( <replaceable>number</replaceable> | <command>unlimited</command> ) ]
          [ <command>size</command> <replaceable>size spec</replaceable> ]
        | <command>syslog</command> <replaceable>syslog_facility</replaceable>
@@ -3922,7 +3919,7 @@ notrace</command>. All debugging messages in the server have a debug
             the date and time will be logged. <command>print-time</command> may
             be specified for a <command>syslog</command> channel,
             but is usually
-            pointless since <command>syslog</command> also prints
+            pointless since <command>syslog</command> also logs
             the date and
             time. If <command>print-category</command> is
             requested, then the
@@ -4168,7 +4165,7 @@ category notify { null; };
                   </entry>
                   <entry colname="2">
                     <para>
-                      Messages that named was unable to determine the
+                      Messages that <command>named</command> was unable to determine the
                       class of or for which there was no matching <command>view</command>.
                       A one line summary is also logged to the <command>client</command> category.
                       This category is best sent to a file or stderr, by
@@ -4239,6 +4236,17 @@ category notify { null; };
                 </row>
                 <row rowsep="0">
                   <entry colname="1">
+                    <para><command>query-errors</command></para>
+                  </entry>
+                  <entry colname="2">
+                    <para>
+                      Information about queries that resulted in some
+                      failure.
+		    </para>
+		  </entry>
+		</row>
+                <row rowsep="0">
+                  <entry colname="1">
                     <para><command>dispatch</command></para>
                   </entry>
                   <entry colname="2">
@@ -4277,11 +4285,11 @@ category notify { null; };
                   </entry>
                   <entry colname="2">
                     <para>
-                      Delegation only.  Logs queries that have have
-                      been forced to NXDOMAIN as the result of a
-                      delegation-only zone or
-                      a <command>delegation-only</command> in a
-                      hint or stub zone declaration.
+		      Delegation only.  Logs queries that have been
+		      forced to NXDOMAIN as the result of a
+		      delegation-only zone or a
+		      <command>delegation-only</command> in a hint
+		      or stub zone declaration.
                     </para>
                   </entry>
                 </row>
@@ -4289,6 +4297,232 @@ category notify { null; };
             </tgroup>
           </informaltable>
         </sect3>
+	<sect3>
+	  <title>The <command>query-errors</command> Category</title>
+	  <para>
+	    The <command>query-errors</command> category is
+	    specifically intended for debugging purposes: To identify
+	    why and how specific queries result in responses which
+	    indicate an error.
+	    Messages of this category are therefore only logged
+	    with <command>debug</command> levels.
+	  </para>
+
+	  <para>
+	    At the debug levels of 1 or higher, each response with the
+	    rcode of SERVFAIL is logged as follows:
+	  </para>
+	  <para>
+	    <computeroutput>client 127.0.0.1#61502: query failed (SERVFAIL) for www.example.com/IN/AAAA at query.c:3880</computeroutput>
+	  </para>
+	  <para>
+	    This means an error resulting in SERVFAIL was
+	    detected at line 3880 of source file
+	    <filename>query.c</filename>.
+	    Log messages of this level will particularly
+	    help identify the cause of SERVFAIL for an
+	    authoritative server.
+	  </para>
+	  <para>
+	    At the debug levels of 2 or higher, detailed context
+	    information of recursive resolutions that resulted in
+	    SERVFAIL is logged.
+	    The log message will look like as follows:
+	  </para>
+	  <para>
+<!-- NOTE: newlines and some spaces added so this would fit on page -->
+            <programlisting>
+fetch completed at resolver.c:2970 for www.example.com/A
+in 30.000183: timed out/success [domain:example.com,
+referral:2,restart:7,qrysent:8,timeout:5,lame:0,neterr:0,
+badresp:1,adberr:0,findfail:0,valfail:0]
+            </programlisting>
+	  </para>
+	  <para>
+	    The first part before the colon shows that a recursive
+	    resolution for AAAA records of www.example.com completed
+	    in 30.000183 seconds and the final result that led to the
+	    SERVFAIL was determined at line 2970 of source file
+	    <filename>resolver.c</filename>.
+	  </para>
+	  <para>
+	    The following part shows the detected final result and the
+	    latest result of DNSSEC validation.
+	    The latter is always success when no validation attempt
+	    is made.
+	    In this example, this query resulted in SERVFAIL probably
+	    because all name servers are down or unreachable, leading
+	    to a timeout in 30 seconds.
+	    DNSSEC validation was probably not attempted.
+	  </para>
+	  <para>
+	    The last part enclosed in square brackets shows statistics
+	    information collected for this particular resolution
+	    attempt.
+	    The <varname>domain</varname> field shows the deepest zone
+	    that the resolver reached;
+	    it is the zone where the error was finally detected.
+	    The meaning of the other fields is summarized in the
+	    following table.
+	  </para>
+
+          <informaltable colsep="0" rowsep="0">
+            <tgroup cols="2" colsep="0" rowsep="0" tgroupstyle="4Level-table">
+              <colspec colname="1" colnum="1" colsep="0" colwidth="1.150in"/>
+              <colspec colname="2" colnum="2" colsep="0" colwidth="3.350in"/>
+              <tbody>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><varname>referral</varname></para>
+                  </entry>
+                  <entry colname="2">
+                    <para>
+		      The number of referrals the resolver received
+		      throughout the resolution process.
+		      In the above example this is 2, which are most
+		      likely com and example.com.
+                    </para>
+                  </entry>
+                </row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><varname>restart</varname></para>
+                  </entry>
+                  <entry colname="2">
+                    <para>
+		      The number of cycles that the resolver tried
+		      remote servers at the <varname>domain</varname>
+		      zone.
+		      In each cycle the resolver sends one query
+		      (possibly resending it, depending on the response)
+		      to each known name server of
+		      the <varname>domain</varname> zone.
+                    </para>
+                  </entry>
+                </row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><varname>qrysent</varname></para>
+                  </entry>
+                  <entry colname="2">
+                    <para>
+		      The number of queries the resolver sent at the
+		      <varname>domain</varname> zone.
+                    </para>
+                  </entry>
+                </row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><varname>timeout</varname></para>
+                  </entry>
+                  <entry colname="2">
+                    <para>
+		      The number of timeouts since the resolver
+		      received the last response.
+		    </para>
+		  </entry>
+		</row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><varname>lame</varname></para>
+                  </entry>
+                  <entry colname="2">
+                    <para>
+		      The number of lame servers the resolver detected
+		      at the <varname>domain</varname> zone.
+		      A server is detected to be lame either by an
+		      invalid response or as a result of lookup in
+		      BIND9's address database (ADB), where lame
+		      servers are cached.
+		    </para>
+		  </entry>
+		</row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><varname>neterr</varname></para>
+                  </entry>
+                  <entry colname="2">
+                    <para>
+		      The number of erroneous results that the
+		      resolver encountered in sending queries
+		      at the <varname>domain</varname> zone.
+		      One common case is the remote server is
+		      unreachable and the resolver receives an ICMP
+		      unreachable error message.
+		    </para>
+		  </entry>
+		</row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><varname>badresp</varname></para>
+                  </entry>
+                  <entry colname="2">
+                    <para>
+		      The number of unexpected responses (other than
+		      <varname>lame</varname>) to queries sent by the
+		      resolver at the <varname>domain</varname> zone.
+		    </para>
+		  </entry>
+		</row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><varname>adberr</varname></para>
+                  </entry>
+                  <entry colname="2">
+                    <para>
+		      Failures in finding remote server addresses
+		      of the <varname>domain</varname> zone in the ADB.
+		      One common case of this is that the remote
+		      server's name does not have any address records.
+		    </para>
+		  </entry>
+		</row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><varname>findfail</varname></para>
+                  </entry>
+                  <entry colname="2">
+                    <para>
+		      Failures of resolving remote server addresses.
+		      This is a total number of failures throughout
+		      the resolution process.
+		    </para>
+		  </entry>
+		</row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><varname>valfail</varname></para>
+                  </entry>
+                  <entry colname="2">
+                    <para>
+		      Failures of DNSSEC validation.
+		      Validation failures are counted throughout
+		      the resolution process (not limited to
+		      the <varname>domain</varname> zone), but should
+		      only happen in <varname>domain</varname>.
+		    </para>
+		  </entry>
+		</row>
+	      </tbody>
+	    </tgroup>
+	  </informaltable>
+	  <para>
+	    At the debug levels of 3 or higher, the same messages
+	    as those at the debug 1 level are logged for other errors
+	    than SERVFAIL.
+	    Note that negative responses such as NXDOMAIN are not
+	    regarded as errors here.
+	  </para>
+	  <para>
+	    At the debug levels of 4 or higher, the same messages
+	    as those at the debug 2 level are logged for other errors
+	    than SERVFAIL.
+	    Unlike the above case of level 3, messages are logged for
+	    negative responses.
+	    This is because any unexpected results can be difficult to
+	    debug in the recursion case.
+	  </para>
+	</sect3>
       </sect2>
 
       <sect2>
@@ -4421,6 +4655,7 @@ category notify { null; };
     <optional> rfc2308-type1 <replaceable>yes_or_no</replaceable>; </optional>
     <optional> use-id-pool <replaceable>yes_or_no</replaceable>; </optional>
     <optional> maintain-ixfr-base <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> ixfr-from-differences (<replaceable>yes_or_no</replaceable> | <constant>master</constant> | <constant>slave</constant>); </optional>
     <optional> dnssec-enable <replaceable>yes_or_no</replaceable>; </optional>
     <optional> dnssec-validation <replaceable>yes_or_no</replaceable>; </optional>
     <optional> dnssec-lookaside <replaceable>domain</replaceable> trust-anchor <replaceable>domain</replaceable>; </optional>
@@ -4689,7 +4924,7 @@ digits</varname>" + "<varname>tkey-domain</varname>". In most cases,
               <para>
                 The pathname of the file the server writes its process ID
                 in. If not specified, the default is <filename>/var/run/named.pid</filename>.
-                The pid-file is used by programs that want to send signals to
+                The PID file is used by programs that want to send signals to
                 the running
                 name server. Specifying <command>pid-file none</command> disables the
                 use of a PID file &mdash; no file will be written and any
@@ -4778,17 +5013,45 @@ digits</varname>" + "<varname>tkey-domain</varname>". In most cases,
             </listitem>
           </varlistentry>
 
-          <varlistentry>
+          <varlistentry id="root_delegation_only">
             <term><command>root-delegation-only</command></term>
             <listitem>
               <para>
-                Turn on enforcement of delegation-only in TLDs (top level domains) and root zones
-                with an optional
-                exclude list.
+                Turn on enforcement of delegation-only in TLDs
+		(top level domains) and root zones with an optional
+		exclude list.
               </para>
+	      <para>
+		DS queries are expected to be made to and be answered by
+		delegation only zones.  Such queries and responses are
+		treated as a exception to delegation-only processing
+		and are not converted to NXDOMAIN responses provided
+		a CNAME is not discovered at the query name.
+	      </para>
+	      <para>
+		If a delegation only zone server also serves a child
+		zone it is not always possible to determine whether
+		a answer comes from the delegation only zone or the
+		child zone.  SOA NS and DNSKEY records are apex
+		only records and a matching response that contains
+		these records or DS is treated as coming from a
+		child zone.  RRSIG records are also examined to see
+		if they are signed by a child zone or not.  The
+		authority section is also examined to see if there
+		is evidence that the answer is from the child zone.
+		Answers that are determined to be from a child zone
+		are not converted to NXDOMAIN responses.  Despite
+		all these checks there is still a possibility of
+		false negatives when a child zone is being served.
+	      </para>
+	      <para>
+		Similarly false positives can arise from empty nodes
+		(no records at the name) in the delegation only zone
+		when the query type is not ANY.
+	      </para>
               <para>
-                Note some TLDs are not delegation only (e.g. "DE", "LV", "US"
-                and "MUSEUM").
+                Note some TLDs are not delegation only (e.g. "DE", "LV",
+		"US" and "MUSEUM").  This list is not exhaustive.
               </para>
 
 <programlisting>
@@ -4824,7 +5087,7 @@ options {
                 top of a zone.  When a DNSKEY is at or below a domain
                 specified by the
                 deepest <command>dnssec-lookaside</command>, and
-                the normal dnssec validation
+                the normal DNSSEC validation
                 has left the key untrusted, the trust-anchor will be append to
                 the key
                 name and a DLV record will be looked up to see if it can
@@ -4842,10 +5105,10 @@ options {
               <para>
                 Specify hierarchies which must be or may not be secure (signed and
                 validated).
-                If <userinput>yes</userinput>, then named will only accept
+                If <userinput>yes</userinput>, then <command>named</command> will only accept
                 answers if they
                 are secure.
-                If <userinput>no</userinput>, then normal dnssec validation
+                If <userinput>no</userinput>, then normal DNSSEC validation
                 applies
                 allowing for insecure answers to be accepted.
                 The specified domain must be under a <command>trusted-key</command> or
@@ -5518,9 +5781,10 @@ options {
 		  also accepts <command>master</command> and
                   <command>slave</command> at the view and options
                   levels which causes
-                  <command>ixfr-from-differences</command> to apply to
+                  <command>ixfr-from-differences</command> to be enabled for
                   all <command>master</command> or
                   <command>slave</command> zones respectively.
+                  It is off by default.
                 </para>
               </listitem>
             </varlistentry>
@@ -5531,9 +5795,9 @@ options {
                 <para>
                   This should be set when you have multiple masters for a zone
                   and the
-                  addresses refer to different machines.  If <userinput>yes</userinput>, named will
+                  addresses refer to different machines.  If <userinput>yes</userinput>, <command>named</command> will
                   not log
-                  when the serial number on the master is less than what named
+                  when the serial number on the master is less than what <command>named</command>
                   currently
                   has.  The default is <userinput>no</userinput>.
                 </para>
@@ -5544,8 +5808,8 @@ options {
               <term><command>dnssec-enable</command></term>
               <listitem>
                 <para>
-                  Enable DNSSEC support in named.  Unless set to <userinput>yes</userinput>,
-                  named behaves as if it does not support DNSSEC.
+                  Enable DNSSEC support in <command>named</command>.  Unless set to <userinput>yes</userinput>,
+                  <command>named</command> behaves as if it does not support DNSSEC.
                   The default is <userinput>yes</userinput>.
                 </para>
               </listitem>
@@ -5555,7 +5819,7 @@ options {
               <term><command>dnssec-validation</command></term>
               <listitem>
                 <para>
-                  Enable DNSSEC validation in named.
+                  Enable DNSSEC validation in <command>named</command>.
 		  Note <command>dnssec-enable</command> also needs to be
 		  set to <userinput>yes</userinput> to be effective.
                   The default is <userinput>no</userinput>.
@@ -5569,7 +5833,7 @@ options {
                 <para>
 		  Accept expired signatures when verifying DNSSEC signatures.
                   The default is <userinput>no</userinput>.
-		  Setting this option to "yes" leaves named vulnerable to replay attacks.
+		  Setting this option to "yes" leaves <command>named</command> vulnerable to replay attacks.
                 </para>
               </listitem>
             </varlistentry>
@@ -5578,7 +5842,7 @@ options {
               <term><command>querylog</command></term>
               <listitem>
                 <para>
-                  Specify whether query logging should be started when named
+                  Specify whether query logging should be started when <command>named</command>
                   starts.
                   If <command>querylog</command> is not specified,
                   then the query logging
@@ -5608,9 +5872,9 @@ options {
                   from RFC 952 and RFC 821 as modified by RFC 1123.
                 </para>
                 <para><command>check-names</command>
-		  applies to the owner names of A, AAA and MX records.
-		  It also applies to the domain names in the RDATA of NS, SOA
-		  and MX records.
+		  applies to the owner names of A, AAAA and MX records.
+		  It also applies to the domain names in the RDATA of NS, SOA,
+		  MX, and SRV records.
 		  It also applies to the RDATA of PTR records where the owner
 		  name indicated that it is a reverse lookup of a hostname
 		  (the owner name ends in IN-ADDR.ARPA, IP6.ARPA, or IP6.INT).
@@ -5701,7 +5965,7 @@ options {
 	      <listitem>
 	        <para>
 		  When returning authoritative negative responses to
-		  SOA queries set the TTL of the SOA recored returned in
+		  SOA queries set the TTL of the SOA record returned in
 		  the authority section to zero.
 		  The default is <command>yes</command>.
 	        </para>
@@ -5881,8 +6145,9 @@ options {
 		  from the cache.  If <command>allow-query-cache</command>
 		  is not set then <command>allow-recursion</command>
 		  is used if set, otherwise <command>allow-query</command>
-		  is used if set, otherwise the default
-		  (<command>localnets;</command>
+		  is used if set unless <command>recursion no;</command> is
+		  set in which case <command>none;</command> is used,
+		  otherwise the default (<command>localnets;</command>
 		  <command>localhost;</command>) is used.
 		</para>
 	      </listitem>
@@ -6001,7 +6266,7 @@ options {
           <para>
             The interfaces and ports that the server will answer queries
             from may be specified using the <command>listen-on</command> option. <command>listen-on</command> takes
-            an optional port, and an <varname>address_match_list</varname>.
+            an optional port and an <varname>address_match_list</varname>.
             The server will listen on all interfaces allowed by the address
             match list. If a port is not specified, port 53 will be used.
           </para>
@@ -6228,7 +6493,12 @@ avoid-v6-udp-ports {};
                   zone is loaded, in addition to the servers listed in the
                   zone's NS records.
                   This helps to ensure that copies of the zones will
-                  quickly converge on stealth servers. If an <command>also-notify</command> list
+                  quickly converge on stealth servers.
+                  Optionally, a port may be specified with each
+                  <command>also-notify</command> address to send
+                  the notify messages to a port other than the
+                  default of 53.
+                  If an <command>also-notify</command> list
                   is given in a <command>zone</command> statement,
                   it will override
                   the <command>options also-notify</command>
@@ -6457,7 +6727,7 @@ avoid-v6-udp-ports {};
 		  to be used, you should set
 		  <command>use-alt-transfer-source</command>
 		  appropriately and you should not depend upon
-		  getting a answer back to the first refresh
+		  getting an answer back to the first refresh
 		  query.
 		</note>
               </listitem>
@@ -6657,7 +6927,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 
         </sect3>
 
-        <sect3>
+        <sect3 id="server_resource_limits">
           <title>Server  Resource Limits</title>
 
           <para>
@@ -6691,6 +6961,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   journal
                   will be automatically removed.  The default is
                   <literal>unlimited</literal>.
+                  This may also be set on a per-zone basis.
                 </para>
               </listitem>
             </varlistentry>
@@ -6741,7 +7012,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                 <para>
 		  The number of file descriptors reserved for TCP, stdio,
 		  etc.  This needs to be big enough to cover the number of
-		  interfaces named listens on, tcp-clients as well as
+		  interfaces <command>named</command> listens on, <command>tcp-clients</command> as well as
 		  to provide room for outgoing TCP queries and incoming zone
 		  transfers.  The default is <literal>512</literal>.
 		  The minimum value is <literal>128</literal> and the
@@ -7252,14 +7523,15 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
               <term><command>edns-udp-size</command></term>
               <listitem>
                 <para>
-		  Sets the advertised EDNS UDP buffer size in bytes.  Valid
-                  values are 512 to 4096 (values outside this range
-                  will be silently adjusted).  The default value is
-                  4096.  The usual reason for setting edns-udp-size to
-                  a non-default value is to get UDP answers to pass
-                  through broken firewalls that block fragmented
-                  packets and/or block UDP packets that are greater
-                  than 512 bytes.
+		  Sets the advertised EDNS UDP buffer size in bytes
+                  to control the size of packets received.
+                  Valid values are 512 to 4096 (values outside this range
+		  will be silently adjusted).  The default value
+		  is 4096.  The usual reason for setting
+		  <command>edns-udp-size</command> to a non-default
+		  value is to get UDP answers to pass through broken
+		  firewalls that block fragmented packets and/or
+		  block UDP packets that are greater than 512 bytes.
                 </para>
               </listitem>
             </varlistentry>
@@ -7268,11 +7540,11 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
               <term><command>max-udp-size</command></term>
               <listitem>
                 <para>
-		  Sets the maximum EDNS UDP message size named will
+		  Sets the maximum EDNS UDP message size <command>named</command> will
 		  send in bytes.  Valid values are 512 to 4096 (values outside
 		  this range will be silently adjusted).  The default
 		  value is 4096.  The usual reason for setting
-		  max-udp-size to a non-default value is to get UDP
+		  <command>max-udp-size</command> to a non-default value is to get UDP
 		  answers to pass through broken firewalls that
 		  block fragmented packets and/or block UDP packets
 		  that are greater than 512 bytes.
@@ -7318,16 +7590,16 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
               <listitem>
 		<para>These set the
 		  initial value (minimum) and maximum number of recursive
-		  simultanious clients for any given query
+		  simultaneous clients for any given query
 		  (&lt;qname,qtype,qclass&gt;) that the server will accept
-		  before dropping additional clients.  named will attempt to
+		  before dropping additional clients.  <command>named</command> will attempt to
 		  self tune this value and changes will be logged.  The
 		  default values are 10 and 100.
 		</para>
 		<para>
 	          This value should reflect how many queries come in for
 		  a given name in the time it takes to resolve that name.
-		  If the number of queries exceed this value, named will
+		  If the number of queries exceed this value, <command>named</command> will
 		  assume that it is dealing with a non-responsive zone
 		  and will drop additional queries.  If it gets a response
 		  after dropping queries, it will raise the estimate.  The
@@ -7429,7 +7701,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   identify which of a group of anycast servers is actually
                   answering your queries.  Specifying <command>server-id none;</command>
                   disables processing of the queries.
-                  Specifying <command>server-id hostname;</command> will cause named to
+                  Specifying <command>server-id hostname;</command> will cause <command>named</command> to
                   use the hostname as found by the gethostname() function.
                   The default <command>server-id</command> is <command>none</command>.
                 </para>
@@ -7454,9 +7726,9 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 	    loopback address and the IPv6 unknown addresss.
 	  </para>
 	  <para>
-	    Named will attempt to determine if a built in zone already exists
+	    Named will attempt to determine if a built-in zone already exists
 	    or is active (covered by a forward-only forwarding declaration)
-	    and will not not create a empty zone in that case.
+	    and will not create an empty zone in that case.
 	  </para>
 	  <para>
 	    The current list of empty zones is:
@@ -7517,7 +7789,7 @@ XXX: end of RFC1918 addresses #defined out -->
 	  <note>
 	    The real parent servers for these zones should disable all
 	    empty zone under the parent zone they serve.  For the real
-	    root servers, this is all built in empty zones.  This will
+	    root servers, this is all built-in empty zones.  This will
 	    enable them to return referrals to deeper in the tree.
 	  </note>
           <variablelist>
@@ -7547,7 +7819,7 @@ XXX: end of RFC1918 addresses #defined out -->
 	      <term><command>empty-zones-enable</command></term>
 	      <listitem>
 	        <para>
-		  Enable or disable all empty zones.  By default they
+		  Enable or disable all empty zones.  By default, they
 		  are enabled.
 	        </para>
 	      </listitem>
@@ -7557,7 +7829,7 @@ XXX: end of RFC1918 addresses #defined out -->
 	    <term><command>disable-empty-zone</command></term>
 	      <listitem>
 	        <para>
-		  Disable individual empty zones.  By default none are
+		  Disable individual empty zones.  By default, none are
 		  disabled.  This option can be specified multiple times.
 	        </para>
 	      </listitem>
@@ -7684,7 +7956,7 @@ XXX: end of RFC1918 addresses #defined out -->
                   <entry colname="2">
                     <para>
                       The number of queries which the server attempted to
-		      recurse but discover a existing query with the same
+		      recurse but discover an existing query with the same
 		      IP address, port, query id, name, type and class
 		      already being processed.
                     </para>
@@ -7697,7 +7969,7 @@ XXX: end of RFC1918 addresses #defined out -->
                   <entry colname="2">
                     <para>
 		      The number of queries for which the server
-		      discovered a excessive number of existing
+		      discovered an excessive number of existing
 		      recursive queries for the same name, type and
 		      class and were subsequently dropped.
 		    </para>
@@ -7953,7 +8225,7 @@ XXX: end of RFC1918 addresses #defined out -->
 
           <para>
             The <command>edns-udp-size</command> option sets the EDNS UDP size
-	    that is advertised by named when querying the remote server.
+	    that is advertised by <command>named</command> when querying the remote server.
 	    Valid values are 512 to 4096 bytes (values outside this range will be
 	    silently adjusted).  This option is useful when you wish to
 	    advertises a different value to this server than the value you
@@ -7963,11 +8235,11 @@ XXX: end of RFC1918 addresses #defined out -->
 
           <para>
 	    The <command>max-udp-size</command> option sets the
-	    maximum EDNS UDP message size named will send.  Valid
+	    maximum EDNS UDP message size <command>named</command> will send.  Valid
 	    values are 512 to 4096 bytes (values outside this range will
 	    be silently adjusted).  This option is useful when you
 	    know that there is a firewall that is blocking large
-	    replies from named.
+	    replies from <command>named</command>.
 	  </para>
 
           <para>
@@ -8252,9 +8524,11 @@ view "external" {
     <optional> file <replaceable>string</replaceable> ; </optional>
     <optional> masterfile-format (<constant>text</constant>|<constant>raw</constant>) ; </optional>
     <optional> journal <replaceable>string</replaceable> ; </optional>
+    <optional> max-journal-size <replaceable>size_spec</replaceable>; </optional>
     <optional> forward (<constant>only</constant>|<constant>first</constant>) ; </optional>
     <optional> forwarders { <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
     <optional> ixfr-base <replaceable>string</replaceable> ; </optional>
+    <optional> ixfr-from-differences <replaceable>yes_or_no</replaceable>; </optional>
     <optional> ixfr-tmp-file <replaceable>string</replaceable> ; </optional>
     <optional> maintain-ixfr-base <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> max-ixfr-log-size <replaceable>number</replaceable> ; </optional>
@@ -8289,9 +8563,11 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
     <optional> file <replaceable>string</replaceable> ; </optional>
     <optional> masterfile-format (<constant>text</constant>|<constant>raw</constant>) ; </optional>
     <optional> journal <replaceable>string</replaceable> ; </optional>
+    <optional> max-journal-size <replaceable>size_spec</replaceable>; </optional>
     <optional> forward (<constant>only</constant>|<constant>first</constant>) ; </optional>
     <optional> forwarders { <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
     <optional> ixfr-base <replaceable>string</replaceable> ; </optional>
+    <optional> ixfr-from-differences <replaceable>yes_or_no</replaceable>; </optional>
     <optional> ixfr-tmp-file <replaceable>string</replaceable> ; </optional>
     <optional> maintain-ixfr-base <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> masters <optional>port <replaceable>ip_port</replaceable></optional> { ( <replaceable>masters_list</replaceable> | <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> <optional>key <replaceable>key</replaceable></optional> ) ; <optional>...</optional> }; </optional>
@@ -8435,7 +8711,7 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                         <filename>ex/example.com</filename> where <filename>ex/</filename> is
                         just the first two letters of the zone name. (Most
                         operating systems
-                        behave very slowly if you put 100 000 files into
+                        behave very slowly if you put 100000 files into
                         a single directory.)
                       </para>
                     </entry>
@@ -8560,20 +8836,22 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                     </entry>
                     <entry colname="2">
                       <para>
-                        This is used to enforce the delegation-only
-                        status of infrastructure zones (e.g. COM, NET, ORG).
-                        Any answer that
-                        is received without an explicit or implicit delegation
-                        in the authority
-                        section will be treated as NXDOMAIN.  This does not
-                        apply to the zone
-                        apex.  This should not be applied to leaf zones.
+			This is used to enforce the delegation-only
+			status of infrastructure zones (e.g. COM,
+			NET, ORG).  Any answer that is received
+			without an explicit or implicit delegation
+			in the authority section will be treated
+			as NXDOMAIN.  This does not apply to the
+			zone apex.  This should not be applied to
+			leaf zones.
                       </para>
                       <para>
                         <varname>delegation-only</varname> has no
-                        effect on answers received
-                        from forwarders.
+                        effect on answers received from forwarders.
                       </para>
+		      <para>
+			See caveats in <xref linkend="root_delegation_only"/>.
+		      </para>
                     </entry>
                   </row>
                 </tbody>
@@ -8812,9 +9090,11 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                   <para>
                     The flag only applies to hint and stub zones.  If set
                     to <userinput>yes</userinput>, then the zone will also be
-                    treated as if it
-                    is also a delegation-only type zone.
+                    treated as if it is also a delegation-only type zone.
                   </para>
+		  <para>
+		    See caveats in <xref linkend="root_delegation_only"/>.
+		  </para>
                 </listitem>
               </varlistentry>
 
@@ -8877,6 +9157,16 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                     Allow the default journal's filename to be overridden.
                     The default is the zone's filename with "<filename>.jnl</filename>" appended.
                     This is applicable to <command>master</command> and <command>slave</command> zones.
+                  </para>
+                </listitem>
+              </varlistentry>
+
+              <varlistentry>
+                <term><command>max-journal-size</command></term>
+                <listitem>
+                  <para>
+                    See the description of
+                    <command>max-journal-size</command> in <xref linkend="server_resource_limits"/>.
                   </para>
                 </listitem>
               </varlistentry>
@@ -9067,6 +9357,10 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                   <para>
                     See the description of
                     <command>ixfr-from-differences</command> in <xref linkend="boolean_options"/>.
+		    (Note that the <command>ixfr-from-differences</command>
+		    <userinput>master</userinput> and
+		    <userinput>slave</userinput> choices are not
+		    available at the zone level.)
                   </para>
                 </listitem>
               </varlistentry>
@@ -10250,8 +10544,6 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
             the mail will be delivered to the server specified in the MX
             record
             pointed to by the CNAME.
-          </para>
-	  <para>
             For example:
           </para>
           <informaltable colsep="0" rowsep="0">
@@ -10690,7 +10982,7 @@ $GENERATE 1-127 $ CNAME $.0</programlisting>
 		      describes the owner name of the resource records
                       to be created.  Any single <command>$</command>
                       (dollar sign)
-                      symbols within the <command>lhs</command> side
+                      symbols within the <command>lhs</command> string
                       are replaced by the iterator value.
 
                       To get a $ in the output, you need to escape the
@@ -10734,7 +11026,7 @@ $GENERATE 1-127 $ CNAME $.0</programlisting>
                     <para>
 		      Specifies the time-to-live of the generated records. If
                       not specified this will be inherited using the
-                      normal ttl inheritance rules.
+                      normal TTL inheritance rules.
                     </para>
                     <para><command>class</command>
 		      and <command>ttl</command> can be
@@ -10840,7 +11132,7 @@ $GENERATE 1-127 $ CNAME $.0</programlisting>
       <sect1 id="Access_Control_Lists">
         <title>Access Control Lists</title>
         <para>
-          Access Control Lists (ACLs), are address match lists that
+          Access Control Lists (ACLs) are address match lists that
           you can set up and nickname for future use in <command>allow-notify</command>,
           <command>allow-query</command>, <command>allow-recursion</command>,
           <command>blackhole</command>, <command>allow-transfer</command>,
@@ -10904,11 +11196,13 @@ zone "example.com" {
       <sect1>
         <title><command>Chroot</command> and <command>Setuid</command></title>
         <para>
-          On UNIX servers, it is possible to run <acronym>BIND</acronym> in a <emphasis>chrooted</emphasis> environment
-          (using the <command>chroot()</command> function) by specifying the "<option>-t</option>"
-          option. This can help improve system security by placing <acronym>BIND</acronym> in
-          a "sandbox", which will limit the damage done if a server is
-          compromised.
+	  On UNIX servers, it is possible to run <acronym>BIND</acronym>
+	  in a <emphasis>chrooted</emphasis> environment (using
+	  the <command>chroot()</command> function) by specifying
+	  the "<option>-t</option>" option for <command>named</command>.
+	  This can help improve system security by placing
+	  <acronym>BIND</acronym> in a "sandbox", which will limit
+	  the damage done if a server is compromised.
         </para>
         <para>
           Another useful feature in the UNIX version of <acronym>BIND</acronym> is the
@@ -10921,7 +11215,7 @@ zone "example.com" {
           user 202:
         </para>
         <para>
-          <userinput>/usr/local/bin/named -u 202 -t /var/named</userinput>
+          <userinput>/usr/local/sbin/named -u 202 -t /var/named</userinput>
         </para>
 
         <sect2>
@@ -11187,11 +11481,9 @@ zone "example.com" {
 	    BIND architecture.
           </para>
           <para>
-	    BIND version 4 is officially deprecated and BIND version
-	    8 development is considered maintenance-only in favor
-	    of BIND version 9. No additional development is done
-	    on BIND version 4 or BIND version 8 other than for
-	    security-related patches.
+	    BIND versions 4 and 8 are officially deprecated.
+	    No additional development is done
+	    on BIND version 4 or BIND version 8.
           </para>
           <para>
             <acronym>BIND</acronym> development work is made
@@ -11554,7 +11846,7 @@ zone "example.com" {
 		<pubdate>March 2005</pubdate>
 	      </biblioentry>
 	      <biblioentry>
-	        <abbrev>RFC4044</abbrev>
+	        <abbrev>RFC4034</abbrev>
 	 	<authorgroup>
 		  <author>
 		    <firstname>R.</firstname>

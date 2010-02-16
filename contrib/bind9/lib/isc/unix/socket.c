@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.237.18.56.2.1 2008/12/23 00:14:34 marka Exp $ */
+/* $Id: socket.c,v 1.237.18.68 2009/09/07 02:17:09 marka Exp $ */
 
 /*! \file */
 
@@ -268,7 +268,7 @@ typedef isc_event_t intev_t;
 #endif
 
 /*%
- * The size to raise the recieve buffer to (from BIND 8).
+ * The size to raise the receive buffer to (from BIND 8).
  */
 #define RCVBUFSIZE (32*1024)
 
@@ -1119,7 +1119,7 @@ build_msghdr_send(isc_socket_t *sock, isc_socketevent_t *dev,
 
 /*
  * Construct an iov array and attach it to the msghdr passed in.  This is
- * the RECV constructor, which will use the avialable region of the buffer
+ * the RECV constructor, which will use the available region of the buffer
  * (if using a buffer list) or will use the internal region (if a single
  * buffer I/O is requested).
  *
@@ -2257,17 +2257,14 @@ isc_socket_detach(isc_socket_t **socketp) {
 isc_result_t
 isc_socket_close(isc_socket_t *sock) {
 	int fd;
+	isc_socketmgr_t *manager;
+	isc_sockettype_t type;
 
 	REQUIRE(VALID_SOCKET(sock));
 
 	LOCK(&sock->lock);
-	REQUIRE(sock->references == 1);
-	UNLOCK(&sock->lock);
-	/*
-	 * We don't need to retain the lock hereafter, since no one else has
-	 * this socket.
-	 */
 
+	REQUIRE(sock->references == 1);
 	REQUIRE(sock->fd >= 0 && sock->fd < (int)sock->manager->maxsocks);
 
 	INSIST(!sock->connecting);
@@ -2279,6 +2276,8 @@ isc_socket_close(isc_socket_t *sock) {
 	INSIST(ISC_LIST_EMPTY(sock->accept_list));
 	INSIST(sock->connect_ev == NULL);
 
+	manager = sock->manager;
+	type = sock->type;
 	fd = sock->fd;
 	sock->fd = -1;
 	sock->listener = 0;
@@ -2286,8 +2285,9 @@ isc_socket_close(isc_socket_t *sock) {
 	sock->connecting = 0;
 	sock->bound = 0;
 	isc_sockaddr_any(&sock->address);
+	UNLOCK(&sock->lock);
 
-	closesocket(sock->manager, sock->type, fd);
+	closesocket(manager, type, fd);
 
 	return (ISC_R_SUCCESS);
 }
@@ -2517,7 +2517,7 @@ internal_accept(isc_task_t *me, isc_event_t *ev) {
 	 * a documented error for accept().  ECONNABORTED has been
 	 * reported for Solaris 8.  The rest are thrown in not because
 	 * we have seen them but because they are ignored by other
-	 * deamons such as BIND 8 and Apache.
+	 * daemons such as BIND 8 and Apache.
 	 */
 
 	addrlen = sizeof(dev->newsocket->address.type);
@@ -2826,6 +2826,7 @@ process_fd(isc_socketmgr_t *manager, int fd, isc_boolean_t readable,
 {
 	isc_socket_t *sock;
 	isc_boolean_t unlock_sock;
+	isc_boolean_t unwatch_read = ISC_FALSE, unwatch_write = ISC_FALSE;
 	int lockid = FDLOCK_ID(fd);
 
 	/*
@@ -2841,11 +2842,10 @@ process_fd(isc_socketmgr_t *manager, int fd, isc_boolean_t readable,
 	}
 
 	sock = manager->fds[fd];
-	UNLOCK(&manager->fdlock[lockid]);
 	unlock_sock = ISC_FALSE;
 	if (readable) {
 		if (sock == NULL) {
-			(void)unwatch_fd(manager, fd, SELECT_POKE_READ);
+			unwatch_read = ISC_TRUE;
 			goto check_write;
 		}
 		unlock_sock = ISC_TRUE;
@@ -2856,13 +2856,13 @@ process_fd(isc_socketmgr_t *manager, int fd, isc_boolean_t readable,
 			else
 				dispatch_recv(sock);
 		}
-		(void)unwatch_fd(manager, fd, SELECT_POKE_READ);
+		unwatch_read = ISC_TRUE;
 	}
 check_write:
 	if (writeable) {
 		if (sock == NULL) {
-			(void)unwatch_fd(manager, fd, SELECT_POKE_WRITE);
-			return;
+			unwatch_write = ISC_TRUE;
+			goto unlock_fd;
 		}
 		if (!unlock_sock) {
 			unlock_sock = ISC_TRUE;
@@ -2874,10 +2874,18 @@ check_write:
 			else
 				dispatch_send(sock);
 		}
-		(void)unwatch_fd(manager, fd, SELECT_POKE_WRITE);
+		unwatch_write = ISC_TRUE;
 	}
 	if (unlock_sock)
 		UNLOCK(&sock->lock);
+
+ unlock_fd:
+	UNLOCK(&manager->fdlock[lockid]);
+	if (unwatch_read)
+		(void)unwatch_fd(manager, fd, SELECT_POKE_READ);
+	if (unwatch_write)
+		(void)unwatch_fd(manager, fd, SELECT_POKE_WRITE);
+
 }
 
 #ifdef USE_KQUEUE
@@ -3184,7 +3192,7 @@ watcher(void *uap) {
 #endif
 	}
 
-	manager_log(manager, TRACE,
+	manager_log(manager, TRACE, "%s",
 		    isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
 				   ISC_MSG_EXITING, "watcher exiting"));
 
@@ -3207,6 +3215,9 @@ isc__socketmgr_setreserved(isc_socketmgr_t *manager, isc_uint32_t reserved) {
 static isc_result_t
 setup_watcher(isc_mem_t *mctx, isc_socketmgr_t *manager) {
 	isc_result_t result;
+#if defined(USE_KQUEUE) || defined(USE_EPOLL) || defined(USE_DEVPOLL)
+	char strbuf[ISC_STRERRORSIZE];
+#endif
 
 #ifdef USE_KQUEUE
 	manager->nevents = ISC_SOCKET_MAXEVENTS;
@@ -3217,6 +3228,12 @@ setup_watcher(isc_mem_t *mctx, isc_socketmgr_t *manager) {
 	manager->kqueue_fd = kqueue();
 	if (manager->kqueue_fd == -1) {
 		result = isc__errno2result(errno);
+		isc__strerror(errno, strbuf, sizeof(strbuf));
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "kqueue %s: %s",
+				 isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
+						ISC_MSG_FAILED, "failed"),
+				 strbuf);
 		isc_mem_put(mctx, manager->events,
 			    sizeof(struct kevent) * manager->nevents);
 		return (result);
@@ -3240,6 +3257,12 @@ setup_watcher(isc_mem_t *mctx, isc_socketmgr_t *manager) {
 	manager->epoll_fd = epoll_create(manager->nevents);
 	if (manager->epoll_fd == -1) {
 		result = isc__errno2result(errno);
+		isc__strerror(errno, strbuf, sizeof(strbuf));
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "epoll_create %s: %s",
+				 isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
+						ISC_MSG_FAILED, "failed"),
+				 strbuf);
 		isc_mem_put(mctx, manager->events,
 			    sizeof(struct epoll_event) * manager->nevents);
 		return (result);
@@ -3271,13 +3294,19 @@ setup_watcher(isc_mem_t *mctx, isc_socketmgr_t *manager) {
 					  manager->maxsocks);
 	if (manager->fdpollinfo == NULL) {
 		isc_mem_put(mctx, manager->events,
-			    sizeof(pollinfo_t) * manager->maxsocks);
+			    sizeof(struct pollfd) * manager->nevents);
 		return (ISC_R_NOMEMORY);
 	}
 	memset(manager->fdpollinfo, 0, sizeof(pollinfo_t) * manager->maxsocks);
 	manager->devpoll_fd = open("/dev/poll", O_RDWR);
 	if (manager->devpoll_fd == -1) {
 		result = isc__errno2result(errno);
+		isc__strerror(errno, strbuf, sizeof(strbuf));
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "open(/dev/poll) %s: %s",
+				 isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
+						ISC_MSG_FAILED, "failed"),
+				 strbuf);
 		isc_mem_put(mctx, manager->events,
 			    sizeof(struct pollfd) * manager->nevents);
 		isc_mem_put(mctx, manager->fdpollinfo,
@@ -3441,7 +3470,7 @@ isc_socketmgr_create2(isc_mem_t *mctx, isc_socketmgr_t **managerp,
 		goto free_manager;
 	}
 	manager->fdstate = isc_mem_get(mctx, manager->maxsocks * sizeof(int));
-	if (manager->fds == NULL) {
+	if (manager->fdstate == NULL) {
 		result = ISC_R_NOMEMORY;
 		goto free_manager;
 	}
@@ -3610,7 +3639,7 @@ isc_socketmgr_destroy(isc_socketmgr_t **managerp) {
 	 * Wait for all sockets to be destroyed.
 	 */
 	while (!ISC_LIST_EMPTY(manager->socklist)) {
-		manager_log(manager, CREATION,
+		manager_log(manager, CREATION, "%s",
 			    isc_msgcat_get(isc_msgcat, ISC_MSGSET_SOCKET,
 					   ISC_MSG_SOCKETSREMAIN,
 					   "sockets exist"));
@@ -3621,7 +3650,7 @@ isc_socketmgr_destroy(isc_socketmgr_t **managerp) {
 	 * Hope all sockets have been destroyed.
 	 */
 	if (!ISC_LIST_EMPTY(manager->socklist)) {
-		manager_log(manager, CREATION,
+		manager_log(manager, CREATION, "%s",
 			    isc_msgcat_get(isc_msgcat, ISC_MSGSET_SOCKET,
 					   ISC_MSG_SOCKETSREMAIN,
 					   "sockets exist"));
@@ -4453,6 +4482,7 @@ isc_socket_connect(isc_socket_t *sock, isc_sockaddr_t *addr,
 	isc_socketmgr_t *manager;
 	int cc;
 	char strbuf[ISC_STRERRORSIZE];
+	char addrbuf[ISC_SOCKADDR_FORMATSIZE];
 
 	REQUIRE(VALID_SOCKET(sock));
 	REQUIRE(addr != NULL);
@@ -4521,7 +4551,9 @@ isc_socket_connect(isc_socket_t *sock, isc_sockaddr_t *addr,
 		sock->connected = 0;
 
 		isc__strerror(errno, strbuf, sizeof(strbuf));
-		UNEXPECTED_ERROR(__FILE__, __LINE__, "%d/%s", errno, strbuf);
+		isc_sockaddr_format(addr, addrbuf, sizeof(addrbuf));
+		UNEXPECTED_ERROR(__FILE__, __LINE__, "connect(%s) %d/%s",
+				 addrbuf, errno, strbuf);
 
 		UNLOCK(&sock->lock);
 		isc_event_free(ISC_EVENT_PTR(&dev));

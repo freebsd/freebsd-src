@@ -1,0 +1,952 @@
+
+
+
+DNSOP                                                        W. Hardaker
+Internet-Draft                                              Sparta, Inc.
+Intended status: Informational                         February 12, 2009
+Expires: August 16, 2009
+
+
+        Requirements for Management of Name Servers for the DNS
+          draft-ietf-dnsop-name-server-management-reqs-02.txt
+
+Status of this Memo
+
+   This Internet-Draft is submitted to IETF in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF), its areas, and its working groups.  Note that
+   other groups may also distribute working documents as Internet-
+   Drafts.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   The list of current Internet-Drafts can be accessed at
+   http://www.ietf.org/ietf/1id-abstracts.txt.
+
+   The list of Internet-Draft Shadow Directories can be accessed at
+   http://www.ietf.org/shadow.html.
+
+   This Internet-Draft will expire on August 16, 2009.
+
+Copyright Notice
+
+   Copyright (c) 2009 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.
+
+Abstract
+
+   Management of name servers for the Domain Name Service (DNS) has
+   traditionally been done using vendor-specific monitoring,
+
+
+
+Hardaker                 Expires August 16, 2009                [Page 1]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+   configuration and control methods.  Although some service monitoring
+   platforms can test the functionality of the DNS itself there is not a
+   interoperable way to manage (monitor, control and configure) the
+   internal aspects of a name server itself.
+
+   This document discusses the requirements of a management system for
+   DNS name servers.  A management solution that is designed to manage
+   the DNS can use this document as a shopping list of needed features.
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  4
+     1.1.  Requirements notation  . . . . . . . . . . . . . . . . . .  4
+       1.1.1.  Terminology  . . . . . . . . . . . . . . . . . . . . .  5
+       1.1.2.  Document Layout and Requirements . . . . . . . . . . .  5
+   2.  Management Architecture Requirements . . . . . . . . . . . . .  5
+     2.1.  Expected Deployment Scenarios  . . . . . . . . . . . . . .  5
+       2.1.1.  Zone Size Constraints  . . . . . . . . . . . . . . . .  5
+       2.1.2.  Name Server Discovery  . . . . . . . . . . . . . . . .  6
+       2.1.3.  Configuration Data Volatility  . . . . . . . . . . . .  6
+       2.1.4.  Protocol Selection . . . . . . . . . . . . . . . . . .  6
+       2.1.5.  Common Data Model  . . . . . . . . . . . . . . . . . .  6
+       2.1.6.  Operational Impact . . . . . . . . . . . . . . . . . .  7
+     2.2.  Name Server Types  . . . . . . . . . . . . . . . . . . . .  7
+   3.  Management Operation Types . . . . . . . . . . . . . . . . . .  7
+     3.1.  Control Requirements . . . . . . . . . . . . . . . . . . .  8
+       3.1.1.  Needed Control Operations  . . . . . . . . . . . . . .  8
+       3.1.2.  Asynchronous Status Notifications  . . . . . . . . . .  8
+     3.2.  Configuration Requirements . . . . . . . . . . . . . . . .  9
+       3.2.1.  Served Zone Modification . . . . . . . . . . . . . . .  9
+       3.2.2.  Trust Anchor Management  . . . . . . . . . . . . . . .  9
+       3.2.3.  Security Expectations  . . . . . . . . . . . . . . . .  9
+       3.2.4.  TSIG Key Management  . . . . . . . . . . . . . . . . .  9
+       3.2.5.  DNS Protocol Authorization Management  . . . . . . . .  9
+     3.3.  Monitoring Requirements  . . . . . . . . . . . . . . . . . 10
+     3.4.  Alarm and Event Requirements . . . . . . . . . . . . . . . 10
+   4.  Security Requirements  . . . . . . . . . . . . . . . . . . . . 11
+     4.1.  Authentication . . . . . . . . . . . . . . . . . . . . . . 11
+     4.2.  Integrity Protection . . . . . . . . . . . . . . . . . . . 11
+     4.3.  Confidentiality  . . . . . . . . . . . . . . . . . . . . . 11
+     4.4.  Authorization  . . . . . . . . . . . . . . . . . . . . . . 11
+     4.5.  Solution Impacts on Security . . . . . . . . . . . . . . . 12
+   5.  Other Requirements . . . . . . . . . . . . . . . . . . . . . . 12
+     5.1.  Extensibility  . . . . . . . . . . . . . . . . . . . . . . 12
+       5.1.1.  Vendor Extensions  . . . . . . . . . . . . . . . . . . 13
+       5.1.2.  Extension Identification . . . . . . . . . . . . . . . 13
+       5.1.3.  Name-Space Collision Protection  . . . . . . . . . . . 13
+
+
+
+Hardaker                 Expires August 16, 2009                [Page 2]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+   6.  Security Considerations  . . . . . . . . . . . . . . . . . . . 13
+   7.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 13
+   8.  Document History . . . . . . . . . . . . . . . . . . . . . . . 13
+   9.  Acknowledgments  . . . . . . . . . . . . . . . . . . . . . . . 14
+   10. References . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+     10.1. Normative References . . . . . . . . . . . . . . . . . . . 14
+     10.2. Informative References . . . . . . . . . . . . . . . . . . 15
+   Appendix A.  Deployment Scenarios  . . . . . . . . . . . . . . . . 15
+     A.1.  Non-Standard Zones . . . . . . . . . . . . . . . . . . . . 16
+     A.2.  Redundancy Sharing . . . . . . . . . . . . . . . . . . . . 16
+     A.3.  DNSSEC Management  . . . . . . . . . . . . . . . . . . . . 16
+   Author's Address . . . . . . . . . . . . . . . . . . . . . . . . . 17
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hardaker                 Expires August 16, 2009                [Page 3]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+1.  Introduction
+
+   Management of name servers for the Domain Name Service (DNS)
+   [RFC1034] [RFC1035] has traditionally been done using vendor-specific
+   monitoring, configuration and control methods.  Although some service
+   monitoring platforms can test the functionality of the DNS itself
+   there is not a interoperable way to manage (monitor, control and
+   configure) the internal aspects of a name server itself.
+
+   Previous standardization work within the IETF resulted in the
+   creation of two SNMP MIB modules [RFC1611] [RFC1612] but they failed
+   to achieve significant implementation and deployment.  The perceived
+   reasons behind the failure for the two MIB modules are further
+   documented in [RFC3197].
+
+   This document discusses the requirements of a management system for
+   DNS name servers.  A management solution that is designed to manage
+   the DNS can use this document as a shopping list of needed features.
+
+   Specifically out of scope for this document are requirements
+   associated with management of stub resolvers.  It is not the intent
+   of this document to document stub resolver requirements, although
+   some of the requirements listed are applicable to stub resolvers as
+   well.
+
+   Also out of scope for this document is management of the host or
+   other components of the host upon which the name server software is
+   running.  This document only discusses requirements for managing the
+   name server component of a system.
+
+   The task of creating a management system for managing DNS servers is
+   not expected to be a small one.  It is likely that components of the
+   solution will need to be designed in parts over time and these
+   requirements take this into consideration.  In particular,
+   Section 5.1 discusses the need for future extensibility of the base
+   management solution.  This document is intended to be a road-map
+   towards a desired outcome and is not intended to define an "all-or-
+   nothing" system.  Successful interoperable management of name servers
+   even in part is expected to be beneficial to network operators
+   compared to the entirely custom solutions that are used at the time
+   of this writing.
+
+1.1.  Requirements notation
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119].
+
+
+
+
+Hardaker                 Expires August 16, 2009                [Page 4]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+1.1.1.  Terminology
+
+   This document is consistent with the terminology defined in Section 2
+   of [RFC4033].  Additional terminology needed for this document is
+   described below:
+
+   Name Server:  When we are discussing servers that don't fall into a
+      more specific type of server category defined in other documents,
+      this document will refer to them generically as "name servers".
+      In particular "name servers" can be considered to be any valid
+      combination of authoritative, recursive, validating, or security-
+      aware.  The more specific name server labels will be used when
+      this document refers only to a specific type of server.  However,
+      the term "name server", in this document, will not include stub
+      resolvers.
+
+1.1.2.  Document Layout and Requirements
+
+   The document is written so that each numbered section will contain
+   only a single requirement if it contains one at all.  Each
+   requirement will contain needed wording from the terminology
+   described in Section 1.1.  Subsections, however, might exist with
+   additional related requirements.  The document is laid out in this
+   way so that a specific requirement can be uniquely referred to using
+   the section number itself and the document version from which it
+   came.
+
+
+2.  Management Architecture Requirements
+
+   This section discusses requirements that reflect the needs of the
+   expected deployment environments.
+
+2.1.  Expected Deployment Scenarios
+
+   DNS zones vary greatly in the type of content published within them.
+   Name Servers, too, are deployed with a wide variety of configurations
+   to support the diversity of the deployed content.  It is important
+   that a management solution trying to meet the criteria specified in
+   this document consider supporting the largest number of potential
+   deployment cases as possible.  Further deployment scenarios that are
+   not used as direct examples of specific requirements are listed in
+   Appendix A.
+
+2.1.1.  Zone Size Constraints
+
+   The management solution MUST support both name servers that are
+   serving a small number of potentially very large zones (e.g.  Top
+
+
+
+Hardaker                 Expires August 16, 2009                [Page 5]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+   Level Domains (TLDs)) as well as name servers that are serving a very
+   large number of small zones.  These scenarios are both commonly seen
+   deployments.
+
+2.1.2.  Name Server Discovery
+
+   Large enterprise network deployments may contain multiple name
+   servers operating within the boundaries of the enterprise network.
+   These name servers may each be serving multiple zones both in and out
+   of the parent enterprise's zone.  Finding and managing large
+   quantities of name servers would be a useful feature of the resulting
+   management solution.  The management solution MAY support the ability
+   to discover previously unknown instances of name servers operating
+   within a deployed network.
+
+2.1.3.  Configuration Data Volatility
+
+   Configuration data is defined as data that relates only to the
+   configuration of a server and the zones it serves.  It specifically
+   does not include data from the zone contents that is served through
+   DNS itself.  The solution MUST support servers that remain fairly
+   statically configured over time as well as servers that have numerous
+   zones being added and removed within an hour.  Both of these
+   scenarios are also commonly seen deployments.
+
+2.1.4.  Protocol Selection
+
+   There are many requirements in this document for many different types
+   of management operations (see Section 3 for further details).  It is
+   possible that no one protocol will ideally fill all the needs of the
+   requirements listed in this document and thus multiple protocols
+   might be needed to produce a completely functional management system.
+   Multiple protocols might be used to create the complete management
+   solution, but the number of protocols used SHOULD be reduced to a
+   reasonable minimum number.
+
+2.1.5.  Common Data Model
+
+   Defining a standardized protocol (or set of protocols) to use for
+   managing name servers would be a step forward in achieving an
+   interoperable management solution.  However, just defining a protocol
+   to use by itself would not achieve the complete end goal of a
+   complete interoperable management solution.  Devices also need to
+   represent their internal management interface using a common
+   management data model.  The solution MUST create a common data model
+   that management stations can make use of when sending or collecting
+   data from a managed device so it can successfully manage equipment
+   from vendors as if they were generic DNS servers.  This common data
+
+
+
+Hardaker                 Expires August 16, 2009                [Page 6]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+   model is needed for of the operations discussion in Section 3.  Note
+   that this does not preclude the fact that name server vendors might
+   provide additional management infrastructure beyond a base management
+   specification, as discussed further in Section 5.1.
+
+2.1.6.  Operational Impact
+
+   It is impossible to add new features to an existing server (such as
+   the inclusion of a management infrastructure) and not impact the
+   existing service and/or server in some fashion.  At a minimum, for
+   example, more memory, disk and/or CPU resources will be required to
+   implement a new management system.  However, the impact to the
+   existing DNS service MUST be minimized since the DNS service itself
+   is still the primary service to be offered by the modified name
+   server.
+
+2.2.  Name Server Types
+
+   There are multiple ways in which name servers can be deployed.  Name
+   servers can take on any of the following roles:
+
+   o  Master Servers
+
+   o  Slave Servers
+
+   o  Recursive Servers
+
+   The management solution SHOULD support all of these types of name
+   servers as they are all equally important.  Note that "Recursive
+   Servers" can be further broken down by the security sub-roles they
+   might implement, as defined in section 2 of [RFC4033].  These sub-
+   roles are also important to support within any management solution.
+
+   As stated earlier, the management of stub resolvers is considered out
+   of scope for this documents.
+
+
+3.  Management Operation Types
+
+   Management operations can traditionally be broken into four
+   categories:
+
+   o  Control
+
+   o  Configuration
+
+   o  Health and Monitoring
+
+
+
+
+Hardaker                 Expires August 16, 2009                [Page 7]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+   o  Alarms and Events
+
+   This section discusses requirements for each of these four management
+   types in detail.
+
+3.1.  Control Requirements
+
+   The management solution MUST be capable of performing basic service
+   control operations.
+
+3.1.1.  Needed Control Operations
+
+   These operations SHOULD include, at a minimum, the following
+   operations:
+
+   o  Starting the name server
+
+   o  Reloading the service configuration
+
+   o  Reloading zone data
+
+   o  Restarting the name server
+
+   o  Stopping the name server
+
+   Note that no restriction is placed on how the management system
+   implements these operations.  In particular, at least "starting the
+   name server" will require a minimal management system component to
+   exist independently of the name server itself.
+
+3.1.2.  Asynchronous Status Notifications
+
+   Some control operations might take a long time to complete.  As an
+   example, some name servers take a long time to perform reloads of
+   large zones.  Because of these timing issues, the management solution
+   SHOULD take this into consideration and offer a mechanism to ease the
+   burden associated with awaiting the status of a long-running command.
+   This could, for example, result in the use of asynchronous
+   notifications for returning the status of a long-running task or it
+   might require the management station to poll for the status of a
+   given task using monitoring commands.  These and other potential
+   solutions need to be evaluated carefully to select one that balances
+   the result delivery needs with the perceived implementation costs.
+
+   Also, see the related discussion in Section 3.4 on notification
+   messages for supporting delivery of alarm and event messages.
+
+
+
+
+
+Hardaker                 Expires August 16, 2009                [Page 8]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+3.2.  Configuration Requirements
+
+   Many features of name servers need to be configured before the server
+   can be considered functional.  The management solution MUST be able
+   to provide name servers with configuration data.  The most important
+   data to be configured, for example, is the served zone data itself.
+
+3.2.1.  Served Zone Modification
+
+   The ability to add, modify and delete zones being served by name
+   servers is needed.  Although there are already solutions for zone
+   content modification (such as Dynamic DNS (DDNS) [RFC2136] [RFC3007],
+   AXFR [RFC1035], and incremental zone transfer (IXFR) [RFC1995]) that
+   might be used as part of the final management solution, the
+   management system SHOULD still be able to natively create a new zone
+   (with enough minimal data to allow the other mechanisms to function
+   as well) as well as delete a zone.  This might be, for example, a
+   management operation that at least allows for the creation of the
+   initial SOA record for a new zone as that's the minimum amount of
+   zone data needed for the other operations to function.
+
+3.2.2.  Trust Anchor Management
+
+   The solution SHOULD support the ability to add, modify and delete
+   trust anchors that are used by DNS Security (DNSSEC) [RFC4033]
+   [RFC4034] [RFC4035] [RFC4509] [RFC5011] [RFC5155].  These trust
+   anchors might be configured using the data from the DNSKEY Resource
+   Records (RRs) themselves or by using Delegation Signer (DS)
+   fingerprints.
+
+3.2.3.  Security Expectations
+
+   DNSSEC Validating resolvers need to make policy decisions about the
+   requests being processed.  For example, they need to be configured
+   with a list of zones expected to be secured by DNSSEC.  The
+   management solution SHOULD be able to add, modify and delete
+   attributes of DNSSEC security policies.
+
+3.2.4.  TSIG Key Management
+
+   TSIG [RFC2845] allows transaction level authentication of DNS
+   traffic.  The management solution SHOULD be able to add, modify and
+   delete TSIG keys known to the name server.
+
+3.2.5.  DNS Protocol Authorization Management
+
+   The management solution SHOULD have the ability to add, modify and
+   delete authorization settings for the DNS protocols itself.  Do not
+
+
+
+Hardaker                 Expires August 16, 2009                [Page 9]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+   confuse this with the ability to manage the authorization associated
+   with the management protocol itself, which is discussed later in
+   Section 4.4.  There are a number of authorization settings that are
+   used by a name server.  Example authorization settings that the
+   solution might need to cover are:
+
+   o  Access to operations on zone data (e.g.  DDNS)
+
+   o  Access to certain zone data from certain sources (e.g. from
+      particular network subnets)
+
+   o  Access to specific DNS protocol services (e.g. recursive service)
+
+   Note: the above list is expected to be used as a collection of
+   examples and is not a complete list of needed authorization
+   protections.
+
+3.3.  Monitoring Requirements
+
+   Monitoring is the process of collecting aspects of the internal state
+   of a name server at a given moment in time.  The solution MUST be
+   able to monitor the health of a name server to determine its
+   operational status, load and other internal attributes.  Example
+   management tasks that the solution might need to cover are:
+
+   o  Number of requests sent, responses sent, average response latency
+      and other performance counters
+
+   o  Server status (e.g. "serving data", "starting up", "shutting
+      down", ...)
+
+   o  Access control violations
+
+   o  List of zones being served
+
+   o  Detailed statistics about clients interacting with the name server
+      (e.g. top 10 clients requesting data).
+
+   Note: the above list is expected to be used as a collection of
+   examples and is not a complete list of needed monitoring operations.
+   In particular, some monitoring statistics are expected to be
+   computationally or resource expensive and are considered to be "nice
+   to haves" as opposed to "necessary to have".
+
+3.4.  Alarm and Event Requirements
+
+   Events occurring at the name server that trigger alarm notifications
+   can quickly inform a management station about critical issues.  A
+
+
+
+Hardaker                 Expires August 16, 2009               [Page 10]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+   management solution SHOULD include support for delivery of alarm
+   conditions.
+
+   Example alarm conditions might include:
+
+   o  The server's status is changing. (e.g it is starting up, reloading
+      configuration, restarting or shutting down)
+
+   o  A needed resource (e.g. memory or disk space) is exhausted or
+      nearing exhaustion
+
+   o  An authorization violation was detected
+
+   o  The server has not received any data traffic (e.g.  DNS requests
+      or NOTIFYs) recently (AKA the "lonely warning").  This condition
+      might indicate a problem with its deployment.
+
+
+4.  Security Requirements
+
+   The management solution will need to be appropriately secured against
+   attacks on the management infrastructure.
+
+4.1.  Authentication
+
+   The solution MUST support mutual authentication.  The management
+   client needs to be assured that the management operations are being
+   transferred to and from the correct name server.  The managed name
+   server needs to authenticate the system that is accessing the
+   management infrastructure within itself.
+
+4.2.  Integrity Protection
+
+   Management operations MUST be protected from modification while in
+   transit from the management client to the server.
+
+4.3.  Confidentiality
+
+   The management solution MUST support message confidentiality.  The
+   potential transfer of sensitive configuration is expected (such as
+   TSIG keys or security policies).  The solution does not, however,
+   necessarily need to provide confidentiality to data that would
+   normally be carried without confidentiality by the DNS system itself.
+
+4.4.  Authorization
+
+   The solution SHOULD be capable of providing a fine-grained
+   authorization model for any management protocols it introduces to the
+
+
+
+Hardaker                 Expires August 16, 2009               [Page 11]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+   completed system.  This authorization differs from the authorization
+   previously discussed in Section 3.2.5 in that this requirement is
+   concerned solely with authorization of the management system itself.
+
+   There are a number of authorization settings that might be used by a
+   managed system to determine whether the managing entity has
+   authorization to perform the given management task.  Example
+   authorization settings that the solution might need to cover are:
+
+   o  Access to the configuration that specifies which zones are to be
+      served
+
+   o  Access to the management system infrastructure
+
+   o  Access to other control operations
+
+   o  Access to other configuration operations
+
+   o  Access to monitoring operations
+
+   Note: the above list is expected to be used as a collection of
+   examples and is not a complete list of needed authorization
+   protections.
+
+4.5.  Solution Impacts on Security
+
+   The solution MUST minimize the security risks introduced to the
+   complete name server system.  It is impossible to add new
+   infrastructure to a server and not impact the security in some
+   fashion as the introduction of a management protocol alone will
+   provide a new avenue for potential attack.  Although the added
+   management benefits will be worth the increased risks, the solution
+   still needs to minimize this impact as much as possible.
+
+
+5.  Other Requirements
+
+5.1.  Extensibility
+
+   The management solution is expected to change and expand over time as
+   lessons are learned and new DNS features are deployed.  Thus, the
+   solution MUST be flexible and be able to accommodate new future
+   management operations.  The solution might, for example, make use of
+   protocol versioning or capability description exchanges to ensure
+   that management stations and name servers that weren't written to the
+   same specification version can still interoperate to the best of
+   their combined ability.
+
+
+
+
+Hardaker                 Expires August 16, 2009               [Page 12]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+5.1.1.  Vendor Extensions
+
+   It MUST be possible for vendors to extend the standardized management
+   model with vendor-specific extensions to support additional features
+   offered by their products.
+
+5.1.2.  Extension Identification
+
+   It MUST be possible for a management station to understand which
+   parts of returned data are specific to a given vendor or other
+   standardized extension.  The data returned needs to be appropriately
+   marked through the use of name spaces or similar mechanisms to ensure
+   that the base management model data can be logically separated from
+   extension data without needing to understand the extension data
+   itself.
+
+5.1.3.  Name-Space Collision Protection
+
+   It MUST be possible to protect against multiple extensions
+   conflicting with each other.  The use of name-space protection
+   mechanisms for communicated management variables is common practice
+   to protect against problems.  Name-space identification techniques
+   also frequently solve the "Extension Identification" requirement
+   discussed in Section 5.1.2 as well.
+
+
+6.  Security Considerations
+
+   Any management protocol that meets the criteria discussed in this
+   document needs to support the criteria discussed in Section 4 in
+   order to protect the management infrastructure itself.  The DNS is a
+   core Internet service and management traffic that protects it could
+   be the target of attacks designed to subvert that service.  Because
+   the management infrastructure will be adding additional interfaces to
+   that service, it is critical that the management infrastructure
+   support adequate protections against network attacks.
+
+
+7.  IANA Considerations
+
+   No action is required from IANA for this document.
+
+
+8.  Document History
+
+   A requirement gathering discussion was held at the December 2007 IETF
+   meeting in Vancouver, BC, Canada and a follow up meeting was held at
+   the March 2008 IETF meeting in Philadelphia.  This document is a
+
+
+
+Hardaker                 Expires August 16, 2009               [Page 13]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+   compilation of the results of those discussions as well as
+   discussions on the DCOMA mailing list.
+
+
+9.  Acknowledgments
+
+   This draft is the result of discussions within the DCOMA design team
+   chaired by Jaap Akkerhuis.  This team consisted of a large number of
+   people all of whom provided valuable insight and input into the
+   discussions surrounding name server management.  The text of this
+   document was written from notes taken during meetings as well as from
+   contributions sent to the DCOMA mailing list.  This work documents
+   the consensus of the DCOMA design team.
+
+   In particular, the following team members contributed significantly
+   to the text in the document:
+
+      Stephane Bortzmeyer
+
+      Stephen Morris
+
+      Phil Regnauld
+
+   Further editing contributions and wording suggestions were made by:
+   Alfred Hoenes.
+
+
+10.  References
+
+10.1.  Normative References
+
+   [RFC1034]  Mockapetris, P., "Domain names - concepts and facilities",
+              STD 13, RFC 1034, November 1987.
+
+   [RFC1035]  Mockapetris, P., "Domain names - implementation and
+              specification", STD 13, RFC 1035, November 1987.
+
+   [RFC1995]  Ohta, M., "Incremental Zone Transfer in DNS", RFC 1995,
+              August 1996.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC2136]  Vixie, P., Thomson, S., Rekhter, Y., and J. Bound,
+              "Dynamic Updates in the Domain Name System (DNS UPDATE)",
+              RFC 2136, April 1997.
+
+   [RFC2845]  Vixie, P., Gudmundsson, O., Eastlake, D., and B.
+
+
+
+Hardaker                 Expires August 16, 2009               [Page 14]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+              Wellington, "Secret Key Transaction Authentication for DNS
+              (TSIG)", RFC 2845, May 2000.
+
+   [RFC3007]  Wellington, B., "Secure Domain Name System (DNS) Dynamic
+              Update", RFC 3007, November 2000.
+
+   [RFC4033]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
+              Rose, "DNS Security Introduction and Requirements",
+              RFC 4033, March 2005.
+
+   [RFC4034]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
+              Rose, "Resource Records for the DNS Security Extensions",
+              RFC 4034, March 2005.
+
+   [RFC4035]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
+              Rose, "Protocol Modifications for the DNS Security
+              Extensions", RFC 4035, March 2005.
+
+   [RFC4509]  Hardaker, W., "Use of SHA-256 in DNSSEC Delegation Signer
+              (DS) Resource Records (RRs)", RFC 4509, May 2006.
+
+   [RFC5011]  StJohns, M., "Automated Updates of DNS Security (DNSSEC)
+              Trust Anchors", RFC 5011, September 2007.
+
+   [RFC5155]  Laurie, B., Sisson, G., Arends, R., and D. Blacka, "DNS
+              Security (DNSSEC) Hashed Authenticated Denial of
+              Existence", RFC 5155, March 2008.
+
+10.2.  Informative References
+
+   [RFC1611]  Austein, R. and J. Saperia, "DNS Server MIB Extensions",
+              RFC 1611, May 1994.
+
+   [RFC1612]  Austein, R. and J. Saperia, "DNS Resolver MIB Extensions",
+              RFC 1612, May 1994.
+
+   [RFC2182]  Elz, R., Bush, R., Bradner, S., and M. Patton, "Selection
+              and Operation of Secondary DNS Servers", BCP 16, RFC 2182,
+              July 1997.
+
+   [RFC3197]  Austein, R., "Applicability Statement for DNS MIB
+              Extensions", RFC 3197, November 2001.
+
+
+Appendix A.  Deployment Scenarios
+
+   This appendix documents some additional deployment scenarios that
+   have been traditionally difficult to manage.  They are provided as
+
+
+
+Hardaker                 Expires August 16, 2009               [Page 15]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+   guidance to protocol developers as data points of real-world name
+   server management problems.
+
+A.1.  Non-Standard Zones
+
+   If an organization uses non-standard zones (for example a purely-
+   local TLD), synchronizing all the name servers for these zones is
+   usually a time-consuming task.  It is made worse when two
+   organizations with conflicting zones merge.  This situation is not a
+   recommended deployment scenario (and is even heavily discouraged) but
+   it is, unfortunately, seen in the wild.
+
+   It is typically implemented using "forwarding" zones.  But there is
+   no way to ensure automatically that all the resolvers have the same
+   set of zones to forward at any given time.  New zones might be added
+   to a local forwarding recursive server, for example, without
+   modifying the rest of the deployed forwarding servers.  It is hoped
+   that a management solution which could handle the configuration of
+   zone forwarding would finally allow management of servers deployed in
+   this fashion.
+
+A.2.  Redundancy Sharing
+
+   For reliability reasons it is recommended that zone operators follow
+   the guidelines documented in [RFC2182] which recommends that multiple
+   name servers be configured for each zone and that the name servers
+   are separated both physically and via connectivity routes.  A common
+   solution is to establish DNS-serving partnerships: "I'll host your
+   zones and you'll host mine".  Both entities benefit from increased
+   DNS reliability via the wider service distribution.  This frequently
+   occurs between cooperating but otherwise unrelated entities (such as
+   between two distinct companies) as well as between affiliated
+   organizations (such as between branch offices within a single
+   company).
+
+   The configuration of these relationships are currently required to be
+   manually configured and maintained.  Changes to the list of zones
+   that are cross-hosted are manually negotiated between the cooperating
+   network administrators and configured by hand.  A management protocol
+   with the ability to provide selective authorization, as discussed in
+   Section 4.4, would solve many of the management difficulties between
+   cooperating organizations.
+
+A.3.  DNSSEC Management
+
+   There are many different DNSSEC deployment strategies that may be
+   used for mission-critical zones.  The following list describes some
+   example deployment scenarios that might warrant different management
+
+
+
+Hardaker                 Expires August 16, 2009               [Page 16]
+
+Internet-Draft     Name Server Management Requirements     February 2009
+
+
+   strategies.
+
+      All contents and DNSSEC keying information controlled and operated
+      by a single organization
+
+      Zone contents controlled and operated by one organization, all
+      DNSSEC keying information controlled and operated by a second
+      organization.
+
+      Zone contents controlled and operated by one organization, zone
+      signing keys (ZSKs) controlled and operated by a second
+      organization, and key signing keys (KSKs) controlled and operated
+      by a third organization.
+
+   Although this list is not exhaustive in the potential ways that zone
+   data can be divided up, it should be sufficient to illustrate the
+   potential ways in which zone data can be controlled by multiple
+   entities.
+
+   The end result of all of these strategies, however, will be the same:
+   a live zone containing DNSSEC related resource records.  Many of the
+   above strategies are merely different ways of preparing a zone for
+   serving.  A management solution that includes support for managing
+   DNSSEC zone data may wish to take into account these potential
+   management scenarios.
+
+
+Author's Address
+
+   Wes Hardaker
+   Sparta, Inc.
+   P.O. Box 382
+   Davis, CA  95617
+   US
+
+   Phone: +1 530 792 1913
+   Email: ietf@hardakers.net
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hardaker                 Expires August 16, 2009               [Page 17]
+

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdb.c,v 1.45.18.16 2008/01/17 23:45:58 tbox Exp $ */
+/* $Id: sdb.c,v 1.45.18.19 2009/06/26 06:25:20 marka Exp $ */
 
 /*! \file */
 
@@ -880,9 +880,12 @@ find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 				{
 					result = DNS_R_ZONECUT;
 					dns_rdataset_disassociate(rdataset);
-					if (sigrdataset != NULL)
+					if (sigrdataset != NULL &&
+					    dns_rdataset_isassociated
+							(sigrdataset)) {
 						dns_rdataset_disassociate
 								(sigrdataset);
+					}
 				} else
 					result = DNS_R_DELEGATION;
 				break;
@@ -1442,9 +1445,11 @@ dbiterator_seek(dns_dbiterator_t *iterator, dns_name_t *name) {
 	sdb_dbiterator_t *sdbiter = (sdb_dbiterator_t *)iterator;
 
 	sdbiter->current = ISC_LIST_HEAD(sdbiter->nodelist);
-	while (sdbiter->current != NULL)
+	while (sdbiter->current != NULL) {
 		if (dns_name_equal(sdbiter->current->name, name))
 			return (ISC_R_SUCCESS);
+		sdbiter->current = ISC_LIST_NEXT(sdbiter->current, link);
+	}
 	return (ISC_R_NOTFOUND);
 }
 

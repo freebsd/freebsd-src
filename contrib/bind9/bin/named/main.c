@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.136.18.21 2008/10/24 01:28:08 marka Exp $ */
+/* $Id: main.c,v 1.136.18.24 2009/04/03 20:17:59 marka Exp $ */
 
 /*! \file */
 
@@ -139,7 +139,7 @@ assertion_failed(const char *file, int line, isc_assertiontype_t type,
 
 	if (ns_g_lctx != NULL) {
 		/*
-		 * Reset the assetion callback in case it is the log
+		 * Reset the assertion callback in case it is the log
 		 * routines causing the assertion.
 		 */
 		isc_assertion_setcallback(NULL);
@@ -719,7 +719,7 @@ setup(void) {
 
 #ifdef DLZ
 	/*
-	 * Registyer any DLZ drivers.
+	 * Register any DLZ drivers.
 	 */
 	result = dlz_drivers_init();
 	if (result != ISC_R_SUCCESS)
@@ -851,10 +851,10 @@ main(int argc, char *argv[]) {
 	 * strings named.core | grep "named version:"
 	 */
 	strlcat(version,
-#ifdef __DATE__
-		"named version: BIND " VERSION " (" __DATE__ ")",
-#else
+#if defined(NO_VERSION_DATE) || !defined(__DATE__)
 		"named version: BIND " VERSION,
+#else
+		"named version: BIND " VERSION " (" __DATE__ ")",
 #endif
 		sizeof(version));
 	result = isc_file_progname(*argv, program_name, sizeof(program_name));

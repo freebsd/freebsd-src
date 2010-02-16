@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check-tool.c,v 1.10.18.20 2008/10/24 01:43:17 tbox Exp $ */
+/* $Id: check-tool.c,v 1.10.18.23 2009/09/24 21:38:50 jinmei Exp $ */
 
 /*! \file */
 
@@ -105,6 +105,7 @@ static isc_logcategory_t categories[] = {
 	{ "queries",	     0 },
 	{ "unmatched", 	     0 },
 	{ "update-security", 0 },
+	{ "query-errors",    0 },
 	{ NULL,		     0 }
 };
 
@@ -156,7 +157,7 @@ checkns(dns_zone_t *zone, dns_name_t *name, dns_name_t *owner,
 		       cur->ai_next != NULL)
 			cur = cur->ai_next;
 		if (cur != NULL && cur->ai_canonname != NULL &&
-		    strcasecmp(ai->ai_canonname, namebuf) != 0) {
+		    strcasecmp(cur->ai_canonname, namebuf) != 0) {
 			dns_zone_log(zone, ISC_LOG_ERROR,
 				     "%s/NS '%s' (out of zone) "
 				     "is a CNAME (illegal)",
