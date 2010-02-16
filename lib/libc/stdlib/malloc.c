@@ -250,6 +250,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef __powerpc__
 #  define LG_QUANTUM		4
+#  define TLS_MODEL		/* default */
 #endif
 #ifdef __s390x__
 #  define LG_QUANTUM		4
