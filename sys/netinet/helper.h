@@ -54,6 +54,7 @@ struct helper {
 	uint16_t	h_flags;
 	uint32_t	h_class;
 	int32_t		h_id;
+	volatile uint32_t	h_refcount;
 	STAILQ_ENTRY(helper) h_next;
 };
 

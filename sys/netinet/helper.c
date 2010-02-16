@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/queue.h>
+#include <sys/refcount.h>
 #include <sys/rwlock.h>
 #include <sys/systm.h>
 
@@ -81,11 +82,12 @@ init_helper_dblocks(struct helper_dblocks *hdbs)
 	    M_NOWAIT | M_ZERO);
 
 	if (hdbs->blocks != NULL) {
-		printf("Malloced ptr %p for %d data blocks\n", hdbs->blocks,
-		    num_dblocks);
+		/*printf("Malloced ptr %p for %d data blocks\n", hdbs->blocks,
+		    num_dblocks);*/
 		STAILQ_FOREACH(h, &helpers, h_next) {
 			if (h->h_flags & HELPER_NEEDS_DBLOCK) {
 				dblock = hdbs->blocks+i;
+				/*printf("Current dblock ptr: %p\n", dblock);*/
 				dblock->hd_block = uma_zalloc(h->h_zone,
 				    M_NOWAIT);
 				/*
@@ -96,9 +98,10 @@ init_helper_dblocks(struct helper_dblocks *hdbs)
 				}
 				*/
 				dblock->hd_id = h->h_id;
-				printf("dblock[%d]: id=%d, block=%p\n", i,
-				dblock->hd_id, dblock->hd_block);
+				/*printf("dblock[%d]: id=%d, block=%p\n", i,
+				    dblock->hd_id, dblock->hd_block);*/
 				i++;
+				refcount_acquire(&h->h_refcount);
 			}
 		}
 		hdbs->nblocks = i;
@@ -118,8 +121,12 @@ destroy_helper_dblocks(struct helper_dblocks *hdbs)
 	HELPER_LIST_WLOCK();
 
 	for (nblocks--; nblocks >= 0; nblocks--) {
-		if ((h = get_helper(hdbs->blocks[nblocks].hd_id)) != NULL)
+		if ((h = get_helper(hdbs->blocks[nblocks].hd_id)) != NULL) {
+			refcount_release(&h->h_refcount);
+			/*printf("destroy() freeing hdbs->blocks[%d] with ptr %p\n",
+			    nblocks, hdbs->blocks[nblocks].hd_block);*/
 			uma_zfree(h->h_zone, hdbs->blocks[nblocks].hd_block);
+		}
 	}
 
 	HELPER_LIST_WUNLOCK();
@@ -130,23 +137,22 @@ destroy_helper_dblocks(struct helper_dblocks *hdbs)
 int
 register_helper(struct helper *h)
 {
-	printf("Register helper %p\n", h);
-
 	HELPER_LIST_WLOCK();
-
 	if (h->h_flags | HELPER_NEEDS_DBLOCK)
 		num_dblocks++;
 
+	refcount_init(&h->h_refcount, 0);
 	h->h_id = helper_id++;
 	STAILQ_INSERT_TAIL(&helpers, h, h_next);
 	HELPER_LIST_WUNLOCK();
+	printf("Registered \"%s\" helper (mem %p)\n", h->h_name, h);
 	return (0);
 }
 
 int
 deregister_helper(struct helper *h)
 {
-	printf("Deregister helper %p\n", h);
+	int error = 0;
 
 	/*
 	HHOOK_WLOCK
@@ -155,11 +161,17 @@ deregister_helper(struct helper *h)
 	*/
 
 	HELPER_LIST_WLOCK();
-	STAILQ_REMOVE(&helpers, h, helper, h_next);
-	if (h->h_flags | HELPER_NEEDS_DBLOCK)
-		num_dblocks--;
+	if (h->h_refcount > 0)
+		error = EBUSY;
+	
+	if (!error) {
+		STAILQ_REMOVE(&helpers, h, helper, h_next);
+		if (h->h_flags | HELPER_NEEDS_DBLOCK)
+			num_dblocks--;
+		printf("Deregistered \"%s\" helper (mem %p)\n", h->h_name, h);
+	}
 	HELPER_LIST_WUNLOCK();
-	return (0);
+	return (error);
 }
 
 int32_t
@@ -244,9 +256,12 @@ helper_modevent(module_t mod, int event_type, void *data)
 
 		case MOD_QUIESCE:
 			error = deregister_helper(hmd->helper);
-			uma_zdestroy(hmd->helper->h_zone);
-			if (!error && hmd->helper->mod_destroy != NULL)
-				hmd->helper->mod_destroy();
+			if (!error) {
+				uma_zdestroy(hmd->helper->h_zone);
+				if (hmd->helper->mod_destroy != NULL)
+					hmd->helper->mod_destroy();
+			} else
+				printf("Helper's refcount != 0, can't unload\n");
 			break;
 
 		case MOD_SHUTDOWN:
@@ -254,7 +269,7 @@ helper_modevent(module_t mod, int event_type, void *data)
 			break;
 
 		default:
-			return EINVAL;
+			error = EINVAL;
 			break;
 	}
 
