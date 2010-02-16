@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dir.c,v 1.20.18.3 2005/09/05 00:18:30 marka Exp $ */
+/* $Id: dir.c,v 1.20.18.7 2009/02/16 23:46:03 tbox Exp $ */
 
 /*! \file
  * \author  Principal Authors: DCL */
@@ -93,7 +93,7 @@ isc_dir_open(isc_dir_t *dir, const char *dirname) {
 }
 
 /*!
- * \brief Return previously retrieved file or get next one.  
+ * \brief Return previously retrieved file or get next one.
 
  * Unix's dirent has
  * separate open and read functions, but the Win32 and DOS interfaces open
@@ -171,10 +171,14 @@ isc_dir_chroot(const char *dirname) {
 
 	REQUIRE(dirname != NULL);
 
-	if (chroot(dirname) < 0)
+#ifdef HAVE_CHROOT
+	if (chroot(dirname) < 0 || chdir("/") < 0)
 		return (isc__errno2result(errno));
 
 	return (ISC_R_SUCCESS);
+#else
+	return (ISC_R_NOTIMPLEMENTED);
+#endif
 }
 
 isc_result_t

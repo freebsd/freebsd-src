@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: wks_11.c,v 1.51.18.1 2004/09/16 01:02:19 marka Exp $ */
+/* $Id: wks_11.c,v 1.51.18.3 2009/02/16 23:46:03 tbox Exp $ */
 
 /* Reviewed: Fri Mar 17 15:01:49 PST 2000 by explorer */
 
@@ -158,6 +158,7 @@ totext_in_wks(ARGS_TOTEXT) {
 	RETERR(str_totext(buf, target));
 	isc_region_consume(&sr, 1);
 
+	INSIST(sr.length <= 8*1024);
 	for (i = 0; i < sr.length; i++) {
 		if (sr.base[i] != 0)
 			for (j = 0; j < 8; j++)
@@ -242,7 +243,8 @@ fromstruct_in_wks(ARGS_FROMSTRUCT) {
 	REQUIRE(source != NULL);
 	REQUIRE(wks->common.rdtype == type);
 	REQUIRE(wks->common.rdclass == rdclass);
-	REQUIRE(wks->map != NULL || wks->map_len == 0);
+	REQUIRE((wks->map != NULL && wks->map_len <= 8*1024) ||
+		 wks->map_len == 0);
 
 	UNUSED(type);
 	UNUSED(rdclass);

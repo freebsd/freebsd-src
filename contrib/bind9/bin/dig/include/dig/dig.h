@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.h,v 1.82.18.23 2007/08/28 07:19:55 tbox Exp $ */
+/* $Id: dig.h,v 1.82.18.25 2008/12/16 23:46:02 tbox Exp $ */
 
 #ifndef DIG_H
 #define DIG_H
@@ -102,7 +102,7 @@ typedef struct dig_searchlist dig_searchlist_t;
 /*% The dig_lookup structure */
 struct dig_lookup {
 	isc_boolean_t
-	        pending, /*%< Pending a successful answer */
+		pending, /*%< Pending a successful answer */
 		waiting_connect,
 		doing_xfr,
 		ns_search_only, /*%< dig +nssearch, host -C */
@@ -133,23 +133,23 @@ struct dig_lookup {
 #ifdef DIG_SIGCHASE
 isc_boolean_t	sigchase;
 #if DIG_SIGCHASE_TD
- 	isc_boolean_t do_topdown,
-	        trace_root_sigchase,
-	        rdtype_sigchaseset,
-	        rdclass_sigchaseset;
+	isc_boolean_t do_topdown,
+		trace_root_sigchase,
+		rdtype_sigchaseset,
+		rdclass_sigchaseset;
 	/* Name we are going to validate RRset */
-  	char textnamesigchase[MXNAME];
+	char textnamesigchase[MXNAME];
 #endif
 #endif
-	
+
 	char textname[MXNAME]; /*% Name we're going to be looking up */
 	char cmdline[MXNAME];
 	dns_rdatatype_t rdtype;
 	dns_rdatatype_t qrdtype;
 #if DIG_SIGCHASE_TD
-        dns_rdatatype_t rdtype_sigchase;
-        dns_rdatatype_t qrdtype_sigchase;
-        dns_rdataclass_t rdclass_sigchase;
+	dns_rdatatype_t rdtype_sigchase;
+	dns_rdatatype_t qrdtype_sigchase;
+	dns_rdataclass_t rdclass_sigchase;
 #endif
 	dns_rdataclass_t rdclass;
 	isc_boolean_t rdtypeset;
@@ -231,7 +231,7 @@ struct dig_searchlist {
 };
 #ifdef DIG_SIGCHASE
 struct dig_message {
-	        dns_message_t *msg;
+		dns_message_t *msg;
 		ISC_LINK(dig_message_t) link;
 };
 #endif
@@ -249,7 +249,7 @@ extern dig_searchlistlist_t search_list;
 extern unsigned int extrabytes;
 
 extern isc_boolean_t check_ra, have_ipv4, have_ipv6, specified_source,
-        usesearch, showsearch, qr;
+	usesearch, showsearch, qr;
 extern in_port_t port;
 extern unsigned int timeout;
 extern isc_mem_t *mctx;
@@ -284,7 +284,7 @@ extern int idnoptions;
 /*
  * Routines in dighost.c.
  */
-void
+isc_result_t
 get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr);
 
 isc_result_t

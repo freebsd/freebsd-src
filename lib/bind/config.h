@@ -3,10 +3,10 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.in by autoheader.  */
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -19,7 +19,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acconfig.h,v 1.44.18.5 2005/04/29 00:15:20 marka Exp $ */
+/* $Id: acconfig.h,v 1.44.18.7 2008/12/01 23:45:56 tbox Exp $ */
 
 /*! \file */
 
@@ -27,9 +27,6 @@
  *** This file is not to be included by any public header files, because
  *** it does not get installed.
  ***/
-
-/** define to `int' if <sys/types.h> doesn't define.  */
-/* #undef ssize_t */
 
 /** define on DEC OSF to enable 4.4BSD style sa_len support */
 /* #undef _SOCKADDR_LEN */
@@ -63,9 +60,6 @@
 
 /** define if you have the NET_RT_IFLIST sysctl variable and sys/sysctl.h */
 #define HAVE_IFLIST_SYSCTL 1
-
-/** define if chroot() is available */
-#define HAVE_CHROOT 1
 
 /** define if tzset() is available */
 #define HAVE_TZSET 1
@@ -118,7 +112,7 @@ int sigwait(const unsigned int *set, int *sig);
  * The silly continuation line is to keep configure from
  * commenting out the #undef.
  */
- 
+
 #undef \
 	va_start
 #define	va_start(ap, last) \
@@ -166,8 +160,11 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the `capset' function. */
 /* #undef HAVE_CAPSET */
 
+/* Define to 1 if you have the `chroot' function. */
+#define HAVE_CHROOT 1
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
-/* #undef HAVE_DLFCN_H */
+#define HAVE_DLFCN_H 1
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
@@ -204,6 +201,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
+
+/* Define to 1 if you have the `nanosleep' function. */
+#define HAVE_NANOSLEEP 1
 
 /* Define to 1 if you have the <net/if6.h> header file. */
 /* #undef HAVE_NET_IF6_H */

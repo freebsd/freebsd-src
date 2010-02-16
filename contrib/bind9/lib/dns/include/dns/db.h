@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.76.18.10 2007/08/28 07:20:05 tbox Exp $ */
+/* $Id: db.h,v 1.76.18.14 2009/01/19 00:36:28 marka Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1
@@ -153,7 +153,7 @@ typedef isc_result_t
 		      dns_dbtype_t type, dns_rdataclass_t rdclass,
 		      unsigned int argc, char *argv[], void *driverarg,
 		      dns_db_t **dbp);
-					
+
 #define DNS_DB_MAGIC		ISC_MAGIC('D','N','S','D')
 #define DNS_DB_VALID(db)	ISC_MAGIC_VALID(db, DNS_DB_MAGIC)
 
@@ -786,7 +786,7 @@ dns_db_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
  *						the negative caching proof.
  *
  *	\li	#DNS_R_EMPTYNAME			The name exists but there is
- *						no data at the name. 
+ *						no data at the name.
  *
  *	\li	#DNS_R_COVERINGNSEC		The returned data is a NSEC
  *						that potentially covers 'name'.
@@ -1005,7 +1005,7 @@ isc_result_t
 dns_db_allrdatasets(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		    isc_stdtime_t now, dns_rdatasetiter_t **iteratorp);
 /*%<
- * Make '*iteratorp' an rdataset iteratator for all rdatasets at 'node' in
+ * Make '*iteratorp' an rdataset iterator for all rdatasets at 'node' in
  * version 'version' of 'db'.
  *
  * Notes:
@@ -1192,7 +1192,7 @@ dns_db_getsoaserial(dns_db_t *db, dns_dbversion_t *ver, isc_uint32_t *serialp);
 void
 dns_db_overmem(dns_db_t *db, isc_boolean_t overmem);
 /*%<
- * Enable / disable agressive cache cleaning.
+ * Enable / disable aggressive cache cleaning.
  */
 
 unsigned int
@@ -1262,7 +1262,7 @@ dns_db_register(const char *name, dns_dbcreatefunc_t create, void *driverarg,
 void
 dns_db_unregister(dns_dbimplementation_t **dbimp);
 /*%<
- * Remove a database implementation from the the list of supported
+ * Remove a database implementation from the list of supported
  * implementations.  No databases of this type can be active when this
  * is called.
  *

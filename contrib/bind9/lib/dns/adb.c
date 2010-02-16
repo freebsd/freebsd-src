@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.215.18.24 2008/10/17 03:35:14 marka Exp $ */
+/* $Id: adb.c,v 1.215.18.26 2009/02/03 23:46:04 tbox Exp $ */
 
 /*! \file
  *
@@ -202,8 +202,6 @@ struct dns_adbname {
 /*% The adbfetch structure */
 struct dns_adbfetch {
 	unsigned int			magic;
-	dns_adbnamehook_t	       *namehook;
-	dns_adbentry_t		       *entry;
 	dns_fetch_t		       *fetch;
 	dns_rdataset_t			rdataset;
 };
@@ -1463,31 +1461,13 @@ new_adbfetch(dns_adb_t *adb) {
 		return (NULL);
 
 	f->magic = 0;
-	f->namehook = NULL;
-	f->entry = NULL;
 	f->fetch = NULL;
-
-	f->namehook = new_adbnamehook(adb, NULL);
-	if (f->namehook == NULL)
-		goto err;
-
-	f->entry = new_adbentry(adb);
-	if (f->entry == NULL)
-		goto err;
 
 	dns_rdataset_init(&f->rdataset);
 
 	f->magic = DNS_ADBFETCH_MAGIC;
 
 	return (f);
-
- err:
-	if (f->namehook != NULL)
-		free_adbnamehook(adb, &f->namehook);
-	if (f->entry != NULL)
-		free_adbentry(adb, &f->entry);
-	isc_mempool_put(adb->afmp, f);
-	return (NULL);
 }
 
 static inline void
@@ -1499,11 +1479,6 @@ free_adbfetch(dns_adb_t *adb, dns_adbfetch_t **fetch) {
 	*fetch = NULL;
 
 	f->magic = 0;
-
-	if (f->namehook != NULL)
-		free_adbnamehook(adb, &f->namehook);
-	if (f->entry != NULL)
-		free_adbentry(adb, &f->entry);
 
 	if (dns_rdataset_isassociated(&f->rdataset))
 		dns_rdataset_disassociate(&f->rdataset);
@@ -2953,8 +2928,8 @@ print_namehook_list(FILE *f, const char *legend, dns_adbnamehooklist_t *list,
 
 static inline void
 print_fetch(FILE *f, dns_adbfetch_t *ft, const char *type) {
-	fprintf(f, "\t\tFetch(%s): %p -> { nh %p, entry %p, fetch %p }\n",
-		type, ft, ft->namehook, ft->entry, ft->fetch);
+	fprintf(f, "\t\tFetch(%s): %p -> { fetch %p }\n",
+		type, ft, ft->fetch);
 }
 
 static void

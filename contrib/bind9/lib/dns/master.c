@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master.c,v 1.148.18.21 2008/01/17 23:45:58 tbox Exp $ */
+/* $Id: master.c,v 1.148.18.23 2009/01/19 23:46:15 tbox Exp $ */
 
 /*! \file */
 
@@ -1834,7 +1834,7 @@ load_text(dns_loadctx_t *lctx) {
 		/*
 		 * Find type in rdatalist.
 		 * If it does not exist create new one and prepend to list
-		 * as this will mimimise list traversal.
+		 * as this will minimise list traversal.
 		 */
 		if (ictx->glue != NULL)
 			this = ISC_LIST_HEAD(glue_list);

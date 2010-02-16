@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.81.18.10 2008/06/24 23:45:55 tbox Exp $
+# $Id: Makefile.in,v 1.81.18.11 2008/12/01 04:02:15 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -54,7 +54,7 @@ OBJS =		@ISC_EXTRA_OBJS@ \
 		assertions.@O@ base64.@O@ bitstring.@O@ buffer.@O@ \
 		bufferlist.@O@ commandline.@O@ error.@O@ event.@O@ \
 		hash.@O@ heap.@O@ hex.@O@ hmacmd5.@O@ hmacsha.@O@\
-		lex.@O@ lfsr.@O@ lib.@O@ log.@O@ md5.@O@ \
+		inet_aton.@O@ lex.@O@ lfsr.@O@ lib.@O@ log.@O@ md5.@O@ \
 		mem.@O@ mutexblock.@O@ netaddr.@O@ netscope.@O@ ondestroy.@O@ \
 		parseint.@O@ portset.@O@ quota.@O@ random.@O@ \
 		ratelimiter.@O@ refcount.@O@ region.@O@ result.@O@ rwlock.@O@ \
@@ -67,7 +67,7 @@ SRCS =		@ISC_EXTRA_SRCS@ \
 		assertions.c base64.c bitstring.c buffer.c \
 		bufferlist.c commandline.c error.c event.c \
 		heap.c hex.c hmacmd5.c hmacsha.c \
-		lex.c lfsr.c lib.c log.c \
+		inet_aton.c lex.c lfsr.c lib.c log.c \
 		md5.c mem.c mutexblock.c netaddr.c netscope.c ondestroy.c \
 		parseint.c portset.c quota.c random.c \
 		ratelimiter.c refcount.c region.c result.c rwlock.c \

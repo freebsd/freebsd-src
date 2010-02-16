@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ifiter_getifaddrs.c,v 1.4.18.5 2007/08/28 07:20:06 tbox Exp $ */
+/* $Id: ifiter_getifaddrs.c,v 1.4.18.7 2009/09/24 23:46:07 tbox Exp $ */
 
 /*! \file
  * \brief
@@ -148,7 +148,7 @@ internal_current(isc_interfaceiter_t *iter) {
 			 ifa->ifa_name);
 
 	if (ifa->ifa_dstaddr != NULL &&
-	    (iter->current.flags & IFF_POINTOPOINT) != 0)
+	    (iter->current.flags & INTERFACE_F_POINTTOPOINT) != 0)
 		get_addr(family, &iter->current.dstaddress, ifa->ifa_dstaddr,
 			 ifa->ifa_name);
 

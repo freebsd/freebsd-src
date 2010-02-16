@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.84.18.8 2006/03/02 00:37:22 marka Exp $ */
+/* $Id: log.c,v 1.84.18.13 2009/02/16 02:12:58 marka Exp $ */
 
 /*! \file
  * \author  Principal Authors: DCL */
@@ -61,7 +61,7 @@
  * This is the structure that holds each named channel.  A simple linked
  * list chains all of the channels together, so an individual channel is
  * found by doing strcmp()s with the names down the list.  Their should
- * be no peformance penalty from this as it is expected that the number
+ * be no performance penalty from this as it is expected that the number
  * of named channels will be no more than a dozen or so, and name lookups
  * from the head of the list are only done when isc_log_usechannel() is
  * called, which should also be very infrequent.
@@ -128,7 +128,7 @@ struct isc_logconfig {
  * This isc_log structure provides the context for the isc_log functions.
  * The log context locks itself in isc_log_doit, the internal backend to
  * isc_log_write.  The locking is necessary both to provide exclusive access
- * to the the buffer into which the message is formatted and to guard against
+ * to the buffer into which the message is formatted and to guard against
  * competing threads trying to write to the same syslog resource.  (On
  * some systems, such as BSD/OS, stdio is thread safe but syslog is not.)
  * Unfortunately, the lock cannot guard against a _different_ logging
@@ -204,6 +204,7 @@ LIBISC_EXTERNAL_DATA isc_logmodule_t isc_modules[] = {
 	{ "time", 0 },
 	{ "interface", 0 },
 	{ "timer", 0 },
+	{ "file", 0 },
 	{ NULL, 0 }
 };
 
@@ -1448,7 +1449,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 	LOCK(&lctx->lock);
 
 	lctx->buffer[0] = '\0';
-	
+
 	lcfg = lctx->logconfig;
 
 	category_channels = ISC_LIST_HEAD(lcfg->channellists[category->id]);
@@ -1507,7 +1508,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 		if ((channel->flags & ISC_LOG_PRINTTIME) != 0 &&
 		    time_string[0] == '\0') {
 			isc_time_t isctime;
-			
+
 			TIME_NOW(&isctime);
 			isc_time_formattimestamp(&isctime, time_string,
 						 sizeof(time_string));
@@ -1518,9 +1519,9 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 			if (level < ISC_LOG_CRITICAL)
 				snprintf(level_string, sizeof(level_string),
 					 isc_msgcat_get(isc_msgcat,
-						        ISC_MSGSET_LOG,
-						        ISC_MSG_LEVEL,
-						        "level %d: "),
+							ISC_MSGSET_LOG,
+							ISC_MSG_LEVEL,
+							"level %d: "),
 					 level);
 			else if (level > ISC_LOG_DYNAMIC)
 				snprintf(level_string, sizeof(level_string),
@@ -1700,8 +1701,8 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 				printcategory ? category->name	: "",
 				printcategory ? ": "		: "",
 				printmodule   ? (module != NULL ? module->name
-						 		: "no_module")
-					      			: "",
+								: "no_module")
+								: "",
 				printmodule   ? ": "		: "",
 				printlevel    ? level_string	: "",
 				lctx->buffer);
@@ -1743,8 +1744,8 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 			       printcategory ? category->name	: "",
 			       printcategory ? ": "		: "",
 			       printmodule   ? (module != NULL	? module->name
-						 		: "no_module")
-					      			: "",
+								: "no_module")
+								: "",
 			       printmodule   ? ": "		: "",
 			       printlevel    ? level_string	: "",
 			       lctx->buffer);
