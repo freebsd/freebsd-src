@@ -638,7 +638,11 @@ struct ath_hal {
 			HAL_BOOL longCal, HAL_BOOL *isCalDone);
 	HAL_BOOL  __ahdecl(*ah_resetCalValid)(struct ath_hal *,
 			const struct ieee80211_channel *);
+	HAL_BOOL  __ahdecl(*ah_setTxPower)(struct ath_hal *,
+	    		const struct ieee80211_channel *, uint16_t *);
 	HAL_BOOL  __ahdecl(*ah_setTxPowerLimit)(struct ath_hal *, uint32_t);
+	HAL_BOOL  __ahdecl(*ah_setBoardValues)(struct ath_hal *,
+	    		const struct ieee80211_channel *);
 
 	/* Transmit functions */
 	HAL_BOOL  __ahdecl(*ah_updateTxTrigLevel)(struct ath_hal*,

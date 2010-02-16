@@ -715,10 +715,10 @@ octeon_memory_init(void)
 	}
 	realmem = physmem;
 
-	printf("\nTotal DRAM Size 0x%X", (uint32_t) octeon_dram);
-	printf("\nBank 0 = 0x%8X   ->  0x%8X", phys_avail[0], phys_avail[1]);
-	printf("\nBank 1 = 0x%8X   ->  0x%8X\n", phys_avail[2], phys_avail[3]);
-	printf("\nphysmem: 0x%lx", physmem);
+	printf("Total DRAM Size %#X\n", (uint32_t) octeon_dram);
+	printf("Bank 0 = %#08X   ->  %#08X\n", phys_avail[0], phys_avail[1]);
+	printf("Bank 1 = %#08X   ->  %#08X\n", phys_avail[2], phys_avail[3]);
+	printf("physmem: %#lx\n", physmem);
 
 	Maxmem = physmem;
 

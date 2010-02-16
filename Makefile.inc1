@@ -15,6 +15,7 @@
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	TARGET="machine" to crossbuild world for a different machine type
+#	TARGET_ARCH= may be required when a TARGET supports multiple endians.
 
 #
 # The intended user-driven targets are:
@@ -30,7 +31,7 @@
 .include <bsd.own.mk>
 
 .if ${MACHINE_CPUARCH} == "mips"
-MK_RESCUE=no	# not yet
+#MK_RESCUE=no	# not yet
 .endif
 
 # We must do share/info early so that installation of info `dir'
@@ -120,10 +121,10 @@ VERSION+=	${OSRELDATE}
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
-TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/}
+TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/:S/mips/mipsel/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
-TARGET=		${TARGET_ARCH}
+TARGET=		${TARGET_ARCH:C/mipse[lb]/mips/:C/armeb/arm}
 .endif
 # Otherwise, default to current machine type and architecture.
 TARGET?=	${MACHINE}

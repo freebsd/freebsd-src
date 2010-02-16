@@ -214,16 +214,46 @@ struct siba_sprom {
 	uint16_t		pa1b0;
 	uint16_t		pa1b1;
 	uint16_t		pa1b2;
+	uint16_t		pa1lob0;
+	uint16_t		pa1lob1;
+	uint16_t		pa1lob2;
+	uint16_t		pa1hib0;
+	uint16_t		pa1hib1;
+	uint16_t		pa1hib2;
 	uint8_t			gpio0;
 	uint8_t			gpio1;
 	uint8_t			gpio2;
 	uint8_t			gpio3;
+	uint16_t		maxpwr_al;
 	uint16_t		maxpwr_a;	/* A-PHY Max Power */
+	uint16_t		maxpwr_ah;
 	uint16_t		maxpwr_bg;	/* BG-PHY Max Power */
+	uint8_t			rxpo2g;
+	uint8_t			rxpo5g;
 	uint8_t			tssi_a;		/* Idle TSSI */
 	uint8_t			tssi_bg;	/* Idle TSSI */
+	uint8_t			tri2g;
+	uint8_t			tri5gl;
+	uint8_t			tri5g;
+	uint8_t			tri5gh;
+	uint8_t			rssisav2g;
+	uint8_t			rssismc2g;
+	uint8_t			rssismf2g;
+	uint8_t			bxa2g;
+	uint8_t			rssisav5g;
+	uint8_t			rssismc5g;
+	uint8_t			rssismf5g;
+	uint8_t			bxa5g;
+	uint16_t		cck2gpo;
+	uint32_t		ofdm2gpo;
+	uint32_t		ofdm5glpo;
+	uint32_t		ofdm5gpo;
+	uint32_t		ofdm5ghpo;
 	uint16_t		bf_lo;		/* boardflags */
 	uint16_t		bf_hi;		/* boardflags */
+	uint16_t		bf2_lo;
+	uint16_t		bf2_hi;
+
 	struct {
 		struct {
 			int8_t a0, a1, a2, a3;
@@ -233,6 +263,11 @@ struct siba_sprom {
 		} ghz5;
 	} again;	/* antenna gain */
 };
+
+#define	SIBA_LDO_PAREF			0
+#define	SIBA_LDO_VOLT1			1
+#define	SIBA_LDO_VOLT2			2
+#define	SIBA_LDO_VOLT3			3
 
 struct siba_cc_pmu {
 	uint8_t				rev;	/* PMU rev */
@@ -367,5 +402,7 @@ void		siba_write_multi_2(struct siba_dev_softc *, const void *,
 void		siba_write_multi_4(struct siba_dev_softc *, const void *,
 		    size_t, uint16_t);
 void		siba_barrier(struct siba_dev_softc *, int);
+void		siba_cc_pmu_set_ldovolt(struct siba_cc *, int, uint32_t);
+void		siba_cc_pmu_set_ldoparef(struct siba_cc *, uint8_t);
 
 #endif /* _SIBA_SIBAVAR_H_ */
