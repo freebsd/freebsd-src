@@ -137,11 +137,11 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign __unused)
 	if (oldtcb != NULL && tcbsize == TLS_TCB_SIZE)
 		return (oldtcb);
 
-	tcb = calloc(1, tls_static_space + tcbsize);
+	tcb = calloc(1, tls_static_space + tcbsize - TLS_TCB_SIZE);
 	tls = (Elf_Addr **)(tcb + tcbsize - TLS_TCB_SIZE);
 
 	if (oldtcb != NULL) {
-		memcpy(tls, oldtcb, tls_static_space + TLS_TCB_SIZE);
+		memcpy(tls, oldtcb, tls_static_space);
 		free(oldtcb);
 
 		/* Adjust the DTV. */
