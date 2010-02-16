@@ -33,6 +33,7 @@ namespace llvm {
 class ArrayType;
 class IntegerType;
 class StructType;
+class UnionType;
 class PointerType;
 class VectorType;
 
@@ -453,6 +454,50 @@ struct OperandTraits<ConstantStruct> : public VariadicOperandTraits<> {
 DEFINE_TRANSPARENT_CASTED_OPERAND_ACCESSORS(ConstantStruct, Constant)
 
 //===----------------------------------------------------------------------===//
+// ConstantUnion - Constant Union Declarations
+//
+class ConstantUnion : public Constant {
+  friend struct ConstantCreator<ConstantUnion, UnionType, Constant*>;
+  ConstantUnion(const ConstantUnion &);      // DO NOT IMPLEMENT
+protected:
+  ConstantUnion(const UnionType *T, Constant* Val);
+public:
+  // ConstantUnion accessors
+  static Constant *get(const UnionType *T, Constant* V);
+
+  /// Transparently provide more efficient getOperand methods.
+  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
+  
+  /// getType() specialization - Reduce amount of casting...
+  ///
+  inline const UnionType *getType() const {
+    return reinterpret_cast<const UnionType*>(Value::getType());
+  }
+
+  /// isNullValue - Return true if this is the value that would be returned by
+  /// getNullValue.  This always returns false because zero structs are always
+  /// created as ConstantAggregateZero objects.
+  virtual bool isNullValue() const {
+    return false;
+  }
+
+  virtual void destroyConstant();
+  virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
+
+  /// Methods for support type inquiry through isa, cast, and dyn_cast:
+  static inline bool classof(const ConstantUnion *) { return true; }
+  static bool classof(const Value *V) {
+    return V->getValueID() == ConstantUnionVal;
+  }
+};
+
+template <>
+struct OperandTraits<ConstantUnion> : public FixedNumOperandTraits<1> {
+};
+
+DEFINE_TRANSPARENT_CASTED_OPERAND_ACCESSORS(ConstantUnion, Constant)
+
+//===----------------------------------------------------------------------===//
 /// ConstantVector - Constant Vector Declarations
 ///
 class ConstantVector : public Constant {
@@ -644,8 +689,7 @@ public:
   ///
 
   /// getAlignOf constant expr - computes the alignment of a type in a target
-  /// independent way (Note: the return type is an i32; Note: assumes that i8
-  /// is byte aligned).
+  /// independent way (Note: the return type is an i64).
   static Constant *getAlignOf(const Type* Ty);
   
   /// getSizeOf constant expr - computes the size of a type in a target
@@ -653,10 +697,15 @@ public:
   ///
   static Constant *getSizeOf(const Type* Ty);
 
-  /// getOffsetOf constant expr - computes the offset of a field in a target
-  /// independent way (Note: the return type is an i64).
+  /// getOffsetOf constant expr - computes the offset of a struct field in a 
+  /// target independent way (Note: the return type is an i64).
   ///
-  static Constant *getOffsetOf(const StructType* Ty, unsigned FieldNo);
+  static Constant *getOffsetOf(const StructType* STy, unsigned FieldNo);
+
+  /// getOffsetOf constant expr - This is a generalized form of getOffsetOf,
+  /// which supports any aggregate type, and any Constant index.
+  ///
+  static Constant *getOffsetOf(const Type* Ty, Constant *FieldNo);
   
   static Constant *getNeg(Constant *C);
   static Constant *getFNeg(Constant *C);
@@ -693,9 +742,13 @@ public:
   static Constant *getBitCast (Constant *C, const Type *Ty);
 
   static Constant *getNSWNeg(Constant *C);
+  static Constant *getNUWNeg(Constant *C);
   static Constant *getNSWAdd(Constant *C1, Constant *C2);
+  static Constant *getNUWAdd(Constant *C1, Constant *C2);
   static Constant *getNSWSub(Constant *C1, Constant *C2);
+  static Constant *getNUWSub(Constant *C1, Constant *C2);
   static Constant *getNSWMul(Constant *C1, Constant *C2);
+  static Constant *getNUWMul(Constant *C1, Constant *C2);
   static Constant *getExactSDiv(Constant *C1, Constant *C2);
 
   /// Transparently provide more efficient getOperand methods.

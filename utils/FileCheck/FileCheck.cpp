@@ -340,12 +340,10 @@ unsigned Pattern::ComputeMatchDistance(StringRef Buffer,
   if (ExampleString.empty())
     ExampleString = RegExStr;
 
-  unsigned Distance = 0;
-  for (unsigned i = 0, e = ExampleString.size(); i != e; ++i)
-    if (Buffer.substr(i, 1) != ExampleString.substr(i, 1))
-      ++Distance;
-
-  return Distance;
+  // Only compare up to the first line in the buffer, or the string size.
+  StringRef BufferPrefix = Buffer.substr(0, ExampleString.size());
+  BufferPrefix = BufferPrefix.split('\n').first;
+  return BufferPrefix.edit_distance(ExampleString);
 }
 
 void Pattern::PrintFailureInfo(const SourceMgr &SM, StringRef Buffer,
@@ -383,9 +381,14 @@ void Pattern::PrintFailureInfo(const SourceMgr &SM, StringRef Buffer,
   double BestQuality = 0;
 
   // Use an arbitrary 4k limit on how far we will search.
-  for (size_t i = 0, e = std::min(4096, int(Buffer.size())); i != e; ++i) {
+  for (size_t i = 0, e = std::min(size_t(4096), Buffer.size()); i != e; ++i) {
     if (Buffer[i] == '\n')
       ++NumLinesForward;
+
+    // Patterns have leading whitespace stripped, so skip whitespace when
+    // looking for something which looks like a pattern.
+    if (Buffer[i] == ' ' || Buffer[i] == '\t')
+      continue;
 
     // Compute the "quality" of this match as an arbitrary combination of the
     // match distance and the number of lines skipped to get to this match.
@@ -529,6 +532,9 @@ static bool ReadCheckFile(SourceMgr &SM,
     // Scan ahead to the end of line.
     size_t EOL = Buffer.find_first_of("\n\r");
 
+    // Remember the location of the start of the pattern, for diagnostics.
+    SMLoc PatternLoc = SMLoc::getFromPointer(Buffer.data());
+
     // Parse the pattern.
     Pattern P;
     if (P.ParsePattern(Buffer.substr(0, EOL), SM))
@@ -555,7 +561,7 @@ static bool ReadCheckFile(SourceMgr &SM,
     
     // Okay, add the string we captured to the output vector and move on.
     CheckStrings.push_back(CheckString(P,
-                                       SMLoc::getFromPointer(Buffer.data()),
+                                       PatternLoc,
                                        IsCheckNext));
     std::swap(NotMatches, CheckStrings.back().NotStrings);
   }

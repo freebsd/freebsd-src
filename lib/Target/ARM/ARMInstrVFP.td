@@ -114,52 +114,56 @@ def VSTMS : AXSI5<(outs), (ins addrmode5:$addr, pred:$p, reglist:$wb,
 // FP Binary Operations.
 //
 
-def VADDD  : ADbI<0b11100011, (outs DPR:$dst), (ins DPR:$a, DPR:$b),
+def VADDD  : ADbI<0b11100, 0b11, 0, 0, (outs DPR:$dst), (ins DPR:$a, DPR:$b),
                  IIC_fpALU64, "vadd", ".f64\t$dst, $a, $b",
                  [(set DPR:$dst, (fadd DPR:$a, DPR:$b))]>;
 
-def VADDS  : ASbIn<0b11100011, (outs SPR:$dst), (ins SPR:$a, SPR:$b),
+def VADDS  : ASbIn<0b11100, 0b11, 0, 0, (outs SPR:$dst), (ins SPR:$a, SPR:$b),
                   IIC_fpALU32, "vadd", ".f32\t$dst, $a, $b",
                   [(set SPR:$dst, (fadd SPR:$a, SPR:$b))]>;
 
 // These are encoded as unary instructions.
 let Defs = [FPSCR] in {
-def VCMPED : ADuI<0b11101011, 0b0100, 0b1100, (outs), (ins DPR:$a, DPR:$b),
+def VCMPED : ADuI<0b11101, 0b11, 0b0100, 0b11, 0, (outs), (ins DPR:$a, DPR:$b),
                  IIC_fpCMP64, "vcmpe", ".f64\t$a, $b",
                  [(arm_cmpfp DPR:$a, DPR:$b)]>;
 
-def VCMPES : ASuI<0b11101011, 0b0100, 0b1100, (outs), (ins SPR:$a, SPR:$b),
+def VCMPD  : ADuI<0b11101, 0b11, 0b0100, 0b01, 0, (outs), (ins DPR:$a, DPR:$b),
+                 IIC_fpCMP64, "vcmp", ".f64\t$a, $b",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VCMPES : ASuI<0b11101, 0b11, 0b0100, 0b11, 0, (outs), (ins SPR:$a, SPR:$b),
                  IIC_fpCMP32, "vcmpe", ".f32\t$a, $b",
                  [(arm_cmpfp SPR:$a, SPR:$b)]>;
+
+def VCMPS  : ASuI<0b11101, 0b11, 0b0100, 0b01, 0, (outs), (ins SPR:$a, SPR:$b),
+                 IIC_fpCMP32, "vcmp", ".f32\t$a, $b",
+                 [/* For disassembly only; pattern left blank */]>;
 }
 
-def VDIVD  : ADbI<0b11101000, (outs DPR:$dst), (ins DPR:$a, DPR:$b),
+def VDIVD  : ADbI<0b11101, 0b00, 0, 0, (outs DPR:$dst), (ins DPR:$a, DPR:$b),
                  IIC_fpDIV64, "vdiv", ".f64\t$dst, $a, $b",
                  [(set DPR:$dst, (fdiv DPR:$a, DPR:$b))]>;
 
-def VDIVS  : ASbI<0b11101000, (outs SPR:$dst), (ins SPR:$a, SPR:$b),
+def VDIVS  : ASbI<0b11101, 0b00, 0, 0, (outs SPR:$dst), (ins SPR:$a, SPR:$b),
                  IIC_fpDIV32, "vdiv", ".f32\t$dst, $a, $b",
                  [(set SPR:$dst, (fdiv SPR:$a, SPR:$b))]>;
 
-def VMULD  : ADbI<0b11100010, (outs DPR:$dst), (ins DPR:$a, DPR:$b),
+def VMULD  : ADbI<0b11100, 0b10, 0, 0, (outs DPR:$dst), (ins DPR:$a, DPR:$b),
                  IIC_fpMUL64, "vmul", ".f64\t$dst, $a, $b",
                  [(set DPR:$dst, (fmul DPR:$a, DPR:$b))]>;
 
-def VMULS  : ASbIn<0b11100010, (outs SPR:$dst), (ins SPR:$a, SPR:$b),
+def VMULS  : ASbIn<0b11100, 0b10, 0, 0, (outs SPR:$dst), (ins SPR:$a, SPR:$b),
                   IIC_fpMUL32, "vmul", ".f32\t$dst, $a, $b",
                   [(set SPR:$dst, (fmul SPR:$a, SPR:$b))]>;
 
-def VNMULD  : ADbI<0b11100010, (outs DPR:$dst), (ins DPR:$a, DPR:$b),
+def VNMULD  : ADbI<0b11100, 0b10, 1, 0, (outs DPR:$dst), (ins DPR:$a, DPR:$b),
                   IIC_fpMUL64, "vnmul", ".f64\t$dst, $a, $b",
-                  [(set DPR:$dst, (fneg (fmul DPR:$a, DPR:$b)))]> {
-  let Inst{6} = 1;
-}
+                  [(set DPR:$dst, (fneg (fmul DPR:$a, DPR:$b)))]>;
 
-def VNMULS  : ASbI<0b11100010, (outs SPR:$dst), (ins SPR:$a, SPR:$b),
+def VNMULS  : ASbI<0b11100, 0b10, 1, 0, (outs SPR:$dst), (ins SPR:$a, SPR:$b),
                   IIC_fpMUL32, "vnmul", ".f32\t$dst, $a, $b",
-                  [(set SPR:$dst, (fneg (fmul SPR:$a, SPR:$b)))]> {
-  let Inst{6} = 1;
-}
+                  [(set SPR:$dst, (fneg (fmul SPR:$a, SPR:$b)))]>;
 
 // Match reassociated forms only if not sign dependent rounding.
 def : Pat<(fmul (fneg DPR:$a), DPR:$b),
@@ -168,41 +172,45 @@ def : Pat<(fmul (fneg SPR:$a), SPR:$b),
           (VNMULS SPR:$a, SPR:$b)>, Requires<[NoHonorSignDependentRounding]>;
 
 
-def VSUBD  : ADbI<0b11100011, (outs DPR:$dst), (ins DPR:$a, DPR:$b),
+def VSUBD  : ADbI<0b11100, 0b11, 1, 0, (outs DPR:$dst), (ins DPR:$a, DPR:$b),
                  IIC_fpALU64, "vsub", ".f64\t$dst, $a, $b",
-                 [(set DPR:$dst, (fsub DPR:$a, DPR:$b))]> {
-  let Inst{6} = 1;
-}
+                 [(set DPR:$dst, (fsub DPR:$a, DPR:$b))]>;
 
-def VSUBS  : ASbIn<0b11100011, (outs SPR:$dst), (ins SPR:$a, SPR:$b),
+def VSUBS  : ASbIn<0b11100, 0b11, 1, 0, (outs SPR:$dst), (ins SPR:$a, SPR:$b),
                   IIC_fpALU32, "vsub", ".f32\t$dst, $a, $b",
-                  [(set SPR:$dst, (fsub SPR:$a, SPR:$b))]> {
-  let Inst{6} = 1;
-}
+                  [(set SPR:$dst, (fsub SPR:$a, SPR:$b))]>;
 
 //===----------------------------------------------------------------------===//
 // FP Unary Operations.
 //
 
-def VABSD  : ADuI<0b11101011, 0b0000, 0b1100, (outs DPR:$dst), (ins DPR:$a),
+def VABSD  : ADuI<0b11101, 0b11, 0b0000, 0b11, 0, (outs DPR:$dst), (ins DPR:$a),
                  IIC_fpUNA64, "vabs", ".f64\t$dst, $a",
                  [(set DPR:$dst, (fabs DPR:$a))]>;
 
-def VABSS  : ASuIn<0b11101011, 0b0000, 0b1100, (outs SPR:$dst), (ins SPR:$a),
+def VABSS  : ASuIn<0b11101, 0b11, 0b0000, 0b11, 0,(outs SPR:$dst), (ins SPR:$a),
                   IIC_fpUNA32, "vabs", ".f32\t$dst, $a",
                   [(set SPR:$dst, (fabs SPR:$a))]>;
 
 let Defs = [FPSCR] in {
-def VCMPEZD : ADuI<0b11101011, 0b0101, 0b1100, (outs), (ins DPR:$a),
+def VCMPEZD : ADuI<0b11101, 0b11, 0b0101, 0b11, 0, (outs), (ins DPR:$a),
                   IIC_fpCMP64, "vcmpe", ".f64\t$a, #0",
                   [(arm_cmpfp0 DPR:$a)]>;
 
-def VCMPEZS : ASuI<0b11101011, 0b0101, 0b1100, (outs), (ins SPR:$a),
+def VCMPZD  : ADuI<0b11101, 0b11, 0b0101, 0b01, 0, (outs), (ins DPR:$a),
+                  IIC_fpCMP64, "vcmp", ".f64\t$a, #0",
+                  [/* For disassembly only; pattern left blank */]>;
+
+def VCMPEZS : ASuI<0b11101, 0b11, 0b0101, 0b11, 0, (outs), (ins SPR:$a),
                   IIC_fpCMP32, "vcmpe", ".f32\t$a, #0",
                   [(arm_cmpfp0 SPR:$a)]>;
+
+def VCMPZS  : ASuI<0b11101, 0b11, 0b0101, 0b01, 0, (outs), (ins SPR:$a),
+                  IIC_fpCMP32, "vcmp", ".f32\t$a, #0",
+                  [/* For disassembly only; pattern left blank */]>;
 }
 
-def VCVTDS : ASuI<0b11101011, 0b0111, 0b1100, (outs DPR:$dst), (ins SPR:$a),
+def VCVTDS : ASuI<0b11101, 0b11, 0b0111, 0b11, 0, (outs DPR:$dst), (ins SPR:$a),
                  IIC_fpCVTDS, "vcvt", ".f64.f32\t$dst, $a",
                  [(set DPR:$dst, (fextend SPR:$a))]>;
 
@@ -213,30 +221,49 @@ def VCVTSD : VFPAI<(outs SPR:$dst), (ins DPR:$a), VFPUnaryFrm,
   let Inst{27-23} = 0b11101;
   let Inst{21-16} = 0b110111;
   let Inst{11-8}  = 0b1011;
-  let Inst{7-4}   = 0b1100;
+  let Inst{7-6}   = 0b11;
+  let Inst{4}     = 0;
 }
 
+// Between half-precision and single-precision.  For disassembly only.
+
+def VCVTBSH : ASuI<0b11101, 0b11, 0b0010, 0b01, 0, (outs SPR:$dst), (ins SPR:$a),
+                 /* FIXME */ IIC_fpCVTDS, "vcvtb", ".f32.f16\t$dst, $a",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VCVTBHS : ASuI<0b11101, 0b11, 0b0011, 0b01, 0, (outs SPR:$dst), (ins SPR:$a),
+                 /* FIXME */ IIC_fpCVTDS, "vcvtb", ".f16.f32\t$dst, $a",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VCVTTSH : ASuI<0b11101, 0b11, 0b0010, 0b11, 0, (outs SPR:$dst), (ins SPR:$a),
+                 /* FIXME */ IIC_fpCVTDS, "vcvtt", ".f32.f16\t$dst, $a",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VCVTTHS : ASuI<0b11101, 0b11, 0b0011, 0b11, 0, (outs SPR:$dst), (ins SPR:$a),
+                 /* FIXME */ IIC_fpCVTDS, "vcvtt", ".f16.f32\t$dst, $a",
+                 [/* For disassembly only; pattern left blank */]>;
+
 let neverHasSideEffects = 1 in {
-def VMOVD: ADuI<0b11101011, 0b0000, 0b0100, (outs DPR:$dst), (ins DPR:$a),
+def VMOVD: ADuI<0b11101, 0b11, 0b0000, 0b01, 0, (outs DPR:$dst), (ins DPR:$a),
                  IIC_fpUNA64, "vmov", ".f64\t$dst, $a", []>;
 
-def VMOVS: ASuI<0b11101011, 0b0000, 0b0100, (outs SPR:$dst), (ins SPR:$a),
+def VMOVS: ASuI<0b11101, 0b11, 0b0000, 0b01, 0, (outs SPR:$dst), (ins SPR:$a),
                  IIC_fpUNA32, "vmov", ".f32\t$dst, $a", []>;
 } // neverHasSideEffects
 
-def VNEGD  : ADuI<0b11101011, 0b0001, 0b0100, (outs DPR:$dst), (ins DPR:$a),
+def VNEGD  : ADuI<0b11101, 0b11, 0b0001, 0b01, 0, (outs DPR:$dst), (ins DPR:$a),
                  IIC_fpUNA64, "vneg", ".f64\t$dst, $a",
                  [(set DPR:$dst, (fneg DPR:$a))]>;
 
-def VNEGS  : ASuIn<0b11101011, 0b0001, 0b0100, (outs SPR:$dst), (ins SPR:$a),
+def VNEGS  : ASuIn<0b11101, 0b11, 0b0001, 0b01, 0,(outs SPR:$dst), (ins SPR:$a),
                   IIC_fpUNA32, "vneg", ".f32\t$dst, $a",
                   [(set SPR:$dst, (fneg SPR:$a))]>;
 
-def VSQRTD  : ADuI<0b11101011, 0b0001, 0b1100, (outs DPR:$dst), (ins DPR:$a),
+def VSQRTD : ADuI<0b11101, 0b11, 0b0001, 0b11, 0, (outs DPR:$dst), (ins DPR:$a),
                  IIC_fpSQRT64, "vsqrt", ".f64\t$dst, $a",
                  [(set DPR:$dst, (fsqrt DPR:$a))]>;
 
-def VSQRTS  : ASuI<0b11101011, 0b0001, 0b1100, (outs SPR:$dst), (ins SPR:$a),
+def VSQRTS : ASuI<0b11101, 0b11, 0b0001, 0b11, 0, (outs SPR:$dst), (ins SPR:$a),
                  IIC_fpSQRT32, "vsqrt", ".f32\t$dst, $a",
                  [(set SPR:$dst, (fsqrt SPR:$a))]>;
 
@@ -255,7 +282,16 @@ def VMOVSR : AVConv4I<0b11100000, 0b1010, (outs SPR:$dst), (ins GPR:$src),
 def VMOVRRD  : AVConv3I<0b11000101, 0b1011,
                       (outs GPR:$wb, GPR:$dst2), (ins DPR:$src),
                  IIC_VMOVDI, "vmov", "\t$wb, $dst2, $src",
-                 [/* FIXME: Can't write pattern for multiple result instr*/]>;
+                 [/* FIXME: Can't write pattern for multiple result instr*/]> {
+  let Inst{7-6} = 0b00;
+}
+
+def VMOVRRS  : AVConv3I<0b11000101, 0b1010,
+                      (outs GPR:$wb, GPR:$dst2), (ins SPR:$src1, SPR:$src2),
+                 IIC_VMOVDI, "vmov", "\t$wb, $dst2, $src1, $src2",
+                 [/* For disassembly only; pattern left blank */]> {
+  let Inst{7-6} = 0b00;
+}
 
 // FMDHR: GPR -> SPR
 // FMDLR: GPR -> SPR
@@ -263,7 +299,16 @@ def VMOVRRD  : AVConv3I<0b11000101, 0b1011,
 def VMOVDRR : AVConv5I<0b11000100, 0b1011,
                      (outs DPR:$dst), (ins GPR:$src1, GPR:$src2),
                 IIC_VMOVID, "vmov", "\t$dst, $src1, $src2",
-                [(set DPR:$dst, (arm_fmdrr GPR:$src1, GPR:$src2))]>;
+                [(set DPR:$dst, (arm_fmdrr GPR:$src1, GPR:$src2))]> {
+  let Inst{7-6} = 0b00;
+}
+
+def VMOVSRR : AVConv5I<0b11000100, 0b1010,
+                     (outs SPR:$dst1, SPR:$dst2), (ins GPR:$src1, GPR:$src2),
+                IIC_VMOVID, "vmov", "\t$dst1, $dst2, $src1, $src2",
+                [/* For disassembly only; pattern left blank */]> {
+  let Inst{7-6} = 0b00;
+}
 
 // FMRDH: SPR -> GPR
 // FMRDL: SPR -> GPR
@@ -277,137 +322,271 @@ def VMOVDRR : AVConv5I<0b11000100, 0b1011,
 
 // Int to FP:
 
-def VSITOD : AVConv1I<0b11101011, 0b1000, 0b1011, (outs DPR:$dst), (ins SPR:$a),
+def VSITOD : AVConv1I<0b11101, 0b11, 0b1000, 0b1011,
+                 (outs DPR:$dst), (ins SPR:$a),
                  IIC_fpCVTID, "vcvt", ".f64.s32\t$dst, $a",
                  [(set DPR:$dst, (arm_sitof SPR:$a))]> {
-  let Inst{7} = 1;
+  let Inst{7} = 1; // s32
 }
 
-def VSITOS : AVConv1In<0b11101011, 0b1000, 0b1010, (outs SPR:$dst),(ins SPR:$a),
+def VSITOS : AVConv1In<0b11101, 0b11, 0b1000, 0b1010,
+                 (outs SPR:$dst),(ins SPR:$a),
                  IIC_fpCVTIS, "vcvt", ".f32.s32\t$dst, $a",
                  [(set SPR:$dst, (arm_sitof SPR:$a))]> {
-  let Inst{7} = 1;
+  let Inst{7} = 1; // s32
 }
 
-def VUITOD : AVConv1I<0b11101011, 0b1000, 0b1011, (outs DPR:$dst), (ins SPR:$a),
+def VUITOD : AVConv1I<0b11101, 0b11, 0b1000, 0b1011,
+                 (outs DPR:$dst), (ins SPR:$a),
                  IIC_fpCVTID, "vcvt", ".f64.u32\t$dst, $a",
-                 [(set DPR:$dst, (arm_uitof SPR:$a))]>;
+                 [(set DPR:$dst, (arm_uitof SPR:$a))]> {
+  let Inst{7} = 0; // u32
+}
 
-def VUITOS : AVConv1In<0b11101011, 0b1000, 0b1010, (outs SPR:$dst),(ins SPR:$a),
+def VUITOS : AVConv1In<0b11101, 0b11, 0b1000, 0b1010,
+                 (outs SPR:$dst), (ins SPR:$a),
                  IIC_fpCVTIS, "vcvt", ".f32.u32\t$dst, $a",
-                 [(set SPR:$dst, (arm_uitof SPR:$a))]>;
+                 [(set SPR:$dst, (arm_uitof SPR:$a))]> {
+  let Inst{7} = 0; // u32
+}
 
 // FP to Int:
 // Always set Z bit in the instruction, i.e. "round towards zero" variants.
 
-def VTOSIZD : AVConv1I<0b11101011, 0b1101, 0b1011,
+def VTOSIZD : AVConv1I<0b11101, 0b11, 0b1101, 0b1011,
                        (outs SPR:$dst), (ins DPR:$a),
                  IIC_fpCVTDI, "vcvt", ".s32.f64\t$dst, $a",
                  [(set SPR:$dst, (arm_ftosi DPR:$a))]> {
   let Inst{7} = 1; // Z bit
 }
 
-def VTOSIZS : AVConv1In<0b11101011, 0b1101, 0b1010,
+def VTOSIZS : AVConv1In<0b11101, 0b11, 0b1101, 0b1010,
                         (outs SPR:$dst), (ins SPR:$a),
                  IIC_fpCVTSI, "vcvt", ".s32.f32\t$dst, $a",
                  [(set SPR:$dst, (arm_ftosi SPR:$a))]> {
   let Inst{7} = 1; // Z bit
 }
 
-def VTOUIZD : AVConv1I<0b11101011, 0b1100, 0b1011,
+def VTOUIZD : AVConv1I<0b11101, 0b11, 0b1100, 0b1011,
                        (outs SPR:$dst), (ins DPR:$a),
                  IIC_fpCVTDI, "vcvt", ".u32.f64\t$dst, $a",
                  [(set SPR:$dst, (arm_ftoui DPR:$a))]> {
   let Inst{7} = 1; // Z bit
 }
 
-def VTOUIZS : AVConv1In<0b11101011, 0b1100, 0b1010,
+def VTOUIZS : AVConv1In<0b11101, 0b11, 0b1100, 0b1010,
                         (outs SPR:$dst), (ins SPR:$a),
                  IIC_fpCVTSI, "vcvt", ".u32.f32\t$dst, $a",
                  [(set SPR:$dst, (arm_ftoui SPR:$a))]> {
   let Inst{7} = 1; // Z bit
 }
 
+// And the Z bit '0' variants, i.e. use the rounding mode specified by FPSCR.
+// For disassembly only.
+
+def VTOSIRD : AVConv1I<0b11101, 0b11, 0b1101, 0b1011,
+                       (outs SPR:$dst), (ins DPR:$a),
+                 IIC_fpCVTDI, "vcvtr", ".s32.f64\t$dst, $a",
+                 [/* For disassembly only; pattern left blank */]> {
+  let Inst{7} = 0; // Z bit
+}
+
+def VTOSIRS : AVConv1In<0b11101, 0b11, 0b1101, 0b1010,
+                        (outs SPR:$dst), (ins SPR:$a),
+                 IIC_fpCVTSI, "vcvtr", ".s32.f32\t$dst, $a",
+                 [/* For disassembly only; pattern left blank */]> {
+  let Inst{7} = 0; // Z bit
+}
+
+def VTOUIRD : AVConv1I<0b11101, 0b11, 0b1100, 0b1011,
+                       (outs SPR:$dst), (ins DPR:$a),
+                 IIC_fpCVTDI, "vcvtr", ".u32.f64\t$dst, $a",
+                 [/* For disassembly only; pattern left blank */]> {
+  let Inst{7} = 0; // Z bit
+}
+
+def VTOUIRS : AVConv1In<0b11101, 0b11, 0b1100, 0b1010,
+                        (outs SPR:$dst), (ins SPR:$a),
+                 IIC_fpCVTSI, "vcvtr", ".u32.f32\t$dst, $a",
+                 [/* For disassembly only; pattern left blank */]> {
+  let Inst{7} = 0; // Z bit
+}
+
+// Convert between floating-point and fixed-point
+// Data type for fixed-point naming convention:
+//   S16 (U=0, sx=0) -> SH
+//   U16 (U=1, sx=0) -> UH
+//   S32 (U=0, sx=1) -> SL
+//   U32 (U=1, sx=1) -> UL
+
+let Constraints = "$a = $dst" in {
+
+// FP to Fixed-Point:
+
+def VTOSHS : AVConv1XI<0b11101, 0b11, 0b1110, 0b1010, 0,
+                       (outs SPR:$dst), (ins SPR:$a, i32imm:$fbits),
+                 IIC_fpCVTSI, "vcvt", ".s16.f32\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VTOUHS : AVConv1XI<0b11101, 0b11, 0b1111, 0b1010, 0,
+                       (outs SPR:$dst), (ins SPR:$a, i32imm:$fbits),
+                 IIC_fpCVTSI, "vcvt", ".u16.f32\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VTOSLS : AVConv1XI<0b11101, 0b11, 0b1110, 0b1010, 1,
+                       (outs SPR:$dst), (ins SPR:$a, i32imm:$fbits),
+                 IIC_fpCVTSI, "vcvt", ".s32.f32\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VTOULS : AVConv1XI<0b11101, 0b11, 0b1111, 0b1010, 1,
+                       (outs SPR:$dst), (ins SPR:$a, i32imm:$fbits),
+                 IIC_fpCVTSI, "vcvt", ".u32.f32\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VTOSHD : AVConv1XI<0b11101, 0b11, 0b1110, 0b1011, 0,
+                       (outs DPR:$dst), (ins DPR:$a, i32imm:$fbits),
+                 IIC_fpCVTDI, "vcvt", ".s16.f64\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VTOUHD : AVConv1XI<0b11101, 0b11, 0b1111, 0b1011, 0,
+                       (outs DPR:$dst), (ins DPR:$a, i32imm:$fbits),
+                 IIC_fpCVTDI, "vcvt", ".u16.f64\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VTOSLD : AVConv1XI<0b11101, 0b11, 0b1110, 0b1011, 1,
+                       (outs DPR:$dst), (ins DPR:$a, i32imm:$fbits),
+                 IIC_fpCVTDI, "vcvt", ".s32.f64\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VTOULD : AVConv1XI<0b11101, 0b11, 0b1111, 0b1011, 1,
+                       (outs DPR:$dst), (ins DPR:$a, i32imm:$fbits),
+                 IIC_fpCVTDI, "vcvt", ".u32.f64\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+// Fixed-Point to FP:
+
+def VSHTOS : AVConv1XI<0b11101, 0b11, 0b1010, 0b1010, 0,
+                       (outs SPR:$dst), (ins SPR:$a, i32imm:$fbits),
+                 IIC_fpCVTIS, "vcvt", ".f32.s16\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VUHTOS : AVConv1XI<0b11101, 0b11, 0b1011, 0b1010, 0,
+                       (outs SPR:$dst), (ins SPR:$a, i32imm:$fbits),
+                 IIC_fpCVTIS, "vcvt", ".f32.u16\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VSLTOS : AVConv1XI<0b11101, 0b11, 0b1010, 0b1010, 1,
+                       (outs SPR:$dst), (ins SPR:$a, i32imm:$fbits),
+                 IIC_fpCVTIS, "vcvt", ".f32.s32\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VULTOS : AVConv1XI<0b11101, 0b11, 0b1011, 0b1010, 1,
+                       (outs SPR:$dst), (ins SPR:$a, i32imm:$fbits),
+                 IIC_fpCVTIS, "vcvt", ".f32.u32\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VSHTOD : AVConv1XI<0b11101, 0b11, 0b1010, 0b1011, 0,
+                       (outs DPR:$dst), (ins DPR:$a, i32imm:$fbits),
+                 IIC_fpCVTID, "vcvt", ".f64.s16\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VUHTOD : AVConv1XI<0b11101, 0b11, 0b1011, 0b1011, 0,
+                       (outs DPR:$dst), (ins DPR:$a, i32imm:$fbits),
+                 IIC_fpCVTID, "vcvt", ".f64.u16\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VSLTOD : AVConv1XI<0b11101, 0b11, 0b1010, 0b1011, 1,
+                       (outs DPR:$dst), (ins DPR:$a, i32imm:$fbits),
+                 IIC_fpCVTID, "vcvt", ".f64.s32\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+def VULTOD : AVConv1XI<0b11101, 0b11, 0b1011, 0b1011, 1,
+                       (outs DPR:$dst), (ins DPR:$a, i32imm:$fbits),
+                 IIC_fpCVTID, "vcvt", ".f64.u32\t$dst, $a, $fbits",
+                 [/* For disassembly only; pattern left blank */]>;
+
+} // End of 'let Constraints = "$src = $dst" in'
+
 //===----------------------------------------------------------------------===//
 // FP FMA Operations.
 //
 
-def VMLAD : ADbI<0b11100000, (outs DPR:$dst), (ins DPR:$dstin, DPR:$a, DPR:$b),
+def VMLAD : ADbI<0b11100, 0b00, 0, 0,
+                (outs DPR:$dst), (ins DPR:$dstin, DPR:$a, DPR:$b),
                 IIC_fpMAC64, "vmla", ".f64\t$dst, $a, $b",
                 [(set DPR:$dst, (fadd (fmul DPR:$a, DPR:$b), DPR:$dstin))]>,
                 RegConstraint<"$dstin = $dst">;
 
-def VMLAS : ASbIn<0b11100000, (outs SPR:$dst), (ins SPR:$dstin, SPR:$a, SPR:$b),
+def VMLAS : ASbIn<0b11100, 0b00, 0, 0,
+                 (outs SPR:$dst), (ins SPR:$dstin, SPR:$a, SPR:$b),
                  IIC_fpMAC32, "vmla", ".f32\t$dst, $a, $b",
                  [(set SPR:$dst, (fadd (fmul SPR:$a, SPR:$b), SPR:$dstin))]>,
                  RegConstraint<"$dstin = $dst">;
 
-def VNMLSD : ADbI<0b11100001, (outs DPR:$dst), (ins DPR:$dstin, DPR:$a, DPR:$b),
+def VNMLSD : ADbI<0b11100, 0b01, 0, 0,
+                (outs DPR:$dst), (ins DPR:$dstin, DPR:$a, DPR:$b),
                 IIC_fpMAC64, "vnmls", ".f64\t$dst, $a, $b",
                 [(set DPR:$dst, (fsub (fmul DPR:$a, DPR:$b), DPR:$dstin))]>,
                 RegConstraint<"$dstin = $dst">;
 
-def VNMLSS : ASbI<0b11100001, (outs SPR:$dst), (ins SPR:$dstin, SPR:$a, SPR:$b),
+def VNMLSS : ASbI<0b11100, 0b01, 0, 0,
+                (outs SPR:$dst), (ins SPR:$dstin, SPR:$a, SPR:$b),
                 IIC_fpMAC32, "vnmls", ".f32\t$dst, $a, $b",
                 [(set SPR:$dst, (fsub (fmul SPR:$a, SPR:$b), SPR:$dstin))]>,
                 RegConstraint<"$dstin = $dst">;
 
-def VMLSD : ADbI<0b11100000, (outs DPR:$dst), (ins DPR:$dstin, DPR:$a, DPR:$b),
+def VMLSD : ADbI<0b11100, 0b00, 1, 0,
+                 (outs DPR:$dst), (ins DPR:$dstin, DPR:$a, DPR:$b),
                  IIC_fpMAC64, "vmls", ".f64\t$dst, $a, $b",
              [(set DPR:$dst, (fadd (fneg (fmul DPR:$a, DPR:$b)), DPR:$dstin))]>,
-                RegConstraint<"$dstin = $dst"> {
-  let Inst{6} = 1;
-}
+                RegConstraint<"$dstin = $dst">;
 
-def VMLSS : ASbIn<0b11100000, (outs SPR:$dst), (ins SPR:$dstin, SPR:$a, SPR:$b),
+def VMLSS : ASbIn<0b11100, 0b00, 1, 0,
+                  (outs SPR:$dst), (ins SPR:$dstin, SPR:$a, SPR:$b),
                   IIC_fpMAC32, "vmls", ".f32\t$dst, $a, $b",
              [(set SPR:$dst, (fadd (fneg (fmul SPR:$a, SPR:$b)), SPR:$dstin))]>,
-                RegConstraint<"$dstin = $dst"> {
-  let Inst{6} = 1;
-}
+                RegConstraint<"$dstin = $dst">;
 
 def : Pat<(fsub DPR:$dstin, (fmul DPR:$a, DPR:$b)),
           (VMLSD DPR:$dstin, DPR:$a, DPR:$b)>, Requires<[DontUseNEONForFP]>;
 def : Pat<(fsub SPR:$dstin, (fmul SPR:$a, SPR:$b)),
           (VMLSS SPR:$dstin, SPR:$a, SPR:$b)>, Requires<[DontUseNEONForFP]>;
 
-def VNMLAD : ADbI<0b11100001, (outs DPR:$dst), (ins DPR:$dstin, DPR:$a, DPR:$b),
+def VNMLAD : ADbI<0b11100, 0b01, 1, 0,
+                 (outs DPR:$dst), (ins DPR:$dstin, DPR:$a, DPR:$b),
                  IIC_fpMAC64, "vnmla", ".f64\t$dst, $a, $b",
              [(set DPR:$dst, (fsub (fneg (fmul DPR:$a, DPR:$b)), DPR:$dstin))]>,
-                RegConstraint<"$dstin = $dst"> {
-  let Inst{6} = 1;
-}
+                RegConstraint<"$dstin = $dst">;
 
-def VNMLAS : ASbI<0b11100001, (outs SPR:$dst), (ins SPR:$dstin, SPR:$a, SPR:$b),
+def VNMLAS : ASbI<0b11100, 0b01, 1, 0,
+                (outs SPR:$dst), (ins SPR:$dstin, SPR:$a, SPR:$b),
                 IIC_fpMAC32, "vnmla", ".f32\t$dst, $a, $b",
              [(set SPR:$dst, (fsub (fneg (fmul SPR:$a, SPR:$b)), SPR:$dstin))]>,
-                RegConstraint<"$dstin = $dst"> {
-  let Inst{6} = 1;
-}
+                RegConstraint<"$dstin = $dst">;
 
 //===----------------------------------------------------------------------===//
 // FP Conditional moves.
 //
 
-def VMOVDcc  : ADuI<0b11101011, 0b0000, 0b0100,
+def VMOVDcc  : ADuI<0b11101, 0b11, 0b0000, 0b01, 0,
                     (outs DPR:$dst), (ins DPR:$false, DPR:$true),
                     IIC_fpUNA64, "vmov", ".f64\t$dst, $true",
                 [/*(set DPR:$dst, (ARMcmov DPR:$false, DPR:$true, imm:$cc))*/]>,
                     RegConstraint<"$false = $dst">;
 
-def VMOVScc  : ASuI<0b11101011, 0b0000, 0b0100,
+def VMOVScc  : ASuI<0b11101, 0b11, 0b0000, 0b01, 0,
                     (outs SPR:$dst), (ins SPR:$false, SPR:$true),
                     IIC_fpUNA32, "vmov", ".f32\t$dst, $true",
                 [/*(set SPR:$dst, (ARMcmov SPR:$false, SPR:$true, imm:$cc))*/]>,
                     RegConstraint<"$false = $dst">;
 
-def VNEGDcc  : ADuI<0b11101011, 0b0001, 0b0100,
+def VNEGDcc  : ADuI<0b11101, 0b11, 0b0001, 0b01, 0,
                     (outs DPR:$dst), (ins DPR:$false, DPR:$true),
                     IIC_fpUNA64, "vneg", ".f64\t$dst, $true",
                 [/*(set DPR:$dst, (ARMcneg DPR:$false, DPR:$true, imm:$cc))*/]>,
                     RegConstraint<"$false = $dst">;
 
-def VNEGScc  : ASuI<0b11101011, 0b0001, 0b0100,
+def VNEGScc  : ASuI<0b11101, 0b11, 0b0001, 0b01, 0,
                     (outs SPR:$dst), (ins SPR:$false, SPR:$true),
                     IIC_fpUNA32, "vneg", ".f32\t$dst, $true",
                 [/*(set SPR:$dst, (ARMcneg SPR:$false, SPR:$true, imm:$cc))*/]>,
@@ -432,6 +611,31 @@ def FMSTAT : VFPAI<(outs), (ins), VFPMiscFrm, IIC_fpSTAT, "vmrs",
   let Inst{4}     = 1;
 }
 
+// FPSCR <-> GPR (for disassembly only)
+
+let Uses = [FPSCR] in {
+def VMRS : VFPAI<(outs GPR:$dst), (ins), VFPMiscFrm, IIC_fpSTAT, "vmrs",
+                 "\t$dst, fpscr",
+             [/* For disassembly only; pattern left blank */]> {
+  let Inst{27-20} = 0b11101111;
+  let Inst{19-16} = 0b0001;
+  let Inst{11-8}  = 0b1010;
+  let Inst{7}     = 0;
+  let Inst{4}     = 1;
+}
+}
+
+let Defs = [FPSCR] in {
+def VMSR : VFPAI<(outs), (ins GPR:$src), VFPMiscFrm, IIC_fpSTAT, "vmsr",
+                 "\tfpscr, $src",
+             [/* For disassembly only; pattern left blank */]> {
+  let Inst{27-20} = 0b11101110;
+  let Inst{19-16} = 0b0001;
+  let Inst{11-8}  = 0b1010;
+  let Inst{7}     = 0;
+  let Inst{4}     = 1;
+}
+}
 
 // Materialize FP immediates. VFP3 only.
 let isReMaterializable = 1 in {

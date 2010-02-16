@@ -182,10 +182,6 @@ def X86mul_imm : SDNode<"X86ISD::MUL_IMM", SDTIntBinOp>;
 // X86 Operand Definitions.
 //
 
-def i32imm_pcrel : Operand<i32> {
-  let PrintMethod = "print_pcrel_imm";
-}
-
 // A version of ptr_rc which excludes SP, ESP, and RSP. This is used for
 // the index operand of an address, to conform to x86 encoding restrictions.
 def ptr_rc_nosp : PointerLikeRegClass<1>;
@@ -195,6 +191,14 @@ def ptr_rc_nosp : PointerLikeRegClass<1>;
 def X86MemAsmOperand : AsmOperandClass {
   let Name = "Mem";
   let SuperClass = ?;
+}
+def X86AbsMemAsmOperand : AsmOperandClass {
+  let Name = "AbsMem";
+  let SuperClass = X86MemAsmOperand;
+}
+def X86NoSegMemAsmOperand : AsmOperandClass {
+  let Name = "NoSegMem";
+  let SuperClass = X86MemAsmOperand;
 }
 class X86MemOperand<string printMethod> : Operand<iPTR> {
   let PrintMethod = printMethod;
@@ -206,11 +210,6 @@ def opaque32mem : X86MemOperand<"printopaquemem">;
 def opaque48mem : X86MemOperand<"printopaquemem">;
 def opaque80mem : X86MemOperand<"printopaquemem">;
 def opaque512mem : X86MemOperand<"printopaquemem">;
-
-def offset8 : Operand<i64>  { let PrintMethod = "print_pcrel_imm"; }
-def offset16 : Operand<i64> { let PrintMethod = "print_pcrel_imm"; }
-def offset32 : Operand<i64> { let PrintMethod = "print_pcrel_imm"; }
-def offset64 : Operand<i64> { let PrintMethod = "print_pcrel_imm"; }
 
 def i8mem   : X86MemOperand<"printi8mem">;
 def i16mem  : X86MemOperand<"printi16mem">;
@@ -235,7 +234,22 @@ def i8mem_NOREX : Operand<i64> {
 def lea32mem : Operand<i32> {
   let PrintMethod = "printlea32mem";
   let MIOperandInfo = (ops GR32, i8imm, GR32_NOSP, i32imm);
-  let ParserMatchClass = X86MemAsmOperand;
+  let ParserMatchClass = X86NoSegMemAsmOperand;
+}
+
+let ParserMatchClass = X86AbsMemAsmOperand,
+    PrintMethod = "print_pcrel_imm" in {
+def i32imm_pcrel : Operand<i32>;
+
+def offset8 : Operand<i64>;
+def offset16 : Operand<i64>;
+def offset32 : Operand<i64>;
+def offset64 : Operand<i64>;
+
+// Branch targets have OtherVT type and print as pc-relative values.
+def brtarget : Operand<OtherVT>;
+def brtarget8 : Operand<OtherVT>;
+
 }
 
 def SSECC : Operand<i8> {
@@ -255,15 +269,6 @@ def i16i8imm  : Operand<i16> {
 // 32-bits but only 8 bits are significant.
 def i32i8imm  : Operand<i32> {
   let ParserMatchClass = ImmSExt8AsmOperand;
-}
-
-// Branch targets have OtherVT type and print as pc-relative values.
-def brtarget : Operand<OtherVT> {
-  let PrintMethod = "print_pcrel_imm";
-}
-
-def brtarget8 : Operand<OtherVT> {
-  let PrintMethod = "print_pcrel_imm";
 }
 
 //===----------------------------------------------------------------------===//
@@ -591,7 +596,7 @@ let neverHasSideEffects = 1, isNotDuplicable = 1, Uses = [ESP] in
                       "", []>;
 
 //===----------------------------------------------------------------------===//
-//  Control Flow Instructions...
+//  Control Flow Instructions.
 //
 
 // Return instructions.
@@ -609,15 +614,45 @@ let isTerminator = 1, isReturn = 1, isBarrier = 1,
                     "lret\t$amt", []>;
 }
 
-// All branches are RawFrm, Void, Branch, and Terminators
-let isBranch = 1, isTerminator = 1 in
-  class IBr<bits<8> opcode, dag ins, string asm, list<dag> pattern> :
-        I<opcode, RawFrm, (outs), ins, asm, pattern>;
-
-let isBranch = 1, isBarrier = 1 in {
-  def JMP : IBr<0xE9, (ins brtarget:$dst), "jmp\t$dst", [(br bb:$dst)]>;
-  def JMP8 : IBr<0xEB, (ins brtarget8:$dst), "jmp\t$dst", []>;
+// Unconditional branches.
+let isBarrier = 1, isBranch = 1, isTerminator = 1 in {
+  def JMP_4 : Ii32PCRel<0xE9, RawFrm, (outs), (ins brtarget:$dst),
+                        "jmp\t$dst", [(br bb:$dst)]>;
+  def JMP_1 : Ii8PCRel<0xEB, RawFrm, (outs), (ins brtarget8:$dst),
+                       "jmp\t$dst", []>;
 }
+
+// Conditional Branches.
+let isBranch = 1, isTerminator = 1, Uses = [EFLAGS] in {
+  multiclass ICBr<bits<8> opc1, bits<8> opc4, string asm, PatFrag Cond> {
+    def _1 : Ii8PCRel <opc1, RawFrm, (outs), (ins brtarget8:$dst), asm, []>;
+    def _4 : Ii32PCRel<opc4, RawFrm, (outs), (ins brtarget:$dst), asm,
+                       [(X86brcond bb:$dst, Cond, EFLAGS)]>, TB;
+  }
+}
+
+defm JO  : ICBr<0x70, 0x80, "jo\t$dst" , X86_COND_O>;
+defm JNO : ICBr<0x71, 0x81, "jno\t$dst" , X86_COND_NO>;
+defm JB  : ICBr<0x72, 0x82, "jb\t$dst" , X86_COND_B>;
+defm JAE : ICBr<0x73, 0x83, "jae\t$dst", X86_COND_AE>;
+defm JE  : ICBr<0x74, 0x84, "je\t$dst" , X86_COND_E>;
+defm JNE : ICBr<0x75, 0x85, "jne\t$dst", X86_COND_NE>;
+defm JBE : ICBr<0x76, 0x86, "jbe\t$dst", X86_COND_BE>;
+defm JA  : ICBr<0x77, 0x87, "ja\t$dst" , X86_COND_A>;
+defm JS  : ICBr<0x78, 0x88, "js\t$dst" , X86_COND_S>;
+defm JNS : ICBr<0x79, 0x89, "jns\t$dst", X86_COND_NS>;
+defm JP  : ICBr<0x7A, 0x8A, "jp\t$dst" , X86_COND_P>;
+defm JNP : ICBr<0x7B, 0x8B, "jnp\t$dst", X86_COND_NP>;
+defm JL  : ICBr<0x7C, 0x8C, "jl\t$dst" , X86_COND_L>;
+defm JGE : ICBr<0x7D, 0x8D, "jge\t$dst", X86_COND_GE>;
+defm JLE : ICBr<0x7E, 0x8E, "jle\t$dst", X86_COND_LE>;
+defm JG  : ICBr<0x7F, 0x8F, "jg\t$dst" , X86_COND_G>;
+
+// FIXME: What about the CX/RCX versions of this instruction?
+let Uses = [ECX], isBranch = 1, isTerminator = 1 in
+  def JCXZ8 : Ii8PCRel<0xE3, RawFrm, (outs), (ins brtarget8:$dst),
+                       "jcxz\t$dst", []>;
+
 
 // Indirect branches
 let isBranch = 1, isTerminator = 1, isBarrier = 1, isIndirectBranch = 1 in {
@@ -639,63 +674,6 @@ let isBranch = 1, isTerminator = 1, isBarrier = 1, isIndirectBranch = 1 in {
                      "ljmp{l}\t{*}$dst", []>;
 }
 
-// Conditional branches
-let Uses = [EFLAGS] in {
-// Short conditional jumps
-def JO8   : IBr<0x70, (ins brtarget8:$dst), "jo\t$dst", []>;
-def JNO8  : IBr<0x71, (ins brtarget8:$dst), "jno\t$dst", []>;
-def JB8   : IBr<0x72, (ins brtarget8:$dst), "jb\t$dst", []>;
-def JAE8  : IBr<0x73, (ins brtarget8:$dst), "jae\t$dst", []>;
-def JE8   : IBr<0x74, (ins brtarget8:$dst), "je\t$dst", []>;
-def JNE8  : IBr<0x75, (ins brtarget8:$dst), "jne\t$dst", []>;
-def JBE8  : IBr<0x76, (ins brtarget8:$dst), "jbe\t$dst", []>;
-def JA8   : IBr<0x77, (ins brtarget8:$dst), "ja\t$dst", []>;
-def JS8   : IBr<0x78, (ins brtarget8:$dst), "js\t$dst", []>;
-def JNS8  : IBr<0x79, (ins brtarget8:$dst), "jns\t$dst", []>;
-def JP8   : IBr<0x7A, (ins brtarget8:$dst), "jp\t$dst", []>;
-def JNP8  : IBr<0x7B, (ins brtarget8:$dst), "jnp\t$dst", []>;
-def JL8   : IBr<0x7C, (ins brtarget8:$dst), "jl\t$dst", []>;
-def JGE8  : IBr<0x7D, (ins brtarget8:$dst), "jge\t$dst", []>;
-def JLE8  : IBr<0x7E, (ins brtarget8:$dst), "jle\t$dst", []>;
-def JG8   : IBr<0x7F, (ins brtarget8:$dst), "jg\t$dst", []>;
-
-def JCXZ8 : IBr<0xE3, (ins brtarget8:$dst), "jcxz\t$dst", []>;
-
-def JE  : IBr<0x84, (ins brtarget:$dst), "je\t$dst",
-              [(X86brcond bb:$dst, X86_COND_E, EFLAGS)]>, TB;
-def JNE : IBr<0x85, (ins brtarget:$dst), "jne\t$dst",
-              [(X86brcond bb:$dst, X86_COND_NE, EFLAGS)]>, TB;
-def JL  : IBr<0x8C, (ins brtarget:$dst), "jl\t$dst",
-              [(X86brcond bb:$dst, X86_COND_L, EFLAGS)]>, TB;
-def JLE : IBr<0x8E, (ins brtarget:$dst), "jle\t$dst",
-              [(X86brcond bb:$dst, X86_COND_LE, EFLAGS)]>, TB;
-def JG  : IBr<0x8F, (ins brtarget:$dst), "jg\t$dst",
-              [(X86brcond bb:$dst, X86_COND_G, EFLAGS)]>, TB;
-def JGE : IBr<0x8D, (ins brtarget:$dst), "jge\t$dst",
-              [(X86brcond bb:$dst, X86_COND_GE, EFLAGS)]>, TB;
-
-def JB  : IBr<0x82, (ins brtarget:$dst), "jb\t$dst",
-              [(X86brcond bb:$dst, X86_COND_B, EFLAGS)]>, TB;
-def JBE : IBr<0x86, (ins brtarget:$dst), "jbe\t$dst",
-              [(X86brcond bb:$dst, X86_COND_BE, EFLAGS)]>, TB;
-def JA  : IBr<0x87, (ins brtarget:$dst), "ja\t$dst",
-              [(X86brcond bb:$dst, X86_COND_A, EFLAGS)]>, TB;
-def JAE : IBr<0x83, (ins brtarget:$dst), "jae\t$dst",
-              [(X86brcond bb:$dst, X86_COND_AE, EFLAGS)]>, TB;
-
-def JS  : IBr<0x88, (ins brtarget:$dst), "js\t$dst",
-              [(X86brcond bb:$dst, X86_COND_S, EFLAGS)]>, TB;
-def JNS : IBr<0x89, (ins brtarget:$dst), "jns\t$dst",
-              [(X86brcond bb:$dst, X86_COND_NS, EFLAGS)]>, TB;
-def JP  : IBr<0x8A, (ins brtarget:$dst), "jp\t$dst",
-              [(X86brcond bb:$dst, X86_COND_P, EFLAGS)]>, TB;
-def JNP : IBr<0x8B, (ins brtarget:$dst), "jnp\t$dst",
-              [(X86brcond bb:$dst, X86_COND_NP, EFLAGS)]>, TB;
-def JO  : IBr<0x80, (ins brtarget:$dst), "jo\t$dst",
-              [(X86brcond bb:$dst, X86_COND_O, EFLAGS)]>, TB;
-def JNO : IBr<0x81, (ins brtarget:$dst), "jno\t$dst",
-              [(X86brcond bb:$dst, X86_COND_NO, EFLAGS)]>, TB;
-} // Uses = [EFLAGS]
 
 // Loop instructions
 
@@ -716,7 +694,7 @@ let isCall = 1 in
               XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
               XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15, EFLAGS],
       Uses = [ESP] in {
-    def CALLpcrel32 : Ii32<0xE8, RawFrm,
+    def CALLpcrel32 : Ii32PCRel<0xE8, RawFrm,
                            (outs), (ins i32imm_pcrel:$dst,variable_ops),
                            "call\t$dst", []>;
     def CALL32r     : I<0xFF, MRM2r, (outs), (ins GR32:$dst, variable_ops),
@@ -756,15 +734,18 @@ def TCRETURNri : I<0, Pseudo, (outs),
                  "#TC_RETURN $dst $offset",
                  []>;
 
-let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
-  def TAILJMPd : IBr<0xE9, (ins i32imm_pcrel:$dst), "jmp\t$dst  # TAILCALL",
+// FIXME: The should be pseudo instructions that are lowered when going to
+// mcinst.
+let isCall = 1, isBranch = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
+  def TAILJMPd : Ii32<0xE9, RawFrm, (outs),(ins i32imm_pcrel:$dst,variable_ops),
+                 "jmp\t$dst  # TAILCALL",
                  []>;
 let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
-  def TAILJMPr : I<0xFF, MRM4r, (outs), (ins GR32:$dst), 
+  def TAILJMPr : I<0xFF, MRM4r, (outs), (ins GR32:$dst, variable_ops), 
                    "jmp{l}\t{*}$dst  # TAILCALL",
                  []>;     
 let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
-  def TAILJMPm : I<0xFF, MRM4m, (outs), (ins i32mem:$dst),
+  def TAILJMPm : I<0xFF, MRM4m, (outs), (ins i32mem:$dst, variable_ops),
                    "jmp\t{*}$dst  # TAILCALL", []>;
 
 //===----------------------------------------------------------------------===//
@@ -877,7 +858,7 @@ def LEA32r   : I<0x8D, MRMSrcMem,
                  "lea{l}\t{$src|$dst}, {$dst|$src}",
                  [(set GR32:$dst, lea32addr:$src)]>, Requires<[In32BitMode]>;
 
-let Defs = [ECX,EDI,ESI], Uses = [ECX,EDI,ESI] in {
+let Defs = [ECX,EDI,ESI], Uses = [ECX,EDI,ESI], isCodeGenOnly = 1 in {
 def REP_MOVSB : I<0xA4, RawFrm, (outs), (ins), "{rep;movsb|rep movsb}",
                   [(X86rep_movs i8)]>, REP;
 def REP_MOVSW : I<0xA5, RawFrm, (outs), (ins), "{rep;movsw|rep movsw}",
@@ -886,15 +867,30 @@ def REP_MOVSD : I<0xA5, RawFrm, (outs), (ins), "{rep;movsl|rep movsd}",
                   [(X86rep_movs i32)]>, REP;
 }
 
-let Defs = [ECX,EDI], Uses = [AL,ECX,EDI] in
+// These uses the DF flag in the EFLAGS register to inc or dec EDI and ESI
+let Defs = [EDI,ESI], Uses = [EDI,ESI,EFLAGS] in {
+def MOVSB : I<0xA4, RawFrm, (outs), (ins), "{movsb}", []>;
+def MOVSW : I<0xA5, RawFrm, (outs), (ins), "{movsw}", []>, OpSize;
+def MOVSD : I<0xA5, RawFrm, (outs), (ins), "{movsl|movsd}", []>;
+}
+
+let Defs = [ECX,EDI], Uses = [AL,ECX,EDI], isCodeGenOnly = 1 in
 def REP_STOSB : I<0xAA, RawFrm, (outs), (ins), "{rep;stosb|rep stosb}",
                   [(X86rep_stos i8)]>, REP;
-let Defs = [ECX,EDI], Uses = [AX,ECX,EDI] in
+let Defs = [ECX,EDI], Uses = [AX,ECX,EDI], isCodeGenOnly = 1 in
 def REP_STOSW : I<0xAB, RawFrm, (outs), (ins), "{rep;stosw|rep stosw}",
                   [(X86rep_stos i16)]>, REP, OpSize;
-let Defs = [ECX,EDI], Uses = [EAX,ECX,EDI] in
+let Defs = [ECX,EDI], Uses = [EAX,ECX,EDI], isCodeGenOnly = 1 in
 def REP_STOSD : I<0xAB, RawFrm, (outs), (ins), "{rep;stosl|rep stosd}",
                   [(X86rep_stos i32)]>, REP;
+
+// These uses the DF flag in the EFLAGS register to inc or dec EDI and ESI
+let Defs = [EDI], Uses = [AL,EDI,EFLAGS] in
+def STOSB : I<0xAA, RawFrm, (outs), (ins), "{stosb}", []>;
+let Defs = [EDI], Uses = [AX,EDI,EFLAGS] in
+def STOSW : I<0xAB, RawFrm, (outs), (ins), "{stosw}", []>, OpSize;
+let Defs = [EDI], Uses = [EAX,EDI,EFLAGS] in
+def STOSD : I<0xAB, RawFrm, (outs), (ins), "{stosl|stosd}", []>;
 
 def SCAS8 : I<0xAE, RawFrm, (outs), (ins), "scas{b}", []>;
 def SCAS16 : I<0xAF, RawFrm, (outs), (ins), "scas{w}", []>, OpSize;
@@ -907,6 +903,9 @@ def CMPS32 : I<0xA7, RawFrm, (outs), (ins), "cmps{l}", []>;
 let Defs = [RAX, RDX] in
 def RDTSC : I<0x31, RawFrm, (outs), (ins), "rdtsc", [(X86rdtsc)]>,
             TB;
+
+let Defs = [RAX, RCX, RDX] in
+def RDTSCP : I<0x01, MRM_F9, (outs), (ins), "rdtscp", []>, TB;
 
 let isBarrier = 1, hasCtrlDep = 1 in {
 def TRAP    : I<0x0B, RawFrm, (outs), (ins), "ud2", [(trap)]>, TB;
@@ -996,6 +995,7 @@ def MOV32ri : Ii32<0xB8, AddRegFrm, (outs GR32:$dst), (ins i32imm:$src),
                    "mov{l}\t{$src, $dst|$dst, $src}",
                    [(set GR32:$dst, imm:$src)]>;
 }
+
 def MOV8mi  : Ii8 <0xC6, MRM0m, (outs), (ins i8mem :$dst, i8imm :$src),
                    "mov{b}\t{$src, $dst|$dst, $src}",
                    [(store (i8 imm:$src), addr:$dst)]>;
@@ -2306,97 +2306,99 @@ let isTwoAddress = 0 in {
 
 def RCL8r1 : I<0xD0, MRM2r, (outs GR8:$dst), (ins GR8:$src),
                "rcl{b}\t{1, $dst|$dst, 1}", []>;
-def RCL8m1 : I<0xD0, MRM2m, (outs i8mem:$dst), (ins i8mem:$src),
-               "rcl{b}\t{1, $dst|$dst, 1}", []>;
 let Uses = [CL] in {
 def RCL8rCL : I<0xD2, MRM2r, (outs GR8:$dst), (ins GR8:$src),
-                "rcl{b}\t{%cl, $dst|$dst, CL}", []>;
-def RCL8mCL : I<0xD2, MRM2m, (outs i8mem:$dst), (ins i8mem:$src),
                 "rcl{b}\t{%cl, $dst|$dst, CL}", []>;
 }
 def RCL8ri : Ii8<0xC0, MRM2r, (outs GR8:$dst), (ins GR8:$src, i8imm:$cnt),
                  "rcl{b}\t{$cnt, $dst|$dst, $cnt}", []>;
-def RCL8mi : Ii8<0xC0, MRM2m, (outs i8mem:$dst), (ins i8mem:$src, i8imm:$cnt),
-                 "rcl{b}\t{$cnt, $dst|$dst, $cnt}", []>;
   
 def RCL16r1 : I<0xD1, MRM2r, (outs GR16:$dst), (ins GR16:$src),
-                "rcl{w}\t{1, $dst|$dst, 1}", []>, OpSize;
-def RCL16m1 : I<0xD1, MRM2m, (outs i16mem:$dst), (ins i16mem:$src),
                 "rcl{w}\t{1, $dst|$dst, 1}", []>, OpSize;
 let Uses = [CL] in {
 def RCL16rCL : I<0xD3, MRM2r, (outs GR16:$dst), (ins GR16:$src),
                  "rcl{w}\t{%cl, $dst|$dst, CL}", []>, OpSize;
-def RCL16mCL : I<0xD3, MRM2m, (outs i16mem:$dst), (ins i16mem:$src),
-                 "rcl{w}\t{%cl, $dst|$dst, CL}", []>, OpSize;
 }
 def RCL16ri : Ii8<0xC1, MRM2r, (outs GR16:$dst), (ins GR16:$src, i8imm:$cnt),
-                  "rcl{w}\t{$cnt, $dst|$dst, $cnt}", []>, OpSize;
-def RCL16mi : Ii8<0xC1, MRM2m, (outs i16mem:$dst), 
-                  (ins i16mem:$src, i8imm:$cnt),
                   "rcl{w}\t{$cnt, $dst|$dst, $cnt}", []>, OpSize;
 
 def RCL32r1 : I<0xD1, MRM2r, (outs GR32:$dst), (ins GR32:$src),
                 "rcl{l}\t{1, $dst|$dst, 1}", []>;
-def RCL32m1 : I<0xD1, MRM2m, (outs i32mem:$dst), (ins i32mem:$src),
-                "rcl{l}\t{1, $dst|$dst, 1}", []>;
 let Uses = [CL] in {
 def RCL32rCL : I<0xD3, MRM2r, (outs GR32:$dst), (ins GR32:$src),
-                 "rcl{l}\t{%cl, $dst|$dst, CL}", []>;
-def RCL32mCL : I<0xD3, MRM2m, (outs i32mem:$dst), (ins i32mem:$src),
                  "rcl{l}\t{%cl, $dst|$dst, CL}", []>;
 }
 def RCL32ri : Ii8<0xC1, MRM2r, (outs GR32:$dst), (ins GR32:$src, i8imm:$cnt),
                   "rcl{l}\t{$cnt, $dst|$dst, $cnt}", []>;
-def RCL32mi : Ii8<0xC1, MRM2m, (outs i32mem:$dst), 
-                  (ins i32mem:$src, i8imm:$cnt),
-                  "rcl{l}\t{$cnt, $dst|$dst, $cnt}", []>;
                   
 def RCR8r1 : I<0xD0, MRM3r, (outs GR8:$dst), (ins GR8:$src),
-               "rcr{b}\t{1, $dst|$dst, 1}", []>;
-def RCR8m1 : I<0xD0, MRM3m, (outs i8mem:$dst), (ins i8mem:$src),
                "rcr{b}\t{1, $dst|$dst, 1}", []>;
 let Uses = [CL] in {
 def RCR8rCL : I<0xD2, MRM3r, (outs GR8:$dst), (ins GR8:$src),
                 "rcr{b}\t{%cl, $dst|$dst, CL}", []>;
-def RCR8mCL : I<0xD2, MRM3m, (outs i8mem:$dst), (ins i8mem:$src),
-                "rcr{b}\t{%cl, $dst|$dst, CL}", []>;
 }
 def RCR8ri : Ii8<0xC0, MRM3r, (outs GR8:$dst), (ins GR8:$src, i8imm:$cnt),
-                 "rcr{b}\t{$cnt, $dst|$dst, $cnt}", []>;
-def RCR8mi : Ii8<0xC0, MRM3m, (outs i8mem:$dst), (ins i8mem:$src, i8imm:$cnt),
                  "rcr{b}\t{$cnt, $dst|$dst, $cnt}", []>;
   
 def RCR16r1 : I<0xD1, MRM3r, (outs GR16:$dst), (ins GR16:$src),
                 "rcr{w}\t{1, $dst|$dst, 1}", []>, OpSize;
-def RCR16m1 : I<0xD1, MRM3m, (outs i16mem:$dst), (ins i16mem:$src),
-                "rcr{w}\t{1, $dst|$dst, 1}", []>, OpSize;
 let Uses = [CL] in {
 def RCR16rCL : I<0xD3, MRM3r, (outs GR16:$dst), (ins GR16:$src),
-                 "rcr{w}\t{%cl, $dst|$dst, CL}", []>, OpSize;
-def RCR16mCL : I<0xD3, MRM3m, (outs i16mem:$dst), (ins i16mem:$src),
                  "rcr{w}\t{%cl, $dst|$dst, CL}", []>, OpSize;
 }
 def RCR16ri : Ii8<0xC1, MRM3r, (outs GR16:$dst), (ins GR16:$src, i8imm:$cnt),
                   "rcr{w}\t{$cnt, $dst|$dst, $cnt}", []>, OpSize;
-def RCR16mi : Ii8<0xC1, MRM3m, (outs i16mem:$dst), 
-                  (ins i16mem:$src, i8imm:$cnt),
-                  "rcr{w}\t{$cnt, $dst|$dst, $cnt}", []>, OpSize;
 
 def RCR32r1 : I<0xD1, MRM3r, (outs GR32:$dst), (ins GR32:$src),
-                "rcr{l}\t{1, $dst|$dst, 1}", []>;
-def RCR32m1 : I<0xD1, MRM3m, (outs i32mem:$dst), (ins i32mem:$src),
                 "rcr{l}\t{1, $dst|$dst, 1}", []>;
 let Uses = [CL] in {
 def RCR32rCL : I<0xD3, MRM3r, (outs GR32:$dst), (ins GR32:$src),
                  "rcr{l}\t{%cl, $dst|$dst, CL}", []>;
-def RCR32mCL : I<0xD3, MRM3m, (outs i32mem:$dst), (ins i32mem:$src),
-                 "rcr{l}\t{%cl, $dst|$dst, CL}", []>;
 }
 def RCR32ri : Ii8<0xC1, MRM3r, (outs GR32:$dst), (ins GR32:$src, i8imm:$cnt),
                   "rcr{l}\t{$cnt, $dst|$dst, $cnt}", []>;
-def RCR32mi : Ii8<0xC1, MRM3m, (outs i32mem:$dst), 
-                  (ins i32mem:$src, i8imm:$cnt),
+
+let isTwoAddress = 0 in {
+def RCL8m1 : I<0xD0, MRM2m, (outs), (ins i8mem:$dst),
+               "rcl{b}\t{1, $dst|$dst, 1}", []>;
+def RCL8mi : Ii8<0xC0, MRM2m, (outs), (ins i8mem:$dst, i8imm:$cnt),
+                 "rcl{b}\t{$cnt, $dst|$dst, $cnt}", []>;
+def RCL16m1 : I<0xD1, MRM2m, (outs), (ins i16mem:$dst),
+                "rcl{w}\t{1, $dst|$dst, 1}", []>, OpSize;
+def RCL16mi : Ii8<0xC1, MRM2m, (outs), (ins i16mem:$dst, i8imm:$cnt),
+                  "rcl{w}\t{$cnt, $dst|$dst, $cnt}", []>, OpSize;
+def RCL32m1 : I<0xD1, MRM2m, (outs), (ins i32mem:$dst),
+                "rcl{l}\t{1, $dst|$dst, 1}", []>;
+def RCL32mi : Ii8<0xC1, MRM2m, (outs), (ins i32mem:$dst, i8imm:$cnt),
+                  "rcl{l}\t{$cnt, $dst|$dst, $cnt}", []>;
+def RCR8m1 : I<0xD0, MRM3m, (outs), (ins i8mem:$dst),
+               "rcr{b}\t{1, $dst|$dst, 1}", []>;
+def RCR8mi : Ii8<0xC0, MRM3m, (outs), (ins i8mem:$dst, i8imm:$cnt),
+                 "rcr{b}\t{$cnt, $dst|$dst, $cnt}", []>;
+def RCR16m1 : I<0xD1, MRM3m, (outs), (ins i16mem:$dst),
+                "rcr{w}\t{1, $dst|$dst, 1}", []>, OpSize;
+def RCR16mi : Ii8<0xC1, MRM3m, (outs), (ins i16mem:$dst, i8imm:$cnt),
+                  "rcr{w}\t{$cnt, $dst|$dst, $cnt}", []>, OpSize;
+def RCR32m1 : I<0xD1, MRM3m, (outs), (ins i32mem:$dst),
+                "rcr{l}\t{1, $dst|$dst, 1}", []>;
+def RCR32mi : Ii8<0xC1, MRM3m, (outs), (ins i32mem:$dst, i8imm:$cnt),
                   "rcr{l}\t{$cnt, $dst|$dst, $cnt}", []>;
+
+let Uses = [CL] in {
+def RCL8mCL : I<0xD2, MRM2m, (outs), (ins i8mem:$dst),
+                "rcl{b}\t{%cl, $dst|$dst, CL}", []>;
+def RCL16mCL : I<0xD3, MRM2m, (outs), (ins i16mem:$dst),
+                 "rcl{w}\t{%cl, $dst|$dst, CL}", []>, OpSize;
+def RCL32mCL : I<0xD3, MRM2m, (outs), (ins i32mem:$dst),
+                 "rcl{l}\t{%cl, $dst|$dst, CL}", []>;
+def RCR8mCL : I<0xD2, MRM3m, (outs), (ins i8mem:$dst),
+                "rcr{b}\t{%cl, $dst|$dst, CL}", []>;
+def RCR16mCL : I<0xD3, MRM3m, (outs), (ins i16mem:$dst),
+                 "rcr{w}\t{%cl, $dst|$dst, CL}", []>, OpSize;
+def RCR32mCL : I<0xD3, MRM3m, (outs), (ins i32mem:$dst),
+                 "rcr{l}\t{%cl, $dst|$dst, CL}", []>;
+}
+}
 
 // FIXME: provide shorter instructions when imm8 == 1
 let Uses = [CL] in {
@@ -3006,8 +3008,8 @@ let isTwoAddress = 0 in {
   def SBB32mr  : I<0x19, MRMDestMem, (outs), (ins i32mem:$dst, GR32:$src2), 
                    "sbb{l}\t{$src2, $dst|$dst, $src2}",
                    [(store (sube (load addr:$dst), GR32:$src2), addr:$dst)]>;
-  def SBB8mi  : Ii32<0x80, MRM3m, (outs), (ins i8mem:$dst, i8imm:$src2), 
-                      "sbb{b}\t{$src2, $dst|$dst, $src2}",
+  def SBB8mi  : Ii8<0x80, MRM3m, (outs), (ins i8mem:$dst, i8imm:$src2), 
+                    "sbb{b}\t{$src2, $dst|$dst, $src2}",
                    [(store (sube (loadi8 addr:$dst), imm:$src2), addr:$dst)]>;
   def SBB16mi  : Ii16<0x81, MRM3m, (outs), (ins i16mem:$dst, i16imm:$src2), 
                       "sbb{w}\t{$src2, $dst|$dst, $src2}",
@@ -3234,17 +3236,18 @@ def LAHF     : I<0x9F, RawFrm, (outs),  (ins), "lahf", []>;  // AH = flags
 
 let Uses = [EFLAGS] in {
 // Use sbb to materialize carry bit.
-
 let Defs = [EFLAGS], isCodeGenOnly = 1 in {
-def SETB_C8r : I<0x18, MRMInitReg, (outs GR8:$dst), (ins),
-                 "sbb{b}\t$dst, $dst",
+// FIXME: These are pseudo ops that should be replaced with Pat<> patterns.
+// However, Pat<> can't replicate the destination reg into the inputs of the
+// result.
+// FIXME: Change these to have encoding Pseudo when X86MCCodeEmitter replaces
+// X86CodeEmitter.
+def SETB_C8r : I<0x18, MRMInitReg, (outs GR8:$dst), (ins), "",
                  [(set GR8:$dst, (X86setcc_c X86_COND_B, EFLAGS))]>;
-def SETB_C16r : I<0x19, MRMInitReg, (outs GR16:$dst), (ins),
-                  "sbb{w}\t$dst, $dst",
+def SETB_C16r : I<0x19, MRMInitReg, (outs GR16:$dst), (ins), "",
                  [(set GR16:$dst, (X86setcc_c X86_COND_B, EFLAGS))]>,
                 OpSize;
-def SETB_C32r : I<0x19, MRMInitReg, (outs GR32:$dst), (ins),
-                  "sbb{l}\t$dst, $dst",
+def SETB_C32r : I<0x19, MRMInitReg, (outs GR32:$dst), (ins), "",
                  [(set GR32:$dst, (X86setcc_c X86_COND_B, EFLAGS))]>;
 } // isCodeGenOnly
 
@@ -3681,7 +3684,7 @@ def MOVZX32rm16: I<0xB7, MRMSrcMem, (outs GR32:$dst), (ins i16mem:$src),
                    "movz{wl|x}\t{$src, $dst|$dst, $src}",
                    [(set GR32:$dst, (zextloadi32i16 addr:$src))]>, TB;
 
-// These are the same as the regular regular MOVZX32rr8 and MOVZX32rm8
+// These are the same as the regular MOVZX32rr8 and MOVZX32rm8
 // except that they use GR32_NOREX for the output operand register class
 // instead of GR32. This allows them to operate on h registers on x86-64.
 def MOVZX32_NOREXrr8 : I<0xB6, MRMSrcReg,
@@ -3716,10 +3719,10 @@ let neverHasSideEffects = 1 in {
 
 // Alias instructions that map movr0 to xor.
 // FIXME: remove when we can teach regalloc that xor reg, reg is ok.
+// FIXME: Set encoding to pseudo.
 let Defs = [EFLAGS], isReMaterializable = 1, isAsCheapAsAMove = 1,
     isCodeGenOnly = 1 in {
-def MOV8r0   : I<0x30, MRMInitReg, (outs GR8 :$dst), (ins),
-                 "xor{b}\t$dst, $dst",
+def MOV8r0   : I<0x30, MRMInitReg, (outs GR8 :$dst), (ins), "",
                  [(set GR8:$dst, 0)]>;
 
 // We want to rewrite MOV16r0 in terms of MOV32r0, because it's a smaller
@@ -3731,8 +3734,8 @@ def MOV16r0   : I<0x31, MRMInitReg, (outs GR16:$dst), (ins),
                  "",
                  [(set GR16:$dst, 0)]>, OpSize;
                  
-def MOV32r0  : I<0x31, MRMInitReg, (outs GR32:$dst), (ins),
-                 "xor{l}\t$dst, $dst",
+// FIXME: Set encoding to pseudo.
+def MOV32r0  : I<0x31, MRMInitReg, (outs GR32:$dst), (ins), "",
                  [(set GR32:$dst, 0)]>;
 }
 
@@ -4077,7 +4080,7 @@ def LSL32rm : I<0x03, MRMSrcMem, (outs GR32:$dst), (ins i32mem:$src),
 def LSL32rr : I<0x03, MRMSrcReg, (outs GR32:$dst), (ins GR32:$src),
                 "lsl{l}\t{$src, $dst|$dst, $src}", []>, TB;
                 
-def INVLPG : I<0x01, RawFrm, (outs), (ins), "invlpg", []>, TB;
+def INVLPG : I<0x01, MRM7m, (outs), (ins i8mem:$addr), "invlpg\t$addr", []>, TB;
 
 def STRr : I<0x00, MRM1r, (outs GR16:$dst), (ins),
              "str{w}\t{$dst}", []>, TB;
@@ -4155,6 +4158,26 @@ def LLDT16r : I<0x00, MRM2r, (outs), (ins GR16:$src),
 def LLDT16m : I<0x00, MRM2m, (outs), (ins i16mem:$src),
                 "lldt{w}\t$src", []>, TB;
                 
+// Lock instruction prefix
+def LOCK_PREFIX : I<0xF0, RawFrm, (outs),  (ins), "lock", []>;
+
+// Repeat string operation instruction prefixes
+// These uses the DF flag in the EFLAGS register to inc or dec ECX
+let Defs = [ECX], Uses = [ECX,EFLAGS] in {
+// Repeat (used with INS, OUTS, MOVS, LODS and STOS)
+def REP_PREFIX : I<0xF3, RawFrm, (outs),  (ins), "rep", []>;
+// Repeat while not equal (used with CMPS and SCAS)
+def REPNE_PREFIX : I<0xF2, RawFrm, (outs),  (ins), "repne", []>;
+}
+
+// Segment override instruction prefixes
+def CS_PREFIX : I<0x2E, RawFrm, (outs),  (ins), "cs", []>;
+def SS_PREFIX : I<0x36, RawFrm, (outs),  (ins), "ss", []>;
+def DS_PREFIX : I<0x3E, RawFrm, (outs),  (ins), "ds", []>;
+def ES_PREFIX : I<0x26, RawFrm, (outs),  (ins), "es", []>;
+def FS_PREFIX : I<0x64, RawFrm, (outs),  (ins), "fs", []>;
+def GS_PREFIX : I<0x65, RawFrm, (outs),  (ins), "gs", []>;
+
 // String manipulation instructions
 
 def LODSB : I<0xAC, RawFrm, (outs), (ins), "lodsb", []>;
@@ -4219,17 +4242,17 @@ def WBINVD : I<0x09, RawFrm, (outs), (ins), "wbinvd", []>, TB;
 // VMX instructions
 
 // 66 0F 38 80
-def INVEPT : I<0x38, RawFrm, (outs), (ins), "invept", []>, OpSize, TB;
+def INVEPT : I<0x80, RawFrm, (outs), (ins), "invept", []>, OpSize, T8;
 // 66 0F 38 81
-def INVVPID : I<0x38, RawFrm, (outs), (ins), "invvpid", []>, OpSize, TB;
+def INVVPID : I<0x81, RawFrm, (outs), (ins), "invvpid", []>, OpSize, T8;
 // 0F 01 C1
-def VMCALL : I<0x01, RawFrm, (outs), (ins), "vmcall", []>, TB;
+def VMCALL : I<0x01, MRM_C1, (outs), (ins), "vmcall", []>, TB;
 def VMCLEARm : I<0xC7, MRM6m, (outs), (ins i64mem:$vmcs),
   "vmclear\t$vmcs", []>, OpSize, TB;
 // 0F 01 C2
-def VMLAUNCH : I<0x01, RawFrm, (outs), (ins), "vmlaunch", []>, TB;
+def VMLAUNCH : I<0x01, MRM_C2, (outs), (ins), "vmlaunch", []>, TB;
 // 0F 01 C3
-def VMRESUME : I<0x01, RawFrm, (outs), (ins), "vmresume", []>, TB;
+def VMRESUME : I<0x01, MRM_C3, (outs), (ins), "vmresume", []>, TB;
 def VMPTRLDm : I<0xC7, MRM6m, (outs), (ins i64mem:$vmcs),
   "vmptrld\t$vmcs", []>, TB;
 def VMPTRSTm : I<0xC7, MRM7m, (outs i64mem:$vmcs), (ins),
@@ -4251,7 +4274,7 @@ def VMWRITE32rm : I<0x79, MRMSrcMem, (outs GR32:$dst), (ins i32mem:$src),
 def VMWRITE32rr : I<0x79, MRMSrcReg, (outs GR32:$dst), (ins GR32:$src),
   "vmwrite{l}\t{$src, $dst|$dst, $src}", []>, TB;
 // 0F 01 C4
-def VMXOFF : I<0x01, RawFrm, (outs), (ins), "vmxoff", []>, OpSize;
+def VMXOFF : I<0x01, MRM_C4, (outs), (ins), "vmxoff", []>, TB;
 def VMXON : I<0xC7, MRM6m, (outs), (ins i64mem:$vmxon),
   "vmxon\t{$vmxon}", []>, XD;
 
@@ -5179,6 +5202,12 @@ include "X86InstrFPStack.td"
 //===----------------------------------------------------------------------===//
 
 include "X86Instr64bit.td"
+
+//===----------------------------------------------------------------------===//
+// SIMD support (SSE, MMX and AVX)
+//===----------------------------------------------------------------------===//
+
+include "X86InstrFragmentsSIMD.td"
 
 //===----------------------------------------------------------------------===//
 // XMM Floating point support (requires SSE / SSE2)

@@ -29,10 +29,7 @@
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/ADT/Statistic.h"
 using namespace llvm;
-
-STATISTIC(EmittedInsts, "Number of machine instrs printed");
 
 namespace {
   struct AlphaAsmPrinter : public AsmPrinter {
@@ -40,19 +37,25 @@ namespace {
     ///
 
     explicit AlphaAsmPrinter(formatted_raw_ostream &o, TargetMachine &tm,
-                             const MCAsmInfo *T, bool V)
-      : AsmPrinter(o, tm, T, V) {}
+                             MCContext &Ctx, MCStreamer &Streamer,
+                             const MCAsmInfo *T)
+      : AsmPrinter(o, tm, Ctx, Streamer, T) {}
 
     virtual const char *getPassName() const {
       return "Alpha Assembly Printer";
     }
     void printInstruction(const MachineInstr *MI);
+    void EmitInstruction(const MachineInstr *MI) {
+      printInstruction(MI);
+      OutStreamer.AddBlankLine();
+    }
     static const char *getRegisterName(unsigned RegNo);
 
     void printOp(const MachineOperand &MO, bool IsCallOp = false);
     void printOperand(const MachineInstr *MI, int opNum);
     void printBaseOffsetPair(const MachineInstr *MI, int i, bool brackets=true);
-    bool runOnMachineFunction(MachineFunction &F);
+    virtual void EmitFunctionBodyStart();
+    virtual void EmitFunctionBodyEnd(); 
     void EmitStartOfAsmFile(Module &M);
 
     bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
@@ -93,7 +96,7 @@ void AlphaAsmPrinter::printOp(const MachineOperand &MO, bool IsCallOp) {
     return;
 
   case MachineOperand::MO_MachineBasicBlock:
-    O << *GetMBBSymbol(MO.getMBB()->getNumber());
+    O << *MO.getMBB()->getSymbol(OutContext);
     return;
 
   case MachineOperand::MO_ConstantPoolIndex:
@@ -120,73 +123,16 @@ void AlphaAsmPrinter::printOp(const MachineOperand &MO, bool IsCallOp) {
   }
 }
 
-/// runOnMachineFunction - This uses the printMachineInstruction()
-/// method to print assembly for each instruction.
-///
-bool AlphaAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
-  this->MF = &MF;
-
-  SetupMachineFunction(MF);
-  O << "\n\n";
-
-  // Print out constants referenced by the function
-  EmitConstantPool(MF.getConstantPool());
-
-  // Print out jump tables referenced by the function
-  EmitJumpTableInfo(MF.getJumpTableInfo(), MF);
-
-  // Print out labels for the function.
-  const Function *F = MF.getFunction();
-  OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(F, Mang, TM));
-
-  EmitAlignment(MF.getAlignment(), F);
-  switch (F->getLinkage()) {
-  default: llvm_unreachable("Unknown linkage type!");
-  case Function::InternalLinkage:  // Symbols default to internal.
-  case Function::PrivateLinkage:
-  case Function::LinkerPrivateLinkage:
-    break;
-  case Function::ExternalLinkage:
-    O << "\t.globl " << *CurrentFnSym << '\n';
-    break;
-  case Function::WeakAnyLinkage:
-  case Function::WeakODRLinkage:
-  case Function::LinkOnceAnyLinkage:
-  case Function::LinkOnceODRLinkage:
-    O << MAI->getWeakRefDirective() << *CurrentFnSym << '\n';
-    break;
-  }
-
-  printVisibility(CurrentFnSym, F->getVisibility());
-
+/// EmitFunctionBodyStart - Targets can override this to emit stuff before
+/// the first basic block in the function.
+void AlphaAsmPrinter::EmitFunctionBodyStart() {
   O << "\t.ent " << *CurrentFnSym << "\n";
+}
 
-  O << *CurrentFnSym << ":\n";
-
-  // Print out code for the function.
-  for (MachineFunction::const_iterator I = MF.begin(), E = MF.end();
-       I != E; ++I) {
-    if (I != MF.begin())
-      EmitBasicBlockStart(I);
-
-    for (MachineBasicBlock::const_iterator II = I->begin(), E = I->end();
-         II != E; ++II) {
-      // Print the assembly for the instruction.
-      ++EmittedInsts;
-      processDebugLoc(II, true);
-      printInstruction(II);
-      
-      if (VerboseAsm)
-        EmitComments(*II);
-      O << '\n';
-      processDebugLoc(II, false);
-    }
-  }
-
+/// EmitFunctionBodyEnd - Targets can override this to emit stuff after
+/// the last basic block in the function.
+void AlphaAsmPrinter::EmitFunctionBodyEnd() {
   O << "\t.end " << *CurrentFnSym << "\n";
-
-  // We didn't modify anything.
-  return false;
 }
 
 void AlphaAsmPrinter::EmitStartOfAsmFile(Module &M) {

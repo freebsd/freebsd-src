@@ -27,6 +27,7 @@ namespace llvm {
 //===----------------------------------------------------------------------===//
 
 template <typename ImutInfo> class ImutAVLFactory;
+template <typename ImutInfo> class ImutIntervalAVLFactory;
 template <typename ImutInfo> class ImutAVLTreeInOrderIterator;
 template <typename ImutInfo> class ImutAVLTreeGenericIterator;
 
@@ -39,6 +40,7 @@ public:
 
   typedef ImutAVLFactory<ImutInfo>          Factory;
   friend class ImutAVLFactory<ImutInfo>;
+  friend class ImutIntervalAVLFactory<ImutInfo>;
 
   friend class ImutAVLTreeGenericIterator<ImutInfo>;
   friend class FoldingSet<ImutAVLTree>;
@@ -389,7 +391,7 @@ public:
   // These have succinct names so that the balancing code
   // is as terse (and readable) as possible.
   //===--------------------------------------------------===//
-private:
+protected:
 
   bool           isEmpty(TreeTy* T) const { return !T; }
   unsigned Height(TreeTy* T) const { return T ? T->getHeight() : 0; }
@@ -581,25 +583,14 @@ public:
         continue;
       
       // We found a collision.  Perform a comparison of Contents('T')
-      // with Contents('L')+'V'+Contents('R').
+      // with Contents('TNew')
       typename TreeTy::iterator TI = T->begin(), TE = T->end();
       
-      // First compare Contents('L') with the (initial) contents of T.
-      if (!CompareTreeWithSection(TNew->getLeft(), TI, TE))
-        continue;
-      
-      // Now compare the new data element.
-      if (TI == TE || !TI->ElementEqual(TNew->getValue()))
-        continue;
-      
-      ++TI;
-      
-      // Now compare the remainder of 'T' with 'R'.
-      if (!CompareTreeWithSection(TNew->getRight(), TI, TE))
+      if (!CompareTreeWithSection(TNew, TI, TE))
         continue;
       
       if (TI != TE)
-        continue; // Contents('R') did not match suffix of 'T'.
+        continue; // T has more contents than TNew.
       
       // Trees did match!  Return 'T'.
       return T;

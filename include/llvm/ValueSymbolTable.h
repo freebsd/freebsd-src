@@ -17,7 +17,6 @@
 #include "llvm/Value.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/System/DataTypes.h"
-#include "llvm/ADT/ilist_node.h"
 
 namespace llvm {
   template<typename ValueSubClass, typename ItemParentClass>
@@ -195,9 +194,15 @@ public:
 /// @name Mutators
 /// @{
 public:
-  /// insert - The method inserts a new entry into the stringmap.
+  /// insert - The method inserts a new entry into the stringmap. This will
+  /// replace existing entry, if any.
   void insert(StringRef Name,  NamedMDNode *Node) {
-    (void) mmap.GetOrCreateValue(Name, Node);
+    StringMapEntry<NamedMDNode *> &Entry = 
+      mmap.GetOrCreateValue(Name, Node);
+    if (Entry.getValue() != Node) {
+      mmap.remove(&Entry);
+      (void) mmap.GetOrCreateValue(Name, Node);
+    }
   }
   
   /// This method removes a NamedMDNode from the symbol table.  

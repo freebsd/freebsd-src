@@ -14,16 +14,20 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/PassManager.h"
 #include "llvm/Pass.h"
+#include "llvm/Analysis/Verifier.h"
 #include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/FileWriters.h"
 #include "llvm/CodeGen/GCStrategy.h"
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCStreamer.h"
+#include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FormattedStream.h"
@@ -57,14 +61,24 @@ static cl::opt<bool> PrintLSR("print-lsr-output", cl::Hidden,
     cl::desc("Print LLVM IR produced by the loop-reduce pass"));
 static cl::opt<bool> PrintISelInput("print-isel-input", cl::Hidden,
     cl::desc("Print LLVM IR input to isel pass"));
-static cl::opt<bool> PrintEmittedAsm("print-emitted-asm", cl::Hidden,
-    cl::desc("Dump emitter generated instructions as assembly"));
 static cl::opt<bool> PrintGCInfo("print-gc", cl::Hidden,
     cl::desc("Dump garbage collector data"));
 static cl::opt<bool> VerifyMachineCode("verify-machineinstrs", cl::Hidden,
     cl::desc("Verify generated machine code"),
     cl::init(getenv("LLVM_VERIFY_MACHINEINSTRS")!=NULL));
 
+static cl::opt<cl::boolOrDefault>
+AsmVerbose("asm-verbose", cl::desc("Add comments to directives."),
+           cl::init(cl::BOU_UNSET));
+
+static bool getVerboseAsm() {
+  switch (AsmVerbose) {
+  default:
+  case cl::BOU_UNSET: return TargetMachine::getAsmVerbosityDefault();
+  case cl::BOU_TRUE:  return true;
+  case cl::BOU_FALSE: return false;
+  }      
+}
 
 // Enable or disable FastISel. Both options are needed, because
 // FastISel is enabled by default with -fast, and we wish to be
@@ -98,139 +112,81 @@ LLVMTargetMachine::setCodeModelForStatic() {
   setCodeModel(CodeModel::Small);
 }
 
-FileModel::Model
-LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
-                                       formatted_raw_ostream &Out,
-                                       CodeGenFileType FileType,
-                                       CodeGenOpt::Level OptLevel) {
+bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
+                                            formatted_raw_ostream &Out,
+                                            CodeGenFileType FileType,
+                                            CodeGenOpt::Level OptLevel) {
   // Add common CodeGen passes.
   if (addCommonCodeGenPasses(PM, OptLevel))
-    return FileModel::Error;
+    return true;
 
+  OwningPtr<MCContext> Context(new MCContext());
+  OwningPtr<MCStreamer> AsmStreamer;
+
+  formatted_raw_ostream *LegacyOutput;
   switch (FileType) {
-  default:
+  default: return true;
+  case CGFT_AssemblyFile: {
+    const MCAsmInfo &MAI = *getMCAsmInfo();
+    MCInstPrinter *InstPrinter =
+      getTarget().createMCInstPrinter(MAI.getAssemblerDialect(), MAI, Out);
+    AsmStreamer.reset(createAsmStreamer(*Context, Out, MAI,
+                                        getTargetData()->isLittleEndian(),
+                                        getVerboseAsm(), InstPrinter,
+                                        /*codeemitter*/0));
+    // Set the AsmPrinter's "O" to the output file.
+    LegacyOutput = &Out;
     break;
-  case TargetMachine::AssemblyFile:
-    if (addAssemblyEmitter(PM, OptLevel, getAsmVerbosityDefault(), Out))
-      return FileModel::Error;
-    return FileModel::AsmFile;
-  case TargetMachine::ObjectFile:
-    if (!addObjectFileEmitter(PM, OptLevel, Out))
-      return FileModel::MachOFile;
-    else if (getELFWriterInfo())
-      return FileModel::ElfFile; 
   }
-  return FileModel::Error;
-}
-
-bool LLVMTargetMachine::addAssemblyEmitter(PassManagerBase &PM,
-                                           CodeGenOpt::Level OptLevel,
-                                           bool Verbose,
-                                           formatted_raw_ostream &Out) {
+  case CGFT_ObjectFile: {
+    // Create the code emitter for the target if it exists.  If not, .o file
+    // emission fails.
+    MCCodeEmitter *MCE = getTarget().createCodeEmitter(*this, *Context);
+    if (MCE == 0)
+      return true;
+    
+    AsmStreamer.reset(createMachOStreamer(*Context, Out, MCE));
+    
+    // Any output to the asmprinter's "O" stream is bad and needs to be fixed,
+    // force it to come out stderr.
+    // FIXME: this is horrible and leaks, eventually remove the raw_ostream from
+    // asmprinter.
+    LegacyOutput = new formatted_raw_ostream(errs());
+    break;
+  }
+  case CGFT_Null:
+    // The Null output is intended for use for performance analysis and testing,
+    // not real users.
+    AsmStreamer.reset(createNullStreamer(*Context));
+    // Any output to the asmprinter's "O" stream is bad and needs to be fixed,
+    // force it to come out stderr.
+    // FIXME: this is horrible and leaks, eventually remove the raw_ostream from
+    // asmprinter.
+    LegacyOutput = new formatted_raw_ostream(errs());
+    break;
+  }
+  
+  // Create the AsmPrinter, which takes ownership of Context and AsmStreamer
+  // if successful.
   FunctionPass *Printer =
-    getTarget().createAsmPrinter(Out, *this, getMCAsmInfo(), Verbose);
-  if (!Printer)
+    getTarget().createAsmPrinter(*LegacyOutput, *this, *Context, *AsmStreamer,
+                                 getMCAsmInfo());
+  if (Printer == 0)
     return true;
-
+  
+  // If successful, createAsmPrinter took ownership of AsmStreamer and Context.
+  Context.take(); AsmStreamer.take();
+  
   PM.add(Printer);
+  
+  // Make sure the code model is set.
+  setCodeModelForStatic();
+  PM.add(createGCInfoDeleter());
   return false;
 }
 
-bool LLVMTargetMachine::addObjectFileEmitter(PassManagerBase &PM,
-                                             CodeGenOpt::Level OptLevel,
-                                             formatted_raw_ostream &Out) {
-  MCCodeEmitter *Emitter = getTarget().createCodeEmitter(*this);
-  if (!Emitter)
-    return true;
-  
-  PM.add(createMachOWriter(Out, *this, getMCAsmInfo(), Emitter));
-  return false;
-}
-
-/// addPassesToEmitFileFinish - If the passes to emit the specified file had to
-/// be split up (e.g., to add an object writer pass), this method can be used to
-/// finish up adding passes to emit the file, if necessary.
-bool LLVMTargetMachine::addPassesToEmitFileFinish(PassManagerBase &PM,
-                                                  MachineCodeEmitter *MCE,
-                                                  CodeGenOpt::Level OptLevel) {
-  // Make sure the code model is set.
-  setCodeModelForStatic();
-  
-  if (MCE)
-    addSimpleCodeEmitter(PM, OptLevel, *MCE);
-  if (PrintEmittedAsm)
-    addAssemblyEmitter(PM, OptLevel, true, ferrs());
-
-  PM.add(createGCInfoDeleter());
-
-  return false; // success!
-}
-
-/// addPassesToEmitFileFinish - If the passes to emit the specified file had to
-/// be split up (e.g., to add an object writer pass), this method can be used to
-/// finish up adding passes to emit the file, if necessary.
-bool LLVMTargetMachine::addPassesToEmitFileFinish(PassManagerBase &PM,
-                                                  JITCodeEmitter *JCE,
-                                                  CodeGenOpt::Level OptLevel) {
-  // Make sure the code model is set.
-  setCodeModelForJIT();
-  
-  if (JCE)
-    addSimpleCodeEmitter(PM, OptLevel, *JCE);
-  if (PrintEmittedAsm)
-    addAssemblyEmitter(PM, OptLevel, true, ferrs());
-
-  PM.add(createGCInfoDeleter());
-
-  return false; // success!
-}
-
-/// addPassesToEmitFileFinish - If the passes to emit the specified file had to
-/// be split up (e.g., to add an object writer pass), this method can be used to
-/// finish up adding passes to emit the file, if necessary.
-bool LLVMTargetMachine::addPassesToEmitFileFinish(PassManagerBase &PM,
-                                                  ObjectCodeEmitter *OCE,
-                                                  CodeGenOpt::Level OptLevel) {
-  // Make sure the code model is set.
-  setCodeModelForStatic();
-  
-  if (OCE)
-    addSimpleCodeEmitter(PM, OptLevel, *OCE);
-  if (PrintEmittedAsm)
-    addAssemblyEmitter(PM, OptLevel, true, ferrs());
-
-  PM.add(createGCInfoDeleter());
-
-  return false; // success!
-}
-
 /// addPassesToEmitMachineCode - Add passes to the specified pass manager to
-/// get machine code emitted.  This uses a MachineCodeEmitter object to handle
-/// actually outputting the machine code and resolving things like the address
-/// of functions.  This method should returns true if machine code emission is
-/// not supported.
-///
-bool LLVMTargetMachine::addPassesToEmitMachineCode(PassManagerBase &PM,
-                                                   MachineCodeEmitter &MCE,
-                                                   CodeGenOpt::Level OptLevel) {
-  // Make sure the code model is set.
-  setCodeModelForJIT();
-  
-  // Add common CodeGen passes.
-  if (addCommonCodeGenPasses(PM, OptLevel))
-    return true;
-
-  addCodeEmitter(PM, OptLevel, MCE);
-  if (PrintEmittedAsm)
-    addAssemblyEmitter(PM, OptLevel, true, ferrs());
-
-  PM.add(createGCInfoDeleter());
-
-  return false; // success!
-}
-
-/// addPassesToEmitMachineCode - Add passes to the specified pass manager to
-/// get machine code emitted.  This uses a MachineCodeEmitter object to handle
+/// get machine code emitted.  This uses a JITCodeEmitter object to handle
 /// actually outputting the machine code and resolving things like the address
 /// of functions.  This method should returns true if machine code emission is
 /// not supported.
@@ -246,9 +202,6 @@ bool LLVMTargetMachine::addPassesToEmitMachineCode(PassManagerBase &PM,
     return true;
 
   addCodeEmitter(PM, OptLevel, JCE);
-  if (PrintEmittedAsm)
-    addAssemblyEmitter(PM, OptLevel, true, ferrs());
-
   PM.add(createGCInfoDeleter());
 
   return false; // success!
@@ -282,6 +235,9 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
     PM.add(createLoopStrengthReducePass(getTargetLowering()));
     if (PrintLSR)
       PM.add(createPrintFunctionPass("\n\n*** Code after LSR ***\n", &dbgs()));
+#ifndef NDEBUG
+    PM.add(createVerifierPass());
+#endif
   }
 
   // Turn exception handling constructs into something the code generators can
@@ -337,6 +293,16 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
 
   // Print the instruction selected machine code...
   printAndVerify(PM, "After Instruction Selection",
+                 /* allowDoubleDefs= */ true);
+
+  // Optimize PHIs before DCE: removing dead PHI cycles may make more
+  // instructions dead.
+  if (OptLevel != CodeGenOpt::None)
+    PM.add(createOptimizePHIsPass());
+
+  // Delete dead machine instructions regardless of optimization level.
+  PM.add(createDeadMachineInstructionElimPass());
+  printAndVerify(PM, "After codegen DCE pass",
                  /* allowDoubleDefs= */ true);
 
   if (OptLevel != CodeGenOpt::None) {

@@ -202,12 +202,18 @@ bool SROA::performPromotion(Function &F) {
   return Changed;
 }
 
-/// getNumSAElements - Return the number of elements in the specific struct or
-/// array.
-static uint64_t getNumSAElements(const Type *T) {
+/// ShouldAttemptScalarRepl - Decide if an alloca is a good candidate for
+/// SROA.  It must be a struct or array type with a small number of elements.
+static bool ShouldAttemptScalarRepl(AllocaInst *AI) {
+  const Type *T = AI->getAllocatedType();
+  // Do not promote any struct into more than 32 separate vars.
   if (const StructType *ST = dyn_cast<StructType>(T))
-    return ST->getNumElements();
-  return cast<ArrayType>(T)->getNumElements();
+    return ST->getNumElements() <= 32;
+  // Arrays are much less likely to be safe for SROA; only consider
+  // them if they are very small.
+  if (const ArrayType *AT = dyn_cast<ArrayType>(T))
+    return AT->getNumElements() <= 8;
+  return false;
 }
 
 // performScalarRepl - This algorithm is a simple worklist driven algorithm,
@@ -266,21 +272,17 @@ bool SROA::performScalarRepl(Function &F) {
     // Do not promote [0 x %struct].
     if (AllocaSize == 0) continue;
 
+    // If the alloca looks like a good candidate for scalar replacement, and if
+    // all its users can be transformed, then split up the aggregate into its
+    // separate elements.
+    if (ShouldAttemptScalarRepl(AI) && isSafeAllocaToScalarRepl(AI)) {
+      DoScalarReplacement(AI, WorkList);
+      Changed = true;
+      continue;
+    }
+
     // Do not promote any struct whose size is too big.
     if (AllocaSize > SRThreshold) continue;
-
-    if ((isa<StructType>(AI->getAllocatedType()) ||
-         isa<ArrayType>(AI->getAllocatedType())) &&
-        // Do not promote any struct into more than "32" separate vars.
-        getNumSAElements(AI->getAllocatedType()) <= SRThreshold/4) {
-      // Check that all of the users of the allocation are capable of being
-      // transformed.
-      if (isSafeAllocaToScalarRepl(AI)) {
-        DoScalarReplacement(AI, WorkList);
-        Changed = true;
-        continue;
-      }
-    }
 
     // If we can turn this aggregate value (potentially with casts) into a
     // simple scalar value that can be mem2reg'd into a register value.
@@ -681,7 +683,7 @@ void SROA::RewriteGEP(GetElementPtrInst *GEPI, AllocaInst *AI, uint64_t Offset,
     Val->takeName(GEPI);
   }
   if (Val->getType() != GEPI->getType())
-    Val = new BitCastInst(Val, GEPI->getType(), Val->getNameStr(), GEPI);
+    Val = new BitCastInst(Val, GEPI->getType(), Val->getName(), GEPI);
   GEPI->replaceAllUsesWith(Val);
   DeadInsts.push_back(GEPI);
 }
@@ -769,7 +771,7 @@ void SROA::RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *Inst,
       Value *Idx[2] = { Zero,
                       ConstantInt::get(Type::getInt32Ty(MI->getContext()), i) };
       OtherElt = GetElementPtrInst::CreateInBounds(OtherPtr, Idx, Idx + 2,
-                                           OtherPtr->getNameStr()+"."+Twine(i),
+                                              OtherPtr->getName()+"."+Twine(i),
                                                    MI);
       uint64_t EltOffset;
       const PointerType *OtherPtrTy = cast<PointerType>(OtherPtr->getType());
@@ -833,7 +835,7 @@ void SROA::RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *Inst,
           StoreVal = ConstantInt::get(Context, TotalVal);
           if (isa<PointerType>(ValTy))
             StoreVal = ConstantExpr::getIntToPtr(StoreVal, ValTy);
-          else if (ValTy->isFloatingPoint())
+          else if (ValTy->isFloatingPointTy())
             StoreVal = ConstantExpr::getBitCast(StoreVal, ValTy);
           assert(StoreVal->getType() == ValTy && "Type mismatch!");
           
@@ -853,12 +855,11 @@ void SROA::RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *Inst,
     
     // Cast the element pointer to BytePtrTy.
     if (EltPtr->getType() != BytePtrTy)
-      EltPtr = new BitCastInst(EltPtr, BytePtrTy, EltPtr->getNameStr(), MI);
+      EltPtr = new BitCastInst(EltPtr, BytePtrTy, EltPtr->getName(), MI);
     
     // Cast the other pointer (if we have one) to BytePtrTy. 
     if (OtherElt && OtherElt->getType() != BytePtrTy)
-      OtherElt = new BitCastInst(OtherElt, BytePtrTy,OtherElt->getNameStr(),
-                                 MI);
+      OtherElt = new BitCastInst(OtherElt, BytePtrTy, OtherElt->getName(), MI);
     
     unsigned EltSize = TD->getTypeAllocSize(EltTy);
     
@@ -938,7 +939,7 @@ void SROA::RewriteStoreUserOfWholeAlloca(StoreInst *SI, AllocaInst *AI,
       Value *DestField = NewElts[i];
       if (EltVal->getType() == FieldTy) {
         // Storing to an integer field of this size, just do it.
-      } else if (FieldTy->isFloatingPoint() || isa<VectorType>(FieldTy)) {
+      } else if (FieldTy->isFloatingPointTy() || isa<VectorType>(FieldTy)) {
         // Bitcast to the right element type (for fp/vector values).
         EltVal = new BitCastInst(EltVal, FieldTy, "", SI);
       } else {
@@ -982,7 +983,8 @@ void SROA::RewriteStoreUserOfWholeAlloca(StoreInst *SI, AllocaInst *AI,
       Value *DestField = NewElts[i];
       if (EltVal->getType() == ArrayEltTy) {
         // Storing to an integer field of this size, just do it.
-      } else if (ArrayEltTy->isFloatingPoint() || isa<VectorType>(ArrayEltTy)) {
+      } else if (ArrayEltTy->isFloatingPointTy() ||
+                 isa<VectorType>(ArrayEltTy)) {
         // Bitcast to the right element type (for fp/vector values).
         EltVal = new BitCastInst(EltVal, ArrayEltTy, "", SI);
       } else {
@@ -1042,7 +1044,7 @@ void SROA::RewriteLoadUserOfWholeAlloca(LoadInst *LI, AllocaInst *AI,
     
     const IntegerType *FieldIntTy = IntegerType::get(LI->getContext(), 
                                                      FieldSizeBits);
-    if (!isa<IntegerType>(FieldTy) && !FieldTy->isFloatingPoint() &&
+    if (!isa<IntegerType>(FieldTy) && !FieldTy->isFloatingPointTy() &&
         !isa<VectorType>(FieldTy))
       SrcField = new BitCastInst(SrcField,
                                  PointerType::getUnqual(FieldIntTy),
@@ -1384,9 +1386,9 @@ void SROA::ConvertUsesToScalar(Value *Ptr, AllocaInst *NewAI, uint64_t Offset) {
       // If the source and destination are both to the same alloca, then this is
       // a noop copy-to-self, just delete it.  Otherwise, emit a load and store
       // as appropriate.
-      AllocaInst *OrigAI = cast<AllocaInst>(Ptr->getUnderlyingObject());
+      AllocaInst *OrigAI = cast<AllocaInst>(Ptr->getUnderlyingObject(0));
       
-      if (MTI->getSource()->getUnderlyingObject() != OrigAI) {
+      if (MTI->getSource()->getUnderlyingObject(0) != OrigAI) {
         // Dest must be OrigAI, change this to be a load from the original
         // pointer (bitcasted), then a store to our new alloca.
         assert(MTI->getRawDest() == Ptr && "Neither use is of pointer?");
@@ -1396,7 +1398,7 @@ void SROA::ConvertUsesToScalar(Value *Ptr, AllocaInst *NewAI, uint64_t Offset) {
         LoadInst *SrcVal = Builder.CreateLoad(SrcPtr, "srcval");
         SrcVal->setAlignment(MTI->getAlignment());
         Builder.CreateStore(SrcVal, NewAI);
-      } else if (MTI->getDest()->getUnderlyingObject() != OrigAI) {
+      } else if (MTI->getDest()->getUnderlyingObject(0) != OrigAI) {
         // Src must be OrigAI, change this to be a load from NewAI then a store
         // through the original dest pointer (bitcasted).
         assert(MTI->getRawSource() == Ptr && "Neither use is of pointer?");
@@ -1521,7 +1523,7 @@ Value *SROA::ConvertScalar_ExtractValue(Value *FromVal, const Type *ToType,
   // If the result is an integer, this is a trunc or bitcast.
   if (isa<IntegerType>(ToType)) {
     // Should be done.
-  } else if (ToType->isFloatingPoint() || isa<VectorType>(ToType)) {
+  } else if (ToType->isFloatingPointTy() || isa<VectorType>(ToType)) {
     // Just do a bitcast, we know the sizes match up.
     FromVal = Builder.CreateBitCast(FromVal, ToType, "tmp");
   } else {
@@ -1599,7 +1601,7 @@ Value *SROA::ConvertScalar_InsertValue(Value *SV, Value *Old,
   unsigned DestWidth = TD->getTypeSizeInBits(AllocaType);
   unsigned SrcStoreWidth = TD->getTypeStoreSizeInBits(SV->getType());
   unsigned DestStoreWidth = TD->getTypeStoreSizeInBits(AllocaType);
-  if (SV->getType()->isFloatingPoint() || isa<VectorType>(SV->getType()))
+  if (SV->getType()->isFloatingPointTy() || isa<VectorType>(SV->getType()))
     SV = Builder.CreateBitCast(SV,
                             IntegerType::get(SV->getContext(),SrcWidth), "tmp");
   else if (isa<PointerType>(SV->getType()))

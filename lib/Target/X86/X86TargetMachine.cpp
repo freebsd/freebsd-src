@@ -30,9 +30,8 @@ static const MCAsmInfo *createMCAsmInfo(const Target &T, StringRef TT) {
   case Triple::MinGW32:
   case Triple::MinGW64:
   case Triple::Cygwin:
-    return new X86MCAsmInfoCOFF(TheTriple);
   case Triple::Win32:
-    return new X86WinMCAsmInfo(TheTriple);
+    return new X86MCAsmInfoCOFF(TheTriple);
   default:
     return new X86ELFMCAsmInfo(TheTriple);
   }
@@ -48,8 +47,10 @@ extern "C" void LLVMInitializeX86Target() {
   RegisterAsmInfoFn B(TheX86_64Target, createMCAsmInfo);
 
   // Register the code emitter.
-  TargetRegistry::RegisterCodeEmitter(TheX86_32Target, createX86MCCodeEmitter);
-  TargetRegistry::RegisterCodeEmitter(TheX86_64Target, createX86MCCodeEmitter);
+  TargetRegistry::RegisterCodeEmitter(TheX86_32Target,
+                                      createX86_32MCCodeEmitter);
+  TargetRegistry::RegisterCodeEmitter(TheX86_64Target,
+                                      createX86_64MCCodeEmitter);
 }
 
 
@@ -145,10 +146,6 @@ bool X86TargetMachine::addInstSelector(PassManagerBase &PM,
   // Install an instruction selector.
   PM.add(createX86ISelDag(*this, OptLevel));
 
-  // If we're using Fast-ISel, clean up the mess.
-  if (EnableFastISel)
-    PM.add(createDeadMachineInstructionElimPass());
-
   // Install a pass to insert x87 FP_REG_KILL instructions, as needed.
   PM.add(createX87FPRegKillInserterPass());
 
@@ -168,22 +165,6 @@ bool X86TargetMachine::addPostRegAlloc(PassManagerBase &PM,
 
 bool X86TargetMachine::addCodeEmitter(PassManagerBase &PM,
                                       CodeGenOpt::Level OptLevel,
-                                      MachineCodeEmitter &MCE) {
-  // FIXME: Move this to TargetJITInfo!
-  // On Darwin, do not override 64-bit setting made in X86TargetMachine().
-  if (DefRelocModel == Reloc::Default && 
-      (!Subtarget.isTargetDarwin() || !Subtarget.is64Bit())) {
-    setRelocationModel(Reloc::Static);
-    Subtarget.setPICStyle(PICStyles::None);
-  }
-  
-  PM.add(createX86CodeEmitterPass(*this, MCE));
-
-  return false;
-}
-
-bool X86TargetMachine::addCodeEmitter(PassManagerBase &PM,
-                                      CodeGenOpt::Level OptLevel,
                                       JITCodeEmitter &JCE) {
   // FIXME: Move this to TargetJITInfo!
   // On Darwin, do not override 64-bit setting made in X86TargetMachine().
@@ -196,34 +177,6 @@ bool X86TargetMachine::addCodeEmitter(PassManagerBase &PM,
 
   PM.add(createX86JITCodeEmitterPass(*this, JCE));
 
-  return false;
-}
-
-bool X86TargetMachine::addCodeEmitter(PassManagerBase &PM,
-                                      CodeGenOpt::Level OptLevel,
-                                      ObjectCodeEmitter &OCE) {
-  PM.add(createX86ObjectCodeEmitterPass(*this, OCE));
-  return false;
-}
-
-bool X86TargetMachine::addSimpleCodeEmitter(PassManagerBase &PM,
-                                            CodeGenOpt::Level OptLevel,
-                                            MachineCodeEmitter &MCE) {
-  PM.add(createX86CodeEmitterPass(*this, MCE));
-  return false;
-}
-
-bool X86TargetMachine::addSimpleCodeEmitter(PassManagerBase &PM,
-                                            CodeGenOpt::Level OptLevel,
-                                            JITCodeEmitter &JCE) {
-  PM.add(createX86JITCodeEmitterPass(*this, JCE));
-  return false;
-}
-
-bool X86TargetMachine::addSimpleCodeEmitter(PassManagerBase &PM,
-                                            CodeGenOpt::Level OptLevel,
-                                            ObjectCodeEmitter &OCE) {
-  PM.add(createX86ObjectCodeEmitterPass(*this, OCE));
   return false;
 }
 
@@ -245,33 +198,4 @@ void X86TargetMachine::setCodeModelForJIT() {
     setCodeModel(CodeModel::Large);
   else
     setCodeModel(CodeModel::Small);
-}
-
-/// getLSDAEncoding - Returns the LSDA pointer encoding. The choices are 4-byte,
-/// 8-byte, and target default. The CIE is hard-coded to indicate that the LSDA
-/// pointer in the FDE section is an "sdata4", and should be encoded as a 4-byte
-/// pointer by default. However, some systems may require a different size due
-/// to bugs or other conditions. We will default to a 4-byte encoding unless the
-/// system tells us otherwise.
-///
-/// The issue is when the CIE says their is an LSDA. That mandates that every
-/// FDE have an LSDA slot. But if the function does not need an LSDA. There
-/// needs to be some way to signify there is none. The LSDA is encoded as
-/// pc-rel. But you don't look for some magic value after adding the pc. You
-/// have to look for a zero before adding the pc. The problem is that the size
-/// of the zero to look for depends on the encoding. The unwinder bug in SL is
-/// that it always checks for a pointer-size zero. So on x86_64 it looks for 8
-/// bytes of zero. If you have an LSDA, it works fine since the 8-bytes are
-/// non-zero so it goes ahead and then reads the value based on the encoding.
-/// But if you use sdata4 and there is no LSDA, then the test for zero gives a
-/// false negative and the unwinder thinks there is an LSDA.
-///
-/// FIXME: This call-back isn't good! We should be using the correct encoding
-/// regardless of the system. However, there are some systems which have bugs
-/// that prevent this from occuring.
-DwarfLSDAEncoding::Encoding X86TargetMachine::getLSDAEncoding() const {
-  if (Subtarget.isTargetDarwin() && Subtarget.getDarwinVers() != 10)
-    return DwarfLSDAEncoding::Default;
-
-  return DwarfLSDAEncoding::EightByte;
 }

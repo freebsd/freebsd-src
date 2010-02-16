@@ -126,7 +126,7 @@ static void TimeOutHandler(int Sig) {
 
 static void SetMemoryLimits (unsigned size)
 {
-#if HAVE_SYS_RESOURCE_H
+#if HAVE_SYS_RESOURCE_H && HAVE_GETRLIMIT && HAVE_SETRLIMIT
   struct rlimit r;
   __typeof__ (r.rlim_cur) limit = (__typeof__ (r.rlim_cur)) (size) * 1048576;
 
@@ -319,6 +319,11 @@ bool Program::ChangeStdinToBinary(){
 }
 
 bool Program::ChangeStdoutToBinary(){
+  // Do nothing, as Unix doesn't differentiate between text and binary.
+  return false;
+}
+
+bool Program::ChangeStderrToBinary(){
   // Do nothing, as Unix doesn't differentiate between text and binary.
   return false;
 }

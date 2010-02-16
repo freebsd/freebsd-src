@@ -478,7 +478,7 @@ ARMBaseRegisterInfo::UpdateRegAllocHint(unsigned Reg, unsigned NewReg,
 ///
 bool ARMBaseRegisterInfo::hasFP(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
-  return (NoFramePointerElim ||
+  return ((NoFramePointerElim && MFI->hasCalls())||
           needsStackRealignment(MF) ||
           MFI->hasVarSizedObjects() ||
           MFI->isFrameAddressTaken());
@@ -582,14 +582,6 @@ ARMBaseRegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
   SmallVector<unsigned, 4> UnspilledCS1GPRs;
   SmallVector<unsigned, 4> UnspilledCS2GPRs;
   ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
-
-
-  // Calculate and set max stack object alignment early, so we can decide
-  // whether we will need stack realignment (and thus FP).
-  if (RealignStack) {
-    MachineFrameInfo *MFI = MF.getFrameInfo();
-    MFI->calculateMaxStackAlignment();
-  }
 
   // Spill R4 if Thumb2 function requires stack realignment - it will be used as
   // scratch register.
@@ -803,10 +795,10 @@ ARMBaseRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
 }
 
 int
-ARMBaseRegisterInfo::getFrameIndexReference(MachineFunction &MF, int FI,
+ARMBaseRegisterInfo::getFrameIndexReference(const MachineFunction &MF, int FI,
                                             unsigned &FrameReg) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
-  ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
+  const ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
   int Offset = MFI->getObjectOffset(FI) + MFI->getStackSize();
   bool isFixed = MFI->isFixedObjectIndex(FI);
 
@@ -845,7 +837,8 @@ ARMBaseRegisterInfo::getFrameIndexReference(MachineFunction &MF, int FI,
 
 
 int
-ARMBaseRegisterInfo::getFrameIndexOffset(MachineFunction &MF, int FI) const {
+ARMBaseRegisterInfo::getFrameIndexOffset(const MachineFunction &MF,
+                                         int FI) const {
   unsigned FrameReg;
   return getFrameIndexReference(MF, FI, FrameReg);
 }

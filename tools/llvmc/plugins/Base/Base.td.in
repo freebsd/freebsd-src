@@ -50,10 +50,18 @@ def OptList : OptionList<[
     (help "Choose linker (possible values: gcc, g++)")),
  (parameter_option "mtune",
     (help "Target a specific CPU type"), (hidden)),
+
+ // TODO: Add a conditional compilation mechanism to make Darwin-only options
+ // like '-arch' really Darwin-only.
+
+ (parameter_option "arch",
+    (help "Compile for the specified target architecture"), (hidden)),
  (parameter_option "march",
     (help "A synonym for -mtune"), (hidden)),
  (parameter_option "mcpu",
     (help "A deprecated synonym for -mtune"), (hidden)),
+ (switch_option "mfix-and-continue",
+    (help "Needed by gdb to load .o files dynamically"), (hidden)),
  (parameter_option "MF",
     (help "Specify a file to write dependencies to"), (hidden)),
  (parameter_list_option "MT",
@@ -61,6 +69,9 @@ def OptList : OptionList<[
     (hidden)),
  (parameter_list_option "include",
     (help "Include the named file prior to preprocessing")),
+ (parameter_list_option "iquote",
+    (help "Search dir only for files requested with #inlcude \"file\""),
+    (hidden)),
  (parameter_list_option "framework",
     (help "Specifies a framework to link against")),
  (parameter_list_option "weak_framework",
@@ -85,7 +96,19 @@ def OptList : OptionList<[
     (help "Pass options to opt")),
  (prefix_list_option "m",
      (help "Enable or disable various extensions (-mmmx, -msse, etc.)"),
-     (hidden))
+     (hidden)),
+ (switch_option "dynamiclib", (hidden),
+     (help "Produce a dynamic library")),
+ (switch_option "prebind", (hidden),
+     (help "Prebind all undefined symbols")),
+ (switch_option "dead_strip", (hidden),
+     (help "Remove unreachable blocks of code")),
+ (switch_option "single_module", (hidden),
+     (help "Build the library so it contains only one module")),
+ (parameter_option "compatibility_version", (hidden),
+     (help "Compatibility version number")),
+ (parameter_option "current_version", (hidden),
+     (help "Current version number"))
 ]>;
 
 // Option preprocessor.
@@ -129,14 +152,17 @@ class llvm_gcc_based <string cmd_prefix, string in_lang, string E_ext> : Tool<
          (switch_on ["emit-llvm", "c"]), (stop_compilation),
          (switch_on "fsyntax-only"), (stop_compilation),
          (not_empty "include"), (forward "include"),
+         (not_empty "iquote"), (forward "iquote"),
          (not_empty "save-temps"), (append_cmd "-save-temps"),
          (not_empty "I"), (forward "I"),
          (not_empty "F"), (forward "F"),
          (not_empty "D"), (forward "D"),
+         (not_empty "arch"), (forward "arch"),
          (not_empty "march"), (forward "march"),
          (not_empty "mtune"), (forward "mtune"),
          (not_empty "mcpu"), (forward "mcpu"),
          (not_empty "m"), (forward "m"),
+         (switch_on "mfix-and-continue"), (forward "mfix-and-continue"),
          (switch_on "m32"), (forward "m32"),
          (switch_on "m64"), (forward "m64"),
          (switch_on "O0"), (forward "O0"),
@@ -183,6 +209,7 @@ def llvm_gcc_assembler : Tool<
  (cmd_line "@LLVMGCCCOMMAND@ -c -x assembler $INFILE -o $OUTFILE"),
  (actions (case
           (switch_on "c"), (stop_compilation),
+          (not_empty "arch"), (forward "arch"),
           (not_empty "Wa,"), (forward_value "Wa,")))
 ]>;
 
@@ -218,12 +245,21 @@ class llvm_gcc_based_linker <string cmd_prefix> : Tool<
           (switch_on "pthread"), (append_cmd "-lpthread"),
           (not_empty "L"), (forward "L"),
           (not_empty "F"), (forward "F"),
+          (not_empty "arch"), (forward "arch"),
           (not_empty "framework"), (forward "framework"),
           (not_empty "weak_framework"), (forward "weak_framework"),
           (switch_on "m32"), (forward "m32"),
           (switch_on "m64"), (forward "m64"),
           (not_empty "l"), (forward "l"),
-          (not_empty "Wl,"), (forward "Wl,")))
+          (not_empty "Wl,"), (forward "Wl,"),
+          (switch_on "dynamiclib"), (forward "dynamiclib"),
+          (switch_on "prebind"), (forward "prebind"),
+          (switch_on "dead_strip"), (forward "dead_strip"),
+          (switch_on "single_module"), (forward "single_module"),
+          (not_empty "compatibility_version"),
+                     (forward "compatibility_version"),
+          (not_empty "current_version"),
+                     (forward "current_version")))
 ]>;
 
 // Default linker

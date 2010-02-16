@@ -18,7 +18,6 @@
 #include "X86.h"
 #include "X86RegisterInfo.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 
 namespace llvm {
   class X86RegisterInfo;
@@ -269,6 +268,18 @@ namespace X86II {
     // MRMInitReg - This form is used for instructions whose source and
     // destinations are the same register.
     MRMInitReg = 32,
+    
+    //// MRM_C1 - A mod/rm byte of exactly 0xC1.
+    MRM_C1 = 33,
+    MRM_C2 = 34,
+    MRM_C3 = 35,
+    MRM_C4 = 36,
+    MRM_C8 = 37,
+    MRM_C9 = 38,
+    MRM_E8 = 39,
+    MRM_F0 = 40,
+    MRM_F8 = 41,
+    MRM_F9 = 42,
 
     FormMask       = 63,
 
@@ -332,11 +343,13 @@ namespace X86II {
     // This three-bit field describes the size of an immediate operand.  Zero is
     // unused so that we can tell if we forgot to set a value.
     ImmShift = 13,
-    ImmMask  = 7 << ImmShift,
-    Imm8     = 1 << ImmShift,
-    Imm16    = 2 << ImmShift,
-    Imm32    = 3 << ImmShift,
-    Imm64    = 4 << ImmShift,
+    ImmMask    = 7 << ImmShift,
+    Imm8       = 1 << ImmShift,
+    Imm8PCRel  = 2 << ImmShift,
+    Imm16      = 3 << ImmShift,
+    Imm32      = 4 << ImmShift,
+    Imm32PCRel = 5 << ImmShift,
+    Imm64      = 6 << ImmShift,
 
     //===------------------------------------------------------------------===//
     // FP Instruction Classification...  Zero is non-fp instruction.
@@ -389,6 +402,47 @@ namespace X86II {
     OpcodeShift   = 24,
     OpcodeMask    = 0xFF << OpcodeShift
   };
+  
+  // getBaseOpcodeFor - This function returns the "base" X86 opcode for the
+  // specified machine instruction.
+  //
+  static inline unsigned char getBaseOpcodeFor(unsigned TSFlags) {
+    return TSFlags >> X86II::OpcodeShift;
+  }
+  
+  static inline bool hasImm(unsigned TSFlags) {
+    return (TSFlags & X86II::ImmMask) != 0;
+  }
+  
+  /// getSizeOfImm - Decode the "size of immediate" field from the TSFlags field
+  /// of the specified instruction.
+  static inline unsigned getSizeOfImm(unsigned TSFlags) {
+    switch (TSFlags & X86II::ImmMask) {
+    default: assert(0 && "Unknown immediate size");
+    case X86II::Imm8:
+    case X86II::Imm8PCRel:  return 1;
+    case X86II::Imm16:      return 2;
+    case X86II::Imm32:
+    case X86II::Imm32PCRel: return 4;
+    case X86II::Imm64:      return 8;
+    }
+  }
+  
+  /// isImmPCRel - Return true if the immediate of the specified instruction's
+  /// TSFlags indicates that it is pc relative.
+  static inline unsigned isImmPCRel(unsigned TSFlags) {
+    switch (TSFlags & X86II::ImmMask) {
+      default: assert(0 && "Unknown immediate size");
+      case X86II::Imm8PCRel:
+      case X86II::Imm32PCRel:
+        return true;
+      case X86II::Imm8:
+      case X86II::Imm16:
+      case X86II::Imm32:
+      case X86II::Imm64:
+        return false;
+    }
+  }    
 }
 
 const int X86AddrNumOperands = 5;
@@ -637,24 +691,20 @@ public:
   /// instruction that defines the specified register class.
   bool isSafeToMoveRegClassDefs(const TargetRegisterClass *RC) const;
 
-  // getBaseOpcodeFor - This function returns the "base" X86 opcode for the
-  // specified machine instruction.
-  //
-  unsigned char getBaseOpcodeFor(const TargetInstrDesc *TID) const {
-    return TID->TSFlags >> X86II::OpcodeShift;
-  }
-  unsigned char getBaseOpcodeFor(unsigned Opcode) const {
-    return getBaseOpcodeFor(&get(Opcode));
-  }
-  
   static bool isX86_64NonExtLowByteReg(unsigned reg) {
     return (reg == X86::SPL || reg == X86::BPL ||
           reg == X86::SIL || reg == X86::DIL);
   }
   
-  static unsigned sizeOfImm(const TargetInstrDesc *Desc);
-  static bool isX86_64ExtendedReg(const MachineOperand &MO);
+  static bool isX86_64ExtendedReg(const MachineOperand &MO) {
+    if (!MO.isReg()) return false;
+    return isX86_64ExtendedReg(MO.getReg());
+  }
   static unsigned determineREX(const MachineInstr &MI);
+
+  /// isX86_64ExtendedReg - Is the MachineOperand a x86-64 extended (r8 or
+  /// higher) register?  e.g. r8, xmm8, xmm13, etc.
+  static bool isX86_64ExtendedReg(unsigned RegNo);
 
   /// GetInstSize - Returns the size of the specified MachineInstr.
   ///

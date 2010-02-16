@@ -786,8 +786,8 @@ bool X86FastISel::X86SelectCmp(Instruction *I) {
 
 bool X86FastISel::X86SelectZExt(Instruction *I) {
   // Handle zero-extension from i1 to i8, which is common.
-  if (I->getType()->isInteger(8) &&
-      I->getOperand(0)->getType()->isInteger(1)) {
+  if (I->getType()->isIntegerTy(8) &&
+      I->getOperand(0)->getType()->isIntegerTy(1)) {
     unsigned ResultReg = getRegForValue(I->getOperand(0));
     if (ResultReg == 0) return false;
     // Set the high bits to zero.
@@ -828,30 +828,30 @@ bool X86FastISel::X86SelectBranch(Instruction *I) {
         std::swap(TrueMBB, FalseMBB);
         Predicate = CmpInst::FCMP_UNE;
         // FALL THROUGH
-      case CmpInst::FCMP_UNE: SwapArgs = false; BranchOpc = X86::JNE; break;
-      case CmpInst::FCMP_OGT: SwapArgs = false; BranchOpc = X86::JA;  break;
-      case CmpInst::FCMP_OGE: SwapArgs = false; BranchOpc = X86::JAE; break;
-      case CmpInst::FCMP_OLT: SwapArgs = true;  BranchOpc = X86::JA;  break;
-      case CmpInst::FCMP_OLE: SwapArgs = true;  BranchOpc = X86::JAE; break;
-      case CmpInst::FCMP_ONE: SwapArgs = false; BranchOpc = X86::JNE; break;
-      case CmpInst::FCMP_ORD: SwapArgs = false; BranchOpc = X86::JNP; break;
-      case CmpInst::FCMP_UNO: SwapArgs = false; BranchOpc = X86::JP;  break;
-      case CmpInst::FCMP_UEQ: SwapArgs = false; BranchOpc = X86::JE;  break;
-      case CmpInst::FCMP_UGT: SwapArgs = true;  BranchOpc = X86::JB;  break;
-      case CmpInst::FCMP_UGE: SwapArgs = true;  BranchOpc = X86::JBE; break;
-      case CmpInst::FCMP_ULT: SwapArgs = false; BranchOpc = X86::JB;  break;
-      case CmpInst::FCMP_ULE: SwapArgs = false; BranchOpc = X86::JBE; break;
+      case CmpInst::FCMP_UNE: SwapArgs = false; BranchOpc = X86::JNE_4; break;
+      case CmpInst::FCMP_OGT: SwapArgs = false; BranchOpc = X86::JA_4;  break;
+      case CmpInst::FCMP_OGE: SwapArgs = false; BranchOpc = X86::JAE_4; break;
+      case CmpInst::FCMP_OLT: SwapArgs = true;  BranchOpc = X86::JA_4;  break;
+      case CmpInst::FCMP_OLE: SwapArgs = true;  BranchOpc = X86::JAE_4; break;
+      case CmpInst::FCMP_ONE: SwapArgs = false; BranchOpc = X86::JNE_4; break;
+      case CmpInst::FCMP_ORD: SwapArgs = false; BranchOpc = X86::JNP_4; break;
+      case CmpInst::FCMP_UNO: SwapArgs = false; BranchOpc = X86::JP_4;  break;
+      case CmpInst::FCMP_UEQ: SwapArgs = false; BranchOpc = X86::JE_4;  break;
+      case CmpInst::FCMP_UGT: SwapArgs = true;  BranchOpc = X86::JB_4;  break;
+      case CmpInst::FCMP_UGE: SwapArgs = true;  BranchOpc = X86::JBE_4; break;
+      case CmpInst::FCMP_ULT: SwapArgs = false; BranchOpc = X86::JB_4;  break;
+      case CmpInst::FCMP_ULE: SwapArgs = false; BranchOpc = X86::JBE_4; break;
           
-      case CmpInst::ICMP_EQ:  SwapArgs = false; BranchOpc = X86::JE;  break;
-      case CmpInst::ICMP_NE:  SwapArgs = false; BranchOpc = X86::JNE; break;
-      case CmpInst::ICMP_UGT: SwapArgs = false; BranchOpc = X86::JA;  break;
-      case CmpInst::ICMP_UGE: SwapArgs = false; BranchOpc = X86::JAE; break;
-      case CmpInst::ICMP_ULT: SwapArgs = false; BranchOpc = X86::JB;  break;
-      case CmpInst::ICMP_ULE: SwapArgs = false; BranchOpc = X86::JBE; break;
-      case CmpInst::ICMP_SGT: SwapArgs = false; BranchOpc = X86::JG;  break;
-      case CmpInst::ICMP_SGE: SwapArgs = false; BranchOpc = X86::JGE; break;
-      case CmpInst::ICMP_SLT: SwapArgs = false; BranchOpc = X86::JL;  break;
-      case CmpInst::ICMP_SLE: SwapArgs = false; BranchOpc = X86::JLE; break;
+      case CmpInst::ICMP_EQ:  SwapArgs = false; BranchOpc = X86::JE_4;  break;
+      case CmpInst::ICMP_NE:  SwapArgs = false; BranchOpc = X86::JNE_4; break;
+      case CmpInst::ICMP_UGT: SwapArgs = false; BranchOpc = X86::JA_4;  break;
+      case CmpInst::ICMP_UGE: SwapArgs = false; BranchOpc = X86::JAE_4; break;
+      case CmpInst::ICMP_ULT: SwapArgs = false; BranchOpc = X86::JB_4;  break;
+      case CmpInst::ICMP_ULE: SwapArgs = false; BranchOpc = X86::JBE_4; break;
+      case CmpInst::ICMP_SGT: SwapArgs = false; BranchOpc = X86::JG_4;  break;
+      case CmpInst::ICMP_SGE: SwapArgs = false; BranchOpc = X86::JGE_4; break;
+      case CmpInst::ICMP_SLT: SwapArgs = false; BranchOpc = X86::JL_4;  break;
+      case CmpInst::ICMP_SLE: SwapArgs = false; BranchOpc = X86::JLE_4; break;
       default:
         return false;
       }
@@ -869,7 +869,7 @@ bool X86FastISel::X86SelectBranch(Instruction *I) {
       if (Predicate == CmpInst::FCMP_UNE) {
         // X86 requires a second branch to handle UNE (and OEQ,
         // which is mapped to UNE above).
-        BuildMI(MBB, DL, TII.get(X86::JP)).addMBB(TrueMBB);
+        BuildMI(MBB, DL, TII.get(X86::JP_4)).addMBB(TrueMBB);
       }
 
       FastEmitBranch(FalseMBB);
@@ -923,7 +923,8 @@ bool X86FastISel::X86SelectBranch(Instruction *I) {
           unsigned OpCode = SetMI->getOpcode();
 
           if (OpCode == X86::SETOr || OpCode == X86::SETBr) {
-            BuildMI(MBB, DL, TII.get(OpCode == X86::SETOr ? X86::JO : X86::JB))
+            BuildMI(MBB, DL, TII.get(OpCode == X86::SETOr ?
+                                        X86::JO_4 : X86::JB_4))
               .addMBB(TrueMBB);
             FastEmitBranch(FalseMBB);
             MBB->addSuccessor(TrueMBB);
@@ -939,7 +940,7 @@ bool X86FastISel::X86SelectBranch(Instruction *I) {
   if (OpReg == 0) return false;
 
   BuildMI(MBB, DL, TII.get(X86::TEST8rr)).addReg(OpReg).addReg(OpReg);
-  BuildMI(MBB, DL, TII.get(X86::JNE)).addMBB(TrueMBB);
+  BuildMI(MBB, DL, TII.get(X86::JNE_4)).addMBB(TrueMBB);
   FastEmitBranch(FalseMBB);
   MBB->addSuccessor(TrueMBB);
   return true;
@@ -948,7 +949,7 @@ bool X86FastISel::X86SelectBranch(Instruction *I) {
 bool X86FastISel::X86SelectShift(Instruction *I) {
   unsigned CReg = 0, OpReg = 0, OpImm = 0;
   const TargetRegisterClass *RC = NULL;
-  if (I->getType()->isInteger(8)) {
+  if (I->getType()->isIntegerTy(8)) {
     CReg = X86::CL;
     RC = &X86::GR8RegClass;
     switch (I->getOpcode()) {
@@ -957,7 +958,7 @@ bool X86FastISel::X86SelectShift(Instruction *I) {
     case Instruction::Shl:  OpReg = X86::SHL8rCL; OpImm = X86::SHL8ri; break;
     default: return false;
     }
-  } else if (I->getType()->isInteger(16)) {
+  } else if (I->getType()->isIntegerTy(16)) {
     CReg = X86::CX;
     RC = &X86::GR16RegClass;
     switch (I->getOpcode()) {
@@ -966,7 +967,7 @@ bool X86FastISel::X86SelectShift(Instruction *I) {
     case Instruction::Shl:  OpReg = X86::SHL16rCL; OpImm = X86::SHL16ri; break;
     default: return false;
     }
-  } else if (I->getType()->isInteger(32)) {
+  } else if (I->getType()->isIntegerTy(32)) {
     CReg = X86::ECX;
     RC = &X86::GR32RegClass;
     switch (I->getOpcode()) {
@@ -975,7 +976,7 @@ bool X86FastISel::X86SelectShift(Instruction *I) {
     case Instruction::Shl:  OpReg = X86::SHL32rCL; OpImm = X86::SHL32ri; break;
     default: return false;
     }
-  } else if (I->getType()->isInteger(64)) {
+  } else if (I->getType()->isIntegerTy(64)) {
     CReg = X86::RCX;
     RC = &X86::GR64RegClass;
     switch (I->getOpcode()) {
@@ -1012,7 +1013,7 @@ bool X86FastISel::X86SelectShift(Instruction *I) {
   // of X86::CL, emit an EXTRACT_SUBREG to precisely describe what
   // we're doing here.
   if (CReg != X86::CL)
-    BuildMI(MBB, DL, TII.get(TargetInstrInfo::EXTRACT_SUBREG), X86::CL)
+    BuildMI(MBB, DL, TII.get(TargetOpcode::EXTRACT_SUBREG), X86::CL)
       .addReg(CReg).addImm(X86::SUBREG_8BIT);
 
   unsigned ResultReg = createResultReg(RC);
@@ -1153,6 +1154,17 @@ bool X86FastISel::X86VisitIntrinsicCall(IntrinsicInst &I) {
   // FIXME: Handle more intrinsics.
   switch (I.getIntrinsicID()) {
   default: return false;
+  case Intrinsic::dbg_declare: {
+    DbgDeclareInst *DI = cast<DbgDeclareInst>(&I);
+    X86AddressMode AM;
+    assert(DI->getAddress() && "Null address should be checked earlier!");
+    if (!X86SelectAddress(DI->getAddress(), AM))
+      return false;
+    const TargetInstrDesc &II = TII.get(TargetOpcode::DBG_VALUE);
+    addFullAddress(BuildMI(MBB, DL, II), AM).addImm(0).
+                                        addMetadata(DI->getVariable());
+    return true;
+  }
   case Intrinsic::trap: {
     BuildMI(MBB, DL, TII.get(X86::TRAP));
     return true;
@@ -1236,7 +1248,7 @@ bool X86FastISel::X86SelectCall(Instruction *I) {
 
   // fastcc with -tailcallopt is intended to provide a guaranteed
   // tail call optimization. Fastisel doesn't know how to do that.
-  if (CC == CallingConv::Fast && PerformTailCallOpt)
+  if (CC == CallingConv::Fast && GuaranteedTailCallOpt)
     return false;
 
   // Let SDISel handle vararg functions.

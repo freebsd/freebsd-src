@@ -169,7 +169,7 @@ public:
     return I;
   }
 
-  /// hasSubClass - return true if the the specified TargetRegisterClass
+  /// hasSubClass - return true if the specified TargetRegisterClass
   /// is a proper subset of this TargetRegisterClass.
   bool hasSubClass(const TargetRegisterClass *cs) const {
     for (int i = 0; SubClasses[i] != NULL; ++i)
@@ -696,12 +696,12 @@ public:
 
   /// getFrameIndexOffset - Returns the displacement from the frame register to
   /// the stack frame of the specified index.
-  virtual int getFrameIndexOffset(MachineFunction &MF, int FI) const;
+  virtual int getFrameIndexOffset(const MachineFunction &MF, int FI) const;
 
   /// getFrameIndexReference - This method should return the base register
   /// and offset used to reference a frame index location. The offset is
   /// returned directly, and the base register is returned via FrameReg.
-  virtual int getFrameIndexReference(MachineFunction &MF, int FI,
+  virtual int getFrameIndexReference(const MachineFunction &MF, int FI,
                                      unsigned &FrameReg) const {
     // By default, assume all frame indices are referenced via whatever
     // getFrameRegister() says. The target can override this if it's doing

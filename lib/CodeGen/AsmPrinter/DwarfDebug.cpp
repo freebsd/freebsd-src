@@ -26,6 +26,7 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/System/Path.h"
@@ -166,7 +167,8 @@ public:
 class DbgScope {
   DbgScope *Parent;                   // Parent to this scope.
   DIDescriptor Desc;                  // Debug info descriptor for scope.
-  MDNode * InlinedAtLocation;           // Location at which scope is inlined.
+  // Location at which this scope is inlined.
+  AssertingVH<MDNode> InlinedAtLocation;  
   bool AbstractScope;                 // Abstract Scope
   unsigned StartLabelID;              // Label ID of the beginning of scope.
   unsigned EndLabelID;                // Label ID of the end of scope.
@@ -189,7 +191,7 @@ public:
   void setParent(DbgScope *P)          { Parent = P; }
   DIDescriptor getDesc()         const { return Desc; }
   MDNode *getInlinedAt()         const {
-    return dyn_cast_or_null<MDNode>(InlinedAtLocation);
+    return InlinedAtLocation;
   }
   MDNode *getScopeNode()         const { return Desc.getNode(); }
   unsigned getStartLabelID()     const { return StartLabelID; }
@@ -616,7 +618,7 @@ void DwarfDebug::addComplexAddress(DbgVariable *&DV, DIE *Die,
 
    1).  Add the offset of the forwarding field.
 
-   2).  Follow that pointer to get the the real __Block_byref_x_VarName
+   2).  Follow that pointer to get the real __Block_byref_x_VarName
    struct to use (the real one may have been copied onto the heap).
 
    3).  Add the offset for the field VarName, to find the actual variable.
@@ -937,7 +939,16 @@ void DwarfDebug::constructTypeDIE(DIE &Buffer, DICompositeType CTy) {
       DIE *ElemDie = NULL;
       if (Element.getTag() == dwarf::DW_TAG_subprogram)
         ElemDie = createSubprogramDIE(DISubprogram(Element.getNode()));
-      else
+      else if (Element.getTag() == dwarf::DW_TAG_auto_variable) {
+        DIVariable DV(Element.getNode());
+        ElemDie = new DIE(dwarf::DW_TAG_variable);
+        addString(ElemDie, dwarf::DW_AT_name, dwarf::DW_FORM_string,
+                  DV.getName());
+        addType(ElemDie, DV.getType());
+        addUInt(ElemDie, dwarf::DW_AT_declaration, dwarf::DW_FORM_flag, 1);
+        addUInt(ElemDie, dwarf::DW_AT_external, dwarf::DW_FORM_flag, 1);
+        addSourceLine(ElemDie, &DV);
+      } else
         ElemDie = createMemberDIE(DIDerivedType(Element.getNode()));
       Buffer.addChild(ElemDie);
     }
@@ -949,6 +960,11 @@ void DwarfDebug::constructTypeDIE(DIE &Buffer, DICompositeType CTy) {
     if (RLang)
       addUInt(&Buffer, dwarf::DW_AT_APPLE_runtime_class,
               dwarf::DW_FORM_data1, RLang);
+
+    DICompositeType ContainingType = CTy.getContainingType();
+    if (!ContainingType.isNull())
+      addDIEEntry(&Buffer, dwarf::DW_AT_containing_type, dwarf::DW_FORM_ref4, 
+                  getOrCreateTypeDIE(DIType(ContainingType.getNode())));
     break;
   }
   default:
@@ -959,7 +975,7 @@ void DwarfDebug::constructTypeDIE(DIE &Buffer, DICompositeType CTy) {
   if (!Name.empty())
     addString(&Buffer, dwarf::DW_AT_name, dwarf::DW_FORM_string, Name);
 
-  if (Tag == dwarf::DW_TAG_enumeration_type ||
+  if (Tag == dwarf::DW_TAG_enumeration_type || Tag == dwarf::DW_TAG_class_type ||
       Tag == dwarf::DW_TAG_structure_type || Tag == dwarf::DW_TAG_union_type) {
     // Add size if non-zero (derived types might be zero-sized.)
     if (Size)
@@ -1107,7 +1123,26 @@ DIE *DwarfDebug::createMemberDIE(const DIDerivedType &DT) {
     // This is not a bitfield.
     addUInt(MemLocationDie, 0, dwarf::DW_FORM_udata, DT.getOffsetInBits() >> 3);
 
-  addBlock(MemberDie, dwarf::DW_AT_data_member_location, 0, MemLocationDie);
+  if (DT.getTag() == dwarf::DW_TAG_inheritance
+      && DT.isVirtual()) {
+
+    // For C++, virtual base classes are not at fixed offset. Use following
+    // expression to extract appropriate offset from vtable.
+    // BaseAddr = ObAddr + *((*ObAddr) - Offset)
+
+    DIEBlock *VBaseLocationDie = new DIEBlock();
+    addUInt(VBaseLocationDie, 0, dwarf::DW_FORM_data1, dwarf::DW_OP_dup);
+    addUInt(VBaseLocationDie, 0, dwarf::DW_FORM_data1, dwarf::DW_OP_deref);
+    addUInt(VBaseLocationDie, 0, dwarf::DW_FORM_data1, dwarf::DW_OP_constu);
+    addUInt(VBaseLocationDie, 0, dwarf::DW_FORM_udata, DT.getOffsetInBits());
+    addUInt(VBaseLocationDie, 0, dwarf::DW_FORM_data1, dwarf::DW_OP_minus);
+    addUInt(VBaseLocationDie, 0, dwarf::DW_FORM_data1, dwarf::DW_OP_deref);
+    addUInt(VBaseLocationDie, 0, dwarf::DW_FORM_data1, dwarf::DW_OP_plus);
+
+    addBlock(MemberDie, dwarf::DW_AT_data_member_location, 0, 
+             VBaseLocationDie);
+  } else
+    addBlock(MemberDie, dwarf::DW_AT_data_member_location, 0, MemLocationDie);
 
   if (DT.isProtected())
     addUInt(MemberDie, dwarf::DW_AT_accessibility, dwarf::DW_FORM_flag,
@@ -1179,11 +1214,16 @@ DIE *DwarfDebug::createSubprogramDIE(const DISubprogram &SP, bool MakeDecl) {
     if (SPTag == dwarf::DW_TAG_subroutine_type)
       for (unsigned i = 1, N =  Args.getNumElements(); i < N; ++i) {
         DIE *Arg = new DIE(dwarf::DW_TAG_formal_parameter);
-        addType(Arg, DIType(Args.getElement(i).getNode()));
-        addUInt(Arg, dwarf::DW_AT_artificial, dwarf::DW_FORM_flag, 1); // ??
+        DIType ATy = DIType(DIType(Args.getElement(i).getNode()));
+        addType(Arg, ATy);
+        if (ATy.isArtificial())
+          addUInt(Arg, dwarf::DW_AT_artificial, dwarf::DW_FORM_flag, 1);
         SPDie->addChild(Arg);
       }
   }
+
+  if (SP.isArtificial())
+    addUInt(SPDie, dwarf::DW_AT_artificial, dwarf::DW_FORM_flag, 1);
 
   // DW_TAG_inlined_subroutine may refer to this DIE.
   ModuleCU->insertDIE(SP.getNode(), SPDie);
@@ -1289,7 +1329,13 @@ DIE *DwarfDebug::updateSubprogramScopeDIE(MDNode *SPNode) {
  DIE *SPDie = ModuleCU->getDIE(SPNode);
  assert (SPDie && "Unable to find subprogram DIE!");
  DISubprogram SP(SPNode);
- if (SP.isDefinition() && !SP.getContext().isCompileUnit()) {
+ // There is not any need to generate specification DIE for a function
+ // defined at compile unit level. If a function is defined inside another
+ // function then gdb prefers the definition at top level and but does not
+ // expect specification DIE in parent function. So avoid creating 
+ // specification DIE for a function defined inside a function.
+ if (SP.isDefinition() && !SP.getContext().isCompileUnit()
+     && !SP.getContext().isSubprogram()) {
    addUInt(SPDie, dwarf::DW_AT_declaration, dwarf::DW_FORM_flag, 1);
   // Add arguments. 
    DICompositeType SPTy = SP.getType();
@@ -1298,8 +1344,10 @@ DIE *DwarfDebug::updateSubprogramScopeDIE(MDNode *SPNode) {
    if (SPTag == dwarf::DW_TAG_subroutine_type)
      for (unsigned i = 1, N =  Args.getNumElements(); i < N; ++i) {
        DIE *Arg = new DIE(dwarf::DW_TAG_formal_parameter);
-       addType(Arg, DIType(Args.getElement(i).getNode()));
-       addUInt(Arg, dwarf::DW_AT_artificial, dwarf::DW_FORM_flag, 1); // ??
+       DIType ATy = DIType(DIType(Args.getElement(i).getNode()));
+       addType(Arg, ATy);
+       if (ATy.isArtificial())
+         addUInt(Arg, dwarf::DW_AT_artificial, dwarf::DW_FORM_flag, 1);
        SPDie->addChild(Arg);
      }
    DIE *SPDeclDie = SPDie;
@@ -1308,7 +1356,7 @@ DIE *DwarfDebug::updateSubprogramScopeDIE(MDNode *SPNode) {
                SPDeclDie);
    ModuleCU->addDie(SPDie);
  }
-   
+
  addLabel(SPDie, dwarf::DW_AT_low_pc, dwarf::DW_FORM_addr,
           DWLabel("func_begin", SubprogramCount));
  addLabel(SPDie, dwarf::DW_AT_high_pc, dwarf::DW_FORM_addr,
@@ -1471,6 +1519,9 @@ DIE *DwarfDebug::constructVariableDIE(DbgVariable *DV, DbgScope *Scope) {
     else
       addAddress(VariableDie, dwarf::DW_AT_location, Location);
   }
+
+  if (Tag == dwarf::DW_TAG_formal_parameter && VD.getType().isArtificial())
+    addUInt(VariableDie, dwarf::DW_AT_artificial, dwarf::DW_FORM_flag, 1);
   DV->setDIE(VariableDie);
   return VariableDie;
 
@@ -1669,6 +1720,7 @@ void DwarfDebug::constructGlobalVariableDIE(MDNode *N) {
     addObjectLabel(Block, 0, dwarf::DW_FORM_udata,
                    Asm->GetGlobalValueSymbol(DI_GV.getGlobal()));
     addBlock(VariableSpecDIE, dwarf::DW_AT_location, 0, Block);
+    addUInt(VariableDie, dwarf::DW_AT_declaration, dwarf::DW_FORM_flag, 1);
     ModuleCU->addDie(VariableSpecDIE);
   } else {
     DIEBlock *Block = new DIEBlock();
@@ -1779,8 +1831,7 @@ void DwarfDebug::beginModule(Module *M, MachineModuleInfo *mmi) {
         FullPath.appendComponent(getSourceFileName(Id.second));
       assert(AppendOk && "Could not append filename to directory!");
       AppendOk = false;
-      Asm->EmitFile(i, FullPath.str());
-      Asm->O << '\n';
+      Asm->OutStreamer.EmitDwarfFileDirective(i, FullPath.str());
     }
   }
 
@@ -1986,7 +2037,7 @@ void DwarfDebug::createDbgScope(MDNode *Scope, MDNode *InlinedAt) {
 
 /// extractScopeInformation - Scan machine instructions in this function
 /// and collect DbgScopes. Return true, if atleast one scope was found.
-bool DwarfDebug::extractScopeInformation(MachineFunction *MF) {
+bool DwarfDebug::extractScopeInformation() {
   // If scope information was extracted using .dbg intrinsics then there is not
   // any need to extract these information by scanning each instruction.
   if (!DbgScopeMap.empty())
@@ -2081,7 +2132,7 @@ bool DwarfDebug::extractScopeInformation(MachineFunction *MF) {
 
 /// beginFunction - Gather pre-function debug information.  Assumes being
 /// emitted immediately after the function entry point.
-void DwarfDebug::beginFunction(MachineFunction *MF) {
+void DwarfDebug::beginFunction(const MachineFunction *MF) {
   this->MF = MF;
 
   if (!ShouldEmitDwarfDebug()) return;
@@ -2089,13 +2140,10 @@ void DwarfDebug::beginFunction(MachineFunction *MF) {
   if (TimePassesIsEnabled)
     DebugTimer->startTimer();
 
-  if (!extractScopeInformation(MF))
+  if (!extractScopeInformation())
     return;
 
   collectVariableInfo();
-
-  // Begin accumulating function debug information.
-  MMI->BeginFunction(MF);
 
   // Assumes in correct section after the entry point.
   EmitLabel("func_begin", ++SubprogramCount);
@@ -2123,7 +2171,7 @@ void DwarfDebug::beginFunction(MachineFunction *MF) {
 
 /// endFunction - Gather and emit post-function debug information.
 ///
-void DwarfDebug::endFunction(MachineFunction *MF) {
+void DwarfDebug::endFunction(const MachineFunction *MF) {
   if (!ShouldEmitDwarfDebug()) return;
 
   if (TimePassesIsEnabled)
@@ -2366,6 +2414,9 @@ void DwarfDebug::emitDIE(DIE *Die) {
     unsigned Form = AbbrevData[i].getForm();
     assert(Form && "Too many attributes for DIE (check abbreviation)");
 
+    if (Asm->VerboseAsm)
+      Asm->OutStreamer.AddComment(dwarf::AttributeString(Attr));
+    
     switch (Attr) {
     case dwarf::DW_AT_sibling:
       Asm->EmitInt32(Die->getSiblingOffset());
@@ -2380,10 +2431,9 @@ void DwarfDebug::emitDIE(DIE *Die) {
     default:
       // Emit an attribute using the defined form.
       Values[i]->EmitValue(this, Form);
+      O << "\n"; // REMOVE This once all EmitValue impls emit their own newline.
       break;
     }
-
-    EOL(dwarf::AttributeString(Attr));
   }
 
   // Emit the DIE children if any.
@@ -2767,7 +2817,8 @@ void DwarfDebug::emitDebugPubTypes() {
 
   EmitLabel("pubtypes_begin", ModuleCU->getID());
 
-  Asm->EmitInt16(dwarf::DWARF_VERSION); EOL("DWARF Version");
+  if (Asm->VerboseAsm) Asm->OutStreamer.AddComment("DWARF Version");
+  Asm->EmitInt16(dwarf::DWARF_VERSION);
 
   EmitSectionOffset("info_begin", "section_info",
                     ModuleCU->getID(), 0, true, false);
@@ -2783,10 +2834,11 @@ void DwarfDebug::emitDebugPubTypes() {
     const char *Name = GI->getKeyData();
     DIE * Entity = GI->second;
 
-    Asm->EmitInt32(Entity->getOffset()); EOL("DIE offset");
+    if (Asm->VerboseAsm) Asm->OutStreamer.AddComment("DIE offset");
+    Asm->EmitInt32(Entity->getOffset());
     
     if (Asm->VerboseAsm) Asm->OutStreamer.AddComment("External Name");
-    Asm->OutStreamer.EmitBytes(StringRef(Name, strlen(Name)), 0);
+    Asm->OutStreamer.EmitBytes(StringRef(Name, GI->getKeyLength()+1), 0);
   }
 
   Asm->EmitInt32(0); EOL("End Mark");

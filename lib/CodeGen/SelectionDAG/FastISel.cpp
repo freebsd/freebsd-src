@@ -121,7 +121,7 @@ unsigned FastISel::getRegForValue(Value *V) {
     Reg = LocalValueMap[CE];
   } else if (isa<UndefValue>(V)) {
     Reg = createResultReg(TLI.getRegClassFor(VT));
-    BuildMI(MBB, DL, TII.get(TargetInstrInfo::IMPLICIT_DEF), Reg);
+    BuildMI(MBB, DL, TII.get(TargetOpcode::IMPLICIT_DEF), Reg);
   }
   
   // If target-independent code couldn't handle the value, give target-specific
@@ -332,6 +332,8 @@ bool FastISel::SelectCall(User *I) {
       return true;
 
     Value *Address = DI->getAddress();
+    if (!Address)
+      return true;
     AllocaInst *AI = dyn_cast<AllocaInst>(Address);
     // Don't handle byval struct arguments or VLAs, for example.
     if (!AI) break;
@@ -343,6 +345,9 @@ bool FastISel::SelectCall(User *I) {
       if (MDNode *Dbg = DI->getMetadata("dbg"))
         MMI->setVariableDbgInfo(DI->getVariable(), FI, Dbg);
     }
+    // Building the map above is target independent.  Generating DBG_VALUE
+    // inline is target dependent; do this now.
+    (void)TargetSelectInstruction(cast<Instruction>(I));
     return true;
   }
   case Intrinsic::eh_exception: {
@@ -966,7 +971,7 @@ unsigned FastISel::FastEmitInst_extractsubreg(MVT RetVT,
   const TargetRegisterClass* RC = MRI.getRegClass(Op0);
   
   unsigned ResultReg = createResultReg(TLI.getRegClassFor(RetVT));
-  const TargetInstrDesc &II = TII.get(TargetInstrInfo::EXTRACT_SUBREG);
+  const TargetInstrDesc &II = TII.get(TargetOpcode::EXTRACT_SUBREG);
   
   if (II.getNumDefs() >= 1)
     BuildMI(MBB, DL, II, ResultReg).addReg(Op0).addImm(Idx);

@@ -622,12 +622,12 @@ SDValue PIC16TargetLowering::ExpandStore(SDNode *N, SelectionDAG &DAG) {
       ChainHi = Chain.getOperand(1);
     }
     SDValue Store1 = DAG.getStore(ChainLo, dl, SrcLo, Ptr, NULL,
-                                  0 + StoreOffset);
+                                  0 + StoreOffset, false, false, 0);
 
     Ptr = DAG.getNode(ISD::ADD, dl, Ptr.getValueType(), Ptr,
                       DAG.getConstant(4, Ptr.getValueType()));
     SDValue Store2 = DAG.getStore(ChainHi, dl, SrcHi, Ptr, NULL,
-                                  1 + StoreOffset);
+                                  1 + StoreOffset, false, false, 0);
 
     return DAG.getNode(ISD::TokenFactor, dl, MVT::Other, Store1,
                        Store2);
@@ -1355,11 +1355,13 @@ GetDataAddress(DebugLoc dl, SDValue Callee, SDValue &Chain,
 SDValue
 PIC16TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                                CallingConv::ID CallConv, bool isVarArg,
-                               bool isTailCall,
+                               bool &isTailCall,
                                const SmallVectorImpl<ISD::OutputArg> &Outs,
                                const SmallVectorImpl<ISD::InputArg> &Ins,
                                DebugLoc dl, SelectionDAG &DAG,
                                SmallVectorImpl<SDValue> &InVals) {
+    // PIC16 target does not yet support tail call optimization.
+    isTailCall = false;
 
     assert(Callee.getValueType() == MVT::i16 &&
            "Don't know how to legalize this call node!!!");
@@ -1511,8 +1513,7 @@ bool PIC16TargetLowering::NeedToConvertToMemOp(SDValue Op, unsigned &MemOp,
       // Direct load operands are folded in binary operations. But before folding
       // verify if this folding is legal. Fold only if it is legal otherwise
       // convert this direct load to a separate memory operation.
-      if(ISel->IsLegalAndProfitableToFold(Op.getOperand(0).getNode(), 
-                                         Op.getNode(), Op.getNode()))
+      if(ISel->IsLegalToFold(Op.getOperand(0), Op.getNode(), Op.getNode()))
         return false;
       else 
         MemOp = 0;

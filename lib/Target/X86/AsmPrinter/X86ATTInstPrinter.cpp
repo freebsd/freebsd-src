@@ -18,17 +18,22 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/FormattedStream.h"
 #include "X86GenInstrNames.inc"
 using namespace llvm;
 
 // Include the auto-generated portion of the assembly writer.
 #define MachineInstr MCInst
-#define NO_ASM_WRITER_BOILERPLATE
+#define GET_INSTRUCTION_NAME
 #include "X86GenAsmWriter.inc"
 #undef MachineInstr
 
 void X86ATTInstPrinter::printInst(const MCInst *MI) { printInstruction(MI); }
+StringRef X86ATTInstPrinter::getOpcodeName(unsigned Opcode) const {
+  return getInstructionName(Opcode);
+}
+
 
 void X86ATTInstPrinter::printSSECC(const MCInst *MI, unsigned Op) {
   switch (MI->getOperand(Op).getImm()) {
@@ -66,6 +71,10 @@ void X86ATTInstPrinter::printOperand(const MCInst *MI, unsigned OpNo) {
     O << '%' << getRegisterName(Op.getReg());
   } else if (Op.isImm()) {
     O << '$' << Op.getImm();
+    
+    if (CommentStream && (Op.getImm() > 255 || Op.getImm() < -256))
+      *CommentStream << format("imm = 0x%X\n", Op.getImm());
+    
   } else {
     assert(Op.isExpr() && "unknown operand kind in printOperand");
     O << '$' << *Op.getExpr();

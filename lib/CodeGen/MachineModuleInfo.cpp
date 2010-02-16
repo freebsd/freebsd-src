@@ -40,6 +40,7 @@ MachineModuleInfoImpl::~MachineModuleInfoImpl() {}
 MachineModuleInfo::MachineModuleInfo()
 : ImmutablePass(&ID)
 , ObjFileMMI(0)
+, CurCallSite(0)
 , CallsEHReturn(0)
 , CallsUnwindInit(0)
 , DbgInfoAvailable(false) {
@@ -71,6 +72,7 @@ void MachineModuleInfo::EndFunction() {
 
   // Clean up exception info.
   LandingPads.clear();
+  CallSiteMap.clear();
   TypeInfos.clear();
   FilterIds.clear();
   FilterEnds.clear();

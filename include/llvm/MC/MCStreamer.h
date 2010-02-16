@@ -60,6 +60,10 @@ namespace llvm {
 
     /// @name Assembly File Formatting.
     /// @{
+    
+    /// isVerboseAsm - Return true if this streamer supports verbose assembly at
+    /// all.
+    virtual bool isVerboseAsm() const { return false; }
 
     /// AddComment - Add a comment that can be emitted to the generated .s
     /// file if applicable as a QoI issue to make the output of the compiler
@@ -129,6 +133,14 @@ namespace llvm {
     /// @param DescValue - The value to set into the n_desc field.
     virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) = 0;
 
+    
+    /// EmitELFSize - Emit an ELF .size directive.
+    ///
+    /// This corresponds to an assembler statement such as:
+    ///  .size symbol, expression
+    ///
+    virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) = 0;
+    
     /// EmitCommonSymbol - Emit a common symbol.
     ///
     /// @param Symbol - The common symbol to emit.
@@ -180,6 +192,13 @@ namespace llvm {
     /// to pass in a MCExpr for constant integers.
     virtual void EmitIntValue(uint64_t Value, unsigned Size,unsigned AddrSpace);
     
+    /// EmitGPRel32Value - Emit the expression @param Value into the output as a
+    /// gprel32 (32-bit GP relative) value.
+    ///
+    /// This is used to implement assembler directives such as .gprel32 on
+    /// targets that support them.
+    virtual void EmitGPRel32Value(const MCExpr *Value) = 0;
+    
     /// EmitFill - Emit NumBytes bytes worth of the value specified by
     /// FillValue.  This implements directives such as '.space'.
     virtual void EmitFill(uint64_t NumBytes, uint8_t FillValue,
@@ -225,6 +244,15 @@ namespace llvm {
                                    unsigned char Value = 0) = 0;
     
     /// @}
+    
+    /// EmitFileDirective - Switch to a new logical file.  This is used to
+    /// implement the '.file "foo.c"' assembler directive.
+    virtual void EmitFileDirective(StringRef Filename) = 0;
+    
+    /// EmitDwarfFileDirective - Associate a filename with a specified logical
+    /// file number.  This implements the DWARF2 '.file 4 "foo.c"' assembler
+    /// directive.
+    virtual void EmitDwarfFileDirective(unsigned FileNo,StringRef Filename) = 0;
 
     /// EmitInstruction - Emit the given @param Instruction into the current
     /// section.
@@ -241,11 +269,21 @@ namespace llvm {
   /// createAsmStreamer - Create a machine code streamer which will print out
   /// assembly for the native target, suitable for compiling with a native
   /// assembler.
+  ///
+  /// \param InstPrint - If given, the instruction printer to use. If not given
+  /// the MCInst representation will be printed.
+  ///
+  /// \param CE - If given, a code emitter to use to show the instruction
+  /// encoding inline with the assembly.
+  ///
+  /// \param ShowInst - Whether to show the MCInst representation inline with
+  /// the assembly.
   MCStreamer *createAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
                                 const MCAsmInfo &MAI, bool isLittleEndian,
                                 bool isVerboseAsm,
                                 MCInstPrinter *InstPrint = 0,
-                                MCCodeEmitter *CE = 0);
+                                MCCodeEmitter *CE = 0,
+                                bool ShowInst = false);
 
   // FIXME: These two may end up getting rolled into a single
   // createObjectStreamer interface, which implements the assembler backend, and
@@ -254,7 +292,7 @@ namespace llvm {
   /// createMachOStream - Create a machine code streamer which will generative
   /// Mach-O format object files.
   MCStreamer *createMachOStreamer(MCContext &Ctx, raw_ostream &OS,
-                                  MCCodeEmitter *CE = 0);
+                                  MCCodeEmitter *CE);
 
   /// createELFStreamer - Create a machine code streamer which will generative
   /// ELF format object files.

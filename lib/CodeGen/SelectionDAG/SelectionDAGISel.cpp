@@ -457,6 +457,21 @@ public:
 };
 }
 
+/// TrivialTruncElim - Eliminate some trivial nops that can result from
+/// ShrinkDemandedOps: (trunc (ext n)) -> n.
+static bool TrivialTruncElim(SDValue Op,
+                             TargetLowering::TargetLoweringOpt &TLO) {
+  SDValue N0 = Op.getOperand(0);
+  EVT VT = Op.getValueType();
+  if ((N0.getOpcode() == ISD::ZERO_EXTEND ||
+       N0.getOpcode() == ISD::SIGN_EXTEND ||
+       N0.getOpcode() == ISD::ANY_EXTEND) &&
+      N0.getOperand(0).getValueType() == VT) {
+    return TLO.CombineTo(Op, N0.getOperand(0));
+  }
+  return false;
+}
+
 /// ShrinkDemandedOps - A late transformation pass that shrink expressions
 /// using TargetLowering::TargetLoweringOpt::ShrinkDemandedOp. It converts
 /// x+y to (VT)((SmallVT)x+(SmallVT)y) if the casts are free.
@@ -489,7 +504,9 @@ void SelectionDAGISel::ShrinkDemandedOps() {
       APInt Demanded = APInt::getAllOnesValue(BitWidth);
       APInt KnownZero, KnownOne;
       if (TLI.SimplifyDemandedBits(SDValue(N, 0), Demanded,
-                                   KnownZero, KnownOne, TLO)) {
+                                   KnownZero, KnownOne, TLO) ||
+          (N->getOpcode() == ISD::TRUNCATE &&
+           TrivialTruncElim(SDValue(N, 0), TLO))) {
         // Revisit the node.
         Worklist.erase(std::remove(Worklist.begin(), Worklist.end(), N),
                        Worklist.end());
@@ -801,7 +818,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
       // landing pad can thus be detected via the MachineModuleInfo.
       unsigned LabelID = MMI->addLandingPad(BB);
 
-      const TargetInstrDesc &II = TII.get(TargetInstrInfo::EH_LABEL);
+      const TargetInstrDesc &II = TII.get(TargetOpcode::EH_LABEL);
       BuildMI(BB, SDB->getCurDebugLoc(), II).addImm(LabelID);
 
       // Mark exception register as live in.
@@ -953,7 +970,7 @@ SelectionDAGISel::FinishBasicBlock() {
       SDB->BitTestCases.empty()) {
     for (unsigned i = 0, e = SDB->PHINodesToUpdate.size(); i != e; ++i) {
       MachineInstr *PHI = SDB->PHINodesToUpdate[i].first;
-      assert(PHI->getOpcode() == TargetInstrInfo::PHI &&
+      assert(PHI->isPHI() &&
              "This is not a machine PHI node that we are updating!");
       PHI->addOperand(MachineOperand::CreateReg(SDB->PHINodesToUpdate[i].second,
                                                 false));
@@ -1000,7 +1017,7 @@ SelectionDAGISel::FinishBasicBlock() {
     for (unsigned pi = 0, pe = SDB->PHINodesToUpdate.size(); pi != pe; ++pi) {
       MachineInstr *PHI = SDB->PHINodesToUpdate[pi].first;
       MachineBasicBlock *PHIBB = PHI->getParent();
-      assert(PHI->getOpcode() == TargetInstrInfo::PHI &&
+      assert(PHI->isPHI() &&
              "This is not a machine PHI node that we are updating!");
       // This is "default" BB. We have two jumps to it. From "header" BB and
       // from last "case" BB.
@@ -1056,7 +1073,7 @@ SelectionDAGISel::FinishBasicBlock() {
     for (unsigned pi = 0, pe = SDB->PHINodesToUpdate.size(); pi != pe; ++pi) {
       MachineInstr *PHI = SDB->PHINodesToUpdate[pi].first;
       MachineBasicBlock *PHIBB = PHI->getParent();
-      assert(PHI->getOpcode() == TargetInstrInfo::PHI &&
+      assert(PHI->isPHI() &&
              "This is not a machine PHI node that we are updating!");
       // "default" BB. We can go there only from header BB.
       if (PHIBB == SDB->JTCases[i].second.Default) {
@@ -1079,7 +1096,7 @@ SelectionDAGISel::FinishBasicBlock() {
   // need to update PHI nodes in that block.
   for (unsigned i = 0, e = SDB->PHINodesToUpdate.size(); i != e; ++i) {
     MachineInstr *PHI = SDB->PHINodesToUpdate[i].first;
-    assert(PHI->getOpcode() == TargetInstrInfo::PHI &&
+    assert(PHI->isPHI() &&
            "This is not a machine PHI node that we are updating!");
     if (BB->isSuccessor(PHI->getParent())) {
       PHI->addOperand(MachineOperand::CreateReg(SDB->PHINodesToUpdate[i].second,
@@ -1116,7 +1133,7 @@ SelectionDAGISel::FinishBasicBlock() {
       // BB may have been removed from the CFG if a branch was constant folded.
       if (ThisBB->isSuccessor(BB)) {
         for (MachineBasicBlock::iterator Phi = BB->begin();
-             Phi != BB->end() && Phi->getOpcode() == TargetInstrInfo::PHI;
+             Phi != BB->end() && Phi->isPHI();
              ++Phi) {
           // This value for this PHI node is recorded in PHINodesToUpdate.
           for (unsigned pn = 0; ; ++pn) {
@@ -1324,8 +1341,7 @@ static bool findNonImmUse(SDNode *Use, SDNode* Def, SDNode *ImmedUse,
 /// isNonImmUse - Start searching from Root up the DAG to check is Def can
 /// be reached. Return true if that's the case. However, ignore direct uses
 /// by ImmedUse (which would be U in the example illustrated in
-/// IsLegalAndProfitableToFold) and by Root (which can happen in the store
-/// case).
+/// IsLegalToFold) and by Root (which can happen in the store case).
 /// FIXME: to be really generic, we should allow direct use by any node
 /// that is being folded. But realisticly since we only fold loads which
 /// have one non-chain use, we only need to watch out for load/op/store
@@ -1336,11 +1352,17 @@ static inline bool isNonImmUse(SDNode *Root, SDNode *Def, SDNode *ImmedUse) {
   return findNonImmUse(Root, Def, ImmedUse, Root, Visited);
 }
 
-/// IsLegalAndProfitableToFold - Returns true if the specific operand node N of
-/// U can be folded during instruction selection that starts at Root and
-/// folding N is profitable.
-bool SelectionDAGISel::IsLegalAndProfitableToFold(SDNode *N, SDNode *U,
-                                                  SDNode *Root) const {
+/// IsProfitableToFold - Returns true if it's profitable to fold the specific
+/// operand node N of U during instruction selection that starts at Root.
+bool SelectionDAGISel::IsProfitableToFold(SDValue N, SDNode *U,
+                                          SDNode *Root) const {
+  if (OptLevel == CodeGenOpt::None) return false;
+  return N.hasOneUse();
+}
+
+/// IsLegalToFold - Returns true if the specific operand node N of
+/// U can be folded during instruction selection that starts at Root.
+bool SelectionDAGISel::IsLegalToFold(SDValue N, SDNode *U, SDNode *Root) const {
   if (OptLevel == CodeGenOpt::None) return false;
 
   // If Root use can somehow reach N through a path that that doesn't contain
@@ -1394,7 +1416,7 @@ bool SelectionDAGISel::IsLegalAndProfitableToFold(SDNode *N, SDNode *U,
     VT = Root->getValueType(Root->getNumValues()-1);
   }
 
-  return !isNonImmUse(Root, N, U);
+  return !isNonImmUse(Root, N.getNode(), U);
 }
 
 SDNode *SelectionDAGISel::Select_INLINEASM(SDNode *N) {
@@ -1410,15 +1432,14 @@ SDNode *SelectionDAGISel::Select_INLINEASM(SDNode *N) {
 }
 
 SDNode *SelectionDAGISel::Select_UNDEF(SDNode *N) {
-  return CurDAG->SelectNodeTo(N, TargetInstrInfo::IMPLICIT_DEF,
-                              N->getValueType(0));
+  return CurDAG->SelectNodeTo(N, TargetOpcode::IMPLICIT_DEF,N->getValueType(0));
 }
 
 SDNode *SelectionDAGISel::Select_EH_LABEL(SDNode *N) {
   SDValue Chain = N->getOperand(0);
   unsigned C = cast<LabelSDNode>(N)->getLabelID();
   SDValue Tmp = CurDAG->getTargetConstant(C, MVT::i32);
-  return CurDAG->SelectNodeTo(N, TargetInstrInfo::EH_LABEL,
+  return CurDAG->SelectNodeTo(N, TargetOpcode::EH_LABEL,
                               MVT::Other, Tmp, Chain);
 }
 

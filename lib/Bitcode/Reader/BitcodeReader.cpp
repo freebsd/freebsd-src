@@ -28,7 +28,8 @@
 using namespace llvm;
 
 void BitcodeReader::FreeState() {
-  delete Buffer;
+  if (BufferOwned)
+    delete Buffer;
   Buffer = 0;
   std::vector<PATypeHolder>().swap(TypeList);
   ValueList.clear();
@@ -107,17 +108,17 @@ static int GetDecodedBinaryOpcode(unsigned Val, const Type *Ty) {
   switch (Val) {
   default: return -1;
   case bitc::BINOP_ADD:
-    return Ty->isFPOrFPVector() ? Instruction::FAdd : Instruction::Add;
+    return Ty->isFPOrFPVectorTy() ? Instruction::FAdd : Instruction::Add;
   case bitc::BINOP_SUB:
-    return Ty->isFPOrFPVector() ? Instruction::FSub : Instruction::Sub;
+    return Ty->isFPOrFPVectorTy() ? Instruction::FSub : Instruction::Sub;
   case bitc::BINOP_MUL:
-    return Ty->isFPOrFPVector() ? Instruction::FMul : Instruction::Mul;
+    return Ty->isFPOrFPVectorTy() ? Instruction::FMul : Instruction::Mul;
   case bitc::BINOP_UDIV: return Instruction::UDiv;
   case bitc::BINOP_SDIV:
-    return Ty->isFPOrFPVector() ? Instruction::FDiv : Instruction::SDiv;
+    return Ty->isFPOrFPVectorTy() ? Instruction::FDiv : Instruction::SDiv;
   case bitc::BINOP_UREM: return Instruction::URem;
   case bitc::BINOP_SREM:
-    return Ty->isFPOrFPVector() ? Instruction::FRem : Instruction::SRem;
+    return Ty->isFPOrFPVectorTy() ? Instruction::FRem : Instruction::SRem;
   case bitc::BINOP_SHL:  return Instruction::Shl;
   case bitc::BINOP_LSHR: return Instruction::LShr;
   case bitc::BINOP_ASHR: return Instruction::AShr;
@@ -582,6 +583,13 @@ bool BitcodeReader::ParseTypeTable() {
       for (unsigned i = 1, e = Record.size(); i != e; ++i)
         EltTys.push_back(getTypeByID(Record[i], true));
       ResultTy = StructType::get(Context, EltTys, Record[0]);
+      break;
+    }
+    case bitc::TYPE_CODE_UNION: {  // UNION: [eltty x N]
+      SmallVector<const Type*, 8> EltTys;
+      for (unsigned i = 0, e = Record.size(); i != e; ++i)
+        EltTys.push_back(getTypeByID(Record[i], true));
+      ResultTy = UnionType::get(&EltTys[0], EltTys.size());
       break;
     }
     case bitc::TYPE_CODE_ARRAY:     // ARRAY: [numelts, eltty]
@@ -1167,7 +1175,7 @@ bool BitcodeReader::ParseConstants() {
       Constant *Op0 = ValueList.getConstantFwdRef(Record[1], OpTy);
       Constant *Op1 = ValueList.getConstantFwdRef(Record[2], OpTy);
 
-      if (OpTy->isFPOrFPVector())
+      if (OpTy->isFPOrFPVectorTy())
         V = ConstantExpr::getFCmp(Record[3], Op0, Op1);
       else
         V = ConstantExpr::getICmp(Record[3], Op0, Op1);
@@ -1241,11 +1249,7 @@ bool BitcodeReader::RememberAndSkipFunctionBody() {
 
   // Save the current stream state.
   uint64_t CurBit = Stream.GetCurrentBitNo();
-  DeferredFunctionInfo[Fn] = std::make_pair(CurBit, Fn->getLinkage());
-
-  // Set the functions linkage to GhostLinkage so we know it is lazily
-  // deserialized.
-  Fn->setLinkage(GlobalValue::GhostLinkage);
+  DeferredFunctionInfo[Fn] = CurBit;
 
   // Skip over the function block for now.
   if (Stream.SkipBlock())
@@ -1253,16 +1257,9 @@ bool BitcodeReader::RememberAndSkipFunctionBody() {
   return false;
 }
 
-bool BitcodeReader::ParseModule(const std::string &ModuleID) {
-  // Reject multiple MODULE_BLOCK's in a single bitstream.
-  if (TheModule)
-    return Error("Multiple MODULE_BLOCKs in same stream");
-
+bool BitcodeReader::ParseModule() {
   if (Stream.EnterSubBlock(bitc::MODULE_BLOCK_ID))
     return Error("Malformed block record");
-
-  // Otherwise, create the module.
-  TheModule = new Module(ModuleID, Context);
 
   SmallVector<uint64_t, 64> Record;
   std::vector<std::string> SectionTable;
@@ -1520,7 +1517,7 @@ bool BitcodeReader::ParseModule(const std::string &ModuleID) {
   return Error("Premature end of bitstream");
 }
 
-bool BitcodeReader::ParseBitcode() {
+bool BitcodeReader::ParseBitcodeInto(Module *M) {
   TheModule = 0;
 
   if (Buffer->getBufferSize() & 3)
@@ -1564,7 +1561,11 @@ bool BitcodeReader::ParseBitcode() {
         return Error("Malformed BlockInfoBlock");
       break;
     case bitc::MODULE_BLOCK_ID:
-      if (ParseModule(Buffer->getBufferIdentifier()))
+      // Reject multiple MODULE_BLOCK's in a single bitstream.
+      if (TheModule)
+        return Error("Multiple MODULE_BLOCKs in same stream");
+      TheModule = M;
+      if (ParseModule())
         return true;
       break;
     default:
@@ -1702,12 +1703,12 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
         if (Opc == Instruction::Add ||
             Opc == Instruction::Sub ||
             Opc == Instruction::Mul) {
-          if (Record[3] & (1 << bitc::OBO_NO_SIGNED_WRAP))
+          if (Record[OpNum] & (1 << bitc::OBO_NO_SIGNED_WRAP))
             cast<BinaryOperator>(I)->setHasNoSignedWrap(true);
-          if (Record[3] & (1 << bitc::OBO_NO_UNSIGNED_WRAP))
+          if (Record[OpNum] & (1 << bitc::OBO_NO_UNSIGNED_WRAP))
             cast<BinaryOperator>(I)->setHasNoUnsignedWrap(true);
         } else if (Opc == Instruction::SDiv) {
-          if (Record[3] & (1 << bitc::SDIV_EXACT))
+          if (Record[OpNum] & (1 << bitc::SDIV_EXACT))
             cast<BinaryOperator>(I)->setIsExact(true);
         }
       }
@@ -1891,7 +1892,7 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
           OpNum+1 != Record.size())
         return Error("Invalid CMP record");
 
-      if (LHS->getType()->isFPOrFPVector())
+      if (LHS->getType()->isFPOrFPVectorTy())
         I = new FCmpInst((FCmpInst::Predicate)Record[OpNum], LHS, RHS);
       else
         I = new ICmpInst((ICmpInst::Predicate)Record[OpNum], LHS, RHS);
@@ -2299,22 +2300,28 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
 }
 
 //===----------------------------------------------------------------------===//
-// ModuleProvider implementation
+// GVMaterializer implementation
 //===----------------------------------------------------------------------===//
 
 
-bool BitcodeReader::materializeFunction(Function *F, std::string *ErrInfo) {
-  // If it already is material, ignore the request.
-  if (!F->hasNotBeenReadFromBitcode()) return false;
+bool BitcodeReader::isMaterializable(const GlobalValue *GV) const {
+  if (const Function *F = dyn_cast<Function>(GV)) {
+    return F->isDeclaration() &&
+      DeferredFunctionInfo.count(const_cast<Function*>(F));
+  }
+  return false;
+}
 
-  DenseMap<Function*, std::pair<uint64_t, unsigned> >::iterator DFII =
-    DeferredFunctionInfo.find(F);
+bool BitcodeReader::Materialize(GlobalValue *GV, std::string *ErrInfo) {
+  Function *F = dyn_cast<Function>(GV);
+  // If it's not a function or is already material, ignore the request.
+  if (!F || !F->isMaterializable()) return false;
+
+  DenseMap<Function*, uint64_t>::iterator DFII = DeferredFunctionInfo.find(F);
   assert(DFII != DeferredFunctionInfo.end() && "Deferred function not found!");
 
-  // Move the bit stream to the saved position of the deferred function body and
-  // restore the real linkage type for the function.
-  Stream.JumpToBit(DFII->second.first);
-  F->setLinkage((GlobalValue::LinkageTypes)DFII->second.second);
+  // Move the bit stream to the saved position of the deferred function body.
+  Stream.JumpToBit(DFII->second);
 
   if (ParseFunctionBody(F)) {
     if (ErrInfo) *ErrInfo = ErrorString;
@@ -2336,27 +2343,36 @@ bool BitcodeReader::materializeFunction(Function *F, std::string *ErrInfo) {
   return false;
 }
 
-void BitcodeReader::dematerializeFunction(Function *F) {
-  // If this function isn't materialized, or if it is a proto, this is a noop.
-  if (F->hasNotBeenReadFromBitcode() || F->isDeclaration())
+bool BitcodeReader::isDematerializable(const GlobalValue *GV) const {
+  const Function *F = dyn_cast<Function>(GV);
+  if (!F || F->isDeclaration())
+    return false;
+  return DeferredFunctionInfo.count(const_cast<Function*>(F));
+}
+
+void BitcodeReader::Dematerialize(GlobalValue *GV) {
+  Function *F = dyn_cast<Function>(GV);
+  // If this function isn't dematerializable, this is a noop.
+  if (!F || !isDematerializable(F))
     return;
 
   assert(DeferredFunctionInfo.count(F) && "No info to read function later?");
 
   // Just forget the function body, we can remat it later.
   F->deleteBody();
-  F->setLinkage(GlobalValue::GhostLinkage);
 }
 
 
-Module *BitcodeReader::materializeModule(std::string *ErrInfo) {
+bool BitcodeReader::MaterializeModule(Module *M, std::string *ErrInfo) {
+  assert(M == TheModule &&
+         "Can only Materialize the Module this BitcodeReader is attached to.");
   // Iterate over the module, deserializing any functions that are still on
   // disk.
   for (Module::iterator F = TheModule->begin(), E = TheModule->end();
        F != E; ++F)
-    if (F->hasNotBeenReadFromBitcode() &&
-        materializeFunction(F, ErrInfo))
-      return 0;
+    if (F->isMaterializable() &&
+        Materialize(F, ErrInfo))
+      return true;
 
   // Upgrade any intrinsic calls that slipped through (should not happen!) and
   // delete the old functions to clean up. We can't do this unless the entire
@@ -2380,19 +2396,7 @@ Module *BitcodeReader::materializeModule(std::string *ErrInfo) {
   // Check debug info intrinsics.
   CheckDebugInfoIntrinsics(TheModule);
 
-  return TheModule;
-}
-
-
-/// This method is provided by the parent ModuleProvde class and overriden
-/// here. It simply releases the module from its provided and frees up our
-/// state.
-/// @brief Release our hold on the generated module
-Module *BitcodeReader::releaseModule(std::string *ErrInfo) {
-  // Since we're losing control of this Module, we must hand it back complete
-  Module *M = ModuleProvider::releaseModule(ErrInfo);
-  FreeState();
-  return M;
+  return false;
 }
 
 
@@ -2400,45 +2404,41 @@ Module *BitcodeReader::releaseModule(std::string *ErrInfo) {
 // External interface
 //===----------------------------------------------------------------------===//
 
-/// getBitcodeModuleProvider - lazy function-at-a-time loading from a file.
+/// getLazyBitcodeModule - lazy function-at-a-time loading from a file.
 ///
-ModuleProvider *llvm::getBitcodeModuleProvider(MemoryBuffer *Buffer,
-                                               LLVMContext& Context,
-                                               std::string *ErrMsg) {
+Module *llvm::getLazyBitcodeModule(MemoryBuffer *Buffer,
+                                   LLVMContext& Context,
+                                   std::string *ErrMsg) {
+  Module *M = new Module(Buffer->getBufferIdentifier(), Context);
   BitcodeReader *R = new BitcodeReader(Buffer, Context);
-  if (R->ParseBitcode()) {
+  M->setMaterializer(R);
+  if (R->ParseBitcodeInto(M)) {
     if (ErrMsg)
       *ErrMsg = R->getErrorString();
 
-    // Don't let the BitcodeReader dtor delete 'Buffer'.
-    R->releaseMemoryBuffer();
-    delete R;
+    delete M;  // Also deletes R.
     return 0;
   }
-  return R;
+  // Have the BitcodeReader dtor delete 'Buffer'.
+  R->setBufferOwned(true);
+  return M;
 }
 
 /// ParseBitcodeFile - Read the specified bitcode file, returning the module.
 /// If an error occurs, return null and fill in *ErrMsg if non-null.
 Module *llvm::ParseBitcodeFile(MemoryBuffer *Buffer, LLVMContext& Context,
                                std::string *ErrMsg){
-  BitcodeReader *R;
-  R = static_cast<BitcodeReader*>(getBitcodeModuleProvider(Buffer, Context,
-                                                           ErrMsg));
-  if (!R) return 0;
-
-  // Read in the entire module.
-  Module *M = R->materializeModule(ErrMsg);
+  Module *M = getLazyBitcodeModule(Buffer, Context, ErrMsg);
+  if (!M) return 0;
 
   // Don't let the BitcodeReader dtor delete 'Buffer', regardless of whether
   // there was an error.
-  R->releaseMemoryBuffer();
+  static_cast<BitcodeReader*>(M->getMaterializer())->setBufferOwned(false);
 
-  // If there was no error, tell ModuleProvider not to delete it when its dtor
-  // is run.
-  if (M)
-    M = R->releaseModule(ErrMsg);
-
-  delete R;
+  // Read in the entire module, and destroy the BitcodeReader.
+  if (M->MaterializeAllPermanently(ErrMsg)) {
+    delete M;
+    return NULL;
+  }
   return M;
 }

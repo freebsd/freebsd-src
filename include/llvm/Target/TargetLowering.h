@@ -46,7 +46,10 @@ namespace llvm {
   class MachineFunction;
   class MachineFrameInfo;
   class MachineInstr;
+  class MachineJumpTableInfo;
   class MachineModuleInfo;
+  class MCContext;
+  class MCExpr;
   class DwarfWriter;
   class SDNode;
   class SDValue;
@@ -114,10 +117,6 @@ public:
   bool isLittleEndian() const { return IsLittleEndian; }
   MVT getPointerTy() const { return PointerTy; }
   MVT getShiftAmountTy() const { return ShiftAmountTy; }
-
-  /// usesGlobalOffsetTable - Return true if this target uses a GOT for PIC
-  /// codegen.
-  bool usesGlobalOffsetTable() const { return UsesGlobalOffsetTable; }
 
   /// isSelectExpensive - Return true if the select operation is expensive for
   /// this target.
@@ -346,6 +345,11 @@ public:
                                   EVT VT) const {
     return true;
   }
+
+  /// canOpTrap - Returns true if the operation can trap for the value type.
+  /// VT must be a legal type. By default, we optimistically assume most
+  /// operations don't trap except for divide and remainder.
+  virtual bool canOpTrap(unsigned Op, EVT VT) const;
 
   /// isVectorClearMaskLegal - Similar to isShuffleMaskLegal. This is
   /// used by Targets can use this to indicate if there is a suitable
@@ -752,11 +756,31 @@ public:
     return false;
   }
   
+  /// getJumpTableEncoding - Return the entry encoding for a jump table in the
+  /// current function.  The returned value is a member of the
+  /// MachineJumpTableInfo::JTEntryKind enum.
+  virtual unsigned getJumpTableEncoding() const;
+  
+  virtual const MCExpr *
+  LowerCustomJumpTableEntry(const MachineJumpTableInfo *MJTI,
+                            const MachineBasicBlock *MBB, unsigned uid,
+                            MCContext &Ctx) const {
+    assert(0 && "Need to implement this hook if target has custom JTIs");
+    return 0;
+  }
+  
   /// getPICJumpTableRelocaBase - Returns relocation base for the given PIC
   /// jumptable.
   virtual SDValue getPICJumpTableRelocBase(SDValue Table,
-                                             SelectionDAG &DAG) const;
+                                           SelectionDAG &DAG) const;
 
+  /// getPICJumpTableRelocBaseExpr - This returns the relocation base for the
+  /// given PIC jumptable, the same as getPICJumpTableRelocBase, but as an
+  /// MCExpr.
+  virtual const MCExpr *
+  getPICJumpTableRelocBaseExpr(const MachineFunction *MF,
+                               unsigned JTI, MCContext &Ctx) const;
+  
   /// isOffsetFoldingLegal - Return true if folding a constant offset
   /// with the given GlobalAddress is legal.  It is frequently not legal in
   /// PIC relocation models.
@@ -886,10 +910,6 @@ public:
   //
 
 protected:
-  /// setUsesGlobalOffsetTable - Specify that this target does or doesn't use a
-  /// GOT for PC-relative code.
-  void setUsesGlobalOffsetTable(bool V) { UsesGlobalOffsetTable = V; }
-
   /// setShiftAmountType - Describe the type that should be used for shift
   /// amounts.  This type defaults to the pointer type.
   void setShiftAmountType(MVT VT) { ShiftAmountTy = VT; }
@@ -1152,15 +1172,9 @@ public:
   /// described by the Ins array. The implementation should fill in the
   /// InVals array with legal-type return values from the call, and return
   /// the resulting token chain value.
-  ///
-  /// The isTailCall flag here is normative. If it is true, the
-  /// implementation must emit a tail call. The
-  /// IsEligibleForTailCallOptimization hook should be used to catch
-  /// cases that cannot be handled.
-  ///
   virtual SDValue
     LowerCall(SDValue Chain, SDValue Callee,
-              CallingConv::ID CallConv, bool isVarArg, bool isTailCall,
+              CallingConv::ID CallConv, bool isVarArg, bool &isTailCall,
               const SmallVectorImpl<ISD::OutputArg> &Outs,
               const SmallVectorImpl<ISD::InputArg> &Ins,
               DebugLoc dl, SelectionDAG &DAG,
@@ -1284,19 +1298,6 @@ public:
   virtual void ReplaceNodeResults(SDNode *N, SmallVectorImpl<SDValue> &Results,
                                   SelectionDAG &DAG) {
     assert(0 && "ReplaceNodeResults not implemented for this target!");
-  }
-
-  /// IsEligibleForTailCallOptimization - Check whether the call is eligible for
-  /// tail call optimization. Targets which want to do tail call optimization
-  /// should override this function.
-  virtual bool
-  IsEligibleForTailCallOptimization(SDValue Callee,
-                                    CallingConv::ID CalleeCC,
-                                    bool isVarArg,
-                                    const SmallVectorImpl<ISD::InputArg> &Ins,
-                                    SelectionDAG& DAG) const {
-    // Conservative default: no calls are eligible.
-    return false;
   }
 
   /// getTargetNodeName() - This method returns the name of a target specific
@@ -1572,10 +1573,6 @@ private:
   ///
   bool IsLittleEndian;
 
-  /// UsesGlobalOffsetTable - True if this target uses a GOT for PIC codegen.
-  ///
-  bool UsesGlobalOffsetTable;
-  
   /// SelectIsExpensive - Tells the code generator not to expand operations
   /// into sequences that use the select operations if possible.
   bool SelectIsExpensive;

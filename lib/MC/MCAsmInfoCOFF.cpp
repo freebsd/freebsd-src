@@ -18,14 +18,13 @@ using namespace llvm;
 
 MCAsmInfoCOFF::MCAsmInfoCOFF() {
   GlobalPrefix = "_";
+  COMMDirectiveAlignmentIsInBytes = false;
   HasLCOMMDirective = true;
-  COMMDirectiveTakesAlignment = false;
   HasDotTypeDotSizeDirective = false;
   HasSingleParameterDotFile = false;
   PrivateGlobalPrefix = "L";  // Prefix for private global symbols
   WeakRefDirective = "\t.weak\t";
-  LinkOnceDirective = "\t.linkonce same_size\n";
-  SetDirective = "\t.set\t";
+  LinkOnceDirective = "\t.linkonce discard\n";
   
   // Doesn't support visibility:
   HiddenVisibilityAttr = ProtectedVisibilityAttr = MCSA_Invalid;
@@ -37,4 +36,3 @@ MCAsmInfoCOFF::MCAsmInfoCOFF() {
   SupportsDebugInformation = true;
   DwarfSectionOffsetDirective = "\t.secrel32\t";
 }
-

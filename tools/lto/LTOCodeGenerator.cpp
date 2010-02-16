@@ -15,13 +15,11 @@
 #include "LTOModule.h"
 #include "LTOCodeGenerator.h"
 
-
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Linker.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
-#include "llvm/ModuleProvider.h"
 #include "llvm/PassManager.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Triple.h"
@@ -29,7 +27,6 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/Verifier.h"
 #include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/CodeGen/FileWriters.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -392,32 +389,15 @@ bool LTOCodeGenerator::generateAssemblyCode(formatted_raw_ostream& out,
     // Make sure everything is still good.
     passes.add(createVerifierPass());
 
-    FunctionPassManager* codeGenPasses =
-            new FunctionPassManager(new ExistingModuleProvider(mergedModule));
+    FunctionPassManager* codeGenPasses = new FunctionPassManager(mergedModule);
 
     codeGenPasses->add(new TargetData(*_target->getTargetData()));
 
-    ObjectCodeEmitter* oce = NULL;
-
-    switch (_target->addPassesToEmitFile(*codeGenPasses, out,
-                                         TargetMachine::AssemblyFile,
-                                         CodeGenOpt::Aggressive)) {
-        case FileModel::ElfFile:
-            oce = AddELFWriter(*codeGenPasses, out, *_target);
-            break;
-        case FileModel::AsmFile:
-            break;
-        case FileModel::MachOFile:
-        case FileModel::Error:
-        case FileModel::None:
-            errMsg = "target file type not supported";
-            return true;
-    }
-
-    if (_target->addPassesToEmitFileFinish(*codeGenPasses, oce,
-                                           CodeGenOpt::Aggressive)) {
-        errMsg = "target does not support generation of this file type";
-        return true;
+    if (_target->addPassesToEmitFile(*codeGenPasses, out,
+                                     TargetMachine::CGFT_AssemblyFile,
+                                     CodeGenOpt::Aggressive)) {
+      errMsg = "target file type not supported";
+      return true;
     }
 
     // Run our queue of passes all at once now, efficiently.

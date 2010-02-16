@@ -1,13 +1,5 @@
 /* include/llvm/Config/config.h.in.  Generated from autoconf/configure.ac by autoheader.  */
 
-/* Define if dlopen(0) will open the symbols of the program */
-#undef CAN_DLOPEN_SELF
-
-/* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
-   systems. This function is required for `alloca.c' support on those systems.
-   */
-#undef CRAY_STACKSEG_END
-
 /* 32 bit multilib directory. */
 #undef CXX_INCLUDE_32BIT_DIR
 
@@ -20,9 +12,6 @@
 /* Directory with the libstdc++ headers. */
 #undef CXX_INCLUDE_ROOT
 
-/* Define to 1 if using `alloca.c'. */
-#undef C_ALLOCA
-
 /* Directories clang will search for headers */
 #undef C_INCLUDE_DIRS
 
@@ -34,13 +23,6 @@
 
 /* Define if threads enabled */
 #undef ENABLE_THREADS
-
-/* Define to 1 if you have `alloca', as a function or macro. */
-#undef HAVE_ALLOCA
-
-/* Define to 1 if you have <alloca.h> and it should be used (not on Ultrix).
-   */
-#undef HAVE_ALLOCA_H
 
 /* Define to 1 if you have the `argz_append' function. */
 #undef HAVE_ARGZ_APPEND
@@ -68,9 +50,6 @@
 
 /* Define to 1 if you have the `bcopy' function. */
 #undef HAVE_BCOPY
-
-/* Does not have bi-directional iterator */
-#undef HAVE_BI_ITERATOR
 
 /* Define to 1 if you have the `ceilf' function. */
 #undef HAVE_CEILF
@@ -147,9 +126,6 @@
 
 /* Define to 1 if you have the `fmodf' function. */
 #undef HAVE_FMODF
-
-/* Does not have forward iterator */
-#undef HAVE_FWD_ITERATOR
 
 /* Define to 1 if you have the `getcwd' function. */
 #undef HAVE_GETCWD
@@ -276,9 +252,6 @@
 /* Define if mmap() can map files into memory */
 #undef HAVE_MMAP_FILE
 
-/* define if the compiler implements namespaces */
-#undef HAVE_NAMESPACES
-
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
 
@@ -374,9 +347,6 @@
 
 /* Set to 1 if the std::isnan function is found in <cmath> */
 #undef HAVE_STD_ISNAN_IN_CMATH
-
-/* Does not have std namespace iterator */
-#undef HAVE_STD_ITERATOR
 
 /* Define to 1 if you have the `strchr' function. */
 #undef HAVE_STRCHR
@@ -586,14 +556,6 @@
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
-
-/* If using the C implementation of alloca, define if you know the
-   direction of stack growth for your system; otherwise it will be
-   automatically deduced at runtime.
-	STACK_DIRECTION > 0 => grows toward higher addresses
-	STACK_DIRECTION < 0 => grows toward lower addresses
-	STACK_DIRECTION = 0 => direction of growth unknown */
-#undef STACK_DIRECTION
 
 /* Define to 1 if the `S_IS*' macros in <sys/stat.h> do not work properly. */
 #undef STAT_MACROS_BROKEN

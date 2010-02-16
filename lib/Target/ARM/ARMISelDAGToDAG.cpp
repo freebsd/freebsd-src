@@ -58,6 +58,8 @@ public:
     return "ARM Instruction Selection";
   }
 
+  virtual void InstructionSelect();
+
   /// getI32Imm - Return a target constant of type i32 with the specified
   /// value.
   inline SDValue getI32Imm(unsigned Imm) {
@@ -65,7 +67,7 @@ public:
   }
 
   SDNode *Select(SDNode *N);
-  virtual void InstructionSelect();
+
   bool SelectShifterOperandReg(SDNode *Op, SDValue N, SDValue &A,
                                SDValue &B, SDValue &C);
   bool SelectAddrMode2(SDNode *Op, SDValue N, SDValue &Base,
@@ -1007,12 +1009,12 @@ SDNode *ARMDAGToDAGISel::SelectDYN_ALLOC(SDNode *N) {
 SDNode *ARMDAGToDAGISel::PairDRegs(EVT VT, SDValue V0, SDValue V1) {
   DebugLoc dl = V0.getNode()->getDebugLoc();
   SDValue Undef =
-    SDValue(CurDAG->getMachineNode(TargetInstrInfo::IMPLICIT_DEF, dl, VT), 0);
+    SDValue(CurDAG->getMachineNode(TargetOpcode::IMPLICIT_DEF, dl, VT), 0);
   SDValue SubReg0 = CurDAG->getTargetConstant(ARM::DSUBREG_0, MVT::i32);
   SDValue SubReg1 = CurDAG->getTargetConstant(ARM::DSUBREG_1, MVT::i32);
-  SDNode *Pair = CurDAG->getMachineNode(TargetInstrInfo::INSERT_SUBREG, dl,
+  SDNode *Pair = CurDAG->getMachineNode(TargetOpcode::INSERT_SUBREG, dl,
                                         VT, Undef, V0, SubReg0);
-  return CurDAG->getMachineNode(TargetInstrInfo::INSERT_SUBREG, dl,
+  return CurDAG->getMachineNode(TargetOpcode::INSERT_SUBREG, dl,
                                 VT, SDValue(Pair, 0), V1, SubReg1);
 }
 

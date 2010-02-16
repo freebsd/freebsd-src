@@ -19,46 +19,43 @@
 
 namespace llvm {
   class MCSymbol;
-  
+
   /// MachineModuleInfoMachO - This is a MachineModuleInfoImpl implementation
   /// for MachO targets.
   class MachineModuleInfoMachO : public MachineModuleInfoImpl {
     /// FnStubs - Darwin '$stub' stubs.  The key is something like "Lfoo$stub",
     /// the value is something like "_foo".
-    DenseMap<const MCSymbol*, const MCSymbol*> FnStubs;
+    DenseMap<MCSymbol*, MCSymbol*> FnStubs;
     
     /// GVStubs - Darwin '$non_lazy_ptr' stubs.  The key is something like
     /// "Lfoo$non_lazy_ptr", the value is something like "_foo".
-    DenseMap<const MCSymbol*, const MCSymbol*> GVStubs;
+    DenseMap<MCSymbol*, MCSymbol*> GVStubs;
     
     /// HiddenGVStubs - Darwin '$non_lazy_ptr' stubs.  The key is something like
     /// "Lfoo$non_lazy_ptr", the value is something like "_foo".  Unlike GVStubs
     /// these are for things with hidden visibility.
-    DenseMap<const MCSymbol*, const MCSymbol*> HiddenGVStubs;
+    DenseMap<MCSymbol*, MCSymbol*> HiddenGVStubs;
     
     virtual void Anchor();  // Out of line virtual method.
   public:
     MachineModuleInfoMachO(const MachineModuleInfo &) {}
     
-    const MCSymbol *&getFnStubEntry(const MCSymbol *Sym) {
+    MCSymbol *&getFnStubEntry(MCSymbol *Sym) {
       assert(Sym && "Key cannot be null");
       return FnStubs[Sym];
     }
 
-    const MCSymbol *&getGVStubEntry(const MCSymbol *Sym) {
+    MCSymbol *&getGVStubEntry(MCSymbol *Sym) {
       assert(Sym && "Key cannot be null");
       return GVStubs[Sym];
     }
 
-    const MCSymbol *&getHiddenGVStubEntry(const MCSymbol *Sym) {
+    MCSymbol *&getHiddenGVStubEntry(MCSymbol *Sym) {
       assert(Sym && "Key cannot be null");
       return HiddenGVStubs[Sym];
     }
-    
+
     /// Accessor methods to return the set of stubs in sorted order.
-    typedef std::vector<std::pair<const MCSymbol*, const MCSymbol*> >
-      SymbolListTy;
-    
     SymbolListTy GetFnStubList() const {
       return GetSortedStubs(FnStubs);
     }
@@ -68,12 +65,31 @@ namespace llvm {
     SymbolListTy GetHiddenGVStubList() const {
       return GetSortedStubs(HiddenGVStubs);
     }
-    
-  private:
-    static SymbolListTy
-    GetSortedStubs(const DenseMap<const MCSymbol*, const MCSymbol*> &Map);
   };
-  
+
+  /// MachineModuleInfoELF - This is a MachineModuleInfoImpl implementation
+  /// for ELF targets.
+  class MachineModuleInfoELF : public MachineModuleInfoImpl {
+    /// GVStubs - These stubs are used to materialize global addresses in PIC
+    /// mode.
+    DenseMap<MCSymbol*, MCSymbol*> GVStubs;
+
+    virtual void Anchor();  // Out of line virtual method.
+  public:
+    MachineModuleInfoELF(const MachineModuleInfo &) {}
+
+    MCSymbol *&getGVStubEntry(MCSymbol *Sym) {
+      assert(Sym && "Key cannot be null");
+      return GVStubs[Sym];
+    }
+
+    /// Accessor methods to return the set of stubs in sorted order.
+
+    SymbolListTy GetGVStubList() const {
+      return GetSortedStubs(GVStubs);
+    }
+  };
+
 } // end namespace llvm
 
 #endif

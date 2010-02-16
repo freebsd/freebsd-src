@@ -24,7 +24,6 @@ using namespace llvm;
 // Include the auto-generated portion of the assembly writer.
 #define MachineInstr MCInst
 #define ARMAsmPrinter ARMInstPrinter  // FIXME: REMOVE.
-#define NO_ASM_WRITER_BOILERPLATE
 #include "ARMGenAsmWriter.inc"
 #undef MachineInstr
 #undef ARMAsmPrinter
@@ -353,6 +352,5 @@ void ARMInstPrinter::printPCLabel(const MCInst *MI, unsigned OpNum) {
 }
 
 void ARMInstPrinter::printThumbS4ImmOperand(const MCInst *MI, unsigned OpNum) {
-  // FIXME: remove this.
-  abort();
+  O << "#" <<  MI->getOperand(OpNum).getImm() * 4;
 }

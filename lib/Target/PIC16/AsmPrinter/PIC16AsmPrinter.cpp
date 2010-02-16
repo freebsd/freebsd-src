@@ -35,21 +35,17 @@ using namespace llvm;
 #include "PIC16GenAsmWriter.inc"
 
 PIC16AsmPrinter::PIC16AsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                                 const MCAsmInfo *T, bool V)
-: AsmPrinter(O, TM, T, V), DbgInfo(O, T) {
+                                 MCContext &Ctx, MCStreamer &Streamer,
+                                 const MCAsmInfo *T)
+: AsmPrinter(O, TM, Ctx, Streamer, T), DbgInfo(O, T) {
   PTLI = static_cast<PIC16TargetLowering*>(TM.getTargetLowering());
   PMAI = static_cast<const PIC16MCAsmInfo*>(T);
   PTOF = (PIC16TargetObjectFile *)&PTLI->getObjFileLowering();
 }
 
-bool PIC16AsmPrinter::printMachineInstruction(const MachineInstr *MI) {
-  processDebugLoc(MI, true);
+void PIC16AsmPrinter::EmitInstruction(const MachineInstr *MI) {
   printInstruction(MI);
-  if (VerboseAsm)
-    EmitComments(*MI);
-  O << '\n';
-  processDebugLoc(MI, false);
-  return true;
+  OutStreamer.AddBlankLine();
 }
 
 static int getFunctionColor(const Function *F) {
@@ -96,8 +92,6 @@ void PIC16AsmPrinter::ColorAutoSection(const Function *F) {
 /// directive and file begin debug directive (if required) for the function.
 ///
 bool PIC16AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
-  this->MF = &MF;
-
   // This calls the base class function required to be called at beginning
   // of runOnMachineFunction.
   SetupMachineFunction(MF);
@@ -112,8 +106,9 @@ bool PIC16AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   DbgInfo.BeginFunction(MF);
 
   // Now emit the instructions of function in its code section.
-  const MCSection *fCodeSection 
-    = getObjFileLowering().SectionForCode(CurrentFnSym->getName());
+  const MCSection *fCodeSection = 
+    getObjFileLowering().SectionForCode(CurrentFnSym->getName(), 
+                                        PAN::isISR(F->getSection()));
 
   // Start the Code Section.
   O <<  "\n";
@@ -149,7 +144,7 @@ bool PIC16AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
       }
         
       // Print the assembly for the instruction.
-      printMachineInstruction(II);
+      EmitInstruction(II);
     }
   }
   
@@ -211,7 +206,7 @@ void PIC16AsmPrinter::printOperand(const MachineInstr *MI, int opNum) {
       break;
     }
     case MachineOperand::MO_MachineBasicBlock:
-      O << *GetMBBSymbol(MO.getMBB()->getNumber());
+      O << *MO.getMBB()->getSymbol(OutContext);
       return;
 
     default:

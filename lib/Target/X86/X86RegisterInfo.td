@@ -512,20 +512,17 @@ def GR64_ABCD : RegisterClass<"X86", [i64], 64, [RAX, RCX, RDX, RBX]> {
   let SubRegClassList = [GR8_ABCD_L, GR8_ABCD_H, GR16_ABCD, GR32_ABCD];
 }
 
-// GR8_NOREX, GR16_NOREX, GR32_NOREX, GR64_NOREX - Subclasses of
-// GR8, GR16, GR32, and GR64 which contain only the first 8 GPRs.
-// On x86-64, GR64_NOREX, GR32_NOREX and GR16_NOREX are the classes
-// of registers which do not by themselves require a REX prefix.
+// GR8_NOREX - GR8 registers which do not require a REX prefix.
 def GR8_NOREX : RegisterClass<"X86", [i8], 8,
-                              [AL, CL, DL, AH, CH, DH, BL, BH,
-                               SIL, DIL, BPL, SPL]> {
+                              [AL, CL, DL, AH, CH, DH, BL, BH]> {
   let MethodProtos = [{
     iterator allocation_order_begin(const MachineFunction &MF) const;
     iterator allocation_order_end(const MachineFunction &MF) const;
   }];
   let MethodBodies = [{
+    // In 64-bit mode, it's not safe to blindly allocate H registers.
     static const unsigned X86_GR8_NOREX_AO_64[] = {
-      X86::AL, X86::CL, X86::DL, X86::SIL, X86::DIL, X86::BL, X86::BPL
+      X86::AL, X86::CL, X86::DL, X86::BL
     };
 
     GR8_NOREXClass::iterator
@@ -541,21 +538,15 @@ def GR8_NOREX : RegisterClass<"X86", [i8], 8,
     GR8_NOREXClass::iterator
     GR8_NOREXClass::allocation_order_end(const MachineFunction &MF) const {
       const TargetMachine &TM = MF.getTarget();
-      const TargetRegisterInfo *RI = TM.getRegisterInfo();
       const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      // Does the function dedicate RBP / EBP to being a frame ptr?
-      if (!Subtarget.is64Bit())
-        // In 32-mode, none of the 8-bit registers aliases EBP or ESP.
-        return begin() + 8;
-      else if (RI->hasFP(MF))
-        // If so, don't allocate SPL or BPL.
-        return array_endof(X86_GR8_NOREX_AO_64) - 1;
-      else
-        // If not, just don't allocate SPL.
+      if (Subtarget.is64Bit())
         return array_endof(X86_GR8_NOREX_AO_64);
+      else
+        return end();
     }
   }];
 }
+// GR16_NOREX - GR16 registers which do not require a REX prefix.
 def GR16_NOREX : RegisterClass<"X86", [i16], 16,
                                [AX, CX, DX, SI, DI, BX, BP, SP]> {
   let SubRegClassList = [GR8_NOREX, GR8_NOREX];

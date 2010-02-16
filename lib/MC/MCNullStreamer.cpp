@@ -38,7 +38,7 @@ namespace {
     virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute){}
 
     virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) {}
-
+    virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {}
     virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                   unsigned ByteAlignment) {}
     virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) {}
@@ -50,7 +50,7 @@ namespace {
 
     virtual void EmitValue(const MCExpr *Value, unsigned Size,
                            unsigned AddrSpace) {}
-
+    virtual void EmitGPRel32Value(const MCExpr *Value) {}
     virtual void EmitValueToAlignment(unsigned ByteAlignment, int64_t Value = 0,
                                       unsigned ValueSize = 1,
                                       unsigned MaxBytesToEmit = 0) {}
@@ -58,6 +58,8 @@ namespace {
     virtual void EmitValueToOffset(const MCExpr *Offset,
                                    unsigned char Value = 0) {}
     
+    virtual void EmitFileDirective(StringRef Filename) {}
+    virtual void EmitDwarfFileDirective(unsigned FileNo,StringRef Filename) {}
     virtual void EmitInstruction(const MCInst &Inst) {}
 
     virtual void Finish() {}

@@ -1,11 +1,14 @@
 ; RUN: llc < %s -march=x86 -tailcallopt | grep TAILCALL | count 5
 
+; With -tailcallopt, CodeGen guarantees a tail call optimization
+; for all of these.
+
 declare fastcc i32 @tailcallee(i32 %a1, i32 %a2, i32 %a3, i32 %a4)
 
 define fastcc i32 @tailcaller(i32 %in1, i32 %in2) nounwind {
 entry:
-	%tmp11 = tail call fastcc i32 @tailcallee(i32 %in1, i32 %in2, i32 %in1, i32 %in2)
-	ret i32 %tmp11
+  %tmp11 = tail call fastcc i32 @tailcallee(i32 %in1, i32 %in2, i32 %in1, i32 %in2)
+  ret i32 %tmp11
 }
 
 declare fastcc i8* @alias_callee()

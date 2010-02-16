@@ -28,11 +28,14 @@ class Module;
 class MCAsmInfo;
 class TargetData;
 class TargetRegisterInfo;
+class GlobalValue;
 class MCSymbol;
 class Twine;
 
 class DwarfPrinter {
 protected:
+  ~DwarfPrinter() {}
+
   //===-------------------------------------------------------------==---===//
   // Core attributes used by the DWARF printer.
   //
@@ -56,7 +59,7 @@ protected:
   Module *M;
 
   /// MF - Current machine function.
-  MachineFunction *MF;
+  const MachineFunction *MF;
 
   /// MMI - Collected machine module information.
   MachineModuleInfo *MMI;
@@ -83,6 +86,10 @@ public:
   const MCAsmInfo *getMCAsmInfo() const { return MAI; }
   const TargetData *getTargetData() const { return TD; }
 
+  /// SizeOfEncodedValue - Return the size of the encoding in bytes.
+  unsigned SizeOfEncodedValue(unsigned Encoding) const;
+
+  void PrintRelDirective(unsigned Encoding) const;
   void PrintRelDirective(bool Force32Bit = false,
                          bool isInSection = false) const;
 
@@ -138,9 +145,11 @@ public:
   void EmitReference(const MCSymbol *Sym, bool IsPCRelative = false,
                      bool Force32Bit = false) const;
 
-  /// EmitDifference - Emit the difference between two labels.  Some
-  /// assemblers do not behave with absolute expressions with data directives,
-  /// so there is an option (needsSet) to use an intermediary set expression.
+  void EmitReference(const char *Tag, unsigned Number, unsigned Encoding) const;
+  void EmitReference(const MCSymbol *Sym, unsigned Encoding) const;
+  void EmitReference(const GlobalValue *GV, unsigned Encoding) const;
+
+  /// EmitDifference - Emit the difference between two labels.
   void EmitDifference(const DWLabel &LabelHi, const DWLabel &LabelLo,
                       bool IsSmall = false) {
     EmitDifference(LabelHi.getTag(), LabelHi.getNumber(),

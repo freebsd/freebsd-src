@@ -46,13 +46,9 @@ class MCMachOStreamer : public MCStreamer {
 
 private:
   MCAssembler Assembler;
-
   MCCodeEmitter *Emitter;
-
   MCSectionData *CurSectionData;
-
   DenseMap<const MCSection*, MCSectionData*> SectionMap;
-  
   DenseMap<const MCSymbol*, MCSymbolData*> SymbolMap;
 
 private:
@@ -91,6 +87,7 @@ public:
 
   const MCExpr *AddValueSymbols(const MCExpr *Value) {
     switch (Value->getKind()) {
+    case MCExpr::Target: assert(0 && "Can't handle target exprs yet!");
     case MCExpr::Constant:
       break;
 
@@ -124,6 +121,9 @@ public:
   virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue);
   virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                 unsigned ByteAlignment);
+  virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {
+    assert(0 && "macho doesn't support this directive");
+  }
   virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) {
     assert(0 && "macho doesn't support this directive");
   }
@@ -131,11 +131,22 @@ public:
                             unsigned Size = 0, unsigned ByteAlignment = 0);
   virtual void EmitBytes(StringRef Data, unsigned AddrSpace);
   virtual void EmitValue(const MCExpr *Value, unsigned Size,unsigned AddrSpace);
+  virtual void EmitGPRel32Value(const MCExpr *Value) {
+    assert(0 && "macho doesn't support this directive");
+  }
   virtual void EmitValueToAlignment(unsigned ByteAlignment, int64_t Value = 0,
                                     unsigned ValueSize = 1,
                                     unsigned MaxBytesToEmit = 0);
   virtual void EmitValueToOffset(const MCExpr *Offset,
                                  unsigned char Value = 0);
+  
+  virtual void EmitFileDirective(StringRef Filename) {
+    errs() << "FIXME: MCMachoStreamer:EmitFileDirective not implemented\n";
+  }
+  virtual void EmitDwarfFileDirective(unsigned FileNo, StringRef Filename) {
+    errs() << "FIXME: MCMachoStreamer:EmitDwarfFileDirective not implemented\n";
+  }
+  
   virtual void EmitInstruction(const MCInst &Inst);
   virtual void Finish();
 
@@ -220,6 +231,12 @@ void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
   // defined.
   switch (Attribute) {
   case MCSA_Invalid:
+  case MCSA_ELF_TypeFunction:
+  case MCSA_ELF_TypeIndFunction:
+  case MCSA_ELF_TypeObject:
+  case MCSA_ELF_TypeTLS:
+  case MCSA_ELF_TypeCommon:
+  case MCSA_ELF_TypeNoType:
   case MCSA_IndirectSymbol:
   case MCSA_Hidden:
   case MCSA_Internal:
@@ -316,7 +333,24 @@ void MCMachOStreamer::EmitBytes(StringRef Data, unsigned AddrSpace) {
 
 void MCMachOStreamer::EmitValue(const MCExpr *Value, unsigned Size,
                                 unsigned AddrSpace) {
-  new MCFillFragment(*AddValueSymbols(Value), Size, 1, CurSectionData);
+  // Assume the front-end will have evaluate things absolute expressions, so
+  // just create data + fixup.
+  MCDataFragment *DF = dyn_cast_or_null<MCDataFragment>(getCurrentFragment());
+  if (!DF)
+    DF = new MCDataFragment(CurSectionData);
+
+  // Avoid fixups when possible.
+  int64_t AbsValue;
+  if (Value->EvaluateAsAbsolute(AbsValue)) {
+    // FIXME: Endianness assumption.
+    for (unsigned i = 0; i != Size; ++i)
+      DF->getContents().push_back(uint8_t(AbsValue >> (i * 8)));
+  } else {
+    DF->getFixups().push_back(MCAsmFixup(DF->getContents().size(),
+                                         *AddValueSymbols(Value),
+                                         MCFixup::getKindForSize(Size)));
+    DF->getContents().resize(DF->getContents().size() + Size, 0);
+  }
 }
 
 void MCMachOStreamer::EmitValueToAlignment(unsigned ByteAlignment,
@@ -346,13 +380,25 @@ void MCMachOStreamer::EmitInstruction(const MCInst &Inst) {
   if (!Emitter)
     llvm_unreachable("no code emitter available!");
 
-  // FIXME: Emitting an instruction should cause S_ATTR_SOME_INSTRUCTIONS to
-  //        be set for the current section.
-  // FIXME: Relocations!
+  CurSectionData->setHasInstructions(true);
+
+  SmallVector<MCFixup, 4> Fixups;
   SmallString<256> Code;
   raw_svector_ostream VecOS(Code);
-  Emitter->EncodeInstruction(Inst, VecOS);
-  EmitBytes(VecOS.str(), 0);
+  Emitter->EncodeInstruction(Inst, VecOS, Fixups);
+  VecOS.flush();
+
+  // Add the fixups and data.
+  MCDataFragment *DF = dyn_cast_or_null<MCDataFragment>(getCurrentFragment());
+  if (!DF)
+    DF = new MCDataFragment(CurSectionData);
+  for (unsigned i = 0, e = Fixups.size(); i != e; ++i) {
+    MCFixup &F = Fixups[i];
+    DF->getFixups().push_back(MCAsmFixup(DF->getContents().size()+F.getOffset(),
+                                         *F.getValue(),
+                                         F.getKind()));
+  }
+  DF->getContents().append(Code.begin(), Code.end());
 }
 
 void MCMachOStreamer::Finish() {

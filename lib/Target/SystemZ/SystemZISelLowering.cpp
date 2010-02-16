@@ -30,9 +30,9 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -250,11 +250,13 @@ SystemZTargetLowering::LowerFormalArguments(SDValue Chain,
 SDValue
 SystemZTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                                  CallingConv::ID CallConv, bool isVarArg,
-                                 bool isTailCall,
+                                 bool &isTailCall,
                                  const SmallVectorImpl<ISD::OutputArg> &Outs,
                                  const SmallVectorImpl<ISD::InputArg> &Ins,
                                  DebugLoc dl, SelectionDAG &DAG,
                                  SmallVectorImpl<SDValue> &InVals) {
+  // SystemZ target does not yet support tail call optimization.
+  isTailCall = false;
 
   switch (CallConv) {
   default:
@@ -335,7 +337,8 @@ SystemZTargetLowering::LowerCCCArguments(SDValue Chain,
       // from this parameter
       SDValue FIN = DAG.getFrameIndex(FI, getPointerTy());
       ArgValue = DAG.getLoad(LocVT, dl, Chain, FIN,
-                             PseudoSourceValue::getFixedStack(FI), 0);
+                             PseudoSourceValue::getFixedStack(FI), 0,
+                             false, false, 0);
     }
 
     // If this is an 8/16/32-bit value, it is really passed promoted to 64
@@ -433,7 +436,8 @@ SystemZTargetLowering::LowerCCCCallTo(SDValue Chain, SDValue Callee,
                                    DAG.getIntPtrConstant(Offset));
 
       MemOpChains.push_back(DAG.getStore(Chain, dl, Arg, PtrOff,
-                                         PseudoSourceValue::getStack(), Offset));
+                                         PseudoSourceValue::getStack(), Offset,
+                                         false, false, 0));
     }
   }
 
@@ -736,7 +740,7 @@ SDValue SystemZTargetLowering::LowerGlobalAddress(SDValue Op,
 
   if (ExtraLoadRequired)
     Result = DAG.getLoad(getPointerTy(), dl, DAG.getEntryNode(), Result,
-                         PseudoSourceValue::getGOT(), 0);
+                         PseudoSourceValue::getGOT(), 0, false, false, 0);
 
   // If there was a non-zero offset that we didn't fold, create an explicit
   // addition for it.

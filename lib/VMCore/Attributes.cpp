@@ -56,6 +56,8 @@ std::string Attribute::getAsString(Attributes Attrs) {
     Result += "optsize ";
   if (Attrs & Attribute::NoInline)
     Result += "noinline ";
+  if (Attrs & Attribute::InlineHint)
+    Result += "inlinehint ";
   if (Attrs & Attribute::AlwaysInline)
     Result += "alwaysinline ";
   if (Attrs & Attribute::StackProtect)
@@ -68,6 +70,11 @@ std::string Attribute::getAsString(Attributes Attrs) {
     Result += "noimplicitfloat ";
   if (Attrs & Attribute::Naked)
     Result += "naked ";
+  if (Attrs & Attribute::StackAlignment) {
+    Result += "alignstack(";
+    Result += utostr(Attribute::getStackAlignmentFromAttrs(Attrs));
+    Result += ") ";
+  }
   if (Attrs & Attribute::Alignment) {
     Result += "align ";
     Result += utostr(Attribute::getAlignmentFromAttrs(Attrs));
@@ -82,7 +89,7 @@ std::string Attribute::getAsString(Attributes Attrs) {
 Attributes Attribute::typeIncompatible(const Type *Ty) {
   Attributes Incompatible = None;
   
-  if (!Ty->isInteger())
+  if (!Ty->isIntegerTy())
     // Attributes that only apply to integers.
     Incompatible |= SExt | ZExt;
   

@@ -14,56 +14,6 @@
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
-// MMX Pattern Fragments
-//===----------------------------------------------------------------------===//
-
-def load_mmx : PatFrag<(ops node:$ptr), (v1i64 (load node:$ptr))>;
-
-def bc_v8i8  : PatFrag<(ops node:$in), (v8i8  (bitconvert node:$in))>;
-def bc_v4i16 : PatFrag<(ops node:$in), (v4i16 (bitconvert node:$in))>;
-def bc_v2i32 : PatFrag<(ops node:$in), (v2i32 (bitconvert node:$in))>;
-def bc_v1i64 : PatFrag<(ops node:$in), (v1i64 (bitconvert node:$in))>;
-
-//===----------------------------------------------------------------------===//
-// MMX Masks
-//===----------------------------------------------------------------------===//
-
-// MMX_SHUFFLE_get_shuf_imm xform function: convert vector_shuffle mask to
-// PSHUFW imm.
-def MMX_SHUFFLE_get_shuf_imm : SDNodeXForm<vector_shuffle, [{
-  return getI8Imm(X86::getShuffleSHUFImmediate(N));
-}]>;
-
-// Patterns for: vector_shuffle v1, v2, <2, 6, 3, 7, ...>
-def mmx_unpckh : PatFrag<(ops node:$lhs, node:$rhs),
-                         (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKHMask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-// Patterns for: vector_shuffle v1, v2, <0, 4, 2, 5, ...>
-def mmx_unpckl : PatFrag<(ops node:$lhs, node:$rhs),
-                         (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKLMask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-// Patterns for: vector_shuffle v1, <undef>, <0, 0, 1, 1, ...>
-def mmx_unpckh_undef : PatFrag<(ops node:$lhs, node:$rhs),
-                               (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKH_v_undef_Mask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-// Patterns for: vector_shuffle v1, <undef>, <2, 2, 3, 3, ...>
-def mmx_unpckl_undef : PatFrag<(ops node:$lhs, node:$rhs),
-                               (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKL_v_undef_Mask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-def mmx_pshufw : PatFrag<(ops node:$lhs, node:$rhs),
-                         (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isPSHUFDMask(cast<ShuffleVectorSDNode>(N));
-}], MMX_SHUFFLE_get_shuf_imm>;
-
-//===----------------------------------------------------------------------===//
 // MMX Multiclasses
 //===----------------------------------------------------------------------===//
 
@@ -501,6 +451,20 @@ let Constraints = "$src1 = $dst" in {
                                (iPTR imm:$src3))))]>;
 }
 
+// MMX to XMM for vector types
+def MMX_X86movq2dq : SDNode<"X86ISD::MOVQ2DQ", SDTypeProfile<1, 1,
+                            [SDTCisVT<0, v2i64>, SDTCisVT<1, v1i64>]>>;
+
+def : Pat<(v2i64 (MMX_X86movq2dq VR64:$src)),
+          (v2i64 (MMX_MOVQ2DQrr VR64:$src))>;
+
+def : Pat<(v2i64 (MMX_X86movq2dq (load_mmx addr:$src))),
+          (v2i64 (MOVQI2PQIrm addr:$src))>;
+
+def : Pat<(v2i64 (MMX_X86movq2dq (v1i64 (bitconvert
+                            (v2i32 (scalar_to_vector (loadi32 addr:$src))))))),
+          (v2i64 (MOVDI2PDIrm addr:$src))>;
+
 // Mask creation
 def MMX_PMOVMSKBrr : MMXI<0xD7, MRMSrcReg, (outs GR32:$dst), (ins VR64:$src),
                           "pmovmskb\t{$src, $dst|$dst, $src}",
@@ -522,11 +486,10 @@ def MMX_MASKMOVQ64: MMXI64<0xF7, MRMSrcReg, (outs), (ins VR64:$src, VR64:$mask),
 
 // Alias instructions that map zero vector to pxor.
 let isReMaterializable = 1, isCodeGenOnly = 1 in {
-  def MMX_V_SET0       : MMXI<0xEF, MRMInitReg, (outs VR64:$dst), (ins),
-                              "pxor\t$dst, $dst",
+  // FIXME: Change encoding to pseudo.
+  def MMX_V_SET0       : MMXI<0xEF, MRMInitReg, (outs VR64:$dst), (ins), "",
                               [(set VR64:$dst, (v2i32 immAllZerosV))]>;
-  def MMX_V_SETALLONES : MMXI<0x76, MRMInitReg, (outs VR64:$dst), (ins),
-                              "pcmpeqd\t$dst, $dst",
+  def MMX_V_SETALLONES : MMXI<0x76, MRMInitReg, (outs VR64:$dst), (ins), "",
                               [(set VR64:$dst, (v2i32 immAllOnesV))]>;
 }
 

@@ -87,7 +87,7 @@ static Instruction *InstCombineLoadCast(InstCombiner &IC, LoadInst &LI,
 
     const Type *SrcPTy = SrcTy->getElementType();
 
-    if (DestPTy->isInteger() || isa<PointerType>(DestPTy) || 
+    if (DestPTy->isIntegerTy() || isa<PointerType>(DestPTy) || 
          isa<VectorType>(DestPTy)) {
       // If the source is an array, the code below will not succeed.  Check to
       // see if a trivial 'gep P, 0, 0' will help matters.  Only do this for
@@ -104,7 +104,7 @@ static Instruction *InstCombineLoadCast(InstCombiner &IC, LoadInst &LI,
           }
 
       if (IC.getTargetData() &&
-          (SrcPTy->isInteger() || isa<PointerType>(SrcPTy) || 
+          (SrcPTy->isIntegerTy() || isa<PointerType>(SrcPTy) || 
             isa<VectorType>(SrcPTy)) &&
           // Do not allow turning this into a load of an integer, which is then
           // casted to a pointer, this pessimizes pointer analysis a lot.
@@ -115,8 +115,9 @@ static Instruction *InstCombineLoadCast(InstCombiner &IC, LoadInst &LI,
         // Okay, we are casting from one integer or pointer type to another of
         // the same size.  Instead of casting the pointer before the load, cast
         // the result of the loaded value.
-        Value *NewLoad = 
+        LoadInst *NewLoad = 
           IC.Builder->CreateLoad(CastOp, LI.isVolatile(), CI->getName());
+        NewLoad->setAlignment(LI.getAlignment());
         // Now cast the result of the load.
         return new BitCastInst(NewLoad, LI.getType());
       }
@@ -199,12 +200,15 @@ Instruction *InstCombiner::visitLoadInst(LoadInst &LI) {
     //
     if (SelectInst *SI = dyn_cast<SelectInst>(Op)) {
       // load (select (Cond, &V1, &V2))  --> select(Cond, load &V1, load &V2).
-      if (isSafeToLoadUnconditionally(SI->getOperand(1), SI) &&
-          isSafeToLoadUnconditionally(SI->getOperand(2), SI)) {
-        Value *V1 = Builder->CreateLoad(SI->getOperand(1),
-                                        SI->getOperand(1)->getName()+".val");
-        Value *V2 = Builder->CreateLoad(SI->getOperand(2),
-                                        SI->getOperand(2)->getName()+".val");
+      unsigned Align = LI.getAlignment();
+      if (isSafeToLoadUnconditionally(SI->getOperand(1), SI, Align, TD) &&
+          isSafeToLoadUnconditionally(SI->getOperand(2), SI, Align, TD)) {
+        LoadInst *V1 = Builder->CreateLoad(SI->getOperand(1),
+                                           SI->getOperand(1)->getName()+".val");
+        LoadInst *V2 = Builder->CreateLoad(SI->getOperand(2),
+                                           SI->getOperand(2)->getName()+".val");
+        V1->setAlignment(Align);
+        V2->setAlignment(Align);
         return SelectInst::Create(SI->getCondition(), V1, V2);
       }
 
@@ -239,7 +243,7 @@ static Instruction *InstCombineStoreToCast(InstCombiner &IC, StoreInst &SI) {
   
   const Type *SrcPTy = SrcTy->getElementType();
 
-  if (!DestPTy->isInteger() && !isa<PointerType>(DestPTy))
+  if (!DestPTy->isIntegerTy() && !isa<PointerType>(DestPTy))
     return 0;
   
   /// NewGEPIndices - If SrcPTy is an aggregate type, we can emit a "noop gep"
@@ -273,7 +277,7 @@ static Instruction *InstCombineStoreToCast(InstCombiner &IC, StoreInst &SI) {
     SrcTy = PointerType::get(SrcPTy, SrcTy->getAddressSpace());
   }
 
-  if (!SrcPTy->isInteger() && !isa<PointerType>(SrcPTy))
+  if (!SrcPTy->isIntegerTy() && !isa<PointerType>(SrcPTy))
     return 0;
   
   // If the pointers point into different address spaces or if they point to
@@ -294,7 +298,7 @@ static Instruction *InstCombineStoreToCast(InstCombiner &IC, StoreInst &SI) {
   const Type* CastSrcTy = SIOp0->getType();
   const Type* CastDstTy = SrcPTy;
   if (isa<PointerType>(CastDstTy)) {
-    if (CastSrcTy->isInteger())
+    if (CastSrcTy->isIntegerTy())
       opcode = Instruction::IntToPtr;
   } else if (isa<IntegerType>(CastDstTy)) {
     if (isa<PointerType>(SIOp0->getType()))

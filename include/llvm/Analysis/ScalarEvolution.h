@@ -452,10 +452,24 @@ namespace llvm {
     const SCEV *getUMaxExpr(SmallVectorImpl<const SCEV *> &Operands);
     const SCEV *getSMinExpr(const SCEV *LHS, const SCEV *RHS);
     const SCEV *getUMinExpr(const SCEV *LHS, const SCEV *RHS);
-    const SCEV *getFieldOffsetExpr(const StructType *STy, unsigned FieldNo);
-    const SCEV *getAllocSizeExpr(const Type *AllocTy);
     const SCEV *getUnknown(Value *V);
     const SCEV *getCouldNotCompute();
+
+    /// getSizeOfExpr - Return an expression for sizeof on the given type.
+    ///
+    const SCEV *getSizeOfExpr(const Type *AllocTy);
+
+    /// getAlignOfExpr - Return an expression for alignof on the given type.
+    ///
+    const SCEV *getAlignOfExpr(const Type *AllocTy);
+
+    /// getOffsetOfExpr - Return an expression for offsetof on the given field.
+    ///
+    const SCEV *getOffsetOfExpr(const StructType *STy, unsigned FieldNo);
+
+    /// getOffsetOfExpr - Return an expression for offsetof on the given field.
+    ///
+    const SCEV *getOffsetOfExpr(const Type *CTy, Constant *FieldNo);
 
     /// getNegativeSCEV - Return the SCEV object corresponding to -V.
     ///
@@ -503,7 +517,7 @@ namespace llvm {
 
     /// getIntegerSCEV - Given a SCEVable type, create a constant for the
     /// specified signed integer value and return a SCEV for the constant.
-    const SCEV *getIntegerSCEV(int Val, const Type *Ty);
+    const SCEV *getIntegerSCEV(int64_t Val, const Type *Ty);
 
     /// getUMaxFromMismatchedTypes - Promote the operands to the wider of
     /// the types using zero-extension, and then perform a umax operation

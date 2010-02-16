@@ -27,10 +27,7 @@ namespace llvm {
   /// and destroy it when finished to allow the release of the associated
   /// memory.
   class SCEVExpander : public SCEVVisitor<SCEVExpander, Value*> {
-  public:
     ScalarEvolution &SE;
-
-  private:
     std::map<std::pair<const SCEV *, Instruction *>, AssertingVH<Value> >
       InsertedExpressions;
     std::set<Value*> InsertedValues;
@@ -57,11 +54,11 @@ namespace llvm {
     /// in a more literal form.
     bool CanonicalMode;
 
-  protected:
     typedef IRBuilder<true, TargetFolder> BuilderType;
     BuilderType Builder;
 
     friend struct SCEVVisitor<SCEVExpander, Value*>;
+
   public:
     /// SCEVExpander - Construct a SCEVExpander in "canonical" mode.
     explicit SCEVExpander(ScalarEvolution &se)
@@ -167,17 +164,13 @@ namespace llvm {
 
     Value *visitUMaxExpr(const SCEVUMaxExpr *S);
 
-    Value *visitFieldOffsetExpr(const SCEVFieldOffsetExpr *S);
-
-    Value *visitAllocSizeExpr(const SCEVAllocSizeExpr *S);
-
     Value *visitUnknown(const SCEVUnknown *S) {
       return S->getValue();
     }
 
-    void rememberInstruction(Value *I) {
-      if (!PostIncLoop) InsertedValues.insert(I);
-    }
+    void rememberInstruction(Value *I);
+
+    void restoreInsertPoint(BasicBlock *BB, BasicBlock::iterator I);
 
     Value *expandAddRecExprLiterally(const SCEVAddRecExpr *);
     PHINode *getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,

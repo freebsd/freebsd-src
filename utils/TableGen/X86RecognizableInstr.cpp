@@ -24,6 +24,18 @@
 
 using namespace llvm;
 
+#define MRM_MAPPING     \
+  MAP(C1, 33)           \
+  MAP(C2, 34)           \
+  MAP(C3, 35)           \
+  MAP(C4, 36)           \
+  MAP(C8, 37)           \
+  MAP(C9, 38)           \
+  MAP(E8, 39)           \
+  MAP(F0, 40)           \
+  MAP(F8, 41)		\
+  MAP(F9, 42)
+
 // A clone of X86 since we can't depend on something that is generated.
 namespace X86Local {
   enum {
@@ -38,7 +50,12 @@ namespace X86Local {
     MRM4r = 20, MRM5r = 21, MRM6r = 22, MRM7r = 23,
     MRM0m = 24, MRM1m = 25, MRM2m = 26, MRM3m = 27,
     MRM4m = 28, MRM5m = 29, MRM6m = 30, MRM7m = 31,
-    MRMInitReg  = 32
+    MRMInitReg  = 32,
+    
+#define MAP(from, to) MRM_##from = to,
+    MRM_MAPPING
+#undef MAP
+    lastMRM
   };
   
   enum {
@@ -47,10 +64,28 @@ namespace X86Local {
     D8 = 3, D9 = 4, DA = 5, DB = 6,
     DC = 7, DD = 8, DE = 9, DF = 10,
     XD = 11,  XS = 12,
-    T8 = 13,  TA = 14
+    T8 = 13,  P_TA = 14,
+    P_0F_AE = 16, P_0F_01 = 17
   };
 }
-  
+
+// If rows are added to the opcode extension tables, then corresponding entries
+// must be added here.  
+//
+// If the row corresponds to a single byte (i.e., 8f), then add an entry for
+// that byte to ONE_BYTE_EXTENSION_TABLES.
+//
+// If the row corresponds to two bytes where the first is 0f, add an entry for 
+// the second byte to TWO_BYTE_EXTENSION_TABLES.
+//
+// If the row corresponds to some other set of bytes, you will need to modify
+// the code in RecognizableInstr::emitDecodePath() as well, and add new prefixes
+// to the X86 TD files, except in two cases: if the first two bytes of such a 
+// new combination are 0f 38 or 0f 3a, you just have to add maps called
+// THREE_BYTE_38_EXTENSION_TABLES and THREE_BYTE_3A_EXTENSION_TABLES and add a
+// switch(Opcode) just below the case X86Local::T8: or case X86Local::TA: line
+// in RecognizableInstr::emitDecodePath().
+
 #define ONE_BYTE_EXTENSION_TABLES \
   EXTENSION_TABLE(80)             \
   EXTENSION_TABLE(81)             \
@@ -81,10 +116,6 @@ namespace X86Local {
   EXTENSION_TABLE(b9)             \
   EXTENSION_TABLE(ba)             \
   EXTENSION_TABLE(c7)
-  
-#define TWO_BYTE_FULL_EXTENSION_TABLES \
-  EXTENSION_TABLE(01)
-  
 
 using namespace X86Disassembler;
 
@@ -402,13 +433,10 @@ void RecognizableInstr::emitInstructionSpecifier(DisassemblerTables &tables) {
   
   for (operandIndex = 0; operandIndex < numOperands; ++operandIndex) {
     if (OperandList[operandIndex].Constraints.size()) {
-      const std::string &constraint = OperandList[operandIndex].Constraints[0];
-      std::string::size_type tiedToPos;
-
-      if ((tiedToPos = constraint.find(" << 16) | (1 << TOI::TIED_TO))")) !=
-         constraint.npos) {
-        tiedToPos--;
-        operandMapping[operandIndex] = constraint[tiedToPos] - '0';
+      const CodeGenInstruction::ConstraintInfo &Constraint =
+        OperandList[operandIndex].Constraints[0];
+      if (Constraint.isTied()) {
+        operandMapping[operandIndex] = Constraint.getTiedOperand();
       } else {
         ++numPhysicalOperands;
         operandMapping[operandIndex] = operandIndex;
@@ -552,36 +580,10 @@ void RecognizableInstr::emitInstructionSpecifier(DisassemblerTables &tables) {
 void RecognizableInstr::emitDecodePath(DisassemblerTables &tables) const {
   // Special cases where the LLVM tables are not complete
 
-#define EXACTCASE(class, name, lastbyte)         \
-  if (Name == name) {                           \
-    tables.setTableFields(class,                 \
-                          insnContext(),         \
-                          Opcode,               \
-                          ExactFilter(lastbyte), \
-                          UID);                 \
-    Spec->modifierBase = Opcode;               \
-    return;                                      \
-  } 
-
-  EXACTCASE(TWOBYTE, "MONITOR",  0xc8)
-  EXACTCASE(TWOBYTE, "MWAIT",    0xc9)
-  EXACTCASE(TWOBYTE, "SWPGS",    0xf8)
-  EXACTCASE(TWOBYTE, "INVEPT",   0x80)
-  EXACTCASE(TWOBYTE, "INVVPID",  0x81)
-  EXACTCASE(TWOBYTE, "VMCALL",   0xc1)
-  EXACTCASE(TWOBYTE, "VMLAUNCH", 0xc2)
-  EXACTCASE(TWOBYTE, "VMRESUME", 0xc3)
-  EXACTCASE(TWOBYTE, "VMXOFF",   0xc4)
-
-  if (Name == "INVLPG") {
-    tables.setTableFields(TWOBYTE,
-                          insnContext(),
-                          Opcode,
-                          ExtendedFilter(false, 7),
-                          UID);
-    Spec->modifierBase = Opcode;
-    return;
-  }
+#define MAP(from, to)                     \
+  case X86Local::MRM_##from:              \
+    filter = new ExactFilter(0x##from);   \
+    break;
 
   OpcodeType    opcodeType  = (OpcodeType)-1;
   
@@ -596,6 +598,12 @@ void RecognizableInstr::emitDecodePath(DisassemblerTables &tables) const {
     opcodeType = TWOBYTE;
 
     switch (Opcode) {
+    default:
+      if (needsModRMForDecode(Form))
+        filter = new ModFilter(isRegFormat(Form));
+      else
+        filter = new DumbFilter();
+      break;
 #define EXTENSION_TABLE(n) case 0x##n:
     TWO_BYTE_EXTENSION_TABLES
 #undef EXTENSION_TABLE
@@ -622,16 +630,10 @@ void RecognizableInstr::emitDecodePath(DisassemblerTables &tables) const {
       case X86Local::MRM7m:
         filter = new ExtendedFilter(false, Form - X86Local::MRM0m);
         break;
+      MRM_MAPPING
       } // switch (Form)
       break;
-    default:
-      if (needsModRMForDecode(Form))
-        filter = new ModFilter(isRegFormat(Form));
-      else
-        filter = new DumbFilter();
-        
-      break;
-    } // switch (opcode)
+    } // switch (Opcode)
     opcodeToSet = Opcode;
     break;
   case X86Local::T8:
@@ -642,7 +644,7 @@ void RecognizableInstr::emitDecodePath(DisassemblerTables &tables) const {
       filter = new DumbFilter();
     opcodeToSet = Opcode;
     break;
-  case X86Local::TA:
+  case X86Local::P_TA:
     opcodeType = THREEBYTE_3A;
     if (needsModRMForDecode(Form))
       filter = new ModFilter(isRegFormat(Form));
@@ -699,6 +701,7 @@ void RecognizableInstr::emitDecodePath(DisassemblerTables &tables) const {
       case X86Local::MRM7m:
         filter = new ExtendedFilter(false, Form - X86Local::MRM0m);
         break;
+      MRM_MAPPING
       } // switch (Form)
       break;
     case 0xd8:
@@ -763,6 +766,8 @@ void RecognizableInstr::emitDecodePath(DisassemblerTables &tables) const {
   }
   
   delete filter;
+  
+#undef MAP
 }
 
 #define TYPE(str, type) if (s == str) return type;

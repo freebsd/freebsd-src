@@ -1,10 +1,8 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
-#include "llvm/ExecutionEngine/Interpreter.h"
 #include "llvm/ExecutionEngine/JIT.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
-#include "llvm/ModuleProvider.h"
 #include "llvm/PassManager.h"
 #include "llvm/Analysis/Verifier.h"
 #include "llvm/Target/TargetData.h"
@@ -1100,13 +1098,15 @@ int main() {
   // Make the module, which holds all the code.
   TheModule = new Module("my cool jit", Context);
 
-  ExistingModuleProvider *OurModuleProvider =
-      new ExistingModuleProvider(TheModule);
+  // Create the JIT.  This takes ownership of the module.
+  std::string ErrStr;
+  TheExecutionEngine = EngineBuilder(TheModule).setErrorStr(&ErrStr).create();
+  if (!TheExecutionEngine) {
+    fprintf(stderr, "Could not create ExecutionEngine: %s\n", ErrStr.c_str());
+    exit(1);
+  }
 
-  // Create the JIT.  This takes ownership of the module and module provider.
-  TheExecutionEngine = EngineBuilder(OurModuleProvider).create();
-
-  FunctionPassManager OurFPM(OurModuleProvider);
+  FunctionPassManager OurFPM(TheModule);
 
   // Set up the optimizer pipeline.  Start with registering info about how the
   // target lays out data structures.

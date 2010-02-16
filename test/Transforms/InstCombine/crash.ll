@@ -204,3 +204,36 @@ declare i32 @llvm.eh.selector(i8*, i8*, ...) nounwind
 declare void @_ZSt9terminatev()
 
 declare void @_Unwind_Resume_or_Rethrow(i8*)
+
+
+
+; rdar://7590304
+define i8* @test10(i8* %self, i8* %tmp3) {
+entry:
+  store i1 true, i1* undef
+  store i1 true, i1* undef
+  invoke arm_apcscc void @test10a()
+          to label %invoke.cont unwind label %try.handler ; <i8*> [#uses=0]
+
+invoke.cont:                                      ; preds = %entry
+  unreachable
+
+try.handler:                                      ; preds = %entry
+  ret i8* %self
+}
+
+define void @test10a() {
+  ret void
+}
+
+
+; PR6193
+define i32 @test11(i32 %aMaskWidth, i8 %aStride) nounwind {
+entry:
+  %conv41 = sext i8 %aStride to i32
+  %neg = xor i32 %conv41, -1
+  %and42 = and i32 %aMaskWidth, %neg
+  %and47 = and i32 130, %conv41
+  %or = or i32 %and42, %and47
+  ret i32 %or
+}

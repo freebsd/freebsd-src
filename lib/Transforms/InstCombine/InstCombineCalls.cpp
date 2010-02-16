@@ -199,7 +199,7 @@ Instruction *InstCombiner::SimplifyMemSet(MemSetInst *MI) {
   // Extract the length and alignment and fill if they are constant.
   ConstantInt *LenC = dyn_cast<ConstantInt>(MI->getLength());
   ConstantInt *FillC = dyn_cast<ConstantInt>(MI->getValue());
-  if (!LenC || !FillC || !FillC->getType()->isInteger(8))
+  if (!LenC || !FillC || !FillC->getType()->isIntegerTy(8))
     return 0;
   uint64_t Len = LenC->getZExtValue();
   Alignment = MI->getAlignment();
@@ -229,7 +229,6 @@ Instruction *InstCombiner::SimplifyMemSet(MemSetInst *MI) {
 
   return 0;
 }
-
 
 /// visitCallInst - CallInst simplification.  This mostly only handles folding 
 /// of intrinsic instructions.  For normal calls, it allows visitCallSite to do
@@ -304,6 +303,60 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
   
   switch (II->getIntrinsicID()) {
   default: break;
+  case Intrinsic::objectsize: {
+    const Type *ReturnTy = CI.getType();
+    Value *Op1 = II->getOperand(1);
+    bool Min = (cast<ConstantInt>(II->getOperand(2))->getZExtValue() == 1);
+    
+    // We need target data for just about everything so depend on it.
+    if (!TD) break;
+    
+    // Get to the real allocated thing and offset as fast as possible.
+    Op1 = Op1->stripPointerCasts();
+    
+    // If we've stripped down to a single global variable that we
+    // can know the size of then just return that.
+    if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Op1)) {
+      if (GV->hasDefinitiveInitializer()) {
+        Constant *C = GV->getInitializer();
+        size_t globalSize = TD->getTypeAllocSize(C->getType());
+        return ReplaceInstUsesWith(CI, ConstantInt::get(ReturnTy, globalSize));
+      } else {
+        Constant *RetVal = ConstantInt::get(ReturnTy, Min ? 0 : -1ULL);
+        return ReplaceInstUsesWith(CI, RetVal);
+      }
+    } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Op1)) {
+      
+      // Only handle constant GEPs here.
+      if (CE->getOpcode() != Instruction::GetElementPtr) break;
+      GEPOperator *GEP = cast<GEPOperator>(CE);
+      
+      // Make sure we're not a constant offset from an external
+      // global.
+      Value *Operand = GEP->getPointerOperand();
+      Operand = Operand->stripPointerCasts();
+      if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Operand))
+        if (!GV->hasDefinitiveInitializer()) break;
+      
+      // Get what we're pointing to and its size. 
+      const PointerType *BaseType = 
+        cast<PointerType>(Operand->getType());
+      size_t Size = TD->getTypeAllocSize(BaseType->getElementType());
+      
+      // Get the current byte offset into the thing. Use the original
+      // operand in case we're looking through a bitcast.
+      SmallVector<Value*, 8> Ops(CE->op_begin()+1, CE->op_end());
+      const PointerType *OffsetType =
+        cast<PointerType>(GEP->getPointerOperand()->getType());
+      size_t Offset = TD->getIndexedOffset(OffsetType, &Ops[0], Ops.size());
+
+      assert(Size >= Offset);
+      
+      Constant *RetVal = ConstantInt::get(ReturnTy, Size-Offset);
+      return ReplaceInstUsesWith(CI, RetVal);
+      
+    }
+  }
   case Intrinsic::bswap:
     // bswap(bswap(x)) -> x
     if (IntrinsicInst *Operand = dyn_cast<IntrinsicInst>(II->getOperand(1)))
@@ -632,18 +685,6 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
       return EraseInstFromFunction(CI);
     break;
   }
-  case Intrinsic::objectsize: {
-    ConstantInt *Const = cast<ConstantInt>(II->getOperand(2));
-    const Type *Ty = CI.getType();
-
-    // 0 is maximum number of bytes left, 1 is minimum number of bytes left.
-    // TODO: actually add these values, the current return values are "don't
-    // know".
-    if (Const->getZExtValue() == 0)
-      return ReplaceInstUsesWith(CI, Constant::getAllOnesValue(Ty));
-    else
-      return ReplaceInstUsesWith(CI, ConstantInt::get(Ty, 0));
-  }
   }
 
   return visitCallSite(II);
@@ -692,10 +733,14 @@ Instruction *InstCombiner::visitCallSite(CallSite CS) {
   Value *Callee = CS.getCalledValue();
 
   if (Function *CalleeF = dyn_cast<Function>(Callee))
-    if (CalleeF->getCallingConv() != CS.getCallingConv()) {
+    // If the call and callee calling conventions don't match, this call must
+    // be unreachable, as the call is undefined.
+    if (CalleeF->getCallingConv() != CS.getCallingConv() &&
+        // Only do this for calls to a function with a body.  A prototype may
+        // not actually end up matching the implementation's calling conv for a
+        // variety of reasons (e.g. it may be written in assembly).
+        !CalleeF->isDeclaration()) {
       Instruction *OldCall = CS.getInstruction();
-      // If the call and callee calling conventions don't match, this call must
-      // be unreachable, as the call is undefined.
       new StoreInst(ConstantInt::getTrue(Callee->getContext()),
                 UndefValue::get(Type::getInt1PtrTy(Callee->getContext())), 
                                   OldCall);
@@ -703,8 +748,13 @@ Instruction *InstCombiner::visitCallSite(CallSite CS) {
       // This allows ValueHandlers and custom metadata to adjust itself.
       if (!OldCall->getType()->isVoidTy())
         OldCall->replaceAllUsesWith(UndefValue::get(OldCall->getType()));
-      if (isa<CallInst>(OldCall))   // Not worth removing an invoke here.
+      if (isa<CallInst>(OldCall))
         return EraseInstFromFunction(*OldCall);
+      
+      // We cannot remove an invoke, because it would change the CFG, just
+      // change the callee to a null pointer.
+      cast<InvokeInst>(OldCall)->setOperand(0,
+                                    Constant::getNullValue(CalleeF->getType()));
       return 0;
     }
 
