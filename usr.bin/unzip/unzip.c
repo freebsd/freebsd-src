@@ -411,17 +411,65 @@ extract_dir(struct archive *a, struct archive_entry *e, const char *path)
 static unsigned char buffer[8192];
 static char spinner[] = { '|', '/', '-', '\\' };
 
+static int
+handle_existing_file(char **path)
+{
+	size_t alen;
+	ssize_t len;
+	char buf[4];
+
+	for (;;) {
+		fprintf(stderr,
+		    "replace %s? [y]es, [n]o, [A]ll, [N]one, [r]ename: ",
+		    *path);
+		if (fgets(buf, sizeof(buf), stdin) == 0) {
+			clearerr(stdin);
+			printf("NULL\n(EOF or read error, "
+			    "treating as \"[N]one\"...)\n");
+			n_opt = 1;
+			return -1;
+		}
+		switch (*buf) {
+		case 'A':
+			o_opt = 1;
+			/* FALLTHROUGH */
+		case 'y':
+		case 'Y':
+			(void)unlink(*path);
+			return 1;
+		case 'N':
+			n_opt = 1;			
+			/* FALLTHROUGH */
+		case 'n':
+			return -1;
+		case 'r':
+		case 'R':
+			printf("New name: ");
+			fflush(stdout);
+			free(*path);
+			*path = NULL;
+			alen = 0;
+			len = getdelim(path, &alen, '\n', stdin);
+			if ((*path)[len - 1] == '\n')
+				(*path)[len - 1] = '\0';
+			return 0;
+		default:
+			break;
+		}
+	}
+}
+
 /*
  * Extract a regular file.
  */
 static void
-extract_file(struct archive *a, struct archive_entry *e, const char *path)
+extract_file(struct archive *a, struct archive_entry *e, char **path)
 {
 	int mode;
 	time_t mtime;
 	struct stat sb;
 	struct timeval tv[2];
-	int cr, fd, text, warn;
+	int cr, fd, text, warn, check;
 	ssize_t len;
 	unsigned char *p, *q, *end;
 
@@ -431,32 +479,36 @@ extract_file(struct archive *a, struct archive_entry *e, const char *path)
 	mtime = archive_entry_mtime(e);
 
 	/* look for existing file of same name */
-	if (lstat(path, &sb) == 0) {
+recheck:
+	if (lstat(*path, &sb) == 0) {
 		if (u_opt || f_opt) {
 			/* check if up-to-date */
 			if (S_ISREG(sb.st_mode) && sb.st_mtime >= mtime)
 				return;
-			(void)unlink(path);
+			(void)unlink(*path);
 		} else if (o_opt) {
 			/* overwrite */
-			(void)unlink(path);
+			(void)unlink(*path);
 		} else if (n_opt) {
 			/* do not overwrite */
 			return;
 		} else {
-			/* XXX ask user */
-			errorx("not implemented");
+			check = handle_existing_file(path);
+			if (check == 0)
+				goto recheck;
+			if (check == -1)
+				return; /* do not overwrite */
 		}
 	} else {
 		if (f_opt)
 			return;
 	}
 
-	if ((fd = open(path, O_RDWR|O_CREAT|O_TRUNC, mode)) < 0)
-		error("open('%s')", path);
+	if ((fd = open(*path, O_RDWR|O_CREAT|O_TRUNC, mode)) < 0)
+		error("open('%s')", *path);
 
 	/* loop over file contents and write to disk */
-	info(" extracting: %s", path);
+	info(" extracting: %s", *path);
 	text = a_opt;
 	warn = 0;
 	cr = 0;
@@ -473,7 +525,7 @@ extract_file(struct archive *a, struct archive_entry *e, const char *path)
 		if (a_opt && cr) {
 			if (len == 0 || buffer[0] != '\n')
 				if (write(fd, "\r", 1) != 1)
-					error("write('%s')", path);
+					error("write('%s')", *path);
 			cr = 0;
 		}
 
@@ -504,7 +556,7 @@ extract_file(struct archive *a, struct archive_entry *e, const char *path)
 		/* simple case */
 		if (!a_opt || !text) {
 			if (write(fd, buffer, len) != len)
-				error("write('%s')", path);
+				error("write('%s')", *path);
 			continue;
 		}
 
@@ -514,7 +566,7 @@ extract_file(struct archive *a, struct archive_entry *e, const char *path)
 				if (!warn && !isascii(*q)) {
 					warningx("%s may be corrupted due"
 					    " to weak text file detection"
-					    " heuristic", path);
+					    " heuristic", *path);
 					warn = 1;
 				}
 				if (q[0] != '\r')
@@ -527,7 +579,7 @@ extract_file(struct archive *a, struct archive_entry *e, const char *path)
 					break;
 			}
 			if (write(fd, p, q - p) != q - p)
-				error("write('%s')", path);
+				error("write('%s')", *path);
 		}
 	}
 	if (tty)
@@ -542,9 +594,9 @@ extract_file(struct archive *a, struct archive_entry *e, const char *path)
 	tv[1].tv_sec = mtime;
 	tv[1].tv_usec = 0;
 	if (futimes(fd, tv) != 0)
-		error("utimes('%s')", path);
+		error("utimes('%s')", *path);
 	if (close(fd) != 0)
-		error("close('%s')", path);
+		error("close('%s')", *path);
 }
 
 /*
@@ -620,7 +672,7 @@ extract(struct archive *a, struct archive_entry *e)
 	if (S_ISDIR(filetype))
 		extract_dir(a, e, realpathname);
 	else
-		extract_file(a, e, realpathname);
+		extract_file(a, e, &realpathname);
 
 	free(realpathname);
 	free(pathname);
