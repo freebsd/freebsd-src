@@ -861,14 +861,13 @@ llvm::Value* CodeGenFunction::EmitAsmInput(const AsmStmt &S,
                                            std::string &ConstraintStr) {
   llvm::Value *Arg;
   if (Info.allowsRegister() || !Info.allowsMemory()) {
-    const llvm::Type *Ty = ConvertType(InputExpr->getType());
-
-    if (Ty->isSingleValueType()) {
+    if (!CodeGenFunction::hasAggregateLLVMType(InputExpr->getType())) {
       Arg = EmitScalarExpr(InputExpr);
     } else {
       InputExpr = InputExpr->IgnoreParenNoopCasts(getContext());
       LValue Dest = EmitLValue(InputExpr);
 
+      const llvm::Type *Ty = ConvertType(InputExpr->getType());
       uint64_t Size = CGM.getTargetData().getTypeSizeInBits(Ty);
       if (Size <= 64 && llvm::isPowerOf2_64(Size)) {
         Ty = llvm::IntegerType::get(VMContext, Size);
@@ -916,18 +915,18 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
   for (unsigned i = 0, e = S.getNumOutputs(); i != e; i++) {
     TargetInfo::ConstraintInfo Info(S.getOutputConstraint(i),
                                     S.getOutputName(i));
-    bool result = Target.validateOutputConstraint(Info);
-    assert(result && "Failed to parse output constraint"); result=result;
+    assert(Target.validateOutputConstraint(Info) && 
+           "Failed to parse output constraint");
     OutputConstraintInfos.push_back(Info);
   }
 
   for (unsigned i = 0, e = S.getNumInputs(); i != e; i++) {
     TargetInfo::ConstraintInfo Info(S.getInputConstraint(i),
                                     S.getInputName(i));
-    bool result = Target.validateInputConstraint(OutputConstraintInfos.data(),
-                                                 S.getNumOutputs(),
-                                                 Info); result=result;
-    assert(result && "Failed to parse input constraint");
+    assert(Target.validateInputConstraint(OutputConstraintInfos.data(),
+                                          S.getNumOutputs(),
+                                          Info) &&
+           "Failed to parse input constraint");
     InputConstraintInfos.push_back(Info);
   }
 
@@ -1066,10 +1065,9 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
 
   // Clobbers
   for (unsigned i = 0, e = S.getNumClobbers(); i != e; i++) {
-    std::string Clobber(S.getClobber(i)->getStrData(),
-                        S.getClobber(i)->getByteLength());
+    llvm::StringRef Clobber = S.getClobber(i)->getString();
 
-    Clobber = Target.getNormalizedGCCRegisterName(Clobber.c_str());
+    Clobber = Target.getNormalizedGCCRegisterName(Clobber);
 
     if (i != 0 || NumConstraints != 0)
       Constraints += ',';

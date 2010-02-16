@@ -346,6 +346,11 @@ void Parser::Initialize() {
   }
 
   Ident_super = &PP.getIdentifierTable().get("super");
+
+  if (getLang().AltiVec) {
+    Ident_vector = &PP.getIdentifierTable().get("vector");
+    Ident_pixel = &PP.getIdentifierTable().get("pixel");
+  }
 }
 
 /// ParseTopLevelDecl - Parse one top-level declaration, return whatever the
@@ -588,7 +593,6 @@ Parser::ParseDeclarationOrFunctionDefinition(ParsingDeclSpec &DS,
   if (Tok.is(tok::string_literal) && getLang().CPlusPlus &&
       DS.getStorageClassSpec() == DeclSpec::SCS_extern &&
       DS.getParsedSpecifiers() == DeclSpec::PQ_StorageClassSpecifier) {
-    DS.abort();
     DeclPtrTy TheDecl = ParseLinkage(DS, Declarator::FileContext);
     return Actions.ConvertDeclToDeclGroup(TheDecl);
   }
@@ -738,11 +742,11 @@ void Parser::ParseKNRParamDeclarations(Declarator &D) {
 
     // Handle the full declarator list.
     while (1) {
-      Action::AttrTy *AttrList;
       // If attributes are present, parse them.
+      llvm::OwningPtr<AttributeList> AttrList;
       if (Tok.is(tok::kw___attribute))
         // FIXME: attach attributes too.
-        AttrList = ParseGNUAttributes();
+        AttrList.reset(ParseGNUAttributes());
 
       // Ask the actions module to compute the type for this declarator.
       Action::DeclPtrTy Param =
@@ -834,6 +838,16 @@ Parser::OwningExprResult Parser::ParseAsmStringLiteral() {
 Parser::OwningExprResult Parser::ParseSimpleAsm(SourceLocation *EndLoc) {
   assert(Tok.is(tok::kw_asm) && "Not an asm!");
   SourceLocation Loc = ConsumeToken();
+
+  if (Tok.is(tok::kw_volatile)) {
+    // Remove from the end of 'asm' to the end of 'volatile'.
+    SourceRange RemovalRange(PP.getLocForEndOfToken(Loc),
+                             PP.getLocForEndOfToken(Tok.getLocation()));
+
+    Diag(Tok, diag::warn_file_asm_volatile)
+      << CodeModificationHint::CreateRemoval(RemovalRange);
+    ConsumeToken();
+  }
 
   if (Tok.isNot(tok::l_paren)) {
     Diag(Tok, diag::err_expected_lparen_after) << "asm";
@@ -930,9 +944,10 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
       return false;
     }
 
+    SourceLocation EndLoc = Tok.getLastLoc();
     Tok.setKind(tok::annot_typename);
     Tok.setAnnotationValue(Ty.isInvalid()? 0 : Ty.get());
-    Tok.setAnnotationEndLoc(Tok.getLocation());
+    Tok.setAnnotationEndLoc(EndLoc);
     Tok.setLocation(TypenameLoc);
     PP.AnnotateCachedTokens(Tok);
     return true;

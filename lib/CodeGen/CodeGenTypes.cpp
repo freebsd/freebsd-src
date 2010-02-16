@@ -84,7 +84,7 @@ const llvm::Type *CodeGenTypes::ConvertTypeRecursive(QualType T) {
 
 const llvm::Type *CodeGenTypes::ConvertTypeForMemRecursive(QualType T) {
   const llvm::Type *ResultType = ConvertTypeRecursive(T);
-  if (ResultType->isInteger(1))
+  if (ResultType->isIntegerTy(1))
     return llvm::IntegerType::get(getLLVMContext(),
                                   (unsigned)Context.getTypeSize(T));
   // FIXME: Should assert that the llvm type and AST type has the same size.
@@ -99,7 +99,7 @@ const llvm::Type *CodeGenTypes::ConvertTypeForMem(QualType T) {
   const llvm::Type *R = ConvertType(T);
 
   // If this is a non-bool type, don't map it.
-  if (!R->isInteger(1))
+  if (!R->isIntegerTy(1))
     return R;
 
   // Otherwise, return an integer of the target-specified size.
@@ -399,18 +399,6 @@ const llvm::Type *CodeGenTypes::ConvertNewType(QualType T) {
 /// enum.
 const llvm::Type *CodeGenTypes::ConvertTagDeclType(const TagDecl *TD) {
 
-  // FIXME. This may have to move to a better place.
-  if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(TD)) {
-    for (CXXRecordDecl::base_class_const_iterator i = RD->bases_begin(),
-         e = RD->bases_end(); i != e; ++i) {
-      if (!i->isVirtual()) {
-        const CXXRecordDecl *Base =
-          cast<CXXRecordDecl>(i->getType()->getAs<RecordType>()->getDecl());
-        ConvertTagDeclType(Base);
-      }
-    }
-  }
-
   // TagDecl's are not necessarily unique, instead use the (clang)
   // type connected to the decl.
   const Type *Key =
@@ -422,8 +410,8 @@ const llvm::Type *CodeGenTypes::ConvertTagDeclType(const TagDecl *TD) {
   if (TDTI != TagDeclTypes.end())
     return TDTI->second;
 
-  // If this is still a forward definition, just define an opaque type to use
-  // for this tagged decl.
+  // If this is still a forward declaration, just define an opaque
+  // type to use for this tagged decl.
   if (!TD->isDefinition()) {
     llvm::Type *ResultType = llvm::OpaqueType::get(getLLVMContext());
     TagDeclTypes.insert(std::make_pair(Key, ResultType));
@@ -445,6 +433,18 @@ const llvm::Type *CodeGenTypes::ConvertTagDeclType(const TagDecl *TD) {
   TagDeclTypes.insert(std::make_pair(Key, ResultHolder));
 
   const RecordDecl *RD = cast<const RecordDecl>(TD);
+
+  // Force conversion of non-virtual base classes recursively.
+  if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(TD)) {    
+    for (CXXRecordDecl::base_class_const_iterator i = RD->bases_begin(),
+         e = RD->bases_end(); i != e; ++i) {
+      if (!i->isVirtual()) {
+        const CXXRecordDecl *Base =
+          cast<CXXRecordDecl>(i->getType()->getAs<RecordType>()->getDecl());
+        ConvertTagDeclType(Base);
+      }
+    }
+  }
 
   // Layout fields.
   CGRecordLayout *Layout = CGRecordLayoutBuilder::ComputeLayout(*this, RD);

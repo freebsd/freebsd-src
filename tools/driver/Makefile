@@ -13,7 +13,6 @@ ifndef CLANG_IS_PRODUCTION
 TOOLALIAS = clang++
 endif
 CPPFLAGS += -I$(PROJ_SRC_DIR)/../../include -I$(PROJ_OBJ_DIR)/../../include
-CXXFLAGS = -fno-rtti
 
 # Clang tool has no plugins, optimize startup time.
 TOOL_NO_EXPORTS = 1
@@ -24,9 +23,9 @@ TOOL_NO_EXPORTS = 1
 include $(LEVEL)/Makefile.config
 
 LINK_COMPONENTS := $(TARGETS_TO_BUILD) bitreader bitwriter codegen ipo selectiondag
-USEDLIBS = clangFrontend.a clangDriver.a clangCodeGen.a clangAnalysis.a	\
-           clangRewrite.a clangSema.a clangAST.a clangParse.a 		\
-           clangLex.a clangBasic.a
+USEDLIBS = clangFrontend.a clangDriver.a clangCodeGen.a clangSema.a \
+           clangChecker.a clangAnalysis.a clangRewrite.a  clangAST.a \
+           clangParse.a clangLex.a clangBasic.a
 
 include $(LLVM_SRC_ROOT)/Makefile.rules
 

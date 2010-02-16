@@ -14,7 +14,7 @@
 #include "Sema.h"
 #include "SemaInit.h"
 #include "Lookup.h"
-#include "clang/Analysis/PathSensitive/AnalysisContext.h"
+#include "clang/Analysis/AnalysisContext.h"
 #include "clang/AST/APValue.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
@@ -135,6 +135,7 @@ Sema::TypeTy *Sema::getTypeName(IdentifierInfo &II, SourceLocation NameLoc,
   case LookupResult::NotFoundInCurrentInstantiation:
   case LookupResult::FoundOverloaded:
   case LookupResult::FoundUnresolvedValue:
+    Result.suppressDiagnostics();
     return 0;
 
   case LookupResult::Ambiguous:
@@ -509,9 +510,18 @@ static void RemoveUsingDecls(LookupResult &R) {
 }
 
 static bool ShouldDiagnoseUnusedDecl(const NamedDecl *D) {
+  if (D->isInvalidDecl())
+    return false;
+
   if (D->isUsed() || D->hasAttr<UnusedAttr>())
     return false;
-  
+
+  // White-list anything that isn't a local variable.
+  if (!isa<VarDecl>(D) || isa<ParmVarDecl>(D) || isa<ImplicitParamDecl>(D) ||
+      !D->getDeclContext()->isFunctionOrMethod())
+    return false;
+
+  // Types of valid local variables should be complete, so this should succeed.
   if (const ValueDecl *VD = dyn_cast<ValueDecl>(D)) {
     if (const RecordType *RT = VD->getType()->getAs<RecordType>()) {
       if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(RT->getDecl())) {
@@ -523,9 +533,7 @@ static bool ShouldDiagnoseUnusedDecl(const NamedDecl *D) {
     }
   }
   
-  return (isa<VarDecl>(D) && !isa<ParmVarDecl>(D) && 
-          !isa<ImplicitParamDecl>(D) && 
-          D->getDeclContext()->isFunctionOrMethod());
+  return true;
 }
 
 void Sema::ActOnPopScope(SourceLocation Loc, Scope *S) {
@@ -690,7 +698,7 @@ NamedDecl *Sema::LazilyCreateBuiltin(IdentifierInfo *II, unsigned bid,
       Params.push_back(ParmVarDecl::Create(Context, New, SourceLocation(), 0,
                                            FT->getArgType(i), /*TInfo=*/0,
                                            VarDecl::None, 0));
-    New->setParams(Context, Params.data(), Params.size());
+    New->setParams(Params.data(), Params.size());
   }
 
   AddKnownFunctionAttributes(New);
@@ -957,6 +965,44 @@ bool Sema::MergeFunctionDecl(FunctionDecl *New, Decl *OldD) {
     return true;
   }
 
+  // If a function is first declared with a calling convention, but is
+  // later declared or defined without one, the second decl assumes the
+  // calling convention of the first.
+  //
+  // For the new decl, we have to look at the NON-canonical type to tell the
+  // difference between a function that really doesn't have a calling
+  // convention and one that is declared cdecl. That's because in
+  // canonicalization (see ASTContext.cpp), cdecl is canonicalized away
+  // because it is the default calling convention.
+  //
+  // Note also that we DO NOT return at this point, because we still have
+  // other tests to run.
+  const FunctionType *OldType = OldQType->getAs<FunctionType>();
+  const FunctionType *NewType = New->getType()->getAs<FunctionType>();
+  if (OldType->getCallConv() != CC_Default &&
+      NewType->getCallConv() == CC_Default) {
+    NewQType = Context.getCallConvType(NewQType, OldType->getCallConv());
+    New->setType(NewQType);
+    NewQType = Context.getCanonicalType(NewQType);
+  } else if (!Context.isSameCallConv(OldType->getCallConv(),
+                                     NewType->getCallConv())) {
+    // Calling conventions really aren't compatible, so complain.
+    Diag(New->getLocation(), diag::err_cconv_change)
+      << FunctionType::getNameForCallConv(NewType->getCallConv())
+      << (OldType->getCallConv() == CC_Default)
+      << (OldType->getCallConv() == CC_Default ? "" :
+          FunctionType::getNameForCallConv(OldType->getCallConv()));
+    Diag(Old->getLocation(), diag::note_previous_declaration);
+    return true;
+  }
+
+  // FIXME: diagnose the other way around?
+  if (OldType->getNoReturnAttr() && !NewType->getNoReturnAttr()) {
+    NewQType = Context.getNoReturnType(NewQType);
+    New->setType(NewQType);
+    assert(NewQType.isCanonical());
+  }
+
   if (getLangOptions().CPlusPlus) {
     // (C++98 13.1p2):
     //   Certain function declarations cannot be overloaded:
@@ -1061,7 +1107,7 @@ bool Sema::MergeFunctionDecl(FunctionDecl *New, Decl *OldD) {
         Params.push_back(Param);
       }
 
-      New->setParams(Context, Params.data(), Params.size());
+      New->setParams(Params.data(), Params.size());
     }
 
     return MergeCompatibleFunctionDecls(New, Old);
@@ -1295,6 +1341,18 @@ void Sema::MergeVarDecl(VarDecl *New, LookupResult &Previous) {
   } else if (!New->isThreadSpecified() && Old->isThreadSpecified()) {
     Diag(New->getLocation(), diag::err_non_thread_thread) << New->getDeclName();
     Diag(Old->getLocation(), diag::note_previous_definition);
+  }
+
+  // C++ doesn't have tentative definitions, so go right ahead and check here.
+  const VarDecl *Def;
+  if (getLangOptions().CPlusPlus &&
+      New->isThisDeclarationADefinition() == VarDecl::Definition &&
+      (Def = Old->getDefinition())) {
+    Diag(New->getLocation(), diag::err_redefinition)
+      << New->getDeclName();
+    Diag(Def->getLocation(), diag::note_previous_definition);
+    New->setInvalidDecl();
+    return;
   }
 
   // Keep a chain of previous declarations.
@@ -1855,6 +1913,13 @@ Sema::HandleDeclarator(Scope *S, Declarator &D,
     if (!DC->isDependentContext() && 
         RequireCompleteDeclContext(D.getCXXScopeSpec()))
       return DeclPtrTy();
+
+    if (isa<CXXRecordDecl>(DC) && !cast<CXXRecordDecl>(DC)->hasDefinition()) {
+      Diag(D.getIdentifierLoc(),
+           diag::err_member_def_undefined_record)
+        << Name << DC << D.getCXXScopeSpec().getRange();
+      D.setInvalidType();
+    }
     
     LookupQualifiedName(Previous, DC);
 
@@ -2322,7 +2387,7 @@ Sema::ActOnVariableDeclarator(Scope* S, Declarator& D, DeclContext* DC,
   if (Expr *E = (Expr*) D.getAsmLabel()) {
     // The parser guarantees this is a string.
     StringLiteral *SE = cast<StringLiteral>(E);
-    NewVD->addAttr(::new (Context) AsmLabelAttr(SE->getString()));
+    NewVD->addAttr(::new (Context) AsmLabelAttr(Context, SE->getString()));
   }
 
   // Don't consider existing declarations that are in a different
@@ -2359,9 +2424,9 @@ Sema::ActOnVariableDeclarator(Scope* S, Declarator& D, DeclContext* DC,
 
   // attributes declared post-definition are currently ignored
   if (Previous.isSingleResult()) {
-    const VarDecl *Def = 0;
-    VarDecl *PrevDecl = dyn_cast<VarDecl>(Previous.getFoundDecl());
-    if (PrevDecl && PrevDecl->getDefinition(Def) && D.hasAttributes()) {
+    VarDecl *Def = dyn_cast<VarDecl>(Previous.getFoundDecl());
+    if (Def && (Def = Def->getDefinition()) &&
+        Def != NewVD && D.hasAttributes()) {
       Diag(NewVD->getLocation(), diag::warn_attribute_precede_definition);
       Diag(Def->getLocation(), diag::note_previous_definition);
     }
@@ -2675,7 +2740,8 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
     // (The parser checks for a return type and makes the declarator a
     // constructor if it has no return type).
     // must have an invalid constructor that has a return type
-    if (Name.getAsIdentifierInfo() == cast<CXXRecordDecl>(DC)->getIdentifier()){
+    if (Name.getAsIdentifierInfo() &&
+        Name.getAsIdentifierInfo() == cast<CXXRecordDecl>(DC)->getIdentifier()){
       Diag(D.getIdentifierLoc(), diag::err_constructor_return_type)
         << SourceRange(D.getDeclSpec().getTypeSpecTypeLoc())
         << SourceRange(D.getIdentifierLoc());
@@ -2783,6 +2849,28 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
     }
   }
 
+  // C++ [dcl.fct.spec]p6:
+  //  The explicit specifier shall be used only in the declaration of a
+  //  constructor or conversion function within its class definition; see 12.3.1
+  //  and 12.3.2.
+  if (isExplicit && !NewFD->isInvalidDecl()) {
+    if (!CurContext->isRecord()) {
+      // 'explicit' was specified outside of the class.
+      Diag(D.getDeclSpec().getExplicitSpecLoc(), 
+           diag::err_explicit_out_of_class)
+        << CodeModificationHint::CreateRemoval(
+                                          D.getDeclSpec().getExplicitSpecLoc());
+    } else if (!isa<CXXConstructorDecl>(NewFD) && 
+               !isa<CXXConversionDecl>(NewFD)) {
+      // 'explicit' was specified on a function that wasn't a constructor
+      // or conversion function.
+      Diag(D.getDeclSpec().getExplicitSpecLoc(),
+           diag::err_explicit_non_ctor_or_conv_function)
+        << CodeModificationHint::CreateRemoval(
+                                          D.getDeclSpec().getExplicitSpecLoc());
+    }      
+  }
+
   // Filter out previous declarations that don't match the scope.
   FilterLookupForScope(*this, Previous, DC, S, NewFD->hasLinkage());
 
@@ -2822,7 +2910,7 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
   if (Expr *E = (Expr*) D.getAsmLabel()) {
     // The parser guarantees this is a string.
     StringLiteral *SE = cast<StringLiteral>(E);
-    NewFD->addAttr(::new (Context) AsmLabelAttr(SE->getString()));
+    NewFD->addAttr(::new (Context) AsmLabelAttr(Context, SE->getString()));
   }
 
   // Copy the parameter declarations from the declarator D to the function
@@ -2882,7 +2970,7 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
            "Should not need args for typedef of non-prototype fn");
   }
   // Finally, we know we have the right number of parameters, install them.
-  NewFD->setParams(Context, Params.data(), Params.size());
+  NewFD->setParams(Params.data(), Params.size());
 
   // If the declarator is a template-id, translate the parser's template 
   // argument list into our AST format.
@@ -2950,7 +3038,7 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
 
   if (D.getCXXScopeSpec().isSet() && !NewFD->isInvalidDecl()) {
     // Fake up an access specifier if it's supposed to be a class member.
-    if (isa<CXXRecordDecl>(NewFD->getDeclContext()))
+    if (!Redeclaration && isa<CXXRecordDecl>(NewFD->getDeclContext()))
       NewFD->setAccess(AS_public);
 
     // An out-of-line member function declaration must also be a
@@ -3041,6 +3129,15 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
   if (FunctionTemplate)
     return FunctionTemplate;
 
+  
+  // Keep track of static, non-inlined function definitions that
+  // have not been used. We will warn later.
+  // FIXME: Also include static functions declared but not defined.
+  if (!NewFD->isInvalidDecl() && IsFunctionDefinition 
+      && !NewFD->isInlined() && NewFD->getLinkage() == InternalLinkage
+      && !NewFD->isUsed())
+    UnusedStaticFuncs.push_back(NewFD);
+  
   return NewFD;
 }
 
@@ -3412,8 +3509,8 @@ void Sema::AddInitializerToDecl(DeclPtrTy dcl, ExprArg init, bool DirectInit) {
                              AbstractVariableType))
     VDecl->setInvalidDecl();
 
-  const VarDecl *Def = 0;
-  if (VDecl->getDefinition(Def)) {
+  const VarDecl *Def;
+  if ((Def = VDecl->getDefinition()) && Def != VDecl) {
     Diag(VDecl->getLocation(), diag::err_redefinition)
       << VDecl->getDeclName();
     Diag(Def->getLocation(), diag::note_previous_definition);
@@ -3473,7 +3570,7 @@ void Sema::AddInitializerToDecl(DeclPtrTy dcl, ExprArg init, bool DirectInit) {
     // };
 
     // Attach the initializer
-    VDecl->setInit(Context, Init);
+    VDecl->setInit(Init);
 
     // C++ [class.mem]p4:
     //   A member-declarator can contain a constant-initializer only
@@ -3545,23 +3642,15 @@ void Sema::AddInitializerToDecl(DeclPtrTy dcl, ExprArg init, bool DirectInit) {
 
   Init = MaybeCreateCXXExprWithTemporaries(Init);
   // Attach the initializer to the decl.
-  VDecl->setInit(Context, Init);
-
-  // If the previous declaration of VDecl was a tentative definition,
-  // remove it from the set of tentative definitions.
-  if (VDecl->getPreviousDeclaration() &&
-      VDecl->getPreviousDeclaration()->isTentativeDefinition(Context)) {
-    bool Deleted = TentativeDefinitions.erase(VDecl->getDeclName());
-    assert(Deleted && "Unrecorded tentative definition?"); Deleted=Deleted;
-  }
+  VDecl->setInit(Init);
 
   if (getLangOptions().CPlusPlus) {
     // Make sure we mark the destructor as used if necessary.
     QualType InitType = VDecl->getType();
     while (const ArrayType *Array = Context.getAsArrayType(InitType))
       InitType = Context.getBaseElementType(Array);
-    if (InitType->isRecordType())
-      FinalizeVarWithDestructor(VDecl, InitType);
+    if (const RecordType *Record = InitType->getAs<RecordType>())
+      FinalizeVarWithDestructor(VDecl, Record);
   }
 
   return;
@@ -3578,36 +3667,6 @@ void Sema::ActOnUninitializedDecl(DeclPtrTy dcl,
   if (VarDecl *Var = dyn_cast<VarDecl>(RealDecl)) {
     QualType Type = Var->getType();
 
-    // Record tentative definitions.
-    if (Var->isTentativeDefinition(Context)) {
-      std::pair<llvm::DenseMap<DeclarationName, VarDecl *>::iterator, bool>
-        InsertPair =
-           TentativeDefinitions.insert(std::make_pair(Var->getDeclName(), Var));
-
-      // Keep the latest definition in the map.  If we see 'int i; int i;' we
-      // want the second one in the map.
-      InsertPair.first->second = Var;
-
-      // However, for the list, we don't care about the order, just make sure
-      // that there are no dupes for a given declaration name.
-      if (InsertPair.second)
-        TentativeDefinitionList.push_back(Var->getDeclName());
-    }
-
-    // C++ [dcl.init.ref]p3:
-    //   The initializer can be omitted for a reference only in a
-    //   parameter declaration (8.3.5), in the declaration of a
-    //   function return type, in the declaration of a class member
-    //   within its class declaration (9.2), and where the extern
-    //   specifier is explicitly used.
-    if (Type->isReferenceType() && !Var->hasExternalStorage()) {
-      Diag(Var->getLocation(), diag::err_reference_var_requires_init)
-        << Var->getDeclName()
-        << SourceRange(Var->getLocation(), Var->getLocation());
-      Var->setInvalidDecl();
-      return;
-    }
-
     // C++0x [dcl.spec.auto]p3
     if (TypeContainsUndeducedAuto) {
       Diag(Var->getLocation(), diag::err_auto_var_requires_init)
@@ -3616,98 +3675,132 @@ void Sema::ActOnUninitializedDecl(DeclPtrTy dcl,
       return;
     }
 
-    // An array without size is an incomplete type, and there are no special
-    // rules in C++ to make such a definition acceptable.
-    if (getLangOptions().CPlusPlus && Type->isIncompleteArrayType() &&
-        !Var->hasExternalStorage()) {
+    switch (Var->isThisDeclarationADefinition()) {
+    case VarDecl::Definition:
+      if (!Var->isStaticDataMember() || !Var->getAnyInitializer())
+        break;
+
+      // We have an out-of-line definition of a static data member
+      // that has an in-class initializer, so we type-check this like
+      // a declaration. 
+      //
+      // Fall through
+      
+    case VarDecl::DeclarationOnly:
+      // It's only a declaration. 
+
+      // Block scope. C99 6.7p7: If an identifier for an object is
+      // declared with no linkage (C99 6.2.2p6), the type for the
+      // object shall be complete.
+      if (!Type->isDependentType() && Var->isBlockVarDecl() && 
+          !Var->getLinkage() && !Var->isInvalidDecl() &&
+          RequireCompleteType(Var->getLocation(), Type,
+                              diag::err_typecheck_decl_incomplete_type))
+        Var->setInvalidDecl();
+
+      // Make sure that the type is not abstract.
+      if (!Type->isDependentType() && !Var->isInvalidDecl() &&
+          RequireNonAbstractType(Var->getLocation(), Type,
+                                 diag::err_abstract_type_in_decl,
+                                 AbstractVariableType))
+        Var->setInvalidDecl();
+      return;
+
+    case VarDecl::TentativeDefinition:
+      // File scope. C99 6.9.2p2: A declaration of an identifier for an
+      // object that has file scope without an initializer, and without a
+      // storage-class specifier or with the storage-class specifier "static",
+      // constitutes a tentative definition. Note: A tentative definition with
+      // external linkage is valid (C99 6.2.2p5).
+      if (!Var->isInvalidDecl()) {
+        if (const IncompleteArrayType *ArrayT
+                                    = Context.getAsIncompleteArrayType(Type)) {
+          if (RequireCompleteType(Var->getLocation(),
+                                  ArrayT->getElementType(),
+                                  diag::err_illegal_decl_array_incomplete_type))
+            Var->setInvalidDecl();
+        } else if (Var->getStorageClass() == VarDecl::Static) {
+          // C99 6.9.2p3: If the declaration of an identifier for an object is
+          // a tentative definition and has internal linkage (C99 6.2.2p3), the
+          // declared type shall not be an incomplete type.
+          // NOTE: code such as the following
+          //     static struct s;
+          //     struct s { int a; };
+          // is accepted by gcc. Hence here we issue a warning instead of
+          // an error and we do not invalidate the static declaration.
+          // NOTE: to avoid multiple warnings, only check the first declaration.
+          if (Var->getPreviousDeclaration() == 0)
+            RequireCompleteType(Var->getLocation(), Type,
+                                diag::ext_typecheck_decl_incomplete_type);
+        }
+      }
+
+      // Record the tentative definition; we're done.
+      if (!Var->isInvalidDecl())
+        TentativeDefinitions.push_back(Var);
+      return;
+    }
+
+    // Provide a specific diagnostic for uninitialized variable
+    // definitions with incomplete array type.
+    if (Type->isIncompleteArrayType()) {
       Diag(Var->getLocation(),
            diag::err_typecheck_incomplete_array_needs_initializer);
       Var->setInvalidDecl();
       return;
     }
 
-    // C++ [temp.expl.spec]p15:
-    //   An explicit specialization of a static data member of a template is a
-    //   definition if the declaration includes an initializer; otherwise, it 
-    //   is a declaration.
-    if (Var->isStaticDataMember() &&
-        Var->getInstantiatedFromStaticDataMember() &&
-        Var->getTemplateSpecializationKind() == TSK_ExplicitSpecialization)
+   // Provide a specific diagnostic for uninitialized variable
+   // definitions with reference type.
+   if (Type->isReferenceType()) {
+     Diag(Var->getLocation(), diag::err_reference_var_requires_init)
+       << Var->getDeclName()
+       << SourceRange(Var->getLocation(), Var->getLocation());
+     Var->setInvalidDecl();
+     return;
+   }
+
+    // Do not attempt to type-check the default initializer for a
+    // variable with dependent type.
+    if (Type->isDependentType())
       return;
-    
-    // C++ [dcl.init]p9:
-    //   If no initializer is specified for an object, and the object
-    //   is of (possibly cv-qualified) non-POD class type (or array
-    //   thereof), the object shall be default-initialized; if the
-    //   object is of const-qualified type, the underlying class type
-    //   shall have a user-declared default constructor.
-    //
-    // FIXME: Diagnose the "user-declared default constructor" bit.
-    if (getLangOptions().CPlusPlus) {
-      QualType InitType = Type;
-      if (const ArrayType *Array = Context.getAsArrayType(Type))
-        InitType = Context.getBaseElementType(Array);
-      if ((!Var->hasExternalStorage() && !Var->isExternC()) &&
-          InitType->isRecordType() && !InitType->isDependentType()) {
-        if (!RequireCompleteType(Var->getLocation(), InitType,
-                                 diag::err_invalid_incomplete_type_use)) {
-          InitializedEntity Entity
-            = InitializedEntity::InitializeVariable(Var);
-          InitializationKind Kind
-            = InitializationKind::CreateDefault(Var->getLocation());
 
-          InitializationSequence InitSeq(*this, Entity, Kind, 0, 0);
-          OwningExprResult Init = InitSeq.Perform(*this, Entity, Kind,
-                                                  MultiExprArg(*this, 0, 0));
-          if (Init.isInvalid())
-            Var->setInvalidDecl();
-          else {
-            Var->setInit(Context, 
-                       MaybeCreateCXXExprWithTemporaries(Init.takeAs<Expr>()));
-            FinalizeVarWithDestructor(Var, InitType);
-          }
-        } else {
-          Var->setInvalidDecl();
-        }
-      }
+    if (Var->isInvalidDecl())
+      return;
 
-      // The variable can not have an abstract class type.
-      if (RequireNonAbstractType(Var->getLocation(), Type,
-                                 diag::err_abstract_type_in_decl,
-                                 AbstractVariableType))
-        Var->setInvalidDecl();
+    if (RequireCompleteType(Var->getLocation(), 
+                            Context.getBaseElementType(Type),
+                            diag::err_typecheck_decl_incomplete_type)) {
+      Var->setInvalidDecl();
+      return;
     }
 
-#if 0
-    // FIXME: Temporarily disabled because we are not properly parsing
-    // linkage specifications on declarations, e.g.,
-    //
-    //   extern "C" const CGPoint CGPointerZero;
-    //
-    // C++ [dcl.init]p9:
-    //
-    //     If no initializer is specified for an object, and the
-    //     object is of (possibly cv-qualified) non-POD class type (or
-    //     array thereof), the object shall be default-initialized; if
-    //     the object is of const-qualified type, the underlying class
-    //     type shall have a user-declared default
-    //     constructor. Otherwise, if no initializer is specified for
-    //     an object, the object and its subobjects, if any, have an
-    //     indeterminate initial value; if the object or any of its
-    //     subobjects are of const-qualified type, the program is
-    //     ill-formed.
-    //
-    // This isn't technically an error in C, so we don't diagnose it.
-    //
-    // FIXME: Actually perform the POD/user-defined default
-    // constructor check.
-    if (getLangOptions().CPlusPlus &&
-        Context.getCanonicalType(Type).isConstQualified() &&
-        !Var->hasExternalStorage())
-      Diag(Var->getLocation(),  diag::err_const_var_requires_init)
-        << Var->getName()
-        << SourceRange(Var->getLocation(), Var->getLocation());
-#endif
+    // The variable can not have an abstract class type.
+    if (RequireNonAbstractType(Var->getLocation(), Type,
+                               diag::err_abstract_type_in_decl,
+                               AbstractVariableType)) {
+      Var->setInvalidDecl();
+      return;
+    }
+
+    InitializedEntity Entity = InitializedEntity::InitializeVariable(Var);
+    InitializationKind Kind
+      = InitializationKind::CreateDefault(Var->getLocation());
+    
+    InitializationSequence InitSeq(*this, Entity, Kind, 0, 0);
+    OwningExprResult Init = InitSeq.Perform(*this, Entity, Kind,
+                                            MultiExprArg(*this, 0, 0));
+    if (Init.isInvalid())
+      Var->setInvalidDecl();
+    else {
+      if (Init.get())
+        Var->setInit(MaybeCreateCXXExprWithTemporaries(Init.takeAs<Expr>()));
+
+      if (getLangOptions().CPlusPlus)
+        if (const RecordType *Record
+                        = Context.getBaseElementType(Type)->getAs<RecordType>())
+          FinalizeVarWithDestructor(Var, Record);
+    }
   }
 }
 
@@ -3723,77 +3816,6 @@ Sema::DeclGroupPtrTy Sema::FinalizeDeclaratorGroup(Scope *S, const DeclSpec &DS,
     if (Decl *D = Group[i].getAs<Decl>())
       Decls.push_back(D);
 
-  // Perform semantic analysis that depends on having fully processed both
-  // the declarator and initializer.
-  for (unsigned i = 0, e = Decls.size(); i != e; ++i) {
-    VarDecl *IDecl = dyn_cast<VarDecl>(Decls[i]);
-    if (!IDecl)
-      continue;
-    QualType T = IDecl->getType();
-
-    // Block scope. C99 6.7p7: If an identifier for an object is declared with
-    // no linkage (C99 6.2.2p6), the type for the object shall be complete...
-    if (IDecl->isBlockVarDecl() && !IDecl->hasExternalStorage()) {
-      if (T->isDependentType()) {
-        // If T is dependent, we should not require a complete type.
-        // (RequireCompleteType shouldn't be called with dependent types.)
-        // But we still can at least check if we've got an array of unspecified
-        // size without an initializer.
-        if (!IDecl->isInvalidDecl() && T->isIncompleteArrayType() &&
-            !IDecl->getInit()) {
-          Diag(IDecl->getLocation(), diag::err_typecheck_decl_incomplete_type)
-            << T;
-          IDecl->setInvalidDecl();
-        }
-      } else if (!IDecl->isInvalidDecl()) {
-        // If T is an incomplete array type with an initializer list that is
-        // dependent on something, its size has not been fixed. We could attempt
-        // to fix the size for such arrays, but we would still have to check
-        // here for initializers containing a C++0x vararg expansion, e.g.
-        // template <typename... Args> void f(Args... args) {
-        //   int vals[] = { args };
-        // }
-        const IncompleteArrayType *IAT = Context.getAsIncompleteArrayType(T);
-        Expr *Init = IDecl->getInit();
-        if (IAT && Init &&
-            (Init->isTypeDependent() || Init->isValueDependent())) {
-          // Check that the member type of the array is complete, at least.
-          if (RequireCompleteType(IDecl->getLocation(), IAT->getElementType(),
-                                  diag::err_typecheck_decl_incomplete_type))
-            IDecl->setInvalidDecl();
-        } else if (RequireCompleteType(IDecl->getLocation(), T,
-                                      diag::err_typecheck_decl_incomplete_type))
-          IDecl->setInvalidDecl();
-      }
-    }
-    // File scope. C99 6.9.2p2: A declaration of an identifier for an
-    // object that has file scope without an initializer, and without a
-    // storage-class specifier or with the storage-class specifier "static",
-    // constitutes a tentative definition. Note: A tentative definition with
-    // external linkage is valid (C99 6.2.2p5).
-    if (IDecl->isTentativeDefinition(Context) && !IDecl->isInvalidDecl()) {
-      if (const IncompleteArrayType *ArrayT
-          = Context.getAsIncompleteArrayType(T)) {
-        if (RequireCompleteType(IDecl->getLocation(),
-                                ArrayT->getElementType(),
-                                diag::err_illegal_decl_array_incomplete_type))
-          IDecl->setInvalidDecl();
-      } else if (IDecl->getStorageClass() == VarDecl::Static) {
-        // C99 6.9.2p3: If the declaration of an identifier for an object is
-        // a tentative definition and has internal linkage (C99 6.2.2p3), the
-        // declared type shall not be an incomplete type.
-        // NOTE: code such as the following
-        //     static struct s;
-        //     struct s { int a; };
-        // is accepted by gcc. Hence here we issue a warning instead of
-        // an error and we do not invalidate the static declaration.
-        // NOTE: to avoid multiple warnings, only check the first declaration.
-        if (IDecl->getPreviousDeclaration() == 0)
-          RequireCompleteType(IDecl->getLocation(), T,
-                              diag::ext_typecheck_decl_incomplete_type);
-      }
-    }
-  }
   return DeclGroupPtrTy::make(DeclGroupRef::Create(Context,
                                                    Decls.data(), Decls.size()));
 }
@@ -3853,6 +3875,7 @@ Sema::ActOnParamDeclarator(Scope *S, Declarator &D) {
         // Recover by removing the name
         II = 0;
         D.SetIdentifier(0, D.getIdentifierLoc());
+        D.setInvalidType(true);
       }
     }
   }
@@ -3917,6 +3940,11 @@ Sema::ActOnParamDeclarator(Scope *S, Declarator &D) {
     Diag(New->getLocation(), diag::err_block_on_nonlocal);
   }
   return DeclPtrTy::make(New);
+}
+
+void Sema::ActOnObjCCatchParam(DeclPtrTy D) {
+  ParmVarDecl *Param = cast<ParmVarDecl>(D.getAs<Decl>());
+  Param->setDeclContext(CurContext);
 }
 
 void Sema::ActOnFinishKNRParamDeclarations(Scope *S, Declarator &D,
@@ -4297,8 +4325,8 @@ void Sema::AddKnownFunctionAttributes(FunctionDecl *FD) {
     bool HasVAListArg;
     if (Context.BuiltinInfo.isPrintfLike(BuiltinID, FormatIdx, HasVAListArg)) {
       if (!FD->getAttr<FormatAttr>())
-        FD->addAttr(::new (Context) FormatAttr("printf", FormatIdx + 1,
-                                             HasVAListArg ? 0 : FormatIdx + 2));
+        FD->addAttr(::new (Context) FormatAttr(Context, "printf", FormatIdx+1,
+                                               HasVAListArg ? 0 : FormatIdx+2));
     }
 
     // Mark const if we don't care about errno and that is the only
@@ -4311,7 +4339,7 @@ void Sema::AddKnownFunctionAttributes(FunctionDecl *FD) {
     }
 
     if (Context.BuiltinInfo.isNoReturn(BuiltinID))
-      FD->addAttr(::new (Context) NoReturnAttr());
+      FD->setType(Context.getNoReturnType(FD->getType()));
     if (Context.BuiltinInfo.isNoThrow(BuiltinID))
       FD->addAttr(::new (Context) NoThrowAttr());
     if (Context.BuiltinInfo.isConst(BuiltinID))
@@ -4335,15 +4363,15 @@ void Sema::AddKnownFunctionAttributes(FunctionDecl *FD) {
     // FIXME: NSLog and NSLogv should be target specific
     if (const FormatAttr *Format = FD->getAttr<FormatAttr>()) {
       // FIXME: We known better than our headers.
-      const_cast<FormatAttr *>(Format)->setType("printf");
+      const_cast<FormatAttr *>(Format)->setType(Context, "printf");
     } else
-      FD->addAttr(::new (Context) FormatAttr("printf", 1,
+      FD->addAttr(::new (Context) FormatAttr(Context, "printf", 1,
                                              Name->isStr("NSLogv") ? 0 : 2));
   } else if (Name->isStr("asprintf") || Name->isStr("vasprintf")) {
     // FIXME: asprintf and vasprintf aren't C99 functions. Should they be
     // target-specific builtins, perhaps?
     if (!FD->getAttr<FormatAttr>())
-      FD->addAttr(::new (Context) FormatAttr("printf", 2,
+      FD->addAttr(::new (Context) FormatAttr(Context, "printf", 2,
                                              Name->isStr("vasprintf") ? 0 : 3));
   }
 }
@@ -4614,7 +4642,7 @@ Sema::DeclPtrTy Sema::ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
 
           // Diagnose attempts to redefine a tag.
           if (TUK == TUK_Definition) {
-            if (TagDecl *Def = PrevTagDecl->getDefinition(Context)) {
+            if (TagDecl *Def = PrevTagDecl->getDefinition()) {
               // If we're defining a specialization and the previous definition
               // is from an implicit instantiation, don't emit an error
               // here; we'll catch this in the general case below.
@@ -4927,9 +4955,17 @@ RecordDynamicClassesWithNoKeyFunction(Sema &S, CXXRecordDecl *Record,
   if (Record->isDependentContext() || !Record->isDefinition())
     return;
   
-  if (Record->isDynamicClass() && !S.Context.getKeyFunction(Record))
-    S.ClassesWithUnmarkedVirtualMembers.push_back(std::make_pair(Record, Loc));
+  if (Record->isDynamicClass()) {
+    const CXXMethodDecl *KeyFunction = S.Context.getKeyFunction(Record);
   
+    if (!KeyFunction)
+      S.ClassesWithUnmarkedVirtualMembers.push_back(std::make_pair(Record,
+                                                                   Loc));
+
+    if ((!KeyFunction || (KeyFunction->getBody() && KeyFunction->isInlined()))
+        && Record->getLinkage() == ExternalLinkage)
+      S.Diag(Record->getLocation(), diag::warn_weak_vtable) << Record;
+  }
   for (DeclContext::decl_iterator D = Record->decls_begin(), 
                                DEnd = Record->decls_end();
        D != DEnd; ++D) {
@@ -5156,7 +5192,7 @@ FieldDecl *Sema::CheckFieldDecl(DeclarationName Name, QualType T,
     NewFD->setInvalidDecl();
   }
 
-  if (getLangOptions().CPlusPlus) {
+  if (!InvalidDecl && getLangOptions().CPlusPlus) {
     CXXRecordDecl* CXXRecord = cast<CXXRecordDecl>(Record);
 
     if (!T->isPODType())
@@ -5584,7 +5620,7 @@ void Sema::ActOnFields(Scope* S,
 
   // Okay, we successfully defined 'Record'.
   if (Record) {
-    Record->completeDefinition(Context);
+    Record->completeDefinition();
   } else {
     ObjCIvarDecl **ClsFields =
       reinterpret_cast<ObjCIvarDecl**>(RecFields.data());
@@ -5628,6 +5664,45 @@ void Sema::ActOnFields(Scope* S,
     ProcessDeclAttributeList(S, Record, Attr);
 }
 
+/// \brief Determine whether the given integral value is representable within
+/// the given type T.
+static bool isRepresentableIntegerValue(ASTContext &Context,
+                                        llvm::APSInt &Value,
+                                        QualType T) {
+  assert(T->isIntegralType() && "Integral type required!");
+  unsigned BitWidth = Context.getTypeSize(T);
+  
+  if (Value.isUnsigned() || Value.isNonNegative())
+    return Value.getActiveBits() < BitWidth;
+  
+  return Value.getMinSignedBits() <= BitWidth;
+}
+
+// \brief Given an integral type, return the next larger integral type
+// (or a NULL type of no such type exists).
+static QualType getNextLargerIntegralType(ASTContext &Context, QualType T) {
+  // FIXME: Int128/UInt128 support, which also needs to be introduced into 
+  // enum checking below.
+  assert(T->isIntegralType() && "Integral type required!");
+  const unsigned NumTypes = 4;
+  QualType SignedIntegralTypes[NumTypes] = { 
+    Context.ShortTy, Context.IntTy, Context.LongTy, Context.LongLongTy
+  };
+  QualType UnsignedIntegralTypes[NumTypes] = { 
+    Context.UnsignedShortTy, Context.UnsignedIntTy, Context.UnsignedLongTy, 
+    Context.UnsignedLongLongTy
+  };
+  
+  unsigned BitWidth = Context.getTypeSize(T);
+  QualType *Types = T->isSignedIntegerType()? SignedIntegralTypes
+                                            : UnsignedIntegralTypes;
+  for (unsigned I = 0; I != NumTypes; ++I)
+    if (Context.getTypeSize(Types[I]) > BitWidth)
+      return Types[I];
+  
+  return QualType();
+}
+
 EnumConstantDecl *Sema::CheckEnumConstant(EnumDecl *Enum,
                                           EnumConstantDecl *LastEnumConst,
                                           SourceLocation IdLoc,
@@ -5635,24 +5710,45 @@ EnumConstantDecl *Sema::CheckEnumConstant(EnumDecl *Enum,
                                           ExprArg val) {
   Expr *Val = (Expr *)val.get();
 
-  llvm::APSInt EnumVal(32);
+  unsigned IntWidth = Context.Target.getIntWidth();
+  llvm::APSInt EnumVal(IntWidth);
   QualType EltTy;
   if (Val) {
     if (Enum->isDependentType())
       EltTy = Context.DependentTy;
     else {
-      // Make sure to promote the operand type to int.
-      UsualUnaryConversions(Val);
-      if (Val != val.get()) {
-        val.release();
-        val = Val;
-      }
-
       // C99 6.7.2.2p2: Make sure we have an integer constant expression.
       SourceLocation ExpLoc;
       if (VerifyIntegerConstantExpression(Val, &EnumVal)) {
         Val = 0;
-      } else {
+      } else {        
+        if (!getLangOptions().CPlusPlus) {
+          // C99 6.7.2.2p2:
+          //   The expression that defines the value of an enumeration constant
+          //   shall be an integer constant expression that has a value 
+          //   representable as an int.
+          
+          // Complain if the value is not representable in an int.
+          if (!isRepresentableIntegerValue(Context, EnumVal, Context.IntTy))
+            Diag(IdLoc, diag::ext_enum_value_not_int)
+              << EnumVal.toString(10) << Val->getSourceRange()
+              << EnumVal.isNonNegative();
+          else if (!Context.hasSameType(Val->getType(), Context.IntTy)) {
+            // Force the type of the expression to 'int'.
+            ImpCastExprToType(Val, Context.IntTy, CastExpr::CK_IntegralCast);
+            
+            if (Val != val.get()) {
+              val.release();
+              val = Val;
+            }
+          }
+        }
+        
+        // C++0x [dcl.enum]p5:
+        //   If the underlying type is not fixed, the type of each enumerator
+        //   is the type of its initializing value:
+        //     - If an initializer is specified for an enumerator, the 
+        //       initializing value has the same type as the expression.
         EltTy = Val->getType();
       }
     }
@@ -5661,25 +5757,76 @@ EnumConstantDecl *Sema::CheckEnumConstant(EnumDecl *Enum,
   if (!Val) {
     if (Enum->isDependentType())
       EltTy = Context.DependentTy;
-    else if (LastEnumConst) {
+    else if (!LastEnumConst) {
+      // C++0x [dcl.enum]p5:
+      //   If the underlying type is not fixed, the type of each enumerator
+      //   is the type of its initializing value:
+      //     - If no initializer is specified for the first enumerator, the 
+      //       initializing value has an unspecified integral type.
+      //
+      // GCC uses 'int' for its unspecified integral type, as does 
+      // C99 6.7.2.2p3.
+      EltTy = Context.IntTy;
+    } else {
       // Assign the last value + 1.
       EnumVal = LastEnumConst->getInitVal();
       ++EnumVal;
+      EltTy = LastEnumConst->getType();
 
       // Check for overflow on increment.
-      if (EnumVal < LastEnumConst->getInitVal())
-        Diag(IdLoc, diag::warn_enum_value_overflow);
-
-      EltTy = LastEnumConst->getType();
-    } else {
-      // First value, set to zero.
-      EltTy = Context.IntTy;
-      EnumVal.zextOrTrunc(static_cast<uint32_t>(Context.getTypeSize(EltTy)));
-      EnumVal.setIsSigned(true);
+      if (EnumVal < LastEnumConst->getInitVal()) {
+        // C++0x [dcl.enum]p5:
+        //   If the underlying type is not fixed, the type of each enumerator
+        //   is the type of its initializing value:
+        //
+        //     - Otherwise the type of the initializing value is the same as
+        //       the type of the initializing value of the preceding enumerator
+        //       unless the incremented value is not representable in that type,
+        //       in which case the type is an unspecified integral type 
+        //       sufficient to contain the incremented value. If no such type
+        //       exists, the program is ill-formed.
+        QualType T = getNextLargerIntegralType(Context, EltTy);
+        if (T.isNull()) {
+          // There is no integral type larger enough to represent this 
+          // value. Complain, then allow the value to wrap around.
+          EnumVal = LastEnumConst->getInitVal();
+          EnumVal.zext(EnumVal.getBitWidth() * 2);
+          Diag(IdLoc, diag::warn_enumerator_too_large)
+            << EnumVal.toString(10);
+        } else {
+          EltTy = T;
+        }
+        
+        // Retrieve the last enumerator's value, extent that type to the
+        // type that is supposed to be large enough to represent the incremented
+        // value, then increment.
+        EnumVal = LastEnumConst->getInitVal();
+        EnumVal.setIsSigned(EltTy->isSignedIntegerType());
+        EnumVal.zextOrTrunc(Context.getTypeSize(EltTy));
+        ++EnumVal;        
+        
+        // If we're not in C++, diagnose the overflow of enumerator values,
+        // which in C99 means that the enumerator value is not representable in
+        // an int (C99 6.7.2.2p2). However, we support GCC's extension that
+        // permits enumerator values that are representable in some larger
+        // integral type.
+        if (!getLangOptions().CPlusPlus && !T.isNull())
+          Diag(IdLoc, diag::warn_enum_value_overflow);
+      } else if (!getLangOptions().CPlusPlus &&
+                 !isRepresentableIntegerValue(Context, EnumVal, EltTy)) {
+        // Enforce C99 6.7.2.2p2 even when we compute the next value.
+        Diag(IdLoc, diag::ext_enum_value_not_int)
+          << EnumVal.toString(10) << 1;
+      }
     }
   }
 
-  assert(!EltTy.isNull() && "Enum constant with NULL type");
+  if (!Enum->isDependentType()) {
+    // Make the enumerator value match the signedness and size of the 
+    // enumerator's type.
+    EnumVal.zextOrTrunc(Context.getTypeSize(EltTy));
+    EnumVal.setIsSigned(EltTy->isSignedIntegerType());
+  }
   
   val.release();
   return EnumConstantDecl::Create(Context, Enum, IdLoc, Id, EltTy,
@@ -5759,7 +5906,7 @@ void Sema::ActOnEnumBody(SourceLocation EnumLoc, SourceLocation LBraceLoc,
       ECD->setType(EnumType);
     }
 
-    Enum->completeDefinition(Context, Context.DependentTy, Context.DependentTy);
+    Enum->completeDefinition(Context.DependentTy, Context.DependentTy);
     return;
   }
 
@@ -5783,18 +5930,7 @@ void Sema::ActOnEnumBody(SourceLocation EnumLoc, SourceLocation LBraceLoc,
       cast_or_null<EnumConstantDecl>(Elements[i].getAs<Decl>());
     if (!ECD) continue;  // Already issued a diagnostic.
 
-    // If the enum value doesn't fit in an int, emit an extension warning.
     const llvm::APSInt &InitVal = ECD->getInitVal();
-    assert(InitVal.getBitWidth() >= IntWidth &&
-           "Should have promoted value to int");
-    if (!getLangOptions().CPlusPlus && InitVal.getBitWidth() > IntWidth) {
-      llvm::APSInt V(InitVal);
-      V.trunc(IntWidth);
-      V.extend(InitVal.getBitWidth());
-      if (V != InitVal)
-        Diag(ECD->getLocation(), diag::ext_enum_value_not_int)
-          << InitVal.toString(10);
-    }
 
     // Keep track of the size of positive and negative values.
     if (InitVal.isUnsigned() || InitVal.isNonNegative())
@@ -5856,8 +5992,8 @@ void Sema::ActOnEnumBody(SourceLocation EnumLoc, SourceLocation LBraceLoc,
     }
     BestPromotionType = (BestWidth <= IntWidth ? Context.IntTy : BestType);
   } else {
-    // If there is no negative value, figure out which of uint, ulong, ulonglong
-    // fits.
+    // If there is no negative value, figure out the smallest type that fits
+    // all of the enumerator values.
     // If it's packed, check also if it fits a char or a short.
     if (Packed && NumPositiveBits <= CharWidth) {
       BestType = Context.UnsignedCharTy;
@@ -5870,29 +6006,25 @@ void Sema::ActOnEnumBody(SourceLocation EnumLoc, SourceLocation LBraceLoc,
     } else if (NumPositiveBits <= IntWidth) {
       BestType = Context.UnsignedIntTy;
       BestWidth = IntWidth;
-      BestPromotionType = (NumPositiveBits == BestWidth
-                           ? Context.UnsignedIntTy : Context.IntTy);
+      BestPromotionType
+        = (NumPositiveBits == BestWidth || !getLangOptions().CPlusPlus)
+                           ? Context.UnsignedIntTy : Context.IntTy;
     } else if (NumPositiveBits <=
                (BestWidth = Context.Target.getLongWidth())) {
       BestType = Context.UnsignedLongTy;
-      BestPromotionType = (NumPositiveBits == BestWidth
-                           ? Context.UnsignedLongTy : Context.LongTy);
+      BestPromotionType
+        = (NumPositiveBits == BestWidth || !getLangOptions().CPlusPlus)
+                           ? Context.UnsignedLongTy : Context.LongTy;
     } else {
       BestWidth = Context.Target.getLongLongWidth();
       assert(NumPositiveBits <= BestWidth &&
              "How could an initializer get larger than ULL?");
       BestType = Context.UnsignedLongLongTy;
-      BestPromotionType = (NumPositiveBits == BestWidth
-                           ? Context.UnsignedLongLongTy : Context.LongLongTy);
+      BestPromotionType
+        = (NumPositiveBits == BestWidth || !getLangOptions().CPlusPlus)
+                           ? Context.UnsignedLongLongTy : Context.LongLongTy;
     }
   }
-
-  // If we're in C and the promotion type is larger than an int, just
-  // use the underlying type, which is generally the unsigned integer
-  // type of the same rank as the promotion type.  This is how the gcc
-  // extension works.
-  if (!getLangOptions().CPlusPlus && BestPromotionType != Context.IntTy)
-    BestPromotionType = BestType;
 
   // Loop over all of the enumerator constants, changing their types to match
   // the type of the enum if needed.
@@ -5906,23 +6038,17 @@ void Sema::ActOnEnumBody(SourceLocation EnumLoc, SourceLocation LBraceLoc,
     // enumerator value fits in an int, type it as an int, otherwise type it the
     // same as the enumerator decl itself.  This means that in "enum { X = 1U }"
     // that X has type 'int', not 'unsigned'.
-    if (!getLangOptions().CPlusPlus && ECD->getType() == Context.IntTy)
-      continue;
 
     // Determine whether the value fits into an int.
     llvm::APSInt InitVal = ECD->getInitVal();
-    bool FitsInInt;
-    if (InitVal.isUnsigned() || !InitVal.isNegative())
-      FitsInInt = InitVal.getActiveBits() < IntWidth;
-    else
-      FitsInInt = InitVal.getMinSignedBits() <= IntWidth;
 
     // If it fits into an integer type, force it.  Otherwise force it to match
     // the enum decl type.
     QualType NewTy;
     unsigned NewWidth;
     bool NewSign;
-    if (FitsInInt && !getLangOptions().CPlusPlus) {
+    if (!getLangOptions().CPlusPlus &&
+        isRepresentableIntegerValue(Context, InitVal, Context.IntTy)) {
       NewTy = Context.IntTy;
       NewWidth = IntWidth;
       NewSign = true;
@@ -5960,7 +6086,7 @@ void Sema::ActOnEnumBody(SourceLocation EnumLoc, SourceLocation LBraceLoc,
       ECD->setType(NewTy);
   }
 
-  Enum->completeDefinition(Context, BestType, BestPromotionType);
+  Enum->completeDefinition(BestType, BestPromotionType);
 }
 
 Sema::DeclPtrTy Sema::ActOnFileScopeAsmDecl(SourceLocation Loc,

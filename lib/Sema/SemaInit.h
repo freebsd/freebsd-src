@@ -15,11 +15,16 @@
 
 #include "SemaOverload.h"
 #include "clang/AST/Type.h"
+#include "clang/AST/UnresolvedSet.h"
 #include "clang/Parse/Action.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
+
+namespace llvm {
+  class raw_ostream;
+}
 
 namespace clang {
   
@@ -62,7 +67,6 @@ public:
     /// \brief The entity being initialized is an element of a vector.
     /// or vector.
     EK_VectorElement
-
   };
   
 private:
@@ -91,8 +95,8 @@ private:
     /// base class.
     CXXBaseSpecifier *Base;
 
-    /// \brief When Kind = EK_ArrayOrVectorElement, the index of the
-    /// array or vector element being initialized.
+    /// \brief When Kind = EK_ArrayElement or EK_VectorElement, the
+    /// index of the array or vector element being initialized.
     unsigned Index;
   };
 
@@ -196,6 +200,12 @@ public:
   /// \brief Retrieve the variable, parameter, or field being
   /// initialized.
   DeclaratorDecl *getDecl() const;
+
+  /// \brief Retrieve the base specifier.
+  CXXBaseSpecifier *getBaseSpecifier() const {
+    assert(getKind() == EK_Base && "Not a base specifier");
+    return Base;
+  }
 
   /// \brief Determine the location of the 'return' keyword when initializing
   /// the result of a function call.
@@ -440,7 +450,11 @@ public:
       /// \brief When Kind == SK_ResolvedOverloadedFunction or Kind ==
       /// SK_UserConversion, the function that the expression should be 
       /// resolved to or the conversion function to call, respectively.
-      FunctionDecl *Function;
+      ///
+      /// Always a FunctionDecl.
+      /// For conversion decls, the naming class is the source type.
+      /// For construct decls, the naming class is the target type.
+      DeclAccessPair Function;
       
       /// \brief When Kind = SK_ConversionSequence, the implicit conversion
       /// sequence 
@@ -607,7 +621,9 @@ public:
   
   /// \brief Add a new step invoking a conversion function, which is either
   /// a constructor or a conversion function.
-  void AddUserConversionStep(FunctionDecl *Function, QualType T);
+  void AddUserConversionStep(FunctionDecl *Function,
+                             AccessSpecifier Access,
+                             QualType T);
   
   /// \brief Add a new step that performs a qualification conversion to the
   /// given type.
@@ -622,6 +638,7 @@ public:
 
   /// \brief Add a constructor-initialization step.
   void AddConstructorInitializationStep(CXXConstructorDecl *Constructor,
+                                        AccessSpecifier Access,
                                         QualType T);
 
   /// \brief Add a zero-initialization step.
@@ -658,6 +675,14 @@ public:
     assert(getKind() == FailedSequence && "Not an initialization failure!");
     return Failure;
   }
+  
+  /// \brief Dump a representation of this initialization sequence to 
+  /// the given stream, for debugging purposes.
+  void dump(llvm::raw_ostream &OS) const;
+  
+  /// \brief Dump a representation of this initialization sequence to 
+  /// standard error, for debugging purposes.
+  void dump() const;
 };
   
 } // end namespace clang

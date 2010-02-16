@@ -139,9 +139,10 @@ namespace clang {
     /// QualType.
     void *FromTypePtr;
 
-    /// ToType - The type that this conversion is converting to. This
-    /// is an opaque pointer that can be translated into a QualType.
-    void *ToTypePtr;
+    /// ToType - The types that this conversion is converting to in
+    /// each step. This is an opaque pointer that can be translated
+    /// into a QualType.
+    void *ToTypePtrs[3];
 
     /// CopyConstructor - The copy constructor that is used to perform
     /// this conversion, when the conversion is actually just the
@@ -151,12 +152,22 @@ namespace clang {
     CXXConstructorDecl *CopyConstructor;
 
     void setFromType(QualType T) { FromTypePtr = T.getAsOpaquePtr(); }
-    void setToType(QualType T) { ToTypePtr = T.getAsOpaquePtr(); }
+    void setToType(unsigned Idx, QualType T) { 
+      assert(Idx < 3 && "To type index is out of range");
+      ToTypePtrs[Idx] = T.getAsOpaquePtr(); 
+    }
+    void setAllToTypes(QualType T) {
+      ToTypePtrs[0] = T.getAsOpaquePtr(); 
+      ToTypePtrs[1] = ToTypePtrs[0];
+      ToTypePtrs[2] = ToTypePtrs[0];
+    }
+
     QualType getFromType() const {
       return QualType::getFromOpaquePtr(FromTypePtr);
     }
-    QualType getToType() const {
-      return QualType::getFromOpaquePtr(ToTypePtr);
+    QualType getToType(unsigned Idx) const {
+      assert(Idx < 3 && "To type index is out of range");
+      return QualType::getFromOpaquePtr(ToTypePtrs[Idx]);
     }
 
     void setAsIdentityConversion();
@@ -446,11 +457,33 @@ namespace clang {
     /// Actually an OverloadFailureKind.
     unsigned char FailureKind;
 
-    /// FinalConversion - For a conversion function (where Function is
-    /// a CXXConversionDecl), the standard conversion that occurs
-    /// after the call to the overload candidate to convert the result
-    /// of calling the conversion function to the required type.
-    StandardConversionSequence FinalConversion;
+    /// PathAccess - The 'path access' to the given function/conversion.
+    /// Actually an AccessSpecifier.
+    unsigned Access;
+
+    AccessSpecifier getAccess() const {
+      return AccessSpecifier(Access);
+    }
+
+    /// A structure used to record information about a failed
+    /// template argument deduction.
+    struct DeductionFailureInfo {
+      // A Sema::TemplateDeductionResult.
+      unsigned Result;
+
+      // A TemplateParameter.
+      void *TemplateParameter;
+    };
+
+    union {
+      DeductionFailureInfo DeductionFailure;
+      
+      /// FinalConversion - For a conversion function (where Function is
+      /// a CXXConversionDecl), the standard conversion that occurs
+      /// after the call to the overload candidate to convert the result
+      /// of calling the conversion function to the required type.
+      StandardConversionSequence FinalConversion;
+    };
 
     /// hasAmbiguousConversion - Returns whether this overload
     /// candidate requires an ambiguous conversion or not.
@@ -468,8 +501,13 @@ namespace clang {
   class OverloadCandidateSet : public llvm::SmallVector<OverloadCandidate, 16> {
     typedef llvm::SmallVector<OverloadCandidate, 16> inherited;
     llvm::SmallPtrSet<Decl *, 16> Functions;
-    
+
+    SourceLocation Loc;    
   public:
+    OverloadCandidateSet(SourceLocation Loc) : Loc(Loc) {}
+
+    SourceLocation getLocation() const { return Loc; }
+
     /// \brief Determine when this overload candidate will be new to the
     /// overload set.
     bool isNewCandidate(Decl *F) { 

@@ -73,7 +73,7 @@ Stmt::child_iterator CXXZeroInitValueExpr::child_end() {
 }
 
 // CXXNewExpr
-CXXNewExpr::CXXNewExpr(bool globalNew, FunctionDecl *operatorNew,
+CXXNewExpr::CXXNewExpr(ASTContext &C, bool globalNew, FunctionDecl *operatorNew,
                        Expr **placementArgs, unsigned numPlaceArgs,
                        bool parenTypeId, Expr *arraySize,
                        CXXConstructorDecl *constructor, bool initializer,
@@ -87,7 +87,7 @@ CXXNewExpr::CXXNewExpr(bool globalNew, FunctionDecl *operatorNew,
     OperatorDelete(operatorDelete), Constructor(constructor),
     StartLoc(startLoc), EndLoc(endLoc) {
   unsigned TotalSize = Array + NumPlacementArgs + NumConstructorArgs;
-  SubExprs = new Stmt*[TotalSize];
+  SubExprs = new (C) Stmt*[TotalSize];
   unsigned i = 0;
   if (Array)
     SubExprs[i++] = arraySize;
@@ -96,6 +96,14 @@ CXXNewExpr::CXXNewExpr(bool globalNew, FunctionDecl *operatorNew,
   for (unsigned j = 0; j < NumConstructorArgs; ++j)
     SubExprs[i++] = constructorArgs[j];
   assert(i == TotalSize);
+}
+
+void CXXNewExpr::DoDestroy(ASTContext &C) {
+  DestroyChildren(C);
+  if (SubExprs)
+    C.Deallocate(SubExprs);
+  this->~CXXNewExpr();
+  C.Deallocate((void*)this);
 }
 
 Stmt::child_iterator CXXNewExpr::child_begin() { return &SubExprs[0]; }
@@ -116,6 +124,7 @@ Stmt::child_iterator CXXPseudoDestructorExpr::child_end() {
 // UnresolvedLookupExpr
 UnresolvedLookupExpr *
 UnresolvedLookupExpr::Create(ASTContext &C, bool Dependent,
+                             CXXRecordDecl *NamingClass,
                              NestedNameSpecifier *Qualifier,
                              SourceRange QualifierRange, DeclarationName Name,
                              SourceLocation NameLoc, bool ADL,
@@ -125,7 +134,8 @@ UnresolvedLookupExpr::Create(ASTContext &C, bool Dependent,
                          ExplicitTemplateArgumentList::sizeFor(Args));
   UnresolvedLookupExpr *ULE
     = new (Mem) UnresolvedLookupExpr(Dependent ? C.DependentTy : C.OverloadTy,
-                                     Dependent, Qualifier, QualifierRange,
+                                     Dependent, NamingClass,
+                                     Qualifier, QualifierRange,
                                      Name, NameLoc, ADL,
                                      /*Overload*/ true,
                                      /*ExplicitTemplateArgs*/ true);
@@ -135,10 +145,9 @@ UnresolvedLookupExpr::Create(ASTContext &C, bool Dependent,
   return ULE;
 }
 
-bool UnresolvedLookupExpr::
-  ComputeDependence(UnresolvedSetImpl::const_iterator Begin,
-                    UnresolvedSetImpl::const_iterator End,
-                    const TemplateArgumentListInfo *Args) {
+bool OverloadExpr::ComputeDependence(UnresolvedSetIterator Begin,
+                                     UnresolvedSetIterator End,
+                                     const TemplateArgumentListInfo *Args) {
   for (UnresolvedSetImpl::const_iterator I = Begin; I != End; ++I)
     if ((*I)->getDeclContext()->isDependentContext())
       return true;
@@ -393,6 +402,19 @@ void CXXBindTemporaryExpr::DoDestroy(ASTContext &C) {
   C.Deallocate(this);
 }
 
+CXXBindReferenceExpr *CXXBindReferenceExpr::Create(ASTContext &C, Expr *SubExpr,
+                                                   bool ExtendsLifetime, 
+                                                   bool RequiresTemporaryCopy) {
+  return new (C) CXXBindReferenceExpr(SubExpr, 
+                                      ExtendsLifetime,
+                                      RequiresTemporaryCopy);
+}
+
+void CXXBindReferenceExpr::DoDestroy(ASTContext &C) {
+  this->~CXXBindReferenceExpr();
+  C.Deallocate(this);
+}
+
 CXXTemporaryObjectExpr::CXXTemporaryObjectExpr(ASTContext &C,
                                                CXXConstructorDecl *Cons,
                                                QualType writtenTy,
@@ -409,22 +431,26 @@ CXXConstructExpr *CXXConstructExpr::Create(ASTContext &C, QualType T,
                                            SourceLocation Loc,
                                            CXXConstructorDecl *D, bool Elidable,
                                            Expr **Args, unsigned NumArgs,
-                                           bool ZeroInitialization) {
+                                           bool ZeroInitialization,
+                                           bool BaseInitialization) {
   return new (C) CXXConstructExpr(C, CXXConstructExprClass, T, Loc, D, 
-                                  Elidable, Args, NumArgs, ZeroInitialization);
+                                  Elidable, Args, NumArgs, ZeroInitialization,
+                                  BaseInitialization);
 }
 
 CXXConstructExpr::CXXConstructExpr(ASTContext &C, StmtClass SC, QualType T,
                                    SourceLocation Loc,
                                    CXXConstructorDecl *D, bool elidable,
                                    Expr **args, unsigned numargs,
-                                   bool ZeroInitialization)
+                                   bool ZeroInitialization,
+                                   bool BaseInitialization)
 : Expr(SC, T,
        T->isDependentType(),
        (T->isDependentType() ||
         CallExpr::hasAnyValueDependentArguments(args, numargs))),
   Constructor(D), Loc(Loc), Elidable(elidable), 
-  ZeroInitialization(ZeroInitialization), Args(0), NumArgs(numargs) 
+  ZeroInitialization(ZeroInitialization), 
+  BaseInitialization(BaseInitialization), Args(0), NumArgs(numargs) 
 {
   if (NumArgs) {
     Args = new (C) Stmt*[NumArgs];
@@ -488,6 +514,15 @@ Stmt::child_iterator CXXBindTemporaryExpr::child_begin() {
 }
 
 Stmt::child_iterator CXXBindTemporaryExpr::child_end() {
+  return &SubExpr + 1;
+}
+
+// CXXBindReferenceExpr
+Stmt::child_iterator CXXBindReferenceExpr::child_begin() {
+  return &SubExpr;
+}
+
+Stmt::child_iterator CXXBindReferenceExpr::child_end() {
   return &SubExpr + 1;
 }
 
@@ -618,15 +653,13 @@ UnresolvedMemberExpr::UnresolvedMemberExpr(QualType T, bool Dependent,
                                            DeclarationName MemberName,
                                            SourceLocation MemberLoc,
                                    const TemplateArgumentListInfo *TemplateArgs)
-  : Expr(UnresolvedMemberExprClass, T, Dependent, Dependent),
-    Base(Base), BaseType(BaseType), IsArrow(IsArrow),
-    HasUnresolvedUsing(HasUnresolvedUsing),
-    HasExplicitTemplateArgs(TemplateArgs != 0),
-    OperatorLoc(OperatorLoc),
-    Qualifier(Qualifier), QualifierRange(QualifierRange),
-    MemberName(MemberName), MemberLoc(MemberLoc) {
+  : OverloadExpr(UnresolvedMemberExprClass, T, Dependent,
+                 Qualifier, QualifierRange, MemberName, MemberLoc,
+                 TemplateArgs != 0),
+    IsArrow(IsArrow), HasUnresolvedUsing(HasUnresolvedUsing),
+    Base(Base), BaseType(BaseType), OperatorLoc(OperatorLoc) {
   if (TemplateArgs)
-    getExplicitTemplateArgs()->initializeFrom(*TemplateArgs);
+    getExplicitTemplateArgs().initializeFrom(*TemplateArgs);
 }
 
 UnresolvedMemberExpr *
@@ -649,6 +682,35 @@ UnresolvedMemberExpr::Create(ASTContext &C, bool Dependent,
                              Dependent, HasUnresolvedUsing, Base, BaseType,
                              IsArrow, OperatorLoc, Qualifier, QualifierRange,
                              Member, MemberLoc, TemplateArgs);
+}
+
+CXXRecordDecl *UnresolvedMemberExpr::getNamingClass() const {
+  // Unlike for UnresolvedLookupExpr, it is very easy to re-derive this.
+
+  // If there was a nested name specifier, it names the naming class.
+  // It can't be dependent: after all, we were actually able to do the
+  // lookup.
+  const RecordType *RT;
+  if (getQualifier()) {
+    Type *T = getQualifier()->getAsType();
+    assert(T && "qualifier in member expression does not name type");
+    RT = T->getAs<RecordType>();
+    assert(RT && "qualifier in member expression does not name record");
+
+  // Otherwise the naming class must have been the base class.
+  } else {
+    QualType BaseType = getBaseType().getNonReferenceType();
+    if (isArrow()) {
+      const PointerType *PT = BaseType->getAs<PointerType>();
+      assert(PT && "base of arrow member access is not pointer");
+      BaseType = PT->getPointeeType();
+    }
+    
+    RT = BaseType->getAs<RecordType>();
+    assert(RT && "base of member expression does not name record");
+  }
+  
+  return cast<CXXRecordDecl>(RT->getDecl());
 }
 
 Stmt::child_iterator UnresolvedMemberExpr::child_begin() {

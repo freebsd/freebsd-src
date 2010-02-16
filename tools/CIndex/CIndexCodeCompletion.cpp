@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "CIndexer.h"
+#include "CIndexDiagnostic.h"
+#include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Sema/CodeCompleteConsumer.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -176,6 +178,8 @@ struct AllocatedCXCodeCompleteResults : public CXCodeCompleteResults {
   /// \brief The memory buffer from which we parsed the results. We
   /// retain this buffer because the completion strings point into it.
   llvm::MemoryBuffer *Buffer;
+
+  LangOptions LangOpts;
 };
 
 CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx,
@@ -186,10 +190,19 @@ CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx,
                                           struct CXUnsavedFile *unsaved_files,
                                           const char *complete_filename,
                                           unsigned complete_line,
-                                          unsigned complete_column) {
+                                          unsigned complete_column,
+                                          CXDiagnosticCallback diag_callback,
+                                          CXClientData diag_client_data) {
   // The indexer, which is mainly used to determine where diagnostics go.
   CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
 
+  // Configure the diagnostics.
+  DiagnosticOptions DiagOpts;
+  llvm::OwningPtr<Diagnostic> Diags;
+  Diags.reset(CompilerInstance::createDiagnostics(DiagOpts, 0, 0));
+  CIndexDiagnosticClient DiagClient(diag_callback, diag_client_data);
+  Diags->setClient(&DiagClient);
+  
   // The set of temporary files that we've built.
   std::vector<llvm::sys::Path> TemporaryFiles;
 
@@ -220,7 +233,8 @@ CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx,
   argv.push_back("-no-code-completion-debug-printer");
   argv.push_back("-Xclang");
   argv.push_back("-code-completion-macros");
-  
+  argv.push_back("-fdiagnostics-binary");
+
   // Remap any unsaved files to temporary files.
   std::vector<std::string> RemapArgs;
   if (RemapFiles(num_unsaved_files, unsaved_files, RemapArgs, TemporaryFiles))
@@ -256,31 +270,39 @@ CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx,
   // Add the null terminator.
   argv.push_back(NULL);
 
-  // Generate a temporary name for the AST file.
+  // Generate a temporary name for the code-completion results file.
   char tmpFile[L_tmpnam];
   char *tmpFileName = tmpnam(tmpFile);
   llvm::sys::Path ResultsFile(tmpFileName);
   TemporaryFiles.push_back(ResultsFile);
 
+  // Generate a temporary name for the diagnostics file.
+  char tmpFileResults[L_tmpnam];
+  char *tmpResultsFileName = tmpnam(tmpFileResults);
+  llvm::sys::Path DiagnosticsFile(tmpResultsFileName);
+  TemporaryFiles.push_back(DiagnosticsFile);
+
   // Invoke 'clang'.
   llvm::sys::Path DevNull; // leave empty, causes redirection to /dev/null
                            // on Unix or NUL (Windows).
   std::string ErrMsg;
-  const llvm::sys::Path *Redirects[] = { &DevNull, &ResultsFile, &DevNull, 0 };
+  const llvm::sys::Path *Redirects[] = { &DevNull, &ResultsFile, 
+                                         &DiagnosticsFile, 0 };
   llvm::sys::Program::ExecuteAndWait(ClangPath, &argv[0], /* env */ NULL,
                                      /* redirects */ &Redirects[0],
                                      /* secondsToWait */ 0,
                                      /* memoryLimits */ 0, &ErrMsg);
 
-  if (CXXIdx->getDisplayDiagnostics() && !ErrMsg.empty()) {
-    llvm::errs() << "clang_codeComplete: " << ErrMsg
-                 << '\n' << "Arguments: \n";
+  if (!ErrMsg.empty()) {
+    std::string AllArgs;
     for (std::vector<const char*>::iterator I = argv.begin(), E = argv.end();
-         I!=E; ++I) {
+         I != E; ++I) {
+      AllArgs += ' ';
       if (*I)
-        llvm::errs() << ' ' << *I << '\n';
+        AllArgs += *I;
     }
-    llvm::errs() << '\n';
+    
+    Diags->Report(diag::err_fe_clang) << AllArgs << ErrMsg;
   }
 
   // Parse the resulting source file to find code-completion results.
@@ -319,6 +341,13 @@ CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx,
     Results->Buffer = F;
   }
 
+  // FIXME: The LangOptions we are passing here are not at all correct. However,
+  // in the current design we must pass something in so the SourceLocations have
+  // a LangOptions object to refer to.
+  ReportSerializedDiagnostics(DiagnosticsFile, *Diags, 
+                              num_unsaved_files, unsaved_files,
+                              Results->LangOpts);
+  
   for (unsigned i = 0, e = TemporaryFiles.size(); i != e; ++i)
     TemporaryFiles[i].eraseFromDisk();
 

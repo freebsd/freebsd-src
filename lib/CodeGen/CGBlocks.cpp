@@ -13,6 +13,7 @@
 
 #include "CGDebugInfo.h"
 #include "CodeGenFunction.h"
+#include "CGObjCRuntime.h"
 #include "CodeGenModule.h"
 #include "clang/AST/DeclObjC.h"
 #include "llvm/Module.h"
@@ -176,7 +177,7 @@ llvm::Value *CodeGenFunction::BuildBlockLiteralTmp(const BlockExpr *BE) {
     // block literal.
     // __invoke
     CharUnits subBlockSize; 
-    uint64_t subBlockAlign;
+    CharUnits subBlockAlign;
     llvm::SmallVector<const Expr *, 8> subBlockDeclRefDecls;
     bool subBlockHasCopyDispose = false;
     llvm::Function *Fn
@@ -249,7 +250,7 @@ llvm::Value *CodeGenFunction::BuildBlockLiteralTmp(const BlockExpr *BE) {
     llvm::StructType *Ty = llvm::StructType::get(VMContext, Types, true);
 
     llvm::AllocaInst *A = CreateTempAlloca(Ty);
-    A->setAlignment(subBlockAlign);
+    A->setAlignment(subBlockAlign.getQuantity());
     V = A;
 
     std::vector<HelperInfo> NoteForHelper(subBlockDeclRefDecls.size());
@@ -355,7 +356,21 @@ llvm::Value *CodeGenFunction::BuildBlockLiteralTmp(const BlockExpr *BE) {
   }
 
   QualType BPT = BE->getType();
-  return Builder.CreateBitCast(V, ConvertType(BPT));
+  V = Builder.CreateBitCast(V, ConvertType(BPT));
+  // See if this is a __weak block variable and the must call objc_read_weak
+  // on it.
+  const FunctionType *ftype = BPT->getPointeeType()->getAs<FunctionType>();
+  QualType RES = ftype->getResultType();
+  if (RES.isObjCGCWeak()) {
+    // Must cast argument to id*
+    const llvm::Type *ObjectPtrTy = 
+      ConvertType(CGM.getContext().getObjCIdType());
+    const llvm::Type *PtrObjectPtrTy = 
+      llvm::PointerType::getUnqual(ObjectPtrTy);
+    V = Builder.CreateBitCast(V, PtrObjectPtrTy);
+    V =  CGM.getObjCRuntime().EmitObjCWeakRead(*this, V);
+  }
+  return V;
 }
 
 
@@ -496,10 +511,12 @@ RValue CodeGenFunction::EmitBlockCallExpr(const CallExpr* E,
   // Load the function.
   llvm::Value *Func = Builder.CreateLoad(FuncPtr, "tmp");
 
-  QualType ResultType = FnType->getAs<FunctionType>()->getResultType();
+  const FunctionType *FuncTy = FnType->getAs<FunctionType>();
+  QualType ResultType = FuncTy->getResultType();
 
   const CGFunctionInfo &FnInfo =
-    CGM.getTypes().getFunctionInfo(ResultType, Args);
+    CGM.getTypes().getFunctionInfo(ResultType, Args, FuncTy->getCallConv(),
+                                   FuncTy->getNoReturnAttr());
 
   // Cast the function pointer to the right type.
   const llvm::Type *BlockFTy =
@@ -593,8 +610,8 @@ BlockModule::GetAddrOfGlobalBlock(const BlockExpr *BE, const char * n) {
 
   // Block literal size. For global blocks we just use the size of the generic
   // block literal struct.
-  CharUnits BlockLiteralSize = CharUnits::fromQuantity(
-    TheTargetData.getTypeStoreSizeInBits(getGenericBlockLiteralType()) / 8);
+  CharUnits BlockLiteralSize = 
+    CGM.GetTargetTypeStoreSize(getGenericBlockLiteralType());
   DescriptorFields[1] =
     llvm::ConstantInt::get(UnsignedLongTy,BlockLiteralSize.getQuantity());
 
@@ -615,7 +632,7 @@ BlockModule::GetAddrOfGlobalBlock(const BlockExpr *BE, const char * n) {
 
   CodeGenFunction::BlockInfo Info(0, n);
   CharUnits subBlockSize; 
-  uint64_t subBlockAlign;
+  CharUnits subBlockAlign;
   llvm::SmallVector<const Expr *, 8> subBlockDeclRefDecls;
   bool subBlockHasCopyDispose = false;
   llvm::DenseMap<const Decl*, llvm::Value*> LocalDeclMap;
@@ -678,7 +695,7 @@ CodeGenFunction::GenerateBlockFunction(const BlockExpr *BExpr,
                                        const Decl *OuterFuncDecl,
                                   llvm::DenseMap<const Decl*, llvm::Value*> ldm,
                                        CharUnits &Size,
-                                       uint64_t &Align,
+                                       CharUnits &Align,
                        llvm::SmallVector<const Expr *, 8> &subBlockDeclRefDecls,
                                        bool &subBlockHasCopyDispose) {
 
@@ -698,13 +715,14 @@ CodeGenFunction::GenerateBlockFunction(const BlockExpr *BExpr,
       LocalDeclMap[VD] = i->second;
   }
 
-  BlockOffset = CharUnits::fromQuantity(
-      CGM.getTargetData()
-        .getTypeStoreSizeInBits(CGM.getGenericBlockLiteralType()) / 8);
-  BlockAlign = getContext().getTypeAlign(getContext().VoidPtrTy) / 8;
+  BlockOffset = 
+      CGM.GetTargetTypeStoreSize(CGM.getGenericBlockLiteralType());
+  BlockAlign = getContext().getTypeAlignInChars(getContext().VoidPtrTy);
 
   const FunctionType *BlockFunctionType = BExpr->getFunctionType();
   QualType ResultType;
+  CallingConv CC = BlockFunctionType->getCallConv();
+  bool NoReturn = BlockFunctionType->getNoReturnAttr();
   bool IsVariadic;
   if (const FunctionProtoType *FTy =
       dyn_cast<FunctionProtoType>(BlockFunctionType)) {
@@ -743,7 +761,7 @@ CodeGenFunction::GenerateBlockFunction(const BlockExpr *BExpr,
     Args.push_back(std::make_pair(*i, (*i)->getType()));
 
   const CGFunctionInfo &FI =
-    CGM.getTypes().getFunctionInfo(ResultType, Args);
+    CGM.getTypes().getFunctionInfo(ResultType, Args, CC, NoReturn);
 
   CodeGenTypes &Types = CGM.getTypes();
   const llvm::FunctionType *LTy = Types.GetFunctionType(FI, IsVariadic);
@@ -777,10 +795,9 @@ CodeGenFunction::GenerateBlockFunction(const BlockExpr *BExpr,
 
   if (CGDebugInfo *DI = getDebugInfo()) {
     // Emit debug information for all the BlockDeclRefDecls.
-    for (unsigned i=0; i < BlockDeclRefDecls.size(); ++i) {
-      const Expr *E = BlockDeclRefDecls[i];
-      const BlockDeclRefExpr *BDRE = dyn_cast<BlockDeclRefExpr>(E);
-      if (BDRE) {
+    for (unsigned i = 0, e = BlockDeclRefDecls.size(); i != e; ++i) {
+      if (const BlockDeclRefExpr *BDRE = 
+            dyn_cast<BlockDeclRefExpr>(BlockDeclRefDecls[i])) {
         const ValueDecl *D = BDRE->getDecl();
         DI->setLocation(D->getLocation());
         DI->EmitDeclareOfBlockDeclRefVariable(BDRE,
@@ -798,9 +815,10 @@ CodeGenFunction::GenerateBlockFunction(const BlockExpr *BExpr,
   FinishFunction(cast<CompoundStmt>(BExpr->getBody())->getRBracLoc());
 
   // The runtime needs a minimum alignment of a void *.
-  uint64_t MinAlign = getContext().getTypeAlign(getContext().VoidPtrTy) / 8;
+  CharUnits MinAlign = getContext().getTypeAlignInChars(getContext().VoidPtrTy);
   BlockOffset = CharUnits::fromQuantity(
-      llvm::RoundUpToAlignment(BlockOffset.getQuantity(), MinAlign));
+      llvm::RoundUpToAlignment(BlockOffset.getQuantity(), 
+                               MinAlign.getQuantity()));
 
   Size = BlockOffset;
   Align = BlockAlign;
@@ -813,20 +831,20 @@ CharUnits BlockFunction::getBlockOffset(const BlockDeclRefExpr *BDRE) {
   const ValueDecl *D = dyn_cast<ValueDecl>(BDRE->getDecl());
 
   CharUnits Size = getContext().getTypeSizeInChars(D->getType());
-  uint64_t Align = getContext().getDeclAlignInBytes(D);
+  CharUnits Align = getContext().getDeclAlign(D);
 
   if (BDRE->isByRef()) {
     Size = getContext().getTypeSizeInChars(getContext().VoidPtrTy);
-    Align = getContext().getTypeAlign(getContext().VoidPtrTy) / 8;
+    Align = getContext().getTypeAlignInChars(getContext().VoidPtrTy);
   }
 
-  assert ((Align > 0) && "alignment must be 1 byte or more");
+  assert ((Align.isPositive()) && "alignment must be 1 byte or more");
 
   CharUnits OldOffset = BlockOffset;
 
   // Ensure proper alignment, even if it means we have to have a gap
   BlockOffset = CharUnits::fromQuantity(
-      llvm::RoundUpToAlignment(BlockOffset.getQuantity(), Align));
+      llvm::RoundUpToAlignment(BlockOffset.getQuantity(), Align.getQuantity()));
   BlockAlign = std::max(Align, BlockAlign);
 
   CharUnits Pad = BlockOffset - OldOffset;
@@ -868,7 +886,7 @@ GenerateCopyHelperFunction(bool BlockHasCopyDispose, const llvm::StructType *T,
   Args.push_back(std::make_pair(Src, Src->getType()));
 
   const CGFunctionInfo &FI =
-    CGM.getTypes().getFunctionInfo(R, Args);
+    CGM.getTypes().getFunctionInfo(R, Args, CC_Default, false);
 
   // FIXME: We'd like to put these into a mergable by content, with
   // internal linkage.
@@ -949,7 +967,7 @@ GenerateDestroyHelperFunction(bool BlockHasCopyDispose,
   Args.push_back(std::make_pair(Src, Src->getType()));
 
   const CGFunctionInfo &FI =
-    CGM.getTypes().getFunctionInfo(R, Args);
+    CGM.getTypes().getFunctionInfo(R, Args, CC_Default, false);
 
   // FIXME: We'd like to put these into a mergable by content, with
   // internal linkage.
@@ -1033,7 +1051,7 @@ GeneratebyrefCopyHelperFunction(const llvm::Type *T, int flag) {
   Args.push_back(std::make_pair(Src, Src->getType()));
 
   const CGFunctionInfo &FI =
-    CGM.getTypes().getFunctionInfo(R, Args);
+    CGM.getTypes().getFunctionInfo(R, Args, CC_Default, false);
 
   CodeGenTypes &Types = CGM.getTypes();
   const llvm::FunctionType *LTy = Types.GetFunctionType(FI, false);
@@ -1096,7 +1114,7 @@ BlockFunction::GeneratebyrefDestroyHelperFunction(const llvm::Type *T,
   Args.push_back(std::make_pair(Src, Src->getType()));
 
   const CGFunctionInfo &FI =
-    CGM.getTypes().getFunctionInfo(R, Args);
+    CGM.getTypes().getFunctionInfo(R, Args, CC_Default, false);
 
   CodeGenTypes &Types = CGM.getTypes();
   const llvm::FunctionType *LTy = Types.GetFunctionType(FI, false);

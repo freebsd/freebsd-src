@@ -27,6 +27,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Allocator.h"
 #include <vector>
 
@@ -46,6 +47,7 @@ namespace clang {
   class SourceManager;
   class TargetInfo;
   // Decls
+  class DeclContext;
   class CXXMethodDecl;
   class CXXRecordDecl;
   class Decl;
@@ -502,7 +504,8 @@ public:
 
   /// getVectorType - Return the unique reference to a vector type of
   /// the specified element type and size. VectorType must be a built-in type.
-  QualType getVectorType(QualType VectorType, unsigned NumElts);
+  QualType getVectorType(QualType VectorType, unsigned NumElts,
+                         bool AltiVec, bool IsPixel);
 
   /// getExtVectorType - Return the unique reference to an extended vector type
   /// of the specified element type and size.  VectorType must be a built-in
@@ -534,11 +537,11 @@ public:
 
   /// getTypeDeclType - Return the unique reference to the type for
   /// the specified type declaration.
-  QualType getTypeDeclType(TypeDecl *Decl, TypeDecl* PrevDecl=0);
+  QualType getTypeDeclType(const TypeDecl *Decl, const TypeDecl* PrevDecl=0);
 
   /// getTypedefType - Return the unique reference to the type for the
   /// specified typename decl.
-  QualType getTypedefType(TypedefDecl *Decl);
+  QualType getTypedefType(const TypedefDecl *Decl);
 
   QualType getSubstTemplateTypeParmType(const TemplateTypeParmType *Replaced,
                                         QualType Replacement);
@@ -835,13 +838,23 @@ public:
     return getTypeInfo(T).second;
   }
 
+  /// getTypeAlignInChars - Return the ABI-specified alignment of a type, in 
+  /// characters. This method does not work on incomplete types.
+  CharUnits getTypeAlignInChars(QualType T);
+  CharUnits getTypeAlignInChars(const Type *T);
+
   /// getPreferredTypeAlign - Return the "preferred" alignment of the specified
   /// type for the current target in bits.  This can be different than the ABI
   /// alignment in cases where it is beneficial for performance to overalign
   /// a data type.
   unsigned getPreferredTypeAlign(const Type *T);
 
-  unsigned getDeclAlignInBytes(const Decl *D, bool RefAsPointee = false);
+  /// getDeclAlign - Return a conservative estimate of the alignment of
+  /// the specified decl.  Note that bitfields do not have a valid alignment, so
+  /// this method will assert on them.
+  /// If @p RefAsPointee, references are treated like their underlying type
+  /// (for alignof), else they're treated like pointers (for CodeGen).
+  CharUnits getDeclAlign(const Decl *D, bool RefAsPointee = false);
 
   /// getASTRecordLayout - Get or compute information about the layout of the
   /// specified record (struct/union/class), which indicates its size and field
@@ -878,7 +891,7 @@ public:
   unsigned CountSynthesizedIvars(const ObjCInterfaceDecl *OI);
   unsigned CountProtocolSynthesizedIvars(const ObjCProtocolDecl *PD);
   void CollectInheritedProtocols(const Decl *CDecl,
-                          llvm::SmallVectorImpl<ObjCProtocolDecl*> &Protocols);
+                          llvm::SmallPtrSet<ObjCProtocolDecl*, 8> &Protocols);
 
   //===--------------------------------------------------------------------===//
   //                            Type Operators
@@ -959,6 +972,20 @@ public:
   /// the template type parameter 'T' is template-param-0-0.
   NestedNameSpecifier *
   getCanonicalNestedNameSpecifier(NestedNameSpecifier *NNS);
+
+  /// \brief Retrieves the canonical representation of the given
+  /// calling convention.
+  CallingConv getCanonicalCallConv(CallingConv CC) {
+    if (CC == CC_C)
+      return CC_Default;
+    return CC;
+  }
+
+  /// \brief Determines whether two calling conventions name the same
+  /// calling convention.
+  bool isSameCallConv(CallingConv lcc, CallingConv rcc) {
+    return (getCanonicalCallConv(lcc) == getCanonicalCallConv(rcc));
+  }
 
   /// \brief Retrieves the "canonical" template name that refers to a
   /// given template.
@@ -1187,6 +1214,15 @@ private:
 
   const ASTRecordLayout &getObjCLayout(const ObjCInterfaceDecl *D,
                                        const ObjCImplementationDecl *Impl);
+  
+private:
+  // FIXME: This currently contains the set of StoredDeclMaps used
+  // by DeclContext objects.  This probably should not be in ASTContext,
+  // but we include it here so that ASTContext can quickly deallocate them.
+  std::vector<void*> SDMs; 
+  friend class DeclContext;
+  void *CreateStoredDeclsMap();
+  void ReleaseDeclContextMaps();
 };
   
 /// @brief Utility function for constructing a nullary selector.

@@ -36,16 +36,24 @@ llvm::AllocaInst *CodeGenFunction::CreateTempAlloca(const llvm::Type *Ty,
   return new llvm::AllocaInst(Ty, 0, Name, AllocaInsertPt);
 }
 
+llvm::Value *CodeGenFunction::CreateMemTemp(QualType Ty, const llvm::Twine &Name) {
+  llvm::AllocaInst *Alloc = CreateTempAlloca(ConvertTypeForMem(Ty), Name);
+  // FIXME: Should we prefer the preferred type alignment here?
+  CharUnits Align = getContext().getTypeAlignInChars(Ty);
+  Alloc->setAlignment(Align.getQuantity());
+  return Alloc;
+}
+
 /// EvaluateExprAsBool - Perform the usual unary conversions on the specified
 /// expression and compare the result against zero, returning an Int1Ty value.
 llvm::Value *CodeGenFunction::EvaluateExprAsBool(const Expr *E) {
   QualType BoolTy = getContext().BoolTy;
   if (E->getType()->isMemberFunctionPointerType()) {
-    llvm::Value *Ptr = CreateTempAlloca(ConvertType(E->getType()));
-    EmitAggExpr(E, Ptr, /*VolatileDest=*/false);
+    LValue LV = EmitAggExprToLValue(E);
 
     // Get the pointer.
-    llvm::Value *FuncPtr = Builder.CreateStructGEP(Ptr, 0, "src.ptr");
+    llvm::Value *FuncPtr = Builder.CreateStructGEP(LV.getAddress(), 0,
+                                                   "src.ptr");
     FuncPtr = Builder.CreateLoad(FuncPtr);
 
     llvm::Value *IsNotNull = 
@@ -87,13 +95,12 @@ RValue CodeGenFunction::EmitAnyExprToTemp(const Expr *E,
 
   if (hasAggregateLLVMType(E->getType()) &&
       !E->getType()->isAnyComplexType())
-    AggLoc = CreateTempAlloca(ConvertType(E->getType()), "agg.tmp");
+    AggLoc = CreateMemTemp(E->getType(), "agg.tmp");
   return EmitAnyExpr(E, AggLoc, IsAggLocVolatile, /*IgnoreResult=*/false,
                      IsInitializer);
 }
 
 RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
-                                                   QualType DestType,
                                                    bool IsInitializer) {
   bool ShouldDestroyTemporaries = false;
   unsigned OldNumLiveTemporaries = 0;
@@ -114,8 +121,16 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
   if (E->isLvalue(getContext()) == Expr::LV_Valid) {
     // Emit the expr as an lvalue.
     LValue LV = EmitLValue(E);
-    if (LV.isSimple())
+    if (LV.isSimple()) {
+      if (ShouldDestroyTemporaries) {
+        // Pop temporaries.
+        while (LiveTemporaries.size() > OldNumLiveTemporaries)
+          PopCXXTemporary();
+      }
+      
       return RValue::get(LV.getAddress());
+    }
+    
     Val = EmitLoadOfLValue(LV, E->getType());
     
     if (ShouldDestroyTemporaries) {
@@ -188,8 +203,7 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
     Val = RValue::get(Val.getAggregateAddr());
   } else {
     // Create a temporary variable that we can bind the reference to.
-    llvm::Value *Temp = CreateTempAlloca(ConvertTypeForMem(E->getType()),
-                                         "reftmp");
+    llvm::Value *Temp = CreateMemTemp(E->getType(), "reftmp");
     if (Val.isScalar())
       EmitStoreOfScalar(Val.getScalarVal(), Temp, false, E->getType());
     else
@@ -546,6 +560,8 @@ RValue CodeGenFunction::EmitLoadOfLValue(LValue LV, QualType ExprType) {
       cast<llvm::PointerType>(Ptr->getType())->getElementType();
 
     // Simple scalar l-value.
+    //
+    // FIXME: We shouldn't have to use isSingleValueType here.
     if (EltTy->isSingleValueType())
       return RValue::get(EmitLoadOfScalar(Ptr, LV.isVolatileQualified(),
                                           ExprType));
@@ -1069,9 +1085,12 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(ND))
     return EmitFunctionDeclLValue(*this, E, FD);
   
+  // FIXME: the qualifier check does not seem sufficient here
   if (E->getQualifier()) {
-    // FIXME: the qualifier check does not seem sufficient here
-    return EmitPointerToDataMemberLValue(cast<FieldDecl>(ND));
+    const FieldDecl *FD = cast<FieldDecl>(ND);
+    llvm::Value *V = CGM.EmitPointerToDataMember(FD);
+
+    return LValue::MakeAddr(V, MakeQualifiers(FD->getType()));
   }
   
   assert(false && "Unhandled DeclRefExpr");
@@ -1166,8 +1185,7 @@ LValue CodeGenFunction::EmitPredefinedFunctionName(unsigned Type) {
   GlobalVarName += FnName;
 
   std::string FunctionName =
-    PredefinedExpr::ComputeName(getContext(), (PredefinedExpr::IdentType)Type,
-                                CurCodeDecl);
+    PredefinedExpr::ComputeName((PredefinedExpr::IdentType)Type, CurCodeDecl);
 
   llvm::Constant *C =
     CGM.GetAddrOfConstantCString(FunctionName, GlobalVarName.c_str());
@@ -1350,7 +1368,7 @@ EmitExtVectorElementExpr(const ExtVectorElementExpr *E) {
     llvm::Value *Vec = EmitScalarExpr(E->getBase());
     
     // Store the vector to memory (because LValue wants an address).
-    llvm::Value *VecMem =CreateTempAlloca(ConvertType(E->getBase()->getType()));
+    llvm::Value *VecMem = CreateMemTemp(E->getBase()->getType());
     Builder.CreateStore(Vec, VecMem);
     Base = LValue::MakeAddr(VecMem, Qualifiers());
   }
@@ -1381,7 +1399,6 @@ EmitExtVectorElementExpr(const ExtVectorElementExpr *E) {
 }
 
 LValue CodeGenFunction::EmitMemberExpr(const MemberExpr *E) {
-  bool isUnion = false;
   bool isNonGC = false;
   Expr *BaseExpr = E->getBase();
   llvm::Value *BaseValue = NULL;
@@ -1392,16 +1409,12 @@ LValue CodeGenFunction::EmitMemberExpr(const MemberExpr *E) {
     BaseValue = EmitScalarExpr(BaseExpr);
     const PointerType *PTy =
       BaseExpr->getType()->getAs<PointerType>();
-    if (PTy->getPointeeType()->isUnionType())
-      isUnion = true;
     BaseQuals = PTy->getPointeeType().getQualifiers();
   } else if (isa<ObjCPropertyRefExpr>(BaseExpr->IgnoreParens()) ||
              isa<ObjCImplicitSetterGetterRefExpr>(
                BaseExpr->IgnoreParens())) {
     RValue RV = EmitObjCPropertyGet(BaseExpr);
     BaseValue = RV.getAggregateAddr();
-    if (BaseExpr->getType()->isUnionType())
-      isUnion = true;
     BaseQuals = BaseExpr->getType().getQualifiers();
   } else {
     LValue BaseLV = EmitLValue(BaseExpr);
@@ -1410,14 +1423,12 @@ LValue CodeGenFunction::EmitMemberExpr(const MemberExpr *E) {
     // FIXME: this isn't right for bitfields.
     BaseValue = BaseLV.getAddress();
     QualType BaseTy = BaseExpr->getType();
-    if (BaseTy->isUnionType())
-      isUnion = true;
     BaseQuals = BaseTy.getQualifiers();
   }
 
   NamedDecl *ND = E->getMemberDecl();
   if (FieldDecl *Field = dyn_cast<FieldDecl>(ND)) {
-    LValue LV = EmitLValueForField(BaseValue, Field, isUnion,
+    LValue LV = EmitLValueForField(BaseValue, Field, 
                                    BaseQuals.getCVRQualifiers());
     LValue::SetObjCNonGC(LV, isNonGC);
     setObjCGCLValueClass(getContext(), E, LV);
@@ -1461,7 +1472,6 @@ LValue CodeGenFunction::EmitLValueForBitfield(llvm::Value* BaseValue,
 
 LValue CodeGenFunction::EmitLValueForField(llvm::Value* BaseValue,
                                            const FieldDecl* Field,
-                                           bool isUnion,
                                            unsigned CVRQualifiers) {
   if (Field->isBitField())
     return EmitLValueForBitfield(BaseValue, Field, CVRQualifiers);
@@ -1470,7 +1480,7 @@ LValue CodeGenFunction::EmitLValueForField(llvm::Value* BaseValue,
   llvm::Value *V = Builder.CreateStructGEP(BaseValue, idx, "tmp");
 
   // Match union field type.
-  if (isUnion) {
+  if (Field->getParent()->isUnion()) {
     const llvm::Type *FieldTy =
       CGM.getTypes().ConvertTypeForMem(Field->getType());
     const llvm::PointerType * BaseTy =
@@ -1492,9 +1502,26 @@ LValue CodeGenFunction::EmitLValueForField(llvm::Value* BaseValue,
   return LValue::MakeAddr(V, Quals);
 }
 
+LValue 
+CodeGenFunction::EmitLValueForFieldInitialization(llvm::Value* BaseValue, 
+                                                  const FieldDecl* Field,
+                                                  unsigned CVRQualifiers) {
+  QualType FieldType = Field->getType();
+  
+  if (!FieldType->isReferenceType())
+    return EmitLValueForField(BaseValue, Field, CVRQualifiers);
+
+  unsigned idx = CGM.getTypes().getLLVMFieldNo(Field);
+  llvm::Value *V = Builder.CreateStructGEP(BaseValue, idx, "tmp");
+
+  assert(!FieldType.getObjCGCAttr() && "fields cannot have GC attrs");
+
+  return LValue::MakeAddr(V, MakeQualifiers(FieldType));
+}
+
 LValue CodeGenFunction::EmitCompoundLiteralLValue(const CompoundLiteralExpr* E){
-  const llvm::Type *LTy = ConvertType(E->getType());
-  llvm::Value *DeclPtr = CreateTempAlloca(LTy, ".compoundliteral");
+  llvm::Value *DeclPtr = CreateTempAlloca(ConvertTypeForMem(E->getType()),
+                                          ".compoundliteral");
 
   const Expr* InitExpr = E->getInitializer();
   LValue Result = LValue::MakeAddr(DeclPtr, MakeQualifiers(E->getType()));
@@ -1527,18 +1554,25 @@ CodeGenFunction::EmitConditionalOperatorLValue(const ConditionalOperator* E) {
     
     EmitBranchOnBoolExpr(E->getCond(), LHSBlock, RHSBlock);
     
+    // Any temporaries created here are conditional.
+    BeginConditionalBranch();
     EmitBlock(LHSBlock);
-
     LValue LHS = EmitLValue(E->getLHS());
+    EndConditionalBranch();
+    
     if (!LHS.isSimple())
       return EmitUnsupportedLValue(E, "conditional operator");
 
+    // FIXME: We shouldn't need an alloca for this.
     llvm::Value *Temp = CreateTempAlloca(LHS.getAddress()->getType(),"condtmp");
     Builder.CreateStore(LHS.getAddress(), Temp);
     EmitBranch(ContBlock);
     
+    // Any temporaries created here are conditional.
+    BeginConditionalBranch();
     EmitBlock(RHSBlock);
     LValue RHS = EmitLValue(E->getRHS());
+    EndConditionalBranch();
     if (!RHS.isSimple())
       return EmitUnsupportedLValue(E, "conditional operator");
 
@@ -1556,10 +1590,7 @@ CodeGenFunction::EmitConditionalOperatorLValue(const ConditionalOperator* E) {
           !E->getType()->isAnyComplexType()) &&
          "Unexpected conditional operator!");
 
-  llvm::Value *Temp = CreateTempAlloca(ConvertType(E->getType()));
-  EmitAggExpr(E, Temp, false);
-
-  return LValue::MakeAddr(Temp, MakeQualifiers(E->getType()));
+  return EmitAggExprToLValue(E);
 }
 
 /// EmitCastLValue - Casts are never lvalues unless that cast is a dynamic_cast.
@@ -1606,12 +1637,8 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
     
     return LValue::MakeAddr(Base, MakeQualifiers(E->getType()));
   }
-  case CastExpr::CK_ToUnion: {
-    llvm::Value *Temp = CreateTempAlloca(ConvertType(E->getType()));
-    EmitAnyExpr(E->getSubExpr(), Temp, false);
-
-    return LValue::MakeAddr(Temp, MakeQualifiers(E->getType()));
-  }
+  case CastExpr::CK_ToUnion:
+    return EmitAggExprToLValue(E);
   case CastExpr::CK_BaseToDerived: {
     const RecordType *BaseClassTy = 
       E->getSubExpr()->getType()->getAs<RecordType>();
@@ -1646,13 +1673,9 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
 LValue CodeGenFunction::EmitNullInitializationLValue(
                                               const CXXZeroInitValueExpr *E) {
   QualType Ty = E->getType();
-  const llvm::Type *LTy = ConvertTypeForMem(Ty);
-  llvm::AllocaInst *Alloc = CreateTempAlloca(LTy);
-  unsigned Align = getContext().getTypeAlign(Ty)/8;
-  Alloc->setAlignment(Align);
-  LValue lvalue = LValue::MakeAddr(Alloc, Qualifiers());
-  EmitMemSetToZero(lvalue.getAddress(), Ty);
-  return lvalue;
+  LValue LV = LValue::MakeAddr(CreateMemTemp(Ty), MakeQualifiers(Ty));
+  EmitMemSetToZero(LV.getAddress(), Ty);
+  return LV;
 }
 
 //===--------------------------------------------------------------------===//
@@ -1725,10 +1748,7 @@ LValue CodeGenFunction::EmitBinaryOperatorLValue(const BinaryOperator *E) {
     return LV;
   }
   
-  llvm::Value *Temp = CreateTempAlloca(ConvertType(E->getType()));
-  EmitAggExpr(E, Temp, false);
-  // FIXME: Are these qualifiers correct?
-  return LValue::MakeAddr(Temp, MakeQualifiers(E->getType()));
+  return EmitAggExprToLValue(E);
 }
 
 LValue CodeGenFunction::EmitCallExprLValue(const CallExpr *E) {
@@ -1746,13 +1766,11 @@ LValue CodeGenFunction::EmitCallExprLValue(const CallExpr *E) {
 
 LValue CodeGenFunction::EmitVAArgExprLValue(const VAArgExpr *E) {
   // FIXME: This shouldn't require another copy.
-  llvm::Value *Temp = CreateTempAlloca(ConvertType(E->getType()));
-  EmitAggExpr(E, Temp, false);
-  return LValue::MakeAddr(Temp, MakeQualifiers(E->getType()));
+  return EmitAggExprToLValue(E);
 }
 
 LValue CodeGenFunction::EmitCXXConstructLValue(const CXXConstructExpr *E) {
-  llvm::Value *Temp = CreateTempAlloca(ConvertTypeForMem(E->getType()), "tmp");
+  llvm::Value *Temp = CreateMemTemp(E->getType(), "tmp");
   EmitCXXConstructExpr(Temp, E);
   return LValue::MakeAddr(Temp, MakeQualifiers(E->getType()));
 }
@@ -1840,21 +1858,6 @@ LValue CodeGenFunction::EmitStmtExprLValue(const StmtExpr *E) {
   return LValue::MakeAddr(RV.getAggregateAddr(), MakeQualifiers(E->getType()));
 }
 
-
-LValue CodeGenFunction::EmitPointerToDataMemberLValue(const FieldDecl *Field) {
-  const CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(Field->getDeclContext());
-  QualType NNSpecTy = 
-    getContext().getCanonicalType(
-      getContext().getTypeDeclType(const_cast<CXXRecordDecl*>(ClassDecl)));
-  NNSpecTy = getContext().getPointerType(NNSpecTy);
-  llvm::Value *V = llvm::Constant::getNullValue(ConvertType(NNSpecTy));
-  LValue MemExpLV = EmitLValueForField(V, Field, /*isUnion=*/false, 
-                                       /*Qualifiers=*/0);
-  const llvm::Type *ResultType = ConvertType(getContext().getPointerDiffType());
-  V = Builder.CreatePtrToInt(MemExpLV.getAddress(), ResultType, "datamember");
-  return LValue::MakeAddr(V, MakeQualifiers(Field->getType()));
-}
-
 RValue CodeGenFunction::EmitCall(QualType CalleeType, llvm::Value *Callee,
                                  ReturnValueSlot ReturnValue,
                                  CallExpr::const_arg_iterator ArgBeg,
@@ -1867,20 +1870,14 @@ RValue CodeGenFunction::EmitCall(QualType CalleeType, llvm::Value *Callee,
 
   CalleeType = getContext().getCanonicalType(CalleeType);
 
-  QualType FnType = cast<PointerType>(CalleeType)->getPointeeType();
-  QualType ResultType = cast<FunctionType>(FnType)->getResultType();
+  const FunctionType *FnType
+    = cast<FunctionType>(cast<PointerType>(CalleeType)->getPointeeType());
+  QualType ResultType = FnType->getResultType();
 
   CallArgList Args;
   EmitCallArgs(Args, dyn_cast<FunctionProtoType>(FnType), ArgBeg, ArgEnd);
 
-  // FIXME: We should not need to do this, it should be part of the function
-  // type.
-  unsigned CallingConvention = 0;
-  if (const llvm::Function *F =
-      dyn_cast<llvm::Function>(Callee->stripPointerCasts()))
-    CallingConvention = F->getCallingConv();
-  return EmitCall(CGM.getTypes().getFunctionInfo(ResultType, Args,
-                                                 CallingConvention),
+  return EmitCall(CGM.getTypes().getFunctionInfo(Args, FnType),
                   Callee, ReturnValue, Args, TargetDecl);
 }
 

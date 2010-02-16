@@ -18,6 +18,7 @@ namespace clang {
 class ASTUnit;
 class ASTConsumer;
 class CompilerInstance;
+class ASTMergeAction;
 
 /// FrontendAction - Abstract base class for actions which can be performed by
 /// the frontend.
@@ -25,6 +26,7 @@ class FrontendAction {
   std::string CurrentFile;
   llvm::OwningPtr<ASTUnit> CurrentASTUnit;
   CompilerInstance *Instance;
+  friend class ASTMergeAction;
 
 protected:
   /// @name Implementation Action Interface
@@ -104,6 +106,10 @@ public:
     return *CurrentASTUnit;
   }
 
+  ASTUnit *takeCurrentASTUnit() {
+    return CurrentASTUnit.take();
+  }
+
   void setCurrentFile(llvm::StringRef Value, ASTUnit *AST = 0);
 
   /// @}
@@ -167,7 +173,7 @@ public:
 };
 
 /// ASTFrontendAction - Abstract base class to use for AST consumer based
-/// frontend actios.
+/// frontend actions.
 class ASTFrontendAction : public FrontendAction {
   /// ExecuteAction - Implement the ExecuteAction interface by running Sema on
   /// the already initialized AST consumer.

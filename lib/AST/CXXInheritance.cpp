@@ -102,7 +102,6 @@ bool CXXRecordDecl::isProvablyNotDerivedFrom(const CXXRecordDecl *Base) const {
 bool CXXRecordDecl::forallBases(ForallBasesCallback *BaseMatches,
                                 void *OpaqueData,
                                 bool AllowShortCircuit) const {
-  ASTContext &Context = getASTContext();
   llvm::SmallVector<const CXXRecordDecl*, 8> Queue;
 
   const CXXRecordDecl *Record = this;
@@ -118,7 +117,7 @@ bool CXXRecordDecl::forallBases(ForallBasesCallback *BaseMatches,
       }
 
       CXXRecordDecl *Base = 
-            cast_or_null<CXXRecordDecl>(Ty->getDecl()->getDefinition(Context));
+            cast_or_null<CXXRecordDecl>(Ty->getDecl()->getDefinition());
       if (!Base) {
         if (AllowShortCircuit) return false;
         AllMatches = false;
@@ -215,10 +214,13 @@ bool CXXRecordDecl::lookupInBases(BaseMatchesCallback *BaseMatches,
         Paths.ScratchPath.Access
           = MergeAccess(AccessToHere, BaseSpec->getAccessSpecifier());
     }
-        
+    
+    // Track whether there's a path involving this specific base.
+    bool FoundPathThroughBase = false;
+    
     if (BaseMatches(BaseSpec, Paths.ScratchPath, UserData)) {
       // We've found a path that terminates at this base.
-      FoundPath = true;
+      FoundPath = FoundPathThroughBase = true;
       if (Paths.isRecordingPaths()) {
         // We have a path. Make a copy of it before moving on.
         Paths.Paths.push_back(Paths.ScratchPath);
@@ -240,7 +242,7 @@ bool CXXRecordDecl::lookupInBases(BaseMatchesCallback *BaseMatches,
         
         // There is a path to a base class that meets the criteria. If we're 
         // not collecting paths or finding ambiguities, we're done.
-        FoundPath = true;
+        FoundPath = FoundPathThroughBase = true;
         if (!Paths.isFindingAmbiguities())
           return FoundPath;
       }
@@ -253,7 +255,7 @@ bool CXXRecordDecl::lookupInBases(BaseMatchesCallback *BaseMatches,
     }
 
     // If we set a virtual earlier, and this isn't a path, forget it again.
-    if (SetVirtual && !FoundPath) {
+    if (SetVirtual && !FoundPathThroughBase) {
       Paths.DetectedVirtual = 0;
     }
   }

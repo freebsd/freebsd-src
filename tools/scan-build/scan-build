@@ -82,52 +82,45 @@ sub DieDiag {
 
 # Find 'clang'
 my $ClangSB = Cwd::realpath("$RealBin/bin/clang");
-my $ClangCXXSB;
 if (!defined $ClangSB || ! -x $ClangSB) {
   $ClangSB = Cwd::realpath("$RealBin/clang");
-  if (defined $ClangSB) { $ClangCXXSB = $ClangSB . "++"; }
 }
-my $Clang = $ClangSB;
-my $ClangCXX = $ClangCXXSB;
-# Default to looking for 'clang' in the path.
-if (!defined $Clang || ! -x $Clang) {
-  $Clang = "clang";
-  $ClangCXX = "clang++";
+my $Clang;
+if (!defined $ClangSB || ! -x $ClangSB) {
+  # Default to looking for 'clang' in the path.
+  $Clang = `which clang`;
+  chomp $Clang;
+  if ($Clang eq "") {
+    DieDiag("No 'clang' executable found in path.");
+  }
 }
+else {
+  $Clang = $ClangSB;
+}
+my $ClangCXX = $Clang . "++";
 
 my %AvailableAnalyses;
 
 # Query clang for analysis options.
-open(PIPE, "-|", $Clang, "-cc1", "--help") or
+open(PIPE, "-|", $Clang, "-cc1", "-help") or
   DieDiag("Cannot execute '$Clang'\n");
 
-my $FoundAnalysis = 0;
-
 while(<PIPE>) {
-  if ($FoundAnalysis == 0) {
-    if (/Checks and Analyses/) {
-      $FoundAnalysis = 1;
-    }
-    next;
-  }
-  if (/^\s\s\s\s([^\s]+)\s(.+)$/) {
-    next if ($1 =~ /-dump/ or $1 =~ /-view/ 
-             or $1 =~ /-warn-uninit/);             
-    $AvailableAnalyses{$1} = $2;
+  if (/(-analyzer-check-[^\s]+)/) {
+    $AvailableAnalyses{$1} = 1;
     next;
   }  
-  last;
 }
 close (PIPE);
 
 my %AnalysesDefaultEnabled = (
-  '-warn-dead-stores' => 1,
-  '-checker-cfref' => 1,
-  '-warn-objc-methodsigs' => 1,
+  '-analyzer-check-dead-stores' => 1,
+  '-analyzer-check-objc-mem' => 1,
+  '-analyzer-check-objc-methodsigs' => 1,
   # Do not enable the missing -dealloc check by default.
-  #  '-warn-objc-missing-dealloc' => 1,
-  '-warn-objc-unused-ivars' => 1,
-  '-warn-security-syntactic' => 1
+  #  '-analyzer-check-objc-missing-dealloc' => 1,
+  '-analyzer-check-objc-unused-ivars' => 1,
+  '-analyzer-check-security-syntactic' => 1
 );
 
 ##----------------------------------------------------------------------------##
@@ -853,10 +846,6 @@ sub RunBuildCommand {
     # When 'CC' is set, xcodebuild uses it to do all linking, even if we are
     # linking C++ object files.  Set 'LDPLUSPLUS' so that xcodebuild uses 'g++'
     # when linking such files.
-    if (!defined $ENV{'CCC_CXX'}) {
-      $ENV{'CCC_CXX'} = 'g++';      
-    }
-    $ENV{'LDPLUSPLUS'} = $ENV{'CCC_CXX'};
   }
   
   return (system(@$Args) >> 8);
@@ -951,7 +940,7 @@ ENDTEXT
       print "    ";
     }
     
-    print " $Analysis  $AvailableAnalyses{$Analysis}\n";
+    print " $Analysis\n";
   }
   
 print <<ENDTEXT
@@ -1203,7 +1192,7 @@ if (!defined $CmdCXX || ! -x $CmdCXX) {
 
 if (!defined $ClangSB || ! -x $ClangSB) {
   Diag("'clang' executable not found in '$RealBin/bin'.\n");
-  Diag("Using 'clang' from path.\n");
+  Diag("Using 'clang' from path: $Clang\n");
 }
 
 $ENV{'CC'} = $Cmd;

@@ -268,7 +268,7 @@ public:
   /// this behavior for branches?
   void EmitBranchThroughCleanup(llvm::BasicBlock *Dest);
 
-  /// StartConditionalBranch - Should be called before a conditional part of an
+  /// BeginConditionalBranch - Should be called before a conditional part of an
   /// expression is emitted. For example, before the RHS of the expression below
   /// is emitted:
   ///
@@ -276,13 +276,16 @@ public:
   ///
   /// This is used to make sure that any temporaries created in the conditional
   /// branch are only destroyed if the branch is taken.
-  void StartConditionalBranch() {
+  void BeginConditionalBranch() {
     ++ConditionalBranchLevel;
   }
 
-  /// FinishConditionalBranch - Should be called after a conditional part of an
+  /// EndConditionalBranch - Should be called after a conditional part of an
   /// expression has been emitted.
-  void FinishConditionalBranch() {
+  void EndConditionalBranch() {
+    assert(ConditionalBranchLevel != 0 &&
+           "Conditional branch mismatch!");
+    
     --ConditionalBranchLevel;
   }
 
@@ -472,7 +475,7 @@ public:
                                         const BlockInfo& Info,
                                         const Decl *OuterFuncDecl,
                                   llvm::DenseMap<const Decl*, llvm::Value*> ldm,
-                                        CharUnits &Size, uint64_t &Align,
+                                        CharUnits &Size, CharUnits &Align,
                       llvm::SmallVector<const Expr *, 8> &subBlockDeclRefDecls,
                                         bool &subBlockHasCopyDispose);
 
@@ -569,6 +572,9 @@ public:
 
   const llvm::Type *ConvertTypeForMem(QualType T);
   const llvm::Type *ConvertType(QualType T);
+  const llvm::Type *ConvertType(const TypeDecl *T) {
+    return ConvertType(getContext().getTypeDeclType(T));
+  }
 
   /// LoadObjCSelf - Load the value of self. This function is only valid while
   /// generating code for an Objective-C method.
@@ -652,9 +658,14 @@ public:
   }
 
   /// CreateTempAlloca - This creates a alloca and inserts it into the entry
-  /// block.
+  /// block. The caller is responsible for setting an appropriate alignment on
+  /// the alloca.
   llvm::AllocaInst *CreateTempAlloca(const llvm::Type *Ty,
                                      const llvm::Twine &Name = "tmp");
+
+  /// CreateMemTemp - Create a temporary memory object of the given type, with
+  /// appropriate alignment.
+  llvm::Value *CreateMemTemp(QualType T, const llvm::Twine &Name = "tmp");
 
   /// EvaluateExprAsBool - Perform the usual unary conversions on the specified
   /// expression and compare the result against zero, returning an Int1Ty value.
@@ -732,11 +743,16 @@ public:
   /// LoadCXXVTT - Load the VTT parameter to base constructors/destructors have
   /// virtual bases.
   llvm::Value *LoadCXXVTT();
+
+  /// GetAddressOfBaseOfCompleteClass - Convert the given pointer to a
+  /// complete class down to one of its virtual bases.
+  llvm::Value *GetAddressOfBaseOfCompleteClass(llvm::Value *Value,
+                                               bool IsVirtual,
+                                               const CXXRecordDecl *Derived,
+                                               const CXXRecordDecl *Base);
   
   /// GetAddressOfBaseClass - This function will add the necessary delta to the
   /// load of 'this' and returns address of the base class.
-  // FIXME. This currently only does a derived to non-virtual base conversion.
-  // Other kinds of conversions will come later.
   llvm::Value *GetAddressOfBaseClass(llvm::Value *Value,
                                      const CXXRecordDecl *ClassDecl,
                                      const CXXRecordDecl *BaseClassDecl,
@@ -747,10 +763,9 @@ public:
                                         const CXXRecordDecl *DerivedClassDecl,
                                         bool NullCheckValue);
 
-  llvm::Value *
-  GetVirtualCXXBaseClassOffset(llvm::Value *This,
-                               const CXXRecordDecl *ClassDecl,
-                               const CXXRecordDecl *BaseClassDecl);
+  llvm::Value *GetVirtualBaseClassOffset(llvm::Value *This,
+                                         const CXXRecordDecl *ClassDecl,
+                                         const CXXRecordDecl *BaseClassDecl);
     
   void EmitClassAggrMemberwiseCopy(llvm::Value *DestValue,
                                    llvm::Value *SrcValue,
@@ -843,7 +858,8 @@ public:
   /// This function can be called with a null (unreachable) insert point.
   void EmitLocalBlockVarDecl(const VarDecl &D);
 
-  void EmitStaticBlockVarDecl(const VarDecl &D);
+  void EmitStaticBlockVarDecl(const VarDecl &D,
+                              llvm::GlobalValue::LinkageTypes Linkage);
 
   /// EmitParmDecl - Emit a ParmVarDecl or an ImplicitParamDecl.
   void EmitParmDecl(const VarDecl &D, llvm::Value *Arg);
@@ -1005,12 +1021,18 @@ public:
   LValue EmitCastLValue(const CastExpr *E);
   LValue EmitNullInitializationLValue(const CXXZeroInitValueExpr *E);
   
-  LValue EmitPointerToDataMemberLValue(const FieldDecl *Field);
-  
   llvm::Value *EmitIvarOffset(const ObjCInterfaceDecl *Interface,
                               const ObjCIvarDecl *Ivar);
   LValue EmitLValueForField(llvm::Value* Base, const FieldDecl* Field,
-                            bool isUnion, unsigned CVRQualifiers);
+                            unsigned CVRQualifiers);
+  
+  /// EmitLValueForFieldInitialization - Like EmitLValueForField, except that
+  /// if the Field is a reference, this will return the address of the reference
+  /// and not the address of the value stored in the reference.
+  LValue EmitLValueForFieldInitialization(llvm::Value* Base, 
+                                          const FieldDecl* Field,
+                                          unsigned CVRQualifiers);
+  
   LValue EmitLValueForIvar(QualType ObjectTy,
                            llvm::Value* Base, const ObjCIvarDecl *Ivar,
                            unsigned CVRQualifiers);
@@ -1103,8 +1125,7 @@ public:
 
   /// EmitReferenceBindingToExpr - Emits a reference binding to the passed in
   /// expression. Will emit a temporary variable if E is not an LValue.
-  RValue EmitReferenceBindingToExpr(const Expr* E, QualType DestType,
-                                    bool IsInitializer = false);
+  RValue EmitReferenceBindingToExpr(const Expr* E, bool IsInitializer = false);
 
   //===--------------------------------------------------------------------===//
   //                           Expression Emission
@@ -1134,6 +1155,10 @@ public:
   void EmitAggExpr(const Expr *E, llvm::Value *DestPtr, bool VolatileDest,
                    bool IgnoreResult = false, bool IsInitializer = false,
                    bool RequiresGCollection = false);
+
+  /// EmitAggExprToLValue - Emit the computation of the specified expression of
+  /// aggregate type into a temporary LValue.
+  LValue EmitAggExprToLValue(const Expr *E);
 
   /// EmitGCMemmoveCollectable - Emit special API for structs with object
   /// pointers.

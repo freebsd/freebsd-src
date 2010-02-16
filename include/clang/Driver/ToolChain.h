@@ -53,9 +53,9 @@ public:
   const Driver &getDriver() const;
   const llvm::Triple &getTriple() const { return Triple; }
 
-  std::string getArchName() const { return Triple.getArchName(); }
-  std::string getPlatform() const { return Triple.getVendorName(); }
-  std::string getOS() const { return Triple.getOSName(); }
+  llvm::StringRef getArchName() const { return Triple.getArchName(); }
+  llvm::StringRef getPlatform() const { return Triple.getVendorName(); }
+  llvm::StringRef getOS() const { return Triple.getOSName(); }
 
   std::string getTripleString() const {
     return Triple.getTriple();
@@ -90,9 +90,18 @@ public:
   /// IsBlocksDefault - Does this tool chain enable -fblocks by default.
   virtual bool IsBlocksDefault() const { return false; }
 
+  /// IsIntegratedAssemblerDefault - Does this tool chain enable -integrated-as
+  /// by default.
+  virtual bool IsIntegratedAssemblerDefault() const { return false; }
+
   /// IsObjCNonFragileABIDefault - Does this tool chain set
   /// -fobjc-nonfragile-abi by default.
   virtual bool IsObjCNonFragileABIDefault() const { return false; }
+
+  /// IsObjCLegacyDispatchDefault - Does this tool chain set
+  /// -fobjc-legacy-dispatch by default (this is only used with the non-fragile
+  /// ABI).
+  virtual bool IsObjCLegacyDispatchDefault() const { return false; }
 
   /// GetDefaultStackProtectorLevel - Get the default stack protector level for
   /// this tool chain (0=off, 1=on, 2=all).
@@ -114,6 +123,9 @@ public:
   /// UseDwarfDebugFlags - Embed the compile options to clang into the Dwarf
   /// compile unit information.
   virtual bool UseDwarfDebugFlags() const { return false; }
+
+  /// UseSjLjExceptions - Does this tool chain use SjLj exceptions.
+  virtual bool UseSjLjExceptions() const { return false; }
 };
 
 } // end namespace driver

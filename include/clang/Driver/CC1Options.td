@@ -38,19 +38,21 @@ def analysis_CFGView : Flag<"-cfg-view">,
   HelpText<"View Control-Flow Graphs using GraphViz">;
 def analysis_DisplayLiveVariables : Flag<"-dump-live-variables">,
   HelpText<"Print results of live variable analysis">;
-def analysis_SecuritySyntacticChecks : Flag<"-warn-security-syntactic">,
+def analysis_LLVMConventionChecker : Flag<"-analyzer-check-llvm-conventions">,
+  HelpText<"Check code for LLVM codebase conventions (domain-specific)">;
+def analysis_SecuritySyntacticChecks : Flag<"-analyzer-check-security-syntactic">,
   HelpText<"Perform quick security checks that require no data flow">;
-def analysis_WarnDeadStores : Flag<"-warn-dead-stores">,
+def analysis_WarnDeadStores : Flag<"-analyzer-check-dead-stores">,
   HelpText<"Warn about stores to dead variables">;
 def analysis_WarnUninitVals : Flag<"-warn-uninit-values">,
   HelpText<"Warn about uses of uninitialized variables">;
-def analysis_WarnObjCMethSigs : Flag<"-warn-objc-methodsigs">,
+def analysis_WarnObjCMethSigs : Flag<"-analyzer-check-objc-methodsigs">,
   HelpText<"Warn about Objective-C method signatures with type incompatibilities">;
-def analysis_WarnObjCDealloc : Flag<"-warn-objc-missing-dealloc">,
+def analysis_WarnObjCDealloc : Flag<"-analyzer-check-objc-missing-dealloc">,
   HelpText<"Warn about Objective-C classes that lack a correct implementation of -dealloc">;
-def analysis_WarnObjCUnusedIvars : Flag<"-warn-objc-unused-ivars">,
+def analysis_WarnObjCUnusedIvars : Flag<"-analyzer-check-objc-unused-ivars">,
   HelpText<"Warn about private ivars that are never used">;
-def analysis_CheckerCFRef : Flag<"-checker-cfref">,
+def analysis_ObjCMemChecker : Flag<"-analyzer-check-objc-mem">,
   HelpText<"Run the [Core] Foundation reference count checker">;
 def analysis_WarnSizeofPointer : Flag<"-warn-sizeof-pointer">,
   HelpText<"Warn about unintended use of sizeof() on pointer expressions">;
@@ -102,6 +104,8 @@ def analyzer_viz_egraph_ubigraph : Flag<"-analyzer-viz-egraph-ubigraph">,
 
 def disable_llvm_optzns : Flag<"-disable-llvm-optzns">,
   HelpText<"Don't run LLVM optimization passes">;
+def disable_llvm_verifier : Flag<"-disable-llvm-verifier">,
+  HelpText<"Don't run the LLVM IR verifier pass">;
 def disable_red_zone : Flag<"-disable-red-zone">,
   HelpText<"Do not emit code that uses the red zone.">;
 def dwarf_debug_flags : Separate<"-dwarf-debug-flags">,
@@ -115,6 +119,10 @@ def no_implicit_float : Flag<"-no-implicit-float">,
   HelpText<"Don't generate implicit floating point instructions (x86-only)">;
 def fno_merge_all_constants : Flag<"-fno-merge-all-constants">,
   HelpText<"Disallow merging of constants.">;
+def fno_threadsafe_statics : Flag<"-fno-threadsafe-statics">,
+  HelpText<"Do not emit code to make initialization of local statics thread safe">;
+def fdump_vtable_layouts : Flag<"-fdump-vtable-layouts">,
+  HelpText<"Dump the layouts of all vtables that will be emitted in a translation unit">;
 def masm_verbose : Flag<"-masm-verbose">,
   HelpText<"Generate verbose assembly output">;
 def mcode_model : Separate<"-mcode-model">,
@@ -165,6 +173,7 @@ def fno_caret_diagnostics : Flag<"-fno-caret-diagnostics">,
   HelpText<"Do not include source line and caret with diagnostics">;
 def fno_diagnostics_fixit_info : Flag<"-fno-diagnostics-fixit-info">,
   HelpText<"Do not include fixit information in diagnostics">;
+def fdiagnostics_binary : Flag<"-fdiagnostics-binary">;
 def w : Flag<"-w">, HelpText<"Suppress all warnings">;
 def pedantic : Flag<"-pedantic">;
 def pedantic_errors : Flag<"-pedantic-errors">;
@@ -197,6 +206,9 @@ def verify : Flag<"-verify">,
 // CompilerInvocation out of a driver-derived argument vector.
 def cc1 : Flag<"-cc1">;
 
+def ast_merge : Separate<"-ast-merge">,
+  MetaVarName<"<ast file>">,
+  HelpText<"Merge the given AST file into the translation unit being compiled.">;
 def code_completion_at : Separate<"-code-completion-at">,
   MetaVarName<"<file>:<line>:<column>">,
   HelpText<"Dump code-completion information at a location">;
@@ -280,6 +292,8 @@ def emit_llvm_bc : Flag<"-emit-llvm-bc">,
   HelpText<"Build ASTs then convert to LLVM, emit .bc file">;
 def emit_llvm_only : Flag<"-emit-llvm-only">,
   HelpText<"Build ASTs and convert to LLVM, discarding output">;
+def emit_obj : Flag<"-emit-obj">,
+  HelpText<"Emit native object files">;
 def rewrite_test : Flag<"-rewrite-test">,
   HelpText<"Rewriter playground">;
 def rewrite_objc : Flag<"-rewrite-objc">,
@@ -319,6 +333,8 @@ def fblocks : Flag<"-fblocks">,
 def fheinous_gnu_extensions : Flag<"-fheinous-gnu-extensions">;  
 def fexceptions : Flag<"-fexceptions">,
   HelpText<"Enable support for exception handling">;
+def fsjlj_exceptions : Flag<"-fsjlj-exceptions">,
+  HelpText<"Use SjLj style exceptions">;
 def ffreestanding : Flag<"-ffreestanding">,
   HelpText<"Assert that the compilation takes place in a freestanding environment">;
 def fgnu_runtime : Flag<"-fgnu-runtime">,
@@ -346,10 +362,14 @@ def fobjc_gc : Flag<"-fobjc-gc">,
   HelpText<"Enable Objective-C garbage collection">;
 def fobjc_gc_only : Flag<"-fobjc-gc-only">,
   HelpText<"Use GC exclusively for Objective-C related memory management">;
+def fobjc_legacy_dispatch : Flag<"-fobjc-legacy-dispatch">,
+  HelpText<"Use legacy dispatch with the Objective-C non-fragile ABI">;
 def print_ivar_layout : Flag<"-print-ivar-layout">,
   HelpText<"Enable Objective-C Ivar layout bitmap print trace">;
 def fobjc_nonfragile_abi : Flag<"-fobjc-nonfragile-abi">,
   HelpText<"enable objective-c's nonfragile abi">;
+def fobjc_nonfragile_abi2 : Flag<"-fobjc-nonfragile-abi2">,
+  HelpText<"enable objective-c's enhanced nonfragile abi">;
 def ftrapv : Flag<"-ftrapv">,
   HelpText<"Trap on integer overflow">;
 def pic_level : Separate<"-pic-level">,

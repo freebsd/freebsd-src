@@ -16,6 +16,7 @@
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/IdentifierTable.h"
+#include "clang/Basic/Linkage.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/TemplateName.h"
 #include "llvm/Support/Casting.h"
@@ -750,24 +751,22 @@ class Type {
 public:
   enum TypeClass {
 #define TYPE(Class, Base) Class,
+#define LAST_TYPE(Class) TypeLast = Class,
 #define ABSTRACT_TYPE(Class, Base)
 #include "clang/AST/TypeNodes.def"
     TagFirst = Record, TagLast = Enum
   };
 
-protected:
-  enum { TypeClassBitSize = 6 };
-
 private:
   QualType CanonicalType;
 
-  /// Dependent - Whether this type is a dependent type (C++ [temp.dep.type]).
-  bool Dependent : 1;
-
   /// TypeClass bitfield - Enum that specifies what subclass this belongs to.
+  unsigned TC : 8;
+
+  /// Dependent - Whether this type is a dependent type (C++ [temp.dep.type]).
   /// Note that this should stay at the end of the ivars for Type so that
   /// subclasses can pack their bitfields into the same word.
-  unsigned TC : TypeClassBitSize;
+  bool Dependent : 1;
 
   Type(const Type&);           // DO NOT IMPLEMENT.
   void operator=(const Type&); // DO NOT IMPLEMENT.
@@ -776,7 +775,7 @@ protected:
   Type *this_() { return this; }
   Type(TypeClass tc, QualType Canonical, bool dependent)
     : CanonicalType(Canonical.isNull() ? QualType(this_(), 0) : Canonical),
-      Dependent(dependent), TC(tc) {}
+      TC(tc), Dependent(dependent) {}
   virtual ~Type() {}
   virtual void Destroy(ASTContext& C);
   friend class ASTContext;
@@ -974,6 +973,9 @@ public:
 
   const char *getTypeClassName() const;
 
+  /// \brief Determine the linkage of this type.
+  virtual Linkage getLinkage() const;
+
   QualType getCanonicalTypeInternal() const { return CanonicalType; }
   void dump() const;
   static bool classof(const Type *) { return true; }
@@ -1062,6 +1064,8 @@ public:
     return TypeKind >= Float && TypeKind <= LongDouble;
   }
 
+  virtual Linkage getLinkage() const;
+
   static bool classof(const Type *T) { return T->getTypeClass() == Builtin; }
   static bool classof(const BuiltinType *) { return true; }
 };
@@ -1089,6 +1093,8 @@ public:
     ID.AddPointer(Element.getAsOpaquePtr());
   }
 
+  virtual Linkage getLinkage() const;
+
   static bool classof(const Type *T) { return T->getTypeClass() == Complex; }
   static bool classof(const ComplexType *) { return true; }
 };
@@ -1115,6 +1121,8 @@ public:
   static void Profile(llvm::FoldingSetNodeID &ID, QualType Pointee) {
     ID.AddPointer(Pointee.getAsOpaquePtr());
   }
+
+  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) { return T->getTypeClass() == Pointer; }
   static bool classof(const PointerType *) { return true; }
@@ -1145,6 +1153,8 @@ public:
   static void Profile(llvm::FoldingSetNodeID &ID, QualType Pointee) {
       ID.AddPointer(Pointee.getAsOpaquePtr());
   }
+
+  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == BlockPointer;
@@ -1183,7 +1193,8 @@ protected:
   }
 public:
   bool isSpelledAsLValue() const { return SpelledAsLValue; }
-
+  bool isInnerRef() const { return InnerRef; }
+  
   QualType getPointeeTypeAsWritten() const { return PointeeType; }
   QualType getPointeeType() const {
     // FIXME: this might strip inner qualifiers; okay?
@@ -1202,6 +1213,8 @@ public:
     ID.AddPointer(Referencee.getAsOpaquePtr());
     ID.AddBoolean(SpelledAsLValue);
   }
+
+  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == LValueReference ||
@@ -1277,6 +1290,8 @@ public:
     ID.AddPointer(Class);
   }
 
+  virtual Linkage getLinkage() const;
+
   static bool classof(const Type *T) {
     return T->getTypeClass() == MemberPointer;
   }
@@ -1327,6 +1342,8 @@ public:
     return Qualifiers::fromCVRMask(IndexTypeQuals);
   }
   unsigned getIndexTypeCVRQualifiers() const { return IndexTypeQuals; }
+
+  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == ConstantArray ||
@@ -1576,7 +1593,8 @@ public:
 
 /// VectorType - GCC generic vector type. This type is created using
 /// __attribute__((vector_size(n)), where "n" specifies the vector size in
-/// bytes. Since the constructor takes the number of vector elements, the
+/// bytes; or from an Altivec __vector or vector declaration.
+/// Since the constructor takes the number of vector elements, the
 /// client is responsible for converting the size into the number of elements.
 class VectorType : public Type, public llvm::FoldingSetNode {
 protected:
@@ -1586,13 +1604,21 @@ protected:
   /// NumElements - The number of elements in the vector.
   unsigned NumElements;
 
-  VectorType(QualType vecType, unsigned nElements, QualType canonType) :
+  /// AltiVec - True if this is for an Altivec vector.
+  bool AltiVec;
+
+  /// Pixel - True if this is for an Altivec vector pixel.
+  bool Pixel;
+
+  VectorType(QualType vecType, unsigned nElements, QualType canonType,
+      bool isAltiVec, bool isPixel) :
     Type(Vector, canonType, vecType->isDependentType()),
-    ElementType(vecType), NumElements(nElements) {}
+    ElementType(vecType), NumElements(nElements),
+    AltiVec(isAltiVec), Pixel(isPixel) {}
   VectorType(TypeClass tc, QualType vecType, unsigned nElements,
-             QualType canonType)
+             QualType canonType, bool isAltiVec, bool isPixel)
     : Type(tc, canonType, vecType->isDependentType()), ElementType(vecType),
-      NumElements(nElements) {}
+      NumElements(nElements), AltiVec(isAltiVec), Pixel(isPixel) {}
   friend class ASTContext;  // ASTContext creates these.
 public:
 
@@ -1602,15 +1628,26 @@ public:
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
 
+  bool isAltiVec() const { return AltiVec; }
+  
+  bool isPixel() const { return Pixel; }
+  
   void Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, getElementType(), getNumElements(), getTypeClass());
+    Profile(ID, getElementType(), getNumElements(), getTypeClass(),
+      AltiVec, Pixel);
   }
   static void Profile(llvm::FoldingSetNodeID &ID, QualType ElementType,
-                      unsigned NumElements, TypeClass TypeClass) {
+                      unsigned NumElements, TypeClass TypeClass,
+                      bool isAltiVec, bool isPixel) {
     ID.AddPointer(ElementType.getAsOpaquePtr());
     ID.AddInteger(NumElements);
     ID.AddInteger(TypeClass);
+    ID.AddBoolean(isAltiVec);
+    ID.AddBoolean(isPixel);
   }
+
+  virtual Linkage getLinkage() const;
+
   static bool classof(const Type *T) {
     return T->getTypeClass() == Vector || T->getTypeClass() == ExtVector;
   }
@@ -1624,7 +1661,7 @@ public:
 /// points, colors, and textures (modeled after OpenGL Shading Language).
 class ExtVectorType : public VectorType {
   ExtVectorType(QualType vecType, unsigned nElements, QualType canonType) :
-    VectorType(ExtVector, vecType, nElements, canonType) {}
+    VectorType(ExtVector, vecType, nElements, canonType, false, false) {}
   friend class ASTContext;  // ASTContext creates these.
 public:
   static int getPointAccessorIdx(char c) {
@@ -1723,6 +1760,8 @@ public:
   bool getNoReturnAttr() const { return NoReturn; }
   CallingConv getCallConv() const { return (CallingConv)CallConv; }
 
+  static llvm::StringRef getNameForCallConv(CallingConv CC);
+
   static bool classof(const Type *T) {
     return T->getTypeClass() == FunctionNoProto ||
            T->getTypeClass() == FunctionProto;
@@ -1745,13 +1784,16 @@ public:
   QualType desugar() const { return QualType(this, 0); }
 
   void Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, getResultType(), getNoReturnAttr());
+    Profile(ID, getResultType(), getNoReturnAttr(), getCallConv());
   }
   static void Profile(llvm::FoldingSetNodeID &ID, QualType ResultType,
-                      bool NoReturn) {
+                      bool NoReturn, CallingConv CallConv) {
+    ID.AddInteger(CallConv);
     ID.AddInteger(NoReturn);
     ID.AddPointer(ResultType.getAsOpaquePtr());
   }
+
+  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == FunctionNoProto;
@@ -1856,6 +1898,8 @@ public:
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
 
+  virtual Linkage getLinkage() const;
+
   static bool classof(const Type *T) {
     return T->getTypeClass() == FunctionProto;
   }
@@ -1867,7 +1911,7 @@ public:
                       bool isVariadic, unsigned TypeQuals,
                       bool hasExceptionSpec, bool anyExceptionSpec,
                       unsigned NumExceptions, exception_iterator Exs,
-                      bool NoReturn);
+                      bool NoReturn, CallingConv CallConv);
 };
 
 
@@ -1878,8 +1922,9 @@ public:
 class UnresolvedUsingType : public Type {
   UnresolvedUsingTypenameDecl *Decl;
 
-  UnresolvedUsingType(UnresolvedUsingTypenameDecl *D)
-    : Type(UnresolvedUsing, QualType(), true), Decl(D) {}
+  UnresolvedUsingType(const UnresolvedUsingTypenameDecl *D)
+    : Type(UnresolvedUsing, QualType(), true),
+      Decl(const_cast<UnresolvedUsingTypenameDecl*>(D)) {}
   friend class ASTContext; // ASTContext creates these.
 public:
 
@@ -1906,8 +1951,9 @@ public:
 class TypedefType : public Type {
   TypedefDecl *Decl;
 protected:
-  TypedefType(TypeClass tc, TypedefDecl *D, QualType can)
-    : Type(tc, can, can->isDependentType()), Decl(D) {
+  TypedefType(TypeClass tc, const TypedefDecl *D, QualType can)
+    : Type(tc, can, can->isDependentType()),
+      Decl(const_cast<TypedefDecl*>(D)) {
     assert(!isa<TypedefType>(can) && "Invalid canonical type");
   }
   friend class ASTContext;  // ASTContext creates these.
@@ -1950,8 +1996,12 @@ public:
   static bool classof(const TypeOfExprType *) { return true; }
 };
 
-/// Subclass of TypeOfExprType that is used for canonical, dependent
+/// \brief Internal representation of canonical, dependent
 /// typeof(expr) types.
+///
+/// This class is used internally by the ASTContext to manage
+/// canonical, dependent types, only. Clients will only see instances
+/// of this class via TypeOfExprType nodes.
 class DependentTypeOfExprType
   : public TypeOfExprType, public llvm::FoldingSetNode {
   ASTContext &Context;
@@ -2018,8 +2068,12 @@ public:
   static bool classof(const DecltypeType *) { return true; }
 };
 
-/// Subclass of DecltypeType that is used for canonical, dependent
-/// C++0x decltype types.
+/// \brief Internal representation of canonical, dependent
+/// decltype(expr) types.
+///
+/// This class is used internally by the ASTContext to manage
+/// canonical, dependent types, only. Clients will only see instances
+/// of this class via DecltypeType nodes.
 class DependentDecltypeType : public DecltypeType, public llvm::FoldingSetNode {
   ASTContext &Context;
 
@@ -2048,7 +2102,7 @@ class TagType : public Type {
   friend class TagDecl;
 
 protected:
-  TagType(TypeClass TC, TagDecl *D, QualType can);
+  TagType(TypeClass TC, const TagDecl *D, QualType can);
 
 public:
   TagDecl *getDecl() const { return decl.getPointer(); }
@@ -2057,6 +2111,8 @@ public:
   /// defined.
   bool isBeingDefined() const { return decl.getInt(); }
   void setBeingDefined(bool Def) const { decl.setInt(Def? 1 : 0); }
+
+  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() >= TagFirst && T->getTypeClass() <= TagLast;
@@ -2070,10 +2126,10 @@ public:
 /// to detect TagType objects of structs/unions/classes.
 class RecordType : public TagType {
 protected:
-  explicit RecordType(RecordDecl *D)
-    : TagType(Record, reinterpret_cast<TagDecl*>(D), QualType()) { }
+  explicit RecordType(const RecordDecl *D)
+    : TagType(Record, reinterpret_cast<const TagDecl*>(D), QualType()) { }
   explicit RecordType(TypeClass TC, RecordDecl *D)
-    : TagType(TC, reinterpret_cast<TagDecl*>(D), QualType()) { }
+    : TagType(TC, reinterpret_cast<const TagDecl*>(D), QualType()) { }
   friend class ASTContext;   // ASTContext creates these.
 public:
 
@@ -2103,8 +2159,8 @@ public:
 /// EnumType - This is a helper class that allows the use of isa/cast/dyncast
 /// to detect TagType objects of enums.
 class EnumType : public TagType {
-  explicit EnumType(EnumDecl *D)
-    : TagType(Enum, reinterpret_cast<TagDecl*>(D), QualType()) { }
+  explicit EnumType(const EnumDecl *D)
+    : TagType(Enum, reinterpret_cast<const TagDecl*>(D), QualType()) { }
   friend class ASTContext;   // ASTContext creates these.
 public:
 
@@ -2512,12 +2568,12 @@ public:
 class ObjCInterfaceType : public Type, public llvm::FoldingSetNode {
   ObjCInterfaceDecl *Decl;
 
-  // List of protocols for this protocol conforming object type
-  // List is sorted on protocol name. No protocol is enterred more than once.
-  ObjCProtocolDecl **Protocols;
+  /// \brief The number of protocols stored after the ObjCInterfaceType node.
+  /// The list of protocols is sorted on protocol name. No protocol is enterred 
+  /// more than once.
   unsigned NumProtocols;
 
-  ObjCInterfaceType(ASTContext &Ctx, QualType Canonical, ObjCInterfaceDecl *D,
+  ObjCInterfaceType(QualType Canonical, ObjCInterfaceDecl *D,
                     ObjCProtocolDecl **Protos, unsigned NumP);
   friend class ASTContext;  // ASTContext creates these.
 public:
@@ -2529,14 +2585,20 @@ public:
   /// interface type, or 0 if there are none.
   unsigned getNumProtocols() const { return NumProtocols; }
 
+  /// \brief Retrieve the Ith protocol.
+  ObjCProtocolDecl *getProtocol(unsigned I) const {
+    assert(I < getNumProtocols() && "Out-of-range protocol access");
+    return qual_begin()[I];
+  }
+  
   /// qual_iterator and friends: this provides access to the (potentially empty)
   /// list of protocols qualifying this interface.
   typedef ObjCProtocolDecl*  const * qual_iterator;
   qual_iterator qual_begin() const {
-    return Protocols;
+    return reinterpret_cast<qual_iterator>(this + 1);
   }
   qual_iterator qual_end() const   {
-    return Protocols ? Protocols + NumProtocols : 0;
+    return qual_begin() + NumProtocols;
   }
   bool qual_empty() const { return NumProtocols == 0; }
 
@@ -2546,7 +2608,10 @@ public:
   void Profile(llvm::FoldingSetNodeID &ID);
   static void Profile(llvm::FoldingSetNodeID &ID,
                       const ObjCInterfaceDecl *Decl,
-                      ObjCProtocolDecl **protocols, unsigned NumProtocols);
+                      ObjCProtocolDecl * const *protocols, 
+                      unsigned NumProtocols);
+
+  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == ObjCInterface;
@@ -2562,12 +2627,14 @@ public:
 class ObjCObjectPointerType : public Type, public llvm::FoldingSetNode {
   QualType PointeeType; // A builtin or interface type.
 
-  // List of protocols for this protocol conforming object type
-  // List is sorted on protocol name. No protocol is entered more than once.
-  ObjCProtocolDecl **Protocols;
+  /// \brief The number of protocols stored after the ObjCObjectPointerType 
+  /// node.
+  ///
+  /// The list of protocols is sorted on protocol name. No protocol is enterred 
+  /// more than once.
   unsigned NumProtocols;
 
-  ObjCObjectPointerType(ASTContext &Ctx, QualType Canonical, QualType T,
+  ObjCObjectPointerType(QualType Canonical, QualType T,
                         ObjCProtocolDecl **Protos, unsigned NumP);
   friend class ASTContext;  // ASTContext creates these.
 
@@ -2614,10 +2681,10 @@ public:
   typedef ObjCProtocolDecl*  const * qual_iterator;
 
   qual_iterator qual_begin() const {
-    return Protocols;
+    return reinterpret_cast<qual_iterator> (this + 1);
   }
   qual_iterator qual_end() const   {
-    return Protocols ? Protocols + NumProtocols : NULL;
+    return qual_begin() + NumProtocols;
   }
   bool qual_empty() const { return NumProtocols == 0; }
 
@@ -2625,12 +2692,21 @@ public:
   /// interface type, or 0 if there are none.
   unsigned getNumProtocols() const { return NumProtocols; }
 
+  /// \brief Retrieve the Ith protocol.
+  ObjCProtocolDecl *getProtocol(unsigned I) const {
+    assert(I < getNumProtocols() && "Out-of-range protocol access");
+    return qual_begin()[I];
+  }
+  
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
 
+  virtual Linkage getLinkage() const;
+
   void Profile(llvm::FoldingSetNodeID &ID);
   static void Profile(llvm::FoldingSetNodeID &ID, QualType T,
-                      ObjCProtocolDecl **protocols, unsigned NumProtocols);
+                      ObjCProtocolDecl *const *protocols, 
+                      unsigned NumProtocols);
   static bool classof(const Type *T) {
     return T->getTypeClass() == ObjCObjectPointer;
   }

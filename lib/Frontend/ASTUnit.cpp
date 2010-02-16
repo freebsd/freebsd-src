@@ -98,13 +98,12 @@ const std::string &ASTUnit::getOriginalSourceFileName() {
 
 const std::string &ASTUnit::getPCHFileName() {
   assert(isMainFileAST() && "Not an ASTUnit from a PCH file!");
-  return dyn_cast<PCHReader>(Ctx->getExternalSource())->getFileName();
+  return static_cast<PCHReader *>(Ctx->getExternalSource())->getFileName();
 }
 
 ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
                                   Diagnostic &Diags,
                                   bool OnlyLocalDecls,
-                                  bool UseBumpAllocator,
                                   RemappedFile *RemappedFiles,
                                   unsigned NumRemappedFiles) {
   llvm::OwningPtr<ASTUnit> AST(new ASTUnit(true));
@@ -184,7 +183,7 @@ ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
                                 PP.getIdentifierTable(),
                                 PP.getSelectorTable(),
                                 PP.getBuiltinInfo(),
-                                /* FreeMemory = */ !UseBumpAllocator,
+                                /* FreeMemory = */ false,
                                 /* size_reserve = */0));
   ASTContext &Context = *AST->Ctx.get();
 
@@ -230,7 +229,7 @@ public:
 
 }
 
-ASTUnit *ASTUnit::LoadFromCompilerInvocation(const CompilerInvocation &CI,
+ASTUnit *ASTUnit::LoadFromCompilerInvocation(CompilerInvocation *CI,
                                              Diagnostic &Diags,
                                              bool OnlyLocalDecls) {
   // Create the compiler instance to use for building the AST.
@@ -238,7 +237,7 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocation(const CompilerInvocation &CI,
   llvm::OwningPtr<ASTUnit> AST;
   llvm::OwningPtr<TopLevelDeclTrackerAction> Act;
 
-  Clang.getInvocation() = CI;
+  Clang.setInvocation(CI);
 
   Clang.setDiagnostics(&Diags);
   Clang.setDiagnosticClient(Diags.getClient());
@@ -294,7 +293,9 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocation(const CompilerInvocation &CI,
 
   Clang.takeDiagnosticClient();
   Clang.takeDiagnostics();
+  Clang.takeInvocation();
 
+  AST->Invocation.reset(Clang.takeInvocation());
   return AST.take();
 
 error:
@@ -310,7 +311,6 @@ ASTUnit *ASTUnit::LoadFromCommandLine(const char **ArgBegin,
                                       Diagnostic &Diags,
                                       llvm::StringRef ResourceFilesPath,
                                       bool OnlyLocalDecls,
-                                      bool UseBumpAllocator,
                                       RemappedFile *RemappedFiles,
                                       unsigned NumRemappedFiles) {
   llvm::SmallVector<const char *, 16> Args;
@@ -324,6 +324,10 @@ ASTUnit *ASTUnit::LoadFromCommandLine(const char **ArgBegin,
   // FIXME: We shouldn't have to pass in the path info.
   driver::Driver TheDriver("clang", "/", llvm::sys::getHostTriple(),
                            "a.out", false, Diags);
+
+  // Don't check that inputs exist, they have been remapped.
+  TheDriver.setCheckInputsExist(false);
+
   llvm::OwningPtr<driver::Compilation> C(
     TheDriver.BuildCompilation(Args.size(), Args.data()));
 
@@ -345,19 +349,19 @@ ASTUnit *ASTUnit::LoadFromCommandLine(const char **ArgBegin,
   }
 
   const driver::ArgStringList &CCArgs = Cmd->getArguments();
-  CompilerInvocation CI;
-  CompilerInvocation::CreateFromArgs(CI, (const char**) CCArgs.data(),
+  llvm::OwningPtr<CompilerInvocation> CI(new CompilerInvocation);
+  CompilerInvocation::CreateFromArgs(*CI, (const char**) CCArgs.data(),
                                      (const char**) CCArgs.data()+CCArgs.size(),
                                      Diags);
 
   // Override any files that need remapping
   for (unsigned I = 0; I != NumRemappedFiles; ++I)
-    CI.getPreprocessorOpts().addRemappedFile(RemappedFiles[I].first,
-                                             RemappedFiles[I].second);
+    CI->getPreprocessorOpts().addRemappedFile(RemappedFiles[I].first,
+                                              RemappedFiles[I].second);
   
   // Override the resources path.
-  CI.getHeaderSearchOpts().ResourceDir = ResourceFilesPath;
+  CI->getHeaderSearchOpts().ResourceDir = ResourceFilesPath;
 
-  CI.getFrontendOpts().DisableFree = UseBumpAllocator;
-  return LoadFromCompilerInvocation(CI, Diags, OnlyLocalDecls);
+  CI->getFrontendOpts().DisableFree = true;
+  return LoadFromCompilerInvocation(CI.take(), Diags, OnlyLocalDecls);
 }

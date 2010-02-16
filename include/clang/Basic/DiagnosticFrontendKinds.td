@@ -19,6 +19,8 @@ def err_fe_invalid_code_complete_file : Error<
     "cannot locate code-completion file %0">, DefaultFatal;
 def err_fe_stdout_binary : Error<"unable to change standard output to binary">,
   DefaultFatal;
+def err_fe_stderr_binary : Error<"unable to change standard error to binary">,
+  DefaultFatal;
 def err_fe_dependency_file_requires_MT : Error<
     "-dependency-file requires at least one -MT option">;
 def err_fe_incompatible_options : Error<
@@ -80,6 +82,8 @@ def note_fixit_main_file_unchanged : Note<
 def warn_fixit_no_changes : Note<
     "FIX-IT detected errors it could not fix; no output will be generated">;
 
+def err_fe_clang : Error<"error invoking%s: %s">, DefaultFatal;
+
 // PCH reader
 def err_relocatable_without_without_isysroot : Error<
     "must specify system root with -isysroot when building a relocatable "
@@ -105,6 +109,10 @@ def warn_pch_objective_c2 : Error<
 def warn_pch_nonfragile_abi : Error<
     "PCH file was compiled with the %select{32-bit|non-fragile}0 Objective-C "
     "ABI but the %select{32-bit|non-fragile}1 Objective-C ABI is selected">;
+def warn_pch_nonfragile_abi2 : Error<
+    "PCH file was compiled with the %select{32-bit|enhanced non-fragile}0 "
+    "Objective-C ABI but the %select{32-bit|enhanced non-fragile}1 "
+    "Objective-C ABI is selected">;
 def warn_pch_extensions : Error<
     "extensions were %select{enabled|disabled}0 in PCH file but are "
     "currently %select{enabled|disabled}1">;
@@ -131,6 +139,9 @@ def warn_pch_elide_constructors : Error<
     "but are currently %select{disabled|enabled}1">;
 def warn_pch_exceptions : Error<
     "exceptions were %select{disabled|enabled}0 in PCH file but "
+    "are currently %select{disabled|enabled}1">;
+def warn_pch_sjlj_exceptions : Error<
+    "sjlj-exceptions were %select{disabled|enabled}0 in PCH file but "
     "are currently %select{disabled|enabled}1">;
 def warn_pch_objc_runtime : Error<
     "PCH file was compiled with the %select{NeXT|GNU}0 runtime but the "

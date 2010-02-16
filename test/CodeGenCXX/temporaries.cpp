@@ -249,3 +249,42 @@ namespace PR5867 {
     g2(17);
   }
 }
+
+// PR6199
+namespace PR6199 {
+  struct A { ~A(); };
+
+  struct B { operator A(); };
+
+  // CHECK: define void @_ZN6PR61992f2IiEENS_1AET_
+  template<typename T> A f2(T) {
+    B b;
+    // CHECK: call void @_ZN6PR61991BcvNS_1AEEv
+    // CHECK-NEXT: ret void
+    return b;
+  }
+
+  template A f2<int>(int);
+  
+}
+
+namespace T12 {
+
+struct A { 
+  A(); 
+  ~A();
+  int f();
+};
+
+int& f(int);
+
+// CHECK: define void @_ZN3T121gEv
+void g() {
+  // CHECK: call void @_ZN3T121AC1Ev
+  // CHECK-NEXT: call i32 @_ZN3T121A1fEv(
+  // CHECK-NEXT: call i32* @_ZN3T121fEi(
+  // CHECK-NEXT: call void @_ZN3T121AD1Ev(
+  int& i = f(A().f());
+}
+
+}

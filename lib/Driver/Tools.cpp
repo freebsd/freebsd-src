@@ -512,7 +512,7 @@ void Clang::AddX86TargetArgs(const ArgList &Args,
   // Select the default CPU if none was given (or detection failed).
   if (!CPUName) {
     // FIXME: Need target hooks.
-    if (memcmp(getToolChain().getOS().c_str(), "darwin", 6) == 0) {
+    if (getToolChain().getOS().startswith("darwin")) {
       if (getToolChain().getArchName() == "x86_64")
         CPUName = "core2";
       else if (getToolChain().getArchName() == "i386")
@@ -586,43 +586,35 @@ static std::string getEffectiveClangTriple(const Driver &D,
                                            const ArgList &Args) {
   llvm::Triple Triple(getLLVMTriple(TC, Args));
 
+  // Handle -mmacosx-version-min and -miphoneos-version-min.
   if (Triple.getOS() != llvm::Triple::Darwin) {
     // Diagnose use of -mmacosx-version-min and -miphoneos-version-min on
     // non-Darwin.
     if (Arg *A = Args.getLastArg(options::OPT_mmacosx_version_min_EQ,
                                  options::OPT_miphoneos_version_min_EQ))
       D.Diag(clang::diag::err_drv_clang_unsupported) << A->getAsString(Args);
-    return Triple.getTriple();
-  }
+  } else {
+    const toolchains::Darwin &DarwinTC(
+      reinterpret_cast<const toolchains::Darwin&>(TC));
+    unsigned Version[3];
+    DarwinTC.getTargetVersion(Version);
 
-  // If -mmacosx-version-min=10.3.9 is specified, change the effective triple
-  // from being something like powerpc-apple-darwin9 to powerpc-apple-darwin7.
-  if (Arg *A = Args.getLastArg(options::OPT_mmacosx_version_min_EQ)) {
-    unsigned Major, Minor, Micro;
-    bool HadExtra;
-    if (!Driver::GetReleaseVersion(A->getValue(Args), Major, Minor, Micro,
-                                   HadExtra) || HadExtra ||
-        Major != 10)
-      D.Diag(clang::diag::err_drv_invalid_version_number)
-        << A->getAsString(Args);
+    // Mangle the target version into the OS triple component.  For historical
+    // reasons that make little sense, the version passed here is the "darwin"
+    // version, which drops the 10 and offsets by 4. See inverse code when
+    // setting the OS version preprocessor define.
+    if (!DarwinTC.isTargetIPhoneOS()) {
+      Version[0] = Version[1] + 4;
+      Version[1] = Version[2];
+      Version[2] = 0;
+    } else {
+      // Use the environment to communicate that we are targetting iPhoneOS.
+      Triple.setEnvironmentName("iphoneos");
+    }
 
-    // Mangle the MacOS version min number into the Darwin number: e.g. 10.3.9
-    // is darwin7.9.
     llvm::SmallString<16> Str;
-    llvm::raw_svector_ostream(Str) << "darwin" << Minor + 4 << "." << Micro;
-    Triple.setOSName(Str.str());
-  } else if (Arg *A = Args.getLastArg(options::OPT_miphoneos_version_min_EQ)) {
-    unsigned Major, Minor, Micro;
-    bool HadExtra;
-    if (!Driver::GetReleaseVersion(A->getValue(Args), Major, Minor, Micro,
-                                   HadExtra) || HadExtra)
-      D.Diag(clang::diag::err_drv_invalid_version_number)
-        << A->getAsString(Args);
-
-    // Mangle the iPhoneOS version number into the Darwin number: e.g. 2.0 is 2
-    // -> 9.2.0.
-    llvm::SmallString<16> Str;
-    llvm::raw_svector_ostream(Str) << "darwin9." << Major << "." << Minor;
+    llvm::raw_svector_ostream(Str) << "darwin" << Version[0]
+                                   << "." << Version[1] << "." << Version[2];
     Triple.setOSName(Str.str());
   }
 
@@ -659,6 +651,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-Eonly");
     else
       CmdArgs.push_back("-E");
+  } else if (isa<AssembleJobAction>(JA)) {
+    CmdArgs.push_back("-emit-obj");
   } else if (isa<PrecompileJobAction>(JA)) {
     // Use PCH if the user requested it, except for C++ (for now).
     bool UsePCH = D.CCCUsePCH;
@@ -682,11 +676,21 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-S");
     } else if (JA.getType() == types::TY_AST) {
       CmdArgs.push_back("-emit-pch");
+    } else if (JA.getType() == types::TY_RewrittenObjC) {
+      CmdArgs.push_back("-rewrite-objc");
+    } else {
+      assert(JA.getType() == types::TY_PP_Asm &&
+             "Unexpected output type!");
     }
   }
 
   // The make clang go fast button.
   CmdArgs.push_back("-disable-free");
+
+  // Disable the verification pass in -asserts builds.
+#ifdef NDEBUG
+  CmdArgs.push_back("-disable-llvm-verifier");
+#endif
 
   // Set the main file name, so that debug info works even with
   // -save-temps.
@@ -707,14 +711,14 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
     // Add default argument set.
     if (!Args.hasArg(options::OPT__analyzer_no_default_checks)) {
-      CmdArgs.push_back("-warn-dead-stores");
-      CmdArgs.push_back("-warn-security-syntactic");
-      CmdArgs.push_back("-checker-cfref");
+      CmdArgs.push_back("-analyzer-check-dead-stores");
+      CmdArgs.push_back("-analyzer-check-security-syntactic");
+      CmdArgs.push_back("-analyzer-check-objc-mem");
       CmdArgs.push_back("-analyzer-eagerly-assume");
-      CmdArgs.push_back("-warn-objc-methodsigs");
+      CmdArgs.push_back("-analyzer-check-objc-methodsigs");
       // Do not enable the missing -dealloc check.
-      // '-warn-objc-missing-dealloc',
-      CmdArgs.push_back("-warn-objc-unused-ivars");
+      // '-analyzer-check-objc-missing-dealloc',
+      CmdArgs.push_back("-analyzer-check-objc-unused-ivars");
     }
 
     // Set the output format. The default is plist, for (lame) historical
@@ -909,8 +913,14 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
         A->render(Args, CmdArgs);
   } else {
     // Honor -std-default.
-    Args.AddAllArgsTranslated(CmdArgs, options::OPT_std_default_EQ,
-                              "-std=", /*Joined=*/true);
+    //
+    // FIXME: Clang doesn't correctly handle -std= when the input language
+    // doesn't match. For the time being just ignore this for C++ inputs;
+    // eventually we want to do all the standard defaulting here instead of
+    // splitting it between the driver and clang -cc1.
+    if (!types::isCXX(InputType))
+        Args.AddAllArgsTranslated(CmdArgs, options::OPT_std_default_EQ,
+                                  "-std=", /*Joined=*/true);
     Args.AddLastArg(CmdArgs, options::OPT_trigraphs);
   }
 
@@ -1004,6 +1014,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (needsExceptions(Args, InputType, getToolChain().getTriple()))
     CmdArgs.push_back("-fexceptions");
 
+  if (getToolChain().UseSjLjExceptions())
+    CmdArgs.push_back("-fsjlj-exceptions");
+
   // -frtti is default.
   if (!Args.hasFlag(options::OPT_frtti, options::OPT_fno_rtti))
     CmdArgs.push_back("-fno-rtti");
@@ -1012,6 +1025,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasFlag(options::OPT_fsigned_char, options::OPT_funsigned_char,
                     isSignedCharDefault(getToolChain().getTriple())))
     CmdArgs.push_back("-fno-signed-char");
+
+  // -fthreadsafe-static is default.
+  if (!Args.hasFlag(options::OPT_fthreadsafe_statics, 
+                    options::OPT_fno_threadsafe_statics))
+    CmdArgs.push_back("-fno-threadsafe-statics");
 
   // -fms-extensions=0 is default.
   if (Args.hasFlag(options::OPT_fms_extensions, options::OPT_fno_ms_extensions,
@@ -1026,9 +1044,21 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // -fobjc-nonfragile-abi=0 is default.
   if (types::isObjC(InputType)) {
     if (Args.hasArg(options::OPT_fobjc_nonfragile_abi) ||
-        getToolChain().IsObjCNonFragileABIDefault())
+        getToolChain().IsObjCNonFragileABIDefault()) {
       CmdArgs.push_back("-fobjc-nonfragile-abi");
+      
+      // -fobjc-legacy-dispatch is only relevant with the nonfragile-abi, and
+      // defaults to off.
+      if (Args.hasFlag(options::OPT_fobjc_legacy_dispatch,
+                       options::OPT_fno_objc_legacy_dispatch,
+                       getToolChain().IsObjCLegacyDispatchDefault()))
+        CmdArgs.push_back("-fobjc-legacy-dispatch");
+    }
   }
+
+  if (!Args.hasFlag(options::OPT_fassume_sane_operator_new,
+                    options::OPT_fno_assume_sane_operator_new))
+    CmdArgs.push_back("-fno-assume-sane-operator-new");
 
   // -fshort-wchar default varies depending on platform; only
   // pass if specified.
@@ -1065,6 +1095,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasFlag(options::OPT_fdiagnostics_fixit_info,
                     options::OPT_fno_diagnostics_fixit_info))
     CmdArgs.push_back("-fno-diagnostics-fixit-info");
+
+  Args.AddLastArg(CmdArgs, options::OPT_fdiagnostics_binary);
 
   // Enable -fdiagnostics-show-option by default.
   if (Args.hasFlag(options::OPT_fdiagnostics_show_option,
@@ -1213,7 +1245,7 @@ void gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
-  RenderExtraToolArgs(CmdArgs);
+  RenderExtraToolArgs(JA, CmdArgs);
 
   // If using a driver driver, force the arch.
   const std::string &Arch = getToolChain().getArchName();
@@ -1291,23 +1323,39 @@ void gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
-void gcc::Preprocess::RenderExtraToolArgs(ArgStringList &CmdArgs) const {
+void gcc::Preprocess::RenderExtraToolArgs(const JobAction &JA,
+                                          ArgStringList &CmdArgs) const {
   CmdArgs.push_back("-E");
 }
 
-void gcc::Precompile::RenderExtraToolArgs(ArgStringList &CmdArgs) const {
+void gcc::Precompile::RenderExtraToolArgs(const JobAction &JA,
+                                          ArgStringList &CmdArgs) const {
   // The type is good enough.
 }
 
-void gcc::Compile::RenderExtraToolArgs(ArgStringList &CmdArgs) const {
-  CmdArgs.push_back("-S");
+void gcc::Compile::RenderExtraToolArgs(const JobAction &JA,
+                                       ArgStringList &CmdArgs) const {
+  const Driver &D = getToolChain().getDriver();
+
+  // If -flto, etc. are present then make sure not to force assembly output.
+  if (JA.getType() == types::TY_LLVMBC)
+    CmdArgs.push_back("-c");
+  else {
+    if (JA.getType() != types::TY_PP_Asm)
+      D.Diag(clang::diag::err_drv_invalid_gcc_output_type)
+        << getTypeName(JA.getType());
+      
+    CmdArgs.push_back("-S");
+  }
 }
 
-void gcc::Assemble::RenderExtraToolArgs(ArgStringList &CmdArgs) const {
+void gcc::Assemble::RenderExtraToolArgs(const JobAction &JA,
+                                        ArgStringList &CmdArgs) const {
   CmdArgs.push_back("-c");
 }
 
-void gcc::Link::RenderExtraToolArgs(ArgStringList &CmdArgs) const {
+void gcc::Link::RenderExtraToolArgs(const JobAction &JA,
+                                    ArgStringList &CmdArgs) const {
   // The types are (hopefully) good enough.
 }
 
@@ -1703,6 +1751,10 @@ void darwin::Compile::ConstructJob(Compilation &C, const JobAction &JA,
   else if (Output.getType() == types::TY_AST)
     D.Diag(clang::diag::err_drv_no_ast_support)
       << getToolChain().getTripleString();
+  else if (JA.getType() != types::TY_PP_Asm &&
+           JA.getType() != types::TY_PCH)
+    D.Diag(clang::diag::err_drv_invalid_gcc_output_type)
+      << getTypeName(JA.getType());
 
   ArgStringList OutputArgs;
   if (Output.getType() != types::TY_PCH) {
@@ -1798,7 +1850,7 @@ void darwin::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
   // Derived from asm spec.
   AddDarwinArch(Args, CmdArgs);
 
-  if (!getDarwinToolChain().isIPhoneOS() ||
+  if (!getDarwinToolChain().isTargetIPhoneOS() ||
       Args.hasArg(options::OPT_force__cpusubtype__ALL))
     CmdArgs.push_back("-force_cpusubtype_ALL");
 
@@ -1921,7 +1973,7 @@ void darwin::Link::AddLinkArgs(const ArgList &Args,
   Args.AddLastArg(CmdArgs, options::OPT_all__load);
   Args.AddAllArgs(CmdArgs, options::OPT_allowable__client);
   Args.AddLastArg(CmdArgs, options::OPT_bind__at__load);
-  if (getDarwinToolChain().isIPhoneOS())
+  if (getDarwinToolChain().isTargetIPhoneOS())
     Args.AddLastArg(CmdArgs, options::OPT_arch__errors__fatal);
   Args.AddLastArg(CmdArgs, options::OPT_dead__strip);
   Args.AddLastArg(CmdArgs, options::OPT_no__dead__strip__inits__and__terms);
@@ -1933,20 +1985,11 @@ void darwin::Link::AddLinkArgs(const ArgList &Args,
   Args.AddAllArgs(CmdArgs, options::OPT_image__base);
   Args.AddAllArgs(CmdArgs, options::OPT_init);
 
-  if (!Args.hasArg(options::OPT_mmacosx_version_min_EQ) &&
-      !Args.hasArg(options::OPT_miphoneos_version_min_EQ)) {
-    // Add default version min.
-    if (!getDarwinToolChain().isIPhoneOS()) {
-      CmdArgs.push_back("-macosx_version_min");
-      CmdArgs.push_back(getDarwinToolChain().getMacosxVersionStr());
-    } else {
-      CmdArgs.push_back("-iphoneos_version_min");
-      CmdArgs.push_back(getDarwinToolChain().getIPhoneOSVersionStr());
-    }
-  }
-
-  // Adding all arguments doesn't make sense here but this is what
-  // gcc does.
+  // Adding all arguments doesn't make sense here but this is what gcc does. One
+  // of this should always be present thanks to argument translation.
+  assert((Args.hasArg(options::OPT_mmacosx_version_min_EQ) ||
+          Args.hasArg(options::OPT_miphoneos_version_min_EQ)) &&
+         "Missing version argument (lost in translation)?");
   Args.AddAllArgsTranslated(CmdArgs, options::OPT_mmacosx_version_min_EQ,
                             "-macosx_version_min");
   Args.AddAllArgsTranslated(CmdArgs, options::OPT_miphoneos_version_min_EQ,
@@ -1978,7 +2021,7 @@ void darwin::Link::AddLinkArgs(const ArgList &Args,
   Args.AddAllArgs(CmdArgs, options::OPT_sub__umbrella);
 
   Args.AddAllArgsTranslated(CmdArgs, options::OPT_isysroot, "-syslibroot");
-  if (getDarwinToolChain().isIPhoneOS()) {
+  if (getDarwinToolChain().isTargetIPhoneOS()) {
     if (!Args.hasArg(options::OPT_isysroot)) {
       CmdArgs.push_back("-syslibroot");
       CmdArgs.push_back("/Developer/SDKs/Extra");
@@ -2037,26 +2080,32 @@ void darwin::Link::ConstructJob(Compilation &C, const JobAction &JA,
   CmdArgs.push_back("-o");
   CmdArgs.push_back(Output.getFilename());
 
-
-  unsigned MacosxVersionMin[3];
-  getDarwinToolChain().getMacosxVersionMin(Args, MacosxVersionMin);
-
   if (!Args.hasArg(options::OPT_A) &&
       !Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
     // Derived from startfile spec.
     if (Args.hasArg(options::OPT_dynamiclib)) {
       // Derived from darwin_dylib1 spec.
-      if (getDarwinToolChain().isMacosxVersionLT(MacosxVersionMin, 10, 5))
-        CmdArgs.push_back("-ldylib1.o");
-      else if (getDarwinToolChain().isMacosxVersionLT(MacosxVersionMin, 10, 6))
-        CmdArgs.push_back("-ldylib1.10.5.o");
+      if (getDarwinToolChain().isTargetIPhoneOS()) {
+        if (getDarwinToolChain().isIPhoneOSVersionLT(3, 1))
+          CmdArgs.push_back("-ldylib1.o");
+      } else {
+        if (getDarwinToolChain().isMacosxVersionLT(10, 5))
+          CmdArgs.push_back("-ldylib1.o");
+        else if (getDarwinToolChain().isMacosxVersionLT(10, 6))
+          CmdArgs.push_back("-ldylib1.10.5.o");
+      }
     } else {
       if (Args.hasArg(options::OPT_bundle)) {
         if (!Args.hasArg(options::OPT_static)) {
           // Derived from darwin_bundle1 spec.
-          if (getDarwinToolChain().isMacosxVersionLT(MacosxVersionMin, 10, 6))
-            CmdArgs.push_back("-lbundle1.o");
+          if (getDarwinToolChain().isTargetIPhoneOS()) {
+            if (getDarwinToolChain().isIPhoneOSVersionLT(3, 1))
+              CmdArgs.push_back("-lbundle1.o");
+          } else {
+            if (getDarwinToolChain().isMacosxVersionLT(10, 6))
+              CmdArgs.push_back("-lbundle1.o");
+          }
         }
       } else {
         if (Args.hasArg(options::OPT_pg)) {
@@ -2076,26 +2125,29 @@ void darwin::Link::ConstructJob(Compilation &C, const JobAction &JA,
             CmdArgs.push_back("-lcrt0.o");
           } else {
             // Derived from darwin_crt1 spec.
-            if (getDarwinToolChain().isIPhoneOS()) {
-              CmdArgs.push_back("-lcrt1.o");
-            } else if (getDarwinToolChain().isMacosxVersionLT(MacosxVersionMin,
-                                                              10, 5))
-              CmdArgs.push_back("-lcrt1.o");
-            else if (getDarwinToolChain().isMacosxVersionLT(MacosxVersionMin,
-                                                            10, 6))
-              CmdArgs.push_back("-lcrt1.10.5.o");
-            else
-              CmdArgs.push_back("-lcrt1.10.6.o");
+            if (getDarwinToolChain().isTargetIPhoneOS()) {
+              if (getDarwinToolChain().isIPhoneOSVersionLT(3, 1))
+                CmdArgs.push_back("-lcrt1.o");
+              else
+                CmdArgs.push_back("-lcrt1.3.1.o");
+            } else {
+              if (getDarwinToolChain().isMacosxVersionLT(10, 5))
+                CmdArgs.push_back("-lcrt1.o");
+              else if (getDarwinToolChain().isMacosxVersionLT(10, 6))
+                CmdArgs.push_back("-lcrt1.10.5.o");
+              else
+                CmdArgs.push_back("-lcrt1.10.6.o");
 
-            // darwin_crt2 spec is empty.
+              // darwin_crt2 spec is empty.
+            }
           }
         }
       }
     }
 
-    if (Args.hasArg(options::OPT_shared_libgcc) &&
-        !Args.hasArg(options::OPT_miphoneos_version_min_EQ) &&
-        getDarwinToolChain().isMacosxVersionLT(MacosxVersionMin, 10, 5)) {
+    if (!getDarwinToolChain().isTargetIPhoneOS() &&
+        Args.hasArg(options::OPT_shared_libgcc) &&
+        getDarwinToolChain().isMacosxVersionLT(10, 5)) {
       const char *Str =
         Args.MakeArgString(getToolChain().GetFilePath(C, "crt3.o"));
       CmdArgs.push_back(Str);

@@ -96,7 +96,8 @@ def : DiagGroup<"strict-overflow">;
 def InvalidOffsetof : DiagGroup<"invalid-offsetof">;
 def : DiagGroup<"strict-prototypes">;
 def : DiagGroup<"strict-selector-match">;
-def Switch         : DiagGroup<"switch">;
+def SwitchEnum     : DiagGroup<"switch-enum">;
+def Switch         : DiagGroup<"switch", [SwitchEnum]>;
 def Trigraphs : DiagGroup<"trigraphs">;
 
 def : DiagGroup<"type-limits">;
@@ -118,6 +119,7 @@ def VectorConversions : DiagGroup<"vector-conversions">;      // clang specific
 def VolatileRegisterVar : DiagGroup<"volatile-register-var">;
 def : DiagGroup<"write-strings">;
 def CharSubscript : DiagGroup<"char-subscripts">;
+def ForceAlignArgPointer : DiagGroup<"force-align-arg-pointer">;
 
 // Aggregation warning settings.
 
@@ -178,4 +180,4 @@ def : DiagGroup<"comments", [Comment]>;         // -Wcomments = -Wcomment
 // A warning group for warnings that we want to have on by default in clang,
 // but which aren't on by default in GCC.
 def NonGCC : DiagGroup<"non-gcc",
-    [SignCompare, Conversion]>;
+    [SignCompare, Conversion, ForceAlignArgPointer]>;

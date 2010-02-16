@@ -271,6 +271,10 @@ ABIArgInfo DefaultABIInfo::classifyArgumentType(QualType Ty,
   if (CodeGenFunction::hasAggregateLLVMType(Ty)) {
     return ABIArgInfo::getIndirect(0);
   } else {
+    // Treat an enum type as its underlying type.
+    if (const EnumType *EnumTy = Ty->getAs<EnumType>())
+      Ty = EnumTy->getDecl()->getIntegerType();
+
     return (Ty->isPromotableIntegerType() ?
             ABIArgInfo::getExtend() : ABIArgInfo::getDirect());
   }
@@ -321,6 +325,9 @@ class X86_32TargetCodeGenInfo : public TargetCodeGenInfo {
 public:
   X86_32TargetCodeGenInfo(ASTContext &Context, bool d, bool p)
     :TargetCodeGenInfo(new X86_32ABIInfo(Context, d, p)) {}
+
+  void SetTargetAttributes(const Decl *D, llvm::GlobalValue *GV,
+                           CodeGen::CodeGenModule &CGM) const;
 };
 
 }
@@ -357,6 +364,8 @@ bool X86_32ABIInfo::shouldReturnTypeInRegister(QualType Ty,
   // Otherwise, it must be a record type.
   const RecordType *RT = Ty->getAs<RecordType>();
   if (!RT) return false;
+
+  // FIXME: Traverse bases here too.
 
   // Structure types are passed in register if all fields would be
   // passed in a register.
@@ -404,7 +413,7 @@ ABIArgInfo X86_32ABIInfo::classifyReturnType(QualType RetTy,
 
     return ABIArgInfo::getDirect();
   } else if (CodeGenFunction::hasAggregateLLVMType(RetTy)) {
-    if (const RecordType *RT = RetTy->getAsStructureType()) {
+    if (const RecordType *RT = RetTy->getAs<RecordType>()) {
       // Structures with either a non-trivial destructor or a non-trivial
       // copy constructor are always indirect.
       if (hasNonTrivialDestructorOrCopyConstructor(RT))
@@ -463,6 +472,10 @@ ABIArgInfo X86_32ABIInfo::classifyReturnType(QualType RetTy,
 
     return ABIArgInfo::getIndirect(0);
   } else {
+    // Treat an enum type as its underlying type.
+    if (const EnumType *EnumTy = RetTy->getAs<EnumType>())
+      RetTy = EnumTy->getDecl()->getIntegerType();
+
     return (RetTy->isPromotableIntegerType() ?
             ABIArgInfo::getExtend() : ABIArgInfo::getDirect());
   }
@@ -484,10 +497,16 @@ ABIArgInfo X86_32ABIInfo::classifyArgumentType(QualType Ty,
   // FIXME: Set alignment on indirect arguments.
   if (CodeGenFunction::hasAggregateLLVMType(Ty)) {
     // Structures with flexible arrays are always indirect.
-    if (const RecordType *RT = Ty->getAsStructureType())
+    if (const RecordType *RT = Ty->getAs<RecordType>()) {
+      // Structures with either a non-trivial destructor or a non-trivial
+      // copy constructor are always indirect.
+      if (hasNonTrivialDestructorOrCopyConstructor(RT))
+        return ABIArgInfo::getIndirect(0, /*ByVal=*/false);
+        
       if (RT->getDecl()->hasFlexibleArrayMember())
         return ABIArgInfo::getIndirect(getIndirectArgumentAlignment(Ty,
                                                                     Context));
+    }
 
     // Ignore empty structs.
     if (Ty->isStructureType() && Context.getTypeSize(Ty) == 0)
@@ -503,6 +522,9 @@ ABIArgInfo X86_32ABIInfo::classifyArgumentType(QualType Ty,
 
     return ABIArgInfo::getIndirect(getIndirectArgumentAlignment(Ty, Context));
   } else {
+    if (const EnumType *EnumTy = Ty->getAs<EnumType>())
+      Ty = EnumTy->getDecl()->getIntegerType();
+
     return (Ty->isPromotableIntegerType() ?
             ABIArgInfo::getExtend() : ABIArgInfo::getDirect());
   }
@@ -530,6 +552,20 @@ llvm::Value *X86_32ABIInfo::EmitVAArg(llvm::Value *VAListAddr, QualType Ty,
   Builder.CreateStore(NextAddr, VAListAddrAsBPP);
 
   return AddrTyped;
+}
+
+void X86_32TargetCodeGenInfo::SetTargetAttributes(const Decl *D,
+                                                  llvm::GlobalValue *GV,
+                                            CodeGen::CodeGenModule &CGM) const {
+  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+    if (FD->hasAttr<X86ForceAlignArgPointerAttr>()) {
+      // Get the LLVM function.
+      llvm::Function *Fn = cast<llvm::Function>(GV);
+
+      // Now add the 'alignstack' attribute with a value of 16.
+      Fn->addFnAttr(llvm::Attribute::constructStackAlignmentFromInt(16));
+    }
+  }
 }
 
 namespace {
@@ -927,6 +963,11 @@ ABIArgInfo X86_64ABIInfo::getCoerceResult(QualType Ty,
   if (CoerceTo == llvm::Type::getInt64Ty(CoerceTo->getContext())) {
     // Integer and pointer types will end up in a general purpose
     // register.
+
+    // Treat an enum type as its underlying type.
+    if (const EnumType *EnumTy = Ty->getAs<EnumType>())
+      Ty = EnumTy->getDecl()->getIntegerType();
+
     if (Ty->isIntegralType() || Ty->hasPointerRepresentation())
       return (Ty->isPromotableIntegerType() ?
               ABIArgInfo::getExtend() : ABIArgInfo::getDirect());
@@ -948,9 +989,14 @@ ABIArgInfo X86_64ABIInfo::getIndirectResult(QualType Ty,
                                             ASTContext &Context) const {
   // If this is a scalar LLVM value then assume LLVM will pass it in the right
   // place naturally.
-  if (!CodeGenFunction::hasAggregateLLVMType(Ty))
+  if (!CodeGenFunction::hasAggregateLLVMType(Ty)) {
+    // Treat an enum type as its underlying type.
+    if (const EnumType *EnumTy = Ty->getAs<EnumType>())
+      Ty = EnumTy->getDecl()->getIntegerType();
+
     return (Ty->isPromotableIntegerType() ?
             ABIArgInfo::getExtend() : ABIArgInfo::getDirect());
+  }
 
   bool ByVal = !isRecordWithNonTrivialDestructorOrCopyConstructor(Ty);
 
@@ -1319,14 +1365,14 @@ llvm::Value *X86_64ABIInfo::EmitVAArg(llvm::Value *VAListAddr, QualType Ty,
     assert(ST->getNumElements() == 2 && "Unexpected ABI info for mixed regs");
     const llvm::Type *TyLo = ST->getElementType(0);
     const llvm::Type *TyHi = ST->getElementType(1);
-    assert((TyLo->isFloatingPoint() ^ TyHi->isFloatingPoint()) &&
+    assert((TyLo->isFloatingPointTy() ^ TyHi->isFloatingPointTy()) &&
            "Unexpected ABI info for mixed regs");
     const llvm::Type *PTyLo = llvm::PointerType::getUnqual(TyLo);
     const llvm::Type *PTyHi = llvm::PointerType::getUnqual(TyHi);
     llvm::Value *GPAddr = CGF.Builder.CreateGEP(RegAddr, gp_offset);
     llvm::Value *FPAddr = CGF.Builder.CreateGEP(RegAddr, fp_offset);
-    llvm::Value *RegLoAddr = TyLo->isFloatingPoint() ? FPAddr : GPAddr;
-    llvm::Value *RegHiAddr = TyLo->isFloatingPoint() ? GPAddr : FPAddr;
+    llvm::Value *RegLoAddr = TyLo->isFloatingPointTy() ? FPAddr : GPAddr;
+    llvm::Value *RegHiAddr = TyLo->isFloatingPointTy() ? GPAddr : FPAddr;
     llvm::Value *V =
       CGF.Builder.CreateLoad(CGF.Builder.CreateBitCast(RegLoAddr, PTyLo));
     CGF.Builder.CreateStore(V, CGF.Builder.CreateStructGEP(Tmp, 0));
@@ -1526,9 +1572,14 @@ void ARMABIInfo::computeInfo(CGFunctionInfo &FI, ASTContext &Context,
 ABIArgInfo ARMABIInfo::classifyArgumentType(QualType Ty,
                                             ASTContext &Context,
                                           llvm::LLVMContext &VMContext) const {
-  if (!CodeGenFunction::hasAggregateLLVMType(Ty))
+  if (!CodeGenFunction::hasAggregateLLVMType(Ty)) {
+    // Treat an enum type as its underlying type.
+    if (const EnumType *EnumTy = Ty->getAs<EnumType>())
+      Ty = EnumTy->getDecl()->getIntegerType();
+
     return (Ty->isPromotableIntegerType() ?
             ABIArgInfo::getExtend() : ABIArgInfo::getDirect());
+  }
 
   // Ignore empty records.
   if (isEmptyRecord(Context, Ty, true))
@@ -1577,9 +1628,9 @@ static bool isIntegerLikeType(QualType Ty,
   if (Ty->getAs<BuiltinType>() || Ty->isPointerType())
     return true;
 
-  // Complex types "should" be ok by the definition above, but they are not.
-  if (Ty->isAnyComplexType())
-    return false;
+  // Small complex integer types are "integer like".
+  if (const ComplexType *CT = Ty->getAs<ComplexType>())
+    return isIntegerLikeType(CT->getElementType(), Context, VMContext);
 
   // Single element and zero sized arrays should be allowed, by the definition
   // above, but they are not.
@@ -1603,30 +1654,30 @@ static bool isIntegerLikeType(QualType Ty,
        i != e; ++i, ++idx) {
     const FieldDecl *FD = *i;
 
-    // Check if this field is at offset 0.
-    uint64_t Offset = Layout.getFieldOffset(idx);
-    if (Offset != 0) {
-      // Allow padding bit-fields, but only if they are all at the end of the
-      // structure (despite the wording above, this matches gcc).
-      if (FD->isBitField() && 
-          !FD->getBitWidth()->EvaluateAsInt(Context).getZExtValue()) {
-        for (; i != e; ++i)
-          if (!i->isBitField() ||
-              i->getBitWidth()->EvaluateAsInt(Context).getZExtValue())
-            return false;
+    // Bit-fields are not addressable, we only need to verify they are "integer
+    // like". We still have to disallow a subsequent non-bitfield, for example:
+    //   struct { int : 0; int x }
+    // is non-integer like according to gcc.
+    if (FD->isBitField()) {
+      if (!RD->isUnion())
+        HadField = true;
 
-        // All remaining fields are padding, allow this.
-        return true;
-      }
+      if (!isIntegerLikeType(FD->getType(), Context, VMContext))
+        return false;
 
-      return false;
+      continue;
     }
+
+    // Check if this field is at offset 0.
+    if (Layout.getFieldOffset(idx) != 0)
+      return false;
 
     if (!isIntegerLikeType(FD->getType(), Context, VMContext))
       return false;
     
-    // Only allow at most one field in a structure. Again this doesn't match the
-    // wording above, but follows gcc.
+    // Only allow at most one field in a structure. This doesn't match the
+    // wording above, but follows gcc in situations with a field following an
+    // empty structure.
     if (!RD->isUnion()) {
       if (HadField)
         return false;
@@ -1644,14 +1695,27 @@ ABIArgInfo ARMABIInfo::classifyReturnType(QualType RetTy,
   if (RetTy->isVoidType())
     return ABIArgInfo::getIgnore();
 
-  if (!CodeGenFunction::hasAggregateLLVMType(RetTy))
+  if (!CodeGenFunction::hasAggregateLLVMType(RetTy)) {
+    // Treat an enum type as its underlying type.
+    if (const EnumType *EnumTy = RetTy->getAs<EnumType>())
+      RetTy = EnumTy->getDecl()->getIntegerType();
+
     return (RetTy->isPromotableIntegerType() ?
             ABIArgInfo::getExtend() : ABIArgInfo::getDirect());
+  }
 
   // Are we following APCS?
   if (getABIKind() == APCS) {
     if (isEmptyRecord(Context, RetTy, false))
       return ABIArgInfo::getIgnore();
+
+    // Complex types are all returned as packed integers.
+    //
+    // FIXME: Consider using 2 x vector types if the back end handles them
+    // correctly.
+    if (RetTy->isAnyComplexType())
+      return ABIArgInfo::getCoerce(llvm::IntegerType::get(
+                                     VMContext, Context.getTypeSize(RetTy)));
 
     // Integer like structures are returned in r0.
     if (isIntegerLikeType(RetTy, Context, VMContext)) {
@@ -1721,6 +1785,10 @@ ABIArgInfo DefaultABIInfo::classifyReturnType(QualType RetTy,
   } else if (CodeGenFunction::hasAggregateLLVMType(RetTy)) {
     return ABIArgInfo::getIndirect(0);
   } else {
+    // Treat an enum type as its underlying type.
+    if (const EnumType *EnumTy = RetTy->getAs<EnumType>())
+      RetTy = EnumTy->getDecl()->getIntegerType();
+
     return (RetTy->isPromotableIntegerType() ?
             ABIArgInfo::getExtend() : ABIArgInfo::getDirect());
   }

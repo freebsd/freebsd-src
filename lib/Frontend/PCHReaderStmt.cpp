@@ -123,6 +123,8 @@ namespace {
     unsigned VisitCXXReinterpretCastExpr(CXXReinterpretCastExpr *E);
     unsigned VisitCXXConstCastExpr(CXXConstCastExpr *E);
     unsigned VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E);
+    unsigned VisitCXXBoolLiteralExpr(CXXBoolLiteralExpr *E);
+    unsigned VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *E);
   };
 }
 
@@ -317,22 +319,24 @@ unsigned PCHStmtReader::VisitAsmStmt(AsmStmt *S) {
   S->setAsmString(cast_or_null<StringLiteral>(StmtStack[StackIdx++]));
 
   // Outputs and inputs
-  llvm::SmallVector<std::string, 16> Names;
+  llvm::SmallVector<IdentifierInfo *, 16> Names;
   llvm::SmallVector<StringLiteral*, 16> Constraints;
   llvm::SmallVector<Stmt*, 16> Exprs;
   for (unsigned I = 0, N = NumOutputs + NumInputs; I != N; ++I) {
-    Names.push_back(Reader.ReadString(Record, Idx));
+    Names.push_back(Reader.GetIdentifierInfo(Record, Idx));
     Constraints.push_back(cast_or_null<StringLiteral>(StmtStack[StackIdx++]));
     Exprs.push_back(StmtStack[StackIdx++]);
   }
-  S->setOutputsAndInputs(NumOutputs, NumInputs,
-                         Names.data(), Constraints.data(), Exprs.data());
 
   // Constraints
   llvm::SmallVector<StringLiteral*, 16> Clobbers;
   for (unsigned I = 0; I != NumClobbers; ++I)
     Clobbers.push_back(cast_or_null<StringLiteral>(StmtStack[StackIdx++]));
-  S->setClobbers(Clobbers.data(), NumClobbers);
+
+  S->setOutputsAndInputsAndClobbers(*Reader.getContext(),
+                                    Names.data(), Constraints.data(), 
+                                    Exprs.data(), NumOutputs, NumInputs, 
+                                    Clobbers.data(), NumClobbers);
 
   assert(StackIdx == StmtStack.size() && "Error deserializing AsmStmt");
   return NumOutputs*2 + NumInputs*2 + NumClobbers + 1;
@@ -904,6 +908,19 @@ unsigned PCHStmtReader::VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E) {
   return num;
 }
 
+unsigned PCHStmtReader::VisitCXXBoolLiteralExpr(CXXBoolLiteralExpr *E) {
+  VisitExpr(E);
+  E->setValue(Record[Idx++]);
+  E->setLocation(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  return 0;
+}
+
+unsigned PCHStmtReader::VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *E) {
+  VisitExpr(E);
+  E->setLocation(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  return 0;
+}
+
 // Within the bitstream, expressions are stored in Reverse Polish
 // Notation, with each of the subexpressions preceding the
 // expression they are stored in. To evaluate expressions, we
@@ -1233,7 +1250,13 @@ Stmt *PCHReader::ReadStmt(llvm::BitstreamCursor &Cursor) {
       S = new (Context) CXXFunctionalCastExpr(Empty);
       break;
 
+    case pch::EXPR_CXX_BOOL_LITERAL:
+      S = new (Context) CXXBoolLiteralExpr(Empty);
+      break;
 
+    case pch::EXPR_CXX_NULL_PTR_LITERAL:
+      S = new (Context) CXXNullPtrLiteralExpr(Empty);
+      break;
     }
 
     // We hit a STMT_STOP, so we're done with this expression.

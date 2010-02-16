@@ -21,67 +21,55 @@ using namespace std;
 namespace clang {
   
 llvm::StringRef getClangRepositoryPath() {
-  static const char *Path = 0;
-  if (Path)
-    return Path;
-  
-  static char URL[] = "$URL: http://llvm.org/svn/llvm-project/cfe/trunk/lib/Basic/Version.cpp $";
-  char *End = strstr(URL, "/lib/Basic");
+  static const char URL[] = "$URL: http://llvm.org/svn/llvm-project/cfe/trunk/lib/Basic/Version.cpp $";
+  const char *URLEnd = URL + strlen(URL);
+
+  const char *End = strstr(URL, "/lib/Basic");
   if (End)
-    *End = 0;
-  
+    URLEnd = End;
+
   End = strstr(URL, "/clang/tools/clang");
   if (End)
-    *End = 0;
-  
-  char *Begin = strstr(URL, "cfe/");
-  if (Begin) {
-    Path = Begin + 4;
-    return Path;
-  }
-  
-  Path = URL;
-  return Path;
+    URLEnd = End;
+
+  const char *Begin = strstr(URL, "cfe/");
+  if (Begin)
+    return llvm::StringRef(Begin + 4, URLEnd - Begin - 4);
+
+  return llvm::StringRef(URL, URLEnd - URL);
 }
 
-
-llvm::StringRef getClangRevision() {
+std::string getClangRevision() {
 #ifndef SVN_REVISION
   // Subversion was not available at build time?
-  return llvm::StringRef();
+  return "";
 #else
-  static std::string revision;
-  if (revision.empty()) {
-    llvm::raw_string_ostream OS(revision);
-    OS << strtol(SVN_REVISION, 0, 10);
-  }
+  std::string revision;
+  llvm::raw_string_ostream OS(revision);
+  OS << strtol(SVN_REVISION, 0, 10);
   return revision;
 #endif
 }
 
-llvm::StringRef getClangFullRepositoryVersion() {
-  static std::string buf;
-  if (buf.empty()) {
-    llvm::raw_string_ostream OS(buf);
-    OS << getClangRepositoryPath();
-    llvm::StringRef Revision = getClangRevision();
-    if (!Revision.empty())
-      OS << ' ' << Revision;
-  }
+std::string getClangFullRepositoryVersion() {
+  std::string buf;
+  llvm::raw_string_ostream OS(buf);
+  OS << getClangRepositoryPath();
+  const std::string &Revision = getClangRevision();
+  if (!Revision.empty())
+    OS << ' ' << Revision;
   return buf;
 }
   
-const char *getClangFullVersion() {
-  static std::string buf;
-  if (buf.empty()) {
-    llvm::raw_string_ostream OS(buf);
+std::string getClangFullVersion() {
+  std::string buf;
+  llvm::raw_string_ostream OS(buf);
 #ifdef CLANG_VENDOR
-    OS << CLANG_VENDOR;
+  OS << CLANG_VENDOR;
 #endif
-    OS << "clang version " CLANG_VERSION_STRING " ("
-       << getClangFullRepositoryVersion() << ')';
-  }
-  return buf.c_str();
+  OS << "clang version " CLANG_VERSION_STRING " ("
+     << getClangFullRepositoryVersion() << ')';
+  return buf;
 }
-  
+
 } // end namespace clang

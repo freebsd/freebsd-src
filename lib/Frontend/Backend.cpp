@@ -17,7 +17,6 @@
 #include "clang/CodeGen/ModuleBuilder.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "llvm/Module.h"
-#include "llvm/ModuleProvider.h"
 #include "llvm/PassManager.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Assembly/PrintModulePass.h"
@@ -56,7 +55,6 @@ namespace {
     llvm::Module *TheModule;
     llvm::TargetData *TheTargetData;
 
-    mutable llvm::ModuleProvider *ModuleProvider;
     mutable FunctionPassManager *CodeGenPasses;
     mutable PassManager *PerModulePasses;
     mutable FunctionPassManager *PerFunctionPasses;
@@ -89,7 +87,7 @@ namespace {
       LLVMIRGeneration("LLVM IR Generation Time"),
       CodeGenerationTime("Code Generation Time"),
       Gen(CreateLLVMCodeGen(Diags, infile, compopts, C)),
-      TheModule(0), TheTargetData(0), ModuleProvider(0),
+      TheModule(0), TheTargetData(0),
       CodeGenPasses(0), PerModulePasses(0), PerFunctionPasses(0) {
 
       if (AsmOutStream)
@@ -101,7 +99,7 @@ namespace {
 
     ~BackendConsumer() {
       delete TheTargetData;
-      delete ModuleProvider;
+      delete TheModule;
       delete CodeGenPasses;
       delete PerModulePasses;
       delete PerFunctionPasses;
@@ -116,7 +114,6 @@ namespace {
       Gen->Initialize(Ctx);
 
       TheModule = Gen->GetModule();
-      ModuleProvider = new ExistingModuleProvider(TheModule);
       TheTargetData = new llvm::TargetData(Ctx.Target.getTargetDescription());
 
       if (llvm::TimePassesIsEnabled)
@@ -172,7 +169,7 @@ namespace {
 
 FunctionPassManager *BackendConsumer::getCodeGenPasses() const {
   if (!CodeGenPasses) {
-    CodeGenPasses = new FunctionPassManager(ModuleProvider);
+    CodeGenPasses = new FunctionPassManager(TheModule);
     CodeGenPasses->add(new TargetData(*TheTargetData));
   }
 
@@ -190,7 +187,7 @@ PassManager *BackendConsumer::getPerModulePasses() const {
 
 FunctionPassManager *BackendConsumer::getPerFunctionPasses() const {
   if (!PerFunctionPasses) {
-    PerFunctionPasses = new FunctionPassManager(ModuleProvider);
+    PerFunctionPasses = new FunctionPassManager(TheModule);
     PerFunctionPasses->add(new TargetData(*TheTargetData));
   }
 
@@ -306,20 +303,12 @@ bool BackendConsumer::AddEmitPasses() {
     case 3: OptLevel = CodeGenOpt::Aggressive; break;
     }
 
-    // Normal mode, emit a .s file by running the code generator.
-    // Note, this also adds codegenerator level optimization passes.
-    switch (TM->addPassesToEmitFile(*PM, FormattedOutStream,
-                                    TargetMachine::AssemblyFile, OptLevel)) {
-    default:
-    case FileModel::Error:
-      Diags.Report(diag::err_fe_unable_to_interface_with_target);
-      return false;
-    case FileModel::AsmFile:
-      break;
-    }
-
-    if (TM->addPassesToEmitFileFinish(*CodeGenPasses, (MachineCodeEmitter *)0,
-                                      OptLevel)) {
+    // Normal mode, emit a .s or .o file by running the code generator. Note,
+    // this also adds codegenerator level optimization passes.
+    TargetMachine::CodeGenFileType CGFT = TargetMachine::CGFT_AssemblyFile;
+    if (Action == Backend_EmitObj)
+      CGFT = TargetMachine::CGFT_ObjectFile;
+    if (TM->addPassesToEmitFile(*PM, FormattedOutStream, CGFT, OptLevel)) {
       Diags.Report(diag::err_fe_unable_to_interface_with_target);
       return false;
     }
@@ -354,11 +343,11 @@ void BackendConsumer::CreatePasses() {
     // Set the inline threshold following llvm-gcc.
     //
     // FIXME: Derive these constants in a principled fashion.
-    unsigned Threshold = 200;
+    unsigned Threshold = 225;
     if (CodeGenOpts.OptimizeSize)
-      Threshold = 50;
+      Threshold = 75;
     else if (OptLevel > 2)
-      Threshold = 250;
+      Threshold = 275;
     InliningPass = createFunctionInliningPass(Threshold);
     break;
   }
@@ -392,7 +381,6 @@ void BackendConsumer::EmitAssembly() {
   if (!M) {
     // The module has been released by IR gen on failures, do not
     // double free.
-    ModuleProvider->releaseModule();
     TheModule = 0;
     return;
   }

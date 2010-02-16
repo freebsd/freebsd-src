@@ -3,19 +3,26 @@
 <html>
 <head>
   <title>Clang Static Analyzer</title>
-  <link type="text/css" rel="stylesheet" href="menu.css" />
   <link type="text/css" rel="stylesheet" href="content.css" />
+  <link type="text/css" rel="stylesheet" href="menu.css" />
+  <script type="text/javascript" src="scripts/menu.js"></script>  
 </head>
 <body>
 
+<div id="page">
 <!--#include virtual="menu.html.incl"-->
-
 <div id="content">
 
-<h1>Clang Static Analyzer</h1>
+
+<table style="margin-top:0px" width="100%" border="0" cellpadding="0px" cellspacing="0">
+<tr><td>
+
+<h1>Clang Static Analyzer</h1>  
 
 <p>The Clang Static Analyzer consists of both a source code analysis framework
-and a standalone tool that finds bugs in C and Objective-C programs. The
+and a standalone tool that finds bugs in C and Objective-C programs.</p>
+
+<p>The
 standalone tool is invoked from the command-line, and is intended to run in
 tandem with a build of a project or code base.</p>
 
@@ -75,7 +82,7 @@ href="http://clang.llvm.org">Clang</a> project.</p>
   #wrappedcontent { padding:15px;}
 </style>
 
-<div style="padding:0px">
+<div style="padding:0px; font-size: 90%">
  <b class="spiffy">
  <b class="spiffy1"><b></b></b>
  <b class="spiffy2"><b></b></b>
@@ -106,6 +113,13 @@ href="http://clang.llvm.org">Clang</a> project.</p>
  <b class="spiffy2"><b></b></b>
  <b class="spiffy1"><b></b></b></b>
 </div>
+
+</td><td style="padding-left:10px">
+<a href="images/analyzer_xcode.png"><img src="images/analyzer_xcode.png" width="450x" border=0></a>
+<center><b>Viewing static analyzer results in Xcode 3.2</b></center>
+<a href="images/analyzer_html.png"><img src="images/analyzer_html.png" width="450px" border=0></a>
+<center><b>Viewing static analyzer results in a web browser</b></center>
+</td></tr></table>
 
 <h2 id="StaticAnalysis">What is Static Analysis?</h2>
 
@@ -181,6 +195,7 @@ you would like the Clang Static Analyzer to find, please feel free to
 file <a href="filing_bugs.html">feature requests</a> or contribute your own
 patches.</p>
 
+</div>
 </div>
 </body>
 </html>

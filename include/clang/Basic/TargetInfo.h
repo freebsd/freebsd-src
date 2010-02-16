@@ -226,11 +226,11 @@ public:
   /// isValidGCCRegisterName - Returns whether the passed in string
   /// is a valid register name according to GCC. This is used by Sema for
   /// inline asm statements.
-  bool isValidGCCRegisterName(const char *Name) const;
+  bool isValidGCCRegisterName(llvm::StringRef Name) const;
 
   // getNormalizedGCCRegisterName - Returns the "normalized" GCC register name.
   // For example, on x86 it will return "ax" when "eax" is passed in.
-  const char *getNormalizedGCCRegisterName(const char *Name) const;
+  llvm::StringRef getNormalizedGCCRegisterName(llvm::StringRef Name) const;
 
   struct ConstraintInfo {
     enum {
@@ -246,10 +246,9 @@ public:
     std::string ConstraintStr;  // constraint: "=rm"
     std::string Name;           // Operand name: [foo] with no []'s.
   public:
-    ConstraintInfo(const char *str, unsigned strlen, const std::string &name)
-      : Flags(0), TiedOperand(-1), ConstraintStr(str, str+strlen), Name(name) {}
-    explicit ConstraintInfo(const std::string &Str, const std::string &name)
-      : Flags(0), TiedOperand(-1), ConstraintStr(Str), Name(name) {}
+    ConstraintInfo(llvm::StringRef ConstraintStr, llvm::StringRef Name)
+      : Flags(0), TiedOperand(-1), ConstraintStr(ConstraintStr.str()), 
+      Name(Name.str()) {}
 
     const std::string &getConstraintStr() const { return ConstraintStr; }
     const std::string &getName() const { return Name; }
@@ -321,12 +320,6 @@ public:
 
   virtual bool useGlobalsForAutomaticVariables() const { return false; }
 
-  /// getUnicodeStringSection - Return the section to use for unicode
-  /// string literals, or 0 if no special section is used.
-  virtual const char *getUnicodeStringSection() const {
-    return 0;
-  }
-
   /// getCFStringSection - Return the section to use for CFString
   /// literals, or 0 if no special section is used.
   virtual const char *getCFStringSection() const {
@@ -343,7 +336,7 @@ public:
   /// and give good diagnostics in cases when the assembler or code generator
   /// would otherwise reject the section specifier.
   ///
-  virtual std::string isValidSectionSpecifier(const llvm::StringRef &SR) const {
+  virtual std::string isValidSectionSpecifier(llvm::StringRef SR) const {
     return "";
   }
 

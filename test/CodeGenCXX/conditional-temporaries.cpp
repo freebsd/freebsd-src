@@ -1,28 +1,55 @@
-// RUN: %clang_cc1 -emit-llvm %s -o - -triple=x86_64-apple-darwin9 | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm %s -o - -triple=x86_64-apple-darwin9 -O3 | FileCheck %s
 
-struct I {
+namespace {
+
+static int ctorcalls;
+static int dtorcalls;
+  
+struct A {
+  A() : i(0) { ctorcalls++; }
+  ~A() { dtorcalls++; }
   int i;
-  I();
-  ~I();
+  
+  friend const A& operator<<(const A& a, int n) {
+    return a;
+  }
 };
 
-void g(int);
+void g(int) { }
+void g(const A&) { }
 
-volatile int i;
+void f1(bool b) {
+  g(b ? A().i : 0);
+  g(b || A().i);
+  g(b && A().i);
+  g(b ? A() << 1 : A() << 2);
+}
 
-void f1() {
-  // CHECK: call void @_ZN1IC1Ev
-  g(i ? I().i : 0);
-  // CHECK: call void @_Z1gi
-  // CHECK: call void @_ZN1ID1Ev
+struct Checker {
+  Checker() {
+    f1(true);
+    f1(false);
+  }
+};
 
-  // CHECK: call void @_ZN1IC1Ev
-  g(i || I().i);
-  // CHECK: call void @_Z1gi
-  // CHECK: call void @_ZN1ID1Ev
+Checker c;
 
-  // CHECK: call void @_ZN1IC1Ev
-  g(i && I().i);
-  // CHECK: call void @_Z1gi
-  // CHECK: call void @_ZN1ID1Ev
+}
+
+// CHECK: define i32 @_Z12getCtorCallsv()
+int getCtorCalls() {
+  // CHECK: ret i32 5
+  return ctorcalls;
+}
+
+// CHECK: define i32 @_Z12getDtorCallsv()
+int getDtorCalls() {
+  // CHECK: ret i32 5
+  return dtorcalls;
+}
+
+// CHECK: define zeroext i1 @_Z7successv()
+bool success() {
+  // CHECK: ret i1 true
+  return ctorcalls == dtorcalls;
 }

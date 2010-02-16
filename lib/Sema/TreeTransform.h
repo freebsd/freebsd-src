@@ -428,7 +428,8 @@ public:
   ///
   /// By default, performs semantic analysis when building the vector type.
   /// Subclasses may override this routine to provide different behavior.
-  QualType RebuildVectorType(QualType ElementType, unsigned NumElements);
+  QualType RebuildVectorType(QualType ElementType, unsigned NumElements,
+    bool IsAltiVec, bool IsPixel);
 
   /// \brief Build a new extended vector type given the element type and
   /// number of elements.
@@ -524,9 +525,13 @@ public:
   /// and the given type. Subclasses may override this routine to provide
   /// different behavior.
   QualType RebuildTypenameType(NestedNameSpecifier *NNS, QualType T) {
-    if (NNS->isDependent())
-      return SemaRef.Context.getTypenameType(NNS,
+    if (NNS->isDependent()) {
+      CXXScopeSpec SS;
+      SS.setScopeRep(NNS);
+      if (!SemaRef.computeDeclContext(SS))
+        return SemaRef.Context.getTypenameType(NNS,
                                           cast<TemplateSpecializationType>(T));
+    }
 
     return SemaRef.Context.getQualifiedNameType(NNS, T);
   }
@@ -776,6 +781,28 @@ public:
                                               StartLoc, EndLoc));
   }
 
+  /// \brief Build a new inline asm statement.
+  ///
+  /// By default, performs semantic analysis to build the new statement.
+  /// Subclasses may override this routine to provide different behavior.
+  OwningStmtResult RebuildAsmStmt(SourceLocation AsmLoc,
+                                  bool IsSimple,
+                                  bool IsVolatile,
+                                  unsigned NumOutputs,
+                                  unsigned NumInputs,
+                                  IdentifierInfo **Names,
+                                  MultiExprArg Constraints,
+                                  MultiExprArg Exprs,
+                                  ExprArg AsmString,
+                                  MultiExprArg Clobbers,
+                                  SourceLocation RParenLoc,
+                                  bool MSAsm) {
+    return getSema().ActOnAsmStmt(AsmLoc, IsSimple, IsVolatile, NumOutputs, 
+                                  NumInputs, Names, move(Constraints),
+                                  move(Exprs), move(AsmString), move(Clobbers),
+                                  RParenLoc, MSAsm);
+  }
+  
   /// \brief Build a new C++ exception declaration.
   ///
   /// By default, performs semantic analysis to build the new decaration.
@@ -1662,6 +1689,7 @@ Sema::OwningStmtResult TreeTransform<Derived>::TransformStmt(Stmt *S) {
 
   // Transform expressions by calling TransformExpr.
 #define STMT(Node, Parent)
+#define ABSTRACT_EXPR(Node, Parent)
 #define EXPR(Node, Parent) case Stmt::Node##Class:
 #include "clang/AST/StmtNodes.def"
     {
@@ -1685,6 +1713,7 @@ Sema::OwningExprResult TreeTransform<Derived>::TransformExpr(Expr *E) {
   switch (E->getStmtClass()) {
     case Stmt::NoStmtClass: break;
 #define STMT(Node, Parent) case Stmt::Node##Class: break;
+#define ABSTRACT_EXPR(Node, Parent)
 #define EXPR(Node, Parent)                                              \
     case Stmt::Node##Class: return getDerived().Transform##Node(cast<Node>(E));
 #include "clang/AST/StmtNodes.def"
@@ -2448,7 +2477,8 @@ QualType TreeTransform<Derived>::TransformVectorType(TypeLocBuilder &TLB,
   QualType Result = TL.getType();
   if (getDerived().AlwaysRebuild() ||
       ElementType != T->getElementType()) {
-    Result = getDerived().RebuildVectorType(ElementType, T->getNumElements());
+    Result = getDerived().RebuildVectorType(ElementType, T->getNumElements(),
+      T->isAltiVec(), T->isPixel());
     if (Result.isNull())
       return QualType();
   }
@@ -3327,9 +3357,74 @@ TreeTransform<Derived>::TransformSwitchCase(SwitchCase *S) {
 template<typename Derived>
 Sema::OwningStmtResult
 TreeTransform<Derived>::TransformAsmStmt(AsmStmt *S) {
-  // FIXME: Implement!
-  assert(false && "Inline assembly cannot be transformed");
-  return SemaRef.Owned(S->Retain());
+  
+  ASTOwningVector<&ActionBase::DeleteExpr> Constraints(getSema());
+  ASTOwningVector<&ActionBase::DeleteExpr> Exprs(getSema());
+  llvm::SmallVector<IdentifierInfo *, 4> Names;
+
+  OwningExprResult AsmString(SemaRef);
+  ASTOwningVector<&ActionBase::DeleteExpr> Clobbers(getSema());
+
+  bool ExprsChanged = false;
+  
+  // Go through the outputs.
+  for (unsigned I = 0, E = S->getNumOutputs(); I != E; ++I) {
+    Names.push_back(S->getOutputIdentifier(I));
+    
+    // No need to transform the constraint literal.
+    Constraints.push_back(S->getOutputConstraintLiteral(I)->Retain());
+    
+    // Transform the output expr.
+    Expr *OutputExpr = S->getOutputExpr(I);
+    OwningExprResult Result = getDerived().TransformExpr(OutputExpr);
+    if (Result.isInvalid())
+      return SemaRef.StmtError();
+    
+    ExprsChanged |= Result.get() != OutputExpr;
+    
+    Exprs.push_back(Result.takeAs<Expr>());
+  }
+  
+  // Go through the inputs.
+  for (unsigned I = 0, E = S->getNumInputs(); I != E; ++I) {
+    Names.push_back(S->getInputIdentifier(I));
+    
+    // No need to transform the constraint literal.
+    Constraints.push_back(S->getInputConstraintLiteral(I)->Retain());
+    
+    // Transform the input expr.
+    Expr *InputExpr = S->getInputExpr(I);
+    OwningExprResult Result = getDerived().TransformExpr(InputExpr);
+    if (Result.isInvalid())
+      return SemaRef.StmtError();
+    
+    ExprsChanged |= Result.get() != InputExpr;
+    
+    Exprs.push_back(Result.takeAs<Expr>());
+  }
+  
+  if (!getDerived().AlwaysRebuild() && !ExprsChanged)
+    return SemaRef.Owned(S->Retain());
+
+  // Go through the clobbers.
+  for (unsigned I = 0, E = S->getNumClobbers(); I != E; ++I)
+    Clobbers.push_back(S->getClobber(I)->Retain());
+
+  // No need to transform the asm string literal.
+  AsmString = SemaRef.Owned(S->getAsmString());
+
+  return getDerived().RebuildAsmStmt(S->getAsmLoc(),
+                                     S->isSimple(),
+                                     S->isVolatile(),
+                                     S->getNumOutputs(),
+                                     S->getNumInputs(),
+                                     Names.data(),
+                                     move_arg(Constraints),
+                                     move_arg(Exprs),
+                                     move(AsmString),
+                                     move_arg(Clobbers),
+                                     S->getRParenLoc(),
+                                     S->isMSAsm());
 }
 
 
@@ -3742,13 +3837,6 @@ TreeTransform<Derived>::TransformMemberExpr(MemberExpr *E) {
 
 template<typename Derived>
 Sema::OwningExprResult
-TreeTransform<Derived>::TransformCastExpr(CastExpr *E) {
-  assert(false && "Cannot transform abstract class");
-  return SemaRef.Owned(E->Retain());
-}
-
-template<typename Derived>
-Sema::OwningExprResult
 TreeTransform<Derived>::TransformBinaryOperator(BinaryOperator *E) {
   OwningExprResult LHS = getDerived().TransformExpr(E->getLHS());
   if (LHS.isInvalid())
@@ -3808,13 +3896,6 @@ TreeTransform<Derived>::TransformImplicitCastExpr(ImplicitCastExpr *E) {
   // Implicit casts are eliminated during transformation, since they
   // will be recomputed by semantic analysis after transformation.
   return getDerived().TransformExpr(E->getSubExprAsWritten());
-}
-
-template<typename Derived>
-Sema::OwningExprResult
-TreeTransform<Derived>::TransformExplicitCastExpr(ExplicitCastExpr *E) {
-  assert(false && "Cannot transform abstract class");
-  return SemaRef.Owned(E->Retain());
 }
 
 template<typename Derived>
@@ -4433,7 +4514,7 @@ TreeTransform<Derived>::TransformCXXDefaultArgExpr(CXXDefaultArgExpr *E) {
   if (!Param)
     return SemaRef.ExprError();
 
-  if (getDerived().AlwaysRebuild() &&
+  if (!getDerived().AlwaysRebuild() &&
       Param == E->getParam())
     return SemaRef.Owned(E->Retain());
 
@@ -4733,6 +4814,12 @@ TreeTransform<Derived>::TransformDependentScopeDeclRefExpr(
 template<typename Derived>
 Sema::OwningExprResult
 TreeTransform<Derived>::TransformCXXConstructExpr(CXXConstructExpr *E) {
+  // CXXConstructExprs are always implicit, so when we have a
+  // 1-argument construction we just transform that argument.
+  if (E->getNumArgs() == 1 ||
+      (E->getNumArgs() > 1 && getDerived().DropCallArgument(E->getArg(1))))
+    return getDerived().TransformExpr(E->getArg(0));
+
   TemporaryBase Rebase(*this, /*FIXME*/E->getLocStart(), DeclarationName());
 
   QualType T = getDerived().TransformType(E->getType());
@@ -4781,6 +4868,16 @@ TreeTransform<Derived>::TransformCXXConstructExpr(CXXConstructExpr *E) {
 template<typename Derived>
 Sema::OwningExprResult
 TreeTransform<Derived>::TransformCXXBindTemporaryExpr(CXXBindTemporaryExpr *E) {
+  return getDerived().TransformExpr(E->getSubExpr());
+}
+
+/// \brief Transform a C++ reference-binding expression.
+///
+/// Since CXXBindReferenceExpr nodes are implicitly generated, we just
+/// transform the subexpression and return that.
+template<typename Derived>
+Sema::OwningExprResult
+TreeTransform<Derived>::TransformCXXBindReferenceExpr(CXXBindReferenceExpr *E) {
   return getDerived().TransformExpr(E->getSubExpr());
 }
 
@@ -5330,9 +5427,11 @@ TreeTransform<Derived>::RebuildDependentSizedArrayType(QualType ElementType,
 
 template<typename Derived>
 QualType TreeTransform<Derived>::RebuildVectorType(QualType ElementType,
-                                                   unsigned NumElements) {
+                                       unsigned NumElements,
+                                       bool IsAltiVec, bool IsPixel) {
   // FIXME: semantic checking!
-  return SemaRef.Context.getVectorType(ElementType, NumElements);
+  return SemaRef.Context.getVectorType(ElementType, NumElements,
+                                       IsAltiVec, IsPixel);
 }
 
 template<typename Derived>
@@ -5563,28 +5662,21 @@ TreeTransform<Derived>::RebuildCXXOperatorCallExpr(OverloadedOperatorKind Op,
 
   // Compute the transformed set of functions (and function templates) to be
   // used during overload resolution.
-  Sema::FunctionSet Functions;
+  UnresolvedSet<16> Functions;
 
   if (UnresolvedLookupExpr *ULE = dyn_cast<UnresolvedLookupExpr>(CalleeExpr)) {
     assert(ULE->requiresADL());
 
     // FIXME: Do we have to check
     // IsAcceptableNonMemberOperatorCandidate for each of these?
-    for (UnresolvedLookupExpr::decls_iterator I = ULE->decls_begin(),
-           E = ULE->decls_end(); I != E; ++I)
-      Functions.insert(AnyFunctionDecl::getFromNamedDecl(*I));
+    Functions.append(ULE->decls_begin(), ULE->decls_end());
   } else {
-    Functions.insert(AnyFunctionDecl::getFromNamedDecl(
-                        cast<DeclRefExpr>(CalleeExpr)->getDecl()));
+    Functions.addDecl(cast<DeclRefExpr>(CalleeExpr)->getDecl());
   }
 
   // Add any functions found via argument-dependent lookup.
   Expr *Args[2] = { FirstExpr, SecondExpr };
   unsigned NumArgs = 1 + (SecondExpr != 0);
-  DeclarationName OpName
-    = SemaRef.Context.DeclarationNames.getCXXOperatorName(Op);
-  SemaRef.ArgumentDependentLookup(OpName, /*Operator*/true, Args, NumArgs,
-                                  Functions);
 
   // Create the overloaded operator invocation for unary operators.
   if (NumArgs == 1 || isPostIncDec) {

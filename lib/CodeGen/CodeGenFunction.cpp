@@ -171,6 +171,16 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   CurFn = Fn;
   assert(CurFn->isDeclaration() && "Function already has body?");
 
+  // Pass inline keyword to optimizer if it appears explicitly on any
+  // declaration.
+  if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D))
+    for (FunctionDecl::redecl_iterator RI = FD->redecls_begin(),
+           RE = FD->redecls_end(); RI != RE; ++RI)
+      if (RI->isInlineSpecified()) {
+        Fn->addFnAttr(llvm::Attribute::InlineHint);
+        break;
+      }
+
   llvm::BasicBlock *EntryBB = createBasicBlock("entry", CurFn);
 
   // Create a marker to make it easy to insert allocas into the entryblock
@@ -196,7 +206,9 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   }
 
   // FIXME: Leaked.
-  CurFnInfo = &CGM.getTypes().getFunctionInfo(FnRetTy, Args);
+  // CC info is ignored, hopefully?
+  CurFnInfo = &CGM.getTypes().getFunctionInfo(FnRetTy, Args,
+                                              CC_Default, false);
 
   if (RetTy->isVoidType()) {
     // Void type; nothing to return.
@@ -280,6 +292,8 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn) {
     } else if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(FD)) {
       llvm::BasicBlock *DtorEpilogue  = createBasicBlock("dtor.epilogue");
       PushCleanupBlock(DtorEpilogue);
+
+      InitializeVtablePtrs(DD->getParent());
 
       EmitStmt(S);
       
@@ -431,7 +445,11 @@ void CodeGenFunction::EmitBranchOnBoolExpr(const Expr *Cond,
       EmitBranchOnBoolExpr(CondBOp->getLHS(), LHSTrue, FalseBlock);
       EmitBlock(LHSTrue);
 
+      // Any temporaries created here are conditional.
+      BeginConditionalBranch();
       EmitBranchOnBoolExpr(CondBOp->getRHS(), TrueBlock, FalseBlock);
+      EndConditionalBranch();
+
       return;
     } else if (CondBOp->getOpcode() == BinaryOperator::LOr) {
       // If we have "0 || X", simplify the code.  "1 || X" would have constant
@@ -454,7 +472,11 @@ void CodeGenFunction::EmitBranchOnBoolExpr(const Expr *Cond,
       EmitBranchOnBoolExpr(CondBOp->getLHS(), TrueBlock, LHSFalse);
       EmitBlock(LHSFalse);
 
+      // Any temporaries created here are conditional.
+      BeginConditionalBranch();
       EmitBranchOnBoolExpr(CondBOp->getRHS(), TrueBlock, FalseBlock);
+      EndConditionalBranch();
+
       return;
     }
   }

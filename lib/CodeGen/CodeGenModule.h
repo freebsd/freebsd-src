@@ -53,6 +53,7 @@ namespace clang {
   class ObjCProtocolDecl;
   class ObjCEncodeExpr;
   class BlockExpr;
+  class CharUnits;
   class Decl;
   class Expr;
   class Stmt;
@@ -238,10 +239,11 @@ public:
   BuildCovariantThunk(const GlobalDecl &GD, bool Extern,
                       const CovariantThunkAdjustment &Adjustment);
 
-  /// GetCXXBaseClassOffset - Returns the offset from a derived class to its
-  /// base class. Returns null if the offset is 0.
-  llvm::Constant *GetCXXBaseClassOffset(const CXXRecordDecl *ClassDecl,
-                                        const CXXRecordDecl *BaseClassDecl);
+  /// GetNonVirtualBaseClassOffset - Returns the offset from a derived class to 
+  /// its base class. Returns null if the offset is 0. 
+  llvm::Constant *
+  GetNonVirtualBaseClassOffset(const CXXRecordDecl *ClassDecl,
+                               const CXXRecordDecl *BaseClassDecl);
 
   /// ComputeThunkAdjustment - Returns the two parts required to compute the
   /// offset for an object.
@@ -346,6 +348,8 @@ public:
   llvm::Constant *EmitAnnotateAttr(llvm::GlobalValue *GV,
                                    const AnnotateAttr *AA, unsigned LineNo);
 
+  llvm::Constant *EmitPointerToDataMember(const FieldDecl *FD);
+
   /// ErrorUnsupported - Print out an error that codegen doesn't support the
   /// specified stmt yet.
   /// \param OmitOnError - If true, then this error should only be emitted if no
@@ -417,6 +421,10 @@ public:
   /// and type information of the given class.
   static llvm::GlobalVariable::LinkageTypes 
   getVtableLinkage(const CXXRecordDecl *RD);
+
+  /// GetTargetTypeStoreSize - Return the store size, in character units, of
+  /// the given LLVM type.
+  CharUnits GetTargetTypeStoreSize(const llvm::Type *Ty) const;
   
 private:
   /// UniqueMangledName - Unique a name by (if necessary) inserting it into the
@@ -443,7 +451,7 @@ private:
 
   /// SetFunctionAttributes - Set function attributes for a function
   /// declaration.
-  void SetFunctionAttributes(const FunctionDecl *FD,
+  void SetFunctionAttributes(GlobalDecl GD,
                              llvm::Function *F,
                              bool IsIncompleteFunction);
 

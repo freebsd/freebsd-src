@@ -2,8 +2,11 @@ html { margin: 0px; } body { margin: 8px; }
 
 html, body {
   padding:0px;
+  margin:0px;
   font-size:small; font-family:"Lucida Grande", "Lucida Sans Unicode", Arial, Verdana, Helvetica, sans-serif; background-color: #fff; color: #222;
   line-height:1.5;
+  background-color: #808080;
+  
 }
 
 h1, h2, h3, tt { color: #000 }
@@ -27,7 +30,34 @@ IMG.img_slide {
     margin-right: auto
 }
 
+#page { width:930px;  text-align: left; margin: 0 auto; padding:0;
+        background-color: white; height:100%;
+        border-left: 1px solid #EBF0FA;
+}
+
+#content {
+  clear: left;
+  padding: 1em 2em 0 2em;
+  background-color: #ffffff;
+}
+
 .itemTitle { color:#2d58b7 }
+
 
 /* Tables */
 tr { vertical-align:top }
+
+/* Collapsing Trees: http://dbtree.megalingo.com/web/demo/simple-collapsible-tree.cfm  */
+#collapsetree, #collapsetree a:link, #collapsetree li a:link, #collapsetree a:visited, #collapsetree li a:visited{color:#000;text-decoration:none}
+#collapsetree,#collapsetree ul{list-style-type:none; width:auto; margin:0; padding:0}
+#collapsetree ul{padding-left:20px;display:none;overflow:auto}
+#collapsetree li ul{margin:0 auto}
+#collapsetree li{display:block;width:100%;line-height:20px;white-space:nowrap}
+#collapsetree li a{display:block;padding-left:20px;color:#000;text-decoration:none;background:url(images/tree/bullet.gif) center left no-repeat;white-space:nowrap}
+#collapsetree li a:hover{text-decoration:underline;background-color:transparent;color:#000}
+#collapsetree li ul.click{display:block}
+#collapsetree li.click a{background:url(images/tree/bullet.gif) center left no-repeat}
+#collapsetree ul li.click a{background:url(images/tree/bullet.gif) center left no-repeat}
+#collapsetree li a.subMenu,#collapsetree ul li a.subMenu{background:url(images/tree/plus.gif) center left no-repeat}
+#collapsetree li a.click{background:url(images/tree/minus.gif) center left no-repeat}
+#collapsetree ul li a.click{background:url(images/tree/minus.gif) center left no-repeat}

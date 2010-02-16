@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s
-// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -DTEST_64 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -DTEST_64 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks %s
 
 typedef struct objc_selector *SEL;
 typedef signed char BOOL;
@@ -590,6 +590,55 @@ int blocks_2(int *p, int z) {
   return z;
 }
 
+// Test that the value of 'x' is considered invalidated after the block
+// is passed as an argument to the message expression.
+typedef void (^RDar7582031CB)(void);
+@interface RDar7582031
+- rdar7582031:RDar7582031CB;
+- rdar7582031_b:RDar7582031CB;
+@end
+
+// Test with one block.
+unsigned rdar7582031(RDar7582031 *o) {
+  __block unsigned x;
+  [o rdar7582031:^{ x = 1; }];
+  return x; // no-warning
+}
+
+// Test with two blocks.
+unsigned long rdar7582031_b(RDar7582031 *o) {
+  __block unsigned y;
+  __block unsigned long x;
+  [o rdar7582031:^{ y = 1; }];
+  [o rdar7582031_b:^{ x = 1LL; }];
+  return x + (unsigned long) y; // no-warning
+}
+
+// Show we get an error when 'o' is null because the message
+// expression has no effect.
+unsigned long rdar7582031_b2(RDar7582031 *o) {
+  __block unsigned y;
+  __block unsigned long x;
+  if (o)
+    return 1;
+  [o rdar7582031:^{ y = 1; }];
+  [o rdar7582031_b:^{ x = 1LL; }];
+  return x + (unsigned long) y; // expected-warning{{The left operand of '+' is a garbage value}}
+}
+
+// Show that we handle static variables also getting invalidated.
+void rdar7582031_aux(void (^)(void));
+RDar7582031 *rdar7582031_aux_2();
+
+unsigned rdar7582031_static() {  
+  static RDar7582031 *o = 0;
+  rdar7582031_aux(^{ o = rdar7582031_aux_2(); });
+  
+  __block unsigned x;
+  [o rdar7582031:^{ x = 1; }];
+  return x; // no-warning
+}
+
 //===----------------------------------------------------------------------===//
 // <rdar://problem/7462324> - Test that variables passed using __blocks
 //  are not treated as being uninitialized.
@@ -730,3 +779,91 @@ void rdar_7527292() {
   }
 }
 
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7515938> - Handle initialization of incomplete arrays
+//  in structures using a compound value.  Previously this crashed.
+//===----------------------------------------------------------------------===//
+
+struct rdar_7515938 {
+  int x;
+  int y[];
+};
+
+const struct rdar_7515938 *rdar_7515938() {
+  static const struct rdar_7515938 z = { 0, { 1, 2 } };
+  if (z.y[0] != 1) {
+    int *p = 0;
+    *p = 0xDEADBEEF; // no-warning
+  }
+  return &z;
+}
+
+struct rdar_7515938_str {
+  int x;
+  char y[];
+};
+
+const struct rdar_7515938_str *rdar_7515938_str() {
+  static const struct rdar_7515938_str z = { 0, "hello" };
+  return &z;
+}
+
+//===----------------------------------------------------------------------===//
+// Assorted test cases from PR 4172.
+//===----------------------------------------------------------------------===//
+
+struct PR4172A_s { int *a; };
+
+void PR4172A_f2(struct PR4172A_s *p);
+
+int PR4172A_f1(void) {
+    struct PR4172A_s m;
+    int b[4];
+    m.a = b;
+    PR4172A_f2(&m);
+    return b[3]; // no-warning
+}
+
+struct PR4172B_s { int *a; };
+
+void PR4172B_f2(struct PR4172B_s *p);
+
+int PR4172B_f1(void) {
+    struct PR4172B_s m;
+    int x;
+    m.a = &x;
+    PR4172B_f2(&m);
+    return x; // no-warning
+}
+
+//===----------------------------------------------------------------------===//
+// Test invalidation of values in struct literals.
+//===----------------------------------------------------------------------===//
+
+struct s_rev96062 { int *x; int *y; };
+struct s_rev96062_nested { struct s_rev96062 z; };
+
+void test_a_rev96062_aux(struct s_rev96062 *s);
+void test_a_rev96062_aux2(struct s_rev96062_nested *s);
+
+int test_a_rev96062() {
+  int a, b;
+  struct s_rev96062 x = { &a, &b };
+  test_a_rev96062_aux(&x);
+  return a + b; // no-warning
+}
+int test_b_rev96062() {
+  int a, b;
+  struct s_rev96062 x = { &a, &b };
+  struct s_rev96062 z = x;
+  test_a_rev96062_aux(&z);
+  return a + b; // no-warning
+}
+int test_c_rev96062() {
+  int a, b;
+  struct s_rev96062 x = { &a, &b };
+  struct s_rev96062_nested w = { x };
+  struct s_rev96062_nested z = w;
+  test_a_rev96062_aux2(&z);
+  return a + b; // no-warning
+}

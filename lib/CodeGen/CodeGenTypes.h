@@ -20,7 +20,7 @@
 #include <vector>
 
 #include "CGCall.h"
-#include "CGCXX.h"
+#include "GlobalDecl.h"
 
 namespace llvm {
   class FunctionType;
@@ -60,21 +60,24 @@ namespace CodeGen {
     /// LLVMType - The LLVMType corresponding to this record layout.
     const llvm::Type *LLVMType;
 
-    /// ContainsMemberPointer - Whether one of the fields in this record layout
-    /// is a member pointer, or a struct that contains a member pointer.
-    bool ContainsMemberPointer;
+    /// ContainsPointerToDataMember - Whether one of the fields in this record 
+    /// layout is a pointer to data member, or a struct that contains pointer to
+    /// data member.
+    bool ContainsPointerToDataMember;
 
   public:
-    CGRecordLayout(const llvm::Type *T, bool ContainsMemberPointer)
-      : LLVMType(T), ContainsMemberPointer(ContainsMemberPointer) { }
+    CGRecordLayout(const llvm::Type *T, bool ContainsPointerToDataMember)
+      : LLVMType(T), ContainsPointerToDataMember(ContainsPointerToDataMember) { }
 
     /// getLLVMType - Return llvm type associated with this record.
     const llvm::Type *getLLVMType() const {
       return LLVMType;
     }
 
-    bool containsMemberPointer() const {
-      return ContainsMemberPointer;
+    /// containsPointerToDataMember - Whether this struct contains pointers to
+    /// data members.
+    bool containsPointerToDataMember() const {
+      return ContainsPointerToDataMember;
     }
   };
 
@@ -187,6 +190,8 @@ private:
 
 public:
   /// getFunctionInfo - Get the function info for the specified function decl.
+  const CGFunctionInfo &getFunctionInfo(GlobalDecl GD);
+  
   const CGFunctionInfo &getFunctionInfo(const FunctionDecl *FD);
   const CGFunctionInfo &getFunctionInfo(const CXXMethodDecl *MD);
   const CGFunctionInfo &getFunctionInfo(const ObjCMethodDecl *MD);
@@ -194,6 +199,12 @@ public:
                                         CXXCtorType Type);
   const CGFunctionInfo &getFunctionInfo(const CXXDestructorDecl *D,
                                         CXXDtorType Type);
+
+  const CGFunctionInfo &getFunctionInfo(const CallArgList &Args,
+                                        const FunctionType *Ty) {
+    return getFunctionInfo(Ty->getResultType(), Args,
+                           Ty->getCallConv(), Ty->getNoReturnAttr());
+  }
 
   // getFunctionInfo - Get the function info for a member function.
   const CGFunctionInfo &getFunctionInfo(const CXXRecordDecl *RD,
@@ -204,13 +215,16 @@ public:
   /// specified, the "C" calling convention will be used.
   const CGFunctionInfo &getFunctionInfo(QualType ResTy,
                                         const CallArgList &Args,
-                                        unsigned CallingConvention = 0);
+                                        CallingConv CC,
+                                        bool NoReturn);
   const CGFunctionInfo &getFunctionInfo(QualType ResTy,
                                         const FunctionArgList &Args,
-                                        unsigned CallingConvention = 0);
+                                        CallingConv CC,
+                                        bool NoReturn);
   const CGFunctionInfo &getFunctionInfo(QualType RetTy,
                                   const llvm::SmallVector<QualType, 16> &ArgTys,
-                                        unsigned CallingConvention = 0);
+                                        CallingConv CC,
+                                        bool NoReturn);
 
 public:  // These are internal details of CGT that shouldn't be used externally.
   /// addFieldInfo - Assign field number to field FD.

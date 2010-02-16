@@ -446,18 +446,19 @@ Sema::MatchOneProtocolPropertiesInClass(Decl *CDecl,
     // Category
     ObjCCategoryDecl *CatDecl = static_cast<ObjCCategoryDecl*>(CDecl);
     assert (CatDecl && "MatchOneProtocolPropertiesInClass");
-    for (ObjCProtocolDecl::prop_iterator P = PDecl->prop_begin(),
-         E = PDecl->prop_end(); P != E; ++P) {
-      ObjCPropertyDecl *Pr = (*P);
-      ObjCCategoryDecl::prop_iterator CP, CE;
-      // Is this property already in  category's list of properties?
-      for (CP = CatDecl->prop_begin(), CE = CatDecl->prop_end(); CP != CE; ++CP)
-        if ((*CP)->getIdentifier() == Pr->getIdentifier())
-          break;
-      if (CP != CE)
-        // Property protocol already exist in class. Diagnose any mismatch.
-        DiagnosePropertyMismatch((*CP), Pr, PDecl->getIdentifier());
-    }
+    if (!CatDecl->IsClassExtension())
+      for (ObjCProtocolDecl::prop_iterator P = PDecl->prop_begin(),
+           E = PDecl->prop_end(); P != E; ++P) {
+        ObjCPropertyDecl *Pr = (*P);
+        ObjCCategoryDecl::prop_iterator CP, CE;
+        // Is this property already in  category's list of properties?
+        for (CP = CatDecl->prop_begin(), CE = CatDecl->prop_end(); CP != CE; ++CP)
+          if ((*CP)->getIdentifier() == Pr->getIdentifier())
+            break;
+        if (CP != CE)
+          // Property protocol already exist in class. Diagnose any mismatch.
+          DiagnosePropertyMismatch((*CP), Pr, PDecl->getIdentifier());
+      }
     return;
   }
   for (ObjCProtocolDecl::prop_iterator P = PDecl->prop_begin(),
@@ -596,44 +597,59 @@ ActOnStartCategoryInterface(SourceLocation AtInterfaceLoc,
                             unsigned NumProtoRefs,
                             const SourceLocation *ProtoLocs,
                             SourceLocation EndProtoLoc) {
-  ObjCCategoryDecl *CDecl =
-    ObjCCategoryDecl::Create(Context, CurContext, AtInterfaceLoc, ClassLoc,
-                             CategoryLoc, CategoryName);
-  // FIXME: PushOnScopeChains?
-  CurContext->addDecl(CDecl);
-
+  ObjCCategoryDecl *CDecl = 0;
   ObjCInterfaceDecl *IDecl = getObjCInterfaceDecl(ClassName, ClassLoc);
-  /// Check that class of this category is already completely declared.
-  if (!IDecl || IDecl->isForwardDecl()) {
-    CDecl->setInvalidDecl();
-    Diag(ClassLoc, diag::err_undef_interface) << ClassName;
-    return DeclPtrTy::make(CDecl);
+  if (!CategoryName) {
+    // Class extensions require a special treatment. Use an existing one.
+    for (CDecl = IDecl->getCategoryList(); CDecl;
+         CDecl = CDecl->getNextClassCategory())
+      if (CDecl->IsClassExtension()) 
+        break;  
   }
+  if (!CDecl) {
+    CDecl = ObjCCategoryDecl::Create(Context, CurContext, AtInterfaceLoc, ClassLoc,
+                                     CategoryLoc, CategoryName);
+    // FIXME: PushOnScopeChains?
+    CurContext->addDecl(CDecl);
 
-  CDecl->setClassInterface(IDecl);
+    /// Check that class of this category is already completely declared.
+    if (!IDecl || IDecl->isForwardDecl()) {
+      CDecl->setInvalidDecl();
+      Diag(ClassLoc, diag::err_undef_interface) << ClassName;
+      return DeclPtrTy::make(CDecl);
+    }
+
+    CDecl->setClassInterface(IDecl);
+    // Insert first use of class extension to the list of class's categories.
+    if (!CategoryName)
+      CDecl->insertNextClassCategory();
+  }
 
   // If the interface is deprecated, warn about it.
   (void)DiagnoseUseOfDecl(IDecl, ClassLoc);
 
-  /// Check for duplicate interface declaration for this category
-  ObjCCategoryDecl *CDeclChain;
-  for (CDeclChain = IDecl->getCategoryList(); CDeclChain;
-       CDeclChain = CDeclChain->getNextClassCategory()) {
-    if (CategoryName && CDeclChain->getIdentifier() == CategoryName) {
-      Diag(CategoryLoc, diag::warn_dup_category_def)
-      << ClassName << CategoryName;
-      Diag(CDeclChain->getLocation(), diag::note_previous_definition);
-      break;
+  if (CategoryName) {
+    /// Check for duplicate interface declaration for this category
+    ObjCCategoryDecl *CDeclChain;
+    for (CDeclChain = IDecl->getCategoryList(); CDeclChain;
+         CDeclChain = CDeclChain->getNextClassCategory()) {
+      if (CDeclChain->getIdentifier() == CategoryName) {
+        // Class extensions can be declared multiple times.
+        Diag(CategoryLoc, diag::warn_dup_category_def)
+          << ClassName << CategoryName;
+        Diag(CDeclChain->getLocation(), diag::note_previous_definition);
+        break;
+      }
     }
+    if (!CDeclChain)
+      CDecl->insertNextClassCategory();
   }
-  if (!CDeclChain)
-    CDecl->insertNextClassCategory();
 
   if (NumProtoRefs) {
     CDecl->setProtocolList((ObjCProtocolDecl**)ProtoRefs, NumProtoRefs, 
                            ProtoLocs, Context);
     // Protocols in the class extension belong to the class.
-    if (!CDecl->getIdentifier())
+    if (CDecl->IsClassExtension())
      IDecl->mergeClassExtensionProtocolList((ObjCProtocolDecl**)ProtoRefs, 
                                             NumProtoRefs, ProtoLocs,
                                             Context); 
@@ -1102,11 +1118,12 @@ void Sema::CollectImmediateProperties(ObjCContainerDecl *CDecl,
       CollectImmediateProperties((*PI), PropMap);
   }
   if (ObjCCategoryDecl *CATDecl = dyn_cast<ObjCCategoryDecl>(CDecl)) {
-    for (ObjCContainerDecl::prop_iterator P = CATDecl->prop_begin(),
-         E = CATDecl->prop_end(); P != E; ++P) {
-      ObjCPropertyDecl *Prop = (*P);
-      PropMap[Prop->getIdentifier()] = Prop;
-    }
+    if (!CATDecl->IsClassExtension())
+      for (ObjCContainerDecl::prop_iterator P = CATDecl->prop_begin(),
+           E = CATDecl->prop_end(); P != E; ++P) {
+        ObjCPropertyDecl *Prop = (*P);
+        PropMap[Prop->getIdentifier()] = Prop;
+      }
     // scan through class's protocols.
     for (ObjCInterfaceDecl::protocol_iterator PI = CATDecl->protocol_begin(),
          E = CATDecl->protocol_end(); PI != E; ++PI)
@@ -1126,6 +1143,46 @@ void Sema::CollectImmediateProperties(ObjCContainerDecl *CDecl,
       CollectImmediateProperties((*PI), PropMap);
   }
 }
+
+/// LookupPropertyDecl - Looks up a property in the current class and all
+/// its protocols.
+ObjCPropertyDecl *Sema::LookupPropertyDecl(const ObjCContainerDecl *CDecl, 
+                                     IdentifierInfo *II) {
+  if (const ObjCInterfaceDecl *IDecl = 
+        dyn_cast<ObjCInterfaceDecl>(CDecl)) {
+    for (ObjCContainerDecl::prop_iterator P = IDecl->prop_begin(),
+         E = IDecl->prop_end(); P != E; ++P) {
+      ObjCPropertyDecl *Prop = (*P);
+      if (Prop->getIdentifier() == II)
+        return Prop;
+    }
+    // scan through class's protocols.
+    for (ObjCInterfaceDecl::protocol_iterator PI = IDecl->protocol_begin(),
+         E = IDecl->protocol_end(); PI != E; ++PI) {
+      ObjCPropertyDecl *Prop = LookupPropertyDecl((*PI), II);
+      if (Prop)
+        return Prop;
+    }
+  }
+  else if (const ObjCProtocolDecl *PDecl = 
+            dyn_cast<ObjCProtocolDecl>(CDecl)) {
+    for (ObjCProtocolDecl::prop_iterator P = PDecl->prop_begin(),
+         E = PDecl->prop_end(); P != E; ++P) {
+      ObjCPropertyDecl *Prop = (*P);
+      if (Prop->getIdentifier() == II)
+        return Prop;
+    }
+    // scan through protocol's protocols.
+    for (ObjCProtocolDecl::protocol_iterator PI = PDecl->protocol_begin(),
+         E = PDecl->protocol_end(); PI != E; ++PI) {
+      ObjCPropertyDecl *Prop = LookupPropertyDecl((*PI), II);
+      if (Prop)
+        return Prop;
+    }
+  }
+  return 0;
+}
+
 
 void Sema::DiagnoseUnimplementedProperties(ObjCImplDecl* IMPDecl,
                                       ObjCContainerDecl *CDecl,
@@ -1149,7 +1206,14 @@ void Sema::DiagnoseUnimplementedProperties(ObjCImplDecl* IMPDecl,
         Prop->getPropertyImplementation() == ObjCPropertyDecl::Optional ||
         PropImplMap.count(Prop))
       continue;
-  
+    if (LangOpts.ObjCNonFragileABI2) {
+      ActOnPropertyImplDecl(IMPDecl->getLocation(),
+                            SourceLocation(),
+                            true, DeclPtrTy::make(IMPDecl), 
+                            Prop->getIdentifier(),
+                            Prop->getIdentifier());
+      continue;
+    }
     if (!InsMap.count(Prop->getGetterName())) {
       Diag(Prop->getLocation(),
            isa<ObjCCategoryDecl>(CDecl) ? 
@@ -1214,7 +1278,7 @@ void Sema::ImplMethodsVsClassMethods(ObjCImplDecl* IMPDecl,
     // Check class extensions (unnamed categories)
     for (ObjCCategoryDecl *Categories = I->getCategoryList();
          Categories; Categories = Categories->getNextClassCategory()) {
-      if (!Categories->getIdentifier()) {
+      if (Categories->IsClassExtension()) {
         ImplMethodsVsClassMethods(IMPDecl, Categories, IncompleteImpl);
         break;
       }
@@ -1222,7 +1286,7 @@ void Sema::ImplMethodsVsClassMethods(ObjCImplDecl* IMPDecl,
   } else if (ObjCCategoryDecl *C = dyn_cast<ObjCCategoryDecl>(CDecl)) {
     // For extended class, unimplemented methods in its protocols will
     // be reported in the primary class.
-    if (C->getIdentifier()) {
+    if (!C->IsClassExtension()) {
       for (ObjCCategoryDecl::protocol_iterator PI = C->protocol_begin(),
            E = C->protocol_end(); PI != E; ++PI)
         CheckProtocolMethodDefs(IMPDecl->getLocation(), *PI, IncompleteImpl,
@@ -1443,7 +1507,8 @@ void Sema::AddInstanceMethodToGlobalPool(ObjCMethodDecl *Method) {
 
   // We have a new signature for an existing method - add it.
   // This is extremely rare. Only 1% of Cocoa selectors are "overloaded".
-  Entry.Next = new ObjCMethodList(Method, Entry.Next);
+  ObjCMethodList *Mem = BumpAlloc.Allocate<ObjCMethodList>();
+  Entry.Next = new (Mem) ObjCMethodList(Method, Entry.Next);
 }
 
 // FIXME: Finish implementing -Wno-strict-selector-match.
@@ -1506,7 +1571,8 @@ void Sema::AddFactoryMethodToGlobalPool(ObjCMethodDecl *Method) {
     if (!match) {
       // We have a new signature for an existing method - add it.
       // This is extremely rare. Only 1% of Cocoa selectors are "overloaded".
-      struct ObjCMethodList *OMI = new ObjCMethodList(Method, FirstMethod.Next);
+      ObjCMethodList *Mem = BumpAlloc.Allocate<ObjCMethodList>();
+      ObjCMethodList *OMI = new (Mem) ObjCMethodList(Method, FirstMethod.Next);
       FirstMethod.Next = OMI;
     }
   }
@@ -1777,17 +1843,18 @@ void Sema::ActOnAtEnd(SourceRange AtEnd,
 
     // Compare protocol properties with those in category
     CompareProperties(C, DeclPtrTy::make(C));
-    if (C->getIdentifier() == 0)
+    if (C->IsClassExtension())
       DiagnoseClassExtensionDupMethods(C, C->getClassInterface());
   }
   if (ObjCContainerDecl *CDecl = dyn_cast<ObjCContainerDecl>(ClassDecl)) {
-    // ProcessPropertyDecl is responsible for diagnosing conflicts with any
-    // user-defined setter/getter. It also synthesizes setter/getter methods
-    // and adds them to the DeclContext and global method pools.
-    for (ObjCContainerDecl::prop_iterator I = CDecl->prop_begin(),
-                                          E = CDecl->prop_end();
-         I != E; ++I)
-      ProcessPropertyDecl(*I, CDecl);
+    if (CDecl->getIdentifier())
+      // ProcessPropertyDecl is responsible for diagnosing conflicts with any
+      // user-defined setter/getter. It also synthesizes setter/getter methods
+      // and adds them to the DeclContext and global method pools.
+      for (ObjCContainerDecl::prop_iterator I = CDecl->prop_begin(),
+                                            E = CDecl->prop_end();
+           I != E; ++I)
+        ProcessPropertyDecl(*I, CDecl);
     CDecl->setAtEndRange(AtEnd);
   }
   if (ObjCImplementationDecl *IC=dyn_cast<ObjCImplementationDecl>(ClassDecl)) {
@@ -2088,7 +2155,22 @@ Sema::DeclPtrTy Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
   // May modify Attributes.
   CheckObjCPropertyAttributes(T, AtLoc, Attributes);
   if (ObjCCategoryDecl *CDecl = dyn_cast<ObjCCategoryDecl>(ClassDecl))
-    if (!CDecl->getIdentifier()) {
+    if (CDecl->IsClassExtension()) {
+      // Diagnose if this property is already in continuation class.
+      DeclContext *DC = dyn_cast<DeclContext>(ClassDecl);
+      assert(DC && "ClassDecl is not a DeclContext");
+      DeclContext::lookup_result Found = DC->lookup(FD.D.getIdentifier());
+      if (Found.first != Found.second && isa<ObjCPropertyDecl>(*Found.first)) {
+        Diag(AtLoc, diag::err_duplicate_property);
+        Diag((*Found.first)->getLocation(), diag::note_property_declare);
+        return DeclPtrTy();
+      }
+      ObjCPropertyDecl *PDecl = ObjCPropertyDecl::Create(Context, DC,
+                                                         FD.D.getIdentifierLoc(),
+                                                         FD.D.getIdentifier(),
+                                                         AtLoc, T);
+      DC->addDecl(PDecl);
+      
       // This is a continuation class. property requires special
       // handling.
       if ((CCPrimary = CDecl->getClassInterface())) {
@@ -2152,6 +2234,7 @@ Sema::DeclPtrTy Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
           ProcessPropertyDecl(PIDecl, CCPrimary);
           return DeclPtrTy();
         }
+        
         // No matching property found in the primary class. Just fall thru
         // and add property to continuation class's primary class.
         ClassDecl = CCPrimary;
@@ -2246,6 +2329,28 @@ Sema::DeclPtrTy Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
   return DeclPtrTy::make(PDecl);
 }
 
+ObjCIvarDecl* 
+Sema::SynthesizeNewPropertyIvar(ObjCInterfaceDecl *IDecl,
+                                IdentifierInfo *NameII) {
+  ObjCIvarDecl *Ivar = 0;
+  ObjCPropertyDecl *Prop = LookupPropertyDecl(IDecl, NameII);
+  if (Prop && !Prop->isInvalidDecl()) {
+    DeclContext *EnclosingContext = cast_or_null<DeclContext>(IDecl);
+    QualType PropType = Context.getCanonicalType(Prop->getType());
+    assert(EnclosingContext &&
+           "null DeclContext for synthesized ivar - SynthesizeNewPropertyIvar");
+    Ivar = ObjCIvarDecl::Create(Context, EnclosingContext, 
+                                              Prop->getLocation(),
+                                              NameII, PropType, /*Dinfo=*/0,
+                                              ObjCIvarDecl::Public,
+                                              (Expr *)0);
+    Ivar->setLexicalDeclContext(IDecl);
+    IDecl->addDecl(Ivar);
+    Prop->setPropertyIvarDecl(Ivar);
+  }
+  return Ivar;
+}
+
 /// ActOnPropertyImplDecl - This routine performs semantic checks and
 /// builds the AST node for a property implementation declaration; declared
 /// as @synthesize or @dynamic.
@@ -2283,7 +2388,7 @@ Sema::DeclPtrTy Sema::ActOnPropertyImplDecl(SourceLocation AtLoc,
     }
     if (const ObjCCategoryDecl *CD = 
         dyn_cast<ObjCCategoryDecl>(property->getDeclContext())) {
-      if (CD->getIdentifier()) {
+      if (!CD->IsClassExtension()) {
         Diag(PropertyLoc, diag::error_category_property) << CD->getDeclName();
         Diag(property->getLocation(), diag::note_property_declare);
         return DeclPtrTy();
