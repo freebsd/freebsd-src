@@ -14,3 +14,11 @@ namespace PR5911 {
   int iarr[] = { 1 };
   int test() { return f(iarr); }
 }
+
+// radar 7574896
+struct Foo { int foo; };
+Foo& ignoreSetMutex = *(new Foo);
+
+// Binding to a bit-field that requires a temporary. 
+struct { int bitfield : 3; } s = { 3 };
+const int &s2 = s.bitfield;

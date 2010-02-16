@@ -263,8 +263,7 @@ APValue LValueExprEvaluator::VisitDeclRefExpr(DeclRefExpr *E) {
     if (!VD->getType()->isReferenceType())
       return APValue(E);
     // FIXME: Check whether VD might be overridden!
-    const VarDecl *Def = 0;
-    if (const Expr *Init = VD->getDefinition(Def))
+    if (const Expr *Init = VD->getAnyInitializer())
       return Visit(const_cast<Expr *>(Init));
   }
 
@@ -813,7 +812,7 @@ public:
     return false;
   }
 
-  bool VisitCallExpr(const CallExpr *E);
+  bool VisitCallExpr(CallExpr *E);
   bool VisitBinaryOperator(const BinaryOperator *E);
   bool VisitUnaryOperator(const UnaryOperator *E);
   bool VisitConditionalOperator(const ConditionalOperator *E);
@@ -849,8 +848,8 @@ public:
   bool VisitUnaryImag(const UnaryOperator *E);
 
 private:
-  unsigned GetAlignOfExpr(const Expr *E);
-  unsigned GetAlignOfType(QualType T);
+  CharUnits GetAlignOfExpr(const Expr *E);
+  CharUnits GetAlignOfType(QualType T);
   // FIXME: Missing: array subscript of vector, member of vector
 };
 } // end anonymous namespace
@@ -879,9 +878,12 @@ bool IntExprEvaluator::CheckReferencedDecl(const Expr* E, const Decl* D) {
   // In C, they can also be folded, although they are not ICEs.
   if (Info.Ctx.getCanonicalType(E->getType()).getCVRQualifiers() 
                                                         == Qualifiers::Const) {
+
+    if (isa<ParmVarDecl>(D))
+      return Error(E->getLocStart(), diag::note_invalid_subexpr_in_ice, E);
+
     if (const VarDecl *VD = dyn_cast<VarDecl>(D)) {
-      const VarDecl *Def = 0;
-      if (const Expr *Init = VD->getDefinition(Def)) {
+      if (const Expr *Init = VD->getAnyInitializer()) {
         if (APValue *V = VD->getEvaluatedValue()) {
           if (V->isInt())
             return Success(V->getInt(), E);
@@ -965,7 +967,7 @@ static int EvaluateBuiltinClassifyType(const CallExpr *E) {
   return -1;
 }
 
-bool IntExprEvaluator::VisitCallExpr(const CallExpr *E) {
+bool IntExprEvaluator::VisitCallExpr(CallExpr *E) {
   switch (E->isBuiltinCall(Info.Ctx)) {
   default:
     return Error(E->getLocStart(), diag::note_invalid_subexpr_in_ice, E);
@@ -1020,6 +1022,9 @@ bool IntExprEvaluator::VisitCallExpr(const CallExpr *E) {
     Operand = Info.Ctx.Target.getEHDataRegisterNumber(Operand);
     return Success(Operand, E);
   }
+
+  case Builtin::BI__builtin_expect:
+    return Visit(E->getArg(0));
   }
 }
 
@@ -1288,7 +1293,7 @@ bool IntExprEvaluator::VisitConditionalOperator(const ConditionalOperator *E) {
   return Visit(Cond ? E->getTrueExpr() : E->getFalseExpr());
 }
 
-unsigned IntExprEvaluator::GetAlignOfType(QualType T) {
+CharUnits IntExprEvaluator::GetAlignOfType(QualType T) {
   // C++ [expr.sizeof]p2: "When applied to a reference or a reference type,
   //   the result is the size of the referenced type."
   // C++ [expr.alignof]p3: "When alignof is applied to a reference type, the
@@ -1300,20 +1305,22 @@ unsigned IntExprEvaluator::GetAlignOfType(QualType T) {
   unsigned CharSize = Info.Ctx.Target.getCharWidth();
 
   // __alignof is defined to return the preferred alignment.
-  return Info.Ctx.getPreferredTypeAlign(T.getTypePtr()) / CharSize;
+  return CharUnits::fromQuantity(
+      Info.Ctx.getPreferredTypeAlign(T.getTypePtr()) / CharSize);
 }
 
-unsigned IntExprEvaluator::GetAlignOfExpr(const Expr *E) {
+CharUnits IntExprEvaluator::GetAlignOfExpr(const Expr *E) {
   E = E->IgnoreParens();
 
   // alignof decl is always accepted, even if it doesn't make sense: we default
   // to 1 in those cases.
   if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E))
-    return Info.Ctx.getDeclAlignInBytes(DRE->getDecl(), /*RefAsPointee*/true);
+    return Info.Ctx.getDeclAlign(DRE->getDecl(), 
+                                 /*RefAsPointee*/true);
 
   if (const MemberExpr *ME = dyn_cast<MemberExpr>(E))
-    return Info.Ctx.getDeclAlignInBytes(ME->getMemberDecl(),
-                                        /*RefAsPointee*/true);
+    return Info.Ctx.getDeclAlign(ME->getMemberDecl(),
+                                 /*RefAsPointee*/true);
 
   return GetAlignOfType(E->getType());
 }
@@ -1325,9 +1332,9 @@ bool IntExprEvaluator::VisitSizeOfAlignOfExpr(const SizeOfAlignOfExpr *E) {
   // Handle alignof separately.
   if (!E->isSizeOf()) {
     if (E->isArgumentType())
-      return Success(GetAlignOfType(E->getArgumentType()), E);
+      return Success(GetAlignOfType(E->getArgumentType()).getQuantity(), E);
     else
-      return Success(GetAlignOfExpr(E->getArgumentExpr()), E);
+      return Success(GetAlignOfExpr(E->getArgumentExpr()).getQuantity(), E);
   }
 
   QualType SrcTy = E->getTypeOfArgument();

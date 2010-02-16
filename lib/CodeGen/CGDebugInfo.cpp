@@ -49,19 +49,21 @@ void CGDebugInfo::setLocation(SourceLocation Loc) {
     CurLoc = CGM.getContext().getSourceManager().getInstantiationLoc(Loc);
 }
 
-/// getContext - Get context info for the decl.
-llvm::DIDescriptor CGDebugInfo::getContext(const VarDecl *Decl,
-                                           llvm::DIDescriptor &CompileUnit) {
-  if (Decl->isFileVarDecl())
+/// getContextDescriptor - Get context info for the decl.
+llvm::DIDescriptor CGDebugInfo::getContextDescriptor(const Decl *Context,
+                                              llvm::DIDescriptor &CompileUnit) {
+  if (!Context)
     return CompileUnit;
-  if (Decl->getDeclContext()->isFunctionOrMethod()) {
-    // Find the last subprogram in region stack.
-    for (unsigned RI = RegionStack.size(), RE = 0; RI != RE; --RI) {
-      llvm::DIDescriptor R(RegionStack[RI - 1]);
-      if (R.isSubprogram())
-        return R;
-    }
-  }
+
+  llvm::DenseMap<const Decl *, llvm::WeakVH>::iterator
+    I = RegionMap.find(Context);
+  if (I != RegionMap.end())
+    return llvm::DIDescriptor(dyn_cast_or_null<llvm::MDNode>(I->second));
+
+  // Check namespace.
+  if (const NamespaceDecl *NSDecl = dyn_cast<NamespaceDecl>(Context))
+    return llvm::DIDescriptor(getOrCreateNameSpace(NSDecl, CompileUnit));
+  
   return CompileUnit;
 }
 
@@ -78,10 +80,9 @@ llvm::StringRef CGDebugInfo::getFunctionName(const FunctionDecl *FD) {
   std::string NS = FD->getNameAsString();
 
   // Copy this name on the side and use its reference.
-  unsigned Length = NS.length() + 1;
-  char *StrPtr = FunctionNames.Allocate<char>(Length);
-  strncpy(StrPtr, NS.c_str(), Length);
-  return llvm::StringRef(StrPtr);
+  char *StrPtr = DebugInfoNames.Allocate<char>(NS.length());
+  memcpy(StrPtr, NS.data(), NS.length());
+  return llvm::StringRef(StrPtr, NS.length());
 }
 
 /// getOrCreateCompileUnit - Get the compile unit from the cache or create a new
@@ -90,16 +91,15 @@ llvm::DICompileUnit CGDebugInfo::getOrCreateCompileUnit(SourceLocation Loc) {
   // Get source file information.
   const char *FileName =  "<unknown>";
   SourceManager &SM = CGM.getContext().getSourceManager();
-  unsigned FID = 0;
   if (Loc.isValid()) {
     PresumedLoc PLoc = SM.getPresumedLoc(Loc);
     FileName = PLoc.getFilename();
-    FID = PLoc.getIncludeLoc().getRawEncoding();
-  }
+    unsigned FID = PLoc.getIncludeLoc().getRawEncoding();
 
-  // See if this compile unit has been used before.
-  llvm::DICompileUnit &Unit = CompileUnitCache[FID];
-  if (!Unit.isNull()) return Unit;
+    // See if this compile unit has been used before for this valid location.
+    llvm::DICompileUnit &Unit = CompileUnitCache[FID];
+    if (!Unit.isNull()) return Unit;
+  }
 
   // Get absolute path name.
   llvm::sys::Path AbsFileName(FileName);
@@ -149,9 +149,16 @@ llvm::DICompileUnit CGDebugInfo::getOrCreateCompileUnit(SourceLocation Loc) {
     RuntimeVers = LO.ObjCNonFragileABI ? 2 : 1;
 
   // Create new compile unit.
-  return Unit = DebugFactory.CreateCompileUnit(
+  llvm::DICompileUnit Unit = DebugFactory.CreateCompileUnit(
     LangTag, AbsFileName.getLast(), AbsFileName.getDirname(), Producer, isMain,
     LO.Optimize, CGM.getCodeGenOpts().DwarfDebugFlags, RuntimeVers);
+
+  if (Loc.isValid()) {
+    PresumedLoc PLoc = SM.getPresumedLoc(Loc);
+    unsigned FID = PLoc.getIncludeLoc().getRawEncoding();
+    CompileUnitCache[FID] = Unit;
+  }
+  return Unit;
 }
 
 /// CreateType - Get the Basic type from the cache or create a new
@@ -419,17 +426,18 @@ llvm::DIType CGDebugInfo::CreateType(const TypedefType *Ty,
 
   // We don't set size information, but do specify where the typedef was
   // declared.
-  SourceLocation DefLoc = Ty->getDecl()->getLocation();
-  llvm::DICompileUnit DefUnit = getOrCreateCompileUnit(DefLoc);
-
   SourceManager &SM = CGM.getContext().getSourceManager();
-  PresumedLoc PLoc = SM.getPresumedLoc(DefLoc);
+  PresumedLoc PLoc = SM.getPresumedLoc(Ty->getDecl()->getLocation());
   unsigned Line = PLoc.isInvalid() ? 0 : PLoc.getLine();
 
+  llvm::DIDescriptor TyContext 
+    = getContextDescriptor(dyn_cast<Decl>(Ty->getDecl()->getDeclContext()),
+                           Unit);
   llvm::DIType DbgTy = 
-    DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_typedef, Unit,
-                                   Ty->getDecl()->getName(),
-                                   DefUnit, Line, 0, 0, 0, 0, Src);
+    DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_typedef, 
+                                   TyContext,
+                                   Ty->getDecl()->getName(), Unit,
+                                   Line, 0, 0, 0, 0, Src);
   return DbgTy;
 }
 
@@ -463,22 +471,21 @@ llvm::DIType CGDebugInfo::CreateType(const FunctionType *Ty,
 /// CollectRecordFields - A helper function to collect debug info for
 /// record fields. This is used while creating debug info entry for a Record.
 void CGDebugInfo::
-CollectRecordFields(const RecordDecl *Decl,
-                    llvm::DICompileUnit Unit,
+CollectRecordFields(const RecordDecl *RD, llvm::DICompileUnit Unit,
                     llvm::SmallVectorImpl<llvm::DIDescriptor> &EltTys) {
   unsigned FieldNo = 0;
   SourceManager &SM = CGM.getContext().getSourceManager();
-  const ASTRecordLayout &RL = CGM.getContext().getASTRecordLayout(Decl);
-  for (RecordDecl::field_iterator I = Decl->field_begin(),
-                                  E = Decl->field_end();
+  const ASTRecordLayout &RL = CGM.getContext().getASTRecordLayout(RD);
+  for (RecordDecl::field_iterator I = RD->field_begin(),
+                                  E = RD->field_end();
        I != E; ++I, ++FieldNo) {
     FieldDecl *Field = *I;
     llvm::DIType FieldTy = getOrCreateType(Field->getType(), Unit);
 
     llvm::StringRef FieldName = Field->getName();
 
-    // Ignore unnamed fields.
-    if (FieldName.empty())
+    // Ignore unnamed fields. Do not ignore unnamed records.
+    if (FieldName.empty() && !isa<RecordType>(Field->getType()))
       continue;
 
     // Get the location for the field.
@@ -519,87 +526,264 @@ CollectRecordFields(const RecordDecl *Decl,
   }
 }
 
+/// getOrCreateMethodType - CXXMethodDecl's type is a FunctionType. This
+/// function type is not updated to include implicit "this" pointer. Use this
+/// routine to get a method type which includes "this" pointer.
+llvm::DIType
+CGDebugInfo::getOrCreateMethodType(const CXXMethodDecl *Method,
+                                   llvm::DICompileUnit Unit) {
+  llvm::DIType FnTy = getOrCreateType(Method->getType(), Unit);
+  
+  // Static methods do not need "this" pointer argument.
+  if (Method->isStatic())
+    return FnTy;
+
+  // Add "this" pointer.
+
+  llvm::DIArray Args = llvm::DICompositeType(FnTy.getNode()).getTypeArray();
+  assert (Args.getNumElements() && "Invalid number of arguments!");
+
+  llvm::SmallVector<llvm::DIDescriptor, 16> Elts;
+
+  // First element is always return type. For 'void' functions it is NULL.
+  Elts.push_back(Args.getElement(0));
+
+  // "this" pointer is always first argument.
+  ASTContext &Context = CGM.getContext();
+  QualType ThisPtr = 
+    Context.getPointerType(Context.getTagDeclType(Method->getParent()));
+  llvm::DIType ThisPtrType = 
+    DebugFactory.CreateArtificialType(getOrCreateType(ThisPtr, Unit));
+  TypeCache[ThisPtr.getAsOpaquePtr()] = ThisPtrType.getNode();  
+  Elts.push_back(ThisPtrType);
+
+  // Copy rest of the arguments.
+  for (unsigned i = 1, e = Args.getNumElements(); i != e; ++i)
+    Elts.push_back(Args.getElement(i));
+
+  llvm::DIArray EltTypeArray =
+    DebugFactory.GetOrCreateArray(Elts.data(), Elts.size());
+
+  return
+    DebugFactory.CreateCompositeType(llvm::dwarf::DW_TAG_subroutine_type,
+                                     Unit, "", llvm::DICompileUnit(),
+                                     0, 0, 0, 0, 0,
+                                     llvm::DIType(), EltTypeArray);
+}
+
+/// CreateCXXMemberFunction - A helper function to create a DISubprogram for
+/// a single member function GlobalDecl.
+llvm::DISubprogram
+CGDebugInfo::CreateCXXMemberFunction(const CXXMethodDecl *Method,
+                                     llvm::DICompileUnit Unit,
+                                     llvm::DICompositeType &RecordTy) {
+  bool IsCtorOrDtor = 
+    isa<CXXConstructorDecl>(Method) || isa<CXXDestructorDecl>(Method);
+  
+  llvm::StringRef MethodName = getFunctionName(Method);
+  llvm::StringRef MethodLinkageName;
+  llvm::DIType MethodTy = getOrCreateMethodType(Method, Unit);
+  
+  // Since a single ctor/dtor corresponds to multiple functions, it doesn't
+  // make sense to give a single ctor/dtor a linkage name.
+  if (!IsCtorOrDtor)
+    MethodLinkageName = CGM.getMangledName(Method);
+
+  SourceManager &SM = CGM.getContext().getSourceManager();
+
+  // Get the location for the method.
+  SourceLocation MethodDefLoc = Method->getLocation();
+  PresumedLoc PLoc = SM.getPresumedLoc(MethodDefLoc);
+  llvm::DICompileUnit MethodDefUnit;
+  unsigned MethodLine = 0;
+
+  if (!PLoc.isInvalid()) {
+    MethodDefUnit = getOrCreateCompileUnit(MethodDefLoc);
+    MethodLine = PLoc.getLine();
+  }
+
+  // Collect virtual method info.
+  llvm::DIType ContainingType;
+  unsigned Virtuality = 0; 
+  unsigned VIndex = 0;
+  
+  if (Method->isVirtual()) {
+    if (Method->isPure())
+      Virtuality = llvm::dwarf::DW_VIRTUALITY_pure_virtual;
+    else
+      Virtuality = llvm::dwarf::DW_VIRTUALITY_virtual;
+    
+    // It doesn't make sense to give a virtual destructor a vtable index,
+    // since a single destructor has two entries in the vtable.
+    if (!isa<CXXDestructorDecl>(Method))
+      VIndex = CGM.getVtableInfo().getMethodVtableIndex(Method);
+    ContainingType = RecordTy;
+  }
+
+  llvm::DISubprogram SP =
+    DebugFactory.CreateSubprogram(RecordTy , MethodName, MethodName, 
+                                  MethodLinkageName,
+                                  MethodDefUnit, MethodLine,
+                                  MethodTy, /*isLocalToUnit=*/false, 
+                                  Method->isThisDeclarationADefinition(),
+                                  Virtuality, VIndex, ContainingType);
+  
+  // Don't cache ctors or dtors since we have to emit multiple functions for
+  // a single ctor or dtor.
+  if (!IsCtorOrDtor && Method->isThisDeclarationADefinition())
+    SPCache[Method] = llvm::WeakVH(SP.getNode());
+
+  return SP;
+}
+
 /// CollectCXXMemberFunctions - A helper function to collect debug info for
 /// C++ member functions.This is used while creating debug info entry for 
 /// a Record.
 void CGDebugInfo::
-CollectCXXMemberFunctions(const CXXRecordDecl *Decl,
-                          llvm::DICompileUnit Unit,
+CollectCXXMemberFunctions(const CXXRecordDecl *RD, llvm::DICompileUnit Unit,
                           llvm::SmallVectorImpl<llvm::DIDescriptor> &EltTys,
                           llvm::DICompositeType &RecordTy) {
-  SourceManager &SM = CGM.getContext().getSourceManager();
-  for(CXXRecordDecl::method_iterator I = Decl->method_begin(),
-        E = Decl->method_end(); I != E; ++I) {
-    CXXMethodDecl *Method = *I;
-    llvm::StringRef MethodName;
-    llvm::StringRef MethodLinkageName;
-    llvm::DIType MethodTy = getOrCreateType(Method->getType(), Unit);
-    if (CXXConstructorDecl *CDecl = dyn_cast<CXXConstructorDecl>(Method)) {
-      if (CDecl->isImplicit())
-        continue;
-      MethodName = Decl->getName();
-      // FIXME : Find linkage name.
-    } else if (CXXDestructorDecl *DDecl = dyn_cast<CXXDestructorDecl>(Method)) {
-      if (DDecl->isImplicit())
-        continue;
-      MethodName = getFunctionName(Method);
-      // FIXME : Find linkage name.
-    } else {
-      if (Method->isImplicit())
-        continue;
-      // regular method
-      MethodName = getFunctionName(Method);
-      MethodLinkageName = CGM.getMangledName(Method);
-    }
+  for(CXXRecordDecl::method_iterator I = RD->method_begin(),
+        E = RD->method_end(); I != E; ++I) {
+    const CXXMethodDecl *Method = *I;
+    
+    if (Method->isImplicit() && !Method->isUsed())
+      continue;
 
-    // Get the location for the method.
-    SourceLocation MethodDefLoc = Method->getLocation();
-    PresumedLoc PLoc = SM.getPresumedLoc(MethodDefLoc);
-    llvm::DICompileUnit MethodDefUnit;
-    unsigned MethodLine = 0;
-
-    if (!PLoc.isInvalid()) {
-      MethodDefUnit = getOrCreateCompileUnit(MethodDefLoc);
-      MethodLine = PLoc.getLine();
-    }
-
-    llvm::DISubprogram SP =
-      DebugFactory.CreateSubprogram(RecordTy , MethodName, MethodName, 
-                                    MethodLinkageName,
-                                    MethodDefUnit, MethodLine,
-                                    MethodTy, false, 
-                                    Method->isThisDeclarationADefinition(),
-                                    0 /*Virtuality*/, 0 /*VIndex*/, 
-                                    llvm::DIType() /*ContainingType*/);
-    if (Method->isThisDeclarationADefinition())
-      SPCache[cast<FunctionDecl>(Method)] = llvm::WeakVH(SP.getNode());
-    EltTys.push_back(SP);
+    EltTys.push_back(CreateCXXMemberFunction(Method, Unit, RecordTy));
   }
 }                                 
+
+/// CollectCXXBases - A helper function to collect debug info for
+/// C++ base classes. This is used while creating debug info entry for 
+/// a Record.
+void CGDebugInfo::
+CollectCXXBases(const CXXRecordDecl *RD, llvm::DICompileUnit Unit,
+                llvm::SmallVectorImpl<llvm::DIDescriptor> &EltTys,
+                llvm::DICompositeType &RecordTy) {
+
+  const ASTRecordLayout &RL = CGM.getContext().getASTRecordLayout(RD);
+  for (CXXRecordDecl::base_class_const_iterator BI = RD->bases_begin(),
+         BE = RD->bases_end(); BI != BE; ++BI) {
+    unsigned BFlags = 0;
+    uint64_t BaseOffset;
+    
+    const CXXRecordDecl *Base =
+      cast<CXXRecordDecl>(BI->getType()->getAs<RecordType>()->getDecl());
+    
+    if (BI->isVirtual()) {
+      // virtual base offset index is -ve. The code generator emits dwarf
+      // expression where it expects +ve number.
+      BaseOffset = 0 - CGM.getVtableInfo().getVirtualBaseOffsetIndex(RD, Base);
+      BFlags = llvm::DIType::FlagVirtual;
+    } else
+      BaseOffset = RL.getBaseClassOffset(Base);
+    
+    AccessSpecifier Access = BI->getAccessSpecifier();
+    if (Access == clang::AS_private)
+      BFlags |= llvm::DIType::FlagPrivate;
+    else if (Access == clang::AS_protected)
+      BFlags |= llvm::DIType::FlagProtected;
+    
+    llvm::DIType DTy =
+      DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_inheritance,
+                                     RecordTy, llvm::StringRef(), 
+                                     llvm::DICompileUnit(), 0, 0, 0,
+                                     BaseOffset, BFlags,
+                                     getOrCreateType(BI->getType(),
+                                                     Unit));
+    EltTys.push_back(DTy);
+  }
+}
+
+/// getOrCreateVTablePtrType - Return debug info descriptor for vtable.
+llvm::DIType CGDebugInfo::getOrCreateVTablePtrType(llvm::DICompileUnit Unit) {
+  if (!VTablePtrType.isNull())
+    return VTablePtrType;
+
+  ASTContext &Context = CGM.getContext();
+
+  /* Function type */
+  llvm::SmallVector<llvm::DIDescriptor, 16> STys;
+  STys.push_back(getOrCreateType(Context.IntTy, Unit));
+  llvm::DIArray SElements =
+    DebugFactory.GetOrCreateArray(STys.data(), STys.size());
+  llvm::DIType SubTy =
+    DebugFactory.CreateCompositeType(llvm::dwarf::DW_TAG_subroutine_type,
+                                     Unit, "", llvm::DICompileUnit(),
+                                     0, 0, 0, 0, 0, llvm::DIType(), SElements);
+
+  unsigned Size = Context.getTypeSize(Context.VoidPtrTy);
+  llvm::DIType vtbl_ptr_type 
+    = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_pointer_type,
+                                     Unit, "__vtbl_ptr_type", llvm::DICompileUnit(),
+                                     0, Size, 0, 0, 0, SubTy);
+
+  VTablePtrType = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_pointer_type,
+                                          Unit, "", llvm::DICompileUnit(),
+                                          0, Size, 0, 0, 0, vtbl_ptr_type);
+  return VTablePtrType;
+}
+
+/// getVtableName - Get vtable name for the given Class.
+llvm::StringRef CGDebugInfo::getVtableName(const CXXRecordDecl *RD) {
+  // Otherwise construct gdb compatible name name.
+  std::string Name = "_vptr$" + RD->getNameAsString();
+
+  // Copy this name on the side and use its reference.
+  char *StrPtr = DebugInfoNames.Allocate<char>(Name.length());
+  memcpy(StrPtr, Name.data(), Name.length());
+  return llvm::StringRef(StrPtr, Name.length());
+}
+
+
+/// CollectVtableInfo - If the C++ class has vtable info then insert appropriate
+/// debug info entry in EltTys vector.
+void CGDebugInfo::
+CollectVtableInfo(const CXXRecordDecl *RD, llvm::DICompileUnit Unit,
+                  llvm::SmallVectorImpl<llvm::DIDescriptor> &EltTys) {
+  const ASTRecordLayout &RL = CGM.getContext().getASTRecordLayout(RD);
+
+  // If there is a primary base then it will hold vtable info.
+  if (RL.getPrimaryBase())
+    return;
+
+  // If this class is not dynamic then there is not any vtable info to collect.
+  if (!RD->isDynamicClass())
+    return;
+
+  unsigned Size = CGM.getContext().getTypeSize(CGM.getContext().VoidPtrTy);
+  llvm::DIType VPTR
+    = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
+                                     getVtableName(RD), llvm::DICompileUnit(),
+                                     0, Size, 0, 0, 0, 
+                                     getOrCreateVTablePtrType(Unit));
+  EltTys.push_back(VPTR);
+}
 
 /// CreateType - get structure or union type.
 llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty,
                                      llvm::DICompileUnit Unit) {
-  RecordDecl *Decl = Ty->getDecl();
+  RecordDecl *RD = Ty->getDecl();
 
   unsigned Tag;
-  if (Decl->isStruct())
+  if (RD->isStruct())
     Tag = llvm::dwarf::DW_TAG_structure_type;
-  else if (Decl->isUnion())
+  else if (RD->isUnion())
     Tag = llvm::dwarf::DW_TAG_union_type;
   else {
-    assert(Decl->isClass() && "Unknown RecordType!");
+    assert(RD->isClass() && "Unknown RecordType!");
     Tag = llvm::dwarf::DW_TAG_class_type;
   }
 
   SourceManager &SM = CGM.getContext().getSourceManager();
 
   // Get overall information about the record type for the debug info.
-  PresumedLoc PLoc = SM.getPresumedLoc(Decl->getLocation());
+  PresumedLoc PLoc = SM.getPresumedLoc(RD->getLocation());
   llvm::DICompileUnit DefUnit;
   unsigned Line = 0;
   if (!PLoc.isInvalid()) {
-    DefUnit = getOrCreateCompileUnit(Decl->getLocation());
+    DefUnit = getOrCreateCompileUnit(RD->getLocation());
     Line = PLoc.getLine();
   }
 
@@ -610,19 +794,19 @@ llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty,
   // may refer to the forward decl if the struct is recursive) and replace all
   // uses of the forward declaration with the final definition.
 
-  // A Decl->getName() is not unique. However, the debug info descriptors 
-  // are uniqued. The debug info descriptor describing record's context is
-  // necessary to keep two Decl's descriptor unique if their name match.
-  // FIXME : Use RecordDecl's DeclContext's descriptor. As a temp. step
-  // use type's name in FwdDecl.
+  // A RD->getName() is not unique. However, the debug info descriptors 
+  // are uniqued so use type name to ensure uniquness.
   std::string STy = QualType(Ty, 0).getAsString();
+  llvm::DIDescriptor FDContext = 
+    getContextDescriptor(dyn_cast<Decl>(RD->getDeclContext()), Unit);
   llvm::DICompositeType FwdDecl =
-    DebugFactory.CreateCompositeType(Tag, Unit, STy.c_str(),
+    DebugFactory.CreateCompositeType(Tag, FDContext,
+                                     STy.c_str(),
                                      DefUnit, Line, 0, 0, 0, 0,
                                      llvm::DIType(), llvm::DIArray());
 
   // If this is just a forward declaration, return it.
-  if (!Decl->getDefinition(CGM.getContext()))
+  if (!RD->getDefinition())
     return FwdDecl;
 
   llvm::TrackingVH<llvm::MDNode> FwdDeclNode = FwdDecl.getNode();
@@ -633,9 +817,24 @@ llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty,
   // Convert all the elements.
   llvm::SmallVector<llvm::DIDescriptor, 16> EltTys;
 
-  CollectRecordFields(Decl, Unit, EltTys);
-  if (CXXRecordDecl *CXXDecl = dyn_cast<CXXRecordDecl>(Decl))
+  const CXXRecordDecl *CXXDecl = dyn_cast<CXXRecordDecl>(RD);
+  if (CXXDecl) {
+    CollectCXXBases(CXXDecl, Unit, EltTys, FwdDecl);
+    CollectVtableInfo(CXXDecl, Unit, EltTys);
+  }
+  CollectRecordFields(RD, Unit, EltTys);
+  llvm::MDNode *ContainingType = NULL;
+  if (CXXDecl) {
     CollectCXXMemberFunctions(CXXDecl, Unit, EltTys, FwdDecl);
+
+    // A class's primary base or the class itself contains the vtable.
+    const ASTRecordLayout &RL = CGM.getContext().getASTRecordLayout(RD);
+    if (const CXXRecordDecl *PBase = RL.getPrimaryBase())
+      ContainingType = 
+        getOrCreateType(QualType(PBase->getTypeForDecl(), 0), Unit).getNode();
+    else if (CXXDecl->isDynamicClass()) 
+      ContainingType = FwdDecl.getNode();
+  }
 
   llvm::DIArray Elements =
     DebugFactory.GetOrCreateArray(EltTys.data(), EltTys.size());
@@ -644,10 +843,14 @@ llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty,
   uint64_t Size = CGM.getContext().getTypeSize(Ty);
   uint64_t Align = CGM.getContext().getTypeAlign(Ty);
 
+  llvm::DIDescriptor RDContext =  
+    getContextDescriptor(dyn_cast<Decl>(RD->getDeclContext()), Unit);
   llvm::DICompositeType RealDecl =
-    DebugFactory.CreateCompositeType(Tag, Unit, Decl->getName(),
+    DebugFactory.CreateCompositeType(Tag, RDContext,
+                                     RD->getName(),
                                      DefUnit, Line, Size, Align, 0, 0, 
-                                     llvm::DIType(), Elements);
+                                     llvm::DIType(), Elements, 
+                                     0, ContainingType);
 
   // Now that we have a real decl for the struct, replace anything using the
   // old decl with the new one.  This will recursively update the debug info.
@@ -659,14 +862,14 @@ llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty,
 /// CreateType - get objective-c interface type.
 llvm::DIType CGDebugInfo::CreateType(const ObjCInterfaceType *Ty,
                                      llvm::DICompileUnit Unit) {
-  ObjCInterfaceDecl *Decl = Ty->getDecl();
+  ObjCInterfaceDecl *ID = Ty->getDecl();
 
   unsigned Tag = llvm::dwarf::DW_TAG_structure_type;
   SourceManager &SM = CGM.getContext().getSourceManager();
 
   // Get overall information about the record type for the debug info.
-  llvm::DICompileUnit DefUnit = getOrCreateCompileUnit(Decl->getLocation());
-  PresumedLoc PLoc = SM.getPresumedLoc(Decl->getLocation());
+  llvm::DICompileUnit DefUnit = getOrCreateCompileUnit(ID->getLocation());
+  PresumedLoc PLoc = SM.getPresumedLoc(ID->getLocation());
   unsigned Line = PLoc.isInvalid() ? 0 : PLoc.getLine();
 
 
@@ -679,13 +882,13 @@ llvm::DIType CGDebugInfo::CreateType(const ObjCInterfaceType *Ty,
   // may refer to the forward decl if the struct is recursive) and replace all
   // uses of the forward declaration with the final definition.
   llvm::DICompositeType FwdDecl =
-    DebugFactory.CreateCompositeType(Tag, Unit, Decl->getName(),
+    DebugFactory.CreateCompositeType(Tag, Unit, ID->getName(),
                                      DefUnit, Line, 0, 0, 0, 0,
                                      llvm::DIType(), llvm::DIArray(),
                                      RuntimeLang);
 
   // If this is just a forward declaration, return it.
-  if (Decl->isForwardDecl())
+  if (ID->isForwardDecl())
     return FwdDecl;
 
   llvm::TrackingVH<llvm::MDNode> FwdDeclNode = FwdDecl.getNode();
@@ -696,7 +899,7 @@ llvm::DIType CGDebugInfo::CreateType(const ObjCInterfaceType *Ty,
   // Convert all the elements.
   llvm::SmallVector<llvm::DIDescriptor, 16> EltTys;
 
-  ObjCInterfaceDecl *SClass = Decl->getSuperClass();
+  ObjCInterfaceDecl *SClass = ID->getSuperClass();
   if (SClass) {
     llvm::DIType SClassTy =
       getOrCreateType(CGM.getContext().getObjCInterfaceType(SClass), Unit);
@@ -707,11 +910,11 @@ llvm::DIType CGDebugInfo::CreateType(const ObjCInterfaceType *Ty,
     EltTys.push_back(InhTag);
   }
 
-  const ASTRecordLayout &RL = CGM.getContext().getASTObjCInterfaceLayout(Decl);
+  const ASTRecordLayout &RL = CGM.getContext().getASTObjCInterfaceLayout(ID);
 
   unsigned FieldNo = 0;
-  for (ObjCInterfaceDecl::ivar_iterator I = Decl->ivar_begin(),
-         E = Decl->ivar_end();  I != E; ++I, ++FieldNo) {
+  for (ObjCInterfaceDecl::ivar_iterator I = ID->ivar_begin(),
+         E = ID->ivar_end();  I != E; ++I, ++FieldNo) {
     ObjCIvarDecl *Field = *I;
     llvm::DIType FieldTy = getOrCreateType(Field->getType(), Unit);
 
@@ -769,7 +972,7 @@ llvm::DIType CGDebugInfo::CreateType(const ObjCInterfaceType *Ty,
   uint64_t Align = CGM.getContext().getTypeAlign(Ty);
 
   llvm::DICompositeType RealDecl =
-    DebugFactory.CreateCompositeType(Tag, Unit, Decl->getName(), DefUnit,
+    DebugFactory.CreateCompositeType(Tag, Unit, ID->getName(), DefUnit,
                                      Line, Size, Align, 0, 0, llvm::DIType(), 
                                      Elements, RuntimeLang);
 
@@ -782,13 +985,13 @@ llvm::DIType CGDebugInfo::CreateType(const ObjCInterfaceType *Ty,
 
 llvm::DIType CGDebugInfo::CreateType(const EnumType *Ty,
                                      llvm::DICompileUnit Unit) {
-  EnumDecl *Decl = Ty->getDecl();
+  EnumDecl *ED = Ty->getDecl();
 
   llvm::SmallVector<llvm::DIDescriptor, 32> Enumerators;
 
   // Create DIEnumerator elements for each enumerator.
   for (EnumDecl::enumerator_iterator
-         Enum = Decl->enumerator_begin(), EnumEnd = Decl->enumerator_end();
+         Enum = ED->enumerator_begin(), EnumEnd = ED->enumerator_end();
        Enum != EnumEnd; ++Enum) {
     Enumerators.push_back(DebugFactory.CreateEnumerator(Enum->getName(),
                                             Enum->getInitVal().getZExtValue()));
@@ -798,7 +1001,7 @@ llvm::DIType CGDebugInfo::CreateType(const EnumType *Ty,
   llvm::DIArray EltArray =
     DebugFactory.GetOrCreateArray(Enumerators.data(), Enumerators.size());
 
-  SourceLocation DefLoc = Decl->getLocation();
+  SourceLocation DefLoc = ED->getLocation();
   llvm::DICompileUnit DefUnit = getOrCreateCompileUnit(DefLoc);
   SourceManager &SM = CGM.getContext().getSourceManager();
   PresumedLoc PLoc = SM.getPresumedLoc(DefLoc);
@@ -815,7 +1018,7 @@ llvm::DIType CGDebugInfo::CreateType(const EnumType *Ty,
 
   llvm::DIType DbgTy = 
     DebugFactory.CreateCompositeType(llvm::dwarf::DW_TAG_enumeration_type,
-                                     Unit, Decl->getName(), DefUnit, Line,
+                                     Unit, ED->getName(), DefUnit, Line,
                                      Size, Align, 0, 0,
                                      llvm::DIType(), EltArray);
   return DbgTy;
@@ -1083,6 +1286,7 @@ void CGDebugInfo::EmitFunctionStart(GlobalDecl GD, QualType FnType,
       llvm::DISubprogram SP(dyn_cast_or_null<llvm::MDNode>(FI->second));
       if (!SP.isNull() && SP.isSubprogram() && SP.isDefinition()) {
         RegionStack.push_back(SP.getNode());
+        RegionMap[D] = llvm::WeakVH(SP.getNode());
         return;
       }
     }
@@ -1113,6 +1317,7 @@ void CGDebugInfo::EmitFunctionStart(GlobalDecl GD, QualType FnType,
 
   // Push function on region stack.
   RegionStack.push_back(SP.getNode());
+  RegionMap[D] = llvm::WeakVH(SP.getNode());
 }
 
 
@@ -1164,8 +1369,143 @@ void CGDebugInfo::EmitRegionEnd(llvm::Function *Fn, CGBuilderTy &Builder) {
   RegionStack.pop_back();
 }
 
+// EmitTypeForVarWithBlocksAttr - Build up structure info for the byref.  
+// See BuildByRefType.
+llvm::DIType CGDebugInfo::EmitTypeForVarWithBlocksAttr(const ValueDecl *VD,
+                                                       uint64_t *XOffset) {
+
+  llvm::SmallVector<llvm::DIDescriptor, 5> EltTys;
+
+  QualType FType;
+  uint64_t FieldSize, FieldOffset;
+  unsigned FieldAlign;
+  
+  llvm::DICompileUnit Unit = getOrCreateCompileUnit(VD->getLocation());
+  QualType Type = VD->getType();  
+
+  FieldOffset = 0;
+  FType = CGM.getContext().getPointerType(CGM.getContext().VoidTy);
+  llvm::DIType FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
+  FieldSize = CGM.getContext().getTypeSize(FType);
+  FieldAlign = CGM.getContext().getTypeAlign(FType);
+  FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
+                                           "__isa", llvm::DICompileUnit(),
+                                           0, FieldSize, FieldAlign,
+                                           FieldOffset, 0, FieldTy);
+  EltTys.push_back(FieldTy);
+  FieldOffset += FieldSize;
+  
+  FType = CGM.getContext().getPointerType(CGM.getContext().VoidTy);
+  FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
+  FieldSize = CGM.getContext().getTypeSize(FType);
+  FieldAlign = CGM.getContext().getTypeAlign(FType);
+  FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
+                                           "__forwarding", llvm::DICompileUnit(),
+                                           0, FieldSize, FieldAlign,
+                                           FieldOffset, 0, FieldTy);
+  EltTys.push_back(FieldTy);
+  FieldOffset += FieldSize;
+  
+  FType = CGM.getContext().IntTy;
+  FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
+  FieldSize = CGM.getContext().getTypeSize(FType);
+  FieldAlign = CGM.getContext().getTypeAlign(FType);
+  FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
+                                           "__flags", llvm::DICompileUnit(),
+                                           0, FieldSize, FieldAlign,
+                                           FieldOffset, 0, FieldTy);
+  EltTys.push_back(FieldTy);
+  FieldOffset += FieldSize;
+  
+  FType = CGM.getContext().IntTy;
+  FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
+  FieldSize = CGM.getContext().getTypeSize(FType);
+  FieldAlign = CGM.getContext().getTypeAlign(FType);
+  FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
+                                           "__size", llvm::DICompileUnit(),
+                                           0, FieldSize, FieldAlign,
+                                           FieldOffset, 0, FieldTy);
+  EltTys.push_back(FieldTy);
+  FieldOffset += FieldSize;
+  
+  bool HasCopyAndDispose = CGM.BlockRequiresCopying(Type);
+  if (HasCopyAndDispose) {
+    FType = CGM.getContext().getPointerType(CGM.getContext().VoidTy);
+    FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
+    FieldSize = CGM.getContext().getTypeSize(FType);
+    FieldAlign = CGM.getContext().getTypeAlign(FType);
+    FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
+                                             "__copy_helper", 
+                                             llvm::DICompileUnit(),
+                                             0, FieldSize, FieldAlign,
+                                             FieldOffset, 0, FieldTy);
+    EltTys.push_back(FieldTy);
+    FieldOffset += FieldSize;
+    
+    FType = CGM.getContext().getPointerType(CGM.getContext().VoidTy);
+    FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
+    FieldSize = CGM.getContext().getTypeSize(FType);
+    FieldAlign = CGM.getContext().getTypeAlign(FType);
+    FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
+                                             "__destroy_helper", 
+                                             llvm::DICompileUnit(),
+                                             0, FieldSize, FieldAlign,
+                                             FieldOffset, 0, FieldTy);
+    EltTys.push_back(FieldTy);
+    FieldOffset += FieldSize;
+  }
+  
+  CharUnits Align = CGM.getContext().getDeclAlign(VD);
+  if (Align > CharUnits::fromQuantity(
+        CGM.getContext().Target.getPointerAlign(0) / 8)) {
+    unsigned AlignedOffsetInBytes
+      = llvm::RoundUpToAlignment(FieldOffset/8, Align.getQuantity());
+    unsigned NumPaddingBytes
+      = AlignedOffsetInBytes - FieldOffset/8;
+    
+    if (NumPaddingBytes > 0) {
+      llvm::APInt pad(32, NumPaddingBytes);
+      FType = CGM.getContext().getConstantArrayType(CGM.getContext().CharTy,
+                                                    pad, ArrayType::Normal, 0);
+      FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
+      FieldSize = CGM.getContext().getTypeSize(FType);
+      FieldAlign = CGM.getContext().getTypeAlign(FType);
+      FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member,
+                                               Unit, "", llvm::DICompileUnit(),
+                                               0, FieldSize, FieldAlign,
+                                               FieldOffset, 0, FieldTy);
+      EltTys.push_back(FieldTy);
+      FieldOffset += FieldSize;
+    }
+  }
+  
+  FType = Type;
+  FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
+  FieldSize = CGM.getContext().getTypeSize(FType);
+  FieldAlign = Align.getQuantity()*8;
+
+  *XOffset = FieldOffset;  
+  FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
+                                           VD->getName(), llvm::DICompileUnit(),
+                                           0, FieldSize, FieldAlign,
+                                           FieldOffset, 0, FieldTy);
+  EltTys.push_back(FieldTy);
+  FieldOffset += FieldSize;
+  
+  llvm::DIArray Elements = 
+    DebugFactory.GetOrCreateArray(EltTys.data(), EltTys.size());
+  
+  unsigned Flags = llvm::DIType::FlagBlockByrefStruct;
+  
+  return DebugFactory.CreateCompositeType(llvm::dwarf::DW_TAG_structure_type, 
+                                          Unit, "",
+                                          llvm::DICompileUnit(),
+                                          0, FieldOffset, 0, 0, Flags,
+                                          llvm::DIType(), Elements);
+  
+}
 /// EmitDeclare - Emit local variable declaration debug info.
-void CGDebugInfo::EmitDeclare(const VarDecl *Decl, unsigned Tag,
+void CGDebugInfo::EmitDeclare(const VarDecl *VD, unsigned Tag,
                               llvm::Value *Storage, CGBuilderTy &Builder) {
   assert(!RegionStack.empty() && "Region stack mismatch, stack empty!");
 
@@ -1176,148 +1516,25 @@ void CGDebugInfo::EmitDeclare(const VarDecl *Decl, unsigned Tag,
   if (CGO.OptimizationLevel)
     return;
 
-  llvm::DICompileUnit Unit = getOrCreateCompileUnit(Decl->getLocation());
-  QualType Type = Decl->getType();
-  llvm::DIType Ty = getOrCreateType(Type, Unit);
-  if (Decl->hasAttr<BlocksAttr>()) {
-    llvm::DICompileUnit DefUnit;
-    unsigned Tag = llvm::dwarf::DW_TAG_structure_type;
-
-    llvm::SmallVector<llvm::DIDescriptor, 5> EltTys;
-
-    llvm::DIType FieldTy;
-
-    QualType FType;
-    uint64_t FieldSize, FieldOffset;
-    unsigned FieldAlign;
-
-    llvm::DIArray Elements;
-    llvm::DIType EltTy;
-    
-    // Build up structure for the byref.  See BuildByRefType.
-    FieldOffset = 0;
-    FType = CGM.getContext().getPointerType(CGM.getContext().VoidTy);
-    FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-    FieldSize = CGM.getContext().getTypeSize(FType);
-    FieldAlign = CGM.getContext().getTypeAlign(FType);
-    FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                             "__isa", DefUnit,
-                                             0, FieldSize, FieldAlign,
-                                             FieldOffset, 0, FieldTy);
-    EltTys.push_back(FieldTy);
-    FieldOffset += FieldSize;
-
-    FType = CGM.getContext().getPointerType(CGM.getContext().VoidTy);
-    FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-    FieldSize = CGM.getContext().getTypeSize(FType);
-    FieldAlign = CGM.getContext().getTypeAlign(FType);
-    FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                             "__forwarding", DefUnit,
-                                             0, FieldSize, FieldAlign,
-                                             FieldOffset, 0, FieldTy);
-    EltTys.push_back(FieldTy);
-    FieldOffset += FieldSize;
-
-    FType = CGM.getContext().IntTy;
-    FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-    FieldSize = CGM.getContext().getTypeSize(FType);
-    FieldAlign = CGM.getContext().getTypeAlign(FType);
-    FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                             "__flags", DefUnit,
-                                             0, FieldSize, FieldAlign,
-                                             FieldOffset, 0, FieldTy);
-    EltTys.push_back(FieldTy);
-    FieldOffset += FieldSize;
-
-    FType = CGM.getContext().IntTy;
-    FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-    FieldSize = CGM.getContext().getTypeSize(FType);
-    FieldAlign = CGM.getContext().getTypeAlign(FType);
-    FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                             "__size", DefUnit,
-                                             0, FieldSize, FieldAlign,
-                                             FieldOffset, 0, FieldTy);
-    EltTys.push_back(FieldTy);
-    FieldOffset += FieldSize;
-    
-    bool HasCopyAndDispose = CGM.BlockRequiresCopying(Type);
-    if (HasCopyAndDispose) {
-      FType = CGM.getContext().getPointerType(CGM.getContext().VoidTy);
-      FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-      FieldSize = CGM.getContext().getTypeSize(FType);
-      FieldAlign = CGM.getContext().getTypeAlign(FType);
-      FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                               "__copy_helper", DefUnit,
-                                               0, FieldSize, FieldAlign,
-                                               FieldOffset, 0, FieldTy);
-      EltTys.push_back(FieldTy);
-      FieldOffset += FieldSize;
-
-      FType = CGM.getContext().getPointerType(CGM.getContext().VoidTy);
-      FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-      FieldSize = CGM.getContext().getTypeSize(FType);
-      FieldAlign = CGM.getContext().getTypeAlign(FType);
-      FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                               "__destroy_helper", DefUnit,
-                                               0, FieldSize, FieldAlign,
-                                               FieldOffset, 0, FieldTy);
-      EltTys.push_back(FieldTy);
-      FieldOffset += FieldSize;
-    }
-    
-    unsigned Align = CGM.getContext().getDeclAlignInBytes(Decl);
-    if (Align > CGM.getContext().Target.getPointerAlign(0) / 8) {
-      unsigned AlignedOffsetInBytes
-        = llvm::RoundUpToAlignment(FieldOffset/8, Align);
-      unsigned NumPaddingBytes
-        = AlignedOffsetInBytes - FieldOffset/8;
-
-      if (NumPaddingBytes > 0) {
-        llvm::APInt pad(32, NumPaddingBytes);
-        FType = CGM.getContext().getConstantArrayType(CGM.getContext().CharTy,
-                                                     pad, ArrayType::Normal, 0);
-        FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-        FieldSize = CGM.getContext().getTypeSize(FType);
-        FieldAlign = CGM.getContext().getTypeAlign(FType);
-        FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member,
-                                                 Unit, "", DefUnit,
-                                                 0, FieldSize, FieldAlign,
-                                                 FieldOffset, 0, FieldTy);
-        EltTys.push_back(FieldTy);
-        FieldOffset += FieldSize;
-      }
-    }
-
-    FType = Type;
-    FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-    FieldSize = CGM.getContext().getTypeSize(FType);
-    FieldAlign = Align*8;
-    
-    FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                             Decl->getName(), DefUnit,
-                                             0, FieldSize, FieldAlign,
-                                             FieldOffset, 0, FieldTy);
-    EltTys.push_back(FieldTy);
-    FieldOffset += FieldSize;
-
-    Elements = DebugFactory.GetOrCreateArray(EltTys.data(), EltTys.size());
-
-    unsigned Flags = llvm::DIType::FlagBlockByrefStruct;
-
-    Ty = DebugFactory.CreateCompositeType(Tag, Unit, "",
-                                          llvm::DICompileUnit(),
-                                          0, FieldOffset, 0, 0, Flags,
-                                          llvm::DIType(), Elements);
-  }
+  llvm::DICompileUnit Unit = getOrCreateCompileUnit(VD->getLocation());
+  llvm::DIType Ty;
+  uint64_t XOffset = 0;
+  if (VD->hasAttr<BlocksAttr>())
+    Ty = EmitTypeForVarWithBlocksAttr(VD, &XOffset);
+  else 
+    Ty = getOrCreateType(VD->getType(), Unit);
 
   // Get location information.
   SourceManager &SM = CGM.getContext().getSourceManager();
-  PresumedLoc PLoc = SM.getPresumedLoc(Decl->getLocation());
+  PresumedLoc PLoc = SM.getPresumedLoc(VD->getLocation());
   unsigned Line = 0;
   unsigned Column = 0;
-  if (!PLoc.isInvalid()) {
+  if (PLoc.isInvalid())
+    PLoc = SM.getPresumedLoc(CurLoc);
+  if (PLoc.isValid()) {
     Line = PLoc.getLine();
     Column = PLoc.getColumn();
+    Unit = getOrCreateCompileUnit(CurLoc);
   } else {
     Unit = llvm::DICompileUnit();
   }
@@ -1325,7 +1542,7 @@ void CGDebugInfo::EmitDeclare(const VarDecl *Decl, unsigned Tag,
   // Create the descriptor for the variable.
   llvm::DIVariable D =
     DebugFactory.CreateVariable(Tag, llvm::DIDescriptor(RegionStack.back()),
-                                Decl->getName(),
+                                VD->getName(),
                                 Unit, Line, Ty);
   // Insert an llvm.dbg.declare into the current block.
   llvm::Instruction *Call =
@@ -1342,7 +1559,7 @@ void CGDebugInfo::EmitDeclare(const VarDecl *Decl, unsigned Tag,
 void CGDebugInfo::EmitDeclare(const BlockDeclRefExpr *BDRE, unsigned Tag,
                               llvm::Value *Storage, CGBuilderTy &Builder,
                               CodeGenFunction *CGF) {
-  const ValueDecl *Decl = BDRE->getDecl();
+  const ValueDecl *VD = BDRE->getDecl();
   assert(!RegionStack.empty() && "Region stack mismatch, stack empty!");
 
   // Do not emit variable debug information while generating optimized code.
@@ -1353,186 +1570,50 @@ void CGDebugInfo::EmitDeclare(const BlockDeclRefExpr *BDRE, unsigned Tag,
     return;
 
   uint64_t XOffset = 0;
-  llvm::DICompileUnit Unit = getOrCreateCompileUnit(Decl->getLocation());
-  QualType Type = Decl->getType();
-  llvm::DIType Ty = getOrCreateType(Type, Unit);
-  if (Decl->hasAttr<BlocksAttr>()) {
-    llvm::DICompileUnit DefUnit;
-    unsigned Tag = llvm::dwarf::DW_TAG_structure_type;
-
-    llvm::SmallVector<llvm::DIDescriptor, 5> EltTys;
-
-    llvm::DIType FieldTy;
-
-    QualType FType;
-    uint64_t FieldSize, FieldOffset;
-    unsigned FieldAlign;
-
-    llvm::DIArray Elements;
-    llvm::DIType EltTy;
-    
-    // Build up structure for the byref.  See BuildByRefType.
-    FieldOffset = 0;
-    FType = CGM.getContext().getPointerType(CGM.getContext().VoidTy);
-    FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-    FieldSize = CGM.getContext().getTypeSize(FType);
-    FieldAlign = CGM.getContext().getTypeAlign(FType);
-    FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                             "__isa", DefUnit,
-                                             0, FieldSize, FieldAlign,
-                                             FieldOffset, 0, FieldTy);
-    EltTys.push_back(FieldTy);
-    FieldOffset += FieldSize;
-
-    FType = CGM.getContext().getPointerType(CGM.getContext().VoidTy);
-    FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-    FieldSize = CGM.getContext().getTypeSize(FType);
-    FieldAlign = CGM.getContext().getTypeAlign(FType);
-    FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                             "__forwarding", DefUnit,
-                                             0, FieldSize, FieldAlign,
-                                             FieldOffset, 0, FieldTy);
-    EltTys.push_back(FieldTy);
-    FieldOffset += FieldSize;
-
-    FType = CGM.getContext().IntTy;
-    FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-    FieldSize = CGM.getContext().getTypeSize(FType);
-    FieldAlign = CGM.getContext().getTypeAlign(FType);
-    FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                             "__flags", DefUnit,
-                                             0, FieldSize, FieldAlign,
-                                             FieldOffset, 0, FieldTy);
-    EltTys.push_back(FieldTy);
-    FieldOffset += FieldSize;
-
-    FType = CGM.getContext().IntTy;
-    FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-    FieldSize = CGM.getContext().getTypeSize(FType);
-    FieldAlign = CGM.getContext().getTypeAlign(FType);
-    FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                             "__size", DefUnit,
-                                             0, FieldSize, FieldAlign,
-                                             FieldOffset, 0, FieldTy);
-    EltTys.push_back(FieldTy);
-    FieldOffset += FieldSize;
-    
-    bool HasCopyAndDispose = CGM.BlockRequiresCopying(Type);
-    if (HasCopyAndDispose) {
-      FType = CGM.getContext().getPointerType(CGM.getContext().VoidTy);
-      FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-      FieldSize = CGM.getContext().getTypeSize(FType);
-      FieldAlign = CGM.getContext().getTypeAlign(FType);
-      FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                               "__copy_helper", DefUnit,
-                                               0, FieldSize, FieldAlign,
-                                               FieldOffset, 0, FieldTy);
-      EltTys.push_back(FieldTy);
-      FieldOffset += FieldSize;
-
-      FType = CGM.getContext().getPointerType(CGM.getContext().VoidTy);
-      FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-      FieldSize = CGM.getContext().getTypeSize(FType);
-      FieldAlign = CGM.getContext().getTypeAlign(FType);
-      FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                               "__destroy_helper", DefUnit,
-                                               0, FieldSize, FieldAlign,
-                                               FieldOffset, 0, FieldTy);
-      EltTys.push_back(FieldTy);
-      FieldOffset += FieldSize;
-    }
-    
-    unsigned Align = CGM.getContext().getDeclAlignInBytes(Decl);
-    if (Align > CGM.getContext().Target.getPointerAlign(0) / 8) {
-      unsigned AlignedOffsetInBytes
-        = llvm::RoundUpToAlignment(FieldOffset/8, Align);
-      unsigned NumPaddingBytes
-        = AlignedOffsetInBytes - FieldOffset/8;
-
-      if (NumPaddingBytes > 0) {
-        llvm::APInt pad(32, NumPaddingBytes);
-        FType = CGM.getContext().getConstantArrayType(CGM.getContext().CharTy,
-                                                     pad, ArrayType::Normal, 0);
-        FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-        FieldSize = CGM.getContext().getTypeSize(FType);
-        FieldAlign = CGM.getContext().getTypeAlign(FType);
-        FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member,
-                                                 Unit, "", DefUnit,
-                                                 0, FieldSize, FieldAlign,
-                                                 FieldOffset, 0, FieldTy);
-        EltTys.push_back(FieldTy);
-        FieldOffset += FieldSize;
-      }
-    }
-
-    FType = Type;
-    FieldTy = CGDebugInfo::getOrCreateType(FType, Unit);
-    FieldSize = CGM.getContext().getTypeSize(FType);
-    FieldAlign = Align*8;
-    
-    XOffset = FieldOffset;
-    FieldTy = DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_member, Unit,
-                                             Decl->getName(), DefUnit,
-                                             0, FieldSize, FieldAlign,
-                                             FieldOffset, 0, FieldTy);
-    EltTys.push_back(FieldTy);
-    FieldOffset += FieldSize;
-
-    Elements = DebugFactory.GetOrCreateArray(EltTys.data(), EltTys.size());
-
-    unsigned Flags = llvm::DIType::FlagBlockByrefStruct;
-
-    Ty = DebugFactory.CreateCompositeType(Tag, Unit, "",
-                                          llvm::DICompileUnit(),
-                                          0, FieldOffset, 0, 0, Flags,
-                                          llvm::DIType(), Elements);
-  }
+  llvm::DICompileUnit Unit = getOrCreateCompileUnit(VD->getLocation());
+  llvm::DIType Ty;
+  if (VD->hasAttr<BlocksAttr>())
+    Ty = EmitTypeForVarWithBlocksAttr(VD, &XOffset);
+  else 
+    Ty = getOrCreateType(VD->getType(), Unit);
 
   // Get location information.
   SourceManager &SM = CGM.getContext().getSourceManager();
-  PresumedLoc PLoc = SM.getPresumedLoc(Decl->getLocation());
+  PresumedLoc PLoc = SM.getPresumedLoc(VD->getLocation());
   unsigned Line = 0;
   if (!PLoc.isInvalid())
     Line = PLoc.getLine();
   else
     Unit = llvm::DICompileUnit();
 
-  CharUnits offset = CGF->BlockDecls[Decl];
+  CharUnits offset = CGF->BlockDecls[VD];
   llvm::SmallVector<llvm::Value *, 9> addr;
-  llvm::LLVMContext &VMContext = CGM.getLLVMContext();
-  addr.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext),
-                                        llvm::DIFactory::OpDeref));
-  addr.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext),
-                                        llvm::DIFactory::OpPlus));
-  addr.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext),
-                                        offset.getQuantity()));
+  const llvm::Type *Int64Ty = llvm::Type::getInt64Ty(CGM.getLLVMContext());
+  addr.push_back(llvm::ConstantInt::get(Int64Ty, llvm::DIFactory::OpDeref));
+  addr.push_back(llvm::ConstantInt::get(Int64Ty, llvm::DIFactory::OpPlus));
+  addr.push_back(llvm::ConstantInt::get(Int64Ty, offset.getQuantity()));
   if (BDRE->isByRef()) {
-    addr.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext),
-                                          llvm::DIFactory::OpDeref));
-    addr.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext),
-                                          llvm::DIFactory::OpPlus));
+    addr.push_back(llvm::ConstantInt::get(Int64Ty, llvm::DIFactory::OpDeref));
+    addr.push_back(llvm::ConstantInt::get(Int64Ty, llvm::DIFactory::OpPlus));
     // offset of __forwarding field
     offset = CharUnits::fromQuantity(CGF->LLVMPointerWidth/8);
-    addr.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext),
-                                          offset.getQuantity()));
-    addr.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext),
-                                          llvm::DIFactory::OpDeref));
-    addr.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext),
-                                          llvm::DIFactory::OpPlus));
+    addr.push_back(llvm::ConstantInt::get(Int64Ty, offset.getQuantity()));
+    addr.push_back(llvm::ConstantInt::get(Int64Ty, llvm::DIFactory::OpDeref));
+    addr.push_back(llvm::ConstantInt::get(Int64Ty, llvm::DIFactory::OpPlus));
     // offset of x field
     offset = CharUnits::fromQuantity(XOffset/8);
-    addr.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext),
-                                          offset.getQuantity()));
+    addr.push_back(llvm::ConstantInt::get(Int64Ty, offset.getQuantity()));
   }
 
   // Create the descriptor for the variable.
   llvm::DIVariable D =
-    DebugFactory.CreateComplexVariable(Tag, llvm::DIDescriptor(RegionStack.back()),
-                                       Decl->getName(), Unit, Line, Ty,
+    DebugFactory.CreateComplexVariable(Tag,
+                                       llvm::DIDescriptor(RegionStack.back()),
+                                       VD->getName(), Unit, Line, Ty,
                                        addr);
   // Insert an llvm.dbg.declare into the current block.
   llvm::Instruction *Call = 
-    DebugFactory.InsertDeclare(Storage, D, Builder.GetInsertPoint());
+    DebugFactory.InsertDeclare(Storage, D, Builder.GetInsertBlock());
 
   llvm::DIScope DS(RegionStack.back());
   llvm::DILocation DO(NULL);
@@ -1542,10 +1623,10 @@ void CGDebugInfo::EmitDeclare(const BlockDeclRefExpr *BDRE, unsigned Tag,
   Call->setMetadata("dbg", DL.getNode());
 }
 
-void CGDebugInfo::EmitDeclareOfAutoVariable(const VarDecl *Decl,
+void CGDebugInfo::EmitDeclareOfAutoVariable(const VarDecl *VD,
                                             llvm::Value *Storage,
                                             CGBuilderTy &Builder) {
-  EmitDeclare(Decl, llvm::dwarf::DW_TAG_auto_variable, Storage, Builder);
+  EmitDeclare(VD, llvm::dwarf::DW_TAG_auto_variable, Storage, Builder);
 }
 
 void CGDebugInfo::EmitDeclareOfBlockDeclRefVariable(
@@ -1556,24 +1637,24 @@ void CGDebugInfo::EmitDeclareOfBlockDeclRefVariable(
 
 /// EmitDeclareOfArgVariable - Emit call to llvm.dbg.declare for an argument
 /// variable declaration.
-void CGDebugInfo::EmitDeclareOfArgVariable(const VarDecl *Decl, llvm::Value *AI,
+void CGDebugInfo::EmitDeclareOfArgVariable(const VarDecl *VD, llvm::Value *AI,
                                            CGBuilderTy &Builder) {
-  EmitDeclare(Decl, llvm::dwarf::DW_TAG_arg_variable, AI, Builder);
+  EmitDeclare(VD, llvm::dwarf::DW_TAG_arg_variable, AI, Builder);
 }
 
 
 
 /// EmitGlobalVariable - Emit information about a global variable.
 void CGDebugInfo::EmitGlobalVariable(llvm::GlobalVariable *Var,
-                                     const VarDecl *Decl) {
-
+                                     const VarDecl *D) {
+  
   // Create global variable debug descriptor.
-  llvm::DICompileUnit Unit = getOrCreateCompileUnit(Decl->getLocation());
+  llvm::DICompileUnit Unit = getOrCreateCompileUnit(D->getLocation());
   SourceManager &SM = CGM.getContext().getSourceManager();
-  PresumedLoc PLoc = SM.getPresumedLoc(Decl->getLocation());
+  PresumedLoc PLoc = SM.getPresumedLoc(D->getLocation());
   unsigned LineNo = PLoc.isInvalid() ? 0 : PLoc.getLine();
 
-  QualType T = Decl->getType();
+  QualType T = D->getType();
   if (T->isIncompleteArrayType()) {
 
     // CodeGen turns int[] into int[1] so we'll do the same here.
@@ -1585,9 +1666,11 @@ void CGDebugInfo::EmitGlobalVariable(llvm::GlobalVariable *Var,
     T = CGM.getContext().getConstantArrayType(ET, ConstVal,
                                            ArrayType::Normal, 0);
   }
-  llvm::StringRef DeclName = Decl->getName();
-  DebugFactory.CreateGlobalVariable(getContext(Decl, Unit), DeclName, DeclName,
-                                    llvm::StringRef(), Unit, LineNo,
+  llvm::StringRef DeclName = D->getName();
+  llvm::DIDescriptor DContext = 
+    getContextDescriptor(dyn_cast<Decl>(D->getDeclContext()), Unit);
+  DebugFactory.CreateGlobalVariable(DContext, DeclName,
+                                    DeclName, llvm::StringRef(), Unit, LineNo,
                                     getOrCreateType(T, Unit),
                                     Var->hasInternalLinkage(),
                                     true/*definition*/, Var);
@@ -1595,16 +1678,16 @@ void CGDebugInfo::EmitGlobalVariable(llvm::GlobalVariable *Var,
 
 /// EmitGlobalVariable - Emit information about an objective-c interface.
 void CGDebugInfo::EmitGlobalVariable(llvm::GlobalVariable *Var,
-                                     ObjCInterfaceDecl *Decl) {
+                                     ObjCInterfaceDecl *ID) {
   // Create global variable debug descriptor.
-  llvm::DICompileUnit Unit = getOrCreateCompileUnit(Decl->getLocation());
+  llvm::DICompileUnit Unit = getOrCreateCompileUnit(ID->getLocation());
   SourceManager &SM = CGM.getContext().getSourceManager();
-  PresumedLoc PLoc = SM.getPresumedLoc(Decl->getLocation());
+  PresumedLoc PLoc = SM.getPresumedLoc(ID->getLocation());
   unsigned LineNo = PLoc.isInvalid() ? 0 : PLoc.getLine();
 
-  llvm::StringRef Name = Decl->getName();
+  llvm::StringRef Name = ID->getName();
 
-  QualType T = CGM.getContext().getObjCInterfaceType(Decl);
+  QualType T = CGM.getContext().getObjCInterfaceType(ID);
   if (T->isIncompleteArrayType()) {
 
     // CodeGen turns int[] into int[1] so we'll do the same here.
@@ -1621,4 +1704,27 @@ void CGDebugInfo::EmitGlobalVariable(llvm::GlobalVariable *Var,
                                     getOrCreateType(T, Unit),
                                     Var->hasInternalLinkage(),
                                     true/*definition*/, Var);
+}
+
+/// getOrCreateNamesSpace - Return namespace descriptor for the given
+/// namespace decl.
+llvm::DINameSpace 
+CGDebugInfo::getOrCreateNameSpace(const NamespaceDecl *NSDecl, 
+                                  llvm::DIDescriptor Unit) {
+  llvm::DenseMap<const NamespaceDecl *, llvm::WeakVH>::iterator I = 
+    NameSpaceCache.find(NSDecl);
+  if (I != NameSpaceCache.end())
+    return llvm::DINameSpace(cast<llvm::MDNode>(I->second));
+  
+  SourceManager &SM = CGM.getContext().getSourceManager();
+  PresumedLoc PLoc = SM.getPresumedLoc(NSDecl->getLocation());
+  unsigned LineNo = PLoc.isInvalid() ? 0 : PLoc.getLine();
+
+  llvm::DIDescriptor Context = 
+    getContextDescriptor(dyn_cast<Decl>(NSDecl->getDeclContext()), Unit);
+  llvm::DINameSpace NS =
+    DebugFactory.CreateNameSpace(Context, NSDecl->getName(), 
+	llvm::DICompileUnit(Unit.getNode()), LineNo);
+  NameSpaceCache[NSDecl] = llvm::WeakVH(NS.getNode());
+  return NS;
 }

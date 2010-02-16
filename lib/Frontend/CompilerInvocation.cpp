@@ -170,6 +170,8 @@ static void CodeGenOptsToArgs(const CodeGenOptions &Opts,
   }
   if (Opts.NoZeroInitializedInBSS)
     Res.push_back("-mno-zero-initialized-bss");
+  if (Opts.ObjCLegacyDispatch)
+    Res.push_back("-fobjc-legacy-dispatch");
   if (Opts.SoftFloat)
     Res.push_back("-msoft-float");
   if (Opts.UnwindTables)
@@ -178,6 +180,8 @@ static void CodeGenOptsToArgs(const CodeGenOptions &Opts,
     Res.push_back("-mrelocation-model");
     Res.push_back(Opts.RelocationModel);
   }
+  if (!Opts.VerifyModule)
+    Res.push_back("-disable-llvm-verifier");
 }
 
 static void DependencyOutputOptsToArgs(const DependencyOutputOptions &Opts,
@@ -220,6 +224,8 @@ static void DiagnosticOptsToArgs(const DiagnosticOptions &Opts,
     Res.push_back("-fcolor-diagnostics");
   if (Opts.VerifyDiagnostics)
     Res.push_back("-verify");
+  if (Opts.BinaryOutput)
+    Res.push_back("-fdiagnostics-binary");
   if (Opts.ShowOptionNames)
     Res.push_back("-fdiagnostics-show-option");
   if (Opts.TabStop != DiagnosticOptions::DefaultTabStop) {
@@ -276,6 +282,7 @@ static const char *getActionName(frontend::ActionKind Kind) {
   case frontend::EmitHTML:               return "-emit-html";
   case frontend::EmitLLVM:               return "-emit-llvm";
   case frontend::EmitLLVMOnly:           return "-emit-llvm-only";
+  case frontend::EmitObj:                return "-emit-obj";
   case frontend::FixIt:                  return "-fixit";
   case frontend::GeneratePCH:            return "-emit-pch";
   case frontend::GeneratePTH:            return "-emit-pth";
@@ -361,6 +368,10 @@ static void FrontendOptsToArgs(const FrontendOptions &Opts,
   for (unsigned i = 0, e = Opts.Plugins.size(); i != e; ++i) {
     Res.push_back("-load");
     Res.push_back(Opts.Plugins[i]);
+  }
+  for (unsigned i = 0, e = Opts.ASTMergeFiles.size(); i != e; ++i) {
+    Res.push_back("-ast-merge");
+    Res.push_back(Opts.ASTMergeFiles[i]);
   }
 }
 
@@ -450,6 +461,8 @@ static void LangOptsToArgs(const LangOptions &Opts,
     Res.push_back("-fms-extensions");
   if (Opts.ObjCNonFragileABI)
     Res.push_back("-fobjc-nonfragile-abi");
+  if (Opts.ObjCNonFragileABI2)
+    Res.push_back("-fobjc-nonfragile-abi2");
   // NoInline is implicit.
   if (!Opts.CXXOperatorNames)
     Res.push_back("-fno-operator-names");
@@ -465,6 +478,8 @@ static void LangOptsToArgs(const LangOptions &Opts,
     Res.push_back("-faltivec");
   if (Opts.Exceptions)
     Res.push_back("-fexceptions");
+  if (Opts.SjLjExceptions)
+    Res.push_back("-fsjlj-exceptions");
   if (!Opts.RTTI)
     Res.push_back("-fno-rtti");
   if (!Opts.NeXTRuntime)
@@ -475,8 +490,8 @@ static void LangOptsToArgs(const LangOptions &Opts,
     Res.push_back("-fno-builtin");
   if (!Opts.AssumeSaneOperatorNew)
     Res.push_back("-fno-assume-sane-operator-new");
-  if (Opts.ThreadsafeStatics)
-    llvm::llvm_report_error("FIXME: Not yet implemented!");
+  if (!Opts.ThreadsafeStatics)
+    Res.push_back("-fno-threadsafe-statics");
   if (Opts.POSIXThreads)
     Res.push_back("-pthread");
   if (Opts.Blocks)
@@ -770,18 +785,13 @@ static void ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
   Opts.FloatABI = getLastArgValue(Args, OPT_mfloat_abi);
   Opts.LimitFloatPrecision = getLastArgValue(Args, OPT_mlimit_float_precision);
   Opts.NoZeroInitializedInBSS = Args.hasArg(OPT_mno_zero_initialized_in_bss);
+  Opts.ObjCLegacyDispatch = Args.hasArg(OPT_fobjc_legacy_dispatch);
   Opts.SoftFloat = Args.hasArg(OPT_msoft_float);
   Opts.UnwindTables = Args.hasArg(OPT_munwind_tables);
   Opts.RelocationModel = getLastArgValue(Args, OPT_mrelocation_model, "pic");
 
   Opts.MainFileName = getLastArgValue(Args, OPT_main_file_name);
-
-  // FIXME: Put elsewhere?
-#ifdef NDEBUG
-  Opts.VerifyModule = 0;
-#else
-  Opts.VerifyModule = 1;
-#endif
+  Opts.VerifyModule = !Args.hasArg(OPT_disable_llvm_verifier);
 }
 
 static void ParseDependencyOutputArgs(DependencyOutputOptions &Opts,
@@ -808,6 +818,7 @@ static void ParseDiagnosticArgs(DiagnosticOptions &Opts, ArgList &Args,
   Opts.ShowOptionNames = Args.hasArg(OPT_fdiagnostics_show_option);
   Opts.ShowSourceRanges = Args.hasArg(OPT_fdiagnostics_print_source_range_info);
   Opts.VerifyDiagnostics = Args.hasArg(OPT_verify);
+  Opts.BinaryOutput = Args.hasArg(OPT_fdiagnostics_binary);
   Opts.TabStop = getLastArgIntValue(Args, OPT_ftabstop,
                                     DiagnosticOptions::DefaultTabStop, Diags);
   if (Opts.TabStop == 0 || Opts.TabStop > DiagnosticOptions::MaxTabStop) {
@@ -852,6 +863,8 @@ ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args, Diagnostic &Diags) {
       Opts.ProgramAction = frontend::EmitLLVM; break;
     case OPT_emit_llvm_only:
       Opts.ProgramAction = frontend::EmitLLVMOnly; break;
+    case OPT_emit_obj:
+      Opts.ProgramAction = frontend::EmitObj; break;
     case OPT_fixit:
       Opts.ProgramAction = frontend::FixIt; break;
     case OPT_emit_pch:
@@ -920,6 +933,7 @@ ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args, Diagnostic &Diags) {
   Opts.ShowTimers = Args.hasArg(OPT_ftime_report);
   Opts.ShowVersion = Args.hasArg(OPT_version);
   Opts.ViewClassInheritance = getLastArgValue(Args, OPT_cxx_inheritance_view);
+  Opts.ASTMergeFiles = getAllArgValues(Args, OPT_ast_merge);
 
   FrontendOptions::InputKind DashX = FrontendOptions::IK_None;
   if (const Arg *A = Args.getLastArg(OPT_x)) {
@@ -1146,7 +1160,9 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args,
   Opts.Microsoft = Args.hasArg(OPT_fms_extensions);
   Opts.WritableStrings = Args.hasArg(OPT_fwritable_strings);
   if (Args.hasArg(OPT_fno_lax_vector_conversions))
-      Opts.LaxVectorConversions = 0;
+    Opts.LaxVectorConversions = 0;
+  if (Args.hasArg(OPT_fno_threadsafe_statics))
+    Opts.ThreadsafeStatics = 0;
   Opts.Exceptions = Args.hasArg(OPT_fexceptions);
   Opts.RTTI = !Args.hasArg(OPT_fno_rtti);
   Opts.Blocks = Args.hasArg(OPT_fblocks);
@@ -1165,10 +1181,15 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args,
   Opts.ObjCConstantStringClass = getLastArgValue(Args,
                                                  OPT_fconstant_string_class);
   Opts.ObjCNonFragileABI = Args.hasArg(OPT_fobjc_nonfragile_abi);
+  Opts.ObjCNonFragileABI2 = Args.hasArg(OPT_fobjc_nonfragile_abi2);
+  if (Opts.ObjCNonFragileABI2)
+    Opts.ObjCNonFragileABI = true;
   Opts.CatchUndefined = Args.hasArg(OPT_fcatch_undefined_behavior);
   Opts.EmitAllDecls = Args.hasArg(OPT_femit_all_decls);
   Opts.PICLevel = getLastArgIntValue(Args, OPT_pic_level, 0, Diags);
+  Opts.SjLjExceptions = Args.hasArg(OPT_fsjlj_exceptions);
   Opts.Static = Args.hasArg(OPT_static_define);
+  Opts.DumpVtableLayouts = Args.hasArg(OPT_fdump_vtable_layouts);
   Opts.OptimizeSize = 0;
 
   // FIXME: Eliminate this dependency.

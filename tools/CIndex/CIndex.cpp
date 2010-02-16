@@ -14,11 +14,15 @@
 
 #include "CIndexer.h"
 #include "CXCursor.h"
+#include "CXSourceLocation.h"
+#include "CIndexDiagnostic.h"
 
 #include "clang/Basic/Version.h"
+
 #include "clang/AST/DeclVisitor.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/TypeLocVisitor.h"
+#include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -116,34 +120,6 @@ public:
 #endif
 #endif
 
-typedef llvm::PointerIntPair<ASTContext *, 1, bool> CXSourceLocationPtr;
-
-/// \brief Translate a Clang source location into a CIndex source location.
-static CXSourceLocation translateSourceLocation(ASTContext &Context,
-                                                SourceLocation Loc,
-                                                bool AtEnd = false) {
-  CXSourceLocationPtr Ptr(&Context, AtEnd);
-  CXSourceLocation Result = { Ptr.getOpaqueValue(), Loc.getRawEncoding() };
-  return Result;
-}
-
-/// \brief Translate a Clang source range into a CIndex source range.
-static CXSourceRange translateSourceRange(ASTContext &Context, SourceRange R) {
-  CXSourceRange Result = { &Context, 
-                           R.getBegin().getRawEncoding(),
-                           R.getEnd().getRawEncoding() };
-  return Result;
-}
-
-static SourceLocation translateSourceLocation(CXSourceLocation L) {
-  return SourceLocation::getFromRawEncoding(L.int_data);
-}
-
-static SourceRange translateSourceRange(CXSourceRange R) {
-  return SourceRange(SourceLocation::getFromRawEncoding(R.begin_int_data),
-                     SourceLocation::getFromRawEncoding(R.end_int_data));
-}
-
 /// \brief The result of comparing two source ranges.
 enum RangeComparisonResult {
   /// \brief Either the ranges overlap or one of the ranges is invalid.
@@ -163,13 +139,57 @@ static RangeComparisonResult RangeCompare(SourceManager &SM,
                                           SourceRange R2) {
   assert(R1.isValid() && "First range is invalid?");
   assert(R2.isValid() && "Second range is invalid?");
-  if (SM.isBeforeInTranslationUnit(R1.getEnd(), R2.getBegin()))
+  if (R1.getEnd() == R2.getBegin() ||
+      SM.isBeforeInTranslationUnit(R1.getEnd(), R2.getBegin()))
     return RangeBefore;
-  if (SM.isBeforeInTranslationUnit(R2.getEnd(), R1.getBegin()))
+  if (R2.getEnd() == R1.getBegin() ||
+      SM.isBeforeInTranslationUnit(R2.getEnd(), R1.getBegin()))
     return RangeAfter;
   return RangeOverlap;
 }
 
+/// \brief Translate a Clang source range into a CIndex source range.
+///
+/// Clang internally represents ranges where the end location points to the
+/// start of the token at the end. However, for external clients it is more
+/// useful to have a CXSourceRange be a proper half-open interval. This routine
+/// does the appropriate translation.
+CXSourceRange cxloc::translateSourceRange(const SourceManager &SM, 
+                                          const LangOptions &LangOpts,
+                                          SourceRange R) {
+  // FIXME: This is largely copy-paste from
+  // TextDiagnosticPrinter::HighlightRange.  When it is clear that this is what
+  // we want the two routines should be refactored.
+
+  // We want the last character in this location, so we will adjust the
+  // instantiation location accordingly.
+
+  // If the location is from a macro instantiation, get the end of the
+  // instantiation range.
+  SourceLocation EndLoc = R.getEnd();
+  SourceLocation InstLoc = SM.getInstantiationLoc(EndLoc);
+  if (EndLoc.isMacroID())
+    InstLoc = SM.getInstantiationRange(EndLoc).second;
+
+  // Measure the length token we're pointing at, so we can adjust the physical
+  // location in the file to point at the last character.
+  //
+  // FIXME: This won't cope with trigraphs or escaped newlines well. For that,
+  // we actually need a preprocessor, which isn't currently available
+  // here. Eventually, we'll switch the pointer data of
+  // CXSourceLocation/CXSourceRange to a translation unit (CXXUnit), so that the
+  // preprocessor will be available here. At that point, we can use
+  // Preprocessor::getLocForEndOfToken().
+  if (InstLoc.isValid()) {
+    unsigned Length = Lexer::MeasureTokenLength(InstLoc, SM, LangOpts);
+    EndLoc = EndLoc.getFileLocWithOffset(Length);
+  }
+
+  CXSourceRange Result = { { (void *)&SM, (void *)&LangOpts },
+                           R.getBegin().getRawEncoding(),
+                           EndLoc.getRawEncoding() };
+  return Result;
+}
 
 //===----------------------------------------------------------------------===//
 // Cursor visitor.
@@ -214,14 +234,8 @@ class CursorVisitor : public DeclVisitor<CursorVisitor, bool>,
   /// \brief Determine whether this particular source range comes before, comes 
   /// after, or overlaps the region of interest. 
   ///
-  /// \param R a source range retrieved from the abstract syntax tree.
+  /// \param R a half-open source range retrieved from the abstract syntax tree.
   RangeComparisonResult CompareRegionOfInterest(SourceRange R); 
-  
-  /// \brief Determine whether this particular source range comes before, comes 
-  /// after, or overlaps the region of interest. 
-  ///
-  /// \param CXR a source range retrieved from a cursor.
-  RangeComparisonResult CompareRegionOfInterest(CXSourceRange CXR); 
   
 public:
   CursorVisitor(ASTUnit *TU, CXCursorVisitor Visitor, CXClientData ClientData, 
@@ -292,6 +306,8 @@ public:
   // FIXME: LabelStmt label?
   bool VisitIfStmt(IfStmt *S);
   bool VisitSwitchStmt(SwitchStmt *S);
+  bool VisitWhileStmt(WhileStmt *S);
+  bool VisitForStmt(ForStmt *S);
   
   // Expression visitors
   bool VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E);
@@ -302,18 +318,7 @@ public:
 } // end anonymous namespace
 
 RangeComparisonResult CursorVisitor::CompareRegionOfInterest(SourceRange R) {
-  assert(RegionOfInterest.isValid() && "RangeCompare called with invalid range");
-  if (R.isInvalid())
-    return RangeOverlap;
-
-  // Move the end of the input range to the end of the last token in that
-  // range.
-  R.setEnd(TU->getPreprocessor().getLocForEndOfToken(R.getEnd(), 1));
   return RangeCompare(TU->getSourceManager(), R, RegionOfInterest);
-}
-
-RangeComparisonResult CursorVisitor::CompareRegionOfInterest(CXSourceRange CXR) {
-  return CompareRegionOfInterest(translateSourceRange(CXR));
 }
 
 /// \brief Visit the given cursor and, if requested by the visitor,
@@ -343,9 +348,9 @@ bool CursorVisitor::Visit(CXCursor Cursor, bool CheckedRegionOfInterest) {
   // If we have a range of interest, and this cursor doesn't intersect with it,
   // we're done.
   if (RegionOfInterest.isValid() && !CheckedRegionOfInterest) {
-    CXSourceRange Range = clang_getCursorExtent(Cursor);
-    if (translateSourceRange(Range).isInvalid() || 
-        CompareRegionOfInterest(Range))
+    SourceRange Range =
+      cxloc::translateCXSourceRange(clang_getCursorExtent(Cursor));
+    if (Range.isInvalid() || CompareRegionOfInterest(Range))
       return false;
   }
   
@@ -360,7 +365,7 @@ bool CursorVisitor::Visit(CXCursor Cursor, bool CheckedRegionOfInterest) {
     return VisitChildren(Cursor);
   }
 
-  llvm_unreachable("Silly GCC, we can't get here");
+  return false;
 }
 
 /// \brief Visit the children of the given cursor.
@@ -432,12 +437,15 @@ bool CursorVisitor::VisitChildren(CXCursor Cursor) {
 bool CursorVisitor::VisitDeclContext(DeclContext *DC) {
   for (DeclContext::decl_iterator
        I = DC->decls_begin(), E = DC->decls_end(); I != E; ++I) {
+    CXCursor Cursor = MakeCXCursor(*I, TU);
+
     if (RegionOfInterest.isValid()) {
-      SourceRange R = (*I)->getSourceRange();
-      if (R.isInvalid())
+      SourceRange Range =
+        cxloc::translateCXSourceRange(clang_getCursorExtent(Cursor));
+      if (Range.isInvalid())
         continue;
-      
-      switch (CompareRegionOfInterest(R)) {
+
+      switch (CompareRegionOfInterest(Range)) {
       case RangeBefore:
         // This declaration comes before the region of interest; skip it.
         continue;
@@ -452,7 +460,7 @@ bool CursorVisitor::VisitDeclContext(DeclContext *DC) {
       }      
     }
     
-    if (Visit(MakeCXCursor(*I, TU), true))
+    if (Visit(Cursor, true))
       return true;
   }
   
@@ -783,7 +791,7 @@ bool CursorVisitor::VisitTypeOfTypeLoc(TypeOfTypeLoc TL) {
 bool CursorVisitor::VisitStmt(Stmt *S) {
   for (Stmt::child_iterator Child = S->child_begin(), ChildEnd = S->child_end();
        Child != ChildEnd; ++Child) {
-    if (Visit(MakeCXCursor(*Child, StmtParent, TU)))
+    if (*Child && Visit(MakeCXCursor(*Child, StmtParent, TU)))
       return true;
   }
   
@@ -793,7 +801,7 @@ bool CursorVisitor::VisitStmt(Stmt *S) {
 bool CursorVisitor::VisitDeclStmt(DeclStmt *S) {
   for (DeclStmt::decl_iterator D = S->decl_begin(), DEnd = S->decl_end();
        D != DEnd; ++D) {
-    if (Visit(MakeCXCursor(*D, TU)))
+    if (*D && Visit(MakeCXCursor(*D, TU)))
       return true;
   }
   
@@ -804,12 +812,12 @@ bool CursorVisitor::VisitIfStmt(IfStmt *S) {
   if (VarDecl *Var = S->getConditionVariable()) {
     if (Visit(MakeCXCursor(Var, TU)))
       return true;
-  } else if (S->getCond() && Visit(MakeCXCursor(S->getCond(), StmtParent, TU)))
-    return true;
+  } 
   
+  if (S->getCond() && Visit(MakeCXCursor(S->getCond(), StmtParent, TU)))
+    return true;
   if (S->getThen() && Visit(MakeCXCursor(S->getThen(), StmtParent, TU)))
     return true;
-
   if (S->getElse() && Visit(MakeCXCursor(S->getElse(), StmtParent, TU)))
     return true;
 
@@ -820,9 +828,42 @@ bool CursorVisitor::VisitSwitchStmt(SwitchStmt *S) {
   if (VarDecl *Var = S->getConditionVariable()) {
     if (Visit(MakeCXCursor(Var, TU)))
       return true;
-  } else if (S->getCond() && Visit(MakeCXCursor(S->getCond(), StmtParent, TU)))
+  } 
+  
+  if (S->getCond() && Visit(MakeCXCursor(S->getCond(), StmtParent, TU)))
+    return true;
+  if (S->getBody() && Visit(MakeCXCursor(S->getBody(), StmtParent, TU)))
+    return true;
+  
+  return false;
+}
+
+bool CursorVisitor::VisitWhileStmt(WhileStmt *S) {
+  if (VarDecl *Var = S->getConditionVariable()) {
+    if (Visit(MakeCXCursor(Var, TU)))
+      return true;
+  } 
+  
+  if (S->getCond() && Visit(MakeCXCursor(S->getCond(), StmtParent, TU)))
+    return true;
+  if (S->getBody() && Visit(MakeCXCursor(S->getBody(), StmtParent, TU)))
     return true;
 
+  return false;
+}
+
+bool CursorVisitor::VisitForStmt(ForStmt *S) {
+  if (S->getInit() && Visit(MakeCXCursor(S->getInit(), StmtParent, TU)))
+    return true;
+  if (VarDecl *Var = S->getConditionVariable()) {
+    if (Visit(MakeCXCursor(Var, TU)))
+      return true;
+  } 
+  
+  if (S->getCond() && Visit(MakeCXCursor(S->getCond(), StmtParent, TU)))
+    return true;
+  if (S->getInc() && Visit(MakeCXCursor(S->getInc(), StmtParent, TU)))
+    return true;
   if (S->getBody() && Visit(MakeCXCursor(S->getBody(), StmtParent, TU)))
     return true;
   
@@ -868,37 +909,59 @@ CXString CIndexer::createCXString(const char *String, bool DupString){
   return Str;
 }
 
+CXString CIndexer::createCXString(llvm::StringRef String, bool DupString) {
+  CXString Result;
+  if (DupString || (!String.empty() && String.data()[String.size()] != 0)) {
+    char *Spelling = (char *)malloc(String.size() + 1);
+    memmove(Spelling, String.data(), String.size());
+    Spelling[String.size()] = 0;
+    Result.Spelling = Spelling;
+    Result.MustFreeString = 1;
+  } else {
+    Result.Spelling = String.data();
+    Result.MustFreeString = 0;
+  }
+  return Result;
+}
+
 extern "C" {
-CXIndex clang_createIndex(int excludeDeclarationsFromPCH,
-                          int displayDiagnostics) {
+CXIndex clang_createIndex(int excludeDeclarationsFromPCH) {
   CIndexer *CIdxr = new CIndexer();
   if (excludeDeclarationsFromPCH)
     CIdxr->setOnlyLocalDecls();
-  if (displayDiagnostics)
-    CIdxr->setDisplayDiagnostics();
   return CIdxr;
 }
 
 void clang_disposeIndex(CXIndex CIdx) {
-  assert(CIdx && "Passed null CXIndex");
-  delete static_cast<CIndexer *>(CIdx);
+  if (CIdx)
+    delete static_cast<CIndexer *>(CIdx);
 }
 
 void clang_setUseExternalASTGeneration(CXIndex CIdx, int value) {
-  assert(CIdx && "Passed null CXIndex");
-  CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
-  CXXIdx->setUseExternalASTGeneration(value);
+  if (CIdx) {
+    CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
+    CXXIdx->setUseExternalASTGeneration(value);
+  }
 }
 
-// FIXME: need to pass back error info.
 CXTranslationUnit clang_createTranslationUnit(CXIndex CIdx,
-                                              const char *ast_filename) {
-  assert(CIdx && "Passed null CXIndex");
+                                              const char *ast_filename,
+                                             CXDiagnosticCallback diag_callback,
+                                              CXClientData diag_client_data) {
+  if (!CIdx)
+    return 0;
+  
   CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
 
-  return ASTUnit::LoadFromPCHFile(ast_filename, CXXIdx->getDiags(),
-                                  CXXIdx->getOnlyLocalDecls(),
-                                  /* UseBumpAllocator = */ true);
+  // Configure the diagnostics.
+  DiagnosticOptions DiagOpts;
+  llvm::OwningPtr<Diagnostic> Diags;
+  Diags.reset(CompilerInstance::createDiagnostics(DiagOpts, 0, 0));
+  CIndexDiagnosticClient DiagClient(diag_callback, diag_client_data);
+  Diags->setClient(&DiagClient);
+  
+  return ASTUnit::LoadFromPCHFile(ast_filename, *Diags,
+                                  CXXIdx->getOnlyLocalDecls());
 }
 
 CXTranslationUnit
@@ -907,10 +970,21 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
                                           int num_command_line_args,
                                           const char **command_line_args,
                                           unsigned num_unsaved_files,
-                                          struct CXUnsavedFile *unsaved_files) {
-  assert(CIdx && "Passed null CXIndex");
+                                          struct CXUnsavedFile *unsaved_files,
+                                          CXDiagnosticCallback diag_callback,
+                                          CXClientData diag_client_data) {
+  if (!CIdx)
+    return 0;
+  
   CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
 
+  // Configure the diagnostics.
+  DiagnosticOptions DiagOpts;
+  llvm::OwningPtr<Diagnostic> Diags;
+  Diags.reset(CompilerInstance::createDiagnostics(DiagOpts, 0, 0));
+  CIndexDiagnosticClient DiagClient(diag_callback, diag_client_data);
+  Diags->setClient(&DiagClient);
+                               
   llvm::SmallVector<ASTUnit::RemappedFile, 4> RemappedFiles;
   for (unsigned I = 0; I != num_unsaved_files; ++I) {
     const llvm::MemoryBuffer *Buffer 
@@ -932,7 +1006,7 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
     Args.insert(Args.end(), command_line_args,
                 command_line_args + num_command_line_args);
 
-    unsigned NumErrors = CXXIdx->getDiags().getNumErrors();
+    unsigned NumErrors = Diags->getNumErrors();
     
 #ifdef USE_CRASHTRACER
     ArgsCrashTracerInfo ACTI(Args);
@@ -940,16 +1014,15 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
     
     llvm::OwningPtr<ASTUnit> Unit(
       ASTUnit::LoadFromCommandLine(Args.data(), Args.data() + Args.size(),
-                                   CXXIdx->getDiags(),
+                                   *Diags, 
                                    CXXIdx->getClangResourcesPath(),
                                    CXXIdx->getOnlyLocalDecls(),
-                                   /* UseBumpAllocator = */ true,
                                    RemappedFiles.data(),
                                    RemappedFiles.size()));
     
     // FIXME: Until we have broader testing, just drop the entire AST if we
     // encountered an error.
-    if (NumErrors != CXXIdx->getDiags().getNumErrors())
+    if (NumErrors != Diags->getNumErrors())
       return 0;
 
     return Unit.take();
@@ -1004,6 +1077,13 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
       argv.push_back(arg);
     }
 
+  // Generate a temporary name for the diagnostics file.
+  char tmpFileResults[L_tmpnam];
+  char *tmpResultsFileName = tmpnam(tmpFileResults);
+  llvm::sys::Path DiagnosticsFile(tmpResultsFileName);
+  TemporaryFiles.push_back(DiagnosticsFile);
+  argv.push_back("-fdiagnostics-binary");
+
   // Add the null terminator.
   argv.push_back(NULL);
 
@@ -1011,30 +1091,39 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
   llvm::sys::Path DevNull; // leave empty, causes redirection to /dev/null
                            // on Unix or NUL (Windows).
   std::string ErrMsg;
-  const llvm::sys::Path *Redirects[] = { &DevNull, &DevNull, &DevNull, NULL };
+  const llvm::sys::Path *Redirects[] = { &DevNull, &DevNull, &DiagnosticsFile,
+                                         NULL };
   llvm::sys::Program::ExecuteAndWait(ClangPath, &argv[0], /* env */ NULL,
-      /* redirects */ !CXXIdx->getDisplayDiagnostics() ? &Redirects[0] : NULL,
+      /* redirects */ &Redirects[0],
       /* secondsToWait */ 0, /* memoryLimits */ 0, &ErrMsg);
 
-  if (CXXIdx->getDisplayDiagnostics() && !ErrMsg.empty()) {
-    llvm::errs() << "clang_createTranslationUnitFromSourceFile: " << ErrMsg
-                 << '\n' << "Arguments: \n";
+  if (!ErrMsg.empty()) {
+    std::string AllArgs;
     for (std::vector<const char*>::iterator I = argv.begin(), E = argv.end();
-         I!=E; ++I) {
+         I != E; ++I) {
+      AllArgs += ' ';
       if (*I)
-        llvm::errs() << ' ' << *I << '\n';
+        AllArgs += *I;
     }
-    llvm::errs() << '\n';
+    
+    Diags->Report(diag::err_fe_clang) << AllArgs << ErrMsg;
   }
 
-  ASTUnit *ATU = ASTUnit::LoadFromPCHFile(astTmpFile, CXXIdx->getDiags(),
+  // FIXME: Parse the (redirected) standard error to emit diagnostics.
+
+  ASTUnit *ATU = ASTUnit::LoadFromPCHFile(astTmpFile, *Diags,
                                           CXXIdx->getOnlyLocalDecls(),
-                                          /* UseBumpAllocator = */ true,
                                           RemappedFiles.data(),
                                           RemappedFiles.size());
   if (ATU)
     ATU->unlinkTemporaryFile();
   
+  // FIXME: Currently we don't report diagnostics on invalid ASTs.
+  if (ATU)
+    ReportSerializedDiagnostics(DiagnosticsFile, *Diags, 
+                                num_unsaved_files, unsaved_files,
+                                ATU->getASTContext().getLangOptions());
+
   for (unsigned i = 0, e = TemporaryFiles.size(); i != e; ++i)
     TemporaryFiles[i].eraseFromDisk();
   
@@ -1042,12 +1131,14 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
 }
 
 void clang_disposeTranslationUnit(CXTranslationUnit CTUnit) {
-  assert(CTUnit && "Passed null CXTranslationUnit");
-  delete static_cast<ASTUnit *>(CTUnit);
+  if (CTUnit)
+    delete static_cast<ASTUnit *>(CTUnit);
 }
 
 CXString clang_getTranslationUnitSpelling(CXTranslationUnit CTUnit) {
-  assert(CTUnit && "Passed null CXTranslationUnit");
+  if (!CTUnit)
+    return CIndexer::createCXString("");
+  
   ASTUnit *CXXUnit = static_cast<ASTUnit *>(CTUnit);
   return CIndexer::createCXString(CXXUnit->getOriginalSourceFileName().c_str(),
                                   true);
@@ -1066,12 +1157,14 @@ CXCursor clang_getTranslationUnitCursor(CXTranslationUnit TU) {
 
 extern "C" {
 CXSourceLocation clang_getNullLocation() {
-  CXSourceLocation Result = { 0, 0 };
+  CXSourceLocation Result = { { 0, 0 }, 0 };
   return Result;
 }
 
 unsigned clang_equalLocations(CXSourceLocation loc1, CXSourceLocation loc2) {
-  return loc1.ptr_data == loc2.ptr_data && loc1.int_data == loc2.int_data;
+  return (loc1.ptr_data[0] == loc2.ptr_data[0] &&
+          loc1.ptr_data[1] == loc2.ptr_data[1] &&
+          loc1.int_data == loc2.int_data);
 }
 
 CXSourceLocation clang_getLocation(CXTranslationUnit tu,
@@ -1087,67 +1180,46 @@ CXSourceLocation clang_getLocation(CXTranslationUnit tu,
                                         static_cast<const FileEntry *>(file), 
                                               line, column);
   
-  return translateSourceLocation(CXXUnit->getASTContext(), SLoc, false);
+  return cxloc::translateSourceLocation(CXXUnit->getASTContext(), SLoc);
+}
+
+CXSourceRange clang_getNullRange() {
+  CXSourceRange Result = { { 0, 0 }, 0, 0 };
+  return Result;
 }
 
 CXSourceRange clang_getRange(CXSourceLocation begin, CXSourceLocation end) {
-  if (begin.ptr_data != end.ptr_data) {
-    CXSourceRange Result = { 0, 0, 0 };
-    return Result;
-  }
+  if (begin.ptr_data[0] != end.ptr_data[0] ||
+      begin.ptr_data[1] != end.ptr_data[1])
+    return clang_getNullRange();
   
-  CXSourceRange Result = { begin.ptr_data, begin.int_data, end.int_data };
+  CXSourceRange Result = { { begin.ptr_data[0], begin.ptr_data[1] }, 
+                           begin.int_data, end.int_data };
   return Result;
 }
 
 void clang_getInstantiationLocation(CXSourceLocation location,
                                     CXFile *file,
                                     unsigned *line,
-                                    unsigned *column) {
-  CXSourceLocationPtr Ptr
-    = CXSourceLocationPtr::getFromOpaqueValue(location.ptr_data);
+                                    unsigned *column,
+                                    unsigned *offset) {
   SourceLocation Loc = SourceLocation::getFromRawEncoding(location.int_data);
 
-  if (!Ptr.getPointer() || Loc.isInvalid()) {
+  if (!location.ptr_data[0] || Loc.isInvalid()) {
     if (file)
       *file = 0;
     if (line)
       *line = 0;
     if (column)
       *column = 0;
+    if (offset)
+      *offset = 0;
     return;
   }
 
-  // FIXME: This is largely copy-paste from
-  ///TextDiagnosticPrinter::HighlightRange.  When it is clear that this is
-  // what we want the two routines should be refactored.  
-  ASTContext &Context = *Ptr.getPointer();
-  SourceManager &SM = Context.getSourceManager();
+  const SourceManager &SM =
+    *static_cast<const SourceManager*>(location.ptr_data[0]);
   SourceLocation InstLoc = SM.getInstantiationLoc(Loc);
-  
-  if (Ptr.getInt()) {
-    // We want the last character in this location, so we will adjust
-    // the instantiation location accordingly.
-
-    // If the location is from a macro instantiation, get the end of
-    // the instantiation range.
-    if (Loc.isMacroID())
-      InstLoc = SM.getInstantiationRange(Loc).second;
-
-    // Measure the length token we're pointing at, so we can adjust
-    // the physical location in the file to point at the last
-    // character.
-    // FIXME: This won't cope with trigraphs or escaped newlines
-    // well. For that, we actually need a preprocessor, which isn't
-    // currently available here. Eventually, we'll switch the pointer
-    // data of CXSourceLocation/CXSourceRange to a translation unit
-    // (CXXUnit), so that the preprocessor will be available here. At
-    // that point, we can use Preprocessor::getLocForEndOfToken().
-    unsigned Length = Lexer::MeasureTokenLength(InstLoc, SM, 
-                                                Context.getLangOptions());
-    if (Length > 0)
-      InstLoc = InstLoc.getFileLocWithOffset(Length - 1);
-  }
 
   if (file)
     *file = (void *)SM.getFileEntryForID(SM.getFileID(InstLoc));
@@ -1155,18 +1227,19 @@ void clang_getInstantiationLocation(CXSourceLocation location,
     *line = SM.getInstantiationLineNumber(InstLoc);
   if (column)
     *column = SM.getInstantiationColumnNumber(InstLoc);
+  if (offset)
+    *offset = SM.getDecomposedLoc(InstLoc).second;
 }
 
 CXSourceLocation clang_getRangeStart(CXSourceRange range) {
-  CXSourceLocation Result = { range.ptr_data, range.begin_int_data };
+  CXSourceLocation Result = { { range.ptr_data[0], range.ptr_data[1] }, 
+                              range.begin_int_data };
   return Result;
 }
 
 CXSourceLocation clang_getRangeEnd(CXSourceRange range) {
-  llvm::PointerIntPair<ASTContext *, 1, bool> Ptr;
-  Ptr.setPointer(static_cast<ASTContext *>(range.ptr_data));
-  Ptr.setInt(true);
-  CXSourceLocation Result = { Ptr.getOpaqueValue(), range.end_int_data };
+  CXSourceLocation Result = { { range.ptr_data[0], range.ptr_data[1] },
+                              range.end_int_data };
   return Result;
 }
 
@@ -1181,7 +1254,6 @@ const char *clang_getFileName(CXFile SFile) {
   if (!SFile)
     return 0;
   
-  assert(SFile && "Passed null CXFile");
   FileEntry *FEnt = static_cast<FileEntry *>(SFile);
   return FEnt->getName();
 }
@@ -1190,7 +1262,6 @@ time_t clang_getFileTime(CXFile SFile) {
   if (!SFile)
     return 0;
   
-  assert(SFile && "Passed null CXFile");
   FileEntry *FEnt = static_cast<FileEntry *>(SFile);
   return FEnt->getModificationTime();
 }
@@ -1228,6 +1299,18 @@ static Decl *getDeclFromExpr(Stmt *E) {
     return OME->getMethodDecl();
   
   return 0;
+}
+
+static SourceLocation getLocationFromExpr(Expr *E) {
+  if (ObjCMessageExpr *Msg = dyn_cast<ObjCMessageExpr>(E))
+    return /*FIXME:*/Msg->getLeftLoc();
+  if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E))
+    return DRE->getLocation();
+  if (MemberExpr *Member = dyn_cast<MemberExpr>(E))
+    return Member->getMemberLoc();
+  if (ObjCIvarRefExpr *Ivar = dyn_cast<ObjCIvarRefExpr>(E))
+    return Ivar->getLocation();
+  return E->getLocStart();
 }
 
 extern "C" {
@@ -1274,7 +1357,6 @@ static CXString getDeclSpelling(Decl *D) {
 }
     
 CXString clang_getCursorSpelling(CXCursor C) {
-  assert(getCursorDecl(C) && "CXCursor has null decl");
   if (clang_isTranslationUnit(C.kind))
     return clang_getTranslationUnitSpelling(C.data[2]);
 
@@ -1314,7 +1396,10 @@ CXString clang_getCursorSpelling(CXCursor C) {
     return CIndexer::createCXString("");
   }
 
-  return getDeclSpelling(getCursorDecl(C));
+  if (clang_isDeclaration(C.kind))
+    return getDeclSpelling(getCursorDecl(C));
+  
+  return CIndexer::createCXString("");
 }
 
 const char *clang_getCursorKindSpelling(enum CXCursorKind Kind) {
@@ -1373,11 +1458,10 @@ CXCursor clang_getCursor(CXTranslationUnit TU, CXSourceLocation Loc) {
   
   ASTUnit *CXXUnit = static_cast<ASTUnit *>(TU);
 
-  SourceLocation SLoc = translateSourceLocation(Loc);
+  SourceLocation SLoc = cxloc::translateSourceLocation(Loc);
   CXCursor Result = MakeCXCursorInvalid(CXCursor_NoDeclFound);
   if (SLoc.isValid()) {
-    SourceRange RegionOfInterest(SLoc, 
-                       CXXUnit->getPreprocessor().getLocForEndOfToken(SLoc, 1));
+    SourceRange RegionOfInterest(SLoc, SLoc.getFileLocWithOffset(1));
     
     // FIXME: Would be great to have a "hint" cursor, then walk from that
     // hint cursor upward until we find a cursor whose source range encloses
@@ -1426,42 +1510,30 @@ CXCursorKind clang_getCursorKind(CXCursor C) {
   return C.kind;
 }
 
-static SourceLocation getLocationFromExpr(Expr *E) {
-  if (ObjCMessageExpr *Msg = dyn_cast<ObjCMessageExpr>(E))
-    return /*FIXME:*/Msg->getLeftLoc();
-  if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E))
-    return DRE->getLocation();
-  if (MemberExpr *Member = dyn_cast<MemberExpr>(E))
-    return Member->getMemberLoc();
-  if (ObjCIvarRefExpr *Ivar = dyn_cast<ObjCIvarRefExpr>(E))
-    return Ivar->getLocation();
-  return E->getLocStart();
-}
-
 CXSourceLocation clang_getCursorLocation(CXCursor C) {
   if (clang_isReference(C.kind)) {
     switch (C.kind) {
     case CXCursor_ObjCSuperClassRef: {       
       std::pair<ObjCInterfaceDecl *, SourceLocation> P
         = getCursorObjCSuperClassRef(C);
-      return translateSourceLocation(P.first->getASTContext(), P.second);
+      return cxloc::translateSourceLocation(P.first->getASTContext(), P.second);
     }
 
     case CXCursor_ObjCProtocolRef: {       
       std::pair<ObjCProtocolDecl *, SourceLocation> P
         = getCursorObjCProtocolRef(C);
-      return translateSourceLocation(P.first->getASTContext(), P.second);
+      return cxloc::translateSourceLocation(P.first->getASTContext(), P.second);
     }
 
     case CXCursor_ObjCClassRef: {       
       std::pair<ObjCInterfaceDecl *, SourceLocation> P
         = getCursorObjCClassRef(C);
-      return translateSourceLocation(P.first->getASTContext(), P.second);
+      return cxloc::translateSourceLocation(P.first->getASTContext(), P.second);
     }
 
     case CXCursor_TypeRef: {       
       std::pair<TypeDecl *, SourceLocation> P = getCursorTypeRef(C);
-      return translateSourceLocation(P.first->getASTContext(), P.second);
+      return cxloc::translateSourceLocation(P.first->getASTContext(), P.second);
     }
       
     default:
@@ -1471,19 +1543,17 @@ CXSourceLocation clang_getCursorLocation(CXCursor C) {
   }
 
   if (clang_isExpression(C.kind))
-    return translateSourceLocation(getCursorContext(C), 
+    return cxloc::translateSourceLocation(getCursorContext(C), 
                                    getLocationFromExpr(getCursorExpr(C)));
 
-  if (!getCursorDecl(C)) {
-    CXSourceLocation empty = { 0, 0 };
-    return empty;
-  }
+  if (!getCursorDecl(C))
+    return clang_getNullLocation();
 
   Decl *D = getCursorDecl(C);
   SourceLocation Loc = D->getLocation();
   if (ObjCInterfaceDecl *Class = dyn_cast<ObjCInterfaceDecl>(D))
     Loc = Class->getClassLoc();
-  return translateSourceLocation(D->getASTContext(), Loc);
+  return cxloc::translateSourceLocation(D->getASTContext(), Loc);
 }
 
 CXSourceRange clang_getCursorExtent(CXCursor C) {
@@ -1492,25 +1562,25 @@ CXSourceRange clang_getCursorExtent(CXCursor C) {
       case CXCursor_ObjCSuperClassRef: {       
         std::pair<ObjCInterfaceDecl *, SourceLocation> P
           = getCursorObjCSuperClassRef(C);
-        return translateSourceRange(P.first->getASTContext(), P.second);
+        return cxloc::translateSourceRange(P.first->getASTContext(), P.second);
       }
         
       case CXCursor_ObjCProtocolRef: {       
         std::pair<ObjCProtocolDecl *, SourceLocation> P
           = getCursorObjCProtocolRef(C);
-        return translateSourceRange(P.first->getASTContext(), P.second);
+        return cxloc::translateSourceRange(P.first->getASTContext(), P.second);
       }
         
       case CXCursor_ObjCClassRef: {       
         std::pair<ObjCInterfaceDecl *, SourceLocation> P
           = getCursorObjCClassRef(C);
         
-        return translateSourceRange(P.first->getASTContext(), P.second);
+        return cxloc::translateSourceRange(P.first->getASTContext(), P.second);
       }
 
       case CXCursor_TypeRef: {       
         std::pair<TypeDecl *, SourceLocation> P = getCursorTypeRef(C);
-        return translateSourceRange(P.first->getASTContext(), P.second);
+        return cxloc::translateSourceRange(P.first->getASTContext(), P.second);
       }
         
       default:
@@ -1520,20 +1590,18 @@ CXSourceRange clang_getCursorExtent(CXCursor C) {
   }
 
   if (clang_isExpression(C.kind))
-    return translateSourceRange(getCursorContext(C), 
+    return cxloc::translateSourceRange(getCursorContext(C), 
                                 getCursorExpr(C)->getSourceRange());
 
   if (clang_isStatement(C.kind))
-    return translateSourceRange(getCursorContext(C), 
+    return cxloc::translateSourceRange(getCursorContext(C), 
                                 getCursorStmt(C)->getSourceRange());
   
-  if (!getCursorDecl(C)) {
-    CXSourceRange empty = { 0, 0, 0 };
-    return empty;
-  }
+  if (!getCursorDecl(C))
+    return clang_getNullRange();
   
   Decl *D = getCursorDecl(C);
-  return translateSourceRange(D->getASTContext(), D->getSourceRange());
+  return cxloc::translateSourceRange(D->getASTContext(), D->getSourceRange());
 }
 
 CXCursor clang_getCursorReferenced(CXCursor C) {
@@ -1643,7 +1711,7 @@ CXCursor clang_getCursorDefinition(CXCursor C) {
   case Decl::CXXRecord:
   case Decl::ClassTemplateSpecialization:
   case Decl::ClassTemplatePartialSpecialization:
-    if (TagDecl *Def = cast<TagDecl>(D)->getDefinition(D->getASTContext()))
+    if (TagDecl *Def = cast<TagDecl>(D)->getDefinition())
       return MakeCXCursor(Def, CXXUnit);
     return clang_getNullCursor();
 
@@ -1659,23 +1727,10 @@ CXCursor clang_getCursorDefinition(CXCursor C) {
   }
 
   case Decl::Var: {
-    VarDecl *Var = cast<VarDecl>(D);
-
-    // Variables with initializers have definitions.
-    const VarDecl *Def = 0;
-    if (Var->getDefinition(Def))
-      return MakeCXCursor(const_cast<VarDecl *>(Def), CXXUnit);
-
-    // extern and private_extern variables are not definitions.
-    if (Var->hasExternalStorage())
-      return clang_getNullCursor();
-
-    // In-line static data members do not have definitions.
-    if (Var->isStaticDataMember() && !Var->isOutOfLine())
-      return clang_getNullCursor();
-
-    // All other variables are themselves definitions.
-    return C;
+    // Ask the variable if it has a definition.
+    if (VarDecl *Def = cast<VarDecl>(D)->getDefinition())
+      return MakeCXCursor(Def, CXXUnit);
+    return clang_getNullCursor();
   }
    
   case Decl::FunctionTemplate: {
@@ -1687,7 +1742,7 @@ CXCursor clang_getCursorDefinition(CXCursor C) {
    
   case Decl::ClassTemplate: {
     if (RecordDecl *Def = cast<ClassTemplateDecl>(D)->getTemplatedDecl()
-                                          ->getDefinition(D->getASTContext()))
+                                                            ->getDefinition())
       return MakeCXCursor(
                          cast<CXXRecordDecl>(Def)->getDescribedClassTemplate(), 
                           CXXUnit);
@@ -1843,6 +1898,247 @@ void clang_getDefinitionSpellingAndExtent(CXCursor C,
 } // end: extern "C"
 
 //===----------------------------------------------------------------------===//
+// Token-based Operations.
+//===----------------------------------------------------------------------===//
+
+/* CXToken layout:
+ *   int_data[0]: a CXTokenKind
+ *   int_data[1]: starting token location
+ *   int_data[2]: token length
+ *   int_data[3]: reserved
+ *   ptr_data: for identifiers and keywords, an IdentifierInfo*. 
+ *   otherwise unused.
+ */
+extern "C" {
+
+CXTokenKind clang_getTokenKind(CXToken CXTok) {
+  return static_cast<CXTokenKind>(CXTok.int_data[0]);
+}
+
+CXString clang_getTokenSpelling(CXTranslationUnit TU, CXToken CXTok) {
+  switch (clang_getTokenKind(CXTok)) {
+  case CXToken_Identifier:
+  case CXToken_Keyword:
+    // We know we have an IdentifierInfo*, so use that.
+    return CIndexer::createCXString(
+              static_cast<IdentifierInfo *>(CXTok.ptr_data)->getNameStart());
+
+  case CXToken_Literal: {
+    // We have stashed the starting pointer in the ptr_data field. Use it.
+    const char *Text = static_cast<const char *>(CXTok.ptr_data);
+    return CIndexer::createCXString(llvm::StringRef(Text, CXTok.int_data[2]), 
+                                    true);
+  }
+      
+  case CXToken_Punctuation:
+  case CXToken_Comment:
+    break;
+  }
+  
+  // We have to find the starting buffer pointer the hard way, by 
+  // deconstructing the source location.
+  ASTUnit *CXXUnit = static_cast<ASTUnit *>(TU);
+  if (!CXXUnit)
+    return CIndexer::createCXString("");
+  
+  SourceLocation Loc = SourceLocation::getFromRawEncoding(CXTok.int_data[1]);
+  std::pair<FileID, unsigned> LocInfo
+    = CXXUnit->getSourceManager().getDecomposedLoc(Loc);
+  std::pair<const char *,const char *> Buffer
+    = CXXUnit->getSourceManager().getBufferData(LocInfo.first);
+
+  return CIndexer::createCXString(llvm::StringRef(Buffer.first+LocInfo.second,
+                                                  CXTok.int_data[2]), 
+                                  true);
+}
+ 
+CXSourceLocation clang_getTokenLocation(CXTranslationUnit TU, CXToken CXTok) {
+  ASTUnit *CXXUnit = static_cast<ASTUnit *>(TU);
+  if (!CXXUnit)
+    return clang_getNullLocation();
+  
+  return cxloc::translateSourceLocation(CXXUnit->getASTContext(),
+                        SourceLocation::getFromRawEncoding(CXTok.int_data[1]));
+}
+
+CXSourceRange clang_getTokenExtent(CXTranslationUnit TU, CXToken CXTok) {
+  ASTUnit *CXXUnit = static_cast<ASTUnit *>(TU);
+  if (!CXXUnit)
+    return clang_getNullRange();
+  
+  return cxloc::translateSourceRange(CXXUnit->getASTContext(), 
+                        SourceLocation::getFromRawEncoding(CXTok.int_data[1]));
+}
+  
+void clang_tokenize(CXTranslationUnit TU, CXSourceRange Range,
+                    CXToken **Tokens, unsigned *NumTokens) {
+  if (Tokens)
+    *Tokens = 0;
+  if (NumTokens)
+    *NumTokens = 0;
+  
+  ASTUnit *CXXUnit = static_cast<ASTUnit *>(TU);
+  if (!CXXUnit || !Tokens || !NumTokens)
+    return;
+  
+  SourceRange R = cxloc::translateCXSourceRange(Range);
+  if (R.isInvalid())
+    return;
+  
+  SourceManager &SourceMgr = CXXUnit->getSourceManager();
+  std::pair<FileID, unsigned> BeginLocInfo
+    = SourceMgr.getDecomposedLoc(R.getBegin());
+  std::pair<FileID, unsigned> EndLocInfo
+    = SourceMgr.getDecomposedLoc(R.getEnd());
+  
+  // Cannot tokenize across files.
+  if (BeginLocInfo.first != EndLocInfo.first)
+    return;
+  
+  // Create a lexer 
+  std::pair<const char *,const char *> Buffer
+    = SourceMgr.getBufferData(BeginLocInfo.first);
+  Lexer Lex(SourceMgr.getLocForStartOfFile(BeginLocInfo.first),
+            CXXUnit->getASTContext().getLangOptions(),
+            Buffer.first, Buffer.first + BeginLocInfo.second, Buffer.second);
+  Lex.SetCommentRetentionState(true);
+  
+  // Lex tokens until we hit the end of the range.
+  const char *EffectiveBufferEnd = Buffer.first + EndLocInfo.second;
+  llvm::SmallVector<CXToken, 32> CXTokens;
+  Token Tok;
+  do {
+    // Lex the next token
+    Lex.LexFromRawLexer(Tok);
+    if (Tok.is(tok::eof))
+      break;
+    
+    // Initialize the CXToken.
+    CXToken CXTok;
+    
+    //   - Common fields
+    CXTok.int_data[1] = Tok.getLocation().getRawEncoding();
+    CXTok.int_data[2] = Tok.getLength();
+    CXTok.int_data[3] = 0;
+    
+    //   - Kind-specific fields
+    if (Tok.isLiteral()) {
+      CXTok.int_data[0] = CXToken_Literal;
+      CXTok.ptr_data = (void *)Tok.getLiteralData();
+    } else if (Tok.is(tok::identifier)) {
+      // Lookup the identifier to determine whether we have a 
+      std::pair<FileID, unsigned> LocInfo
+        = SourceMgr.getDecomposedLoc(Tok.getLocation());
+      const char *StartPos 
+        = CXXUnit->getSourceManager().getBufferData(LocInfo.first).first + 
+          LocInfo.second;
+      IdentifierInfo *II
+        = CXXUnit->getPreprocessor().LookUpIdentifierInfo(Tok, StartPos);
+      CXTok.int_data[0] = II->getTokenID() == tok::identifier?
+                               CXToken_Identifier
+                             : CXToken_Keyword;
+      CXTok.ptr_data = II;
+    } else if (Tok.is(tok::comment)) {
+      CXTok.int_data[0] = CXToken_Comment;
+      CXTok.ptr_data = 0;
+    } else {
+      CXTok.int_data[0] = CXToken_Punctuation;
+      CXTok.ptr_data = 0;
+    }
+    CXTokens.push_back(CXTok);
+  } while (Lex.getBufferLocation() <= EffectiveBufferEnd);
+  
+  if (CXTokens.empty())
+    return;
+  
+  *Tokens = (CXToken *)malloc(sizeof(CXToken) * CXTokens.size());
+  memmove(*Tokens, CXTokens.data(), sizeof(CXToken) * CXTokens.size());
+  *NumTokens = CXTokens.size();
+}
+
+typedef llvm::DenseMap<unsigned, CXCursor> AnnotateTokensData;
+
+enum CXChildVisitResult AnnotateTokensVisitor(CXCursor cursor, 
+                                              CXCursor parent, 
+                                              CXClientData client_data) {
+  AnnotateTokensData *Data = static_cast<AnnotateTokensData *>(client_data);
+
+  // We only annotate the locations of declarations, simple
+  // references, and expressions which directly reference something.
+  CXCursorKind Kind = clang_getCursorKind(cursor);
+  if (clang_isDeclaration(Kind) || clang_isReference(Kind)) {
+    // Okay: We can annotate the location of this declaration with the
+    // declaration or reference
+  } else if (clang_isExpression(cursor.kind)) {
+    if (Kind != CXCursor_DeclRefExpr &&
+        Kind != CXCursor_MemberRefExpr &&
+        Kind != CXCursor_ObjCMessageExpr)
+      return CXChildVisit_Recurse;
+
+    CXCursor Referenced = clang_getCursorReferenced(cursor);
+    if (Referenced == cursor || Referenced == clang_getNullCursor())
+      return CXChildVisit_Recurse;
+    
+    // Okay: we can annotate the location of this expression
+  } else {
+    // Nothing to annotate
+    return CXChildVisit_Recurse;
+  }
+  
+  CXSourceLocation Loc = clang_getCursorLocation(cursor);
+  (*Data)[Loc.int_data] = cursor;
+  return CXChildVisit_Recurse;
+}
+
+void clang_annotateTokens(CXTranslationUnit TU,
+                          CXToken *Tokens, unsigned NumTokens,
+                          CXCursor *Cursors) {
+  if (NumTokens == 0)
+    return;
+
+  // Any token we don't specifically annotate will have a NULL cursor.
+  for (unsigned I = 0; I != NumTokens; ++I)
+    Cursors[I] = clang_getNullCursor();
+
+  ASTUnit *CXXUnit = static_cast<ASTUnit *>(TU);
+  if (!CXXUnit || !Tokens)
+    return;
+
+  // Annotate all of the source locations in the region of interest that map 
+  SourceRange RegionOfInterest;
+  RegionOfInterest.setBegin(
+        cxloc::translateSourceLocation(clang_getTokenLocation(TU, Tokens[0])));
+  SourceLocation End
+    = cxloc::translateSourceLocation(clang_getTokenLocation(TU, 
+                                                     Tokens[NumTokens - 1]));
+  RegionOfInterest.setEnd(CXXUnit->getPreprocessor().getLocForEndOfToken(End));
+  // FIXME: Would be great to have a "hint" cursor, then walk from that
+  // hint cursor upward until we find a cursor whose source range encloses
+  // the region of interest, rather than starting from the translation unit.
+  AnnotateTokensData Annotated;
+  CXCursor Parent = clang_getTranslationUnitCursor(CXXUnit);
+  CursorVisitor AnnotateVis(CXXUnit, AnnotateTokensVisitor, &Annotated, 
+                            Decl::MaxPCHLevel, RegionOfInterest);
+  AnnotateVis.VisitChildren(Parent);
+
+  for (unsigned I = 0; I != NumTokens; ++I) {
+    // Determine whether we saw a cursor at this token's location.
+    AnnotateTokensData::iterator Pos = Annotated.find(Tokens[I].int_data[1]);
+    if (Pos == Annotated.end())
+      continue;
+
+    Cursors[I] = Pos->second;
+  }
+}
+
+void clang_disposeTokens(CXTranslationUnit TU, 
+                         CXToken *Tokens, unsigned NumTokens) {
+  free(Tokens);
+}
+  
+} // end: extern "C"
+
+//===----------------------------------------------------------------------===//
 // CXString Operations.
 //===----------------------------------------------------------------------===//
 
@@ -1864,8 +2160,8 @@ void clang_disposeString(CXString string) {
   
 extern "C" {
 
-const char *clang_getClangVersion() {
-  return getClangFullVersion();
+CXString clang_getClangVersion() {
+  return CIndexer::createCXString(getClangFullVersion(), true);
 }
 
 } // end: extern "C"

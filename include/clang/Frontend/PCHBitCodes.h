@@ -221,7 +221,11 @@ namespace clang {
       
       /// \brief Record code for the version control branch and revision
       /// information of the compiler used to build this PCH file.
-      VERSION_CONTROL_BRANCH_REVISION = 21
+      VERSION_CONTROL_BRANCH_REVISION = 21,
+      
+      /// \brief Record code for the array of unused static functions.
+      UNUSED_STATIC_FUNCS = 22
+      
     };
 
     /// \brief Record types used within a source manager block.
@@ -686,7 +690,11 @@ namespace clang {
       // \brief A CXXConstCastExpr record.
       EXPR_CXX_CONST_CAST,
       // \brief A CXXFunctionalCastExpr record.
-      EXPR_CXX_FUNCTIONAL_CAST
+      EXPR_CXX_FUNCTIONAL_CAST,
+      // \brief A CXXBoolLiteralExpr record.
+      EXPR_CXX_BOOL_LITERAL,
+      // \brief A CXXNullPtrLiteralExpr record.
+      EXPR_CXX_NULL_PTR_LITERAL
     };
 
     /// \brief The kinds of designators that can occur in a

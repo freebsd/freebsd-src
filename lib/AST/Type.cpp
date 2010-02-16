@@ -339,21 +339,18 @@ const RecordType *Type::getAsUnionType() const {
   return 0;
 }
 
-ObjCInterfaceType::ObjCInterfaceType(ASTContext &Ctx, QualType Canonical,
+ObjCInterfaceType::ObjCInterfaceType(QualType Canonical,
                                      ObjCInterfaceDecl *D,
                                      ObjCProtocolDecl **Protos, unsigned NumP) :
   Type(ObjCInterface, Canonical, /*Dependent=*/false),
-  Decl(D), Protocols(0), NumProtocols(NumP)
+  Decl(D), NumProtocols(NumP)
 {
-  if (NumProtocols) {
-    Protocols = new (Ctx) ObjCProtocolDecl*[NumProtocols];
-    memcpy(Protocols, Protos, NumProtocols * sizeof(*Protocols));
-  }
+  if (NumProtocols)
+    memcpy(reinterpret_cast<ObjCProtocolDecl**>(this + 1), Protos, 
+           NumProtocols * sizeof(*Protos));
 }
 
 void ObjCInterfaceType::Destroy(ASTContext& C) {
-  if (Protocols)
-    C.Deallocate(Protocols);
   this->~ObjCInterfaceType();
   C.Deallocate(this);
 }
@@ -372,22 +369,18 @@ bool Type::isObjCQualifiedInterfaceType() const {
   return getAsObjCQualifiedInterfaceType() != 0;
 }
 
-ObjCObjectPointerType::ObjCObjectPointerType(ASTContext &Ctx,
-                                             QualType Canonical, QualType T,
+ObjCObjectPointerType::ObjCObjectPointerType(QualType Canonical, QualType T,
                                              ObjCProtocolDecl **Protos,
                                              unsigned NumP) :
   Type(ObjCObjectPointer, Canonical, /*Dependent=*/false),
-  PointeeType(T), Protocols(NULL), NumProtocols(NumP)
+  PointeeType(T), NumProtocols(NumP)
 {
-  if (NumProtocols) {
-    Protocols = new (Ctx) ObjCProtocolDecl*[NumProtocols];
-    memcpy(Protocols, Protos, NumProtocols * sizeof(*Protocols));
-  }
+  if (NumProtocols)
+    memcpy(reinterpret_cast<ObjCProtocolDecl **>(this + 1), Protos, 
+           NumProtocols * sizeof(*Protos));
 }
 
 void ObjCObjectPointerType::Destroy(ASTContext& C) {
-  if (Protocols)
-    C.Deallocate(Protocols);
   this->~ObjCObjectPointerType();
   C.Deallocate(this);
 }
@@ -720,6 +713,19 @@ bool Type::isPromotableIntegerType() const {
     default:
       return false;
     }
+
+  // Enumerated types are promotable to their compatible integer types
+  // (C99 6.3.1.1) a.k.a. its underlying type (C++ [conv.prom]p2).
+  if (const EnumType *ET = getAs<EnumType>()){
+    if (this->isDependentType() || ET->getDecl()->getPromotionType().isNull())
+      return false;
+    
+    const BuiltinType *BT
+      = ET->getDecl()->getPromotionType()->getAs<BuiltinType>();
+    return BT->getKind() == BuiltinType::Int
+           || BT->getKind() == BuiltinType::UInt;
+  }
+  
   return false;
 }
 
@@ -797,12 +803,24 @@ const char *BuiltinType::getName(const LangOptions &LO) const {
   }
 }
 
+llvm::StringRef FunctionType::getNameForCallConv(CallingConv CC) {
+  switch (CC) {
+  case CC_Default: llvm_unreachable("no name for default cc");
+  default: return "";
+
+  case CC_C: return "cdecl";
+  case CC_X86StdCall: return "stdcall";
+  case CC_X86FastCall: return "fastcall";
+  }
+}
+
 void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID, QualType Result,
                                 arg_type_iterator ArgTys,
                                 unsigned NumArgs, bool isVariadic,
                                 unsigned TypeQuals, bool hasExceptionSpec,
                                 bool anyExceptionSpec, unsigned NumExceptions,
-                                exception_iterator Exs, bool NoReturn) {
+                                exception_iterator Exs, bool NoReturn,
+                                CallingConv CallConv) {
   ID.AddPointer(Result.getAsOpaquePtr());
   for (unsigned i = 0; i != NumArgs; ++i)
     ID.AddPointer(ArgTys[i].getAsOpaquePtr());
@@ -815,16 +833,19 @@ void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID, QualType Result,
       ID.AddPointer(Exs[i].getAsOpaquePtr());
   }
   ID.AddInteger(NoReturn);
+  ID.AddInteger(CallConv);
 }
 
 void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID) {
   Profile(ID, getResultType(), arg_type_begin(), NumArgs, isVariadic(),
           getTypeQuals(), hasExceptionSpec(), hasAnyExceptionSpec(),
-          getNumExceptions(), exception_begin(), getNoReturnAttr());
+          getNumExceptions(), exception_begin(), getNoReturnAttr(),
+          getCallConv());
 }
 
 void ObjCObjectPointerType::Profile(llvm::FoldingSetNodeID &ID,
-                                    QualType OIT, ObjCProtocolDecl **protocols,
+                                    QualType OIT, 
+                                    ObjCProtocolDecl * const *protocols,
                                     unsigned NumProtocols) {
   ID.AddPointer(OIT.getAsOpaquePtr());
   for (unsigned i = 0; i != NumProtocols; i++)
@@ -832,10 +853,7 @@ void ObjCObjectPointerType::Profile(llvm::FoldingSetNodeID &ID,
 }
 
 void ObjCObjectPointerType::Profile(llvm::FoldingSetNodeID &ID) {
-  if (getNumProtocols())
-    Profile(ID, getPointeeType(), &Protocols[0], getNumProtocols());
-  else
-    Profile(ID, getPointeeType(), 0, 0);
+  Profile(ID, getPointeeType(), qual_begin(), getNumProtocols());
 }
 
 /// LookThroughTypedefs - Return the ultimate type this typedef corresponds to
@@ -894,8 +912,9 @@ void DependentDecltypeType::Profile(llvm::FoldingSetNodeID &ID,
   E->Profile(ID, Context, true);
 }
 
-TagType::TagType(TypeClass TC, TagDecl *D, QualType can)
-  : Type(TC, can, D->isDependentType()), decl(D, 0) {}
+TagType::TagType(TypeClass TC, const TagDecl *D, QualType can)
+  : Type(TC, can, D->isDependentType()),
+    decl(const_cast<TagDecl*>(D), 0) {}
 
 bool RecordType::classof(const TagType *TT) {
   return isa<RecordDecl>(TT->getDecl());
@@ -1023,7 +1042,7 @@ QualType QualifierCollector::apply(const Type *T) const {
 
 void ObjCInterfaceType::Profile(llvm::FoldingSetNodeID &ID,
                                          const ObjCInterfaceDecl *Decl,
-                                         ObjCProtocolDecl **protocols,
+                                         ObjCProtocolDecl * const *protocols,
                                          unsigned NumProtocols) {
   ID.AddPointer(Decl);
   for (unsigned i = 0; i != NumProtocols; i++)
@@ -1031,8 +1050,81 @@ void ObjCInterfaceType::Profile(llvm::FoldingSetNodeID &ID,
 }
 
 void ObjCInterfaceType::Profile(llvm::FoldingSetNodeID &ID) {
-  if (getNumProtocols())
-    Profile(ID, getDecl(), &Protocols[0], getNumProtocols());
-  else
-    Profile(ID, getDecl(), 0, 0);
+  Profile(ID, getDecl(), qual_begin(), getNumProtocols());
+}
+
+Linkage Type::getLinkage() const { 
+  // C++ [basic.link]p8:
+  //   Names not covered by these rules have no linkage.
+  if (this != CanonicalType.getTypePtr())
+    return CanonicalType->getLinkage();
+
+  return NoLinkage; 
+}
+
+Linkage BuiltinType::getLinkage() const {
+  // C++ [basic.link]p8:
+  //   A type is said to have linkage if and only if:
+  //     - it is a fundamental type (3.9.1); or
+  return ExternalLinkage;
+}
+
+Linkage TagType::getLinkage() const {
+  // C++ [basic.link]p8:
+  //     - it is a class or enumeration type that is named (or has a name for
+  //       linkage purposes (7.1.3)) and the name has linkage; or
+  //     -  it is a specialization of a class template (14); or
+  return getDecl()->getLinkage();
+}
+
+// C++ [basic.link]p8:
+//   - it is a compound type (3.9.2) other than a class or enumeration, 
+//     compounded exclusively from types that have linkage; or
+Linkage ComplexType::getLinkage() const {
+  return ElementType->getLinkage();
+}
+
+Linkage PointerType::getLinkage() const {
+  return PointeeType->getLinkage();
+}
+
+Linkage BlockPointerType::getLinkage() const {
+  return PointeeType->getLinkage();
+}
+
+Linkage ReferenceType::getLinkage() const {
+  return PointeeType->getLinkage();
+}
+
+Linkage MemberPointerType::getLinkage() const {
+  return minLinkage(Class->getLinkage(), PointeeType->getLinkage());
+}
+
+Linkage ArrayType::getLinkage() const {
+  return ElementType->getLinkage();
+}
+
+Linkage VectorType::getLinkage() const {
+  return ElementType->getLinkage();
+}
+
+Linkage FunctionNoProtoType::getLinkage() const {
+  return getResultType()->getLinkage();
+}
+
+Linkage FunctionProtoType::getLinkage() const {
+  Linkage L = getResultType()->getLinkage();
+  for (arg_type_iterator A = arg_type_begin(), AEnd = arg_type_end();
+       A != AEnd; ++A)
+    L = minLinkage(L, (*A)->getLinkage());
+
+  return L;
+}
+
+Linkage ObjCInterfaceType::getLinkage() const {
+  return ExternalLinkage;
+}
+
+Linkage ObjCObjectPointerType::getLinkage() const {
+  return ExternalLinkage;
 }

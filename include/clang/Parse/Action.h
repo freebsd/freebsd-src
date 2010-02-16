@@ -459,6 +459,8 @@ public:
   virtual DeclPtrTy ActOnParamDeclarator(Scope *S, Declarator &D) {
     return DeclPtrTy();
   }
+  virtual void ActOnObjCCatchParam(DeclPtrTy D) {
+  }
 
   /// AddInitializerToDecl - This action is called immediately after
   /// ActOnDeclarator (when an initializer is present). The code is factored
@@ -808,6 +810,11 @@ public:
     return StmtEmpty();
   }
 
+  /// ActOnSwitchBodyError - This is called if there is an error parsing the
+  /// body of the switch stmt instead of ActOnFinishSwitchStmt.
+  virtual void ActOnSwitchBodyError(SourceLocation SwitchLoc, StmtArg Switch,
+                                    StmtArg Body) {}
+  
   virtual OwningStmtResult ActOnFinishSwitchStmt(SourceLocation SwitchLoc,
                                                  StmtArg Switch, StmtArg Body) {
     return StmtEmpty();
@@ -897,7 +904,7 @@ public:
                                         bool IsVolatile,
                                         unsigned NumOutputs,
                                         unsigned NumInputs,
-                                        std::string *Names,
+                                        IdentifierInfo **Names,
                                         MultiExprArg Constraints,
                                         MultiExprArg Exprs,
                                         ExprArg AsmString,
@@ -1270,7 +1277,8 @@ public:
   /// definition.
   virtual DeclPtrTy ActOnStartNamespaceDef(Scope *S, SourceLocation IdentLoc,
                                            IdentifierInfo *Ident,
-                                           SourceLocation LBrace) {
+                                           SourceLocation LBrace,
+                                           AttributeList *AttrList) {
     return DeclPtrTy();
   }
 
@@ -1649,9 +1657,12 @@ public:
   /// a well-formed program), ColonLoc is the location of the ':' that
   /// starts the constructor initializer, and MemInit/NumMemInits
   /// contains the individual member (and base) initializers.
+  /// AnyErrors will be true if there were any invalid member initializers
+  /// that are not represented in the list.
   virtual void ActOnMemInitializers(DeclPtrTy ConstructorDecl,
                                     SourceLocation ColonLoc,
-                                    MemInitTy **MemInits, unsigned NumMemInits){
+                                    MemInitTy **MemInits, unsigned NumMemInits,
+                                    bool AnyErrors){
   }
 
  virtual void ActOnDefaultCtorInitializers(DeclPtrTy CDtorDecl) {}

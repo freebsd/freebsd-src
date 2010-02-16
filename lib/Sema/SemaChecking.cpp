@@ -14,7 +14,8 @@
 
 #include "Sema.h"
 #include "clang/Analysis/CFG.h"
-#include "clang/Analysis/PathSensitive/AnalysisContext.h"
+#include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/Analyses/PrintfFormatString.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/DeclObjC.h"
@@ -140,12 +141,16 @@ Sema::CheckBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall) {
     if (SemaBuiltinUnorderedCompare(TheCall))
       return ExprError();
     break;
+  case Builtin::BI__builtin_fpclassify:
+    if (SemaBuiltinFPClassification(TheCall, 6))
+      return ExprError();
+    break;
   case Builtin::BI__builtin_isfinite:
   case Builtin::BI__builtin_isinf:
   case Builtin::BI__builtin_isinf_sign:
   case Builtin::BI__builtin_isnan:
   case Builtin::BI__builtin_isnormal:
-    if (SemaBuiltinUnaryFP(TheCall))
+    if (SemaBuiltinFPClassification(TheCall))
       return ExprError();
     break;
   case Builtin::BI__builtin_return_address:
@@ -583,20 +588,21 @@ bool Sema::SemaBuiltinUnorderedCompare(CallExpr *TheCall) {
   return false;
 }
 
-/// SemaBuiltinUnorderedCompare - Handle functions like __builtin_isnan and
-/// friends.  This is declared to take (...), so we have to check everything.
-bool Sema::SemaBuiltinUnaryFP(CallExpr *TheCall) {
-  if (TheCall->getNumArgs() < 1)
+/// SemaBuiltinSemaBuiltinFPClassification - Handle functions like
+/// __builtin_isnan and friends.  This is declared to take (...), so we have
+/// to check everything.
+bool Sema::SemaBuiltinFPClassification(CallExpr *TheCall, unsigned LastArg) {
+  if (TheCall->getNumArgs() < LastArg)
     return Diag(TheCall->getLocEnd(), diag::err_typecheck_call_too_few_args)
       << 0 /*function call*/;
-  if (TheCall->getNumArgs() > 1)
-    return Diag(TheCall->getArg(1)->getLocStart(),
+  if (TheCall->getNumArgs() > LastArg)
+    return Diag(TheCall->getArg(LastArg)->getLocStart(),
                 diag::err_typecheck_call_too_many_args)
       << 0 /*function call*/
-      << SourceRange(TheCall->getArg(1)->getLocStart(),
+      << SourceRange(TheCall->getArg(LastArg)->getLocStart(),
                      (*(TheCall->arg_end()-1))->getLocEnd());
 
-  Expr *OrigArg = TheCall->getArg(0);
+  Expr *OrigArg = TheCall->getArg(LastArg-1);
 
   if (OrigArg->isTypeDependent())
     return false;
@@ -748,7 +754,7 @@ bool Sema::SemaBuiltinEHReturnDataRegNo(CallExpr *TheCall) {
   if (!TheCall->getArg(0)->isIntegerConstantExpr(Result, Context))
     return Diag(TheCall->getLocStart(), diag::err_expr_not_ice)
       << TheCall->getArg(0)->getSourceRange();
-  
+
   return false;
 }
 
@@ -845,8 +851,7 @@ bool Sema::SemaCheckStringLiteral(const Expr *E, const CallExpr *TheCall,
       }
 
       if (isConstant) {
-        const VarDecl *Def = 0;
-        if (const Expr *Init = VD->getDefinition(Def))
+        if (const Expr *Init = VD->getAnyInitializer())
           return SemaCheckStringLiteral(Init, TheCall,
                                         HasVAListArg, format_idx, firstDataArg);
       }
@@ -925,7 +930,7 @@ Sema::CheckNonNullArguments(const NonNullAttr *NonNull,
   for (NonNullAttr::iterator i = NonNull->begin(), e = NonNull->end();
        i != e; ++i) {
     const Expr *ArgExpr = TheCall->getArg(*i);
-    if (ArgExpr->isNullPointerConstant(Context, 
+    if (ArgExpr->isNullPointerConstant(Context,
                                        Expr::NPC_ValueDependentIsNotNull))
       Diag(TheCall->getCallee()->getLocStart(), diag::warn_null_arg)
         << ArgExpr->getSourceRange();
@@ -1032,19 +1037,287 @@ Sema::CheckPrintfArguments(const CallExpr *TheCall, bool HasVAListArg,
            << OrigFormatExpr->getSourceRange();
 }
 
+namespace {
+class CheckPrintfHandler : public analyze_printf::FormatStringHandler {
+  Sema &S;
+  const StringLiteral *FExpr;
+  const Expr *OrigFormatExpr;
+  unsigned NumConversions;
+  const unsigned NumDataArgs;
+  const bool IsObjCLiteral;
+  const char *Beg; // Start of format string.
+  const bool HasVAListArg;
+  const CallExpr *TheCall;
+  unsigned FormatIdx;
+public:
+  CheckPrintfHandler(Sema &s, const StringLiteral *fexpr,
+                     const Expr *origFormatExpr,
+                     unsigned numDataArgs, bool isObjCLiteral,
+                     const char *beg, bool hasVAListArg,
+                     const CallExpr *theCall, unsigned formatIdx)
+    : S(s), FExpr(fexpr), OrigFormatExpr(origFormatExpr),
+      NumConversions(0), NumDataArgs(numDataArgs),
+      IsObjCLiteral(isObjCLiteral), Beg(beg),
+      HasVAListArg(hasVAListArg),
+      TheCall(theCall), FormatIdx(formatIdx) {}
+
+  void DoneProcessing();
+
+  void HandleIncompleteFormatSpecifier(const char *startSpecifier,
+                                       unsigned specifierLen);
+
+  void
+  HandleInvalidConversionSpecifier(const analyze_printf::FormatSpecifier &FS,
+                                   const char *startSpecifier,
+                                   unsigned specifierLen);
+
+  void HandleNullChar(const char *nullCharacter);
+
+  bool HandleFormatSpecifier(const analyze_printf::FormatSpecifier &FS,
+                             const char *startSpecifier,
+                             unsigned specifierLen);
+private:
+  SourceRange getFormatStringRange();
+  SourceRange getFormatSpecifierRange(const char *startSpecifier,
+                                      unsigned specifierLen);
+  SourceLocation getLocationOfByte(const char *x);
+
+  bool HandleAmount(const analyze_printf::OptionalAmount &Amt,
+                    unsigned MissingArgDiag, unsigned BadTypeDiag,
+          const char *startSpecifier, unsigned specifierLen);
+  void HandleFlags(const analyze_printf::FormatSpecifier &FS,
+                   llvm::StringRef flag, llvm::StringRef cspec,
+                   const char *startSpecifier, unsigned specifierLen);
+
+  const Expr *getDataArg(unsigned i) const;
+};
+}
+
+SourceRange CheckPrintfHandler::getFormatStringRange() {
+  return OrigFormatExpr->getSourceRange();
+}
+
+SourceRange CheckPrintfHandler::
+getFormatSpecifierRange(const char *startSpecifier, unsigned specifierLen) {
+  return SourceRange(getLocationOfByte(startSpecifier),
+                     getLocationOfByte(startSpecifier+specifierLen-1));
+}
+
+SourceLocation CheckPrintfHandler::getLocationOfByte(const char *x) {
+  return S.getLocationOfStringLiteralByte(FExpr, x - Beg);
+}
+
+void CheckPrintfHandler::
+HandleIncompleteFormatSpecifier(const char *startSpecifier,
+                                unsigned specifierLen) {
+  SourceLocation Loc = getLocationOfByte(startSpecifier);
+  S.Diag(Loc, diag::warn_printf_incomplete_specifier)
+    << getFormatSpecifierRange(startSpecifier, specifierLen);
+}
+
+void CheckPrintfHandler::
+HandleInvalidConversionSpecifier(const analyze_printf::FormatSpecifier &FS,
+                                 const char *startSpecifier,
+                                 unsigned specifierLen) {
+
+  ++NumConversions;
+  const analyze_printf::ConversionSpecifier &CS =
+    FS.getConversionSpecifier();
+  SourceLocation Loc = getLocationOfByte(CS.getStart());
+  S.Diag(Loc, diag::warn_printf_invalid_conversion)
+      << llvm::StringRef(CS.getStart(), CS.getLength())
+      << getFormatSpecifierRange(startSpecifier, specifierLen);
+}
+
+void CheckPrintfHandler::HandleNullChar(const char *nullCharacter) {
+  // The presence of a null character is likely an error.
+  S.Diag(getLocationOfByte(nullCharacter),
+         diag::warn_printf_format_string_contains_null_char)
+    << getFormatStringRange();
+}
+
+const Expr *CheckPrintfHandler::getDataArg(unsigned i) const {
+  return TheCall->getArg(FormatIdx + i);
+}
+
+
+
+void CheckPrintfHandler::HandleFlags(const analyze_printf::FormatSpecifier &FS,
+                                     llvm::StringRef flag,
+                                     llvm::StringRef cspec,
+                                     const char *startSpecifier,
+                                     unsigned specifierLen) {
+  const analyze_printf::ConversionSpecifier &CS = FS.getConversionSpecifier();
+  S.Diag(getLocationOfByte(CS.getStart()), diag::warn_printf_nonsensical_flag)
+    << flag << cspec << getFormatSpecifierRange(startSpecifier, specifierLen);
+}
+
+bool
+CheckPrintfHandler::HandleAmount(const analyze_printf::OptionalAmount &Amt,
+                                 unsigned MissingArgDiag,
+                                 unsigned BadTypeDiag,
+                                 const char *startSpecifier,
+                                 unsigned specifierLen) {
+
+  if (Amt.hasDataArgument()) {
+    ++NumConversions;
+    if (!HasVAListArg) {
+      if (NumConversions > NumDataArgs) {
+        S.Diag(getLocationOfByte(Amt.getStart()), MissingArgDiag)
+          << getFormatSpecifierRange(startSpecifier, specifierLen);
+        // Don't do any more checking.  We will just emit
+        // spurious errors.
+        return false;
+      }
+
+      // Type check the data argument.  It should be an 'int'.
+      // Although not in conformance with C99, we also allow the argument to be
+      // an 'unsigned int' as that is a reasonably safe case.  GCC also
+      // doesn't emit a warning for that case.
+      const Expr *Arg = getDataArg(NumConversions);
+      QualType T = Arg->getType();
+
+      const analyze_printf::ArgTypeResult &ATR = Amt.getArgType(S.Context);
+      assert(ATR.isValid());
+
+      if (!ATR.matchesType(S.Context, T)) {
+        S.Diag(getLocationOfByte(Amt.getStart()), BadTypeDiag)
+          << ATR.getRepresentativeType(S.Context) << T
+          << getFormatSpecifierRange(startSpecifier, specifierLen)
+          << Arg->getSourceRange();
+        // Don't do any more checking.  We will just emit
+        // spurious errors.
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool
+CheckPrintfHandler::HandleFormatSpecifier(const analyze_printf::FormatSpecifier
+                                            &FS,
+                                          const char *startSpecifier,
+                                          unsigned specifierLen) {
+
+  using namespace analyze_printf;
+  const ConversionSpecifier &CS = FS.getConversionSpecifier();
+
+  // First check if the field width, precision, and conversion specifier
+  // have matching data arguments.
+  if (!HandleAmount(FS.getFieldWidth(),
+                    diag::warn_printf_asterisk_width_missing_arg,
+                    diag::warn_printf_asterisk_width_wrong_type,
+          startSpecifier, specifierLen)) {
+    return false;
+  }
+
+  if (!HandleAmount(FS.getPrecision(),
+                    diag::warn_printf_asterisk_precision_missing_arg,
+                    diag::warn_printf_asterisk_precision_wrong_type,
+          startSpecifier, specifierLen)) {
+    return false;
+  }
+
+  // Check for using an Objective-C specific conversion specifier
+  // in a non-ObjC literal.
+  if (!IsObjCLiteral && CS.isObjCArg()) {
+    HandleInvalidConversionSpecifier(FS, startSpecifier, specifierLen);
+
+    // Continue checking the other format specifiers.
+    return true;
+  }
+
+  if (!CS.consumesDataArgument()) {
+    // FIXME: Technically specifying a precision or field width here
+    // makes no sense.  Worth issuing a warning at some point.
+    return true;
+  }
+
+  ++NumConversions;
+
+  // Are we using '%n'?  Issue a warning about this being
+  // a possible security issue.
+  if (CS.getKind() == ConversionSpecifier::OutIntPtrArg) {
+    S.Diag(getLocationOfByte(CS.getStart()), diag::warn_printf_write_back)
+      << getFormatSpecifierRange(startSpecifier, specifierLen);
+    // Continue checking the other format specifiers.
+    return true;
+  }
+
+  if (CS.getKind() == ConversionSpecifier::VoidPtrArg) {
+    if (FS.getPrecision().getHowSpecified() != OptionalAmount::NotSpecified)
+      S.Diag(getLocationOfByte(CS.getStart()),
+             diag::warn_printf_nonsensical_precision)
+        << CS.getCharacters()
+        << getFormatSpecifierRange(startSpecifier, specifierLen);
+  }
+  if (CS.getKind() == ConversionSpecifier::VoidPtrArg ||
+      CS.getKind() == ConversionSpecifier::CStrArg) {
+    // FIXME: Instead of using "0", "+", etc., eventually get them from
+    // the FormatSpecifier.
+    if (FS.hasLeadingZeros())
+      HandleFlags(FS, "0", CS.getCharacters(), startSpecifier, specifierLen);
+    if (FS.hasPlusPrefix())
+      HandleFlags(FS, "+", CS.getCharacters(), startSpecifier, specifierLen);
+    if (FS.hasSpacePrefix())
+      HandleFlags(FS, " ", CS.getCharacters(), startSpecifier, specifierLen);
+  }
+
+  // The remaining checks depend on the data arguments.
+  if (HasVAListArg)
+    return true;
+
+  if (NumConversions > NumDataArgs) {
+    S.Diag(getLocationOfByte(CS.getStart()),
+           diag::warn_printf_insufficient_data_args)
+      << getFormatSpecifierRange(startSpecifier, specifierLen);
+    // Don't do any more checking.
+    return false;
+  }
+
+  // Now type check the data expression that matches the
+  // format specifier.
+  const Expr *Ex = getDataArg(NumConversions);
+  const analyze_printf::ArgTypeResult &ATR = FS.getArgType(S.Context);
+  if (ATR.isValid() && !ATR.matchesType(S.Context, Ex->getType())) {
+    // Check if we didn't match because of an implicit cast from a 'char'
+    // or 'short' to an 'int'.  This is done because printf is a varargs
+    // function.
+    if (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(Ex))
+      if (ICE->getType() == S.Context.IntTy)
+        if (ATR.matchesType(S.Context, ICE->getSubExpr()->getType()))
+          return true;
+
+    S.Diag(getLocationOfByte(CS.getStart()),
+           diag::warn_printf_conversion_argument_type_mismatch)
+      << ATR.getRepresentativeType(S.Context) << Ex->getType()
+      << getFormatSpecifierRange(startSpecifier, specifierLen)
+      << Ex->getSourceRange();
+  }
+
+  return true;
+}
+
+void CheckPrintfHandler::DoneProcessing() {
+  // Does the number of data arguments exceed the number of
+  // format conversions in the format string?
+  if (!HasVAListArg && NumConversions < NumDataArgs)
+    S.Diag(getDataArg(NumConversions+1)->getLocStart(),
+           diag::warn_printf_too_many_data_args)
+      << getFormatStringRange();
+}
+
 void Sema::CheckPrintfString(const StringLiteral *FExpr,
                              const Expr *OrigFormatExpr,
                              const CallExpr *TheCall, bool HasVAListArg,
                              unsigned format_idx, unsigned firstDataArg) {
 
-  const ObjCStringLiteral *ObjCFExpr =
-    dyn_cast<ObjCStringLiteral>(OrigFormatExpr);
-
   // CHECK: is the format string a wide literal?
   if (FExpr->isWide()) {
     Diag(FExpr->getLocStart(),
          diag::warn_printf_format_string_is_wide_literal)
-      << OrigFormatExpr->getSourceRange();
+    << OrigFormatExpr->getSourceRange();
     return;
   }
 
@@ -1056,224 +1329,17 @@ void Sema::CheckPrintfString(const StringLiteral *FExpr,
 
   if (StrLen == 0) {
     Diag(FExpr->getLocStart(), diag::warn_printf_empty_format_string)
-      << OrigFormatExpr->getSourceRange();
+    << OrigFormatExpr->getSourceRange();
     return;
   }
 
-  // We process the format string using a binary state machine.  The
-  // current state is stored in CurrentState.
-  enum {
-    state_OrdChr,
-    state_Conversion
-  } CurrentState = state_OrdChr;
+  CheckPrintfHandler H(*this, FExpr, OrigFormatExpr,
+                       TheCall->getNumArgs() - firstDataArg,
+                       isa<ObjCStringLiteral>(OrigFormatExpr), Str,
+                       HasVAListArg, TheCall, format_idx);
 
-  // numConversions - The number of conversions seen so far.  This is
-  //  incremented as we traverse the format string.
-  unsigned numConversions = 0;
-
-  // numDataArgs - The number of data arguments after the format
-  //  string.  This can only be determined for non vprintf-like
-  //  functions.  For those functions, this value is 1 (the sole
-  //  va_arg argument).
-  unsigned numDataArgs = TheCall->getNumArgs()-firstDataArg;
-
-  // Inspect the format string.
-  unsigned StrIdx = 0;
-
-  // LastConversionIdx - Index within the format string where we last saw
-  //  a '%' character that starts a new format conversion.
-  unsigned LastConversionIdx = 0;
-
-  for (; StrIdx < StrLen; ++StrIdx) {
-
-    // Is the number of detected conversion conversions greater than
-    // the number of matching data arguments?  If so, stop.
-    if (!HasVAListArg && numConversions > numDataArgs) break;
-
-    // Handle "\0"
-    if (Str[StrIdx] == '\0') {
-      // The string returned by getStrData() is not null-terminated,
-      // so the presence of a null character is likely an error.
-      Diag(getLocationOfStringLiteralByte(FExpr, StrIdx),
-           diag::warn_printf_format_string_contains_null_char)
-        <<  OrigFormatExpr->getSourceRange();
-      return;
-    }
-
-    // Ordinary characters (not processing a format conversion).
-    if (CurrentState == state_OrdChr) {
-      if (Str[StrIdx] == '%') {
-        CurrentState = state_Conversion;
-        LastConversionIdx = StrIdx;
-      }
-      continue;
-    }
-
-    // Seen '%'.  Now processing a format conversion.
-    switch (Str[StrIdx]) {
-    // Handle dynamic precision or width specifier.
-    case '*': {
-      ++numConversions;
-
-      if (!HasVAListArg) {
-        if (numConversions > numDataArgs) {
-          SourceLocation Loc = getLocationOfStringLiteralByte(FExpr, StrIdx);
-
-          if (Str[StrIdx-1] == '.')
-            Diag(Loc, diag::warn_printf_asterisk_precision_missing_arg)
-              << OrigFormatExpr->getSourceRange();
-          else
-            Diag(Loc, diag::warn_printf_asterisk_width_missing_arg)
-              << OrigFormatExpr->getSourceRange();
-
-          // Don't do any more checking.  We'll just emit spurious errors.
-          return;
-        }
-
-        // Perform type checking on width/precision specifier.
-        const Expr *E = TheCall->getArg(format_idx+numConversions);
-        if (const BuiltinType *BT = E->getType()->getAs<BuiltinType>())
-          if (BT->getKind() == BuiltinType::Int)
-            break;
-
-        SourceLocation Loc = getLocationOfStringLiteralByte(FExpr, StrIdx);
-
-        if (Str[StrIdx-1] == '.')
-          Diag(Loc, diag::warn_printf_asterisk_precision_wrong_type)
-          << E->getType() << E->getSourceRange();
-        else
-          Diag(Loc, diag::warn_printf_asterisk_width_wrong_type)
-          << E->getType() << E->getSourceRange();
-
-        break;
-      }
-    }
-
-    // Characters which can terminate a format conversion
-    // (e.g. "%d").  Characters that specify length modifiers or
-    // other flags are handled by the default case below.
-    //
-    // FIXME: additional checks will go into the following cases.
-    case 'i':
-    case 'd':
-    case 'o':
-    case 'u':
-    case 'x':
-    case 'X':
-    case 'D':
-    case 'O':
-    case 'U':
-    case 'e':
-    case 'E':
-    case 'f':
-    case 'F':
-    case 'g':
-    case 'G':
-    case 'a':
-    case 'A':
-    case 'c':
-    case 'C':
-    case 'S':
-    case 's':
-    case 'p':
-      ++numConversions;
-      CurrentState = state_OrdChr;
-      break;
-
-    case 'm':
-      // FIXME: Warn in situations where this isn't supported!
-      CurrentState = state_OrdChr;
-      break;
-
-    // CHECK: Are we using "%n"?  Issue a warning.
-    case 'n': {
-      ++numConversions;
-      CurrentState = state_OrdChr;
-      SourceLocation Loc = getLocationOfStringLiteralByte(FExpr,
-                                                          LastConversionIdx);
-
-      Diag(Loc, diag::warn_printf_write_back)<<OrigFormatExpr->getSourceRange();
-      break;
-    }
-
-    // Handle "%@"
-    case '@':
-      // %@ is allowed in ObjC format strings only.
-      if (ObjCFExpr != NULL)
-        CurrentState = state_OrdChr;
-      else {
-        // Issue a warning: invalid format conversion.
-        SourceLocation Loc =
-          getLocationOfStringLiteralByte(FExpr, LastConversionIdx);
-
-        Diag(Loc, diag::warn_printf_invalid_conversion)
-          <<  std::string(Str+LastConversionIdx,
-                          Str+std::min(LastConversionIdx+2, StrLen))
-          << OrigFormatExpr->getSourceRange();
-      }
-      ++numConversions;
-      break;
-
-    // Handle "%%"
-    case '%':
-      // Sanity check: Was the first "%" character the previous one?
-      // If not, we will assume that we have a malformed format
-      // conversion, and that the current "%" character is the start
-      // of a new conversion.
-      if (StrIdx - LastConversionIdx == 1)
-        CurrentState = state_OrdChr;
-      else {
-        // Issue a warning: invalid format conversion.
-        SourceLocation Loc =
-          getLocationOfStringLiteralByte(FExpr, LastConversionIdx);
-
-        Diag(Loc, diag::warn_printf_invalid_conversion)
-          << std::string(Str+LastConversionIdx, Str+StrIdx)
-          << OrigFormatExpr->getSourceRange();
-
-        // This conversion is broken.  Advance to the next format
-        // conversion.
-        LastConversionIdx = StrIdx;
-        ++numConversions;
-      }
-      break;
-
-    default:
-      // This case catches all other characters: flags, widths, etc.
-      // We should eventually process those as well.
-      break;
-    }
-  }
-
-  if (CurrentState == state_Conversion) {
-    // Issue a warning: invalid format conversion.
-    SourceLocation Loc =
-      getLocationOfStringLiteralByte(FExpr, LastConversionIdx);
-
-    Diag(Loc, diag::warn_printf_invalid_conversion)
-      << std::string(Str+LastConversionIdx,
-                     Str+std::min(LastConversionIdx+2, StrLen))
-      << OrigFormatExpr->getSourceRange();
-    return;
-  }
-
-  if (!HasVAListArg) {
-    // CHECK: Does the number of format conversions exceed the number
-    //        of data arguments?
-    if (numConversions > numDataArgs) {
-      SourceLocation Loc =
-        getLocationOfStringLiteralByte(FExpr, LastConversionIdx);
-
-      Diag(Loc, diag::warn_printf_insufficient_data_args)
-        << OrigFormatExpr->getSourceRange();
-    }
-    // CHECK: Does the number of data arguments exceed the number of
-    //        format conversions in the format string?
-    else if (numConversions < numDataArgs)
-      Diag(TheCall->getArg(format_idx+numConversions+1)->getLocStart(),
-           diag::warn_printf_too_many_data_args)
-        << OrigFormatExpr->getSourceRange();
-  }
+  if (!analyze_printf::ParseFormatString(H, Str, Str + StrLen))
+    H.DoneProcessing();
 }
 
 //===--- CHECK: Return Address of Stack Variable --------------------------===//
@@ -1300,11 +1366,11 @@ Sema::CheckReturnStackAddr(Expr *RetValExp, QualType lhsType,
       if (C->hasBlockDeclRefExprs())
         Diag(C->getLocStart(), diag::err_ret_local_block)
           << C->getSourceRange();
-    
+
     if (AddrLabelExpr *ALE = dyn_cast<AddrLabelExpr>(RetValExp))
       Diag(ALE->getLocStart(), diag::warn_ret_addr_label)
         << ALE->getSourceRange();
-    
+
   } else if (lhsType->isReferenceType()) {
     // Perform checking for stack values returned by reference.
     // Check for a reference to the stack
@@ -1780,7 +1846,7 @@ IntRange GetExprRange(ASTContext &C, Expr *E, unsigned MaxWidth) {
       if (BO->getLHS()->getType()->isPointerType())
         return IntRange::forType(C, E->getType());
       // fallthrough
-      
+
     default:
       break;
     }
@@ -2221,7 +2287,7 @@ void Sema::CheckUnreachable(AnalysisContext &AC) {
   CFG *cfg = AC.getCFG();
   if (cfg == 0)
     return;
-  
+
   llvm::BitVector live(cfg->getNumBlockIDs());
   // Mark all live things first.
   count = MarkLive(&cfg->getEntry(), live);
@@ -2268,7 +2334,9 @@ void Sema::CheckUnreachable(AnalysisContext &AC) {
       CFGBlock &b = **I;
       if (!live[b.getBlockID()])
         // Avoid excessive errors by marking everything reachable from here
-        lines.push_back(ErrLoc(MarkLiveTop(&b, live, Context.getSourceManager()), SourceRange(), SourceRange()));
+        lines.push_back(ErrLoc(MarkLiveTop(&b, live,
+                                           Context.getSourceManager()),
+                               SourceRange(), SourceRange()));
     }
   }
 
@@ -2418,17 +2486,19 @@ void Sema::CheckFallThroughForFunctionDef(Decl *D, Stmt *Body,
   // which this code would then warn about.
   if (getDiagnostics().hasErrorOccurred())
     return;
-  
+
   bool ReturnsVoid = false;
   bool HasNoReturn = false;
   if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
-    // If the result type of the function is a dependent type, we don't know
-    // whether it will be void or not, so don't 
-    if (FD->getResultType()->isDependentType())
+    // For function templates, class templates and member function templates
+    // we'll do the analysis at instantiation time.
+    if (FD->isDependentContext())
       return;
+
     if (FD->getResultType()->isVoidType())
       ReturnsVoid = true;
-    if (FD->hasAttr<NoReturnAttr>())
+    if (FD->hasAttr<NoReturnAttr>() ||
+        FD->getType()->getAs<FunctionType>()->getNoReturnAttr())
       HasNoReturn = true;
   } else if (ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
     if (MD->getResultType()->isVoidType())
@@ -2552,6 +2622,24 @@ bool Sema::CheckParmsForFunctionDef(FunctionDecl *FD) {
         !Param->isImplicit() &&
         !getLangOptions().CPlusPlus)
       Diag(Param->getLocation(), diag::err_parameter_name_omitted);
+
+    // C99 6.7.5.3p12:
+    //   If the function declarator is not part of a definition of that
+    //   function, parameters may have incomplete type and may use the [*]
+    //   notation in their sequences of declarator specifiers to specify
+    //   variable length array types.
+    QualType PType = Param->getOriginalType();
+    if (const ArrayType *AT = Context.getAsArrayType(PType)) {
+      if (AT->getSizeModifier() == ArrayType::Star) {
+        // FIXME: This diagnosic should point the the '[*]' if source-location
+        // information is added for it.
+        Diag(Param->getLocation(), diag::err_array_star_in_function_definition);
+      }
+    }
+
+    if (getLangOptions().CPlusPlus)
+      if (const RecordType *RT = Param->getType()->getAs<RecordType>())
+        FinalizeVarWithDestructor(Param, RT);
   }
 
   return HasInvalidParm;

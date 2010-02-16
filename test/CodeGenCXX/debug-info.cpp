@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -emit-llvm-only -g
+// RUN: %clang_cc1 -emit-llvm-only -g %s
 template<typename T> struct Identity {
   typedef T Type;
 };
@@ -23,4 +23,30 @@ namespace EmptyNameCrash {
   struct A { A(); };
   typedef struct { A x; } B;
   B x;
+}
+
+// PR4890
+namespace PR4890 {
+  struct X {
+    ~X();
+  };
+
+  X::~X() { }
+}
+
+namespace VirtualDtor {
+  struct Y {
+    virtual ~Y();
+  };
+  
+  Y::~Y() { }
+}
+
+namespace VirtualBase {
+  struct A { };
+  struct B : virtual A { };
+
+  void f() {
+    B b;
+  }
 }

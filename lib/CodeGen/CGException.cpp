@@ -100,10 +100,6 @@ static llvm::Constant *getUnexpectedFn(CodeGenFunction &CGF) {
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_call_unexpected");
 }
 
-// FIXME: Eventually this will all go into the backend.  Set from the target for
-// now.
-static int using_sjlj_exceptions = 0;
-
 static llvm::Constant *getUnwindResumeOrRethrowFn(CodeGenFunction &CGF) {
   const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
   std::vector<const llvm::Type*> Args(1, Int8PtrTy);
@@ -112,7 +108,7 @@ static llvm::Constant *getUnwindResumeOrRethrowFn(CodeGenFunction &CGF) {
     llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()), Args,
                             false);
 
-  if (using_sjlj_exceptions)
+  if (CGF.CGM.getLangOptions().SjLjExceptions)
     return CGF.CGM.CreateRuntimeFunction(FTy, "_Unwind_SjLj_Resume");
   return CGF.CGM.CreateRuntimeFunction(FTy, "_Unwind_Resume_or_Rethrow");
 }
@@ -194,9 +190,9 @@ static void CopyObject(CodeGenFunction &CGF, const Expr *E,
       // Push the Src ptr.
       CallArgs.push_back(std::make_pair(RValue::get(Src),
                                         CopyCtor->getParamDecl(0)->getType()));
-      QualType ResultType =
-        CopyCtor->getType()->getAs<FunctionType>()->getResultType();
-      CGF.EmitCall(CGF.CGM.getTypes().getFunctionInfo(ResultType, CallArgs),
+      const FunctionProtoType *FPT
+        = CopyCtor->getType()->getAs<FunctionProtoType>();
+      CGF.EmitCall(CGF.CGM.getTypes().getFunctionInfo(CallArgs, FPT),
                    Callee, ReturnValueSlot(), CallArgs, CopyCtor);
       CGF.setInvokeDest(PrevLandingPad);
     } else
@@ -244,9 +240,10 @@ static void CopyObject(CodeGenFunction &CGF, QualType ObjectType,
       // Push the Src ptr.
       CallArgs.push_back(std::make_pair(RValue::get(Src),
                                         CopyCtor->getParamDecl(0)->getType()));
-      QualType ResultType =
-        CopyCtor->getType()->getAs<FunctionType>()->getResultType();
-      CGF.EmitCall(CGF.CGM.getTypes().getFunctionInfo(ResultType, CallArgs),
+
+      const FunctionProtoType *FPT
+        = CopyCtor->getType()->getAs<FunctionProtoType>();
+      CGF.EmitCall(CGF.CGM.getTypes().getFunctionInfo(CallArgs, FPT),
                    Callee, ReturnValueSlot(), CallArgs, CopyCtor);
     } else
       llvm_unreachable("uncopyable object");
@@ -316,6 +313,9 @@ void CodeGenFunction::EmitCXXThrowExpr(const CXXThrowExpr *E) {
 }
 
 void CodeGenFunction::EmitStartEHSpec(const Decl *D) {
+  if (!Exceptions)
+    return;
+  
   const FunctionDecl* FD = dyn_cast_or_null<FunctionDecl>(D);
   if (FD == 0)
     return;
@@ -410,6 +410,9 @@ void CodeGenFunction::EmitStartEHSpec(const Decl *D) {
 }
 
 void CodeGenFunction::EmitEndEHSpec(const Decl *D) {
+  if (!Exceptions)
+    return;
+  
   const FunctionDecl* FD = dyn_cast_or_null<FunctionDecl>(D);
   if (FD == 0)
     return;
@@ -466,6 +469,7 @@ void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
       llvm::BasicBlock *DtorEpilogue  = createBasicBlock("dtor.epilogue");
       PushCleanupBlock(DtorEpilogue);
 
+      InitializeVtablePtrs(DD->getParent());
       EmitStmt(S.getTryBlock());
 
       CleanupBlockInfo Info = PopCleanupBlock();

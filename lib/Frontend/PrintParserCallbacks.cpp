@@ -391,7 +391,7 @@ namespace {
                                           bool IsVolatile,
                                           unsigned NumOutputs,
                                           unsigned NumInputs,
-                                          std::string *Names,
+                                          IdentifierInfo **Names,
                                           MultiExprArg Constraints,
                                           MultiExprArg Exprs,
                                           ExprArg AsmString,
@@ -684,7 +684,8 @@ namespace {
 
     virtual DeclPtrTy ActOnStartNamespaceDef(Scope *S, SourceLocation IdentLoc,
                                              IdentifierInfo *Ident,
-                                             SourceLocation LBrace) {
+                                             SourceLocation LBrace,
+                                             AttributeList *AttrList) {
       Out << __FUNCTION__ << "\n";
       return DeclPtrTy();
     }

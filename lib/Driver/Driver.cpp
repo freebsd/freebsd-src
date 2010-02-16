@@ -50,8 +50,8 @@ Driver::Driver(llvm::StringRef _Name, llvm::StringRef _Dir,
     Name(_Name), Dir(_Dir), DefaultHostTriple(_DefaultHostTriple),
     DefaultImageName(_DefaultImageName),
     Host(0),
-    CCCIsCXX(false), CCCEcho(false), CCCPrintBindings(false),
-    CCCGenericGCCName("gcc"), CCCUseClang(true),
+    CCCGenericGCCName("gcc"), CCCIsCXX(false), CCCEcho(false),
+    CCCPrintBindings(false), CheckInputsExist(true), CCCUseClang(true),
     CCCUseClangCXX(true), CCCUseClangCPP(true), CCCUsePCH(true),
     SuppressMissingInputWarning(false) {
   if (IsProduction) {
@@ -158,10 +158,8 @@ Compilation *Driver::BuildCompilation(int argc, const char **argv) {
         llvm::Triple::ArchType Arch =
           llvm::Triple(Split.first, "", "").getArch();
 
-        if (Arch == llvm::Triple::UnknownArch) {
-          Diag(clang::diag::err_drv_invalid_arch_name) << Arch;
-          continue;
-        }
+        if (Arch == llvm::Triple::UnknownArch)
+          Diag(clang::diag::err_drv_invalid_arch_name) << Split.first;
 
         CCCClangArchs.insert(Arch);
       }
@@ -579,10 +577,9 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
         Ty = InputType;
       }
 
-      // Check that the file exists. It isn't clear this is worth doing, since
-      // the tool presumably does this anyway, and this just adds an extra stat
-      // to the equation, but this is gcc compatible.
-      if (memcmp(Value, "-", 2) != 0 && !llvm::sys::Path(Value).exists())
+      // Check that the file exists, if enabled.
+      if (CheckInputsExist && memcmp(Value, "-", 2) != 0 &&
+          !llvm::sys::Path(Value).exists())
         Diag(clang::diag::err_drv_no_such_file) << A->getValue(Args);
       else
         Inputs.push_back(std::make_pair(Ty, A));
@@ -625,6 +622,7 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
 
     // -{fsyntax-only,-analyze,emit-ast,S} only run up to the compiler.
   } else if ((FinalPhaseArg = Args.getLastArg(options::OPT_fsyntax_only)) ||
+             (FinalPhaseArg = Args.getLastArg(options::OPT_rewrite_objc)) ||
              (FinalPhaseArg = Args.getLastArg(options::OPT__analyze,
                                               options::OPT__analyze_auto)) ||
              (FinalPhaseArg = Args.getLastArg(options::OPT_emit_ast)) ||
@@ -745,6 +743,8 @@ Action *Driver::ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
 
     if (Args.hasArg(options::OPT_fsyntax_only)) {
       return new CompileJobAction(Input, types::TY_Nothing);
+    } else if (Args.hasArg(options::OPT_rewrite_objc)) {
+      return new CompileJobAction(Input, types::TY_RewrittenObjC);
     } else if (Args.hasArg(options::OPT__analyze, options::OPT__analyze_auto)) {
       return new AnalyzeJobAction(Input, types::TY_Plist);
     } else if (Args.hasArg(options::OPT_emit_ast)) {
@@ -866,6 +866,44 @@ void Driver::BuildJobs(Compilation &C) const {
   }
 }
 
+static const Tool &SelectToolForJob(Compilation &C, const ToolChain *TC,
+                                    const JobAction *JA,
+                                    const ActionList *&Inputs) {
+  const Tool *ToolForJob = 0;
+
+  // See if we should look for a compiler with an integrated assembler. We match
+  // bottom up, so what we are actually looking for is an assembler job with a
+  // compiler input.
+  if (C.getArgs().hasArg(options::OPT_integrated_as,
+                         options::OPT_no_integrated_as,
+                         TC->IsIntegratedAssemblerDefault()) &&
+      !C.getArgs().hasArg(options::OPT_save_temps) &&
+      isa<AssembleJobAction>(JA) &&
+      Inputs->size() == 1 && isa<CompileJobAction>(*Inputs->begin())) {
+    const Tool &Compiler = TC->SelectTool(C,cast<JobAction>(**Inputs->begin()));
+    if (Compiler.hasIntegratedAssembler()) {
+      Inputs = &(*Inputs)[0]->getInputs();
+      ToolForJob = &Compiler;
+    }
+  }
+
+  // Otherwise use the tool for the current job.
+  if (!ToolForJob)
+    ToolForJob = &TC->SelectTool(C, *JA);
+
+  // See if we should use an integrated preprocessor. We do so when we have
+  // exactly one input, since this is the only use case we care about
+  // (irrelevant since we don't support combine yet).
+  if (Inputs->size() == 1 && isa<PreprocessJobAction>(*Inputs->begin()) &&
+      !C.getArgs().hasArg(options::OPT_no_integrated_cpp) &&
+      !C.getArgs().hasArg(options::OPT_traditional_cpp) &&
+      !C.getArgs().hasArg(options::OPT_save_temps) &&
+      ToolForJob->hasIntegratedCPP())
+    Inputs = &(*Inputs)[0]->getInputs();
+
+  return *ToolForJob;
+}
+
 void Driver::BuildJobsForAction(Compilation &C,
                                 const Action *A,
                                 const ToolChain *TC,
@@ -906,21 +944,10 @@ void Driver::BuildJobsForAction(Compilation &C,
     return;
   }
 
-  const JobAction *JA = cast<JobAction>(A);
-  const Tool &T = TC->SelectTool(C, *JA);
-
-  // See if we should use an integrated preprocessor. We do so when we have
-  // exactly one input, since this is the only use case we care about
-  // (irrelevant since we don't support combine yet).
   const ActionList *Inputs = &A->getInputs();
-  if (Inputs->size() == 1 && isa<PreprocessJobAction>(*Inputs->begin())) {
-    if (!C.getArgs().hasArg(options::OPT_no_integrated_cpp) &&
-        !C.getArgs().hasArg(options::OPT_traditional_cpp) &&
-        !C.getArgs().hasArg(options::OPT_save_temps) &&
-        T.hasIntegratedCPP()) {
-      Inputs = &(*Inputs)[0]->getInputs();
-    }
-  }
+
+  const JobAction *JA = cast<JobAction>(A);
+  const Tool &T = SelectToolForJob(C, TC, JA, Inputs);
 
   // Only use pipes when there is exactly one input.
   bool TryToUsePipeInput = Inputs->size() == 1 && T.acceptsPipedInput();
@@ -1147,8 +1174,10 @@ bool Driver::ShouldUseClangCompiler(const Compilation &C, const JobAction &JA,
     return false;
   }
 
-  // Always use clang for precompiling and AST generation, regardless of archs.
-  if (isa<PrecompileJobAction>(JA) || JA.getType() == types::TY_AST)
+  // Always use clang for precompiling, AST generation, and rewriting,
+  // regardless of archs.
+  if (isa<PrecompileJobAction>(JA) || JA.getType() == types::TY_AST ||
+      JA.getType() == types::TY_RewrittenObjC)
     return true;
 
   // Finally, don't use clang if this isn't one of the user specified archs to

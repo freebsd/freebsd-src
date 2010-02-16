@@ -307,7 +307,7 @@ static void HandleNonNullAttr(Decl *d, const AttributeList &Attr, Sema &S) {
   unsigned* start = &NonNullArgs[0];
   unsigned size = NonNullArgs.size();
   std::sort(start, start + size);
-  d->addAttr(::new (S.Context) NonNullAttr(start, size));
+  d->addAttr(::new (S.Context) NonNullAttr(S.Context, start, size));
 }
 
 static void HandleAliasAttr(Decl *d, const AttributeList &Attr, Sema &S) {
@@ -329,7 +329,7 @@ static void HandleAliasAttr(Decl *d, const AttributeList &Attr, Sema &S) {
 
   // FIXME: check if target symbol exists in current file
 
-  d->addAttr(::new (S.Context) AliasAttr(Str->getString()));
+  d->addAttr(::new (S.Context) AliasAttr(S.Context, Str->getString()));
 }
 
 static void HandleAlwaysInlineAttr(Decl *d, const AttributeList &Attr,
@@ -391,6 +391,11 @@ static bool HandleCommonNoReturnAttr(Decl *d, const AttributeList &Attr,
 }
 
 static void HandleNoReturnAttr(Decl *d, const AttributeList &Attr, Sema &S) {
+  // Don't apply as a decl attribute to ValueDecl.
+  // FIXME: probably ought to diagnose this.
+  if (isa<ValueDecl>(d))
+    return;
+
   if (HandleCommonNoReturnAttr(d, Attr, S))
     d->addAttr(::new (S.Context) NoReturnAttr());
 }
@@ -404,7 +409,7 @@ static void HandleAnalyzerNoReturnAttr(Decl *d, const AttributeList &Attr,
 static void HandleDependencyAttr(Decl *d, const AttributeList &Attr, Sema &S) {
   if (!isFunctionOrMethod(d) && !isa<ParmVarDecl>(d)) {
     S.Diag(Attr.getLoc(), diag::err_attribute_wrong_decl_type)
-      << Attr.getName() << 8; /*function, method, or parameter*/
+      << Attr.getName() << 8 /*function, method, or parameter*/;
     return;
   }
   // FIXME: Actually store the attribute on the declaration
@@ -542,17 +547,16 @@ static void HandleVisibilityAttr(Decl *d, const AttributeList &Attr, Sema &S) {
     return;
   }
 
-  const char *TypeStr = Str->getStrData();
-  unsigned TypeLen = Str->getByteLength();
+  llvm::StringRef TypeStr = Str->getString();
   VisibilityAttr::VisibilityTypes type;
 
-  if (TypeLen == 7 && !memcmp(TypeStr, "default", 7))
+  if (TypeStr == "default")
     type = VisibilityAttr::DefaultVisibility;
-  else if (TypeLen == 6 && !memcmp(TypeStr, "hidden", 6))
+  else if (TypeStr == "hidden")
     type = VisibilityAttr::HiddenVisibility;
-  else if (TypeLen == 8 && !memcmp(TypeStr, "internal", 8))
+  else if (TypeStr == "internal")
     type = VisibilityAttr::HiddenVisibility; // FIXME
-  else if (TypeLen == 9 && !memcmp(TypeStr, "protected", 9))
+  else if (TypeStr == "protected")
     type = VisibilityAttr::ProtectedVisibility;
   else {
     S.Diag(Attr.getLoc(), diag::warn_attribute_unknown_visibility) << TypeStr;
@@ -938,105 +942,9 @@ static void HandleSectionAttr(Decl *D, const AttributeList &Attr, Sema &S) {
     return;
   }
   
-  D->addAttr(::new (S.Context) SectionAttr(SE->getString()));
+  D->addAttr(::new (S.Context) SectionAttr(S.Context, SE->getString()));
 }
 
-static void HandleCDeclAttr(Decl *d, const AttributeList &Attr, Sema &S) {
-  // Attribute has no arguments.
-  if (Attr.getNumArgs() != 0) {
-    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 0;
-    return;
-  }
-
-  // Attribute can be applied only to functions.
-  if (!isa<FunctionDecl>(d)) {
-    S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
-      << Attr.getName() << 0 /*function*/;
-    return;
-  }
-
-  // cdecl and fastcall attributes are mutually incompatible.
-  if (d->getAttr<FastCallAttr>()) {
-    S.Diag(Attr.getLoc(), diag::err_attributes_are_not_compatible)
-      << "cdecl" << "fastcall";
-    return;
-  }
-
-  // cdecl and stdcall attributes are mutually incompatible.
-  if (d->getAttr<StdCallAttr>()) {
-    S.Diag(Attr.getLoc(), diag::err_attributes_are_not_compatible)
-      << "cdecl" << "stdcall";
-    return;
-  }
-
-  d->addAttr(::new (S.Context) CDeclAttr());
-}
-
-
-static void HandleStdCallAttr(Decl *d, const AttributeList &Attr, Sema &S) {
-  // Attribute has no arguments.
-  if (Attr.getNumArgs() != 0) {
-    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 0;
-    return;
-  }
-
-  // Attribute can be applied only to functions.
-  if (!isa<FunctionDecl>(d)) {
-    S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
-      << Attr.getName() << 0 /*function*/;
-    return;
-  }
-
-  // stdcall and fastcall attributes are mutually incompatible.
-  if (d->getAttr<FastCallAttr>()) {
-    S.Diag(Attr.getLoc(), diag::err_attributes_are_not_compatible)
-      << "stdcall" << "fastcall";
-    return;
-  }
-
-  d->addAttr(::new (S.Context) StdCallAttr());
-}
-
-/// Diagnose the use of a non-standard calling convention on the given
-/// function.
-static void DiagnoseCConv(FunctionDecl *D, const char *CConv,
-                          SourceLocation Loc, Sema &S) {
-  if (!D->hasPrototype()) {
-    S.Diag(Loc, diag::err_cconv_knr) << CConv;
-    return;
-  }
-
-  const FunctionProtoType *T = D->getType()->getAs<FunctionProtoType>();
-  if (T->isVariadic()) {
-    S.Diag(Loc, diag::err_cconv_varargs) << CConv;
-    return;
-  }
-}
-
-static void HandleFastCallAttr(Decl *d, const AttributeList &Attr, Sema &S) {
-  // Attribute has no arguments.
-  if (Attr.getNumArgs() != 0) {
-    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 0;
-    return;
-  }
-
-  if (!isa<FunctionDecl>(d)) {
-    S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
-      << Attr.getName() << 0 /*function*/;
-    return;
-  }
-
-  DiagnoseCConv(cast<FunctionDecl>(d), "fastcall", Attr.getLoc(), S);
-
-  // stdcall and fastcall attributes are mutually incompatible.
-  if (d->getAttr<StdCallAttr>()) {
-    S.Diag(Attr.getLoc(), diag::err_attributes_are_not_compatible)
-      << "fastcall" << "stdcall";
-    return;
-  }
-
-  d->addAttr(::new (S.Context) FastCallAttr());
-}
 
 static void HandleNothrowAttr(Decl *d, const AttributeList &Attr, Sema &S) {
   // check the attribute arguments.
@@ -1349,7 +1257,7 @@ static void HandleFormatAttr(Decl *d, const AttributeList &Attr, Sema &S) {
     return;
   }
 
-  d->addAttr(::new (S.Context) FormatAttr(Format, Idx.getZExtValue(),
+  d->addAttr(::new (S.Context) FormatAttr(S.Context, Format, Idx.getZExtValue(),
                                           FirstArg.getZExtValue()));
 }
 
@@ -1435,7 +1343,7 @@ static void HandleAnnotateAttr(Decl *d, const AttributeList &Attr, Sema &S) {
     S.Diag(ArgExpr->getLocStart(), diag::err_attribute_not_string) <<"annotate";
     return;
   }
-  d->addAttr(::new (S.Context) AnnotateAttr(SE->getString()));
+  d->addAttr(::new (S.Context) AnnotateAttr(S.Context, SE->getString()));
 }
 
 static void HandleAlignedAttr(Decl *d, const AttributeList &Attr, Sema &S) {
@@ -1608,9 +1516,15 @@ static void HandleModeAttr(Decl *D, const AttributeList &Attr, Sema &S) {
     if (!IntegerMode)
       NewTy = S.Context.DoubleTy;
     else if (OldTy->isSignedIntegerType())
-      NewTy = S.Context.LongLongTy;
+      if (S.Context.Target.getLongWidth() == 64)
+        NewTy = S.Context.LongTy;
+      else
+        NewTy = S.Context.LongLongTy;
     else
-      NewTy = S.Context.UnsignedLongLongTy;
+      if (S.Context.Target.getLongWidth() == 64)
+        NewTy = S.Context.UnsignedLongTy;
+      else
+        NewTy = S.Context.UnsignedLongLongTy;
     break;
   case 96:
     NewTy = S.Context.LongDoubleTy;
@@ -1903,7 +1817,6 @@ static void ProcessDeclAttribute(Scope *scope, Decl *D,
   case AttributeList::AT_base_check:  HandleBaseCheckAttr   (D, Attr, S); break;
   case AttributeList::AT_carries_dependency:
                                       HandleDependencyAttr  (D, Attr, S); break;
-  case AttributeList::AT_cdecl:       HandleCDeclAttr       (D, Attr, S); break;
   case AttributeList::AT_constructor: HandleConstructorAttr (D, Attr, S); break;
   case AttributeList::AT_deprecated:  HandleDeprecatedAttr  (D, Attr, S); break;
   case AttributeList::AT_destructor:  HandleDestructorAttr  (D, Attr, S); break;
@@ -1912,7 +1825,6 @@ static void ProcessDeclAttribute(Scope *scope, Decl *D,
   case AttributeList::AT_ext_vector_type:
     HandleExtVectorTypeAttr(scope, D, Attr, S);
     break;
-  case AttributeList::AT_fastcall:    HandleFastCallAttr    (D, Attr, S); break;
   case AttributeList::AT_final:       HandleFinalAttr       (D, Attr, S); break;
   case AttributeList::AT_format:      HandleFormatAttr      (D, Attr, S); break;
   case AttributeList::AT_format_arg:  HandleFormatArgAttr   (D, Attr, S); break;
@@ -1935,7 +1847,6 @@ static void ProcessDeclAttribute(Scope *scope, Decl *D,
 
   case AttributeList::AT_packed:      HandlePackedAttr      (D, Attr, S); break;
   case AttributeList::AT_section:     HandleSectionAttr     (D, Attr, S); break;
-  case AttributeList::AT_stdcall:     HandleStdCallAttr     (D, Attr, S); break;
   case AttributeList::AT_unavailable: HandleUnavailableAttr (D, Attr, S); break;
   case AttributeList::AT_unused:      HandleUnusedAttr      (D, Attr, S); break;
   case AttributeList::AT_used:        HandleUsedAttr        (D, Attr, S); break;
@@ -1963,6 +1874,11 @@ static void ProcessDeclAttribute(Scope *scope, Decl *D,
   case AttributeList::IgnoredAttribute:
   case AttributeList::AT_no_instrument_function:  // Interacts with -pg.
     // Just ignore
+    break;
+  case AttributeList::AT_stdcall:
+  case AttributeList::AT_cdecl:
+  case AttributeList::AT_fastcall:
+    // These are all treated as type attributes.
     break;
   default:
     // Ask target about the attribute.
@@ -2008,7 +1924,7 @@ void Sema::DeclApplyPragmaWeak(Scope *S, NamedDecl *ND, WeakInfo &W) {
   if (W.getAlias()) { // clone decl, impersonate __attribute(weak,alias(...))
     IdentifierInfo *NDId = ND->getIdentifier();
     NamedDecl *NewD = DeclClonePragmaWeak(ND, W.getAlias());
-    NewD->addAttr(::new (Context) AliasAttr(NDId->getName()));
+    NewD->addAttr(::new (Context) AliasAttr(Context, NDId->getName()));
     NewD->addAttr(::new (Context) WeakAttr());
     WeakTopLevelDecl.push_back(NewD);
     // FIXME: "hideous" code from Sema::LazilyCreateBuiltin
@@ -2062,7 +1978,47 @@ void Sema::ProcessDeclAttributes(Scope *S, Decl *D, const Declarator &PD) {
 /// on the warning stack.
 Action::ParsingDeclStackState Sema::PushParsingDeclaration() {
   ParsingDeclDepth++;
-  return (ParsingDeclStackState) DelayedDeprecationWarnings.size();
+  return (ParsingDeclStackState) DelayedDiagnostics.size();
+}
+
+void Sema::PopParsingDeclaration(ParsingDeclStackState S, DeclPtrTy Ctx) {
+  assert(ParsingDeclDepth > 0 && "empty ParsingDeclaration stack");
+  ParsingDeclDepth--;
+
+  if (DelayedDiagnostics.empty())
+    return;
+
+  unsigned SavedIndex = (unsigned) S;
+  assert(SavedIndex <= DelayedDiagnostics.size() &&
+         "saved index is out of bounds");
+
+  // We only want to actually emit delayed diagnostics when we
+  // successfully parsed a decl.
+  Decl *D = Ctx ? Ctx.getAs<Decl>() : 0;
+  if (D) {
+    // We really do want to start with 0 here.  We get one push for a
+    // decl spec and another for each declarator;  in a decl group like:
+    //   deprecated_typedef foo, *bar, baz();
+    // only the declarator pops will be passed decls.  This is correct;
+    // we really do need to consider delayed diagnostics from the decl spec
+    // for each of the different declarations.
+    for (unsigned I = 0, E = DelayedDiagnostics.size(); I != E; ++I) {
+      if (DelayedDiagnostics[I].Triggered)
+        continue;
+
+      switch (DelayedDiagnostics[I].Kind) {
+      case DelayedDiagnostic::Deprecation:
+        HandleDelayedDeprecationCheck(DelayedDiagnostics[I], D);
+        break;
+
+      case DelayedDiagnostic::Access:
+        HandleDelayedAccessCheck(DelayedDiagnostics[I], D);
+        break;
+      }
+    }
+  }
+
+  DelayedDiagnostics.set_size(SavedIndex);
 }
 
 static bool isDeclDeprecated(Decl *D) {
@@ -2073,37 +2029,20 @@ static bool isDeclDeprecated(Decl *D) {
   return false;
 }
 
-void Sema::PopParsingDeclaration(ParsingDeclStackState S, DeclPtrTy Ctx) {
-  assert(ParsingDeclDepth > 0 && "empty ParsingDeclaration stack");
-  ParsingDeclDepth--;
-
-  if (DelayedDeprecationWarnings.empty())
+void Sema::HandleDelayedDeprecationCheck(Sema::DelayedDiagnostic &DD,
+                                         Decl *Ctx) {
+  if (isDeclDeprecated(Ctx))
     return;
 
-  unsigned SavedIndex = (unsigned) S;
-  assert(SavedIndex <= DelayedDeprecationWarnings.size() &&
-         "saved index is out of bounds");
-
-  if (Ctx && !isDeclDeprecated(Ctx.getAs<Decl>())) {
-    for (unsigned I = 0, E = DelayedDeprecationWarnings.size(); I != E; ++I) {
-      SourceLocation Loc = DelayedDeprecationWarnings[I].first;
-      NamedDecl *&ND = DelayedDeprecationWarnings[I].second;
-      if (ND) {
-        Diag(Loc, diag::warn_deprecated) << ND->getDeclName();
-
-        // Prevent this from triggering multiple times.
-        ND = 0;
-      }
-    }
-  }
-
-  DelayedDeprecationWarnings.set_size(SavedIndex);
+  DD.Triggered = true;
+  Diag(DD.Loc, diag::warn_deprecated)
+    << DD.DeprecationData.Decl->getDeclName();
 }
 
 void Sema::EmitDeprecationWarning(NamedDecl *D, SourceLocation Loc) {
   // Delay if we're currently parsing a declaration.
   if (ParsingDeclDepth) {
-    DelayedDeprecationWarnings.push_back(std::make_pair(Loc, D));
+    DelayedDiagnostics.push_back(DelayedDiagnostic::makeDeprecation(Loc, D));
     return;
   }
 

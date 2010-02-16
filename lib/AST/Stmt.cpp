@@ -35,6 +35,7 @@ static StmtClassNameTable &getStmtInfoTableEntry(Stmt::StmtClass E) {
 
   // Intialize the table on the first use.
   Initialized = true;
+#define ABSTRACT_EXPR(CLASS, PARENT)
 #define STMT(CLASS, PARENT) \
   StmtClassInfo[(unsigned)Stmt::CLASS##Class].Name = #CLASS;    \
   StmtClassInfo[(unsigned)Stmt::CLASS##Class].Size = sizeof(CLASS);
@@ -132,9 +133,8 @@ Expr *AsmStmt::getOutputExpr(unsigned i) {
 /// getOutputConstraint - Return the constraint string for the specified
 /// output operand.  All output constraints are known to be non-empty (either
 /// '=' or '+').
-std::string AsmStmt::getOutputConstraint(unsigned i) const {
-  return std::string(Constraints[i]->getStrData(),
-                     Constraints[i]->getByteLength());
+llvm::StringRef AsmStmt::getOutputConstraint(unsigned i) const {
+  return getOutputConstraintLiteral(i)->getString();
 }
 
 /// getNumPlusOperands - Return the number of output operands that have a "+"
@@ -147,40 +147,52 @@ unsigned AsmStmt::getNumPlusOperands() const {
   return Res;
 }
 
-
-
 Expr *AsmStmt::getInputExpr(unsigned i) {
   return cast<Expr>(Exprs[i + NumOutputs]);
 }
 
 /// getInputConstraint - Return the specified input constraint.  Unlike output
 /// constraints, these can be empty.
-std::string AsmStmt::getInputConstraint(unsigned i) const {
-  return std::string(Constraints[i + NumOutputs]->getStrData(),
-                     Constraints[i + NumOutputs]->getByteLength());
+llvm::StringRef AsmStmt::getInputConstraint(unsigned i) const {
+  return getInputConstraintLiteral(i)->getString();
 }
 
 
-void AsmStmt::setOutputsAndInputs(unsigned NumOutputs,
-                                  unsigned NumInputs,
-                                  const std::string *Names,
-                                  StringLiteral **Constraints,
-                                  Stmt **Exprs) {
+void AsmStmt::setOutputsAndInputsAndClobbers(ASTContext &C,
+                                             IdentifierInfo **Names,
+                                             StringLiteral **Constraints,
+                                             Stmt **Exprs,
+                                             unsigned NumOutputs,
+                                             unsigned NumInputs,                                      
+                                             StringLiteral **Clobbers,
+                                             unsigned NumClobbers) {
   this->NumOutputs = NumOutputs;
   this->NumInputs = NumInputs;
-  this->Names.clear();
-  this->Names.insert(this->Names.end(), Names, Names + NumOutputs + NumInputs);
-  this->Constraints.clear();
-  this->Constraints.insert(this->Constraints.end(),
-                           Constraints, Constraints + NumOutputs + NumInputs);
-  this->Exprs.clear();
-  this->Exprs.insert(this->Exprs.end(), Exprs, Exprs + NumOutputs + NumInputs);
+  this->NumClobbers = NumClobbers;
+
+  unsigned NumExprs = NumOutputs + NumInputs;
+  
+  C.Deallocate(this->Names);
+  this->Names = new (C) IdentifierInfo*[NumExprs];
+  std::copy(Names, Names + NumExprs, this->Names);
+  
+  C.Deallocate(this->Exprs);
+  this->Exprs = new (C) Stmt*[NumExprs];
+  std::copy(Exprs, Exprs + NumExprs, this->Exprs);
+  
+  C.Deallocate(this->Constraints);
+  this->Constraints = new (C) StringLiteral*[NumExprs];
+  std::copy(Constraints, Constraints + NumExprs, this->Constraints);
+  
+  C.Deallocate(this->Clobbers);
+  this->Clobbers = new (C) StringLiteral*[NumClobbers];
+  std::copy(Clobbers, Clobbers + NumClobbers, this->Clobbers);
 }
 
 /// getNamedOperand - Given a symbolic operand reference like %[foo],
 /// translate this into a numeric value needed to reference the same operand.
 /// This returns -1 if the operand name is invalid.
-int AsmStmt::getNamedOperand(const std::string &SymbolicName) const {
+int AsmStmt::getNamedOperand(llvm::StringRef SymbolicName) const {
   unsigned NumPlusOperands = 0;
 
   // Check if this is an output operand.
@@ -195,11 +207,6 @@ int AsmStmt::getNamedOperand(const std::string &SymbolicName) const {
 
   // Not found.
   return -1;
-}
-
-void AsmStmt::setClobbers(StringLiteral **Clobbers, unsigned NumClobbers) {
-  this->Clobbers.clear();
-  this->Clobbers.insert(this->Clobbers.end(), Clobbers, Clobbers + NumClobbers);
 }
 
 /// AnalyzeAsmString - Analyze the asm string of the current asm, decomposing
@@ -313,7 +320,7 @@ unsigned AsmStmt::AnalyzeAsmString(llvm::SmallVectorImpl<AsmStringPiece>&Pieces,
       if (NameEnd == CurPtr)
         return diag::err_asm_empty_symbolic_operand_name;
 
-      std::string SymbolicName(CurPtr, NameEnd);
+      llvm::StringRef SymbolicName(CurPtr, NameEnd - CurPtr);
 
       int N = getNamedOperand(SymbolicName);
       if (N == -1) {
@@ -332,26 +339,39 @@ unsigned AsmStmt::AnalyzeAsmString(llvm::SmallVectorImpl<AsmStringPiece>&Pieces,
   }
 }
 
+QualType CXXCatchStmt::getCaughtType() const {
+  if (ExceptionDecl)
+    return ExceptionDecl->getType();
+  return QualType();
+}
+
 //===----------------------------------------------------------------------===//
 // Constructors
 //===----------------------------------------------------------------------===//
 
-AsmStmt::AsmStmt(SourceLocation asmloc, bool issimple, bool isvolatile,
-                 bool msasm, unsigned numoutputs, unsigned numinputs,
-                 std::string *names, StringLiteral **constraints,
+AsmStmt::AsmStmt(ASTContext &C, SourceLocation asmloc, bool issimple, 
+                 bool isvolatile, bool msasm, 
+                 unsigned numoutputs, unsigned numinputs,
+                 IdentifierInfo **names, StringLiteral **constraints,
                  Expr **exprs, StringLiteral *asmstr, unsigned numclobbers,
                  StringLiteral **clobbers, SourceLocation rparenloc)
   : Stmt(AsmStmtClass), AsmLoc(asmloc), RParenLoc(rparenloc), AsmStr(asmstr)
   , IsSimple(issimple), IsVolatile(isvolatile), MSAsm(msasm)
-  , NumOutputs(numoutputs), NumInputs(numinputs) {
-  for (unsigned i = 0, e = numinputs + numoutputs; i != e; i++) {
-    Names.push_back(names[i]);
-    Exprs.push_back(exprs[i]);
-    Constraints.push_back(constraints[i]);
-  }
+  , NumOutputs(numoutputs), NumInputs(numinputs), NumClobbers(numclobbers) {
 
-  for (unsigned i = 0; i != numclobbers; i++)
-    Clobbers.push_back(clobbers[i]);
+  unsigned NumExprs = NumOutputs +NumInputs;
+    
+  Names = new (C) IdentifierInfo*[NumExprs];
+  std::copy(names, names + NumExprs, Names);
+
+  Exprs = new (C) Stmt*[NumExprs];
+  std::copy(exprs, exprs + NumExprs, Exprs);
+
+  Constraints = new (C) StringLiteral*[NumExprs];
+  std::copy(constraints, constraints + NumExprs, Constraints);
+
+  Clobbers = new (C) StringLiteral*[NumClobbers];
+  std::copy(clobbers, clobbers + NumClobbers, Clobbers);
 }
 
 ObjCForCollectionStmt::ObjCForCollectionStmt(Stmt *Elem, Expr *Collect,
@@ -385,6 +405,24 @@ ObjCAtCatchStmt::ObjCAtCatchStmt(SourceLocation atCatchLoc,
   }
   AtCatchLoc = atCatchLoc;
   RParenLoc = rparenloc;
+}
+
+CXXTryStmt *CXXTryStmt::Create(ASTContext &C, SourceLocation tryLoc,
+                               Stmt *tryBlock, Stmt **handlers, 
+                               unsigned numHandlers) {
+  std::size_t Size = sizeof(CXXTryStmt);
+  Size += ((numHandlers + 1) * sizeof(Stmt));
+
+  void *Mem = C.Allocate(Size, llvm::alignof<CXXTryStmt>());
+  return new (Mem) CXXTryStmt(tryLoc, tryBlock, handlers, numHandlers);
+}
+
+CXXTryStmt::CXXTryStmt(SourceLocation tryLoc, Stmt *tryBlock,
+                       Stmt **handlers, unsigned numHandlers)
+  : Stmt(CXXTryStmtClass), TryLoc(tryLoc), NumHandlers(numHandlers) {
+  Stmt **Stmts = reinterpret_cast<Stmt **>(this + 1);
+  Stmts[0] = tryBlock;
+  std::copy(handlers, handlers + NumHandlers, Stmts + 1);
 }
 
 //===----------------------------------------------------------------------===//
@@ -451,6 +489,18 @@ void SwitchStmt::DoDestroy(ASTContext &C) {
 
 void WhileStmt::DoDestroy(ASTContext &C) {
   BranchDestroy(C, this, SubExprs, END_EXPR);
+}
+
+void AsmStmt::DoDestroy(ASTContext &C) {
+  DestroyChildren(C);
+  
+  C.Deallocate(Names);
+  C.Deallocate(Constraints);
+  C.Deallocate(Exprs);
+  C.Deallocate(Clobbers);
+  
+  this->~AsmStmt();
+  C.Deallocate((void *)this);
 }
 
 //===----------------------------------------------------------------------===//
@@ -566,10 +616,10 @@ Stmt::child_iterator ReturnStmt::child_end() {
 
 // AsmStmt
 Stmt::child_iterator AsmStmt::child_begin() {
-  return Exprs.empty() ? 0 : &Exprs[0];
+  return NumOutputs + NumInputs == 0 ? 0 : &Exprs[0];
 }
 Stmt::child_iterator AsmStmt::child_end() {
-  return Exprs.empty() ? 0 : &Exprs[0] + Exprs.size();
+  return NumOutputs + NumInputs == 0 ? 0 : &Exprs[0] + NumOutputs + NumInputs;
 }
 
 // ObjCAtCatchStmt
@@ -615,19 +665,11 @@ Stmt::child_iterator CXXCatchStmt::child_end() {
   return &HandlerBlock + 1;
 }
 
-QualType CXXCatchStmt::getCaughtType() const {
-  if (ExceptionDecl)
-    return ExceptionDecl->getType();
-  return QualType();
+// CXXTryStmt
+Stmt::child_iterator CXXTryStmt::child_begin() {
+  return reinterpret_cast<Stmt **>(this + 1);
 }
 
-// CXXTryStmt
-Stmt::child_iterator CXXTryStmt::child_begin() { return &Stmts[0]; }
-Stmt::child_iterator CXXTryStmt::child_end() { return &Stmts[0]+Stmts.size(); }
-
-CXXTryStmt::CXXTryStmt(SourceLocation tryLoc, Stmt *tryBlock,
-                       Stmt **handlers, unsigned numHandlers)
-  : Stmt(CXXTryStmtClass), TryLoc(tryLoc) {
-  Stmts.push_back(tryBlock);
-  Stmts.insert(Stmts.end(), handlers, handlers + numHandlers);
+Stmt::child_iterator CXXTryStmt::child_end() {
+  return reinterpret_cast<Stmt **>(this + 1) + NumHandlers + 1;
 }

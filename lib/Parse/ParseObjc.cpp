@@ -515,7 +515,8 @@ void Parser::ParseObjCPropertyAttribute(ObjCDeclSpec &DS, DeclPtrTy ClassDecl,
         DS.setSetterName(Tok.getIdentifierInfo());
         ConsumeToken();  // consume method name
 
-        if (ExpectAndConsume(tok::colon, diag::err_expected_colon, "",
+        if (ExpectAndConsume(tok::colon, 
+                             diag::err_expected_colon_after_setter_name, "",
                              tok::r_paren))
           return;
       } else {
@@ -786,15 +787,15 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDecl(SourceLocation mLoc,
   llvm::SmallVector<Declarator, 8> CargNames;
   if (Tok.isNot(tok::colon)) {
     // If attributes exist after the method, parse them.
-    AttributeList *MethodAttrs = 0;
+    llvm::OwningPtr<AttributeList> MethodAttrs;
     if (getLang().ObjC2 && Tok.is(tok::kw___attribute))
-      MethodAttrs = ParseGNUAttributes();
+      MethodAttrs.reset(ParseGNUAttributes());
 
     Selector Sel = PP.getSelectorTable().getNullarySelector(SelIdent);
     DeclPtrTy Result
          = Actions.ActOnMethodDeclaration(mLoc, Tok.getLocation(),
                                           mType, IDecl, DSRet, ReturnType, Sel,
-                                          0, CargNames, MethodAttrs,
+                                          0, CargNames, MethodAttrs.get(),
                                           MethodImplKind);
     PD.complete(Result);
     return Result;
@@ -862,9 +863,9 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDecl(SourceLocation mLoc,
 
   // FIXME: Add support for optional parmameter list...
   // If attributes exist after the method, parse them.
-  AttributeList *MethodAttrs = 0;
+  llvm::OwningPtr<AttributeList> MethodAttrs;
   if (getLang().ObjC2 && Tok.is(tok::kw___attribute))
-    MethodAttrs = ParseGNUAttributes();
+    MethodAttrs.reset(ParseGNUAttributes());
 
   if (KeyIdents.size() == 0)
     return DeclPtrTy();
@@ -873,9 +874,16 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDecl(SourceLocation mLoc,
   DeclPtrTy Result
        = Actions.ActOnMethodDeclaration(mLoc, Tok.getLocation(),
                                         mType, IDecl, DSRet, ReturnType, Sel,
-                                        &ArgInfos[0], CargNames, MethodAttrs,
+                                        &ArgInfos[0], CargNames,
+                                        MethodAttrs.get(),
                                         MethodImplKind, isVariadic);
   PD.complete(Result);
+  
+  // Delete referenced AttributeList objects.
+  for (llvm::SmallVectorImpl<Action::ObjCArgInfo>::iterator
+       I = ArgInfos.begin(), E = ArgInfos.end(); I != E; ++I)
+    delete I->ArgAttrs;
+  
   return Result;
 }
 
@@ -1481,7 +1489,9 @@ Parser::OwningStmtResult Parser::ParseObjCTryStmt(SourceLocation atLoc) {
 
           // Inform the actions module about the parameter declarator, so it
           // gets added to the current scope.
+          // FIXME. Probably can build a VarDecl and avoid setting DeclContext.
           FirstPart = Actions.ActOnParamDeclarator(CurScope, ParmDecl);
+          Actions.ActOnObjCCatchParam(FirstPart);
         } else
           ConsumeToken(); // consume '...'
 

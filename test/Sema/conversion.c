@@ -1,4 +1,6 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -Wconversion -triple x86_64-apple-darwin %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wconversion -nostdinc -isystem %S/Inputs -triple x86_64-apple-darwin %s -Wno-unreachable-code
+
+#include <conversion.h>
 
 #define BIG 0x7f7f7f7f7f7f7f7fL
 
@@ -270,4 +272,10 @@ unsigned char test19(unsigned long u64) {
   unsigned char mask = 0xee;
   unsigned char x3 = u64 & mask;
   return x1 + x2 + x3;
+}
+
+// <rdar://problem/7631400>
+void test_7631400(void) {
+  // This should show up despite the caret being inside a macro substitution
+  char s = LONG_MAX; // expected-warning {{implicit cast loses integer precision: 'long' to 'char'}}
 }

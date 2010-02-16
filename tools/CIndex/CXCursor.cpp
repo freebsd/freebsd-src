@@ -29,6 +29,7 @@ CXCursor cxcursor::MakeCXCursorInvalid(CXCursorKind K) {
 }
 
 static CXCursorKind GetCursorKind(Decl *D) {
+  assert(D && "Invalid arguments!");
   switch (D->getKind()) {
     case Decl::Enum:               return CXCursor_EnumDecl;
     case Decl::EnumConstant:       return CXCursor_EnumConstantDecl;
@@ -72,11 +73,13 @@ static CXCursorKind GetCursorKind(Decl *D) {
 }
 
 CXCursor cxcursor::MakeCXCursor(Decl *D, ASTUnit *TU) {
+  assert(D && TU && "Invalid arguments!");
   CXCursor C = { GetCursorKind(D), { D, 0, TU } };
   return C;
 }
 
 CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
+  assert(S && TU && "Invalid arguments!");
   CXCursorKind K = CXCursor_NotImplemented;
   
   switch (S->getStmtClass()) {
@@ -112,7 +115,6 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
     K = CXCursor_UnexposedStmt;
     break;
       
-  case Stmt::ExprClass:
   case Stmt::PredefinedExprClass:        
   case Stmt::IntegerLiteralClass:        
   case Stmt::FloatingLiteralClass:       
@@ -123,12 +125,10 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
   case Stmt::UnaryOperatorClass:         
   case Stmt::SizeOfAlignOfExprClass:     
   case Stmt::ArraySubscriptExprClass:    
-  case Stmt::CastExprClass:              
   case Stmt::BinaryOperatorClass:        
   case Stmt::CompoundAssignOperatorClass:
   case Stmt::ConditionalOperatorClass:   
   case Stmt::ImplicitCastExprClass:
-  case Stmt::ExplicitCastExprClass:
   case Stmt::CStyleCastExprClass:
   case Stmt::CompoundLiteralExprClass:   
   case Stmt::ExtVectorElementExprClass:  
@@ -162,6 +162,7 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
   case Stmt::UnaryTypeTraitExprClass:     
   case Stmt::DependentScopeDeclRefExprClass:  
   case Stmt::CXXBindTemporaryExprClass:   
+  case Stmt::CXXBindReferenceExprClass:   
   case Stmt::CXXExprWithTemporariesClass: 
   case Stmt::CXXUnresolvedConstructExprClass:
   case Stmt::CXXDependentScopeMemberExprClass:
@@ -214,6 +215,7 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
 CXCursor cxcursor::MakeCursorObjCSuperClassRef(ObjCInterfaceDecl *Super, 
                                                SourceLocation Loc, 
                                                ASTUnit *TU) {
+  assert(Super && TU && "Invalid arguments!");
   void *RawLoc = reinterpret_cast<void *>(Loc.getRawEncoding());
   CXCursor C = { CXCursor_ObjCSuperClassRef, { Super, RawLoc, TU } };
   return C;    
@@ -230,6 +232,7 @@ cxcursor::getCursorObjCSuperClassRef(CXCursor C) {
 CXCursor cxcursor::MakeCursorObjCProtocolRef(ObjCProtocolDecl *Super, 
                                              SourceLocation Loc, 
                                              ASTUnit *TU) {
+  assert(Super && TU && "Invalid arguments!");
   void *RawLoc = reinterpret_cast<void *>(Loc.getRawEncoding());
   CXCursor C = { CXCursor_ObjCProtocolRef, { Super, RawLoc, TU } };
   return C;    
@@ -246,6 +249,7 @@ cxcursor::getCursorObjCProtocolRef(CXCursor C) {
 CXCursor cxcursor::MakeCursorObjCClassRef(ObjCInterfaceDecl *Class, 
                                           SourceLocation Loc, 
                                           ASTUnit *TU) {
+  assert(Class && TU && "Invalid arguments!");
   void *RawLoc = reinterpret_cast<void *>(Loc.getRawEncoding());
   CXCursor C = { CXCursor_ObjCClassRef, { Class, RawLoc, TU } };
   return C;    
@@ -261,6 +265,7 @@ cxcursor::getCursorObjCClassRef(CXCursor C) {
 
 CXCursor cxcursor::MakeCursorTypeRef(TypeDecl *Type, SourceLocation Loc, 
                                      ASTUnit *TU) {
+  assert(Type && TU && "Invalid arguments!");
   void *RawLoc = reinterpret_cast<void *>(Loc.getRawEncoding());
   CXCursor C = { CXCursor_TypeRef, { Type, RawLoc, TU } };
   return C;    

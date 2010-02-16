@@ -4,6 +4,8 @@ add_clang_library(clangAST
   APValue.cpp
   ASTConsumer.cpp
   ASTContext.cpp
+  ASTImporter.cpp
+  ASTDiagnostic.cpp
   AttrImpl.cpp
   CXXInheritance.cpp
   Decl.cpp

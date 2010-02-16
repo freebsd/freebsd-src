@@ -12,9 +12,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// FIXME: this needs to be the full list supported by GCC.  Right now, I'm just
-// adding stuff on demand.
-//
 // FIXME: This should really be a .td file, but that requires modifying tblgen.
 // Perhaps tblgen should have plugins.
 
@@ -52,6 +49,7 @@
 // * -> pointer
 // & -> reference
 // C -> const
+// D -> volatile
 
 // The third value provided to the macro specifies information about attributes
 // of the function.  These must be kept in sync with the predicates in the
@@ -235,7 +233,7 @@ BUILTIN(__builtin_islessgreater , "i.", "nc")
 BUILTIN(__builtin_isunordered   , "i.", "nc")
 
 // Unary FP classification
-// BUILTIN(__builtin_fpclassify, "iiiii.", "nc")
+BUILTIN(__builtin_fpclassify, "iiiii.", "nc")
 BUILTIN(__builtin_isfinite,   "i.", "nc")
 BUILTIN(__builtin_isinf,      "i.", "nc")
 BUILTIN(__builtin_isinf_sign, "i.", "nc")
@@ -277,7 +275,7 @@ BUILTIN(__builtin_va_copy, "vAA", "n")
 BUILTIN(__builtin_stdarg_start, "vA.", "n")
 BUILTIN(__builtin_bcmp, "iv*v*z", "n")
 BUILTIN(__builtin_bcopy, "vv*v*z", "n")
-BUILTIN(__builtin_bzero, "vv*z", "n")
+BUILTIN(__builtin_bzero, "vv*z", "nF")
 BUILTIN(__builtin_memchr, "v*vC*iz", "nF")
 BUILTIN(__builtin_memcmp, "ivC*vC*z", "nF")
 BUILTIN(__builtin_memcpy, "v*v*vC*z", "nF")
@@ -308,10 +306,18 @@ BUILTIN(__builtin_extract_return_addr, "v*v*", "n")
 BUILTIN(__builtin_frame_address, "v*Ui", "n")
 BUILTIN(__builtin_flt_rounds, "i", "nc")
 BUILTIN(__builtin_setjmp, "iv**", "")
-BUILTIN(__builtin_longjmp, "vv**i", "")
+BUILTIN(__builtin_longjmp, "vv**i", "r")
 BUILTIN(__builtin_unwind_init, "v", "")
 BUILTIN(__builtin_eh_return_data_regno, "ii", "nc")
 BUILTIN(__builtin_vsnprintf, "ic*zcC*a", "nFP:2:")
+
+// GCC exception builtins
+BUILTIN(__builtin_eh_return, "vzv*", "") // FIXME: Takes intptr_t, not size_t!
+BUILTIN(__builtin_frob_return_addr, "v*v*", "n")
+BUILTIN(__builtin_dwarf_cfa, "v*", "n")
+BUILTIN(__builtin_init_dwarf_reg_size_table, "vv*", "n")
+BUILTIN(__builtin_dwarf_sp_column, "Ui", "n")
+BUILTIN(__builtin_extend_pointer, "iv*", "n")
 
 // GCC Object size checking builtins
 BUILTIN(__builtin_object_size, "zv*i", "n")
@@ -438,18 +444,18 @@ BUILTIN(__sync_nand_and_fetch_16, "LLLiLLLi*LLLi.", "n")
 
 
 BUILTIN(__sync_bool_compare_and_swap, "v.", "")
-BUILTIN(__sync_bool_compare_and_swap_1, "bc*cc.", "n")
-BUILTIN(__sync_bool_compare_and_swap_2, "bs*ss.", "n")
-BUILTIN(__sync_bool_compare_and_swap_4, "bi*ii.", "n")
-BUILTIN(__sync_bool_compare_and_swap_8, "bLLi*LLi.", "n")
-BUILTIN(__sync_bool_compare_and_swap_16, "bLLLi*LLLiLLLi.", "n")
+BUILTIN(__sync_bool_compare_and_swap_1, "bcD*cc.", "n")
+BUILTIN(__sync_bool_compare_and_swap_2, "bsD*ss.", "n")
+BUILTIN(__sync_bool_compare_and_swap_4, "biD*ii.", "n")
+BUILTIN(__sync_bool_compare_and_swap_8, "bLLiD*LLiLLi.", "n")
+BUILTIN(__sync_bool_compare_and_swap_16, "bLLLiD*LLLiLLLi.", "n")
 
 BUILTIN(__sync_val_compare_and_swap, "v.", "")
-BUILTIN(__sync_val_compare_and_swap_1, "cc*cc.", "n")
-BUILTIN(__sync_val_compare_and_swap_2, "ss*ss.", "n")
-BUILTIN(__sync_val_compare_and_swap_4, "ii*ii.", "n")
-BUILTIN(__sync_val_compare_and_swap_8, "LLiLLi*LLi.", "n")
-BUILTIN(__sync_val_compare_and_swap_16, "LLLiLLLi*LLLiLLLi.", "n")
+BUILTIN(__sync_val_compare_and_swap_1, "ccD*cc.", "n")
+BUILTIN(__sync_val_compare_and_swap_2, "ssD*ss.", "n")
+BUILTIN(__sync_val_compare_and_swap_4, "iiD*ii.", "n")
+BUILTIN(__sync_val_compare_and_swap_8, "LLiLLiD*LLiLLi.", "n")
+BUILTIN(__sync_val_compare_and_swap_16, "LLLiLLLiD*LLLiLLLi.", "n")
 
 BUILTIN(__sync_lock_test_and_set, "v.", "")
 BUILTIN(__sync_lock_test_and_set_1, "cc*c.", "n")
@@ -527,6 +533,7 @@ LIBBUILTIN(strndup, "c*cC*z",     "f",     "string.h")
 // POSIX strings.h
 LIBBUILTIN(index, "c*cC*i",       "f",     "strings.h")
 LIBBUILTIN(rindex, "c*cC*i",      "f",     "strings.h")
+LIBBUILTIN(bzero, "vv*z",         "f",     "strings.h")
 // POSIX unistd.h
 LIBBUILTIN(_exit, "vi",           "fr",    "unistd.h")
 // POSIX setjmp.h

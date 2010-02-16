@@ -72,12 +72,14 @@ PCHValidator::ReadLanguageOptions(const LangOptions &LangOpts) {
   PARSE_LANGOPT_IMPORTANT(ObjC1, diag::warn_pch_objective_c);
   PARSE_LANGOPT_IMPORTANT(ObjC2, diag::warn_pch_objective_c2);
   PARSE_LANGOPT_IMPORTANT(ObjCNonFragileABI, diag::warn_pch_nonfragile_abi);
+  PARSE_LANGOPT_IMPORTANT(ObjCNonFragileABI2, diag::warn_pch_nonfragile_abi2);
   PARSE_LANGOPT_BENIGN(PascalStrings);
   PARSE_LANGOPT_BENIGN(WritableStrings);
   PARSE_LANGOPT_IMPORTANT(LaxVectorConversions,
                           diag::warn_pch_lax_vector_conversions);
   PARSE_LANGOPT_IMPORTANT(AltiVec, diag::warn_pch_altivec);
   PARSE_LANGOPT_IMPORTANT(Exceptions, diag::warn_pch_exceptions);
+  PARSE_LANGOPT_IMPORTANT(SjLjExceptions, diag::warn_pch_sjlj_exceptions);
   PARSE_LANGOPT_IMPORTANT(NeXTRuntime, diag::warn_pch_objc_runtime);
   PARSE_LANGOPT_IMPORTANT(Freestanding, diag::warn_pch_freestanding);
   PARSE_LANGOPT_IMPORTANT(NoBuiltin, diag::warn_pch_builtins);
@@ -434,7 +436,9 @@ public:
         continue;
       }
 
-      Prev->Next = new ObjCMethodList(Method, 0);
+      ObjCMethodList *Mem =
+        Reader.getSema()->BumpAlloc.Allocate<ObjCMethodList>();
+      Prev->Next = new (Mem) ObjCMethodList(Method, 0);
       Prev = Prev->Next;
     }
 
@@ -450,7 +454,9 @@ public:
         continue;
       }
 
-      Prev->Next = new ObjCMethodList(Method, 0);
+      ObjCMethodList *Mem =
+        Reader.getSema()->BumpAlloc.Allocate<ObjCMethodList>();
+      Prev->Next = new (Mem) ObjCMethodList(Method, 0);
       Prev = Prev->Next;
     }
 
@@ -1326,6 +1332,14 @@ PCHReader::ReadPCHBlock() {
       TentativeDefinitions.swap(Record);
       break;
 
+    case pch::UNUSED_STATIC_FUNCS:
+      if (!UnusedStaticFuncs.empty()) {
+        Error("duplicate UNUSED_STATIC_FUNCS record in PCH file");
+        return Failure;
+      }
+      UnusedStaticFuncs.swap(Record);
+      break;
+        
     case pch::LOCALLY_SCOPED_EXTERNAL_DECLS:
       if (!LocallyScopedExternalDecls.empty()) {
         Error("duplicate LOCALLY_SCOPED_EXTERNAL_DECLS record in PCH file");
@@ -1400,9 +1414,9 @@ PCHReader::ReadPCHBlock() {
       break;
         
     case pch::VERSION_CONTROL_BRANCH_REVISION: {
-      llvm::StringRef CurBranch = getClangFullRepositoryVersion();
+      const std::string &CurBranch = getClangFullRepositoryVersion();
       llvm::StringRef PCHBranch(BlobStart, BlobLen);
-      if (CurBranch != PCHBranch) {
+      if (llvm::StringRef(CurBranch) != PCHBranch) {
         Diag(diag::warn_pch_different_branch) << PCHBranch << CurBranch;
         return IgnorePCH;
       }
@@ -1740,11 +1754,13 @@ bool PCHReader::ParseLanguageOptions(
     PARSE_LANGOPT(ObjC1);
     PARSE_LANGOPT(ObjC2);
     PARSE_LANGOPT(ObjCNonFragileABI);
+    PARSE_LANGOPT(ObjCNonFragileABI2);
     PARSE_LANGOPT(PascalStrings);
     PARSE_LANGOPT(WritableStrings);
     PARSE_LANGOPT(LaxVectorConversions);
     PARSE_LANGOPT(AltiVec);
     PARSE_LANGOPT(Exceptions);
+    PARSE_LANGOPT(SjLjExceptions);
     PARSE_LANGOPT(NeXTRuntime);
     PARSE_LANGOPT(Freestanding);
     PARSE_LANGOPT(NoBuiltin);
@@ -1880,18 +1896,20 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
   }
 
   case pch::TYPE_VECTOR: {
-    if (Record.size() != 2) {
+    if (Record.size() != 4) {
       Error("incorrect encoding of vector type in PCH file");
       return QualType();
     }
 
     QualType ElementType = GetType(Record[0]);
     unsigned NumElements = Record[1];
-    return Context->getVectorType(ElementType, NumElements);
+    bool AltiVec = Record[2];
+    bool Pixel = Record[3];
+    return Context->getVectorType(ElementType, NumElements, AltiVec, Pixel);
   }
 
   case pch::TYPE_EXT_VECTOR: {
-    if (Record.size() != 2) {
+    if (Record.size() != 4) {
       Error("incorrect encoding of extended vector type in PCH file");
       return QualType();
     }
@@ -2464,11 +2482,17 @@ void PCHReader::InitializeSema(Sema &S) {
   PreloadedDecls.clear();
 
   // If there were any tentative definitions, deserialize them and add
-  // them to Sema's table of tentative definitions.
+  // them to Sema's list of tentative definitions.
   for (unsigned I = 0, N = TentativeDefinitions.size(); I != N; ++I) {
     VarDecl *Var = cast<VarDecl>(GetDecl(TentativeDefinitions[I]));
-    SemaObj->TentativeDefinitions[Var->getDeclName()] = Var;
-    SemaObj->TentativeDefinitionList.push_back(Var->getDeclName());
+    SemaObj->TentativeDefinitions.push_back(Var);
+  }
+  
+  // If there were any unused static functions, deserialize them and add to
+  // Sema's list of unused static functions.
+  for (unsigned I = 0, N = UnusedStaticFuncs.size(); I != N; ++I) {
+    FunctionDecl *FD = cast<FunctionDecl>(GetDecl(UnusedStaticFuncs[I]));
+    SemaObj->UnusedStaticFuncs.push_back(FD);
   }
 
   // If there were any locally-scoped external declarations,

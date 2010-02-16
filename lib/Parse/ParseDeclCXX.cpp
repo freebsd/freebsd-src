@@ -64,12 +64,12 @@ Parser::DeclPtrTy Parser::ParseNamespace(unsigned Context,
   }
 
   // Read label attributes, if present.
-  Action::AttrTy *AttrList = 0;
+  llvm::OwningPtr<AttributeList> AttrList;
   if (Tok.is(tok::kw___attribute)) {
     attrTok = Tok;
 
     // FIXME: save these somewhere.
-    AttrList = ParseGNUAttributes();
+    AttrList.reset(ParseGNUAttributes());
   }
 
   if (Tok.is(tok::equal)) {
@@ -91,7 +91,8 @@ Parser::DeclPtrTy Parser::ParseNamespace(unsigned Context,
   ParseScope NamespaceScope(this, Scope::DeclScope);
 
   DeclPtrTy NamespcDecl =
-    Actions.ActOnStartNamespaceDef(CurScope, IdentLoc, Ident, LBrace);
+    Actions.ActOnStartNamespaceDef(CurScope, IdentLoc, Ident, LBrace,
+                                   AttrList.get());
 
   PrettyStackTraceActionsDecl CrashInfo(NamespcDecl, NamespaceLoc, Actions,
                                         PP.getSourceManager(),
@@ -190,6 +191,8 @@ Parser::DeclPtrTy Parser::ParseLinkage(ParsingDeclSpec &DS,
     return Actions.ActOnFinishLinkageSpecification(CurScope, LinkageSpec,
                                                    SourceLocation());
   }
+
+  DS.abort();
 
   if (Attr.HasAttr)
     Diag(Attr.Range.getBegin(), diag::err_attributes_not_allowed)
@@ -325,8 +328,6 @@ Parser::DeclPtrTy Parser::ParseUsingDeclaration(unsigned Context,
   // Parse nested-name-specifier.
   ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, false);
 
-  AttributeList *AttrList = 0;
-
   // Check nested-name specifier.
   if (SS.isInvalid()) {
     SkipUntil(tok::semi);
@@ -348,8 +349,9 @@ Parser::DeclPtrTy Parser::ParseUsingDeclaration(unsigned Context,
   }
   
   // Parse (optional) attributes (most likely GNU strong-using extension).
+  llvm::OwningPtr<AttributeList> AttrList;
   if (Tok.is(tok::kw___attribute))
-    AttrList = ParseGNUAttributes();
+    AttrList.reset(ParseGNUAttributes());
 
   // Eat ';'.
   DeclEnd = Tok.getLocation();
@@ -358,7 +360,7 @@ Parser::DeclPtrTy Parser::ParseUsingDeclaration(unsigned Context,
                    tok::semi);
 
   return Actions.ActOnUsingDeclaration(CurScope, AS, true, UsingLoc, SS, Name,
-                                       AttrList, IsTypeName, TypenameLoc);
+                                       AttrList.get(), IsTypeName, TypenameLoc);
 }
 
 /// ParseStaticAssertDeclaration - Parse C++0x static_assert-declaratoion.
@@ -547,7 +549,7 @@ Parser::TypeResult Parser::ParseClassName(SourceLocation &EndLocation,
 /// ParseClassSpecifier - Parse a C++ class-specifier [C++ class] or
 /// elaborated-type-specifier [C++ dcl.type.elab]; we can't tell which
 /// until we reach the start of a definition or see a token that
-/// cannot start a definition.
+/// cannot start a definition. If SuppressDeclarations is true, we do know.
 ///
 ///       class-specifier: [C++ class]
 ///         class-head '{' member-specification[opt] '}'
@@ -587,7 +589,7 @@ Parser::TypeResult Parser::ParseClassName(SourceLocation &EndLocation,
 void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
                                  SourceLocation StartLoc, DeclSpec &DS,
                                  const ParsedTemplateInfo &TemplateInfo,
-                                 AccessSpecifier AS) {
+                                 AccessSpecifier AS, bool SuppressDeclarations){
   DeclSpec::TST TagType;
   if (TagTokKind == tok::kw_struct)
     TagType = DeclSpec::TST_struct;
@@ -733,8 +735,16 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
   // have to be treated differently.  If we have 'struct foo {...' or
   // 'struct foo :...' then this is a definition. Otherwise we have
   // something like 'struct foo xyz', a reference.
+  // However, in some contexts, things look like declarations but are just
+  // references, e.g.
+  // new struct s;
+  // or
+  // &T::operator struct s;
+  // For these, SuppressDeclarations is true.
   Action::TagUseKind TUK;
-  if (Tok.is(tok::l_brace) || (getLang().CPlusPlus && Tok.is(tok::colon))) {
+  if (SuppressDeclarations)
+    TUK = Action::TUK_Reference;
+  else if (Tok.is(tok::l_brace) || (getLang().CPlusPlus && Tok.is(tok::colon))){
     if (DS.isFriendSpecified()) {
       // C++ [class.friend]p2:
       //   A class shall not be defined in a friend declaration.
@@ -917,9 +927,62 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
   const char *PrevSpec = 0;
   unsigned DiagID;
 
-  if (DS.SetTypeSpecType(TagType, StartLoc, PrevSpec, DiagID,
+  // FIXME: The DeclSpec should keep the locations of both the keyword and the
+  // name (if there is one).
+  SourceLocation TSTLoc = NameLoc.isValid()? NameLoc : StartLoc;
+  
+  if (DS.SetTypeSpecType(TagType, TSTLoc, PrevSpec, DiagID,
                          Result, Owned))
     Diag(StartLoc, DiagID) << PrevSpec;
+  
+  // At this point, we've successfully parsed a class-specifier in 'definition'
+  // form (e.g. "struct foo { int x; }".  While we could just return here, we're
+  // going to look at what comes after it to improve error recovery.  If an
+  // impossible token occurs next, we assume that the programmer forgot a ; at
+  // the end of the declaration and recover that way.
+  //
+  // This switch enumerates the valid "follow" set for definition.
+  if (TUK == Action::TUK_Definition) {
+    switch (Tok.getKind()) {
+    case tok::semi:               // struct foo {...} ;
+    case tok::star:               // struct foo {...} *         P;
+    case tok::amp:                // struct foo {...} &         R = ...
+    case tok::identifier:         // struct foo {...} V         ;
+    case tok::r_paren:            //(struct foo {...} )         {4}
+    case tok::annot_cxxscope:     // struct foo {...} a::       b;
+    case tok::annot_typename:     // struct foo {...} a         ::b;
+    case tok::annot_template_id:  // struct foo {...} a<int>    ::b;
+    case tok::l_paren:            // struct foo {...} (         x);
+    case tok::comma:              // __builtin_offsetof(struct foo{...} ,
+    // Storage-class specifiers
+    case tok::kw_static:          // struct foo {...} static    x;
+    case tok::kw_extern:          // struct foo {...} extern    x;
+    case tok::kw_typedef:         // struct foo {...} typedef   x;
+    case tok::kw_register:        // struct foo {...} register  x;
+    case tok::kw_auto:            // struct foo {...} auto      x;
+    // Type qualifiers
+    case tok::kw_const:           // struct foo {...} const     x;
+    case tok::kw_volatile:        // struct foo {...} volatile  x;
+    case tok::kw_restrict:        // struct foo {...} restrict  x;
+    case tok::kw_inline:          // struct foo {...} inline    foo() {};
+      break;
+        
+    case tok::r_brace:  // struct bar { struct foo {...} } 
+      // Missing ';' at end of struct is accepted as an extension in C mode.
+      if (!getLang().CPlusPlus) break;
+      // FALL THROUGH.
+    default:
+      ExpectAndConsume(tok::semi, diag::err_expected_semi_after_tagdecl,
+                       TagType == DeclSpec::TST_class ? "class"
+                       : TagType == DeclSpec::TST_struct? "struct" : "union");
+      // Push this token back into the preprocessor and change our current token
+      // to ';' so that the rest of the code recovers as though there were an
+      // ';' after the definition.
+      PP.EnterToken(Tok);
+      Tok.setKind(tok::semi);  
+      break;
+    }
+  }
 }
 
 /// ParseBaseClause - Parse the base-clause of a C++ class [C++ class.derived].
@@ -1164,7 +1227,8 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
     return ParseCXXClassMemberDeclaration(AS, TemplateInfo);
   }
 
-  // Don't parse FOO:BAR as if it were a typo for FOO::BAR.
+  // Don't parse FOO:BAR as if it were a typo for FOO::BAR, in this context it
+  // is a bitfield.
   ColonProtectionRAIIObject X(*this);
   
   CXX0XAttributeList AttrList;
@@ -1185,8 +1249,7 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
     if (Tok.is(tok::kw_namespace)) {
       Diag(UsingLoc, diag::err_using_namespace_in_class);
       SkipUntil(tok::semi, true, true);
-    }
-    else {
+    } else {
       SourceLocation DeclEnd;
       // Otherwise, it must be using-declaration.
       ParseUsingDeclaration(Declarator::MemberContext, UsingLoc, DeclEnd, AS);
@@ -1367,19 +1430,16 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
       ParseDeclarator(DeclaratorInfo);
   }
 
-  if (Tok.is(tok::semi)) {
-    ConsumeToken();
-    Actions.FinalizeDeclaratorGroup(CurScope, DS, DeclsInGroup.data(),
-                                    DeclsInGroup.size());
+  if (ExpectAndConsume(tok::semi, diag::err_expected_semi_decl_list)) {
+    // Skip to end of block or statement.
+    SkipUntil(tok::r_brace, true, true);
+    // If we stopped at a ';', eat it.
+    if (Tok.is(tok::semi)) ConsumeToken();
     return;
   }
 
-  Diag(Tok, diag::err_expected_semi_decl_list);
-  // Skip to end of block or statement
-  SkipUntil(tok::r_brace, true, true);
-  if (Tok.is(tok::semi))
-    ConsumeToken();
-  return;
+  Actions.FinalizeDeclaratorGroup(CurScope, DS, DeclsInGroup.data(),
+                                  DeclsInGroup.size());
 }
 
 /// ParseCXXMemberSpecification - Parse the class definition.
@@ -1489,10 +1549,10 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
 
   SourceLocation RBraceLoc = MatchRHSPunctuation(tok::r_brace, LBraceLoc);
 
-  AttributeList *AttrList = 0;
   // If attributes exist after class contents, parse them.
+  llvm::OwningPtr<AttributeList> AttrList;
   if (Tok.is(tok::kw___attribute))
-    AttrList = ParseGNUAttributes(); // FIXME: where should I put them?
+    AttrList.reset(ParseGNUAttributes()); // FIXME: where should I put them?
 
   Actions.ActOnFinishCXXMemberSpecification(CurScope, RecordLoc, TagDecl,
                                             LBraceLoc, RBraceLoc);
@@ -1546,12 +1606,15 @@ void Parser::ParseConstructorInitializer(DeclPtrTy ConstructorDecl) {
   SourceLocation ColonLoc = ConsumeToken();
 
   llvm::SmallVector<MemInitTy*, 4> MemInitializers;
-
+  bool AnyErrors = false;
+  
   do {
     MemInitResult MemInit = ParseMemInitializer(ConstructorDecl);
     if (!MemInit.isInvalid())
       MemInitializers.push_back(MemInit.get());
-
+    else
+      AnyErrors = true;
+    
     if (Tok.is(tok::comma))
       ConsumeToken();
     else if (Tok.is(tok::l_brace))
@@ -1565,7 +1628,8 @@ void Parser::ParseConstructorInitializer(DeclPtrTy ConstructorDecl) {
   } while (true);
 
   Actions.ActOnMemInitializers(ConstructorDecl, ColonLoc,
-                               MemInitializers.data(), MemInitializers.size());
+                               MemInitializers.data(), MemInitializers.size(),
+                               AnyErrors);
 }
 
 /// ParseMemInitializer - Parse a C++ member initializer, which is

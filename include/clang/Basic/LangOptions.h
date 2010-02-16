@@ -40,12 +40,14 @@ public:
   unsigned ObjC1             : 1;  // Objective-C 1 support enabled.
   unsigned ObjC2             : 1;  // Objective-C 2 support enabled.
   unsigned ObjCNonFragileABI : 1;  // Objective-C modern abi enabled
+  unsigned ObjCNonFragileABI2 : 1;  // Objective-C enhanced modern abi enabled
 
   unsigned PascalStrings     : 1;  // Allow Pascal strings
   unsigned WritableStrings   : 1;  // Allow writable strings
   unsigned LaxVectorConversions : 1;
   unsigned AltiVec           : 1;  // Support AltiVec-style vector initializers.
   unsigned Exceptions        : 1;  // Support exception handling.
+  unsigned SjLjExceptions    : 1;  // Use setjmp-longjump exception handling.
   unsigned RTTI              : 1;  // Support RTTI information.
 
   unsigned NeXTRuntime       : 1; // Use NeXT runtime.
@@ -95,7 +97,9 @@ public:
                                       // operators
   unsigned ElideConstructors : 1; // Whether C++ copy constructors should be
                                   // elided if possible.
-  unsigned CatchUndefined     :1; // Generate code to check for undefined ops.
+  unsigned CatchUndefined    : 1; // Generate code to check for undefined ops.
+  unsigned DumpVtableLayouts : 1; // Dump the layouts of all the emitted 
+                                  // vtables.
 private:
   unsigned GC : 2;                // Objective-C Garbage Collection modes.  We
                                   // declare this enum as unsigned because MSVC
@@ -124,10 +128,10 @@ public:
     Trigraphs = BCPLComment = Bool = DollarIdents = AsmPreprocessor = 0;
     GNUMode = ImplicitInt = Digraphs = 0;
     HexFloats = 0;
-    GC = ObjC1 = ObjC2 = ObjCNonFragileABI = 0;
+    GC = ObjC1 = ObjC2 = ObjCNonFragileABI = ObjCNonFragileABI2 = 0;
     C99 = Microsoft = CPlusPlus = CPlusPlus0x = 0;
     CXXOperatorNames = PascalStrings = WritableStrings = 0;
-    Exceptions = Freestanding = NoBuiltin = 0;
+    Exceptions = SjLjExceptions = Freestanding = NoBuiltin = 0;
     NeXTRuntime = 1;
     RTTI = 1;
     LaxVectorConversions = 1;
@@ -136,8 +140,7 @@ public:
 
     SymbolVisibility = (unsigned) Default;
 
-    // FIXME: The default should be 1.
-    ThreadsafeStatics = 0;
+    ThreadsafeStatics = 1;
     POSIXThreads = 0;
     Blocks = 0;
     BlockIntrospection = 0;
@@ -167,6 +170,7 @@ public:
     CharIsSigned = 1;
     ShortWChar = 0;
     CatchUndefined = 0;
+    DumpVtableLayouts = 0;
   }
 
   GCMode getGCMode() const { return (GCMode) GC; }

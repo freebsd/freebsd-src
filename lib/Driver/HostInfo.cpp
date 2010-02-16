@@ -106,7 +106,7 @@ ToolChain *DarwinHostInfo::CreateToolChain(const ArgList &Args,
     if (Arg *A = Args.getLastArg(options::OPT_arch)) {
       // The gcc driver behavior with multiple -arch flags wasn't consistent for
       // things which rely on a default architecture. We just use the last -arch
-      // to find the default tool chain (assuming it is valid..
+      // to find the default tool chain (assuming it is valid).
       Arch = llvm::Triple::getArchTypeForDarwinArchName(A->getValue(Args));
 
       // If it was invalid just use the host, we will reject this command line
@@ -146,10 +146,10 @@ ToolChain *DarwinHostInfo::CreateToolChain(const ArgList &Args,
     // If we recognized the arch, match it to the toolchains we support.
     if (Arch == llvm::Triple::x86 || Arch == llvm::Triple::x86_64) {
       // We still use the legacy DarwinGCC toolchain on X86.
-      TC = new toolchains::DarwinGCC(*this, TCTriple, DarwinVersion, GCCVersion,
-                                     false);
+      TC = new toolchains::DarwinGCC(*this, TCTriple, DarwinVersion,
+                                     GCCVersion);
     } else if (Arch == llvm::Triple::arm || Arch == llvm::Triple::thumb)
-      TC = new toolchains::DarwinClang(*this, TCTriple, DarwinVersion, true);
+      TC = new toolchains::DarwinClang(*this, TCTriple, DarwinVersion);
     else
       TC = new toolchains::Darwin_Generic_GCC(*this, TCTriple);
   }
@@ -159,8 +159,7 @@ ToolChain *DarwinHostInfo::CreateToolChain(const ArgList &Args,
 
 // Unknown Host Info
 
-/// UnknownHostInfo - Generic host information to use for unknown
-/// hosts.
+/// UnknownHostInfo - Generic host information to use for unknown hosts.
 class UnknownHostInfo : public HostInfo {
   /// Cache of tool chains we have created.
   mutable llvm::StringMap<ToolChain*> ToolChains;

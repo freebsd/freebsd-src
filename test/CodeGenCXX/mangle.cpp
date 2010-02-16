@@ -1,5 +1,4 @@
 // RUN: %clang_cc1 -emit-llvm %s -o - -triple=x86_64-apple-darwin9 -fblocks | FileCheck %s
-
 struct X { };
 struct Y { };
 
@@ -8,6 +7,9 @@ struct Y { };
 // CHECK: @_ZZN1N1fEiiE1b = internal global
 // CHECK: @_ZZN1N1gEvE1a = internal global
 // CHECK: @_ZGVZN1N1gEvE1a = internal global
+
+//CHECK: @pr5966_i = external global
+//CHECK: @_ZL8pr5966_i = internal global
 
 // CHECK: define zeroext i1 @_ZplRK1YRA100_P1X
 bool operator+(const Y&, X* (&xs)[100]) { return false; }
@@ -310,7 +312,67 @@ template class Alloc<char>;
 // CHECK: define void @_Z1fU13block_pointerFiiiE
 void f(int (^)(int, int)) { }
 
-// PR5869
-// CHECK: define internal void @_ZL2f2v
-static void f2() {}
-void f3() { f2(); }
+void pr5966_foo() {
+  extern int pr5966_i;
+  pr5966_i = 0;
+}
+
+static int pr5966_i;
+
+void pr5966_bar() {
+  pr5966_i = 0;
+}
+
+namespace test0 {
+  int ovl(int x);
+  char ovl(double x);
+
+  template <class T> void f(T, char (&buffer)[sizeof(ovl(T()))]) {}
+
+  void test0() {
+    char buffer[1];
+    f(0.0, buffer);
+  }
+  // CHECK: define void @_ZN5test05test0Ev()
+  // CHECK: define linkonce_odr void @_ZN5test01fIdEEvT_RAszcl3ovlcvS1__EE_c(
+
+  void test1() {
+    char buffer[sizeof(int)];
+    f(1, buffer);
+  }
+  // CHECK: define void @_ZN5test05test1Ev()
+  // CHECK: define linkonce_odr void @_ZN5test01fIiEEvT_RAszcl3ovlcvS1__EE_c(
+
+  template <class T> void g(char (&buffer)[sizeof(T() + 5.0f)]) {}
+  void test2() {
+    char buffer[sizeof(float)];
+    g<float>(buffer);
+  }
+  // CHECK: define linkonce_odr void @_ZN5test01gIfEEvRAszplcvT__ELf40A00000E_c(
+
+  template <class T> void h(char (&buffer)[sizeof(T() + 5.0)]) {}
+  void test3() {
+    char buffer[sizeof(double)];
+    h<float>(buffer);
+  }
+  // CHECK: define linkonce_odr void @_ZN5test01hIfEEvRAszplcvT__ELd4014000000000000E_c(
+
+  template <class T> void j(char (&buffer)[sizeof(T().buffer)]) {}
+  struct A { double buffer[128]; };
+  void test4() {
+    char buffer[1024];
+    j<A>(buffer);
+  }
+  // CHECK: define linkonce_odr void @_ZN5test01jINS_1AEEEvRAszmecvT__E6buffer_c(
+}
+
+namespace test1 {
+  template<typename T> struct X { };
+  template<template<class> class Y, typename T> void f(Y<T>) { }
+  // CHECK: define void @_ZN5test11fINS_1XEiEEvT_IT0_E
+  template void f(X<int>);
+}
+
+// CHECK: define internal void @_Z27functionWithInternalLinkagev()
+static void functionWithInternalLinkage() {  }
+void g() { functionWithInternalLinkage(); }

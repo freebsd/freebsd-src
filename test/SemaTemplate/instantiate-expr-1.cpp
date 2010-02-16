@@ -87,6 +87,18 @@ void add(const T &x) {
   (void)(x + x);
 }
 
+namespace PR6237 {
+  template <typename T>
+  void f(T t) {
+    t++;
+  }
+
+  struct B { };
+  B operator++(B &, int);
+
+  template void f(B);
+}
+
 struct Addable {
   Addable operator+(const Addable&) const;
 };
@@ -111,4 +123,17 @@ Result test_call_operator(F f, Arg1 arg1) {
 void test_call_operator(CallOperator call_op, int i, double d) {
   int &ir = test_call_operator<int&>(call_op, i);
   double &dr = test_call_operator<double&>(call_op, d);
+}
+
+template<typename T>
+void test_asm(T t) {
+  asm ("nop" : "=a"(*t) : "r"(*t)); // expected-error {{indirection requires pointer operand ('int' invalid)}}
+}
+
+void test_asm() {
+  int* a;
+  test_asm(a);
+  
+  int b;
+  test_asm(b); // expected-note {{in instantiation of function template specialization 'test_asm<int>' requested here}}
 }

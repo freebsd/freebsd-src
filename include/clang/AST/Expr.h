@@ -149,7 +149,8 @@ public:
     LV_DuplicateVectorComponents,
     LV_InvalidExpression,
     LV_MemberFunction,
-    LV_SubObjCPropertySetting
+    LV_SubObjCPropertySetting,
+    LV_SubObjCPropertyGetterSetting
   };
   isLvalueResult isLvalue(ASTContext &Ctx) const;
 
@@ -179,7 +180,8 @@ public:
     MLV_ReadonlyProperty,
     MLV_NoSetterProperty,
     MLV_MemberFunction,
-    MLV_SubObjCPropertySetting
+    MLV_SubObjCPropertySetting,
+    MLV_SubObjCPropertyGetterSetting
   };
   isModifiableLvalueResult isModifiableLvalue(ASTContext &Ctx,
                                               SourceLocation *Loc = 0) const;
@@ -192,6 +194,9 @@ public:
     return const_cast<Expr*>(this)->getBitField();
   }
 
+  /// \brief Returns whether this expression refers to a vector element.
+  bool refersToVectorElement() const;
+  
   /// isIntegerConstantExpr - Return true if this expression is a valid integer
   /// constant expression, and, if so, return its value in Result.  If not a
   /// valid i-c-e, return false and fill in Loc (if specified) with the location
@@ -563,7 +568,10 @@ public:
   enum IdentType {
     Func,
     Function,
-    PrettyFunction
+    PrettyFunction,
+    /// PrettyFunctionNoVirtual - The same as PrettyFunction, except that the
+    /// 'virtual' keyword is omitted for virtual member functions.
+    PrettyFunctionNoVirtual
   };
 
 private:
@@ -584,8 +592,7 @@ public:
   SourceLocation getLocation() const { return Loc; }
   void setLocation(SourceLocation L) { Loc = L; }
 
-  static std::string ComputeName(ASTContext &Context, IdentType IT,
-                                 const Decl *CurrentDecl);
+  static std::string ComputeName(IdentType IT, const Decl *CurrentDecl);
 
   virtual SourceRange getSourceRange() const { return SourceRange(Loc); }
 
@@ -1745,7 +1752,7 @@ public:
 
   static bool classof(const Stmt *T) {
     StmtClass SC = T->getStmtClass();
-    if (SC >= ExplicitCastExprClass && SC <= CStyleCastExprClass)
+    if (SC >= CStyleCastExprClass && SC <= CStyleCastExprClass)
       return true;
     if (SC >= CXXNamedCastExprClass && SC <= CXXFunctionalCastExprClass)
       return true;

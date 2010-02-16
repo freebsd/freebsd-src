@@ -19,11 +19,11 @@ using namespace clang;
 using namespace CodeGen;
 
 static uint64_t 
-ComputeNonVirtualBaseClassOffset(ASTContext &Context, CXXBasePaths &Paths,
+ComputeNonVirtualBaseClassOffset(ASTContext &Context,
+                                 const CXXBasePath &Path,
                                  unsigned Start) {
   uint64_t Offset = 0;
 
-  const CXXBasePath &Path = Paths.front();
   for (unsigned i = Start, e = Path.size(); i != e; ++i) {
     const CXXBasePathElement& Element = Path[i];
 
@@ -44,20 +44,21 @@ ComputeNonVirtualBaseClassOffset(ASTContext &Context, CXXBasePaths &Paths,
 }
 
 llvm::Constant *
-CodeGenModule::GetCXXBaseClassOffset(const CXXRecordDecl *ClassDecl,
-                                     const CXXRecordDecl *BaseClassDecl) {
-  if (ClassDecl == BaseClassDecl)
+CodeGenModule::GetNonVirtualBaseClassOffset(const CXXRecordDecl *Class,
+                                            const CXXRecordDecl *BaseClass) {
+  if (Class == BaseClass)
     return 0;
 
   CXXBasePaths Paths(/*FindAmbiguities=*/false,
                      /*RecordPaths=*/true, /*DetectVirtual=*/false);
-  if (!const_cast<CXXRecordDecl *>(ClassDecl)->
-        isDerivedFrom(const_cast<CXXRecordDecl *>(BaseClassDecl), Paths)) {
+  if (!const_cast<CXXRecordDecl *>(Class)->
+        isDerivedFrom(const_cast<CXXRecordDecl *>(BaseClass), Paths)) {
     assert(false && "Class must be derived from the passed in base class!");
     return 0;
   }
 
-  uint64_t Offset = ComputeNonVirtualBaseClassOffset(getContext(), Paths, 0);
+  uint64_t Offset = ComputeNonVirtualBaseClassOffset(getContext(),
+                                                     Paths.front(), 0);
   if (!Offset)
     return 0;
 
@@ -65,51 +66,6 @@ CodeGenModule::GetCXXBaseClassOffset(const CXXRecordDecl *ClassDecl,
     Types.ConvertType(getContext().getPointerDiffType());
 
   return llvm::ConstantInt::get(PtrDiffTy, Offset);
-}
-
-static llvm::Value *GetCXXBaseClassOffset(CodeGenFunction &CGF,
-                                          llvm::Value *BaseValue,
-                                          const CXXRecordDecl *ClassDecl,
-                                          const CXXRecordDecl *BaseClassDecl) {
-  CXXBasePaths Paths(/*FindAmbiguities=*/false,
-                     /*RecordPaths=*/true, /*DetectVirtual=*/false);
-  if (!const_cast<CXXRecordDecl *>(ClassDecl)->
-        isDerivedFrom(const_cast<CXXRecordDecl *>(BaseClassDecl), Paths)) {
-    assert(false && "Class must be derived from the passed in base class!");
-    return 0;
-  }
-
-  unsigned Start = 0;
-  llvm::Value *VirtualOffset = 0;
-
-  const CXXBasePath &Path = Paths.front();
-  const CXXRecordDecl *VBase = 0;
-  for (unsigned i = 0, e = Path.size(); i != e; ++i) {
-    const CXXBasePathElement& Element = Path[i];
-    if (Element.Base->isVirtual()) {
-      Start = i+1;
-      QualType VBaseType = Element.Base->getType();
-      VBase = cast<CXXRecordDecl>(VBaseType->getAs<RecordType>()->getDecl());
-    }
-  }
-  if (VBase)
-    VirtualOffset = 
-      CGF.GetVirtualCXXBaseClassOffset(BaseValue, ClassDecl, VBase);
-  
-  uint64_t Offset = 
-    ComputeNonVirtualBaseClassOffset(CGF.getContext(), Paths, Start);
-  
-  if (!Offset)
-    return VirtualOffset;
-  
-  const llvm::Type *PtrDiffTy = 
-    CGF.ConvertType(CGF.getContext().getPointerDiffType());
-  llvm::Value *NonVirtualOffset = llvm::ConstantInt::get(PtrDiffTy, Offset);
-  
-  if (VirtualOffset)
-    return CGF.Builder.CreateAdd(VirtualOffset, NonVirtualOffset);
-                    
-  return NonVirtualOffset;
 }
 
 // FIXME: This probably belongs in CGVtable, but it relies on 
@@ -144,25 +100,91 @@ CodeGenModule::ComputeThunkAdjustment(const CXXRecordDecl *ClassDecl,
       getVtableInfo().getVirtualBaseOffsetIndex(ClassDecl, BaseClassDecl);
   
   uint64_t Offset = 
-    ComputeNonVirtualBaseClassOffset(getContext(), Paths, Start);
+    ComputeNonVirtualBaseClassOffset(getContext(), Paths.front(), Start);
   return ThunkAdjustment(Offset, VirtualOffset);
 }
 
+/// Gets the address of a virtual base class within a complete object.
+/// This should only be used for (1) non-virtual bases or (2) virtual bases
+/// when the type is known to be complete (e.g. in complete destructors).
+///
+/// The object pointed to by 'This' is assumed to be non-null.
+llvm::Value *
+CodeGenFunction::GetAddressOfBaseOfCompleteClass(llvm::Value *This,
+                                                 bool isBaseVirtual,
+                                                 const CXXRecordDecl *Derived,
+                                                 const CXXRecordDecl *Base) {
+  // 'this' must be a pointer (in some address space) to Derived.
+  assert(This->getType()->isPointerTy() &&
+         cast<llvm::PointerType>(This->getType())->getElementType()
+           == ConvertType(Derived));
+
+  // Compute the offset of the virtual base.
+  uint64_t Offset;
+  const ASTRecordLayout &Layout = getContext().getASTRecordLayout(Derived);
+  if (isBaseVirtual)
+    Offset = Layout.getVBaseClassOffset(Base);
+  else
+    Offset = Layout.getBaseClassOffset(Base);
+
+  // Shift and cast down to the base type.
+  // TODO: for complete types, this should be possible with a GEP.
+  llvm::Value *V = This;
+  if (Offset) {
+    const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(getLLVMContext());
+    V = Builder.CreateBitCast(V, Int8PtrTy);
+    V = Builder.CreateConstInBoundsGEP1_64(V, Offset / 8);
+  }
+  V = Builder.CreateBitCast(V, ConvertType(Base)->getPointerTo());
+
+  return V;
+}                                      
+
 llvm::Value *
 CodeGenFunction::GetAddressOfBaseClass(llvm::Value *Value,
-                                       const CXXRecordDecl *ClassDecl,
-                                       const CXXRecordDecl *BaseClassDecl,
+                                       const CXXRecordDecl *Class,
+                                       const CXXRecordDecl *BaseClass,
                                        bool NullCheckValue) {
   QualType BTy =
     getContext().getCanonicalType(
-      getContext().getTypeDeclType(const_cast<CXXRecordDecl*>(BaseClassDecl)));
+      getContext().getTypeDeclType(BaseClass));
   const llvm::Type *BasePtrTy = llvm::PointerType::getUnqual(ConvertType(BTy));
 
-  if (ClassDecl == BaseClassDecl) {
+  if (Class == BaseClass) {
     // Just cast back.
     return Builder.CreateBitCast(Value, BasePtrTy);
   }
+
+  CXXBasePaths Paths(/*FindAmbiguities=*/false,
+                     /*RecordPaths=*/true, /*DetectVirtual=*/false);
+  if (!const_cast<CXXRecordDecl *>(Class)->
+        isDerivedFrom(const_cast<CXXRecordDecl *>(BaseClass), Paths)) {
+    assert(false && "Class must be derived from the passed in base class!");
+    return 0;
+  }
+
+  unsigned Start = 0;
+  llvm::Value *VirtualOffset = 0;
+
+  const CXXBasePath &Path = Paths.front();
+  const CXXRecordDecl *VBase = 0;
+  for (unsigned i = 0, e = Path.size(); i != e; ++i) {
+    const CXXBasePathElement& Element = Path[i];
+    if (Element.Base->isVirtual()) {
+      Start = i+1;
+      QualType VBaseType = Element.Base->getType();
+      VBase = cast<CXXRecordDecl>(VBaseType->getAs<RecordType>()->getDecl());
+    }
+  }
+
+  uint64_t Offset = 
+    ComputeNonVirtualBaseClassOffset(getContext(), Paths.front(), Start);
   
+  if (!Offset && !VBase) {
+    // Just cast back.
+    return Builder.CreateBitCast(Value, BasePtrTy);
+  }    
+
   llvm::BasicBlock *CastNull = 0;
   llvm::BasicBlock *CastNotNull = 0;
   llvm::BasicBlock *CastEnd = 0;
@@ -179,16 +201,27 @@ CodeGenFunction::GetAddressOfBaseClass(llvm::Value *Value,
     EmitBlock(CastNotNull);
   }
   
-  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(VMContext);
+  if (VBase)
+    VirtualOffset = GetVirtualBaseClassOffset(Value, Class, VBase);
 
-  llvm::Value *Offset = 
-    GetCXXBaseClassOffset(*this, Value, ClassDecl, BaseClassDecl);
+  const llvm::Type *PtrDiffTy = ConvertType(getContext().getPointerDiffType());
+  llvm::Value *NonVirtualOffset = 0;
+  if (Offset)
+    NonVirtualOffset = llvm::ConstantInt::get(PtrDiffTy, Offset);
   
-  if (Offset) {
-    // Apply the offset.
-    Value = Builder.CreateBitCast(Value, Int8PtrTy);
-    Value = Builder.CreateGEP(Value, Offset, "add.ptr");
-  }
+  llvm::Value *BaseOffset;
+  if (VBase) {
+    if (NonVirtualOffset)
+      BaseOffset = Builder.CreateAdd(VirtualOffset, NonVirtualOffset);
+    else
+      BaseOffset = VirtualOffset;
+  } else
+    BaseOffset = NonVirtualOffset;
+  
+  // Apply the base offset.
+  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(getLLVMContext());
+  Value = Builder.CreateBitCast(Value, Int8PtrTy);
+  Value = Builder.CreateGEP(Value, BaseOffset, "add.ptr");
   
   // Cast back.
   Value = Builder.CreateBitCast(Value, BasePtrTy);
@@ -212,19 +245,27 @@ CodeGenFunction::GetAddressOfBaseClass(llvm::Value *Value,
 
 llvm::Value *
 CodeGenFunction::GetAddressOfDerivedClass(llvm::Value *Value,
-                                          const CXXRecordDecl *ClassDecl,
-                                          const CXXRecordDecl *DerivedClassDecl,
+                                          const CXXRecordDecl *Class,
+                                          const CXXRecordDecl *DerivedClass,
                                           bool NullCheckValue) {
   QualType DerivedTy =
     getContext().getCanonicalType(
-    getContext().getTypeDeclType(const_cast<CXXRecordDecl*>(DerivedClassDecl)));
+    getContext().getTypeDeclType(const_cast<CXXRecordDecl*>(DerivedClass)));
   const llvm::Type *DerivedPtrTy = ConvertType(DerivedTy)->getPointerTo();
   
-  if (ClassDecl == DerivedClassDecl) {
+  if (Class == DerivedClass) {
     // Just cast back.
     return Builder.CreateBitCast(Value, DerivedPtrTy);
   }
 
+  llvm::Value *NonVirtualOffset =
+    CGM.GetNonVirtualBaseClassOffset(DerivedClass, Class);
+  
+  if (!NonVirtualOffset) {
+    // No offset, we can just cast back.
+    return Builder.CreateBitCast(Value, DerivedPtrTy);
+  }
+  
   llvm::BasicBlock *CastNull = 0;
   llvm::BasicBlock *CastNotNull = 0;
   llvm::BasicBlock *CastEnd = 0;
@@ -241,17 +282,13 @@ CodeGenFunction::GetAddressOfDerivedClass(llvm::Value *Value,
     EmitBlock(CastNotNull);
   }
   
-  llvm::Value *Offset = GetCXXBaseClassOffset(*this, Value, DerivedClassDecl,
-                                              ClassDecl);
-  if (Offset) {
-    // Apply the offset.
-    Value = Builder.CreatePtrToInt(Value, Offset->getType());
-    Value = Builder.CreateSub(Value, Offset);
-    Value = Builder.CreateIntToPtr(Value, DerivedPtrTy);
-  } else {
-    // Just cast.
-    Value = Builder.CreateBitCast(Value, DerivedPtrTy);
-  }
+  // Apply the offset.
+  Value = Builder.CreatePtrToInt(Value, NonVirtualOffset->getType());
+  Value = Builder.CreateSub(Value, NonVirtualOffset);
+  Value = Builder.CreateIntToPtr(Value, DerivedPtrTy);
+
+  // Just cast.
+  Value = Builder.CreateBitCast(Value, DerivedPtrTy);
 
   if (NullCheckValue) {
     Builder.CreateBr(CastEnd);
@@ -327,9 +364,9 @@ void CodeGenFunction::EmitClassAggrMemberwiseCopy(llvm::Value *Dest,
     // Push the Src ptr.
     CallArgs.push_back(std::make_pair(RValue::get(Src),
                                      BaseCopyCtor->getParamDecl(0)->getType()));
-    QualType ResultType =
-      BaseCopyCtor->getType()->getAs<FunctionType>()->getResultType();
-    EmitCall(CGM.getTypes().getFunctionInfo(ResultType, CallArgs),
+    const FunctionProtoType *FPT
+      = BaseCopyCtor->getType()->getAs<FunctionProtoType>();
+    EmitCall(CGM.getTypes().getFunctionInfo(CallArgs, FPT),
              Callee, ReturnValueSlot(), CallArgs, BaseCopyCtor);
   }
   EmitBlock(ContinueBlock);
@@ -412,8 +449,7 @@ void CodeGenFunction::EmitClassAggrCopyAssignment(llvm::Value *Dest,
     RValue SrcValue = SrcTy->isReferenceType() ? RValue::get(Src) :
                                                  RValue::getAggregate(Src);
     CallArgs.push_back(std::make_pair(SrcValue, SrcTy));
-    QualType ResultType = MD->getType()->getAs<FunctionType>()->getResultType();
-    EmitCall(CGM.getTypes().getFunctionInfo(ResultType, CallArgs),
+    EmitCall(CGM.getTypes().getFunctionInfo(CallArgs, FPT),
              Callee, ReturnValueSlot(), CallArgs, MD);
   }
   EmitBlock(ContinueBlock);
@@ -503,9 +539,9 @@ void CodeGenFunction::EmitClassMemberwiseCopy(
     // Push the Src ptr.
     CallArgs.push_back(std::make_pair(RValue::get(Src),
                        BaseCopyCtor->getParamDecl(0)->getType()));
-    QualType ResultType =
-    BaseCopyCtor->getType()->getAs<FunctionType>()->getResultType();
-    EmitCall(CGM.getTypes().getFunctionInfo(ResultType, CallArgs),
+    const FunctionProtoType *FPT =
+      BaseCopyCtor->getType()->getAs<FunctionProtoType>();
+    EmitCall(CGM.getTypes().getFunctionInfo(CallArgs, FPT),
              Callee, ReturnValueSlot(), CallArgs, BaseCopyCtor);
   }
 }
@@ -550,9 +586,7 @@ void CodeGenFunction::EmitClassCopyAssignment(
   RValue SrcValue = SrcTy->isReferenceType() ? RValue::get(Src) :
                                                RValue::getAggregate(Src);
   CallArgs.push_back(std::make_pair(SrcValue, SrcTy));
-  QualType ResultType =
-    MD->getType()->getAs<FunctionType>()->getResultType();
-  EmitCall(CGM.getTypes().getFunctionInfo(ResultType, CallArgs),
+  EmitCall(CGM.getTypes().getFunctionInfo(CallArgs, FPT),
            Callee, ReturnValueSlot(), CallArgs, MD);
 }
 
@@ -629,8 +663,8 @@ CodeGenFunction::SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
     if (const RecordType *FieldClassType = FieldType->getAs<RecordType>()) {
       CXXRecordDecl *FieldClassDecl
         = cast<CXXRecordDecl>(FieldClassType->getDecl());
-      LValue LHS = EmitLValueForField(LoadOfThis, Field, false, 0);
-      LValue RHS = EmitLValueForField(LoadOfSrc, Field, false, 0);
+      LValue LHS = EmitLValueForField(LoadOfThis, Field, 0);
+      LValue RHS = EmitLValueForField(LoadOfSrc, Field, 0);
       if (Array) {
         const llvm::Type *BasePtr = ConvertType(FieldType);
         BasePtr = llvm::PointerType::getUnqual(BasePtr);
@@ -647,26 +681,9 @@ CodeGenFunction::SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
       continue;
     }
     
-    if (Field->getType()->isReferenceType()) {
-      unsigned FieldIndex = CGM.getTypes().getLLVMFieldNo(Field);
- 
-      llvm::Value *LHS = Builder.CreateStructGEP(LoadOfThis, FieldIndex,
-                                                 "lhs.ref");
-      
-      llvm::Value *RHS = Builder.CreateStructGEP(LoadOfThis, FieldIndex,
-                                                 "rhs.ref");
-
-      // Load the value in RHS.
-      RHS = Builder.CreateLoad(RHS);
-      
-      // And store it in the LHS
-      Builder.CreateStore(RHS, LHS);
-
-      continue;
-    }
     // Do a built-in assignment of scalar data members.
-    LValue LHS = EmitLValueForField(LoadOfThis, Field, false, 0);
-    LValue RHS = EmitLValueForField(LoadOfSrc, Field, false, 0);
+    LValue LHS = EmitLValueForFieldInitialization(LoadOfThis, Field, 0);
+    LValue RHS = EmitLValueForFieldInitialization(LoadOfSrc, Field, 0);
 
     if (!hasAggregateLLVMType(Field->getType())) {
       RValue RVRHS = EmitLoadOfLValue(RHS, Field->getType());
@@ -745,8 +762,8 @@ void CodeGenFunction::SynthesizeCXXCopyAssignment(const CXXMethodDecl *CD,
     if (const RecordType *FieldClassType = FieldType->getAs<RecordType>()) {
       CXXRecordDecl *FieldClassDecl
       = cast<CXXRecordDecl>(FieldClassType->getDecl());
-      LValue LHS = EmitLValueForField(LoadOfThis, *Field, false, 0);
-      LValue RHS = EmitLValueForField(LoadOfSrc, *Field, false, 0);
+      LValue LHS = EmitLValueForField(LoadOfThis, *Field, 0);
+      LValue RHS = EmitLValueForField(LoadOfSrc, *Field, 0);
       if (Array) {
         const llvm::Type *BasePtr = ConvertType(FieldType);
         BasePtr = llvm::PointerType::getUnqual(BasePtr);
@@ -763,8 +780,8 @@ void CodeGenFunction::SynthesizeCXXCopyAssignment(const CXXMethodDecl *CD,
       continue;
     }
     // Do a built-in assignment of scalar data members.
-    LValue LHS = EmitLValueForField(LoadOfThis, *Field, false, 0);
-    LValue RHS = EmitLValueForField(LoadOfSrc, *Field, false, 0);
+    LValue LHS = EmitLValueForField(LoadOfThis, *Field, 0);
+    LValue RHS = EmitLValueForField(LoadOfSrc, *Field, 0);
     if (!hasAggregateLLVMType(Field->getType())) {
       RValue RVRHS = EmitLoadOfLValue(RHS, Field->getType());
       EmitStoreThroughLValue(RVRHS, LHS, Field->getType());
@@ -810,29 +827,21 @@ static void EmitBaseInitializer(CodeGenFunction &CGF,
   if (CtorType == Ctor_Base && isBaseVirtual)
     return;
 
-  // Compute the offset to the base; we do this directly instead of using
-  // GetAddressOfBaseClass because the class doesn't have a vtable pointer
-  // at this point.
-  // FIXME: This could be refactored back into GetAddressOfBaseClass if it took
-  // an extra parameter for whether the derived class is the complete object
-  // class.
-  const ASTRecordLayout &Layout =
-      CGF.getContext().getASTRecordLayout(ClassDecl);
-  uint64_t Offset;
-  if (isBaseVirtual)
-    Offset = Layout.getVBaseClassOffset(BaseClassDecl);
-  else
-    Offset = Layout.getBaseClassOffset(BaseClassDecl);
-  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
-  const llvm::Type *BaseClassType = CGF.ConvertType(QualType(BaseType, 0));
-  llvm::Value *V = CGF.Builder.CreateBitCast(ThisPtr, Int8PtrTy);
-  V = CGF.Builder.CreateConstInBoundsGEP1_64(V, Offset/8);
-  V = CGF.Builder.CreateBitCast(V, BaseClassType->getPointerTo());
+  // We can pretend to be a complete class because it only matters for
+  // virtual bases, and we only do virtual bases for complete ctors.
+  llvm::Value *V = ThisPtr;
+  V = CGF.GetAddressOfBaseOfCompleteClass(V, isBaseVirtual,
+                                          ClassDecl, BaseClassDecl);
 
-  CGF.EmitCXXConstructorCall(BaseInit->getConstructor(),
-                             Ctor_Base, V,
-                             BaseInit->const_arg_begin(),
-                             BaseInit->const_arg_end());
+  CGF.EmitAggExpr(BaseInit->getInit(), V, false, false, true);
+  
+  if (CGF.Exceptions && !BaseClassDecl->hasTrivialDestructor()) {
+    // FIXME: Is this OK for C++0x delegating constructors?
+    CodeGenFunction::EHCleanupBlock Cleanup(CGF);
+
+    CXXDestructorDecl *DD = BaseClassDecl->getDestructor(CGF.getContext());
+    CGF.EmitCXXDestructorCall(DD, Dtor_Base, V);
+  }
 }
 
 static void EmitMemberInitializer(CodeGenFunction &CGF,
@@ -846,91 +855,62 @@ static void EmitMemberInitializer(CodeGenFunction &CGF,
   QualType FieldType = CGF.getContext().getCanonicalType(Field->getType());
 
   llvm::Value *ThisPtr = CGF.LoadCXXThis();
-  LValue LHS;
-  if (FieldType->isReferenceType()) {
-    // FIXME: This is really ugly; should be refactored somehow
-    unsigned idx = CGF.CGM.getTypes().getLLVMFieldNo(Field);
-    llvm::Value *V = CGF.Builder.CreateStructGEP(ThisPtr, idx, "tmp");
-    assert(!FieldType.getObjCGCAttr() && "fields cannot have GC attrs");
-    LHS = LValue::MakeAddr(V, CGF.MakeQualifiers(FieldType));
-  } else {
-    LHS = CGF.EmitLValueForField(ThisPtr, Field, ClassDecl->isUnion(), 0);
-  }
-
+  LValue LHS = CGF.EmitLValueForFieldInitialization(ThisPtr, Field, 0);
+  
   // If we are initializing an anonymous union field, drill down to the field.
   if (MemberInit->getAnonUnionMember()) {
     Field = MemberInit->getAnonUnionMember();
-    LHS = CGF.EmitLValueForField(LHS.getAddress(), Field,
-                                 /*IsUnion=*/true, 0);
+    LHS = CGF.EmitLValueForField(LHS.getAddress(), Field, 0);
     FieldType = Field->getType();
   }
 
-  // If the field is an array, branch based on the element type.
-  const ConstantArrayType *Array =
-    CGF.getContext().getAsConstantArrayType(FieldType);
-  if (Array)
-    FieldType = CGF.getContext().getBaseElementType(FieldType);
-
-  // We lose the constructor for anonymous union members, so handle them
-  // explicitly.
-  // FIXME: This is somwhat ugly.
-  if (MemberInit->getAnonUnionMember() && FieldType->getAs<RecordType>()) {
-    if (MemberInit->getNumArgs())
-      CGF.EmitAggExpr(*MemberInit->arg_begin(), LHS.getAddress(),
-                      LHS.isVolatileQualified());
-    else
-      CGF.EmitAggregateClear(LHS.getAddress(), Field->getType());
-    return;
-  }
-
-  if (FieldType->getAs<RecordType>()) {
-    assert(MemberInit->getConstructor() &&
-           "EmitCtorPrologue - no constructor to initialize member");
-    if (Array) {
-      const llvm::Type *BasePtr = CGF.ConvertType(FieldType);
-      BasePtr = llvm::PointerType::getUnqual(BasePtr);
-      llvm::Value *BaseAddrPtr =
-        CGF.Builder.CreateBitCast(LHS.getAddress(), BasePtr);
-      CGF.EmitCXXAggrConstructorCall(MemberInit->getConstructor(),
-                                     Array, BaseAddrPtr,
-                                     MemberInit->const_arg_begin(),
-                                     MemberInit->const_arg_end());
-    }
-    else
-      CGF.EmitCXXConstructorCall(MemberInit->getConstructor(),
-                                 Ctor_Complete, LHS.getAddress(),
-                                 MemberInit->const_arg_begin(),
-                                 MemberInit->const_arg_end());
-    return;
-  }
-
-  assert(MemberInit->getNumArgs() == 1 && "Initializer count must be 1 only");
-  Expr *RhsExpr = *MemberInit->arg_begin();
+  // FIXME: If there's no initializer and the CXXBaseOrMemberInitializer
+  // was implicitly generated, we shouldn't be zeroing memory.
   RValue RHS;
   if (FieldType->isReferenceType()) {
-    RHS = CGF.EmitReferenceBindingToExpr(RhsExpr, FieldType,
-                                    /*IsInitializer=*/true);
+    RHS = CGF.EmitReferenceBindingToExpr(MemberInit->getInit(),
+                                         /*IsInitializer=*/true);
     CGF.EmitStoreThroughLValue(RHS, LHS, FieldType);
-  } else if (Array) {
+  } else if (FieldType->isArrayType() && !MemberInit->getInit()) {
     CGF.EmitMemSetToZero(LHS.getAddress(), Field->getType());
-  } else if (!CGF.hasAggregateLLVMType(RhsExpr->getType())) {
-    RHS = RValue::get(CGF.EmitScalarExpr(RhsExpr, true));
+  } else if (!CGF.hasAggregateLLVMType(Field->getType())) {
+    RHS = RValue::get(CGF.EmitScalarExpr(MemberInit->getInit(), true));
     CGF.EmitStoreThroughLValue(RHS, LHS, FieldType);
-  } else if (RhsExpr->getType()->isAnyComplexType()) {
-    CGF.EmitComplexExprIntoAddr(RhsExpr, LHS.getAddress(),
+  } else if (MemberInit->getInit()->getType()->isAnyComplexType()) {
+    CGF.EmitComplexExprIntoAddr(MemberInit->getInit(), LHS.getAddress(),
                                 LHS.isVolatileQualified());
   } else {
-    // Handle member function pointers; other aggregates shouldn't get this far.
-    CGF.EmitAggExpr(RhsExpr, LHS.getAddress(), LHS.isVolatileQualified());
+    CGF.EmitAggExpr(MemberInit->getInit(), LHS.getAddress(), 
+                    LHS.isVolatileQualified(), false, true);
+    
+    if (!CGF.Exceptions)
+      return;
+
+    const RecordType *RT = FieldType->getAs<RecordType>();
+    if (!RT)
+      return;
+    
+    CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
+    if (!RD->hasTrivialDestructor()) {
+      // FIXME: Is this OK for C++0x delegating constructors?
+      CodeGenFunction::EHCleanupBlock Cleanup(CGF);
+      
+      llvm::Value *ThisPtr = CGF.LoadCXXThis();
+      LValue LHS = CGF.EmitLValueForField(ThisPtr, Field, 0);
+
+      CXXDestructorDecl *DD = RD->getDestructor(CGF.getContext());
+      CGF.EmitCXXDestructorCall(DD, Dtor_Complete, LHS.getAddress());
+    }
   }
 }
 
 /// EmitCtorPrologue - This routine generates necessary code to initialize
 /// base classes and non-static data members belonging to this constructor.
-/// FIXME: This needs to take a CXXCtorType.
 void CodeGenFunction::EmitCtorPrologue(const CXXConstructorDecl *CD,
                                        CXXCtorType CtorType) {
   const CXXRecordDecl *ClassDecl = CD->getParent();
+
+  llvm::SmallVector<CXXBaseOrMemberInitializer *, 8> MemberInitializers;
   
   // FIXME: Add vbase initialization
   
@@ -945,14 +925,17 @@ void CodeGenFunction::EmitCtorPrologue(const CXXConstructorDecl *CD,
     if (Member->isBaseInitializer())
       EmitBaseInitializer(*this, ClassDecl, Member, CtorType);
     else
-      EmitMemberInitializer(*this, ClassDecl, Member);
-
-    // Pop any live temporaries that the initializers might have pushed.
-    while (!LiveTemporaries.empty())
-      PopCXXTemporary();
+      MemberInitializers.push_back(Member);
   }
 
   InitializeVtablePtrs(ClassDecl);
+
+  for (unsigned I = 0, E = MemberInitializers.size(); I != E; ++I) {
+    assert(LiveTemporaries.empty() &&
+           "Should not have any live temporaries at initializer start!");
+    
+    EmitMemberInitializer(*this, ClassDecl, MemberInitializers[I]);
+  }
 }
 
 /// EmitDtorEpilogue - Emit all code that comes at the end of class's
@@ -1002,7 +985,6 @@ void CodeGenFunction::EmitDtorEpilogue(const CXXDestructorDecl *DD,
     llvm::Value *ThisPtr = LoadCXXThis();
 
     LValue LHS = EmitLValueForField(ThisPtr, Field, 
-                                    /*isUnion=*/false,
                                     // FIXME: Qualifiers?
                                     /*CVRQualifiers=*/0);
     if (Array) {
@@ -1050,15 +1032,16 @@ void CodeGenFunction::EmitDtorEpilogue(const CXXDestructorDecl *DD,
        ClassDecl->vbases_rbegin(), E = ClassDecl->vbases_rend(); I != E; ++I) {
     const CXXBaseSpecifier &Base = *I;
     CXXRecordDecl *BaseClassDecl
-    = cast<CXXRecordDecl>(Base.getType()->getAs<RecordType>()->getDecl());
+      = cast<CXXRecordDecl>(Base.getType()->getAs<RecordType>()->getDecl());
     
     // Ignore trivial destructors.
     if (BaseClassDecl->hasTrivialDestructor())
       continue;
     const CXXDestructorDecl *D = BaseClassDecl->getDestructor(getContext());
-    llvm::Value *V = GetAddressOfBaseClass(LoadCXXThis(),
-                                           ClassDecl, BaseClassDecl, 
-                                           /*NullCheckValue=*/false);
+    llvm::Value *V = GetAddressOfBaseOfCompleteClass(LoadCXXThis(),
+                                                     true,
+                                                     ClassDecl,
+                                                     BaseClassDecl);
     EmitCXXDestructorCall(D, Dtor_Base, V);
   }
     
@@ -1080,7 +1063,7 @@ void CodeGenFunction::SynthesizeDefaultDestructor(const CXXDestructorDecl *Dtor,
 
   StartFunction(GlobalDecl(Dtor, DtorType), Dtor->getResultType(), Fn, Args, 
                 SourceLocation());
-
+  InitializeVtablePtrs(Dtor->getParent());
   EmitDtorEpilogue(Dtor, DtorType);
   FinishFunction();
 }
@@ -1263,7 +1246,8 @@ CodeGenFunction::GenerateCXXAggrDestructorHelper(const CXXDestructorDecl *D,
   llvm::SmallString<16> Name;
   llvm::raw_svector_ostream(Name) << "__tcf_" << (++UniqueAggrDestructorCount);
   QualType R = getContext().VoidTy;
-  const CGFunctionInfo &FI = CGM.getTypes().getFunctionInfo(R, Args);
+  const CGFunctionInfo &FI
+    = CGM.getTypes().getFunctionInfo(R, Args, CC_Default, false);
   const llvm::FunctionType *FTy = CGM.getTypes().GetFunctionType(FI, false);
   llvm::Function *Fn =
     llvm::Function::Create(FTy, llvm::GlobalValue::InternalLinkage,
@@ -1295,20 +1279,21 @@ CodeGenFunction::EmitCXXConstructorCall(const CXXConstructorDecl *D,
                                         llvm::Value *This,
                                         CallExpr::const_arg_iterator ArgBeg,
                                         CallExpr::const_arg_iterator ArgEnd) {
-  if (D->isCopyConstructor()) {
-    const CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(D->getDeclContext());
-    if (ClassDecl->hasTrivialCopyConstructor()) {
-      assert(!ClassDecl->hasUserDeclaredCopyConstructor() &&
-             "EmitCXXConstructorCall - user declared copy constructor");
-      const Expr *E = (*ArgBeg);
-      QualType Ty = E->getType();
-      llvm::Value *Src = EmitLValue(E).getAddress();
-      EmitAggregateCopy(This, Src, Ty);
+  if (D->isTrivial()) {
+    if (ArgBeg == ArgEnd) {
+      // Trivial default constructor, no codegen required.
+      assert(D->isDefaultConstructor() &&
+             "trivial 0-arg ctor not a default ctor");
       return;
     }
-  } else if (D->isTrivial()) {
-    // FIXME: Track down why we're trying to generate calls to the trivial
-    // default constructor!
+
+    assert(ArgBeg + 1 == ArgEnd && "unexpected argcount for trivial ctor");
+    assert(D->isCopyConstructor() && "trivial 1-arg ctor not a copy ctor");
+
+    const Expr *E = (*ArgBeg);
+    QualType Ty = E->getType();
+    llvm::Value *Src = EmitLValue(E).getAddress();
+    EmitAggregateCopy(This, Src, Ty);
     return;
   }
 
@@ -1328,8 +1313,8 @@ void CodeGenFunction::EmitCXXDestructorCall(const CXXDestructorDecl *DD,
 }
 
 llvm::Value *
-CodeGenFunction::GetVirtualCXXBaseClassOffset(llvm::Value *This,
-                                              const CXXRecordDecl *ClassDecl,
+CodeGenFunction::GetVirtualBaseClassOffset(llvm::Value *This,
+                                           const CXXRecordDecl *ClassDecl,
                                            const CXXRecordDecl *BaseClassDecl) {
   const llvm::Type *Int8PtrTy = 
     llvm::Type::getInt8Ty(VMContext)->getPointerTo();

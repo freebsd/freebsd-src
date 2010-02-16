@@ -53,6 +53,10 @@ class ASTUnit {
   llvm::OwningPtr<ASTContext>       Ctx;
   bool                              tempFile;
 
+  /// Optional owned invocation, just used to make the invocation used in
+  /// LoadFromCommandLine available.
+  llvm::OwningPtr<CompilerInvocation> Invocation;
+
   // OnlyLocalDecls - when true, walking this AST should only visit declarations
   // that come from the AST itself, not from included precompiled headers.
   // FIXME: This is temporary; eventually, CIndex will always do this.
@@ -131,7 +135,6 @@ public:
   static ASTUnit *LoadFromPCHFile(const std::string &Filename,
                                   Diagnostic &Diags,
                                   bool OnlyLocalDecls = false,
-                                  bool UseBumpAllocator = false,
                                   RemappedFile *RemappedFiles = 0,
                                   unsigned NumRemappedFiles = 0);
 
@@ -139,14 +142,14 @@ public:
   /// CompilerInvocation object.
   ///
   /// \param CI - The compiler invocation to use; it must have exactly one input
-  /// source file.
+  /// source file. The ASTUnit takes ownership of the CompilerInvocation object.
   ///
   /// \param Diags - The diagnostics engine to use for reporting errors; its
   /// lifetime is expected to extend past that of the returned ASTUnit.
   //
   // FIXME: Move OnlyLocalDecls, UseBumpAllocator to setters on the ASTUnit, we
   // shouldn't need to specify them at construction time.
-  static ASTUnit *LoadFromCompilerInvocation(const CompilerInvocation &CI,
+  static ASTUnit *LoadFromCompilerInvocation(CompilerInvocation *CI,
                                              Diagnostic &Diags,
                                              bool OnlyLocalDecls = false);
 
@@ -169,7 +172,6 @@ public:
                                       Diagnostic &Diags,
                                       llvm::StringRef ResourceFilesPath,
                                       bool OnlyLocalDecls = false,
-                                      bool UseBumpAllocator = false,
                                       RemappedFile *RemappedFiles = 0,
                                       unsigned NumRemappedFiles = 0);
 };

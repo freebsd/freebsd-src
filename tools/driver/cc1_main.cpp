@@ -51,7 +51,7 @@ void LLVMErrorHandler(void *UserData, const std::string &Message) {
   exit(1);
 }
 
-static FrontendAction *CreateFrontendAction(CompilerInstance &CI) {
+static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
   using namespace clang::frontend;
 
   switch (CI.getFrontendOpts().ProgramAction) {
@@ -70,6 +70,7 @@ static FrontendAction *CreateFrontendAction(CompilerInstance &CI) {
   case EmitHTML:               return new HTMLPrintAction();
   case EmitLLVM:               return new EmitLLVMAction();
   case EmitLLVMOnly:           return new EmitLLVMOnlyAction();
+  case EmitObj:                return new EmitObjAction();
   case FixIt:                  return new FixItAction();
   case GeneratePCH:            return new GeneratePCHAction();
   case GeneratePTH:            return new GeneratePTHAction();
@@ -109,6 +110,21 @@ static FrontendAction *CreateFrontendAction(CompilerInstance &CI) {
   case RunAnalysis:            return new AnalysisAction();
   case RunPreprocessorOnly:    return new PreprocessOnlyAction();
   }
+}
+
+static FrontendAction *CreateFrontendAction(CompilerInstance &CI) {
+  // Create the underlying action.
+  FrontendAction *Act = CreateFrontendBaseAction(CI);
+  if (!Act)
+    return 0;
+
+  // If there are any AST files to merge, create a frontend action
+  // adaptor to perform the merge.
+  if (!CI.getFrontendOpts().ASTMergeFiles.empty())
+    Act = new ASTMergeAction(Act, &CI.getFrontendOpts().ASTMergeFiles[0],
+                             CI.getFrontendOpts().ASTMergeFiles.size());
+
+  return Act;
 }
 
 // FIXME: Define the need for this testing away.
@@ -179,7 +195,9 @@ static int cc1_test(Diagnostic &Diags,
 
 int cc1_main(const char **ArgBegin, const char **ArgEnd,
              const char *Argv0, void *MainAddr) {
-  CompilerInstance Clang(&llvm::getGlobalContext(), false);
+  CompilerInstance Clang;
+
+  Clang.setLLVMContext(new llvm::LLVMContext);
 
   // Run clang -cc1 test.
   if (ArgBegin != ArgEnd && llvm::StringRef(ArgBegin[0]) == "-cc1test") {

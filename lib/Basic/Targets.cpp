@@ -74,7 +74,8 @@ public:
 } // end anonymous namespace
 
 
-static void getDarwinDefines(MacroBuilder &Builder, const LangOptions &Opts) {
+static void getDarwinDefines(MacroBuilder &Builder, const LangOptions &Opts,
+                             const llvm::Triple &Triple) {
   Builder.defineMacro("__APPLE_CC__", "5621");
   Builder.defineMacro("__APPLE__");
   Builder.defineMacro("__MACH__");
@@ -96,51 +97,45 @@ static void getDarwinDefines(MacroBuilder &Builder, const LangOptions &Opts) {
 
   if (Opts.POSIXThreads)
     Builder.defineMacro("_REENTRANT");
-}
 
-static void getDarwinOSXDefines(MacroBuilder &Builder,
-                                const llvm::Triple &Triple) {
-  if (Triple.getOS() != llvm::Triple::Darwin)
-    return;
-
-  // Figure out which "darwin number" the target triple is.  "darwin9" -> 10.5.
+  // Get the OS version number from the triple.
   unsigned Maj, Min, Rev;
-  Triple.getDarwinNumber(Maj, Min, Rev);
 
-  char MacOSXStr[] = "1000";
-  if (Maj >= 4 && Maj <= 13) { // 10.0-10.9
-    // darwin7 -> 1030, darwin8 -> 1040, darwin9 -> 1050, etc.
-    MacOSXStr[2] = '0' + Maj-4;
+  // If no version was given, default to to 10.4.0, for simplifying tests.
+  if (Triple.getOSName() == "darwin") {
+    Min = Rev = 0;
+    Maj = 8;
+  } else
+    Triple.getDarwinNumber(Maj, Min, Rev);
+
+  // Set the appropriate OS version define.
+  if (Triple.getEnvironmentName() == "iphoneos") {
+    assert(Maj < 10 && Min < 99 && Rev < 99 && "Invalid version!");
+    char Str[6];
+    Str[0] = '0' + Maj;
+    Str[1] = '0' + (Min / 10);
+    Str[2] = '0' + (Min % 10);
+    Str[3] = '0' + (Rev / 10);
+    Str[4] = '0' + (Rev % 10);
+    Str[5] = '\0';
+    Builder.defineMacro("__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__", Str);
+  } else {
+    // For historical reasons that make little sense, the version passed here is
+    // the "darwin" version, which drops the 10 and offsets by 4.
+    Rev = Min;
+    Min = Maj - 4;
+    Maj = 10;
+
+    assert(Triple.getEnvironmentName().empty() && "Invalid environment!");
+    assert(Maj < 99 && Min < 10 && Rev < 10 && "Invalid version!");
+    char Str[5];
+    Str[0] = '0' + (Maj / 10);
+    Str[1] = '0' + (Maj % 10);
+    Str[2] = '0' + Min;
+    Str[3] = '0' + Rev;
+    Str[4] = '\0';
+    Builder.defineMacro("__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__", Str);
   }
-
-  // Handle minor version: 10.4.9 -> darwin8.9 -> "1049"
-  // Cap 10.4.11 -> darwin8.11 -> "1049"
-  MacOSXStr[3] = std::min(Min, 9U)+'0';
-  Builder.defineMacro("__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__",
-                      MacOSXStr);
-}
-
-static void getDarwinIPhoneOSDefines(MacroBuilder &Builder,
-                                     const llvm::Triple &Triple) {
-  if (Triple.getOS() != llvm::Triple::Darwin)
-    return;
-
-  // Figure out which "darwin number" the target triple is.  "darwin9" -> 10.5.
-  unsigned Maj, Min, Rev;
-  Triple.getDarwinNumber(Maj, Min, Rev);
-
-  // When targetting iPhone OS, interpret the minor version and
-  // revision as the iPhone OS version
-  char iPhoneOSStr[] = "10000";
-  if (Min >= 2 && Min <= 9) { // iPhone OS 2.0-9.0
-    // darwin9.2.0 -> 20000, darwin9.3.0 -> 30000, etc.
-    iPhoneOSStr[0] = '0' + Min;
-  }
-
-  // Handle minor version: 2.2 -> darwin9.2.2 -> 20200
-  iPhoneOSStr[2] = std::min(Rev, 9U)+'0';
-  Builder.defineMacro("__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__",
-                      iPhoneOSStr);
 }
 
 namespace {
@@ -149,8 +144,7 @@ class DarwinTargetInfo : public OSTargetInfo<Target> {
 protected:
   virtual void getOSDefines(const LangOptions &Opts, const llvm::Triple &Triple,
                             MacroBuilder &Builder) const {
-    getDarwinDefines(Builder, Opts);
-    getDarwinOSXDefines(Builder, Triple);
+    getDarwinDefines(Builder, Opts, Triple);
   }
 
 public:
@@ -159,11 +153,7 @@ public:
       this->TLSSupported = false;
     }
 
-  virtual const char *getUnicodeStringSection() const {
-    return "__TEXT,__ustring";
-  }
-
-  virtual std::string isValidSectionSpecifier(const llvm::StringRef &SR) const {
+  virtual std::string isValidSectionSpecifier(llvm::StringRef SR) const {
     // Let MCSectionMachO validate this.
     llvm::StringRef Segment, Section;
     unsigned TAA, StubSize;
@@ -201,16 +191,10 @@ protected:
     // FreeBSD defines; list based off of gcc output
 
     // FIXME: Move version number handling to llvm::Triple.
-    const char *FreeBSD = strstr(Triple.getTriple().c_str(),
-                                 "-freebsd");
-    FreeBSD += strlen("-freebsd");
-    char release[] = "X";
-    release[0] = FreeBSD[0];
-    char version[] = "X00001";
-    version[0] = FreeBSD[0];
+    llvm::StringRef Release = Triple.getOSName().substr(strlen("freebsd"), 1);
 
-    Builder.defineMacro("__FreeBSD__", release);
-    Builder.defineMacro("__FreeBSD_cc_version", version);
+    Builder.defineMacro("__FreeBSD__", Release);
+    Builder.defineMacro("__FreeBSD_cc_version", Release + "00001");
     Builder.defineMacro("__KPRINTF_ATTRIBUTE__");
     DefineStd(Builder, "unix", Opts);
     Builder.defineMacro("__ELF__");
@@ -643,9 +627,13 @@ class X86TargetInfo : public TargetInfo {
   enum X86SSEEnum {
     NoMMXSSE, MMX, SSE1, SSE2, SSE3, SSSE3, SSE41, SSE42
   } SSELevel;
+  enum AMD3DNowEnum {
+    NoAMD3DNow, AMD3DNow, AMD3DNowAthlon
+  } AMD3DNowLevel;
+
 public:
   X86TargetInfo(const std::string& triple)
-    : TargetInfo(triple), SSELevel(NoMMXSSE) {
+    : TargetInfo(triple), SSELevel(NoMMXSSE), AMD3DNowLevel(NoAMD3DNow) {
     LongDoubleFormat = &llvm::APFloat::x87DoubleExtended;
   }
   virtual void getTargetBuiltins(const Builtin::Info *&Records,
@@ -810,6 +798,14 @@ void X86TargetInfo::HandleTargetFeatures(std::vector<std::string> &Features) {
       .Case("mmx", MMX)
       .Default(NoMMXSSE);
     SSELevel = std::max(SSELevel, Level);
+    
+    AMD3DNowEnum ThreeDNowLevel = 
+      llvm::StringSwitch<AMD3DNowEnum>(Features[i].substr(1))
+        .Case("3dnowa", AMD3DNowAthlon)
+        .Case("3dnow", AMD3DNow)
+        .Default(NoAMD3DNow);
+    
+    AMD3DNowLevel = std::max(AMD3DNowLevel, ThreeDNowLevel);
   }
 }
 
@@ -862,6 +858,16 @@ void X86TargetInfo::getTargetDefines(const LangOptions &Opts,
   case MMX:
     Builder.defineMacro("__MMX__");
   case NoMMXSSE:
+    break;
+  }
+  
+  // Each case falls through to the previous one here.
+  switch (AMD3DNowLevel) {
+  case AMD3DNowAthlon:
+    Builder.defineMacro("__3dNOW_A__");
+  case AMD3DNow:
+    Builder.defineMacro("__3dNOW__");
+  case NoAMD3DNow:
     break;
   }
 }
@@ -1224,7 +1230,7 @@ public:
     // FIXME: We need support for -meabi... we could just mangle it into the
     // name.
     if (Name == "apcs-gnu") {
-      DoubleAlign = LongLongAlign = 32;
+      DoubleAlign = LongLongAlign = LongDoubleAlign = 32;
       SizeType = UnsignedLong;
 
       if (IsThumb) {
@@ -1379,9 +1385,6 @@ public:
     // when Neon instructions are actually available.
     if (FPU == NeonFPU && !SoftFloat && IsThumb2)
       Builder.defineMacro("__ARM_NEON__");
-
-    if (getTriple().getOS() == llvm::Triple::Darwin)
-      Builder.defineMacro("__USING_SJLJ_EXCEPTIONS__");
   }
   virtual void getTargetBuiltins(const Builtin::Info *&Records,
                                  unsigned &NumRecords) const {
@@ -1461,8 +1464,7 @@ class DarwinARMTargetInfo :
 protected:
   virtual void getOSDefines(const LangOptions &Opts, const llvm::Triple &Triple,
                             MacroBuilder &Builder) const {
-    getDarwinDefines(Builder, Opts);
-    getDarwinIPhoneOSDefines(Builder, Triple);
+    getDarwinDefines(Builder, Opts, Triple);
   }
 
 public:
@@ -1617,23 +1619,25 @@ namespace {
     virtual void getTargetDefines(const LangOptions &Opts,
                                 MacroBuilder &Builder) const {
       Builder.defineMacro("__pic16");
+      Builder.defineMacro("__PIC16");
       Builder.defineMacro("rom", "__attribute__((address_space(1)))");
       Builder.defineMacro("ram", "__attribute__((address_space(0)))");
-      Builder.defineMacro("_section(SectName)",
+      Builder.defineMacro("__section(SectName)",
              "__attribute__((section(SectName)))");
       Builder.defineMacro("near",
              "__attribute__((section(\"Address=NEAR\")))");
-      Builder.defineMacro("_address(Addr)",
+      Builder.defineMacro("__address(Addr)",
              "__attribute__((section(\"Address=\"#Addr)))");
-      Builder.defineMacro("_CONFIG(conf)", "asm(\"CONFIG \"#conf)");
-      Builder.defineMacro("_interrupt",
+      Builder.defineMacro("__config(conf)", "asm(\"CONFIG \"#conf)");
+      Builder.defineMacro("__idlocs(value)", "asm(\"__IDLOCS \"#value)");
+      Builder.defineMacro("interrupt",
              "__attribute__((section(\"interrupt=0x4\"))) \
              __attribute__((used))");
     }
     virtual void getTargetBuiltins(const Builtin::Info *&Records,
                                    unsigned &NumRecords) const {}
     virtual const char *getVAListDeclaration() const {
-      return "";
+      return "typedef char* __builtin_va_list;";
     }
     virtual const char *getClobbers() const {
       return "";
@@ -1656,13 +1660,10 @@ namespace {
   public:
     MSP430TargetInfo(const std::string& triple) : TargetInfo(triple) {
       TLSSupported = false;
-      IntWidth = 16;
-      LongWidth = 32;
-      LongLongWidth = 64;
-      PointerWidth = 16;
-      IntAlign = 8;
-      LongAlign = LongLongAlign = 8;
-      PointerAlign = 8;
+      IntWidth = 16; IntAlign = 16;
+      LongWidth = 32; LongLongWidth = 64;
+      LongAlign = LongLongAlign = 16;
+      PointerWidth = 16; PointerAlign = 16;
       SizeType = UnsignedInt;
       IntMaxType = SignedLong;
       UIntMaxType = UnsignedLong;

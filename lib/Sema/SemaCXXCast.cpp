@@ -204,7 +204,30 @@ bool UnwrapDissimilarPointerTypes(QualType& T1, QualType& T2) {
     T2 = T2PtrType->getPointeeType();
     return true;
   }
-
+  const ObjCObjectPointerType *T1ObjCPtrType = 
+                                            T1->getAs<ObjCObjectPointerType>(),
+                              *T2ObjCPtrType = 
+                                            T2->getAs<ObjCObjectPointerType>();
+  if (T1ObjCPtrType) {
+    if (T2ObjCPtrType) {
+      T1 = T1ObjCPtrType->getPointeeType();
+      T2 = T2ObjCPtrType->getPointeeType();
+      return true;
+    }
+    else if (T2PtrType) {
+      T1 = T1ObjCPtrType->getPointeeType();
+      T2 = T2PtrType->getPointeeType();
+      return true;
+    }
+  }
+  else if (T2ObjCPtrType) {
+    if (T1PtrType) {
+      T2 = T2ObjCPtrType->getPointeeType();
+      T1 = T1PtrType->getPointeeType();
+      return true;
+    }
+  }
+  
   const MemberPointerType *T1MPType = T1->getAs<MemberPointerType>(),
                           *T2MPType = T2->getAs<MemberPointerType>();
   if (T1MPType && T2MPType) {
@@ -225,9 +248,9 @@ CastsAwayConstness(Sema &Self, QualType SrcType, QualType DestType) {
   // C++ 4.4. We piggyback on Sema::IsQualificationConversion for this, since
   // the rules are non-trivial. So first we construct Tcv *...cv* as described
   // in C++ 5.2.11p8.
-  assert((SrcType->isPointerType() || SrcType->isMemberPointerType()) &&
+  assert((SrcType->isAnyPointerType() || SrcType->isMemberPointerType()) &&
          "Source type is not pointer or pointer to member.");
-  assert((DestType->isPointerType() || DestType->isMemberPointerType()) &&
+  assert((DestType->isAnyPointerType() || DestType->isMemberPointerType()) &&
          "Destination type is not pointer or pointer to member.");
 
   QualType UnwrappedSrcType = Self.Context.getCanonicalType(SrcType), 
@@ -368,7 +391,7 @@ CheckDynamicCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
   }
 
   // C++ 5.2.7p6: Otherwise, v shall be [polymorphic].
-  const RecordDecl *SrcDecl = SrcRecord->getDecl()->getDefinition(Self.Context);
+  const RecordDecl *SrcDecl = SrcRecord->getDecl()->getDefinition();
   assert(SrcDecl && "Definition missing");
   if (!cast<CXXRecordDecl>(SrcDecl)->isPolymorphic()) {
     Self.Diag(OpRange.getBegin(), diag::err_bad_dynamic_cast_not_polymorphic)
@@ -388,7 +411,7 @@ void
 CheckConstCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
                const SourceRange &OpRange, const SourceRange &DestRange) {
   if (!DestType->isLValueReferenceType())
-    Self.DefaultFunctionArrayConversion(SrcExpr);
+    Self.DefaultFunctionArrayLvalueConversion(SrcExpr);
 
   unsigned msg = diag::err_bad_cxx_cast_generic;
   if (TryConstCast(Self, SrcExpr, DestType, /*CStyle*/false, msg) != TC_Success
@@ -407,7 +430,7 @@ CheckReinterpretCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
                      const SourceRange &OpRange, const SourceRange &DestRange,
                      CastExpr::CastKind &Kind) {
   if (!DestType->isLValueReferenceType())
-    Self.DefaultFunctionArrayConversion(SrcExpr);
+    Self.DefaultFunctionArrayLvalueConversion(SrcExpr);
 
   unsigned msg = diag::err_bad_cxx_cast_generic;
   if (TryReinterpretCast(Self, SrcExpr, DestType, /*CStyle*/false, OpRange,
@@ -434,7 +457,7 @@ CheckStaticCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
   }
 
   if (!DestType->isLValueReferenceType() && !DestType->isRecordType())
-    Self.DefaultFunctionArrayConversion(SrcExpr);
+    Self.DefaultFunctionArrayLvalueConversion(SrcExpr);
 
   unsigned msg = diag::err_bad_cxx_cast_generic;
   if (TryStaticCast(Self, SrcExpr, DestType, /*CStyle*/false, OpRange, msg,
@@ -755,9 +778,10 @@ TryStaticDowncast(Sema &Self, CanQualType SrcType, CanQualType DestType,
     return TC_Failed;
   }
 
-  if (!CStyle && Self.CheckBaseClassAccess(DestType, SrcType,
-                          diag::err_downcast_from_inaccessible_base, Paths,
-                          OpRange.getBegin(), DeclarationName())) {
+  if (!CStyle && Self.CheckBaseClassAccess(OpRange.getBegin(),
+                                           /*IsBaseToDerived*/ true,
+                                           SrcType, DestType,
+                                           Paths.front())) {
     msg = 0;
     return TC_Failed;
   }
@@ -821,9 +845,10 @@ TryStaticMemberPointerUpcast(Sema &Self, QualType SrcType, QualType DestType,
     return TC_Failed;
   }
 
-  if (!CStyle && Self.CheckBaseClassAccess(DestType, SrcType,
-                          diag::err_downcast_from_inaccessible_base, Paths,
-                          OpRange.getBegin(), DeclarationName())) {
+  if (!CStyle && Self.CheckBaseClassAccess(OpRange.getBegin(),
+                                           /*IsBaseToDerived*/ false,
+                                           DestType, SrcType,
+                                           Paths.front())) {
     msg = 0;
     return TC_Failed;
   }
@@ -1083,10 +1108,8 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     return TC_Failed;
   }
   
-  bool destIsPtr = 
-    CStyle? DestType->isAnyPointerType() : DestType->isPointerType();
-  bool srcIsPtr = 
-    CStyle ? SrcType->isAnyPointerType() : SrcType->isPointerType();
+  bool destIsPtr = DestType->isAnyPointerType();
+  bool srcIsPtr = SrcType->isAnyPointerType();
   if (!destIsPtr && !srcIsPtr) {
     // Except for std::nullptr_t->integer and lvalue->reference, which are
     // handled above, at least one of the two arguments must be a pointer.
@@ -1197,7 +1220,7 @@ bool Sema::CXXCheckCStyleCast(SourceRange R, QualType CastTy, Expr *&CastExpr,
     return false;
 
   if (!CastTy->isLValueReferenceType() && !CastTy->isRecordType())
-    DefaultFunctionArrayConversion(CastExpr);
+    DefaultFunctionArrayLvalueConversion(CastExpr);
 
   // C++ [expr.cast]p5: The conversions performed by
   //   - a const_cast,

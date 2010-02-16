@@ -29,14 +29,14 @@ class B : A {
 namespace T3 {
 
 struct a { };
-struct b : private a { }; // expected-note{{'private' inheritance specifier here}}
+struct b : private a { }; // expected-note{{declared private here}}
   
 class A {
   virtual a* f(); // expected-note{{overridden virtual function is here}}
 };
 
 class B : A {
-  virtual b* f(); // expected-error{{return type of virtual function 'f' is not covariant with the return type of the function it overrides (conversion from 'struct T3::b' to inaccessible base class 'struct T3::a')}}
+  virtual b* f(); // expected-error{{invalid covariant return for virtual function: 'struct T3::a' is a private base class of 'struct T3::b'}}
 };
 
 }
@@ -213,6 +213,29 @@ namespace PR6110 {
   template <typename T> class Y { virtual T f(); };
   template <typename T1, typename T> class Y1 : public Y<T> { virtual T1 f(); };
   Y1<Derived*, Base*> y;
+}
+
+// Defer checking for covariance if either return type is dependent.
+namespace type_dependent_covariance {
+  struct B {};
+  template <int N> struct TD : public B {};
+  template <> struct TD<1> {};
+
+  template <int N> struct TB {};
+  struct D : public TB<0> {};
+
+  template <int N> struct X {
+    virtual B* f1(); // expected-note{{overridden virtual function is here}}
+    virtual TB<N>* f2(); // expected-note{{overridden virtual function is here}}
+  };
+  template <int N, int M> struct X1 : X<N> {
+    virtual TD<M>* f1(); // expected-error{{return type of virtual function 'f1' is not covariant with the return type of the function it overrides ('TD<1> *'}}
+    virtual D* f2(); // expected-error{{return type of virtual function 'f2' is not covariant with the return type of the function it overrides ('struct type_dependent_covariance::D *' is not derived from 'TB<1> *')}}
+  };
+
+  X1<0, 0> good;
+  X1<0, 1> bad_derived; // expected-note{{instantiation}}
+  X1<1, 0> bad_base; // expected-note{{instantiation}}
 }
 
 namespace T10 {

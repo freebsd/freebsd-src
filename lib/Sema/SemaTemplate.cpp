@@ -823,7 +823,7 @@ Sema::CheckClassTemplate(Scope *S, unsigned TagSpec, TagUseKind TUK,
 
     // Check for redefinition of this class template.
     if (TUK == TUK_Definition) {
-      if (TagDecl *Def = PrevRecordDecl->getDefinition(Context)) {
+      if (TagDecl *Def = PrevRecordDecl->getDefinition()) {
         Diag(NameLoc, diag::err_redefinition) << Name;
         Diag(Def->getLocation(), diag::note_previous_definition);
         // FIXME: Would it make sense to try to "forget" the previous
@@ -1235,18 +1235,14 @@ Sema::MatchTemplateParametersToScopeSpecifier(SourceLocation DeclStartLoc,
     //   such a member, the member declaration shall be preceded by a
     //   template<> for each enclosing class template that is
     //   explicitly specialized.
-    // We interpret this as forbidding typedefs of template
-    // specializations in the scope specifiers of out-of-line decls.
-    if (const TypedefType *TT = dyn_cast<TypedefType>(T)) {
-      const Type *UnderlyingT = TT->LookThroughTypedefs().getTypePtr();
-      if (isa<TemplateSpecializationType>(UnderlyingT))
-        // FIXME: better source location information.
-        Diag(DeclStartLoc, diag::err_typedef_in_def_scope) << QualType(T,0);
-      T = UnderlyingT;
-    }
+    //
+    // Following the existing practice of GNU and EDG, we allow a typedef of a
+    // template specialization type.
+    if (const TypedefType *TT = dyn_cast<TypedefType>(T))
+      T = TT->LookThroughTypedefs().getTypePtr();
 
     if (const TemplateSpecializationType *SpecType
-          = dyn_cast<TemplateSpecializationType>(T)) {
+                                  = dyn_cast<TemplateSpecializationType>(T)) {
       TemplateDecl *Template = SpecType->getTemplateName().getAsTemplateDecl();
       if (!Template)
         continue; // FIXME: should this be an error? probably...
@@ -1525,17 +1521,19 @@ Sema::OwningExprResult Sema::BuildTemplateIdExpr(const CXXScopeSpec &SS,
     Qualifier = static_cast<NestedNameSpecifier*>(SS.getScopeRep());
     QualifierRange = SS.getRange();
   }
+
+  // We don't want lookup warnings at this point.
+  R.suppressDiagnostics();
   
   bool Dependent
     = UnresolvedLookupExpr::ComputeDependence(R.begin(), R.end(),
                                               &TemplateArgs);
   UnresolvedLookupExpr *ULE
-    = UnresolvedLookupExpr::Create(Context, Dependent,
+    = UnresolvedLookupExpr::Create(Context, Dependent, R.getNamingClass(),
                                    Qualifier, QualifierRange,
                                    R.getLookupName(), R.getNameLoc(),
                                    RequiresADL, TemplateArgs);
-  for (LookupResult::iterator I = R.begin(), E = R.end(); I != E; ++I)
-    ULE->addDecl(*I);
+  ULE->addDecls(R.begin(), R.end());
 
   return Owned(ULE);
 }
@@ -2305,7 +2303,17 @@ bool Sema::CheckTemplateArgumentAddressOfObjectOrFunction(Expr *Arg,
   } else
     DRE = dyn_cast<DeclRefExpr>(Arg);
 
-  if (!DRE || !isa<ValueDecl>(DRE->getDecl()))
+  if (!DRE)
+    return Diag(Arg->getSourceRange().getBegin(),
+                diag::err_template_arg_not_decl_ref)
+      << Arg->getSourceRange();
+
+  // Stop checking the precise nature of the argument if it is value dependent,
+  // it should be checked when instantiated.
+  if (Arg->isValueDependent())
+    return false;
+
+  if (!isa<ValueDecl>(DRE->getDecl()))
     return Diag(Arg->getSourceRange().getBegin(),
                 diag::err_template_arg_not_object_or_func_form)
       << Arg->getSourceRange();
@@ -2324,7 +2332,7 @@ bool Sema::CheckTemplateArgumentAddressOfObjectOrFunction(Expr *Arg,
 
   // Functions must have external linkage.
   if (FunctionDecl *Func = dyn_cast<FunctionDecl>(DRE->getDecl())) {
-    if (Func->getLinkage() != NamedDecl::ExternalLinkage) {
+    if (!isExternalLinkage(Func->getLinkage())) {
       Diag(Arg->getSourceRange().getBegin(),
            diag::err_template_arg_function_not_extern)
         << Func << Arg->getSourceRange();
@@ -2339,7 +2347,7 @@ bool Sema::CheckTemplateArgumentAddressOfObjectOrFunction(Expr *Arg,
   }
 
   if (VarDecl *Var = dyn_cast<VarDecl>(DRE->getDecl())) {
-    if (Var->getLinkage() != NamedDecl::ExternalLinkage) {
+    if (!isExternalLinkage(Var->getLinkage())) {
       Diag(Arg->getSourceRange().getBegin(),
            diag::err_template_arg_object_not_extern)
         << Var << Arg->getSourceRange();
@@ -2656,9 +2664,13 @@ bool Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
     if (CheckTemplateArgumentAddressOfObjectOrFunction(Arg, Entity))
       return true;
 
-    if (Entity)
-      Entity = cast<NamedDecl>(Entity->getCanonicalDecl());
-    Converted = TemplateArgument(Entity);
+    if (Arg->isValueDependent()) {
+      Converted = TemplateArgument(Arg);
+    } else {
+      if (Entity)
+        Entity = cast<NamedDecl>(Entity->getCanonicalDecl());
+      Converted = TemplateArgument(Entity);
+    }
     return false;
   }
 
@@ -2696,9 +2708,13 @@ bool Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
     if (CheckTemplateArgumentAddressOfObjectOrFunction(Arg, Entity))
       return true;
 
-    if (Entity)
-      Entity = cast<NamedDecl>(Entity->getCanonicalDecl());
-    Converted = TemplateArgument(Entity);
+    if (Arg->isValueDependent()) {
+      Converted = TemplateArgument(Arg);
+    } else {
+      if (Entity)
+        Entity = cast<NamedDecl>(Entity->getCanonicalDecl());
+      Converted = TemplateArgument(Entity);
+    }
     return false;
   }
 
@@ -2712,7 +2728,8 @@ bool Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
     assert(ParamRefType->getPointeeType()->isObjectType() &&
            "Only object references allowed here");
 
-    if (!Context.hasSameUnqualifiedType(ParamRefType->getPointeeType(), ArgType)) {
+    QualType ReferredType = ParamRefType->getPointeeType();
+    if (!Context.hasSameUnqualifiedType(ReferredType, ArgType)) {
       Diag(Arg->getSourceRange().getBegin(),
            diag::err_template_arg_no_ref_bind)
         << InstantiatedParamType << Arg->getType()
@@ -2722,7 +2739,7 @@ bool Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
     }
 
     unsigned ParamQuals
-      = Context.getCanonicalType(ParamType).getCVRQualifiers();
+      = Context.getCanonicalType(ReferredType).getCVRQualifiers();
     unsigned ArgQuals = Context.getCanonicalType(ArgType).getCVRQualifiers();
 
     if ((ParamQuals | ArgQuals) != ParamQuals) {
@@ -2738,8 +2755,12 @@ bool Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
     if (CheckTemplateArgumentAddressOfObjectOrFunction(Arg, Entity))
       return true;
 
-    Entity = cast<NamedDecl>(Entity->getCanonicalDecl());
-    Converted = TemplateArgument(Entity);
+    if (Arg->isValueDependent()) {
+      Converted = TemplateArgument(Arg);
+    } else {
+      Entity = cast<NamedDecl>(Entity->getCanonicalDecl());
+      Converted = TemplateArgument(Entity);
+    }
     return false;
   }
 
@@ -3375,12 +3396,23 @@ Sema::ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec,
 
     // FIXME: Diagnose friend partial specializations
 
-    // FIXME: Template parameter list matters, too
-    ClassTemplatePartialSpecializationDecl::Profile(ID,
-                                                   Converted.getFlatArguments(),
-                                                   Converted.flatSize(),
-                                                    Context);
-  } else
+    if (!Name.isDependent() && 
+        !TemplateSpecializationType::anyDependentTemplateArguments(
+                                             TemplateArgs.getArgumentArray(), 
+                                                         TemplateArgs.size())) {
+      Diag(TemplateNameLoc, diag::err_partial_spec_fully_specialized)
+        << ClassTemplate->getDeclName();
+      isPartialSpecialization = false;
+    } else {
+      // FIXME: Template parameter list matters, too
+      ClassTemplatePartialSpecializationDecl::Profile(ID,
+                                                  Converted.getFlatArguments(),
+                                                      Converted.flatSize(),
+                                                      Context);
+    }
+  }
+  
+  if (!isPartialSpecialization)
     ClassTemplateSpecializationDecl::Profile(ID,
                                              Converted.getFlatArguments(),
                                              Converted.flatSize(),
@@ -3410,7 +3442,7 @@ Sema::ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec,
   QualType CanonType;
   if (PrevDecl && 
       (PrevDecl->getSpecializationKind() == TSK_Undeclared ||
-       TUK == TUK_Friend)) {
+               TUK == TUK_Friend)) {
     // Since the only prior class template specialization with these
     // arguments was referenced but not declared, or we're only
     // referencing this specialization as a friend, reuse that
@@ -3423,8 +3455,8 @@ Sema::ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec,
   } else if (isPartialSpecialization) {
     // Build the canonical type that describes the converted template
     // arguments of the class template partial specialization.
-    CanonType = Context.getTemplateSpecializationType(
-                                                  TemplateName(ClassTemplate),
+    TemplateName CanonTemplate = Context.getCanonicalTemplateName(Name);
+    CanonType = Context.getTemplateSpecializationType(CanonTemplate,
                                                   Converted.getFlatArguments(),
                                                   Converted.flatSize());
 
@@ -3532,7 +3564,7 @@ Sema::ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec,
 
   // Check that this isn't a redefinition of this specialization.
   if (TUK == TUK_Definition) {
-    if (RecordDecl *Def = Specialization->getDefinition(Context)) {
+    if (RecordDecl *Def = Specialization->getDefinition()) {
       SourceRange Range(TemplateNameLoc, RAngleLoc);
       Diag(TemplateNameLoc, diag::err_redefinition)
         << Context.getTypeDeclType(Specialization) << Range;
@@ -3619,6 +3651,16 @@ Sema::ActOnStartOfFunctionTemplateDef(Scope *FnBodyScope,
   return DeclPtrTy();
 }
 
+/// \brief Strips various properties off an implicit instantiation
+/// that has just been explicitly specialized.
+static void StripImplicitInstantiation(NamedDecl *D) {
+  D->invalidateAttrs();
+
+  if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+    FD->setInlineSpecified(false);
+  }
+}
+
 /// \brief Diagnose cases where we have an explicit template specialization 
 /// before/after an explicit template instantiation, producing diagnostics
 /// for those cases where they are required and determining whether the 
@@ -3669,6 +3711,7 @@ Sema::CheckSpecializationInstantiationRedecl(SourceLocation NewLoc,
       if (PrevPointOfInstantiation.isInvalid()) {
         // The declaration itself has not actually been instantiated, so it is
         // still okay to specialize it.
+        StripImplicitInstantiation(PrevDecl);
         return false;
       }
       // Fall through
@@ -3817,8 +3860,7 @@ Sema::CheckFunctionTemplateSpecialization(FunctionDecl *FD,
                                           LookupResult &Previous) {
   // The set of function template specializations that could match this
   // explicit function template specialization.
-  typedef llvm::SmallVector<FunctionDecl *, 8> CandidateSet;
-  CandidateSet Candidates;
+  UnresolvedSet<8> Candidates;
   
   DeclContext *FDLookupContext = FD->getDeclContext()->getLookupContext();
   for (LookupResult::iterator I = Previous.begin(), E = Previous.end();
@@ -3837,7 +3879,7 @@ Sema::CheckFunctionTemplateSpecialization(FunctionDecl *FD,
       // Perform template argument deduction to determine whether we may be
       // specializing this template.
       // FIXME: It is somewhat wasteful to build
-      TemplateDeductionInfo Info(Context);
+      TemplateDeductionInfo Info(Context, FD->getLocation());
       FunctionDecl *Specialization = 0;
       if (TemplateDeductionResult TDK
             = DeduceTemplateArguments(FunTmpl, ExplicitTemplateArgs,
@@ -3851,22 +3893,24 @@ Sema::CheckFunctionTemplateSpecialization(FunctionDecl *FD,
       }
       
       // Record this candidate.
-      Candidates.push_back(Specialization);
+      Candidates.addDecl(Specialization, I.getAccess());
     }
   }
   
   // Find the most specialized function template.
-  FunctionDecl *Specialization = getMostSpecialized(Candidates.data(),
-                                                    Candidates.size(),
-                                                    TPOC_Other,
-                                                    FD->getLocation(),
+  UnresolvedSetIterator Result
+    = getMostSpecialized(Candidates.begin(), Candidates.end(),
+                         TPOC_Other, FD->getLocation(),
                   PartialDiagnostic(diag::err_function_template_spec_no_match) 
                     << FD->getDeclName(),
                   PartialDiagnostic(diag::err_function_template_spec_ambiguous)
                     << FD->getDeclName() << (ExplicitTemplateArgs != 0),
                   PartialDiagnostic(diag::note_function_template_spec_matched));
-  if (!Specialization)
+  if (Result == Candidates.end())
     return true;
+
+  // Ignore access information;  it doesn't figure into redeclaration checking.
+  FunctionDecl *Specialization = cast<FunctionDecl>(*Result);
   
   // FIXME: Check if the prior specialization has a point of instantiation.
   // If so, we have run afoul of .
@@ -3887,15 +3931,15 @@ Sema::CheckFunctionTemplateSpecialization(FunctionDecl *FD,
   FunctionTemplateSpecializationInfo *SpecInfo
     = Specialization->getTemplateSpecializationInfo();
   assert(SpecInfo && "Function template specialization info missing?");
-  if (SpecInfo->getPointOfInstantiation().isValid()) {
-    Diag(FD->getLocation(), diag::err_specialization_after_instantiation)
-      << FD;
-    Diag(SpecInfo->getPointOfInstantiation(), 
-         diag::note_instantiation_required_here)
-      << (Specialization->getTemplateSpecializationKind() 
-                                                != TSK_ImplicitInstantiation);
+
+  bool SuppressNew = false;
+  if (CheckSpecializationInstantiationRedecl(FD->getLocation(),
+                                             TSK_ExplicitSpecialization,
+                                             Specialization,
+                                   SpecInfo->getTemplateSpecializationKind(),
+                                         SpecInfo->getPointOfInstantiation(),
+                                             SuppressNew))
     return true;
-  }
   
   // Mark the prior declaration as an explicit specialization, so that later
   // clients know that this is an explicit specialization.
@@ -3904,8 +3948,7 @@ Sema::CheckFunctionTemplateSpecialization(FunctionDecl *FD,
   // Turn the given function declaration into a function template
   // specialization, with the template arguments from the previous
   // specialization.
-  FD->setFunctionTemplateSpecialization(Context, 
-                                        Specialization->getPrimaryTemplate(),
+  FD->setFunctionTemplateSpecialization(Specialization->getPrimaryTemplate(),
                          new (Context) TemplateArgumentList(
                              *Specialization->getTemplateSpecializationArgs()), 
                                         /*InsertPos=*/0, 
@@ -3997,14 +4040,15 @@ Sema::CheckMemberSpecialization(NamedDecl *Member, LookupResult &Previous) {
   //   instantiation to take place, in every translation unit in which such a 
   //   use occurs; no diagnostic is required.
   assert(MSInfo && "Member specialization info missing?");
-  if (MSInfo->getPointOfInstantiation().isValid()) {
-    Diag(Member->getLocation(), diag::err_specialization_after_instantiation)
-      << Member;
-    Diag(MSInfo->getPointOfInstantiation(), 
-         diag::note_instantiation_required_here)
-      << (MSInfo->getTemplateSpecializationKind() != TSK_ImplicitInstantiation);
+
+  bool SuppressNew = false;
+  if (CheckSpecializationInstantiationRedecl(Member->getLocation(),
+                                             TSK_ExplicitSpecialization,
+                                             Instantiation,
+                                     MSInfo->getTemplateSpecializationKind(),
+                                           MSInfo->getPointOfInstantiation(),
+                                             SuppressNew))
     return true;
-  }
   
   // Check the scope of this explicit specialization.
   if (CheckTemplateSpecializationScope(*this, 
@@ -4288,13 +4332,13 @@ Sema::ActOnExplicitInstantiation(Scope *S,
   // instantiation.
   ClassTemplateSpecializationDecl *Def
     = cast_or_null<ClassTemplateSpecializationDecl>(
-                                        Specialization->getDefinition(Context));
+                                              Specialization->getDefinition());
   if (!Def)
     InstantiateClassTemplateSpecialization(TemplateNameLoc, Specialization, TSK);
   
   // Instantiate the members of this class template specialization.
   Def = cast_or_null<ClassTemplateSpecializationDecl>(
-                                       Specialization->getDefinition(Context));
+                                       Specialization->getDefinition());
   if (Def)
     InstantiateClassTemplateSpecializationMembers(TemplateNameLoc, Def, TSK);
 
@@ -4371,7 +4415,7 @@ Sema::ActOnExplicitInstantiation(Scope *S,
   // Verify that it is okay to explicitly instantiate here.
   CXXRecordDecl *PrevDecl 
     = cast_or_null<CXXRecordDecl>(Record->getPreviousDeclaration());
-  if (!PrevDecl && Record->getDefinition(Context))
+  if (!PrevDecl && Record->getDefinition())
     PrevDecl = Record;
   if (PrevDecl) {
     MemberSpecializationInfo *MSInfo = PrevDecl->getMemberSpecializationInfo();
@@ -4388,13 +4432,13 @@ Sema::ActOnExplicitInstantiation(Scope *S,
   }
   
   CXXRecordDecl *RecordDef
-    = cast_or_null<CXXRecordDecl>(Record->getDefinition(Context));
+    = cast_or_null<CXXRecordDecl>(Record->getDefinition());
   if (!RecordDef) {
     // C++ [temp.explicit]p3:
     //   A definition of a member class of a class template shall be in scope 
     //   at the point of an explicit instantiation of the member class.
     CXXRecordDecl *Def 
-      = cast_or_null<CXXRecordDecl>(Pattern->getDefinition(Context));
+      = cast_or_null<CXXRecordDecl>(Pattern->getDefinition());
     if (!Def) {
       Diag(TemplateLoc, diag::err_explicit_instantiation_undefined_member)
         << 0 << Record->getDeclName() << Record->getDeclContext();
@@ -4407,7 +4451,7 @@ Sema::ActOnExplicitInstantiation(Scope *S,
                            TSK))
         return true;
 
-      RecordDef = cast_or_null<CXXRecordDecl>(Record->getDefinition(Context));
+      RecordDef = cast_or_null<CXXRecordDecl>(Record->getDefinition());
       if (!RecordDef)
         return true;
     }
@@ -4568,7 +4612,7 @@ Sema::DeclResult Sema::ActOnExplicitInstantiation(Scope *S,
   //   A member function [...] of a class template can be explicitly 
   //  instantiated from the member definition associated with its class 
   //  template.
-  llvm::SmallVector<FunctionDecl *, 8> Matches;
+  UnresolvedSet<8> Matches;
   for (LookupResult::iterator P = Previous.begin(), PEnd = Previous.end();
        P != PEnd; ++P) {
     NamedDecl *Prev = *P;
@@ -4577,7 +4621,7 @@ Sema::DeclResult Sema::ActOnExplicitInstantiation(Scope *S,
         if (Context.hasSameUnqualifiedType(Method->getType(), R)) {
           Matches.clear();
 
-          Matches.push_back(Method);
+          Matches.addDecl(Method, P.getAccess());
           if (Method->getTemplateSpecializationKind() == TSK_Undeclared)
             break;
         }
@@ -4588,7 +4632,7 @@ Sema::DeclResult Sema::ActOnExplicitInstantiation(Scope *S,
     if (!FunTmpl)
       continue;
 
-    TemplateDeductionInfo Info(Context);
+    TemplateDeductionInfo Info(Context, D.getIdentifierLoc());
     FunctionDecl *Specialization = 0;
     if (TemplateDeductionResult TDK
           = DeduceTemplateArguments(FunTmpl, 
@@ -4599,19 +4643,22 @@ Sema::DeclResult Sema::ActOnExplicitInstantiation(Scope *S,
       continue;
     }
     
-    Matches.push_back(Specialization);
+    Matches.addDecl(Specialization, P.getAccess());
   }
   
   // Find the most specialized function template specialization.
-  FunctionDecl *Specialization
-    = getMostSpecialized(Matches.data(), Matches.size(), TPOC_Other, 
+  UnresolvedSetIterator Result
+    = getMostSpecialized(Matches.begin(), Matches.end(), TPOC_Other, 
                          D.getIdentifierLoc(), 
           PartialDiagnostic(diag::err_explicit_instantiation_not_known) << Name,
           PartialDiagnostic(diag::err_explicit_instantiation_ambiguous) << Name,
                 PartialDiagnostic(diag::note_explicit_instantiation_candidate));
 
-  if (!Specialization)
+  if (Result == Matches.end())
     return true;
+
+  // Ignore access control bits, we don't need them for redeclaration checking.
+  FunctionDecl *Specialization = cast<FunctionDecl>(*Result);
   
   if (Specialization->getTemplateSpecializationKind() == TSK_Undeclared) {
     Diag(D.getIdentifierLoc(), 

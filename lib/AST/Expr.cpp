@@ -99,8 +99,7 @@ void DeclRefExpr::computeDependence() {
   else if (VarDecl *Var = dyn_cast<VarDecl>(D)) {
     if (Var->getType()->isIntegralType() &&
         Var->getType().getCVRQualifiers() == Qualifiers::Const) {
-      const VarDecl *Def = 0;
-      if (const Expr *Init = Var->getDefinition(Def))
+      if (const Expr *Init = Var->getAnyInitializer())
         if (Init->isValueDependent())
           ValueDependent = true;
     }
@@ -164,17 +163,18 @@ SourceRange DeclRefExpr::getSourceRange() const {
 
 // FIXME: Maybe this should use DeclPrinter with a special "print predefined
 // expr" policy instead.
-std::string PredefinedExpr::ComputeName(ASTContext &Context, IdentType IT,
-                                        const Decl *CurrentDecl) {
+std::string PredefinedExpr::ComputeName(IdentType IT, const Decl *CurrentDecl) {
+  ASTContext &Context = CurrentDecl->getASTContext();
+
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(CurrentDecl)) {
-    if (IT != PrettyFunction)
+    if (IT != PrettyFunction && IT != PrettyFunctionNoVirtual)
       return FD->getNameAsString();
 
     llvm::SmallString<256> Name;
     llvm::raw_svector_ostream Out(Name);
 
     if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
-      if (MD->isVirtual())
+      if (MD->isVirtual() && IT != PrettyFunctionNoVirtual)
         Out << "virtual ";
       if (MD->isStatic())
         Out << "static ";
@@ -827,9 +827,17 @@ bool Expr::isUnusedResultAWarning(SourceLocation &Loc, SourceRange &R1,
   case BinaryOperatorClass: {
     const BinaryOperator *BO = cast<BinaryOperator>(this);
     // Consider comma to have side effects if the LHS or RHS does.
-    if (BO->getOpcode() == BinaryOperator::Comma)
+    if (BO->getOpcode() == BinaryOperator::Comma) {
+      // ((foo = <blah>), 0) is an idiom for hiding the result (and
+      // lvalue-ness) of an assignment written in a macro.
+      if (IntegerLiteral *IE =
+            dyn_cast<IntegerLiteral>(BO->getRHS()->IgnoreParens()))
+        if (IE->getValue() == 0)
+          return false;
+
       return (BO->getRHS()->isUnusedResultAWarning(Loc, R1, R2, Ctx) ||
               BO->getLHS()->isUnusedResultAWarning(Loc, R1, R2, Ctx));
+    }
 
     if (BO->isAssignmentOp())
       return false;
@@ -1068,9 +1076,7 @@ Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
       if (isa<FieldDecl>(Member)) {
         if (m->isArrow())
           return LV_Valid;
-        Expr *BaseExp = m->getBase();
-        return (BaseExp->getStmtClass() == ObjCPropertyRefExprClass) ?
-                 LV_SubObjCPropertySetting : BaseExp->isLvalue(Ctx);        
+        return m->getBase()->isLvalue(Ctx);
       }
 
       //   -- If it refers to a static member function [...], then
@@ -1093,8 +1099,11 @@ Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
     if (m->isArrow())
       return LV_Valid;
     Expr *BaseExp = m->getBase();
-    return (BaseExp->getStmtClass() == ObjCPropertyRefExprClass) ?
-             LV_SubObjCPropertySetting : BaseExp->isLvalue(Ctx);
+    if (BaseExp->getStmtClass() == ObjCPropertyRefExprClass)
+          return LV_SubObjCPropertySetting;
+    return 
+      (BaseExp->getStmtClass() == ObjCImplicitSetterGetterRefExprClass) ?
+       LV_SubObjCPropertyGetterSetting : BaseExp->isLvalue(Ctx);        
   }
   case UnaryOperatorClass:
     if (cast<UnaryOperator>(this)->getOpcode() == UnaryOperator::Deref)
@@ -1205,6 +1214,9 @@ Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
   case CXXBindTemporaryExprClass:
     return cast<CXXBindTemporaryExpr>(this)->getSubExpr()->
       isLvalueInternal(Ctx);
+  case CXXBindReferenceExprClass:
+    // Something that's bound to a reference is always an lvalue.
+    return LV_Valid;
   case ConditionalOperatorClass: {
     // Complicated handling is only for C++.
     if (!Ctx.getLangOptions().CPlusPlus)
@@ -1281,7 +1293,9 @@ Expr::isModifiableLvalue(ASTContext &Ctx, SourceLocation *Loc) const {
     }
     return MLV_InvalidExpression;
   case LV_MemberFunction: return MLV_MemberFunction;
-    case LV_SubObjCPropertySetting: return MLV_SubObjCPropertySetting;
+  case LV_SubObjCPropertySetting: return MLV_SubObjCPropertySetting;
+  case LV_SubObjCPropertyGetterSetting: 
+    return MLV_SubObjCPropertyGetterSetting;
   }
 
   // The following is illegal:
@@ -1594,6 +1608,7 @@ static ICEDiag CheckICE(const Expr* E, ASTContext &Ctx) {
   case Expr::DependentScopeDeclRefExprClass:
   case Expr::CXXConstructExprClass:
   case Expr::CXXBindTemporaryExprClass:
+  case Expr::CXXBindReferenceExprClass:
   case Expr::CXXExprWithTemporariesClass:
   case Expr::CXXTemporaryObjectExprClass:
   case Expr::CXXUnresolvedConstructExprClass:
@@ -1613,7 +1628,6 @@ static ICEDiag CheckICE(const Expr* E, ASTContext &Ctx) {
   case Expr::BlockExprClass:
   case Expr::BlockDeclRefExprClass:
   case Expr::NoStmtClass:
-  case Expr::ExprClass:
     return ICEDiag(2, E->getLocStart());
 
   case Expr::GNUNullExprClass:
@@ -1650,30 +1664,22 @@ static ICEDiag CheckICE(const Expr* E, ASTContext &Ctx) {
         if (Quals.hasVolatile() || !Quals.hasConst())
           return ICEDiag(2, cast<DeclRefExpr>(E)->getLocation());
         
-        // Look for the definition of this variable, which will actually have
-        // an initializer.
-        const VarDecl *Def = 0;
-        const Expr *Init = Dcl->getDefinition(Def);
+        // Look for a declaration of this variable that has an initializer.
+        const VarDecl *ID = 0;
+        const Expr *Init = Dcl->getAnyInitializer(ID);
         if (Init) {
-          if (Def->isInitKnownICE()) {
+          if (ID->isInitKnownICE()) {
             // We have already checked whether this subexpression is an
             // integral constant expression.
-            if (Def->isInitICE())
+            if (ID->isInitICE())
               return NoDiag();
             else
               return ICEDiag(2, cast<DeclRefExpr>(E)->getLocation());
           }
 
-          // C++ [class.static.data]p4:
-          //   If a static data member is of const integral or const 
-          //   enumeration type, its declaration in the class definition can
-          //   specify a constant-initializer which shall be an integral 
-          //   constant expression (5.19). In that case, the member can appear
-          //   in integral constant expressions.
-          if (Def->isOutOfLine()) {
-            Dcl->setInitKnownICE(false);
-            return ICEDiag(2, cast<DeclRefExpr>(E)->getLocation());
-          }
+          // It's an ICE whether or not the definition we found is
+          // out-of-line.  See DR 721 and the discussion in Clang PR
+          // 6206 for details.
 
           if (Dcl->isCheckingICE()) {
             return ICEDiag(2, cast<DeclRefExpr>(E)->getLocation());
@@ -1810,9 +1816,7 @@ static ICEDiag CheckICE(const Expr* E, ASTContext &Ctx) {
     }
     }
   }
-  case Expr::CastExprClass:
   case Expr::ImplicitCastExprClass:
-  case Expr::ExplicitCastExprClass:
   case Expr::CStyleCastExprClass:
   case Expr::CXXFunctionalCastExprClass:
   case Expr::CXXNamedCastExprClass:
@@ -1954,6 +1958,13 @@ bool Expr::isNullPointerConstant(ASTContext &Ctx,
 FieldDecl *Expr::getBitField() {
   Expr *E = this->IgnoreParens();
 
+  while (ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(E)) {
+    if (ICE->isLvalueCast() && ICE->getCastKind() == CastExpr::CK_NoOp)
+      E = ICE->getSubExpr()->IgnoreParens();
+    else
+      break;
+  }
+
   if (MemberExpr *MemRef = dyn_cast<MemberExpr>(E))
     if (FieldDecl *Field = dyn_cast<FieldDecl>(MemRef->getMemberDecl()))
       if (Field->isBitField())
@@ -1964,6 +1975,25 @@ FieldDecl *Expr::getBitField() {
       return BinOp->getLHS()->getBitField();
 
   return 0;
+}
+
+bool Expr::refersToVectorElement() const {
+  const Expr *E = this->IgnoreParens();
+  
+  while (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(E)) {
+    if (ICE->isLvalueCast() && ICE->getCastKind() == CastExpr::CK_NoOp)
+      E = ICE->getSubExpr()->IgnoreParens();
+    else
+      break;
+  }
+  
+  if (const ArraySubscriptExpr *ASE = dyn_cast<ArraySubscriptExpr>(E))
+    return ASE->getBase()->getType()->isVectorType();
+
+  if (isa<ExtVectorElementExpr>(E))
+    return true;
+
+  return false;
 }
 
 /// isArrow - Return true if the base expression is a pointer to vector,
@@ -2030,14 +2060,15 @@ void ExtVectorElementExpr::getEncodedElementAccess(
 }
 
 // constructor for instance messages.
-ObjCMessageExpr::ObjCMessageExpr(Expr *receiver, Selector selInfo,
-                QualType retType, ObjCMethodDecl *mproto,
-                SourceLocation LBrac, SourceLocation RBrac,
-                Expr **ArgExprs, unsigned nargs)
+ObjCMessageExpr::ObjCMessageExpr(ASTContext &C, Expr *receiver,
+                                 Selector selInfo,
+                                 QualType retType, ObjCMethodDecl *mproto,
+                                 SourceLocation LBrac, SourceLocation RBrac,
+                                 Expr **ArgExprs, unsigned nargs)
   : Expr(ObjCMessageExprClass, retType, false, false), SelName(selInfo),
     MethodProto(mproto) {
   NumArgs = nargs;
-  SubExprs = new Stmt*[NumArgs+1];
+  SubExprs = new (C) Stmt*[NumArgs+1];
   SubExprs[RECEIVER] = receiver;
   if (NumArgs) {
     for (unsigned i = 0; i != NumArgs; ++i)
@@ -2049,14 +2080,15 @@ ObjCMessageExpr::ObjCMessageExpr(Expr *receiver, Selector selInfo,
 
 // constructor for class messages.
 // FIXME: clsName should be typed to ObjCInterfaceType
-ObjCMessageExpr::ObjCMessageExpr(IdentifierInfo *clsName, Selector selInfo,
-                QualType retType, ObjCMethodDecl *mproto,
-                SourceLocation LBrac, SourceLocation RBrac,
-                Expr **ArgExprs, unsigned nargs)
+ObjCMessageExpr::ObjCMessageExpr(ASTContext &C, IdentifierInfo *clsName,
+                                 Selector selInfo, QualType retType,
+                                 ObjCMethodDecl *mproto,
+                                 SourceLocation LBrac, SourceLocation RBrac,
+                                 Expr **ArgExprs, unsigned nargs)
   : Expr(ObjCMessageExprClass, retType, false, false), SelName(selInfo),
     MethodProto(mproto) {
   NumArgs = nargs;
-  SubExprs = new Stmt*[NumArgs+1];
+  SubExprs = new (C) Stmt*[NumArgs+1];
   SubExprs[RECEIVER] = (Expr*) ((uintptr_t) clsName | IsClsMethDeclUnknown);
   if (NumArgs) {
     for (unsigned i = 0; i != NumArgs; ++i)
@@ -2067,14 +2099,15 @@ ObjCMessageExpr::ObjCMessageExpr(IdentifierInfo *clsName, Selector selInfo,
 }
 
 // constructor for class messages.
-ObjCMessageExpr::ObjCMessageExpr(ObjCInterfaceDecl *cls, Selector selInfo,
-                                 QualType retType, ObjCMethodDecl *mproto,
-                                 SourceLocation LBrac, SourceLocation RBrac,
-                                 Expr **ArgExprs, unsigned nargs)
+ObjCMessageExpr::ObjCMessageExpr(ASTContext &C, ObjCInterfaceDecl *cls,
+                                 Selector selInfo, QualType retType,
+                                 ObjCMethodDecl *mproto, SourceLocation LBrac,
+                                 SourceLocation RBrac, Expr **ArgExprs,
+                                 unsigned nargs)
 : Expr(ObjCMessageExprClass, retType, false, false), SelName(selInfo),
 MethodProto(mproto) {
   NumArgs = nargs;
-  SubExprs = new Stmt*[NumArgs+1];
+  SubExprs = new (C) Stmt*[NumArgs+1];
   SubExprs[RECEIVER] = (Expr*) ((uintptr_t) cls | IsClsMethDeclKnown);
   if (NumArgs) {
     for (unsigned i = 0; i != NumArgs; ++i)
@@ -2109,6 +2142,13 @@ void ObjCMessageExpr::setClassInfo(const ObjCMessageExpr::ClassInfo &CI) {
     SubExprs[RECEIVER] = (Expr*)((uintptr_t)CI.first | IsClsMethDeclKnown);
 }
 
+void ObjCMessageExpr::DoDestroy(ASTContext &C) {
+  DestroyChildren(C);
+  if (SubExprs)
+    C.Deallocate(SubExprs);
+  this->~ObjCMessageExpr();
+  C.Deallocate((void*) this);
+}
 
 bool ChooseExpr::isConditionTrue(ASTContext &C) const {
   return getCond()->EvaluateAsInt(C) != 0;

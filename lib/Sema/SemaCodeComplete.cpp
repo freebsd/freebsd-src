@@ -2196,13 +2196,15 @@ void Sema::CodeCompleteCase(Scope *S) {
 namespace {
   struct IsBetterOverloadCandidate {
     Sema &S;
+    SourceLocation Loc;
     
   public:
-    explicit IsBetterOverloadCandidate(Sema &S) : S(S) { }
+    explicit IsBetterOverloadCandidate(Sema &S, SourceLocation Loc)
+      : S(S), Loc(Loc) { }
     
     bool 
     operator()(const OverloadCandidate &X, const OverloadCandidate &Y) const {
-      return S.isBetterOverloadCandidate(X, Y);
+      return S.isBetterOverloadCandidate(X, Y, Loc);
     }
   };
 }
@@ -2228,7 +2230,8 @@ void Sema::CodeCompleteCall(Scope *S, ExprTy *FnIn,
   }
 
   // Build an overload candidate set based on the functions we find.
-  OverloadCandidateSet CandidateSet;
+  SourceLocation Loc = Fn->getExprLoc();
+  OverloadCandidateSet CandidateSet(Loc);
 
   // FIXME: What if we're calling something that isn't a function declaration?
   // FIXME: What if we're calling a pseudo-destructor?
@@ -2247,7 +2250,8 @@ void Sema::CodeCompleteCall(Scope *S, ExprTy *FnIn,
       if (!FDecl->getType()->getAs<FunctionProtoType>())
         Results.push_back(ResultCandidate(FDecl));
       else
-        AddOverloadCandidate(FDecl, Args, NumArgs, CandidateSet,
+        // FIXME: access?
+        AddOverloadCandidate(FDecl, AS_none, Args, NumArgs, CandidateSet,
                              false, false, /*PartialOverloading*/ true);
     }
   }
@@ -2255,7 +2259,7 @@ void Sema::CodeCompleteCall(Scope *S, ExprTy *FnIn,
   if (!CandidateSet.empty()) {
     // Sort the overload candidate set by placing the best overloads first.
     std::stable_sort(CandidateSet.begin(), CandidateSet.end(),
-                     IsBetterOverloadCandidate(*this));
+                     IsBetterOverloadCandidate(*this, Loc));
   
     // Add the remaining viable overload candidates as code-completion reslults.
     for (OverloadCandidateSet::iterator Cand = CandidateSet.begin(),
@@ -2977,7 +2981,7 @@ void Sema::CodeCompleteObjCInstanceMessage(Scope *S, ExprTy *Receiver,
   
   // If necessary, apply function/array conversion to the receiver.
   // C99 6.7.5.3p[7,8].
-  DefaultFunctionArrayConversion(RecExpr);
+  DefaultFunctionArrayLvalueConversion(RecExpr);
   QualType ReceiverType = RecExpr->getType();
   
   if (ReceiverType->isObjCIdType() || ReceiverType->isBlockPointerType()) {

@@ -14,6 +14,8 @@
 let Component = "Parse" in {
 
 def w_asm_qualifier_ignored : Warning<"ignored %0 qualifier on asm">;
+def warn_file_asm_volatile : Warning<
+  "meaningless 'volatile' on asm outside function">;
 
 def ext_empty_source_file : Extension<"ISO C forbids an empty source file">;
 def ext_top_level_semi : Extension<
@@ -158,12 +160,20 @@ def err_typename_invalid_functionspec : Error<
   "type name does not allow function specifier to be specified">;
 def err_invalid_decl_spec_combination : Error<
   "cannot combine with previous '%0' declaration specifier">;
+def err_invalid_vector_decl_spec_combination : Error<
+  "cannot combine with previous '%0' declaration specifier. \"__vector\" must be first">;
+def err_invalid_pixel_decl_spec_combination : Error<
+  "\"__pixel\" must be preceded by \"__vector\".  '%0' declaration specifier not allowed here">;
+def err_invalid_vector_double_decl_spec_combination : Error<
+  "cannot use \"double\" with \"__vector\"">;
+def warn_vector_long_decl_spec_combination : Warning<
+  "Use of \"long\" with \"__vector\" is deprecated">;
 def err_friend_invalid_in_context : Error<
   "'friend' used outside of class">;
 def err_unknown_typename : Error<
   "unknown type name %0">;
 def err_use_of_tag_name_without_tag : Error<
-  "use of tagged type %0 without '%1' tag">;
+  "must use '%1' tag to refer to type %0%select{| in this scope}2">;
 def err_expected_ident_in_using : Error<
   "expected an identifier in using directive">;
 def err_unexected_colon_in_nested_name_spec : Error<
@@ -303,6 +313,9 @@ def err_out_of_line_type_names_constructor : Error<
 
 def err_expected_qualified_after_typename : Error<
   "expected a qualified name after 'typename'">;
+def err_expected_semi_after_tagdecl : Error<
+  "expected ';' after %0">;
+
 def err_typename_refers_to_non_type_template : Error<
   "typename specifier refers to a non-template">;
 def err_expected_type_name_after_typename : Error<

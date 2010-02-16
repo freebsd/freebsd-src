@@ -33,12 +33,19 @@ using namespace CodeGen;
 
 // FIXME: Use iterator and sidestep silly type array creation.
 
+static unsigned ClangCallConvToLLVMCallConv(CallingConv CC) {
+  switch (CC) {
+  default: return llvm::CallingConv::C;
+  case CC_X86StdCall: return llvm::CallingConv::X86_StdCall;
+  case CC_X86FastCall: return llvm::CallingConv::X86_FastCall;
+  }
+}
+
 const
 CGFunctionInfo &CodeGenTypes::getFunctionInfo(const FunctionNoProtoType *FTNP) {
-  // FIXME: Set calling convention correctly, it needs to be associated with the
-  // type somehow.
   return getFunctionInfo(FTNP->getResultType(),
-                         llvm::SmallVector<QualType, 16>(), 0);
+                         llvm::SmallVector<QualType, 16>(),
+                         FTNP->getCallConv(), FTNP->getNoReturnAttr());
 }
 
 const
@@ -47,20 +54,19 @@ CGFunctionInfo &CodeGenTypes::getFunctionInfo(const FunctionProtoType *FTP) {
   // FIXME: Kill copy.
   for (unsigned i = 0, e = FTP->getNumArgs(); i != e; ++i)
     ArgTys.push_back(FTP->getArgType(i));
-  // FIXME: Set calling convention correctly, it needs to be associated with the
-  // type somehow.
-  return getFunctionInfo(FTP->getResultType(), ArgTys, 0);
+  return getFunctionInfo(FTP->getResultType(), ArgTys,
+                         FTP->getCallConv(), FTP->getNoReturnAttr());
 }
 
-static unsigned getCallingConventionForDecl(const Decl *D) {
+static CallingConv getCallingConventionForDecl(const Decl *D) {
   // Set the appropriate calling convention for the Function.
   if (D->hasAttr<StdCallAttr>())
-    return llvm::CallingConv::X86_StdCall;
+    return CC_X86StdCall;
 
   if (D->hasAttr<FastCallAttr>())
-    return llvm::CallingConv::X86_FastCall;
+    return CC_X86FastCall;
 
-  return llvm::CallingConv::C;
+  return CC_C;
 }
 
 const CGFunctionInfo &CodeGenTypes::getFunctionInfo(const CXXRecordDecl *RD,
@@ -75,7 +81,8 @@ const CGFunctionInfo &CodeGenTypes::getFunctionInfo(const CXXRecordDecl *RD,
   
   // FIXME: Set calling convention correctly, it needs to be associated with the
   // type somehow.
-  return getFunctionInfo(FTP->getResultType(), ArgTys, 0);
+  return getFunctionInfo(FTP->getResultType(), ArgTys,
+                         FTP->getCallConv(), FTP->getNoReturnAttr());
 }
 
 const CGFunctionInfo &CodeGenTypes::getFunctionInfo(const CXXMethodDecl *MD) {
@@ -87,8 +94,8 @@ const CGFunctionInfo &CodeGenTypes::getFunctionInfo(const CXXMethodDecl *MD) {
   const FunctionProtoType *FTP = MD->getType()->getAs<FunctionProtoType>();
   for (unsigned i = 0, e = FTP->getNumArgs(); i != e; ++i)
     ArgTys.push_back(FTP->getArgType(i));
-  return getFunctionInfo(FTP->getResultType(), ArgTys,
-                         getCallingConventionForDecl(MD));
+  return getFunctionInfo(FTP->getResultType(), ArgTys, FTP->getCallConv(),
+                         FTP->getNoReturnAttr());
 }
 
 const CGFunctionInfo &CodeGenTypes::getFunctionInfo(const CXXConstructorDecl *D, 
@@ -105,8 +112,8 @@ const CGFunctionInfo &CodeGenTypes::getFunctionInfo(const CXXConstructorDecl *D,
   const FunctionProtoType *FTP = D->getType()->getAs<FunctionProtoType>();
   for (unsigned i = 0, e = FTP->getNumArgs(); i != e; ++i)
     ArgTys.push_back(FTP->getArgType(i));
-  return getFunctionInfo(FTP->getResultType(), ArgTys,
-                         getCallingConventionForDecl(D));
+  return getFunctionInfo(FTP->getResultType(), ArgTys, FTP->getCallConv(),
+                         FTP->getNoReturnAttr());
 }
 
 const CGFunctionInfo &CodeGenTypes::getFunctionInfo(const CXXDestructorDecl *D,
@@ -123,8 +130,8 @@ const CGFunctionInfo &CodeGenTypes::getFunctionInfo(const CXXDestructorDecl *D,
   const FunctionProtoType *FTP = D->getType()->getAs<FunctionProtoType>();
   for (unsigned i = 0, e = FTP->getNumArgs(); i != e; ++i)
     ArgTys.push_back(FTP->getArgType(i));
-  return getFunctionInfo(FTP->getResultType(), ArgTys,
-                         getCallingConventionForDecl(D));
+  return getFunctionInfo(FTP->getResultType(), ArgTys, FTP->getCallConv(),
+                         FTP->getNoReturnAttr());
 }
 
 const CGFunctionInfo &CodeGenTypes::getFunctionInfo(const FunctionDecl *FD) {
@@ -132,19 +139,19 @@ const CGFunctionInfo &CodeGenTypes::getFunctionInfo(const FunctionDecl *FD) {
     if (MD->isInstance())
       return getFunctionInfo(MD);
 
-  unsigned CallingConvention = getCallingConventionForDecl(FD);
   const FunctionType *FTy = FD->getType()->getAs<FunctionType>();
   if (const FunctionNoProtoType *FNTP = dyn_cast<FunctionNoProtoType>(FTy))
     return getFunctionInfo(FNTP->getResultType(), 
                            llvm::SmallVector<QualType, 16>(),
-                           CallingConvention);
+                           FNTP->getCallConv(), FNTP->getNoReturnAttr());
   
   const FunctionProtoType *FPT = cast<FunctionProtoType>(FTy);
   llvm::SmallVector<QualType, 16> ArgTys;
   // FIXME: Kill copy.
   for (unsigned i = 0, e = FPT->getNumArgs(); i != e; ++i)
     ArgTys.push_back(FPT->getArgType(i));
-  return getFunctionInfo(FPT->getResultType(), ArgTys, CallingConvention);
+  return getFunctionInfo(FPT->getResultType(), ArgTys,
+                         FPT->getCallConv(), FPT->getNoReturnAttr());
 }
 
 const CGFunctionInfo &CodeGenTypes::getFunctionInfo(const ObjCMethodDecl *MD) {
@@ -156,37 +163,56 @@ const CGFunctionInfo &CodeGenTypes::getFunctionInfo(const ObjCMethodDecl *MD) {
          e = MD->param_end(); i != e; ++i)
     ArgTys.push_back((*i)->getType());
   return getFunctionInfo(MD->getResultType(), ArgTys,
-                         getCallingConventionForDecl(MD));
+                         getCallingConventionForDecl(MD),
+                         /*NoReturn*/ false);
+}
+
+const CGFunctionInfo &CodeGenTypes::getFunctionInfo(GlobalDecl GD) {
+  // FIXME: Do we need to handle ObjCMethodDecl?
+  const FunctionDecl *FD = cast<FunctionDecl>(GD.getDecl());
+                                              
+  if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(FD))
+    return getFunctionInfo(CD, GD.getCtorType());
+
+  if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(FD))
+    return getFunctionInfo(DD, GD.getDtorType());
+  
+  return getFunctionInfo(FD);
 }
 
 const CGFunctionInfo &CodeGenTypes::getFunctionInfo(QualType ResTy,
                                                     const CallArgList &Args,
-                                                    unsigned CallingConvention){
+                                                    CallingConv CC,
+                                                    bool NoReturn) {
   // FIXME: Kill copy.
   llvm::SmallVector<QualType, 16> ArgTys;
   for (CallArgList::const_iterator i = Args.begin(), e = Args.end();
        i != e; ++i)
     ArgTys.push_back(i->second);
-  return getFunctionInfo(ResTy, ArgTys, CallingConvention);
+  return getFunctionInfo(ResTy, ArgTys, CC, NoReturn);
 }
 
 const CGFunctionInfo &CodeGenTypes::getFunctionInfo(QualType ResTy,
                                                     const FunctionArgList &Args,
-                                                    unsigned CallingConvention){
+                                                    CallingConv CC,
+                                                    bool NoReturn) {
   // FIXME: Kill copy.
   llvm::SmallVector<QualType, 16> ArgTys;
   for (FunctionArgList::const_iterator i = Args.begin(), e = Args.end();
        i != e; ++i)
     ArgTys.push_back(i->second);
-  return getFunctionInfo(ResTy, ArgTys, CallingConvention);
+  return getFunctionInfo(ResTy, ArgTys, CC, NoReturn);
 }
 
 const CGFunctionInfo &CodeGenTypes::getFunctionInfo(QualType ResTy,
                                   const llvm::SmallVector<QualType, 16> &ArgTys,
-                                                    unsigned CallingConvention){
+                                                    CallingConv CallConv,
+                                                    bool NoReturn) {
+  unsigned CC = ClangCallConvToLLVMCallConv(CallConv);
+
   // Lookup or create unique function info.
   llvm::FoldingSetNodeID ID;
-  CGFunctionInfo::Profile(ID, CallingConvention, ResTy,
+  CGFunctionInfo::Profile(ID, CC, NoReturn, ResTy,
                           ArgTys.begin(), ArgTys.end());
 
   void *InsertPos = 0;
@@ -195,7 +221,7 @@ const CGFunctionInfo &CodeGenTypes::getFunctionInfo(QualType ResTy,
     return *FI;
 
   // Construct the function info.
-  FI = new CGFunctionInfo(CallingConvention, ResTy, ArgTys);
+  FI = new CGFunctionInfo(CC, NoReturn, ResTy, ArgTys);
   FunctionInfos.InsertNode(FI, InsertPos);
 
   // Compute ABI information.
@@ -205,10 +231,12 @@ const CGFunctionInfo &CodeGenTypes::getFunctionInfo(QualType ResTy,
 }
 
 CGFunctionInfo::CGFunctionInfo(unsigned _CallingConvention,
+                               bool _NoReturn,
                                QualType ResTy,
                                const llvm::SmallVector<QualType, 16> &ArgTys) 
   : CallingConvention(_CallingConvention),
-    EffectiveCallingConvention(_CallingConvention)
+    EffectiveCallingConvention(_CallingConvention),
+    NoReturn(_NoReturn)
 {
   NumArgs = ArgTys.size();
   Args = new ArgInfo[1 + NumArgs];
@@ -258,7 +286,7 @@ CodeGenFunction::ExpandTypeFromArgs(QualType Ty, LValue LV,
     QualType FT = FD->getType();
 
     // FIXME: What are the right qualifiers here?
-    LValue LV = EmitLValueForField(Addr, FD, false, 0);
+    LValue LV = EmitLValueForField(Addr, FD, 0);
     if (CodeGenFunction::hasAggregateLLVMType(FT)) {
       AI = ExpandTypeFromArgs(FT, LV, AI);
     } else {
@@ -285,7 +313,7 @@ CodeGenFunction::ExpandTypeToArgs(QualType Ty, RValue RV,
     QualType FT = FD->getType();
 
     // FIXME: What are the right qualifiers here?
-    LValue LV = EmitLValueForField(Addr, FD, false, 0);
+    LValue LV = EmitLValueForField(Addr, FD, 0);
     if (CodeGenFunction::hasAggregateLLVMType(FT)) {
       ExpandTypeToArgs(FT, RValue::getAggregate(LV.getAddress()), Args);
     } else {
@@ -490,6 +518,9 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
 
   CallingConv = FI.getEffectiveCallingConvention();
 
+  if (FI.isNoReturn())
+    FuncAttrs |= llvm::Attribute::NoReturn;
+
   // FIXME: handle sseregparm someday...
   if (TargetDecl) {
     if (TargetDecl->hasAttr<NoThrowAttr>())
@@ -685,7 +716,7 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
         // Create a temporary alloca to hold the argument; the rest of
         // codegen expects to access aggregates & complex values by
         // reference.
-        V = CreateTempAlloca(ConvertTypeForMem(Ty));
+        V = CreateMemTemp(Ty);
         Builder.CreateStore(AI, V);
       } else {
         if (!getContext().typesAreCompatible(Ty, Arg->getType())) {
@@ -702,8 +733,7 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
       // If this structure was expanded into multiple arguments then
       // we need to create a temporary and reconstruct it from the
       // arguments.
-      llvm::Value *Temp = CreateTempAlloca(ConvertTypeForMem(Ty),
-                                           Arg->getName() + ".addr");
+      llvm::Value *Temp = CreateMemTemp(Ty, Arg->getName() + ".addr");
       // FIXME: What are the right qualifiers here?
       llvm::Function::arg_iterator End =
         ExpandTypeFromArgs(Ty, LValue::MakeAddr(Temp, Qualifiers()), AI);
@@ -719,7 +749,7 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
     case ABIArgInfo::Ignore:
       // Initialize the local variable appropriately.
       if (hasAggregateLLVMType(Ty)) {
-        EmitParmDecl(*Arg, CreateTempAlloca(ConvertTypeForMem(Ty)));
+        EmitParmDecl(*Arg, CreateMemTemp(Ty));
       } else {
         EmitParmDecl(*Arg, llvm::UndefValue::get(ConvertType(Arg->getType())));
       }
@@ -732,7 +762,7 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
       // FIXME: This is very wasteful; EmitParmDecl is just going to drop the
       // result in a new alloca anyway, so we could just store into that
       // directly if we broke the abstraction down more.
-      llvm::Value *V = CreateTempAlloca(ConvertTypeForMem(Ty), "coerce");
+      llvm::Value *V = CreateMemTemp(Ty, "coerce");
       CreateCoercedStore(AI, V, /*DestIsVolatile=*/false, *this);
       // Match to what EmitParmDecl is expecting for this type.
       if (!CodeGenFunction::hasAggregateLLVMType(Ty)) {
@@ -803,7 +833,7 @@ void CodeGenFunction::EmitFunctionEpilog(const CGFunctionInfo &FI,
 
 RValue CodeGenFunction::EmitCallArg(const Expr *E, QualType ArgType) {
   if (ArgType->isReferenceType())
-    return EmitReferenceBindingToExpr(E, ArgType);
+    return EmitReferenceBindingToExpr(E);
 
   return EmitAnyExprToTemp(E);
 }
@@ -827,7 +857,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   if (CGM.ReturnTypeUsesSret(CallInfo)) {
     llvm::Value *Value = ReturnValue.getValue();
     if (!Value)
-      Value = CreateTempAlloca(ConvertTypeForMem(RetTy));
+      Value = CreateMemTemp(RetTy);
     Args.push_back(Value);
   }
 
@@ -843,7 +873,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
     case ABIArgInfo::Indirect:
       if (RV.isScalar() || RV.isComplex()) {
         // Make a temporary alloca to pass the argument.
-        Args.push_back(CreateTempAlloca(ConvertTypeForMem(I->second)));
+        Args.push_back(CreateMemTemp(I->second));
         if (RV.isScalar())
           EmitStoreOfScalar(RV.getScalarVal(), Args.back(), false, I->second);
         else
@@ -874,10 +904,10 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
       // FIXME: Avoid the conversion through memory if possible.
       llvm::Value *SrcPtr;
       if (RV.isScalar()) {
-        SrcPtr = CreateTempAlloca(ConvertTypeForMem(I->second), "coerce");
+        SrcPtr = CreateMemTemp(I->second, "coerce");
         EmitStoreOfScalar(RV.getScalarVal(), SrcPtr, false, I->second);
       } else if (RV.isComplex()) {
-        SrcPtr = CreateTempAlloca(ConvertTypeForMem(I->second), "coerce");
+        SrcPtr = CreateMemTemp(I->second, "coerce");
         StoreComplexToAddr(RV.getComplexVal(), SrcPtr, false);
       } else
         SrcPtr = RV.getAggregateAddr();
@@ -982,7 +1012,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
       bool DestIsVolatile = ReturnValue.isVolatile();
 
       if (!DestPtr) {
-        DestPtr = CreateTempAlloca(ConvertTypeForMem(RetTy), "agg.tmp");
+        DestPtr = CreateMemTemp(RetTy, "agg.tmp");
         DestIsVolatile = false;
       }
       Builder.CreateStore(CI, DestPtr, DestIsVolatile);
@@ -1000,7 +1030,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
     bool DestIsVolatile = ReturnValue.isVolatile();
     
     if (!DestPtr) {
-      DestPtr = CreateTempAlloca(ConvertTypeForMem(RetTy), "coerce");
+      DestPtr = CreateMemTemp(RetTy, "coerce");
       DestIsVolatile = false;
     }
     
