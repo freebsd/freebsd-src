@@ -1,7 +1,8 @@
 /*-
  * Copyright (c) 2009-2010
  * 	Swinburne University of Technology, Melbourne, Australia
-* All rights reserved.
+ * Copyright (c) 2010 Lawrence Stewart <lstewart@freebsd.org>
+ * All rights reserved.
  *
  * This software was developed at the Centre for Advanced Internet
  * Architectures, Swinburne University, by David Hayes and Lawrence Stewart,
@@ -85,10 +86,6 @@ struct txseginfo {
 	/* flags for operation */
 	u_int flags;
 };
-/* txseginfo flags */
-#define TXSI_TSO               0x01 /* TSO was used for this entry */
-#define TXSI_RTT_MEASURE_START 0x02 /* a rate measure starts here based on this txsi's rtt */
-#define TXSI_RX_MEASURE_END    0x04 /* measure the received rate until this txsi */
 
 /* txseginfo flags */
 #define TXSI_TSO               0x01 /* TSO was used for this entry */
@@ -322,7 +319,7 @@ ertt_mod_init(void)
 	int ret;
 
 	V_txseginfo_zone = uma_zcreate("txseginfo", sizeof(struct txseginfo),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, 0, 0);
 
 	ret = register_hhook(HHOOK_TYPE_TCP, HHOOK_TCP_ESTABLISHED_IN,
 	    &ertt_helper, &ertt_packet_measurement_hook, NULL, HHOOK_WAITOK);
@@ -377,7 +374,6 @@ ertt_uma_dtor(void *mem, int size, void *arg)
 		uma_zfree(V_txseginfo_zone, txsi);
 		txsi = n_txsi;
 	}
-
 }
 
 DECLARE_HELPER_UMA(ertt, &ertt_helper, 1, sizeof(struct ertt), ertt_uma_ctor, ertt_uma_dtor);
