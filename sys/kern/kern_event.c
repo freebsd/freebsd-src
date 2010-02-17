@@ -323,8 +323,10 @@ filt_procattach(struct knote *kn)
 
 	if (p == NULL)
 		return (ESRCH);
-	if ((error = p_cansee(curthread, p)))
+	if ((error = p_cansee(curthread, p))) {
+		PROC_UNLOCK(p);
 		return (error);
+	}
 
 	kn->kn_ptr.p_proc = p;
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
