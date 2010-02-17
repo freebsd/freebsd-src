@@ -2642,7 +2642,7 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
 
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nodefaultlibs)) {
-    if (getToolChain().getDriver().CCCIsCXX) {
+    if (D.CCCIsCXX) {
       CmdArgs.push_back("-lstdc++");
       CmdArgs.push_back("-lm");
     }
