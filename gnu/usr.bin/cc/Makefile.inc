@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+CC:=${CC:C/^cc|^clang/gcc/}
+
 .include "../Makefile.inc"
 
 # Sometimes this is .include'd several times...
