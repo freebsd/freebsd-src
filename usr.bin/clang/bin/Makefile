@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	clang \
-	clang-cc
+SUBDIR=	clang
 
 .include <bsd.subdir.mk>

@@ -3,16 +3,21 @@
 PROG_CXX=tblgen
 
 SRCDIR=	utils/TableGen
-SRCS=	AsmMatcherEmitter.cpp AsmWriterEmitter.cpp CallingConvEmitter.cpp \
+SRCS=	AsmMatcherEmitter.cpp AsmWriterEmitter.cpp AsmWriterInst.cpp \
+	CallingConvEmitter.cpp \
 	ClangDiagnosticsEmitter.cpp CodeEmitterGen.cpp \
 	CodeGenDAGPatterns.cpp CodeGenInstruction.cpp \
-	CodeGenTarget.cpp DAGISelEmitter.cpp FastISelEmitter.cpp \
+	CodeGenTarget.cpp DAGISelEmitter.cpp DAGISelMatcher.cpp \
+	DAGISelMatcherEmitter.cpp DAGISelMatcherGen.cpp DisassemblerEmitter.cpp \
+	EDEmitter.cpp FastISelEmitter.cpp \
 	InstrEnumEmitter.cpp InstrInfoEmitter.cpp IntrinsicEmitter.cpp \
 	LLVMCConfigurationEmitter.cpp OptParserEmitter.cpp Record.cpp \
 	RegisterInfoEmitter.cpp SubtargetEmitter.cpp TGLexer.cpp \
-	TGParser.cpp TGValueTypes.cpp TableGen.cpp TableGenBackend.cpp
+	TGParser.cpp TGValueTypes.cpp TableGen.cpp TableGenBackend.cpp \
+	X86DisassemblerTables.cpp X86RecognizableInstr.cpp
 
 NO_MAN=
 LIBDEPS=llvmsupport llvmsystem
+REQUIRES_RTTI=yo
 
 .include "../../clang.prog.mk"

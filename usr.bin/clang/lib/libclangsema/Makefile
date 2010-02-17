@@ -11,8 +11,9 @@ SRCS=	CodeCompleteConsumer.cpp IdentifierResolver.cpp \
 	SemaExceptionSpec.cpp SemaExpr.cpp SemaExprCXX.cpp SemaExprObjC.cpp \
 	SemaInit.cpp SemaLookup.cpp SemaOverload.cpp SemaStmt.cpp \
 	SemaTemplate.cpp SemaTemplateDeduction.cpp SemaTemplateInstantiate.cpp \
-	SemaTemplateInstantiateDecl.cpp SemaTemplateInstantiate.cpp SemaType.cpp
+	SemaTemplateInstantiateDecl.cpp SemaTemplateInstantiate.cpp SemaType.cpp \
+	TargetAttributesSema.cpp
 
-TGHDRS=	DiagnosticCommonKinds DiagnosticSemaKinds DiagnosticParseKinds
+TGHDRS=	DiagnosticASTKinds DiagnosticCommonKinds DiagnosticSemaKinds DiagnosticParseKinds
 
 .include "../../clang.lib.mk"

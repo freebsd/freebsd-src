@@ -15,8 +15,19 @@ LINKS=	${BINDIR}/clang ${BINDIR}/cc \
 	${BINDIR}/clang ${BINDIR}/clang++
 .endif
 
-TGHDRS=	DiagnosticCommonKinds DiagnosticDriverKinds CC1Options
-LIBDEPS=clangdriver clangfrontend clanglex clangbasic \
-	llvmbitreader llvmbitwriter llvmsupport llvmsystem
+TGHDRS=	DiagnosticCommonKinds DiagnosticDriverKinds \
+	DiagnosticFrontendKinds \
+	DiagnosticLexKinds DiagnosticSemaKinds CC1Options
+LIBDEPS=clangfrontend clangdriver clangcodegen clangsema clangchecker \
+	clanganalysis clangrewrite clangast clangparse clanglex clangbasic \
+	\
+	llvminstcombine \
+	llvmipo llvmbitwriter llvmbitreader llvmpowerpccodegen \
+	llvmpowerpcasmprinter llvmpowerpcinfo llvmx86asmparser \
+	llvmx86asmprinter llvmx86codegen llvmx86info llvmmipsasmprinter \
+	llvmmipscodegen llvmmipsinfo llvmarmasmparser llvmarmasmprinter \
+	llvmarmcodegen llvmselectiondag llvmasmprinter llvmcodegen \
+	llvmscalaropts llvmtransformutils llvmipa llvmanalysis llvmtarget \
+	llvmmc llvmcore llvmarminfo llvmsupport llvmsystem
 
 .include "../../clang.prog.mk"

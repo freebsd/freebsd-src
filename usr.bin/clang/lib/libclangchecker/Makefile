@@ -1,0 +1,35 @@
+# $FreeBSD$
+
+LIB=	clangchecker
+
+SRCDIR=	tools/clang/lib/Checker
+SRCS=	AdjustedReturnValueChecker.cpp ArrayBoundChecker.cpp \
+	AttrNonNullChecker.cpp BasicConstraintManager.cpp \
+	BasicObjCFoundationChecks.cpp BasicStore.cpp BasicValueFactory.cpp \
+	BugReporter.cpp BugReporterVisitors.cpp BuiltinFunctionChecker.cpp \
+	CFRefCount.cpp CallAndMessageChecker.cpp CallInliner.cpp \
+	CastToStructChecker.cpp CheckDeadStores.cpp CheckObjCDealloc.cpp \
+	CheckObjCInstMethSignature.cpp CheckObjCUnusedIVars.cpp \
+	CheckSecuritySyntaxOnly.cpp CheckSizeofPointer.cpp Checker.cpp \
+	CocoaConventions.cpp \
+	DereferenceChecker.cpp DivZeroChecker.cpp Environment.cpp \
+	ExplodedGraph.cpp FixedAddressChecker.cpp FlatStore.cpp \
+	GRBlockCounter.cpp GRCoreEngine.cpp GRExprEngine.cpp \
+	GRExprEngineExperimentalChecks.cpp \
+	GRState.cpp LLVMConventionsChecker.cpp MallocChecker.cpp \
+	ManagerRegistry.cpp MemRegion.cpp \
+	NSAutoreleasePoolChecker.cpp NSErrorChecker.cpp \
+	NoReturnFunctionChecker.cpp OSAtomicChecker.cpp PathDiagnostic.cpp \
+	PointerArithChecker.cpp \
+	PointerSubChecker.cpp PthreadLockChecker.cpp \
+	RangeConstraintManager.cpp RegionStore.cpp ReturnPointerRangeChecker.cpp \
+	ReturnStackAddressChecker.cpp ReturnUndefChecker.cpp SVals.cpp \
+	SValuator.cpp \
+	SimpleConstraintManager.cpp SimpleSValuator.cpp Store.cpp \
+	SymbolManager.cpp UndefBranchChecker.cpp UndefCapturedBlockVarChecker.cpp \
+	UndefResultChecker.cpp UndefinedArraySubscriptChecker.cpp \
+	UndefinedAssignmentChecker.cpp VLASizeChecker.cpp ValueManager.cpp
+
+TGHDRS=	DiagnosticAnalysisKinds DiagnosticCommonKinds
+
+.include "../../clang.lib.mk"

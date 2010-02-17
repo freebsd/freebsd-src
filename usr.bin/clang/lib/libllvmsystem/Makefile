@@ -8,4 +8,6 @@ SRCS=	Alarm.cpp Atomic.cpp Disassembler.cpp DynamicLibrary.cpp Errno.cpp \
 	Process.cpp Program.cpp RWMutex.cpp Signals.cpp \
 	ThreadLocal.cpp Threading.cpp TimeValue.cpp
 
+REQUIRES_RTTI=yo
+
 .include "../../clang.lib.mk"

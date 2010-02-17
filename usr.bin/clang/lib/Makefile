@@ -3,6 +3,7 @@
 SUBDIR=	libclanganalysis \
 	libclangast \
 	libclangbasic \
+	libclangchecker \
 	libclangcodegen \
 	libclangdriver \
 	libclangfrontend \
@@ -15,10 +16,12 @@ SUBDIR=	libclanganalysis \
 	libllvmbitreader \
 	libllvmbitwriter \
 	libllvmcodegen \
+	libllvminstcombine \
 	libllvmcore \
 	libllvmipa \
 	libllvmipo \
 	libllvmmc \
+	libllvmmcparser \
 	libllvmscalaropts \
 	libllvmselectiondag \
 	libllvmsupport \

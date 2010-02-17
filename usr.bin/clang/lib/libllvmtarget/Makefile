@@ -3,10 +3,10 @@
 LIB=	llvmtarget
 
 SRCDIR=	lib/Target
-SRCS=	SubtargetFeature.cpp Target.cpp \
+SRCS=	Mangler.cpp SubtargetFeature.cpp Target.cpp TargetAsmLexer.cpp \
 	TargetData.cpp TargetELFWriterInfo.cpp TargetFrameInfo.cpp \
 	TargetInstrInfo.cpp TargetIntrinsicInfo.cpp \
-	TargetLoweringObjectFile.cpp TargetMachOWriterInfo.cpp \
+	TargetLoweringObjectFile.cpp \
 	TargetMachine.cpp TargetRegisterInfo.cpp \
 	TargetSubtarget.cpp
 

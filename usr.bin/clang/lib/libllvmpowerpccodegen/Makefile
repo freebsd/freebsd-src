@@ -6,7 +6,7 @@ SRCDIR=	lib/Target/PowerPC
 SRCS=	PPCBranchSelector.cpp PPCCodeEmitter.cpp \
 	PPCHazardRecognizers.cpp PPCISelDAGToDAG.cpp \
 	PPCISelLowering.cpp PPCInstrInfo.cpp PPCJITInfo.cpp \
-	PPCMCAsmInfo.cpp PPCMachOWriterInfo.cpp PPCPredicates.cpp \
+	PPCMCAsmInfo.cpp PPCPredicates.cpp \
 	PPCRegisterInfo.cpp PPCSubtarget.cpp PPCTargetMachine.cpp
 
 TGHDRS=	Intrinsics PPCGenCallingConv PPCGenCodeEmitter PPCGenDAGISel \

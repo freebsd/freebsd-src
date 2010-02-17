@@ -12,7 +12,8 @@ SRCS=	AliasAnalysis.cpp AliasAnalysisCounter.cpp \
 	InstCount.cpp Interval.cpp IntervalPartition.cpp LazyValueInfo.cpp \
 	LibCallAliasAnalysis.cpp LibCallSemantics.cpp LiveValues.cpp \
 	LoopDependenceAnalysis.cpp LoopInfo.cpp LoopPass.cpp \
-	MemoryBuiltins.cpp MemoryDependenceAnalysis.cpp PointerTracking.cpp \
+	MemoryBuiltins.cpp MemoryDependenceAnalysis.cpp PHITransAddr.cpp \
+	PointerTracking.cpp \
 	PostDominators.cpp ProfileEstimatorPass.cpp ProfileInfo.cpp \
 	ProfileInfoLoader.cpp ProfileInfoLoaderPass.cpp \
 	ProfileVerifierPass.cpp ScalarEvolution.cpp \
