@@ -5,26 +5,21 @@
 
 # XXX MISSING:		icheck ncheck
 
-SUBDIR=	adjkerntz \
+_SUBDIR=adjkerntz \
 	atacontrol \
-	${_atm} \
 	badsect \
-	${_bsdlabel} \
 	camcontrol \
 	ccdconfig \
 	clri \
 	comcontrol \
 	conscontrol \
 	ddb \
-	${_devd} \
 	devfs \
 	dhclient \
 	dmesg \
 	dump \
 	dumpfs \
 	dumpon \
-	${_fdisk} \
-	${_fdisk_pc98} \
 	ffsinfo \
 	fsck \
 	fsck_ffs \
@@ -38,15 +33,12 @@ SUBDIR=	adjkerntz \
 	gvinum \
 	ifconfig \
 	init \
-	${_ipf} \
-	${_ipfw} \
 	iscontrol \
 	kldconfig \
 	kldload \
 	kldstat \
 	kldunload \
 	ldconfig \
-	${_mca} \
 	md5 \
 	mdconfig \
 	mdmfs \
@@ -60,96 +52,62 @@ SUBDIR=	adjkerntz \
 	mount_nullfs \
 	mount_udf \
 	mount_unionfs \
-	${_natd} \
 	newfs \
 	newfs_msdos \
 	nfsiod \
 	nos-tun \
-	${_pfctl} \
-	${_pflogd} \
 	ping \
-	${_ping6} \
-	${_quotacheck} \
 	rcorder \
 	reboot \
 	recoverdisk \
 	restore \
 	route \
-	${_routed} \
-	${_rtsol} \
 	savecore \
-	${_sconfig} \
 	setkey \
 	shutdown \
 	spppcontrol \
-	${_sunlabel} \
 	swapon \
 	sysctl \
 	tunefs \
 	umount \
 
 .if ${MK_ATM} != "no"
-_atm=		atm
+_SUBDIR += atm
 .endif
 
 .if ${MK_CXX} != "no"
-_devd=		devd
+_SUBDIR += devd
 .endif
 
 .if ${MK_IPFILTER} != "no"
-_ipf=		ipf
+_SUBDIR += ipf
 .endif
 
 .if ${MK_IPFW} != "no"
-_ipfw=		ipfw
-_natd=		natd
+_SUBDIR += ipfw
+_SUBDIR += natd
 .endif
 
 .if ${MK_PF} != "no"
-_pfctl=		pfctl
-_pflogd=	pflogd
+_SUBDIR += pfctl
+_SUBDIR += pflogd
 .endif
 
 .if ${MK_INET6} != "no"
-_ping6=		ping6
-_rtsol=		rtsol
-.endif
-
-.if ${MACHINE_CPUARCH} != "ia64" && ${MACHINE_CPUARCH} != "powerpc"
-_bsdlabel=	bsdlabel
+_SUBDIR += ping6
+_SUBDIR += rtsol
 .endif
 
 .if ${MK_QUOTAS} != "no"
-_quotacheck=	quotacheck
+_SUBDIR += quotacheck
 .endif
 
 .if ${MK_ROUTED} != "no"
-_routed=	routed
+_SUBDIR += routed
 .endif
 
-.if ${MACHINE_CPUARCH} == "i386"
-.if ${MACHINE} == "i386"
-_fdisk=		fdisk
-.elif ${MACHINE} == "pc98"
-_fdisk_pc98=	fdisk_pc98
-.endif
-_sconfig=	sconfig
-.endif
+.include <bsd.arch.inc.mk>
 
-.if ${MACHINE_CPUARCH} == "amd64"
-_fdisk=		fdisk
-.endif
-
-.if ${MACHINE_CPUARCH} == "arm"
-_fdisk=		fdisk
-.endif
-
-.if ${MACHINE_CPUARCH} == "ia64"
-_mca=		mca
-.endif
-
-.if ${MACHINE_CPUARCH} == "sparc64"
-_sunlabel=	sunlabel
-.endif
+SUBDIR=${_SUBDIR:O}
 
 .include <bsd.subdir.mk>
