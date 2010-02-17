@@ -41,6 +41,7 @@ namespace tools {
 
     virtual bool acceptsPipedInput() const { return true; }
     virtual bool canPipeOutput() const { return true; }
+    virtual bool hasIntegratedAssembler() const { return true; }
     virtual bool hasIntegratedCPP() const { return true; }
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
@@ -66,7 +67,8 @@ namespace gcc {
 
     /// RenderExtraToolArgs - Render any arguments necessary to force
     /// the particular tool mode.
-    virtual void RenderExtraToolArgs(ArgStringList &CmdArgs) const = 0;
+    virtual void RenderExtraToolArgs(const JobAction &JA,
+                                     ArgStringList &CmdArgs) const = 0;
   };
 
 
@@ -78,7 +80,8 @@ namespace gcc {
     virtual bool canPipeOutput() const { return true; }
     virtual bool hasIntegratedCPP() const { return false; }
 
-    virtual void RenderExtraToolArgs(ArgStringList &CmdArgs) const;
+    virtual void RenderExtraToolArgs(const JobAction &JA,
+                                     ArgStringList &CmdArgs) const;
   };
 
   class VISIBILITY_HIDDEN Precompile : public Common  {
@@ -89,7 +92,8 @@ namespace gcc {
     virtual bool canPipeOutput() const { return false; }
     virtual bool hasIntegratedCPP() const { return true; }
 
-    virtual void RenderExtraToolArgs(ArgStringList &CmdArgs) const;
+    virtual void RenderExtraToolArgs(const JobAction &JA,
+                                     ArgStringList &CmdArgs) const;
   };
 
   class VISIBILITY_HIDDEN Compile : public Common  {
@@ -100,7 +104,8 @@ namespace gcc {
     virtual bool canPipeOutput() const { return true; }
     virtual bool hasIntegratedCPP() const { return true; }
 
-    virtual void RenderExtraToolArgs(ArgStringList &CmdArgs) const;
+    virtual void RenderExtraToolArgs(const JobAction &JA,
+                                     ArgStringList &CmdArgs) const;
   };
 
   class VISIBILITY_HIDDEN Assemble : public Common  {
@@ -111,7 +116,8 @@ namespace gcc {
     virtual bool canPipeOutput() const { return false; }
     virtual bool hasIntegratedCPP() const { return false; }
 
-    virtual void RenderExtraToolArgs(ArgStringList &CmdArgs) const;
+    virtual void RenderExtraToolArgs(const JobAction &JA,
+                                     ArgStringList &CmdArgs) const;
   };
 
   class VISIBILITY_HIDDEN Link : public Common  {
@@ -122,7 +128,8 @@ namespace gcc {
     virtual bool canPipeOutput() const { return false; }
     virtual bool hasIntegratedCPP() const { return false; }
 
-    virtual void RenderExtraToolArgs(ArgStringList &CmdArgs) const;
+    virtual void RenderExtraToolArgs(const JobAction &JA,
+                                     ArgStringList &CmdArgs) const;
   };
 } // end namespace gcc
 
@@ -130,14 +137,13 @@ namespace darwin {
   class VISIBILITY_HIDDEN DarwinTool : public Tool {
   protected:
     void AddDarwinArch(const ArgList &Args, ArgStringList &CmdArgs) const;
-    void AddDarwinSubArch(const ArgList &Args, ArgStringList &CmdArgs) const;
 
     const toolchains::Darwin &getDarwinToolChain() const {
       return reinterpret_cast<const toolchains::Darwin&>(getToolChain());
     }
 
   public:
-    DarwinTool(const char *Name, const ToolChain &TC) : Tool(Name, TC) {};
+    DarwinTool(const char *Name, const ToolChain &TC) : Tool(Name, TC) {}
   };
 
   class VISIBILITY_HIDDEN CC1 : public DarwinTool  {

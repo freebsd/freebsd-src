@@ -86,10 +86,10 @@ namespace {
 
     void dump() {
       errs() << "MSP430ISelAddressMode " << this << '\n';
-      if (Base.Reg.getNode() != 0) {
+      if (BaseType == RegBase && Base.Reg.getNode() != 0) {
         errs() << "Base.Reg ";
         Base.Reg.getNode()->dump();
-      } else {
+      } else if (BaseType == FrameIndexBase) {
         errs() << " Base.FrameIndex " << Base.FrameIndex << '\n';
       }
       errs() << " Disp " << Disp << '\n';
@@ -133,8 +133,7 @@ namespace {
     bool MatchWrapper(SDValue N, MSP430ISelAddressMode &AM);
     bool MatchAddressBase(SDValue N, MSP430ISelAddressMode &AM);
 
-    bool IsLegalAndProfitableToFold(SDNode *N, SDNode *U,
-                                    SDNode *Root) const;
+    bool IsLegalToFold(SDValue N, SDNode *U, SDNode *Root) const;
 
     virtual bool
     SelectInlineAsmMemoryOperand(const SDValue &Op, char ConstraintCode,
@@ -146,12 +145,12 @@ namespace {
   private:
     DenseMap<SDNode*, SDNode*> RMWStores;
     void PreprocessForRMW();
-    SDNode *Select(SDValue Op);
-    SDNode *SelectIndexedLoad(SDValue Op);
-    SDNode *SelectIndexedBinOp(SDValue Op, SDValue N1, SDValue N2,
+    SDNode *Select(SDNode *N);
+    SDNode *SelectIndexedLoad(SDNode *Op);
+    SDNode *SelectIndexedBinOp(SDNode *Op, SDValue N1, SDValue N2,
                                unsigned Opc8, unsigned Opc16);
 
-    bool SelectAddr(SDValue Op, SDValue Addr, SDValue &Base, SDValue &Disp);
+    bool SelectAddr(SDNode *Op, SDValue Addr, SDValue &Base, SDValue &Disp);
 
   #ifndef NDEBUG
     unsigned Indent;
@@ -217,7 +216,6 @@ bool MSP430DAGToDAGISel::MatchAddressBase(SDValue N, MSP430ISelAddressMode &AM) 
 }
 
 bool MSP430DAGToDAGISel::MatchAddress(SDValue N, MSP430ISelAddressMode &AM) {
-  DebugLoc dl = N.getDebugLoc();
   DEBUG({
       errs() << "MatchAddress: ";
       AM.dump();
@@ -284,7 +282,7 @@ bool MSP430DAGToDAGISel::MatchAddress(SDValue N, MSP430ISelAddressMode &AM) {
 /// SelectAddr - returns true if it is able pattern match an addressing mode.
 /// It returns the operands which make up the maximal addressing mode it can
 /// match by reference.
-bool MSP430DAGToDAGISel::SelectAddr(SDValue Op, SDValue N,
+bool MSP430DAGToDAGISel::SelectAddr(SDNode *Op, SDValue N,
                                     SDValue &Base, SDValue &Disp) {
   MSP430ISelAddressMode AM;
 
@@ -312,8 +310,8 @@ bool MSP430DAGToDAGISel::SelectAddr(SDValue Op, SDValue N,
   else if (AM.JT != -1)
     Disp = CurDAG->getTargetJumpTable(AM.JT, MVT::i16, 0/*AM.SymbolFlags*/);
   else if (AM.BlockAddr)
-    Disp = CurDAG->getBlockAddress(AM.BlockAddr, DebugLoc()/*MVT::i32*/,
-                                   true /*AM.SymbolFlags*/);
+    Disp = CurDAG->getBlockAddress(AM.BlockAddr, MVT::i32,
+                                   true, 0/*AM.SymbolFlags*/);
   else
     Disp = CurDAG->getTargetConstant(AM.Disp, MVT::i16);
 
@@ -327,7 +325,7 @@ SelectInlineAsmMemoryOperand(const SDValue &Op, char ConstraintCode,
   switch (ConstraintCode) {
   default: return true;
   case 'm':   // memory
-    if (!SelectAddr(Op, Op, Op0, Op1))
+    if (!SelectAddr(Op.getNode(), Op, Op0, Op1))
       return true;
     break;
   }
@@ -337,8 +335,8 @@ SelectInlineAsmMemoryOperand(const SDValue &Op, char ConstraintCode,
   return false;
 }
 
-bool MSP430DAGToDAGISel::IsLegalAndProfitableToFold(SDNode *N, SDNode *U,
-                                                    SDNode *Root) const {
+bool MSP430DAGToDAGISel::IsLegalToFold(SDValue N, SDNode *U,
+                                       SDNode *Root) const {
   if (OptLevel == CodeGenOpt::None) return false;
 
   /// RMW preprocessing creates the following code:
@@ -365,11 +363,11 @@ bool MSP430DAGToDAGISel::IsLegalAndProfitableToFold(SDNode *N, SDNode *U,
   /// during preprocessing) to determine whether it's legal to introduce such
   /// "cycle" for a moment.
   DenseMap<SDNode*, SDNode*>::const_iterator I = RMWStores.find(Root);
-  if (I != RMWStores.end() && I->second == N)
+  if (I != RMWStores.end() && I->second == N.getNode())
     return true;
 
   // Proceed to 'generic' cycle finder code
-  return SelectionDAGISel::IsLegalAndProfitableToFold(N, U, Root);
+  return SelectionDAGISel::IsLegalToFold(N, U, Root);
 }
 
 
@@ -628,8 +626,8 @@ static bool isValidIndexedLoad(const LoadSDNode *LD) {
   return true;
 }
 
-SDNode *MSP430DAGToDAGISel::SelectIndexedLoad(SDValue Op) {
-  LoadSDNode *LD = cast<LoadSDNode>(Op);
+SDNode *MSP430DAGToDAGISel::SelectIndexedLoad(SDNode *N) {
+  LoadSDNode *LD = cast<LoadSDNode>(N);
   if (!isValidIndexedLoad(LD))
     return NULL;
 
@@ -647,17 +645,17 @@ SDNode *MSP430DAGToDAGISel::SelectIndexedLoad(SDValue Op) {
     return NULL;
   }
 
-   return CurDAG->getMachineNode(Opcode, Op.getDebugLoc(),
+   return CurDAG->getMachineNode(Opcode, N->getDebugLoc(),
                                  VT, MVT::i16, MVT::Other,
                                  LD->getBasePtr(), LD->getChain());
 }
 
-SDNode *MSP430DAGToDAGISel::SelectIndexedBinOp(SDValue Op,
+SDNode *MSP430DAGToDAGISel::SelectIndexedBinOp(SDNode *Op,
                                                SDValue N1, SDValue N2,
                                                unsigned Opc8, unsigned Opc16) {
   if (N1.getOpcode() == ISD::LOAD &&
       N1.hasOneUse() &&
-      IsLegalAndProfitableToFold(N1.getNode(), Op.getNode(), Op.getNode())) {
+      IsLegalToFold(N1, Op, Op)) {
     LoadSDNode *LD = cast<LoadSDNode>(N1);
     if (!isValidIndexedLoad(LD))
       return NULL;
@@ -668,7 +666,7 @@ SDNode *MSP430DAGToDAGISel::SelectIndexedBinOp(SDValue Op,
     MemRefs0[0] = cast<MemSDNode>(N1)->getMemOperand();
     SDValue Ops0[] = { N2, LD->getBasePtr(), LD->getChain() };
     SDNode *ResNode =
-      CurDAG->SelectNodeTo(Op.getNode(), Opc,
+      CurDAG->SelectNodeTo(Op, Opc,
                            VT, MVT::i16, MVT::Other,
                            Ops0, 3);
     cast<MachineSDNode>(ResNode)->setMemRefs(MemRefs0, MemRefs0 + 1);
@@ -708,9 +706,8 @@ void MSP430DAGToDAGISel::InstructionSelect() {
   RMWStores.clear();
 }
 
-SDNode *MSP430DAGToDAGISel::Select(SDValue Op) {
-  SDNode *Node = Op.getNode();
-  DebugLoc dl = Op.getDebugLoc();
+SDNode *MSP430DAGToDAGISel::Select(SDNode *Node) {
+  DebugLoc dl = Node->getDebugLoc();
 
   // Dump information about the Node being selected
   DEBUG(errs().indent(Indent) << "Selecting: ");
@@ -731,7 +728,7 @@ SDNode *MSP430DAGToDAGISel::Select(SDValue Op) {
   switch (Node->getOpcode()) {
   default: break;
   case ISD::FrameIndex: {
-    assert(Op.getValueType() == MVT::i16);
+    assert(Node->getValueType(0) == MVT::i16);
     int FI = cast<FrameIndexSDNode>(Node)->getIndex();
     SDValue TFI = CurDAG->getTargetFrameIndex(FI, MVT::i16);
     if (Node->hasOneUse())
@@ -741,18 +738,18 @@ SDNode *MSP430DAGToDAGISel::Select(SDValue Op) {
                                   TFI, CurDAG->getTargetConstant(0, MVT::i16));
   }
   case ISD::LOAD:
-    if (SDNode *ResNode = SelectIndexedLoad(Op))
+    if (SDNode *ResNode = SelectIndexedLoad(Node))
       return ResNode;
     // Other cases are autogenerated.
     break;
   case ISD::ADD:
     if (SDNode *ResNode =
-        SelectIndexedBinOp(Op,
-                           Op.getOperand(0), Op.getOperand(1),
+        SelectIndexedBinOp(Node,
+                           Node->getOperand(0), Node->getOperand(1),
                            MSP430::ADD8rm_POST, MSP430::ADD16rm_POST))
       return ResNode;
     else if (SDNode *ResNode =
-             SelectIndexedBinOp(Op, Op.getOperand(1), Op.getOperand(0),
+             SelectIndexedBinOp(Node, Node->getOperand(1), Node->getOperand(0),
                                 MSP430::ADD8rm_POST, MSP430::ADD16rm_POST))
       return ResNode;
 
@@ -760,8 +757,8 @@ SDNode *MSP430DAGToDAGISel::Select(SDValue Op) {
     break;
   case ISD::SUB:
     if (SDNode *ResNode =
-        SelectIndexedBinOp(Op,
-                           Op.getOperand(0), Op.getOperand(1),
+        SelectIndexedBinOp(Node,
+                           Node->getOperand(0), Node->getOperand(1),
                            MSP430::SUB8rm_POST, MSP430::SUB16rm_POST))
       return ResNode;
 
@@ -769,12 +766,12 @@ SDNode *MSP430DAGToDAGISel::Select(SDValue Op) {
     break;
   case ISD::AND:
     if (SDNode *ResNode =
-        SelectIndexedBinOp(Op,
-                           Op.getOperand(0), Op.getOperand(1),
+        SelectIndexedBinOp(Node,
+                           Node->getOperand(0), Node->getOperand(1),
                            MSP430::AND8rm_POST, MSP430::AND16rm_POST))
       return ResNode;
     else if (SDNode *ResNode =
-             SelectIndexedBinOp(Op, Op.getOperand(1), Op.getOperand(0),
+             SelectIndexedBinOp(Node, Node->getOperand(1), Node->getOperand(0),
                                 MSP430::AND8rm_POST, MSP430::AND16rm_POST))
       return ResNode;
 
@@ -782,12 +779,12 @@ SDNode *MSP430DAGToDAGISel::Select(SDValue Op) {
     break;
   case ISD::OR:
     if (SDNode *ResNode =
-        SelectIndexedBinOp(Op,
-                           Op.getOperand(0), Op.getOperand(1),
+        SelectIndexedBinOp(Node,
+                           Node->getOperand(0), Node->getOperand(1),
                            MSP430::OR8rm_POST, MSP430::OR16rm_POST))
       return ResNode;
     else if (SDNode *ResNode =
-             SelectIndexedBinOp(Op, Op.getOperand(1), Op.getOperand(0),
+             SelectIndexedBinOp(Node, Node->getOperand(1), Node->getOperand(0),
                                 MSP430::OR8rm_POST, MSP430::OR16rm_POST))
       return ResNode;
 
@@ -795,12 +792,12 @@ SDNode *MSP430DAGToDAGISel::Select(SDValue Op) {
     break;
   case ISD::XOR:
     if (SDNode *ResNode =
-        SelectIndexedBinOp(Op,
-                           Op.getOperand(0), Op.getOperand(1),
+        SelectIndexedBinOp(Node,
+                           Node->getOperand(0), Node->getOperand(1),
                            MSP430::XOR8rm_POST, MSP430::XOR16rm_POST))
       return ResNode;
     else if (SDNode *ResNode =
-             SelectIndexedBinOp(Op, Op.getOperand(1), Op.getOperand(0),
+             SelectIndexedBinOp(Node, Node->getOperand(1), Node->getOperand(0),
                                 MSP430::XOR8rm_POST, MSP430::XOR16rm_POST))
       return ResNode;
 
@@ -809,11 +806,11 @@ SDNode *MSP430DAGToDAGISel::Select(SDValue Op) {
   }
 
   // Select the default instruction
-  SDNode *ResNode = SelectCode(Op);
+  SDNode *ResNode = SelectCode(Node);
 
   DEBUG(errs() << std::string(Indent-2, ' ') << "=> ");
-  if (ResNode == NULL || ResNode == Op.getNode())
-    DEBUG(Op.getNode()->dump(CurDAG));
+  if (ResNode == NULL || ResNode == Node)
+    DEBUG(Node->dump(CurDAG));
   else
     DEBUG(ResNode->dump(CurDAG));
   DEBUG(errs() << "\n");

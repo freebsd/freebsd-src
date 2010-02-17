@@ -23,6 +23,7 @@
 #include <vector>
 
 namespace llvm {
+template<typename T> class SmallVectorImpl;
 
 /// hexdigit - Return the (uppercase) hexadecimal character for the
 /// given number \arg X (which should be less than 16).
@@ -136,86 +137,25 @@ static inline std::string UppercaseString(const std::string &S) {
   return result;
 }
 
-/// StringsEqualNoCase - Return true if the two strings are equal, ignoring
-/// case.
-static inline bool StringsEqualNoCase(const std::string &LHS,
-                                      const std::string &RHS) {
-  if (LHS.size() != RHS.size()) return false;
-  for (unsigned i = 0, e = static_cast<unsigned>(LHS.size()); i != e; ++i)
-    if (tolower(LHS[i]) != tolower(RHS[i])) return false;
-  return true;
-}
-
-/// StringsEqualNoCase - Return true if the two strings are equal, ignoring
-/// case.
-static inline bool StringsEqualNoCase(const std::string &LHS,
-                                      const char *RHS) {
-  for (unsigned i = 0, e = static_cast<unsigned>(LHS.size()); i != e; ++i) {
-    if (RHS[i] == 0) return false;  // RHS too short.
-    if (tolower(LHS[i]) != tolower(RHS[i])) return false;
-  }
-  return RHS[LHS.size()] == 0;  // Not too long?
-}
-  
-/// StringsEqualNoCase - Return true if the two null-terminated C strings are
-///  equal, ignoring
-
-static inline bool StringsEqualNoCase(const char *LHS, const char *RHS,
-                                      unsigned len) {
-
-  for (unsigned i = 0; i < len; ++i) {
-    if (tolower(LHS[i]) != tolower(RHS[i]))
-      return false;
-    
-    // If RHS[i] == 0 then LHS[i] == 0 or otherwise we would have returned
-    // at the previous branch as tolower('\0') == '\0'.
-    if (RHS[i] == 0)
-      return true;
-  }
-  
-  return true;
-}
-
-/// CStrInCStrNoCase - Portable version of strcasestr.  Locates the first
-///  occurance of c-string 's2' in string 's1', ignoring case.  Returns
-///  NULL if 's2' cannot be found.
-static inline const char* CStrInCStrNoCase(const char *s1, const char *s2) {
-
-  // Are either strings NULL or empty?
-  if (!s1 || !s2 || s1[0] == '\0' || s2[0] == '\0')
-    return 0;
-
-  if (s1 == s2)
-    return s1;
-
-  const char *I1=s1, *I2=s2;
-
-  while (*I1 != '\0' && *I2 != '\0' )
-    if (tolower(*I1) != tolower(*I2)) { // No match.  Start over.
-      ++s1; I1 = s1; I2 = s2;
-    }
-    else { // Character match.  Advance to the next character.
-      ++I1; ++I2;
-    }
-
-  // If we exhausted all of the characters in 's2', then 's2' appears in 's1'.
-  return *I2 == '\0' ? s1 : 0;
-}
+/// StrInStrNoCase - Portable version of strcasestr.  Locates the first
+/// occurrence of string 's1' in string 's2', ignoring case.  Returns
+/// the offset of s2 in s1 or npos if s2 cannot be found.
+StringRef::size_type StrInStrNoCase(StringRef s1, StringRef s2);
 
 /// getToken - This function extracts one token from source, ignoring any
 /// leading characters that appear in the Delimiters string, and ending the
 /// token at any of the characters that appear in the Delimiters string.  If
 /// there are no tokens in the source string, an empty string is returned.
-/// The Source source string is updated in place to remove the returned string
-/// and any delimiter prefix from it.
-std::string getToken(std::string &Source,
-                     const char *Delimiters = " \t\n\v\f\r");
+/// The function returns a pair containing the extracted token and the
+/// remaining tail string.
+std::pair<StringRef, StringRef> getToken(StringRef Source,
+                                         StringRef Delimiters = " \t\n\v\f\r");
 
 /// SplitString - Split up the specified string according to the specified
 /// delimiters, appending the result fragments to the output list.
-void SplitString(const std::string &Source,
-                 std::vector<std::string> &OutFragments,
-                 const char *Delimiters = " \t\n\v\f\r");
+void SplitString(StringRef Source,
+                 SmallVectorImpl<StringRef> &OutFragments,
+                 StringRef Delimiters = " \t\n\v\f\r");
 
 /// HashString - Hash funtion for strings.
 ///

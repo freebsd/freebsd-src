@@ -137,12 +137,12 @@ BasicBlock* LowerSwitch::switchConvert(CaseItr Begin, CaseItr End,
 
   unsigned Mid = Size / 2;
   std::vector<CaseRange> LHS(Begin, Begin + Mid);
-  DEBUG(errs() << "LHS: " << LHS << "\n");
+  DEBUG(dbgs() << "LHS: " << LHS << "\n");
   std::vector<CaseRange> RHS(Begin + Mid, End);
-  DEBUG(errs() << "RHS: " << RHS << "\n");
+  DEBUG(dbgs() << "RHS: " << RHS << "\n");
 
   CaseRange& Pivot = *(Begin + Mid);
-  DEBUG(errs() << "Pivot ==> " 
+  DEBUG(dbgs() << "Pivot ==> " 
                << cast<ConstantInt>(Pivot.Low)->getValue() << " -"
                << cast<ConstantInt>(Pivot.High)->getValue() << "\n");
 
@@ -244,7 +244,7 @@ unsigned LowerSwitch::Clusterify(CaseVector& Cases, SwitchInst *SI) {
 
   // Merge case into clusters
   if (Cases.size()>=2)
-    for (CaseItr I=Cases.begin(), J=next(Cases.begin()); J!=Cases.end(); ) {
+    for (CaseItr I=Cases.begin(), J=llvm::next(Cases.begin()); J!=Cases.end(); ) {
       int64_t nextValue = cast<ConstantInt>(J->Low)->getSExtValue();
       int64_t currentValue = cast<ConstantInt>(I->High)->getSExtValue();
       BasicBlock* nextBB = J->BB;
@@ -306,9 +306,9 @@ void LowerSwitch::processSwitchInst(SwitchInst *SI) {
   CaseVector Cases;
   unsigned numCmps = Clusterify(Cases, SI);
 
-  DEBUG(errs() << "Clusterify finished. Total clusters: " << Cases.size()
+  DEBUG(dbgs() << "Clusterify finished. Total clusters: " << Cases.size()
                << ". Total compares: " << numCmps << "\n");
-  DEBUG(errs() << "Cases: " << Cases << "\n");
+  DEBUG(dbgs() << "Cases: " << Cases << "\n");
   (void)numCmps;
   
   BasicBlock* SwitchBlock = switchConvert(Cases.begin(), Cases.end(), Val,

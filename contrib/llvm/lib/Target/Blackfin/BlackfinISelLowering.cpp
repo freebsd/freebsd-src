@@ -22,7 +22,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/CodeGen/SelectionDAG.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/ADT/VectorExtras.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -114,10 +114,6 @@ BlackfinTargetLowering::BlackfinTargetLowering(TargetMachine &TM)
   // READCYCLECOUNTER needs special type legalization.
   setOperationAction(ISD::READCYCLECOUNTER, MVT::i64, Custom);
 
-  // We don't have line number support yet.
-  setOperationAction(ISD::DBG_STOPPOINT, MVT::Other, Expand);
-  setOperationAction(ISD::DEBUG_LOC, MVT::Other, Expand);
-  setOperationAction(ISD::DBG_LABEL, MVT::Other, Expand);
   setOperationAction(ISD::EH_LABEL, MVT::Other, Expand);
 
   // Use the default implementation.
@@ -210,7 +206,8 @@ BlackfinTargetLowering::LowerFormalArguments(SDValue Chain,
       int FI = MFI->CreateFixedObject(ObjSize, VA.getLocMemOffset(),
                                       true, false);
       SDValue FIN = DAG.getFrameIndex(FI, MVT::i32);
-      InVals.push_back(DAG.getLoad(VA.getValVT(), dl, Chain, FIN, NULL, 0));
+      InVals.push_back(DAG.getLoad(VA.getValVT(), dl, Chain, FIN, NULL, 0,
+                                   false, false, 0));
     }
   }
 
@@ -277,11 +274,13 @@ BlackfinTargetLowering::LowerReturn(SDValue Chain,
 SDValue
 BlackfinTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                                   CallingConv::ID CallConv, bool isVarArg,
-                                  bool isTailCall,
+                                  bool &isTailCall,
                                   const SmallVectorImpl<ISD::OutputArg> &Outs,
                                   const SmallVectorImpl<ISD::InputArg> &Ins,
                                   DebugLoc dl, SelectionDAG &DAG,
                                   SmallVectorImpl<SDValue> &InVals) {
+  // Blackfin target does not yet support tail call optimization.
+  isTailCall = false;
 
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
@@ -331,7 +330,7 @@ BlackfinTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
       OffsetN = DAG.getNode(ISD::ADD, dl, MVT::i32, SPN, OffsetN);
       MemOpChains.push_back(DAG.getStore(Chain, dl, Arg, OffsetN,
                                          PseudoSourceValue::getStack(),
-                                         Offset));
+                                         Offset, false, false, 0));
     }
   }
 

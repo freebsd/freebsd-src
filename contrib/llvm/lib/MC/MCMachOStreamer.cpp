@@ -46,13 +46,9 @@ class MCMachOStreamer : public MCStreamer {
 
 private:
   MCAssembler Assembler;
-
   MCCodeEmitter *Emitter;
-
   MCSectionData *CurSectionData;
-
   DenseMap<const MCSection*, MCSectionData*> SectionMap;
-  
   DenseMap<const MCSymbol*, MCSymbolData*> SymbolMap;
 
 private:
@@ -91,6 +87,7 @@ public:
 
   const MCExpr *AddValueSymbols(const MCExpr *Value) {
     switch (Value->getKind()) {
+    case MCExpr::Target: assert(0 && "Can't handle target exprs yet!");
     case MCExpr::Constant:
       break;
 
@@ -117,36 +114,40 @@ public:
   /// @{
 
   virtual void SwitchSection(const MCSection *Section);
-
   virtual void EmitLabel(MCSymbol *Symbol);
-
-  virtual void EmitAssemblerFlag(AssemblerFlag Flag);
-
+  virtual void EmitAssemblerFlag(MCAssemblerFlag Flag);
   virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value);
-
-  virtual void EmitSymbolAttribute(MCSymbol *Symbol, SymbolAttr Attribute);
-
+  virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute);
   virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue);
-
-  virtual void EmitCommonSymbol(MCSymbol *Symbol, unsigned Size,
+  virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                 unsigned ByteAlignment);
-
+  virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {
+    assert(0 && "macho doesn't support this directive");
+  }
+  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) {
+    assert(0 && "macho doesn't support this directive");
+  }
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
                             unsigned Size = 0, unsigned ByteAlignment = 0);
-
-  virtual void EmitBytes(StringRef Data);
-
-  virtual void EmitValue(const MCExpr *Value, unsigned Size);
-
+  virtual void EmitBytes(StringRef Data, unsigned AddrSpace);
+  virtual void EmitValue(const MCExpr *Value, unsigned Size,unsigned AddrSpace);
+  virtual void EmitGPRel32Value(const MCExpr *Value) {
+    assert(0 && "macho doesn't support this directive");
+  }
   virtual void EmitValueToAlignment(unsigned ByteAlignment, int64_t Value = 0,
                                     unsigned ValueSize = 1,
                                     unsigned MaxBytesToEmit = 0);
-
   virtual void EmitValueToOffset(const MCExpr *Offset,
                                  unsigned char Value = 0);
-
+  
+  virtual void EmitFileDirective(StringRef Filename) {
+    errs() << "FIXME: MCMachoStreamer:EmitFileDirective not implemented\n";
+  }
+  virtual void EmitDwarfFileDirective(unsigned FileNo, StringRef Filename) {
+    errs() << "FIXME: MCMachoStreamer:EmitDwarfFileDirective not implemented\n";
+  }
+  
   virtual void EmitInstruction(const MCInst &Inst);
-
   virtual void Finish();
 
   /// @}
@@ -183,9 +184,9 @@ void MCMachOStreamer::EmitLabel(MCSymbol *Symbol) {
   Symbol->setSection(*CurSection);
 }
 
-void MCMachOStreamer::EmitAssemblerFlag(AssemblerFlag Flag) {
+void MCMachOStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
   switch (Flag) {
-  case SubsectionsViaSymbols:
+  case MCAF_SubsectionsViaSymbols:
     Assembler.setSubsectionsViaSymbols(true);
     return;
   }
@@ -204,10 +205,10 @@ void MCMachOStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
 }
 
 void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
-                                          SymbolAttr Attribute) {
+                                          MCSymbolAttr Attribute) {
   // Indirect symbols are handled differently, to match how 'as' handles
   // them. This makes writing matching .o files easier.
-  if (Attribute == MCStreamer::IndirectSymbol) {
+  if (Attribute == MCSA_IndirectSymbol) {
     // Note that we intentionally cannot use the symbol data here; this is
     // important for matching the string table that 'as' generates.
     IndirectSymbolData ISD;
@@ -229,19 +230,27 @@ void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
   // In the future it might be worth trying to make these operations more well
   // defined.
   switch (Attribute) {
-  case MCStreamer::IndirectSymbol:
-  case MCStreamer::Hidden:
-  case MCStreamer::Internal:
-  case MCStreamer::Protected:
-  case MCStreamer::Weak:
+  case MCSA_Invalid:
+  case MCSA_ELF_TypeFunction:
+  case MCSA_ELF_TypeIndFunction:
+  case MCSA_ELF_TypeObject:
+  case MCSA_ELF_TypeTLS:
+  case MCSA_ELF_TypeCommon:
+  case MCSA_ELF_TypeNoType:
+  case MCSA_IndirectSymbol:
+  case MCSA_Hidden:
+  case MCSA_Internal:
+  case MCSA_Protected:
+  case MCSA_Weak:
+  case MCSA_Local:
     assert(0 && "Invalid symbol attribute for Mach-O!");
     break;
 
-  case MCStreamer::Global:
+  case MCSA_Global:
     SD.setExternal(true);
     break;
 
-  case MCStreamer::LazyReference:
+  case MCSA_LazyReference:
     // FIXME: This requires -dynamic.
     SD.setFlags(SD.getFlags() | SF_NoDeadStrip);
     if (Symbol->isUndefined())
@@ -250,23 +259,23 @@ void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
 
     // Since .reference sets the no dead strip bit, it is equivalent to
     // .no_dead_strip in practice.
-  case MCStreamer::Reference:
-  case MCStreamer::NoDeadStrip:
+  case MCSA_Reference:
+  case MCSA_NoDeadStrip:
     SD.setFlags(SD.getFlags() | SF_NoDeadStrip);
     break;
 
-  case MCStreamer::PrivateExtern:
+  case MCSA_PrivateExtern:
     SD.setExternal(true);
     SD.setPrivateExtern(true);
     break;
 
-  case MCStreamer::WeakReference:
+  case MCSA_WeakReference:
     // FIXME: This requires -dynamic.
     if (Symbol->isUndefined())
       SD.setFlags(SD.getFlags() | SF_WeakReference);
     break;
 
-  case MCStreamer::WeakDefinition:
+  case MCSA_WeakDefinition:
     // FIXME: 'as' enforces that this is defined and global. The manual claims
     // it has to be in a coalesced section, but this isn't enforced.
     SD.setFlags(SD.getFlags() | SF_WeakDefinition);
@@ -281,7 +290,7 @@ void MCMachOStreamer::EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) {
   getSymbolData(*Symbol).setFlags(DescValue & SF_DescFlagsMask);
 }
 
-void MCMachOStreamer::EmitCommonSymbol(MCSymbol *Symbol, unsigned Size,
+void MCMachOStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                        unsigned ByteAlignment) {
   // FIXME: Darwin 'as' does appear to allow redef of a .comm by itself.
   assert(Symbol->isUndefined() && "Cannot define a symbol twice!");
@@ -315,15 +324,33 @@ void MCMachOStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
     SectData.setAlignment(ByteAlignment);
 }
 
-void MCMachOStreamer::EmitBytes(StringRef Data) {
+void MCMachOStreamer::EmitBytes(StringRef Data, unsigned AddrSpace) {
   MCDataFragment *DF = dyn_cast_or_null<MCDataFragment>(getCurrentFragment());
   if (!DF)
     DF = new MCDataFragment(CurSectionData);
   DF->getContents().append(Data.begin(), Data.end());
 }
 
-void MCMachOStreamer::EmitValue(const MCExpr *Value, unsigned Size) {
-  new MCFillFragment(*AddValueSymbols(Value), Size, 1, CurSectionData);
+void MCMachOStreamer::EmitValue(const MCExpr *Value, unsigned Size,
+                                unsigned AddrSpace) {
+  // Assume the front-end will have evaluate things absolute expressions, so
+  // just create data + fixup.
+  MCDataFragment *DF = dyn_cast_or_null<MCDataFragment>(getCurrentFragment());
+  if (!DF)
+    DF = new MCDataFragment(CurSectionData);
+
+  // Avoid fixups when possible.
+  int64_t AbsValue;
+  if (Value->EvaluateAsAbsolute(AbsValue)) {
+    // FIXME: Endianness assumption.
+    for (unsigned i = 0; i != Size; ++i)
+      DF->getContents().push_back(uint8_t(AbsValue >> (i * 8)));
+  } else {
+    DF->getFixups().push_back(MCAsmFixup(DF->getContents().size(),
+                                         *AddValueSymbols(Value),
+                                         MCFixup::getKindForSize(Size)));
+    DF->getContents().resize(DF->getContents().size() + Size, 0);
+  }
 }
 
 void MCMachOStreamer::EmitValueToAlignment(unsigned ByteAlignment,
@@ -353,11 +380,25 @@ void MCMachOStreamer::EmitInstruction(const MCInst &Inst) {
   if (!Emitter)
     llvm_unreachable("no code emitter available!");
 
-  // FIXME: Relocations!
+  CurSectionData->setHasInstructions(true);
+
+  SmallVector<MCFixup, 4> Fixups;
   SmallString<256> Code;
   raw_svector_ostream VecOS(Code);
-  Emitter->EncodeInstruction(Inst, VecOS);
-  EmitBytes(VecOS.str());
+  Emitter->EncodeInstruction(Inst, VecOS, Fixups);
+  VecOS.flush();
+
+  // Add the fixups and data.
+  MCDataFragment *DF = dyn_cast_or_null<MCDataFragment>(getCurrentFragment());
+  if (!DF)
+    DF = new MCDataFragment(CurSectionData);
+  for (unsigned i = 0, e = Fixups.size(); i != e; ++i) {
+    MCFixup &F = Fixups[i];
+    DF->getFixups().push_back(MCAsmFixup(DF->getContents().size()+F.getOffset(),
+                                         *F.getValue(),
+                                         F.getKind()));
+  }
+  DF->getContents().append(Code.begin(), Code.end());
 }
 
 void MCMachOStreamer::Finish() {

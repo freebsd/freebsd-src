@@ -1,4 +1,4 @@
-// RUN: clang-cc -emit-llvm %s -o - -triple=x86_64-apple-darwin10 | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm %s -o - -triple=x86_64-apple-darwin10 | FileCheck %s
 
 // PR5392
 namespace PR5392 {
@@ -16,4 +16,31 @@ void f()
   A().a = 20;
 }
 
+}
+
+struct A {
+  A();
+  ~A();
+  enum E { Foo };
+};
+
+A *g();
+
+void f(A *a) {
+  A::E e1 = a->Foo;
+  
+  // CHECK: call %struct.A* @_Z1gv()
+  A::E e2 = g()->Foo;
+  // CHECK: call void @_ZN1AC1Ev(
+  // CHECK: call void @_ZN1AD1Ev(
+  A::E e3 = A().Foo;
+}
+
+namespace test3 {
+struct A {
+  static int foo();
+};
+int f() {
+  return A().foo();
+}
 }

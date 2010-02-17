@@ -43,6 +43,10 @@
 #include "clang/Index/Analyzer.h"
 #include "clang/Index/Utils.h"
 #include "clang/Frontend/ASTUnit.h"
+#include "clang/Frontend/CompilerInstance.h"
+#include "clang/Frontend/CompilerInvocation.h"
+#include "clang/Frontend/DiagnosticOptions.h"
+#include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/Frontend/CommandLineSourceLoc.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/ExprObjC.h"
@@ -202,8 +206,29 @@ static void ProcessASTLocation(ASTLocation ASTLoc, Indexer &Idxer) {
   }
 }
 
+static llvm::cl::opt<bool>
+ASTFromSource("ast-from-source",
+              llvm::cl::desc("Treat the inputs as source files to parse"));
+
+static llvm::cl::list<std::string>
+CompilerArgs("arg", llvm::cl::desc("Extra arguments to use during parsing"));
+
 static llvm::cl::list<std::string>
 InputFilenames(llvm::cl::Positional, llvm::cl::desc("<input AST files>"));
+
+ASTUnit *CreateFromSource(const std::string &Filename, Diagnostic &Diags,
+                          const char *Argv0) {
+  llvm::SmallVector<const char *, 16> Args;
+  Args.push_back(Filename.c_str());
+  for (unsigned i = 0, e = CompilerArgs.size(); i != e; ++i)
+    Args.push_back(CompilerArgs[i].c_str());
+
+  void *MainAddr = (void*) (intptr_t) CreateFromSource;
+  std::string ResourceDir =
+    CompilerInvocation::GetResourcesPath(Argv0, MainAddr);
+  return ASTUnit::LoadFromCommandLine(Args.data(), Args.data() + Args.size(),
+                                      Diags, ResourceDir);
+}
 
 int main(int argc, char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal();
@@ -215,21 +240,23 @@ int main(int argc, char **argv) {
   Indexer Idxer(Prog);
   llvm::SmallVector<TUnit*, 4> TUnits;
 
+  DiagnosticOptions DiagOpts;
+  llvm::OwningPtr<Diagnostic> Diags(
+    CompilerInstance::createDiagnostics(DiagOpts, argc, argv));
+
   // If no input was specified, read from stdin.
   if (InputFilenames.empty())
     InputFilenames.push_back("-");
 
   for (unsigned i = 0, e = InputFilenames.size(); i != e; ++i) {
     const std::string &InFile = InputFilenames[i];
-
-    std::string ErrMsg;
     llvm::OwningPtr<ASTUnit> AST;
-
-    AST.reset(ASTUnit::LoadFromPCHFile(InFile, &ErrMsg));
-    if (!AST) {
-      llvm::errs() << "[" << InFile << "] Error: " << ErrMsg << '\n';
+    if (ASTFromSource)
+      AST.reset(CreateFromSource(InFile, *Diags, argv[0]));
+    else
+      AST.reset(ASTUnit::LoadFromPCHFile(InFile, *Diags));
+    if (!AST)
       return 1;
-    }
 
     TUnit *TU = new TUnit(AST.take(), InFile);
     TUnits.push_back(TU);

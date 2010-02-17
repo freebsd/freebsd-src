@@ -86,10 +86,11 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
   MBB.erase(I);
 }
 
-int SystemZRegisterInfo::getFrameIndexOffset(MachineFunction &MF, int FI) const {
+int SystemZRegisterInfo::getFrameIndexOffset(const MachineFunction &MF,
+                                             int FI) const {
   const TargetFrameInfo &TFI = *MF.getTarget().getFrameInfo();
-  MachineFrameInfo *MFI = MF.getFrameInfo();
-  SystemZMachineFunctionInfo *SystemZMFI =
+  const MachineFrameInfo *MFI = MF.getFrameInfo();
+  const SystemZMachineFunctionInfo *SystemZMFI =
     MF.getInfo<SystemZMachineFunctionInfo>();
   int Offset = MFI->getObjectOffset(FI) + MFI->getOffsetAdjustment();
   uint64_t StackSize = MFI->getStackSize();
@@ -247,7 +248,7 @@ void SystemZRegisterInfo::emitPrologue(MachineFunction &MF) const {
       .addReg(SystemZ::R15D);
 
     // Mark the FramePtr as live-in in every block except the entry.
-    for (MachineFunction::iterator I = next(MF.begin()), E = MF.end();
+    for (MachineFunction::iterator I = llvm::next(MF.begin()), E = MF.end();
          I != E; ++I)
       I->addLiveIn(SystemZ::R11D);
 

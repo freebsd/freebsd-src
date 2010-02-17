@@ -21,10 +21,38 @@
 using namespace llvm;
 using namespace llvm::PatternMatch;
 
+/// SimplifyAddInst - Given operands for an Add, see if we can
+/// fold the result.  If not, this returns null.
+Value *llvm::SimplifyAddInst(Value *Op0, Value *Op1, bool isNSW, bool isNUW,
+                             const TargetData *TD) {
+  if (Constant *CLHS = dyn_cast<Constant>(Op0)) {
+    if (Constant *CRHS = dyn_cast<Constant>(Op1)) {
+      Constant *Ops[] = { CLHS, CRHS };
+      return ConstantFoldInstOperands(Instruction::Add, CLHS->getType(),
+                                      Ops, 2, TD);
+    }
+    
+    // Canonicalize the constant to the RHS.
+    std::swap(Op0, Op1);
+  }
+  
+  if (Constant *Op1C = dyn_cast<Constant>(Op1)) {
+    // X + undef -> undef
+    if (isa<UndefValue>(Op1C))
+      return Op1C;
+    
+    // X + 0 --> X
+    if (Op1C->isNullValue())
+      return Op0;
+  }
+  
+  // FIXME: Could pull several more out of instcombine.
+  return 0;
+}
+
 /// SimplifyAndInst - Given operands for an And, see if we can
 /// fold the result.  If not, this returns null.
-Value *llvm::SimplifyAndInst(Value *Op0, Value *Op1,
-                             const TargetData *TD) {
+Value *llvm::SimplifyAndInst(Value *Op0, Value *Op1, const TargetData *TD) {
   if (Constant *CLHS = dyn_cast<Constant>(Op0)) {
     if (Constant *CRHS = dyn_cast<Constant>(Op1)) {
       Constant *Ops[] = { CLHS, CRHS };
@@ -83,8 +111,7 @@ Value *llvm::SimplifyAndInst(Value *Op0, Value *Op1,
 
 /// SimplifyOrInst - Given operands for an Or, see if we can
 /// fold the result.  If not, this returns null.
-Value *llvm::SimplifyOrInst(Value *Op0, Value *Op1,
-                            const TargetData *TD) {
+Value *llvm::SimplifyOrInst(Value *Op0, Value *Op1, const TargetData *TD) {
   if (Constant *CLHS = dyn_cast<Constant>(Op0)) {
     if (Constant *CRHS = dyn_cast<Constant>(Op1)) {
       Constant *Ops[] = { CLHS, CRHS };
@@ -140,8 +167,6 @@ Value *llvm::SimplifyOrInst(Value *Op0, Value *Op1,
   
   return 0;
 }
-
-
 
 
 static const Type *GetCompareTy(Value *Op) {
@@ -264,6 +289,34 @@ Value *llvm::SimplifyFCmpInst(unsigned Predicate, Value *LHS, Value *RHS,
   return 0;
 }
 
+/// SimplifyGEPInst - Given operands for an GetElementPtrInst, see if we can
+/// fold the result.  If not, this returns null.
+Value *llvm::SimplifyGEPInst(Value *const *Ops, unsigned NumOps,
+                             const TargetData *TD) {
+  // getelementptr P -> P.
+  if (NumOps == 1)
+    return Ops[0];
+
+  // TODO.
+  //if (isa<UndefValue>(Ops[0]))
+  //  return UndefValue::get(GEP.getType());
+
+  // getelementptr P, 0 -> P.
+  if (NumOps == 2)
+    if (ConstantInt *C = dyn_cast<ConstantInt>(Ops[1]))
+      if (C->isZero())
+        return Ops[0];
+  
+  // Check to see if this is constant foldable.
+  for (unsigned i = 0; i != NumOps; ++i)
+    if (!isa<Constant>(Ops[i]))
+      return 0;
+  
+  return ConstantExpr::getGetElementPtr(cast<Constant>(Ops[0]),
+                                        (Constant *const*)Ops+1, NumOps-1);
+}
+
+
 //=== Helper functions for higher up the class hierarchy.
 
 /// SimplifyBinOp - Given operands for a BinaryOperator, see if we can
@@ -299,6 +352,10 @@ Value *llvm::SimplifyInstruction(Instruction *I, const TargetData *TD) {
   switch (I->getOpcode()) {
   default:
     return ConstantFoldInstruction(I, TD);
+  case Instruction::Add:
+    return SimplifyAddInst(I->getOperand(0), I->getOperand(1),
+                           cast<BinaryOperator>(I)->hasNoSignedWrap(),
+                           cast<BinaryOperator>(I)->hasNoUnsignedWrap(), TD);
   case Instruction::And:
     return SimplifyAndInst(I->getOperand(0), I->getOperand(1), TD);
   case Instruction::Or:
@@ -309,6 +366,10 @@ Value *llvm::SimplifyInstruction(Instruction *I, const TargetData *TD) {
   case Instruction::FCmp:
     return SimplifyFCmpInst(cast<FCmpInst>(I)->getPredicate(),
                             I->getOperand(0), I->getOperand(1), TD);
+  case Instruction::GetElementPtr: {
+    SmallVector<Value*, 8> Ops(I->op_begin(), I->op_end());
+    return SimplifyGEPInst(&Ops[0], Ops.size(), TD);
+  }
   }
 }
 

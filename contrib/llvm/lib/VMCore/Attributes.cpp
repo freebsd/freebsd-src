@@ -17,6 +17,7 @@
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/System/Atomic.h"
 #include "llvm/System/Mutex.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -69,6 +70,11 @@ std::string Attribute::getAsString(Attributes Attrs) {
     Result += "noimplicitfloat ";
   if (Attrs & Attribute::Naked)
     Result += "naked ";
+  if (Attrs & Attribute::StackAlignment) {
+    Result += "alignstack(";
+    Result += utostr(Attribute::getStackAlignmentFromAttrs(Attrs));
+    Result += ") ";
+  }
   if (Attrs & Attribute::Alignment) {
     Result += "align ";
     Result += utostr(Attribute::getAlignmentFromAttrs(Attrs));
@@ -83,7 +89,7 @@ std::string Attribute::getAsString(Attributes Attrs) {
 Attributes Attribute::typeIncompatible(const Type *Ty) {
   Attributes Incompatible = None;
   
-  if (!Ty->isInteger())
+  if (!Ty->isIntegerTy())
     // Attributes that only apply to integers.
     Incompatible |= SExt | ZExt;
   
@@ -318,11 +324,11 @@ AttrListPtr AttrListPtr::removeAttr(unsigned Idx, Attributes Attrs) const {
 }
 
 void AttrListPtr::dump() const {
-  errs() << "PAL[ ";
+  dbgs() << "PAL[ ";
   for (unsigned i = 0; i < getNumSlots(); ++i) {
     const AttributeWithIndex &PAWI = getSlot(i);
-    errs() << "{" << PAWI.Index << "," << PAWI.Attrs << "} ";
+    dbgs() << "{" << PAWI.Index << "," << PAWI.Attrs << "} ";
   }
   
-  errs() << "]\n";
+  dbgs() << "]\n";
 }

@@ -30,6 +30,11 @@ using namespace clang;
 Parser::DeclPtrTy Parser::ParseObjCAtDirectives() {
   SourceLocation AtLoc = ConsumeToken(); // the "@"
 
+  if (Tok.is(tok::code_completion)) {
+    Actions.CodeCompleteObjCAtDirective(CurScope, ObjCImpDecl, false);
+    ConsumeToken();
+  }
+
   switch (Tok.getObjCKeywordID()) {
   case tok::objc_class:
     return ParseObjCAtClassDeclaration(AtLoc);
@@ -181,6 +186,7 @@ Parser::DeclPtrTy Parser::ParseObjCAtInterfaceDeclaration(
                                           categoryId, categoryLoc,
                                           ProtocolRefs.data(),
                                           ProtocolRefs.size(),
+                                          ProtocolLocs.data(),
                                           EndProtoLoc);
 
     ParseObjCInterfaceDeclList(CategoryType, tok::objc_not_keyword);
@@ -219,6 +225,7 @@ Parser::DeclPtrTy Parser::ParseObjCAtInterfaceDeclaration(
     Actions.ActOnStartClassInterface(atLoc, nameId, nameLoc,
                                      superClassId, superClassLoc,
                                      ProtocolRefs.data(), ProtocolRefs.size(),
+                                     ProtocolLocs.data(),
                                      EndProtoLoc, attrList);
 
   if (Tok.is(tok::l_brace))
@@ -227,6 +234,63 @@ Parser::DeclPtrTy Parser::ParseObjCAtInterfaceDeclaration(
   ParseObjCInterfaceDeclList(ClsType, tok::objc_interface);
   return ClsType;
 }
+
+/// The Objective-C property callback.  This should be defined where
+/// it's used, but instead it's been lifted to here to support VS2005.
+struct Parser::ObjCPropertyCallback : FieldCallback {
+  Parser &P;
+  DeclPtrTy IDecl;
+  llvm::SmallVectorImpl<DeclPtrTy> &Props;
+  ObjCDeclSpec &OCDS;
+  SourceLocation AtLoc;
+  tok::ObjCKeywordKind MethodImplKind;
+        
+  ObjCPropertyCallback(Parser &P, DeclPtrTy IDecl,
+                       llvm::SmallVectorImpl<DeclPtrTy> &Props,
+                       ObjCDeclSpec &OCDS, SourceLocation AtLoc,
+                       tok::ObjCKeywordKind MethodImplKind) :
+    P(P), IDecl(IDecl), Props(Props), OCDS(OCDS), AtLoc(AtLoc),
+    MethodImplKind(MethodImplKind) {
+  }
+
+  DeclPtrTy invoke(FieldDeclarator &FD) {
+    if (FD.D.getIdentifier() == 0) {
+      P.Diag(AtLoc, diag::err_objc_property_requires_field_name)
+        << FD.D.getSourceRange();
+      return DeclPtrTy();
+    }
+    if (FD.BitfieldSize) {
+      P.Diag(AtLoc, diag::err_objc_property_bitfield)
+        << FD.D.getSourceRange();
+      return DeclPtrTy();
+    }
+
+    // Install the property declarator into interfaceDecl.
+    IdentifierInfo *SelName =
+      OCDS.getGetterName() ? OCDS.getGetterName() : FD.D.getIdentifier();
+
+    Selector GetterSel =
+      P.PP.getSelectorTable().getNullarySelector(SelName);
+    IdentifierInfo *SetterName = OCDS.getSetterName();
+    Selector SetterSel;
+    if (SetterName)
+      SetterSel = P.PP.getSelectorTable().getSelector(1, &SetterName);
+    else
+      SetterSel = SelectorTable::constructSetterName(P.PP.getIdentifierTable(),
+                                                     P.PP.getSelectorTable(),
+                                                     FD.D.getIdentifier());
+    bool isOverridingProperty = false;
+    DeclPtrTy Property =
+      P.Actions.ActOnProperty(P.CurScope, AtLoc, FD, OCDS,
+                              GetterSel, SetterSel, IDecl,
+                              &isOverridingProperty,
+                              MethodImplKind);
+    if (!isOverridingProperty)
+      Props.push_back(Property);
+
+    return Property;
+  }
+};
 
 ///   objc-interface-decl-list:
 ///     empty
@@ -247,7 +311,7 @@ void Parser::ParseObjCInterfaceDeclList(DeclPtrTy interfaceDecl,
   llvm::SmallVector<DeclGroupPtrTy, 8> allTUVariables;
   tok::ObjCKeywordKind MethodImplKind = tok::objc_not_keyword;
 
-  SourceLocation AtEndLoc;
+  SourceRange AtEnd;
 
   while (1) {
     // If this is a method prototype, parse it.
@@ -272,6 +336,14 @@ void Parser::ParseObjCInterfaceDeclList(DeclPtrTy interfaceDecl,
     if (Tok.is(tok::eof))
       break;
 
+    // Code completion within an Objective-C interface.
+    if (Tok.is(tok::code_completion)) {
+      Actions.CodeCompleteOrdinaryName(CurScope, 
+                                  ObjCImpDecl? Action::CCC_ObjCImplementation
+                                             : Action::CCC_ObjCInterface);
+      ConsumeToken();
+    }
+    
     // If we don't have an @ directive, parse it as a function definition.
     if (Tok.isNot(tok::at)) {
       // The code below does not consume '}'s because it is afraid of eating the
@@ -282,16 +354,23 @@ void Parser::ParseObjCInterfaceDeclList(DeclPtrTy interfaceDecl,
 
       // FIXME: as the name implies, this rule allows function definitions.
       // We could pass a flag or check for functions during semantic analysis.
-      allTUVariables.push_back(ParseDeclarationOrFunctionDefinition());
+      allTUVariables.push_back(ParseDeclarationOrFunctionDefinition(0));
       continue;
     }
 
     // Otherwise, we have an @ directive, eat the @.
     SourceLocation AtLoc = ConsumeToken(); // the "@"
+    if (Tok.is(tok::code_completion)) {
+      Actions.CodeCompleteObjCAtDirective(CurScope, ObjCImpDecl, true);
+      ConsumeToken();
+      break;
+    }
+
     tok::ObjCKeywordKind DirectiveKind = Tok.getObjCKeywordID();
 
     if (DirectiveKind == tok::objc_end) { // @end -> terminate list
-      AtEndLoc = AtLoc;
+      AtEnd.setBegin(AtLoc);
+      AtEnd.setEnd(Tok.getLocation());
       break;
     }
 
@@ -329,61 +408,8 @@ void Parser::ParseObjCInterfaceDeclList(DeclPtrTy interfaceDecl,
         ParseObjCPropertyAttribute(OCDS, interfaceDecl,
                                    allMethods.data(), allMethods.size());
 
-      struct ObjCPropertyCallback : FieldCallback {
-        Parser &P;
-        DeclPtrTy IDecl;
-        llvm::SmallVectorImpl<DeclPtrTy> &Props;
-        ObjCDeclSpec &OCDS;
-        SourceLocation AtLoc;
-        tok::ObjCKeywordKind MethodImplKind;
-        
-        ObjCPropertyCallback(Parser &P, DeclPtrTy IDecl,
-                             llvm::SmallVectorImpl<DeclPtrTy> &Props,
-                             ObjCDeclSpec &OCDS, SourceLocation AtLoc,
-                             tok::ObjCKeywordKind MethodImplKind) :
-          P(P), IDecl(IDecl), Props(Props), OCDS(OCDS), AtLoc(AtLoc),
-          MethodImplKind(MethodImplKind) {
-        }
-
-        DeclPtrTy invoke(FieldDeclarator &FD) {
-          if (FD.D.getIdentifier() == 0) {
-            P.Diag(AtLoc, diag::err_objc_property_requires_field_name)
-              << FD.D.getSourceRange();
-            return DeclPtrTy();
-          }
-          if (FD.BitfieldSize) {
-            P.Diag(AtLoc, diag::err_objc_property_bitfield)
-              << FD.D.getSourceRange();
-            return DeclPtrTy();
-          }
-
-          // Install the property declarator into interfaceDecl.
-          IdentifierInfo *SelName =
-            OCDS.getGetterName() ? OCDS.getGetterName() : FD.D.getIdentifier();
-
-          Selector GetterSel =
-            P.PP.getSelectorTable().getNullarySelector(SelName);
-          IdentifierInfo *SetterName = OCDS.getSetterName();
-          Selector SetterSel;
-          if (SetterName)
-            SetterSel = P.PP.getSelectorTable().getSelector(1, &SetterName);
-          else
-            SetterSel = SelectorTable::constructSetterName(P.PP.getIdentifierTable(),
-                                                           P.PP.getSelectorTable(),
-                                                           FD.D.getIdentifier());
-          bool isOverridingProperty = false;
-          DeclPtrTy Property =
-            P.Actions.ActOnProperty(P.CurScope, AtLoc, FD, OCDS,
-                                    GetterSel, SetterSel, IDecl,
-                                    &isOverridingProperty,
-                                    MethodImplKind);
-          if (!isOverridingProperty)
-            Props.push_back(Property);
-
-          return Property;
-        }
-      } Callback(*this, interfaceDecl, allProperties,
-                 OCDS, AtLoc, MethodImplKind);
+      ObjCPropertyCallback Callback(*this, interfaceDecl, allProperties,
+                                    OCDS, AtLoc, MethodImplKind);
 
       // Parse all the comma separated declarators.
       DeclSpec DS;
@@ -397,14 +423,17 @@ void Parser::ParseObjCInterfaceDeclList(DeclPtrTy interfaceDecl,
 
   // We break out of the big loop in two cases: when we see @end or when we see
   // EOF.  In the former case, eat the @end.  In the later case, emit an error.
-  if (Tok.isObjCAtKeyword(tok::objc_end))
+  if (Tok.is(tok::code_completion)) {
+    Actions.CodeCompleteObjCAtDirective(CurScope, ObjCImpDecl, true);
+    ConsumeToken();
+  } else if (Tok.isObjCAtKeyword(tok::objc_end))
     ConsumeToken(); // the "end" identifier
   else
     Diag(Tok, diag::err_objc_missing_end);
 
   // Insert collected methods declarations into the @interface object.
   // This passes in an invalid SourceLocation for AtEndLoc when EOF is hit.
-  Actions.ActOnAtEnd(AtEndLoc, interfaceDecl,
+  Actions.ActOnAtEnd(AtEnd, interfaceDecl,
                      allMethods.data(), allMethods.size(),
                      allProperties.data(), allProperties.size(),
                      allTUVariables.data(), allTUVariables.size());
@@ -486,7 +515,8 @@ void Parser::ParseObjCPropertyAttribute(ObjCDeclSpec &DS, DeclPtrTy ClassDecl,
         DS.setSetterName(Tok.getIdentifierInfo());
         ConsumeToken();  // consume method name
 
-        if (ExpectAndConsume(tok::colon, diag::err_expected_colon, "",
+        if (ExpectAndConsume(tok::colon, 
+                             diag::err_expected_colon_after_setter_name, "",
                              tok::r_paren))
           return;
       } else {
@@ -757,15 +787,15 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDecl(SourceLocation mLoc,
   llvm::SmallVector<Declarator, 8> CargNames;
   if (Tok.isNot(tok::colon)) {
     // If attributes exist after the method, parse them.
-    AttributeList *MethodAttrs = 0;
+    llvm::OwningPtr<AttributeList> MethodAttrs;
     if (getLang().ObjC2 && Tok.is(tok::kw___attribute))
-      MethodAttrs = ParseAttributes();
+      MethodAttrs.reset(ParseGNUAttributes());
 
     Selector Sel = PP.getSelectorTable().getNullarySelector(SelIdent);
     DeclPtrTy Result
          = Actions.ActOnMethodDeclaration(mLoc, Tok.getLocation(),
                                           mType, IDecl, DSRet, ReturnType, Sel,
-                                          0, CargNames, MethodAttrs,
+                                          0, CargNames, MethodAttrs.get(),
                                           MethodImplKind);
     PD.complete(Result);
     return Result;
@@ -791,7 +821,7 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDecl(SourceLocation mLoc,
     // If attributes exist before the argument name, parse them.
     ArgInfo.ArgAttrs = 0;
     if (getLang().ObjC2 && Tok.is(tok::kw___attribute))
-      ArgInfo.ArgAttrs = ParseAttributes();
+      ArgInfo.ArgAttrs = ParseGNUAttributes();
 
     if (Tok.isNot(tok::identifier)) {
       Diag(Tok, diag::err_expected_ident); // missing argument name.
@@ -833,9 +863,9 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDecl(SourceLocation mLoc,
 
   // FIXME: Add support for optional parmameter list...
   // If attributes exist after the method, parse them.
-  AttributeList *MethodAttrs = 0;
+  llvm::OwningPtr<AttributeList> MethodAttrs;
   if (getLang().ObjC2 && Tok.is(tok::kw___attribute))
-    MethodAttrs = ParseAttributes();
+    MethodAttrs.reset(ParseGNUAttributes());
 
   if (KeyIdents.size() == 0)
     return DeclPtrTy();
@@ -844,9 +874,16 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDecl(SourceLocation mLoc,
   DeclPtrTy Result
        = Actions.ActOnMethodDeclaration(mLoc, Tok.getLocation(),
                                         mType, IDecl, DSRet, ReturnType, Sel,
-                                        &ArgInfos[0], CargNames, MethodAttrs,
+                                        &ArgInfos[0], CargNames,
+                                        MethodAttrs.get(),
                                         MethodImplKind, isVariadic);
   PD.complete(Result);
+  
+  // Delete referenced AttributeList objects.
+  for (llvm::SmallVectorImpl<Action::ObjCArgInfo>::iterator
+       I = ArgInfos.begin(), E = ArgInfos.end(); I != E; ++I)
+    delete I->ArgAttrs;
+  
   return Result;
 }
 
@@ -938,7 +975,7 @@ void Parser::ParseObjCClassInstanceVariables(DeclPtrTy interfaceDecl,
     // Check for extraneous top-level semicolon.
     if (Tok.is(tok::semi)) {
       Diag(Tok, diag::ext_extra_struct_semi)
-        << CodeModificationHint::CreateRemoval(SourceRange(Tok.getLocation()));
+        << CodeModificationHint::CreateRemoval(Tok.getLocation());
       ConsumeToken();
       continue;
     }
@@ -946,6 +983,12 @@ void Parser::ParseObjCClassInstanceVariables(DeclPtrTy interfaceDecl,
     // Set the default visibility to private.
     if (Tok.is(tok::at)) { // parse objc-visibility-spec
       ConsumeToken(); // eat the @ sign
+      
+      if (Tok.is(tok::code_completion)) {
+        Actions.CodeCompleteObjCAtVisibility(CurScope);
+        ConsumeToken();
+      }
+      
       switch (Tok.getObjCKeywordID()) {
       case tok::objc_private:
       case tok::objc_public:
@@ -960,6 +1003,12 @@ void Parser::ParseObjCClassInstanceVariables(DeclPtrTy interfaceDecl,
       }
     }
 
+    if (Tok.is(tok::code_completion)) {
+      Actions.CodeCompleteOrdinaryName(CurScope, 
+                                       Action::CCC_ObjCInstanceVariableList);
+      ConsumeToken();
+    }
+    
     struct ObjCIvarCallback : FieldCallback {
       Parser &P;
       DeclPtrTy IDecl;
@@ -1088,6 +1137,7 @@ Parser::DeclPtrTy Parser::ParseObjCAtProtocolDeclaration(SourceLocation AtLoc,
     Actions.ActOnStartProtocolInterface(AtLoc, protocolName, nameLoc,
                                         ProtocolRefs.data(),
                                         ProtocolRefs.size(),
+                                        ProtocolLocs.data(),
                                         EndProtoLoc, attrList);
   ParseObjCInterfaceDeclList(ProtoType, tok::objc_protocol);
   return ProtoType;
@@ -1179,18 +1229,20 @@ Parser::DeclPtrTy Parser::ParseObjCAtImplementationDeclaration(
   return DeclPtrTy();
 }
 
-Parser::DeclPtrTy Parser::ParseObjCAtEndDeclaration(SourceLocation atLoc) {
+Parser::DeclPtrTy Parser::ParseObjCAtEndDeclaration(SourceRange atEnd) {
   assert(Tok.isObjCAtKeyword(tok::objc_end) &&
          "ParseObjCAtEndDeclaration(): Expected @end");
   DeclPtrTy Result = ObjCImpDecl;
   ConsumeToken(); // the "end" identifier
   if (ObjCImpDecl) {
-    Actions.ActOnAtEnd(atLoc, ObjCImpDecl);
+    Actions.ActOnAtEnd(atEnd, ObjCImpDecl);
     ObjCImpDecl = DeclPtrTy();
     PendingObjCImpDecl.pop_back();
   }
-  else
-    Diag(atLoc, diag::warn_expected_implementation); // missing @implementation
+  else {
+    // missing @implementation
+    Diag(atEnd.getBegin(), diag::warn_expected_implementation);
+  }
   return Result;
 }
 
@@ -1198,7 +1250,7 @@ Parser::DeclGroupPtrTy Parser::RetrievePendingObjCImpDecl() {
   if (PendingObjCImpDecl.empty())
     return Actions.ConvertDeclToDeclGroup(DeclPtrTy());
   DeclPtrTy ImpDecl = PendingObjCImpDecl.pop_back_val();
-  Actions.ActOnAtEnd(SourceLocation(), ImpDecl);
+  Actions.ActOnAtEnd(SourceRange(), ImpDecl);
   return Actions.ConvertDeclToDeclGroup(ImpDecl);
 }
 
@@ -1437,7 +1489,9 @@ Parser::OwningStmtResult Parser::ParseObjCTryStmt(SourceLocation atLoc) {
 
           // Inform the actions module about the parameter declarator, so it
           // gets added to the current scope.
+          // FIXME. Probably can build a VarDecl and avoid setting DeclContext.
           FirstPart = Actions.ActOnParamDeclarator(CurScope, ParmDecl);
+          Actions.ActOnObjCCatchParam(FirstPart);
         } else
           ConsumeToken(); // consume '...'
 
@@ -1503,7 +1557,7 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDefinition() {
   if (Tok.is(tok::semi)) {
     if (ObjCImpDecl) {
       Diag(Tok, diag::warn_semicolon_before_method_body)
-        << CodeModificationHint::CreateRemoval(SourceRange(Tok.getLocation()));
+        << CodeModificationHint::CreateRemoval(Tok.getLocation());
     }
     ConsumeToken();
   }
@@ -1545,12 +1599,21 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDefinition() {
 }
 
 Parser::OwningStmtResult Parser::ParseObjCAtStatement(SourceLocation AtLoc) {
-  if (Tok.isObjCAtKeyword(tok::objc_try)) {
+  if (Tok.is(tok::code_completion)) {
+    Actions.CodeCompleteObjCAtStatement(CurScope);
+    ConsumeToken();
+    return StmtError();
+  }
+  
+  if (Tok.isObjCAtKeyword(tok::objc_try))
     return ParseObjCTryStmt(AtLoc);
-  } else if (Tok.isObjCAtKeyword(tok::objc_throw))
+  
+  if (Tok.isObjCAtKeyword(tok::objc_throw))
     return ParseObjCThrowStmt(AtLoc);
-  else if (Tok.isObjCAtKeyword(tok::objc_synchronized))
+  
+  if (Tok.isObjCAtKeyword(tok::objc_synchronized))
     return ParseObjCSynchronizedStmt(AtLoc);
+  
   OwningExprResult Res(ParseExpressionWithLeadingAt(AtLoc));
   if (Res.isInvalid()) {
     // If the expression is invalid, skip ahead to the next semicolon. Not
@@ -1559,13 +1622,19 @@ Parser::OwningStmtResult Parser::ParseObjCAtStatement(SourceLocation AtLoc) {
     SkipUntil(tok::semi);
     return StmtError();
   }
+  
   // Otherwise, eat the semicolon.
   ExpectAndConsume(tok::semi, diag::err_expected_semi_after_expr);
-  return Actions.ActOnExprStmt(Actions.FullExpr(Res));
+  return Actions.ActOnExprStmt(Actions.MakeFullExpr(Res));
 }
 
 Parser::OwningExprResult Parser::ParseObjCAtExpression(SourceLocation AtLoc) {
   switch (Tok.getKind()) {
+  case tok::code_completion:
+    Actions.CodeCompleteObjCAtExpression(CurScope);
+    ConsumeToken();
+    return ExprError();
+
   case tok::string_literal:    // primary-expression: string-literal
   case tok::wide_string_literal:
     return ParsePostfixExpressionSuffix(ParseObjCStringLiteral(AtLoc));

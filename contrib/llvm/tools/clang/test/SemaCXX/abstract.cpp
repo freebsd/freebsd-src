@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s -std=c++0x
+// RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++0x
 
 #ifndef __GXX_EXPERIMENTAL_CXX0X__
 #define __CONCAT(__X, __Y) __CONCAT1(__X, __Y)
@@ -155,3 +155,17 @@ namespace PR5550 {
   }; 
   C x;
 }
+
+namespace PureImplicit {
+  // A pure virtual destructor should be implicitly overridden.
+  struct A { virtual ~A() = 0; };
+  struct B : A {};
+  B x;
+
+  // A pure virtual assignment operator should be implicitly overridden.
+  struct D;
+  struct C { virtual D& operator=(const D&) = 0; };
+  struct D : C {};
+  D y;
+}
+

@@ -22,56 +22,32 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCStreamer.h"
+#include "llvm/MC/MCSymbol.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetFrameInfo.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/Dwarf.h"
-#include "llvm/Support/Mangler.h"
+#include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/Timer.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/Twine.h"
 using namespace llvm;
-
-static TimerGroup &getDwarfTimerGroup() {
-  static TimerGroup DwarfTimerGroup("DWARF Exception");
-  return DwarfTimerGroup;
-}
 
 DwarfException::DwarfException(raw_ostream &OS, AsmPrinter *A,
                                const MCAsmInfo *T)
-  : Dwarf(OS, A, T, "eh"), shouldEmitTable(false), shouldEmitMoves(false),
+  : DwarfPrinter(OS, A, T, "eh"), shouldEmitTable(false),shouldEmitMoves(false),
     shouldEmitTableModule(false), shouldEmitMovesModule(false),
     ExceptionTimer(0) {
   if (TimePassesIsEnabled)
-    ExceptionTimer = new Timer("DWARF Exception Writer",
-                               getDwarfTimerGroup());
+    ExceptionTimer = new Timer("DWARF Exception Writer");
 }
 
 DwarfException::~DwarfException() {
   delete ExceptionTimer;
-}
-
-/// SizeOfEncodedValue - Return the size of the encoding in bytes.
-unsigned DwarfException::SizeOfEncodedValue(unsigned Encoding) {
-  if (Encoding == dwarf::DW_EH_PE_omit)
-    return 0;
-
-  switch (Encoding & 0x07) {
-  case dwarf::DW_EH_PE_absptr:
-    return TD->getPointerSize();
-  case dwarf::DW_EH_PE_udata2:
-    return 2;
-  case dwarf::DW_EH_PE_udata4:
-    return 4;
-  case dwarf::DW_EH_PE_udata8:
-    return 8;
-  }
-
-  assert(0 && "Invalid encoded value.");
-  return 0;
 }
 
 /// CreateLabelDiff - Emit a label and subtract it from the expression we
@@ -104,7 +80,7 @@ void DwarfException::EmitCIE(const Function *PersonalityFn, unsigned Index) {
     TD->getPointerSize() : -TD->getPointerSize();
 
   const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
-  
+
   // Begin eh frame section.
   Asm->OutStreamer.SwitchSection(TLOF.getEHFrameSection());
 
@@ -120,42 +96,28 @@ void DwarfException::EmitCIE(const Function *PersonalityFn, unsigned Index) {
   // Define the eh frame length.
   EmitDifference("eh_frame_common_end", Index,
                  "eh_frame_common_begin", Index, true);
-  Asm->EOL("Length of Common Information Entry");
+  EOL("Length of Common Information Entry");
 
   // EH frame header.
   EmitLabel("eh_frame_common_begin", Index);
-  Asm->EmitInt32((int)0);
-  Asm->EOL("CIE Identifier Tag");
-  Asm->EmitInt8(dwarf::DW_CIE_VERSION);
-  Asm->EOL("CIE Version");
+  if (Asm->VerboseAsm) Asm->OutStreamer.AddComment("CIE Identifier Tag");
+  Asm->OutStreamer.EmitIntValue(0, 4/*size*/, 0/*addrspace*/);
+  if (Asm->VerboseAsm) Asm->OutStreamer.AddComment("DW_CIE_VERSION");
+  Asm->OutStreamer.EmitIntValue(dwarf::DW_CIE_VERSION, 1/*size*/, 0/*addr*/);
 
   // The personality presence indicates that language specific information will
   // show up in the eh frame.  Find out how we are supposed to lower the
   // personality function reference:
-  const MCExpr *PersonalityRef = 0;
-  bool IsPersonalityIndirect = false, IsPersonalityPCRel = false;
-  if (PersonalityFn) {
-    // FIXME: HANDLE STATIC CODEGEN MODEL HERE.
-    
-    // In non-static mode, ask the object file how to represent this reference.
-    PersonalityRef =
-      TLOF.getSymbolForDwarfGlobalReference(PersonalityFn, Asm->Mang,
-                                            Asm->MMI,
-                                            IsPersonalityIndirect,
-                                            IsPersonalityPCRel);
-  }
-  
-  unsigned PerEncoding = dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4;
-  if (IsPersonalityIndirect)
-    PerEncoding |= dwarf::DW_EH_PE_indirect;
-  unsigned LSDAEncoding = dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4;
-  unsigned FDEEncoding = dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4;
 
-  char Augmentation[5] = { 0 };
+  unsigned LSDAEncoding = TLOF.getLSDAEncoding();
+  unsigned FDEEncoding = TLOF.getFDEEncoding();
+  unsigned PerEncoding = TLOF.getPersonalityEncoding();
+
+  char Augmentation[6] = { 0 };
   unsigned AugmentationSize = 0;
   char *APtr = Augmentation + 1;
 
-  if (PersonalityRef) {
+  if (PersonalityFn) {
     // There is a personality function.
     *APtr++ = 'P';
     AugmentationSize += 1 + SizeOfEncodedValue(PerEncoding);
@@ -176,38 +138,28 @@ void DwarfException::EmitCIE(const Function *PersonalityFn, unsigned Index) {
   if (APtr != Augmentation + 1)
     Augmentation[0] = 'z';
 
-  Asm->EmitString(Augmentation);
-  Asm->EOL("CIE Augmentation");
+  Asm->OutStreamer.EmitBytes(StringRef(Augmentation, strlen(Augmentation)+1),0);
+  EOL("CIE Augmentation");
 
   // Round out reader.
-  Asm->EmitULEB128Bytes(1);
-  Asm->EOL("CIE Code Alignment Factor");
-  Asm->EmitSLEB128Bytes(stackGrowth);
-  Asm->EOL("CIE Data Alignment Factor");
+  EmitULEB128(1, "CIE Code Alignment Factor");
+  EmitSLEB128(stackGrowth, "CIE Data Alignment Factor");
   Asm->EmitInt8(RI->getDwarfRegNum(RI->getRARegister(), true));
-  Asm->EOL("CIE Return Address Column");
+  EOL("CIE Return Address Column");
 
-  Asm->EmitULEB128Bytes(AugmentationSize);
-  Asm->EOL("Augmentation Size");
+  if (Augmentation[0]) {
+    EmitULEB128(AugmentationSize, "Augmentation Size");
 
-  Asm->EmitInt8(PerEncoding);
-  Asm->EOL("Personality", PerEncoding);
-
-  // If there is a personality, we need to indicate the function's location.
-  if (PersonalityRef) {
-    if (!IsPersonalityPCRel)
-      PersonalityRef = CreateLabelDiff(PersonalityRef, "personalityref_addr",
-                                       Index);
-
-    O << MAI->getData32bitsDirective();
-    PersonalityRef->print(O, MAI);
-    Asm->EOL("Personality");
-
-    Asm->EmitInt8(LSDAEncoding);
-    Asm->EOL("LSDA Encoding", LSDAEncoding);
-
-    Asm->EmitInt8(FDEEncoding);
-    Asm->EOL("FDE Encoding", FDEEncoding);
+    // If there is a personality, we need to indicate the function's location.
+    if (PersonalityFn) {
+      EmitEncodingByte(PerEncoding, "Personality");
+      EmitReference(PersonalityFn, PerEncoding);
+      EOL("Personality");
+    }
+    if (UsesLSDA[Index])
+      EmitEncodingByte(LSDAEncoding, "LSDA");
+    if (FDEEncoding != dwarf::DW_EH_PE_absptr)
+      EmitEncodingByte(FDEEncoding, "FDE");
   }
 
   // Indicate locations of general callee saved registers in frame.
@@ -220,8 +172,7 @@ void DwarfException::EmitCIE(const Function *PersonalityFn, unsigned Index) {
   // holes which confuse readers of eh_frame.
   Asm->EmitAlignment(TD->getPointerSize() == 4 ? 2 : 3, 0, 0, false);
   EmitLabel("eh_frame_common_end", Index);
-
-  Asm->EOL();
+  Asm->O << '\n';
 }
 
 /// EmitFDE - Emit the Frame Description Entry (FDE) for the function.
@@ -230,23 +181,28 @@ void DwarfException::EmitFDE(const FunctionEHFrameInfo &EHFrameInfo) {
          "Should not emit 'available externally' functions at all");
 
   const Function *TheFunc = EHFrameInfo.function;
+  const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
 
-  Asm->OutStreamer.SwitchSection(Asm->getObjFileLowering().getEHFrameSection());
+  unsigned LSDAEncoding = TLOF.getLSDAEncoding();
+  unsigned FDEEncoding = TLOF.getFDEEncoding();
+
+  Asm->OutStreamer.SwitchSection(TLOF.getEHFrameSection());
 
   // Externally visible entry into the functions eh frame info. If the
   // corresponding function is static, this should not be externally visible.
   if (!TheFunc->hasLocalLinkage())
     if (const char *GlobalEHDirective = MAI->getGlobalEHDirective())
-      O << GlobalEHDirective << EHFrameInfo.FnName << '\n';
+      O << GlobalEHDirective << *EHFrameInfo.FunctionEHSym << '\n';
 
   // If corresponding function is weak definition, this should be too.
   if (TheFunc->isWeakForLinker() && MAI->getWeakDefDirective())
-    O << MAI->getWeakDefDirective() << EHFrameInfo.FnName << '\n';
+    O << MAI->getWeakDefDirective() << *EHFrameInfo.FunctionEHSym << '\n';
 
   // If corresponding function is hidden, this should be too.
   if (TheFunc->hasHiddenVisibility())
-    if (const char *HiddenDirective = MAI->getHiddenDirective())
-      O << HiddenDirective << EHFrameInfo.FnName << '\n' ;
+    if (MCSymbolAttr HiddenAttr = MAI->getHiddenVisibilityAttr())
+      Asm->OutStreamer.EmitSymbolAttribute(EHFrameInfo.FunctionEHSym,
+                                           HiddenAttr);
 
   // If there are no calls then you can't unwind.  This may mean we can omit the
   // EH Frame, but some environments do not handle weak absolute symbols. If
@@ -256,19 +212,21 @@ void DwarfException::EmitFDE(const FunctionEHFrameInfo &EHFrameInfo) {
       (!TheFunc->isWeakForLinker() ||
        !MAI->getWeakDefDirective() ||
        MAI->getSupportsWeakOmittedEHFrame())) {
-    O << EHFrameInfo.FnName << " = 0\n";
+    O << *EHFrameInfo.FunctionEHSym << " = 0\n";
     // This name has no connection to the function, so it might get
     // dead-stripped when the function is not, erroneously.  Prohibit
     // dead-stripping unconditionally.
-    if (const char *UsedDirective = MAI->getUsedDirective())
-      O << UsedDirective << EHFrameInfo.FnName << "\n\n";
+    if (MAI->hasNoDeadStrip())
+      Asm->OutStreamer.EmitSymbolAttribute(EHFrameInfo.FunctionEHSym,
+                                           MCSA_NoDeadStrip);
   } else {
-    O << EHFrameInfo.FnName << ":\n";
+    O << *EHFrameInfo.FunctionEHSym << ":\n";
 
     // EH frame header.
     EmitDifference("eh_frame_end", EHFrameInfo.Number,
-                   "eh_frame_begin", EHFrameInfo.Number, true);
-    Asm->EOL("Length of Frame Information Entry");
+                   "eh_frame_begin", EHFrameInfo.Number,
+                   true);
+    EOL("Length of Frame Information Entry");
 
     EmitLabel("eh_frame_begin", EHFrameInfo.Number);
 
@@ -276,34 +234,29 @@ void DwarfException::EmitFDE(const FunctionEHFrameInfo &EHFrameInfo) {
                       EHFrameInfo.Number, EHFrameInfo.PersonalityIndex,
                       true, true, false);
 
-    Asm->EOL("FDE CIE offset");
+    EOL("FDE CIE offset");
 
-    EmitReference("eh_func_begin", EHFrameInfo.Number, true, true);
-    Asm->EOL("FDE initial location");
+    EmitReference("eh_func_begin", EHFrameInfo.Number, FDEEncoding);
+    EOL("FDE initial location");
     EmitDifference("eh_func_end", EHFrameInfo.Number,
-                   "eh_func_begin", EHFrameInfo.Number, true);
-    Asm->EOL("FDE address range");
+                   "eh_func_begin", EHFrameInfo.Number,
+                   SizeOfEncodedValue(FDEEncoding) == 4);
+    EOL("FDE address range");
 
     // If there is a personality and landing pads then point to the language
     // specific data area in the exception table.
     if (MMI->getPersonalities()[0] != NULL) {
-      bool is4Byte = TD->getPointerSize() == sizeof(int32_t);
+      unsigned Size = SizeOfEncodedValue(LSDAEncoding);
 
-      Asm->EmitULEB128Bytes(is4Byte ? 4 : 8);
-      Asm->EOL("Augmentation size");
-
+      EmitULEB128(Size, "Augmentation size");
       if (EHFrameInfo.hasLandingPads)
-        EmitReference("exception", EHFrameInfo.Number, true, false);
-      else {
-        if (is4Byte)
-          Asm->EmitInt32((int)0);
-        else
-          Asm->EmitInt64((int)0);
-      }
-      Asm->EOL("Language Specific Data Area");
+        EmitReference("exception", EHFrameInfo.Number, LSDAEncoding);
+      else
+        Asm->OutStreamer.EmitIntValue(0, Size/*size*/, 0/*addrspace*/);
+
+      EOL("Language Specific Data Area");
     } else {
-      Asm->EmitULEB128Bytes(0);
-      Asm->EOL("Augmentation size");
+      EmitULEB128(0, "Augmentation size");
     }
 
     // Indicate locations of function specific callee saved registers in frame.
@@ -323,11 +276,11 @@ void DwarfException::EmitFDE(const FunctionEHFrameInfo &EHFrameInfo) {
     // on unused functions (calling undefined externals) being dead-stripped to
     // link correctly.  Yes, there really is.
     if (MMI->isUsedFunction(EHFrameInfo.function))
-      if (const char *UsedDirective = MAI->getUsedDirective())
-        O << UsedDirective << EHFrameInfo.FnName << "\n\n";
+      if (MAI->hasNoDeadStrip())
+        Asm->OutStreamer.EmitSymbolAttribute(EHFrameInfo.FunctionEHSym,
+                                             MCSA_NoDeadStrip);
   }
-
-  Asm->EOL();
+  Asm->O << '\n';
 }
 
 /// SharedTypeIds - How many leading type ids two landing pads have in common.
@@ -414,20 +367,22 @@ ComputeActionsTable(const SmallVectorImpl<const LandingPadInfo*> &LandingPads,
 
     if (NumShared < TypeIds.size()) {
       unsigned SizeAction = 0;
-      ActionEntry *PrevAction = 0;
+      unsigned PrevAction = (unsigned)-1;
 
       if (NumShared) {
         const unsigned SizePrevIds = PrevLPI->TypeIds.size();
         assert(Actions.size());
-        PrevAction = &Actions.back();
-        SizeAction = MCAsmInfo::getSLEB128Size(PrevAction->NextAction) +
-          MCAsmInfo::getSLEB128Size(PrevAction->ValueForTypeID);
+        PrevAction = Actions.size() - 1;
+        SizeAction =
+          MCAsmInfo::getSLEB128Size(Actions[PrevAction].NextAction) +
+          MCAsmInfo::getSLEB128Size(Actions[PrevAction].ValueForTypeID);
 
         for (unsigned j = NumShared; j != SizePrevIds; ++j) {
+          assert(PrevAction != (unsigned)-1 && "PrevAction is invalid!");
           SizeAction -=
-            MCAsmInfo::getSLEB128Size(PrevAction->ValueForTypeID);
-          SizeAction += -PrevAction->NextAction;
-          PrevAction = PrevAction->Previous;
+            MCAsmInfo::getSLEB128Size(Actions[PrevAction].ValueForTypeID);
+          SizeAction += -Actions[PrevAction].NextAction;
+          PrevAction = Actions[PrevAction].Previous;
         }
       }
 
@@ -444,7 +399,7 @@ ComputeActionsTable(const SmallVectorImpl<const LandingPadInfo*> &LandingPads,
 
         ActionEntry Action = { ValueForTypeID, NextAction, PrevAction };
         Actions.push_back(Action);
-        PrevAction = &Actions.back();
+        PrevAction = Actions.size() - 1;
       }
 
       // Record the first action of the landing pad site.
@@ -454,7 +409,7 @@ ComputeActionsTable(const SmallVectorImpl<const LandingPadInfo*> &LandingPads,
     // Information used when created the call-site table. The action record
     // field of the call site record is the offset of the first associated
     // action record, relative to the start of the actions table. This value is
-    // biased by 1 (1 in dicating the start of the actions table), and 0
+    // biased by 1 (1 indicating the start of the actions table), and 0
     // indicates that there are no actions.
     FirstActions.push_back(FirstAction);
 
@@ -587,7 +542,16 @@ ComputeCallSiteTable(SmallVectorImpl<CallSiteEntry> &CallSites,
         }
 
         // Otherwise, create a new call-site.
-        CallSites.push_back(Site);
+        if (MAI->getExceptionHandlingType() == ExceptionHandling::Dwarf)
+          CallSites.push_back(Site);
+        else {
+          // SjLj EH must maintain the call sites in the order assigned
+          // to them by the SjLjPrepare pass.
+          unsigned SiteNo = MMI->getCallSiteBeginLabel(BeginLabel);
+          if (CallSites.size() < SiteNo)
+            CallSites.resize(SiteNo);
+          CallSites[SiteNo - 1] = Site;
+        }
         PreviousIsInvoke = true;
       } else {
         // Create a gap.
@@ -646,8 +610,7 @@ void DwarfException::EmitExceptionTable() {
   // landing pad site.
   SmallVector<ActionEntry, 32> Actions;
   SmallVector<unsigned, 64> FirstActions;
-  unsigned SizeActions = ComputeActionsTable(LandingPads, Actions,
-                                             FirstActions);
+  unsigned SizeActions=ComputeActionsTable(LandingPads, Actions, FirstActions);
 
   // Invokes and nounwind calls have entries in PadMap (due to being bracketed
   // by try-range labels when lowered).  Ordinary calls do not, so appropriate
@@ -691,13 +654,13 @@ void DwarfException::EmitExceptionTable() {
 
   // Type infos.
   const MCSection *LSDASection = Asm->getObjFileLowering().getLSDASection();
-  unsigned TTypeFormat;
+  unsigned TTypeEncoding;
   unsigned TypeFormatSize;
 
   if (!HaveTTData) {
     // For SjLj exceptions, if there is no TypeInfo, then we just explicitly say
     // that we're omitting that bit.
-    TTypeFormat = dwarf::DW_EH_PE_omit;
+    TTypeEncoding = dwarf::DW_EH_PE_omit;
     TypeFormatSize = SizeOfEncodedValue(dwarf::DW_EH_PE_absptr);
   } else {
     // Okay, we have actual filters or typeinfos to emit.  As such, we need to
@@ -727,15 +690,8 @@ void DwarfException::EmitExceptionTable() {
     // somewhere.  This predicate should be moved to a shared location that is
     // in target-independent code.
     //
-    if ((LSDASection->getKind().isWriteable() &&
-         !LSDASection->getKind().isReadOnlyWithRel()) ||
-        Asm->TM.getRelocationModel() == Reloc::Static)
-      TTypeFormat = dwarf::DW_EH_PE_absptr;
-    else
-      TTypeFormat = dwarf::DW_EH_PE_indirect | dwarf::DW_EH_PE_pcrel |
-        dwarf::DW_EH_PE_sdata4;
-
-    TypeFormatSize = SizeOfEncodedValue(TTypeFormat);
+    TTypeEncoding = Asm->getObjFileLowering().getTTypeEncoding();
+    TypeFormatSize = SizeOfEncodedValue(TTypeEncoding);
   }
 
   // Begin the exception table.
@@ -761,7 +717,7 @@ void DwarfException::EmitExceptionTable() {
   // does, instead output it before the table.
   unsigned SizeTypes = TypeInfos.size() * TypeFormatSize;
   unsigned TyOffset = sizeof(int8_t) +          // Call site format
-    MCAsmInfo::getULEB128Size(SizeSites) +      // Call-site table length
+    MCAsmInfo::getULEB128Size(SizeSites) +      // Call site table length
     SizeSites + SizeActions + SizeTypes;
   unsigned TotalSize = sizeof(int8_t) +         // LPStart format
                        sizeof(int8_t) +         // TType format
@@ -772,7 +728,7 @@ void DwarfException::EmitExceptionTable() {
 
   for (unsigned i = 0; i != SizeAlign; ++i) {
     Asm->EmitInt8(0);
-    Asm->EOL("Padding");
+    EOL("Padding");
   }
 
   EmitLabel("exception", SubprogramCount);
@@ -785,23 +741,16 @@ void DwarfException::EmitExceptionTable() {
   }
 
   // Emit the header.
-  Asm->EmitInt8(dwarf::DW_EH_PE_omit);
-  Asm->EOL("@LPStart format", dwarf::DW_EH_PE_omit);
+  EmitEncodingByte(dwarf::DW_EH_PE_omit, "@LPStart");
+  EmitEncodingByte(TTypeEncoding, "@TType");
 
-  Asm->EmitInt8(TTypeFormat);
-  Asm->EOL("@TType format", TTypeFormat);
-
-  if (HaveTTData) {
-    Asm->EmitULEB128Bytes(TyOffset);
-    Asm->EOL("@TType base offset");
-  }
+  if (HaveTTData)
+    EmitULEB128(TyOffset, "@TType base offset");
 
   // SjLj Exception handling
   if (IsSJLJ) {
-    Asm->EmitInt8(dwarf::DW_EH_PE_udata4);
-    Asm->EOL("Call site format", dwarf::DW_EH_PE_udata4);
-    Asm->EmitULEB128Bytes(SizeSites);
-    Asm->EOL("Call site table length");
+    EmitEncodingByte(dwarf::DW_EH_PE_udata4, "Call site");
+    EmitULEB128(SizeSites, "Call site table length");
 
     // Emit the landing pad site information.
     unsigned idx = 0;
@@ -811,14 +760,12 @@ void DwarfException::EmitExceptionTable() {
 
       // Offset of the landing pad, counted in 16-byte bundles relative to the
       // @LPStart address.
-      Asm->EmitULEB128Bytes(idx);
-      Asm->EOL("Landing pad");
+      EmitULEB128(idx, "Landing pad");
 
       // Offset of the first associated action record, relative to the start of
       // the action table. This value is biased by 1 (1 indicates the start of
       // the action table), and 0 indicates that there are no actions.
-      Asm->EmitULEB128Bytes(S.Action);
-      Asm->EOL("Action");
+      EmitULEB128(S.Action, "Action");
     }
   } else {
     // DWARF Exception handling
@@ -843,10 +790,8 @@ void DwarfException::EmitExceptionTable() {
     // supposed to throw.
 
     // Emit the landing pad call site table.
-    Asm->EmitInt8(dwarf::DW_EH_PE_udata4);
-    Asm->EOL("Call site format", dwarf::DW_EH_PE_udata4);
-    Asm->EmitULEB128Bytes(SizeSites);
-    Asm->EOL("Call site table size");
+    EmitEncodingByte(dwarf::DW_EH_PE_udata4, "Call site");
+    EmitULEB128(SizeSites, "Call site table length");
 
     for (SmallVectorImpl<CallSiteEntry>::const_iterator
          I = CallSites.begin(), E = CallSites.end(); I != E; ++I) {
@@ -867,7 +812,7 @@ void DwarfException::EmitExceptionTable() {
       // the start of the procedure fragment.
       EmitSectionOffset(BeginTag, "eh_func_begin", BeginNumber, SubprogramCount,
                         true, true);
-      Asm->EOL("Region start");
+      EOL("Region start");
 
       if (!S.EndLabel)
         EmitDifference("eh_func_end", SubprogramCount, BeginTag, BeginNumber,
@@ -875,94 +820,68 @@ void DwarfException::EmitExceptionTable() {
       else
         EmitDifference("label", S.EndLabel, BeginTag, BeginNumber, true);
 
-      Asm->EOL("Region length");
+      EOL("Region length");
 
       // Offset of the landing pad, counted in 16-byte bundles relative to the
       // @LPStart address.
-      if (!S.PadLabel)
-        Asm->EmitInt32(0);
-      else
+      if (!S.PadLabel) {
+        Asm->OutStreamer.AddComment("Landing pad");
+        Asm->OutStreamer.EmitIntValue(0, 4/*size*/, 0/*addrspace*/);
+      } else {
         EmitSectionOffset("label", "eh_func_begin", S.PadLabel, SubprogramCount,
                           true, true);
-
-      Asm->EOL("Landing pad");
+        EOL("Landing pad");
+      }
 
       // Offset of the first associated action record, relative to the start of
       // the action table. This value is biased by 1 (1 indicates the start of
       // the action table), and 0 indicates that there are no actions.
-      Asm->EmitULEB128Bytes(S.Action);
-      Asm->EOL("Action");
+      EmitULEB128(S.Action, "Action");
     }
   }
 
   // Emit the Action Table.
+  if (Actions.size() != 0) EOL("-- Action Record Table --");
   for (SmallVectorImpl<ActionEntry>::const_iterator
          I = Actions.begin(), E = Actions.end(); I != E; ++I) {
     const ActionEntry &Action = *I;
+    EOL("Action Record:");
 
     // Type Filter
     //
     //   Used by the runtime to match the type of the thrown exception to the
     //   type of the catch clauses or the types in the exception specification.
-
-    Asm->EmitSLEB128Bytes(Action.ValueForTypeID);
-    Asm->EOL("TypeInfo index");
+    EmitSLEB128(Action.ValueForTypeID, "  TypeInfo index");
 
     // Action Record
     //
     //   Self-relative signed displacement in bytes of the next action record,
     //   or 0 if there is no next action record.
-
-    Asm->EmitSLEB128Bytes(Action.NextAction);
-    Asm->EOL("Next action");
+    EmitSLEB128(Action.NextAction, "  Next action");
   }
 
   // Emit the Catch TypeInfos.
-  const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
-  unsigned Index = 1;
-
+  if (!TypeInfos.empty()) EOL("-- Catch TypeInfos --");
   for (std::vector<GlobalVariable *>::const_reverse_iterator
          I = TypeInfos.rbegin(), E = TypeInfos.rend(); I != E; ++I) {
-    const GlobalVariable *TI = *I;
+    const GlobalVariable *GV = *I;
 
-    if (TI) {
-      if (!LSDASection->getKind().isReadOnlyWithRel() &&
-          (TTypeFormat == dwarf::DW_EH_PE_absptr ||
-           TI->getLinkage() == GlobalValue::InternalLinkage)) {
-        // Print out the unadorned name of the type info.
-        PrintRelDirective();
-        O << Asm->Mang->getMangledName(TI);
-      } else {
-        bool IsTypeInfoIndirect = false, IsTypeInfoPCRel = false;
-        const MCExpr *TypeInfoRef =
-          TLOF.getSymbolForDwarfGlobalReference(TI, Asm->Mang, Asm->MMI,
-                                                IsTypeInfoIndirect,
-                                                IsTypeInfoPCRel);
-
-        if (!IsTypeInfoPCRel)
-          TypeInfoRef = CreateLabelDiff(TypeInfoRef, "typeinforef_addr",
-                                        Index++);
-
-        O << MAI->getData32bitsDirective();
-        TypeInfoRef->print(O, MAI);
-      }
+    if (GV) {
+      EmitReference(GV, TTypeEncoding);
+      EOL("TypeInfo");
     } else {
-      PrintRelDirective();
+      PrintRelDirective(TTypeEncoding);
       O << "0x0";
+      EOL("");
     }
-
-    Asm->EOL("TypeInfo");
   }
 
   // Emit the Exception Specifications.
+  if (!FilterIds.empty()) EOL("-- Filter IDs --");
   for (std::vector<unsigned>::const_iterator
          I = FilterIds.begin(), E = FilterIds.end(); I < E; ++I) {
     unsigned TypeID = *I;
-    Asm->EmitULEB128Bytes(TypeID);
-    if (TypeID != 0)
-      Asm->EOL("Exception specification");
-    else
-      Asm->EOL();
+    EmitULEB128(TypeID, TypeID != 0 ? "Exception specification" : 0);
   }
 
   Asm->EmitAlignment(2, 0, 0, false);
@@ -995,7 +914,7 @@ void DwarfException::EndModule() {
 
 /// BeginFunction - Gather pre-function exception information. Assumes it's
 /// being emitted immediately after the function entry point.
-void DwarfException::BeginFunction(MachineFunction *MF) {
+void DwarfException::BeginFunction(const MachineFunction *MF) {
   if (!MMI || !MAI->doesSupportExceptionHandling()) return;
 
   if (TimePassesIsEnabled)
@@ -1037,12 +956,12 @@ void DwarfException::EndFunction() {
   EmitLabel("eh_func_end", SubprogramCount);
   EmitExceptionTable();
 
-  std::string FunctionEHName =
-    Asm->Mang->getMangledName(MF->getFunction(), ".eh",
-                              Asm->MAI->is_EHSymbolPrivate());
+  MCSymbol *FunctionEHSym =
+    Asm->GetSymbolWithGlobalValueBase(MF->getFunction(), ".eh",
+                                      Asm->MAI->is_EHSymbolPrivate());
   
   // Save EH frame information
-  EHFrames.push_back(FunctionEHFrameInfo(FunctionEHName, SubprogramCount,
+  EHFrames.push_back(FunctionEHFrameInfo(FunctionEHSym, SubprogramCount,
                                          MMI->getPersonalityIndex(),
                                          MF->getFrameInfo()->hasCalls(),
                                          !MMI->getLandingPads().empty(),

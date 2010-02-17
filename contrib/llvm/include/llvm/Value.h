@@ -17,7 +17,6 @@
 #include "llvm/AbstractTypeUser.h"
 #include "llvm/Use.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Twine.h"
 #include "llvm/Support/Casting.h"
 #include <string>
 
@@ -42,7 +41,8 @@ class raw_ostream;
 class AssemblyAnnotationWriter;
 class ValueHandleBase;
 class LLVMContext;
-class MetadataContextImpl;
+class Twine;
+class MDNode;
 
 //===----------------------------------------------------------------------===//
 //                                 Value Class
@@ -57,14 +57,13 @@ class MetadataContextImpl;
 ///
 /// Every value has a "use list" that keeps track of which other Values are
 /// using this Value.  A Value can also have an arbitrary number of ValueHandle
-/// objects that watch it and listen to RAUW and Destroy events see
+/// objects that watch it and listen to RAUW and Destroy events.  See
 /// llvm/Support/ValueHandle.h for details.
 ///
 /// @brief LLVM Value Representation
 class Value {
   const unsigned char SubclassID;   // Subclass identifier (for isa/dyn_cast)
   unsigned char HasValueHandle : 1; // Has a ValueHandle pointing to this?
-  unsigned char HasMetadata : 1;    // Has a metadata attached to this ?
 protected:
   /// SubclassOptionalData - This member is similar to SubclassData, however it
   /// is for holding information which may be used to aid optimization, but
@@ -72,18 +71,17 @@ protected:
   /// interpretation.
   unsigned char SubclassOptionalData : 7;
 
+private:
   /// SubclassData - This member is defined by this class, but is not used for
   /// anything.  Subclasses can use it to hold whatever state they find useful.
   /// This field is initialized to zero by the ctor.
   unsigned short SubclassData;
-private:
+
   PATypeHolder VTy;
   Use *UseList;
 
   friend class ValueSymbolTable; // Allow ValueSymbolTable to directly mod Name.
-  friend class SymbolTable;      // Allow SymbolTable to directly poke Name.
   friend class ValueHandleBase;
-  friend class MetadataContextImpl;
   friend class AbstractTypeUser;
   ValueName *Name;
 
@@ -217,6 +215,7 @@ public:
     ConstantFPVal,            // This is an instance of ConstantFP
     ConstantArrayVal,         // This is an instance of ConstantArray
     ConstantStructVal,        // This is an instance of ConstantStruct
+    ConstantUnionVal,         // This is an instance of ConstantUnion
     ConstantVectorVal,        // This is an instance of ConstantVector
     ConstantPointerNullVal,   // This is an instance of ConstantPointerNull
     MDNodeVal,                // This is an instance of MDNode
@@ -287,10 +286,11 @@ public:
   /// getUnderlyingObject - This method strips off any GEP address adjustments
   /// and pointer casts from the specified value, returning the original object
   /// being addressed.  Note that the returned value has pointer type if the
-  /// specified value does.
-  Value *getUnderlyingObject();
-  const Value *getUnderlyingObject() const {
-    return const_cast<Value*>(this)->getUnderlyingObject();
+  /// specified value does.  If the MaxLookup value is non-zero, it limits the
+  /// number of instructions to be stripped off.
+  Value *getUnderlyingObject(unsigned MaxLookup = 6);
+  const Value *getUnderlyingObject(unsigned MaxLookup = 6) const {
+    return const_cast<Value*>(this)->getUnderlyingObject(MaxLookup);
   }
   
   /// DoPHITranslation - If this value is a PHI node with CurBB as its parent,
@@ -303,9 +303,10 @@ public:
                                 const BasicBlock *PredBB) const{
     return const_cast<Value*>(this)->DoPHITranslation(CurBB, PredBB);
   }
-
-  /// hasMetadata - Return true if metadata is attached with this value.
-  bool hasMetadata() const { return HasMetadata; }
+  
+protected:
+  unsigned short getSubclassDataFromValue() const { return SubclassData; }
+  void setValueSubclassData(unsigned short D) { SubclassData = D; }
 };
 
 inline raw_ostream &operator<<(raw_ostream &OS, const Value &V) {
@@ -351,6 +352,9 @@ template <> inline bool isa_impl<GlobalAlias, Value>(const Value &Val) {
 template <> inline bool isa_impl<GlobalValue, Value>(const Value &Val) {
   return isa<GlobalVariable>(Val) || isa<Function>(Val) ||
          isa<GlobalAlias>(Val);
+}
+template <> inline bool isa_impl<MDNode, Value>(const Value &Val) {
+  return Val.getValueID() == Value::MDNodeVal;
 }
   
   

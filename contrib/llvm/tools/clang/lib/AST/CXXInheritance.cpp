@@ -90,11 +90,65 @@ bool CXXRecordDecl::isDerivedFrom(CXXRecordDecl *Base, CXXBasePaths &Paths) cons
   return lookupInBases(&FindBaseClass, Base->getCanonicalDecl(), Paths);
 }
 
+static bool BaseIsNot(const CXXRecordDecl *Base, void *OpaqueTarget) {
+  // OpaqueTarget is a CXXRecordDecl*.
+  return Base->getCanonicalDecl() != (const CXXRecordDecl*) OpaqueTarget;
+}
+
+bool CXXRecordDecl::isProvablyNotDerivedFrom(const CXXRecordDecl *Base) const {
+  return forallBases(BaseIsNot, (void*) Base->getCanonicalDecl());
+}
+
+bool CXXRecordDecl::forallBases(ForallBasesCallback *BaseMatches,
+                                void *OpaqueData,
+                                bool AllowShortCircuit) const {
+  llvm::SmallVector<const CXXRecordDecl*, 8> Queue;
+
+  const CXXRecordDecl *Record = this;
+  bool AllMatches = true;
+  while (true) {
+    for (CXXRecordDecl::base_class_const_iterator
+           I = Record->bases_begin(), E = Record->bases_end(); I != E; ++I) {
+      const RecordType *Ty = I->getType()->getAs<RecordType>();
+      if (!Ty) {
+        if (AllowShortCircuit) return false;
+        AllMatches = false;
+        continue;
+      }
+
+      CXXRecordDecl *Base = 
+            cast_or_null<CXXRecordDecl>(Ty->getDecl()->getDefinition());
+      if (!Base) {
+        if (AllowShortCircuit) return false;
+        AllMatches = false;
+        continue;
+      }
+      
+      Queue.push_back(Base);
+      if (!BaseMatches(Base, OpaqueData)) {
+        if (AllowShortCircuit) return false;
+        AllMatches = false;
+        continue;
+      }
+    }
+
+    if (Queue.empty()) break;
+    Record = Queue.back(); // not actually a queue.
+    Queue.pop_back();
+  }
+
+  return AllMatches;
+}
+
 bool CXXRecordDecl::lookupInBases(BaseMatchesCallback *BaseMatches,
                                   void *UserData,
                                   CXXBasePaths &Paths) const {
   bool FoundPath = false;
-  
+
+  // The access of the path down to this record.
+  AccessSpecifier AccessToHere = Paths.ScratchPath.Access;
+  bool IsFirstStep = Paths.ScratchPath.empty();
+
   ASTContext &Context = getASTContext();
   for (base_class_const_iterator BaseSpec = bases_begin(),
          BaseSpecEnd = bases_end(); BaseSpec != BaseSpecEnd; ++BaseSpec) {
@@ -138,11 +192,35 @@ bool CXXRecordDecl::lookupInBases(BaseMatchesCallback *BaseMatches,
       else
         Element.SubobjectNumber = Subobjects.second;
       Paths.ScratchPath.push_back(Element);
+
+      // Calculate the "top-down" access to this base class.
+      // The spec actually describes this bottom-up, but top-down is
+      // equivalent because the definition works out as follows:
+      // 1. Write down the access along each step in the inheritance
+      //    chain, followed by the access of the decl itself.
+      //    For example, in
+      //      class A { public: int foo; };
+      //      class B : protected A {};
+      //      class C : public B {};
+      //      class D : private C {};
+      //    we would write:
+      //      private public protected public
+      // 2. If 'private' appears anywhere except far-left, access is denied.
+      // 3. Otherwise, overall access is determined by the most restrictive
+      //    access in the sequence.
+      if (IsFirstStep)
+        Paths.ScratchPath.Access = BaseSpec->getAccessSpecifier();
+      else
+        Paths.ScratchPath.Access
+          = MergeAccess(AccessToHere, BaseSpec->getAccessSpecifier());
     }
-        
+    
+    // Track whether there's a path involving this specific base.
+    bool FoundPathThroughBase = false;
+    
     if (BaseMatches(BaseSpec, Paths.ScratchPath, UserData)) {
-      // We've found a path that terminates that this base.
-      FoundPath = true;
+      // We've found a path that terminates at this base.
+      FoundPath = FoundPathThroughBase = true;
       if (Paths.isRecordingPaths()) {
         // We have a path. Make a copy of it before moving on.
         Paths.Paths.push_back(Paths.ScratchPath);
@@ -164,7 +242,7 @@ bool CXXRecordDecl::lookupInBases(BaseMatchesCallback *BaseMatches,
         
         // There is a path to a base class that meets the criteria. If we're 
         // not collecting paths or finding ambiguities, we're done.
-        FoundPath = true;
+        FoundPath = FoundPathThroughBase = true;
         if (!Paths.isFindingAmbiguities())
           return FoundPath;
       }
@@ -172,13 +250,18 @@ bool CXXRecordDecl::lookupInBases(BaseMatchesCallback *BaseMatches,
     
     // Pop this base specifier off the current path (if we're
     // collecting paths).
-    if (Paths.isRecordingPaths())
+    if (Paths.isRecordingPaths()) {
       Paths.ScratchPath.pop_back();
+    }
+
     // If we set a virtual earlier, and this isn't a path, forget it again.
-    if (SetVirtual && !FoundPath) {
+    if (SetVirtual && !FoundPathThroughBase) {
       Paths.DetectedVirtual = 0;
     }
   }
+
+  // Reset the scratch path access.
+  Paths.ScratchPath.Access = AccessToHere;
   
   return FoundPath;
 }

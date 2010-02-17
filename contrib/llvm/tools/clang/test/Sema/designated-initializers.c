@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify -triple x86_64-unknown-unknown %s
+// RUN: %clang_cc1 -fsyntax-only -verify -triple x86_64-unknown-unknown %s
 
 int complete_array_from_init[] = { 1, 2, [10] = 5, 1, 2, [5] = 2, 6 };
 
@@ -231,4 +231,21 @@ int crazy_Y[] = {
   [ 0 ? crazy_x : 4] = 1
 };
 
+// PR5843
+struct expr {
+  int nargs;
+  union {
+    unsigned long int num;
+    struct expr *args[3];
+  } val;
+};
 
+struct expr expr0 = { 
+  .nargs = 2,
+  .val = {
+    .args = { 
+      [0] = (struct expr *)0, 
+      [1] = (struct expr *)0 
+    }
+  }
+};

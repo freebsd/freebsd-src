@@ -21,6 +21,7 @@
 #include "llvm/Assembly/Writer.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include <algorithm>
@@ -56,7 +57,7 @@ bool Loop::isLoopInvariant(Value *V) const {
 /// loop-invariant.
 ///
 bool Loop::isLoopInvariant(Instruction *I) const {
-  return !contains(I->getParent());
+  return !contains(I);
 }
 
 /// makeLoopInvariant - If the given value is an instruciton inside of the
@@ -243,6 +244,11 @@ unsigned Loop::getSmallConstantTripMultiple() const {
         case BinaryOperator::Mul:
           Result = dyn_cast<ConstantInt>(BO->getOperand(1));
           break;
+        case BinaryOperator::Shl:
+          if (ConstantInt *CI = dyn_cast<ConstantInt>(BO->getOperand(1)))
+            if (CI->getValue().getActiveBits() <= 5)
+              return 1u << CI->getZExtValue();
+          break;
         default:
           break;
         }
@@ -311,12 +317,12 @@ bool Loop::hasDedicatedExits() const {
 
 /// getUniqueExitBlocks - Return all unique successor blocks of this loop.
 /// These are the blocks _outside of the current loop_ which are branched to.
-/// This assumes that loop is in canonical form.
+/// This assumes that loop exits are in canonical form.
 ///
 void
 Loop::getUniqueExitBlocks(SmallVectorImpl<BasicBlock *> &ExitBlocks) const {
-  assert(isLoopSimplifyForm() &&
-         "getUniqueExitBlocks assumes the loop is in canonical form!");
+  assert(hasDedicatedExits() &&
+         "getUniqueExitBlocks assumes the loop has canonical form exits!");
 
   // Sort the blocks vector so that we can use binary search to do quick
   // lookups.
@@ -378,6 +384,10 @@ BasicBlock *Loop::getUniqueExitBlock() const {
   if (UniqueExitBlocks.size() == 1)
     return UniqueExitBlocks[0];
   return 0;
+}
+
+void Loop::dump() const {
+  print(dbgs());
 }
 
 //===----------------------------------------------------------------------===//

@@ -19,6 +19,7 @@
 #include "llvm/Type.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Assembly/Writer.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/Format.h"
@@ -153,9 +154,6 @@ bool AliasSet::aliasesPointer(const Value *Ptr, unsigned Size,
 
   // Check the call sites list and invoke list...
   if (!CallSites.empty()) {
-    if (AA.hasNoModRefInfoForCalls())
-      return true;
-
     for (unsigned i = 0, e = CallSites.size(); i != e; ++i)
       if (AA.getModRefInfo(CallSites[i], const_cast<Value*>(Ptr), Size)
                    != AliasAnalysis::NoModRef)
@@ -168,9 +166,6 @@ bool AliasSet::aliasesPointer(const Value *Ptr, unsigned Size,
 bool AliasSet::aliasesCallSite(CallSite CS, AliasAnalysis &AA) const {
   if (AA.doesNotAccessMemory(CS))
     return false;
-
-  if (AA.hasNoModRefInfoForCalls())
-    return true;
 
   for (unsigned i = 0, e = CallSites.size(); i != e; ++i)
     if (AA.getModRefInfo(CallSites[i], CS) != AliasAnalysis::NoModRef ||
@@ -555,8 +550,8 @@ void AliasSetTracker::print(raw_ostream &OS) const {
   OS << "\n";
 }
 
-void AliasSet::dump() const { print(errs()); }
-void AliasSetTracker::dump() const { print(errs()); }
+void AliasSet::dump() const { print(dbgs()); }
+void AliasSetTracker::dump() const { print(dbgs()); }
 
 //===----------------------------------------------------------------------===//
 //                     ASTCallbackVH Class Implementation

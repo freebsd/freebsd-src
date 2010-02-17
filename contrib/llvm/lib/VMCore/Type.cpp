@@ -50,8 +50,8 @@ void AbstractTypeUser::setType(Value *V, const Type *NewTy) {
 
 /// Because of the way Type subclasses are allocated, this function is necessary
 /// to use the correct kind of "delete" operator to deallocate the Type object.
-/// Some type objects (FunctionTy, StructTy) allocate additional space after 
-/// the space for their derived type to hold the contained types array of
+/// Some type objects (FunctionTy, StructTy, UnionTy) allocate additional space
+/// after the space for their derived type to hold the contained types array of
 /// PATypeHandles. Using this allocation scheme means all the PATypeHandles are
 /// allocated with the type object, decreasing allocations and eliminating the
 /// need for a std::vector to be used in the Type class itself. 
@@ -61,7 +61,8 @@ void Type::destroy() const {
   // Structures and Functions allocate their contained types past the end of
   // the type object itself. These need to be destroyed differently than the
   // other types.
-  if (isa<FunctionType>(this) || isa<StructType>(this)) {
+  if (isa<FunctionType>(this) || isa<StructType>(this) ||
+      isa<UnionType>(this)) {
     // First, make sure we destruct any PATypeHandles allocated by these
     // subclasses.  They must be manually destructed. 
     for (unsigned i = 0; i < NumContainedTys; ++i)
@@ -71,14 +72,19 @@ void Type::destroy() const {
     // to delete this as an array of char.
     if (isa<FunctionType>(this))
       static_cast<const FunctionType*>(this)->FunctionType::~FunctionType();
-    else
+    else if (isa<StructType>(this))
       static_cast<const StructType*>(this)->StructType::~StructType();
+    else
+      static_cast<const UnionType*>(this)->UnionType::~UnionType();
 
     // Finally, remove the memory as an array deallocation of the chars it was
     // constructed from.
     operator delete(const_cast<Type *>(this));
 
     return;
+  } else if (const OpaqueType *opaque_this = dyn_cast<OpaqueType>(this)) {
+    LLVMContextImpl *pImpl = this->getContext().pImpl;
+    pImpl->OpaqueTypes.erase(opaque_this);
   }
 
   // For all the other type subclasses, there is either no contained types or 
@@ -121,27 +127,32 @@ const Type *Type::getScalarType() const {
   return this;
 }
 
-/// isIntOrIntVector - Return true if this is an integer type or a vector of
+/// isIntegerTy - Return true if this is an IntegerType of the specified width.
+bool Type::isIntegerTy(unsigned Bitwidth) const {
+  return isIntegerTy() && cast<IntegerType>(this)->getBitWidth() == Bitwidth;
+}
+
+/// isIntOrIntVectorTy - Return true if this is an integer type or a vector of
 /// integer types.
 ///
-bool Type::isIntOrIntVector() const {
-  if (isInteger())
+bool Type::isIntOrIntVectorTy() const {
+  if (isIntegerTy())
     return true;
   if (ID != Type::VectorTyID) return false;
   
-  return cast<VectorType>(this)->getElementType()->isInteger();
+  return cast<VectorType>(this)->getElementType()->isIntegerTy();
 }
 
-/// isFPOrFPVector - Return true if this is a FP type or a vector of FP types.
+/// isFPOrFPVectorTy - Return true if this is a FP type or a vector of FP types.
 ///
-bool Type::isFPOrFPVector() const {
+bool Type::isFPOrFPVectorTy() const {
   if (ID == Type::FloatTyID || ID == Type::DoubleTyID || 
       ID == Type::FP128TyID || ID == Type::X86_FP80TyID || 
       ID == Type::PPC_FP128TyID)
     return true;
   if (ID != Type::VectorTyID) return false;
   
-  return cast<VectorType>(this)->getElementType()->isFloatingPoint();
+  return cast<VectorType>(this)->getElementType()->isFloatingPointTy();
 }
 
 // canLosslesslyBitCastTo - Return true if this type can be converted to
@@ -196,7 +207,7 @@ unsigned Type::getScalarSizeInBits() const {
 int Type::getFPMantissaWidth() const {
   if (const VectorType *VTy = dyn_cast<VectorType>(this))
     return VTy->getElementType()->getFPMantissaWidth();
-  assert(isFloatingPoint() && "Not a floating point type!");
+  assert(isFloatingPointTy() && "Not a floating point type!");
   if (ID == FloatTyID) return 24;
   if (ID == DoubleTyID) return 53;
   if (ID == X86_FP80TyID) return 64;
@@ -218,7 +229,7 @@ bool Type::isSizedDerivedType() const {
   if (const VectorType *PTy = dyn_cast<VectorType>(this))
     return PTy->getElementType()->isSized();
 
-  if (!isa<StructType>(this)) 
+  if (!isa<StructType>(this) && !isa<UnionType>(this)) 
     return false;
 
   // Okay, our struct is sized if all of the elements are...
@@ -277,7 +288,7 @@ std::string Type::getDescription() const {
 
 bool StructType::indexValid(const Value *V) const {
   // Structure indexes require 32-bit integer constants.
-  if (V->getType() == Type::getInt32Ty(V->getContext()))
+  if (V->getType()->isIntegerTy(32))
     if (const ConstantInt *CU = dyn_cast<ConstantInt>(V))
       return indexValid(CU->getZExtValue());
   return false;
@@ -296,6 +307,32 @@ const Type *StructType::getTypeAtIndex(const Value *V) const {
 }
 
 const Type *StructType::getTypeAtIndex(unsigned Idx) const {
+  assert(indexValid(Idx) && "Invalid structure index!");
+  return ContainedTys[Idx];
+}
+
+
+bool UnionType::indexValid(const Value *V) const {
+  // Union indexes require 32-bit integer constants.
+  if (V->getType()->isIntegerTy(32))
+    if (const ConstantInt *CU = dyn_cast<ConstantInt>(V))
+      return indexValid(CU->getZExtValue());
+  return false;
+}
+
+bool UnionType::indexValid(unsigned V) const {
+  return V < NumContainedTys;
+}
+
+// getTypeAtIndex - Given an index value into the type, return the type of the
+// element.  For a structure type, this must be a constant value...
+//
+const Type *UnionType::getTypeAtIndex(const Value *V) const {
+  unsigned Idx = (unsigned)cast<ConstantInt>(V)->getZExtValue();
+  return getTypeAtIndex(Idx);
+}
+
+const Type *UnionType::getTypeAtIndex(unsigned Idx) const {
   assert(indexValid(Idx) && "Invalid structure index!");
   return ContainedTys[Idx];
 }
@@ -455,6 +492,23 @@ StructType::StructType(LLVMContext &C,
   setAbstract(isAbstract);
 }
 
+UnionType::UnionType(LLVMContext &C,const Type* const* Types, unsigned NumTypes)
+  : CompositeType(C, UnionTyID) {
+  ContainedTys = reinterpret_cast<PATypeHandle*>(this + 1);
+  NumContainedTys = NumTypes;
+  bool isAbstract = false;
+  for (unsigned i = 0; i < NumTypes; ++i) {
+    assert(Types[i] && "<null> type for union field!");
+    assert(isValidElementType(Types[i]) &&
+           "Invalid type for union element!");
+    new (&ContainedTys[i]) PATypeHandle(Types[i], this);
+    isAbstract |= Types[i]->isAbstract();
+  }
+
+  // Calculate whether or not this type is abstract
+  setAbstract(isAbstract);
+}
+
 ArrayType::ArrayType(const Type *ElType, uint64_t NumEl)
   : SequentialType(ArrayTyID, ElType) {
   NumElements = NumEl;
@@ -484,7 +538,7 @@ PointerType::PointerType(const Type *E, unsigned AddrSpace)
 OpaqueType::OpaqueType(LLVMContext &C) : DerivedType(C, OpaqueTyID) {
   setAbstract(true);
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << *this << "\n");
+  DEBUG(dbgs() << "Derived new type: " << *this << "\n");
 #endif
 }
 
@@ -499,30 +553,7 @@ void DerivedType::dropAllTypeUses() {
   if (NumContainedTys != 0) {
     // The type must stay abstract.  To do this, we insert a pointer to a type
     // that will never get resolved, thus will always be abstract.
-    static Type *AlwaysOpaqueTy = 0;
-    static PATypeHolder* Holder = 0;
-    Type *tmp = AlwaysOpaqueTy;
-    if (llvm_is_multithreaded()) {
-      sys::MemoryFence();
-      if (!tmp) {
-        llvm_acquire_global_lock();
-        tmp = AlwaysOpaqueTy;
-        if (!tmp) {
-          tmp = OpaqueType::get(getContext());
-          PATypeHolder* tmp2 = new PATypeHolder(tmp);
-          sys::MemoryFence();
-          AlwaysOpaqueTy = tmp;
-          Holder = tmp2;
-        }
-      
-        llvm_release_global_lock();
-      }
-    } else if (!AlwaysOpaqueTy) {
-      AlwaysOpaqueTy = OpaqueType::get(getContext());
-      Holder = new PATypeHolder(AlwaysOpaqueTy);
-    } 
-        
-    ContainedTys[0] = AlwaysOpaqueTy;
+    ContainedTys[0] = getContext().pImpl->AlwaysOpaqueTy;
 
     // Change the rest of the types to be Int32Ty's.  It doesn't matter what we
     // pick so long as it doesn't point back to this type.  We choose something
@@ -659,6 +690,13 @@ static bool TypesEqual(const Type *Ty, const Type *Ty2,
       if (!TypesEqual(STy->getElementType(i), STy2->getElementType(i), EqTypes))
         return false;
     return true;
+  } else if (const UnionType *UTy = dyn_cast<UnionType>(Ty)) {
+    const UnionType *UTy2 = cast<UnionType>(Ty2);
+    if (UTy->getNumElements() != UTy2->getNumElements()) return false;
+    for (unsigned i = 0, e = UTy2->getNumElements(); i != e; ++i)
+      if (!TypesEqual(UTy->getElementType(i), UTy2->getElementType(i), EqTypes))
+        return false;
+    return true;
   } else if (const ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
     const ArrayType *ATy2 = cast<ArrayType>(Ty2);
     return ATy->getNumElements() == ATy2->getNumElements() &&
@@ -684,9 +722,11 @@ static bool TypesEqual(const Type *Ty, const Type *Ty2,
   }
 }
 
+namespace llvm { // in namespace llvm so findable by ADL
 static bool TypesEqual(const Type *Ty, const Type *Ty2) {
   std::map<const Type *, const Type *> EqTypes;
-  return TypesEqual(Ty, Ty2, EqTypes);
+  return ::TypesEqual(Ty, Ty2, EqTypes);
+}
 }
 
 // AbstractTypeHasCycleThrough - Return true there is a path from CurTy to
@@ -722,8 +762,10 @@ static bool ConcreteTypeHasCycleThrough(const Type *TargetTy, const Type *CurTy,
   return false;
 }
 
-/// TypeHasCycleThroughItself - Return true if the specified type has a cycle
-/// back to itself.
+/// TypeHasCycleThroughItself - Return true if the specified type has
+/// a cycle back to itself.
+
+namespace llvm { // in namespace llvm so it's findable by ADL
 static bool TypeHasCycleThroughItself(const Type *Ty) {
   SmallPtrSet<const Type*, 128> VisitedTypes;
 
@@ -739,6 +781,7 @@ static bool TypeHasCycleThroughItself(const Type *Ty) {
         return true;
   }
   return false;
+}
 }
 
 //===----------------------------------------------------------------------===//
@@ -774,7 +817,7 @@ const IntegerType *IntegerType::get(LLVMContext &C, unsigned NumBits) {
     pImpl->IntegerTypes.add(IVT, ITy);
   }
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << *ITy << "\n");
+  DEBUG(dbgs() << "Derived new type: " << *ITy << "\n");
 #endif
   return ITy;
 }
@@ -817,7 +860,7 @@ FunctionType *FunctionType::get(const Type *ReturnType,
   }
 
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << FT << "\n");
+  DEBUG(dbgs() << "Derived new type: " << FT << "\n");
 #endif
   return FT;
 }
@@ -838,7 +881,7 @@ ArrayType *ArrayType::get(const Type *ElementType, uint64_t NumElements) {
     pImpl->ArrayTypes.add(AVT, AT = new ArrayType(ElementType, NumElements));
   }
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << *AT << "\n");
+  DEBUG(dbgs() << "Derived new type: " << *AT << "\n");
 #endif
   return AT;
 }
@@ -862,13 +905,13 @@ VectorType *VectorType::get(const Type *ElementType, unsigned NumElements) {
     pImpl->VectorTypes.add(PVT, PT = new VectorType(ElementType, NumElements));
   }
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << *PT << "\n");
+  DEBUG(dbgs() << "Derived new type: " << *PT << "\n");
 #endif
   return PT;
 }
 
 bool VectorType::isValidElementType(const Type *ElemTy) {
-  return ElemTy->isInteger() || ElemTy->isFloatingPoint() ||
+  return ElemTy->isIntegerTy() || ElemTy->isFloatingPointTy() ||
          isa<OpaqueType>(ElemTy);
 }
 
@@ -894,7 +937,7 @@ StructType *StructType::get(LLVMContext &Context,
     pImpl->StructTypes.add(STV, ST);
   }
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << *ST << "\n");
+  DEBUG(dbgs() << "Derived new type: " << *ST << "\n");
 #endif
   return ST;
 }
@@ -911,10 +954,64 @@ StructType *StructType::get(LLVMContext &Context, const Type *type, ...) {
 }
 
 bool StructType::isValidElementType(const Type *ElemTy) {
-  return ElemTy->getTypeID() != VoidTyID && ElemTy->getTypeID() != LabelTyID &&
-         ElemTy->getTypeID() != MetadataTyID && !isa<FunctionType>(ElemTy);
+  return !ElemTy->isVoidTy() && !ElemTy->isLabelTy() &&
+         !ElemTy->isMetadataTy() && !isa<FunctionType>(ElemTy);
 }
 
+
+//===----------------------------------------------------------------------===//
+// Union Type Factory...
+//
+
+UnionType *UnionType::get(const Type* const* Types, unsigned NumTypes) {
+  assert(NumTypes > 0 && "union must have at least one member type!");
+  UnionValType UTV(Types, NumTypes);
+  UnionType *UT = 0;
+  
+  LLVMContextImpl *pImpl = Types[0]->getContext().pImpl;
+  
+  UT = pImpl->UnionTypes.get(UTV);
+    
+  if (!UT) {
+    // Value not found.  Derive a new type!
+    UT = (UnionType*) operator new(sizeof(UnionType) +
+                                   sizeof(PATypeHandle) * NumTypes);
+    new (UT) UnionType(Types[0]->getContext(), Types, NumTypes);
+    pImpl->UnionTypes.add(UTV, UT);
+  }
+#ifdef DEBUG_MERGE_TYPES
+  DEBUG(dbgs() << "Derived new type: " << *UT << "\n");
+#endif
+  return UT;
+}
+
+UnionType *UnionType::get(const Type *type, ...) {
+  va_list ap;
+  SmallVector<const llvm::Type*, 8> UnionFields;
+  va_start(ap, type);
+  while (type) {
+    UnionFields.push_back(type);
+    type = va_arg(ap, llvm::Type*);
+  }
+  unsigned NumTypes = UnionFields.size();
+  assert(NumTypes > 0 && "union must have at least one member type!");
+  return llvm::UnionType::get(&UnionFields[0], NumTypes);
+}
+
+bool UnionType::isValidElementType(const Type *ElemTy) {
+  return !ElemTy->isVoidTy() && !ElemTy->isLabelTy() &&
+         !ElemTy->isMetadataTy() && !ElemTy->isFunctionTy();
+}
+
+int UnionType::getElementTypeIndex(const Type *ElemTy) const {
+  int index = 0;
+  for (UnionType::element_iterator I = element_begin(), E = element_end();
+       I != E; ++I, ++index) {
+     if (ElemTy == *I) return index;
+  }
+  
+  return -1;
+}
 
 //===----------------------------------------------------------------------===//
 // Pointer Type Factory...
@@ -938,7 +1035,7 @@ PointerType *PointerType::get(const Type *ValueType, unsigned AddressSpace) {
     pImpl->PointerTypes.add(PVT, PT = new PointerType(ValueType, AddressSpace));
   }
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "Derived new type: " << *PT << "\n");
+  DEBUG(dbgs() << "Derived new type: " << *PT << "\n");
 #endif
   return PT;
 }
@@ -952,6 +1049,20 @@ bool PointerType::isValidElementType(const Type *ElemTy) {
          ElemTy->getTypeID() != LabelTyID &&
          ElemTy->getTypeID() != MetadataTyID;
 }
+
+
+//===----------------------------------------------------------------------===//
+// Opaque Type Factory...
+//
+
+OpaqueType *OpaqueType::get(LLVMContext &C) {
+  OpaqueType *OT = new OpaqueType(C);           // All opaque types are distinct
+  
+  LLVMContextImpl *pImpl = C.pImpl;
+  pImpl->OpaqueTypes.insert(OT);
+  return OT;
+}
+
 
 
 //===----------------------------------------------------------------------===//
@@ -987,13 +1098,13 @@ void Type::removeAbstractTypeUser(AbstractTypeUser *U) const {
   AbstractTypeUsers.erase(AbstractTypeUsers.begin()+i);
 
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "  remAbstractTypeUser[" << (void*)this << ", "
+  DEBUG(dbgs() << "  remAbstractTypeUser[" << (void*)this << ", "
                << *this << "][" << i << "] User = " << U << "\n");
 #endif
 
   if (AbstractTypeUsers.empty() && getRefCount() == 0 && isAbstract()) {
 #ifdef DEBUG_MERGE_TYPES
-    DEBUG(errs() << "DELETEing unused abstract type: <" << *this
+    DEBUG(dbgs() << "DELETEing unused abstract type: <" << *this
                  << ">[" << (void*)this << "]" << "\n");
 #endif
   
@@ -1019,7 +1130,7 @@ void DerivedType::unlockedRefineAbstractTypeTo(const Type *NewType) {
   pImpl->AbstractTypeDescriptions.clear();
 
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "REFINING abstract type [" << (void*)this << " "
+  DEBUG(dbgs() << "REFINING abstract type [" << (void*)this << " "
                << *this << "] to [" << (void*)NewType << " "
                << *NewType << "]!\n");
 #endif
@@ -1056,7 +1167,7 @@ void DerivedType::unlockedRefineAbstractTypeTo(const Type *NewType) {
 
     unsigned OldSize = AbstractTypeUsers.size(); OldSize=OldSize;
 #ifdef DEBUG_MERGE_TYPES
-    DEBUG(errs() << " REFINING user " << OldSize-1 << "[" << (void*)User
+    DEBUG(dbgs() << " REFINING user " << OldSize-1 << "[" << (void*)User
                  << "] of abstract type [" << (void*)this << " "
                  << *this << "] to [" << (void*)NewTy.get() << " "
                  << *NewTy << "]!\n");
@@ -1087,7 +1198,7 @@ void DerivedType::refineAbstractTypeTo(const Type *NewType) {
 //
 void DerivedType::notifyUsesThatTypeBecameConcrete() {
 #ifdef DEBUG_MERGE_TYPES
-  DEBUG(errs() << "typeIsREFINED type: " << (void*)this << " " << *this <<"\n");
+  DEBUG(dbgs() << "typeIsREFINED type: " << (void*)this << " " << *this <<"\n");
 #endif
 
   unsigned OldSize = AbstractTypeUsers.size(); OldSize=OldSize;
@@ -1159,6 +1270,21 @@ void StructType::refineAbstractType(const DerivedType *OldType,
 void StructType::typeBecameConcrete(const DerivedType *AbsTy) {
   LLVMContextImpl *pImpl = AbsTy->getContext().pImpl;
   pImpl->StructTypes.TypeBecameConcrete(this, AbsTy);
+}
+
+// refineAbstractType - Called when a contained type is found to be more
+// concrete - this could potentially change us from an abstract type to a
+// concrete type.
+//
+void UnionType::refineAbstractType(const DerivedType *OldType,
+                                    const Type *NewType) {
+  LLVMContextImpl *pImpl = OldType->getContext().pImpl;
+  pImpl->UnionTypes.RefineAbstractType(this, OldType, NewType);
+}
+
+void UnionType::typeBecameConcrete(const DerivedType *AbsTy) {
+  LLVMContextImpl *pImpl = AbsTy->getContext().pImpl;
+  pImpl->UnionTypes.TypeBecameConcrete(this, AbsTy);
 }
 
 // refineAbstractType - Called when a contained type is found to be more

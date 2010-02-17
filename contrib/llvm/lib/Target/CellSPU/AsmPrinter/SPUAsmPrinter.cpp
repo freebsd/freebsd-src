@@ -19,12 +19,8 @@
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Module.h"
-#include "llvm/Assembly/Writer.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/DwarfWriter.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCSymbol.h"
@@ -33,28 +29,18 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetRegistry.h"
-#include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Support/Mangler.h"
-#include "llvm/Support/MathExtras.h"
-#include <set>
 using namespace llvm;
 
 namespace {
-  STATISTIC(EmittedInsts, "Number of machine instrs printed");
-
-  const std::string bss_section(".bss");
-
   class SPUAsmPrinter : public AsmPrinter {
-    std::set<std::string> FnStubs, GVStubs;
   public:
     explicit SPUAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                           const MCAsmInfo *T, bool V) :
-      AsmPrinter(O, TM, T, V) {}
+                           MCContext &Ctx, MCStreamer &Streamer,
+                           const MCAsmInfo *T) :
+      AsmPrinter(O, TM, Ctx, Streamer, T) {}
 
     virtual const char *getPassName() const {
       return "STI CBEA SPU Assembly Printer";
@@ -70,7 +56,10 @@ namespace {
     static const char *getRegisterName(unsigned RegNo);
 
 
-    void printMachineInstruction(const MachineInstr *MI);
+    void EmitInstruction(const MachineInstr *MI) {
+      printInstruction(MI);
+      OutStreamer.AddBlankLine();
+    }
     void printOp(const MachineOperand &MO);
 
     /// printRegister - Print register according to target requirements.
@@ -279,32 +268,6 @@ namespace {
         llvm_unreachable("Invalid/non-immediate rotate amount in printRotateNeg7Imm");
       }
     }
-
-    virtual bool runOnMachineFunction(MachineFunction &F) = 0;
-  };
-
-  /// LinuxAsmPrinter - SPU assembly printer, customized for Linux
-  class LinuxAsmPrinter : public SPUAsmPrinter {
-  public:
-    explicit LinuxAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                             const MCAsmInfo *T, bool V)
-      : SPUAsmPrinter(O, TM, T, V) {}
-
-    virtual const char *getPassName() const {
-      return "STI CBEA SPU Assembly Printer";
-    }
-
-    bool runOnMachineFunction(MachineFunction &F);
-
-    void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.setPreservesAll();
-      AU.addRequired<MachineModuleInfo>();
-      AU.addRequired<DwarfWriter>();
-      SPUAsmPrinter::getAnalysisUsage(AU);
-    }
-
-    //! Emit a global variable according to its section and type
-    void PrintGlobalVariable(const GlobalVariable* GVar);
   };
 } // end of anonymous namespace
 
@@ -318,7 +281,7 @@ void SPUAsmPrinter::printOp(const MachineOperand &MO) {
     return;
 
   case MachineOperand::MO_MachineBasicBlock:
-    GetMBBSymbol(MO.getMBB()->getNumber())->print(O, MAI);
+    O << *MO.getMBB()->getSymbol(OutContext);
     return;
   case MachineOperand::MO_JumpTableIndex:
     O << MAI->getPrivateGlobalPrefix() << "JTI" << getFunctionNumber()
@@ -331,32 +294,25 @@ void SPUAsmPrinter::printOp(const MachineOperand &MO) {
   case MachineOperand::MO_ExternalSymbol:
     // Computing the address of an external symbol, not calling it.
     if (TM.getRelocationModel() != Reloc::Static) {
-      std::string Name(MAI->getGlobalPrefix()); Name += MO.getSymbolName();
-      GVStubs.insert(Name);
-      O << "L" << Name << "$non_lazy_ptr";
+      O << "L" << MAI->getGlobalPrefix() << MO.getSymbolName()
+        << "$non_lazy_ptr";
       return;
     }
-    O << MAI->getGlobalPrefix() << MO.getSymbolName();
+    O << *GetExternalSymbolSymbol(MO.getSymbolName());
     return;
-  case MachineOperand::MO_GlobalAddress: {
-    // Computing the address of a global symbol, not calling it.
-    GlobalValue *GV = MO.getGlobal();
-    std::string Name = Mang->getMangledName(GV);
-
+  case MachineOperand::MO_GlobalAddress:
     // External or weakly linked global variables need non-lazily-resolved
     // stubs
     if (TM.getRelocationModel() != Reloc::Static) {
+      GlobalValue *GV = MO.getGlobal();
       if (((GV->isDeclaration() || GV->hasWeakLinkage() ||
             GV->hasLinkOnceLinkage() || GV->hasCommonLinkage()))) {
-        GVStubs.insert(Name);
-        O << "L" << Name << "$non_lazy_ptr";
+        O << *GetSymbolWithGlobalValueBase(GV, "$non_lazy_ptr");
         return;
       }
     }
-    O << Name;
+    O << *GetGlobalValueSymbol(MO.getGlobal());
     return;
-  }
-
   default:
     O << "<unknown operand type: " << MO.getType() << ">";
     return;
@@ -399,174 +355,7 @@ bool SPUAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
   return false;
 }
 
-/// printMachineInstruction -- Print out a single PowerPC MI in Darwin syntax
-/// to the current output stream.
-///
-void SPUAsmPrinter::printMachineInstruction(const MachineInstr *MI) {
-  ++EmittedInsts;
-  processDebugLoc(MI, true);
-  printInstruction(MI);
-  if (VerboseAsm)
-    EmitComments(*MI);
-  processDebugLoc(MI, false);
-  O << '\n';
-}
-
-/// runOnMachineFunction - This uses the printMachineInstruction()
-/// method to print assembly for each instruction.
-///
-bool LinuxAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
-  this->MF = &MF;
-
-  SetupMachineFunction(MF);
-  O << "\n\n";
-
-  // Print out constants referenced by the function
-  EmitConstantPool(MF.getConstantPool());
-
-  // Print out labels for the function.
-  const Function *F = MF.getFunction();
-
-  OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(F, Mang, TM));
-  EmitAlignment(MF.getAlignment(), F);
-
-  switch (F->getLinkage()) {
-  default: llvm_unreachable("Unknown linkage type!");
-  case Function::PrivateLinkage:
-  case Function::LinkerPrivateLinkage:
-  case Function::InternalLinkage:  // Symbols default to internal.
-    break;
-  case Function::ExternalLinkage:
-    O << "\t.global\t" << CurrentFnName << "\n"
-      << "\t.type\t" << CurrentFnName << ", @function\n";
-    break;
-  case Function::WeakAnyLinkage:
-  case Function::WeakODRLinkage:
-  case Function::LinkOnceAnyLinkage:
-  case Function::LinkOnceODRLinkage:
-    O << "\t.global\t" << CurrentFnName << "\n";
-    O << "\t.weak_definition\t" << CurrentFnName << "\n";
-    break;
-  }
-  O << CurrentFnName << ":\n";
-
-  // Emit pre-function debug information.
-  DW->BeginFunction(&MF);
-
-  // Print out code for the function.
-  for (MachineFunction::const_iterator I = MF.begin(), E = MF.end();
-       I != E; ++I) {
-    // Print a label for the basic block.
-    if (I != MF.begin()) {
-      EmitBasicBlockStart(I);
-    }
-    for (MachineBasicBlock::const_iterator II = I->begin(), E = I->end();
-         II != E; ++II) {
-      // Print the assembly for the instruction.
-      printMachineInstruction(II);
-    }
-  }
-
-  O << "\t.size\t" << CurrentFnName << ",.-" << CurrentFnName << "\n";
-
-  // Print out jump tables referenced by the function.
-  EmitJumpTableInfo(MF.getJumpTableInfo(), MF);
-
-  // Emit post-function debug information.
-  DW->EndFunction(&MF);
-
-  // We didn't modify anything.
-  return false;
-}
-
-
-/*!
-  Emit a global variable according to its section, alignment, etc.
-
-  \note This code was shamelessly copied from the PowerPC's assembly printer,
-  which sort of screams for some kind of refactorization of common code.
- */
-void LinuxAsmPrinter::PrintGlobalVariable(const GlobalVariable *GVar) {
-  const TargetData *TD = TM.getTargetData();
-
-  if (!GVar->hasInitializer())
-    return;
-
-  // Check to see if this is a special global used by LLVM, if so, emit it.
-  if (EmitSpecialLLVMGlobal(GVar))
-    return;
-
-  std::string name = Mang->getMangledName(GVar);
-
-  printVisibility(name, GVar->getVisibility());
-
-  Constant *C = GVar->getInitializer();
-  const Type *Type = C->getType();
-  unsigned Size = TD->getTypeAllocSize(Type);
-  unsigned Align = TD->getPreferredAlignmentLog(GVar);
-
-  OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(GVar, Mang,
-                                                                  TM));
-
-  if (C->isNullValue() && /* FIXME: Verify correct */
-      !GVar->hasSection() &&
-      (GVar->hasLocalLinkage() || GVar->hasExternalLinkage() ||
-       GVar->isWeakForLinker())) {
-      if (Size == 0) Size = 1;   // .comm Foo, 0 is undefined, avoid it.
-
-      if (GVar->hasExternalLinkage()) {
-        O << "\t.global " << name << '\n';
-        O << "\t.type " << name << ", @object\n";
-        O << name << ":\n";
-        O << "\t.zero " << Size << '\n';
-      } else if (GVar->hasLocalLinkage()) {
-        O << MAI->getLCOMMDirective() << name << ',' << Size;
-      } else {
-        O << ".comm " << name << ',' << Size;
-      }
-      O << "\t\t" << MAI->getCommentString() << " '";
-      WriteAsOperand(O, GVar, /*PrintType=*/false, GVar->getParent());
-      O << "'\n";
-      return;
-  }
-
-  switch (GVar->getLinkage()) {
-    // Should never be seen for the CellSPU platform...
-   case GlobalValue::LinkOnceAnyLinkage:
-   case GlobalValue::LinkOnceODRLinkage:
-   case GlobalValue::WeakAnyLinkage:
-   case GlobalValue::WeakODRLinkage:
-   case GlobalValue::CommonLinkage:
-    O << "\t.global " << name << '\n'
-      << "\t.type " << name << ", @object\n"
-      << "\t.weak " << name << '\n';
-    break;
-   case GlobalValue::AppendingLinkage:
-    // FIXME: appending linkage variables should go into a section of
-    // their name or something.  For now, just emit them as external.
-   case GlobalValue::ExternalLinkage:
-    // If external or appending, declare as a global symbol
-    O << "\t.global " << name << '\n'
-      << "\t.type " << name << ", @object\n";
-    // FALL THROUGH
-   case GlobalValue::PrivateLinkage:
-   case GlobalValue::LinkerPrivateLinkage:
-   case GlobalValue::InternalLinkage:
-    break;
-   default:
-    llvm_report_error("Unknown linkage type!");
-  }
-
-  EmitAlignment(Align, GVar);
-  O << name << ":\t\t\t\t" << MAI->getCommentString() << " '";
-  WriteAsOperand(O, GVar, /*PrintType=*/false, GVar->getParent());
-  O << "'\n";
-
-  EmitGlobalConstant(C);
-  O << '\n';
-}
-
 // Force static initialization.
 extern "C" void LLVMInitializeCellSPUAsmPrinter() { 
-  RegisterAsmPrinter<LinuxAsmPrinter> X(TheCellSPUTarget);
+  RegisterAsmPrinter<SPUAsmPrinter> X(TheCellSPUTarget);
 }

@@ -1,4 +1,4 @@
-// RUN: clang-cc -emit-llvm -triple i386-linux-gnu -o %t %s
+// RUN: %clang_cc1 -emit-llvm -triple i386-linux-gnu -o %t %s
 // RUN: FileCheck --input-file=%t %s
 
 // CHECK: @t5 = weak global i32 2
@@ -74,3 +74,10 @@ int t19(void) {
 void t20(void) {
   __builtin_abort();
 }
+
+void (__attribute__((fastcall)) *fptr)(int);
+void t21(void) {
+  fptr(10);
+}
+// CHECK: [[FPTRVAR:%[a-z0-9]+]] = load void (i32)** @fptr
+// CHECK-NEXT: call x86_fastcallcc void [[FPTRVAR]](i32 10)

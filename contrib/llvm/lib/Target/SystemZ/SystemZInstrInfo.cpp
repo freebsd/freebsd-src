@@ -402,18 +402,6 @@ ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const {
   return false;
 }
 
-bool SystemZInstrInfo::BlockHasNoFallThrough(const MachineBasicBlock &MBB)const{
-  if (MBB.empty()) return false;
-
-  switch (MBB.back().getOpcode()) {
-  case SystemZ::RET:   // Return.
-  case SystemZ::JMP:   // Uncond branch.
-  case SystemZ::JMPr:  // Indirect branch.
-    return true;
-  default: return false;
-  }
-}
-
 bool SystemZInstrInfo::isUnpredicatedTerminator(const MachineInstr *MI) const {
   const TargetInstrDesc &TID = MI->getDesc();
   if (!TID.isTerminator()) return false;
@@ -454,8 +442,8 @@ bool SystemZInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
       }
 
       // If the block has any instructions after a JMP, delete them.
-      while (next(I) != MBB.end())
-        next(I)->eraseFromParent();
+      while (llvm::next(I) != MBB.end())
+        llvm::next(I)->eraseFromParent();
       Cond.clear();
       FBB = 0;
 

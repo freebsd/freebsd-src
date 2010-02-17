@@ -29,8 +29,8 @@ using namespace llvm;
 
 // Explicit instantiations of SymbolTableListTraits since some of the methods
 // are not in the public header file...
-template class SymbolTableListTraits<Argument, Function>;
-template class SymbolTableListTraits<BasicBlock, Function>;
+template class llvm::SymbolTableListTraits<Argument, Function>;
+template class llvm::SymbolTableListTraits<BasicBlock, Function>;
 
 //===----------------------------------------------------------------------===//
 // Argument Implementation
@@ -75,6 +75,13 @@ unsigned Argument::getArgNo() const {
 bool Argument::hasByValAttr() const {
   if (!isa<PointerType>(getType())) return false;
   return getParent()->paramHasAttr(getArgNo()+1, Attribute::ByVal);
+}
+
+/// hasNestAttr - Return true if this argument has the nest attribute on
+/// it in its containing function.
+bool Argument::hasNestAttr() const {
+  if (!isa<PointerType>(getType())) return false;
+  return getParent()->paramHasAttr(getArgNo()+1, Attribute::Nest);
 }
 
 /// hasNoAliasAttr - Return true if this argument has the noalias attribute on
@@ -153,7 +160,7 @@ Function::Function(const FunctionType *Ty, LinkageTypes Linkage,
 
   // If the function has arguments, mark them as lazily built.
   if (Ty->getNumParams())
-    SubclassData = 1;   // Set the "has lazy arguments" bit.
+    setValueSubclassData(1);   // Set the "has lazy arguments" bit.
   
   // Make sure that we get added to a function
   LeakDetector::addGarbageObject(this);
@@ -182,13 +189,14 @@ void Function::BuildLazyArguments() const {
   // Create the arguments vector, all arguments start out unnamed.
   const FunctionType *FT = getFunctionType();
   for (unsigned i = 0, e = FT->getNumParams(); i != e; ++i) {
-    assert(FT->getParamType(i) != Type::getVoidTy(FT->getContext()) &&
+    assert(!FT->getParamType(i)->isVoidTy() &&
            "Cannot have void typed arguments!");
     ArgumentList.push_back(new Argument(FT->getParamType(i)));
   }
   
   // Clear the lazy arguments bit.
-  const_cast<Function*>(this)->SubclassData &= ~1;
+  unsigned SDC = getSubclassDataFromValue();
+  const_cast<Function*>(this)->setValueSubclassData(SDC &= ~1);
 }
 
 size_t Function::arg_size() const {

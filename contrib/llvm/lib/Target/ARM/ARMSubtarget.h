@@ -50,9 +50,6 @@ protected:
   /// determine if NEON should actually be used.
   bool UseNEONForSinglePrecisionFP;
 
-  /// HasBranchTargetBuffer - True if processor can predict indirect branches.
-  bool HasBranchTargetBuffer;
-
   /// IsThumb - True if we are in thumb mode, false if in ARM mode.
   bool IsThumb;
 
@@ -64,6 +61,10 @@ protected:
 
   /// IsR9Reserved - True if R9 is a not available as general purpose register.
   bool IsR9Reserved;
+
+  /// UseMovt - True if MOVT / MOVW pairs are used for materialization of 32-bit
+  /// imms (including global addresses).
+  bool UseMovt;
 
   /// stackAlignment - The minimum alignment known to hold of the stack frame on
   /// entry to the function and which must be maintained by every function.
@@ -126,12 +127,12 @@ protected:
   bool isThumb2() const { return IsThumb && (ThumbMode == Thumb2); }
   bool hasThumb2() const { return ThumbMode >= Thumb2; }
 
-  bool hasBranchTargetBuffer() const { return HasBranchTargetBuffer; }
-
   bool isR9Reserved() const { return IsR9Reserved; }
 
+  bool useMovt() const { return UseMovt && hasV6T2Ops(); }
+
   const std::string & getCPUString() const { return CPUString; }
-  
+
   /// enablePostRAScheduler - True at 'More' optimization.
   bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,
                              TargetSubtarget::AntiDepBreakMode& Mode,

@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 // ---------------------------------------------------------------------
 // C++ Functional Casts
@@ -21,8 +21,8 @@ struct FunctionalCast0 {
 
 template struct FunctionalCast0<5>;
 
-struct X { // expected-note 2 {{candidate function}}
-  X(int, int); // expected-note 2 {{candidate function}}
+struct X { // expected-note 3 {{candidate constructor (the implicit copy constructor)}}
+  X(int, int); // expected-note 3 {{candidate constructor}}
 };
 
 template<int N, int M>
@@ -84,6 +84,20 @@ template struct New2<X, int, float>;
 template struct New2<X, int, int*>; // expected-note{{instantiation}}
 // FIXME: template struct New2<int, int, float>;
 
+// PR5833
+struct New3 {
+  New3();
+
+  void *operator new[](__SIZE_TYPE__) __attribute__((unavailable)); // expected-note{{explicitly made unavailable}}
+};
+
+template<class C>
+void* object_creator() {
+  return new C(); // expected-error{{call to unavailable function 'operator new[]'}}
+}
+
+template void *object_creator<New3[4]>(); // expected-note{{instantiation}}
+
 template<typename T>
 struct Delete0 {
   void f(T t) {
@@ -96,6 +110,18 @@ template struct Delete0<int*>;
 template struct Delete0<X*>;
 template struct Delete0<int>; // expected-note{{instantiation}}
 
+namespace PR5755 {
+  template <class T>
+  void Foo() {
+    char* p = 0;
+    delete[] p;
+  }
+  
+  void Test() {
+    Foo<int>();
+  }
+}
+
 // ---------------------------------------------------------------------
 // throw expressions
 // ---------------------------------------------------------------------
@@ -107,7 +133,7 @@ struct Throw1 {
   }
 };
 
-struct Incomplete; // expected-note{{forward}}
+struct Incomplete; // expected-note 2{{forward}}
 
 template struct Throw1<int>;
 template struct Throw1<int*>;
@@ -117,7 +143,6 @@ template struct Throw1<Incomplete*>; // expected-note{{instantiation}}
 // typeid expressions
 // ---------------------------------------------------------------------
 
-// FIXME: This should really include <typeinfo>, but we don't have that yet.
 namespace std {
   class type_info;
 }
@@ -128,7 +153,7 @@ struct TypeId0 {
     if (ptr)
       return typeid(ptr);
     else
-      return typeid(T);
+      return typeid(T); // expected-error{{'typeid' of incomplete type 'struct Incomplete'}}
   }
 };
 
@@ -137,7 +162,7 @@ struct Abstract {
 };
 
 template struct TypeId0<int>;
-template struct TypeId0<Incomplete>;
+template struct TypeId0<Incomplete>; // expected-note{{instantiation of member function}}
 template struct TypeId0<Abstract>;
 
 // ---------------------------------------------------------------------
@@ -148,8 +173,8 @@ struct is_pod {
   static const bool value = __is_pod(T);
 };
 
-static const int is_pod0[is_pod<X>::value? -1 : 1];
-static const int is_pod1[is_pod<Y>::value? 1 : -1];
+static int is_pod0[is_pod<X>::value? -1 : 1];
+static int is_pod1[is_pod<Y>::value? 1 : -1];
 
 // ---------------------------------------------------------------------
 // initializer lists
@@ -172,7 +197,7 @@ template struct InitList1<APair, int*>;
 template<typename T, typename Val1, typename Val2>
 struct InitList2 {
   void f(Val1 val1, Val2 val2) { 
-    T x = { val1, val2 }; // expected-error{{incompatible}}
+    T x = { val1, val2 }; // expected-error{{cannot initialize}}
   }
 };
 
@@ -185,7 +210,7 @@ template struct InitList2<APair, int*, double*>; // expected-note{{instantiation
 template<typename T, typename Result>
 struct DotMemRef0 {
   void f(T t) {
-    Result result = t.m; // expected-error{{cannot be initialized}}
+    Result result = t.m; // expected-error{{non-const lvalue reference to type}}
   }
 };
 
@@ -207,7 +232,7 @@ template struct DotMemRef0<MemInt, float&>; // expected-note{{instantiation}}
 template<typename T, typename Result>
 struct ArrowMemRef0 {
   void f(T t) {
-    Result result = t->m; // expected-error 2{{cannot be initialized}}
+    Result result = t->m; // expected-error 2{{non-const lvalue reference}}
   }
 };
 
@@ -269,7 +294,7 @@ template struct ThisMemberFuncCall0<int&>;
 template<typename T>
 struct NonDepMemberCall0 {
   void foo(HasMemFunc0<int&> x) {
-    T result = x.f(); // expected-error{{initialized}}
+    T result = x.f(); // expected-error{{non-const lvalue reference}}
   }
 };
 
@@ -281,7 +306,7 @@ template struct NonDepMemberCall0<float&>; // expected-note{{instantiation}}
 template<typename T>
 struct QualifiedDeclRef0 {
   T f() {
-    return is_pod<X>::value; // expected-error{{initialized}}
+    return is_pod<X>::value; // expected-error{{non-const lvalue reference to type 'int' cannot bind to a value of unrelated type 'bool const'}}
   }
 };
 

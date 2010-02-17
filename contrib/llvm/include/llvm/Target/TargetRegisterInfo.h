@@ -169,7 +169,7 @@ public:
     return I;
   }
 
-  /// hasSubClass - return true if the the specified TargetRegisterClass
+  /// hasSubClass - return true if the specified TargetRegisterClass
   /// is a proper subset of this TargetRegisterClass.
   bool hasSubClass(const TargetRegisterClass *cs) const {
     for (int i = 0; SubClasses[i] != NULL; ++i)
@@ -299,7 +299,7 @@ public:
     /// FirstVirtualRegister - This is the first register number that is
     /// considered to be a 'virtual' register, which is part of the SSA
     /// namespace.  This must be the same for all targets, which means that each
-    /// target is limited to 1024 registers.
+    /// target is limited to this fixed number of registers.
     FirstVirtualRegister = 1024
   };
 
@@ -465,7 +465,7 @@ public:
   virtual unsigned getSubReg(unsigned RegNo, unsigned Index) const = 0;
 
   /// getSubRegIndex - For a given register pair, return the sub-register index
-  /// if they are second register is a sub-register of the second. Return zero
+  /// if the are second register is a sub-register of the first. Return zero
   /// otherwise.
   virtual unsigned getSubRegIndex(unsigned RegNo, unsigned SubRegNo) const = 0;
 
@@ -656,13 +656,15 @@ public:
                                      MachineBasicBlock::iterator I,
                                      MachineBasicBlock::iterator &UseMI,
                                      const TargetRegisterClass *RC,
-                                     unsigned Reg) const {return false;}
+                                     unsigned Reg) const {
+    return false;
+  }
 
   /// eliminateFrameIndex - This method must be overriden to eliminate abstract
   /// frame indices from instructions which may use them.  The instruction
   /// referenced by the iterator contains an MO_FrameIndex operand which must be
   /// eliminated by this method.  This method may modify or replace the
-  /// specified instruction, as long as it keeps the iterator pointing the the
+  /// specified instruction, as long as it keeps the iterator pointing at the
   /// finished product. SPAdj is the SP adjustment due to call frame setup
   /// instruction.
   ///
@@ -694,7 +696,19 @@ public:
 
   /// getFrameIndexOffset - Returns the displacement from the frame register to
   /// the stack frame of the specified index.
-  virtual int getFrameIndexOffset(MachineFunction &MF, int FI) const;
+  virtual int getFrameIndexOffset(const MachineFunction &MF, int FI) const;
+
+  /// getFrameIndexReference - This method should return the base register
+  /// and offset used to reference a frame index location. The offset is
+  /// returned directly, and the base register is returned via FrameReg.
+  virtual int getFrameIndexReference(const MachineFunction &MF, int FI,
+                                     unsigned &FrameReg) const {
+    // By default, assume all frame indices are referenced via whatever
+    // getFrameRegister() says. The target can override this if it's doing
+    // something different.
+    FrameReg = getFrameRegister(MF);
+    return getFrameIndexOffset(MF, FI);
+  }
 
   /// getRARegister - This method should return the register where the return
   /// address can be found.

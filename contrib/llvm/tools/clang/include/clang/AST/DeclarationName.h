@@ -25,6 +25,7 @@ namespace llvm {
 namespace clang {
   class CXXSpecialName;
   class CXXOperatorIdName;
+  class CXXLiteralOperatorIdName;
   class DeclarationNameExtra;
   class IdentifierInfo;
   class MultiKeywordSelector;
@@ -48,6 +49,7 @@ public:
     CXXDestructorName,
     CXXConversionFunctionName,
     CXXOperatorName,
+    CXXLiteralOperatorName,
     CXXUsingDirective
   };
 
@@ -115,6 +117,12 @@ private:
     return 0;
   }
 
+  CXXLiteralOperatorIdName *getAsCXXLiteralOperatorIdName() const {
+    if (getNameKind() == CXXLiteralOperatorName)
+      return reinterpret_cast<CXXLiteralOperatorIdName *>(Ptr & ~PtrMask);
+    return 0;
+  }
+
   // Construct a declaration name from the name of a C++ constructor,
   // destructor, or conversion function.
   DeclarationName(CXXSpecialName *Name)
@@ -128,6 +136,12 @@ private:
   DeclarationName(CXXOperatorIdName *Name)
     : Ptr(reinterpret_cast<uintptr_t>(Name)) {
     assert((Ptr & PtrMask) == 0 && "Improperly aligned CXXOperatorId");
+    Ptr |= StoredDeclarationNameExtra;
+  }
+
+  DeclarationName(CXXLiteralOperatorIdName *Name)
+    : Ptr(reinterpret_cast<uintptr_t>(Name)) {
+    assert((Ptr & PtrMask) == 0 && "Improperly aligned CXXLiteralOperatorId");
     Ptr |= StoredDeclarationNameExtra;
   }
 
@@ -176,6 +190,14 @@ public:
   /// getNameKind - Determine what kind of name this is.
   NameKind getNameKind() const;
 
+  /// \brief Determines whether the name itself is dependent, e.g., because it 
+  /// involves a C++ type that is itself dependent.
+  ///
+  /// Note that this does not capture all of the notions of "dependent name",
+  /// because an identifier can be a dependent name if it is used as the 
+  /// callee in a call expression with dependent arguments.
+  bool isDependentName() const;
+  
   /// getName - Retrieve the human-readable string for this name.
   std::string getAsString() const;
 
@@ -201,7 +223,7 @@ public:
     N.Ptr = reinterpret_cast<uintptr_t> (P);
     return N;
   }
-  
+
   static DeclarationName getFromOpaqueInteger(uintptr_t P) {
     DeclarationName N;
     N.Ptr = P;
@@ -217,6 +239,10 @@ public:
   /// overloadable operator in C++ (e.g., @c operator+), retrieve the
   /// kind of overloaded operator.
   OverloadedOperatorKind getCXXOverloadedOperator() const;
+
+  /// getCXXLiteralIdentifier - If this name is the name of a literal
+  /// operator, retrieve the identifier associated with it.
+  IdentifierInfo *getCXXLiteralIdentifier() const;
 
   /// getObjCSelector - Get the Objective-C selector stored in this
   /// declaration name.
@@ -248,30 +274,34 @@ public:
   static DeclarationName getTombstoneMarker() {
     return DeclarationName(uintptr_t(-2));
   }
+
+  static int compare(DeclarationName LHS, DeclarationName RHS);
   
   void dump() const;
 };
 
 /// Ordering on two declaration names. If both names are identifiers,
 /// this provides a lexicographical ordering.
-bool operator<(DeclarationName LHS, DeclarationName RHS);
+inline bool operator<(DeclarationName LHS, DeclarationName RHS) {
+  return DeclarationName::compare(LHS, RHS) < 0;
+}
 
 /// Ordering on two declaration names. If both names are identifiers,
 /// this provides a lexicographical ordering.
 inline bool operator>(DeclarationName LHS, DeclarationName RHS) {
-  return RHS < LHS;
+  return DeclarationName::compare(LHS, RHS) > 0;
 }
 
 /// Ordering on two declaration names. If both names are identifiers,
 /// this provides a lexicographical ordering.
 inline bool operator<=(DeclarationName LHS, DeclarationName RHS) {
-  return !(RHS < LHS);
+  return DeclarationName::compare(LHS, RHS) <= 0;
 }
 
 /// Ordering on two declaration names. If both names are identifiers,
 /// this provides a lexicographical ordering.
 inline bool operator>=(DeclarationName LHS, DeclarationName RHS) {
-  return !(LHS < RHS);
+  return DeclarationName::compare(LHS, RHS) >= 0;
 }
 
 /// DeclarationNameTable - Used to store and retrieve DeclarationName
@@ -283,6 +313,7 @@ inline bool operator>=(DeclarationName LHS, DeclarationName RHS) {
 class DeclarationNameTable {
   void *CXXSpecialNamesImpl; // Actually a FoldingSet<CXXSpecialName> *
   CXXOperatorIdName *CXXOperatorNames; // Operator names
+  void *CXXLiteralOperatorNames; // Actually a FoldingSet<...> *
 
   DeclarationNameTable(const DeclarationNameTable&);            // NONCOPYABLE
   DeclarationNameTable& operator=(const DeclarationNameTable&); // NONCOPYABLE
@@ -293,7 +324,7 @@ public:
 
   /// getIdentifier - Create a declaration name that is a simple
   /// identifier.
-  DeclarationName getIdentifier(IdentifierInfo *ID) {
+  DeclarationName getIdentifier(const IdentifierInfo *ID) {
     return DeclarationName(ID);
   }
 
@@ -324,6 +355,10 @@ public:
   /// getCXXOperatorName - Get the name of the overloadable C++
   /// operator corresponding to Op.
   DeclarationName getCXXOperatorName(OverloadedOperatorKind Op);
+
+  /// getCXXLiteralOperatorName - Get the name of the literal operator function
+  /// with II as the identifier.
+  DeclarationName getCXXLiteralOperatorName(IdentifierInfo *II);
 };
 
 /// Insertion operator for diagnostics.  This allows sending DeclarationName's
@@ -365,9 +400,10 @@ struct DenseMapInfo<clang::DeclarationName> {
   isEqual(clang::DeclarationName LHS, clang::DeclarationName RHS) {
     return LHS == RHS;
   }
-
-  static inline bool isPod() { return true; }
 };
+
+template <>
+struct isPodLike<clang::DeclarationName> { static const bool value = true; };
 
 }  // end namespace llvm
 

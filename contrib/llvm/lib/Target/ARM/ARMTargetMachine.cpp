@@ -93,10 +93,6 @@ bool ARMBaseTargetMachine::addPreRegAlloc(PassManagerBase &PM,
   if (Subtarget.hasNEON())
     PM.add(createNEONPreAllocPass());
 
-  // Calculate and set max stack object alignment early, so we can decide
-  // whether we will need stack realignment (and thus FP).
-  PM.add(createARMMaxStackAlignmentCalculatorPass());
-
   // FIXME: temporarily disabling load / store optimization pass for Thumb1.
   if (OptLevel != CodeGenOpt::None && !Subtarget.isThumb1Only())
     PM.add(createARMLoadStoreOptimizationPass(true));
@@ -137,18 +133,6 @@ bool ARMBaseTargetMachine::addPreEmitPass(PassManagerBase &PM,
 
 bool ARMBaseTargetMachine::addCodeEmitter(PassManagerBase &PM,
                                           CodeGenOpt::Level OptLevel,
-                                          MachineCodeEmitter &MCE) {
-  // FIXME: Move this to TargetJITInfo!
-  if (DefRelocModel == Reloc::Default)
-    setRelocationModel(Reloc::Static);
-
-  // Machine code emitter pass for ARM.
-  PM.add(createARMCodeEmitterPass(*this, MCE));
-  return false;
-}
-
-bool ARMBaseTargetMachine::addCodeEmitter(PassManagerBase &PM,
-                                          CodeGenOpt::Level OptLevel,
                                           JITCodeEmitter &JCE) {
   // FIXME: Move this to TargetJITInfo!
   if (DefRelocModel == Reloc::Default)
@@ -158,40 +142,3 @@ bool ARMBaseTargetMachine::addCodeEmitter(PassManagerBase &PM,
   PM.add(createARMJITCodeEmitterPass(*this, JCE));
   return false;
 }
-
-bool ARMBaseTargetMachine::addCodeEmitter(PassManagerBase &PM,
-                                          CodeGenOpt::Level OptLevel,
-                                          ObjectCodeEmitter &OCE) {
-  // FIXME: Move this to TargetJITInfo!
-  if (DefRelocModel == Reloc::Default)
-    setRelocationModel(Reloc::Static);
-
-  // Machine code emitter pass for ARM.
-  PM.add(createARMObjectCodeEmitterPass(*this, OCE));
-  return false;
-}
-
-bool ARMBaseTargetMachine::addSimpleCodeEmitter(PassManagerBase &PM,
-                                                CodeGenOpt::Level OptLevel,
-                                                MachineCodeEmitter &MCE) {
-  // Machine code emitter pass for ARM.
-  PM.add(createARMCodeEmitterPass(*this, MCE));
-  return false;
-}
-
-bool ARMBaseTargetMachine::addSimpleCodeEmitter(PassManagerBase &PM,
-                                                CodeGenOpt::Level OptLevel,
-                                                JITCodeEmitter &JCE) {
-  // Machine code emitter pass for ARM.
-  PM.add(createARMJITCodeEmitterPass(*this, JCE));
-  return false;
-}
-
-bool ARMBaseTargetMachine::addSimpleCodeEmitter(PassManagerBase &PM,
-                                            CodeGenOpt::Level OptLevel,
-                                            ObjectCodeEmitter &OCE) {
-  // Machine code emitter pass for ARM.
-  PM.add(createARMObjectCodeEmitterPass(*this, OCE));
-  return false;
-}
-

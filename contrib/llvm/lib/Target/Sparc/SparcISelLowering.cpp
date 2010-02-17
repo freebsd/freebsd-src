@@ -21,7 +21,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/ADT/VectorExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
@@ -134,7 +134,8 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
         SDValue FIPtr = DAG.getFrameIndex(FrameIdx, MVT::i32);
         SDValue Load;
         if (ObjectVT == MVT::i32) {
-          Load = DAG.getLoad(MVT::i32, dl, Chain, FIPtr, NULL, 0);
+          Load = DAG.getLoad(MVT::i32, dl, Chain, FIPtr, NULL, 0,
+                             false, false, 0);
         } else {
           ISD::LoadExtType LoadOp = ISD::SEXTLOAD;
 
@@ -143,7 +144,7 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
           FIPtr = DAG.getNode(ISD::ADD, dl, MVT::i32, FIPtr,
                               DAG.getConstant(Offset, MVT::i32));
           Load = DAG.getExtLoad(LoadOp, dl, MVT::i32, Chain, FIPtr,
-                                NULL, 0, ObjectVT);
+                                NULL, 0, ObjectVT, false, false, 0);
           Load = DAG.getNode(ISD::TRUNCATE, dl, ObjectVT, Load);
         }
         InVals.push_back(Load);
@@ -167,7 +168,8 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
         int FrameIdx = MF.getFrameInfo()->CreateFixedObject(4, ArgOffset,
                                                             true, false);
         SDValue FIPtr = DAG.getFrameIndex(FrameIdx, MVT::i32);
-        SDValue Load = DAG.getLoad(MVT::f32, dl, Chain, FIPtr, NULL, 0);
+        SDValue Load = DAG.getLoad(MVT::f32, dl, Chain, FIPtr, NULL, 0,
+                                   false, false, 0);
         InVals.push_back(Load);
       }
       ArgOffset += 4;
@@ -189,7 +191,8 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
           int FrameIdx = MF.getFrameInfo()->CreateFixedObject(4, ArgOffset,
                                                               true, false);
           SDValue FIPtr = DAG.getFrameIndex(FrameIdx, MVT::i32);
-          HiVal = DAG.getLoad(MVT::i32, dl, Chain, FIPtr, NULL, 0);
+          HiVal = DAG.getLoad(MVT::i32, dl, Chain, FIPtr, NULL, 0,
+                              false, false, 0);
         }
 
         SDValue LoVal;
@@ -201,7 +204,8 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
           int FrameIdx = MF.getFrameInfo()->CreateFixedObject(4, ArgOffset+4,
                                                               true, false);
           SDValue FIPtr = DAG.getFrameIndex(FrameIdx, MVT::i32);
-          LoVal = DAG.getLoad(MVT::i32, dl, Chain, FIPtr, NULL, 0);
+          LoVal = DAG.getLoad(MVT::i32, dl, Chain, FIPtr, NULL, 0,
+                              false, false, 0);
         }
 
         // Compose the two halves together into an i64 unit.
@@ -235,7 +239,8 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
                                                           true, false);
       SDValue FIPtr = DAG.getFrameIndex(FrameIdx, MVT::i32);
 
-      OutChains.push_back(DAG.getStore(DAG.getRoot(), dl, Arg, FIPtr, NULL, 0));
+      OutChains.push_back(DAG.getStore(DAG.getRoot(), dl, Arg, FIPtr, NULL, 0,
+                                       false, false, 0));
       ArgOffset += 4;
     }
 
@@ -252,11 +257,13 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
 SDValue
 SparcTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                                CallingConv::ID CallConv, bool isVarArg,
-                               bool isTailCall,
+                               bool &isTailCall,
                                const SmallVectorImpl<ISD::OutputArg> &Outs,
                                const SmallVectorImpl<ISD::InputArg> &Ins,
                                DebugLoc dl, SelectionDAG &DAG,
                                SmallVectorImpl<SDValue> &InVals) {
+  // Sparc target does not yet support tail call optimization.
+  isTailCall = false;
 
 #if 0
   // Analyze operands of the call, assigning locations to each operand.
@@ -337,7 +344,8 @@ SparcTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     // FIXME: VERIFY THAT 68 IS RIGHT.
     SDValue PtrOff = DAG.getIntPtrConstant(VA.getLocMemOffset()+68);
     PtrOff = DAG.getNode(ISD::ADD, MVT::i32, StackPtr, PtrOff);
-    MemOpChains.push_back(DAG.getStore(Chain, Arg, PtrOff, NULL, 0));
+    MemOpChains.push_back(DAG.getStore(Chain, Arg, PtrOff, NULL, 0,
+                                       false, false, 0));
   }
 
 #else
@@ -383,14 +391,17 @@ SparcTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
       // out the parts as integers.  Top part goes in a reg.
       SDValue StackPtr = DAG.CreateStackTemporary(MVT::f64, MVT::i32);
       SDValue Store = DAG.getStore(DAG.getEntryNode(), dl, 
-                                   Val, StackPtr, NULL, 0);
+                                   Val, StackPtr, NULL, 0,
+                                   false, false, 0);
       // Sparc is big-endian, so the high part comes first.
-      SDValue Hi = DAG.getLoad(MVT::i32, dl, Store, StackPtr, NULL, 0, 0);
+      SDValue Hi = DAG.getLoad(MVT::i32, dl, Store, StackPtr, NULL, 0,
+                               false, false, 0);
       // Increment the pointer to the other half.
       StackPtr = DAG.getNode(ISD::ADD, dl, StackPtr.getValueType(), StackPtr,
                              DAG.getIntPtrConstant(4));
       // Load the low part.
-      SDValue Lo = DAG.getLoad(MVT::i32, dl, Store, StackPtr, NULL, 0, 0);
+      SDValue Lo = DAG.getLoad(MVT::i32, dl, Store, StackPtr, NULL, 0,
+                               false, false, 0);
 
       RegsToPass.push_back(std::make_pair(ArgRegs[RegsToPass.size()], Hi));
 
@@ -433,7 +444,8 @@ SparcTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
       SDValue PtrOff = DAG.getConstant(ArgOffset, MVT::i32);
       PtrOff = DAG.getNode(ISD::ADD, dl, MVT::i32, StackPtr, PtrOff);
       MemOpChains.push_back(DAG.getStore(Chain, dl, ValToStore, 
-                                         PtrOff, NULL, 0));
+                                         PtrOff, NULL, 0,
+                                         false, false, 0));
     }
     ArgOffset += ObjSize;
   }
@@ -644,10 +656,6 @@ SparcTargetLowering::SparcTargetLowering(TargetMachine &TM)
   setOperationAction(ISD::UMUL_LOHI, MVT::i32, Expand);
   setOperationAction(ISD::SMUL_LOHI, MVT::i32, Expand);
 
-  // We don't have line number support yet.
-  setOperationAction(ISD::DBG_STOPPOINT, MVT::Other, Expand);
-  setOperationAction(ISD::DEBUG_LOC, MVT::Other, Expand);
-  setOperationAction(ISD::DBG_LABEL, MVT::Other, Expand);
   setOperationAction(ISD::EH_LABEL, MVT::Other, Expand);
 
   // VASTART needs to be custom lowered to use the VarArgsFrameIndex.
@@ -663,8 +671,6 @@ SparcTargetLowering::SparcTargetLowering(TargetMachine &TM)
   setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32  , Custom);
 
   // No debug info support yet.
-  setOperationAction(ISD::DBG_STOPPOINT, MVT::Other, Expand);
-  setOperationAction(ISD::DBG_LABEL, MVT::Other, Expand);
   setOperationAction(ISD::EH_LABEL, MVT::Other, Expand);
 
   setStackPointerRegisterToSaveRestore(SP::O6);
@@ -763,7 +769,7 @@ SDValue SparcTargetLowering::LowerGlobalAddress(SDValue Op,
   SDValue AbsAddr = DAG.getNode(ISD::ADD, dl, MVT::i32, 
                                 GlobalBase, RelAddr);
   return DAG.getLoad(getPointerTy(), dl, DAG.getEntryNode(), 
-                     AbsAddr, NULL, 0);
+                     AbsAddr, NULL, 0, false, false, 0);
 }
 
 SDValue SparcTargetLowering::LowerConstantPool(SDValue Op,
@@ -784,7 +790,7 @@ SDValue SparcTargetLowering::LowerConstantPool(SDValue Op,
   SDValue AbsAddr = DAG.getNode(ISD::ADD, dl, MVT::i32,
                                 GlobalBase, RelAddr);
   return DAG.getLoad(getPointerTy(), dl, DAG.getEntryNode(), 
-                     AbsAddr, NULL, 0);
+                     AbsAddr, NULL, 0, false, false, 0);
 }
 
 static SDValue LowerFP_TO_SINT(SDValue Op, SelectionDAG &DAG) {
@@ -876,7 +882,8 @@ static SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG,
                                  DAG.getConstant(TLI.getVarArgsFrameOffset(),
                                                  MVT::i32));
   const Value *SV = cast<SrcValueSDNode>(Op.getOperand(2))->getValue();
-  return DAG.getStore(Op.getOperand(0), dl, Offset, Op.getOperand(1), SV, 0);
+  return DAG.getStore(Op.getOperand(0), dl, Offset, Op.getOperand(1), SV, 0,
+                      false, false, 0);
 }
 
 static SDValue LowerVAARG(SDValue Op, SelectionDAG &DAG) {
@@ -886,21 +893,23 @@ static SDValue LowerVAARG(SDValue Op, SelectionDAG &DAG) {
   SDValue VAListPtr = Node->getOperand(1);
   const Value *SV = cast<SrcValueSDNode>(Node->getOperand(2))->getValue();
   DebugLoc dl = Node->getDebugLoc();
-  SDValue VAList = DAG.getLoad(MVT::i32, dl, InChain, VAListPtr, SV, 0);
+  SDValue VAList = DAG.getLoad(MVT::i32, dl, InChain, VAListPtr, SV, 0,
+                               false, false, 0);
   // Increment the pointer, VAList, to the next vaarg
   SDValue NextPtr = DAG.getNode(ISD::ADD, dl, MVT::i32, VAList,
                                   DAG.getConstant(VT.getSizeInBits()/8,
                                                   MVT::i32));
   // Store the incremented VAList to the legalized pointer
   InChain = DAG.getStore(VAList.getValue(1), dl, NextPtr,
-                         VAListPtr, SV, 0);
+                         VAListPtr, SV, 0, false, false, 0);
   // Load the actual argument out of the pointer VAList, unless this is an
   // f64 load.
   if (VT != MVT::f64)
-    return DAG.getLoad(VT, dl, InChain, VAList, NULL, 0);
+    return DAG.getLoad(VT, dl, InChain, VAList, NULL, 0, false, false, 0);
 
   // Otherwise, load it as i64, then do a bitconvert.
-  SDValue V = DAG.getLoad(MVT::i64, dl, InChain, VAList, NULL, 0);
+  SDValue V = DAG.getLoad(MVT::i64, dl, InChain, VAList, NULL, 0,
+                          false, false, 0);
 
   // Bit-Convert the value to f64.
   SDValue Ops[2] = {

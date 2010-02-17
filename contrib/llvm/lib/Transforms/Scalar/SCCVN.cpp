@@ -19,7 +19,6 @@
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
-#include "llvm/LLVMContext.h"
 #include "llvm/Operator.h"
 #include "llvm/Value.h"
 #include "llvm/ADT/DenseMap.h"
@@ -35,7 +34,6 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
-#include <cstdio>
 using namespace llvm;
 
 STATISTIC(NumSCCVNInstr,  "Number of instructions deleted by SCCVN");
@@ -155,8 +153,10 @@ template <> struct DenseMapInfo<Expression> {
   static bool isEqual(const Expression &LHS, const Expression &RHS) {
     return LHS == RHS;
   }
-  static bool isPod() { return true; }
 };
+template <>
+struct isPodLike<Expression> { static const bool value = true; };
+
 }
 
 //===----------------------------------------------------------------------===//
@@ -678,8 +678,7 @@ bool SCCVN::runOnFunction(Function& F) {
           stack.push_back(*PI);
       
       while (!stack.empty()) {
-        BasicBlock* CurrBB = stack.back();
-        stack.pop_back();
+        BasicBlock* CurrBB = stack.pop_back_val();
         visited.insert(CurrBB);
         
         ValueNumberScope* S = BBMap[CurrBB];

@@ -19,9 +19,9 @@
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/Target/TargetInstrDesc.h"
+#include "llvm/Target/TargetOpcodes.h"
 #include "llvm/Support/DebugLoc.h"
 #include <vector>
 
@@ -41,6 +41,14 @@ class MachineInstr : public ilist_node<MachineInstr> {
 public:
   typedef MachineMemOperand **mmo_iterator;
 
+  /// Flags to specify different kinds of comments to output in
+  /// assembly code.  These flags carry semantic information not
+  /// otherwise easily derivable from the IR text.
+  ///
+  enum CommentFlag {
+    ReloadReuse = 0x1
+  };
+  
 private:
   const TargetInstrDesc *TID;           // Instruction descriptor.
   unsigned short NumImplicitOps;        // Number of implicit operands (which
@@ -121,14 +129,14 @@ public:
 
   /// getAsmPrinterFlag - Return whether an AsmPrinter flag is set.
   ///
-  bool getAsmPrinterFlag(AsmPrinter::CommentFlag Flag) const {
+  bool getAsmPrinterFlag(CommentFlag Flag) const {
     return AsmPrinterFlags & Flag;
   }
 
   /// setAsmPrinterFlag - Set a flag for the AsmPrinter.
   ///
-  void setAsmPrinterFlag(unsigned short Flag) {
-    AsmPrinterFlags |= Flag;
+  void setAsmPrinterFlag(CommentFlag Flag) {
+    AsmPrinterFlags |= (unsigned short)Flag;
   }
 
   /// getDebugLoc - Returns the debug location id of this MachineInstr.
@@ -193,12 +201,31 @@ public:
 
   /// isLabel - Returns true if the MachineInstr represents a label.
   ///
-  bool isLabel() const;
-
-  /// isDebugLabel - Returns true if the MachineInstr represents a debug label.
-  ///
-  bool isDebugLabel() const;
-
+  bool isLabel() const {
+    return getOpcode() == TargetOpcode::DBG_LABEL ||
+           getOpcode() == TargetOpcode::EH_LABEL ||
+           getOpcode() == TargetOpcode::GC_LABEL;
+  }
+  
+  bool isDebugLabel() const { return getOpcode() == TargetOpcode::DBG_LABEL; }
+  bool isEHLabel() const { return getOpcode() == TargetOpcode::EH_LABEL; }
+  bool isGCLabel() const { return getOpcode() == TargetOpcode::GC_LABEL; }
+  bool isDebugValue() const { return getOpcode() == TargetOpcode::DBG_VALUE; }
+  
+  bool isPHI() const { return getOpcode() == TargetOpcode::PHI; }
+  bool isKill() const { return getOpcode() == TargetOpcode::KILL; }
+  bool isImplicitDef() const { return getOpcode()==TargetOpcode::IMPLICIT_DEF; }
+  bool isInlineAsm() const { return getOpcode() == TargetOpcode::INLINEASM; }
+  bool isExtractSubreg() const {
+    return getOpcode() == TargetOpcode::EXTRACT_SUBREG;
+  }
+  bool isInsertSubreg() const {
+    return getOpcode() == TargetOpcode::INSERT_SUBREG;
+  }
+  bool isSubregToReg() const {
+    return getOpcode() == TargetOpcode::SUBREG_TO_REG;
+  }
+  
   /// readsRegister - Return true if the MachineInstr reads the specified
   /// register. If TargetRegisterInfo is passed, then it also checks if there
   /// is a read of a super-register.
@@ -288,13 +315,18 @@ public:
   bool addRegisterKilled(unsigned IncomingReg,
                          const TargetRegisterInfo *RegInfo,
                          bool AddIfNotFound = false);
-  
+
   /// addRegisterDead - We have determined MI defined a register without a use.
   /// Look for the operand that defines it and mark it as IsDead. If
   /// AddIfNotFound is true, add a implicit operand if it's not found. Returns
   /// true if the operand exists / is added.
   bool addRegisterDead(unsigned IncomingReg, const TargetRegisterInfo *RegInfo,
                        bool AddIfNotFound = false);
+
+  /// addRegisterDefined - We have determined MI defines a register. Make sure
+  /// there is an operand defining Reg.
+  void addRegisterDefined(unsigned IncomingReg,
+                          const TargetRegisterInfo *RegInfo);
 
   /// isSafeToMove - Return true if it is safe to move this instruction. If
   /// SawStore is set to true, it means that there is a store (or call) between
@@ -315,10 +347,15 @@ public:
 
   /// isInvariantLoad - Return true if this instruction is loading from a
   /// location whose value is invariant across the function.  For example,
-  /// loading a value from the constant pool or from from the argument area of
+  /// loading a value from the constant pool or from the argument area of
   /// a function if it does not change.  This should only return true of *all*
   /// loads the instruction does are invariant (if it does multiple loads).
   bool isInvariantLoad(AliasAnalysis *AA) const;
+
+  /// isConstantValuePHI - If the specified instruction is a PHI that always
+  /// merges together the same virtual register, return the register, otherwise
+  /// return 0.
+  unsigned isConstantValuePHI() const;
 
   //
   // Debugging support

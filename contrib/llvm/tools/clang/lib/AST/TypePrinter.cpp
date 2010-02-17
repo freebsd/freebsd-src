@@ -94,21 +94,6 @@ void TypePrinter::PrintBuiltin(const BuiltinType *T, std::string &S) {
   }
 }
 
-void TypePrinter::PrintFixedWidthInt(const FixedWidthIntType *T, 
-                                     std::string &S) {
-  // FIXME: Once we get bitwidth attribute, write as
-  // "int __attribute__((bitwidth(x)))".
-  std::string prefix = "__clang_fixedwidth";
-  prefix += llvm::utostr_32(T->getWidth());
-  prefix += (char)(T->isSigned() ? 'S' : 'U');
-  if (S.empty()) {
-    S = prefix;
-  } else {
-    // Prefix the basic type, e.g. 'int X'.
-    S = prefix + S;
-  }  
-}
-
 void TypePrinter::PrintComplex(const ComplexType *T, std::string &S) {
   Print(T->getElementType(), S);
   S = "_Complex " + S;
@@ -240,14 +225,24 @@ void TypePrinter::PrintDependentSizedExtVector(
 }
 
 void TypePrinter::PrintVector(const VectorType *T, std::string &S) { 
-  // FIXME: We prefer to print the size directly here, but have no way
-  // to get the size of the type.
-  S += " __attribute__((__vector_size__(";
-  S += llvm::utostr_32(T->getNumElements()); // convert back to bytes.
-  std::string ET;
-  Print(T->getElementType(), ET);
-  S += " * sizeof(" + ET + "))))";
-  Print(T->getElementType(), S);
+  if (T->isAltiVec()) {
+    if (T->isPixel())
+      S = "__vector __pixel " + S;
+    else {
+      Print(T->getElementType(), S);
+      S = "__vector " + S;
+    }
+  } else {
+    // FIXME: We prefer to print the size directly here, but have no way
+    // to get the size of the type.
+    Print(T->getElementType(), S);
+    std::string V = "__attribute__((__vector_size__(";
+    V += llvm::utostr_32(T->getNumElements()); // convert back to bytes.
+    std::string ET;
+    Print(T->getElementType(), ET);
+    V += " * sizeof(" + ET + ")))) ";
+    S = V + S;
+  }
 }
 
 void TypePrinter::PrintExtVector(const ExtVectorType *T, std::string &S) { 
@@ -284,10 +279,43 @@ void TypePrinter::PrintFunctionProto(const FunctionProtoType *T,
   }
   
   S += ")";
+
+  switch(T->getCallConv()) {
+  case CC_Default:
+  default: break;
+  case CC_C:
+    S += " __attribute__((cdecl))";
+    break;
+  case CC_X86StdCall:
+    S += " __attribute__((stdcall))";
+    break;
+  case CC_X86FastCall:
+    S += " __attribute__((fastcall))";
+    break;
+  }
   if (T->getNoReturnAttr())
     S += " __attribute__((noreturn))";
-  Print(T->getResultType(), S);
+
   
+  if (T->hasExceptionSpec()) {
+    S += " throw(";
+    if (T->hasAnyExceptionSpec())
+      S += "...";
+    else 
+      for (unsigned I = 0, N = T->getNumExceptions(); I != N; ++I) {
+        if (I)
+          S += ", ";
+
+        std::string ExceptionType;
+        Print(T->getExceptionType(I), ExceptionType);
+        S += ExceptionType;
+      }
+    S += ")";
+  }
+
+  AppendTypeQualList(S, T->getTypeQuals());
+  
+  Print(T->getResultType(), S);
 }
 
 void TypePrinter::PrintFunctionNoProto(const FunctionNoProtoType *T, 
@@ -300,6 +328,15 @@ void TypePrinter::PrintFunctionNoProto(const FunctionNoProtoType *T,
   if (T->getNoReturnAttr())
     S += " __attribute__((noreturn))";
   Print(T->getResultType(), S);
+}
+
+void TypePrinter::PrintUnresolvedUsing(const UnresolvedUsingType *T,
+                                       std::string &S) {
+  IdentifierInfo *II = T->getDecl()->getIdentifier();
+  if (S.empty())
+    S = II->getName().str();
+  else
+    S = II->getName().str() + ' ' + S;
 }
 
 void TypePrinter::PrintTypedef(const TypedefType *T, std::string &S) { 
@@ -535,6 +572,8 @@ void TypePrinter::PrintObjCObjectPointer(const ObjCObjectPointerType *T,
     ObjCQIString = "id";
   else if (T->isObjCClassType() || T->isObjCQualifiedClassType())
     ObjCQIString = "Class";
+  else if (T->isObjCSelType())
+    ObjCQIString = "SEL";
   else
     ObjCQIString = T->getInterfaceDecl()->getNameAsString();
   
@@ -597,6 +636,14 @@ static void PrintTemplateArgument(std::string &Buffer,
       assert(0 && "FIXME: Implement!");
       break;
   }
+}
+
+std::string TemplateSpecializationType::
+  PrintTemplateArgumentList(const TemplateArgumentListInfo &Args,
+                            const PrintingPolicy &Policy) {
+  return PrintTemplateArgumentList(Args.getArgumentArray(),
+                                   Args.size(),
+                                   Policy);
 }
 
 std::string
@@ -673,9 +720,8 @@ void QualType::dump(const char *msg) const {
   LangOptions LO;
   getAsStringInternal(R, PrintingPolicy(LO));
   if (msg)
-    fprintf(stderr, "%s: %s\n", msg, R.c_str());
-  else
-    fprintf(stderr, "%s\n", R.c_str());
+    llvm::errs() << msg << ": ";
+  llvm::errs() << R << "\n";
 }
 void QualType::dump() const {
   dump("");

@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only %s > %t 2>&1
+// RUN: %clang_cc1 -fsyntax-only %s > %t 2>&1
 
 #define M1(x) x
 
@@ -22,5 +22,14 @@ void foo() {
 void bar() {
   // RUN: grep  ":24:3: warning: expression result unused" %t
   C;
+}
+
+
+// rdar://7597492
+#define sprintf(str, A, B) \
+__builtin___sprintf_chk (str, 0, 42, A, B)
+
+void baz(char *Msg) {
+  sprintf(Msg,  "  sizeof FoooLib            : =%3u\n",   12LL);
 }
 

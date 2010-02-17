@@ -20,6 +20,7 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TemplateBase.h"
+#include "clang/Lex/ExternalPreprocessorSource.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/SourceManager.h"
@@ -146,7 +147,8 @@ public:
 /// required when traversing the AST. Only those AST nodes that are
 /// actually required will be de-serialized.
 class PCHReader
-  : public ExternalSemaSource,
+  : public ExternalPreprocessorSource,
+    public ExternalSemaSource,
     public IdentifierInfoLookup,
     public ExternalIdentifierLookup,
     public ExternalSLocEntrySource {
@@ -183,6 +185,10 @@ private:
   llvm::BitstreamReader StreamFile;
   llvm::BitstreamCursor Stream;
 
+  /// \brief The cursor to the start of the preprocessor block, which stores
+  /// all of the macro definitions.
+  llvm::BitstreamCursor MacroCursor;
+      
   /// DeclsCursor - This is a cursor to the start of the DECLS_BLOCK block.  It
   /// has read all the abbreviations at the start of the block and is ready to
   /// jump around with these in context.
@@ -300,6 +306,10 @@ private:
   /// \brief The set of tentative definitions stored in the the PCH
   /// file.
   llvm::SmallVector<uint64_t, 16> TentativeDefinitions;
+      
+  /// \brief The set of tentative definitions stored in the the PCH
+  /// file.
+  llvm::SmallVector<uint64_t, 16> UnusedStaticFuncs;
 
   /// \brief The set of locally-scoped external declarations stored in
   /// the the PCH file.
@@ -530,7 +540,8 @@ public:
   /// \brief Retrieve the name of the original source file name
   /// directly from the PCH file, without actually loading the PCH
   /// file.
-  static std::string getOriginalSourceFile(const std::string &PCHFileName);
+  static std::string getOriginalSourceFile(const std::string &PCHFileName,
+                                           Diagnostic &Diags);
 
   /// \brief Returns the suggested contents of the predefines buffer,
   /// which contains a (typically-empty) subset of the predefines
@@ -552,7 +563,7 @@ public:
                              const RecordData &Record, unsigned &Idx);
 
   /// \brief Reads a declarator info from the given record.
-  virtual DeclaratorInfo *GetDeclaratorInfo(const RecordData &Record,
+  virtual TypeSourceInfo *GetTypeSourceInfo(const RecordData &Record,
                                             unsigned &Idx);
 
   /// \brief Resolve a type ID into a type, potentially building a new
@@ -625,13 +636,15 @@ public:
   /// tree.
   virtual void InitializeSema(Sema &S);
 
+  /// \brief Inform the semantic consumer that Sema is no longer available.
+  virtual void ForgetSema() { SemaObj = 0; }
+
   /// \brief Retrieve the IdentifierInfo for the named identifier.
   ///
   /// This routine builds a new IdentifierInfo for the given identifier. If any
   /// declarations with this name are visible from translation unit scope, their
   /// declarations will be deserialized and introduced into the declaration
-  /// chain of the identifier. FIXME: if this identifier names a macro,
-  /// deserialize the macro.
+  /// chain of the identifier.
   virtual IdentifierInfo* get(const char *NameStart, const char *NameEnd);
   IdentifierInfo* get(llvm::StringRef Name) {
     return get(Name.begin(), Name.end());
@@ -707,6 +720,9 @@ public:
 
   /// \brief Reads the macro record located at the given offset.
   void ReadMacroRecord(uint64_t Offset);
+
+  /// \brief Read the set of macros defined by this external macro source.
+  virtual void ReadDefinedMacros();
 
   /// \brief Retrieve the AST context that this PCH reader
   /// supplements.

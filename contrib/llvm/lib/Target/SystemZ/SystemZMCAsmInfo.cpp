@@ -12,15 +12,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "SystemZMCAsmInfo.h"
+#include "llvm/MC/MCSectionELF.h"
 using namespace llvm;
 
 SystemZMCAsmInfo::SystemZMCAsmInfo(const Target &T, const StringRef &TT) {
-  AlignmentIsInBytes = true;
-
   PrivateGlobalPrefix = ".L";
   WeakRefDirective = "\t.weak\t";
-  SetDirective = "\t.set\t";
   PCSymbol = ".";
+}
 
-  NonexecutableStackDirective = "\t.section\t.note.GNU-stack,\"\",@progbits";
+MCSection *SystemZMCAsmInfo::getNonexecutableStackSection(MCContext &Ctx) const{
+  return MCSectionELF::Create(".note.GNU-stack", MCSectionELF::SHT_PROGBITS,
+                              0, SectionKind::getMetadata(), false, Ctx);
 }

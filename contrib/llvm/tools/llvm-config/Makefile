@@ -10,7 +10,6 @@
 LEVEL = ../..
 
 EXTRA_DIST = LibDeps.txt FinalLibDeps.txt llvm-config.in.in find-cycles.pl
-REQUIRES_EH := 1
 
 include $(LEVEL)/Makefile.common
 
@@ -53,6 +52,46 @@ ConfigInIn = $(PROJ_SRC_DIR)/llvm-config.in.in
 llvm-config.in: $(ConfigInIn) $(ConfigStatusScript)
 	$(Verb) cd $(PROJ_OBJ_ROOT) ; \
 		$(ConfigStatusScript) tools/llvm-config/llvm-config.in
+
+llvm-config-perobj: llvm-config.in $(GenLibDeps) $(LibDir) $(wildcard $(LibDir)/*.a)
+	$(Echo) "Generating llvm-config-perobj"
+	$(Verb) $(PERL) $(GenLibDeps) -perobj -flat $(LibDir) "$(NM_PATH)" >PerobjDeps.txt
+	$(Echo) "Checking for cyclic dependencies between LLVM objects."
+	$(Verb) $(PERL) $(PROJ_SRC_DIR)/find-cycles.pl < PerobjDepsIncl.txt > PerobjDepsInclFinal.txt || rm -f $@
+	$(Verb) $(ECHO) 's/@LLVM_CPPFLAGS@/$(subst /,\/,$(SUB_CPPFLAGS))/' \
+	> temp.sed
+	$(Verb) $(ECHO) 's/@LLVM_CFLAGS@/$(subst /,\/,$(SUB_CFLAGS))/' \
+	>> temp.sed
+	$(Verb) $(ECHO) 's/@LLVM_CXXFLAGS@/$(subst /,\/,$(SUB_CXXFLAGS))/' \
+	>> temp.sed
+	$(Verb) $(ECHO) 's/@LLVM_LDFLAGS@/$(subst /,\/,$(SUB_LDFLAGS))/' \
+	>> temp.sed
+	$(Verb) $(ECHO) 's/@LLVM_BUILDMODE@/$(subst /,\/,$(BuildMode))/' \
+	>> temp.sed
+	$(Verb) $(SED) -f temp.sed < $< > $@
+	$(Verb) $(RM) temp.sed
+	$(Verb) cat PerobjDepsFinal.txt >> $@
+	$(Verb) chmod +x $@
+
+llvm-config-perobjincl: llvm-config.in $(GenLibDeps) $(LibDir) $(wildcard $(LibDir)/*.a)
+	$(Echo) "Generating llvm-config-perobjincl"
+	$(Verb) $(PERL) $(GenLibDeps) -perobj -perobjincl -flat $(LibDir) "$(NM_PATH)" >PerobjDepsIncl.txt
+	$(Echo) "Checking for cyclic dependencies between LLVM objects."
+	$(Verb) $(PERL) $(PROJ_SRC_DIR)/find-cycles.pl < PerobjDepsIncl.txt > PerobjDepsInclFinal.txt
+	$(Verb) $(ECHO) 's/@LLVM_CPPFLAGS@/$(subst /,\/,$(SUB_CPPFLAGS))/' \
+	> temp.sed
+	$(Verb) $(ECHO) 's/@LLVM_CFLAGS@/$(subst /,\/,$(SUB_CFLAGS))/' \
+	>> temp.sed
+	$(Verb) $(ECHO) 's/@LLVM_CXXFLAGS@/$(subst /,\/,$(SUB_CXXFLAGS))/' \
+	>> temp.sed
+	$(Verb) $(ECHO) 's/@LLVM_LDFLAGS@/$(subst /,\/,$(SUB_LDFLAGS))/' \
+	>> temp.sed
+	$(Verb) $(ECHO) 's/@LLVM_BUILDMODE@/$(subst /,\/,$(BuildMode))/' \
+	>> temp.sed
+	$(Verb) $(SED) -f temp.sed < $< > $@
+	$(Verb) $(RM) temp.sed
+	$(Verb) cat PerobjDepsInclFinal.txt >> $@
+	$(Verb) chmod +x $@
 
 # Build our final script.
 $(ToolDir)/llvm-config: llvm-config.in $(FinalLibDeps)

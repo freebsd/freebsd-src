@@ -21,6 +21,22 @@ namespace llvm {
 
 class MSP430TargetMachine;
 
+/// MSP430II - This namespace holds all of the target specific flags that
+/// instruction info tracks.
+///
+namespace MSP430II {
+  enum {
+    SizeShift   = 2,
+    SizeMask    = 7 << SizeShift,
+
+    SizeUnknown = 0 << SizeShift,
+    SizeSpecial = 1 << SizeShift,
+    Size2Bytes  = 2 << SizeShift,
+    Size4Bytes  = 3 << SizeShift,
+    Size6Bytes  = 4 << SizeShift
+  };
+}
+
 class MSP430InstrInfo : public TargetInstrInfoImpl {
   const MSP430RegisterInfo RI;
   MSP430TargetMachine &TM;
@@ -59,9 +75,10 @@ public:
                                            MachineBasicBlock::iterator MI,
                                  const std::vector<CalleeSavedInfo> &CSI) const;
 
+  unsigned GetInstSizeInBytes(const MachineInstr *MI) const;
+
   // Branch folding goodness
   bool ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const;
-  bool BlockHasNoFallThrough(const MachineBasicBlock &MBB) const;
   bool isUnpredicatedTerminator(const MachineInstr *MI) const;
   bool AnalyzeBranch(MachineBasicBlock &MBB,
                      MachineBasicBlock *&TBB, MachineBasicBlock *&FBB,

@@ -1,8 +1,9 @@
-// RUN: clang-cc %s -fsyntax-only -verify
+// RUN: %clang_cc1 %s -fsyntax-only -verify
 
 const char* test1 = 1 ? "i" : 1 == 1 ? "v" : "r";
 
 void _efree(void *ptr);
+void free(void *ptr);
 
 int _php_stream_free1() {
   return (1 ? free(0) : _efree(0)); // expected-error {{incompatible type returning 'void', expected 'int'}}

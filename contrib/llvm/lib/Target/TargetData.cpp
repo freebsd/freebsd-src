@@ -117,14 +117,6 @@ TargetAlignElem::operator==(const TargetAlignElem &rhs) const {
           && TypeBitWidth == rhs.TypeBitWidth);
 }
 
-std::ostream &
-TargetAlignElem::dump(std::ostream &os) const {
-  return os << AlignType
-            << TypeBitWidth
-            << ":" << (int) (ABIAlign * 8)
-            << ":" << (int) (PrefAlign * 8);
-}
-
 const TargetAlignElem TargetData::InvalidAlignmentElem =
                 TargetAlignElem::get((AlignTypeEnum) -1, 0, 0, 0);
 
@@ -323,33 +315,30 @@ unsigned TargetData::getAlignmentInfo(AlignTypeEnum AlignType,
                  : Alignments[BestMatchIdx].PrefAlign;
 }
 
-typedef DenseMap<const StructType*, StructLayout*> LayoutInfoTy;
-
-namespace llvm {
+namespace {
 
 class StructLayoutMap : public AbstractTypeUser {
+  typedef DenseMap<const StructType*, StructLayout*> LayoutInfoTy;
   LayoutInfoTy LayoutInfo;
 
+  void RemoveEntry(LayoutInfoTy::iterator I, bool WasAbstract) {
+    I->second->~StructLayout();
+    free(I->second);
+    if (WasAbstract)
+      I->first->removeAbstractTypeUser(this);
+    LayoutInfo.erase(I);
+  }
+  
+  
   /// refineAbstractType - The callback method invoked when an abstract type is
   /// resolved to another type.  An object must override this method to update
   /// its internal state to reference NewType instead of OldType.
   ///
   virtual void refineAbstractType(const DerivedType *OldTy,
                                   const Type *) {
-    const StructType *STy = dyn_cast<const StructType>(OldTy);
-    if (!STy) {
-      OldTy->removeAbstractTypeUser(this);
-      return;
-    }
-
-    StructLayout *SL = LayoutInfo[STy];
-    if (SL) {
-      SL->~StructLayout();
-      free(SL);
-      LayoutInfo[STy] = NULL;
-    }
-
-    OldTy->removeAbstractTypeUser(this);
+    LayoutInfoTy::iterator I = LayoutInfo.find(cast<const StructType>(OldTy));
+    assert(I != LayoutInfo.end() && "Using type but not in map?");
+    RemoveEntry(I, true);
   }
 
   /// typeBecameConcrete - The other case which AbstractTypeUsers must be aware
@@ -358,70 +347,34 @@ class StructLayoutMap : public AbstractTypeUser {
   /// This method notifies ATU's when this occurs for a type.
   ///
   virtual void typeBecameConcrete(const DerivedType *AbsTy) {
-    const StructType *STy = dyn_cast<const StructType>(AbsTy);
-    if (!STy) {
-      AbsTy->removeAbstractTypeUser(this);
-      return;
-    }
-
-    StructLayout *SL = LayoutInfo[STy];
-    if (SL) {
-      SL->~StructLayout();
-      free(SL);
-      LayoutInfo[STy] = NULL;
-    }
-
-    AbsTy->removeAbstractTypeUser(this);
-  }
-
-  bool insert(const Type *Ty) {
-    if (Ty->isAbstract())
-      Ty->addAbstractTypeUser(this);
-    return true;
+    LayoutInfoTy::iterator I = LayoutInfo.find(cast<const StructType>(AbsTy));
+    assert(I != LayoutInfo.end() && "Using type but not in map?");
+    RemoveEntry(I, true);
   }
 
 public:
   virtual ~StructLayoutMap() {
     // Remove any layouts.
     for (LayoutInfoTy::iterator
-           I = LayoutInfo.begin(), E = LayoutInfo.end(); I != E; ++I)
-      if (StructLayout *SL = I->second) {
-        SL->~StructLayout();
-        free(SL);
-      }
+           I = LayoutInfo.begin(), E = LayoutInfo.end(); I != E; ++I) {
+      const Type *Key = I->first;
+      StructLayout *Value = I->second;
+
+      if (Key->isAbstract())
+        Key->removeAbstractTypeUser(this);
+
+      Value->~StructLayout();
+      free(Value);
+    }
   }
 
-  inline LayoutInfoTy::iterator begin() {
-    return LayoutInfo.begin();
-  }
-  inline LayoutInfoTy::iterator end() {
-    return LayoutInfo.end();
-  }
-  inline LayoutInfoTy::const_iterator begin() const {
-    return LayoutInfo.begin();
-  }
-  inline LayoutInfoTy::const_iterator end() const {
-    return LayoutInfo.end();
+  void InvalidateEntry(const StructType *Ty) {
+    LayoutInfoTy::iterator I = LayoutInfo.find(Ty);
+    if (I == LayoutInfo.end()) return;
+    RemoveEntry(I, Ty->isAbstract());
   }
 
-  LayoutInfoTy::iterator find(const StructType *&Val) {
-    return LayoutInfo.find(Val);
-  }
-  LayoutInfoTy::const_iterator find(const StructType *&Val) const {
-    return LayoutInfo.find(Val);
-  }
-
-  bool erase(const StructType *&Val) {
-    return LayoutInfo.erase(Val);
-  }
-  bool erase(LayoutInfoTy::iterator I) {
-    return LayoutInfo.erase(I);
-  }
-
-  StructLayout *&operator[](const Type *Key) {
-    const StructType *STy = dyn_cast<const StructType>(Key);
-    assert(STy && "Trying to access the struct layout map with a non-struct!");
-    insert(STy);
+  StructLayout *&operator[](const StructType *STy) {
     return LayoutInfo[STy];
   }
 
@@ -429,17 +382,18 @@ public:
   virtual void dump() const {}
 };
 
-} // end namespace llvm
+} // end anonymous namespace
 
 TargetData::~TargetData() {
-  delete LayoutMap;
+  delete static_cast<StructLayoutMap*>(LayoutMap);
 }
 
 const StructLayout *TargetData::getStructLayout(const StructType *Ty) const {
   if (!LayoutMap)
     LayoutMap = new StructLayoutMap();
   
-  StructLayout *&SL = (*LayoutMap)[Ty];
+  StructLayoutMap *STM = static_cast<StructLayoutMap*>(LayoutMap);
+  StructLayout *&SL = (*STM)[Ty];
   if (SL) return SL;
 
   // Otherwise, create the struct layout.  Because it is variable length, we 
@@ -453,6 +407,10 @@ const StructLayout *TargetData::getStructLayout(const StructType *Ty) const {
   SL = L;
   
   new (L) StructLayout(Ty, *this);
+
+  if (Ty->isAbstract())
+    Ty->addAbstractTypeUser(STM);
+
   return L;
 }
 
@@ -463,14 +421,8 @@ const StructLayout *TargetData::getStructLayout(const StructType *Ty) const {
 void TargetData::InvalidateStructLayoutInfo(const StructType *Ty) const {
   if (!LayoutMap) return;  // No cache.
   
-  DenseMap<const StructType*, StructLayout*>::iterator I = LayoutMap->find(Ty);
-  if (I == LayoutMap->end()) return;
-  
-  I->second->~StructLayout();
-  free(I->second);
-  LayoutMap->erase(I);
+  static_cast<StructLayoutMap*>(LayoutMap)->InvalidateEntry(Ty);
 }
-
 
 std::string TargetData::getStringRepresentation() const {
   std::string Result;
@@ -592,6 +544,13 @@ unsigned char TargetData::getAlignment(const Type *Ty, bool abi_or_pref) const {
 unsigned char TargetData::getABITypeAlignment(const Type *Ty) const {
   return getAlignment(Ty, true);
 }
+
+/// getABIIntegerTypeAlignment - Return the minimum ABI-required alignment for
+/// an integer type of the specified bitwidth.
+unsigned char TargetData::getABIIntegerTypeAlignment(unsigned BitWidth) const {
+  return getAlignmentInfo(INTEGER_ALIGN, BitWidth, true, 0);
+}
+
 
 unsigned char TargetData::getCallFrameTypeAlignment(const Type *Ty) const {
   for (unsigned i = 0, e = Alignments.size(); i != e; ++i)

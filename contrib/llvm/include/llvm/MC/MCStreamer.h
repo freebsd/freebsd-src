@@ -15,6 +15,7 @@
 #define LLVM_MC_MCSTREAMER_H
 
 #include "llvm/System/DataTypes.h"
+#include "llvm/MC/MCDirectives.h"
 
 namespace llvm {
   class MCAsmInfo;
@@ -26,7 +27,9 @@ namespace llvm {
   class MCSection;
   class MCSymbol;
   class StringRef;
+  class Twine;
   class raw_ostream;
+  class formatted_raw_ostream;
 
   /// MCStreamer - Streaming machine code generation interface.  This interface
   /// is intended to provide a programatic interface that is very similar to the
@@ -38,30 +41,6 @@ namespace llvm {
   /// a .s file, and implementations that write out .o files of various formats.
   ///
   class MCStreamer {
-  public:
-    enum SymbolAttr {
-      Global,         /// .globl
-      Hidden,         /// .hidden (ELF)
-      IndirectSymbol, /// .indirect_symbol (Apple)
-      Internal,       /// .internal (ELF)
-      LazyReference,  /// .lazy_reference (Apple)
-      NoDeadStrip,    /// .no_dead_strip (Apple)
-      PrivateExtern,  /// .private_extern (Apple)
-      Protected,      /// .protected (ELF)
-      Reference,      /// .reference (Apple)
-      Weak,           /// .weak
-      WeakDefinition, /// .weak_definition (Apple)
-      WeakReference,  /// .weak_reference (Apple)
-
-      SymbolAttrFirst = Global,
-      SymbolAttrLast = WeakReference
-    };
-
-    enum AssemblerFlag {
-      SubsectionsViaSymbols  /// .subsections_via_symbols (Apple)
-    };
-
-  private:
     MCContext &Context;
 
     MCStreamer(const MCStreamer&); // DO NOT IMPLEMENT
@@ -79,6 +58,32 @@ namespace llvm {
 
     MCContext &getContext() const { return Context; }
 
+    /// @name Assembly File Formatting.
+    /// @{
+    
+    /// isVerboseAsm - Return true if this streamer supports verbose assembly at
+    /// all.
+    virtual bool isVerboseAsm() const { return false; }
+
+    /// AddComment - Add a comment that can be emitted to the generated .s
+    /// file if applicable as a QoI issue to make the output of the compiler
+    /// more readable.  This only affects the MCAsmStreamer, and only when
+    /// verbose assembly output is enabled.
+    ///
+    /// If the comment includes embedded \n's, they will each get the comment
+    /// prefix as appropriate.  The added comment should not end with a \n.
+    virtual void AddComment(const Twine &T) {}
+    
+    /// GetCommentOS - Return a raw_ostream that comments can be written to.
+    /// Unlike AddComment, you are required to terminate comments with \n if you
+    /// use this method.
+    virtual raw_ostream &GetCommentOS();
+    
+    /// AddBlankLine - Emit a blank line to a .s file to pretty it up.
+    virtual void AddBlankLine() {}
+    
+    /// @}
+    
     /// @name Symbol & Section Management
     /// @{
     
@@ -103,7 +108,7 @@ namespace llvm {
     virtual void EmitLabel(MCSymbol *Symbol) = 0;
 
     /// EmitAssemblerFlag - Note in the output the specified @param Flag
-    virtual void EmitAssemblerFlag(AssemblerFlag Flag) = 0;
+    virtual void EmitAssemblerFlag(MCAssemblerFlag Flag) = 0;
 
     /// EmitAssignment - Emit an assignment of @param Value to @param Symbol.
     ///
@@ -120,7 +125,7 @@ namespace llvm {
 
     /// EmitSymbolAttribute - Add the given @param Attribute to @param Symbol.
     virtual void EmitSymbolAttribute(MCSymbol *Symbol,
-                                     SymbolAttr Attribute) = 0;
+                                     MCSymbolAttr Attribute) = 0;
 
     /// EmitSymbolDesc - Set the @param DescValue for the @param Symbol.
     ///
@@ -128,15 +133,29 @@ namespace llvm {
     /// @param DescValue - The value to set into the n_desc field.
     virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) = 0;
 
-    /// EmitCommonSymbol - Emit a common or local common symbol.
+    
+    /// EmitELFSize - Emit an ELF .size directive.
+    ///
+    /// This corresponds to an assembler statement such as:
+    ///  .size symbol, expression
+    ///
+    virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) = 0;
+    
+    /// EmitCommonSymbol - Emit a common symbol.
     ///
     /// @param Symbol - The common symbol to emit.
     /// @param Size - The size of the common symbol.
     /// @param ByteAlignment - The alignment of the symbol if
-    /// non-zero. This must be a power of 2 on some targets.
-    virtual void EmitCommonSymbol(MCSymbol *Symbol, unsigned Size,
+    /// non-zero. This must be a power of 2.
+    virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                   unsigned ByteAlignment) = 0;
 
+    /// EmitLocalCommonSymbol - Emit a local common (.lcomm) symbol.
+    ///
+    /// @param Symbol - The common symbol to emit.
+    /// @param Size - The size of the common symbol.
+    virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) = 0;
+    
     /// EmitZerofill - Emit a the zerofill section and an option symbol.
     ///
     /// @param Section - The zerofill section to create and or to put the symbol
@@ -155,7 +174,7 @@ namespace llvm {
     ///
     /// This is used to implement assembler directives such as .byte, .ascii,
     /// etc.
-    virtual void EmitBytes(StringRef Data) = 0;
+    virtual void EmitBytes(StringRef Data, unsigned AddrSpace) = 0;
 
     /// EmitValue - Emit the expression @param Value into the output as a native
     /// integer of the given @param Size bytes.
@@ -166,8 +185,32 @@ namespace llvm {
     /// @param Value - The value to emit.
     /// @param Size - The size of the integer (in bytes) to emit. This must
     /// match a native machine width.
-    virtual void EmitValue(const MCExpr *Value, unsigned Size) = 0;
+    virtual void EmitValue(const MCExpr *Value, unsigned Size,
+                           unsigned AddrSpace) = 0;
 
+    /// EmitIntValue - Special case of EmitValue that avoids the client having
+    /// to pass in a MCExpr for constant integers.
+    virtual void EmitIntValue(uint64_t Value, unsigned Size,unsigned AddrSpace);
+    
+    /// EmitGPRel32Value - Emit the expression @param Value into the output as a
+    /// gprel32 (32-bit GP relative) value.
+    ///
+    /// This is used to implement assembler directives such as .gprel32 on
+    /// targets that support them.
+    virtual void EmitGPRel32Value(const MCExpr *Value) = 0;
+    
+    /// EmitFill - Emit NumBytes bytes worth of the value specified by
+    /// FillValue.  This implements directives such as '.space'.
+    virtual void EmitFill(uint64_t NumBytes, uint8_t FillValue,
+                          unsigned AddrSpace);
+    
+    /// EmitZeros - Emit NumBytes worth of zeros.  This is a convenience
+    /// function that just wraps EmitFill.
+    void EmitZeros(uint64_t NumBytes, unsigned AddrSpace) {
+      EmitFill(NumBytes, 0, AddrSpace);
+    }
+
+    
     /// EmitValueToAlignment - Emit some number of copies of @param Value until
     /// the byte alignment @param ByteAlignment is reached.
     ///
@@ -201,6 +244,15 @@ namespace llvm {
                                    unsigned char Value = 0) = 0;
     
     /// @}
+    
+    /// EmitFileDirective - Switch to a new logical file.  This is used to
+    /// implement the '.file "foo.c"' assembler directive.
+    virtual void EmitFileDirective(StringRef Filename) = 0;
+    
+    /// EmitDwarfFileDirective - Associate a filename with a specified logical
+    /// file number.  This implements the DWARF2 '.file 4 "foo.c"' assembler
+    /// directive.
+    virtual void EmitDwarfFileDirective(unsigned FileNo,StringRef Filename) = 0;
 
     /// EmitInstruction - Emit the given @param Instruction into the current
     /// section.
@@ -217,10 +269,21 @@ namespace llvm {
   /// createAsmStreamer - Create a machine code streamer which will print out
   /// assembly for the native target, suitable for compiling with a native
   /// assembler.
-  MCStreamer *createAsmStreamer(MCContext &Ctx, raw_ostream &OS,
-                                const MCAsmInfo &MAI,
+  ///
+  /// \param InstPrint - If given, the instruction printer to use. If not given
+  /// the MCInst representation will be printed.
+  ///
+  /// \param CE - If given, a code emitter to use to show the instruction
+  /// encoding inline with the assembly.
+  ///
+  /// \param ShowInst - Whether to show the MCInst representation inline with
+  /// the assembly.
+  MCStreamer *createAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
+                                const MCAsmInfo &MAI, bool isLittleEndian,
+                                bool isVerboseAsm,
                                 MCInstPrinter *InstPrint = 0,
-                                MCCodeEmitter *CE = 0);
+                                MCCodeEmitter *CE = 0,
+                                bool ShowInst = false);
 
   // FIXME: These two may end up getting rolled into a single
   // createObjectStreamer interface, which implements the assembler backend, and
@@ -229,7 +292,7 @@ namespace llvm {
   /// createMachOStream - Create a machine code streamer which will generative
   /// Mach-O format object files.
   MCStreamer *createMachOStreamer(MCContext &Ctx, raw_ostream &OS,
-                                  MCCodeEmitter *CE = 0);
+                                  MCCodeEmitter *CE);
 
   /// createELFStreamer - Create a machine code streamer which will generative
   /// ELF format object files.

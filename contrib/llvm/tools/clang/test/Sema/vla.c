@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -verify -fsyntax-only -pedantic
+// RUN: %clang_cc1 %s -verify -fsyntax-only -pedantic
 
 int test1() {
   typedef int x[test1()];  // vla
@@ -54,3 +54,9 @@ int (*pr2044c(void))[pr2044b]; // expected-error {{variably modified type}}
 
 const int f5_ci = 1;
 void f5() { char a[][f5_ci] = {""}; } // expected-error {{variable-sized object may not be initialized}}
+
+// PR5185
+void pr5185(int a[*]);
+void pr5185(int a[*]) // expected-error {{variable length array must be bound in function definition}}
+{
+}

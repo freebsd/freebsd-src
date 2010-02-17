@@ -1,8 +1,8 @@
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -warn-dead-stores -verify %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=basic -analyzer-constraints=basic -warn-dead-stores -verify %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=basic -analyzer-constraints=range -warn-dead-stores -verify %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -analyzer-constraints=basic -warn-dead-stores -verify %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -analyzer-constraints=range -warn-dead-stores -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code %s
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=basic -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code %s
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=range -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code %s
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=basic -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code %s
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code %s
 
 void f1() {
   int k, y;
@@ -16,6 +16,8 @@ void f2(void *b) {
  printf("%s", c); // expected-warning{{implicitly declaring C library function 'printf' with type 'int (char const *, ...)'}} \
  // expected-note{{please include the header <stdio.h> or explicitly provide a declaration for 'printf'}}
 }
+
+int f();
 
 void f3() {
   int r;
@@ -34,7 +36,7 @@ void f4(int k) {
     
   k = 2;  // expected-warning {{never read}}
 }
-
+  
 void f5() {
 
   int x = 4; // no-warning
@@ -52,6 +54,24 @@ int f6() {
 int f7(int *p) {  
   // This is allowed for defensive programming.
   p = 0; // no-warning  
+  return 1;
+}
+
+int f7b(int *p) {  
+  // This is allowed for defensive programming.
+  p = (0); // no-warning  
+  return 1;
+}
+
+int f7c(int *p) {  
+  // This is allowed for defensive programming.
+  p = (void*) 0; // no-warning  
+  return 1;
+}
+
+int f7d(int *p) {  
+  // This is allowed for defensive programming.
+  p = (void*) (0); // no-warning  
   return 1;
 }
 
@@ -336,3 +356,76 @@ void f22() {
     break;
   }
 }
+
+void f23_aux(const char* s);
+void f23(int argc, char **argv) {
+  int shouldLog = (argc > 1); // no-warning
+  ^{ 
+     if (shouldLog) f23_aux("I did too use it!\n");
+     else f23_aux("I shouldn't log.  Wait.. d'oh!\n");
+  }();
+}
+
+void f23_pos(int argc, char **argv) {
+  int shouldLog = (argc > 1); // expected-warning{{Value stored to 'shouldLog' during its initialization is never read}}
+  ^{ 
+     f23_aux("I did too use it!\n");
+  }();  
+}
+
+void f24_A(int y) {
+  // FIXME: One day this should be reported as dead since 'z = x + y' is dead.
+  int x = (y > 2); // no-warning
+  ^ {
+    int z = x + y; // FIXME: Eventually this should be reported as a dead store.
+  }();  
+}
+
+void f24_B(int y) {
+  // FIXME: One day this should be reported as dead since 'x' is just overwritten.
+  __block int x = (y > 2); // no-warning
+  ^{
+    // FIXME: This should eventually be a dead store since it is never read either.
+    x = 5; // no-warning
+  }();
+}
+
+int f24_C(int y) {
+  // FIXME: One day this should be reported as dead since 'x' is just overwritten.
+  __block int x = (y > 2); // no-warning
+  ^{ 
+    x = 5; // no-warning
+  }();
+  return x;
+}
+
+int f24_D(int y) {
+  __block int x = (y > 2); // no-warning
+  ^{ 
+    if (y > 4)
+      x = 5; // no-warning
+  }();
+  return x;
+}
+
+// This example shows that writing to a variable captured by a block means that it might
+// not be dead.
+int f25(int y) {
+  __block int x = (y > 2);
+  __block int z = 0;
+  void (^foo)() = ^{ z = x + y; };
+  x = 4; // no-warning
+  foo();
+  return z; 
+}
+
+// This test is mostly the same as 'f25', but shows that the heuristic of pruning out dead
+// stores for variables that are just marked '__block' is overly conservative.
+int f25_b(int y) {
+  // FIXME: we should eventually report a dead store here.
+  __block int x = (y > 2);
+  __block int z = 0;
+  x = 4; // no-warning
+  return z; 
+}
+

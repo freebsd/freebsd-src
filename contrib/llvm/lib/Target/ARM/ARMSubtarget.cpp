@@ -27,6 +27,10 @@ UseNEONFP("arm-use-neon-fp",
           cl::desc("Use NEON for single-precision FP"),
           cl::init(false), cl::Hidden);
 
+static cl::opt<bool>
+UseMOVT("arm-use-movt",
+        cl::init(true), cl::Hidden);
+
 ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &FS,
                            bool isT)
   : ARMArchVersion(V4T)
@@ -36,6 +40,7 @@ ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &FS,
   , ThumbMode(Thumb1)
   , PostRAScheduler(false)
   , IsR9Reserved(ReserveR9)
+  , UseMovt(UseMOVT)
   , stackAlignment(4)
   , CPUString("generic")
   , TargetType(isELF) // Default to ELF unless otherwise specified.
@@ -109,8 +114,6 @@ ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &FS,
     if (UseNEONFP.getPosition() == 0)
       UseNEONForSinglePrecisionFP = true;
   }
-  HasBranchTargetBuffer = (CPUString == "cortex-a8" ||
-                           CPUString == "cortex-a9");
 }
 
 /// GVIsIndirectSymbol - true if the GV will be accessed via an indirect symbol.
@@ -119,9 +122,9 @@ ARMSubtarget::GVIsIndirectSymbol(GlobalValue *GV, Reloc::Model RelocM) const {
   if (RelocM == Reloc::Static)
     return false;
 
-  // GV with ghost linkage (in JIT lazy compilation mode) do not require an
-  // extra load from stub.
-  bool isDecl = GV->isDeclaration() && !GV->hasNotBeenReadFromBitcode();
+  // Materializable GVs (in JIT lazy compilation mode) do not require an extra
+  // load from stub.
+  bool isDecl = GV->isDeclaration() && !GV->isMaterializable();
 
   if (!isTargetDarwin()) {
     // Extra load is needed for all externally visible.

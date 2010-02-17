@@ -247,13 +247,14 @@ public:
   NamedDecl *getTemplatedDecl() const { return TemplatedDecl; }
 
   // Implement isa/cast/dyncast/etc.
-  static bool classof(const Decl *D) {
-      return D->getKind() >= TemplateFirst && D->getKind() <= TemplateLast;
-  }
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const TemplateDecl *D) { return true; }
   static bool classof(const FunctionTemplateDecl *D) { return true; }
   static bool classof(const ClassTemplateDecl *D) { return true; }
   static bool classof(const TemplateTemplateParmDecl *D) { return true; }
+  static bool classofKind(Kind K) {
+    return K >= TemplateFirst && K <= TemplateLast;
+  }
 
 protected:
   NamedDecl *TemplatedDecl;
@@ -510,10 +511,9 @@ public:
                                       NamedDecl *Decl);
 
   // Implement isa/cast/dyncast support
-  static bool classof(const Decl *D)
-  { return D->getKind() == FunctionTemplate; }
-  static bool classof(const FunctionTemplateDecl *D)
-  { return true; }
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+  static bool classof(const FunctionTemplateDecl *D) { return true; }
+  static bool classofKind(Kind K) { return K == FunctionTemplate; }
 };
 
 //===----------------------------------------------------------------------===//
@@ -573,7 +573,7 @@ class TemplateTypeParmDecl : public TypeDecl {
   bool ParameterPack : 1;
 
   /// \brief The default template argument, if any.
-  DeclaratorInfo *DefaultArgument;
+  TypeSourceInfo *DefaultArgument;
 
   TemplateTypeParmDecl(DeclContext *DC, SourceLocation L, IdentifierInfo *Id,
                        bool Typename, QualType Type, bool ParameterPack)
@@ -601,7 +601,7 @@ public:
   QualType getDefaultArgument() const { return DefaultArgument->getType(); }
 
   /// \brief Retrieves the default argument's source information, if any.
-  DeclaratorInfo *getDefaultArgumentInfo() const { return DefaultArgument; }
+  TypeSourceInfo *getDefaultArgumentInfo() const { return DefaultArgument; }
 
   /// \brief Retrieves the location of the default argument declaration.
   SourceLocation getDefaultArgumentLoc() const;
@@ -613,7 +613,7 @@ public:
   /// \brief Set the default argument for this template parameter, and
   /// whether that default argument was inherited from another
   /// declaration.
-  void setDefaultArgument(DeclaratorInfo *DefArg, bool Inherited) {
+  void setDefaultArgument(TypeSourceInfo *DefArg, bool Inherited) {
     DefaultArgument = DefArg;
     InheritedDefault = Inherited;
   }
@@ -634,10 +634,9 @@ public:
   bool isParameterPack() const { return ParameterPack; }
 
   // Implement isa/cast/dyncast/etc.
-  static bool classof(const Decl *D) {
-    return D->getKind() == TemplateTypeParm;
-  }
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const TemplateTypeParmDecl *D) { return true; }
+  static bool classofKind(Kind K) { return K == TemplateTypeParm; }
 };
 
 /// NonTypeTemplateParmDecl - Declares a non-type template parameter,
@@ -652,15 +651,15 @@ class NonTypeTemplateParmDecl
 
   NonTypeTemplateParmDecl(DeclContext *DC, SourceLocation L, unsigned D,
                           unsigned P, IdentifierInfo *Id, QualType T,
-                          DeclaratorInfo *DInfo)
-    : VarDecl(NonTypeTemplateParm, DC, L, Id, T, DInfo, VarDecl::None),
+                          TypeSourceInfo *TInfo)
+    : VarDecl(NonTypeTemplateParm, DC, L, Id, T, TInfo, VarDecl::None),
       TemplateParmPosition(D, P), DefaultArgument(0)
   { }
 
 public:
   static NonTypeTemplateParmDecl *
   Create(ASTContext &C, DeclContext *DC, SourceLocation L, unsigned D,
-         unsigned P, IdentifierInfo *Id, QualType T, DeclaratorInfo *DInfo);
+         unsigned P, IdentifierInfo *Id, QualType T, TypeSourceInfo *TInfo);
 
   using TemplateParmPosition::getDepth;
   using TemplateParmPosition::getPosition;
@@ -682,10 +681,9 @@ public:
   }
 
   // Implement isa/cast/dyncast/etc.
-  static bool classof(const Decl *D) {
-    return D->getKind() == NonTypeTemplateParm;
-  }
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const NonTypeTemplateParmDecl *D) { return true; }
+  static bool classofKind(Kind K) { return K == NonTypeTemplateParm; }
 };
 
 /// TemplateTemplateParmDecl - Declares a template template parameter,
@@ -735,10 +733,9 @@ public:
   }
 
   // Implement isa/cast/dyncast/etc.
-  static bool classof(const Decl *D) {
-    return D->getKind() == TemplateTemplateParm;
-  }
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const TemplateTemplateParmDecl *D) { return true; }
+  static bool classofKind(Kind K) { return K == TemplateTemplateParm; }
 };
 
 /// \brief Represents a class template specialization, which refers to
@@ -903,9 +900,10 @@ public:
       TemplateArgs[Arg].Profile(ID, Context);
   }
 
-  static bool classof(const Decl *D) {
-    return D->getKind() == ClassTemplateSpecialization ||
-           D->getKind() == ClassTemplatePartialSpecialization;
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+  static bool classofKind(Kind K) {
+    return K == ClassTemplateSpecialization ||
+           K == ClassTemplatePartialSpecialization;
   }
 
   static bool classof(const ClassTemplateSpecializationDecl *) {
@@ -955,8 +953,7 @@ public:
          TemplateParameterList *Params,
          ClassTemplateDecl *SpecializedTemplate,
          TemplateArgumentListBuilder &Builder,
-         TemplateArgumentLoc *ArgInfos,
-         unsigned NumArgInfos,
+         const TemplateArgumentListInfo &ArgInfos,
          ClassTemplatePartialSpecializationDecl *PrevDecl);
 
   /// Get the list of template parameters
@@ -1040,8 +1037,9 @@ public:
     
   // FIXME: Add Profile support!
 
-  static bool classof(const Decl *D) {
-    return D->getKind() == ClassTemplatePartialSpecialization;
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+  static bool classofKind(Kind K) {
+    return K == ClassTemplatePartialSpecialization;
   }
 
   static bool classof(const ClassTemplatePartialSpecializationDecl *) {
@@ -1213,10 +1211,9 @@ public:
   }
   
   // Implement isa/cast/dyncast support
-  static bool classof(const Decl *D)
-  { return D->getKind() == ClassTemplate; }
-  static bool classof(const ClassTemplateDecl *D)
-  { return true; }
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+  static bool classof(const ClassTemplateDecl *D) { return true; }
+  static bool classofKind(Kind K) { return K == ClassTemplate; }
 
   virtual void Destroy(ASTContext& C);
 };
@@ -1294,9 +1291,8 @@ public:
   }
 
   // Implement isa/cast/dyncast/etc.
-  static bool classof(const Decl *D) {
-    return D->getKind() == Decl::FriendTemplate;
-  }
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+  static bool classofKind(Kind K) { return K == Decl::FriendTemplate; }
   static bool classof(const FriendTemplateDecl *D) { return true; }
 };
 

@@ -107,8 +107,7 @@ getCalleeSavedRegs(const MachineFunction *MF) const
   static const unsigned BitMode32CalleeSavedRegs[] = {
     Mips::S0, Mips::S1, Mips::S2, Mips::S3, 
     Mips::S4, Mips::S5, Mips::S6, Mips::S7,
-    Mips::F20, Mips::F22, Mips::F24, Mips::F26, Mips::F28, Mips::F30, 
-    Mips::D10, Mips::D11, Mips::D12, Mips::D13, Mips::D14, Mips::D15,0
+    Mips::F20, Mips::F22, Mips::F24, Mips::F26, Mips::F28, Mips::F30, 0
   };
 
   if (Subtarget.isSingleFloat())
@@ -136,9 +135,7 @@ MipsRegisterInfo::getCalleeSavedRegClasses(const MachineFunction *MF) const
     &Mips::CPURegsRegClass, &Mips::CPURegsRegClass, &Mips::CPURegsRegClass,
     &Mips::CPURegsRegClass, &Mips::CPURegsRegClass,
     &Mips::FGR32RegClass, &Mips::FGR32RegClass, &Mips::FGR32RegClass, 
-    &Mips::FGR32RegClass, &Mips::FGR32RegClass, &Mips::FGR32RegClass,
-    &Mips::AFGR64RegClass, &Mips::AFGR64RegClass, &Mips::AFGR64RegClass, 
-    &Mips::AFGR64RegClass, &Mips::AFGR64RegClass, &Mips::AFGR64RegClass, 0
+    &Mips::FGR32RegClass, &Mips::FGR32RegClass, &Mips::FGR32RegClass, 0
   };
 
   if (Subtarget.isSingleFloat())
@@ -175,7 +172,7 @@ getReservedRegs(const MachineFunction &MF) const
 //
 // The stack is allocated decrementing the stack pointer on
 // the first instruction of a function prologue. Once decremented,
-// all stack referencesare are done thought a positive offset
+// all stack references are done thought a positive offset
 // from the stack/frame pointer, so the stack is considering
 // to grow up! Otherwise terrible hacks would have to be made
 // to get this stack ABI compliant :)
@@ -226,6 +223,8 @@ void MipsRegisterInfo::adjustMipsStackFrame(MachineFunction &MF) const
   MipsFunctionInfo *MipsFI = MF.getInfo<MipsFunctionInfo>();
   const std::vector<CalleeSavedInfo> &CSI = MFI->getCalleeSavedInfo();
   unsigned StackAlign = MF.getTarget().getFrameInfo()->getStackAlignment();
+  unsigned RegSize = Subtarget.isGP32bit() ? 4 : 8;
+  bool HasGP = MipsFI->needGPSaveRestore();
 
   // Min and Max CSI FrameIndex.
   int MinCSFI = -1, MaxCSFI = -1; 
@@ -251,6 +250,9 @@ void MipsRegisterInfo::adjustMipsStackFrame(MachineFunction &MF) const
   for (unsigned i = 0, e = CSI.size(); i != e; ++i)
     CalleeSavedAreaSize += MFI->getObjectAlignment(CSI[i].getFrameIdx());
 
+  unsigned StackOffset = HasGP ? (MipsFI->getGPStackOffset()+RegSize)
+                : (Subtarget.isABI_O32() ? 16 : 0);
+
   // Adjust local variables. They should come on the stack right
   // after the arguments.
   int LastOffsetFI = -1;
@@ -259,7 +261,8 @@ void MipsRegisterInfo::adjustMipsStackFrame(MachineFunction &MF) const
       continue;
     if (MFI->isDeadObjectIndex(i))
       continue;
-    unsigned Offset = MFI->getObjectOffset(i) - CalleeSavedAreaSize;
+    unsigned Offset = 
+      StackOffset + MFI->getObjectOffset(i) - CalleeSavedAreaSize;
     if (LastOffsetFI == -1)
       LastOffsetFI = i;
     if (Offset > MFI->getObjectOffset(LastOffsetFI))
@@ -268,11 +271,8 @@ void MipsRegisterInfo::adjustMipsStackFrame(MachineFunction &MF) const
   }
 
   // Adjust CPU Callee Saved Registers Area. Registers RA and FP must
-  // be saved in this CPU Area there is the need. This whole Area must 
-  // be aligned to the default Stack Alignment requirements.
-  unsigned StackOffset = 0;
-  unsigned RegSize = Subtarget.isGP32bit() ? 4 : 8;
-
+  // be saved in this CPU Area. This whole area must be aligned to the 
+  // default Stack Alignment requirements.
   if (LastOffsetFI >= 0)
     StackOffset = MFI->getObjectOffset(LastOffsetFI)+ 
                   MFI->getObjectSize(LastOffsetFI);
@@ -286,21 +286,26 @@ void MipsRegisterInfo::adjustMipsStackFrame(MachineFunction &MF) const
     StackOffset += MFI->getObjectAlignment(CSI[i].getFrameIdx());
   }
 
-  if (hasFP(MF)) {
+  // Stack locations for FP and RA. If only one of them is used, 
+  // the space must be allocated for both, otherwise no space at all.
+  if (hasFP(MF) || MFI->hasCalls()) {
+    // FP stack location
     MFI->setObjectOffset(MFI->CreateStackObject(RegSize, RegSize, true), 
                          StackOffset);
     MipsFI->setFPStackOffset(StackOffset);
     TopCPUSavedRegOff = StackOffset;
     StackOffset += RegSize;
-  }
 
-  if (MFI->hasCalls()) {
+    // SP stack location
     MFI->setObjectOffset(MFI->CreateStackObject(RegSize, RegSize, true),
                          StackOffset);
     MipsFI->setRAStackOffset(StackOffset);
-    TopCPUSavedRegOff = StackOffset;
     StackOffset += RegSize;
+
+    if (MFI->hasCalls())
+      TopCPUSavedRegOff += RegSize;
   }
+
   StackOffset = ((StackOffset+StackAlign-1)/StackAlign*StackAlign);
   
   // Adjust FPU Callee Saved Registers Area. This Area must be 

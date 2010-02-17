@@ -23,6 +23,24 @@ td {
 <li><a href="#has_include">Include File Checking Macros</a></li>
 <li><a href="#builtinmacros">Builtin Macros</a></li>
 <li><a href="#vectors">Vectors and Extended Vectors</a></li>
+<li><a href="#checking_language_features">Checks for Standard Language Features</a></li>
+  <ul>
+  <li><a href="#cxx_exceptions">C++ exceptions</a></li>
+  <li><a href="#cxx_rtti">C++ RTTI</a></li>
+  </ul>
+<li><a href="#checking_upcoming_features">Checks for Upcoming Standard Language Features</a></li>
+  <ul>
+  <li><a href="#cxx_attributes">C++0x attributes</a></li>
+  <li><a href="#cxx_decltype">C++0x <tt>decltype()</tt></a></li>
+  <li><a href="#cxx_deleted_functions">C++0x deleted functions</a></li>
+  <li><a href="#cxx_concepts">C++ TR concepts</a></li>
+  <li><a href="#cxx_lambdas">C++0x lambdas</a></li>
+  <li><a href="#cxx_nullptr">C++0x nullptr</a></li>
+  <li><a href="#cxx_rvalue_references">C++0x rvalue references</a></li>
+  <li><a href="#cxx_static_assert">C++0x <tt>static_assert()</tt></a></li>
+  <li><a href="#cxx_auto_type">C++0x type inference</a></li>
+  <li><a href="#cxx_variadic_templates">C++0x variadic templates</a></li>
+  </ul>
 <li><a href="#blocks">Blocks</a></li>
 <li><a href="#overloading-in-c">Function Overloading in C</a></li>
 <li><a href="#builtins">Builtin Functions</a>
@@ -187,11 +205,108 @@ is used in the file argument.</p>
 <h2 id="vectors">Vectors and Extended Vectors</h2>
 <!-- ======================================================================= -->
 
-<p>Supports the GCC vector extensions, plus some stuff like V[1].  ext_vector
-with V.xyzw syntax and other tidbits.  See also <a 
-href="#__builtin_shufflevector">__builtin_shufflevector</a>.</p>
+<p>Supports the GCC vector extensions, plus some stuff like V[1].</p>
+
+<p>Also supports <tt>ext_vector</tt>, which additionally support for V.xyzw
+syntax and other tidbits as seen in OpenCL. An example is:</p>
+
+<blockquote>
+<pre>
+typedef float float4 <b>__attribute__((ext_vector_type(4)))</b>;
+typedef float float2 <b>__attribute__((ext_vector_type(2)))</b>;
+
+float4 foo(float2 a, float2 b) {
+  float4 c;
+  c.xz = a;
+  c.yw = b;
+  return c;
+}
+</blockquote>
 
 <p>Query for this feature with __has_feature(attribute_ext_vector_type).</p>
+
+<p>See also <a href="#__builtin_shufflevector">__builtin_shufflevector</a>.</p>
+
+<!-- ======================================================================= -->
+<h2 id="checking_language_features">Checks for Standard Language Features</h2>
+<!-- ======================================================================= -->
+
+<p>The <tt>__has_feature</tt> macro can be used to query if certain standard language features are
+enabled.  Those features are listed here.</p>
+
+<h3 id="cxx_exceptions">C++ exceptions</h3>
+
+<p>Use <tt>__has_feature(cxx_exceptions)</tt> to determine if C++ exceptions have been enabled. For
+example, compiling code with <tt>-fexceptions</tt> enables C++ exceptions.</p>
+
+<h3 id="cxx_rtti">C++ RTTI</h3>
+
+<p>Use <tt>__has_feature(cxx_rtti)</tt> to determine if C++ RTTI has been enabled. For example,
+compiling code with <tt>-fno-rtti</tt> disables the use of RTTI.</p>
+
+<!-- ======================================================================= -->
+<h2 id="checking_upcoming_features">Checks for Upcoming Standard Language Features</h2>
+<!-- ======================================================================= -->
+
+<p>The <tt>__has_feature</tt> macro can be used to query if certain upcoming
+standard language features are enabled.  Those features are listed here.</p>
+
+<p>Currently, all features listed here are slated for inclusion in the upcoming
+C++0x standard. As a result, all the features that clang supports are enabled
+with the <tt>-std=c++0x</tt> option when compiling C++ code. Features that are
+not yet implemented will be noted.</p>
+
+<h3 id="cxx_decltype">C++0x <tt>decltype()</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_decltype)</tt> to determine if support for the
+<tt>decltype()</tt> specifier is enabled.</p>
+
+<h3 id="cxx_attributes">C++0x attributes</h3>
+
+<p>Use <tt>__has_feature(cxx_attributes)</tt> to determine if support for
+attribute parsing with C++0x's square bracket notation is enabled.
+
+<h3 id="cxx_deleted_functions">C++0x deleted functions</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_deleted_functions)</tt> to determine if support for
+deleted function definitions (with <tt>= delete</tt>) is enabled.
+
+<h3 id="cxx_concepts">C++ TR <tt>concepts</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_lambdas)</tt> to determine if support for
+concepts is enabled. clang does not currently implement this feature.
+
+<h3 id="cxx_lambdas">C++0x lambdas</h3>
+
+<p>Use <tt>__has_feature(cxx_lambdas)</tt> to determine if support for
+lambdas is enabled. clang does not currently implement this feature.
+
+<h3 id="cxx_nullptr">C++0x <tt>nullptr</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_nullptr)</tt> to determine if support for
+<tt>nullptr</tt> is enabled. clang does not yet fully implement this feature.
+
+<h3 id="cxx_rvalue_references">C++0x rvalue references</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_rvalue_references)</tt> to determine if support for
+rvalue references is enabled. clang does not yet fully implement this feature.
+
+<h3 id="cxx_static_assert">C++0x <tt>static_assert()</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_static_assert)</tt> to determine if support for
+compile-time assertions using <tt>static_assert</tt> is enabled.</p>
+
+<h3 id="cxx_auto_type">C++0x type inference</h3>
+
+<p>Use <tt>__has_feature(cxx_auto_type)</tt> to determine C++0x type inference
+is supported using the <tt>auto</tt> specifier. If this is disabled,
+<tt>auto</tt> will instead be a storage class specifier, as in C or C++98.</p>
+
+<h3 id="cxx_variadic_templates">C++0x variadic templates</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_variadic_templates)</tt> to determine if support
+for templates taking any number of arguments with the ellipsis notation is
+enabled. clang does not yet fully implement this feature.</p>
 
 <!-- ======================================================================= -->
 <h2 id="blocks">Blocks</h2>

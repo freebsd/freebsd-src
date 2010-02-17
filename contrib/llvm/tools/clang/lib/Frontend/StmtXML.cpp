@@ -17,7 +17,6 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/Basic/SourceManager.h"
-#include "llvm/Support/Compiler.h"
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -25,7 +24,7 @@ using namespace clang;
 //===----------------------------------------------------------------------===//
 
 namespace  {
-  class VISIBILITY_HIDDEN StmtXML : public StmtVisitor<StmtXML> {
+  class StmtXML : public StmtVisitor<StmtXML> {
     DocumentXML&  Doc;
 
     //static const char *getOpcodeStr(UnaryOperator::Opcode Op);
@@ -61,8 +60,6 @@ namespace  {
             Doc.PrintDecl(*DI);
           }
         } else {
-          if (CXXConditionDeclExpr* CCDE = dyn_cast<CXXConditionDeclExpr>(S))
-            Doc.PrintDecl(CCDE->getVarDecl());
           for (Stmt::child_iterator i = S->child_begin(), e = S->child_end();
                i != e; ++i)
             DumpSubTree(*i);
@@ -92,14 +89,14 @@ namespace  {
     const char* pAttributeName = NAME;  \
     const bool optional = false;        \
     switch (S->FN) {                    \
-      default: assert(0 && "unknown enum value");
+    default: assert(0 && "unknown enum value");
 
 #define ATTRIBUTE_ENUM_OPT_XML( FN, NAME )  \
   {                                         \
     const char* pAttributeName = NAME;      \
     const bool optional = true;             \
     switch (S->FN) {                        \
-      default: assert(0 && "unknown enum value");
+    default: assert(0 && "unknown enum value");
 
 #define ENUM_XML( VALUE, NAME )         case VALUE: if ((!optional) || NAME[0]) Doc.addAttribute(pAttributeName, NAME); break;
 #define END_ENUM_XML                    } }
@@ -192,17 +189,17 @@ void StmtXML::VisitDeclRefExpr(DeclRefExpr *Node) {
 
   const char* pKind;
   switch (Node->getDecl()->getKind()) {
-    case Decl::Function: pKind = "FunctionDecl"; break;
-    case Decl::Var: pKind = "Var"; break;
-    case Decl::ParmVar: pKind = "ParmVar"; break;
-    case Decl::EnumConstant: pKind = "EnumConstant"; break;
-    case Decl::Typedef: pKind = "Typedef"; break;
-    case Decl::Record: pKind = "Record"; break;
-    case Decl::Enum: pKind = "Enum"; break;
-    case Decl::CXXRecord: pKind = "CXXRecord"; break;
-    case Decl::ObjCInterface: pKind = "ObjCInterface"; break;
-    case Decl::ObjCClass: pKind = "ObjCClass"; break;
-    default: pKind = "Decl"; break;
+  case Decl::Function: pKind = "FunctionDecl"; break;
+  case Decl::Var: pKind = "Var"; break;
+  case Decl::ParmVar: pKind = "ParmVar"; break;
+  case Decl::EnumConstant: pKind = "EnumConstant"; break;
+  case Decl::Typedef: pKind = "Typedef"; break;
+  case Decl::Record: pKind = "Record"; break;
+  case Decl::Enum: pKind = "Enum"; break;
+  case Decl::CXXRecord: pKind = "CXXRecord"; break;
+  case Decl::ObjCInterface: pKind = "ObjCInterface"; break;
+  case Decl::ObjCClass: pKind = "ObjCClass"; break;
+  default: pKind = "Decl"; break;
   }
 
   Doc.addAttribute("kind", pKind);
@@ -213,10 +210,10 @@ void StmtXML::VisitDeclRefExpr(DeclRefExpr *Node) {
 void StmtXML::VisitPredefinedExpr(PredefinedExpr *Node) {
   DumpExpr(Node);
   switch (Node->getIdentType()) {
-    default: assert(0 && "unknown case");
-    case PredefinedExpr::Func:           Doc.addAttribute("predefined", " __func__"); break;
-    case PredefinedExpr::Function:       Doc.addAttribute("predefined", " __FUNCTION__"); break;
-    case PredefinedExpr::PrettyFunction: Doc.addAttribute("predefined", " __PRETTY_FUNCTION__");break;
+  default: assert(0 && "unknown case");
+  case PredefinedExpr::Func:           Doc.addAttribute("predefined", " __func__"); break;
+  case PredefinedExpr::Function:       Doc.addAttribute("predefined", " __FUNCTION__"); break;
+  case PredefinedExpr::PrettyFunction: Doc.addAttribute("predefined", " __PRETTY_FUNCTION__");break;
   }
 }
 

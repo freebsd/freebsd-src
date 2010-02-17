@@ -1,6 +1,7 @@
 add_executable(tblgen
   AsmMatcherEmitter.cpp
   AsmWriterEmitter.cpp
+  AsmWriterInst.cpp
   CallingConvEmitter.cpp
   ClangDiagnosticsEmitter.cpp
   CodeEmitterGen.cpp
@@ -8,6 +9,11 @@ add_executable(tblgen
   CodeGenInstruction.cpp
   CodeGenTarget.cpp
   DAGISelEmitter.cpp
+  DAGISelMatcherEmitter.cpp
+  DAGISelMatcherGen.cpp
+  DAGISelMatcher.cpp
+  DisassemblerEmitter.cpp
+  EDEmitter.cpp
   FastISelEmitter.cpp
   InstrEnumEmitter.cpp
   InstrInfoEmitter.cpp
@@ -22,6 +28,8 @@ add_executable(tblgen
   TGValueTypes.cpp
   TableGen.cpp
   TableGenBackend.cpp
+  X86DisassemblerTables.cpp
+  X86RecognizableInstr.cpp
   )
 
 target_link_libraries(tblgen LLVMSupport LLVMSystem)

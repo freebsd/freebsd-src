@@ -65,7 +65,8 @@ namespace {
     { ARM::t2ASRri, ARM::tASRri,  0,             5,   0,    1,   0,  0,0, 0 },
     { ARM::t2ASRrr, 0,            ARM::tASRrr,   0,   0,    0,   1,  0,0, 0 },
     { ARM::t2BICrr, 0,            ARM::tBIC,     0,   0,    0,   1,  0,0, 0 },
-    { ARM::t2CMNrr, ARM::tCMN,    0,             0,   0,    1,   0,  2,0, 0 },
+    //FIXME: Disable CMN, as CCodes are backwards from compare expectations
+    //{ ARM::t2CMNrr, ARM::tCMN,    0,             0,   0,    1,   0,  2,0, 0 },
     { ARM::t2CMPri, ARM::tCMPi8,  0,             8,   0,    1,   0,  2,0, 0 },
     { ARM::t2CMPrr, ARM::tCMPhir, 0,             0,   0,    0,   0,  2,0, 0 },
     { ARM::t2CMPzri,ARM::tCMPzi8, 0,             8,   0,    1,   0,  2,0, 0 },
@@ -78,11 +79,11 @@ namespace {
     { ARM::t2LSRri, ARM::tLSRri,  0,             5,   0,    1,   0,  0,0, 0 },
     { ARM::t2LSRrr, 0,            ARM::tLSRrr,   0,   0,    0,   1,  0,0, 0 },
     { ARM::t2MOVi,  ARM::tMOVi8,  0,             8,   0,    1,   0,  0,0, 0 },
-    { ARM::t2MOVi16,ARM::tMOVi8,  0,             8,   0,    1,   0,  0,0, 0 },
+    { ARM::t2MOVi16,ARM::tMOVi8,  0,             8,   0,    1,   0,  0,0, 1 },
     // FIXME: Do we need the 16-bit 'S' variant?
     { ARM::t2MOVr,ARM::tMOVgpr2gpr,0,            0,   0,    0,   0,  1,0, 0 },
     { ARM::t2MOVCCr,0,            ARM::tMOVCCr,  0,   0,    0,   0,  0,1, 0 },
-    { ARM::t2MOVCCi,0,            ARM::tMOVCCi,  0,   8,    0,   0,  0,1, 0 },
+    { ARM::t2MOVCCi,0,            ARM::tMOVCCi,  0,   8,    0,   1,  0,1, 0 },
     { ARM::t2MUL,   0,            ARM::tMUL,     0,   0,    0,   1,  0,0, 0 },
     { ARM::t2MVNr,  ARM::tMVN,    0,             0,   0,    1,   0,  0,0, 0 },
     { ARM::t2ORRrr, 0,            ARM::tORR,     0,   0,    0,   1,  0,0, 0 },
@@ -413,6 +414,12 @@ Thumb2SizeReduce::ReduceSpecial(MachineBasicBlock &MBB, MachineInstr *MI,
     if (MI->getOperand(2).getImm() == 0)
       return ReduceToNarrow(MBB, MI, Entry, LiveCPSR);
     break;
+  case ARM::t2MOVi16:
+    // Can convert only 'pure' immediate operands, not immediates obtained as
+    // globals' addresses.
+    if (MI->getOperand(1).isImm())
+      return ReduceToNarrow(MBB, MI, Entry, LiveCPSR);
+    break;
   }
   return false;
 }
@@ -643,7 +650,7 @@ bool Thumb2SizeReduce::ReduceMBB(MachineBasicBlock &MBB) {
   MachineBasicBlock::iterator MII = MBB.begin(), E = MBB.end();
   MachineBasicBlock::iterator NextMII;
   for (; MII != E; MII = NextMII) {
-    NextMII = next(MII);
+    NextMII = llvm::next(MII);
 
     MachineInstr *MI = &*MII;
     LiveCPSR = UpdateCPSRUse(*MI, LiveCPSR);

@@ -14,12 +14,11 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/Target/TargetInstrInfo.h"
-
-#include <map>
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 
 namespace llvm {
-
+  class LiveVariables;
+  
   /// Lower PHI instructions to copies.  
   class PHIElimination : public MachineFunctionPass {
     MachineRegisterInfo  *MRI; // Machine register information
@@ -93,18 +92,6 @@ namespace llvm {
     bool SplitPHIEdges(MachineFunction &MF, MachineBasicBlock &MBB,
                        LiveVariables &LV);
 
-    /// isLiveOut - Determine if Reg is live out from MBB, when not
-    /// considering PHI nodes. This means that Reg is either killed by
-    /// a successor block or passed through one.
-    bool isLiveOut(unsigned Reg, const MachineBasicBlock &MBB,
-                   LiveVariables &LV);
-
-    /// isLiveIn - Determine if Reg is live in to MBB, not considering PHI
-    /// source registers. This means that Reg is either killed by MBB or passes
-    /// through it.
-    bool isLiveIn(unsigned Reg, const MachineBasicBlock &MBB,
-                  LiveVariables &LV);
-
     /// SplitCriticalEdge - Split a critical edge from A to B by
     /// inserting a new MBB. Update branches in A and PHI instructions
     /// in B. Return the new block.
@@ -122,18 +109,34 @@ namespace llvm {
     // SkipPHIsAndLabels - Copies need to be inserted after phi nodes and
     // also after any exception handling labels: in landing pads execution
     // starts at the label, so any copies placed before it won't be executed!
+    // We also deal with DBG_VALUEs, which are a bit tricky:
+    //  PHI
+    //  DBG_VALUE
+    //  LABEL
+    // Here the DBG_VALUE needs to be skipped, and if it refers to a PHI it
+    // needs to be annulled or, better, moved to follow the label, as well.
+    //  PHI
+    //  DBG_VALUE
+    //  no label
+    // Here it is not a good idea to skip the DBG_VALUE.
+    // FIXME: For now we skip and annul all DBG_VALUEs, maximally simple and
+    // maximally stupid.
     MachineBasicBlock::iterator SkipPHIsAndLabels(MachineBasicBlock &MBB,
                                                 MachineBasicBlock::iterator I) {
       // Rather than assuming that EH labels come before other kinds of labels,
       // just skip all labels.
-      while (I != MBB.end() &&
-             (I->getOpcode() == TargetInstrInfo::PHI || I->isLabel()))
+      while (I != MBB.end() && 
+             (I->isPHI() || I->isLabel() || I->isDebugValue())) {
+        if (I->isDebugValue() && I->getNumOperands()==3 && 
+            I->getOperand(0).isReg())
+          I->getOperand(0).setReg(0U);
         ++I;
+      }
       return I;
     }
 
-    typedef std::pair<const MachineBasicBlock*, unsigned> BBVRegPair;
-    typedef std::map<BBVRegPair, unsigned> VRegPHIUse;
+    typedef std::pair<unsigned, unsigned> BBVRegPair;
+    typedef DenseMap<BBVRegPair, unsigned> VRegPHIUse;
 
     VRegPHIUse VRegPHIUseCount;
     PHIDefMap PHIDefs;
@@ -141,6 +144,17 @@ namespace llvm {
 
     // Defs of PHI sources which are implicit_def.
     SmallPtrSet<MachineInstr*, 4> ImpDefs;
+
+    // Lowered PHI nodes may be reused. We provide special DenseMap traits to
+    // match PHI nodes with identical arguments.
+    struct PHINodeTraits : public DenseMapInfo<MachineInstr*> {
+      static unsigned getHashValue(const MachineInstr *PtrVal);
+      static bool isEqual(const MachineInstr *LHS, const MachineInstr *RHS);
+    };
+
+    // Map reusable lowered PHI node -> incoming join register.
+    typedef DenseMap<MachineInstr*, unsigned, PHINodeTraits> LoweredPHIMap;
+    LoweredPHIMap LoweredPHIs;
   };
 
 }

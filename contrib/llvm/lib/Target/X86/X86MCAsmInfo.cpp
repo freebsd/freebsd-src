@@ -14,6 +14,7 @@
 #include "X86MCAsmInfo.h"
 #include "X86TargetMachine.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/MC/MCSectionELF.h"
 #include "llvm/Support/CommandLine.h"
 using namespace llvm;
 
@@ -54,9 +55,6 @@ X86MCAsmInfoDarwin::X86MCAsmInfoDarwin(const Triple &Triple) {
   if (!is64Bit)
     Data64bitsDirective = 0;       // we can't emit a 64-bit unit
 
-  // Leopard and above support aligned common symbols.
-  COMMDirectiveTakesAlignment = Triple.getDarwinMajorNumber() >= 9;
-
   CommentString = "##";
   PCSymbol = ".";
 
@@ -74,7 +72,6 @@ X86ELFMCAsmInfo::X86ELFMCAsmInfo(const Triple &Triple) {
 
   PrivateGlobalPrefix = ".L";
   WeakRefDirective = "\t.weak\t";
-  SetDirective = "\t.set\t";
   PCSymbol = ".";
 
   // Set up DWARF directives
@@ -87,37 +84,14 @@ X86ELFMCAsmInfo::X86ELFMCAsmInfo(const Triple &Triple) {
   // Exceptions handling
   ExceptionsType = ExceptionHandling::Dwarf;
   AbsoluteEHSectionOffsets = false;
+}
 
-  // On Linux we must declare when we can use a non-executable stack.
-  if (Triple.getOS() == Triple::Linux)
-    NonexecutableStackDirective = "\t.section\t.note.GNU-stack,\"\",@progbits";
+MCSection *X86ELFMCAsmInfo::getNonexecutableStackSection(MCContext &Ctx) const {
+  return MCSectionELF::Create(".note.GNU-stack", MCSectionELF::SHT_PROGBITS,
+                              0, SectionKind::getMetadata(), false, Ctx);
 }
 
 X86MCAsmInfoCOFF::X86MCAsmInfoCOFF(const Triple &Triple) {
   AsmTransCBE = x86_asm_table;
   AssemblerDialect = AsmWriterFlavor;
-}
-
-
-X86WinMCAsmInfo::X86WinMCAsmInfo(const Triple &Triple) {
-  AsmTransCBE = x86_asm_table;
-  AssemblerDialect = AsmWriterFlavor;
-
-  GlobalPrefix = "_";
-  CommentString = ";";
-
-  PrivateGlobalPrefix = "$";
-  AlignDirective = "\tALIGN\t";
-  ZeroDirective = "\tdb\t";
-  ZeroDirectiveSuffix = " dup(0)";
-  AsciiDirective = "\tdb\t";
-  AscizDirective = 0;
-  Data8bitsDirective = "\tdb\t";
-  Data16bitsDirective = "\tdw\t";
-  Data32bitsDirective = "\tdd\t";
-  Data64bitsDirective = "\tdq\t";
-  HasDotTypeDotSizeDirective = false;
-  HasSingleParameterDotFile = false;
-
-  AlignmentIsInBytes = true;
 }

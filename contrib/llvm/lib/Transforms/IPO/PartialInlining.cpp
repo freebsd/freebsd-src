@@ -117,7 +117,7 @@ Function* PartialInliner::unswitchFunction(Function* F) {
   DominatorTree DT;
   DT.runOnFunction(*duplicateFunction);
   
-  // Extract the body of the the if.
+  // Extract the body of the if.
   Function* extractedFunction = ExtractCodeRegion(DT, toExtract);
   
   // Inline the top-level if test into all callers.
@@ -145,7 +145,7 @@ bool PartialInliner::runOnModule(Module& M) {
   worklist.reserve(M.size());
   for (Module::iterator FI = M.begin(), FE = M.end(); FI != FE; ++FI)
     if (!FI->use_empty() && !FI->isDeclaration())
-    worklist.push_back(&*FI);
+      worklist.push_back(&*FI);
     
   bool changed = false;
   while (!worklist.empty()) {

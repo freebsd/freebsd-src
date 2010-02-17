@@ -1,6 +1,6 @@
-// RUN: clang-cc -triple x86_64-apple-darwin -std=c++0x -S %s -o %t-64.s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin -std=c++0x -S %s -o %t-64.s
 // RUN: FileCheck -check-prefix LP64 --input-file=%t-64.s %s
-// RUN: clang-cc -triple i386-apple-darwin -std=c++0x -S %s -o %t-32.s
+// RUN: %clang_cc1 -triple i386-apple-darwin -std=c++0x -S %s -o %t-32.s
 // RUN: FileCheck -check-prefix LP32 --input-file=%t-32.s %s
 
 // PR4826
@@ -44,12 +44,10 @@ int main() {
   delete node;
 }
 
-// CHECK-LP64: __ZN4ListIP12BinomialNodeIiEED1Ev:
-// CHECK-LP64: __ZN4ListIP12BinomialNodeIiEED2Ev:
-// CHECK-LP64: __ZN4NodeIP12BinomialNodeIiEEC1Ev:
+// CHECK-LP64: __ZN4NodeIP12BinomialNodeIiEEC2Ev:
 // CHECK-LP64: __ZN4ListIP12BinomialNodeIiEEC1Ev:
+// CHECK-LP64: __ZN4ListIP12BinomialNodeIiEED1Ev:
 
-// CHECK-LP32: __ZN4ListIP12BinomialNodeIiEED1Ev:
-// CHECK-LP32: __ZN4ListIP12BinomialNodeIiEED2Ev:
-// CHECK-LP32: __ZN4NodeIP12BinomialNodeIiEEC1Ev:
+// CHECK-LP32: __ZN4NodeIP12BinomialNodeIiEEC2Ev:
 // CHECK-LP32: __ZN4ListIP12BinomialNodeIiEEC1Ev:
+// CHECK-LP32: __ZN4ListIP12BinomialNodeIiEED1Ev:

@@ -11,9 +11,10 @@
 #include "clang/Driver/Arg.h"
 #include "clang/Driver/ArgList.h"
 #include "clang/Driver/Option.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
-
+#include <map>
 using namespace clang::driver;
 using namespace clang::driver::options;
 
@@ -254,4 +255,123 @@ InputArgList *OptTable::ParseArgs(const char **ArgBegin, const char **ArgEnd,
   }
 
   return Args;
+}
+
+static std::string getOptionHelpName(const OptTable &Opts, OptSpecifier Id) {
+  std::string Name = Opts.getOptionName(Id);
+
+  // Add metavar, if used.
+  switch (Opts.getOptionKind(Id)) {
+  case Option::GroupClass: case Option::InputClass: case Option::UnknownClass:
+    assert(0 && "Invalid option with help text.");
+
+  case Option::MultiArgClass: case Option::JoinedAndSeparateClass:
+    assert(0 && "Cannot print metavar for this kind of option.");
+
+  case Option::FlagClass:
+    break;
+
+  case Option::SeparateClass: case Option::JoinedOrSeparateClass:
+    Name += ' ';
+    // FALLTHROUGH
+  case Option::JoinedClass: case Option::CommaJoinedClass:
+    if (const char *MetaVarName = Opts.getOptionMetaVar(Id))
+      Name += MetaVarName;
+    else
+      Name += "<value>";
+    break;
+  }
+
+  return Name;
+}
+
+static void PrintHelpOptionList(llvm::raw_ostream &OS, llvm::StringRef Title,
+                                std::vector<std::pair<std::string,
+                                const char*> > &OptionHelp) {
+  OS << Title << ":\n";
+
+  // Find the maximum option length.
+  unsigned OptionFieldWidth = 0;
+  for (unsigned i = 0, e = OptionHelp.size(); i != e; ++i) {
+    // Skip titles.
+    if (!OptionHelp[i].second)
+      continue;
+
+    // Limit the amount of padding we are willing to give up for alignment.
+    unsigned Length = OptionHelp[i].first.size();
+    if (Length <= 23)
+      OptionFieldWidth = std::max(OptionFieldWidth, Length);
+  }
+
+  const unsigned InitialPad = 2;
+  for (unsigned i = 0, e = OptionHelp.size(); i != e; ++i) {
+    const std::string &Option = OptionHelp[i].first;
+    int Pad = OptionFieldWidth - int(Option.size());
+    OS.indent(InitialPad) << Option;
+
+    // Break on long option names.
+    if (Pad < 0) {
+      OS << "\n";
+      Pad = OptionFieldWidth + InitialPad;
+    }
+    OS.indent(Pad + 1) << OptionHelp[i].second << '\n';
+  }
+}
+
+static const char *getOptionHelpGroup(const OptTable &Opts, OptSpecifier Id) {
+  unsigned GroupID = Opts.getOptionGroupID(Id);
+
+  // If not in a group, return the default help group.
+  if (!GroupID)
+    return "OPTIONS";
+
+  // Abuse the help text of the option groups to store the "help group"
+  // name.
+  //
+  // FIXME: Split out option groups.
+  if (const char *GroupHelp = Opts.getOptionHelpText(GroupID))
+    return GroupHelp;
+
+  // Otherwise keep looking.
+  return getOptionHelpGroup(Opts, GroupID);
+}
+
+void OptTable::PrintHelp(llvm::raw_ostream &OS, const char *Name,
+                         const char *Title, bool ShowHidden) const {
+  OS << "OVERVIEW: " << Title << "\n";
+  OS << '\n';
+  OS << "USAGE: " << Name << " [options] <inputs>\n";
+  OS << '\n';
+
+  // Render help text into a map of group-name to a list of (option, help)
+  // pairs.
+  typedef std::map<std::string,
+                 std::vector<std::pair<std::string, const char*> > > helpmap_ty;
+  helpmap_ty GroupedOptionHelp;
+
+  for (unsigned i = 0, e = getNumOptions(); i != e; ++i) {
+    unsigned Id = i + 1;
+
+    // FIXME: Split out option groups.
+    if (getOptionKind(Id) == Option::GroupClass)
+      continue;
+
+    if (!ShowHidden && isOptionHelpHidden(Id))
+      continue;
+
+    if (const char *Text = getOptionHelpText(Id)) {
+      const char *HelpGroup = getOptionHelpGroup(*this, Id);
+      const std::string &OptName = getOptionHelpName(*this, Id);
+      GroupedOptionHelp[HelpGroup].push_back(std::make_pair(OptName, Text));
+    }
+  }
+
+  for (helpmap_ty::iterator it = GroupedOptionHelp .begin(),
+         ie = GroupedOptionHelp.end(); it != ie; ++it) {
+    if (it != GroupedOptionHelp .begin())
+      OS << "\n";
+    PrintHelpOptionList(OS, it->first, it->second);
+  }
+
+  OS.flush();
 }

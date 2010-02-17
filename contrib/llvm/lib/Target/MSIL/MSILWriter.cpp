@@ -102,7 +102,6 @@ bool MSILWriter::runOnFunction(Function &F) {
 
 bool MSILWriter::doInitialization(Module &M) {
   ModulePtr = &M;
-  Mang = new Mangler(M);
   Out << ".assembly extern mscorlib {}\n";
   Out << ".assembly MSIL {}\n\n";
   Out << "// External\n";
@@ -118,7 +117,6 @@ bool MSILWriter::doInitialization(Module &M) {
 
 
 bool MSILWriter::doFinalization(Module &M) {
-  delete Mang;
   return false;
 }
 
@@ -189,7 +187,7 @@ void MSILWriter::printModuleStartup() {
     break;
   case 1:
     Arg1 = F->arg_begin();
-    if (Arg1->getType()->isInteger()) {
+    if (Arg1->getType()->isIntegerTy()) {
       Out << "\tldloc\targc\n";
       Args = getTypeName(Arg1->getType());
       BadSig = false;
@@ -197,7 +195,7 @@ void MSILWriter::printModuleStartup() {
     break;
   case 2:
     Arg1 = Arg2 = F->arg_begin(); ++Arg2;
-    if (Arg1->getType()->isInteger() && 
+    if (Arg1->getType()->isIntegerTy() && 
         Arg2->getType()->getTypeID() == Type::PointerTyID) {
       Out << "\tldloc\targc\n\tldloc\targv\n";
       Args = getTypeName(Arg1->getType())+","+getTypeName(Arg2->getType());
@@ -209,7 +207,7 @@ void MSILWriter::printModuleStartup() {
   }
 
   bool RetVoid = (F->getReturnType()->getTypeID() == Type::VoidTyID);
-  if (BadSig || (!F->getReturnType()->isInteger() && !RetVoid)) {
+  if (BadSig || (!F->getReturnType()->isIntegerTy() && !RetVoid)) {
     Out << "\tldc.i4.0\n";
   } else {
     Out << "\tcall\t" << getTypeName(F->getReturnType()) <<
@@ -232,7 +230,7 @@ bool MSILWriter::isZeroValue(const Value* V) {
 std::string MSILWriter::getValueName(const Value* V) {
   std::string Name;
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(V))
-    Name = Mang->getMangledName(GV);
+    Name = GV->getName();
   else {
     unsigned &No = AnonValueNumbers[V];
     if (No == 0) No = ++NextAnonValueNumber;
@@ -259,7 +257,7 @@ std::string MSILWriter::getLabelName(const std::string& Name) {
 std::string MSILWriter::getLabelName(const Value* V) {
   std::string Name;
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(V))
-    Name = Mang->getMangledName(GV);
+    Name = GV->getName();
   else {
     unsigned &No = AnonValueNumbers[V];
     if (No == 0) No = ++NextAnonValueNumber;
@@ -336,7 +334,7 @@ std::string MSILWriter::getPrimitiveTypeName(const Type* Ty, bool isSigned) {
 
 std::string MSILWriter::getTypeName(const Type* Ty, bool isSigned,
                                     bool isNested) {
-  if (Ty->isPrimitiveType() || Ty->isInteger())
+  if (Ty->isPrimitiveType() || Ty->isIntegerTy())
     return getPrimitiveTypeName(Ty,isSigned);
   // FIXME: "OpaqueType" support
   switch (Ty->getTypeID()) {
@@ -556,8 +554,7 @@ void MSILWriter::printSimpleInstruction(const char* Inst, const char* Operand) {
 
 
 void MSILWriter::printPHICopy(const BasicBlock* Src, const BasicBlock* Dst) {
-  for (BasicBlock::const_iterator I = Dst->begin(), E = Dst->end();
-       isa<PHINode>(I); ++I) {
+  for (BasicBlock::const_iterator I = Dst->begin(); isa<PHINode>(I); ++I) {
     const PHINode* Phi = cast<PHINode>(I);
     const Value* Val = Phi->getIncomingValueForBlock(Src);
     if (isa<UndefValue>(Val)) continue;
@@ -1617,7 +1614,7 @@ const char* MSILWriter::getLibraryName(const Function* F) {
 
 
 const char* MSILWriter::getLibraryName(const GlobalVariable* GV) {
-  return getLibraryForSymbol(Mang->getMangledName(GV), false, CallingConv::C);
+  return getLibraryForSymbol(GV->getName(), false, CallingConv::C);
 }
 
 
@@ -1675,7 +1672,7 @@ void MSILWriter::printExternals() {
     std::string Tmp = getTypeName(I->getType())+getValueName(&*I);
     printSimpleInstruction("ldsflda",Tmp.c_str());
     Out << "\tldstr\t\"" << getLibraryName(&*I) << "\"\n";
-    Out << "\tldstr\t\"" << Mang->getMangledName(&*I) << "\"\n";
+    Out << "\tldstr\t\"" << I->getName() << "\"\n";
     printSimpleInstruction("call","void* $MSIL_Import(string,string)");
     printIndirectSave(I->getType());
   }
@@ -1693,10 +1690,10 @@ bool MSILTarget::addPassesToEmitWholeFile(PassManager &PM,
                                           CodeGenFileType FileType,
                                           CodeGenOpt::Level OptLevel)
 {
-  if (FileType != TargetMachine::AssemblyFile) return true;
+  if (FileType != TargetMachine::CGFT_AssemblyFile) return true;
   MSILWriter* Writer = new MSILWriter(o);
   PM.add(createGCLoweringPass());
-  // FIXME: Handle switch trougth native IL instruction "switch"
+  // FIXME: Handle switch through native IL instruction "switch"
   PM.add(createLowerSwitchPass());
   PM.add(createCFGSimplificationPass());
   PM.add(new MSILModule(Writer->UsedTypes,Writer->TD));

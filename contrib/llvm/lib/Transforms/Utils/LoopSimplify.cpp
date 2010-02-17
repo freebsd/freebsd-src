@@ -109,7 +109,7 @@ X("loopsimplify", "Canonicalize natural loops", true);
 const PassInfo *const llvm::LoopSimplifyID = &X;
 Pass *llvm::createLoopSimplifyPass() { return new LoopSimplify(); }
 
-/// runOnFunction - Run down all loops in the CFG (recursively, but we could do
+/// runOnLoop - Run down all loops in the CFG (recursively, but we could do
 /// it in any convenient order) inserting preheaders...
 ///
 bool LoopSimplify::runOnLoop(Loop *l, LPPassManager &LPM) {
@@ -176,8 +176,9 @@ ReprocessLoop:
   SmallVector<BasicBlock*, 8> ExitBlocks;
   L->getExitBlocks(ExitBlocks);
     
-  SetVector<BasicBlock*> ExitBlockSet(ExitBlocks.begin(), ExitBlocks.end());
-  for (SetVector<BasicBlock*>::iterator I = ExitBlockSet.begin(),
+  SmallSetVector<BasicBlock *, 8> ExitBlockSet(ExitBlocks.begin(),
+                                               ExitBlocks.end());
+  for (SmallSetVector<BasicBlock *, 8>::iterator I = ExitBlockSet.begin(),
          E = ExitBlockSet.end(); I != E; ++I) {
     BasicBlock *ExitBlock = *I;
     for (pred_iterator PI = pred_begin(ExitBlock), PE = pred_end(ExitBlock);
@@ -232,7 +233,7 @@ ReprocessLoop:
       PN->eraseFromParent();
     }
 
-  // If this loop has muliple exits and the exits all go to the same
+  // If this loop has multiple exits and the exits all go to the same
   // block, attempt to merge the exits. This helps several passes, such
   // as LoopRotation, which do not support loops with multiple exits.
   // SimplifyCFG also does this (and this code uses the same utility
@@ -304,12 +305,6 @@ ReprocessLoop:
       ExitingBlock->eraseFromParent();
     }
   }
-
-  // If there are duplicate phi nodes (for example, from loop rotation),
-  // get rid of them.
-  for (Loop::block_iterator BB = L->block_begin(), E = L->block_end();
-       BB != E; ++BB)
-    EliminateDuplicatePHINodes(*BB);
 
   return Changed;
 }
@@ -477,8 +472,13 @@ Loop *LoopSimplify::SeparateNestedLoop(Loop *L, LPPassManager &LPM) {
   SmallVector<BasicBlock*, 8> OuterLoopPreds;
   for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i)
     if (PN->getIncomingValue(i) != PN ||
-        !L->contains(PN->getIncomingBlock(i)))
+        !L->contains(PN->getIncomingBlock(i))) {
+      // We can't split indirectbr edges.
+      if (isa<IndirectBrInst>(PN->getIncomingBlock(i)->getTerminator()))
+        return 0;
+
       OuterLoopPreds.push_back(PN->getIncomingBlock(i));
+    }
 
   BasicBlock *Header = L->getHeader();
   BasicBlock *NewBB = SplitBlockPredecessors(Header, &OuterLoopPreds[0],

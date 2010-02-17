@@ -13,7 +13,7 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-namespace {
+namespace llvm {
 
 std::ostream &operator<<(std::ostream &OS, const StringRef &S) {
   OS << S;
@@ -26,6 +26,9 @@ std::ostream &operator<<(std::ostream &OS,
   return OS;
 }
 
+}
+
+namespace {
 TEST(StringRefTest, Construction) {
   EXPECT_EQ("", StringRef());
   EXPECT_EQ("hello", StringRef("hello"));
@@ -111,11 +114,6 @@ TEST(StringRefTest, Split) {
             Str.rsplit('o'));
 }
 
-// XFAIL for PR5482, StringRef is miscompiled by Apple gcc.
-#if (!defined(__llvm__) && defined(__APPLE__) && defined(__OPTIMIZE__))
-#define SKIP_SPLIT2
-#endif
-#ifndef SKIP_SPLIT2
 TEST(StringRefTest, Split2) {
   SmallVector<StringRef, 5> parts;
   SmallVector<StringRef, 5> expected;
@@ -195,13 +193,20 @@ TEST(StringRefTest, Split2) {
   StringRef("a,,b,c").split(parts, ",", 3, false);
   EXPECT_TRUE(parts == expected);
 }
-#endif
 
 TEST(StringRefTest, StartsWith) {
   StringRef Str("hello");
   EXPECT_TRUE(Str.startswith("he"));
   EXPECT_FALSE(Str.startswith("helloworld"));
   EXPECT_FALSE(Str.startswith("hi"));
+}
+
+TEST(StringRefTest, EndsWith) {
+  StringRef Str("hello");
+  EXPECT_TRUE(Str.endswith("lo"));
+  EXPECT_FALSE(Str.endswith("helloworld"));
+  EXPECT_FALSE(Str.endswith("worldhello"));
+  EXPECT_FALSE(Str.endswith("so"));
 }
 
 TEST(StringRefTest, Find) {
@@ -240,6 +245,11 @@ TEST(StringRefTest, Count) {
   EXPECT_EQ(1U, Str.count("hello"));
   EXPECT_EQ(1U, Str.count("ello"));
   EXPECT_EQ(0U, Str.count("zz"));
+}
+
+TEST(StringRefTest, EditDistance) {
+  StringRef Str("hello");
+  EXPECT_EQ(2U, Str.edit_distance("hill"));
 }
 
 TEST(StringRefTest, Misc) {

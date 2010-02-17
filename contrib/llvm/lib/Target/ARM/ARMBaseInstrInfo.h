@@ -92,6 +92,8 @@ namespace ARMII {
     StMiscFrm     = 9  << FormShift,
     LdStMulFrm    = 10 << FormShift,
 
+    LdStExFrm     = 28 << FormShift,
+
     // Miscellaneous arithmetic instructions
     ArithMiscFrm  = 11 << FormShift,
 
@@ -162,6 +164,22 @@ namespace ARMII {
     I_BitShift     = 25,
     CondShift      = 28
   };
+
+  /// Target Operand Flag enum.
+  enum TOF {
+    //===------------------------------------------------------------------===//
+    // ARM Specific MachineOperand flags.
+
+    MO_NO_FLAG,
+
+    /// MO_LO16 - On a symbol operand, this represents a relocation containing
+    /// lower 16 bit of the address. Used only via movw instruction.
+    MO_LO16,
+
+    /// MO_HI16 - On a symbol operand, this represents a relocation containing
+    /// higher 16 bit of the address. Used only via movt instruction.
+    MO_HI16
+  };
 }
 
 class ARMBaseInstrInfo : public TargetInstrInfoImpl {
@@ -173,9 +191,6 @@ public:
   // Return the non-pre/post incrementing version of 'Opc'. Return 0
   // if there is not such an opcode.
   virtual unsigned getUnindexedOpcode(unsigned Opc) const =0;
-
-  // Return true if the block does not fall through.
-  virtual bool BlockHasNoFallThrough(const MachineBasicBlock &MBB) const =0;
 
   virtual MachineInstr *convertToThreeAddress(MachineFunction::iterator &MFI,
                                               MachineBasicBlock::iterator &MBBI,
@@ -219,6 +234,8 @@ public:
 
   virtual bool DefinesPredicate(MachineInstr *MI,
                                 std::vector<MachineOperand> &Pred) const;
+
+  virtual bool isPredicable(MachineInstr *MI) const;
 
   /// GetInstSize - Returns the size of the specified MachineInstr.
   ///
@@ -270,11 +287,10 @@ public:
                              const MachineInstr *Orig,
                              const TargetRegisterInfo *TRI) const;
 
+  MachineInstr *duplicate(MachineInstr *Orig, MachineFunction &MF) const;
+
   virtual bool isIdentical(const MachineInstr *MI, const MachineInstr *Other,
                            const MachineRegisterInfo *MRI) const;
-
-  virtual unsigned TailDuplicationLimit(const MachineBasicBlock &MBB,
-                                        unsigned DefaultLimit) const;
 };
 
 static inline

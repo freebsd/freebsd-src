@@ -26,6 +26,7 @@
 #include "clang/Basic/Version.h"
 
 #include "llvm/ADT/StringSet.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
@@ -41,16 +42,16 @@ using namespace clang;
 // Used to set values for "production" clang, for releases.
 // #define USE_PRODUCTION_CLANG
 
-Driver::Driver(const char *_Name, const char *_Dir,
-               const char *_DefaultHostTriple,
-               const char *_DefaultImageName,
+Driver::Driver(llvm::StringRef _Name, llvm::StringRef _Dir,
+               llvm::StringRef _DefaultHostTriple,
+               llvm::StringRef _DefaultImageName,
                bool IsProduction, Diagnostic &_Diags)
   : Opts(createDriverOptTable()), Diags(_Diags),
     Name(_Name), Dir(_Dir), DefaultHostTriple(_DefaultHostTriple),
     DefaultImageName(_DefaultImageName),
     Host(0),
-    CCCIsCXX(false), CCCEcho(false), CCCPrintBindings(false),
-    CCCGenericGCCName("gcc"), CCCUseClang(true),
+    CCCGenericGCCName("gcc"), CCCIsCXX(false), CCCEcho(false),
+    CCCPrintBindings(false), CheckInputsExist(true), CCCUseClang(true),
     CCCUseClangCXX(true), CCCUseClangCPP(true), CCCUsePCH(true),
     SuppressMissingInputWarning(false) {
   if (IsProduction) {
@@ -66,6 +67,14 @@ Driver::Driver(const char *_Name, const char *_Dir,
 
     CCCUseClangCXX = false;
   }
+
+  // Compute the path to the resource directory.
+  llvm::sys::Path P(Dir);
+  P.eraseComponent(); // Remove /bin from foo/bin
+  P.appendComponent("lib");
+  P.appendComponent("clang");
+  P.appendComponent(CLANG_VERSION_STRING);
+  ResourceDir = P.str();
 }
 
 Driver::~Driver() {
@@ -113,81 +122,55 @@ Compilation *Driver::BuildCompilation(int argc, const char **argv) {
   const char **Start = argv + 1, **End = argv + argc;
   const char *HostTriple = DefaultHostTriple.c_str();
 
-  // Read -ccc args.
+  InputArgList *Args = ParseArgStrings(Start, End);
+
+  // -no-canonical-prefixes is used very early in main.
+  Args->ClaimAllArgs(options::OPT_no_canonical_prefixes);
+
+  // Extract -ccc args.
   //
   // FIXME: We need to figure out where this behavior should live. Most of it
   // should be outside in the client; the parts that aren't should have proper
   // options, either by introducing new ones or by overloading gcc ones like -V
   // or -b.
-  for (; Start != End && memcmp(*Start, "-ccc-", 5) == 0; ++Start) {
-    const char *Opt = *Start + 5;
+  CCCPrintOptions = Args->hasArg(options::OPT_ccc_print_options);
+  CCCPrintActions = Args->hasArg(options::OPT_ccc_print_phases);
+  CCCPrintBindings = Args->hasArg(options::OPT_ccc_print_bindings);
+  CCCIsCXX = Args->hasArg(options::OPT_ccc_cxx) || CCCIsCXX;
+  CCCEcho = Args->hasArg(options::OPT_ccc_echo);
+  if (const Arg *A = Args->getLastArg(options::OPT_ccc_gcc_name))
+    CCCGenericGCCName = A->getValue(*Args);
+  CCCUseClangCXX = Args->hasFlag(options::OPT_ccc_clang_cxx,
+                                 options::OPT_ccc_no_clang_cxx,
+                                 CCCUseClangCXX);
+  CCCUsePCH = Args->hasFlag(options::OPT_ccc_pch_is_pch,
+                            options::OPT_ccc_pch_is_pth);
+  CCCUseClang = !Args->hasArg(options::OPT_ccc_no_clang);
+  CCCUseClangCPP = !Args->hasArg(options::OPT_ccc_no_clang_cpp);
+  if (const Arg *A = Args->getLastArg(options::OPT_ccc_clang_archs)) {
+    llvm::StringRef Cur = A->getValue(*Args);
 
-    if (!strcmp(Opt, "print-options")) {
-      CCCPrintOptions = true;
-    } else if (!strcmp(Opt, "print-phases")) {
-      CCCPrintActions = true;
-    } else if (!strcmp(Opt, "print-bindings")) {
-      CCCPrintBindings = true;
-    } else if (!strcmp(Opt, "cxx")) {
-      CCCIsCXX = true;
-    } else if (!strcmp(Opt, "echo")) {
-      CCCEcho = true;
+    CCCClangArchs.clear();
+    while (!Cur.empty()) {
+      std::pair<llvm::StringRef, llvm::StringRef> Split = Cur.split(',');
 
-    } else if (!strcmp(Opt, "gcc-name")) {
-      assert(Start+1 < End && "FIXME: -ccc- argument handling.");
-      CCCGenericGCCName = *++Start;
+      if (!Split.first.empty()) {
+        llvm::Triple::ArchType Arch =
+          llvm::Triple(Split.first, "", "").getArch();
 
-    } else if (!strcmp(Opt, "clang-cxx")) {
-      CCCUseClangCXX = true;
-    } else if (!strcmp(Opt, "no-clang-cxx")) {
-      CCCUseClangCXX = false;
-    } else if (!strcmp(Opt, "pch-is-pch")) {
-      CCCUsePCH = true;
-    } else if (!strcmp(Opt, "pch-is-pth")) {
-      CCCUsePCH = false;
-    } else if (!strcmp(Opt, "no-clang")) {
-      CCCUseClang = false;
-    } else if (!strcmp(Opt, "no-clang-cpp")) {
-      CCCUseClangCPP = false;
-    } else if (!strcmp(Opt, "clang-archs")) {
-      assert(Start+1 < End && "FIXME: -ccc- argument handling.");
-      llvm::StringRef Cur = *++Start;
+        if (Arch == llvm::Triple::UnknownArch)
+          Diag(clang::diag::err_drv_invalid_arch_name) << Split.first;
 
-      CCCClangArchs.clear();
-      while (!Cur.empty()) {
-        std::pair<llvm::StringRef, llvm::StringRef> Split = Cur.split(',');
-
-        if (!Split.first.empty()) {
-          llvm::Triple::ArchType Arch =
-            llvm::Triple(Split.first, "", "").getArch();
-
-          if (Arch == llvm::Triple::UnknownArch) {
-            // FIXME: Error handling.
-            llvm::errs() << "invalid arch name: " << Split.first << "\n";
-            exit(1);
-          }
-
-          CCCClangArchs.insert(Arch);
-        }
-
-        Cur = Split.second;
+        CCCClangArchs.insert(Arch);
       }
-    } else if (!strcmp(Opt, "host-triple")) {
-      assert(Start+1 < End && "FIXME: -ccc- argument handling.");
-      HostTriple = *++Start;
 
-    } else if (!strcmp(Opt, "install-dir")) {
-      assert(Start+1 < End && "FIXME: -ccc- argument handling.");
-      Dir = *++Start;
-
-    } else {
-      // FIXME: Error handling.
-      llvm::errs() << "invalid option: " << *Start << "\n";
-      exit(1);
+      Cur = Split.second;
     }
   }
-
-  InputArgList *Args = ParseArgStrings(Start, End);
+  if (const Arg *A = Args->getLastArg(options::OPT_ccc_host_triple))
+    HostTriple = A->getValue(*Args);
+  if (const Arg *A = Args->getLastArg(options::OPT_ccc_install_dir))
+    Dir = A->getValue(*Args);
 
   Host = GetHostInfo(HostTriple);
 
@@ -295,124 +278,17 @@ void Driver::PrintOptions(const ArgList &Args) const {
   }
 }
 
-static std::string getOptionHelpName(const OptTable &Opts, options::ID Id) {
-  std::string Name = Opts.getOptionName(Id);
-
-  // Add metavar, if used.
-  switch (Opts.getOptionKind(Id)) {
-  case Option::GroupClass: case Option::InputClass: case Option::UnknownClass:
-    assert(0 && "Invalid option with help text.");
-
-  case Option::MultiArgClass: case Option::JoinedAndSeparateClass:
-    assert(0 && "Cannot print metavar for this kind of option.");
-
-  case Option::FlagClass:
-    break;
-
-  case Option::SeparateClass: case Option::JoinedOrSeparateClass:
-    Name += ' ';
-    // FALLTHROUGH
-  case Option::JoinedClass: case Option::CommaJoinedClass:
-    Name += Opts.getOptionMetaVar(Id);
-    break;
-  }
-
-  return Name;
-}
-
+// FIXME: Move -ccc options to real options in the .td file (or eliminate), and
+// then move to using OptTable::PrintHelp.
 void Driver::PrintHelp(bool ShowHidden) const {
-  llvm::raw_ostream &OS = llvm::outs();
-
-  OS << "OVERVIEW: clang \"gcc-compatible\" driver\n";
-  OS << '\n';
-  OS << "USAGE: " << Name << " [options] <input files>\n";
-  OS << '\n';
-  OS << "OPTIONS:\n";
-
-  // Render help text into (option, help) pairs.
-  std::vector< std::pair<std::string, const char*> > OptionHelp;
-
-  for (unsigned i = 0, e = getOpts().getNumOptions(); i != e; ++i) {
-    options::ID Id = (options::ID) (i + 1);
-    if (const char *Text = getOpts().getOptionHelpText(Id))
-      OptionHelp.push_back(std::make_pair(getOptionHelpName(getOpts(), Id),
-                                          Text));
-  }
-
-  if (ShowHidden) {
-    OptionHelp.push_back(std::make_pair("\nDRIVER OPTIONS:",""));
-    OptionHelp.push_back(std::make_pair("-ccc-cxx",
-                                        "Act as a C++ driver"));
-    OptionHelp.push_back(std::make_pair("-ccc-gcc-name",
-                                        "Name for native GCC compiler"));
-    OptionHelp.push_back(std::make_pair("-ccc-clang-cxx",
-                                        "Enable the clang compiler for C++"));
-    OptionHelp.push_back(std::make_pair("-ccc-no-clang-cxx",
-                                        "Disable the clang compiler for C++"));
-    OptionHelp.push_back(std::make_pair("-ccc-no-clang",
-                                        "Disable the clang compiler"));
-    OptionHelp.push_back(std::make_pair("-ccc-no-clang-cpp",
-                                        "Disable the clang preprocessor"));
-    OptionHelp.push_back(std::make_pair("-ccc-clang-archs",
-                                        "Comma separate list of architectures "
-                                        "to use the clang compiler for"));
-    OptionHelp.push_back(std::make_pair("-ccc-pch-is-pch",
-                                     "Use lazy PCH for precompiled headers"));
-    OptionHelp.push_back(std::make_pair("-ccc-pch-is-pth",
-                         "Use pretokenized headers for precompiled headers"));
-
-    OptionHelp.push_back(std::make_pair("\nDEBUG/DEVELOPMENT OPTIONS:",""));
-    OptionHelp.push_back(std::make_pair("-ccc-host-triple",
-                                       "Simulate running on the given target"));
-    OptionHelp.push_back(std::make_pair("-ccc-install-dir",
-                               "Simulate installation in the given directory"));
-    OptionHelp.push_back(std::make_pair("-ccc-print-options",
-                                        "Dump parsed command line arguments"));
-    OptionHelp.push_back(std::make_pair("-ccc-print-phases",
-                                        "Dump list of actions to perform"));
-    OptionHelp.push_back(std::make_pair("-ccc-print-bindings",
-                                        "Show bindings of tools to actions"));
-    OptionHelp.push_back(std::make_pair("CCC_ADD_ARGS",
-                               "(ENVIRONMENT VARIABLE) Comma separated list of "
-                               "arguments to prepend to the command line"));
-  }
-
-  // Find the maximum option length.
-  unsigned OptionFieldWidth = 0;
-  for (unsigned i = 0, e = OptionHelp.size(); i != e; ++i) {
-    // Skip titles.
-    if (!OptionHelp[i].second)
-      continue;
-
-    // Limit the amount of padding we are willing to give up for alignment.
-    unsigned Length = OptionHelp[i].first.size();
-    if (Length <= 23)
-      OptionFieldWidth = std::max(OptionFieldWidth, Length);
-  }
-
-  for (unsigned i = 0, e = OptionHelp.size(); i != e; ++i) {
-    const std::string &Option = OptionHelp[i].first;
-    OS << "  " << Option;
-    for (int j = Option.length(), e = OptionFieldWidth; j < e; ++j)
-      OS << ' ';
-    OS << ' ' << OptionHelp[i].second << '\n';
-  }
-
-  OS.flush();
+  getOpts().PrintHelp(llvm::outs(), Name.c_str(),
+                      "clang \"gcc-compatible\" driver", ShowHidden);
 }
 
 void Driver::PrintVersion(const Compilation &C, llvm::raw_ostream &OS) const {
   // FIXME: The following handlers should use a callback mechanism, we don't
   // know what the client would like to do.
-#ifdef CLANG_VENDOR
-  OS << CLANG_VENDOR;
-#endif
-  OS << "clang version " CLANG_VERSION_STRING " ("
-     << getClangSubversionPath();
-  if (unsigned Revision = getClangSubversionRevision())
-    OS << " " << Revision;
-  OS << ")" << '\n';
-
+  OS << getClangFullVersion() << '\n';
   const ToolChain &TC = C.getDefaultToolChain();
   OS << "Target: " << TC.getTripleString() << '\n';
 
@@ -709,10 +585,9 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
         Ty = InputType;
       }
 
-      // Check that the file exists. It isn't clear this is worth doing, since
-      // the tool presumably does this anyway, and this just adds an extra stat
-      // to the equation, but this is gcc compatible.
-      if (memcmp(Value, "-", 2) != 0 && !llvm::sys::Path(Value).exists())
+      // Check that the file exists, if enabled.
+      if (CheckInputsExist && memcmp(Value, "-", 2) != 0 &&
+          !llvm::sys::Path(Value).exists())
         Diag(clang::diag::err_drv_no_such_file) << A->getValue(Args);
       else
         Inputs.push_back(std::make_pair(Ty, A));
@@ -755,6 +630,7 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
 
     // -{fsyntax-only,-analyze,emit-ast,S} only run up to the compiler.
   } else if ((FinalPhaseArg = Args.getLastArg(options::OPT_fsyntax_only)) ||
+             (FinalPhaseArg = Args.getLastArg(options::OPT_rewrite_objc)) ||
              (FinalPhaseArg = Args.getLastArg(options::OPT__analyze,
                                               options::OPT__analyze_auto)) ||
              (FinalPhaseArg = Args.getLastArg(options::OPT_emit_ast)) ||
@@ -806,7 +682,7 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
     }
 
     // Build the pipeline for this file.
-    Action *Current = new InputAction(*InputArg, InputType);
+    llvm::OwningPtr<Action> Current(new InputAction(*InputArg, InputType));
     for (unsigned i = 0; i != NumSteps; ++i) {
       phases::ID Phase = types::getCompilationPhase(InputType, i);
 
@@ -817,8 +693,7 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
       // Queue linker inputs.
       if (Phase == phases::Link) {
         assert(i + 1 == NumSteps && "linking must be final compilation step.");
-        LinkerInputs.push_back(Current);
-        Current = 0;
+        LinkerInputs.push_back(Current.take());
         break;
       }
 
@@ -829,19 +704,24 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
         continue;
 
       // Otherwise construct the appropriate action.
-      Current = ConstructPhaseAction(Args, Phase, Current);
+      Current.reset(ConstructPhaseAction(Args, Phase, Current.take()));
       if (Current->getType() == types::TY_Nothing)
         break;
     }
 
     // If we ended with something, add to the output list.
     if (Current)
-      Actions.push_back(Current);
+      Actions.push_back(Current.take());
   }
 
   // Add a link action if necessary.
   if (!LinkerInputs.empty())
     Actions.push_back(new LinkJobAction(LinkerInputs, types::TY_Image));
+
+  // If we are linking, claim any options which are obviously only used for
+  // compilation.
+  if (FinalPhase == phases::Link)
+    Args.ClaimAllArgs(options::OPT_CompileOnly_Group);
 }
 
 Action *Driver::ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
@@ -865,15 +745,20 @@ Action *Driver::ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
   case phases::Precompile:
     return new PrecompileJobAction(Input, types::TY_PCH);
   case phases::Compile: {
+    bool HasO4 = false;
+    if (const Arg *A = Args.getLastArg(options::OPT_O_Group))
+      HasO4 = A->getOption().matches(options::OPT_O4);
+
     if (Args.hasArg(options::OPT_fsyntax_only)) {
       return new CompileJobAction(Input, types::TY_Nothing);
+    } else if (Args.hasArg(options::OPT_rewrite_objc)) {
+      return new CompileJobAction(Input, types::TY_RewrittenObjC);
     } else if (Args.hasArg(options::OPT__analyze, options::OPT__analyze_auto)) {
       return new AnalyzeJobAction(Input, types::TY_Plist);
     } else if (Args.hasArg(options::OPT_emit_ast)) {
       return new CompileJobAction(Input, types::TY_AST);
     } else if (Args.hasArg(options::OPT_emit_llvm) ||
-               Args.hasArg(options::OPT_flto) ||
-               Args.hasArg(options::OPT_O4)) {
+               Args.hasArg(options::OPT_flto) || HasO4) {
       types::ID Output =
         Args.hasArg(options::OPT_S) ? types::TY_LLVMAsm : types::TY_LLVMBC;
       return new CompileJobAction(Input, Output);
@@ -899,10 +784,8 @@ void Driver::BuildJobs(Compilation &C) const {
     UsePipes = false;
 
   // -save-temps inhibits pipes.
-  if (SaveTemps && UsePipes) {
+  if (SaveTemps && UsePipes)
     Diag(clang::diag::warn_drv_pipe_ignored_with_save_temps);
-    UsePipes = true;
-  }
 
   Arg *FinalOutput = C.getArgs().getLastArg(options::OPT_o);
 
@@ -973,10 +856,9 @@ void Driver::BuildJobs(Compilation &C) const {
       if (isa<FlagOption>(Opt)) {
         bool DuplicateClaimed = false;
 
-        // FIXME: Use iterator.
-        for (ArgList::const_iterator it = C.getArgs().begin(),
-               ie = C.getArgs().end(); it != ie; ++it) {
-          if ((*it)->isClaimed() && (*it)->getOption().matches(&Opt)) {
+        for (arg_iterator it = C.getArgs().filtered_begin(&Opt),
+               ie = C.getArgs().filtered_end(); it != ie; ++it) {
+          if ((*it)->isClaimed()) {
             DuplicateClaimed = true;
             break;
           }
@@ -990,6 +872,44 @@ void Driver::BuildJobs(Compilation &C) const {
         << A->getAsString(C.getArgs());
     }
   }
+}
+
+static const Tool &SelectToolForJob(Compilation &C, const ToolChain *TC,
+                                    const JobAction *JA,
+                                    const ActionList *&Inputs) {
+  const Tool *ToolForJob = 0;
+
+  // See if we should look for a compiler with an integrated assembler. We match
+  // bottom up, so what we are actually looking for is an assembler job with a
+  // compiler input.
+  if (C.getArgs().hasArg(options::OPT_integrated_as,
+                         options::OPT_no_integrated_as,
+                         TC->IsIntegratedAssemblerDefault()) &&
+      !C.getArgs().hasArg(options::OPT_save_temps) &&
+      isa<AssembleJobAction>(JA) &&
+      Inputs->size() == 1 && isa<CompileJobAction>(*Inputs->begin())) {
+    const Tool &Compiler = TC->SelectTool(C,cast<JobAction>(**Inputs->begin()));
+    if (Compiler.hasIntegratedAssembler()) {
+      Inputs = &(*Inputs)[0]->getInputs();
+      ToolForJob = &Compiler;
+    }
+  }
+
+  // Otherwise use the tool for the current job.
+  if (!ToolForJob)
+    ToolForJob = &TC->SelectTool(C, *JA);
+
+  // See if we should use an integrated preprocessor. We do so when we have
+  // exactly one input, since this is the only use case we care about
+  // (irrelevant since we don't support combine yet).
+  if (Inputs->size() == 1 && isa<PreprocessJobAction>(*Inputs->begin()) &&
+      !C.getArgs().hasArg(options::OPT_no_integrated_cpp) &&
+      !C.getArgs().hasArg(options::OPT_traditional_cpp) &&
+      !C.getArgs().hasArg(options::OPT_save_temps) &&
+      ToolForJob->hasIntegratedCPP())
+    Inputs = &(*Inputs)[0]->getInputs();
+
+  return *ToolForJob;
 }
 
 void Driver::BuildJobsForAction(Compilation &C,
@@ -1032,23 +952,10 @@ void Driver::BuildJobsForAction(Compilation &C,
     return;
   }
 
-  const JobAction *JA = cast<JobAction>(A);
-  const Tool &T = TC->SelectTool(C, *JA);
-
-  // See if we should use an integrated preprocessor. We do so when we have
-  // exactly one input, since this is the only use case we care about
-  // (irrelevant since we don't support combine yet).
-  bool UseIntegratedCPP = false;
   const ActionList *Inputs = &A->getInputs();
-  if (Inputs->size() == 1 && isa<PreprocessJobAction>(*Inputs->begin())) {
-    if (!C.getArgs().hasArg(options::OPT_no_integrated_cpp) &&
-        !C.getArgs().hasArg(options::OPT_traditional_cpp) &&
-        !C.getArgs().hasArg(options::OPT_save_temps) &&
-        T.hasIntegratedCPP()) {
-      UseIntegratedCPP = true;
-      Inputs = &(*Inputs)[0]->getInputs();
-    }
-  }
+
+  const JobAction *JA = cast<JobAction>(A);
+  const Tool &T = SelectToolForJob(C, TC, JA, Inputs);
 
   // Only use pipes when there is exactly one input.
   bool TryToUsePipeInput = Inputs->size() == 1 && T.acceptsPipedInput();
@@ -1291,8 +1198,10 @@ bool Driver::ShouldUseClangCompiler(const Compilation &C, const JobAction &JA,
     return false;
   }
 
-  // Always use clang for precompiling and AST generation, regardless of archs.
-  if (isa<PrecompileJobAction>(JA) || JA.getType() == types::TY_AST)
+  // Always use clang for precompiling, AST generation, and rewriting,
+  // regardless of archs.
+  if (isa<PrecompileJobAction>(JA) || JA.getType() == types::TY_AST ||
+      JA.getType() == types::TY_RewrittenObjC)
     return true;
 
   // Finally, don't use clang if this isn't one of the user specified archs to

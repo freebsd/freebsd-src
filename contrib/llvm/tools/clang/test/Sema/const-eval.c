@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 #define EVAL_EXPR(testno, expr) int test##testno = sizeof(struct{char qq[expr];});
 int x;
@@ -75,3 +75,4 @@ EVAL_EXPR(35, constbool)
 EVAL_EXPR(36, constbool)
 
 EVAL_EXPR(37, (1,2.0) == 2.0)
+EVAL_EXPR(38, __builtin_expect(1,1) == 1)

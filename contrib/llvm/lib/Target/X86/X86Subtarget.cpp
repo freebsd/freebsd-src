@@ -28,6 +28,21 @@ using namespace llvm;
 #include <intrin.h>
 #endif
 
+/// ClassifyBlockAddressReference - Classify a blockaddress reference for the
+/// current subtarget according to how we should reference it in a non-pcrel
+/// context.
+unsigned char X86Subtarget::
+ClassifyBlockAddressReference() const {
+  if (isPICStyleGOT())    // 32-bit ELF targets.
+    return X86II::MO_GOTOFF;
+  
+  if (isPICStyleStubPIC())   // Darwin/32 in PIC mode.
+    return X86II::MO_PIC_BASE_OFFSET;
+  
+  // Direct static reference to label.
+  return X86II::MO_NO_FLAG;
+}
+
 /// ClassifyGlobalReference - Classify a global variable reference for the
 /// current subtarget according to how we should reference it in a non-pcrel
 /// context.
@@ -38,9 +53,9 @@ ClassifyGlobalReference(const GlobalValue *GV, const TargetMachine &TM) const {
   if (GV->hasDLLImportLinkage())
     return X86II::MO_DLLIMPORT;
 
-  // GV with ghost linkage (in JIT lazy compilation mode) do not require an
+  // Materializable GVs (in JIT lazy compilation mode) do not require an
   // extra load from stub.
-  bool isDecl = GV->isDeclaration() && !GV->hasNotBeenReadFromBitcode();
+  bool isDecl = GV->isDeclaration() && !GV->isMaterializable();
 
   // X86-64 in PIC mode.
   if (isPICStyleRIPRel()) {
@@ -271,6 +286,7 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &FS,
   , HasFMA3(false)
   , HasFMA4(false)
   , IsBTMemSlow(false)
+  , HasVectorUAMem(false)
   , DarwinVers(0)
   , stackAlignment(8)
   // FIXME: this is a known good value for Yonah. How about others?
@@ -302,7 +318,7 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &FS,
   if (Is64Bit)
     HasX86_64 = true;
 
-  DEBUG(errs() << "Subtarget features: SSELevel " << X86SSELevel
+  DEBUG(dbgs() << "Subtarget features: SSELevel " << X86SSELevel
                << ", 3DNowLevel " << X863DNowLevel
                << ", 64bit " << HasX86_64 << "\n");
   assert((!Is64Bit || HasX86_64) &&
@@ -352,5 +368,5 @@ bool X86Subtarget::enablePostRAScheduler(
             RegClassVector& CriticalPathRCs) const {
   Mode = TargetSubtarget::ANTIDEP_CRITICAL;
   CriticalPathRCs.clear();
-  return OptLevel >= CodeGenOpt::Default;
+  return OptLevel >= CodeGenOpt::Aggressive;
 }

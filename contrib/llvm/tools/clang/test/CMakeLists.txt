@@ -40,6 +40,11 @@ if(PYTHONINTERP_FOUND)
     set(CLANG_TEST_EXTRA_ARGS "--no-progress-bar")
   endif()
 
+  option(CLANG_TEST_USE_VG "Run Clang tests under Valgrind" OFF)
+  if(CLANG_TEST_USE_VG)
+    set(CLANG_TEST_EXTRA_ARGS ${CLANG_TEST_EXTRA_ARGS} "--vg")
+  endif ()
+
   foreach(testdir ${CLANG_TEST_DIRECTORIES})
     add_custom_target(clang-test-${testdir}
       COMMAND ${PYTHON_EXECUTABLE}
@@ -48,7 +53,7 @@ if(PYTHONINTERP_FOUND)
                   --param build_config=${CMAKE_CFG_INTDIR}
                   -sv ${CLANG_TEST_EXTRA_ARGS}
                   ${CMAKE_CURRENT_BINARY_DIR}/${testdir}
-                  DEPENDS clang clang-cc index-test c-index-test
+                  DEPENDS clang c-index-test
                   COMMENT "Running Clang regression tests in ${testdir}")
   endforeach()
 
@@ -59,7 +64,7 @@ if(PYTHONINTERP_FOUND)
                 --param build_config=${CMAKE_CFG_INTDIR}
                 -sv ${CLANG_TEST_EXTRA_ARGS}
                 ${CMAKE_CURRENT_BINARY_DIR}
-                DEPENDS clang clang-cc index-test c-index-test
+                DEPENDS clang c-index-test
                 COMMENT "Running Clang regression tests")
 
   add_custom_target(clang-c++tests
@@ -69,6 +74,6 @@ if(PYTHONINTERP_FOUND)
                 --param build_config=${CMAKE_CFG_INTDIR}
                 -sv ${CLANG_TEST_EXTRA_ARGS}
                 ${CMAKE_CURRENT_SOURCE_DIR}/../utils/C++Tests
-                DEPENDS clang clang-cc index-test c-index-test
+                DEPENDS clang c-index-test
                 COMMENT "Running Clang regression tests")
 endif()

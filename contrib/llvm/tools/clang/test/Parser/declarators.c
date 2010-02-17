@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -fsyntax-only -verify -pedantic
+// RUN: %clang_cc1 %s -fsyntax-only -verify -pedantic
 
 extern int a1[];
 
@@ -47,8 +47,8 @@ int test6() { return a; }  // a should be declared.
 // Use of tagged type without tag. rdar://6783347
 struct xyz { int y; };
 enum myenum { ASDFAS };
-xyz b;         // expected-error {{use of tagged type 'xyz' without 'struct' tag}}
-myenum c;      // expected-error {{use of tagged type 'myenum' without 'enum' tag}}
+xyz b;         // expected-error {{must use 'struct' tag to refer to type 'xyz'}}
+myenum c;      // expected-error {{must use 'enum' tag to refer to type 'myenum'}}
 
 float *test7() {
   // We should recover 'b' by parsing it with a valid type of "struct xyz", which
@@ -64,3 +64,22 @@ static f;      // expected-warning {{type specifier missing, defaults to 'int'}}
 static g = 4;  // expected-warning {{type specifier missing, defaults to 'int'}}
 static h        // expected-warning {{type specifier missing, defaults to 'int'}} 
       __asm__("foo");
+
+
+struct test9 {
+  int x  // expected-error {{expected ';' at end of declaration list}}
+  int y;
+  int z  // expected-warning {{expected ';' at end of declaration list}}
+};
+
+// PR6208
+struct test10 { int a; } static test10x;
+struct test11 { int a; } const test11x;
+
+// PR6216
+void test12() {
+  (void)__builtin_offsetof(struct { char c; int i; }, i);
+}
+
+// rdar://7608537
+struct test13 { int a; } (test13x);

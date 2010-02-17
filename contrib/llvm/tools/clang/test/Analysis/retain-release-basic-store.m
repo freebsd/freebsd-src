@@ -1,4 +1,4 @@
-// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-check-objc-mem -analyzer-store=basic -verify %s
 
 //===----------------------------------------------------------------------===//
 // The following code is reduced using delta-debugging from
@@ -85,6 +85,8 @@ extern DADissenterRef DADissenterCreate( CFAllocatorRef allocator, DAReturn stat
 struct foo {
   NSDate* f;
 };
+
+CFAbsoluteTime CFAbsoluteTimeGetCurrent(void);
 
 CFAbsoluteTime f4() {
   struct foo x;

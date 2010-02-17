@@ -21,10 +21,10 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
 #include "llvm/Config/config.h"
-#include <cstdio>
 #ifdef _MSC_VER
   #define WIN32_LEAN_AND_MEAN 1
   #include <windows.h>
@@ -50,27 +50,27 @@ public:
     : Headers(HS), Verbose(verbose), isysroot(iSysroot) {}
 
   /// AddPath - Add the specified path to the specified group list.
-  void AddPath(const llvm::StringRef &Path, IncludeDirGroup Group,
+  void AddPath(const llvm::Twine &Path, IncludeDirGroup Group,
                bool isCXXAware, bool isUserSupplied,
                bool isFramework, bool IgnoreSysRoot = false);
 
   /// AddGnuCPlusPlusIncludePaths - Add the necessary paths to suport a gnu
   ///  libstdc++.
-  void AddGnuCPlusPlusIncludePaths(const std::string &Base,
-                                   const char *ArchDir,
-                                   const char *Dir32,
-                                   const char *Dir64,
+  void AddGnuCPlusPlusIncludePaths(llvm::StringRef Base,
+                                   llvm::StringRef ArchDir,
+                                   llvm::StringRef Dir32,
+                                   llvm::StringRef Dir64,
                                    const llvm::Triple &triple);
 
   /// AddMinGWCPlusPlusIncludePaths - Add the necessary paths to suport a MinGW
   ///  libstdc++.
-  void AddMinGWCPlusPlusIncludePaths(const std::string &Base,
-                                     const char *Arch,
-                                     const char *Version);
+  void AddMinGWCPlusPlusIncludePaths(llvm::StringRef Base,
+                                     llvm::StringRef Arch,
+                                     llvm::StringRef Version);
 
   /// AddDelimitedPaths - Add a list of paths delimited by the system PATH
   /// separator. The processing follows that of the CPATH variable for gcc.
-  void AddDelimitedPaths(const char *String);
+  void AddDelimitedPaths(llvm::StringRef String);
 
   // AddDefaultCIncludePaths - Add paths that should always be searched.
   void AddDefaultCIncludePaths(const llvm::Triple &triple);
@@ -91,25 +91,26 @@ public:
 
 }
 
-void InitHeaderSearch::AddPath(const llvm::StringRef &Path,
+void InitHeaderSearch::AddPath(const llvm::Twine &Path,
                                IncludeDirGroup Group, bool isCXXAware,
                                bool isUserSupplied, bool isFramework,
                                bool IgnoreSysRoot) {
-  assert(!Path.empty() && "can't handle empty path here");
+  assert(!Path.isTriviallyEmpty() && "can't handle empty path here");
   FileManager &FM = Headers.getFileMgr();
 
   // Compute the actual path, taking into consideration -isysroot.
-  llvm::SmallString<256> MappedPath;
+  llvm::SmallString<256> MappedPathStr;
+  llvm::raw_svector_ostream MappedPath(MappedPathStr);
 
   // Handle isysroot.
   if (Group == System && !IgnoreSysRoot) {
     // FIXME: Portability.  This should be a sys::Path interface, this doesn't
     // handle things like C:\ right, nor win32 \\network\device\blah.
     if (isysroot.size() != 1 || isysroot[0] != '/') // Add isysroot if present.
-      MappedPath.append(isysroot.begin(), isysroot.end());
+      MappedPath << isysroot;
   }
 
-  MappedPath.append(Path.begin(), Path.end());
+  Path.print(MappedPath);
 
   // Compute the DirectoryLookup type.
   SrcMgr::CharacteristicKind Type;
@@ -146,33 +147,32 @@ void InitHeaderSearch::AddPath(const llvm::StringRef &Path,
 }
 
 
-void InitHeaderSearch::AddDelimitedPaths(const char *at) {
-  if (*at == 0) // Empty string should not add '.' path.
+void InitHeaderSearch::AddDelimitedPaths(llvm::StringRef at) {
+  if (at.empty()) // Empty string should not add '.' path.
     return;
 
-  const char* delim = strchr(at, llvm::sys::PathSeparator);
-  while (delim != 0) {
-    if (delim-at == 0)
+  llvm::StringRef::size_type delim;
+  while ((delim = at.find(llvm::sys::PathSeparator)) != llvm::StringRef::npos) {
+    if (delim == 0)
       AddPath(".", Angled, false, true, false);
     else
-      AddPath(llvm::StringRef(at, delim-at), Angled, false, true, false);
-    at = delim + 1;
-    delim = strchr(at, llvm::sys::PathSeparator);
+      AddPath(at.substr(0, delim), Angled, false, true, false);
+    at = at.substr(delim + 1);
   }
-  if (*at == 0)
+
+  if (at.empty())
     AddPath(".", Angled, false, true, false);
   else
     AddPath(at, Angled, false, true, false);
 }
 
-void InitHeaderSearch::AddGnuCPlusPlusIncludePaths(const std::string &Base,
-                                                   const char *ArchDir,
-                                                   const char *Dir32,
-                                                   const char *Dir64,
+void InitHeaderSearch::AddGnuCPlusPlusIncludePaths(llvm::StringRef Base,
+                                                   llvm::StringRef ArchDir,
+                                                   llvm::StringRef Dir32,
+                                                   llvm::StringRef Dir64,
                                                    const llvm::Triple &triple) {
-  // Add the common dirs
+  // Add the base dir
   AddPath(Base, System, true, false, false);
-  AddPath(Base + "/backward", System, true, false, false);
 
   // Add the multilib dirs
   llvm::Triple::ArchType arch = triple.getArch();
@@ -181,27 +181,41 @@ void InitHeaderSearch::AddGnuCPlusPlusIncludePaths(const std::string &Base,
     AddPath(Base + "/" + ArchDir + "/" + Dir64, System, true, false, false);
   else
     AddPath(Base + "/" + ArchDir + "/" + Dir32, System, true, false, false);
+
+  // Add the backward dir
+  AddPath(Base + "/backward", System, true, false, false);
 }
 
-void InitHeaderSearch::AddMinGWCPlusPlusIncludePaths(const std::string &Base,
-                                                     const char *Arch,
-                                                     const char *Version) {
-  std::string localBase = Base + "/" + Arch + "/" + Version + "/include";
-  AddPath(localBase, System, true, false, false);
-  AddPath(localBase + "/c++", System, true, false, false);
-  AddPath(localBase + "/c++/backward", System, true, false, false);
+void InitHeaderSearch::AddMinGWCPlusPlusIncludePaths(llvm::StringRef Base,
+                                                     llvm::StringRef Arch,
+                                                     llvm::StringRef Version) {
+  AddPath(Base + "/" + Arch + "/" + Version + "/include",
+          System, true, false, false);
+  AddPath(Base + "/" + Arch + "/" + Version + "/include/c++",
+          System, true, false, false);
+  AddPath(Base + "/" + Arch + "/" + Version + "/include/c++/backward",
+          System, true, false, false);
 }
 
   // FIXME: This probably should goto to some platform utils place.
 #ifdef _MSC_VER
+
   // Read registry string.
-bool getSystemRegistryString(const char *keyPath, const char *valueName,
-                       char *value, size_t maxLength) {
+  // This also supports a means to look for high-versioned keys by use
+  // of a $VERSION placeholder in the key path.
+  // $VERSION in the key path is a placeholder for the version number,
+  // causing the highest value path to be searched for and used.
+  // I.e. "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\$VERSION".
+  // There can be additional characters in the component.  Only the numberic
+  // characters are compared.
+static bool getSystemRegistryString(const char *keyPath, const char *valueName,
+                                    char *value, size_t maxLength) {
   HKEY hRootKey = NULL;
   HKEY hKey = NULL;
   const char* subKey = NULL;
   DWORD valueType;
   DWORD valueSize = maxLength - 1;
+  long lResult;
   bool returnValue = false;
   if (strncmp(keyPath, "HKEY_CLASSES_ROOT\\", 18) == 0) {
     hRootKey = HKEY_CLASSES_ROOT;
@@ -221,54 +235,99 @@ bool getSystemRegistryString(const char *keyPath, const char *valueName,
   }
   else
     return(false);
-  long lResult = RegOpenKeyEx(hRootKey, subKey, 0, KEY_READ, &hKey);
-  if (lResult == ERROR_SUCCESS) {
-    lResult = RegQueryValueEx(hKey, valueName, NULL, &valueType,
-      (LPBYTE)value, &valueSize);
-    if (lResult == ERROR_SUCCESS)
-      returnValue = true;
-    RegCloseKey(hKey);
+  const char *placeHolder = strstr(subKey, "$VERSION");
+  char bestName[256];
+  bestName[0] = '\0';
+  // If we have a $VERSION placeholder, do the highest-version search.
+  if (placeHolder) {
+    const char *keyEnd = placeHolder - 1;
+    const char *nextKey = placeHolder;
+    // Find end of previous key.
+    while ((keyEnd > subKey) && (*keyEnd != '\\'))
+      keyEnd--;
+    // Find end of key containing $VERSION.
+    while (*nextKey && (*nextKey != '\\'))
+      nextKey++;
+    size_t partialKeyLength = keyEnd - subKey;
+    char partialKey[256];
+    if (partialKeyLength > sizeof(partialKey))
+      partialKeyLength = sizeof(partialKey);
+    strncpy(partialKey, subKey, partialKeyLength);
+    partialKey[partialKeyLength] = '\0';
+    HKEY hTopKey = NULL;
+    lResult = RegOpenKeyEx(hRootKey, partialKey, 0, KEY_READ, &hTopKey);
+    if (lResult == ERROR_SUCCESS) {
+      char keyName[256];
+      int bestIndex = -1;
+      double bestValue = 0.0;
+      DWORD index, size = sizeof(keyName) - 1;
+      for (index = 0; RegEnumKeyEx(hTopKey, index, keyName, &size, NULL,
+          NULL, NULL, NULL) == ERROR_SUCCESS; index++) {
+        const char *sp = keyName;
+        while (*sp && !isdigit(*sp))
+          sp++;
+        if (!*sp)
+          continue;
+        const char *ep = sp + 1;
+        while (*ep && (isdigit(*ep) || (*ep == '.')))
+          ep++;
+        char numBuf[32];
+        strncpy(numBuf, sp, sizeof(numBuf) - 1);
+        numBuf[sizeof(numBuf) - 1] = '\0';
+        double value = strtod(numBuf, NULL);
+        if (value > bestValue) {
+          bestIndex = (int)index;
+          bestValue = value;
+          strcpy(bestName, keyName);
+        }
+        size = sizeof(keyName) - 1;
+      }
+      // If we found the highest versioned key, open the key and get the value.
+      if (bestIndex != -1) {
+        // Append rest of key.
+        strncat(bestName, nextKey, sizeof(bestName) - 1);
+        bestName[sizeof(bestName) - 1] = '\0';
+        // Open the chosen key path remainder.
+        lResult = RegOpenKeyEx(hTopKey, bestName, 0, KEY_READ, &hKey);
+        if (lResult == ERROR_SUCCESS) {
+          lResult = RegQueryValueEx(hKey, valueName, NULL, &valueType,
+            (LPBYTE)value, &valueSize);
+          if (lResult == ERROR_SUCCESS)
+            returnValue = true;
+          RegCloseKey(hKey);
+        }
+      }
+      RegCloseKey(hTopKey);
+    }
+  }
+  else {
+    lResult = RegOpenKeyEx(hRootKey, subKey, 0, KEY_READ, &hKey);
+    if (lResult == ERROR_SUCCESS) {
+      lResult = RegQueryValueEx(hKey, valueName, NULL, &valueType,
+        (LPBYTE)value, &valueSize);
+      if (lResult == ERROR_SUCCESS)
+        returnValue = true;
+      RegCloseKey(hKey);
+    }
   }
   return(returnValue);
 }
 #else // _MSC_VER
   // Read registry string.
-bool getSystemRegistryString(const char *, const char *, char *, size_t) {
+static bool getSystemRegistryString(const char*, const char*, char*, size_t) {
   return(false);
 }
 #endif // _MSC_VER
 
   // Get Visual Studio installation directory.
-bool getVisualStudioDir(std::string &path) {
+static bool getVisualStudioDir(std::string &path) {
+  char vsIDEInstallDir[256];
   // Try the Windows registry first.
-  char vs80IDEInstallDir[256];
-  char vs90IDEInstallDir[256];
-  const char* vsIDEInstallDir = NULL;
-  bool has80 = getSystemRegistryString(
-    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\8.0",
-    "InstallDir", vs80IDEInstallDir, sizeof(vs80IDEInstallDir) - 1);
-  bool has90 = getSystemRegistryString(
-    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\9.0",
-    "InstallDir", vs90IDEInstallDir, sizeof(vs90IDEInstallDir) - 1);
+  bool hasVCDir = getSystemRegistryString(
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\$VERSION",
+    "InstallDir", vsIDEInstallDir, sizeof(vsIDEInstallDir) - 1);
     // If we have both vc80 and vc90, pick version we were compiled with. 
-  if (has80 && has90) {
-    #ifdef _MSC_VER
-      #if (_MSC_VER >= 1500)  // VC90
-          vsIDEInstallDir = vs90IDEInstallDir;
-      #elif (_MSC_VER == 1400) // VC80
-          vsIDEInstallDir = vs80IDEInstallDir;
-      #else
-          vsIDEInstallDir = vs90IDEInstallDir;
-      #endif
-    #else
-      vsIDEInstallDir = vs90IDEInstallDir;
-    #endif
-  }
-  else if (has90)
-    vsIDEInstallDir = vs90IDEInstallDir;
-  else if (has80)
-    vsIDEInstallDir = vs80IDEInstallDir;
-  if (vsIDEInstallDir && *vsIDEInstallDir) {
+  if (hasVCDir && vsIDEInstallDir[0]) {
     char *p = (char*)strstr(vsIDEInstallDir, "\\Common7\\IDE");
     if (p)
       *p = '\0';
@@ -307,6 +366,21 @@ bool getVisualStudioDir(std::string &path) {
   return(false);
 }
 
+  // Get Windows SDK installation directory.
+static bool getWindowsSDKDir(std::string &path) {
+  char windowsSDKInstallDir[256];
+  // Try the Windows registry.
+  bool hasSDKDir = getSystemRegistryString(
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows\\$VERSION",
+    "InstallationFolder", windowsSDKInstallDir, sizeof(windowsSDKInstallDir) - 1);
+    // If we have both vc80 and vc90, pick version we were compiled with. 
+  if (hasSDKDir && windowsSDKInstallDir[0]) {
+    path = windowsSDKInstallDir;
+    return(true);
+  }
+  return(false);
+}
+
 void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple) {
   // FIXME: temporary hack: hard-coded paths.
   llvm::StringRef CIncludeDirs(C_INCLUDE_DIRS);
@@ -324,10 +398,14 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple) {
   case llvm::Triple::Win32:
     {
       std::string VSDir;
+      std::string WindowsSDKDir;
       if (getVisualStudioDir(VSDir)) {
         AddPath(VSDir + "\\VC\\include", System, false, false, false);
-        AddPath(VSDir + "\\VC\\PlatformSDK\\Include",
-          System, false, false, false);
+        if (getWindowsSDKDir(WindowsSDKDir))
+          AddPath(WindowsSDKDir, System, false, false, false);
+        else
+          AddPath(VSDir + "\\VC\\PlatformSDK\\Include",
+            System, false, false, false);
       }
       else {
           // Default install paths.
@@ -401,7 +479,18 @@ void InitHeaderSearch::AddDefaultCPlusPlusIncludePaths(const llvm::Triple &tripl
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.0.0",
                                 "i686-apple-darwin8", "", "", triple);
     break;
+  case llvm::Triple::DragonFly:
+    AddPath("/usr/include/c++/4.1", System, true, false, false);
+    break;
   case llvm::Triple::Linux:
+    // Exherbo (2010-01-25)
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.3",
+                                "x86_64-pc-linux-gnu", "32", "", triple);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.3",
+                                "i686-pc-linux-gnu", "", "", triple);
+    // Debian sid
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.2",
+                                "x86_64-linux-gnu", "32", "", triple);
     // Ubuntu 7.10 - Gutsy Gibbon
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.1.3",
                                 "i486-linux-gnu", "", "", triple);
@@ -421,10 +510,22 @@ void InitHeaderSearch::AddDefaultCPlusPlusIncludePaths(const llvm::Triple &tripl
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3.2",
                                 "i386-redhat-linux","", "", triple);
 
+    // Fedora 10 x86_64
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3.2",
+                                "x86_64-redhat-linux", "32", "", triple);
+
     // Fedora 11
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.1",
                                 "i586-redhat-linux","", "", triple);
 
+    // Fedora 12
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.2",
+                                "i686-redhat-linux","", "", triple);
+
+    // Fedora 12 (February-2010+)
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.3",
+                                "i686-redhat-linux","", "", triple);
+      
     // openSUSE 11.1 32 bit
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3",
                                 "i586-suse-linux", "", "", triple);
@@ -463,17 +564,9 @@ void InitHeaderSearch::AddDefaultCPlusPlusIncludePaths(const llvm::Triple &tripl
     AddGnuCPlusPlusIncludePaths(
         "/usr/lib/gcc/x86_64-pc-linux-gnu/4.1.2/include/g++-v4",
         "i686-pc-linux-gnu", "", "", triple);
-    // Exherbo (2009-10-26)
-    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.2",
-                                "x86_64-pc-linux-gnu", "32", "", triple);
-    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.2",
-                                "i686-pc-linux-gnu", "", "", triple);
     break;
   case llvm::Triple::FreeBSD:
-    // DragonFly
-    AddPath("/usr/include/c++/4.1", System, true, false, false);
-    // FreeBSD
-    AddPath("/usr/include/c++/4.2", System, true, false, false);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2", "", "", "", triple);
     break;
   case llvm::Triple::Solaris:
     // Solaris - Fall though..
@@ -489,6 +582,9 @@ void InitHeaderSearch::AddDefaultCPlusPlusIncludePaths(const llvm::Triple &tripl
 
 void InitHeaderSearch::AddDefaultSystemIncludePaths(const LangOptions &Lang,
                                                     const llvm::Triple &triple) {
+  if (Lang.CPlusPlus)
+    AddDefaultCPlusPlusIncludePaths(triple);
+
   AddDefaultCIncludePaths(triple);
 
   // Add the default framework include paths on Darwin.
@@ -496,9 +592,6 @@ void InitHeaderSearch::AddDefaultSystemIncludePaths(const LangOptions &Lang,
     AddPath("/System/Library/Frameworks", System, true, false, true);
     AddPath("/Library/Frameworks", System, true, false, true);
   }
-
-  if (Lang.CPlusPlus)
-    AddDefaultCPlusPlusIncludePaths(triple);
 }
 
 /// RemoveDuplicates - If there are duplicate directory entries in the specified
@@ -568,11 +661,11 @@ static void RemoveDuplicates(std::vector<DirectoryLookup> &SearchList,
     }
 
     if (Verbose) {
-      fprintf(stderr, "ignoring duplicate directory \"%s\"\n",
-              CurEntry.getName());
+      llvm::errs() << "ignoring duplicate directory \""
+                   << CurEntry.getName() << "\"\n";
       if (DirToRemove != i)
-        fprintf(stderr, "  as it is a non-system directory that duplicates"
-                " a system directory\n");
+        llvm::errs() << "  as it is a non-system directory that duplicates "
+                     << "a system directory\n";
     }
 
     // This is reached if the current entry is a duplicate.  Remove the
@@ -605,11 +698,11 @@ void InitHeaderSearch::Realize() {
 
   // If verbose, print the list of directories that will be searched.
   if (Verbose) {
-    fprintf(stderr, "#include \"...\" search starts here:\n");
+    llvm::errs() << "#include \"...\" search starts here:\n";
     unsigned QuotedIdx = IncludeGroup[Quoted].size();
     for (unsigned i = 0, e = SearchList.size(); i != e; ++i) {
       if (i == QuotedIdx)
-        fprintf(stderr, "#include <...> search starts here:\n");
+        llvm::errs() << "#include <...> search starts here:\n";
       const char *Name = SearchList[i].getName();
       const char *Suffix;
       if (SearchList[i].isNormalDir())
@@ -620,9 +713,9 @@ void InitHeaderSearch::Realize() {
         assert(SearchList[i].isHeaderMap() && "Unknown DirectoryLookup");
         Suffix = " (headermap)";
       }
-      fprintf(stderr, " %s%s\n", Name, Suffix);
+      llvm::errs() << " " << Name << Suffix << "\n";
     }
-    fprintf(stderr, "End of search list.\n");
+    llvm::errs() << "End of search list.\n";
   }
 }
 
@@ -640,21 +733,22 @@ void clang::ApplyHeaderSearchOptions(HeaderSearch &HS,
   }
 
   // Add entries from CPATH and friends.
-  Init.AddDelimitedPaths(HSOpts.EnvIncPath.c_str());
+  Init.AddDelimitedPaths(HSOpts.EnvIncPath);
   if (Lang.CPlusPlus && Lang.ObjC1)
-    Init.AddDelimitedPaths(HSOpts.ObjCXXEnvIncPath.c_str());
+    Init.AddDelimitedPaths(HSOpts.ObjCXXEnvIncPath);
   else if (Lang.CPlusPlus)
-    Init.AddDelimitedPaths(HSOpts.CXXEnvIncPath.c_str());
+    Init.AddDelimitedPaths(HSOpts.CXXEnvIncPath);
   else if (Lang.ObjC1)
-    Init.AddDelimitedPaths(HSOpts.ObjCEnvIncPath.c_str());
+    Init.AddDelimitedPaths(HSOpts.ObjCEnvIncPath);
   else
-    Init.AddDelimitedPaths(HSOpts.CEnvIncPath.c_str());
+    Init.AddDelimitedPaths(HSOpts.CEnvIncPath);
 
-  if (!HSOpts.BuiltinIncludePath.empty()) {
+  if (HSOpts.UseBuiltinIncludes) {
     // Ignore the sys root, we *always* look for clang headers relative to
     // supplied path.
-    Init.AddPath(HSOpts.BuiltinIncludePath, System,
-                 false, false, false, /*IgnoreSysRoot=*/ true);
+    llvm::sys::Path P(HSOpts.ResourceDir);
+    P.appendComponent("include");
+    Init.AddPath(P.str(), System, false, false, false, /*IgnoreSysRoot=*/ true);
   }
 
   if (HSOpts.UseStandardIncludes)

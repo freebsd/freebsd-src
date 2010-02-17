@@ -15,6 +15,7 @@
 #include "llvm-c/Target.h"
 #include "llvm/PassManager.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/LLVMContext.h"
 #include <cstring>
 
 using namespace llvm;
@@ -33,7 +34,7 @@ char *LLVMCopyStringRepOfTargetData(LLVMTargetDataRef TD) {
 }
 
 LLVMByteOrdering LLVMByteOrder(LLVMTargetDataRef TD) {
-  return unwrap(TD)->isLittleEndian();
+  return unwrap(TD)->isLittleEndian() ? LLVMLittleEndian : LLVMBigEndian;
 }
 
 unsigned LLVMPointerSize(LLVMTargetDataRef TD) {

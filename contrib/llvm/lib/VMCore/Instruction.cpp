@@ -11,12 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "LLVMContextImpl.h"
+#include "llvm/Instruction.h"
 #include "llvm/Type.h"
 #include "llvm/Instructions.h"
-#include "llvm/Function.h"
 #include "llvm/Constants.h"
-#include "llvm/GlobalVariable.h"
 #include "llvm/Module.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/LeakDetector.h"
@@ -51,10 +49,8 @@ Instruction::Instruction(const Type *ty, unsigned it, Use *Ops, unsigned NumOps,
 // Out of line virtual method, so the vtable, etc has a home.
 Instruction::~Instruction() {
   assert(Parent == 0 && "Instruction still linked in the program!");
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsDeleted(this);
-  }
+  if (hasMetadata())
+    removeAllMetadata();
 }
 
 
@@ -378,37 +374,6 @@ bool Instruction::isCommutative(unsigned op) {
   }
 }
 
-// Code here matches isMalloc from MemoryBuiltins, which is not in VMCore.
-static bool isMalloc(const Value* I) {
-  const CallInst *CI = dyn_cast<CallInst>(I);
-  if (!CI) {
-    const BitCastInst *BCI = dyn_cast<BitCastInst>(I);
-    if (!BCI) return false;
-
-    CI = dyn_cast<CallInst>(BCI->getOperand(0));
-  }
-
-  if (!CI)
-    return false;
-  Function *Callee = CI->getCalledFunction();
-  if (Callee == 0 || !Callee->isDeclaration() || Callee->getName() != "malloc")
-    return false;
-
-  // Check malloc prototype.
-  // FIXME: workaround for PR5130, this will be obsolete when a nobuiltin 
-  // attribute will exist.
-  const FunctionType *FTy = Callee->getFunctionType();
-  if (FTy->getNumParams() != 1)
-    return false;
-  if (IntegerType *ITy = dyn_cast<IntegerType>(FTy->param_begin()->get())) {
-    if (ITy->getBitWidth() != 32 && ITy->getBitWidth() != 64)
-      return false;
-    return true;
-  }
-
-  return false;
-}
-
 bool Instruction::isSafeToSpeculativelyExecute() const {
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
     if (Constant *C = dyn_cast<Constant>(getOperand(i)))
@@ -434,7 +399,9 @@ bool Instruction::isSafeToSpeculativelyExecute() const {
   case Load: {
     if (cast<LoadInst>(this)->isVolatile())
       return false;
-    if (isa<AllocaInst>(getOperand(0)) || isMalloc(getOperand(0)))
+    // Note that it is not safe to speculate into a malloc'd region because
+    // malloc may return null.
+    if (isa<AllocaInst>(getOperand(0)))
       return true;
     if (GlobalVariable *GV = dyn_cast<GlobalVariable>(getOperand(0)))
       return !GV->hasExternalWeakLinkage();
@@ -464,7 +431,14 @@ bool Instruction::isSafeToSpeculativelyExecute() const {
 Instruction *Instruction::clone() const {
   Instruction *New = clone_impl();
   New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata())
-    getContext().pImpl->TheMetadata.ValueIsCloned(this, New);
+  if (!hasMetadata())
+    return New;
+  
+  // Otherwise, enumerate and copy over metadata from the old instruction to the
+  // new one.
+  SmallVector<std::pair<unsigned, MDNode*>, 4> TheMDs;
+  getAllMetadata(TheMDs);
+  for (unsigned i = 0, e = TheMDs.size(); i != e; ++i)
+    New->setMetadata(TheMDs[i].first, TheMDs[i].second);
   return New;
 }

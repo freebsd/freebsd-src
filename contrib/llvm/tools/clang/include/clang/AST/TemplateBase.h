@@ -16,6 +16,7 @@
 #define LLVM_CLANG_AST_TEMPLATEBASE_H
 
 #include "llvm/ADT/APSInt.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TemplateName.h"
@@ -28,7 +29,7 @@ namespace clang {
 
 class Decl;
 class Expr;
-class DeclaratorInfo;
+class TypeSourceInfo;
 
 /// \brief Represents a template argument within a class template
 /// specialization.
@@ -220,7 +221,7 @@ public:
     assert(Kind == Integral &&
            "Cannot set the integral type of a non-integral template argument");
     Integer.Type = T.getAsOpaquePtr();
-  };
+  }
 
   /// \brief Retrieve the template argument as an expression.
   Expr *getAsExpr() const {
@@ -266,7 +267,7 @@ struct TemplateArgumentLocInfo {
 private:
   union {
     Expr *Expression;
-    DeclaratorInfo *Declarator;
+    TypeSourceInfo *Declarator;
     struct {
       unsigned QualifierRange[2];
       unsigned TemplateNameLoc;
@@ -276,7 +277,7 @@ private:
 #ifndef NDEBUG
   enum Kind {
     K_None,
-    K_DeclaratorInfo,
+    K_TypeSourceInfo,
     K_Expression,
     K_Template
   } Kind;
@@ -290,10 +291,10 @@ public:
 #endif
     {}
   
-  TemplateArgumentLocInfo(DeclaratorInfo *DInfo)
-    : Declarator(DInfo)
+  TemplateArgumentLocInfo(TypeSourceInfo *TInfo)
+    : Declarator(TInfo)
 #ifndef NDEBUG
-      , Kind(K_DeclaratorInfo) 
+      , Kind(K_TypeSourceInfo) 
 #endif
     {}
   
@@ -315,8 +316,8 @@ public:
     Template.TemplateNameLoc = TemplateNameLoc.getRawEncoding();
   }
 
-  DeclaratorInfo *getAsDeclaratorInfo() const {
-    assert(Kind == K_DeclaratorInfo);
+  TypeSourceInfo *getAsTypeSourceInfo() const {
+    assert(Kind == K_TypeSourceInfo);
     return Declarator;
   }
 
@@ -341,7 +342,7 @@ public:
   void validateForArgument(const TemplateArgument &Arg) {
     switch (Arg.getKind()) {
     case TemplateArgument::Type:
-      assert(Kind == K_DeclaratorInfo);
+      assert(Kind == K_TypeSourceInfo);
       break;
     case TemplateArgument::Expression:
     case TemplateArgument::Declaration:
@@ -355,7 +356,7 @@ public:
       assert(Kind == K_None);
       break;
     case TemplateArgument::Null:
-      llvm::llvm_unreachable("source info for null template argument?");
+      llvm_unreachable("source info for null template argument?");
     }
   }
 #endif
@@ -375,8 +376,8 @@ public:
     : Argument(Argument), LocInfo(Opaque) {
   }
 
-  TemplateArgumentLoc(const TemplateArgument &Argument, DeclaratorInfo *DInfo)
-    : Argument(Argument), LocInfo(DInfo) {
+  TemplateArgumentLoc(const TemplateArgument &Argument, TypeSourceInfo *TInfo)
+    : Argument(Argument), LocInfo(TInfo) {
     assert(Argument.getKind() == TemplateArgument::Type);
   }
 
@@ -411,9 +412,9 @@ public:
     return LocInfo;
   }
 
-  DeclaratorInfo *getSourceDeclaratorInfo() const {
+  TypeSourceInfo *getTypeSourceInfo() const {
     assert(Argument.getKind() == TemplateArgument::Type);
-    return LocInfo.getAsDeclaratorInfo();
+    return LocInfo.getAsTypeSourceInfo();
   }
 
   Expr *getSourceExpression() const {
@@ -435,6 +436,41 @@ public:
     assert(Argument.getKind() == TemplateArgument::Template);
     return LocInfo.getTemplateNameLoc();
   }  
+};
+
+/// A convenient class for passing around template argument
+/// information.  Designed to be passed by reference.
+class TemplateArgumentListInfo {
+  llvm::SmallVector<TemplateArgumentLoc, 8> Arguments;
+  SourceLocation LAngleLoc;
+  SourceLocation RAngleLoc;
+
+public:
+  TemplateArgumentListInfo() {}
+
+  TemplateArgumentListInfo(SourceLocation LAngleLoc,
+                           SourceLocation RAngleLoc)
+    : LAngleLoc(LAngleLoc), RAngleLoc(RAngleLoc) {}
+
+  SourceLocation getLAngleLoc() const { return LAngleLoc; }
+  SourceLocation getRAngleLoc() const { return RAngleLoc; }
+
+  void setLAngleLoc(SourceLocation Loc) { LAngleLoc = Loc; }
+  void setRAngleLoc(SourceLocation Loc) { RAngleLoc = Loc; }
+
+  unsigned size() const { return Arguments.size(); }
+
+  const TemplateArgumentLoc *getArgumentArray() const {
+    return Arguments.data();
+  }
+
+  const TemplateArgumentLoc &operator[](unsigned I) const {
+    return Arguments[I];
+  }
+
+  void addArgument(const TemplateArgumentLoc &Loc) {
+    Arguments.push_back(Loc);
+  }
 };
 
 }

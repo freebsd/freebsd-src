@@ -27,6 +27,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Allocator.h"
 #include <vector>
 
@@ -38,6 +39,7 @@ namespace clang {
   class FileManager;
   class ASTRecordLayout;
   class BlockExpr;
+  class CharUnits;
   class Expr;
   class ExternalASTSource;
   class IdentifierTable;
@@ -45,6 +47,9 @@ namespace clang {
   class SourceManager;
   class TargetInfo;
   // Decls
+  class DeclContext;
+  class CXXMethodDecl;
+  class CXXRecordDecl;
   class Decl;
   class FieldDecl;
   class ObjCIvarDecl;
@@ -57,6 +62,8 @@ namespace clang {
   class TypeDecl;
   class TypedefDecl;
   class UsingDecl;
+  class UsingShadowDecl;
+  class UnresolvedSetIterator;
 
   namespace Builtin { class Context; }
 
@@ -105,11 +112,11 @@ class ASTContext {
   llvm::DenseMap<const RecordDecl*, const ASTRecordLayout*> ASTRecordLayouts;
   llvm::DenseMap<const ObjCContainerDecl*, const ASTRecordLayout*> ObjCLayouts;
 
+  /// KeyFunctions - A cache mapping from CXXRecordDecls to key functions.
+  llvm::DenseMap<const CXXRecordDecl*, const CXXMethodDecl*> KeyFunctions;
+  
   /// \brief Mapping from ObjCContainers to their ObjCImplementations.
   llvm::DenseMap<ObjCContainerDecl*, ObjCImplDecl*> ObjCImpls;
-
-  llvm::DenseMap<unsigned, FixedWidthIntType*> SignedFixedWidthIntTypes;
-  llvm::DenseMap<unsigned, FixedWidthIntType*> UnsignedFixedWidthIntTypes;
 
   /// BuiltinVaListType - built-in va list type.
   /// This is initially null and set by Sema::LazilyCreateBuiltin when
@@ -120,8 +127,7 @@ class ASTContext {
   QualType ObjCIdTypedefType;
 
   /// ObjCSelType - another pseudo built-in typedef type (set by Sema).
-  QualType ObjCSelType;
-  const RecordType *SelStructType;
+  QualType ObjCSelTypedefType;
 
   /// ObjCProtoType - another pseudo built-in typedef type (set by Sema).
   QualType ObjCProtoType;
@@ -184,8 +190,10 @@ class ASTContext {
   llvm::DenseMap<const VarDecl *, MemberSpecializationInfo *> 
     InstantiatedFromStaticDataMember;
 
-  /// \brief Keeps track of the UnresolvedUsingDecls from which UsingDecls
-  /// where created during instantiation.
+  /// \brief Keeps track of the declaration from which a UsingDecl was
+  /// created during instantiation.  The source declaration is always
+  /// a UsingDecl, an UnresolvedUsingValueDecl, or an
+  /// UnresolvedUsingTypenameDecl.
   ///
   /// For example:
   /// \code
@@ -204,8 +212,10 @@ class ASTContext {
   ///
   /// This mapping will contain an entry that maps from the UsingDecl in
   /// B<int> to the UnresolvedUsingDecl in B<T>.
-  llvm::DenseMap<UsingDecl *, NamedDecl *>
-    InstantiatedFromUnresolvedUsingDecl;
+  llvm::DenseMap<UsingDecl *, NamedDecl *> InstantiatedFromUsingDecl;
+
+  llvm::DenseMap<UsingShadowDecl*, UsingShadowDecl*>
+    InstantiatedFromUsingShadowDecl;
 
   llvm::DenseMap<FieldDecl *, FieldDecl *> InstantiatedFromUnnamedFieldDecl;
 
@@ -244,6 +254,7 @@ public:
   // pseudo-builtins
   QualType ObjCIdRedefinitionType;
   QualType ObjCClassRedefinitionType;
+  QualType ObjCSelRedefinitionType;
 
   /// \brief Source ranges for all of the comments in the source file,
   /// sorted in order of appearance in the translation unit.
@@ -282,14 +293,18 @@ public:
   void setInstantiatedFromStaticDataMember(VarDecl *Inst, VarDecl *Tmpl,
                                            TemplateSpecializationKind TSK);
 
-  /// \brief If this using decl is instantiated from an unresolved using decl,
+  /// \brief If the given using decl is an instantiation of a
+  /// (possibly unresolved) using decl from a template instantiation,
   /// return it.
-  NamedDecl *getInstantiatedFromUnresolvedUsingDecl(UsingDecl *UUD);
+  NamedDecl *getInstantiatedFromUsingDecl(UsingDecl *Inst);
 
-  /// \brief Note that the using decl \p Inst is an instantiation of
-  /// the unresolved using decl \p Tmpl of a class template.
-  void setInstantiatedFromUnresolvedUsingDecl(UsingDecl *Inst, NamedDecl *Tmpl);
+  /// \brief Remember that the using decl \p Inst is an instantiation
+  /// of the using decl \p Pattern of a class template.
+  void setInstantiatedFromUsingDecl(UsingDecl *Inst, NamedDecl *Pattern);
 
+  void setInstantiatedFromUsingShadowDecl(UsingShadowDecl *Inst,
+                                          UsingShadowDecl *Pattern);
+  UsingShadowDecl *getInstantiatedFromUsingShadowDecl(UsingShadowDecl *Inst);
 
   FieldDecl *getInstantiatedFromUnnamedFieldDecl(FieldDecl *Field);
 
@@ -316,7 +331,7 @@ public:
   CanQualType OverloadTy;
   CanQualType DependentTy;
   CanQualType UndeducedAutoTy;
-  CanQualType ObjCBuiltinIdTy, ObjCBuiltinClassTy;
+  CanQualType ObjCBuiltinIdTy, ObjCBuiltinClassTy, ObjCBuiltinSelTy;
 
   ASTContext(const LangOptions& LOpts, SourceManager &SM, const TargetInfo &t,
              IdentifierTable &idents, SelectorTable &sels,
@@ -380,9 +395,15 @@ public:
   /// equivalent to calling T.withConst().
   QualType getConstType(QualType T) { return T.withConst(); }
 
-  /// getNoReturnType - Add the noreturn attribute to the given type which must
-  /// be a FunctionType or a pointer to an allowable type or a BlockPointer.
-  QualType getNoReturnType(QualType T);
+  /// getNoReturnType - Add or remove the noreturn attribute to the given type 
+  /// which must be a FunctionType or a pointer to an allowable type or a 
+  /// BlockPointer.
+  QualType getNoReturnType(QualType T, bool AddNoReturn = true);
+
+  /// getCallConvType - Adds the specified calling convention attribute to
+  /// the given type, which must be a FunctionType or a pointer to an
+  /// allowable type.
+  QualType getCallConvType(QualType T, CallingConv CallConv);
 
   /// getComplexType - Return the uniqued reference to the type for a complex
   /// number with the specified element type.
@@ -483,7 +504,8 @@ public:
 
   /// getVectorType - Return the unique reference to a vector type of
   /// the specified element type and size. VectorType must be a built-in type.
-  QualType getVectorType(QualType VectorType, unsigned NumElts);
+  QualType getVectorType(QualType VectorType, unsigned NumElts,
+                         bool AltiVec, bool IsPixel);
 
   /// getExtVectorType - Return the unique reference to an extended vector type
   /// of the specified element type and size.  VectorType must be a built-in
@@ -500,7 +522,8 @@ public:
 
   /// getFunctionNoProtoType - Return a K&R style C function type like 'int()'.
   ///
-  QualType getFunctionNoProtoType(QualType ResultTy, bool NoReturn = false);
+  QualType getFunctionNoProtoType(QualType ResultTy, bool NoReturn = false,
+                                  CallingConv CallConv = CC_Default);
 
   /// getFunctionType - Return a normal function type with a typed argument
   /// list.  isVariadic indicates whether the argument list includes '...'.
@@ -509,15 +532,16 @@ public:
                            unsigned TypeQuals, bool hasExceptionSpec = false,
                            bool hasAnyExceptionSpec = false,
                            unsigned NumExs = 0, const QualType *ExArray = 0,
-                           bool NoReturn = false);
+                           bool NoReturn = false,
+                           CallingConv CallConv = CC_Default);
 
   /// getTypeDeclType - Return the unique reference to the type for
   /// the specified type declaration.
-  QualType getTypeDeclType(TypeDecl *Decl, TypeDecl* PrevDecl=0);
+  QualType getTypeDeclType(const TypeDecl *Decl, const TypeDecl* PrevDecl=0);
 
   /// getTypedefType - Return the unique reference to the type for the
   /// specified typename decl.
-  QualType getTypedefType(TypedefDecl *Decl);
+  QualType getTypedefType(const TypedefDecl *Decl);
 
   QualType getSubstTemplateTypeParmType(const TemplateTypeParmType *Replaced,
                                         QualType Replacement);
@@ -532,8 +556,7 @@ public:
                                          QualType Canon = QualType());
 
   QualType getTemplateSpecializationType(TemplateName T,
-                                         const TemplateArgumentLoc *Args,
-                                         unsigned NumArgs,
+                                         const TemplateArgumentListInfo &Args,
                                          QualType Canon = QualType());
 
   QualType getQualifiedNameType(NestedNameSpecifier *NNS,
@@ -570,7 +593,7 @@ public:
 
   /// getSizeType - Return the unique type for "size_t" (C99 7.17), defined
   /// in <stddef.h>. The sizeof operator requires this (C99 6.5.3.4p4).
-  QualType getSizeType() const;
+  CanQualType getSizeType() const;
 
   /// getWCharType - In C++, this returns the unique wchar_t type.  In C99, this
   /// returns a type compatible with the type defined in <stddef.h> as defined
@@ -687,8 +710,8 @@ public:
                                       ObjCProtocolDecl *rProto);
 
   /// getObjCEncodingTypeSize returns size of type for objective-c encoding
-  /// purpose.
-  int getObjCEncodingTypeSize(QualType t);
+  /// purpose in characters.
+  CharUnits getObjCEncodingTypeSize(QualType t);
 
   /// This setter/getter represents the ObjC 'id' type. It is setup lazily, by
   /// Sema.  id is always a (typedef for a) pointer type, a pointer to a struct.
@@ -696,7 +719,7 @@ public:
   void setObjCIdType(QualType T);
 
   void setObjCSelType(QualType T);
-  QualType getObjCSelType() const { return ObjCSelType; }
+  QualType getObjCSelType() const { return ObjCSelTypedefType; }
 
   void setObjCProtoType(QualType QT);
   QualType getObjCProtoType() const { return ObjCProtoType; }
@@ -709,8 +732,6 @@ public:
 
   void setBuiltinVaListType(QualType T);
   QualType getBuiltinVaListType() const { return BuiltinVaListType; }
-
-  QualType getFixedWidthIntType(unsigned Width, bool Signed);
 
   /// getCVRQualifiedType - Returns a type with additional const,
   /// volatile, or restrict qualifiers.
@@ -734,12 +755,14 @@ public:
     return getExtQualType(T, Qs);
   }
 
+  DeclarationName getNameForTemplate(TemplateName Name);
+
+  TemplateName getOverloadedTemplateName(UnresolvedSetIterator Begin,
+                                         UnresolvedSetIterator End);
+
   TemplateName getQualifiedTemplateName(NestedNameSpecifier *NNS,
                                         bool TemplateKeyword,
                                         TemplateDecl *Template);
-  TemplateName getQualifiedTemplateName(NestedNameSpecifier *NNS,
-                                        bool TemplateKeyword,
-                                        OverloadedFunctionDecl *Template);
 
   TemplateName getDependentTemplateName(NestedNameSpecifier *NNS,
                                         const IdentifierInfo *Name);
@@ -796,6 +819,16 @@ public:
     return getTypeInfo(T).first;
   }
 
+  /// getCharWidth - Return the size of the character type, in bits
+  uint64_t getCharWidth() {
+    return getTypeSize(CharTy);
+  }
+  
+  /// getTypeSizeInChars - Return the size of the specified type, in characters.
+  /// This method does not work on incomplete types.
+  CharUnits getTypeSizeInChars(QualType T);
+  CharUnits getTypeSizeInChars(const Type *T);
+
   /// getTypeAlign - Return the ABI-specified alignment of a type, in bits.
   /// This method does not work on incomplete types.
   unsigned getTypeAlign(QualType T) {
@@ -805,16 +838,23 @@ public:
     return getTypeInfo(T).second;
   }
 
+  /// getTypeAlignInChars - Return the ABI-specified alignment of a type, in 
+  /// characters. This method does not work on incomplete types.
+  CharUnits getTypeAlignInChars(QualType T);
+  CharUnits getTypeAlignInChars(const Type *T);
+
   /// getPreferredTypeAlign - Return the "preferred" alignment of the specified
   /// type for the current target in bits.  This can be different than the ABI
   /// alignment in cases where it is beneficial for performance to overalign
   /// a data type.
   unsigned getPreferredTypeAlign(const Type *T);
 
-  /// getDeclAlignInBytes - Return the alignment of the specified decl
-  /// that should be returned by __alignof().  Note that bitfields do
-  /// not have a valid alignment, so this method will assert on them.
-  unsigned getDeclAlignInBytes(const Decl *D);
+  /// getDeclAlign - Return a conservative estimate of the alignment of
+  /// the specified decl.  Note that bitfields do not have a valid alignment, so
+  /// this method will assert on them.
+  /// If @p RefAsPointee, references are treated like their underlying type
+  /// (for alignof), else they're treated like pointers (for CodeGen).
+  CharUnits getDeclAlign(const Decl *D, bool RefAsPointee = false);
 
   /// getASTRecordLayout - Get or compute information about the layout of the
   /// specified record (struct/union/class), which indicates its size and field
@@ -831,6 +871,13 @@ public:
   const ASTRecordLayout &
   getASTObjCImplementationLayout(const ObjCImplementationDecl *D);
 
+  /// getKeyFunction - Get the key function for the given record decl. 
+  /// The key function is, according to the Itanium C++ ABI section 5.2.3:
+  ///
+  /// ...the first non-pure virtual function that is not inline at the point
+  /// of class definition.
+  const CXXMethodDecl *getKeyFunction(const CXXRecordDecl *RD);
+
   void CollectObjCIvars(const ObjCInterfaceDecl *OI,
                         llvm::SmallVectorImpl<FieldDecl*> &Fields);
 
@@ -844,7 +891,7 @@ public:
   unsigned CountSynthesizedIvars(const ObjCInterfaceDecl *OI);
   unsigned CountProtocolSynthesizedIvars(const ObjCProtocolDecl *PD);
   void CollectInheritedProtocols(const Decl *CDecl,
-                          llvm::SmallVectorImpl<ObjCProtocolDecl*> &Protocols);
+                          llvm::SmallPtrSet<ObjCProtocolDecl*, 8> &Protocols);
 
   //===--------------------------------------------------------------------===//
   //                            Type Operators
@@ -872,12 +919,30 @@ public:
     return getCanonicalType(T1) == getCanonicalType(T2);
   }
 
+  /// \brief Returns this type as a completely-unqualified array type,
+  /// capturing the qualifiers in Quals. This will remove the minimal amount of
+  /// sugaring from the types, similar to the behavior of
+  /// QualType::getUnqualifiedType().
+  ///
+  /// \param T is the qualified type, which may be an ArrayType
+  ///
+  /// \param Quals will receive the full set of qualifiers that were
+  /// applied to the array.
+  ///
+  /// \returns if this is an array type, the completely unqualified array type
+  /// that corresponds to it. Otherwise, returns T.getUnqualifiedType().
+  QualType getUnqualifiedArrayType(QualType T, Qualifiers &Quals);
+
   /// \brief Determine whether the given types are equivalent after
   /// cvr-qualifiers have been removed.
   bool hasSameUnqualifiedType(QualType T1, QualType T2) {
     CanQualType CT1 = getCanonicalType(T1);
     CanQualType CT2 = getCanonicalType(T2);
-    return CT1.getUnqualifiedType() == CT2.getUnqualifiedType();
+
+    Qualifiers Quals;
+    QualType UnqualT1 = getUnqualifiedArrayType(CT1, Quals);
+    QualType UnqualT2 = getUnqualifiedArrayType(CT2, Quals);
+    return UnqualT1 == UnqualT2;
   }
 
   /// \brief Retrieves the "canonical" declaration of
@@ -907,6 +972,20 @@ public:
   /// the template type parameter 'T' is template-param-0-0.
   NestedNameSpecifier *
   getCanonicalNestedNameSpecifier(NestedNameSpecifier *NNS);
+
+  /// \brief Retrieves the canonical representation of the given
+  /// calling convention.
+  CallingConv getCanonicalCallConv(CallingConv CC) {
+    if (CC == CC_C)
+      return CC_Default;
+    return CC;
+  }
+
+  /// \brief Determines whether two calling conventions name the same
+  /// calling convention.
+  bool isSameCallConv(CallingConv lcc, CallingConv rcc) {
+    return (getCanonicalCallConv(lcc) == getCanonicalCallConv(rcc));
+  }
 
   /// \brief Retrieves the "canonical" template name that refers to a
   /// given template.
@@ -953,7 +1032,10 @@ public:
   const IncompleteArrayType *getAsIncompleteArrayType(QualType T) {
     return dyn_cast_or_null<IncompleteArrayType>(getAsArrayType(T));
   }
-
+  const DependentSizedArrayType *getAsDependentSizedArrayType(QualType T) {
+    return dyn_cast_or_null<DependentSizedArrayType>(getAsArrayType(T));
+  }
+  
   /// getBaseElementType - Returns the innermost element type of an array type.
   /// For example, will return "int" for int[m][n]
   QualType getBaseElementType(const ArrayType *VAT);
@@ -1023,8 +1105,7 @@ public:
     return T == ObjCClassTypedefType;
   }
   bool isObjCSelType(QualType T) const {
-    assert(SelStructType && "isObjCSelType used before 'SEL' type is built");
-    return T->getAsStructureType() == SelStructType;
+    return T == ObjCSelTypedefType;
   }
   bool QualifiedIdConformsQualifiedId(QualType LHS, QualType RHS);
   bool ObjCQualifiedIdTypesAreCompatible(QualType LHS, QualType RHS,
@@ -1097,9 +1178,9 @@ public:
   void setObjCImplementation(ObjCCategoryDecl *CatD,
                              ObjCCategoryImplDecl *ImplD);
 
-  /// \brief Allocate an uninitialized DeclaratorInfo.
+  /// \brief Allocate an uninitialized TypeSourceInfo.
   ///
-  /// The caller should initialize the memory held by DeclaratorInfo using
+  /// The caller should initialize the memory held by TypeSourceInfo using
   /// the TypeLoc wrappers.
   ///
   /// \param T the type that will be the basis for type source info. This type
@@ -1108,13 +1189,13 @@ public:
   ///
   /// \param Size the size of the type info to create, or 0 if the size
   /// should be calculated based on the type.
-  DeclaratorInfo *CreateDeclaratorInfo(QualType T, unsigned Size = 0);
+  TypeSourceInfo *CreateTypeSourceInfo(QualType T, unsigned Size = 0);
 
-  /// \brief Allocate a DeclaratorInfo where all locations have been
+  /// \brief Allocate a TypeSourceInfo where all locations have been
   /// initialized to a given location, which defaults to the empty
   /// location.
-  DeclaratorInfo *
-  getTrivialDeclaratorInfo(QualType T, SourceLocation Loc = SourceLocation());
+  TypeSourceInfo *
+  getTrivialTypeSourceInfo(QualType T, SourceLocation Loc = SourceLocation());
 
 private:
   ASTContext(const ASTContext&); // DO NOT IMPLEMENT
@@ -1133,6 +1214,15 @@ private:
 
   const ASTRecordLayout &getObjCLayout(const ObjCInterfaceDecl *D,
                                        const ObjCImplementationDecl *Impl);
+  
+private:
+  // FIXME: This currently contains the set of StoredDeclMaps used
+  // by DeclContext objects.  This probably should not be in ASTContext,
+  // but we include it here so that ASTContext can quickly deallocate them.
+  std::vector<void*> SDMs; 
+  friend class DeclContext;
+  void *CreateStoredDeclsMap();
+  void ReleaseDeclContextMaps();
 };
   
 /// @brief Utility function for constructing a nullary selector.
@@ -1218,7 +1308,8 @@ inline void *operator new[](size_t Bytes, clang::ASTContext& C,
 /// invoking it directly; see the new[] operator for more details. This operator
 /// is called implicitly by the compiler if a placement new[] expression using
 /// the ASTContext throws in the object constructor.
-inline void operator delete[](void *Ptr, clang::ASTContext &C) throw () {
+inline void operator delete[](void *Ptr, clang::ASTContext &C, size_t)
+              throw () {
   C.Deallocate(Ptr);
 }
 

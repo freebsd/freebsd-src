@@ -40,6 +40,7 @@ td {
    <li><a href="#diagnostics_pragmas">Controlling Diagnostics via Pragmas</a></li>
    </ul>
   <li><a href="#precompiledheaders">Precompiled Headers</a></li>
+  <li><a href="#codegen">Controlling Code Generation</a></li>
   </ul>
 </li>
 <li><a href="#c">C Language Features</a>
@@ -562,6 +563,39 @@ at the time of PCH use requires one of the PCH optimizations,
 <code>stat()</code> caching, to be disabled. However, this change is only 
 likely to affect PCH files that reference a large number of headers.</p>
 
+<!-- = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = -->
+<h3 id="codegen">Controlling Code Generation</h3>
+<!-- = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = -->
+
+<p>Clang provides a number of ways to control code generation.  The options are listed below.</p>
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<dt id="opt_fcatch-undefined-behavior"><b>-fcatch-undefined-behavior</b>: Turn
+on runtime code generation to check for undefined behavior.</dt>
+
+<dd>This option, which defaults to off, controls whether or not Clang
+adds runtime checks for undefined runtime behavior.  If the check fails,
+<tt>__builtin_trap()</tt> is used to indicate failure.
+The checks are:
+<p>
+<li>Subscripting where the static type of one operand is variable
+    which is decayed from an array type and the other operand is
+    greater than the size of the array or less than zero.</li>
+<li>Shift operators where the amount shifted is greater or equal to the
+    promoted bit-width of the left-hand-side or less than zero.</li>
+<li>If control flow reaches __builtin_unreachable.
+<li>When llvm implements more __builtin_object_size support, reads and
+    writes for objects that __builtin_object_size indicates we aren't
+    accessing valid memory.  Bit-fields and vectors are not yet checked.
+</p>
+</dd>
+
+<dt id="opt_fno-assume-sane-operator-new"><b>-fno-assume-sane-operator-new</b>:
+Don't assume that the C++'s new operator is sane.</dt>
+<dd>This option tells the compiler to do not assume that C++'s global new
+operator will always return a pointer that do not
+alias any other pointer when the function returns.</dd>
+
 <!-- ======================================================================= -->
 <h2 id="c">C Language Features</h2>
 <!-- ======================================================================= -->
@@ -755,14 +789,12 @@ definition.</li>
 <h2 id="cxx">C++ Language Features</h2>
 <!-- ======================================================================= -->
 
-<p>At this point, Clang C++ is not generally useful.  However, Clang C++ support
+<p>At this point, Clang C++ is not production-quality and is not recommended for use beyond experimentation.  However, Clang C++ support
 is under active development and is progressing rapidly.  Please see the <a
 href="http://clang.llvm.org/cxx_status.html">C++ Status</a> page for details or
 ask on the mailing list about how you can help.</p>
 
-<p>Note that the clang driver will refuse to even try to use clang to compile
-C++ code unless you pass the <tt>-ccc-clang-cxx</tt> option to the driver.  If
-you really want to play with Clang's C++ support, please pass that flag. </p>
+<p>Note that released Clang compilers will refuse to even try to use clang to compile C++ code unless you pass the <tt>-ccc-clang-cxx</tt> option to the driver. To turn on Clang's C++ support, please pass that flag. Clang compilers built from the Subversion trunk enable C++ support by default, and do not require the <tt>-ccc-clang-cxx</tt> flag.</p>
  
 <!-- ======================================================================= -->
 <h2 id="objcxx">Objective C++ Language Features</h2>

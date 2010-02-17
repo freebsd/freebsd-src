@@ -14,14 +14,11 @@
 #include "llvm/ADT/OwningPtr.h"
 #include <string>
 
-namespace llvm {
-class Timer;
-}
-
 namespace clang {
 class ASTUnit;
 class ASTConsumer;
 class CompilerInstance;
+class ASTMergeAction;
 
 /// FrontendAction - Abstract base class for actions which can be performed by
 /// the frontend.
@@ -29,7 +26,7 @@ class FrontendAction {
   std::string CurrentFile;
   llvm::OwningPtr<ASTUnit> CurrentASTUnit;
   CompilerInstance *Instance;
-  llvm::Timer *CurrentTimer;
+  friend class ASTMergeAction;
 
 protected:
   /// @name Implementation Action Interface
@@ -109,19 +106,11 @@ public:
     return *CurrentASTUnit;
   }
 
+  ASTUnit *takeCurrentASTUnit() {
+    return CurrentASTUnit.take();
+  }
+
   void setCurrentFile(llvm::StringRef Value, ASTUnit *AST = 0);
-
-  /// @}
-  /// @name Timing Utilities
-  /// @{
-
-  llvm::Timer *getCurrentTimer() const {
-    return CurrentTimer;
-  }
-
-  void setCurrentTimer(llvm::Timer *Value) {
-    CurrentTimer = Value;
-  }
 
   /// @}
   /// @name Supported Modes
@@ -184,7 +173,7 @@ public:
 };
 
 /// ASTFrontendAction - Abstract base class to use for AST consumer based
-/// frontend actios.
+/// frontend actions.
 class ASTFrontendAction : public FrontendAction {
   /// ExecuteAction - Implement the ExecuteAction interface by running Sema on
   /// the already initialized AST consumer.

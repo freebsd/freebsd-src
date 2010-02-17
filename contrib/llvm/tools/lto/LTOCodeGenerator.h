@@ -27,14 +27,13 @@
 // C++ class which implements the opaque lto_code_gen_t
 //
 
-class LTOCodeGenerator {
-public:
+struct LTOCodeGenerator {
     static const char*        getVersionString();
     
                             LTOCodeGenerator();
                             ~LTOCodeGenerator();
                             
-    bool                addModule(class LTOModule*, std::string& errMsg);
+    bool                addModule(struct LTOModule*, std::string& errMsg);
     bool                setDebugInfo(lto_debug_model, std::string& errMsg);
     bool                setCodePICModel(lto_codegen_model, std::string& errMsg);
     void                setAssemblerPath(const char* path);

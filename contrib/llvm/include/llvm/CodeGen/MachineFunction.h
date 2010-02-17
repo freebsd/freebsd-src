@@ -26,12 +26,14 @@
 
 namespace llvm {
 
+class DILocation;
 class Value;
 class Function;
 class MachineRegisterInfo;
 class MachineFrameInfo;
 class MachineConstantPool;
 class MachineJumpTableInfo;
+class Pass;
 class TargetMachine;
 class TargetRegisterClass;
 
@@ -111,6 +113,11 @@ class MachineFunction {
   // Tracks debug locations.
   DebugLocTracker DebugLocInfo;
 
+  /// FunctionNumber - This provides a unique ID for each function emitted in
+  /// this translation unit.
+  ///
+  unsigned FunctionNumber;
+  
   // The alignment of the function.
   unsigned Alignment;
 
@@ -118,13 +125,17 @@ class MachineFunction {
   void operator=(const MachineFunction&);   // intentionally unimplemented
 
 public:
-  MachineFunction(Function *Fn, const TargetMachine &TM);
+  MachineFunction(Function *Fn, const TargetMachine &TM, unsigned FunctionNum);
   ~MachineFunction();
 
   /// getFunction - Return the LLVM function that this machine code represents
   ///
   Function *getFunction() const { return Fn; }
 
+  /// getFunctionNumber - Return a unique ID for the current function.
+  ///
+  unsigned getFunctionNumber() const { return FunctionNumber; }
+  
   /// getTarget - Return the target machine this machine code is compiled with
   ///
   const TargetMachine &getTarget() const { return Target; }
@@ -142,11 +153,16 @@ public:
   const MachineFrameInfo *getFrameInfo() const { return FrameInfo; }
 
   /// getJumpTableInfo - Return the jump table info object for the current 
-  /// function.  This object contains information about jump tables for switch
-  /// instructions in the current function.
-  ///
-  MachineJumpTableInfo *getJumpTableInfo() { return JumpTableInfo; }
+  /// function.  This object contains information about jump tables in the
+  /// current function.  If the current function has no jump tables, this will
+  /// return null.
   const MachineJumpTableInfo *getJumpTableInfo() const { return JumpTableInfo; }
+  MachineJumpTableInfo *getJumpTableInfo() { return JumpTableInfo; }
+
+  /// getOrCreateJumpTableInfo - Get the JumpTableInfo for this function, if it
+  /// does already exist, allocate one.
+  MachineJumpTableInfo *getOrCreateJumpTableInfo(unsigned JTEntryKind);
+
   
   /// getConstantPool - Return the constant pool object for the current
   /// function.
@@ -162,6 +178,11 @@ public:
   ///
   void setAlignment(unsigned A) { Alignment = A; }
 
+  /// EnsureAlignment - Make sure the function is at least 'A' bits aligned.
+  void EnsureAlignment(unsigned A) {
+    if (Alignment < A) Alignment = A;
+  }
+  
   /// getInfo - Keep track of various per-function pieces of information for
   /// backends that would like to do so.
   ///
@@ -174,9 +195,6 @@ public:
                                                       AlignOf<Ty>::Alignment));
         MFInfo = new (Loc) Ty(*this);
     }
-
-    assert((void*)dynamic_cast<Ty*>(MFInfo) == (void*)MFInfo &&
-           "Invalid concrete type or multiple inheritence for getInfo");
     return static_cast<Ty*>(MFInfo);
   }
 
@@ -312,9 +330,11 @@ public:
                                    bool NoImp = false);
 
   /// CloneMachineInstr - Create a new MachineInstr which is a copy of the
-  /// 'Orig' instruction, identical in all ways except the the instruction
+  /// 'Orig' instruction, identical in all ways except the instruction
   /// has no parent, prev, or next.
   ///
+  /// See also TargetInstrInfo::duplicate() for target-specific fixes to cloned
+  /// instructions.
   MachineInstr *CloneMachineInstr(const MachineInstr *Orig);
 
   /// DeleteMachineInstr - Delete the given MachineInstr.
@@ -363,11 +383,22 @@ public:
                         MachineInstr::mmo_iterator End);
 
   //===--------------------------------------------------------------------===//
+  // Label Manipulation.
+  //
+  
+  /// getJTISymbol - Return the MCSymbol for the specified non-empty jump table.
+  /// If isLinkerPrivate is specified, an 'l' label is returned, otherwise a
+  /// normal 'L' label is returned.
+  MCSymbol *getJTISymbol(unsigned JTI, MCContext &Ctx, 
+                         bool isLinkerPrivate = false) const;
+  
+  
+  //===--------------------------------------------------------------------===//
   // Debug location.
   //
 
-  /// getDebugLocTuple - Get the DebugLocTuple for a given DebugLoc object.
-  DebugLocTuple getDebugLocTuple(DebugLoc DL) const;
+  /// getDILocation - Get the DILocation for a given DebugLoc object.
+  DILocation getDILocation(DebugLoc DL) const;
 
   /// getDefaultDebugLoc - Get the default debug location for the machine
   /// function.

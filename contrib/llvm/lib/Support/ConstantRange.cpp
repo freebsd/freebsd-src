@@ -22,6 +22,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/ConstantRange.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Instructions.h"
 using namespace llvm;
@@ -539,6 +540,11 @@ ConstantRange::add(const ConstantRange &Other) const {
 
 ConstantRange
 ConstantRange::multiply(const ConstantRange &Other) const {
+  // TODO: If either operand is a single element and the multiply is known to
+  // be non-wrapping, round the result min and max value to the appropriate
+  // multiple of that element. If wrapping is possible, at least adjust the
+  // range according to the greatest power-of-two factor of the single element.
+
   if (isEmptySet() || Other.isEmptySet())
     return ConstantRange(getBitWidth(), /*isFullSet=*/false);
   if (isFullSet() || Other.isFullSet())
@@ -649,13 +655,18 @@ ConstantRange::lshr(const ConstantRange &Amount) const {
 /// print - Print out the bounds to a stream...
 ///
 void ConstantRange::print(raw_ostream &OS) const {
-  OS << "[" << Lower << "," << Upper << ")";
+  if (isFullSet())
+    OS << "full-set";
+  else if (isEmptySet())
+    OS << "empty-set";
+  else
+    OS << "[" << Lower << "," << Upper << ")";
 }
 
 /// dump - Allow printing from a debugger easily...
 ///
 void ConstantRange::dump() const {
-  print(errs());
+  print(dbgs());
 }
 
 

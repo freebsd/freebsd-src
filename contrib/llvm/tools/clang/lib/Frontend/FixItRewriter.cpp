@@ -66,7 +66,7 @@ bool FixItRewriter::WriteFixedFile(const std::string &InFileName,
         Rewrite.getRewriteBufferFor(MainFileID)) {
     *OutFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
   } else {
-    std::fprintf(stderr, "Main file is unchanged\n");
+    Diag(FullSourceLoc(), diag::note_fixit_main_file_unchanged);
   }
   OutFile->flush();
 
@@ -115,6 +115,9 @@ void FixItRewriter::HandleDiagnostic(Diagnostic::Level DiagLevel,
 
     if (!AcceptableLocation)
       return;
+  } else if (DiagLevel == Diagnostic::Note) {
+    // Don't apply fix-it modifications in notes.
+    return;
   }
 
   // Make sure that we can perform all of the modifications we

@@ -22,6 +22,9 @@
 #ifdef LLVM_ON_WIN32
 #include "Win32/Host.inc"
 #endif
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
 
 //===----------------------------------------------------------------------===//
 //
@@ -100,11 +103,8 @@ static void DetectX86FamilyModel(unsigned EAX, unsigned &Family, unsigned &Model
     Model += ((EAX >> 16) & 0xf) << 4; // Bits 16 - 19
   }
 }
-#endif
-
 
 std::string sys::getHostCPUName() {
-#if defined(__x86_64__) || defined(__i386__)
   unsigned EAX = 0, EBX = 0, ECX = 0, EDX = 0;
   if (GetX86CpuIDAndInfo(0x1, &EAX, &EBX, &ECX, &EDX))
     return "generic";
@@ -292,7 +292,14 @@ std::string sys::getHostCPUName() {
       return "generic";
     }
   }
+  return "generic";
+}
+#else
+std::string sys::getHostCPUName() {
+  return "generic";
+}
 #endif
 
-  return "generic";
+bool sys::getHostCPUFeatures(StringMap<bool> &Features){
+  return false;
 }

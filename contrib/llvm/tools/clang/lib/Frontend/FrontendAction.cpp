@@ -21,7 +21,7 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
-FrontendAction::FrontendAction() : Instance(0), CurrentTimer(0) {}
+FrontendAction::FrontendAction() : Instance(0) {}
 
 FrontendAction::~FrontendAction() {}
 
@@ -46,11 +46,9 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     assert(hasASTSupport() && "This action does not have AST support!");
 
     std::string Error;
-    ASTUnit *AST = ASTUnit::LoadFromPCHFile(Filename, &Error);
-    if (!AST) {
-      CI.getDiagnostics().Report(diag::err_fe_invalid_ast_file) << Error;
+    ASTUnit *AST = ASTUnit::LoadFromPCHFile(Filename, CI.getDiagnostics());
+    if (!AST)
       goto failure;
-    }
 
     setCurrentFile(Filename, AST);
 
@@ -144,8 +142,11 @@ void FrontendAction::Execute() {
       return;
   }
 
-  llvm::TimeRegion Timer(CurrentTimer);
-  ExecuteAction();
+  if (CI.hasFrontendTimer()) {
+    llvm::TimeRegion Timer(CI.getFrontendTimer());
+    ExecuteAction();
+  }
+  else ExecuteAction();
 }
 
 void FrontendAction::EndSourceFile() {
@@ -221,5 +222,5 @@ void ASTFrontendAction::ExecuteAction() {
 ASTConsumer *
 PreprocessorFrontendAction::CreateASTConsumer(CompilerInstance &CI,
                                               llvm::StringRef InFile) {
-  llvm::llvm_unreachable("Invalid CreateASTConsumer on preprocessor action!");
+  llvm_unreachable("Invalid CreateASTConsumer on preprocessor action!");
 }

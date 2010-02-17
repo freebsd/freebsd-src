@@ -1,16 +1,15 @@
-// RUN: clang-cc -fsyntax-only -faccess-control -verify %s
+// RUN: %clang_cc1 -fsyntax-only -faccess-control -verify %s
 
 class M {
   int iM;
 };
 
 class P {
-  int iP;
-  int PPR();
+  int iP; // expected-note {{declared private here}}
+  int PPR(); // expected-note {{declared private here}}
 };
 
 class N : M,P {
   N() {}
-  // FIXME. No access violation is reported in method call or member access.
-  int PR() { return iP + PPR(); }
+  int PR() { return iP + PPR(); } // expected-error 2 {{private member of 'class P'}}
 };

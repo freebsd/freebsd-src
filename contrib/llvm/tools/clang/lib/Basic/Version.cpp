@@ -10,44 +10,66 @@
 // This file defines several version-related utility functions for Clang.
 //
 //===----------------------------------------------------------------------===//
+
+#include "clang/Basic/Version.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cstring>
 #include <cstdlib>
+
 using namespace std;
 
 namespace clang {
   
-const char *getClangSubversionPath() {
-  static const char *Path = 0;
-  if (Path)
-    return Path;
-  
-  static char URL[] = "$URL: http://llvm.org/svn/llvm-project/cfe/trunk/lib/Basic/Version.cpp $";
-  char *End = strstr(URL, "/lib/Basic");
+llvm::StringRef getClangRepositoryPath() {
+  static const char URL[] = "$URL: http://llvm.org/svn/llvm-project/cfe/trunk/lib/Basic/Version.cpp $";
+  const char *URLEnd = URL + strlen(URL);
+
+  const char *End = strstr(URL, "/lib/Basic");
   if (End)
-    *End = 0;
-  
+    URLEnd = End;
+
   End = strstr(URL, "/clang/tools/clang");
   if (End)
-    *End = 0;
-  
-  char *Begin = strstr(URL, "cfe/");
-  if (Begin) {
-    Path = Begin + 4;
-    return Path;
-  }
-  
-  Path = URL;
-  return Path;
+    URLEnd = End;
+
+  const char *Begin = strstr(URL, "cfe/");
+  if (Begin)
+    return llvm::StringRef(Begin + 4, URLEnd - Begin - 4);
+
+  return llvm::StringRef(URL, URLEnd - URL);
 }
 
-
-unsigned getClangSubversionRevision() {
+std::string getClangRevision() {
 #ifndef SVN_REVISION
   // Subversion was not available at build time?
-  return 0;
+  return "";
 #else
-  return strtol(SVN_REVISION, 0, 10);
+  std::string revision;
+  llvm::raw_string_ostream OS(revision);
+  OS << strtol(SVN_REVISION, 0, 10);
+  return revision;
 #endif
+}
+
+std::string getClangFullRepositoryVersion() {
+  std::string buf;
+  llvm::raw_string_ostream OS(buf);
+  OS << getClangRepositoryPath();
+  const std::string &Revision = getClangRevision();
+  if (!Revision.empty())
+    OS << ' ' << Revision;
+  return buf;
+}
+  
+std::string getClangFullVersion() {
+  std::string buf;
+  llvm::raw_string_ostream OS(buf);
+#ifdef CLANG_VENDOR
+  OS << CLANG_VENDOR;
+#endif
+  OS << "clang version " CLANG_VERSION_STRING " ("
+     << getClangFullRepositoryVersion() << ')';
+  return buf;
 }
 
 } // end namespace clang

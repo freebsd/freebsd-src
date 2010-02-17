@@ -1,5 +1,5 @@
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref %s --analyzer-store=basic -verify
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref %s --analyzer-store=region -verify
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem %s -analyzer-store=basic -verify
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem %s -analyzer-store=region -verify
 
 typedef int bar_return_t;
 typedef struct {
@@ -12,6 +12,8 @@ typedef struct {
   Foo_record_t Foo;
   QuxSize size;
 } __Request__SetPortalSize_t;
+
+double __Foo_READSWAP__double(double*);
 
 static __inline__ bar_return_t
 __Beeble_check__Request__SetPortalSize_t(__attribute__((__unused__)) __Request__SetPortalSize_t *In0P) {

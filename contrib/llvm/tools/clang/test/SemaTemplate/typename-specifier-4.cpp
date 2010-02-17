@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 template<typename T, typename U> 
 struct is_same {
   static const bool value = false;
@@ -68,3 +68,34 @@ struct X0 {
   void f2(typename X0<T>::Inner<T*, T&>::type); // expected-note{{here}}
   void f2(typename X0<T>::template Inner<T*, T&>::type); // expected-error{{redecl}}
 };
+
+namespace PR6236 {
+  template<typename T, typename U> struct S { };
+  
+  template<typename T> struct S<T, T> {
+    template<typename U> struct K { };
+    
+    void f() {
+      typedef typename S<T, T>::template K<T> Foo;
+    }
+  };
+}
+
+namespace PR6268 {
+  template <typename T>
+  struct Outer {
+    template <typename U>
+    struct Inner {};
+
+    template <typename U>
+    typename Outer<T>::template Inner<U>
+    foo(typename Outer<T>::template Inner<U>);
+  };
+
+  template <typename T>
+  template <typename U>
+  typename Outer<T>::template Inner<U>
+  Outer<T>::foo(typename Outer<T>::template Inner<U>) {
+    return Inner<U>();
+  }
+}

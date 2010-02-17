@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify -std=c++0x %s
+// RUN: %clang_cc1 -fsyntax-only -verify -std=c++0x %s
 #include <stdint.h>
 
 // Don't have decltype yet.
@@ -29,7 +29,7 @@ nullptr_t f(nullptr_t null)
   bool b = nullptr;
 
   // Can't convert nullptr to integral implicitly.
-  uintptr_t i = nullptr; // expected-error {{incompatible type initializing}}
+  uintptr_t i = nullptr; // expected-error {{cannot initialize}}
 
   // Operators
   (void)(null == nullptr);

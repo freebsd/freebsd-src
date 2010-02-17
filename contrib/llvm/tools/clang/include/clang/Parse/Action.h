@@ -16,9 +16,9 @@
 
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/Specifiers.h"
 #include "clang/Basic/TemplateKinds.h"
 #include "clang/Basic/TypeTraits.h"
-#include "clang/Parse/AccessSpecifier.h"
 #include "clang/Parse/DeclSpec.h"
 #include "clang/Parse/Ownership.h"
 #include "llvm/Support/PrettyStackTrace.h"
@@ -131,7 +131,7 @@ public:
   };
 
   template<typename T>
-  FullExprArg FullExpr(T &Arg) {
+  FullExprArg MakeFullExpr(T &Arg) {
       return FullExprArg(ActOnFinishFullExpr(move(Arg)));
   }
 
@@ -203,11 +203,15 @@ public:
   /// this occurs when deriving from "std::vector<T>::allocator_type", where T
   /// is a template parameter.
   ///
+  /// \param ObjectType if we're checking whether an identifier is a type
+  /// within a C++ member access expression, this will be the type of the 
+  /// 
   /// \returns the type referred to by this identifier, or NULL if the type
   /// does not name an identifier.
   virtual TypeTy *getTypeName(IdentifierInfo &II, SourceLocation NameLoc,
                               Scope *S, const CXXScopeSpec *SS = 0,
-                              bool isClassName = false) = 0;
+                              bool isClassName = false,
+                              TypeTy *ObjectType = 0) = 0;
 
   /// isTagName() - This method is called *for error recovery purposes only*
   /// to determine if the specified name is a valid tag name ("struct foo").  If
@@ -287,6 +291,42 @@ public:
                                           bool EnteringContext,
                                           TemplateTy &Template) = 0;
 
+  /// \brief Action called as part of error recovery when the parser has 
+  /// determined that the given name must refer to a template, but 
+  /// \c isTemplateName() did not return a result.
+  ///
+  /// This callback permits the action to give a detailed diagnostic when an
+  /// unknown template name is encountered and, potentially, to try to recover
+  /// by producing a new template in \p SuggestedTemplate.
+  ///
+  /// \param II the name that should be a template.
+  ///
+  /// \param IILoc the location of the name in the source.
+  ///
+  /// \param S the scope in which name lookup was performed.
+  ///
+  /// \param SS the C++ scope specifier that preceded the name.
+  ///
+  /// \param SuggestedTemplate if the action sets this template to a non-NULL,
+  /// template, the parser will recover by consuming the template name token
+  /// and the template argument list that follows.
+  ///
+  /// \param SuggestedTemplateKind as input, the kind of template that we
+  /// expect (e.g., \c TNK_Type_template or \c TNK_Function_template). If the
+  /// action provides a suggested template, this should be set to the kind of
+  /// template.
+  ///
+  /// \returns true if a diagnostic was emitted, false otherwise. When false,
+  /// the parser itself will emit a generic "unknown template name" diagnostic.
+  virtual bool DiagnoseUnknownTemplateName(const IdentifierInfo &II, 
+                                           SourceLocation IILoc,
+                                           Scope *S,
+                                           const CXXScopeSpec *SS,
+                                           TemplateTy &SuggestedTemplate,
+                                           TemplateNameKind &SuggestedKind) {
+    return false;
+  }
+  
   /// ActOnCXXGlobalScopeSpecifier - Return the object that represents the
   /// global scope ('::').
   virtual CXXScopeTy *ActOnCXXGlobalScopeSpecifier(Scope *S,
@@ -330,6 +370,20 @@ public:
                                                   bool EnteringContext) {
     return 0;
   }
+  
+  /// IsInvalidUnlessNestedName - This method is used for error recovery
+  /// purposes to determine whether the specified identifier is only valid as
+  /// a nested name specifier, for example a namespace name.  It is
+  /// conservatively correct to always return false from this method.
+  ///
+  /// The arguments are the same as those passed to ActOnCXXNestedNameSpecifier.
+  virtual bool IsInvalidUnlessNestedName(Scope *S,
+                                         const CXXScopeSpec &SS,
+                                         IdentifierInfo &II,
+                                         TypeTy *ObjectType,
+                                         bool EnteringContext) {
+    return false;
+  }
 
   /// ActOnCXXNestedNameSpecifier - Called during parsing of a
   /// nested-name-specifier that involves a template-id, e.g.,
@@ -347,8 +401,19 @@ public:
     return 0;
   }
 
+  /// ShouldEnterDeclaratorScope - Called when a C++ scope specifier
+  /// is parsed as part of a declarator-id to determine whether a scope
+  /// should be entered.
+  ///
+  /// \param S the current scope
+  /// \param SS the scope being entered
+  /// \param isFriendDeclaration whether this is a friend declaration
+  virtual bool ShouldEnterDeclaratorScope(Scope *S, const CXXScopeSpec &SS) {
+    return false;
+  }
+
   /// ActOnCXXEnterDeclaratorScope - Called when a C++ scope specifier (global
-  /// scope or nested-name-specifier) is parsed, part of a declarator-id.
+  /// scope or nested-name-specifier) is parsed as part of a declarator-id.
   /// After this method is called, according to [C++ 3.4.3p3], names should be
   /// looked up in the declarator-id's scope, until the declarator is parsed and
   /// ActOnCXXExitDeclaratorScope is called.
@@ -393,6 +458,8 @@ public:
   /// parameters (C++ [basic.scope.proto]).
   virtual DeclPtrTy ActOnParamDeclarator(Scope *S, Declarator &D) {
     return DeclPtrTy();
+  }
+  virtual void ActOnObjCCatchParam(DeclPtrTy D) {
   }
 
   /// AddInitializerToDecl - This action is called immediately after
@@ -633,6 +700,12 @@ public:
   /// struct, or union).
   virtual void ActOnTagStartDefinition(Scope *S, DeclPtrTy TagDecl) { }
 
+  /// ActOnStartCXXMemberDeclarations - Invoked when we have parsed a
+  /// C++ record definition's base-specifiers clause and are starting its
+  /// member declarations.
+  virtual void ActOnStartCXXMemberDeclarations(Scope *S, DeclPtrTy TagDecl,
+                                               SourceLocation LBraceLoc) { }
+
   /// ActOnTagFinishDefinition - Invoked once we have finished parsing
   /// the definition of a tag (enumeration, class, struct, or union).
   virtual void ActOnTagFinishDefinition(Scope *S, DeclPtrTy TagDecl,
@@ -668,6 +741,9 @@ public:
     return StmtEmpty();
   }
 
+  virtual void ActOnForEachDeclStmt(DeclGroupPtrTy Decl) {
+  }
+
   virtual OwningStmtResult ActOnExprStmt(FullExprArg Expr) {
     return OwningStmtResult(*this, Expr->release());
   }
@@ -698,24 +774,64 @@ public:
     return StmtEmpty();
   }
 
+  /// \brief Parsed an "if" statement.
+  ///
+  /// \param IfLoc the location of the "if" keyword.
+  ///
+  /// \param CondVal if the "if" condition was parsed as an expression, 
+  /// the expression itself.
+  ///
+  /// \param CondVar if the "if" condition was parsed as a condition variable,
+  /// the condition variable itself.
+  ///
+  /// \param ThenVal the "then" statement.
+  ///
+  /// \param ElseLoc the location of the "else" keyword.
+  ///
+  /// \param ElseVal the "else" statement.
   virtual OwningStmtResult ActOnIfStmt(SourceLocation IfLoc,
-                                       FullExprArg CondVal, StmtArg ThenVal,
+                                       FullExprArg CondVal, 
+                                       DeclPtrTy CondVar,
+                                       StmtArg ThenVal,
                                        SourceLocation ElseLoc,
                                        StmtArg ElseVal) {
     return StmtEmpty();
   }
 
-  virtual OwningStmtResult ActOnStartOfSwitchStmt(ExprArg Cond) {
+  /// \brief Parsed the start of a "switch" statement.
+  ///
+  /// \param Cond if the "switch" condition was parsed as an expression, 
+  /// the expression itself.
+  ///
+  /// \param CondVar if the "switch" condition was parsed as a condition 
+  /// variable, the condition variable itself.
+  virtual OwningStmtResult ActOnStartOfSwitchStmt(FullExprArg Cond,
+                                                  DeclPtrTy CondVar) {
     return StmtEmpty();
   }
 
+  /// ActOnSwitchBodyError - This is called if there is an error parsing the
+  /// body of the switch stmt instead of ActOnFinishSwitchStmt.
+  virtual void ActOnSwitchBodyError(SourceLocation SwitchLoc, StmtArg Switch,
+                                    StmtArg Body) {}
+  
   virtual OwningStmtResult ActOnFinishSwitchStmt(SourceLocation SwitchLoc,
                                                  StmtArg Switch, StmtArg Body) {
     return StmtEmpty();
   }
 
+  /// \brief Parsed a "while" statement.
+  ///
+  /// \param Cond if the "while" condition was parsed as an expression, 
+  /// the expression itself.
+  ///
+  /// \param CondVar if the "while" condition was parsed as a condition 
+  /// variable, the condition variable itself.
+  ///
+  /// \param Body the body of the "while" loop.
   virtual OwningStmtResult ActOnWhileStmt(SourceLocation WhileLoc,
-                                          FullExprArg Cond, StmtArg Body) {
+                                          FullExprArg Cond, DeclPtrTy CondVar,
+                                          StmtArg Body) {
     return StmtEmpty();
   }
   virtual OwningStmtResult ActOnDoStmt(SourceLocation DoLoc, StmtArg Body,
@@ -725,13 +841,36 @@ public:
                                        SourceLocation CondRParen) {
     return StmtEmpty();
   }
+
+  /// \brief Parsed a "for" statement.
+  ///
+  /// \param ForLoc the location of the "for" keyword.
+  ///
+  /// \param LParenLoc the location of the left parentheses.
+  ///
+  /// \param First the statement used to initialize the for loop.
+  ///
+  /// \param Second the condition to be checked during each iteration, if
+  /// that condition was parsed as an expression.
+  ///
+  /// \param SecondArg the condition variable to be checked during each 
+  /// iterator, if that condition was parsed as a variable declaration.
+  ///
+  /// \param Third the expression that will be evaluated to "increment" any
+  /// values prior to the next iteration.
+  ///
+  /// \param RParenLoc the location of the right parentheses.
+  ///
+  /// \param Body the body of the "body" loop.
   virtual OwningStmtResult ActOnForStmt(SourceLocation ForLoc,
                                         SourceLocation LParenLoc,
-                                        StmtArg First, ExprArg Second,
-                                        ExprArg Third, SourceLocation RParenLoc,
+                                        StmtArg First, FullExprArg Second,
+                                        DeclPtrTy SecondVar, FullExprArg Third, 
+                                        SourceLocation RParenLoc,
                                         StmtArg Body) {
     return StmtEmpty();
   }
+  
   virtual OwningStmtResult ActOnObjCForCollectionStmt(SourceLocation ForColLoc,
                                        SourceLocation LParenLoc,
                                        StmtArg First, ExprArg Second,
@@ -765,12 +904,13 @@ public:
                                         bool IsVolatile,
                                         unsigned NumOutputs,
                                         unsigned NumInputs,
-                                        std::string *Names,
+                                        IdentifierInfo **Names,
                                         MultiExprArg Constraints,
                                         MultiExprArg Exprs,
                                         ExprArg AsmString,
                                         MultiExprArg Clobbers,
-                                        SourceLocation RParenLoc) {
+                                        SourceLocation RParenLoc,
+                                        bool MSAsm = false) {
     return StmtEmpty();
   }
 
@@ -852,23 +992,12 @@ public:
   /// \brief The parser is entering a new expression evaluation context.
   ///
   /// \param NewContext is the new expression evaluation context.
-  ///
-  /// \returns the previous expression evaluation context.
-  virtual ExpressionEvaluationContext
-  PushExpressionEvaluationContext(ExpressionEvaluationContext NewContext) {
-    return PotentiallyEvaluated;
-  }
-
-  /// \brief The parser is existing an expression evaluation context.
-  ///
-  /// \param OldContext the expression evaluation context that the parser is
-  /// leaving.
-  ///
-  /// \param NewContext the expression evaluation context that the parser is
-  /// returning to.
   virtual void
-  PopExpressionEvaluationContext(ExpressionEvaluationContext OldContext,
-                                 ExpressionEvaluationContext NewContext) { }
+  PushExpressionEvaluationContext(ExpressionEvaluationContext NewContext) { }
+
+  /// \brief The parser is exiting an expression evaluation context.
+  virtual void
+  PopExpressionEvaluationContext() { }
 
   // Primary Expressions.
 
@@ -927,9 +1056,10 @@ public:
     return move(Val);  // Default impl returns operand.
   }
 
-  virtual OwningExprResult ActOnParenListExpr(SourceLocation L,
+  virtual OwningExprResult ActOnParenOrParenListExpr(SourceLocation L,
                                               SourceLocation R,
-                                              MultiExprArg Val) {
+                                              MultiExprArg Val,
+                                              TypeTy *TypeOfCast=0) {
     return ExprEmpty();
   }
 
@@ -1041,6 +1171,10 @@ public:
     return ExprEmpty();
   }
 
+  virtual bool TypeIsVectorType(TypeTy *Ty) {
+    return false;
+  }
+
   virtual OwningExprResult ActOnBinOp(Scope *S, SourceLocation TokLoc,
                                       tok::TokenKind Kind,
                                       ExprArg LHS, ExprArg RHS) {
@@ -1143,7 +1277,8 @@ public:
   /// definition.
   virtual DeclPtrTy ActOnStartNamespaceDef(Scope *S, SourceLocation IdentLoc,
                                            IdentifierInfo *Ident,
-                                           SourceLocation LBrace) {
+                                           SourceLocation LBrace,
+                                           AttributeList *AttrList) {
     return DeclPtrTy();
   }
 
@@ -1191,6 +1326,10 @@ public:
   ///
   /// \param AS the currently-active access specifier.
   ///
+  /// \param HasUsingKeyword true if this was declared with an
+  ///   explicit 'using' keyword (i.e. if this is technically a using
+  ///   declaration, not an access declaration)
+  ///
   /// \param UsingLoc the location of the 'using' keyword.
   ///
   /// \param SS the nested-name-specifier that precedes the name.
@@ -1208,6 +1347,7 @@ public:
   /// \returns a representation of the using declaration.
   virtual DeclPtrTy ActOnUsingDeclaration(Scope *CurScope,
                                           AccessSpecifier AS,
+                                          bool HasUsingKeyword,
                                           SourceLocation UsingLoc,
                                           const CXXScopeSpec &SS,
                                           UnqualifiedId &Name,
@@ -1262,6 +1402,14 @@ public:
   virtual void ActOnReenterTemplateScope(Scope *S, DeclPtrTy Template) {
   }
 
+  /// ActOnStartDelayedMemberDeclarations - We have completed parsing
+  /// a C++ class, and we are about to start parsing any parts of
+  /// member declarations that could not be parsed earlier.  Enter
+  /// the appropriate record scope.
+  virtual void ActOnStartDelayedMemberDeclarations(Scope *S,
+                                                   DeclPtrTy Record) {
+  }
+
   /// ActOnStartDelayedCXXMethodDeclaration - We have completed
   /// parsing a top-level (non-nested) C++ class, and we are now
   /// parsing those parts of the given Method declaration that could
@@ -1290,6 +1438,14 @@ public:
   /// class body.
   virtual void ActOnFinishDelayedCXXMethodDeclaration(Scope *S,
                                                       DeclPtrTy Method) {
+  }
+
+  /// ActOnFinishDelayedMemberDeclarations - We have finished parsing
+  /// a C++ class, and we are about to start parsing any parts of
+  /// member declarations that could not be parsed earlier.  Enter the
+  /// appropriate record scope.
+  virtual void ActOnFinishDelayedMemberDeclarations(Scope *S,
+                                                    DeclPtrTy Record) {
   }
 
   /// ActOnStaticAssertDeclaration - Parse a C++0x static_assert declaration.
@@ -1371,15 +1527,22 @@ public:
     return ExprEmpty();
   }
 
-  /// ActOnCXXConditionDeclarationExpr - Parsed a condition declaration of a
-  /// C++ if/switch/while/for statement.
-  /// e.g: "if (int x = f()) {...}"
-  virtual OwningExprResult ActOnCXXConditionDeclarationExpr(Scope *S,
-                                                      SourceLocation StartLoc,
-                                                      Declarator &D,
-                                                      SourceLocation EqualLoc,
-                                                      ExprArg AssignExprVal) {
-    return ExprEmpty();
+  /// \brief Parsed a condition declaration in a C++ if, switch, or while
+  /// statement.
+  /// 
+  /// This callback will be invoked after parsing the declaration of "x" in
+  ///
+  /// \code
+  /// if (int x = f()) {
+  ///   // ...
+  /// }
+  /// \endcode
+  ///
+  /// \param S the scope of the if, switch, or while statement.
+  ///
+  /// \param D the declarator that that describes the variable being declared.
+  virtual DeclResult ActOnCXXConditionDeclaration(Scope *S, Declarator &D) {
+    return DeclResult();
   }
 
   /// ActOnCXXNew - Parsed a C++ 'new' expression. UseGlobal is true if the
@@ -1470,6 +1633,7 @@ public:
                                  MultiTemplateParamsArg TemplateParameterLists,
                                              ExprTy *BitfieldWidth,
                                              ExprTy *Init,
+                                             bool IsDefinition,
                                              bool Deleted = false) {
     return DeclPtrTy();
   }
@@ -1493,9 +1657,12 @@ public:
   /// a well-formed program), ColonLoc is the location of the ':' that
   /// starts the constructor initializer, and MemInit/NumMemInits
   /// contains the individual member (and base) initializers.
+  /// AnyErrors will be true if there were any invalid member initializers
+  /// that are not represented in the list.
   virtual void ActOnMemInitializers(DeclPtrTy ConstructorDecl,
                                     SourceLocation ColonLoc,
-                                    MemInitTy **MemInits, unsigned NumMemInits){
+                                    MemInitTy **MemInits, unsigned NumMemInits,
+                                    bool AnyErrors){
   }
 
  virtual void ActOnDefaultCtorInitializers(DeclPtrTy CDtorDecl) {}
@@ -1637,7 +1804,7 @@ public:
                                          ASTTemplateArgsPtr TemplateArgs,
                                          SourceLocation RAngleLoc) {
     return TypeResult();
-  };
+  }
 
   /// \brief Note that a template ID was used with a tag.
   ///
@@ -1678,10 +1845,14 @@ public:
   /// \param ObjectType if this dependent template name occurs in the
   /// context of a member access expression, the type of the object being
   /// accessed.
+  ///
+  /// \param EnteringContext whether we are entering the context of this
+  /// template.
   virtual TemplateTy ActOnDependentTemplateName(SourceLocation TemplateKWLoc,
                                                 const CXXScopeSpec &SS,
                                                 UnqualifiedId &Name,
-                                                TypeTy *ObjectType) {
+                                                TypeTy *ObjectType,
+                                                bool EnteringContext) {
     return TemplateTy();
   }
 
@@ -1950,6 +2121,7 @@ public:
                                              SourceLocation SuperLoc,
                                              const DeclPtrTy *ProtoRefs,
                                              unsigned NumProtoRefs,
+                                             const SourceLocation *ProtoLocs,
                                              SourceLocation EndProtoLoc,
                                              AttributeList *AttrList) {
     return DeclPtrTy();
@@ -1971,6 +2143,7 @@ public:
                                                 SourceLocation ProtocolLoc,
                                                 const DeclPtrTy *ProtoRefs,
                                                 unsigned NumProtoRefs,
+                                                const SourceLocation *ProtoLocs,
                                                 SourceLocation EndProtoLoc,
                                                 AttributeList *AttrList) {
     return DeclPtrTy();
@@ -1984,6 +2157,7 @@ public:
                                                 SourceLocation CategoryLoc,
                                                 const DeclPtrTy *ProtoRefs,
                                                 unsigned NumProtoRefs,
+                                                const SourceLocation *ProtoLocs,
                                                 SourceLocation EndProtoLoc) {
     return DeclPtrTy();
   }
@@ -2053,7 +2227,7 @@ public:
   // protocols, categories), the parser passes all methods/properties.
   // For class implementations, these values default to 0. For implementations,
   // methods are processed incrementally (by ActOnMethodDeclaration above).
-  virtual void ActOnAtEnd(SourceLocation AtEndLoc,
+  virtual void ActOnAtEnd(SourceRange AtEnd,
                           DeclPtrTy classDecl,
                           DeclPtrTy *allMethods = 0,
                           unsigned allNum = 0,
@@ -2216,11 +2390,49 @@ public:
   /// \todo Code completion for attributes.
   //@{
   
+  /// \brief Describes the context in which code completion occurs.
+  enum CodeCompletionContext {
+    /// \brief Code completion occurs at top-level or namespace context.
+    CCC_Namespace,
+    /// \brief Code completion occurs within a class, struct, or union.
+    CCC_Class,
+    /// \brief Code completion occurs within an Objective-C interface, protocol,
+    /// or category.
+    CCC_ObjCInterface,
+    /// \brief Code completion occurs within an Objective-C implementation or
+    /// category implementation
+    CCC_ObjCImplementation,
+    /// \brief Code completion occurs within the list of instance variables
+    /// in an Objective-C interface, protocol, category, or implementation.
+    CCC_ObjCInstanceVariableList,
+    /// \brief Code completion occurs following one or more template
+    /// headers.
+    CCC_Template,
+    /// \brief Code completion occurs following one or more template
+    /// headers within a class.
+    CCC_MemberTemplate,
+    /// \brief Code completion occurs within an expression.
+    CCC_Expression,
+    /// \brief Code completion occurs within a statement, which may
+    /// also be an expression or a declaration.
+    CCC_Statement,
+    /// \brief Code completion occurs at the beginning of the
+    /// initialization statement (or expression) in a for loop.
+    CCC_ForInit,
+    /// \brief Code completion ocurs within the condition of an if,
+    /// while, switch, or for statement.
+    CCC_Condition
+  };
+    
   /// \brief Code completion for an ordinary name that occurs within the given
   /// scope.
   ///
   /// \param S the scope in which the name occurs.
-  virtual void CodeCompleteOrdinaryName(Scope *S) { }
+  ///
+  /// \param CompletionContext the context in which code completion
+  /// occurs.
+  virtual void CodeCompleteOrdinaryName(Scope *S, 
+                                    CodeCompletionContext CompletionContext) { }
   
   /// \brief Code completion for a member access expression.
   ///
@@ -2322,6 +2534,27 @@ public:
   ///
   /// \param S the scope in which the operator keyword occurs.
   virtual void CodeCompleteOperatorName(Scope *S) { }
+
+  /// \brief Code completion after the '@' at the top level.
+  ///
+  /// \param S the scope in which the '@' occurs.
+  ///
+  /// \param ObjCImpDecl the Objective-C implementation or category 
+  /// implementation.
+  ///
+  /// \param InInterface whether we are in an Objective-C interface or
+  /// protocol.
+  virtual void CodeCompleteObjCAtDirective(Scope *S, DeclPtrTy ObjCImpDecl,
+                                           bool InInterface) { }
+
+  /// \brief Code completion after the '@' in the list of instance variables.
+  virtual void CodeCompleteObjCAtVisibility(Scope *S) { }
+  
+  /// \brief Code completion after the '@' in a statement.
+  virtual void CodeCompleteObjCAtStatement(Scope *S) { }
+
+  /// \brief Code completion after the '@' in an expression.
+  virtual void CodeCompleteObjCAtExpression(Scope *S) { }
 
   /// \brief Code completion for an ObjC property decl.
   ///
@@ -2515,7 +2748,8 @@ public:
   /// does not name an identifier.
   virtual TypeTy *getTypeName(IdentifierInfo &II, SourceLocation NameLoc,
                               Scope *S, const CXXScopeSpec *SS,
-                              bool isClassName = false);
+                              bool isClassName = false,
+                              TypeTy *ObjectType = 0);
 
   /// isCurrentClassName - Always returns false, because MinimalAction
   /// does not support C++ classes with constructors.
@@ -2551,6 +2785,7 @@ public:
                                              SourceLocation SuperLoc,
                                              const DeclPtrTy *ProtoRefs,
                                              unsigned NumProtoRefs,
+                                             const SourceLocation *ProtoLocs,
                                              SourceLocation EndProtoLoc,
                                              AttributeList *AttrList);
 };
@@ -2578,21 +2813,15 @@ class EnterExpressionEvaluationContext {
   /// \brief The action object.
   Action &Actions;
 
-  /// \brief The previous expression evaluation context.
-  Action::ExpressionEvaluationContext PrevContext;
-
-  /// \brief The current expression evaluation context.
-  Action::ExpressionEvaluationContext CurContext;
-
 public:
   EnterExpressionEvaluationContext(Action &Actions,
                               Action::ExpressionEvaluationContext NewContext)
-    : Actions(Actions), CurContext(NewContext) {
-      PrevContext = Actions.PushExpressionEvaluationContext(NewContext);
+    : Actions(Actions) {
+    Actions.PushExpressionEvaluationContext(NewContext);
   }
 
   ~EnterExpressionEvaluationContext() {
-    Actions.PopExpressionEvaluationContext(CurContext, PrevContext);
+    Actions.PopExpressionEvaluationContext();
   }
 };
 

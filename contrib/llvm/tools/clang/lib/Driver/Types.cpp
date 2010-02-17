@@ -23,7 +23,7 @@ struct TypeInfo {
   ID PreprocessedType;
 };
 
-static TypeInfo TypeInfos[] = {
+static const TypeInfo TypeInfos[] = {
 #define TYPE(NAME, ID, PP_TYPE, TEMP_SUFFIX, FLAGS) \
   { NAME, FLAGS, TEMP_SUFFIX, TY_##PP_TYPE, },
 #include "clang/Driver/Types.def"
@@ -31,7 +31,7 @@ static TypeInfo TypeInfos[] = {
 };
 static const unsigned numTypes = sizeof(TypeInfos) / sizeof(TypeInfos[0]);
 
-static TypeInfo &getInfo(unsigned id) {
+static const TypeInfo &getInfo(unsigned id) {
   assert(id > 0 && id - 1 < numTypes && "Invalid Type ID.");
   return TypeInfos[id - 1];
 }
@@ -77,6 +77,7 @@ bool types::isAcceptedByClang(ID Id) {
 
   case TY_Asm:
   case TY_C: case TY_PP_C:
+  case TY_CL:
   case TY_ObjC: case TY_PP_ObjC:
   case TY_CXX: case TY_PP_CXX:
   case TY_ObjCXX: case TY_PP_ObjCXX:
@@ -133,8 +134,10 @@ types::ID types::lookupTypeForExtension(const char *Ext) {
            .Case("mm", TY_ObjCXX)
            .Case("cc", TY_CXX)
            .Case("CC", TY_CXX)
+           .Case("cl", TY_CL)
            .Case("cp", TY_CXX)
            .Case("hh", TY_CXXHeader)
+           .Case("hpp", TY_CXXHeader)
            .Case("ads", TY_Ada)
            .Case("adb", TY_Ada)
            .Case("ast", TY_AST)

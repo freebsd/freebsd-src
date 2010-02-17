@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 class X{
 public:
@@ -40,4 +40,19 @@ namespace C {
 void test2(X *xp) {
   xp->::i = 7; // expected-error{{qualified member access refers to a member in the global namespace}}
   xp->C::i = 7; // expected-error{{qualified member access refers to a member in namespace 'C'}}
+}
+
+
+namespace test3 {
+  struct NamespaceDecl;
+
+  struct NamedDecl {
+    void *getIdentifier() const;
+  };
+
+  struct NamespaceDecl : NamedDecl {
+    bool isAnonymousNamespace() const {
+      return !getIdentifier();
+    }
+  };
 }

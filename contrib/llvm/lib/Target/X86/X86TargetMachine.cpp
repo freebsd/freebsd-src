@@ -30,9 +30,8 @@ static const MCAsmInfo *createMCAsmInfo(const Target &T, StringRef TT) {
   case Triple::MinGW32:
   case Triple::MinGW64:
   case Triple::Cygwin:
-    return new X86MCAsmInfoCOFF(TheTriple);
   case Triple::Win32:
-    return new X86WinMCAsmInfo(TheTriple);
+    return new X86MCAsmInfoCOFF(TheTriple);
   default:
     return new X86ELFMCAsmInfo(TheTriple);
   }
@@ -48,8 +47,10 @@ extern "C" void LLVMInitializeX86Target() {
   RegisterAsmInfoFn B(TheX86_64Target, createMCAsmInfo);
 
   // Register the code emitter.
-  TargetRegistry::RegisterCodeEmitter(TheX86_32Target, createX86MCCodeEmitter);
-  TargetRegistry::RegisterCodeEmitter(TheX86_64Target, createX86MCCodeEmitter);
+  TargetRegistry::RegisterCodeEmitter(TheX86_32Target,
+                                      createX86_32MCCodeEmitter);
+  TargetRegistry::RegisterCodeEmitter(TheX86_64Target,
+                                      createX86_64MCCodeEmitter);
 }
 
 
@@ -91,10 +92,6 @@ X86TargetMachine::X86TargetMachine(const Target &T, const std::string &TT,
   assert(getRelocationModel() != Reloc::Default &&
          "Relocation mode not picked");
 
-  // If no code model is picked, default to small.
-  if (getCodeModel() == CodeModel::Default)
-    setCodeModel(CodeModel::Small);
-      
   // ELF and X86-64 don't have a distinct DynamicNoPIC model.  DynamicNoPIC
   // is defined as a model for code which may be used in static or dynamic
   // executables but not necessarily a shared library. On X86-32 we just
@@ -149,10 +146,6 @@ bool X86TargetMachine::addInstSelector(PassManagerBase &PM,
   // Install an instruction selector.
   PM.add(createX86ISelDag(*this, OptLevel));
 
-  // If we're using Fast-ISel, clean up the mess.
-  if (EnableFastISel)
-    PM.add(createDeadMachineInstructionElimPass());
-
   // Install a pass to insert x87 FP_REG_KILL instructions, as needed.
   PM.add(createX87FPRegKillInserterPass());
 
@@ -161,9 +154,6 @@ bool X86TargetMachine::addInstSelector(PassManagerBase &PM,
 
 bool X86TargetMachine::addPreRegAlloc(PassManagerBase &PM,
                                       CodeGenOpt::Level OptLevel) {
-  // Calculate and set max stack object alignment early, so we can decide
-  // whether we will need stack realignment (and thus FP).
-  PM.add(createX86MaxStackAlignmentCalculatorPass());
   return false;  // -print-machineinstr shouldn't print after this.
 }
 
@@ -171,26 +161,6 @@ bool X86TargetMachine::addPostRegAlloc(PassManagerBase &PM,
                                        CodeGenOpt::Level OptLevel) {
   PM.add(createX86FloatingPointStackifierPass());
   return true;  // -print-machineinstr should print after this.
-}
-
-bool X86TargetMachine::addCodeEmitter(PassManagerBase &PM,
-                                      CodeGenOpt::Level OptLevel,
-                                      MachineCodeEmitter &MCE) {
-  // FIXME: Move this to TargetJITInfo!
-  // On Darwin, do not override 64-bit setting made in X86TargetMachine().
-  if (DefRelocModel == Reloc::Default && 
-      (!Subtarget.isTargetDarwin() || !Subtarget.is64Bit())) {
-    setRelocationModel(Reloc::Static);
-    Subtarget.setPICStyle(PICStyles::None);
-  }
-  
-  // 64-bit JIT places everything in the same buffer except external functions.
-  if (Subtarget.is64Bit())
-      setCodeModel(CodeModel::Large);
-
-  PM.add(createX86CodeEmitterPass(*this, MCE));
-
-  return false;
 }
 
 bool X86TargetMachine::addCodeEmitter(PassManagerBase &PM,
@@ -204,39 +174,28 @@ bool X86TargetMachine::addCodeEmitter(PassManagerBase &PM,
     Subtarget.setPICStyle(PICStyles::None);
   }
   
+
+  PM.add(createX86JITCodeEmitterPass(*this, JCE));
+
+  return false;
+}
+
+void X86TargetMachine::setCodeModelForStatic() {
+
+    if (getCodeModel() != CodeModel::Default) return;
+
+    // For static codegen, if we're not already set, use Small codegen.
+    setCodeModel(CodeModel::Small);
+}
+
+
+void X86TargetMachine::setCodeModelForJIT() {
+
+  if (getCodeModel() != CodeModel::Default) return;
+
   // 64-bit JIT places everything in the same buffer except external functions.
   if (Subtarget.is64Bit())
-      setCodeModel(CodeModel::Large);
-
-  PM.add(createX86JITCodeEmitterPass(*this, JCE));
-
-  return false;
-}
-
-bool X86TargetMachine::addCodeEmitter(PassManagerBase &PM,
-                                      CodeGenOpt::Level OptLevel,
-                                      ObjectCodeEmitter &OCE) {
-  PM.add(createX86ObjectCodeEmitterPass(*this, OCE));
-  return false;
-}
-
-bool X86TargetMachine::addSimpleCodeEmitter(PassManagerBase &PM,
-                                            CodeGenOpt::Level OptLevel,
-                                            MachineCodeEmitter &MCE) {
-  PM.add(createX86CodeEmitterPass(*this, MCE));
-  return false;
-}
-
-bool X86TargetMachine::addSimpleCodeEmitter(PassManagerBase &PM,
-                                            CodeGenOpt::Level OptLevel,
-                                            JITCodeEmitter &JCE) {
-  PM.add(createX86JITCodeEmitterPass(*this, JCE));
-  return false;
-}
-
-bool X86TargetMachine::addSimpleCodeEmitter(PassManagerBase &PM,
-                                            CodeGenOpt::Level OptLevel,
-                                            ObjectCodeEmitter &OCE) {
-  PM.add(createX86ObjectCodeEmitterPass(*this, OCE));
-  return false;
+    setCodeModel(CodeModel::Large);
+  else
+    setCodeModel(CodeModel::Small);
 }

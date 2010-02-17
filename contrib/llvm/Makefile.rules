@@ -365,9 +365,18 @@ endif
 #    CXX.Flags += -fvisibility-inlines-hidden
 #endif
 
+ifdef ENABLE_EXPENSIVE_CHECKS
+  # GNU libstdc++ uses RTTI if you define _GLIBCXX_DEBUG, which we did above.
+  # See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=40160
+  REQUIRES_RTTI := 1
+endif
+
 # IF REQUIRES_EH=1 is specified then don't disable exceptions
 ifndef REQUIRES_EH
   CXX.Flags += -fno-exceptions
+else
+  # If the library requires EH, it also requires RTTI.
+  REQUIRES_RTTI := 1
 endif
 
 ifdef REQUIRES_FRAME_POINTER
@@ -377,9 +386,9 @@ ifdef REQUIRES_FRAME_POINTER
 endif
 
 # If REQUIRES_RTTI=1 is specified then don't disable run-time type id.
-ifeq ($(REQUIRES_RTTI), 1)
-  CXX.Flags := $(filter-out -fno-rtti,$(CXX.Flags))
-  CXXFLAGS := $(filter-out -fno-rtti,$(CXXFLAGS))
+ifneq ($(REQUIRES_RTTI), 1)
+  CXX.Flags += -fno-rtti
+  CXXFLAGS += -fno-rtti
 endif
 
 ifdef ENABLE_COVERAGE
@@ -439,6 +448,17 @@ else
   endif
 endif
 
+ifeq ($(HOST_OS),MingW)
+  # Work around PR4957
+  CPP.Defines += -D__NO_CTYPE_INLINE
+  ifeq ($(LLVM_CROSS_COMPILING),1)
+    # Work around http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=525016
+    ifdef TOOLNAME
+      LD.Flags += -Wl,--allow-multiple-definition
+    endif
+  endif
+endif
+
 CXX.Flags     += -Woverloaded-virtual
 CPP.BaseFlags += $(CPP.Defines)
 AR.Flags      := cru
@@ -455,22 +475,6 @@ endif
 
 ifeq ($(ARCH),Alpha)
   LD.Flags += -Wl,--no-relax
-endif
-
-ifeq ($(HOST_OS),MingW)
-  ifeq ($(LLVM_CROSS_COMPILING),1)
-    # Work around http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=525016
-    ifdef TOOLNAME
-      LD.Flags += -Wl,--allow-multiple-definition
-    endif
-  endif
-endif
-
-ifdef ENABLE_EXPENSIVE_CHECKS
-  # GNU libstdc++ uses RTTI if you define _GLIBCXX_DEBUG, which we did above.
-  # See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=40160
-  CXX.Flags := $(filter-out -fno-rtti,$(CXX.Flags))
-  CXXFLAGS := $(filter-out -fno-rtti,$(CXXFLAGS))
 endif
 
 #--------------------------------------------------------------------
@@ -1351,17 +1355,17 @@ DEPEND_OPTIONS = -MMD -MP -MF "$(ObjDir)/$*.d.tmp" \
 DEPEND_MOVEFILE = then $(MV) -f "$(ObjDir)/$*.d.tmp" "$(ObjDir)/$*.d"; \
                   else $(RM) "$(ObjDir)/$*.d.tmp"; exit 1; fi
 
-$(ObjDir)/%.o: %.cpp $(ObjDir)/.dir $(BUILT_SOURCES)
+$(ObjDir)/%.o: %.cpp $(ObjDir)/.dir $(BUILT_SOURCES) $(PROJ_SRC_DIR)/Makefile
 	$(Echo) "Compiling $*.cpp for $(BuildMode) build" $(PIC_FLAG)
 	$(Verb) if $(Compile.CXX) $(DEPEND_OPTIONS) $< -o $(ObjDir)/$*.o ; \
 	        $(DEPEND_MOVEFILE)
 
-$(ObjDir)/%.o: %.cc $(ObjDir)/.dir $(BUILT_SOURCES)
+$(ObjDir)/%.o: %.cc $(ObjDir)/.dir $(BUILT_SOURCES) $(PROJ_SRC_DIR)/Makefile
 	$(Echo) "Compiling $*.cc for $(BuildMode) build" $(PIC_FLAG)
 	$(Verb) if $(Compile.CXX) $(DEPEND_OPTIONS) $< -o $(ObjDir)/$*.o ; \
 	        $(DEPEND_MOVEFILE)
 
-$(ObjDir)/%.o: %.c $(ObjDir)/.dir $(BUILT_SOURCES)
+$(ObjDir)/%.o: %.c $(ObjDir)/.dir $(BUILT_SOURCES) $(PROJ_SRC_DIR)/Makefile
 	$(Echo) "Compiling $*.c for $(BuildMode) build" $(PIC_FLAG)
 	$(Verb) if $(Compile.C) $(DEPEND_OPTIONS) $< -o $(ObjDir)/$*.o ; \
 	        $(DEPEND_MOVEFILE)
@@ -1564,6 +1568,16 @@ $(TARGET:%=$(ObjDir)/%GenDAGISel.inc.tmp): \
 $(ObjDir)/%GenDAGISel.inc.tmp : %.td $(ObjDir)/.dir
 	$(Echo) "Building $(<F) DAG instruction selector implementation with tblgen"
 	$(Verb) $(TableGen) -gen-dag-isel -o $(call SYSPATH, $@) $<
+
+$(TARGET:%=$(ObjDir)/%GenDisassemblerTables.inc.tmp): \
+$(ObjDir)/%GenDisassemblerTables.inc.tmp : %.td $(ObjDir)/.dir
+	$(Echo) "Building $(<F) disassembly tables with tblgen"
+	$(Verb) $(TableGen) -gen-disassembler -o $(call SYSPATH, $@) $<
+
+$(TARGET:%=$(ObjDir)/%GenEDInfo.inc.tmp): \
+$(ObjDir)/%GenEDInfo.inc.tmp : %.td $(ObjDir)/.dir
+	$(Echo) "Building $(<F) enhanced disassembly information with tblgen"
+	$(Verb) $(TableGen) -gen-enhanced-disassembly-info -o $(call SYSPATH, $@) $<
 
 $(TARGET:%=$(ObjDir)/%GenFastISel.inc.tmp): \
 $(ObjDir)/%GenFastISel.inc.tmp : %.td $(ObjDir)/.dir

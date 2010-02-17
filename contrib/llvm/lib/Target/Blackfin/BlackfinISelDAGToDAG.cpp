@@ -51,8 +51,8 @@ namespace {
 #include "BlackfinGenDAGISel.inc"
 
   private:
-    SDNode *Select(SDValue Op);
-    bool SelectADDRspii(SDValue Op, SDValue Addr,
+    SDNode *Select(SDNode *N);
+    bool SelectADDRspii(SDNode *Op, SDValue Addr,
                         SDValue &Base, SDValue &Offset);
 
     // Walk the DAG after instruction selection, fixing register class issues.
@@ -82,9 +82,7 @@ void BlackfinDAGToDAGISel::InstructionSelect() {
   FixRegisterClasses(*CurDAG);
 }
 
-SDNode *BlackfinDAGToDAGISel::Select(SDValue Op) {
-  SDNode *N = Op.getNode();
-  DebugLoc dl = N->getDebugLoc();
+SDNode *BlackfinDAGToDAGISel::Select(SDNode *N) {
   if (N->isMachineOpcode())
     return NULL;   // Already selected.
 
@@ -100,10 +98,10 @@ SDNode *BlackfinDAGToDAGISel::Select(SDValue Op) {
   }
   }
 
-  return SelectCode(Op);
+  return SelectCode(N);
 }
 
-bool BlackfinDAGToDAGISel::SelectADDRspii(SDValue Op,
+bool BlackfinDAGToDAGISel::SelectADDRspii(SDNode *Op,
                                           SDValue Addr,
                                           SDValue &Base,
                                           SDValue &Offset) {
@@ -177,7 +175,7 @@ void BlackfinDAGToDAGISel::FixRegisterClasses(SelectionDAG &DAG) {
       // We cannot copy CC <-> !(CC/D)
       if ((isCC(DefRC) && !isDCC(UseRC)) || (isCC(UseRC) && !isDCC(DefRC))) {
         SDNode *Copy =
-          DAG.getMachineNode(TargetInstrInfo::COPY_TO_REGCLASS,
+          DAG.getMachineNode(TargetOpcode::COPY_TO_REGCLASS,
                              NI->getDebugLoc(),
                              MVT::i32,
                              UI.getUse().get(),

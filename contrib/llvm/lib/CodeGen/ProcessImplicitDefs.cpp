@@ -49,9 +49,9 @@ bool ProcessImplicitDefs::CanTurnIntoImplicitDef(MachineInstr *MI,
       Reg == SrcReg)
     return true;
 
-  if (OpIdx == 2 && MI->getOpcode() == TargetInstrInfo::SUBREG_TO_REG)
+  if (OpIdx == 2 && MI->isSubregToReg())
     return true;
-  if (OpIdx == 1 && MI->getOpcode() == TargetInstrInfo::EXTRACT_SUBREG)
+  if (OpIdx == 1 && MI->isExtractSubreg())
     return true;
   return false;
 }
@@ -61,7 +61,7 @@ bool ProcessImplicitDefs::CanTurnIntoImplicitDef(MachineInstr *MI,
 /// implicit_def defs and their uses.
 bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &fn) {
 
-  DEBUG(errs() << "********** PROCESS IMPLICIT DEFS **********\n"
+  DEBUG(dbgs() << "********** PROCESS IMPLICIT DEFS **********\n"
                << "********** Function: "
                << ((Value*)fn.getFunction())->getName() << '\n');
 
@@ -75,10 +75,11 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &fn) {
 
   SmallSet<unsigned, 8> ImpDefRegs;
   SmallVector<MachineInstr*, 8> ImpDefMIs;
-  MachineBasicBlock *Entry = fn.begin();
+  SmallVector<MachineInstr*, 4> RUses;
   SmallPtrSet<MachineBasicBlock*,16> Visited;
   SmallPtrSet<MachineInstr*, 8> ModInsts;
 
+  MachineBasicBlock *Entry = fn.begin();
   for (df_ext_iterator<MachineBasicBlock*, SmallPtrSet<MachineBasicBlock*,16> >
          DFI = df_ext_begin(Entry, Visited), E = df_ext_end(Entry, Visited);
        DFI != E; ++DFI) {
@@ -87,7 +88,7 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &fn) {
          I != E; ) {
       MachineInstr *MI = &*I;
       ++I;
-      if (MI->getOpcode() == TargetInstrInfo::IMPLICIT_DEF) {
+      if (MI->isImplicitDef()) {
         unsigned Reg = MI->getOperand(0).getReg();
         ImpDefRegs.insert(Reg);
         if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
@@ -98,7 +99,7 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &fn) {
         continue;
       }
 
-      if (MI->getOpcode() == TargetInstrInfo::INSERT_SUBREG) {
+      if (MI->isInsertSubreg()) {
         MachineOperand &MO = MI->getOperand(2);
         if (ImpDefRegs.count(MO.getReg())) {
           // %reg1032<def> = INSERT_SUBREG %reg1032, undef, 2
@@ -126,7 +127,7 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &fn) {
         // Use is a copy, just turn it into an implicit_def.
         if (CanTurnIntoImplicitDef(MI, Reg, i, tii_)) {
           bool isKill = MO.isKill();
-          MI->setDesc(tii_->get(TargetInstrInfo::IMPLICIT_DEF));
+          MI->setDesc(tii_->get(TargetOpcode::IMPLICIT_DEF));
           for (int j = MI->getNumOperands() - 1, ee = 0; j > ee; --j)
             MI->RemoveOperand(j);
           if (isKill) {
@@ -182,55 +183,88 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &fn) {
       // is not an implicit_def, do not insert implicit_def's before the
       // uses.
       bool Skip = false;
+      SmallVector<MachineInstr*, 4> DeadImpDefs;
       for (MachineRegisterInfo::def_iterator DI = mri_->def_begin(Reg),
              DE = mri_->def_end(); DI != DE; ++DI) {
-        if (DI->getOpcode() != TargetInstrInfo::IMPLICIT_DEF) {
+        MachineInstr *DeadImpDef = &*DI;
+        if (!DeadImpDef->isImplicitDef()) {
           Skip = true;
           break;
         }
+        DeadImpDefs.push_back(DeadImpDef);
       }
       if (Skip)
         continue;
 
       // The only implicit_def which we want to keep are those that are live
       // out of its block.
-      MI->eraseFromParent();
+      for (unsigned j = 0, ee = DeadImpDefs.size(); j != ee; ++j)
+        DeadImpDefs[j]->eraseFromParent();
       Changed = true;
 
+      // Process each use instruction once.
       for (MachineRegisterInfo::use_iterator UI = mri_->use_begin(Reg),
-             UE = mri_->use_end(); UI != UE; ) {
-        MachineOperand &RMO = UI.getOperand();
+             UE = mri_->use_end(); UI != UE; ++UI) {
+        if (UI.getOperand().isUndef())
+          continue;
         MachineInstr *RMI = &*UI;
-        ++UI;
-        if (ModInsts.count(RMI))
-          continue;
-        MachineBasicBlock *RMBB = RMI->getParent();
-        if (RMBB == MBB)
-          continue;
+        if (ModInsts.insert(RMI))
+          RUses.push_back(RMI);
+      }
+
+      for (unsigned i = 0, e = RUses.size(); i != e; ++i) {
+        MachineInstr *RMI = RUses[i];
 
         // Turn a copy use into an implicit_def.
         unsigned SrcReg, DstReg, SrcSubReg, DstSubReg;
         if (tii_->isMoveInstr(*RMI, SrcReg, DstReg, SrcSubReg, DstSubReg) &&
             Reg == SrcReg) {
-          if (RMO.isKill()) {
+          RMI->setDesc(tii_->get(TargetOpcode::IMPLICIT_DEF));
+
+          bool isKill = false;
+          SmallVector<unsigned, 4> Ops;
+          for (unsigned j = 0, ee = RMI->getNumOperands(); j != ee; ++j) {
+            MachineOperand &RRMO = RMI->getOperand(j);
+            if (RRMO.isReg() && RRMO.getReg() == Reg) {
+              Ops.push_back(j);
+              if (RRMO.isKill())
+                isKill = true;
+            }
+          }
+          // Leave the other operands along.
+          for (unsigned j = 0, ee = Ops.size(); j != ee; ++j) {
+            unsigned OpIdx = Ops[j];
+            RMI->RemoveOperand(OpIdx-j);
+          }
+
+          // Update LiveVariables varinfo if the instruction is a kill.
+          if (isKill) {
             LiveVariables::VarInfo& vi = lv_->getVarInfo(Reg);
             vi.removeKill(RMI);
           }
-          RMI->setDesc(tii_->get(TargetInstrInfo::IMPLICIT_DEF));
-          for (int j = RMI->getNumOperands() - 1, ee = 0; j > ee; --j)
-            RMI->RemoveOperand(j);
-          ModInsts.insert(RMI);
           continue;
         }
 
+        // Replace Reg with a new vreg that's marked implicit.
         const TargetRegisterClass* RC = mri_->getRegClass(Reg);
         unsigned NewVReg = mri_->createVirtualRegister(RC);
-        RMO.setReg(NewVReg);
-        RMO.setIsUndef();
-        RMO.setIsKill();
+        bool isKill = true;
+        for (unsigned j = 0, ee = RMI->getNumOperands(); j != ee; ++j) {
+          MachineOperand &RRMO = RMI->getOperand(j);
+          if (RRMO.isReg() && RRMO.getReg() == Reg) {
+            RRMO.setReg(NewVReg);
+            RRMO.setIsUndef();
+            if (isKill) {
+              // Only the first operand of NewVReg is marked kill.
+              RRMO.setIsKill();
+              isKill = false;
+            }
+          }
+        }
       }
+      RUses.clear();
+      ModInsts.clear();
     }
-    ModInsts.clear();
     ImpDefRegs.clear();
     ImpDefMIs.clear();
   }

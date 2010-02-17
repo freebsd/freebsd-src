@@ -1,5 +1,5 @@
-; RUN: opt < %s -analyze -scalar-evolution -disable-output \
-; RUN:   | grep {\{%d,+,\[^\{\}\]\*\}<bb>}
+; RUN: opt < %s -analyze -scalar-evolution \
+; RUN:   | grep {\{%d,+,\[^\{\}\]\*\}<%bb>}
 
 ; ScalarEvolution should be able to understand the loop and eliminate the casts.
 

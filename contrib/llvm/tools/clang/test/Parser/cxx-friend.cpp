@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 class C {
   friend class D;
@@ -30,3 +30,11 @@ class B {
   void f(A *a) { a->f(); }
 };
 
+
+
+
+
+template <typename t1, typename t2> class some_template;
+friend   // expected-error {{'friend' used outside of class}}
+some_template<foo, bar>&  // expected-error {{use of undeclared identifier 'foo'}}
+  ;  // expected-error {{expected unqualified-id}}

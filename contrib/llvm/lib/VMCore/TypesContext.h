@@ -68,7 +68,7 @@ static unsigned getSubElementHash(const Type *Ty) {
 class IntegerValType {
   uint32_t bits;
 public:
-  IntegerValType(uint16_t numbits) : bits(numbits) {}
+  IntegerValType(uint32_t numbits) : bits(numbits) {}
 
   static IntegerValType get(const IntegerType *Ty) {
     return IntegerValType(Ty->getBitWidth());
@@ -180,6 +180,32 @@ public:
   }
 };
 
+// UnionValType - Define a class to hold the key that goes into the TypeMap
+//
+class UnionValType {
+  std::vector<const Type*> ElTypes;
+public:
+  UnionValType(const Type* const* Types, unsigned NumTypes)
+    : ElTypes(&Types[0], &Types[NumTypes]) {}
+
+  static UnionValType get(const UnionType *UT) {
+    std::vector<const Type *> ElTypes;
+    ElTypes.reserve(UT->getNumElements());
+    for (unsigned i = 0, e = UT->getNumElements(); i != e; ++i)
+      ElTypes.push_back(UT->getElementType(i));
+
+    return UnionValType(&ElTypes[0], ElTypes.size());
+  }
+
+  static unsigned hashTypeStructure(const UnionType *UT) {
+    return UT->getNumElements();
+  }
+
+  inline bool operator<(const UnionValType &UTV) const {
+    return (ElTypes < UTV.ElTypes);
+  }
+};
+
 // FunctionValType - Define a class to hold the key that goes into the TypeMap
 //
 class FunctionValType {
@@ -216,7 +242,6 @@ protected:
   ///
   std::multimap<unsigned, PATypeHolder> TypesByHash;
 
-public:
   ~TypeMapBase() {
     // PATypeHolder won't destroy non-abstract types.
     // We can't destroy them by simply iterating, because
@@ -236,6 +261,7 @@ public:
     }
   }
 
+public:
   void RemoveFromTypesByHash(unsigned Hash, const Type *Ty) {
     std::multimap<unsigned, PATypeHolder>::iterator I =
       TypesByHash.lower_bound(Hash);
@@ -281,7 +307,6 @@ class TypeMap : public TypeMapBase {
   std::map<ValType, PATypeHolder> Map;
 public:
   typedef typename std::map<ValType, PATypeHolder>::iterator iterator;
-  ~TypeMap() { print("ON EXIT"); }
 
   inline TypeClass *get(const ValType &V) {
     iterator I = Map.find(V);
@@ -302,7 +327,7 @@ public:
   void RefineAbstractType(TypeClass *Ty, const DerivedType *OldType,
                         const Type *NewType) {
 #ifdef DEBUG_MERGE_TYPES
-    DEBUG(errs() << "RefineAbstractType(" << (void*)OldType << "[" << *OldType
+    DEBUG(dbgs() << "RefineAbstractType(" << (void*)OldType << "[" << *OldType
                  << "], " << (void*)NewType << " [" << *NewType << "])\n");
 #endif
     
@@ -408,11 +433,11 @@ public:
 
   void print(const char *Arg) const {
 #ifdef DEBUG_MERGE_TYPES
-    DEBUG(errs() << "TypeMap<>::" << Arg << " table contents:\n");
+    DEBUG(dbgs() << "TypeMap<>::" << Arg << " table contents:\n");
     unsigned i = 0;
     for (typename std::map<ValType, PATypeHolder>::const_iterator I
            = Map.begin(), E = Map.end(); I != E; ++I)
-      DEBUG(errs() << " " << (++i) << ". " << (void*)I->second.get() << " "
+      DEBUG(dbgs() << " " << (++i) << ". " << (void*)I->second.get() << " "
                    << *I->second.get() << "\n");
 #endif
   }

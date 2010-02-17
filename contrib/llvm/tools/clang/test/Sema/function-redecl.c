@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 // PR3588
 void g0(int, int);
@@ -125,3 +125,7 @@ void test_x() {
   x(5);
   x2(5); // expected-warning{{incompatible integer to pointer conversion passing 'int', expected 'int *'}}
 }
+
+enum e0 {}; 
+void f3(); 
+void f3(enum e0 x) {}

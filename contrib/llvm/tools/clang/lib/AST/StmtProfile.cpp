@@ -20,11 +20,10 @@
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/StmtVisitor.h"
 #include "llvm/ADT/FoldingSet.h"
-#include "llvm/Support/Compiler.h"
 using namespace clang;
 
 namespace {
-  class VISIBILITY_HIDDEN StmtProfiler : public StmtVisitor<StmtProfiler> {
+  class StmtProfiler : public StmtVisitor<StmtProfiler> {
     llvm::FoldingSetNodeID &ID;
     ASTContext &Context;
     bool Canonical;
@@ -108,14 +107,17 @@ void StmtProfiler::VisitLabelStmt(LabelStmt *S) {
 
 void StmtProfiler::VisitIfStmt(IfStmt *S) {
   VisitStmt(S);
+  VisitDecl(S->getConditionVariable());
 }
 
 void StmtProfiler::VisitSwitchStmt(SwitchStmt *S) {
   VisitStmt(S);
+  VisitDecl(S->getConditionVariable());
 }
 
 void StmtProfiler::VisitWhileStmt(WhileStmt *S) {
   VisitStmt(S);
+  VisitDecl(S->getConditionVariable());
 }
 
 void StmtProfiler::VisitDoStmt(DoStmt *S) {
@@ -463,6 +465,10 @@ void StmtProfiler::VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *S) {
          const_cast<CXXDestructorDecl *>(S->getTemporary()->getDestructor()));
 }
 
+void StmtProfiler::VisitCXXBindReferenceExpr(CXXBindReferenceExpr *S) {
+  VisitExpr(S);
+}
+
 void StmtProfiler::VisitCXXConstructExpr(CXXConstructExpr *S) {
   VisitExpr(S);
   VisitDecl(S->getConstructor());
@@ -479,10 +485,6 @@ void StmtProfiler::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *S) {
 
 void StmtProfiler::VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *S) {
   VisitExpr(S);
-}
-
-void StmtProfiler::VisitCXXConditionDeclExpr(CXXConditionDeclExpr *S) {
-  VisitDeclRefExpr(S);
 }
 
 void StmtProfiler::VisitCXXDeleteExpr(CXXDeleteExpr *S) {
@@ -515,9 +517,13 @@ void StmtProfiler::VisitCXXPseudoDestructorExpr(CXXPseudoDestructorExpr *S) {
 }
 
 void
-StmtProfiler::VisitUnresolvedFunctionNameExpr(UnresolvedFunctionNameExpr *S) {
+StmtProfiler::VisitUnresolvedLookupExpr(UnresolvedLookupExpr *S) {
   VisitExpr(S);
+  VisitNestedNameSpecifier(S->getQualifier());
   VisitName(S->getName());
+  ID.AddBoolean(S->hasExplicitTemplateArgs());
+  if (S->hasExplicitTemplateArgs())
+    VisitTemplateArguments(S->getTemplateArgs(), S->getNumTemplateArgs());
 }
 
 void StmtProfiler::VisitUnaryTypeTraitExpr(UnaryTypeTraitExpr *S) {
@@ -526,23 +532,18 @@ void StmtProfiler::VisitUnaryTypeTraitExpr(UnaryTypeTraitExpr *S) {
   VisitType(S->getQueriedType());
 }
 
-void StmtProfiler::VisitUnresolvedDeclRefExpr(UnresolvedDeclRefExpr *S) {
+void
+StmtProfiler::VisitDependentScopeDeclRefExpr(DependentScopeDeclRefExpr *S) {
   VisitExpr(S);
   VisitName(S->getDeclName());
   VisitNestedNameSpecifier(S->getQualifier());
-  ID.AddBoolean(S->isAddressOfOperand());
-}
-
-void StmtProfiler::VisitTemplateIdRefExpr(TemplateIdRefExpr *S) {
-  VisitExpr(S);
-  VisitNestedNameSpecifier(S->getQualifier());
-  VisitTemplateName(S->getTemplateName());
-  VisitTemplateArguments(S->getTemplateArgs(), S->getNumTemplateArgs());
+  ID.AddBoolean(S->hasExplicitTemplateArgs());
+  if (S->hasExplicitTemplateArgs())
+    VisitTemplateArguments(S->getTemplateArgs(), S->getNumTemplateArgs());
 }
 
 void StmtProfiler::VisitCXXExprWithTemporaries(CXXExprWithTemporaries *S) {
   VisitExpr(S);
-  ID.AddBoolean(S->shouldDestroyTemporaries());
   for (unsigned I = 0, N = S->getNumTemporaries(); I != N; ++I)
     VisitDecl(
       const_cast<CXXDestructorDecl *>(S->getTemporary(I)->getDestructor()));
@@ -554,11 +555,31 @@ StmtProfiler::VisitCXXUnresolvedConstructExpr(CXXUnresolvedConstructExpr *S) {
   VisitType(S->getTypeAsWritten());
 }
 
-void StmtProfiler::VisitCXXUnresolvedMemberExpr(CXXUnresolvedMemberExpr *S) {
-  VisitExpr(S);
-  ID.AddBoolean(S->isArrow());
+void
+StmtProfiler::VisitCXXDependentScopeMemberExpr(CXXDependentScopeMemberExpr *S) {
+  ID.AddBoolean(S->isImplicitAccess());
+  if (!S->isImplicitAccess()) {
+    VisitExpr(S);
+    ID.AddBoolean(S->isArrow());
+  }
   VisitNestedNameSpecifier(S->getQualifier());
   VisitName(S->getMember());
+  ID.AddBoolean(S->hasExplicitTemplateArgs());
+  if (S->hasExplicitTemplateArgs())
+    VisitTemplateArguments(S->getTemplateArgs(), S->getNumTemplateArgs());
+}
+
+void StmtProfiler::VisitUnresolvedMemberExpr(UnresolvedMemberExpr *S) {
+  ID.AddBoolean(S->isImplicitAccess());
+  if (!S->isImplicitAccess()) {
+    VisitExpr(S);
+    ID.AddBoolean(S->isArrow());
+  }
+  VisitNestedNameSpecifier(S->getQualifier());
+  VisitName(S->getMemberName());
+  ID.AddBoolean(S->hasExplicitTemplateArgs());
+  if (S->hasExplicitTemplateArgs())
+    VisitTemplateArguments(S->getTemplateArgs(), S->getNumTemplateArgs());
 }
 
 void StmtProfiler::VisitObjCStringLiteral(ObjCStringLiteral *S) {
@@ -639,13 +660,6 @@ void StmtProfiler::VisitDecl(Decl *D) {
     if (TemplateTemplateParmDecl *TTP = dyn_cast<TemplateTemplateParmDecl>(D)) {
       ID.AddInteger(TTP->getDepth());
       ID.AddInteger(TTP->getIndex());
-      return;
-    }
-
-    if (OverloadedFunctionDecl *Ovl = dyn_cast<OverloadedFunctionDecl>(D)) {
-      // The Itanium C++ ABI mangles references to a set of overloaded
-      // functions using just the function name, so we do the same here.
-      VisitName(Ovl->getDeclName());
       return;
     }
   }

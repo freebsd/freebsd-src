@@ -92,7 +92,7 @@ void TokenLexer::destroy() {
   }
 
   // TokenLexer owns its formal arguments.
-  if (ActualArgs) ActualArgs->destroy();
+  if (ActualArgs) ActualArgs->destroy(PP);
 }
 
 /// Expand the arguments of a function-like macro so that we can quickly
@@ -175,7 +175,7 @@ void TokenLexer::ExpandFunctionArguments() {
       // avoids some work in common cases.
       const Token *ArgTok = ActualArgs->getUnexpArgument(ArgNo);
       if (ActualArgs->ArgNeedsPreexpansion(ArgTok, PP))
-        ResultArgToks = &ActualArgs->getPreExpArgument(ArgNo, PP)[0];
+        ResultArgToks = &ActualArgs->getPreExpArgument(ArgNo, Macro, PP)[0];
       else
         ResultArgToks = ArgTok;  // Use non-preexpanded tokens.
 
@@ -321,13 +321,12 @@ void TokenLexer::Lex(Token &Tok) {
 
   // If this token is followed by a token paste (##) operator, paste the tokens!
   if (!isAtEnd() && Tokens[CurToken].is(tok::hashhash)) {
-    if (PasteTokens(Tok)) {
-      // When handling the microsoft /##/ extension, the final token is
-      // returned by PasteTokens, not the pasted token.
+    // When handling the microsoft /##/ extension, the final token is
+    // returned by PasteTokens, not the pasted token.
+    if (PasteTokens(Tok))
       return;
-    } else {
-      TokenIsFromPaste = true;
-    }
+    
+    TokenIsFromPaste = true;
   }
 
   // The token's current location indicate where the token was lexed from.  We
@@ -415,7 +414,7 @@ bool TokenLexer::PasteTokens(Token &Tok) {
     ResultTokTmp.startToken();
 
     // Claim that the tmp token is a string_literal so that we can get the
-    // character pointer back from CreateString.
+    // character pointer back from CreateString in getLiteralData().
     ResultTokTmp.setKind(tok::string_literal);
     PP.CreateString(&Buffer[0], Buffer.size(), ResultTokTmp);
     SourceLocation ResultTokLoc = ResultTokTmp.getLocation();

@@ -52,8 +52,7 @@ protected:
   /// BufferBegin/BufferEnd - Pointers to the start and end of the memory
   /// allocated for this code buffer.
   uint8_t *BufferBegin, *BufferEnd;
-  
-  /// CurBufferPtr - Pointer to the next byte of memory to fill when emitting 
+  /// CurBufferPtr - Pointer to the next byte of memory to fill when emitting
   /// code.  This is guranteed to be in the range [BufferBegin,BufferEnd].  If
   /// this pointer is at BufferEnd, it will never move due to code emission, and
   /// all code emission requests will be ignored (this is the buffer overflow
@@ -89,15 +88,23 @@ public:
   ///
   void emitWordLE(uint32_t W) {
     if (4 <= BufferEnd-CurBufferPtr) {
-      *CurBufferPtr++ = (uint8_t)(W >>  0);
-      *CurBufferPtr++ = (uint8_t)(W >>  8);
-      *CurBufferPtr++ = (uint8_t)(W >> 16);
-      *CurBufferPtr++ = (uint8_t)(W >> 24);
+      emitWordLEInto(CurBufferPtr, W);
     } else {
       CurBufferPtr = BufferEnd;
     }
   }
-  
+
+  /// emitWordLEInto - This callback is invoked when a 32-bit word needs to be
+  /// written to an arbitrary buffer in little-endian format.  Buf must have at
+  /// least 4 bytes of available space.
+  ///
+  static void emitWordLEInto(uint8_t *&Buf, uint32_t W) {
+    *Buf++ = (uint8_t)(W >>  0);
+    *Buf++ = (uint8_t)(W >>  8);
+    *Buf++ = (uint8_t)(W >> 16);
+    *Buf++ = (uint8_t)(W >> 24);
+  }
+
   /// emitWordBE - This callback is invoked when a 32-bit word needs to be
   /// written to the output stream in big-endian format.
   ///
@@ -148,7 +155,7 @@ public:
     }
   }
 
-  /// emitAlignment - Move the CurBufferPtr pointer up the the specified
+  /// emitAlignment - Move the CurBufferPtr pointer up to the specified
   /// alignment (saturated to BufferEnd of course).
   void emitAlignment(unsigned Alignment) {
     if (Alignment == 0) Alignment = 1;

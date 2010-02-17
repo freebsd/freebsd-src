@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Target/SubtargetFeature.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/StringExtras.h"
 #include <algorithm>
@@ -66,7 +67,7 @@ static void Split(std::vector<std::string> &V, const std::string &S) {
   while (true) {
     // Find the next comma
     size_t Comma = S.find(',', Pos);
-    // If no comma found then the the rest of the string is used
+    // If no comma found then the rest of the string is used
     if (Comma == std::string::npos) {
       // Add string to vector
       V.push_back(S.substr(Pos));
@@ -355,7 +356,7 @@ void SubtargetFeatures::print(raw_ostream &OS) const {
 /// dump - Dump feature info.
 ///
 void SubtargetFeatures::dump() const {
-  print(errs());
+  print(dbgs());
 }
 
 /// getDefaultSubtargetFeatures - Return a string listing

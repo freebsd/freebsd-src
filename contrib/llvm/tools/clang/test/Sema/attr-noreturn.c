@@ -1,6 +1,8 @@
-// RUN: clang-cc -verify -fsyntax-only %s
+// RUN: %clang_cc1 -verify -fsyntax-only %s
 
 static void (*fp0)(void) __attribute__((noreturn));
+
+void fatal();
 
 static void __attribute__((noreturn)) f0(void) {
   fatal();
@@ -9,7 +11,7 @@ static void __attribute__((noreturn)) f0(void) {
 // On K&R
 int f1() __attribute__((noreturn));
 
-int g0 __attribute__((noreturn)); // expected-warning {{'noreturn' attribute only applies to function types}}
+int g0 __attribute__((noreturn)); // expected-warning {{'noreturn' only applies to function types; type here is 'int'}}
 
 int f2() __attribute__((noreturn(1, 2))); // expected-error {{attribute requires 0 argument(s)}}
 
@@ -32,4 +34,9 @@ void
 f5 (unsigned long size)
 {
   
+}
+
+// PR2461
+__attribute__((noreturn)) void f(__attribute__((noreturn)) void (*x)(void)) {
+  x();
 }

@@ -1,4 +1,4 @@
-//===--- PartialDiagnostic.h - Diagnostic "closures" ----------------------===//
+//===--- PartialDiagnostic.h - Diagnostic "closures" ------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -26,7 +26,8 @@ class DeclarationName;
   
 class PartialDiagnostic {
   struct Storage {
-    Storage() : NumDiagArgs(0), NumDiagRanges(0) { }
+    Storage() : NumDiagArgs(0), NumDiagRanges(0), NumCodeModificationHints(0) {
+    }
 
     enum {
         /// MaxArguments - The maximum number of arguments we can hold. We 
@@ -42,6 +43,10 @@ class PartialDiagnostic {
     /// NumDiagRanges - This is the number of ranges in the DiagRanges array.
     unsigned char NumDiagRanges;
 
+    /// \brief The number of code modifications hints in the
+    /// CodeModificationHints array.
+    unsigned char NumCodeModificationHints;
+    
     /// DiagArgumentsKind - This is an array of ArgumentKind::ArgumentKind enum
     /// values, with one for each argument.  This specifies whether the argument
     /// is in DiagArgumentsStr or in DiagArguments.
@@ -51,11 +56,17 @@ class PartialDiagnostic {
     /// This is used when the argument is not an std::string. The specific value 
     /// is mangled into an intptr_t and the intepretation depends on exactly
     /// what sort of argument kind it is.
-    mutable intptr_t DiagArgumentsVal[MaxArguments];
+    intptr_t DiagArgumentsVal[MaxArguments];
   
     /// DiagRanges - The list of ranges added to this diagnostic.  It currently
     /// only support 10 ranges, could easily be extended if needed.
-    mutable const SourceRange *DiagRanges[10];
+    SourceRange DiagRanges[10];
+    
+    enum { MaxCodeModificationHints = 3 };
+    
+    /// CodeModificationHints - If valid, provides a hint with some code
+    /// to insert, remove, or modify at a particular position.
+    CodeModificationHint CodeModificationHints[MaxCodeModificationHints];    
   };
 
   /// DiagID - The diagnostic ID.
@@ -81,24 +92,53 @@ class PartialDiagnostic {
     assert(DiagStorage->NumDiagRanges < 
            llvm::array_lengthof(DiagStorage->DiagRanges) &&
            "Too many arguments to diagnostic!");
-    DiagStorage->DiagRanges[DiagStorage->NumDiagRanges++] = &R;
+    DiagStorage->DiagRanges[DiagStorage->NumDiagRanges++] = R;
   }  
 
-  void operator=(const PartialDiagnostic &); // DO NOT IMPLEMENT
+  void AddCodeModificationHint(const CodeModificationHint &Hint) const {
+    if (Hint.isNull())
+      return;
+    
+    if (!DiagStorage)
+      DiagStorage = new Storage;
 
+    assert(DiagStorage->NumCodeModificationHints < 
+             Storage::MaxCodeModificationHints &&
+           "Too many code modification hints!");
+    DiagStorage->CodeModificationHints[DiagStorage->NumCodeModificationHints++]
+      = Hint;
+  }
+  
 public:
   PartialDiagnostic(unsigned DiagID)
     : DiagID(DiagID), DiagStorage(0) { }
 
   PartialDiagnostic(const PartialDiagnostic &Other) 
-    : DiagID(Other.DiagID), DiagStorage(Other.DiagStorage) {
-    Other.DiagID = 0;
-    Other.DiagStorage = 0;
+    : DiagID(Other.DiagID), DiagStorage(0) 
+  {
+    if (Other.DiagStorage)
+      DiagStorage = new Storage(*Other.DiagStorage);
+  }
+
+  PartialDiagnostic &operator=(const PartialDiagnostic &Other) {
+    DiagID = Other.DiagID;
+    if (Other.DiagStorage) {
+      if (DiagStorage)
+        *DiagStorage = *Other.DiagStorage;
+      else
+        DiagStorage = new Storage(*Other.DiagStorage);
+    } else {
+      delete DiagStorage;
+      DiagStorage = 0;
+    }
+
+    return *this;
   }
 
   ~PartialDiagnostic() {
     delete DiagStorage;
   }
+
 
   unsigned getDiagID() const { return DiagID; }
 
@@ -114,7 +154,11 @@ public:
     
     // Add all ranges.
     for (unsigned i = 0, e = DiagStorage->NumDiagRanges; i != e; ++i)
-      DB.AddSourceRange(*DiagStorage->DiagRanges[i]);
+      DB.AddSourceRange(DiagStorage->DiagRanges[i]);
+    
+    // Add all code modification hints
+    for (unsigned i = 0, e = DiagStorage->NumCodeModificationHints; i != e; ++i)
+      DB.AddCodeModificationHint(DiagStorage->CodeModificationHints[i]);
   }
   
   friend const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
@@ -150,6 +194,13 @@ public:
 
   friend const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
                                              DeclarationName N);
+  
+  friend const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
+                                             const CodeModificationHint &Hint) {
+    PD.AddCodeModificationHint(Hint);
+    return PD;
+  }
+  
 };
 
 inline PartialDiagnostic PDiag(unsigned DiagID = 0) {

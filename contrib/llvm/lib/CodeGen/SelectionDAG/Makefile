@@ -6,8 +6,8 @@
 # License. See LICENSE.TXT for details.
 #
 ##===----------------------------------------------------------------------===##
+
 LEVEL = ../../..
 LIBRARYNAME = LLVMSelectionDAG
-PARALLEL_DIRS =
 
 include $(LEVEL)/Makefile.common

@@ -10,7 +10,7 @@ endif
 include $(LEVEL)/Makefile.common
 
 ifneq ($(PROJ_SRC_ROOT),$(PROJ_OBJ_ROOT))
-all::
+$(RecursiveTargets)::
 	$(Verb) if [ ! -f test/Makefile ]; then \
 	  $(MKDIR) test; \
 	  $(CP) $(PROJ_SRC_DIR)/test/Makefile test/Makefile; \
@@ -45,7 +45,7 @@ install-local::
 	  for  hdr in `find . -type f '!' '(' -name '*~' \
 	      -o -name '.#*' -o -name '*.in' -o -name '*.txt' \
 	      -o -name 'Makefile' -o -name '*.td' ')' -print \
-              | grep -v CVS | grep -v .svn` ; do \
+              | grep -v CVS | grep -v .svn | grep -v .dir` ; do \
 	    instdir=`dirname "$(PROJ_includedir)/$$hdr"` ; \
 	    if test \! -d "$$instdir" ; then \
 	      $(EchoCmd) Making install directory $$instdir ; \
@@ -58,7 +58,7 @@ ifneq ($(PROJ_SRC_ROOT),$(PROJ_OBJ_ROOT))
 	$(Verb) if test -d "$(PROJ_OBJ_ROOT)/tools/clang/include" ; then \
 	  cd $(PROJ_OBJ_ROOT)/tools/clang/include && \
 	  for hdr in `find . -type f '!' '(' -name 'Makefile' ')' -print \
-            | grep -v CVS | grep -v .tmp` ; do \
+            | grep -v CVS | grep -v .tmp | grep -v .dir` ; do \
 	    $(DataInstall) $$hdr $(PROJ_includedir)/$$hdr ; \
 	  done ; \
 	fi

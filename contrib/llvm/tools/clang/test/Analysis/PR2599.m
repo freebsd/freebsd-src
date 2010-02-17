@@ -1,7 +1,7 @@
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -analyzer-constraints=basic -analyzer-store=basic -checker-cfref -fobjc-gc -verify %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -analyzer-constraints=range -analyzer-store=basic -checker-cfref -fobjc-gc -verify %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -analyzer-constraints=basic -analyzer-store=basic -checker-cfref -fobjc-gc -verify %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -analyzer-constraints=range -analyzer-store=region -checker-cfref -fobjc-gc -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-constraints=basic -analyzer-store=basic -analyzer-check-objc-mem -fobjc-gc -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-constraints=range -analyzer-store=basic -analyzer-check-objc-mem -fobjc-gc -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-constraints=basic -analyzer-store=basic -analyzer-check-objc-mem -fobjc-gc -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-constraints=range -analyzer-store=region -analyzer-check-objc-mem -fobjc-gc -verify %s
 
 typedef const void * CFTypeRef;
 typedef const struct __CFString * CFStringRef;
@@ -52,6 +52,8 @@ extern NSString * const NSXMLParserErrorDomain ;
 #define UTIL_AUTORELEASE_CF_AS_ID_WITHOUT_TEST(cf) ( [(id) CFMakeCollectable( (CFTypeRef) cf) autorelease] )
 
 static char *lorem = "fooBarBaz";
+
+void NSLog(NSString *, ...);
 
 int main (int argc, const char * argv[]) {
   NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];

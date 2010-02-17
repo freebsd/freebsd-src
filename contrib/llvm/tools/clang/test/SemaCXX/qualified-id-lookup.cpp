@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -verify %s 
 namespace Ns {
   int f(); // expected-note{{previous declaration is here}}
 
@@ -108,4 +108,19 @@ struct Undef { // expected-note{{definition of 'struct Undef' is not complete un
 
 int Undef::f() {
   return sizeof(Undef);
+}
+
+// PR clang/5667
+namespace test1 {
+  template <typename T> struct is_class {
+    enum { value = 0 };
+  };
+
+  template <typename T> class ClassChecker {
+    bool isClass() {
+      return is_class<T>::value;
+    }
+  };
+
+  template class ClassChecker<int>;  
 }

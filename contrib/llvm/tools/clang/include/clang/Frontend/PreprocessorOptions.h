@@ -13,7 +13,12 @@
 #include "llvm/ADT/StringRef.h"
 #include <cassert>
 #include <string>
+#include <utility>
 #include <vector>
+
+namespace llvm {
+  class MemoryBuffer;
+}
 
 namespace clang {
 
@@ -41,6 +46,36 @@ public:
   /// If given, a PTH cache file to use for speeding up header parsing.
   std::string TokenCache;
 
+  /// \brief The set of file remappings, which take existing files on
+  /// the system (the first part of each pair) and gives them the
+  /// contents of other files on the system (the second part of each
+  /// pair).
+  std::vector<std::pair<std::string, std::string> >  RemappedFiles;
+
+  /// \brief The set of file-to-buffer remappings, which take existing files
+  /// on the system (the first part of each pair) and gives them the contents
+  /// of the specified memory buffer (the second part of each pair).
+  std::vector<std::pair<std::string, const llvm::MemoryBuffer *> > 
+    RemappedFileBuffers;
+  
+  typedef std::vector<std::pair<std::string, std::string> >::const_iterator
+    remapped_file_iterator;
+  remapped_file_iterator remapped_file_begin() const { 
+    return RemappedFiles.begin();
+  }
+  remapped_file_iterator remapped_file_end() const { 
+    return RemappedFiles.end();
+  }
+
+  typedef std::vector<std::pair<std::string, const llvm::MemoryBuffer *> >::
+                                  const_iterator remapped_file_buffer_iterator;
+  remapped_file_buffer_iterator remapped_file_buffer_begin() const {
+    return RemappedFileBuffers.begin();
+  }
+  remapped_file_buffer_iterator remapped_file_buffer_end() const {
+    return RemappedFileBuffers.end();
+  }
+  
 public:
   PreprocessorOptions() : UsePredefines(true) {}
 
@@ -49,6 +84,12 @@ public:
   }
   void addMacroUndef(llvm::StringRef Name) {
     Macros.push_back(std::make_pair(Name, true));
+  }
+  void addRemappedFile(llvm::StringRef From, llvm::StringRef To) {
+    RemappedFiles.push_back(std::make_pair(From, To));
+  }
+  void addRemappedFile(llvm::StringRef From, const llvm::MemoryBuffer * To) {
+    RemappedFileBuffers.push_back(std::make_pair(From, To));
   }
 };
 

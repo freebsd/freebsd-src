@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "CGCall.h"
+#include "GlobalDecl.h"
 
 namespace llvm {
   class FunctionType;
@@ -34,6 +35,8 @@ namespace llvm {
 namespace clang {
   class ABIInfo;
   class ASTContext;
+  class CXXConstructorDecl;
+  class CXXDestructorDecl;
   class CXXMethodDecl;
   class FieldDecl;
   class FunctionProtoType;
@@ -57,33 +60,24 @@ namespace CodeGen {
     /// LLVMType - The LLVMType corresponding to this record layout.
     const llvm::Type *LLVMType;
 
-    /// ContainsMemberPointer - Whether one of the fields in this record layout
-    /// is a member pointer, or a struct that contains a member pointer.
-    bool ContainsMemberPointer;
+    /// ContainsPointerToDataMember - Whether one of the fields in this record 
+    /// layout is a pointer to data member, or a struct that contains pointer to
+    /// data member.
+    bool ContainsPointerToDataMember;
 
-    /// KeyFunction - The key function of the record layout (if one exists),
-    /// which is the first non-pure virtual function that is not inline at the
-    /// point of class definition.
-    /// See http://www.codesourcery.com/public/cxx-abi/abi.html#vague-vtable.
-    const CXXMethodDecl *KeyFunction;
-    
   public:
-    CGRecordLayout(const llvm::Type *T, bool ContainsMemberPointer,
-                   const CXXMethodDecl *KeyFunction)
-      : LLVMType(T), ContainsMemberPointer(ContainsMemberPointer),
-        KeyFunction(KeyFunction) { }
+    CGRecordLayout(const llvm::Type *T, bool ContainsPointerToDataMember)
+      : LLVMType(T), ContainsPointerToDataMember(ContainsPointerToDataMember) { }
 
     /// getLLVMType - Return llvm type associated with this record.
     const llvm::Type *getLLVMType() const {
       return LLVMType;
     }
 
-    bool containsMemberPointer() const {
-      return ContainsMemberPointer;
-    }
-
-    const CXXMethodDecl *getKeyFunction() const {
-      return KeyFunction;
+    /// containsPointerToDataMember - Whether this struct contains pointers to
+    /// data members.
+    bool containsPointerToDataMember() const {
+      return ContainsPointerToDataMember;
     }
   };
 
@@ -94,7 +88,7 @@ class CodeGenTypes {
   const TargetInfo &Target;
   llvm::Module& TheModule;
   const llvm::TargetData& TheTargetData;
-  mutable const ABIInfo* TheABIInfo;
+  const ABIInfo& TheABIInfo;
 
   llvm::SmallVector<std::pair<QualType,
                               llvm::OpaqueType *>, 8>  PointersToResolve;
@@ -149,13 +143,14 @@ private:
   /// interface to convert type T into a llvm::Type.
   const llvm::Type *ConvertNewType(QualType T);
 public:
-  CodeGenTypes(ASTContext &Ctx, llvm::Module &M, const llvm::TargetData &TD);
+  CodeGenTypes(ASTContext &Ctx, llvm::Module &M, const llvm::TargetData &TD,
+               const ABIInfo &Info);
   ~CodeGenTypes();
 
   const llvm::TargetData &getTargetData() const { return TheTargetData; }
   const TargetInfo &getTarget() const { return Target; }
   ASTContext &getContext() const { return Context; }
-  const ABIInfo &getABIInfo() const;
+  const ABIInfo &getABIInfo() const { return TheABIInfo; }
   llvm::LLVMContext &getLLVMContext() { return TheModule.getContext(); }
 
   /// ConvertType - Convert type T into a llvm::Type.
@@ -173,6 +168,12 @@ public:
   const llvm::FunctionType *GetFunctionType(const CGFunctionInfo &Info,
                                             bool IsVariadic);
 
+
+  /// GetFunctionTypeForVtable - Get the LLVM function type for use in a vtable,
+  /// given a CXXMethodDecl. If the method to has an incomplete return type, 
+  /// and/or incomplete argument types, this will return the opaque type.
+  const llvm::Type *GetFunctionTypeForVtable(const CXXMethodDecl *MD);
+                                                     
   const CGRecordLayout &getCGRecordLayout(const TagDecl*) const;
 
   /// getLLVMFieldNo - Return llvm::StructType element number
@@ -189,10 +190,22 @@ private:
 
 public:
   /// getFunctionInfo - Get the function info for the specified function decl.
+  const CGFunctionInfo &getFunctionInfo(GlobalDecl GD);
+  
   const CGFunctionInfo &getFunctionInfo(const FunctionDecl *FD);
   const CGFunctionInfo &getFunctionInfo(const CXXMethodDecl *MD);
   const CGFunctionInfo &getFunctionInfo(const ObjCMethodDecl *MD);
-  
+  const CGFunctionInfo &getFunctionInfo(const CXXConstructorDecl *D,
+                                        CXXCtorType Type);
+  const CGFunctionInfo &getFunctionInfo(const CXXDestructorDecl *D,
+                                        CXXDtorType Type);
+
+  const CGFunctionInfo &getFunctionInfo(const CallArgList &Args,
+                                        const FunctionType *Ty) {
+    return getFunctionInfo(Ty->getResultType(), Args,
+                           Ty->getCallConv(), Ty->getNoReturnAttr());
+  }
+
   // getFunctionInfo - Get the function info for a member function.
   const CGFunctionInfo &getFunctionInfo(const CXXRecordDecl *RD,
                                         const FunctionProtoType *FTP);
@@ -202,13 +215,16 @@ public:
   /// specified, the "C" calling convention will be used.
   const CGFunctionInfo &getFunctionInfo(QualType ResTy,
                                         const CallArgList &Args,
-                                        unsigned CallingConvention = 0);
+                                        CallingConv CC,
+                                        bool NoReturn);
   const CGFunctionInfo &getFunctionInfo(QualType ResTy,
                                         const FunctionArgList &Args,
-                                        unsigned CallingConvention = 0);
+                                        CallingConv CC,
+                                        bool NoReturn);
   const CGFunctionInfo &getFunctionInfo(QualType RetTy,
                                   const llvm::SmallVector<QualType, 16> &ArgTys,
-                                        unsigned CallingConvention = 0);
+                                        CallingConv CC,
+                                        bool NoReturn);
 
 public:  // These are internal details of CGT that shouldn't be used externally.
   /// addFieldInfo - Assign field number to field FD.

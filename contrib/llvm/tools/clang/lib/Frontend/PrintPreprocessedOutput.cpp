@@ -22,7 +22,7 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/TokenConcatenation.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstdio>
@@ -36,22 +36,23 @@ static void PrintMacroDefinition(const IdentifierInfo &II, const MacroInfo &MI,
 
   if (MI.isFunctionLike()) {
     OS << '(';
-    if (MI.arg_empty())
-      ;
-    else if (MI.getNumArgs() == 1)
-      OS << (*MI.arg_begin())->getName();
-    else {
+    if (!MI.arg_empty()) {
       MacroInfo::arg_iterator AI = MI.arg_begin(), E = MI.arg_end();
-      OS << (*AI++)->getName();
-      while (AI != E)
-        OS << ',' << (*AI++)->getName();
+      for (; AI+1 != E; ++AI) {
+        OS << (*AI)->getName();
+        OS << ',';
+      }
+
+      // Last argument.
+      if ((*AI)->getName() == "__VA_ARGS__")
+        OS << "...";
+      else
+        OS << (*AI)->getName();
     }
 
-    if (MI.isVariadic()) {
-      if (!MI.arg_empty())
-        OS << ',';
-      OS << "...";
-    }
+    if (MI.isGNUVarargs())
+      OS << "...";  // #define foo(x...)
+    
     OS << ')';
   }
 
@@ -94,6 +95,7 @@ private:
   bool Initialized;
   bool DisableLineMarkers;
   bool DumpDefines;
+  bool UseLineDirective;
 public:
   PrintPPOutputPPCallbacks(Preprocessor &pp, llvm::raw_ostream &os,
                            bool lineMarkers, bool defines)
@@ -105,6 +107,9 @@ public:
     EmittedMacroOnThisLine = false;
     FileType = SrcMgr::C_User;
     Initialized = false;
+         
+    // If we're in microsoft mode, use normal #line instead of line markers.
+    UseLineDirective = PP.getLangOptions().Microsoft;
   }
 
   void SetEmittedTokensOnThisLine() { EmittedTokensOnThisLine = true; }
@@ -141,17 +146,24 @@ void PrintPPOutputPPCallbacks::WriteLineInfo(unsigned LineNo,
     EmittedMacroOnThisLine = false;
   }
 
-  OS << '#' << ' ' << LineNo << ' ' << '"';
-  OS.write(&CurFilename[0], CurFilename.size());
-  OS << '"';
+  // Emit #line directives or GNU line markers depending on what mode we're in.
+  if (UseLineDirective) {
+    OS << "#line" << ' ' << LineNo << ' ' << '"';
+    OS.write(&CurFilename[0], CurFilename.size());
+    OS << '"';
+  } else {
+    OS << '#' << ' ' << LineNo << ' ' << '"';
+    OS.write(&CurFilename[0], CurFilename.size());
+    OS << '"';
+    
+    if (ExtraLen)
+      OS.write(Extra, ExtraLen);
 
-  if (ExtraLen)
-    OS.write(Extra, ExtraLen);
-
-  if (FileType == SrcMgr::C_System)
-    OS.write(" 3", 2);
-  else if (FileType == SrcMgr::C_ExternCSystem)
-    OS.write(" 3 4", 4);
+    if (FileType == SrcMgr::C_System)
+      OS.write(" 3", 2);
+    else if (FileType == SrcMgr::C_ExternCSystem)
+      OS.write(" 3 4", 4);
+  }
   OS << '\n';
 }
 
@@ -431,13 +443,11 @@ static void PrintPreprocessedTokens(Preprocessor &PP, Token &Tok,
   }
 }
 
-namespace {
-  struct SortMacrosByID {
-    typedef std::pair<IdentifierInfo*, MacroInfo*> id_macro_pair;
-    bool operator()(const id_macro_pair &LHS, const id_macro_pair &RHS) const {
-      return LHS.first->getName() < RHS.first->getName();
-    }
-  };
+typedef std::pair<IdentifierInfo*, MacroInfo*> id_macro_pair;
+static int MacroIDCompare(const void* a, const void* b) {
+  const id_macro_pair *LHS = static_cast<const id_macro_pair*>(a);
+  const id_macro_pair *RHS = static_cast<const id_macro_pair*>(b);
+  return LHS->first->getName().compare(RHS->first->getName());
 }
 
 static void DoPrintMacros(Preprocessor &PP, llvm::raw_ostream *OS) {
@@ -449,11 +459,9 @@ static void DoPrintMacros(Preprocessor &PP, llvm::raw_ostream *OS) {
   do PP.Lex(Tok);
   while (Tok.isNot(tok::eof));
 
-  std::vector<std::pair<IdentifierInfo*, MacroInfo*> > MacrosByID;
-  for (Preprocessor::macro_iterator I = PP.macro_begin(), E = PP.macro_end();
-       I != E; ++I)
-    MacrosByID.push_back(*I);
-  std::sort(MacrosByID.begin(), MacrosByID.end(), SortMacrosByID());
+  llvm::SmallVector<id_macro_pair, 128>
+    MacrosByID(PP.macro_begin(), PP.macro_end());
+  llvm::array_pod_sort(MacrosByID.begin(), MacrosByID.end(), MacroIDCompare);
 
   for (unsigned i = 0, e = MacrosByID.size(); i != e; ++i) {
     MacroInfo &MI = *MacrosByID[i].second;
@@ -461,7 +469,7 @@ static void DoPrintMacros(Preprocessor &PP, llvm::raw_ostream *OS) {
     if (MI.isBuiltinMacro()) continue;
 
     PrintMacroDefinition(*MacrosByID[i].first, MI, PP, *OS);
-    *OS << "\n";
+    *OS << '\n';
   }
 }
 

@@ -57,6 +57,9 @@ public:
     return "CallGraph Pass Manager";
   }
 
+  virtual PMDataManager *getAsPMDataManager() { return this; }
+  virtual Pass *getAsPass() { return this; }
+
   // Print passes managed by this manager
   void dumpPassStructure(unsigned Offset) {
     errs().indent(Offset*2) << "Call Graph SCC Pass Manager\n";
@@ -90,7 +93,10 @@ char CGPassManager::ID = 0;
 bool CGPassManager::RunPassOnSCC(Pass *P, std::vector<CallGraphNode*> &CurSCC,
                                  CallGraph &CG, bool &CallGraphUpToDate) {
   bool Changed = false;
-  if (CallGraphSCCPass *CGSP = dynamic_cast<CallGraphSCCPass*>(P)) {
+  PMDataManager *PM = P->getAsPMDataManager();
+
+  if (PM == 0) {
+    CallGraphSCCPass *CGSP = (CallGraphSCCPass*)P;
     if (!CallGraphUpToDate) {
       RefreshCallGraph(CurSCC, CG, false);
       CallGraphUpToDate = true;
@@ -110,8 +116,10 @@ bool CGPassManager::RunPassOnSCC(Pass *P, std::vector<CallGraphNode*> &CurSCC,
     return Changed;
   }
   
-  FPPassManager *FPP = dynamic_cast<FPPassManager *>(P);
-  assert(FPP && "Invalid CGPassManager member");
+  
+  assert(PM->getPassManagerType() == PMT_FunctionPassManager &&
+         "Invalid CGPassManager member");
+  FPPassManager *FPP = (FPPassManager*)P;
   
   // Run pass P on all functions in the current SCC.
   for (unsigned i = 0, e = CurSCC.size(); i != e; ++i) {
@@ -126,7 +134,7 @@ bool CGPassManager::RunPassOnSCC(Pass *P, std::vector<CallGraphNode*> &CurSCC,
   // The function pass(es) modified the IR, they may have clobbered the
   // callgraph.
   if (Changed && CallGraphUpToDate) {
-    DEBUG(errs() << "CGSCCPASSMGR: Pass Dirtied SCC: "
+    DEBUG(dbgs() << "CGSCCPASSMGR: Pass Dirtied SCC: "
                  << P->getPassName() << '\n');
     CallGraphUpToDate = false;
   }
@@ -143,7 +151,7 @@ void CGPassManager::RefreshCallGraph(std::vector<CallGraphNode*> &CurSCC,
                                      CallGraph &CG, bool CheckingMode) {
   DenseMap<Value*, CallGraphNode*> CallSites;
   
-  DEBUG(errs() << "CGSCCPASSMGR: Refreshing SCC with " << CurSCC.size()
+  DEBUG(dbgs() << "CGSCCPASSMGR: Refreshing SCC with " << CurSCC.size()
                << " nodes:\n";
         for (unsigned i = 0, e = CurSCC.size(); i != e; ++i)
           CurSCC[i]->dump();
@@ -277,11 +285,11 @@ void CGPassManager::RefreshCallGraph(std::vector<CallGraphNode*> &CurSCC,
   }
 
   DEBUG(if (MadeChange) {
-          errs() << "CGSCCPASSMGR: Refreshed SCC is now:\n";
+          dbgs() << "CGSCCPASSMGR: Refreshed SCC is now:\n";
           for (unsigned i = 0, e = CurSCC.size(); i != e; ++i)
             CurSCC[i]->dump();
          } else {
-           errs() << "CGSCCPASSMGR: SCC Refresh didn't change call graph.\n";
+           dbgs() << "CGSCCPASSMGR: SCC Refresh didn't change call graph.\n";
          }
         );
 }
@@ -360,14 +368,13 @@ bool CGPassManager::runOnModule(Module &M) {
 /// Initialize CG
 bool CGPassManager::doInitialization(CallGraph &CG) {
   bool Changed = false;
-  for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {  
-    Pass *P = getContainedPass(Index);
-    if (CallGraphSCCPass *CGSP = dynamic_cast<CallGraphSCCPass *>(P)) {
-      Changed |= CGSP->doInitialization(CG);
+  for (unsigned i = 0, e = getNumContainedPasses(); i != e; ++i) {  
+    if (PMDataManager *PM = getContainedPass(i)->getAsPMDataManager()) {
+      assert(PM->getPassManagerType() == PMT_FunctionPassManager &&
+             "Invalid CGPassManager member");
+      Changed |= ((FPPassManager*)PM)->doInitialization(CG.getModule());
     } else {
-      FPPassManager *FP = dynamic_cast<FPPassManager *>(P);
-      assert (FP && "Invalid CGPassManager member");
-      Changed |= FP->doInitialization(CG.getModule());
+      Changed |= ((CallGraphSCCPass*)getContainedPass(i))->doInitialization(CG);
     }
   }
   return Changed;
@@ -376,14 +383,13 @@ bool CGPassManager::doInitialization(CallGraph &CG) {
 /// Finalize CG
 bool CGPassManager::doFinalization(CallGraph &CG) {
   bool Changed = false;
-  for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {  
-    Pass *P = getContainedPass(Index);
-    if (CallGraphSCCPass *CGSP = dynamic_cast<CallGraphSCCPass *>(P)) {
-      Changed |= CGSP->doFinalization(CG);
+  for (unsigned i = 0, e = getNumContainedPasses(); i != e; ++i) {  
+    if (PMDataManager *PM = getContainedPass(i)->getAsPMDataManager()) {
+      assert(PM->getPassManagerType() == PMT_FunctionPassManager &&
+             "Invalid CGPassManager member");
+      Changed |= ((FPPassManager*)PM)->doFinalization(CG.getModule());
     } else {
-      FPPassManager *FP = dynamic_cast<FPPassManager *>(P);
-      assert (FP && "Invalid CGPassManager member");
-      Changed |= FP->doFinalization(CG.getModule());
+      Changed |= ((CallGraphSCCPass*)getContainedPass(i))->doFinalization(CG);
     }
   }
   return Changed;
@@ -397,13 +403,14 @@ void CallGraphSCCPass::assignPassManager(PMStack &PMS,
          PMS.top()->getPassManagerType() > PMT_CallGraphPassManager)
     PMS.pop();
 
-  assert (!PMS.empty() && "Unable to handle Call Graph Pass");
-  CGPassManager *CGP = dynamic_cast<CGPassManager *>(PMS.top());
-
-  // Create new Call Graph SCC Pass Manager if it does not exist. 
-  if (!CGP) {
-
-    assert (!PMS.empty() && "Unable to create Call Graph Pass Manager");
+  assert(!PMS.empty() && "Unable to handle Call Graph Pass");
+  CGPassManager *CGP;
+  
+  if (PMS.top()->getPassManagerType() == PMT_CallGraphPassManager)
+    CGP = (CGPassManager*)PMS.top();
+  else {
+    // Create new Call Graph SCC Pass Manager if it does not exist. 
+    assert(!PMS.empty() && "Unable to create Call Graph Pass Manager");
     PMDataManager *PMD = PMS.top();
 
     // [1] Create new Call Graph Pass Manager
@@ -415,7 +422,7 @@ void CallGraphSCCPass::assignPassManager(PMStack &PMS,
 
     // [3] Assign manager to manage this new manager. This may create
     // and push new managers into PMS
-    Pass *P = dynamic_cast<Pass *>(CGP);
+    Pass *P = CGP;
     TPM->schedulePass(P);
 
     // [4] Push new manager into PMS

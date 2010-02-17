@@ -20,6 +20,11 @@ namespace llvm {
   class Instruction;
   class Value;
   class TargetData;
+
+  /// SimplifyAddInst - Given operands for an Add, see if we can
+  /// fold the result.  If not, this returns null.
+  Value *SimplifyAddInst(Value *LHS, Value *RHS, bool isNSW, bool isNUW,
+                         const TargetData *TD = 0);
   
   /// SimplifyAndInst - Given operands for an And, see if we can
   /// fold the result.  If not, this returns null.
@@ -42,6 +47,11 @@ namespace llvm {
                           const TargetData *TD = 0);
   
 
+  /// SimplifyGEPInst - Given operands for an GetElementPtrInst, see if we can
+  /// fold the result.  If not, this returns null.
+  Value *SimplifyGEPInst(Value * const *Ops, unsigned NumOps,
+                         const TargetData *TD = 0);
+  
   //=== Helper functions for higher up the class hierarchy.
   
   

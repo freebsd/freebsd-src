@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -verify %s 
 class C {
 public:
   auto int errx; // expected-error {{error: storage class specified for a member declaration}}
@@ -109,4 +109,12 @@ void ogfn()
 struct C4 {
   void f(); // expected-note{{previous declaration is here}}
   int f; // expected-error{{duplicate member 'f'}}
+};
+
+// PR5415 - don't hang!
+struct S
+{
+  void f(); // expected-note 1 {{previous declaration}}
+  void S::f() {} // expected-error {{class member cannot be redeclared}} expected-note {{previous declaration}} expected-note {{previous definition}}
+  void f() {} // expected-error {{class member cannot be redeclared}} expected-error {{redefinition}}
 };

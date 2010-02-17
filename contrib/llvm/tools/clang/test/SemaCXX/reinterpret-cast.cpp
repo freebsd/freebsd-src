@@ -1,4 +1,6 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
+
+#include <stdint.h>
 
 enum test { testval = 1 };
 struct structure { int m; };
@@ -20,11 +22,11 @@ void self_conversion()
 void integral_conversion()
 {
   void *vp = reinterpret_cast<void*>(testval);
-  long l = reinterpret_cast<long>(vp);
-  (void)reinterpret_cast<float*>(l);
-  fnptr fnp = reinterpret_cast<fnptr>(l);
+  intptr_t i = reinterpret_cast<intptr_t>(vp);
+  (void)reinterpret_cast<float*>(i);
+  fnptr fnp = reinterpret_cast<fnptr>(i);
   (void)reinterpret_cast<char>(fnp); // expected-error {{cast from pointer to smaller type 'char' loses information}}
-  (void)reinterpret_cast<long>(fnp);
+  (void)reinterpret_cast<intptr_t>(fnp);
 }
 
 void pointer_conversion()
@@ -45,7 +47,7 @@ void constness()
   // Invalid: T1 const* -> T2*
   (void)reinterpret_cast<int*>(icp); // expected-error {{reinterpret_cast from 'int const *' to 'int *' casts away constness}}
   // Invalid: T1*** -> T2 const* const**
-  int const *const **icpcpp = reinterpret_cast<int const* const**>(ipppc); // expected-error {{reinterpret_cast from 'int ***const' to 'int const *const **' casts away constness}}
+  int const *const **icpcpp = reinterpret_cast<int const* const**>(ipppc); // expected-error {{reinterpret_cast from 'int ***' to 'int const *const **' casts away constness}}
   // Valid: T1* -> T2*
   int *ip = reinterpret_cast<int*>(icpcpp);
   // Valid: T* -> T const*

@@ -115,6 +115,12 @@ def PPCcall_Darwin : SDNode<"PPCISD::CALL_Darwin", SDT_PPCCall,
 def PPCcall_SVR4  : SDNode<"PPCISD::CALL_SVR4", SDT_PPCCall,
                            [SDNPHasChain, SDNPOptInFlag, SDNPOutFlag]>;
 def PPCnop : SDNode<"PPCISD::NOP", SDT_PPCnop, [SDNPInFlag, SDNPOutFlag]>;
+def PPCload   : SDNode<"PPCISD::LOAD", SDTypeProfile<1, 1, []>,
+                       [SDNPHasChain, SDNPOptInFlag, SDNPOutFlag]>;
+def PPCload_toc : SDNode<"PPCISD::LOAD_TOC", SDTypeProfile<0, 1, []>,
+                          [SDNPHasChain, SDNPInFlag, SDNPOutFlag]>;
+def PPCtoc_restore : SDNode<"PPCISD::TOC_RESTORE", SDTypeProfile<0, 0, []>,
+                            [SDNPHasChain, SDNPInFlag, SDNPOutFlag]>;
 def PPCmtctr      : SDNode<"PPCISD::MTCTR", SDT_PPCCall,
                            [SDNPHasChain, SDNPOptInFlag, SDNPOutFlag]>;
 def PPCbctrl_Darwin  : SDNode<"PPCISD::BCTRL_Darwin", SDTNone,
@@ -424,9 +430,7 @@ let isCall = 1, PPC970_Unit = 7,
           F0,F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,
           V0,V1,V2,V3,V4,V5,V6,V7,V8,V9,V10,V11,V12,V13,V14,V15,V16,V17,V18,V19,
           LR,CTR,
-          CR0,CR1,CR5,CR6,CR7,
-          CR0LT,CR0GT,CR0EQ,CR0UN,CR1LT,CR1GT,CR1EQ,CR1UN,CR5LT,CR5GT,CR5EQ,
-          CR5UN,CR6LT,CR6GT,CR6EQ,CR6UN,CR7LT,CR7GT,CR7EQ,CR7UN,CARRY] in {
+          CR0,CR1,CR5,CR6,CR7,CARRY] in {
   // Convenient aliases for call instructions
   let Uses = [RM] in {
     def BL_Darwin  : IForm<18, 0, 1,
@@ -451,9 +455,7 @@ let isCall = 1, PPC970_Unit = 7,
           F0,F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,
           V0,V1,V2,V3,V4,V5,V6,V7,V8,V9,V10,V11,V12,V13,V14,V15,V16,V17,V18,V19,
           LR,CTR,
-          CR0,CR1,CR5,CR6,CR7,
-          CR0LT,CR0GT,CR0EQ,CR0UN,CR1LT,CR1GT,CR1EQ,CR1UN,CR5LT,CR5GT,CR5EQ,
-          CR5UN,CR6LT,CR6GT,CR6EQ,CR6UN,CR7LT,CR7GT,CR7EQ,CR7UN,CARRY] in {
+          CR0,CR1,CR5,CR6,CR7,CARRY] in {
   // Convenient aliases for call instructions
   let Uses = [RM] in {
     def BL_SVR4  : IForm<18, 0, 1,
@@ -1356,15 +1358,6 @@ def RLWNM  : MForm_2<23,
                      []>;
 }
 
-
-//===----------------------------------------------------------------------===//
-// DWARF Pseudo Instructions
-//
-
-def DWARF_LOC        : Pseudo<(outs), (ins i32imm:$line, i32imm:$col, i32imm:$file),
-                              "${:comment} .loc $file, $line, $col",
-                      [(dwarf_loc (i32 imm:$line), (i32 imm:$col),
-                                  (i32 imm:$file))]>;
 
 //===----------------------------------------------------------------------===//
 // PowerPC Instruction Patterns

@@ -35,7 +35,7 @@ public:
 
   struct AnalysisDataTy : public StmtDeclBitVector_Types::AnalysisDataTy {
     AnalysisDataTy() : Observer(NULL), FullUninitTaint(true) {}
-    virtual ~AnalysisDataTy() {};
+    virtual ~AnalysisDataTy() {}
 
     ObserverTy* Observer;
     bool FullUninitTaint;
@@ -70,5 +70,8 @@ public:
   void InitializeValues(const CFG& cfg);
 };
 
+
+void CheckUninitializedValues(CFG& cfg, ASTContext& Ctx, Diagnostic& Diags,
+                              bool FullUninitTaint=false);
 } // end namespace clang
 #endif

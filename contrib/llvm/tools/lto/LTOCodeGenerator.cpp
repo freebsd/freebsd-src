@@ -15,13 +15,11 @@
 #include "LTOModule.h"
 #include "LTOCodeGenerator.h"
 
-
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Linker.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
-#include "llvm/ModuleProvider.h"
 #include "llvm/PassManager.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Triple.h"
@@ -29,16 +27,15 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/Verifier.h"
 #include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/CodeGen/FileWriters.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Support/Mangler.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/StandardPasses.h"
 #include "llvm/Support/SystemUtils.h"
 #include "llvm/System/Host.h"
 #include "llvm/System/Program.h"
 #include "llvm/System/Signals.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/SubtargetFeature.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/MC/MCAsmInfo.h"
@@ -305,7 +302,7 @@ bool LTOCodeGenerator::determineTarget(std::string& errMsg)
         }
 
         // construct LTModule, hand over ownership of module and target
-        const std::string FeatureStr = 
+        const std::string FeatureStr =
             SubtargetFeatures::getDefaultSubtargetFeatures(llvm::Triple(Triple));
         _target = march->createTargetMachine(Triple, FeatureStr);
     }
@@ -323,19 +320,18 @@ void LTOCodeGenerator::applyScopeRestrictions()
 
         // mark which symbols can not be internalized 
         if ( !_mustPreserveSymbols.empty() ) {
-            Mangler mangler(*mergedModule, 
-                                _target->getMCAsmInfo()->getGlobalPrefix());
+            Mangler mangler(*_target->getMCAsmInfo());
             std::vector<const char*> mustPreserveList;
             for (Module::iterator f = mergedModule->begin(), 
                                         e = mergedModule->end(); f != e; ++f) {
                 if ( !f->isDeclaration() 
-                  && _mustPreserveSymbols.count(mangler.getMangledName(f)) )
+                  && _mustPreserveSymbols.count(mangler.getNameWithPrefix(f)) )
                   mustPreserveList.push_back(::strdup(f->getNameStr().c_str()));
             }
             for (Module::global_iterator v = mergedModule->global_begin(), 
                                  e = mergedModule->global_end(); v !=  e; ++v) {
                 if ( !v->isDeclaration()
-                  && _mustPreserveSymbols.count(mangler.getMangledName(v)) )
+                  && _mustPreserveSymbols.count(mangler.getNameWithPrefix(v)) )
                   mustPreserveList.push_back(::strdup(v->getNameStr().c_str()));
             }
             passes.add(createInternalizePass(mustPreserveList));
@@ -393,34 +389,15 @@ bool LTOCodeGenerator::generateAssemblyCode(formatted_raw_ostream& out,
     // Make sure everything is still good.
     passes.add(createVerifierPass());
 
-    FunctionPassManager* codeGenPasses =
-            new FunctionPassManager(new ExistingModuleProvider(mergedModule));
+    FunctionPassManager* codeGenPasses = new FunctionPassManager(mergedModule);
 
     codeGenPasses->add(new TargetData(*_target->getTargetData()));
 
-    ObjectCodeEmitter* oce = NULL;
-
-    switch (_target->addPassesToEmitFile(*codeGenPasses, out,
-                                         TargetMachine::AssemblyFile,
-                                         CodeGenOpt::Aggressive)) {
-        case FileModel::MachOFile:
-            oce = AddMachOWriter(*codeGenPasses, out, *_target);
-            break;
-        case FileModel::ElfFile:
-            oce = AddELFWriter(*codeGenPasses, out, *_target);
-            break;
-        case FileModel::AsmFile:
-            break;
-        case FileModel::Error:
-        case FileModel::None:
-            errMsg = "target file type not supported";
-            return true;
-    }
-
-    if (_target->addPassesToEmitFileFinish(*codeGenPasses, oce,
-                                           CodeGenOpt::Aggressive)) {
-        errMsg = "target does not support generation of this file type";
-        return true;
+    if (_target->addPassesToEmitFile(*codeGenPasses, out,
+                                     TargetMachine::CGFT_AssemblyFile,
+                                     CodeGenOpt::Aggressive)) {
+      errMsg = "target file type not supported";
+      return true;
     }
 
     // Run our queue of passes all at once now, efficiently.
@@ -443,12 +420,12 @@ bool LTOCodeGenerator::generateAssemblyCode(formatted_raw_ostream& out,
 /// Optimize merged modules using various IPO passes
 void LTOCodeGenerator::setCodeGenDebugOptions(const char* options)
 {
-    std::string ops(options);
-    for (std::string o = getToken(ops); !o.empty(); o = getToken(ops)) {
+    for (std::pair<StringRef, StringRef> o = getToken(options);
+         !o.first.empty(); o = getToken(o.second)) {
         // ParseCommandLineOptions() expects argv[0] to be program name.
         // Lazily add that.
         if ( _codegenOptions.empty() ) 
             _codegenOptions.push_back("libLTO");
-        _codegenOptions.push_back(strdup(o.c_str()));
+        _codegenOptions.push_back(strdup(o.first.str().c_str()));
     }
 }

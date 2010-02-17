@@ -25,7 +25,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/ADT/VectorExtras.h"
 #include "llvm/Support/Debug.h"
@@ -118,8 +118,8 @@ namespace {
             TLI.LowerCallTo(InChain, RetTy, isSigned, !isSigned, false, false,
                             0, TLI.getLibcallCallingConv(LC), false,
                             /*isReturnValueUsed=*/true,
-                            Callee, Args, DAG,
-                            Op.getDebugLoc());
+                            Callee, Args, DAG, Op.getDebugLoc(),
+                            DAG.GetOrdering(InChain.getNode()));
 
     return CallInfo.first;
   }
@@ -386,10 +386,6 @@ SPUTargetLowering::SPUTargetLowering(SPUTargetMachine &TM)
 
   // We cannot sextinreg(i1).  Expand to shifts.
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i1, Expand);
-
-  // Support label based line numbers.
-  setOperationAction(ISD::DBG_STOPPOINT, MVT::Other, Expand);
-  setOperationAction(ISD::DEBUG_LOC, MVT::Other, Expand);
 
   // We want to legalize GlobalAddress and ConstantPool nodes into the
   // appropriate instructions to materialize the address.
@@ -673,7 +669,7 @@ LowerLOAD(SDValue Op, SelectionDAG &DAG, const SPUSubtarget *ST) {
     // Re-emit as a v16i8 vector load
     result = DAG.getLoad(MVT::v16i8, dl, the_chain, basePtr,
                          LN->getSrcValue(), LN->getSrcValueOffset(),
-                         LN->isVolatile(), 16);
+                         LN->isVolatile(), LN->isNonTemporal(), 16);
 
     // Update the chain
     the_chain = result.getValue(1);
@@ -752,9 +748,7 @@ LowerSTORE(SDValue Op, SelectionDAG &DAG, const SPUSubtarget *ST) {
   case ISD::UNINDEXED: {
     // The vector type we really want to load from the 16-byte chunk.
     EVT vecVT = EVT::getVectorVT(*DAG.getContext(),
-                                 VT, (128 / VT.getSizeInBits())),
-        stVecVT = EVT::getVectorVT(*DAG.getContext(),
-                                   StVT, (128 / StVT.getSizeInBits()));
+                                 VT, (128 / VT.getSizeInBits()));
 
     SDValue alignLoadVec;
     SDValue basePtr = SN->getBasePtr();
@@ -826,7 +820,7 @@ LowerSTORE(SDValue Op, SelectionDAG &DAG, const SPUSubtarget *ST) {
     // Re-emit as a v16i8 vector load
     alignLoadVec = DAG.getLoad(MVT::v16i8, dl, the_chain, basePtr,
                                SN->getSrcValue(), SN->getSrcValueOffset(),
-                               SN->isVolatile(), 16);
+                               SN->isVolatile(), SN->isNonTemporal(), 16);
 
     // Update the chain
     the_chain = alignLoadVec.getValue(1);
@@ -867,7 +861,8 @@ LowerSTORE(SDValue Op, SelectionDAG &DAG, const SPUSubtarget *ST) {
 
     result = DAG.getStore(the_chain, dl, result, basePtr,
                           LN->getSrcValue(), LN->getSrcValueOffset(),
-                          LN->isVolatile(), LN->getAlignment());
+                          LN->isVolatile(), LN->isNonTemporal(),
+                          LN->getAlignment());
 
 #if 0 && !defined(NDEBUG)
     if (DebugFlag && isCurrentDebugType(DEBUG_TYPE)) {
@@ -1092,7 +1087,7 @@ SPUTargetLowering::LowerFormalArguments(SDValue Chain,
       // or we're forced to do vararg
       int FI = MFI->CreateFixedObject(ObjSize, ArgOffset, true, false);
       SDValue FIN = DAG.getFrameIndex(FI, PtrVT);
-      ArgVal = DAG.getLoad(ObjectVT, dl, Chain, FIN, NULL, 0);
+      ArgVal = DAG.getLoad(ObjectVT, dl, Chain, FIN, NULL, 0, false, false, 0);
       ArgOffset += StackSlotSize;
     }
 
@@ -1114,7 +1109,8 @@ SPUTargetLowering::LowerFormalArguments(SDValue Chain,
                                                  true, false);
       SDValue FIN = DAG.getFrameIndex(VarArgsFrameIndex, PtrVT);
       SDValue ArgVal = DAG.getRegister(ArgRegs[ArgRegIdx], MVT::v16i8);
-      SDValue Store = DAG.getStore(Chain, dl, ArgVal, FIN, NULL, 0);
+      SDValue Store = DAG.getStore(Chain, dl, ArgVal, FIN, NULL, 0,
+                                   false, false, 0);
       Chain = Store.getOperand(0);
       MemOps.push_back(Store);
 
@@ -1146,11 +1142,13 @@ static SDNode *isLSAAddress(SDValue Op, SelectionDAG &DAG) {
 SDValue
 SPUTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                              CallingConv::ID CallConv, bool isVarArg,
-                             bool isTailCall,
+                             bool &isTailCall,
                              const SmallVectorImpl<ISD::OutputArg> &Outs,
                              const SmallVectorImpl<ISD::InputArg> &Ins,
                              DebugLoc dl, SelectionDAG &DAG,
                              SmallVectorImpl<SDValue> &InVals) {
+  // CellSPU target does not yet support tail call optimization.
+  isTailCall = false;
 
   const SPUSubtarget *ST = SPUTM.getSubtargetImpl();
   unsigned NumOps     = Outs.size();
@@ -1160,11 +1158,6 @@ SPUTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
 
   // Handy pointer type
   EVT PtrVT = DAG.getTargetLoweringInfo().getPointerTy();
-
-  // Accumulate how many bytes are to be pushed on the stack, including the
-  // linkage area, and parameter passing area.  According to the SPU ABI,
-  // we minimally need space for [LR] and [SP]
-  unsigned NumStackBytes = SPUFrameInfo::minStackSize();
 
   // Set up a copy of the stack pointer for use loading and storing any
   // arguments that may not fit in the registers available for argument
@@ -1199,7 +1192,8 @@ SPUTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
       if (ArgRegIdx != NumArgRegs) {
         RegsToPass.push_back(std::make_pair(ArgRegs[ArgRegIdx++], Arg));
       } else {
-        MemOpChains.push_back(DAG.getStore(Chain, dl, Arg, PtrOff, NULL, 0));
+        MemOpChains.push_back(DAG.getStore(Chain, dl, Arg, PtrOff, NULL, 0,
+                                           false, false, 0));
         ArgOffset += StackSlotSize;
       }
       break;
@@ -1208,7 +1202,8 @@ SPUTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
       if (ArgRegIdx != NumArgRegs) {
         RegsToPass.push_back(std::make_pair(ArgRegs[ArgRegIdx++], Arg));
       } else {
-        MemOpChains.push_back(DAG.getStore(Chain, dl, Arg, PtrOff, NULL, 0));
+        MemOpChains.push_back(DAG.getStore(Chain, dl, Arg, PtrOff, NULL, 0,
+                                           false, false, 0));
         ArgOffset += StackSlotSize;
       }
       break;
@@ -1221,15 +1216,20 @@ SPUTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
       if (ArgRegIdx != NumArgRegs) {
         RegsToPass.push_back(std::make_pair(ArgRegs[ArgRegIdx++], Arg));
       } else {
-        MemOpChains.push_back(DAG.getStore(Chain, dl, Arg, PtrOff, NULL, 0));
+        MemOpChains.push_back(DAG.getStore(Chain, dl, Arg, PtrOff, NULL, 0,
+                                           false, false, 0));
         ArgOffset += StackSlotSize;
       }
       break;
     }
   }
 
-  // Update number of stack bytes actually used, insert a call sequence start
-  NumStackBytes = (ArgOffset - SPUFrameInfo::minStackSize());
+  // Accumulate how many bytes are to be pushed on the stack, including the
+  // linkage area, and parameter passing area.  According to the SPU ABI,
+  // we minimally need space for [LR] and [SP].
+  unsigned NumStackBytes = ArgOffset - SPUFrameInfo::minStackSize();
+
+  // Insert a call sequence start
   Chain = DAG.getCALLSEQ_START(Chain, DAG.getIntPtrConstant(NumStackBytes,
                                                             true));
 
@@ -2627,8 +2627,6 @@ static SDValue LowerSIGN_EXTEND(SDValue Op, SelectionDAG &DAG)
 
   // Type to extend to
   MVT OpVT = Op.getValueType().getSimpleVT();
-  EVT VecVT = EVT::getVectorVT(*DAG.getContext(),
-                               OpVT, (128 / OpVT.getSizeInBits()));
 
   // Type to extend from
   SDValue Op0 = Op.getOperand(0);

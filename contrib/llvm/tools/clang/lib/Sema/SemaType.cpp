@@ -68,12 +68,41 @@ static bool isOmittedBlockReturnType(const Declarator &D) {
   return false;
 }
 
+typedef std::pair<const AttributeList*,QualType> DelayedAttribute;
+typedef llvm::SmallVectorImpl<DelayedAttribute> DelayedAttributeSet;
+
+static void ProcessTypeAttributeList(Sema &S, QualType &Type,
+                                     const AttributeList *Attrs,
+                                     DelayedAttributeSet &DelayedFnAttrs);
+static bool ProcessFnAttr(Sema &S, QualType &Type, const AttributeList &Attr);
+
+static void ProcessDelayedFnAttrs(Sema &S, QualType &Type,
+                                  DelayedAttributeSet &Attrs) {
+  for (DelayedAttributeSet::iterator I = Attrs.begin(),
+         E = Attrs.end(); I != E; ++I)
+    if (ProcessFnAttr(S, Type, *I->first))
+      S.Diag(I->first->getLoc(), diag::warn_function_attribute_wrong_type)
+        << I->first->getName() << I->second;
+  Attrs.clear();
+}
+
+static void DiagnoseDelayedFnAttrs(Sema &S, DelayedAttributeSet &Attrs) {
+  for (DelayedAttributeSet::iterator I = Attrs.begin(),
+         E = Attrs.end(); I != E; ++I) {
+    S.Diag(I->first->getLoc(), diag::warn_function_attribute_wrong_type)
+      << I->first->getName() << I->second;
+  }
+  Attrs.clear();
+}
+
 /// \brief Convert the specified declspec to the appropriate type
 /// object.
 /// \param D  the declarator containing the declaration specifier.
 /// \returns The type described by the declaration specifiers.  This function
 /// never returns null.
-static QualType ConvertDeclSpecToType(Declarator &TheDeclarator, Sema &TheSema){
+static QualType ConvertDeclSpecToType(Sema &TheSema,
+                                      Declarator &TheDeclarator,
+                                      DelayedAttributeSet &Delayed) {
   // FIXME: Should move the logic from DeclSpec::Finish to here for validity
   // checking.
   const DeclSpec &DS = TheDeclarator.getDeclSpec();
@@ -308,7 +337,11 @@ static QualType ConvertDeclSpecToType(Declarator &TheDeclarator, Sema &TheSema){
     Expr *E = static_cast<Expr *>(DS.getTypeRep());
     assert(E && "Didn't get an expression for typeof?");
     // TypeQuals handled by caller.
-    Result = Context.getTypeOfExprType(E);
+    Result = TheSema.BuildTypeofExprType(E);
+    if (Result.isNull()) {
+      Result = Context.IntTy;
+      TheDeclarator.setInvalidType(true);
+    }
     break;
   }
   case DeclSpec::TST_decltype: {
@@ -339,6 +372,11 @@ static QualType ConvertDeclSpecToType(Declarator &TheDeclarator, Sema &TheSema){
     if (TheSema.getLangOptions().Freestanding)
       TheSema.Diag(DS.getTypeSpecComplexLoc(), diag::ext_freestanding_complex);
     Result = Context.getComplexType(Result);
+  } else if (DS.isTypeAltiVecVector()) {
+    unsigned typeSize = static_cast<unsigned>(Context.getTypeSize(Result));
+    assert(typeSize > 0 && "type size for vector must be greater than 0 bits");
+    Result = Context.getVectorType(Result, 128/typeSize, true,
+      DS.isTypeAltiVecPixel());
   }
 
   assert(DS.getTypeSpecComplex() != DeclSpec::TSC_imaginary &&
@@ -347,7 +385,7 @@ static QualType ConvertDeclSpecToType(Declarator &TheDeclarator, Sema &TheSema){
   // See if there are any attributes on the declspec that apply to the type (as
   // opposed to the decl).
   if (const AttributeList *AL = DS.getAttributes())
-    TheSema.ProcessTypeAttributeList(Result, AL);
+    ProcessTypeAttributeList(TheSema, Result, AL, Delayed);
 
   // Apply const/volatile/restrict qualifiers to T.
   if (unsigned TypeQuals = DS.getTypeQualifiers()) {
@@ -356,10 +394,14 @@ static QualType ConvertDeclSpecToType(Declarator &TheDeclarator, Sema &TheSema){
     // or incomplete types shall not be restrict-qualified."  C++ also allows
     // restrict-qualified references.
     if (TypeQuals & DeclSpec::TQ_restrict) {
-      if (Result->isPointerType() || Result->isReferenceType()) {
-        QualType EltTy = Result->isPointerType() ?
-          Result->getAs<PointerType>()->getPointeeType() :
-          Result->getAs<ReferenceType>()->getPointeeType();
+      if (Result->isAnyPointerType() || Result->isReferenceType()) {
+        QualType EltTy;
+        if (Result->isObjCObjectPointerType())
+          EltTy = Result;
+        else
+          EltTy = Result->isPointerType() ?
+                    Result->getAs<PointerType>()->getPointeeType() :
+                    Result->getAs<ReferenceType>()->getPointeeType();
 
         // If we have a pointer or reference, the pointee must have an object
         // incomplete type.
@@ -735,7 +777,8 @@ QualType Sema::BuildFunctionType(QualType T,
                                  bool Variadic, unsigned Quals,
                                  SourceLocation Loc, DeclarationName Entity) {
   if (T->isArrayType() || T->isFunctionType()) {
-    Diag(Loc, diag::err_func_returning_array_function) << T;
+    Diag(Loc, diag::err_func_returning_array_function) 
+      << T->isFunctionType() << T;
     return QualType();
   }
 
@@ -846,20 +889,20 @@ QualType Sema::BuildBlockPointerType(QualType T, unsigned CVR,
   return Context.getQualifiedType(Context.getBlockPointerType(T), Quals);
 }
 
-QualType Sema::GetTypeFromParser(TypeTy *Ty, DeclaratorInfo **DInfo) {
+QualType Sema::GetTypeFromParser(TypeTy *Ty, TypeSourceInfo **TInfo) {
   QualType QT = QualType::getFromOpaquePtr(Ty);
   if (QT.isNull()) {
-    if (DInfo) *DInfo = 0;
+    if (TInfo) *TInfo = 0;
     return QualType();
   }
 
-  DeclaratorInfo *DI = 0;
+  TypeSourceInfo *DI = 0;
   if (LocInfoType *LIT = dyn_cast<LocInfoType>(QT)) {
     QT = LIT->getType();
-    DI = LIT->getDeclaratorInfo();
+    DI = LIT->getTypeSourceInfo();
   }
 
-  if (DInfo) *DInfo = DI;
+  if (TInfo) *TInfo = DI;
   return QT;
 }
 
@@ -870,32 +913,49 @@ QualType Sema::GetTypeFromParser(TypeTy *Ty, DeclaratorInfo **DInfo) {
 /// owns the declaration of a type (e.g., the definition of a struct
 /// type), then *OwnedDecl will receive the owned declaration.
 QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
-                                    DeclaratorInfo **DInfo,
+                                    TypeSourceInfo **TInfo,
                                     TagDecl **OwnedDecl) {
   // Determine the type of the declarator. Not all forms of declarator
   // have a type.
   QualType T;
 
+  llvm::SmallVector<DelayedAttribute,4> FnAttrsFromDeclSpec;
+
   switch (D.getName().getKind()) {
   case UnqualifiedId::IK_Identifier:
   case UnqualifiedId::IK_OperatorFunctionId:
+  case UnqualifiedId::IK_LiteralOperatorId:
   case UnqualifiedId::IK_TemplateId:
-    T = ConvertDeclSpecToType(D, *this);
+    T = ConvertDeclSpecToType(*this, D, FnAttrsFromDeclSpec);
     
-    if (!D.isInvalidType() && OwnedDecl && D.getDeclSpec().isTypeSpecOwned())
-      *OwnedDecl = cast<TagDecl>((Decl *)D.getDeclSpec().getTypeRep());
+    if (!D.isInvalidType() && D.getDeclSpec().isTypeSpecOwned()) {
+      TagDecl* Owned = cast<TagDecl>((Decl *)D.getDeclSpec().getTypeRep());
+      // Owned is embedded if it was defined here, or if it is the
+      // very first (i.e., canonical) declaration of this tag type.
+      Owned->setEmbeddedInDeclarator(Owned->isDefinition() ||
+                                     Owned->isCanonicalDecl());
+      if (OwnedDecl) *OwnedDecl = Owned;
+    }
     break;
 
   case UnqualifiedId::IK_ConstructorName:
+  case UnqualifiedId::IK_ConstructorTemplateId:
   case UnqualifiedId::IK_DestructorName:
-  case UnqualifiedId::IK_ConversionFunctionId:
     // Constructors and destructors don't have return types. Use
-    // "void" instead. Conversion operators will check their return
-    // types separately.
+    // "void" instead. 
     T = Context.VoidTy;
+    break;
+
+  case UnqualifiedId::IK_ConversionFunctionId:
+    // The result type of a conversion function is the type that it
+    // converts to.
+    T = GetTypeFromParser(D.getName().ConversionFunctionId);
     break;
   }
   
+  if (T.isNull())
+    return T;
+
   if (T == Context.UndeducedAutoTy) {
     int Error = -1;
 
@@ -943,6 +1003,8 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
   DeclarationName Name;
   if (D.getIdentifier())
     Name = D.getIdentifier();
+
+  llvm::SmallVector<DelayedAttribute,4> FnAttrsFromPreviousChunk;
 
   // Walk the DeclTypeInfo, building the recursive type as we go.
   // DeclTypeInfos are ordered from the identifier out, which is
@@ -1029,8 +1091,11 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
       const DeclaratorChunk::FunctionTypeInfo &FTI = DeclType.Fun;
 
       // C99 6.7.5.3p1: The return type may not be a function or array type.
-      if (T->isArrayType() || T->isFunctionType()) {
-        Diag(DeclType.Loc, diag::err_func_returning_array_function) << T;
+      // For conversion functions, we'll diagnose this particular error later.
+      if ((T->isArrayType() || T->isFunctionType()) &&
+          (D.getName().getKind() != UnqualifiedId::IK_ConversionFunctionId)) {
+        Diag(DeclType.Loc, diag::err_func_returning_array_function) 
+          << T->isFunctionType() << T;
         T = Context.IntTy;
         D.setInvalidType(true);
       }
@@ -1160,6 +1225,13 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
                                     FTI.hasAnyExceptionSpec,
                                     Exceptions.size(), Exceptions.data());
       }
+
+      // For GCC compatibility, we allow attributes that apply only to
+      // function types to be placed on a function's return type
+      // instead (as long as that type doesn't happen to be function
+      // or function-pointer itself).
+      ProcessDelayedFnAttrs(*this, T, FnAttrsFromPreviousChunk);
+
       break;
     }
     case DeclaratorChunk::MemberPointer:
@@ -1185,7 +1257,7 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
 
         case NestedNameSpecifier::Namespace:
         case NestedNameSpecifier::Global:
-          llvm::llvm_unreachable("Nested-name-specifier must name a type");
+          llvm_unreachable("Nested-name-specifier must name a type");
           break;
             
         case NestedNameSpecifier::TypeSpec:
@@ -1218,9 +1290,11 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
       T = Context.IntTy;
     }
 
+    DiagnoseDelayedFnAttrs(*this, FnAttrsFromPreviousChunk);
+
     // See if there are any attributes on this declarator chunk.
     if (const AttributeList *AL = DeclType.getAttrs())
-      ProcessTypeAttributeList(T, AL);
+      ProcessTypeAttributeList(*this, T, AL, FnAttrsFromPreviousChunk);
   }
 
   if (getLangOptions().CPlusPlus && T->isFunctionType()) {
@@ -1250,16 +1324,24 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
     }
   }
 
-  // If there were any type attributes applied to the decl itself (not the
-  // type, apply the type attribute to the type!)
-  if (const AttributeList *Attrs = D.getAttributes())
-    ProcessTypeAttributeList(T, Attrs);
+  // Process any function attributes we might have delayed from the
+  // declaration-specifiers.
+  ProcessDelayedFnAttrs(*this, T, FnAttrsFromDeclSpec);
 
-  if (DInfo) {
+  // If there were any type attributes applied to the decl itself, not
+  // the type, apply them to the result type.  But don't do this for
+  // block-literal expressions, which are parsed wierdly.
+  if (D.getContext() != Declarator::BlockLiteralContext)
+    if (const AttributeList *Attrs = D.getAttributes())
+      ProcessTypeAttributeList(*this, T, Attrs, FnAttrsFromPreviousChunk);
+
+  DiagnoseDelayedFnAttrs(*this, FnAttrsFromPreviousChunk);
+
+  if (TInfo) {
     if (D.isInvalidType())
-      *DInfo = 0;
+      *TInfo = 0;
     else
-      *DInfo = GetDeclaratorInfoForDeclarator(D, T);
+      *TInfo = GetTypeSourceInfoForDeclarator(D, T);
   }
 
   return T;
@@ -1325,19 +1407,48 @@ namespace {
       }
     }
     void VisitTemplateSpecializationTypeLoc(TemplateSpecializationTypeLoc TL) {
-      DeclaratorInfo *DInfo = 0;
-      Sema::GetTypeFromParser(DS.getTypeRep(), &DInfo);
+      TypeSourceInfo *TInfo = 0;
+      Sema::GetTypeFromParser(DS.getTypeRep(), &TInfo);
 
       // If we got no declarator info from previous Sema routines,
       // just fill with the typespec loc.
-      if (!DInfo) {
+      if (!TInfo) {
         TL.initialize(DS.getTypeSpecTypeLoc());
         return;
       }
 
       TemplateSpecializationTypeLoc OldTL =
-        cast<TemplateSpecializationTypeLoc>(DInfo->getTypeLoc());
+        cast<TemplateSpecializationTypeLoc>(TInfo->getTypeLoc());
       TL.copy(OldTL);
+    }
+    void VisitTypeOfExprTypeLoc(TypeOfExprTypeLoc TL) {
+      assert(DS.getTypeSpecType() == DeclSpec::TST_typeofExpr);
+      TL.setTypeofLoc(DS.getTypeSpecTypeLoc());
+      TL.setParensRange(DS.getTypeofParensRange());
+    }
+    void VisitTypeOfTypeLoc(TypeOfTypeLoc TL) {
+      assert(DS.getTypeSpecType() == DeclSpec::TST_typeofType);
+      TL.setTypeofLoc(DS.getTypeSpecTypeLoc());
+      TL.setParensRange(DS.getTypeofParensRange());
+      assert(DS.getTypeRep());
+      TypeSourceInfo *TInfo = 0;
+      Sema::GetTypeFromParser(DS.getTypeRep(), &TInfo);
+      TL.setUnderlyingTInfo(TInfo);
+    }
+    void VisitBuiltinTypeLoc(BuiltinTypeLoc TL) {
+      // By default, use the source location of the type specifier.
+      TL.setBuiltinLoc(DS.getTypeSpecTypeLoc());
+      if (TL.needsExtraLocalData()) {
+        // Set info for the written builtin specifiers.
+        TL.getWrittenBuiltinSpecs() = DS.getWrittenBuiltinSpecs();
+        // Try to have a meaningful source location.
+        if (TL.getWrittenSignSpec() != TSS_unspecified)
+          // Sign spec loc overrides the others (e.g., 'unsigned long').
+          TL.setBuiltinLoc(DS.getTypeSpecSignLoc());
+        else if (TL.getWrittenWidthSpec() != TSW_unspecified)
+          // Width spec loc overrides type spec loc (e.g., 'short int').
+          TL.setBuiltinLoc(DS.getTypeSpecWidthLoc());
+      }
     }
     void VisitTypeLoc(TypeLoc TL) {
       // FIXME: add other typespec types and change this to an assert.
@@ -1352,7 +1463,7 @@ namespace {
     DeclaratorLocFiller(const DeclaratorChunk &Chunk) : Chunk(Chunk) {}
 
     void VisitQualifiedTypeLoc(QualifiedTypeLoc TL) {
-      llvm::llvm_unreachable("qualified type locs not expected here!");
+      llvm_unreachable("qualified type locs not expected here!");
     }
 
     void VisitBlockPointerTypeLoc(BlockPointerTypeLoc TL) {
@@ -1407,18 +1518,18 @@ namespace {
     }
 
     void VisitTypeLoc(TypeLoc TL) {
-      llvm::llvm_unreachable("unsupported TypeLoc kind in declarator!");
+      llvm_unreachable("unsupported TypeLoc kind in declarator!");
     }
   };
 }
 
-/// \brief Create and instantiate a DeclaratorInfo with type source information.
+/// \brief Create and instantiate a TypeSourceInfo with type source information.
 ///
 /// \param T QualType referring to the type as written in source code.
-DeclaratorInfo *
-Sema::GetDeclaratorInfoForDeclarator(Declarator &D, QualType T) {
-  DeclaratorInfo *DInfo = Context.CreateDeclaratorInfo(T);
-  UnqualTypeLoc CurrTL = DInfo->getTypeLoc().getUnqualifiedLoc();
+TypeSourceInfo *
+Sema::GetTypeSourceInfoForDeclarator(Declarator &D, QualType T) {
+  TypeSourceInfo *TInfo = Context.CreateTypeSourceInfo(T);
+  UnqualTypeLoc CurrTL = TInfo->getTypeLoc().getUnqualifiedLoc();
 
   for (unsigned i = 0, e = D.getNumTypeObjects(); i != e; ++i) {
     DeclaratorLocFiller(D.getTypeObject(i)).Visit(CurrTL);
@@ -1427,16 +1538,16 @@ Sema::GetDeclaratorInfoForDeclarator(Declarator &D, QualType T) {
   
   TypeSpecLocFiller(D.getDeclSpec()).Visit(CurrTL);
 
-  return DInfo;
+  return TInfo;
 }
 
-/// \brief Create a LocInfoType to hold the given QualType and DeclaratorInfo.
-QualType Sema::CreateLocInfoType(QualType T, DeclaratorInfo *DInfo) {
+/// \brief Create a LocInfoType to hold the given QualType and TypeSourceInfo.
+QualType Sema::CreateLocInfoType(QualType T, TypeSourceInfo *TInfo) {
   // FIXME: LocInfoTypes are "transient", only needed for passing to/from Parser
   // and Sema during declaration parsing. Try deallocating/caching them when
   // it's appropriate, instead of allocating them and keeping them around.
   LocInfoType *LocT = (LocInfoType*)BumpAlloc.Allocate(sizeof(LocInfoType), 8);
-  new (LocT) LocInfoType(T, DInfo);
+  new (LocT) LocInfoType(T, TInfo);
   assert(LocT->getTypeClass() != T->getTypeClass() &&
          "LocInfoType's TypeClass conflicts with an existing Type class");
   return QualType(LocT, 0);
@@ -1447,34 +1558,6 @@ void LocInfoType::getAsStringInternal(std::string &Str,
   assert(false && "LocInfoType leaked into the type system; an opaque TypeTy*"
          " was used directly instead of getting the QualType through"
          " GetTypeFromParser");
-}
-
-/// ObjCGetTypeForMethodDefinition - Builds the type for a method definition
-/// declarator
-QualType Sema::ObjCGetTypeForMethodDefinition(DeclPtrTy D) {
-  ObjCMethodDecl *MDecl = cast<ObjCMethodDecl>(D.getAs<Decl>());
-  QualType T = MDecl->getResultType();
-  llvm::SmallVector<QualType, 16> ArgTys;
-
-  // Add the first two invisible argument types for self and _cmd.
-  if (MDecl->isInstanceMethod()) {
-    QualType selfTy = Context.getObjCInterfaceType(MDecl->getClassInterface());
-    selfTy = Context.getPointerType(selfTy);
-    ArgTys.push_back(selfTy);
-  } else
-    ArgTys.push_back(Context.getObjCIdType());
-  ArgTys.push_back(Context.getObjCSelType());
-
-  for (ObjCMethodDecl::param_iterator PI = MDecl->param_begin(),
-       E = MDecl->param_end(); PI != E; ++PI) {
-    QualType ArgTy = (*PI)->getType();
-    assert(!ArgTy.isNull() && "Couldn't parse type?");
-    ArgTy = adjustParameterType(ArgTy);
-    ArgTys.push_back(ArgTy);
-  }
-  T = Context.getFunctionType(T, &ArgTys[0], ArgTys.size(),
-                              MDecl->isVariadic(), 0);
-  return T;
 }
 
 /// UnwrapSimilarPointerTypes - If T1 and T2 are pointer types  that
@@ -1511,9 +1594,9 @@ Sema::TypeResult Sema::ActOnTypeName(Scope *S, Declarator &D) {
   // the parser.
   assert(D.getIdentifier() == 0 && "Type name should have no identifier!");
 
-  DeclaratorInfo *DInfo = 0;
+  TypeSourceInfo *TInfo = 0;
   TagDecl *OwnedTag = 0;
-  QualType T = GetTypeForDeclarator(D, S, &DInfo, &OwnedTag);
+  QualType T = GetTypeForDeclarator(D, S, &TInfo, &OwnedTag);
   if (D.isInvalidType())
     return true;
 
@@ -1530,8 +1613,8 @@ Sema::TypeResult Sema::ActOnTypeName(Scope *S, Declarator &D) {
         << Context.getTypeDeclType(OwnedTag);
   }
 
-  if (DInfo)
-    T = CreateLocInfoType(T, DInfo);
+  if (TInfo)
+    T = CreateLocInfoType(T, TInfo);
 
   return T.getAsOpaquePtr();
 }
@@ -1623,23 +1706,131 @@ static void HandleObjCGCTypeAttribute(QualType &Type,
   Type = S.Context.getObjCGCQualType(Type, GCAttr);
 }
 
-/// HandleNoReturnTypeAttribute - Process the noreturn attribute on the
-/// specified type.  The attribute contains 0 arguments.
-static void HandleNoReturnTypeAttribute(QualType &Type,
-                                        const AttributeList &Attr, Sema &S) {
-  if (Attr.getNumArgs() != 0)
-    return;
+/// Process an individual function attribute.  Returns true if the
+/// attribute does not make sense to apply to this type.
+bool ProcessFnAttr(Sema &S, QualType &Type, const AttributeList &Attr) {
+  if (Attr.getKind() == AttributeList::AT_noreturn) {
+    // Complain immediately if the arg count is wrong.
+    if (Attr.getNumArgs() != 0) {
+      S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 0;
+      return false;
+    }
 
-  // We only apply this to a pointer to function or a pointer to block.
-  if (!Type->isFunctionPointerType()
-      && !Type->isBlockPointerType()
-      && !Type->isFunctionType())
-    return;
+    // Delay if this is not a function or pointer to block.
+    if (!Type->isFunctionPointerType()
+        && !Type->isBlockPointerType()
+        && !Type->isFunctionType())
+      return true;
 
-  Type = S.Context.getNoReturnType(Type);
+    // Otherwise we can process right away.
+    Type = S.Context.getNoReturnType(Type);
+    return false;
+  }
+
+  // Otherwise, a calling convention.
+  if (Attr.getNumArgs() != 0) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 0;
+    return false;
+  }
+
+  QualType T = Type;
+  if (const PointerType *PT = Type->getAs<PointerType>())
+    T = PT->getPointeeType();
+  const FunctionType *Fn = T->getAs<FunctionType>();
+
+  // Delay if the type didn't work out to a function.
+  if (!Fn) return true;
+
+  // TODO: diagnose uses of these conventions on the wrong target.
+  CallingConv CC;
+  switch (Attr.getKind()) {
+  case AttributeList::AT_cdecl: CC = CC_C; break;
+  case AttributeList::AT_fastcall: CC = CC_X86FastCall; break;
+  case AttributeList::AT_stdcall: CC = CC_X86StdCall; break;
+  default: llvm_unreachable("unexpected attribute kind"); return false;
+  }
+
+  CallingConv CCOld = Fn->getCallConv();
+  if (CC == CCOld) return false;
+
+  if (CCOld != CC_Default) {
+    // Should we diagnose reapplications of the same convention?
+    S.Diag(Attr.getLoc(), diag::err_attributes_are_not_compatible)
+      << FunctionType::getNameForCallConv(CC)
+      << FunctionType::getNameForCallConv(CCOld);
+    return false;
+  }
+
+  // Diagnose the use of X86 fastcall on varargs or unprototyped functions.
+  if (CC == CC_X86FastCall) {
+    if (isa<FunctionNoProtoType>(Fn)) {
+      S.Diag(Attr.getLoc(), diag::err_cconv_knr)
+        << FunctionType::getNameForCallConv(CC);
+      return false;
+    }
+
+    const FunctionProtoType *FnP = cast<FunctionProtoType>(Fn);
+    if (FnP->isVariadic()) {
+      S.Diag(Attr.getLoc(), diag::err_cconv_varargs)
+        << FunctionType::getNameForCallConv(CC);
+      return false;
+    }
+  }
+
+  Type = S.Context.getCallConvType(Type, CC);
+  return false;
 }
 
-void Sema::ProcessTypeAttributeList(QualType &Result, const AttributeList *AL) {
+/// HandleVectorSizeAttribute - this attribute is only applicable to integral
+/// and float scalars, although arrays, pointers, and function return values are
+/// allowed in conjunction with this construct. Aggregates with this attribute
+/// are invalid, even if they are of the same size as a corresponding scalar.
+/// The raw attribute should contain precisely 1 argument, the vector size for
+/// the variable, measured in bytes. If curType and rawAttr are well formed,
+/// this routine will return a new vector type.
+static void HandleVectorSizeAttr(QualType& CurType, const AttributeList &Attr, Sema &S) {
+  // Check the attribute arugments.
+  if (Attr.getNumArgs() != 1) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 1;
+    return;
+  }
+  Expr *sizeExpr = static_cast<Expr *>(Attr.getArg(0));
+  llvm::APSInt vecSize(32);
+  if (!sizeExpr->isIntegerConstantExpr(vecSize, S.Context)) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_argument_not_int)
+      << "vector_size" << sizeExpr->getSourceRange();
+    return;
+  }
+  // the base type must be integer or float, and can't already be a vector.
+  if (CurType->isVectorType() ||
+      (!CurType->isIntegerType() && !CurType->isRealFloatingType())) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_invalid_vector_type) << CurType;
+    return;
+  }
+  unsigned typeSize = static_cast<unsigned>(S.Context.getTypeSize(CurType));
+  // vecSize is specified in bytes - convert to bits.
+  unsigned vectorSize = static_cast<unsigned>(vecSize.getZExtValue() * 8);
+
+  // the vector size needs to be an integral multiple of the type size.
+  if (vectorSize % typeSize) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_invalid_size)
+      << sizeExpr->getSourceRange();
+    return;
+  }
+  if (vectorSize == 0) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_zero_size)
+      << sizeExpr->getSourceRange();
+    return;
+  }
+
+  // Success! Instantiate the vector type, the number of elements is > 0, and
+  // not required to be a power of 2, unlike GCC.
+  CurType = S.Context.getVectorType(CurType, vectorSize/typeSize, false, false);
+}
+
+void ProcessTypeAttributeList(Sema &S, QualType &Result,
+                              const AttributeList *AL,
+                              DelayedAttributeSet &FnAttrs) {
   // Scan through and apply attributes to this type where it makes sense.  Some
   // attributes (such as __address_space__, __vector_size__, etc) apply to the
   // type, but others can be present in the type specifiers even though they
@@ -1649,14 +1840,23 @@ void Sema::ProcessTypeAttributeList(QualType &Result, const AttributeList *AL) {
     // the LeftOverAttrs list for rechaining.
     switch (AL->getKind()) {
     default: break;
+
     case AttributeList::AT_address_space:
-      HandleAddressSpaceTypeAttribute(Result, *AL, *this);
+      HandleAddressSpaceTypeAttribute(Result, *AL, S);
       break;
     case AttributeList::AT_objc_gc:
-      HandleObjCGCTypeAttribute(Result, *AL, *this);
+      HandleObjCGCTypeAttribute(Result, *AL, S);
       break;
+    case AttributeList::AT_vector_size:
+      HandleVectorSizeAttr(Result, *AL, S);
+      break;
+
     case AttributeList::AT_noreturn:
-      HandleNoReturnTypeAttribute(Result, *AL, *this);
+    case AttributeList::AT_cdecl:
+    case AttributeList::AT_fastcall:
+    case AttributeList::AT_stdcall:
+      if (ProcessFnAttr(S, Result, *AL))
+        FnAttrs.push_back(DelayedAttribute(AL, Result));
       break;
     }
   }
@@ -1768,14 +1968,41 @@ QualType Sema::getQualifiedNameType(const CXXScopeSpec &SS, QualType T) {
 }
 
 QualType Sema::BuildTypeofExprType(Expr *E) {
+  if (E->getType() == Context.OverloadTy) {
+    // C++ [temp.arg.explicit]p3 allows us to resolve a template-id to a 
+    // function template specialization wherever deduction cannot occur.
+    if (FunctionDecl *Specialization
+        = ResolveSingleFunctionTemplateSpecialization(E)) {
+      E = FixOverloadedFunctionReference(E, Specialization);
+      if (!E)
+        return QualType();      
+    } else {
+      Diag(E->getLocStart(),
+           diag::err_cannot_determine_declared_type_of_overloaded_function)
+        << false << E->getSourceRange();
+      return QualType();
+    }
+  }
+  
   return Context.getTypeOfExprType(E);
 }
 
 QualType Sema::BuildDecltypeType(Expr *E) {
   if (E->getType() == Context.OverloadTy) {
-    Diag(E->getLocStart(),
-         diag::err_cannot_determine_declared_type_of_overloaded_function);
-    return QualType();
+    // C++ [temp.arg.explicit]p3 allows us to resolve a template-id to a 
+    // function template specialization wherever deduction cannot occur.
+    if (FunctionDecl *Specialization
+          = ResolveSingleFunctionTemplateSpecialization(E)) {
+      E = FixOverloadedFunctionReference(E, Specialization);
+      if (!E)
+        return QualType();      
+    } else {
+      Diag(E->getLocStart(),
+           diag::err_cannot_determine_declared_type_of_overloaded_function)
+        << true << E->getSourceRange();
+      return QualType();
+    }
   }
+  
   return Context.getDecltypeType(E);
 }

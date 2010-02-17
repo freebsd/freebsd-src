@@ -68,7 +68,7 @@ public:
   typedef typename ValInfo::data_type_ref   data_type_ref;
   typedef ImutAVLTree<ValInfo>              TreeTy;
 
-private:
+protected:
   TreeTy* Root;
 
 public:
@@ -106,12 +106,9 @@ public:
     void operator=(const Factory& RHS); // DO NOT IMPLEMENT
   };
 
-  friend class Factory;
-
   bool contains(key_type_ref K) const {
     return Root ? Root->contains(K) : false;
   }
-
 
   bool operator==(ImmutableMap RHS) const {
     return Root && RHS.Root ? Root->isEqual(*RHS.Root) : Root == RHS.Root;
@@ -217,7 +214,7 @@ public:
   // Utility methods.
   //===--------------------------------------------------===//
 
-  inline unsigned getHeight() const { return Root ? Root->getHeight() : 0; }
+  unsigned getHeight() const { return Root ? Root->getHeight() : 0; }
 
   static inline void Profile(FoldingSetNodeID& ID, const ImmutableMap& M) {
     ID.AddPointer(M.Root);

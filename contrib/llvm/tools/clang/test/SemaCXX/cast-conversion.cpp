@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s -std=c++0x
+// RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++0x
 
 struct R {
   R(int);
@@ -30,7 +30,7 @@ X0<T> make_X0(const T &Val) {
 }
 
 void test_X0() {
-  const char array[2];
+  const char array[2] = { 'a', 'b' };
   make_X0(array);
 }
 

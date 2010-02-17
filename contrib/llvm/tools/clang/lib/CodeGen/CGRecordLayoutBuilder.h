@@ -23,8 +23,11 @@ namespace llvm {
 }
 
 namespace clang {
+  class ASTRecordLayout;
+  class CXXRecordDecl;
   class FieldDecl;
   class RecordDecl;
+  class QualType;
 
 namespace CodeGen {
   class CGRecordLayout;
@@ -36,9 +39,10 @@ class CGRecordLayoutBuilder {
   /// Packed - Whether the resulting LLVM struct will be packed or not.
   bool Packed;
 
-  /// ContainsMemberPointer - Whether one of the fields is a member pointer
-  /// or is a struct that contains a member pointer.
-  bool ContainsMemberPointer;
+  /// ContainsPointerToDataMember - Whether one of the fields in this record 
+  /// layout is a pointer to data member, or a struct that contains pointer to
+  /// data member.
+  bool ContainsPointerToDataMember;
 
   /// Alignment - Contains the alignment of the RecordDecl.
   unsigned Alignment;
@@ -76,7 +80,7 @@ class CGRecordLayoutBuilder {
   llvm::SmallVector<LLVMBitFieldInfo, 16> LLVMBitFields;
 
   CGRecordLayoutBuilder(CodeGenTypes &Types)
-    : Types(Types), Packed(false), ContainsMemberPointer(false)
+    : Types(Types), Packed(false), ContainsPointerToDataMember(false)
     , Alignment(0), AlignmentAsLLVMStruct(1)
     , BitsAvailableInLastField(0), NextFieldOffsetInBytes(0) { }
 
@@ -90,6 +94,9 @@ class CGRecordLayoutBuilder {
   /// Returns false if the operation failed because the struct is not packed.
   bool LayoutFields(const RecordDecl *D);
 
+  /// LayoutBases - layout the bases and vtable pointer of a record decl.
+  void LayoutBases(const CXXRecordDecl *RD, const ASTRecordLayout &Layout);
+  
   /// LayoutField - layout a single field. Returns false if the operation failed
   /// because the current struct is not packed.
   bool LayoutField(const FieldDecl *D, uint64_t FieldOffset);
@@ -118,8 +125,9 @@ class CGRecordLayoutBuilder {
   unsigned getTypeAlignment(const llvm::Type *Ty) const;
   uint64_t getTypeSizeInBytes(const llvm::Type *Ty) const;
 
-  /// CheckForMemberPointer - Check if the field contains a member pointer.
-  void CheckForMemberPointer(const FieldDecl *FD);
+  /// CheckForPointerToDataMember - Check if the given type contains a pointer 
+  /// to data member.
+  void CheckForPointerToDataMember(QualType T);
 
 public:
   /// ComputeLayout - Return the right record layout for a given record decl.

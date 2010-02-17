@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -fsyntax-only -verify
+// RUN: %clang_cc1 %s -fsyntax-only -verify
 
 void test() {
     char = 4;  // expected-error {{expected identifier}}
@@ -6,7 +6,7 @@ void test() {
 
 
 // PR2400
-typedef xtype (*x)(void* handle); // expected-error {{function cannot return array or function type}} expected-warning {{type specifier missing, defaults to 'int'}} expected-warning {{type specifier missing, defaults to 'int'}}
+typedef xtype (*x)(void* handle); // expected-error {{function cannot return function type}} expected-warning {{type specifier missing, defaults to 'int'}} expected-warning {{type specifier missing, defaults to 'int'}}
 
 typedef void ytype();
 

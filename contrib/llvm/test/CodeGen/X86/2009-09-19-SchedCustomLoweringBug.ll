@@ -1,4 +1,4 @@
-; RUN: llc < %s -mtriple=i386-apple-darwin10 | FileCheck %s
+; RUN: llc < %s -mtriple=i386-apple-darwin10 -post-RA-scheduler=true | FileCheck %s
 
 ; PR4958
 
@@ -10,6 +10,7 @@ entry:
 
 bb:                                               ; preds = %bb1, %entry
 ; CHECK:      addl $1
+; CHECK-NEXT: movl %e
 ; CHECK-NEXT: adcl $0
   %i.0 = phi i64 [ 0, %entry ], [ %0, %bb1 ]      ; <i64> [#uses=1]
   %0 = add nsw i64 %i.0, 1                        ; <i64> [#uses=2]

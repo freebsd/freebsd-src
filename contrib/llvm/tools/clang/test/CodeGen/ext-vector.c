@@ -1,4 +1,4 @@
-// RUN: clang-cc -emit-llvm %s -o %t
+// RUN: %clang_cc1 -emit-llvm-only %s
 
 typedef __attribute__(( ext_vector_type(4) )) float float4;
 typedef __attribute__(( ext_vector_type(2) )) float float2;
@@ -137,4 +137,26 @@ void test8(float4 *ap, float4 *bp, int c) {
   cmp = a >= b;
   cmp = a == b;
   cmp = a != b;
+}
+
+int test9(int4 V) {
+  return V.xy.x;
+}
+
+int test10(int4 V) {
+  return (V+V).x;
+}
+
+int4 test11a();
+int test11() {
+  return test11a().x;
+}
+
+int4 test12(int4 V) {
+  V.xyz = V.zyx;
+  return V;
+}
+
+int4 test13(int4 *V) {
+  return V->zyxw;
 }

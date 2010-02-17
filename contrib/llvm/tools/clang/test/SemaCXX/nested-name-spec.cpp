@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -std=c++98 -verify -fms-extensions=0 %s 
+// RUN: %clang_cc1 -fsyntax-only -std=c++98 -verify %s 
 namespace A {
   struct C {
     static int cx;
@@ -87,7 +87,6 @@ void f3() {
   N::x = 0; // expected-error {{expected a class or namespace}}
   { int A;           A::ax = 0; }
   { typedef int A;   A::ax = 0; } // expected-error{{expected a class or namespace}}
-  { int A(); A::ax = 0; }
   { typedef A::C A;  A::ax = 0; } // expected-error {{no member named 'ax'}}
   { typedef A::C A;  A::cx = 0; }
 }
@@ -179,7 +178,7 @@ bool (foo_S::value);
 
 
 namespace somens {
-  struct a { };
+  struct a { }; // expected-note{{candidate constructor (the implicit copy constructor)}}
 }
 
 template <typename T>
@@ -187,13 +186,46 @@ class foo {
 };
 
 
-// PR4452
-// FIXME: This error recovery sucks.
-foo<somens:a> a2;  // expected-error {{unexpected namespace name 'somens': expected expression}} \
-expected-error {{C++ requires a type specifier for all declarations}}
+// PR4452 / PR4451
+foo<somens:a> a2;  // expected-error {{unexpected ':' in nested name specifier}}
 
-somens::a a3 = a2;
+somens::a a3 = a2; // expected-error {{no viable conversion}}
 
+// typedefs and using declarations.
+namespace test1 {
+  namespace ns {
+    class Counter { static int count; };
+    typedef Counter counter;
+  }
+  using ns::counter;
 
+  class Test {
+    void test1() {
+      counter c;
+      c.count++;
+      counter::count++;
+    }
+  };
+}
 
+// We still need to do lookup in the lexical scope, even if we push a
+// non-lexical scope.
+namespace test2 {
+  namespace ns {
+    extern int *count_ptr;
+  }
+  namespace {
+    int count = 0;
+  }
 
+  int *ns::count_ptr = &count;
+}
+
+// PR6259, invalid case
+namespace test3 {
+  // FIXME: this should really only trigger once
+  class A; // expected-note 2 {{forward declaration}}
+  void foo(const char *path) {
+    A::execute(path); // expected-error 2 {{incomplete type 'class test3::A' named in nested name specifier}}
+  }
+}

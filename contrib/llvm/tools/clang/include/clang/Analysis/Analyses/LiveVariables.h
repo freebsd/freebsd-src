@@ -23,6 +23,7 @@ namespace clang {
 class Stmt;
 class DeclRefExpr;
 class SourceManager;
+class AnalysisContext;
 
 struct LiveVariables_ValueTypes {
 
@@ -39,8 +40,9 @@ struct LiveVariables_ValueTypes {
   struct AnalysisDataTy : public StmtDeclBitVector_Types::AnalysisDataTy {
     ObserverTy* Observer;
     ValTy AlwaysLive;
+    AnalysisContext *AC;
 
-    AnalysisDataTy() : Observer(NULL) {}
+    AnalysisDataTy() : Observer(NULL), AC(NULL) {}
   };
 
   //===-----------------------------------------------------===//
@@ -66,9 +68,9 @@ class LiveVariables : public DataflowValues<LiveVariables_ValueTypes,
 public:
   typedef LiveVariables_ValueTypes::ObserverTy ObserverTy;
 
-  LiveVariables(ASTContext& Ctx, CFG& cfg);
+  LiveVariables(AnalysisContext &AC);
 
-  /// IsLive - Return true if a variable is live at beginning of a
+  /// IsLive - Return true if a variable is live at the end of a
   /// specified block.
   bool isLive(const CFGBlock* B, const VarDecl* D) const;
 

@@ -1,5 +1,5 @@
-// RUN: clang-cc -analyze -verify -analyzer-store=basic -checker-cfref %s
-// RUN: clang-cc -analyze -verify -analyzer-store=region -checker-cfref %s
+// RUN: %clang_cc1 -analyze -verify -analyzer-store=basic -analyzer-check-objc-mem %s
+// RUN: %clang_cc1 -analyze -verify -analyzer-store=region -analyzer-check-objc-mem %s
 
 // Delta-Debugging reduced preamble.
 typedef signed char BOOL;
@@ -30,7 +30,7 @@ extern NSString * const NSUndoManagerCheckpointNotification;
 
 int main (int argc, const char * argv[]) {
   NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-  id someUnintializedPointer = [someUnintializedPointer objectAtIndex:0]; // expected-warning{{Receiver in message expression is an uninitialized value.}}
+  id someUnintializedPointer = [someUnintializedPointer objectAtIndex:0]; // expected-warning{{Receiver in message expression is a garbage value}}
   NSLog(@"%@", someUnintializedPointer);    
   [pool drain];
   return 0;

@@ -33,7 +33,7 @@ namespace llvm {
     MachineInstr *MI;
     unsigned LoopDepth;
     CopyRec(MachineInstr *mi, unsigned depth)
-      : MI(mi), LoopDepth(depth) {};
+      : MI(mi), LoopDepth(depth) {}
   };
 
   class SimpleRegisterCoalescing : public MachineFunctionPass,
@@ -85,7 +85,7 @@ namespace llvm {
     bool coalesceFunction(MachineFunction &mf, RegallocQuery &) {
       // This runs as an independent pass, so don't do anything.
       return false;
-    };
+    }
 
     /// print - Implement the dump method.
     virtual void print(raw_ostream &O, const Module* = 0) const;
@@ -243,10 +243,6 @@ namespace llvm {
     /// cycles Start and End or NULL if there are no uses.
     MachineOperand *lastRegisterUse(SlotIndex Start, SlotIndex End,
                                     unsigned Reg, SlotIndex &LastUseIdx) const;
-
-    /// CalculateSpillWeights - Compute spill weights for all virtual register
-    /// live intervals.
-    void CalculateSpillWeights();
 
     void printRegName(unsigned reg) const;
   };

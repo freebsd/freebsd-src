@@ -32,6 +32,9 @@ using namespace llvm;
 namespace llvm {
   template<>
   struct DOTGraphTraits<ScheduleDAG*> : public DefaultDOTGraphTraits {
+
+  DOTGraphTraits (bool isSimple=false) : DefaultDOTGraphTraits(isSimple) {}
+
     static std::string getGraphName(const ScheduleDAG *G) {
       return G->MF.getFunction()->getName();
     }
@@ -57,9 +60,7 @@ namespace llvm {
     }
     
 
-    static std::string getNodeLabel(const SUnit *Node,
-                                    const ScheduleDAG *Graph,
-                                    bool ShortNames);
+    std::string getNodeLabel(const SUnit *Node, const ScheduleDAG *Graph);
     static std::string getNodeAttributes(const SUnit *N,
                                          const ScheduleDAG *Graph) {
       return "shape=Mrecord";
@@ -73,8 +74,7 @@ namespace llvm {
 }
 
 std::string DOTGraphTraits<ScheduleDAG*>::getNodeLabel(const SUnit *SU,
-                                                       const ScheduleDAG *G,
-                                                       bool ShortNames) {
+                                                       const ScheduleDAG *G) {
   return G->getGraphNodeLabel(SU);
 }
 

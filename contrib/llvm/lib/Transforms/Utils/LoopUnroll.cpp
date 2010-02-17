@@ -29,7 +29,6 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
-#include <cstdio>
 
 using namespace llvm;
 
@@ -63,7 +62,7 @@ static BasicBlock *FoldBlockIntoPredecessor(BasicBlock *BB, LoopInfo* LI) {
   if (OnlyPred->getTerminator()->getNumSuccessors() != 1)
     return 0;
 
-  DEBUG(errs() << "Merging: " << *BB << "into: " << *OnlyPred);
+  DEBUG(dbgs() << "Merging: " << *BB << "into: " << *OnlyPred);
 
   // Resolve any PHI nodes at the start of the block.  They are all
   // guaranteed to have exactly one entry if they exist, unless there are
@@ -110,13 +109,13 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
 
   BasicBlock *Preheader = L->getLoopPreheader();
   if (!Preheader) {
-    DEBUG(errs() << "  Can't unroll; loop preheader-insertion failed.\n");
+    DEBUG(dbgs() << "  Can't unroll; loop preheader-insertion failed.\n");
     return false;
   }
 
   BasicBlock *LatchBlock = L->getLoopLatch();
   if (!LatchBlock) {
-    DEBUG(errs() << "  Can't unroll; loop exit-block-insertion failed.\n");
+    DEBUG(dbgs() << "  Can't unroll; loop exit-block-insertion failed.\n");
     return false;
   }
 
@@ -125,7 +124,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
   
   if (!BI || BI->isUnconditional()) {
     // The loop-rotate pass can be helpful to avoid this in many cases.
-    DEBUG(errs() <<
+    DEBUG(dbgs() <<
              "  Can't unroll; loop not terminated by a conditional branch.\n");
     return false;
   }
@@ -138,9 +137,9 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
     TripMultiple = L->getSmallConstantTripMultiple();
 
   if (TripCount != 0)
-    DEBUG(errs() << "  Trip Count = " << TripCount << "\n");
+    DEBUG(dbgs() << "  Trip Count = " << TripCount << "\n");
   if (TripMultiple != 1)
-    DEBUG(errs() << "  Trip Multiple = " << TripMultiple << "\n");
+    DEBUG(dbgs() << "  Trip Multiple = " << TripMultiple << "\n");
 
   // Effectively "DCE" unrolled iterations that are beyond the tripcount
   // and will never be executed.
@@ -166,17 +165,17 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
   }
 
   if (CompletelyUnroll) {
-    DEBUG(errs() << "COMPLETELY UNROLLING loop %" << Header->getName()
+    DEBUG(dbgs() << "COMPLETELY UNROLLING loop %" << Header->getName()
           << " with trip count " << TripCount << "!\n");
   } else {
-    DEBUG(errs() << "UNROLLING loop %" << Header->getName()
+    DEBUG(dbgs() << "UNROLLING loop %" << Header->getName()
           << " by " << Count);
     if (TripMultiple == 0 || BreakoutTrip != TripMultiple) {
-      DEBUG(errs() << " with a breakout at trip " << BreakoutTrip);
+      DEBUG(dbgs() << " with a breakout at trip " << BreakoutTrip);
     } else if (TripMultiple != 1) {
-      DEBUG(errs() << " with " << TripMultiple << " trips per branch");
+      DEBUG(dbgs() << " with " << TripMultiple << " trips per branch");
     }
-    DEBUG(errs() << "!\n");
+    DEBUG(dbgs() << "!\n");
   }
 
   std::vector<BasicBlock*> LoopBlocks = L->getBlocks();
@@ -194,7 +193,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
     OrigPHINode.push_back(PN);
     if (Instruction *I = 
                 dyn_cast<Instruction>(PN->getIncomingValueForBlock(LatchBlock)))
-      if (L->contains(I->getParent()))
+      if (L->contains(I))
         LastValueMap[I] = I;
   }
 
@@ -204,15 +203,12 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
   Latches.push_back(LatchBlock);
 
   for (unsigned It = 1; It != Count; ++It) {
-    char SuffixBuffer[100];
-    sprintf(SuffixBuffer, ".%d", It);
-    
     std::vector<BasicBlock*> NewBlocks;
     
     for (std::vector<BasicBlock*>::iterator BB = LoopBlocks.begin(),
          E = LoopBlocks.end(); BB != E; ++BB) {
       ValueMapTy ValueMap;
-      BasicBlock *New = CloneBasicBlock(*BB, ValueMap, SuffixBuffer);
+      BasicBlock *New = CloneBasicBlock(*BB, ValueMap, "." + Twine(It));
       Header->getParent()->getBasicBlockList().push_back(New);
 
       // Loop over all of the PHI nodes in the block, changing them to use the
@@ -222,7 +218,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
           PHINode *NewPHI = cast<PHINode>(ValueMap[OrigPHINode[i]]);
           Value *InVal = NewPHI->getIncomingValueForBlock(LatchBlock);
           if (Instruction *InValI = dyn_cast<Instruction>(InVal))
-            if (It > 1 && L->contains(InValI->getParent()))
+            if (It > 1 && L->contains(InValI))
               InVal = LastValueMap[InValI];
           ValueMap[OrigPHINode[i]] = InVal;
           New->getInstList().erase(NewPHI);
@@ -244,7 +240,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
              UI != UE;) {
           Instruction *UseInst = cast<Instruction>(*UI);
           ++UI;
-          if (isa<PHINode>(UseInst) && !L->contains(UseInst->getParent())) {
+          if (isa<PHINode>(UseInst) && !L->contains(UseInst)) {
             PHINode *phi = cast<PHINode>(UseInst);
             Value *Incoming = phi->getIncomingValueForBlock(*BB);
             phi->addIncoming(Incoming, New);
@@ -295,7 +291,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
       // If this value was defined in the loop, take the value defined by the
       // last iteration of the loop.
       if (Instruction *InValI = dyn_cast<Instruction>(InVal)) {
-        if (L->contains(InValI->getParent()))
+        if (L->contains(InValI))
           InVal = LastValueMap[InVal];
       }
       PN->addIncoming(InVal, LastIterationBB);

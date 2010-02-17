@@ -339,6 +339,22 @@ const RecordType *Type::getAsUnionType() const {
   return 0;
 }
 
+ObjCInterfaceType::ObjCInterfaceType(QualType Canonical,
+                                     ObjCInterfaceDecl *D,
+                                     ObjCProtocolDecl **Protos, unsigned NumP) :
+  Type(ObjCInterface, Canonical, /*Dependent=*/false),
+  Decl(D), NumProtocols(NumP)
+{
+  if (NumProtocols)
+    memcpy(reinterpret_cast<ObjCProtocolDecl**>(this + 1), Protos, 
+           NumProtocols * sizeof(*Protos));
+}
+
+void ObjCInterfaceType::Destroy(ASTContext& C) {
+  this->~ObjCInterfaceType();
+  C.Deallocate(this);
+}
+
 const ObjCInterfaceType *Type::getAsObjCQualifiedInterfaceType() const {
   // There is no sugar for ObjCInterfaceType's, just return the canonical
   // type pointer if it is the right class.  There is no typedef information to
@@ -351,6 +367,22 @@ const ObjCInterfaceType *Type::getAsObjCQualifiedInterfaceType() const {
 
 bool Type::isObjCQualifiedInterfaceType() const {
   return getAsObjCQualifiedInterfaceType() != 0;
+}
+
+ObjCObjectPointerType::ObjCObjectPointerType(QualType Canonical, QualType T,
+                                             ObjCProtocolDecl **Protos,
+                                             unsigned NumP) :
+  Type(ObjCObjectPointer, Canonical, /*Dependent=*/false),
+  PointeeType(T), NumProtocols(NumP)
+{
+  if (NumProtocols)
+    memcpy(reinterpret_cast<ObjCProtocolDecl **>(this + 1), Protos, 
+           NumProtocols * sizeof(*Protos));
+}
+
+void ObjCObjectPointerType::Destroy(ASTContext& C) {
+  this->~ObjCObjectPointerType();
+  C.Deallocate(this);
 }
 
 const ObjCObjectPointerType *Type::getAsObjCQualifiedIdType() const {
@@ -387,8 +419,6 @@ bool Type::isIntegerType() const {
     // FIXME: In C++, enum types are never integer types.
     if (TT->getDecl()->isEnum() && TT->getDecl()->isDefinition())
       return true;
-  if (isa<FixedWidthIntType>(CanonicalType))
-    return true;
   if (const VectorType *VT = dyn_cast<VectorType>(CanonicalType))
     return VT->getElementType()->isIntegerType();
   return false;
@@ -397,13 +427,11 @@ bool Type::isIntegerType() const {
 bool Type::isIntegralType() const {
   if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType))
     return BT->getKind() >= BuiltinType::Bool &&
-    BT->getKind() <= BuiltinType::LongLong;
+    BT->getKind() <= BuiltinType::Int128;
   if (const TagType *TT = dyn_cast<TagType>(CanonicalType))
     if (TT->getDecl()->isEnum() && TT->getDecl()->isDefinition())
       return true;  // Complete enum types are integral.
                     // FIXME: In C++, enum types are never integral.
-  if (isa<FixedWidthIntType>(CanonicalType))
-    return true;
   return false;
 }
 
@@ -434,6 +462,18 @@ bool Type::isWideCharType() const {
   return false;
 }
 
+/// \brief Determine whether this type is any of the built-in character
+/// types.
+bool Type::isAnyCharacterType() const {
+  if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType))
+    return (BT->getKind() >= BuiltinType::Char_U &&
+            BT->getKind() <= BuiltinType::Char32) ||
+           (BT->getKind() >= BuiltinType::Char_S &&
+            BT->getKind() <= BuiltinType::WChar);
+  
+  return false;
+}
+
 /// isSignedIntegerType - Return true if this is an integer type that is
 /// signed, according to C99 6.2.5p4 [char, signed char, short, int, long..],
 /// an enum decl which has a signed representation, or a vector of signed
@@ -441,15 +481,11 @@ bool Type::isWideCharType() const {
 bool Type::isSignedIntegerType() const {
   if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType)) {
     return BT->getKind() >= BuiltinType::Char_S &&
-           BT->getKind() <= BuiltinType::LongLong;
+           BT->getKind() <= BuiltinType::Int128;
   }
 
   if (const EnumType *ET = dyn_cast<EnumType>(CanonicalType))
     return ET->getDecl()->getIntegerType()->isSignedIntegerType();
-
-  if (const FixedWidthIntType *FWIT =
-          dyn_cast<FixedWidthIntType>(CanonicalType))
-    return FWIT->isSigned();
 
   if (const VectorType *VT = dyn_cast<VectorType>(CanonicalType))
     return VT->getElementType()->isSignedIntegerType();
@@ -468,10 +504,6 @@ bool Type::isUnsignedIntegerType() const {
 
   if (const EnumType *ET = dyn_cast<EnumType>(CanonicalType))
     return ET->getDecl()->getIntegerType()->isUnsignedIntegerType();
-
-  if (const FixedWidthIntType *FWIT =
-          dyn_cast<FixedWidthIntType>(CanonicalType))
-    return !FWIT->isSigned();
 
   if (const VectorType *VT = dyn_cast<VectorType>(CanonicalType))
     return VT->getElementType()->isUnsignedIntegerType();
@@ -503,8 +535,6 @@ bool Type::isRealType() const {
            BT->getKind() <= BuiltinType::LongDouble;
   if (const TagType *TT = dyn_cast<TagType>(CanonicalType))
     return TT->getDecl()->isEnum() && TT->getDecl()->isDefinition();
-  if (isa<FixedWidthIntType>(CanonicalType))
-    return true;
   if (const VectorType *VT = dyn_cast<VectorType>(CanonicalType))
     return VT->getElementType()->isRealType();
   return false;
@@ -518,8 +548,6 @@ bool Type::isArithmeticType() const {
     // GCC allows forward declaration of enum types (forbid by C99 6.7.2.3p2).
     // If a body isn't seen by the time we get here, return false.
     return ET->getDecl()->isDefinition();
-  if (isa<FixedWidthIntType>(CanonicalType))
-    return true;
   return isa<ComplexType>(CanonicalType) || isa<VectorType>(CanonicalType);
 }
 
@@ -533,8 +561,6 @@ bool Type::isScalarType() const {
       return true;
     return false;
   }
-  if (isa<FixedWidthIntType>(CanonicalType))
-    return true;
   return isa<PointerType>(CanonicalType) ||
          isa<BlockPointerType>(CanonicalType) ||
          isa<MemberPointerType>(CanonicalType) ||
@@ -639,6 +665,40 @@ bool Type::isPODType() const {
   }
 }
 
+bool Type::isLiteralType() const {
+  if (isIncompleteType())
+    return false;
+
+  // C++0x [basic.types]p10:
+  //   A type is a literal type if it is:
+  switch (CanonicalType->getTypeClass()) {
+    // We're whitelisting
+  default: return false;
+
+    //   -- a scalar type
+  case Builtin:
+  case Complex:
+  case Pointer:
+  case MemberPointer:
+  case Vector:
+  case ExtVector:
+  case ObjCObjectPointer:
+  case Enum:
+    return true;
+
+    //   -- a class type with ...
+  case Record:
+    // FIXME: Do the tests
+    return false;
+
+    //   -- an array of literal type
+    // Extension: variable arrays cannot be literal types, since they're
+    // runtime-sized.
+  case ConstantArray:
+    return cast<ArrayType>(CanonicalType)->getElementType()->isLiteralType();
+  }
+}
+
 bool Type::isPromotableIntegerType() const {
   if (const BuiltinType *BT = getAs<BuiltinType>())
     switch (BT->getKind()) {
@@ -653,6 +713,19 @@ bool Type::isPromotableIntegerType() const {
     default:
       return false;
     }
+
+  // Enumerated types are promotable to their compatible integer types
+  // (C99 6.3.1.1) a.k.a. its underlying type (C++ [conv.prom]p2).
+  if (const EnumType *ET = getAs<EnumType>()){
+    if (this->isDependentType() || ET->getDecl()->getPromotionType().isNull())
+      return false;
+    
+    const BuiltinType *BT
+      = ET->getDecl()->getPromotionType()->getAs<BuiltinType>();
+    return BT->getKind() == BuiltinType::Int
+           || BT->getKind() == BuiltinType::UInt;
+  }
+  
   return false;
 }
 
@@ -679,6 +752,7 @@ bool Type::isSpecifierType() const {
   case Typename:
   case ObjCInterface:
   case ObjCObjectPointer:
+  case Elaborated:
     return true;
   default:
     return false;
@@ -725,6 +799,18 @@ const char *BuiltinType::getName(const LangOptions &LO) const {
   case UndeducedAuto:     return "auto";
   case ObjCId:            return "id";
   case ObjCClass:         return "Class";
+  case ObjCSel:         return "SEL";
+  }
+}
+
+llvm::StringRef FunctionType::getNameForCallConv(CallingConv CC) {
+  switch (CC) {
+  case CC_Default: llvm_unreachable("no name for default cc");
+  default: return "";
+
+  case CC_C: return "cdecl";
+  case CC_X86StdCall: return "stdcall";
+  case CC_X86FastCall: return "fastcall";
   }
 }
 
@@ -733,7 +819,8 @@ void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID, QualType Result,
                                 unsigned NumArgs, bool isVariadic,
                                 unsigned TypeQuals, bool hasExceptionSpec,
                                 bool anyExceptionSpec, unsigned NumExceptions,
-                                exception_iterator Exs, bool NoReturn) {
+                                exception_iterator Exs, bool NoReturn,
+                                CallingConv CallConv) {
   ID.AddPointer(Result.getAsOpaquePtr());
   for (unsigned i = 0; i != NumArgs; ++i)
     ID.AddPointer(ArgTys[i].getAsOpaquePtr());
@@ -746,16 +833,19 @@ void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID, QualType Result,
       ID.AddPointer(Exs[i].getAsOpaquePtr());
   }
   ID.AddInteger(NoReturn);
+  ID.AddInteger(CallConv);
 }
 
 void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID) {
   Profile(ID, getResultType(), arg_type_begin(), NumArgs, isVariadic(),
           getTypeQuals(), hasExceptionSpec(), hasAnyExceptionSpec(),
-          getNumExceptions(), exception_begin(), getNoReturnAttr());
+          getNumExceptions(), exception_begin(), getNoReturnAttr(),
+          getCallConv());
 }
 
 void ObjCObjectPointerType::Profile(llvm::FoldingSetNodeID &ID,
-                                    QualType OIT, ObjCProtocolDecl **protocols,
+                                    QualType OIT, 
+                                    ObjCProtocolDecl * const *protocols,
                                     unsigned NumProtocols) {
   ID.AddPointer(OIT.getAsOpaquePtr());
   for (unsigned i = 0; i != NumProtocols; i++)
@@ -763,10 +853,7 @@ void ObjCObjectPointerType::Profile(llvm::FoldingSetNodeID &ID,
 }
 
 void ObjCObjectPointerType::Profile(llvm::FoldingSetNodeID &ID) {
-  if (getNumProtocols())
-    Profile(ID, getPointeeType(), &Protocols[0], getNumProtocols());
-  else
-    Profile(ID, getPointeeType(), 0, 0);
+  Profile(ID, getPointeeType(), qual_begin(), getNumProtocols());
 }
 
 /// LookThroughTypedefs - Return the ultimate type this typedef corresponds to
@@ -825,8 +912,9 @@ void DependentDecltypeType::Profile(llvm::FoldingSetNodeID &ID,
   E->Profile(ID, Context, true);
 }
 
-TagType::TagType(TypeClass TC, TagDecl *D, QualType can)
-  : Type(TC, can, D->isDependentType()), decl(D, 0) {}
+TagType::TagType(TypeClass TC, const TagDecl *D, QualType can)
+  : Type(TC, can, D->isDependentType()),
+    decl(const_cast<TagDecl*>(D), 0) {}
 
 bool RecordType::classof(const TagType *TT) {
   return isa<RecordDecl>(TT->getDecl());
@@ -863,6 +951,11 @@ static bool isDependent(const TemplateArgument &Arg) {
   }
 
   return false;
+}
+
+bool TemplateSpecializationType::
+anyDependentTemplateArguments(const TemplateArgumentListInfo &Args) {
+  return anyDependentTemplateArguments(Args.getArgumentArray(), Args.size());
 }
 
 bool TemplateSpecializationType::
@@ -949,7 +1042,7 @@ QualType QualifierCollector::apply(const Type *T) const {
 
 void ObjCInterfaceType::Profile(llvm::FoldingSetNodeID &ID,
                                          const ObjCInterfaceDecl *Decl,
-                                         ObjCProtocolDecl **protocols,
+                                         ObjCProtocolDecl * const *protocols,
                                          unsigned NumProtocols) {
   ID.AddPointer(Decl);
   for (unsigned i = 0; i != NumProtocols; i++)
@@ -957,8 +1050,81 @@ void ObjCInterfaceType::Profile(llvm::FoldingSetNodeID &ID,
 }
 
 void ObjCInterfaceType::Profile(llvm::FoldingSetNodeID &ID) {
-  if (getNumProtocols())
-    Profile(ID, getDecl(), &Protocols[0], getNumProtocols());
-  else
-    Profile(ID, getDecl(), 0, 0);
+  Profile(ID, getDecl(), qual_begin(), getNumProtocols());
+}
+
+Linkage Type::getLinkage() const { 
+  // C++ [basic.link]p8:
+  //   Names not covered by these rules have no linkage.
+  if (this != CanonicalType.getTypePtr())
+    return CanonicalType->getLinkage();
+
+  return NoLinkage; 
+}
+
+Linkage BuiltinType::getLinkage() const {
+  // C++ [basic.link]p8:
+  //   A type is said to have linkage if and only if:
+  //     - it is a fundamental type (3.9.1); or
+  return ExternalLinkage;
+}
+
+Linkage TagType::getLinkage() const {
+  // C++ [basic.link]p8:
+  //     - it is a class or enumeration type that is named (or has a name for
+  //       linkage purposes (7.1.3)) and the name has linkage; or
+  //     -  it is a specialization of a class template (14); or
+  return getDecl()->getLinkage();
+}
+
+// C++ [basic.link]p8:
+//   - it is a compound type (3.9.2) other than a class or enumeration, 
+//     compounded exclusively from types that have linkage; or
+Linkage ComplexType::getLinkage() const {
+  return ElementType->getLinkage();
+}
+
+Linkage PointerType::getLinkage() const {
+  return PointeeType->getLinkage();
+}
+
+Linkage BlockPointerType::getLinkage() const {
+  return PointeeType->getLinkage();
+}
+
+Linkage ReferenceType::getLinkage() const {
+  return PointeeType->getLinkage();
+}
+
+Linkage MemberPointerType::getLinkage() const {
+  return minLinkage(Class->getLinkage(), PointeeType->getLinkage());
+}
+
+Linkage ArrayType::getLinkage() const {
+  return ElementType->getLinkage();
+}
+
+Linkage VectorType::getLinkage() const {
+  return ElementType->getLinkage();
+}
+
+Linkage FunctionNoProtoType::getLinkage() const {
+  return getResultType()->getLinkage();
+}
+
+Linkage FunctionProtoType::getLinkage() const {
+  Linkage L = getResultType()->getLinkage();
+  for (arg_type_iterator A = arg_type_begin(), AEnd = arg_type_end();
+       A != AEnd; ++A)
+    L = minLinkage(L, (*A)->getLinkage());
+
+  return L;
+}
+
+Linkage ObjCInterfaceType::getLinkage() const {
+  return ExternalLinkage;
+}
+
+Linkage ObjCObjectPointerType::getLinkage() const {
+  return ExternalLinkage;
 }

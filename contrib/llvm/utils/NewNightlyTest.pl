@@ -317,9 +317,9 @@ sub RunLoggedCommand {
   } else {
       if ($VERBOSE) {
           print "$Title\n";
-          print "$Command 2>&1 > $Log\n";
+          print "$Command > $Log 2>&1\n";
       }
-      system "$Command 2>&1 > $Log";
+      system "$Command > $Log 2>&1";
   }
 }
 
@@ -336,9 +336,9 @@ sub RunAppendingLoggedCommand {
   } else {
       if ($VERBOSE) {
           print "$Title\n";
-          print "$Command 2>&1 > $Log\n";
+          print "$Command >> $Log 2>&1\n";
       }
-      system "$Command 2>&1 >> $Log";
+      system "$Command >> $Log 2>&1";
   }
 }
 
@@ -393,10 +393,8 @@ sub CopyFile { #filename, newfile
 # to our central server via the post method
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-sub SendData {
-    $host = $_[0];
-    $file = $_[1];
-    $variables = $_[2];
+sub WriteSentData {
+    $variables = $_[0];
 
     # Write out the "...-sentdata.txt" file.
 
@@ -406,6 +404,12 @@ sub SendData {
         $sentdata.= "$x  => $value\n";
     }
     WriteFile "$Prefix-sentdata.txt", $sentdata;
+}
+
+sub SendData {
+    $host = $_[0];
+    $file = $_[1];
+    $variables = $_[2];
 
     if (!($SUBMITAUX eq "")) {
         system "$SUBMITAUX \"$Prefix-sentdata.txt\"";
@@ -503,8 +507,8 @@ sub BuildLLVM {
   }
   RunAppendingLoggedCommand("(time -p $NICE $MAKECMD $MAKEOPTS)", $BuildLog, "BUILD");
 
-  if (`grep '^$MAKECMD\[^:]*: .*Error' $BuildLog | wc -l` + 0 ||
-      `grep '^$MAKECMD: \*\*\*.*Stop.' $BuildLog | wc -l` + 0) {
+  if (`grep -a '^$MAKECMD\[^:]*: .*Error' $BuildLog | wc -l` + 0 ||
+      `grep -a '^$MAKECMD: \*\*\*.*Stop.' $BuildLog | wc -l` + 0) {
     return 0;
   }
 
@@ -531,15 +535,15 @@ sub TestDirectory {
   $LLCBetaOpts = `$MAKECMD print-llcbeta-option`;
 
   my $ProgramsTable;
-  if (`grep '^$MAKECMD\[^:]: .*Error' $ProgramTestLog | wc -l` + 0) {
+  if (`grep -a '^$MAKECMD\[^:]: .*Error' $ProgramTestLog | wc -l` + 0) {
     $ProgramsTable="Error running test $SubDir\n";
     print "ERROR TESTING\n";
-  } elsif (`grep '^$MAKECMD\[^:]: .*No rule to make target' $ProgramTestLog | wc -l` + 0) {
+  } elsif (`grep -a '^$MAKECMD\[^:]: .*No rule to make target' $ProgramTestLog | wc -l` + 0) {
     $ProgramsTable="Makefile error running tests $SubDir!\n";
     print "ERROR TESTING\n";
   } else {
     # Create a list of the tests which were run...
-    system "egrep 'TEST-(PASS|FAIL)' < $ProgramTestLog ".
+    system "egrep -a 'TEST-(PASS|FAIL)' < $ProgramTestLog ".
            "| sort > $Prefix-$SubDir-Tests.txt";
   }
   $ProgramsTable = ReadFile "report.nightly.csv";
@@ -796,6 +800,9 @@ my %hash_of_data = (
   'o_file_sizes' => "",
   'a_file_sizes' => ""
 );
+
+# Write out the "...-sentdata.txt" file.
+WriteSentData \%hash_of_data;
 
 if ($SUBMIT || !($SUBMITAUX eq "")) {
   my $response = SendData $SUBMITSERVER,$SUBMITSCRIPT,\%hash_of_data;

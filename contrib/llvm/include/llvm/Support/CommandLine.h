@@ -986,7 +986,7 @@ template<class DataType>
 class list_storage<DataType, bool> : public std::vector<DataType> {
 public:
   template<class T>
-  void addValue(const T &V) { push_back(V); }
+  void addValue(const T &V) { std::vector<DataType>::push_back(V); }
 };
 
 
@@ -1011,7 +1011,7 @@ class list : public Option, public list_storage<DataType, Storage> {
       typename ParserClass::parser_data_type();
     if (Parser.parse(*this, ArgName, Arg, Val))
       return true;  // Parse Error!
-    addValue(Val);
+    list_storage<DataType, Storage>::addValue(Val);
     setPosition(pos);
     Positions.push_back(pos);
     return false;
@@ -1168,7 +1168,7 @@ class bits_storage<DataType, bool> {
 
   template<class T>
   static unsigned Bit(const T &V) {
-    unsigned BitPos = reinterpret_cast<unsigned>(V);
+    unsigned BitPos = (unsigned)V;
     assert(BitPos < sizeof(unsigned) * CHAR_BIT &&
           "enum exceeds width of bit vector!");
     return 1 << BitPos;

@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify -fms-extensions=0 %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 namespace N { 
   namespace M {

@@ -19,10 +19,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/DomPrinter.h"
-#include "llvm/Pass.h"
-#include "llvm/Function.h"
-#include "llvm/Analysis/CFGPrinter.h"
+
 #include "llvm/Analysis/Dominators.h"
+#include "llvm/Analysis/DOTGraphTraitsPass.h"
 #include "llvm/Analysis/PostDominators.h"
 
 using namespace llvm;
@@ -30,46 +29,55 @@ using namespace llvm;
 namespace llvm {
 template<>
 struct DOTGraphTraits<DomTreeNode*> : public DefaultDOTGraphTraits {
-  static std::string getNodeLabel(DomTreeNode *Node, DomTreeNode *Graph,
-                                  bool ShortNames) {
+
+  DOTGraphTraits (bool isSimple=false)
+    : DefaultDOTGraphTraits(isSimple) {}
+
+  std::string getNodeLabel(DomTreeNode *Node, DomTreeNode *Graph) {
 
     BasicBlock *BB = Node->getBlock();
 
     if (!BB)
       return "Post dominance root node";
 
-    return DOTGraphTraits<const Function*>::getNodeLabel(BB, BB->getParent(),
-                                                         ShortNames);
+
+    if (isSimple())
+      return DOTGraphTraits<const Function*>
+	       ::getSimpleNodeLabel(BB, BB->getParent());
+    else
+      return DOTGraphTraits<const Function*>
+	       ::getCompleteNodeLabel(BB, BB->getParent());
   }
 };
 
 template<>
 struct DOTGraphTraits<DominatorTree*> : public DOTGraphTraits<DomTreeNode*> {
 
+  DOTGraphTraits (bool isSimple=false)
+    : DOTGraphTraits<DomTreeNode*>(isSimple) {}
+
   static std::string getGraphName(DominatorTree *DT) {
     return "Dominator tree";
   }
 
-  static std::string getNodeLabel(DomTreeNode *Node,
-                                  DominatorTree *G,
-                                  bool ShortNames) {
-    return DOTGraphTraits<DomTreeNode*>::getNodeLabel(Node, G->getRootNode(),
-                                                      ShortNames);
+  std::string getNodeLabel(DomTreeNode *Node, DominatorTree *G) {
+    return DOTGraphTraits<DomTreeNode*>::getNodeLabel(Node, G->getRootNode());
   }
 };
 
 template<>
 struct DOTGraphTraits<PostDominatorTree*>
   : public DOTGraphTraits<DomTreeNode*> {
+
+  DOTGraphTraits (bool isSimple=false)
+    : DOTGraphTraits<DomTreeNode*>(isSimple) {}
+
   static std::string getGraphName(PostDominatorTree *DT) {
     return "Post dominator tree";
   }
-  static std::string getNodeLabel(DomTreeNode *Node,
-                                  PostDominatorTree *G,
-                                  bool ShortNames) {
-    return DOTGraphTraits<DomTreeNode*>::getNodeLabel(Node,
-                                                      G->getRootNode(),
-                                                      ShortNames);
+
+  std::string getNodeLabel(DomTreeNode *Node, PostDominatorTree *G ) {
+    return DOTGraphTraits<DomTreeNode*>::getNodeLabel(Node, G->getRootNode());
   }
 };
 }
@@ -85,9 +93,11 @@ struct GenericGraphViewer : public FunctionPass {
 
   virtual bool runOnFunction(Function &F) {
     Analysis *Graph;
-
+    std::string Title, GraphName;
     Graph = &getAnalysis<Analysis>();
-    ViewGraph(Graph, Name, OnlyBBS);
+    GraphName = DOTGraphTraits<Analysis*>::getGraphName(Graph);
+    Title = GraphName + " for '" + F.getNameStr() + "' function";
+    ViewGraph(Graph, Name, OnlyBBS, Title);
 
     return false;
   }
@@ -99,29 +109,29 @@ struct GenericGraphViewer : public FunctionPass {
 };
 
 struct DomViewer
-  : public GenericGraphViewer<DominatorTree, false> {
+  : public DOTGraphTraitsViewer<DominatorTree, false> {
   static char ID;
-  DomViewer() : GenericGraphViewer<DominatorTree, false>("dom", &ID){}
+  DomViewer() : DOTGraphTraitsViewer<DominatorTree, false>("dom", &ID){}
 };
 
 struct DomOnlyViewer
-  : public GenericGraphViewer<DominatorTree, true> {
+  : public DOTGraphTraitsViewer<DominatorTree, true> {
   static char ID;
-  DomOnlyViewer() : GenericGraphViewer<DominatorTree, true>("domonly", &ID){}
+  DomOnlyViewer() : DOTGraphTraitsViewer<DominatorTree, true>("domonly", &ID){}
 };
 
 struct PostDomViewer
-  : public GenericGraphViewer<PostDominatorTree, false> {
+  : public DOTGraphTraitsViewer<PostDominatorTree, false> {
   static char ID;
   PostDomViewer() :
-    GenericGraphViewer<PostDominatorTree, false>("postdom", &ID){}
+    DOTGraphTraitsViewer<PostDominatorTree, false>("postdom", &ID){}
 };
 
 struct PostDomOnlyViewer
-  : public GenericGraphViewer<PostDominatorTree, true> {
+  : public DOTGraphTraitsViewer<PostDominatorTree, true> {
   static char ID;
   PostDomOnlyViewer() :
-    GenericGraphViewer<PostDominatorTree, true>("postdomonly", &ID){}
+    DOTGraphTraitsViewer<PostDominatorTree, true>("postdomonly", &ID){}
 };
 } // end anonymous namespace
 
@@ -144,63 +154,30 @@ RegisterPass<PostDomOnlyViewer> D("view-postdom-only",
                                   "(with no function bodies)");
 
 namespace {
-template <class Analysis, bool OnlyBBS>
-struct GenericGraphPrinter : public FunctionPass {
-
-  std::string Name;
-
-  GenericGraphPrinter(std::string GraphName, const void *ID)
-    : FunctionPass(ID) {
-    Name = GraphName;
-  }
-
-  virtual bool runOnFunction(Function &F) {
-    Analysis *Graph;
-    std::string Filename = Name + "." + F.getNameStr() + ".dot";
-    errs() << "Writing '" << Filename << "'...";
-
-    std::string ErrorInfo;
-    raw_fd_ostream File(Filename.c_str(), ErrorInfo);
-    Graph = &getAnalysis<Analysis>();
-
-    if (ErrorInfo.empty())
-      WriteGraph(File, Graph, OnlyBBS);
-    else
-      errs() << "  error opening file for writing!";
-    errs() << "\n";
-    return false;
-  }
-
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.setPreservesAll();
-    AU.addRequired<Analysis>();
-  }
-};
-
 struct DomPrinter
-  : public GenericGraphPrinter<DominatorTree, false> {
+  : public DOTGraphTraitsPrinter<DominatorTree, false> {
   static char ID;
-  DomPrinter() : GenericGraphPrinter<DominatorTree, false>("dom", &ID) {}
+  DomPrinter() : DOTGraphTraitsPrinter<DominatorTree, false>("dom", &ID) {}
 };
 
 struct DomOnlyPrinter
-  : public GenericGraphPrinter<DominatorTree, true> {
+  : public DOTGraphTraitsPrinter<DominatorTree, true> {
   static char ID;
-  DomOnlyPrinter() : GenericGraphPrinter<DominatorTree, true>("domonly", &ID) {}
+  DomOnlyPrinter() : DOTGraphTraitsPrinter<DominatorTree, true>("domonly", &ID) {}
 };
 
 struct PostDomPrinter
-  : public GenericGraphPrinter<PostDominatorTree, false> {
+  : public DOTGraphTraitsPrinter<PostDominatorTree, false> {
   static char ID;
   PostDomPrinter() :
-    GenericGraphPrinter<PostDominatorTree, false>("postdom", &ID) {}
+    DOTGraphTraitsPrinter<PostDominatorTree, false>("postdom", &ID) {}
 };
 
 struct PostDomOnlyPrinter
-  : public GenericGraphPrinter<PostDominatorTree, true> {
+  : public DOTGraphTraitsPrinter<PostDominatorTree, true> {
   static char ID;
   PostDomOnlyPrinter() :
-    GenericGraphPrinter<PostDominatorTree, true>("postdomonly", &ID) {}
+    DOTGraphTraitsPrinter<PostDominatorTree, true>("postdomonly", &ID) {}
 };
 } // end anonymous namespace
 

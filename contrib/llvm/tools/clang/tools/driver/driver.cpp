@@ -60,7 +60,10 @@ void DriverDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
   OS << '\n';
 }
 
-llvm::sys::Path GetExecutablePath(const char *Argv0) {
+llvm::sys::Path GetExecutablePath(const char *Argv0, bool CanonicalPrefixes) {
+  if (!CanonicalPrefixes)
+    return llvm::sys::Path(Argv0);
+
   // This just needs to be some symbol in the binary; C++ doesn't
   // allow taking the address of ::main however.
   void *P = (void*) (intptr_t) GetExecutablePath;
@@ -178,29 +181,39 @@ void ApplyQAOverride(std::vector<const char*> &Args, const char *OverrideStr,
   }
 }
 
-extern int cc1_main(Diagnostic &Diags,
-                    const char **ArgBegin, const char **ArgEnd);
+extern int cc1_main(const char **ArgBegin, const char **ArgEnd,
+                    const char *Argv0, void *MainAddr);
 
 int main(int argc, const char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal();
   llvm::PrettyStackTraceProgram X(argc, argv);
 
-  llvm::sys::Path Path = GetExecutablePath(argv[0]);
+  // Dispatch to cc1_main if appropriate.
+  if (argc > 1 && llvm::StringRef(argv[1]) == "-cc1")
+    return cc1_main(argv+2, argv+argc, argv[0],
+                    (void*) (intptr_t) GetExecutablePath);
+
+  bool CanonicalPrefixes = true;
+  for (int i = 1; i < argc; ++i) {
+    if (llvm::StringRef(argv[i]) == "-no-canonical-prefixes") {
+      CanonicalPrefixes = false;
+      break;
+    }
+  }
+
+  llvm::sys::Path Path = GetExecutablePath(argv[0], CanonicalPrefixes);
+
   DriverDiagnosticPrinter DiagClient(Path.getBasename(), llvm::errs());
 
   Diagnostic Diags(&DiagClient);
-
-  // Dispatch to cc1_main if appropriate.
-  if (argc > 1 && llvm::StringRef(argv[1]) == "-cc1")
-    return cc1_main(Diags, argv+2, argv+argc);
 
 #ifdef CLANG_IS_PRODUCTION
   bool IsProduction = true;
 #else
   bool IsProduction = false;
 #endif
-  Driver TheDriver(Path.getBasename().c_str(), Path.getDirname().c_str(),
-                   llvm::sys::getHostTriple().c_str(),
+  Driver TheDriver(Path.getBasename(), Path.getDirname(),
+                   llvm::sys::getHostTriple(),
                    "a.out", IsProduction, Diags);
 
   // Check for ".*++" or ".*++-[^-]*" to determine if we are a C++
@@ -208,10 +221,14 @@ int main(int argc, const char **argv) {
   //
   // Note that we intentionally want to use argv[0] here, to support "clang++"
   // being a symlink.
-  std::string ProgName(llvm::sys::Path(argv[0]).getBasename());
+  //
+  // We use *argv instead of argv[0] to work around a bogus g++ warning.
+  std::string ProgName(llvm::sys::Path(*argv).getBasename());
   if (llvm::StringRef(ProgName).endswith("++") ||
-      llvm::StringRef(ProgName).rsplit('-').first.endswith("++"))
+      llvm::StringRef(ProgName).rsplit('-').first.endswith("++")) {
     TheDriver.CCCIsCXX = true;
+    TheDriver.CCCGenericGCCName = "g++";
+  }
 
   llvm::OwningPtr<Compilation> C;
 
@@ -261,4 +278,3 @@ int main(int argc, const char **argv) {
 
   return Res;
 }
-

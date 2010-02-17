@@ -217,7 +217,8 @@ ARMBaseRegisterInfo::getCalleeSavedRegClasses(const MachineFunction *MF) const {
     ? DarwinCalleeSavedRegClasses : CalleeSavedRegClasses;
 }
 
-BitVector ARMBaseRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
+BitVector ARMBaseRegisterInfo::
+getReservedRegs(const MachineFunction &MF) const {
   // FIXME: avoid re-calculating this everytime.
   BitVector Reserved(getNumRegs());
   Reserved.set(ARM::SP);
@@ -471,31 +472,24 @@ ARMBaseRegisterInfo::UpdateRegAllocHint(unsigned Reg, unsigned NewReg,
   }
 }
 
-static unsigned calculateMaxStackAlignment(const MachineFrameInfo *FFI) {
-  unsigned MaxAlign = 0;
-
-  for (int i = FFI->getObjectIndexBegin(),
-         e = FFI->getObjectIndexEnd(); i != e; ++i) {
-    if (FFI->isDeadObjectIndex(i))
-      continue;
-
-    unsigned Align = FFI->getObjectAlignment(i);
-    MaxAlign = std::max(MaxAlign, Align);
-  }
-
-  return MaxAlign;
-}
-
 /// hasFP - Return true if the specified function should have a dedicated frame
 /// pointer register.  This is true if the function has variable sized allocas
 /// or if frame pointer elimination is disabled.
 ///
 bool ARMBaseRegisterInfo::hasFP(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
-  return (NoFramePointerElim ||
+  return ((NoFramePointerElim && MFI->hasCalls())||
           needsStackRealignment(MF) ||
           MFI->hasVarSizedObjects() ||
           MFI->isFrameAddressTaken());
+}
+
+bool ARMBaseRegisterInfo::canRealignStack(const MachineFunction &MF) const {
+  const MachineFrameInfo *MFI = MF.getFrameInfo();
+  const ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
+  return (RealignStack &&
+          !AFI->isThumb1OnlyFunction() &&
+          !MFI->hasVarSizedObjects());
 }
 
 bool ARMBaseRegisterInfo::
@@ -509,7 +503,8 @@ needsStackRealignment(const MachineFunction &MF) const {
           !MFI->hasVarSizedObjects());
 }
 
-bool ARMBaseRegisterInfo::cannotEliminateFrame(const MachineFunction &MF) const {
+bool ARMBaseRegisterInfo::
+cannotEliminateFrame(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   if (NoFramePointerElim && MFI->hasCalls())
     return true;
@@ -538,7 +533,7 @@ static unsigned estimateStackSize(MachineFunction &MF, MachineFrameInfo *MFI) {
 
 /// estimateRSStackSizeLimit - Look at each instruction that references stack
 /// frames and return the stack size limit beyond which some of these
-/// instructions will require scratch register during their expansion later.
+/// instructions will require a scratch register during their expansion later.
 unsigned
 ARMBaseRegisterInfo::estimateRSStackSizeLimit(MachineFunction &MF) const {
   unsigned Limit = (1 << 12) - 1;
@@ -562,6 +557,9 @@ ARMBaseRegisterInfo::estimateRSStackSizeLimit(MachineFunction &MF) const {
           // When the stack offset is negative, we will end up using
           // the i8 instructions instead.
           return (1 << 8) - 1;
+
+        if (AddrMode == ARMII::AddrMode6)
+          return 0;
         break; // At most one FI per instruction
       }
     }
@@ -572,7 +570,7 @@ ARMBaseRegisterInfo::estimateRSStackSizeLimit(MachineFunction &MF) const {
 
 void
 ARMBaseRegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
-                                                          RegScavenger *RS) const {
+                                                       RegScavenger *RS) const {
   // This tells PEI to spill the FP as if it is any other callee-save register
   // to take advantage the eliminateFrameIndex machinery. This also ensures it
   // is spilled in the order specified by getCalleeSavedRegs() to make it easier
@@ -585,15 +583,12 @@ ARMBaseRegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
   SmallVector<unsigned, 4> UnspilledCS2GPRs;
   ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
 
-  MachineFrameInfo *MFI = MF.getFrameInfo();
-
-  // Calculate and set max stack object alignment early, so we can decide
-  // whether we will need stack realignment (and thus FP).
-  if (RealignStack) {
-    unsigned MaxAlign = std::max(MFI->getMaxAlignment(),
-                                 calculateMaxStackAlignment(MFI));
-    MFI->setMaxAlignment(MaxAlign);
-  }
+  // Spill R4 if Thumb2 function requires stack realignment - it will be used as
+  // scratch register.
+  // FIXME: It will be better just to find spare register here.
+  if (needsStackRealignment(MF) &&
+      AFI->isThumb2Function())
+    MF.getRegInfo().setPhysRegUsed(ARM::R4);
 
   // Don't spill FP if the frame can be eliminated. This is determined
   // by scanning the callee-save registers to see if any is used.
@@ -799,6 +794,55 @@ ARMBaseRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   return ARM::SP;
 }
 
+int
+ARMBaseRegisterInfo::getFrameIndexReference(const MachineFunction &MF, int FI,
+                                            unsigned &FrameReg) const {
+  const MachineFrameInfo *MFI = MF.getFrameInfo();
+  const ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
+  int Offset = MFI->getObjectOffset(FI) + MFI->getStackSize();
+  bool isFixed = MFI->isFixedObjectIndex(FI);
+
+  FrameReg = ARM::SP;
+  if (AFI->isGPRCalleeSavedArea1Frame(FI))
+    Offset -= AFI->getGPRCalleeSavedArea1Offset();
+  else if (AFI->isGPRCalleeSavedArea2Frame(FI))
+    Offset -= AFI->getGPRCalleeSavedArea2Offset();
+  else if (AFI->isDPRCalleeSavedAreaFrame(FI))
+    Offset -= AFI->getDPRCalleeSavedAreaOffset();
+  else if (needsStackRealignment(MF)) {
+    // When dynamically realigning the stack, use the frame pointer for
+    // parameters, and the stack pointer for locals.
+    assert (hasFP(MF) && "dynamic stack realignment without a FP!");
+    if (isFixed) {
+      FrameReg = getFrameRegister(MF);
+      Offset -= AFI->getFramePtrSpillOffset();
+    }
+  } else if (hasFP(MF) && AFI->hasStackFrame()) {
+    if (isFixed || MFI->hasVarSizedObjects()) {
+      // Use frame pointer to reference fixed objects unless this is a
+      // frameless function.
+      FrameReg = getFrameRegister(MF);
+      Offset -= AFI->getFramePtrSpillOffset();
+    } else if (AFI->isThumb2Function()) {
+      // In Thumb2 mode, the negative offset is very limited.
+      int FPOffset = Offset - AFI->getFramePtrSpillOffset();
+      if (FPOffset >= -255 && FPOffset < 0) {
+        FrameReg = getFrameRegister(MF);
+        Offset = FPOffset;
+      }
+    }
+  }
+  return Offset;
+}
+
+
+int
+ARMBaseRegisterInfo::getFrameIndexOffset(const MachineFunction &MF,
+                                         int FI) const {
+  unsigned FrameReg;
+  return getFrameIndexReference(MF, FI, FrameReg);
+}
+
 unsigned ARMBaseRegisterInfo::getEHExceptionRegister() const {
   llvm_unreachable("What is the exception register");
   return 0;
@@ -814,7 +858,7 @@ int ARMBaseRegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
 }
 
 unsigned ARMBaseRegisterInfo::getRegisterPairEven(unsigned Reg,
-                                               const MachineFunction &MF) const {
+                                              const MachineFunction &MF) const {
   switch (Reg) {
   default: break;
   // Return 0 if either register of the pair is a special register.
@@ -1115,45 +1159,13 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     assert(i < MI.getNumOperands() && "Instr doesn't have FrameIndex operand!");
   }
 
-  unsigned FrameReg = ARM::SP;
   int FrameIndex = MI.getOperand(i).getIndex();
   int Offset = MFI->getObjectOffset(FrameIndex) + MFI->getStackSize() + SPAdj;
-  bool isFixed = MFI->isFixedObjectIndex(FrameIndex);
+  unsigned FrameReg;
 
-  // When doing dynamic stack realignment, all of these need to change(?)
-  if (AFI->isGPRCalleeSavedArea1Frame(FrameIndex))
-    Offset -= AFI->getGPRCalleeSavedArea1Offset();
-  else if (AFI->isGPRCalleeSavedArea2Frame(FrameIndex))
-    Offset -= AFI->getGPRCalleeSavedArea2Offset();
-  else if (AFI->isDPRCalleeSavedAreaFrame(FrameIndex))
-    Offset -= AFI->getDPRCalleeSavedAreaOffset();
-  else if (needsStackRealignment(MF)) {
-    // When dynamically realigning the stack, use the frame pointer for
-    // parameters, and the stack pointer for locals.
-    assert (hasFP(MF) && "dynamic stack realignment without a FP!");
-    if (isFixed) {
-      FrameReg = getFrameRegister(MF);
-      Offset -= AFI->getFramePtrSpillOffset();
-      // When referencing from the frame pointer, stack pointer adjustments
-      // don't matter.
-      SPAdj = 0;
-    }
-  } else if (hasFP(MF) && AFI->hasStackFrame()) {
-    assert(SPAdj == 0 && "Unexpected stack offset!");
-    if (isFixed || MFI->hasVarSizedObjects()) {
-      // Use frame pointer to reference fixed objects unless this is a
-      // frameless function.
-      FrameReg = getFrameRegister(MF);
-      Offset -= AFI->getFramePtrSpillOffset();
-    } else if (AFI->isThumb2Function()) {
-      // In Thumb2 mode, the negative offset is very limited.
-      int FPOffset = Offset - AFI->getFramePtrSpillOffset();
-      if (FPOffset >= -255 && FPOffset < 0) {
-        FrameReg = getFrameRegister(MF);
-        Offset = FPOffset;
-      }
-    }
-  }
+  Offset = getFrameIndexReference(MF, FrameIndex, FrameReg);
+  if (FrameReg != ARM::SP)
+    SPAdj = 0;
 
   // Modify MI as necessary to handle as much of 'Offset' as possible
   bool Done = false;
@@ -1352,14 +1364,30 @@ emitPrologue(MachineFunction &MF) const {
 
   // If we need dynamic stack realignment, do it here.
   if (needsStackRealignment(MF)) {
-    unsigned Opc;
     unsigned MaxAlign = MFI->getMaxAlignment();
     assert (!AFI->isThumb1OnlyFunction());
-    Opc = AFI->isThumbFunction() ? ARM::t2BICri : ARM::BICri;
-
-    AddDefaultCC(AddDefaultPred(BuildMI(MBB, MBBI, dl, TII.get(Opc), ARM::SP)
+    if (!AFI->isThumbFunction()) {
+      // Emit bic sp, sp, MaxAlign
+      AddDefaultCC(AddDefaultPred(BuildMI(MBB, MBBI, dl,
+                                          TII.get(ARM::BICri), ARM::SP)
                                   .addReg(ARM::SP, RegState::Kill)
                                   .addImm(MaxAlign-1)));
+    } else {
+      // We cannot use sp as source/dest register here, thus we're emitting the
+      // following sequence:
+      // mov r4, sp
+      // bic r4, r4, MaxAlign
+      // mov sp, r4
+      // FIXME: It will be better just to find spare register here.
+      BuildMI(MBB, MBBI, dl, TII.get(ARM::tMOVgpr2tgpr), ARM::R4)
+        .addReg(ARM::SP, RegState::Kill);
+      AddDefaultCC(AddDefaultPred(BuildMI(MBB, MBBI, dl,
+                                          TII.get(ARM::t2BICri), ARM::R4)
+                                  .addReg(ARM::R4, RegState::Kill)
+                                  .addImm(MaxAlign-1)));
+      BuildMI(MBB, MBBI, dl, TII.get(ARM::tMOVtgpr2gpr), ARM::SP)
+        .addReg(ARM::R4, RegState::Kill);
+    }
   }
 }
 
@@ -1461,50 +1489,6 @@ emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const {
 
   if (VARegSaveSize)
     emitSPUpdate(isARM, MBB, MBBI, dl, TII, VARegSaveSize);
-}
-
-namespace {
-  struct MaximalStackAlignmentCalculator : public MachineFunctionPass {
-    static char ID;
-    MaximalStackAlignmentCalculator() : MachineFunctionPass(&ID) {}
-
-    virtual bool runOnMachineFunction(MachineFunction &MF) {
-      MachineFrameInfo *FFI = MF.getFrameInfo();
-      MachineRegisterInfo &RI = MF.getRegInfo();
-
-      // Calculate max stack alignment of all already allocated stack objects.
-      unsigned MaxAlign = calculateMaxStackAlignment(FFI);
-
-      // Be over-conservative: scan over all vreg defs and find, whether vector
-      // registers are used. If yes - there is probability, that vector register
-      // will be spilled and thus stack needs to be aligned properly.
-      for (unsigned RegNum = TargetRegisterInfo::FirstVirtualRegister;
-           RegNum < RI.getLastVirtReg(); ++RegNum)
-        MaxAlign = std::max(MaxAlign, RI.getRegClass(RegNum)->getAlignment());
-
-      if (FFI->getMaxAlignment() == MaxAlign)
-        return false;
-
-      FFI->setMaxAlignment(MaxAlign);
-      return true;
-    }
-
-    virtual const char *getPassName() const {
-      return "ARM Stack Required Alignment Auto-Detector";
-    }
-
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.setPreservesCFG();
-      MachineFunctionPass::getAnalysisUsage(AU);
-    }
-  };
-
-  char MaximalStackAlignmentCalculator::ID = 0;
-}
-
-FunctionPass*
-llvm::createARMMaxStackAlignmentCalculatorPass() {
-  return new MaximalStackAlignmentCalculator();
 }
 
 #include "ARMGenRegisterInfo.inc"

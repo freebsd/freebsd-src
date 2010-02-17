@@ -56,14 +56,24 @@ typedef const PassInfo* AnalysisID;
 /// Ordering of pass manager types is important here.
 enum PassManagerType {
   PMT_Unknown = 0,
-  PMT_ModulePassManager = 1, /// MPPassManager 
-  PMT_CallGraphPassManager,  /// CGPassManager
-  PMT_FunctionPassManager,   /// FPPassManager
-  PMT_LoopPassManager,       /// LPPassManager
-  PMT_BasicBlockPassManager, /// BBPassManager
+  PMT_ModulePassManager = 1, ///< MPPassManager 
+  PMT_CallGraphPassManager,  ///< CGPassManager
+  PMT_FunctionPassManager,   ///< FPPassManager
+  PMT_LoopPassManager,       ///< LPPassManager
+  PMT_BasicBlockPassManager, ///< BBPassManager
   PMT_Last
 };
 
+// Different types of passes.
+enum PassKind {
+  PT_BasicBlock,
+  PT_Loop,
+  PT_Function,
+  PT_CallGraphSCC,
+  PT_Module,
+  PT_PassManager
+};
+  
 //===----------------------------------------------------------------------===//
 /// Pass interface - Implemented by all 'passes'.  Subclass this if you are an
 /// interprocedural optimization or you do not fit into any of the more
@@ -72,19 +82,23 @@ enum PassManagerType {
 class Pass {
   AnalysisResolver *Resolver;  // Used to resolve analysis
   intptr_t PassID;
-
+  PassKind Kind;
   void operator=(const Pass&);  // DO NOT IMPLEMENT
   Pass(const Pass &);           // DO NOT IMPLEMENT
   
 public:
-  explicit Pass(intptr_t pid) : Resolver(0), PassID(pid) {
+  explicit Pass(PassKind K, intptr_t pid) : Resolver(0), PassID(pid), Kind(K) {
     assert(pid && "pid cannot be 0");
   }
-  explicit Pass(const void *pid) : Resolver(0), PassID((intptr_t)pid) {
+  explicit Pass(PassKind K, const void *pid)
+    : Resolver(0), PassID((intptr_t)pid), Kind(K) {
     assert(pid && "pid cannot be 0"); 
   }
   virtual ~Pass();
 
+  
+  PassKind getPassKind() const { return Kind; }
+  
   /// getPassName - Return a nice clean name for a pass.  This usually
   /// implemented in terms of the name that is registered by one of the
   /// Registration templates, but can be overloaded directly.
@@ -111,16 +125,14 @@ public:
   virtual void assignPassManager(PMStack &, 
                                  PassManagerType = PMT_Unknown) {}
   /// Check if available pass managers are suitable for this pass or not.
-  virtual void preparePassManager(PMStack &) {}
+  virtual void preparePassManager(PMStack &);
   
   ///  Return what kind of Pass Manager can manage this pass.
-  virtual PassManagerType getPotentialPassManagerType() const {
-    return PMT_Unknown; 
-  }
+  virtual PassManagerType getPotentialPassManagerType() const;
 
   // Access AnalysisResolver
   inline void setResolver(AnalysisResolver *AR) { 
-    assert (!Resolver && "Resolver is already set");
+    assert(!Resolver && "Resolver is already set");
     Resolver = AR; 
   }
   inline AnalysisResolver *getResolver() { 
@@ -132,9 +144,7 @@ public:
   /// particular analysis result to this function, it can then use the
   /// getAnalysis<AnalysisType>() function, below.
   ///
-  virtual void getAnalysisUsage(AnalysisUsage &) const {
-    // By default, no analysis results are used, all are invalidated.
-  }
+  virtual void getAnalysisUsage(AnalysisUsage &) const;
 
   /// releaseMemory() - This member can be implemented by a pass if it wants to
   /// be able to release its memory when it is no longer needed.  The default
@@ -147,11 +157,21 @@ public:
   /// Optionally implement this function to release pass memory when it is no
   /// longer used.
   ///
-  virtual void releaseMemory() {}
+  virtual void releaseMemory();
 
+  /// getAdjustedAnalysisPointer - This method is used when a pass implements
+  /// an analysis interface through multiple inheritance.  If needed, it should
+  /// override this to adjust the this pointer as needed for the specified pass
+  /// info.
+  virtual void *getAdjustedAnalysisPointer(const PassInfo *PI) {
+    return this;
+  }
+  virtual ImmutablePass *getAsImmutablePass() { return 0; }
+  virtual PMDataManager *getAsPMDataManager() { return 0; }
+  
   /// verifyAnalysis() - This member can be implemented by a analysis pass to
   /// check state of analysis information. 
-  virtual void verifyAnalysis() const {}
+  virtual void verifyAnalysis() const;
 
   // dumpPassStructure - Implement the -debug-passes=PassStructure option
   virtual void dumpPassStructure(unsigned Offset = 0);
@@ -221,12 +241,10 @@ public:
                                  PassManagerType T = PMT_ModulePassManager);
 
   ///  Return what kind of Pass Manager can manage this pass.
-  virtual PassManagerType getPotentialPassManagerType() const {
-    return PMT_ModulePassManager;
-  }
+  virtual PassManagerType getPotentialPassManagerType() const;
 
-  explicit ModulePass(intptr_t pid) : Pass(pid) {}
-  explicit ModulePass(const void *pid) : Pass(pid) {}
+  explicit ModulePass(intptr_t pid) : Pass(PT_Module, pid) {}
+  explicit ModulePass(const void *pid) : Pass(PT_Module, pid) {}
   // Force out-of-line virtual method.
   virtual ~ModulePass();
 };
@@ -245,7 +263,9 @@ public:
   /// and if it does, the overloaded version of initializePass may get access to
   /// these passes with getAnalysis<>.
   ///
-  virtual void initializePass() {}
+  virtual void initializePass();
+
+  virtual ImmutablePass *getAsImmutablePass() { return this; }
 
   /// ImmutablePasses are never run.
   ///
@@ -270,13 +290,13 @@ public:
 ///
 class FunctionPass : public Pass {
 public:
-  explicit FunctionPass(intptr_t pid) : Pass(pid) {}
-  explicit FunctionPass(const void *pid) : Pass(pid) {}
+  explicit FunctionPass(intptr_t pid) : Pass(PT_Function, pid) {}
+  explicit FunctionPass(const void *pid) : Pass(PT_Function, pid) {}
 
   /// doInitialization - Virtual method overridden by subclasses to do
   /// any necessary per-module initialization.
   ///
-  virtual bool doInitialization(Module &) { return false; }
+  virtual bool doInitialization(Module &);
   
   /// runOnFunction - Virtual method overriden by subclasses to do the
   /// per-function processing of the pass.
@@ -286,7 +306,7 @@ public:
   /// doFinalization - Virtual method overriden by subclasses to do any post
   /// processing needed after all passes have run.
   ///
-  virtual bool doFinalization(Module &) { return false; }
+  virtual bool doFinalization(Module &);
 
   /// runOnModule - On a module, we run this pass by initializing,
   /// ronOnFunction'ing once for every function in the module, then by
@@ -303,9 +323,7 @@ public:
                                  PassManagerType T = PMT_FunctionPassManager);
 
   ///  Return what kind of Pass Manager can manage this pass.
-  virtual PassManagerType getPotentialPassManagerType() const {
-    return PMT_FunctionPassManager;
-  }
+  virtual PassManagerType getPotentialPassManagerType() const;
 };
 
 
@@ -322,18 +340,18 @@ public:
 ///
 class BasicBlockPass : public Pass {
 public:
-  explicit BasicBlockPass(intptr_t pid) : Pass(pid) {}
-  explicit BasicBlockPass(const void *pid) : Pass(pid) {}
+  explicit BasicBlockPass(intptr_t pid) : Pass(PT_BasicBlock, pid) {}
+  explicit BasicBlockPass(const void *pid) : Pass(PT_BasicBlock, pid) {}
 
   /// doInitialization - Virtual method overridden by subclasses to do
   /// any necessary per-module initialization.
   ///
-  virtual bool doInitialization(Module &) { return false; }
+  virtual bool doInitialization(Module &);
 
   /// doInitialization - Virtual method overridden by BasicBlockPass subclasses
   /// to do any necessary per-function initialization.
   ///
-  virtual bool doInitialization(Function &) { return false; }
+  virtual bool doInitialization(Function &);
 
   /// runOnBasicBlock - Virtual method overriden by subclasses to do the
   /// per-basicblock processing of the pass.
@@ -343,12 +361,12 @@ public:
   /// doFinalization - Virtual method overriden by BasicBlockPass subclasses to
   /// do any post processing needed after all passes have run.
   ///
-  virtual bool doFinalization(Function &) { return false; }
+  virtual bool doFinalization(Function &);
 
   /// doFinalization - Virtual method overriden by subclasses to do any post
   /// processing needed after all passes have run.
   ///
-  virtual bool doFinalization(Module &) { return false; }
+  virtual bool doFinalization(Module &);
 
 
   // To run this pass on a function, we simply call runOnBasicBlock once for
@@ -360,9 +378,7 @@ public:
                                  PassManagerType T = PMT_BasicBlockPassManager);
 
   ///  Return what kind of Pass Manager can manage this pass.
-  virtual PassManagerType getPotentialPassManagerType() const {
-    return PMT_BasicBlockPassManager; 
-  }
+  virtual PassManagerType getPotentialPassManagerType() const;
 };
 
 /// If the user specifies the -time-passes argument on an LLVM tool command line

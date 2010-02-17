@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -verify -fsyntax-only
+// RUN: %clang_cc1 %s -verify -fsyntax-only
 
 void a() {
 __complex__ int arr;
@@ -48,4 +48,8 @@ void test3(_Complex int *x) {
 
 void test4(_Complex float *x) {
   *x = ~*x;
+}
+
+void test5(_Complex int *x) {
+  (*x)++;
 }

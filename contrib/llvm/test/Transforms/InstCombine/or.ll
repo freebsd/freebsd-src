@@ -1,6 +1,7 @@
 ; This test makes sure that these instructions are properly eliminated.
-;
 ; RUN: opt < %s -instcombine -S | FileCheck %s
+
+target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f32:32:32-f64:32:64-v64:64:64-v128:128:128-a0:0:64-f80:128:128"
 
 define i32 @test1(i32 %A) {
         %B = or i32 %A, 0
@@ -253,3 +254,99 @@ define i1 @test25(i32 %A, i32 %B) {
 ; CHECK-NEXT:  %F = and i1 
 ; CHECK-NEXT:  ret i1 %F
 }
+
+; PR5634
+define i1 @test26(i32 %A, i32 %B) {
+        %C1 = icmp eq i32 %A, 0
+        %C2 = icmp eq i32 %B, 0
+        ; (A == 0) & (A == 0)   -->   (A|B) == 0
+        %D = and i1 %C1, %C2
+        ret i1 %D
+; CHECK: @test26
+; CHECK: or i32 %A, %B
+; CHECK: icmp eq i32 {{.*}}, 0
+; CHECK: ret i1 
+}
+
+define i1 @test27(i32* %A, i32* %B) {
+  %C1 = ptrtoint i32* %A to i32
+  %C2 = ptrtoint i32* %B to i32
+  %D = or i32 %C1, %C2
+  %E = icmp eq i32 %D, 0
+  ret i1 %E
+; CHECK: @test27
+; CHECK: icmp eq i32* %A, null
+; CHECK: icmp eq i32* %B, null
+; CHECK: and i1
+; CHECK: ret i1
+}
+
+; PR5634
+define i1 @test28(i32 %A, i32 %B) {
+        %C1 = icmp ne i32 %A, 0
+        %C2 = icmp ne i32 %B, 0
+        ; (A != 0) | (A != 0)   -->   (A|B) != 0
+        %D = or i1 %C1, %C2
+        ret i1 %D
+; CHECK: @test28
+; CHECK: or i32 %A, %B
+; CHECK: icmp ne i32 {{.*}}, 0
+; CHECK: ret i1 
+}
+
+define i1 @test29(i32* %A, i32* %B) {
+  %C1 = ptrtoint i32* %A to i32
+  %C2 = ptrtoint i32* %B to i32
+  %D = or i32 %C1, %C2
+  %E = icmp ne i32 %D, 0
+  ret i1 %E
+; CHECK: @test29
+; CHECK: icmp ne i32* %A, null
+; CHECK: icmp ne i32* %B, null
+; CHECK: or i1
+; CHECK: ret i1
+}
+
+; PR4216
+define i32 @test30(i32 %A) {
+entry:
+  %B = or i32 %A, 32962
+  %C = and i32 %A, -65536
+  %D = and i32 %B, 40186
+  %E = or i32 %D, %C
+  ret i32 %E
+; CHECK: @test30
+; CHECK: %B = or i32 %A, 32962
+; CHECK: %E = and i32 %B, -25350
+; CHECK: ret i32 %E
+}
+
+; PR4216
+define i64 @test31(i64 %A) nounwind readnone ssp noredzone {
+  %B = or i64 %A, 194
+  %D = and i64 %B, 250
+
+  %C = or i64 %A, 32768
+  %E = and i64 %C, 4294941696
+
+  %F = or i64 %D, %E
+  ret i64 %F
+; CHECK: @test31
+; CHECK-NEXT: %bitfield = or i64 %A, 32962
+; CHECK-NEXT: %F = and i64 %bitfield, 4294941946
+; CHECK-NEXT: ret i64 %F
+}
+
+define <4 x i32> @test32(<4 x i1> %and.i1352, <4 x i32> %vecinit6.i176, <4 x i32> %vecinit6.i191) {
+  %and.i135 = sext <4 x i1> %and.i1352 to <4 x i32> ; <<4 x i32>> [#uses=2]
+  %and.i129 = and <4 x i32> %vecinit6.i176, %and.i135 ; <<4 x i32>> [#uses=1]
+  %neg.i = xor <4 x i32> %and.i135, <i32 -1, i32 -1, i32 -1, i32 -1> ; <<4 x i32>> [#uses=1]
+  %and.i = and <4 x i32> %vecinit6.i191, %neg.i   ; <<4 x i32>> [#uses=1]
+  %or.i = or <4 x i32> %and.i, %and.i129          ; <<4 x i32>> [#uses=1]
+  ret <4 x i32> %or.i
+; Don't turn this into a vector select until codegen matures to handle them
+; better.
+; CHECK: @test32
+; CHECK: or <4 x i32> %and.i, %and.i129
+}
+

@@ -12,7 +12,6 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Instructions.h"
 #include "llvm/Module.h"
-#include "llvm/ModuleProvider.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/CodeGen/MachineCodeInfo.h"
 #include "llvm/ExecutionEngine/JIT.h"
@@ -22,6 +21,8 @@
 #include <vector>
 
 using namespace llvm;
+
+int dummy;
 
 namespace {
 

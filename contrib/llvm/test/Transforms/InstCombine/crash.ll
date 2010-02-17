@@ -1,5 +1,5 @@
 ; RUN: opt < %s -instcombine -S
-target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f32:32:32-f64:32:64-v64:64:64-v128:128:128-a0:0:64-f80:128:128"
+target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f32:32:32-f64:32:64-v64:64:64-v128:128:128-a0:0:64-f80:128:128:n8:16:32"
 target triple = "i386-apple-darwin10.0"
 
 define i32 @test0(i8 %tmp2) ssp {
@@ -124,4 +124,116 @@ l8:
 l10:
   %v11 = select i1 %v5_, i64 0, i64 %v6
   ret i64 %v11
+}
+
+; PR5471
+define arm_apcscc i32 @test5a() {
+       ret i32 0
+}
+
+define arm_apcscc void @test5() {
+       store i1 true, i1* undef
+       %1 = invoke i32 @test5a() to label %exit unwind label %exit
+exit:
+       ret void
+}
+
+
+; PR5673
+
+@test6g = external global i32*  
+
+define arm_aapcs_vfpcc i32 @test6(i32 %argc, i8** %argv) nounwind {
+entry:
+  store i32* getelementptr (i32* bitcast (i32 (i32, i8**)* @test6 to i32*), i32 -2048), i32** @test6g, align 4
+  unreachable
+}
+
+
+; PR5827
+
+%class.RuleBasedBreakIterator = type { i64 ()* }
+%class.UStack = type { i8** }
+
+define i32 @_ZN22RuleBasedBreakIterator15checkDictionaryEi(%class.RuleBasedBreakIterator* %this, i32 %x) align 2 {
+entry:
+  %breaks = alloca %class.UStack, align 4         ; <%class.UStack*> [#uses=3]
+  call void @_ZN6UStackC1Ei(%class.UStack* %breaks, i32 0)
+  %tobool = icmp ne i32 %x, 0                     ; <i1> [#uses=1]
+  br i1 %tobool, label %cond.end, label %cond.false
+
+terminate.handler:                                ; preds = %ehcleanup
+  %exc = call i8* @llvm.eh.exception()            ; <i8*> [#uses=1]
+  %0 = call i32 (i8*, i8*, ...)* @llvm.eh.selector(i8* %exc, i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*), i32 1) ; <i32> [#uses=0]
+  call void @_ZSt9terminatev() noreturn nounwind
+  unreachable
+
+ehcleanup:                                        ; preds = %cond.false
+  %exc1 = call i8* @llvm.eh.exception()           ; <i8*> [#uses=2]
+  %1 = call i32 (i8*, i8*, ...)* @llvm.eh.selector(i8* %exc1, i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*), i8* null) ; <i32> [#uses=0]
+  invoke void @_ZN6UStackD1Ev(%class.UStack* %breaks)
+          to label %cont unwind label %terminate.handler
+
+cont:                                             ; preds = %ehcleanup
+  call void @_Unwind_Resume_or_Rethrow(i8* %exc1)
+  unreachable
+
+cond.false:                                       ; preds = %entry
+  %tmp4 = getelementptr inbounds %class.RuleBasedBreakIterator* %this, i32 0, i32 0 ; <i64 ()**> [#uses=1]
+  %tmp5 = load i64 ()** %tmp4                     ; <i64 ()*> [#uses=1]
+  %call = invoke i64 %tmp5()
+          to label %cond.end unwind label %ehcleanup ; <i64> [#uses=1]
+
+cond.end:                                         ; preds = %cond.false, %entry
+  %cond = phi i64 [ 0, %entry ], [ %call, %cond.false ] ; <i64> [#uses=1]
+  %conv = trunc i64 %cond to i32                  ; <i32> [#uses=1]
+  call void @_ZN6UStackD1Ev(%class.UStack* %breaks)
+  ret i32 %conv
+}
+
+declare void @_ZN6UStackC1Ei(%class.UStack*, i32)
+
+declare void @_ZN6UStackD1Ev(%class.UStack*)
+
+declare i32 @__gxx_personality_v0(...)
+
+declare i8* @llvm.eh.exception() nounwind readonly
+
+declare i32 @llvm.eh.selector(i8*, i8*, ...) nounwind
+
+declare void @_ZSt9terminatev()
+
+declare void @_Unwind_Resume_or_Rethrow(i8*)
+
+
+
+; rdar://7590304
+define i8* @test10(i8* %self, i8* %tmp3) {
+entry:
+  store i1 true, i1* undef
+  store i1 true, i1* undef
+  invoke arm_apcscc void @test10a()
+          to label %invoke.cont unwind label %try.handler ; <i8*> [#uses=0]
+
+invoke.cont:                                      ; preds = %entry
+  unreachable
+
+try.handler:                                      ; preds = %entry
+  ret i8* %self
+}
+
+define void @test10a() {
+  ret void
+}
+
+
+; PR6193
+define i32 @test11(i32 %aMaskWidth, i8 %aStride) nounwind {
+entry:
+  %conv41 = sext i8 %aStride to i32
+  %neg = xor i32 %conv41, -1
+  %and42 = and i32 %aMaskWidth, %neg
+  %and47 = and i32 130, %conv41
+  %or = or i32 %and42, %and47
+  ret i32 %or
 }

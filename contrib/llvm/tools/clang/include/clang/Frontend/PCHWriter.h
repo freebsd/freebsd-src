@@ -44,7 +44,6 @@ class TargetInfo;
 /// DenseMap.  This uses the standard pointer hash function.
 struct UnsafeQualTypeDenseMapInfo {
   static inline bool isEqual(QualType A, QualType B) { return A == B; }
-  static inline bool isPod() { return true; }
   static inline QualType getEmptyKey() {
     return QualType::getFromOpaquePtr((void*) 1);
   }
@@ -274,7 +273,7 @@ public:
   void AddTypeRef(QualType T, RecordData &Record);
 
   /// \brief Emits a reference to a declarator info.
-  void AddDeclaratorInfo(DeclaratorInfo *DInfo, RecordData &Record);
+  void AddTypeSourceInfo(TypeSourceInfo *TInfo, RecordData &Record);
 
   /// \brief Emits a template argument location.
   void AddTemplateArgumentLoc(const TemplateArgumentLoc &Arg,

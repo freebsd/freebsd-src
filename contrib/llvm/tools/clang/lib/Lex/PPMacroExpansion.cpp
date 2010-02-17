@@ -18,6 +18,8 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Lex/LexDiagnostic.h"
+#include "llvm/ADT/StringSwitch.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cstdio>
 #include <ctime>
 using namespace clang;
@@ -151,7 +153,7 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
                                                  MacroInfo *MI) {
   if (Callbacks) Callbacks->MacroExpands(Identifier, MI);
 
-  // If this is a macro exapnsion in the "#if !defined(x)" line for the file,
+  // If this is a macro expansion in the "#if !defined(x)" line for the file,
   // then the macro could expand to different things in other contexts, we need
   // to disable the optimization in this case.
   if (CurPPLexer) CurPPLexer->MIOpt.ExpandedMacro();
@@ -204,7 +206,7 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
   // expansion stack, only to take it right back off.
   if (MI->getNumTokens() == 0) {
     // No need for arg info.
-    if (Args) Args->destroy();
+    if (Args) Args->destroy(*this);
 
     // Ignore this macro use, just return the next token in the current
     // buffer.
@@ -232,7 +234,7 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
     // "#define VAL 42".
 
     // No need for arg info.
-    if (Args) Args->destroy();
+    if (Args) Args->destroy(*this);
 
     // Propagate the isAtStartOfLine/hasLeadingSpace markers of the macro
     // identifier to the expanded token.
@@ -446,7 +448,7 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
   }
 
   return MacroArgs::create(MI, ArgTokens.data(), ArgTokens.size(),
-                           isVarargsElided);
+                           isVarargsElided, *this);
 }
 
 /// ComputeDATE_TIME - Compute the current time, enter it into the specified
@@ -481,28 +483,27 @@ static void ComputeDATE_TIME(SourceLocation &DATELoc, SourceLocation &TIMELoc,
 static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
   const LangOptions &LangOpts = PP.getLangOptions();
 
-  switch (II->getLength()) {
-  default: return false;
-  case 6:
-    if (II->isStr("blocks")) return LangOpts.Blocks;
-    return false;
-  case 19:
-    if (II->isStr("objc_nonfragile_abi")) return LangOpts.ObjCNonFragileABI;
-    return false;
-  case 22:
-    if (II->isStr("attribute_overloadable")) return true;
-    return false;
-  case 25:
-    if (II->isStr("attribute_ext_vector_type")) return true;
-    return false;
-  case 27:
-    if (II->isStr("attribute_analyzer_noreturn")) return true;
-    return false;
-  case 29:
-    if (II->isStr("attribute_ns_returns_retained")) return true;
-    if (II->isStr("attribute_cf_returns_retained")) return true;
-    return false;
-  }
+  return llvm::StringSwitch<bool>(II->getName())
+           .Case("blocks", LangOpts.Blocks)
+           .Case("cxx_rtti", LangOpts.RTTI)
+         //.Case("cxx_lambdas", false)
+         //.Case("cxx_nullptr", false)
+         //.Case("cxx_concepts", false)
+           .Case("cxx_decltype", LangOpts.CPlusPlus0x)
+           .Case("cxx_auto_type", LangOpts.CPlusPlus0x)
+           .Case("cxx_exceptions", LangOpts.Exceptions)
+           .Case("cxx_attributes", LangOpts.CPlusPlus0x)
+           .Case("cxx_static_assert", LangOpts.CPlusPlus0x)
+           .Case("objc_nonfragile_abi", LangOpts.ObjCNonFragileABI)
+           .Case("cxx_deleted_functions", LangOpts.CPlusPlus0x)
+         //.Case("cxx_rvalue_references", false)
+           .Case("attribute_overloadable", true)
+         //.Case("cxx_variadic_templates", false)
+           .Case("attribute_ext_vector_type", true)
+           .Case("attribute_analyzer_noreturn", true)
+           .Case("attribute_ns_returns_retained", true)
+           .Case("attribute_cf_returns_retained", true)
+           .Default(false);
 }
 
 /// EvaluateHasIncludeCommon - Process a '__has_include("path")'
@@ -529,8 +530,8 @@ static bool EvaluateHasIncludeCommon(bool &Result, Token &Tok,
   PP.getCurrentLexer()->LexIncludeFilename(Tok);
 
   // Reserve a buffer to get the spelling.
-  llvm::SmallVector<char, 128> FilenameBuffer;
-  const char *FilenameStart, *FilenameEnd;
+  llvm::SmallString<128> FilenameBuffer;
+  llvm::StringRef Filename;
 
   switch (Tok.getKind()) {
   case tok::eom:
@@ -540,9 +541,9 @@ static bool EvaluateHasIncludeCommon(bool &Result, Token &Tok,
   case tok::angle_string_literal:
   case tok::string_literal: {
     FilenameBuffer.resize(Tok.getLength());
-    FilenameStart = &FilenameBuffer[0];
+    const char *FilenameStart = &FilenameBuffer[0];
     unsigned Len = PP.getSpelling(Tok, FilenameStart);
-    FilenameEnd = FilenameStart+Len;
+    Filename = llvm::StringRef(FilenameStart, Len);
     break;
   }
 
@@ -552,26 +553,22 @@ static bool EvaluateHasIncludeCommon(bool &Result, Token &Tok,
     FilenameBuffer.push_back('<');
     if (PP.ConcatenateIncludeName(FilenameBuffer))
       return false;   // Found <eom> but no ">"?  Diagnostic already emitted.
-    FilenameStart = FilenameBuffer.data();
-    FilenameEnd = FilenameStart + FilenameBuffer.size();
+    Filename = FilenameBuffer.str();
     break;
   default:
     PP.Diag(Tok.getLocation(), diag::err_pp_expects_filename);
     return false;
   }
 
-  bool isAngled = PP.GetIncludeFilenameSpelling(Tok.getLocation(),
-                                             FilenameStart, FilenameEnd);
+  bool isAngled = PP.GetIncludeFilenameSpelling(Tok.getLocation(), Filename);
   // If GetIncludeFilenameSpelling set the start ptr to null, there was an
   // error.
-  if (FilenameStart == 0) {
+  if (Filename.empty())
     return false;
-  }
 
   // Search include directories.
   const DirectoryLookup *CurDir;
-  const FileEntry *File = PP.LookupFile(FilenameStart, FilenameEnd,
-                                     isAngled, LookupFrom, CurDir);
+  const FileEntry *File = PP.LookupFile(Filename, isAngled, LookupFrom, CurDir);
 
   // Get the result value.  Result = true means the file exists.
   Result = File != 0;
@@ -631,7 +628,8 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
 
   ++NumBuiltinMacroExpanded;
 
-  char TmpBuffer[100];
+  llvm::SmallString<128> TmpBuffer;
+  llvm::raw_svector_ostream OS(TmpBuffer);
 
   // Set up the return result.
   Tok.setIdentifierInfo(0);
@@ -656,9 +654,8 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     PresumedLoc PLoc = SourceMgr.getPresumedLoc(Loc);
 
     // __LINE__ expands to a simple numeric value.
-    sprintf(TmpBuffer, "%u", PLoc.getLine());
+    OS << PLoc.getLine();
     Tok.setKind(tok::numeric_constant);
-    CreateString(TmpBuffer, strlen(TmpBuffer), Tok, Tok.getLocation());
   } else if (II == Ident__FILE__ || II == Ident__BASE_FILE__) {
     // C99 6.10.8: "__FILE__: The presumed name of the current source file (a
     // character string literal)". This can be affected by #line.
@@ -667,7 +664,6 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     // __BASE_FILE__ is a GNU extension that returns the top of the presumed
     // #include stack instead of the current file.
     if (II == Ident__BASE_FILE__) {
-      Diag(Tok, diag::ext_pp_base_file);
       SourceLocation NextLoc = PLoc.getIncludeLoc();
       while (NextLoc.isValid()) {
         PLoc = SourceMgr.getPresumedLoc(NextLoc);
@@ -676,10 +672,11 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     }
 
     // Escape this filename.  Turn '\' -> '\\' '"' -> '\"'
-    std::string FN = PLoc.getFilename();
-    FN = '"' + Lexer::Stringify(FN) + '"';
+    llvm::SmallString<128> FN;
+    FN += PLoc.getFilename();
+    Lexer::Stringify(FN);
+    OS << '"' << FN.str() << '"';
     Tok.setKind(tok::string_literal);
-    CreateString(&FN[0], FN.size(), Tok, Tok.getLocation());
   } else if (II == Ident__DATE__) {
     if (!DATELoc.isValid())
       ComputeDATE_TIME(DATELoc, TIMELoc, *this);
@@ -688,6 +685,7 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     Tok.setLocation(SourceMgr.createInstantiationLoc(DATELoc, Tok.getLocation(),
                                                      Tok.getLocation(),
                                                      Tok.getLength()));
+    return;
   } else if (II == Ident__TIME__) {
     if (!TIMELoc.isValid())
       ComputeDATE_TIME(DATELoc, TIMELoc, *this);
@@ -696,9 +694,8 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     Tok.setLocation(SourceMgr.createInstantiationLoc(TIMELoc, Tok.getLocation(),
                                                      Tok.getLocation(),
                                                      Tok.getLength()));
+    return;
   } else if (II == Ident__INCLUDE_LEVEL__) {
-    Diag(Tok, diag::ext_pp_include_level);
-
     // Compute the presumed include depth of this token.  This can be affected
     // by GNU line markers.
     unsigned Depth = 0;
@@ -709,13 +706,11 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       PLoc = SourceMgr.getPresumedLoc(PLoc.getIncludeLoc());
 
     // __INCLUDE_LEVEL__ expands to a simple numeric value.
-    sprintf(TmpBuffer, "%u", Depth);
+    OS << Depth;
     Tok.setKind(tok::numeric_constant);
-    CreateString(TmpBuffer, strlen(TmpBuffer), Tok, Tok.getLocation());
   } else if (II == Ident__TIMESTAMP__) {
     // MSVC, ICC, GCC, VisualAge C++ extension.  The generated string should be
     // of the form "Ddd Mmm dd hh::mm::ss yyyy", which is returned by asctime.
-    Diag(Tok, diag::ext_pp_timestamp);
 
     // Get the file that we are lexing out of.  If we're currently lexing from
     // a macro, dig into the include stack.
@@ -725,7 +720,6 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     if (TheLexer)
       CurFile = SourceMgr.getFileEntryForID(TheLexer->getFileID());
 
-    // If this file is older than the file it depends on, emit a diagnostic.
     const char *Result;
     if (CurFile) {
       time_t TT = CurFile->getModificationTime();
@@ -734,19 +728,13 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     } else {
       Result = "??? ??? ?? ??:??:?? ????\n";
     }
-    TmpBuffer[0] = '"';
-    unsigned Len = strlen(Result);
-    memcpy(TmpBuffer+1, Result, Len-1); // Copy string without the newline.
-    TmpBuffer[Len] = '"';
+    // Surround the string with " and strip the trailing newline.
+    OS << '"' << llvm::StringRef(Result, strlen(Result)-1) << '"';
     Tok.setKind(tok::string_literal);
-    CreateString(TmpBuffer, Len+1, Tok, Tok.getLocation());
   } else if (II == Ident__COUNTER__) {
-    Diag(Tok, diag::ext_pp_counter);
-
     // __COUNTER__ expands to a simple numeric value.
-    sprintf(TmpBuffer, "%u", CounterValue++);
+    OS << CounterValue++;
     Tok.setKind(tok::numeric_constant);
-    CreateString(TmpBuffer, strlen(TmpBuffer), Tok, Tok.getLocation());
   } else if (II == Ident__has_feature ||
              II == Ident__has_builtin) {
     // The argument to these two builtins should be a parenthesized identifier.
@@ -781,9 +769,8 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       Value = HasFeature(*this, FeatureII);
     }
 
-    sprintf(TmpBuffer, "%d", (int)Value);
+    OS << (int)Value;
     Tok.setKind(tok::numeric_constant);
-    CreateString(TmpBuffer, strlen(TmpBuffer), Tok, Tok.getLocation());
   } else if (II == Ident__has_include ||
              II == Ident__has_include_next) {
     // The argument to these two builtins should be a parenthesized
@@ -795,10 +782,10 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       IsValid = EvaluateHasInclude(Value, Tok, II, *this);
     else
       IsValid = EvaluateHasIncludeNext(Value, Tok, II, *this);
-    sprintf(TmpBuffer, "%d", (int)Value);
+    OS << (int)Value;
     Tok.setKind(tok::numeric_constant);
-    CreateString(TmpBuffer, strlen(TmpBuffer), Tok, Tok.getLocation());
   } else {
     assert(0 && "Unknown identifier!");
   }
+  CreateString(OS.str().data(), OS.str().size(), Tok, Tok.getLocation());
 }

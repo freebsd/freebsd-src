@@ -16,8 +16,7 @@
 
 #include "clang/AST/Attr.h"
 #include "clang/AST/Type.h"
-// FIXME: Layering violation
-#include "clang/Parse/AccessSpecifier.h"
+#include "clang/Basic/Specifiers.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/ADT/PointerUnion.h"
 
@@ -91,7 +90,7 @@ public:
     IDNS_Ordinary = 0x8,
     IDNS_ObjCProtocol = 0x10,
     IDNS_ObjCImplementation = 0x20,
-    IDNS_ObjCCategoryImpl = 0x40,
+    IDNS_ObjCCategoryName = 0x40,
     IDNS_OrdinaryFriend = 0x80,
     IDNS_TagFriend = 0x100,
     IDNS_Using = 0x200
@@ -481,6 +480,7 @@ public:
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *) { return true; }
+  static bool classofKind(Kind K) { return true; }
   static DeclContext *castToDeclContext(const Decl *);
   static Decl *castFromDeclContext(const DeclContext *);
 
@@ -503,12 +503,12 @@ private:
 /// PrettyStackTraceDecl - If a crash occurs, indicate that it happened when
 /// doing something to a specific decl.
 class PrettyStackTraceDecl : public llvm::PrettyStackTraceEntry {
-  Decl *TheDecl;
+  const Decl *TheDecl;
   SourceLocation Loc;
   SourceManager &SM;
   const char *Message;
 public:
-  PrettyStackTraceDecl(Decl *theDecl, SourceLocation L,
+  PrettyStackTraceDecl(const Decl *theDecl, SourceLocation L,
                        SourceManager &sm, const char *Msg)
   : TheDecl(theDecl), Loc(L), SM(sm), Message(Msg) {}
 
@@ -916,6 +916,9 @@ public:
   /// only happens with friends.
   void addHiddenDecl(Decl *D);
 
+  /// @brief Removes a declaration from this context.
+  void removeDecl(Decl *D);
+
   /// lookup_iterator - An iterator that provides access to the results
   /// of looking up a name within this context.
   typedef NamedDecl **lookup_iterator;
@@ -1003,6 +1006,8 @@ public:
   static bool classof(const Name##Decl *D) { return true; }
 #include "clang/AST/DeclNodes.def"
 
+  void dumpDeclContext() const;
+
 private:
   void LoadLexicalDeclsFromExternalStorage() const;
   void LoadVisibleDeclsFromExternalStorage() const;
@@ -1012,32 +1017,81 @@ private:
 };
 
 inline bool Decl::isTemplateParameter() const {
-  return getKind() == TemplateTypeParm || getKind() == NonTypeTemplateParm;
+  return getKind() == TemplateTypeParm || getKind() == NonTypeTemplateParm ||
+         getKind() == TemplateTemplateParm;
 }
 
-inline bool Decl::isDefinedOutsideFunctionOrMethod() const {
-  if (getDeclContext())
-    return !getDeclContext()->getLookupContext()->isFunctionOrMethod();
-  return true;
-}
+
+// Specialization selected when ToTy is not a known subclass of DeclContext.
+template <class ToTy,
+          bool IsKnownSubtype = ::llvm::is_base_of< DeclContext, ToTy>::value>
+struct cast_convert_decl_context {
+  static const ToTy *doit(const DeclContext *Val) {
+    return static_cast<const ToTy*>(Decl::castFromDeclContext(Val));
+  }
+
+  static ToTy *doit(DeclContext *Val) {
+    return static_cast<ToTy*>(Decl::castFromDeclContext(Val));
+  }
+};
+
+// Specialization selected when ToTy is a known subclass of DeclContext.
+template <class ToTy>
+struct cast_convert_decl_context<ToTy, true> {
+  static const ToTy *doit(const DeclContext *Val) {
+    return static_cast<const ToTy*>(Val);
+  }
+
+  static ToTy *doit(DeclContext *Val) {
+    return static_cast<ToTy*>(Val);
+  }
+};
+
 
 } // end clang.
 
 namespace llvm {
 
-/// Implement a isa_impl_wrap specialization to check whether a DeclContext is
-/// a specific Decl.
+/// isa<T>(DeclContext*)
 template<class ToTy>
 struct isa_impl_wrap<ToTy,
                      const ::clang::DeclContext,const ::clang::DeclContext> {
   static bool doit(const ::clang::DeclContext &Val) {
-    return ToTy::classof(::clang::Decl::castFromDeclContext(&Val));
+    return ToTy::classofKind(Val.getDeclKind());
   }
 };
 template<class ToTy>
 struct isa_impl_wrap<ToTy, ::clang::DeclContext, ::clang::DeclContext>
   : public isa_impl_wrap<ToTy,
                       const ::clang::DeclContext,const ::clang::DeclContext> {};
+
+/// cast<T>(DeclContext*)
+template<class ToTy>
+struct cast_convert_val<ToTy,
+                        const ::clang::DeclContext,const ::clang::DeclContext> {
+  static const ToTy &doit(const ::clang::DeclContext &Val) {
+    return *::clang::cast_convert_decl_context<ToTy>::doit(&Val);
+  }
+};
+template<class ToTy>
+struct cast_convert_val<ToTy, ::clang::DeclContext, ::clang::DeclContext> {
+  static ToTy &doit(::clang::DeclContext &Val) {
+    return *::clang::cast_convert_decl_context<ToTy>::doit(&Val);
+  }
+};
+template<class ToTy>
+struct cast_convert_val<ToTy,
+                     const ::clang::DeclContext*, const ::clang::DeclContext*> {
+  static const ToTy *doit(const ::clang::DeclContext *Val) {
+    return ::clang::cast_convert_decl_context<ToTy>::doit(Val);
+  }
+};
+template<class ToTy>
+struct cast_convert_val<ToTy, ::clang::DeclContext*, ::clang::DeclContext*> {
+  static ToTy *doit(::clang::DeclContext *Val) {
+    return ::clang::cast_convert_decl_context<ToTy>::doit(Val);
+  }
+};
 
 /// Implement cast_convert_val for Decl -> DeclContext conversions.
 template<class FromTy>
@@ -1067,31 +1121,6 @@ struct cast_convert_val< const ::clang::DeclContext, FromTy*, FromTy*> {
     return FromTy::castToDeclContext(Val);
   }
 };
-
-/// Implement cast_convert_val for DeclContext -> Decl conversions.
-template<class ToTy>
-struct cast_convert_val<ToTy,
-                        const ::clang::DeclContext,const ::clang::DeclContext> {
-  static ToTy &doit(const ::clang::DeclContext &Val) {
-    return *reinterpret_cast<ToTy*>(ToTy::castFromDeclContext(&Val));
-  }
-};
-template<class ToTy>
-struct cast_convert_val<ToTy, ::clang::DeclContext, ::clang::DeclContext>
-  : public cast_convert_val<ToTy,
-                      const ::clang::DeclContext,const ::clang::DeclContext> {};
-
-template<class ToTy>
-struct cast_convert_val<ToTy,
-                     const ::clang::DeclContext*, const ::clang::DeclContext*> {
-  static ToTy *doit(const ::clang::DeclContext *Val) {
-    return reinterpret_cast<ToTy*>(ToTy::castFromDeclContext(Val));
-  }
-};
-template<class ToTy>
-struct cast_convert_val<ToTy, ::clang::DeclContext*, ::clang::DeclContext*>
-  : public cast_convert_val<ToTy,
-                    const ::clang::DeclContext*,const ::clang::DeclContext*> {};
 
 } // end namespace llvm
 

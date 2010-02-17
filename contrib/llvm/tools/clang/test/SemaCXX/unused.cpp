@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 // PR4103 : Make sure we don't get a bogus unused expression warning
 class APInt {
   char foo;
@@ -12,4 +12,13 @@ public:
 APSInt& APSInt::operator=(const APSInt &RHS) {
   APInt::operator=(RHS);
   return *this;
+}
+
+template<typename T>
+struct X {
+  X();
+};
+
+void test() {
+  X<int>();
 }

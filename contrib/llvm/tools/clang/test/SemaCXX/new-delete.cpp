@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 #include <stddef.h>
 
@@ -18,7 +18,8 @@ struct V : U
 {
 };
 
-void* operator new(size_t); // expected-note 2 {{candidate}}
+// PR5823
+void* operator new(const size_t); // expected-note 2 {{candidate}}
 void* operator new(size_t, int*); // expected-note 3 {{candidate}}
 void* operator new(size_t, float*); // expected-note 3 {{candidate}}
 void* operator new(size_t, S); // expected-note 2 {{candidate}}
@@ -59,12 +60,12 @@ void bad_news(int *ip)
   (void)new int[1][i]; // expected-error {{only the first dimension}}
   (void)new (int[1][i]); // expected-error {{only the first dimension}}
   (void)new (int[i]); // expected-error {{when type is in parentheses}}
-  (void)new int(*(S*)0); // expected-error {{incompatible type initializing}}
-  (void)new int(1, 2); // expected-error {{initializer of a builtin type can only take one argument}}
+  (void)new int(*(S*)0); // expected-error {{no viable conversion from 'struct S' to 'int'}}
+  (void)new int(1, 2); // expected-error {{excess elements in scalar initializer}}
   (void)new S(1); // expected-error {{no matching constructor}}
-  (void)new S(1, 1); // expected-error {{call to constructor of 'S' is ambiguous}}
-  (void)new const int; // expected-error {{must provide an initializer}}
-  (void)new float*(ip); // expected-error {{incompatible type initializing 'int *', expected 'float *'}}
+  (void)new S(1, 1); // expected-error {{call to constructor of 'struct S' is ambiguous}}
+  (void)new const int; // expected-error {{default initialization of an object of const type 'int const'}}
+  (void)new float*(ip); // expected-error {{cannot initialize a new value of type 'float *' with an lvalue of type 'int *'}}
   // Undefined, but clang should reject it directly.
   (void)new int[-1]; // expected-error {{array size is negative}}
   (void)new int[*(S*)0]; // expected-error {{array size expression must have integral or enumerated type, not 'struct S'}}
@@ -140,10 +141,8 @@ public:
 
 class Base {
 public:
-  static int operator new(signed char) throw(); // expected-error {{'operator new' takes type size_t}} \
-						  // expected-error {{operator new' must return type 'void *'}}
-  static int operator new[] (signed char) throw(); // expected-error {{'operator new[]' takes type size_t}} \
-						     // expected-error {{operator new[]' must return type 'void *'}}
+  static void *operator new(signed char) throw(); // expected-error {{'operator new' takes type size_t}}
+  static int operator new[] (size_t) throw(); // expected-error {{operator new[]' must return type 'void *'}}
 };
 
 class Tier {};
@@ -160,9 +159,11 @@ void loadEngineFor() {
 }
 
 template <class T> struct TBase {
-  void* operator new(T size, int); // expected-error {{'operator new' takes type size_t}}
+  void* operator new(T size, int); // expected-error {{'operator new' cannot take a dependent type as first parameter; use size_t}}\
+                                   // expected-error {{'operator new' takes type size_t}}
 };
 
+// FIXME: We should not try to instantiate operator new, since it is invalid.
 TBase<int> t1; // expected-note {{in instantiation of template class 'struct TBase<int>' requested here}}
 
 class X6 {
@@ -189,4 +190,44 @@ class X9 {
 
 void f(X9 *x9) {
   delete x9; // expected-error {{no suitable member 'operator delete' in 'X9'}}
+}
+
+struct X10 {
+  virtual ~X10();
+};
+
+struct X11 : X10 { // expected-error {{no suitable member 'operator delete' in 'X11'}}
+  void operator delete(void*, int); // expected-note {{'operator delete' declared here}}
+};
+
+void f() {
+  X11 x11; // expected-note {{implicit default destructor for 'struct X11' first required here}}
+}
+
+struct X12 {
+  void* operator new(size_t, void*);
+};
+
+struct X13 : X12 {
+  using X12::operator new;
+};
+
+static void* f(void* g)
+{
+    return new (g) X13();
+}
+
+class X14 {
+  static void operator delete(void*, const size_t);
+};
+
+void f(X14 *x14a, X14 *x14b) {
+  delete x14a;
+}
+
+namespace PR5918 { // Look for template operator new overloads.
+  struct S { template<typename T> static void* operator new(size_t, T); };
+  void test() {
+    (void)new(0) S;
+  }
 }

@@ -150,6 +150,13 @@ void TargetInstrInfoImpl::reMaterialize(MachineBasicBlock &MBB,
   MBB.insert(I, MI);
 }
 
+MachineInstr *TargetInstrInfoImpl::duplicate(MachineInstr *Orig,
+                                             MachineFunction &MF) const {
+  assert(!Orig->getDesc().isNotDuplicable() &&
+         "Instruction cannot be duplicated");
+  return MF.CloneMachineInstr(Orig);
+}
+
 bool
 TargetInstrInfoImpl::isIdentical(const MachineInstr *MI,
                                  const MachineInstr *Other,
@@ -329,7 +336,7 @@ TargetInstrInfo::isReallyTriviallyReMaterializableGeneric(const MachineInstr *
       return false;
 
     // For the def, it should be the only def of that register.
-    if (MO.isDef() && (next(MRI.def_begin(Reg)) != MRI.def_end() ||
+    if (MO.isDef() && (llvm::next(MRI.def_begin(Reg)) != MRI.def_end() ||
                        MRI.isLiveIn(Reg)))
       return false;
 

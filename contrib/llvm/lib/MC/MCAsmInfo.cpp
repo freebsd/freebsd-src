@@ -19,13 +19,13 @@
 using namespace llvm;
 
 MCAsmInfo::MCAsmInfo() {
-  ZeroFillDirective = 0;
-  NonexecutableStackDirective = 0;
-  NeedsSet = false;
+  HasSubsectionsViaSymbols = false;
+  HasMachoZeroFillDirective = false;
+  HasStaticCtorDtorReferenceInStaticMode = false;
   MaxInstLength = 4;
   PCSymbol = "$";
   SeparatorChar = ';';
-  CommentColumn = 60;
+  CommentColumn = 40;
   CommentString = "#";
   GlobalPrefix = "";
   PrivateGlobalPrefix = ".";
@@ -36,7 +36,6 @@ MCAsmInfo::MCAsmInfo() {
   AllowQuotesInName = false;
   AllowNameToStartWithDigit = false;
   ZeroDirective = "\t.zero\t";
-  ZeroDirectiveSuffix = 0;
   AsciiDirective = "\t.ascii\t";
   AscizDirective = "\t.asciz\t";
   Data8bitsDirective = "\t.byte\t";
@@ -48,21 +47,19 @@ MCAsmInfo::MCAsmInfo() {
   AlignDirective = "\t.align\t";
   AlignmentIsInBytes = true;
   TextAlignFillValue = 0;
-  JumpTableDirective = 0;
-  PICJumpTableDirective = 0;
+  GPRel32Directive = 0;
   GlobalDirective = "\t.globl\t";
-  SetDirective = 0;
-  LCOMMDirective = 0;
-  COMMDirective = "\t.comm\t";
-  COMMDirectiveTakesAlignment = true;
+  HasSetDirective = true;
+  HasLCOMMDirective = false;
+  COMMDirectiveAlignmentIsInBytes = true;
   HasDotTypeDotSizeDirective = true;
   HasSingleParameterDotFile = true;
-  UsedDirective = 0;
+  HasNoDeadStrip = false;
   WeakRefDirective = 0;
   WeakDefDirective = 0;
-  // FIXME: These are ELFish - move to ELFMAI.
-  HiddenDirective = "\t.hidden\t";
-  ProtectedDirective = "\t.protected\t";
+  LinkOnceDirective = 0;
+  HiddenVisibilityAttr = MCSA_Hidden;
+  ProtectedVisibilityAttr = MCSA_Protected;
   AbsoluteDebugSectionOffsets = false;
   AbsoluteEHSectionOffsets = false;
   HasLEB128 = false;

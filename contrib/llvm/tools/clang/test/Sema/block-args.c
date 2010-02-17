@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -fsyntax-only -verify -fblocks
+// RUN: %clang_cc1 %s -fsyntax-only -verify -fblocks
 
 void take(void*);
 
@@ -26,4 +26,10 @@ int main(int argc, char** argv) {
   ^(int argCount) {
     argCount = 3;
   }(argc);
+}
+
+// radar 7528255
+void f0() {
+  ^(int, double d, char) {}(1, 1.34, 'a'); // expected-error {{parameter name omitted}} \
+				 	   // expected-error {{parameter name omitted}}
 }

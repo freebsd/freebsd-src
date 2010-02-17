@@ -1,4 +1,4 @@
-// RUN: clang-cc -triple x86_64-unknown-unknown %s -fsyntax-only -verify 
+// RUN: %clang_cc1 -triple x86_64-unknown-unknown %s -fsyntax-only -verify 
 
 #define SA(n, p) int a##n[(p) ? 1 : -1]
 
@@ -47,3 +47,20 @@ struct G { G(); };
 struct H : G { };
 
 SA(6, sizeof(H) == 1);
+
+// PR5580
+namespace PR5580 {
+
+class A { bool iv0 : 1; };
+SA(7, sizeof(A) == 1);  
+
+class B : A { bool iv0 : 1; };
+SA(8, sizeof(B) == 2);
+
+struct C { bool iv0 : 1; };
+SA(9, sizeof(C) == 1);  
+
+struct D : C { bool iv0 : 1; };
+SA(10, sizeof(D) == 2);
+
+}

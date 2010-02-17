@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 template<int I, int J>
 struct Bitfields {
   int simple : I; // expected-error{{bit-field 'simple' has zero width}}
@@ -87,10 +87,53 @@ void add(const T &x) {
   (void)(x + x);
 }
 
+namespace PR6237 {
+  template <typename T>
+  void f(T t) {
+    t++;
+  }
+
+  struct B { };
+  B operator++(B &, int);
+
+  template void f(B);
+}
+
 struct Addable {
   Addable operator+(const Addable&) const;
 };
 
 void test_add(Addable &a) {
   add(a);
+}
+
+struct CallOperator {
+  int &operator()(int);
+  double &operator()(double);
+};
+
+template<typename Result, typename F, typename Arg1>
+Result test_call_operator(F f, Arg1 arg1) {
+  // PR5266: non-dependent invocations of a function call operator.
+  CallOperator call_op;
+  int &ir = call_op(17);
+  return f(arg1);
+}
+
+void test_call_operator(CallOperator call_op, int i, double d) {
+  int &ir = test_call_operator<int&>(call_op, i);
+  double &dr = test_call_operator<double&>(call_op, d);
+}
+
+template<typename T>
+void test_asm(T t) {
+  asm ("nop" : "=a"(*t) : "r"(*t)); // expected-error {{indirection requires pointer operand ('int' invalid)}}
+}
+
+void test_asm() {
+  int* a;
+  test_asm(a);
+  
+  int b;
+  test_asm(b); // expected-note {{in instantiation of function template specialization 'test_asm<int>' requested here}}
 }

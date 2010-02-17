@@ -19,6 +19,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/StmtCXX.h"
 #include "llvm/Target/TargetData.h"
 using namespace clang;
 using namespace CodeGen;
@@ -29,9 +30,13 @@ CodeGenFunction::CodeGenFunction(CodeGenModule &cgm)
     Builder(cgm.getModule().getContext()),
     DebugInfo(0), IndirectBranch(0),
     SwitchInsn(0), CaseRangeBlock(0), InvokeDest(0),
-    CXXThisDecl(0) {
+    CXXThisDecl(0), CXXVTTDecl(0),
+    ConditionalBranchLevel(0), TerminateHandler(0), TrapBB(0),
+    UniqueAggrDestructorCount(0) {
   LLVMIntTy = ConvertType(getContext().IntTy);
   LLVMPointerWidth = Target.getPointerWidth(0);
+  Exceptions = getContext().getLangOptions().Exceptions;
+  CatchUndefined = getContext().getLangOptions().CatchUndefined;
 }
 
 ASTContext &CodeGenFunction::getContext() const {
@@ -129,6 +134,7 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
   }
 
   EmitFunctionEpilog(*CurFnInfo, ReturnValue);
+  EmitEndEHSpec(CurCodeDecl);
 
   // If someone did an indirect goto, emit the indirect goto block at the end of
   // the function.
@@ -165,6 +171,16 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   CurFn = Fn;
   assert(CurFn->isDeclaration() && "Function already has body?");
 
+  // Pass inline keyword to optimizer if it appears explicitly on any
+  // declaration.
+  if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D))
+    for (FunctionDecl::redecl_iterator RI = FD->redecls_begin(),
+           RE = FD->redecls_end(); RI != RE; ++RI)
+      if (RI->isInlineSpecified()) {
+        Fn->addFnAttr(llvm::Attribute::InlineHint);
+        break;
+      }
+
   llvm::BasicBlock *EntryBB = createBasicBlock("entry", CurFn);
 
   // Create a marker to make it easy to insert allocas into the entryblock
@@ -178,31 +194,35 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     AllocaInsertPt->setName("allocapt");
 
   ReturnBlock = createBasicBlock("return");
-  ReturnValue = 0;
-  if (!RetTy->isVoidType())
-    ReturnValue = CreateTempAlloca(ConvertType(RetTy), "retval");
 
   Builder.SetInsertPoint(EntryBB);
 
   QualType FnType = getContext().getFunctionType(RetTy, 0, 0, false, 0);
 
   // Emit subprogram debug descriptor.
-  // FIXME: The cast here is a huge hack.
   if (CGDebugInfo *DI = getDebugInfo()) {
     DI->setLocation(StartLoc);
-    if (isa<FunctionDecl>(D)) {
-      DI->EmitFunctionStart(CGM.getMangledName(GD), FnType, CurFn, Builder);
-    } else {
-      // Just use LLVM function name.
-
-      // FIXME: Remove unnecessary conversion to std::string when API settles.
-      DI->EmitFunctionStart(std::string(Fn->getName()).c_str(),
-                            FnType, CurFn, Builder);
-    }
+    DI->EmitFunctionStart(GD, FnType, CurFn, Builder);
   }
 
   // FIXME: Leaked.
-  CurFnInfo = &CGM.getTypes().getFunctionInfo(FnRetTy, Args);
+  // CC info is ignored, hopefully?
+  CurFnInfo = &CGM.getTypes().getFunctionInfo(FnRetTy, Args,
+                                              CC_Default, false);
+
+  if (RetTy->isVoidType()) {
+    // Void type; nothing to return.
+    ReturnValue = 0;
+  } else if (CurFnInfo->getReturnInfo().getKind() == ABIArgInfo::Indirect &&
+             hasAggregateLLVMType(CurFnInfo->getReturnType())) {
+    // Indirect aggregate return; emit returned value directly into sret slot.
+    // This reduces code size, and is also affects correctness in C++.
+    ReturnValue = CurFn->arg_begin();
+  } else {
+    ReturnValue = CreateTempAlloca(ConvertType(RetTy), "retval");
+  }
+
+  EmitStartEHSpec(CurCodeDecl);
   EmitFunctionProlog(*CurFnInfo, CurFn, Args);
 
   // If any of the arguments have a variably modified type, make sure to
@@ -216,8 +236,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   }
 }
 
-void CodeGenFunction::GenerateCode(GlobalDecl GD,
-                                   llvm::Function *Fn) {
+void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn) {
   const FunctionDecl *FD = cast<FunctionDecl>(GD.getDecl());
   
   // Check if we should generate debug info for this function.
@@ -226,6 +245,8 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD,
 
   FunctionArgList Args;
 
+  CurGD = GD;
+  OuterTryBlock = 0;
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
     if (MD->isInstance()) {
       // Create the implicit 'this' decl.
@@ -235,6 +256,16 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD,
                                               &getContext().Idents.get("this"),
                                               MD->getThisType(getContext()));
       Args.push_back(std::make_pair(CXXThisDecl, CXXThisDecl->getType()));
+      
+      // Check if we need a VTT parameter as well.
+      if (CGVtableInfo::needsVTTParameter(GD)) {
+        // FIXME: The comment about using a fake decl above applies here too.
+        QualType T = getContext().getPointerType(getContext().VoidPtrTy);
+        CXXVTTDecl = 
+          ImplicitParamDecl::Create(getContext(), 0, SourceLocation(),
+                                    &getContext().Idents.get("vtt"), T);
+        Args.push_back(std::make_pair(CXXVTTDecl, CXXVTTDecl->getType()));
+      }
     }
   }
 
@@ -247,7 +278,6 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD,
                                     FProto->getArgType(i)));
   }
 
-  // FIXME: Support CXXTryStmt here, too.
   if (const CompoundStmt *S = FD->getCompoundBody()) {
     StartFunction(GD, FD->getResultType(), Fn, Args, S->getLBracLoc());
 
@@ -262,6 +292,8 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD,
     } else if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(FD)) {
       llvm::BasicBlock *DtorEpilogue  = createBasicBlock("dtor.epilogue");
       PushCleanupBlock(DtorEpilogue);
+
+      InitializeVtablePtrs(DD->getParent());
 
       EmitStmt(S);
       
@@ -288,7 +320,7 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD,
     if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(FD)) {
       // FIXME: For C++0x, we want to look for implicit *definitions* of
       // these special member functions, rather than implicit *declarations*.
-      if (CD->isCopyConstructor(getContext())) {
+      if (CD->isCopyConstructor()) {
         assert(!ClassDecl->hasUserDeclaredCopyConstructor() &&
                "Cannot synthesize a non-implicit copy constructor");
         SynthesizeCXXCopyConstructor(CD, GD.getCtorType(), Fn, Args);
@@ -312,11 +344,22 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD,
     } else {
       assert(false && "Cannot synthesize unknown implicit function");
     }
+  } else if (const Stmt *S = FD->getBody()) {
+    if (const CXXTryStmt *TS = dyn_cast<CXXTryStmt>(S)) {
+      OuterTryBlock = TS;
+      StartFunction(GD, FD->getResultType(), Fn, Args, TS->getTryLoc());
+      EmitStmt(TS);
+      FinishFunction(TS->getEndLoc());
+    }
   }
 
   // Destroy the 'this' declaration.
   if (CXXThisDecl)
     CXXThisDecl->Destroy(getContext());
+  
+  // Destroy the VTT declaration.
+  if (CXXVTTDecl)
+    CXXVTTDecl->Destroy(getContext());
 }
 
 /// ContainsLabel - Return true if the statement contains a label in it.  If
@@ -402,7 +445,11 @@ void CodeGenFunction::EmitBranchOnBoolExpr(const Expr *Cond,
       EmitBranchOnBoolExpr(CondBOp->getLHS(), LHSTrue, FalseBlock);
       EmitBlock(LHSTrue);
 
+      // Any temporaries created here are conditional.
+      BeginConditionalBranch();
       EmitBranchOnBoolExpr(CondBOp->getRHS(), TrueBlock, FalseBlock);
+      EndConditionalBranch();
+
       return;
     } else if (CondBOp->getOpcode() == BinaryOperator::LOr) {
       // If we have "0 || X", simplify the code.  "1 || X" would have constant
@@ -425,7 +472,11 @@ void CodeGenFunction::EmitBranchOnBoolExpr(const Expr *Cond,
       EmitBranchOnBoolExpr(CondBOp->getLHS(), TrueBlock, LHSFalse);
       EmitBlock(LHSFalse);
 
+      // Any temporaries created here are conditional.
+      BeginConditionalBranch();
       EmitBranchOnBoolExpr(CondBOp->getRHS(), TrueBlock, FalseBlock);
+      EndConditionalBranch();
+
       return;
     }
   }
@@ -543,7 +594,7 @@ llvm::Value *CodeGenFunction::EmitVLASize(QualType Ty) {
         ElemSize = EmitVLASize(ElemTy);
       else
         ElemSize = llvm::ConstantInt::get(SizeTy,
-                                          getContext().getTypeSize(ElemTy) / 8);
+            getContext().getTypeSizeInChars(ElemTy).getQuantity());
 
       llvm::Value *NumElements = EmitScalarExpr(VAT->getSizeExpr());
       NumElements = Builder.CreateIntCast(NumElements, SizeTy, false, "tmp");
@@ -573,8 +624,11 @@ llvm::Value* CodeGenFunction::EmitVAListRef(const Expr* E) {
 }
 
 void CodeGenFunction::PushCleanupBlock(llvm::BasicBlock *CleanupEntryBlock,
-                                       llvm::BasicBlock *CleanupExitBlock) {
-  CleanupEntries.push_back(CleanupEntry(CleanupEntryBlock, CleanupExitBlock));
+                                       llvm::BasicBlock *CleanupExitBlock,
+                                       llvm::BasicBlock *PreviousInvokeDest,
+                                       bool EHOnly) {
+  CleanupEntries.push_back(CleanupEntry(CleanupEntryBlock, CleanupExitBlock,
+                                        PreviousInvokeDest, EHOnly));
 }
 
 void CodeGenFunction::EmitCleanupBlocks(size_t OldCleanupStackSize) {
@@ -595,6 +649,10 @@ CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock() {
 
   std::vector<llvm::BranchInst *> BranchFixups;
   std::swap(BranchFixups, CE.BranchFixups);
+
+  bool EHOnly = CE.EHOnly;
+
+  setInvokeDest(CE.PreviousInvokeDest);
 
   CleanupEntries.pop_back();
 
@@ -630,8 +688,9 @@ CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock() {
 
     Builder.SetInsertPoint(SwitchBlock);
 
-    llvm::Value *DestCodePtr = CreateTempAlloca(llvm::Type::getInt32Ty(VMContext),
-                                                "cleanup.dst");
+    llvm::Value *DestCodePtr
+      = CreateTempAlloca(llvm::Type::getInt32Ty(VMContext),
+                         "cleanup.dst");
     llvm::Value *DestCode = Builder.CreateLoad(DestCodePtr, "tmp");
 
     // Create a switch instruction to determine where to jump next.
@@ -677,15 +736,16 @@ CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock() {
         new llvm::StoreInst(ID, DestCodePtr, BI);
       } else {
         // We need to jump through another cleanup block. Create a pad block
-        // with a branch instruction that jumps to the final destination and
-        // add it as a branch fixup to the current cleanup scope.
+        // with a branch instruction that jumps to the final destination and add
+        // it as a branch fixup to the current cleanup scope.
 
         // Create the pad block.
         llvm::BasicBlock *CleanupPad = createBasicBlock("cleanup.pad", CurFn);
 
         // Create a unique case ID.
-        llvm::ConstantInt *ID = llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
-                                                       SI->getNumSuccessors());
+        llvm::ConstantInt *ID
+          = llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
+                                   SI->getNumSuccessors());
 
         // Store the jump destination before the branch instruction.
         new llvm::StoreInst(ID, DestCodePtr, BI);
@@ -711,11 +771,18 @@ CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock() {
     BlockScopes.erase(Blocks[i]);
   }
 
-  return CleanupBlockInfo(CleanupEntryBlock, SwitchBlock, EndBlock);
+  return CleanupBlockInfo(CleanupEntryBlock, SwitchBlock, EndBlock, EHOnly);
 }
 
 void CodeGenFunction::EmitCleanupBlock() {
   CleanupBlockInfo Info = PopCleanupBlock();
+
+  if (Info.EHOnly) {
+    // FIXME: Add this to the exceptional edge
+    if (Info.CleanupBlock->getNumUses() == 0)
+      delete Info.CleanupBlock;
+    return;
+  }
 
   llvm::BasicBlock *CurBB = Builder.GetInsertBlock();
   if (CurBB && !CurBB->getTerminator() &&

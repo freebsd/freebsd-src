@@ -17,6 +17,7 @@
 #include "LLLexer.h"
 #include "llvm/Module.h"
 #include "llvm/Type.h"
+#include "llvm/Support/ValueHandle.h"
 #include <map>
 
 namespace llvm {
@@ -28,9 +29,9 @@ namespace llvm {
   class Instruction;
   class Constant;
   class GlobalValue;
-  class MetadataBase;
   class MDString;
   class MDNode;
+  class UnionType;
 
   /// ValID - Represents a reference of a definition of some sort with no type.
   /// There are several cases where we have to parse the value but where the
@@ -45,7 +46,8 @@ namespace llvm {
       t_EmptyArray,               // No value:  []
       t_Constant,                 // Value in ConstantVal.
       t_InlineAsm,                // Value in StrVal/StrVal2/UIntVal.
-      t_Metadata                  // Value in MetadataVal.
+      t_MDNode,                   // Value in MDNodeVal.
+      t_MDString                  // Value in MDStringVal.
     } Kind;
     
     LLLexer::LocTy Loc;
@@ -54,7 +56,8 @@ namespace llvm {
     APSInt APSIntVal;
     APFloat APFloatVal;
     Constant *ConstantVal;
-    MetadataBase *MetadataVal;
+    MDNode *MDNodeVal;
+    MDString *MDStringVal;
     ValID() : APFloatVal(0.0) {}
     
     bool operator<(const ValID &RHS) const {
@@ -78,10 +81,8 @@ namespace llvm {
     std::map<std::string, std::pair<PATypeHolder, LocTy> > ForwardRefTypes;
     std::map<unsigned, std::pair<PATypeHolder, LocTy> > ForwardRefTypeIDs;
     std::vector<PATypeHolder> NumberedTypes;
-    /// MetadataCache - This map keeps track of parsed metadata constants.
-    std::map<unsigned, WeakVH> MetadataCache;
-    std::map<unsigned, std::pair<WeakVH, LocTy> > ForwardRefMDNodes;
-    SmallVector<std::pair<unsigned, MDNode *>, 2> MDsOnInst;
+    std::vector<TrackingVH<MDNode> > NumberedMetadata;
+    std::map<unsigned, std::pair<TrackingVH<MDNode>, LocTy> > ForwardRefMDNodes;
     struct UpRefRecord {
       /// Loc - This is the location of the upref.
       LocTy Loc;
@@ -169,9 +170,18 @@ namespace llvm {
     bool ParseOptionalVisibility(unsigned &Visibility);
     bool ParseOptionalCallingConv(CallingConv::ID &CC);
     bool ParseOptionalAlignment(unsigned &Alignment);
-    bool ParseOptionalCustomMetadata();
-    bool ParseOptionalInfo(unsigned &Alignment);
-    bool ParseIndexList(SmallVectorImpl<unsigned> &Indices);
+    bool ParseOptionalStackAlignment(unsigned &Alignment);
+    bool ParseInstructionMetadata(SmallVectorImpl<std::pair<unsigned,
+                                                            MDNode *> > &);
+    bool ParseOptionalCommaAlign(unsigned &Alignment, bool &AteExtraComma);
+    bool ParseIndexList(SmallVectorImpl<unsigned> &Indices,bool &AteExtraComma);
+    bool ParseIndexList(SmallVectorImpl<unsigned> &Indices) {
+      bool AteExtraComma;
+      if (ParseIndexList(Indices, AteExtraComma)) return true;
+      if (AteExtraComma)
+        return TokError("expected index");
+      return false;
+    }
 
     // Top-Level Entities
     bool ParseTopLevelEntities();
@@ -192,8 +202,8 @@ namespace llvm {
     bool ParseAlias(const std::string &Name, LocTy Loc, unsigned Visibility);
     bool ParseStandaloneMetadata();
     bool ParseNamedMetadata();
-    bool ParseMDString(MetadataBase *&S);
-    bool ParseMDNode(MetadataBase *&N);
+    bool ParseMDString(MDString *&Result);
+    bool ParseMDNodeID(MDNode *&Result);
 
     // Type Parsing.
     bool ParseType(PATypeHolder &Result, bool AllowVoid = false);
@@ -203,18 +213,10 @@ namespace llvm {
     }
     bool ParseTypeRec(PATypeHolder &H);
     bool ParseStructType(PATypeHolder &H, bool Packed);
+    bool ParseUnionType(PATypeHolder &H);
     bool ParseArrayVectorType(PATypeHolder &H, bool isVector);
     bool ParseFunctionType(PATypeHolder &Result);
     PATypeHolder HandleUpRefs(const Type *Ty);
-
-    // Constants.
-    bool ParseValID(ValID &ID);
-    bool ConvertGlobalValIDToValue(const Type *Ty, ValID &ID, Constant *&V);
-    bool ParseGlobalValue(const Type *Ty, Constant *&V);
-    bool ParseGlobalTypeAndValue(Constant *&V);
-    bool ParseGlobalValueVector(SmallVectorImpl<Constant*> &Elts);
-    bool ParseMDNodeVector(SmallVectorImpl<Value*> &);
-
 
     // Function Semantic Analysis.
     class PerFunctionState {
@@ -259,7 +261,7 @@ namespace llvm {
     };
 
     bool ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
-                             PerFunctionState &PFS);
+                             PerFunctionState *PFS);
 
     bool ParseValue(const Type *Ty, Value *&V, PerFunctionState &PFS);
     bool ParseValue(const Type *Ty, Value *&V, LocTy &Loc,
@@ -279,7 +281,9 @@ namespace llvm {
       LocTy Loc;
       return ParseTypeAndBasicBlock(BB, Loc, PFS);
     }
-  
+
+    bool ParseUnionValue(const UnionType* utype, ValID &ID, Value *&V);
+
     struct ParamInfo {
       LocTy Loc;
       Value *V;
@@ -289,6 +293,13 @@ namespace llvm {
     };
     bool ParseParameterList(SmallVectorImpl<ParamInfo> &ArgList,
                             PerFunctionState &PFS);
+
+    // Constant Parsing.
+    bool ParseValID(ValID &ID, PerFunctionState *PFS = NULL);
+    bool ParseGlobalValue(const Type *Ty, Constant *&V);
+    bool ParseGlobalTypeAndValue(Constant *&V);
+    bool ParseGlobalValueVector(SmallVectorImpl<Constant*> &Elts);
+    bool ParseMDNodeVector(SmallVectorImpl<Value*> &, PerFunctionState *PFS);
 
     // Function Parsing.
     struct ArgInfo {
@@ -305,12 +316,14 @@ namespace llvm {
     bool ParseFunctionBody(Function &Fn);
     bool ParseBasicBlock(PerFunctionState &PFS);
 
-    // Instruction Parsing.
-    bool ParseInstruction(Instruction *&Inst, BasicBlock *BB,
-                          PerFunctionState &PFS);
+    // Instruction Parsing.  Each instruction parsing routine can return with a
+    // normal result, an error result, or return having eaten an extra comma.
+    enum InstResult { InstNormal = 0, InstError = 1, InstExtraComma = 2 };
+    int ParseInstruction(Instruction *&Inst, BasicBlock *BB,
+                         PerFunctionState &PFS);
     bool ParseCmpPredicate(unsigned &Pred, unsigned Opc);
 
-    bool ParseRet(Instruction *&Inst, BasicBlock *BB, PerFunctionState &PFS);
+    int ParseRet(Instruction *&Inst, BasicBlock *BB, PerFunctionState &PFS);
     bool ParseBr(Instruction *&Inst, PerFunctionState &PFS);
     bool ParseSwitch(Instruction *&Inst, PerFunctionState &PFS);
     bool ParseIndirectBr(Instruction *&Inst, PerFunctionState &PFS);
@@ -326,17 +339,17 @@ namespace llvm {
     bool ParseExtractElement(Instruction *&I, PerFunctionState &PFS);
     bool ParseInsertElement(Instruction *&I, PerFunctionState &PFS);
     bool ParseShuffleVector(Instruction *&I, PerFunctionState &PFS);
-    bool ParsePHI(Instruction *&I, PerFunctionState &PFS);
+    int ParsePHI(Instruction *&I, PerFunctionState &PFS);
     bool ParseCall(Instruction *&I, PerFunctionState &PFS, bool isTail);
-    bool ParseAlloc(Instruction *&I, PerFunctionState &PFS,
+    int ParseAlloc(Instruction *&I, PerFunctionState &PFS,
                     BasicBlock *BB = 0, bool isAlloca = true);
     bool ParseFree(Instruction *&I, PerFunctionState &PFS, BasicBlock *BB);
-    bool ParseLoad(Instruction *&I, PerFunctionState &PFS, bool isVolatile);
-    bool ParseStore(Instruction *&I, PerFunctionState &PFS, bool isVolatile);
+    int ParseLoad(Instruction *&I, PerFunctionState &PFS, bool isVolatile);
+    int ParseStore(Instruction *&I, PerFunctionState &PFS, bool isVolatile);
     bool ParseGetResult(Instruction *&I, PerFunctionState &PFS);
-    bool ParseGetElementPtr(Instruction *&I, PerFunctionState &PFS);
-    bool ParseExtractValue(Instruction *&I, PerFunctionState &PFS);
-    bool ParseInsertValue(Instruction *&I, PerFunctionState &PFS);
+    int ParseGetElementPtr(Instruction *&I, PerFunctionState &PFS);
+    int ParseExtractValue(Instruction *&I, PerFunctionState &PFS);
+    int ParseInsertValue(Instruction *&I, PerFunctionState &PFS);
     
     bool ResolveForwardRefBlockAddresses(Function *TheFn, 
                              std::vector<std::pair<ValID, GlobalValue*> > &Refs,

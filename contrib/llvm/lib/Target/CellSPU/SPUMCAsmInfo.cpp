@@ -16,10 +16,9 @@ using namespace llvm;
 
 SPULinuxMCAsmInfo::SPULinuxMCAsmInfo(const Target &T, const StringRef &TT) {
   ZeroDirective = "\t.space\t";
-  SetDirective = "\t.set";
   Data64bitsDirective = "\t.quad\t";
   AlignmentIsInBytes = false;
-  LCOMMDirective = "\t.lcomm\t";
+  HasLCOMMDirective = true;
       
   PCSymbol = ".";
   CommentString = "#";
@@ -31,7 +30,6 @@ SPULinuxMCAsmInfo::SPULinuxMCAsmInfo(const Target &T, const StringRef &TT) {
   HasDotLocAndDotFile = true;
 
   SupportsDebugInformation = true;
-  NeedsSet = true;
 
   // Exception handling is not supported on CellSPU (think about it: you only
   // have 256K for code+data. Would you support exception handling?)

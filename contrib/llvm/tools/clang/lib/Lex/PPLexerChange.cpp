@@ -63,9 +63,9 @@ PreprocessorLexer *Preprocessor::getCurrentFileLexer() const {
 //===----------------------------------------------------------------------===//
 
 /// EnterSourceFile - Add a source file to the top of the include stack and
-/// start lexing tokens from it instead of the current buffer.  Return true
-/// on failure.
-void Preprocessor::EnterSourceFile(FileID FID, const DirectoryLookup *CurDir) {
+/// start lexing tokens from it instead of the current buffer.
+bool Preprocessor::EnterSourceFile(FileID FID, const DirectoryLookup *CurDir,
+                                   std::string &ErrorStr) {
   assert(CurTokenLexer == 0 && "Cannot #include a file inside a macro!");
   ++NumEnteredSourceFiles;
 
@@ -73,10 +73,20 @@ void Preprocessor::EnterSourceFile(FileID FID, const DirectoryLookup *CurDir) {
     MaxIncludeStackDepth = IncludeMacroStack.size();
 
   if (PTH) {
-    if (PTHLexer *PL = PTH->CreateLexer(FID))
-      return EnterSourceFileWithPTH(PL, CurDir);
+    if (PTHLexer *PL = PTH->CreateLexer(FID)) {
+      EnterSourceFileWithPTH(PL, CurDir);
+      return false;
+    }
   }
-  EnterSourceFileWithLexer(new Lexer(FID, *this), CurDir);
+  
+  // Get the MemoryBuffer for this FID, if it fails, we fail.
+  const llvm::MemoryBuffer *InputFile =
+    getSourceManager().getBuffer(FID, &ErrorStr);
+  if (!ErrorStr.empty())
+    return true;
+  
+  EnterSourceFileWithLexer(new Lexer(FID, InputFile, *this), CurDir);
+  return false;
 }
 
 /// EnterSourceFileWithLexer - Add a source file to the top of the include stack
@@ -239,7 +249,8 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
   // diagnostic is enabled, look for macros that have not been used.
   if (getDiagnostics().getDiagnosticLevel(diag::pp_macro_not_used) !=
         Diagnostic::Ignored) {
-    for (macro_iterator I = macro_begin(), E = macro_end(); I != E; ++I)
+    for (macro_iterator I = macro_begin(false), E = macro_end(false); 
+         I != E; ++I)
       if (!I->second->isUsed())
         Diag(I->second->getDefinitionLoc(), diag::pp_macro_not_used);
   }

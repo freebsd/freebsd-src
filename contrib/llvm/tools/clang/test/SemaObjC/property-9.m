@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 typedef signed char BOOL;
 @protocol NSObject  - (BOOL)isEqual:(id)object; @end
@@ -84,3 +84,15 @@ typedef signed char BOOL;
   view.inEyeDropperMode = 1;
 }
 @end
+
+// radar 7427072
+@interface MyStyleIntf 
+{
+    int _myStyle;
+}
+
+@property(readonly) int myStyle;
+
+- (float)setMyStyle:(int)style;
+@end
+

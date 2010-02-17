@@ -14,56 +14,6 @@
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
-// MMX Pattern Fragments
-//===----------------------------------------------------------------------===//
-
-def load_mmx : PatFrag<(ops node:$ptr), (v1i64 (load node:$ptr))>;
-
-def bc_v8i8  : PatFrag<(ops node:$in), (v8i8  (bitconvert node:$in))>;
-def bc_v4i16 : PatFrag<(ops node:$in), (v4i16 (bitconvert node:$in))>;
-def bc_v2i32 : PatFrag<(ops node:$in), (v2i32 (bitconvert node:$in))>;
-def bc_v1i64 : PatFrag<(ops node:$in), (v1i64 (bitconvert node:$in))>;
-
-//===----------------------------------------------------------------------===//
-// MMX Masks
-//===----------------------------------------------------------------------===//
-
-// MMX_SHUFFLE_get_shuf_imm xform function: convert vector_shuffle mask to
-// PSHUFW imm.
-def MMX_SHUFFLE_get_shuf_imm : SDNodeXForm<vector_shuffle, [{
-  return getI8Imm(X86::getShuffleSHUFImmediate(N));
-}]>;
-
-// Patterns for: vector_shuffle v1, v2, <2, 6, 3, 7, ...>
-def mmx_unpckh : PatFrag<(ops node:$lhs, node:$rhs),
-                         (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKHMask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-// Patterns for: vector_shuffle v1, v2, <0, 4, 2, 5, ...>
-def mmx_unpckl : PatFrag<(ops node:$lhs, node:$rhs),
-                         (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKLMask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-// Patterns for: vector_shuffle v1, <undef>, <0, 0, 1, 1, ...>
-def mmx_unpckh_undef : PatFrag<(ops node:$lhs, node:$rhs),
-                               (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKH_v_undef_Mask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-// Patterns for: vector_shuffle v1, <undef>, <2, 2, 3, 3, ...>
-def mmx_unpckl_undef : PatFrag<(ops node:$lhs, node:$rhs),
-                               (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKL_v_undef_Mask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-def mmx_pshufw : PatFrag<(ops node:$lhs, node:$rhs),
-                         (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isPSHUFDMask(cast<ShuffleVectorSDNode>(N));
-}], MMX_SHUFFLE_get_shuf_imm>;
-
-//===----------------------------------------------------------------------===//
 // MMX Multiclasses
 //===----------------------------------------------------------------------===//
 
@@ -72,13 +22,13 @@ let Constraints = "$src1 = $dst" in {
   multiclass MMXI_binop_rm<bits<8> opc, string OpcodeStr, SDNode OpNode,
                            ValueType OpVT, bit Commutable = 0> {
     def rr : MMXI<opc, MRMSrcReg, (outs VR64:$dst),
-				  (ins VR64:$src1, VR64:$src2),
+                  (ins VR64:$src1, VR64:$src2),
                   !strconcat(OpcodeStr, "\t{$src2, $dst|$dst, $src2}"),
                   [(set VR64:$dst, (OpVT (OpNode VR64:$src1, VR64:$src2)))]> {
       let isCommutable = Commutable;
     }
     def rm : MMXI<opc, MRMSrcMem, (outs VR64:$dst),
-				  (ins VR64:$src1, i64mem:$src2),
+                  (ins VR64:$src1, i64mem:$src2),
                   !strconcat(OpcodeStr, "\t{$src2, $dst|$dst, $src2}"),
                   [(set VR64:$dst, (OpVT (OpNode VR64:$src1,
                                          (bitconvert
@@ -88,13 +38,13 @@ let Constraints = "$src1 = $dst" in {
   multiclass MMXI_binop_rm_int<bits<8> opc, string OpcodeStr, Intrinsic IntId,
                                bit Commutable = 0> {
     def rr : MMXI<opc, MRMSrcReg, (outs VR64:$dst),
-				  (ins VR64:$src1, VR64:$src2),
+                 (ins VR64:$src1, VR64:$src2),
                  !strconcat(OpcodeStr, "\t{$src2, $dst|$dst, $src2}"),
                  [(set VR64:$dst, (IntId VR64:$src1, VR64:$src2))]> {
       let isCommutable = Commutable;
     }
     def rm : MMXI<opc, MRMSrcMem, (outs VR64:$dst),
-				  (ins VR64:$src1, i64mem:$src2),
+                 (ins VR64:$src1, i64mem:$src2),
                  !strconcat(OpcodeStr, "\t{$src2, $dst|$dst, $src2}"),
                  [(set VR64:$dst, (IntId VR64:$src1,
                                    (bitconvert (load_mmx addr:$src2))))]>;
@@ -144,9 +94,9 @@ let Constraints = "$src1 = $dst" in {
 //===----------------------------------------------------------------------===//
 
 def MMX_EMMS  : MMXI<0x77, RawFrm, (outs), (ins), "emms",
-						  [(int_x86_mmx_emms)]>;
+                     [(int_x86_mmx_emms)]>;
 def MMX_FEMMS : MMXI<0x0E, RawFrm, (outs), (ins), "femms",
-						  [(int_x86_mmx_femms)]>;
+                     [(int_x86_mmx_femms)]>;
 
 //===----------------------------------------------------------------------===//
 // MMX Scalar Instructions
@@ -155,16 +105,21 @@ def MMX_FEMMS : MMXI<0x0E, RawFrm, (outs), (ins), "femms",
 // Data Transfer Instructions
 def MMX_MOVD64rr : MMXI<0x6E, MRMSrcReg, (outs VR64:$dst), (ins GR32:$src),
                         "movd\t{$src, $dst|$dst, $src}",
-                        [(set VR64:$dst,
-		   	  (v2i32 (scalar_to_vector GR32:$src)))]>;
+                        [(set VR64:$dst, 
+                         (v2i32 (scalar_to_vector GR32:$src)))]>;
 let canFoldAsLoad = 1, isReMaterializable = 1 in
 def MMX_MOVD64rm : MMXI<0x6E, MRMSrcMem, (outs VR64:$dst), (ins i32mem:$src),
                         "movd\t{$src, $dst|$dst, $src}",
               [(set VR64:$dst,
-		(v2i32 (scalar_to_vector (loadi32 addr:$src))))]>;
+               (v2i32 (scalar_to_vector (loadi32 addr:$src))))]>;
 let mayStore = 1 in
 def MMX_MOVD64mr : MMXI<0x7E, MRMDestMem, (outs), (ins i32mem:$dst, VR64:$src),
                         "movd\t{$src, $dst|$dst, $src}", []>;
+def MMX_MOVD64grr : MMXI<0x7E, MRMDestReg, (outs), (ins GR32:$dst, VR64:$src),
+                        "movd\t{$src, $dst|$dst, $src}", []>;
+def MMX_MOVQ64gmr : MMXRI<0x7E, MRMDestMem, (outs), 
+                         (ins i64mem:$dst, VR64:$src),
+                         "movq\t{$src, $dst|$dst, $src}", []>;
 
 let neverHasSideEffects = 1 in
 def MMX_MOVD64to64rr : MMXRI<0x6E, MRMSrcReg, (outs VR64:$dst), (ins GR64:$src),
@@ -181,7 +136,7 @@ def MMX_MOVD64from64rr : MMXRI<0x7E, MRMDestReg,
 def MMX_MOVD64rrv164 : MMXI<0x6E, MRMSrcReg, (outs VR64:$dst), (ins GR64:$src),
                             "movd\t{$src, $dst|$dst, $src}",
                             [(set VR64:$dst,
-			      (v1i64 (scalar_to_vector GR64:$src)))]>;
+                             (v1i64 (scalar_to_vector GR64:$src)))]>;
 
 let neverHasSideEffects = 1 in
 def MMX_MOVQ64rr : MMXI<0x6F, MRMSrcReg, (outs VR64:$dst), (ins VR64:$src),
@@ -223,7 +178,7 @@ def MMX_MOVZDI2PDIrr : MMXI<0x6E, MRMSrcReg, (outs VR64:$dst), (ins GR32:$src),
                     (v2i32 (X86vzmovl (v2i32 (scalar_to_vector GR32:$src)))))]>;
 let AddedComplexity = 20 in
 def MMX_MOVZDI2PDIrm : MMXI<0x6E, MRMSrcMem, (outs VR64:$dst),
-					     (ins i32mem:$src),
+                           (ins i32mem:$src),
                              "movd\t{$src, $dst|$dst, $src}",
           [(set VR64:$dst,
                 (v2i32 (X86vzmovl (v2i32
@@ -432,21 +387,21 @@ def MMX_CVTPD2PIrr  : MMX2I<0x2D, MRMSrcReg, (outs VR64:$dst), (ins VR128:$src),
                             "cvtpd2pi\t{$src, $dst|$dst, $src}", []>;
 let mayLoad = 1 in
 def MMX_CVTPD2PIrm  : MMX2I<0x2D, MRMSrcMem, (outs VR64:$dst),
-					     (ins f128mem:$src),
+                            (ins f128mem:$src),
                             "cvtpd2pi\t{$src, $dst|$dst, $src}", []>;
 
 def MMX_CVTPI2PDrr  : MMX2I<0x2A, MRMSrcReg, (outs VR128:$dst), (ins VR64:$src),
                             "cvtpi2pd\t{$src, $dst|$dst, $src}", []>;
 let mayLoad = 1 in
 def MMX_CVTPI2PDrm  : MMX2I<0x2A, MRMSrcMem, (outs VR128:$dst),
-	  				     (ins i64mem:$src),
+                            (ins i64mem:$src),
                             "cvtpi2pd\t{$src, $dst|$dst, $src}", []>;
 
 def MMX_CVTPI2PSrr  : MMXI<0x2A, MRMSrcReg, (outs VR128:$dst), (ins VR64:$src),
                            "cvtpi2ps\t{$src, $dst|$dst, $src}", []>;
 let mayLoad = 1 in
 def MMX_CVTPI2PSrm  : MMXI<0x2A, MRMSrcMem, (outs VR128:$dst),
-					    (ins i64mem:$src),
+                           (ins i64mem:$src),
                            "cvtpi2ps\t{$src, $dst|$dst, $src}", []>;
 
 def MMX_CVTPS2PIrr  : MMXI<0x2D, MRMSrcReg, (outs VR64:$dst), (ins VR128:$src),
@@ -459,7 +414,7 @@ def MMX_CVTTPD2PIrr : MMX2I<0x2C, MRMSrcReg, (outs VR64:$dst), (ins VR128:$src),
                             "cvttpd2pi\t{$src, $dst|$dst, $src}", []>;
 let mayLoad = 1 in
 def MMX_CVTTPD2PIrm : MMX2I<0x2C, MRMSrcMem, (outs VR64:$dst),
-					     (ins f128mem:$src),
+                            (ins f128mem:$src),
                             "cvttpd2pi\t{$src, $dst|$dst, $src}", []>;
 
 def MMX_CVTTPS2PIrr : MMXI<0x2C, MRMSrcReg, (outs VR64:$dst), (ins VR128:$src),
@@ -481,20 +436,34 @@ def MMX_PEXTRWri  : MMXIi8<0xC5, MRMSrcReg,
                                              (iPTR imm:$src2)))]>;
 let Constraints = "$src1 = $dst" in {
   def MMX_PINSRWrri : MMXIi8<0xC4, MRMSrcReg,
-                      (outs VR64:$dst), (ins VR64:$src1, GR32:$src2,
-					     i16i8imm:$src3),
+                      (outs VR64:$dst), 
+                      (ins VR64:$src1, GR32:$src2,i16i8imm:$src3),
                       "pinsrw\t{$src3, $src2, $dst|$dst, $src2, $src3}",
                       [(set VR64:$dst, (v4i16 (MMX_X86pinsrw (v4i16 VR64:$src1),
                                                GR32:$src2,(iPTR imm:$src3))))]>;
   def MMX_PINSRWrmi : MMXIi8<0xC4, MRMSrcMem,
-                     (outs VR64:$dst), (ins VR64:$src1, i16mem:$src2,
-					    i16i8imm:$src3),
+                     (outs VR64:$dst),
+                     (ins VR64:$src1, i16mem:$src2, i16i8imm:$src3),
                      "pinsrw\t{$src3, $src2, $dst|$dst, $src2, $src3}",
                      [(set VR64:$dst,
                        (v4i16 (MMX_X86pinsrw (v4i16 VR64:$src1),
                                (i32 (anyext (loadi16 addr:$src2))),
                                (iPTR imm:$src3))))]>;
 }
+
+// MMX to XMM for vector types
+def MMX_X86movq2dq : SDNode<"X86ISD::MOVQ2DQ", SDTypeProfile<1, 1,
+                            [SDTCisVT<0, v2i64>, SDTCisVT<1, v1i64>]>>;
+
+def : Pat<(v2i64 (MMX_X86movq2dq VR64:$src)),
+          (v2i64 (MMX_MOVQ2DQrr VR64:$src))>;
+
+def : Pat<(v2i64 (MMX_X86movq2dq (load_mmx addr:$src))),
+          (v2i64 (MOVQI2PQIrm addr:$src))>;
+
+def : Pat<(v2i64 (MMX_X86movq2dq (v1i64 (bitconvert
+                            (v2i32 (scalar_to_vector (loadi32 addr:$src))))))),
+          (v2i64 (MOVDI2PDIrm addr:$src))>;
 
 // Mask creation
 def MMX_PMOVMSKBrr : MMXI<0xD7, MRMSrcReg, (outs GR32:$dst), (ins VR64:$src),
@@ -517,11 +486,10 @@ def MMX_MASKMOVQ64: MMXI64<0xF7, MRMSrcReg, (outs), (ins VR64:$src, VR64:$mask),
 
 // Alias instructions that map zero vector to pxor.
 let isReMaterializable = 1, isCodeGenOnly = 1 in {
-  def MMX_V_SET0       : MMXI<0xEF, MRMInitReg, (outs VR64:$dst), (ins),
-                              "pxor\t$dst, $dst",
+  // FIXME: Change encoding to pseudo.
+  def MMX_V_SET0       : MMXI<0xEF, MRMInitReg, (outs VR64:$dst), (ins), "",
                               [(set VR64:$dst, (v2i32 immAllZerosV))]>;
-  def MMX_V_SETALLONES : MMXI<0x76, MRMInitReg, (outs VR64:$dst), (ins),
-                              "pcmpeqd\t$dst, $dst",
+  def MMX_V_SETALLONES : MMXI<0x76, MRMInitReg, (outs VR64:$dst), (ins), "",
                               [(set VR64:$dst, (v2i32 immAllOnesV))]>;
 }
 

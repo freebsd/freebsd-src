@@ -117,6 +117,14 @@ namespace {
 
     unsigned VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E);
     unsigned VisitCXXConstructExpr(CXXConstructExpr *E);
+    unsigned VisitCXXNamedCastExpr(CXXNamedCastExpr *E);
+    unsigned VisitCXXStaticCastExpr(CXXStaticCastExpr *E);
+    unsigned VisitCXXDynamicCastExpr(CXXDynamicCastExpr *E);
+    unsigned VisitCXXReinterpretCastExpr(CXXReinterpretCastExpr *E);
+    unsigned VisitCXXConstCastExpr(CXXConstCastExpr *E);
+    unsigned VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E);
+    unsigned VisitCXXBoolLiteralExpr(CXXBoolLiteralExpr *E);
+    unsigned VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *E);
   };
 }
 
@@ -177,6 +185,7 @@ unsigned PCHStmtReader::VisitLabelStmt(LabelStmt *S) {
 
 unsigned PCHStmtReader::VisitIfStmt(IfStmt *S) {
   VisitStmt(S);
+  S->setConditionVariable(cast_or_null<VarDecl>(Reader.GetDecl(Record[Idx++])));
   S->setCond(cast<Expr>(StmtStack[StmtStack.size() - 3]));
   S->setThen(StmtStack[StmtStack.size() - 2]);
   S->setElse(StmtStack[StmtStack.size() - 1]);
@@ -187,6 +196,7 @@ unsigned PCHStmtReader::VisitIfStmt(IfStmt *S) {
 
 unsigned PCHStmtReader::VisitSwitchStmt(SwitchStmt *S) {
   VisitStmt(S);
+  S->setConditionVariable(cast_or_null<VarDecl>(Reader.GetDecl(Record[Idx++])));
   S->setCond(cast<Expr>(StmtStack[StmtStack.size() - 2]));
   S->setBody(StmtStack.back());
   S->setSwitchLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
@@ -208,6 +218,7 @@ unsigned PCHStmtReader::VisitSwitchStmt(SwitchStmt *S) {
 
 unsigned PCHStmtReader::VisitWhileStmt(WhileStmt *S) {
   VisitStmt(S);
+  S->setConditionVariable(cast_or_null<VarDecl>(Reader.GetDecl(Record[Idx++])));
   S->setCond(cast_or_null<Expr>(StmtStack[StmtStack.size() - 2]));
   S->setBody(StmtStack.back());
   S->setWhileLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
@@ -228,6 +239,7 @@ unsigned PCHStmtReader::VisitForStmt(ForStmt *S) {
   VisitStmt(S);
   S->setInit(StmtStack[StmtStack.size() - 4]);
   S->setCond(cast_or_null<Expr>(StmtStack[StmtStack.size() - 3]));
+  S->setConditionVariable(cast_or_null<VarDecl>(Reader.GetDecl(Record[Idx++])));
   S->setInc(cast_or_null<Expr>(StmtStack[StmtStack.size() - 2]));
   S->setBody(StmtStack.back());
   S->setForLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
@@ -300,28 +312,31 @@ unsigned PCHStmtReader::VisitAsmStmt(AsmStmt *S) {
   S->setRParenLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
   S->setVolatile(Record[Idx++]);
   S->setSimple(Record[Idx++]);
+  S->setMSAsm(Record[Idx++]);
 
   unsigned StackIdx
     = StmtStack.size() - (NumOutputs*2 + NumInputs*2 + NumClobbers + 1);
   S->setAsmString(cast_or_null<StringLiteral>(StmtStack[StackIdx++]));
 
   // Outputs and inputs
-  llvm::SmallVector<std::string, 16> Names;
+  llvm::SmallVector<IdentifierInfo *, 16> Names;
   llvm::SmallVector<StringLiteral*, 16> Constraints;
   llvm::SmallVector<Stmt*, 16> Exprs;
   for (unsigned I = 0, N = NumOutputs + NumInputs; I != N; ++I) {
-    Names.push_back(Reader.ReadString(Record, Idx));
+    Names.push_back(Reader.GetIdentifierInfo(Record, Idx));
     Constraints.push_back(cast_or_null<StringLiteral>(StmtStack[StackIdx++]));
     Exprs.push_back(StmtStack[StackIdx++]);
   }
-  S->setOutputsAndInputs(NumOutputs, NumInputs,
-                         Names.data(), Constraints.data(), Exprs.data());
 
   // Constraints
   llvm::SmallVector<StringLiteral*, 16> Clobbers;
   for (unsigned I = 0; I != NumClobbers; ++I)
     Clobbers.push_back(cast_or_null<StringLiteral>(StmtStack[StackIdx++]));
-  S->setClobbers(Clobbers.data(), NumClobbers);
+
+  S->setOutputsAndInputsAndClobbers(*Reader.getContext(),
+                                    Names.data(), Constraints.data(), 
+                                    Exprs.data(), NumOutputs, NumInputs, 
+                                    Clobbers.data(), NumClobbers);
 
   assert(StackIdx == StmtStack.size() && "Error deserializing AsmStmt");
   return NumOutputs*2 + NumInputs*2 + NumClobbers + 1;
@@ -345,7 +360,7 @@ unsigned PCHStmtReader::VisitPredefinedExpr(PredefinedExpr *E) {
 
 unsigned PCHStmtReader::VisitDeclRefExpr(DeclRefExpr *E) {
   VisitExpr(E);
-  E->setDecl(cast<NamedDecl>(Reader.GetDecl(Record[Idx++])));
+  E->setDecl(cast<ValueDecl>(Reader.GetDecl(Record[Idx++])));
   E->setLocation(SourceLocation::getFromRawEncoding(Record[Idx++]));
   // FIXME: read qualifier
   // FIXME: read explicit template arguments
@@ -424,7 +439,7 @@ unsigned PCHStmtReader::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) {
     E->setArgument(cast<Expr>(StmtStack.back()));
     ++Idx;
   } else {
-    E->setArgument(Reader.GetDeclaratorInfo(Record, Idx));
+    E->setArgument(Reader.GetTypeSourceInfo(Record, Idx));
   }
   E->setOperatorLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
   E->setRParenLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
@@ -452,7 +467,7 @@ unsigned PCHStmtReader::VisitCallExpr(CallExpr *E) {
 unsigned PCHStmtReader::VisitMemberExpr(MemberExpr *E) {
   VisitExpr(E);
   E->setBase(cast<Expr>(StmtStack.back()));
-  E->setMemberDecl(cast<NamedDecl>(Reader.GetDecl(Record[Idx++])));
+  E->setMemberDecl(cast<ValueDecl>(Reader.GetDecl(Record[Idx++])));
   E->setMemberLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
   E->setArrow(Record[Idx++]);
   return 1;
@@ -508,7 +523,7 @@ unsigned PCHStmtReader::VisitImplicitCastExpr(ImplicitCastExpr *E) {
 
 unsigned PCHStmtReader::VisitExplicitCastExpr(ExplicitCastExpr *E) {
   VisitCastExpr(E);
-  E->setTypeAsWritten(Reader.GetType(Record[Idx++]));
+  E->setTypeInfoAsWritten(Reader.GetTypeSourceInfo(Record, Idx));
   return 1;
 }
 
@@ -522,6 +537,7 @@ unsigned PCHStmtReader::VisitCStyleCastExpr(CStyleCastExpr *E) {
 unsigned PCHStmtReader::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
   VisitExpr(E);
   E->setLParenLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  E->setTypeSourceInfo(Reader.GetTypeSourceInfo(Record, Idx));
   E->setInitializer(cast<Expr>(StmtStack.back()));
   E->setFileScope(Record[Idx++]);
   return 1;
@@ -611,7 +627,8 @@ unsigned PCHStmtReader::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
     }
     }
   }
-  E->setDesignators(Designators.data(), Designators.size());
+  E->setDesignators(*Reader.getContext(), 
+                    Designators.data(), Designators.size());
 
   return NumSubExprs;
 }
@@ -854,10 +871,54 @@ unsigned PCHStmtReader::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 unsigned PCHStmtReader::VisitCXXConstructExpr(CXXConstructExpr *E) {
   VisitExpr(E);
   E->setConstructor(cast<CXXConstructorDecl>(Reader.GetDecl(Record[Idx++])));
+  E->setLocation(SourceLocation::getFromRawEncoding(Record[Idx++]));
   E->setElidable(Record[Idx++]);  
+  E->setRequiresZeroInitialization(Record[Idx++]);
   for (unsigned I = 0, N = E->getNumArgs(); I != N; ++I)
     E->setArg(I, cast<Expr>(StmtStack[StmtStack.size() - N + I]));
   return E->getNumArgs();
+}
+
+unsigned PCHStmtReader::VisitCXXNamedCastExpr(CXXNamedCastExpr *E) {
+  unsigned num = VisitExplicitCastExpr(E);
+  E->setOperatorLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  return num;
+}
+
+unsigned PCHStmtReader::VisitCXXStaticCastExpr(CXXStaticCastExpr *E) {
+  return VisitCXXNamedCastExpr(E);
+}
+
+unsigned PCHStmtReader::VisitCXXDynamicCastExpr(CXXDynamicCastExpr *E) {
+  return VisitCXXNamedCastExpr(E);
+}
+
+unsigned PCHStmtReader::VisitCXXReinterpretCastExpr(CXXReinterpretCastExpr *E) {
+  return VisitCXXNamedCastExpr(E);
+}
+
+unsigned PCHStmtReader::VisitCXXConstCastExpr(CXXConstCastExpr *E) {
+  return VisitCXXNamedCastExpr(E);
+}
+
+unsigned PCHStmtReader::VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E) {
+  unsigned num = VisitExplicitCastExpr(E);
+  E->setTypeBeginLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  E->setRParenLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  return num;
+}
+
+unsigned PCHStmtReader::VisitCXXBoolLiteralExpr(CXXBoolLiteralExpr *E) {
+  VisitExpr(E);
+  E->setValue(Record[Idx++]);
+  E->setLocation(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  return 0;
+}
+
+unsigned PCHStmtReader::VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *E) {
+  VisitExpr(E);
+  E->setLocation(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  return 0;
 }
 
 // Within the bitstream, expressions are stored in Reverse Polish
@@ -1167,6 +1228,34 @@ Stmt *PCHReader::ReadStmt(llvm::BitstreamCursor &Cursor) {
     case pch::EXPR_CXX_CONSTRUCT:
       S = new (Context) CXXConstructExpr(Empty, *Context,
                                       Record[PCHStmtReader::NumExprFields + 2]);
+      break;
+
+    case pch::EXPR_CXX_STATIC_CAST:
+      S = new (Context) CXXStaticCastExpr(Empty);
+      break;
+
+    case pch::EXPR_CXX_DYNAMIC_CAST:
+      S = new (Context) CXXDynamicCastExpr(Empty);
+      break;
+
+    case pch::EXPR_CXX_REINTERPRET_CAST:
+      S = new (Context) CXXReinterpretCastExpr(Empty);
+      break;
+
+    case pch::EXPR_CXX_CONST_CAST:
+      S = new (Context) CXXConstCastExpr(Empty);
+      break;
+
+    case pch::EXPR_CXX_FUNCTIONAL_CAST:
+      S = new (Context) CXXFunctionalCastExpr(Empty);
+      break;
+
+    case pch::EXPR_CXX_BOOL_LITERAL:
+      S = new (Context) CXXBoolLiteralExpr(Empty);
+      break;
+
+    case pch::EXPR_CXX_NULL_PTR_LITERAL:
+      S = new (Context) CXXNullPtrLiteralExpr(Empty);
       break;
     }
 

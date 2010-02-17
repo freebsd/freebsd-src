@@ -61,6 +61,21 @@ namespace llvm {
       
       TOC_ENTRY,
 
+      /// The following three target-specific nodes are used for calls through
+      /// function pointers in the 64-bit SVR4 ABI.
+
+      /// Restore the TOC from the TOC save area of the current stack frame.
+      /// This is basically a hard coded load instruction which additionally
+      /// takes/produces a flag.
+      TOC_RESTORE,
+
+      /// Like a regular LOAD but additionally taking/producing a flag.
+      LOAD,
+
+      /// LOAD into r2 (also taking/producing a flag). Like TOC_RESTORE, this is
+      /// a hard coded load instruction.
+      LOAD_TOC,
+
       /// OPRC, CHAIN = DYNALLOC(CHAIN, NEGSIZE, FRAME_INDEX)
       /// This instruction is lowered in PPCRegisterInfo::eliminateFrameIndex to
       /// compute an allocation on the stack.
@@ -330,13 +345,6 @@ namespace llvm {
     /// the offset of the target addressing mode.
     virtual bool isLegalAddressImmediate(GlobalValue *GV) const;
 
-    virtual bool
-    IsEligibleForTailCallOptimization(SDValue Callee,
-                                      CallingConv::ID CalleeCC,
-                                      bool isVarArg,
-                                      const SmallVectorImpl<ISD::InputArg> &Ins,
-                                      SelectionDAG& DAG) const;
-
     virtual bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
     
     virtual EVT getOptimalMemOpType(uint64_t Size, unsigned Align,
@@ -349,6 +357,13 @@ namespace llvm {
   private:
     SDValue getFramePointerFrameIndex(SelectionDAG & DAG) const;
     SDValue getReturnAddrFrameIndex(SelectionDAG & DAG) const;
+
+    bool
+    IsEligibleForTailCallOptimization(SDValue Callee,
+                                      CallingConv::ID CalleeCC,
+                                      bool isVarArg,
+                                      const SmallVectorImpl<ISD::InputArg> &Ins,
+                                      SelectionDAG& DAG) const;
 
     SDValue EmitTailCallLoadFPAndRetAddr(SelectionDAG & DAG,
                                          int SPDiff,
@@ -416,7 +431,7 @@ namespace llvm {
 
     virtual SDValue
       LowerCall(SDValue Chain, SDValue Callee,
-                CallingConv::ID CallConv, bool isVarArg, bool isTailCall,
+                CallingConv::ID CallConv, bool isVarArg, bool &isTailCall,
                 const SmallVectorImpl<ISD::OutputArg> &Outs,
                 const SmallVectorImpl<ISD::InputArg> &Ins,
                 DebugLoc dl, SelectionDAG &DAG,

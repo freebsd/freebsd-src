@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86-64 -mtriple=x86_64-unknown-linux-gnu -asm-verbose=false | FileCheck %s
+; RUN: llc < %s -march=x86-64 -mtriple=x86_64-unknown-linux-gnu -asm-verbose=false -post-RA-scheduler=true | FileCheck %s
 
 declare void @bar(i32)
 declare void @car(i32)
@@ -55,7 +55,7 @@ altret:
   ret void
 }
 
-declare i8* @choose(i8*, i8*);
+declare i8* @choose(i8*, i8*)
 
 ; BranchFolding should tail-duplicate the indirect jump to avoid
 ; redundant branching.
@@ -109,15 +109,15 @@ altret:
 
 ; CHECK: dont_merge_oddly:
 ; CHECK-NOT:   ret
-; CHECK:        ucomiss %xmm0, %xmm1
+; CHECK:        ucomiss %xmm1, %xmm2
 ; CHECK-NEXT:   jbe .LBB3_3
-; CHECK-NEXT:   ucomiss %xmm2, %xmm0
+; CHECK-NEXT:   ucomiss %xmm0, %xmm1
 ; CHECK-NEXT:   ja .LBB3_4
 ; CHECK-NEXT: .LBB3_2:
 ; CHECK-NEXT:   movb $1, %al
 ; CHECK-NEXT:   ret
 ; CHECK-NEXT: .LBB3_3:
-; CHECK-NEXT:   ucomiss %xmm2, %xmm1
+; CHECK-NEXT:   ucomiss %xmm0, %xmm2
 ; CHECK-NEXT:   jbe .LBB3_2
 ; CHECK-NEXT: .LBB3_4:
 ; CHECK-NEXT:   xorb %al, %al
@@ -274,7 +274,7 @@ declare fastcc %union.tree_node* @default_conversion(%union.tree_node*) nounwind
 ; one ret instruction.
 
 ; CHECK: foo:
-; CHECK:        call func
+; CHECK:        callq func
 ; CHECK-NEXT: .LBB5_2:
 ; CHECK-NEXT:   addq $8, %rsp
 ; CHECK-NEXT:   ret

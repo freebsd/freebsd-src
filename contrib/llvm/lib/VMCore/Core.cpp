@@ -20,12 +20,13 @@
 #include "llvm/GlobalAlias.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/TypeSymbolTable.h"
-#include "llvm/ModuleProvider.h"
 #include "llvm/InlineAsm.h"
 #include "llvm/IntrinsicInst.h"
-#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/CallSite.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -89,7 +90,7 @@ void LLVMSetTarget(LLVMModuleRef M, const char *Triple) {
 }
 
 /*--.. Type names ..........................................................--*/
-int LLVMAddTypeName(LLVMModuleRef M, const char *Name, LLVMTypeRef Ty) {
+LLVMBool LLVMAddTypeName(LLVMModuleRef M, const char *Name, LLVMTypeRef Ty) {
   return unwrap(M)->addTypeName(Name, unwrap(Ty));
 }
 
@@ -140,6 +141,8 @@ LLVMTypeKind LLVMGetTypeKind(LLVMTypeRef Ty) {
     return LLVMFunctionTypeKind;
   case Type::StructTyID:
     return LLVMStructTypeKind;
+  case Type::UnionTyID:
+    return LLVMUnionTypeKind;
   case Type::ArrayTyID:
     return LLVMArrayTypeKind;
   case Type::PointerTyID:
@@ -237,7 +240,7 @@ LLVMTypeRef LLVMPPCFP128Type(void) {
 
 LLVMTypeRef LLVMFunctionType(LLVMTypeRef ReturnType,
                              LLVMTypeRef *ParamTypes, unsigned ParamCount,
-                             int IsVarArg) {
+                             LLVMBool IsVarArg) {
   std::vector<const Type*> Tys;
   for (LLVMTypeRef *I = ParamTypes, *E = ParamTypes + ParamCount; I != E; ++I)
     Tys.push_back(unwrap(*I));
@@ -245,7 +248,7 @@ LLVMTypeRef LLVMFunctionType(LLVMTypeRef ReturnType,
   return wrap(FunctionType::get(unwrap(ReturnType), Tys, IsVarArg != 0));
 }
 
-int LLVMIsFunctionVarArg(LLVMTypeRef FunctionTy) {
+LLVMBool LLVMIsFunctionVarArg(LLVMTypeRef FunctionTy) {
   return unwrap<FunctionType>(FunctionTy)->isVarArg();
 }
 
@@ -267,7 +270,7 @@ void LLVMGetParamTypes(LLVMTypeRef FunctionTy, LLVMTypeRef *Dest) {
 /*--.. Operations on struct types ..........................................--*/
 
 LLVMTypeRef LLVMStructTypeInContext(LLVMContextRef C, LLVMTypeRef *ElementTypes,
-                           unsigned ElementCount, int Packed) {
+                           unsigned ElementCount, LLVMBool Packed) {
   std::vector<const Type*> Tys;
   for (LLVMTypeRef *I = ElementTypes,
                    *E = ElementTypes + ElementCount; I != E; ++I)
@@ -277,7 +280,7 @@ LLVMTypeRef LLVMStructTypeInContext(LLVMContextRef C, LLVMTypeRef *ElementTypes,
 }
 
 LLVMTypeRef LLVMStructType(LLVMTypeRef *ElementTypes,
-                           unsigned ElementCount, int Packed) {
+                           unsigned ElementCount, LLVMBool Packed) {
   return LLVMStructTypeInContext(LLVMGetGlobalContext(), ElementTypes,
                                  ElementCount, Packed);
 }
@@ -294,8 +297,37 @@ void LLVMGetStructElementTypes(LLVMTypeRef StructTy, LLVMTypeRef *Dest) {
     *Dest++ = wrap(*I);
 }
 
-int LLVMIsPackedStruct(LLVMTypeRef StructTy) {
+LLVMBool LLVMIsPackedStruct(LLVMTypeRef StructTy) {
   return unwrap<StructType>(StructTy)->isPacked();
+}
+
+/*--.. Operations on union types ..........................................--*/
+
+LLVMTypeRef LLVMUnionTypeInContext(LLVMContextRef C, LLVMTypeRef *ElementTypes,
+                                   unsigned ElementCount) {
+  SmallVector<const Type*, 8> Tys;
+  for (LLVMTypeRef *I = ElementTypes,
+                   *E = ElementTypes + ElementCount; I != E; ++I)
+    Tys.push_back(unwrap(*I));
+  
+  return wrap(UnionType::get(&Tys[0], Tys.size()));
+}
+
+LLVMTypeRef LLVMUnionType(LLVMTypeRef *ElementTypes,
+                           unsigned ElementCount, int Packed) {
+  return LLVMUnionTypeInContext(LLVMGetGlobalContext(), ElementTypes,
+                                ElementCount);
+}
+
+unsigned LLVMCountUnionElementTypes(LLVMTypeRef UnionTy) {
+  return unwrap<UnionType>(UnionTy)->getNumElements();
+}
+
+void LLVMGetUnionElementTypes(LLVMTypeRef UnionTy, LLVMTypeRef *Dest) {
+  UnionType *Ty = unwrap<UnionType>(UnionTy);
+  for (FunctionType::param_iterator I = Ty->element_begin(),
+                                    E = Ty->element_end(); I != E; ++I)
+    *Dest++ = wrap(*I);
 }
 
 /*--.. Operations on array, pointer, and vector types (sequence types) .....--*/
@@ -442,17 +474,17 @@ LLVMValueRef LLVMGetUndef(LLVMTypeRef Ty) {
   return wrap(UndefValue::get(unwrap(Ty)));
 }
 
-int LLVMIsConstant(LLVMValueRef Ty) {
+LLVMBool LLVMIsConstant(LLVMValueRef Ty) {
   return isa<Constant>(unwrap(Ty));
 }
 
-int LLVMIsNull(LLVMValueRef Val) {
+LLVMBool LLVMIsNull(LLVMValueRef Val) {
   if (Constant *C = dyn_cast<Constant>(unwrap(Val)))
     return C->isNullValue();
   return false;
 }
 
-int LLVMIsUndef(LLVMValueRef Val) {
+LLVMBool LLVMIsUndef(LLVMValueRef Val) {
   return isa<UndefValue>(unwrap(Val));
 }
 
@@ -464,7 +496,7 @@ LLVMValueRef LLVMConstPointerNull(LLVMTypeRef Ty) {
 /*--.. Operations on scalar constants ......................................--*/
 
 LLVMValueRef LLVMConstInt(LLVMTypeRef IntTy, unsigned long long N,
-                          int SignExtend) {
+                          LLVMBool SignExtend) {
   return wrap(ConstantInt::get(unwrap<IntegerType>(IntTy), N, SignExtend != 0));
 }
 
@@ -504,7 +536,8 @@ long long LLVMConstIntGetSExtValue(LLVMValueRef ConstantVal) {
 /*--.. Operations on composite constants ...................................--*/
 
 LLVMValueRef LLVMConstStringInContext(LLVMContextRef C, const char *Str,
-                                      unsigned Length, int DontNullTerminate) {
+                                      unsigned Length,
+                                      LLVMBool DontNullTerminate) {
   /* Inverted the sense of AddNull because ', 0)' is a
      better mnemonic for null termination than ', 1)'. */
   return wrap(ConstantArray::get(*unwrap(C), std::string(Str, Length),
@@ -512,14 +545,14 @@ LLVMValueRef LLVMConstStringInContext(LLVMContextRef C, const char *Str,
 }
 LLVMValueRef LLVMConstStructInContext(LLVMContextRef C, 
                                       LLVMValueRef *ConstantVals,
-                                      unsigned Count, int Packed) {
+                                      unsigned Count, LLVMBool Packed) {
   return wrap(ConstantStruct::get(*unwrap(C),
                                   unwrap<Constant>(ConstantVals, Count),
                                   Count, Packed != 0));
 }
 
 LLVMValueRef LLVMConstString(const char *Str, unsigned Length,
-                             int DontNullTerminate) {
+                             LLVMBool DontNullTerminate) {
   return LLVMConstStringInContext(LLVMGetGlobalContext(), Str, Length,
                                   DontNullTerminate);
 }
@@ -530,7 +563,7 @@ LLVMValueRef LLVMConstArray(LLVMTypeRef ElementTy,
                                  Length));
 }
 LLVMValueRef LLVMConstStruct(LLVMValueRef *ConstantVals, unsigned Count,
-                             int Packed) {
+                             LLVMBool Packed) {
   return LLVMConstStructInContext(LLVMGetGlobalContext(), ConstantVals, Count,
                                   Packed);
 }
@@ -820,7 +853,7 @@ LLVMValueRef LLVMConstPointerCast(LLVMValueRef ConstantVal,
 }
 
 LLVMValueRef LLVMConstIntCast(LLVMValueRef ConstantVal, LLVMTypeRef ToType,
-                              unsigned isSigned) {
+                              LLVMBool isSigned) {
   return wrap(ConstantExpr::getIntegerCast(
                                            unwrap<Constant>(ConstantVal),
                                            unwrap(ToType),
@@ -883,10 +916,11 @@ LLVMValueRef LLVMConstInsertValue(LLVMValueRef AggConstant,
                                            IdxList, NumIdx));
 }
 
-LLVMValueRef LLVMConstInlineAsm(LLVMTypeRef Ty, const char *AsmString, 
-                                const char *Constraints, int HasSideEffects,
-                                int IsAlignStack) {
-  return wrap(InlineAsm::get(dyn_cast<FunctionType>(unwrap(Ty)), AsmString, 
+LLVMValueRef LLVMConstInlineAsm(LLVMTypeRef Ty, const char *AsmString,
+                                const char *Constraints,
+                                LLVMBool HasSideEffects,
+                                LLVMBool IsAlignStack) {
+  return wrap(InlineAsm::get(dyn_cast<FunctionType>(unwrap(Ty)), AsmString,
                              Constraints, HasSideEffects, IsAlignStack));
 }
 
@@ -896,7 +930,7 @@ LLVMModuleRef LLVMGetGlobalParent(LLVMValueRef Global) {
   return wrap(unwrap<GlobalValue>(Global)->getParent());
 }
 
-int LLVMIsDeclaration(LLVMValueRef Global) {
+LLVMBool LLVMIsDeclaration(LLVMValueRef Global) {
   return unwrap<GlobalValue>(Global)->isDeclaration();
 }
 
@@ -930,8 +964,6 @@ LLVMLinkage LLVMGetLinkage(LLVMValueRef Global) {
     return LLVMDLLExportLinkage;
   case GlobalValue::ExternalWeakLinkage:
     return LLVMExternalWeakLinkage;
-  case GlobalValue::GhostLinkage:
-    return LLVMGhostLinkage;
   case GlobalValue::CommonLinkage:
     return LLVMCommonLinkage;
   }
@@ -986,7 +1018,8 @@ void LLVMSetLinkage(LLVMValueRef Global, LLVMLinkage Linkage) {
     GV->setLinkage(GlobalValue::ExternalWeakLinkage);
     break;
   case LLVMGhostLinkage:
-    GV->setLinkage(GlobalValue::GhostLinkage);
+    DEBUG(errs()
+          << "LLVMSetLinkage(): LLVMGhostLinkage is no longer supported.");
     break;
   case LLVMCommonLinkage:
     GV->setLinkage(GlobalValue::CommonLinkage);
@@ -1079,19 +1112,19 @@ void LLVMSetInitializer(LLVMValueRef GlobalVar, LLVMValueRef ConstantVal) {
     ->setInitializer(unwrap<Constant>(ConstantVal));
 }
 
-int LLVMIsThreadLocal(LLVMValueRef GlobalVar) {
+LLVMBool LLVMIsThreadLocal(LLVMValueRef GlobalVar) {
   return unwrap<GlobalVariable>(GlobalVar)->isThreadLocal();
 }
 
-void LLVMSetThreadLocal(LLVMValueRef GlobalVar, int IsThreadLocal) {
+void LLVMSetThreadLocal(LLVMValueRef GlobalVar, LLVMBool IsThreadLocal) {
   unwrap<GlobalVariable>(GlobalVar)->setThreadLocal(IsThreadLocal != 0);
 }
 
-int LLVMIsGlobalConstant(LLVMValueRef GlobalVar) {
+LLVMBool LLVMIsGlobalConstant(LLVMValueRef GlobalVar) {
   return unwrap<GlobalVariable>(GlobalVar)->isConstant();
 }
 
-void LLVMSetGlobalConstant(LLVMValueRef GlobalVar, int IsConstant) {
+void LLVMSetGlobalConstant(LLVMValueRef GlobalVar, LLVMBool IsConstant) {
   unwrap<GlobalVariable>(GlobalVar)->setConstant(IsConstant != 0);
 }
 
@@ -1285,7 +1318,7 @@ LLVMValueRef LLVMBasicBlockAsValue(LLVMBasicBlockRef BB) {
   return wrap(static_cast<Value*>(unwrap(BB)));
 }
 
-int LLVMValueIsBasicBlock(LLVMValueRef Val) {
+LLVMBool LLVMValueIsBasicBlock(LLVMValueRef Val) {
   return isa<BasicBlock>(unwrap(Val));
 }
 
@@ -1452,11 +1485,11 @@ void LLVMSetInstrParamAlignment(LLVMValueRef Instr, unsigned index,
 
 /*--.. Operations on call instructions (only) ..............................--*/
 
-int LLVMIsTailCall(LLVMValueRef Call) {
+LLVMBool LLVMIsTailCall(LLVMValueRef Call) {
   return unwrap<CallInst>(Call)->isTailCall();
 }
 
-void LLVMSetTailCall(LLVMValueRef Call, int isTailCall) {
+void LLVMSetTailCall(LLVMValueRef Call, LLVMBool isTailCall) {
   unwrap<CallInst>(Call)->setTailCall(isTailCall);
 }
 
@@ -1860,9 +1893,9 @@ LLVMValueRef LLVMBuildPointerCast(LLVMBuilderRef B, LLVMValueRef Val,
 }
 
 LLVMValueRef LLVMBuildIntCast(LLVMBuilderRef B, LLVMValueRef Val,
-                              LLVMTypeRef DestTy, int isSigned,
-                              const char *Name) {
-  return wrap(unwrap(B)->CreateIntCast(unwrap(Val), unwrap(DestTy), isSigned, Name));
+                              LLVMTypeRef DestTy, const char *Name) {
+  return wrap(unwrap(B)->CreateIntCast(unwrap(Val), unwrap(DestTy),
+                                       /*isSigned*/true, Name));
 }
 
 LLVMValueRef LLVMBuildFPCast(LLVMBuilderRef B, LLVMValueRef Val,
@@ -1963,7 +1996,7 @@ LLVMValueRef LLVMBuildPtrDiff(LLVMBuilderRef B, LLVMValueRef LHS,
 
 LLVMModuleProviderRef
 LLVMCreateModuleProviderForExistingModule(LLVMModuleRef M) {
-  return wrap(new ExistingModuleProvider(unwrap(M)));
+  return reinterpret_cast<LLVMModuleProviderRef>(M);
 }
 
 void LLVMDisposeModuleProvider(LLVMModuleProviderRef MP) {
@@ -1973,9 +2006,11 @@ void LLVMDisposeModuleProvider(LLVMModuleProviderRef MP) {
 
 /*===-- Memory buffers ----------------------------------------------------===*/
 
-int LLVMCreateMemoryBufferWithContentsOfFile(const char *Path,
-                                             LLVMMemoryBufferRef *OutMemBuf,
-                                             char **OutMessage) {
+LLVMBool LLVMCreateMemoryBufferWithContentsOfFile(
+    const char *Path,
+    LLVMMemoryBufferRef *OutMemBuf,
+    char **OutMessage) {
+
   std::string Error;
   if (MemoryBuffer *MB = MemoryBuffer::getFile(Path, &Error)) {
     *OutMemBuf = wrap(MB);
@@ -1986,8 +2021,8 @@ int LLVMCreateMemoryBufferWithContentsOfFile(const char *Path,
   return 1;
 }
 
-int LLVMCreateMemoryBufferWithSTDIN(LLVMMemoryBufferRef *OutMemBuf,
-                                    char **OutMessage) {
+LLVMBool LLVMCreateMemoryBufferWithSTDIN(LLVMMemoryBufferRef *OutMemBuf,
+                                         char **OutMessage) {
   MemoryBuffer *MB = MemoryBuffer::getSTDIN();
   if (!MB->getBufferSize()) {
     delete MB;

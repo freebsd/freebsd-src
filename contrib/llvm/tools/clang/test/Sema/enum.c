@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -fsyntax-only -verify -pedantic
+// RUN: %clang_cc1 %s -fsyntax-only -verify -pedantic
 enum e {A, 
         B = 42LL << 32,        // expected-warning {{ISO C restricts enumerator values to range of 'int'}}
       C = -4, D = 12456 };
@@ -84,3 +84,15 @@ enum e1 { YES, NO };
 static enum e1 badfunc(struct s1 *q) {
   return q->bar();
 }
+
+
+// Make sure we don't a.k.a. anonymous enums.
+typedef enum {
+  an_enumerator = 20
+} an_enum;
+// FIXME: why is this only a warning?
+char * s = (an_enum) an_enumerator; // expected-warning {{incompatible integer to pointer conversion initializing 'an_enum', expected 'char *'}}
+
+// PR4515
+enum PR4515 {PR4515a=1u,PR4515b=(PR4515a-2)/2};
+int CheckPR4515[PR4515b==0?1:-1];

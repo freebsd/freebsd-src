@@ -28,8 +28,6 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
-#include <cstdio>
-
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -405,8 +403,31 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
       Out << "<objc property> " << OPD->getNameAsString() << "\n";
       break;
     }
+    case Decl::FunctionTemplate: {
+      FunctionTemplateDecl* FTD = cast<FunctionTemplateDecl>(*I);
+      Out << "<function template> " << FTD->getNameAsString() << "\n";
+      break;
+    }
+    case Decl::FileScopeAsm: {
+      Out << "<file-scope asm>\n";
+      break;
+    }
+    case Decl::UsingDirective: {
+      Out << "<using directive>\n";
+      break;
+    }
+    case Decl::NamespaceAlias: {
+      NamespaceAliasDecl* NAD = cast<NamespaceAliasDecl>(*I);
+      Out << "<namespace alias> " << NAD->getNameAsString() << "\n";
+      break;
+    }
+    case Decl::ClassTemplate: {
+      ClassTemplateDecl *CTD = cast<ClassTemplateDecl>(*I);
+      Out << "<class template> " << CTD->getNameAsString() << '\n';
+      break;
+    }
     default:
-      fprintf(stderr, "DeclKind: %d \"%s\"\n", DK, I->getDeclKindName());
+      Out << "DeclKind: " << DK << '"' << I->getDeclKindName() << "\"\n";
       assert(0 && "decl unhandled");
     }
   }
@@ -543,7 +564,7 @@ public:
       if (RD->isInvalidDecl())
         continue;
       
-      if (!RD->getDefinition(C))
+      if (!RD->getDefinition())
         continue;
       
       // FIXME: Do we really need to hard code this?

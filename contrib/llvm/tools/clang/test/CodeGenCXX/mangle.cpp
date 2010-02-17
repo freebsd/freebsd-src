@@ -1,5 +1,4 @@
-// RUN: clang-cc -emit-llvm %s -o - -triple=x86_64-apple-darwin9 | FileCheck %s
-
+// RUN: %clang_cc1 -emit-llvm %s -o - -triple=x86_64-apple-darwin9 -fblocks | FileCheck %s
 struct X { };
 struct Y { };
 
@@ -8,6 +7,9 @@ struct Y { };
 // CHECK: @_ZZN1N1fEiiE1b = internal global
 // CHECK: @_ZZN1N1gEvE1a = internal global
 // CHECK: @_ZGVZN1N1gEvE1a = internal global
+
+//CHECK: @pr5966_i = external global
+//CHECK: @_ZL8pr5966_i = internal global
 
 // CHECK: define zeroext i1 @_ZplRK1YRA100_P1X
 bool operator+(const Y&, X* (&xs)[100]) { return false; }
@@ -141,7 +143,7 @@ int f(struct a *x) {
 // PR5017
 extern "C" {
 struct Debug {
- const Debug& operator<< (unsigned a) const { }
+  const Debug& operator<< (unsigned a) const { return *this; }
 };
 Debug dbg;
 // CHECK: @_ZNK5DebuglsEj
@@ -208,8 +210,9 @@ void extern_f(void);
 void extern_f(void) { }
 
 struct S7 {
-  struct S { S(); };
+  S7();
   
+  struct S { S(); };
   struct {
     S s;
   } a;
@@ -227,3 +230,149 @@ template<typename T> typename __enable_if<(__is_scalar<T>::__value), void>::__ty
 template void ft8<int>();
 // CHECK: @_Z3ft8IPvEN11__enable_ifIXsr11__is_scalarIT_E7__valueEvE6__typeEv
 template void ft8<void*>();
+
+// PR5796
+namespace PR5796 {
+template<typename> struct __is_scalar {
+  enum { __value = 0 };
+};
+
+template<bool, typename> struct __enable_if {};
+template<typename T> struct __enable_if<true, T> { typedef T __type; };
+template<typename T>
+
+// CHECK: define linkonce_odr void @_ZN6PR57968__fill_aIiEENS_11__enable_ifIXntsrNS_11__is_scalarIT_EE7__valueEvE6__typeEv
+typename __enable_if<!__is_scalar<T>::__value, void>::__type __fill_a() { };
+
+void f() { __fill_a<int>(); }
+}
+
+namespace Expressions {
+// Unary operators.
+
+// CHECK: define void @_ZN11Expressions2f1ILi1EEEvPAplngT_Li2E_i
+template <int i> void f1(int (*)[(-i) + 2]) { };
+template void f1<1>(int (*)[1]);
+
+// CHECK: define void @_ZN11Expressions2f2ILi1EEEvPApsT__i
+template <int i> void f2(int (*)[+i]) { };
+template void f2<1>(int (*)[1]);
+
+// Binary operators.
+
+// CHECK: define void @_ZN11Expressions2f3ILi1EEEvPAplT_T__i
+template <int i> void f3(int (*)[i+i]) { };
+template void f3<1>(int (*)[2]);
+
+// CHECK: define void @_ZN11Expressions2f4ILi1EEEvPAplplLi2ET_T__i
+template <int i> void f4(int (*)[2 + i+i]) { };
+template void f4<1>(int (*)[4]);
+
+// The ternary operator.
+// CHECK: define void @_ZN11Expressions2f4ILb1EEEvPAquT_Li1ELi2E_i
+template <bool b> void f4(int (*)[b ? 1 : 2]) { };
+template void f4<true>(int (*)[1]);
+}
+
+struct Ops {
+  Ops& operator+(const Ops&);
+  Ops& operator-(const Ops&);
+  Ops& operator&(const Ops&);
+  Ops& operator*(const Ops&);
+  
+  void *v;
+};
+
+// CHECK: define %struct.Ops* @_ZN3OpsplERKS_
+Ops& Ops::operator+(const Ops&) { return *this; }
+// CHECK: define %struct.Ops* @_ZN3OpsmiERKS_
+Ops& Ops::operator-(const Ops&) { return *this; }
+// CHECK: define %struct.Ops* @_ZN3OpsanERKS_
+Ops& Ops::operator&(const Ops&) { return *this; }
+// CHECK: define %struct.Ops* @_ZN3OpsmlERKS_
+Ops& Ops::operator*(const Ops&) { return *this; }
+
+// PR5861
+namespace PR5861 {
+template<bool> class P;
+template<> class P<true> {};
+
+template<template <bool> class, bool>
+struct Policy { };
+
+template<typename T, typename = Policy<P, true> > class Alloc
+{
+  T *allocate(int, const void*) { return 0; }
+};
+
+// CHECK: define i8* @_ZN6PR58615AllocIcNS_6PolicyINS_1PELb1EEEE8allocateEiPKv
+template class Alloc<char>;
+}
+
+// CHECK: define void @_Z1fU13block_pointerFiiiE
+void f(int (^)(int, int)) { }
+
+void pr5966_foo() {
+  extern int pr5966_i;
+  pr5966_i = 0;
+}
+
+static int pr5966_i;
+
+void pr5966_bar() {
+  pr5966_i = 0;
+}
+
+namespace test0 {
+  int ovl(int x);
+  char ovl(double x);
+
+  template <class T> void f(T, char (&buffer)[sizeof(ovl(T()))]) {}
+
+  void test0() {
+    char buffer[1];
+    f(0.0, buffer);
+  }
+  // CHECK: define void @_ZN5test05test0Ev()
+  // CHECK: define linkonce_odr void @_ZN5test01fIdEEvT_RAszcl3ovlcvS1__EE_c(
+
+  void test1() {
+    char buffer[sizeof(int)];
+    f(1, buffer);
+  }
+  // CHECK: define void @_ZN5test05test1Ev()
+  // CHECK: define linkonce_odr void @_ZN5test01fIiEEvT_RAszcl3ovlcvS1__EE_c(
+
+  template <class T> void g(char (&buffer)[sizeof(T() + 5.0f)]) {}
+  void test2() {
+    char buffer[sizeof(float)];
+    g<float>(buffer);
+  }
+  // CHECK: define linkonce_odr void @_ZN5test01gIfEEvRAszplcvT__ELf40A00000E_c(
+
+  template <class T> void h(char (&buffer)[sizeof(T() + 5.0)]) {}
+  void test3() {
+    char buffer[sizeof(double)];
+    h<float>(buffer);
+  }
+  // CHECK: define linkonce_odr void @_ZN5test01hIfEEvRAszplcvT__ELd4014000000000000E_c(
+
+  template <class T> void j(char (&buffer)[sizeof(T().buffer)]) {}
+  struct A { double buffer[128]; };
+  void test4() {
+    char buffer[1024];
+    j<A>(buffer);
+  }
+  // CHECK: define linkonce_odr void @_ZN5test01jINS_1AEEEvRAszmecvT__E6buffer_c(
+}
+
+namespace test1 {
+  template<typename T> struct X { };
+  template<template<class> class Y, typename T> void f(Y<T>) { }
+  // CHECK: define void @_ZN5test11fINS_1XEiEEvT_IT0_E
+  template void f(X<int>);
+}
+
+// CHECK: define internal void @_Z27functionWithInternalLinkagev()
+static void functionWithInternalLinkage() {  }
+void g() { functionWithInternalLinkage(); }

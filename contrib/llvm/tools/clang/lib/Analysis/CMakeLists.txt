@@ -2,64 +2,10 @@ set(LLVM_NO_RTTI 1)
 
 add_clang_library(clangAnalysis
   AnalysisContext.cpp
-  ArrayBoundChecker.cpp
-  AttrNonNullChecker.cpp
-  BadCallChecker.cpp
-  BasicConstraintManager.cpp
-  BasicObjCFoundationChecks.cpp
-  BasicStore.cpp
-  BasicValueFactory.cpp
-  BugReporter.cpp
-  BugReporterVisitors.cpp
   CFG.cpp
-  CFRefCount.cpp
-  CallGraph.cpp
-  CallInliner.cpp
-  CastToStructChecker.cpp
-  CheckDeadStores.cpp
-  CheckObjCDealloc.cpp
-  CheckObjCInstMethSignature.cpp
-  CheckObjCUnusedIVars.cpp
-  CheckSecuritySyntaxOnly.cpp
-  CheckSizeofPointer.cpp
-  DereferenceChecker.cpp
-  DivZeroChecker.cpp
-  Environment.cpp
-  ExplodedGraph.cpp
-  FixedAddressChecker.cpp
-  GRBlockCounter.cpp
-  GRCoreEngine.cpp
-  GRExprEngine.cpp
-  GRExprEngineExperimentalChecks.cpp
-  GRExprEngineInternalChecks.cpp
-  GRState.cpp
   LiveVariables.cpp
-  MallocChecker.cpp
-  ManagerRegistry.cpp
-  MemRegion.cpp
-  NSAutoreleasePoolChecker.cpp
-  NSErrorChecker.cpp
-  PathDiagnostic.cpp
-  PointerArithChecker.cpp
-  PointerSubChecker.cpp
-  PthreadLockChecker.cpp
-  RangeConstraintManager.cpp
-  RegionStore.cpp
-  ReturnPointerRangeChecker.cpp
-  ReturnStackAddressChecker.cpp
-  ReturnUndefChecker.cpp
-  SVals.cpp
-  SValuator.cpp
-  SimpleConstraintManager.cpp
-  SimpleSValuator.cpp
-  Store.cpp
-  SymbolManager.cpp
-  UndefinedArgChecker.cpp
-  UndefinedArraySubscriptChecker.cpp
-  UndefinedAssignmentChecker.cpp
+  PrintfFormatString.cpp
   UninitializedValues.cpp
-  VLASizeChecker.cpp
-  ValueManager.cpp
   )
 
 add_dependencies(clangAnalysis ClangDiagnosticAnalysis)

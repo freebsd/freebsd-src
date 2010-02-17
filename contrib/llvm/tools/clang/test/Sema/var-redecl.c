@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 int outer1; // expected-note{{previous definition is here}}
 extern int outer2; // expected-note{{previous definition is here}}
@@ -50,10 +50,11 @@ void outer_shadowing_test() {
   }
 }
 
-void g18(void) {
+void g18(void) { // expected-note{{'g18' declared here}}
   extern int g19;
 }
-int *p=&g19; // expected-error{{use of undeclared identifier 'g19'}}
+int *p=&g19; // expected-error{{use of undeclared identifier 'g19'}} \
+             // expected-warning{{incompatible pointer types}}
 
 // PR3645
 static int a;

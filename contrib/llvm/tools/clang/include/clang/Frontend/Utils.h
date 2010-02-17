@@ -15,13 +15,10 @@
 #define LLVM_CLANG_FRONTEND_UTILS_H
 
 #include "llvm/ADT/StringRef.h"
-#include <vector>
-#include <string>
+#include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
 class Triple;
-class raw_ostream;
-class raw_fd_ostream;
 }
 
 namespace clang {
@@ -41,6 +38,7 @@ class PreprocessorOutputOptions;
 class SourceManager;
 class Stmt;
 class TargetInfo;
+class FrontendOptions;
 
 /// Normalize \arg File for use in a user defined #include directive (in the
 /// predefines buffer).
@@ -56,7 +54,8 @@ void ApplyHeaderSearchOptions(HeaderSearch &HS,
 /// environment ready to process a single file.
 void InitializePreprocessor(Preprocessor &PP,
                             const PreprocessorOptions &PPOpts,
-                            const HeaderSearchOptions &HSOpts);
+                            const HeaderSearchOptions &HSOpts,
+                            const FrontendOptions &FEOpts);
 
 /// ProcessWarningOptions - Initialize the diagnostic client and process the
 /// warning options specified on the command line.

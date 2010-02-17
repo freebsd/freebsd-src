@@ -14,10 +14,12 @@
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Basic/Version.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PTHManager.h"
 #include "clang/Frontend/ChainedDiagnosticClient.h"
+#include "clang/Frontend/FrontendAction.h"
 #include "clang/Frontend/PCHReader.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
@@ -27,18 +29,25 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Timer.h"
+#include "llvm/System/Host.h"
 #include "llvm/System/Path.h"
+#include "llvm/System/Program.h"
 using namespace clang;
 
-CompilerInstance::CompilerInstance(llvm::LLVMContext *_LLVMContext,
-                                   bool _OwnsLLVMContext)
-  : LLVMContext(_LLVMContext),
-    OwnsLLVMContext(_OwnsLLVMContext) {
-    }
+CompilerInstance::CompilerInstance()
+  : Invocation(new CompilerInvocation()) {
+}
 
 CompilerInstance::~CompilerInstance() {
-  if (OwnsLLVMContext)
-    delete LLVMContext;
+}
+
+void CompilerInstance::setLLVMContext(llvm::LLVMContext *Value) {
+  LLVMContext.reset(Value);
+}
+
+void CompilerInstance::setInvocation(CompilerInvocation *Value) {
+  Invocation.reset(Value);
 }
 
 void CompilerInstance::setDiagnostics(Diagnostic *Value) {
@@ -78,6 +87,23 @@ void CompilerInstance::setCodeCompletionConsumer(CodeCompleteConsumer *Value) {
 }
 
 // Diagnostics
+namespace {
+  class BinaryDiagnosticSerializer : public DiagnosticClient {
+    llvm::raw_ostream &OS;
+    SourceManager *SourceMgr;
+  public:
+    explicit BinaryDiagnosticSerializer(llvm::raw_ostream &OS)
+      : OS(OS), SourceMgr(0) { }
+    
+    virtual void HandleDiagnostic(Diagnostic::Level DiagLevel,
+                                  const DiagnosticInfo &Info);
+  };
+}
+
+void BinaryDiagnosticSerializer::HandleDiagnostic(Diagnostic::Level DiagLevel,
+                                                  const DiagnosticInfo &Info) {
+  Info.Serialize(DiagLevel, OS);
+}
 
 static void SetUpBuildDumpLog(const DiagnosticOptions &DiagOpts,
                               unsigned argc, char **argv,
@@ -93,7 +119,7 @@ static void SetUpBuildDumpLog(const DiagnosticOptions &DiagOpts,
     return;
   }
 
-  (*OS) << "clang-cc command line arguments: ";
+  (*OS) << "clang -cc1 command line arguments: ";
   for (unsigned i = 0; i != argc; ++i)
     (*OS) << argv[i] << ' ';
   (*OS) << '\n';
@@ -117,8 +143,23 @@ Diagnostic *CompilerInstance::createDiagnostics(const DiagnosticOptions &Opts,
 
   // Create the diagnostic client for reporting errors or for
   // implementing -verify.
-  llvm::OwningPtr<DiagnosticClient> DiagClient(
-    new TextDiagnosticPrinter(llvm::errs(), Opts));
+  llvm::OwningPtr<DiagnosticClient> DiagClient;
+  if (Opts.BinaryOutput) {
+    if (llvm::sys::Program::ChangeStderrToBinary()) {
+      // We weren't able to set standard error to binary, which is a
+      // bit of a problem. So, just create a text diagnostic printer
+      // to complain about this problem, and pretend that the user
+      // didn't try to use binary output.
+      DiagClient.reset(new TextDiagnosticPrinter(llvm::errs(), Opts));
+      Diags->setClient(DiagClient.take());
+      Diags->Report(diag::err_fe_stderr_binary);
+      return Diags.take();
+    } else {
+      DiagClient.reset(new BinaryDiagnosticSerializer(llvm::errs()));
+    }
+  } else {
+    DiagClient.reset(new TextDiagnosticPrinter(llvm::errs(), Opts));
+  }
 
   // Chain in -verify checker, if requested.
   if (Opts.VerifyDiagnostics)
@@ -153,7 +194,8 @@ void CompilerInstance::createPreprocessor() {
   PP.reset(createPreprocessor(getDiagnostics(), getLangOpts(),
                               getPreprocessorOpts(), getHeaderSearchOpts(),
                               getDependencyOutputOpts(), getTarget(),
-                              getSourceManager(), getFileManager()));
+                              getFrontendOpts(), getSourceManager(),
+                              getFileManager()));
 }
 
 Preprocessor *
@@ -163,16 +205,13 @@ CompilerInstance::createPreprocessor(Diagnostic &Diags,
                                      const HeaderSearchOptions &HSOpts,
                                      const DependencyOutputOptions &DepOpts,
                                      const TargetInfo &Target,
+                                     const FrontendOptions &FEOpts,
                                      SourceManager &SourceMgr,
                                      FileManager &FileMgr) {
   // Create a PTH manager if we are using some form of a token cache.
   PTHManager *PTHMgr = 0;
   if (!PPOpts.TokenCache.empty())
     PTHMgr = PTHManager::Create(PPOpts.TokenCache, Diags);
-
-  // FIXME: Don't fail like this.
-  if (Diags.hasErrorOccurred())
-    exit(1);
 
   // Create the Preprocessor.
   HeaderSearch *HeaderInfo = new HeaderSearch(FileMgr);
@@ -188,7 +227,7 @@ CompilerInstance::createPreprocessor(Diagnostic &Diags,
     PP->setPTHManager(PTHMgr);
   }
 
-  InitializePreprocessor(*PP, PPOpts, HSOpts);
+  InitializePreprocessor(*PP, PPOpts, HSOpts, FEOpts);
 
   // Handle generating dependencies, if requested.
   if (!DepOpts.OutputFile.empty())
@@ -255,6 +294,16 @@ void CompilerInstance::createCodeCompletionConsumer() {
                                  getFrontendOpts().DebugCodeCompletionPrinter,
                                  getFrontendOpts().ShowMacrosInCodeCompletion,
                                  llvm::outs()));
+
+  if (CompletionConsumer->isOutputBinary() &&
+      llvm::sys::Program::ChangeStdoutToBinary()) {
+    getPreprocessor().getDiagnostics().Report(diag::err_fe_stdout_binary);
+    CompletionConsumer.reset();
+  }
+}
+
+void CompilerInstance::createFrontendTimer() {
+  FrontendTimer.reset(new llvm::Timer("Clang front-end timer"));
 }
 
 CodeCompleteConsumer *
@@ -275,7 +324,7 @@ CompilerInstance::createCodeCompletionConsumer(Preprocessor &PP,
   }
 
   // Truncate the named file at the given line/column.
-  PP.getSourceManager().truncateFileAt(Entry, Line, Column);
+  PP.SetCodeCompletionPoint(Entry, Line, Column);
 
   // Set up the creation routine for code-completion.
   if (UseDebugPrinter)
@@ -320,9 +369,9 @@ CompilerInstance::createOutputFile(llvm::StringRef OutputPath,
                                               InFile, Extension,
                                               &OutputPathName);
   if (!OS) {
-    // FIXME: Don't fail this way.
-    llvm::errs() << "ERROR: " << Error << "\n";
-    ::exit(1);
+    getDiagnostics().Report(diag::err_fe_unable_to_open_output)
+      << OutputPath << Error;
+    return 0;
   }
 
   // Add the output file -- but don't try to remove "-", since this means we are
@@ -353,16 +402,16 @@ CompilerInstance::createOutputFile(llvm::StringRef OutputPath,
     OutFile = "-";
   }
 
-  llvm::raw_fd_ostream *OS =
+  llvm::OwningPtr<llvm::raw_fd_ostream> OS(
     new llvm::raw_fd_ostream(OutFile.c_str(), Error,
-                             (Binary ? llvm::raw_fd_ostream::F_Binary : 0));
-  if (!OS)
+                             (Binary ? llvm::raw_fd_ostream::F_Binary : 0)));
+  if (!Error.empty())
     return 0;
 
   if (ResultPathName)
     *ResultPathName = OutFile;
 
-  return OS;
+  return OS.take();
 }
 
 // Initialization Utilities
@@ -401,3 +450,87 @@ bool CompilerInstance::InitializeSourceManager(llvm::StringRef InputFile,
 
   return true;
 }
+
+// High-Level Operations
+
+bool CompilerInstance::ExecuteAction(FrontendAction &Act) {
+  assert(hasDiagnostics() && "Diagnostics engine is not initialized!");
+  assert(!getFrontendOpts().ShowHelp && "Client must handle '-help'!");
+  assert(!getFrontendOpts().ShowVersion && "Client must handle '-version'!");
+
+  // FIXME: Take this as an argument, once all the APIs we used have moved to
+  // taking it as an input instead of hard-coding llvm::errs.
+  llvm::raw_ostream &OS = llvm::errs();
+
+  // Create the target instance.
+  setTarget(TargetInfo::CreateTargetInfo(getDiagnostics(), getTargetOpts()));
+  if (!hasTarget())
+    return false;
+
+  // Inform the target of the language options.
+  //
+  // FIXME: We shouldn't need to do this, the target should be immutable once
+  // created. This complexity should be lifted elsewhere.
+  getTarget().setForcedLangOptions(getLangOpts());
+
+  // Validate/process some options.
+  if (getHeaderSearchOpts().Verbose)
+    OS << "clang -cc1 version " CLANG_VERSION_STRING
+       << " based upon " << PACKAGE_STRING
+       << " hosted on " << llvm::sys::getHostTriple() << "\n";
+
+  if (getFrontendOpts().ShowTimers)
+    createFrontendTimer();
+
+  for (unsigned i = 0, e = getFrontendOpts().Inputs.size(); i != e; ++i) {
+    const std::string &InFile = getFrontendOpts().Inputs[i].second;
+
+    // If we aren't using an AST file, setup the file and source managers and
+    // the preprocessor.
+    bool IsAST = getFrontendOpts().Inputs[i].first == FrontendOptions::IK_AST;
+    if (!IsAST) {
+      if (!i) {
+        // Create a file manager object to provide access to and cache the
+        // filesystem.
+        createFileManager();
+
+        // Create the source manager.
+        createSourceManager();
+      } else {
+        // Reset the ID tables if we are reusing the SourceManager.
+        getSourceManager().clearIDTables();
+      }
+
+      // Create the preprocessor.
+      createPreprocessor();
+    }
+
+    if (Act.BeginSourceFile(*this, InFile, IsAST)) {
+      Act.Execute();
+      Act.EndSourceFile();
+    }
+  }
+
+  if (getDiagnosticOpts().ShowCarets)
+    if (unsigned NumDiagnostics = getDiagnostics().getNumDiagnostics())
+      OS << NumDiagnostics << " diagnostic"
+         << (NumDiagnostics == 1 ? "" : "s")
+         << " generated.\n";
+
+  if (getFrontendOpts().ShowStats) {
+    getFileManager().PrintStats();
+    OS << "\n";
+  }
+
+  // Return the appropriate status when verifying diagnostics.
+  //
+  // FIXME: If we could make getNumErrors() do the right thing, we wouldn't need
+  // this.
+  if (getDiagnosticOpts().VerifyDiagnostics)
+    return !static_cast<VerifyDiagnosticsClient&>(
+      getDiagnosticClient()).HadErrors();
+
+  return !getDiagnostics().getNumErrors();
+}
+
+

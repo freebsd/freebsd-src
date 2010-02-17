@@ -42,9 +42,9 @@ public:
   }
 
   SourceLocation getCatchLoc() const { return CatchLoc; }
-  VarDecl *getExceptionDecl() { return ExceptionDecl; }
-  QualType getCaughtType();
-  Stmt *getHandlerBlock() { return HandlerBlock; }
+  VarDecl *getExceptionDecl() const { return ExceptionDecl; }
+  QualType getCaughtType() const;
+  Stmt *getHandlerBlock() const { return HandlerBlock; }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXCatchStmtClass;
@@ -59,30 +59,42 @@ public:
 ///
 class CXXTryStmt : public Stmt {
   SourceLocation TryLoc;
-  // First place is the guarded CompoundStatement. Subsequent are the handlers.
-  // More than three handlers should be rare.
-  llvm::SmallVector<Stmt*, 4> Stmts;
+  unsigned NumHandlers;
+
+  CXXTryStmt(SourceLocation tryLoc, Stmt *tryBlock, Stmt **handlers,
+             unsigned numHandlers);
 
 public:
-  CXXTryStmt(SourceLocation tryLoc, Stmt *tryBlock,
-             Stmt **handlers, unsigned numHandlers);
+  static CXXTryStmt *Create(ASTContext &C, SourceLocation tryLoc,
+                            Stmt *tryBlock, Stmt **handlers,
+                            unsigned numHandlers);
 
   virtual SourceRange getSourceRange() const {
-    return SourceRange(TryLoc, Stmts.back()->getLocEnd());
+    return SourceRange(getTryLoc(), getEndLoc());
   }
 
   SourceLocation getTryLoc() const { return TryLoc; }
+  SourceLocation getEndLoc() const {
+    Stmt const * const*Stmts = reinterpret_cast<Stmt const * const*>(this + 1);
+    return Stmts[NumHandlers]->getLocEnd();
+  }
 
-  CompoundStmt *getTryBlock() { return llvm::cast<CompoundStmt>(Stmts[0]); }
+  CompoundStmt *getTryBlock() {
+    Stmt **Stmts = reinterpret_cast<Stmt **>(this + 1);
+    return llvm::cast<CompoundStmt>(Stmts[0]);
+  }
   const CompoundStmt *getTryBlock() const {
+    Stmt const * const*Stmts = reinterpret_cast<Stmt const * const*>(this + 1);
     return llvm::cast<CompoundStmt>(Stmts[0]);
   }
 
-  unsigned getNumHandlers() const { return Stmts.size() - 1; }
+  unsigned getNumHandlers() const { return NumHandlers; }
   CXXCatchStmt *getHandler(unsigned i) {
+    Stmt **Stmts = reinterpret_cast<Stmt **>(this + 1);
     return llvm::cast<CXXCatchStmt>(Stmts[i + 1]);
   }
   const CXXCatchStmt *getHandler(unsigned i) const {
+    Stmt const * const*Stmts = reinterpret_cast<Stmt const * const*>(this + 1);
     return llvm::cast<CXXCatchStmt>(Stmts[i + 1]);
   }
 

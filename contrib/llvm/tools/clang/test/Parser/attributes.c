@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s -pedantic -std=c99
+// RUN: %clang_cc1 -fsyntax-only -verify %s -pedantic -std=c99
 
 int __attribute__(()) x;
 
@@ -51,3 +51,4 @@ int foo42(void) {
 // rdar://6096491
 void __attribute__((noreturn)) d0(void), __attribute__((noreturn)) d1(void);
 
+void d2(void) __attribute__((noreturn)), d3(void) __attribute__((noreturn));

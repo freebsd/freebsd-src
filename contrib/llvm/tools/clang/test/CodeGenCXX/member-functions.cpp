@@ -1,4 +1,4 @@
-// RUN: clang-cc -emit-llvm %s -triple x86_64-apple-darwin9 -o %t
+// RUN: %clang_cc1 -emit-llvm %s -triple x86_64-apple-darwin9 -o %t
 struct C {
   void f();
   void g(int, ...);
@@ -58,6 +58,6 @@ struct T {
 void test3() {
   T t1, t2;
   
-  // RUN: grep "call void @_ZN1TpsERKS_" %t
+  // RUN: grep "call i64 @_ZN1TplERKS_" %t
   T result = t1 + t2;
 }

@@ -1,4 +1,4 @@
-// RUN: clang-cc -E -ffreestanding -triple=arm-none-none %s | FileCheck -check-prefix ARM %s
+// RUN: %clang_cc1 -E -ffreestanding -triple=arm-none-none %s | FileCheck -check-prefix ARM %s
 //
 // ARM:typedef signed long long int int64_t;
 // ARM:typedef unsigned long long int uint64_t;
@@ -106,7 +106,7 @@
 // ARM:UINTMAX_C_(0) 0ULL
 //
 //
-// RUN: clang-cc -E -ffreestanding -triple=bfin-none-none %s | FileCheck -check-prefix BFIN %s
+// RUN: %clang_cc1 -E -ffreestanding -triple=bfin-none-none %s | FileCheck -check-prefix BFIN %s
 //
 // BFIN:typedef signed long long int int64_t;
 // BFIN:typedef unsigned long long int uint64_t;
@@ -214,7 +214,7 @@
 // BFIN:UINTMAX_C_(0) 0ULL
 //
 //
-// RUN: clang-cc -E -ffreestanding -triple=i386-none-none %s | FileCheck -check-prefix I386 %s
+// RUN: %clang_cc1 -E -ffreestanding -triple=i386-none-none %s | FileCheck -check-prefix I386 %s
 //
 // I386:typedef signed long long int int64_t;
 // I386:typedef unsigned long long int uint64_t;
@@ -321,7 +321,7 @@
 // I386:INTMAX_C_(0) 0LL
 // I386:UINTMAX_C_(0) 0ULL
 //
-// RUN: clang-cc -E -ffreestanding -triple=msp430-none-none %s | FileCheck -check-prefix MSP430 %s
+// RUN: %clang_cc1 -E -ffreestanding -triple=msp430-none-none %s | FileCheck -check-prefix MSP430 %s
 //
 // MSP430:typedef signed long int int32_t;
 // MSP430:typedef unsigned long int uint32_t;
@@ -380,15 +380,15 @@
 // MSP430:INT_FAST32_MAX_ 2147483647L
 // MSP430:UINT_FAST32_MAX_ 4294967295UL
 //
-// MSP430:INT64_MAX_ INT64_MAX
-// MSP430:INT64_MIN_ INT64_MIN
-// MSP430:UINT64_MAX_ UINT64_MAX
-// MSP430:INT_LEAST64_MIN_ INT_LEAST64_MIN
-// MSP430:INT_LEAST64_MAX_ INT_LEAST64_MAX
-// MSP430:UINT_LEAST64_MAX_ UINT_LEAST64_MAX
-// MSP430:INT_FAST64_MIN_ INT_FAST64_MIN
-// MSP430:INT_FAST64_MAX_ INT_FAST64_MAX
-// MSP430:UINT_FAST64_MAX_ UINT_FAST64_MAX
+// MSP430:INT64_MAX_ 9223372036854775807LL
+// MSP430:INT64_MIN_ (-9223372036854775807LL -1)
+// MSP430:UINT64_MAX_ 18446744073709551615ULL
+// MSP430:INT_LEAST64_MIN_ (-9223372036854775807LL -1)
+// MSP430:INT_LEAST64_MAX_ 9223372036854775807LL
+// MSP430:UINT_LEAST64_MAX_ 18446744073709551615ULL
+// MSP430:INT_FAST64_MIN_ (-9223372036854775807LL -1)
+// MSP430:INT_FAST64_MAX_ 9223372036854775807LL
+// MSP430:UINT_FAST64_MAX_ 18446744073709551615ULL
 //
 // MSP430:INTPTR_MIN_ (-32767 -1)
 // MSP430:INTPTR_MAX_ 32767
@@ -403,8 +403,8 @@
 //
 // MSP430:SIG_ATOMIC_MIN_ (-2147483647L -1)
 // MSP430:SIG_ATOMIC_MAX_ 2147483647L
-// MSP430:WINT_MIN_ (-2147483647L -1)
-// MSP430:WINT_MAX_ 2147483647L
+// MSP430:WINT_MIN_ (-32767 -1)
+// MSP430:WINT_MAX_ 32767
 //
 // MSP430:WCHAR_MAX_ 32767
 // MSP430:WCHAR_MIN_ (-32767 -1)
@@ -415,13 +415,13 @@
 // MSP430:UINT16_C_(0) 0U
 // MSP430:INT32_C_(0) 0L
 // MSP430:UINT32_C_(0) 0UL
-// MSP430:INT64_C_(0) INT64_C(0)
-// MSP430:UINT64_C_(0) UINT64_C(0)
+// MSP430:INT64_C_(0) 0LL
+// MSP430:UINT64_C_(0) 0ULL
 //
 // MSP430:INTMAX_C_(0) 0L
 // MSP430:UINTMAX_C_(0) 0UL
 //
-// RUN: clang-cc -E -ffreestanding -triple=pic16-none-none %s | FileCheck -check-prefix PIC16 %s
+// RUN: %clang_cc1 -E -ffreestanding -triple=pic16-none-none %s | FileCheck -check-prefix PIC16 %s
 // 
 // PIC16:typedef signed long int int32_t;
 // PIC16:typedef unsigned long int uint32_t;
@@ -503,8 +503,8 @@
 //
 // PIC16:SIG_ATOMIC_MIN_ (-2147483647L -1)
 // PIC16:SIG_ATOMIC_MAX_ 2147483647L
-// PIC16:WINT_MIN_ (-2147483647L -1)
-// PIC16:WINT_MAX_ 2147483647L
+// PIC16:WINT_MIN_ (-32767 -1)
+// PIC16:WINT_MAX_ 32767
 //
 // PIC16:WCHAR_MAX_ 32767
 // PIC16:WCHAR_MIN_ (-32767 -1)
@@ -521,7 +521,7 @@
 // PIC16:INTMAX_C_(0) 0L
 // PIC16:UINTMAX_C_(0) 0UL
 //
-// RUN: clang-cc -E -ffreestanding -triple=powerpc64-none-none %s | FileCheck -check-prefix PPC64 %s
+// RUN: %clang_cc1 -E -ffreestanding -triple=powerpc64-none-none %s | FileCheck -check-prefix PPC64 %s
 //
 // PPC64:typedef signed long int int64_t;
 // PPC64:typedef unsigned long int uint64_t;
@@ -628,7 +628,7 @@
 // PPC64:INTMAX_C_(0) 0L
 // PPC64:UINTMAX_C_(0) 0UL
 //
-// RUN: clang-cc -E -ffreestanding -triple=powerpc-none-none %s | FileCheck -check-prefix PPC %s
+// RUN: %clang_cc1 -E -ffreestanding -triple=powerpc-none-none %s | FileCheck -check-prefix PPC %s
 //
 //
 // PPC:typedef signed long long int int64_t;
@@ -736,7 +736,7 @@
 // PPC:INTMAX_C_(0) 0LL
 // PPC:UINTMAX_C_(0) 0ULL
 //
-// RUN: clang-cc -E -ffreestanding -triple=s390x-none-none %s | FileCheck -check-prefix S390X %s
+// RUN: %clang_cc1 -E -ffreestanding -triple=s390x-none-none %s | FileCheck -check-prefix S390X %s
 //
 // S390X:typedef signed long int int64_t;
 // S390X:typedef unsigned long int uint64_t;
@@ -843,7 +843,7 @@
 // S390X:INTMAX_C_(0) 0L
 // S390X:UINTMAX_C_(0) 0UL
 //
-// RUN: clang-cc -E -ffreestanding -triple=sparc-none-none %s | FileCheck -check-prefix SPARC %s
+// RUN: %clang_cc1 -E -ffreestanding -triple=sparc-none-none %s | FileCheck -check-prefix SPARC %s
 //
 // SPARC:typedef signed long long int int64_t;
 // SPARC:typedef unsigned long long int uint64_t;
@@ -950,7 +950,7 @@
 // SPARC:INTMAX_C_(0) 0LL
 // SPARC:UINTMAX_C_(0) 0ULL
 //
-// RUN: clang-cc -E -ffreestanding -triple=tce-none-none %s | FileCheck -check-prefix TCE %s
+// RUN: %clang_cc1 -E -ffreestanding -triple=tce-none-none %s | FileCheck -check-prefix TCE %s
 //
 // TCE:typedef signed int int32_t;
 // TCE:typedef unsigned int uint32_t;
@@ -1050,7 +1050,7 @@
 // TCE:INTMAX_C_(0) 0
 // TCE:UINTMAX_C_(0) 0U
 //
-// RUN: clang-cc -E -ffreestanding -triple=x86_64-none-none %s | FileCheck -check-prefix X86_64 %s
+// RUN: %clang_cc1 -E -ffreestanding -triple=x86_64-none-none %s | FileCheck -check-prefix X86_64 %s
 //
 //
 // X86_64:typedef signed long int int64_t;
@@ -1158,6 +1158,35 @@
 // X86_64:INTMAX_C_(0) 0L
 // X86_64:UINTMAX_C_(0) 0UL
 //
+//
+// stdint.h forms several macro definitions by pasting together identifiers
+// to form names (eg. int32_t is formed from int ## 32 ## _t). The following 
+// case tests that these joining operations are performed correctly even if
+// the identifiers used in the operations (int, uint, _t, INT, UINT, _MIN,
+// _MAX, and _C(v)) are themselves macros.
+//
+// RUN: %clang_cc1 -E -ffreestanding -Dint=a -Duint=b -D_t=c -DINT=d -DUINT=e -D_MIN=f -D_MAX=g '-D_C(v)=h' -triple=i386-none-none %s | FileCheck -check-prefix JOIN %s
+// JOIN:typedef int32_t intptr_t;
+// JOIN:typedef uint32_t uintptr_t;
+// JOIN:typedef int64_t intmax_t;
+// JOIN:typedef uint64_t uintmax_t;
+// JOIN:INTPTR_MIN_ (-2147483647 -1)
+// JOIN:INTPTR_MAX_ 2147483647
+// JOIN:UINTPTR_MAX_ 4294967295U
+// JOIN:PTRDIFF_MIN_ (-2147483647 -1)
+// JOIN:PTRDIFF_MAX_ 2147483647
+// JOIN:SIZE_MAX_ 4294967295U
+// JOIN:INTMAX_MIN_ (-9223372036854775807LL -1)
+// JOIN:INTMAX_MAX_ 9223372036854775807LL
+// JOIN:UINTMAX_MAX_ 18446744073709551615ULL
+// JOIN:SIG_ATOMIC_MIN_ (-2147483647 -1)
+// JOIN:SIG_ATOMIC_MAX_ 2147483647
+// JOIN:WINT_MIN_ (-2147483647 -1)
+// JOIN:WINT_MAX_ 2147483647
+// JOIN:WCHAR_MAX_ 2147483647
+// JOIN:WCHAR_MIN_ (-2147483647 -1)
+// JOIN:INTMAX_C_(0) 0LL
+// JOIN:UINTMAX_C_(0) 0ULL
 
 #include <stdint.h>
 

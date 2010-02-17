@@ -1,11 +1,6 @@
-; RUN: llc < %s -march=ppc32 | \
-; RUN:   grep {stwbrx\\|lwbrx\\|sthbrx\\|lhbrx} | count 4
-; RUN: llc < %s -march=ppc32 | not grep rlwinm
-; RUN: llc < %s -march=ppc32 | not grep rlwimi
-; RUN: llc < %s -march=ppc64 | \
-; RUN:   grep {stwbrx\\|lwbrx\\|sthbrx\\|lhbrx} | count 4
-; RUN: llc < %s -march=ppc64 | not grep rlwinm
-; RUN: llc < %s -march=ppc64 | not grep rlwimi
+; RUN: llc < %s -march=ppc32 | FileCheck %s -check-prefix=X32
+; RUN: llc < %s -march=ppc64 | FileCheck %s -check-prefix=X64
+
 
 define void @STWBRX(i32 %i, i8* %ptr, i32 %off) {
         %tmp1 = getelementptr i8* %ptr, i32 %off                ; <i8*> [#uses=1]
@@ -42,4 +37,15 @@ define i16 @LHBRX(i8* %ptr, i32 %off) {
 declare i32 @llvm.bswap.i32(i32)
 
 declare i16 @llvm.bswap.i16(i16)
+
+
+; X32: stwbrx
+; X32: lwbrx
+; X32: sthbrx
+; X32: lhbrx
+
+; X64: stwbrx
+; X64: lwbrx
+; X64: sthbrx
+; X64: lhbrx
 

@@ -18,7 +18,6 @@
 #include "X86.h"
 #include "X86RegisterInfo.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 
 namespace llvm {
   class X86RegisterInfo;
@@ -269,6 +268,18 @@ namespace X86II {
     // MRMInitReg - This form is used for instructions whose source and
     // destinations are the same register.
     MRMInitReg = 32,
+    
+    //// MRM_C1 - A mod/rm byte of exactly 0xC1.
+    MRM_C1 = 33,
+    MRM_C2 = 34,
+    MRM_C3 = 35,
+    MRM_C4 = 36,
+    MRM_C8 = 37,
+    MRM_C9 = 38,
+    MRM_E8 = 39,
+    MRM_F0 = 40,
+    MRM_F8 = 41,
+    MRM_F9 = 42,
 
     FormMask       = 63,
 
@@ -332,11 +343,13 @@ namespace X86II {
     // This three-bit field describes the size of an immediate operand.  Zero is
     // unused so that we can tell if we forgot to set a value.
     ImmShift = 13,
-    ImmMask  = 7 << ImmShift,
-    Imm8     = 1 << ImmShift,
-    Imm16    = 2 << ImmShift,
-    Imm32    = 3 << ImmShift,
-    Imm64    = 4 << ImmShift,
+    ImmMask    = 7 << ImmShift,
+    Imm8       = 1 << ImmShift,
+    Imm8PCRel  = 2 << ImmShift,
+    Imm16      = 3 << ImmShift,
+    Imm32      = 4 << ImmShift,
+    Imm32PCRel = 5 << ImmShift,
+    Imm64      = 6 << ImmShift,
 
     //===------------------------------------------------------------------===//
     // FP Instruction Classification...  Zero is non-fp instruction.
@@ -389,6 +402,47 @@ namespace X86II {
     OpcodeShift   = 24,
     OpcodeMask    = 0xFF << OpcodeShift
   };
+  
+  // getBaseOpcodeFor - This function returns the "base" X86 opcode for the
+  // specified machine instruction.
+  //
+  static inline unsigned char getBaseOpcodeFor(unsigned TSFlags) {
+    return TSFlags >> X86II::OpcodeShift;
+  }
+  
+  static inline bool hasImm(unsigned TSFlags) {
+    return (TSFlags & X86II::ImmMask) != 0;
+  }
+  
+  /// getSizeOfImm - Decode the "size of immediate" field from the TSFlags field
+  /// of the specified instruction.
+  static inline unsigned getSizeOfImm(unsigned TSFlags) {
+    switch (TSFlags & X86II::ImmMask) {
+    default: assert(0 && "Unknown immediate size");
+    case X86II::Imm8:
+    case X86II::Imm8PCRel:  return 1;
+    case X86II::Imm16:      return 2;
+    case X86II::Imm32:
+    case X86II::Imm32PCRel: return 4;
+    case X86II::Imm64:      return 8;
+    }
+  }
+  
+  /// isImmPCRel - Return true if the immediate of the specified instruction's
+  /// TSFlags indicates that it is pc relative.
+  static inline unsigned isImmPCRel(unsigned TSFlags) {
+    switch (TSFlags & X86II::ImmMask) {
+      default: assert(0 && "Unknown immediate size");
+      case X86II::Imm8PCRel:
+      case X86II::Imm32PCRel:
+        return true;
+      case X86II::Imm8:
+      case X86II::Imm16:
+      case X86II::Imm32:
+      case X86II::Imm64:
+        return false;
+    }
+  }    
 }
 
 const int X86AddrNumOperands = 5;
@@ -448,6 +502,16 @@ public:
                            unsigned &SrcReg, unsigned &DstReg,
                            unsigned &SrcSubIdx, unsigned &DstSubIdx) const;
 
+  /// isCoalescableExtInstr - Return true if the instruction is a "coalescable"
+  /// extension instruction. That is, it's like a copy where it's legal for the
+  /// source to overlap the destination. e.g. X86::MOVSX64rr32. If this returns
+  /// true, then it's expected the pre-extension value is available as a subreg
+  /// of the result register. This also returns the sub-register index in
+  /// SubIdx.
+  virtual bool isCoalescableExtInstr(const MachineInstr &MI,
+                                     unsigned &SrcReg, unsigned &DstReg,
+                                     unsigned &SubIdx) const;
+
   unsigned isLoadFromStackSlot(const MachineInstr *MI, int &FrameIndex) const;
   /// isLoadFromStackSlotPostFE - Check for post-frame ptr elimination
   /// stack locations as well.  This uses a heuristic so it isn't
@@ -457,11 +521,14 @@ public:
 
   /// hasLoadFromStackSlot - If the specified machine instruction has
   /// a load from a stack slot, return true along with the FrameIndex
-  /// of the loaded stack slot.  If not, return false.  Unlike
+  /// of the loaded stack slot and the machine mem operand containing
+  /// the reference.  If not, return false.  Unlike
   /// isLoadFromStackSlot, this returns true for any instructions that
   /// loads from the stack.  This is a hint only and may not catch all
   /// cases.
-  bool hasLoadFromStackSlot(const MachineInstr *MI, int &FrameIndex) const;
+  bool hasLoadFromStackSlot(const MachineInstr *MI,
+                            const MachineMemOperand *&MMO,
+                            int &FrameIndex) const;
 
   unsigned isStoreToStackSlot(const MachineInstr *MI, int &FrameIndex) const;
   /// isStoreToStackSlotPostFE - Check for post-frame ptr elimination
@@ -472,11 +539,13 @@ public:
 
   /// hasStoreToStackSlot - If the specified machine instruction has a
   /// store to a stack slot, return true along with the FrameIndex of
-  /// the loaded stack slot.  If not, return false.  Unlike
-  /// isStoreToStackSlot, this returns true for any instructions that
-  /// loads from the stack.  This is a hint only and may not catch all
-  /// cases.
-  bool hasStoreToStackSlot(const MachineInstr *MI, int &FrameIndex) const;
+  /// the loaded stack slot and the machine mem operand containing the
+  /// reference.  If not, return false.  Unlike isStoreToStackSlot,
+  /// this returns true for any instructions that loads from the
+  /// stack.  This is a hint only and may not catch all cases.
+  bool hasStoreToStackSlot(const MachineInstr *MI,
+                           const MachineMemOperand *&MMO,
+                           int &FrameIndex) const;
 
   bool isReallyTriviallyReMaterializable(const MachineInstr *MI,
                                          AliasAnalysis *AA) const;
@@ -595,7 +664,26 @@ public:
                                       bool UnfoldLoad, bool UnfoldStore,
                                       unsigned *LoadRegIndex = 0) const;
   
-  virtual bool BlockHasNoFallThrough(const MachineBasicBlock &MBB) const;
+  /// areLoadsFromSameBasePtr - This is used by the pre-regalloc scheduler
+  /// to determine if two loads are loading from the same base address. It
+  /// should only return true if the base pointers are the same and the
+  /// only differences between the two addresses are the offset. It also returns
+  /// the offsets by reference.
+  virtual bool areLoadsFromSameBasePtr(SDNode *Load1, SDNode *Load2,
+                                       int64_t &Offset1, int64_t &Offset2) const;
+
+  /// shouldScheduleLoadsNear - This is a used by the pre-regalloc scheduler to
+  /// determine (in conjuction with areLoadsFromSameBasePtr) if two loads should
+  /// be scheduled togther. On some targets if two loads are loading from
+  /// addresses in the same cache line, it's better if they are scheduled
+  /// together. This function takes two integers that represent the load offsets
+  /// from the common base address. It returns true if it decides it's desirable
+  /// to schedule the two loads together. "NumLoads" is the number of loads that
+  /// have already been scheduled after Load1.
+  virtual bool shouldScheduleLoadsNear(SDNode *Load1, SDNode *Load2,
+                                       int64_t Offset1, int64_t Offset2,
+                                       unsigned NumLoads) const;
+
   virtual
   bool ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const;
 
@@ -603,24 +691,20 @@ public:
   /// instruction that defines the specified register class.
   bool isSafeToMoveRegClassDefs(const TargetRegisterClass *RC) const;
 
-  // getBaseOpcodeFor - This function returns the "base" X86 opcode for the
-  // specified machine instruction.
-  //
-  unsigned char getBaseOpcodeFor(const TargetInstrDesc *TID) const {
-    return TID->TSFlags >> X86II::OpcodeShift;
-  }
-  unsigned char getBaseOpcodeFor(unsigned Opcode) const {
-    return getBaseOpcodeFor(&get(Opcode));
-  }
-  
   static bool isX86_64NonExtLowByteReg(unsigned reg) {
     return (reg == X86::SPL || reg == X86::BPL ||
           reg == X86::SIL || reg == X86::DIL);
   }
   
-  static unsigned sizeOfImm(const TargetInstrDesc *Desc);
-  static bool isX86_64ExtendedReg(const MachineOperand &MO);
+  static bool isX86_64ExtendedReg(const MachineOperand &MO) {
+    if (!MO.isReg()) return false;
+    return isX86_64ExtendedReg(MO.getReg());
+  }
   static unsigned determineREX(const MachineInstr &MI);
+
+  /// isX86_64ExtendedReg - Is the MachineOperand a x86-64 extended (r8 or
+  /// higher) register?  e.g. r8, xmm8, xmm13, etc.
+  static bool isX86_64ExtendedReg(unsigned RegNo);
 
   /// GetInstSize - Returns the size of the specified MachineInstr.
   ///
@@ -633,6 +717,11 @@ public:
   unsigned getGlobalBaseReg(MachineFunction *MF) const;
 
 private:
+  MachineInstr * convertToThreeAddressWithLEA(unsigned MIOpc,
+                                              MachineFunction::iterator &MFI,
+                                              MachineBasicBlock::iterator &MBBI,
+                                              LiveVariables *LV) const;
+
   MachineInstr* foldMemoryOperandImpl(MachineFunction &MF,
                                      MachineInstr* MI,
                                      unsigned OpNum,

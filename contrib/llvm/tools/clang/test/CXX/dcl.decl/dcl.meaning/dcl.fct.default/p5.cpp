@@ -1,8 +1,8 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 float global_f;
 
-void f0(int *ip = &global_f); // expected-error{{incompatible}}
+void f0(int *ip = &global_f); // expected-error{{cannot initialize}}
 
 // Example from C++03 standard
 int a = 1; 

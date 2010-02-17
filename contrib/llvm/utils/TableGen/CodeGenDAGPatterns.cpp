@@ -321,8 +321,7 @@ bool SDTypeConstraint::ApplyTypeConstraint(TreePatternNode *N,
       getOperandNum(x.SDTCisVTSmallerThanOp_Info.OtherOperandNum, N,NumResults);
     
     // It must be integer.
-    bool MadeChange = false;
-    MadeChange |= OtherNode->UpdateNodeType(MVT::iAny, TP);
+    bool MadeChange = OtherNode->UpdateNodeType(MVT::iAny, TP);
     
     // This code only handles nodes that have one type set.  Assert here so
     // that we can change this if we ever need to deal with multiple value
@@ -330,7 +329,7 @@ bool SDTypeConstraint::ApplyTypeConstraint(TreePatternNode *N,
     assert(OtherNode->getExtTypes().size() == 1 && "Node has too many types!");
     if (OtherNode->hasTypeSet() && OtherNode->getTypeNum(0) <= VT)
       OtherNode->UpdateNodeType(MVT::Other, TP);  // Throw an error.
-    return false;
+    return MadeChange;
   }
   case SDTCisOpSmallerThanOp: {
     TreePatternNode *BigOperand =
@@ -675,6 +674,15 @@ TreePatternNode *TreePatternNode::clone() const {
   return New;
 }
 
+/// RemoveAllTypes - Recursively strip all the types of this tree.
+void TreePatternNode::RemoveAllTypes() {
+  removeTypes();
+  if (isLeaf()) return;
+  for (unsigned i = 0, e = getNumChildren(); i != e; ++i)
+    getChild(i)->RemoveAllTypes();
+}
+
+
 /// SubstituteFormalArguments - Replace the formal arguments in this tree
 /// with actual values specified by ArgMap.
 void TreePatternNode::
@@ -769,7 +777,7 @@ TreePatternNode *TreePatternNode::InlinePatternFragments(TreePattern &TP) {
 /// references from the register file information, for example.
 ///
 static std::vector<unsigned char> getImplicitType(Record *R, bool NotRegisters,
-                                      TreePattern &TP) {
+                                                  TreePattern &TP) {
   // Some common return values
   std::vector<unsigned char> Unknown(1, EEVT::isUnknown);
   std::vector<unsigned char> Other(1, MVT::Other);
@@ -826,6 +834,48 @@ getIntrinsicInfo(const CodeGenDAGPatterns &CDP) const {
   return &CDP.getIntrinsicInfo(IID);
 }
 
+/// getComplexPatternInfo - If this node corresponds to a ComplexPattern,
+/// return the ComplexPattern information, otherwise return null.
+const ComplexPattern *
+TreePatternNode::getComplexPatternInfo(const CodeGenDAGPatterns &CGP) const {
+  if (!isLeaf()) return 0;
+  
+  DefInit *DI = dynamic_cast<DefInit*>(getLeafValue());
+  if (DI && DI->getDef()->isSubClassOf("ComplexPattern"))
+    return &CGP.getComplexPattern(DI->getDef());
+  return 0;
+}
+
+/// NodeHasProperty - Return true if this node has the specified property.
+bool TreePatternNode::NodeHasProperty(SDNP Property,
+                                      const CodeGenDAGPatterns &CGP) const {
+  if (isLeaf()) {
+    if (const ComplexPattern *CP = getComplexPatternInfo(CGP))
+      return CP->hasProperty(Property);
+    return false;
+  }
+  
+  Record *Operator = getOperator();
+  if (!Operator->isSubClassOf("SDNode")) return false;
+  
+  return CGP.getSDNodeInfo(Operator).hasProperty(Property);
+}
+
+
+
+
+/// TreeHasProperty - Return true if any node in this tree has the specified
+/// property.
+bool TreePatternNode::TreeHasProperty(SDNP Property,
+                                      const CodeGenDAGPatterns &CGP) const {
+  if (NodeHasProperty(Property, CGP))
+    return true;
+  for (unsigned i = 0, e = getNumChildren(); i != e; ++i)
+    if (getChild(i)->TreeHasProperty(Property, CGP))
+      return true;
+  return false;
+}  
+
 /// isCommutativeIntrinsic - Return true if the node corresponds to a
 /// commutative intrinsic.
 bool
@@ -846,7 +896,9 @@ bool TreePatternNode::ApplyTypeConstraints(TreePattern &TP, bool NotRegisters) {
     if (DefInit *DI = dynamic_cast<DefInit*>(getLeafValue())) {
       // If it's a regclass or something else known, include the type.
       return UpdateNodeType(getImplicitType(DI->getDef(), NotRegisters, TP),TP);
-    } else if (IntInit *II = dynamic_cast<IntInit*>(getLeafValue())) {
+    }
+    
+    if (IntInit *II = dynamic_cast<IntInit*>(getLeafValue())) {
       // Int inits are always integers. :)
       bool MadeChange = UpdateNodeType(MVT::iAny, TP);
       

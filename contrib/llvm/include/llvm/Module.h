@@ -19,14 +19,16 @@
 #include "llvm/GlobalVariable.h"
 #include "llvm/GlobalAlias.h"
 #include "llvm/Metadata.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/System/DataTypes.h"
 #include <vector>
 
 namespace llvm {
 
-class GlobalValueRefMap;   // Used by ConstantVals.cpp
 class FunctionType;
+class GVMaterializer;
 class LLVMContext;
+class MDSymbolTable;
 
 template<> struct ilist_traits<Function>
   : public SymbolTableListTraits<Function, Module> {
@@ -57,6 +59,7 @@ template<> struct ilist_traits<GlobalAlias>
   static GlobalAlias *createSentinel();
   static void destroySentinel(GlobalAlias *GA) { delete GA; }
 };
+
 template<> struct ilist_traits<NamedMDNode>
   : public SymbolTableListTraits<NamedMDNode, Module> {
   // createSentinel is used to get hold of a node that marks the end of
@@ -69,6 +72,8 @@ template<> struct ilist_traits<NamedMDNode>
   NamedMDNode *provideInitialHead() const { return createSentinel(); }
   NamedMDNode *ensureHead(NamedMDNode*) const { return createSentinel(); }
   static void noteHead(NamedMDNode*, NamedMDNode*) {}
+  void addNodeToList(NamedMDNode *N);
+  void removeNodeFromList(NamedMDNode *N);
 private:
   mutable ilist_node<NamedMDNode> Sentinel;
 };
@@ -132,19 +137,21 @@ public:
 /// @name Member Variables
 /// @{
 private:
-  LLVMContext& Context;          ///< The LLVMContext from which types and
-                                 ///< constants are allocated.
-  GlobalListType GlobalList;     ///< The Global Variables in the module
-  FunctionListType FunctionList; ///< The Functions in the module
-  AliasListType AliasList;       ///< The Aliases in the module
-  LibraryListType LibraryList;   ///< The Libraries needed by the module
-  NamedMDListType NamedMDList;   ///< The named metadata in the module
-  std::string GlobalScopeAsm;    ///< Inline Asm at global scope.
-  ValueSymbolTable *ValSymTab;   ///< Symbol table for values
-  TypeSymbolTable *TypeSymTab;   ///< Symbol table for types
-  std::string ModuleID;          ///< Human readable identifier for the module
-  std::string TargetTriple;      ///< Platform target triple Module compiled on
-  std::string DataLayout;        ///< Target data description
+  LLVMContext &Context;           ///< The LLVMContext from which types and
+                                  ///< constants are allocated.
+  GlobalListType GlobalList;      ///< The Global Variables in the module
+  FunctionListType FunctionList;  ///< The Functions in the module
+  AliasListType AliasList;        ///< The Aliases in the module
+  LibraryListType LibraryList;    ///< The Libraries needed by the module
+  NamedMDListType NamedMDList;    ///< The named metadata in the module
+  std::string GlobalScopeAsm;     ///< Inline Asm at global scope.
+  ValueSymbolTable *ValSymTab;    ///< Symbol table for values
+  TypeSymbolTable *TypeSymTab;    ///< Symbol table for types
+  OwningPtr<GVMaterializer> Materializer;  ///< Used to materialize GlobalValues
+  std::string ModuleID;           ///< Human readable identifier for the module
+  std::string TargetTriple;       ///< Platform target triple Module compiled on
+  std::string DataLayout;         ///< Target data description
+  MDSymbolTable *NamedMDSymTab;   ///< NamedMDNode names.
 
   friend class Constant;
 
@@ -161,7 +168,7 @@ public:
 /// @}
 /// @name Module Level Accessors
 /// @{
-public:
+
   /// Get the module identifier which is, essentially, the name of the module.
   /// @returns the module identifier as a string
   const std::string &getModuleIdentifier() const { return ModuleID; }
@@ -185,16 +192,16 @@ public:
 
   /// Get the global data context.
   /// @returns LLVMContext - a container for LLVM's global information
-  LLVMContext& getContext() const { return Context; }
+  LLVMContext &getContext() const { return Context; }
 
   /// Get any module-scope inline assembly blocks.
   /// @returns a string containing the module-scope inline assembly blocks.
   const std::string &getModuleInlineAsm() const { return GlobalScopeAsm; }
+  
 /// @}
 /// @name Module Level Mutators
 /// @{
-public:
-
+  
   /// Set the module identifier.
   void setModuleIdentifier(StringRef ID) { ModuleID = ID; }
 
@@ -207,11 +214,13 @@ public:
   /// Set the module-scope inline assembly blocks.
   void setModuleInlineAsm(StringRef Asm) { GlobalScopeAsm = Asm; }
 
-  /// Append to the module-scope inline assembly blocks, automatically
-  /// appending a newline to the end.
+  /// Append to the module-scope inline assembly blocks, automatically inserting
+  /// a separating newline if necessary.
   void appendModuleInlineAsm(StringRef Asm) {
+    if (!GlobalScopeAsm.empty() &&
+        GlobalScopeAsm[GlobalScopeAsm.size()-1] != '\n')
+      GlobalScopeAsm += '\n';
     GlobalScopeAsm += Asm;
-    GlobalScopeAsm += '\n';
   }
 
 /// @}
@@ -223,10 +232,19 @@ public:
   /// if a global with the specified name is not found.
   GlobalValue *getNamedValue(StringRef Name) const;
 
+  /// getMDKindID - Return a unique non-zero ID for the specified metadata kind.
+  /// This ID is uniqued across modules in the current LLVMContext.
+  unsigned getMDKindID(StringRef Name) const;
+  
+  /// getMDKindNames - Populate client supplied SmallVector with the name for
+  /// custom metadata IDs registered in this LLVMContext.   ID #0 is not used,
+  /// so it is filled in as an empty string.
+  void getMDKindNames(SmallVectorImpl<StringRef> &Result) const;
+  
 /// @}
 /// @name Function Accessors
 /// @{
-public:
+
   /// getOrInsertFunction - Look up the specified function in the module symbol
   /// table.  Four possibilities:
   ///   1. If it does not exist, add a prototype for the function and return it.
@@ -267,7 +285,7 @@ public:
 /// @}
 /// @name Global Variable Accessors
 /// @{
-public:
+
   /// getGlobalVariable - Look up the specified global variable in the module
   /// symbol table.  If it does not exist, return null. If AllowInternal is set
   /// to true, this function will return types that have InternalLinkage. By
@@ -294,7 +312,7 @@ public:
 /// @}
 /// @name Global Alias Accessors
 /// @{
-public:
+
   /// getNamedAlias - Return the first global alias in the module with the
   /// specified name, of arbitrary type.  This method returns null if a global
   /// with the specified name is not found.
@@ -303,7 +321,7 @@ public:
 /// @}
 /// @name Named Metadata Accessors
 /// @{
-public:
+  
   /// getNamedMetadata - Return the first NamedMDNode in the module with the
   /// specified name. This method returns null if a NamedMDNode with the 
   /// specified name is not found.
@@ -317,7 +335,7 @@ public:
 /// @}
 /// @name Type Accessors
 /// @{
-public:
+
   /// addTypeName - Insert an entry in the symbol table mapping Str to Type.  If
   /// there is already an entry for this name, true is returned and the symbol
   /// table is not modified.
@@ -332,9 +350,53 @@ public:
   const Type *getTypeByName(StringRef Name) const;
 
 /// @}
+/// @name Materialization
+/// @{
+
+  /// setMaterializer - Sets the GVMaterializer to GVM.  This module must not
+  /// yet have a Materializer.  To reset the materializer for a module that
+  /// already has one, call MaterializeAllPermanently first.  Destroying this
+  /// module will destroy its materializer without materializing any more
+  /// GlobalValues.  Without destroying the Module, there is no way to detach or
+  /// destroy a materializer without materializing all the GVs it controls, to
+  /// avoid leaving orphan unmaterialized GVs.
+  void setMaterializer(GVMaterializer *GVM);
+  /// getMaterializer - Retrieves the GVMaterializer, if any, for this Module.
+  GVMaterializer *getMaterializer() const { return Materializer.get(); }
+
+  /// isMaterializable - True if the definition of GV has yet to be materialized
+  /// from the GVMaterializer.
+  bool isMaterializable(const GlobalValue *GV) const;
+  /// isDematerializable - Returns true if this GV was loaded from this Module's
+  /// GVMaterializer and the GVMaterializer knows how to dematerialize the GV.
+  bool isDematerializable(const GlobalValue *GV) const;
+
+  /// Materialize - Make sure the GlobalValue is fully read.  If the module is
+  /// corrupt, this returns true and fills in the optional string with
+  /// information about the problem.  If successful, this returns false.
+  bool Materialize(GlobalValue *GV, std::string *ErrInfo = 0);
+  /// Dematerialize - If the GlobalValue is read in, and if the GVMaterializer
+  /// supports it, release the memory for the function, and set it up to be
+  /// materialized lazily.  If !isDematerializable(), this method is a noop.
+  void Dematerialize(GlobalValue *GV);
+
+  /// MaterializeAll - Make sure all GlobalValues in this Module are fully read.
+  /// If the module is corrupt, this returns true and fills in the optional
+  /// string with information about the problem.  If successful, this returns
+  /// false.
+  bool MaterializeAll(std::string *ErrInfo = 0);
+
+  /// MaterializeAllPermanently - Make sure all GlobalValues in this Module are
+  /// fully read and clear the Materializer.  If the module is corrupt, this
+  /// returns true, fills in the optional string with information about the
+  /// problem, and DOES NOT clear the old Materializer.  If successful, this
+  /// returns false.
+  bool MaterializeAllPermanently(std::string *ErrInfo = 0);
+
+/// @}
 /// @name Direct access to the globals list, functions list, and symbol table
 /// @{
-public:
+
   /// Get the Module's list of global variables (constant).
   const GlobalListType   &getGlobalList() const       { return GlobalList; }
   /// Get the Module's list of global variables.
@@ -371,11 +433,15 @@ public:
   const TypeSymbolTable  &getTypeSymbolTable() const  { return *TypeSymTab; }
   /// Get the Module's symbol table of types
   TypeSymbolTable        &getTypeSymbolTable()        { return *TypeSymTab; }
+  /// Get the symbol table of named metadata
+  const MDSymbolTable  &getMDSymbolTable() const      { return *NamedMDSymTab; }
+  /// Get the Module's symbol table of named metadata
+  MDSymbolTable        &getMDSymbolTable()            { return *NamedMDSymTab; }
 
 /// @}
 /// @name Global Variable Iteration
 /// @{
-public:
+
   /// Get an iterator to the first global variable
   global_iterator       global_begin()       { return GlobalList.begin(); }
   /// Get a constant iterator to the first global variable
@@ -390,7 +456,7 @@ public:
 /// @}
 /// @name Function Iteration
 /// @{
-public:
+
   /// Get an iterator to the first function.
   iterator                begin()       { return FunctionList.begin(); }
   /// Get a constant iterator to the first function.
@@ -407,7 +473,7 @@ public:
 /// @}
 /// @name Dependent Library Iteration
 /// @{
-public:
+
   /// @brief Get a constant iterator to beginning of dependent library list.
   inline lib_iterator lib_begin() const { return LibraryList.begin(); }
   /// @brief Get a constant iterator to end of dependent library list.
@@ -424,7 +490,7 @@ public:
 /// @}
 /// @name Alias Iteration
 /// @{
-public:
+
   /// Get an iterator to the first alias.
   alias_iterator       alias_begin()            { return AliasList.begin(); }
   /// Get a constant iterator to the first alias.
@@ -442,31 +508,31 @@ public:
 /// @}
 /// @name Named Metadata Iteration
 /// @{
-public:
+
   /// Get an iterator to the first named metadata.
-  named_metadata_iterator       named_metadata_begin()            
-                                                { return NamedMDList.begin(); }
+  named_metadata_iterator named_metadata_begin() { return NamedMDList.begin(); }
   /// Get a constant iterator to the first named metadata.
-  const_named_metadata_iterator named_metadata_begin() const      
-                                                { return NamedMDList.begin(); }
+  const_named_metadata_iterator named_metadata_begin() const {
+    return NamedMDList.begin();
+  }
+  
   /// Get an iterator to the last named metadata.
-  named_metadata_iterator       named_metadata_end  ()            
-                                                { return NamedMDList.end();   }
+  named_metadata_iterator named_metadata_end() { return NamedMDList.end(); }
   /// Get a constant iterator to the last named metadata.
-  const_named_metadata_iterator named_metadata_end  () const      
-                                                { return NamedMDList.end();   }
+  const_named_metadata_iterator named_metadata_end() const {
+    return NamedMDList.end();
+  }
+  
   /// Determine how many NamedMDNodes are in the Module's list of named metadata.
-  size_t                        named_metadata_size () const      
-                                                { return NamedMDList.size();  }
+  size_t named_metadata_size() const { return NamedMDList.size();  }
   /// Determine if the list of named metadata is empty.
-  bool                          named_metadata_empty() const      
-                                                { return NamedMDList.empty(); }
+  bool named_metadata_empty() const { return NamedMDList.empty(); }
 
 
 /// @}
 /// @name Utility functions for printing and dumping Module objects
 /// @{
-public:
+
   /// Print the module to an output stream with AssemblyAnnotationWriter.
   void print(raw_ostream &OS, AssemblyAnnotationWriter *AAW) const;
   

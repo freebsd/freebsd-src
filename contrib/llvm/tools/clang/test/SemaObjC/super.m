@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 @interface Foo
 - iMethod;
@@ -38,4 +38,11 @@ void f0(int super) {
 }
 void f1(int puper) {
   [super m]; // expected-error{{use of undeclared identifier 'super'}}
+}
+
+// radar 7400691
+typedef Foo super;
+
+void test() {
+  [super cMethod];
 }

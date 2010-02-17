@@ -19,7 +19,6 @@
 #include "PPCJITInfo.h"
 #include "PPCInstrInfo.h"
 #include "PPCISelLowering.h"
-#include "PPCMachOWriterInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetData.h"
 
@@ -37,7 +36,6 @@ class PPCTargetMachine : public LLVMTargetMachine {
   PPCJITInfo          JITInfo;
   PPCTargetLowering   TLInfo;
   InstrItineraryData  InstrItins;
-  PPCMachOWriterInfo  MachOWriterInfo;
 
 public:
   PPCTargetMachine(const Target &T, const std::string &TT,
@@ -58,28 +56,12 @@ public:
   virtual const InstrItineraryData getInstrItineraryData() const {  
     return InstrItins;
   }
-  virtual const PPCMachOWriterInfo *getMachOWriterInfo() const {
-    return &MachOWriterInfo;
-  }
 
   // Pass Pipeline Configuration
   virtual bool addInstSelector(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
   virtual bool addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
   virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
-                              MachineCodeEmitter &MCE);
-  virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
                               JITCodeEmitter &JCE);
-  virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
-                              ObjectCodeEmitter &OCE);
-  virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
-                                    CodeGenOpt::Level OptLevel,
-                                    MachineCodeEmitter &MCE);
-  virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
-                                    CodeGenOpt::Level OptLevel,
-                                    JITCodeEmitter &JCE);
-  virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
-                                    CodeGenOpt::Level OptLevel,
-                                    ObjectCodeEmitter &OCE);
   virtual bool getEnableTailMergeDefault() const;
 };
 

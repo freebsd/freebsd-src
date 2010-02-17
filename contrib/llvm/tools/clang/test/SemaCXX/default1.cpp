@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 void f(int i);
 void f(int i = 0); // expected-note {{previous definition is here}}
 void f(int i = 17); // expected-error {{redefinition of default argument}}
@@ -14,7 +14,7 @@ void h(int i, int j = 2, int k = 3,
        int n);// expected-error {{missing default argument on parameter 'n'}}
 
 struct S { } s;
-void i(int = s) { } // expected-error {{incompatible type}}
+void i(int = s) { } // expected-error {{no viable conversion}}
 
 struct X { 
   X(int);
@@ -22,10 +22,10 @@ struct X {
 
 void j(X x = 17);
 
-struct Y {
+struct Y { // expected-note 2{{candidate}}
   explicit Y(int);
 };
 
-void k(Y y = 17); // expected-error{{cannot initialize 'y' with an rvalue of type 'int'}}
+void k(Y y = 17); // expected-error{{no viable conversion}}
 
-void kk(Y = 17); // expected-error{{cannot initialize a value of type 'struct Y' with an rvalue of type 'int'}}
+void kk(Y = 17); // expected-error{{no viable conversion}}

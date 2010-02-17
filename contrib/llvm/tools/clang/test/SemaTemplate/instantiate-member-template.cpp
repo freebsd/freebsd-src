@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 template<typename T>
 struct X0 {
@@ -50,7 +50,7 @@ struct X1 {
     
     template<typename V>
     V f1(T t, U u, V) {
-      return t + u; // expected-error{{incompatible type}}
+      return t + u; // expected-error{{cannot initialize return object}}
     }
   };
   
@@ -75,7 +75,7 @@ template<typename T>
 template<typename U>
 template<typename V>
 V X1<T>::Inner4<U>::f2(T t, U u, V) {
-  return t + u; // expected-error{{incompatible type}}
+  return t + u; // expected-error{{cannot initialize return object}}
 }
 
 void test_X1(int *ip, int i, double *dp) {
@@ -90,7 +90,7 @@ void test_X1(int *ip, int i, double *dp) {
   
   X1<int*>::Inner3<int> id3;
   id3.f0(ip, i);
-  id3.f0(dp, i); // expected-error{{incompatible type}}
+  id3.f0(dp, i); // expected-error{{cannot initialize a parameter of type 'int *' with an lvalue of type 'double *'}}
   id3.f1(ip, i, ip);
   id3.f1(ip, i, dp); // expected-note{{instantiation}}
   
@@ -116,3 +116,43 @@ struct X2 {
 
 X2<int&> x2a; // expected-note{{instantiation}}
 X2<float> x2b; // expected-note{{instantiation}}
+
+namespace N0 {
+  template<typename T>
+  struct X0 { };
+  
+  struct X1 {
+    template<typename T> void f(X0<T>& vals) { g(vals); }
+    template<typename T> void g(X0<T>& vals) { }
+  };
+  
+  void test(X1 x1, X0<int> x0i, X0<long> x0l) {
+    x1.f(x0i);
+    x1.f(x0l);
+  }  
+}
+
+namespace PR6239 {
+  template <typename T>  
+  struct X0 {  
+    class type {
+      typedef T E;    
+      template <E e>  // subsitute T for E and bug goes away
+      struct sfinae {  };  
+      
+      template <class U>  
+      typename sfinae<&U::operator=>::type test(int);  
+    };
+  };
+
+  template <typename T>  
+  struct X1 {  
+    typedef T E;    
+    template <E e>  // subsitute T for E and bug goes away
+    struct sfinae {  };  
+    
+    template <class U>  
+    typename sfinae<&U::operator=>::type test(int);  
+  };
+
+}

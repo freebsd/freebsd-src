@@ -38,22 +38,53 @@ def OptList : OptionList<[
     (help "Compile and assemble, but do not link")),
  (switch_option "pthread",
     (help "Enable threads")),
+ (switch_option "m32",
+    (help "Generate code for a 32-bit environment"), (hidden)),
+ (switch_option "m64",
+    (help "Generate code for a 64-bit environment"), (hidden)),
+ (switch_option "fPIC",
+    (help "Relocation model: PIC"), (hidden)),
+ (switch_option "mdynamic-no-pic",
+    (help "Relocation model: dynamic-no-pic"), (hidden)),
  (parameter_option "linker",
     (help "Choose linker (possible values: gcc, g++)")),
+ (parameter_option "mtune",
+    (help "Target a specific CPU type"), (hidden)),
+
+ // TODO: Add a conditional compilation mechanism to make Darwin-only options
+ // like '-arch' really Darwin-only.
+
+ (parameter_option "arch",
+    (help "Compile for the specified target architecture"), (hidden)),
+ (parameter_option "march",
+    (help "A synonym for -mtune"), (hidden)),
+ (parameter_option "mcpu",
+    (help "A deprecated synonym for -mtune"), (hidden)),
+ (switch_option "mfix-and-continue",
+    (help "Needed by gdb to load .o files dynamically"), (hidden)),
  (parameter_option "MF",
     (help "Specify a file to write dependencies to"), (hidden)),
- (parameter_option "MT",
+ (parameter_list_option "MT",
     (help "Change the name of the rule emitted by dependency generation"),
     (hidden)),
  (parameter_list_option "include",
     (help "Include the named file prior to preprocessing")),
+ (parameter_list_option "iquote",
+    (help "Search dir only for files requested with #inlcude \"file\""),
+    (hidden)),
+ (parameter_list_option "framework",
+    (help "Specifies a framework to link against")),
+ (parameter_list_option "weak_framework",
+    (help "Specifies a framework to weakly link against"), (hidden)),
+ (prefix_list_option "F",
+    (help "Add a directory to framework search path")),
  (prefix_list_option "I",
     (help "Add a directory to include path")),
  (prefix_list_option "D",
     (help "Define a macro")),
- (prefix_list_option "Wa,",
+ (prefix_list_option "Wa,", (comma_separated),
     (help "Pass options to assembler")),
- (prefix_list_option "Wllc,",
+ (prefix_list_option "Wllc,", (comma_separated),
     (help "Pass options to llc")),
  (prefix_list_option "L",
     (help "Add a directory to link path")),
@@ -61,21 +92,37 @@ def OptList : OptionList<[
     (help "Search a library when linking")),
  (prefix_list_option "Wl,",
     (help "Pass options to linker")),
- (prefix_list_option "Wo,",
-    (help "Pass options to opt"))
+ (prefix_list_option "Wo,", (comma_separated),
+    (help "Pass options to opt")),
+ (prefix_list_option "m",
+     (help "Enable or disable various extensions (-mmmx, -msse, etc.)"),
+     (hidden)),
+ (switch_option "dynamiclib", (hidden),
+     (help "Produce a dynamic library")),
+ (switch_option "prebind", (hidden),
+     (help "Prebind all undefined symbols")),
+ (switch_option "dead_strip", (hidden),
+     (help "Remove unreachable blocks of code")),
+ (switch_option "single_module", (hidden),
+     (help "Build the library so it contains only one module")),
+ (parameter_option "compatibility_version", (hidden),
+     (help "Compatibility version number")),
+ (parameter_option "current_version", (hidden),
+     (help "Current version number"))
 ]>;
 
 // Option preprocessor.
 
 def Preprocess : OptionPreprocessor<
-(case (and (switch_on "O3"), (any_switch_on ["O0", "O1", "O2"])),
+(case (not (any_switch_on ["O0", "O1", "O2", "O3"])),
+           (set_option "O2"),
+      (and (switch_on "O3"), (any_switch_on ["O0", "O1", "O2"])),
            (unset_option ["O0", "O1", "O2"]),
       (and (switch_on "O2"), (any_switch_on ["O0", "O1"])),
            (unset_option ["O0", "O1"]),
-      (and (switch_on "O1"), (switch_on "O0")),
+      (switch_on ["O1", "O0"]),
            (unset_option "O0"))
 >;
-
 
 // Tools
 
@@ -100,16 +147,30 @@ class llvm_gcc_based <string cmd_prefix, string in_lang, string E_ext> : Tool<
          (and (multiple_input_files), (or (switch_on "S"), (switch_on "c"))),
               (error "cannot specify -o with -c or -S with multiple files"),
          (switch_on "E"), [(stop_compilation), (output_suffix E_ext)],
-         (and (switch_on "emit-llvm"), (switch_on "S")),
+         (switch_on ["emit-llvm", "S"]),
               [(output_suffix "ll"), (stop_compilation)],
-         (and (switch_on "emit-llvm"), (switch_on "c")), (stop_compilation),
+         (switch_on ["emit-llvm", "c"]), (stop_compilation),
          (switch_on "fsyntax-only"), (stop_compilation),
          (not_empty "include"), (forward "include"),
+         (not_empty "iquote"), (forward "iquote"),
+         (not_empty "save-temps"), (append_cmd "-save-temps"),
          (not_empty "I"), (forward "I"),
+         (not_empty "F"), (forward "F"),
          (not_empty "D"), (forward "D"),
+         (not_empty "arch"), (forward "arch"),
+         (not_empty "march"), (forward "march"),
+         (not_empty "mtune"), (forward "mtune"),
+         (not_empty "mcpu"), (forward "mcpu"),
+         (not_empty "m"), (forward "m"),
+         (switch_on "mfix-and-continue"), (forward "mfix-and-continue"),
+         (switch_on "m32"), (forward "m32"),
+         (switch_on "m64"), (forward "m64"),
+         (switch_on "O0"), (forward "O0"),
          (switch_on "O1"), (forward "O1"),
          (switch_on "O2"), (forward "O2"),
          (switch_on "O3"), (forward "O3"),
+         (switch_on "fPIC"), (forward "fPIC"),
+         (switch_on "mdynamic-no-pic"), (forward "mdynamic-no-pic"),
          (not_empty "MF"), (forward "MF"),
          (not_empty "MT"), (forward "MT"))),
  (sink)
@@ -126,7 +187,7 @@ def opt : Tool<
 [(in_language "llvm-bitcode"),
  (out_language "llvm-bitcode"),
  (output_suffix "bc"),
- (actions (case (not_empty "Wo,"), (unpack_values "Wo,"),
+ (actions (case (not_empty "Wo,"), (forward_value "Wo,"),
                 (switch_on "O1"), (forward "O1"),
                 (switch_on "O2"), (forward "O2"),
                 (switch_on "O3"), (forward "O3"))),
@@ -148,7 +209,8 @@ def llvm_gcc_assembler : Tool<
  (cmd_line "@LLVMGCCCOMMAND@ -c -x assembler $INFILE -o $OUTFILE"),
  (actions (case
           (switch_on "c"), (stop_compilation),
-          (not_empty "Wa,"), (unpack_values "Wa,")))
+          (not_empty "arch"), (forward "arch"),
+          (not_empty "Wa,"), (forward_value "Wa,")))
 ]>;
 
 def llc : Tool<
@@ -162,7 +224,14 @@ def llc : Tool<
           (switch_on "O1"), (forward "O1"),
           (switch_on "O2"), (forward "O2"),
           (switch_on "O3"), (forward "O3"),
-          (not_empty "Wllc,"), (unpack_values "Wllc,")))
+          (switch_on "fPIC"), (append_cmd "-relocation-model=pic"),
+          (switch_on "mdynamic-no-pic"),
+                     (append_cmd "-relocation-model=dynamic-no-pic"),
+          (not_empty "march"), (forward "mcpu"),
+          (not_empty "mtune"), (forward "mcpu"),
+          (not_empty "mcpu"), (forward "mcpu"),
+          (not_empty "m"), (forward_transformed_value "m", "ConvertToMAttr"),
+          (not_empty "Wllc,"), (forward_value "Wllc,")))
 ]>;
 
 // Base class for linkers
@@ -175,8 +244,22 @@ class llvm_gcc_based_linker <string cmd_prefix> : Tool<
  (actions (case
           (switch_on "pthread"), (append_cmd "-lpthread"),
           (not_empty "L"), (forward "L"),
+          (not_empty "F"), (forward "F"),
+          (not_empty "arch"), (forward "arch"),
+          (not_empty "framework"), (forward "framework"),
+          (not_empty "weak_framework"), (forward "weak_framework"),
+          (switch_on "m32"), (forward "m32"),
+          (switch_on "m64"), (forward "m64"),
           (not_empty "l"), (forward "l"),
-          (not_empty "Wl,"), (forward "Wl,")))
+          (not_empty "Wl,"), (forward "Wl,"),
+          (switch_on "dynamiclib"), (forward "dynamiclib"),
+          (switch_on "prebind"), (forward "prebind"),
+          (switch_on "dead_strip"), (forward "dead_strip"),
+          (switch_on "single_module"), (forward "single_module"),
+          (not_empty "compatibility_version"),
+                     (forward "compatibility_version"),
+          (not_empty "current_version"),
+                     (forward "current_version")))
 ]>;
 
 // Default linker

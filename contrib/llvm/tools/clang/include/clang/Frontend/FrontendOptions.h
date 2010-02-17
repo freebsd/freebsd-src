@@ -31,6 +31,7 @@ namespace frontend {
     EmitHTML,               ///< Translate input source into HTML.
     EmitLLVM,               ///< Emit a .ll file.
     EmitLLVMOnly,           ///< Generate LLVM IR, but do not
+    EmitObj,                ///< Emit a .o file.
     FixIt,                  ///< Parse and apply any fixits to the source.
     GeneratePCH,            ///< Generate pre-compiled header.
     GeneratePTH,            ///< Generate pre-tokenized header.
@@ -41,7 +42,6 @@ namespace frontend {
     PluginAction,           ///< Run a plugin action, \see ActionName.
     PrintDeclContext,       ///< Print DeclContext and their Decls.
     PrintPreprocessedInput, ///< -E mode.
-    RewriteBlocks,          ///< ObjC->C Rewriter for Blocks.
     RewriteMacros,          ///< Expand macros but not #includes.
     RewriteObjC,            ///< ObjC->C Rewriter.
     RewriteTest,            ///< Rewriter playground
@@ -77,12 +77,14 @@ public:
   unsigned RelocatablePCH : 1;             ///< When generating PCH files,
                                            /// instruct the PCH writer to create
                                            /// relocatable PCH files.
+  unsigned ShowHelp : 1;                   ///< Show the -help text.
   unsigned ShowMacrosInCodeCompletion : 1; ///< Show macros in code completion
                                            /// results.
   unsigned ShowStats : 1;                  ///< Show frontend performance
                                            /// metrics and statistics.
   unsigned ShowTimers : 1;                 ///< Show timers for individual
                                            /// actions.
+  unsigned ShowVersion : 1;                ///< Show the -version text.
 
   /// The input files and their types.
   std::vector<std::pair<InputKind, std::string> > Inputs;
@@ -105,17 +107,25 @@ public:
   /// The name of the action to run when using a plugin action.
   std::string ActionName;
 
+  /// The list of plugins to load.
+  std::vector<std::string> Plugins;
+
+  /// \brief The list of AST files to merge.
+  std::vector<std::string> ASTMergeFiles;
+
 public:
   FrontendOptions() {
-    DebugCodeCompletionPrinter = 0;
+    DebugCodeCompletionPrinter = 1;
     DisableFree = 0;
     EmptyInputOnly = 0;
     ProgramAction = frontend::ParseSyntaxOnly;
     ActionName = "";
     RelocatablePCH = 0;
+    ShowHelp = 0;
     ShowMacrosInCodeCompletion = 0;
     ShowStats = 0;
     ShowTimers = 0;
+    ShowVersion = 0;
   }
 
   /// getInputKindForExtension - Return the appropriate input kind for a file

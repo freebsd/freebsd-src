@@ -22,13 +22,16 @@ PPCMCAsmInfoDarwin::PPCMCAsmInfoDarwin(bool is64Bit) {
   if (!is64Bit)
     Data64bitsDirective = 0;      // We can't emit a 64-bit unit in PPC32 mode.
   AssemblerDialect = 1;           // New-Style mnemonics.
+  SupportsDebugInformation= true; // Debug information.
 }
 
 PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit) {
+  // ".comm align is in bytes but .align is pow-2."
+  AlignmentIsInBytes = false;
+
   CommentString = "#";
   GlobalPrefix = "";
   PrivateGlobalPrefix = ".L";
-  UsedDirective = "\t# .no_dead_strip\t";
   WeakRefDirective = "\t.weak\t";
   
   // Uses '.section' before '.bss' directive
@@ -49,10 +52,8 @@ PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit) {
   AbsoluteEHSectionOffsets = false;
     
   ZeroDirective = "\t.space\t";
-  SetDirective = "\t.set";
   Data64bitsDirective = is64Bit ? "\t.quad\t" : 0;
-  AlignmentIsInBytes = false;
-  LCOMMDirective = "\t.lcomm\t";
+  HasLCOMMDirective = true;
   AssemblerDialect = 0;           // Old-Style mnemonics.
 }
 

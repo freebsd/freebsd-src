@@ -13,11 +13,9 @@
 
 #include "clang/Analysis/Analyses/UninitializedValues.h"
 #include "clang/Analysis/Visitors/CFGRecStmtDeclVisitor.h"
-#include "clang/Analysis/LocalCheckers.h"
 #include "clang/Analysis/AnalysisDiagnostic.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Analysis/FlowSensitive/DataflowSolver.h"
-#include "llvm/Support/Compiler.h"
 
 #include "llvm/ADT/SmallPtrSet.h"
 
@@ -29,7 +27,7 @@ using namespace clang;
 
 namespace {
 
-class VISIBILITY_HIDDEN RegisterDecls
+class RegisterDecls
   : public CFGRecStmtDeclVisitor<RegisterDecls> {
 
   UninitializedValues::AnalysisDataTy& AD;
@@ -52,7 +50,7 @@ void UninitializedValues::InitializeValues(const CFG& cfg) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-class VISIBILITY_HIDDEN TransferFuncs
+class TransferFuncs
   : public CFGStmtVisitor<TransferFuncs,bool> {
 
   UninitializedValues::ValTy V;
@@ -269,7 +267,7 @@ namespace {
 UninitializedValues_ValueTypes::ObserverTy::~ObserverTy() {}
 
 namespace {
-class VISIBILITY_HIDDEN UninitializedValuesChecker
+class UninitializedValuesChecker
   : public UninitializedValues::ObserverTy {
 
   ASTContext &Ctx;

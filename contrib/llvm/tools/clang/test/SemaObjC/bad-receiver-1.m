@@ -1,8 +1,10 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 @interface I
 - (id) retain;
 @end
+
+int objc_lookUpClass(const char*);
 
 void __raiseExc1() {
  [objc_lookUpClass("NSString") retain]; // expected-warning {{receiver type 'int' is not 'id'}} \

@@ -213,10 +213,9 @@ QualType ClassTemplateDecl::getInjectedClassNameType(ASTContext &Context) {
       TemplateArgs.push_back(TemplateArgument(ParamType));
     } else if (NonTypeTemplateParmDecl *NTTP =
                  dyn_cast<NonTypeTemplateParmDecl>(*Param)) {
-      Expr *E = new (Context) DeclRefExpr(NTTP, NTTP->getType(),
-                                          NTTP->getLocation(),
-                                          NTTP->getType()->isDependentType(),
-                                          /*Value-dependent=*/true);
+      Expr *E = new (Context) DeclRefExpr(NTTP,
+                                          NTTP->getType().getNonReferenceType(),
+                                          NTTP->getLocation());
       TemplateArgs.push_back(TemplateArgument(E));
     } else {
       TemplateTemplateParmDecl *TTP = cast<TemplateTemplateParmDecl>(*Param);
@@ -264,8 +263,8 @@ NonTypeTemplateParmDecl *
 NonTypeTemplateParmDecl::Create(ASTContext &C, DeclContext *DC,
                                 SourceLocation L, unsigned D, unsigned P,
                                 IdentifierInfo *Id, QualType T,
-                                DeclaratorInfo *DInfo) {
-  return new (C) NonTypeTemplateParmDecl(DC, L, D, P, Id, T, DInfo);
+                                TypeSourceInfo *TInfo) {
+  return new (C) NonTypeTemplateParmDecl(DC, L, D, P, Id, T, TInfo);
 }
 
 SourceLocation NonTypeTemplateParmDecl::getDefaultArgumentLoc() const {
@@ -453,8 +452,9 @@ Create(ASTContext &Context, DeclContext *DC, SourceLocation L,
        TemplateParameterList *Params,
        ClassTemplateDecl *SpecializedTemplate,
        TemplateArgumentListBuilder &Builder,
-       TemplateArgumentLoc *ArgInfos, unsigned N,
+       const TemplateArgumentListInfo &ArgInfos,
        ClassTemplatePartialSpecializationDecl *PrevDecl) {
+  unsigned N = ArgInfos.size();
   TemplateArgumentLoc *ClonedArgs = new (Context) TemplateArgumentLoc[N];
   for (unsigned I = 0; I != N; ++I)
     ClonedArgs[I] = ArgInfos[I];

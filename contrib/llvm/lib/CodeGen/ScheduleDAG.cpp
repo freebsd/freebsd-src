@@ -41,7 +41,7 @@ void ScheduleDAG::dumpSchedule() const {
     if (SUnit *SU = Sequence[i])
       SU->dump(this);
     else
-      errs() << "**** NOOP ****\n";
+      dbgs() << "**** NOOP ****\n";
   }
 }
 
@@ -61,9 +61,9 @@ void ScheduleDAG::Run(MachineBasicBlock *bb,
   Schedule();
 
   DEBUG({
-      errs() << "*** Final schedule ***\n";
+      dbgs() << "*** Final schedule ***\n";
       dumpSchedule();
-      errs() << '\n';
+      dbgs() << '\n';
     });
 }
 
@@ -183,8 +183,8 @@ void SUnit::setHeightDirty() {
 /// setDepthToAtLeast - Update this node's successors to reflect the
 /// fact that this node's depth just increased.
 ///
-void SUnit::setDepthToAtLeast(unsigned NewDepth, bool IgnoreAntiDep) {
-  if (NewDepth <= getDepth(IgnoreAntiDep))
+void SUnit::setDepthToAtLeast(unsigned NewDepth) {
+  if (NewDepth <= getDepth())
     return;
   setDepthDirty();
   Depth = NewDepth;
@@ -194,8 +194,8 @@ void SUnit::setDepthToAtLeast(unsigned NewDepth, bool IgnoreAntiDep) {
 /// setHeightToAtLeast - Update this node's predecessors to reflect the
 /// fact that this node's height just increased.
 ///
-void SUnit::setHeightToAtLeast(unsigned NewHeight, bool IgnoreAntiDep) {
-  if (NewHeight <= getHeight(IgnoreAntiDep))
+void SUnit::setHeightToAtLeast(unsigned NewHeight) {
+  if (NewHeight <= getHeight())
     return;
   setHeightDirty();
   Height = NewHeight;
@@ -204,7 +204,7 @@ void SUnit::setHeightToAtLeast(unsigned NewHeight, bool IgnoreAntiDep) {
 
 /// ComputeDepth - Calculate the maximal path from the node to the exit.
 ///
-void SUnit::ComputeDepth(bool IgnoreAntiDep) {
+void SUnit::ComputeDepth() {
   SmallVector<SUnit*, 8> WorkList;
   WorkList.push_back(this);
   do {
@@ -214,10 +214,6 @@ void SUnit::ComputeDepth(bool IgnoreAntiDep) {
     unsigned MaxPredDepth = 0;
     for (SUnit::const_pred_iterator I = Cur->Preds.begin(),
          E = Cur->Preds.end(); I != E; ++I) {
-      if (IgnoreAntiDep && 
-          ((I->getKind() == SDep::Anti) || (I->getKind() == SDep::Output))) 
-        continue;
-
       SUnit *PredSU = I->getSUnit();
       if (PredSU->isDepthCurrent)
         MaxPredDepth = std::max(MaxPredDepth,
@@ -241,7 +237,7 @@ void SUnit::ComputeDepth(bool IgnoreAntiDep) {
 
 /// ComputeHeight - Calculate the maximal path from the node to the entry.
 ///
-void SUnit::ComputeHeight(bool IgnoreAntiDep) {
+void SUnit::ComputeHeight() {
   SmallVector<SUnit*, 8> WorkList;
   WorkList.push_back(this);
   do {
@@ -251,10 +247,6 @@ void SUnit::ComputeHeight(bool IgnoreAntiDep) {
     unsigned MaxSuccHeight = 0;
     for (SUnit::const_succ_iterator I = Cur->Succs.begin(),
          E = Cur->Succs.end(); I != E; ++I) {
-      if (IgnoreAntiDep && 
-          ((I->getKind() == SDep::Anti) || (I->getKind() == SDep::Output))) 
-        continue;
-
       SUnit *SuccSU = I->getSUnit();
       if (SuccSU->isHeightCurrent)
         MaxSuccHeight = std::max(MaxSuccHeight,
@@ -279,58 +271,58 @@ void SUnit::ComputeHeight(bool IgnoreAntiDep) {
 /// SUnit - Scheduling unit. It's an wrapper around either a single SDNode or
 /// a group of nodes flagged together.
 void SUnit::dump(const ScheduleDAG *G) const {
-  errs() << "SU(" << NodeNum << "): ";
+  dbgs() << "SU(" << NodeNum << "): ";
   G->dumpNode(this);
 }
 
 void SUnit::dumpAll(const ScheduleDAG *G) const {
   dump(G);
 
-  errs() << "  # preds left       : " << NumPredsLeft << "\n";
-  errs() << "  # succs left       : " << NumSuccsLeft << "\n";
-  errs() << "  Latency            : " << Latency << "\n";
-  errs() << "  Depth              : " << Depth << "\n";
-  errs() << "  Height             : " << Height << "\n";
+  dbgs() << "  # preds left       : " << NumPredsLeft << "\n";
+  dbgs() << "  # succs left       : " << NumSuccsLeft << "\n";
+  dbgs() << "  Latency            : " << Latency << "\n";
+  dbgs() << "  Depth              : " << Depth << "\n";
+  dbgs() << "  Height             : " << Height << "\n";
 
   if (Preds.size() != 0) {
-    errs() << "  Predecessors:\n";
+    dbgs() << "  Predecessors:\n";
     for (SUnit::const_succ_iterator I = Preds.begin(), E = Preds.end();
          I != E; ++I) {
-      errs() << "   ";
+      dbgs() << "   ";
       switch (I->getKind()) {
-      case SDep::Data:        errs() << "val "; break;
-      case SDep::Anti:        errs() << "anti"; break;
-      case SDep::Output:      errs() << "out "; break;
-      case SDep::Order:       errs() << "ch  "; break;
+      case SDep::Data:        dbgs() << "val "; break;
+      case SDep::Anti:        dbgs() << "anti"; break;
+      case SDep::Output:      dbgs() << "out "; break;
+      case SDep::Order:       dbgs() << "ch  "; break;
       }
-      errs() << "#";
-      errs() << I->getSUnit() << " - SU(" << I->getSUnit()->NodeNum << ")";
+      dbgs() << "#";
+      dbgs() << I->getSUnit() << " - SU(" << I->getSUnit()->NodeNum << ")";
       if (I->isArtificial())
-        errs() << " *";
-      errs() << ": Latency=" << I->getLatency();
-      errs() << "\n";
+        dbgs() << " *";
+      dbgs() << ": Latency=" << I->getLatency();
+      dbgs() << "\n";
     }
   }
   if (Succs.size() != 0) {
-    errs() << "  Successors:\n";
+    dbgs() << "  Successors:\n";
     for (SUnit::const_succ_iterator I = Succs.begin(), E = Succs.end();
          I != E; ++I) {
-      errs() << "   ";
+      dbgs() << "   ";
       switch (I->getKind()) {
-      case SDep::Data:        errs() << "val "; break;
-      case SDep::Anti:        errs() << "anti"; break;
-      case SDep::Output:      errs() << "out "; break;
-      case SDep::Order:       errs() << "ch  "; break;
+      case SDep::Data:        dbgs() << "val "; break;
+      case SDep::Anti:        dbgs() << "anti"; break;
+      case SDep::Output:      dbgs() << "out "; break;
+      case SDep::Order:       dbgs() << "ch  "; break;
       }
-      errs() << "#";
-      errs() << I->getSUnit() << " - SU(" << I->getSUnit()->NodeNum << ")";
+      dbgs() << "#";
+      dbgs() << I->getSUnit() << " - SU(" << I->getSUnit()->NodeNum << ")";
       if (I->isArtificial())
-        errs() << " *";
-      errs() << ": Latency=" << I->getLatency();
-      errs() << "\n";
+        dbgs() << " *";
+      dbgs() << ": Latency=" << I->getLatency();
+      dbgs() << "\n";
     }
   }
-  errs() << "\n";
+  dbgs() << "\n";
 }
 
 #ifndef NDEBUG
@@ -348,35 +340,35 @@ void ScheduleDAG::VerifySchedule(bool isBottomUp) {
         continue;
       }
       if (!AnyNotSched)
-        errs() << "*** Scheduling failed! ***\n";
+        dbgs() << "*** Scheduling failed! ***\n";
       SUnits[i].dump(this);
-      errs() << "has not been scheduled!\n";
+      dbgs() << "has not been scheduled!\n";
       AnyNotSched = true;
     }
     if (SUnits[i].isScheduled &&
         (isBottomUp ? SUnits[i].getHeight() : SUnits[i].getDepth()) >
           unsigned(INT_MAX)) {
       if (!AnyNotSched)
-        errs() << "*** Scheduling failed! ***\n";
+        dbgs() << "*** Scheduling failed! ***\n";
       SUnits[i].dump(this);
-      errs() << "has an unexpected "
+      dbgs() << "has an unexpected "
            << (isBottomUp ? "Height" : "Depth") << " value!\n";
       AnyNotSched = true;
     }
     if (isBottomUp) {
       if (SUnits[i].NumSuccsLeft != 0) {
         if (!AnyNotSched)
-          errs() << "*** Scheduling failed! ***\n";
+          dbgs() << "*** Scheduling failed! ***\n";
         SUnits[i].dump(this);
-        errs() << "has successors left!\n";
+        dbgs() << "has successors left!\n";
         AnyNotSched = true;
       }
     } else {
       if (SUnits[i].NumPredsLeft != 0) {
         if (!AnyNotSched)
-          errs() << "*** Scheduling failed! ***\n";
+          dbgs() << "*** Scheduling failed! ***\n";
         SUnits[i].dump(this);
-        errs() << "has predecessors left!\n";
+        dbgs() << "has predecessors left!\n";
         AnyNotSched = true;
       }
     }

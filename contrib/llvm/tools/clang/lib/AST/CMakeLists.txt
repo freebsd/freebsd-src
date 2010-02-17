@@ -4,6 +4,9 @@ add_clang_library(clangAST
   APValue.cpp
   ASTConsumer.cpp
   ASTContext.cpp
+  ASTImporter.cpp
+  ASTDiagnostic.cpp
+  AttrImpl.cpp
   CXXInheritance.cpp
   Decl.cpp
   DeclBase.cpp
@@ -16,6 +19,7 @@ add_clang_library(clangAST
   Expr.cpp
   ExprCXX.cpp
   ExprConstant.cpp
+  FullExpr.cpp
   InheritViz.cpp
   NestedNameSpecifier.cpp
   ParentMap.cpp

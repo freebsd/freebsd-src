@@ -246,7 +246,7 @@ bc0:
         store i32 0, i32* %tmp53
         ret void
 ; CHECK: @test24
-; CHECK: store i32 0, i32* getelementptr (%"java/lang/StringBuffer"* null, i32 0, i32 1)
+; CHECK: store i32 0, i32* getelementptr (%"java/lang/StringBuffer"* null, i64 0, i32 1)
 }
 
 define void @test25() {
@@ -445,7 +445,7 @@ define i32 @test35() nounwind {
              i8* getelementptr (%t1* bitcast (%t0* @s to %t1*), i32 0, i32 1, i32 0)) nounwind
   ret i32 0
 ; CHECK: @test35
-; CHECK: call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([17 x i8]* @"\01LC8", i64 0, i64 0), i8* bitcast (i8** getelementptr (%t1* bitcast (%t0* @s to %t1*), i64 1, i32 0) to i8*)) nounwind
+; CHECK: call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([17 x i8]* @"\01LC8", i64 0, i64 0), i8* getelementptr inbounds (%t0* @s, i64 0, i32 1, i64 0)) nounwind
 }
 
 ; Instcombine should constant-fold the GEP so that indices that have

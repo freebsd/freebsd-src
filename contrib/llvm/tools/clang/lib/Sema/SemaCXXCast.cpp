@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Sema.h"
+#include "SemaInit.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CXXInheritance.h"
@@ -115,11 +116,26 @@ Sema::ActOnCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
                         SourceLocation RAngleBracketLoc,
                         SourceLocation LParenLoc, ExprArg E,
                         SourceLocation RParenLoc) {
+  
+  TypeSourceInfo *DestTInfo;
+  QualType DestType = GetTypeFromParser(Ty, &DestTInfo);
+  if (!DestTInfo)
+    DestTInfo = Context.getTrivialTypeSourceInfo(DestType, SourceLocation());
+
+  return BuildCXXNamedCast(OpLoc, Kind, DestTInfo, move(E),
+                           SourceRange(LAngleBracketLoc, RAngleBracketLoc),
+                           SourceRange(LParenLoc, RParenLoc));
+}
+
+Action::OwningExprResult
+Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
+                        TypeSourceInfo *DestTInfo, ExprArg E,
+                        SourceRange AngleBrackets, SourceRange Parens) {
   Expr *Ex = E.takeAs<Expr>();
-  // FIXME: Preserve type source info.
-  QualType DestType = GetTypeFromParser(Ty);
-  SourceRange OpRange(OpLoc, RParenLoc);
-  SourceRange DestRange(LAngleBracketLoc, RAngleBracketLoc);
+  QualType DestType = DestTInfo->getType();
+
+  SourceRange OpRange(OpLoc, Parens.getEnd());
+  SourceRange DestRange = AngleBrackets;
 
   // If the type is dependent, we won't do the semantic analysis now.
   // FIXME: should we check this in a more fine-grained manner?
@@ -132,14 +148,14 @@ Sema::ActOnCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     if (!TypeDependent)
       CheckConstCast(*this, Ex, DestType, OpRange, DestRange);
     return Owned(new (Context) CXXConstCastExpr(DestType.getNonReferenceType(),
-                                                Ex, DestType, OpLoc));
+                                                Ex, DestTInfo, OpLoc));
 
   case tok::kw_dynamic_cast: {
     CastExpr::CastKind Kind = CastExpr::CK_Unknown;
     if (!TypeDependent)
       CheckDynamicCast(*this, Ex, DestType, OpRange, DestRange, Kind);
     return Owned(new (Context)CXXDynamicCastExpr(DestType.getNonReferenceType(),
-                                                 Kind, Ex, DestType, OpLoc));
+                                                 Kind, Ex, DestTInfo, OpLoc));
   }
   case tok::kw_reinterpret_cast: {
     CastExpr::CastKind Kind = CastExpr::CK_Unknown;
@@ -147,7 +163,7 @@ Sema::ActOnCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
       CheckReinterpretCast(*this, Ex, DestType, OpRange, DestRange, Kind);
     return Owned(new (Context) CXXReinterpretCastExpr(
                                   DestType.getNonReferenceType(),
-                                  Kind, Ex, DestType, OpLoc));
+                                  Kind, Ex, DestTInfo, OpLoc));
   }
   case tok::kw_static_cast: {
     CastExpr::CastKind Kind = CastExpr::CK_Unknown;
@@ -168,7 +184,7 @@ Sema::ActOnCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     }
     
     return Owned(new (Context) CXXStaticCastExpr(DestType.getNonReferenceType(),
-                                                 Kind, Ex, DestType, OpLoc));
+                                                 Kind, Ex, DestTInfo, OpLoc));
   }
   }
 
@@ -188,7 +204,30 @@ bool UnwrapDissimilarPointerTypes(QualType& T1, QualType& T2) {
     T2 = T2PtrType->getPointeeType();
     return true;
   }
-
+  const ObjCObjectPointerType *T1ObjCPtrType = 
+                                            T1->getAs<ObjCObjectPointerType>(),
+                              *T2ObjCPtrType = 
+                                            T2->getAs<ObjCObjectPointerType>();
+  if (T1ObjCPtrType) {
+    if (T2ObjCPtrType) {
+      T1 = T1ObjCPtrType->getPointeeType();
+      T2 = T2ObjCPtrType->getPointeeType();
+      return true;
+    }
+    else if (T2PtrType) {
+      T1 = T1ObjCPtrType->getPointeeType();
+      T2 = T2PtrType->getPointeeType();
+      return true;
+    }
+  }
+  else if (T2ObjCPtrType) {
+    if (T1PtrType) {
+      T2 = T2ObjCPtrType->getPointeeType();
+      T1 = T1PtrType->getPointeeType();
+      return true;
+    }
+  }
+  
   const MemberPointerType *T1MPType = T1->getAs<MemberPointerType>(),
                           *T2MPType = T2->getAs<MemberPointerType>();
   if (T1MPType && T2MPType) {
@@ -209,9 +248,9 @@ CastsAwayConstness(Sema &Self, QualType SrcType, QualType DestType) {
   // C++ 4.4. We piggyback on Sema::IsQualificationConversion for this, since
   // the rules are non-trivial. So first we construct Tcv *...cv* as described
   // in C++ 5.2.11p8.
-  assert((SrcType->isPointerType() || SrcType->isMemberPointerType()) &&
+  assert((SrcType->isAnyPointerType() || SrcType->isMemberPointerType()) &&
          "Source type is not pointer or pointer to member.");
-  assert((DestType->isPointerType() || DestType->isMemberPointerType()) &&
+  assert((DestType->isAnyPointerType() || DestType->isMemberPointerType()) &&
          "Destination type is not pointer or pointer to member.");
 
   QualType UnwrappedSrcType = Self.Context.getCanonicalType(SrcType), 
@@ -352,7 +391,7 @@ CheckDynamicCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
   }
 
   // C++ 5.2.7p6: Otherwise, v shall be [polymorphic].
-  const RecordDecl *SrcDecl = SrcRecord->getDecl()->getDefinition(Self.Context);
+  const RecordDecl *SrcDecl = SrcRecord->getDecl()->getDefinition();
   assert(SrcDecl && "Definition missing");
   if (!cast<CXXRecordDecl>(SrcDecl)->isPolymorphic()) {
     Self.Diag(OpRange.getBegin(), diag::err_bad_dynamic_cast_not_polymorphic)
@@ -372,7 +411,7 @@ void
 CheckConstCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
                const SourceRange &OpRange, const SourceRange &DestRange) {
   if (!DestType->isLValueReferenceType())
-    Self.DefaultFunctionArrayConversion(SrcExpr);
+    Self.DefaultFunctionArrayLvalueConversion(SrcExpr);
 
   unsigned msg = diag::err_bad_cxx_cast_generic;
   if (TryConstCast(Self, SrcExpr, DestType, /*CStyle*/false, msg) != TC_Success
@@ -391,7 +430,7 @@ CheckReinterpretCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
                      const SourceRange &OpRange, const SourceRange &DestRange,
                      CastExpr::CastKind &Kind) {
   if (!DestType->isLValueReferenceType())
-    Self.DefaultFunctionArrayConversion(SrcExpr);
+    Self.DefaultFunctionArrayLvalueConversion(SrcExpr);
 
   unsigned msg = diag::err_bad_cxx_cast_generic;
   if (TryReinterpretCast(Self, SrcExpr, DestType, /*CStyle*/false, OpRange,
@@ -418,7 +457,7 @@ CheckStaticCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
   }
 
   if (!DestType->isLValueReferenceType() && !DestType->isRecordType())
-    Self.DefaultFunctionArrayConversion(SrcExpr);
+    Self.DefaultFunctionArrayLvalueConversion(SrcExpr);
 
   unsigned msg = diag::err_bad_cxx_cast_generic;
   if (TryStaticCast(Self, SrcExpr, DestType, /*CStyle*/false, OpRange, msg,
@@ -538,6 +577,16 @@ static TryCastResult TryStaticCast(Sema &Self, Expr *&SrcExpr,
           Kind = CastExpr::CK_BitCast;
           return TC_Success;
         }
+      }
+      else if (CStyle && DestType->isObjCObjectPointerType()) {
+        // allow c-style cast of objective-c pointers as they are pervasive.
+        Kind = CastExpr::CK_AnyPointerToObjCPointerCast;
+        return TC_Success;
+      }
+      else if (CStyle && DestType->isBlockPointerType()) {
+        // allow c-style cast of void * to block pointers.
+        Kind = CastExpr::CK_AnyPointerToBlockPointerCast;
+        return TC_Success;
       }
     }
   }
@@ -729,9 +778,10 @@ TryStaticDowncast(Sema &Self, CanQualType SrcType, CanQualType DestType,
     return TC_Failed;
   }
 
-  if (!CStyle && Self.CheckBaseClassAccess(DestType, SrcType,
-                          diag::err_downcast_from_inaccessible_base, Paths,
-                          OpRange.getBegin(), DeclarationName())) {
+  if (!CStyle && Self.CheckBaseClassAccess(OpRange.getBegin(),
+                                           /*IsBaseToDerived*/ true,
+                                           SrcType, DestType,
+                                           Paths.front())) {
     msg = 0;
     return TC_Failed;
   }
@@ -795,9 +845,10 @@ TryStaticMemberPointerUpcast(Sema &Self, QualType SrcType, QualType DestType,
     return TC_Failed;
   }
 
-  if (!CStyle && Self.CheckBaseClassAccess(DestType, SrcType,
-                          diag::err_downcast_from_inaccessible_base, Paths,
-                          OpRange.getBegin(), DeclarationName())) {
+  if (!CStyle && Self.CheckBaseClassAccess(OpRange.getBegin(),
+                                           /*IsBaseToDerived*/ false,
+                                           DestType, SrcType,
+                                           Paths.front())) {
     msg = 0;
     return TC_Failed;
   }
@@ -859,7 +910,9 @@ TryStaticImplicitCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
     if (CXXConstructorDecl *Constructor
           = Self.TryInitializationByConstructor(DestType, &SrcExpr, 1,
                                                 OpRange.getBegin(),
-                                                Sema::IK_Direct)) {
+              InitializationKind::CreateDirect(OpRange.getBegin(),
+                                               OpRange.getBegin(), 
+                                               OpRange.getEnd()))) {
       ConversionDecl = Constructor;
       Kind = CastExpr::CK_ConstructorConversion;
       return TC_Success;
@@ -880,13 +933,13 @@ TryStaticImplicitCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
                                /*InOverloadResolution=*/false,
                                /*one of user provided casts*/true);
 
-  if (ICS.ConversionKind == ImplicitConversionSequence::BadConversion)
+  if (ICS.isBad())
     return TC_NotApplicable;
 
   // The conversion is possible, so commit to it.
   Kind = CastExpr::CK_NoOp;
   msg = 0;
-  return Self.PerformImplicitConversion(SrcExpr, DestType, ICS, "casting",
+  return Self.PerformImplicitConversion(SrcExpr, DestType, ICS, Sema::AA_Casting,
                                         /*IgnoreBaseAccess*/CStyle) ?
       TC_Failed : TC_Success;
 }
@@ -946,8 +999,9 @@ static TryCastResult TryConstCast(Sema &Self, Expr *SrcExpr, QualType DestType,
   // as must be the final pointee type.
   while (SrcType != DestType &&
          Self.UnwrapSimilarPointerTypes(SrcType, DestType)) {
-    SrcType = SrcType.getUnqualifiedType();
-    DestType = DestType.getUnqualifiedType();
+    Qualifiers Quals;
+    SrcType = Self.Context.getUnqualifiedArrayType(SrcType, Quals);
+    DestType = Self.Context.getUnqualifiedArrayType(DestType, Quals);
   }
 
   // Since we're dealing in canonical types, the remainder must be the same.
@@ -962,8 +1016,6 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
                                         const SourceRange &OpRange,
                                         unsigned &msg,
                                         CastExpr::CastKind &Kind) {
-  QualType OrigDestType = DestType, OrigSrcType = SrcExpr->getType();
-
   DestType = Self.Context.getCanonicalType(DestType);
   QualType SrcType = SrcExpr->getType();
   if (const ReferenceType *DestTypeTmp = DestType->getAs<ReferenceType>()) {
@@ -1040,8 +1092,11 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
       return TC_NotApplicable;
 
     // If both types have the same size, we can successfully cast.
-    if (Self.Context.getTypeSize(SrcType) == Self.Context.getTypeSize(DestType))
+    if (Self.Context.getTypeSize(SrcType)
+          == Self.Context.getTypeSize(DestType)) {
+      Kind = CastExpr::CK_BitCast;
       return TC_Success;
+    }
     
     if (destIsScalar)
       msg = diag::err_bad_cxx_cast_vector_to_scalar_different_size;
@@ -1053,8 +1108,8 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     return TC_Failed;
   }
   
-  bool destIsPtr = DestType->isPointerType();
-  bool srcIsPtr = SrcType->isPointerType();
+  bool destIsPtr = DestType->isAnyPointerType();
+  bool srcIsPtr = SrcType->isAnyPointerType();
   if (!destIsPtr && !srcIsPtr) {
     // Except for std::nullptr_t->integer and lvalue->reference, which are
     // handled above, at least one of the two arguments must be a pointer.
@@ -1068,6 +1123,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     // to the same type. However, the behavior of compilers is pretty consistent
     // on this point: allow same-type conversion if the involved types are
     // pointers, disallow otherwise.
+    Kind = CastExpr::CK_NoOp;
     return TC_Success;
   }
 
@@ -1106,7 +1162,11 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     msg = diag::err_bad_cxx_cast_const_away;
     return TC_Failed;
   }
-
+  if (CStyle && DestType->isObjCObjectPointerType()) {
+    Kind = CastExpr::CK_AnyPointerToObjCPointerCast;
+    return TC_Success;
+  }
+  
   // Not casting away constness, so the only remaining check is for compatible
   // pointer categories.
   Kind = CastExpr::CK_BitCast;
@@ -1141,7 +1201,6 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
   // Void pointers are not specified, but supported by every compiler out there.
   // So we finish by allowing everything that remains - it's got to be two
   // object pointers.
-  Kind = CastExpr::CK_BitCast;
   return TC_Success;
 }
 
@@ -1161,7 +1220,7 @@ bool Sema::CXXCheckCStyleCast(SourceRange R, QualType CastTy, Expr *&CastExpr,
     return false;
 
   if (!CastTy->isLValueReferenceType() && !CastTy->isRecordType())
-    DefaultFunctionArrayConversion(CastExpr);
+    DefaultFunctionArrayLvalueConversion(CastExpr);
 
   // C++ [expr.cast]p5: The conversions performed by
   //   - a const_cast,

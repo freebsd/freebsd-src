@@ -390,6 +390,13 @@ public:
     if (A == 0 || B == 0)
       return false;
 
+    // Compare the result of the tree walk and the dfs numbers, if expensive
+    // checks are enabled.
+#ifdef XDEBUG
+    assert(!DFSInfoValid
+           || (dominatedBySlowTreeWalk(A, B) == B->DominatedBy(A)));
+#endif
+
     if (DFSInfoValid)
       return B->DominatedBy(A);
 
@@ -585,29 +592,35 @@ protected:
     SmallVector<std::pair<DomTreeNodeBase<NodeT>*,
                 typename DomTreeNodeBase<NodeT>::iterator>, 32> WorkStack;
 
-    for (unsigned i = 0, e = (unsigned)this->Roots.size(); i != e; ++i) {
-      DomTreeNodeBase<NodeT> *ThisRoot = getNode(this->Roots[i]);
-      WorkStack.push_back(std::make_pair(ThisRoot, ThisRoot->begin()));
-      ThisRoot->DFSNumIn = DFSNum++;
+    DomTreeNodeBase<NodeT> *ThisRoot = getRootNode();
 
-      while (!WorkStack.empty()) {
-        DomTreeNodeBase<NodeT> *Node = WorkStack.back().first;
-        typename DomTreeNodeBase<NodeT>::iterator ChildIt =
-                                                        WorkStack.back().second;
+    if (!ThisRoot)
+      return;
 
-        // If we visited all of the children of this node, "recurse" back up the
-        // stack setting the DFOutNum.
-        if (ChildIt == Node->end()) {
-          Node->DFSNumOut = DFSNum++;
-          WorkStack.pop_back();
-        } else {
-          // Otherwise, recursively visit this child.
-          DomTreeNodeBase<NodeT> *Child = *ChildIt;
-          ++WorkStack.back().second;
+    // Even in the case of multiple exits that form the post dominator root
+    // nodes, do not iterate over all exits, but start from the virtual root
+    // node. Otherwise bbs, that are not post dominated by any exit but by the
+    // virtual root node, will never be assigned a DFS number.
+    WorkStack.push_back(std::make_pair(ThisRoot, ThisRoot->begin()));
+    ThisRoot->DFSNumIn = DFSNum++;
 
-          WorkStack.push_back(std::make_pair(Child, Child->begin()));
-          Child->DFSNumIn = DFSNum++;
-        }
+    while (!WorkStack.empty()) {
+      DomTreeNodeBase<NodeT> *Node = WorkStack.back().first;
+      typename DomTreeNodeBase<NodeT>::iterator ChildIt =
+        WorkStack.back().second;
+
+      // If we visited all of the children of this node, "recurse" back up the
+      // stack setting the DFOutNum.
+      if (ChildIt == Node->end()) {
+        Node->DFSNumOut = DFSNum++;
+        WorkStack.pop_back();
+      } else {
+        // Otherwise, recursively visit this child.
+        DomTreeNodeBase<NodeT> *Child = *ChildIt;
+        ++WorkStack.back().second;
+
+        WorkStack.push_back(std::make_pair(Child, Child->begin()));
+        Child->DFSNumIn = DFSNum++;
       }
     }
 
@@ -646,21 +659,17 @@ public:
   /// recalculate - compute a dominator tree for the given function
   template<class FT>
   void recalculate(FT& F) {
-    if (!this->IsPostDominators) {
-      reset();
+    reset();
+    this->Vertex.push_back(0);
 
-      // Initialize roots
+    if (!this->IsPostDominators) {
+      // Initialize root
       this->Roots.push_back(&F.front());
       this->IDoms[&F.front()] = 0;
       this->DomTreeNodes[&F.front()] = 0;
-      this->Vertex.push_back(0);
 
       Calculate<FT, NodeT*>(*this, F);
-
-      updateDFSNumbers();
     } else {
-      reset();     // Reset from the last time we were run...
-
       // Initialize the roots list
       for (typename FT::iterator I = F.begin(), E = F.end(); I != E; ++I) {
         if (std::distance(GraphTraits<FT*>::child_begin(I),
@@ -671,8 +680,6 @@ public:
         this->IDoms[I] = 0;
         this->DomTreeNodes[I] = 0;
       }
-
-      this->Vertex.push_back(0);
 
       Calculate<FT, Inverse<NodeT*> >(*this, F);
     }

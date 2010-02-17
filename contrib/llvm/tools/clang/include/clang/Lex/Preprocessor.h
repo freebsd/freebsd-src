@@ -32,6 +32,7 @@
 namespace clang {
 
 class SourceManager;
+class ExternalPreprocessorSource;
 class FileManager;
 class FileEntry;
 class HeaderSearch;
@@ -42,7 +43,7 @@ class ScratchBuffer;
 class TargetInfo;
 class PPCallbacks;
 class DirectoryLookup;
-
+  
 /// Preprocessor - This object engages in a tight little dance with the lexer to
 /// efficiently preprocess tokens.  Lexers know only about tokens within a
 /// single source file, and don't know anything about preprocessor-level issues
@@ -57,6 +58,9 @@ class Preprocessor {
   ScratchBuffer     *ScratchBuf;
   HeaderSearch      &HeaderInfo;
 
+  /// \brief External source of macros.
+  ExternalPreprocessorSource *ExternalSource;
+  
   /// PTH - An optional PTHManager object used for getting tokens from
   ///  a token cache rather than lexing the original source file.
   llvm::OwningPtr<PTHManager> PTH;
@@ -91,12 +95,17 @@ class Preprocessor {
   bool KeepMacroComments : 1;
 
   // State that changes while the preprocessor runs:
-  bool DisableMacroExpansion : 1;  // True if macro expansion is disabled.
   bool InMacroArgs : 1;            // True if parsing fn macro invocation args.
 
   /// Whether the preprocessor owns the header search object.
   bool OwnsHeaderSearch : 1;
 
+  /// DisableMacroExpansion - True if macro expansion is disabled.
+  bool DisableMacroExpansion : 1;
+
+  /// \brief Whether we have already loaded macros from the external source.
+  mutable bool ReadMacrosFromExternalSource : 1;
+  
   /// Identifiers - This is mapping/lookup information for all identifiers in
   /// the program, including program keywords.
   mutable IdentifierTable Identifiers;
@@ -121,6 +130,9 @@ class Preprocessor {
   /// with this preprocessor.
   std::vector<CommentHandler *> CommentHandlers;
 
+  /// \brief The file that we're performing code-completion for, if any.
+  const FileEntry *CodeCompletionFile;
+
   /// CurLexer - This is the current top of the stack that we're lexing from if
   /// not expanding a macro and we are lexing directly from source code.
   ///  Only one of CurLexer, CurPTHLexer, or CurTokenLexer will be non-null.
@@ -134,7 +146,7 @@ class Preprocessor {
   /// CurPPLexer - This is the current top of the stack what we're lexing from
   ///  if not expanding a macro.  This is an alias for either CurLexer or
   ///  CurPTHLexer.
-  PreprocessorLexer* CurPPLexer;
+  PreprocessorLexer *CurPPLexer;
 
   /// CurLookup - The DirectoryLookup structure used to find the current
   /// FileEntry, if CurLexer is non-null and if applicable.  This allows us to
@@ -171,8 +183,14 @@ class Preprocessor {
   llvm::DenseMap<IdentifierInfo*, MacroInfo*> Macros;
 
   /// MICache - A "freelist" of MacroInfo objects that can be reused for quick
-  ///  allocation.
+  /// allocation.
+  /// FIXME: why not use a singly linked list?
   std::vector<MacroInfo*> MICache;
+  
+  /// MacroArgCache - This is a "freelist" of MacroArg objects that can be
+  /// reused for quick allocation.
+  MacroArgs *MacroArgCache;
+  friend class MacroArgs;
 
   // Various statistics we track for performance analysis.
   unsigned NumDirectives, NumIncluded, NumDefined, NumUndefined, NumPragma;
@@ -236,6 +254,14 @@ public:
 
   PTHManager *getPTHManager() { return PTH.get(); }
 
+  void setExternalSource(ExternalPreprocessorSource *Source) {
+    ExternalSource = Source;
+  }
+  
+  ExternalPreprocessorSource *getExternalSource() const {
+    return ExternalSource;
+  }
+  
   /// SetCommentRetentionState - Control whether or not the preprocessor retains
   /// comments in output.
   void SetCommentRetentionState(bool KeepComments, bool KeepMacroComments) {
@@ -285,11 +311,9 @@ public:
   /// state of the macro table.  This visits every currently-defined macro.
   typedef llvm::DenseMap<IdentifierInfo*,
                          MacroInfo*>::const_iterator macro_iterator;
-  macro_iterator macro_begin() const { return Macros.begin(); }
-  macro_iterator macro_end() const { return Macros.end(); }
-
-
-
+  macro_iterator macro_begin(bool IncludeExternalMacros = true) const;
+  macro_iterator macro_end(bool IncludeExternalMacros = true) const;
+  
   const std::string &getPredefines() const { return Predefines; }
   /// setPredefines - Set the predefines for this Preprocessor.  These
   /// predefines are automatically injected when parsing the main file.
@@ -329,9 +353,10 @@ public:
   void EnterMainSourceFile();
 
   /// EnterSourceFile - Add a source file to the top of the include stack and
-  /// start lexing tokens from it instead of the current buffer.  If isMainFile
-  /// is true, this is the main file for the translation unit.
-  void EnterSourceFile(FileID CurFileID, const DirectoryLookup *Dir);
+  /// start lexing tokens from it instead of the current buffer.  Return true
+  /// and fill in ErrorStr with the error information on failure.
+  bool EnterSourceFile(FileID CurFileID, const DirectoryLookup *Dir,
+                       std::string &ErrorStr);
 
   /// EnterMacro - Add a Macro to the top of the include stack and start lexing
   /// tokens from it instead of the current buffer.  Args specifies the
@@ -484,6 +509,27 @@ public:
       CachedTokens[CachedLexPos-1] = Tok;
   }
 
+  /// \brief Specify the point at which code-completion will be performed.
+  ///
+  /// \param File the file in which code completion should occur. If
+  /// this file is included multiple times, code-completion will
+  /// perform completion the first time it is included. If NULL, this
+  /// function clears out the code-completion point.
+  ///
+  /// \param Line the line at which code completion should occur
+  /// (1-based).
+  ///
+  /// \param Column the column at which code completion should occur
+  /// (1-based).
+  ///
+  /// \returns true if an error occurred, false otherwise.
+  bool SetCodeCompletionPoint(const FileEntry *File, 
+                              unsigned Line, unsigned Column);
+
+  /// \brief Determine if this source location refers into the file
+  /// for which we are performing code completion.
+  bool isCodeCompletionFile(SourceLocation FileLoc) const;
+
   /// Diag - Forwarding function for diagnostics.  This emits a diagnostic at
   /// the specified Token's location, translating the token's start
   /// position in the current buffer into a SourcePosition object for rendering.
@@ -556,7 +602,12 @@ public:
   /// the returned source location would not be meaningful (e.g., if
   /// it points into a macro), this routine returns an invalid
   /// source location.
-  SourceLocation getLocForEndOfToken(SourceLocation Loc);
+  ///
+  /// \param Offset an offset from the end of the token, where the source
+  /// location should refer to. The default offset (0) produces a source
+  /// location pointing just past the end of the token; an offset of 1 produces
+  /// a source location pointing to the last character in the token, etc.
+  SourceLocation getLocForEndOfToken(SourceLocation Loc, unsigned Offset = 0);
 
   /// DumpToken - Print the token to stderr, used for debugging.
   ///
@@ -645,13 +696,12 @@ public:
   /// caller is expected to provide a buffer that is large enough to hold the
   /// spelling of the filename, but is also expected to handle the case when
   /// this method decides to use a different buffer.
-  bool GetIncludeFilenameSpelling(SourceLocation Loc,
-                                  const char *&BufStart, const char *&BufEnd);
+  bool GetIncludeFilenameSpelling(SourceLocation Loc,llvm::StringRef &Filename);
 
   /// LookupFile - Given a "foo" or <foo> reference, look up the indicated file,
   /// return null on failure.  isAngled indicates whether the file reference is
   /// for system #include's or not (i.e. using <> instead of "").
-  const FileEntry *LookupFile(const char *FilenameStart,const char *FilenameEnd,
+  const FileEntry *LookupFile(llvm::StringRef Filename,
                               bool isAngled, const DirectoryLookup *FromDir,
                               const DirectoryLookup *&CurDir);
 
@@ -838,7 +888,9 @@ public:
   void HandlePragmaSystemHeader(Token &SysHeaderTok);
   void HandlePragmaDependency(Token &DependencyTok);
   void HandlePragmaComment(Token &CommentTok);
-  void HandleComment(SourceRange Comment);
+  // Return true and store the first token only if any CommentHandler
+  // has inserted some tokens and getCommentRetentionState() is false.
+  bool HandleComment(Token &Token, SourceRange Comment);
 };
 
 /// \brief Abstract base class that describes a handler that will receive
@@ -847,7 +899,9 @@ class CommentHandler {
 public:
   virtual ~CommentHandler();
 
-  virtual void HandleComment(Preprocessor &PP, SourceRange Comment) = 0;
+  // The handler shall return true if it has pushed any tokens
+  // to be read using e.g. EnterToken or EnterTokenStream.
+  virtual bool HandleComment(Preprocessor &PP, SourceRange Comment) = 0;
 };
 
 }  // end namespace clang

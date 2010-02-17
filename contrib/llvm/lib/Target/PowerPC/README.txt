@@ -7,6 +7,39 @@ TODO:
 
 ===-------------------------------------------------------------------------===
 
+On PPC64, this:
+
+long f2 (long x) { return 0xfffffff000000000UL; }
+long f3 (long x) { return 0x1ffffffffUL; }
+
+could compile into:
+
+_f2:
+	li r3,-1
+	rldicr r3,r3,0,27
+	blr
+_f3:
+	li r3,-1
+	rldicl r3,r3,0,31
+	blr
+
+we produce:
+
+_f2:
+	lis r2, 4095
+	ori r2, r2, 65535
+	sldi r3, r2, 36
+	blr 
+_f3:
+	li r2, 1
+	sldi r2, r2, 32
+	oris r2, r2, 65535
+	ori r3, r2, 65535
+	blr 
+
+
+===-------------------------------------------------------------------------===
+
 Support 'update' load/store instructions.  These are cracked on the G5, but are
 still a codesize win.
 
@@ -397,6 +430,35 @@ This theoretically may help improve twolf slightly (used in dimbox.c:142?).
 
 ===-------------------------------------------------------------------------===
 
+PR5945: This: 
+define i32 @clamp0g(i32 %a) {
+entry:
+        %cmp = icmp slt i32 %a, 0
+        %sel = select i1 %cmp, i32 0, i32 %a
+        ret i32 %sel
+}
+
+Is compile to this with the PowerPC (32-bit) backend:
+
+_clamp0g:
+        cmpwi cr0, r3, 0
+        li r2, 0
+        blt cr0, LBB1_2
+; BB#1:                                                     ; %entry
+        mr r2, r3
+LBB1_2:                                                     ; %entry
+        mr r3, r2
+        blr
+
+This could be reduced to the much simpler:
+
+_clamp0g:
+        srawi r2, r3, 31
+        andc r3, r3, r2
+        blr
+
+===-------------------------------------------------------------------------===
+
 int foo(int N, int ***W, int **TK, int X) {
   int t, i;
   
@@ -599,6 +661,32 @@ _test:
         blr
 
 This sort of thing occurs a lot due to globalopt.
+
+===-------------------------------------------------------------------------===
+
+We compile:
+
+define i32 @bar(i32 %x) nounwind readnone ssp {
+entry:
+  %0 = icmp eq i32 %x, 0                          ; <i1> [#uses=1]
+  %neg = sext i1 %0 to i32              ; <i32> [#uses=1]
+  ret i32 %neg
+}
+
+to:
+
+_bar:
+	cntlzw r2, r3
+	slwi r2, r2, 26
+	srawi r3, r2, 31
+	blr 
+
+it would be better to produce:
+
+_bar: 
+        addic r3,r3,-1
+        subfe r3,r3,r3
+        blr
 
 ===-------------------------------------------------------------------------===
 
@@ -807,3 +895,20 @@ define double @test_FNEG_sel(double %A, double %B, double %C) {
         ret double %E
 }
 
+//===----------------------------------------------------------------------===//
+The save/restore sequence for CR in prolog/epilog is terrible:
+- Each CR subreg is saved individually, rather than doing one save as a unit.
+- On Darwin, the save is done after the decrement of SP, which means the offset
+from SP of the save slot can be too big for a store instruction, which means we
+need an additional register (currently hacked in 96015+96020; the solution there
+is correct, but poor).
+- On SVR4 the same thing can happen, and I don't think saving before the SP
+decrement is safe on that target, as there is no red zone.  This is currently
+broken AFAIK, although it's not a target I can exercise.
+The following demonstrates the problem:
+extern void bar(char *p);
+void foo() {
+  char x[100000];
+  bar(x);
+  __asm__("" ::: "cr2");
+}

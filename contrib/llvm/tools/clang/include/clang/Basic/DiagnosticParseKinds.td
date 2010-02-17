@@ -14,6 +14,8 @@
 let Component = "Parse" in {
 
 def w_asm_qualifier_ignored : Warning<"ignored %0 qualifier on asm">;
+def warn_file_asm_volatile : Warning<
+  "meaningless 'volatile' on asm outside function">;
 
 def ext_empty_source_file : Extension<"ISO C forbids an empty source file">;
 def ext_top_level_semi : Extension<
@@ -44,7 +46,8 @@ def ext_c99_variable_decl_in_for_loop : Extension<
 def ext_c99_compound_literal : Extension<
   "compound literals are a C99-specific feature">;
 def ext_enumerator_list_comma : Extension<
-  "commas at the end of enumerator lists are a %select{C99|C++0x}0-specific feature">;
+  "commas at the end of enumerator lists are a %select{C99|C++0x}0-specific "
+  "feature">;
 
 def ext_gnu_indirect_goto : Extension<
   "use of GNU indirect-goto extension">;
@@ -75,6 +78,7 @@ def err_expected_ident_lbrace : Error<"expected identifier or '{'">;
 def err_expected_lbrace : Error<"expected '{'">;
 def err_expected_lparen : Error<"expected '('">;
 def err_expected_rparen : Error<"expected ')'">;
+def err_expected_lsquare : Error<"expected '['">;
 def err_expected_rsquare : Error<"expected ']'">;
 def err_expected_rbrace : Error<"expected '}'">;
 def err_expected_greater : Error<"expected '>'">;
@@ -156,14 +160,24 @@ def err_typename_invalid_functionspec : Error<
   "type name does not allow function specifier to be specified">;
 def err_invalid_decl_spec_combination : Error<
   "cannot combine with previous '%0' declaration specifier">;
+def err_invalid_vector_decl_spec_combination : Error<
+  "cannot combine with previous '%0' declaration specifier. \"__vector\" must be first">;
+def err_invalid_pixel_decl_spec_combination : Error<
+  "\"__pixel\" must be preceded by \"__vector\".  '%0' declaration specifier not allowed here">;
+def err_invalid_vector_double_decl_spec_combination : Error<
+  "cannot use \"double\" with \"__vector\"">;
+def warn_vector_long_decl_spec_combination : Warning<
+  "Use of \"long\" with \"__vector\" is deprecated">;
 def err_friend_invalid_in_context : Error<
   "'friend' used outside of class">;
 def err_unknown_typename : Error<
   "unknown type name %0">;
 def err_use_of_tag_name_without_tag : Error<
-  "use of tagged type %0 without '%1' tag">;
+  "must use '%1' tag to refer to type %0%select{| in this scope}2">;
 def err_expected_ident_in_using : Error<
   "expected an identifier in using directive">;
+def err_unexected_colon_in_nested_name_spec : Error<
+  "unexpected ':' in nested name specifier">;
 
 /// Objective-C parser diagnostics
 def err_objc_no_attributes_on_category : Error<
@@ -225,6 +239,8 @@ def warn_parens_disambiguated_as_function_decl : Warning<
   "parentheses were disambiguated as a function declarator">;
 def err_expected_member_or_base_name : Error<
   "expected class member or base class name">;
+def err_expected_lbrace_after_base_specifiers : Error<
+  "expected '{' after base class list">;
 def ext_ellipsis_exception_spec : Extension<
   "exception specification of '...' is a Microsoft extension">;
 def err_expected_catch : Error<"expected catch">;
@@ -240,14 +256,23 @@ def err_dup_virtual : Error<"duplicate 'virtual' in base specifier">;
 // C++ operator overloading
 def err_operator_missing_type_specifier : Error<
   "missing type specifier after 'operator'">;
+def err_operator_string_not_empty : Error<
+  "string literal after 'operator' must be '\"\"'">;
 
 // Classes.
 def err_anon_type_definition : Error<
   "declaration of anonymous %0 must be a definition">;
 
+def err_cxx0x_attribute_forbids_arguments : Error<
+  "C++0x attribute '%0' cannot have an argument list">;
+def err_cxx0x_attribute_requires_arguments : Error<
+  "C++0x attribute '%0' must have an argument list">;
+def err_attributes_not_allowed : Error<"an attribute list cannot appear here">;
 
 /// C++ Templates
 def err_expected_template : Error<"expected template">;
+def err_unknown_template_name : Error<
+  "unknown template name %0">;
 def err_expected_comma_greater : Error<
   "expected ',' or '>' in template-parameter-list">;
 def err_expected_type_id_after : Error<"expected type-id after '%0'">;
@@ -276,8 +301,21 @@ def err_explicit_instantiation_with_definition : Error<
     "definition is meant to be an explicit specialization, add '<>' after the "
     "'template' keyword">;
 
+// Constructor template diagnostics.
+def err_out_of_line_constructor_template_id : Error<
+  "out-of-line constructor for %0 cannot have template arguments">;
+def err_out_of_line_template_id_names_constructor : Error<
+  "qualified reference to %0 is a constructor name rather than a "
+  "template name wherever a constructor can be declared">;
+def err_out_of_line_type_names_constructor : Error<
+  "qualified reference to %0 is a constructor name rather than a "
+  "type wherever a constructor can be declared">;
+
 def err_expected_qualified_after_typename : Error<
   "expected a qualified name after 'typename'">;
+def err_expected_semi_after_tagdecl : Error<
+  "expected ';' after %0">;
+
 def err_typename_refers_to_non_type_template : Error<
   "typename specifier refers to a non-template">;
 def err_expected_type_name_after_typename : Error<

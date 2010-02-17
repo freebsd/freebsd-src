@@ -1,6 +1,10 @@
-; RUN: llc < %s -mtriple=x86_64-unknown-linux | grep "Spill"
-; RUN: llc < %s -mtriple=x86_64-unknown-linux | grep "Folded Spill"
-; RUN: llc < %s -mtriple=x86_64-unknown-linux | grep "Reload"
+; RUN: llc < %s -mtriple=x86_64-unknown-linux | FileCheck %s
+
+; This test shouldn't require spills.
+
+; CHECK: subq  $8, %rsp
+; CHECK-NOT: $rsp
+; CHECK: addq  $8, %rsp
 
 	%struct..0anon = type { i32 }
 	%struct.rtvec_def = type { i32, [1 x %struct..0anon] }
@@ -32,7 +36,7 @@ cond_true13:		; preds = %cond_next
 	br i1 %tmp22, label %cond_true25, label %cond_next32
 
 cond_true25:		; preds = %cond_true13
-	%tmp29 = tail call %struct.rtx_def* @fixup_memory_subreg( %struct.rtx_def* %x, %struct.rtx_def* %insn, i32 1 )		; <%struct.rtx_def*> [#uses=1]
+	%tmp29 = tail call %struct.rtx_def* @fixup_memory_subreg( %struct.rtx_def* %x, %struct.rtx_def* %insn, i32 1 ) nounwind		; <%struct.rtx_def*> [#uses=1]
 	ret %struct.rtx_def* %tmp29
 
 cond_next32:		; preds = %cond_true13, %cond_next
@@ -58,7 +62,7 @@ cond_true47:		; preds = %bb
 	%tmp52 = getelementptr %struct.rtx_def* %x, i32 0, i32 3, i32 %i.01.0		; <%struct..0anon*> [#uses=1]
 	%tmp5354 = bitcast %struct..0anon* %tmp52 to %struct.rtx_def**		; <%struct.rtx_def**> [#uses=1]
 	%tmp55 = load %struct.rtx_def** %tmp5354		; <%struct.rtx_def*> [#uses=1]
-	%tmp58 = tail call  %struct.rtx_def* @walk_fixup_memory_subreg( %struct.rtx_def* %tmp55, %struct.rtx_def* %insn )		; <%struct.rtx_def*> [#uses=1]
+	%tmp58 = tail call  %struct.rtx_def* @walk_fixup_memory_subreg( %struct.rtx_def* %tmp55, %struct.rtx_def* %insn ) nounwind		; <%struct.rtx_def*> [#uses=1]
 	%tmp62 = getelementptr %struct.rtx_def* %x, i32 0, i32 3, i32 %i.01.0, i32 0		; <i32*> [#uses=1]
 	%tmp58.c = ptrtoint %struct.rtx_def* %tmp58 to i32		; <i32> [#uses=1]
 	store i32 %tmp58.c, i32* %tmp62
@@ -81,7 +85,7 @@ bb73:		; preds = %bb73, %bb105.preheader
 	%tmp92 = getelementptr %struct.rtvec_def* %tmp81, i32 0, i32 1, i32 %j.019		; <%struct..0anon*> [#uses=1]
 	%tmp9394 = bitcast %struct..0anon* %tmp92 to %struct.rtx_def**		; <%struct.rtx_def**> [#uses=1]
 	%tmp95 = load %struct.rtx_def** %tmp9394		; <%struct.rtx_def*> [#uses=1]
-	%tmp98 = tail call  %struct.rtx_def* @walk_fixup_memory_subreg( %struct.rtx_def* %tmp95, %struct.rtx_def* %insn )		; <%struct.rtx_def*> [#uses=1]
+	%tmp98 = tail call  %struct.rtx_def* @walk_fixup_memory_subreg( %struct.rtx_def* %tmp95, %struct.rtx_def* %insn ) nounwind		; <%struct.rtx_def*> [#uses=1]
 	%tmp101 = getelementptr %struct.rtvec_def* %tmp81, i32 0, i32 1, i32 %j.019, i32 0		; <i32*> [#uses=1]
 	%tmp98.c = ptrtoint %struct.rtx_def* %tmp98 to i32		; <i32> [#uses=1]
 	store i32 %tmp98.c, i32* %tmp101

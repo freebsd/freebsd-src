@@ -104,11 +104,6 @@ void TextDiagnosticPrinter::HighlightRange(const SourceRange &R,
     if (StartColNo) --StartColNo;  // Zero base the col #.
   }
 
-  // Pick the first non-whitespace column.
-  while (StartColNo < SourceLine.size() &&
-         (SourceLine[StartColNo] == ' ' || SourceLine[StartColNo] == '\t'))
-    ++StartColNo;
-
   // Compute the column number of the end.
   unsigned EndColNo = CaretLine.size();
   if (EndLineNo == LineNo) {
@@ -123,16 +118,25 @@ void TextDiagnosticPrinter::HighlightRange(const SourceRange &R,
     }
   }
 
+  assert(StartColNo <= EndColNo && "Invalid range!");
+  
+  // Pick the first non-whitespace column.
+  while (StartColNo < SourceLine.size() &&
+         (SourceLine[StartColNo] == ' ' || SourceLine[StartColNo] == '\t'))
+    ++StartColNo;
+  
   // Pick the last non-whitespace column.
-  if (EndColNo <= SourceLine.size())
-    while (EndColNo-1 &&
-           (SourceLine[EndColNo-1] == ' ' || SourceLine[EndColNo-1] == '\t'))
-      --EndColNo;
-  else
+  if (EndColNo > SourceLine.size())
     EndColNo = SourceLine.size();
+  while (EndColNo-1 &&
+         (SourceLine[EndColNo-1] == ' ' || SourceLine[EndColNo-1] == '\t'))
+    --EndColNo;
+  
+  // If the start/end passed each other, then we are trying to highlight a range
+  // that just exists in whitespace, which must be some sort of other bug.
+  assert(StartColNo <= EndColNo && "Trying to highlight whitespace??");
 
   // Fill the range with ~'s.
-  assert(StartColNo <= EndColNo && "Invalid range!");
   for (unsigned i = StartColNo; i < EndColNo; ++i)
     CaretLine[i] = '~';
 }
@@ -279,13 +283,14 @@ void TextDiagnosticPrinter::EmitCaretDiagnostic(SourceLocation Loc,
   assert(!Loc.isInvalid() && "must have a valid source location here");
 
   // If this is a macro ID, first emit information about where this was
-  // instantiated (recursively) then emit information about where. the token was
+  // instantiated (recursively) then emit information about where the token was
   // spelled from.
   if (!Loc.isFileID()) {
     SourceLocation OneLevelUp = SM.getImmediateInstantiationRange(Loc).first;
     // FIXME: Map ranges?
     EmitCaretDiagnostic(OneLevelUp, Ranges, NumRanges, SM, 0, 0, Columns);
 
+    // Map the location.
     Loc = SM.getImmediateSpellingLoc(Loc);
 
     // Map the ranges.
@@ -295,15 +300,22 @@ void TextDiagnosticPrinter::EmitCaretDiagnostic(SourceLocation Loc,
       if (E.isMacroID()) E = SM.getImmediateSpellingLoc(E);
       Ranges[i] = SourceRange(S, E);
     }
+    
+    // Get the pretty name, according to #line directives etc.
+    PresumedLoc PLoc = SM.getPresumedLoc(Loc);
+    
+    // If this diagnostic is not in the main file, print out the "included from"
+    // lines.
+    if (LastWarningLoc != PLoc.getIncludeLoc()) {
+      LastWarningLoc = PLoc.getIncludeLoc();
+      PrintIncludeStack(LastWarningLoc, SM);
+    }
 
     if (DiagOpts->ShowLocation) {
-      std::pair<FileID, unsigned> IInfo = SM.getDecomposedInstantiationLoc(Loc);
-
       // Emit the file/line/column that this expansion came from.
-      OS << SM.getBuffer(IInfo.first)->getBufferIdentifier() << ':'
-         << SM.getLineNumber(IInfo.first, IInfo.second) << ':';
+      OS << PLoc.getFilename() << ':' << PLoc.getLine() << ':';
       if (DiagOpts->ShowColumn)
-        OS << SM.getColumnNumber(IInfo.first, IInfo.second) << ':';
+        OS << PLoc.getColumn() << ':';
       OS << ' ';
     }
     OS << "note: instantiated from:\n";
@@ -363,7 +375,7 @@ void TextDiagnosticPrinter::EmitCaretDiagnostic(SourceLocation Loc,
     CaretLine.push_back('^');
 
   // Scan the source line, looking for tabs.  If we find any, manually expand
-  // them to 8 characters and update the CaretLine to match.
+  // them to spaces and update the CaretLine to match.
   for (unsigned i = 0; i != SourceLine.size(); ++i) {
     if (SourceLine[i] != '\t') continue;
 
@@ -371,8 +383,11 @@ void TextDiagnosticPrinter::EmitCaretDiagnostic(SourceLocation Loc,
     SourceLine[i] = ' ';
 
     // Compute the number of spaces we need to insert.
-    unsigned NumSpaces = ((i+8)&~7) - (i+1);
-    assert(NumSpaces < 8 && "Invalid computation of space amt");
+    unsigned TabStop = DiagOpts->TabStop;
+    assert(0 < TabStop && TabStop <= DiagnosticOptions::MaxTabStop &&
+           "Invalid -ftabstop value");
+    unsigned NumSpaces = ((i+TabStop)/TabStop * TabStop) - (i+1);
+    assert(NumSpaces < TabStop && "Invalid computation of space amt");
 
     // Insert spaces into the SourceLine.
     SourceLine.insert(i+1, NumSpaces, ' ');
@@ -415,6 +430,42 @@ void TextDiagnosticPrinter::EmitCaretDiagnostic(SourceLocation Loc,
           FixItInsertionLine.clear();
           break;
         }
+      }
+    }
+    // Now that we have the entire fixit line, expand the tabs in it.
+    // Since we don't want to insert spaces in the middle of a word,
+    // find each word and the column it should line up with and insert
+    // spaces until they match.
+    if (!FixItInsertionLine.empty()) {
+      unsigned FixItPos = 0;
+      unsigned LinePos = 0;
+      unsigned TabExpandedCol = 0;
+      unsigned LineLength = LineEnd - LineStart;
+
+      while (FixItPos < FixItInsertionLine.size() && LinePos < LineLength) {
+        // Find the next word in the FixIt line.
+        while (FixItPos < FixItInsertionLine.size() &&
+               FixItInsertionLine[FixItPos] == ' ')
+          ++FixItPos;
+        unsigned CharDistance = FixItPos - TabExpandedCol;
+
+        // Walk forward in the source line, keeping track of
+        // the tab-expanded column.
+        for (unsigned I = 0; I < CharDistance; ++I, ++LinePos)
+          if (LinePos >= LineLength || LineStart[LinePos] != '\t')
+            ++TabExpandedCol;
+          else
+            TabExpandedCol =
+              (TabExpandedCol/DiagOpts->TabStop + 1) * DiagOpts->TabStop;
+
+        // Adjust the fixit line to match this column.
+        FixItInsertionLine.insert(FixItPos, TabExpandedCol-FixItPos, ' ');
+        FixItPos = TabExpandedCol;
+
+        // Walk to the end of the word.
+        while (FixItPos < FixItInsertionLine.size() &&
+               FixItInsertionLine[FixItPos] != ' ')
+          ++FixItPos;
       }
     }
   }
@@ -489,11 +540,16 @@ static inline char findMatchingPunctuation(char c) {
 ///
 /// \returns the index pointing one character past the end of the
 /// word.
-unsigned findEndOfWord(unsigned Start,
-                       const llvm::SmallVectorImpl<char> &Str,
-                       unsigned Length, unsigned Column,
-                       unsigned Columns) {
+static unsigned findEndOfWord(unsigned Start,
+                              const llvm::SmallVectorImpl<char> &Str,
+                              unsigned Length, unsigned Column,
+                              unsigned Columns) {
+  assert(Start < Str.size() && "Invalid start position!");
   unsigned End = Start + 1;
+
+  // If we are already at the end of the string, take that as the word.
+  if (End == Str.size())
+    return End;
 
   // Determine if the start of the string is actually opening
   // punctuation, e.g., a quote or parentheses.
@@ -645,11 +701,17 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
     if (DiagOpts->ShowLocation) {
       if (DiagOpts->ShowColors)
         OS.changeColor(savedColor, true);
-      OS << PLoc.getFilename() << ':' << LineNo << ':';
-      if (DiagOpts->ShowColumn)
-        if (unsigned ColNo = PLoc.getColumn())
-          OS << ColNo << ':';
-
+      
+      // Emit a Visual Studio compatible line number syntax.
+      if (LangOpts && LangOpts->Microsoft) {
+        OS << PLoc.getFilename() << '(' << LineNo << ')';
+        OS << " : ";
+      } else {
+        OS << PLoc.getFilename() << ':' << LineNo << ':';
+        if (DiagOpts->ShowColumn)
+          if (unsigned ColNo = PLoc.getColumn())
+            OS << ColNo << ':';
+      }
       if (DiagOpts->ShowSourceRanges && Info.getNumRanges()) {
         FileID CaretFileID =
           SM.getFileID(SM.getInstantiationLoc(Info.getLocation()));

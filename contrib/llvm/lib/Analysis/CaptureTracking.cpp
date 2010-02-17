@@ -19,23 +19,43 @@
 #include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Instructions.h"
 #include "llvm/Value.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CallSite.h"
 using namespace llvm;
 
+/// As its comment mentions, PointerMayBeCaptured can be expensive.
+/// However, it's not easy for BasicAA to cache the result, because
+/// it's an ImmutablePass. To work around this, bound queries at a
+/// fixed number of uses.
+///
+/// TODO: Write a new FunctionPass AliasAnalysis so that it can keep
+/// a cache. Then we can move the code from BasicAliasAnalysis into
+/// that path, and remove this threshold.
+static int const Threshold = 20;
+
 /// PointerMayBeCaptured - Return true if this pointer value may be captured
 /// by the enclosing function (which is required to exist).  This routine can
 /// be expensive, so consider caching the results.  The boolean ReturnCaptures
 /// specifies whether returning the value (or part of it) from the function
+/// counts as capturing it or not.  The boolean StoreCaptures specified whether
+/// storing the value (or part of it) into memory anywhere automatically
 /// counts as capturing it or not.
-bool llvm::PointerMayBeCaptured(const Value *V, bool ReturnCaptures) {
+bool llvm::PointerMayBeCaptured(const Value *V,
+                                bool ReturnCaptures, bool StoreCaptures) {
   assert(isa<PointerType>(V->getType()) && "Capture is for pointers only!");
-  SmallVector<Use*, 16> Worklist;
-  SmallSet<Use*, 16> Visited;
+  SmallVector<Use*, Threshold> Worklist;
+  SmallSet<Use*, Threshold> Visited;
+  int Count = 0;
 
   for (Value::use_const_iterator UI = V->use_begin(), UE = V->use_end();
        UI != UE; ++UI) {
+    // If there are lots of uses, conservatively say that the value
+    // is captured to avoid taking too much compile time.
+    if (Count++ >= Threshold)
+      return true;
+
     Use *U = &UI.getUse();
     Visited.insert(U);
     Worklist.push_back(U);
@@ -53,8 +73,7 @@ bool llvm::PointerMayBeCaptured(const Value *V, bool ReturnCaptures) {
       // Not captured if the callee is readonly, doesn't return a copy through
       // its return value and doesn't unwind (a readonly function can leak bits
       // by throwing an exception or not depending on the input value).
-      if (CS.onlyReadsMemory() && CS.doesNotThrow() &&
-          I->getType() == Type::getVoidTy(V->getContext()))
+      if (CS.onlyReadsMemory() && CS.doesNotThrow() && I->getType()->isVoidTy())
         break;
 
       // Not captured if only passed via 'nocapture' arguments.  Note that
@@ -82,7 +101,11 @@ bool llvm::PointerMayBeCaptured(const Value *V, bool ReturnCaptures) {
       break;
     case Instruction::Store:
       if (V == I->getOperand(0))
-        // Stored the pointer - it may be captured.
+        // Stored the pointer - conservatively assume it may be captured.
+        // TODO: If StoreCaptures is not true, we could do Fancy analysis
+        // to determine whether this store is not actually an escape point.
+        // In that case, BasicAliasAnalysis should be updated as well to
+        // take advantage of this.
         return true;
       // Storing to the pointee does not cause the pointer to be captured.
       break;
@@ -98,6 +121,18 @@ bool llvm::PointerMayBeCaptured(const Value *V, bool ReturnCaptures) {
           Worklist.push_back(U);
       }
       break;
+    case Instruction::ICmp:
+      // Don't count comparisons of a no-alias return value against null as
+      // captures. This allows us to ignore comparisons of malloc results
+      // with null, for example.
+      if (isNoAliasCall(V->stripPointerCasts()))
+        if (ConstantPointerNull *CPN =
+              dyn_cast<ConstantPointerNull>(I->getOperand(1)))
+          if (CPN->getType()->getAddressSpace() == 0)
+            break;
+      // Otherwise, be conservative. There are crazy ways to capture pointers
+      // using comparisons.
+      return true;
     default:
       // Something else - be conservative and say it is captured.
       return true;

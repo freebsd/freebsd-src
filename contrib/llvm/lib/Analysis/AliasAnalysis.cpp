@@ -49,19 +49,9 @@ AliasAnalysis::alias(const Value *V1, unsigned V1Size,
   return AA->alias(V1, V1Size, V2, V2Size);
 }
 
-void AliasAnalysis::getMustAliases(Value *P, std::vector<Value*> &RetVals) {
-  assert(AA && "AA didn't call InitializeAliasAnalysis in its run method!");
-  return AA->getMustAliases(P, RetVals);
-}
-
 bool AliasAnalysis::pointsToConstantMemory(const Value *P) {
   assert(AA && "AA didn't call InitializeAliasAnalysis in its run method!");
   return AA->pointsToConstantMemory(P);
-}
-
-bool AliasAnalysis::hasNoModRefInfoForCalls() const {
-  assert(AA && "AA didn't call InitializeAliasAnalysis in its run method!");
-  return AA->hasNoModRefInfoForCalls();
 }
 
 void AliasAnalysis::deleteValue(Value *V) {
@@ -126,28 +116,32 @@ AliasAnalysis::getModRefBehavior(Function *F,
       return DoesNotAccessMemory;
     if (F->onlyReadsMemory())
       return OnlyReadsMemory;
-    if (unsigned id = F->getIntrinsicID()) {
-#define GET_INTRINSIC_MODREF_BEHAVIOR
-#include "llvm/Intrinsics.gen"
-#undef GET_INTRINSIC_MODREF_BEHAVIOR
-    }
+    if (unsigned id = F->getIntrinsicID())
+      return getModRefBehavior(id);
   }
   return UnknownModRefBehavior;
 }
 
+AliasAnalysis::ModRefBehavior AliasAnalysis::getModRefBehavior(unsigned iid) {
+#define GET_INTRINSIC_MODREF_BEHAVIOR
+#include "llvm/Intrinsics.gen"
+#undef GET_INTRINSIC_MODREF_BEHAVIOR
+}
+
 AliasAnalysis::ModRefResult
 AliasAnalysis::getModRefInfo(CallSite CS, Value *P, unsigned Size) {
-  ModRefResult Mask = ModRef;
   ModRefBehavior MRB = getModRefBehavior(CS);
   if (MRB == DoesNotAccessMemory)
     return NoModRef;
-  else if (MRB == OnlyReadsMemory)
+  
+  ModRefResult Mask = ModRef;
+  if (MRB == OnlyReadsMemory)
     Mask = Ref;
   else if (MRB == AliasAnalysis::AccessesArguments) {
     bool doesAlias = false;
     for (CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
          AI != AE; ++AI)
-      if (alias(*AI, ~0U, P, Size) != NoAlias) {
+      if (!isNoAlias(*AI, ~0U, P, Size)) {
         doesAlias = true;
         break;
       }

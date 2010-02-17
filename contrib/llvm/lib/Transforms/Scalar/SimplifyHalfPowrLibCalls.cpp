@@ -68,7 +68,7 @@ InlineHalfPowrs(const std::vector<Instruction *> &HalfPowrs,
     Function *Callee = Call->getCalledFunction();
 
     // Minimally sanity-check the CFG of half_powr to ensure that it contains
-    // the the kind of code we expect.  If we're running this pass, we have
+    // the kind of code we expect.  If we're running this pass, we have
     // reason to believe it will be what we expect.
     Function::iterator I = Callee->begin();
     BasicBlock *Prologue = I++;
@@ -88,7 +88,7 @@ InlineHalfPowrs(const std::vector<Instruction *> &HalfPowrs,
     if (!isa<ReturnInst>(Body->getTerminator()))
       break;
 
-    Instruction *NextInst = next(BasicBlock::iterator(Call));
+    Instruction *NextInst = llvm::next(BasicBlock::iterator(Call));
 
     // Inline the call, taking care of what code ends up where.
     NewBlock = SplitBlock(NextInst->getParent(), NextInst, this);

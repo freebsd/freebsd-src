@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 // elaborated-type-specifier:
 //   class-key '::'? nested-name-specifier? 'template'? simple-template-id
@@ -15,4 +15,4 @@ namespace A {
 }
 
 class Ident<int> GlobalIdent;
-union Ident<int> GlobalIdent; // expected-error {{ tag type that does not match }}
+union Ident<int> GlobalIdent2; // expected-error {{ tag type that does not match }}

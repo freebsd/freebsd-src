@@ -33,9 +33,11 @@ using namespace llvmc;
 namespace llvmc {
 
   const std::string& LanguageMap::GetLanguage(const sys::Path& File) const {
-    LanguageMap::const_iterator Lang = this->find(File.getSuffix());
+    StringRef suf = File.getSuffix();
+    LanguageMap::const_iterator Lang = this->find(suf);
     if (Lang == this->end())
-      throw std::runtime_error("Unknown suffix: " + File.getSuffix());
+      throw std::runtime_error("File '" + File.str() +
+                                "' has unknown suffix '" + suf.str() + '\'');
     return Lang->second;
   }
 }
@@ -471,10 +473,10 @@ namespace llvm {
   struct DOTGraphTraits<llvmc::CompilationGraph*>
     : public DefaultDOTGraphTraits
   {
+    DOTGraphTraits (bool isSimple=false) : DefaultDOTGraphTraits(isSimple) {}
 
     template<typename GraphType>
-    static std::string getNodeLabel(const Node* N, const GraphType&,
-                                    bool ShortNames)
+    static std::string getNodeLabel(const Node* N, const GraphType&)
     {
       if (N->ToolPtr)
         if (N->ToolPtr->IsJoin())

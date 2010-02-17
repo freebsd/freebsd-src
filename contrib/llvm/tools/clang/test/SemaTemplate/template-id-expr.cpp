@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 // PR5336
 template<typename FromCl>
 struct isa_impl_cl {
@@ -27,3 +27,20 @@ struct X0 {
 void test_X0_int(X0<int> xi, float f) {
   xi.f2(f);
 }
+
+// Not template-id expressions, but they almost look like it.
+template<typename F>
+struct Y {
+  Y(const F&);
+};
+
+template<int I>
+struct X {
+  X(int, int);
+  void f() { 
+    Y<X<I> >(X<I>(0, 0)); 
+    Y<X<I> >(::X<I>(0, 0)); 
+  }
+};
+
+template struct X<3>;

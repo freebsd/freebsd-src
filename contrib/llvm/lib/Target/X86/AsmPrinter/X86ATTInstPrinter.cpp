@@ -18,17 +18,22 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/FormattedStream.h"
 #include "X86GenInstrNames.inc"
 using namespace llvm;
 
 // Include the auto-generated portion of the assembly writer.
 #define MachineInstr MCInst
-#define NO_ASM_WRITER_BOILERPLATE
+#define GET_INSTRUCTION_NAME
 #include "X86GenAsmWriter.inc"
 #undef MachineInstr
 
 void X86ATTInstPrinter::printInst(const MCInst *MI) { printInstruction(MI); }
+StringRef X86ATTInstPrinter::getOpcodeName(unsigned Opcode) const {
+  return getInstructionName(Opcode);
+}
+
 
 void X86ATTInstPrinter::printSSECC(const MCInst *MI, unsigned Op) {
   switch (MI->getOperand(Op).getImm()) {
@@ -45,15 +50,17 @@ void X86ATTInstPrinter::printSSECC(const MCInst *MI, unsigned Op) {
 }
 
 /// print_pcrel_imm - This is used to print an immediate value that ends up
-/// being encoded as a pc-relative value.  These print slightly differently, for
-/// example, a $ is not emitted.
+/// being encoded as a pc-relative value (e.g. for jumps and calls).  These
+/// print slightly differently than normal immediates.  For example, a $ is not
+/// emitted.
 void X86ATTInstPrinter::print_pcrel_imm(const MCInst *MI, unsigned OpNo) {
   const MCOperand &Op = MI->getOperand(OpNo);
   if (Op.isImm())
-    O << Op.getImm();
+    // Print this as a signed 32-bit value.
+    O << (int)Op.getImm();
   else {
     assert(Op.isExpr() && "unknown pcrel immediate operand");
-    Op.getExpr()->print(O, &MAI);
+    O << *Op.getExpr();
   }
 }
 
@@ -64,10 +71,13 @@ void X86ATTInstPrinter::printOperand(const MCInst *MI, unsigned OpNo) {
     O << '%' << getRegisterName(Op.getReg());
   } else if (Op.isImm()) {
     O << '$' << Op.getImm();
+    
+    if (CommentStream && (Op.getImm() > 255 || Op.getImm() < -256))
+      *CommentStream << format("imm = 0x%X\n", Op.getImm());
+    
   } else {
     assert(Op.isExpr() && "unknown operand kind in printOperand");
-    O << '$';
-    Op.getExpr()->print(O, &MAI);
+    O << '$' << *Op.getExpr();
   }
 }
 
@@ -82,7 +92,7 @@ void X86ATTInstPrinter::printLeaMemReference(const MCInst *MI, unsigned Op) {
       O << DispVal;
   } else {
     assert(DispSpec.isExpr() && "non-immediate displacement for LEA?");
-    DispSpec.getExpr()->print(O, &MAI);
+    O << *DispSpec.getExpr();
   }
   
   if (IndexReg.getReg() || BaseReg.getReg()) {

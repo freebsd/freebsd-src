@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify -faccess-control -std=c++0x -Wsign-compare %s
+// RUN: %clang_cc1 -fsyntax-only -verify -faccess-control -std=c++0x -Wsign-compare %s
 
 // C++ rules for ?: are a lot stricter than C rules, and have to take into
 // account more conversion options.
@@ -7,8 +7,8 @@
 struct ToBool { explicit operator bool(); };
 
 struct B;
-struct A { A(); A(const B&); };
-struct B { operator A() const; };
+struct A { A(); A(const B&); }; // expected-note 2 {{candidate constructor}}
+struct B { operator A() const; }; // expected-note 2 {{candidate function}}
 struct I { operator int(); };
 struct J { operator I(); };
 struct K { operator double(); };
@@ -25,7 +25,7 @@ struct Derived : Base {
   void fn2();
 };
 struct Convertible { operator Base&(); };
-struct Priv : private Base {}; // expected-note 2 {{'private' inheritance specifier here}}
+struct Priv : private Base {}; // expected-note 4 {{declared private here}}
 struct Mid : Base {};
 struct Fin : Mid, Derived {};
 typedef void (Derived::*DFnPtr)();
@@ -50,8 +50,8 @@ struct MixedFieldsDerived : MixedFields {
 enum Enum { EVal };
 
 struct Ambig {
-  operator short();
-  operator signed char();
+  operator short(); // expected-note 2 {{candidate function}}
+  operator signed char(); // expected-note 2 {{candidate function}}
 };
 
 void test()
@@ -109,15 +109,14 @@ void test()
   (void)(i1 ? Base() : constder()); // expected-error {{incompatible operand types ('struct Base' and 'struct Derived const')}}
   (void)(i1 ? constder() : Base()); // expected-error {{incompatible operand types ('struct Derived const' and 'struct Base')}}
 
-  // FIXME: these are invalid hierarchy conversions
   Priv priv;
   Fin fin;
-  (void)(i1 ? Base() : Priv()); // xpected-error private base
-  (void)(i1 ? Priv() : Base()); // xpected-error private base
-  (void)(i1 ? Base() : Fin()); // xpected-error ambiguous base
-  (void)(i1 ? Fin() : Base()); // xpected-error ambiguous base
-  (void)(i1 ? base : priv); // expected-error {{conversion from 'struct Priv' to inaccessible base class 'struct Base'}}
-  (void)(i1 ? priv : base); // expected-error {{conversion from 'struct Priv' to inaccessible base class 'struct Base'}}
+  (void)(i1 ? Base() : Priv()); // expected-error{{private base class}}
+  (void)(i1 ? Priv() : Base()); // expected-error{{private base class}}
+  (void)(i1 ? Base() : Fin()); // expected-error{{ambiguous conversion from derived class 'struct Fin' to base class 'struct Base'}}
+  (void)(i1 ? Fin() : Base()); // expected-error{{ambiguous conversion from derived class 'struct Fin' to base class 'struct Base'}}
+  (void)(i1 ? base : priv); // expected-error {{private base class}}
+  (void)(i1 ? priv : base); // expected-error {{private base class}}
   (void)(i1 ? base : fin); // expected-error {{ambiguous conversion from derived class 'struct Fin' to base class 'struct Base'}}
   (void)(i1 ? fin : base); // expected-error {{ambiguous conversion from derived class 'struct Fin' to base class 'struct Base'}}
 
@@ -129,11 +128,10 @@ void test()
   // "the type [it] woud have if E2 were converted to an rvalue"
   vfn pfn = i1 ? F() : test;
   pfn = i1 ? test : F();
-  // these are ambiguous - better messages would be nice
-  (void)(i1 ? A() : B()); // expected-error {{incompatible operand types}}
-  (void)(i1 ? B() : A()); // expected-error {{incompatible operand types}}
-  (void)(i1 ? 1 : Ambig()); // expected-error {{incompatible operand types}}
-  (void)(i1 ? Ambig() : 1); // expected-error {{incompatible operand types}}
+  (void)(i1 ? A() : B()); // expected-error {{conversion from 'struct B' to 'struct A' is ambiguous}}
+  (void)(i1 ? B() : A()); // expected-error {{conversion from 'struct B' to 'struct A' is ambiguous}}
+  (void)(i1 ? 1 : Ambig()); // expected-error {{conversion from 'struct Ambig' to 'int' is ambiguous}}
+  (void)(i1 ? Ambig() : 1); // expected-error {{conversion from 'struct Ambig' to 'int' is ambiguous}}
   // By the way, this isn't an lvalue:
   &(i1 ? i1 : i2); // expected-error {{address expression must be an lvalue or a function designator}}
 

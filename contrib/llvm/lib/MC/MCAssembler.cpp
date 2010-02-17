@@ -13,14 +13,20 @@
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCValue.h"
-#include "llvm/Target/TargetMachOWriterInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/MachO.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Debug.h"
+
+// FIXME: Gross.
+#include "../Target/X86/X86FixupKinds.h"
+
 #include <vector>
 using namespace llvm;
 
@@ -43,6 +49,30 @@ static bool isVirtualSection(const MCSection &Section) {
   const MCSectionMachO &SMO = static_cast<const MCSectionMachO&>(Section);
   unsigned Type = SMO.getTypeAndAttributes() & MCSectionMachO::SECTION_TYPE;
   return (Type == MCSectionMachO::S_ZEROFILL);
+}
+
+static unsigned getFixupKindLog2Size(MCFixupKind Kind) {
+  switch (Kind) {
+  default: llvm_unreachable("invalid fixup kind!");
+  case X86::reloc_pcrel_1byte:
+  case FK_Data_1: return 0;
+  case FK_Data_2: return 1;
+  case X86::reloc_pcrel_4byte:
+  case X86::reloc_riprel_4byte:
+  case FK_Data_4: return 2;
+  case FK_Data_8: return 3;
+  }
+}
+
+static bool isFixupKindPCRel(MCFixupKind Kind) {
+  switch (Kind) {
+  default:
+    return false;
+  case X86::reloc_pcrel_1byte:
+  case X86::reloc_pcrel_4byte:
+  case X86::reloc_riprel_4byte:
+    return true;
+  }
 }
 
 class MachObjectWriter {
@@ -203,9 +233,9 @@ public:
     Write32(Header_Magic32);
 
     // FIXME: Support cputype.
-    Write32(TargetMachOWriterInfo::HDR_CPU_TYPE_I386);
+    Write32(MachO::CPUTypeI386);
     // FIXME: Support cpusubtype.
-    Write32(TargetMachOWriterInfo::HDR_CPU_SUBTYPE_I386_ALL);
+    Write32(MachO::CPUSubType_I386_ALL);
     Write32(HFT_Object);
     Write32(NumLoadCommands);    // Object files have a single load command, the
                                  // segment.
@@ -266,11 +296,15 @@ public:
     Write32(SD.getSize()); // size
     Write32(FileOffset);
 
+    unsigned Flags = Section.getTypeAndAttributes();
+    if (SD.hasInstructions())
+      Flags |= MCSectionMachO::S_ATTR_SOME_INSTRUCTIONS;
+
     assert(isPowerOf2_32(SD.getAlignment()) && "Invalid alignment!");
     Write32(Log2_32(SD.getAlignment()));
     Write32(NumRelocations ? RelocationsStart : 0);
     Write32(NumRelocations);
-    Write32(Section.getTypeAndAttributes());
+    Write32(Flags);
     Write32(0); // reserved1
     Write32(Section.getStubSize()); // reserved2
 
@@ -398,12 +432,12 @@ public:
     uint32_t Word0;
     uint32_t Word1;
   };
-  void ComputeScatteredRelocationInfo(MCAssembler &Asm,
-                                      MCSectionData::Fixup &Fixup,
+  void ComputeScatteredRelocationInfo(MCAssembler &Asm, MCFragment &Fragment,
+                                      MCAsmFixup &Fixup,
                                       const MCValue &Target,
                              DenseMap<const MCSymbol*,MCSymbolData*> &SymbolMap,
                                      std::vector<MachRelocationEntry> &Relocs) {
-    uint32_t Address = Fixup.Fragment->getOffset() + Fixup.Offset;
+    uint32_t Address = Fragment.getOffset() + Fixup.Offset;
     unsigned IsPCRel = 0;
     unsigned Type = RIT_Vanilla;
 
@@ -420,11 +454,14 @@ public:
       Value2 = SD->getFragment()->getAddress() + SD->getOffset();
     }
 
-    unsigned Log2Size = Log2_32(Fixup.Size);
-    assert((1U << Log2Size) == Fixup.Size && "Invalid fixup size!");
+    unsigned Log2Size = getFixupKindLog2Size(Fixup.Kind);
 
     // The value which goes in the fixup is current value of the expression.
     Fixup.FixedValue = Value - Value2 + Target.getConstant();
+    if (isFixupKindPCRel(Fixup.Kind)) {
+      Fixup.FixedValue -= Address + (1 << Log2Size);
+      IsPCRel = 1;
+    }
 
     MachRelocationEntry MRE;
     MRE.Word0 = ((Address   <<  0) |
@@ -449,8 +486,8 @@ public:
     }
   }
 
-  void ComputeRelocationInfo(MCAssembler &Asm,
-                             MCSectionData::Fixup &Fixup,
+  void ComputeRelocationInfo(MCAssembler &Asm, MCDataFragment &Fragment,
+                             MCAsmFixup &Fixup,
                              DenseMap<const MCSymbol*,MCSymbolData*> &SymbolMap,
                              std::vector<MachRelocationEntry> &Relocs) {
     MCValue Target;
@@ -462,11 +499,11 @@ public:
     if (Target.getSymB() ||
         (Target.getSymA() && !Target.getSymA()->isUndefined() &&
          Target.getConstant()))
-      return ComputeScatteredRelocationInfo(Asm, Fixup, Target,
+      return ComputeScatteredRelocationInfo(Asm, Fragment, Fixup, Target,
                                             SymbolMap, Relocs);
 
     // See <reloc.h>.
-    uint32_t Address = Fixup.Fragment->getOffset() + Fixup.Offset;
+    uint32_t Address = Fragment.getOffset() + Fixup.Offset;
     uint32_t Value = 0;
     unsigned Index = 0;
     unsigned IsPCRel = 0;
@@ -475,6 +512,8 @@ public:
 
     if (Target.isAbsolute()) { // constant
       // SymbolNum of 0 indicates the absolute section.
+      //
+      // FIXME: When is this generated?
       Type = RIT_Vanilla;
       Value = 0;
       llvm_unreachable("FIXME: Not yet implemented!");
@@ -491,10 +530,11 @@ public:
         //
         // FIXME: O(N)
         Index = 1;
-        for (MCAssembler::iterator it = Asm.begin(),
-               ie = Asm.end(); it != ie; ++it, ++Index)
+        MCAssembler::iterator it = Asm.begin(), ie = Asm.end();
+        for (; it != ie; ++it, ++Index)
           if (&*it == SD->getFragment()->getParent())
             break;
+        assert(it != ie && "Unable to find section index!");
         Value = SD->getFragment()->getAddress() + SD->getOffset();
       }
 
@@ -504,8 +544,12 @@ public:
     // The value which goes in the fixup is current value of the expression.
     Fixup.FixedValue = Value + Target.getConstant();
 
-    unsigned Log2Size = Log2_32(Fixup.Size);
-    assert((1U << Log2Size) == Fixup.Size && "Invalid fixup size!");
+    unsigned Log2Size = getFixupKindLog2Size(Fixup.Kind);
+
+    if (isFixupKindPCRel(Fixup.Kind)) {
+      Fixup.FixedValue -= Address + (1<<Log2Size);
+      IsPCRel = 1;
+    }
 
     // struct relocation_info (8 bytes)
     MachRelocationEntry MRE;
@@ -679,8 +723,6 @@ public:
       UndefinedSymbolData[i].SymbolData->setIndex(Index++);
 
     // The string table is padded to a multiple of 4.
-    //
-    // FIXME: Check to see if this varies per arch.
     while (StringTable.size() % 4)
       StringTable += '\x00';
   }
@@ -744,7 +786,7 @@ public:
                                      SD.getAddress() + SD.getFileSize());
     }
 
-    // The section data is passed to 4 bytes.
+    // The section data is padded to 4 bytes.
     //
     // FIXME: Is this machine dependent?
     unsigned SectionDataPadding = OffsetToAlignment(SectionDataFileSize, 4);
@@ -759,22 +801,25 @@ public:
     // ... and then the section headers.
     //
     // We also compute the section relocations while we do this. Note that
-    // compute relocation info will also update the fixup to have the correct
-    // value; this will be overwrite the appropriate data in the fragment when
-    // it is written.
+    // computing relocation info will also update the fixup to have the correct
+    // value; this will overwrite the appropriate data in the fragment when it
+    // is written.
     std::vector<MachRelocationEntry> RelocInfos;
     uint64_t RelocTableEnd = SectionDataStart + SectionDataFileSize;
-    for (MCAssembler::iterator it = Asm.begin(), ie = Asm.end(); it != ie;
-         ++it) {
+    for (MCAssembler::iterator it = Asm.begin(),
+           ie = Asm.end(); it != ie; ++it) {
       MCSectionData &SD = *it;
 
       // The assembler writes relocations in the reverse order they were seen.
       //
       // FIXME: It is probably more complicated than this.
       unsigned NumRelocsStart = RelocInfos.size();
-      for (unsigned i = 0, e = SD.fixup_size(); i != e; ++i)
-        ComputeRelocationInfo(Asm, SD.getFixups()[e - i - 1], SymbolMap,
-                              RelocInfos);
+      for (MCSectionData::reverse_iterator it2 = SD.rbegin(),
+             ie2 = SD.rend(); it2 != ie2; ++it2)
+        if (MCDataFragment *DF = dyn_cast<MCDataFragment>(&*it2))
+          for (unsigned i = 0, e = DF->fixup_size(); i != e; ++i)
+            ComputeRelocationInfo(Asm, *DF, DF->getFixups()[e - i - 1],
+                                  SymbolMap, RelocInfos);
 
       unsigned NumRelocs = RelocInfos.size() - NumRelocsStart;
       uint64_t SectionStart = SectionDataStart + SD.getAddress();
@@ -869,6 +914,16 @@ public:
       OS << StringTable.str();
     }
   }
+
+  void ApplyFixup(const MCAsmFixup &Fixup, MCDataFragment &DF) {
+    unsigned Size = 1 << getFixupKindLog2Size(Fixup.Kind);
+
+    // FIXME: Endianness assumption.
+    assert(Fixup.Offset + Size <= DF.getContents().size() &&
+           "Invalid fixup offset!");
+    for (unsigned i = 0; i != Size; ++i)
+      DF.getContents()[Fixup.Offset + i] = uint8_t(Fixup.FixedValue >> (i * 8));
+  }
 };
 
 /* *** */
@@ -903,32 +958,10 @@ MCSectionData::MCSectionData(const MCSection &_Section, MCAssembler *A)
     Address(~UINT64_C(0)),
     Size(~UINT64_C(0)),
     FileSize(~UINT64_C(0)),
-    LastFixupLookup(~0)
+    HasInstructions(false)
 {
   if (A)
     A->getSectionList().push_back(this);
-}
-
-const MCSectionData::Fixup *
-MCSectionData::LookupFixup(const MCFragment *Fragment, uint64_t Offset) const {
-  // Use a one level cache to turn the common case of accessing the fixups in
-  // order into O(1) instead of O(N).
-  unsigned i = LastFixupLookup, Count = Fixups.size(), End = Fixups.size();
-  if (i >= End)
-    i = 0;
-  while (Count--) {
-    const Fixup &F = Fixups[i];
-    if (F.Fragment == Fragment && F.Offset == Offset) {
-      LastFixupLookup = i;
-      return &F;
-    }
-
-    ++i;
-    if (i == End)
-      i = 0;
-  }
-
-  return 0;
 }
 
 /* *** */
@@ -977,30 +1010,9 @@ void MCAssembler::LayoutSection(MCSectionData &SD) {
     }
 
     case MCFragment::FT_Data:
+    case MCFragment::FT_Fill:
       F.setFileSize(F.getMaxFileSize());
       break;
-
-    case MCFragment::FT_Fill: {
-      MCFillFragment &FF = cast<MCFillFragment>(F);
-
-      F.setFileSize(F.getMaxFileSize());
-
-      MCValue Target;
-      if (!FF.getValue().EvaluateAsRelocatable(Target))
-        llvm_report_error("expected relocatable expression");
-
-      // If the fill value is constant, thats it.
-      if (Target.isAbsolute())
-        break;
-
-      // Otherwise, add fixups for the values.
-      for (uint64_t i = 0, e = FF.getCount(); i != e; ++i) {
-        MCSectionData::Fixup Fix(F, i * FF.getValueSize(),
-                                 FF.getValue(),FF.getValueSize());
-        SD.getFixups().push_back(Fix);
-      }
-      break;
-    }
 
     case MCFragment::FT_Org: {
       MCOrgFragment &OF = cast<MCOrgFragment>(F);
@@ -1084,39 +1096,30 @@ static void WriteFileData(raw_ostream &OS, const MCFragment &F,
     break;
   }
 
-  case MCFragment::FT_Data:
+  case MCFragment::FT_Data: {
+    MCDataFragment &DF = cast<MCDataFragment>(F);
+
+    // Apply the fixups.
+    //
+    // FIXME: Move elsewhere.
+    for (MCDataFragment::const_fixup_iterator it = DF.fixup_begin(),
+           ie = DF.fixup_end(); it != ie; ++it)
+      MOW.ApplyFixup(*it, DF);
+
     OS << cast<MCDataFragment>(F).getContents().str();
     break;
+  }
 
   case MCFragment::FT_Fill: {
     MCFillFragment &FF = cast<MCFillFragment>(F);
-
-    int64_t Value = 0;
-
-    MCValue Target;
-    if (!FF.getValue().EvaluateAsRelocatable(Target))
-      llvm_report_error("expected relocatable expression");
-
-    if (Target.isAbsolute())
-      Value = Target.getConstant();
     for (uint64_t i = 0, e = FF.getCount(); i != e; ++i) {
-      if (!Target.isAbsolute()) {
-        // Find the fixup.
-        //
-        // FIXME: Find a better way to write in the fixes.
-        const MCSectionData::Fixup *Fixup =
-          F.getParent()->LookupFixup(&F, i * FF.getValueSize());
-        assert(Fixup && "Missing fixup for fill value!");
-        Value = Fixup->FixedValue;
-      }
-
       switch (FF.getValueSize()) {
       default:
         assert(0 && "Invalid size!");
-      case 1: MOW.Write8 (uint8_t (Value)); break;
-      case 2: MOW.Write16(uint16_t(Value)); break;
-      case 4: MOW.Write32(uint32_t(Value)); break;
-      case 8: MOW.Write64(uint64_t(Value)); break;
+      case 1: MOW.Write8 (uint8_t (FF.getValue())); break;
+      case 2: MOW.Write16(uint16_t(FF.getValue())); break;
+      case 4: MOW.Write32(uint32_t(FF.getValue())); break;
+      case 8: MOW.Write64(uint64_t(FF.getValue())); break;
       }
     }
     break;
@@ -1164,6 +1167,10 @@ static void WriteFileData(raw_ostream &OS, const MCSectionData &SD,
 }
 
 void MCAssembler::Finish() {
+  DEBUG_WITH_TYPE("mc-dump", {
+      llvm::errs() << "assembler backend - pre-layout\n--\n";
+      dump(); });
+
   // Layout the concrete sections and fragments.
   uint64_t Address = 0;
   MCSectionData *Prev = 0;
@@ -1202,9 +1209,149 @@ void MCAssembler::Finish() {
     Address += SD.getSize();
   }
 
+  DEBUG_WITH_TYPE("mc-dump", {
+      llvm::errs() << "assembler backend - post-layout\n--\n";
+      dump(); });
+
   // Write the object file.
   MachObjectWriter MOW(OS);
   MOW.WriteObject(*this);
 
   OS.flush();
+}
+
+
+// Debugging methods
+
+namespace llvm {
+
+raw_ostream &operator<<(raw_ostream &OS, const MCAsmFixup &AF) {
+  OS << "<MCAsmFixup" << " Offset:" << AF.Offset << " Value:" << *AF.Value
+     << " Kind:" << AF.Kind << ">";
+  return OS;
+}
+
+}
+
+void MCFragment::dump() {
+  raw_ostream &OS = llvm::errs();
+
+  OS << "<MCFragment " << (void*) this << " Offset:" << Offset
+     << " FileSize:" << FileSize;
+
+  OS << ">";
+}
+
+void MCAlignFragment::dump() {
+  raw_ostream &OS = llvm::errs();
+
+  OS << "<MCAlignFragment ";
+  this->MCFragment::dump();
+  OS << "\n       ";
+  OS << " Alignment:" << getAlignment()
+     << " Value:" << getValue() << " ValueSize:" << getValueSize()
+     << " MaxBytesToEmit:" << getMaxBytesToEmit() << ">";
+}
+
+void MCDataFragment::dump() {
+  raw_ostream &OS = llvm::errs();
+
+  OS << "<MCDataFragment ";
+  this->MCFragment::dump();
+  OS << "\n       ";
+  OS << " Contents:[";
+  for (unsigned i = 0, e = getContents().size(); i != e; ++i) {
+    if (i) OS << ",";
+    OS << hexdigit((Contents[i] >> 4) & 0xF) << hexdigit(Contents[i] & 0xF);
+  }
+  OS << "] (" << getContents().size() << " bytes)";
+
+  if (!getFixups().empty()) {
+    OS << ",\n       ";
+    OS << " Fixups:[";
+    for (fixup_iterator it = fixup_begin(), ie = fixup_end(); it != ie; ++it) {
+      if (it != fixup_begin()) OS << ",\n            ";
+      OS << *it;
+    }
+    OS << "]";
+  }
+
+  OS << ">";
+}
+
+void MCFillFragment::dump() {
+  raw_ostream &OS = llvm::errs();
+
+  OS << "<MCFillFragment ";
+  this->MCFragment::dump();
+  OS << "\n       ";
+  OS << " Value:" << getValue() << " ValueSize:" << getValueSize()
+     << " Count:" << getCount() << ">";
+}
+
+void MCOrgFragment::dump() {
+  raw_ostream &OS = llvm::errs();
+
+  OS << "<MCOrgFragment ";
+  this->MCFragment::dump();
+  OS << "\n       ";
+  OS << " Offset:" << getOffset() << " Value:" << getValue() << ">";
+}
+
+void MCZeroFillFragment::dump() {
+  raw_ostream &OS = llvm::errs();
+
+  OS << "<MCZeroFillFragment ";
+  this->MCFragment::dump();
+  OS << "\n       ";
+  OS << " Size:" << getSize() << " Alignment:" << getAlignment() << ">";
+}
+
+void MCSectionData::dump() {
+  raw_ostream &OS = llvm::errs();
+
+  OS << "<MCSectionData";
+  OS << " Alignment:" << getAlignment() << " Address:" << Address
+     << " Size:" << Size << " FileSize:" << FileSize
+     << " Fragments:[";
+  for (iterator it = begin(), ie = end(); it != ie; ++it) {
+    if (it != begin()) OS << ",\n      ";
+    it->dump();
+  }
+  OS << "]>";
+}
+
+void MCSymbolData::dump() {
+  raw_ostream &OS = llvm::errs();
+
+  OS << "<MCSymbolData Symbol:" << getSymbol()
+     << " Fragment:" << getFragment() << " Offset:" << getOffset()
+     << " Flags:" << getFlags() << " Index:" << getIndex();
+  if (isCommon())
+    OS << " (common, size:" << getCommonSize()
+       << " align: " << getCommonAlignment() << ")";
+  if (isExternal())
+    OS << " (external)";
+  if (isPrivateExtern())
+    OS << " (private extern)";
+  OS << ">";
+}
+
+void MCAssembler::dump() {
+  raw_ostream &OS = llvm::errs();
+
+  OS << "<MCAssembler\n";
+  OS << "  Sections:[";
+  for (iterator it = begin(), ie = end(); it != ie; ++it) {
+    if (it != begin()) OS << ",\n    ";
+    it->dump();
+  }
+  OS << "],\n";
+  OS << "  Symbols:[";
+
+  for (symbol_iterator it = symbol_begin(), ie = symbol_end(); it != ie; ++it) {
+    if (it != symbol_begin()) OS << ",\n    ";
+    it->dump();
+  }
+  OS << "]>\n";
 }

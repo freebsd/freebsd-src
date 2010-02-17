@@ -155,7 +155,7 @@ void IntrinsicLowering::AddPrototypes(Module &M) {
 /// LowerBSWAP - Emit the code to lower bswap of V before the specified
 /// instruction IP.
 static Value *LowerBSWAP(LLVMContext &Context, Value *V, Instruction *IP) {
-  assert(V->getType()->isInteger() && "Can't bswap a non-integer type!");
+  assert(V->getType()->isIntegerTy() && "Can't bswap a non-integer type!");
 
   unsigned BitSize = V->getType()->getPrimitiveSizeInBits();
   
@@ -251,7 +251,7 @@ static Value *LowerBSWAP(LLVMContext &Context, Value *V, Instruction *IP) {
 /// LowerCTPOP - Emit the code to lower ctpop of V before the specified
 /// instruction IP.
 static Value *LowerCTPOP(LLVMContext &Context, Value *V, Instruction *IP) {
-  assert(V->getType()->isInteger() && "Can't ctpop a non-integer type!");
+  assert(V->getType()->isIntegerTy() && "Can't ctpop a non-integer type!");
 
   static const uint64_t MaskValues[6] = {
     0x5555555555555555ULL, 0x3333333333333333ULL,
@@ -349,12 +349,12 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
   case Intrinsic::setjmp: {
     Value *V = ReplaceCallWith("setjmp", CI, CI->op_begin() + 1, CI->op_end(),
                                Type::getInt32Ty(Context));
-    if (CI->getType() != Type::getVoidTy(Context))
+    if (!CI->getType()->isVoidTy())
       CI->replaceAllUsesWith(V);
     break;
   }
   case Intrinsic::sigsetjmp:
-     if (CI->getType() != Type::getVoidTy(Context))
+     if (!CI->getType()->isVoidTy())
        CI->replaceAllUsesWith(Constant::getNullValue(CI->getType()));
      break;
 
@@ -427,10 +427,6 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
     break;
   }
 
-  case Intrinsic::dbg_stoppoint:
-  case Intrinsic::dbg_region_start:
-  case Intrinsic::dbg_region_end:
-  case Intrinsic::dbg_func_start:
   case Intrinsic::dbg_declare:
     break;    // Simply strip out debugging intrinsics
 
@@ -512,7 +508,7 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
   }
   case Intrinsic::flt_rounds:
      // Lower to "round to the nearest"
-     if (CI->getType() != Type::getVoidTy(Context))
+     if (!CI->getType()->isVoidTy())
        CI->replaceAllUsesWith(ConstantInt::get(CI->getType(), 1));
      break;
   case Intrinsic::invariant_start:

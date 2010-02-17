@@ -46,12 +46,14 @@ static void WriteGraphToFile(std::ostream &O, const std::string &GraphName,
 namespace llvm {
   template<>
   struct DOTGraphTraits<CallGraph*> : public DefaultDOTGraphTraits {
+
+  DOTGraphTraits (bool isSimple=false) : DefaultDOTGraphTraits(isSimple) {}
+
     static std::string getGraphName(CallGraph *F) {
       return "Call Graph";
     }
 
-    static std::string getNodeLabel(CallGraphNode *Node, CallGraph *Graph,
-                                    bool ShortNames) {
+    static std::string getNodeLabel(CallGraphNode *Node, CallGraph *Graph) {
       if (Node->getFunction())
         return ((Value*)Node->getFunction())->getName();
       else

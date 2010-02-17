@@ -1,4 +1,4 @@
-// RUN: clang-cc -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -fblocks -emit-pch -x objective-c %s -o %t.ast
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -fblocks -emit-pch -x objective-c %s -o %t.ast
 // RUN: c-index-test -test-file-scan %t.ast %s | FileCheck %s
 @interface Foo 
 {
@@ -52,109 +52,102 @@ int main (int argc, const char * argv[]) {
   main(someEnum, (const char **)bee);
 }
 
-// CHECK: {start_line=1 start_col=1 end_line=2 end_col=62} Invalid Cursor => NoDeclFound
-// CHECK: {start_line=3 start_col=1 end_line=6 end_col=1} ObjCInterfaceDecl=Foo:3:1
-// CHECK: {start_line=7 start_col=1 end_line=7 end_col=6} ObjCInstanceMethodDecl=foo:7:1
-// CHECK: {start_line=7 start_col=7 end_line=7 end_col=7} ObjCInterfaceDecl=Foo:3:1
-// CHECK: {start_line=8 start_col=1 end_line=8 end_col=7} ObjCClassMethodDecl=fooC:8:1
-// CHECK: {start_line=8 start_col=8 end_line=10 end_col=1} ObjCInterfaceDecl=Foo:3:1
-// CHECK: {start_line=10 start_col=2 end_line=11 end_col=1} Invalid Cursor => NoDeclFound
-// CHECK: {start_line=12 start_col=1 end_line=16 end_col=1} ObjCInterfaceDecl=Bar:12:1
-// CHECK: {start_line=16 start_col=2 end_line=17 end_col=1} Invalid Cursor => NoDeclFound
-// CHECK: {start_line=18 start_col=1 end_line=18 end_col=24} ObjCCategoryDecl=FooCat:18:1
-// CHECK: {start_line=19 start_col=1 end_line=19 end_col=28} ObjCInstanceMethodDecl=catMethodWithFloat::19:1
-// CHECK: {start_line=19 start_col=29 end_line=19 end_col=33} ParmDecl=fArg:19:36
-// CHECK: {start_line=19 start_col=34 end_line=19 end_col=35} ObjCInstanceMethodDecl=catMethodWithFloat::19:1
-// CHECK: {start_line=19 start_col=36 end_line=19 end_col=39} ParmDecl=fArg:19:36
-// CHECK: {start_line=19 start_col=40 end_line=19 end_col=40} ObjCInstanceMethodDecl=catMethodWithFloat::19:1
-// CHECK: {start_line=19 start_col=41 end_line=19 end_col=41} ObjCCategoryDecl=FooCat:18:1
-// CHECK: {start_line=20 start_col=1 end_line=20 end_col=22} ObjCInstanceMethodDecl=floatMethod:20:1
-// CHECK: {start_line=20 start_col=23 end_line=21 end_col=1} ObjCCategoryDecl=FooCat:18:1
-// CHECK: {start_line=21 start_col=2 end_line=22 end_col=1} Invalid Cursor => NoDeclFound
-// CHECK: {start_line=23 start_col=1 end_line=23 end_col=16} ObjCProtocolDecl=Proto:23:1
-// CHECK: {start_line=24 start_col=1 end_line=24 end_col=10} ObjCInstanceMethodDecl=pMethod:24:1
-// CHECK: {start_line=24 start_col=11 end_line=25 end_col=1} ObjCProtocolDecl=Proto:23:1
-// CHECK: {start_line=25 start_col=2 end_line=26 end_col=1} Invalid Cursor => NoDeclFound
-// CHECK: {start_line=27 start_col=1 end_line=27 end_col=23} ObjCProtocolDecl=SubP:27:1
-// CHECK: {start_line=28 start_col=1 end_line=28 end_col=11} ObjCInstanceMethodDecl=spMethod:28:1
-// CHECK: {start_line=28 start_col=12 end_line=29 end_col=1} ObjCProtocolDecl=SubP:27:1
-// CHECK: {start_line=29 start_col=2 end_line=30 end_col=1} Invalid Cursor => NoDeclFound
-// CHECK: {start_line=31 start_col=1 end_line=33 end_col=4} ObjCInterfaceDecl=Baz:31:1
-// CHECK: {start_line=33 start_col=5 end_line=33 end_col=7} Invalid Cursor => NotImplemented
-// CHECK: {start_line=33 start_col=8 end_line=33 end_col=8} ObjCInterfaceDecl=Baz:31:1
-// CHECK: {start_line=33 start_col=9 end_line=33 end_col=15} Invalid Cursor => NotImplemented
-// CHECK: {start_line=33 start_col=16 end_line=35 end_col=1} ObjCInterfaceDecl=Baz:31:1
-// CHECK: {start_line=36 start_col=1 end_line=36 end_col=20} ObjCInstanceMethodDecl=bazMethod:36:1
-// CHECK: {start_line=36 start_col=21 end_line=38 end_col=1} ObjCInterfaceDecl=Baz:31:1
-// CHECK: {start_line=38 start_col=2 end_line=39 end_col=1} Invalid Cursor => NoDeclFound
-// CHECK: {start_line=40 start_col=1 end_line=41 end_col=2} EnumDecl=:40:1
-// CHECK: {start_line=41 start_col=3 end_line=41 end_col=10} EnumConstantDecl=someEnum:41:3
-// CHECK: {start_line=41 start_col=11 end_line=42 end_col=1} EnumDecl=:40:1
-// CHECK: {start_line=42 start_col=2 end_line=43 end_col=1} Invalid Cursor => NoDeclFound
-// CHECK: {start_line=44 start_col=1 end_line=44 end_col=3} FunctionDecl=main:44:5
-// CHECK: {start_line=44 start_col=4 end_line=44 end_col=4} Invalid Cursor => NoDeclFound
-// CHECK: {start_line=44 start_col=5 end_line=44 end_col=10} FunctionDecl=main:44:5
-// CHECK: {start_line=44 start_col=11 end_line=44 end_col=13} ParmDecl=argc:44:15
-// CHECK: {start_line=44 start_col=14 end_line=44 end_col=14} FunctionDecl=main:44:5
-// CHECK: {start_line=44 start_col=15 end_line=44 end_col=18} ParmDecl=argc:44:15
-// CHECK: {start_line=44 start_col=19 end_line=44 end_col=26} FunctionDecl=main:44:5
-// CHECK: {start_line=44 start_col=27 end_line=44 end_col=30} ParmDecl=argv:44:34
-// CHECK: {start_line=44 start_col=31 end_line=44 end_col=31} FunctionDecl=main:44:5
-// CHECK: {start_line=44 start_col=32 end_line=44 end_col=32} ParmDecl=argv:44:34
-// CHECK: {start_line=44 start_col=33 end_line=44 end_col=33} FunctionDecl=main:44:5
-// CHECK: {start_line=44 start_col=34 end_line=44 end_col=39} ParmDecl=argv:44:34
-// CHECK: {start_line=44 start_col=40 end_line=45 end_col=1} FunctionDecl=main:44:5
-// CHECK: {start_line=45 start_col=2 end_line=45 end_col=4} ObjCClassRef=Baz:45:8
-// CHECK: {start_line=45 start_col=5 end_line=45 end_col=5} FunctionDecl=main:44:5
-// CHECK: {start_line=45 start_col=6 end_line=45 end_col=6} VarDecl=bee:45:8
-// CHECK: {start_line=45 start_col=7 end_line=45 end_col=7} FunctionDecl=main:44:5
-// CHECK: {start_line=45 start_col=8 end_line=45 end_col=10} VarDecl=bee:45:8
-// CHECK: {start_line=45 start_col=11 end_line=46 end_col=1} FunctionDecl=main:44:5
-// CHECK: {start_line=46 start_col=2 end_line=46 end_col=3} TypedefDecl=id:0:0
-// CHECK: {start_line=46 start_col=4 end_line=46 end_col=4} FunctionDecl=main:44:5
-// CHECK: {start_line=46 start_col=5 end_line=46 end_col=8} VarDecl=a:46:5
-// CHECK: {start_line=46 start_col=9 end_line=46 end_col=9} ObjCSelectorRef=foo:7:1
-// CHECK: {start_line=46 start_col=10 end_line=46 end_col=12} VarRef=bee:45:8
-// CHECK: {start_line=46 start_col=13 end_line=46 end_col=17} ObjCSelectorRef=foo:7:1
-// CHECK: {start_line=46 start_col=18 end_line=47 end_col=1} FunctionDecl=main:44:5
-// CHECK: {start_line=47 start_col=2 end_line=47 end_col=3} TypedefDecl=id:0:0
-// CHECK: {start_line=47 start_col=4 end_line=47 end_col=4} FunctionDecl=main:44:5
-// CHECK: {start_line=47 start_col=5 end_line=47 end_col=5} VarDecl=c:47:12
-// CHECK: {start_line=47 start_col=6 end_line=47 end_col=9} ObjCProtocolRef=SubP:47:12
-// CHECK: {start_line=47 start_col=10 end_line=47 end_col=10} VarDecl=c:47:12
-// CHECK: {start_line=47 start_col=11 end_line=47 end_col=11} FunctionDecl=main:44:5
-// CHECK: {start_line=47 start_col=12 end_line=47 end_col=15} VarDecl=c:47:12
-// CHECK: {start_line=47 start_col=16 end_line=47 end_col=25} ObjCSelectorRef=fooC:8:1
-// CHECK: {start_line=47 start_col=26 end_line=48 end_col=1} FunctionDecl=main:44:5
-// CHECK: {start_line=48 start_col=2 end_line=48 end_col=3} TypedefDecl=id:0:0
-// CHECK: {start_line=48 start_col=4 end_line=48 end_col=4} FunctionDecl=main:44:5
-// CHECK: {start_line=48 start_col=5 end_line=48 end_col=5} VarDecl=d:48:13
-// CHECK: {start_line=48 start_col=6 end_line=48 end_col=10} ObjCProtocolRef=Proto:48:13
-// CHECK: {start_line=48 start_col=11 end_line=48 end_col=11} VarDecl=d:48:13
-// CHECK: {start_line=48 start_col=12 end_line=48 end_col=12} FunctionDecl=main:44:5
-// CHECK: {start_line=48 start_col=13 end_line=48 end_col=13} VarDecl=d:48:13
-// CHECK: {start_line=48 start_col=14 end_line=49 end_col=1} FunctionDecl=main:44:5
-// CHECK: {start_line=49 start_col=2 end_line=49 end_col=2} VarRef=d:48:13
-// CHECK: {start_line=49 start_col=3 end_line=49 end_col=5} FunctionDecl=main:44:5
-// CHECK: {start_line=49 start_col=6 end_line=49 end_col=6} VarRef=c:47:12
-// CHECK: {start_line=49 start_col=7 end_line=50 end_col=1} FunctionDecl=main:44:5
-// CHECK: {start_line=50 start_col=2 end_line=50 end_col=2} ObjCSelectorRef=pMethod:24:1
-// CHECK: {start_line=50 start_col=3 end_line=50 end_col=3} VarRef=d:48:13
-// CHECK: {start_line=50 start_col=4 end_line=50 end_col=12} ObjCSelectorRef=pMethod:24:1
-// CHECK: {start_line=50 start_col=13 end_line=51 end_col=1} FunctionDecl=main:44:5
-// CHECK: {start_line=51 start_col=2 end_line=51 end_col=2} ObjCSelectorRef=catMethodWithFloat::19:1
-// CHECK: {start_line=51 start_col=3 end_line=51 end_col=5} VarRef=bee:45:8
-// CHECK: {start_line=51 start_col=6 end_line=51 end_col=25} ObjCSelectorRef=catMethodWithFloat::19:1
-// CHECK: {start_line=51 start_col=26 end_line=51 end_col=26} ObjCSelectorRef=floatMethod:20:1
-// CHECK: {start_line=51 start_col=27 end_line=51 end_col=29} VarRef=bee:45:8
-// CHECK: {start_line=51 start_col=30 end_line=51 end_col=42} ObjCSelectorRef=floatMethod:20:1
-// CHECK: {start_line=51 start_col=43 end_line=51 end_col=43} ObjCSelectorRef=catMethodWithFloat::19:1
-// CHECK: {start_line=51 start_col=44 end_line=52 end_col=2} FunctionDecl=main:44:5
-// CHECK: {start_line=52 start_col=3 end_line=52 end_col=6} FunctionRef=main:44:5
-// CHECK: {start_line=52 start_col=7 end_line=52 end_col=7} FunctionDecl=main:44:5
-// CHECK: {start_line=52 start_col=8 end_line=52 end_col=15} EnumConstantRef=someEnum:41:3
-// CHECK: {start_line=52 start_col=16 end_line=52 end_col=32} FunctionDecl=main:44:5
-// CHECK: {start_line=52 start_col=33 end_line=52 end_col=35} VarRef=bee:45:8
-// CHECK: {start_line=52 start_col=36 end_line=53 end_col=1} FunctionDecl=main:44:5
-// CHECK: {start_line=53 start_col=2 end_line=160 end_col=1} Invalid Cursor => NoDeclFound
-
+// CHECK: [1:1 - 3:1] Invalid Cursor => NoDeclFound
+// CHECK: [3:1 - 7:1] ObjCInterfaceDecl=Foo:3:12
+// CHECK: [7:1 - 7:7] ObjCInstanceMethodDecl=foo:7:1
+// CHECK: [7:7 - 8:1] ObjCInterfaceDecl=Foo:3:12
+// CHECK: [8:1 - 8:8] ObjCClassMethodDecl=fooC:8:1
+// CHECK: [8:8 - 10:5] ObjCInterfaceDecl=Foo:3:12
+// CHECK: [10:5 - 12:1] Invalid Cursor => NoDeclFound
+// CHECK: [12:1 - 12:18] ObjCInterfaceDecl=Bar:12:12
+// CHECK: [12:18 - 12:21] ObjCSuperClassRef=Foo:3:12
+// CHECK: [12:21 - 16:5] ObjCInterfaceDecl=Bar:12:12
+// CHECK: [16:5 - 18:1] Invalid Cursor => NoDeclFound
+// CHECK: [18:1 - 18:12] ObjCCategoryDecl=FooCat:18:12
+// CHECK: [18:12 - 18:15] ObjCClassRef=Foo:3:12
+// CHECK: [18:15 - 19:1] ObjCCategoryDecl=FooCat:18:12
+// CHECK: [19:1 - 19:29] ObjCInstanceMethodDecl=catMethodWithFloat::19:1
+// CHECK: [19:29 - 19:40] ParmDecl=fArg:19:36 (Definition)
+// CHECK: [19:40 - 19:41] ObjCInstanceMethodDecl=catMethodWithFloat::19:1
+// CHECK: [19:41 - 20:1] ObjCCategoryDecl=FooCat:18:12
+// CHECK: [20:1 - 20:23] ObjCInstanceMethodDecl=floatMethod:20:1
+// CHECK: [20:23 - 21:5] ObjCCategoryDecl=FooCat:18:12
+// CHECK: [21:5 - 23:1] Invalid Cursor => NoDeclFound
+// CHECK: [23:1 - 24:1] ObjCProtocolDecl=Proto:23:1 (Definition)
+// CHECK: [24:1 - 24:11] ObjCInstanceMethodDecl=pMethod:24:1
+// CHECK: [24:11 - 25:5] ObjCProtocolDecl=Proto:23:1 (Definition)
+// CHECK: [25:5 - 27:1] Invalid Cursor => NoDeclFound
+// CHECK: [27:1 - 27:17] ObjCProtocolDecl=SubP:27:1 (Definition)
+// CHECK: [27:17 - 27:22] ObjCProtocolRef=Proto:23:1
+// CHECK: [27:22 - 28:1] ObjCProtocolDecl=SubP:27:1 (Definition)
+// CHECK: [28:1 - 28:12] ObjCInstanceMethodDecl=spMethod:28:1
+// CHECK: [28:12 - 29:5] ObjCProtocolDecl=SubP:27:1 (Definition)
+// CHECK: [29:5 - 31:1] Invalid Cursor => NoDeclFound
+// CHECK: [31:1 - 31:18] ObjCInterfaceDecl=Baz:31:12
+// CHECK: [31:18 - 31:21] ObjCSuperClassRef=Bar:12:12
+// CHECK: [31:21 - 31:23] ObjCInterfaceDecl=Baz:31:12
+// CHECK: [31:23 - 31:27] ObjCProtocolRef=SubP:27:1
+// CHECK: [31:27 - 33:9] ObjCInterfaceDecl=Baz:31:12
+// CHECK: [33:9 - 33:16] ObjCIvarDecl=_anIVar:33:9 (Definition)
+// CHECK: [33:16 - 36:1] ObjCInterfaceDecl=Baz:31:12
+// CHECK: [36:1 - 36:21] ObjCInstanceMethodDecl=bazMethod:36:1
+// CHECK: [36:21 - 38:5] ObjCInterfaceDecl=Baz:31:12
+// CHECK: [38:5 - 40:1] Invalid Cursor => NoDeclFound
+// CHECK: [40:1 - 41:3] EnumDecl=:40:1 (Definition)
+// CHECK: [41:3 - 41:11] EnumConstantDecl=someEnum:41:3 (Definition)
+// CHECK: [41:11 - 42:2] EnumDecl=:40:1 (Definition)
+// CHECK: [42:2 - 44:5] Invalid Cursor => NoDeclFound
+// CHECK: [44:5 - 44:11] FunctionDecl=main:44:5 (Definition)
+// CHECK: [44:11 - 44:19] ParmDecl=argc:44:15 (Definition)
+// CHECK: [44:19 - 44:27] FunctionDecl=main:44:5 (Definition)
+// CHECK: [44:27 - 44:38] ParmDecl=argv:44:34 (Definition)
+// CHECK: [44:38 - 44:42] FunctionDecl=main:44:5 (Definition)
+// CHECK: [44:42 - 45:2] UnexposedStmt=
+// CHECK: [45:2 - 45:5] ObjCClassRef=Baz:31:12
+// CHECK: [45:5 - 45:11] VarDecl=bee:45:8 (Definition)
+// CHECK: [45:11 - 45:12] UnexposedStmt=
+// CHECK: [45:12 - 46:2] UnexposedStmt=
+// CHECK: [46:2 - 46:4] TypeRef=id:0:0
+// CHECK: [46:4 - 46:9] VarDecl=a:46:5 (Definition)
+// CHECK: [46:9 - 46:10] ObjCMessageExpr=foo:7:1
+// CHECK: [46:10 - 46:13] DeclRefExpr=bee:45:8
+// CHECK: [46:13 - 46:18] ObjCMessageExpr=foo:7:1
+// CHECK: [46:18 - 46:19] UnexposedStmt=
+// CHECK: [46:19 - 47:2] UnexposedStmt=
+// CHECK: [47:2 - 47:4] TypeRef=id:0:0
+// CHECK: [47:4 - 47:6] VarDecl=c:47:12 (Definition)
+// CHECK: [47:6 - 47:10] ObjCProtocolRef=SubP:27:1
+// CHECK: [47:10 - 47:16] VarDecl=c:47:12 (Definition)
+// CHECK: [47:16 - 47:26] ObjCMessageExpr=fooC:8:1
+// CHECK: [47:26 - 47:27] UnexposedStmt=
+// CHECK: [47:27 - 48:2] UnexposedStmt=
+// CHECK: [48:2 - 48:4] TypeRef=id:0:0
+// CHECK: [48:4 - 48:6] VarDecl=d:48:13 (Definition)
+// CHECK: [48:6 - 48:11] ObjCProtocolRef=Proto:23:1
+// CHECK: [48:11 - 48:14] VarDecl=d:48:13 (Definition)
+// CHECK: [48:14 - 48:15] UnexposedStmt=
+// CHECK: [48:15 - 49:2] UnexposedStmt=
+// CHECK: [49:2 - 49:3] DeclRefExpr=d:48:13
+// CHECK: [49:3 - 49:6] UnexposedExpr=
+// CHECK: [49:6 - 49:7] DeclRefExpr=c:47:12
+// CHECK: [49:7 - 50:2] UnexposedStmt=
+// CHECK: [50:2 - 50:3] ObjCMessageExpr=pMethod:24:1
+// CHECK: [50:3 - 50:4] DeclRefExpr=d:48:13
+// CHECK: [50:4 - 50:13] ObjCMessageExpr=pMethod:24:1
+// CHECK: [50:13 - 51:2] UnexposedStmt=
+// CHECK: [51:2 - 51:3] ObjCMessageExpr=catMethodWithFloat::19:1
+// CHECK: [51:3 - 51:6] DeclRefExpr=bee:45:8
+// CHECK: [51:6 - 51:26] ObjCMessageExpr=catMethodWithFloat::19:1
+// CHECK: [51:26 - 51:27] ObjCMessageExpr=floatMethod:20:1
+// CHECK: [51:27 - 51:30] DeclRefExpr=bee:45:8
+// CHECK: [51:30 - 51:43] ObjCMessageExpr=floatMethod:20:1
+// CHECK: [51:43 - 51:44] ObjCMessageExpr=catMethodWithFloat::19:1
+// CHECK: [51:44 - 52:3] UnexposedStmt=
+// CHECK: [52:3 - 52:7] DeclRefExpr=main:44:5
+// CHECK: [52:7 - 52:8] CallExpr=main:44:5
+// CHECK: [52:8 - 52:16] DeclRefExpr=someEnum:41:3
+// CHECK: [52:16 - 52:18] CallExpr=main:44:5
+// CHECK: [52:18 - 52:33] UnexposedExpr=bee:45:8
+// CHECK: [52:33 - 52:36] DeclRefExpr=bee:45:8
+// CHECK: [52:36 - 52:37] CallExpr=main:44:5
+// CHECK: [52:37 - 53:2] UnexposedStmt=

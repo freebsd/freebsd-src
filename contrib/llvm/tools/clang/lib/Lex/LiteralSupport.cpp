@@ -375,46 +375,34 @@ NumericLiteralParser(const char *begin, const char *end,
       continue;  // Success.
     case 'i':
       if (PP.getLangOptions().Microsoft) {
+        if (isFPConstant || isLong || isLongLong) break;
+
         // Allow i8, i16, i32, i64, and i128.
         if (s + 1 != ThisTokEnd) {
           switch (s[1]) {
             case '8':
               s += 2; // i8 suffix
               isMicrosoftInteger = true;
-              continue;
+              break;
             case '1':
-              s += 2;
-              if (s == ThisTokEnd) break;
-              if (*s == '6') s++; // i16 suffix
-              else if (*s == '2') {
-                if (++s == ThisTokEnd) break;
-                if (*s == '8') s++; // i128 suffix
+              if (s + 2 == ThisTokEnd) break;
+              if (s[2] == '6') s += 3; // i16 suffix
+              else if (s[2] == '2') {
+                if (s + 3 == ThisTokEnd) break;
+                if (s[3] == '8') s += 4; // i128 suffix
               }
               isMicrosoftInteger = true;
-              continue;
+              break;
             case '3':
-              s += 2;
-              if (s == ThisTokEnd) break;
-              if (*s == '2') s++; // i32 suffix
+              if (s + 2 == ThisTokEnd) break;
+              if (s[2] == '2') s += 3; // i32 suffix
               isMicrosoftInteger = true;
-              continue;
+              break;
             case '6':
-              s += 2;
-              if (s == ThisTokEnd) break;
-              if (*s == '4') s++; // i64 suffix
+              if (s + 2 == ThisTokEnd) break;
+              if (s[2] == '4') s += 3; // i64 suffix
               isMicrosoftInteger = true;
-              continue;
-            case 'f':      // FP Suffix for "float"
-            case 'F':
-              if (!isFPConstant) break;  // Error for integer constant.
-              if (isFloat || isLong) break; // FF, LF invalid.
-              isFloat = true;
-              if (isImaginary) break;   // Cannot be repeated.
-              PP.Diag(PP.AdvanceToTokenCharacter(TokLoc, s-begin),
-                      diag::ext_imaginary_constant);
-              isImaginary = true;
-              s++;
-              continue;  // Success.
+              break;
             default:
               break;
           }
@@ -470,7 +458,7 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
     }
     // A binary exponent can appear with or with a '.'. If dotted, the
     // binary exponent is required.
-    if (*s == 'p' || *s == 'P') {
+    if ((*s == 'p' || *s == 'P') && !PP.getLangOptions().CPlusPlus0x) {
       const char *Exponent = s;
       s++;
       saw_exponent = true;
@@ -484,7 +472,12 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
       }
       s = first_non_digit;
 
-      if (!PP.getLangOptions().HexFloats)
+      // In C++0x, we cannot support hexadecmial floating literals because
+      // they conflict with user-defined literals, so we warn in previous
+      // versions of C++ by default.
+      if (PP.getLangOptions().CPlusPlus)
+        PP.Diag(TokLoc, diag::ext_hexconstant_cplusplus);
+      else if (!PP.getLangOptions().HexFloats)
         PP.Diag(TokLoc, diag::ext_hexconstant_invalid);
     } else if (saw_period) {
       PP.Diag(PP.AdvanceToTokenCharacter(TokLoc, s-ThisTokBegin),
@@ -622,28 +615,14 @@ bool NumericLiteralParser::GetIntegerValue(llvm::APInt &Val) {
   return OverflowOccurred;
 }
 
-llvm::APFloat NumericLiteralParser::
-GetFloatValue(const llvm::fltSemantics &Format, bool* isExact) {
+llvm::APFloat::opStatus
+NumericLiteralParser::GetFloatValue(llvm::APFloat &Result) {
   using llvm::APFloat;
   using llvm::StringRef;
 
-  llvm::SmallVector<char,256> floatChars;
   unsigned n = std::min(SuffixBegin - ThisTokBegin, ThisTokEnd - ThisTokBegin);
-  for (unsigned i = 0; i != n; ++i)
-    floatChars.push_back(ThisTokBegin[i]);
-
-  floatChars.push_back('\0');
-
-  APFloat V (Format, APFloat::fcZero, false);
-  APFloat::opStatus status;
-
-  status = V.convertFromString(StringRef(&floatChars[0], n),
-                               APFloat::rmNearestTiesToEven);
-
-  if (isExact)
-    *isExact = status == APFloat::opOK;
-
-  return V;
+  return Result.convertFromString(StringRef(ThisTokBegin, n),
+                                  APFloat::rmNearestTiesToEven);
 }
 
 

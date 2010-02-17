@@ -147,7 +147,7 @@ CallGraphNode *ArgPromotion::PromoteArguments(CallGraphNode *CGN) {
       const Type *AgTy = cast<PointerType>(PtrArg->getType())->getElementType();
       if (const StructType *STy = dyn_cast<StructType>(AgTy)) {
         if (maxElements > 0 && STy->getNumElements() > maxElements) {
-          DEBUG(errs() << "argpromotion disable promoting argument '"
+          DEBUG(dbgs() << "argpromotion disable promoting argument '"
                 << PtrArg->getName() << "' because it would require adding more"
                 << " than " << maxElements << " arguments to the function.\n");
         } else {
@@ -247,7 +247,7 @@ static bool PrefixIn(const ArgPromotion::IndicesVector &Indices,
     return Low != Set.end() && IsPrefix(*Low, Indices);
 }
 
-/// Mark the given indices (ToMark) as safe in the the given set of indices
+/// Mark the given indices (ToMark) as safe in the given set of indices
 /// (Safe). Marking safe usually means adding ToMark to Safe. However, if there
 /// is already a prefix of Indices in Safe, Indices are implicitely marked safe
 /// already. Furthermore, any indices that Indices is itself a prefix of, are
@@ -409,7 +409,7 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg, bool isByVal) const {
     // to do.
     if (ToPromote.find(Operands) == ToPromote.end()) {
       if (maxElements > 0 && ToPromote.size() == maxElements) {
-        DEBUG(errs() << "argpromotion not promoting argument '"
+        DEBUG(dbgs() << "argpromotion not promoting argument '"
               << Arg->getName() << "' because it would require adding more "
               << "than " << maxElements << " arguments to the function.\n");
         // We limit aggregate promotion to only promoting up to a fixed number
@@ -593,7 +593,7 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
   NF->copyAttributesFrom(F);
 
   
-  DEBUG(errs() << "ARG PROMOTION:  Promoting to:" << *NF << "\n"
+  DEBUG(dbgs() << "ARG PROMOTION:  Promoting to:" << *NF << "\n"
         << "From: " << *F);
   
   // Recompute the parameter attributes list based on the new arguments for
@@ -808,7 +808,7 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
         LI->replaceAllUsesWith(I2);
         AA.replaceWithNewValue(LI, I2);
         LI->eraseFromParent();
-        DEBUG(errs() << "*** Promoted load of argument '" << I->getName()
+        DEBUG(dbgs() << "*** Promoted load of argument '" << I->getName()
               << "' in function '" << F->getName() << "'\n");
       } else {
         GetElementPtrInst *GEP = cast<GetElementPtrInst>(I->use_back());
@@ -835,7 +835,7 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
         NewName += ".val";
         TheArg->setName(NewName);
 
-        DEBUG(errs() << "*** Promoted agg argument '" << TheArg->getName()
+        DEBUG(dbgs() << "*** Promoted agg argument '" << TheArg->getName()
               << "' of function '" << NF->getName() << "'\n");
 
         // All of the uses must be load instructions.  Replace them all with

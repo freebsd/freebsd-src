@@ -145,7 +145,7 @@ type ('a, 'b) llrev_pos =
 
 (*===-- Contexts ----------------------------------------------------------===*)
 external create_context : unit -> llcontext = "llvm_create_context"
-external dispose_context : unit -> llcontext = "llvm_dispose_context"
+external dispose_context : llcontext -> unit = "llvm_dispose_context"
 external global_context : unit -> llcontext = "llvm_global_context"
 
 (*===-- Modules -----------------------------------------------------------===*)
@@ -848,7 +848,7 @@ module ModuleProvider = struct
                   = "LLVMCreateModuleProviderForExistingModule"
   external dispose : llmoduleprovider -> unit = "llvm_dispose_module_provider"
 end
-  
+
 
 (*===-- Memory buffers ----------------------------------------------------===*)
 

@@ -25,6 +25,7 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/SmallSet.h"
+#include <map>
 
 namespace llvm {
   class CriticalAntiDepBreaker : public AntiDepBreaker {
@@ -63,22 +64,15 @@ namespace llvm {
   public:
     CriticalAntiDepBreaker(MachineFunction& MFi);
     ~CriticalAntiDepBreaker();
-    
-    /// GetMaxTrials - Critical path anti-dependence breaking requires
-    /// only a single pass
-    unsigned GetMaxTrials() { return 1; }
-
-    /// NeedCandidates - Candidates not needed.
-    bool NeedCandidates() { return false; }
 
     /// Start - Initialize anti-dep breaking for a new basic block.
     void StartBlock(MachineBasicBlock *BB);
 
-    /// BreakAntiDependencies - Identifiy anti-dependencies along the critical path
+    /// BreakAntiDependencies - Identifiy anti-dependencies along the critical
+    /// path
     /// of the ScheduleDAG and break them by renaming registers.
     ///
     unsigned BreakAntiDependencies(std::vector<SUnit>& SUnits,
-                                   CandidateMap& Candidates,
                                    MachineBasicBlock::iterator& Begin,
                                    MachineBasicBlock::iterator& End,
                                    unsigned InsertPosIndex);
@@ -94,7 +88,8 @@ namespace llvm {
   private:
     void PrescanInstruction(MachineInstr *MI);
     void ScanInstruction(MachineInstr *MI, unsigned Count);
-    unsigned findSuitableFreeRegister(unsigned AntiDepReg,
+    unsigned findSuitableFreeRegister(MachineInstr *MI,
+                                      unsigned AntiDepReg,
                                       unsigned LastNewReg,
                                       const TargetRegisterClass *);
   };

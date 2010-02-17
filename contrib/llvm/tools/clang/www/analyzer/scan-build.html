@@ -3,31 +3,32 @@
 <html>
 <head>
   <title>Running the Analyzer</title>
-  <link type="text/css" rel="stylesheet" href="menu.css" />
   <link type="text/css" rel="stylesheet" href="content.css" />
-  <style>  
-    thead {
-      background-color:#eee; color:#666666;
-      font-weight: bold; cursor: default;
-      text-align:center;
-      border-top: 2px solid #cccccc;
-      border-bottom: 2px solid #cccccc;
-      font-weight: bold; font-family: Verdana
-    } 
-    table { border: 1px #cccccc solid }
-    table { border-collapse: collapse; border-spacing: 0px }
-    table { margin-left:0px; margin-top:20px; margin-bottom:20px }
-    td { border-bottom: 1px #cccccc dotted }
-    td { padding:5px; padding-left:8px; padding-right:8px }
-    td { text-align:left; font-size:9pt }
-    td.View   { padding-left: 10px }  
-  </style>
+  <link type="text/css" rel="stylesheet" href="menu.css" />
+  <script type="text/javascript" src="scripts/menu.js"></script>  
 </head>
 <body>
 
+<div id="page">
 <!--#include virtual="menu.html.incl"-->
-
 <div id="content">
+
+<style>  
+table.options thead {
+  background-color:#eee; color:#666666;
+  font-weight: bold; cursor: default;
+  text-align:left;
+  border-top: 2px solid #cccccc;
+  border-bottom: 2px solid #cccccc;
+  font-weight: bold; font-family: Verdana
+} 
+table.options { border: 1px #cccccc solid }
+table.options { border-collapse: collapse; border-spacing: 0px }
+table.options { margin-left:0px; margin-top:20px; margin-bottom:20px }
+table.options td { border-bottom: 1px #cccccc dotted }
+table.options td { padding:5px; padding-left:8px; padding-right:8px }
+table.options td { text-align:left; font-size:9pt }
+</style>
 
 <h1>Running the Analyzer</h1>
 
@@ -81,7 +82,7 @@ built using <tt>xcodebuild</tt>.<p>
 $ <span class="code_highlight">scan-build</span> <i>[scan-build options]</i> <span class="code_highlight">&lt;command&gt;</span> <i>[command options]</i>
 </pre>
 
-<p>Operationally, <tt>scan-build</tt> literally runs <command> with all of the
+<p>Operationally, <tt>scan-build</tt> literally runs &lt;command&gt; with all of the
 subsequent options passed to it. For example, one can pass <nobr><tt>-j4</tt></nobr> to
 <tt>make</tt> get a parallel build over 4 cores:</p>
 
@@ -116,7 +117,7 @@ options prefix the build command. For example:</p>
 
 <p>Here is a subset of useful options:</p>
 
-<table>
+<table class="options">
 <thead><tr><td>Option</td><td>Description</td></tr></thead>
 
 <tr><td><b>-o</b></td><td>Target directory for HTML report files. Subdirectories
@@ -244,6 +245,7 @@ the arguments over to <tt>gcc</tt>, but this may not work perfectly (please
 report bugs of this kind).
  -->
 
+</div>
 </div>
 </body>
 </html>

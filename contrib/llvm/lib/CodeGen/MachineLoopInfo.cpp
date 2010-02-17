@@ -17,14 +17,17 @@
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/Support/Debug.h"
 using namespace llvm;
 
+namespace llvm {
 #define MLB class LoopBase<MachineBasicBlock, MachineLoop>
 TEMPLATE_INSTANTIATION(MLB);
 #undef MLB
 #define MLIB class LoopInfoBase<MachineBasicBlock, MachineLoop>
 TEMPLATE_INSTANTIATION(MLIB);
 #undef MLIB
+}
 
 char MachineLoopInfo::ID = 0;
 static RegisterPass<MachineLoopInfo>
@@ -62,12 +65,16 @@ MachineBasicBlock *MachineLoop::getBottomBlock() {
   MachineBasicBlock *BotMBB = getHeader();
   MachineFunction::iterator End = BotMBB->getParent()->end();
   if (BotMBB != prior(End)) {
-    MachineBasicBlock *NextMBB = next(MachineFunction::iterator(BotMBB));
+    MachineBasicBlock *NextMBB = llvm::next(MachineFunction::iterator(BotMBB));
     while (contains(NextMBB)) {
       BotMBB = NextMBB;
-      if (BotMBB == next(MachineFunction::iterator(BotMBB))) break;
-      NextMBB = next(MachineFunction::iterator(BotMBB));
+      if (BotMBB == llvm::next(MachineFunction::iterator(BotMBB))) break;
+      NextMBB = llvm::next(MachineFunction::iterator(BotMBB));
     }
   }
   return BotMBB;
+}
+
+void MachineLoop::dump() const {
+  print(dbgs());
 }

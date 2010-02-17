@@ -30,6 +30,7 @@ class StringRef;
 namespace clang {
 class Diagnostic;
 class LangOptions;
+class MacroBuilder;
 class SourceLocation;
 class SourceManager;
 class TargetOptions;
@@ -61,8 +62,11 @@ protected:
 
 public:
   /// CreateTargetInfo - Construct a target for the given options.
-  static TargetInfo* CreateTargetInfo(Diagnostic &Diags,
-                                      const TargetOptions &Opts);
+  ///
+  /// \param Opts - The options to use to initialize the target. The target may
+  /// modify the options to canonicalize the target feature information to match
+  /// what the backend expects.
+  static TargetInfo* CreateTargetInfo(Diagnostic &Diags, TargetOptions &Opts);
 
   virtual ~TargetInfo();
 
@@ -80,7 +84,7 @@ public:
   };
 protected:
   IntType SizeType, IntMaxType, UIntMaxType, PtrDiffType, IntPtrType, WCharType,
-          WIntType, Char16Type, Char32Type, Int64Type;
+          WIntType, Char16Type, Char32Type, Int64Type, SigAtomicType;
 public:
   IntType getSizeType() const { return SizeType; }
   IntType getIntMaxType() const { return IntMaxType; }
@@ -94,6 +98,7 @@ public:
   IntType getChar16Type() const { return Char16Type; }
   IntType getChar32Type() const { return Char32Type; }
   IntType getInt64Type() const { return Int64Type; }
+  IntType getSigAtomicType() const { return SigAtomicType; }
 
 
   /// getTypeWidth - Return the width (in bits) of the specified integer type 
@@ -205,7 +210,7 @@ public:
   /// getTargetDefines - Appends the target-specific #define values for this
   /// target set to the specified buffer.
   virtual void getTargetDefines(const LangOptions &Opts,
-                                std::vector<char> &DefineBuffer) const = 0;
+                                MacroBuilder &Builder) const = 0;
 
 
   /// getTargetBuiltins - Return information about target-specific builtins for
@@ -221,11 +226,11 @@ public:
   /// isValidGCCRegisterName - Returns whether the passed in string
   /// is a valid register name according to GCC. This is used by Sema for
   /// inline asm statements.
-  bool isValidGCCRegisterName(const char *Name) const;
+  bool isValidGCCRegisterName(llvm::StringRef Name) const;
 
   // getNormalizedGCCRegisterName - Returns the "normalized" GCC register name.
   // For example, on x86 it will return "ax" when "eax" is passed in.
-  const char *getNormalizedGCCRegisterName(const char *Name) const;
+  llvm::StringRef getNormalizedGCCRegisterName(llvm::StringRef Name) const;
 
   struct ConstraintInfo {
     enum {
@@ -241,10 +246,9 @@ public:
     std::string ConstraintStr;  // constraint: "=rm"
     std::string Name;           // Operand name: [foo] with no []'s.
   public:
-    ConstraintInfo(const char *str, unsigned strlen, const std::string &name)
-      : Flags(0), TiedOperand(-1), ConstraintStr(str, str+strlen), Name(name) {}
-    explicit ConstraintInfo(const std::string &Str, const std::string &name)
-      : Flags(0), TiedOperand(-1), ConstraintStr(Str), Name(name) {}
+    ConstraintInfo(llvm::StringRef ConstraintStr, llvm::StringRef Name)
+      : Flags(0), TiedOperand(-1), ConstraintStr(ConstraintStr.str()), 
+      Name(Name.str()) {}
 
     const std::string &getConstraintStr() const { return ConstraintStr; }
     const std::string &getName() const { return Name; }
@@ -316,12 +320,6 @@ public:
 
   virtual bool useGlobalsForAutomaticVariables() const { return false; }
 
-  /// getUnicodeStringSection - Return the section to use for unicode
-  /// string literals, or 0 if no special section is used.
-  virtual const char *getUnicodeStringSection() const {
-    return 0;
-  }
-
   /// getCFStringSection - Return the section to use for CFString
   /// literals, or 0 if no special section is used.
   virtual const char *getCFStringSection() const {
@@ -338,7 +336,7 @@ public:
   /// and give good diagnostics in cases when the assembler or code generator
   /// would otherwise reject the section specifier.
   ///
-  virtual std::string isValidSectionSpecifier(const llvm::StringRef &SR) const {
+  virtual std::string isValidSectionSpecifier(llvm::StringRef SR) const {
     return "";
   }
 
@@ -357,6 +355,15 @@ public:
   /// getABI - Get the ABI in use.
   virtual const char *getABI() const {
     return "";
+  }
+
+  /// setCPU - Target the specific CPU.
+  ///
+  /// \return - False on error (invalid CPU name).
+  //
+  // FIXME: Remove this.
+  virtual bool setCPU(const std::string &Name) {
+    return true;
   }
 
   /// setABI - Use the specific ABI.
@@ -379,7 +386,10 @@ public:
   /// HandleTargetOptions - Perform initialization based on the user configured
   /// set of features (e.g., +sse4). The list is guaranteed to have at most one
   /// entry per feature.
-  virtual void HandleTargetFeatures(const std::vector<std::string> &Features) {
+  ///
+  /// The target may modify the features list, to change which options are
+  /// passed onwards to the backend.
+  virtual void HandleTargetFeatures(std::vector<std::string> &Features) {
   }
 
   // getRegParmMax - Returns maximal number of args passed in registers.

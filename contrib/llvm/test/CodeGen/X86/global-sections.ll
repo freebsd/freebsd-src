@@ -6,7 +6,6 @@
 @G1 = common global i32 0
 
 ; LINUX: .type   G1,@object
-; LINUX: .section .gnu.linkonce.b.G1,"aw",@nobits
 ; LINUX: .comm  G1,4,4
 
 ; DARWIN: .comm	_G1,4,2
@@ -76,14 +75,14 @@
 ; LINUX:   .section	.gnu.linkonce.r.G6,"a",@progbits
 ; LINUX:   .weak	G6
 ; LINUX: G6:
-; LINUX:   .ascii	"\001"
+; LINUX:   .byte	1
 ; LINUX:   .size	G6, 1
 
 ; DARWIN:  .section __TEXT,__const_coal,coalesced
 ; DARWIN:  .globl _G6
 ; DARWIN:  .weak_definition _G6
 ; DARWIN:_G6:
-; DARWIN:  .ascii "\001"
+; DARWIN:  .byte 1
 
 
 @G7 = constant [10 x i8] c"abcdefghi\00"
@@ -120,4 +119,19 @@
 ; LINUX:G9
 
 
+@G10 = weak global [100 x i32] zeroinitializer, align 32 ; <[100 x i32]*> [#uses=0]
+
+
+; DARWIN: 	.section	__DATA,__datacoal_nt,coalesced
+; DARWIN: .globl _G10
+; DARWIN:	.weak_definition _G10
+; DARWIN:	.align	5
+; DARWIN: _G10:
+; DARWIN:	.space	400
+
+; LINUX:	.bss
+; LINUX:	.weak	G10
+; LINUX:	.align	32
+; LINUX: G10:
+; LINUX:	.zero	400
 

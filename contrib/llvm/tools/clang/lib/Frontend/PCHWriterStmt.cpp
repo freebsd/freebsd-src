@@ -112,6 +112,14 @@ namespace {
     // C++ Statements
     void VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E);
     void VisitCXXConstructExpr(CXXConstructExpr *E);
+    void VisitCXXNamedCastExpr(CXXNamedCastExpr *E);
+    void VisitCXXStaticCastExpr(CXXStaticCastExpr *E);
+    void VisitCXXDynamicCastExpr(CXXDynamicCastExpr *E);
+    void VisitCXXReinterpretCastExpr(CXXReinterpretCastExpr *E);
+    void VisitCXXConstCastExpr(CXXConstCastExpr *E);
+    void VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E);
+    void VisitCXXBoolLiteralExpr(CXXBoolLiteralExpr *E);
+    void VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *E);
   };
 }
 
@@ -170,6 +178,7 @@ void PCHStmtWriter::VisitLabelStmt(LabelStmt *S) {
 
 void PCHStmtWriter::VisitIfStmt(IfStmt *S) {
   VisitStmt(S);
+  Writer.AddDeclRef(S->getConditionVariable(), Record);
   Writer.WriteSubStmt(S->getCond());
   Writer.WriteSubStmt(S->getThen());
   Writer.WriteSubStmt(S->getElse());
@@ -180,6 +189,7 @@ void PCHStmtWriter::VisitIfStmt(IfStmt *S) {
 
 void PCHStmtWriter::VisitSwitchStmt(SwitchStmt *S) {
   VisitStmt(S);
+  Writer.AddDeclRef(S->getConditionVariable(), Record);
   Writer.WriteSubStmt(S->getCond());
   Writer.WriteSubStmt(S->getBody());
   Writer.AddSourceLocation(S->getSwitchLoc(), Record);
@@ -191,6 +201,7 @@ void PCHStmtWriter::VisitSwitchStmt(SwitchStmt *S) {
 
 void PCHStmtWriter::VisitWhileStmt(WhileStmt *S) {
   VisitStmt(S);
+  Writer.AddDeclRef(S->getConditionVariable(), Record);
   Writer.WriteSubStmt(S->getCond());
   Writer.WriteSubStmt(S->getBody());
   Writer.AddSourceLocation(S->getWhileLoc(), Record);
@@ -211,6 +222,7 @@ void PCHStmtWriter::VisitForStmt(ForStmt *S) {
   VisitStmt(S);
   Writer.WriteSubStmt(S->getInit());
   Writer.WriteSubStmt(S->getCond());
+  Writer.AddDeclRef(S->getConditionVariable(), Record);
   Writer.WriteSubStmt(S->getInc());
   Writer.WriteSubStmt(S->getBody());
   Writer.AddSourceLocation(S->getForLoc(), Record);
@@ -273,18 +285,19 @@ void PCHStmtWriter::VisitAsmStmt(AsmStmt *S) {
   Writer.AddSourceLocation(S->getRParenLoc(), Record);
   Record.push_back(S->isVolatile());
   Record.push_back(S->isSimple());
+  Record.push_back(S->isMSAsm());
   Writer.WriteSubStmt(S->getAsmString());
 
   // Outputs
-  for (unsigned I = 0, N = S->getNumOutputs(); I != N; ++I) {
-    Writer.AddString(S->getOutputName(I), Record);
+  for (unsigned I = 0, N = S->getNumOutputs(); I != N; ++I) {      
+    Writer.AddIdentifierRef(S->getOutputIdentifier(I), Record);
     Writer.WriteSubStmt(S->getOutputConstraintLiteral(I));
     Writer.WriteSubStmt(S->getOutputExpr(I));
   }
 
   // Inputs
   for (unsigned I = 0, N = S->getNumInputs(); I != N; ++I) {
-    Writer.AddString(S->getInputName(I), Record);
+    Writer.AddIdentifierRef(S->getInputIdentifier(I), Record);
     Writer.WriteSubStmt(S->getInputConstraintLiteral(I));
     Writer.WriteSubStmt(S->getInputExpr(I));
   }
@@ -384,7 +397,7 @@ void PCHStmtWriter::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) {
   VisitExpr(E);
   Record.push_back(E->isSizeOf());
   if (E->isArgumentType())
-    Writer.AddDeclaratorInfo(E->getArgumentTypeInfo(), Record);
+    Writer.AddTypeSourceInfo(E->getArgumentTypeInfo(), Record);
   else {
     Record.push_back(0);
     Writer.WriteSubStmt(E->getArgumentExpr());
@@ -472,7 +485,7 @@ void PCHStmtWriter::VisitImplicitCastExpr(ImplicitCastExpr *E) {
 
 void PCHStmtWriter::VisitExplicitCastExpr(ExplicitCastExpr *E) {
   VisitCastExpr(E);
-  Writer.AddTypeRef(E->getTypeAsWritten(), Record);
+  Writer.AddTypeSourceInfo(E->getTypeInfoAsWritten(), Record);
 }
 
 void PCHStmtWriter::VisitCStyleCastExpr(CStyleCastExpr *E) {
@@ -485,6 +498,7 @@ void PCHStmtWriter::VisitCStyleCastExpr(CStyleCastExpr *E) {
 void PCHStmtWriter::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
   VisitExpr(E);
   Writer.AddSourceLocation(E->getLParenLoc(), Record);
+  Writer.AddTypeSourceInfo(E->getTypeSourceInfo(), Record);
   Writer.WriteSubStmt(E->getInitializer());
   Record.push_back(E->isFileScope());
   Code = pch::EXPR_COMPOUND_LITERAL;
@@ -781,11 +795,58 @@ void PCHStmtWriter::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 void PCHStmtWriter::VisitCXXConstructExpr(CXXConstructExpr *E) {
   VisitExpr(E);
   Writer.AddDeclRef(E->getConstructor(), Record);
+  Writer.AddSourceLocation(E->getLocation(), Record);
   Record.push_back(E->isElidable());
+  Record.push_back(E->requiresZeroInitialization());
   Record.push_back(E->getNumArgs());
   for (unsigned I = 0, N = E->getNumArgs(); I != N; ++I)
     Writer.WriteSubStmt(E->getArg(I));
   Code = pch::EXPR_CXX_CONSTRUCT;
+}
+
+void PCHStmtWriter::VisitCXXNamedCastExpr(CXXNamedCastExpr *E) {
+  VisitExplicitCastExpr(E);
+  Writer.AddSourceLocation(E->getOperatorLoc(), Record);
+}
+
+void PCHStmtWriter::VisitCXXStaticCastExpr(CXXStaticCastExpr *E) {
+  VisitCXXNamedCastExpr(E);
+  Code = pch::EXPR_CXX_STATIC_CAST;
+}
+
+void PCHStmtWriter::VisitCXXDynamicCastExpr(CXXDynamicCastExpr *E) {
+  VisitCXXNamedCastExpr(E);
+  Code = pch::EXPR_CXX_DYNAMIC_CAST;
+}
+
+void PCHStmtWriter::VisitCXXReinterpretCastExpr(CXXReinterpretCastExpr *E) {
+  VisitCXXNamedCastExpr(E);
+  Code = pch::EXPR_CXX_REINTERPRET_CAST;
+}
+
+void PCHStmtWriter::VisitCXXConstCastExpr(CXXConstCastExpr *E) {
+  VisitCXXNamedCastExpr(E);
+  Code = pch::EXPR_CXX_CONST_CAST;
+}
+
+void PCHStmtWriter::VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E) {
+  VisitExplicitCastExpr(E);
+  Writer.AddSourceLocation(E->getTypeBeginLoc(), Record);
+  Writer.AddSourceLocation(E->getRParenLoc(), Record);
+  Code = pch::EXPR_CXX_FUNCTIONAL_CAST;
+}
+
+void PCHStmtWriter::VisitCXXBoolLiteralExpr(CXXBoolLiteralExpr *E) {
+  VisitExpr(E);
+  Record.push_back(E->getValue());
+  Writer.AddSourceLocation(E->getLocation(), Record);
+  Code = pch::EXPR_CXX_BOOL_LITERAL;
+}
+
+void PCHStmtWriter::VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *E) {
+  VisitExpr(E);
+  Writer.AddSourceLocation(E->getLocation(), Record);
+  Code = pch::EXPR_CXX_NULL_PTR_LITERAL;
 }
 
 //===----------------------------------------------------------------------===//

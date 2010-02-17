@@ -31,9 +31,16 @@ public:
   unsigned ShowOptionNames : 1;  /// Show the diagnostic name for mappable
                                  /// diagnostics.
   unsigned ShowColors : 1;       /// Show diagnostics with ANSI color sequences.
-  unsigned VerifyDiagnostics;    /// Check that diagnostics match the expected
+  unsigned VerifyDiagnostics: 1; /// Check that diagnostics match the expected
                                  /// diagnostics, indicated by markers in the
                                  /// input source file.
+  unsigned BinaryOutput : 1;     /// Emit diagnostics via the diagnostic 
+                                 /// binary serialization mechanism, to be
+                                 /// deserialized by, e.g., the CIndex library.
+
+  /// The distance between tab stops.
+  unsigned TabStop;
+  enum { DefaultTabStop = 8, MaxTabStop = 100 };
 
   /// Column limit for formatting message diagnostics, or 0 if unused.
   unsigned MessageLength;
@@ -49,6 +56,7 @@ public:
 public:
   DiagnosticOptions() {
     IgnoreWarnings = 0;
+    TabStop = DefaultTabStop;
     MessageLength = 0;
     NoRewriteMacros = 0;
     Pedantic = 0;
@@ -61,6 +69,7 @@ public:
     ShowOptionNames = 0;
     ShowSourceRanges = 0;
     VerifyDiagnostics = 0;
+    BinaryOutput = 0;
   }
 };
 

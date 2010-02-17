@@ -24,7 +24,6 @@
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Analysis/DebugInfo.h"
@@ -148,7 +147,7 @@ static void StripSymtab(ValueSymbolTable &ST, bool PreserveDbgInfo) {
 // Strip the symbol table of its names.
 static void StripTypeSymtab(TypeSymbolTable &ST, bool PreserveDbgInfo) {
   for (TypeSymbolTable::iterator TI = ST.begin(), E = ST.end(); TI != E; ) {
-    if (PreserveDbgInfo && strncmp(TI->first.c_str(), "llvm.dbg", 8) == 0)
+    if (PreserveDbgInfo && StringRef(TI->first).startswith("llvm.dbg"))
       ++TI;
     else
       ST.remove(TI++);
@@ -215,22 +214,28 @@ static bool StripDebugInfo(Module &M) {
     Changed = true;
   }
 
+  if (Function *DbgVal = M.getFunction("llvm.dbg.value")) {
+    while (!DbgVal->use_empty()) {
+      CallInst *CI = cast<CallInst>(DbgVal->use_back());
+      CI->eraseFromParent();
+    }
+    DbgVal->eraseFromParent();
+    Changed = true;
+  }
+
   NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.gv");
   if (NMD) {
     Changed = true;
     NMD->eraseFromParent();
   }
-  MetadataContext &TheMetadata = M.getContext().getMetadata();
-  unsigned MDDbgKind = TheMetadata.getMDKind("dbg");
-  if (!MDDbgKind)
-    return Changed;
-
+  
+  unsigned MDDbgKind = M.getMDKindID("dbg");
   for (Module::iterator MI = M.begin(), ME = M.end(); MI != ME; ++MI) 
     for (Function::iterator FI = MI->begin(), FE = MI->end(); FI != FE;
          ++FI)
       for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); BI != BE;
            ++BI) 
-        TheMetadata.removeMD(MDDbgKind, BI);
+        BI->setMetadata(MDDbgKind, 0);
 
   return true;
 }

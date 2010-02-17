@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#define DEBUG_TYPE "codegen-dce"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Pass.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -19,7 +20,10 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/ADT/Statistic.h"
 using namespace llvm;
+
+STATISTIC(NumDeletes,          "Number of dead instructions deleted");
 
 namespace {
   class DeadMachineInstructionElim : public MachineFunctionPass {
@@ -51,7 +55,7 @@ FunctionPass *llvm::createDeadMachineInstructionElimPass() {
 bool DeadMachineInstructionElim::isDead(const MachineInstr *MI) const {
   // Don't delete instructions with side effects.
   bool SawStore = false;
-  if (!MI->isSafeToMove(TII, SawStore, 0))
+  if (!MI->isSafeToMove(TII, SawStore, 0) && !MI->isPHI())
     return false;
 
   // Examine each operand.
@@ -60,8 +64,8 @@ bool DeadMachineInstructionElim::isDead(const MachineInstr *MI) const {
     if (MO.isReg() && MO.isDef()) {
       unsigned Reg = MO.getReg();
       if (TargetRegisterInfo::isPhysicalRegister(Reg) ?
-          LivePhysRegs[Reg] : !MRI->use_empty(Reg)) {
-        // This def has a use. Don't delete the instruction!
+          LivePhysRegs[Reg] : !MRI->use_nodbg_empty(Reg)) {
+        // This def has a non-debug use. Don't delete the instruction!
         return false;
       }
     }
@@ -109,9 +113,32 @@ bool DeadMachineInstructionElim::runOnMachineFunction(MachineFunction &MF) {
 
       // If the instruction is dead, delete it!
       if (isDead(MI)) {
-        DEBUG(errs() << "DeadMachineInstructionElim: DELETING: " << *MI);
+        DEBUG(dbgs() << "DeadMachineInstructionElim: DELETING: " << *MI);
+        // It is possible that some DBG_VALUE instructions refer to this
+        // instruction.  Examine each def operand for such references;
+        // if found, mark the DBG_VALUE as undef (but don't delete it).
+        for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
+          const MachineOperand &MO = MI->getOperand(i);
+          if (!MO.isReg() || !MO.isDef())
+            continue;
+          unsigned Reg = MO.getReg();
+          if (!TargetRegisterInfo::isVirtualRegister(Reg))
+            continue;
+          MachineRegisterInfo::use_iterator nextI;
+          for (MachineRegisterInfo::use_iterator I = MRI->use_begin(Reg),
+               E = MRI->use_end(); I!=E; I=nextI) {
+            nextI = llvm::next(I);  // I is invalidated by the setReg
+            MachineOperand& Use = I.getOperand();
+            MachineInstr *UseMI = Use.getParent();
+            if (UseMI==MI)
+              continue;
+            assert(Use.isDebug());
+            UseMI->getOperand(0).setReg(0U);
+          }
+        }
         AnyChanges = true;
         MI->eraseFromParent();
+        ++NumDeletes;
         MIE = MBB->rend();
         // MII is now pointing to the next instruction to process,
         // so don't increment it.

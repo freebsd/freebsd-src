@@ -24,7 +24,6 @@
 #include "llvm/Function.h"
 #include "llvm/GlobalAlias.h"
 #include "llvm/GlobalVariable.h"
-#include "llvm/LLVMContext.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -41,7 +40,7 @@ using namespace llvm;
 /// BitCastConstantVector - Convert the specified ConstantVector node to the
 /// specified vector type.  At this point, we know that the elements of the
 /// input vector constant are all simple integer or FP values.
-static Constant *BitCastConstantVector(LLVMContext &Context, ConstantVector *CV,
+static Constant *BitCastConstantVector(ConstantVector *CV,
                                        const VectorType *DstTy) {
   // If this cast changes element count then we can't handle it here:
   // doing so requires endianness information.  This should be handled by
@@ -91,8 +90,7 @@ foldConstantCastPair(
                                         Type::getInt64Ty(DstTy->getContext()));
 }
 
-static Constant *FoldBitCast(LLVMContext &Context, 
-                             Constant *V, const Type *DestTy) {
+static Constant *FoldBitCast(Constant *V, const Type *DestTy) {
   const Type *SrcTy = V->getType();
   if (SrcTy == DestTy)
     return V; // no-op cast
@@ -103,7 +101,8 @@ static Constant *FoldBitCast(LLVMContext &Context,
     if (const PointerType *DPTy = dyn_cast<PointerType>(DestTy))
       if (PTy->getAddressSpace() == DPTy->getAddressSpace()) {
         SmallVector<Value*, 8> IdxList;
-        Value *Zero = Constant::getNullValue(Type::getInt32Ty(Context));
+        Value *Zero =
+          Constant::getNullValue(Type::getInt32Ty(DPTy->getContext()));
         IdxList.push_back(Zero);
         const Type *ElTy = PTy->getElementType();
         while (ElTy != DPTy->getElementType()) {
@@ -139,15 +138,14 @@ static Constant *FoldBitCast(LLVMContext &Context,
         return Constant::getNullValue(DestTy);
 
       if (ConstantVector *CV = dyn_cast<ConstantVector>(V))
-        return BitCastConstantVector(Context, CV, DestPTy);
+        return BitCastConstantVector(CV, DestPTy);
     }
 
     // Canonicalize scalar-to-vector bitcasts into vector-to-vector bitcasts
     // This allows for other simplifications (although some of them
     // can only be handled by Analysis/ConstantFolding.cpp).
     if (isa<ConstantInt>(V) || isa<ConstantFP>(V))
-      return ConstantExpr::getBitCast(
-                                     ConstantVector::get(&V, 1), DestPTy);
+      return ConstantExpr::getBitCast(ConstantVector::get(&V, 1), DestPTy);
   }
 
   // Finally, implement bitcast folding now.   The code below doesn't handle
@@ -157,23 +155,24 @@ static Constant *FoldBitCast(LLVMContext &Context,
 
   // Handle integral constant input.
   if (ConstantInt *CI = dyn_cast<ConstantInt>(V)) {
-    if (DestTy->isInteger())
+    if (DestTy->isIntegerTy())
       // Integral -> Integral. This is a no-op because the bit widths must
       // be the same. Consequently, we just fold to V.
       return V;
 
-    if (DestTy->isFloatingPoint())
-      return ConstantFP::get(Context, APFloat(CI->getValue(),
-                                     DestTy != Type::getPPC_FP128Ty(Context)));
+    if (DestTy->isFloatingPointTy())
+      return ConstantFP::get(DestTy->getContext(),
+                             APFloat(CI->getValue(),
+                                     !DestTy->isPPC_FP128Ty()));
 
     // Otherwise, can't fold this (vector?)
     return 0;
   }
 
-  // Handle ConstantFP input.
+  // Handle ConstantFP input: FP -> Integral.
   if (ConstantFP *FP = dyn_cast<ConstantFP>(V))
-    // FP -> Integral.
-    return ConstantInt::get(Context, FP->getValueAPF().bitcastToAPInt());
+    return ConstantInt::get(FP->getContext(),
+                            FP->getValueAPF().bitcastToAPInt());
 
   return 0;
 }
@@ -323,9 +322,195 @@ static Constant *ExtractConstantBytes(Constant *C, unsigned ByteStart,
   }
 }
 
+/// getFoldedSizeOf - Return a ConstantExpr with type DestTy for sizeof
+/// on Ty, with any known factors factored out. If Folded is false,
+/// return null if no factoring was possible, to avoid endlessly
+/// bouncing an unfoldable expression back into the top-level folder.
+///
+static Constant *getFoldedSizeOf(const Type *Ty, const Type *DestTy,
+                                 bool Folded) {
+  if (const ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
+    Constant *N = ConstantInt::get(DestTy, ATy->getNumElements());
+    Constant *E = getFoldedSizeOf(ATy->getElementType(), DestTy, true);
+    return ConstantExpr::getNUWMul(E, N);
+  }
+  if (const VectorType *VTy = dyn_cast<VectorType>(Ty)) {
+    Constant *N = ConstantInt::get(DestTy, VTy->getNumElements());
+    Constant *E = getFoldedSizeOf(VTy->getElementType(), DestTy, true);
+    return ConstantExpr::getNUWMul(E, N);
+  }
+  if (const StructType *STy = dyn_cast<StructType>(Ty))
+    if (!STy->isPacked()) {
+      unsigned NumElems = STy->getNumElements();
+      // An empty struct has size zero.
+      if (NumElems == 0)
+        return ConstantExpr::getNullValue(DestTy);
+      // Check for a struct with all members having the same size.
+      Constant *MemberSize =
+        getFoldedSizeOf(STy->getElementType(0), DestTy, true);
+      bool AllSame = true;
+      for (unsigned i = 1; i != NumElems; ++i)
+        if (MemberSize !=
+            getFoldedSizeOf(STy->getElementType(i), DestTy, true)) {
+          AllSame = false;
+          break;
+        }
+      if (AllSame) {
+        Constant *N = ConstantInt::get(DestTy, NumElems);
+        return ConstantExpr::getNUWMul(MemberSize, N);
+      }
+    }
 
-Constant *llvm::ConstantFoldCastInstruction(LLVMContext &Context, 
-                                            unsigned opc, Constant *V,
+  // Pointer size doesn't depend on the pointee type, so canonicalize them
+  // to an arbitrary pointee.
+  if (const PointerType *PTy = dyn_cast<PointerType>(Ty))
+    if (!PTy->getElementType()->isIntegerTy(1))
+      return
+        getFoldedSizeOf(PointerType::get(IntegerType::get(PTy->getContext(), 1),
+                                         PTy->getAddressSpace()),
+                        DestTy, true);
+
+  // If there's no interesting folding happening, bail so that we don't create
+  // a constant that looks like it needs folding but really doesn't.
+  if (!Folded)
+    return 0;
+
+  // Base case: Get a regular sizeof expression.
+  Constant *C = ConstantExpr::getSizeOf(Ty);
+  C = ConstantExpr::getCast(CastInst::getCastOpcode(C, false,
+                                                    DestTy, false),
+                            C, DestTy);
+  return C;
+}
+
+/// getFoldedAlignOf - Return a ConstantExpr with type DestTy for alignof
+/// on Ty, with any known factors factored out. If Folded is false,
+/// return null if no factoring was possible, to avoid endlessly
+/// bouncing an unfoldable expression back into the top-level folder.
+///
+static Constant *getFoldedAlignOf(const Type *Ty, const Type *DestTy,
+                                  bool Folded) {
+  // The alignment of an array is equal to the alignment of the
+  // array element. Note that this is not always true for vectors.
+  if (const ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
+    Constant *C = ConstantExpr::getAlignOf(ATy->getElementType());
+    C = ConstantExpr::getCast(CastInst::getCastOpcode(C, false,
+                                                      DestTy,
+                                                      false),
+                              C, DestTy);
+    return C;
+  }
+
+  if (const StructType *STy = dyn_cast<StructType>(Ty)) {
+    // Packed structs always have an alignment of 1.
+    if (STy->isPacked())
+      return ConstantInt::get(DestTy, 1);
+
+    // Otherwise, struct alignment is the maximum alignment of any member.
+    // Without target data, we can't compare much, but we can check to see
+    // if all the members have the same alignment.
+    unsigned NumElems = STy->getNumElements();
+    // An empty struct has minimal alignment.
+    if (NumElems == 0)
+      return ConstantInt::get(DestTy, 1);
+    // Check for a struct with all members having the same alignment.
+    Constant *MemberAlign =
+      getFoldedAlignOf(STy->getElementType(0), DestTy, true);
+    bool AllSame = true;
+    for (unsigned i = 1; i != NumElems; ++i)
+      if (MemberAlign != getFoldedAlignOf(STy->getElementType(i), DestTy, true)) {
+        AllSame = false;
+        break;
+      }
+    if (AllSame)
+      return MemberAlign;
+  }
+
+  // Pointer alignment doesn't depend on the pointee type, so canonicalize them
+  // to an arbitrary pointee.
+  if (const PointerType *PTy = dyn_cast<PointerType>(Ty))
+    if (!PTy->getElementType()->isIntegerTy(1))
+      return
+        getFoldedAlignOf(PointerType::get(IntegerType::get(PTy->getContext(),
+                                                           1),
+                                          PTy->getAddressSpace()),
+                         DestTy, true);
+
+  // If there's no interesting folding happening, bail so that we don't create
+  // a constant that looks like it needs folding but really doesn't.
+  if (!Folded)
+    return 0;
+
+  // Base case: Get a regular alignof expression.
+  Constant *C = ConstantExpr::getAlignOf(Ty);
+  C = ConstantExpr::getCast(CastInst::getCastOpcode(C, false,
+                                                    DestTy, false),
+                            C, DestTy);
+  return C;
+}
+
+/// getFoldedOffsetOf - Return a ConstantExpr with type DestTy for offsetof
+/// on Ty and FieldNo, with any known factors factored out. If Folded is false,
+/// return null if no factoring was possible, to avoid endlessly
+/// bouncing an unfoldable expression back into the top-level folder.
+///
+static Constant *getFoldedOffsetOf(const Type *Ty, Constant *FieldNo,
+                                   const Type *DestTy,
+                                   bool Folded) {
+  if (const ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
+    Constant *N = ConstantExpr::getCast(CastInst::getCastOpcode(FieldNo, false,
+                                                                DestTy, false),
+                                        FieldNo, DestTy);
+    Constant *E = getFoldedSizeOf(ATy->getElementType(), DestTy, true);
+    return ConstantExpr::getNUWMul(E, N);
+  }
+  if (const VectorType *VTy = dyn_cast<VectorType>(Ty)) {
+    Constant *N = ConstantExpr::getCast(CastInst::getCastOpcode(FieldNo, false,
+                                                                DestTy, false),
+                                        FieldNo, DestTy);
+    Constant *E = getFoldedSizeOf(VTy->getElementType(), DestTy, true);
+    return ConstantExpr::getNUWMul(E, N);
+  }
+  if (const StructType *STy = dyn_cast<StructType>(Ty))
+    if (!STy->isPacked()) {
+      unsigned NumElems = STy->getNumElements();
+      // An empty struct has no members.
+      if (NumElems == 0)
+        return 0;
+      // Check for a struct with all members having the same size.
+      Constant *MemberSize =
+        getFoldedSizeOf(STy->getElementType(0), DestTy, true);
+      bool AllSame = true;
+      for (unsigned i = 1; i != NumElems; ++i)
+        if (MemberSize !=
+            getFoldedSizeOf(STy->getElementType(i), DestTy, true)) {
+          AllSame = false;
+          break;
+        }
+      if (AllSame) {
+        Constant *N = ConstantExpr::getCast(CastInst::getCastOpcode(FieldNo,
+                                                                    false,
+                                                                    DestTy,
+                                                                    false),
+                                            FieldNo, DestTy);
+        return ConstantExpr::getNUWMul(MemberSize, N);
+      }
+    }
+
+  // If there's no interesting folding happening, bail so that we don't create
+  // a constant that looks like it needs folding but really doesn't.
+  if (!Folded)
+    return 0;
+
+  // Base case: Get a regular offsetof expression.
+  Constant *C = ConstantExpr::getOffsetOf(Ty, FieldNo);
+  C = ConstantExpr::getCast(CastInst::getCastOpcode(C, false,
+                                                    DestTy, false),
+                            C, DestTy);
+  return C;
+}
+
+Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
                                             const Type *DestTy) {
   if (isa<UndefValue>(V)) {
     // zext(undef) = 0, because the top bits will be zero.
@@ -394,7 +579,7 @@ Constant *llvm::ConstantFoldCastInstruction(LLVMContext &Context,
                   DestTy->isFP128Ty() ? APFloat::IEEEquad :
                   APFloat::Bogus,
                   APFloat::rmNearestTiesToEven, &ignored);
-      return ConstantFP::get(Context, Val);
+      return ConstantFP::get(V->getContext(), Val);
     }
     return 0; // Can't fold.
   case Instruction::FPToUI: 
@@ -407,7 +592,7 @@ Constant *llvm::ConstantFoldCastInstruction(LLVMContext &Context,
       (void) V.convertToInteger(x, DestBitWidth, opc==Instruction::FPToSI,
                                 APFloat::rmTowardZero, &ignored);
       APInt Val(DestBitWidth, 2, x);
-      return ConstantInt::get(Context, Val);
+      return ConstantInt::get(FPC->getContext(), Val);
     }
     return 0; // Can't fold.
   case Instruction::IntToPtr:   //always treated as unsigned
@@ -415,9 +600,49 @@ Constant *llvm::ConstantFoldCastInstruction(LLVMContext &Context,
       return ConstantPointerNull::get(cast<PointerType>(DestTy));
     return 0;                   // Other pointer types cannot be casted
   case Instruction::PtrToInt:   // always treated as unsigned
-    if (V->isNullValue())       // is it a null pointer value?
+    // Is it a null pointer value?
+    if (V->isNullValue())
       return ConstantInt::get(DestTy, 0);
-    return 0;                   // Other pointer types cannot be casted
+    // If this is a sizeof-like expression, pull out multiplications by
+    // known factors to expose them to subsequent folding. If it's an
+    // alignof-like expression, factor out known factors.
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V))
+      if (CE->getOpcode() == Instruction::GetElementPtr &&
+          CE->getOperand(0)->isNullValue()) {
+        const Type *Ty =
+          cast<PointerType>(CE->getOperand(0)->getType())->getElementType();
+        if (CE->getNumOperands() == 2) {
+          // Handle a sizeof-like expression.
+          Constant *Idx = CE->getOperand(1);
+          bool isOne = isa<ConstantInt>(Idx) && cast<ConstantInt>(Idx)->isOne();
+          if (Constant *C = getFoldedSizeOf(Ty, DestTy, !isOne)) {
+            Idx = ConstantExpr::getCast(CastInst::getCastOpcode(Idx, true,
+                                                                DestTy, false),
+                                        Idx, DestTy);
+            return ConstantExpr::getMul(C, Idx);
+          }
+        } else if (CE->getNumOperands() == 3 &&
+                   CE->getOperand(1)->isNullValue()) {
+          // Handle an alignof-like expression.
+          if (const StructType *STy = dyn_cast<StructType>(Ty))
+            if (!STy->isPacked()) {
+              ConstantInt *CI = cast<ConstantInt>(CE->getOperand(2));
+              if (CI->isOne() &&
+                  STy->getNumElements() == 2 &&
+                  STy->getElementType(0)->isIntegerTy(1)) {
+                return getFoldedAlignOf(STy->getElementType(1), DestTy, false);
+              }
+            }
+          // Handle an offsetof-like expression.
+          if (isa<StructType>(Ty) || isa<ArrayType>(Ty) || isa<VectorType>(Ty)){
+            if (Constant *C = getFoldedOffsetOf(Ty, CE->getOperand(2),
+                                                DestTy, false))
+              return C;
+          }
+        }
+      }
+    // Other pointer types cannot be casted
+    return 0;
   case Instruction::UIToFP:
   case Instruction::SIToFP:
     if (ConstantInt *CI = dyn_cast<ConstantInt>(V)) {
@@ -428,7 +653,7 @@ Constant *llvm::ConstantFoldCastInstruction(LLVMContext &Context,
       (void)apf.convertFromAPInt(api, 
                                  opc==Instruction::SIToFP,
                                  APFloat::rmNearestTiesToEven);
-      return ConstantFP::get(Context, apf);
+      return ConstantFP::get(V->getContext(), apf);
     }
     return 0;
   case Instruction::ZExt:
@@ -436,7 +661,7 @@ Constant *llvm::ConstantFoldCastInstruction(LLVMContext &Context,
       uint32_t BitWidth = cast<IntegerType>(DestTy)->getBitWidth();
       APInt Result(CI->getValue());
       Result.zext(BitWidth);
-      return ConstantInt::get(Context, Result);
+      return ConstantInt::get(V->getContext(), Result);
     }
     return 0;
   case Instruction::SExt:
@@ -444,7 +669,7 @@ Constant *llvm::ConstantFoldCastInstruction(LLVMContext &Context,
       uint32_t BitWidth = cast<IntegerType>(DestTy)->getBitWidth();
       APInt Result(CI->getValue());
       Result.sext(BitWidth);
-      return ConstantInt::get(Context, Result);
+      return ConstantInt::get(V->getContext(), Result);
     }
     return 0;
   case Instruction::Trunc: {
@@ -452,7 +677,7 @@ Constant *llvm::ConstantFoldCastInstruction(LLVMContext &Context,
     if (ConstantInt *CI = dyn_cast<ConstantInt>(V)) {
       APInt Result(CI->getValue());
       Result.trunc(DestBitWidth);
-      return ConstantInt::get(Context, Result);
+      return ConstantInt::get(V->getContext(), Result);
     }
     
     // The input must be a constantexpr.  See if we can simplify this based on
@@ -466,12 +691,11 @@ Constant *llvm::ConstantFoldCastInstruction(LLVMContext &Context,
     return 0;
   }
   case Instruction::BitCast:
-    return FoldBitCast(Context, V, DestTy);
+    return FoldBitCast(V, DestTy);
   }
 }
 
-Constant *llvm::ConstantFoldSelectInstruction(LLVMContext&,
-                                              Constant *Cond,
+Constant *llvm::ConstantFoldSelectInstruction(Constant *Cond,
                                               Constant *V1, Constant *V2) {
   if (ConstantInt *CB = dyn_cast<ConstantInt>(Cond))
     return CB->getZExtValue() ? V1 : V2;
@@ -483,8 +707,7 @@ Constant *llvm::ConstantFoldSelectInstruction(LLVMContext&,
   return 0;
 }
 
-Constant *llvm::ConstantFoldExtractElementInstruction(LLVMContext &Context,
-                                                      Constant *Val,
+Constant *llvm::ConstantFoldExtractElementInstruction(Constant *Val,
                                                       Constant *Idx) {
   if (isa<UndefValue>(Val))  // ee(undef, x) -> undef
     return UndefValue::get(cast<VectorType>(Val->getType())->getElementType());
@@ -503,8 +726,7 @@ Constant *llvm::ConstantFoldExtractElementInstruction(LLVMContext &Context,
   return 0;
 }
 
-Constant *llvm::ConstantFoldInsertElementInstruction(LLVMContext &Context,
-                                                     Constant *Val,
+Constant *llvm::ConstantFoldInsertElementInstruction(Constant *Val,
                                                      Constant *Elt,
                                                      Constant *Idx) {
   ConstantInt *CIdx = dyn_cast<ConstantInt>(Idx);
@@ -563,8 +785,7 @@ Constant *llvm::ConstantFoldInsertElementInstruction(LLVMContext &Context,
 
 /// GetVectorElement - If C is a ConstantVector, ConstantAggregateZero or Undef
 /// return the specified element value.  Otherwise return null.
-static Constant *GetVectorElement(LLVMContext &Context, Constant *C,
-                                  unsigned EltNo) {
+static Constant *GetVectorElement(Constant *C, unsigned EltNo) {
   if (ConstantVector *CV = dyn_cast<ConstantVector>(C))
     return CV->getOperand(EltNo);
 
@@ -576,8 +797,7 @@ static Constant *GetVectorElement(LLVMContext &Context, Constant *C,
   return 0;
 }
 
-Constant *llvm::ConstantFoldShuffleVectorInstruction(LLVMContext &Context,
-                                                     Constant *V1,
+Constant *llvm::ConstantFoldShuffleVectorInstruction(Constant *V1,
                                                      Constant *V2,
                                                      Constant *Mask) {
   // Undefined shuffle mask -> undefined value.
@@ -590,7 +810,7 @@ Constant *llvm::ConstantFoldShuffleVectorInstruction(LLVMContext &Context,
   // Loop over the shuffle mask, evaluating each element.
   SmallVector<Constant*, 32> Result;
   for (unsigned i = 0; i != MaskNumElts; ++i) {
-    Constant *InElt = GetVectorElement(Context, Mask, i);
+    Constant *InElt = GetVectorElement(Mask, i);
     if (InElt == 0) return 0;
 
     if (isa<UndefValue>(InElt))
@@ -600,9 +820,9 @@ Constant *llvm::ConstantFoldShuffleVectorInstruction(LLVMContext &Context,
       if (Elt >= SrcNumElts*2)
         InElt = UndefValue::get(EltTy);
       else if (Elt >= SrcNumElts)
-        InElt = GetVectorElement(Context, V2, Elt - SrcNumElts);
+        InElt = GetVectorElement(V2, Elt - SrcNumElts);
       else
-        InElt = GetVectorElement(Context, V1, Elt);
+        InElt = GetVectorElement(V1, Elt);
       if (InElt == 0) return 0;
     } else {
       // Unknown value.
@@ -614,8 +834,7 @@ Constant *llvm::ConstantFoldShuffleVectorInstruction(LLVMContext &Context,
   return ConstantVector::get(&Result[0], Result.size());
 }
 
-Constant *llvm::ConstantFoldExtractValueInstruction(LLVMContext &Context,
-                                                    Constant *Agg,
+Constant *llvm::ConstantFoldExtractValueInstruction(Constant *Agg,
                                                     const unsigned *Idxs,
                                                     unsigned NumIdx) {
   // Base case: no indices, so return the entire value.
@@ -635,19 +854,18 @@ Constant *llvm::ConstantFoldExtractValueInstruction(LLVMContext &Context,
 
   // Otherwise recurse.
   if (ConstantStruct *CS = dyn_cast<ConstantStruct>(Agg))
-    return ConstantFoldExtractValueInstruction(Context, CS->getOperand(*Idxs),
+    return ConstantFoldExtractValueInstruction(CS->getOperand(*Idxs),
                                                Idxs+1, NumIdx-1);
 
   if (ConstantArray *CA = dyn_cast<ConstantArray>(Agg))
-    return ConstantFoldExtractValueInstruction(Context, CA->getOperand(*Idxs),
+    return ConstantFoldExtractValueInstruction(CA->getOperand(*Idxs),
                                                Idxs+1, NumIdx-1);
   ConstantVector *CV = cast<ConstantVector>(Agg);
-  return ConstantFoldExtractValueInstruction(Context, CV->getOperand(*Idxs),
+  return ConstantFoldExtractValueInstruction(CV->getOperand(*Idxs),
                                              Idxs+1, NumIdx-1);
 }
 
-Constant *llvm::ConstantFoldInsertValueInstruction(LLVMContext &Context,
-                                                   Constant *Agg,
+Constant *llvm::ConstantFoldInsertValueInstruction(Constant *Agg,
                                                    Constant *Val,
                                                    const unsigned *Idxs,
                                                    unsigned NumIdx) {
@@ -667,6 +885,8 @@ Constant *llvm::ConstantFoldInsertValueInstruction(LLVMContext &Context,
     unsigned numOps;
     if (const ArrayType *AR = dyn_cast<ArrayType>(AggTy))
       numOps = AR->getNumElements();
+    else if (isa<UnionType>(AggTy))
+      numOps = 1;
     else
       numOps = cast<StructType>(AggTy)->getNumElements();
     
@@ -675,14 +895,18 @@ Constant *llvm::ConstantFoldInsertValueInstruction(LLVMContext &Context,
       const Type *MemberTy = AggTy->getTypeAtIndex(i);
       Constant *Op =
         (*Idxs == i) ?
-        ConstantFoldInsertValueInstruction(Context, UndefValue::get(MemberTy),
+        ConstantFoldInsertValueInstruction(UndefValue::get(MemberTy),
                                            Val, Idxs+1, NumIdx-1) :
         UndefValue::get(MemberTy);
       Ops[i] = Op;
     }
     
     if (const StructType* ST = dyn_cast<StructType>(AggTy))
-      return ConstantStruct::get(Context, Ops, ST->isPacked());
+      return ConstantStruct::get(ST->getContext(), Ops, ST->isPacked());
+    if (const UnionType* UT = dyn_cast<UnionType>(AggTy)) {
+      assert(Ops.size() == 1 && "Union can only contain a single value!");
+      return ConstantUnion::get(UT, Ops[0]);
+    }
     return ConstantArray::get(cast<ArrayType>(AggTy), Ops);
   }
   
@@ -706,15 +930,14 @@ Constant *llvm::ConstantFoldInsertValueInstruction(LLVMContext &Context,
       const Type *MemberTy = AggTy->getTypeAtIndex(i);
       Constant *Op =
         (*Idxs == i) ?
-        ConstantFoldInsertValueInstruction(Context, 
-                                           Constant::getNullValue(MemberTy),
+        ConstantFoldInsertValueInstruction(Constant::getNullValue(MemberTy),
                                            Val, Idxs+1, NumIdx-1) :
         Constant::getNullValue(MemberTy);
       Ops[i] = Op;
     }
     
-    if (const StructType* ST = dyn_cast<StructType>(AggTy))
-      return ConstantStruct::get(Context, Ops, ST->isPacked());
+    if (const StructType *ST = dyn_cast<StructType>(AggTy))
+      return ConstantStruct::get(ST->getContext(), Ops, ST->isPacked());
     return ConstantArray::get(cast<ArrayType>(AggTy), Ops);
   }
   
@@ -724,13 +947,12 @@ Constant *llvm::ConstantFoldInsertValueInstruction(LLVMContext &Context,
     for (unsigned i = 0; i < Agg->getNumOperands(); ++i) {
       Constant *Op = cast<Constant>(Agg->getOperand(i));
       if (*Idxs == i)
-        Op = ConstantFoldInsertValueInstruction(Context, Op,
-                                                Val, Idxs+1, NumIdx-1);
+        Op = ConstantFoldInsertValueInstruction(Op, Val, Idxs+1, NumIdx-1);
       Ops[i] = Op;
     }
     
     if (const StructType* ST = dyn_cast<StructType>(Agg->getType()))
-      return ConstantStruct::get(Context, Ops, ST->isPacked());
+      return ConstantStruct::get(ST->getContext(), Ops, ST->isPacked());
     return ConstantArray::get(cast<ArrayType>(Agg->getType()), Ops);
   }
 
@@ -738,8 +960,7 @@ Constant *llvm::ConstantFoldInsertValueInstruction(LLVMContext &Context,
 }
 
 
-Constant *llvm::ConstantFoldBinaryInstruction(LLVMContext &Context,
-                                              unsigned Opcode,
+Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode,
                                               Constant *C1, Constant *C2) {
   // No compile-time operations on this type yet.
   if (C1->getType()->isPPC_FP128Ty())
@@ -896,51 +1117,51 @@ Constant *llvm::ConstantFoldBinaryInstruction(LLVMContext &Context,
       default:
         break;
       case Instruction::Add:     
-        return ConstantInt::get(Context, C1V + C2V);
+        return ConstantInt::get(CI1->getContext(), C1V + C2V);
       case Instruction::Sub:     
-        return ConstantInt::get(Context, C1V - C2V);
+        return ConstantInt::get(CI1->getContext(), C1V - C2V);
       case Instruction::Mul:     
-        return ConstantInt::get(Context, C1V * C2V);
+        return ConstantInt::get(CI1->getContext(), C1V * C2V);
       case Instruction::UDiv:
         assert(!CI2->isNullValue() && "Div by zero handled above");
-        return ConstantInt::get(Context, C1V.udiv(C2V));
+        return ConstantInt::get(CI1->getContext(), C1V.udiv(C2V));
       case Instruction::SDiv:
         assert(!CI2->isNullValue() && "Div by zero handled above");
         if (C2V.isAllOnesValue() && C1V.isMinSignedValue())
           return UndefValue::get(CI1->getType());   // MIN_INT / -1 -> undef
-        return ConstantInt::get(Context, C1V.sdiv(C2V));
+        return ConstantInt::get(CI1->getContext(), C1V.sdiv(C2V));
       case Instruction::URem:
         assert(!CI2->isNullValue() && "Div by zero handled above");
-        return ConstantInt::get(Context, C1V.urem(C2V));
+        return ConstantInt::get(CI1->getContext(), C1V.urem(C2V));
       case Instruction::SRem:
         assert(!CI2->isNullValue() && "Div by zero handled above");
         if (C2V.isAllOnesValue() && C1V.isMinSignedValue())
           return UndefValue::get(CI1->getType());   // MIN_INT % -1 -> undef
-        return ConstantInt::get(Context, C1V.srem(C2V));
+        return ConstantInt::get(CI1->getContext(), C1V.srem(C2V));
       case Instruction::And:
-        return ConstantInt::get(Context, C1V & C2V);
+        return ConstantInt::get(CI1->getContext(), C1V & C2V);
       case Instruction::Or:
-        return ConstantInt::get(Context, C1V | C2V);
+        return ConstantInt::get(CI1->getContext(), C1V | C2V);
       case Instruction::Xor:
-        return ConstantInt::get(Context, C1V ^ C2V);
+        return ConstantInt::get(CI1->getContext(), C1V ^ C2V);
       case Instruction::Shl: {
         uint32_t shiftAmt = C2V.getZExtValue();
         if (shiftAmt < C1V.getBitWidth())
-          return ConstantInt::get(Context, C1V.shl(shiftAmt));
+          return ConstantInt::get(CI1->getContext(), C1V.shl(shiftAmt));
         else
           return UndefValue::get(C1->getType()); // too big shift is undef
       }
       case Instruction::LShr: {
         uint32_t shiftAmt = C2V.getZExtValue();
         if (shiftAmt < C1V.getBitWidth())
-          return ConstantInt::get(Context, C1V.lshr(shiftAmt));
+          return ConstantInt::get(CI1->getContext(), C1V.lshr(shiftAmt));
         else
           return UndefValue::get(C1->getType()); // too big shift is undef
       }
       case Instruction::AShr: {
         uint32_t shiftAmt = C2V.getZExtValue();
         if (shiftAmt < C1V.getBitWidth())
-          return ConstantInt::get(Context, C1V.ashr(shiftAmt));
+          return ConstantInt::get(CI1->getContext(), C1V.ashr(shiftAmt));
         else
           return UndefValue::get(C1->getType()); // too big shift is undef
       }
@@ -970,19 +1191,19 @@ Constant *llvm::ConstantFoldBinaryInstruction(LLVMContext &Context,
         break;
       case Instruction::FAdd:
         (void)C3V.add(C2V, APFloat::rmNearestTiesToEven);
-        return ConstantFP::get(Context, C3V);
+        return ConstantFP::get(C1->getContext(), C3V);
       case Instruction::FSub:
         (void)C3V.subtract(C2V, APFloat::rmNearestTiesToEven);
-        return ConstantFP::get(Context, C3V);
+        return ConstantFP::get(C1->getContext(), C3V);
       case Instruction::FMul:
         (void)C3V.multiply(C2V, APFloat::rmNearestTiesToEven);
-        return ConstantFP::get(Context, C3V);
+        return ConstantFP::get(C1->getContext(), C3V);
       case Instruction::FDiv:
         (void)C3V.divide(C2V, APFloat::rmNearestTiesToEven);
-        return ConstantFP::get(Context, C3V);
+        return ConstantFP::get(C1->getContext(), C3V);
       case Instruction::FRem:
         (void)C3V.mod(C2V, APFloat::rmNearestTiesToEven);
-        return ConstantFP::get(Context, C3V);
+        return ConstantFP::get(C1->getContext(), C3V);
       }
     }
   } else if (const VectorType *VTy = dyn_cast<VectorType>(C1->getType())) {
@@ -1127,10 +1348,19 @@ Constant *llvm::ConstantFoldBinaryInstruction(LLVMContext &Context,
     }
   }
 
-  if (isa<ConstantExpr>(C1)) {
+  if (ConstantExpr *CE1 = dyn_cast<ConstantExpr>(C1)) {
     // There are many possible foldings we could do here.  We should probably
     // at least fold add of a pointer with an integer into the appropriate
     // getelementptr.  This will improve alias analysis a bit.
+
+    // Given ((a + b) + c), if (b + c) folds to something interesting, return
+    // (a + (b + c)).
+    if (Instruction::isAssociative(Opcode, C1->getType()) &&
+        CE1->getOpcode() == Opcode) {
+      Constant *T = ConstantExpr::get(Opcode, CE1->getOperand(1), C2);
+      if (!isa<ConstantExpr>(T) || cast<ConstantExpr>(T)->getOpcode() != Opcode)
+        return ConstantExpr::get(Opcode, CE1->getOperand(0), T);
+    }
   } else if (isa<ConstantExpr>(C2)) {
     // If C2 is a constant expr and C1 isn't, flop them around and fold the
     // other way if possible.
@@ -1143,7 +1373,7 @@ Constant *llvm::ConstantFoldBinaryInstruction(LLVMContext &Context,
     case Instruction::Or:
     case Instruction::Xor:
       // No change of opcode required.
-      return ConstantFoldBinaryInstruction(Context, Opcode, C2, C1);
+      return ConstantFoldBinaryInstruction(Opcode, C2, C1);
 
     case Instruction::Shl:
     case Instruction::LShr:
@@ -1162,7 +1392,7 @@ Constant *llvm::ConstantFoldBinaryInstruction(LLVMContext &Context,
   }
 
   // i1 can be simplified in many cases.
-  if (C1->getType() == Type::getInt1Ty(Context)) {
+  if (C1->getType()->isIntegerTy(1)) {
     switch (Opcode) {
     case Instruction::Add:
     case Instruction::Sub:
@@ -1184,7 +1414,7 @@ Constant *llvm::ConstantFoldBinaryInstruction(LLVMContext &Context,
     case Instruction::SRem:
       // We can assume that C2 == 1.  If it were zero the result would be
       // undefined through division by zero.
-      return ConstantInt::getFalse(Context);
+      return ConstantInt::getFalse(C1->getContext());
     default:
       break;
     }
@@ -1218,8 +1448,7 @@ static bool isMaybeZeroSizedType(const Type *Ty) {
 /// first is less than the second, return -1, if the second is less than the
 /// first, return 1.  If the constants are not integral, return -2.
 ///
-static int IdxCompare(LLVMContext &Context, Constant *C1, Constant *C2, 
-                      const Type *ElTy) {
+static int IdxCompare(Constant *C1, Constant *C2,  const Type *ElTy) {
   if (C1 == C2) return 0;
 
   // Ok, we found a different index.  If they are not ConstantInt, we can't do
@@ -1229,11 +1458,11 @@ static int IdxCompare(LLVMContext &Context, Constant *C1, Constant *C2,
 
   // Ok, we have two differing integer indices.  Sign extend them to be the same
   // type.  Long is always big enough, so we use it.
-  if (C1->getType() != Type::getInt64Ty(Context))
-    C1 = ConstantExpr::getSExt(C1, Type::getInt64Ty(Context));
+  if (!C1->getType()->isIntegerTy(64))
+    C1 = ConstantExpr::getSExt(C1, Type::getInt64Ty(C1->getContext()));
 
-  if (C2->getType() != Type::getInt64Ty(Context))
-    C2 = ConstantExpr::getSExt(C2, Type::getInt64Ty(Context));
+  if (!C2->getType()->isIntegerTy(64))
+    C2 = ConstantExpr::getSExt(C2, Type::getInt64Ty(C1->getContext()));
 
   if (C1 == C2) return 0;  // They are equal
 
@@ -1262,8 +1491,7 @@ static int IdxCompare(LLVMContext &Context, Constant *C1, Constant *C2,
 /// To simplify this code we canonicalize the relation so that the first
 /// operand is always the most "complex" of the two.  We consider ConstantFP
 /// to be the simplest, and ConstantExprs to be the most complex.
-static FCmpInst::Predicate evaluateFCmpRelation(LLVMContext &Context,
-                                                Constant *V1, Constant *V2) {
+static FCmpInst::Predicate evaluateFCmpRelation(Constant *V1, Constant *V2) {
   assert(V1->getType() == V2->getType() &&
          "Cannot compare values of different types!");
 
@@ -1296,7 +1524,7 @@ static FCmpInst::Predicate evaluateFCmpRelation(LLVMContext &Context,
     }
 
     // If the first operand is simple and second is ConstantExpr, swap operands.
-    FCmpInst::Predicate SwappedRelation = evaluateFCmpRelation(Context, V2, V1);
+    FCmpInst::Predicate SwappedRelation = evaluateFCmpRelation(V2, V1);
     if (SwappedRelation != FCmpInst::BAD_FCMP_PREDICATE)
       return FCmpInst::getSwappedPredicate(SwappedRelation);
   } else {
@@ -1331,16 +1559,16 @@ static FCmpInst::Predicate evaluateFCmpRelation(LLVMContext &Context,
 /// constants (like ConstantInt) to be the simplest, followed by
 /// GlobalValues, followed by ConstantExpr's (the most complex).
 ///
-static ICmpInst::Predicate evaluateICmpRelation(LLVMContext &Context,
-                                                Constant *V1, 
-                                                Constant *V2,
+static ICmpInst::Predicate evaluateICmpRelation(Constant *V1, Constant *V2,
                                                 bool isSigned) {
   assert(V1->getType() == V2->getType() &&
          "Cannot compare different types of values!");
   if (V1 == V2) return ICmpInst::ICMP_EQ;
 
-  if (!isa<ConstantExpr>(V1) && !isa<GlobalValue>(V1)) {
-    if (!isa<GlobalValue>(V2) && !isa<ConstantExpr>(V2)) {
+  if (!isa<ConstantExpr>(V1) && !isa<GlobalValue>(V1) &&
+      !isa<BlockAddress>(V1)) {
+    if (!isa<GlobalValue>(V2) && !isa<ConstantExpr>(V2) &&
+        !isa<BlockAddress>(V2)) {
       // We distilled this down to a simple case, use the standard constant
       // folder.
       ConstantInt *R = 0;
@@ -1363,36 +1591,63 @@ static ICmpInst::Predicate evaluateICmpRelation(LLVMContext &Context,
 
     // If the first operand is simple, swap operands.
     ICmpInst::Predicate SwappedRelation = 
-      evaluateICmpRelation(Context, V2, V1, isSigned);
+      evaluateICmpRelation(V2, V1, isSigned);
     if (SwappedRelation != ICmpInst::BAD_ICMP_PREDICATE)
       return ICmpInst::getSwappedPredicate(SwappedRelation);
 
-  } else if (const GlobalValue *CPR1 = dyn_cast<GlobalValue>(V1)) {
+  } else if (const GlobalValue *GV = dyn_cast<GlobalValue>(V1)) {
     if (isa<ConstantExpr>(V2)) {  // Swap as necessary.
       ICmpInst::Predicate SwappedRelation = 
-        evaluateICmpRelation(Context, V2, V1, isSigned);
+        evaluateICmpRelation(V2, V1, isSigned);
       if (SwappedRelation != ICmpInst::BAD_ICMP_PREDICATE)
         return ICmpInst::getSwappedPredicate(SwappedRelation);
-      else
-        return ICmpInst::BAD_ICMP_PREDICATE;
+      return ICmpInst::BAD_ICMP_PREDICATE;
     }
 
-    // Now we know that the RHS is a GlobalValue or simple constant,
-    // which (since the types must match) means that it's a ConstantPointerNull.
-    if (const GlobalValue *CPR2 = dyn_cast<GlobalValue>(V2)) {
+    // Now we know that the RHS is a GlobalValue, BlockAddress or simple
+    // constant (which, since the types must match, means that it's a
+    // ConstantPointerNull).
+    if (const GlobalValue *GV2 = dyn_cast<GlobalValue>(V2)) {
       // Don't try to decide equality of aliases.
-      if (!isa<GlobalAlias>(CPR1) && !isa<GlobalAlias>(CPR2))
-        if (!CPR1->hasExternalWeakLinkage() || !CPR2->hasExternalWeakLinkage())
+      if (!isa<GlobalAlias>(GV) && !isa<GlobalAlias>(GV2))
+        if (!GV->hasExternalWeakLinkage() || !GV2->hasExternalWeakLinkage())
           return ICmpInst::ICMP_NE;
+    } else if (isa<BlockAddress>(V2)) {
+      return ICmpInst::ICMP_NE; // Globals never equal labels.
     } else {
       assert(isa<ConstantPointerNull>(V2) && "Canonicalization guarantee!");
-      // GlobalVals can never be null.  Don't try to evaluate aliases.
-      if (!CPR1->hasExternalWeakLinkage() && !isa<GlobalAlias>(CPR1))
+      // GlobalVals can never be null unless they have external weak linkage.
+      // We don't try to evaluate aliases here.
+      if (!GV->hasExternalWeakLinkage() && !isa<GlobalAlias>(GV))
         return ICmpInst::ICMP_NE;
+    }
+  } else if (const BlockAddress *BA = dyn_cast<BlockAddress>(V1)) {
+    if (isa<ConstantExpr>(V2)) {  // Swap as necessary.
+      ICmpInst::Predicate SwappedRelation = 
+        evaluateICmpRelation(V2, V1, isSigned);
+      if (SwappedRelation != ICmpInst::BAD_ICMP_PREDICATE)
+        return ICmpInst::getSwappedPredicate(SwappedRelation);
+      return ICmpInst::BAD_ICMP_PREDICATE;
+    }
+    
+    // Now we know that the RHS is a GlobalValue, BlockAddress or simple
+    // constant (which, since the types must match, means that it is a
+    // ConstantPointerNull).
+    if (const BlockAddress *BA2 = dyn_cast<BlockAddress>(V2)) {
+      // Block address in another function can't equal this one, but block
+      // addresses in the current function might be the same if blocks are
+      // empty.
+      if (BA2->getFunction() != BA->getFunction())
+        return ICmpInst::ICMP_NE;
+    } else {
+      // Block addresses aren't null, don't equal the address of globals.
+      assert((isa<ConstantPointerNull>(V2) || isa<GlobalValue>(V2)) &&
+             "Canonicalization guarantee!");
+      return ICmpInst::ICMP_NE;
     }
   } else {
     // Ok, the LHS is known to be a constantexpr.  The RHS can be any of a
-    // constantexpr, a CPR, or a simple constant.
+    // constantexpr, a global, block address, or a simple constant.
     ConstantExpr *CE1 = cast<ConstantExpr>(V1);
     Constant *CE1Op0 = CE1->getOperand(0);
 
@@ -1412,10 +1667,10 @@ static ICmpInst::Predicate evaluateICmpRelation(LLVMContext &Context,
       // If the cast is not actually changing bits, and the second operand is a
       // null pointer, do the comparison with the pre-casted value.
       if (V2->isNullValue() &&
-          (isa<PointerType>(CE1->getType()) || CE1->getType()->isInteger())) {
+          (isa<PointerType>(CE1->getType()) || CE1->getType()->isIntegerTy())) {
         if (CE1->getOpcode() == Instruction::ZExt) isSigned = false;
         if (CE1->getOpcode() == Instruction::SExt) isSigned = true;
-        return evaluateICmpRelation(Context, CE1Op0,
+        return evaluateICmpRelation(CE1Op0,
                                     Constant::getNullValue(CE1Op0->getType()), 
                                     isSigned);
       }
@@ -1447,9 +1702,9 @@ static ICmpInst::Predicate evaluateICmpRelation(LLVMContext &Context,
           return ICmpInst::ICMP_EQ;
         }
         // Otherwise, we can't really say if the first operand is null or not.
-      } else if (const GlobalValue *CPR2 = dyn_cast<GlobalValue>(V2)) {
+      } else if (const GlobalValue *GV2 = dyn_cast<GlobalValue>(V2)) {
         if (isa<ConstantPointerNull>(CE1Op0)) {
-          if (CPR2->hasExternalWeakLinkage())
+          if (GV2->hasExternalWeakLinkage())
             // Weak linkage GVals could be zero or not. We're comparing it to
             // a null pointer, so its less-or-equal
             return isSigned ? ICmpInst::ICMP_SLE : ICmpInst::ICMP_ULE;
@@ -1457,8 +1712,8 @@ static ICmpInst::Predicate evaluateICmpRelation(LLVMContext &Context,
             // If its not weak linkage, the GVal must have a non-zero address
             // so the result is less-than
             return isSigned ? ICmpInst::ICMP_SLT : ICmpInst::ICMP_ULT;
-        } else if (const GlobalValue *CPR1 = dyn_cast<GlobalValue>(CE1Op0)) {
-          if (CPR1 == CPR2) {
+        } else if (const GlobalValue *GV = dyn_cast<GlobalValue>(CE1Op0)) {
+          if (GV == GV2) {
             // If this is a getelementptr of the same global, then it must be
             // different.  Because the types must match, the getelementptr could
             // only have at most one index, and because we fold getelementptr's
@@ -1504,7 +1759,7 @@ static ICmpInst::Predicate evaluateICmpRelation(LLVMContext &Context,
             gep_type_iterator GTI = gep_type_begin(CE1);
             for (;i != CE1->getNumOperands() && i != CE2->getNumOperands();
                  ++i, ++GTI)
-              switch (IdxCompare(Context, CE1->getOperand(i),
+              switch (IdxCompare(CE1->getOperand(i),
                                  CE2->getOperand(i), GTI.getIndexedType())) {
               case -1: return isSigned ? ICmpInst::ICMP_SLT:ICmpInst::ICMP_ULT;
               case 1:  return isSigned ? ICmpInst::ICMP_SGT:ICmpInst::ICMP_UGT;
@@ -1540,14 +1795,14 @@ static ICmpInst::Predicate evaluateICmpRelation(LLVMContext &Context,
   return ICmpInst::BAD_ICMP_PREDICATE;
 }
 
-Constant *llvm::ConstantFoldCompareInstruction(LLVMContext &Context,
-                                               unsigned short pred, 
+Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred, 
                                                Constant *C1, Constant *C2) {
   const Type *ResultTy;
   if (const VectorType *VT = dyn_cast<VectorType>(C1->getType()))
-    ResultTy = VectorType::get(Type::getInt1Ty(Context), VT->getNumElements());
+    ResultTy = VectorType::get(Type::getInt1Ty(C1->getContext()),
+                               VT->getNumElements());
   else
-    ResultTy = Type::getInt1Ty(Context);
+    ResultTy = Type::getInt1Ty(C1->getContext());
 
   // Fold FCMP_FALSE/FCMP_TRUE unconditionally.
   if (pred == FCmpInst::FCMP_FALSE)
@@ -1570,9 +1825,9 @@ Constant *llvm::ConstantFoldCompareInstruction(LLVMContext &Context,
       // Don't try to evaluate aliases.  External weak GV can be null.
       if (!isa<GlobalAlias>(GV) && !GV->hasExternalWeakLinkage()) {
         if (pred == ICmpInst::ICMP_EQ)
-          return ConstantInt::getFalse(Context);
+          return ConstantInt::getFalse(C1->getContext());
         else if (pred == ICmpInst::ICMP_NE)
-          return ConstantInt::getTrue(Context);
+          return ConstantInt::getTrue(C1->getContext());
       }
   // icmp eq/ne(GV,null) -> false/true
   } else if (C2->isNullValue()) {
@@ -1580,14 +1835,14 @@ Constant *llvm::ConstantFoldCompareInstruction(LLVMContext &Context,
       // Don't try to evaluate aliases.  External weak GV can be null.
       if (!isa<GlobalAlias>(GV) && !GV->hasExternalWeakLinkage()) {
         if (pred == ICmpInst::ICMP_EQ)
-          return ConstantInt::getFalse(Context);
+          return ConstantInt::getFalse(C1->getContext());
         else if (pred == ICmpInst::ICMP_NE)
-          return ConstantInt::getTrue(Context);
+          return ConstantInt::getTrue(C1->getContext());
       }
   }
 
   // If the comparison is a comparison between two i1's, simplify it.
-  if (C1->getType() == Type::getInt1Ty(Context)) {
+  if (C1->getType()->isIntegerTy(1)) {
     switch(pred) {
     case ICmpInst::ICMP_EQ:
       if (isa<ConstantInt>(C2))
@@ -1605,26 +1860,16 @@ Constant *llvm::ConstantFoldCompareInstruction(LLVMContext &Context,
     APInt V2 = cast<ConstantInt>(C2)->getValue();
     switch (pred) {
     default: llvm_unreachable("Invalid ICmp Predicate"); return 0;
-    case ICmpInst::ICMP_EQ:
-      return ConstantInt::get(Type::getInt1Ty(Context), V1 == V2);
-    case ICmpInst::ICMP_NE: 
-      return ConstantInt::get(Type::getInt1Ty(Context), V1 != V2);
-    case ICmpInst::ICMP_SLT:
-      return ConstantInt::get(Type::getInt1Ty(Context), V1.slt(V2));
-    case ICmpInst::ICMP_SGT:
-      return ConstantInt::get(Type::getInt1Ty(Context), V1.sgt(V2));
-    case ICmpInst::ICMP_SLE:
-      return ConstantInt::get(Type::getInt1Ty(Context), V1.sle(V2));
-    case ICmpInst::ICMP_SGE:
-      return ConstantInt::get(Type::getInt1Ty(Context), V1.sge(V2));
-    case ICmpInst::ICMP_ULT:
-      return ConstantInt::get(Type::getInt1Ty(Context), V1.ult(V2));
-    case ICmpInst::ICMP_UGT:
-      return ConstantInt::get(Type::getInt1Ty(Context), V1.ugt(V2));
-    case ICmpInst::ICMP_ULE:
-      return ConstantInt::get(Type::getInt1Ty(Context), V1.ule(V2));
-    case ICmpInst::ICMP_UGE:
-      return ConstantInt::get(Type::getInt1Ty(Context), V1.uge(V2));
+    case ICmpInst::ICMP_EQ:  return ConstantInt::get(ResultTy, V1 == V2);
+    case ICmpInst::ICMP_NE:  return ConstantInt::get(ResultTy, V1 != V2);
+    case ICmpInst::ICMP_SLT: return ConstantInt::get(ResultTy, V1.slt(V2));
+    case ICmpInst::ICMP_SGT: return ConstantInt::get(ResultTy, V1.sgt(V2));
+    case ICmpInst::ICMP_SLE: return ConstantInt::get(ResultTy, V1.sle(V2));
+    case ICmpInst::ICMP_SGE: return ConstantInt::get(ResultTy, V1.sge(V2));
+    case ICmpInst::ICMP_ULT: return ConstantInt::get(ResultTy, V1.ult(V2));
+    case ICmpInst::ICMP_UGT: return ConstantInt::get(ResultTy, V1.ugt(V2));
+    case ICmpInst::ICMP_ULE: return ConstantInt::get(ResultTy, V1.ule(V2));
+    case ICmpInst::ICMP_UGE: return ConstantInt::get(ResultTy, V1.uge(V2));
     }
   } else if (isa<ConstantFP>(C1) && isa<ConstantFP>(C2)) {
     APFloat C1V = cast<ConstantFP>(C1)->getValueAPF();
@@ -1632,62 +1877,63 @@ Constant *llvm::ConstantFoldCompareInstruction(LLVMContext &Context,
     APFloat::cmpResult R = C1V.compare(C2V);
     switch (pred) {
     default: llvm_unreachable("Invalid FCmp Predicate"); return 0;
-    case FCmpInst::FCMP_FALSE: return ConstantInt::getFalse(Context);
-    case FCmpInst::FCMP_TRUE:  return ConstantInt::getTrue(Context);
+    case FCmpInst::FCMP_FALSE: return Constant::getNullValue(ResultTy);
+    case FCmpInst::FCMP_TRUE:  return Constant::getAllOnesValue(ResultTy);
     case FCmpInst::FCMP_UNO:
-      return ConstantInt::get(Type::getInt1Ty(Context), R==APFloat::cmpUnordered);
+      return ConstantInt::get(ResultTy, R==APFloat::cmpUnordered);
     case FCmpInst::FCMP_ORD:
-      return ConstantInt::get(Type::getInt1Ty(Context), R!=APFloat::cmpUnordered);
+      return ConstantInt::get(ResultTy, R!=APFloat::cmpUnordered);
     case FCmpInst::FCMP_UEQ:
-      return ConstantInt::get(Type::getInt1Ty(Context), R==APFloat::cmpUnordered ||
-                                            R==APFloat::cmpEqual);
+      return ConstantInt::get(ResultTy, R==APFloat::cmpUnordered ||
+                                        R==APFloat::cmpEqual);
     case FCmpInst::FCMP_OEQ:   
-      return ConstantInt::get(Type::getInt1Ty(Context), R==APFloat::cmpEqual);
+      return ConstantInt::get(ResultTy, R==APFloat::cmpEqual);
     case FCmpInst::FCMP_UNE:
-      return ConstantInt::get(Type::getInt1Ty(Context), R!=APFloat::cmpEqual);
+      return ConstantInt::get(ResultTy, R!=APFloat::cmpEqual);
     case FCmpInst::FCMP_ONE:   
-      return ConstantInt::get(Type::getInt1Ty(Context), R==APFloat::cmpLessThan ||
-                                            R==APFloat::cmpGreaterThan);
+      return ConstantInt::get(ResultTy, R==APFloat::cmpLessThan ||
+                                        R==APFloat::cmpGreaterThan);
     case FCmpInst::FCMP_ULT: 
-      return ConstantInt::get(Type::getInt1Ty(Context), R==APFloat::cmpUnordered ||
-                                            R==APFloat::cmpLessThan);
+      return ConstantInt::get(ResultTy, R==APFloat::cmpUnordered ||
+                                        R==APFloat::cmpLessThan);
     case FCmpInst::FCMP_OLT:   
-      return ConstantInt::get(Type::getInt1Ty(Context), R==APFloat::cmpLessThan);
+      return ConstantInt::get(ResultTy, R==APFloat::cmpLessThan);
     case FCmpInst::FCMP_UGT:
-      return ConstantInt::get(Type::getInt1Ty(Context), R==APFloat::cmpUnordered ||
-                                            R==APFloat::cmpGreaterThan);
+      return ConstantInt::get(ResultTy, R==APFloat::cmpUnordered ||
+                                        R==APFloat::cmpGreaterThan);
     case FCmpInst::FCMP_OGT:
-      return ConstantInt::get(Type::getInt1Ty(Context), R==APFloat::cmpGreaterThan);
+      return ConstantInt::get(ResultTy, R==APFloat::cmpGreaterThan);
     case FCmpInst::FCMP_ULE:
-      return ConstantInt::get(Type::getInt1Ty(Context), R!=APFloat::cmpGreaterThan);
+      return ConstantInt::get(ResultTy, R!=APFloat::cmpGreaterThan);
     case FCmpInst::FCMP_OLE: 
-      return ConstantInt::get(Type::getInt1Ty(Context), R==APFloat::cmpLessThan ||
-                                            R==APFloat::cmpEqual);
+      return ConstantInt::get(ResultTy, R==APFloat::cmpLessThan ||
+                                        R==APFloat::cmpEqual);
     case FCmpInst::FCMP_UGE:
-      return ConstantInt::get(Type::getInt1Ty(Context), R!=APFloat::cmpLessThan);
+      return ConstantInt::get(ResultTy, R!=APFloat::cmpLessThan);
     case FCmpInst::FCMP_OGE: 
-      return ConstantInt::get(Type::getInt1Ty(Context), R==APFloat::cmpGreaterThan ||
-                                            R==APFloat::cmpEqual);
+      return ConstantInt::get(ResultTy, R==APFloat::cmpGreaterThan ||
+                                        R==APFloat::cmpEqual);
     }
   } else if (isa<VectorType>(C1->getType())) {
     SmallVector<Constant*, 16> C1Elts, C2Elts;
-    C1->getVectorElements(Context, C1Elts);
-    C2->getVectorElements(Context, C2Elts);
+    C1->getVectorElements(C1Elts);
+    C2->getVectorElements(C2Elts);
+    if (C1Elts.empty() || C2Elts.empty())
+      return 0;
 
     // If we can constant fold the comparison of each element, constant fold
     // the whole vector comparison.
     SmallVector<Constant*, 4> ResElts;
     for (unsigned i = 0, e = C1Elts.size(); i != e; ++i) {
       // Compare the elements, producing an i1 result or constant expr.
-      ResElts.push_back(
-                    ConstantExpr::getCompare(pred, C1Elts[i], C2Elts[i]));
+      ResElts.push_back(ConstantExpr::getCompare(pred, C1Elts[i], C2Elts[i]));
     }
     return ConstantVector::get(&ResElts[0], ResElts.size());
   }
 
-  if (C1->getType()->isFloatingPoint()) {
+  if (C1->getType()->isFloatingPointTy()) {
     int Result = -1;  // -1 = unknown, 0 = known false, 1 = known true.
-    switch (evaluateFCmpRelation(Context, C1, C2)) {
+    switch (evaluateFCmpRelation(C1, C2)) {
     default: llvm_unreachable("Unknown relation!");
     case FCmpInst::FCMP_UNO:
     case FCmpInst::FCMP_ORD:
@@ -1741,12 +1987,12 @@ Constant *llvm::ConstantFoldCompareInstruction(LLVMContext &Context,
 
     // If we evaluated the result, return it now.
     if (Result != -1)
-      return ConstantInt::get(Type::getInt1Ty(Context), Result);
+      return ConstantInt::get(ResultTy, Result);
 
   } else {
     // Evaluate the relation between the two constants, per the predicate.
     int Result = -1;  // -1 = unknown, 0 = known false, 1 = known true.
-    switch (evaluateICmpRelation(Context, C1, C2, CmpInst::isSigned(pred))) {
+    switch (evaluateICmpRelation(C1, C2, CmpInst::isSigned(pred))) {
     default: llvm_unreachable("Unknown relational!");
     case ICmpInst::BAD_ICMP_PREDICATE:
       break;  // Couldn't determine anything about these constants.
@@ -1811,13 +2057,15 @@ Constant *llvm::ConstantFoldCompareInstruction(LLVMContext &Context,
 
     // If we evaluated the result, return it now.
     if (Result != -1)
-      return ConstantInt::get(Type::getInt1Ty(Context), Result);
+      return ConstantInt::get(ResultTy, Result);
 
     // If the right hand side is a bitcast, try using its inverse to simplify
-    // it by moving it to the left hand side.
+    // it by moving it to the left hand side.  We can't do this if it would turn
+    // a vector compare into a scalar compare or visa versa.
     if (ConstantExpr *CE2 = dyn_cast<ConstantExpr>(C2)) {
-      if (CE2->getOpcode() == Instruction::BitCast) {
-        Constant *CE2Op0 = CE2->getOperand(0);
+      Constant *CE2Op0 = CE2->getOperand(0);
+      if (CE2->getOpcode() == Instruction::BitCast &&
+          isa<VectorType>(CE2->getType())==isa<VectorType>(CE2Op0->getType())) {
         Constant *Inverse = ConstantExpr::getBitCast(C1, CE2Op0->getType());
         return ConstantExpr::getICmp(pred, Inverse, CE2Op0);
       }
@@ -1839,14 +2087,16 @@ Constant *llvm::ConstantFoldCompareInstruction(LLVMContext &Context,
       }
     }
 
-    if (!isa<ConstantExpr>(C1) && isa<ConstantExpr>(C2)) {
+    if ((!isa<ConstantExpr>(C1) && isa<ConstantExpr>(C2)) ||
+        (C1->isNullValue() && !C2->isNullValue())) {
       // If C2 is a constant expr and C1 isn't, flip them around and fold the
       // other way if possible.
+      // Also, if C1 is null and C2 isn't, flip them around.
       switch (pred) {
       case ICmpInst::ICMP_EQ:
       case ICmpInst::ICMP_NE:
         // No change of predicate required.
-        return ConstantFoldCompareInstruction(Context, pred, C2, C1);
+        return ConstantExpr::getICmp(pred, C2, C1);
 
       case ICmpInst::ICMP_ULT:
       case ICmpInst::ICMP_SLT:
@@ -1858,7 +2108,7 @@ Constant *llvm::ConstantFoldCompareInstruction(LLVMContext &Context,
       case ICmpInst::ICMP_SGE:
         // Change the predicate as necessary to swap the operands.
         pred = ICmpInst::getSwappedPredicate((ICmpInst::Predicate)pred);
-        return ConstantFoldCompareInstruction(Context, pred, C2, C1);
+        return ConstantExpr::getICmp(pred, C2, C1);
 
       default:  // These predicates cannot be flopped around.
         break;
@@ -1887,8 +2137,7 @@ static bool isInBoundsIndices(Constant *const *Idxs, size_t NumIdx) {
   return true;
 }
 
-Constant *llvm::ConstantFoldGetElementPtr(LLVMContext &Context, 
-                                          Constant *C,
+Constant *llvm::ConstantFoldGetElementPtr(Constant *C,
                                           bool inBounds,
                                           Constant* const *Idxs,
                                           unsigned NumIdx) {
@@ -1948,10 +2197,9 @@ Constant *llvm::ConstantFoldGetElementPtr(LLVMContext &Context,
         if (!Idx0->isNullValue()) {
           const Type *IdxTy = Combined->getType();
           if (IdxTy != Idx0->getType()) {
-            Constant *C1 =
-              ConstantExpr::getSExtOrBitCast(Idx0, Type::getInt64Ty(Context));
-            Constant *C2 = ConstantExpr::getSExtOrBitCast(Combined, 
-                                                          Type::getInt64Ty(Context));
+            const Type *Int64Ty = Type::getInt64Ty(IdxTy->getContext());
+            Constant *C1 = ConstantExpr::getSExtOrBitCast(Idx0, Int64Ty);
+            Constant *C2 = ConstantExpr::getSExtOrBitCast(Combined, Int64Ty);
             Combined = ConstantExpr::get(Instruction::Add, C1, C2);
           } else {
             Combined =
@@ -1972,7 +2220,7 @@ Constant *llvm::ConstantFoldGetElementPtr(LLVMContext &Context,
     }
 
     // Implement folding of:
-    //    int* getelementptr ([2 x int]* cast ([3 x int]* %X to [2 x int]*),
+    //    int* getelementptr ([2 x int]* bitcast ([3 x int]* %X to [2 x int]*),
     //                        long 0, long 0)
     // To: int* getelementptr ([3 x int]* %X, long 0, long 0)
     //
@@ -1988,28 +2236,6 @@ Constant *llvm::ConstantFoldGetElementPtr(LLVMContext &Context,
                       (Constant*)CE->getOperand(0), Idxs, NumIdx) :
                 ConstantExpr::getGetElementPtr(
                       (Constant*)CE->getOperand(0), Idxs, NumIdx);
-    }
-
-    // Fold: getelementptr (i8* inttoptr (i64 1 to i8*), i32 -1)
-    // Into: inttoptr (i64 0 to i8*)
-    // This happens with pointers to member functions in C++.
-    if (CE->getOpcode() == Instruction::IntToPtr && NumIdx == 1 &&
-        isa<ConstantInt>(CE->getOperand(0)) && isa<ConstantInt>(Idxs[0]) &&
-        cast<PointerType>(CE->getType())->getElementType() ==
-            Type::getInt8Ty(Context)) {
-      Constant *Base = CE->getOperand(0);
-      Constant *Offset = Idxs[0];
-
-      // Convert the smaller integer to the larger type.
-      if (Offset->getType()->getPrimitiveSizeInBits() < 
-          Base->getType()->getPrimitiveSizeInBits())
-        Offset = ConstantExpr::getSExt(Offset, Base->getType());
-      else if (Base->getType()->getPrimitiveSizeInBits() <
-               Offset->getType()->getPrimitiveSizeInBits())
-        Base = ConstantExpr::getZExt(Base, Offset->getType());
-
-      Base = ConstantExpr::getAdd(Base, Offset);
-      return ConstantExpr::getIntToPtr(Base, CE->getType());
     }
   }
 
@@ -2040,12 +2266,12 @@ Constant *llvm::ConstantFoldGetElementPtr(LLVMContext &Context,
 
             // Before adding, extend both operands to i64 to avoid
             // overflow trouble.
-            if (PrevIdx->getType() != Type::getInt64Ty(Context))
+            if (!PrevIdx->getType()->isIntegerTy(64))
               PrevIdx = ConstantExpr::getSExt(PrevIdx,
-                                              Type::getInt64Ty(Context));
-            if (Div->getType() != Type::getInt64Ty(Context))
+                                           Type::getInt64Ty(Div->getContext()));
+            if (!Div->getType()->isIntegerTy(64))
               Div = ConstantExpr::getSExt(Div,
-                                          Type::getInt64Ty(Context));
+                                          Type::getInt64Ty(Div->getContext()));
 
             NewIdxs[i-1] = ConstantExpr::getAdd(PrevIdx, Div);
           } else {

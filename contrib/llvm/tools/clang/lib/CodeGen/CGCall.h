@@ -15,7 +15,8 @@
 #ifndef CLANG_CODEGEN_CGCALL_H
 #define CLANG_CODEGEN_CGCALL_H
 
-#include <llvm/ADT/FoldingSet.h>
+#include "llvm/ADT/FoldingSet.h"
+#include "llvm/Value.h"
 #include "clang/AST/Type.h"
 
 #include "CGValue.h"
@@ -68,6 +69,9 @@ namespace CodeGen {
     /// depend on the ABI.
     unsigned EffectiveCallingConvention;
 
+    /// Whether this function is noreturn.
+    bool NoReturn;
+
     unsigned NumArgs;
     ArgInfo *Args;
 
@@ -76,6 +80,7 @@ namespace CodeGen {
     typedef ArgInfo *arg_iterator;
 
     CGFunctionInfo(unsigned CallingConvention,
+                   bool NoReturn,
                    QualType ResTy,
                    const llvm::SmallVector<QualType, 16> &ArgTys);
     ~CGFunctionInfo() { delete[] Args; }
@@ -86,6 +91,8 @@ namespace CodeGen {
     arg_iterator arg_end() { return Args + 1 + NumArgs; }
 
     unsigned  arg_size() const { return NumArgs; }
+
+    bool isNoReturn() const { return NoReturn; }
 
     /// getCallingConvention - Return the user specified calling
     /// convention.
@@ -107,6 +114,7 @@ namespace CodeGen {
 
     void Profile(llvm::FoldingSetNodeID &ID) {
       ID.AddInteger(getCallingConvention());
+      ID.AddBoolean(NoReturn);
       getReturnType().Profile(ID);
       for (arg_iterator it = arg_begin(), ie = arg_end(); it != ie; ++it)
         it->type.Profile(ID);
@@ -114,15 +122,34 @@ namespace CodeGen {
     template<class Iterator>
     static void Profile(llvm::FoldingSetNodeID &ID,
                         unsigned CallingConvention,
+                        bool NoReturn,
                         QualType ResTy,
                         Iterator begin,
                         Iterator end) {
       ID.AddInteger(CallingConvention);
+      ID.AddBoolean(NoReturn);
       ResTy.Profile(ID);
       for (; begin != end; ++begin)
         begin->Profile(ID);
     }
   };
+  
+  /// ReturnValueSlot - Contains the address where the return value of a 
+  /// function can be stored, and whether the address is volatile or not.
+  class ReturnValueSlot {
+    llvm::PointerIntPair<llvm::Value *, 1, bool> Value;
+
+  public:
+    ReturnValueSlot() {}
+    ReturnValueSlot(llvm::Value *Value, bool IsVolatile)
+      : Value(Value, IsVolatile) {}
+
+    bool isNull() const { return !getValue(); }
+    
+    bool isVolatile() const { return Value.getInt(); }
+    llvm::Value *getValue() const { return Value.getPointer(); }
+  };
+  
 }  // end namespace CodeGen
 }  // end namespace clang
 

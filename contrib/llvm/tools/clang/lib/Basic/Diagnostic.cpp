@@ -21,8 +21,10 @@
 #include "clang/Analysis/AnalysisDiagnostic.h"
 #include "clang/Driver/DriverDiagnostic.h"
 
+#include "clang/Basic/FileManager.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
@@ -163,7 +165,7 @@ namespace clang {
         return DiagInfo[DiagID-DIAG_UPPER_LIMIT].first;
       }
 
-      unsigned getOrCreateDiagID(Diagnostic::Level L, const char *Message,
+      unsigned getOrCreateDiagID(Diagnostic::Level L, llvm::StringRef Message,
                                  Diagnostic &Diags) {
         DiagDesc D(L, Message);
         // Check to see if it already exists.
@@ -203,6 +205,7 @@ Diagnostic::Diagnostic(DiagnosticClient *client) : Client(client) {
   AllExtensionsSilenced = 0;
   IgnoreAllWarnings = false;
   WarningsAsErrors = false;
+  ErrorsAsFatal = false;
   SuppressSystemWarnings = false;
   SuppressAllDiagnostics = false;
   ExtBehavior = Ext_Ignore;
@@ -210,7 +213,7 @@ Diagnostic::Diagnostic(DiagnosticClient *client) : Client(client) {
   ErrorOccurred = false;
   FatalErrorOccurred = false;
   NumDiagnostics = 0;
-
+  
   NumErrors = 0;
   CustomDiagInfo = 0;
   CurDiagID = ~0U;
@@ -246,7 +249,7 @@ bool Diagnostic::popMappings() {
 /// getCustomDiagID - Return an ID for a diagnostic with the specified message
 /// and level.  If this is the first request for this diagnosic, it is
 /// registered and created, otherwise the existing ID is returned.
-unsigned Diagnostic::getCustomDiagID(Level L, const char *Message) {
+unsigned Diagnostic::getCustomDiagID(Level L, llvm::StringRef Message) {
   if (CustomDiagInfo == 0)
     CustomDiagInfo = new diag::CustomDiagInfo();
   return CustomDiagInfo->getOrCreateDiagID(L, Message, *this);
@@ -326,9 +329,13 @@ Diagnostic::getDiagnosticLevel(unsigned DiagID, unsigned DiagClass) const {
       return Diagnostic::Ignored;
     Result = Diagnostic::Warning;
     if (ExtBehavior == Ext_Error) Result = Diagnostic::Error;
+    if (Result == Diagnostic::Error && ErrorsAsFatal)
+      Result = Diagnostic::Fatal;
     break;
   case diag::MAP_ERROR:
     Result = Diagnostic::Error;
+    if (ErrorsAsFatal)
+      Result = Diagnostic::Fatal;
     break;
   case diag::MAP_FATAL:
     Result = Diagnostic::Fatal;
@@ -349,6 +356,8 @@ Diagnostic::getDiagnosticLevel(unsigned DiagID, unsigned DiagClass) const {
 
     if (WarningsAsErrors)
       Result = Diagnostic::Error;
+    if (Result == Diagnostic::Error && ErrorsAsFatal)
+      Result = Diagnostic::Fatal;
     break;
 
   case diag::MAP_WARNING_NO_WERROR:
@@ -361,6 +370,12 @@ Diagnostic::getDiagnosticLevel(unsigned DiagID, unsigned DiagClass) const {
       return Diagnostic::Ignored;
 
     break;
+
+  case diag::MAP_ERROR_NO_WFATAL:
+    // Diagnostics specified as -Wno-fatal-error=foo should be errors, but
+    // unaffected by -Wfatal-errors.
+    Result = Diagnostic::Error;
+    break;
   }
 
   // Okay, we're about to return this as a "diagnostic to emit" one last check:
@@ -370,6 +385,123 @@ Diagnostic::getDiagnosticLevel(unsigned DiagID, unsigned DiagClass) const {
     return Diagnostic::Ignored;
 
   return Result;
+}
+
+static bool ReadUnsigned(const char *&Memory, const char *MemoryEnd,
+                         unsigned &Value) {
+  if (Memory + sizeof(unsigned) > MemoryEnd)
+    return true;
+
+  memmove(&Value, Memory, sizeof(unsigned));
+  Memory += sizeof(unsigned);
+  return false;
+}
+
+static bool ReadSourceLocation(FileManager &FM, SourceManager &SM,
+                               const char *&Memory, const char *MemoryEnd,
+                               SourceLocation &Location) {
+  // Read the filename.
+  unsigned FileNameLen = 0;
+  if (ReadUnsigned(Memory, MemoryEnd, FileNameLen) || 
+      Memory + FileNameLen > MemoryEnd)
+    return true;
+
+  llvm::StringRef FileName(Memory, FileNameLen);
+  Memory += FileNameLen;
+
+  // Read the line, column.
+  unsigned Line = 0, Column = 0;
+  if (ReadUnsigned(Memory, MemoryEnd, Line) ||
+      ReadUnsigned(Memory, MemoryEnd, Column))
+    return true;
+
+  if (FileName.empty()) {
+    Location = SourceLocation();
+    return false;
+  }
+
+  const FileEntry *File = FM.getFile(FileName);
+  if (!File)
+    return true;
+
+  // Make sure that this file has an entry in the source manager.
+  if (!SM.hasFileInfo(File))
+    SM.createFileID(File, SourceLocation(), SrcMgr::C_User);
+
+  Location = SM.getLocation(File, Line, Column);
+  return false;
+}
+
+DiagnosticBuilder Diagnostic::Deserialize(FileManager &FM, SourceManager &SM, 
+                                          const char *&Memory, 
+                                          const char *MemoryEnd) {
+  if (Memory == MemoryEnd)
+    return DiagnosticBuilder(0);
+
+  // Read the severity level.
+  unsigned Level = 0;
+  if (ReadUnsigned(Memory, MemoryEnd, Level) || Level > Fatal)
+    return DiagnosticBuilder(0);
+
+  // Read the source location.
+  SourceLocation Location;
+  if (ReadSourceLocation(FM, SM, Memory, MemoryEnd, Location))
+    return DiagnosticBuilder(0);
+
+  // Read the diagnostic text.
+  if (Memory == MemoryEnd)
+    return DiagnosticBuilder(0);
+
+  unsigned MessageLen = 0;
+  if (ReadUnsigned(Memory, MemoryEnd, MessageLen) ||
+      Memory + MessageLen > MemoryEnd)
+    return DiagnosticBuilder(0);
+  
+  llvm::StringRef Message(Memory, MessageLen);
+  Memory += MessageLen;
+
+  // At this point, we have enough information to form a diagnostic. Do so.
+  unsigned DiagID = getCustomDiagID((enum Level)Level, Message);
+  DiagnosticBuilder DB = Report(FullSourceLoc(Location, SM), DiagID);
+  if (Memory == MemoryEnd)
+    return DB;
+
+  // Read the source ranges.
+  unsigned NumSourceRanges = 0;
+  if (ReadUnsigned(Memory, MemoryEnd, NumSourceRanges))
+    return DB;
+  for (unsigned I = 0; I != NumSourceRanges; ++I) {
+    SourceLocation Begin, End;
+    if (ReadSourceLocation(FM, SM, Memory, MemoryEnd, Begin) ||
+        ReadSourceLocation(FM, SM, Memory, MemoryEnd, End))
+      return DB;
+
+    DB << SourceRange(Begin, End);
+  }
+
+  // Read the fix-it hints.
+  unsigned NumFixIts = 0;
+  if (ReadUnsigned(Memory, MemoryEnd, NumFixIts))
+    return DB;
+  for (unsigned I = 0; I != NumFixIts; ++I) {
+    SourceLocation RemoveBegin, RemoveEnd, InsertionLoc;
+    unsigned InsertLen = 0;
+    if (ReadSourceLocation(FM, SM, Memory, MemoryEnd, RemoveBegin) ||
+        ReadSourceLocation(FM, SM, Memory, MemoryEnd, RemoveEnd) ||
+        ReadSourceLocation(FM, SM, Memory, MemoryEnd, InsertionLoc) ||
+        ReadUnsigned(Memory, MemoryEnd, InsertLen) ||
+        Memory + InsertLen > MemoryEnd)
+      return DB;
+
+    CodeModificationHint Hint;
+    Hint.RemoveRange = SourceRange(RemoveBegin, RemoveEnd);
+    Hint.InsertionLoc = InsertionLoc;
+    Hint.CodeToInsert.assign(Memory, Memory + InsertLen);
+    Memory += InsertLen;
+    DB << Hint;
+  }
+
+  return DB;
 }
 
 struct WarningOption {
@@ -497,7 +629,7 @@ bool Diagnostic::ProcessDiag() {
   // it.
   if (SuppressSystemWarnings && !ShouldEmitInSystemHeader &&
       Info.getLocation().isValid() &&
-      Info.getLocation().getSpellingLoc().isInSystemHeader() &&
+      Info.getLocation().getInstantiationLoc().isInSystemHeader() &&
       (DiagLevel != Diagnostic::Note || LastDiagLevel == Diagnostic::Ignored)) {
     LastDiagLevel = Diagnostic::Ignored;
     return false;
@@ -528,19 +660,46 @@ static bool ModifierIs(const char *Modifier, unsigned ModifierLen,
   return StrLen-1 == ModifierLen && !memcmp(Modifier, Str, StrLen-1);
 }
 
+/// ScanForward - Scans forward, looking for the given character, skipping
+/// nested clauses and escaped characters.
+static const char *ScanFormat(const char *I, const char *E, char Target) {
+  unsigned Depth = 0;
+
+  for ( ; I != E; ++I) {
+    if (Depth == 0 && *I == Target) return I;
+    if (Depth != 0 && *I == '}') Depth--;
+
+    if (*I == '%') {
+      I++;
+      if (I == E) break;
+
+      // Escaped characters get implicitly skipped here.
+
+      // Format specifier.
+      if (!isdigit(*I) && !ispunct(*I)) {
+        for (I++; I != E && !isdigit(*I) && *I != '{'; I++) ;
+        if (I == E) break;
+        if (*I == '{')
+          Depth++;
+      }
+    }
+  }
+  return E;
+}
+
 /// HandleSelectModifier - Handle the integer 'select' modifier.  This is used
 /// like this:  %select{foo|bar|baz}2.  This means that the integer argument
 /// "%2" has a value from 0-2.  If the value is 0, the diagnostic prints 'foo'.
 /// If the value is 1, it prints 'bar'.  If it has the value 2, it prints 'baz'.
 /// This is very useful for certain classes of variant diagnostics.
-static void HandleSelectModifier(unsigned ValNo,
+static void HandleSelectModifier(const DiagnosticInfo &DInfo, unsigned ValNo,
                                  const char *Argument, unsigned ArgumentLen,
                                  llvm::SmallVectorImpl<char> &OutStr) {
   const char *ArgumentEnd = Argument+ArgumentLen;
 
   // Skip over 'ValNo' |'s.
   while (ValNo) {
-    const char *NextVal = std::find(Argument, ArgumentEnd, '|');
+    const char *NextVal = ScanFormat(Argument, ArgumentEnd, '|');
     assert(NextVal != ArgumentEnd && "Value for integer select modifier was"
            " larger than the number of options in the diagnostic string!");
     Argument = NextVal+1;  // Skip this string.
@@ -548,9 +707,10 @@ static void HandleSelectModifier(unsigned ValNo,
   }
 
   // Get the end of the value.  This is either the } or the |.
-  const char *EndPtr = std::find(Argument, ArgumentEnd, '|');
-  // Add the value to the output string.
-  OutStr.append(Argument, EndPtr);
+  const char *EndPtr = ScanFormat(Argument, ArgumentEnd, '|');
+
+  // Recursively format the result of the select clause into the output string.
+  DInfo.FormatDiagnostic(Argument, EndPtr, OutStr);
 }
 
 /// HandleIntegerSModifier - Handle the integer 's' modifier.  This adds the
@@ -560,6 +720,37 @@ static void HandleIntegerSModifier(unsigned ValNo,
                                    llvm::SmallVectorImpl<char> &OutStr) {
   if (ValNo != 1)
     OutStr.push_back('s');
+}
+
+/// HandleOrdinalModifier - Handle the integer 'ord' modifier.  This
+/// prints the ordinal form of the given integer, with 1 corresponding
+/// to the first ordinal.  Currently this is hard-coded to use the
+/// English form.
+static void HandleOrdinalModifier(unsigned ValNo,
+                                  llvm::SmallVectorImpl<char> &OutStr) {
+  assert(ValNo != 0 && "ValNo must be strictly positive!");
+
+  llvm::raw_svector_ostream Out(OutStr);
+
+  // We could use text forms for the first N ordinals, but the numeric
+  // forms are actually nicer in diagnostics because they stand out.
+  Out << ValNo;
+
+  // It is critically important that we do this perfectly for
+  // user-written sequences with over 100 elements.
+  switch (ValNo % 100) {
+  case 11:
+  case 12:
+  case 13:
+    Out << "th"; return;
+  default:
+    switch (ValNo % 10) {
+    case 1: Out << "st"; return;
+    case 2: Out << "nd"; return;
+    case 3: Out << "rd"; return;
+    default: Out << "th"; return;
+    }
+  }
 }
 
 
@@ -672,11 +863,11 @@ static void HandlePluralModifier(unsigned ValNo,
     }
     if (EvalPluralExpr(ValNo, Argument, ExprEnd)) {
       Argument = ExprEnd + 1;
-      ExprEnd = std::find(Argument, ArgumentEnd, '|');
+      ExprEnd = ScanFormat(Argument, ArgumentEnd, '|');
       OutStr.append(Argument, ExprEnd);
       return;
     }
-    Argument = std::find(Argument, ArgumentEnd - 1, '|') + 1;
+    Argument = ScanFormat(Argument, ArgumentEnd - 1, '|') + 1;
   }
 }
 
@@ -688,6 +879,13 @@ void DiagnosticInfo::
 FormatDiagnostic(llvm::SmallVectorImpl<char> &OutStr) const {
   const char *DiagStr = getDiags()->getDescription(getID());
   const char *DiagEnd = DiagStr+strlen(DiagStr);
+
+  FormatDiagnostic(DiagStr, DiagEnd, OutStr);
+}
+
+void DiagnosticInfo::
+FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
+                 llvm::SmallVectorImpl<char> &OutStr) const {
 
   /// FormattedArgs - Keep track of all of the arguments formatted by
   /// ConvertArgToString and pass them into subsequent calls to
@@ -702,8 +900,8 @@ FormatDiagnostic(llvm::SmallVectorImpl<char> &OutStr) const {
       OutStr.append(DiagStr, StrEnd);
       DiagStr = StrEnd;
       continue;
-    } else if (DiagStr[1] == '%') {
-      OutStr.push_back('%');  // %% -> %.
+    } else if (ispunct(DiagStr[1])) {
+      OutStr.push_back(DiagStr[1]);  // %% -> %.
       DiagStr += 2;
       continue;
     }
@@ -732,8 +930,8 @@ FormatDiagnostic(llvm::SmallVectorImpl<char> &OutStr) const {
         ++DiagStr; // Skip {.
         Argument = DiagStr;
 
-        for (; DiagStr[0] != '}'; ++DiagStr)
-          assert(DiagStr[0] && "Mismatched {}'s in diagnostic string!");
+        DiagStr = ScanFormat(DiagStr, DiagEnd, '}');
+        assert(DiagStr != DiagEnd && "Mismatched {}'s in diagnostic string!");
         ArgumentLen = DiagStr-Argument;
         ++DiagStr;  // Skip }.
       }
@@ -768,11 +966,13 @@ FormatDiagnostic(llvm::SmallVectorImpl<char> &OutStr) const {
       int Val = getArgSInt(ArgNo);
 
       if (ModifierIs(Modifier, ModifierLen, "select")) {
-        HandleSelectModifier((unsigned)Val, Argument, ArgumentLen, OutStr);
+        HandleSelectModifier(*this, (unsigned)Val, Argument, ArgumentLen, OutStr);
       } else if (ModifierIs(Modifier, ModifierLen, "s")) {
         HandleIntegerSModifier(Val, OutStr);
       } else if (ModifierIs(Modifier, ModifierLen, "plural")) {
         HandlePluralModifier((unsigned)Val, Argument, ArgumentLen, OutStr);
+      } else if (ModifierIs(Modifier, ModifierLen, "ordinal")) {
+        HandleOrdinalModifier((unsigned)Val, OutStr);
       } else {
         assert(ModifierLen == 0 && "Unknown integer modifier");
         llvm::raw_svector_ostream(OutStr) << Val;
@@ -783,11 +983,13 @@ FormatDiagnostic(llvm::SmallVectorImpl<char> &OutStr) const {
       unsigned Val = getArgUInt(ArgNo);
 
       if (ModifierIs(Modifier, ModifierLen, "select")) {
-        HandleSelectModifier(Val, Argument, ArgumentLen, OutStr);
+        HandleSelectModifier(*this, Val, Argument, ArgumentLen, OutStr);
       } else if (ModifierIs(Modifier, ModifierLen, "s")) {
         HandleIntegerSModifier(Val, OutStr);
       } else if (ModifierIs(Modifier, ModifierLen, "plural")) {
         HandlePluralModifier((unsigned)Val, Argument, ArgumentLen, OutStr);
+      } else if (ModifierIs(Modifier, ModifierLen, "ordinal")) {
+        HandleOrdinalModifier(Val, OutStr);
       } else {
         assert(ModifierLen == 0 && "Unknown integer modifier");
         llvm::raw_svector_ostream(OutStr) << Val;
@@ -831,6 +1033,104 @@ FormatDiagnostic(llvm::SmallVectorImpl<char> &OutStr) const {
       FormattedArgs.push_back(std::make_pair(Diagnostic::ak_c_string,
                                         (intptr_t)getArgStdStr(ArgNo).c_str()));
     
+  }
+}
+
+static void WriteUnsigned(llvm::raw_ostream &OS, unsigned Value) {
+  OS.write((const char *)&Value, sizeof(unsigned));
+}
+
+static void WriteString(llvm::raw_ostream &OS, llvm::StringRef String) {
+  WriteUnsigned(OS, String.size());
+  OS.write(String.data(), String.size());
+}
+
+static void WriteSourceLocation(llvm::raw_ostream &OS, 
+                                SourceManager *SM,
+                                SourceLocation Location) {
+  if (!SM || Location.isInvalid()) {
+    // If we don't have a source manager or this location is invalid,
+    // just write an invalid location.
+    WriteUnsigned(OS, 0);
+    WriteUnsigned(OS, 0);
+    WriteUnsigned(OS, 0);
+    return;
+  }
+
+  Location = SM->getInstantiationLoc(Location);
+  std::pair<FileID, unsigned> Decomposed = SM->getDecomposedLoc(Location);
+  
+  WriteString(OS, SM->getFileEntryForID(Decomposed.first)->getName());
+  WriteUnsigned(OS, SM->getLineNumber(Decomposed.first, Decomposed.second));
+  WriteUnsigned(OS, SM->getColumnNumber(Decomposed.first, Decomposed.second));
+}
+
+void DiagnosticInfo::Serialize(Diagnostic::Level DiagLevel, 
+                               llvm::raw_ostream &OS) const {
+  SourceManager *SM = 0;
+  if (getLocation().isValid())
+    SM = &const_cast<SourceManager &>(getLocation().getManager());
+
+  // Write the diagnostic level and location.
+  WriteUnsigned(OS, (unsigned)DiagLevel);
+  WriteSourceLocation(OS, SM, getLocation());
+
+  // Write the diagnostic message.
+  llvm::SmallString<64> Message;
+  FormatDiagnostic(Message);
+  WriteString(OS, Message);
+  
+  // Count the number of ranges that don't point into macros, since
+  // only simple file ranges serialize well.
+  unsigned NumNonMacroRanges = 0;
+  for (unsigned I = 0, N = getNumRanges(); I != N; ++I) {
+    SourceRange R = getRange(I);
+    if (R.getBegin().isMacroID() || R.getEnd().isMacroID())
+      continue;
+
+    ++NumNonMacroRanges;
+  }
+
+  // Write the ranges.
+  WriteUnsigned(OS, NumNonMacroRanges);
+  if (NumNonMacroRanges) {
+    for (unsigned I = 0, N = getNumRanges(); I != N; ++I) {
+      SourceRange R = getRange(I);
+      if (R.getBegin().isMacroID() || R.getEnd().isMacroID())
+        continue;
+      
+      WriteSourceLocation(OS, SM, R.getBegin());
+      WriteSourceLocation(OS, SM, R.getEnd());
+    }
+  }
+
+  // Determine if all of the fix-its involve rewrites with simple file
+  // locations (not in macro instantiations). If so, we can write
+  // fix-it information.
+  unsigned NumFixIts = getNumCodeModificationHints();
+  for (unsigned I = 0; I != NumFixIts; ++I) {
+    const CodeModificationHint &Hint = getCodeModificationHint(I);
+    if (Hint.RemoveRange.isValid() &&
+        (Hint.RemoveRange.getBegin().isMacroID() ||
+         Hint.RemoveRange.getEnd().isMacroID())) {
+      NumFixIts = 0;
+      break;
+    }
+
+    if (Hint.InsertionLoc.isValid() && Hint.InsertionLoc.isMacroID()) {
+      NumFixIts = 0;
+      break;
+    }
+  }
+
+  // Write the fix-its.
+  WriteUnsigned(OS, NumFixIts);
+  for (unsigned I = 0; I != NumFixIts; ++I) {
+    const CodeModificationHint &Hint = getCodeModificationHint(I);
+    WriteSourceLocation(OS, SM, Hint.RemoveRange.getBegin());
+    WriteSourceLocation(OS, SM, Hint.RemoveRange.getEnd());
+    WriteSourceLocation(OS, SM, Hint.InsertionLoc);
+    WriteString(OS, Hint.CodeToInsert);
   }
 }
 

@@ -88,8 +88,6 @@ void CGRecordLayoutBuilder::LayoutBitField(const FieldDecl *D,
 
   AppendBytes(NumBytesToAppend);
 
-  AlignmentAsLLVMStruct = std::max(AlignmentAsLLVMStruct, getTypeAlignment(Ty));
-
   BitsAvailableInLastField =
     NextFieldOffsetInBytes * 8 - (FieldOffset + FieldSize);
 }
@@ -110,6 +108,9 @@ bool CGRecordLayoutBuilder::LayoutField(const FieldDecl *D,
     return true;
   }
 
+  // Check if we have a pointer to data member in this field.
+  CheckForPointerToDataMember(D->getType());
+  
   assert(FieldOffset % 8 == 0 && "FieldOffset is not on a byte boundary!");
   uint64_t FieldOffsetInBytes = FieldOffset / 8;
 
@@ -164,6 +165,8 @@ void CGRecordLayoutBuilder::LayoutUnion(const RecordDecl *D) {
   uint64_t Size = 0;
   unsigned Align = 0;
 
+  bool HasOnlyZeroSizedBitFields = true;
+  
   unsigned FieldNo = 0;
   for (RecordDecl::field_iterator Field = D->field_begin(),
        FieldEnd = D->field_end(); Field != FieldEnd; ++Field, ++FieldNo) {
@@ -183,6 +186,8 @@ void CGRecordLayoutBuilder::LayoutUnion(const RecordDecl *D) {
     } else
       Types.addFieldInfo(*Field, 0);
 
+    HasOnlyZeroSizedBitFields = false;
+    
     const llvm::Type *FieldTy =
       Types.ConvertTypeForMemRecursive(Field->getType());
     unsigned FieldAlign = Types.getTargetData().getABITypeAlignment(FieldTy);
@@ -209,7 +214,8 @@ void CGRecordLayoutBuilder::LayoutUnion(const RecordDecl *D) {
     }
   }
   if (!Align) {
-    assert((D->field_begin() == D->field_end()) && "LayoutUnion - Align 0");
+    assert(HasOnlyZeroSizedBitFields &&
+           "0-align record did not have all zero-sized bit-fields!");
     Align = 1;
   }
   
@@ -218,12 +224,28 @@ void CGRecordLayoutBuilder::LayoutUnion(const RecordDecl *D) {
     AppendPadding(Layout.getSize() / 8, Align);
 }
 
+void CGRecordLayoutBuilder::LayoutBases(const CXXRecordDecl *RD,
+                                        const ASTRecordLayout &Layout) {
+  // Check if we need to add a vtable pointer.
+  if (RD->isDynamicClass() && !Layout.getPrimaryBase()) {
+    const llvm::Type *Int8PtrTy = 
+      llvm::Type::getInt8PtrTy(Types.getLLVMContext());
+    
+    assert(NextFieldOffsetInBytes == 0 &&
+           "Vtable pointer must come first!");
+    AppendField(NextFieldOffsetInBytes, Int8PtrTy->getPointerTo());
+  }
+}
+
 bool CGRecordLayoutBuilder::LayoutFields(const RecordDecl *D) {
   assert(!D->isUnion() && "Can't call LayoutFields on a union!");
   assert(Alignment && "Did not set alignment!");
 
   const ASTRecordLayout &Layout = Types.getContext().getASTRecordLayout(D);
 
+  if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(D))
+    LayoutBases(RD, Layout);
+  
   unsigned FieldNo = 0;
 
   for (RecordDecl::field_iterator Field = D->field_begin(),
@@ -247,6 +269,14 @@ void CGRecordLayoutBuilder::AppendTailPadding(uint64_t RecordSize) {
   uint64_t RecordSizeInBytes = RecordSize / 8;
   assert(NextFieldOffsetInBytes <= RecordSizeInBytes && "Size mismatch!");
 
+  uint64_t AlignedNextFieldOffset = 
+    llvm::RoundUpToAlignment(NextFieldOffsetInBytes, AlignmentAsLLVMStruct);
+
+  if (AlignedNextFieldOffset == RecordSizeInBytes) {
+    // We don't need any padding.
+    return;
+  }
+  
   unsigned NumPadBytes = RecordSizeInBytes - NextFieldOffsetInBytes;
   AppendBytes(NumPadBytes);
 }
@@ -311,53 +341,34 @@ uint64_t CGRecordLayoutBuilder::getTypeSizeInBytes(const llvm::Type *Ty) const {
   return Types.getTargetData().getTypeAllocSize(Ty);
 }
 
-void CGRecordLayoutBuilder::CheckForMemberPointer(const FieldDecl *FD) {
+void CGRecordLayoutBuilder::CheckForPointerToDataMember(QualType T) {
   // This record already contains a member pointer.
-  if (ContainsMemberPointer)
+  if (ContainsPointerToDataMember)
     return;
 
   // Can only have member pointers if we're compiling C++.
   if (!Types.getContext().getLangOptions().CPlusPlus)
     return;
 
-  QualType Ty = FD->getType();
+  T = Types.getContext().getBaseElementType(T);
 
-  if (Ty->isMemberPointerType()) {
-    // We have a member pointer!
-    ContainsMemberPointer = true;
-    return;
-  }
-
-}
-
-static const CXXMethodDecl *GetKeyFunction(const RecordDecl *D) {
-  const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(D);
-  if (!RD || !RD->isDynamicClass())
-    return 0;
-  
-  for (CXXRecordDecl::method_iterator I = RD->method_begin(), 
-       E = RD->method_end(); I != E; ++I) {
-    const CXXMethodDecl *MD = *I;
+  if (const MemberPointerType *MPT = T->getAs<MemberPointerType>()) {
+    if (!MPT->getPointeeType()->isFunctionType()) {
+      // We have a pointer to data member.
+      ContainsPointerToDataMember = true;
+    }
+  } else if (const RecordType *RT = T->getAs<RecordType>()) {
+    const CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
     
-    if (!MD->isVirtual())
-      continue;
+    // FIXME: It would be better if there was a way to explicitly compute the
+    // record layout instead of converting to a type.
+    Types.ConvertTagDeclType(RD);
     
-    if (MD->isPure())
-      continue;
-
-    // FIXME: This doesn't work.  If we have an out of line body, that body will
-    // set the MD to have a body, what we want to know is, was the body present
-    // inside the declaration of the class.  For now, we just avoid the problem
-    // by pretending there is no key function.
-    return 0;
-    if (MD->getBody())
-      continue;
-
-    // We found it.
-    return MD;
-  }
-  
-  return 0;
+    const CGRecordLayout &Layout = Types.getCGRecordLayout(RD);
+    
+    if (Layout.containsPointerToDataMember())
+      ContainsPointerToDataMember = true;
+  }    
 }
 
 CGRecordLayout *
@@ -389,7 +400,5 @@ CGRecordLayoutBuilder::ComputeLayout(CodeGenTypes &Types,
     Types.addBitFieldInfo(Info.FD, Info.FieldNo, Info.Start, Info.Size);
   }
 
-  const CXXMethodDecl *KeyFunction = GetKeyFunction(D);
-
-  return new CGRecordLayout(Ty, Builder.ContainsMemberPointer, KeyFunction);
+  return new CGRecordLayout(Ty, Builder.ContainsPointerToDataMember);
 }

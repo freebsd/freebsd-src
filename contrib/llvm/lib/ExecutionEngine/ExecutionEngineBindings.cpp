@@ -24,7 +24,7 @@ using namespace llvm;
 
 LLVMGenericValueRef LLVMCreateGenericValueOfInt(LLVMTypeRef Ty,
                                                 unsigned long long N,
-                                                int IsSigned) {
+                                                LLVMBool IsSigned) {
   GenericValue *GenVal = new GenericValue();
   GenVal->IntVal = APInt(unwrap<IntegerType>(Ty)->getBitWidth(), N, IsSigned);
   return wrap(GenVal);
@@ -56,7 +56,7 @@ unsigned LLVMGenericValueIntWidth(LLVMGenericValueRef GenValRef) {
 }
 
 unsigned long long LLVMGenericValueToInt(LLVMGenericValueRef GenValRef,
-                                         int IsSigned) {
+                                         LLVMBool IsSigned) {
   GenericValue *GenVal = unwrap(GenValRef);
   if (IsSigned)
     return GenVal->IntVal.getSExtValue();
@@ -87,9 +87,9 @@ void LLVMDisposeGenericValue(LLVMGenericValueRef GenVal) {
 
 /*===-- Operations on execution engines -----------------------------------===*/
 
-int LLVMCreateExecutionEngine(LLVMExecutionEngineRef *OutEE,
-                              LLVMModuleProviderRef MP,
-                              char **OutError) {
+LLVMBool LLVMCreateExecutionEngine(LLVMExecutionEngineRef *OutEE,
+                                   LLVMModuleProviderRef MP,
+                                   char **OutError) {
   std::string Error;
   EngineBuilder builder(unwrap(MP));
   builder.setEngineKind(EngineKind::Either)
@@ -102,9 +102,9 @@ int LLVMCreateExecutionEngine(LLVMExecutionEngineRef *OutEE,
   return 1;
 }
 
-int LLVMCreateInterpreter(LLVMExecutionEngineRef *OutInterp,
-                          LLVMModuleProviderRef MP,
-                          char **OutError) {
+LLVMBool LLVMCreateInterpreter(LLVMExecutionEngineRef *OutInterp,
+                               LLVMModuleProviderRef MP,
+                               char **OutError) {
   std::string Error;
   EngineBuilder builder(unwrap(MP));
   builder.setEngineKind(EngineKind::Interpreter)
@@ -117,10 +117,10 @@ int LLVMCreateInterpreter(LLVMExecutionEngineRef *OutInterp,
   return 1;
 }
 
-int LLVMCreateJITCompiler(LLVMExecutionEngineRef *OutJIT,
-                          LLVMModuleProviderRef MP,
-                          unsigned OptLevel,
-                          char **OutError) {
+LLVMBool LLVMCreateJITCompiler(LLVMExecutionEngineRef *OutJIT,
+                               LLVMModuleProviderRef MP,
+                               unsigned OptLevel,
+                               char **OutError) {
   std::string Error;
   EngineBuilder builder(unwrap(MP));
   builder.setEngineKind(EngineKind::JIT)
@@ -174,24 +174,20 @@ void LLVMFreeMachineCodeForFunction(LLVMExecutionEngineRef EE, LLVMValueRef F) {
 }
 
 void LLVMAddModuleProvider(LLVMExecutionEngineRef EE, LLVMModuleProviderRef MP){
-  unwrap(EE)->addModuleProvider(unwrap(MP));
+  unwrap(EE)->addModule(unwrap(MP));
 }
 
-int LLVMRemoveModuleProvider(LLVMExecutionEngineRef EE,
-                             LLVMModuleProviderRef MP,
-                             LLVMModuleRef *OutMod, char **OutError) {
-  std::string Error;
-  if (Module *Gone = unwrap(EE)->removeModuleProvider(unwrap(MP), &Error)) {
-    *OutMod = wrap(Gone);
-    return 0;
-  }
-  if (OutError)
-    *OutError = strdup(Error.c_str());
-  return 1;
+LLVMBool LLVMRemoveModuleProvider(LLVMExecutionEngineRef EE,
+                                  LLVMModuleProviderRef MP,
+                                  LLVMModuleRef *OutMod, char **OutError) {
+  Module *M = unwrap(MP);
+  unwrap(EE)->removeModule(M);
+  *OutMod = wrap(M);
+  return 0;
 }
 
-int LLVMFindFunction(LLVMExecutionEngineRef EE, const char *Name,
-                     LLVMValueRef *OutFn) {
+LLVMBool LLVMFindFunction(LLVMExecutionEngineRef EE, const char *Name,
+                          LLVMValueRef *OutFn) {
   if (Function *F = unwrap(EE)->FindFunctionNamed(Name)) {
     *OutFn = wrap(F);
     return 0;

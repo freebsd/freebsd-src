@@ -423,6 +423,10 @@ class.  This operation is analogous to $(foreach) in GNU make.</dd>
   <dd>An integer {0,1} indicating whether list 'a' is empty.</dd>
 <dt><tt>!if(a,b,c)</tt></dt>
   <dd>'b' if the result of integer operator 'a' is nonzero, 'c' otherwise.</dd>
+<dt><tt>!eq(a,b)</tt></dt>
+  <dd>Integer one if string a is equal to string b, zero otherwise.  This
+      only operates on string objects.  Use !cast<string> to compare other
+      types of objects.</dd>
 </dl>
 
 <p>Note that all of the values have rules specifying how they convert to values
@@ -794,7 +798,7 @@ This should highlight the APIs in <tt>TableGen/Record.h</tt>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-10-29 19:10:34 +0100 (Thu, 29 Oct 2009) $
+  Last modified: $Date: 2010-01-05 20:11:42 +0100 (Tue, 05 Jan 2010) $
 </address>
 
 </body>

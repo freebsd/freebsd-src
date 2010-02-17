@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -fsyntax-only -verify
+// RUN: %clang_cc1 %s -fsyntax-only -verify
 
 typedef unsigned __uint32_t;
 
@@ -32,4 +32,12 @@ void test9(const void *P) {
 void *test10() { 
 bar:
   return &&bar;  // expected-warning {{returning address of label, which is local}}
+}
+
+// PR6034
+void test11(int bit) {
+  switch (bit)
+  switch (env->fpscr)  // expected-error {{use of undeclared identifier 'env'}}
+  {
+  }
 }

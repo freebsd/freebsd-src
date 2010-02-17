@@ -16,10 +16,11 @@
 
 #include "clang/AST/Type.h"
 #include "clang/AST/TemplateBase.h"
+#include "clang/Basic/Specifiers.h"
 
 namespace clang {
   class ParmVarDecl;
-  class DeclaratorInfo;
+  class TypeSourceInfo;
   class UnqualTypeLoc;
 
 // Predeclare all the type nodes.
@@ -340,16 +341,20 @@ public:
   }
 };
 
+
 struct TypeSpecLocInfo {
   SourceLocation NameLoc;
 };
 
 /// \brief A reasonable base class for TypeLocs that correspond to
 /// types that are written as a type-specifier.
-template <class Derived, class TypeClass, class LocalData = TypeSpecLocInfo>
-class TypeSpecTypeLoc
-  : public ConcreteTypeLoc<UnqualTypeLoc, Derived, TypeClass, LocalData> {
+class TypeSpecTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc, 
+                                               TypeSpecTypeLoc,
+                                               Type,
+                                               TypeSpecLocInfo> {
 public:
+  enum { LocalDataSize = sizeof(TypeSpecLocInfo) };
+
   SourceLocation getNameLoc() const {
     return this->getLocalData()->NameLoc;
   }
@@ -362,31 +367,178 @@ public:
   void initializeLocal(SourceLocation Loc) {
     setNameLoc(Loc);
   }
+
+  static bool classof(const TypeLoc *TL);
+  static bool classof(const TypeSpecTypeLoc *TL) { return true; }
 };
 
+
+struct BuiltinLocInfo {
+  SourceLocation BuiltinLoc;
+};
+
+/// \brief Wrapper for source info for builtin types.
+class BuiltinTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc,
+                                              BuiltinTypeLoc,
+                                              BuiltinType,
+                                              BuiltinLocInfo> {
+public:
+  enum { LocalDataSize = sizeof(BuiltinLocInfo) };
+
+  SourceLocation getBuiltinLoc() const {
+    return getLocalData()->BuiltinLoc;
+  }
+  void setBuiltinLoc(SourceLocation Loc) {
+    getLocalData()->BuiltinLoc = Loc;
+  }
+
+  SourceLocation getNameLoc() const { return getBuiltinLoc(); }
+
+  WrittenBuiltinSpecs& getWrittenBuiltinSpecs() {
+    return *(static_cast<WrittenBuiltinSpecs*>(getExtraLocalData()));
+  }
+  const WrittenBuiltinSpecs& getWrittenBuiltinSpecs() const {
+    return *(static_cast<WrittenBuiltinSpecs*>(getExtraLocalData()));
+  }
+
+  bool needsExtraLocalData() const {
+    BuiltinType::Kind bk = getTypePtr()->getKind();
+    return (bk >= BuiltinType::UShort && bk <= BuiltinType::UInt128)
+      || (bk >= BuiltinType::Short && bk <= BuiltinType::LongDouble)
+      || bk == BuiltinType::UChar
+      || bk == BuiltinType::SChar;
+  }
+
+  unsigned getExtraLocalDataSize() const {
+    return needsExtraLocalData() ? sizeof(WrittenBuiltinSpecs) : 0;
+  }
+
+  SourceRange getSourceRange() const {
+    return SourceRange(getBuiltinLoc(), getBuiltinLoc());
+  }
+
+  TypeSpecifierSign getWrittenSignSpec() const {
+    if (needsExtraLocalData())
+      return static_cast<TypeSpecifierSign>(getWrittenBuiltinSpecs().Sign);
+    else
+      return TSS_unspecified;
+  }
+  bool hasWrittenSignSpec() const {
+    return getWrittenSignSpec() != TSS_unspecified;
+  }
+  void setWrittenSignSpec(TypeSpecifierSign written) {
+    if (needsExtraLocalData())
+      getWrittenBuiltinSpecs().Sign = written;
+  }
+
+  TypeSpecifierWidth getWrittenWidthSpec() const {
+    if (needsExtraLocalData())
+      return static_cast<TypeSpecifierWidth>(getWrittenBuiltinSpecs().Width);
+    else
+      return TSW_unspecified;
+  }
+  bool hasWrittenWidthSpec() const {
+    return getWrittenWidthSpec() != TSW_unspecified;
+  }
+  void setWrittenWidthSpec(TypeSpecifierWidth written) {
+    if (needsExtraLocalData())
+      getWrittenBuiltinSpecs().Width = written;
+  }
+
+  TypeSpecifierType getWrittenTypeSpec() const;
+  bool hasWrittenTypeSpec() const {
+    return getWrittenTypeSpec() != TST_unspecified;
+  }
+  void setWrittenTypeSpec(TypeSpecifierType written) {
+    if (needsExtraLocalData())
+      getWrittenBuiltinSpecs().Type = written;
+  }
+
+  bool hasModeAttr() const {
+    if (needsExtraLocalData())
+      return getWrittenBuiltinSpecs().ModeAttr;
+    else
+      return false;
+  }
+  void setModeAttr(bool written) {
+    if (needsExtraLocalData())
+      getWrittenBuiltinSpecs().ModeAttr = written;
+  }
+
+  void initializeLocal(SourceLocation Loc) {
+    setBuiltinLoc(Loc);
+    if (needsExtraLocalData()) {
+      WrittenBuiltinSpecs &wbs = getWrittenBuiltinSpecs();
+      wbs.Sign = TSS_unspecified;
+      wbs.Width = TSW_unspecified;
+      wbs.Type = TST_unspecified;
+      wbs.ModeAttr = false;
+    }
+  }
+};
+
+
 /// \brief Wrapper for source info for typedefs.
-class TypedefTypeLoc : public TypeSpecTypeLoc<TypedefTypeLoc,TypedefType> {
+class TypedefTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                                        TypedefTypeLoc,
+                                                        TypedefType> {
 public:
   TypedefDecl *getTypedefDecl() const {
     return getTypePtr()->getDecl();
   }
 };
 
+/// \brief Wrapper for source info for unresolved typename using decls.
+class UnresolvedUsingTypeLoc :
+    public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                     UnresolvedUsingTypeLoc,
+                                     UnresolvedUsingType> {
+public:
+  UnresolvedUsingTypenameDecl *getDecl() const {
+    return getTypePtr()->getDecl();
+  }
+};
 
-/// \brief Wrapper for source info for builtin types.
-class BuiltinTypeLoc : public TypeSpecTypeLoc<BuiltinTypeLoc,
-                                              BuiltinType> {
+/// \brief Wrapper for source info for tag types.  Note that this only
+/// records source info for the name itself; a type written 'struct foo'
+/// should be represented as an ElaboratedTypeLoc.  We currently
+/// only do that when C++ is enabled because of the expense of
+/// creating an ElaboratedType node for so many type references in C.
+class TagTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                                    TagTypeLoc,
+                                                    TagType> {
+public:
+  TagDecl *getDecl() const { return getTypePtr()->getDecl(); }
+};
+
+/// \brief Wrapper for source info for record types.
+class RecordTypeLoc : public InheritingConcreteTypeLoc<TagTypeLoc,
+                                                       RecordTypeLoc,
+                                                       RecordType> {
+public:
+  RecordDecl *getDecl() const { return getTypePtr()->getDecl(); }
+};
+
+/// \brief Wrapper for source info for enum types.
+class EnumTypeLoc : public InheritingConcreteTypeLoc<TagTypeLoc,
+                                                     EnumTypeLoc,
+                                                     EnumType> {
+public:
+  EnumDecl *getDecl() const { return getTypePtr()->getDecl(); }
 };
 
 /// \brief Wrapper for template type parameters.
-class TemplateTypeParmTypeLoc : public TypeSpecTypeLoc<TemplateTypeParmTypeLoc,
-                                                       TemplateTypeParmType> {
+class TemplateTypeParmTypeLoc :
+    public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                     TemplateTypeParmTypeLoc,
+                                     TemplateTypeParmType> {
 };
 
 /// \brief Wrapper for substituted template type parameters.
 class SubstTemplateTypeParmTypeLoc :
-    public TypeSpecTypeLoc<SubstTemplateTypeParmTypeLoc,
-                           SubstTemplateTypeParmType> {
+    public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                     SubstTemplateTypeParmTypeLoc,
+                                     SubstTemplateTypeParmType> {
 };
 
 
@@ -889,7 +1041,7 @@ public:
     assert(size == Loc.getFullDataSize());
 
     // We're potentially copying Expr references here.  We don't
-    // bother retaining them because DeclaratorInfos live forever, so
+    // bother retaining them because TypeSourceInfos live forever, so
     // as long as the Expr was retained when originally written into
     // the TypeLoc, we're okay.
     memcpy(Data, Loc.Data, size);
@@ -916,7 +1068,7 @@ public:
         break;
 
       case TemplateArgument::Type:
-        Info = TemplateArgumentLocInfo((DeclaratorInfo*) 0);
+        Info = TemplateArgumentLocInfo((TypeSourceInfo*) 0);
         break;
 
       case TemplateArgument::Template:
@@ -944,63 +1096,147 @@ private:
   }
 };
 
-// None of these types have proper implementations yet.
+//===----------------------------------------------------------------------===//
+//
+//  All of these need proper implementations.
+//
+//===----------------------------------------------------------------------===//
 
-class VectorTypeLoc : public TypeSpecTypeLoc<VectorTypeLoc, VectorType> {
+// FIXME: size expression and attribute locations (or keyword if we
+// ever fully support altivec syntax).
+class VectorTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                                       VectorTypeLoc,
+                                                       VectorType> {
 };
 
+// FIXME: size expression and attribute locations.
 class ExtVectorTypeLoc : public InheritingConcreteTypeLoc<VectorTypeLoc,
                                                           ExtVectorTypeLoc,
                                                           ExtVectorType> {
 };
 
+// FIXME: attribute locations.
 // For some reason, this isn't a subtype of VectorType.
 class DependentSizedExtVectorTypeLoc :
-    public TypeSpecTypeLoc<DependentSizedExtVectorTypeLoc,
-                           DependentSizedExtVectorType> {
+    public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                     DependentSizedExtVectorTypeLoc,
+                                     DependentSizedExtVectorType> {
 };
 
-class FixedWidthIntTypeLoc : public TypeSpecTypeLoc<FixedWidthIntTypeLoc,
-                                                    FixedWidthIntType> {
+// FIXME: location of the '_Complex' keyword.
+class ComplexTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                                        ComplexTypeLoc,
+                                                        ComplexType> {
 };
 
-class ComplexTypeLoc : public TypeSpecTypeLoc<ComplexTypeLoc,
-                                              ComplexType> {
+struct TypeofLocInfo {
+  SourceLocation TypeofLoc;
+  SourceLocation LParenLoc;
+  SourceLocation RParenLoc;
 };
 
-class TypeOfExprTypeLoc : public TypeSpecTypeLoc<TypeOfExprTypeLoc,
-                                                 TypeOfExprType> {
+struct TypeOfExprTypeLocInfo : public TypeofLocInfo {
 };
 
-class TypeOfTypeLoc : public TypeSpecTypeLoc<TypeOfTypeLoc, TypeOfType> {
+struct TypeOfTypeLocInfo : public TypeofLocInfo {
+  TypeSourceInfo* UnderlyingTInfo;
 };
 
-class DecltypeTypeLoc : public TypeSpecTypeLoc<DecltypeTypeLoc, DecltypeType> {
+template <class Derived, class TypeClass, class LocalData = TypeofLocInfo>
+class TypeofLikeTypeLoc
+  : public ConcreteTypeLoc<UnqualTypeLoc, Derived, TypeClass, LocalData> {
+public:
+  SourceLocation getTypeofLoc() const {
+    return this->getLocalData()->TypeofLoc;
+  }
+  void setTypeofLoc(SourceLocation Loc) {
+    this->getLocalData()->TypeofLoc = Loc;
+  }
+
+  SourceLocation getLParenLoc() const {
+    return this->getLocalData()->LParenLoc;
+  }
+  void setLParenLoc(SourceLocation Loc) {
+    this->getLocalData()->LParenLoc = Loc;
+  }
+
+  SourceLocation getRParenLoc() const {
+    return this->getLocalData()->RParenLoc;
+  }
+  void setRParenLoc(SourceLocation Loc) {
+    this->getLocalData()->RParenLoc = Loc;
+  }
+
+  SourceRange getParensRange() const {
+    return SourceRange(getLParenLoc(), getRParenLoc());
+  }
+  void setParensRange(SourceRange range) {
+      setLParenLoc(range.getBegin());
+      setRParenLoc(range.getEnd());
+  }
+
+  SourceRange getSourceRange() const {
+    return SourceRange(getTypeofLoc(), getRParenLoc());
+  }
+
+  void initializeLocal(SourceLocation Loc) {
+    setTypeofLoc(Loc);
+    setLParenLoc(Loc);
+    setRParenLoc(Loc);
+  }
 };
 
-class TagTypeLoc : public TypeSpecTypeLoc<TagTypeLoc, TagType> {
+class TypeOfExprTypeLoc : public TypeofLikeTypeLoc<TypeOfExprTypeLoc,
+                                                   TypeOfExprType,
+                                                   TypeOfExprTypeLocInfo> {
+public:
+  Expr* getUnderlyingExpr() const {
+    return getTypePtr()->getUnderlyingExpr();
+  }
+  // Reimplemented to account for GNU/C++ extension
+  //     typeof unary-expression
+  // where there are no parentheses.
+  SourceRange getSourceRange() const;
 };
 
-class RecordTypeLoc : public InheritingConcreteTypeLoc<TagTypeLoc,
-                                                       RecordTypeLoc,
-                                                       RecordType> {
+class TypeOfTypeLoc
+  : public TypeofLikeTypeLoc<TypeOfTypeLoc, TypeOfType, TypeOfTypeLocInfo> {
+public:
+  QualType getUnderlyingType() const {
+    return this->getTypePtr()->getUnderlyingType();
+  }
+  TypeSourceInfo* getUnderlyingTInfo() const {
+    return this->getLocalData()->UnderlyingTInfo;
+  }
+  void setUnderlyingTInfo(TypeSourceInfo* TI) const {
+    this->getLocalData()->UnderlyingTInfo = TI;
+  }
 };
 
-class EnumTypeLoc : public InheritingConcreteTypeLoc<TagTypeLoc,
-                                                     EnumTypeLoc,
-                                                     EnumType> {
+// FIXME: location of the 'decltype' and parens.
+class DecltypeTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                                         DecltypeTypeLoc,
+                                                         DecltypeType> {
 };
 
-class ElaboratedTypeLoc : public TypeSpecTypeLoc<ElaboratedTypeLoc,
-                                                 ElaboratedType> {
+// FIXME: location of the tag keyword.
+class ElaboratedTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                                           ElaboratedTypeLoc,
+                                                           ElaboratedType> {
 };
 
-class QualifiedNameTypeLoc : public TypeSpecTypeLoc<QualifiedNameTypeLoc,
-                                                    QualifiedNameType> {
+// FIXME: locations for the nested name specifier;  at the very least,
+// a SourceRange.
+class QualifiedNameTypeLoc :
+    public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                     QualifiedNameTypeLoc,
+                                     QualifiedNameType> {
 };
 
-class TypenameTypeLoc : public TypeSpecTypeLoc<TypenameTypeLoc,
-                                               TypenameType> {
+// FIXME: locations for the typename keyword and nested name specifier.
+class TypenameTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                                         TypenameTypeLoc,
+                                                         TypenameType> {
 };
 
 }

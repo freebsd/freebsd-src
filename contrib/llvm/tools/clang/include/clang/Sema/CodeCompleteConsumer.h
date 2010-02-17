@@ -61,6 +61,9 @@ public:
     /// \brief A piece of text that describes something about the result but
     /// should not be inserted into the buffer.
     CK_Informative,
+    /// \brief A piece of text that describes the type of an entity or, for
+    /// functions and methods, the return type.
+    CK_ResultType,
     /// \brief A piece of text that describes the parameter that corresponds
     /// to the code-completion location within a function call, message send,
     /// macro invocation, etc.
@@ -82,7 +85,18 @@ public:
     /// \brief A right angle bracket ('>').
     CK_RightAngle,
     /// \brief A comma separator (',').
-    CK_Comma
+    CK_Comma,
+    /// \brief A colon (':').
+    CK_Colon,
+    /// \brief A semicolon (';').
+    CK_SemiColon,
+    /// \brief An '=' sign.
+    CK_Equal,
+    /// \brief Horizontal whitespace (' ').
+    CK_HorizontalSpace,
+    /// \brief Verticle whitespace ('\n' or '\r\n', depending on the
+    /// platform).
+    CK_VerticalSpace
   };
   
   /// \brief One piece of the code completion string.
@@ -119,6 +133,9 @@ public:
 
     /// \brief Create a new informative chunk.
     static Chunk CreateInformative(llvm::StringRef Informative);
+
+    /// \brief Create a new result type chunk.
+    static Chunk CreateResultType(llvm::StringRef ResultType);
 
     /// \brief Create a new current-parameter chunk.
     static Chunk CreateCurrentParameter(llvm::StringRef CurrentParameter);
@@ -186,6 +203,12 @@ public:
     Chunks.push_back(Chunk::CreateInformative(Text));
   }
 
+  /// \brief Add a new result-type chunk.
+  /// The text will be copied.
+  void AddResultTypeChunk(llvm::StringRef ResultType) {
+    Chunks.push_back(Chunk::CreateResultType(ResultType));
+  }
+  
   /// \brief Add a new current-parameter chunk.
   /// The text will be copied.
   void AddCurrentParameterChunk(llvm::StringRef CurrentParameter) {
@@ -209,7 +232,8 @@ public:
   void Serialize(llvm::raw_ostream &OS) const;
   
   /// \brief Deserialize a code-completion string from the given string.
-  static CodeCompletionString *Deserialize(llvm::StringRef &Str);  
+  static CodeCompletionString *Deserialize(const char *&Str, 
+                                           const char *StrEnd);
 };
   
 llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, 
@@ -221,6 +245,10 @@ class CodeCompleteConsumer {
 protected:
   /// \brief Whether to include macros in the code-completion results.
   bool IncludeMacros;
+
+  /// \brief Whether the output format for the code-completion consumer is
+  /// binary.
+  bool OutputIsBinary;
   
 public:
   /// \brief Captures a result of code completion.
@@ -253,10 +281,6 @@ public:
       IdentifierInfo *Macro;
     };
     
-    /// \brief Describes how good this result is, with zero being the best
-    /// result and progressively higher numbers representing poorer results.
-    unsigned Rank;
-    
     /// \brief Specifiers which parameter (of a function, Objective-C method,
     /// macro, etc.) we should start with when formatting the result.
     unsigned StartParameter;
@@ -281,32 +305,32 @@ public:
     NestedNameSpecifier *Qualifier;
     
     /// \brief Build a result that refers to a declaration.
-    Result(NamedDecl *Declaration, unsigned Rank, 
+    Result(NamedDecl *Declaration, 
            NestedNameSpecifier *Qualifier = 0,
            bool QualifierIsInformative = false)
-      : Kind(RK_Declaration), Declaration(Declaration), Rank(Rank), 
+      : Kind(RK_Declaration), Declaration(Declaration), 
         StartParameter(0), Hidden(false), 
         QualifierIsInformative(QualifierIsInformative),
         StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
         Qualifier(Qualifier) { }
     
     /// \brief Build a result that refers to a keyword or symbol.
-    Result(const char *Keyword, unsigned Rank)
-      : Kind(RK_Keyword), Keyword(Keyword), Rank(Rank), StartParameter(0),
+    Result(const char *Keyword)
+      : Kind(RK_Keyword), Keyword(Keyword), StartParameter(0),
         Hidden(false), QualifierIsInformative(0), 
         StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
         Qualifier(0) { }
     
     /// \brief Build a result that refers to a macro.
-    Result(IdentifierInfo *Macro, unsigned Rank)
-     : Kind(RK_Macro), Macro(Macro), Rank(Rank), StartParameter(0), 
+    Result(IdentifierInfo *Macro)
+     : Kind(RK_Macro), Macro(Macro), StartParameter(0), 
        Hidden(false), QualifierIsInformative(0), 
        StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
        Qualifier(0) { }
 
     /// \brief Build a result that refers to a pattern.
-    Result(CodeCompletionString *Pattern, unsigned Rank)
-      : Kind(RK_Pattern), Pattern(Pattern), Rank(Rank), StartParameter(0), 
+    Result(CodeCompletionString *Pattern)
+      : Kind(RK_Pattern), Pattern(Pattern), StartParameter(0), 
         Hidden(false), QualifierIsInformative(0), 
         StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
         Qualifier(0) { }
@@ -394,17 +418,20 @@ public:
                                                 Sema &S) const;    
   };
   
-  CodeCompleteConsumer() : IncludeMacros(false) { }
+  CodeCompleteConsumer() : IncludeMacros(false), OutputIsBinary(false) { }
   
-  explicit CodeCompleteConsumer(bool IncludeMacros)
-    : IncludeMacros(IncludeMacros) { }
+  CodeCompleteConsumer(bool IncludeMacros, bool OutputIsBinary)
+    : IncludeMacros(IncludeMacros), OutputIsBinary(OutputIsBinary) { }
   
   /// \brief Whether the code-completion consumer wants to see macros.
   bool includeMacros() const { return IncludeMacros; }
+
+  /// \brief Determine whether the output of this consumer is binary.
+  bool isOutputBinary() const { return OutputIsBinary; }
   
   /// \brief Deregisters and destroys this code-completion consumer.
   virtual ~CodeCompleteConsumer();
-    
+
   /// \name Code-completion callbacks
   //@{
   /// \brief Process the finalized code-completion results.
@@ -436,7 +463,7 @@ public:
   /// results to the given raw output stream.
   PrintingCodeCompleteConsumer(bool IncludeMacros,
                                llvm::raw_ostream &OS)
-    : CodeCompleteConsumer(IncludeMacros), OS(OS) { }
+    : CodeCompleteConsumer(IncludeMacros, false), OS(OS) { }
   
   /// \brief Prints the finalized code-completion results.
   virtual void ProcessCodeCompleteResults(Sema &S, Result *Results,
@@ -458,7 +485,7 @@ public:
   /// results to the given raw output stream in a format readable to the CIndex
   /// library.
   CIndexCodeCompleteConsumer(bool IncludeMacros, llvm::raw_ostream &OS)
-    : CodeCompleteConsumer(IncludeMacros), OS(OS) { }
+    : CodeCompleteConsumer(IncludeMacros, true), OS(OS) { }
   
   /// \brief Prints the finalized code-completion results.
   virtual void ProcessCodeCompleteResults(Sema &S, Result *Results, 

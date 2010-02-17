@@ -51,6 +51,7 @@ namespace {
     Value *PersonalityFn;
     Constant *SelectorFn;
     Constant *ExceptionFn;
+    Constant *CallSiteFn;
 
     Value *CallSite;
   public:
@@ -116,6 +117,7 @@ bool SjLjEHPass::doInitialization(Module &M) {
   LSDAAddrFn = Intrinsic::getDeclaration(&M, Intrinsic::eh_sjlj_lsda);
   SelectorFn = Intrinsic::getDeclaration(&M, Intrinsic::eh_selector);
   ExceptionFn = Intrinsic::getDeclaration(&M, Intrinsic::eh_exception);
+  CallSiteFn = Intrinsic::getDeclaration(&M, Intrinsic::eh_sjlj_callsite);
   PersonalityFn = 0;
 
   return true;
@@ -143,15 +145,14 @@ void SjLjEHPass::markInvokeCallSite(InvokeInst *II, unsigned InvokeNo,
     }
   }
 
-  // Insert a store of the invoke num before the invoke and store zero into the
-  // location afterward.
+  // Insert a store of the invoke num before the invoke
   new StoreInst(CallSiteNoC, CallSite, true, II);  // volatile
+  CallInst::Create(CallSiteFn, CallSiteNoC, "", II);
 
   // Add a switch case to our unwind block.
   CatchSwitch->addCase(SwitchValC, II->getUnwindDest());
-  // We still want this to look like an invoke so we emit the LSDA properly
-  // FIXME: ??? Or will this cause strangeness with mis-matched IDs like
-  //  when it was in the front end?
+  // We still want this to look like an invoke so we emit the LSDA properly,
+  // so we don't transform the invoke into a call here.
 }
 
 /// MarkBlocksLiveIn - Insert BB and all of its predescessors into LiveBBs until
@@ -381,9 +382,6 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
       I->eraseFromParent();
     }
 
-
-
-
     // The entry block changes to have the eh.sjlj.setjmp, with a conditional
     // branch to a dispatch block for non-zero returns. If we return normally,
     // we're not handling an exception and just register the function context
@@ -397,13 +395,15 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
     // Insert a load in the Catch block, and a switch on its value.  By default,
     // we go to a block that just does an unwind (which is the correct action
     // for a standard call).
-    BasicBlock *UnwindBlock = BasicBlock::Create(F.getContext(), "unwindbb", &F);
+    BasicBlock *UnwindBlock =
+      BasicBlock::Create(F.getContext(), "unwindbb", &F);
     Unwinds.push_back(new UnwindInst(F.getContext(), UnwindBlock));
 
     Value *DispatchLoad = new LoadInst(CallSite, "invoke.num", true,
                                        DispatchBlock);
     SwitchInst *DispatchSwitch =
-      SwitchInst::Create(DispatchLoad, UnwindBlock, Invokes.size(), DispatchBlock);
+      SwitchInst::Create(DispatchLoad, UnwindBlock, Invokes.size(),
+                         DispatchBlock);
     // Split the entry block to insert the conditional branch for the setjmp.
     BasicBlock *ContBlock = EntryBB->splitBasicBlock(EntryBB->getTerminator(),
                                                      "eh.sjlj.setjmp.cont");

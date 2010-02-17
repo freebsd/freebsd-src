@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -triple i386-pc-linux-gnu -verify -fsyntax-only
+// RUN: %clang_cc1 %s -triple i386-pc-linux-gnu -verify -fsyntax-only
 
 void f() {
   int i;
@@ -76,3 +76,6 @@ int test7(unsigned long long b) {
   asm volatile("foo %0 %1" : "=a" (a) :"0" (b)); // expected-error {{input with type 'unsigned long long' matching output with type 'int'}}
   return a;
 }
+
+// <rdar://problem/7574870>
+asm volatile (""); // expected-warning {{meaningless 'volatile' on asm outside function}}

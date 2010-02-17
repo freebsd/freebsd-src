@@ -1,4 +1,4 @@
-// RUN: clang-cc -verify %s 
+// RUN: %clang_cc1 -verify %s 
 
 typedef struct objc_class *Class;
 @interface XX

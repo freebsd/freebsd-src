@@ -12,6 +12,10 @@ define internal arm_apcscc i32 @foo(i32 %i) nounwind {
 entry:
   %0 = load i8** @nextaddr, align 4               ; <i8*> [#uses=2]
   %1 = icmp eq i8* %0, null                       ; <i1> [#uses=1]
+; indirect branch gets duplicated here
+; ARM: bx
+; THUMB: mov pc, r1
+; THUMB2: mov pc, r1
   br i1 %1, label %bb3, label %bb2
 
 bb2:                                              ; preds = %entry, %bb3
@@ -55,6 +59,6 @@ L1:                                               ; preds = %L2, %bb2
   store i8* blockaddress(@foo, %L5), i8** @nextaddr, align 4
   ret i32 %res.3
 }
-; ARM: .long LBA4__foo__L5-(LPC{{.*}}+8)
-; THUMB: .long LBA4__foo__L5-(LPC{{.*}}+4)
-; THUMB2: .long LBA4__foo__L5
+; ARM: .long L_BA4__foo_L5-(LPC{{.*}}+8)
+; THUMB: .long L_BA4__foo_L5-(LPC{{.*}}+4)
+; THUMB2: .long L_BA4__foo_L5

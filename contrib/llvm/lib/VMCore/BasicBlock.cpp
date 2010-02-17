@@ -35,7 +35,7 @@ LLVMContext &BasicBlock::getContext() const {
 
 // Explicit instantiation of SymbolTableListTraits since some of the methods
 // are not in the public header file...
-template class SymbolTableListTraits<Instruction, BasicBlock>;
+template class llvm::SymbolTableListTraits<Instruction, BasicBlock>;
 
 
 BasicBlock::BasicBlock(LLVMContext &C, const Twine &Name, Function *NewParent,
@@ -262,7 +262,7 @@ BasicBlock *BasicBlock::splitBasicBlock(iterator I, const Twine &BBName) {
   assert(I != InstList.end() &&
          "Trying to get me to create degenerate basic block!");
 
-  BasicBlock *InsertBefore = next(Function::iterator(this))
+  BasicBlock *InsertBefore = llvm::next(Function::iterator(this))
                                .getNodePtrUnchecked();
   BasicBlock *New = BasicBlock::Create(getContext(), BBName,
                                        getParent(), InsertBefore);

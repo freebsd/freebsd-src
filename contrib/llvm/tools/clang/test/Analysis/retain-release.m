@@ -1,5 +1,5 @@
-// RUN: clang-cc -triple x86_64-apple-darwin10 -analyze -checker-cfref -analyzer-store=basic -verify %s
-// RUN: clang-cc -triple x86_64-apple-darwin10 -analyze -checker-cfref -analyzer-store=region -verify %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-check-objc-mem -analyzer-store=basic -fblocks -verify %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-check-objc-mem -analyzer-store=region -fblocks -verify %s
 
 #if __has_feature(attribute_ns_returns_retained)
 #define NS_RETURNS_RETAINED __attribute__((ns_returns_retained))
@@ -881,6 +881,8 @@ void IOServiceAddMatchingNotification_wrapper(IONotificationPortRef notifyPort, 
 // Test of handling objects whose references "escape" to containers.
 //===----------------------------------------------------------------------===//
 
+void CFDictionaryAddValue();
+
 // <rdar://problem/6539791>
 void rdar_6539791(CFMutableDictionaryRef y, void* key, void* val_key) {
   CFMutableDictionaryRef x = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
@@ -1162,6 +1164,19 @@ void rdar7306898(void) {
 }
 
 //===----------------------------------------------------------------------===//
+// <rdar://problem/7252064> sending 'release', 'retain', etc. to a Class
+// directly is not likely what the user intended
+//===----------------------------------------------------------------------===//
+
+@interface RDar7252064 : NSObject @end
+void rdar7252064(void) {
+  [RDar7252064 release]; // expected-warning{{The 'release' message should be sent to instances of class 'RDar7252064' and not the class directly}}
+  [RDar7252064 retain]; // expected-warning{{The 'retain' message should be sent to instances of class 'RDar7252064' and not the class directly}}
+  [RDar7252064 autorelease]; // expected-warning{{The 'autorelease' message should be sent to instances of class 'RDar7252064' and not the class directly}}
+  [NSAutoreleasePool drain]; // expected-warning{{method '+drain' not found}} expected-warning{{The 'drain' message should be sent to instances of class 'NSAutoreleasePool' and not the class directly}}
+}
+
+//===----------------------------------------------------------------------===//
 // Tests of ownership attributes.
 //===----------------------------------------------------------------------===//
 
@@ -1257,5 +1272,36 @@ void test_panic_pos_2(int x) {
     panic();  
   if (!x)
     panic();
+}
+
+//===----------------------------------------------------------------------===//
+// Test uses of blocks (closures)
+//===----------------------------------------------------------------------===//
+
+void test_blocks_1_pos(void) {
+  NSNumber *number = [[NSNumber alloc] initWithInt:5]; // expected-warning{{leak}}
+  ^{}();
+}
+
+void test_blocks_1_indirect_release(void) {
+  NSNumber *number = [[NSNumber alloc] initWithInt:5]; // no-warning
+  ^{ [number release]; }();
+}
+
+void test_blocks_1_indirect_retain(void) {
+  // Eventually this should be reported as a leak.
+  NSNumber *number = [[NSNumber alloc] initWithInt:5]; // no-warning
+  ^{ [number retain]; }();
+}
+
+void test_blocks_1_indirect_release_via_call(void) {
+  NSNumber *number = [[NSNumber alloc] initWithInt:5]; // no-warning
+  ^(NSObject *o){ [o release]; }(number);
+}
+
+void test_blocks_1_indirect_retain_via_call(void) {
+  // Eventually this should be reported as a leak.
+  NSNumber *number = [[NSNumber alloc] initWithInt:5]; // no-warning
+  ^(NSObject *o){ [o retain]; }(number);
 }
 

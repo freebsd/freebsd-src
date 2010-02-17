@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 namespace A {
   short i; // expected-note 2{{candidate found by name lookup is 'A::i'}}
@@ -102,3 +102,22 @@ namespace FuncHidesTagAmbiguity {
     (void)X(); // expected-error{{reference to 'X' is ambiguous}}
   }
 }
+
+// PR5479
+namespace Aliased {
+  void inAliased();
+}
+namespace Alias = Aliased;
+using namespace Alias;
+void testAlias() {
+  inAliased();
+}
+
+namespace N { void f2(int); }
+
+extern "C++" {
+  using namespace N;
+  void f3() { f2(1); }
+}
+
+void f4() { f2(1); }

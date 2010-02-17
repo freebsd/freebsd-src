@@ -29,6 +29,12 @@
 #define ATTRIBUTE_USED
 #endif
 
+#if (__GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1))
+#define ATTRIBUTE_UNUSED __attribute__((__unused__))
+#else
+#define ATTRIBUTE_UNUSED
+#endif
+
 #ifdef __GNUC__ // aka 'ATTRIBUTE_CONST' but following LLVM Conventions.
 #define ATTRIBUTE_READNONE __attribute__((__const__))
 #else
@@ -69,6 +75,16 @@
 #else
 #define DISABLE_INLINE
 #endif
+
+// ALWAYS_INLINE - On compilers where we have a directive to do so, mark a
+// method "always inline" because it is performance sensitive.
+#if (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
+#define ALWAYS_INLINE __attribute__((always_inline))
+#else
+// TODO: No idea how to do this with MSVC.
+#define ALWAYS_INLINE
+#endif
+
 
 #ifdef __GNUC__
 #define NORETURN __attribute__((noreturn))

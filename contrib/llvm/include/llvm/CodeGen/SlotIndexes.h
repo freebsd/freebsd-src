@@ -72,10 +72,13 @@ namespace llvm {
       }
     }
 
+    bool isValid() const {
+      return (index != EMPTY_KEY_INDEX && index != TOMBSTONE_KEY_INDEX);
+    }
+
     MachineInstr* getInstr() const { return mi; }
     void setInstr(MachineInstr *mi) {
-      assert(index != EMPTY_KEY_INDEX && index != TOMBSTONE_KEY_INDEX &&
-             "Attempt to modify reserved index.");
+      assert(isValid() && "Attempt to modify reserved index.");
       this->mi = mi;
     }
 
@@ -83,25 +86,21 @@ namespace llvm {
     void setIndex(unsigned index) {
       assert(index != EMPTY_KEY_INDEX && index != TOMBSTONE_KEY_INDEX &&
              "Attempt to set index to invalid value.");
-      assert(this->index != EMPTY_KEY_INDEX &&
-             this->index != TOMBSTONE_KEY_INDEX &&
-             "Attempt to reset reserved index value.");
+      assert(isValid() && "Attempt to reset reserved index value.");
       this->index = index;
     }
     
     IndexListEntry* getNext() { return next; }
     const IndexListEntry* getNext() const { return next; }
     void setNext(IndexListEntry *next) {
-      assert(index != EMPTY_KEY_INDEX && index != TOMBSTONE_KEY_INDEX &&
-             "Attempt to modify reserved index.");
+      assert(isValid() && "Attempt to modify reserved index.");
       this->next = next;
     }
 
     IndexListEntry* getPrev() { return prev; }
     const IndexListEntry* getPrev() const { return prev; }
     void setPrev(IndexListEntry *prev) {
-      assert(index != EMPTY_KEY_INDEX && index != TOMBSTONE_KEY_INDEX &&
-             "Attempt to modify reserved index.");
+      assert(isValid() && "Attempt to modify reserved index.");
       this->prev = prev;
     }
 
@@ -176,7 +175,7 @@ namespace llvm {
     // Construct a new slot index from the given one, set the phi flag on the
     // new index to the value of the phi parameter.
     SlotIndex(const SlotIndex &li, bool phi)
-      : lie(&li.entry(), phi ? PHI_BIT & li.getSlot() : (unsigned)li.getSlot()){
+      : lie(&li.entry(), phi ? PHI_BIT | li.getSlot() : (unsigned)li.getSlot()){
       assert(lie.getPointer() != 0 &&
              "Attempt to construct index with 0 pointer.");
     }
@@ -184,7 +183,7 @@ namespace llvm {
     // Construct a new slot index from the given one, set the phi flag on the
     // new index to the value of the phi parameter, and the slot to the new slot.
     SlotIndex(const SlotIndex &li, bool phi, Slot s)
-      : lie(&li.entry(), phi ? PHI_BIT & s : (unsigned)s) {
+      : lie(&li.entry(), phi ? PHI_BIT | s : (unsigned)s) {
       assert(lie.getPointer() != 0 &&
              "Attempt to construct index with 0 pointer.");
     }
@@ -192,7 +191,8 @@ namespace llvm {
     /// Returns true if this is a valid index. Invalid indicies do
     /// not point into an index table, and cannot be compared.
     bool isValid() const {
-      return (lie.getPointer() != 0) && (lie.getPointer()->getIndex() != 0);
+      IndexListEntry *entry = lie.getPointer();
+      return ((entry!= 0) && (entry->isValid()));
     }
 
     /// Print this index to the given raw_ostream.
@@ -343,8 +343,10 @@ namespace llvm {
     static inline bool isEqual(const SlotIndex &LHS, const SlotIndex &RHS) {
       return (LHS == RHS);
     }
-    static inline bool isPod() { return false; }
   };
+  
+  template <> struct isPodLike<SlotIndex> { static const bool value = true; };
+
 
   inline raw_ostream& operator<<(raw_ostream &os, SlotIndex li) {
     li.print(os);
@@ -577,7 +579,7 @@ namespace llvm {
          (I == idx2MBBMap.end() && idx2MBBMap.size()>0)) ? (I-1): I;
 
       assert(J != idx2MBBMap.end() && J->first <= index &&
-             index <= getMBBEndIdx(J->second) &&
+             index < getMBBEndIdx(J->second) &&
              "index does not correspond to an MBB");
       return J->second;
     }

@@ -11,7 +11,6 @@ LEVEL = ../../../..
 LIBRARYNAME = CIndex
 
 CPPFLAGS += -I$(PROJ_SRC_DIR)/../../include -I$(PROJ_OBJ_DIR)/../../include
-CXXFLAGS = -fno-rtti
 
 # Include this here so we can get the configuration of the targets
 # that have been configured for construction. We have to do this 
@@ -21,8 +20,9 @@ include $(LEVEL)/Makefile.config
 LINK_LIBS_IN_SHARED = 1
 SHARED_LIBRARY = 1
 
-LINK_COMPONENTS := MC support
-USEDLIBS = clangFrontend.a clangIndex.a clangSema.a clangAnalysis.a clangAST.a clangParse.a clangLex.a clangBasic.a
+LINK_COMPONENTS := bitreader mc core
+USEDLIBS = clangFrontend.a clangDriver.a clangSema.a \
+	   clangAnalysis.a clangAST.a clangParse.a clangLex.a clangBasic.a
 
 include $(LEVEL)/Makefile.common
 

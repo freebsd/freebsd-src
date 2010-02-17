@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 class Base { };
 class Derived1 : public Base { };
@@ -42,4 +42,11 @@ int f2() {
   IntPtrConstPtr i = 0;
   IntPtrPtr j = 0;
   return i != j;
+}
+
+// PR5763
+typedef double Matrix4[4][4];
+
+bool f(Matrix4 m1, const Matrix4 m2) {
+  return m1 != m2;
 }

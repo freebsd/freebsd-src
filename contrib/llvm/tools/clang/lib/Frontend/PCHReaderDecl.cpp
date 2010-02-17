@@ -107,7 +107,7 @@ void PCHDeclReader::VisitTypedefDecl(TypedefDecl *TD) {
   // the type associated with the TypedefDecl.
   VisitNamedDecl(TD);
   uint64_t TypeData = Record[Idx++];
-  TD->setTypeDeclaratorInfo(Reader.GetDeclaratorInfo(Record, Idx));
+  TD->setTypeSourceInfo(Reader.GetTypeSourceInfo(Record, Idx));
   TD->setTypeForDecl(Reader.GetType(TypeData).getTypePtr());
 }
 
@@ -117,6 +117,7 @@ void PCHDeclReader::VisitTagDecl(TagDecl *TD) {
                         cast_or_null<TagDecl>(Reader.GetDecl(Record[Idx++])));
   TD->setTagKind((TagDecl::TagKind)Record[Idx++]);
   TD->setDefinition(Record[Idx++]);
+  TD->setEmbeddedInDeclarator(Record[Idx++]);
   TD->setTypedefForAnonDecl(
                     cast_or_null<TypedefDecl>(Reader.GetDecl(Record[Idx++])));
   TD->setRBraceLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
@@ -126,6 +127,7 @@ void PCHDeclReader::VisitTagDecl(TagDecl *TD) {
 void PCHDeclReader::VisitEnumDecl(EnumDecl *ED) {
   VisitTagDecl(ED);
   ED->setIntegerType(Reader.GetType(Record[Idx++]));
+  ED->setPromotionType(Reader.GetType(Record[Idx++]));
   // FIXME: C++ InstantiatedFrom
 }
 
@@ -150,9 +152,9 @@ void PCHDeclReader::VisitEnumConstantDecl(EnumConstantDecl *ECD) {
 
 void PCHDeclReader::VisitDeclaratorDecl(DeclaratorDecl *DD) {
   VisitValueDecl(DD);
-  DeclaratorInfo *DInfo = Reader.GetDeclaratorInfo(Record, Idx);
-  if (DInfo)
-    DD->setDeclaratorInfo(DInfo);
+  TypeSourceInfo *TInfo = Reader.GetTypeSourceInfo(Record, Idx);
+  if (TInfo)
+    DD->setTypeSourceInfo(TInfo);
 }
 
 void PCHDeclReader::VisitFunctionDecl(FunctionDecl *FD) {
@@ -178,7 +180,7 @@ void PCHDeclReader::VisitFunctionDecl(FunctionDecl *FD) {
   Params.reserve(NumParams);
   for (unsigned I = 0; I != NumParams; ++I)
     Params.push_back(cast<ParmVarDecl>(Reader.GetDecl(Record[Idx++])));
-  FD->setParams(*Reader.getContext(), Params.data(), NumParams);
+  FD->setParams(Params.data(), NumParams);
 }
 
 void PCHDeclReader::VisitObjCMethodDecl(ObjCMethodDecl *MD) {
@@ -207,7 +209,9 @@ void PCHDeclReader::VisitObjCMethodDecl(ObjCMethodDecl *MD) {
 
 void PCHDeclReader::VisitObjCContainerDecl(ObjCContainerDecl *CD) {
   VisitNamedDecl(CD);
-  CD->setAtEndLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  SourceLocation A = SourceLocation::getFromRawEncoding(Record[Idx++]);
+  SourceLocation B = SourceLocation::getFromRawEncoding(Record[Idx++]);
+  CD->setAtEndRange(SourceRange(A, B));
 }
 
 void PCHDeclReader::VisitObjCInterfaceDecl(ObjCInterfaceDecl *ID) {
@@ -220,7 +224,12 @@ void PCHDeclReader::VisitObjCInterfaceDecl(ObjCInterfaceDecl *ID) {
   Protocols.reserve(NumProtocols);
   for (unsigned I = 0; I != NumProtocols; ++I)
     Protocols.push_back(cast<ObjCProtocolDecl>(Reader.GetDecl(Record[Idx++])));
-  ID->setProtocolList(Protocols.data(), NumProtocols, *Reader.getContext());
+  llvm::SmallVector<SourceLocation, 16> ProtoLocs;
+  ProtoLocs.reserve(NumProtocols);
+  for (unsigned I = 0; I != NumProtocols; ++I)
+    ProtoLocs.push_back(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  ID->setProtocolList(Protocols.data(), NumProtocols, ProtoLocs.data(),
+                      *Reader.getContext());
   unsigned NumIvars = Record[Idx++];
   llvm::SmallVector<ObjCIvarDecl *, 16> IVars;
   IVars.reserve(NumIvars);
@@ -250,7 +259,12 @@ void PCHDeclReader::VisitObjCProtocolDecl(ObjCProtocolDecl *PD) {
   ProtoRefs.reserve(NumProtoRefs);
   for (unsigned I = 0; I != NumProtoRefs; ++I)
     ProtoRefs.push_back(cast<ObjCProtocolDecl>(Reader.GetDecl(Record[Idx++])));
-  PD->setProtocolList(ProtoRefs.data(), NumProtoRefs, *Reader.getContext());
+  llvm::SmallVector<SourceLocation, 16> ProtoLocs;
+  ProtoLocs.reserve(NumProtoRefs);
+  for (unsigned I = 0; I != NumProtoRefs; ++I)
+    ProtoLocs.push_back(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  PD->setProtocolList(ProtoRefs.data(), NumProtoRefs, ProtoLocs.data(),
+                      *Reader.getContext());
 }
 
 void PCHDeclReader::VisitObjCAtDefsFieldDecl(ObjCAtDefsFieldDecl *FD) {
@@ -279,7 +293,12 @@ void PCHDeclReader::VisitObjCForwardProtocolDecl(ObjCForwardProtocolDecl *FPD) {
   ProtoRefs.reserve(NumProtoRefs);
   for (unsigned I = 0; I != NumProtoRefs; ++I)
     ProtoRefs.push_back(cast<ObjCProtocolDecl>(Reader.GetDecl(Record[Idx++])));
-  FPD->setProtocolList(ProtoRefs.data(), NumProtoRefs, *Reader.getContext());
+  llvm::SmallVector<SourceLocation, 16> ProtoLocs;
+  ProtoLocs.reserve(NumProtoRefs);
+  for (unsigned I = 0; I != NumProtoRefs; ++I)
+    ProtoLocs.push_back(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  FPD->setProtocolList(ProtoRefs.data(), NumProtoRefs, ProtoLocs.data(),
+                       *Reader.getContext());
 }
 
 void PCHDeclReader::VisitObjCCategoryDecl(ObjCCategoryDecl *CD) {
@@ -290,9 +309,15 @@ void PCHDeclReader::VisitObjCCategoryDecl(ObjCCategoryDecl *CD) {
   ProtoRefs.reserve(NumProtoRefs);
   for (unsigned I = 0; I != NumProtoRefs; ++I)
     ProtoRefs.push_back(cast<ObjCProtocolDecl>(Reader.GetDecl(Record[Idx++])));
-  CD->setProtocolList(ProtoRefs.data(), NumProtoRefs, *Reader.getContext());
+  llvm::SmallVector<SourceLocation, 16> ProtoLocs;
+  ProtoLocs.reserve(NumProtoRefs);
+  for (unsigned I = 0; I != NumProtoRefs; ++I)
+    ProtoLocs.push_back(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  CD->setProtocolList(ProtoRefs.data(), NumProtoRefs, ProtoLocs.data(),
+                      *Reader.getContext());
   CD->setNextClassCategory(cast_or_null<ObjCCategoryDecl>(Reader.GetDecl(Record[Idx++])));
-  CD->setLocEnd(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  CD->setAtLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  CD->setCategoryNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
 }
 
 void PCHDeclReader::VisitObjCCompatibleAliasDecl(ObjCCompatibleAliasDecl *CAD) {
@@ -302,6 +327,7 @@ void PCHDeclReader::VisitObjCCompatibleAliasDecl(ObjCCompatibleAliasDecl *CAD) {
 
 void PCHDeclReader::VisitObjCPropertyDecl(ObjCPropertyDecl *D) {
   VisitNamedDecl(D);
+  D->setAtLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
   D->setType(Reader.GetType(Record[Idx++]));
   // FIXME: stable encoding
   D->setPropertyAttributes(
@@ -362,7 +388,7 @@ void PCHDeclReader::VisitVarDecl(VarDecl *VD) {
   VD->setPreviousDeclaration(
                          cast_or_null<VarDecl>(Reader.GetDecl(Record[Idx++])));
   if (Record[Idx++])
-    VD->setInit(*Reader.getContext(), Reader.ReadDeclExpr());
+    VD->setInit(Reader.ReadDeclExpr());
 }
 
 void PCHDeclReader::VisitImplicitParamDecl(ImplicitParamDecl *PD) {
@@ -387,7 +413,7 @@ void PCHDeclReader::VisitBlockDecl(BlockDecl *BD) {
   Params.reserve(NumParams);
   for (unsigned I = 0; I != NumParams; ++I)
     Params.push_back(cast<ParmVarDecl>(Reader.GetDecl(Record[Idx++])));
-  BD->setParams(*Reader.getContext(), Params.data(), NumParams);
+  BD->setParams(Params.data(), NumParams);
 }
 
 std::pair<uint64_t, uint64_t>
@@ -420,7 +446,7 @@ Attr *PCHReader::ReadAttributes() {
 
 #define STRING_ATTR(Name)                                       \
  case Attr::Name:                                               \
-   New = ::new (*Context) Name##Attr(ReadString(Record, Idx));  \
+   New = ::new (*Context) Name##Attr(*Context, ReadString(Record, Idx));  \
    break
 
 #define UNSIGNED_ATTR(Name)                             \
@@ -435,12 +461,16 @@ Attr *PCHReader::ReadAttributes() {
     bool IsInherited = Record[Idx++];
 
     switch (Kind) {
+    default:
+      assert(0 && "Unknown attribute!");
+      break;
     STRING_ATTR(Alias);
     UNSIGNED_ATTR(Aligned);
     SIMPLE_ATTR(AlwaysInline);
     SIMPLE_ATTR(AnalyzerNoReturn);
     STRING_ATTR(Annotate);
     STRING_ATTR(AsmLabel);
+    SIMPLE_ATTR(BaseCheck);
 
     case Attr::Blocks:
       New = ::new (*Context) BlocksAttr(
@@ -461,12 +491,13 @@ Attr *PCHReader::ReadAttributes() {
     SIMPLE_ATTR(Deprecated);
     UNSIGNED_ATTR(Destructor);
     SIMPLE_ATTR(FastCall);
+    SIMPLE_ATTR(Final);
 
     case Attr::Format: {
       std::string Type = ReadString(Record, Idx);
       unsigned FormatIdx = Record[Idx++];
       unsigned FirstArg = Record[Idx++];
-      New = ::new (*Context) FormatAttr(Type, FormatIdx, FirstArg);
+      New = ::new (*Context) FormatAttr(*Context, Type, FormatIdx, FirstArg);
       break;
     }
 
@@ -484,6 +515,7 @@ Attr *PCHReader::ReadAttributes() {
     }
 
     SIMPLE_ATTR(GNUInline);
+    SIMPLE_ATTR(Hiding);
 
     case Attr::IBOutletKind:
       New = ::new (*Context) IBOutletAttr();
@@ -500,7 +532,7 @@ Attr *PCHReader::ReadAttributes() {
       llvm::SmallVector<unsigned, 16> ArgNums;
       ArgNums.insert(ArgNums.end(), &Record[Idx], &Record[Idx] + Size);
       Idx += Size;
-      New = ::new (*Context) NonNullAttr(ArgNums.data(), Size);
+      New = ::new (*Context) NonNullAttr(*Context, ArgNums.data(), Size);
       break;
     }
 
@@ -517,6 +549,7 @@ Attr *PCHReader::ReadAttributes() {
     SIMPLE_ATTR(CFReturnsRetained);
     SIMPLE_ATTR(NSReturnsRetained);
     SIMPLE_ATTR(Overloadable);
+    SIMPLE_ATTR(Override);
     SIMPLE_ATTR(Packed);
     UNSIGNED_ATTR(PragmaPack);
     SIMPLE_ATTR(Pure);
@@ -661,7 +694,8 @@ Decl *PCHReader::ReadDeclRecord(uint64_t Offset, unsigned Index) {
     D = ObjCForwardProtocolDecl::Create(*Context, 0, SourceLocation());
     break;
   case pch::DECL_OBJC_CATEGORY:
-    D = ObjCCategoryDecl::Create(*Context, 0, SourceLocation(), 0);
+    D = ObjCCategoryDecl::Create(*Context, 0, SourceLocation(), 
+                                 SourceLocation(), SourceLocation(), 0);
     break;
   case pch::DECL_OBJC_CATEGORY_IMPL:
     D = ObjCCategoryImplDecl::Create(*Context, 0, SourceLocation(), 0, 0);
@@ -673,7 +707,8 @@ Decl *PCHReader::ReadDeclRecord(uint64_t Offset, unsigned Index) {
     D = ObjCCompatibleAliasDecl::Create(*Context, 0, SourceLocation(), 0, 0);
     break;
   case pch::DECL_OBJC_PROPERTY:
-    D = ObjCPropertyDecl::Create(*Context, 0, SourceLocation(), 0, QualType());
+    D = ObjCPropertyDecl::Create(*Context, 0, SourceLocation(), 0, SourceLocation(),
+                                 QualType());
     break;
   case pch::DECL_OBJC_PROPERTY_IMPL:
     D = ObjCPropertyImplDecl::Create(*Context, 0, SourceLocation(),

@@ -53,6 +53,8 @@ namespace llvm {
       CMOV,         // ARM conditional move instructions.
       CNEG,         // ARM conditional negate instructions.
 
+      RBIT,         // ARM bitreverse instruction
+
       FTOSI,        // FP to sint within a FP register.
       FTOUI,        // FP to uint within a FP register.
       SITOF,        // sint to FP within a FP register.
@@ -71,6 +73,9 @@ namespace llvm {
       THREAD_POINTER,
 
       DYN_ALLOC,    // Dynamic allocation on the stack.
+
+      MEMBARRIER,   // Memory barrier
+      SYNCBARRIER,  // Memory sync barrier
 
       VCEQ,         // Vector compare equal.
       VCGE,         // Vector compare greater than or equal.
@@ -273,7 +278,8 @@ namespace llvm {
                              const CCValAssign &VA,
                              ISD::ArgFlagsTy Flags);
     SDValue LowerINTRINSIC_W_CHAIN(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG,
+                                    const ARMSubtarget *Subtarget);
     SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG);
     SDValue LowerGlobalAddressDarwin(SDValue Op, SelectionDAG &DAG);
     SDValue LowerGlobalAddressELF(SDValue Op, SelectionDAG &DAG);
@@ -314,7 +320,7 @@ namespace llvm {
     virtual SDValue
       LowerCall(SDValue Chain, SDValue Callee,
                 CallingConv::ID CallConv, bool isVarArg,
-                bool isTailCall,
+                bool &isTailCall,
                 const SmallVectorImpl<ISD::OutputArg> &Outs,
                 const SmallVectorImpl<ISD::InputArg> &Ins,
                 DebugLoc dl, SelectionDAG &DAG,
@@ -328,6 +334,15 @@ namespace llvm {
 
     SDValue getARMCmp(SDValue LHS, SDValue RHS, ISD::CondCode CC,
                       SDValue &ARMCC, SelectionDAG &DAG, DebugLoc dl);
+
+    MachineBasicBlock *EmitAtomicCmpSwap(MachineInstr *MI,
+                                         MachineBasicBlock *BB,
+                                         unsigned Size) const;
+    MachineBasicBlock *EmitAtomicBinary(MachineInstr *MI,
+                                        MachineBasicBlock *BB,
+                                        unsigned Size,
+                                        unsigned BinOpcode) const;
+
   };
 }
 

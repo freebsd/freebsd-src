@@ -129,17 +129,16 @@ namespace llvm {
   /// branches.
   FunctionPass *createBranchFoldingPass(bool DefaultEnableTailMerge);
 
+  /// TailDuplicate Pass - Duplicate blocks with unconditional branches
+  /// into tails of their predecessors.
+  FunctionPass *createTailDuplicatePass(bool PreRegAlloc = false);
+
   /// IfConverter Pass - This pass performs machine code if conversion.
   FunctionPass *createIfConverterPass();
 
   /// Code Placement Pass - This pass optimize code placement and aligns loop
   /// headers to target specific alignment boundary.
   FunctionPass *createCodePlacementOptPass();
-
-  /// DebugLabelFoldingPass - This pass prunes out redundant debug labels.  This
-  /// allows a debug emitter to determine if the range of two labels is empty,
-  /// by seeing if the labels map to the same reduced label.
-  FunctionPass *createDebugLabelFoldingPass();
 
   /// getRegisterAllocator - This creates an instance of the register allocator
   /// for the Sparc.
@@ -170,6 +169,14 @@ namespace llvm {
   /// createMachineSinkingPass - This pass performs sinking on machine
   /// instructions.
   FunctionPass *createMachineSinkingPass();
+
+  /// createOptimizeExtsPass - This pass performs sign / zero extension
+  /// optimization by increasing uses of extended values.
+  FunctionPass *createOptimizeExtsPass();
+
+  /// createOptimizePHIsPass - This pass optimizes machine instruction PHIs
+  /// to take advantage of opportunities created during DAG legalization.
+  FunctionPass *createOptimizePHIsPass();
 
   /// createStackSlotColoringPass - This pass performs stack slot coloring.
   FunctionPass *createStackSlotColoringPass(bool);

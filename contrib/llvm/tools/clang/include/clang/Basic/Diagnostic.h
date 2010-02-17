@@ -23,16 +23,19 @@
 
 namespace llvm {
   template <typename T> class SmallVectorImpl;
+  class raw_ostream;
 }
 
 namespace clang {
   class DeclContext;
   class DiagnosticBuilder;
   class DiagnosticClient;
+  class FileManager;
   class IdentifierInfo;
   class LangOptions;
   class PartialDiagnostic;
   class Preprocessor;
+  class SourceManager;
   class SourceRange;
 
   // Import the diagnostic enums themselves.
@@ -45,7 +48,7 @@ namespace clang {
       DIAG_START_PARSE    = DIAG_START_LEX      +  300,
       DIAG_START_AST      = DIAG_START_PARSE    +  300,
       DIAG_START_SEMA     = DIAG_START_AST      +  100,
-      DIAG_START_ANALYSIS = DIAG_START_SEMA     + 1100,
+      DIAG_START_ANALYSIS = DIAG_START_SEMA     + 1500,
       DIAG_UPPER_LIMIT    = DIAG_START_ANALYSIS +  100
     };
 
@@ -76,7 +79,10 @@ namespace clang {
 
       /// Map this diagnostic to "warning", but make it immune to -Werror.  This
       /// happens when you specify -Wno-error=foo.
-      MAP_WARNING_NO_WERROR = 5
+      MAP_WARNING_NO_WERROR = 5,
+      /// Map this diagnostic to "error", but make it immune to -Wfatal-errors.
+      /// This happens for -Wno-fatal-errors=foo.
+      MAP_ERROR_NO_WFATAL = 6
     };
   }
 
@@ -178,6 +184,7 @@ private:
   unsigned char AllExtensionsSilenced; // Used by __extension__
   bool IgnoreAllWarnings;        // Ignore all warnings: -w
   bool WarningsAsErrors;         // Treat warnings like errors:
+  bool ErrorsAsFatal;            // Treat errors like fatal errors.
   bool SuppressSystemWarnings;   // Suppress warnings in system headers.
   bool SuppressAllDiagnostics;   // Suppress all diagnostics.
   ExtensionHandling ExtBehavior; // Map extensions onto warnings or errors?
@@ -238,7 +245,6 @@ public:
   DiagnosticClient *getClient() { return Client; }
   const DiagnosticClient *getClient() const { return Client; }
 
-
   /// pushMappings - Copies the current DiagMappings and pushes the new copy
   /// onto the top of the stack.
   void pushMappings();
@@ -260,6 +266,11 @@ public:
   /// as errors.
   void setWarningsAsErrors(bool Val) { WarningsAsErrors = Val; }
   bool getWarningsAsErrors() const { return WarningsAsErrors; }
+
+  /// setErrorsAsFatal - When set to true, any error reported is made a
+  /// fatal error.
+  void setErrorsAsFatal(bool Val) { ErrorsAsFatal = Val; }
+  bool getErrorsAsFatal() const { return ErrorsAsFatal; }
 
   /// setSuppressSystemWarnings - When set to true mask warnings that
   /// come from system headers.
@@ -319,7 +330,7 @@ public:
   /// getCustomDiagID - Return an ID for a diagnostic with the specified message
   /// and level.  If this is the first request for this diagnosic, it is
   /// registered and created, otherwise the existing ID is returned.
-  unsigned getCustomDiagID(Level L, const char *Message);
+  unsigned getCustomDiagID(Level L, llvm::StringRef Message);
 
 
   /// ConvertArgToString - This method converts a diagnostic argument (as an
@@ -391,6 +402,13 @@ public:
 
   /// \brief Clear out the current diagnostic.
   void Clear() { CurDiagID = ~0U; }
+
+  /// Deserialize - Deserialize the first diagnostic within the memory
+  /// [Memory, MemoryEnd), producing a new diagnostic builder describing the
+  /// deserialized diagnostic. If the memory does not contain a
+  /// diagnostic, returns a diagnostic builder with no diagnostic ID.
+  DiagnosticBuilder Deserialize(FileManager &FM, SourceManager &SM, 
+                                const char *&Memory, const char *MemoryEnd);
 
 private:
   /// getDiagnosticMappingInfo - Return the mapping info currently set for the
@@ -464,7 +482,7 @@ private:
 
   /// DiagRanges - The list of ranges added to this diagnostic.  It currently
   /// only support 10 ranges, could easily be extended if needed.
-  const SourceRange *DiagRanges[10];
+  SourceRange DiagRanges[10];
 
   enum { MaxCodeModificationHints = 3 };
 
@@ -560,6 +578,9 @@ public:
   /// been emitted.
   ~DiagnosticBuilder() { Emit(); }
 
+  /// isActive - Determine whether this diagnostic is still active.
+  bool isActive() const { return DiagObj != 0; }
+
   /// Operator bool: conversion of DiagnosticBuilder to bool always returns
   /// true.  This allows is to be used in boolean error contexts like:
   /// return Diag(...);
@@ -588,7 +609,7 @@ public:
            sizeof(DiagObj->DiagRanges)/sizeof(DiagObj->DiagRanges[0]) &&
            "Too many arguments to diagnostic!");
     if (DiagObj)
-      DiagObj->DiagRanges[NumRanges++] = &R;
+      DiagObj->DiagRanges[NumRanges++] = R;
   }
 
   void AddCodeModificationHint(const CodeModificationHint &Hint) const {
@@ -751,9 +772,9 @@ public:
     return DiagObj->NumDiagRanges;
   }
 
-  const SourceRange &getRange(unsigned Idx) const {
+  SourceRange getRange(unsigned Idx) const {
     assert(Idx < DiagObj->NumDiagRanges && "Invalid diagnostic range index!");
-    return *DiagObj->DiagRanges[Idx];
+    return DiagObj->DiagRanges[Idx];
   }
 
   unsigned getNumCodeModificationHints() const {
@@ -773,6 +794,17 @@ public:
   /// formal arguments into the %0 slots.  The result is appended onto the Str
   /// array.
   void FormatDiagnostic(llvm::SmallVectorImpl<char> &OutStr) const;
+
+  /// FormatDiagnostic - Format the given format-string into the
+  /// output buffer using the arguments stored in this diagnostic.
+  void FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
+                        llvm::SmallVectorImpl<char> &OutStr) const;
+
+  /// Serialize - Serialize the given diagnostic (with its diagnostic
+  /// level) to the given stream. Serialization is a lossy operation,
+  /// since the specific diagnostic ID and any macro-instantiation
+  /// information is lost.
+  void Serialize(Diagnostic::Level DiagLevel, llvm::raw_ostream &OS) const;
 };
 
 /// DiagnosticClient - This is an abstract interface implemented by clients of

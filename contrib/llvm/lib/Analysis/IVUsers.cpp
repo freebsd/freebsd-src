@@ -21,10 +21,10 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
+#include "llvm/Assembly/AsmAnnotationWriter.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/CommandLine.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -32,50 +32,34 @@ char IVUsers::ID = 0;
 static RegisterPass<IVUsers>
 X("iv-users", "Induction Variable Users", false, true);
 
-static cl::opt<bool>
-SimplifyIVUsers("simplify-iv-users", cl::Hidden, cl::init(false),
-          cl::desc("Restrict IV Users to loop-invariant strides"));
-
 Pass *llvm::createIVUsersPass() {
   return new IVUsers();
 }
 
-/// containsAddRecFromDifferentLoop - Determine whether expression S involves a
-/// subexpression that is an AddRec from a loop other than L.  An outer loop
-/// of L is OK, but not an inner loop nor a disjoint loop.
-static bool containsAddRecFromDifferentLoop(const SCEV *S, Loop *L) {
-  // This is very common, put it first.
-  if (isa<SCEVConstant>(S))
-    return false;
-  if (const SCEVCommutativeExpr *AE = dyn_cast<SCEVCommutativeExpr>(S)) {
-    for (unsigned int i=0; i< AE->getNumOperands(); i++)
-      if (containsAddRecFromDifferentLoop(AE->getOperand(i), L))
-        return true;
-    return false;
-  }
-  if (const SCEVAddRecExpr *AE = dyn_cast<SCEVAddRecExpr>(S)) {
-    if (const Loop *newLoop = AE->getLoop()) {
-      if (newLoop == L)
-        return false;
-      // if newLoop is an outer loop of L, this is OK.
-      if (!LoopInfo::isNotAlreadyContainedIn(L, newLoop))
-        return false;
+/// CollectSubexprs - Split S into subexpressions which can be pulled out into
+/// separate registers.
+static void CollectSubexprs(const SCEV *S,
+                            SmallVectorImpl<const SCEV *> &Ops,
+                            ScalarEvolution &SE) {
+  if (const SCEVAddExpr *Add = dyn_cast<SCEVAddExpr>(S)) {
+    // Break out add operands.
+    for (SCEVAddExpr::op_iterator I = Add->op_begin(), E = Add->op_end();
+         I != E; ++I)
+      CollectSubexprs(*I, Ops, SE);
+    return;
+  } else if (const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(S)) {
+    // Split a non-zero base out of an addrec.
+    if (!AR->getStart()->isZero()) {
+      CollectSubexprs(AR->getStart(), Ops, SE);
+      CollectSubexprs(SE.getAddRecExpr(SE.getIntegerSCEV(0, AR->getType()),
+                                       AR->getStepRecurrence(SE),
+                                       AR->getLoop()), Ops, SE);
+      return;
     }
-    return true;
   }
-  if (const SCEVUDivExpr *DE = dyn_cast<SCEVUDivExpr>(S))
-    return containsAddRecFromDifferentLoop(DE->getLHS(), L) ||
-           containsAddRecFromDifferentLoop(DE->getRHS(), L);
-#if 0
-  // SCEVSDivExpr has been backed out temporarily, but will be back; we'll
-  // need this when it is.
-  if (const SCEVSDivExpr *DE = dyn_cast<SCEVSDivExpr>(S))
-    return containsAddRecFromDifferentLoop(DE->getLHS(), L) ||
-           containsAddRecFromDifferentLoop(DE->getRHS(), L);
-#endif
-  if (const SCEVCastExpr *CE = dyn_cast<SCEVCastExpr>(S))
-    return containsAddRecFromDifferentLoop(CE->getOperand(), L);
-  return false;
+
+  // Otherwise use the value itself.
+  Ops.push_back(S);
 }
 
 /// getSCEVStartAndStride - Compute the start and stride of this expression,
@@ -94,35 +78,42 @@ static bool getSCEVStartAndStride(const SCEV *&SH, Loop *L, Loop *UseLoop,
   if (const SCEVAddExpr *AE = dyn_cast<SCEVAddExpr>(SH)) {
     for (unsigned i = 0, e = AE->getNumOperands(); i != e; ++i)
       if (const SCEVAddRecExpr *AddRec =
-             dyn_cast<SCEVAddRecExpr>(AE->getOperand(i))) {
-        if (AddRec->getLoop() == L)
-          TheAddRec = SE->getAddExpr(AddRec, TheAddRec);
-        else
-          return false;  // Nested IV of some sort?
-      } else {
+             dyn_cast<SCEVAddRecExpr>(AE->getOperand(i)))
+        TheAddRec = SE->getAddExpr(AddRec, TheAddRec);
+      else
         Start = SE->getAddExpr(Start, AE->getOperand(i));
-      }
   } else if (isa<SCEVAddRecExpr>(SH)) {
     TheAddRec = SH;
   } else {
     return false;  // not analyzable.
   }
 
-  const SCEVAddRecExpr *AddRec = dyn_cast<SCEVAddRecExpr>(TheAddRec);
-  if (!AddRec || AddRec->getLoop() != L) return false;
+  // Break down TheAddRec into its component parts.
+  SmallVector<const SCEV *, 4> Subexprs;
+  CollectSubexprs(TheAddRec, Subexprs, *SE);
+
+  // Look for an addrec on the current loop among the parts.
+  const SCEV *AddRecStride = 0;
+  for (SmallVectorImpl<const SCEV *>::iterator I = Subexprs.begin(),
+       E = Subexprs.end(); I != E; ++I) {
+    const SCEV *S = *I;
+    if (const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(S))
+      if (AR->getLoop() == L) {
+        *I = AR->getStart();
+        AddRecStride = AR->getStepRecurrence(*SE);
+        break;
+      }
+  }
+  if (!AddRecStride)
+    return false;
+
+  // Add up everything else into a start value (which may not be
+  // loop-invariant).
+  const SCEV *AddRecStart = SE->getAddExpr(Subexprs);
 
   // Use getSCEVAtScope to attempt to simplify other loops out of
   // the picture.
-  const SCEV *AddRecStart = AddRec->getStart();
   AddRecStart = SE->getSCEVAtScope(AddRecStart, UseLoop);
-  const SCEV *AddRecStride = AddRec->getStepRecurrence(*SE);
-
-  // FIXME: If Start contains an SCEVAddRecExpr from a different loop, other
-  // than an outer loop of the current loop, reject it.  LSR has no concept of
-  // operating on more than one loop at a time so don't confuse it with such
-  // expressions.
-  if (containsAddRecFromDifferentLoop(AddRecStart, L))
-    return false;
 
   Start = SE->getAddExpr(Start, AddRecStart);
 
@@ -133,8 +124,9 @@ static bool getSCEVStartAndStride(const SCEV *&SH, Loop *L, Loop *UseLoop,
     if (!AddRecStride->properlyDominates(Header, DT))
       return false;
 
-    DEBUG(errs() << "[" << L->getHeader()->getName()
-                 << "] Variable stride: " << *AddRec << "\n");
+    DEBUG(dbgs() << "[";
+          WriteAsOperand(dbgs(), L->getHeader(), /*PrintType=*/false);
+          dbgs() << "] Variable stride: " << *AddRecStride << "\n");
   }
 
   Stride = AddRecStride;
@@ -153,7 +145,7 @@ static bool IVUseShouldUsePostIncValue(Instruction *User, Instruction *IV,
                                        Loop *L, LoopInfo *LI, DominatorTree *DT,
                                        Pass *P) {
   // If the user is in the loop, use the preinc value.
-  if (L->contains(User->getParent())) return false;
+  if (L->contains(User)) return false;
 
   BasicBlock *LatchBlock = L->getLoopLatch();
   if (!LatchBlock)
@@ -214,8 +206,7 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
     return false;  // Non-reducible symbolic expression, bail out.
 
   // Keep things simple. Don't touch loop-variant strides.
-  if (SimplifyIVUsers && !Stride->isLoopInvariant(L)
-      && L->contains(I->getParent()))
+  if (!Stride->isLoopInvariant(L) && L->contains(I))
     return false;
 
   SmallPtrSet<Instruction *, 4> UniqueUsers;
@@ -239,26 +230,18 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
     if (LI->getLoopFor(User->getParent()) != L) {
       if (isa<PHINode>(User) || Processed.count(User) ||
           !AddUsersIfInteresting(User)) {
-        DEBUG(errs() << "FOUND USER in other loop: " << *User << '\n'
+        DEBUG(dbgs() << "FOUND USER in other loop: " << *User << '\n'
                      << "   OF SCEV: " << *ISE << '\n');
         AddUserToIVUsers = true;
       }
     } else if (Processed.count(User) ||
                !AddUsersIfInteresting(User)) {
-      DEBUG(errs() << "FOUND USER: " << *User << '\n'
+      DEBUG(dbgs() << "FOUND USER: " << *User << '\n'
                    << "   OF SCEV: " << *ISE << '\n');
       AddUserToIVUsers = true;
     }
 
     if (AddUserToIVUsers) {
-      IVUsersOfOneStride *StrideUses = IVUsesByStride[Stride];
-      if (!StrideUses) {    // First occurrence of this stride?
-        StrideOrder.push_back(Stride);
-        StrideUses = new IVUsersOfOneStride(Stride);
-        IVUses.push_back(StrideUses);
-        IVUsesByStride[Stride] = StrideUses;
-      }
-
       // Okay, we found a user that we cannot reduce.  Analyze the instruction
       // and decide what to do with it.  If we are a use inside of the loop, use
       // the value before incrementation, otherwise use it after incrementation.
@@ -266,27 +249,21 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
         // The value used will be incremented by the stride more than we are
         // expecting, so subtract this off.
         const SCEV *NewStart = SE->getMinusSCEV(Start, Stride);
-        StrideUses->addUser(NewStart, User, I);
-        StrideUses->Users.back().setIsUseOfPostIncrementedValue(true);
-        DEBUG(errs() << "   USING POSTINC SCEV, START=" << *NewStart<< "\n");
+        IVUses.push_back(new IVStrideUse(this, Stride, NewStart, User, I));
+        IVUses.back().setIsUseOfPostIncrementedValue(true);
+        DEBUG(dbgs() << "   USING POSTINC SCEV, START=" << *NewStart<< "\n");
       } else {
-        StrideUses->addUser(Start, User, I);
+        IVUses.push_back(new IVStrideUse(this, Stride, Start, User, I));
       }
     }
   }
   return true;
 }
 
-void IVUsers::AddUser(const SCEV *Stride, const SCEV *Offset,
-                      Instruction *User, Value *Operand) {
-  IVUsersOfOneStride *StrideUses = IVUsesByStride[Stride];
-  if (!StrideUses) {    // First occurrence of this stride?
-    StrideOrder.push_back(Stride);
-    StrideUses = new IVUsersOfOneStride(Stride);
-    IVUses.push_back(StrideUses);
-    IVUsesByStride[Stride] = StrideUses;
-  }
-  IVUsesByStride[Stride]->addUser(Offset, User, Operand);
+IVStrideUse &IVUsers::AddUser(const SCEV *Stride, const SCEV *Offset,
+                              Instruction *User, Value *Operand) {
+  IVUses.push_back(new IVStrideUse(this, Stride, Offset, User, Operand));
+  return IVUses.back();
 }
 
 IVUsers::IVUsers()
@@ -320,21 +297,28 @@ bool IVUsers::runOnLoop(Loop *l, LPPassManager &LPM) {
 /// value of the OperandValToReplace of the given IVStrideUse.
 const SCEV *IVUsers::getReplacementExpr(const IVStrideUse &U) const {
   // Start with zero.
-  const SCEV *RetVal = SE->getIntegerSCEV(0, U.getParent()->Stride->getType());
+  const SCEV *RetVal = SE->getIntegerSCEV(0, U.getStride()->getType());
   // Create the basic add recurrence.
-  RetVal = SE->getAddRecExpr(RetVal, U.getParent()->Stride, L);
+  RetVal = SE->getAddRecExpr(RetVal, U.getStride(), L);
   // Add the offset in a separate step, because it may be loop-variant.
   RetVal = SE->getAddExpr(RetVal, U.getOffset());
   // For uses of post-incremented values, add an extra stride to compute
   // the actual replacement value.
   if (U.isUseOfPostIncrementedValue())
-    RetVal = SE->getAddExpr(RetVal, U.getParent()->Stride);
-  // Evaluate the expression out of the loop, if possible.
-  if (!L->contains(U.getUser()->getParent())) {
-    const SCEV *ExitVal = SE->getSCEVAtScope(RetVal, L->getParentLoop());
-    if (ExitVal->isLoopInvariant(L))
-      RetVal = ExitVal;
-  }
+    RetVal = SE->getAddExpr(RetVal, U.getStride());
+  return RetVal;
+}
+
+/// getCanonicalExpr - Return a SCEV expression which computes the
+/// value of the SCEV of the given IVStrideUse, ignoring the 
+/// isUseOfPostIncrementedValue flag.
+const SCEV *IVUsers::getCanonicalExpr(const IVStrideUse &U) const {
+  // Start with zero.
+  const SCEV *RetVal = SE->getIntegerSCEV(0, U.getStride()->getType());
+  // Create the basic add recurrence.
+  RetVal = SE->getAddRecExpr(RetVal, U.getStride(), L);
+  // Add the offset in a separate step, because it may be loop-variant.
+  RetVal = SE->getAddExpr(RetVal, U.getOffset());
   return RetVal;
 }
 
@@ -347,39 +331,34 @@ void IVUsers::print(raw_ostream &OS, const Module *M) const {
   }
   OS << ":\n";
 
-  for (unsigned Stride = 0, e = StrideOrder.size(); Stride != e; ++Stride) {
-    std::map<const SCEV *, IVUsersOfOneStride*>::const_iterator SI =
-      IVUsesByStride.find(StrideOrder[Stride]);
-    assert(SI != IVUsesByStride.end() && "Stride doesn't exist!");
-    OS << "  Stride " << *SI->first->getType() << " " << *SI->first << ":\n";
-
-    for (ilist<IVStrideUse>::const_iterator UI = SI->second->Users.begin(),
-         E = SI->second->Users.end(); UI != E; ++UI) {
-      OS << "    ";
-      WriteAsOperand(OS, UI->getOperandValToReplace(), false);
-      OS << " = ";
-      OS << *getReplacementExpr(*UI);
-      if (UI->isUseOfPostIncrementedValue())
-        OS << " (post-inc)";
-      OS << " in ";
-      UI->getUser()->print(OS);
-      OS << '\n';
-    }
+  // Use a defualt AssemblyAnnotationWriter to suppress the default info
+  // comments, which aren't relevant here.
+  AssemblyAnnotationWriter Annotator;
+  for (ilist<IVStrideUse>::const_iterator UI = IVUses.begin(),
+       E = IVUses.end(); UI != E; ++UI) {
+    OS << "  ";
+    WriteAsOperand(OS, UI->getOperandValToReplace(), false);
+    OS << " = "
+       << *getReplacementExpr(*UI);
+    if (UI->isUseOfPostIncrementedValue())
+      OS << " (post-inc)";
+    OS << " in  ";
+    UI->getUser()->print(OS, &Annotator);
+    OS << '\n';
   }
 }
 
 void IVUsers::dump() const {
-  print(errs());
+  print(dbgs());
 }
 
 void IVUsers::releaseMemory() {
-  IVUsesByStride.clear();
-  StrideOrder.clear();
   Processed.clear();
+  IVUses.clear();
 }
 
 void IVStrideUse::deleted() {
   // Remove this user from the list.
-  Parent->Users.erase(this);
+  Parent->IVUses.erase(this);
   // this now dangles!
 }

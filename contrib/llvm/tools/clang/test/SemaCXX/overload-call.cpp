@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -pedantic -verify %s
+// RUN: %clang_cc1 -fsyntax-only -pedantic -verify %s
 int* f(int) { return 0; }
 float* f(float) { return 0; }
 void f();
@@ -92,7 +92,7 @@ enum PromotesToInt {
 };
 
 enum PromotesToUnsignedInt {
-  PromotesToUnsignedIntValue = 1u
+  PromotesToUnsignedIntValue = __INT_MAX__ * 2U
 };
 
 int* o(int);
@@ -290,4 +290,72 @@ void f(SR) { }
 
 void g(opt o) {
   f(o);
+}
+
+
+namespace PR5756 {
+  int &a(void*, int);
+  float &a(void*, float);
+  void b() { 
+    int &ir = a(0,0);
+    (void)ir;
+  }
+}
+
+// Tests the exact text used to note the candidates
+namespace test1 {
+  template <class T> void foo(T t, unsigned N); // expected-note {{candidate function [with T = int] not viable: no known conversion from 'char const [6]' to 'unsigned int' for 2nd argument}}
+  void foo(int n, char N); // expected-note {{candidate function not viable: no known conversion from 'char const [6]' to 'char' for 2nd argument}} 
+  void foo(int n); // expected-note {{candidate function not viable: requires 1 argument, but 2 were provided}}
+  void foo(unsigned n = 10); // expected-note {{candidate function not viable: requires at most 1 argument, but 2 were provided}}
+  void foo(int n, const char *s, int t); // expected-note {{candidate function not viable: requires 3 arguments, but 2 were provided}}
+  void foo(int n, const char *s, int t, ...); // expected-note {{candidate function not viable: requires at least 3 arguments, but 2 were provided}}
+  void foo(int n, const char *s, int t, int u = 0); // expected-note {{candidate function not viable: requires at least 3 arguments, but 2 were provided}}
+
+  void test() {
+    foo(4, "hello"); //expected-error {{no matching function for call to 'foo'}}
+  }
+}
+
+// PR 6014
+namespace test2 {
+  struct QFixed {
+    QFixed(int i);
+    QFixed(long i);
+  };
+
+  bool operator==(const QFixed &f, int i);
+
+  class qrgb666 {
+    inline operator unsigned int () const;
+
+    inline bool operator==(const qrgb666 &v) const;
+    inline bool operator!=(const qrgb666 &v) const { return !(*this == v); }
+  };
+}
+
+// PR 6117
+namespace test3 {
+  struct Base {};
+  struct Incomplete;
+
+  void foo(Base *); // expected-note 2 {{cannot convert argument of incomplete type}}
+  void foo(Base &); // expected-note 2 {{cannot convert argument of incomplete type}}
+
+  void test(Incomplete *P) {
+    foo(P); // expected-error {{no matching function for call to 'foo'}}
+    foo(*P); // expected-error {{no matching function for call to 'foo'}}
+  }
+}
+
+namespace DerivedToBaseVsVoid {
+  struct A { };
+  struct B : A { };
+  
+  float &f(void *);
+  int &f(const A*);
+  
+  void g(B *b) {
+    int &ir = f(b);
+  }
 }

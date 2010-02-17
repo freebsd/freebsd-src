@@ -192,3 +192,135 @@ bb61:
   ret void
 }
 
+
+; PR5640
+define fastcc void @test6(i1 %tmp, i1 %tmp1) nounwind ssp {
+entry:
+  br i1 %tmp, label %bb12, label %bb14
+
+bb12:           
+  br label %bb14
+
+bb14:           
+  %A = phi i1 [ %A, %bb13 ],  [ true, %bb12 ], [%tmp1, %entry]
+  br label %bb13
+
+bb13:                                            
+  br i1 %A, label %bb14, label %bb61
+
+
+bb61:                                            
+  ret void
+}
+
+
+; PR5698
+define void @test7(i32 %x) {
+tailrecurse:
+  switch i32 %x, label %return [
+    i32 2, label %bb2
+    i32 3, label %bb
+  ]
+
+bb:         
+  switch i32 %x, label %return [
+    i32 2, label %bb2
+    i32 3, label %tailrecurse
+  ]
+
+bb2:        
+  ret void
+
+return:     
+  ret void
+}
+
+; PR6119
+define i32 @test8(i32 %action) nounwind {
+entry:
+  switch i32 %action, label %lor.rhs [
+    i32 1, label %if.then
+    i32 0, label %lor.end
+  ]
+
+if.then:                                          ; preds = %for.cond, %lor.end, %entry
+  ret i32 undef
+
+lor.rhs:                                          ; preds = %entry
+  br label %lor.end
+
+lor.end:                                          ; preds = %lor.rhs, %entry
+  %cmp103 = xor i1 undef, undef                   ; <i1> [#uses=1]
+  br i1 %cmp103, label %for.cond, label %if.then
+
+for.cond:                                         ; preds = %for.body, %lor.end
+  br i1 undef, label %if.then, label %for.body
+
+for.body:                                         ; preds = %for.cond
+  br label %for.cond
+}
+
+; PR6119
+define i32 @test9(i32 %action) nounwind {
+entry:
+  switch i32 %action, label %lor.rhs [
+    i32 1, label %if.then
+    i32 0, label %lor.end
+  ]
+
+if.then:                                          ; preds = %for.cond, %lor.end, %entry
+  ret i32 undef
+
+lor.rhs:                                          ; preds = %entry
+  br label %lor.end
+
+lor.end:                                          ; preds = %lor.rhs, %entry
+  %0 = phi i1 [ undef, %lor.rhs ], [ true, %entry ] ; <i1> [#uses=1]
+  %cmp103 = xor i1 undef, %0                      ; <i1> [#uses=1]
+  br i1 %cmp103, label %for.cond, label %if.then
+
+for.cond:                                         ; preds = %for.body, %lor.end
+  br i1 undef, label %if.then, label %for.body
+
+for.body:                                         ; preds = %for.cond
+  br label %for.cond
+}
+
+; PR6119
+define i32 @test10(i32 %action, i32 %type) nounwind {
+entry:
+  %cmp2 = icmp eq i32 %type, 0                    ; <i1> [#uses=1]
+  switch i32 %action, label %lor.rhs [
+    i32 1, label %if.then
+    i32 0, label %lor.end
+  ]
+
+if.then:                                          ; preds = %for.cond, %lor.end, %entry
+  ret i32 undef
+
+lor.rhs:                                          ; preds = %entry
+  %cmp101 = icmp eq i32 %action, 2                ; <i1> [#uses=1]
+  br label %lor.end
+
+lor.end:                                          ; preds = %lor.rhs, %entry
+  %0 = phi i1 [ %cmp101, %lor.rhs ], [ true, %entry ] ; <i1> [#uses=1]
+  %cmp103 = xor i1 %cmp2, %0                      ; <i1> [#uses=1]
+  br i1 %cmp103, label %for.cond, label %if.then
+
+for.cond:                                         ; preds = %for.body, %lor.end
+  br i1 undef, label %if.then, label %for.body
+
+for.body:                                         ; preds = %for.cond
+  br label %for.cond
+}
+
+
+; PR6305
+define void @test11() nounwind {
+entry:
+  br label %A
+
+A:                                             ; preds = %entry
+  call void undef(i64 ptrtoint (i8* blockaddress(@test11, %A) to i64)) nounwind
+  unreachable
+}

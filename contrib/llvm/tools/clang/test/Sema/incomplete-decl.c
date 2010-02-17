@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 struct foo; // expected-note 5 {{forward declaration of 'struct foo'}}
 
@@ -16,7 +16,7 @@ int ary[]; // expected-warning {{tentative array definition assumed to have one 
 struct foo bary[]; // expected-error {{array has incomplete element type 'struct foo'}}
 
 void func() {
-  int ary[]; // expected-error{{variable has incomplete type 'int []'}}
+  int ary[]; // expected-error{{definition of variable with array type needs an explicit size or an initializer}}
   void b; // expected-error {{variable has incomplete type 'void'}}
   struct foo f; // expected-error {{variable has incomplete type 'struct foo'}}
 }

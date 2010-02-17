@@ -16,6 +16,7 @@
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/LexDiagnostic.h"
+#include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/APInt.h"
 using namespace clang;
@@ -159,10 +160,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
   CurPPLexer->LexingRawMode = true;
   Token Tok;
   while (1) {
-    if (CurLexer)
-      CurLexer->Lex(Tok);
-    else
-      CurPTHLexer->Lex(Tok);
+    CurLexer->Lex(Tok);
 
     // If this is the end of the buffer, we have an error.
     if (Tok.is(tok::eof)) {
@@ -219,32 +217,28 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
     // Get the identifier name without trigraphs or embedded newlines.  Note
     // that we can't use Tok.getIdentifierInfo() because its lookup is disabled
     // when skipping.
-    // TODO: could do this with zero copies in the no-clean case by using
-    // strncmp below.
-    char Directive[20];
-    unsigned IdLen;
+    char DirectiveBuf[20];
+    llvm::StringRef Directive;
     if (!Tok.needsCleaning() && Tok.getLength() < 20) {
-      IdLen = Tok.getLength();
-      memcpy(Directive, RawCharData, IdLen);
-      Directive[IdLen] = 0;
+      Directive = llvm::StringRef(RawCharData, Tok.getLength());
     } else {
       std::string DirectiveStr = getSpelling(Tok);
-      IdLen = DirectiveStr.size();
+      unsigned IdLen = DirectiveStr.size();
       if (IdLen >= 20) {
         CurPPLexer->ParsingPreprocessorDirective = false;
         // Restore comment saving mode.
         if (CurLexer) CurLexer->SetCommentRetentionState(KeepComments);
         continue;
       }
-      memcpy(Directive, &DirectiveStr[0], IdLen);
-      Directive[IdLen] = 0;
-      FirstChar = Directive[0];
+      memcpy(DirectiveBuf, &DirectiveStr[0], IdLen);
+      Directive = llvm::StringRef(DirectiveBuf, IdLen);
     }
 
-    if (FirstChar == 'i' && Directive[1] == 'f') {
-      if ((IdLen == 2) ||   // "if"
-          (IdLen == 5 && !strcmp(Directive+2, "def")) ||   // "ifdef"
-          (IdLen == 6 && !strcmp(Directive+2, "ndef"))) {  // "ifndef"
+    if (Directive.startswith("if")) {
+      llvm::StringRef Sub = Directive.substr(2);
+      if (Sub.empty() ||   // "if"
+          Sub == "def" ||   // "ifdef"
+          Sub == "ndef") {  // "ifndef"
         // We know the entire #if/#ifdef/#ifndef block will be skipped, don't
         // bother parsing the condition.
         DiscardUntilEndOfDirective();
@@ -252,8 +246,9 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
                                        /*foundnonskip*/false,
                                        /*fnddelse*/false);
       }
-    } else if (FirstChar == 'e') {
-      if (IdLen == 5 && !strcmp(Directive+1, "ndif")) {  // "endif"
+    } else if (Directive[0] == 'e') {
+      llvm::StringRef Sub = Directive.substr(1);
+      if (Sub == "ndif") {  // "endif"
         CheckEndOfDirective("endif");
         PPConditionalInfo CondInfo;
         CondInfo.WasSkipping = true; // Silence bogus warning.
@@ -264,7 +259,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
         // If we popped the outermost skipping block, we're done skipping!
         if (!CondInfo.WasSkipping)
           break;
-      } else if (IdLen == 4 && !strcmp(Directive+1, "lse")) { // "else".
+      } else if (Sub == "lse") { // "else".
         // #else directive in a skipping conditional.  If not in some other
         // skipping conditional, and if #else hasn't already been seen, enter it
         // as a non-skipping conditional.
@@ -283,7 +278,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
           CondInfo.FoundNonSkip = true;
           break;
         }
-      } else if (IdLen == 4 && !strcmp(Directive+1, "lif")) {  // "elif".
+      } else if (Sub == "lif") {  // "elif".
         PPConditionalInfo &CondInfo = CurPPLexer->peekConditionalLevel();
 
         bool ShouldEnter;
@@ -406,8 +401,7 @@ void Preprocessor::PTHSkipExcludedConditionalBlock() {
 /// LookupFile - Given a "foo" or <foo> reference, look up the indicated file,
 /// return null on failure.  isAngled indicates whether the file reference is
 /// for system #include's or not (i.e. using <> instead of "").
-const FileEntry *Preprocessor::LookupFile(const char *FilenameStart,
-                                          const char *FilenameEnd,
+const FileEntry *Preprocessor::LookupFile(llvm::StringRef Filename,
                                           bool isAngled,
                                           const DirectoryLookup *FromDir,
                                           const DirectoryLookup *&CurDir) {
@@ -433,8 +427,7 @@ const FileEntry *Preprocessor::LookupFile(const char *FilenameStart,
   // Do a standard file entry lookup.
   CurDir = CurDirLookup;
   const FileEntry *FE =
-    HeaderInfo.LookupFile(FilenameStart, FilenameEnd,
-                          isAngled, FromDir, CurDir, CurFileEnt);
+    HeaderInfo.LookupFile(Filename, isAngled, FromDir, CurDir, CurFileEnt);
   if (FE) return FE;
 
   // Otherwise, see if this is a subframework header.  If so, this is relative
@@ -442,8 +435,7 @@ const FileEntry *Preprocessor::LookupFile(const char *FilenameStart,
   // headers on the #include stack and pass them to HeaderInfo.
   if (IsFileLexer()) {
     if ((CurFileEnt = SourceMgr.getFileEntryForID(CurPPLexer->getFileID())))
-      if ((FE = HeaderInfo.LookupSubframeworkHeader(FilenameStart, FilenameEnd,
-                                                    CurFileEnt)))
+      if ((FE = HeaderInfo.LookupSubframeworkHeader(Filename, CurFileEnt)))
         return FE;
   }
 
@@ -452,8 +444,7 @@ const FileEntry *Preprocessor::LookupFile(const char *FilenameStart,
     if (IsFileLexer(ISEntry)) {
       if ((CurFileEnt =
            SourceMgr.getFileEntryForID(ISEntry.ThePPLexer->getFileID())))
-        if ((FE = HeaderInfo.LookupSubframeworkHeader(FilenameStart,
-                                                      FilenameEnd, CurFileEnt)))
+        if ((FE = HeaderInfo.LookupSubframeworkHeader(Filename, CurFileEnt)))
           return FE;
     }
   }
@@ -480,11 +471,11 @@ void Preprocessor::HandleDirective(Token &Result) {
   CurPPLexer->ParsingPreprocessorDirective = true;
 
   ++NumDirectives;
-
+  
   // We are about to read a token.  For the multiple-include optimization FA to
   // work, we have to remember if we had read any tokens *before* this
   // pp-directive.
-  bool ReadAnyTokensBeforeDirective = CurPPLexer->MIOpt.getHasReadAnyTokensVal();
+  bool ReadAnyTokensBeforeDirective =CurPPLexer->MIOpt.getHasReadAnyTokensVal();
 
   // Save the '#' token in case we need to return it later.
   Token SavedHash = Result;
@@ -924,43 +915,41 @@ void Preprocessor::HandleIdentSCCSDirective(Token &Tok) {
 /// spelling of the filename, but is also expected to handle the case when
 /// this method decides to use a different buffer.
 bool Preprocessor::GetIncludeFilenameSpelling(SourceLocation Loc,
-                                              const char *&BufStart,
-                                              const char *&BufEnd) {
+                                              llvm::StringRef &Buffer) {
   // Get the text form of the filename.
-  assert(BufStart != BufEnd && "Can't have tokens with empty spellings!");
+  assert(!Buffer.empty() && "Can't have tokens with empty spellings!");
 
   // Make sure the filename is <x> or "x".
   bool isAngled;
-  if (BufStart[0] == '<') {
-    if (BufEnd[-1] != '>') {
+  if (Buffer[0] == '<') {
+    if (Buffer.back() != '>') {
       Diag(Loc, diag::err_pp_expects_filename);
-      BufStart = 0;
+      Buffer = llvm::StringRef();
       return true;
     }
     isAngled = true;
-  } else if (BufStart[0] == '"') {
-    if (BufEnd[-1] != '"') {
+  } else if (Buffer[0] == '"') {
+    if (Buffer.back() != '"') {
       Diag(Loc, diag::err_pp_expects_filename);
-      BufStart = 0;
+      Buffer = llvm::StringRef();
       return true;
     }
     isAngled = false;
   } else {
     Diag(Loc, diag::err_pp_expects_filename);
-    BufStart = 0;
+    Buffer = llvm::StringRef();
     return true;
   }
 
   // Diagnose #include "" as invalid.
-  if (BufEnd-BufStart <= 2) {
+  if (Buffer.size() <= 2) {
     Diag(Loc, diag::err_pp_empty_filename);
-    BufStart = 0;
-    return "";
+    Buffer = llvm::StringRef();
+    return true;
   }
 
   // Skip the brackets.
-  ++BufStart;
-  --BufEnd;
+  Buffer = Buffer.substr(1, Buffer.size()-2);
   return isAngled;
 }
 
@@ -1026,8 +1015,8 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
   CurPPLexer->LexIncludeFilename(FilenameTok);
 
   // Reserve a buffer to get the spelling.
-  llvm::SmallVector<char, 128> FilenameBuffer;
-  const char *FilenameStart, *FilenameEnd;
+  llvm::SmallString<128> FilenameBuffer;
+  llvm::StringRef Filename;
 
   switch (FilenameTok.getKind()) {
   case tok::eom:
@@ -1037,9 +1026,9 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
   case tok::angle_string_literal:
   case tok::string_literal: {
     FilenameBuffer.resize(FilenameTok.getLength());
-    FilenameStart = &FilenameBuffer[0];
+    const char *FilenameStart = &FilenameBuffer[0];
     unsigned Len = getSpelling(FilenameTok, FilenameStart);
-    FilenameEnd = FilenameStart+Len;
+    Filename = llvm::StringRef(FilenameStart, Len);
     break;
   }
 
@@ -1049,8 +1038,7 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
     FilenameBuffer.push_back('<');
     if (ConcatenateIncludeName(FilenameBuffer))
       return;   // Found <eom> but no ">"?  Diagnostic already emitted.
-    FilenameStart = FilenameBuffer.data();
-    FilenameEnd = FilenameStart + FilenameBuffer.size();
+    Filename = FilenameBuffer.str();
     break;
   default:
     Diag(FilenameTok.getLocation(), diag::err_pp_expects_filename);
@@ -1058,11 +1046,11 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
     return;
   }
 
-  bool isAngled = GetIncludeFilenameSpelling(FilenameTok.getLocation(),
-                                             FilenameStart, FilenameEnd);
+  bool isAngled = 
+    GetIncludeFilenameSpelling(FilenameTok.getLocation(), Filename);
   // If GetIncludeFilenameSpelling set the start ptr to null, there was an
   // error.
-  if (FilenameStart == 0) {
+  if (Filename.empty()) {
     DiscardUntilEndOfDirective();
     return;
   }
@@ -1081,14 +1069,12 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
 
   // Search include directories.
   const DirectoryLookup *CurDir;
-  const FileEntry *File = LookupFile(FilenameStart, FilenameEnd,
-                                     isAngled, LookupFrom, CurDir);
+  const FileEntry *File = LookupFile(Filename, isAngled, LookupFrom, CurDir);
   if (File == 0) {
-    Diag(FilenameTok, diag::err_pp_file_not_found)
-       << std::string(FilenameStart, FilenameEnd);
+    Diag(FilenameTok, diag::err_pp_file_not_found) << Filename;
     return;
   }
-
+  
   // Ask HeaderInfo if we should enter this #include file.  If not, #including
   // this file will have no effect.
   if (!HeaderInfo.ShouldEnterIncludeFile(File, isImport))
@@ -1105,13 +1091,15 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
   FileID FID = SourceMgr.createFileID(File, FilenameTok.getLocation(),
                                       FileCharacter);
   if (FID.isInvalid()) {
-    Diag(FilenameTok, diag::err_pp_file_not_found)
-      << std::string(FilenameStart, FilenameEnd);
+    Diag(FilenameTok, diag::err_pp_file_not_found) << Filename;
     return;
   }
 
   // Finally, if all is good, enter the new file!
-  EnterSourceFile(FID, CurDir);
+  std::string ErrorStr;
+  if (EnterSourceFile(FID, CurDir, ErrorStr))
+    Diag(FilenameTok, diag::err_pp_error_opening_file)
+      << std::string(SourceMgr.getFileEntryForID(FID)->getName()) << ErrorStr;
 }
 
 /// HandleIncludeNextDirective - Implements #include_next.
@@ -1526,17 +1514,20 @@ void Preprocessor::HandleIfdefDirective(Token &Result, bool isIfndef,
   // Check to see if this is the last token on the #if[n]def line.
   CheckEndOfDirective(isIfndef ? "ifndef" : "ifdef");
 
+  IdentifierInfo *MII = MacroNameTok.getIdentifierInfo();
+  MacroInfo *MI = getMacroInfo(MII);
+  
   if (CurPPLexer->getConditionalStackDepth() == 0) {
-    // If the start of a top-level #ifdef, inform MIOpt.
-    if (!ReadAnyTokensBeforeDirective) {
+    // If the start of a top-level #ifdef and if the macro is not defined,
+    // inform MIOpt that this might be the start of a proper include guard.
+    // Otherwise it is some other form of unknown conditional which we can't
+    // handle.
+    if (!ReadAnyTokensBeforeDirective && MI == 0) {
       assert(isIfndef && "#ifdef shouldn't reach here");
-      CurPPLexer->MIOpt.EnterTopLevelIFNDEF(MacroNameTok.getIdentifierInfo());
+      CurPPLexer->MIOpt.EnterTopLevelIFNDEF(MII);
     } else
       CurPPLexer->MIOpt.EnterTopLevelConditional();
   }
-
-  IdentifierInfo *MII = MacroNameTok.getIdentifierInfo();
-  MacroInfo *MI = getMacroInfo(MII);
 
   // If there is a macro, process it.
   if (MI)  // Mark it used.
@@ -1545,8 +1536,9 @@ void Preprocessor::HandleIfdefDirective(Token &Result, bool isIfndef,
   // Should we include the stuff contained by this directive?
   if (!MI == isIfndef) {
     // Yes, remember that we are inside a conditional, then lex the next token.
-    CurPPLexer->pushConditionalLevel(DirectiveTok.getLocation(), /*wasskip*/false,
-                                   /*foundnonskip*/true, /*foundelse*/false);
+    CurPPLexer->pushConditionalLevel(DirectiveTok.getLocation(),
+                                     /*wasskip*/false, /*foundnonskip*/true,
+                                     /*foundelse*/false);
   } else {
     // No, skip the contents of this block and return the first token after it.
     SkipExcludedConditionalBlock(DirectiveTok.getLocation(),
@@ -1569,7 +1561,7 @@ void Preprocessor::HandleIfDirective(Token &IfToken,
   // If this condition is equivalent to #ifndef X, and if this is the first
   // directive seen, handle it for the multiple-include optimization.
   if (CurPPLexer->getConditionalStackDepth() == 0) {
-    if (!ReadAnyTokensBeforeDirective && IfNDefMacro)
+    if (!ReadAnyTokensBeforeDirective && IfNDefMacro && ConditionalTrue)
       CurPPLexer->MIOpt.EnterTopLevelIFNDEF(IfNDefMacro);
     else
       CurPPLexer->MIOpt.EnterTopLevelConditional();

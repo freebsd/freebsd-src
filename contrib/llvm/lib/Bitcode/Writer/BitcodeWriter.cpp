@@ -19,8 +19,6 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/InlineAsm.h"
 #include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Metadata.h"
 #include "llvm/Module.h"
 #include "llvm/Operator.h"
 #include "llvm/TypeSymbolTable.h"
@@ -183,6 +181,14 @@ static void WriteTypeTable(const ValueEnumerator &VE, BitstreamWriter &Stream) {
                             Log2_32_Ceil(VE.getTypes().size()+1)));
   unsigned StructAbbrev = Stream.EmitAbbrev(Abbv);
 
+  // Abbrev for TYPE_CODE_UNION.
+  Abbv = new BitCodeAbbrev();
+  Abbv->Add(BitCodeAbbrevOp(bitc::TYPE_CODE_UNION));
+  Abbv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Array));
+  Abbv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed,
+                            Log2_32_Ceil(VE.getTypes().size()+1)));
+  unsigned UnionAbbrev = Stream.EmitAbbrev(Abbv);
+
   // Abbrev for TYPE_CODE_ARRAY.
   Abbv = new BitCodeAbbrev();
   Abbv->Add(BitCodeAbbrevOp(bitc::TYPE_CODE_ARRAY));
@@ -252,6 +258,17 @@ static void WriteTypeTable(const ValueEnumerator &VE, BitstreamWriter &Stream) {
       AbbrevToUse = StructAbbrev;
       break;
     }
+    case Type::UnionTyID: {
+      const UnionType *UT = cast<UnionType>(T);
+      // UNION: [eltty x N]
+      Code = bitc::TYPE_CODE_UNION;
+      // Output all of the element types.
+      for (UnionType::element_iterator I = UT->element_begin(),
+           E = UT->element_end(); I != E; ++I)
+        TypeVals.push_back(VE.getTypeID(*I));
+      AbbrevToUse = UnionAbbrev;
+      break;
+    }
     case Type::ArrayTyID: {
       const ArrayType *AT = cast<ArrayType>(T);
       // ARRAY: [numelts, eltty]
@@ -282,7 +299,6 @@ static void WriteTypeTable(const ValueEnumerator &VE, BitstreamWriter &Stream) {
 static unsigned getEncodedLinkage(const GlobalValue *GV) {
   switch (GV->getLinkage()) {
   default: llvm_unreachable("Invalid linkage!");
-  case GlobalValue::GhostLinkage:  // Map ghost linkage onto external.
   case GlobalValue::ExternalLinkage:            return 0;
   case GlobalValue::WeakAnyLinkage:             return 1;
   case GlobalValue::AppendingLinkage:           return 2;
@@ -477,16 +493,18 @@ static void WriteMDNode(const MDNode *N,
                         const ValueEnumerator &VE,
                         BitstreamWriter &Stream,
                         SmallVector<uint64_t, 64> &Record) {
-  for (unsigned i = 0, e = N->getNumElements(); i != e; ++i) {
-    if (N->getElement(i)) {
-      Record.push_back(VE.getTypeID(N->getElement(i)->getType()));
-      Record.push_back(VE.getValueID(N->getElement(i)));
+  for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
+    if (N->getOperand(i)) {
+      Record.push_back(VE.getTypeID(N->getOperand(i)->getType()));
+      Record.push_back(VE.getValueID(N->getOperand(i)));
     } else {
       Record.push_back(VE.getTypeID(Type::getVoidTy(N->getContext())));
       Record.push_back(0);
     }
   }
-  Stream.EmitRecord(bitc::METADATA_NODE, Record, 0);
+  unsigned MDCode = N->isFunctionLocal() ? bitc::METADATA_FN_NODE :
+                                           bitc::METADATA_NODE;
+  Stream.EmitRecord(MDCode, Record, 0);
   Record.clear();
 }
 
@@ -499,11 +517,13 @@ static void WriteModuleMetadata(const ValueEnumerator &VE,
   for (unsigned i = 0, e = Vals.size(); i != e; ++i) {
 
     if (const MDNode *N = dyn_cast<MDNode>(Vals[i].first)) {
-      if (!StartedMetadataBlock) {
-        Stream.EnterSubblock(bitc::METADATA_BLOCK_ID, 3);
-        StartedMetadataBlock = true;
+      if (!N->isFunctionLocal() || !N->getFunction()) {
+        if (!StartedMetadataBlock) {
+          Stream.EnterSubblock(bitc::METADATA_BLOCK_ID, 3);
+          StartedMetadataBlock = true;
+        }
+        WriteMDNode(N, VE, Stream, Record);
       }
-      WriteMDNode(N, VE, Stream, Record);
     } else if (const MDString *MDS = dyn_cast<MDString>(Vals[i].first)) {
       if (!StartedMetadataBlock)  {
         Stream.EnterSubblock(bitc::METADATA_BLOCK_ID, 3);
@@ -530,24 +550,44 @@ static void WriteModuleMetadata(const ValueEnumerator &VE,
       }
 
       // Write name.
-      std::string Str = NMD->getNameStr();
-      const char *StrBegin = Str.c_str();
-      for (unsigned i = 0, e = Str.length(); i != e; ++i)
-        Record.push_back(StrBegin[i]);
+      StringRef Str = NMD->getName();
+      for (unsigned i = 0, e = Str.size(); i != e; ++i)
+        Record.push_back(Str[i]);
       Stream.EmitRecord(bitc::METADATA_NAME, Record, 0/*TODO*/);
       Record.clear();
 
-      // Write named metadata elements.
-      for (unsigned i = 0, e = NMD->getNumElements(); i != e; ++i) {
-        if (NMD->getElement(i))
-          Record.push_back(VE.getValueID(NMD->getElement(i)));
+      // Write named metadata operands.
+      for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
+        if (NMD->getOperand(i))
+          Record.push_back(VE.getValueID(NMD->getOperand(i)));
         else
-          Record.push_back(0);
+          Record.push_back(~0U);
       }
       Stream.EmitRecord(bitc::METADATA_NAMED_NODE, Record, 0);
       Record.clear();
     }
   }
+
+  if (StartedMetadataBlock)
+    Stream.ExitBlock();
+}
+
+static void WriteFunctionLocalMetadata(const Function &F,
+                                       const ValueEnumerator &VE,
+                                       BitstreamWriter &Stream) {
+  bool StartedMetadataBlock = false;
+  SmallVector<uint64_t, 64> Record;
+  const ValueEnumerator::ValueList &Vals = VE.getMDValues();
+  
+  for (unsigned i = 0, e = Vals.size(); i != e; ++i)
+    if (const MDNode *N = dyn_cast<MDNode>(Vals[i].first))
+      if (N->isFunctionLocal() && N->getFunction() == &F) {
+        if (!StartedMetadataBlock) {
+          Stream.EnterSubblock(bitc::METADATA_BLOCK_ID, 3);
+          StartedMetadataBlock = true;
+        }
+        WriteMDNode(N, VE, Stream, Record);
+      }
 
   if (StartedMetadataBlock)
     Stream.ExitBlock();
@@ -561,67 +601,58 @@ static void WriteMetadataAttachment(const Function &F,
 
   // Write metadata attachments
   // METADATA_ATTACHMENT - [m x [value, [n x [id, mdnode]]]
-  MetadataContext &TheMetadata = F.getContext().getMetadata();
-  typedef SmallVector<std::pair<unsigned, TrackingVH<MDNode> >, 2> MDMapTy;
-  MDMapTy MDs;
+  SmallVector<std::pair<unsigned, MDNode*>, 4> MDs;
+  
   for (Function::const_iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
     for (BasicBlock::const_iterator I = BB->begin(), E = BB->end();
          I != E; ++I) {
       MDs.clear();
-      TheMetadata.getMDs(I, MDs);
-      bool RecordedInstruction = false;
-      for (MDMapTy::const_iterator PI = MDs.begin(), PE = MDs.end();
-             PI != PE; ++PI) {
-        if (RecordedInstruction == false) {
-          Record.push_back(VE.getInstructionID(I));
-          RecordedInstruction = true;
-        }
-        Record.push_back(PI->first);
-        Record.push_back(VE.getValueID(PI->second));
+      I->getAllMetadata(MDs);
+      
+      // If no metadata, ignore instruction.
+      if (MDs.empty()) continue;
+
+      Record.push_back(VE.getInstructionID(I));
+      
+      for (unsigned i = 0, e = MDs.size(); i != e; ++i) {
+        Record.push_back(MDs[i].first);
+        Record.push_back(VE.getValueID(MDs[i].second));
       }
-      if (!Record.empty()) {
-        if (!StartedMetadataBlock)  {
-          Stream.EnterSubblock(bitc::METADATA_ATTACHMENT_ID, 3);
-          StartedMetadataBlock = true;
-        }
-        Stream.EmitRecord(bitc::METADATA_ATTACHMENT, Record, 0);
-        Record.clear();
+      if (!StartedMetadataBlock)  {
+        Stream.EnterSubblock(bitc::METADATA_ATTACHMENT_ID, 3);
+        StartedMetadataBlock = true;
       }
+      Stream.EmitRecord(bitc::METADATA_ATTACHMENT, Record, 0);
+      Record.clear();
     }
 
   if (StartedMetadataBlock)
     Stream.ExitBlock();
 }
 
-static void WriteModuleMetadataStore(const Module *M,
-                                     const ValueEnumerator &VE,
-                                     BitstreamWriter &Stream) {
-
-  bool StartedMetadataBlock = false;
+static void WriteModuleMetadataStore(const Module *M, BitstreamWriter &Stream) {
   SmallVector<uint64_t, 64> Record;
 
   // Write metadata kinds
   // METADATA_KIND - [n x [id, name]]
-  MetadataContext &TheMetadata = M->getContext().getMetadata();
-  SmallVector<std::pair<unsigned, StringRef>, 4> Names;
-  TheMetadata.getHandlerNames(Names);
-  for (SmallVector<std::pair<unsigned, StringRef>, 4>::iterator 
-         I = Names.begin(),
-         E = Names.end(); I != E; ++I) {
-    Record.push_back(I->first);
-    StringRef KName = I->second;
-    for (unsigned i = 0, e = KName.size(); i != e; ++i)
-      Record.push_back(KName[i]);
-    if (!StartedMetadataBlock)  {
-      Stream.EnterSubblock(bitc::METADATA_BLOCK_ID, 3);
-      StartedMetadataBlock = true;
-    }
+  SmallVector<StringRef, 4> Names;
+  M->getMDKindNames(Names);
+  
+  assert(Names[0] == "" && "MDKind #0 is invalid");
+  if (Names.size() == 1) return;
+
+  Stream.EnterSubblock(bitc::METADATA_BLOCK_ID, 3);
+  
+  for (unsigned MDKindID = 1, e = Names.size(); MDKindID != e; ++MDKindID) {
+    Record.push_back(MDKindID);
+    StringRef KName = Names[MDKindID];
+    Record.append(KName.begin(), KName.end());
+    
     Stream.EmitRecord(bitc::METADATA_KIND, Record, 0);
     Record.clear();
   }
 
-  if (StartedMetadataBlock)
-    Stream.ExitBlock();
+  Stream.ExitBlock();
 }
 
 static void WriteConstants(unsigned FirstVal, unsigned LastVal,
@@ -777,7 +808,7 @@ static void WriteConstants(unsigned FirstVal, unsigned LastVal,
       else if (isCStr7)
         AbbrevToUse = CString7Abbrev;
     } else if (isa<ConstantArray>(C) || isa<ConstantStruct>(V) ||
-               isa<ConstantVector>(V)) {
+               isa<ConstantUnion>(C) || isa<ConstantVector>(V)) {
       Code = bitc::CST_CODE_AGGREGATE;
       for (unsigned i = 0, e = C->getNumOperands(); i != e; ++i)
         Record.push_back(VE.getValueID(C->getOperand(i)));
@@ -1205,6 +1236,9 @@ static void WriteFunction(const Function &F, ValueEnumerator &VE,
   VE.getFunctionConstantRange(CstStart, CstEnd);
   WriteConstants(CstStart, CstEnd, VE, Stream, false);
 
+  // If there is function-local metadata, emit it now.
+  WriteFunctionLocalMetadata(F, VE, Stream);
+
   // Keep a running idea of what the instruction ID is.
   unsigned InstID = CstEnd;
 
@@ -1213,7 +1247,7 @@ static void WriteFunction(const Function &F, ValueEnumerator &VE,
     for (BasicBlock::const_iterator I = BB->begin(), E = BB->end();
          I != E; ++I) {
       WriteInstruction(*I, InstID, VE, Stream, Vals);
-      if (I->getType() != Type::getVoidTy(F.getContext()))
+      if (!I->getType()->isVoidTy())
         ++InstID;
     }
 
@@ -1466,7 +1500,7 @@ static void WriteModule(const Module *M, BitstreamWriter &Stream) {
       WriteFunction(*I, VE, Stream);
 
   // Emit metadata.
-  WriteModuleMetadataStore(M, VE, Stream);
+  WriteModuleMetadataStore(M, Stream);
 
   // Emit the type symbol table information.
   WriteTypeSymbolTable(M->getTypeSymbolTable(), VE, Stream);
@@ -1495,16 +1529,50 @@ enum {
   DarwinBCHeaderSize = 5*4
 };
 
+/// isARMTriplet - Return true if the triplet looks like:
+/// arm-*, thumb-*, armv[0-9]-*, thumbv[0-9]-*, armv5te-*, or armv6t2-*.
+static bool isARMTriplet(const std::string &TT) {
+  size_t Pos = 0;
+  size_t Size = TT.size();
+  if (Size >= 6 &&
+      TT[0] == 't' && TT[1] == 'h' && TT[2] == 'u' &&
+      TT[3] == 'm' && TT[4] == 'b')
+    Pos = 5;
+  else if (Size >= 4 && TT[0] == 'a' && TT[1] == 'r' && TT[2] == 'm')
+    Pos = 3;
+  else
+    return false;
+
+  if (TT[Pos] == '-')
+    return true;
+  else if (TT[Pos] == 'v') {
+    if (Size >= Pos+4 &&
+        TT[Pos+1] == '6' && TT[Pos+2] == 't' && TT[Pos+3] == '2')
+      return true;
+    else if (Size >= Pos+4 &&
+             TT[Pos+1] == '5' && TT[Pos+2] == 't' && TT[Pos+3] == 'e')
+      return true;
+  } else
+    return false;
+  while (++Pos < Size && TT[Pos] != '-') {
+    if (!isdigit(TT[Pos]))
+      return false;
+  }
+  return true;
+}
+
 static void EmitDarwinBCHeader(BitstreamWriter &Stream,
                                const std::string &TT) {
   unsigned CPUType = ~0U;
 
-  // Match x86_64-*, i[3-9]86-*, powerpc-*, powerpc64-*.  The CPUType is a
-  // magic number from /usr/include/mach/machine.h.  It is ok to reproduce the
+  // Match x86_64-*, i[3-9]86-*, powerpc-*, powerpc64-*, arm-*, thumb-*,
+  // armv[0-9]-*, thumbv[0-9]-*, armv5te-*, or armv6t2-*. The CPUType is a magic
+  // number from /usr/include/mach/machine.h.  It is ok to reproduce the
   // specific constants here because they are implicitly part of the Darwin ABI.
   enum {
     DARWIN_CPU_ARCH_ABI64      = 0x01000000,
     DARWIN_CPU_TYPE_X86        = 7,
+    DARWIN_CPU_TYPE_ARM        = 12,
     DARWIN_CPU_TYPE_POWERPC    = 18
   };
 
@@ -1517,6 +1585,8 @@ static void EmitDarwinBCHeader(BitstreamWriter &Stream,
     CPUType = DARWIN_CPU_TYPE_POWERPC;
   else if (TT.find("powerpc64-") == 0)
     CPUType = DARWIN_CPU_TYPE_POWERPC | DARWIN_CPU_ARCH_ABI64;
+  else if (isARMTriplet(TT))
+    CPUType = DARWIN_CPU_TYPE_ARM;
 
   // Traditional Bitcode starts after header.
   unsigned BCOffset = DarwinBCHeaderSize;

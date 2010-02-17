@@ -22,37 +22,27 @@
 #include "llvm/MC/MCInst.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/Mangler.h"
 #include "llvm/ADT/SmallString.h"
 using namespace llvm;
 
 MCSymbol *MSP430MCInstLower::
 GetGlobalAddressSymbol(const MachineOperand &MO) const {
-  const GlobalValue *GV = MO.getGlobal();
-
-  SmallString<128> Name;
-  Mang.getNameWithPrefix(Name, GV, false);
-
   switch (MO.getTargetFlags()) {
-  default: llvm_unreachable(0 && "Unknown target flag on GV operand");
+  default: llvm_unreachable("Unknown target flag on GV operand");
   case 0: break;
   }
 
-  return Ctx.GetOrCreateSymbol(Name.str());
+  return Printer.GetGlobalValueSymbol(MO.getGlobal());
 }
 
 MCSymbol *MSP430MCInstLower::
 GetExternalSymbolSymbol(const MachineOperand &MO) const {
-  SmallString<128> Name;
-  Name += Printer.MAI->getGlobalPrefix();
-  Name += MO.getSymbolName();
-
   switch (MO.getTargetFlags()) {
   default: assert(0 && "Unknown target flag on GV operand");
   case 0: break;
   }
 
-  return Ctx.GetOrCreateSymbol(Name.str());
+  return Printer.GetExternalSymbolSymbol(MO.getSymbolName());
 }
 
 MCSymbol *MSP430MCInstLower::
@@ -126,7 +116,7 @@ void MSP430MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
       break;
     case MachineOperand::MO_MachineBasicBlock:
       MCOp = MCOperand::CreateExpr(MCSymbolRefExpr::Create(
-                         Printer.GetMBBSymbol(MO.getMBB()->getNumber()), Ctx));
+                         MO.getMBB()->getSymbol(Printer.OutContext), Ctx));
       break;
     case MachineOperand::MO_GlobalAddress:
       MCOp = LowerSymbolOperand(MO, GetGlobalAddressSymbol(MO));

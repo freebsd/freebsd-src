@@ -1,4 +1,4 @@
-// RUN: clang-cc -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -fblocks -emit-pch -x objective-c %s -o %t.ast
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -fblocks -emit-pch -x objective-c %s -o %t.ast
 // RUN: c-index-test -test-file-scan %t.ast %s | FileCheck -check-prefix=scan %s
 // RUN: c-index-test -test-load-tu %t.ast local | FileCheck -check-prefix=load %s
 
@@ -15,38 +15,19 @@ void function(Foo * arg)
     // nothing here.
 }
 
-// CHECK-scan: {start_line=1 start_col=1 end_line=7 end_col=1} Invalid Cursor => NoDeclFound
-// CHECK-scan: {start_line=8 start_col=1 end_line=8 end_col=7} Invalid Cursor => NotImplemented
-// CHECK-scan: {start_line=8 start_col=8 end_line=8 end_col=10} ObjCClassRef=Foo:8:1
-// CHECK-scan: {start_line=8 start_col=11 end_line=9 end_col=1} Invalid Cursor => NoDeclFound
-// CHECK-scan: {start_line=10 start_col=1 end_line=11 end_col=1} ObjCInterfaceDecl=Foo:10:1
-// CHECK-scan: {start_line=11 start_col=2 end_line=12 end_col=1} Invalid Cursor => NoDeclFound
-// CHECK-scan: {start_line=13 start_col=1 end_line=13 end_col=4} FunctionDecl=function:13:6
-// CHECK-scan: {start_line=13 start_col=5 end_line=13 end_col=5} Invalid Cursor => NoDeclFound
-// CHECK-scan: {start_line=13 start_col=6 end_line=13 end_col=14} FunctionDecl=function:13:6
-// CHECK-scan: {start_line=13 start_col=15 end_line=13 end_col=17} ObjCClassRef=Foo:13:21
-// CHECK-scan: {start_line=13 start_col=18 end_line=13 end_col=18} FunctionDecl=function:13:6
-// CHECK-scan: {start_line=13 start_col=19 end_line=13 end_col=19} ParmDecl=arg:13:21
-// CHECK-scan: {start_line=13 start_col=20 end_line=13 end_col=20} FunctionDecl=function:13:6
-// CHECK-scan: {start_line=13 start_col=21 end_line=13 end_col=23} ParmDecl=arg:13:21
-// CHECK-scan: {start_line=13 start_col=24 end_line=16 end_col=1} FunctionDecl=function:13:6
-// CHECK-scan: {start_line=16 start_col=2 end_line=52 end_col=1} Invalid Cursor => NoDeclFound
+// CHECK-scan: [1:1 - 8:1] Invalid Cursor => NoDeclFound
+// CHECK-scan: [8:1 - 8:8] UnexposedDecl=:8:1
+// CHECK-scan: [8:8 - 8:11] ObjCClassRef=Foo:10:12
+// CHECK-scan: [8:11 - 10:1] Invalid Cursor => NoDeclFound
+// CHECK-scan: [10:1 - 11:5] ObjCInterfaceDecl=Foo:10:12
+// CHECK-scan: [11:5 - 13:6] Invalid Cursor => NoDeclFound
+// CHECK-scan: [13:6 - 13:15] FunctionDecl=function:13:6 (Definition)
+// CHECK-scan: [13:15 - 13:18] ObjCClassRef=Foo:10:12
+// CHECK-scan: [13:18 - 13:24] ParmDecl=arg:13:21 (Definition)
+// CHECK-scan: [13:24 - 14:1] FunctionDecl=function:13:6 (Definition)
+// CHECK-scan: [14:1 - 16:2] UnexposedStmt=
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// CHECK-load: TestClassDecl.m:10:12: ObjCInterfaceDecl=Foo:10:1 [Context=TestClassDecl.m]
-// CHECK-load: TestClassDecl.m:13:6: FunctionDefn=function [Context=TestClassDecl.m]
-// CHECK-load: TestClassDecl.m:13:21: ParmDecl=arg:13:21 [Context=function]
+// CHECK-load: TestClassDecl.m:10:12: ObjCInterfaceDecl=Foo:10:12 Extent=[10:1 - 11:5]
+// CHECK-load: TestClassDecl.m:13:6: FunctionDecl=function:13:6 (Definition) Extent=[13:6 - 16:2]
+// CHECK-load: TestClassDecl.m:13:21: ParmDecl=arg:13:21 (Definition) Extent=[13:15 - 13:24]
 

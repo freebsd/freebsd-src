@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 template void *; // expected-error{{expected unqualified-id}}
 
@@ -25,8 +25,8 @@ T X0<T>::value; // expected-error{{no matching constructor}}
 
 template int X0<int>::value;
 
-struct NotDefaultConstructible {
-  NotDefaultConstructible(int);
+struct NotDefaultConstructible { // expected-note{{candidate constructor (the implicit copy constructor)}}
+  NotDefaultConstructible(int); // expected-note{{candidate constructor}}
 };
 
 template NotDefaultConstructible X0<NotDefaultConstructible>::value; // expected-note{{instantiation}}
@@ -76,3 +76,10 @@ template void print_type<double>(double*);
 // PR5069
 template<int I> void foo0 (int (&)[I + 1]) { }
 template void foo0<2> (int (&)[3]);
+
+namespace explicit_instantiation_after_implicit_instantiation {
+  template <int I> struct X0 { static int x; };
+  template <int I> int X0<I>::x;
+  void test1() { (void)&X0<1>::x; }
+  template struct X0<1>;
+}

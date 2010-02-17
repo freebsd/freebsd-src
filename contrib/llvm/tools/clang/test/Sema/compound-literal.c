@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify -pedantic %s
+// RUN: %clang_cc1 -fsyntax-only -verify -pedantic %s
 
 struct foo { int a, b; };
 
@@ -31,3 +31,6 @@ void IncompleteFunc(unsigned x) {
   (void){1,2,3}; // -expected-error {{variable has incomplete type}}
   (void(void)) { 0 }; // -expected-error{{illegal initializer type 'void (void)'}}
 }
+
+// PR6080
+int array[(sizeof(int[3]) == sizeof( (int[]) {0,1,2} )) ? 1 : -1];

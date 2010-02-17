@@ -29,6 +29,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include <algorithm>
 #include <set>
@@ -44,8 +45,8 @@ AggregateArgsOpt("aggregate-extracted-args", cl::Hidden,
 
 namespace {
   class CodeExtractor {
-    typedef std::vector<Value*> Values;
-    std::set<BasicBlock*> BlocksToExtract;
+    typedef SetVector<Value*> Values;
+    SetVector<BasicBlock*> BlocksToExtract;
     DominatorTree* DT;
     bool AggregateArgs;
     unsigned NumExitBlocks;
@@ -135,7 +136,7 @@ void CodeExtractor::severSplitPHINodes(BasicBlock *&Header) {
   // We only want to code extract the second block now, and it becomes the new
   // header of the region.
   BasicBlock *OldPred = Header;
-  BlocksToExtract.erase(OldPred);
+  BlocksToExtract.remove(OldPred);
   BlocksToExtract.insert(NewBB);
   Header = NewBB;
 
@@ -180,7 +181,7 @@ void CodeExtractor::severSplitPHINodes(BasicBlock *&Header) {
 }
 
 void CodeExtractor::splitReturnBlocks() {
-  for (std::set<BasicBlock*>::iterator I = BlocksToExtract.begin(),
+  for (SetVector<BasicBlock*>::iterator I = BlocksToExtract.begin(),
          E = BlocksToExtract.end(); I != E; ++I)
     if (ReturnInst *RI = dyn_cast<ReturnInst>((*I)->getTerminator())) {
       BasicBlock *New = (*I)->splitBasicBlock(RI, (*I)->getName()+".ret");
@@ -206,7 +207,7 @@ void CodeExtractor::splitReturnBlocks() {
 //
 void CodeExtractor::findInputsOutputs(Values &inputs, Values &outputs) {
   std::set<BasicBlock*> ExitBlocks;
-  for (std::set<BasicBlock*>::const_iterator ci = BlocksToExtract.begin(),
+  for (SetVector<BasicBlock*>::const_iterator ci = BlocksToExtract.begin(),
        ce = BlocksToExtract.end(); ci != ce; ++ci) {
     BasicBlock *BB = *ci;
 
@@ -215,13 +216,13 @@ void CodeExtractor::findInputsOutputs(Values &inputs, Values &outputs) {
       // instruction is used outside the region, it's an output.
       for (User::op_iterator O = I->op_begin(), E = I->op_end(); O != E; ++O)
         if (definedInCaller(*O))
-          inputs.push_back(*O);
+          inputs.insert(*O);
 
       // Consider uses of this instruction (outputs).
       for (Value::use_iterator UI = I->use_begin(), E = I->use_end();
            UI != E; ++UI)
         if (!definedInRegion(*UI)) {
-          outputs.push_back(I);
+          outputs.insert(I);
           break;
         }
     } // for: insts
@@ -234,12 +235,6 @@ void CodeExtractor::findInputsOutputs(Values &inputs, Values &outputs) {
   } // for: basic blocks
 
   NumExitBlocks = ExitBlocks.size();
-
-  // Eliminate duplicates.
-  std::sort(inputs.begin(), inputs.end());
-  inputs.erase(std::unique(inputs.begin(), inputs.end()), inputs.end());
-  std::sort(outputs.begin(), outputs.end());
-  outputs.erase(std::unique(outputs.begin(), outputs.end()), outputs.end());
 }
 
 /// constructFunction - make a function based on inputs and outputs, as follows:
@@ -252,8 +247,8 @@ Function *CodeExtractor::constructFunction(const Values &inputs,
                                            BasicBlock *newHeader,
                                            Function *oldFunction,
                                            Module *M) {
-  DEBUG(errs() << "inputs: " << inputs.size() << "\n");
-  DEBUG(errs() << "outputs: " << outputs.size() << "\n");
+  DEBUG(dbgs() << "inputs: " << inputs.size() << "\n");
+  DEBUG(dbgs() << "outputs: " << outputs.size() << "\n");
 
   // This function returns unsigned, outputs will go back by reference.
   switch (NumExitBlocks) {
@@ -269,25 +264,25 @@ Function *CodeExtractor::constructFunction(const Values &inputs,
   for (Values::const_iterator i = inputs.begin(),
          e = inputs.end(); i != e; ++i) {
     const Value *value = *i;
-    DEBUG(errs() << "value used in func: " << *value << "\n");
+    DEBUG(dbgs() << "value used in func: " << *value << "\n");
     paramTy.push_back(value->getType());
   }
 
   // Add the types of the output values to the function's argument list.
   for (Values::const_iterator I = outputs.begin(), E = outputs.end();
        I != E; ++I) {
-    DEBUG(errs() << "instr used in func: " << **I << "\n");
+    DEBUG(dbgs() << "instr used in func: " << **I << "\n");
     if (AggregateArgs)
       paramTy.push_back((*I)->getType());
     else
       paramTy.push_back(PointerType::getUnqual((*I)->getType()));
   }
 
-  DEBUG(errs() << "Function type: " << *RetTy << " f(");
+  DEBUG(dbgs() << "Function type: " << *RetTy << " f(");
   for (std::vector<const Type*>::iterator i = paramTy.begin(),
          e = paramTy.end(); i != e; ++i)
-    DEBUG(errs() << **i << ", ");
-  DEBUG(errs() << ")\n");
+    DEBUG(dbgs() << **i << ", ");
+  DEBUG(dbgs() << ")\n");
 
   if (AggregateArgs && (inputs.size() + outputs.size() > 0)) {
     PointerType *StructPtr =
@@ -482,7 +477,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
   std::map<BasicBlock*, BasicBlock*> ExitBlockMap;
 
   unsigned switchVal = 0;
-  for (std::set<BasicBlock*>::const_iterator i = BlocksToExtract.begin(),
+  for (SetVector<BasicBlock*>::const_iterator i = BlocksToExtract.begin(),
          e = BlocksToExtract.end(); i != e; ++i) {
     TerminatorInst *TI = (*i)->getTerminator();
     for (unsigned i = 0, e = TI->getNumSuccessors(); i != e; ++i)
@@ -593,7 +588,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
     // this should be rewritten as a `ret'
 
     // Check if the function should return a value
-    if (OldFnRetTy == Type::getVoidTy(Context)) {
+    if (OldFnRetTy->isVoidTy()) {
       ReturnInst::Create(Context, 0, TheSwitch);  // Return void
     } else if (OldFnRetTy == TheSwitch->getCondition()->getType()) {
       // return what we have
@@ -633,7 +628,7 @@ void CodeExtractor::moveCodeToFunction(Function *newFunction) {
   Function::BasicBlockListType &oldBlocks = oldFunc->getBasicBlockList();
   Function::BasicBlockListType &newBlocks = newFunction->getBasicBlockList();
 
-  for (std::set<BasicBlock*>::const_iterator i = BlocksToExtract.begin(),
+  for (SetVector<BasicBlock*>::const_iterator i = BlocksToExtract.begin(),
          e = BlocksToExtract.end(); i != e; ++i) {
     // Delete the basic block from the old function, and the list of blocks
     oldBlocks.remove(*i);

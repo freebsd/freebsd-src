@@ -17,6 +17,7 @@
 #include "clang/Parse/AttributeList.h"
 #include "clang/Lex/Token.h"
 #include "clang/Basic/OperatorKinds.h"
+#include "clang/Basic/Specifiers.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace clang {
@@ -27,6 +28,40 @@ namespace clang {
   class Declarator;
   struct TemplateIdAnnotation;
   
+/// CXXScopeSpec - Represents a C++ nested-name-specifier or a global scope
+/// specifier.
+class CXXScopeSpec {
+  SourceRange Range;
+  void *ScopeRep;
+
+public:
+  CXXScopeSpec() : Range(), ScopeRep() { }
+
+  const SourceRange &getRange() const { return Range; }
+  void setRange(const SourceRange &R) { Range = R; }
+  void setBeginLoc(SourceLocation Loc) { Range.setBegin(Loc); }
+  void setEndLoc(SourceLocation Loc) { Range.setEnd(Loc); }
+  SourceLocation getBeginLoc() const { return Range.getBegin(); }
+  SourceLocation getEndLoc() const { return Range.getEnd(); }
+
+  ActionBase::CXXScopeTy *getScopeRep() const { return ScopeRep; }
+  void setScopeRep(ActionBase::CXXScopeTy *S) { ScopeRep = S; }
+
+  bool isEmpty() const { return !Range.isValid(); }
+  bool isNotEmpty() const { return !isEmpty(); }
+
+  /// isInvalid - An error occured during parsing of the scope specifier.
+  bool isInvalid() const { return isNotEmpty() && ScopeRep == 0; }
+
+  /// isSet - A scope specifier was resolved to a valid C++ scope.
+  bool isSet() const { return ScopeRep != 0; }
+
+  void clear() {
+    Range = SourceRange();
+    ScopeRep = 0;
+  }
+};
+
 /// DeclSpec - This class captures information about "declaration specifiers",
 /// which encompasses storage-class-specifiers, type-specifiers,
 /// type-qualifiers, and function-specifiers.
@@ -44,51 +79,50 @@ public:
     SCS_mutable
   };
 
-  // type-specifier
-  enum TSW {
-    TSW_unspecified,
-    TSW_short,
-    TSW_long,
-    TSW_longlong
-  };
-
+  // Import type specifier width enumeration and constants.
+  typedef TypeSpecifierWidth TSW;
+  static const TSW TSW_unspecified = clang::TSW_unspecified;
+  static const TSW TSW_short = clang::TSW_short;
+  static const TSW TSW_long = clang::TSW_long;
+  static const TSW TSW_longlong = clang::TSW_longlong;
+  
   enum TSC {
     TSC_unspecified,
     TSC_imaginary,
     TSC_complex
   };
 
-  enum TSS {
-    TSS_unspecified,
-    TSS_signed,
-    TSS_unsigned
-  };
+  // Import type specifier sign enumeration and constants.
+  typedef TypeSpecifierSign TSS;
+  static const TSS TSS_unspecified = clang::TSS_unspecified;
+  static const TSS TSS_signed = clang::TSS_signed;
+  static const TSS TSS_unsigned = clang::TSS_unsigned;
 
-  enum TST {
-    TST_unspecified,
-    TST_void,
-    TST_char,
-    TST_wchar,        // C++ wchar_t
-    TST_char16,       // C++0x char16_t
-    TST_char32,       // C++0x char32_t
-    TST_int,
-    TST_float,
-    TST_double,
-    TST_bool,         // _Bool
-    TST_decimal32,    // _Decimal32
-    TST_decimal64,    // _Decimal64
-    TST_decimal128,   // _Decimal128
-    TST_enum,
-    TST_union,
-    TST_struct,
-    TST_class,        // C++ class type
-    TST_typename,     // Typedef, C++ class-name or enum name, etc.
-    TST_typeofType,
-    TST_typeofExpr,
-    TST_decltype,     // C++0x decltype
-    TST_auto,         // C++0x auto
-    TST_error         // erroneous type
-  };
+  // Import type specifier type enumeration and constants.
+  typedef TypeSpecifierType TST;
+  static const TST TST_unspecified = clang::TST_unspecified;
+  static const TST TST_void = clang::TST_void;
+  static const TST TST_char = clang::TST_char;
+  static const TST TST_wchar = clang::TST_wchar;
+  static const TST TST_char16 = clang::TST_char16;
+  static const TST TST_char32 = clang::TST_char32;
+  static const TST TST_int = clang::TST_int;
+  static const TST TST_float = clang::TST_float;
+  static const TST TST_double = clang::TST_double;
+  static const TST TST_bool = clang::TST_bool;
+  static const TST TST_decimal32 = clang::TST_decimal32;
+  static const TST TST_decimal64 = clang::TST_decimal64;
+  static const TST TST_decimal128 = clang::TST_decimal128;
+  static const TST TST_enum = clang::TST_enum;
+  static const TST TST_union = clang::TST_union;
+  static const TST TST_struct = clang::TST_struct;
+  static const TST TST_class = clang::TST_class;
+  static const TST TST_typename = clang::TST_typename;
+  static const TST TST_typeofType = clang::TST_typeofType;
+  static const TST TST_typeofExpr = clang::TST_typeofExpr;
+  static const TST TST_decltype = clang::TST_decltype;
+  static const TST TST_auto = clang::TST_auto;
+  static const TST TST_error = clang::TST_error;
 
   // type-qualifiers
   enum TQ {   // NOTE: These flags must be kept in sync with Qualifiers::TQ.
@@ -119,6 +153,8 @@ private:
   /*TSC*/unsigned TypeSpecComplex : 2;
   /*TSS*/unsigned TypeSpecSign : 2;
   /*TST*/unsigned TypeSpecType : 5;
+  bool TypeAltiVecVector : 1;
+  bool TypeAltiVecPixel : 1;
   bool TypeSpecOwned : 1;
 
   // type-qualifiers
@@ -143,6 +179,9 @@ private:
   // attributes.
   AttributeList *AttrList;
 
+  // Scope specifier for the type spec, if applicable.
+  CXXScopeSpec TypeScope;
+
   // List of protocol qualifiers for objective-c classes.  Used for
   // protocol-qualified interfaces "NString<foo>" and protocol-qualified id
   // "id<foo>".
@@ -156,10 +195,14 @@ private:
   SourceRange Range;
 
   SourceLocation StorageClassSpecLoc, SCS_threadLoc;
-  SourceLocation TSWLoc, TSCLoc, TSSLoc, TSTLoc;
+  SourceLocation TSWLoc, TSCLoc, TSSLoc, TSTLoc, AltiVecLoc;
+  SourceRange TypeofParensRange;
   SourceLocation TQ_constLoc, TQ_restrictLoc, TQ_volatileLoc;
   SourceLocation FS_inlineLoc, FS_virtualLoc, FS_explicitLoc;
   SourceLocation FriendLoc, ConstexprLoc;
+
+  WrittenBuiltinSpecs writtenBS;
+  void SaveWrittenBuiltinSpecs();
 
   DeclSpec(const DeclSpec&);       // DO NOT IMPLEMENT
   void operator=(const DeclSpec&); // DO NOT IMPLEMENT
@@ -172,6 +215,8 @@ public:
       TypeSpecComplex(TSC_unspecified),
       TypeSpecSign(TSS_unspecified),
       TypeSpecType(TST_unspecified),
+      TypeAltiVecVector(false),
+      TypeAltiVecPixel(false),
       TypeSpecOwned(false),
       TypeQualifiers(TSS_unspecified),
       FS_inline_specified(false),
@@ -209,14 +254,22 @@ public:
   TSC getTypeSpecComplex() const { return (TSC)TypeSpecComplex; }
   TSS getTypeSpecSign() const { return (TSS)TypeSpecSign; }
   TST getTypeSpecType() const { return (TST)TypeSpecType; }
+  bool isTypeAltiVecVector() const { return TypeAltiVecVector; }
+  bool isTypeAltiVecPixel() const { return TypeAltiVecPixel; }
   bool isTypeSpecOwned() const { return TypeSpecOwned; }
   void *getTypeRep() const { return TypeRep; }
+  CXXScopeSpec &getTypeSpecScope() { return TypeScope; }
+  const CXXScopeSpec &getTypeSpecScope() const { return TypeScope; }
 
   const SourceRange &getSourceRange() const { return Range; }
   SourceLocation getTypeSpecWidthLoc() const { return TSWLoc; }
   SourceLocation getTypeSpecComplexLoc() const { return TSCLoc; }
   SourceLocation getTypeSpecSignLoc() const { return TSSLoc; }
   SourceLocation getTypeSpecTypeLoc() const { return TSTLoc; }
+  SourceLocation getAltiVecLoc() const { return AltiVecLoc; }
+
+  SourceRange getTypeofParensRange() const { return TypeofParensRange; }
+  void setTypeofParensRange(SourceRange range) { TypeofParensRange = range; }
 
   /// getSpecifierName - Turn a type-specifier-type into a string like "_Bool"
   /// or "union".
@@ -298,6 +351,10 @@ public:
                        unsigned &DiagID);
   bool SetTypeSpecType(TST T, SourceLocation Loc, const char *&PrevSpec,
                        unsigned &DiagID, void *Rep = 0, bool Owned = false);
+  bool SetTypeAltiVecVector(bool isAltiVecVector, SourceLocation Loc,
+                       const char *&PrevSpec, unsigned &DiagID);
+  bool SetTypeAltiVecPixel(bool isAltiVecPixel, SourceLocation Loc,
+                       const char *&PrevSpec, unsigned &DiagID);
   bool SetTypeSpecError();
   void UpdateTypeRep(void *Rep) { TypeRep = Rep; }
 
@@ -368,6 +425,10 @@ public:
   /// DeclSpec is guaranteed self-consistent, even if an error occurred.
   void Finish(Diagnostic &D, Preprocessor &PP);
 
+  const WrittenBuiltinSpecs& getWrittenBuiltinSpecs() const {
+    return writtenBS;
+  }
+
   /// isMissingDeclaratorOk - This checks if this DeclSpec can stand alone,
   /// without a Declarator. Only tag declspecs can stand alone.
   bool isMissingDeclaratorOk();
@@ -436,40 +497,6 @@ private:
   IdentifierInfo *SetterName;    // setter name of NULL if no setter
 };
 
-/// CXXScopeSpec - Represents a C++ nested-name-specifier or a global scope
-/// specifier.
-class CXXScopeSpec {
-  SourceRange Range;
-  void *ScopeRep;
-
-public:
-  CXXScopeSpec() : Range(), ScopeRep() { }
-
-  const SourceRange &getRange() const { return Range; }
-  void setRange(const SourceRange &R) { Range = R; }
-  void setBeginLoc(SourceLocation Loc) { Range.setBegin(Loc); }
-  void setEndLoc(SourceLocation Loc) { Range.setEnd(Loc); }
-  SourceLocation getBeginLoc() const { return Range.getBegin(); }
-  SourceLocation getEndLoc() const { return Range.getEnd(); }
-
-  ActionBase::CXXScopeTy *getScopeRep() const { return ScopeRep; }
-  void setScopeRep(ActionBase::CXXScopeTy *S) { ScopeRep = S; }
-
-  bool isEmpty() const { return !Range.isValid(); }
-  bool isNotEmpty() const { return !isEmpty(); }
-
-  /// isInvalid - An error occured during parsing of the scope specifier.
-  bool isInvalid() const { return isNotEmpty() && ScopeRep == 0; }
-
-  /// isSet - A scope specifier was resolved to a valid C++ scope.
-  bool isSet() const { return ScopeRep != 0; }
-
-  void clear() {
-    Range = SourceRange();
-    ScopeRep = 0;
-  }
-};
-
 /// \brief Represents a C++ unqualified-id that has been parsed. 
 class UnqualifiedId {
 private:
@@ -484,8 +511,12 @@ public:
     IK_OperatorFunctionId,
     /// \brief A conversion function name, e.g., operator int.
     IK_ConversionFunctionId,
+    /// \brief A user-defined literal name, e.g., operator "" _i.
+    IK_LiteralOperatorId,
     /// \brief A constructor name.
     IK_ConstructorName,
+    /// \brief A constructor named via a template-id.
+    IK_ConstructorTemplateId,
     /// \brief A destructor name.
     IK_DestructorName,
     /// \brief A template-id, e.g., f<int>.
@@ -495,7 +526,8 @@ public:
   /// \brief Anonymous union that holds extra data associated with the
   /// parsed unqualified-id.
   union {
-    /// \brief When Kind == IK_Identifier, the parsed identifier.
+    /// \brief When Kind == IK_Identifier, the parsed identifier, or when Kind
+    /// == IK_UserLiteralId, the identifier suffix.
     IdentifierInfo *Identifier;
     
     /// \brief When Kind == IK_OperatorFunctionId, the overloaded operator
@@ -526,8 +558,9 @@ public:
     /// class-name.
     ActionBase::TypeTy *DestructorName;
     
-    /// \brief When Kind == IK_TemplateId, the template-id annotation that
-    /// contains the template name and template arguments.
+    /// \brief When Kind == IK_TemplateId or IK_ConstructorTemplateId,
+    /// the template-id annotation that contains the template name and
+    /// template arguments.
     TemplateIdAnnotation *TemplateId;
   };
   
@@ -607,6 +640,22 @@ public:
     EndLocation = EndLoc;
     ConversionFunctionId = Ty;
   }
+
+  /// \brief Specific that this unqualified-id was parsed as a
+  /// literal-operator-id.
+  ///
+  /// \param Id the parsed identifier.
+  ///
+  /// \param OpLoc the location of the 'operator' keyword.
+  ///
+  /// \param IdLoc the location of the identifier.
+  void setLiteralOperatorId(const IdentifierInfo *Id, SourceLocation OpLoc,
+                              SourceLocation IdLoc) {
+    Kind = IK_LiteralOperatorId;
+    Identifier = const_cast<IdentifierInfo *>(Id);
+    StartLocation = OpLoc;
+    EndLocation = IdLoc;
+  }
   
   /// \brief Specify that this unqualified-id was parsed as a constructor name.
   ///
@@ -623,6 +672,14 @@ public:
     EndLocation = EndLoc;
     ConstructorName = ClassType;
   }
+
+  /// \brief Specify that this unqualified-id was parsed as a
+  /// template-id that names a constructor.
+  ///
+  /// \param TemplateId the template-id annotation that describes the parsed
+  /// template-id. This UnqualifiedId instance will take ownership of the
+  /// \p TemplateId and will free it on destruction.
+  void setConstructorTemplateId(TemplateIdAnnotation *TemplateId);
 
   /// \brief Specify that this unqualified-id was parsed as a destructor name.
   ///
@@ -971,7 +1028,7 @@ struct DeclaratorChunk {
 /// stack, not objects that are allocated in large quantities on the heap.
 class Declarator {
 public:
-   enum TheContext {
+  enum TheContext {
     FileContext,         // File scope declaration.
     PrototypeContext,    // Within a function prototype.
     KNRTypeListContext,  // K&R type definition list for formals.

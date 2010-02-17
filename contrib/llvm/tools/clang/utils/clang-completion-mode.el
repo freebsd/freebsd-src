@@ -15,7 +15,7 @@
 ;; completion based on Clang. It needs your help to make it better!
 ;;
 ;; To use the Clang code completion mode, first make sure that the
-;; "clang-cc" variable below refers to the "clang-cc" executable,
+;; "clang" variable below refers to the "clang" executable,
 ;; which is typically installed in libexec/. Then, place
 ;; clang-completion-mode.el somewhere in your Emacs load path. You can
 ;; add a new load path to Emacs by adding some like the following to
@@ -40,21 +40,20 @@
 ;; file up to the point where the cursor is located. Therefore, Clang
 ;; needs all of the various compilation flags (include paths, dialect
 ;; options, etc.) to provide code-completion results. Currently, these
-;; need to be placed into the clang-cc-flags variable in a format
-;; acceptable to clang-cc. This is a hack: patches are welcome to
+;; need to be placed into the clang-flags variable in a format
+;; acceptable to clang. This is a hack: patches are welcome to
 ;; improve the interface between this Emacs mode and Clang! 
 ;;
 
 ;;; Code:
-;;; The clang-cc executable
-(defcustom clang-cc "clang-cc"
-  "The location of the clang-cc executable of the Clang compiler.
-This executable is typically installed into the libexec subdirectory."
+;;; The clang executable
+(defcustom clang "clang"
+  "The location of the Clang compiler executable"
   :type 'file
   :group 'clang-completion-mode)
 
-;;; Extra compilation flags to pass to clang-cc.
-(defcustom clang-cc-flags ""
+;;; Extra compilation flags to pass to clang.
+(defcustom clang-flags ""
   "Extra flags to pass to the Clang executable.
 This variable will typically contain include paths, e.g., -I~/MyProject."
   :type 'string
@@ -69,7 +68,7 @@ This variable will typically contain include paths, e.g., -I~/MyProject."
 ;;; The current completion buffer
 (setq clang-completion-buffer nil)
 
-(setq clang-cc-result-string "")
+(setq clang-result-string "")
 
 ;;; Compute the current line in the buffer	
 (defun current-line ()
@@ -89,7 +88,7 @@ This variable will typically contain include paths, e.g., -I~/MyProject."
 ;; produced. We store all of the results in a string, then the
 ;; sentinel processes the entire string at once.
 (defun clang-completion-stash-filter (proc string)
-  (setq clang-cc-result-string (concat clang-cc-result-string string)))
+  (setq clang-result-string (concat clang-result-string string)))
 
 ;; Filter the given list based on a predicate.
 (defun filter (condp lst)
@@ -102,7 +101,7 @@ This variable will typically contain include paths, e.g., -I~/MyProject."
       (string-match (concat "COMPLETION: " clang-completion-substring) line)))
 
 (defun clang-completion-display (buffer)
-  (let* ((all-lines (split-string clang-cc-result-string "\n"))
+  (let* ((all-lines (split-string clang-result-string "\n"))
          (completion-lines (filter 'is-completion-line all-lines)))
     (if (consp completion-lines)
         (progn
@@ -125,7 +124,7 @@ This variable will typically contain include paths, e.g., -I~/MyProject."
 ;; contents of the code-completion buffer with the new code-completion results
 ;; and ensures that the buffer is visible.
 (defun clang-completion-sentinel (proc event)
-  (let* ((all-lines (split-string clang-cc-result-string "\n"))
+  (let* ((all-lines (split-string clang-result-string "\n"))
          (completion-lines (filter 'is-completion-line all-lines)))
     (if (consp completion-lines)
         (progn
@@ -145,13 +144,21 @@ This variable will typically contain include paths, e.g., -I~/MyProject."
          ))))
 
 (defun clang-complete ()
-  (let ((ccstring (concat "-code-completion-at="
-                          (buffer-file-name)
-                          ":"
-                          (number-to-string (+ 1 (current-line)))
-                          ":"
-                          (number-to-string (+ 1 (current-column)))))
-        (cc-buffer-name (concat "*Clang Completion for " (buffer-name) "*")))
+  (let* ((cc-point (concat (buffer-file-name)
+                           ":"
+                           (number-to-string (+ 1 (current-line)))
+                           ":"
+                           (number-to-string (+ 1 (current-column)))))
+         (cc-pch (if (equal clang-completion-prefix-header "") nil
+                   (list "-include-pch"
+                         (concat clang-completion-prefix-header ".pch"))))
+         (cc-flags (if (listp clang-flags) clang-flags nil))
+         (cc-command (append `(,clang "-cc1" "-fsyntax-only")
+                             cc-flags
+                             cc-pch
+                             `("-code-completion-at" ,cc-point)
+                             (list (buffer-file-name))))
+         (cc-buffer-name (concat "*Clang Completion for " (buffer-name) "*")))
     ;; Start the code-completion process
     (if (buffer-file-name)
         (progn
@@ -161,19 +168,12 @@ This variable will typically contain include paths, e.g., -I~/MyProject."
                 (delete-process cc-proc)))
 
           (setq clang-completion-substring "")
-          (setq clang-cc-result-string "")
+          (setq clang-result-string "")
           (setq clang-completion-buffer cc-buffer-name)
             
-          (let ((cc-proc
-                 (if (equal clang-completion-prefix-header "")
-                     (start-process "Clang Code-Completion" cc-buffer-name
-                                    clang-cc "-fsyntax-only" ccstring 
-                                    (buffer-file-name))
-                     (start-process "Clang Code-Completion" cc-buffer-name
-                                    clang-cc "-fsyntax-only" ccstring 
-                                    "-include-pch" 
-                                    (concat clang-completion-prefix-header ".pch")
-                                    (buffer-file-name)))))
+          (let ((cc-proc (apply 'start-process
+                                (append (list "Clang Code-Completion" cc-buffer-name)
+                                        cc-command))))
             (set-process-filter cc-proc 'clang-completion-stash-filter)
             (set-process-sentinel cc-proc 'clang-completion-sentinel)
             )))))
@@ -252,6 +252,6 @@ This variable will typically contain include paths, e.g., -I~/MyProject."
 (define-minor-mode clang-completion-mode 
   "Clang code-completion mode"
   nil
-  " Clang-CC"
+  " Clang"
   clang-completion-mode-map)
 

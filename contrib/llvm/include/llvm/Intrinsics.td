@@ -260,7 +260,7 @@ def int_sigsetjmp  : Intrinsic<[llvm_i32_ty] , [llvm_ptr_ty, llvm_i32_ty]>;
 def int_siglongjmp : Intrinsic<[llvm_void_ty], [llvm_ptr_ty, llvm_i32_ty]>;
 
 // Internal interface for object size checking
-def int_objectsize : Intrinsic<[llvm_anyint_ty], [llvm_ptr_ty, llvm_i32_ty],
+def int_objectsize : Intrinsic<[llvm_anyint_ty], [llvm_ptr_ty, llvm_i1_ty],
                                [IntrReadArgMem]>,
                                GCCBuiltin<"__builtin_object_size">;
 
@@ -282,14 +282,11 @@ let Properties = [IntrNoMem] in {
 // optimizers can change them aggressively.  Special handling needed in a few
 // places.
 let Properties = [IntrNoMem] in {
-  def int_dbg_stoppoint    : Intrinsic<[llvm_void_ty],
-                                       [llvm_i32_ty, llvm_i32_ty,
-                                        llvm_metadata_ty]>;
-  def int_dbg_region_start : Intrinsic<[llvm_void_ty], [llvm_metadata_ty]>;
-  def int_dbg_region_end   : Intrinsic<[llvm_void_ty], [llvm_metadata_ty]>;
-  def int_dbg_func_start   : Intrinsic<[llvm_void_ty], [llvm_metadata_ty]>;
   def int_dbg_declare      : Intrinsic<[llvm_void_ty],
-                                       [llvm_descriptor_ty, llvm_metadata_ty]>;
+                                       [llvm_metadata_ty, llvm_metadata_ty]>;
+  def int_dbg_value  	   : Intrinsic<[llvm_void_ty],
+                                       [llvm_metadata_ty, llvm_i64_ty,
+                                        llvm_metadata_ty]>;
 }
 
 //===------------------ Exception Handling Intrinsics----------------------===//
@@ -312,6 +309,7 @@ let Properties = [IntrNoMem] in {
   def int_eh_sjlj_setjmp  : Intrinsic<[llvm_i32_ty],  [llvm_ptr_ty]>;
   def int_eh_sjlj_longjmp : Intrinsic<[llvm_void_ty], [llvm_ptr_ty]>;
   def int_eh_sjlj_lsda    : Intrinsic<[llvm_ptr_ty]>;
+  def int_eh_sjlj_callsite: Intrinsic<[llvm_void_ty], [llvm_i32_ty]>;
 }
 
 //===---------------- Generic Variable Attribute Intrinsics----------------===//
@@ -341,19 +339,25 @@ def int_init_trampoline : Intrinsic<[llvm_ptr_ty],
 
 // Expose the carry flag from add operations on two integrals.
 def int_sadd_with_overflow : Intrinsic<[llvm_anyint_ty, llvm_i1_ty],
-                                       [LLVMMatchType<0>, LLVMMatchType<0>]>;
+                                       [LLVMMatchType<0>, LLVMMatchType<0>],
+                                       [IntrNoMem]>;
 def int_uadd_with_overflow : Intrinsic<[llvm_anyint_ty, llvm_i1_ty],
-                                       [LLVMMatchType<0>, LLVMMatchType<0>]>;
+                                       [LLVMMatchType<0>, LLVMMatchType<0>],
+                                       [IntrNoMem]>;
 
 def int_ssub_with_overflow : Intrinsic<[llvm_anyint_ty, llvm_i1_ty],
-                                       [LLVMMatchType<0>, LLVMMatchType<0>]>;
+                                       [LLVMMatchType<0>, LLVMMatchType<0>],
+                                       [IntrNoMem]>;
 def int_usub_with_overflow : Intrinsic<[llvm_anyint_ty, llvm_i1_ty],
-                                       [LLVMMatchType<0>, LLVMMatchType<0>]>;
+                                       [LLVMMatchType<0>, LLVMMatchType<0>],
+                                       [IntrNoMem]>;
 
 def int_smul_with_overflow : Intrinsic<[llvm_anyint_ty, llvm_i1_ty],
-                                       [LLVMMatchType<0>, LLVMMatchType<0>]>;
+                                       [LLVMMatchType<0>, LLVMMatchType<0>],
+                                       [IntrNoMem]>;
 def int_umul_with_overflow : Intrinsic<[llvm_anyint_ty, llvm_i1_ty],
-                                       [LLVMMatchType<0>, LLVMMatchType<0>]>;
+                                       [LLVMMatchType<0>, LLVMMatchType<0>],
+                                       [IntrNoMem]>;
 
 //===------------------------- Atomic Intrinsics --------------------------===//
 //

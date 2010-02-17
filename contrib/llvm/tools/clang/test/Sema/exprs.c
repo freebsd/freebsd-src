@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -verify -pedantic -fsyntax-only -fblocks=0
+// RUN: %clang_cc1 %s -verify -pedantic -fsyntax-only
 
 // PR1966
 _Complex double test1() {
@@ -87,6 +87,10 @@ int test12(const char *X) {
   return X == "foo";  // expected-warning {{comparison against a string literal is unspecified}}
 }
 
+int test12b(const char *X) {
+  return sizeof(X == "foo"); // no-warning
+}
+
 // rdar://6719156
 void test13(
             void (^P)()) { // expected-error {{blocks support disabled - compile with -fblocks}}
@@ -111,4 +115,16 @@ test15_t test15(void) {
   return (test15_t)0 + (test15_t)0;  // expected-error {{invalid operands to binary expression ('test15_t' (aka 'unsigned long *') and 'test15_t')}}
 }
 
+// rdar://7446395
+void test16(float x) { x == ((void*) 0); }  // expected-error {{invalid operands to binary expression}}
+
+// PR6004
+void test17(int x) {
+  x = x / 0;  // expected-warning {{division by zero is undefined}}
+  x = x % 0;  // expected-warning {{remainder by zero is undefined}}
+  x /= 0;  // expected-warning {{division by zero is undefined}}
+  x %= 0;  // expected-warning {{remainder by zero is undefined}}
+  
+  x = sizeof(x/0);  // no warning.
+}
 

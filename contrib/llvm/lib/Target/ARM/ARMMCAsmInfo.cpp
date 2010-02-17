@@ -44,7 +44,6 @@ ARMMCAsmInfoDarwin::ARMMCAsmInfoDarwin() {
   AsmTransCBE = arm_asm_table;
   Data64bitsDirective = 0;
   CommentString = "@";
-  COMMDirectiveTakesAlignment = false;
   SupportsDebugInformation = true;
 
   // Exceptions handling
@@ -53,18 +52,17 @@ ARMMCAsmInfoDarwin::ARMMCAsmInfoDarwin() {
 }
 
 ARMELFMCAsmInfo::ARMELFMCAsmInfo() {
+  // ".comm align is in bytes but .align is pow-2."
   AlignmentIsInBytes = false;
+
   Data64bitsDirective = 0;
   CommentString = "@";
-  COMMDirectiveTakesAlignment = false;
-  
-  NeedsSet = false;
+
   HasLEB128 = true;
   AbsoluteDebugSectionOffsets = true;
   PrivateGlobalPrefix = ".L";
   WeakRefDirective = "\t.weak\t";
-  SetDirective = "\t.set\t";
-  LCOMMDirective = "\t.lcomm\t";
+  HasLCOMMDirective = true;
 
   DwarfRequiresFrameSection = false;
 

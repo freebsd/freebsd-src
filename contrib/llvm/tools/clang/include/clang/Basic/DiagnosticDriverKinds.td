@@ -57,6 +57,13 @@ def err_drv_invalid_mfloat_abi : Error<
   "invalid float ABI '%0'">;
 def err_drv_I_dash_not_supported : Error<
   "'%0' not supported, please use -iquote instead">;
+def err_drv_unknown_argument : Error<"unknown argument: '%0'">;
+def err_drv_invalid_value : Error<"invalid value '%1' in '%0'">;
+def err_drv_invalid_int_value : Error<"invalid integral value '%1' in '%0'">;
+def err_drv_invalid_remap_file : Error<
+    "invalid option '%0' not of the form <from-file>;<to-file>">;
+def err_drv_invalid_gcc_output_type : Error<
+    "invalid output type '%0' for use with gcc tool">;
 
 def warn_drv_input_file_unused : Warning<
   "%0: '%1' input unused when '%2' is present">;
@@ -67,7 +74,7 @@ def warn_drv_unused_argument : Warning<
 def warn_drv_pipe_ignored_with_save_temps : Warning<
   "-pipe ignored because -save-temps specified">;
 def warn_drv_not_using_clang_cpp : Warning<
-  "not using the clang prepreprocessor due to user override">;
+  "not using the clang preprocessor due to user override">;
 def warn_drv_not_using_clang_cxx : Warning<
   "not using the clang compiler for C++ inputs">;
 def warn_drv_not_using_clang_arch : Warning<
@@ -76,5 +83,11 @@ def warn_drv_clang_unsupported : Warning<
   "the clang compiler does not support '%0'">;
 def warn_drv_assuming_mfloat_abi_is : Warning<
   "unknown platform, assuming -mfloat-abi=%0">;
+def warn_ignoring_ftabstop_value : Warning<
+  "ignoring invalid -ftabstop value '%0', using default value %1">;
+def warn_drv_missing_resource_library : Warning<
+  "missing resource library '%0', link may fail">;
+def warn_drv_conflicting_deployment_targets : Warning<
+    "conflicting deployment targets, both MACOSX_DEPLOYMENT_TARGET '%0' and IPHONEOS_DEPLOYMENT_TARGET '%1' are present in environment">;
 
 }

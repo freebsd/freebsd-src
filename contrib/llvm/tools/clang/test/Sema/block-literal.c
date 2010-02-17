@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only %s -verify -fblocks
+// RUN: %clang_cc1 -fsyntax-only %s -verify -fblocks
 
 void I( void (^)(void));
 void (^noop)(void);
@@ -33,7 +33,8 @@ void test2() {
         break;  // expected-error {{'break' statement not in loop or switch statement}}
         continue; // expected-error {{'continue' statement not in loop statement}}
         while(1) break;  // ok
-        goto foo; // expected-error {{goto not allowed}}
+        goto foo; // expected-error {{use of undeclared label 'foo'}}
+        a: goto a;       // ok
       });
     break;
   }

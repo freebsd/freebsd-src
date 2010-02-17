@@ -1,4 +1,4 @@
-// RUN: clang-cc -analyze -checker-cfref -analyzer-store=region -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-check-objc-mem -analyzer-store=region -verify %s
 
 //===----------------------------------------------------------------------===//
 // The following code is reduced using delta-debugging from
@@ -92,6 +92,8 @@ typedef unsigned long NSUInteger;
 
 // Test to see if we *issue* an error when we store the pointer
 // to a struct.  This differs from basic store.
+
+CFAbsoluteTime CFAbsoluteTimeGetCurrent(void);
 
 struct foo {
   NSDate* f;

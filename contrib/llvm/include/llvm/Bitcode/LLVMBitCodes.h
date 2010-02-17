@@ -94,7 +94,8 @@ namespace bitc {
     TYPE_CODE_FP128    = 14,   // LONG DOUBLE (112 bit mantissa)
     TYPE_CODE_PPC_FP128= 15,   // PPC LONG DOUBLE (2 doubles)
 
-    TYPE_CODE_METADATA = 16    // METADATA
+    TYPE_CODE_METADATA = 16,   // METADATA
+    TYPE_CODE_UNION    = 17    // UNION: [eltty x N]
   };
 
   // The type symbol table only has one code (TST_ENTRY_CODE).
@@ -111,10 +112,11 @@ namespace bitc {
   enum MetadataCodes {
     METADATA_STRING        = 1,   // MDSTRING:      [values]
     METADATA_NODE          = 2,   // MDNODE:        [n x (type num, value num)]
-    METADATA_NAME          = 3,   // STRING:        [values]
-    METADATA_NAMED_NODE    = 4,   // NAMEDMDNODE:   [n x mdnodes]
-    METADATA_KIND          = 5,   // [n x [id, name]]
-    METADATA_ATTACHMENT    = 6    // [m x [value, [n x [id, mdnode]]]
+    METADATA_FN_NODE       = 3,   // FN_MDNODE:     [n x (type num, value num)]
+    METADATA_NAME          = 4,   // STRING:        [values]
+    METADATA_NAMED_NODE    = 5,   // NAMEDMDNODE:   [n x mdnodes]
+    METADATA_KIND          = 6,   // [n x [id, name]]
+    METADATA_ATTACHMENT    = 7    // [m x [value, [n x [id, mdnode]]]
   };
   // The constants block (CONSTANTS_BLOCK_ID) describes emission for each
   // constant and maintains an implicit current type value.

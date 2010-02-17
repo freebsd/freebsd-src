@@ -66,8 +66,8 @@ ifeq ($(MAKECMDGOALS),tools-only)
 endif
 
 ifeq ($(MAKECMDGOALS),install-clang)
-  DIRS := tools/clang/tools/driver tools/clang/tools/clang-cc \
-	tools/clang/lib/Headers tools/clang/docs
+  DIRS := tools/clang/tools/driver tools/clang/lib/Headers \
+          tools/clang/lib/Runtime tools/clang/docs
   OPTIONAL_DIRS :=
   NO_INSTALL = 1
 endif
@@ -155,9 +155,11 @@ install-libs: install
 FilesToConfig := \
   include/llvm/Config/config.h \
   include/llvm/Config/Targets.def \
-	include/llvm/Config/AsmPrinters.def \
+  include/llvm/Config/AsmPrinters.def \
+  include/llvm/Config/AsmParsers.def \
+  include/llvm/Config/Disassemblers.def \
   include/llvm/System/DataTypes.h \
-	tools/llvmc/plugins/Base/Base.td
+  tools/llvmc/plugins/Base/Base.td
 FilesToConfigPATH  := $(addprefix $(LLVM_OBJ_ROOT)/,$(FilesToConfig))
 
 all-local:: $(FilesToConfigPATH)

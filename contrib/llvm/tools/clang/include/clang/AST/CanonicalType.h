@@ -172,6 +172,12 @@ inline bool operator!=(CanQual<T> x, CanQual<U> y) {
 /// \brief Represents a canonical, potentially-qualified type.
 typedef CanQual<Type> CanQualType;
 
+inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
+                                           CanQualType T) {
+  DB << static_cast<QualType>(T);
+  return DB;
+}
+
 //----------------------------------------------------------------------------//
 // Internal proxy classes used by canonical types
 //----------------------------------------------------------------------------//
@@ -553,7 +559,7 @@ template<>
 struct CanProxyAdaptor<FunctionProtoType>
   : public CanProxyBase<FunctionProtoType> {
   LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getResultType)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(unsigned, getNumArgs);
+  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(unsigned, getNumArgs)
   CanQualType getArgType(unsigned i) const {
     return CanQualType::CreateUnsafe(this->getTypePtr()->getArgType(i));
   }

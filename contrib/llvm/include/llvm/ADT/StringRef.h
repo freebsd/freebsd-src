@@ -10,9 +10,9 @@
 #ifndef LLVM_ADT_STRINGREF_H
 #define LLVM_ADT_STRINGREF_H
 
-#include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <utility>
 #include <string>
 
 namespace llvm {
@@ -29,6 +29,7 @@ namespace llvm {
   class StringRef {
   public:
     typedef const char *iterator;
+    typedef const char *const_iterator;
     static const size_t npos = ~size_t(0);
     typedef size_t size_type;
 
@@ -38,6 +39,12 @@ namespace llvm {
 
     /// The length of the string.
     size_t Length;
+
+    // Workaround PR5482: nearly all gcc 4.x miscompile StringRef and std::min()
+    // Changing the arg of min to be an integer, instead of a reference to an
+    // integer works around this bug.
+    size_t min(size_t a, size_t b) const { return a < b ? a : b; }
+    size_t max(size_t a, size_t b) const { return a > b ? a : b; }
 
   public:
     /// @name Constructors
@@ -108,7 +115,7 @@ namespace llvm {
     /// is lexicographically less than, equal to, or greater than the \arg RHS.
     int compare(StringRef RHS) const {
       // Check the prefix for a mismatch.
-      if (int Res = memcmp(Data, RHS.Data, std::min(Length, RHS.Length)))
+      if (int Res = memcmp(Data, RHS.Data, min(Length, RHS.Length)))
         return Res < 0 ? -1 : 1;
 
       // Otherwise the prefixes match, so we only need to check the lengths.
@@ -119,6 +126,22 @@ namespace llvm {
 
     /// compare_lower - Compare two strings, ignoring case.
     int compare_lower(StringRef RHS) const;
+
+    /// \brief Determine the edit distance between this string and another 
+    /// string.
+    ///
+    /// \param Other the string to compare this string against.
+    ///
+    /// \param AllowReplacements whether to allow character
+    /// replacements (change one character into another) as a single
+    /// operation, rather than as two operations (an insertion and a
+    /// removal).
+    ///
+    /// \returns the minimum number of character insertions, removals,
+    /// or (if \p AllowReplacements is \c true) replacements needed to
+    /// transform one of the given strings into the other. If zero,
+    /// the strings are identical.
+    unsigned edit_distance(StringRef Other, bool AllowReplacements = true);
 
     /// str - Get the contents as an std::string.
     std::string str() const { return std::string(Data, Length); }
@@ -146,12 +169,14 @@ namespace llvm {
 
     /// startswith - Check if this string starts with the given \arg Prefix.
     bool startswith(StringRef Prefix) const {
-      return substr(0, Prefix.Length).equals(Prefix);
+      return Length >= Prefix.Length &&
+             memcmp(Data, Prefix.Data, Prefix.Length) == 0;
     }
 
     /// endswith - Check if this string ends with the given \arg Suffix.
     bool endswith(StringRef Suffix) const {
-      return slice(size() - Suffix.Length, size()).equals(Suffix);
+      return Length >= Suffix.Length &&
+             memcmp(end() - Suffix.Length, Suffix.Data, Suffix.Length) == 0;
     }
 
     /// @}
@@ -160,10 +185,10 @@ namespace llvm {
 
     /// find - Search for the first character \arg C in the string.
     ///
-    /// \return - The index of the first occurence of \arg C, or npos if not
+    /// \return - The index of the first occurrence of \arg C, or npos if not
     /// found.
     size_t find(char C, size_t From = 0) const {
-      for (size_t i = std::min(From, Length), e = Length; i != e; ++i)
+      for (size_t i = min(From, Length), e = Length; i != e; ++i)
         if (Data[i] == C)
           return i;
       return npos;
@@ -171,16 +196,16 @@ namespace llvm {
 
     /// find - Search for the first string \arg Str in the string.
     ///
-    /// \return - The index of the first occurence of \arg Str, or npos if not
+    /// \return - The index of the first occurrence of \arg Str, or npos if not
     /// found.
     size_t find(StringRef Str, size_t From = 0) const;
 
     /// rfind - Search for the last character \arg C in the string.
     ///
-    /// \return - The index of the last occurence of \arg C, or npos if not
+    /// \return - The index of the last occurrence of \arg C, or npos if not
     /// found.
     size_t rfind(char C, size_t From = npos) const {
-      From = std::min(From, Length);
+      From = min(From, Length);
       size_t i = From;
       while (i != 0) {
         --i;
@@ -192,7 +217,7 @@ namespace llvm {
 
     /// rfind - Search for the last string \arg Str in the string.
     ///
-    /// \return - The index of the last occurence of \arg Str, or npos if not
+    /// \return - The index of the last occurrence of \arg Str, or npos if not
     /// found.
     size_t rfind(StringRef Str) const;
 
@@ -262,8 +287,8 @@ namespace llvm {
     /// exceeds the number of characters remaining in the string, the string
     /// suffix (starting with \arg Start) will be returned.
     StringRef substr(size_t Start, size_t N = npos) const {
-      Start = std::min(Start, Length);
-      return StringRef(Data + Start, std::min(N, Length - Start));
+      Start = min(Start, Length);
+      return StringRef(Data + Start, min(N, Length - Start));
     }
 
     /// slice - Return a reference to the substring from [Start, End).
@@ -277,12 +302,12 @@ namespace llvm {
     /// number of characters remaining in the string, the string suffix
     /// (starting with \arg Start) will be returned.
     StringRef slice(size_t Start, size_t End) const {
-      Start = std::min(Start, Length);
-      End = std::min(std::max(Start, End), Length);
+      Start = min(Start, Length);
+      End = min(max(Start, End), Length);
       return StringRef(Data + Start, End - Start);
     }
 
-    /// split - Split into two substrings around the first occurence of a
+    /// split - Split into two substrings around the first occurrence of a
     /// separator character.
     ///
     /// If \arg Separator is in the string, then the result is a pair (LHS, RHS)
@@ -299,7 +324,7 @@ namespace llvm {
       return std::make_pair(slice(0, Idx), slice(Idx+1, npos));
     }
 
-    /// split - Split into two substrings around the first occurence of a
+    /// split - Split into two substrings around the first occurrence of a
     /// separator string.
     ///
     /// If \arg Separator is in the string, then the result is a pair (LHS, RHS)
@@ -316,7 +341,7 @@ namespace llvm {
       return std::make_pair(slice(0, Idx), slice(Idx + Separator.size(), npos));
     }
 
-    /// split - Split into substrings around the occurences of a separator
+    /// split - Split into substrings around the occurrences of a separator
     /// string.
     ///
     /// Each substring is stored in \arg A. If \arg MaxSplit is >= 0, at most
@@ -335,7 +360,7 @@ namespace llvm {
                StringRef Separator, int MaxSplit = -1,
                bool KeepEmpty = true) const;
 
-    /// rsplit - Split into two substrings around the last occurence of a
+    /// rsplit - Split into two substrings around the last occurrence of a
     /// separator character.
     ///
     /// If \arg Separator is in the string, then the result is a pair (LHS, RHS)

@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 // PR5426 - the non-dependent obj would be fully processed and wrapped in a
 // CXXConstructExpr at definition time, which would lead to a failure at
@@ -20,3 +20,27 @@ void fn(T t, const arg& arg) {
 void test() {
   fn(1, arg());
 }
+
+struct X0 { };
+
+struct X1 {
+  explicit X1(const X0 &x0 = X0());
+};
+
+template<typename T>
+void f0() {
+  X1 x1;
+}
+
+template void f0<int>();
+template void f0<float>();
+
+struct NonTrivial {
+  NonTrivial();
+  ~NonTrivial();
+};
+
+template<int N> void f1() {
+  NonTrivial array[N];
+}
+template<> void f1<2>();

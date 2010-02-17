@@ -35,9 +35,16 @@ static int CompareOptionRecords(const void *Av, const void *Bv) {
   const Record *A = *(Record**) Av;
   const Record *B = *(Record**) Bv;
 
-  // Compare options by name first.
-  if (int Cmp = StrCmpOptionName(A->getValueAsString("Name").c_str(),
-                                 B->getValueAsString("Name").c_str()))
+  // Sentinel options preceed all others and are only ordered by precedence.
+  bool ASent = A->getValueAsDef("Kind")->getValueAsBit("Sentinel");
+  bool BSent = B->getValueAsDef("Kind")->getValueAsBit("Sentinel");
+  if (ASent != BSent)
+    return ASent ? -1 : 1;
+
+  // Compare options by name, unless they are sentinels.
+  if (!ASent)
+    if (int Cmp = StrCmpOptionName(A->getValueAsString("Name").c_str(),
+                                   B->getValueAsString("Name").c_str()))
     return Cmp;
 
   // Then by the kind precedence;
@@ -68,26 +75,10 @@ void OptParserEmitter::run(raw_ostream &OS) {
     Records.getAllDerivedDefinitions("OptionGroup");
   std::vector<Record*> Opts = Records.getAllDerivedDefinitions("Option");
 
-  if (GenDefs) {
-    OS << "\
-//=== TableGen'erated File - Option Parsing Definitions ---------*- C++ -*-===//\n \
-//\n\
-// Option Parsing Definitions\n\
-//\n\
-// Automatically generated file, do not edit!\n\
-//\n\
-//===----------------------------------------------------------------------===//\n";
-  } else {
-    OS << "\
-//=== TableGen'erated File - Option Parsing Table ---------------*- C++ -*-===//\n \
-//\n\
-// Option Parsing Definitions\n\
-//\n\
-// Automatically generated file, do not edit!\n\
-//\n\
-//===----------------------------------------------------------------------===//\n";
-  }
-  OS << "\n";
+  if (GenDefs)
+    EmitSourceFileHeader("Option Parsing Definitions", OS);
+  else
+    EmitSourceFileHeader("Option Parsing Table", OS);
 
   array_pod_sort(Opts.begin(), Opts.end(), CompareOptionRecords);
   if (GenDefs) {
@@ -120,7 +111,18 @@ void OptParserEmitter::run(raw_ostream &OS) {
         OS << "INVALID";
 
       // The other option arguments (unused for groups).
-      OS << ", INVALID, 0, 0, 0, 0)\n";
+      OS << ", INVALID, 0, 0";
+
+      // The option help text.
+      if (!dynamic_cast<UnsetInit*>(R.getValueInit("HelpText"))) {
+        OS << ",\n";
+        OS << "       ";
+        write_cstring(OS, R.getValueAsString("HelpText"));
+      } else
+        OS << ", 0";
+
+      // The option meta-variable name (unused).
+      OS << ", 0)\n";
     }
     OS << "\n";
 

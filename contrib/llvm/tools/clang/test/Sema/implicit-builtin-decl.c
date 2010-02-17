@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 void f() {
   int *ptr = malloc(sizeof(int) * 10); // expected-warning{{implicitly declaring C library function 'malloc' with type}} \
   // expected-note{{please include the header <stdlib.h> or explicitly provide a declaration for 'malloc'}} \
@@ -22,7 +22,8 @@ void h() {
 }
 
 void f2() {
-  fprintf(0, "foo"); // expected-error{{implicit declaration of 'fprintf' requires inclusion of the header <stdio.h>}}
+  fprintf(0, "foo"); // expected-error{{implicit declaration of 'fprintf' requires inclusion of the header <stdio.h>}} \
+   expected-warning {{implicit declaration of function 'fprintf' is invalid in C99}}
 }
 
 // PR2892

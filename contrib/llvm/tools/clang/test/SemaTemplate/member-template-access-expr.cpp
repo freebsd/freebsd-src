@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 template<typename U, typename T>
 U f0(T t) {
   return t.template get<U>();
@@ -103,3 +103,23 @@ struct X5 {
     this->f<T*>();
   }
 };
+
+namespace PR6021 {
+  template< class T1, class T2 >
+  class Outer
+  {
+  public: // Range operations
+    template< class X > X tmpl( const X* = 0 ) const;
+
+    struct Inner
+    {
+      const Outer& o;
+
+      template< class X >
+      operator X() const
+      {
+        return o.tmpl<X>();
+      }
+    };
+  };
+}

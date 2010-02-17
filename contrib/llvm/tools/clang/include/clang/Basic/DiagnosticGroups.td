@@ -78,22 +78,26 @@ def : DiagGroup<"synth">;
 // Preprocessor warnings.
 def : DiagGroup<"builtin-macro-redefined">;
 
-// Just silence warnings about common forms of -Wstrict-aliasing for now.
+// Just silence warnings about -Wstrict-aliasing for now.
 def : DiagGroup<"strict-aliasing=0">;
 def : DiagGroup<"strict-aliasing=1">;
 def : DiagGroup<"strict-aliasing=2">;
 def : DiagGroup<"strict-aliasing">;
 
-// Just silence warnings about common forms of -Wstrict-aliasing for now.
+// Just silence warnings about -Wstrict-overflow for now.
 def : DiagGroup<"strict-overflow=0">;
 def : DiagGroup<"strict-overflow=1">;
 def : DiagGroup<"strict-overflow=2">;
+def : DiagGroup<"strict-overflow=3">;
+def : DiagGroup<"strict-overflow=4">;
+def : DiagGroup<"strict-overflow=5">;
 def : DiagGroup<"strict-overflow">;
 
 def InvalidOffsetof : DiagGroup<"invalid-offsetof">;
 def : DiagGroup<"strict-prototypes">;
 def : DiagGroup<"strict-selector-match">;
-def Switch         : DiagGroup<"switch">;
+def SwitchEnum     : DiagGroup<"switch-enum">;
+def Switch         : DiagGroup<"switch", [SwitchEnum]>;
 def Trigraphs : DiagGroup<"trigraphs">;
 
 def : DiagGroup<"type-limits">;
@@ -110,10 +114,12 @@ def Reorder : DiagGroup<"reorder">;
 def UndeclaredSelector : DiagGroup<"undeclared-selector">;
 def SuperSubClassMismatch : DiagGroup<"super-class-method-mismatch">;
 def : DiagGroup<"variadic-macros">;
+def VariadicMacros : DiagGroup<"variadic-macros">;
 def VectorConversions : DiagGroup<"vector-conversions">;      // clang specific
 def VolatileRegisterVar : DiagGroup<"volatile-register-var">;
 def : DiagGroup<"write-strings">;
 def CharSubscript : DiagGroup<"char-subscripts">;
+def ForceAlignArgPointer : DiagGroup<"force-align-arg-pointer">;
 
 // Aggregation warning settings.
 
@@ -167,10 +173,11 @@ def Most : DiagGroup<"most", [
 def : DiagGroup<"all", [Most, Parentheses]>;
 
 // Aliases.
-def : DiagGroup<"", [Extra]>;  // -W = -Wextra
-def : DiagGroup<"endif-labels", [ExtraTokens]>; // endif-labels = endif-tokens
+def : DiagGroup<"", [Extra]>;                   // -W = -Wextra
+def : DiagGroup<"endif-labels", [ExtraTokens]>; // -Wendif-labels=-Wendif-tokens
+def : DiagGroup<"comments", [Comment]>;         // -Wcomments = -Wcomment
 
 // A warning group for warnings that we want to have on by default in clang,
 // but which aren't on by default in GCC.
 def NonGCC : DiagGroup<"non-gcc",
-    [SignCompare, Conversion]>;
+    [SignCompare, Conversion, ForceAlignArgPointer]>;

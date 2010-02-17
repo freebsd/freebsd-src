@@ -288,7 +288,7 @@ bool LoopIndexSplit::runOnLoop(Loop *IncomingLoop, LPPassManager &LPM_Ref) {
 // isUsedOutsideLoop - Returns true iff V is used outside the loop L.
 static bool isUsedOutsideLoop(Value *V, Loop *L) {
   for(Value::use_iterator UI = V->use_begin(), E = V->use_end(); UI != E; ++UI)
-    if (!L->contains(cast<Instruction>(*UI)->getParent()))
+    if (!L->contains(cast<Instruction>(*UI)))
       return true;
   return false;
 }
@@ -708,7 +708,7 @@ void LoopIndexSplit::removeBlocks(BasicBlock *DeadBB, Loop *LP,
   }
 
   while (!WorkList.empty()) {
-    BasicBlock *BB = WorkList.back(); WorkList.pop_back();
+    BasicBlock *BB = WorkList.pop_back_val();
     LPM->deleteSimpleAnalysisValue(BB, LP);
     for(BasicBlock::iterator BBI = BB->begin(), BBE = BB->end(); 
         BBI != BBE; ) {
@@ -726,7 +726,7 @@ void LoopIndexSplit::removeBlocks(BasicBlock *DeadBB, Loop *LP,
 
   // Update Frontier BBs' dominator info.
   while (!FrontierBBs.empty()) {
-    BasicBlock *FBB = FrontierBBs.back(); FrontierBBs.pop_back();
+    BasicBlock *FBB = FrontierBBs.pop_back_val();
     BasicBlock *NewDominator = FBB->getSinglePredecessor();
     if (!NewDominator) {
       pred_iterator PI = pred_begin(FBB), PE = pred_end(FBB);
@@ -842,7 +842,7 @@ void LoopIndexSplit::updatePHINodes(BasicBlock *ExitBB, BasicBlock *Latch,
       for (Value::use_iterator UI = PHV->use_begin(), E = PHV->use_end(); 
            UI != E; ++UI) 
         if (PHINode *U = dyn_cast<PHINode>(*UI)) 
-          if (LP->contains(U->getParent())) {
+          if (LP->contains(U)) {
             NewV = U;
             break;
           }

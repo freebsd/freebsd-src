@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -verify %s 
 namespace A
 {
     namespace B
@@ -48,7 +48,7 @@ namespace C
         a.A::sub::x();
         a.A::B::base::x();
 
-        a.bad::x(); // expected-error{{type 'struct bad' is not a direct or virtual base of ''struct A::sub''}}
+        a.bad::x(); // expected-error{{type 'struct bad' is not a direct or virtual base of ''A::sub''}}
 
         a->foo();
         a->member::foo();
@@ -69,7 +69,7 @@ namespace C
         a->A::sub::x();
         a->A::B::base::x();
 
-        a->bad::x(); // expected-error{{type 'struct bad' is not a direct or virtual base of ''struct A::sub''}}
+        a->bad::x(); // expected-error{{type 'struct bad' is not a direct or virtual base of ''A::sub''}}
 
         (*a)->foo();
         (*a)->member::foo();
@@ -137,4 +137,4 @@ struct a {
 
 a a;
 
-int a::sa = a.a;
+int a::sa = a.a; // expected-error {{invalid use of nonstatic data member 'a'}}

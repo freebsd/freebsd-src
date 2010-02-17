@@ -38,8 +38,8 @@ class Lexer : public PreprocessorLexer {
   const char *BufferEnd;         // End of the buffer.
   SourceLocation FileLoc;        // Location for start of file.
   LangOptions Features;          // Features enabled by this language (cache).
-  bool Is_PragmaLexer;           // True if lexer for _Pragma handling.
-  bool IsEofCodeCompletion;      // True if EOF is treated as a code-completion.
+  bool Is_PragmaLexer : 1;       // True if lexer for _Pragma handling.
+  bool IsInConflictMarker : 1;   // True if in a VCS conflict marker '<<<<<<<'
   
   //===--------------------------------------------------------------------===//
   // Context-specific lexing flags set by the preprocessor.
@@ -78,7 +78,7 @@ public:
   /// with the specified preprocessor managing the lexing process.  This lexer
   /// assumes that the associated file buffer and Preprocessor objects will
   /// outlive it, so it doesn't take ownership of either of them.
-  Lexer(FileID FID, Preprocessor &PP);
+  Lexer(FileID FID, const llvm::MemoryBuffer *InputBuffer, Preprocessor &PP);
 
   /// Lexer constructor - Create a new raw lexer object.  This object is only
   /// suitable for calls to 'LexRawToken'.  This lexer assumes that the text
@@ -89,7 +89,8 @@ public:
   /// Lexer constructor - Create a new raw lexer object.  This object is only
   /// suitable for calls to 'LexRawToken'.  This lexer assumes that the text
   /// range will outlive it, so it doesn't take ownership of it.
-  Lexer(FileID FID, const SourceManager &SM, const LangOptions &Features);
+  Lexer(FileID FID, const llvm::MemoryBuffer *InputBuffer,
+        const SourceManager &SM, const LangOptions &Features);
 
   /// Create_PragmaLexer: Lexer constructor - Create a new lexer object for
   /// _Pragma expansion.  This has a variety of magic semantics that this method
@@ -179,15 +180,6 @@ public:
     ExtendedTokenMode = Mode ? 1 : 0;
   }
 
-  /// \brief Specify that end-of-file is to be considered a code-completion
-  /// token.
-  ///
-  /// When in this mode, the end-of-file token will be immediately preceded
-  /// by a code-completion token.
-  void SetEofIsCodeCompletion(bool Val = true) {
-    IsEofCodeCompletion = Val;
-  }
-  
   const char *getBufferStart() const { return BufferStart; }
 
   /// ReadToEndOfLine - Read the rest of the current preprocessor line as an
@@ -207,6 +199,9 @@ public:
   /// the current file.
   SourceLocation getSourceLocation() { return getSourceLocation(BufferPtr); }
 
+  /// \brief Return the current location in the buffer.
+  const char *getBufferLocation() const { return BufferPtr; }
+  
   /// Stringify - Convert the specified string into a C string by escaping '\'
   /// and " characters.  This does not add surrounding ""'s to the string.
   /// If Charify is true, this escapes the ' character instead of ".
@@ -263,8 +258,8 @@ public:
   // string processing, because we know we need to read until we find the
   // closing '"' character.
   //
-  // The second interface is the combination of PeekCharAndSize with
-  // ConsumeChar.  PeekCharAndSize reads a phase 1/2 translated character,
+  // The second interface is the combination of getCharAndSize with
+  // ConsumeChar.  getCharAndSize reads a phase 1/2 translated character,
   // returning it and its size.  If the lexer decides that this character is
   // part of the current token, it calls ConsumeChar on it.  This two stage
   // approach allows us to emit diagnostics for characters (e.g. warnings about
@@ -295,7 +290,7 @@ public:
   }
 
 private:
-  /// ConsumeChar - When a character (identified by PeekCharAndSize) is consumed
+  /// ConsumeChar - When a character (identified by getCharAndSize) is consumed
   /// and added to a given token, check to see if there are diagnostics that
   /// need to be emitted or flags that need to be set on the token.  If so, do
   /// it.
@@ -378,6 +373,9 @@ private:
   bool SkipBCPLComment       (Token &Result, const char *CurPtr);
   bool SkipBlockComment      (Token &Result, const char *CurPtr);
   bool SaveBCPLComment       (Token &Result, const char *CurPtr);
+  
+  bool IsStartOfConflictMarker(const char *CurPtr);
+  bool HandleEndOfConflictMarker(const char *CurPtr);
 };
 
 

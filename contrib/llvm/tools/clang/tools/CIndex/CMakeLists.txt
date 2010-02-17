@@ -3,14 +3,30 @@ set(SHARED_LIBRARY TRUE)
 set(LLVM_NO_RTTI 1)
 
 set(LLVM_USED_LIBS
-  clangFrontend clangIndex clangSema clangAnalysis clangAST clangParse clangLex clangBasic)
+ clangFrontend
+  clangDriver
+  clangSema
+  clangAnalysis
+  clangAST
+  clangParse
+  clangLex
+  clangBasic)
 
 set( LLVM_LINK_COMPONENTS
-  MC
-  support
+  bitreader
+  mc
+  core
   )
 
-add_clang_library(CIndex CIndex.cpp)
+add_clang_library(CIndex
+  CIndex.cpp
+  CIndexCodeCompletion.cpp
+  CIndexDiagnostic.cpp
+  CIndexInclusionStack.cpp
+  CIndexUSRs.cpp
+  CIndexer.cpp
+  CXCursor.cpp
+)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   # FIXME: Deal with LLVM_SUBMIT_VERSION?

@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -std=c++98 -verify %s
+// RUN: %clang_cc1 -fsyntax-only -std=c++98 -verify %s
 template<int N> struct A; // expected-note 5{{template parameter is declared here}}
 
 A<0> *a0;
@@ -34,16 +34,6 @@ public:
 };
 A<X(17, 42)> *a11; // expected-error{{non-type template argument of type 'class X' must have an integral or enumeration type}}
 
-template<X const *Ptr> struct A2;
-
-X *X_ptr;
-X an_X;
-X array_of_Xs[10];
-A2<X_ptr> *a12;
-A2<array_of_Xs> *a13;
-A2<&an_X> *a13_2;
-A2<(&an_X)> *a13_3; // expected-error{{non-type template argument cannot be surrounded by parentheses}}
-
 float f(float);
 
 float g(float);
@@ -67,6 +57,7 @@ struct Y { } y;
 
 volatile X * X_volatile_ptr;
 template<X const &AnX> struct A4; // expected-note 2{{template parameter is declared here}}
+X an_X;
 A4<an_X> *a15_1; // okay
 A4<*X_volatile_ptr> *a15_2; // expected-error{{reference binding of non-type template parameter of type 'class X const &' to template argument of type 'class X volatile' ignores qualifiers}}
 A4<y> *15_3; //  expected-error{{non-type template parameter of reference type 'class X const &' cannot bind to template argument of type 'struct Y'}} \
@@ -105,12 +96,22 @@ A7c<(&Z::int_member)> *a18_3; // expected-error{{non-type template argument cann
 template<unsigned char C> struct Overflow; // expected-note{{template parameter is declared here}}
 
 Overflow<5> *overflow1; // okay
-Overflow<256> *overflow2; // expected-error{{non-type template argument value '256' is too large for template parameter of type 'unsigned char'}}
+Overflow<255> *overflow2; // okay
+Overflow<256> *overflow3; // expected-error{{non-type template argument value '256' is too large for template parameter of type 'unsigned char'}}
 
 
 template<unsigned> struct Signedness; // expected-note{{template parameter is declared here}}
 Signedness<10> *signedness1; // okay
 Signedness<-10> *signedness2; // expected-error{{non-type template argument provides negative value '-10' for unsigned template parameter of type 'unsigned int'}}
+
+template<signed char C> struct SignedOverflow; // expected-note 3 {{template parameter is declared here}}
+SignedOverflow<1> *signedoverflow1;
+SignedOverflow<-1> *signedoverflow2;
+SignedOverflow<-128> *signedoverflow3;
+SignedOverflow<-129> *signedoverflow4; // expected-error{{non-type template argument value '-129' is too large for template parameter of type 'signed char'}}
+SignedOverflow<127> *signedoverflow5;
+SignedOverflow<128> *signedoverflow6; // expected-error{{non-type template argument value '128' is too large for template parameter of type 'signed char'}}
+SignedOverflow<(unsigned char)128> *signedoverflow7; // expected-error{{non-type template argument value '128' is too large for template parameter of type 'signed char'}}
 
 // Check canonicalization of template arguments.
 template<int (*)(int, int)> struct FuncPtr0;
@@ -151,3 +152,22 @@ namespace ns {
   Baz<static_cast<ns::E>(0)> b2;  // This neither.  
 }
 
+// PR5597
+template<int (*)(float)> struct X0 { };
+
+struct X1 {
+    static int pfunc(float);
+};
+void test_X0_X1() {
+  X0<X1::pfunc> x01;
+}
+
+// PR6249
+namespace pr6249 {
+  template<typename T, T (*func)()> T f() {
+    return func();
+  }
+
+  int h();
+  template int f<int, h>();
+}

@@ -38,7 +38,6 @@ public:
 
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
 
-  virtual bool IsMathErrnoDefault() const;
   virtual bool IsUnwindTablesDefault() const;
   virtual const char *GetDefaultRelocationModel() const;
   virtual const char *GetForcedPicModel() const;
@@ -48,49 +47,68 @@ public:
 class VISIBILITY_HIDDEN Darwin : public ToolChain {
   mutable llvm::DenseMap<unsigned, Tool*> Tools;
 
-  /// Darwin version of tool chain.
-  unsigned DarwinVersion[3];
-
-  /// Whether this is this an iPhoneOS toolchain.
+  /// Whether the information on the target has been initialized.
   //
-  // FIXME: This should go away, such differences should be completely
-  // determined by the target triple.
-  bool IsIPhoneOS;
+  // FIXME: This should be eliminated. What we want to do is make this part of
+  // the "default target for arguments" selection process, once we get out of
+  // the argument translation business.
+  mutable bool TargetInitialized;
+
+  /// Whether we are targetting iPhoneOS target.
+  mutable bool TargetIsIPhoneOS;
+  
+  /// The OS version we are targetting.
+  mutable unsigned TargetVersion[3];
 
   /// The default macosx-version-min of this tool chain; empty until
   /// initialized.
-  mutable std::string MacosxVersionMin;
-
-  /// The default iphoneos-version-min of this tool chain.
-  std::string IPhoneOSVersionMin;
-
-  const char *getMacosxVersionMin() const;
+  std::string MacosxVersionMin;
 
 public:
   Darwin(const HostInfo &Host, const llvm::Triple& Triple,
-         const unsigned (&DarwinVersion)[3], bool IsIPhoneOS);
+         const unsigned (&DarwinVersion)[3]);
   ~Darwin();
 
   /// @name Darwin Specific Toolchain API
   /// {
 
-  void getDarwinVersion(unsigned (&Res)[3]) const {
-    Res[0] = DarwinVersion[0];
-    Res[1] = DarwinVersion[1];
-    Res[2] = DarwinVersion[2];
+  // FIXME: Eliminate these ...Target functions and derive separate tool chains
+  // for these targets and put version in constructor.
+  void setTarget(bool isIPhoneOS, unsigned Major, unsigned Minor,
+                 unsigned Micro) const {
+    // FIXME: For now, allow reinitialization as long as values don't
+    // change. This will go away when we move away from argument translation.
+    if (TargetInitialized && TargetIsIPhoneOS == isIPhoneOS &&
+        TargetVersion[0] == Major && TargetVersion[1] == Minor &&
+        TargetVersion[2] == Micro)
+      return;
+
+    assert(!TargetInitialized && "Target already initialized!");
+    TargetInitialized = true;
+    TargetIsIPhoneOS = isIPhoneOS;
+    TargetVersion[0] = Major;
+    TargetVersion[1] = Minor;
+    TargetVersion[2] = Micro;
   }
 
-  void getMacosxVersion(unsigned (&Res)[3]) const {
-    Res[0] = 10;
-    Res[1] = DarwinVersion[0] - 4;
-    Res[2] = DarwinVersion[1];
+  bool isTargetIPhoneOS() const {
+    assert(TargetInitialized && "Target not initialized!");
+    return TargetIsIPhoneOS;
   }
 
-  /// getMacosxVersionMin - Get the effective -mmacosx-version-min, which is
-  /// either the -mmacosx-version-min, or the current version if unspecified.
-  void getMacosxVersionMin(const ArgList &Args, unsigned (&Res)[3]) const;
+  void getTargetVersion(unsigned (&Res)[3]) const {
+    assert(TargetInitialized && "Target not initialized!");
+    Res[0] = TargetVersion[0];
+    Res[1] = TargetVersion[1];
+    Res[2] = TargetVersion[2];
+  }
 
-  static bool isMacosxVersionLT(unsigned (&A)[3], unsigned (&B)[3]) {
+  /// getDarwinArchName - Get the "Darwin" arch name for a particular compiler
+  /// invocation. For example, Darwin treats different ARM variations as
+  /// distinct architectures.
+  llvm::StringRef getDarwinArchName(const ArgList &Args) const;
+
+  static bool isVersionLT(unsigned (&A)[3], unsigned (&B)[3]) {
     for (unsigned i=0; i < 3; ++i) {
       if (A[i] > B[i]) return false;
       if (A[i] < B[i]) return true;
@@ -98,18 +116,16 @@ public:
     return false;
   }
 
-  static bool isMacosxVersionLT(unsigned (&A)[3],
-                                unsigned V0, unsigned V1=0, unsigned V2=0) {
+  bool isIPhoneOSVersionLT(unsigned V0, unsigned V1=0, unsigned V2=0) const {
+    assert(isTargetIPhoneOS() && "Unexpected call for OS X target!");
     unsigned B[3] = { V0, V1, V2 };
-    return isMacosxVersionLT(A, B);
+    return isVersionLT(TargetVersion, B);
   }
 
-  const char *getMacosxVersionStr() const {
-    return MacosxVersionMin.c_str();
-  }
-
-  const char *getIPhoneOSVersionStr() const {
-    return IPhoneOSVersionMin.c_str();
+  bool isMacosxVersionLT(unsigned V0, unsigned V1=0, unsigned V2=0) const {
+    assert(!isTargetIPhoneOS() && "Unexpected call for iPhoneOS target!");
+    unsigned B[3] = { V0, V1, V2 };
+    return isVersionLT(TargetVersion, B);
   }
 
   /// AddLinkSearchPathArgs - Add the linker search paths to \arg CmdArgs.
@@ -125,8 +141,6 @@ public:
   virtual void AddLinkRuntimeLibArgs(const ArgList &Args,
                                      ArgStringList &CmdArgs) const = 0;
 
-  bool isIPhoneOS() const { return IsIPhoneOS; }
-
   /// }
   /// @name ToolChain Implementation
   /// {
@@ -136,23 +150,33 @@ public:
 
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
 
-  virtual bool IsMathErrnoDefault() const;
   virtual bool IsBlocksDefault() const {
-    // Blocks default to on for 10.6 (darwin10) and beyond.
-    return (DarwinVersion[0] > 9);
+    // Blocks default to on for OS X 10.6 and iPhoneOS 3.0 and beyond.
+    if (isTargetIPhoneOS())
+      return !isIPhoneOSVersionLT(3);
+    else
+      return !isMacosxVersionLT(10, 6);
   }
   virtual bool IsObjCNonFragileABIDefault() const {
-    // Non-fragile ABI default to on for 10.5 (darwin9) and beyond on x86-64.
-    return (DarwinVersion[0] >= 9 &&
-            getTriple().getArch() == llvm::Triple::x86_64);
+    // Non-fragile ABI default to on for iPhoneOS and x86-64.
+    return isTargetIPhoneOS() || getTriple().getArch() == llvm::Triple::x86_64;
+  }
+  virtual bool IsObjCLegacyDispatchDefault() const {
+    // This is only used with the non-fragile ABI.
+    return (getTriple().getArch() == llvm::Triple::arm ||
+            getTriple().getArch() == llvm::Triple::thumb);
   }
   virtual bool IsUnwindTablesDefault() const;
   virtual unsigned GetDefaultStackProtectorLevel() const {
-    // Stack protectors default to on for 10.6 (darwin10) and beyond.
-    return (DarwinVersion[0] > 9) ? 1 : 0;
+    // Stack protectors default to on for 10.6 and beyond.
+    return !isTargetIPhoneOS() && !isMacosxVersionLT(10, 6);
   }
   virtual const char *GetDefaultRelocationModel() const;
   virtual const char *GetForcedPicModel() const;
+
+  virtual bool UseDwarfDebugFlags() const;
+
+  virtual bool UseSjLjExceptions() const;
 
   /// }
 };
@@ -161,7 +185,7 @@ public:
 class VISIBILITY_HIDDEN DarwinClang : public Darwin {
 public:
   DarwinClang(const HostInfo &Host, const llvm::Triple& Triple,
-              const unsigned (&DarwinVersion)[3], bool IsIPhoneOS);
+              const unsigned (&DarwinVersion)[3]);
 
   /// @name Darwin ToolChain Implementation
   /// {
@@ -185,8 +209,8 @@ class VISIBILITY_HIDDEN DarwinGCC : public Darwin {
 
 public:
   DarwinGCC(const HostInfo &Host, const llvm::Triple& Triple,
-            const unsigned (&DarwinVersion)[3], const unsigned (&GCCVersion)[3],
-            bool IsIPhoneOS);
+            const unsigned (&DarwinVersion)[3],
+            const unsigned (&GCCVersion)[3]);
 
   /// @name Darwin ToolChain Implementation
   /// {

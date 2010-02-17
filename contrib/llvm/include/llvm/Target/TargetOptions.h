@@ -116,10 +116,13 @@ namespace llvm {
   /// be emitted for all functions.
   extern bool UnwindTablesMandatory;
 
-  /// PerformTailCallOpt - This flag is enabled when -tailcallopt is specified
-  /// on the commandline. When the flag is on, the target will perform tail call
-  /// optimization (pop the caller's stack) providing it supports it.
-  extern bool PerformTailCallOpt;
+  /// GuaranteedTailCallOpt - This flag is enabled when -tailcallopt is
+  /// specified on the commandline. When the flag is on, participating targets
+  /// will perform tail call optimization on all calls which use the fastcc
+  /// calling convention and which satisfy certain target-independent
+  /// criteria (being at the end of a function, having the same return type
+  /// as their parent function, etc.), using an alternate ABI if necessary.
+  extern bool GuaranteedTailCallOpt;
 
   /// StackAlignment - Override default stack alignment for target.
   extern unsigned StackAlignment;
@@ -140,6 +143,11 @@ namespace llvm {
   /// StrongPHIElim - This flag enables more aggressive PHI elimination
   /// wth earlier copy coalescing.
   extern bool StrongPHIElim;
+
+  /// DisableScheduling - This flag disables instruction scheduling. In
+  /// particular, it assigns an ordering to the SDNodes, which the scheduler
+  /// uses instead of its normal heuristics to perform scheduling.
+  extern bool DisableScheduling;
 
 } // End llvm namespace
 

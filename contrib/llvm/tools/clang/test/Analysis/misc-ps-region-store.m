@@ -1,5 +1,5 @@
-// RUN: clang-cc -triple i386-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=region --verify -fblocks %s
-// RUN: clang-cc -triple x86_64-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=region --verify -fblocks %s
+// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -DTEST_64 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks %s
 
 typedef struct objc_selector *SEL;
 typedef signed char BOOL;
@@ -23,6 +23,13 @@ extern id NSAllocateObject(Class aClass, NSUInteger extraBytes, NSZone *zone);
 @end
 extern NSString * const NSConnectionReplyMode;
 
+#ifdef TEST_64
+typedef long long int64_t;
+typedef int64_t intptr_t;
+#else
+typedef int int32_t;
+typedef int32_t intptr_t;
+#endif
 
 //---------------------------------------------------------------------------
 // Test case 'checkaccess_union' differs for region store and basic store.
@@ -48,7 +55,7 @@ void checkaccess_union() {
 
 // Check our handling of fields being invalidated by function calls.
 struct test2_struct { int x; int y; char* s; };
-void test2_helper(struct test2_struct* p);
+void test2_help(struct test2_struct* p);
 
 char test2() {
   struct test2_struct s;
@@ -380,7 +387,7 @@ void rdar_7332673_test1() {
     char value[1];
     if ( *(value) != 1 ) {} // expected-warning{{The left operand of '!=' is a garbage value}}
 }
-void rdar_rdar_7332673_test2_aux(char *x);
+int rdar_7332673_test2_aux(char *x);
 void rdar_7332673_test2() {
     char *value;
     if ( rdar_7332673_test2_aux(value) != 1 ) {} // expected-warning{{Pass-by-value argument in function call is undefined}}
@@ -470,3 +477,393 @@ int pr3135() {
   return 0;
 }
 
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7403269> - Test that we handle compound initializers with
+// partially unspecified array values. Previously this caused a crash.
+//===----------------------------------------------------------------------===//
+
+typedef struct RDar7403269 {
+  unsigned x[10];
+  unsigned y;
+} RDar7403269;
+
+void rdar7403269() {
+  RDar7403269 z = { .y = 0 };
+  if (z.x[4] == 0)
+    return;
+  int *p = 0;
+  *p = 0xDEADBEEF; // no-warning  
+}
+
+typedef struct RDar7403269_b {
+  struct zorg { int w; int k; } x[10];
+  unsigned y;
+} RDar7403269_b;
+
+void rdar7403269_b() {
+  RDar7403269_b z = { .y = 0 };
+  if (z.x[5].w == 0)
+    return;
+  int *p = 0;
+  *p = 0xDEADBEEF; // no-warning
+}
+
+void rdar7403269_b_pos() {
+  RDar7403269_b z = { .y = 0 };
+  if (z.x[5].w == 1)
+    return;
+  int *p = 0;
+  *p = 0xDEADBEEF; // expected-warning{{Dereference of null pointer}}
+}
+
+
+//===----------------------------------------------------------------------===//
+// Test that incrementing a non-null pointer results in a non-null pointer.
+// (<rdar://problem/7191542>)
+//===----------------------------------------------------------------------===//
+
+void test_increment_nonnull_rdar_7191542(const char *path) {
+  const char *alf = 0;
+  
+  for (;;) {
+    // When using basic-store, we get a null dereference here because we lose information
+    // about path after the pointer increment.
+    char c = *path++; // no-warning
+    if (c == 'a') {
+      alf = path;
+    }
+    
+    if (alf)
+      return;
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// Test that the store (implicitly) tracks values for doubles/floats that are
+// uninitialized (<rdar://problem/6811085>)
+//===----------------------------------------------------------------------===//
+
+double rdar_6811085(void) {
+  double u;
+  return u + 10; // expected-warning{{The left operand of '+' is a garbage value}}
+}
+
+//===----------------------------------------------------------------------===//
+// Path-sensitive tests for blocks.
+//===----------------------------------------------------------------------===//
+
+void indirect_block_call(void (^f)());
+
+int blocks_1(int *p, int z) {
+  __block int *q = 0;
+  void (^bar)() = ^{ q = p; };
+  
+  if (z == 1) {
+    // The call to 'bar' might cause 'q' to be invalidated.
+    bar();
+    *q = 0x1; // no-warning
+  }
+  else if (z == 2) {
+    // The function 'indirect_block_call' might invoke bar, thus causing
+    // 'q' to possibly be invalidated.
+    indirect_block_call(bar);
+    *q = 0x1; // no-warning
+  }
+  else {
+    *q = 0xDEADBEEF; // expected-warning{{Dereference of null pointer}}
+  }
+  return z;
+}
+
+int blocks_2(int *p, int z) {
+  int *q = 0;
+  void (^bar)(int **) = ^(int **r){ *r = p; };
+  
+  if (z) {
+    // The call to 'bar' might cause 'q' to be invalidated.
+    bar(&q);
+    *q = 0x1; // no-warning
+  }
+  else {
+    *q = 0xDEADBEEF; // expected-warning{{Dereference of null pointer}}
+  }
+  return z;
+}
+
+// Test that the value of 'x' is considered invalidated after the block
+// is passed as an argument to the message expression.
+typedef void (^RDar7582031CB)(void);
+@interface RDar7582031
+- rdar7582031:RDar7582031CB;
+- rdar7582031_b:RDar7582031CB;
+@end
+
+// Test with one block.
+unsigned rdar7582031(RDar7582031 *o) {
+  __block unsigned x;
+  [o rdar7582031:^{ x = 1; }];
+  return x; // no-warning
+}
+
+// Test with two blocks.
+unsigned long rdar7582031_b(RDar7582031 *o) {
+  __block unsigned y;
+  __block unsigned long x;
+  [o rdar7582031:^{ y = 1; }];
+  [o rdar7582031_b:^{ x = 1LL; }];
+  return x + (unsigned long) y; // no-warning
+}
+
+// Show we get an error when 'o' is null because the message
+// expression has no effect.
+unsigned long rdar7582031_b2(RDar7582031 *o) {
+  __block unsigned y;
+  __block unsigned long x;
+  if (o)
+    return 1;
+  [o rdar7582031:^{ y = 1; }];
+  [o rdar7582031_b:^{ x = 1LL; }];
+  return x + (unsigned long) y; // expected-warning{{The left operand of '+' is a garbage value}}
+}
+
+// Show that we handle static variables also getting invalidated.
+void rdar7582031_aux(void (^)(void));
+RDar7582031 *rdar7582031_aux_2();
+
+unsigned rdar7582031_static() {  
+  static RDar7582031 *o = 0;
+  rdar7582031_aux(^{ o = rdar7582031_aux_2(); });
+  
+  __block unsigned x;
+  [o rdar7582031:^{ x = 1; }];
+  return x; // no-warning
+}
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7462324> - Test that variables passed using __blocks
+//  are not treated as being uninitialized.
+//===----------------------------------------------------------------------===//
+
+typedef void (^RDar_7462324_Callback)(id obj);
+
+@interface RDar7462324
+- (void) foo:(id)target;
+- (void) foo_positive:(id)target;
+
+@end
+
+@implementation RDar7462324
+- (void) foo:(id)target {
+  __block RDar_7462324_Callback builder = ((void*) 0);
+  builder = ^(id object) {
+    if (object) {
+      builder(self); // no-warning
+    }
+  };
+  builder(target);
+}
+- (void) foo_positive:(id)target {
+  __block RDar_7462324_Callback builder = ((void*) 0);
+  builder = ^(id object) {
+    id x;
+    if (object) {
+      builder(x); // expected-warning{{Pass-by-value argument in function call is undefined}}
+    }
+  };
+  builder(target);
+}
+@end
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7468209> - Scanning for live variables within a block should
+//  not crash on variables passed by reference via __block.
+//===----------------------------------------------------------------------===//
+
+int rdar7468209_aux();
+void rdar7468209_aux_2();
+
+void rdar7468209() {
+  __block int x = 0;
+  ^{
+    x = rdar7468209_aux();
+    // We need a second statement so that 'x' would be removed from the store if it wasn't
+    // passed by reference.
+    rdar7468209_aux_2();
+  }();
+}
+
+//===----------------------------------------------------------------------===//
+// PR 5857 - Test loading an integer from a byte array that has also been
+//  reinterpreted to be loaded as a field.
+//===----------------------------------------------------------------------===//
+
+typedef struct { int x; } TestFieldLoad;
+int pr5857(char *src) {
+  TestFieldLoad *tfl = (TestFieldLoad *) (intptr_t) src;
+  int y = tfl->x;
+  long long *z = (long long *) (intptr_t) src;
+  long long w = 0;
+  int n = 0;
+  for (n = 0; n < y; ++n) {
+    // Previously we crashed analyzing this statement.
+    w = *z++;
+  }
+  return 1;
+}
+
+//===----------------------------------------------------------------------===//
+// PR 4358 - Without field-sensitivity, this code previously triggered
+//  a false positive that 'uninit' could be uninitialized at the call
+//  to pr4358_aux().
+//===----------------------------------------------------------------------===//
+
+struct pr4358 {
+  int bar;
+  int baz;
+};
+void pr4358_aux(int x);
+void pr4358(struct pr4358 *pnt) {
+  int uninit;
+  if (pnt->bar < 3) {
+    uninit = 1;
+  } else if (pnt->baz > 2) {
+    uninit = 3;
+  } else if (pnt->baz <= 2) {
+    uninit = 2;
+  }
+  pr4358_aux(uninit); // no-warning
+}
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7526777>
+// Test handling fields of values returned from function calls or
+// message expressions.
+//===----------------------------------------------------------------------===//
+
+typedef struct testReturn_rdar_7526777 {
+  int x;
+  int y;
+} testReturn_rdar_7526777;
+
+@interface TestReturnStruct_rdar_7526777
+- (testReturn_rdar_7526777) foo;
+@end
+
+int test_return_struct(TestReturnStruct_rdar_7526777 *x) {
+  return [x foo].x;
+}
+
+testReturn_rdar_7526777 test_return_struct_2_aux_rdar_7526777();
+
+int test_return_struct_2_rdar_7526777() {
+  return test_return_struct_2_aux_rdar_7526777().x;
+}
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7527292> Assertion failed: (Op == BinaryOperator::Add || 
+//                                             Op == BinaryOperator::Sub)
+// This test case previously triggered an assertion failure due to a discrepancy
+// been the loaded/stored value in the array
+//===----------------------------------------------------------------------===//
+
+_Bool OSAtomicCompareAndSwapPtrBarrier( void *__oldValue, void *__newValue, void * volatile *__theValue );
+
+void rdar_7527292() {
+  static id Cache7527292[32];
+  for (signed long idx = 0;
+       idx < 32;
+       idx++) {
+    id v = Cache7527292[idx];
+    if (v && OSAtomicCompareAndSwapPtrBarrier(v, ((void*)0), (void * volatile *)(Cache7527292 + idx))) { 
+    }
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7515938> - Handle initialization of incomplete arrays
+//  in structures using a compound value.  Previously this crashed.
+//===----------------------------------------------------------------------===//
+
+struct rdar_7515938 {
+  int x;
+  int y[];
+};
+
+const struct rdar_7515938 *rdar_7515938() {
+  static const struct rdar_7515938 z = { 0, { 1, 2 } };
+  if (z.y[0] != 1) {
+    int *p = 0;
+    *p = 0xDEADBEEF; // no-warning
+  }
+  return &z;
+}
+
+struct rdar_7515938_str {
+  int x;
+  char y[];
+};
+
+const struct rdar_7515938_str *rdar_7515938_str() {
+  static const struct rdar_7515938_str z = { 0, "hello" };
+  return &z;
+}
+
+//===----------------------------------------------------------------------===//
+// Assorted test cases from PR 4172.
+//===----------------------------------------------------------------------===//
+
+struct PR4172A_s { int *a; };
+
+void PR4172A_f2(struct PR4172A_s *p);
+
+int PR4172A_f1(void) {
+    struct PR4172A_s m;
+    int b[4];
+    m.a = b;
+    PR4172A_f2(&m);
+    return b[3]; // no-warning
+}
+
+struct PR4172B_s { int *a; };
+
+void PR4172B_f2(struct PR4172B_s *p);
+
+int PR4172B_f1(void) {
+    struct PR4172B_s m;
+    int x;
+    m.a = &x;
+    PR4172B_f2(&m);
+    return x; // no-warning
+}
+
+//===----------------------------------------------------------------------===//
+// Test invalidation of values in struct literals.
+//===----------------------------------------------------------------------===//
+
+struct s_rev96062 { int *x; int *y; };
+struct s_rev96062_nested { struct s_rev96062 z; };
+
+void test_a_rev96062_aux(struct s_rev96062 *s);
+void test_a_rev96062_aux2(struct s_rev96062_nested *s);
+
+int test_a_rev96062() {
+  int a, b;
+  struct s_rev96062 x = { &a, &b };
+  test_a_rev96062_aux(&x);
+  return a + b; // no-warning
+}
+int test_b_rev96062() {
+  int a, b;
+  struct s_rev96062 x = { &a, &b };
+  struct s_rev96062 z = x;
+  test_a_rev96062_aux(&z);
+  return a + b; // no-warning
+}
+int test_c_rev96062() {
+  int a, b;
+  struct s_rev96062 x = { &a, &b };
+  struct s_rev96062_nested w = { x };
+  struct s_rev96062_nested z = w;
+  test_a_rev96062_aux2(&z);
+  return a + b; // no-warning
+}

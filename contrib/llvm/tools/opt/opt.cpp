@@ -14,7 +14,6 @@
 
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
-#include "llvm/ModuleProvider.h"
 #include "llvm/PassManager.h"
 #include "llvm/CallGraphSCCPass.h"
 #include "llvm/Bitcode/ReaderWriter.h"
@@ -26,10 +25,12 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/PassNameParser.h"
 #include "llvm/System/Signals.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/IRReader.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PluginLoader.h"
+#include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/StandardPasses.h"
 #include "llvm/Support/SystemUtils.h"
 #include "llvm/Support/raw_ostream.h"
@@ -286,7 +287,17 @@ void AddOptimizationPasses(PassManager &MPM, FunctionPassManager &FPM,
                            unsigned OptLevel) {
   createStandardFunctionPasses(&FPM, OptLevel);
 
-  llvm::Pass *InliningPass = OptLevel > 1 ? createFunctionInliningPass() : 0;
+  llvm::Pass *InliningPass = 0;
+  if (DisableInline) {
+    // No inlining pass
+  } else if (OptLevel) {
+    unsigned Threshold = 200;
+    if (OptLevel > 2)
+      Threshold = 250;
+    InliningPass = createFunctionInliningPass(Threshold);
+  } else {
+    InliningPass = createAlwaysInlinerPass();
+  }
   createStandardModulePasses(&MPM, OptLevel,
                              /*OptimizeSize=*/ false,
                              UnitAtATime,
@@ -340,12 +351,17 @@ void AddStandardLinkPasses(PassManager &PM) {
 // main for opt
 //
 int main(int argc, char **argv) {
-  llvm_shutdown_obj X;  // Call llvm_shutdown() on exit.
+  sys::PrintStackTraceOnErrorSignal();
+  llvm::PrettyStackTraceProgram X(argc, argv);
+  
+  // Enable debug stream buffering.
+  EnableDebugBuffering = true;
+
+  llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   LLVMContext &Context = getGlobalContext();
   
   cl::ParseCommandLineOptions(argc, argv,
     "llvm .bc -> .bc modular optimizer and analysis printer\n");
-  sys::PrintStackTraceOnErrorSignal();
 
   // Allocate a full target machine description only if necessary.
   // FIXME: The choice of target should be controllable on the command line.
@@ -366,24 +382,29 @@ int main(int argc, char **argv) {
   // FIXME: outs() is not binary!
   raw_ostream *Out = &outs();  // Default to printing to stdout...
   if (OutputFilename != "-") {
-    // Make sure that the Output file gets unlinked from the disk if we get a
-    // SIGINT
-    sys::RemoveFileOnSignal(sys::Path(OutputFilename));
+    if (NoOutput || AnalyzeOnly) {
+      errs() << "WARNING: The -o (output filename) option is ignored when\n"
+                "the --disable-output or --analyze options are used.\n";
+    } else {
+      // Make sure that the Output file gets unlinked from the disk if we get a
+      // SIGINT
+      sys::RemoveFileOnSignal(sys::Path(OutputFilename));
 
-    std::string ErrorInfo;
-    Out = new raw_fd_ostream(OutputFilename.c_str(), ErrorInfo,
-                             raw_fd_ostream::F_Binary);
-    if (!ErrorInfo.empty()) {
-      errs() << ErrorInfo << '\n';
-      delete Out;
-      return 1;
+      std::string ErrorInfo;
+      Out = new raw_fd_ostream(OutputFilename.c_str(), ErrorInfo,
+                               raw_fd_ostream::F_Binary);
+      if (!ErrorInfo.empty()) {
+        errs() << ErrorInfo << '\n';
+        delete Out;
+        return 1;
+      }
     }
   }
 
   // If the output is set to be emitted to standard out, and standard out is a
   // console, print out a warning message and refuse to do it.  We don't
   // impress anyone by spewing tons of binary goo to a terminal.
-  if (!Force && !NoOutput && !OutputAssembly)
+  if (!Force && !NoOutput && !AnalyzeOnly && !OutputAssembly)
     if (CheckBitcodeOutputToConsole(*Out, !Quiet))
       NoOutput = true;
 
@@ -405,7 +426,7 @@ int main(int argc, char **argv) {
 
   FunctionPassManager *FPasses = NULL;
   if (OptLevelO1 || OptLevelO2 || OptLevelO3) {
-    FPasses = new FunctionPassManager(new ExistingModuleProvider(M.get()));
+    FPasses = new FunctionPassManager(M.get());
     if (TD)
       FPasses->add(new TargetData(*TD));
   }
@@ -454,24 +475,26 @@ int main(int argc, char **argv) {
       errs() << argv[0] << ": cannot create pass: "
              << PassInf->getPassName() << "\n";
     if (P) {
-      bool isBBPass = dynamic_cast<BasicBlockPass*>(P) != 0;
-      bool isLPass = !isBBPass && dynamic_cast<LoopPass*>(P) != 0;
-      bool isFPass = !isLPass && dynamic_cast<FunctionPass*>(P) != 0;
-      bool isCGSCCPass = !isFPass && dynamic_cast<CallGraphSCCPass*>(P) != 0;
-
       addPass(Passes, P);
 
       if (AnalyzeOnly) {
-        if (isBBPass)
+        switch (P->getPassKind()) {
+        case PT_BasicBlock:
           Passes.add(new BasicBlockPassPrinter(PassInf));
-        else if (isLPass)
+          break;
+        case PT_Loop:
           Passes.add(new LoopPassPrinter(PassInf));
-        else if (isFPass)
+          break;
+        case PT_Function:
           Passes.add(new FunctionPassPrinter(PassInf));
-        else if (isCGSCCPass)
+          break;
+        case PT_CallGraphSCC:
           Passes.add(new CallGraphSCCPassPrinter(PassInf));
-        else
+          break;
+        default:
           Passes.add(new ModulePassPrinter(PassInf));
+          break;
+        }
       }
     }
 
@@ -510,7 +533,7 @@ int main(int argc, char **argv) {
   if (!NoVerify && !VerifyEach)
     Passes.add(createVerifierPass());
 
-  // Write bitcode or assembly  out to disk or outs() as the last step...
+  // Write bitcode or assembly out to disk or outs() as the last step...
   if (!NoOutput && !AnalyzeOnly) {
     if (OutputAssembly)
       Passes.add(createPrintModulePass(Out));

@@ -101,3 +101,22 @@ entry:
 }
 
 
+; PR5551
+@test12g = private constant [6 x i8] c"a\00b\00\00\00"
+
+define i16 @test12() {
+  %a = load i16* getelementptr inbounds ([3 x i16]* bitcast ([6 x i8]* @test12g to [3 x i16]*), i32 0, i64 1) 
+  ret i16 %a
+; CHECK: @test12
+; CHECK: ret i16 98
+}
+
+
+; PR5978
+@g5 = constant i8 4
+define i1 @test13() {
+  %A = load i1* bitcast (i8* @g5 to i1*)
+  ret i1 %A
+; CHECK: @test13
+; CHECK: ret i1 false
+}

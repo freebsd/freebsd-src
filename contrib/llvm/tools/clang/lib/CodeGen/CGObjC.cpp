@@ -26,7 +26,8 @@ using namespace CodeGen;
 /// Emits an instance of NSConstantString representing the object.
 llvm::Value *CodeGenFunction::EmitObjCStringLiteral(const ObjCStringLiteral *E)
 {
-  llvm::Constant *C = CGM.getObjCRuntime().GenerateConstantString(E);
+  llvm::Constant *C = 
+      CGM.getObjCRuntime().GenerateConstantString(E->getString());
   // FIXME: This bitcast should just be made an invariant on the Runtime.
   return llvm::ConstantExpr::getBitCast(C, ConvertType(E->getType()));
 }
@@ -121,7 +122,7 @@ void CodeGenFunction::StartObjCMethod(const ObjCMethodDecl *OMD,
        E = OMD->param_end(); PI != E; ++PI)
     Args.push_back(std::make_pair(*PI, (*PI)->getType()));
 
-  StartFunction(OMD, OMD->getResultType(), Fn, Args, OMD->getLocEnd());
+  StartFunction(OMD, OMD->getResultType(), Fn, Args, OMD->getLocStart());
 }
 
 /// Generate an Objective-C method.  An Objective-C method is a C function with
@@ -189,8 +190,9 @@ void CodeGenFunction::GenerateObjCGetter(ObjCImplementationDecl *IMP,
     Args.push_back(std::make_pair(RValue::get(True), getContext().BoolTy));
     // FIXME: We shouldn't need to get the function info here, the
     // runtime already should have computed it to build the function.
-    RValue RV = EmitCall(Types.getFunctionInfo(PD->getType(), Args),
-                         GetPropertyFn, Args);
+    RValue RV = EmitCall(Types.getFunctionInfo(PD->getType(), Args,
+                                               CC_Default, false),
+                         GetPropertyFn, ReturnValueSlot(), Args);
     // We need to fix the type here. Ivars with copy & retain are
     // always objects so we don't need to worry about complex or
     // aggregates.
@@ -277,8 +279,9 @@ void CodeGenFunction::GenerateObjCSetter(ObjCImplementationDecl *IMP,
                                   getContext().BoolTy));
     // FIXME: We shouldn't need to get the function info here, the runtime
     // already should have computed it to build the function.
-    EmitCall(Types.getFunctionInfo(getContext().VoidTy, Args),
-             SetPropertyFn, Args);
+    EmitCall(Types.getFunctionInfo(getContext().VoidTy, Args,
+                                   CC_Default, false), SetPropertyFn,
+             ReturnValueSlot(), Args);
   } else {
     // FIXME: Find a clean way to avoid AST node creation.
     SourceLocation Loc = PD->getLocation();
@@ -449,9 +452,7 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
 
   // Fast enumeration state.
   QualType StateTy = getContext().getObjCFastEnumerationStateType();
-  llvm::AllocaInst *StatePtr = CreateTempAlloca(ConvertType(StateTy),
-                                                "state.ptr");
-  StatePtr->setAlignment(getContext().getTypeAlign(StateTy) >> 3);
+  llvm::Value *StatePtr = CreateMemTemp(StateTy, "state.ptr");
   EmitMemSetToZero(StatePtr, StateTy);
 
   // Number of elements in the items array.
@@ -469,7 +470,7 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
     getContext().getConstantArrayType(getContext().getObjCIdType(),
                                       llvm::APInt(32, NumItems),
                                       ArrayType::Normal, 0);
-  llvm::Value *ItemsPtr = CreateTempAlloca(ConvertType(ItemsTy), "items.ptr");
+  llvm::Value *ItemsPtr = CreateMemTemp(ItemsTy, "items.ptr");
 
   llvm::Value *Collection = EmitScalarExpr(S.getCollection());
 
@@ -491,7 +492,8 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
                                              FastEnumSel,
                                              Collection, false, Args);
 
-  llvm::Value *LimitPtr = CreateTempAlloca(UnsignedLongLTy, "limit.ptr");
+  llvm::Value *LimitPtr = CreateMemTemp(getContext().UnsignedLongTy,
+                                        "limit.ptr");
   Builder.CreateStore(CountRV.getScalarVal(), LimitPtr);
 
   llvm::BasicBlock *NoElements = createBasicBlock("noelements");
@@ -505,8 +507,7 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
 
   EmitBlock(SetStartMutations);
 
-  llvm::Value *StartMutationsPtr =
-    CreateTempAlloca(UnsignedLongLTy);
+  llvm::Value *StartMutationsPtr = CreateMemTemp(getContext().UnsignedLongTy);
 
   llvm::Value *StateMutationsPtrPtr =
     Builder.CreateStructGEP(StatePtr, 2, "mutationsptr.ptr");
@@ -521,7 +522,8 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
   llvm::BasicBlock *LoopStart = createBasicBlock("loopstart");
   EmitBlock(LoopStart);
 
-  llvm::Value *CounterPtr = CreateTempAlloca(UnsignedLongLTy, "counter.ptr");
+  llvm::Value *CounterPtr = CreateMemTemp(getContext().UnsignedLongTy,
+                                       "counter.ptr");
   Builder.CreateStore(Zero, CounterPtr);
 
   llvm::BasicBlock *LoopBody = createBasicBlock("loopbody");
@@ -552,8 +554,9 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
                                 getContext().getObjCIdType()));
   // FIXME: We shouldn't need to get the function info here, the runtime already
   // should have computed it to build the function.
-  EmitCall(CGM.getTypes().getFunctionInfo(getContext().VoidTy, Args2),
-           EnumerationMutationFn, Args2);
+  EmitCall(CGM.getTypes().getFunctionInfo(getContext().VoidTy, Args2,
+                                          CC_Default, false),
+           EnumerationMutationFn, ReturnValueSlot(), Args2);
 
   EmitBlock(WasNotMutated);
 

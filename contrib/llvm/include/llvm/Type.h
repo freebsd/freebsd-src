@@ -7,14 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 #ifndef LLVM_TYPE_H
 #define LLVM_TYPE_H
 
 #include "llvm/AbstractTypeUser.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/System/DataTypes.h"
-#include "llvm/System/Atomic.h"
 #include "llvm/ADT/GraphTraits.h"
 #include <string>
 #include <vector>
@@ -84,10 +82,11 @@ public:
     IntegerTyID,     ///<  8: Arbitrary bit width integers
     FunctionTyID,    ///<  9: Functions
     StructTyID,      ///< 10: Structures
-    ArrayTyID,       ///< 11: Arrays
-    PointerTyID,     ///< 12: Pointers
-    OpaqueTyID,      ///< 13: Opaque: type with unknown structure
-    VectorTyID,      ///< 14: SIMD 'packed' format, or other vector type
+    UnionTyID,       ///< 11: Unions
+    ArrayTyID,       ///< 12: Arrays
+    PointerTyID,     ///< 13: Pointers
+    OpaqueTyID,      ///< 14: Opaque: type with unknown structure
+    VectorTyID,      ///< 15: SIMD 'packed' format, or other vector type
 
     NumTypeIDs,                         // Must remain as last defined ID
     LastPrimitiveTyID = LabelTyID,
@@ -104,7 +103,7 @@ private:
   /// has no AbstractTypeUsers, the type is deleted.  This is only sensical for
   /// derived types.
   ///
-  mutable sys::cas_flag RefCount;
+  mutable unsigned RefCount;
 
   /// Context - This refers to the LLVMContext in which this type was uniqued.
   LLVMContext &Context;
@@ -215,24 +214,47 @@ public:
   /// getDescription - Return the string representation of the type.
   std::string getDescription() const;
 
-  /// isInteger - True if this is an instance of IntegerType.
+  /// isIntegerTy - True if this is an instance of IntegerType.
   ///
-  bool isInteger() const { return ID == IntegerTyID; } 
+  bool isIntegerTy() const { return ID == IntegerTyID; } 
 
-  /// isIntOrIntVector - Return true if this is an integer type or a vector of
+  /// isIntegerTy - Return true if this is an IntegerType of the given width.
+  bool isIntegerTy(unsigned Bitwidth) const;
+
+  /// isIntOrIntVectorTy - Return true if this is an integer type or a vector of
   /// integer types.
   ///
-  bool isIntOrIntVector() const;
+  bool isIntOrIntVectorTy() const;
   
-  /// isFloatingPoint - Return true if this is one of the five floating point
+  /// isFloatingPointTy - Return true if this is one of the five floating point
   /// types
-  bool isFloatingPoint() const { return ID == FloatTyID || ID == DoubleTyID ||
+  bool isFloatingPointTy() const { return ID == FloatTyID || ID == DoubleTyID ||
       ID == X86_FP80TyID || ID == FP128TyID || ID == PPC_FP128TyID; }
 
-  /// isFPOrFPVector - Return true if this is a FP type or a vector of FP types.
+  /// isFPOrFPVectorTy - Return true if this is a FP type or a vector of FP.
   ///
-  bool isFPOrFPVector() const;
-  
+  bool isFPOrFPVectorTy() const;
+ 
+  /// isFunctionTy - True if this is an instance of FunctionType.
+  ///
+  bool isFunctionTy() const { return ID == FunctionTyID; }
+
+  /// isStructTy - True if this is an instance of StructType.
+  ///
+  bool isStructTy() const { return ID == StructTyID; }
+
+  /// isArrayTy - True if this is an instance of ArrayType.
+  ///
+  bool isArrayTy() const { return ID == ArrayTyID; }
+
+  /// isPointerTy - True if this is an instance of PointerType.
+  ///
+  bool isPointerTy() const { return ID == PointerTyID; }
+
+  /// isVectorTy - True if this is an instance of VectorType.
+  ///
+  bool isVectorTy() const { return ID == VectorTyID; }
+
   /// isAbstract - True if the type is either an Opaque type, or is a derived
   /// type that includes an opaque type somewhere in it.
   ///
@@ -276,7 +298,7 @@ public:
   /// does not include vector types.
   ///
   inline bool isAggregateType() const {
-    return ID == StructTyID || ID == ArrayTyID;
+    return ID == StructTyID || ID == ArrayTyID || ID == UnionTyID;
   }
 
   /// isSized - Return true if it makes sense to take the size of this type.  To
@@ -285,11 +307,12 @@ public:
   ///
   bool isSized() const {
     // If it's a primitive, it is always sized.
-    if (ID == IntegerTyID || isFloatingPoint() || ID == PointerTyID)
+    if (ID == IntegerTyID || isFloatingPointTy() || ID == PointerTyID)
       return true;
     // If it is not something that can have a size (e.g. a function or label),
     // it doesn't have a size.
-    if (ID != StructTyID && ID != ArrayTyID && ID != VectorTyID)
+    if (ID != StructTyID && ID != ArrayTyID && ID != VectorTyID &&
+        ID != UnionTyID)
       return false;
     // If it is something that can have a size and it's concrete, it definitely
     // has a size, otherwise we have to try harder to decide.
@@ -401,7 +424,7 @@ public:
 
   void addRef() const {
     assert(isAbstract() && "Cannot add a reference to a non-abstract type!");
-    sys::AtomicIncrement(&RefCount);
+    ++RefCount;
   }
 
   void dropRef() const {
@@ -410,8 +433,7 @@ public:
 
     // If this is the last PATypeHolder using this object, and there are no
     // PATypeHandles using it, the type is dead, delete it now.
-    sys::cas_flag OldCount = sys::AtomicDecrement(&RefCount);
-    if (OldCount == 0 && AbstractTypeUsers.empty())
+    if (--RefCount == 0 && AbstractTypeUsers.empty())
       this->destroy();
   }
   

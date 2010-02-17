@@ -254,7 +254,7 @@ lltok::Kind LLLexer::LexToken() {
   case ';':
     SkipLineComment();
     return LexToken();
-  case '!': return LexMetadata();
+  case '!': return LexExclaim();
   case '0': case '1': case '2': case '3': case '4':
   case '5': case '6': case '7': case '8': case '9':
   case '-':
@@ -422,11 +422,11 @@ static bool JustWhitespaceNewLine(const char *&Ptr) {
   return false;
 }
 
-/// LexMetadata:
-///    !{...}
-///    !42
+/// LexExclaim:
 ///    !foo
-lltok::Kind LLLexer::LexMetadata() {
+///    !
+lltok::Kind LLLexer::LexExclaim() {
+  // Lex a metadata name as a MetadataVar.
   if (isalpha(CurPtr[0])) {
     ++CurPtr;
     while (isalnum(CurPtr[0]) || CurPtr[0] == '-' || CurPtr[0] == '$' ||
@@ -434,9 +434,9 @@ lltok::Kind LLLexer::LexMetadata() {
       ++CurPtr;
 
     StrVal.assign(TokStart+1, CurPtr);   // Skip !
-    return lltok::NamedOrCustomMD;
+    return lltok::MetadataVar;
   }
-  return lltok::Metadata;
+  return lltok::exclaim;
 }
   
 /// LexIdentifier: Handle several related productions:
@@ -540,6 +540,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(arm_apcscc);
   KEYWORD(arm_aapcscc);
   KEYWORD(arm_aapcs_vfpcc);
+  KEYWORD(msp430_intrcc);
 
   KEYWORD(cc);
   KEYWORD(c);
@@ -569,6 +570,7 @@ lltok::Kind LLLexer::LexIdentifier() {
 
   KEYWORD(type);
   KEYWORD(opaque);
+  KEYWORD(union);
 
   KEYWORD(eq); KEYWORD(ne); KEYWORD(slt); KEYWORD(sgt); KEYWORD(sle);
   KEYWORD(sge); KEYWORD(ult); KEYWORD(ugt); KEYWORD(ule); KEYWORD(uge);

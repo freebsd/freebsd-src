@@ -1,6 +1,7 @@
-// RUN: clang-cc --fsyntax-only %s
-// RUN: clang-cc --ast-print %s
-// RUN: clang-cc --ast-dump %s
-// RUN: clang-cc --ast-print-xml -o %t %s
+// RUN: %clang_cc1 -fsyntax-only %s
+// RUN: %clang_cc1 -ast-print %s
+// RUN: %clang_cc1 -ast-dump %s
+// RUN: %clang_cc1 -ast-print-xml -o %t %s
+// RUN: %clang_cc1 -print-decl-contexts %s
 
 #include "c-language-features.inc"

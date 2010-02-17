@@ -65,6 +65,7 @@ namespace {
                                                SourceLocation SuperLoc,
                                                const DeclPtrTy *ProtoRefs,
                                                unsigned NumProtocols,
+                                               const SourceLocation *ProtoLocs,
                                                SourceLocation EndProtoLoc,
                                                AttributeList *AttrList) {
       Out << __FUNCTION__ << "\n";
@@ -72,7 +73,8 @@ namespace {
                                                      ClassName, ClassLoc,
                                                      SuperName, SuperLoc,
                                                      ProtoRefs, NumProtocols,
-                                                     EndProtoLoc, AttrList);
+                                                     ProtoLocs, EndProtoLoc,
+                                                     AttrList);
     }
 
     /// ActOnForwardClassDeclaration -
@@ -305,14 +307,16 @@ namespace {
     }
 
     virtual OwningStmtResult ActOnIfStmt(SourceLocation IfLoc,
-                                         FullExprArg CondVal, StmtArg ThenVal,
+                                         FullExprArg CondVal, DeclPtrTy CondVar,
+                                         StmtArg ThenVal,
                                          SourceLocation ElseLoc,
                                          StmtArg ElseVal) {
       Out << __FUNCTION__ << "\n";
       return StmtEmpty();
     }
 
-    virtual OwningStmtResult ActOnStartOfSwitchStmt(ExprArg Cond) {
+    virtual OwningStmtResult ActOnStartOfSwitchStmt(FullExprArg Cond, 
+                                                    DeclPtrTy CondVar) {
       Out << __FUNCTION__ << "\n";
       return StmtEmpty();
     }
@@ -325,7 +329,8 @@ namespace {
     }
 
     virtual OwningStmtResult ActOnWhileStmt(SourceLocation WhileLoc,
-                                            FullExprArg Cond, StmtArg Body) {
+                                            FullExprArg Cond, DeclPtrTy CondVar,
+                                            StmtArg Body) {
       Out << __FUNCTION__ << "\n";
       return StmtEmpty();
     }
@@ -338,8 +343,10 @@ namespace {
     }
     virtual OwningStmtResult ActOnForStmt(SourceLocation ForLoc,
                                         SourceLocation LParenLoc,
-                                        StmtArg First, ExprArg Second,
-                                        ExprArg Third, SourceLocation RParenLoc,
+                                        StmtArg First, FullExprArg Second,
+                                        DeclPtrTy SecondVar,
+                                        FullExprArg Third, 
+                                        SourceLocation RParenLoc,
                                         StmtArg Body) {
       Out << __FUNCTION__ << "\n";
       return StmtEmpty();
@@ -384,12 +391,13 @@ namespace {
                                           bool IsVolatile,
                                           unsigned NumOutputs,
                                           unsigned NumInputs,
-                                          std::string *Names,
+                                          IdentifierInfo **Names,
                                           MultiExprArg Constraints,
                                           MultiExprArg Exprs,
                                           ExprArg AsmString,
                                           MultiExprArg Clobbers,
-                                          SourceLocation RParenLoc) {
+                                          SourceLocation RParenLoc,
+                                          bool MSAsm) {
       Out << __FUNCTION__ << "\n";
       return StmtEmpty();
     }
@@ -676,7 +684,8 @@ namespace {
 
     virtual DeclPtrTy ActOnStartNamespaceDef(Scope *S, SourceLocation IdentLoc,
                                              IdentifierInfo *Ident,
-                                             SourceLocation LBrace) {
+                                             SourceLocation LBrace,
+                                             AttributeList *AttrList) {
       Out << __FUNCTION__ << "\n";
       return DeclPtrTy();
     }

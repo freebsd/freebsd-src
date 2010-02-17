@@ -27,6 +27,17 @@ namespace llvm {
 /// implementations.
 ///
 struct DefaultDOTGraphTraits {
+private:
+  bool IsSimple;
+
+protected:
+  bool isSimple() {
+    return IsSimple;
+  }
+
+public:
+  DefaultDOTGraphTraits (bool simple=false) : IsSimple (simple) {}
+
   /// getGraphName - Return the label for the graph as a whole.  Printed at the
   /// top of the graph.
   ///
@@ -51,8 +62,7 @@ struct DefaultDOTGraphTraits {
   /// getNodeLabel - Given a node and a pointer to the top level graph, return
   /// the label to print in the node.
   template<typename GraphType>
-  static std::string getNodeLabel(const void *Node,
-                                  const GraphType& Graph, bool ShortNames) {
+  std::string getNodeLabel(const void *Node, const GraphType& Graph) {
     return "";
   }
 
@@ -135,7 +145,9 @@ struct DefaultDOTGraphTraits {
 /// from DefaultDOTGraphTraits if you don't need to override everything.
 ///
 template <typename Ty>
-struct DOTGraphTraits : public DefaultDOTGraphTraits {};
+struct DOTGraphTraits : public DefaultDOTGraphTraits {
+  DOTGraphTraits (bool simple=false) : DefaultDOTGraphTraits (simple) {}
+};
 
 } // End llvm namespace
 

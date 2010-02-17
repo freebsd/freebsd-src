@@ -52,7 +52,6 @@
 #endif
 
 TYPE(Builtin, Type)
-TYPE(FixedWidthInt, Type)
 TYPE(Complex, Type)
 TYPE(Pointer, Type)
 TYPE(BlockPointer, Type)
@@ -71,6 +70,7 @@ TYPE(ExtVector, VectorType)
 ABSTRACT_TYPE(Function, Type)
 TYPE(FunctionProto, FunctionType)
 TYPE(FunctionNoProto, FunctionType)
+DEPENDENT_TYPE(UnresolvedUsing, Type)
 NON_CANONICAL_TYPE(Typedef, Type)
 NON_CANONICAL_TYPE(TypeOfExpr, Type)
 NON_CANONICAL_TYPE(TypeOf, Type)
@@ -87,11 +87,15 @@ DEPENDENT_TYPE(Typename, Type)
 TYPE(ObjCInterface, Type)
 TYPE(ObjCObjectPointer, Type)
 
+#ifdef LAST_TYPE
+LAST_TYPE(ObjCObjectPointer)
+#undef LAST_TYPE
+#endif
+
 // These types are always leaves in the type hierarchy.
 #ifdef LEAF_TYPE
 LEAF_TYPE(Enum)
 LEAF_TYPE(Builtin)
-LEAF_TYPE(FixedWidthInt)
 LEAF_TYPE(ObjCInterface)
 LEAF_TYPE(TemplateTypeParm)
 #undef LEAF_TYPE

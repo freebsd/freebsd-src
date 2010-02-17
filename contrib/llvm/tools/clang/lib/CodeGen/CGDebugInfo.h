@@ -20,6 +20,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Support/ValueHandle.h"
+#include "llvm/Support/Allocator.h"
 #include <map>
 
 #include "CGBuilder.h"
@@ -35,16 +36,19 @@ namespace clang {
 namespace CodeGen {
   class CodeGenModule;
   class CodeGenFunction;
+  class GlobalDecl;
 
 /// CGDebugInfo - This class gathers all debug information during compilation
 /// and is responsible for emitting to llvm globals or pass directly to
 /// the backend.
 class CGDebugInfo {
-  CodeGenModule *M;
+  CodeGenModule &CGM;
   bool isMainCompileUnitCreated;
   llvm::DIFactory DebugFactory;
 
   SourceLocation CurLoc, PrevLoc;
+  
+  llvm::DIType VTablePtrType;
 
   /// CompileUnitCache - Cache of previously constructed CompileUnits.
   llvm::DenseMap<unsigned, llvm::DICompileUnit> CompileUnitCache;
@@ -57,6 +61,14 @@ class CGDebugInfo {
   llvm::DIType BlockLiteralGeneric;
 
   std::vector<llvm::TrackingVH<llvm::MDNode> > RegionStack;
+  llvm::DenseMap<const Decl *, llvm::WeakVH> RegionMap;
+
+  /// DebugInfoNames - This is a storage for names that are
+  /// constructed on demand. For example, C++ destructors, C++ operators etc..
+  llvm::BumpPtrAllocator DebugInfoNames;
+
+  llvm::DenseMap<const FunctionDecl *, llvm::WeakVH> SPCache;
+  llvm::DenseMap<const NamespaceDecl *, llvm::WeakVH> NameSpaceCache;
 
   /// Helper functions for getOrCreateType.
   llvm::DIType CreateType(const BuiltinType *Ty, llvm::DICompileUnit U);
@@ -74,12 +86,40 @@ class CGDebugInfo {
   llvm::DIType CreateType(const EnumType *Ty, llvm::DICompileUnit U);
   llvm::DIType CreateType(const ArrayType *Ty, llvm::DICompileUnit U);
   llvm::DIType CreateType(const LValueReferenceType *Ty, llvm::DICompileUnit U);
+  llvm::DIType CreateType(const MemberPointerType *Ty, llvm::DICompileUnit U);
+  llvm::DIType getOrCreateMethodType(const CXXMethodDecl *Method,
+                                     llvm::DICompileUnit Unit);
+  llvm::DIType getOrCreateVTablePtrType(llvm::DICompileUnit Unit);
+  llvm::DINameSpace getOrCreateNameSpace(const NamespaceDecl *N, 
+                                         llvm::DIDescriptor Unit);
 
   llvm::DIType CreatePointerLikeType(unsigned Tag,
                                      const Type *Ty, QualType PointeeTy,
                                      llvm::DICompileUnit U);
+  
+  llvm::DISubprogram CreateCXXMemberFunction(const CXXMethodDecl *Method,
+                                             llvm::DICompileUnit Unit,
+                                             llvm::DICompositeType &RecordTy);
+  
+  void CollectCXXMemberFunctions(const CXXRecordDecl *Decl,
+                                 llvm::DICompileUnit U,
+                                 llvm::SmallVectorImpl<llvm::DIDescriptor> &E,
+                                 llvm::DICompositeType &T);
+  void CollectCXXBases(const CXXRecordDecl *Decl,
+                       llvm::DICompileUnit Unit,
+                       llvm::SmallVectorImpl<llvm::DIDescriptor> &EltTys,
+                       llvm::DICompositeType &RecordTy);
+
+
+  void CollectRecordFields(const RecordDecl *Decl, llvm::DICompileUnit U,
+                           llvm::SmallVectorImpl<llvm::DIDescriptor> &E);
+
+  void CollectVtableInfo(const CXXRecordDecl *Decl,
+                         llvm::DICompileUnit Unit,
+                         llvm::SmallVectorImpl<llvm::DIDescriptor> &EltTys);
+
 public:
-  CGDebugInfo(CodeGenModule *m);
+  CGDebugInfo(CodeGenModule &CGM);
   ~CGDebugInfo();
 
   /// setLocation - Update the current source location. If \arg loc is
@@ -92,7 +132,7 @@ public:
 
   /// EmitFunctionStart - Emit a call to llvm.dbg.function.start to indicate
   /// start of a new function.
-  void EmitFunctionStart(const char *Name, QualType FnType,
+  void EmitFunctionStart(GlobalDecl GD, QualType FnType,
                          llvm::Function *Fn, CGBuilderTy &Builder);
 
   /// EmitRegionStart - Emit a call to llvm.dbg.region.start to indicate start
@@ -135,8 +175,14 @@ private:
   void EmitDeclare(const BlockDeclRefExpr *BDRE, unsigned Tag, llvm::Value *AI,
                    CGBuilderTy &Builder, CodeGenFunction *CGF);
 
-  /// getContext - Get context info for the decl.
-  llvm::DIDescriptor getContext(const VarDecl *Decl,llvm::DIDescriptor &CU);
+  // EmitTypeForVarWithBlocksAttr - Build up structure info for the byref.  
+  // See BuildByRefType.
+  llvm::DIType EmitTypeForVarWithBlocksAttr(const ValueDecl *VD, 
+                                            uint64_t *OffSet);
+
+  /// getContextDescriptor - Get context info for the decl.
+  llvm::DIDescriptor getContextDescriptor(const Decl *Decl,
+                                          llvm::DIDescriptor &CU);
 
   /// getOrCreateCompileUnit - Get the compile unit from the cache or create a
   /// new one if necessary.
@@ -148,6 +194,15 @@ private:
 
   /// CreateTypeNode - Create type metadata for a source language type.
   llvm::DIType CreateTypeNode(QualType Ty, llvm::DICompileUnit Unit);
+
+  /// getFunctionName - Get function name for the given FunctionDecl. If the
+  /// name is constructred on demand (e.g. C++ destructor) then the name
+  /// is stored on the side.
+  llvm::StringRef getFunctionName(const FunctionDecl *FD);
+
+  /// getVtableName - Get vtable name for the given Class.
+  llvm::StringRef getVtableName(const CXXRecordDecl *Decl);
+
 };
 } // namespace CodeGen
 } // namespace clang

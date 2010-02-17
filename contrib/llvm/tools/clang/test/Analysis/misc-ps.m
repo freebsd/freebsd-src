@@ -1,8 +1,12 @@
 // NOTE: Use '-fobjc-gc' to test the analysis being run twice, and multiple reports are not issued.
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=basic -fobjc-gc -analyzer-constraints=basic --verify -fblocks %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=basic -analyzer-constraints=range --verify -fblocks %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=region -analyzer-constraints=basic --verify -fblocks %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=region -analyzer-constraints=range --verify -fblocks %s
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -fobjc-gc -analyzer-constraints=basic -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=basic -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -fobjc-gc -analyzer-constraints=basic -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=basic -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code %s
 
 typedef struct objc_ivar *Ivar;
 typedef struct objc_selector *SEL;
@@ -87,16 +91,16 @@ void r6268365() {
 
 void divzeroassume(unsigned x, unsigned j) {  
   x /= j;  
-  if (j == 0) x /= 0;     // no-warning
-  if (j == 0) x /= j;     // no-warning
-  if (j == 0) x = x / 0;  // no-warning
+  if (j == 0) x /= 0;     // no static-analyzer warning    expected-warning {{division by zero is undefined}}
+  if (j == 0) x /= j;     // no static-analyzer warning
+  if (j == 0) x = x / 0;  // no static-analyzer warning    expected-warning {{division by zero is undefined}}
 }
 
 void divzeroassumeB(unsigned x, unsigned j) {  
   x = x / j;  
-  if (j == 0) x /= 0;     // no-warning
-  if (j == 0) x /= j;     // no-warning
-  if (j == 0) x = x / 0;  // no-warning
+  if (j == 0) x /= 0;     // no static-analyzer warning     expected-warning {{division by zero is undefined}}
+  if (j == 0) x /= j;     // no static-analyzer warning
+  if (j == 0) x = x / 0;  // no static-analyzer warning     expected-warning {{division by zero is undefined}}
 }
 
 // InitListExpr processing
@@ -460,6 +464,8 @@ void test_block_cast() {
   (void (^)(void *))test_block_cast_aux(); // expected-warning{{expression result unused}}
 }
 
+int OSAtomicCompareAndSwap32Barrier();
+
 // Test comparison of 'id' instance variable to a null void* constant after
 // performing an OSAtomicCompareAndSwap32Barrier.
 // This previously was a crash in RegionStoreManager.
@@ -492,6 +498,8 @@ void test_invalidate_cast_int() {
   if (i < 0)
     return;
 }
+
+int ivar_getOffset();
 
 // Reduced from a crash involving the cast of an Objective-C symbolic region to
 // 'char *'
@@ -750,3 +758,178 @@ void test_undefined_array_subscript() {
   int *p = &a[i]; // expected-warning{{Array subscript is undefined}}
 }
 @end
+
+//===----------------------------------------------------------------------===//
+// Test using an uninitialized value as a branch condition.
+//===----------------------------------------------------------------------===//
+
+int test_uninit_branch(void) {
+  int x;
+  if (x) // expected-warning{{Branch condition evaluates to a garbage value}}
+    return 1;
+  return 0; 
+}
+
+int test_uninit_branch_b(void) {
+  int x;
+  return x ? 1 : 0; // expected-warning{{Branch condition evaluates to a garbage value}}
+}
+
+int test_uninit_branch_c(void) {
+  int x;
+  if ((short)x) // expected-warning{{Branch condition evaluates to a garbage value}}
+    return 1;
+  return 0; 
+}
+
+//===----------------------------------------------------------------------===//
+// Test passing an undefined value in a message or function call.
+//===----------------------------------------------------------------------===//
+
+void test_bad_call_aux(int x);
+void test_bad_call(void) {
+  int y;
+  test_bad_call_aux(y); // expected-warning{{Pass-by-value argument in function call is undefined}}
+}
+
+@interface TestBadArg {}
+- (void) testBadArg:(int) x;
+@end
+
+void test_bad_msg(TestBadArg *p) {
+  int y;
+  [p testBadArg:y]; // expected-warning{{Pass-by-value argument in message expression is undefined}}
+}
+
+//===----------------------------------------------------------------------===//
+// PR 6033 - Test emitting the correct output in a warning where we use '%'
+//  with operands that are undefined.
+//===----------------------------------------------------------------------===//
+
+int pr6033(int x) {
+  int y;
+  return x % y; // expected-warning{{The right operand of '%' is a garbage value}}
+}
+
+struct trie {
+  struct trie* next;
+};
+
+struct kwset {
+  struct trie *trie;
+  unsigned char delta[10];
+  struct trie* next[10];
+  int d;
+};
+
+typedef struct trie trie_t;
+typedef struct kwset kwset_t;
+
+void f(kwset_t *kws, char const *p, char const *q) {
+  struct trie const *trie;
+  struct trie * const *next = kws->next;
+  register unsigned char c;
+  register char const *end = p;
+  register char const *lim = q;
+  register int d = 1;
+  register unsigned char const *delta = kws->delta;
+
+  d = delta[c = (end+=d)[-1]]; // no-warning
+  trie = next[c];
+}
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7593875> When handling sizeof(VLA) it leads to a hole in
+// the ExplodedGraph (causing a false positive)
+//===----------------------------------------------------------------------===//
+
+int rdar_7593875_aux(int x);
+int rdar_7593875(int n) {
+  int z[n > 10 ? 10 : n]; // VLA.
+  int v;
+  v = rdar_7593875_aux(sizeof(z));
+  // Previously we got a false positive about 'v' being uninitialized.
+  return v; // no-warning
+}
+
+//===----------------------------------------------------------------------===//
+// Handle casts from symbolic regions (packaged as integers) to doubles.
+// Previously this caused an assertion failure.
+//===----------------------------------------------------------------------===//
+
+void *foo_rev95119();
+void baz_rev95119(double x);
+void bar_rev95119() {
+  // foo_rev95119() returns a symbolic pointer.  It is then 
+  // cast to an int which is then cast to a double.
+  int value = (int) foo_rev95119();
+  baz_rev95119((double)value);
+}
+
+//===----------------------------------------------------------------------===//
+// Handle loading a symbolic pointer from a symbolic region that was
+// invalidated by a call to an unknown function.
+//===----------------------------------------------------------------------===//
+
+void bar_rev95192(int **x);
+void foo_rev95192(int **x) {
+  *x = 0;
+  bar_rev95192(x);
+  // Not a null dereference.
+  **x = 1; // no-warning
+}
+
+//===----------------------------------------------------------------------===//
+// Handle casts of a function to a function pointer with a different return
+// value.  We don't yet emit an error for such cases, but we now we at least
+// don't crash when the return value gets interpreted in a way that
+// violates our invariants.
+//===----------------------------------------------------------------------===//
+
+void *foo_rev95267();
+int bar_rev95267() {
+  char (*Callback_rev95267)(void) = (char (*)(void)) foo_rev95267;
+  if ((*Callback_rev95267)() == (char) 0)
+    return 1;
+  return 0;
+}
+
+// Same as previous case, but handle casts to 'void'.
+int bar_rev95274() {
+  void (*Callback_rev95274)(void) = (void (*)(void)) foo_rev95267;
+  (*Callback_rev95274)();
+  return 0;
+}
+
+void rdar7582031_test_static_init_zero() {
+  static unsigned x;
+  if (x == 0)
+    return;
+  int *p = 0;
+  *p = 0xDEADBEEF;
+}
+void rdar7582031_test_static_init_zero_b() {
+  static void* x;
+  if (x == 0)
+    return;
+  int *p = 0;
+  *p = 0xDEADBEEF;
+}
+
+//===----------------------------------------------------------------------===//
+// Test handling of parameters that are structs that contain floats and       //
+// nested fields.                                                             //
+//===----------------------------------------------------------------------===//
+
+struct s_rev95547_nested { float x, y; };
+struct s_rev95547 {
+  struct s_rev95547_nested z1;
+  struct s_rev95547_nested z2;
+};
+float foo_rev95547(struct s_rev95547 w) {
+  return w.z1.x + 20.0; // no-warning
+}
+void foo_rev95547_b(struct s_rev95547 w) {
+  struct s_rev95547 w2 = w;
+  w2.z1.x += 20.0; // no-warning
+}

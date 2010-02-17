@@ -25,12 +25,15 @@
 
 namespace llvm {
   class AsmPrinter;
-  class MCAsmParser;
-  class MCCodeEmitter;
   class Module;
   class MCAsmInfo;
+  class MCAsmParser;
+  class MCCodeEmitter;
+  class MCContext;
   class MCDisassembler;
   class MCInstPrinter;
+  class MCStreamer;
+  class TargetAsmLexer;
   class TargetAsmParser;
   class TargetMachine;
   class formatted_raw_ostream;
@@ -57,17 +60,20 @@ namespace llvm {
                                                   const std::string &Features);
     typedef AsmPrinter *(*AsmPrinterCtorTy)(formatted_raw_ostream &OS,
                                             TargetMachine &TM,
-                                            const MCAsmInfo *MAI,
-                                            bool VerboseAsm);
-    typedef TargetAsmParser *(*AsmParserCtorTy)(const Target &T,
-                                                MCAsmParser &P);
+                                            MCContext &Ctx,
+                                            MCStreamer &Streamer,
+                                            const MCAsmInfo *MAI);
+    typedef TargetAsmLexer *(*AsmLexerCtorTy)(const Target &T,
+                                              const MCAsmInfo &MAI);
+    typedef TargetAsmParser *(*AsmParserCtorTy)(const Target &T,MCAsmParser &P);
     typedef const MCDisassembler *(*MCDisassemblerCtorTy)(const Target &T);
     typedef MCInstPrinter *(*MCInstPrinterCtorTy)(const Target &T,
                                                   unsigned SyntaxVariant,
                                                   const MCAsmInfo &MAI,
                                                   raw_ostream &O);
     typedef MCCodeEmitter *(*CodeEmitterCtorTy)(const Target &T,
-                                                TargetMachine &TM);
+                                                TargetMachine &TM,
+                                                MCContext &Ctx);
 
   private:
     /// Next - The next registered target in the linked list, maintained by the
@@ -97,8 +103,12 @@ namespace llvm {
     /// if registered.
     AsmPrinterCtorTy AsmPrinterCtorFn;
 
-    /// AsmParserCtorFn - Construction function for this target's AsmParser,
+    /// AsmLexerCtorFn - Construction function for this target's TargetAsmLexer,
     /// if registered.
+    AsmLexerCtorTy AsmLexerCtorFn;
+    
+    /// AsmParserCtorFn - Construction function for this target's
+    /// TargetAsmParser, if registered.
     AsmParserCtorTy AsmParserCtorFn;
     
     /// MCDisassemblerCtorFn - Construction function for this target's
@@ -183,14 +193,24 @@ namespace llvm {
       return TargetMachineCtorFn(*this, Triple, Features);
     }
 
-    /// createAsmPrinter - Create a target specific assembly printer pass.
+    /// createAsmPrinter - Create a target specific assembly printer pass.  This
+    /// takes ownership of the MCContext and MCStreamer objects but not the MAI.
     AsmPrinter *createAsmPrinter(formatted_raw_ostream &OS, TargetMachine &TM,
-                                 const MCAsmInfo *MAI, bool Verbose) const {
+                                 MCContext &Ctx, MCStreamer &Streamer,
+                                 const MCAsmInfo *MAI) const {
       if (!AsmPrinterCtorFn)
         return 0;
-      return AsmPrinterCtorFn(OS, TM, MAI, Verbose);
+      return AsmPrinterCtorFn(OS, TM, Ctx, Streamer, MAI);
     }
 
+    /// createAsmLexer - Create a target specific assembly lexer.
+    ///
+    TargetAsmLexer *createAsmLexer(const MCAsmInfo &MAI) const {
+      if (!AsmLexerCtorFn)
+        return 0;
+      return AsmLexerCtorFn(*this, MAI);
+    }
+    
     /// createAsmParser - Create a target specific assembly parser.
     ///
     /// \arg Parser - The target independent parser implementation to use for
@@ -217,10 +237,10 @@ namespace llvm {
     
     
     /// createCodeEmitter - Create a target specific code emitter.
-    MCCodeEmitter *createCodeEmitter(TargetMachine &TM) const {
+    MCCodeEmitter *createCodeEmitter(TargetMachine &TM, MCContext &Ctx) const {
       if (!CodeEmitterCtorFn)
         return 0;
-      return CodeEmitterCtorFn(*this, TM);
+      return CodeEmitterCtorFn(*this, TM, Ctx);
     }
 
     /// @}
@@ -358,6 +378,20 @@ namespace llvm {
         T.AsmPrinterCtorFn = Fn;
     }
 
+    /// RegisterAsmLexer - Register a TargetAsmLexer implementation for the
+    /// given target.
+    /// 
+    /// Clients are responsible for ensuring that registration doesn't occur
+    /// while another thread is attempting to access the registry. Typically
+    /// this is done by initializing all targets at program startup.
+    ///
+    /// @param T - The target being registered.
+    /// @param Fn - A function to construct an AsmPrinter for the target.
+    static void RegisterAsmLexer(Target &T, Target::AsmLexerCtorTy Fn) {
+      if (!T.AsmLexerCtorFn)
+        T.AsmLexerCtorFn = Fn;
+    }
+    
     /// RegisterAsmParser - Register a TargetAsmParser implementation for the
     /// given target.
     /// 
@@ -519,8 +553,29 @@ namespace llvm {
 
   private:
     static AsmPrinter *Allocator(formatted_raw_ostream &OS, TargetMachine &TM,
-                                 const MCAsmInfo *MAI, bool Verbose) {
-      return new AsmPrinterImpl(OS, TM, MAI, Verbose);
+                                 MCContext &Ctx, MCStreamer &Streamer,
+                                 const MCAsmInfo *MAI) {
+      return new AsmPrinterImpl(OS, TM, Ctx, Streamer, MAI);
+    }
+  };
+
+  /// RegisterAsmLexer - Helper template for registering a target specific
+  /// assembly lexer, for use in the target machine initialization
+  /// function. Usage:
+  ///
+  /// extern "C" void LLVMInitializeFooAsmLexer() {
+  ///   extern Target TheFooTarget;
+  ///   RegisterAsmLexer<FooAsmLexer> X(TheFooTarget);
+  /// }
+  template<class AsmLexerImpl>
+  struct RegisterAsmLexer {
+    RegisterAsmLexer(Target &T) {
+      TargetRegistry::RegisterAsmLexer(T, &Allocator);
+    }
+    
+  private:
+    static TargetAsmLexer *Allocator(const Target &T, const MCAsmInfo &MAI) {
+      return new AsmLexerImpl(T, MAI);
     }
   };
 
@@ -559,8 +614,9 @@ namespace llvm {
     }
 
   private:
-    static MCCodeEmitter *Allocator(const Target &T, TargetMachine &TM) {
-      return new CodeEmitterImpl(T, TM);
+    static MCCodeEmitter *Allocator(const Target &T, TargetMachine &TM,
+                                    MCContext &Ctx) {
+      return new CodeEmitterImpl(T, TM, Ctx);
     }
   };
 

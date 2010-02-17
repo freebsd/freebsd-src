@@ -1,5 +1,4 @@
-// RUN: clang-cc -verify -emit-llvm -o - %s | FileCheck %s
-
+// RUN: %clang_cc1 -verify -emit-llvm -o - %s | FileCheck %s
 void t1() {
   extern int& a;
   int b = a; 
@@ -19,7 +18,6 @@ void t3() {
 // Test reference binding.
 
 struct C { int a; };
-
 void f(const bool&);
 void f(const int&);
 void f(const _Complex int&);
@@ -40,6 +38,8 @@ void test_bool() {
   
   bool_reference_return() = true;
   a = bool_reference_return();
+  
+  struct { const bool& b; } b = { true };
 }
 
 void test_scalar() {
@@ -56,6 +56,8 @@ void test_scalar() {
   
   int_reference_return() = 10;
   a = int_reference_return();
+  
+  struct { const int& a; } agg = { 10 };
 }
 
 void test_complex() {
@@ -66,6 +68,8 @@ void test_complex() {
   
   complex_int_reference_return() = 10i;
   a = complex_int_reference_return();
+  
+  struct { const _Complex int &a; } agg = { 10i };
 }
 
 void test_aggregate() {
@@ -76,6 +80,8 @@ void test_aggregate() {
   aggregate_reference_return().a = 10;
 
   c = aggregate_reference_return();
+  
+  struct { const C& a; } agg = { C() };
 }
 
 int& reference_return() {
@@ -136,3 +142,8 @@ void f(int &a) {
   (a = 10) = 20;
 }
 }
+
+// PR5590
+struct s0;
+struct s1 { struct s0 &s0; };
+void f0(s1 a) { s1 b = a; }

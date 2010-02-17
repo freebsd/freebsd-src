@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only %s
+// RUN: %clang_cc1 -fsyntax-only %s
 
 // Template argument deduction with template template parameters.
 template<typename T, template<T> class A> 
@@ -81,3 +81,20 @@ int array1[is_same<Replace<const _1, int, float>::type, const int>::value? 1 : -
 int array2[is_same<Replace<vector<_1>, int, float>::type, vector<int> >::value? 1 : -1];
 int array3[is_same<Replace<vector<const _1>, int, float>::type, vector<const int> >::value? 1 : -1];
 int array4[is_same<Replace<vector<int, _2>, double, float>::type, vector<int, float> >::value? 1 : -1];
+
+// PR5911
+template <typename T, int N> void f(const T (&a)[N]);
+int iarr[] = { 1 };
+void test_PR5911() { f(iarr); }
+
+// Must not examine base classes of incomplete type during template argument
+// deduction.
+namespace PR6257 {
+  template <typename T> struct X {
+    template <typename U> X(const X<U>& u);
+  };
+  struct A;
+  void f(A& a);
+  void f(const X<A>& a);
+  void test(A& a) { (void)f(a); }
+}

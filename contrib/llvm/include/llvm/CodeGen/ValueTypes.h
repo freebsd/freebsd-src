@@ -47,34 +47,35 @@ namespace llvm {
       f80            =   9,   // This is a 80 bit floating point value
       f128           =  10,   // This is a 128 bit floating point value
       ppcf128        =  11,   // This is a PPC 128-bit floating point value
-      Flag           =  12,   // This is a condition code or machine flag.
 
-      isVoid         =  13,   // This has no value
+      v2i8           =  12,   //  2 x i8
+      v4i8           =  13,   //  4 x i8
+      v8i8           =  14,   //  8 x i8
+      v16i8          =  15,   // 16 x i8
+      v32i8          =  16,   // 32 x i8
+      v2i16          =  17,   //  2 x i16
+      v4i16          =  18,   //  4 x i16
+      v8i16          =  19,   //  8 x i16
+      v16i16         =  20,   // 16 x i16
+      v2i32          =  21,   //  2 x i32
+      v4i32          =  22,   //  4 x i32
+      v8i32          =  23,   //  8 x i32
+      v1i64          =  24,   //  1 x i64
+      v2i64          =  25,   //  2 x i64
+      v4i64          =  26,   //  4 x i64
 
-      v2i8           =  14,   //  2 x i8
-      v4i8           =  15,   //  4 x i8
-      v8i8           =  16,   //  8 x i8
-      v16i8          =  17,   // 16 x i8
-      v32i8          =  18,   // 32 x i8
-      v2i16          =  19,   //  2 x i16
-      v4i16          =  20,   //  4 x i16
-      v8i16          =  21,   //  8 x i16
-      v16i16         =  22,   // 16 x i16
-      v2i32          =  23,   //  2 x i32
-      v4i32          =  24,   //  4 x i32
-      v8i32          =  25,   //  8 x i32
-      v1i64          =  26,   //  1 x i64
-      v2i64          =  27,   //  2 x i64
-      v4i64          =  28,   //  4 x i64
-
-      v2f32          =  29,   //  2 x f32
-      v4f32          =  30,   //  4 x f32
-      v8f32          =  31,   //  8 x f32
-      v2f64          =  32,   //  2 x f64
-      v4f64          =  33,   //  4 x f64
+      v2f32          =  27,   //  2 x f32
+      v4f32          =  28,   //  4 x f32
+      v8f32          =  29,   //  8 x f32
+      v2f64          =  30,   //  2 x f64
+      v4f64          =  31,   //  4 x f64
 
       FIRST_VECTOR_VALUETYPE = v2i8,
       LAST_VECTOR_VALUETYPE  = v4f64,
+
+      Flag           =  32,   // This glues nodes together during pre-RA sched
+
+      isVoid         =  33,   // This has no value
 
       LAST_VALUETYPE =  34,   // This always remains at the end of the list.
 
@@ -148,7 +149,7 @@ namespace llvm {
               SimpleTy <= MVT::LAST_VECTOR_VALUETYPE);
     }
     
-    /// isPow2VectorType - Retuns true if the given vector is a power of 2.
+    /// isPow2VectorType - Returns true if the given vector is a power of 2.
     bool isPow2VectorType() const {
       unsigned NElts = getVectorNumElements();
       return !(NElts & (NElts - 1));
@@ -165,6 +166,12 @@ namespace llvm {
       else {
         return *this;
       }
+    }
+
+    /// getScalarType - If this is a vector type, return the element type,
+    /// otherwise return this.
+    MVT getScalarType() const {
+      return isVector() ? getVectorElementType() : *this;
     }
     
     MVT getVectorElementType() const {
@@ -430,25 +437,17 @@ namespace llvm {
 
     /// isFloatingPoint - Return true if this is a FP, or a vector FP type.
     bool isFloatingPoint() const {
-      return isSimple() ?
-             ((V >= MVT::f32 && V <= MVT::ppcf128) ||
-              (V >= MVT::v2f32 && V <= MVT::v4f64)) : isExtendedFloatingPoint();
+      return isSimple() ? V.isFloatingPoint() : isExtendedFloatingPoint();
     }
 
     /// isInteger - Return true if this is an integer, or a vector integer type.
     bool isInteger() const {
-      return isSimple() ?
-             ((V >= MVT::FIRST_INTEGER_VALUETYPE &&
-               V <= MVT::LAST_INTEGER_VALUETYPE) ||
-              (V >= MVT::v2i8 && V <= MVT::v4i64)) : isExtendedInteger();
+      return isSimple() ? V.isInteger() : isExtendedInteger();
     }
 
     /// isVector - Return true if this is a vector value type.
     bool isVector() const {
-      return isSimple() ?
-             (V >= MVT::FIRST_VECTOR_VALUETYPE && V <= 
-                   MVT::LAST_VECTOR_VALUETYPE) :
-             isExtendedVector();
+      return isSimple() ? V.isVector() : isExtendedVector();
     }
 
     /// is64BitVector - Return true if this is a 64-bit vector type.
@@ -493,26 +492,31 @@ namespace llvm {
 
     /// bitsEq - Return true if this has the same number of bits as VT.
     bool bitsEq(EVT VT) const {
+      if (EVT::operator==(VT)) return true;
       return getSizeInBits() == VT.getSizeInBits();
     }
 
     /// bitsGT - Return true if this has more bits than VT.
     bool bitsGT(EVT VT) const {
+      if (EVT::operator==(VT)) return false;
       return getSizeInBits() > VT.getSizeInBits();
     }
 
     /// bitsGE - Return true if this has no less bits than VT.
     bool bitsGE(EVT VT) const {
+      if (EVT::operator==(VT)) return true;
       return getSizeInBits() >= VT.getSizeInBits();
     }
 
     /// bitsLT - Return true if this has less bits than VT.
     bool bitsLT(EVT VT) const {
+      if (EVT::operator==(VT)) return false;
       return getSizeInBits() < VT.getSizeInBits();
     }
 
     /// bitsLE - Return true if this has no more bits than VT.
     bool bitsLE(EVT VT) const {
+      if (EVT::operator==(VT)) return true;
       return getSizeInBits() <= VT.getSizeInBits();
     }
 
@@ -524,6 +528,12 @@ namespace llvm {
       return V;
     }
 
+    /// getScalarType - If this is a vector type, return the element type,
+    /// otherwise return this.
+    EVT getScalarType() const {
+      return isVector() ? getVectorElementType() : *this;
+    }
+    
     /// getVectorElementType - Given a vector type, return the type of
     /// each element.
     EVT getVectorElementType() const {
@@ -576,7 +586,25 @@ namespace llvm {
         return getIntegerVT(Context, 1 << Log2_32_Ceil(BitWidth));
     }
 
-    /// isPow2VectorType - Retuns true if the given vector is a power of 2.
+    /// getHalfSizedIntegerVT - Finds the smallest simple value type that is
+    /// greater than or equal to half the width of this EVT. If no simple
+    /// value type can be found, an extended integer value type of half the
+    /// size (rounded up) is returned.
+    EVT getHalfSizedIntegerVT(LLVMContext &Context) const {
+      assert(isInteger() && !isVector() && "Invalid integer type!");
+      unsigned EVTSize = getSizeInBits();
+      for (unsigned IntVT = MVT::FIRST_INTEGER_VALUETYPE;
+          IntVT <= MVT::LAST_INTEGER_VALUETYPE;
+          ++IntVT) {
+        EVT HalfVT = EVT((MVT::SimpleValueType)IntVT);
+        if(HalfVT.getSizeInBits() * 2 >= EVTSize) { 
+          return HalfVT;
+        }
+      }
+      return getIntegerVT(Context, (EVTSize + 1) / 2);
+    }
+
+    /// isPow2VectorType - Returns true if the given vector is a power of 2.
     bool isPow2VectorType() const {
       unsigned NElts = getVectorNumElements();
       return !(NElts & (NElts - 1));
@@ -610,7 +638,7 @@ namespace llvm {
     static EVT getEVT(const Type *Ty, bool HandleUnknown = false);
 
     intptr_t getRawBits() {
-      if (V.SimpleTy <= MVT::LastSimpleValueType)
+      if (isSimple())
         return V.SimpleTy;
       else
         return (intptr_t)(LLVMTy);

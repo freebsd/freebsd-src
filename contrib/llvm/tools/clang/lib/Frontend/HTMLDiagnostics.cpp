@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/PathDiagnosticClients.h"
-#include "clang/Analysis/PathDiagnostic.h"
+#include "clang/Checker/BugReporter/PathDiagnostic.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/Basic/SourceManager.h"
@@ -21,7 +21,6 @@
 #include "clang/Rewrite/HTMLRewrite.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/Preprocessor.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
@@ -34,7 +33,7 @@ using namespace clang;
 
 namespace {
 
-class VISIBILITY_HIDDEN HTMLDiagnostics : public PathDiagnosticClient {
+class HTMLDiagnostics : public PathDiagnosticClient {
   llvm::sys::Path Directory, FilePrefix;
   bool createdDir, noDir;
   const Preprocessor &PP;
@@ -350,10 +349,10 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
 
   const char *Kind = 0;
   switch (P.getKind()) {
-    case PathDiagnosticPiece::Event:  Kind = "Event"; break;
-    case PathDiagnosticPiece::ControlFlow: Kind = "Control"; break;
-      // Setting Kind to "Control" is intentional.
-    case PathDiagnosticPiece::Macro: Kind = "Control"; break;
+  case PathDiagnosticPiece::Event:  Kind = "Event"; break;
+  case PathDiagnosticPiece::ControlFlow: Kind = "Control"; break;
+    // Setting Kind to "Control" is intentional.
+  case PathDiagnosticPiece::Macro: Kind = "Control"; break;
   }
 
   std::string sbuf;
@@ -381,14 +380,14 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
 
     for (std::string::const_iterator I=Msg.begin(), E=Msg.end(); I!=E; ++I)
       switch (*I) {
-        default:
-          ++cnt;
-          continue;
-        case ' ':
-        case '\t':
-        case '\n':
-          if (cnt > max_token) max_token = cnt;
-          cnt = 0;
+      default:
+        ++cnt;
+        continue;
+      case ' ':
+      case '\t':
+      case '\n':
+        if (cnt > max_token) max_token = cnt;
+        cnt = 0;
       }
 
     if (cnt > max_token)

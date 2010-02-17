@@ -33,6 +33,7 @@ const char *Triple::getArchTypeName(ArchType Kind) {
   case ppc64:   return "powerpc64";
   case ppc:     return "powerpc";
   case sparc:   return "sparc";
+  case sparcv9: return "sparcv9";
   case systemz: return "s390x";
   case tce:     return "tce";
   case thumb:   return "thumb";
@@ -61,6 +62,7 @@ const char *Triple::getArchTypePrefix(ArchType Kind) {
   case ppc64:
   case ppc:     return "ppc";
 
+  case sparcv9:
   case sparc:   return "sparc";
 
   case x86:
@@ -90,6 +92,7 @@ const char *Triple::getOSTypeName(OSType Kind) {
   case DragonFly: return "dragonfly";
   case FreeBSD: return "freebsd";
   case Linux: return "linux";
+  case Lv2: return "lv2";
   case MinGW32: return "mingw32";
   case MinGW64: return "mingw64";
   case NetBSD: return "netbsd";
@@ -126,6 +129,8 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
     return ppc;
   if (Name == "sparc")
     return sparc;
+  if (Name == "sparcv9")
+    return sparcv9;
   if (Name == "systemz")
     return systemz;
   if (Name == "tce")
@@ -227,7 +232,7 @@ void Triple::Parse() const {
     Arch = pic16;
   else if (ArchName == "powerpc")
     Arch = ppc;
-  else if (ArchName == "powerpc64")
+  else if ((ArchName == "powerpc64") || (ArchName == "ppu"))
     Arch = ppc64;
   else if (ArchName == "arm" ||
            ArchName.startswith("armv") ||
@@ -249,6 +254,8 @@ void Triple::Parse() const {
     Arch = mipsel;
   else if (ArchName == "sparc")
     Arch = sparc;
+  else if (ArchName == "sparcv9")
+    Arch = sparcv9;
   else if (ArchName == "s390x")
     Arch = systemz;
   else if (ArchName == "tce")
@@ -293,6 +300,8 @@ void Triple::Parse() const {
     OS = FreeBSD;
   else if (OSName.startswith("linux"))
     OS = Linux;
+  else if (OSName.startswith("lv2"))
+    OS = Lv2;
   else if (OSName.startswith("mingw32"))
     OS = MinGW32;
   else if (OSName.startswith("mingw64"))

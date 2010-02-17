@@ -62,6 +62,7 @@ public:
   std::string AnalyzeSpecificFunction;
   unsigned AnalyzeAll : 1;
   unsigned AnalyzerDisplayProgress : 1;
+  unsigned AnalyzeNestedBlocks : 1;
   unsigned EagerlyAssume : 1;
   unsigned PurgeDead : 1;
   unsigned TrimGraph : 1;
@@ -76,8 +77,9 @@ public:
     AnalysisDiagOpt = PD_HTML;
     AnalyzeAll = 0;
     AnalyzerDisplayProgress = 0;
+    AnalyzeNestedBlocks = 0;
     EagerlyAssume = 0;
-    PurgeDead = 0;
+    PurgeDead = 1;
     TrimGraph = 0;
     VisualizeEGDot = 0;
     VisualizeEGUbi = 0;

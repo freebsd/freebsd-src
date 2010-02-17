@@ -3,30 +3,32 @@ set(LLVM_NO_RTTI 1)
 add_clang_library(clangCodeGen
   CGBlocks.cpp
   CGBuiltin.cpp
-  CGCXX.cpp
-  CGCXXClass.cpp
-  CGCXXExpr.cpp
-  CGCXXTemp.cpp
   CGCall.cpp
+  CGClass.cpp
+  CGCXX.cpp
   CGDebugInfo.cpp
   CGDecl.cpp
+  CGDeclCXX.cpp
   CGException.cpp
   CGExpr.cpp
   CGExprAgg.cpp
   CGExprComplex.cpp
   CGExprConstant.cpp
+  CGExprCXX.cpp
   CGExprScalar.cpp
   CGObjC.cpp
   CGObjCGNU.cpp
   CGObjCMac.cpp
   CGRecordLayoutBuilder.cpp
-  CGRtti.cpp
+  CGRTTI.cpp
   CGStmt.cpp
+  CGTemporaries.cpp
   CGVtable.cpp
+  CGVTT.cpp
   CodeGenFunction.cpp
   CodeGenModule.cpp
   CodeGenTypes.cpp
   Mangle.cpp
   ModuleBuilder.cpp
-  TargetABIInfo.cpp
+  TargetInfo.cpp
   )

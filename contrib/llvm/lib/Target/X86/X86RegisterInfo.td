@@ -195,6 +195,36 @@ let Namespace = "X86" in {
   def ES : Register<"es">;
   def FS : Register<"fs">;
   def GS : Register<"gs">;
+  
+  // Debug registers
+  def DR0 : Register<"dr0">;
+  def DR1 : Register<"dr1">;
+  def DR2 : Register<"dr2">;
+  def DR3 : Register<"dr3">;
+  def DR4 : Register<"dr4">;
+  def DR5 : Register<"dr5">;
+  def DR6 : Register<"dr6">;
+  def DR7 : Register<"dr7">;
+  
+  // Condition registers
+  def ECR0 : Register<"ecr0">;
+  def ECR1 : Register<"ecr1">;
+  def ECR2 : Register<"ecr2">;
+  def ECR3 : Register<"ecr3">;
+  def ECR4 : Register<"ecr4">;
+  def ECR5 : Register<"ecr5">;
+  def ECR6 : Register<"ecr6">;
+  def ECR7 : Register<"ecr7">;
+
+  def RCR0 : Register<"rcr0">;
+  def RCR1 : Register<"rcr1">;
+  def RCR2 : Register<"rcr2">;
+  def RCR3 : Register<"rcr3">;
+  def RCR4 : Register<"rcr4">;
+  def RCR5 : Register<"rcr5">;
+  def RCR6 : Register<"rcr6">;
+  def RCR7 : Register<"rcr7">;
+  def RCR8 : Register<"rcr8">; 
 }
 
 
@@ -446,6 +476,22 @@ def GR64 : RegisterClass<"X86", [i64], 64,
 def SEGMENT_REG : RegisterClass<"X86", [i16], 16, [CS, DS, SS, ES, FS, GS]> {
 }
 
+// Debug registers.
+def DEBUG_REG : RegisterClass<"X86", [i32], 32, 
+                              [DR0, DR1, DR2, DR3, DR4, DR5, DR6, DR7]> {
+}
+
+// Control registers.
+def CONTROL_REG_32 : RegisterClass<"X86", [i32], 32,
+                                   [ECR0, ECR1, ECR2, ECR3, ECR4, ECR5, ECR6,
+                                    ECR7]> {
+}
+
+def CONTROL_REG_64 : RegisterClass<"X86", [i64], 64,
+                                   [RCR0, RCR1, RCR2, RCR3, RCR4, RCR5, RCR6,
+                                    RCR7, RCR8]> {
+}
+
 // GR8_ABCD_L, GR8_ABCD_H, GR16_ABCD, GR32_ABCD, GR64_ABCD - Subclasses of
 // GR8, GR16, GR32, and GR64 which contain just the "a" "b", "c", and "d"
 // registers. On x86-32, GR16_ABCD and GR32_ABCD are classes for registers
@@ -466,20 +512,17 @@ def GR64_ABCD : RegisterClass<"X86", [i64], 64, [RAX, RCX, RDX, RBX]> {
   let SubRegClassList = [GR8_ABCD_L, GR8_ABCD_H, GR16_ABCD, GR32_ABCD];
 }
 
-// GR8_NOREX, GR16_NOREX, GR32_NOREX, GR64_NOREX - Subclasses of
-// GR8, GR16, GR32, and GR64 which contain only the first 8 GPRs.
-// On x86-64, GR64_NOREX, GR32_NOREX and GR16_NOREX are the classes
-// of registers which do not by themselves require a REX prefix.
+// GR8_NOREX - GR8 registers which do not require a REX prefix.
 def GR8_NOREX : RegisterClass<"X86", [i8], 8,
-                              [AL, CL, DL, AH, CH, DH, BL, BH,
-                               SIL, DIL, BPL, SPL]> {
+                              [AL, CL, DL, AH, CH, DH, BL, BH]> {
   let MethodProtos = [{
     iterator allocation_order_begin(const MachineFunction &MF) const;
     iterator allocation_order_end(const MachineFunction &MF) const;
   }];
   let MethodBodies = [{
+    // In 64-bit mode, it's not safe to blindly allocate H registers.
     static const unsigned X86_GR8_NOREX_AO_64[] = {
-      X86::AL, X86::CL, X86::DL, X86::SIL, X86::DIL, X86::BL, X86::BPL
+      X86::AL, X86::CL, X86::DL, X86::BL
     };
 
     GR8_NOREXClass::iterator
@@ -495,21 +538,15 @@ def GR8_NOREX : RegisterClass<"X86", [i8], 8,
     GR8_NOREXClass::iterator
     GR8_NOREXClass::allocation_order_end(const MachineFunction &MF) const {
       const TargetMachine &TM = MF.getTarget();
-      const TargetRegisterInfo *RI = TM.getRegisterInfo();
       const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      // Does the function dedicate RBP / EBP to being a frame ptr?
-      if (!Subtarget.is64Bit())
-        // In 32-mode, none of the 8-bit registers aliases EBP or ESP.
-        return begin() + 8;
-      else if (RI->hasFP(MF))
-        // If so, don't allocate SPL or BPL.
-        return array_endof(X86_GR8_NOREX_AO_64) - 1;
-      else
-        // If not, just don't allocate SPL.
+      if (Subtarget.is64Bit())
         return array_endof(X86_GR8_NOREX_AO_64);
+      else
+        return end();
     }
   }];
 }
+// GR16_NOREX - GR16 registers which do not require a REX prefix.
 def GR16_NOREX : RegisterClass<"X86", [i16], 16,
                                [AX, CX, DX, SI, DI, BX, BP, SP]> {
   let SubRegClassList = [GR8_NOREX, GR8_NOREX];
@@ -661,7 +698,8 @@ def GR64_NOREX_NOSP : RegisterClass<"X86", [i64], 64,
   }];
   let MethodBodies = [{
     GR64_NOREX_NOSPClass::iterator
-    GR64_NOREX_NOSPClass::allocation_order_end(const MachineFunction &MF) const {
+    GR64_NOREX_NOSPClass::allocation_order_end(const MachineFunction &MF) const
+  {
       const TargetMachine &TM = MF.getTarget();
       const TargetRegisterInfo *RI = TM.getRegisterInfo();
       // Does the function dedicate RBP to being a frame ptr?

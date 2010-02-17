@@ -15,8 +15,12 @@ def err_fe_error_reading_stdin : Error<"error reading stdin">;
 def err_fe_error_backend : Error<"error in backend: %0">, DefaultFatal;
 def err_fe_invalid_ast_file : Error<"invalid AST file: '%0'">, DefaultFatal;
 def err_fe_invalid_ast_action : Error<"invalid action for AST input">, DefaultFatal;
-def err_fe_invalid_code_complete_file
-  : Error<"cannot locate code-completion file %0">, DefaultFatal;
+def err_fe_invalid_code_complete_file : Error<
+    "cannot locate code-completion file %0">, DefaultFatal;
+def err_fe_stdout_binary : Error<"unable to change standard output to binary">,
+  DefaultFatal;
+def err_fe_stderr_binary : Error<"unable to change standard error to binary">,
+  DefaultFatal;
 def err_fe_dependency_file_requires_MT : Error<
     "-dependency-file requires at least one -MT option">;
 def err_fe_incompatible_options : Error<
@@ -27,6 +31,36 @@ def err_fe_unable_to_find_fixit_file : Error<
     "FIX-IT could not find file '%0'">;
 def err_fe_invalid_plugin_name : Error<
     "unable to find plugin '%0'">;
+def err_fe_expected_compiler_job : Error<
+    "unable to handle compilation, expected exactly one compiler job in '%0'">;
+def err_fe_expected_clang_command : Error<
+    "expected a clang compiler command">;
+def err_fe_remap_missing_to_file : Error<
+    "could not remap file '%0' to the contents of file '%1'">, DefaultFatal;
+def err_fe_remap_missing_from_file : Error<
+    "could not remap from missing file '%0'">, DefaultFatal;
+def err_fe_unable_to_load_pch : Error<
+    "unable to load PCH file">;
+def err_fe_unable_to_load_plugin : Error<
+    "unable to load plugin '%0': '%1'">;
+def err_fe_unable_to_create_target : Error<
+    "unable to create target: '%0'">;
+def err_fe_unable_to_interface_with_target : Error<
+    "unable to interface with target machine">;
+def err_fe_unable_to_read_pch_file : Error<
+    "unable to read PCH file: '%0'">;
+def err_fe_not_a_pch_file : Error<
+    "input is not a PCH file: '%0'">;
+def err_fe_pch_malformed_block : Error<
+    "malformed block record in PCH file: '%0'">;
+def err_fe_pch_error_at_end_block : Error<
+    "error at end of module block in PCH file: '%0'">;
+def err_fe_unable_to_open_output : Error<
+    "unable to open output file '%0': '%1'">;
+def err_fe_pth_file_has_no_source_header : Error<
+    "PTH file '%0' does not designate an original source header file for -include-pth">;
+def warn_fe_macro_contains_embedded_newline : Warning<
+    "macro '%0' contains embedded newline, text after the newline is ignored.">;
 
 def err_verify_bogus_characters : Error<
     "bogus characters before '{{' in expected string">;
@@ -43,8 +77,12 @@ def note_fixit_in_macro : Note<
 def note_fixit_failed : Note<
     "FIX-IT unable to apply suggested code changes">;
 def note_fixit_unfixed_error : Note<"FIX-IT detected an error it cannot fix">;
+def note_fixit_main_file_unchanged : Note<
+    "main file unchanged">;
 def warn_fixit_no_changes : Note<
     "FIX-IT detected errors it could not fix; no output will be generated">;
+
+def err_fe_clang : Error<"error invoking%s: %s">, DefaultFatal;
 
 // PCH reader
 def err_relocatable_without_without_isysroot : Error<
@@ -71,6 +109,10 @@ def warn_pch_objective_c2 : Error<
 def warn_pch_nonfragile_abi : Error<
     "PCH file was compiled with the %select{32-bit|non-fragile}0 Objective-C "
     "ABI but the %select{32-bit|non-fragile}1 Objective-C ABI is selected">;
+def warn_pch_nonfragile_abi2 : Error<
+    "PCH file was compiled with the %select{32-bit|enhanced non-fragile}0 "
+    "Objective-C ABI but the %select{32-bit|enhanced non-fragile}1 "
+    "Objective-C ABI is selected">;
 def warn_pch_extensions : Error<
     "extensions were %select{enabled|disabled}0 in PCH file but are "
     "currently %select{enabled|disabled}1">;
@@ -97,6 +139,9 @@ def warn_pch_elide_constructors : Error<
     "but are currently %select{disabled|enabled}1">;
 def warn_pch_exceptions : Error<
     "exceptions were %select{disabled|enabled}0 in PCH file but "
+    "are currently %select{disabled|enabled}1">;
+def warn_pch_sjlj_exceptions : Error<
+    "sjlj-exceptions were %select{disabled|enabled}0 in PCH file but "
     "are currently %select{disabled|enabled}1">;
 def warn_pch_objc_runtime : Error<
     "PCH file was compiled with the %select{NeXT|GNU}0 runtime but the "
@@ -184,5 +229,8 @@ def err_not_a_pch_file : Error<
     "'%0' does not appear to be a precompiled header file">, DefaultFatal;
 def warn_unknown_warning_option : Warning<
     "unknown warning option '%0'">,
+    InGroup<DiagGroup<"unknown-warning-option"> >;
+def warn_unknown_warning_specifier : Warning<
+    "unknown %0 warning specifier: '%1'">,
     InGroup<DiagGroup<"unknown-warning-option"> >;
 }

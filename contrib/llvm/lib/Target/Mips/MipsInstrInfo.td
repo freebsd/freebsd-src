@@ -28,8 +28,8 @@ def SDT_MipsCallSeqStart : SDCallSeqStart<[SDTCisVT<0, i32>]>;
 def SDT_MipsCallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
 
 // Call
-def MipsJmpLink : SDNode<"MipsISD::JmpLink",SDT_MipsJmpLink, [SDNPHasChain,
-                         SDNPOutFlag]>;
+def MipsJmpLink : SDNode<"MipsISD::JmpLink",SDT_MipsJmpLink, 
+                         [SDNPHasChain, SDNPOutFlag, SDNPOptInFlag]>;
 
 // Hi and Lo nodes are used to handle global addresses. Used on 
 // MipsISelLowering to lower stuff like GlobalAddress, ExternalSymbol 
@@ -120,7 +120,7 @@ def immZExt5 : PatLeaf<(imm), [{
 
 // Mips Address Mode! SDNode frameindex could possibily be a match
 // since load and store instructions from stack used it.
-def addr : ComplexPattern<i32, 2, "SelectAddr", [frameindex], []>;
+def addr : ComplexPattern<iPTR, 2, "SelectAddr", [frameindex], []>;
 
 //===----------------------------------------------------------------------===//
 // Instructions specific format
@@ -306,7 +306,7 @@ let isCall=1, hasDelaySlot=1,
   class JumpLink<bits<6> op, string instr_asm>:
     FJ< op,
         (outs),
-        (ins calltarget:$target),
+        (ins calltarget:$target, variable_ops),
         !strconcat(instr_asm, "\t$target"),
         [(MipsJmpLink imm:$target)], IIBranch>;
 
@@ -315,14 +315,14 @@ let isCall=1, hasDelaySlot=1,
     FR< op,
         func,
         (outs),
-        (ins CPURegs:$rs),
+        (ins CPURegs:$rs, variable_ops),
         !strconcat(instr_asm, "\t$rs"),
         [(MipsJmpLink CPURegs:$rs)], IIBranch>;
 
   class BranchLink<string instr_asm>:
     FI< 0x1,
         (outs),
-        (ins CPURegs:$rs, brtarget:$target),
+        (ins CPURegs:$rs, brtarget:$target, variable_ops),
         !strconcat(instr_asm, "\t$rs, $target"),
         [], IIBranch>;
 }

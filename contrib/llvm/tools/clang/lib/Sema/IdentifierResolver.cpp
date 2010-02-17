@@ -14,8 +14,6 @@
 
 #include "IdentifierResolver.h"
 #include "clang/Basic/LangOptions.h"
-#include <list>
-#include <vector>
 
 using namespace clang;
 
@@ -27,14 +25,31 @@ using namespace clang;
 /// Allocates 'pools' (vectors of IdDeclInfos) to avoid allocating each
 /// individual IdDeclInfo to heap.
 class IdentifierResolver::IdDeclInfoMap {
-  static const unsigned int VECTOR_SIZE = 512;
-  // Holds vectors of IdDeclInfos that serve as 'pools'.
-  // New vectors are added when the current one is full.
-  std::list< std::vector<IdDeclInfo> > IDIVecs;
+  static const unsigned int POOL_SIZE = 512;
+
+  /// We use our own linked-list implementation because it is sadly
+  /// impossible to add something to a pre-C++0x STL container without
+  /// a completely unnecessary copy.
+  struct IdDeclInfoPool {
+    IdDeclInfoPool(IdDeclInfoPool *Next) : Next(Next) {}
+    
+    IdDeclInfoPool *Next;
+    IdDeclInfo Pool[POOL_SIZE];
+  };
+  
+  IdDeclInfoPool *CurPool;
   unsigned int CurIndex;
 
 public:
-  IdDeclInfoMap() : CurIndex(VECTOR_SIZE) {}
+  IdDeclInfoMap() : CurPool(0), CurIndex(POOL_SIZE) {}
+
+  ~IdDeclInfoMap() {
+    IdDeclInfoPool *Cur = CurPool;
+    while (IdDeclInfoPool *P = Cur) {
+      Cur = Cur->Next;
+      delete P;
+    }
+  }
 
   /// Returns the IdDeclInfo associated to the DeclarationName.
   /// It creates a new IdDeclInfo if one was not created before for this id.
@@ -45,22 +60,6 @@ public:
 //===----------------------------------------------------------------------===//
 // IdDeclInfo Implementation
 //===----------------------------------------------------------------------===//
-
-/// AddShadowed - Add a decl by putting it directly above the 'Shadow' decl.
-/// Later lookups will find the 'Shadow' decl first. The 'Shadow' decl must
-/// be already added to the scope chain and must be in the same context as
-/// the decl that we want to add.
-void IdentifierResolver::IdDeclInfo::AddShadowed(NamedDecl *D,
-                                                 NamedDecl *Shadow) {
-  for (DeclsTy::iterator I = Decls.end(); I != Decls.begin(); --I) {
-    if (Shadow == *(I-1)) {
-      Decls.insert(I-1, D);
-      return;
-    }
-  }
-
-  assert(0 && "Shadow wasn't in scope chain!");
-}
 
 /// RemoveDecl - Remove the decl from the scope chain.
 /// The decl must already be part of the decl chain.
@@ -160,32 +159,6 @@ void IdentifierResolver::AddDecl(NamedDecl *D) {
   IDI->AddDecl(D);
 }
 
-/// AddShadowedDecl - Link the decl to its shadowed decl chain putting it
-/// after the decl that the iterator points to, thus the 'Shadow' decl will be
-/// encountered before the 'D' decl.
-void IdentifierResolver::AddShadowedDecl(NamedDecl *D, NamedDecl *Shadow) {
-  assert(D->getDeclName() == Shadow->getDeclName() && "Different ids!");
-
-  DeclarationName Name = D->getDeclName();
-  void *Ptr = Name.getFETokenInfo<void>();
-  assert(Ptr && "No decl from Ptr ?");
-
-  IdDeclInfo *IDI;
-
-  if (isDeclPtr(Ptr)) {
-    Name.setFETokenInfo(NULL);
-    IDI = &(*IdDeclInfos)[Name];
-    NamedDecl *PrevD = static_cast<NamedDecl*>(Ptr);
-    assert(PrevD == Shadow && "Invalid shadow decl ?");
-    IDI->AddDecl(D);
-    IDI->AddDecl(PrevD);
-    return;
-  }
-
-  IDI = toIdDeclInfo(Ptr);
-  IDI->AddShadowed(D, Shadow);
-}
-
 /// RemoveDecl - Unlink the decl from its shadowed decl chain.
 /// The decl must already be part of the decl chain.
 void IdentifierResolver::RemoveDecl(NamedDecl *D) {
@@ -277,14 +250,11 @@ IdentifierResolver::IdDeclInfoMap::operator[](DeclarationName Name) {
 
   if (Ptr) return *toIdDeclInfo(Ptr);
 
-  if (CurIndex == VECTOR_SIZE) {
-    // Add a IdDeclInfo vector 'pool'
-    IDIVecs.push_back(std::vector<IdDeclInfo>());
-    // Fill the vector
-    IDIVecs.back().resize(VECTOR_SIZE);
+  if (CurIndex == POOL_SIZE) {
+    CurPool = new IdDeclInfoPool(CurPool);
     CurIndex = 0;
   }
-  IdDeclInfo *IDI = &IDIVecs.back()[CurIndex];
+  IdDeclInfo *IDI = &CurPool->Pool[CurIndex];
   Name.setFETokenInfo(reinterpret_cast<void*>(
                               reinterpret_cast<uintptr_t>(IDI) | 0x1)
                                                                      );

@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -pedantic -verify %s
+// RUN: %clang_cc1 -fsyntax-only -pedantic -verify %s
 
 void f() {
   typedef int T;
@@ -24,3 +24,43 @@ void f() {
   // FIXME: Special case: "++" is postfix here, not prefix
   // (S())++;
 }
+
+// Make sure we do tentative parsing correctly in conditions.
+typedef int type;
+struct rec { rec(int); };
+
+namespace ns {
+  typedef int type;
+  struct rec { rec(int); };
+}
+
+struct cls {
+  typedef int type;
+  struct rec { rec(int); };
+};
+
+struct result {
+  template <class T> result(T);
+  bool check();
+};
+
+void test(int i) {
+  if (result((cls::type) i).check())
+    return;
+
+  if (result((ns::type) i).check())
+    return;
+
+  if (result((::type) i).check())
+    return;
+
+  if (result((cls::rec) i).check())
+    return;
+
+  if (result((ns::rec) i).check())
+    return;
+
+  if (result((::rec) i).check())
+    return;
+}
+

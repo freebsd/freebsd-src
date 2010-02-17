@@ -30,7 +30,7 @@ namespace clang {
     /// designed for the previous version could not support reading
     /// the new version), this number should be increased.
     ///
-    /// Version 3 of PCH files also requires that the Subversion branch and
+    /// Version 3 of PCH files also requires that the version control branch and
     /// revision match exactly, since there is no backward compatibility of
     /// PCH files at this time.
     const unsigned VERSION_MAJOR = 3;
@@ -219,9 +219,13 @@ namespace clang {
       /// comments were encountered in the source code.
       COMMENT_RANGES = 20,
       
-      /// \brief Record code for the Subversion branch and revision information
-      /// of the compiler used to build this PCH file.
-      SVN_BRANCH_REVISION = 21
+      /// \brief Record code for the version control branch and revision
+      /// information of the compiler used to build this PCH file.
+      VERSION_CONTROL_BRANCH_REVISION = 21,
+      
+      /// \brief Record code for the array of unused static functions.
+      UNUSED_STATIC_FUNCS = 22
+      
     };
 
     /// \brief Record types used within a source manager block.
@@ -336,7 +340,9 @@ namespace clang {
       /// \brief The ObjC 'id' type.
       PREDEF_TYPE_OBJC_ID       = 26,
       /// \brief The ObjC 'Class' type.
-      PREDEF_TYPE_OBJC_CLASS    = 27
+      PREDEF_TYPE_OBJC_CLASS    = 27,
+      /// \brief The ObjC 'SEL' type.
+      PREDEF_TYPE_OBJC_SEL    = 28
     };
 
     /// \brief The number of predefined type IDs that are reserved for
@@ -355,8 +361,6 @@ namespace clang {
     enum TypeCode {
       /// \brief An ExtQualType record.
       TYPE_EXT_QUAL                 = 1,
-      /// \brief A FixedWidthIntType record.
-      TYPE_FIXED_WIDTH_INT          = 2,
       /// \brief A ComplexType record.
       TYPE_COMPLEX                  = 3,
       /// \brief A PointerType record.
@@ -402,7 +406,9 @@ namespace clang {
       /// \brief An ElaboratedType record.
       TYPE_ELABORATED               = 24,
       /// \brief A SubstTemplateTypeParmType record.
-      TYPE_SUBST_TEMPLATE_TYPE_PARM = 25
+      TYPE_SUBST_TEMPLATE_TYPE_PARM = 25,
+      /// \brief An UnresolvedUsingType record.
+      TYPE_UNRESOLVED_USING         = 26
     };
 
     /// \brief The type IDs for special types constructed by semantic
@@ -438,7 +444,9 @@ namespace clang {
       /// \brief Block descriptor type for Blocks CodeGen
       SPECIAL_TYPE_BLOCK_DESCRIPTOR            = 12,
       /// \brief Block extedned descriptor type for Blocks CodeGen
-      SPECIAL_TYPE_BLOCK_EXTENDED_DESCRIPTOR   = 13
+      SPECIAL_TYPE_BLOCK_EXTENDED_DESCRIPTOR   = 13,
+      /// \brief Objective-C "SEL" redefinition type
+      SPECIAL_TYPE_OBJC_SEL_REDEFINITION       = 14
     };
 
     /// \brief Record codes for each kind of declaration.
@@ -672,7 +680,21 @@ namespace clang {
       /// \brief A CXXOperatorCallExpr record.
       EXPR_CXX_OPERATOR_CALL,
       /// \brief A CXXConstructExpr record.
-      EXPR_CXX_CONSTRUCT
+      EXPR_CXX_CONSTRUCT,
+      // \brief A CXXStaticCastExpr record.
+      EXPR_CXX_STATIC_CAST,
+      // \brief A CXXDynamicCastExpr record.
+      EXPR_CXX_DYNAMIC_CAST,
+      // \brief A CXXReinterpretCastExpr record.
+      EXPR_CXX_REINTERPRET_CAST,
+      // \brief A CXXConstCastExpr record.
+      EXPR_CXX_CONST_CAST,
+      // \brief A CXXFunctionalCastExpr record.
+      EXPR_CXX_FUNCTIONAL_CAST,
+      // \brief A CXXBoolLiteralExpr record.
+      EXPR_CXX_BOOL_LITERAL,
+      // \brief A CXXNullPtrLiteralExpr record.
+      EXPR_CXX_NULL_PTR_LITERAL
     };
 
     /// \brief The kinds of designators that can occur in a

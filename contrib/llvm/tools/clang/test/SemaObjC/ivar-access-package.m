@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 typedef unsigned char BOOL;
 
@@ -33,6 +33,8 @@ typedef unsigned char BOOL;
     return a->object == self;
 }
 @end
+
+void NSLog(id, ...);
 
 int main (int argc, const char * argv[]) {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];

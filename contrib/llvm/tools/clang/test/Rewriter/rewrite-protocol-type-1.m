@@ -1,4 +1,4 @@
-// RUN: clang-cc -rewrite-objc %s -o=-
+// RUN: %clang_cc1 -rewrite-objc %s -o -
 
 @protocol MyProto1 
 @end
@@ -22,3 +22,6 @@ INTF <MyProto1, MyProto2> * Func1(INTF *p2, INTF<MyProto1, MyProto2> *p3, INTF *
 	return p3;
 }
 
+@interface Foo
+@property int (*hashFunction)(const void *item, int (*size)(const void *item));
+@end

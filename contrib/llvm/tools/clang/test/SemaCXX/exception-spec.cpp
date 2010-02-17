@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify -fms-extensions %s
+// RUN: %clang_cc1 -fsyntax-only -verify -fms-extensions %s
 
 // Straight from the standard:
 // Plain function with spec
@@ -160,11 +160,11 @@ void fnptrs()
 
   // return types and arguments must match exactly, no inheritance allowed
   void (*(*t7)())() throw(B1) = &s8;       // valid
-  void (*(*t8)())() throw(A) = &s8;        // expected-error {{return types differ}} expected-error {{incompatible type}}
-  void (*(*t9)())() throw(D) = &s8;        // expected-error {{return types differ}} expected-error {{incompatible type}}
+  void (*(*t8)())() throw(A) = &s8;        // expected-error {{return types differ}}
+  void (*(*t9)())() throw(D) = &s8;        // expected-error {{return types differ}}
   void (*t10)(void (*)() throw(B1)) = &s9; // valid   expected-warning{{disambiguated}}
-  void (*t11)(void (*)() throw(A)) = &s9;  // expected-error {{argument types differ}} expected-error {{incompatible type}} expected-warning{{disambiguated}}
-  void (*t12)(void (*)() throw(D)) = &s9;  // expected-error {{argument types differ}} expected-error {{incompatible type}} expected-warning{{disambiguated}}
+  void (*t11)(void (*)() throw(A)) = &s9;  // expected-error {{argument types differ}} expected-warning{{disambiguated}}
+  void (*t12)(void (*)() throw(D)) = &s9;  // expected-error {{argument types differ}} expected-warning{{disambiguated}}
 }
 
 // Member function stuff
@@ -178,7 +178,7 @@ void mfnptr()
 {
   void (Str1::*pfn1)() throw(int) = &Str1::f; // valid
   void (Str1::*pfn2)() = &Str1::f; // valid
-  void (Str1::*pfn3)() throw() = &Str1::f; // expected-error {{not superset}} expected-error {{incompatible type}}
+  void (Str1::*pfn3)() throw() = &Str1::f; // expected-error {{not superset}}
 }
 
 // Don't suppress errors in template instantiation.
@@ -186,5 +186,18 @@ template <typename T> struct TEx; // expected-note {{template is declared here}}
 
 void tf() throw(TEx<int>); // expected-error {{implicit instantiation of undefined template}}
 
-// DR 437, class throws itself. FIXME: See Sema::CheckSpecifiedExceptionType.
-//struct DR437 { void f() throw(DR437); };
+// DR 437, class throws itself.
+struct DR437 {
+   void f() throw(DR437);
+   void g() throw(DR437*);
+   void h() throw(DR437&);
+};
+
+// DR 437 within a nested class
+struct DR437_out {
+   struct DR437_in {
+      void f() throw(DR437_out);
+      void g() throw(DR437_out*);
+      void h() throw(DR437_out&);
+   }; 
+};

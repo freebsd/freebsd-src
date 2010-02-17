@@ -20,20 +20,29 @@ using namespace clang;
 ///
 void TextDiagnosticBuffer::HandleDiagnostic(Diagnostic::Level Level,
                                             const DiagnosticInfo &Info) {
-  llvm::SmallString<100> StrC;
-  Info.FormatDiagnostic(StrC);
-  std::string Str(StrC.begin(), StrC.end());
+  llvm::SmallString<100> Buf;
+  Info.FormatDiagnostic(Buf);
   switch (Level) {
   default: assert(0 && "Diagnostic not handled during diagnostic buffering!");
   case Diagnostic::Note:
-    Notes.push_back(std::make_pair(Info.getLocation(), Str));
+    Notes.push_back(std::make_pair(Info.getLocation(), Buf.str()));
     break;
   case Diagnostic::Warning:
-    Warnings.push_back(std::make_pair(Info.getLocation(), Str));
+    Warnings.push_back(std::make_pair(Info.getLocation(), Buf.str()));
     break;
   case Diagnostic::Error:
   case Diagnostic::Fatal:
-    Errors.push_back(std::make_pair(Info.getLocation(), Str));
+    Errors.push_back(std::make_pair(Info.getLocation(), Buf.str()));
     break;
   }
+}
+
+void TextDiagnosticBuffer::FlushDiagnostics(Diagnostic &Diags) const {
+  // FIXME: Flush the diagnostics in order.
+  for (const_iterator it = err_begin(), ie = err_end(); it != ie; ++it)
+    Diags.Report(Diags.getCustomDiagID(Diagnostic::Error, it->second.c_str()));
+  for (const_iterator it = warn_begin(), ie = warn_end(); it != ie; ++it)
+    Diags.Report(Diags.getCustomDiagID(Diagnostic::Warning,it->second.c_str()));
+  for (const_iterator it = note_begin(), ie = note_end(); it != ie; ++it)
+    Diags.Report(Diags.getCustomDiagID(Diagnostic::Note, it->second.c_str()));
 }

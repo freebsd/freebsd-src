@@ -55,8 +55,7 @@ const char *DeclContext::getDeclKindName() const {
 }
 
 bool Decl::CollectingStats(bool Enable) {
-  if (Enable)
-    StatSwitch = true;
+  if (Enable) StatSwitch = true;
   return StatSwitch;
 }
 
@@ -103,6 +102,17 @@ bool Decl::isFunctionOrFunctionTemplate() const {
   return isa<FunctionDecl>(this) || isa<FunctionTemplateDecl>(this);
 }
 
+bool Decl::isDefinedOutsideFunctionOrMethod() const {
+  for (const DeclContext *DC = getDeclContext(); 
+       DC && !DC->isTranslationUnit(); 
+       DC = DC->getParent())
+    if (DC->isFunctionOrMethod())
+      return false;
+
+  return true;
+}
+
+
 //===----------------------------------------------------------------------===//
 // PrettyStackTraceDecl Implementation
 //===----------------------------------------------------------------------===//
@@ -119,7 +129,7 @@ void PrettyStackTraceDecl::print(llvm::raw_ostream &OS) const {
 
   OS << Message;
 
-  if (NamedDecl *DN = dyn_cast_or_null<NamedDecl>(TheDecl))
+  if (const NamedDecl *DN = dyn_cast_or_null<NamedDecl>(TheDecl))
     OS << " '" << DN->getQualifiedNameAsString() << '\'';
   OS << '\n';
 }
@@ -130,9 +140,6 @@ void PrettyStackTraceDecl::print(llvm::raw_ostream &OS) const {
 
 // Out-of-line virtual method providing a home for Decl.
 Decl::~Decl() {
-  if (isOutOfSemaDC())
-    delete getMultipleDC();
-
   assert(!HasAttrs && "attributes should have been freed by Destroy");
 }
 
@@ -148,7 +155,7 @@ void Decl::setLexicalDeclContext(DeclContext *DC) {
     return;
 
   if (isInSemaDC()) {
-    MultipleDC *MDC = new MultipleDC();
+    MultipleDC *MDC = new (getASTContext()) MultipleDC();
     MDC->SemanticDC = getDeclContext();
     MDC->LexicalDC = DC;
     DeclCtx = MDC;
@@ -194,7 +201,6 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case CXXConstructor:
     case CXXDestructor:
     case CXXConversion:
-    case OverloadedFunction:
     case Typedef:
     case EnumConstant:
     case Var:
@@ -203,7 +209,6 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case NonTypeTemplateParm:
     case ObjCMethod:
     case ObjCContainer:
-    case ObjCCategory:
     case ObjCInterface:
     case ObjCProperty:
     case ObjCCompatibleAlias:
@@ -225,8 +230,9 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case ObjCImplementation:
       return IDNS_ObjCImplementation;
 
+    case ObjCCategory:
     case ObjCCategoryImpl:
-      return IDNS_ObjCCategoryImpl;
+      return IDNS_ObjCCategoryName;
 
     case Field:
     case ObjCAtDefsField:
@@ -343,9 +349,12 @@ void Decl::Destroy(ASTContext &C) {
     N = Tmp;
   }
 
+  if (isOutOfSemaDC())
+    delete (C) getMultipleDC();
+  
   this->~Decl();
   C.Deallocate((void *)this);
-#endif
+#endif  
 }
 
 Decl *Decl::castFromDeclContext (const DeclContext *D) {
@@ -401,8 +410,13 @@ SourceLocation Decl::getBodyRBrace() const {
 
 #ifndef NDEBUG
 void Decl::CheckAccessDeclContext() const {
-  // If the decl is the toplevel translation unit or if we're not in a
-  // record decl context, we don't need to check anything.
+  // Suppress this check if any of the following hold:
+  // 1. this is the translation unit (and thus has no parent)
+  // 2. this is a template parameter (and thus doesn't belong to its context)
+  // 3. this is a ParmVarDecl (which can be in a record context during
+  //    the brief period between its creation and the creation of the
+  //    FunctionDecl)
+  // 4. the context is not a record
   if (isa<TranslationUnitDecl>(this) ||
       !isa<CXXRecordDecl>(getDeclContext()))
     return;
@@ -434,7 +448,10 @@ bool DeclContext::classof(const Decl *D) {
 }
 
 DeclContext::~DeclContext() {
-  delete static_cast<StoredDeclsMap*>(LookupPtr);
+  // FIXME: Currently ~ASTContext will delete the StoredDeclsMaps because
+  // ~DeclContext() is not guaranteed to be called when ASTContext uses
+  // a BumpPtrAllocator.
+  // delete static_cast<StoredDeclsMap*>(LookupPtr);
 }
 
 void DeclContext::DestroyDecls(ASTContext &C) {
@@ -608,7 +625,8 @@ DeclContext::LoadVisibleDeclsFromExternalStorage() const {
   // Load the declaration IDs for all of the names visible in this
   // context.
   assert(!LookupPtr && "Have a lookup map before de-serialization?");
-  StoredDeclsMap *Map = new StoredDeclsMap;
+  StoredDeclsMap *Map =
+    (StoredDeclsMap*) getParentASTContext().CreateStoredDeclsMap();
   LookupPtr = Map;
   for (unsigned I = 0, N = Decls.size(); I != N; ++I) {
     (*Map)[Decls[I].Name].setFromDeclIDs(Decls[I].Declarations);
@@ -636,6 +654,46 @@ bool DeclContext::decls_empty() const {
     LoadLexicalDeclsFromExternalStorage();
 
   return !FirstDecl;
+}
+
+void DeclContext::removeDecl(Decl *D) {
+  assert(D->getLexicalDeclContext() == this &&
+         "decl being removed from non-lexical context");
+  assert((D->NextDeclInContext || D == LastDecl) &&
+         "decl is not in decls list");
+
+  // Remove D from the decl chain.  This is O(n) but hopefully rare.
+  if (D == FirstDecl) {
+    if (D == LastDecl)
+      FirstDecl = LastDecl = 0;
+    else
+      FirstDecl = D->NextDeclInContext;
+  } else {
+    for (Decl *I = FirstDecl; true; I = I->NextDeclInContext) {
+      assert(I && "decl not found in linked list");
+      if (I->NextDeclInContext == D) {
+        I->NextDeclInContext = D->NextDeclInContext;
+        if (D == LastDecl) LastDecl = I;
+        break;
+      }
+    }
+  }
+  
+  // Mark that D is no longer in the decl chain.
+  D->NextDeclInContext = 0;
+
+  // Remove D from the lookup table if necessary.
+  if (isa<NamedDecl>(D)) {
+    NamedDecl *ND = cast<NamedDecl>(D);
+
+    void *OpaqueMap = getPrimaryContext()->LookupPtr;
+    if (!OpaqueMap) return;
+
+    StoredDeclsMap *Map = static_cast<StoredDeclsMap*>(OpaqueMap);
+    StoredDeclsMap::iterator Pos = Map->find(ND->getDeclName());
+    assert(Pos != Map->end() && "no lookup entry for decl");
+    Pos->second.remove(ND);
+  }
 }
 
 void DeclContext::addHiddenDecl(Decl *D) {
@@ -743,6 +801,9 @@ void DeclContext::makeDeclVisibleInContext(NamedDecl *D, bool Recoverable) {
   // from being visible?
   if (isa<ClassTemplateSpecializationDecl>(D))
     return;
+  if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
+    if (FD->isFunctionTemplateSpecialization())
+      return;
 
   DeclContext *PrimaryContext = getPrimaryContext();
   if (PrimaryContext != this) {
@@ -773,8 +834,11 @@ void DeclContext::makeDeclVisibleInContextImpl(NamedDecl *D) {
   if (isa<ClassTemplateSpecializationDecl>(D))
     return;
 
-  if (!LookupPtr)
-    LookupPtr = new StoredDeclsMap;
+  ASTContext *C = 0;
+  if (!LookupPtr) {
+    C = &getParentASTContext();
+    LookupPtr = (StoredDeclsMap*) C->CreateStoredDeclsMap();
+  }
 
   // Insert this declaration into the map.
   StoredDeclsMap &Map = *static_cast<StoredDeclsMap*>(LookupPtr);
@@ -787,7 +851,10 @@ void DeclContext::makeDeclVisibleInContextImpl(NamedDecl *D) {
   // If it is possible that this is a redeclaration, check to see if there is
   // already a decl for which declarationReplaces returns true.  If there is
   // one, just replace it and return.
-  if (DeclNameEntries.HandleRedeclaration(getParentASTContext(), D))
+  if (!C)
+    C = &getParentASTContext();
+  
+  if (DeclNameEntries.HandleRedeclaration(*C, D))
     return;
 
   // Put this declaration into the appropriate slot.
@@ -838,4 +905,19 @@ void StoredDeclsList::materializeDecls(ASTContext &Context) {
     break;
   }
   }
+}
+
+//===----------------------------------------------------------------------===//
+// Creation and Destruction of StoredDeclsMaps.                               //
+//===----------------------------------------------------------------------===//
+
+void *ASTContext::CreateStoredDeclsMap() {
+  StoredDeclsMap *M = new StoredDeclsMap();
+  SDMs.push_back(M);
+  return M;
+}
+
+void ASTContext::ReleaseDeclContextMaps() {
+  for (std::vector<void*>::iterator I = SDMs.begin(), E = SDMs.end(); I!=E; ++I)
+    delete (StoredDeclsMap*) *I;
 }

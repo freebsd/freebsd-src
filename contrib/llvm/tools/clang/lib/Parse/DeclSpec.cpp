@@ -36,6 +36,14 @@ void UnqualifiedId::setTemplateId(TemplateIdAnnotation *TemplateId) {
   EndLocation = TemplateId->RAngleLoc;
 }
 
+void UnqualifiedId::setConstructorTemplateId(TemplateIdAnnotation *TemplateId) {
+  assert(TemplateId && "NULL template-id annotation?");
+  Kind = IK_ConstructorTemplateId;
+  this->TemplateId = TemplateId;
+  StartLocation = TemplateId->TemplateNameLoc;
+  EndLocation = TemplateId->RAngleLoc;
+}
+
 /// DeclaratorChunk::getFunction - Return a DeclaratorChunk for a function.
 /// "TheDeclarator" is the declarator that this will be added to.
 DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto, bool isVariadic,
@@ -137,7 +145,7 @@ const char *DeclSpec::getSpecifierName(DeclSpec::SCS S) {
   case DeclSpec::SCS_private_extern: return "__private_extern__";
   case DeclSpec::SCS_mutable:     return "mutable";
   }
-  llvm::llvm_unreachable("Unknown typespec!");
+  llvm_unreachable("Unknown typespec!");
 }
 
 const char *DeclSpec::getSpecifierName(TSW W) {
@@ -147,7 +155,7 @@ const char *DeclSpec::getSpecifierName(TSW W) {
   case TSW_long:        return "long";
   case TSW_longlong:    return "long long";
   }
-  llvm::llvm_unreachable("Unknown typespec!");
+  llvm_unreachable("Unknown typespec!");
 }
 
 const char *DeclSpec::getSpecifierName(TSC C) {
@@ -156,7 +164,7 @@ const char *DeclSpec::getSpecifierName(TSC C) {
   case TSC_imaginary:   return "imaginary";
   case TSC_complex:     return "complex";
   }
-  llvm::llvm_unreachable("Unknown typespec!");
+  llvm_unreachable("Unknown typespec!");
 }
 
 
@@ -166,7 +174,7 @@ const char *DeclSpec::getSpecifierName(TSS S) {
   case TSS_signed:      return "signed";
   case TSS_unsigned:    return "unsigned";
   }
-  llvm::llvm_unreachable("Unknown typespec!");
+  llvm_unreachable("Unknown typespec!");
 }
 
 const char *DeclSpec::getSpecifierName(DeclSpec::TST T) {
@@ -195,7 +203,7 @@ const char *DeclSpec::getSpecifierName(DeclSpec::TST T) {
   case DeclSpec::TST_decltype:    return "(decltype)";
   case DeclSpec::TST_error:       return "(error)";
   }
-  llvm::llvm_unreachable("Unknown typespec!");
+  llvm_unreachable("Unknown typespec!");
 }
 
 const char *DeclSpec::getSpecifierName(TQ T) {
@@ -205,7 +213,7 @@ const char *DeclSpec::getSpecifierName(TQ T) {
   case DeclSpec::TQ_restrict:    return "restrict";
   case DeclSpec::TQ_volatile:    return "volatile";
   }
-  llvm::llvm_unreachable("Unknown typespec!");
+  llvm_unreachable("Unknown typespec!");
 }
 
 bool DeclSpec::SetStorageClassSpec(SCS S, SourceLocation Loc,
@@ -245,6 +253,11 @@ bool DeclSpec::SetTypeSpecWidth(TSW W, SourceLocation Loc,
     return BadSpecifier(W, (TSW)TypeSpecWidth, PrevSpec, DiagID);
   TypeSpecWidth = W;
   TSWLoc = Loc;
+  if (TypeAltiVecVector && ((TypeSpecWidth == TSW_long) || (TypeSpecWidth == TSW_longlong))) {
+    PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType);
+    DiagID = diag::warn_vector_long_decl_spec_combination;
+    return true;
+  }
   return false;
 }
 
@@ -281,6 +294,38 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
   TypeRep = Rep;
   TSTLoc = Loc;
   TypeSpecOwned = Owned;
+  if (TypeAltiVecVector && (TypeSpecType == TST_double)) {
+    PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType);
+    DiagID = diag::err_invalid_vector_double_decl_spec_combination;
+    return true;
+  }
+  return false;
+}
+
+bool DeclSpec::SetTypeAltiVecVector(bool isAltiVecVector, SourceLocation Loc,
+                          const char *&PrevSpec, unsigned &DiagID) {
+  if (TypeSpecType != TST_unspecified) {
+    PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType);
+    DiagID = diag::err_invalid_vector_decl_spec_combination;
+    return true;
+  }
+  TypeAltiVecVector = isAltiVecVector;
+  AltiVecLoc = Loc;
+  return false;
+}
+
+bool DeclSpec::SetTypeAltiVecPixel(bool isAltiVecPixel, SourceLocation Loc,
+                          const char *&PrevSpec, unsigned &DiagID) {
+  if (!TypeAltiVecVector || (TypeSpecType != TST_unspecified)) {
+    PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType);
+    DiagID = diag::err_invalid_pixel_decl_spec_combination;
+    return true;
+  }
+  TypeSpecType = TST_int;
+  TypeSpecSign = TSS_unsigned;
+  TypeSpecWidth = TSW_short;
+  TypeAltiVecPixel = isAltiVecPixel;
+  TSTLoc = Loc;
   return false;
 }
 
@@ -365,11 +410,30 @@ void DeclSpec::setProtocolQualifiers(const ActionBase::DeclPtrTy *Protos,
   ProtocolLAngleLoc = LAngleLoc;
 }
 
+void DeclSpec::SaveWrittenBuiltinSpecs() {
+  writtenBS.Sign = getTypeSpecSign();
+  writtenBS.Width = getTypeSpecWidth();
+  writtenBS.Type = getTypeSpecType();
+  // Search the list of attributes for the presence of a mode attribute.
+  writtenBS.ModeAttr = false;
+  AttributeList* attrs = getAttributes();
+  while (attrs) {
+    if (attrs->getKind() == AttributeList::AT_mode) {
+      writtenBS.ModeAttr = true;
+      break;
+    }
+    attrs = attrs->getNext();
+  }
+}
+
 /// Finish - This does final analysis of the declspec, rejecting things like
 /// "_Imaginary" (lacking an FP type).  This returns a diagnostic to issue or
 /// diag::NUM_DIAGNOSTICS if there is no error.  After calling this method,
 /// DeclSpec is guaranteed self-consistent, even if an error occurred.
 void DeclSpec::Finish(Diagnostic &D, Preprocessor &PP) {
+  // Before possibly changing their values, save specs as written.
+  SaveWrittenBuiltinSpecs();
+
   // Check the type specifier components first.
   SourceManager &SrcMgr = PP.getSourceManager();
 

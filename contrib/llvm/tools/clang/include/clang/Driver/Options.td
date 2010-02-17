@@ -17,23 +17,27 @@ include "OptParser.td"
 /////////
 // Groups
 
-def I_Group               : OptionGroup<"<I group>">;
-def M_Group               : OptionGroup<"<M group>">;
+// Meta-group which defines
+def CompileOnly_Group     : OptionGroup<"<CompileOnly group>">;
+
+def I_Group               : OptionGroup<"<I group>">, Group<CompileOnly_Group>;
+def M_Group               : OptionGroup<"<M group>">, Group<CompileOnly_Group>;
 def T_Group               : OptionGroup<"<T group>">;
-def O_Group               : OptionGroup<"<O group>">;
-def W_Group               : OptionGroup<"<W group>">;
+def O_Group               : OptionGroup<"<O group>">, Group<CompileOnly_Group>;
+def W_Group               : OptionGroup<"<W group>">, Group<CompileOnly_Group>;
 def X_Group               : OptionGroup<"<X group>">;
 def a_Group               : OptionGroup<"<a group>">;
 def d_Group               : OptionGroup<"<d group>">;
-def f_Group               : OptionGroup<"<f group>">;
+def f_Group               : OptionGroup<"<f group>">, Group<CompileOnly_Group>;
 def g_Group               : OptionGroup<"<g group>">;
-def i_Group               : OptionGroup<"<i group>">;
+def i_Group               : OptionGroup<"<i group>">, Group<CompileOnly_Group>;
 def clang_i_Group         : OptionGroup<"<clang i group>">, Group<i_Group>;
-def m_Group               : OptionGroup<"<m group>">;
-def m_x86_Features_Group  : OptionGroup<"<m x86 features group>">;
+def m_Group               : OptionGroup<"<m group>">, Group<CompileOnly_Group>;
+def m_x86_Features_Group  : OptionGroup<"<m x86 features group>">, Group<m_Group>;
 def u_Group               : OptionGroup<"<u group>">;
 
-def pedantic_Group        : OptionGroup<"<pedantic group>">;
+def pedantic_Group        : OptionGroup<"<pedantic group>">,
+  Group<CompileOnly_Group>;
 
 // Temporary groups for clang options which we know we don't support,
 // but don't want to verbosely warn the user about.
@@ -61,13 +65,62 @@ def clang_ignored_m_Group : OptionGroup<"<clang ignored m group>">,
 //   = => _EQ
 //   C++ => CXX
 
+// Developer Driver Options
+
+def ccc_Group : OptionGroup<"<clang internal options>">;
+def ccc_driver_Group : OptionGroup<"<clang driver internal options>">,
+  Group<ccc_Group>, HelpText<"DRIVER OPTIONS">;
+def ccc_debug_Group : OptionGroup<"<clang debug/development internal options>">,
+  Group<ccc_Group>, HelpText<"DEBUG/DEVELOPMENT OPTIONS">;
+
+class CCCDriverOpt : Group<ccc_driver_Group>, Flags<[DriverOption, HelpHidden]>;
+def ccc_cxx : Flag<"-ccc-cxx">, CCCDriverOpt,
+  HelpText<"Act as a C++ driver">;
+def ccc_echo : Flag<"-ccc-echo">, CCCDriverOpt,
+  HelpText<"Echo commands before running them">;
+def ccc_gcc_name : Separate<"-ccc-gcc-name">, CCCDriverOpt,
+  HelpText<"Name for native GCC compiler">,
+  MetaVarName<"<gcc-path>">;
+def ccc_clang_cxx : Flag<"-ccc-clang-cxx">, CCCDriverOpt,
+  HelpText<"Enable the clang compiler for C++">;
+def ccc_no_clang_cxx : Flag<"-ccc-no-clang-cxx">, CCCDriverOpt,
+  HelpText<"Disable the clang compiler for C++">;
+def ccc_no_clang : Flag<"-ccc-no-clang">, CCCDriverOpt,
+  HelpText<"Disable the clang compiler">;
+def ccc_no_clang_cpp : Flag<"-ccc-no-clang-cpp">, CCCDriverOpt,
+  HelpText<"Disable the clang preprocessor">;
+def ccc_clang_archs : Separate<"-ccc-clang-archs">, CCCDriverOpt,
+  HelpText<"Comma separate list of architectures to use the clang compiler for">,
+  MetaVarName<"<arch-list>">;
+def ccc_pch_is_pch : Flag<"-ccc-pch-is-pch">, CCCDriverOpt,
+  HelpText<"Use lazy PCH for precompiled headers">;
+def ccc_pch_is_pth : Flag<"-ccc-pch-is-pth">, CCCDriverOpt,
+  HelpText<"Use pretokenized headers for precompiled headers">;
+
+class CCCDebugOpt : Group<ccc_debug_Group>, Flags<[DriverOption, HelpHidden]>;
+def ccc_host_triple : Separate<"-ccc-host-triple">, CCCDebugOpt,
+  HelpText<"Simulate running on the given target">;
+def ccc_install_dir : Separate<"-ccc-install-dir">, CCCDebugOpt,
+  HelpText<"Simulate installation in the given directory">;
+def ccc_print_options : Flag<"-ccc-print-options">, CCCDebugOpt,
+  HelpText<"Dump parsed command line arguments">;
+def ccc_print_phases : Flag<"-ccc-print-phases">, CCCDebugOpt,
+  HelpText<"Dump list of actions to perform">;
+def ccc_print_bindings : Flag<"-ccc-print-bindings">, CCCDebugOpt,
+  HelpText<"Show bindings of tools to actions">;
+
+// Make sure all other -ccc- options are rejected.
+def ccc_ : Joined<"-ccc-">, Group<ccc_Group>, Flags<[Unsupported]>;
+
+// Standard Options
+
 def _HASH_HASH_HASH : Flag<"-###">, Flags<[DriverOption]>,
     HelpText<"Print the commands to run for this compilation">;
 def A : JoinedOrSeparate<"-A">;
 def B : JoinedOrSeparate<"-B">;
 def CC : Flag<"-CC">;
 def C : Flag<"-C">;
-def D : JoinedOrSeparate<"-D">;
+def D : JoinedOrSeparate<"-D">, Group<CompileOnly_Group>;
 def E : Flag<"-E">, Flags<[DriverOption]>,
   HelpText<"Only run the preprocessor">;
 def F : JoinedOrSeparate<"-F">;
@@ -103,7 +156,7 @@ def Tbss : JoinedOrSeparate<"-Tbss">, Group<T_Group>;
 def Tdata : JoinedOrSeparate<"-Tdata">, Group<T_Group>;
 def Ttext : JoinedOrSeparate<"-Ttext">, Group<T_Group>;
 def T : JoinedOrSeparate<"-T">, Group<T_Group>;
-def U : JoinedOrSeparate<"-U">;
+def U : JoinedOrSeparate<"-U">, Group<CompileOnly_Group>;
 def V : JoinedOrSeparate<"-V">, Flags<[DriverOption, Unsupported]>;
 def Wa_COMMA : CommaJoined<"-Wa,">,
   HelpText<"Pass the comma separated arguments in <arg> to the assembler">,
@@ -177,6 +230,7 @@ def fPIC : Flag<"-fPIC">, Group<f_Group>;
 def fPIE : Flag<"-fPIE">, Group<f_Group>;
 def fapple_kext : Flag<"-fapple-kext">, Group<f_Group>;
 def fasm_blocks : Flag<"-fasm-blocks">, Group<clang_ignored_f_Group>;
+def fassume_sane_operator_new : Flag<"-fassume-sane-operator-new">, Group<f_Group>;
 def fastcp : Flag<"-fastcp">, Group<f_Group>;
 def fastf : Flag<"-fastf">, Group<f_Group>;
 def fast : Flag<"-fast">, Group<f_Group>;
@@ -187,6 +241,8 @@ def fbootclasspath_EQ : Joined<"-fbootclasspath=">, Group<f_Group>;
 def fbuiltin_strcat : Flag<"-fbuiltin-strcat">, Group<f_Group>;
 def fbuiltin_strcpy : Flag<"-fbuiltin-strcpy">, Group<f_Group>;
 def fbuiltin : Flag<"-fbuiltin">, Group<f_Group>;
+def fcatch_undefined_behavior : Flag<"-fcatch-undefined-behavior">,
+    Group<f_Group>, HelpText<"Generate runtime checks for undefined behavior.">;
 def fclasspath_EQ : Joined<"-fclasspath=">, Group<f_Group>;
 def fcolor_diagnostics : Flag<"-fcolor-diagnostics">, Group<f_Group>;
 def fcommon : Flag<"-fcommon">, Group<f_Group>;
@@ -196,6 +252,7 @@ def fconstant_string_class_EQ : Joined<"-fconstant-string-class=">, Group<f_Grou
 def fcreate_profile : Flag<"-fcreate-profile">, Group<f_Group>;
 def fdebug_pass_arguments : Flag<"-fdebug-pass-arguments">, Group<f_Group>;
 def fdebug_pass_structure : Flag<"-fdebug-pass-structure">, Group<f_Group>;
+def fdiagnostics_binary : Flag<"-fdiagnostics-binary">, Group<f_Group>, Flags<[HelpHidden]>;
 def fdiagnostics_fixit_info : Flag<"-fdiagnostics-fixit-info">, Group<f_Group>;
 def fdiagnostics_print_source_range_info : Flag<"-fdiagnostics-print-source-range-info">, Group<f_Group>;
 def fdiagnostics_show_option : Flag<"-fdiagnostics-show-option">, Group<f_Group>;
@@ -226,6 +283,7 @@ def fmudflap : Flag<"-fmudflap">, Group<f_Group>;
 def fnested_functions : Flag<"-fnested-functions">, Group<f_Group>;
 def fnext_runtime : Flag<"-fnext-runtime">, Group<f_Group>;
 def fno_asynchronous_unwind_tables : Flag<"-fno-asynchronous-unwind-tables">, Group<f_Group>;
+def fno_assume_sane_operator_new : Flag<"-fno-assume-sane-operator-new">, Group<f_Group>;
 def fno_blocks : Flag<"-fno-blocks">, Group<f_Group>;
 def fno_builtin_strcat : Flag<"-fno-builtin-strcat">, Group<f_Group>;
 def fno_builtin_strcpy : Flag<"-fno-builtin-strcpy">, Group<f_Group>;
@@ -245,6 +303,7 @@ def fno_keep_inline_functions : Flag<"-fno-keep-inline-functions">, Group<clang_
 def fno_math_errno : Flag<"-fno-math-errno">, Group<f_Group>;
 def fno_merge_all_constants : Flag<"-fno-merge-all-constants">, Group<f_Group>;
 def fno_ms_extensions : Flag<"-fno-ms-extensions">, Group<f_Group>;
+def fno_objc_legacy_dispatch : Flag<"-fno-objc-legacy-dispatch">, Group<f_Group>;
 def fno_omit_frame_pointer : Flag<"-fno-omit-frame-pointer">, Group<f_Group>;
 def fno_pascal_strings : Flag<"-fno-pascal-strings">, Group<f_Group>;
 def fno_rtti : Flag<"-fno-rtti">, Group<f_Group>;
@@ -252,6 +311,7 @@ def fno_show_column : Flag<"-fno-show-column">, Group<f_Group>;
 def fno_show_source_location : Flag<"-fno-show-source-location">, Group<f_Group>;
 def fno_stack_protector : Flag<"-fno-stack-protector">, Group<f_Group>;
 def fno_strict_aliasing : Flag<"-fno-strict-aliasing">, Group<clang_ignored_f_Group>;
+def fno_threadsafe_statics : Flag<"-fno-threadsafe-statics">, Group<f_Group>;
 def fno_unit_at_a_time : Flag<"-fno-unit-at-a-time">, Group<f_Group>;
 def fno_unwind_tables : Flag<"-fno-unwind-tables">, Group<f_Group>;
 def fno_working_directory : Flag<"-fno-working-directory">, Group<f_Group>;
@@ -260,8 +320,10 @@ def fobjc_atdefs : Flag<"-fobjc-atdefs">, Group<clang_ignored_f_Group>;
 def fobjc_call_cxx_cdtors : Flag<"-fobjc-call-cxx-cdtors">, Group<clang_ignored_f_Group>;
 def fobjc_gc_only : Flag<"-fobjc-gc-only">, Group<f_Group>;
 def fobjc_gc : Flag<"-fobjc-gc">, Group<f_Group>;
+def fobjc_legacy_dispatch : Flag<"-fobjc-legacy-dispatch">, Group<f_Group>;
 def fobjc_new_property : Flag<"-fobjc-new-property">, Group<clang_ignored_f_Group>;
 def fobjc_nonfragile_abi : Flag<"-fobjc-nonfragile-abi">, Group<f_Group>;
+def fobjc_nonfragile_abi2 : Flag<"-fobjc-nonfragile-abi2">, Group<f_Group>;
 def fobjc_sender_dependent_dispatch : Flag<"-fobjc-sender-dependent-dispatch">, Group<f_Group>;
 def fobjc : Flag<"-fobjc">, Group<f_Group>;
 def fomit_frame_pointer : Flag<"-fomit-frame-pointer">, Group<f_Group>;
@@ -277,6 +339,9 @@ def fprofile_arcs : Flag<"-fprofile-arcs">, Group<f_Group>;
 def fprofile_generate : Flag<"-fprofile-generate">, Group<f_Group>;
 def framework : Separate<"-framework">, Flags<[LinkerInput]>;
 def frtti : Flag<"-frtti">, Group<f_Group>;
+def fsched_interblock : Flag<"-fsched-interblock">, Group<clang_ignored_f_Group>;
+def fshort_enums : Flag<"-fshort-enums">, Group<clang_ignored_f_Group>;
+def freorder_blocks : Flag<"-freorder-blocks">, Group<clang_ignored_f_Group>;
 def fshort_wchar : Flag<"-fshort-wchar">, Group<f_Group>;
 def fshow_source_location : Flag<"-fshow-source-location">, Group<f_Group>;
 def fsigned_bitfields : Flag<"-fsigned-bitfields">, Group<f_Group>;
@@ -285,8 +350,10 @@ def fstack_protector_all : Flag<"-fstack-protector-all">, Group<f_Group>;
 def fstack_protector : Flag<"-fstack-protector">, Group<f_Group>;
 def fstrict_aliasing : Flag<"-fstrict-aliasing">, Group<clang_ignored_f_Group>;
 def fsyntax_only : Flag<"-fsyntax-only">, Flags<[DriverOption]>;
+def ftabstop_EQ : Joined<"-ftabstop=">, Group<f_Group>;
 def ftemplate_depth_ : Joined<"-ftemplate-depth-">, Group<f_Group>;
 def fterminated_vtables : Flag<"-fterminated-vtables">, Group<f_Group>;
+def fthreadsafe_statics : Flag<"-fthreadsafe-statics">, Group<f_Group>;
 def ftime_report : Flag<"-ftime-report">, Group<f_Group>;
 def ftrapv : Flag<"-ftrapv">, Group<f_Group>;
 def funit_at_a_time : Flag<"-funit-at-a-time">, Group<f_Group>;
@@ -313,9 +380,10 @@ def image__base : Separate<"-image_base">;
 def include_ : JoinedOrSeparate<"-include">, Group<clang_i_Group>, EnumName<"include">;
 def init : Separate<"-init">;
 def install__name : Separate<"-install_name">;
+def integrated_as : Flag<"-integrated-as">, Flags<[DriverOption]>;
 def iprefix : JoinedOrSeparate<"-iprefix">, Group<clang_i_Group>;
 def iquote : JoinedOrSeparate<"-iquote">, Group<clang_i_Group>;
-def isysroot : JoinedOrSeparate<"-isysroot">, Group<i_Group>;
+def isysroot : JoinedOrSeparate<"-isysroot">, Group<clang_i_Group>;
 def isystem : JoinedOrSeparate<"-isystem">, Group<clang_i_Group>;
 def iwithprefixbefore : JoinedOrSeparate<"-iwithprefixbefore">, Group<clang_i_Group>;
 def iwithprefix : JoinedOrSeparate<"-iwithprefix">, Group<clang_i_Group>;
@@ -335,11 +403,12 @@ def mcpu_EQ : Joined<"-mcpu=">, Group<m_Group>, Flags<[DriverOption]>;
 def mdynamic_no_pic : Joined<"-mdynamic-no-pic">, Group<m_Group>, Flags<[NoArgumentUnused]>;
 def mfix_and_continue : Flag<"-mfix-and-continue">, Group<clang_ignored_m_Group>;
 def mfloat_abi_EQ : Joined<"-mfloat-abi=">, Group<m_Group>;
+def mfpu_EQ : Joined<"-mfpu=">, Group<m_Group>;
 def mhard_float : Flag<"-mhard-float">, Group<m_Group>;
-def miphoneos_version_min_EQ : Joined<"-miphoneos-version-min=">, Group<m_Group>;
+def miphoneos_version_min_EQ : Joined<"-miphoneos-version-min=">, Group<m_Group>, Flags<[DriverOption]>;
 def mkernel : Flag<"-mkernel">, Group<m_Group>;
 def mllvm : Separate<"-mllvm">;
-def mmacosx_version_min_EQ : Joined<"-mmacosx-version-min=">, Group<m_Group>;
+def mmacosx_version_min_EQ : Joined<"-mmacosx-version-min=">, Group<m_Group>, Flags<[DriverOption]>;
 def mmmx : Flag<"-mmmx">, Group<m_x86_Features_Group>;
 def mno_3dnowa : Flag<"-mno-3dnowa">, Group<m_x86_Features_Group>;
 def mno_3dnow : Flag<"-mno-3dnow">, Group<m_x86_Features_Group>;
@@ -354,7 +423,10 @@ def mno_sse4a : Flag<"-mno-sse4a">, Group<m_x86_Features_Group>;
 def mno_sse4 : Flag<"-mno-sse4">, Group<m_x86_Features_Group>;
 def mno_sse : Flag<"-mno-sse">, Group<m_x86_Features_Group>;
 def mno_ssse3 : Flag<"-mno-ssse3">, Group<m_x86_Features_Group>;
+
 def mno_thumb : Flag<"-mno-thumb">, Group<m_Group>;
+def marm : Flag<"-marm">, Alias<mno_thumb>;
+
 def mno_warn_nonportable_cfstrings : Flag<"-mno-warn-nonportable-cfstrings">, Group<m_Group>;
 def mpascal_strings : Flag<"-mpascal-strings">, Group<m_Group>;
 def mred_zone : Flag<"-mred-zone">, Group<m_Group>;
@@ -373,7 +445,10 @@ def multiply__defined : Separate<"-multiply_defined">;
 def mwarn_nonportable_cfstrings : Flag<"-mwarn-nonportable-cfstrings">, Group<m_Group>;
 def m_Separate : Separate<"-m">, Group<m_Group>;
 def m_Joined : Joined<"-m">, Group<m_Group>;
+def no_canonical_prefixes : Flag<"-no-canonical-prefixes">, Flags<[DriverOption, HelpHidden]>,
+  HelpText<"Use relative instead of canonical paths">;
 def no_cpp_precomp : Flag<"-no-cpp-precomp">;
+def no_integrated_as : Flag<"-no-integrated-as">, Flags<[DriverOption]>;
 def no_integrated_cpp : Flag<"-no-integrated-cpp">, Flags<[DriverOption]>;
 def no__dead__strip__inits__and__terms : Flag<"-no_dead_strip_inits_and_terms">;
 def nobuiltininc : Flag<"-nobuiltininc">;
@@ -417,6 +492,8 @@ def pthread : Flag<"-pthread">;
 def p : Flag<"-p">;
 def read__only__relocs : Separate<"-read_only_relocs">;
 def remap : Flag<"-remap">;
+def rewrite_objc : Flag<"-rewrite-objc">, Flags<[DriverOption]>,
+  HelpText<"Rewrite Objective-C source to C++">;
 def rpath : Separate<"-rpath">, Flags<[LinkerInput]>;
 def r : Flag<"-r">;
 def save_temps : Flag<"-save-temps">, Flags<[DriverOption]>,

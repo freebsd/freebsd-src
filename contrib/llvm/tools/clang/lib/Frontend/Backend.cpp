@@ -15,8 +15,8 @@
 #include "clang/Basic/TargetOptions.h"
 #include "clang/CodeGen/CodeGenOptions.h"
 #include "clang/CodeGen/ModuleBuilder.h"
+#include "clang/Frontend/FrontendDiagnostic.h"
 #include "llvm/Module.h"
-#include "llvm/ModuleProvider.h"
 #include "llvm/PassManager.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Assembly/PrintModulePass.h"
@@ -25,24 +25,24 @@
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/StandardPasses.h"
 #include "llvm/Support/Timer.h"
-#include "llvm/System/Path.h"
-#include "llvm/System/Program.h"
 #include "llvm/Target/SubtargetFeature.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegistry.h"
 using namespace clang;
 using namespace llvm;
 
 namespace {
-  class VISIBILITY_HIDDEN BackendConsumer : public ASTConsumer {
+  class BackendConsumer : public ASTConsumer {
+    Diagnostic &Diags;
     BackendAction Action;
-    CodeGenOptions CodeGenOpts;
-    TargetOptions TargetOpts;
+    const CodeGenOptions &CodeGenOpts;
+    const LangOptions &LangOpts;
+    const TargetOptions &TargetOpts;
     llvm::raw_ostream *AsmOutStream;
     llvm::formatted_raw_ostream FormattedOutStream;
     ASTContext *Context;
@@ -55,7 +55,6 @@ namespace {
     llvm::Module *TheModule;
     llvm::TargetData *TheTargetData;
 
-    mutable llvm::ModuleProvider *ModuleProvider;
     mutable FunctionPassManager *CodeGenPasses;
     mutable PassManager *PerModulePasses;
     mutable FunctionPassManager *PerFunctionPasses;
@@ -66,41 +65,41 @@ namespace {
 
     void CreatePasses();
 
-    /// AddEmitPasses - Add passes necessary to emit assembly or LLVM
-    /// IR.
+    /// AddEmitPasses - Add passes necessary to emit assembly or LLVM IR.
     ///
-    /// \return True on success. On failure \arg Error will be set to
-    /// a user readable error message.
-    bool AddEmitPasses(std::string &Error);
+    /// \return True on success.
+    bool AddEmitPasses();
 
     void EmitAssembly();
 
   public:
-    BackendConsumer(BackendAction action, Diagnostic &Diags,
+    BackendConsumer(BackendAction action, Diagnostic &_Diags,
                     const LangOptions &langopts, const CodeGenOptions &compopts,
-                    const TargetOptions &targetopts, const std::string &infile,
-                    llvm::raw_ostream* OS, LLVMContext& C) :
+                    const TargetOptions &targetopts, bool TimePasses,
+                    const std::string &infile, llvm::raw_ostream *OS,
+                    LLVMContext& C) :
+      Diags(_Diags),
       Action(action),
       CodeGenOpts(compopts),
+      LangOpts(langopts),
       TargetOpts(targetopts),
       AsmOutStream(OS),
       LLVMIRGeneration("LLVM IR Generation Time"),
       CodeGenerationTime("Code Generation Time"),
       Gen(CreateLLVMCodeGen(Diags, infile, compopts, C)),
-      TheModule(0), TheTargetData(0), ModuleProvider(0),
+      TheModule(0), TheTargetData(0),
       CodeGenPasses(0), PerModulePasses(0), PerFunctionPasses(0) {
 
       if (AsmOutStream)
         FormattedOutStream.setStream(*AsmOutStream,
                                      formatted_raw_ostream::PRESERVE_STREAM);
 
-      // Enable -time-passes if -ftime-report is enabled.
-      llvm::TimePassesIsEnabled = CodeGenOpts.TimePasses;
+      llvm::TimePassesIsEnabled = TimePasses;
     }
 
     ~BackendConsumer() {
       delete TheTargetData;
-      delete ModuleProvider;
+      delete TheModule;
       delete CodeGenPasses;
       delete PerModulePasses;
       delete PerFunctionPasses;
@@ -109,16 +108,15 @@ namespace {
     virtual void Initialize(ASTContext &Ctx) {
       Context = &Ctx;
 
-      if (CodeGenOpts.TimePasses)
+      if (llvm::TimePassesIsEnabled)
         LLVMIRGeneration.startTimer();
 
       Gen->Initialize(Ctx);
 
       TheModule = Gen->GetModule();
-      ModuleProvider = new ExistingModuleProvider(TheModule);
       TheTargetData = new llvm::TargetData(Ctx.Target.getTargetDescription());
 
-      if (CodeGenOpts.TimePasses)
+      if (llvm::TimePassesIsEnabled)
         LLVMIRGeneration.stopTimer();
     }
 
@@ -127,24 +125,24 @@ namespace {
                                      Context->getSourceManager(),
                                      "LLVM IR generation of declaration");
 
-      if (CodeGenOpts.TimePasses)
+      if (llvm::TimePassesIsEnabled)
         LLVMIRGeneration.startTimer();
 
       Gen->HandleTopLevelDecl(D);
 
-      if (CodeGenOpts.TimePasses)
+      if (llvm::TimePassesIsEnabled)
         LLVMIRGeneration.stopTimer();
     }
 
     virtual void HandleTranslationUnit(ASTContext &C) {
       {
         PrettyStackTraceString CrashInfo("Per-file LLVM IR generation");
-        if (CodeGenOpts.TimePasses)
+        if (llvm::TimePassesIsEnabled)
           LLVMIRGeneration.startTimer();
 
         Gen->HandleTranslationUnit(C);
 
-        if (CodeGenOpts.TimePasses)
+        if (llvm::TimePassesIsEnabled)
           LLVMIRGeneration.stopTimer();
       }
 
@@ -171,7 +169,7 @@ namespace {
 
 FunctionPassManager *BackendConsumer::getCodeGenPasses() const {
   if (!CodeGenPasses) {
-    CodeGenPasses = new FunctionPassManager(ModuleProvider);
+    CodeGenPasses = new FunctionPassManager(TheModule);
     CodeGenPasses->add(new TargetData(*TheTargetData));
   }
 
@@ -189,14 +187,14 @@ PassManager *BackendConsumer::getPerModulePasses() const {
 
 FunctionPassManager *BackendConsumer::getPerFunctionPasses() const {
   if (!PerFunctionPasses) {
-    PerFunctionPasses = new FunctionPassManager(ModuleProvider);
+    PerFunctionPasses = new FunctionPassManager(TheModule);
     PerFunctionPasses->add(new TargetData(*TheTargetData));
   }
 
   return PerFunctionPasses;
 }
 
-bool BackendConsumer::AddEmitPasses(std::string &Error) {
+bool BackendConsumer::AddEmitPasses() {
   if (Action == Backend_EmitNothing)
     return true;
 
@@ -208,18 +206,77 @@ bool BackendConsumer::AddEmitPasses(std::string &Error) {
     bool Fast = CodeGenOpts.OptimizationLevel == 0;
 
     // Create the TargetMachine for generating code.
+    std::string Error;
     std::string Triple = TheModule->getTargetTriple();
     const llvm::Target *TheTarget = TargetRegistry::lookupTarget(Triple, Error);
     if (!TheTarget) {
-      Error = std::string("Unable to get target machine: ") + Error;
+      Diags.Report(diag::err_fe_unable_to_create_target) << Error;
       return false;
     }
+
+    // FIXME: Expose these capabilities via actual APIs!!!! Aside from just
+    // being gross, this is also totally broken if we ever care about
+    // concurrency.
+    llvm::NoFramePointerElim = CodeGenOpts.DisableFPElim;
+    if (CodeGenOpts.FloatABI == "soft")
+      llvm::FloatABIType = llvm::FloatABI::Soft;
+    else if (CodeGenOpts.FloatABI == "hard")
+      llvm::FloatABIType = llvm::FloatABI::Hard;
+    else {
+      assert(CodeGenOpts.FloatABI.empty() && "Invalid float abi!");
+      llvm::FloatABIType = llvm::FloatABI::Default;
+    }
+    NoZerosInBSS = CodeGenOpts.NoZeroInitializedInBSS;
+    llvm::UseSoftFloat = CodeGenOpts.SoftFloat;
+    UnwindTablesMandatory = CodeGenOpts.UnwindTables;
+
+    TargetMachine::setAsmVerbosityDefault(CodeGenOpts.AsmVerbose);
+
+    // FIXME: Parse this earlier.
+    if (CodeGenOpts.RelocationModel == "static") {
+      TargetMachine::setRelocationModel(llvm::Reloc::Static);
+    } else if (CodeGenOpts.RelocationModel == "pic") {
+      TargetMachine::setRelocationModel(llvm::Reloc::PIC_);
+    } else {
+      assert(CodeGenOpts.RelocationModel == "dynamic-no-pic" &&
+             "Invalid PIC model!");
+      TargetMachine::setRelocationModel(llvm::Reloc::DynamicNoPIC);
+    }
+    // FIXME: Parse this earlier.
+    if (CodeGenOpts.CodeModel == "small") {
+      TargetMachine::setCodeModel(llvm::CodeModel::Small);
+    } else if (CodeGenOpts.CodeModel == "kernel") {
+      TargetMachine::setCodeModel(llvm::CodeModel::Kernel);
+    } else if (CodeGenOpts.CodeModel == "medium") {
+      TargetMachine::setCodeModel(llvm::CodeModel::Medium);
+    } else if (CodeGenOpts.CodeModel == "large") {
+      TargetMachine::setCodeModel(llvm::CodeModel::Large);
+    } else {
+      assert(CodeGenOpts.CodeModel.empty() && "Invalid code model!");
+      TargetMachine::setCodeModel(llvm::CodeModel::Default);
+    }
+
+    std::vector<const char *> BackendArgs;
+    BackendArgs.push_back("clang"); // Fake program name.
+    if (!CodeGenOpts.DebugPass.empty()) {
+      BackendArgs.push_back("-debug-pass");
+      BackendArgs.push_back(CodeGenOpts.DebugPass.c_str());
+    }
+    if (!CodeGenOpts.LimitFloatPrecision.empty()) {
+      BackendArgs.push_back("-limit-float-precision");
+      BackendArgs.push_back(CodeGenOpts.LimitFloatPrecision.c_str());
+    }
+    if (llvm::TimePassesIsEnabled)
+      BackendArgs.push_back("-time-passes");
+    BackendArgs.push_back(0);
+    llvm::cl::ParseCommandLineOptions(BackendArgs.size() - 1,
+                                      (char**) &BackendArgs[0]);
 
     std::string FeaturesStr;
     if (TargetOpts.CPU.size() || TargetOpts.Features.size()) {
       SubtargetFeatures Features;
       Features.setCPU(TargetOpts.CPU);
-      for (std::vector<std::string>::iterator
+      for (std::vector<std::string>::const_iterator
              it = TargetOpts.Features.begin(),
              ie = TargetOpts.Features.end(); it != ie; ++it)
         Features.AddFeature(*it);
@@ -246,21 +303,13 @@ bool BackendConsumer::AddEmitPasses(std::string &Error) {
     case 3: OptLevel = CodeGenOpt::Aggressive; break;
     }
 
-    // Normal mode, emit a .s file by running the code generator.
-    // Note, this also adds codegenerator level optimization passes.
-    switch (TM->addPassesToEmitFile(*PM, FormattedOutStream,
-                                    TargetMachine::AssemblyFile, OptLevel)) {
-    default:
-    case FileModel::Error:
-      Error = "Unable to interface with target machine!\n";
-      return false;
-    case FileModel::AsmFile:
-      break;
-    }
-
-    if (TM->addPassesToEmitFileFinish(*CodeGenPasses, (MachineCodeEmitter *)0,
-                                      OptLevel)) {
-      Error = "Unable to interface with target machine!\n";
+    // Normal mode, emit a .s or .o file by running the code generator. Note,
+    // this also adds codegenerator level optimization passes.
+    TargetMachine::CodeGenFileType CGFT = TargetMachine::CGFT_AssemblyFile;
+    if (Action == Backend_EmitObj)
+      CGFT = TargetMachine::CGFT_ObjectFile;
+    if (TM->addPassesToEmitFile(*PM, FormattedOutStream, CGFT, OptLevel)) {
+      Diags.Report(diag::err_fe_unable_to_interface_with_target);
       return false;
     }
   }
@@ -291,8 +340,14 @@ void BackendConsumer::CreatePasses() {
   switch (Inlining) {
   case CodeGenOptions::NoInlining: break;
   case CodeGenOptions::NormalInlining: {
-    // Inline small functions
-    unsigned Threshold = (CodeGenOpts.OptimizeSize || OptLevel < 3) ? 50 : 200;
+    // Set the inline threshold following llvm-gcc.
+    //
+    // FIXME: Derive these constants in a principled fashion.
+    unsigned Threshold = 225;
+    if (CodeGenOpts.OptimizeSize)
+      Threshold = 75;
+    else if (OptLevel > 2)
+      Threshold = 275;
     InliningPass = createFunctionInliningPass(Threshold);
     break;
   }
@@ -306,7 +361,7 @@ void BackendConsumer::CreatePasses() {
   llvm::createStandardModulePasses(PM, OptLevel, CodeGenOpts.OptimizeSize,
                                    CodeGenOpts.UnitAtATime,
                                    CodeGenOpts.UnrollLoops,
-                                   CodeGenOpts.SimplifyLibCalls,
+                                   /*SimplifyLibCalls=*/!LangOpts.NoBuiltin,
                                    /*HaveExceptions=*/true,
                                    InliningPass);
 }
@@ -318,7 +373,7 @@ void BackendConsumer::EmitAssembly() {
   if (!TheModule || !TheTargetData)
     return;
 
-  TimeRegion Region(CodeGenOpts.TimePasses ? &CodeGenerationTime : 0);
+  TimeRegion Region(llvm::TimePassesIsEnabled ? &CodeGenerationTime : 0);
 
   // Make sure IR generation is happy with the module. This is
   // released by the module provider.
@@ -326,7 +381,6 @@ void BackendConsumer::EmitAssembly() {
   if (!M) {
     // The module has been released by IR gen on failures, do not
     // double free.
-    ModuleProvider->releaseModule();
     TheModule = 0;
     return;
   }
@@ -334,13 +388,8 @@ void BackendConsumer::EmitAssembly() {
   assert(TheModule == M && "Unexpected module change during IR generation");
 
   CreatePasses();
-
-  std::string Error;
-  if (!AddEmitPasses(Error)) {
-    // FIXME: Don't fail this way.
-    llvm::errs() << "ERROR: " << Error << "\n";
-    ::exit(1);
-  }
+  if (!AddEmitPasses())
+    return;
 
   // Run passes. For now we do all passes at once, but eventually we
   // would like to have the option of streaming code generation.
@@ -375,9 +424,10 @@ ASTConsumer *clang::CreateBackendConsumer(BackendAction Action,
                                           const LangOptions &LangOpts,
                                           const CodeGenOptions &CodeGenOpts,
                                           const TargetOptions &TargetOpts,
+                                          bool TimePasses,
                                           const std::string& InFile,
                                           llvm::raw_ostream* OS,
                                           LLVMContext& C) {
   return new BackendConsumer(Action, Diags, LangOpts, CodeGenOpts,
-                             TargetOpts, InFile, OS, C);
+                             TargetOpts, TimePasses, InFile, OS, C);
 }

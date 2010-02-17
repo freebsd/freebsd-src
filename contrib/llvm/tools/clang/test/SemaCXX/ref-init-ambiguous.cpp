@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s -std=c++0x
+// RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++0x
 
 enum E2 { };
 
@@ -14,7 +14,7 @@ struct C : B, A {
 };
 
 void test(C c) {
-	const E2 &e2 = c; // expected-error {{reference initialization of type 'enum E2 const &' with initializer of type 'struct C' is ambiguous}}
+  const E2 &e2 = c; // expected-error {{reference initialization of type 'enum E2 const &' with initializer of type 'struct C' is ambiguous}}
 }
 
 void foo(const E2 &);

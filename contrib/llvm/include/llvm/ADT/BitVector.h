@@ -95,6 +95,9 @@ public:
     delete[] Bits;
   }
 
+  /// empty - Tests whether there are no bits in this bitvector.
+  bool empty() const { return Size == 0; }
+
   /// size - Returns the number of bits in this bitvector.
   unsigned size() const { return Size; }
 
@@ -304,15 +307,17 @@ public:
   }
 
   BitVector &operator|=(const BitVector &RHS) {
-    assert(Size == RHS.Size && "Illegal operation!");
-    for (unsigned i = 0; i < NumBitWords(size()); ++i)
+    if (size() < RHS.size())
+      resize(RHS.size());
+    for (size_t i = 0, e = NumBitWords(RHS.size()); i != e; ++i)
       Bits[i] |= RHS.Bits[i];
     return *this;
   }
 
   BitVector &operator^=(const BitVector &RHS) {
-    assert(Size == RHS.Size && "Illegal operation!");
-    for (unsigned i = 0; i < NumBitWords(size()); ++i)
+    if (size() < RHS.size())
+      resize(RHS.size());
+    for (size_t i = 0, e = NumBitWords(RHS.size()); i != e; ++i)
       Bits[i] ^= RHS.Bits[i];
     return *this;
   }
@@ -339,6 +344,12 @@ public:
     Bits = NewBits;
 
     return *this;
+  }
+
+  void swap(BitVector &RHS) {
+    std::swap(Bits, RHS.Bits);
+    std::swap(Size, RHS.Size);
+    std::swap(Capacity, RHS.Capacity);
   }
 
 private:
@@ -406,4 +417,13 @@ inline BitVector operator^(const BitVector &LHS, const BitVector &RHS) {
 }
 
 } // End llvm namespace
+
+namespace std {
+  /// Implement std::swap in terms of BitVector swap.
+  inline void
+  swap(llvm::BitVector &LHS, llvm::BitVector &RHS) {
+    LHS.swap(RHS);
+  }
+}
+
 #endif

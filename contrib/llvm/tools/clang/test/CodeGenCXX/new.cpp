@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 -triple x86_64-unknown-unknown %s -emit-llvm -o - | FileCheck %s
 #include <stddef.h>
 
 void t1() {
@@ -71,4 +71,28 @@ void t8(int n) {
   // Cookie required
   new U[10];
   new U[n];
+}
+
+void t9() {
+  bool b;
+
+  new bool(true);  
+  new (&b) bool(true);
+}
+
+struct A {
+  void* operator new(__typeof(sizeof(int)), int, float, ...);
+  A();
+};
+
+A* t10() {
+   // CHECK: @_ZN1AnwEmifz
+  return new(1, 2, 3.45, 100) A;
+}
+
+struct B { };
+void t11() {
+  // CHECK: call noalias i8* @_Znwm
+  // CHECK: call void @llvm.memset.i64(
+  B* b = new B();
 }

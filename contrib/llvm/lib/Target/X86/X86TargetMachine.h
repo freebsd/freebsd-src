@@ -38,6 +38,11 @@ class X86TargetMachine : public LLVMTargetMachine {
   X86ELFWriterInfo  ELFWriterInfo;
   Reloc::Model      DefRelocModel; // Reloc model before it's overridden.
 
+private:
+  // We have specific defaults for X86.
+  virtual void setCodeModelForJIT();
+  virtual void setCodeModelForStatic();
+  
 public:
   X86TargetMachine(const Target &T, const std::string &TT, 
                    const std::string &FS, bool is64Bit);
@@ -62,20 +67,7 @@ public:
   virtual bool addPreRegAlloc(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
   virtual bool addPostRegAlloc(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
   virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
-                              MachineCodeEmitter &MCE);
-  virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
                               JITCodeEmitter &JCE);
-  virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
-                              ObjectCodeEmitter &OCE);
-  virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
-                                    CodeGenOpt::Level OptLevel,
-                                    MachineCodeEmitter &MCE);
-  virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
-                                    CodeGenOpt::Level OptLevel,
-                                    JITCodeEmitter &JCE);
-  virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
-                                    CodeGenOpt::Level OptLevel,
-                                    ObjectCodeEmitter &OCE);
 };
 
 /// X86_32TargetMachine - X86 32-bit target machine.

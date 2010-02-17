@@ -71,6 +71,16 @@ namespace {
       AU.setPreservesAll();                         // Does not transform code
     }
 
+    /// getAdjustedAnalysisPointer - This method is used when a pass implements
+    /// an analysis interface through multiple inheritance.  If needed, it
+    /// should override this to adjust the this pointer as needed for the
+    /// specified pass info.
+    virtual void *getAdjustedAnalysisPointer(const PassInfo *PI) {
+      if (PI->isPassID(&AliasAnalysis::ID))
+        return (AliasAnalysis*)this;
+      return this;
+    }
+    
     //------------------------------------------------
     // Implement the AliasAnalysis API
     //
@@ -90,11 +100,6 @@ namespace {
       return AliasAnalysis::getModRefInfo(CS1,CS2);
     }
     
-    void getMustAliases(Value *P, std::vector<Value*> &RetVals) {
-      assert(Vals.find(P) != Vals.end() && "Never seen value in AA before");
-      return AliasAnalysis::getMustAliases(P, RetVals);
-    }
-
     bool pointsToConstantMemory(const Value *P) {
       assert(Vals.find(P) != Vals.end() && "Never seen value in AA before");
       return AliasAnalysis::pointsToConstantMemory(P);

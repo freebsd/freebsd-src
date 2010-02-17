@@ -22,14 +22,12 @@
 #include "llvm/Constants.h"
 #include "llvm/Function.h"
 #include "llvm/GlobalVariable.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Target/TargetData.h"
 using namespace clang;
 using namespace CodeGen;
 
 namespace  {
-
-class VISIBILITY_HIDDEN ConstStructBuilder {
+class ConstStructBuilder {
   CodeGenModule &CGM;
   CodeGenFunction *CGF;
 
@@ -169,7 +167,11 @@ class VISIBILITY_HIDDEN ConstStructBuilder {
       }
 
       // Or in the bits that go into the previous byte.
-      Tmp |= cast<llvm::ConstantInt>(Elements.back())->getValue();
+      if (llvm::ConstantInt *Val = dyn_cast<llvm::ConstantInt>(Elements.back()))
+        Tmp |= Val->getValue();
+      else
+        assert(isa<llvm::UndefValue>(Elements.back()));
+
       Elements.back() = llvm::ConstantInt::get(CGM.getLLVMContext(), Tmp);
 
       if (FitsCompletelyInPreviousByte)
@@ -377,7 +379,7 @@ public:
   }
 };
 
-class VISIBILITY_HIDDEN ConstExprEmitter :
+class ConstExprEmitter :
   public StmtVisitor<ConstExprEmitter, llvm::Constant*> {
   CodeGenModule &CGM;
   CodeGenFunction *CGF;
@@ -406,6 +408,8 @@ public:
   llvm::Constant *EmitMemberFunctionPointer(CXXMethodDecl *MD) {
     assert(MD->isInstance() && "Member function must not be static!");
     
+    MD = MD->getCanonicalDecl();
+
     const llvm::Type *PtrDiffTy = 
       CGM.getTypes().ConvertType(CGM.getContext().getPointerDiffType());
     
@@ -413,12 +417,20 @@ public:
     
     // Get the function pointer (or index if this is a virtual function).
     if (MD->isVirtual()) {
-      int64_t Index = CGM.getVtableInfo().getMethodVtableIndex(MD);
-      
-      Values[0] = llvm::ConstantInt::get(PtrDiffTy, Index + 1);
-    } else {
-      llvm::Constant *FuncPtr = CGM.GetAddrOfFunction(MD);
+      uint64_t Index = CGM.getVtableInfo().getMethodVtableIndex(MD);
 
+      // Itanium C++ ABI 2.3:
+      //   For a non-virtual function, this field is a simple function pointer. 
+      //   For a virtual function, it is 1 plus the virtual table offset 
+      //   (in bytes) of the function, represented as a ptrdiff_t. 
+      Values[0] = llvm::ConstantInt::get(PtrDiffTy, (Index * 8) + 1);
+    } else {
+      const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
+      const llvm::Type *Ty =
+        CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(MD),
+                                       FPT->isVariadic());
+
+      llvm::Constant *FuncPtr = CGM.GetAddrOfFunction(MD, Ty);
       Values[0] = llvm::ConstantExpr::getPtrToInt(FuncPtr, PtrDiffTy);
     } 
     
@@ -433,16 +445,16 @@ public:
     if (const MemberPointerType *MPT = 
         E->getType()->getAs<MemberPointerType>()) {
       QualType T = MPT->getPointeeType();
-      if (T->isFunctionProtoType()) {
-        DeclRefExpr *DRE = cast<DeclRefExpr>(E->getSubExpr());
-        
-        return EmitMemberFunctionPointer(cast<CXXMethodDecl>(DRE->getDecl()));
-      }
+      DeclRefExpr *DRE = cast<DeclRefExpr>(E->getSubExpr());
+
+      NamedDecl *ND = DRE->getDecl();
+      if (T->isFunctionProtoType())
+        return EmitMemberFunctionPointer(cast<CXXMethodDecl>(ND));
       
-      // FIXME: Should we handle other member pointer types here too,
-      // or should they be handled by Expr::Evaluate?
+      // We have a pointer to data member.
+      return CGM.EmitPointerToDataMember(cast<FieldDecl>(ND));
     }
-    
+
     return 0;
   }
     
@@ -529,8 +541,8 @@ public:
         llvm::ConstantStruct *CS = cast<llvm::ConstantStruct>(C);
         
         // Check if we need to update the adjustment.
-        if (llvm::Constant *Offset = CGM.GetCXXBaseClassOffset(DerivedClass,
-                                                               BaseClass)) {
+        if (llvm::Constant *Offset = 
+              CGM.GetNonVirtualBaseClassOffset(DerivedClass, BaseClass)) {
           llvm::Constant *Values[2];
         
           Values[0] = CS->getOperand(0);
@@ -630,32 +642,6 @@ public:
     return ConstStructBuilder::BuildStruct(CGM, CGF, ILE);
   }
 
-  llvm::Constant *EmitVectorInitialization(InitListExpr *ILE) {
-    const llvm::VectorType *VType =
-        cast<llvm::VectorType>(ConvertType(ILE->getType()));
-    const llvm::Type *ElemTy = VType->getElementType();
-    std::vector<llvm::Constant*> Elts;
-    unsigned NumElements = VType->getNumElements();
-    unsigned NumInitElements = ILE->getNumInits();
-
-    unsigned NumInitableElts = std::min(NumInitElements, NumElements);
-
-    // Copy initializer elements.
-    unsigned i = 0;
-    for (; i < NumInitableElts; ++i) {
-      Expr *Init = ILE->getInit(i);
-      llvm::Constant *C = CGM.EmitConstantExpr(Init, Init->getType(), CGF);
-      if (!C)
-        return 0;
-      Elts.push_back(C);
-    }
-
-    for (; i < NumElements; ++i)
-      Elts.push_back(llvm::Constant::getNullValue(ElemTy));
-
-    return llvm::ConstantVector::get(VType, Elts);
-  }
-
   llvm::Constant *VisitImplicitValueInitExpr(ImplicitValueInitExpr* E) {
     return CGM.EmitNullConstant(E->getType());
   }
@@ -673,19 +659,54 @@ public:
     if (ILE->getType()->isArrayType())
       return EmitArrayInitialization(ILE);
 
-    if (ILE->getType()->isStructureType())
+    if (ILE->getType()->isRecordType())
       return EmitStructInitialization(ILE);
 
     if (ILE->getType()->isUnionType())
       return EmitUnionInitialization(ILE);
 
+    // If ILE was a constant vector, we would have handled it already.
     if (ILE->getType()->isVectorType())
-      return EmitVectorInitialization(ILE);
+      return 0;
 
     assert(0 && "Unable to handle InitListExpr");
     // Get rid of control reaches end of void function warning.
     // Not reached.
     return 0;
+  }
+
+  llvm::Constant *VisitCXXConstructExpr(CXXConstructExpr *E) {
+    if (!E->getConstructor()->isTrivial())
+      return 0;
+
+    QualType Ty = E->getType();
+
+    // FIXME: We should not have to call getBaseElementType here.
+    const RecordType *RT = 
+      CGM.getContext().getBaseElementType(Ty)->getAs<RecordType>();
+    const CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
+    
+    // If the class doesn't have a trivial destructor, we can't emit it as a
+    // constant expr.
+    if (!RD->hasTrivialDestructor())
+      return 0;
+    
+    // Only copy and default constructors can be trivial.
+
+
+    if (E->getNumArgs()) {
+      assert(E->getNumArgs() == 1 && "trivial ctor with > 1 argument");
+      assert(E->getConstructor()->isCopyConstructor() &&
+             "trivial ctor has argument but isn't a copy ctor");
+
+      Expr *Arg = E->getArg(0);
+      assert(CGM.getContext().hasSameUnqualifiedType(Ty, Arg->getType()) &&
+             "argument to copy ctor is of wrong type");
+
+      return Visit(Arg);
+    }
+
+    return CGM.EmitNullConstant(Ty);
   }
 
   llvm::Constant *VisitStringLiteral(StringLiteral *E) {
@@ -762,7 +783,8 @@ public:
       return CGM.GetAddrOfConstantStringFromObjCEncode(cast<ObjCEncodeExpr>(E));
     case Expr::ObjCStringLiteralClass: {
       ObjCStringLiteral* SL = cast<ObjCStringLiteral>(E);
-      llvm::Constant *C = CGM.getObjCRuntime().GenerateConstantString(SL);
+      llvm::Constant *C =
+          CGM.getObjCRuntime().GenerateConstantString(SL->getString());
       return llvm::ConstantExpr::getBitCast(C, ConvertType(E->getType()));
     }
     case Expr::PredefinedExprClass: {
@@ -784,11 +806,18 @@ public:
     }
     case Expr::CallExprClass: {
       CallExpr* CE = cast<CallExpr>(E);
-      if (CE->isBuiltinCall(CGM.getContext()) !=
-            Builtin::BI__builtin___CFStringMakeConstantString)
+      unsigned builtin = CE->isBuiltinCall(CGM.getContext());
+      if (builtin !=
+            Builtin::BI__builtin___CFStringMakeConstantString &&
+          builtin !=
+            Builtin::BI__builtin___NSStringMakeConstantString)
         break;
       const Expr *Arg = CE->getArg(0)->IgnoreParenCasts();
       const StringLiteral *Literal = cast<StringLiteral>(Arg);
+      if (builtin ==
+            Builtin::BI__builtin___NSStringMakeConstantString) {
+        return CGM.getObjCRuntime().GenerateConstantString(Literal);
+      }
       // FIXME: need to deal with UCN conversion issues.
       return CGM.GetAddrOfConstantCFString(Literal);
     }
@@ -830,7 +859,7 @@ llvm::Constant *CodeGenModule::EmitConstantExpr(const Expr *E,
       const llvm::Type *DestTy = getTypes().ConvertTypeForMem(DestType);
       llvm::Constant *Offset =
         llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext),
-                               Result.Val.getLValueOffset());
+                               Result.Val.getLValueOffset().getQuantity());
 
       llvm::Constant *C;
       if (const Expr *LVBase = Result.Val.getLValueBase()) {
@@ -923,7 +952,24 @@ llvm::Constant *CodeGenModule::EmitConstantExpr(const Expr *E,
   return C;
 }
 
-static inline bool isDataMemberPointerType(QualType T) {
+static bool containsPointerToDataMember(CodeGenTypes &Types, QualType T) {
+  // No need to check for member pointers when not compiling C++.
+  if (!Types.getContext().getLangOptions().CPlusPlus)
+    return false;
+  
+  T = Types.getContext().getBaseElementType(T);
+  
+  if (const RecordType *RT = T->getAs<RecordType>()) {
+    const CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
+    
+    // FIXME: It would be better if there was a way to explicitly compute the
+    // record layout instead of converting to a type.
+    Types.ConvertTagDeclType(RD);
+    
+    const CGRecordLayout &Layout = Types.getCGRecordLayout(RD);
+    return Layout.containsPointerToDataMember();
+  }
+    
   if (const MemberPointerType *MPT = T->getAs<MemberPointerType>())
     return !MPT->getPointeeType()->isFunctionType();
   
@@ -931,43 +977,80 @@ static inline bool isDataMemberPointerType(QualType T) {
 }
 
 llvm::Constant *CodeGenModule::EmitNullConstant(QualType T) {
-  // No need to check for member pointers when not compiling C++.
-  if (!getContext().getLangOptions().CPlusPlus)
+  if (!containsPointerToDataMember(getTypes(), T))
     return llvm::Constant::getNullValue(getTypes().ConvertTypeForMem(T));
-
+    
   if (const ConstantArrayType *CAT = Context.getAsConstantArrayType(T)) {
 
     QualType ElementTy = CAT->getElementType();
 
-    // FIXME: Handle arrays of structs that contain member pointers.
-    if (isDataMemberPointerType(Context.getBaseElementType(ElementTy))) {
-      llvm::Constant *Element = EmitNullConstant(ElementTy);
-      uint64_t NumElements = CAT->getSize().getZExtValue();
-      std::vector<llvm::Constant *> Array(NumElements);
-      for (uint64_t i = 0; i != NumElements; ++i)
-        Array[i] = Element;
+    llvm::Constant *Element = EmitNullConstant(ElementTy);
+    unsigned NumElements = CAT->getSize().getZExtValue();
+    std::vector<llvm::Constant *> Array(NumElements);
+    for (unsigned i = 0; i != NumElements; ++i)
+      Array[i] = Element;
 
-      const llvm::ArrayType *ATy =
-        cast<llvm::ArrayType>(getTypes().ConvertTypeForMem(T));
-      return llvm::ConstantArray::get(ATy, Array);
-    }
+    const llvm::ArrayType *ATy =
+      cast<llvm::ArrayType>(getTypes().ConvertTypeForMem(T));
+    return llvm::ConstantArray::get(ATy, Array);
   }
 
   if (const RecordType *RT = T->getAs<RecordType>()) {
-    const RecordDecl *RD = RT->getDecl();
-    // FIXME: It would be better if there was a way to explicitly compute the
-    // record layout instead of converting to a type.
-    Types.ConvertTagDeclType(RD);
+    const CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
+    assert(!RD->getNumBases() && 
+           "FIXME: Handle zero-initializing structs with bases and "
+           "pointers to data members.");
+    const llvm::StructType *STy =
+      cast<llvm::StructType>(getTypes().ConvertTypeForMem(T));
+    unsigned NumElements = STy->getNumElements();
+    std::vector<llvm::Constant *> Elements(NumElements);
 
-    const CGRecordLayout &Layout = Types.getCGRecordLayout(RD);
-    if (Layout.containsMemberPointer()) {
-      assert(0 && "FIXME: No support for structs with member pointers yet!");
+    for (RecordDecl::field_iterator I = RD->field_begin(),
+         E = RD->field_end(); I != E; ++I) {
+      const FieldDecl *FD = *I;
+      
+      unsigned FieldNo = getTypes().getLLVMFieldNo(FD);
+      Elements[FieldNo] = EmitNullConstant(FD->getType());
     }
+    
+    // Now go through all other fields and zero them out.
+    for (unsigned i = 0; i != NumElements; ++i) {
+      if (!Elements[i])
+        Elements[i] = llvm::Constant::getNullValue(STy->getElementType(i));
+    }
+    
+    return llvm::ConstantStruct::get(STy, Elements);
   }
 
-  // FIXME: Handle structs that contain member pointers.
-  if (isDataMemberPointerType(T))
-    return llvm::Constant::getAllOnesValue(getTypes().ConvertTypeForMem(T));
+  assert(!T->getAs<MemberPointerType>()->getPointeeType()->isFunctionType() &&
+         "Should only see pointers to data members here!");
+  
+  // Itanium C++ ABI 2.3:
+  //   A NULL pointer is represented as -1.
+  return llvm::ConstantInt::get(getTypes().ConvertTypeForMem(T), -1ULL, 
+                                /*isSigned=*/true);
+}
 
-  return llvm::Constant::getNullValue(getTypes().ConvertTypeForMem(T));
+llvm::Constant *
+CodeGenModule::EmitPointerToDataMember(const FieldDecl *FD) {
+
+  // Itanium C++ ABI 2.3:
+  //   A pointer to data member is an offset from the base address of the class
+  //   object containing it, represented as a ptrdiff_t
+
+  const CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(FD->getParent());
+  QualType ClassType = 
+    getContext().getTypeDeclType(const_cast<CXXRecordDecl *>(ClassDecl));
+  
+  const llvm::StructType *ClassLTy =
+    cast<llvm::StructType>(getTypes().ConvertType(ClassType));
+
+  unsigned FieldNo = getTypes().getLLVMFieldNo(FD);
+  uint64_t Offset = 
+    getTargetData().getStructLayout(ClassLTy)->getElementOffset(FieldNo);
+
+  const llvm::Type *PtrDiffTy = 
+    getTypes().ConvertType(getContext().getPointerDiffType());
+
+  return llvm::ConstantInt::get(PtrDiffTy, Offset);
 }

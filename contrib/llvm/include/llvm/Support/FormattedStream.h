@@ -1,4 +1,4 @@
-//===-- llvm/CodeGen/FormattedStream.h - Formatted streams ------*- C++ -*-===//
+//===-- llvm/Support/FormattedStream.h - Formatted streams ------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -59,7 +59,7 @@ namespace llvm
 
     /// current_pos - Return the current position within the stream,
     /// not counting the bytes currently in the buffer.
-    virtual uint64_t current_pos() { 
+    virtual uint64_t current_pos() const { 
       // This has the same effect as calling TheStream.current_pos(),
       // but that interface is private.
       return TheStream->tell() - TheStream->GetNumBytesInBuffer();
@@ -119,7 +119,7 @@ namespace llvm
     /// space.
     ///
     /// \param NewCol - The column to move to.
-    void PadToColumn(unsigned NewCol);
+    formatted_raw_ostream &PadToColumn(unsigned NewCol);
 
   private:
     void releaseStream() {
@@ -143,6 +143,10 @@ formatted_raw_ostream &fouts();
 /// ferrs() - This returns a reference to a formatted_raw_ostream for
 /// standard error.  Use it like: ferrs() << "foo" << "bar";
 formatted_raw_ostream &ferrs();
+
+/// fdbgs() - This returns a reference to a formatted_raw_ostream for
+/// debug output.  Use it like: fdbgs() << "foo" << "bar";
+formatted_raw_ostream &fdbgs();
 
 } // end llvm namespace
 

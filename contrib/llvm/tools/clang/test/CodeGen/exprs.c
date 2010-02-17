@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -emit-llvm -o -
+// RUN: %clang_cc1 %s -emit-llvm -o -
 
 // PR1895
 // sizeof function
@@ -116,3 +116,6 @@ void f9(struct S *x) {
   foo(((void)1, x->c).tab[0]);
 }
 
+void f10() {
+  __builtin_sin(0);
+}

@@ -1,5 +1,5 @@
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-constraints=basic -analyzer-store=basic %s -verify
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-constraints=basic -analyzer-store=region %s -verify
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-constraints=basic -analyzer-store=basic %s -verify
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-constraints=basic -analyzer-store=region %s -verify
 
 typedef struct Foo { int x; } Bar;
 
@@ -15,12 +15,12 @@ typedef struct Foo { int x; } Bar;
 
 void createFoo() {
   MyClass *obj = 0;  
-  Bar f = [obj foo]; // expected-warning{{The receiver in the message expression is 'nil' and results in the returned value (of type 'Bar') to be garbage or otherwise undefined.}}
+  Bar f = [obj foo]; // expected-warning{{The receiver of message 'foo' is nil and returns a value of type 'Bar' that will be garbage}}
 }
 
 void createFoo2() {
   MyClass *obj = 0;  
   [obj foo]; // no-warning
-  Bar f = [obj foo]; // expected-warning{{The receiver in the message expression is 'nil' and results in the returned value (of type 'Bar') to be garbage or otherwise undefined.}}
+  Bar f = [obj foo]; // expected-warning{{The receiver of message 'foo' is nil and returns a value of type 'Bar' that will be garbage}}
 }
 

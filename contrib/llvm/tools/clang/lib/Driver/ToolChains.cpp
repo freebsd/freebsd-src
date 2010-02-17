@@ -31,26 +31,81 @@ using namespace clang::driver::toolchains;
 /// Darwin - Darwin tool chain for i386 and x86_64.
 
 Darwin::Darwin(const HostInfo &Host, const llvm::Triple& Triple,
-               const unsigned (&_DarwinVersion)[3], bool _IsIPhoneOS)
-  : ToolChain(Host, Triple),
-    IsIPhoneOS(_IsIPhoneOS)
+               const unsigned (&_DarwinVersion)[3])
+  : ToolChain(Host, Triple), TargetInitialized(false)
 {
-  DarwinVersion[0] = _DarwinVersion[0];
-  DarwinVersion[1] = _DarwinVersion[1];
-  DarwinVersion[2] = _DarwinVersion[2];
-
   llvm::raw_string_ostream(MacosxVersionMin)
-    << "10." << std::max(0, (int)DarwinVersion[0] - 4) << '.'
-    << DarwinVersion[1];
+    << "10." << std::max(0, (int)_DarwinVersion[0] - 4) << '.'
+    << _DarwinVersion[1];
+}
 
-  // FIXME: Lift default up.
-  IPhoneOSVersionMin = "3.0";
+// FIXME: Can we tablegen this?
+static const char *GetArmArchForMArch(llvm::StringRef Value) {
+  if (Value == "armv6k")
+    return "armv6";
+
+  if (Value == "armv5tej")
+    return "armv5";
+
+  if (Value == "xscale")
+    return "xscale";
+
+  if (Value == "armv4t")
+    return "armv4t";
+
+  if (Value == "armv7" || Value == "armv7-a" || Value == "armv7-r" ||
+      Value == "armv7-m" || Value == "armv7a" || Value == "armv7r" ||
+      Value == "armv7m")
+    return "armv7";
+
+  return 0;
+}
+
+// FIXME: Can we tablegen this?
+static const char *GetArmArchForMCpu(llvm::StringRef Value) {
+  if (Value == "arm10tdmi" || Value == "arm1020t" || Value == "arm9e" ||
+      Value == "arm946e-s" || Value == "arm966e-s" ||
+      Value == "arm968e-s" || Value == "arm10e" ||
+      Value == "arm1020e" || Value == "arm1022e" || Value == "arm926ej-s" ||
+      Value == "arm1026ej-s")
+    return "armv5";
+
+  if (Value == "xscale")
+    return "xscale";
+
+  if (Value == "arm1136j-s" || Value == "arm1136jf-s" ||
+      Value == "arm1176jz-s" || Value == "arm1176jzf-s")
+    return "armv6";
+
+  if (Value == "cortex-a8" || Value == "cortex-r4" || Value == "cortex-m3")
+    return "armv7";
+
+  return 0;
+}
+
+llvm::StringRef Darwin::getDarwinArchName(const ArgList &Args) const {
+  switch (getTriple().getArch()) {
+  default:
+    return getArchName();
+
+  case llvm::Triple::arm: {
+    if (const Arg *A = Args.getLastArg(options::OPT_march_EQ))
+      if (const char *Arch = GetArmArchForMArch(A->getValue(Args)))
+        return Arch;
+
+    if (const Arg *A = Args.getLastArg(options::OPT_mcpu_EQ))
+      if (const char *Arch = GetArmArchForMCpu(A->getValue(Args)))
+        return Arch;
+
+    return "arm";
+  }
+  }
 }
 
 DarwinGCC::DarwinGCC(const HostInfo &Host, const llvm::Triple& Triple,
                      const unsigned (&DarwinVersion)[3],
-                     const unsigned (&_GCCVersion)[3], bool IsIPhoneOS)
-  : Darwin(Host, Triple, DarwinVersion, IsIPhoneOS)
+                     const unsigned (&_GCCVersion)[3])
+  : Darwin(Host, Triple, DarwinVersion)
 {
   GCCVersion[0] = _GCCVersion[0];
   GCCVersion[1] = _GCCVersion[1];
@@ -88,7 +143,7 @@ DarwinGCC::DarwinGCC(const HostInfo &Host, const llvm::Triple& Triple,
 
   std::string Path;
   if (getArchName() == "x86_64") {
-    Path = getHost().getDriver().Dir;
+    Path = getDriver().Dir;
     Path += "/../lib/gcc/";
     Path += ToolChainDir;
     Path += "/x86_64";
@@ -100,7 +155,7 @@ DarwinGCC::DarwinGCC(const HostInfo &Host, const llvm::Triple& Triple,
     getFilePaths().push_back(Path);
   }
 
-  Path = getHost().getDriver().Dir;
+  Path = getDriver().Dir;
   Path += "/../lib/gcc/";
   Path += ToolChainDir;
   getFilePaths().push_back(Path);
@@ -109,7 +164,7 @@ DarwinGCC::DarwinGCC(const HostInfo &Host, const llvm::Triple& Triple,
   Path += ToolChainDir;
   getFilePaths().push_back(Path);
 
-  Path = getHost().getDriver().Dir;
+  Path = getDriver().Dir;
   Path += "/../libexec/gcc/";
   Path += ToolChainDir;
   getProgramPaths().push_back(Path);
@@ -118,11 +173,7 @@ DarwinGCC::DarwinGCC(const HostInfo &Host, const llvm::Triple& Triple,
   Path += ToolChainDir;
   getProgramPaths().push_back(Path);
 
-  Path = getHost().getDriver().Dir;
-  Path += "/../libexec";
-  getProgramPaths().push_back(Path);
-
-  getProgramPaths().push_back(getHost().getDriver().Dir);
+  getProgramPaths().push_back(getDriver().Dir);
 }
 
 Darwin::~Darwin() {
@@ -134,7 +185,7 @@ Darwin::~Darwin() {
 
 Tool &Darwin::SelectTool(const Compilation &C, const JobAction &JA) const {
   Action::ActionClass Key;
-  if (getHost().getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
+  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
     Key = Action::AnalyzeJobClass;
   else
     Key = JA.getKind();
@@ -186,8 +237,7 @@ void DarwinGCC::AddLinkSearchPathArgs(const ArgList &Args,
 
 void DarwinGCC::AddLinkRuntimeLibArgs(const ArgList &Args,
                                       ArgStringList &CmdArgs) const {
-  unsigned MacosxVersionMin[3];
-  getMacosxVersionMin(Args, MacosxVersionMin);
+  // Note that this routine is only used for targetting OS X.
 
   // Derived from libgcc and lib specs but refactored.
   if (Args.hasArg(options::OPT_static)) {
@@ -197,30 +247,30 @@ void DarwinGCC::AddLinkRuntimeLibArgs(const ArgList &Args,
       CmdArgs.push_back("-lgcc_eh");
     } else if (Args.hasArg(options::OPT_miphoneos_version_min_EQ)) {
       // Derived from darwin_iphoneos_libgcc spec.
-      if (isIPhoneOS()) {
+      if (isTargetIPhoneOS()) {
         CmdArgs.push_back("-lgcc_s.1");
       } else {
         CmdArgs.push_back("-lgcc_s.10.5");
       }
     } else if (Args.hasArg(options::OPT_shared_libgcc) ||
-               // FIXME: -fexceptions -fno-exceptions means no exceptions
-               Args.hasArg(options::OPT_fexceptions) ||
+               Args.hasFlag(options::OPT_fexceptions,
+                            options::OPT_fno_exceptions) ||
                Args.hasArg(options::OPT_fgnu_runtime)) {
       // FIXME: This is probably broken on 10.3?
-      if (isMacosxVersionLT(MacosxVersionMin, 10, 5))
+      if (isMacosxVersionLT(10, 5))
         CmdArgs.push_back("-lgcc_s.10.4");
-      else if (isMacosxVersionLT(MacosxVersionMin, 10, 6))
+      else if (isMacosxVersionLT(10, 6))
         CmdArgs.push_back("-lgcc_s.10.5");
     } else {
-      if (isMacosxVersionLT(MacosxVersionMin, 10, 3, 9))
+      if (isMacosxVersionLT(10, 3, 9))
         ; // Do nothing.
-      else if (isMacosxVersionLT(MacosxVersionMin, 10, 5))
+      else if (isMacosxVersionLT(10, 5))
         CmdArgs.push_back("-lgcc_s.10.4");
-      else if (isMacosxVersionLT(MacosxVersionMin, 10, 6))
+      else if (isMacosxVersionLT(10, 6))
         CmdArgs.push_back("-lgcc_s.10.5");
     }
 
-    if (isIPhoneOS() || isMacosxVersionLT(MacosxVersionMin, 10, 6)) {
+    if (isTargetIPhoneOS() || isMacosxVersionLT(10, 6)) {
       CmdArgs.push_back("-lgcc");
       CmdArgs.push_back("-lSystem");
     } else {
@@ -231,19 +281,11 @@ void DarwinGCC::AddLinkRuntimeLibArgs(const ArgList &Args,
 }
 
 DarwinClang::DarwinClang(const HostInfo &Host, const llvm::Triple& Triple,
-                         const unsigned (&DarwinVersion)[3],
-                         bool IsIPhoneOS)
-  : Darwin(Host, Triple, DarwinVersion, IsIPhoneOS)
+                         const unsigned (&DarwinVersion)[3])
+  : Darwin(Host, Triple, DarwinVersion)
 {
-  // Add the relative libexec dir (for clang-cc).
-  //
-  // FIXME: We should sink clang-cc into libexec/clang/<version>/.
-  std::string Path = getHost().getDriver().Dir;
-  Path += "/../libexec";
-  getProgramPaths().push_back(Path);
-
   // We expect 'as', 'ld', etc. to be adjacent to our install dir.
-  getProgramPaths().push_back(getHost().getDriver().Dir);
+  getProgramPaths().push_back(getDriver().Dir);
 }
 
 void DarwinClang::AddLinkSearchPathArgs(const ArgList &Args,
@@ -253,49 +295,69 @@ void DarwinClang::AddLinkSearchPathArgs(const ArgList &Args,
 
 void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
                                         ArgStringList &CmdArgs) const {
-  // Check for static linking.
-  if (Args.hasArg(options::OPT_static)) {
-    // FIXME: We need to have compiler-rt available (perhaps as
-    // libclang_static.a) to link against.
+  // Darwin doesn't support real static executables, don't link any runtime
+  // libraries with -static.
+  if (Args.hasArg(options::OPT_static))
     return;
-  }
 
   // Reject -static-libgcc for now, we can deal with this when and if someone
   // cares. This is useful in situations where someone wants to statically link
   // something like libstdc++, and needs its runtime support routines.
   if (const Arg *A = Args.getLastArg(options::OPT_static_libgcc)) {
-    getHost().getDriver().Diag(clang::diag::err_drv_unsupported_opt)
+    getDriver().Diag(clang::diag::err_drv_unsupported_opt)
       << A->getAsString(Args);
     return;
   }
 
-  // Otherwise link libSystem, which should have the support routines.
-  //
-  // FIXME: This is only true for 10.6 and beyond. Legacy support isn't
-  // critical, but it should work... we should just link in the static
-  // compiler-rt library.
+  // Otherwise link libSystem, then the dynamic runtime library, and finally any
+  // target specific static runtime library.
   CmdArgs.push_back("-lSystem");
-}
 
-void Darwin::getMacosxVersionMin(const ArgList &Args,
-                                 unsigned (&Res)[3]) const {
-  if (Arg *A = Args.getLastArg(options::OPT_mmacosx_version_min_EQ)) {
-    bool HadExtra;
-    if (!Driver::GetReleaseVersion(A->getValue(Args), Res[0], Res[1], Res[2],
-                                   HadExtra) ||
-        HadExtra) {
-      const Driver &D = getHost().getDriver();
-      D.Diag(clang::diag::err_drv_invalid_version_number)
-        << A->getAsString(Args);
-    }
-  } else
-    return getMacosxVersion(Res);
+  // Select the dynamic runtime library and the target specific static library.
+  const char *DarwinStaticLib = 0;
+  if (isTargetIPhoneOS()) {
+    CmdArgs.push_back("-lgcc_s.1");
+
+    // We may need some static functions for armv6/thumb which are required to
+    // be in the same linkage unit as their caller.
+    if (getDarwinArchName(Args) == "armv6")
+      DarwinStaticLib = "libclang_rt.armv6.a";
+  } else {
+    // The dynamic runtime library was merged with libSystem for 10.6 and
+    // beyond; only 10.4 and 10.5 need an additional runtime library.
+    if (isMacosxVersionLT(10, 5))
+      CmdArgs.push_back("-lgcc_s.10.4");
+    else if (isMacosxVersionLT(10, 6))
+      CmdArgs.push_back("-lgcc_s.10.5");
+
+    // For OS X, we only need a static runtime library when targetting 10.4, to
+    // provide versions of the static functions which were omitted from
+    // 10.4.dylib.
+    if (isMacosxVersionLT(10, 5))
+      DarwinStaticLib = "libclang_rt.10.4.a";
+  }
+
+  /// Add the target specific static library, if needed.
+  if (DarwinStaticLib) {
+    llvm::sys::Path P(getDriver().ResourceDir);
+    P.appendComponent("lib");
+    P.appendComponent("darwin");
+    P.appendComponent(DarwinStaticLib);
+
+    // For now, allow missing resource libraries to support developers who may
+    // not have compiler-rt checked out or integrated into their build.
+    if (!P.exists())
+      getDriver().Diag(clang::diag::warn_drv_missing_resource_library)
+        << P.str();
+    else
+      CmdArgs.push_back(Args.MakeArgString(P.str()));
+  }
 }
 
 DerivedArgList *Darwin::TranslateArgs(InputArgList &Args,
                                       const char *BoundArch) const {
   DerivedArgList *DAL = new DerivedArgList(Args, false);
-  const OptTable &Opts = getHost().getDriver().getOpts();
+  const OptTable &Opts = getDriver().getOpts();
 
   // FIXME: We really want to get out of the tool chain level argument
   // translation business, as it makes the driver functionality much
@@ -304,33 +366,83 @@ DerivedArgList *Darwin::TranslateArgs(InputArgList &Args,
   // have something that works, we should reevaluate each translation
   // and try to push it down into tool specific logic.
 
-  Arg *OSXVersion =
-    Args.getLastArgNoClaim(options::OPT_mmacosx_version_min_EQ);
-  Arg *iPhoneVersion =
-    Args.getLastArgNoClaim(options::OPT_miphoneos_version_min_EQ);
+  Arg *OSXVersion = Args.getLastArg(options::OPT_mmacosx_version_min_EQ);
+  Arg *iPhoneVersion = Args.getLastArg(options::OPT_miphoneos_version_min_EQ);
   if (OSXVersion && iPhoneVersion) {
-    getHost().getDriver().Diag(clang::diag::err_drv_argument_not_allowed_with)
+    getDriver().Diag(clang::diag::err_drv_argument_not_allowed_with)
           << OSXVersion->getAsString(Args)
           << iPhoneVersion->getAsString(Args);
+    iPhoneVersion = 0;
   } else if (!OSXVersion && !iPhoneVersion) {
-    // Chose the default version based on the arch.
-    //
-    // FIXME: Are there iPhone overrides for this?
+    // If neither OS X nor iPhoneOS targets were specified, check for
+    // environment defines.
+    const char *OSXTarget = ::getenv("MACOSX_DEPLOYMENT_TARGET");
+    const char *iPhoneOSTarget = ::getenv("IPHONEOS_DEPLOYMENT_TARGET");
 
-    if (!isIPhoneOS()) {
-      // Look for MACOSX_DEPLOYMENT_TARGET, otherwise use the version
-      // from the host.
-      const char *Version = ::getenv("MACOSX_DEPLOYMENT_TARGET");
-      if (!Version)
-        Version = MacosxVersionMin.c_str();
+    // Ignore empty strings.
+    if (OSXTarget && OSXTarget[0] == '\0')
+      OSXTarget = 0;
+    if (iPhoneOSTarget && iPhoneOSTarget[0] == '\0')
+      iPhoneOSTarget = 0;
+
+    // Diagnose conflicting deployment targets, and choose default platform
+    // based on the tool chain.
+    //
+    // FIXME: Don't hardcode default here.
+    if (OSXTarget && iPhoneOSTarget) {
+      // FIXME: We should see if we can get away with warning or erroring on
+      // this. Perhaps put under -pedantic?
+      if (getTriple().getArch() == llvm::Triple::arm ||
+          getTriple().getArch() == llvm::Triple::thumb)
+        OSXVersion = 0;
+      else
+        iPhoneVersion = 0;
+    }
+
+    if (OSXTarget) {
       const Option *O = Opts.getOption(options::OPT_mmacosx_version_min_EQ);
-      DAL->append(DAL->MakeJoinedArg(0, O, Version));
-    } else {
-      const char *Version = IPhoneOSVersionMin.c_str();
+      OSXVersion = DAL->MakeJoinedArg(0, O, OSXTarget);
+      DAL->append(OSXVersion);
+    } else if (iPhoneOSTarget) {
       const Option *O = Opts.getOption(options::OPT_miphoneos_version_min_EQ);
-      DAL->append(DAL->MakeJoinedArg(0, O, Version));
+      iPhoneVersion = DAL->MakeJoinedArg(0, O, iPhoneOSTarget);
+      DAL->append(iPhoneVersion);
+    } else {
+      // Otherwise, choose a default platform based on the tool chain.
+      //
+      // FIXME: Don't hardcode default here.
+      if (getTriple().getArch() == llvm::Triple::arm ||
+          getTriple().getArch() == llvm::Triple::thumb) {
+        const Option *O = Opts.getOption(options::OPT_miphoneos_version_min_EQ);
+        iPhoneVersion = DAL->MakeJoinedArg(0, O, "3.0");
+        DAL->append(iPhoneVersion);
+      } else {
+        const Option *O = Opts.getOption(options::OPT_mmacosx_version_min_EQ);
+        OSXVersion = DAL->MakeJoinedArg(0, O, MacosxVersionMin);
+        DAL->append(OSXVersion);
+      }
     }
   }
+
+  // Set the tool chain target information.
+  unsigned Major, Minor, Micro;
+  bool HadExtra;
+  if (OSXVersion) {
+    assert(!iPhoneVersion && "Unknown target platform!");
+    if (!Driver::GetReleaseVersion(OSXVersion->getValue(Args), Major, Minor,
+                                   Micro, HadExtra) || HadExtra ||
+        Major != 10 || Minor >= 10 || Micro >= 10)
+      getDriver().Diag(clang::diag::err_drv_invalid_version_number)
+        << OSXVersion->getAsString(Args);
+  } else {
+    assert(iPhoneVersion && "Unknown target platform!");
+    if (!Driver::GetReleaseVersion(iPhoneVersion->getValue(Args), Major, Minor,
+                                   Micro, HadExtra) || HadExtra ||
+        Major >= 10 || Minor >= 100 || Micro >= 100)
+      getDriver().Diag(clang::diag::err_drv_invalid_version_number)
+        << iPhoneVersion->getAsString(Args);
+  }
+  setTarget(iPhoneVersion, Major, Minor, Micro);
 
   for (ArgList::iterator it = Args.begin(), ie = Args.end(); it != ie; ++it) {
     Arg *A = *it;
@@ -355,7 +467,7 @@ DerivedArgList *Darwin::TranslateArgs(InputArgList &Args,
       // like -O4 are going to slip through.
       if (!XarchArg || Index > Prev + 1 ||
           XarchArg->getOption().isDriverOption()) {
-       getHost().getDriver().Diag(clang::diag::err_drv_invalid_Xarch_argument)
+       getDriver().Diag(clang::diag::err_drv_invalid_Xarch_argument)
           << A->getAsString(Args);
         continue;
       }
@@ -510,20 +622,28 @@ DerivedArgList *Darwin::TranslateArgs(InputArgList &Args,
       DAL->append(DAL->MakeJoinedArg(0, MArch, "armv7a"));
 
     else
-      llvm::llvm_unreachable("invalid Darwin arch");
+      llvm_unreachable("invalid Darwin arch");
   }
 
   return DAL;
-}
-
-bool Darwin::IsMathErrnoDefault() const {
-  return false;
 }
 
 bool Darwin::IsUnwindTablesDefault() const {
   // FIXME: Gross; we should probably have some separate target
   // definition, possibly even reusing the one in clang.
   return getArchName() == "x86_64";
+}
+
+bool Darwin::UseDwarfDebugFlags() const {
+  if (const char *S = ::getenv("RC_DEBUG_OPTIONS"))
+    return S[0] != '\0';
+  return false;
+}
+
+bool Darwin::UseSjLjExceptions() const {
+  // Darwin uses SjLj exceptions on ARM.
+  return (getTriple().getArch() == llvm::Triple::arm ||
+          getTriple().getArch() == llvm::Triple::thumb);
 }
 
 const char *Darwin::GetDefaultRelocationModel() const {
@@ -542,11 +662,7 @@ const char *Darwin::GetForcedPicModel() const {
 
 Generic_GCC::Generic_GCC(const HostInfo &Host, const llvm::Triple& Triple)
   : ToolChain(Host, Triple) {
-  std::string Path(getHost().getDriver().Dir);
-  Path += "/../libexec";
-  getProgramPaths().push_back(Path);
-
-  getProgramPaths().push_back(getHost().getDriver().Dir);
+  getProgramPaths().push_back(getDriver().Dir);
 }
 
 Generic_GCC::~Generic_GCC() {
@@ -559,7 +675,7 @@ Generic_GCC::~Generic_GCC() {
 Tool &Generic_GCC::SelectTool(const Compilation &C,
                               const JobAction &JA) const {
   Action::ActionClass Key;
-  if (getHost().getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
+  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
     Key = Action::AnalyzeJobClass;
   else
     Key = JA.getKind();
@@ -593,10 +709,6 @@ Tool &Generic_GCC::SelectTool(const Compilation &C,
   return *T;
 }
 
-bool Generic_GCC::IsMathErrnoDefault() const {
-  return true;
-}
-
 bool Generic_GCC::IsUnwindTablesDefault() const {
   // FIXME: Gross; we should probably have some separate target
   // definition, possibly even reusing the one in clang.
@@ -620,13 +732,13 @@ DerivedArgList *Generic_GCC::TranslateArgs(InputArgList &Args,
 
 OpenBSD::OpenBSD(const HostInfo &Host, const llvm::Triple& Triple)
   : Generic_GCC(Host, Triple) {
-  getFilePaths().push_back(getHost().getDriver().Dir + "/../lib");
+  getFilePaths().push_back(getDriver().Dir + "/../lib");
   getFilePaths().push_back("/usr/lib");
 }
 
 Tool &OpenBSD::SelectTool(const Compilation &C, const JobAction &JA) const {
   Action::ActionClass Key;
-  if (getHost().getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
+  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
     Key = Action::AnalyzeJobClass;
   else
     Key = JA.getKind();
@@ -659,7 +771,7 @@ FreeBSD::FreeBSD(const HostInfo &Host, const llvm::Triple& Triple, bool Lib32)
 
 Tool &FreeBSD::SelectTool(const Compilation &C, const JobAction &JA) const {
   Action::ActionClass Key;
-  if (getHost().getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
+  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
     Key = Action::AnalyzeJobClass;
   else
     Key = JA.getKind();
@@ -684,14 +796,9 @@ Tool &FreeBSD::SelectTool(const Compilation &C, const JobAction &JA) const {
 AuroraUX::AuroraUX(const HostInfo &Host, const llvm::Triple& Triple)
   : Generic_GCC(Host, Triple) {
 
-  // Path mangling to find libexec
-  std::string Path(getHost().getDriver().Dir);
+  getProgramPaths().push_back(getDriver().Dir);
 
-  Path += "/../libexec";
-  getProgramPaths().push_back(Path);
-  getProgramPaths().push_back(getHost().getDriver().Dir);
-
-  getFilePaths().push_back(getHost().getDriver().Dir + "/../lib");
+  getFilePaths().push_back(getDriver().Dir + "/../lib");
   getFilePaths().push_back("/usr/lib");
   getFilePaths().push_back("/usr/sfw/lib");
   getFilePaths().push_back("/opt/gcc4/lib");
@@ -701,7 +808,7 @@ AuroraUX::AuroraUX(const HostInfo &Host, const llvm::Triple& Triple)
 
 Tool &AuroraUX::SelectTool(const Compilation &C, const JobAction &JA) const {
   Action::ActionClass Key;
-  if (getHost().getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
+  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
     Key = Action::AnalyzeJobClass;
   else
     Key = JA.getKind();
@@ -726,7 +833,7 @@ Tool &AuroraUX::SelectTool(const Compilation &C, const JobAction &JA) const {
 
 Linux::Linux(const HostInfo &Host, const llvm::Triple& Triple)
   : Generic_GCC(Host, Triple) {
-  getFilePaths().push_back(getHost().getDriver().Dir + "/../lib/clang/1.0/");
+  getFilePaths().push_back(getDriver().Dir + "/../lib/clang/1.0/");
   getFilePaths().push_back("/lib/");
   getFilePaths().push_back("/usr/lib/");
 
@@ -753,20 +860,16 @@ DragonFly::DragonFly(const HostInfo &Host, const llvm::Triple& Triple)
   : Generic_GCC(Host, Triple) {
 
   // Path mangling to find libexec
-  std::string Path(getHost().getDriver().Dir);
+  getProgramPaths().push_back(getDriver().Dir);
 
-  Path += "/../libexec";
-  getProgramPaths().push_back(Path);
-  getProgramPaths().push_back(getHost().getDriver().Dir);
-
-  getFilePaths().push_back(getHost().getDriver().Dir + "/../lib");
+  getFilePaths().push_back(getDriver().Dir + "/../lib");
   getFilePaths().push_back("/usr/lib");
   getFilePaths().push_back("/usr/lib/gcc41");
 }
 
 Tool &DragonFly::SelectTool(const Compilation &C, const JobAction &JA) const {
   Action::ActionClass Key;
-  if (getHost().getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
+  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
     Key = Action::AnalyzeJobClass;
   else
     Key = JA.getKind();

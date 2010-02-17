@@ -20,19 +20,27 @@ namespace clang {
 
 template<typename T>
 class Optional {
-  const T x;
+  T x;
   unsigned hasVal : 1;
 public:
-  explicit Optional() : hasVal(false) {}
+  explicit Optional() : x(), hasVal(false) {}
   Optional(const T &y) : x(y), hasVal(true) {}
 
   static inline Optional create(const T* y) {
     return y ? Optional(*y) : Optional();
   }
 
+  Optional &operator=(const T &y) {
+    x = y;
+    hasVal = true;
+    return *this;
+  }
+  
   const T* getPointer() const { assert(hasVal); return &x; }
+  const T& getValue() const { assert(hasVal); return x; }
 
   operator bool() const { return hasVal; }
+  bool hasValue() const { return hasVal; }
   const T* operator->() const { return getPointer(); }
   const T& operator*() const { assert(hasVal); return x; }
 };

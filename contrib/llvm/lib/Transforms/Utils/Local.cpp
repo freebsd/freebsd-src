@@ -20,10 +20,9 @@
 #include "llvm/Instructions.h"
 #include "llvm/Intrinsics.h"
 #include "llvm/IntrinsicInst.h"
-#include "llvm/LLVMContext.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/ProfileInfo.h"
 #include "llvm/Target/TargetData.h"
@@ -31,6 +30,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -38,20 +38,82 @@ using namespace llvm;
 //  Local analysis.
 //
 
+/// getUnderlyingObjectWithOffset - Strip off up to MaxLookup GEPs and
+/// bitcasts to get back to the underlying object being addressed, keeping
+/// track of the offset in bytes from the GEPs relative to the result.
+/// This is closely related to Value::getUnderlyingObject but is located
+/// here to avoid making VMCore depend on TargetData.
+static Value *getUnderlyingObjectWithOffset(Value *V, const TargetData *TD,
+                                            uint64_t &ByteOffset,
+                                            unsigned MaxLookup = 6) {
+  if (!isa<PointerType>(V->getType()))
+    return V;
+  for (unsigned Count = 0; MaxLookup == 0 || Count < MaxLookup; ++Count) {
+    if (GEPOperator *GEP = dyn_cast<GEPOperator>(V)) {
+      if (!GEP->hasAllConstantIndices())
+        return V;
+      SmallVector<Value*, 8> Indices(GEP->op_begin() + 1, GEP->op_end());
+      ByteOffset += TD->getIndexedOffset(GEP->getPointerOperandType(),
+                                         &Indices[0], Indices.size());
+      V = GEP->getPointerOperand();
+    } else if (Operator::getOpcode(V) == Instruction::BitCast) {
+      V = cast<Operator>(V)->getOperand(0);
+    } else if (GlobalAlias *GA = dyn_cast<GlobalAlias>(V)) {
+      if (GA->mayBeOverridden())
+        return V;
+      V = GA->getAliasee();
+    } else {
+      return V;
+    }
+    assert(isa<PointerType>(V->getType()) && "Unexpected operand type!");
+  }
+  return V;
+}
+
 /// isSafeToLoadUnconditionally - Return true if we know that executing a load
 /// from this value cannot trap.  If it is not obviously safe to load from the
 /// specified pointer, we do a quick local scan of the basic block containing
 /// ScanFrom, to determine if the address is already accessed.
-bool llvm::isSafeToLoadUnconditionally(Value *V, Instruction *ScanFrom) {
-  // If it is an alloca it is always safe to load from.
-  if (isa<AllocaInst>(V)) return true;
+bool llvm::isSafeToLoadUnconditionally(Value *V, Instruction *ScanFrom,
+                                       unsigned Align, const TargetData *TD) {
+  uint64_t ByteOffset = 0;
+  Value *Base = V;
+  if (TD)
+    Base = getUnderlyingObjectWithOffset(V, TD, ByteOffset);
 
-  // If it is a global variable it is mostly safe to load from.
-  if (const GlobalValue *GV = dyn_cast<GlobalVariable>(V))
-    // Don't try to evaluate aliases.  External weak GV can be null.
-    return !isa<GlobalAlias>(GV) && !GV->hasExternalWeakLinkage();
+  const Type *BaseType = 0;
+  unsigned BaseAlign = 0;
+  if (const AllocaInst *AI = dyn_cast<AllocaInst>(Base)) {
+    // An alloca is safe to load from as load as it is suitably aligned.
+    BaseType = AI->getAllocatedType();
+    BaseAlign = AI->getAlignment();
+  } else if (const GlobalValue *GV = dyn_cast<GlobalValue>(Base)) {
+    // Global variables are safe to load from but their size cannot be
+    // guaranteed if they are overridden.
+    if (!isa<GlobalAlias>(GV) && !GV->mayBeOverridden()) {
+      BaseType = GV->getType()->getElementType();
+      BaseAlign = GV->getAlignment();
+    }
+  }
 
-  // Otherwise, be a little bit agressive by scanning the local block where we
+  if (BaseType && BaseType->isSized()) {
+    if (TD && BaseAlign == 0)
+      BaseAlign = TD->getPrefTypeAlignment(BaseType);
+
+    if (Align <= BaseAlign) {
+      if (!TD)
+        return true; // Loading directly from an alloca or global is OK.
+
+      // Check if the load is within the bounds of the underlying object.
+      const PointerType *AddrTy = cast<PointerType>(V->getType());
+      uint64_t LoadSize = TD->getTypeStoreSize(AddrTy->getElementType());
+      if (ByteOffset + LoadSize <= TD->getTypeAllocSize(BaseType) &&
+          (Align == 0 || (ByteOffset % Align) == 0))
+        return true;
+    }
+  }
+
+  // Otherwise, be a little bit aggressive by scanning the local block where we
   // want to check to see if the pointer is already being loaded or stored
   // from/to.  If so, the previous load or store would have already trapped,
   // so there is no harm doing an extra load (also, CSE will later eliminate
@@ -268,16 +330,17 @@ bool llvm::isInstructionTriviallyDead(Instruction *I) {
 
 /// RecursivelyDeleteTriviallyDeadInstructions - If the specified value is a
 /// trivially dead instruction, delete it.  If that makes any of its operands
-/// trivially dead, delete them too, recursively.
-void llvm::RecursivelyDeleteTriviallyDeadInstructions(Value *V) {
+/// trivially dead, delete them too, recursively.  Return true if any
+/// instructions were deleted.
+bool llvm::RecursivelyDeleteTriviallyDeadInstructions(Value *V) {
   Instruction *I = dyn_cast<Instruction>(V);
   if (!I || !I->use_empty() || !isInstructionTriviallyDead(I))
-    return;
+    return false;
   
   SmallVector<Instruction*, 16> DeadInsts;
   DeadInsts.push_back(I);
   
-  while (!DeadInsts.empty()) {
+  do {
     I = DeadInsts.pop_back_val();
 
     // Null out all of the instruction's operands to see if any operand becomes
@@ -297,22 +360,25 @@ void llvm::RecursivelyDeleteTriviallyDeadInstructions(Value *V) {
     }
     
     I->eraseFromParent();
-  }
+  } while (!DeadInsts.empty());
+
+  return true;
 }
 
 /// RecursivelyDeleteDeadPHINode - If the specified value is an effectively
 /// dead PHI node, due to being a def-use chain of single-use nodes that
 /// either forms a cycle or is terminated by a trivially dead instruction,
 /// delete it.  If that makes any of its operands trivially dead, delete them
-/// too, recursively.
-void
+/// too, recursively.  Return true if the PHI node is actually deleted.
+bool
 llvm::RecursivelyDeleteDeadPHINode(PHINode *PN) {
   // We can remove a PHI if it is on a cycle in the def-use graph
   // where each node in the cycle has degree one, i.e. only one use,
   // and is an instruction with no side effects.
   if (!PN->hasOneUse())
-    return;
+    return false;
 
+  bool Changed = false;
   SmallPtrSet<PHINode *, 4> PHIs;
   PHIs.insert(PN);
   for (Instruction *J = cast<Instruction>(*PN->use_begin());
@@ -324,9 +390,35 @@ llvm::RecursivelyDeleteDeadPHINode(PHINode *PN) {
       if (!PHIs.insert(cast<PHINode>(JP))) {
         // Break the cycle and delete the PHI and its operands.
         JP->replaceAllUsesWith(UndefValue::get(JP->getType()));
-        RecursivelyDeleteTriviallyDeadInstructions(JP);
+        (void)RecursivelyDeleteTriviallyDeadInstructions(JP);
+        Changed = true;
         break;
       }
+  return Changed;
+}
+
+/// SimplifyInstructionsInBlock - Scan the specified basic block and try to
+/// simplify any instructions in it and recursively delete dead instructions.
+///
+/// This returns true if it changed the code, note that it can delete
+/// instructions in other blocks as well in this block.
+bool llvm::SimplifyInstructionsInBlock(BasicBlock *BB, const TargetData *TD) {
+  bool MadeChange = false;
+  for (BasicBlock::iterator BI = BB->begin(), E = BB->end(); BI != E; ) {
+    Instruction *Inst = BI++;
+    
+    if (Value *V = SimplifyInstruction(Inst, TD)) {
+      WeakVH BIHandle(BI);
+      ReplaceAndSimplifyAllUses(Inst, V, TD);
+      MadeChange = true;
+      if (BIHandle == 0)
+        BI = BB->begin();
+      continue;
+    }
+    
+    MadeChange |= RecursivelyDeleteTriviallyDeadInstructions(Inst);
+  }
+  return MadeChange;
 }
 
 //===----------------------------------------------------------------------===//
@@ -398,6 +490,17 @@ void llvm::MergeBasicBlockIntoOnlyPred(BasicBlock *DestBB, Pass *P) {
   // Splice all the instructions from PredBB to DestBB.
   PredBB->getTerminator()->eraseFromParent();
   DestBB->getInstList().splice(DestBB->begin(), PredBB->getInstList());
+
+  // Zap anything that took the address of DestBB.  Not doing this will give the
+  // address an invalid value.
+  if (DestBB->hasAddressTaken()) {
+    BlockAddress *BA = BlockAddress::get(DestBB);
+    Constant *Replacement =
+      ConstantInt::get(llvm::Type::getInt32Ty(BA->getContext()), 1);
+    BA->replaceAllUsesWith(ConstantExpr::getIntToPtr(Replacement,
+                                                     BA->getType()));
+    BA->destroyConstant();
+  }
   
   // Anything that branched to PredBB now branches to DestBB.
   PredBB->replaceAllUsesWith(DestBB);
@@ -421,7 +524,7 @@ void llvm::MergeBasicBlockIntoOnlyPred(BasicBlock *DestBB, Pass *P) {
 static bool CanPropagatePredecessorsForPHIs(BasicBlock *BB, BasicBlock *Succ) {
   assert(*succ_begin(BB) == Succ && "Succ is not successor of BB!");
 
-  DEBUG(errs() << "Looking to fold " << BB->getName() << " into " 
+  DEBUG(dbgs() << "Looking to fold " << BB->getName() << " into " 
         << Succ->getName() << "\n");
   // Shortcut, if there is only a single predecessor it must be BB and merging
   // is always safe
@@ -456,7 +559,7 @@ static bool CanPropagatePredecessorsForPHIs(BasicBlock *BB, BasicBlock *Succ) {
             PI != PE; PI++) {
         if (BBPN->getIncomingValueForBlock(*PI) 
               != PN->getIncomingValueForBlock(*PI)) {
-          DEBUG(errs() << "Can't fold, phi node " << PN->getName() << " in " 
+          DEBUG(dbgs() << "Can't fold, phi node " << PN->getName() << " in " 
                 << Succ->getName() << " is conflicting with " 
                 << BBPN->getName() << " with regard to common predecessor "
                 << (*PI)->getName() << "\n");
@@ -471,7 +574,7 @@ static bool CanPropagatePredecessorsForPHIs(BasicBlock *BB, BasicBlock *Succ) {
         // one for BB, in which case this phi node will not prevent the merging
         // of the block.
         if (Val != PN->getIncomingValueForBlock(*PI)) {
-          DEBUG(errs() << "Can't fold, phi node " << PN->getName() << " in " 
+          DEBUG(dbgs() << "Can't fold, phi node " << PN->getName() << " in " 
                 << Succ->getName() << " is conflicting with regard to common "
                 << "predecessor " << (*PI)->getName() << "\n");
           return false;
@@ -525,7 +628,7 @@ bool llvm::TryToSimplifyUncondBranchFromEmptyBlock(BasicBlock *BB) {
     }
   }
 
-  DEBUG(errs() << "Killing Trivial BB: \n" << *BB);
+  DEBUG(dbgs() << "Killing Trivial BB: \n" << *BB);
   
   if (isa<PHINode>(Succ->begin())) {
     // If there is more than one pred of succ, and there are PHI nodes in
@@ -579,27 +682,65 @@ bool llvm::TryToSimplifyUncondBranchFromEmptyBlock(BasicBlock *BB) {
   return true;
 }
 
+/// EliminateDuplicatePHINodes - Check for and eliminate duplicate PHI
+/// nodes in this block. This doesn't try to be clever about PHI nodes
+/// which differ only in the order of the incoming values, but instcombine
+/// orders them so it usually won't matter.
+///
+bool llvm::EliminateDuplicatePHINodes(BasicBlock *BB) {
+  bool Changed = false;
 
+  // This implementation doesn't currently consider undef operands
+  // specially. Theroetically, two phis which are identical except for
+  // one having an undef where the other doesn't could be collapsed.
 
-/// OnlyUsedByDbgIntrinsics - Return true if the instruction I is only used
-/// by DbgIntrinsics. If DbgInUses is specified then the vector is filled 
-/// with the DbgInfoIntrinsic that use the instruction I.
-bool llvm::OnlyUsedByDbgInfoIntrinsics(Instruction *I, 
-                               SmallVectorImpl<DbgInfoIntrinsic *> *DbgInUses) {
-  if (DbgInUses)
-    DbgInUses->clear();
+  // Map from PHI hash values to PHI nodes. If multiple PHIs have
+  // the same hash value, the element is the first PHI in the
+  // linked list in CollisionMap.
+  DenseMap<uintptr_t, PHINode *> HashMap;
 
-  for (Value::use_iterator UI = I->use_begin(), UE = I->use_end(); UI != UE; 
-       ++UI) {
-    if (DbgInfoIntrinsic *DI = dyn_cast<DbgInfoIntrinsic>(*UI)) {
-      if (DbgInUses)
-        DbgInUses->push_back(DI);
-    } else {
-      if (DbgInUses)
-        DbgInUses->clear();
-      return false;
+  // Maintain linked lists of PHI nodes with common hash values.
+  DenseMap<PHINode *, PHINode *> CollisionMap;
+
+  // Examine each PHI.
+  for (BasicBlock::iterator I = BB->begin();
+       PHINode *PN = dyn_cast<PHINode>(I++); ) {
+    // Compute a hash value on the operands. Instcombine will likely have sorted
+    // them, which helps expose duplicates, but we have to check all the
+    // operands to be safe in case instcombine hasn't run.
+    uintptr_t Hash = 0;
+    for (User::op_iterator I = PN->op_begin(), E = PN->op_end(); I != E; ++I) {
+      // This hash algorithm is quite weak as hash functions go, but it seems
+      // to do a good enough job for this particular purpose, and is very quick.
+      Hash ^= reinterpret_cast<uintptr_t>(static_cast<Value *>(*I));
+      Hash = (Hash << 7) | (Hash >> (sizeof(uintptr_t) * CHAR_BIT - 7));
+    }
+    // If we've never seen this hash value before, it's a unique PHI.
+    std::pair<DenseMap<uintptr_t, PHINode *>::iterator, bool> Pair =
+      HashMap.insert(std::make_pair(Hash, PN));
+    if (Pair.second) continue;
+    // Otherwise it's either a duplicate or a hash collision.
+    for (PHINode *OtherPN = Pair.first->second; ; ) {
+      if (OtherPN->isIdenticalTo(PN)) {
+        // A duplicate. Replace this PHI with its duplicate.
+        PN->replaceAllUsesWith(OtherPN);
+        PN->eraseFromParent();
+        Changed = true;
+        break;
+      }
+      // A non-duplicate hash collision.
+      DenseMap<PHINode *, PHINode *>::iterator I = CollisionMap.find(OtherPN);
+      if (I == CollisionMap.end()) {
+        // Set this PHI to be the head of the linked list of colliding PHIs.
+        PHINode *Old = Pair.first->second;
+        Pair.first->second = PN;
+        CollisionMap[PN] = Old;
+        break;
+      }
+      // Procede to the next PHI in the list.
+      OtherPN = I->second;
     }
   }
-  return true;
-}
 
+  return Changed;
+}

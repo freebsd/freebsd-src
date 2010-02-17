@@ -22,6 +22,7 @@
 namespace llvm {
 
 class TargetInstrDesc;
+class MDNode;
 
 namespace RegState {
   enum {
@@ -31,6 +32,7 @@ namespace RegState {
     Dead           = 0x10,
     Undef          = 0x20,
     EarlyClobber   = 0x40,
+    Debug          = 0x80,
     ImplicitDefine = Implicit | Define,
     ImplicitKill   = Implicit | Kill
   };
@@ -61,7 +63,8 @@ public:
                                              flags & RegState::Dead,
                                              flags & RegState::Undef,
                                              flags & RegState::EarlyClobber,
-                                             SubReg));
+                                             SubReg,
+                                             flags & RegState::Debug));
     return *this;
   }
 
@@ -121,6 +124,11 @@ public:
 
   const MachineInstrBuilder &addOperand(const MachineOperand &MO) const {
     MI->addOperand(MO);
+    return *this;
+  }
+
+  const MachineInstrBuilder &addMetadata(MDNode *MD) const {
+    MI->addOperand(MachineOperand::CreateMetadata(MD));
     return *this;
   }
 };

@@ -112,9 +112,9 @@ CAMLprim LLVMContextRef llvm_global_context(value Unit) {
 
 /*===-- Modules -----------------------------------------------------------===*/
 
-/* string -> llmodule */
-CAMLprim LLVMModuleRef llvm_create_module(value ModuleID) {
-  return LLVMModuleCreateWithName(String_val(ModuleID));
+/* llcontext -> string -> llmodule */
+CAMLprim LLVMModuleRef llvm_create_module(LLVMContextRef C, value ModuleID) {
+  return LLVMModuleCreateWithNameInContext(String_val(ModuleID), C);
 }
 
 /* llmodule -> unit */
@@ -1031,8 +1031,8 @@ CAMLprim LLVMValueRef llvm_build_switch(LLVMValueRef Of,
   return LLVMBuildSwitch(Builder_val(B), Of, Else, Int_val(EstimatedCount));
 }
 
-CAMLprim value llvm_add_case(LLVMValueRef Switch,
-                             LLVMValueRef OnVal,
+/* llvalue -> llvalue -> llbasicblock -> unit */
+CAMLprim value llvm_add_case(LLVMValueRef Switch, LLVMValueRef OnVal,
                              LLVMBasicBlockRef Dest) {
   LLVMAddCase(Switch, OnVal, Dest);
   return Val_unit;
@@ -1263,11 +1263,10 @@ CAMLprim LLVMValueRef llvm_build_in_bounds_gep(LLVMValueRef Pointer,
 
 /* llvalue -> int -> string -> llbuilder -> llvalue */
 CAMLprim LLVMValueRef llvm_build_struct_gep(LLVMValueRef Pointer,
-                                               value Indices, value Name,
+                                               value Index, value Name,
                                                value B) {
-  return LLVMBuildInBoundsGEP(Builder_val(B), Pointer,
-                              (LLVMValueRef *) Op_val(Indices),
-                              Wosize_val(Indices), String_val(Name));
+  return LLVMBuildStructGEP(Builder_val(B), Pointer,
+                              Int_val(Index), String_val(Name));
 }
 
 /* string -> string -> llbuilder -> llvalue */

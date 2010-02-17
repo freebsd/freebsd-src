@@ -28,8 +28,8 @@ class PMStack;
 
 class LoopPass : public Pass {
 public:
-  explicit LoopPass(intptr_t pid) : Pass(pid) {}
-  explicit LoopPass(void *pid) : Pass(pid) {}
+  explicit LoopPass(intptr_t pid) : Pass(PT_Loop, pid) {}
+  explicit LoopPass(void *pid) : Pass(PT_Loop, pid) {}
 
   // runOnLoop - This method should be implemented by the subclass to perform
   // whatever action is necessary for the specified Loop.
@@ -52,7 +52,7 @@ public:
   // LPPassManger as expected.
   void preparePassManager(PMStack &PMS);
 
-  /// Assign pass manager to manager this pass
+  /// Assign pass manager to manage this pass
   virtual void assignPassManager(PMStack &PMS,
                                  PassManagerType PMT = PMT_LoopPassManager);
 
@@ -73,7 +73,7 @@ public:
   /// cloneBasicBlockAnalysis - Clone analysis info associated with basic block.
   virtual void cloneBasicBlockAnalysis(BasicBlock *F, BasicBlock *T, Loop *L) {}
 
-  /// deletekAnalysisValue - Delete analysis info associated with value V.
+  /// deleteAnalysisValue - Delete analysis info associated with value V.
   virtual void deleteAnalysisValue(Value *V, Loop *L) {}
 };
 
@@ -93,6 +93,9 @@ public:
   virtual const char *getPassName() const {
     return "Loop Pass Manager";
   }
+
+  virtual PMDataManager *getAsPMDataManager() { return this; }
+  virtual Pass *getAsPass() { return this; }
 
   /// Print passes managed by this manager
   void dumpPassStructure(unsigned Offset);

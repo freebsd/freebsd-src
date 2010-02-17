@@ -11,11 +11,14 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCValue.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
+void MCExpr::print(raw_ostream &OS) const {
   switch (getKind()) {
+  case MCExpr::Target:
+    return cast<MCTargetExpr>(this)->PrintImpl(OS);
   case MCExpr::Constant:
     OS << cast<MCConstantExpr>(*this).getValue();
     return;
@@ -25,13 +28,10 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
     
     // Parenthesize names that start with $ so that they don't look like
     // absolute names.
-    if (Sym.getName()[0] == '$') {
-      OS << '(';
-      Sym.print(OS, MAI);
-      OS << ')';
-    } else {
-      Sym.print(OS, MAI);
-    }
+    if (Sym.getName()[0] == '$')
+      OS << '(' << Sym << ')';
+    else
+      OS << Sym;
     return;
   }
 
@@ -44,7 +44,7 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
     case MCUnaryExpr::Not:   OS << '~'; break;
     case MCUnaryExpr::Plus:  OS << '+'; break;
     }
-    UE.getSubExpr()->print(OS, MAI);
+    OS << *UE.getSubExpr();
     return;
   }
 
@@ -53,11 +53,9 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
     
     // Only print parens around the LHS if it is non-trivial.
     if (isa<MCConstantExpr>(BE.getLHS()) || isa<MCSymbolRefExpr>(BE.getLHS())) {
-      BE.getLHS()->print(OS, MAI);
+      OS << *BE.getLHS();
     } else {
-      OS << '(';
-      BE.getLHS()->print(OS, MAI);
-      OS << ')';
+      OS << '(' << *BE.getLHS() << ')';
     }
     
     switch (BE.getOpcode()) {
@@ -94,11 +92,9 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
     
     // Only print parens around the LHS if it is non-trivial.
     if (isa<MCConstantExpr>(BE.getRHS()) || isa<MCSymbolRefExpr>(BE.getRHS())) {
-      BE.getRHS()->print(OS, MAI);
+      OS << *BE.getRHS();
     } else {
-      OS << '(';
-      BE.getRHS()->print(OS, MAI);
-      OS << ')';
+      OS << '(' << *BE.getRHS() << ')';
     }
     return;
   }
@@ -108,8 +104,8 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
 }
 
 void MCExpr::dump() const {
-  print(errs(), 0);
-  errs() << '\n';
+  print(dbgs());
+  dbgs() << '\n';
 }
 
 /* *** */
@@ -137,6 +133,7 @@ const MCSymbolRefExpr *MCSymbolRefExpr::Create(StringRef Name, MCContext &Ctx) {
   return Create(Ctx.GetOrCreateSymbol(Name), Ctx);
 }
 
+void MCTargetExpr::Anchor() {}
 
 /* *** */
 
@@ -174,6 +171,9 @@ static bool EvaluateSymbolicAdd(const MCValue &LHS, const MCSymbol *RHS_A,
 
 bool MCExpr::EvaluateAsRelocatable(MCValue &Res) const {
   switch (getKind()) {
+  case Target:
+    return cast<MCTargetExpr>(this)->EvaluateAsRelocatableImpl(Res);
+      
   case Constant:
     Res = MCValue::get(cast<MCConstantExpr>(this)->getValue());
     return true;
@@ -252,8 +252,8 @@ bool MCExpr::EvaluateAsRelocatable(MCValue &Res) const {
     }
 
     // FIXME: We need target hooks for the evaluation. It may be limited in
-    // width, and gas defines the result of comparisons differently from Apple
-    // as (the result is sign extended).
+    // width, and gas defines the result of comparisons and right shifts
+    // differently from Apple as.
     int64_t LHS = LHSValue.getConstant(), RHS = RHSValue.getConstant();
     int64_t Result = 0;
     switch (ABE->getOpcode()) {

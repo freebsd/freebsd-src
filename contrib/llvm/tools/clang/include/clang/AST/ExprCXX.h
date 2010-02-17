@@ -16,7 +16,8 @@
 
 #include "clang/Basic/TypeTraits.h"
 #include "clang/AST/Expr.h"
-#include "clang/AST/Decl.h"
+#include "clang/AST/UnresolvedSet.h"
+#include "clang/AST/TemplateBase.h"
 
 namespace clang {
 
@@ -24,6 +25,7 @@ namespace clang {
   class CXXDestructorDecl;
   class CXXMethodDecl;
   class CXXTemporary;
+  class TemplateArgumentListInfo;
 
 //===--------------------------------------------------------------------===//
 // C++ Expressions.
@@ -116,8 +118,11 @@ private:
 
 protected:
   CXXNamedCastExpr(StmtClass SC, QualType ty, CastKind kind, Expr *op,
-                   QualType writtenTy, SourceLocation l)
+                   TypeSourceInfo *writtenTy, SourceLocation l)
     : ExplicitCastExpr(SC, ty, kind, op, writtenTy), Loc(l) {}
+
+  explicit CXXNamedCastExpr(StmtClass SC, EmptyShell Shell)
+    : ExplicitCastExpr(SC, Shell) { }
 
 public:
   const char *getCastName() const;
@@ -152,8 +157,11 @@ public:
 class CXXStaticCastExpr : public CXXNamedCastExpr {
 public:
   CXXStaticCastExpr(QualType ty, CastKind kind, Expr *op,
-                    QualType writtenTy, SourceLocation l)
+                    TypeSourceInfo *writtenTy, SourceLocation l)
     : CXXNamedCastExpr(CXXStaticCastExprClass, ty, kind, op, writtenTy, l) {}
+
+  explicit CXXStaticCastExpr(EmptyShell Empty)
+    : CXXNamedCastExpr(CXXStaticCastExprClass, Empty) { }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXStaticCastExprClass;
@@ -169,9 +177,12 @@ public:
 /// @c dynamic_cast<Derived*>(BasePtr).
 class CXXDynamicCastExpr : public CXXNamedCastExpr {
 public:
-  CXXDynamicCastExpr(QualType ty, CastKind kind, Expr *op, QualType writtenTy,
-                     SourceLocation l)
+  CXXDynamicCastExpr(QualType ty, CastKind kind, Expr *op,
+                     TypeSourceInfo *writtenTy, SourceLocation l)
     : CXXNamedCastExpr(CXXDynamicCastExprClass, ty, kind, op, writtenTy, l) {}
+
+  explicit CXXDynamicCastExpr(EmptyShell Empty)
+    : CXXNamedCastExpr(CXXDynamicCastExprClass, Empty) { }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXDynamicCastExprClass;
@@ -188,9 +199,12 @@ public:
 class CXXReinterpretCastExpr : public CXXNamedCastExpr {
 public:
   CXXReinterpretCastExpr(QualType ty, CastKind kind, Expr *op, 
-                         QualType writtenTy, SourceLocation l)
+                         TypeSourceInfo *writtenTy, SourceLocation l)
     : CXXNamedCastExpr(CXXReinterpretCastExprClass, ty, kind, op,
                        writtenTy, l) {}
+
+  explicit CXXReinterpretCastExpr(EmptyShell Empty)
+    : CXXNamedCastExpr(CXXReinterpretCastExprClass, Empty) { }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXReinterpretCastExprClass;
@@ -205,9 +219,12 @@ public:
 /// @c const_cast<char*>(PtrToConstChar).
 class CXXConstCastExpr : public CXXNamedCastExpr {
 public:
-  CXXConstCastExpr(QualType ty, Expr *op, QualType writtenTy,
+  CXXConstCastExpr(QualType ty, Expr *op, TypeSourceInfo *writtenTy,
                    SourceLocation l)
     : CXXNamedCastExpr(CXXConstCastExprClass, ty, CK_NoOp, op, writtenTy, l) {}
+
+  explicit CXXConstCastExpr(EmptyShell Empty)
+    : CXXNamedCastExpr(CXXConstCastExprClass, Empty) { }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXConstCastExprClass;
@@ -222,11 +239,18 @@ class CXXBoolLiteralExpr : public Expr {
   SourceLocation Loc;
 public:
   CXXBoolLiteralExpr(bool val, QualType Ty, SourceLocation l) :
-    Expr(CXXBoolLiteralExprClass, Ty), Value(val), Loc(l) {}
+    Expr(CXXBoolLiteralExprClass, Ty, false, false), Value(val), Loc(l) {}
+
+  explicit CXXBoolLiteralExpr(EmptyShell Empty)
+    : Expr(CXXBoolLiteralExprClass, Empty) { }
 
   bool getValue() const { return Value; }
+  void setValue(bool V) { Value = V; }
 
   virtual SourceRange getSourceRange() const { return SourceRange(Loc); }
+
+  SourceLocation getLocation() const { return Loc; }
+  void setLocation(SourceLocation L) { Loc = L; }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXBoolLiteralExprClass;
@@ -243,9 +267,15 @@ class CXXNullPtrLiteralExpr : public Expr {
   SourceLocation Loc;
 public:
   CXXNullPtrLiteralExpr(QualType Ty, SourceLocation l) :
-    Expr(CXXNullPtrLiteralExprClass, Ty), Loc(l) {}
+    Expr(CXXNullPtrLiteralExprClass, Ty, false, false), Loc(l) {}
+
+  explicit CXXNullPtrLiteralExpr(EmptyShell Empty)
+    : Expr(CXXNullPtrLiteralExprClass, Empty) { }
 
   virtual SourceRange getSourceRange() const { return SourceRange(Loc); }
+
+  SourceLocation getLocation() const { return Loc; }
+  void setLocation(SourceLocation L) { Loc = L; }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXNullPtrLiteralExprClass;
@@ -322,17 +352,21 @@ public:
 /// @endcode
 class CXXThisExpr : public Expr {
   SourceLocation Loc;
-
+  bool Implicit : 1;
+  
 public:
-  CXXThisExpr(SourceLocation L, QualType Type)
+  CXXThisExpr(SourceLocation L, QualType Type, bool isImplicit)
     : Expr(CXXThisExprClass, Type,
            // 'this' is type-dependent if the class type of the enclosing
            // member function is dependent (C++ [temp.dep.expr]p2)
            Type->isDependentType(), Type->isDependentType()),
-      Loc(L) { }
+      Loc(L), Implicit(isImplicit) { }
 
   virtual SourceRange getSourceRange() const { return SourceRange(Loc); }
 
+  bool isImplicit() const { return Implicit; }
+  void setImplicit(bool I) { Implicit = I; }
+  
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXThisExprClass;
   }
@@ -384,30 +418,70 @@ public:
 /// parameter's default argument, when the call did not explicitly
 /// supply arguments for all of the parameters.
 class CXXDefaultArgExpr : public Expr {
-  ParmVarDecl *Param;
+  /// \brief The parameter whose default is being used.
+  ///
+  /// When the bit is set, the subexpression is stored after the 
+  /// CXXDefaultArgExpr itself. When the bit is clear, the parameter's
+  /// actual default expression is the subexpression.
+  llvm::PointerIntPair<ParmVarDecl *, 1, bool> Param;
 
+  /// \brief The location where the default argument expression was used.
+  SourceLocation Loc;
+  
 protected:
-  CXXDefaultArgExpr(StmtClass SC, ParmVarDecl *param)
-    : Expr(SC, param->hasUnparsedDefaultArg() ?
-           param->getType().getNonReferenceType()
-           : param->getDefaultArg()->getType()),
-    Param(param) { }
+  CXXDefaultArgExpr(StmtClass SC, SourceLocation Loc, ParmVarDecl *param)
+    : Expr(SC, 
+           param->hasUnparsedDefaultArg()
+             ? param->getType().getNonReferenceType()
+             : param->getDefaultArg()->getType(),
+           false, false),
+      Param(param, false), Loc(Loc) { }
 
+  CXXDefaultArgExpr(StmtClass SC, SourceLocation Loc, ParmVarDecl *param, 
+                    Expr *SubExpr)
+    : Expr(SC, SubExpr->getType(), false, false), Param(param, true), Loc(Loc)
+  {
+    *reinterpret_cast<Expr **>(this + 1) = SubExpr;
+  }
+  
+protected:
+  virtual void DoDestroy(ASTContext &C);
+  
 public:
   // Param is the parameter whose default argument is used by this
   // expression.
-  static CXXDefaultArgExpr *Create(ASTContext &C, ParmVarDecl *Param) {
-    return new (C) CXXDefaultArgExpr(CXXDefaultArgExprClass, Param);
+  static CXXDefaultArgExpr *Create(ASTContext &C, SourceLocation Loc,
+                                   ParmVarDecl *Param) {
+    return new (C) CXXDefaultArgExpr(CXXDefaultArgExprClass, Loc, Param);
   }
 
+  // Param is the parameter whose default argument is used by this
+  // expression, and SubExpr is the expression that will actually be used.
+  static CXXDefaultArgExpr *Create(ASTContext &C, 
+                                   SourceLocation Loc,
+                                   ParmVarDecl *Param, 
+                                   Expr *SubExpr);
+  
   // Retrieve the parameter that the argument was created from.
-  const ParmVarDecl *getParam() const { return Param; }
-  ParmVarDecl *getParam() { return Param; }
+  const ParmVarDecl *getParam() const { return Param.getPointer(); }
+  ParmVarDecl *getParam() { return Param.getPointer(); }
 
   // Retrieve the actual argument to the function call.
-  const Expr *getExpr() const { return Param->getDefaultArg(); }
-  Expr *getExpr() { return Param->getDefaultArg(); }
+  const Expr *getExpr() const { 
+    if (Param.getInt())
+      return *reinterpret_cast<Expr const * const*> (this + 1);
+    return getParam()->getDefaultArg(); 
+  }
+  Expr *getExpr() { 
+    if (Param.getInt())
+      return *reinterpret_cast<Expr **> (this + 1);
+    return getParam()->getDefaultArg(); 
+  }
 
+  /// \brief Retrieve the location where this default argument was actually 
+  /// used.
+  SourceLocation getUsedLocation() const { return Loc; }
+  
   virtual SourceRange getSourceRange() const {
     // Default argument expressions have no representation in the
     // source, so they have an empty source range.
@@ -450,8 +524,8 @@ class CXXBindTemporaryExpr : public Expr {
   Stmt *SubExpr;
 
   CXXBindTemporaryExpr(CXXTemporary *temp, Expr* subexpr)
-   : Expr(CXXBindTemporaryExprClass,
-          subexpr->getType()), Temp(temp), SubExpr(subexpr) { }
+   : Expr(CXXBindTemporaryExprClass, subexpr->getType(), false, false),
+     Temp(temp), SubExpr(subexpr) { }
   ~CXXBindTemporaryExpr() { }
 
 protected:
@@ -483,19 +557,86 @@ public:
   virtual child_iterator child_end();
 };
 
+/// CXXBindReferenceExpr - Represents binding an expression to a reference.
+/// In the example:
+///
+/// const int &i = 10;
+///
+/// a bind reference expression is inserted to indicate that 10 is bound to
+/// a reference. (Ans also that a temporary needs to be created to hold the
+/// value).
+class CXXBindReferenceExpr : public Expr {
+  // SubExpr - The expression being bound.
+  Stmt *SubExpr;
+  
+  // ExtendsLifetime - Whether binding this reference extends the lifetime of
+  // the expression being bound. FIXME: Add C++ reference.
+  bool ExtendsLifetime;
+
+  /// RequiresTemporaryCopy - Whether binding the subexpression requires a
+  /// temporary copy.
+  bool RequiresTemporaryCopy;
+  
+  CXXBindReferenceExpr(Expr *subexpr, bool ExtendsLifetime, 
+                       bool RequiresTemporaryCopy)
+  : Expr(CXXBindReferenceExprClass, subexpr->getType(), false, false),
+    SubExpr(subexpr), ExtendsLifetime(ExtendsLifetime), 
+    RequiresTemporaryCopy(RequiresTemporaryCopy) { }
+  ~CXXBindReferenceExpr() { }
+
+protected:
+  virtual void DoDestroy(ASTContext &C);
+
+public:
+  static CXXBindReferenceExpr *Create(ASTContext &C, Expr *SubExpr,
+                                      bool ExtendsLifetime, 
+                                      bool RequiresTemporaryCopy);
+
+  const Expr *getSubExpr() const { return cast<Expr>(SubExpr); }
+  Expr *getSubExpr() { return cast<Expr>(SubExpr); }
+  void setSubExpr(Expr *E) { SubExpr = E; }
+
+  virtual SourceRange getSourceRange() const { 
+    return SubExpr->getSourceRange();
+  }
+
+  /// requiresTemporaryCopy - Whether binding the subexpression requires a
+  /// temporary copy.
+  bool requiresTemporaryCopy() const { return RequiresTemporaryCopy; }
+
+  // extendsLifetime - Whether binding this reference extends the lifetime of
+  // the expression being bound. FIXME: Add C++ reference.
+  bool extendsLifetime() { return ExtendsLifetime; }
+    
+  // Implement isa/cast/dyncast/etc.
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == CXXBindReferenceExprClass;
+  }
+  static bool classof(const CXXBindReferenceExpr *) { return true; }
+
+  // Iterators
+  virtual child_iterator child_begin();
+  virtual child_iterator child_end();
+};
+
 /// CXXConstructExpr - Represents a call to a C++ constructor.
 class CXXConstructExpr : public Expr {
   CXXConstructorDecl *Constructor;
 
-  bool Elidable;
-
+  SourceLocation Loc;
+  bool Elidable : 1;
+  bool ZeroInitialization : 1;
+  bool BaseInitialization : 1;
   Stmt **Args;
   unsigned NumArgs;
 
 protected:
   CXXConstructExpr(ASTContext &C, StmtClass SC, QualType T,
+                   SourceLocation Loc,
                    CXXConstructorDecl *d, bool elidable,
-                   Expr **args, unsigned numargs);
+                   Expr **args, unsigned numargs,
+                   bool ZeroInitialization = false,
+                   bool BaseInitialization = false);
   ~CXXConstructExpr() { }
 
   virtual void DoDestroy(ASTContext &C);
@@ -506,16 +647,34 @@ public:
   CXXConstructExpr(EmptyShell Empty, ASTContext &C, unsigned numargs);
   
   static CXXConstructExpr *Create(ASTContext &C, QualType T,
+                                  SourceLocation Loc,
                                   CXXConstructorDecl *D, bool Elidable,
-                                  Expr **Args, unsigned NumArgs);
+                                  Expr **Args, unsigned NumArgs,
+                                  bool ZeroInitialization = false,
+                                  bool BaseInitialization = false);
 
 
   CXXConstructorDecl* getConstructor() const { return Constructor; }
   void setConstructor(CXXConstructorDecl *C) { Constructor = C; }
   
+  SourceLocation getLocation() const { return Loc; }
+  void setLocation(SourceLocation Loc) { this->Loc = Loc; }
+  
   /// \brief Whether this construction is elidable.
   bool isElidable() const { return Elidable; }
   void setElidable(bool E) { Elidable = E; }
+  
+  /// \brief Whether this construction first requires
+  /// zero-initialization before the initializer is called.
+  bool requiresZeroInitialization() const { return ZeroInitialization; }
+  void setRequiresZeroInitialization(bool ZeroInit) {
+    ZeroInitialization = ZeroInit;
+  }
+  
+  /// \brief Determines whether this constructor is actually constructing
+  /// a base class (rather than a complete object).
+  bool isBaseInitialization() const { return BaseInitialization; }
+  void setBaseInitialization(bool BI) { BaseInitialization = BI; }
   
   typedef ExprIterator arg_iterator;
   typedef ConstExprIterator const_arg_iterator;
@@ -525,6 +684,7 @@ public:
   const_arg_iterator arg_begin() const { return Args; }
   const_arg_iterator arg_end() const { return Args + NumArgs; }
 
+  Expr **getArgs() const { return reinterpret_cast<Expr **>(Args); }
   unsigned getNumArgs() const { return NumArgs; }
 
   /// getArg - Return the specified argument.
@@ -543,13 +703,7 @@ public:
     Args[Arg] = ArgExpr;
   }
 
-  virtual SourceRange getSourceRange() const { 
-    // FIXME: Should we know where the parentheses are, if there are any?
-    if (NumArgs == 0)
-      return SourceRange(); 
-    
-    return SourceRange(Args[0]->getLocStart(), Args[NumArgs - 1]->getLocEnd());
-  }
+  virtual SourceRange getSourceRange() const;
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXConstructExprClass ||
@@ -569,15 +723,20 @@ class CXXFunctionalCastExpr : public ExplicitCastExpr {
   SourceLocation TyBeginLoc;
   SourceLocation RParenLoc;
 public:
-  CXXFunctionalCastExpr(QualType ty, QualType writtenTy,
+  CXXFunctionalCastExpr(QualType ty, TypeSourceInfo *writtenTy,
                         SourceLocation tyBeginLoc, CastKind kind,
                         Expr *castExpr, SourceLocation rParenLoc) 
     : ExplicitCastExpr(CXXFunctionalCastExprClass, ty, kind, castExpr, 
                        writtenTy),
       TyBeginLoc(tyBeginLoc), RParenLoc(rParenLoc) {}
 
+  explicit CXXFunctionalCastExpr(EmptyShell Shell)
+    : ExplicitCastExpr(CXXFunctionalCastExprClass, Shell) { }
+
   SourceLocation getTypeBeginLoc() const { return TyBeginLoc; }
+  void setTypeBeginLoc(SourceLocation L) { TyBeginLoc = L; }
   SourceLocation getRParenLoc() const { return RParenLoc; }
+  void setRParenLoc(SourceLocation L) { RParenLoc = L; }
 
   virtual SourceRange getSourceRange() const {
     return SourceRange(TyBeginLoc, RParenLoc);
@@ -669,40 +828,6 @@ public:
   virtual child_iterator child_end();
 };
 
-/// CXXConditionDeclExpr - Condition declaration of a if/switch/while/for
-/// statement, e.g: "if (int x = f()) {...}".
-/// The main difference with DeclRefExpr is that CXXConditionDeclExpr owns the
-/// decl that it references.
-///
-class CXXConditionDeclExpr : public DeclRefExpr {
-public:
-  CXXConditionDeclExpr(SourceLocation startLoc,
-                       SourceLocation eqLoc, VarDecl *var)
-    : DeclRefExpr(CXXConditionDeclExprClass, var,
-                  var->getType().getNonReferenceType(), startLoc,
-                  var->getType()->isDependentType(),
-                  /*FIXME:integral constant?*/
-                    var->getType()->isDependentType()) {}
-
-  SourceLocation getStartLoc() const { return getLocation(); }
-
-  VarDecl *getVarDecl() { return cast<VarDecl>(getDecl()); }
-  const VarDecl *getVarDecl() const { return cast<VarDecl>(getDecl()); }
-
-  virtual SourceRange getSourceRange() const {
-    return SourceRange(getStartLoc(), getVarDecl()->getInit()->getLocEnd());
-  }
-
-  static bool classof(const Stmt *T) {
-    return T->getStmtClass() == CXXConditionDeclExprClass;
-  }
-  static bool classof(const CXXConditionDeclExpr *) { return true; }
-
-  // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
-};
-
 /// CXXNewExpr - A new expression for memory allocation and constructor calls,
 /// e.g: "new CXXNewExpr(foo)".
 class CXXNewExpr : public Expr {
@@ -737,15 +862,14 @@ class CXXNewExpr : public Expr {
   SourceLocation EndLoc;
 
 public:
-  CXXNewExpr(bool globalNew, FunctionDecl *operatorNew, Expr **placementArgs,
-             unsigned numPlaceArgs, bool ParenTypeId, Expr *arraySize,
-             CXXConstructorDecl *constructor, bool initializer,
+  CXXNewExpr(ASTContext &C, bool globalNew, FunctionDecl *operatorNew,
+             Expr **placementArgs, unsigned numPlaceArgs, bool ParenTypeId,
+             Expr *arraySize, CXXConstructorDecl *constructor, bool initializer,
              Expr **constructorArgs, unsigned numConsArgs,
              FunctionDecl *operatorDelete, QualType ty,
              SourceLocation startLoc, SourceLocation endLoc);
-  ~CXXNewExpr() {
-    delete[] SubExprs;
-  }
+  
+  virtual void DoDestroy(ASTContext &C);
 
   QualType getAllocatedType() const {
     assert(getType()->isPointerType());
@@ -975,52 +1099,6 @@ public:
   virtual child_iterator child_end();
 };
 
-/// \brief Represents the name of a function that has not been
-/// resolved to any declaration.
-///
-/// Unresolved function names occur when a function name is
-/// encountered prior to an open parentheses ('(') in a C++ function
-/// call, and the function name itself did not resolve to a
-/// declaration. These function names can only be resolved when they
-/// form the postfix-expression of a function call, so that
-/// argument-dependent lookup finds declarations corresponding to
-/// these functions.
-
-/// @code
-/// template<typename T> void f(T x) {
-///   g(x); // g is an unresolved function name (that is also a dependent name)
-/// }
-/// @endcode
-class UnresolvedFunctionNameExpr : public Expr {
-  /// The name that was present in the source
-  DeclarationName Name;
-
-  /// The location of this name in the source code
-  SourceLocation Loc;
-
-public:
-  UnresolvedFunctionNameExpr(DeclarationName N, QualType T, SourceLocation L)
-    : Expr(UnresolvedFunctionNameExprClass, T, false, false), Name(N), Loc(L) { }
-
-  /// \brief Retrieves the name that occurred in the source code.
-  DeclarationName getName() const { return Name; }
-
-  /// getLocation - Retrieves the location in the source code where
-  /// the name occurred.
-  SourceLocation getLocation() const { return Loc; }
-
-  virtual SourceRange getSourceRange() const { return SourceRange(Loc); }
-
-  static bool classof(const Stmt *T) {
-    return T->getStmtClass() == UnresolvedFunctionNameExprClass;
-  }
-  static bool classof(const UnresolvedFunctionNameExpr *) { return true; }
-
-  // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
-};
-
 /// UnaryTypeTraitExpr - A GCC or MS unary type trait, as used in the
 /// implementation of TR1/C++0x type trait templates.
 /// Example:
@@ -1063,21 +1141,253 @@ public:
   virtual child_iterator child_end();
 };
 
+/// \brief A reference to an overloaded function set, either an
+/// \t UnresolvedLookupExpr or an \t UnresolvedMemberExpr.
+class OverloadExpr : public Expr {
+  /// The results.  These are undesugared, which is to say, they may
+  /// include UsingShadowDecls.  Access is relative to the naming
+  /// class.
+  UnresolvedSet<4> Results;
+
+  /// The common name of these declarations.
+  DeclarationName Name;
+
+  /// The scope specifier, if any.
+  NestedNameSpecifier *Qualifier;
+  
+  /// The source range of the scope specifier.
+  SourceRange QualifierRange;
+
+  /// The location of the name.
+  SourceLocation NameLoc;
+
+  /// True if the name was a template-id.
+  bool HasExplicitTemplateArgs;
+
+protected:
+  OverloadExpr(StmtClass K, QualType T, bool Dependent,
+               NestedNameSpecifier *Qualifier, SourceRange QRange,
+               DeclarationName Name, SourceLocation NameLoc,
+               bool HasTemplateArgs)
+    : Expr(K, T, Dependent, Dependent),
+      Name(Name), Qualifier(Qualifier), QualifierRange(QRange),
+      NameLoc(NameLoc), HasExplicitTemplateArgs(HasTemplateArgs)
+  {}
+
+public:
+  /// Computes whether an unresolved lookup on the given declarations
+  /// and optional template arguments is type- and value-dependent.
+  static bool ComputeDependence(UnresolvedSetIterator Begin,
+                                UnresolvedSetIterator End,
+                                const TemplateArgumentListInfo *Args);
+
+  /// Finds the overloaded expression in the given expression of
+  /// OverloadTy.
+  ///
+  /// \return the expression (which must be there) and true if it is
+  /// within an address-of operator.
+  static llvm::PointerIntPair<OverloadExpr*,1> find(Expr *E) {
+    assert(E->getType()->isSpecificBuiltinType(BuiltinType::Overload));
+
+    bool op = false;
+    E = E->IgnoreParens();
+    if (isa<UnaryOperator>(E))
+      op = true, E = cast<UnaryOperator>(E)->getSubExpr()->IgnoreParens();
+    return llvm::PointerIntPair<OverloadExpr*,1>(cast<OverloadExpr>(E), op);
+  }
+
+  void addDecls(UnresolvedSetIterator Begin, UnresolvedSetIterator End) {
+    Results.append(Begin, End);
+  }
+
+  typedef UnresolvedSetImpl::iterator decls_iterator;
+  decls_iterator decls_begin() const { return Results.begin(); }
+  decls_iterator decls_end() const { return Results.end(); }
+
+  /// Gets the decls as an unresolved set.
+  const UnresolvedSetImpl &getDecls() { return Results; }
+
+  /// Gets the number of declarations in the unresolved set.
+  unsigned getNumDecls() const { return Results.size(); }
+
+  /// Gets the name looked up.
+  DeclarationName getName() const { return Name; }
+  void setName(DeclarationName N) { Name = N; }
+
+  /// Gets the location of the name.
+  SourceLocation getNameLoc() const { return NameLoc; }
+  void setNameLoc(SourceLocation Loc) { NameLoc = Loc; }
+
+  /// Fetches the nested-name qualifier, if one was given.
+  NestedNameSpecifier *getQualifier() const { return Qualifier; }
+
+  /// Fetches the range of the nested-name qualifier.
+  SourceRange getQualifierRange() const { return QualifierRange; }
+
+  /// \brief Determines whether this expression had an explicit
+  /// template argument list, e.g. f<int>.
+  bool hasExplicitTemplateArgs() const { return HasExplicitTemplateArgs; }
+
+  ExplicitTemplateArgumentList &getExplicitTemplateArgs(); // defined far below
+
+  const ExplicitTemplateArgumentList &getExplicitTemplateArgs() const {
+    return const_cast<OverloadExpr*>(this)->getExplicitTemplateArgs();
+  }
+
+  ExplicitTemplateArgumentList *getOptionalExplicitTemplateArgs() {
+    if (hasExplicitTemplateArgs())
+      return &getExplicitTemplateArgs();
+    return 0;
+  }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == UnresolvedLookupExprClass ||
+           T->getStmtClass() == UnresolvedMemberExprClass;
+  }
+  static bool classof(const OverloadExpr *) { return true; }
+};
+
+/// \brief A reference to a name which we were able to look up during
+/// parsing but could not resolve to a specific declaration.  This
+/// arises in several ways:
+///   * we might be waiting for argument-dependent lookup
+///   * the name might resolve to an overloaded function
+/// and eventually:
+///   * the lookup might have included a function template
+/// These never include UnresolvedUsingValueDecls, which are always
+/// class members and therefore appear only in
+/// UnresolvedMemberLookupExprs.
+class UnresolvedLookupExpr : public OverloadExpr {
+  /// True if these lookup results should be extended by
+  /// argument-dependent lookup if this is the operand of a function
+  /// call.
+  bool RequiresADL;
+
+  /// True if these lookup results are overloaded.  This is pretty
+  /// trivially rederivable if we urgently need to kill this field.
+  bool Overloaded;
+
+  /// The naming class (C++ [class.access.base]p5) of the lookup, if
+  /// any.  This can generally be recalculated from the context chain,
+  /// but that can be fairly expensive for unqualified lookups.  If we
+  /// want to improve memory use here, this could go in a union
+  /// against the qualified-lookup bits.
+  CXXRecordDecl *NamingClass;
+
+  UnresolvedLookupExpr(QualType T, bool Dependent, CXXRecordDecl *NamingClass,
+                       NestedNameSpecifier *Qualifier, SourceRange QRange,
+                       DeclarationName Name, SourceLocation NameLoc,
+                       bool RequiresADL, bool Overloaded, bool HasTemplateArgs)
+    : OverloadExpr(UnresolvedLookupExprClass, T, Dependent, Qualifier, QRange,
+                   Name, NameLoc, HasTemplateArgs),
+      RequiresADL(RequiresADL), Overloaded(Overloaded), NamingClass(NamingClass)
+  {}
+
+public:
+  static UnresolvedLookupExpr *Create(ASTContext &C,
+                                      bool Dependent,
+                                      CXXRecordDecl *NamingClass,
+                                      NestedNameSpecifier *Qualifier,
+                                      SourceRange QualifierRange,
+                                      DeclarationName Name,
+                                      SourceLocation NameLoc,
+                                      bool ADL, bool Overloaded) {
+    return new(C) UnresolvedLookupExpr(Dependent ? C.DependentTy : C.OverloadTy,
+                                       Dependent, NamingClass,
+                                       Qualifier, QualifierRange,
+                                       Name, NameLoc, ADL, Overloaded, false);
+  }
+
+  static UnresolvedLookupExpr *Create(ASTContext &C,
+                                      bool Dependent,
+                                      CXXRecordDecl *NamingClass,
+                                      NestedNameSpecifier *Qualifier,
+                                      SourceRange QualifierRange,
+                                      DeclarationName Name,
+                                      SourceLocation NameLoc,
+                                      bool ADL,
+                                      const TemplateArgumentListInfo &Args);
+
+  /// True if this declaration should be extended by
+  /// argument-dependent lookup.
+  bool requiresADL() const { return RequiresADL; }
+
+  /// True if this lookup is overloaded.
+  bool isOverloaded() const { return Overloaded; }
+
+  /// Gets the 'naming class' (in the sense of C++0x
+  /// [class.access.base]p5) of the lookup.  This is the scope
+  /// that was looked in to find these results.
+  CXXRecordDecl *getNamingClass() const { return NamingClass; }
+
+  // Note that, inconsistently with the explicit-template-argument AST
+  // nodes, users are *forbidden* from calling these methods on objects
+  // without explicit template arguments.
+
+  ExplicitTemplateArgumentList &getExplicitTemplateArgs() {
+    assert(hasExplicitTemplateArgs());
+    return *reinterpret_cast<ExplicitTemplateArgumentList*>(this + 1);
+  }
+
+  /// Gets a reference to the explicit template argument list.
+  const ExplicitTemplateArgumentList &getExplicitTemplateArgs() const {
+    assert(hasExplicitTemplateArgs());
+    return *reinterpret_cast<const ExplicitTemplateArgumentList*>(this + 1);
+  }
+
+  /// \brief Copies the template arguments (if present) into the given
+  /// structure.
+  void copyTemplateArgumentsInto(TemplateArgumentListInfo &List) const {
+    getExplicitTemplateArgs().copyInto(List);
+  }
+  
+  SourceLocation getLAngleLoc() const {
+    return getExplicitTemplateArgs().LAngleLoc;
+  }
+
+  SourceLocation getRAngleLoc() const {
+    return getExplicitTemplateArgs().RAngleLoc;
+  }
+
+  TemplateArgumentLoc const *getTemplateArgs() const {
+    return getExplicitTemplateArgs().getTemplateArgs();
+  }
+
+  unsigned getNumTemplateArgs() const {
+    return getExplicitTemplateArgs().NumTemplateArgs;
+  }
+
+  virtual SourceRange getSourceRange() const {
+    SourceRange Range(getNameLoc());
+    if (getQualifier()) Range.setBegin(getQualifierRange().getBegin());
+    if (hasExplicitTemplateArgs()) Range.setEnd(getRAngleLoc());
+    return Range;
+  }
+
+  virtual StmtIterator child_begin();
+  virtual StmtIterator child_end();
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == UnresolvedLookupExprClass;
+  }
+  static bool classof(const UnresolvedLookupExpr *) { return true; }
+};
+
 /// \brief A qualified reference to a name whose declaration cannot
 /// yet be resolved.
 ///
-/// UnresolvedDeclRefExpr is similar to eclRefExpr in that
+/// DependentScopeDeclRefExpr is similar to DeclRefExpr in that
 /// it expresses a reference to a declaration such as
 /// X<T>::value. The difference, however, is that an
-/// UnresolvedDeclRefExpr node is used only within C++ templates when
+/// DependentScopeDeclRefExpr node is used only within C++ templates when
 /// the qualification (e.g., X<T>::) refers to a dependent type. In
 /// this case, X<T>::value cannot resolve to a declaration because the
 /// declaration will differ from on instantiation of X<T> to the
-/// next. Therefore, UnresolvedDeclRefExpr keeps track of the
+/// next. Therefore, DependentScopeDeclRefExpr keeps track of the
 /// qualifier (X<T>::) and the name of the entity being referenced
 /// ("value"). Such expressions will instantiate to a DeclRefExpr once the
 /// declaration can be found.
-class UnresolvedDeclRefExpr : public Expr {
+class DependentScopeDeclRefExpr : public Expr {
   /// The name of the entity we will be referencing.
   DeclarationName Name;
 
@@ -1090,19 +1400,30 @@ class UnresolvedDeclRefExpr : public Expr {
 
   /// \brief The nested-name-specifier that qualifies this unresolved
   /// declaration name.
-  NestedNameSpecifier *NNS;
+  NestedNameSpecifier *Qualifier;
 
-  /// \brief Whether this expr is an address of (&) operand.
-  /// FIXME: Stash this bit into NNS!
-  bool IsAddressOfOperand;
+  /// \brief Whether the name includes explicit template arguments.
+  bool HasExplicitTemplateArgs;
+
+  DependentScopeDeclRefExpr(QualType T,
+                            NestedNameSpecifier *Qualifier,
+                            SourceRange QualifierRange,
+                            DeclarationName Name,
+                            SourceLocation NameLoc,
+                            bool HasExplicitTemplateArgs)
+    : Expr(DependentScopeDeclRefExprClass, T, true, true),
+      Name(Name), Loc(NameLoc),
+      QualifierRange(QualifierRange), Qualifier(Qualifier),
+      HasExplicitTemplateArgs(HasExplicitTemplateArgs)
+  {}
 
 public:
-  UnresolvedDeclRefExpr(DeclarationName N, QualType T, SourceLocation L,
-                        SourceRange R, NestedNameSpecifier *NNS,
-                        bool IsAddressOfOperand)
-    : Expr(UnresolvedDeclRefExprClass, T, true, true),
-      Name(N), Loc(L), QualifierRange(R), NNS(NNS),
-      IsAddressOfOperand(IsAddressOfOperand) { }
+  static DependentScopeDeclRefExpr *Create(ASTContext &C,
+                                           NestedNameSpecifier *Qualifier,
+                                           SourceRange QualifierRange,
+                                           DeclarationName Name,
+                                           SourceLocation NameLoc,
+                              const TemplateArgumentListInfo *TemplateArgs = 0);
 
   /// \brief Retrieve the name that this expression refers to.
   DeclarationName getDeclName() const { return Name; }
@@ -1115,116 +1436,57 @@ public:
 
   /// \brief Retrieve the nested-name-specifier that qualifies this
   /// declaration.
-  NestedNameSpecifier *getQualifier() const { return NNS; }
+  NestedNameSpecifier *getQualifier() const { return Qualifier; }
 
-  /// \brief Retrieve whether this is an address of (&) operand.
+  /// Determines whether this lookup had explicit template arguments.
+  bool hasExplicitTemplateArgs() const { return HasExplicitTemplateArgs; }
 
-  bool isAddressOfOperand() const { return IsAddressOfOperand; }
+  // Note that, inconsistently with the explicit-template-argument AST
+  // nodes, users are *forbidden* from calling these methods on objects
+  // without explicit template arguments.
+
+  /// Gets a reference to the explicit template argument list.
+  const ExplicitTemplateArgumentList &getExplicitTemplateArgs() const {
+    assert(hasExplicitTemplateArgs());
+    return *reinterpret_cast<const ExplicitTemplateArgumentList*>(this + 1);
+  }
+
+  /// \brief Copies the template arguments (if present) into the given
+  /// structure.
+  void copyTemplateArgumentsInto(TemplateArgumentListInfo &List) const {
+    getExplicitTemplateArgs().copyInto(List);
+  }
+  
+  SourceLocation getLAngleLoc() const {
+    return getExplicitTemplateArgs().LAngleLoc;
+  }
+
+  SourceLocation getRAngleLoc() const {
+    return getExplicitTemplateArgs().RAngleLoc;
+  }
+
+  TemplateArgumentLoc const *getTemplateArgs() const {
+    return getExplicitTemplateArgs().getTemplateArgs();
+  }
+
+  unsigned getNumTemplateArgs() const {
+    return getExplicitTemplateArgs().NumTemplateArgs;
+  }
+
   virtual SourceRange getSourceRange() const {
-    return SourceRange(QualifierRange.getBegin(), getLocation());
+    SourceRange Range(QualifierRange.getBegin(), getLocation());
+    if (hasExplicitTemplateArgs())
+      Range.setEnd(getRAngleLoc());
+    return Range;
   }
 
   static bool classof(const Stmt *T) {
-    return T->getStmtClass() == UnresolvedDeclRefExprClass;
+    return T->getStmtClass() == DependentScopeDeclRefExprClass;
   }
-  static bool classof(const UnresolvedDeclRefExpr *) { return true; }
+  static bool classof(const DependentScopeDeclRefExpr *) { return true; }
 
   virtual StmtIterator child_begin();
   virtual StmtIterator child_end();
-};
-
-/// \brief An expression that refers to a C++ template-id, such as
-/// @c isa<FunctionDecl>.
-class TemplateIdRefExpr : public Expr {
-  /// \brief If this template-id was qualified-id, e.g., @c std::sort<int>,
-  /// this nested name specifier contains the @c std::.
-  NestedNameSpecifier *Qualifier;
-
-  /// \brief If this template-id was a qualified-id, e.g., @c std::sort<int>,
-  /// this covers the source code range of the @c std::.
-  SourceRange QualifierRange;
-
-  /// \brief The actual template to which this template-id refers.
-  TemplateName Template;
-
-  /// \brief The source location of the template name.
-  SourceLocation TemplateNameLoc;
-
-  /// \brief The source location of the left angle bracket ('<');
-  SourceLocation LAngleLoc;
-
-  /// \brief The source location of the right angle bracket ('>');
-  SourceLocation RAngleLoc;
-
-  /// \brief The number of template arguments in TemplateArgs.
-  unsigned NumTemplateArgs;
-
-  TemplateIdRefExpr(QualType T,
-                    NestedNameSpecifier *Qualifier, SourceRange QualifierRange,
-                    TemplateName Template, SourceLocation TemplateNameLoc,
-                    SourceLocation LAngleLoc,
-                    const TemplateArgumentLoc *TemplateArgs,
-                    unsigned NumTemplateArgs,
-                    SourceLocation RAngleLoc);
-
-  virtual void DoDestroy(ASTContext &Context);
-
-public:
-  static TemplateIdRefExpr *
-  Create(ASTContext &Context, QualType T,
-         NestedNameSpecifier *Qualifier, SourceRange QualifierRange,
-         TemplateName Template, SourceLocation TemplateNameLoc,
-         SourceLocation LAngleLoc, const TemplateArgumentLoc *TemplateArgs,
-         unsigned NumTemplateArgs, SourceLocation RAngleLoc);
-
-  /// \brief Retrieve the nested name specifier used to qualify the name of
-  /// this template-id, e.g., the "std::sort" in @c std::sort<int>, or NULL
-  /// if this template-id was an unqualified-id.
-  NestedNameSpecifier *getQualifier() const { return Qualifier; }
-
-  /// \brief Retrieve the source range describing the nested name specifier
-  /// used to qualified the name of this template-id, if the name was qualified.
-  SourceRange getQualifierRange() const { return QualifierRange; }
-
-  /// \brief Retrieve the name of the template referenced, e.g., "sort" in
-  /// @c std::sort<int>;
-  TemplateName getTemplateName() const { return Template; }
-
-  /// \brief Retrieve the location of the name of the template referenced, e.g.,
-  /// the location of "sort" in @c std::sort<int>.
-  SourceLocation getTemplateNameLoc() const { return TemplateNameLoc; }
-
-  /// \brief Retrieve the location of the left angle bracket following the
-  /// template name ('<').
-  SourceLocation getLAngleLoc() const { return LAngleLoc; }
-
-  /// \brief Retrieve the template arguments provided as part of this
-  /// template-id.
-  const TemplateArgumentLoc *getTemplateArgs() const {
-    return reinterpret_cast<const TemplateArgumentLoc *>(this + 1);
-  }
-
-  /// \brief Retrieve the number of template arguments provided as part of this
-  /// template-id.
-  unsigned getNumTemplateArgs() const { return NumTemplateArgs; }
-
-  /// \brief Retrieve the location of the right angle bracket following the
-  /// template arguments ('>').
-  SourceLocation getRAngleLoc() const { return RAngleLoc; }
-
-  virtual SourceRange getSourceRange() const {
-    return SourceRange(Qualifier? QualifierRange.getBegin() : TemplateNameLoc,
-                       RAngleLoc);
-  }
-
-  // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
-
-  static bool classof(const Stmt *T) {
-    return T->getStmtClass() == TemplateIdRefExprClass;
-  }
-  static bool classof(const TemplateIdRefExpr *) { return true; }
 };
 
 class CXXExprWithTemporaries : public Expr {
@@ -1233,10 +1495,8 @@ class CXXExprWithTemporaries : public Expr {
   CXXTemporary **Temps;
   unsigned NumTemps;
 
-  bool ShouldDestroyTemps;
-
   CXXExprWithTemporaries(Expr *SubExpr, CXXTemporary **Temps,
-                         unsigned NumTemps, bool ShouldDestroyTemps);
+                         unsigned NumTemps);
   ~CXXExprWithTemporaries();
 
 protected:
@@ -1244,8 +1504,8 @@ protected:
 
 public:
   static CXXExprWithTemporaries *Create(ASTContext &C, Expr *SubExpr,
-                                        CXXTemporary **Temps, unsigned NumTemps,
-                                        bool ShouldDestroyTemporaries);
+                                        CXXTemporary **Temps, 
+                                        unsigned NumTemps);
 
   unsigned getNumTemporaries() const { return NumTemps; }
   CXXTemporary *getTemporary(unsigned i) {
@@ -1253,13 +1513,8 @@ public:
     return Temps[i];
   }
   const CXXTemporary *getTemporary(unsigned i) const {
-    assert(i < NumTemps && "Index out of range");
-    return Temps[i];
+    return const_cast<CXXExprWithTemporaries*>(this)->getTemporary(i);
   }
-
-  bool shouldDestroyTemporaries() const { return ShouldDestroyTemps; }
-
-  void removeLastTemporary() { NumTemps--; }
 
   Expr *getSubExpr() { return cast<Expr>(SubExpr); }
   const Expr *getSubExpr() const { return cast<Expr>(SubExpr); }
@@ -1359,7 +1614,20 @@ public:
   arg_iterator arg_begin() { return reinterpret_cast<Expr**>(this + 1); }
   arg_iterator arg_end() { return arg_begin() + NumArgs; }
 
+  typedef const Expr* const * const_arg_iterator;
+  const_arg_iterator arg_begin() const {
+    return reinterpret_cast<const Expr* const *>(this + 1);
+  }
+  const_arg_iterator arg_end() const {
+    return arg_begin() + NumArgs;
+  }
+
   Expr *getArg(unsigned I) {
+    assert(I < NumArgs && "Argument index out-of-range");
+    return *(arg_begin() + I);
+  }
+
+  const Expr *getArg(unsigned I) const {
     assert(I < NumArgs && "Argument index out-of-range");
     return *(arg_begin() + I);
   }
@@ -1377,13 +1645,21 @@ public:
   virtual child_iterator child_end();
 };
 
-/// \brief Represents a C++ member access expression where the actual member
-/// referenced could not be resolved, e.g., because the base expression or the
-/// member name was dependent.
-class CXXUnresolvedMemberExpr : public Expr {
+/// \brief Represents a C++ member access expression where the actual
+/// member referenced could not be resolved because the base
+/// expression or the member name was dependent.
+///
+/// Like UnresolvedMemberExprs, these can be either implicit or
+/// explicit accesses.  It is only possible to get one of these with
+/// an implicit access if a qualifier is provided.
+class CXXDependentScopeMemberExpr : public Expr {
   /// \brief The expression for the base pointer or class reference,
-  /// e.g., the \c x in x.f.
+  /// e.g., the \c x in x.f.  Can be null in implicit accesses.
   Stmt *Base;
+
+  /// \brief The type of the base expression.  Never null, even for
+  /// implicit accesses.
+  QualType BaseType;
 
   /// \brief Whether this member expression used the '->' operator or
   /// the '.' operator.
@@ -1391,7 +1667,7 @@ class CXXUnresolvedMemberExpr : public Expr {
 
   /// \brief Whether this member expression has explicitly-specified template
   /// arguments.
-  bool HasExplicitTemplateArgumentList : 1;
+  bool HasExplicitTemplateArgs : 1;
 
   /// \brief The location of the '->' or '.' operator.
   SourceLocation OperatorLoc;
@@ -1408,7 +1684,7 @@ class CXXUnresolvedMemberExpr : public Expr {
   ///
   /// FIXME: This member, along with the Qualifier and QualifierRange, could
   /// be stuck into a structure that is optionally allocated at the end of
-  /// the CXXUnresolvedMemberExpr, to save space in the common case.
+  /// the CXXDependentScopeMemberExpr, to save space in the common case.
   NamedDecl *FirstQualifierFoundInScope;
 
   /// \brief The member to which this member expression refers, which
@@ -1422,68 +1698,69 @@ class CXXUnresolvedMemberExpr : public Expr {
   /// \brief Retrieve the explicit template argument list that followed the
   /// member template name, if any.
   ExplicitTemplateArgumentList *getExplicitTemplateArgumentList() {
-    if (!HasExplicitTemplateArgumentList)
-      return 0;
-
+    assert(HasExplicitTemplateArgs);
     return reinterpret_cast<ExplicitTemplateArgumentList *>(this + 1);
   }
 
   /// \brief Retrieve the explicit template argument list that followed the
   /// member template name, if any.
   const ExplicitTemplateArgumentList *getExplicitTemplateArgumentList() const {
-    return const_cast<CXXUnresolvedMemberExpr *>(this)
+    return const_cast<CXXDependentScopeMemberExpr *>(this)
              ->getExplicitTemplateArgumentList();
   }
 
-  CXXUnresolvedMemberExpr(ASTContext &C,
-                          Expr *Base, bool IsArrow,
+  CXXDependentScopeMemberExpr(ASTContext &C,
+                          Expr *Base, QualType BaseType, bool IsArrow,
                           SourceLocation OperatorLoc,
                           NestedNameSpecifier *Qualifier,
                           SourceRange QualifierRange,
                           NamedDecl *FirstQualifierFoundInScope,
                           DeclarationName Member,
                           SourceLocation MemberLoc,
-                          bool HasExplicitTemplateArgs,
-                          SourceLocation LAngleLoc,
-                          const TemplateArgumentLoc *TemplateArgs,
-                          unsigned NumTemplateArgs,
-                          SourceLocation RAngleLoc);
+                          const TemplateArgumentListInfo *TemplateArgs);
 
 public:
-  CXXUnresolvedMemberExpr(ASTContext &C,
-                          Expr *Base, bool IsArrow,
+  CXXDependentScopeMemberExpr(ASTContext &C,
+                          Expr *Base, QualType BaseType,
+                          bool IsArrow,
                           SourceLocation OperatorLoc,
                           NestedNameSpecifier *Qualifier,
                           SourceRange QualifierRange,
                           NamedDecl *FirstQualifierFoundInScope,
                           DeclarationName Member,
                           SourceLocation MemberLoc)
-  : Expr(CXXUnresolvedMemberExprClass, C.DependentTy, true, true),
-    Base(Base), IsArrow(IsArrow), HasExplicitTemplateArgumentList(false),
-    OperatorLoc(OperatorLoc),
+  : Expr(CXXDependentScopeMemberExprClass, C.DependentTy, true, true),
+    Base(Base), BaseType(BaseType), IsArrow(IsArrow),
+    HasExplicitTemplateArgs(false), OperatorLoc(OperatorLoc),
     Qualifier(Qualifier), QualifierRange(QualifierRange),
     FirstQualifierFoundInScope(FirstQualifierFoundInScope),
     Member(Member), MemberLoc(MemberLoc) { }
 
-  static CXXUnresolvedMemberExpr *
+  static CXXDependentScopeMemberExpr *
   Create(ASTContext &C,
-         Expr *Base, bool IsArrow,
+         Expr *Base, QualType BaseType, bool IsArrow,
          SourceLocation OperatorLoc,
          NestedNameSpecifier *Qualifier,
          SourceRange QualifierRange,
          NamedDecl *FirstQualifierFoundInScope,
          DeclarationName Member,
          SourceLocation MemberLoc,
-         bool HasExplicitTemplateArgs,
-         SourceLocation LAngleLoc,
-         const TemplateArgumentLoc *TemplateArgs,
-         unsigned NumTemplateArgs,
-         SourceLocation RAngleLoc);
+         const TemplateArgumentListInfo *TemplateArgs);
+
+  /// \brief True if this is an implicit access, i.e. one in which the
+  /// member being accessed was not written in the source.  The source
+  /// location of the operator is invalid in this case.
+  bool isImplicitAccess() const { return Base == 0; }
 
   /// \brief Retrieve the base object of this member expressions,
   /// e.g., the \c x in \c x.m.
-  Expr *getBase() { return cast<Expr>(Base); }
+  Expr *getBase() const {
+    assert(!isImplicitAccess());
+    return cast<Expr>(Base);
+  }
   void setBase(Expr *E) { Base = E; }
+
+  QualType getBaseType() const { return BaseType; }
 
   /// \brief Determine whether this member expression used the '->'
   /// operator; otherwise, it used the '.' operator.
@@ -1529,64 +1806,241 @@ public:
 
   /// \brief Determines whether this member expression actually had a C++
   /// template argument list explicitly specified, e.g., x.f<int>.
-  bool hasExplicitTemplateArgumentList() {
-    return HasExplicitTemplateArgumentList;
+  bool hasExplicitTemplateArgs() const {
+    return HasExplicitTemplateArgs;
+  }
+
+  /// \brief Copies the template arguments (if present) into the given
+  /// structure.
+  void copyTemplateArgumentsInto(TemplateArgumentListInfo &List) const {
+    assert(HasExplicitTemplateArgs);
+    getExplicitTemplateArgumentList()->copyInto(List);
   }
 
   /// \brief Retrieve the location of the left angle bracket following the
   /// member name ('<'), if any.
   SourceLocation getLAngleLoc() const {
-    if (!HasExplicitTemplateArgumentList)
-      return SourceLocation();
-
+    assert(HasExplicitTemplateArgs);
     return getExplicitTemplateArgumentList()->LAngleLoc;
   }
 
   /// \brief Retrieve the template arguments provided as part of this
   /// template-id.
   const TemplateArgumentLoc *getTemplateArgs() const {
-    if (!HasExplicitTemplateArgumentList)
-      return 0;
-
+    assert(HasExplicitTemplateArgs);
     return getExplicitTemplateArgumentList()->getTemplateArgs();
   }
 
   /// \brief Retrieve the number of template arguments provided as part of this
   /// template-id.
   unsigned getNumTemplateArgs() const {
-    if (!HasExplicitTemplateArgumentList)
-      return 0;
-
+    assert(HasExplicitTemplateArgs);
     return getExplicitTemplateArgumentList()->NumTemplateArgs;
   }
 
   /// \brief Retrieve the location of the right angle bracket following the
   /// template arguments ('>').
   SourceLocation getRAngleLoc() const {
-    if (!HasExplicitTemplateArgumentList)
-      return SourceLocation();
-
+    assert(HasExplicitTemplateArgs);
     return getExplicitTemplateArgumentList()->RAngleLoc;
   }
 
   virtual SourceRange getSourceRange() const {
-    if (HasExplicitTemplateArgumentList)
-      return SourceRange(Base->getSourceRange().getBegin(),
-                         getRAngleLoc());
+    SourceRange Range;
+    if (!isImplicitAccess())
+      Range.setBegin(Base->getSourceRange().getBegin());
+    else if (getQualifier())
+      Range.setBegin(getQualifierRange().getBegin());
+    else
+      Range.setBegin(MemberLoc);
 
-    return SourceRange(Base->getSourceRange().getBegin(),
-                       MemberLoc);
+    if (hasExplicitTemplateArgs())
+      Range.setEnd(getRAngleLoc());
+    else
+      Range.setEnd(MemberLoc);
+    return Range;
   }
 
   static bool classof(const Stmt *T) {
-    return T->getStmtClass() == CXXUnresolvedMemberExprClass;
+    return T->getStmtClass() == CXXDependentScopeMemberExprClass;
   }
-  static bool classof(const CXXUnresolvedMemberExpr *) { return true; }
+  static bool classof(const CXXDependentScopeMemberExpr *) { return true; }
 
   // Iterators
   virtual child_iterator child_begin();
   virtual child_iterator child_end();
 };
+
+/// \brief Represents a C++ member access expression for which lookup
+/// produced a set of overloaded functions.
+///
+/// The member access may be explicit or implicit:
+///    struct A {
+///      int a, b;
+///      int explicitAccess() { return this->a + this->A::b; }
+///      int implicitAccess() { return a + A::b; }
+///    };
+///
+/// In the final AST, an explicit access always becomes a MemberExpr.
+/// An implicit access may become either a MemberExpr or a
+/// DeclRefExpr, depending on whether the member is static.
+class UnresolvedMemberExpr : public OverloadExpr {
+  /// \brief Whether this member expression used the '->' operator or
+  /// the '.' operator.
+  bool IsArrow : 1;
+
+  /// \brief Whether the lookup results contain an unresolved using
+  /// declaration.
+  bool HasUnresolvedUsing : 1;
+
+  /// \brief The expression for the base pointer or class reference,
+  /// e.g., the \c x in x.f.  This can be null if this is an 'unbased'
+  /// member expression
+  Stmt *Base;
+
+  /// \brief The type of the base expression;  never null.
+  QualType BaseType;
+
+  /// \brief The location of the '->' or '.' operator.
+  SourceLocation OperatorLoc;
+
+  UnresolvedMemberExpr(QualType T, bool Dependent,
+                       bool HasUnresolvedUsing,
+                       Expr *Base, QualType BaseType, bool IsArrow,
+                       SourceLocation OperatorLoc,
+                       NestedNameSpecifier *Qualifier,
+                       SourceRange QualifierRange,
+                       DeclarationName Member,
+                       SourceLocation MemberLoc,
+                       const TemplateArgumentListInfo *TemplateArgs);
+
+public:
+  static UnresolvedMemberExpr *
+  Create(ASTContext &C, bool Dependent, bool HasUnresolvedUsing,
+         Expr *Base, QualType BaseType, bool IsArrow,
+         SourceLocation OperatorLoc,
+         NestedNameSpecifier *Qualifier,
+         SourceRange QualifierRange,
+         DeclarationName Member,
+         SourceLocation MemberLoc,
+         const TemplateArgumentListInfo *TemplateArgs);
+
+  /// \brief True if this is an implicit access, i.e. one in which the
+  /// member being accessed was not written in the source.  The source
+  /// location of the operator is invalid in this case.
+  bool isImplicitAccess() const { return Base == 0; }
+
+  /// \brief Retrieve the base object of this member expressions,
+  /// e.g., the \c x in \c x.m.
+  Expr *getBase() {
+    assert(!isImplicitAccess());
+    return cast<Expr>(Base);
+  }
+  const Expr *getBase() const {
+    assert(!isImplicitAccess());
+    return cast<Expr>(Base);
+  }
+  void setBase(Expr *E) { Base = E; }
+
+  QualType getBaseType() const { return BaseType; }
+
+  /// \brief Determine whether this member expression used the '->'
+  /// operator; otherwise, it used the '.' operator.
+  bool isArrow() const { return IsArrow; }
+  void setArrow(bool A) { IsArrow = A; }
+
+  /// \brief Retrieve the location of the '->' or '.' operator.
+  SourceLocation getOperatorLoc() const { return OperatorLoc; }
+  void setOperatorLoc(SourceLocation L) { OperatorLoc = L; }
+
+  /// \brief Retrieves the naming class of this lookup.
+  CXXRecordDecl *getNamingClass() const;
+
+  /// \brief Retrieve the name of the member that this expression
+  /// refers to.
+  DeclarationName getMemberName() const { return getName(); }
+  void setMemberName(DeclarationName N) { setName(N); }
+
+  // \brief Retrieve the location of the name of the member that this
+  // expression refers to.
+  SourceLocation getMemberLoc() const { return getNameLoc(); }
+  void setMemberLoc(SourceLocation L) { setNameLoc(L); }
+
+  /// \brief Retrieve the explicit template argument list that followed the
+  /// member template name.
+  ExplicitTemplateArgumentList &getExplicitTemplateArgs() {
+    assert(hasExplicitTemplateArgs());
+    return *reinterpret_cast<ExplicitTemplateArgumentList *>(this + 1);
+  }
+
+  /// \brief Retrieve the explicit template argument list that followed the
+  /// member template name, if any.
+  const ExplicitTemplateArgumentList &getExplicitTemplateArgs() const {
+    assert(hasExplicitTemplateArgs());
+    return *reinterpret_cast<const ExplicitTemplateArgumentList *>(this + 1);
+  }
+
+  /// \brief Copies the template arguments into the given structure.
+  void copyTemplateArgumentsInto(TemplateArgumentListInfo &List) const {
+    getExplicitTemplateArgs().copyInto(List);
+  }
+
+  /// \brief Retrieve the location of the left angle bracket following
+  /// the member name ('<').
+  SourceLocation getLAngleLoc() const {
+    return getExplicitTemplateArgs().LAngleLoc;
+  }
+
+  /// \brief Retrieve the template arguments provided as part of this
+  /// template-id.
+  const TemplateArgumentLoc *getTemplateArgs() const {
+    return getExplicitTemplateArgs().getTemplateArgs();
+  }
+
+  /// \brief Retrieve the number of template arguments provided as
+  /// part of this template-id.
+  unsigned getNumTemplateArgs() const {
+    return getExplicitTemplateArgs().NumTemplateArgs;
+  }
+
+  /// \brief Retrieve the location of the right angle bracket
+  /// following the template arguments ('>').
+  SourceLocation getRAngleLoc() const {
+    return getExplicitTemplateArgs().RAngleLoc;
+  }
+
+  virtual SourceRange getSourceRange() const {
+    SourceRange Range;
+    if (!isImplicitAccess())
+      Range.setBegin(Base->getSourceRange().getBegin());
+    else if (getQualifier())
+      Range.setBegin(getQualifierRange().getBegin());
+    else
+      Range.setBegin(getMemberLoc());
+
+    if (hasExplicitTemplateArgs())
+      Range.setEnd(getRAngleLoc());
+    else
+      Range.setEnd(getMemberLoc());
+    return Range;
+  }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == UnresolvedMemberExprClass;
+  }
+  static bool classof(const UnresolvedMemberExpr *) { return true; }
+
+  // Iterators
+  virtual child_iterator child_begin();
+  virtual child_iterator child_end();
+};
+
+inline ExplicitTemplateArgumentList &OverloadExpr::getExplicitTemplateArgs() {
+  if (isa<UnresolvedLookupExpr>(this))
+    return cast<UnresolvedLookupExpr>(this)->getExplicitTemplateArgs();
+  else
+    return cast<UnresolvedMemberExpr>(this)->getExplicitTemplateArgs();
+}
 
 }  // end namespace clang
 

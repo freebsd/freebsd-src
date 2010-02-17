@@ -19,9 +19,9 @@
 #include "clang/Analysis/Visitors/CFGRecStmtDeclVisitor.h"
 #include "clang/Analysis/FlowSensitive/DataflowSolver.h"
 #include "clang/Analysis/Support/SaveAndRestore.h"
+#include "clang/Analysis/AnalysisContext.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -38,7 +38,7 @@ static const bool Dead = false;
 //===----------------------------------------------------------------------===//
 
 namespace {
-class VISIBILITY_HIDDEN RegisterDecls
+class RegisterDecls
   : public CFGRecStmtDeclVisitor<RegisterDecls> {
 
   LiveVariables::AnalysisDataTy& AD;
@@ -77,10 +77,12 @@ public:
 };
 } // end anonymous namespace
 
-LiveVariables::LiveVariables(ASTContext& Ctx, CFG& cfg) {
+LiveVariables::LiveVariables(AnalysisContext &AC) {  
   // Register all referenced VarDecls.
+  CFG &cfg = *AC.getCFG();
   getAnalysisData().setCFG(cfg);
-  getAnalysisData().setContext(Ctx);
+  getAnalysisData().setContext(AC.getASTContext());
+  getAnalysisData().AC = &AC;
 
   RegisterDecls R(getAnalysisData());
   cfg.VisitBlockStmts(R);
@@ -92,7 +94,7 @@ LiveVariables::LiveVariables(ASTContext& Ctx, CFG& cfg) {
 
 namespace {
 
-class VISIBILITY_HIDDEN TransferFuncs : public CFGRecStmtVisitor<TransferFuncs>{
+class TransferFuncs : public CFGRecStmtVisitor<TransferFuncs>{
   LiveVariables::AnalysisDataTy& AD;
   LiveVariables::ValTy LiveState;
 public:
@@ -103,12 +105,18 @@ public:
 
   void VisitDeclRefExpr(DeclRefExpr* DR);
   void VisitBinaryOperator(BinaryOperator* B);
+  void VisitBlockExpr(BlockExpr *B);
   void VisitAssign(BinaryOperator* B);
   void VisitDeclStmt(DeclStmt* DS);
   void BlockStmt_VisitObjCForCollectionStmt(ObjCForCollectionStmt* S);
   void VisitUnaryOperator(UnaryOperator* U);
   void Visit(Stmt *S);
   void VisitTerminator(CFGBlock* B);
+  
+  /// VisitConditionVariableInit - Handle the initialization of condition
+  ///  variables at branches.  Valid statements include IfStmt, ForStmt,
+  ///  WhileStmt, and SwitchStmt.
+  void VisitConditionVariableInit(Stmt *S);
 
   void SetTopValue(LiveVariables::ValTy& V) {
     V = AD.AlwaysLive;
@@ -123,7 +131,9 @@ void TransferFuncs::Visit(Stmt *S) {
     if (AD.Observer)
       AD.Observer->ObserveStmt(S,AD,LiveState);
 
-    if (getCFG().isBlkExpr(S)) LiveState(S,AD) = Dead;
+    if (getCFG().isBlkExpr(S))
+      LiveState(S, AD) = Dead;
+
     StmtVisitor<TransferFuncs,void>::Visit(S);
   }
   else if (!getCFG().isBlkExpr(S)) {
@@ -139,6 +149,11 @@ void TransferFuncs::Visit(Stmt *S) {
     LiveState(S,AD) = Alive;
   }
 }
+  
+void TransferFuncs::VisitConditionVariableInit(Stmt *S) {
+  assert(!getCFG().isBlkExpr(S));
+  CFGRecStmtVisitor<TransferFuncs>::VisitConditionVariableInit(S);
+}
 
 void TransferFuncs::VisitTerminator(CFGBlock* B) {
 
@@ -153,7 +168,17 @@ void TransferFuncs::VisitTerminator(CFGBlock* B) {
 
 void TransferFuncs::VisitDeclRefExpr(DeclRefExpr* DR) {
   if (VarDecl* V = dyn_cast<VarDecl>(DR->getDecl()))
-    LiveState(V,AD) = Alive;
+    LiveState(V, AD) = Alive;
+}
+  
+void TransferFuncs::VisitBlockExpr(BlockExpr *BE) {
+  AnalysisContext::referenced_decls_iterator I, E;
+  llvm::tie(I, E) = AD.AC->getReferencedBlockVars(BE->getBlockDecl());
+  for ( ; I != E ; ++I) {
+    DeclBitVector_Types::Idx i = AD.getIdx(*I);
+    if (i.isValid())
+      LiveState.getBit(i) = Alive;
+  }
 }
 
 void TransferFuncs::VisitBinaryOperator(BinaryOperator* B) {
@@ -276,17 +301,8 @@ void TransferFuncs::VisitDeclStmt(DeclStmt* DS) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-
-struct Merge {
-  typedef StmtDeclBitVector_Types::ValTy ValTy;
-
-  void operator()(ValTy& Dst, const ValTy& Src) {
-    Dst.OrDeclBits(Src);
-    Dst.OrBlkExprBits(Src);
-  }
-};
-
-typedef DataflowSolver<LiveVariables, TransferFuncs, Merge> Solver;
+  typedef StmtDeclBitVector_Types::Union Merge;
+  typedef DataflowSolver<LiveVariables, TransferFuncs, Merge> Solver;
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//

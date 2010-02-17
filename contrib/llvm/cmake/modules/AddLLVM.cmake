@@ -46,7 +46,12 @@ endmacro(add_llvm_loadable_module name)
 
 macro(add_llvm_executable name)
   llvm_process_sources( ALL_FILES ${ARGN} )
-  add_executable(${name} ${ALL_FILES})
+  if( EXCLUDE_FROM_ALL )
+    add_executable(${name} EXCLUDE_FROM_ALL ${ALL_FILES})
+  else()
+    add_executable(${name} ${ALL_FILES})
+  endif()
+  set(EXCLUDE_FROM_ALL OFF)
   if( LLVM_USED_LIBS )
     foreach(lib ${LLVM_USED_LIBS})
       target_link_libraries( ${name} ${lib} )
@@ -67,17 +72,25 @@ endmacro(add_llvm_executable name)
 
 macro(add_llvm_tool name)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${LLVM_TOOLS_BINARY_DIR})
+  if( NOT LLVM_BUILD_TOOLS )
+    set(EXCLUDE_FROM_ALL ON)
+  endif()
   add_llvm_executable(${name} ${ARGN})
-  install(TARGETS ${name}
-    RUNTIME DESTINATION bin)
+  if( LLVM_BUILD_TOOLS )
+    install(TARGETS ${name} RUNTIME DESTINATION bin)
+  endif()
 endmacro(add_llvm_tool name)
 
 
 macro(add_llvm_example name)
 #  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${LLVM_EXAMPLES_BINARY_DIR})
+  if( NOT LLVM_BUILD_EXAMPLES )
+    set(EXCLUDE_FROM_ALL ON)
+  endif()
   add_llvm_executable(${name} ${ARGN})
-  install(TARGETS ${name}
-    RUNTIME DESTINATION examples)
+  if( LLVM_BUILD_EXAMPLES )
+    install(TARGETS ${name} RUNTIME DESTINATION examples)
+  endif()
 endmacro(add_llvm_example name)
 
 

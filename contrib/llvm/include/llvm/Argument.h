@@ -17,6 +17,7 @@
 #include "llvm/Value.h"
 #include "llvm/Attributes.h"
 #include "llvm/ADT/ilist_node.h"
+#include "llvm/ADT/Twine.h"
 
 namespace llvm {
 
@@ -50,6 +51,10 @@ public:
   /// hasByValAttr - Return true if this argument has the byval attribute on it
   /// in its containing function.
   bool hasByValAttr() const;
+
+  /// hasNestAttr - Return true if this argument has the nest attribute on
+  /// it in its containing function.
+  bool hasNestAttr() const;
 
   /// hasNoAliasAttr - Return true if this argument has the noalias attribute on
   /// it in its containing function.

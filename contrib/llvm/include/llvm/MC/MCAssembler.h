@@ -14,6 +14,7 @@
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/MC/MCFixup.h"
 #include "llvm/System/DataTypes.h"
 #include <vector> // FIXME: Shouldn't be needed.
 
@@ -22,9 +23,33 @@ class raw_ostream;
 class MCAssembler;
 class MCContext;
 class MCExpr;
+class MCFragment;
 class MCSection;
 class MCSectionData;
 class MCSymbol;
+
+/// MCAsmFixup - Represent a fixed size region of bytes inside some fragment
+/// which needs to be rewritten. This region will either be rewritten by the
+/// assembler or cause a relocation entry to be generated.
+struct MCAsmFixup {
+  /// Offset - The offset inside the fragment which needs to be rewritten.
+  uint64_t Offset;
+
+  /// Value - The expression to eventually write into the fragment.
+  const MCExpr *Value;
+
+  /// Kind - The fixup kind.
+  MCFixupKind Kind;
+
+  /// FixedValue - The value to replace the fix up by.
+  //
+  // FIXME: This should not be here.
+  uint64_t FixedValue;
+
+public:
+  MCAsmFixup(uint64_t _Offset, const MCExpr &_Value, MCFixupKind _Kind)
+    : Offset(_Offset), Value(&_Value), Kind(_Kind), FixedValue(0) {}
+};
 
 class MCFragment : public ilist_node<MCFragment> {
   MCFragment(const MCFragment&);     // DO NOT IMPLEMENT
@@ -76,7 +101,7 @@ public:
   virtual uint64_t getMaxFileSize() const {
     assert(0 && "Invalid getMaxFileSize call!");
     return 0;
-  };
+  }
 
   /// @name Assembler Backend Support
   /// @{
@@ -85,7 +110,7 @@ public:
 
   uint64_t getAddress() const;
 
-  uint64_t getFileSize() const { 
+  uint64_t getFileSize() const {
     assert(FileSize != ~UINT64_C(0) && "File size not set!");
     return FileSize;
   }
@@ -103,10 +128,19 @@ public:
   /// @}
 
   static bool classof(const MCFragment *O) { return true; }
+
+  virtual void dump();
 };
 
 class MCDataFragment : public MCFragment {
   SmallString<32> Contents;
+
+  /// Fixups - The list of fixups in this fragment.
+  std::vector<MCAsmFixup> Fixups;
+
+public:
+  typedef std::vector<MCAsmFixup>::const_iterator const_fixup_iterator;
+  typedef std::vector<MCAsmFixup>::iterator fixup_iterator;
 
 public:
   MCDataFragment(MCSectionData *SD = 0) : MCFragment(FT_Data, SD) {}
@@ -123,10 +157,28 @@ public:
 
   /// @}
 
-  static bool classof(const MCFragment *F) { 
-    return F->getKind() == MCFragment::FT_Data; 
+  /// @name Fixup Access
+  /// @{
+
+  std::vector<MCAsmFixup> &getFixups() { return Fixups; }
+  const std::vector<MCAsmFixup> &getFixups() const { return Fixups; }
+
+  fixup_iterator fixup_begin() { return Fixups.begin(); }
+  const_fixup_iterator fixup_begin() const { return Fixups.begin(); }
+
+  fixup_iterator fixup_end() {return Fixups.end();}
+  const_fixup_iterator fixup_end() const {return Fixups.end();}
+
+  size_t fixup_size() const { return Fixups.size(); }
+
+  /// @}
+
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_Data;
   }
   static bool classof(const MCDataFragment *) { return true; }
+
+  virtual void dump();
 };
 
 class MCAlignFragment : public MCFragment {
@@ -158,7 +210,7 @@ public:
   }
 
   unsigned getAlignment() const { return Alignment; }
-  
+
   int64_t getValue() const { return Value; }
 
   unsigned getValueSize() const { return ValueSize; }
@@ -167,15 +219,17 @@ public:
 
   /// @}
 
-  static bool classof(const MCFragment *F) { 
-    return F->getKind() == MCFragment::FT_Align; 
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_Align;
   }
   static bool classof(const MCAlignFragment *) { return true; }
+
+  virtual void dump();
 };
 
 class MCFillFragment : public MCFragment {
   /// Value - Value to use for filling bytes.
-  const MCExpr *Value;
+  int64_t Value;
 
   /// ValueSize - The size (in bytes) of \arg Value to use when filling.
   unsigned ValueSize;
@@ -184,10 +238,10 @@ class MCFillFragment : public MCFragment {
   uint64_t Count;
 
 public:
-  MCFillFragment(const MCExpr &_Value, unsigned _ValueSize, uint64_t _Count,
-                 MCSectionData *SD = 0) 
+  MCFillFragment(int64_t _Value, unsigned _ValueSize, uint64_t _Count,
+                 MCSectionData *SD = 0)
     : MCFragment(FT_Fill, SD),
-      Value(&_Value), ValueSize(_ValueSize), Count(_Count) {}
+      Value(_Value), ValueSize(_ValueSize), Count(_Count) {}
 
   /// @name Accessors
   /// @{
@@ -196,25 +250,27 @@ public:
     return ValueSize * Count;
   }
 
-  const MCExpr &getValue() const { return *Value; }
-  
+  int64_t getValue() const { return Value; }
+
   unsigned getValueSize() const { return ValueSize; }
 
   uint64_t getCount() const { return Count; }
 
   /// @}
 
-  static bool classof(const MCFragment *F) { 
-    return F->getKind() == MCFragment::FT_Fill; 
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_Fill;
   }
   static bool classof(const MCFillFragment *) { return true; }
+
+  virtual void dump();
 };
 
 class MCOrgFragment : public MCFragment {
   /// Offset - The offset this fragment should start at.
   const MCExpr *Offset;
 
-  /// Value - Value to use for filling bytes.  
+  /// Value - Value to use for filling bytes.
   int8_t Value;
 
 public:
@@ -231,15 +287,17 @@ public:
   }
 
   const MCExpr &getOffset() const { return *Offset; }
-  
+
   uint8_t getValue() const { return Value; }
 
   /// @}
 
-  static bool classof(const MCFragment *F) { 
-    return F->getKind() == MCFragment::FT_Org; 
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_Org;
   }
   static bool classof(const MCOrgFragment *) { return true; }
+
+  virtual void dump();
 };
 
 /// MCZeroFillFragment - Represent data which has a fixed size and alignment,
@@ -265,15 +323,17 @@ public:
   }
 
   uint64_t getSize() const { return Size; }
-  
+
   unsigned getAlignment() const { return Alignment; }
 
   /// @}
 
-  static bool classof(const MCFragment *F) { 
-    return F->getKind() == MCFragment::FT_ZeroFill; 
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_ZeroFill;
   }
   static bool classof(const MCZeroFillFragment *) { return true; }
+
+  virtual void dump();
 };
 
 // FIXME: Should this be a separate class, or just merged into MCSection? Since
@@ -284,41 +344,13 @@ class MCSectionData : public ilist_node<MCSectionData> {
   void operator=(const MCSectionData&); // DO NOT IMPLEMENT
 
 public:
-  /// Fixup - Represent a fixed size region of bytes inside some fragment which
-  /// needs to be rewritten. This region will either be rewritten by the
-  /// assembler or cause a relocation entry to be generated.
-  struct Fixup {
-    /// Fragment - The fragment containing the fixup.
-    MCFragment *Fragment;
-    
-    /// Offset - The offset inside the fragment which needs to be rewritten.
-    uint64_t Offset;
-
-    /// Value - The expression to eventually write into the fragment.
-    const MCExpr *Value;
-
-    /// Size - The fixup size.
-    unsigned Size;
-
-    /// FixedValue - The value to replace the fix up by.
-    //
-    // FIXME: This should not be here.
-    uint64_t FixedValue;
-
-  public:
-    Fixup(MCFragment &_Fragment, uint64_t _Offset, const MCExpr &_Value,
-          unsigned _Size) 
-      : Fragment(&_Fragment), Offset(_Offset), Value(&_Value), Size(_Size),
-        FixedValue(0) {}
-  };
-
   typedef iplist<MCFragment> FragmentListType;
 
   typedef FragmentListType::const_iterator const_iterator;
   typedef FragmentListType::iterator iterator;
 
-  typedef std::vector<Fixup>::const_iterator const_fixup_iterator;
-  typedef std::vector<Fixup>::iterator fixup_iterator;
+  typedef FragmentListType::const_reverse_iterator const_reverse_iterator;
+  typedef FragmentListType::reverse_iterator reverse_iterator;
 
 private:
   iplist<MCFragment> Fragments;
@@ -343,15 +375,13 @@ private:
   /// initialized.
   uint64_t FileSize;
 
-  /// LastFixupLookup - Cache for the last looked up fixup.
-  mutable unsigned LastFixupLookup;
+  /// HasInstructions - Whether this section has had instructions emitted into
+  /// it.
+  unsigned HasInstructions : 1;
 
-  /// Fixups - The list of fixups in this section.
-  std::vector<Fixup> Fixups;
-  
   /// @}
 
-public:    
+public:
   // Only for use as sentinel.
   MCSectionData();
   MCSectionData(const MCSection &Section, MCAssembler *A = 0);
@@ -373,27 +403,15 @@ public:
   iterator end() { return Fragments.end(); }
   const_iterator end() const { return Fragments.end(); }
 
+  reverse_iterator rbegin() { return Fragments.rbegin(); }
+  const_reverse_iterator rbegin() const { return Fragments.rbegin(); }
+
+  reverse_iterator rend() { return Fragments.rend(); }
+  const_reverse_iterator rend() const { return Fragments.rend(); }
+
   size_t size() const { return Fragments.size(); }
 
   bool empty() const { return Fragments.empty(); }
-
-  /// @}
-  /// @name Fixup Access
-  /// @{
-
-  std::vector<Fixup> &getFixups() {
-    return Fixups;
-  }
-
-  fixup_iterator fixup_begin() {
-    return Fixups.begin();
-  }
-
-  fixup_iterator fixup_end() {
-    return Fixups.end();
-  }
-
-  size_t fixup_size() const { return Fixups.size(); }
 
   /// @}
   /// @name Assembler Backend Support
@@ -401,35 +419,30 @@ public:
   //
   // FIXME: This could all be kept private to the assembler implementation.
 
-  /// LookupFixup - Look up the fixup for the given \arg Fragment and \arg
-  /// Offset.
-  ///
-  /// If multiple fixups exist for the same fragment and offset it is undefined
-  /// which one is returned.
-  //
-  // FIXME: This isn't horribly slow in practice, but there are much nicer
-  // solutions to applying the fixups.
-  const Fixup *LookupFixup(const MCFragment *Fragment, uint64_t Offset) const;
-
-  uint64_t getAddress() const { 
+  uint64_t getAddress() const {
     assert(Address != ~UINT64_C(0) && "Address not set!");
     return Address;
   }
   void setAddress(uint64_t Value) { Address = Value; }
 
-  uint64_t getSize() const { 
+  uint64_t getSize() const {
     assert(Size != ~UINT64_C(0) && "File size not set!");
     return Size;
   }
   void setSize(uint64_t Value) { Size = Value; }
 
-  uint64_t getFileSize() const { 
+  uint64_t getFileSize() const {
     assert(FileSize != ~UINT64_C(0) && "File size not set!");
     return FileSize;
   }
-  void setFileSize(uint64_t Value) { FileSize = Value; }  
+  void setFileSize(uint64_t Value) { FileSize = Value; }
+
+  bool hasInstructions() const { return HasInstructions; }
+  void setHasInstructions(bool Value) { HasInstructions = Value; }
 
   /// @}
+
+  void dump();
 };
 
 // FIXME: Same concerns as with SectionData.
@@ -443,7 +456,7 @@ public:
   /// Offset - The offset to apply to the fragment address to form this symbol's
   /// value.
   uint64_t Offset;
-    
+
   /// IsExternal - True if this symbol is visible outside this translation
   /// unit.
   unsigned IsExternal : 1;
@@ -489,10 +502,10 @@ public:
   /// @}
   /// @name Symbol Attributes
   /// @{
-  
+
   bool isExternal() const { return IsExternal; }
   void setExternal(bool Value) { IsExternal = Value; }
-  
+
   bool isPrivateExtern() const { return IsPrivateExtern; }
   void setPrivateExtern(bool Value) { IsPrivateExtern = Value; }
 
@@ -525,14 +538,16 @@ public:
 
   /// setFlags - Set the (implementation defined) symbol flags.
   void setFlags(uint32_t Value) { Flags = Value; }
-  
+
   /// getIndex - Get the (implementation defined) index.
   uint64_t getIndex() const { return Index; }
 
   /// setIndex - Set the (implementation defined) index.
   void setIndex(uint64_t Value) { Index = Value; }
-  
-  /// @}  
+
+  /// @}
+
+  void dump();
 };
 
 // FIXME: This really doesn't belong here. See comments below.
@@ -561,7 +576,7 @@ private:
   MCContext &Context;
 
   raw_ostream &OS;
-  
+
   iplist<MCSectionData> Sections;
 
   iplist<MCSymbolData> Symbols;
@@ -605,7 +620,7 @@ public:
   /// @{
 
   const SectionDataListType &getSectionList() const { return Sections; }
-  SectionDataListType &getSectionList() { return Sections; }  
+  SectionDataListType &getSectionList() { return Sections; }
 
   iterator begin() { return Sections.begin(); }
   const_iterator begin() const { return Sections.begin(); }
@@ -652,6 +667,8 @@ public:
   size_t indirect_symbol_size() const { return IndirectSymbols.size(); }
 
   /// @}
+
+  void dump();
 };
 
 } // end namespace llvm

@@ -12,10 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "Sema.h"
-#include "clang/Basic/Diagnostic.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallPtrSet.h"
 
 namespace clang {
@@ -35,10 +36,15 @@ static const FunctionProtoType *GetUnderlyingFunction(QualType T)
 /// exception specification. Incomplete types, or pointers to incomplete types
 /// other than void are not allowed.
 bool Sema::CheckSpecifiedExceptionType(QualType T, const SourceRange &Range) {
-  // FIXME: This may not correctly work with the fix for core issue 437,
-  // where a class's own type is considered complete within its body. But
-  // perhaps RequireCompleteType itself should contain this logic?
 
+  // This check (and the similar one below) deals with issue 437, that changes
+  // C++ 9.2p2 this way:
+  // Within the class member-specification, the class is regarded as complete
+  // within function bodies, default arguments, exception-specifications, and
+  // constructor ctor-initializers (including such things in nested classes).
+  if (T->isRecordType() && T->getAs<RecordType>()->isBeingDefined())
+    return false;
+    
   // C++ 15.4p2: A type denoted in an exception-specification shall not denote
   //   an incomplete type.
   if (RequireCompleteType(Range.getBegin(), T,
@@ -58,8 +64,12 @@ bool Sema::CheckSpecifiedExceptionType(QualType T, const SourceRange &Range) {
   } else
     return false;
 
+  // Again as before
+  if (T->isRecordType() && T->getAs<RecordType>()->isBeingDefined())
+    return false;
+    
   if (!T->isVoidType() && RequireCompleteType(Range.getBegin(), T,
-      PDiag(diag::err_incomplete_in_exception_spec) << /*direct*/kind << Range))
+      PDiag(diag::err_incomplete_in_exception_spec) << kind << Range))
     return true;
 
   return false;
@@ -83,6 +93,52 @@ bool Sema::CheckDistantExceptionSpec(QualType T) {
   return FnT->hasExceptionSpec();
 }
 
+bool Sema::CheckEquivalentExceptionSpec(FunctionDecl *Old, FunctionDecl *New) {
+  bool MissingEmptyExceptionSpecification = false;
+  if (!CheckEquivalentExceptionSpec(diag::err_mismatched_exception_spec,
+                                    diag::note_previous_declaration,
+                                    Old->getType()->getAs<FunctionProtoType>(),
+                                    Old->getLocation(),
+                                    New->getType()->getAs<FunctionProtoType>(),
+                                    New->getLocation(),
+                                    &MissingEmptyExceptionSpecification))
+    return false;
+
+  // The failure was something other than an empty exception
+  // specification; return an error.
+  if (!MissingEmptyExceptionSpecification)
+    return true;
+
+  // The new function declaration is only missing an empty exception
+  // specification "throw()". If the throw() specification came from a
+  // function in a system header that has C linkage, just add an empty
+  // exception specification to the "new" declaration. This is an
+  // egregious workaround for glibc, which adds throw() specifications
+  // to many libc functions as an optimization. Unfortunately, that
+  // optimization isn't permitted by the C++ standard, so we're forced
+  // to work around it here.
+  if (isa<FunctionProtoType>(New->getType()) &&
+      Context.getSourceManager().isInSystemHeader(Old->getLocation()) &&
+      Old->isExternC()) {
+    const FunctionProtoType *NewProto 
+      = cast<FunctionProtoType>(New->getType());
+    QualType NewType = Context.getFunctionType(NewProto->getResultType(),
+                                               NewProto->arg_type_begin(),
+                                               NewProto->getNumArgs(),
+                                               NewProto->isVariadic(),
+                                               NewProto->getTypeQuals(),
+                                               true, false, 0, 0,
+                                               NewProto->getNoReturnAttr(),
+                                               NewProto->getCallConv());
+    New->setType(NewType);
+    return false;
+  }
+
+  Diag(New->getLocation(), diag::err_mismatched_exception_spec);
+  Diag(Old->getLocation(), diag::note_previous_declaration);
+  return true;
+}
+
 /// CheckEquivalentExceptionSpec - Check if the two types have equivalent
 /// exception specifications. Exception specifications are equivalent if
 /// they allow exactly the same set of exception types. It does not matter how
@@ -102,12 +158,26 @@ bool Sema::CheckEquivalentExceptionSpec(
 bool Sema::CheckEquivalentExceptionSpec(
     const PartialDiagnostic &DiagID, const PartialDiagnostic & NoteID,
     const FunctionProtoType *Old, SourceLocation OldLoc,
-    const FunctionProtoType *New, SourceLocation NewLoc) {
+    const FunctionProtoType *New, SourceLocation NewLoc,
+    bool *MissingEmptyExceptionSpecification) {
+  if (MissingEmptyExceptionSpecification)
+    *MissingEmptyExceptionSpecification = false;
+
   bool OldAny = !Old->hasExceptionSpec() || Old->hasAnyExceptionSpec();
   bool NewAny = !New->hasExceptionSpec() || New->hasAnyExceptionSpec();
   if (OldAny && NewAny)
     return false;
   if (OldAny || NewAny) {
+    if (MissingEmptyExceptionSpecification && Old->hasExceptionSpec() && 
+        !Old->hasAnyExceptionSpec() && Old->getNumExceptions() == 0 && 
+        !New->hasExceptionSpec()) {
+      // The old type has a throw() exception specification and the
+      // new type has no exception specification, and the caller asked
+      // to handle this itself.
+      *MissingEmptyExceptionSpecification = true;
+      return true;
+    }
+
     Diag(NewLoc, DiagID);
     if (NoteID.getDiagID() != 0)
       Diag(OldLoc, NoteID);
@@ -223,8 +293,22 @@ bool Sema::CheckExceptionSpecSubset(
       if (Paths.isAmbiguous(CanonicalSuperT))
         continue;
 
-      if (FindInaccessibleBase(CanonicalSubT, CanonicalSuperT, Paths, true))
-        continue;
+      // Do this check from a context without privileges.
+      switch (CheckBaseClassAccess(SourceLocation(), false,
+                                   CanonicalSuperT, CanonicalSubT,
+                                   Paths.front(),
+                                   /*ForceCheck*/ true,
+                                   /*ForceUnprivileged*/ true,
+                                   ADK_quiet)) {
+      case AR_accessible: break;
+      case AR_inaccessible: continue;
+      case AR_dependent:
+        llvm_unreachable("access check dependent for unprivileged context");
+        break;
+      case AR_delayed:
+        llvm_unreachable("access check delayed in non-declaration");
+        break;
+      }
 
       Contained = true;
       break;

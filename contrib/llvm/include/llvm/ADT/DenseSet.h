@@ -41,8 +41,8 @@ public:
     return TheMap.count(V);
   }
 
-  void erase(const ValueT &V) {
-    TheMap.erase(V);
+  bool erase(const ValueT &V) {
+    return TheMap.erase(V);
   }
 
   DenseSet &operator=(const DenseSet &RHS) {
@@ -60,7 +60,7 @@ public:
     ValueT& operator*() { return I->first; }
     ValueT* operator->() { return &I->first; }
 
-    Iterator& operator++() { ++I; return *this; };
+    Iterator& operator++() { ++I; return *this; }
     bool operator==(const Iterator& X) const { return I == X.I; }
     bool operator!=(const Iterator& X) const { return I != X.I; }
   };
@@ -73,7 +73,7 @@ public:
     const ValueT& operator*() { return I->first; }
     const ValueT* operator->() { return &I->first; }
 
-    ConstIterator& operator++() { ++I; return *this; };
+    ConstIterator& operator++() { ++I; return *this; }
     bool operator==(const ConstIterator& X) const { return I == X.I; }
     bool operator!=(const ConstIterator& X) const { return I != X.I; }
   };

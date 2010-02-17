@@ -17,20 +17,20 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCXX.h"
 #include "clang/AST/PrettyPrinter.h"
-#include "llvm/Support/Compiler.h"
-#include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
 namespace {
-  class VISIBILITY_HIDDEN DeclPrinter : public DeclVisitor<DeclPrinter> {
+  class DeclPrinter : public DeclVisitor<DeclPrinter> {
     llvm::raw_ostream &Out;
     ASTContext &Context;
     PrintingPolicy Policy;
     unsigned Indentation;
 
-    llvm::raw_ostream& Indent();
+    llvm::raw_ostream& Indent() { return Indent(Indentation); }
+    llvm::raw_ostream& Indent(unsigned Indentation);
     void ProcessDeclGroup(llvm::SmallVectorImpl<Decl*>& Decls);
 
     void Print(AccessSpecifier AS);
@@ -53,7 +53,6 @@ namespace {
     void VisitVarDecl(VarDecl *D);
     void VisitParmVarDecl(ParmVarDecl *D);
     void VisitFileScopeAsmDecl(FileScopeAsmDecl *D);
-    void VisitOverloadedFunctionDecl(OverloadedFunctionDecl *D);
     void VisitNamespaceDecl(NamespaceDecl *D);
     void VisitUsingDirectiveDecl(UsingDirectiveDecl *D);
     void VisitNamespaceAliasDecl(NamespaceAliasDecl *D);
@@ -150,12 +149,23 @@ void Decl::printGroup(Decl** Begin, unsigned NumDecls,
   }
 }
 
+void DeclContext::dumpDeclContext() const {
+  // Get the translation unit
+  const DeclContext *DC = this;
+  while (!DC->isTranslationUnit())
+    DC = DC->getParent();
+  
+  ASTContext &Ctx = cast<TranslationUnitDecl>(DC)->getASTContext();
+  DeclPrinter Printer(llvm::errs(), Ctx, Ctx.PrintingPolicy, 0);
+  Printer.VisitDeclContext(const_cast<DeclContext *>(this), /*Indent=*/false);
+}
+
 void Decl::dump() const {
   print(llvm::errs());
 }
 
-llvm::raw_ostream& DeclPrinter::Indent() {
-  for (unsigned i = 0; i < Indentation; ++i)
+llvm::raw_ostream& DeclPrinter::Indent(unsigned Indentation) {
+  for (unsigned i = 0; i != Indentation; ++i)
     Out << "  ";
   return Out;
 }
@@ -205,6 +215,8 @@ void DeclPrinter::VisitDeclContext(DeclContext *DC, bool Indent) {
       AccessSpecifier AS = D->getAccess();
 
       if (AS != CurAS) {
+        if (Indent)
+          this->Indent(Indentation - Policy.Indentation);
         Print(AS);
         Out << ":\n";
         CurAS = AS;
@@ -361,6 +373,24 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
     }
 
     Proto += ")";
+    
+    if (FT && FT->hasExceptionSpec()) {
+      Proto += " throw(";
+      if (FT->hasAnyExceptionSpec())
+        Proto += "...";
+      else 
+        for (unsigned I = 0, N = FT->getNumExceptions(); I != N; ++I) {
+          if (I)
+            Proto += ", ";
+          
+          
+          std::string ExceptionType;
+          FT->getExceptionType(I).getAsStringInternal(ExceptionType, SubPolicy);
+          Proto += ExceptionType;
+        }
+      Proto += ")";
+    }
+
     if (D->hasAttr<NoReturnAttr>())
       Proto += " __attribute((noreturn))";
     if (CXXConstructorDecl *CDecl = dyn_cast<CXXConstructorDecl>(D)) {
@@ -374,32 +404,51 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
           CXXBaseOrMemberInitializer * BMInitializer = (*B);
           if (B != CDecl->init_begin())
             Out << ", ";
-          bool hasArguments = (BMInitializer->arg_begin() !=
-                               BMInitializer->arg_end());
           if (BMInitializer->isMemberInitializer()) {
             FieldDecl *FD = BMInitializer->getMember();
             Out <<  FD->getNameAsString();
+          } else {
+            Out << QualType(BMInitializer->getBaseClass(), 0).getAsString();
           }
-          else // FIXME. skip dependent types for now.
-            if (const RecordType *RT =
-                BMInitializer->getBaseClass()->getAs<RecordType>()) {
-              const CXXRecordDecl *BaseDecl =
-                cast<CXXRecordDecl>(RT->getDecl());
-              Out << BaseDecl->getNameAsString();
-          }
-          if (hasArguments) {
-            Out << "(";
-            for (CXXBaseOrMemberInitializer::const_arg_iterator BE =
-                 BMInitializer->const_arg_begin(),
-                 EE =  BMInitializer->const_arg_end(); BE != EE; ++BE) {
-              if (BE != BMInitializer->const_arg_begin())
-                Out<< ", ";
-              const Expr *Exp = (*BE);
-              Exp->printPretty(Out, Context, 0, Policy, Indentation);
+          
+          Out << "(";
+          if (!BMInitializer->getInit()) {
+            // Nothing to print
+          } else {
+            Expr *Init = BMInitializer->getInit();
+            if (CXXExprWithTemporaries *Tmp
+                  = dyn_cast<CXXExprWithTemporaries>(Init))
+              Init = Tmp->getSubExpr();
+            
+            Init = Init->IgnoreParens();
+            
+            Expr *SimpleInit = 0;
+            Expr **Args = 0;
+            unsigned NumArgs = 0;
+            if (ParenListExpr *ParenList = dyn_cast<ParenListExpr>(Init)) {
+              Args = ParenList->getExprs();
+              NumArgs = ParenList->getNumExprs();
+            } else if (CXXConstructExpr *Construct
+                                          = dyn_cast<CXXConstructExpr>(Init)) {
+              Args = Construct->getArgs();
+              NumArgs = Construct->getNumArgs();
+            } else
+              SimpleInit = Init;
+            
+            if (SimpleInit)
+              SimpleInit->printPretty(Out, Context, 0, Policy, Indentation);
+            else {
+              for (unsigned I = 0; I != NumArgs; ++I) {
+                if (isa<CXXDefaultArgExpr>(Args[I]))
+                  break;
+                
+                if (I)
+                  Out << ", ";
+                Args[I]->printPretty(Out, Context, 0, Policy, Indentation);
+              }
             }
-            Out << ")";
-          } else
-            Out << "()";
+          }
+          Out << ")";
         }
       }
     }
@@ -487,11 +536,6 @@ void DeclPrinter::VisitFileScopeAsmDecl(FileScopeAsmDecl *D) {
 //----------------------------------------------------------------------------
 // C++ declarations
 //----------------------------------------------------------------------------
-void DeclPrinter::VisitOverloadedFunctionDecl(OverloadedFunctionDecl *D) {
-  assert(false &&
-         "OverloadedFunctionDecls aren't really decls and are never printed");
-}
-
 void DeclPrinter::VisitNamespaceDecl(NamespaceDecl *D) {
   Out << "namespace " << D->getNameAsString() << " {\n";
   VisitDeclContext(D);
@@ -502,7 +546,7 @@ void DeclPrinter::VisitUsingDirectiveDecl(UsingDirectiveDecl *D) {
   Out << "using namespace ";
   if (D->getQualifier())
     D->getQualifier()->print(Out, Policy);
-  Out << D->getNominatedNamespace()->getNameAsString();
+  Out << D->getNominatedNamespaceAsWritten()->getNameAsString();
 }
 
 void DeclPrinter::VisitNamespaceAliasDecl(NamespaceAliasDecl *D) {

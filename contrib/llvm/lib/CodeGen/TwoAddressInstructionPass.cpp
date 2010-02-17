@@ -211,8 +211,11 @@ bool TwoAddressInstructionPass::Sink3AddrInstruction(MachineBasicBlock *MBB,
   ++KillPos;
 
   unsigned NumVisited = 0;
-  for (MachineBasicBlock::iterator I = next(OldPos); I != KillPos; ++I) {
+  for (MachineBasicBlock::iterator I = llvm::next(OldPos); I != KillPos; ++I) {
     MachineInstr *OtherMI = I;
+    // DBG_VALUE cannot be counted against the limit.
+    if (OtherMI->isDebugValue())
+      continue;
     if (NumVisited > 30)  // FIXME: Arbitrary limit to reduce compile time cost.
       return false;
     ++NumVisited;
@@ -316,7 +319,7 @@ bool TwoAddressInstructionPass::NoUseAfterLastDef(unsigned Reg,
          E = MRI->reg_end(); I != E; ++I) {
     MachineOperand &MO = I.getOperand();
     MachineInstr *MI = MO.getParent();
-    if (MI->getParent() != MBB)
+    if (MI->getParent() != MBB || MI->isDebugValue())
       continue;
     DenseMap<MachineInstr*, unsigned>::iterator DI = DistanceMap.find(MI);
     if (DI == DistanceMap.end())
@@ -339,7 +342,7 @@ MachineInstr *TwoAddressInstructionPass::FindLastUseInMBB(unsigned Reg,
          E = MRI->reg_end(); I != E; ++I) {
     MachineOperand &MO = I.getOperand();
     MachineInstr *MI = MO.getParent();
-    if (MI->getParent() != MBB)
+    if (MI->getParent() != MBB || MI->isDebugValue())
       continue;
     DenseMap<MachineInstr*, unsigned>::iterator DI = DistanceMap.find(MI);
     if (DI == DistanceMap.end())
@@ -365,13 +368,13 @@ static bool isCopyToReg(MachineInstr &MI, const TargetInstrInfo *TII,
   DstReg = 0;
   unsigned SrcSubIdx, DstSubIdx;
   if (!TII->isMoveInstr(MI, SrcReg, DstReg, SrcSubIdx, DstSubIdx)) {
-    if (MI.getOpcode() == TargetInstrInfo::EXTRACT_SUBREG) {
+    if (MI.isExtractSubreg()) {
       DstReg = MI.getOperand(0).getReg();
       SrcReg = MI.getOperand(1).getReg();
-    } else if (MI.getOpcode() == TargetInstrInfo::INSERT_SUBREG) {
+    } else if (MI.isInsertSubreg()) {
       DstReg = MI.getOperand(0).getReg();
       SrcReg = MI.getOperand(2).getReg();
-    } else if (MI.getOpcode() == TargetInstrInfo::SUBREG_TO_REG) {
+    } else if (MI.isSubregToReg()) {
       DstReg = MI.getOperand(0).getReg();
       SrcReg = MI.getOperand(2).getReg();
     }
@@ -412,7 +415,7 @@ static bool isKilled(MachineInstr &MI, unsigned Reg,
     MachineRegisterInfo::def_iterator Begin = MRI->def_begin(Reg);
     // If there are multiple defs, we can't do a simple analysis, so just
     // go with what the kill flag says.
-    if (next(Begin) != MRI->def_end())
+    if (llvm::next(Begin) != MRI->def_end())
       return true;
     DefMI = &*Begin;
     bool IsSrcPhys, IsDstPhys;
@@ -429,8 +432,7 @@ static bool isKilled(MachineInstr &MI, unsigned Reg,
 /// as a two-address use. If so, return the destination register by reference.
 static bool isTwoAddrUse(MachineInstr &MI, unsigned Reg, unsigned &DstReg) {
   const TargetInstrDesc &TID = MI.getDesc();
-  unsigned NumOps = (MI.getOpcode() == TargetInstrInfo::INLINEASM)
-    ? MI.getNumOperands() : TID.getNumOperands();
+  unsigned NumOps = MI.isInlineAsm() ? MI.getNumOperands():TID.getNumOperands();
   for (unsigned i = 0; i != NumOps; ++i) {
     const MachineOperand &MO = MI.getOperand(i);
     if (!MO.isReg() || !MO.isUse() || MO.getReg() != Reg)
@@ -452,11 +454,11 @@ MachineInstr *findOnlyInterestingUse(unsigned Reg, MachineBasicBlock *MBB,
                                      const TargetInstrInfo *TII,
                                      bool &IsCopy,
                                      unsigned &DstReg, bool &IsDstPhys) {
-  MachineRegisterInfo::use_iterator UI = MRI->use_begin(Reg);
-  if (UI == MRI->use_end())
+  MachineRegisterInfo::use_nodbg_iterator UI = MRI->use_nodbg_begin(Reg);
+  if (UI == MRI->use_nodbg_end())
     return 0;
   MachineInstr &UseMI = *UI;
-  if (++UI != MRI->use_end())
+  if (++UI != MRI->use_nodbg_end())
     // More than one use.
     return 0;
   if (UseMI.getParent() != MBB)
@@ -573,15 +575,15 @@ TwoAddressInstructionPass::CommuteInstruction(MachineBasicBlock::iterator &mi,
                                MachineFunction::iterator &mbbi,
                                unsigned RegB, unsigned RegC, unsigned Dist) {
   MachineInstr *MI = mi;
-  DEBUG(errs() << "2addr: COMMUTING  : " << *MI);
+  DEBUG(dbgs() << "2addr: COMMUTING  : " << *MI);
   MachineInstr *NewMI = TII->commuteInstruction(MI);
 
   if (NewMI == 0) {
-    DEBUG(errs() << "2addr: COMMUTING FAILED!\n");
+    DEBUG(dbgs() << "2addr: COMMUTING FAILED!\n");
     return false;
   }
 
-  DEBUG(errs() << "2addr: COMMUTED TO: " << *NewMI);
+  DEBUG(dbgs() << "2addr: COMMUTED TO: " << *NewMI);
   // If the instruction changed to commute it, update livevar.
   if (NewMI != MI) {
     if (LV)
@@ -628,8 +630,8 @@ TwoAddressInstructionPass::ConvertInstTo3Addr(MachineBasicBlock::iterator &mi,
                                               unsigned RegB, unsigned Dist) {
   MachineInstr *NewMI = TII->convertToThreeAddress(mbbi, mi, LV);
   if (NewMI) {
-    DEBUG(errs() << "2addr: CONVERTING 2-ADDR: " << *mi);
-    DEBUG(errs() << "2addr:         TO 3-ADDR: " << *NewMI);
+    DEBUG(dbgs() << "2addr: CONVERTING 2-ADDR: " << *mi);
+    DEBUG(dbgs() << "2addr:         TO 3-ADDR: " << *NewMI);
     bool Sunk = false;
 
     if (NewMI->findRegisterUseOperand(RegB, false, TRI))
@@ -643,7 +645,7 @@ TwoAddressInstructionPass::ConvertInstTo3Addr(MachineBasicBlock::iterator &mi,
     if (!Sunk) {
       DistanceMap.insert(std::make_pair(NewMI, Dist));
       mi = NewMI;
-      nmi = next(mi);
+      nmi = llvm::next(mi);
     }
     return true;
   }
@@ -891,7 +893,7 @@ TryInstructionTransform(MachineBasicBlock::iterator &mi,
 /// runOnMachineFunction - Reduce two-address instructions to two operands.
 ///
 bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &MF) {
-  DEBUG(errs() << "Machine Function\n");
+  DEBUG(dbgs() << "Machine Function\n");
   const TargetMachine &TM = MF.getTarget();
   MRI = &MF.getRegInfo();
   TII = TM.getInstrInfo();
@@ -901,8 +903,8 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &MF) {
 
   bool MadeChange = false;
 
-  DEBUG(errs() << "********** REWRITING TWO-ADDR INSTRS **********\n");
-  DEBUG(errs() << "********** Function: " 
+  DEBUG(dbgs() << "********** REWRITING TWO-ADDR INSTRS **********\n");
+  DEBUG(dbgs() << "********** Function: " 
         << MF.getFunction()->getName() << '\n');
 
   // ReMatRegs - Keep track of the registers whose def's are remat'ed.
@@ -923,7 +925,11 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &MF) {
     Processed.clear();
     for (MachineBasicBlock::iterator mi = mbbi->begin(), me = mbbi->end();
          mi != me; ) {
-      MachineBasicBlock::iterator nmi = next(mi);
+      MachineBasicBlock::iterator nmi = llvm::next(mi);
+      if (mi->isDebugValue()) {
+        mi = nmi;
+        continue;
+      }
       const TargetInstrDesc &TID = mi->getDesc();
       bool FirstTied = true;
 
@@ -933,7 +939,7 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &MF) {
 
       // First scan through all the tied register uses in this instruction
       // and record a list of pairs of tied operands for each register.
-      unsigned NumOps = (mi->getOpcode() == TargetInstrInfo::INLINEASM)
+      unsigned NumOps = mi->isInlineAsm()
         ? mi->getNumOperands() : TID.getNumOperands();
       for (unsigned SrcIdx = 0; SrcIdx < NumOps; ++SrcIdx) {
         unsigned DstIdx = 0;
@@ -943,7 +949,7 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &MF) {
         if (FirstTied) {
           FirstTied = false;
           ++NumTwoAddressInstrs;
-          DEBUG(errs() << '\t' << *mi);
+          DEBUG(dbgs() << '\t' << *mi);
         }
 
         assert(mi->getOperand(SrcIdx).isReg() &&
@@ -1024,7 +1030,7 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &MF) {
               DefMI->getDesc().isAsCheapAsAMove() &&
               DefMI->isSafeToReMat(TII, regB, AA) &&
               isProfitableToReMat(regB, rc, mi, DefMI, mbbi, Dist)){
-            DEBUG(errs() << "2addr: REMATTING : " << *DefMI << "\n");
+            DEBUG(dbgs() << "2addr: REMATTING : " << *DefMI << "\n");
             unsigned regASubIdx = mi->getOperand(DstIdx).getSubReg();
             TII->reMaterialize(*mbbi, mi, regA, regASubIdx, DefMI, TRI);
             ReMatRegs.set(regB);
@@ -1040,7 +1046,7 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &MF) {
           DistanceMap.insert(std::make_pair(prevMI, Dist));
           DistanceMap[mi] = ++Dist;
 
-          DEBUG(errs() << "\t\tprepend:\t" << *prevMI);
+          DEBUG(dbgs() << "\t\tprepend:\t" << *prevMI);
 
           MachineOperand &MO = mi->getOperand(SrcIdx);
           assert(MO.isReg() && MO.getReg() == regB && MO.isUse() &&
@@ -1085,7 +1091,7 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &MF) {
           
         MadeChange = true;
 
-        DEBUG(errs() << "\t\trewrite to:\t" << *mi);
+        DEBUG(dbgs() << "\t\trewrite to:\t" << *mi);
       }
 
       // Clear TiedOperands here instead of at the top of the loop

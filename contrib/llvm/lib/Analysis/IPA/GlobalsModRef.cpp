@@ -111,7 +111,6 @@ namespace {
     ModRefResult getModRefInfo(CallSite CS1, CallSite CS2) {
       return AliasAnalysis::getModRefInfo(CS1,CS2);
     }
-    bool hasNoModRefInfoForCalls() const { return false; }
 
     /// getModRefBehavior - Return the behavior of the specified function if
     /// called from the specified call site.  The call site may be null in which
@@ -146,6 +145,16 @@ namespace {
     virtual void deleteValue(Value *V);
     virtual void copyValue(Value *From, Value *To);
 
+    /// getAdjustedAnalysisPointer - This method is used when a pass implements
+    /// an analysis interface through multiple inheritance.  If needed, it
+    /// should override this to adjust the this pointer as needed for the
+    /// specified pass info.
+    virtual void *getAdjustedAnalysisPointer(const PassInfo *PI) {
+      if (PI->isPassID(&AliasAnalysis::ID))
+        return (AliasAnalysis*)this;
+      return this;
+    }
+    
   private:
     /// getFunctionInfo - Return the function info for the function, or null if
     /// we don't have anything useful to say about it.
@@ -477,7 +486,7 @@ GlobalsModRef::alias(const Value *V1, unsigned V1Size,
     if (GV1 && !NonAddressTakenGlobals.count(GV1)) GV1 = 0;
     if (GV2 && !NonAddressTakenGlobals.count(GV2)) GV2 = 0;
 
-    // If the the two pointers are derived from two different non-addr-taken
+    // If the two pointers are derived from two different non-addr-taken
     // globals, or if one is and the other isn't, we know these can't alias.
     if ((GV1 || GV2) && GV1 != GV2)
       return NoAlias;

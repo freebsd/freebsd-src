@@ -107,6 +107,10 @@ namespace {
     ///
     void HoistRegion(MachineDomTreeNode *N);
 
+    /// isLoadFromConstantMemory - Return true if the given instruction is a
+    /// load from constant memory.
+    bool isLoadFromConstantMemory(MachineInstr *MI);
+
     /// ExtractHoistableLoad - Unfold a load from the given machineinstr if
     /// the load itself could be hoisted. Return the unfolded and hoistable
     /// load, or null if the load couldn't be unfolded or if it wouldn't
@@ -157,7 +161,7 @@ static bool LoopIsOuterMostWithPreheader(MachineLoop *CurLoop) {
 /// loop.
 ///
 bool MachineLICM::runOnMachineFunction(MachineFunction &MF) {
-  DEBUG(errs() << "******** Machine LICM ********\n");
+  DEBUG(dbgs() << "******** Machine LICM ********\n");
 
   Changed = FirstInLoop = false;
   MCP = MF.getConstantPool();
@@ -249,28 +253,28 @@ bool MachineLICM::IsLoopInvariantInst(MachineInstr &I) {
   }
 
   DEBUG({
-      errs() << "--- Checking if we can hoist " << I;
+      dbgs() << "--- Checking if we can hoist " << I;
       if (I.getDesc().getImplicitUses()) {
-        errs() << "  * Instruction has implicit uses:\n";
+        dbgs() << "  * Instruction has implicit uses:\n";
 
         const TargetRegisterInfo *TRI = TM->getRegisterInfo();
         for (const unsigned *ImpUses = I.getDesc().getImplicitUses();
              *ImpUses; ++ImpUses)
-          errs() << "      -> " << TRI->getName(*ImpUses) << "\n";
+          dbgs() << "      -> " << TRI->getName(*ImpUses) << "\n";
       }
 
       if (I.getDesc().getImplicitDefs()) {
-        errs() << "  * Instruction has implicit defines:\n";
+        dbgs() << "  * Instruction has implicit defines:\n";
 
         const TargetRegisterInfo *TRI = TM->getRegisterInfo();
         for (const unsigned *ImpDefs = I.getDesc().getImplicitDefs();
              *ImpDefs; ++ImpDefs)
-          errs() << "      -> " << TRI->getName(*ImpDefs) << "\n";
+          dbgs() << "      -> " << TRI->getName(*ImpDefs) << "\n";
       }
     });
 
   if (I.getDesc().getImplicitDefs() || I.getDesc().getImplicitUses()) {
-    DEBUG(errs() << "Cannot hoist with implicit defines or uses\n");
+    DEBUG(dbgs() << "Cannot hoist with implicit defines or uses\n");
     return false;
   }
 
@@ -318,7 +322,7 @@ bool MachineLICM::IsLoopInvariantInst(MachineInstr &I) {
 
     // If the loop contains the definition of an operand, then the instruction
     // isn't loop invariant.
-    if (CurLoop->contains(RegInfo->getVRegDef(Reg)->getParent()))
+    if (CurLoop->contains(RegInfo->getVRegDef(Reg)))
       return false;
   }
 
@@ -332,23 +336,48 @@ static bool HasPHIUses(unsigned Reg, MachineRegisterInfo *RegInfo) {
   for (MachineRegisterInfo::use_iterator UI = RegInfo->use_begin(Reg),
          UE = RegInfo->use_end(); UI != UE; ++UI) {
     MachineInstr *UseMI = &*UI;
-    if (UseMI->getOpcode() == TargetInstrInfo::PHI)
+    if (UseMI->isPHI())
       return true;
   }
   return false;
 }
 
+/// isLoadFromConstantMemory - Return true if the given instruction is a
+/// load from constant memory. Machine LICM will hoist these even if they are
+/// not re-materializable.
+bool MachineLICM::isLoadFromConstantMemory(MachineInstr *MI) {
+  if (!MI->getDesc().mayLoad()) return false;
+  if (!MI->hasOneMemOperand()) return false;
+  MachineMemOperand *MMO = *MI->memoperands_begin();
+  if (MMO->isVolatile()) return false;
+  if (!MMO->getValue()) return false;
+  const PseudoSourceValue *PSV = dyn_cast<PseudoSourceValue>(MMO->getValue());
+  if (PSV) {
+    MachineFunction &MF = *MI->getParent()->getParent();
+    return PSV->isConstant(MF.getFrameInfo());
+  } else {
+    return AA->pointsToConstantMemory(MMO->getValue());
+  }
+}
+
 /// IsProfitableToHoist - Return true if it is potentially profitable to hoist
 /// the given loop invariant.
 bool MachineLICM::IsProfitableToHoist(MachineInstr &MI) {
-  if (MI.getOpcode() == TargetInstrInfo::IMPLICIT_DEF)
+  if (MI.isImplicitDef())
     return false;
 
   // FIXME: For now, only hoist re-materilizable instructions. LICM will
   // increase register pressure. We want to make sure it doesn't increase
   // spilling.
-  if (!TII->isTriviallyReMaterializable(&MI, AA))
-    return false;
+  // Also hoist loads from constant memory, e.g. load from stubs, GOT. Hoisting
+  // these tend to help performance in low register pressure situation. The
+  // trade off is it may cause spill in high pressure situation. It will end up
+  // adding a store in the loop preheader. But the reload is no more expensive.
+  // The side benefit is these loads are frequently CSE'ed.
+  if (!TII->isTriviallyReMaterializable(&MI, AA)) {
+    if (!isLoadFromConstantMemory(&MI))
+      return false;
+  }
 
   // If result(s) of this instruction is used by PHIs, then don't hoist it.
   // The presence of joins makes it difficult for current register allocator
@@ -368,18 +397,9 @@ MachineInstr *MachineLICM::ExtractHoistableLoad(MachineInstr *MI) {
   // If not, we may be able to unfold a load and hoist that.
   // First test whether the instruction is loading from an amenable
   // memory location.
-  if (!MI->getDesc().mayLoad()) return 0;
-  if (!MI->hasOneMemOperand()) return 0;
-  MachineMemOperand *MMO = *MI->memoperands_begin();
-  if (MMO->isVolatile()) return 0;
-  MachineFunction &MF = *MI->getParent()->getParent();
-  if (!MMO->getValue()) return 0;
-  if (const PseudoSourceValue *PSV =
-        dyn_cast<PseudoSourceValue>(MMO->getValue())) {
-    if (!PSV->isConstant(MF.getFrameInfo())) return 0;
-  } else {
-    if (!AA->pointsToConstantMemory(MMO->getValue())) return 0;
-  }
+  if (!isLoadFromConstantMemory(MI))
+    return 0;
+
   // Next determine the register class for a temporary register.
   unsigned LoadRegIndex;
   unsigned NewOpc =
@@ -393,6 +413,8 @@ MachineInstr *MachineLICM::ExtractHoistableLoad(MachineInstr *MI) {
   const TargetRegisterClass *RC = TID.OpInfo[LoadRegIndex].getRegClass(TRI);
   // Ok, we're unfolding. Create a temporary register and do the unfold.
   unsigned Reg = RegInfo->createVirtualRegister(RC);
+
+  MachineFunction &MF = *MI->getParent()->getParent();
   SmallVector<MachineInstr *, 2> NewMIs;
   bool Success =
     TII->unfoldMemoryOperand(MF, MI, Reg,
@@ -457,7 +479,7 @@ bool MachineLICM::EliminateCSE(MachineInstr *MI,
     return false;
 
   if (const MachineInstr *Dup = LookForDuplicate(MI, CI->second)) {
-    DEBUG(errs() << "CSEing " << *MI << " with " << *Dup);
+    DEBUG(dbgs() << "CSEing " << *MI << " with " << *Dup);
     for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
       const MachineOperand &MO = MI->getOperand(i);
       if (MO.isReg() && MO.isDef())
@@ -484,14 +506,14 @@ void MachineLICM::Hoist(MachineInstr *MI) {
   // Now move the instructions to the predecessor, inserting it before any
   // terminator instructions.
   DEBUG({
-      errs() << "Hoisting " << *MI;
+      dbgs() << "Hoisting " << *MI;
       if (CurPreheader->getBasicBlock())
-        errs() << " to MachineBasicBlock "
-               << CurPreheader->getBasicBlock()->getName();
+        dbgs() << " to MachineBasicBlock "
+               << CurPreheader->getName();
       if (MI->getParent()->getBasicBlock())
-        errs() << " from MachineBasicBlock "
-               << MI->getParent()->getBasicBlock()->getName();
-      errs() << "\n";
+        dbgs() << " from MachineBasicBlock "
+               << MI->getParent()->getName();
+      dbgs() << "\n";
     });
 
   // If this is the first instruction being hoisted to the preheader,

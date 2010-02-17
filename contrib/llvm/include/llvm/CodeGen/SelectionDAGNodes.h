@@ -44,6 +44,8 @@ template <typename T> struct DenseMapInfo;
 template <typename T> struct simplify_type;
 template <typename T> struct ilist_traits;
 
+void checkForCycles(const SDNode *N);
+  
 /// SDVTList - This represents a list of ValueType's that has been intern'd by
 /// a SelectionDAG.  Instances of this simple value class are returned by
 /// SelectionDAG::getVTList(...).
@@ -414,12 +416,13 @@ namespace ISD {
     /// X = FP_EXTEND(Y) - Extend a smaller FP type into a larger FP type.
     FP_EXTEND,
 
-    // BIT_CONVERT - Theis operator converts between integer and FP values, as
-    // if one was stored to memory as integer and the other was loaded from the
-    // same address (or equivalently for vector format conversions, etc).  The
-    // source and result are required to have the same bit size (e.g.
-    // f32 <-> i32).  This can also be used for int-to-int or fp-to-fp
-    // conversions, but that is a noop, deleted by getNode().
+    // BIT_CONVERT - This operator converts between integer, vector and FP
+    // values, as if the value was stored to memory with one type and loaded
+    // from the same address with the other type (or equivalently for vector
+    // format conversions, etc).  The source and result are required to have
+    // the same bit size (e.g.  f32 <-> i32).  This can also be used for
+    // int-to-int or fp-to-fp conversions, but that is a noop, deleted by
+    // getNode().
     BIT_CONVERT,
 
     // CONVERT_RNDSAT - This operator is used to support various conversions
@@ -494,10 +497,9 @@ namespace ISD {
     //   Operand #last: Optional, an incoming flag.
     INLINEASM,
 
-    // DBG_LABEL, EH_LABEL - Represents a label in mid basic block used to track
+    // EH_LABEL - Represents a label in mid basic block used to track
     // locations needed for debug and exception handling tables.  These nodes
     // take a chain as input and return a chain.
-    DBG_LABEL,
     EH_LABEL,
 
     // STACKSAVE - STACKSAVE has one operand, an input chain.  It produces a
@@ -545,18 +547,6 @@ namespace ISD {
 
     // HANDLENODE node - Used as a handle for various purposes.
     HANDLENODE,
-
-    // DBG_STOPPOINT - This node is used to represent a source location for
-    // debug info.  It takes token chain as input, and carries a line number,
-    // column number, and a pointer to a CompileUnit object identifying
-    // the containing compilation unit.  It produces a token chain as output.
-    DBG_STOPPOINT,
-
-    // DEBUG_LOC - This node is used to represent source line information
-    // embedded in the code.  It takes a token chain as input, then a line
-    // number, then a column then a file id (provided by MachineModuleInfo.) It
-    // produces a token chain as output.
-    DEBUG_LOC,
 
     // TRAMPOLINE - This corresponds to the init_trampoline intrinsic.
     // It takes as input a token chain, the pointer to the trampoline,
@@ -619,7 +609,7 @@ namespace ISD {
   /// which do not reference a specific memory location should be less than
   /// this value. Those that do must not be less than this value, and can
   /// be used with SelectionDAG::getMemIntrinsicNode.
-  static const int FIRST_TARGET_MEMORY_OPCODE = 1 << 14;
+  static const int FIRST_TARGET_MEMORY_OPCODE = BUILTIN_OP_END+80;
 
   /// Node predicates
 
@@ -635,10 +625,6 @@ namespace ISD {
   /// ISD::SCALAR_TO_VECTOR node or a BUILD_VECTOR node where only the low
   /// element is not an undef.
   bool isScalarToVector(const SDNode *N);
-
-  /// isDebugLabel - Return true if the specified node represents a debug
-  /// label (i.e. ISD::DBG_LABEL or TargetInstrInfo::DBG_LABEL node).
-  bool isDebugLabel(const SDNode *N);
 
   //===--------------------------------------------------------------------===//
   /// MemIndexedMode enum - This enum defines the load / store indexed
@@ -835,6 +821,8 @@ public:
   /// set the SDNode
   void setNode(SDNode *N) { Node = N; }
 
+  inline SDNode *operator->() const { return Node; }
+  
   bool operator==(const SDValue &O) const {
     return Node == O.Node && ResNo == O.ResNo;
   }
@@ -908,8 +896,9 @@ template<> struct DenseMapInfo<SDValue> {
   static bool isEqual(const SDValue &LHS, const SDValue &RHS) {
     return LHS == RHS;
   }
-  static bool isPod() { return true; }
 };
+template <> struct isPodLike<SDValue> { static const bool value = true; };
+
 
 /// simplify_type specializations - Allow casting operators to work directly on
 /// SDValues as if they were SDNode*'s.
@@ -1112,7 +1101,7 @@ public:
   /// hasOneUse - Return true if there is exactly one use of this node.
   ///
   bool hasOneUse() const {
-    return !use_empty() && next(use_begin()) == use_end();
+    return !use_empty() && llvm::next(use_begin()) == use_end();
   }
 
   /// use_size - Return the number of uses of this node. This method takes
@@ -1243,7 +1232,7 @@ public:
   SDVTList getVTList() const {
     SDVTList X = { ValueList, NumValues };
     return X;
-  };
+  }
 
   /// getFlaggedNode - If this node has a flag operand, return the node
   /// to which the flag operand points. Otherwise return NULL.
@@ -1300,10 +1289,55 @@ public:
   void print_details(raw_ostream &OS, const SelectionDAG *G) const;
   void print(raw_ostream &OS, const SelectionDAG *G = 0) const;
   void printr(raw_ostream &OS, const SelectionDAG *G = 0) const;
+
+  /// printrFull - Print a SelectionDAG node and all children down to
+  /// the leaves.  The given SelectionDAG allows target-specific nodes
+  /// to be printed in human-readable form.  Unlike printr, this will
+  /// print the whole DAG, including children that appear multiple
+  /// times.
+  ///
+  void printrFull(raw_ostream &O, const SelectionDAG *G = 0) const;
+
+  /// printrWithDepth - Print a SelectionDAG node and children up to
+  /// depth "depth."  The given SelectionDAG allows target-specific
+  /// nodes to be printed in human-readable form.  Unlike printr, this
+  /// will print children that appear multiple times wherever they are
+  /// used.
+  ///
+  void printrWithDepth(raw_ostream &O, const SelectionDAG *G = 0,
+                       unsigned depth = 100) const;
+
+
+  /// dump - Dump this node, for debugging.
   void dump() const;
+
+  /// dumpr - Dump (recursively) this node and its use-def subgraph.
   void dumpr() const;
+
+  /// dump - Dump this node, for debugging.
+  /// The given SelectionDAG allows target-specific nodes to be printed
+  /// in human-readable form.
   void dump(const SelectionDAG *G) const;
+
+  /// dumpr - Dump (recursively) this node and its use-def subgraph.
+  /// The given SelectionDAG allows target-specific nodes to be printed
+  /// in human-readable form.
   void dumpr(const SelectionDAG *G) const;
+
+  /// dumprFull - printrFull to dbgs().  The given SelectionDAG allows
+  /// target-specific nodes to be printed in human-readable form.
+  /// Unlike dumpr, this will print the whole DAG, including children
+  /// that appear multiple times.
+  ///
+  void dumprFull(const SelectionDAG *G = 0) const;
+
+  /// dumprWithDepth - printrWithDepth to dbgs().  The given
+  /// SelectionDAG allows target-specific nodes to be printed in
+  /// human-readable form.  Unlike dumpr, this will print children
+  /// that appear multiple times wherever they are used.
+  ///
+  void dumprWithDepth(const SelectionDAG *G = 0, unsigned depth = 100) const;
+
 
   static bool classof(const SDNode *) { return true; }
 
@@ -1333,6 +1367,7 @@ protected:
       OperandList[i].setUser(this);
       OperandList[i].setInitial(Ops[i]);
     }
+    checkForCycles(this);
   }
 
   /// This constructor adds no operands itself; operands can be
@@ -1349,6 +1384,7 @@ protected:
     Ops[0].setInitial(Op0);
     NumOperands = 1;
     OperandList = Ops;
+    checkForCycles(this);
   }
 
   /// InitOperands - Initialize the operands list of this with 2 operands.
@@ -1359,6 +1395,7 @@ protected:
     Ops[1].setInitial(Op1);
     NumOperands = 2;
     OperandList = Ops;
+    checkForCycles(this);
   }
 
   /// InitOperands - Initialize the operands list of this with 3 operands.
@@ -1372,6 +1409,7 @@ protected:
     Ops[2].setInitial(Op2);
     NumOperands = 3;
     OperandList = Ops;
+    checkForCycles(this);
   }
 
   /// InitOperands - Initialize the operands list of this with 4 operands.
@@ -1387,6 +1425,7 @@ protected:
     Ops[3].setInitial(Op3);
     NumOperands = 4;
     OperandList = Ops;
+    checkForCycles(this);
   }
 
   /// InitOperands - Initialize the operands list of this with N operands.
@@ -1397,6 +1436,7 @@ protected:
     }
     NumOperands = N;
     OperandList = Ops;
+    checkForCycles(this);
   }
 
   /// DropOperands - Release the operands and set this node to have
@@ -1556,6 +1596,7 @@ public:
   }
 
   bool isVolatile() const { return (SubclassData >> 5) & 1; }
+  bool isNonTemporal() const { return MMO->isNonTemporal(); }
 
   /// Returns the SrcValue and offset that describes the location of the access
   const Value *getSrcValue() const { return MMO->getValue(); }
@@ -2004,37 +2045,18 @@ public:
   }
 };
 
-class DbgStopPointSDNode : public SDNode {
-  SDUse Chain;
-  unsigned Line;
-  unsigned Column;
-  MDNode *CU;
-  friend class SelectionDAG;
-  DbgStopPointSDNode(SDValue ch, unsigned l, unsigned c,
-                     MDNode *cu)
-    : SDNode(ISD::DBG_STOPPOINT, DebugLoc::getUnknownLoc(),
-      getSDVTList(MVT::Other)), Line(l), Column(c), CU(cu) {
-    InitOperands(&Chain, ch);
-  }
-public:
-  unsigned getLine() const { return Line; }
-  unsigned getColumn() const { return Column; }
-  MDNode *getCompileUnit() const { return CU; }
-
-  static bool classof(const DbgStopPointSDNode *) { return true; }
-  static bool classof(const SDNode *N) {
-    return N->getOpcode() == ISD::DBG_STOPPOINT;
-  }
-};
-
 class BlockAddressSDNode : public SDNode {
   BlockAddress *BA;
+  unsigned char TargetFlags;
   friend class SelectionDAG;
-  BlockAddressSDNode(unsigned NodeTy, DebugLoc dl, EVT VT, BlockAddress *ba)
-    : SDNode(NodeTy, dl, getSDVTList(VT)), BA(ba) {
+  BlockAddressSDNode(unsigned NodeTy, EVT VT, BlockAddress *ba,
+                     unsigned char Flags)
+    : SDNode(NodeTy, DebugLoc::getUnknownLoc(), getSDVTList(VT)),
+             BA(ba), TargetFlags(Flags) {
   }
 public:
   BlockAddress *getBlockAddress() const { return BA; }
+  unsigned char getTargetFlags() const { return TargetFlags; }
 
   static bool classof(const BlockAddressSDNode *) { return true; }
   static bool classof(const SDNode *N) {
@@ -2056,8 +2078,7 @@ public:
 
   static bool classof(const LabelSDNode *) { return true; }
   static bool classof(const SDNode *N) {
-    return N->getOpcode() == ISD::DBG_LABEL ||
-           N->getOpcode() == ISD::EH_LABEL;
+    return N->getOpcode() == ISD::EH_LABEL;
   }
 };
 
@@ -2433,6 +2454,11 @@ public:
   }
   SDNodeIterator operator++(int) { // Postincrement
     SDNodeIterator tmp = *this; ++*this; return tmp;
+  }
+  size_t operator-(SDNodeIterator Other) const {
+    assert(Node == Other.Node &&
+           "Cannot compare iterators of two different nodes!");
+    return Operand - Other.Operand;
   }
 
   static SDNodeIterator begin(SDNode *N) { return SDNodeIterator(N, 0); }

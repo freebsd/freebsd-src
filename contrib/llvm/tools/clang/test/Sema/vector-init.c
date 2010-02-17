@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -fsyntax-only -verify
+// RUN: %clang_cc1 %s -fsyntax-only -verify
 
 //typedef __attribute__(( ext_vector_type(4) ))  float float4;
 typedef float float4 __attribute__((vector_size(16)));
@@ -16,10 +16,15 @@ float4 array2[2] = { 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,
 float4 array3[2] = { {1.0, 2.0, 3.0}, 5.0, 6.0, 7.0, 8.0,
                      9.0 }; // expected-warning {{excess elements in array initializer}}
 
+// PR5650
+__attribute__((vector_size(16))) float f1(void) {
+  __attribute__((vector_size(16))) float vec = {0.0f, 0.0f, 0.0f};
+  return(vec);
+}
 
-// rdar://6881069
-__attribute__((vector_size(16))) // expected-error {{unsupported type 'float (void)' for vector_size attribute, please use on typedef}}
-float f1(void) {
+__attribute__((vector_size(16))) float f2(
+    __attribute__((vector_size(16))) float a1) {
+  return(a1);
 }
 
 

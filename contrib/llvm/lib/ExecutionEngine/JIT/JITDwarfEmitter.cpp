@@ -175,7 +175,6 @@ struct KeyInfo {
   static inline unsigned getTombstoneKey() { return -2U; }
   static unsigned getHashValue(const unsigned &Key) { return Key; }
   static bool isEqual(unsigned LHS, unsigned RHS) { return LHS == RHS; }
-  static bool isPod() { return true; }
 };
 
 /// ActionEntry - Structure describing an entry in the actions table.
@@ -430,13 +429,12 @@ unsigned char* JITDwarfEmitter::EmitExceptionTable(MachineFunction* MF,
 
     // Asm->EOL("Region start");
 
-    if (!S.EndLabel) {
+    if (!S.EndLabel)
       EndLabelPtr = (intptr_t)EndFunction;
-      JCE->emitInt32((intptr_t)EndFunction - BeginLabelPtr);
-    } else {
+    else
       EndLabelPtr = JCE->getLabelAddress(S.EndLabel);
-      JCE->emitInt32(EndLabelPtr - BeginLabelPtr);
-    }
+
+    JCE->emitInt32(EndLabelPtr - BeginLabelPtr);
     //Asm->EOL("Region length");
 
     if (!S.PadLabel) {
@@ -524,7 +522,11 @@ JITDwarfEmitter::EmitCommonEHFrame(const Function* Personality) const {
       JCE->emitInt64(((intptr_t)Jit.getPointerToGlobal(Personality)));
     }
 
-    JCE->emitULEB128Bytes(dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4);
+    // LSDA encoding: This must match the encoding used in EmitEHFrame ()
+    if (PointerSize == 4)
+      JCE->emitULEB128Bytes(dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4);
+    else
+      JCE->emitULEB128Bytes(dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata8);
     JCE->emitULEB128Bytes(dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4);
   } else {
     JCE->emitULEB128Bytes(1);

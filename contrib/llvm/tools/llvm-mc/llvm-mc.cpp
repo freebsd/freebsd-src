@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/MC/MCAsmLexer.h"
+#include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCInstPrinter.h"
@@ -28,10 +28,12 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Signals.h"
 #include "llvm/Target/TargetAsmParser.h"
+#include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Target/TargetMachine.h"  // FIXME.
 #include "llvm/Target/TargetSelect.h"
-#include "AsmParser.h"
+#include "llvm/MC/MCParser/AsmParser.h"
+#include "Disassembler.h"
 using namespace llvm;
 
 static cl::opt<std::string>
@@ -43,6 +45,9 @@ OutputFilename("o", cl::desc("Output filename"),
 
 static cl::opt<bool>
 ShowEncoding("show-encoding", cl::desc("Show instruction encodings"));
+
+static cl::opt<bool>
+ShowInst("show-inst", cl::desc("Show internal instruction representation"));
 
 static cl::opt<unsigned>
 OutputAsmVariant("output-asm-variant",
@@ -76,7 +81,8 @@ TripleName("triple", cl::desc("Target triple to assemble for, "
 
 enum ActionType {
   AC_AsLex,
-  AC_Assemble
+  AC_Assemble,
+  AC_Disassemble
 };
 
 static cl::opt<ActionType>
@@ -86,6 +92,8 @@ Action(cl::desc("Action to perform:"),
                              "Lex tokens from a .s file"),
                   clEnumValN(AC_Assemble, "assemble",
                              "Assemble a .s file (default)"),
+                  clEnumValN(AC_Disassemble, "disassemble",
+                             "Disassemble strings of hex bytes"),
                   clEnumValEnd));
 
 static const Target *GetTarget(const char *ProgName) {
@@ -129,14 +137,14 @@ static int AsLexInput(const char *ProgName) {
   const MCAsmInfo *MAI = TheTarget->createAsmInfo(TripleName);
   assert(MAI && "Unable to create target asm info!");
 
-  AsmLexer Lexer(SrcMgr, *MAI);
+  AsmLexer Lexer(*MAI);
   
   bool Error = false;
   
   while (Lexer.Lex().isNot(AsmToken::Eof)) {
     switch (Lexer.getKind()) {
     default:
-      Lexer.PrintMessage(Lexer.getLoc(), "unknown token", "warning");
+      SrcMgr.PrintMessage(Lexer.getLoc(), "unknown token", "warning");
       Error = true;
       break;
     case AsmToken::Error:
@@ -258,11 +266,14 @@ static int AssembleInput(const char *ProgName) {
   if (FileType == OFT_AssemblyFile) {
     IP.reset(TheTarget->createMCInstPrinter(OutputAsmVariant, *MAI, *Out));
     if (ShowEncoding)
-      CE.reset(TheTarget->createCodeEmitter(*TM));
-    Str.reset(createAsmStreamer(Ctx, *Out, *MAI, IP.get(), CE.get()));
+      CE.reset(TheTarget->createCodeEmitter(*TM, Ctx));
+    Str.reset(createAsmStreamer(Ctx, *Out, *MAI,
+                                TM->getTargetData()->isLittleEndian(),
+                                /*asmverbose*/true, IP.get(), CE.get(),
+                                ShowInst));
   } else {
     assert(FileType == OFT_ObjectFile && "Invalid file type!");
-    CE.reset(TheTarget->createCodeEmitter(*TM));
+    CE.reset(TheTarget->createCodeEmitter(*TM, Ctx));
     Str.reset(createMachOStreamer(Ctx, *Out, CE.get()));
   }
 
@@ -281,7 +292,33 @@ static int AssembleInput(const char *ProgName) {
     delete Out;
 
   return Res;
-}  
+}
+
+static int DisassembleInput(const char *ProgName) {
+  std::string Error;
+  const Target *TheTarget = TargetRegistry::lookupTarget(TripleName, Error);
+  if (TheTarget == 0) {
+    errs() << ProgName << ": error: unable to get target for '" << TripleName
+    << "', see --version and --triple.\n";
+    return 0;
+  }
+  
+  std::string ErrorMessage;
+  
+  MemoryBuffer *Buffer = MemoryBuffer::getFileOrSTDIN(InputFilename,
+                                                      &ErrorMessage);
+
+  if (Buffer == 0) {
+    errs() << ProgName << ": ";
+    if (ErrorMessage.size())
+      errs() << ErrorMessage << "\n";
+    else
+      errs() << "input file didn't read correctly.\n";
+    return 1;
+  }
+  
+  return Disassembler::disassemble(*TheTarget, TripleName, *Buffer);
+}
 
 
 int main(int argc, char **argv) {
@@ -296,6 +333,7 @@ int main(int argc, char **argv) {
   llvm::InitializeAllTargets();
   llvm::InitializeAllAsmPrinters();
   llvm::InitializeAllAsmParsers();
+  llvm::InitializeAllDisassemblers();
   
   cl::ParseCommandLineOptions(argc, argv, "llvm machine code playground\n");
 
@@ -305,6 +343,8 @@ int main(int argc, char **argv) {
     return AsLexInput(argv[0]);
   case AC_Assemble:
     return AssembleInput(argv[0]);
+  case AC_Disassemble:
+    return DisassembleInput(argv[0]);
   }
   
   return 0;

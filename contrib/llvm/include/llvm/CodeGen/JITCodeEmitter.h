@@ -68,23 +68,11 @@ public:
   ///
   virtual bool finishFunction(MachineFunction &F) = 0;
   
-  /// startGVStub - This callback is invoked when the JIT needs the
-  /// address of a GV (e.g. function) that has not been code generated yet.
-  /// The StubSize specifies the total size required by the stub.
-  ///
-  virtual void startGVStub(const GlobalValue* GV, unsigned StubSize,
-                           unsigned Alignment = 1) = 0;
-
-  /// startGVStub - This callback is invoked when the JIT needs the address of a 
-  /// GV (e.g. function) that has not been code generated yet.  Buffer points to
-  /// memory already allocated for this stub.
-  ///
-  virtual void startGVStub(const GlobalValue* GV, void *Buffer,
-                           unsigned StubSize) = 0;
-  
-  /// finishGVStub - This callback is invoked to terminate a GV stub.
-  ///
-  virtual void *finishGVStub(const GlobalValue* F) = 0;
+  /// allocIndirectGV - Allocates and fills storage for an indirect
+  /// GlobalValue, and returns the address.
+  virtual void *allocIndirectGV(const GlobalValue *GV,
+                                const uint8_t *Buffer, size_t Size,
+                                unsigned Alignment) = 0;
 
   /// emitByte - This callback is invoked when a byte needs to be written to the
   /// output stream.
@@ -158,7 +146,7 @@ public:
     }
   }
 
-  /// emitAlignment - Move the CurBufferPtr pointer up the the specified
+  /// emitAlignment - Move the CurBufferPtr pointer up to the specified
   /// alignment (saturated to BufferEnd of course).
   void emitAlignment(unsigned Alignment) {
     if (Alignment == 0) Alignment = 1;

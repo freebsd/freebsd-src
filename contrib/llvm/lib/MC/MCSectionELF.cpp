@@ -8,10 +8,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCSectionELF.h"
-#include "llvm/MC/MCContext.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/MC/MCAsmInfo.h"
-
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCSymbol.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 MCSectionELF *MCSectionELF::
@@ -22,14 +22,12 @@ Create(StringRef Section, unsigned Type, unsigned Flags,
 
 // ShouldOmitSectionDirective - Decides whether a '.section' directive
 // should be printed before the section name
-bool MCSectionELF::ShouldOmitSectionDirective(const char *Name,
-                                        const MCAsmInfo &MAI) const {
+bool MCSectionELF::ShouldOmitSectionDirective(StringRef Name,
+                                              const MCAsmInfo &MAI) const {
   
   // FIXME: Does .section .bss/.data/.text work everywhere??
-  if (strcmp(Name, ".text") == 0 ||
-      strcmp(Name, ".data") == 0 ||
-      (strcmp(Name, ".bss") == 0 &&
-       !MAI.usesELFSectionDirectiveForBSS())) 
+  if (Name == ".text" || Name == ".data" ||
+      (Name == ".bss" && !MAI.usesELFSectionDirectiveForBSS()))
     return true;
 
   return false;
@@ -37,7 +35,6 @@ bool MCSectionELF::ShouldOmitSectionDirective(const char *Name,
 
 // ShouldPrintSectionType - Only prints the section type if supported
 bool MCSectionELF::ShouldPrintSectionType(unsigned Ty) const {
-  
   if (IsExplicit && !(Ty == SHT_NOBITS || Ty == SHT_PROGBITS))
     return false;
 
@@ -47,7 +44,7 @@ bool MCSectionELF::ShouldPrintSectionType(unsigned Ty) const {
 void MCSectionELF::PrintSwitchToSection(const MCAsmInfo &MAI,
                                         raw_ostream &OS) const {
    
-  if (ShouldOmitSectionDirective(SectionName.c_str(), MAI)) {
+  if (ShouldOmitSectionDirective(SectionName, MAI)) {
     OS << '\t' << getSectionName() << '\n';
     return;
   }
@@ -129,7 +126,7 @@ void MCSectionELF::PrintSwitchToSection(const MCAsmInfo &MAI,
 // header index.
 bool MCSectionELF::HasCommonSymbols() const {
   
-  if (strncmp(SectionName.c_str(), ".gnu.linkonce.", 14) == 0)
+  if (StringRef(SectionName).startswith(".gnu.linkonce."))
     return true;
 
   return false;
