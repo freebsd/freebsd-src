@@ -44,11 +44,9 @@
 VNET_DECLARE(int, tcp_do_rfc1323);
 VNET_DECLARE(int, tcp_reass_qsize);
 VNET_DECLARE(struct uma_zone *, tcp_reass_zone);
-VNET_DECLARE(struct hhook_head, tcpest_hhook);
 #define	V_tcp_do_rfc1323	VNET(tcp_do_rfc1323)
 #define	V_tcp_reass_qsize	VNET(tcp_reass_qsize)
 #define	V_tcp_reass_zone	VNET(tcp_reass_zone)
-#define	V_tcpest_hhook		VNET(tcpest_hhook)
 
 #endif /* _KERNEL */
 

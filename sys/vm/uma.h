@@ -306,14 +306,6 @@ uma_zalloc(uma_zone_t zone, int flags)
 }
 
 /*
- * Frees all items currently allocated back into the specified zone.
- *
- * Arguments:
- *    zone  The zone free all currently allocated items from.
- */
-void uma_zfree_all(uma_zone_t zone);
-
-/*
  * Frees an item back into the specified zone.
  *
  * Arguments:

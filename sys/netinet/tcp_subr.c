@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <sys/domain.h>
 #endif
-#include <sys/lock.h>
-#include <sys/rwlock.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/socket.h>

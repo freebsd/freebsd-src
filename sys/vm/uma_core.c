@@ -2315,9 +2315,6 @@ slab_alloc_item(uma_zone_t zone, uma_slab_t slab)
 	}
 	item = slab->us_data + (keg->uk_rsize * freei);
 
-	//printf("slab_alloc_item() slab %p us_freecount: %d\n", slab,
-	//slab->us_freecount);
-
 	slab->us_freecount--;
 	keg->uk_free--;
 #ifdef INVARIANTS
@@ -2677,36 +2674,6 @@ zfree_internal:
 	zone_free_item(zone, item, udata, SKIP_DTOR, ZFREE_STATFREE);
 
 	return;
-}
-
-void
-uma_zfree_all(uma_zone_t zone)
-{
-	uma_klink_t kl;
-	uma_slab_t slab;
-
-	printf("zone->uz_count: %d\n", zone->uz_count);
-
-	ZONE_LOCK(zone);
-	LIST_FOREACH(kl, &zone->uz_kegs, kl_link) {
-		printf("keg %s (%p) uk_free: %d\n", kl->kl_keg->uk_name,
-		kl->kl_keg, kl->kl_keg->uk_free);
-
-		LIST_FOREACH(slab, &kl->kl_keg->uk_part_slab, us_link) {
-			printf("partially full slab %p us_freecount: %d, firstfree: %d\n",
-			    slab, slab->us_freecount, slab->us_firstfree);
-
-		}
-		LIST_FOREACH(slab, &kl->kl_keg->uk_full_slab, us_link) {
-			printf("full slab %p us_freecount: %d\n",
-			    slab, slab->us_freecount);
-		}
-		LIST_FOREACH(slab, &kl->kl_keg->uk_free_slab, us_link) {
-			printf("free slab %p us_freecount: %d\n",
-			    slab, slab->us_freecount);
-		}
-	}
-	ZONE_UNLOCK(zone);
 }
 
 /*
