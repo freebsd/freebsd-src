@@ -343,27 +343,22 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 		break;
 
 	case 2:	/* move rules with given number to new set */
-		IPFW_UH_WLOCK(chain);
 		for (i = 0; i < chain->n_rules; i++) {
 			rule = chain->map[i];
 			if (rule->rulenum == rulenum)
 				rule->set = new_set;
 		}
-		IPFW_UH_WUNLOCK(chain);
 		break;
 
 	case 3: /* move rules with given set number to new set */
-		IPFW_UH_WLOCK(chain);
 		for (i = 0; i < chain->n_rules; i++) {
 			rule = chain->map[i];
 			if (rule->set == rulenum)
 				rule->set = new_set;
 		}
-		IPFW_UH_WUNLOCK(chain);
 		break;
 
 	case 4: /* swap two sets */
-		IPFW_UH_WLOCK(chain);
 		for (i = 0; i < chain->n_rules; i++) {
 			rule = chain->map[i];
 			if (rule->set == rulenum)
@@ -371,7 +366,6 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 			else if (rule->set == new_set)
 				rule->set = rulenum;
 		}
-		IPFW_UH_WUNLOCK(chain);
 		break;
 	}
 	rule = chain->reap;
