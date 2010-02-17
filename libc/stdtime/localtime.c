@@ -5,7 +5,7 @@
 
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)localtime.c	8.9";
+static char	elsieid[] = "@(#)localtime.c	8.10";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -1889,6 +1889,10 @@ const long		offset;
 	int				types[TZ_MAX_TYPES];
 	int				okay;
 
+	if (tmp == NULL) {
+		errno = EINVAL;
+		return WRONG;
+	}
 	if (tmp->tm_isdst > 1)
 		tmp->tm_isdst = 1;
 	t = time2(tmp, funcp, offset, &okay);
@@ -1960,7 +1964,8 @@ time_t
 timelocal(tmp)
 struct tm * const	tmp;
 {
-	tmp->tm_isdst = -1;	/* in case it wasn't initialized */
+	if (tmp != NULL)
+		tmp->tm_isdst = -1;	/* in case it wasn't initialized */
 	return mktime(tmp);
 }
 
@@ -1968,7 +1973,8 @@ time_t
 timegm(tmp)
 struct tm * const	tmp;
 {
-	tmp->tm_isdst = 0;
+	if (tmp != NULL)
+		tmp->tm_isdst = 0;
 	return time1(tmp, gmtsub, 0L);
 }
 
@@ -1977,7 +1983,8 @@ timeoff(tmp, offset)
 struct tm * const	tmp;
 const long		offset;
 {
-	tmp->tm_isdst = 0;
+	if (tmp != NULL)
+		tmp->tm_isdst = 0;
 	return time1(tmp, gmtsub, offset);
 }
 
