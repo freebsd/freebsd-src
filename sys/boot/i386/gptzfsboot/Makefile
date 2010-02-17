@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-CC:=${CC:C/^cc|^clang/gcc/}
-
 .PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../gptboot ${.CURDIR}/../zfsboot
 
 FILES=		gptzfsboot
