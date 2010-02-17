@@ -178,8 +178,6 @@ addrmerge(struct netbuf *caller, char *serv_uaddr, char *clnt_uaddr,
 		if (ifsa == NULL || ifsa->sa_family != hint_sa->sa_family ||
 		    !(ifap->ifa_flags & IFF_UP))
 			continue;
-		if (!addr_is_bound(ifsa))
-			continue;
 
 		if (!(ifap->ifa_flags & IFF_LOOPBACK) && !listen_addr(ifsa))
 			continue;
