@@ -5,7 +5,7 @@
 
 # XXX MISSING:		icheck ncheck
 
-_SUBDIR=adjkerntz \
+SUBDIR=adjkerntz \
 	atacontrol \
 	badsect \
 	camcontrol \
@@ -72,42 +72,42 @@ _SUBDIR=adjkerntz \
 	umount \
 
 .if ${MK_ATM} != "no"
-_SUBDIR += atm
+SUBDIR += atm
 .endif
 
 .if ${MK_CXX} != "no"
-_SUBDIR += devd
+SUBDIR += devd
 .endif
 
 .if ${MK_IPFILTER} != "no"
-_SUBDIR += ipf
+SUBDIR += ipf
 .endif
 
 .if ${MK_IPFW} != "no"
-_SUBDIR += ipfw
-_SUBDIR += natd
+SUBDIR += ipfw
+SUBDIR += natd
 .endif
 
 .if ${MK_PF} != "no"
-_SUBDIR += pfctl
-_SUBDIR += pflogd
+SUBDIR += pfctl
+SUBDIR += pflogd
 .endif
 
 .if ${MK_INET6} != "no"
-_SUBDIR += ping6
-_SUBDIR += rtsol
+SUBDIR += ping6
+SUBDIR += rtsol
 .endif
 
 .if ${MK_QUOTAS} != "no"
-_SUBDIR += quotacheck
+SUBDIR += quotacheck
 .endif
 
 .if ${MK_ROUTED} != "no"
-_SUBDIR += routed
+SUBDIR += routed
 .endif
 
 .include <bsd.arch.inc.mk>
 
-SUBDIR=${_SUBDIR:O}
+SUBDIR := ${SUBDIR:O}
 
 .include <bsd.subdir.mk>
