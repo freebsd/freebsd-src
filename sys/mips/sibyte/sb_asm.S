@@ -28,6 +28,7 @@
 
 #include <machine/asm.h>
 #include <machine/cpuregs.h>
+#include <machine/endian.h>
 
 /*
  * We compile a 32-bit kernel to run on the SB-1 processor which is a 64-bit
@@ -50,7 +51,7 @@
 LEAF(sb_load64)
 	ld      v1, 0(a0)	/* result = *(uint64_t *)ptr */
 	move	v0, v1
-#if defined(TARGET_BIG_ENDIAN)
+#if _BYTE_ORDER == _BIG_ENDIAN
 	dsll32	v1, v1, 0
 	dsrl32	v1, v1, 0	/* v1 = lower_uint32(result) */
 	jr	ra
@@ -68,7 +69,7 @@ END(sb_load64)
  * Return value:	void
  */
 LEAF(sb_store64)
-#if defined(TARGET_BIG_ENDIAN)
+#if _BYTE_ORDER == _BIG_ENDIAN
 	dsll32	a2, a2, 0	/* a2 = upper_uint32(val) */
 	dsll32	a3, a3, 0	/* a3 = lower_uint32(val) */
 	dsrl32	a3, a3, 0
