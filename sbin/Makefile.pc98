@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+_SUBDIR += bsdlabel
+_SUBDIR += fdisk_pc98
+_SUBDIR += sconfig
