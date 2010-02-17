@@ -142,10 +142,11 @@ uint64_t jbytes;
 uint64_t jrecs;
 
 typedef void (*ino_visitor)(ino_t, ufs_lbn_t, ufs2_daddr_t, int);
-static void ino_trunc(ino_t ino, off_t size);
+static void ino_trunc(ino_t, off_t);
 static void ino_decr(ino_t);
 static void ino_adjust(struct suj_ino *);
-static void ino_build(struct suj_ino *sino);
+static void ino_build(struct suj_ino *);
+static int blk_isfree(ufs2_daddr_t);
 
 static void *
 errmalloc(size_t n)
@@ -496,7 +497,7 @@ blk_setmask(struct jblkrec *brec, int *mask)
  * to be freed.  The mask value can be used to free partial blocks.
  */
 static int
-blk_isfree(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags)
+blk_freemask(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags)
 {
 	struct suj_blk *sblk;
 	struct suj_rec *srec;
@@ -532,7 +533,7 @@ blk_isfree(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags)
 			blk_setmask(brec, &mask);
 	}
 	if (debug)
-		printf("blk_isfree: blk %jd sblk %jd off %d mask 0x%X\n",
+		printf("blk_freemask: blk %jd sblk %jd off %d mask 0x%X\n",
 		    blk, sblk->sb_blk, off, mask);
 	return (mask >> off);
 }
@@ -542,6 +543,9 @@ blk_isfree(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags)
  * if any part of the indirect has been reallocated or the last journal
  * entry was an allocation.  Just allocated indirects may not have valid
  * pointers yet and all of their children will have their own records.
+ * It is also not safe to follow an indirect if the cg bitmap has been
+ * cleared as a new allocation may write to the block prior to the journal
+ * being written.
  * 
  * Returns 1 if it's safe to follow the indirect and 0 otherwise.
  */
@@ -559,7 +563,7 @@ blk_isindir(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn)
 	brec = (struct jblkrec *)TAILQ_LAST(&sblk->sb_recs, srechd)->sr_rec;
 	if (blk_equals(brec, ino, lbn, blk, fs->fs_frag))
 		if (brec->jb_op == JOP_FREEBLK)
-			return (1);
+			return (!blk_isfree(blk));
 	return (0);
 }
 
@@ -641,6 +645,19 @@ blk_free(ufs2_daddr_t bno, int mask, int frags)
 			}
 	}
 	sc->sc_dirty = 1;
+}
+
+/*
+ * Returns 1 if the whole block starting at 'bno' is marked free and 0
+ * otherwise.
+ */
+static int
+blk_isfree(ufs2_daddr_t bno)
+{
+	struct suj_cg *sc;
+
+	sc = cg_lookup(dtog(fs, bno));
+	return ffs_isblock(fs, cg_blksfree(sc->sc_cgp), dtogd(fs, bno));
 }
 
 /*
@@ -1059,7 +1076,7 @@ blk_free_visit(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 {
 	int mask;
 
-	mask = blk_isfree(blk, ino, lbn, frags);
+	mask = blk_freemask(blk, ino, lbn, frags);
 	if (debug)
 		printf("blk %jd freemask 0x%X\n", blk, mask);
 	blk_free(blk, mask, frags);
@@ -1076,7 +1093,7 @@ blk_free_lbn(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags, int follow)
 	uint64_t resid;
 	int mask;
 
-	mask = blk_isfree(blk, ino, lbn, frags);
+	mask = blk_freemask(blk, ino, lbn, frags);
 	if (debug)
 		printf("blk %jd freemask 0x%X\n", blk, mask);
 	resid = 0;
@@ -1615,7 +1632,7 @@ blk_check(struct suj_blk *sblk)
 		if (isat == 1) {
 			if (frags == brec->jb_frags)
 				continue;
-			mask = blk_isfree(blk, brec->jb_ino, brec->jb_lbn,
+			mask = blk_freemask(blk, brec->jb_ino, brec->jb_lbn,
 			    brec->jb_frags);
 			mask >>= frags;
 			blk += frags;
@@ -2259,7 +2276,8 @@ suj_verifyino(union dinode *ip)
 		return (-1);
 	}
 
-	if (DIP(ip, di_flags) != (SF_IMMUTABLE | SF_NOUNLINK)) {
+	if ((DIP(ip, di_flags) & (SF_IMMUTABLE | SF_NOUNLINK)) !=
+	    (SF_IMMUTABLE | SF_NOUNLINK)) {
 		printf("Invalid flags 0x%X for journal inode %d\n",
 		    DIP(ip, di_flags), sujino);
 		return (-1);
@@ -2595,19 +2613,19 @@ suj_check(const char *filesys)
 		cg_apply(cg_check_blk);
 		cg_apply(cg_check_ino);
 	}
+	if (preen == 0 && reply("WRITE CHANGES") == 0)
+		return (0);
 	/*
 	 * To remain idempotent with partial truncations the free bitmaps
 	 * must be written followed by indirect blocks and lastly inode
 	 * blocks.  This preserves access to the modified pointers until
 	 * they are freed.
 	 */
-	if (preen || reply("WRITE CHANGES")) {
-		cg_apply(cg_write);
-		dblk_write();
-		cg_apply(cg_write_inos);
-		/* Write back superblock. */
-		closedisk(filesys);
-	}
+	cg_apply(cg_write);
+	dblk_write();
+	cg_apply(cg_write_inos);
+	/* Write back superblock. */
+	closedisk(filesys);
 	printf("** %jd journal records in %jd bytes for %.2f%% utilization\n",
 	    jrecs, jbytes, ((float)jrecs / (float)(jbytes / JREC_SIZE)) * 100);
 	printf("** Freed %jd inodes (%jd dirs) %jd blocks, and %jd frags.\n",
