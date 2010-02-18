@@ -941,8 +941,8 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	struct uio *ktruio = NULL;
 #endif
 
-	if(controlp != NULL)
-		*controlp = 0;
+	if (controlp != NULL)
+		*controlp = NULL;
 
 	AUDIT_ARG_FD(s);
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
