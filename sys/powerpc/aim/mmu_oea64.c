@@ -172,6 +172,7 @@ va_to_vsid(pmap_t pm, vm_offset_t va)
 	return ((pm->pm_sr[(uintptr_t)va >> ADDR_SR_SHFT]) & SR_VSID_MASK);
 }
 
+#define	PTESYNC()	__asm __volatile("ptesync");
 #define	TLBSYNC()	__asm __volatile("tlbsync; ptesync");
 #define	SYNC()		__asm __volatile("sync");
 #define	EIEIO()		__asm __volatile("eieio");
@@ -194,6 +195,7 @@ TLBIE(pmap_t pmap, vm_offset_t va) {
 	vpn = (uint64_t)(va & ADDR_PIDX);
 	if (pmap != NULL)
 		vpn |= (va_to_vsid(pmap,va) << 28);
+	vpn &= ~(0xffffULL << 48);
 
 	vpn_hi = (uint32_t)(vpn >> 32);
 	vpn_lo = (uint32_t)vpn;
@@ -201,8 +203,7 @@ TLBIE(pmap_t pmap, vm_offset_t va) {
 	mtx_lock_spin(&tlbie_mutex);
 	__asm __volatile("\
 	    mfmsr %0; \
-	    clrldi %1,%0,49; \
-	    mtmsr %1; \
+	    mr %1, %0; \
 	    insrdi %1,%5,1,0; \
 	    mtmsrd %1; \
 	    ptesync; \
@@ -215,7 +216,8 @@ TLBIE(pmap_t pmap, vm_offset_t va) {
 	    eieio; \
 	    tlbsync; \
 	    ptesync;" 
-	: "=r"(msr), "=r"(scratch) : "r"(vpn_hi), "r"(vpn_lo), "r"(32), "r"(1));
+	: "=r"(msr), "=r"(scratch) : "r"(vpn_hi), "r"(vpn_lo), "r"(32), "r"(1)
+	    : "memory");
 	mtx_unlock_spin(&tlbie_mutex);
 }
 
@@ -226,13 +228,13 @@ TLBIE(pmap_t pmap, vm_offset_t va) {
 #define	VSID_TO_SR(vsid)	((vsid) & 0xf)
 #define	VSID_TO_HASH(vsid)	(((vsid) >> 4) & 0xfffff)
 
-#define	PVO_PTEGIDX_MASK	0x007		/* which PTEG slot */
-#define	PVO_PTEGIDX_VALID	0x008		/* slot is valid */
-#define	PVO_WIRED		0x010		/* PVO entry is wired */
-#define	PVO_MANAGED		0x020		/* PVO entry is managed */
-#define	PVO_BOOTSTRAP		0x080		/* PVO entry allocated during
+#define	PVO_PTEGIDX_MASK	0x007UL		/* which PTEG slot */
+#define	PVO_PTEGIDX_VALID	0x008UL		/* slot is valid */
+#define	PVO_WIRED		0x010UL		/* PVO entry is wired */
+#define	PVO_MANAGED		0x020UL		/* PVO entry is managed */
+#define	PVO_BOOTSTRAP		0x080UL		/* PVO entry allocated during
 						   bootstrap */
-#define PVO_FAKE		0x100		/* fictitious phys page */
+#define PVO_FAKE		0x100UL		/* fictitious phys page */
 #define	PVO_VADDR(pvo)		((pvo)->pvo_vaddr & ~ADDR_POFF)
 #define PVO_ISFAKE(pvo)		((pvo)->pvo_vaddr & PVO_FAKE)
 #define	PVO_PTEGIDX_GET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_MASK)
@@ -512,23 +514,6 @@ moea64_attr_save(vm_page_t m, u_int64_t ptebit)
 	m->md.mdpg_attrs |= ptebit;
 }
 
-static __inline int
-moea64_pte_compare(const struct lpte *pt, const struct lpte *pvo_pt)
-{
-	if (pt->pte_hi == pvo_pt->pte_hi)
-		return (1);
-
-	return (0);
-}
-
-static __inline int
-moea64_pte_match(struct lpte *pt, uint64_t vsid, vm_offset_t va, int which)
-{
-	return (pt->pte_hi & ~LPTE_VALID) ==
-	    ((vsid << LPTE_VSID_SHIFT) |
-	    ((uint64_t)(va >> ADDR_API_SHFT64) & LPTE_API) | which);
-}
-
 static __inline void
 moea64_pte_create(struct lpte *pt, uint64_t vsid, vm_offset_t va, 
     uint64_t pte_lo)
@@ -583,7 +568,7 @@ moea64_pte_set(struct lpte *pt, struct lpte *pvo_pt)
 	pt->pte_lo = pvo_pt->pte_lo;
 	EIEIO();
 	pt->pte_hi = pvo_pt->pte_hi;
-	SYNC();
+	PTESYNC();
 	moea64_pte_valid++;
 }
 
@@ -602,7 +587,6 @@ moea64_pte_unset(struct lpte *pt, struct lpte *pvo_pt, pmap_t pmap, vm_offset_t 
 	 * Invalidate the pte.
 	 */
 	pt->pte_hi &= ~LPTE_VALID;
-
 	TLBIE(pmap,va);
 
 	/*
@@ -621,6 +605,8 @@ moea64_pte_change(struct lpte *pt, struct lpte *pvo_pt, pmap_t pmap, vm_offset_t
 	 */
 	moea64_pte_unset(pt, pvo_pt, pmap, va);
 	moea64_pte_set(pt, pvo_pt);
+	if (pmap == kernel_pmap)
+		isync();
 }
 
 static __inline uint64_t
@@ -701,7 +687,7 @@ moea64_bridge_cpu_bootstrap(mmu_t mmup, int ap)
 	for (i = 0; i < 16; i++) {
 		mtsrin(i << ADDR_SR_SHFT, kernel_pmap->pm_sr[i]);
 	}
-	__asm __volatile ("sync; mtsdr1 %0; isync"
+	__asm __volatile ("ptesync; mtsdr1 %0; isync"
 	    :: "r"((u_int)moea64_pteg_table 
 		     | (32 - cntlzw(moea64_pteg_mask >> 11))));
 	tlbia();
@@ -1135,7 +1121,7 @@ void moea64_set_scratchpage_pa(int which, vm_offset_t pa) {
 	EIEIO();
 
 	moea64_scratchpage_pte[which]->pte_hi |= LPTE_VALID;
-	TLBIE(kernel_pmap, moea64_scratchpage_va[which]);
+	PTESYNC(); isync();
 }
 
 void
@@ -1155,8 +1141,6 @@ moea64_copy_page(mmu_t mmu, vm_page_t msrc, vm_page_t mdst)
 	kcopy((void *)moea64_scratchpage_va[0], 
 	    (void *)moea64_scratchpage_va[1], PAGE_SIZE);
 
-	__syncicache((void *)moea64_scratchpage_va[1],PAGE_SIZE);
-
 	mtx_unlock(&moea64_scratchpage_mtx);
 }
 
@@ -1174,8 +1158,6 @@ moea64_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 
 	moea64_set_scratchpage_pa(0,pa);
 	bzero((caddr_t)moea64_scratchpage_va[0] + off, size);
-	__syncicache((void *)moea64_scratchpage_va[0],PAGE_SIZE);
-
 	mtx_unlock(&moea64_scratchpage_mtx);
 }
 
@@ -1266,9 +1248,6 @@ moea64_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	error = moea64_pvo_enter(pmap, zone, pvo_head, va, VM_PAGE_TO_PHYS(m),
 	    pte_lo, pvo_flags);
 
-	if (pmap == kernel_pmap)
-		TLBIE(pmap, va);
-
 	/*
 	 * Flush the page from the instruction cache if this page is
 	 * mapped executable and cacheable.
@@ -1281,6 +1260,7 @@ moea64_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 static void
 moea64_syncicache(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_size_t sz)
 {
+
 	/*
 	 * This is much trickier than on older systems because
 	 * we can't sync the icache on physical addresses directly
@@ -1303,8 +1283,9 @@ moea64_syncicache(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_size_t sz)
 
 		mtx_lock(&moea64_scratchpage_mtx);
 
-		moea64_set_scratchpage_pa(1,pa);
-		__syncicache((void *)moea64_scratchpage_va[1], sz);
+		moea64_set_scratchpage_pa(1,pa & ~ADDR_POFF);
+		__syncicache((void *)(moea64_scratchpage_va[1] + 
+		    (va & ADDR_POFF)), sz);
 
 		mtx_unlock(&moea64_scratchpage_mtx);
 	}
@@ -1441,8 +1422,6 @@ moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	    &moea64_pvo_kunmanaged, va,  VM_PAGE_TO_PHYS(m), LPTE_M, 
 	    PVO_WIRED | PVO_BOOTSTRAP);
 
-	TLBIE(kernel_pmap, va);
-
 	if (needed_lock)
 		PMAP_UNLOCK(kernel_pmap);
 	
@@ -1531,7 +1510,7 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 				lo |= pvo->pvo_pte.lpte.pte_lo;
 				pvo->pvo_pte.lpte.pte_lo &= ~LPTE_CHG;
 				moea64_pte_change(pt, &pvo->pvo_pte.lpte,
-				    pvo->pvo_pmap, pvo->pvo_vaddr);
+				    pvo->pvo_pmap, PVO_VADDR(pvo));
 			}
 			UNLOCK_TABLE();
 		}
@@ -1589,8 +1568,6 @@ moea64_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
 	error = moea64_pvo_enter(kernel_pmap, moea64_upvo_zone,
 	    &moea64_pvo_kunmanaged, va, pa, pte_lo, 
 	    PVO_WIRED | VM_PROT_EXECUTE);
-
-	TLBIE(kernel_pmap, va);
 
 	if (error != 0 && error != ENOENT)
 		panic("moea64_kenter: failed to enter va %#x pa %#x: %d", va,
@@ -1823,7 +1800,7 @@ moea64_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 		 */
 		if (pt != NULL) {
 			moea64_pte_change(pt, &pvo->pvo_pte.lpte, 
-			    pvo->pvo_pmap, pvo->pvo_vaddr);
+			    pvo->pvo_pmap, PVO_VADDR(pvo));
 			if ((pvo->pvo_pte.lpte.pte_lo & 
 			    (LPTE_I | LPTE_G | LPTE_NOEXEC)) == 0) {
 				moea64_syncicache(pm, sva,
@@ -1926,6 +1903,10 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
 		PMAP_LOCK(pmap);
 		moea64_pvo_remove(pvo, -1);
 		PMAP_UNLOCK(pmap);
+	}
+	if ((m->flags & PG_WRITEABLE) && moea64_is_modified(mmu, m)) {
+		moea64_attr_clear(m, LPTE_CHG);
+		vm_page_dirty(m);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
 }
@@ -2107,7 +2088,7 @@ moea64_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		first = 1;
 	LIST_INSERT_HEAD(pvo_head, pvo, pvo_vlink);
 
-	if (pvo->pvo_pte.lpte.pte_lo & PVO_WIRED)
+	if (pvo->pvo_vaddr & PVO_WIRED)
 		pm->pm_stats.wired_count++;
 	pm->pm_stats.resident_count++;
 
@@ -2121,6 +2102,9 @@ moea64_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		panic("moea64_pvo_enter: overflow");
 		moea64_pte_overflow++;
 	}
+
+	if (pm == kernel_pmap)
+		isync();
 
 	UNLOCK_TABLE();
 
@@ -2140,7 +2124,7 @@ moea64_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	pt = moea64_pvo_to_pte(pvo, pteidx);
 	if (pt != NULL) {
 		moea64_pte_unset(pt, &pvo->pvo_pte.lpte, pvo->pvo_pmap,
-		    pvo->pvo_vaddr);
+		    PVO_VADDR(pvo));
 		PVO_PTEGIDX_CLR(pvo);
 	} else {
 		moea64_pte_overflow--;
@@ -2151,7 +2135,7 @@ moea64_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	 * Update our statistics.
 	 */
 	pvo->pvo_pmap->pm_stats.resident_count--;
-	if (pvo->pvo_pte.lpte.pte_lo & PVO_WIRED)
+	if (pvo->pvo_vaddr & PVO_WIRED)
 		pvo->pvo_pmap->pm_stats.wired_count--;
 
 	/*
@@ -2178,7 +2162,7 @@ moea64_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	 */
 	LIST_REMOVE(pvo, pvo_olink);
 	if (!(pvo->pvo_vaddr & PVO_BOOTSTRAP))
-		uma_zfree(pvo->pvo_vaddr & PVO_MANAGED ? moea64_mpvo_zone :
+		uma_zfree((pvo->pvo_vaddr & PVO_MANAGED) ? moea64_mpvo_zone :
 		    moea64_upvo_zone, pvo);
 	moea64_pvo_entries--;
 	moea64_pvo_remove_calls++;
@@ -2237,8 +2221,8 @@ moea64_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 		int		ptegidx;
 		uint64_t	vsid;
 
-		vsid = va_to_vsid(pvo->pvo_pmap, pvo->pvo_vaddr);
-		ptegidx = va_to_pteg(vsid, pvo->pvo_vaddr);
+		vsid = va_to_vsid(pvo->pvo_pmap, PVO_VADDR(pvo));
+		ptegidx = va_to_pteg(vsid, PVO_VADDR(pvo));
 		pteidx = moea64_pvo_pte_index(pvo, ptegidx);
 	}
 
@@ -2325,10 +2309,8 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 	struct	pvo_entry *pvo;
 	struct	lpte *pt;
 
-#if 0
 	if (moea64_attr_fetch(m) & ptebit)
 		return (TRUE);
-#endif
 
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
