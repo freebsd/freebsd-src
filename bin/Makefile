@@ -40,19 +40,19 @@ SUBDIR= cat \
 	uuidgen
 
 .if ${MK_RCMDS} != "no"
-SUBDIR += rcp
+SUBDIR+=	rcp
 .endif
 
 .if ${MK_SENDMAIL} != "no"
-SUBDIR += rmail
+SUBDIR+=	rmail
 .endif
 
 .if ${MK_TCSH} != "no"
-SUBDIR += csh
+SUBDIR+=	csh
 .endif
 
 .include <bsd.arch.inc.mk>
 
-SUBDIR := ${SUBDIR:O}
+SUBDIR:=	${SUBDIR:O}
 
 .include <bsd.subdir.mk>
