@@ -72,42 +72,42 @@ SUBDIR=adjkerntz \
 	umount \
 
 .if ${MK_ATM} != "no"
-SUBDIR += atm
+SUBDIR+=	atm
 .endif
 
 .if ${MK_CXX} != "no"
-SUBDIR += devd
+SUBDIR+=	devd
 .endif
 
 .if ${MK_IPFILTER} != "no"
-SUBDIR += ipf
+SUBDIR+=	ipf
 .endif
 
 .if ${MK_IPFW} != "no"
-SUBDIR += ipfw
-SUBDIR += natd
+SUBDIR+=	ipfw
+SUBDIR+=	natd
 .endif
 
 .if ${MK_PF} != "no"
-SUBDIR += pfctl
-SUBDIR += pflogd
+SUBDIR+=	pfctl
+SUBDIR+=	pflogd
 .endif
 
 .if ${MK_INET6} != "no"
-SUBDIR += ping6
-SUBDIR += rtsol
+SUBDIR+=	ping6
+SUBDIR+=	rtsol
 .endif
 
 .if ${MK_QUOTAS} != "no"
-SUBDIR += quotacheck
+SUBDIR+=	quotacheck
 .endif
 
 .if ${MK_ROUTED} != "no"
-SUBDIR += routed
+SUBDIR+=	routed
 .endif
 
 .include <bsd.arch.inc.mk>
 
-SUBDIR := ${SUBDIR:O}
+SUBDIR:=	${SUBDIR:O}
 
 .include <bsd.subdir.mk>
