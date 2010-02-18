@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: hastd
+# REQUIRE: NETWORKING syslogd
+# BEFORE:  DAEMON
+
+. /etc/rc.subr
+
+name="hastd"
+rcvar=`set_rcvar`
+pidfile="/var/run/${name}.pid"
+command="/sbin/${name}"
+hastctl="/sbin/hastctl"
+required_files="/etc/hast.conf"
+stop_precmd="hastd_stop_precmd"
+required_modules="geom_gate:g_gate"
+
+sockfile="/var/run/syslogd.sockets"
+evalargs="rc_flags=\"\`set_socketlist\` \$rc_flags\""
+altlog_proglist="named"
+
+hastd_stop_precmd()
+{
+	${hastctl} role init all
+}
+
+load_rc_config $name
+run_rc_command "$1"
