@@ -83,11 +83,13 @@ static const char *ahd_sysctl_node_elements[] = {
 	"debug"
 };
 
+#ifndef NO_SYSCTL_DESCR
 static const char *ahd_sysctl_node_descriptions[] = {
 	"root error collection for aic79xx controllers",
 	"summary collection for aic79xx controllers",
 	"debug collection for aic79xx controllers"
 };
+#endif
 
 static const char *ahd_sysctl_errors_elements[] = {
 	"Cerrors",
@@ -95,11 +97,13 @@ static const char *ahd_sysctl_errors_elements[] = {
 	"Ferrors"
 };
 
+#ifndef NO_SYSCTL_DESCR
 static const char *ahd_sysctl_errors_descriptions[] = {
 	"Correctable errors",
 	"Uncorrectable errors",
 	"Fatal errors"
 };
+#endif
 
 static int
 ahd_set_debugcounters(SYSCTL_HANDLER_ARGS)
