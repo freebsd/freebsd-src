@@ -96,7 +96,7 @@ load_kernel(void * kstart)
 #ifdef __mips_n64
 	Elf64_Ehdr *eh;
 	Elf64_Phdr phdr[64] /* XXX */;
-	Elf64_Phdr shdr[64] /* XXX */;
+	Elf64_Shdr shdr[64] /* XXX */;
 #else
 	Elf32_Ehdr *eh;
 	Elf32_Phdr phdr[64] /* XXX */;
