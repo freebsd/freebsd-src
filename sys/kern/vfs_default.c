@@ -894,10 +894,7 @@ loop:
 		error = VOP_FSYNC(vp, waitfor, td);
 		if (error)
 			allerror = error;
-
-		/* Do not turn this into vput.  td is not always curthread. */
-		VOP_UNLOCK(vp, 0);
-		vrele(vp);
+		vput(vp);
 		MNT_ILOCK(mp);
 	}
 	MNT_IUNLOCK(mp);
