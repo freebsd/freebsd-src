@@ -601,10 +601,9 @@ typedef enum {
 
 
 #define octeon_ptr_to_phys(ptr)                                           \
-    ((((mipsx_addr_size) ptr) >> MIPSX_ADDR_SIZE_KSEGX_BIT_SHIFT) == 2) ? \
+   (((((mipsx_addr_size) ptr) >> MIPSX_ADDR_SIZE_KSEGX_BIT_SHIFT) == 2) ? \
     	((mipsx_addr_size) ptr & MIPSX_ADDR_SIZE_KSEGX_MASK_REMOVED)  :   \
-    	(vtophys(ptr))
-
+        (vtophys(ptr)))
 
 #ifdef CODE_FOR_64_BIT_NEEDED
 static inline mipsx_addr_size octeon_ptr_to_phys (void *ptr)
