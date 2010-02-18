@@ -89,6 +89,8 @@ libkern/umoddi3.c		optional	isa_mips32
 #libkern/mips/strcmp.S		standard
 #libkern/mips/strncmp.S		standard
 
+kern/link_elf_obj.c		standard
+
 dev/cfe/cfe_api.c		optional	cfe
 dev/cfe/cfe_console.c		optional	cfe_console
 dev/cfe/cfe_env.c		optional	cfe_env
