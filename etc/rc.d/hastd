@@ -18,10 +18,6 @@ required_files="/etc/hast.conf"
 stop_precmd="hastd_stop_precmd"
 required_modules="geom_gate:g_gate"
 
-sockfile="/var/run/syslogd.sockets"
-evalargs="rc_flags=\"\`set_socketlist\` \$rc_flags\""
-altlog_proglist="named"
-
 hastd_stop_precmd()
 {
 	${hastctl} role init all
