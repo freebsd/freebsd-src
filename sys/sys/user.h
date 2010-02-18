@@ -100,7 +100,11 @@
 #define	KINFO_PROC_SIZE	768
 #endif
 #ifdef __mips__
+#ifdef __mips_n64
+#define	KINFO_PROC_SIZE	1088
+#else
 #define	KINFO_PROC_SIZE	816
+#endif
 #endif
 #ifdef __powerpc__
 #define	KINFO_PROC_SIZE	768
