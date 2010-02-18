@@ -2182,9 +2182,7 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		msg = "no Exchange Control Block";
 		break;
 	case PLOGX_IOCBERR_FAILED:
-		ISP_SNPRINTF(buf, sizeof (buf),
-		    "reason 0x%x (last LOGIN state 0x%x)",
-		    parm1 & 0xff, (parm1 >> 8) & 0xff);
+		ISP_SNPRINTF(buf, sizeof (buf), "reason 0x%x (last LOGIN state 0x%x)", parm1 & 0xff, (parm1 >> 8) & 0xff);
 		msg = buf;
 		break;
 	case PLOGX_IOCBERR_NOFABRIC:
@@ -2194,8 +2192,7 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		msg = "firmware not ready";
 		break;
 	case PLOGX_IOCBERR_NOLOGIN:
-		ISP_SNPRINTF(buf, sizeof (buf), "not logged in (last state 0x%x)",
-		    parm1);
+		ISP_SNPRINTF(buf, sizeof (buf), "not logged in (last state 0x%x)", parm1);
 		msg = buf;
 		rval = MBOX_NOT_LOGGED_IN;
 		break;
@@ -2207,21 +2204,18 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		msg = "no PCB allocated";
 		break;
 	case PLOGX_IOCBERR_EINVAL:
-		ISP_SNPRINTF(buf, sizeof (buf), "invalid parameter at offset 0x%x",
-		    parm1);
+		ISP_SNPRINTF(buf, sizeof (buf), "invalid parameter at offset 0x%x", parm1);
 		msg = buf;
 		break;
 	case PLOGX_IOCBERR_PORTUSED:
 		lev = ISP_LOGSANCFG|ISP_LOGDEBUG0;
-		ISP_SNPRINTF(buf, sizeof (buf),
-		    "already logged in with N-Port handle 0x%x", parm1);
+		ISP_SNPRINTF(buf, sizeof (buf), "already logged in with N-Port handle 0x%x", parm1);
 		msg = buf;
 		rval = MBOX_PORT_ID_USED | (parm1 << 16);
 		break;
 	case PLOGX_IOCBERR_HNDLUSED:
 		lev = ISP_LOGSANCFG|ISP_LOGDEBUG0;
-		ISP_SNPRINTF(buf, sizeof (buf),
-		    "handle already used for PortID 0x%06x", parm1);
+		ISP_SNPRINTF(buf, sizeof (buf), "handle already used for PortID 0x%06x", parm1);
 		msg = buf;
 		rval = MBOX_LOOP_ID_USED;
 		break;
@@ -2232,15 +2226,12 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		msg = "no FLOGI_ACC";
 		break;
 	default:
-		ISP_SNPRINTF(buf, sizeof (buf), "status %x from %x",
-		    plp->plogx_status, flags);
+		ISP_SNPRINTF(buf, sizeof (buf), "status %x from %x", plp->plogx_status, flags);
 		msg = buf;
 		break;
 	}
 	if (msg) {
-		isp_prt(isp, ISP_LOGERR,
-		    "Chan %d PLOGX PortID 0x%06x to N-Port handle 0x%x: %s",
-		    chan, portid, handle, msg);
+		isp_prt(isp, ISP_LOGERR, "Chan %d PLOGX PortID 0x%06x to N-Port handle 0x%x: %s", chan, portid, handle, msg);
 	}
 out:
 	if (gs == 0) {
@@ -3901,8 +3892,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
  * Find an unused handle and try and use to login to a port.
  */
 static int
-isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p,
-    uint16_t *ohp)
+isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p, uint16_t *ohp)
 {
 	int lim, i, r;
 	uint16_t handle;
@@ -3922,8 +3912,7 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p,
 		 */
 		r = isp_getpdb(isp, chan, handle, p, 0);
 		if (r == 0 && p->portid != portid) {
-			(void) isp_plogx(isp, chan, handle, portid,
-			    PLOGX_FLG_CMD_LOGO | PLOGX_FLG_IMPLICIT, 1);
+			(void) isp_plogx(isp, chan, handle, portid, PLOGX_FLG_CMD_LOGO | PLOGX_FLG_IMPLICIT | PLOGX_FLG_FREE_NPHDL, 1);
 		} else if (r == 0) {
 			break;
 		}
@@ -3933,8 +3922,7 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p,
 		/*
 		 * Now try and log into the device
 		 */
-		r = isp_plogx(isp, chan, handle, portid,
-		    PLOGX_FLG_CMD_PLOGI, 1);
+		r = isp_plogx(isp, chan, handle, portid, PLOGX_FLG_CMD_PLOGI, 1);
 		if (FCPARAM(isp, chan)->isp_loopstate != LOOP_SCANNING_FABRIC) {
 			return (-1);
 		}
@@ -3942,7 +3930,26 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p,
 			*ohp = handle;
 			break;
 		} else if ((r & 0xffff) == MBOX_PORT_ID_USED) {
-			handle = r >> 16;
+			/*
+			 * If we get here, then the firmwware still thinks we're logged into this device, but with a different
+			 * handle. We need to break that association. We used to try and just substitute the handle, but then
+			 * failed to get any data via isp_getpdb (below).
+			 */
+			if (isp_plogx(isp, chan, r >> 16, portid, PLOGX_FLG_CMD_LOGO | PLOGX_FLG_IMPLICIT | PLOGX_FLG_FREE_NPHDL, 1)) {
+				isp_prt(isp, ISP_LOGERR, "baw... logout of %x failed", r >> 16);
+			}
+			if (FCPARAM(isp, chan)->isp_loopstate != LOOP_SCANNING_FABRIC) {
+				return (-1);
+			}
+			r = isp_plogx(isp, chan, handle, portid, PLOGX_FLG_CMD_PLOGI, 1);
+			if (FCPARAM(isp, chan)->isp_loopstate != LOOP_SCANNING_FABRIC) {
+				return (-1);
+			}
+			if (r == 0) {
+				*ohp = handle;
+			} else {
+				i = lim;
+			}
 			break;
 		} else if (r != MBOX_LOOP_ID_USED) {
 			i = lim;
@@ -3956,8 +3963,7 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p,
 	}
 
 	if (i == lim) {
-		isp_prt(isp, ISP_LOGWARN, "Chan %d PLOGI 0x%06x failed",
-		    chan, portid);
+		isp_prt(isp, ISP_LOGWARN, "Chan %d PLOGI 0x%06x failed", chan, portid);
 		return (-1);
 	}
 
@@ -3971,15 +3977,12 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p,
 		return (-1);
 	}
 	if (r != 0) {
-		isp_prt(isp, ISP_LOGERR,
-		    "Chan %d new device 0x%06x@0x%x disappeared",
-		    chan, portid, handle);
+		isp_prt(isp, ISP_LOGERR, "Chan %d new device 0x%06x@0x%x disappeared", chan, portid, handle);
 		return (-1);
 	}
 
 	if (p->handle != handle || p->portid != portid) {
-		isp_prt(isp, ISP_LOGERR,
-		    "Chan %d new device 0x%06x@0x%x changed (0x%06x@0x%0x)",
+		isp_prt(isp, ISP_LOGERR, "Chan %d new device 0x%06x@0x%x changed (0x%06x@0x%0x)",
 		    chan, portid, handle, p->portid, p->handle);
 		return (-1);
 	}
