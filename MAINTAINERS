@@ -125,6 +125,12 @@ gnu/usr.bin/send-pr	bugmaster	Pre-commit review requested.
 ncurses		rafan	Heads-up appreciated, try not to break it.
 *env(3)		secteam	Due to the problematic security history of this
 			code, please have patches reviewed by secteam.
+share/zoneinfo		edwin	Heads-up appreciated, since our data is coming
+				from a third party source.
+usr.sbin/zic		edwin   Heads-up appreciated, since this code is
+				maintained by a third party source.
+lib/libc/stdtime	edwin   Heads-up appreciated, since parts of this code
+				is maintained by a third party source.
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.
