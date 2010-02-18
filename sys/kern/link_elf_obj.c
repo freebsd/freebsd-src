@@ -853,8 +853,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		panic("lost relatab");
 	if (mapbase != (vm_offset_t)ef->address + mapsize)
 		panic("mapbase 0x%lx != address %p + mapsize 0x%lx (0x%lx)\n",
-		    mapbase, ef->address, mapsize,
-		    (vm_offset_t)ef->address + mapsize);
+		    (u_long)mapbase, ef->address, (u_long)mapsize,
+		    (u_long)(vm_offset_t)ef->address + mapsize);
 
 	/* Local intra-module relocations */
 	link_elf_reloc_local(lf);
