@@ -205,7 +205,7 @@ dev/hwpmc/hwpmc_core.c		optional	hwpmc
 dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
-dev/kbd/kbd.c			optional	atkbd | sc | ukbd | usb2_input_kbd
+dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/lindev/full.c		optional	lindev
 dev/lindev/lindev.c		optional	lindev
 dev/mem/memutil.c		optional	mem
