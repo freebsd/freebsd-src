@@ -162,7 +162,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #if !defined(DIAGNOSTIC)
+#ifdef __GNUC_GNU_INLINE__
+#define PMAP_INLINE	inline
+#else
 #define PMAP_INLINE	extern inline
+#endif
 #else
 #define PMAP_INLINE
 #endif
