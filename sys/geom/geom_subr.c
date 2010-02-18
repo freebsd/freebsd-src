@@ -707,6 +707,7 @@ g_attach(struct g_consumer *cp, struct g_provider *pp)
 	g_topology_assert();
 	G_VALID_CONSUMER(cp);
 	G_VALID_PROVIDER(pp);
+	g_trace(G_T_TOPOLOGY, "g_attach(%p, %p)", cp, pp);
 	KASSERT(cp->provider == NULL, ("attach but attached"));
 	cp->provider = pp;
 	LIST_INSERT_HEAD(&pp->consumers, cp, consumers);
