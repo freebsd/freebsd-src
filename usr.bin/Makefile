@@ -5,7 +5,7 @@
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
-# XXX Use GNU versions: apropos bc dc diff grep ld man patch whatis
+# XXX Use GNU versions: apropos diff grep ld man patch whatis
 # Moved to secure: bdes
 #
 
