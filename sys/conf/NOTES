@@ -377,6 +377,11 @@ options 	KDTRACE_HOOKS
 options 	SYSCTL_DEBUG
 
 #
+# NO_SYSCTL_DESCR omits the sysctl node descriptions to save space in the
+# resulting kernel.
+options		NO_SYSCTL_DESCR
+
+#
 # DEBUG_MEMGUARD builds and enables memguard(9), a replacement allocator
 # for the kernel used to detect modify-after-free scenarios.  See the
 # memguard(9) man page for more information on usage.
@@ -2529,8 +2534,10 @@ device		uhid
 device		ukbd
 # USB printer
 device		ulpt
-# USB Iomega Zip 100 Drive (Requires scbus and da)
+# USB mass storage driver (Requires scbus and da)
 device		umass
+# USB mass storage driver for device-side mode
+device		usfs
 # USB support for Belkin F5U109 and Magic Control Technology serial adapters
 device		umct
 # USB modem support
