@@ -2352,8 +2352,9 @@ aac_timeout(struct aac_softc *sc)
 			/* && !(cm->cm_flags & AAC_CMD_TIMEDOUT) */) {
 			cm->cm_flags |= AAC_CMD_TIMEDOUT;
 			device_printf(sc->aac_dev,
-				      "COMMAND %p TIMEOUT AFTER %d SECONDS\n",
-				      cm, (int)(time_uptime-cm->cm_timestamp));
+			    "COMMAND %p (TYPE %d) TIMEOUT AFTER %d SECONDS\n",
+			    cm, cm->cm_fib->Header.Command,
+			    (int)(time_uptime-cm->cm_timestamp));
 			AAC_PRINT_FIB(sc, cm->cm_fib);
 			timedout++;
 		}
