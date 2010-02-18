@@ -1729,6 +1729,10 @@ moea_remove_all(mmu_t mmu, vm_page_t m)
 		moea_pvo_remove(pvo, -1);
 		PMAP_UNLOCK(pmap);
 	}
+	if ((m->flags & PG_WRITEABLE) && moea_is_modified(mmu, m)) {
+		moea_attr_clear(m, LPTE_CHG);
+		vm_page_dirty(m);
+	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
 }
 
@@ -2203,10 +2207,8 @@ moea_query_bit(vm_page_t m, int ptebit)
 	struct	pvo_entry *pvo;
 	struct	pte *pt;
 
-#if 0
 	if (moea_attr_fetch(m) & ptebit)
 		return (TRUE);
-#endif
 
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
