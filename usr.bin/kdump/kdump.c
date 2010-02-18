@@ -1328,6 +1328,8 @@ ktrstruct(char *buf, size_t buflen)
 	char *name, *data;
 	size_t namelen, datalen;
 	int i;
+	struct stat sb;
+	struct sockaddr_storage ss;
 
 	for (name = buf, namelen = 0;
 	     namelen < buflen && name[namelen] != '\0';
@@ -1348,12 +1350,16 @@ ktrstruct(char *buf, size_t buflen)
 	if (strcmp(name, "stat") == 0) {
 		if (datalen != sizeof(struct stat))
 			goto invalid;
-		ktrstat((struct stat *)data);
+		memcpy(&sb, data, datalen);
+		ktrstat(&sb);
 	} else if (strcmp(name, "sockaddr") == 0) {
-		if (datalen < sizeof(struct sockaddr) ||
-		    datalen != ((struct sockaddr *)(data))->sa_len)
+		if (datalen > sizeof(ss))
 			goto invalid;
-		ktrsockaddr((struct sockaddr *)data);
+		memcpy(&ss, data, datalen);
+		if (datalen < sizeof(struct sockaddr) ||
+		    datalen != ss.ss_len)
+			goto invalid;
+		ktrsockaddr((struct sockaddr *)&ss);
 	} else {
 		printf("unknown structure\n");
 	}

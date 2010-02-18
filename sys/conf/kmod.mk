@@ -128,6 +128,10 @@ CFLAGS+=	-fno-omit-frame-pointer
 CFLAGS+=	-mlongcall -fno-omit-frame-pointer
 .endif
 
+.if ${MACHINE_ARCH} == "mips"
+CFLAGS+=	-G0 -fno-pic -mno-abicalls -mlong-calls
+.endif
+
 .if defined(FIRMWS)
 .if !exists(@)
 ${KMOD:S/$/.c/}: @
@@ -174,7 +178,7 @@ ${PROG}.symbols: ${FULLPROG}
 	${OBJCOPY} --only-keep-debug ${FULLPROG} ${.TARGET}
 .endif
 
-.if ${MACHINE_CPUARCH} != amd64
+.if ${MACHINE_CPUARCH} != amd64 && ${MACHINE_ARCH} != mips
 ${FULLPROG}: ${KMOD}.kld
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
@@ -187,7 +191,7 @@ EXPORT_SYMS?=	NO
 CLEANFILES+=	export_syms
 .endif
 
-.if ${MACHINE_CPUARCH} != amd64
+.if ${MACHINE_CPUARCH} != amd64 && ${MACHINE_CPUARCH} != mips
 ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
@@ -206,7 +210,8 @@ ${FULLPROG}: ${OBJS}
 	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
 .endif
-.if !defined(DEBUG_FLAGS) && ${MACHINE_CPUARCH} == amd64
+.if !defined(DEBUG_FLAGS) && \
+    (${MACHINE_CPUARCH} == amd64 || ${MACHINE_CPUARCH} == mips)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
 
