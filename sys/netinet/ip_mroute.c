@@ -114,8 +114,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
-#include <security/mac/mac_framework.h>
-
 #ifndef KTR_IPMF
 #define KTR_IPMF KTR_INET
 #endif
