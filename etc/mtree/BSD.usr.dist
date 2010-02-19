@@ -215,6 +215,8 @@
             ..
             find_interface
             ..
+            hast
+            ..
             hostapd
             ..
             ibcs2
