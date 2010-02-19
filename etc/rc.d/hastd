@@ -6,6 +6,7 @@
 # PROVIDE: hastd
 # REQUIRE: NETWORKING syslogd
 # BEFORE:  DAEMON
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
