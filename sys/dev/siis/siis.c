@@ -231,6 +231,9 @@ siis_resume(device_t dev)
 {
 	struct siis_controller *ctlr = device_get_softc(dev);
 
+	/* Set PCIe max read request size to at least 1024 bytes */
+	if (pci_get_max_read_req(dev) < 1024)
+		pci_set_max_read_req(dev, 1024);
 	/* Put controller into reset state. */
 	ctlr->gctl |= SIIS_GCTL_GRESET;
 	ATA_OUTL(ctlr->r_gmem, SIIS_GCTL, ctlr->gctl);
