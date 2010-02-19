@@ -312,18 +312,17 @@ kthread_exit(void)
 {
 	struct proc *p;
 
+	p = curthread->td_proc;
+
 	/* A module may be waiting for us to exit. */
 	wakeup(curthread);
-
-	/*
-	 * We could rely on thread_exit to call exit1() but
-	 * there is extra work that needs to be done
-	 */
-	if (curthread->td_proc->p_numthreads == 1)
-		kproc_exit(0);	/* never returns */
-
-	p = curthread->td_proc;
 	PROC_LOCK(p);
+	if (curthread->td_proc->p_numthreads == 1) {
+		PROC_UNLOCK(p);
+		kproc_exit(0);
+
+		/* NOTREACHED. */
+	}
 	PROC_SLOCK(p);
 	thread_exit();
 }
