@@ -317,7 +317,7 @@ kthread_exit(void)
 	/* A module may be waiting for us to exit. */
 	wakeup(curthread);
 	PROC_LOCK(p);
-	if (curthread->td_proc->p_numthreads == 1) {
+	if (p->p_numthreads == 1) {
 		PROC_UNLOCK(p);
 		kproc_exit(0);
 
