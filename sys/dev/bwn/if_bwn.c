@@ -9416,19 +9416,24 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 
 	padding = (macstat & BWN_RX_MAC_PADDING) ? 2 : 0;
 	if (m->m_pkthdr.len < (sizeof(struct bwn_plcp6) + padding)) {
-		device_printf(sc->sc_dev, "RX: Packet size underrun (1)\n");
+		device_printf(sc->sc_dev, "frame too short (length=%d)\n",
+		    m->m_pkthdr.len);
 		goto drop;
 	}
 	plcp = (struct bwn_plcp6 *)(mp + padding);
 	m_adj(m, sizeof(struct bwn_plcp6) + padding);
 	if (m->m_pkthdr.len < IEEE80211_MIN_LEN) {
-		device_printf(sc->sc_dev, "RX: Packet size underrun (2)\n");
+		device_printf(sc->sc_dev, "frame too short (length=%d)\n",
+		    m->m_pkthdr.len);
 		goto drop;
 	}
 	wh = mtod(m, struct ieee80211_frame_min *);
 
 	if (macstat & BWN_RX_MAC_DEC)
-		device_printf(sc->sc_dev, "TODO: BWN_RX_MAC_DEC\n");
+		device_printf(sc->sc_dev,
+		    "RX decryption attempted (old %d keyidx %#x)\n",
+		    BWN_ISOLDFMT(mac),
+		    (macstat & BWN_RX_MAC_KEYIDX) >> BWN_RX_MAC_KEYIDX_SHIFT);
 
 	/* XXX calculating RSSI & noise & antenna */
 
