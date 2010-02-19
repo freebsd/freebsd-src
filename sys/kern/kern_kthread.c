@@ -339,9 +339,9 @@ kthread_suspend(struct thread *td, int timo)
 	p = td->td_proc;
 
 	/*
-	 * td_pflags should not be ready by any other thread different by
+	 * td_pflags should not be read by any thread other than
 	 * curthread, but as long as this flag is invariant during the
-	 * thread lifetime, it is ok to check for it now.
+	 * thread's lifetime, it is OK to check its state.
 	 */
 	if ((td->td_pflags & TDP_KTHREAD) == 0)
 		return (EINVAL);
@@ -370,9 +370,9 @@ kthread_resume(struct thread *td)
 	p = td->td_proc;
 
 	/*
-	 * td_pflags should not be ready by any other thread different by
+	 * td_pflags should not be read by any thread other than
 	 * curthread, but as long as this flag is invariant during the
-	 * thread lifetime, it is ok to check for it now.
+	 * thread's lifetime, it is OK to check its state.
 	 */
 	if ((td->td_pflags & TDP_KTHREAD) == 0)
 		return (EINVAL);
