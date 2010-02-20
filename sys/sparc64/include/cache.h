@@ -91,7 +91,7 @@ struct cacheinfo {
 
 struct pcpu;
 
-typedef void cache_enable_t(void);
+typedef void cache_enable_t(u_int cpu_impl);
 typedef void cache_flush_t(void);
 typedef void dcache_page_inval_t(vm_paddr_t pa);
 typedef void icache_page_inval_t(vm_paddr_t pa);

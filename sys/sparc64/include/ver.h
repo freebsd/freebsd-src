@@ -43,24 +43,28 @@
 
 #ifndef LOCORE
 
-#define	VER_MANUF_MASK		(((1L<<VER_MANUF_SIZE)-1)<<VER_MANUF_SHIFT)
-#define	VER_IMPL_MASK		(((1L<<VER_IMPL_SIZE)-1)<<VER_IMPL_SHIFT)
-#define	VER_MASK_MASK		(((1L<<VER_MASK_SIZE)-1)<<VER_MASK_SHIFT)
-#define	VER_MAXTL_MASK		(((1L<<VER_MAXTL_SIZE)-1)<<VER_MAXTL_SHIFT)
-#define	VER_MAXWIN_MASK		(((1L<<VER_MAXWIN_SIZE)-1)<<VER_MAXWIN_SHIFT)
+#define	VER_MANUF_MASK							\
+	(((1UL << VER_MANUF_SIZE) - 1) << VER_MANUF_SHIFT)
+#define	VER_IMPL_MASK							\
+	(((1UL << VER_IMPL_SIZE) - 1) << VER_IMPL_SHIFT)
+#define	VER_MASK_MASK							\
+	(((1UL << VER_MASK_SIZE) - 1) << VER_MASK_SHIFT)
+#define	VER_MAXTL_MASK							\
+	(((1UL << VER_MAXTL_SIZE) - 1) << VER_MAXTL_SHIFT)
+#define	VER_MAXWIN_MASK							\
+	(((1UL << VER_MAXWIN_SIZE) - 1) << VER_MAXWIN_SHIFT)
 
-#define	VER_MANUF(ver) \
+#define	VER_MANUF(ver)							\
 	(((ver) & VER_MANUF_MASK) >> VER_MANUF_SHIFT)
-#define	VER_IMPL(ver) \
+#define	VER_IMPL(ver)							\
 	(((ver) & VER_IMPL_MASK) >> VER_IMPL_SHIFT)
-#define	VER_MASK(ver) \
+#define	VER_MASK(ver)							\
 	(((ver) & VER_MASK_MASK) >> VER_MASK_SHIFT)
-#define	VER_MAXTL(ver) \
+#define	VER_MAXTL(ver)							\
 	(((ver) & VER_MAXTL_MASK) >> VER_MAXTL_SHIFT)
-#define	VER_MAXWIN(ver) \
+#define	VER_MAXWIN(ver)							\
 	(((ver) & VER_MAXWIN_MASK) >> VER_MAXWIN_SHIFT)
 
-extern int cpu_impl;
 extern char sparc64_model[];
 
 #endif /* !LOCORE */

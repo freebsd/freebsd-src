@@ -130,6 +130,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -377,7 +378,7 @@ iommu_init(const char *name, struct iommu_state *is, u_int tsbsize,
 		printf("%s: PROM IOTSB size: %d (%d entries)\n", name,
 		    obptsbsize, obptsbentries);
 	if ((is->is_flags & IOMMU_PRESERVE_PROM) != 0 &&
-	    !(cpu_impl == CPU_IMPL_ULTRASPARCIIi && obptsbsize == 7)) {
+	    !(PCPU_GET(impl) == CPU_IMPL_ULTRASPARCIIi && obptsbsize == 7)) {
 		if (obptsbentries > tsbentries)
 			panic("%s: PROM IOTSB entries exceed kernel",
 			    __func__);

@@ -202,17 +202,17 @@ ENTRY(mp_startup)
 	cmp	%l1, CPU_IMPL_ULTRASPARCIII
 	bl	%icc, 3f
 	 nop
-	mov	CPU_STICKSYNC, %l1
+	mov	CPU_STICKSYNC, %l2
 	membar	#StoreLoad
-	stw	%l1, [%l0 + CSA_STATE]
+	stw	%l2, [%l0 + CSA_STATE]
 
-2:	ldx	[%l0 + CSA_STICK], %l1
-	brz	%l1, 2b
+2:	ldx	[%l0 + CSA_STICK], %l2
+	brz	%l2, 2b
 	 nop
-	wr	%l1, 0, %asr24
+	wr	%l2, 0, %asr24
 
 3:	call	cpu_get_mid
-	 nop
+	 mov	%l1, %o0
 
 	/*
 	 * Inform the boot processor we have inited.

@@ -15,7 +15,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-#include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/ver.h>
 
@@ -33,8 +32,6 @@ static u_int cpu_count;
 static u_int cpu_freq;
 SYSCTL_UINT(_hw_freq, OID_AUTO, cpu, CTLFLAG_RD, &cpu_freq, 0,
     "CPU clock frequency");
-
-int cpu_impl;
 
 void
 cpu_identify(u_long vers, u_int freq, u_int id)
