@@ -98,20 +98,14 @@
 #define	KERNBASE		0x00100000	/* start of kernel virtual */
 
 #define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)(KERNEL_SR << ADDR_SR_SHFT))
-#define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + 2*SEGMENT_LENGTH - 1)
+#define	VM_MAX_SAFE_KERNEL_ADDRESS (VM_MIN_KERNEL_ADDRESS + 2*SEGMENT_LENGTH -1)
+#define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + 3*SEGMENT_LENGTH - 1)
 
 /*
  * Use the direct-mapped BAT registers for UMA small allocs. This
  * takes pressure off the small amount of available KVA.
  */
 #define UMA_MD_SMALL_ALLOC
-
-/*
- * On 64-bit systems in bridge mode, we have no direct map, so we fake
- * the small_alloc() calls. But we need the VM to be in a reasonable
- * state first.
- */
-#define UMA_MD_SMALL_ALLOC_NEEDS_VM
 
 #else
 
