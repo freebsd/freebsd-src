@@ -809,7 +809,8 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 	IFNET_WUNLOCK();
 	if (!found) {
 		if (vmove)
-			panic("interface not in it's own ifnet list");
+			panic("%s: ifp=%p not on the ifnet tailq %p",
+			    __func__, ifp, &V_ifnet);
 		else
 			return; /* XXX this should panic as well? */
 	}
