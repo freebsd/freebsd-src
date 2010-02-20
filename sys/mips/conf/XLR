@@ -53,7 +53,6 @@ makeoptions	MODULES_OVERRIDE=""
 makeoptions     TARGET_BIG_ENDIAN
 #
 
-options		KERNVIRTADDR=0x80100000
 include		"../rmi/std.xlr"
 
 
@@ -87,7 +86,6 @@ options		ROOTDEVNAME=\"nfs:10.1.1.8:/usr/extra/nfsroot\"
 #options		ROOTDEVNAME=\"ufs:md0\"
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	HZ=1000	
-options 	PHYS_ADDR_64BIT
 options 	NO_SWAPPING
 
 #Debugging options
