@@ -132,7 +132,6 @@
 #define IA64_RR_BASE(n)         (((u_int64_t) (n)) << 61)
 #define IA64_RR_MASK(x)         ((x) & ((1L << 61) - 1))
 
-#define IA64_PHYS_TO_RR6(x)     ((x) | IA64_RR_BASE(6))
 #define IA64_PHYS_TO_RR7(x)     ((x) | IA64_RR_BASE(7))
 
 /*

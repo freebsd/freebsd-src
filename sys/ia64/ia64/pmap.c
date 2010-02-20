@@ -2145,9 +2145,12 @@ pmap_remove_write(vm_page_t m)
  * NOT real memory.
  */
 void *
-pmap_mapdev(vm_offset_t pa, vm_size_t size)
+pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 {
-	return (void*) IA64_PHYS_TO_RR6(pa);
+	vm_offset_t va;
+
+	va = pa | IA64_RR_BASE(6);
+	return ((void *)va);
 }
 
 /*
@@ -2156,7 +2159,6 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 void
 pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
-	return;
 }
 
 /*
