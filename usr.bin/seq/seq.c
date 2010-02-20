@@ -207,7 +207,8 @@ numeric(const char *s)
 			}
 			if (ISEXP((unsigned char)*s)) {
 				s++;
-				if (ISSIGN((unsigned char)*s)) {
+				if (ISSIGN((unsigned char)*s) ||
+				    isdigit((unsigned char)*s)) {
 					s++;
 					continue;
 				}
