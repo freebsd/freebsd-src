@@ -70,8 +70,6 @@ struct i386_ioperm_args {
 };
 
 #ifndef _KERNEL
-#include <sys/cdefs.h>
-
 __BEGIN_DECLS
 int amd64_get_fsbase(void **);
 int amd64_get_gsbase(void **);
