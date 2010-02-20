@@ -137,7 +137,7 @@ struct tlb_entry *dtlb_store;
 struct tlb_entry *itlb_store;
 u_int dtlb_slot;
 u_int itlb_slot;
-int cpu_impl;
+static int cpu_impl;
 static u_int dtlb_slot_max;
 static u_int itlb_slot_max;
 

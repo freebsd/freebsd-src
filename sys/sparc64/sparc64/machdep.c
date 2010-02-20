@@ -146,7 +146,7 @@ static int cpu_use_vis = 1;
 cpu_block_copy_t *cpu_block_copy;
 cpu_block_zero_t *cpu_block_zero;
 
-static phandle_t find_bsp(phandle_t node, uint32_t bspid);
+static phandle_t find_bsp(phandle_t node, uint32_t bspid, u_int cpu_impl);
 void sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3,
     ofw_vec_t *vec);
 static void sparc64_shutdown_final(void *dummy, int howto);
@@ -241,7 +241,7 @@ spinlock_exit(void)
 }
 
 static phandle_t
-find_bsp(phandle_t node, uint32_t bspid)
+find_bsp(phandle_t node, uint32_t bspid, u_int cpu_impl)
 {
 	char type[sizeof("cpu")];
 	phandle_t child;
@@ -250,7 +250,7 @@ find_bsp(phandle_t node, uint32_t bspid)
 	for (; node != 0; node = OF_peer(node)) {
 		child = OF_child(node);
 		if (child > 0) {
-			child = find_bsp(child, bspid);
+			child = find_bsp(child, bspid, cpu_impl);
 			if (child > 0)
 				return (child);
 		} else {
@@ -259,7 +259,7 @@ find_bsp(phandle_t node, uint32_t bspid)
 				continue;
 			if (strcmp(type, "cpu") != 0)
 				continue;
-			if (OF_getprop(node, cpu_cpuid_prop(), &cpuid,
+			if (OF_getprop(node, cpu_cpuid_prop(cpu_impl), &cpuid,
 			    sizeof(cpuid)) <= 0)
 				continue;
 			if (cpuid == bspid)
@@ -270,7 +270,7 @@ find_bsp(phandle_t node, uint32_t bspid)
 }
 
 const char *
-cpu_cpuid_prop(void)
+cpu_cpuid_prop(u_int cpu_impl)
 {
 
 	switch (cpu_impl) {
@@ -294,7 +294,7 @@ cpu_cpuid_prop(void)
 }
 
 uint32_t
-cpu_get_mid(void)
+cpu_get_mid(u_int cpu_impl)
 {
 
 	switch (cpu_impl) {
@@ -328,6 +328,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	vm_offset_t va;
 	caddr_t kmdp;
 	phandle_t root;
+	u_int cpu_impl;
 
 	end = 0;
 	kmdp = NULL;
@@ -342,12 +343,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * Do CPU-specific Initialization.
 	 */
 	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
-		cheetah_init();
+		cheetah_init(cpu_impl);
 
 	/*
 	 * Clear (S)TICK timer (including NPT).
 	 */
-	tick_clear();
+	tick_clear(cpu_impl);
 
 	/*
 	 * UltraSparc II[e,i] based systems come up with the tick interrupt
@@ -357,7 +358,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * enabled, causing an interrupt storm on startup since they are not
 	 * handled.
 	 */
-	tick_stop();
+	tick_stop(cpu_impl);
 
 	/*
 	 * Set up Open Firmware entry points.
@@ -399,7 +400,8 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	pc = (struct pcpu *)(pcpu0 + (PCPU_PAGES * PAGE_SIZE)) - 1;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_addr = (vm_offset_t)pcpu0;
-	pc->pc_mid = cpu_get_mid();
+	pc->pc_impl = cpu_impl;
+	pc->pc_mid = cpu_get_mid(cpu_impl);
 	pc->pc_tlb_ctx = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_min = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_max = TLB_CTX_USER_MAX;
@@ -409,7 +411,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * BSP is in the device tree in the first place).
 	 */
 	root = OF_peer(0);
-	pc->pc_node = find_bsp(root, pc->pc_mid);
+	pc->pc_node = find_bsp(root, pc->pc_mid, cpu_impl);
 	if (pc->pc_node == 0)
 		OF_exit();
 	if (OF_getprop(pc->pc_node, "clock-frequency", &pc->pc_clock,
@@ -475,7 +477,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		panic("sparc64_init: cannot determine number of iTLB slots");
 
 	cache_init(pc);
-	cache_enable();
+	cache_enable(cpu_impl);
 	uma_set_align(pc->pc_cache.dc_linesize - 1);
 
 	cpu_block_copy = bcopy;
@@ -501,13 +503,13 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	}
 
 #ifdef SMP
-	mp_init();
+	mp_init(cpu_impl);
 #endif
 
 	/*
 	 * Initialize virtual memory and calculate physmem.
 	 */
-	pmap_bootstrap();
+	pmap_bootstrap(cpu_impl);
 
 	/*
 	 * Initialize tunables.
