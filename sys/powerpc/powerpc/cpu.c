@@ -446,8 +446,16 @@ cpu_970_setup(int cpuid, uint16_t vers)
 	    : "=r" (hid0_hi), "=r" (hid0_lo) : "K" (SPR_HID0));
 
 	/* Configure power-saving mode */
-	hid0_hi |= (HID0_NAP | HID0_DPM);
-	hid0_hi &= ~(HID0_DOZE | HID0_DEEPNAP);
+	switch (vers) {
+	case IBM970MP:
+		hid0_hi |= (HID0_DEEPNAP | HID0_DPM);
+		hid0_hi &= ~(HID0_DOZE | HID0_NAP);
+		break;
+	default:
+		hid0_hi |= (HID0_NAP | HID0_DPM);
+		hid0_hi &= ~(HID0_DOZE | HID0_DEEPNAP);
+		break;
+	}
 	powerpc_pow_enabled = 1;
 
 	__asm __volatile (" \
