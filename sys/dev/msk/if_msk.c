@@ -3713,10 +3713,10 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	struct msk_softc *sc;
 	struct ifnet *ifp;
 	struct mii_data	 *mii;
-	uint16_t eaddr[ETHER_ADDR_LEN / 2];
+	uint8_t *eaddr;
 	uint16_t gmac;
 	uint32_t reg;
-	int error, i;
+	int error;
 
 	MSK_IF_LOCK_ASSERT(sc_if);
 
@@ -3785,14 +3785,20 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SERIAL_MODE, gmac);
 
 	/* Set station address. */
-        bcopy(IF_LLADDR(ifp), eaddr, ETHER_ADDR_LEN);
-        for (i = 0; i < ETHER_ADDR_LEN /2; i++)
-		GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_1L + i * 4,
-		    eaddr[i]);
-        for (i = 0; i < ETHER_ADDR_LEN /2; i++)
-		GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_2L + i * 4,
-		    eaddr[i]);
-
+	eaddr = IF_LLADDR(ifp);
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_1L,
+	    eaddr[0] | (eaddr[1] << 8));
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_1M,
+	    eaddr[2] | (eaddr[3] << 8));
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_1H,
+	    eaddr[4] | (eaddr[5] << 8));
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_2L,
+	    eaddr[0] | (eaddr[1] << 8));
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_2M,
+	    eaddr[2] | (eaddr[3] << 8));
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_2H,
+	    eaddr[4] | (eaddr[5] << 8));
+	
 	/* Disable interrupts for counter overflows. */
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_TX_IRQ_MSK, 0);
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_RX_IRQ_MSK, 0);
