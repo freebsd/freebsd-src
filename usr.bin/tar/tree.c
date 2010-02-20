@@ -313,7 +313,7 @@ tree_next(struct tree *t)
 	 * violation.  Just crash now. */
 	if (t->visit_type == TREE_ERROR_FATAL) {
 		const char *msg = "Unable to continue traversing"
-		    " directory heirarchy after a fatal error.";
+		    " directory hierarchy after a fatal error.";
 		write(2, msg, strlen(msg));
 		*(int *)0 = 1; /* Deliberate SEGV; NULL pointer dereference. */
 		exit(1); /* In case the SEGV didn't work. */
