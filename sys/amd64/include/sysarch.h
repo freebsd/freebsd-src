@@ -35,6 +35,8 @@
 #ifndef _MACHINE_SYSARCH_H_
 #define _MACHINE_SYSARCH_H_
 
+#include <sys/cdefs.h>
+
 #define I386_GET_LDT	0
 #define I386_SET_LDT	1
 #define	LDT_AUTO_ALLOC	0xffffffff
