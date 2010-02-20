@@ -30,21 +30,7 @@
 #define	_MACHINE_INTR_MACHDEP_H_
 
 #ifdef TARGET_XLR_XLS
-/*
- * XLR/XLS uses its own intr_machdep.c and has
- * a different number of interupts. This probably
- * should be placed somewhere else.
- */
-
-struct mips_intrhand {
-        struct  intr_event *mih_event;
-        driver_intr_t      *mih_disable;
-        volatile long       *cntp;  /* interrupt counter */
-};
-
-extern struct mips_intrhand mips_intr_handlers[];
 #define XLR_MAX_INTR 64 
-
 #else
 #define NHARD_IRQS	6
 #define NSOFT_IRQS	2
