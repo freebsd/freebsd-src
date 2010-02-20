@@ -427,8 +427,10 @@ nospace:
 		reclaimed = 1;
 		softdep_request_cleanup(fs, vp);
 		UFS_UNLOCK(ump);
-		if (bp)
+		if (bp) {
 			brelse(bp);
+			bp = NULL;
+		}
 		UFS_LOCK(ump);
 		goto retry;
 	}
