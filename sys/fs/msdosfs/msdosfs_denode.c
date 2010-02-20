@@ -144,11 +144,11 @@ deget(pmp, dirclust, diroffset, depp)
 	}
 
 	/*
-	 * Do the MALLOC before the getnewvnode since doing so afterward
+	 * Do the malloc before the getnewvnode since doing so afterward
 	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if MALLOC should block.
+	 * elsewhere if malloc should block.
 	 */
-	ldep = malloc(sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK);
+	ldep = malloc(sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK | M_ZERO);
 
 	/*
 	 * Directory entry was not in cache, have to create a vnode and
@@ -161,7 +161,6 @@ deget(pmp, dirclust, diroffset, depp)
 		free(ldep, M_MSDOSFSNODE);
 		return error;
 	}
-	bzero((caddr_t)ldep, sizeof *ldep);
 	nvp->v_data = ldep;
 	ldep->de_vnode = nvp;
 	ldep->de_flag = 0;
