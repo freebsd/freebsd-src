@@ -2816,7 +2816,7 @@ bge_attach(device_t dev)
 	    IFCAP_VLAN_MTU;
 	if ((sc->bge_flags & BGE_FLAG_TSO) != 0) {
 		ifp->if_hwassist |= CSUM_TSO;
-		ifp->if_capabilities |= IFCAP_TSO4;
+		ifp->if_capabilities |= IFCAP_TSO4 | IFCAP_VLAN_HWTSO;
 	}
 #ifdef IFCAP_VLAN_HWCSUM
 	ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
@@ -4526,9 +4526,6 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_hwassist |= BGE_CSUM_FEATURES;
 			else
 				ifp->if_hwassist &= ~BGE_CSUM_FEATURES;
-#ifdef VLAN_CAPABILITIES
-			VLAN_CAPABILITIES(ifp);
-#endif
 		}
 
 		if ((mask & IFCAP_TSO4) != 0 &&
@@ -4546,16 +4543,21 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			bge_init(sc);
 		}
 
-		if (mask & IFCAP_VLAN_HWTAGGING) {
+		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
+				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
 			BGE_LOCK(sc);
 			bge_setvlan(sc);
 			BGE_UNLOCK(sc);
-#ifdef VLAN_CAPABILITIES
-			VLAN_CAPABILITIES(ifp);
-#endif
 		}
-
+#ifdef VLAN_CAPABILITIES
+		VLAN_CAPABILITIES(ifp);
+#endif
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
