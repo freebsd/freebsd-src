@@ -19,11 +19,6 @@ options		CFE_CONSOLE
 options		CFE_ENV
 options		ALT_BREAK_TO_DEBUGGER
 
-# cfe loader expects kernel at 0x80001000 for mips32 w/o backwards
-# offsets in the linked elf image (see ldscript hack)
-# XXX can we conditionalize the linker stuff on options CFE?
-options		KERNVIRTADDR=0x80001000
-
 makeoptions	LDSCRIPT_NAME=	ldscript.mips.cfe
 
 #cpu		CPU_MIPS64
