@@ -271,11 +271,15 @@ iodi_attach(device_t dev)
 			tmpd = device_add_child(dev, "rge", 5);
 			device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
 
-			tmpd = device_add_child(dev, "rge", 6);
-			device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
+			if (xlr_board_info.gmac_block[1].enabled & 0x4) {
+				tmpd = device_add_child(dev, "rge", 6);
+				device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
+			}
 
-			tmpd = device_add_child(dev, "rge", 7);
-			device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
+			if (xlr_board_info.gmac_block[1].enabled & 0x8) {
+				tmpd = device_add_child(dev, "rge", 7);
+				device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
+			}
 		} else if (xlr_board_info.gmac_block[1].type == XLR_XGMAC) {
 #if 0				/* XGMAC not yet */
 			tmpd = device_add_child(dev, "rge", 4);
