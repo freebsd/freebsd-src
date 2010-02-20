@@ -773,6 +773,8 @@ soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	if (so->so_options & SO_ACCEPTCONN)
 		return (EOPNOTSUPP);
+
+	CURVNET_SET(so->so_vnet);
 	/*
 	 * If protocol is connection-based, can only connect once.
 	 * Otherwise, if connected, try to disconnect first.  This allows
@@ -788,10 +790,9 @@ soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		 * biting us.
 		 */
 		so->so_error = 0;
-		CURVNET_SET(so->so_vnet);
 		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam, td);
-		CURVNET_RESTORE();
 	}
+	CURVNET_RESTORE();
 
 	return (error);
 }
