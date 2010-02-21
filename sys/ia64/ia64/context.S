@@ -86,18 +86,18 @@ ENTRY(restorectx, 1)
 {	.mmi
 	ld8.fill	r6=[r14],16		// r6
 	ld8.fill	r7=[r15],16		// r7
-	nop		1
+	nop		0
 	;;
 }
 {	.mmi
 	mov		ar.unat=r16
 	mov		ar.rsc=3
-	nop		2
+	nop		0
 }
 {	.mmi
 	ld8		r17=[r14],16		// b1
 	ld8		r18=[r15],16		// b2
-	nop		3
+	nop		0
 	;;
 }
 {	.mmi
