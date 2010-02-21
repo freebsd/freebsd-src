@@ -58,6 +58,7 @@ struct smu_fan {
 	cell_t	max_rpm;
 	cell_t	unmanaged_rpm;
 	char	location[32];
+	int	old_style;
 };
 
 struct smu_sensor {
@@ -115,6 +116,7 @@ static void	smu_cpufreq_pre_change(device_t, const struct cf_level *level);
 static void	smu_cpufreq_post_change(device_t, const struct cf_level *level);
 
 /* utility functions */
+static int	smu_run_cmd(device_t dev, struct smu_cmd *cmd);
 static int	smu_get_datablock(device_t dev, int8_t id, uint8_t *buf,
 		    size_t len);
 static void	smu_attach_fans(device_t dev, phandle_t fanroot);
@@ -148,11 +150,12 @@ MALLOC_DEFINE(M_SMU, "smu", "SMU Sensor Information");
 #define SMU_ADC			0xd8
 #define SMU_FAN			0x4a
 #define SMU_I2C			0x9a
-#define SMU_I2C_SIMPLE		0x00
-#define SMU_I2C_NORMAL		0x01
-#define SMU_I2C_COMBINED	0x02
+#define  SMU_I2C_SIMPLE		0x00
+#define  SMU_I2C_NORMAL		0x01
+#define  SMU_I2C_COMBINED	0x02
 #define SMU_MISC		0xee
-#define SMU_MISC_GET_DATA	0x02
+#define  SMU_MISC_GET_DATA	0x02
+#define  SMU_MISC_LED_CTRL	0x04
 #define SMU_POWER		0xaa
 
 /* Data blocks */
@@ -306,6 +309,7 @@ smu_run_cmd(device_t dev, struct smu_cmd *cmd)
 	powerpc_pow_enabled = oldpow;
 
 	memcpy(cmd->data, sc->sc_cmd->data, sizeof(cmd->data));
+	cmd->len = sc->sc_cmd->len;
 
 	mtx_unlock(&sc->sc_mtx);
 
@@ -430,21 +434,43 @@ static int
 smu_fan_set_rpm(device_t smu, struct smu_fan *fan, int rpm)
 {
 	struct smu_cmd cmd;
+	int error;
 
 	cmd.cmd = SMU_FAN;
-	cmd.len = 14;
-	cmd.data[0] = 0;
-	cmd.data[1] = 1 << fan->reg;
+	error = EIO;
+
+	/* Clamp to allowed range */
+	rpm = max(fan->min_rpm, rpm);
+	rpm = min(fan->max_rpm, rpm);
 
 	/*
-	 * There are two locations used for the fan speed.
-	 * Store it in both.
+	 * Apple has two fan control mechanisms. We can't distinguish
+	 * them except by seeing if the new one fails. If the new one
+	 * fails, use the old one.
 	 */
+	
+	if (!fan->old_style) {
+		cmd.len = 4;
+		cmd.data[0] = 0x30;
+		cmd.data[1] = fan->reg;
+		cmd.data[2] = (rpm >> 8) & 0xff;
+		cmd.data[3] = rpm & 0xff;
+	
+		error = smu_run_cmd(smu, &cmd);
+		if (error)
+			fan->old_style = 1;
+	}
 
-	cmd.data[2] = cmd.data[2 + 2*fan->reg] = (rpm >> 8) & 0xff;
-	cmd.data[3] = cmd.data[3 + 2*fan->reg] = rpm & 0xff;
+	if (fan->old_style) {
+		cmd.len = 14;
+		cmd.data[0] = 0;
+		cmd.data[1] = 1 << fan->reg;
+		cmd.data[2 + 2*fan->reg] = (rpm >> 8) & 0xff;
+		cmd.data[3 + 2*fan->reg] = rpm & 0xff;
+		error = smu_run_cmd(smu, &cmd);
+	}
 
-	return (smu_run_cmd(smu, &cmd));
+	return (error);
 }
 
 static int
@@ -453,13 +479,12 @@ smu_fan_read_rpm(device_t smu, struct smu_fan *fan)
 	struct smu_cmd cmd;
 
 	cmd.cmd = SMU_FAN;
-	cmd.len = 2;
+	cmd.len = 1;
 	cmd.data[0] = 1;
-	cmd.data[1] = 1 << fan->reg;
 
 	smu_run_cmd(smu, &cmd);
 
-	return ((cmd.data[1] << 8) | cmd.data[2]);
+	return ((cmd.data[fan->reg*2+1] << 8) | cmd.data[fan->reg*2+2]);
 }
 
 static int
@@ -522,11 +547,15 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 		if (strcmp(type, "fan-rpm-control") != 0)
 			continue;
 
+		fan->old_style = 0;
 		OF_getprop(child, "reg", &fan->reg, sizeof(cell_t));
 		OF_getprop(child, "min-value", &fan->min_rpm, sizeof(cell_t));
 		OF_getprop(child, "max-value", &fan->max_rpm, sizeof(cell_t));
-		OF_getprop(child, "unmanaged-value", &fan->unmanaged_rpm,
-		    sizeof(cell_t));
+
+		if (OF_getprop(child, "unmanaged-value", &fan->unmanaged_rpm,
+		    sizeof(cell_t)) != sizeof(cell_t))
+			fan->unmanaged_rpm = fan->max_rpm;
+
 		OF_getprop(child, "location", fan->location,
 		    sizeof(fan->location));
 
@@ -661,8 +690,8 @@ smu_attach_sensors(device_t dev, phandle_t sensroot)
 		return;
 	}
 
-	sc->sc_fans = malloc(sc->sc_nsensors * sizeof(struct smu_sensor), M_SMU,
-	    M_WAITOK | M_ZERO);
+	sc->sc_sensors = malloc(sc->sc_nsensors * sizeof(struct smu_sensor),
+	    M_SMU, M_WAITOK | M_ZERO);
 
 	sens = sc->sc_sensors;
 	sc->sc_nsensors = 0;
