@@ -32,10 +32,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/module.h>
+#include <sys/callout.h>
 #include <sys/conf.h>
 #include <sys/cpu.h>
 #include <sys/ctype.h>
 #include <sys/kernel.h>
+#include <sys/reboot.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 
@@ -58,7 +60,9 @@ struct smu_fan {
 	cell_t	max_rpm;
 	cell_t	unmanaged_rpm;
 	char	location[32];
+
 	int	old_style;
+	int	setpoint;
 };
 
 struct smu_sensor {
@@ -92,6 +96,9 @@ struct smu_softc {
 	struct smu_sensor *sc_sensors;
 	int		sc_nsensors;
 
+	struct callout	sc_fanmgt_callout;
+	time_t		sc_lastuserchange;
+
 	/* Calibration data */
 	uint16_t	sc_cpu_diode_scale;
 	int16_t		sc_cpu_diode_offset;
@@ -103,6 +110,10 @@ struct smu_softc {
 
 	uint16_t	sc_slots_pow_scale;
 	int16_t		sc_slots_pow_offset;
+
+	/* Thermal management parameters */
+	int		sc_target_temp;		/* Default 55 C */
+	int		sc_critical_temp;	/* Default 90 C */
 };
 
 /* regular bus attachment functions */
@@ -121,6 +132,7 @@ static int	smu_get_datablock(device_t dev, int8_t id, uint8_t *buf,
 		    size_t len);
 static void	smu_attach_fans(device_t dev, phandle_t fanroot);
 static void	smu_attach_sensors(device_t dev, phandle_t sensroot);
+static void	smu_fanmgt_callout(void *xdev);
 
 /* where to find the doorbell GPIO */
 
@@ -145,6 +157,7 @@ DRIVER_MODULE(smu, nexus, smu_driver, smu_devclass, 0, 0);
 MALLOC_DEFINE(M_SMU, "smu", "SMU Sensor Information");
 
 #define SMU_MAILBOX		0x8000860c
+#define SMU_FANMGT_INTERVAL	500 /* ms */
 
 /* Command types */
 #define SMU_ADC			0xd8
@@ -260,6 +273,24 @@ smu_attach(device_t dev)
 	smu_get_datablock(dev, SMU_SLOTPW_CAL, data, sizeof(data));
 	sc->sc_slots_pow_scale = (data[4] << 8) + data[5];
 	sc->sc_slots_pow_offset = (data[6] << 8) + data[7];
+
+	/*
+	 * Set up simple-minded thermal management.
+	 */
+	sc->sc_target_temp = 55;
+	sc->sc_critical_temp = 90;
+
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "target_temp", CTLTYPE_INT | CTLFLAG_RW, &sc->sc_target_temp,
+	    sizeof(int), "Target temperature (C)");
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "critical_temp", CTLTYPE_INT | CTLFLAG_RW,
+	    &sc->sc_critical_temp, sizeof(int), "Critical temperature (C)");
+
+	callout_init(&sc->sc_fanmgt_callout, 1);
+	smu_fanmgt_callout(dev);
 
 	return (0);
 }
@@ -470,6 +501,9 @@ smu_fan_set_rpm(device_t smu, struct smu_fan *fan, int rpm)
 		error = smu_run_cmd(smu, &cmd);
 	}
 
+	if (error == 0)
+		fan->setpoint = rpm;
+
 	return (error);
 }
 
@@ -505,6 +539,7 @@ smu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return (error);
 
+	sc->sc_lastuserchange = time_uptime;
 
 	return (smu_fan_set_rpm(smu, fan, rpm));
 }
@@ -556,12 +591,11 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 		    sizeof(cell_t)) != sizeof(cell_t))
 			fan->unmanaged_rpm = fan->max_rpm;
 
+		fan->setpoint = smu_fan_read_rpm(dev, fan);
+
 		OF_getprop(child, "location", fan->location,
 		    sizeof(fan->location));
-
-		/* Make sure it is at a safe value initially */
-		//smu_fan_set_rpm(dev, fan, fan->unmanaged_rpm);
-
+	
 		/* Add sysctls */
 		for (i = 0; i < strlen(fan->location); i++) {
 			sysctl_name[i] = tolower(fan->location[i]);
@@ -743,5 +777,79 @@ smu_attach_sensors(device_t dev, phandle_t sensroot)
 		sens++;
 		sc->sc_nsensors++;
 	}
+}
+
+static int
+ms_to_ticks(int ms)
+{
+	if (hz > 1000)
+		return ms*(hz/1000);
+
+	return ms/(1000/hz);
+} 
+
+static void
+smu_fanmgt_callout(void *xdev) {
+	device_t smu = xdev;
+	struct smu_softc *sc;
+	int i, maxtemp, temp, factor;
+
+	sc = device_get_softc(smu);
+
+	if (time_uptime - sc->sc_lastuserchange < 3) {
+		/*
+		 * If we have heard from a user process in the last 3 seconds,
+		 * go away.
+		 */
+
+		callout_reset(&sc->sc_fanmgt_callout,
+		    ms_to_ticks(SMU_FANMGT_INTERVAL), smu_fanmgt_callout, smu);
+		return;
+	}
+
+	maxtemp = 0;
+	for (i = 0; i < sc->sc_nsensors; i++) {
+		if (sc->sc_sensors[i].type != SMU_TEMP_SENSOR)
+			continue;
+
+		temp = smu_sensor_read(smu, &sc->sc_sensors[i]);
+		if (temp > maxtemp)
+			maxtemp = temp;
+	}
+
+	if (maxtemp < 10) { /* Bail if no good sensors */
+		for (i = 0; i < sc->sc_nfans; i++) 
+			smu_fan_set_rpm(smu, &sc->sc_fans[i],
+			    sc->sc_fans[i].unmanaged_rpm);
+		return;
+	}
+
+	if (maxtemp > sc->sc_critical_temp) {
+		device_printf(smu, "WARNING: Current system temperature (%d C) "
+		    "exceeds critical temperature (%d C)! Shutting down!\n",
+		    maxtemp, sc->sc_critical_temp);
+		shutdown_nice(RB_POWEROFF);
+	}
+
+	if (maxtemp - sc->sc_target_temp > 20)
+		device_printf(smu, "WARNING: Current system temperature (%d C) "
+		    "more than 20 degrees over target temperature (%d C)!\n",
+		    maxtemp, sc->sc_target_temp);
+
+	if (maxtemp > sc->sc_target_temp) 
+		factor = 110;
+	else if (sc->sc_target_temp - maxtemp > 4) 
+		factor = 90;
+	else if (sc->sc_target_temp - maxtemp > 1) 
+		factor = 95;
+	else
+		factor = 100;
+
+	for (i = 0; i < sc->sc_nfans; i++) 
+		smu_fan_set_rpm(smu, &sc->sc_fans[i],
+		    (sc->sc_fans[i].setpoint * factor) / 100);
+
+	callout_reset(&sc->sc_fanmgt_callout,
+	    ms_to_ticks(SMU_FANMGT_INTERVAL), smu_fanmgt_callout, smu);
 }
 
