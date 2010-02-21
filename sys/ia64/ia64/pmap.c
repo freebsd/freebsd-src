@@ -453,7 +453,6 @@ pmap_bootstrap()
 	PMAP_LOCK_INIT(kernel_pmap);
 	for (i = 0; i < 5; i++)
 		kernel_pmap->pm_rid[i] = 0;
-	kernel_pmap->pm_active = 1;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	PCPU_SET(md.current_pmap, kernel_pmap);
 
@@ -662,7 +661,6 @@ pmap_pinit(struct pmap *pmap)
 	PMAP_LOCK_INIT(pmap);
 	for (i = 0; i < 5; i++)
 		pmap->pm_rid[i] = pmap_allocate_rid();
-	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	return (1);
@@ -2246,8 +2244,6 @@ pmap_switch(pmap_t pm)
 	prevpm = PCPU_GET(md.current_pmap);
 	if (prevpm == pm)
 		goto out;
-	if (prevpm != NULL)
-		atomic_clear_32(&prevpm->pm_active, PCPU_GET(cpumask));
 	if (pm == NULL) {
 		for (i = 0; i < 5; i++) {
 			ia64_set_rr(IA64_RR_BASE(i),
@@ -2258,7 +2254,6 @@ pmap_switch(pmap_t pm)
 			ia64_set_rr(IA64_RR_BASE(i),
 			    (pm->pm_rid[i] << 8)|(PAGE_SHIFT << 2)|1);
 		}
-		atomic_set_32(&pm->pm_active, PCPU_GET(cpumask));
 	}
 	PCPU_SET(md.current_pmap, pm);
 	ia64_srlz_d();
