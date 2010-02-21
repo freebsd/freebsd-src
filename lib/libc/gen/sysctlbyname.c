@@ -29,4 +29,3 @@ sysctlbyname(const char *name, void *oldp, size_t *oldlenp,
 	error = sysctl(real_oid, oidlen, oldp, oldlenp, newp, newlen);
 	return (error);
 }
-
