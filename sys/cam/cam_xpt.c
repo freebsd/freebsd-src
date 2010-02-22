@@ -1219,6 +1219,8 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		printf(" (");
 		if (sata->valid & CTS_SATA_VALID_REVISION)
 			printf("SATA %d.x, ", sata->revision);
+		else
+			printf("SATA, ");
 		if (sata->valid & CTS_SATA_VALID_MODE)
 			printf("%s, ", ata_mode2string(sata->mode));
 		if ((sata->valid & CTS_ATA_VALID_ATAPI) && sata->atapi != 0)
