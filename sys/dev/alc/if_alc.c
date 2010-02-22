@@ -84,9 +84,6 @@ __FBSDID("$FreeBSD$");
 #else
 #define	ALC_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 #endif
-#ifndef	IFCAP_VLAN_HWTSO
-#define	IFCAP_VLAN_HWTSO	0
-#endif
 
 MODULE_DEPEND(alc, pci, 1, 1, 1);
 MODULE_DEPEND(alc, ether, 1, 1, 1);
@@ -756,8 +753,8 @@ alc_attach(device_t dev)
 	ether_ifattach(ifp, sc->alc_eaddr);
 
 	/* VLAN capability setup. */
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
+	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
+	    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO;
 	ifp->if_capenable = ifp->if_capabilities;
 	/*
 	 * XXX
@@ -2133,6 +2130,7 @@ alc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			    (ifp->if_capenable & IFCAP_TSO4) != 0) {
 				ifp->if_capenable &= ~IFCAP_TSO4;
 				ifp->if_hwassist &= ~CSUM_TSO;
+				VLAN_CAPABILITIES(ifp);
 			}
 			ALC_UNLOCK(sc);
 		}
@@ -2204,14 +2202,6 @@ alc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
 		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
-		/*
-		 * VLAN hardware tagging is required to do checksum
-		 * offload or TSO on VLAN interface. Checksum offload
-		 * on VLAN interface also requires hardware checksum
-		 * offload of parent interface.
-		 */
-		if ((ifp->if_capenable & IFCAP_TXCSUM) == 0)
-			ifp->if_capenable &= ~IFCAP_VLAN_HWCSUM;
 		if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
 			ifp->if_capenable &=
 			    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
