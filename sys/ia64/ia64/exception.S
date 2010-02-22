@@ -89,10 +89,10 @@ xhead:	data8	xtrace
 	addl	r29=1024*5*8,r0 ;;		\
 (p15)	sub	r27=r28,r29 ;;			\
 } ;						\
-{	.mib ;					\
+{	.mmi ;					\
 	st8	[r28]=r27 ;			\
-	mov	pr=r25,0x1ffff ;		\
-	nop	0 ;;				\
+	nop	0 ;				\
+	mov	pr=r25,0x1ffff ;;		\
 }
 
 #else
@@ -148,10 +148,10 @@ ENTRY_NOPROFILE(exception_save, 0)
 	add		r31=8,r30
 	;;
 }
-{	.mib
+{	.mmi
 	mov		r22=cr.iip
-	addl		r29=NTLBRT_SAVE,r0	// 22-bit restart token.
 	nop		0
+	addl		r29=NTLBRT_SAVE,r0	// 22-bit restart token.
 	;;
 }
 
@@ -235,7 +235,7 @@ exception_save_restart:
 	nop		0
 	;;
 }
-{	.mmb
+{	.mmi
 (p13)	mov		ar.rnat=r19
 	mov		r18=ar.bsp
 	nop		0
@@ -248,7 +248,7 @@ exception_save_restart:
 	;;
 }
 	// r19=ifs, r22=iip
-{	.mmb
+{	.mmi
 	st8		[r31]=r18,16		// ndirty
 	st8		[r30]=r19,16		// cfm
 	nop		0
@@ -260,7 +260,7 @@ exception_save_restart:
 	add		r29=16,r30
 	;;
 }
-{	.mmb
+{	.mmi
 	st8		[r30]=r17,24		// ifa
 	st8		[r31]=r18,24		// isr
 	nop		0
@@ -407,7 +407,7 @@ exception_save_restart:
 	movl		gp=__gp
 	;;
 }
-{	.mfb
+{	.mib
 	srlz.d
 	nop		0
 	br.sptk		b7
@@ -567,7 +567,7 @@ ENTRY_NOPROFILE(exception_restore, 0)
 	cmp.le		p14,p15=5,r28
 	;;
 }
-{	.mmb
+{	.mmi
 	ld8		r25=[r30]		// cfm
 	ld8		r19=[r31]		// ip
 	nop		0
@@ -606,13 +606,13 @@ exception_restore_restart:
 	dep		r31=0,r31,0,13		// 8KB aligned
 	;;
 }
-{	.mmb
+{	.mmi
 	mov		ar.k6=r31
 	mov		ar.rnat=r21
 	nop		0
 	;;
 }
-{	.mmb
+{	.mmi
 	mov		ar.unat=r17
 	mov		cr.iip=r19
 	nop		0
@@ -656,7 +656,7 @@ END(exception_restore)
 	add		out1=16,sp ;		\
 	br.call.sptk	rp=_func_ ;;		\
 } ;						\
-{	.mfb ;					\
+{	.mib ;					\
 	nop		0 ;			\
 	nop		0 ;			\
 	br.sptk		exception_restore ;;	\
@@ -1021,10 +1021,10 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 	movl		r27=kstack
 	;;
 }
-{	.mib
+{	.mmi
 	mov		r28=sp
-	addl		r27=KSTACK_PAGES*PAGE_SIZE-16,r0
 	nop		0
+	addl		r27=KSTACK_PAGES*PAGE_SIZE-16,r0
 	;;
 }
 {	.mmi
@@ -1287,13 +1287,13 @@ IVT_ENTRY(Break_Instruction, 0x2c00)
 (p11)	srlz.d
 	add		out1=16,sp
 }
-{	.mfb
+{	.mib
 	nop		0
 	nop		0
 	br.call.sptk	rp=trap
 	;;
 }
-{	.mfb
+{	.mib
 	nop		0
 	nop		0
 	br.sptk		exception_restore
@@ -1308,19 +1308,19 @@ IVT_ENTRY(External_Interrupt, 0x3000)
 	br.sptk		exception_save
 	;;
 }
-{	.mfb
+{	.mmi
 	alloc		r15=ar.pfs,0,0,1,0
 	nop		0
 	nop		0
 	;;
 }
-{	.mfb
+{	.mib
 	add		out0=16,sp
 	nop		0
 	br.call.sptk	rp=interrupt
 	;;
 }
-{	.mfb
+{	.mib
 	nop		0
 	nop		0
 	br.sptk		exception_restore
