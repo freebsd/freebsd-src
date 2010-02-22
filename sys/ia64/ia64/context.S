@@ -286,7 +286,7 @@ ENTRY(swapctx, 2)
 (p15)	br.ret.sptk	rp
 	;;
 }
-{	.mfb
+{	.mib
 	mov		r32=r33
 	nop		0
 	br.sptk		restorectx
@@ -338,10 +338,10 @@ ENTRY(save_callee_saved, 1)
 	mov		r17=b5
 	;;
 }
-{	.mfi
+{	.mii
 	st8		[r14]=r17,16		// b5
-	nop		0
 	mov		r16=ar.lc
+	nop		0
 	;;
 }
 {	.mmb
@@ -363,13 +363,13 @@ ENTRY(restore_callee_saved, 1)
 	add		r31=-8,r32
 	;;
 }
-{	.mmb
+{	.mmi
 	ld8.fill	r4=[r31],16		// r4
 	ld8.fill	r5=[r32],16		// r5
 	nop		0
 	;;
 }
-{	.mmb
+{	.mmi
 	ld8.fill	r6=[r31],16		// r6
 	ld8.fill	r7=[r32],16		// r7
 	nop		0
