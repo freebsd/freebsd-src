@@ -552,11 +552,13 @@ static void	 scsi_dev_async(u_int32_t async_code,
 				struct cam_ed *device,
 				void *async_arg);
 static void	 scsi_action(union ccb *start_ccb);
+static void	 scsi_announce_periph(struct cam_periph *periph);
 
 static struct xpt_xport scsi_xport = {
 	.alloc_device = scsi_alloc_device,
 	.action = scsi_action,
 	.async = scsi_dev_async,
+	.announce = scsi_announce_periph,
 };
 
 struct xpt_xport *
@@ -2412,5 +2414,102 @@ scsi_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 		scsi_set_transfer_settings(settings, device,
 					  /*async_update*/TRUE);
 	}
+}
+
+static void
+scsi_announce_periph(struct cam_periph *periph)
+{
+	struct	ccb_pathinq cpi;
+	struct	ccb_trans_settings cts;
+	struct	cam_path *path = periph->path;
+	u_int	speed;
+	u_int	freq;
+	u_int	mb;
+
+	mtx_assert(periph->sim->mtx, MA_OWNED);
+
+	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+	cts.type = CTS_TYPE_CURRENT_SETTINGS;
+	xpt_action((union ccb*)&cts);
+	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
+		return;
+	/* Ask the SIM for its base transfer speed */
+	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+	/* Report connection speed */ 
+	speed = cpi.base_transfer_speed;
+	freq = 0;
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SPI) {
+		struct	ccb_trans_settings_spi *spi =
+		    &cts.xport_specific.spi;
+
+		if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) != 0
+		  && spi->sync_offset != 0) {
+			freq = scsi_calc_syncsrate(spi->sync_period);
+			speed = freq;
+		}
+		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0)
+			speed *= (0x01 << spi->bus_width);
+	}
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_FC) {
+		struct	ccb_trans_settings_fc *fc =
+		    &cts.xport_specific.fc;
+
+		if (fc->valid & CTS_FC_VALID_SPEED)
+			speed = fc->bitrate;
+	}
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SAS) {
+		struct	ccb_trans_settings_sas *sas =
+		    &cts.xport_specific.sas;
+
+		if (sas->valid & CTS_SAS_VALID_SPEED)
+			speed = sas->bitrate;
+	}
+	mb = speed / 1000;
+	if (mb > 0)
+		printf("%s%d: %d.%03dMB/s transfers",
+		       periph->periph_name, periph->unit_number,
+		       mb, speed % 1000);
+	else
+		printf("%s%d: %dKB/s transfers", periph->periph_name,
+		       periph->unit_number, speed);
+	/* Report additional information about SPI connections */
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SPI) {
+		struct	ccb_trans_settings_spi *spi;
+
+		spi = &cts.xport_specific.spi;
+		if (freq != 0) {
+			printf(" (%d.%03dMHz%s, offset %d", freq / 1000,
+			       freq % 1000,
+			       (spi->ppr_options & MSG_EXT_PPR_DT_REQ) != 0
+			     ? " DT" : "",
+			       spi->sync_offset);
+		}
+		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0
+		 && spi->bus_width > 0) {
+			if (freq != 0) {
+				printf(", ");
+			} else {
+				printf(" (");
+			}
+			printf("%dbit)", 8 * (0x01 << spi->bus_width));
+		} else if (freq != 0) {
+			printf(")");
+		}
+	}
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_FC) {
+		struct	ccb_trans_settings_fc *fc;
+
+		fc = &cts.xport_specific.fc;
+		if (fc->valid & CTS_FC_VALID_WWNN)
+			printf(" WWNN 0x%llx", (long long) fc->wwnn);
+		if (fc->valid & CTS_FC_VALID_WWPN)
+			printf(" WWPN 0x%llx", (long long) fc->wwpn);
+		if (fc->valid & CTS_FC_VALID_PORT)
+			printf(" PortID 0x%x", fc->port);
+	}
+	printf("\n");
 }
 

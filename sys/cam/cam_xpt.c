@@ -1065,20 +1065,10 @@ xpt_remove_periph(struct cam_periph *periph)
 void
 xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 {
-	struct	ccb_pathinq cpi;
-	struct	ccb_trans_settings cts;
-	struct	cam_path *path;
-	u_int	speed;
-	u_int	freq;
-	u_int	mb;
+	struct	cam_path *path = periph->path;
 
 	mtx_assert(periph->sim->mtx, MA_OWNED);
 
-	path = periph->path;
-	/*
-	 * To ensure that this is printed in one piece,
-	 * mask out CAM interrupts.
-	 */
 	printf("%s%d at %s%d bus %d scbus%d target %d lun %d\n",
 	       periph->periph_name, periph->unit_number,
 	       path->bus->sim->sim_name,
@@ -1089,157 +1079,26 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	       path->device->lun_id);
 	printf("%s%d: ", periph->periph_name, periph->unit_number);
 	if (path->device->protocol == PROTO_SCSI)
-	    scsi_print_inquiry(&path->device->inq_data);
+		scsi_print_inquiry(&path->device->inq_data);
 	else if (path->device->protocol == PROTO_ATA ||
 	    path->device->protocol == PROTO_SATAPM)
 		ata_print_ident(&path->device->ident_data);
 	else
-	    printf("Unknown protocol device\n");
+		printf("Unknown protocol device\n");
 	if (bootverbose && path->device->serial_num_len > 0) {
 		/* Don't wrap the screen  - print only the first 60 chars */
 		printf("%s%d: Serial Number %.60s\n", periph->periph_name,
 		       periph->unit_number, path->device->serial_num);
 	}
-	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
-	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
-	cts.type = CTS_TYPE_CURRENT_SETTINGS;
-	xpt_action((union ccb*)&cts);
-	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		return;
-	}
-
-	/* Ask the SIM for its base transfer speed */
-	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
-
-	speed = cpi.base_transfer_speed;
-	freq = 0;
-	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SPI) {
-		struct	ccb_trans_settings_spi *spi =
-		    &cts.xport_specific.spi;
-
-		if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) != 0
-		  && spi->sync_offset != 0) {
-			freq = scsi_calc_syncsrate(spi->sync_period);
-			speed = freq;
-		}
-		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0)
-			speed *= (0x01 << spi->bus_width);
-	}
-	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_FC) {
-		struct	ccb_trans_settings_fc *fc =
-		    &cts.xport_specific.fc;
-
-		if (fc->valid & CTS_FC_VALID_SPEED)
-			speed = fc->bitrate;
-	}
-	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SAS) {
-		struct	ccb_trans_settings_sas *sas =
-		    &cts.xport_specific.sas;
-
-		if (sas->valid & CTS_SAS_VALID_SPEED)
-			speed = sas->bitrate;
-	}
-	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_ATA) {
-		struct	ccb_trans_settings_ata *ata =
-		    &cts.xport_specific.ata;
-
-		if (ata->valid & CTS_ATA_VALID_MODE)
-			speed = ata_mode2speed(ata->mode);
-	}
-	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SATA) {
-		struct	ccb_trans_settings_sata *sata =
-		    &cts.xport_specific.sata;
-
-		if (sata->valid & CTS_SATA_VALID_REVISION)
-			speed = ata_revision2speed(sata->revision);
-	}
-
-	mb = speed / 1000;
-	if (mb > 0)
-		printf("%s%d: %d.%03dMB/s transfers",
-		       periph->periph_name, periph->unit_number,
-		       mb, speed % 1000);
-	else
-		printf("%s%d: %dKB/s transfers", periph->periph_name,
-		       periph->unit_number, speed);
-	/* Report additional information about SPI connections */
-	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SPI) {
-		struct	ccb_trans_settings_spi *spi;
-
-		spi = &cts.xport_specific.spi;
-		if (freq != 0) {
-			printf(" (%d.%03dMHz%s, offset %d", freq / 1000,
-			       freq % 1000,
-			       (spi->ppr_options & MSG_EXT_PPR_DT_REQ) != 0
-			     ? " DT" : "",
-			       spi->sync_offset);
-		}
-		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0
-		 && spi->bus_width > 0) {
-			if (freq != 0) {
-				printf(", ");
-			} else {
-				printf(" (");
-			}
-			printf("%dbit)", 8 * (0x01 << spi->bus_width));
-		} else if (freq != 0) {
-			printf(")");
-		}
-	}
-	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_FC) {
-		struct	ccb_trans_settings_fc *fc;
-
-		fc = &cts.xport_specific.fc;
-		if (fc->valid & CTS_FC_VALID_WWNN)
-			printf(" WWNN 0x%llx", (long long) fc->wwnn);
-		if (fc->valid & CTS_FC_VALID_WWPN)
-			printf(" WWPN 0x%llx", (long long) fc->wwpn);
-		if (fc->valid & CTS_FC_VALID_PORT)
-			printf(" PortID 0x%x", fc->port);
-	}
-	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_ATA) {
-		struct ccb_trans_settings_ata *ata =
-		    &cts.xport_specific.ata;
-
-		printf(" (");
-		if (ata->valid & CTS_ATA_VALID_MODE)
-			printf("%s, ", ata_mode2string(ata->mode));
-		if ((ata->valid & CTS_ATA_VALID_ATAPI) && ata->atapi != 0)
-			printf("ATAPI %dbytes, ", ata->atapi);
-		if (ata->valid & CTS_ATA_VALID_BYTECOUNT)
-			printf("PIO %dbytes", ata->bytecount);
-		printf(")");
-	}
-	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SATA) {
-		struct ccb_trans_settings_sata *sata =
-		    &cts.xport_specific.sata;
-
-		printf(" (");
-		if (sata->valid & CTS_SATA_VALID_REVISION)
-			printf("SATA %d.x, ", sata->revision);
-		else
-			printf("SATA, ");
-		if (sata->valid & CTS_SATA_VALID_MODE)
-			printf("%s, ", ata_mode2string(sata->mode));
-		if ((sata->valid & CTS_ATA_VALID_ATAPI) && sata->atapi != 0)
-			printf("ATAPI %dbytes, ", sata->atapi);
-		if (sata->valid & CTS_SATA_VALID_BYTECOUNT)
-			printf("PIO %dbytes", sata->bytecount);
-		printf(")");
-	}
+	/* Announce transport details. */
+	(*(path->bus->xport->announce))(periph);
+	/* Announce command queueing. */
 	if (path->device->inq_flags & SID_CmdQue
 	 || path->device->flags & CAM_DEV_TAG_AFTER_COUNT) {
 		printf("\n%s%d: Command Queueing enabled",
 		       periph->periph_name, periph->unit_number);
 	}
-	printf("\n");
-
-	/*
-	 * We only want to print the caller's announce string if they've
-	 * passed one in..
-	 */
+	/* Announce caller's details if they've passed in. */
 	if (announce_string != NULL)
 		printf("%s%d: %s\n", periph->periph_name,
 		       periph->unit_number, announce_string);
