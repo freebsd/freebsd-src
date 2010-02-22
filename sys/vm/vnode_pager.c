@@ -1016,7 +1016,6 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 {
 	int rtval;
 	struct vnode *vp;
-	struct mount *mp;
 	int bytes = count * PAGE_SIZE;
 
 	/*
@@ -1039,8 +1038,6 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 	 */
 	vp = object->handle;
 	VM_OBJECT_UNLOCK(object);
-	if (vp->v_type != VREG)
-		mp = NULL;
 	rtval = VOP_PUTPAGES(vp, m, bytes, sync, rtvals, 0);
 	KASSERT(rtval != EOPNOTSUPP, 
 	    ("vnode_pager: stale FS putpages\n"));
