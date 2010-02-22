@@ -1429,7 +1429,7 @@ re_attach(device_t dev)
 	 */
 	if ((sc->rl_flags & RL_FLAG_DESCV2) == 0) {
 		ifp->if_hwassist |= CSUM_TSO;
-		ifp->if_capabilities |= IFCAP_TSO4;
+		ifp->if_capabilities |= IFCAP_TSO4 | IFCAP_VLAN_HWTSO;
 	}
 
 	/*
@@ -1451,7 +1451,7 @@ re_attach(device_t dev)
 	 * packets in TSO size.
 	 */
 	ifp->if_hwassist &= ~CSUM_TSO;
-	ifp->if_capenable &= ~IFCAP_TSO4;
+	ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
@@ -2789,6 +2789,7 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		    (ifp->if_capenable & IFCAP_TSO4) != 0) {
 			ifp->if_capenable &= ~IFCAP_TSO4;
 			ifp->if_hwassist &= ~CSUM_TSO;
+			VLAN_CAPABILITIES(ifp);
 		}
 		RL_UNLOCK(sc);
 		break;
@@ -2855,14 +2856,10 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_hwassist &= ~RE_CSUM_FEATURES;
 			reinit = 1;
 		}
-		if (mask & IFCAP_VLAN_HWTAGGING) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
-			reinit = 1;
-		}
-		if (mask & IFCAP_TSO4) {
+		if ((mask & IFCAP_TSO4) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TSO) != 0) {
 			ifp->if_capenable ^= IFCAP_TSO4;
-			if ((IFCAP_TSO4 & ifp->if_capenable) &&
-			    (IFCAP_TSO4 & ifp->if_capabilities))
+			if ((IFCAP_TSO4 & ifp->if_capenable) != 0)
 				ifp->if_hwassist |= CSUM_TSO;
 			else
 				ifp->if_hwassist &= ~CSUM_TSO;
@@ -2871,6 +2868,17 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_capenable &= ~IFCAP_TSO4;
 				ifp->if_hwassist &= ~CSUM_TSO;
 			}
+		}
+		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			/* TSO over VLAN requires VLAN hardware tagging. */
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
+				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
+			reinit = 1;
 		}
 		if ((mask & IFCAP_WOL) != 0 &&
 		    (ifp->if_capabilities & IFCAP_WOL) != 0) {
