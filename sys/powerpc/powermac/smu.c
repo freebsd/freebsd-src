@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/md_var.h>
 
+#include <dev/led/led.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <powerpc/powermac/macgpiovar.h>
@@ -114,6 +115,8 @@ struct smu_softc {
 	/* Thermal management parameters */
 	int		sc_target_temp;		/* Default 55 C */
 	int		sc_critical_temp;	/* Default 90 C */
+
+	struct cdev 	*sc_leddev;
 };
 
 /* regular bus attachment functions */
@@ -133,6 +136,7 @@ static int	smu_get_datablock(device_t dev, int8_t id, uint8_t *buf,
 static void	smu_attach_fans(device_t dev, phandle_t fanroot);
 static void	smu_attach_sensors(device_t dev, phandle_t sensroot);
 static void	smu_fanmgt_callout(void *xdev);
+static void	smu_set_sleepled(void *xdev, int onoff);
 
 /* where to find the doorbell GPIO */
 
@@ -291,6 +295,11 @@ smu_attach(device_t dev)
 
 	callout_init(&sc->sc_fanmgt_callout, 1);
 	smu_fanmgt_callout(dev);
+
+	/*
+	 * Set up LED interface
+	 */
+	sc->sc_leddev = led_create(smu_set_sleepled, dev, "sleepled");
 
 	return (0);
 }
@@ -851,5 +860,20 @@ smu_fanmgt_callout(void *xdev) {
 
 	callout_reset(&sc->sc_fanmgt_callout,
 	    ms_to_ticks(SMU_FANMGT_INTERVAL), smu_fanmgt_callout, smu);
+}
+
+static void
+smu_set_sleepled(void *xdev, int onoff)
+{
+	struct smu_cmd cmd;
+	device_t smu = xdev;
+
+	cmd.cmd = SMU_MISC;
+	cmd.len = 3;
+	cmd.data[0] = SMU_MISC_LED_CTRL;
+	cmd.data[1] = 0;
+	cmd.data[2] = onoff; 
+
+	smu_run_cmd(smu, &cmd);
 }
 
