@@ -3835,12 +3835,11 @@ bge_cksum_pad(struct mbuf *m)
 static struct mbuf *
 bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss)
 {
-	struct ether_header *eh;
 	struct ip *ip;
 	struct tcphdr *tcp;
 	struct mbuf *n;
 	uint16_t hlen;
-	uint32_t ip_off, poff;
+	uint32_t poff;
 
 	if (M_WRITABLE(m) == 0) {
 		/* Get a writable copy. */
@@ -3850,28 +3849,16 @@ bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss)
 			return (NULL);
 		m = n;
 	}
-	ip_off = sizeof(struct ether_header);
-	m = m_pullup(m, ip_off);
+	m = m_pullup(m, sizeof(struct ether_header) + sizeof(struct ip));
 	if (m == NULL)
 		return (NULL);
-	eh = mtod(m, struct ether_header *);
-	/* Check the existence of VLAN tag. */
-	if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
-		ip_off = sizeof(struct ether_vlan_header);
-		m = m_pullup(m, ip_off);
-		if (m == NULL)
-			return (NULL);
-	}
-	m = m_pullup(m, ip_off + sizeof(struct ip));
-	if (m == NULL)
-		return (NULL);
-	ip = (struct ip *)(mtod(m, char *) + ip_off);
-	poff = ip_off + (ip->ip_hl << 2);
+	ip = (struct ip *)(mtod(m, char *) + sizeof(struct ether_header));
+	poff = sizeof(struct ether_header) + (ip->ip_hl << 2);
 	m = m_pullup(m, poff + sizeof(struct tcphdr));
 	if (m == NULL)
 		return (NULL);
 	tcp = (struct tcphdr *)(mtod(m, char *) + poff);
-	m = m_pullup(m, poff + sizeof(struct tcphdr) + tcp->th_off);
+	m = m_pullup(m, poff + (tcp->th_off << 2));
 	if (m == NULL)
 		return (NULL);
 	/*
