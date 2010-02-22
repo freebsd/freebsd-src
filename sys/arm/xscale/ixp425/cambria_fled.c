@@ -74,7 +74,7 @@ fled_attach(device_t dev)
 
 	sc->sc_led = led_create(fled_cb, dev, "front");
 
-	led_func(sc, 1);		/* Turn on LED */
+	fled_cb(sc, 1);		/* Turn on LED */
 
 	return 0;
 }
