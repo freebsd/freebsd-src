@@ -20,7 +20,7 @@ CFLAGS+=-DDEFAULT_DIFF_PROGRAM=\"/usr/bin/diff\"
 
 .for f in diff3.c
 ${f}: ${DIFFSRC}/${f} ${.CURDIR}/${f}.diff
-	patch -s -b .orig -o ${.TARGET} < ${.CURDIR}/${f}.diff ${DIFFSRC}/${f}
+	patch -s -o ${.TARGET} < ${.CURDIR}/${f}.diff ${DIFFSRC}/${f}
 CLEANFILES+= ${f}
 .endfor
 
