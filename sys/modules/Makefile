@@ -193,6 +193,7 @@ SUBDIR=	${_3dfx} \
 	${_ndis} \
 	${_netgraph} \
 	${_nfe} \
+	nfs_common \
 	nfscl \
 	nfsclient \
 	nfscommon \

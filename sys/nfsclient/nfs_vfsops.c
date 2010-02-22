@@ -147,6 +147,7 @@ MODULE_DEPEND(nfs, krpc, 1, 1, 1);
 #ifdef KGSSAPI
 MODULE_DEPEND(nfs, kgssapi, 1, 1, 1);
 #endif
+MODULE_DEPEND(nfs, nfs_common, 1, 1, 1);
 
 static struct nfs_rpcops nfs_rpcops = {
 	nfs_readrpc,
