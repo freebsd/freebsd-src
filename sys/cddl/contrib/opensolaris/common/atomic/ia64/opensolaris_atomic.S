@@ -76,7 +76,7 @@ ENTRY(atomic_or_8_nv, 2)
 END(atomic_or_8_nv)
 
 ENTRY(membar_producer, 0)
-	mf.a
+	mf
 	;;
 	br.ret.sptk	rp
 END(membar_producer)
