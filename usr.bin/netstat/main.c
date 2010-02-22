@@ -338,6 +338,7 @@ int	noutputs = 0;	/* how much outputs before we exit */
 int	numeric_addr;	/* show addresses numerically */
 int	numeric_port;	/* show ports numerically */
 static int pflag;	/* show given protocol */
+int	Qflag;		/* show netisr information */
 int	rflag;		/* show routing tables (or routing stats) */
 int	sflag;		/* show protocol statistics */
 int	Wflag;		/* wide display */
@@ -360,7 +361,8 @@ main(int argc, char *argv[])
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "AaBbdf:ghI:iLlM:mN:np:q:rSsuWw:xz")) != -1)
+	while ((ch = getopt(argc, argv, "AaBbdf:ghI:iLlM:mN:np:Qq:rSsuWw:xz"))
+	    != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
@@ -446,6 +448,9 @@ main(int argc, char *argv[])
 			}
 			pflag = 1;
 			break;
+		case 'Q':
+			Qflag = 1;
+			break;
 		case 'q':
 			noutputs = atoi(optarg);
 			if (noutputs != 0)
@@ -522,6 +527,12 @@ main(int argc, char *argv[])
 				mbpr(kvmd, nl[N_MBSTAT].n_value);
 		} else
 			mbpr(NULL, 0);
+		exit(0);
+	}
+	if (Qflag) {
+		if (!live)
+			usage();
+		netisr_stats();
 		exit(0);
 	}
 #if 0
@@ -780,7 +791,7 @@ name2protox(const char *name)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: netstat [-AaLnSWx] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat -i | -I interface [-abdhnW] [-f address_family]\n"
@@ -795,6 +806,7 @@ usage(void)
 "       netstat -r [-AanW] [-f address_family] [-M core] [-N system]",
 "       netstat -rs [-s] [-M core] [-N system]",
 "       netstat -g [-W] [-f address_family] [-M core] [-N system]",
-"       netstat -gs [-s] [-f address_family] [-M core] [-N system]");
+"       netstat -gs [-s] [-f address_family] [-M core] [-N system]",
+"       netstat -Q");
 	exit(1);
 }
