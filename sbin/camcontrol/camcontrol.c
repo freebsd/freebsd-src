@@ -1022,6 +1022,8 @@ camxferrate(struct cam_device *device)
 		printf(" (");
 		if (sata->valid & CTS_SATA_VALID_REVISION)
 			printf("SATA %d.x, ", sata->revision);
+		else
+			printf("SATA, ");
 		if (sata->valid & CTS_SATA_VALID_MODE)
 			printf("%s, ", ata_mode2string(sata->mode));
 		if ((sata->valid & CTS_SATA_VALID_ATAPI) && sata->atapi != 0)
