@@ -919,9 +919,49 @@ vesa_bios_init(void)
 		vesa_vmode[modes].vi_buffer_size = bsize;
 		vesa_vmode[modes].vi_mem_model =
 		    vesa_translate_mmodel(vmode.v_memmodel);
-		if (vesa_vmode[modes].vi_mem_model == V_INFO_MM_PACKED ||
-		    vesa_vmode[modes].vi_mem_model == V_INFO_MM_DIRECT)
+		switch (vesa_vmode[modes].vi_mem_model) {
+		case V_INFO_MM_DIRECT:
+			if ((vmode.v_modeattr & V_MODELFB) != 0 &&
+			    vers >= 0x0300) {
+				vesa_vmode[modes].vi_pixel_fields[0] =
+				    vmode.v_linredfieldpos;
+				vesa_vmode[modes].vi_pixel_fields[1] =
+				    vmode.v_lingreenfieldpos;
+				vesa_vmode[modes].vi_pixel_fields[2] =
+				    vmode.v_linbluefieldpos;
+				vesa_vmode[modes].vi_pixel_fields[3] =
+				    vmode.v_linresfieldpos;
+				vesa_vmode[modes].vi_pixel_fsizes[0] =
+				    vmode.v_linredmasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[1] =
+				    vmode.v_lingreenmasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[2] =
+				    vmode.v_linbluemasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[3] =
+				    vmode.v_linresmasksize;
+			} else {
+				vesa_vmode[modes].vi_pixel_fields[0] =
+				    vmode.v_redfieldpos;
+				vesa_vmode[modes].vi_pixel_fields[1] =
+				    vmode.v_greenfieldpos;
+				vesa_vmode[modes].vi_pixel_fields[2] =
+				    vmode.v_bluefieldpos;
+				vesa_vmode[modes].vi_pixel_fields[3] =
+				    vmode.v_resfieldpos;
+				vesa_vmode[modes].vi_pixel_fsizes[0] =
+				    vmode.v_redmasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[1] =
+				    vmode.v_greenmasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[2] =
+				    vmode.v_bluemasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[3] =
+				    vmode.v_resmasksize;
+			}
+			/* FALLTHROUGH */
+		case V_INFO_MM_PACKED:
 			vesa_vmode[modes].vi_pixel_size = (vmode.v_bpp + 7) / 8;
+			break;
+		}
 		vesa_vmode[modes].vi_flags =
 		    vesa_translate_flags(vmode.v_modeattr) | V_INFO_VESA;
 
