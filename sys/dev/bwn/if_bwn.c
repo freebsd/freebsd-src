@@ -5969,7 +5969,7 @@ bwn_lo_write(struct bwn_mac *mac, struct bwn_loctl *ctl)
 {
 	uint16_t value;
 
-	KASSERT(mac->mac_phy->type == BWN_PHYTYPE_G,
+	KASSERT(mac->mac_phy.type == BWN_PHYTYPE_G,
 	    ("%s:%d: fail", __func__, __LINE__));
 
 	value = (uint8_t) (ctl->q);
