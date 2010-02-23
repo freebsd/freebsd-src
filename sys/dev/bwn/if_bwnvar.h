@@ -515,6 +515,8 @@ struct bwn_tx_radiotap_header {
 };
 
 struct bwn_stats {
+	int32_t				rtsfail;
+	int32_t				rts;
 	int32_t				link_noise;
 };
 
