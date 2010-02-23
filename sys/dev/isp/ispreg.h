@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- *  Copyright (c) 1997-2007 by Matthew Jacob
+ *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  * 
  *  Redistribution and use in source and binary forms, with or without
@@ -24,6 +24,7 @@
  *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  *  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *  SUCH DAMAGE.
+ * 
  */
 /*
  * Machine Independent (well, as best as possible) register
@@ -362,11 +363,12 @@
 #define	BIU2400_REQOUTP		(BIU_BLOCK+0x20) /* Request Queue Out */
 #define	BIU2400_RSPINP		(BIU_BLOCK+0x24) /* Response Queue In */
 #define	BIU2400_RSPOUTP		(BIU_BLOCK+0x28) /* Response Queue Out */
-#define	BIU2400_PRI_RQINP 	(BIU_BLOCK+0x2C) /* Priority Request Q In */
-#define	BIU2400_PRI_RSPINP 	(BIU_BLOCK+0x30) /* Priority Request Q Out */
 
-#define	BIU2400_ATIO_RSPINP	(BIU_BLOCK+0x3C)	/* ATIO Queue In */
-#define	BIU2400_ATIO_REQINP	(BIU_BLOCK+0x40)	/* ATIO Queue Out */
+#define	BIU2400_PRI_REQINP 	(BIU_BLOCK+0x2C) /* Priority Request Q In */
+#define	BIU2400_PRI_REQOUTP 	(BIU_BLOCK+0x30) /* Priority Request Q Out */
+
+#define	BIU2400_ATIO_RSPINP	(BIU_BLOCK+0x3C) /* ATIO Queue In */
+#define	BIU2400_ATIO_RSPOUTP	(BIU_BLOCK+0x40) /* ATIO Queue Out */
 
 #define	BIU2400_R2HSTSLO	(BIU_BLOCK+0x44)
 #define	BIU2400_R2HSTSHI	(BIU_BLOCK+0x46)
@@ -469,10 +471,21 @@ typedef struct {
 	uint16_t param[MAILBOX_STORAGE];
 	uint16_t ibits;
 	uint16_t obits;
-	uint32_t	: 28,
+	uint32_t
+		lineno	: 16,
+			: 12,
 		logval	: 4;
 	uint32_t timeout;
+	const char *func;
 } mbreg_t;
+#define	MBSINIT(mbxp, code, loglev, timo)	\
+	ISP_MEMZERO((mbxp), sizeof (mbreg_t));	\
+	(mbxp)->param[0] = code;		\
+	(mbxp)->lineno = __LINE__;		\
+	(mbxp)->func = __func__;		\
+	(mbxp)->logval = loglev;		\
+	(mbxp)->timeout = timo
+
 
 /*
  * Fibre Protocol Module and Frame Buffer Register Offsets/Definitions (2X00).
