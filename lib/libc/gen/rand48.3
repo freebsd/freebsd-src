@@ -12,7 +12,7 @@
 .\"     @(#)rand48.3 V1.0 MB 8 Oct 1993
 .\" $FreeBSD$
 .\"
-.Dd October 8, 1993
+.Dd February 2, 2010
 .Dt RAND48 3
 .Os
 .Sh NAME
@@ -57,7 +57,7 @@ The
 particular formula employed is
 r(n+1) = (a * r(n) + c) mod m
 where the default values are
-for the multiplicand a = 0xfdeece66d = 25214903917 and
+for the multiplicand a = 0x5deece66d = 25214903917 and
 the addend c = 0xb = 11.
 The modulo is always fixed at m = 2 ** 48.
 r(n) is called the seed of the random number generator.
