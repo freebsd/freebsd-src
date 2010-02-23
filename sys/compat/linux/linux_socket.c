@@ -126,7 +126,7 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 
 	bdom = linux_to_bsd_domain(kosa->sa_family);
 	if (bdom == -1) {
-		error = EINVAL;
+		error = EAFNOSUPPORT;
 		goto out;
 	}
 
@@ -155,8 +155,13 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 		}
 	} else
 #endif
-	if (bdom == AF_INET)
+	if (bdom == AF_INET) {
 		alloclen = sizeof(struct sockaddr_in);
+		if (*osalen < alloclen) {
+			error = EINVAL;
+			goto out;
+		}
+	}
 
 	sa = (struct sockaddr *) kosa;
 	sa->sa_family = bdom;
