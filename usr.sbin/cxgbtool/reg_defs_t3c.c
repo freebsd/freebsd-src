@@ -177,7 +177,7 @@ struct reg_info t3c_sge3_regs[] = {
 		{ "DrbPriThrsh", 0, 16 },
 	{ "SG_DEBUG_INDEX", 0x78, 0 },
 	{ "SG_DEBUG_DATA", 0x7c, 0 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_pcix1_regs[] = {
@@ -282,7 +282,7 @@ struct reg_info t3c_pcix1_regs[] = {
 		{ "IntSt", 4, 3 },
 		{ "PIOSt", 2, 2 },
 		{ "RFReqRdSt", 0, 2 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_pcie0_regs[] = {
@@ -475,7 +475,7 @@ struct reg_info t3c_pcie0_regs[] = {
 		{ "P_WMark", 18, 11 },
 		{ "NP_WMark", 11, 7 },
 		{ "CPL_WMark", 0, 11 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_t3dbg_regs[] = {
@@ -656,7 +656,7 @@ struct reg_info t3c_t3dbg_regs[] = {
 		{ "BSEnLane1", 4, 1 },
 		{ "BSInSelLane0", 1, 2 },
 		{ "BSEnLane0", 0, 1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_mc7_pmrx_regs[] = {
@@ -777,7 +777,7 @@ struct reg_info t3c_mc7_pmrx_regs[] = {
 		{ "PE", 2, 15 },
 		{ "UE", 1, 1 },
 		{ "CE", 0, 1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_mc7_pmtx_regs[] = {
@@ -898,7 +898,7 @@ struct reg_info t3c_mc7_pmtx_regs[] = {
 		{ "PE", 2, 15 },
 		{ "UE", 1, 1 },
 		{ "CE", 0, 1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_mc7_cm_regs[] = {
@@ -1019,7 +1019,7 @@ struct reg_info t3c_mc7_cm_regs[] = {
 		{ "PE", 2, 15 },
 		{ "UE", 1, 1 },
 		{ "CE", 0, 1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_cim_regs[] = {
@@ -1194,7 +1194,7 @@ struct reg_info t3c_cim_regs[] = {
 		{ "PILADbgWrPtr", 0, 9 },
 	{ "CIM_PO_LA_DEBUGDATA", 0x2e8, 0 },
 	{ "CIM_PI_LA_DEBUGDATA", 0x2ec, 0 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_tp1_regs[] = {
@@ -1667,7 +1667,7 @@ struct reg_info t3c_tp1_regs[] = {
 	{ "TP_EMBED_OP_FIELD3", 0x4f4, 0 },
 	{ "TP_EMBED_OP_FIELD4", 0x4f8, 0 },
 	{ "TP_EMBED_OP_FIELD5", 0x4fc, 0 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_ulp2_rx_regs[] = {
@@ -1725,7 +1725,7 @@ struct reg_info t3c_ulp2_rx_regs[] = {
 	{ "ULPRX_RQ_ULIMIT", 0x538, 0 },
 	{ "ULPRX_PBL_LLIMIT", 0x53c, 0 },
 	{ "ULPRX_PBL_ULIMIT", 0x540, 0 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_ulp2_tx_regs[] = {
@@ -1766,7 +1766,7 @@ struct reg_info t3c_ulp2_tx_regs[] = {
 	{ "ULPTX_DMA_WEIGHT", 0x5ac, 0 },
 		{ "D1_WEIGHT", 16, 16 },
 		{ "D0_WEIGHT", 0, 16 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_pm1_rx_regs[] = {
@@ -1810,7 +1810,7 @@ struct reg_info t3c_pm1_rx_regs[] = {
 		{ "ocspi1_ofifo2x_Tx_framing_error", 6, 1 },
 		{ "iespi_par_error", 3, 3 },
 		{ "ocspi_par_error", 0, 3 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_pm1_tx_regs[] = {
@@ -1854,7 +1854,7 @@ struct reg_info t3c_pm1_tx_regs[] = {
 		{ "oespi1_ofifo2x_Tx_framing_error", 6, 1 },
 		{ "icspi_par_error", 3, 3 },
 		{ "oespi_par_error", 0, 3 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_mps0_regs[] = {
@@ -1896,7 +1896,7 @@ struct reg_info t3c_mps0_regs[] = {
 		{ "RXTpParErr", 4, 2 },
 		{ "TX1TpParErr", 2, 2 },
 		{ "TX0TpParErr", 0, 2 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_cpl_switch_regs[] = {
@@ -1930,7 +1930,7 @@ struct reg_info t3c_cpl_switch_regs[] = {
 		{ "cpl_map_tbl_idx", 0, 8 },
 	{ "CPL_MAP_TBL_DATA", 0x65c, 0 },
 		{ "cpl_map_tbl_data", 0, 8 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_smb0_regs[] = {
@@ -1996,7 +1996,7 @@ struct reg_info t3c_smb0_regs[] = {
 		{ "DebugDataL", 0, 16 },
 	{ "SMB_DEBUG_LA", 0x69c, 0 },
 		{ "DebugLAReqAddr", 0, 10 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_i2cm0_regs[] = {
@@ -2009,7 +2009,7 @@ struct reg_info t3c_i2cm0_regs[] = {
 		{ "Ack", 30, 1 },
 		{ "Cont", 1, 1 },
 		{ "Op", 0, 1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_mi1_regs[] = {
@@ -2028,7 +2028,7 @@ struct reg_info t3c_mi1_regs[] = {
 		{ "Busy", 31, 1 },
 		{ "Inc", 2, 1 },
 		{ "Op", 0, 2 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_jm1_regs[] = {
@@ -2041,7 +2041,7 @@ struct reg_info t3c_jm1_regs[] = {
 	{ "JM_OP", 0x6cc, 0 },
 		{ "Busy", 31, 1 },
 		{ "Cnt", 0, 5 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_sf1_regs[] = {
@@ -2051,7 +2051,7 @@ struct reg_info t3c_sf1_regs[] = {
 		{ "Cont", 3, 1 },
 		{ "ByteCnt", 1, 2 },
 		{ "Op", 0, 1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_pl3_regs[] = {
@@ -2162,7 +2162,7 @@ struct reg_info t3c_pl3_regs[] = {
 	{ "PL_CLI", 0x6f8, 0 },
 	{ "PL_LCK", 0x6fc, 0 },
 		{ "Lck", 0, 2 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_mc5a_regs[] = {
@@ -2346,7 +2346,7 @@ struct reg_info t3c_mc5a_regs[] = {
 		{ "ReadCmd", 0, 20 },
 	{ "MC5_DB_MASK_WRITE_CMD", 0x7fc, 0 },
 		{ "MaskWr", 0, 16 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_xgmac0_0_regs[] = {
@@ -2730,7 +2730,7 @@ struct reg_info t3c_xgmac0_0_regs[] = {
 	{ "XGM_RX_SPI4_SOP_EOP_CNT", 0x9ac, 0 },
 		{ "RxSPI4SopCnt", 16, 16 },
 		{ "RxSPI4EopCnt", 0, 16 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info t3c_xgmac0_1_regs[] = {
@@ -3114,6 +3114,6 @@ struct reg_info t3c_xgmac0_1_regs[] = {
 	{ "XGM_RX_SPI4_SOP_EOP_CNT", 0xbac, 0 },
 		{ "RxSPI4SopCnt", 16, 16 },
 		{ "RxSPI4EopCnt", 0, 16 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
