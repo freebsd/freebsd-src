@@ -36,6 +36,8 @@
 #include <sys/sysctl.h>
 #include <sys/consio.h>
 #include <sys/fbio.h>
+#include <sys/resourcevar.h>
+#include <sys/smp.h>
 
 #include <machine/pc/display.h>
 
@@ -48,11 +50,22 @@ static int	*messagep;
 static int	messagelen;
 static int	blanked;
 
+#define MSGBUF_LEN 	70
+
+static int	nofancy = 0;
+TUNABLE_INT("hw.syscons.saver_snake_nofancy", &nofancy);
+
+#define FANCY_SNAKE 	(!nofancy)
+#define LOAD_HIGH(ld) 	(((ld * 100 + FSCALE / 2) >> FSHIFT) / 100)
+#define LOAD_LOW(ld) 	(((ld * 100 + FSCALE / 2) >> FSHIFT) % 100)
+
+static inline void update_msg(void);
+
 static int
 snake_saver(video_adapter_t *adp, int blank)
 {
 	static int	dirx, diry;
-	int		f;
+	int		f, color, load;
 	sc_softc_t	*sc;
 	scr_stat	*scp;
 
@@ -99,22 +112,52 @@ snake_saver(video_adapter_t *adp, int blank)
 		    (random() % 20) == 0)
 			diry = -diry;
 		savs[0] += dirx + diry;
+		if (FANCY_SNAKE) {
+			update_msg();
+			load = LOAD_HIGH(averunnable.ldavg[0]) * 100;
+			if (load == 0)
+				color = FG_LIGHTGREY | BG_BLACK;
+			else if (load / mp_ncpus <= 50)
+				color = FG_LIGHTGREEN | BG_BLACK;
+			else if (load / mp_ncpus <= 75)
+				color = FG_YELLOW | BG_BLACK;
+			else if (load / mp_ncpus <= 99)
+				color = FG_LIGHTRED | BG_BLACK;
+			else
+				color = FG_RED | FG_BLINK | BG_BLACK;
+		} else
+			color = FG_LIGHTGREY | BG_BLACK;
+
 		for (f=messagelen-1; f>=0; f--)
 			sc_vtb_putc(&scp->scr, savs[f], sc->scr_map[save[f]],
-				    (FG_LIGHTGREY | BG_BLACK) << 8);
+				    color << 8);
 	} else
 		blanked = 0;
 
 	return 0;
 }
 
+static inline void
+update_msg(void)
+{
+	if (!FANCY_SNAKE) {
+		messagelen = sprintf(message, "%s %s", ostype, osrelease);
+		return;
+	}
+	messagelen = snprintf(message, MSGBUF_LEN,
+	    "%s %s (%d.%02d %d.%02d, %d.%02d)",
+	    ostype, osrelease,
+	    LOAD_HIGH(averunnable.ldavg[0]), LOAD_LOW(averunnable.ldavg[0]),
+	    LOAD_HIGH(averunnable.ldavg[1]), LOAD_LOW(averunnable.ldavg[1]),
+	    LOAD_HIGH(averunnable.ldavg[2]), LOAD_LOW(averunnable.ldavg[2]));
+}
+
 static int
 snake_init(video_adapter_t *adp)
 {
-	messagelen = strlen(ostype) + 1 + strlen(osrelease);
-	message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);
-	sprintf(message, "%s %s", ostype, osrelease);
-	messagep = malloc(messagelen * sizeof *messagep, M_DEVBUF, M_WAITOK);
+	message = malloc(MSGBUF_LEN, M_DEVBUF, M_WAITOK);
+	messagep = malloc(MSGBUF_LEN * sizeof *messagep, M_DEVBUF, M_WAITOK);
+	update_msg();
 	return 0;
 }
 
