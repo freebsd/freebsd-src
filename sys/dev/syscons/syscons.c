@@ -414,9 +414,6 @@ sc_attach_unit(int unit, int flags)
 #endif
 	    sc_set_graphics_mode(scp, NULL, vmode);
 	    sc_set_pixel_mode(scp, NULL, 0, 0, 16, 8);
-#ifndef SC_NO_PALETTE_LOADING
-	    vidd_save_palette(sc->adp, sc->palette);
-#endif
 	    sc->initial_mode = vmode;
 #ifdef DEV_SPLASH
 	    /* put up the splash again! */
@@ -2090,6 +2087,11 @@ restore_scrn_saver_mode(scr_stat *scp, int changemode)
     }
     if (set_mode(scp) == 0) {
 #ifndef SC_NO_PALETTE_LOADING
+#ifdef SC_PIXEL_MODE
+	if ((scp->sc->adp->va_flags & V_ADP_DAC8) != 0)
+	    vidd_load_palette(scp->sc->adp, scp->sc->palette2);
+	else
+#endif
 	vidd_load_palette(scp->sc->adp, scp->sc->palette);
 #endif
 	--scrn_blanked;
@@ -2493,8 +2495,14 @@ exchange_scr(sc_softc_t *sc)
     if (!ISGRAPHSC(scp))
 	sc_set_cursor_image(scp);
 #ifndef SC_NO_PALETTE_LOADING
-    if (ISGRAPHSC(sc->old_scp))
+    if (ISGRAPHSC(sc->old_scp)) {
+#ifdef SC_PIXEL_MODE
+	if ((sc->adp->va_flags & V_ADP_DAC8) != 0)
+	    vidd_load_palette(sc->adp, sc->palette2);
+	else
+#endif
 	vidd_load_palette(sc->adp, sc->palette);
+    }
 #endif
     sc_set_border(scp, scp->border);
 
@@ -2843,6 +2851,10 @@ scinit(int unit, int flags)
 
 #ifndef SC_NO_PALETTE_LOADING
 	vidd_save_palette(sc->adp, sc->palette);
+#ifdef SC_PIXEL_MODE
+	for (i = 0; i < sizeof(sc->palette2); i++)
+		sc->palette2[i] = i / 3;
+#endif
 #endif
 
 #ifdef DEV_SPLASH

@@ -245,7 +245,10 @@ typedef struct sc_softc {
 #endif
 
 #ifndef SC_NO_PALETTE_LOADING
-	u_char        	palette[256*3];
+	u_char		palette[256 * 3];
+#ifdef SC_PIXEL_MODE
+	u_char		palette2[256 * 3];
+#endif
 #endif
 
 #ifndef SC_NO_FONT_LOADING
