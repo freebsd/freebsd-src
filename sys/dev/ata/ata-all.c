@@ -289,15 +289,13 @@ static void
 ata_conn_event(void *context, int dummy)
 {
 	device_t dev = (device_t)context;
-	struct ata_channel *ch = device_get_softc(dev);
 #ifdef ATA_CAM
+	struct ata_channel *ch = device_get_softc(dev);
 	union ccb *ccb;
-#endif
 
 	mtx_lock(&ch->state_mtx);
 	ata_reinit(dev);
 	mtx_unlock(&ch->state_mtx);
-#ifdef ATA_CAM
 	if ((ccb = xpt_alloc_ccb()) == NULL)
 		return;
 	if (xpt_create_path(&ccb->ccb_h.path, NULL,
@@ -307,6 +305,8 @@ ata_conn_event(void *context, int dummy)
 		return;
 	}
 	xpt_rescan(ccb);
+#else
+	ata_reinit(dev);
 #endif
 }
 
