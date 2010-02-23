@@ -114,7 +114,7 @@ snake_saver(video_adapter_t *adp, int blank)
 		savs[0] += dirx + diry;
 		if (FANCY_SNAKE) {
 			update_msg();
-			load = LOAD_HIGH(averunnable.ldavg[0]) * 100;
+			load = ((averunnable.ldavg[0] * 100 + FSCALE / 2) >> FSHIFT);
 			if (load == 0)
 				color = FG_LIGHTGREY | BG_BLACK;
 			else if (load / mp_ncpus <= 50)
