@@ -454,7 +454,7 @@ vdev_raidz_reconstruct_q(raidz_col_t *cols, int nparity, int acols, int x)
 
 static void
 vdev_raidz_reconstruct_pq(raidz_col_t *cols, int nparity, int acols,
-    int x, int y)
+    int x, int y, void *temp_p, void *temp_q)
 {
 	uint8_t *p, *q, *pxy, *qxy, *xd, *yd, tmp, a, b, aexp, bexp;
 	void *pdata, *qdata;
@@ -478,10 +478,8 @@ vdev_raidz_reconstruct_pq(raidz_col_t *cols, int nparity, int acols,
 	xsize = cols[x].rc_size;
 	ysize = cols[y].rc_size;
 
-	cols[VDEV_RAIDZ_P].rc_data =
-		zfs_alloc_temp(cols[VDEV_RAIDZ_P].rc_size);
-	cols[VDEV_RAIDZ_Q].rc_data =
-		zfs_alloc_temp(cols[VDEV_RAIDZ_Q].rc_size);
+	cols[VDEV_RAIDZ_P].rc_data = temp_p;
+	cols[VDEV_RAIDZ_Q].rc_data = temp_q;
 	cols[x].rc_size = 0;
 	cols[y].rc_size = 0;
 
@@ -551,9 +549,12 @@ vdev_raidz_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	uint64_t f = b % dcols;
 	uint64_t o = (b / dcols) << unit_shift;
 	uint64_t q, r, coff;
-	int c, c1, bc, col, acols, devidx, asize, n;
+	int c, c1, bc, col, acols, devidx, asize, n, max_rc_size;
 	static raidz_col_t cols[16];
 	raidz_col_t *rc, *rc1;
+	void *orig, *orig1, *temp_p, *temp_q;
+
+	orig = orig1 = temp_p = temp_q = NULL;
 
 	q = s / (dcols - nparity);
 	r = s - q * (dcols - nparity);
@@ -561,6 +562,7 @@ vdev_raidz_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
 
 	acols = (q == 0 ? bc : dcols);
 	asize = 0;
+	max_rc_size = 0;
 	
 	for (c = 0; c < acols; c++) {
 		col = f + c;
@@ -577,6 +579,8 @@ vdev_raidz_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
 		cols[c].rc_tried = 0;
 		cols[c].rc_skipped = 0;
 		asize += cols[c].rc_size;
+		if (cols[c].rc_size > max_rc_size)
+			max_rc_size = cols[c].rc_size;
 	}
 
 	asize = roundup(asize, (nparity + 1) << unit_shift);
@@ -777,8 +781,13 @@ reconstruct:
 			//ASSERT(c != acols);
 			//ASSERT(!rc->rc_skipped || rc->rc_error == ENXIO || rc->rc_error == ESTALE);
 
+			if (temp_p == NULL)
+				temp_p = zfs_alloc_temp(max_rc_size);
+			if (temp_q == NULL)
+				temp_q = zfs_alloc_temp(max_rc_size);
+
 			vdev_raidz_reconstruct_pq(cols, nparity, acols,
-			    c1, c);
+			    c1, c, temp_p, temp_q);
 
 			if (zio_checksum_error(bp, buf) == 0)
 				return (0);
@@ -845,18 +854,12 @@ reconstruct:
 		return (EIO);
 	}
 
-	asize = 0;
-	for (c = 0; c < acols; c++) {
-		rc = &cols[c];
-		if (rc->rc_size > asize)
-			asize = rc->rc_size;
-	}
 	if (cols[VDEV_RAIDZ_P].rc_error == 0) {
 		/*
 		 * Attempt to reconstruct the data from parity P.
 		 */
-		void *orig;
-		orig = zfs_alloc_temp(asize);
+		if (orig == NULL)
+			orig = zfs_alloc_temp(max_rc_size);
 		for (c = nparity; c < acols; c++) {
 			rc = &cols[c];
 
@@ -874,8 +877,8 @@ reconstruct:
 		/*
 		 * Attempt to reconstruct the data from parity Q.
 		 */
-		void *orig;
-		orig = zfs_alloc_temp(asize);
+		if (orig == NULL)
+			orig = zfs_alloc_temp(max_rc_size);
 		for (c = nparity; c < acols; c++) {
 			rc = &cols[c];
 
@@ -895,9 +898,14 @@ reconstruct:
 		/*
 		 * Attempt to reconstruct the data from both P and Q.
 		 */
-		void *orig, *orig1;
-		orig = zfs_alloc_temp(asize);
-		orig1 = zfs_alloc_temp(asize);
+		if (orig == NULL)
+			orig = zfs_alloc_temp(max_rc_size);
+		if (orig1 == NULL)
+			orig1 = zfs_alloc_temp(max_rc_size);
+		if (temp_p == NULL)
+			temp_p = zfs_alloc_temp(max_rc_size);
+		if (temp_q == NULL)
+			temp_q = zfs_alloc_temp(max_rc_size);
 		for (c = nparity; c < acols - 1; c++) {
 			rc = &cols[c];
 
@@ -909,7 +917,7 @@ reconstruct:
 				memcpy(orig1, rc1->rc_data, rc1->rc_size);
 
 				vdev_raidz_reconstruct_pq(cols, nparity,
-				    acols, c, c1);
+				    acols, c, c1, temp_p, temp_q);
 
 				if (zio_checksum_error(bp, buf) == 0)
 					return (0);
