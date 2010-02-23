@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2005
+.Dd February 7, 2010
 .Dt ALLOC_UNR 9
 .Os
 .Sh NAME
@@ -81,7 +81,7 @@ is returned.
 Same as
 .Fn alloc_unr
 except that mutex is assumed to be already locked and thus is not used.
-.It Fn free_unr uh
+.It Fn free_unr uh item
 Free a previously allocated unit number.
 This function may require allocating memory, and thus it can sleep.
 There is no pre-locked variant.
