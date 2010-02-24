@@ -240,8 +240,6 @@ init_param1(void)
 	TUNABLE_INT_FETCH("kern.ngroups", &ngroups_max);
 	if (ngroups_max < NGROUPS_MAX)
 		ngroups_max = NGROUPS_MAX;
-	if (ngroups_max > INT_MAX - 1)
-		ngroups_max = INT_MAX - 1;
 }
 
 /*
