@@ -29,11 +29,14 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include <netinet/in.h>
 
 #include <err.h>
+#include <errno.h>
 #include <limits.h>
+#include <md5.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -47,113 +50,192 @@
  * of cases and performing limited validation.
  */
 
+#define FAIL(msg)	{printf("# %s\n", msg); \
+			return (-1);}
+
+#define FAIL_ERR(msg)	{printf("# %s: %s\n", msg, strerror(errno)); \
+			return (-1);}
+
 #define	TEST_PORT	5678
 #define	TEST_MAGIC	0x4440f7bb
 #define	TEST_PAGES	4
 #define	TEST_SECONDS	30
 
 struct test_header {
-	u_int32_t	th_magic;
-	u_int32_t	th_header_length;
-	u_int32_t	th_offset;
-	u_int32_t	th_length;
+	uint32_t	th_magic;
+	uint32_t	th_header_length;
+	uint32_t	th_offset;
+	uint32_t	th_length;
+	char		th_md5[33];
 };
 
-pid_t	child_pid, parent_pid;
-int	listen_socket;
+struct sendfile_test {
+	uint32_t	hdr_length;
+	uint32_t	offset;
+	uint32_t	length;
+};
+
 int	file_fd;
+char	path[PATH_MAX];
+int	listen_socket;
+int	accept_socket;
+
+static int test_th(struct test_header *th, uint32_t *header_length,
+		uint32_t *offset, uint32_t *length);
+static void signal_alarm(int signum);
+static void setup_alarm(int seconds);
+static void cancel_alarm(void);
+static int receive_test(void);
+static void run_child(void);
+static int new_test_socket(int *connect_socket);
+static void init_th(struct test_header *th, uint32_t header_length, 
+		uint32_t offset, uint32_t length);
+static int send_test(int connect_socket, struct sendfile_test);
+static void run_parent(void);
+static void cleanup(void);
+
 
 static int
-test_th(struct test_header *th, u_int32_t *header_length, u_int32_t *offset,
-    u_int32_t *length)
+test_th(struct test_header *th, uint32_t *header_length, uint32_t *offset, 
+		uint32_t *length)
 {
 
 	if (th->th_magic != htonl(TEST_MAGIC))
-		return (0);
+		FAIL("magic number not found in header")
 	*header_length = ntohl(th->th_header_length);
 	*offset = ntohl(th->th_offset);
 	*length = ntohl(th->th_length);
-	return (1);
+	return (0);
 }
 
 static void
 signal_alarm(int signum)
 {
-
 	(void)signum;
+
+	printf("# test timeout\n");
+
+	if (accept_socket > 0)
+		close(accept_socket);
+	if (listen_socket > 0)
+		close(listen_socket);
+
+	_exit(-1);
 }
 
 static void
 setup_alarm(int seconds)
 {
+	struct itimerval itv;
+	bzero(&itv, sizeof(itv));
+	(void)seconds;
+	itv.it_value.tv_sec = seconds;
 
 	signal(SIGALRM, signal_alarm);
-	alarm(seconds);
+	setitimer(ITIMER_REAL, &itv, NULL);
 }
 
 static void
 cancel_alarm(void)
 {
-
-	alarm(0);
-	signal(SIGALRM, SIG_DFL);
+	struct itimerval itv;
+	bzero(&itv, sizeof(itv));
+	setitimer(ITIMER_REAL, &itv, NULL);
 }
 
-static void
-receive_test(int accept_socket)
+static int
+receive_test(void)
 {
-	u_int32_t header_length, offset, length, counter;
+	uint32_t header_length, offset, length, counter;
 	struct test_header th;
 	ssize_t len;
-	char ch;
+	char buf[10240];
+	MD5_CTX md5ctx;
+	char *rxmd5;
 
 	len = read(accept_socket, &th, sizeof(th));
-	if (len < 0)
-		err(1, "read");
-	if ((size_t)len < sizeof(th))
-		errx(1, "read: %zd", len);
+	if (len < 0 || (size_t)len < sizeof(th))
+		FAIL_ERR("read")
 
-	if (test_th(&th, &header_length, &offset, &length) == 0)
-		errx(1, "test_th: bad");
+	if (test_th(&th, &header_length, &offset, &length) != 0)
+		return (-1);
+
+	MD5Init(&md5ctx);
 
 	counter = 0;
 	while (1) {
-		len = read(accept_socket, &ch, sizeof(ch));
-		if (len < 0)
-			err(1, "read");
-		if (len == 0)
+		len = read(accept_socket, buf, sizeof(buf));
+		if (len < 0 || len == 0)
 			break;
-		counter++;
-		/* XXXRW: Validate byte here. */
+		counter += len;
+		MD5Update(&md5ctx, buf, len);
 	}
-	if (counter != header_length + length)
-		errx(1, "receive_test: expected (%d, %d) received %d",
-		    header_length, length, counter);
+
+	rxmd5 = MD5End(&md5ctx, NULL);
+	
+	if ((counter != header_length+length) || 
+			memcmp(th.th_md5, rxmd5, 33) != 0)
+		FAIL("receive length mismatch")
+
+	free(rxmd5);
+	return (0);
 }
 
 static void
 run_child(void)
 {
-	int accept_socket;
+	struct sockaddr_in sin;
+	int rc = 0;
 
-	while (1) {
+	listen_socket = socket(PF_INET, SOCK_STREAM, 0);
+	if (listen_socket < 0) {
+		printf("# socket: %s\n", strerror(errno));
+		rc = -1;
+	}
+
+	if (!rc) {
+		bzero(&sin, sizeof(sin));
+		sin.sin_len = sizeof(sin);
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		sin.sin_port = htons(TEST_PORT);
+
+		if (bind(listen_socket, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+			printf("# bind: %s\n", strerror(errno));
+			rc = -1;
+		}
+	}
+
+	if (!rc && listen(listen_socket, -1) < 0) {
+		printf("# listen: %s\n", strerror(errno));
+		rc = -1;
+	}
+
+	if (!rc) {
 		accept_socket = accept(listen_socket, NULL, NULL);	
 		setup_alarm(TEST_SECONDS);
-		receive_test(accept_socket);
-		cancel_alarm();
-		close(accept_socket);
+		if (receive_test() != 0)
+			rc = -1;
 	}
+
+	cancel_alarm();
+	if (accept_socket > 0)
+		close(accept_socket);
+	if (listen_socket > 0)
+		close(listen_socket);
+
+	_exit(rc);
 }
 
 static int
-new_test_socket(void)
+new_test_socket(int *connect_socket)
 {
 	struct sockaddr_in sin;
-	int connect_socket;
+	int rc = 0;
 
-	connect_socket = socket(PF_INET, SOCK_STREAM, 0);
-	if (connect_socket < 0)
-		err(1, "socket");
+	*connect_socket = socket(PF_INET, SOCK_STREAM, 0);
+	if (*connect_socket < 0)
+		FAIL_ERR("socket")
 
 	bzero(&sin, sizeof(sin));
 	sin.sin_len = sizeof(sin);
@@ -161,57 +243,65 @@ new_test_socket(void)
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	sin.sin_port = htons(TEST_PORT);
 
-	if (connect(connect_socket, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(1, "connect");
+	if (connect(*connect_socket, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		FAIL_ERR("connect")
 
-	return (connect_socket);
+	return (rc);
 }
 
 static void
-init_th(struct test_header *th, u_int32_t header_length, u_int32_t offset,
-    u_int32_t length)
+init_th(struct test_header *th, uint32_t header_length, uint32_t offset, 
+		uint32_t length)
 {
-
 	bzero(th, sizeof(*th));
 	th->th_magic = htonl(TEST_MAGIC);
 	th->th_header_length = htonl(header_length);
 	th->th_offset = htonl(offset);
 	th->th_length = htonl(length);
+
+	MD5FileChunk(path, th->th_md5, offset, length);
 }
 
-static void
-send_test(int connect_socket, u_int32_t header_length, u_int32_t offset,
-    u_int32_t length)
+static int
+send_test(int connect_socket, struct sendfile_test test)
 {
 	struct test_header th;
 	struct sf_hdtr hdtr, *hdtrp;
 	struct iovec headers;
 	char *header;
 	ssize_t len;
+	int length;
 	off_t off;
 
 	len = lseek(file_fd, 0, SEEK_SET);
-	if (len < 0)
-		err(1, "lseek");
 	if (len != 0)
-		errx(1, "lseek: %zd", len);
+		FAIL_ERR("lseek")
 
-	init_th(&th, header_length, offset, length);
+	if (test.length == 0) {
+		struct stat st;
+		if (fstat(file_fd, &st) < 0)
+			FAIL_ERR("fstat")
+		length = st.st_size - test.offset;
+	}
+	else {
+		length = test.length;
+	}
+
+	init_th(&th, test.hdr_length, test.offset, length);
 
 	len = write(connect_socket, &th, sizeof(th));
-	if (len < 0)
-		err(1, "send");
 	if (len != sizeof(th))
-		err(1, "send: %zd", len);
+		return (-1);
 
-	if (header_length != 0) {
-		header = malloc(header_length);
+	if (test.hdr_length != 0) {
+		header = malloc(test.hdr_length);
 		if (header == NULL)
-			err(1, "malloc");
+			FAIL_ERR("malloc")
+
 		hdtrp = &hdtr;
 		bzero(&headers, sizeof(headers));
 		headers.iov_base = header;
-		headers.iov_len = header_length;
+		headers.iov_len = test.hdr_length;
 		bzero(&hdtr, sizeof(hdtr));
 		hdtr.headers = &headers;
 		hdtr.hdr_cnt = 1;
@@ -222,148 +312,130 @@ send_test(int connect_socket, u_int32_t header_length, u_int32_t offset,
 		header = NULL;
 	}
 
-	if (sendfile(file_fd, connect_socket, offset, length, hdtrp, &off,
-	    0) < 0)
-		err(1, "sendfile");
+	if (sendfile(file_fd, connect_socket, test.offset, test.length, 
+				hdtrp, &off, 0) < 0) {
+		if (header != NULL)
+			free(header);
+		FAIL_ERR("sendfile")
+	}
 
 	if (length == 0) {
 		struct stat sb;
 
-		if (fstat(file_fd, &sb) < 0)
-			err(1, "fstat");
-		length = sb.st_size - offset;
-	}
-
-	if (off != length) {
-		errx(1, "sendfile: off(%ju) != length(%ju)",
-		    (uintmax_t)off, (uintmax_t)length);
+		if (fstat(file_fd, &sb) == 0)
+			length = sb.st_size - test.offset;
 	}
 
 	if (header != NULL)
 		free(header);
+
+	if (off != length)
+		FAIL("offset != length")
+
+	return (0);
 }
 
 static void
 run_parent(void)
 {
 	int connect_socket;
+	int status;
+	int test_num;
+	int pid;
 
-	connect_socket = new_test_socket();
-	send_test(connect_socket, 0, 0, 1);
-	close(connect_socket);
+	const int pagesize = getpagesize();
 
-	sleep(1);
+	struct sendfile_test tests[10] = {
+ 		{ .hdr_length = 0, .offset = 0, .length = 1 },
+		{ .hdr_length = 0, .offset = 0, .length = pagesize },
+		{ .hdr_length = 0, .offset = 1, .length = 1 },
+		{ .hdr_length = 0, .offset = 1, .length = pagesize },
+		{ .hdr_length = 0, .offset = pagesize, .length = pagesize },
+		{ .hdr_length = 0, .offset = 0, .length = 2*pagesize },
+		{ .hdr_length = 0, .offset = 0, .length = 0 },
+		{ .hdr_length = 0, .offset = pagesize, .length = 0 },
+		{ .hdr_length = 0, .offset = 2*pagesize, .length = 0 },
+		{ .hdr_length = 0, .offset = TEST_PAGES*pagesize, .length = 0 }
+	};
 
-	connect_socket = new_test_socket();
-	send_test(connect_socket, 0, 0, getpagesize());
-	close(connect_socket);
+	printf("1..10\n");
 
-	sleep(1);
+	for (test_num = 1; test_num <= 10; test_num++) {
 
-	connect_socket = new_test_socket();
-	send_test(connect_socket, 0, 1, 1);
-	close(connect_socket);
+		pid = fork();
+		if (pid == -1) {
+			printf("not ok %d\n", test_num);
+			continue;
+		}
 
-	sleep(1);
+		if (pid == 0)
+			run_child();
 
-	connect_socket = new_test_socket();
-	send_test(connect_socket, 0, 1, getpagesize());
-	close(connect_socket);
+		usleep(250000);
 
-	sleep(1);
+		if (new_test_socket(&connect_socket) != 0) {
+			printf("not ok %d\n", test_num);
+			kill(pid, SIGALRM);
+			close(connect_socket);
+			continue;
+		}
 
-	connect_socket = new_test_socket();
-	send_test(connect_socket, 0, getpagesize(), getpagesize());
-	close(connect_socket);
+		if (send_test(connect_socket, tests[test_num-1]) != 0) {
+			printf("not ok %d\n", test_num);
+			kill(pid, SIGALRM);
+			close(connect_socket);
+			continue;
+		}
 
-	sleep(1);
+		close(connect_socket);
+		if (waitpid(pid, &status, 0) == pid) {
+			if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
+				printf("%s %d\n", "ok", test_num);
+			else
+				printf("%s %d\n", "not ok", test_num);
+		}
+		else {
+			printf("not ok %d\n", test_num);
+		}
+	}
+}
 
-	connect_socket = new_test_socket();
-	send_test(connect_socket, 0, 0, 2 * getpagesize());
-	close(connect_socket);
-
-	sleep(1);
-
-	connect_socket = new_test_socket();
-	send_test(connect_socket, 0, 0, 0);
-	close(connect_socket);
-
-	sleep(1);
-
-	connect_socket = new_test_socket();
-	send_test(connect_socket, 0, getpagesize(), 0);
-	close(connect_socket);
-
-	sleep(1);
-
-	connect_socket = new_test_socket();
-	send_test(connect_socket, 0, 2 * getpagesize(), 0);
-	close(connect_socket);
-
-	sleep(1);
-
-	connect_socket = new_test_socket();
-	send_test(connect_socket, 0, TEST_PAGES * getpagesize(), 0);
-	close(connect_socket);
-
-	sleep(1);
-
-	(void)kill(child_pid, SIGKILL);
+static void
+cleanup(void)
+{
+	if (*path != '\0')
+		unlink(path);
 }
 
 int
 main(void)
 {
-	char path[PATH_MAX], *page_buffer;
-	struct sockaddr_in sin;
+	char *page_buffer;
 	int pagesize;
 	ssize_t len;
+
+	*path = '\0';
 
 	pagesize = getpagesize();
 	page_buffer = malloc(TEST_PAGES * pagesize);
 	if (page_buffer == NULL)
-		err(1, "malloc");
+		FAIL_ERR("malloc")
 	bzero(page_buffer, TEST_PAGES * pagesize);
-
-	listen_socket = socket(PF_INET, SOCK_STREAM, 0);
-	if (listen_socket < 0)
-		err(1, "socket");
-
-	bzero(&sin, sizeof(sin));
-	sin.sin_len = sizeof(sin);
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	sin.sin_port = htons(TEST_PORT);
 
 	snprintf(path, PATH_MAX, "/tmp/sendfile.XXXXXXXXXXXX");
 	file_fd = mkstemp(path);
-	(void)unlink(path);
+	atexit(cleanup);
 
 	len = write(file_fd, page_buffer, TEST_PAGES * pagesize);
 	if (len < 0)
-		err(1, "write");
+		FAIL_ERR("write")
 
 	len = lseek(file_fd, 0, SEEK_SET);
 	if (len < 0)
-		err(1, "lseek");
+		FAIL_ERR("lseek")
 	if (len != 0)
-		errx(1, "lseek: %zd", len);
+		FAIL("len != 0")
 
-	if (bind(listen_socket, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(1, "bind");
-
-	if (listen(listen_socket, -1) < 0)
-		err(1, "listen");
-
-	parent_pid = getpid();
-	child_pid = fork();
-	if (child_pid < 0)
-		err(1, "fork");
-	if (child_pid == 0) {
-		child_pid = getpid();
-		run_child();
-	} else
-		run_parent();
-
+	run_parent();
 	return (0);
 }
