@@ -1145,10 +1145,9 @@ calc_tx_descs(const struct mbuf *m, int nsegs)
 		return 1;
 
 	flits = sgl_len(nsegs) + 2;
-#ifdef TSO_SUPPORTED
 	if (m->m_pkthdr.csum_flags & CSUM_TSO)
 		flits++;
-#endif	
+
 	return flits_to_desc(flits);
 }
 
@@ -1366,16 +1365,11 @@ write_wr_hdr_sgl(unsigned int ndesc, struct tx_desc *txd, struct txq_state *txqs
 /* sizeof(*eh) + sizeof(*vhdr) + sizeof(*ip) + sizeof(*tcp) */
 #define TCPPKTHDRSIZE (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + 20 + 20)
 
-#ifdef VLAN_SUPPORTED
 #define GET_VTAG(cntrl, m) \
 do { \
 	if ((m)->m_flags & M_VLANTAG)					            \
 		cntrl |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN((m)->m_pkthdr.ether_vtag); \
 } while (0)
-
-#else
-#define GET_VTAG(cntrl, m)
-#endif
 
 static int
 t3_encap(struct sge_qset *qs, struct mbuf **m)
@@ -1413,11 +1407,10 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 	cntrl = V_TXPKT_INTF(pi->txpkt_intf);
 	KASSERT(m0->m_flags & M_PKTHDR, ("not packet header\n"));
 	
-#ifdef VLAN_SUPPORTED
 	if  (m0->m_nextpkt == NULL && m0->m_next != NULL &&
 	    m0->m_pkthdr.csum_flags & (CSUM_TSO))
 		tso_info = V_LSO_MSS(m0->m_pkthdr.tso_segsz);
-#endif
+
 	if (m0->m_nextpkt != NULL) {
 		busdma_map_sg_vec(txq->entry_tag, txsd->map, m0, segs, &nsegs);
 		ndesc = 1;
@@ -2076,9 +2069,7 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 		MTX_DESTROY(&q->rspq.lock);
 	}
 
-#ifdef LRO_SUPPORTED
 	tcp_lro_free(&q->lro.ctrl);
-#endif
 
 	bzero(q, sizeof(*q));
 }
@@ -2663,7 +2654,6 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	q->fl[1].type = EXT_JUMBOP;
 #endif
 
-#ifdef LRO_SUPPORTED
 	/* Allocate and setup the lro_ctrl structure */
 	q->lro.enabled = !!(pi->ifp->if_capenable & IFCAP_LRO);
 	ret = tcp_lro_init(&q->lro.ctrl);
@@ -2672,7 +2662,6 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 		goto err;
 	}
 	q->lro.ctrl.ifp = pi->ifp;
-#endif
 
 	mtx_lock_spin(&sc->sge.reg_lock);
 	ret = -t3_sge_init_rspcntxt(sc, q->rspq.cntxt_id, irq_vec_idx,
@@ -2773,16 +2762,12 @@ t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 		m->m_pkthdr.csum_flags = (CSUM_IP_CHECKED|CSUM_IP_VALID|CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
 		m->m_pkthdr.csum_data = 0xffff;
 	}
-	/* 
-	 * XXX need to add VLAN support for 6.x
-	 */
-#ifdef VLAN_SUPPORTED
-	if (__predict_false(cpl->vlan_valid)) {
+
+	if (cpl->vlan_valid) {
 		m->m_pkthdr.ether_vtag = ntohs(cpl->vlan);
 		m->m_flags |= M_VLANTAG;
 	} 
-#endif
-	
+
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.header = mtod(m, uint8_t *) + sizeof(*cpl) + ethpad;
 	/*
@@ -2962,11 +2947,9 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	struct rsp_desc *r = &rspq->desc[rspq->cidx];
 	int budget_left = budget;
 	unsigned int sleeping = 0;
-#ifdef LRO_SUPPORTED
 	int lro_enabled = qs->lro.enabled;
 	int skip_lro;
 	struct lro_ctrl *lro_ctrl = &qs->lro.ctrl;
-#endif
 	struct mbuf *offload_mbufs[RX_BUNDLE_SIZE];
 	int ngathered = 0;
 #ifdef DEBUG	
@@ -3075,7 +3058,6 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 			t3_rx_eth(adap, rspq, m, ethpad);
 
-#ifdef LRO_SUPPORTED
 			/*
 			 * The T304 sends incoming packets on any qset.  If LRO
 			 * is also enabled, we could end up sending packet up
@@ -3089,9 +3071,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			if (lro_enabled && lro_ctrl->lro_cnt && !skip_lro &&
 			    (tcp_lro_rx(lro_ctrl, m, 0) == 0)) {
 				/* successfully queue'd for LRO */
-			} else
-#endif
-			{
+			} else {
 				/*
 				 * LRO not enabled, packet unsuitable for LRO,
 				 * or unable to queue.  Pass it up right now in
@@ -3110,14 +3090,12 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 	deliver_partial_bundle(&adap->tdev, rspq, offload_mbufs, ngathered);
 
-#ifdef LRO_SUPPORTED
 	/* Flush LRO */
 	while (!SLIST_EMPTY(&lro_ctrl->lro_active)) {
 		struct lro_entry *queued = SLIST_FIRST(&lro_ctrl->lro_active);
 		SLIST_REMOVE_HEAD(&lro_ctrl->lro_active, next);
 		tcp_lro_flush(lro_ctrl, queued);
 	}
-#endif
 
 	if (sleeping)
 		check_ring_db(adap, qs, sleeping);
@@ -3690,7 +3668,6 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLTYPE_STRING | CTLFLAG_RD, &qs->txq[TXQ_CTRL],
 			    0, t3_dump_txq_ctrl, "A", "dump of the transmit queue");
 
-#ifdef LRO_SUPPORTED
 			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_queued",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_queued, 0, NULL);
 			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_flushed",
@@ -3699,7 +3676,6 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_bad_csum, 0, NULL);
 			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_cnt",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_cnt, 0, NULL);
-#endif
 		}
 
 		/* Now add a node for mac stats. */
