@@ -93,7 +93,7 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 	MPASS(IFF(type == VLNK, target != NULL));
 	MPASS(IFF(type == VBLK || type == VCHR, rdev != VNOVAL));
 
-	if (tmp->tm_nodes_inuse > tmp->tm_nodes_max)
+	if (tmp->tm_nodes_inuse >= tmp->tm_nodes_max)
 		return (ENOSPC);
 
 	nnode = (struct tmpfs_node *)uma_zalloc_arg(
@@ -906,10 +906,9 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 
 		if (zerolen > 0) {
 			m = vm_page_grab(uobj, OFF_TO_IDX(newsize),
-					VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+			    VM_ALLOC_NOBUSY | VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 			pmap_zero_page_area(m, PAGE_SIZE - zerolen,
 				zerolen);
-			vm_page_wakeup(m);
 		}
 		VM_OBJECT_UNLOCK(uobj);
 

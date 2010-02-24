@@ -9,6 +9,7 @@ SUBDIR = \
 	radeon \
 	savage \
 	sis \
-	tdfx
+	tdfx \
+	via
 
 .include <bsd.subdir.mk>

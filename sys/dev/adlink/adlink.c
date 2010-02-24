@@ -161,7 +161,8 @@ adlink_intr(void *arg)
 }
 
 static int
-adlink_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+adlink_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
 	struct softc *sc;
 	vm_offset_t o;

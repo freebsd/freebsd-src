@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd July 26, 2009
+.Dd November 6, 2009
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -108,6 +108,10 @@ The
 argument is ignored.
 .\".It Dv MAP_FILE
 .\"Mapped from a regular file or character-special device memory.
+.It Dv MAP_ANONYMOUS
+This flag is identical to
+.Dv MAP_ANON
+and is provided for compatibility.
 .It Dv MAP_FIXED
 Do not permit the system to select a different address than the one
 specified.

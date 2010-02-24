@@ -773,9 +773,9 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	int curgeneration;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	if (object->type != OBJT_VNODE ||
-		(object->flags & OBJ_MIGHTBEDIRTY) == 0)
+	if ((object->flags & OBJ_MIGHTBEDIRTY) == 0)
 		return;
+	KASSERT(object->type == OBJT_VNODE, ("Not a vnode object"));
 
 	pagerflags = (flags & (OBJPC_SYNC | OBJPC_INVAL)) ? VM_PAGER_PUT_SYNC : VM_PAGER_CLUSTER_OK;
 	pagerflags |= (flags & OBJPC_INVAL) ? VM_PAGER_PUT_INVAL : 0;
@@ -875,18 +875,8 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 			pmap_remove_write(p);
 	}
 
-	if (clearobjflags && (tstart == 0) && (tend == object->size)) {
-		struct vnode *vp;
-
+	if (clearobjflags && (tstart == 0) && (tend == object->size))
 		vm_object_clear_flag(object, OBJ_MIGHTBEDIRTY);
-		if (object->type == OBJT_VNODE &&
-		    (vp = (struct vnode *)object->handle) != NULL) {
-			VI_LOCK(vp);
-			if (vp->v_iflag & VI_OBJDIRTY)
-				vp->v_iflag &= ~VI_OBJDIRTY;
-			VI_UNLOCK(vp);
-		}
-	}
 
 rescan:
 	curgeneration = object->generation;
@@ -2148,18 +2138,12 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 void
 vm_object_set_writeable_dirty(vm_object_t object)
 {
-	struct vnode *vp;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	if ((object->flags & OBJ_MIGHTBEDIRTY) != 0)
+	if (object->type != OBJT_VNODE ||
+	    (object->flags & OBJ_MIGHTBEDIRTY) != 0)
 		return;
 	vm_object_set_flag(object, OBJ_MIGHTBEDIRTY);
-	if (object->type == OBJT_VNODE &&
-	    (vp = (struct vnode *)object->handle) != NULL) {
-		VI_LOCK(vp);
-		vp->v_iflag |= VI_OBJDIRTY;
-		VI_UNLOCK(vp);
-	}
 }
 
 #include "opt_ddb.h"

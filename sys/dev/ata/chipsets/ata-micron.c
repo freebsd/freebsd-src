@@ -51,11 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 #include <ata_if.h>
 
-/* local prototypes */
-static int ata_micron_chipinit(device_t dev);
-static void ata_micron_setmode(device_t dev, int mode);
-
-
 /*
  * Cenatek chipset support functions
  */
@@ -68,34 +63,10 @@ ata_micron_probe(device_t dev)
 	pci_get_devid(dev) == ATA_MICRON_RZ1001) {
 	device_set_desc(dev,
 	    "RZ 100? ATA controller !WARNING! data loss/corruption risk");
-	ctlr->chipinit = ata_micron_chipinit;
+	ctlr->chipinit = ata_generic_chipinit;
 	return (BUS_PROBE_DEFAULT);
     }
-    else
-	return ENXIO;
-}
-
-static int
-ata_micron_chipinit(device_t dev)
-{
-    struct ata_pci_controller *ctlr = device_get_softc(dev);
-
-    if (ata_setup_interrupt(dev, ata_generic_intr))
-	return ENXIO;
-
-    ctlr->setmode = ata_micron_setmode;
-    return 0;
-}
-
-static void
-ata_micron_setmode(device_t dev, int mode)
-{
-    struct ata_device *atadev = device_get_softc(dev);
-
-    mode = ata_limit_mode(dev, mode, ATA_UDMA2);
-    mode = ata_check_80pin(dev, mode);
-    if (!ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
-	atadev->mode = mode;
+    return (ENXIO);
 }
 
 ATA_DECLARE_DRIVER(ata_micron);

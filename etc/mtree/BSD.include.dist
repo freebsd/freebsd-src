@@ -178,6 +178,8 @@
         ..
         mirror
         ..
+        mountver
+        ..
         multipath
         ..
         nop

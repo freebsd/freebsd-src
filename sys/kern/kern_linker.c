@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef KLD_DEBUG
 int kld_debug = 0;
+SYSCTL_INT(_debug, OID_AUTO, kld_debug, CTLFLAG_RW,
+        &kld_debug, 0, "Set various levels of KLD debug");
 #endif
 
 #define	KLD_LOCK()		sx_xlock(&kld_sx)
@@ -632,7 +634,7 @@ linker_file_unload(linker_file_t file, int flags)
 		 */
 		if ((error = module_unload(mod)) != 0) {
 			KLD_DPF(FILE, ("linker_file_unload: module %s"
-			    " failed unload\n", mod));
+			    " failed unload\n", module_getname(mod)));
 			return (error);
 		}
 		MOD_XLOCK;
@@ -709,6 +711,9 @@ linker_file_add_dependency(linker_file_t file, linker_file_t dep)
 	file->deps = newdeps;
 	file->deps[file->ndeps] = dep;
 	file->ndeps++;
+	KLD_DPF(FILE, ("linker_file_add_dependency:"
+	    " adding %s as dependency for %s\n", 
+	    dep->filename, file->filename));
 	return (0);
 }
 

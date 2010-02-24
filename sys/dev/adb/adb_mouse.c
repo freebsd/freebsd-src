@@ -35,6 +35,7 @@
 #include <sys/poll.h>
 #include <sys/condvar.h>
 #include <sys/selinfo.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
@@ -51,6 +52,8 @@
 static int adb_mouse_probe(device_t dev);
 static int adb_mouse_attach(device_t dev);
 static int adb_mouse_detach(device_t dev);
+static void adb_init_trackpad(device_t dev);
+static int adb_tapping_sysctl(SYSCTL_HANDLER_ARGS);
 
 static d_open_t  ams_open;
 static d_close_t ams_close;
@@ -77,6 +80,8 @@ struct adb_mouse_softc {
 	u_char id[4];
 
 	int buttons;
+	u_int sc_tapping;
+	int button_buf;
 	int last_buttons;
 	int xdelta, ydelta;
 
@@ -167,6 +172,8 @@ adb_mouse_attach(device_t dev)
 	sc->mode.packetsize = 5;
 
 	sc->buttons = 0;
+	sc->sc_tapping = 0;
+	sc->button_buf = 0;
 	sc->last_buttons = 0;
 	sc->packet_read_len = 0;
 
@@ -205,6 +212,7 @@ adb_mouse_attach(device_t dev)
 		case 3:
 			sc->flags |= AMS_TOUCHPAD;
 			sc->hw.type = MOUSE_PAD;
+			adb_init_trackpad(dev);
 			description = "Touchpad";
 			break;
 		}
@@ -259,6 +267,70 @@ adb_mouse_detach(device_t dev)
 	return (0);
 }
 
+static void
+adb_init_trackpad(device_t dev)
+{
+	struct adb_mouse_softc *sc;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
+
+	size_t r1_len;
+	u_char r1[8];
+	u_char r2[8];
+
+	sc = device_get_softc(dev);
+
+	r1_len = adb_read_register(dev, 1, r1);
+
+	/* An Extended Mouse register1 must return 8 bytes. */
+	if (r1_len != 8)
+		return;
+
+	if((r1[6] != 0x0d))
+	{
+		r1[6] = 0x0d;
+		
+		adb_write_register(dev, 1, 8, r1); 
+      
+		r1_len = adb_read_register(dev, 1, r1);
+      
+		if (r1[6] != 0x0d)
+		{
+			device_printf(dev, "ADB Mouse = 0x%x "
+				      "(non-Extended Mode)\n", r1[6]);
+			return;
+		} else {
+			device_printf(dev, "ADB Mouse = 0x%x "
+				      "(Extended Mode)\n", r1[6]);
+			
+			/* Set ADB Extended Features to default values,
+			   enabled. */
+			r2[0] = 0x19; /* Clicking: 0x19 disabled 0x99 enabled */
+			r2[1] = 0x94; /* Dragging: 0x14 disabled 0x94 enabled */
+			r2[2] = 0x19;
+			r2[3] = 0xff; /* DragLock: 0xff disabled 0xb2 enabled */
+			r2[4] = 0xb2;
+			r2[5] = 0x8a;
+			r2[6] = 0x1b;
+		       
+			r2[7] = 0x57;  /* 0x57 bits 3:0 for W mode */
+			
+			adb_write_register(dev, 2, 8, r2);
+			
+		}
+	}
+
+	/*
+	 * Set up sysctl
+	 */
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tapping",
+			CTLTYPE_INT | CTLFLAG_RW, sc, 0, adb_tapping_sysctl,
+			"I", "Tapping the pad causes button events");
+	return;
+}
+
 static u_int 
 adb_mouse_receive_packet(device_t dev, u_char status, u_char command, 
     u_char reg, int len, u_char *data) 
@@ -266,7 +338,7 @@ adb_mouse_receive_packet(device_t dev, u_char status, u_char command,
 	struct adb_mouse_softc *sc;
 	int i = 0;
 	int xdelta, ydelta;
-	int buttons;
+	int buttons, tmp_buttons;
 
 	sc = device_get_softc(dev);
 
@@ -297,6 +369,30 @@ adb_mouse_receive_packet(device_t dev, u_char status, u_char command,
 		xdelta |= 0xffffffc0 << 3*(len - 2);
 	if (ydelta & (0x40 << 3*(len-2)))
 		ydelta |= 0xffffffc0 << 3*(len - 2);
+
+	if ((sc->flags & AMS_TOUCHPAD) && (sc->sc_tapping == 1)) {
+		tmp_buttons = buttons;
+		if (buttons == 0x12) {
+			/* Map a double tap on button 3.
+			   Keep the button state for the next sequence.
+			   A double tap sequence is followed by a single tap
+			   sequence.
+			*/
+			tmp_buttons = 0x3;
+			sc->button_buf = tmp_buttons;
+		} else if (buttons == 0x2) {
+			/* Map a single tap on button 2. But only if it is
+			   not a successor from a double tap.
+			*/
+			if (sc->button_buf != 0x3) 
+				tmp_buttons = 0x2;
+			else
+				tmp_buttons = 0;
+
+			sc->button_buf = 0;
+		}
+		buttons = tmp_buttons;
+	}
 
 	/*
 	 * Some mice report high-numbered buttons on the wrong button number,
@@ -554,3 +650,36 @@ ams_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	return (0);
 }
 
+static int
+adb_tapping_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct adb_mouse_softc *sc = arg1;
+	device_t dev;
+        int error;
+	u_char r2[8];
+	u_int tapping;
+
+	dev = sc->sc_dev;
+	tapping = sc->sc_tapping;
+
+	error = sysctl_handle_int(oidp, &tapping, 0, req);
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (tapping == 1) {
+		adb_read_register(dev, 2, r2);
+		r2[0] = 0x99; /* enable tapping. */
+		adb_write_register(dev, 2, 8, r2);
+                sc->sc_tapping = 1;
+	} else if (tapping == 0) {
+		adb_read_register(dev, 2, r2);
+		r2[0] = 0x19; /* disable tapping. */
+		adb_write_register(dev, 2, 8, r2);
+		sc->sc_tapping = 0;
+	}
+        else
+		return (EINVAL);
+
+	return (0);
+}

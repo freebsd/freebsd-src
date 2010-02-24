@@ -60,13 +60,17 @@ struct drm_file;
 #include <sys/filio.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <sys/queue.h>
 #include <sys/signalvar.h>
 #include <sys/poll.h>
+#include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/vm_param.h>
 #include <machine/param.h>
 #include <machine/pmap.h>
@@ -91,9 +95,9 @@ struct drm_file;
 #include <sys/bus.h>
 
 #include "dev/drm/drm.h"
-#include "dev/drm/drm_linux_list.h"
 #include "dev/drm/drm_atomic.h"
 #include "dev/drm/drm_internal.h"
+#include "dev/drm/drm_linux_list.h"
 
 #include <opt_drm.h>
 #ifdef DRM_DEBUG
@@ -147,6 +151,8 @@ MALLOC_DECLARE(DRM_MEM_AGPLISTS);
 MALLOC_DECLARE(DRM_MEM_CTXBITMAP);
 MALLOC_DECLARE(DRM_MEM_SGLISTS);
 MALLOC_DECLARE(DRM_MEM_DRAWABLE);
+MALLOC_DECLARE(DRM_MEM_MM);
+MALLOC_DECLARE(DRM_MEM_HASHTAB);
 
 SYSCTL_DECL(_hw_drm);
 
@@ -193,6 +199,11 @@ typedef void			irqreturn_t;
 #define IRQ_HANDLED		/* nothing */
 #define IRQ_NONE		/* nothing */
 
+#define unlikely(x)            __builtin_expect(!!(x), 0)
+#define container_of(ptr, type, member) ({			\
+	__typeof( ((type *)0)->member ) *__mptr = (ptr);	\
+	(type *)( (char *)__mptr - offsetof(type,member) );})
+
 enum {
 	DRM_IS_NOT_AGP,
 	DRM_IS_AGP,
@@ -223,23 +234,9 @@ typedef u_int8_t u8;
  * DRM_WRITEMEMORYBARRIER() prevents reordering of writes.
  * DRM_MEMORYBARRIER() prevents reordering of reads and writes.
  */
-#if defined(__i386__)
-#define DRM_READMEMORYBARRIER()		__asm __volatile( \
-					"lock; addl $0,0(%%esp)" : : : "memory");
-#define DRM_WRITEMEMORYBARRIER()	__asm __volatile("" : : : "memory");
-#define DRM_MEMORYBARRIER()		__asm __volatile( \
-					"lock; addl $0,0(%%esp)" : : : "memory");
-#elif defined(__alpha__)
-#define DRM_READMEMORYBARRIER()		alpha_mb();
-#define DRM_WRITEMEMORYBARRIER()	alpha_wmb();
-#define DRM_MEMORYBARRIER()		alpha_mb();
-#elif defined(__amd64__)
-#define DRM_READMEMORYBARRIER()		__asm __volatile( \
-					"lock; addl $0,0(%%rsp)" : : : "memory");
-#define DRM_WRITEMEMORYBARRIER()	__asm __volatile("" : : : "memory");
-#define DRM_MEMORYBARRIER()		__asm __volatile( \
-					"lock; addl $0,0(%%rsp)" : : : "memory");
-#endif
+#define DRM_READMEMORYBARRIER()		rmb()
+#define DRM_WRITEMEMORYBARRIER()	wmb()
+#define DRM_MEMORYBARRIER()		mb()
 
 #define DRM_READ8(map, offset)						\
 	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\

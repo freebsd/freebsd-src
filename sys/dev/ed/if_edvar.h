@@ -65,11 +65,12 @@ struct ed_softc {
 	void	(*mii_writebits)(struct ed_softc *, u_int, int);
 	u_int	(*mii_readbits)(struct ed_softc *, int);
 	struct callout	      tick_ch;
-        void	(*sc_tick)(void *);
+        void	(*sc_tick)(struct ed_softc *);
 	void (*readmem)(struct ed_softc *sc, bus_size_t src, uint8_t *dst,
 	    uint16_t amount);
 	u_short	(*sc_write_mbufs)(struct ed_softc *, struct mbuf *, bus_size_t);
 
+	int	tx_timer;
 	int	nic_offset;	/* NIC (DS8390) I/O bus address offset */
 	int	asic_offset;	/* ASIC I/O bus address offset */
 

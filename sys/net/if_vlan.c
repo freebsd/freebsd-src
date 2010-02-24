@@ -25,8 +25,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -40,6 +38,9 @@
  * if_start(), rewrite them for use by the real outgoing interface,
  * and ask it to send them.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_vlan.h"
 
@@ -138,6 +139,7 @@ SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW, &soft_pad, 0,
 static MALLOC_DEFINE(M_VLAN, VLANNAME, "802.1Q Virtual LAN Interface");
 
 static eventhandler_tag ifdetach_tag;
+static eventhandler_tag iflladdr_tag;
 
 /*
  * We have a global mutex, that is used to serialize configuration
@@ -188,7 +190,7 @@ static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_unconfig(struct ifnet *ifp);
 static	int vlan_unconfig_locked(struct ifnet *ifp);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag);
-static	void vlan_link_state(struct ifnet *ifp, int link);
+static	void vlan_link_state(struct ifnet *ifp);
 static	void vlan_capabilities(struct ifvlan *ifv);
 static	void vlan_trunk_capabilities(struct ifnet *ifp);
 
@@ -199,6 +201,7 @@ static	int vlan_clone_create(struct if_clone *, char *, size_t, caddr_t);
 static	int vlan_clone_destroy(struct if_clone *, struct ifnet *);
 
 static	void vlan_ifdetach(void *arg, struct ifnet *ifp);
+static  void vlan_iflladdr(void *arg, struct ifnet *ifp);
 
 static	struct if_clone vlan_cloner = IFC_CLONE_INITIALIZER(VLANNAME, NULL,
     IF_MAXUNIT, NULL, vlan_clone_match, vlan_clone_create, vlan_clone_destroy);
@@ -463,10 +466,51 @@ vlan_setmulti(struct ifnet *ifp)
 }
 
 /*
+ * A handler for parent interface link layer address changes.
+ * If the parent interface link layer address is changed we
+ * should also change it on all children vlans.
+ */
+static void
+vlan_iflladdr(void *arg __unused, struct ifnet *ifp)
+{
+	struct ifvlan *ifv;
+#ifndef VLAN_ARRAY
+	struct ifvlan *next;
+#endif
+	int i;
+
+	/*
+	 * Check if it's a trunk interface first of all
+	 * to avoid needless locking.
+	 */
+	if (ifp->if_vlantrunk == NULL)
+		return;
+
+	VLAN_LOCK();
+	/*
+	 * OK, it's a trunk.  Loop over and change all vlan's lladdrs on it.
+	 */
+#ifdef VLAN_ARRAY
+	for (i = 0; i < VLAN_ARRAY_SIZE; i++)
+		if ((ifv = ifp->if_vlantrunk->vlans[i])) {
+#else /* VLAN_ARRAY */
+	for (i = 0; i < (1 << ifp->if_vlantrunk->hwidth); i++)
+		LIST_FOREACH_SAFE(ifv, &ifp->if_vlantrunk->hash[i], ifv_list, next) {
+#endif /* VLAN_ARRAY */
+			VLAN_UNLOCK();
+			if_setlladdr(ifv->ifv_ifp, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+			VLAN_LOCK();
+		}
+	VLAN_UNLOCK();
+
+}
+
+/*
  * A handler for network interface departure events.
  * Track departure of trunks here so that we don't access invalid
  * pointers or whatever if a trunk is ripped from under us, e.g.,
- * by ejecting its hot-plug card.
+ * by ejecting its hot-plug card.  However, if an ifnet is simply
+ * being renamed, then there's no need to tear down the state.
  */
 static void
 vlan_ifdetach(void *arg __unused, struct ifnet *ifp)
@@ -479,6 +523,10 @@ vlan_ifdetach(void *arg __unused, struct ifnet *ifp)
 	 * to avoid needless locking.
 	 */
 	if (ifp->if_vlantrunk == NULL)
+		return;
+
+	/* If the ifnet is just being renamed, don't do anything. */
+	if (ifp->if_flags & IFF_RENAMING)
 		return;
 
 	VLAN_LOCK();
@@ -520,7 +568,7 @@ restart:
 extern	void (*vlan_input_p)(struct ifnet *, struct mbuf *);
 
 /* For if_link_state_change() eyes only... */
-extern	void (*vlan_link_state_p)(struct ifnet *, int);
+extern	void (*vlan_link_state_p)(struct ifnet *);
 
 static int
 vlan_modevent(module_t mod, int type, void *data)
@@ -531,6 +579,10 @@ vlan_modevent(module_t mod, int type, void *data)
 		ifdetach_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
 		    vlan_ifdetach, NULL, EVENTHANDLER_PRI_ANY);
 		if (ifdetach_tag == NULL)
+			return (ENOMEM);
+		iflladdr_tag = EVENTHANDLER_REGISTER(iflladdr_event,
+		    vlan_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
+		if (iflladdr_tag == NULL)
 			return (ENOMEM);
 		VLAN_LOCK_INIT();
 		vlan_input_p = vlan_input;
@@ -550,6 +602,7 @@ vlan_modevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		if_clone_detach(&vlan_cloner);
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ifdetach_tag);
+		EVENTHANDLER_DEREGISTER(iflladdr_event, iflladdr_tag);
 		vlan_input_p = NULL;
 		vlan_link_state_p = NULL;
 		vlan_trunk_cap_p = NULL;
@@ -577,7 +630,7 @@ vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
 {
 	const char *cp;
 	struct ifnet *ifp;
-	int t = 0;
+	int t;
 
 	/* Check for <etherif>.<vlan> style interface names. */
 	IFNET_RLOCK_NOSLEEP();
@@ -587,13 +640,15 @@ vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
 		if (strncmp(ifp->if_xname, name, strlen(ifp->if_xname)) != 0)
 			continue;
 		cp = name + strlen(ifp->if_xname);
-		if (*cp != '.')
+		if (*cp++ != '.')
 			continue;
-		for(; *cp != '\0'; cp++) {
-			if (*cp < '0' || *cp > '9')
-				continue;
+		if (*cp == '\0')
+			continue;
+		t = 0;
+		for(; *cp >= '0' && *cp <= '9'; cp++)
 			t = (t * 10) + (*cp - '0');
-		}
+		if (*cp != '\0')
+			continue;
 		if (tag != NULL)
 			*tag = t;
 		break;
@@ -1226,7 +1281,7 @@ vlan_setflags(struct ifnet *ifp, int status)
 
 /* Inform all vlans that their parent has changed link state */
 static void
-vlan_link_state(struct ifnet *ifp, int link)
+vlan_link_state(struct ifnet *ifp)
 {
 	struct ifvlantrunk *trunk = ifp->if_vlantrunk;
 	struct ifvlan *ifv;
@@ -1268,10 +1323,25 @@ vlan_capabilities(struct ifvlan *ifv)
 	if (p->if_capenable & IFCAP_VLAN_HWCSUM &&
 	    p->if_capenable & IFCAP_VLAN_HWTAGGING) {
 		ifp->if_capenable = p->if_capenable & IFCAP_HWCSUM;
-		ifp->if_hwassist = p->if_hwassist;
+		ifp->if_hwassist = p->if_hwassist & (CSUM_IP | CSUM_TCP |
+		    CSUM_UDP | CSUM_SCTP | CSUM_IP_FRAGS | CSUM_FRAGMENT);
 	} else {
 		ifp->if_capenable = 0;
 		ifp->if_hwassist = 0;
+	}
+	/*
+	 * If the parent interface can do TSO on VLANs then
+	 * propagate the hardware-assisted flag. TSO on VLANs
+	 * does not necessarily require hardware VLAN tagging.
+	 */
+	if (p->if_capabilities & IFCAP_VLAN_HWTSO)
+		ifp->if_capabilities |= p->if_capabilities & IFCAP_TSO;
+	if (p->if_capenable & IFCAP_VLAN_HWTSO) {
+		ifp->if_capenable |= p->if_capenable & IFCAP_TSO;
+		ifp->if_hwassist |= p->if_hwassist & CSUM_TSO;
+	} else {
+		ifp->if_capenable &= ~(p->if_capenable & IFCAP_TSO);
+		ifp->if_hwassist &= ~(p->if_hwassist & CSUM_TSO);
 	}
 }
 

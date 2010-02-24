@@ -84,9 +84,6 @@ __FBSDID("$FreeBSD$");
 #else
 #define	ALC_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 #endif
-#ifndef	IFCAP_VLAN_HWTSO
-#define	IFCAP_VLAN_HWTSO	0
-#endif
 
 MODULE_DEPEND(alc, pci, 1, 1, 1);
 MODULE_DEPEND(alc, ether, 1, 1, 1);
@@ -756,8 +753,8 @@ alc_attach(device_t dev)
 	ether_ifattach(ifp, sc->alc_eaddr);
 
 	/* VLAN capability setup. */
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
+	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
+	    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO;
 	ifp->if_capenable = ifp->if_capabilities;
 	/*
 	 * XXX
@@ -1791,7 +1788,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 	struct tcphdr *tcp;
 	bus_dma_segment_t txsegs[ALC_MAXTXSEGS];
 	bus_dmamap_t map;
-	uint32_t cflags, hdrlen, ip_off, poff, vtag;
+	uint32_t cflags, hdrlen, poff, vtag;
 	int error, idx, nsegs, prod;
 
 	ALC_LOCK_ASSERT(sc);
@@ -1801,7 +1798,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 	m = *m_head;
 	ip = NULL;
 	tcp = NULL;
-	ip_off = poff = 0;
+	poff = 0;
 	if ((m->m_pkthdr.csum_flags & (ALC_CSUM_FEATURES | CSUM_TSO)) != 0) {
 		/*
 		 * AR8131/AR8132 requires offset of TCP/UDP header in its
@@ -1811,7 +1808,6 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 		 * cycles on FreeBSD so fast host CPU is required to get
 		 * smooth TSO performance.
 		 */
-		struct ether_header *eh;
 
 		if (M_WRITABLE(m) == 0) {
 			/* Get a writable copy. */
@@ -1825,32 +1821,13 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 			*m_head = m;
 		}
 
-		ip_off = sizeof(struct ether_header);
-		m = m_pullup(m, ip_off);
+		m = m_pullup(m, sizeof(struct ether_header) + sizeof(struct ip));
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
-		eh = mtod(m, struct ether_header *);
-		/*
-		 * Check if hardware VLAN insertion is off.
-		 * Additional check for LLC/SNAP frame?
-		 */
-		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
-			ip_off = sizeof(struct ether_vlan_header);
-			m = m_pullup(m, ip_off);
-			if (m == NULL) {
-				*m_head = NULL;
-				return (ENOBUFS);
-			}
-		}
-		m = m_pullup(m, ip_off + sizeof(struct ip));
-		if (m == NULL) {
-			*m_head = NULL;
-			return (ENOBUFS);
-		}
-		ip = (struct ip *)(mtod(m, char *) + ip_off);
-		poff = ip_off + (ip->ip_hl << 2);
+		ip = (struct ip *)(mtod(m, char *) + sizeof(struct ether_header));
+		poff = sizeof(struct ether_header) + (ip->ip_hl << 2);
 		if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
 			m = m_pullup(m, poff + sizeof(struct tcphdr));
 			if (m == NULL) {
@@ -2133,6 +2110,7 @@ alc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			    (ifp->if_capenable & IFCAP_TSO4) != 0) {
 				ifp->if_capenable &= ~IFCAP_TSO4;
 				ifp->if_hwassist &= ~CSUM_TSO;
+				VLAN_CAPABILITIES(ifp);
 			}
 			ALC_UNLOCK(sc);
 		}
@@ -2204,14 +2182,6 @@ alc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
 		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
-		/*
-		 * VLAN hardware tagging is required to do checksum
-		 * offload or TSO on VLAN interface. Checksum offload
-		 * on VLAN interface also requires hardware checksum
-		 * offload of parent interface.
-		 */
-		if ((ifp->if_capenable & IFCAP_TXCSUM) == 0)
-			ifp->if_capenable &= ~IFCAP_VLAN_HWCSUM;
 		if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
 			ifp->if_capenable &=
 			    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);

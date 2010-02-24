@@ -150,6 +150,7 @@ command_help(int argc, char *argv[])
 	break;
     default:
 	command_errmsg = "usage is 'help <topic> [<subtopic>]";
+	close(hfd);
 	return(CMD_ERROR);
     }
 

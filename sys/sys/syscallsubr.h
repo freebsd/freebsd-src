@@ -148,6 +148,8 @@ int	kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg,
 	    int name, u_long flags);
 int	kern_pipe(struct thread *td, int fildes[2]);
 int	kern_preadv(struct thread *td, int fd, struct uio *auio, off_t offset);
+int	kern_pselect(struct thread *td, int nd, fd_set *in, fd_set *ou,
+	    fd_set *ex, struct timeval *tvp, sigset_t *uset, int abi_nfdbits);
 int	kern_ptrace(struct thread *td, int req, pid_t pid, void *addr,
 	    int data);
 int	kern_pwritev(struct thread *td, int fd, struct uio *auio, off_t offset);
@@ -190,8 +192,6 @@ int	kern_shmctl(struct thread *td, int shmid, int cmd, void *buf,
 int	kern_sigaction(struct thread *td, int sig, struct sigaction *act,
 	    struct sigaction *oact, int flags);
 int	kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss);
-int	kern_sigprocmask(struct thread *td, int how,
-	    sigset_t *set, sigset_t *oset, int old);
 int	kern_sigsuspend(struct thread *td, sigset_t mask);
 int	kern_stat(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct stat *sbp);
@@ -212,7 +212,7 @@ int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,
 	    off_t length);
 int	kern_unlink(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_unlinkat(struct thread *td, int fd, char *path,
-	    enum uio_seg pathseg);
+	    enum uio_seg pathseg, ino_t oldinum);
 int	kern_utimes(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct timeval *tptr, enum uio_seg tptrseg);
 int	kern_utimesat(struct thread *td, int fd, char *path,

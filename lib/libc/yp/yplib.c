@@ -241,7 +241,7 @@ static bool_t
 ypmatch_cache_lookup(struct dom_binding *ypdb, char *map, keydat *key,
     valdat *val)
 {
-	struct ypmatch_ent	*c = ypdb->cache;
+	struct ypmatch_ent	*c;
 
 	ypmatch_cache_expire(ypdb);
 

@@ -152,7 +152,7 @@ struct rx_desc {
 	uint32_t	len_gen;
 	uint32_t	gen2;
 	uint32_t	addr_hi;
-} __packed;;
+} __packed;
 
 struct rsp_desc {               /* response queue descriptor */
 	struct rss_header	rss_hdr;
@@ -228,6 +228,8 @@ static uint8_t flit_desc_map[] = {
 #define	TXQ_LOCK(qs)		mtx_lock(&(qs)->lock)	
 #define	TXQ_UNLOCK(qs)		mtx_unlock(&(qs)->lock)	
 #define	TXQ_RING_EMPTY(qs)	drbr_empty((qs)->port->ifp, (qs)->txq[TXQ_ETH].txq_mr)
+#define	TXQ_RING_NEEDS_ENQUEUE(qs)					\
+	drbr_needs_enqueue((qs)->port->ifp, (qs)->txq[TXQ_ETH].txq_mr)
 #define	TXQ_RING_FLUSH(qs)	drbr_flush((qs)->port->ifp, (qs)->txq[TXQ_ETH].txq_mr)
 #define	TXQ_RING_DEQUEUE_COND(qs, func, arg)				\
 	drbr_dequeue_cond((qs)->port->ifp, (qs)->txq[TXQ_ETH].txq_mr, func, arg)
@@ -541,8 +543,12 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 	jumbo_q_size = min(nmbjumbo4/(3*nqsets), JUMBO_Q_SIZE);
 #endif
 	while (!powerof2(jumbo_q_size))
-		jumbo_q_size--;		
-	
+		jumbo_q_size--;
+
+	if (fl_q_size < (FL_Q_SIZE / 4) || jumbo_q_size < (JUMBO_Q_SIZE / 2))
+		device_printf(adap->dev,
+		    "Insufficient clusters and/or jumbo buffers.\n");
+
 	/* XXX Does ETHER_ALIGN need to be accounted for here? */
 	p->max_pkt_size = adap->sge.qs[0].fl[1].buf_size - sizeof(struct cpl_rx_data);
 
@@ -1708,7 +1714,7 @@ cxgb_transmit_locked(struct ifnet *ifp, struct sge_qset *qs, struct mbuf *m)
 	 * - there is space in hardware transmit queue 
 	 */
 	if (check_pkt_coalesce(qs) == 0 &&
-	    TXQ_RING_EMPTY(qs) && avail > 4) {
+	    !TXQ_RING_NEEDS_ENQUEUE(qs) && avail > 4) {
 		if (t3_encap(qs, &m)) {
 			if (m != NULL &&
 			    (error = drbr_enqueue(ifp, br, m)) != 0) 

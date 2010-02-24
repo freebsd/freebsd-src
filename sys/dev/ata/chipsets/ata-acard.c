@@ -61,8 +61,8 @@ struct ata_serialize {
 static int ata_acard_chipinit(device_t dev);
 static int ata_acard_ch_attach(device_t dev);
 static int ata_acard_status(device_t dev);
-static void ata_acard_850_setmode(device_t dev, int mode);
-static void ata_acard_86X_setmode(device_t dev, int mode);
+static int ata_acard_850_setmode(device_t dev, int target, int mode);
+static int ata_acard_86X_setmode(device_t dev, int target, int mode);
 static int ata_serialize(device_t dev, int flags);
 static void ata_serialize_init(struct ata_serialize *serial);
 
@@ -130,6 +130,7 @@ ata_acard_ch_attach(device_t dev)
 	return ENXIO;
 
     ch->hw.status = ata_acard_status;
+    ch->flags |= ATA_NO_ATAPI_DMA;
     return 0;
 }
 
@@ -162,79 +163,52 @@ ata_acard_status(device_t dev)
     return 1;
 }
 
-static void
-ata_acard_850_setmode(device_t dev, int mode)
+static int
+ata_acard_850_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int devno = (ch->unit << 1) + atadev->unit;
-    int error;
+    device_t parent = device_get_parent(dev);
+    struct ata_pci_controller *ctlr = device_get_softc(parent);
+    struct ata_channel *ch = device_get_softc(dev);
+    int devno = (ch->unit << 1) + target;
 
-    mode = ata_limit_mode(dev, mode,
-			  ata_atapi(dev) ? ATA_PIO_MAX : ctlr->chip->max_dma);
-
+    mode = min(mode, ctlr->chip->max_dma);
     /* XXX SOS missing WDMA0+1 + PIO modes */
     if (mode >= ATA_WDMA2) {
-	error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-	if (bootverbose)
-	    device_printf(dev, "%ssetting %s on %s chip\n",
-			  (error) ? "FAILURE " : "",
-			  ata_mode2str(mode), ctlr->chip->text);
-	if (!error) {
-	    u_int8_t reg54 = pci_read_config(gparent, 0x54, 1);
+	    u_int8_t reg54 = pci_read_config(parent, 0x54, 1);
 	    
 	    reg54 &= ~(0x03 << (devno << 1));
 	    if (mode >= ATA_UDMA0)
 		reg54 |= (((mode & ATA_MODE_MASK) + 1) << (devno << 1));
-	    pci_write_config(gparent, 0x54, reg54, 1);
-	    pci_write_config(gparent, 0x4a, 0xa6, 1);
-	    pci_write_config(gparent, 0x40 + (devno << 1), 0x0301, 2);
-	    atadev->mode = mode;
-	    return;
-	}
+	    pci_write_config(parent, 0x54, reg54, 1);
+	    pci_write_config(parent, 0x4a, 0xa6, 1);
+	    pci_write_config(parent, 0x40 + (devno << 1), 0x0301, 2);
     }
     /* we could set PIO mode timings, but we assume the BIOS did that */
+    return (mode);
 }
 
-static void
-ata_acard_86X_setmode(device_t dev, int mode)
+static int
+ata_acard_86X_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int devno = (ch->unit << 1) + atadev->unit;
-    int error;
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	struct ata_channel *ch = device_get_softc(dev);
+	int devno = (ch->unit << 1) + target;
 
-
-    mode = ata_limit_mode(dev, mode,
-			  ata_atapi(dev) ? ATA_PIO_MAX : ctlr->chip->max_dma);
-
-    mode = ata_check_80pin(dev, mode);
-
-    /* XXX SOS missing WDMA0+1 + PIO modes */
-    if (mode >= ATA_WDMA2) {
-	error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-	if (bootverbose)
-	    device_printf(dev, "%ssetting %s on %s chip\n",
-			  (error) ? "FAILURE " : "",
-			  ata_mode2str(mode), ctlr->chip->text);
-	if (!error) {
-	    u_int16_t reg44 = pci_read_config(gparent, 0x44, 2);
+	mode = min(mode, ctlr->chip->max_dma);
+	/* XXX SOS missing WDMA0+1 + PIO modes */
+	if (mode >= ATA_WDMA2) {
+		u_int16_t reg44 = pci_read_config(parent, 0x44, 2);
 	    
-	    reg44 &= ~(0x000f << (devno << 2));
-	    if (mode >= ATA_UDMA0)
-		reg44 |= (((mode & ATA_MODE_MASK) + 1) << (devno << 2));
-	    pci_write_config(gparent, 0x44, reg44, 2);
-	    pci_write_config(gparent, 0x4a, 0xa6, 1);
-	    pci_write_config(gparent, 0x40 + devno, 0x31, 1);
-	    atadev->mode = mode;
-	    return;
+		reg44 &= ~(0x000f << (devno << 2));
+		if (mode >= ATA_UDMA0)
+			reg44 |= (((mode & ATA_MODE_MASK) + 1) << (devno << 2));
+		pci_write_config(parent, 0x44, reg44, 2);
+		pci_write_config(parent, 0x4a, 0xa6, 1);
+		pci_write_config(parent, 0x40 + devno, 0x31, 1);
 	}
-    }
-    /* we could set PIO mode timings, but we assume the BIOS did that */
+	/* we could set PIO mode timings, but we assume the BIOS did that */
+	return (mode);
 }
 
 static void

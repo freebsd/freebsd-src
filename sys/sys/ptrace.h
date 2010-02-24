@@ -67,6 +67,10 @@
 #define PT_SETFPREGS    36	/* set floating-point registers */
 #define PT_GETDBREGS    37	/* get debugging registers */
 #define PT_SETDBREGS    38	/* set debugging registers */
+
+#define	PT_VM_TIMESTAMP	40	/* Get VM version (timestamp) */
+#define	PT_VM_ENTRY	41	/* Get VM map (entry) */
+
 #define PT_FIRSTMACH    64	/* for machine-specific requests */
 #include <machine/ptrace.h>	/* machine-specific requests, if any */
 
@@ -96,6 +100,20 @@ struct ptrace_lwpinfo {
 #define	PL_FLAG_BOUND	0x02	/* M:N bound thread */
 	sigset_t	pl_sigmask;	/* LWP signal mask */
 	sigset_t	pl_siglist;	/* LWP pending signal */
+};
+
+/* Argument structure for PT_VM_ENTRY. */
+struct ptrace_vm_entry {
+	int		pve_entry;	/* Entry number used for iteration. */
+	int		pve_timestamp;	/* Generation number of VM map. */
+	u_long		pve_start;	/* Start VA of range. */
+	u_long		pve_end;	/* End VA of range (incl). */
+	u_long		pve_offset;	/* Offset in backing object. */
+	u_int		pve_prot;	/* Protection of memory range. */
+	u_int		pve_pathlen;	/* Size of path. */
+	long		pve_fileid;	/* File ID. */
+	uint32_t	pve_fsid;	/* File system ID. */
+	char		*pve_path;	/* Path name of object. */
 };
 
 #ifdef _KERNEL

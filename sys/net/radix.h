@@ -160,7 +160,7 @@ struct radix_node_head {
 #define	RADIX_NODE_HEAD_WLOCK_ASSERT(rnh) rw_assert(&(rnh)->rnh_lock, RA_WLOCKED)
 #endif /* _KERNEL */
 
-void	 rn_init(void);
+void	 rn_init(int);
 int	 rn_inithead(void **, int);
 int	 rn_refines(void *, void *);
 struct radix_node

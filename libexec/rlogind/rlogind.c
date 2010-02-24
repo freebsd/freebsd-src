@@ -479,18 +479,7 @@ protocol(int f, int p)
 void
 cleanup(int signo)
 {
-	char *p;
 
-	p = line + sizeof(_PATH_DEV) - 1;
-	if (logout(p))
-		logwtmp(p, "", "");
-	(void)chflags(line, 0);
-	(void)chmod(line, 0666);
-	(void)chown(line, 0, 0);
-	*p = 'p';
-	(void)chflags(line, 0);
-	(void)chmod(line, 0666);
-	(void)chown(line, 0, 0);
 	shutdown(netf, SHUT_RDWR);
 	exit(1);
 }

@@ -136,12 +136,6 @@ This
 should not be used directly. It is used to implement routines like
 .Xr grantpt 3 .
 .El
-.Pp
-The maximum number of pseudo-terminals is limited to 1000.
-It is not possible to use more than 1000 pseudo-terminals, as all software
-which use
-.Xr utmp 5
-will not be able to handle pseudo-terminals with number superior to 999.
 .Sh FILES
 The files used by this
 pseudo-terminals implementation are:
@@ -149,26 +143,6 @@ pseudo-terminals implementation are:
 .Bl -tag -width ".Pa /dev/pts/[num]"
 .It Pa /dev/pts/[num]
 Pseudo-terminal slave devices.
-.El
-.Sh SYSCTL VARIABLES
-The following
-.Xr sysctl 8
-variables can be used to modify or monitor
-.Nm
-behavior.
-.Bl -tag -width indent
-.It Va kern.pts_maxdev
-Highest pseudo-terminal unit number to be allocated.
-Because
-.Xr utmp 5
-is restricted to an 8-byte line name size,
-.Nm
-will not create any pseudo-terminals with a unit number above 999 by
-default.
-After increasing
-.Dv UT_LINESIZE ,
-this variable can be changed to allow more than 1000 pseudo-terminals to
-be allocated simultaneously.
 .El
 .Sh DIAGNOSTICS
 None.

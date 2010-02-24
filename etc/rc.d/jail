@@ -728,4 +728,4 @@ fi
 if [ -n "$*" ]; then
 	jail_list="$*"
 fi
-run_rc_command "${cmd}"
+run_rc_command "${cmd}" &

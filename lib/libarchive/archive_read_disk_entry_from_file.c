@@ -103,7 +103,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	 * open file descriptor which we can use in the subsequent lookups. */
 	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
 		if (fd < 0)
-			fd = open(pathname, O_RDONLY | O_NONBLOCK);
+			fd = open(pathname, O_RDONLY | O_NONBLOCK | O_BINARY);
 		if (fd >= 0) {
 			unsigned long stflags;
 			int r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
@@ -114,20 +114,34 @@ archive_read_disk_entry_from_file(struct archive *_a,
 #endif
 
 	if (st == NULL) {
+		/* TODO: On Windows, use GetFileInfoByHandle() here.
+		 * Using Windows stat() call is badly broken, but
+		 * even the stat() wrapper has problems because
+		 * 'struct stat' is broken on Windows.
+		 */
 #if HAVE_FSTAT
 		if (fd >= 0) {
-			if (fstat(fd, &s) != 0)
-				return (ARCHIVE_FATAL);
+			if (fstat(fd, &s) != 0) {
+				archive_set_error(&a->archive, errno,
+				    "Can't fstat");
+				return (ARCHIVE_FAILED);
+			}
 		} else
 #endif
 #if HAVE_LSTAT
 		if (!a->follow_symlinks) {
-			if (lstat(path, &s) != 0)
-				return (ARCHIVE_FATAL);
+			if (lstat(path, &s) != 0) {
+				archive_set_error(&a->archive, errno,
+				    "Can't lstat %s", path);
+				return (ARCHIVE_FAILED);
+			}
 		} else
 #endif
-		if (stat(path, &s) != 0)
-			return (ARCHIVE_FATAL);
+		if (stat(path, &s) != 0) {
+			archive_set_error(&a->archive, errno,
+			    "Can't stat %s", path);
+			return (ARCHIVE_FAILED);
+		}
 		st = &s;
 	}
 	archive_entry_copy_stat(entry, st);
@@ -154,7 +168,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		if (lnklen < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Couldn't read link data");
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		}
 		linkbuffer[lnklen] = 0;
 		archive_entry_set_symlink(entry, linkbuffer);

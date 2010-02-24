@@ -39,12 +39,10 @@
 #include <sys/ioctl.h>
 #include SESINC
 
-extern char *geteltnm __P((int));
+#include "eltsub.h"
 
 int
-main(a, v)
-	int a;
-	char **v;
+main(int a, char **v)
 {
 	ses_object *objp;
 	int nobj, fd, i;

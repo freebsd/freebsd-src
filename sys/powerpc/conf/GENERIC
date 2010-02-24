@@ -21,9 +21,6 @@
 cpu		AIM
 ident		GENERIC
 
-#To statically compile in device wiring instead of /boot/device.hints
-#hints		"GENERIC.hints"
-
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platform support
@@ -66,10 +63,12 @@ options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	MAC			# TrustedBSD MAC Framework
+options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
 # Debugging for use in -current
 options 	KDB			#Enable the kernel debugger
 options 	DDB			#Support DDB
+#options 	DEADLKRES		#Enable the deadlock resolver
 options 	INVARIANTS		#Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 options 	WITNESS			#Enable checks to detect deadlocks and cycles
@@ -131,6 +130,7 @@ device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support
+device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
 device		pty		# BSD-style compatibility pseudo ttys
 device		md		# Memory "disks"
@@ -155,6 +155,7 @@ options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
 device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da0
 device		ums		# Mouse
+device		atp		# Apple USB touchpad
 device		urio		# Diamond Rio 500 MP3 player
 # USB Ethernet
 device		aue		# ADMtek USB Ethernet

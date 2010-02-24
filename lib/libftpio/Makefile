@@ -15,6 +15,8 @@ CLEANFILES=	ftperr.c
 CFLAGS+=	-DINET6
 .endif
 
+WARNS?=		2
+
 ftperr.c:	ftp.errors
 	@echo '#include <stdio.h>' > ${.TARGET}
 	@echo '#include "ftpio.h"' >> ${.TARGET}

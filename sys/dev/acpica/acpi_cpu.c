@@ -255,7 +255,7 @@ acpi_cpu_probe(device_t dev)
 
     /* Mark this processor as in-use and save our derived id for attach. */
     cpu_softc[cpu_id] = (void *)1;
-    acpi_set_magic(dev, cpu_id);
+    acpi_set_private(dev, (void*)(intptr_t)cpu_id);
     device_set_desc(dev, "ACPI CPU");
 
     return (0);
@@ -286,7 +286,7 @@ acpi_cpu_attach(device_t dev)
     sc = device_get_softc(dev);
     sc->cpu_dev = dev;
     sc->cpu_handle = acpi_get_handle(dev);
-    cpu_id = acpi_get_magic(dev);
+    cpu_id = (int)(intptr_t)acpi_get_private(dev);
     cpu_softc[cpu_id] = sc;
     pcpu_data = pcpu_find(cpu_id);
     pcpu_data->pc_device = dev;
@@ -345,27 +345,10 @@ acpi_cpu_attach(device_t dev)
     }
 
     /*
-     * CPU capabilities are specified as a buffer of 32-bit integers:
-     * revision, count, and one or more capabilities.  The revision of
-     * "1" is not specified anywhere but seems to match Linux.
+     * CPU capabilities are specified in
+     * Intel Processor Vendor-Specific ACPI Interface Specification.
      */
     if (sc->cpu_features) {
-	arglist.Pointer = arg;
-	arglist.Count = 1;
-	arg[0].Type = ACPI_TYPE_BUFFER;
-	arg[0].Buffer.Length = sizeof(cap_set);
-	arg[0].Buffer.Pointer = (uint8_t *)cap_set;
-	cap_set[0] = 1; /* revision */
-	cap_set[1] = 1; /* number of capabilities integers */
-	cap_set[2] = sc->cpu_features;
-	AcpiEvaluateObject(sc->cpu_handle, "_PDC", &arglist, NULL);
-
-	/*
-	 * On some systems we need to evaluate _OSC so that the ASL
-	 * loads the _PSS and/or _PDC methods at runtime.
-	 *
-	 * TODO: evaluate failure of _OSC.
-	 */
 	arglist.Pointer = arg;
 	arglist.Count = 4;
 	arg[0].Type = ACPI_TYPE_BUFFER;
@@ -378,19 +361,53 @@ acpi_cpu_attach(device_t dev)
 	arg[3].Type = ACPI_TYPE_BUFFER;
 	arg[3].Buffer.Length = sizeof(cap_set);	/* Capabilities buffer */
 	arg[3].Buffer.Pointer = (uint8_t *)cap_set;
-	cap_set[0] = 0;
-	AcpiEvaluateObject(sc->cpu_handle, "_OSC", &arglist, NULL);
+	cap_set[0] = 0;				/* status */
+	cap_set[1] = sc->cpu_features;
+	status = AcpiEvaluateObject(sc->cpu_handle, "_OSC", &arglist, NULL);
+	if (ACPI_SUCCESS(status)) {
+	    if (cap_set[0] != 0)
+		device_printf(dev, "_OSC returned status %#x\n", cap_set[0]);
+	}
+	else {
+	    arglist.Pointer = arg;
+	    arglist.Count = 1;
+	    arg[0].Type = ACPI_TYPE_BUFFER;
+	    arg[0].Buffer.Length = sizeof(cap_set);
+	    arg[0].Buffer.Pointer = (uint8_t *)cap_set;
+	    cap_set[0] = 1; /* revision */
+	    cap_set[1] = 1; /* number of capabilities integers */
+	    cap_set[2] = sc->cpu_features;
+	    AcpiEvaluateObject(sc->cpu_handle, "_PDC", &arglist, NULL);
+	}
     }
 
     /* Probe for Cx state support. */
     acpi_cpu_cx_probe(sc);
 
-    /* Finally,  call identify and probe/attach for child devices. */
-    bus_generic_probe(dev);
-    bus_generic_attach(dev);
-
     return (0);
 }
+
+static void
+acpi_cpu_postattach(void *unused __unused)
+{
+    device_t *devices;
+    int err;
+    int i, n;
+
+    err = devclass_get_devices(acpi_cpu_devclass, &devices, &n);
+    if (err != 0) {
+	printf("devclass_get_devices(acpi_cpu_devclass) failed\n");
+	return;
+    }
+    for (i = 0; i < n; i++)
+	bus_generic_probe(devices[i]);
+    for (i = 0; i < n; i++)
+	bus_generic_attach(devices[i]);
+    free(devices, M_TEMP);
+}
+
+SYSINIT(acpi_cpu, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE,
+    acpi_cpu_postattach, NULL);
 
 /*
  * Disable any entry to the idle function during suspend and re-enable it

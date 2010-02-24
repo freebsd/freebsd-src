@@ -45,4 +45,4 @@ void ignoresig(int);
 void onsig(int);
 void dotrap(void);
 void setinteractive(int);
-void exitshell(int);
+void exitshell(int) __dead2;

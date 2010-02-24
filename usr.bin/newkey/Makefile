@@ -11,6 +11,4 @@ MAN=	newkey.8
 DPADD=	${LIBRPCSVC} ${LIBMP} ${LIBCRYPTO}
 LDADD=	-lrpcsvc -lmp -lcrypto
 
-WARNS?=	6
-
 .include <bsd.prog.mk>

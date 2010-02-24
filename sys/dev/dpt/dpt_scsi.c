@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#ident "$FreeBSD$"
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 

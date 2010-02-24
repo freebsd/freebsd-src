@@ -107,9 +107,10 @@ test_pax_filename_encoding_2(void)
 	 * de_DE.UTF-8 seems to be commonly supported.
 	 */
 	/* If it doesn't exist, just warn and return. */
-	if (NULL == setlocale(LC_ALL, LOCALE_DE)) {
+	if (LOCALE_UTF8 == NULL
+	    || NULL == setlocale(LC_ALL, LOCALE_UTF8)) {
 		skipping("invalid encoding tests require a suitable locale;"
-		    " %s not available on this system", LOCALE_DE);
+		    " %s not available on this system", LOCALE_UTF8);
 		return;
 	}
 
@@ -151,11 +152,7 @@ test_pax_filename_encoding_2(void)
 	archive_entry_free(entry);
 
 	assertEqualInt(0, archive_write_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
 	assertEqualInt(0, archive_write_finish(a));
-#endif
 
 	/*
 	 * Now read the entries back.
@@ -181,11 +178,7 @@ test_pax_filename_encoding_2(void)
 	assertEqualString(longname, archive_entry_pathname(entry));
 
 	assertEqualInt(0, archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assertEqualInt(0, archive_read_finish(a));
-#endif
 }
 
 /*
@@ -224,6 +217,15 @@ test_pax_filename_encoding_3(void)
 	if (wctomb(buff, 0x1234) > 0) {
 		skipping("Cannot test conversion failures because \"C\" "
 		    "locale on this system has no invalid characters.");
+		return;
+	}
+
+	/* Skip test if archive_entry_update_pathname_utf8() is broken. */
+	/* In particular, this is currently broken on Win32 because
+	 * setlocale() does not set the default encoding for CP_ACP. */
+	entry = archive_entry_new();
+	if (archive_entry_update_pathname_utf8(entry, badname_utf8)) {
+		skipping("Cannot test conversion failures.");
 		return;
 	}
 
@@ -274,11 +276,7 @@ test_pax_filename_encoding_3(void)
 	archive_entry_free(entry);
 
 	assertEqualInt(0, archive_write_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
 	assertEqualInt(0, archive_write_finish(a));
-#endif
 
 	/*
 	 * Now read the entries back.
@@ -322,11 +320,7 @@ test_pax_filename_encoding_3(void)
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &entry));
 
 	assertEqualInt(0, archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assertEqualInt(0, archive_read_finish(a));
-#endif
 }
 
 DEFINE_TEST(test_pax_filename_encoding)

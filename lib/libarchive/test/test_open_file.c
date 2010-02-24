@@ -32,7 +32,7 @@ DEFINE_TEST(test_open_file)
 	struct archive *a;
 	FILE *f;
 
-	f = fopen("test.tar", "w");
+	f = fopen("test.tar", "wb");
 	assert(f != NULL);
 	if (f == NULL)
 		return;
@@ -73,7 +73,7 @@ DEFINE_TEST(test_open_file)
 	/*
 	 * Now, read the data back.
 	 */
-	f = fopen("test.tar", "r");
+	f = fopen("test.tar", "rb");
 	assert(f != NULL);
 	if (f == NULL)
 		return;

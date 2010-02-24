@@ -21,6 +21,8 @@ SRCS=	rtsold.c rtsol.c if.c probe.c dump.c rtsock.c
 
 CFLAGS+= -DHAVE_ARC4RANDOM -DHAVE_POLL_H
 
+WARNS?=	1
+
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 

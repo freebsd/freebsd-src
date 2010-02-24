@@ -5,7 +5,7 @@
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
-# XXX Use GNU versions: apropos bc dc diff grep ld man patch whatis
+# XXX Use GNU versions: apropos diff grep ld man patch whatis
 # Moved to secure: bdes
 #
 
@@ -18,6 +18,7 @@ SUBDIR=	alias \
 	awk \
 	banner \
 	basename \
+	${_bc} \
 	${_biff} \
 	${_bluetooth} \
 	brandelf \
@@ -50,6 +51,7 @@ SUBDIR=	alias \
 	${_csup} \
 	${_ctags} \
 	cut \
+	${_dc} \
 	${_dig} \
 	dirname \
 	du \
@@ -65,7 +67,7 @@ SUBDIR=	alias \
 	${_file2c} \
 	find \
 	finger \
-	${_fmt} \
+	fmt \
 	fold \
 	${_from} \
 	fstat \
@@ -171,6 +173,7 @@ SUBDIR=	alias \
 	${_rwho} \
 	script \
 	sed \
+	seq \
 	shar \
 	showmount \
 	${_smbutil} \
@@ -204,6 +207,7 @@ SUBDIR=	alias \
 	unexpand \
 	${_unifdef} \
 	uniq \
+	unzip \
 	units \
 	unvis \
 	${_usbhidaction} \
@@ -225,6 +229,7 @@ SUBDIR=	alias \
 	who \
 	whois \
 	write \
+	wtmpcvt \
 	xargs \
 	xinstall \
 	${_xlint} \
@@ -281,7 +286,9 @@ _hesinfo=	hesinfo
 .endif
 
 .if ${MK_OPENSSL} != "no"
+_bc=		bc
 _chkey=		chkey
+_dc=		dc
 _newkey=	newkey
 .if ${MK_LIBTHR} != "no"
 _csup=		csup
@@ -295,7 +302,6 @@ _locate=	locate
 # XXX msgs?
 .if ${MK_MAIL} != "no"
 _biff=		biff
-_fmt=		fmt
 _from=		from
 _mail=		mail
 _msgs=		msgs
@@ -386,6 +392,10 @@ _smbutil=	smbutil
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc"
+_smbutil=	smbutil
+.endif
+
+.if ${MACHINE_ARCH} == "sparc64"
 _smbutil=	smbutil
 .endif
 

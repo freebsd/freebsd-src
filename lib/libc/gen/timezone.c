@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #define TZ_MAX_CHARS 255
 
-char *_tztab();
+char *_tztab(int, int);
 
 /*
  * timezone --
@@ -53,9 +53,7 @@ char *_tztab();
 static char	czone[TZ_MAX_CHARS];		/* space for zone name */
 
 char *
-timezone(zone, dst)
-	int	zone,
-		dst;
+timezone(int zone, int dst)
 {
 	char	*beg,
 			*end;
@@ -106,9 +104,7 @@ static struct zone {
  *	STANDARD LIBRARY.
  */
 char *
-_tztab(zone,dst)
-	int	zone;
-	int	dst;
+_tztab(int zone, int dst)
 {
 	struct zone	*zp;
 	char	sign;

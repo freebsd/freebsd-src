@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 
-MKINIT int evalskip;		/* set if we are skipping commands */
+int evalskip;			/* set if we are skipping commands */
 STATIC int skipcount;		/* number of levels to skip */
 MKINIT int loopnest;		/* current loop nesting level */
 int funcnest;			/* depth of function calls */
@@ -407,8 +407,7 @@ evalsubshell(union node *n, int flags)
 			flags &=~ EV_TESTED;
 		redirect(n->nredir.redirect, 0);
 		evaltree(n->nredir.n, flags | EV_EXIT);	/* never returns */
-	}
-	if (! backgnd) {
+	} else if (! backgnd) {
 		INTOFF;
 		exitstatus = waitforjob(jp, (int *)NULL);
 		INTON;
@@ -593,6 +592,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	char *savecmdname;
 	struct shparam saveparam;
 	struct localvar *savelocalvars;
+	struct parsefile *savetopfile;
 	volatile int e;
 	char *lastarg;
 	int realstatus;
@@ -646,7 +646,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		out2str(ps4val());
 		for (sp = varlist.list ; sp ; sp = sp->next) {
 			if (sep != 0)
-				outc(' ', &errout);
+				out2c(' ');
 			p = sp->text;
 			while (*p != '=' && *p != '\0')
 				out2c(*p++);
@@ -658,7 +658,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		}
 		for (sp = arglist.list ; sp ; sp = sp->next) {
 			if (sep != 0)
-				outc(' ', &errout);
+				out2c(' ');
 			/* Disambiguate command looking like assignment. */
 			if (sp == arglist.list &&
 					strchr(sp->text, '=') != NULL &&
@@ -670,7 +670,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				out2qstr(sp->text);
 			sep = ' ';
 		}
-		outc('\n', &errout);
+		out2c('\n');
 		flushout(&errout);
 	}
 
@@ -722,10 +722,10 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 					break;
 				if ((cmdentry.u.index = find_builtin(*argv,
 				    &cmdentry.special)) < 0) {
-					outfmt(&errout, "%s: not found\n", *argv);
-					exitstatus = 127;
-					flushout(&errout);
-					return;
+					cmdentry.u.index = BLTINCMD;
+					argv--;
+					argc++;
+					break;
 				}
 				if (cmdentry.u.index != BLTINCMD)
 					break;
@@ -781,7 +781,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		savelocalvars = localvars;
 		localvars = NULL;
 		reffunc(cmdentry.u.func);
-		INTON;
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			if (exception == EXSHELLPROC)
@@ -793,19 +792,20 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			unreffunc(cmdentry.u.func);
 			poplocalvars();
 			localvars = savelocalvars;
+			funcnest--;
 			handler = savehandler;
 			longjmp(handler->loc, 1);
 		}
 		handler = &jmploc;
+		funcnest++;
+		INTON;
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			mklocal(sp->text);
-		funcnest++;
 		exitstatus = oexitstatus;
 		if (flags & EV_TESTED)
 			evaltree(getfuncnode(cmdentry.u.func), EV_TESTED);
 		else
 			evaltree(getfuncnode(cmdentry.u.func), 0);
-		funcnest--;
 		INTOFF;
 		unreffunc(cmdentry.u.func);
 		poplocalvars();
@@ -813,6 +813,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		freeparam(&shellparam);
 		shellparam = saveparam;
 		handler = savehandler;
+		funcnest--;
 		popredir();
 		INTON;
 		if (evalskip == SKIPFUNC) {
@@ -831,8 +832,10 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			memout.nextc = memout.buf;
 			memout.bufsize = 64;
 			mode |= REDIR_BACKQ;
+			cmdentry.special = 0;
 		}
 		savecmdname = commandname;
+		savetopfile = getcurrentfile();
 		cmdenviron = varlist.list;
 		e = -1;
 		savehandler = handler;
@@ -847,7 +850,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			listsetvar(cmdenviron);
 		commandname = argv[0];
 		argptr = argv + 1;
-		optptr = NULL;			/* initialize nextopt */
+		nextopt_optptr = NULL;		/* initialize nextopt */
 		builtin_flags = flags;
 		exitstatus = (*builtinfunc[cmdentry.u.index])(argc, argv);
 		flushall();
@@ -863,24 +866,25 @@ cmddone:
 			}
 		}
 		handler = savehandler;
-		if (e != -1) {
-			if ((e != EXERROR && e != EXEXEC)
-			    || cmdentry.special)
-				exraise(e);
-			FORCEINTON;
-		}
-		if (cmdentry.u.index != EXECCMD)
-			popredir();
 		if (flags == EV_BACKCMD) {
 			backcmd->buf = memout.buf;
 			backcmd->nleft = memout.nextc - memout.buf;
 			memout.buf = NULL;
 		}
+		if (e != -1) {
+			if ((e != EXERROR && e != EXEXEC)
+			    || cmdentry.special)
+				exraise(e);
+			popfilesupto(savetopfile);
+			if (flags != EV_BACKCMD)
+				FORCEINTON;
+		}
+		if (cmdentry.u.index != EXECCMD)
+			popredir();
 	} else {
 #ifdef DEBUG
 		trputs("normal command:  ");  trargs(argv);
 #endif
-		clearredir();
 		redirect(cmd->ncmd.redirect, 0);
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			setvareq(sp->text, VEXPORT|VSTACK);
@@ -941,12 +945,17 @@ prehash(union node *n)
  */
 
 /*
- * No command given, or a bltin command with no arguments.
+ * No command given, a bltin command with no arguments, or a bltin command
+ * with an invalid name.
  */
 
 int
-bltincmd(int argc __unused, char **argv __unused)
+bltincmd(int argc, char **argv)
 {
+	if (argc > 1) {
+		out2fmt_flush("%s: not found\n", argv[1]);
+		return 127;
+	}
 	/*
 	 * Preserve exitstatus of a previous possible redirection
 	 * as POSIX mandates
@@ -1021,7 +1030,7 @@ commandcmd(int argc, char **argv)
 	if (cmd != -1) {
 		if (argc != 1)
 			error("wrong number of arguments");
-		return typecmd_impl(2, argv - 1, cmd);
+		return typecmd_impl(2, argv - 1, cmd, path);
 	}
 	if (argc != 0) {
 		old = handler;

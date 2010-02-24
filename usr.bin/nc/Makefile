@@ -9,4 +9,6 @@ CFLAGS+=-DIPSEC
 LDADD=	-lipsec
 DPADD=	${LIBIPSEC}
 
+WARNS?=	1
+
 .include <bsd.prog.mk>

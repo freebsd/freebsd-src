@@ -313,7 +313,7 @@ letter pair is not specified, the value defaults to 0.
 directory containing job files
 .It Pa _ATSPOOL_DIR
 directory containing output spool files
-.It Pa /var/run/utmp
+.It Pa /var/run/utx.active
 login records
 .It Pa _PERM_PATH/at.allow
 allow permission control
@@ -338,7 +338,7 @@ with minor enhancements by
 .An Joe Halpin Aq joe.halpin@attbi.com .
 .Sh BUGS
 If the file
-.Pa /var/run/utmp
+.Pa /var/run/utx.active
 is not available or corrupted, or if the user is not logged on at the
 time
 .Nm

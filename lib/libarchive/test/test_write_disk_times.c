@@ -35,8 +35,6 @@ DEFINE_TEST(test_write_disk_times)
 {
 	struct archive *a;
 	struct archive_entry *ae;
-	struct stat st;
- 	time_t now = time(NULL);
 
 	/* Create an archive_write_disk object. */
 	assert((a = archive_write_disk_new()) != NULL);
@@ -55,9 +53,8 @@ DEFINE_TEST(test_write_disk_times)
 	assertEqualInt(ARCHIVE_OK, archive_write_finish_entry(a));
 	archive_entry_free(ae);
 	/* Verify */
-	assertEqualInt(0, stat("file1", &st));
-	assertEqualInt(123456, st.st_atime);
-	assertEqualInt(234567, st.st_mtime);
+	assertFileAtime("file1", 123456, 0);
+	assertFileMtime("file1", 234567, 0);
 
 	/*
 	 * mtime specified, but not atime
@@ -69,11 +66,8 @@ DEFINE_TEST(test_write_disk_times)
 	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
 	assertEqualInt(ARCHIVE_OK, archive_write_finish_entry(a));
 	archive_entry_free(ae);
-	/* Verify: Current atime and mtime as specified. */
-	assertEqualInt(0, stat("file2", &st));
-	assertEqualInt(234567, st.st_mtime);
-	failure("now: %ld st.st_atime: %ld", (long)now, (long)st.st_atime);
-	assert(st.st_atime >= now && st.st_atime < now + 3);
+	assertFileMtime("file2", 234567, 0);
+	assertFileAtimeRecent("file2");
 
 	/*
 	 * atime specified, but not mtime
@@ -86,10 +80,8 @@ DEFINE_TEST(test_write_disk_times)
 	assertEqualInt(ARCHIVE_OK, archive_write_finish_entry(a));
 	archive_entry_free(ae);
 	/* Verify: Current mtime and atime as specified. */
-	assertEqualInt(0, stat("file3", &st));
-	assertEqualInt(345678, st.st_atime);
-	failure("now: %ld st.st_mtime: %ld", (long)now, (long)st.st_mtime);
-	assert(st.st_mtime >= now && st.st_mtime < now + 3);
+	assertFileAtime("file3", 345678, 0);
+	assertFileMtimeRecent("file3");
 
 	/*
 	 * Neither atime nor mtime specified.
@@ -101,11 +93,8 @@ DEFINE_TEST(test_write_disk_times)
 	assertEqualInt(ARCHIVE_OK, archive_write_finish_entry(a));
 	archive_entry_free(ae);
 	/* Verify: Current mtime and atime. */
-	assertEqualInt(0, stat("file4", &st));
-	failure("now: %ld st.st_atime: %ld", (long)now, (long)st.st_atime);
-	assert(st.st_atime >= now && st.st_atime < now + 3);
-	failure("now: %ld st.st_mtime: %ld", (long)now, (long)st.st_mtime);
-	assert(st.st_mtime >= now && st.st_mtime < now + 3);
+	assertFileAtimeRecent("file4");
+	assertFileMtimeRecent("file4");
 
 #if defined(__FreeBSD__)
 	/*
@@ -120,12 +109,8 @@ DEFINE_TEST(test_write_disk_times)
 	assertEqualInt(ARCHIVE_OK, archive_write_finish_entry(a));
 	archive_entry_free(ae);
 	/* Verify */
-	/* FreeBSD can only store usec resolution, hence rounding here. */
-	assertEqualInt(0, stat("file10", &st));
-	assertEqualInt(1234567, st.st_atime);
-	assertEqualInt(23000, st.st_atimespec.tv_nsec);
-	assertEqualInt(2345678, st.st_mtime);
-	assertEqualInt(4000, st.st_mtimespec.tv_nsec);
+	assertFileMtime("file10", 2345678, 4567);
+	assertFileAtime("file10", 1234567, 23456);
 
 	/*
 	 * Birthtime, mtime and atime on FreeBSD
@@ -141,14 +126,9 @@ DEFINE_TEST(test_write_disk_times)
 	assertEqualInt(ARCHIVE_OK, archive_write_finish_entry(a));
 	archive_entry_free(ae);
 	/* Verify */
-	/* FreeBSD can only store usec resolution, hence rounding here. */
-	assertEqualInt(0, stat("file11", &st));
-	assertEqualInt(1234567, st.st_atime);
-	assertEqualInt(23000, st.st_atimespec.tv_nsec);
-	assertEqualInt(3456789, st.st_birthtime);
-	assertEqualInt(12000, st.st_birthtimespec.tv_nsec);
-	assertEqualInt(12345678, st.st_mtime);
-	assertEqualInt(4000, st.st_mtimespec.tv_nsec);
+	assertFileAtime("file11", 1234567, 23456);
+	assertFileBirthtime("file11", 3456789, 12345);
+	assertFileMtime("file11", 12345678, 4567);
 
 	/*
 	 * Birthtime only on FreeBSD.
@@ -161,14 +141,9 @@ DEFINE_TEST(test_write_disk_times)
 	assertEqualInt(ARCHIVE_OK, archive_write_finish_entry(a));
 	archive_entry_free(ae);
 	/* Verify */
-	/* FreeBSD can only store usec resolution, hence rounding here. */
-	assertEqualInt(0, stat("file12", &st));
-	assertEqualInt(3456789, st.st_birthtime);
-	assertEqualInt(12000, st.st_birthtimespec.tv_nsec);
-	failure("now: %ld st.st_atime: %ld", (long)now, (long)st.st_atime);
-	assert(st.st_atime >= now && st.st_atime < now + 3);
-	failure("now: %ld st.st_mtime: %ld", (long)now, (long)st.st_mtime);
-	assert(st.st_mtime >= now && st.st_mtime < now + 3);
+	assertFileAtimeRecent("file12");
+	assertFileBirthtime("file12", 3456789, 12345);
+	assertFileMtimeRecent("file12");
 
 	/*
 	 * mtime only on FreeBSD.
@@ -181,14 +156,9 @@ DEFINE_TEST(test_write_disk_times)
 	assertEqualInt(ARCHIVE_OK, archive_write_finish_entry(a));
 	archive_entry_free(ae);
 	/* Verify */
-	/* FreeBSD can only store usec resolution, hence rounding here. */
-	assertEqualInt(0, stat("file13", &st));
-	assertEqualInt(4567890, st.st_birthtime);
-	assertEqualInt(23000, st.st_birthtimespec.tv_nsec);
-	assertEqualInt(4567890, st.st_mtime);
-	assertEqualInt(23000, st.st_mtimespec.tv_nsec);
-	failure("now: %ld st.st_atime: %ld", (long)now, (long)st.st_atime);
-	assert(st.st_atime >= now && st.st_atime < now + 3);
+	assertFileAtimeRecent("file13");
+	assertFileBirthtime("file13", 4567890, 23456);
+	assertFileMtime("file13", 4567890, 23456);
 #else
 	skipping("Platform-specific time restore tests");
 #endif

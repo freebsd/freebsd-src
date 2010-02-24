@@ -49,7 +49,7 @@ struct ia64_fdesc {
 #define	IA64_CFM_RRB_FR(x)	(((x) >> 25) & 0x7f)
 #define	IA64_CFM_RRB_PR(x)	(((x) >> 32) & 0x3f)
 
-/* Concenience function (inline) to adjust backingstore pointers. */
+/* Convenience function (inline) to adjust backingstore pointers. */
 static __inline uint64_t
 ia64_bsp_adjust(uint64_t bsp, int nslots)
 {
@@ -60,21 +60,21 @@ ia64_bsp_adjust(uint64_t bsp, int nslots)
 
 #ifdef _KERNEL
 
-extern	char	sigcode[];
-extern	char	esigcode[];
-extern	int	szsigcode;
-extern	long	Maxmem;
-
 struct _special;
-struct fpreg;
-struct reg;
 struct thread;
 struct trapframe;
 
+/*
+ * Return value from ia64_init. Describes stack to switch to.
+ */
 struct ia64_init_return {
 	uint64_t	bspstore;
 	uint64_t	sp;
 };
+
+extern uint64_t ia64_lapic_addr;
+
+extern long Maxmem;
 
 void	busdma_swi(void);
 int	copyout_regstack(struct thread *, uint64_t *, uint64_t *);
@@ -86,8 +86,11 @@ int	ia64_emulate(struct trapframe *, struct thread *);
 int	ia64_flush_dirty(struct thread *, struct _special *);
 uint64_t ia64_get_hcdp(void);
 int	ia64_highfp_drop(struct thread *);
+int	ia64_highfp_enable(struct thread *, struct trapframe *);
 int	ia64_highfp_save(struct thread *);
+int	ia64_highfp_save_ipi(void);
 struct ia64_init_return ia64_init(void);
+u_int	ia64_itc_freq(void);
 void	ia64_probe_sapics(void);
 void	ia64_sync_icache(vm_offset_t, vm_size_t);
 void	interrupt(struct trapframe *);

@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-WARNS?= 6
 NO_WERROR=
 PROG=	truss
 SRCS=	main.c setup.c syscalls.c syscalls.h ioctl.c ${MACHINE_ARCH}-fbsd.c

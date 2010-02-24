@@ -27,7 +27,7 @@
 LIB=	pam_radius
 SRCS=	pam_radius.c
 MAN=	pam_radius.8
-WARNS=	0
+WARNS?=	3
 
 DPADD=	${LIBRADIUS}
 LDADD=	-lradius

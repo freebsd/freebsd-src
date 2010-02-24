@@ -130,7 +130,7 @@ usb_attach(device_t dev)
 	DPRINTF("\n");
 
 	if (bus == NULL) {
-		DPRINTFN(0, "USB device has no ivars\n");
+		device_printf(dev, "USB device has no ivars\n");
 		return (ENXIO);
 	}
 
@@ -343,7 +343,7 @@ usb_bus_attach(struct usb_proc_msg *pm)
 		break;
 
 	default:
-		device_printf(bus->bdev, "Unsupported USB revision!\n");
+		device_printf(bus->bdev, "Unsupported USB revision\n");
 		return;
 	}
 
@@ -530,7 +530,7 @@ usb_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat,
 	    (bus->devices_max < USB_MIN_DEVICES) ||
 	    (bus->devices == NULL)) {
 		DPRINTFN(0, "Devices field has not been "
-		    "initialised properly!\n");
+		    "initialised properly\n");
 		bus->alloc_failed = 1;		/* failure */
 	}
 #if USB_HAVE_BUSDMA

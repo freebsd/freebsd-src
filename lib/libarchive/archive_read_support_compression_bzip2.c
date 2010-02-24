@@ -210,12 +210,11 @@ static ssize_t
 bzip2_filter_read(struct archive_read_filter *self, const void **p)
 {
 	struct private_data *state;
-	size_t read_avail, decompressed;
+	size_t decompressed;
 	const char *read_buf;
 	ssize_t ret;
 
 	state = (struct private_data *)self->data;
-	read_avail = 0;
 
 	if (state->eof) {
 		*p = NULL;
@@ -348,7 +347,7 @@ bzip2_filter_close(struct archive_read_filter *self)
 
 	free(state->out_block);
 	free(state);
-	return (ARCHIVE_OK);
+	return (ret);
 }
 
 #endif /* HAVE_BZLIB_H */

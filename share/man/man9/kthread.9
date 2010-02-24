@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2009
+.Dd January 24, 2010
 .Dt KTHREAD 9
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@
 .Ft int
 .Fn kthread_suspend "struct thread *td" "int timo"
 .Ft void
-.Fn kthread_suspend_check "struct thread *td"
+.Fn kthread_suspend_check "void"
 .In sys/unistd.h
 .Ft int
 .Fo kthread_add
@@ -208,12 +208,9 @@ functions are used to suspend and resume a kernel thread.
 During the main loop of its execution, a kernel thread that wishes to allow
 itself to be suspended should call
 .Fn kthread_suspend_check
-passing in
-.Va curthread
-as the only argument.
-This function checks to see if the kernel thread has been asked to suspend.
+in order to check if the it has been asked to suspend.
 If it has, it will
-.Xr tsleep 9
+.Xr msleep 9
 until it is told to resume.
 Once it has been told to resume it will return allowing execution of the
 kernel thread to continue.

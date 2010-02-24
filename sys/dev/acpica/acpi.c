@@ -900,9 +900,6 @@ acpi_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
     case ACPI_IVAR_HANDLE:
 	*(ACPI_HANDLE *)result = ad->ad_handle;
 	break;
-    case ACPI_IVAR_MAGIC:
-	*(uintptr_t *)result = ad->ad_magic;
-	break;
     case ACPI_IVAR_PRIVATE:
 	*(void **)result = ad->ad_private;
 	break;
@@ -937,9 +934,6 @@ acpi_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
     switch(index) {
     case ACPI_IVAR_HANDLE:
 	ad->ad_handle = (ACPI_HANDLE)value;
-	break;
-    case ACPI_IVAR_MAGIC:
-	ad->ad_magic = (uintptr_t)value;
 	break;
     case ACPI_IVAR_PRIVATE:
 	ad->ad_private = (void *)value;
@@ -1523,7 +1517,7 @@ acpi_device_scan_children(device_t bus, device_t dev, int max_depth,
     ctx.arg = arg;
     ctx.parent = h;
     return (AcpiWalkNamespace(ACPI_TYPE_ANY, h, max_depth,
-	acpi_device_scan_cb, &ctx, NULL));
+	acpi_device_scan_cb, NULL, &ctx, NULL));
 }
 
 /*
@@ -1649,7 +1643,7 @@ acpi_probe_children(device_t bus)
      */
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "namespace scan\n"));
     AcpiWalkNamespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, 100, acpi_probe_child,
-	bus, NULL);
+	NULL, bus, NULL);
 
     /* Pre-allocate resources for our rman from any sysresource devices. */
     acpi_sysres_alloc(bus);
@@ -1659,14 +1653,7 @@ acpi_probe_children(device_t bus)
     bus_generic_probe(bus);
 
     /* Probe/attach all children, created staticly and from the namespace. */
-    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "first bus_generic_attach\n"));
-    bus_generic_attach(bus);
-
-    /*
-     * Some of these children may have attached others as part of their attach
-     * process (eg. the root PCI bus driver), so rescan.
-     */
-    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "second bus_generic_attach\n"));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "acpi bus_generic_attach\n"));
     bus_generic_attach(bus);
 
     /* Attach wake sysctls. */
@@ -1691,14 +1678,14 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
      * 100000. CPUs
      */
     AcpiGetType(handle, &type);
-    if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02"))
+    if (type == ACPI_TYPE_PROCESSOR)
 	*order = 1;
-    else if (acpi_MatchHid(handle, "PNP0C09"))
+    else if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02"))
 	*order = 2;
-    else if (acpi_MatchHid(handle, "PNP0C0F"))
+    else if (acpi_MatchHid(handle, "PNP0C09"))
 	*order = 3;
-    else if (type == ACPI_TYPE_PROCESSOR)
-	*order = 100000;
+    else if (acpi_MatchHid(handle, "PNP0C0F"))
+	*order = 4;
 }
 
 /*
@@ -2773,7 +2760,7 @@ acpi_wake_prep_walk(int sstate)
 
     if (ACPI_SUCCESS(AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_SB_", &sb_handle)))
 	AcpiWalkNamespace(ACPI_TYPE_DEVICE, sb_handle, 100,
-	    acpi_wake_prep, &sstate, NULL);
+	    acpi_wake_prep, NULL, &sstate, NULL);
     return (0);
 }
 

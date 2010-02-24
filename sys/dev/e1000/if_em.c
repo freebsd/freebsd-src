@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -35,6 +35,7 @@
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
 #include "opt_inet.h"
+#include "opt_altq.h"
 #endif
 
 #include <sys/param.h>
@@ -94,7 +95,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "6.9.14";
+char em_driver_version[] = "6.9.25";
 
 
 /*********************************************************************
@@ -194,7 +195,7 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_ICH8_IFE_GT,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH8_IFE_G,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH8_IGP_M,	PCI_ANY_ID, PCI_ANY_ID, 0},
-
+	{ 0x8086, E1000_DEV_ID_ICH8_82567V_3,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH9_IGP_M_AMT,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH9_IGP_AMT,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH9_IGP_C,	PCI_ANY_ID, PCI_ANY_ID, 0},
@@ -211,6 +212,10 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_ICH10_R_BM_V,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH10_D_BM_LM,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH10_D_BM_LF,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_M_HV_LM,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_M_HV_LC,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_D_HV_DM,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_D_HV_DC,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
@@ -240,7 +245,6 @@ static int	em_mq_start_locked(struct ifnet *, struct mbuf *);
 static void	em_qflush(struct ifnet *);
 #endif
 static int	em_ioctl(struct ifnet *, u_long, caddr_t);
-static void	em_watchdog(struct adapter *);
 static void	em_init(void *);
 static void	em_init_locked(struct adapter *);
 static void	em_stop(void *);
@@ -315,7 +319,9 @@ static void	em_init_manageability(struct adapter *);
 static void	em_release_manageability(struct adapter *);
 static void     em_get_hw_control(struct adapter *);
 static void     em_release_hw_control(struct adapter *);
+static void	em_get_wakeup(device_t);
 static void     em_enable_wakeup(device_t);
+static int	em_enable_phy_wakeup(struct adapter *);
 
 #ifdef EM_LEGACY_IRQ
 static void	em_intr(void *);
@@ -490,7 +496,6 @@ em_attach(device_t dev)
 	struct adapter	*adapter;
 	int		tsize, rsize;
 	int		error = 0;
-	u16		eeprom_data, device_id;
 
 	INIT_DEBUGOUT("em_attach: begin");
 
@@ -531,6 +536,7 @@ em_attach(device_t dev)
 	** identified
 	*/
 	if ((adapter->hw.mac.type == e1000_ich8lan) ||
+	    (adapter->hw.mac.type == e1000_pchlan) ||
 	    (adapter->hw.mac.type == e1000_ich9lan) ||
 	    (adapter->hw.mac.type == e1000_ich10lan)) {
 		int rid = EM_BAR_TYPE_FLASH;
@@ -728,6 +734,11 @@ em_attach(device_t dev)
 	if (error)
 		goto err_rx_struct;
 
+	/*
+	 * Get Wake-on-Lan and Management info for later use
+	 */
+	em_get_wakeup(dev);
+
 	/* Setup OS specific network interface */
 	em_setup_interface(dev, adapter);
 
@@ -741,69 +752,6 @@ em_attach(device_t dev)
 	if (e1000_check_reset_block(&adapter->hw))
 		device_printf(dev,
 		    "PHY reset is blocked due to SOL/IDER session.\n");
-
-	/* Determine if we have to control management hardware */
-	adapter->has_manage = e1000_enable_mng_pass_thru(&adapter->hw);
-
-	/*
-	 * Setup Wake-on-Lan
-	 */
-	switch (adapter->hw.mac.type) {
-
-	case e1000_82542:
-	case e1000_82543:
-		break;
-	case e1000_82546:
-	case e1000_82546_rev_3:
-	case e1000_82571:
-	case e1000_80003es2lan:
-		if (adapter->hw.bus.func == 1)
-			e1000_read_nvm(&adapter->hw,
-			    NVM_INIT_CONTROL3_PORT_B, 1, &eeprom_data);
-		else
-			e1000_read_nvm(&adapter->hw,
-			    NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
-		eeprom_data &= EM_EEPROM_APME;
-		break;
-	default:
-		/* APME bit in EEPROM is mapped to WUC.APME */
-		eeprom_data = E1000_READ_REG(&adapter->hw, E1000_WUC) &
-		    E1000_WUC_APME;
-		break;
-	}
-	if (eeprom_data)
-		adapter->wol = E1000_WUFC_MAG;
-	/*
-         * We have the eeprom settings, now apply the special cases
-         * where the eeprom may be wrong or the board won't support
-         * wake on lan on a particular port
-	 */
-	device_id = pci_get_device(dev);
-        switch (device_id) {
-	case E1000_DEV_ID_82546GB_PCIE:
-		adapter->wol = 0;
-		break;
-	case E1000_DEV_ID_82546EB_FIBER:
-	case E1000_DEV_ID_82546GB_FIBER:
-	case E1000_DEV_ID_82571EB_FIBER:
-		/* Wake events only supported on port A for dual fiber
-		 * regardless of eeprom setting */
-		if (E1000_READ_REG(&adapter->hw, E1000_STATUS) &
-		    E1000_STATUS_FUNC_1)
-			adapter->wol = 0;
-		break;
-	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
-	case E1000_DEV_ID_82571EB_QUAD_COPPER:
-	case E1000_DEV_ID_82571EB_QUAD_FIBER:
-	case E1000_DEV_ID_82571EB_QUAD_COPPER_LP:
-                /* if quad port adapter, disable WoL on all but port A */
-		if (global_quad_port_a != 0)
-			adapter->wol = 0;
-		/* Reset for multiple quad port adapters */
-		if (++global_quad_port_a == 4)
-			global_quad_port_a = 0;
-                break;
-	}
 
 	/* Do we need workaround for 82544 PCI-X adapter? */
 	if (adapter->hw.bus.type == e1000_bus_type_pcix &&
@@ -819,6 +767,10 @@ em_attach(device_t dev)
 	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
 	    em_unregister_vlan, adapter, EVENTHANDLER_PRI_FIRST); 
 #endif
+
+	/* Non-AMT based hardware can now take control from firmware */
+	if (adapter->has_manage && !adapter->has_amt)
+		em_get_hw_control(adapter);
 
 	/* Tell the stack that the interface is not active */
 	adapter->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -886,20 +838,6 @@ em_detach(device_t dev)
 
 	em_release_manageability(adapter);
 
-	if (((adapter->hw.mac.type == e1000_82573) ||
-	    (adapter->hw.mac.type == e1000_82583) ||
-	    (adapter->hw.mac.type == e1000_ich8lan) ||
-	    (adapter->hw.mac.type == e1000_ich10lan) ||
-	    (adapter->hw.mac.type == e1000_ich9lan)) &&
-	    e1000_check_mng_mode(&adapter->hw))
-		em_release_hw_control(adapter);
-
-	if (adapter->wol) {
-		E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
-		E1000_WRITE_REG(&adapter->hw, E1000_WUFC, adapter->wol);
-		em_enable_wakeup(dev);
-	}
-
 	EM_TX_UNLOCK(adapter);
 	EM_CORE_UNLOCK(adapter);
 
@@ -934,6 +872,7 @@ em_detach(device_t dev)
 		adapter->rx_desc_base = NULL;
 	}
 
+	em_release_hw_control(adapter);
 	EM_TX_LOCK_DESTROY(adapter);
 	EM_RX_LOCK_DESTROY(adapter);
 	EM_CORE_LOCK_DESTROY(adapter);
@@ -963,25 +902,9 @@ em_suspend(device_t dev)
 
 	EM_CORE_LOCK(adapter);
 
-	EM_TX_LOCK(adapter);
-	em_stop(adapter);
-	EM_TX_UNLOCK(adapter);
-
         em_release_manageability(adapter);
-
-        if (((adapter->hw.mac.type == e1000_82573) ||
-	    (adapter->hw.mac.type == e1000_82583) ||
-            (adapter->hw.mac.type == e1000_ich8lan) ||
-            (adapter->hw.mac.type == e1000_ich10lan) ||
-            (adapter->hw.mac.type == e1000_ich9lan)) &&
-            e1000_check_mng_mode(&adapter->hw))
-                em_release_hw_control(adapter);
-
-        if (adapter->wol) {
-                E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
-                E1000_WRITE_REG(&adapter->hw, E1000_WUFC, adapter->wol);
-                em_enable_wakeup(dev);
-        }
+	em_release_hw_control(adapter);
+	em_enable_wakeup(dev);
 
 	EM_CORE_UNLOCK(adapter);
 
@@ -1032,10 +955,10 @@ em_mq_start_locked(struct ifnet *ifp, struct mbuf *m)
 	    || (!adapter->link_active)) {
 		error = drbr_enqueue(ifp, adapter->br, m);
 		return (error);
-	} else if (drbr_empty(ifp, adapter->br) &&
+	} else if (!drbr_needs_enqueue(ifp, adapter->br) &&
 	    (adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)) {
 		if ((error = em_xmit(adapter, &m)) != 0) {
-			if (m != NULL)
+			if (m)
 				error = drbr_enqueue(ifp, adapter->br, m);
 			return (error);
 		} else {
@@ -1049,7 +972,7 @@ em_mq_start_locked(struct ifnet *ifp, struct mbuf *m)
 			** listener and set the watchdog on.
 			*/
 			ETHER_BPF_MTAP(ifp, m);
-			adapter->watchdog_timer = EM_TX_TIMEOUT;
+			adapter->watchdog_check = TRUE;
 		}
 	} else if ((error = drbr_enqueue(ifp, adapter->br, m)) != 0)
 		return (error);
@@ -1072,7 +995,7 @@ process:
 		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
                 ETHER_BPF_MTAP(ifp, next);
                 /* Set the watchdog */
-                adapter->watchdog_timer = EM_TX_TIMEOUT;
+		adapter->watchdog_check = TRUE;
         }
 
         if (adapter->num_tx_desc_avail <= EM_TX_OP_THRESHOLD)
@@ -1151,7 +1074,7 @@ em_start_locked(struct ifnet *ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 
 		/* Set timeout in case hardware has problems transmitting. */
-		adapter->watchdog_timer = EM_TX_TIMEOUT;
+		adapter->watchdog_check = TRUE;
 	}
 	if (adapter->num_tx_desc_avail <= EM_TX_OP_THRESHOLD)
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -1209,8 +1132,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				em_init_locked(adapter);
 				EM_CORE_UNLOCK(adapter);
 			}
-			if (!(ifp->if_flags & IFF_NOARP))
-				arp_ifinit(ifp, ifa);
+			arp_ifinit(ifp, ifa);
 		} else
 #endif
 			error = ether_ioctl(ifp, command, data);
@@ -1243,6 +1165,9 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		case e1000_82574:
 		case e1000_80003es2lan:	/* Limit Jumbo Frame size */
 			max_frame_size = 9234;
+			break;
+		case e1000_pchlan:
+			max_frame_size = 4096;
 			break;
 			/* Adapters that do not support jumbo frames */
 		case e1000_82542:
@@ -1359,11 +1284,24 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			reinit = 1;
 		}
 #endif
-
 		if (mask & IFCAP_VLAN_HWTAGGING) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			reinit = 1;
 		}
+
+		if (mask & IFCAP_VLAN_HWFILTER) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
+			reinit = 1;
+		}
+
+		if ((mask & IFCAP_WOL) &&
+		    (ifp->if_capabilities & IFCAP_WOL) != 0) {
+			if (mask & IFCAP_WOL_MCAST)
+				ifp->if_capenable ^= IFCAP_WOL_MCAST;
+			if (mask & IFCAP_WOL_MAGIC)
+				ifp->if_capenable ^= IFCAP_WOL_MAGIC;
+		}
+
 		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING))
 			em_init(adapter);
 #if __FreeBSD_version >= 700000
@@ -1380,53 +1318,6 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	return (error);
 }
 
-/*********************************************************************
- *  Watchdog timer:
- *
- *  This routine is called from the local timer every second.
- *  As long as transmit descriptors are being cleaned the value
- *  is non-zero and we do nothing. Reaching 0 indicates a tx hang
- *  and we then reset the device.
- *
- **********************************************************************/
-
-static void
-em_watchdog(struct adapter *adapter)
-{
-
-	EM_CORE_LOCK_ASSERT(adapter);
-
-	/*
-	** The timer is set to 5 every time start queues a packet.
-	** Then txeof keeps resetting it as long as it cleans at
-	** least one descriptor.
-	** Finally, anytime all descriptors are clean the timer is
-	** set to 0.
-	*/
-	EM_TX_LOCK(adapter);
-	if ((adapter->watchdog_timer == 0) || (--adapter->watchdog_timer)) {
-		EM_TX_UNLOCK(adapter);
-		return;
-	}
-
-	/* If we are in this routine because of pause frames, then
-	 * don't reset the hardware.
-	 */
-	if (E1000_READ_REG(&adapter->hw, E1000_STATUS) &
-	    E1000_STATUS_TXOFF) {
-		adapter->watchdog_timer = EM_TX_TIMEOUT;
-		EM_TX_UNLOCK(adapter);
-		return;
-	}
-
-	if (e1000_check_for_link(&adapter->hw) == 0)
-		device_printf(adapter->dev, "watchdog timeout -- resetting\n");
-	adapter->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	adapter->watchdog_events++;
-	EM_TX_UNLOCK(adapter);
-
-	em_init_locked(adapter);
-}
 
 /*********************************************************************
  *  Init entry point
@@ -1492,6 +1383,9 @@ em_init_locked(struct adapter *adapter)
 		break;
 	case e1000_ich9lan:
 	case e1000_ich10lan:
+	case e1000_pchlan:
+		pba = E1000_PBA_10K;
+		break;
 	case e1000_ich8lan:
 		pba = E1000_PBA_8K;
 		break;
@@ -1534,18 +1428,17 @@ em_init_locked(struct adapter *adapter)
 
 	/* Setup VLAN support, basic and offload if available */
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
-
-#if __FreeBSD_version < 700029
 	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
-		u32 ctrl;
-		ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
-		ctrl |= E1000_CTRL_VME;
-		E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+		if (ifp->if_capenable & IFCAP_VLAN_HWFILTER)
+			/* Use real VLAN Filter support */
+			em_setup_vlan_hw_support(adapter);
+		else {
+			u32 ctrl;
+			ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+			ctrl |= E1000_CTRL_VME;
+			E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+		}
 	}
-#else
-	/* Use real VLAN Filter support */
-	em_setup_vlan_hw_support(adapter);
-#endif
 
 	/* Set hardware offload abilities */
 	ifp->if_hwassist = 0;
@@ -1614,6 +1507,10 @@ em_init_locked(struct adapter *adapter)
 #endif /* DEVICE_POLLING */
 		em_enable_intr(adapter);
 
+	/* AMT based hardware can now take control from firmware */
+	if (adapter->has_manage && adapter->has_amt)
+		em_get_hw_control(adapter);
+
 	/* Don't reset the phy next time init gets called */
 	adapter->hw.phy.reset_disable = TRUE;
 }
@@ -1649,13 +1546,13 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
+		/* Link status change */
 		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-			callout_stop(&adapter->timer);
 			adapter->hw.mac.get_link_status = 1;
 			em_update_link_status(adapter);
-			callout_reset(&adapter->timer, hz,
-			    em_local_timer, adapter);
 		}
+		if (reg_icr & E1000_ICR_RXO)
+			adapter->rx_overruns++;
 	}
 	EM_CORE_UNLOCK(adapter);
 
@@ -1667,7 +1564,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (!drbr_empty(ifp, adapter->br))
 		em_mq_start_locked(ifp, NULL);
 #else
-	if (!IFQ_DRV_IS_EMPTY(&ifp->snd))
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		em_start_locked(ifp);
 #endif
 	EM_TX_UNLOCK(adapter);
@@ -1769,7 +1666,7 @@ em_handle_rxtx(void *context, int pending)
 		if (!drbr_empty(ifp, adapter->br))
 			em_mq_start_locked(ifp, NULL);
 #else
-		if (!IFQ_DRV_IS_EMPTY(&ifp->snd))
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			em_start_locked(ifp);
 #endif
 		EM_TX_UNLOCK(adapter);
@@ -1933,7 +1830,7 @@ em_handle_tx(void *context, int pending)
 		if (!drbr_empty(ifp, adapter->br))
 			em_mq_start_locked(ifp, NULL);
 #else
-		if (!IFQ_DRV_IS_EMPTY(&ifp->snd))
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			em_start_locked(ifp);
 #endif
 		EM_TX_UNLOCK(adapter);
@@ -2334,6 +2231,7 @@ em_xmit(struct adapter *adapter, struct mbuf **m_headp)
 	 */
 	tx_buffer = &adapter->tx_buffer_area[first];
 	tx_buffer->next_eop = last;
+	adapter->watchdog_time = ticks;
 
 	/*
 	 * Advance the Transmit Descriptor Tail (TDT), this tells the E1000
@@ -2541,7 +2439,11 @@ em_set_multi(struct adapter *adapter)
 	if (mta == NULL)
 		panic("em_set_multi memory failure\n");
 
+#if __FreeBSD_version < 800000
+	IF_ADDR_LOCK(ifp);
+#else
 	if_maddr_rlock(ifp);
+#endif
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -2553,8 +2455,11 @@ em_set_multi(struct adapter *adapter)
 		    &mta[mcnt * ETH_ADDR_LEN], ETH_ADDR_LEN);
 		mcnt++;
 	}
+#if __FreeBSD_version < 800000
+	IF_ADDR_UNLOCK(ifp);
+#else
 	if_maddr_runlock(ifp);
-
+#endif
 	if (mcnt >= MAX_NUM_MULTICAST_ADDRESSES) {
 		reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
 		reg_rctl |= E1000_RCTL_MPE;
@@ -2590,8 +2495,10 @@ em_local_timer(void *arg)
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
+#ifndef DEVICE_POLLING
 	taskqueue_enqueue(adapter->tq,
 	    &adapter->rxtx_task);
+#endif
 	em_update_link_status(adapter);
 	em_update_stats_counters(adapter);
 
@@ -2605,13 +2512,21 @@ em_local_timer(void *arg)
 	em_smartspeed(adapter);
 
 	/*
-	 * Each second we check the watchdog to 
-	 * protect against hardware hangs.
+	 * We check the watchdog: the time since
+	 * the last TX descriptor was cleaned.
+	 * This implies a functional TX engine.
 	 */
-	em_watchdog(adapter);
+	if ((adapter->watchdog_check == TRUE) &&
+	    (ticks - adapter->watchdog_time > EM_WATCHDOG))
+		goto hung;
 
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
-
+	return;
+hung:
+	device_printf(adapter->dev, "Watchdog timeout -- resetting\n");
+	adapter->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	adapter->watchdog_events++;
+	em_init_locked(adapter);
 }
 
 static void
@@ -2677,7 +2592,7 @@ em_update_link_status(struct adapter *adapter)
 			device_printf(dev, "Link is Down\n");
 		adapter->link_active = 0;
 		/* Link down, disable watchdog */
-		adapter->watchdog_timer = FALSE;
+		adapter->watchdog_check = FALSE;
 		if_link_state_change(ifp, LINK_STATE_DOWN);
 	}
 }
@@ -3093,15 +3008,6 @@ em_hardware_init(struct adapter *adapter)
 	/* Issue a global reset */
 	e1000_reset_hw(&adapter->hw);
 
-	/* Get control from any management/hw control */
-	if (((adapter->hw.mac.type == e1000_82573) ||
-	    (adapter->hw.mac.type == e1000_82583) ||
-	    (adapter->hw.mac.type == e1000_ich8lan) ||
-	    (adapter->hw.mac.type == e1000_ich10lan) ||
-	    (adapter->hw.mac.type == e1000_ich9lan)) &&
-	    e1000_check_mng_mode(&adapter->hw))
-		em_get_hw_control(adapter);
-
 	/* When hardware is reset, fifo_head is also reset */
 	adapter->tx_fifo_head = 0;
 
@@ -3151,6 +3057,9 @@ em_hardware_init(struct adapter *adapter)
         else
                 adapter->hw.fc.requested_mode = e1000_fc_none;
 
+	/* Override - workaround for PCHLAN issue */
+	if (adapter->hw.mac.type == e1000_pchlan)
+                adapter->hw.fc.requested_mode = e1000_fc_rx_pause;
 
 	if (e1000_init_hw(&adapter->hw) < 0) {
 		device_printf(dev, "Hardware Initialization Failed\n");
@@ -3221,18 +3130,34 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	if (adapter->hw.mac.type >= e1000_82571)
 		ifp->if_capenable |= IFCAP_TSO4;
 #endif
-
 	/*
-	 * Tell the upper layer(s) we support long frames.
+	 * Tell the upper layer(s) we
+	 * support full VLAN capability
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
-	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+	ifp->if_capenable |= (IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING);
+
+	/*
+	** Dont turn this on by default, if vlans are
+	** created on another pseudo device (eg. lagg)
+	** then vlan events are not passed thru, breaking
+	** operation, but with HW FILTER off it works. If
+	** using vlans directly on the em driver you can
+	** enable this and get full hardware tag filtering. 
+	*/
+	ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
 
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 
+	/* Limit WOL to MAGIC, not clear others are used */
+	if (adapter->wol) {
+		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
+		ifp->if_capenable |= IFCAP_WOL_MAGIC;
+	}
+		
 	/*
 	 * Specify the media types supported by this adapter and register
 	 * callbacks to update media and link information
@@ -3299,7 +3224,7 @@ em_smartspeed(struct adapter *adapter)
 				    PHY_1000T_CTRL, phy_tmp);
 				adapter->smartspeed++;
 				if(adapter->hw.mac.autoneg &&
-				   !e1000_phy_setup_autoneg(&adapter->hw) &&
+				   !e1000_copper_link_autoneg(&adapter->hw) &&
 				   !e1000_read_phy_reg(&adapter->hw,
 				    PHY_CONTROL, &phy_tmp)) {
 					phy_tmp |= (MII_CR_AUTO_NEG_EN |
@@ -3316,7 +3241,7 @@ em_smartspeed(struct adapter *adapter)
 		phy_tmp |= CR_1000T_MS_ENABLE;
 		e1000_write_phy_reg(&adapter->hw, PHY_1000T_CTRL, phy_tmp);
 		if(adapter->hw.mac.autoneg &&
-		   !e1000_phy_setup_autoneg(&adapter->hw) &&
+		   !e1000_copper_link_autoneg(&adapter->hw) &&
 		   !e1000_read_phy_reg(&adapter->hw, PHY_CONTROL, &phy_tmp)) {
 			phy_tmp |= (MII_CR_AUTO_NEG_EN |
 				    MII_CR_RESTART_AUTO_NEG);
@@ -3975,7 +3900,6 @@ static void
 em_txeof(struct adapter *adapter)
 {
         int first, last, done, num_avail;
-	u32 cleaned = 0;
         struct em_buffer *tx_buffer;
         struct e1000_tx_desc   *tx_desc, *eop_desc;
 	struct ifnet   *ifp = adapter->ifp;
@@ -4011,7 +3935,7 @@ em_txeof(struct adapter *adapter)
                 	tx_desc->upper.data = 0;
                 	tx_desc->lower.data = 0;
                 	tx_desc->buffer_addr = 0;
-                	++num_avail; ++cleaned;
+                	++num_avail;
 
 			if (tx_buffer->m_head) {
 				ifp->if_opackets++;
@@ -4025,6 +3949,7 @@ em_txeof(struct adapter *adapter)
                         	tx_buffer->m_head = NULL;
                 	}
 			tx_buffer->next_eop = -1;
+			adapter->watchdog_time = ticks;
 
 	                if (++first == adapter->num_tx_desc)
 				first = 0;
@@ -4050,20 +3975,17 @@ em_txeof(struct adapter *adapter)
         /*
          * If we have enough room, clear IFF_DRV_OACTIVE to
          * tell the stack that it is OK to send packets.
-         * If there are no pending descriptors, clear the timeout.
+         * If there are no pending descriptors, clear the watchdog.
          */
         if (num_avail > EM_TX_CLEANUP_THRESHOLD) {                
                 ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
                 if (num_avail == adapter->num_tx_desc) {
-			adapter->watchdog_timer = 0;
+			adapter->watchdog_check = FALSE;
         		adapter->num_tx_desc_avail = num_avail;
 			return;
 		} 
         }
 
-	/* If any descriptors cleaned, reset the watchdog */
-	if (cleaned)
-		adapter->watchdog_timer = EM_TX_TIMEOUT;
         adapter->num_tx_desc_avail = num_avail;
 	return;
 }
@@ -4071,7 +3993,7 @@ em_txeof(struct adapter *adapter)
 /*********************************************************************
  *
  *  When Link is lost sometimes there is work still in the TX ring
- *  which will result in a watchdog, rather than allow that do an
+ *  which may result in a watchdog, rather than allow that we do an
  *  attempted cleanup and then reinit here. Note that this has been
  *  seens mostly with fiber adapters.
  *
@@ -4079,14 +4001,12 @@ em_txeof(struct adapter *adapter)
 static void
 em_tx_purge(struct adapter *adapter)
 {
-	if ((!adapter->link_active) && (adapter->watchdog_timer)) {
+	if ((!adapter->link_active) && (adapter->watchdog_check)) {
 		EM_TX_LOCK(adapter);
 		em_txeof(adapter);
 		EM_TX_UNLOCK(adapter);
-		if (adapter->watchdog_timer) { /* Still not clean? */
-			adapter->watchdog_timer = 0;
+		if (adapter->watchdog_check) /* Still outstanding? */
 			em_init_locked(adapter);
-		}
 	}
 }
 
@@ -4877,72 +4797,54 @@ em_release_manageability(struct adapter *adapter)
 }
 
 /*
- * em_get_hw_control sets {CTRL_EXT|FWSM}:DRV_LOAD bit.
- * For ASF and Pass Through versions of f/w this means that
- * the driver is loaded. For AMT version (only with 82573)
- * of the f/w this means that the network i/f is open.
- *
+ * em_get_hw_control sets the {CTRL_EXT|FWSM}:DRV_LOAD bit.
+ * For ASF and Pass Through versions of f/w this means
+ * that the driver is loaded. For AMT version type f/w
+ * this means that the network i/f is open.
  */
 static void
 em_get_hw_control(struct adapter *adapter)
 {
 	u32 ctrl_ext, swsm;
 
-	/* Let firmware know the driver has taken over */
-	switch (adapter->hw.mac.type) {
-	case e1000_82573:
+	if (adapter->hw.mac.type == e1000_82573) {
 		swsm = E1000_READ_REG(&adapter->hw, E1000_SWSM);
 		E1000_WRITE_REG(&adapter->hw, E1000_SWSM,
 		    swsm | E1000_SWSM_DRV_LOAD);
-		break;
-	case e1000_82571:
-	case e1000_82572:
-	case e1000_80003es2lan:
-	case e1000_ich8lan:
-	case e1000_ich9lan:
-	case e1000_ich10lan:
-		ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
-		E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT,
-		    ctrl_ext | E1000_CTRL_EXT_DRV_LOAD);
-		break;
-	default:
-		break;
+		return;
 	}
+	/* else */
+	ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
+	E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT,
+	    ctrl_ext | E1000_CTRL_EXT_DRV_LOAD);
+	return;
 }
 
 /*
  * em_release_hw_control resets {CTRL_EXT|FWSM}:DRV_LOAD bit.
- * For ASF and Pass Through versions of f/w this means that the
- * driver is no longer loaded. For AMT version (only with 82573) i
- * of the f/w this means that the network i/f is closed.
- *
+ * For ASF and Pass Through versions of f/w this means that
+ * the driver is no longer loaded. For AMT versions of the
+ * f/w this means that the network i/f is closed.
  */
 static void
 em_release_hw_control(struct adapter *adapter)
 {
 	u32 ctrl_ext, swsm;
 
-	/* Let firmware taken over control of h/w */
-	switch (adapter->hw.mac.type) {
-	case e1000_82573:
+	if (!adapter->has_manage)
+		return;
+
+	if (adapter->hw.mac.type == e1000_82573) {
 		swsm = E1000_READ_REG(&adapter->hw, E1000_SWSM);
 		E1000_WRITE_REG(&adapter->hw, E1000_SWSM,
 		    swsm & ~E1000_SWSM_DRV_LOAD);
-		break;
-	case e1000_82571:
-	case e1000_82572:
-	case e1000_80003es2lan:
-	case e1000_ich8lan:
-	case e1000_ich9lan:
-	case e1000_ich10lan:
-		ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
-		E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT,
-		    ctrl_ext & ~E1000_CTRL_EXT_DRV_LOAD);
-		break;
-	default:
-		break;
-
+		return;
 	}
+	/* else */
+	ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
+	E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT,
+	    ctrl_ext & ~E1000_CTRL_EXT_DRV_LOAD);
+	return;
 }
 
 static int
@@ -4958,27 +4860,249 @@ em_is_valid_ether_addr(u8 *addr)
 }
 
 /*
+** Parse the interface capabilities with regard
+** to both system management and wake-on-lan for
+** later use.
+*/
+static void
+em_get_wakeup(device_t dev)
+{
+	struct adapter	*adapter = device_get_softc(dev);
+	u16		eeprom_data = 0, device_id, apme_mask;
+
+	adapter->has_manage = e1000_enable_mng_pass_thru(&adapter->hw);
+	apme_mask = EM_EEPROM_APME;
+
+	switch (adapter->hw.mac.type) {
+	case e1000_82542:
+	case e1000_82543:
+		break;
+	case e1000_82544:
+		e1000_read_nvm(&adapter->hw,
+		    NVM_INIT_CONTROL2_REG, 1, &eeprom_data);
+		apme_mask = EM_82544_APME;
+		break;
+	case e1000_82573:
+	case e1000_82583:
+		adapter->has_amt = TRUE;
+		/* Falls thru */
+	case e1000_82546:
+	case e1000_82546_rev_3:
+	case e1000_82571:
+	case e1000_82572:
+	case e1000_80003es2lan:
+		if (adapter->hw.bus.func == 1) {
+			e1000_read_nvm(&adapter->hw,
+			    NVM_INIT_CONTROL3_PORT_B, 1, &eeprom_data);
+			break;
+		} else
+			e1000_read_nvm(&adapter->hw,
+			    NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
+		break;
+	case e1000_ich8lan:
+	case e1000_ich9lan:
+	case e1000_ich10lan:
+	case e1000_pchlan:
+		apme_mask = E1000_WUC_APME;
+		adapter->has_amt = TRUE;
+		eeprom_data = E1000_READ_REG(&adapter->hw, E1000_WUC);
+		break;
+	default:
+		e1000_read_nvm(&adapter->hw,
+		    NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
+		break;
+	}
+	if (eeprom_data & apme_mask)
+		adapter->wol = (E1000_WUFC_MAG | E1000_WUFC_MC);
+	/*
+         * We have the eeprom settings, now apply the special cases
+         * where the eeprom may be wrong or the board won't support
+         * wake on lan on a particular port
+	 */
+	device_id = pci_get_device(dev);
+        switch (device_id) {
+	case E1000_DEV_ID_82546GB_PCIE:
+		adapter->wol = 0;
+		break;
+	case E1000_DEV_ID_82546EB_FIBER:
+	case E1000_DEV_ID_82546GB_FIBER:
+	case E1000_DEV_ID_82571EB_FIBER:
+		/* Wake events only supported on port A for dual fiber
+		 * regardless of eeprom setting */
+		if (E1000_READ_REG(&adapter->hw, E1000_STATUS) &
+		    E1000_STATUS_FUNC_1)
+			adapter->wol = 0;
+		break;
+	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
+	case E1000_DEV_ID_82571EB_QUAD_COPPER:
+	case E1000_DEV_ID_82571EB_QUAD_FIBER:
+	case E1000_DEV_ID_82571EB_QUAD_COPPER_LP:
+                /* if quad port adapter, disable WoL on all but port A */
+		if (global_quad_port_a != 0)
+			adapter->wol = 0;
+		/* Reset for multiple quad port adapters */
+		if (++global_quad_port_a == 4)
+			global_quad_port_a = 0;
+                break;
+	}
+	return;
+}
+
+
+/*
  * Enable PCI Wake On Lan capability
  */
 void
 em_enable_wakeup(device_t dev)
 {
-	u16     cap, status;
-	u8      id;
+	struct adapter	*adapter = device_get_softc(dev);
+	struct ifnet	*ifp = adapter->ifp;
+	u32		pmc, ctrl, ctrl_ext, rctl;
+	u16     	status;
 
-	/* First find the capabilities pointer*/
-	cap = pci_read_config(dev, PCIR_CAP_PTR, 2);
-	/* Read the PM Capabilities */
-	id = pci_read_config(dev, cap, 1);
-	if (id != PCIY_PMG)     /* Something wrong */
+	if ((pci_find_extcap(dev, PCIY_PMG, &pmc) != 0))
 		return;
-	/* OK, we have the power capabilities, so
-	   now get the status register */
-	cap += PCIR_POWER_STATUS;
-	status = pci_read_config(dev, cap, 2);
-	status |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(dev, cap, status, 2);
+
+	/* Advertise the wakeup capability */
+	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+	ctrl |= (E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN3);
+	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+	E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
+
+	/* ICH workaround code */
+	if ((adapter->hw.mac.type == e1000_ich8lan) ||
+	    (adapter->hw.mac.type == e1000_pchlan) ||
+	    (adapter->hw.mac.type == e1000_ich9lan) ||
+	    (adapter->hw.mac.type == e1000_ich10lan)) {
+		e1000_disable_gig_wol_ich8lan(&adapter->hw);
+		e1000_hv_phy_powerdown_workaround_ich8lan(&adapter->hw);
+	}
+
+	/* Keep the laser running on Fiber adapters */
+	if (adapter->hw.phy.media_type == e1000_media_type_fiber ||
+	    adapter->hw.phy.media_type == e1000_media_type_internal_serdes) {
+		ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
+		ctrl_ext |= E1000_CTRL_EXT_SDP3_DATA;
+		E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT, ctrl_ext);
+	}
+
+	/*
+	** Determine type of Wakeup: note that wol
+	** is set with all bits on by default.
+	*/
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) == 0)
+		adapter->wol &= ~E1000_WUFC_MAG;
+
+	if ((ifp->if_capenable & IFCAP_WOL_MCAST) == 0)
+		adapter->wol &= ~E1000_WUFC_MC;
+	else {
+		rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
+		rctl |= E1000_RCTL_MPE;
+		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, rctl);
+	}
+
+	if (adapter->hw.mac.type == e1000_pchlan) {
+		if (em_enable_phy_wakeup(adapter))
+			return;
+	} else {
+		E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
+		E1000_WRITE_REG(&adapter->hw, E1000_WUFC, adapter->wol);
+	}
+
+	if (adapter->hw.phy.type == e1000_phy_igp_3)
+		e1000_igp3_phy_powerdown_workaround_ich8lan(&adapter->hw);
+
+        /* Request PME */
+        status = pci_read_config(dev, pmc + PCIR_POWER_STATUS, 2);
+	status &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
+	if (ifp->if_capenable & IFCAP_WOL)
+		status |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
+        pci_write_config(dev, pmc + PCIR_POWER_STATUS, status, 2);
+
 	return;
+}
+
+/*
+** WOL in the newer chipset interfaces (pchlan)
+** require thing to be copied into the phy
+*/
+static int
+em_enable_phy_wakeup(struct adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 mreg, ret = 0;
+	u16 preg;
+
+	/* copy MAC RARs to PHY RARs */
+	for (int i = 0; i < adapter->hw.mac.rar_entry_count; i++) {
+		mreg = E1000_READ_REG(hw, E1000_RAL(i));
+		e1000_write_phy_reg(hw, BM_RAR_L(i), (u16)(mreg & 0xFFFF));
+		e1000_write_phy_reg(hw, BM_RAR_M(i),
+		    (u16)((mreg >> 16) & 0xFFFF));
+		mreg = E1000_READ_REG(hw, E1000_RAH(i));
+		e1000_write_phy_reg(hw, BM_RAR_H(i), (u16)(mreg & 0xFFFF));
+		e1000_write_phy_reg(hw, BM_RAR_CTRL(i),
+		    (u16)((mreg >> 16) & 0xFFFF));
+	}
+
+	/* copy MAC MTA to PHY MTA */
+	for (int i = 0; i < adapter->hw.mac.mta_reg_count; i++) {
+		mreg = E1000_READ_REG_ARRAY(hw, E1000_MTA, i);
+		e1000_write_phy_reg(hw, BM_MTA(i), (u16)(mreg & 0xFFFF));
+		e1000_write_phy_reg(hw, BM_MTA(i) + 1,
+		    (u16)((mreg >> 16) & 0xFFFF));
+	}
+
+	/* configure PHY Rx Control register */
+	e1000_read_phy_reg(&adapter->hw, BM_RCTL, &preg);
+	mreg = E1000_READ_REG(hw, E1000_RCTL);
+	if (mreg & E1000_RCTL_UPE)
+		preg |= BM_RCTL_UPE;
+	if (mreg & E1000_RCTL_MPE)
+		preg |= BM_RCTL_MPE;
+	preg &= ~(BM_RCTL_MO_MASK);
+	if (mreg & E1000_RCTL_MO_3)
+		preg |= (((mreg & E1000_RCTL_MO_3) >> E1000_RCTL_MO_SHIFT)
+				<< BM_RCTL_MO_SHIFT);
+	if (mreg & E1000_RCTL_BAM)
+		preg |= BM_RCTL_BAM;
+	if (mreg & E1000_RCTL_PMCF)
+		preg |= BM_RCTL_PMCF;
+	mreg = E1000_READ_REG(hw, E1000_CTRL);
+	if (mreg & E1000_CTRL_RFCE)
+		preg |= BM_RCTL_RFCE;
+	e1000_write_phy_reg(&adapter->hw, BM_RCTL, preg);
+
+	/* enable PHY wakeup in MAC register */
+	E1000_WRITE_REG(hw, E1000_WUC,
+	    E1000_WUC_PHY_WAKE | E1000_WUC_PME_EN);
+	E1000_WRITE_REG(hw, E1000_WUFC, adapter->wol);
+
+	/* configure and enable PHY wakeup in PHY registers */
+	e1000_write_phy_reg(&adapter->hw, BM_WUFC, adapter->wol);
+	e1000_write_phy_reg(&adapter->hw, BM_WUC, E1000_WUC_PME_EN);
+
+	/* activate PHY wakeup */
+	ret = hw->phy.ops.acquire(hw);
+	if (ret) {
+		printf("Could not acquire PHY\n");
+		return ret;
+	}
+	e1000_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT,
+	                         (BM_WUC_ENABLE_PAGE << IGP_PAGE_SHIFT));
+	ret = e1000_read_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, &preg);
+	if (ret) {
+		printf("Could not read PHY page 769\n");
+		goto out;
+	}
+	preg |= BM_WUC_ENABLE_BIT | BM_WUC_HOST_WU_BIT;
+	ret = e1000_write_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, preg);
+	if (ret)
+		printf("Could not set PHY Host Wakeup bit\n");
+out:
+	hw->phy.ops.release(hw);
+
+	return ret;
 }
 
 

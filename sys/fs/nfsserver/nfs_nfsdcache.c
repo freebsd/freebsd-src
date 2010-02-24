@@ -386,9 +386,9 @@ loop:
 		newrp->rc_inet = saddr->sin_addr.s_addr;
 	else if (saddr->sin_family == AF_INET6) {
 		saddr6 = (struct sockaddr_in6 *)saddr;
-		NFSBCOPY((caddr_t)&saddr6->sin6_addr,(caddr_t)&newrp->rc_inet6,
-			sizeof (struct in6_addr));
-		rp->rc_flag |= RC_INETIPV6;
+		NFSBCOPY((caddr_t)&saddr6->sin6_addr, (caddr_t)&newrp->rc_inet6,
+		    sizeof (struct in6_addr));
+		newrp->rc_flag |= RC_INETIPV6;
 	}
 	LIST_INSERT_HEAD(hp, newrp, rc_hash);
 	TAILQ_INSERT_TAIL(&nfsrvudplru, newrp, rc_lru);
@@ -522,8 +522,9 @@ nfsrvd_sentcache(struct nfsrvcache *rp, struct socket *so, int err)
 	if (!(rp->rc_flag & RC_LOCKED))
 		panic("nfsrvd_sentcache not locked");
 	if (!err) {
-		if (so->so_proto->pr_domain->dom_family != AF_INET ||
-		    so->so_proto->pr_protocol != IPPROTO_TCP)
+		if ((so->so_proto->pr_domain->dom_family != AF_INET &&
+		     so->so_proto->pr_domain->dom_family != AF_INET6) ||
+		     so->so_proto->pr_protocol != IPPROTO_TCP)
 			panic("nfs sent cache");
 		if (nfsrv_getsockseqnum(so, &rp->rc_tcpseq))
 			rp->rc_flag |= RC_TCPSEQ;

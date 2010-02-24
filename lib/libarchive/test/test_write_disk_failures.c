@@ -42,13 +42,13 @@ DEFINE_TEST(test_write_disk_failures)
 	int fd;
 
 	/* Force the umask to something predictable. */
-	umask(UMASK);
+	assertUmask(UMASK);
 
 	/* A directory that we can't write to. */
-	assertEqualInt(0, mkdir("dir", 0555));
+	assertMakeDir("dir", 0555);
 
 	/* Can we? */
-	fd = open("dir/testfile", O_WRONLY | O_CREAT, 0777);
+	fd = open("dir/testfile", O_WRONLY | O_CREAT | O_BINARY, 0777);
 	if (fd >= 0) {
 	  /* Apparently, we can, so the test below won't work. */
 	  close(fd);

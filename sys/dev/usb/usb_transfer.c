@@ -201,9 +201,9 @@ usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 	usb_size_t r;
 	usb_size_t z;
 
-	USB_ASSERT(align > 1, ("Invalid alignment, 0x%08x!\n",
+	USB_ASSERT(align > 1, ("Invalid alignment, 0x%08x\n",
 	    align));
-	USB_ASSERT(size > 0, ("Invalid size = 0!\n"));
+	USB_ASSERT(size > 0, ("Invalid size = 0\n"));
 
 	if (count == 0) {
 		return (0);		/* nothing to allocate */
@@ -416,9 +416,15 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 		case USB_SPEED_LOW:
 		case USB_SPEED_FULL:
 			frame_limit = USB_MAX_FS_ISOC_FRAMES_PER_XFER;
+			xfer->fps_shift = 0;
 			break;
 		default:
 			frame_limit = USB_MAX_HS_ISOC_FRAMES_PER_XFER;
+			xfer->fps_shift = edesc->bInterval;
+			if (xfer->fps_shift > 0)
+				xfer->fps_shift--;
+			if (xfer->fps_shift > 3)
+				xfer->fps_shift = 3;
 			break;
 		}
 
@@ -936,10 +942,18 @@ usbd_transfer_setup(struct usb_device *udev,
 				 * configuration and alternate setting
 				 * when USB transfers are in use on
 				 * the given interface. Search the USB
-				 * code for "endpoint->refcount" if you
+				 * code for "endpoint->refcount_alloc" if you
 				 * want more information.
 				 */
-				xfer->endpoint->refcount++;
+				USB_BUS_LOCK(info->bus);
+				if (xfer->endpoint->refcount_alloc >= USB_EP_REF_MAX)
+					parm.err = USB_ERR_INVAL;
+
+				xfer->endpoint->refcount_alloc++;
+
+				if (xfer->endpoint->refcount_alloc == 0)
+					panic("usbd_transfer_setup(): Refcount wrapped to zero\n");
+				USB_BUS_UNLOCK(info->bus);
 
 				/*
 				 * Whenever we set ppxfer[] then we
@@ -954,6 +968,10 @@ usbd_transfer_setup(struct usb_device *udev,
 				 */
 				ppxfer[n] = xfer;
 			}
+
+			/* check for error */
+			if (parm.err)
+				goto done;
 		}
 
 		if (buf || parm.err) {
@@ -1173,14 +1191,16 @@ usbd_transfer_unsetup(struct usb_xfer **pxfer, uint16_t n_setup)
 		 * NOTE: default endpoint does not have an
 		 * interface, even if endpoint->iface_index == 0
 		 */
-		xfer->endpoint->refcount--;
+		USB_BUS_LOCK(info->bus);
+		xfer->endpoint->refcount_alloc--;
+		USB_BUS_UNLOCK(info->bus);
 
 		usb_callout_drain(&xfer->timeout_handle);
 
 		USB_BUS_LOCK(info->bus);
 
 		USB_ASSERT(info->setup_refcount != 0, ("Invalid setup "
-		    "reference count!\n"));
+		    "reference count\n"));
 
 		info->setup_refcount--;
 
@@ -1333,7 +1353,7 @@ usbd_setup_ctrl_transfer(struct usb_xfer *xfer)
 
 	if (len > xfer->flags_int.control_rem) {
 		DPRINTFN(0, "Length (%d) greater than "
-		    "remaining length (%d)!\n", len,
+		    "remaining length (%d)\n", len,
 		    xfer->flags_int.control_rem);
 		goto error;
 	}
@@ -1346,7 +1366,7 @@ usbd_setup_ctrl_transfer(struct usb_xfer *xfer)
 		    (len != xfer->flags_int.control_rem) &&
 		    (xfer->nframes != 1)) {
 			DPRINTFN(0, "Short control transfer without "
-			    "force_short_xfer set!\n");
+			    "force_short_xfer set\n");
 			goto error;
 		}
 		xfer->flags_int.control_rem -= len;
@@ -1797,8 +1817,18 @@ usbd_transfer_drain(struct usb_xfer *xfer)
 
 	usbd_transfer_stop(xfer);
 
-	while (usbd_transfer_pending(xfer)) {
+	while (usbd_transfer_pending(xfer) || 
+	    xfer->flags_int.doing_callback) {
+
+		/* 
+		 * It is allowed that the callback can drop its
+		 * transfer mutex. In that case checking only
+		 * "usbd_transfer_pending()" is not enough to tell if
+		 * the USB transfer is fully drained. We also need to
+		 * check the internal "doing_callback" flag.
+		 */
 		xfer->flags_int.draining = 1;
+
 		/*
 		 * Wait until the current outstanding USB
 		 * transfer is complete !
@@ -1814,6 +1844,23 @@ usbd_xfer_get_frame(struct usb_xfer *xfer, usb_frcount_t frindex)
 	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
 
 	return (&xfer->frbuffers[frindex]);
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_xfer_get_fps_shift
+ *
+ * The following function is only useful for isochronous transfers. It
+ * returns how many times the frame execution rate has been shifted
+ * down.
+ *
+ * Return value:
+ * Success: 0..3
+ * Failure: 0
+ *------------------------------------------------------------------------*/
+uint8_t
+usbd_xfer_get_fps_shift(struct usb_xfer *xfer)
+{
+	return (xfer->fps_shift);
 }
 
 usb_frlength_t
@@ -1880,7 +1927,7 @@ usbd_xfer_set_frame_offset(struct usb_xfer *xfer, usb_frlength_t offset,
     usb_frcount_t frindex)
 {
 	KASSERT(!xfer->flags.ext_buffer, ("Cannot offset data frame "
-	    "when the USB buffer is external!\n"));
+	    "when the USB buffer is external\n"));
 	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
 
 	/* set virtual address to load */
@@ -2043,6 +2090,9 @@ usbd_callback_wrapper(struct usb_xfer_queue *pq)
 	/* get next USB transfer in the queue */
 	info->done_q.curr = NULL;
 
+	/* set flag in case of drain */
+	xfer->flags_int.doing_callback = 1;
+
 	USB_BUS_UNLOCK(info->bus);
 	USB_BUS_LOCK_ASSERT(info->bus, MA_NOTOWNED);
 
@@ -2095,12 +2145,17 @@ usbd_callback_wrapper(struct usb_xfer_queue *pq)
 	if ((!xfer->flags_int.open) &&
 	    (xfer->flags_int.started) &&
 	    (xfer->usb_state == USB_ST_ERROR)) {
+		/* clear flag in case of drain */
+		xfer->flags_int.doing_callback = 0;
 		/* try to loop, but not recursivly */
 		usb_command_wrapper(&info->done_q, xfer);
 		return;
 	}
 
 done:
+	/* clear flag in case of drain */
+	xfer->flags_int.doing_callback = 0;
+
 	/*
 	 * Check if we are draining.
 	 */
@@ -2382,7 +2437,7 @@ usbd_pipe_start(struct usb_xfer_queue *pq)
 				    &udev->cs_msg[0], &udev->cs_msg[1]);
 			} else {
 				/* should not happen */
-				DPRINTFN(0, "No stall handler!\n");
+				DPRINTFN(0, "No stall handler\n");
 			}
 			/*
 			 * Check if we should stall. Some USB hardware
@@ -2525,7 +2580,7 @@ usbd_callback_wrapper_sub(struct usb_xfer *xfer)
 	if (xfer->aframes > xfer->nframes) {
 		if (xfer->error == 0) {
 			panic("%s: actual number of frames, %d, is "
-			    "greater than initial number of frames, %d!\n",
+			    "greater than initial number of frames, %d\n",
 			    __FUNCTION__, xfer->aframes, xfer->nframes);
 		} else {
 			/* just set some valid value */
@@ -2552,7 +2607,7 @@ usbd_callback_wrapper_sub(struct usb_xfer *xfer)
 	if (xfer->actlen > xfer->sumlen) {
 		if (xfer->error == 0) {
 			panic("%s: actual length, %d, is greater than "
-			    "initial length, %d!\n",
+			    "initial length, %d\n",
 			    __FUNCTION__, xfer->actlen, xfer->sumlen);
 		} else {
 			/* just set some valid value */
@@ -2754,7 +2809,7 @@ repeat:
 	    udev->default_xfer, usb_control_ep_cfg, USB_DEFAULT_XFER_MAX, NULL,
 	    udev->default_mtx)) {
 		DPRINTFN(0, "could not setup default "
-		    "USB transfer!\n");
+		    "USB transfer\n");
 	} else {
 		goto repeat;
 	}

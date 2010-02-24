@@ -929,7 +929,7 @@ xl_reset(struct xl_softc *sc)
 	/*
 	 * If we're using memory mapped register mode, pause briefly
 	 * after issuing the reset command before trying to access any
-	 * other registers. With my 3c575C cardbus card, failing to do
+	 * other registers. With my 3c575C CardBus card, failing to do
 	 * this results in the system locking up while trying to poll
 	 * the command busy bit in the status register.
 	 */
@@ -1392,7 +1392,7 @@ xl_attach(device_t dev)
 	 * Figure out the card type. 3c905B adapters have the
 	 * 'supportsNoTxLength' bit set in the capabilities
 	 * word in the EEPROM.
-	 * Note: my 3c575C cardbus card lies. It returns a value
+	 * Note: my 3c575C CardBus card lies. It returns a value
 	 * of 0x1578 for its capabilities word, which is somewhat
 	 * nonsensical. Another way to distinguish a 3c90x chip
 	 * from a 3c90xB/C chip is to check for the 'supportsLargePackets'

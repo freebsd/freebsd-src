@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/acl.h>
 #include <sys/wait.h>
 #include <sys/mount.h>
-#include <sys/timeb.h>
 
 #include <dirent.h>
 #include <err.h>
@@ -770,7 +769,7 @@ done:	*argvp = argv + 1;
 
 /* Finish any pending -exec ... {} + functions. */
 void
-finish_execplus()
+finish_execplus(void)
 {
 	PLAN *p;
 
@@ -1155,7 +1154,7 @@ c_newer(OPTION *option, char ***argvp)
 	new = palloc(option);
 	/* compare against what */
 	if (option->flags & F_TIME2_T) {
-		new->t_data = get_date(fn_or_tspec, (struct timeb *) 0);
+		new->t_data = get_date(fn_or_tspec);
 		if (new->t_data == (time_t) -1)
 			errx(1, "Can't parse date/time: %s", fn_or_tspec);
 	} else {
@@ -1165,6 +1164,8 @@ c_newer(OPTION *option, char ***argvp)
 			new->t_data = sb.st_ctime;
 		else if (option->flags & F_TIME2_A)
 			new->t_data = sb.st_atime;
+		else if (option->flags & F_TIME2_B)
+			new->t_data = sb.st_birthtime;
 		else
 			new->t_data = sb.st_mtime;
 	}

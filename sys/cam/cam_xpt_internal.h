@@ -37,17 +37,14 @@ struct cam_ed;
 typedef struct cam_ed * (*xpt_alloc_device_func)(struct cam_eb *bus,
 					         struct cam_et *target,
 					         lun_id_t lun_id);
-typedef void (*xpt_release_device_func)(struct cam_eb *bus,
-				        struct cam_et *target,
-				        struct cam_ed *device);
+typedef void (*xpt_release_device_func)(struct cam_ed *device);
 typedef void (*xpt_action_func)(union ccb *start_ccb);
 typedef void (*xpt_dev_async_func)(u_int32_t async_code,
 				   struct cam_eb *bus,
 				   struct cam_et *target,
 				   struct cam_ed *device,
 				   void *async_arg);
-typedef void (*xpt_announce_periph_func)(struct cam_periph *periph,
-					 char *announce_string);
+typedef void (*xpt_announce_periph_func)(struct cam_periph *periph);
 
 struct xpt_xport {
 	xpt_alloc_device_func	alloc_device;
@@ -172,33 +169,13 @@ struct xpt_xport *	ata_get_xport(void);
 struct cam_ed *		xpt_alloc_device(struct cam_eb *bus,
 					 struct cam_et *target,
 					 lun_id_t lun_id);
-void			xpt_run_dev_sendq(struct cam_eb *bus);
+void			xpt_acquire_device(struct cam_ed *device);
+void			xpt_release_device(struct cam_ed *device);
 int			xpt_schedule_dev(struct camq *queue, cam_pinfo *dev_pinfo,
 					 u_int32_t new_priority);
 u_int32_t		xpt_dev_ccbq_resize(struct cam_path *path, int newopenings);
-
-
-
-static __inline int
-xpt_schedule_dev_sendq(struct cam_eb *bus, struct cam_ed *dev)
-{
-	int	retval;
-
-	if (dev->ccbq.dev_openings > 0) {
-		/*
-		 * The priority of a device waiting for controller
-		 * resources is that of the the highest priority CCB
-		 * enqueued.
-		 */
-		retval =
-		    xpt_schedule_dev(&bus->sim->devq->send_queue,
-				     &dev->send_ccb_entry.pinfo,
-				     CAMQ_GET_HEAD(&dev->ccbq.queue)->priority);
-	} else {
-		retval = 0;
-	}
-	return (retval);
-}
+void			xpt_start_tags(struct cam_path *path);
+void			xpt_stop_tags(struct cam_path *path);
 
 MALLOC_DECLARE(M_CAMXPT);
 

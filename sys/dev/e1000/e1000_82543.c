@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -63,7 +63,6 @@ static s32  e1000_led_on_82543(struct e1000_hw *hw);
 static s32  e1000_led_off_82543(struct e1000_hw *hw);
 static void e1000_write_vfta_82543(struct e1000_hw *hw, u32 offset,
                                    u32 value);
-static void e1000_mta_set_82543(struct e1000_hw *hw, u32 hash_value);
 static void e1000_clear_hw_cntrs_82543(struct e1000_hw *hw);
 static s32  e1000_config_mac_to_phy_82543(struct e1000_hw *hw);
 static bool e1000_init_phy_disabled_82543(struct e1000_hw *hw);
@@ -75,6 +74,8 @@ static void e1000_shift_out_mdi_bits_82543(struct e1000_hw *hw, u32 data,
                                            u16 count);
 static bool e1000_tbi_compatibility_enabled_82543(struct e1000_hw *hw);
 static void e1000_set_tbi_sbp_82543(struct e1000_hw *hw, bool state);
+static s32  e1000_read_mac_addr_82543(struct e1000_hw *hw);
+
 
 /**
  *  e1000_init_phy_params_82543 - Init PHY func ptrs.
@@ -244,8 +245,8 @@ static s32 e1000_init_mac_params_82543(struct e1000_hw *hw)
 	mac->ops.write_vfta = e1000_write_vfta_82543;
 	/* clearing VFTA */
 	mac->ops.clear_vfta = e1000_clear_vfta_generic;
-	/* setting MTA */
-	mac->ops.mta_set = e1000_mta_set_82543;
+	/* read mac address */
+	mac->ops.read_mac_addr = e1000_read_mac_addr_82543;
 	/* turn on/off LED */
 	mac->ops.led_on = e1000_led_on_82543;
 	mac->ops.led_off = e1000_led_off_82543;
@@ -1477,45 +1478,6 @@ static void e1000_write_vfta_82543(struct e1000_hw *hw, u32 offset, u32 value)
 }
 
 /**
- *  e1000_mta_set_82543 - Set multicast filter table address
- *  @hw: pointer to the HW structure
- *  @hash_value: determines the MTA register and bit to set
- *
- *  The multicast table address is a register array of 32-bit registers.
- *  The hash_value is used to determine what register the bit is in, the
- *  current value is read, the new bit is OR'd in and the new value is
- *  written back into the register.
- **/
-static void e1000_mta_set_82543(struct e1000_hw *hw, u32 hash_value)
-{
-	u32 hash_bit, hash_reg, mta, temp;
-
-	DEBUGFUNC("e1000_mta_set_82543");
-
-	hash_reg = (hash_value >> 5);
-
-	/*
-	 * If we are on an 82544 and we are trying to write an odd offset
-	 * in the MTA, save off the previous entry before writing and
-	 * restore the old value after writing.
-	 */
-	if ((hw->mac.type == e1000_82544) && (hash_reg & 1)) {
-		hash_reg &= (hw->mac.mta_reg_count - 1);
-		hash_bit = hash_value & 0x1F;
-		mta = E1000_READ_REG_ARRAY(hw, E1000_MTA, hash_reg);
-		mta |= (1 << hash_bit);
-		temp = E1000_READ_REG_ARRAY(hw, E1000_MTA, hash_reg - 1);
-
-		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, hash_reg, mta);
-		E1000_WRITE_FLUSH(hw);
-		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, hash_reg - 1, temp);
-		E1000_WRITE_FLUSH(hw);
-	} else {
-		e1000_mta_set_generic(hw, hash_value);
-	}
-}
-
-/**
  *  e1000_led_on_82543 - Turn on SW controllable LED
  *  @hw: pointer to the HW structure
  *
@@ -1599,4 +1561,42 @@ static void e1000_clear_hw_cntrs_82543(struct e1000_hw *hw)
 	E1000_READ_REG(hw, E1000_CEXTERR);
 	E1000_READ_REG(hw, E1000_TSCTC);
 	E1000_READ_REG(hw, E1000_TSCTFC);
+}
+
+/**
+ *  e1000_read_mac_addr_82543 - Read device MAC address
+ *  @hw: pointer to the HW structure
+ *
+ *  Reads the device MAC address from the EEPROM and stores the value.
+ *  Since devices with two ports use the same EEPROM, we increment the
+ *  last bit in the MAC address for the second port.
+ *
+ **/
+s32 e1000_read_mac_addr_82543(struct e1000_hw *hw)
+{
+	s32  ret_val = E1000_SUCCESS;
+	u16 offset, nvm_data, i;
+
+	DEBUGFUNC("e1000_read_mac_addr");
+
+	for (i = 0; i < ETH_ADDR_LEN; i += 2) {
+		offset = i >> 1;
+		ret_val = hw->nvm.ops.read(hw, offset, 1, &nvm_data);
+		if (ret_val) {
+			DEBUGOUT("NVM Read Error\n");
+			goto out;
+		}
+		hw->mac.perm_addr[i] = (u8)(nvm_data & 0xFF);
+		hw->mac.perm_addr[i+1] = (u8)(nvm_data >> 8);
+	}
+
+	/* Flip last bit of mac address if we're on second port */
+	if (hw->bus.func == E1000_FUNC_1)
+		hw->mac.perm_addr[5] ^= 1;
+
+	for (i = 0; i < ETH_ADDR_LEN; i++)
+		hw->mac.addr[i] = hw->mac.perm_addr[i];
+
+out:
+	return ret_val;
 }

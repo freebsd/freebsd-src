@@ -1468,11 +1468,12 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		if (xrates != NULL)
 			IEEE80211_VERIFY_ELEMENT(xrates,
 			    IEEE80211_RATE_MAXSIZE - rates[1], return);
-		if (meshid != NULL)
+		if (meshid != NULL) {
 			IEEE80211_VERIFY_ELEMENT(meshid,
 			    IEEE80211_MESHID_LEN, return);
-		/* NB: meshid, not ssid */
-		IEEE80211_VERIFY_SSID(vap->iv_bss, meshid, return);
+			/* NB: meshid, not ssid */
+			IEEE80211_VERIFY_SSID(vap->iv_bss, meshid, return);
+		}
 
 		/* XXX find a better class or define it's own */
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_INPUT, wh->i_addr2,
@@ -2283,6 +2284,7 @@ mesh_verify_meshconf(struct ieee80211vap *vap, const uint8_t *ie)
 	const struct ieee80211_meshconf_ie *meshconf =
 	    (const struct ieee80211_meshconf_ie *) ie;
 	const struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	uint16_t cap;
 
 	if (meshconf == NULL)
 		return 1;
@@ -2316,8 +2318,10 @@ mesh_verify_meshconf(struct ieee80211vap *vap, const uint8_t *ie)
 		    meshconf->conf_pselid);
 		return 1;
 	}
+	/* NB: conf_cap is only read correctly here */
+	cap = LE_READ_2(&meshconf->conf_cap);
 	/* Not accepting peers */
-	if (!(meshconf->conf_cap & IEEE80211_MESHCONF_CAP_AP)) {
+	if (!(cap & IEEE80211_MESHCONF_CAP_AP)) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_MESH,
 		    "not accepting peers: 0x%x\n", meshconf->conf_cap);
 		return 1;
@@ -2381,6 +2385,7 @@ uint8_t *
 ieee80211_add_meshconf(uint8_t *frm, struct ieee80211vap *vap)
 {
 	const struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	uint16_t caps;
 
 	KASSERT(vap->iv_opmode == IEEE80211_M_MBSS, ("not a MBSS vap"));
 
@@ -2396,12 +2401,12 @@ ieee80211_add_meshconf(uint8_t *frm, struct ieee80211vap *vap)
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_PORTAL)
 		*frm |= IEEE80211_MESHCONF_FORM_MP;
 	frm += 1;
-	*frm = 0;
+	caps = 0;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_AP)
-		*frm |= IEEE80211_MESHCONF_CAP_AP;
+		caps |= IEEE80211_MESHCONF_CAP_AP;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_FWD)
-		*frm |= IEEE80211_MESHCONF_CAP_FWRD;
-	frm += 1;
+		caps |= IEEE80211_MESHCONF_CAP_FWRD;
+	ADDSHORT(frm, caps);
 	return frm;
 }
 

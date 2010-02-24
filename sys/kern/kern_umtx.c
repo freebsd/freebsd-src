@@ -58,13 +58,16 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_proto.h>
 #endif
 
-#define TYPE_SIMPLE_WAIT	0
-#define TYPE_CV			1
-#define TYPE_SIMPLE_LOCK	2
-#define TYPE_NORMAL_UMUTEX	3
-#define TYPE_PI_UMUTEX		4
-#define TYPE_PP_UMUTEX		5
-#define TYPE_RWLOCK		6
+enum {
+	TYPE_SIMPLE_WAIT,
+	TYPE_CV,
+	TYPE_SEM,
+	TYPE_SIMPLE_LOCK,
+	TYPE_NORMAL_UMUTEX,
+	TYPE_PI_UMUTEX,
+	TYPE_PP_UMUTEX,
+	TYPE_RWLOCK
+};
 
 #define _UMUTEX_TRY		1
 #define _UMUTEX_WAIT		2
@@ -141,9 +144,25 @@ struct umtx_q {
 
 	/* Inherited priority from PP mutex */
 	u_char			uq_inherited_pri;
+	
+	/* Spare queue ready to be reused */
+	struct umtxq_queue	*uq_spare_queue;
+
+	/* The queue we on */
+	struct umtxq_queue	*uq_cur_queue;
 };
 
 TAILQ_HEAD(umtxq_head, umtx_q);
+
+/* Per-key wait-queue */
+struct umtxq_queue {
+	struct umtxq_head	head;
+	struct umtx_key		key;
+	LIST_ENTRY(umtxq_queue)	link;
+	int			length;
+};
+
+LIST_HEAD(umtxq_list, umtxq_queue);
 
 /* Userland lock object's wait-queue chain */
 struct umtxq_chain {
@@ -151,9 +170,11 @@ struct umtxq_chain {
 	struct mtx		uc_lock;
 
 	/* List of sleep queues. */
-	struct umtxq_head	uc_queue[2];
+	struct umtxq_list	uc_queue[2];
 #define UMTX_SHARED_QUEUE	0
 #define UMTX_EXCLUSIVE_QUEUE	1
+
+	LIST_HEAD(, umtxq_queue) uc_spare_queue;
 
 	/* Busy flag */
 	char			uc_busy;
@@ -163,6 +184,7 @@ struct umtxq_chain {
 
 	/* All PI in the list */
 	TAILQ_HEAD(,umtx_pi)	uc_pi_list;
+
 };
 
 #define	UMTXQ_LOCKED_ASSERT(uc)		mtx_assert(&(uc)->uc_lock, MA_OWNED)
@@ -244,8 +266,9 @@ umtxq_sysinit(void *arg __unused)
 		for (j = 0; j < UMTX_CHAINS; ++j) {
 			mtx_init(&umtxq_chains[i][j].uc_lock, "umtxql", NULL,
 				 MTX_DEF | MTX_DUPOK);
-			TAILQ_INIT(&umtxq_chains[i][j].uc_queue[0]);
-			TAILQ_INIT(&umtxq_chains[i][j].uc_queue[1]);
+			LIST_INIT(&umtxq_chains[i][j].uc_queue[0]);
+			LIST_INIT(&umtxq_chains[i][j].uc_queue[1]);
+			LIST_INIT(&umtxq_chains[i][j].uc_spare_queue);
 			TAILQ_INIT(&umtxq_chains[i][j].uc_pi_list);
 			umtxq_chains[i][j].uc_busy = 0;
 			umtxq_chains[i][j].uc_waiters = 0;
@@ -262,6 +285,8 @@ umtxq_alloc(void)
 	struct umtx_q *uq;
 
 	uq = malloc(sizeof(struct umtx_q), M_UMTX, M_WAITOK | M_ZERO);
+	uq->uq_spare_queue = malloc(sizeof(struct umtxq_queue), M_UMTX, M_WAITOK | M_ZERO);
+	TAILQ_INIT(&uq->uq_spare_queue->head);
 	TAILQ_INIT(&uq->uq_pi_contested);
 	uq->uq_inherited_pri = PRI_MAX;
 	return (uq);
@@ -270,6 +295,8 @@ umtxq_alloc(void)
 void
 umtxq_free(struct umtx_q *uq)
 {
+	MPASS(uq->uq_spare_queue != NULL);
+	free(uq->uq_spare_queue, M_UMTX);
 	free(uq, M_UMTX);
 }
 
@@ -291,7 +318,7 @@ umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2)
 static inline struct umtxq_chain *
 umtxq_getchain(struct umtx_key *key)
 {
-	if (key->type <= TYPE_CV)
+	if (key->type <= TYPE_SEM)
 		return (&umtxq_chains[1][key->hash]);
 	return (&umtxq_chains[0][key->hash]);
 }
@@ -368,27 +395,72 @@ umtxq_unbusy(struct umtx_key *key)
 		wakeup_one(uc);
 }
 
+static struct umtxq_queue *
+umtxq_queue_lookup(struct umtx_key *key, int q)
+{
+	struct umtxq_queue *uh;
+	struct umtxq_chain *uc;
+
+	uc = umtxq_getchain(key);
+	UMTXQ_LOCKED_ASSERT(uc);
+	LIST_FOREACH(uh, &uc->uc_queue[q], link) {
+		if (umtx_key_match(&uh->key, key))
+			return (uh);
+	}
+
+	return (NULL);
+}
+
 static inline void
 umtxq_insert_queue(struct umtx_q *uq, int q)
 {
+	struct umtxq_queue *uh;
 	struct umtxq_chain *uc;
 
 	uc = umtxq_getchain(&uq->uq_key);
 	UMTXQ_LOCKED_ASSERT(uc);
-	TAILQ_INSERT_TAIL(&uc->uc_queue[q], uq, uq_link);
+	KASSERT((uq->uq_flags & UQF_UMTXQ) == 0, ("umtx_q is already on queue"));
+	uh = umtxq_queue_lookup(&uq->uq_key, q);
+	if (uh != NULL) {
+		LIST_INSERT_HEAD(&uc->uc_spare_queue, uq->uq_spare_queue, link);
+	} else {
+		uh = uq->uq_spare_queue;
+		uh->key = uq->uq_key;
+		LIST_INSERT_HEAD(&uc->uc_queue[q], uh, link);
+	}
+	uq->uq_spare_queue = NULL;
+
+	TAILQ_INSERT_TAIL(&uh->head, uq, uq_link);
+	uh->length++;
 	uq->uq_flags |= UQF_UMTXQ;
+	uq->uq_cur_queue = uh;
+	return;
 }
 
 static inline void
 umtxq_remove_queue(struct umtx_q *uq, int q)
 {
 	struct umtxq_chain *uc;
+	struct umtxq_queue *uh;
 
 	uc = umtxq_getchain(&uq->uq_key);
 	UMTXQ_LOCKED_ASSERT(uc);
 	if (uq->uq_flags & UQF_UMTXQ) {
-		TAILQ_REMOVE(&uc->uc_queue[q], uq, uq_link);
+		uh = uq->uq_cur_queue;
+		TAILQ_REMOVE(&uh->head, uq, uq_link);
+		uh->length--;
 		uq->uq_flags &= ~UQF_UMTXQ;
+		if (TAILQ_EMPTY(&uh->head)) {
+			KASSERT(uh->length == 0,
+			    ("inconsistent umtxq_queue length"));
+			LIST_REMOVE(uh, link);
+		} else {
+			uh = LIST_FIRST(&uc->uc_spare_queue);
+			KASSERT(uh != NULL, ("uc_spare_queue is empty"));
+			LIST_REMOVE(uh, link);
+		}
+		uq->uq_spare_queue = uh;
+		uq->uq_cur_queue = NULL;
 	}
 }
 
@@ -399,18 +471,14 @@ static int
 umtxq_count(struct umtx_key *key)
 {
 	struct umtxq_chain *uc;
-	struct umtx_q *uq;
-	int count = 0;
+	struct umtxq_queue *uh;
 
 	uc = umtxq_getchain(key);
 	UMTXQ_LOCKED_ASSERT(uc);
-	TAILQ_FOREACH(uq, &uc->uc_queue[UMTX_SHARED_QUEUE], uq_link) {
-		if (umtx_key_match(&uq->uq_key, key)) {
-			if (++count > 1)
-				break;
-		}
-	}
-	return (count);
+	uh = umtxq_queue_lookup(key, UMTX_SHARED_QUEUE);
+	if (uh != NULL)
+		return (uh->length);
+	return (0);
 }
 
 /*
@@ -421,20 +489,17 @@ static int
 umtxq_count_pi(struct umtx_key *key, struct umtx_q **first)
 {
 	struct umtxq_chain *uc;
-	struct umtx_q *uq;
-	int count = 0;
+	struct umtxq_queue *uh;
 
 	*first = NULL;
 	uc = umtxq_getchain(key);
 	UMTXQ_LOCKED_ASSERT(uc);
-	TAILQ_FOREACH(uq, &uc->uc_queue[UMTX_SHARED_QUEUE], uq_link) {
-		if (umtx_key_match(&uq->uq_key, key)) {
-			if (++count > 1)
-				break;
-			*first = uq;
-		}
+	uh = umtxq_queue_lookup(key, UMTX_SHARED_QUEUE);
+	if (uh != NULL) {
+		*first = TAILQ_FIRST(&uh->head);
+		return (uh->length);
 	}
-	return (count);
+	return (0);
 }
 
 /*
@@ -445,18 +510,20 @@ static int
 umtxq_signal_queue(struct umtx_key *key, int n_wake, int q)
 {
 	struct umtxq_chain *uc;
-	struct umtx_q *uq, *next;
+	struct umtxq_queue *uh;
+	struct umtx_q *uq;
 	int ret;
 
 	ret = 0;
 	uc = umtxq_getchain(key);
 	UMTXQ_LOCKED_ASSERT(uc);
-	TAILQ_FOREACH_SAFE(uq, &uc->uc_queue[q], uq_link, next) {
-		if (umtx_key_match(&uq->uq_key, key)) {
+	uh = umtxq_queue_lookup(key, q);
+	if (uh != NULL) {
+		while ((uq = TAILQ_FIRST(&uh->head)) != NULL) {
 			umtxq_remove_queue(uq, q);
 			wakeup(uq);
 			if (++ret >= n_wake)
-				break;
+				return (ret);
 		}
 	}
 	return (ret);
@@ -1521,12 +1588,8 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi,
 	if (pi->pi_owner == NULL) {
 		/* XXX
 		 * Current, We only support process private PI-mutex,
-		 * non-contended PI-mutexes are locked in userland.
-		 * Process shared PI-mutex should always be initialized
-		 * by kernel and be registered in kernel, locking should
-		 * always be done by kernel to avoid security problems.
-		 * For process private PI-mutex, we can find owner
-		 * thread and boost its priority safely.
+		 * we need a faster way to find an owner thread for
+		 * process-shared mutex (not available yet).
 		 */
 		mtx_unlock_spin(&umtx_lock);
 		PROC_LOCK(curproc);
@@ -2463,6 +2526,12 @@ do_rw_rdlock(struct thread *td, struct urwlock *rwlock, long fflag, int timo)
 		umtxq_busy(&uq->uq_key);
 		umtxq_unlock(&uq->uq_key);
 
+		/*
+		 * re-read the state, in case it changed between the try-lock above
+		 * and the check below
+		 */
+		state = fuword32(__DEVOLATILE(int32_t *, &rwlock->rw_state));
+
 		/* set read contention bit */
 		while ((state & wrflags) && !(state & URWLOCK_READ_WAITERS)) {
 			oldstate = casuword32(&rwlock->rw_state, state, state | URWLOCK_READ_WAITERS);
@@ -2594,6 +2663,12 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, int timo)
 		umtxq_lock(&uq->uq_key);
 		umtxq_busy(&uq->uq_key);
 		umtxq_unlock(&uq->uq_key);
+
+		/*
+		 * re-read the state, in case it changed between the try-lock above
+		 * and the check below
+		 */
+		state = fuword32(__DEVOLATILE(int32_t *, &rwlock->rw_state));
 
 		while (((state & URWLOCK_WRITE_OWNER) || URWLOCK_READER_COUNT(state) != 0) &&
 		       (state & URWLOCK_WRITE_WAITERS) == 0) {
@@ -2756,6 +2831,106 @@ do_rw_unlock(struct thread *td, struct urwlock *rwlock)
 	}
 out:
 	umtx_key_release(&uq->uq_key);
+	return (error);
+}
+
+static int
+do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
+{
+	struct umtx_q *uq;
+	struct timeval tv;
+	struct timespec cts, ets, tts;
+	uint32_t flags, count;
+	int error;
+
+	uq = td->td_umtxq;
+	flags = fuword32(&sem->_flags);
+	error = umtx_key_get(sem, TYPE_SEM, GET_SHARE(flags), &uq->uq_key);
+	if (error != 0)
+		return (error);
+	umtxq_lock(&uq->uq_key);
+	umtxq_busy(&uq->uq_key);
+	umtxq_insert(uq);
+	umtxq_unlock(&uq->uq_key);
+
+	suword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters), 1);
+
+	count = fuword32(__DEVOLATILE(uint32_t *, &sem->_count));
+	if (count != 0) {
+		umtxq_lock(&uq->uq_key);
+		umtxq_unbusy(&uq->uq_key);
+		umtxq_remove(uq);
+		umtxq_unlock(&uq->uq_key);
+		umtx_key_release(&uq->uq_key);
+		return (0);
+	}
+
+	umtxq_lock(&uq->uq_key);
+	umtxq_unbusy(&uq->uq_key);
+	umtxq_unlock(&uq->uq_key);
+
+	umtxq_lock(&uq->uq_key);
+	if (timeout == NULL) {
+		error = umtxq_sleep(uq, "usem", 0);
+	} else {
+		getnanouptime(&ets);
+		timespecadd(&ets, timeout);
+		TIMESPEC_TO_TIMEVAL(&tv, timeout);
+		for (;;) {
+			error = umtxq_sleep(uq, "usem", tvtohz(&tv));
+			if (error != ETIMEDOUT)
+				break;
+			getnanouptime(&cts);
+			if (timespeccmp(&cts, &ets, >=)) {
+				error = ETIMEDOUT;
+				break;
+			}
+			tts = ets;
+			timespecsub(&tts, &cts);
+			TIMESPEC_TO_TIMEVAL(&tv, &tts);
+		}
+	}
+
+	if (error != 0) {
+		if ((uq->uq_flags & UQF_UMTXQ) == 0) {
+			if (!umtxq_signal(&uq->uq_key, 1))
+				error = 0;
+		}
+		if (error == ERESTART)
+			error = EINTR;
+	}
+	umtxq_remove(uq);
+	umtxq_unlock(&uq->uq_key);
+	umtx_key_release(&uq->uq_key);
+	return (error);
+}
+
+/*
+ * Signal a userland condition variable.
+ */
+static int
+do_sem_wake(struct thread *td, struct _usem *sem)
+{
+	struct umtx_key key;
+	int error, cnt, nwake;
+	uint32_t flags;
+
+	flags = fuword32(&sem->_flags);
+	if ((error = umtx_key_get(sem, TYPE_SEM, GET_SHARE(flags), &key)) != 0)
+		return (error);	
+	umtxq_lock(&key);
+	umtxq_busy(&key);
+	cnt = umtxq_count(&key);
+	nwake = umtxq_signal(&key, 1);
+	if (cnt <= nwake) {
+		umtxq_unlock(&key);
+		error = suword32(
+		    __DEVOLATILE(uint32_t *, &sem->_has_waiters), 0);
+		umtxq_lock(&key);
+	}
+	umtxq_unbusy(&key);
+	umtxq_unlock(&key);
+	umtx_key_release(&key);
 	return (error);
 }
 
@@ -3031,6 +3206,35 @@ __umtx_op_rw_unlock(struct thread *td, struct _umtx_op_args *uap)
 	return do_rw_unlock(td, uap->obj);
 }
 
+static int
+__umtx_op_sem_wait(struct thread *td, struct _umtx_op_args *uap)
+{
+	struct timespec *ts, timeout;
+	int error;
+
+	/* Allow a null timespec (wait forever). */
+	if (uap->uaddr2 == NULL)
+		ts = NULL;
+	else {
+		error = copyin(uap->uaddr2, &timeout,
+		    sizeof(timeout));
+		if (error != 0)
+			return (error);
+		if (timeout.tv_nsec >= 1000000000 ||
+		    timeout.tv_nsec < 0) {
+			return (EINVAL);
+		}
+		ts = &timeout;
+	}
+	return (do_sem_wait(td, uap->obj, ts));
+}
+
+static int
+__umtx_op_sem_wake(struct thread *td, struct _umtx_op_args *uap)
+{
+	return do_sem_wake(td, uap->obj);
+}
+
 typedef int (*_umtx_op_func)(struct thread *td, struct _umtx_op_args *uap);
 
 static _umtx_op_func op_table[] = {
@@ -3052,7 +3256,9 @@ static _umtx_op_func op_table[] = {
 	__umtx_op_wait_uint_private,	/* UMTX_OP_WAIT_UINT_PRIVATE */
 	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
 	__umtx_op_wait_umutex,		/* UMTX_OP_UMUTEX_WAIT */
-	__umtx_op_wake_umutex		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_wake_umutex,		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_sem_wait,		/* UMTX_OP_SEM_WAIT */
+	__umtx_op_sem_wake		/* UMTX_OP_SEM_WAKE */
 };
 
 int
@@ -3274,6 +3480,27 @@ __umtx_op_wait_uint_private_compat32(struct thread *td, struct _umtx_op_args *ua
 	return do_wait(td, uap->obj, uap->val, ts, 1, 1);
 }
 
+static int
+__umtx_op_sem_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
+{
+	struct timespec *ts, timeout;
+	int error;
+
+	/* Allow a null timespec (wait forever). */
+	if (uap->uaddr2 == NULL)
+		ts = NULL;
+	else {
+		error = copyin_timeout32(uap->uaddr2, &timeout);
+		if (error != 0)
+			return (error);
+		if (timeout.tv_nsec >= 1000000000 ||
+		    timeout.tv_nsec < 0)
+			return (EINVAL);
+		ts = &timeout;
+	}
+	return (do_sem_wait(td, uap->obj, ts));
+}
+
 static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_lock_umtx_compat32,	/* UMTX_OP_LOCK */
 	__umtx_op_unlock_umtx_compat32,	/* UMTX_OP_UNLOCK */
@@ -3293,7 +3520,9 @@ static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_wait_uint_private_compat32,	/* UMTX_OP_WAIT_UINT_PRIVATE */
 	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
 	__umtx_op_wait_umutex_compat32, /* UMTX_OP_UMUTEX_WAIT */
-	__umtx_op_wake_umutex		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_wake_umutex,		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_sem_wait_compat32,	/* UMTX_OP_SEM_WAIT */
+	__umtx_op_sem_wake		/* UMTX_OP_SEM_WAKE */
 };
 
 int

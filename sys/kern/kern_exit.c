@@ -316,6 +316,7 @@ exit1(struct thread *td, int rv)
 		ttyvp = sp->s_ttyvp;
 		tp = sp->s_ttyp;
 		sp->s_ttyvp = NULL;
+		sp->s_ttydp = NULL;
 		sp->s_leader = NULL;
 		SESS_UNLOCK(sp);
 

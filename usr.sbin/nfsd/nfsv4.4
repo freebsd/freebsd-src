@@ -24,22 +24,20 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 30, 2009
+.Dd December 3, 2009
 .Dt NFSV4 4
 .Os
 .Sh NAME
-.Nm nfsv4
+.Nm NFSv4
 .Nd NFS Version 4 Protocol
-.Sh SYNOPSIS
-experimental client and server with NFSv4 support
 .Sh DESCRIPTION
-The experimental nfs client and server provides support for the
+The experimental NFS client and server provides support for the
 .Tn NFSv4
 specification; see
 .%T "Network File System (NFS) Version 4 Protocol \\*(tNRFC\\*(sP 3530" .
 The protocol is somewhat similar to NFS Version 3, but differs in significant
 ways.
-It uses a single Compound RPC that concatenates operations to-gether.
+It uses a single compound RPC that concatenates operations to-gether.
 Each of these operations are similar to the RPCs of NFS Version 3.
 The operations in the compound are performed in order, until one of
 them fails (returns an error) and then the RPC terminates at that point.
@@ -48,10 +46,10 @@ It has
 integrated locking support, which implies that the server is no longer
 stateless.
 As such, the
-.Tn NFSv4
-server remains in recovery mode for a Grace period (always greater than the
+.Nm
+server remains in recovery mode for a grace period (always greater than the
 lease duration the server uses) after a reboot.
-During this Grace period, clients may recover state but not perform other
+During this grace period, clients may recover state but not perform other
 open/lock state changing operations.
 To provide for correct recovery semantics, a small file described by
 .Xr stablerestart 5
@@ -61,14 +59,14 @@ the server will not start.
 If this file is lost, it should be recovered from backups, since creating
 an empty
 .Xr stablerestart 5
-file will result in the server starting without providing a Grace Period
+file will result in the server starting without providing a grace period
 for recovery.
 Note that recovery only occurs when the server
 machine is rebooted, not when the
 .Xr nfsd 8
 are just restarted.
 .Pp
-It provides several optional features not in NFS Version 3:
+It provides several optional features not present in NFS Version 3:
 .sp
 .Bd -literal -offset indent -compact
 - NFS Version 4 ACLs
@@ -78,7 +76,7 @@ It provides several optional features not in NFS Version 3:
 .Ed
 .Pp
 The
-.Tn NFSv4
+.Nm
 protocol does not use a separate mount protocol and assumes that the
 server provides a single file system tree structure, rooted at the point
 in the local file system tree specified by one or more
@@ -131,7 +129,7 @@ by default.
 However, this can normally be overridden by a command line
 option or configuration file for the daemon used to do the name<->number
 mapping.
-On FreeBSD, the mapping daemon is called
+Under FreeBSD, the mapping daemon is called
 .Xr nfsuserd 8
 and has a command line option that overrides the domain component of the
 machine's hostname.
@@ -143,7 +141,7 @@ report a lot of ``nobody'' and ``nogroup'' ownerships.
 .Pp
 Although uid/gid numbers are no longer used in the
 .Nm
-protocol, they will still be in the RPC authentication fields when running
+protocol, they will still be in the RPC authentication fields when
 using AUTH_SYS (sec=sys), which is the default.
 As such, in this case both the user/group name and number spaces must
 be consistent between the client and server.
@@ -154,8 +152,8 @@ with RPCSEC_GSS (sec=krb5, krb5i, krb5p), only names and KerberosV tickets
 will go on the wire.
 .Sh SERVER SETUP
 .Pp
-To set up the experimental nfs server that supports
-.Nm
+To set up the experimental NFS server that supports
+.Nm ,
 you will need to either build a kernel with:
 .sp
 .Bd -literal -offset indent -compact
@@ -318,13 +316,13 @@ variables.
 NFS V4 stable restart file
 .El
 .Sh SEE ALSO
-.Xr stablerestart 5
-.Xr mountd 8
-.Xr nfscbd 8
-.Xr nfsd 8
-.Xr nfsdumpstate 8
-.Xr nfsrevoke 8
-.Xr nfsuserd 8
+.Xr stablerestart 5 ,
+.Xr mountd 8 ,
+.Xr nfscbd 8 ,
+.Xr nfsd 8 ,
+.Xr nfsdumpstate 8 ,
+.Xr nfsrevoke 8 ,
+.Xr nfsuserd 8 ,
 .Sh BUGS
 At this time, there is no recall of delegations for local file system
 operations.

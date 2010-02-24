@@ -2,13 +2,15 @@
 
 LOGF=make.log
 IAM=`hostname || uname -n`
+MYNAME=`IFS=. ; set $IAM ; echo $1`
+SIG=
 
 case "$1" in
  0.*)
     SIG=$1
     shift
     CONFIG_ARGS="$@"
-    KEY=`sed -e q < .buildkey`
+    KEY=`sed -e q < .buildkey-$MYNAME`
     case "$SIG" in
      $KEY) ;;
      *)
@@ -35,8 +37,6 @@ case "$CVO" in
     exit 1
     ;;
 esac
-
-MYNAME=`IFS=. ; set $IAM ; echo $1`
 
 case "$IAM" in
  *.udel.edu)
@@ -90,17 +90,33 @@ BDIR="$BDIR$KEYSUF$CCSUF"
 [ -f "$BDIR/.buildcvo" ] || echo $CVO > $BDIR/.buildcvo
 [ -f "$BDIR/.buildhost" ] || echo $IAM > $BDIR/.buildhost
 
+
 cd $BDIR
 
-(
-[ -f config.status ] || ../configure $CONFIG_ARGS
+#
+# make sure we have a nice that works,
+#
+nice true && NICEB=nice
+nice true || NICEB=./.nicebuild-$MYNAME-$SIG && (
+    cat > .nicebuild-$MYNAME-$SIG <<UNLYKUHLY
+#! /bin/sh
+shift
+\$*
+UNLYKUHLY
+    chmod +x .nicebuild-$MYNAME-$SIG
+)
 
-./config.status
+
+(
+[ -f config.status ] || $NICEB -7 ../configure --config-cache \
+				$CONFIG_ARGS
+
+$NICEB -5 ./config.status
 
 case "$MAKE" in
- '') make && make check
+ '') $NICEB -14 make && $NICEB -10 make check
      ;;
- *)  $MAKE && $MAKE check
+ *)  $NICEB -14 $MAKE && $NICEB -10 $MAKE check
      ;;
 esac
 ) > $LOGF 2>&1

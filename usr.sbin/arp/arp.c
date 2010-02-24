@@ -101,7 +101,8 @@ static int valid_type(int type);
 static int nflag;	/* no reverse dns lookups */
 static char *rifname;
 
-static int	expire_time, flags, doing_proxy, proxy_only;
+static time_t	expire_time;
+static int	flags, doing_proxy, proxy_only;
 
 /* which function we're supposed to do */
 #define F_GET		1
@@ -326,7 +327,6 @@ set(int argc, char **argv)
 			doing_proxy = 1;
 			if (argc && strncmp(argv[1], "only", 3) == 0) {
 				proxy_only = 1;
-				dst->sin_other = SIN_PROXY;
 				argc--; argv++;
 			}
 		} else if (strncmp(argv[0], "blackhole", 9) == 0) {
@@ -365,33 +365,30 @@ set(int argc, char **argv)
 			sdl_m.sdl_alen = ETHER_ADDR_LEN;
 		}
 	}
-	for (;;) {	/* try at most twice */
-		rtm = rtmsg(RTM_GET, dst, &sdl_m);
-		if (rtm == NULL) {
-			warn("%s", host);
-			return (1);
-		}
-		addr = (struct sockaddr_inarp *)(rtm + 1);
-		sdl = (struct sockaddr_dl *)(SA_SIZE(addr) + (char *)addr);
-		if (addr->sin_addr.s_addr != dst->sin_addr.s_addr)	
-			break;
-		if (sdl->sdl_family == AF_LINK &&
-		    !(rtm->rtm_flags & RTF_GATEWAY) &&
-		    valid_type(sdl->sdl_type) )
-			break;
-		if (doing_proxy == 0) {
-			printf("set: can only proxy for %s\n", host);
-			return (1);
-		}
-		if (dst->sin_other & SIN_PROXY) {
-			printf("set: proxy entry exists for non 802 device\n");
-			return (1);
-		}
-		dst->sin_other = SIN_PROXY;
-		proxy_only = 1;
+
+	/*
+	 * In the case a proxy-arp entry is being added for
+	 * a remote end point, the RTF_ANNOUNCE flag in the 
+	 * RTM_GET command is an indication to the kernel
+	 * routing code that the interface associated with
+	 * the prefix route covering the local end of the
+	 * PPP link should be returned, on which ARP applies.
+	 */
+	rtm = rtmsg(RTM_GET, dst, &sdl_m);
+	if (rtm == NULL) {
+		warn("%s", host);
+		return (1);
+	}
+	addr = (struct sockaddr_inarp *)(rtm + 1);
+	sdl = (struct sockaddr_dl *)(SA_SIZE(addr) + (char *)addr);
+	if (addr->sin_addr.s_addr == dst->sin_addr.s_addr) {
+		printf("set: proxy entry exists for non 802 device\n");
+		return (1);
 	}
 
-	if (sdl->sdl_family != AF_LINK) {
+	if ((sdl->sdl_family != AF_LINK) ||
+	    (rtm->rtm_flags & RTF_GATEWAY) ||
+	    !valid_type(sdl->sdl_type)) {
 		printf("cannot intuit interface index and type for %s\n", host);
 		return (1);
 	}
@@ -436,7 +433,11 @@ delete(char *host, int do_proxy)
 	dst = getaddr(host);
 	if (dst == NULL)
 		return (1);
-	dst->sin_other = do_proxy;
+
+	/*
+	 * Perform a regular entry delete first.
+	 */
+	flags &= ~RTF_ANNOUNCE;
 
 	/*
 	 * setup the data structure to notify the kernel
@@ -471,11 +472,16 @@ delete(char *host, int do_proxy)
 			break;
 		}
 
-		if (dst->sin_other & SIN_PROXY) {
+		/*
+		 * Regualar entry delete failed, now check if there
+		 * is a proxy-arp entry to remove.
+		 */
+		if (flags & RTF_ANNOUNCE) {
 			fprintf(stderr, "delete: cannot locate %s\n",host);
 			return (1);
 		}
-		dst->sin_other = SIN_PROXY;
+
+		flags |= RTF_ANNOUNCE;
 	}
 	rtm->rtm_flags |= RTF_LLDATA;
 	if (rtmsg(RTM_DELETE, dst, NULL) != NULL) {
@@ -485,6 +491,7 @@ delete(char *host, int do_proxy)
 	return (1);
 }
 
+
 /*
  * Search the arp table and do some action on matching entries
  */
@@ -493,7 +500,7 @@ search(u_long addr, action_fn *action)
 {
 	int mib[6];
 	size_t needed;
-	char *lim, *buf, *newbuf, *next;
+	char *lim, *buf, *next;
 	struct rt_msghdr *rtm;
 	struct sockaddr_inarp *sin2;
 	struct sockaddr_dl *sdl;
@@ -516,13 +523,9 @@ search(u_long addr, action_fn *action)
 		return 0;
 	buf = NULL;
 	for (;;) {
-		newbuf = realloc(buf, needed);
-		if (newbuf == NULL) {
-			if (buf != NULL)
-				free(buf);
+		buf = reallocf(buf, needed);
+		if (buf == NULL)
 			errx(1, "could not reallocate memory");
-		}
-		buf = newbuf;
 		st = sysctl(mib, 6, buf, &needed, NULL, 0);
 		if (st == 0 || errno != ENOMEM)
 			break;
@@ -592,6 +595,15 @@ print_entry(struct sockaddr_dl *sdl,
 		printf(" on %s", ifname);
 	if (rtm->rtm_rmx.rmx_expire == 0)
 		printf(" permanent");
+	else {
+		static struct timeval tv;
+		if (tv.tv_sec == 0)
+			gettimeofday(&tv, 0);
+		if ((expire_time = rtm->rtm_rmx.rmx_expire - tv.tv_sec) > 0)
+			printf(" expires in %d seconds", (int)expire_time);
+		else
+			printf(" expired");
+	}
 	if (addr->sin_other & SIN_PROXY)
 		printf(" published (proxy only)");
 	if (rtm->rtm_flags & RTF_ANNOUNCE)

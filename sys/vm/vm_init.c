@@ -186,7 +186,7 @@ again:
 		panic("startup: table size inconsistency");
 
 	clean_map = kmem_suballoc(kernel_map, &kmi->clean_sva, &kmi->clean_eva,
-	    (long)nbuf * BKVASIZE + (long)nswbuf * MAXPHYS, FALSE);
+	    (long)nbuf * BKVASIZE + (long)nswbuf * MAXPHYS, TRUE);
 	buffer_map = kmem_suballoc(clean_map, &kmi->buffer_sva,
 	    &kmi->buffer_eva, (long)nbuf * BKVASIZE, FALSE);
 	buffer_map->system_map = 1;

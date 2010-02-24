@@ -45,6 +45,7 @@ struct devdesc
 #define	DEVT_CD		3
 #define DEVT_ZFS	4
     int			d_unit;
+    void		*d_opendata;
 };
 
 /* Commands and return values; nonzero return sets command_errmsg != NULL */

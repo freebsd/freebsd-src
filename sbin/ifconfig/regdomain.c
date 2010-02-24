@@ -694,8 +694,11 @@ lib80211_country_findbyname(const struct regdata *rdp, const char *name)
 
 	len = strlen(name);
 	LIST_FOREACH(cp, &rdp->countries, next) {
-		if (strcasecmp(cp->isoname, name) == 0 ||
-		    strncasecmp(cp->name, name, len) == 0)
+		if (strcasecmp(cp->isoname, name) == 0)
+			return cp;
+	}
+	LIST_FOREACH(cp, &rdp->countries, next) {
+		if (strncasecmp(cp->name, name, len) == 0)
 			return cp;
 	}
 	return NULL;

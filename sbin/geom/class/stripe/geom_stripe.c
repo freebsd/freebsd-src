@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_STRIPE_VERSION;
 
-static intmax_t default_stripesize = 4096;
+static intmax_t default_stripesize = 65536;
 
 static void stripe_main(struct gctl_req *req, unsigned flags);
 static void stripe_clear(struct gctl_req *req);

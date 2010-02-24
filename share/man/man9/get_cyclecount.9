@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2000
+.Dd October 24, 2009
 .Dt GET_CYCLECOUNT 9
 .Os
 .Sh NAME
@@ -65,10 +65,10 @@ do not have such a register,
 so
 .Fn get_cyclecount
 on these platforms
-returns the number of nanoseconds
+returns a (non-monotonic) combination of numbers
 represented by the
 structure returned by
-.Xr nanotime 9 .
+.Xr binuptime 9 .
 .Pp
 The
 .Tn Pentium
@@ -77,18 +77,12 @@ processors all use the
 register.
 .Pp
 The
-.Tn Alpha
-processors use the
-.Li PCC
-register.
-.Pp
-The
 .Tn IA64
 processors use the
 .Li AR.ITC
 register.
 .Sh SEE ALSO
-.Xr nanotime 9
+.Xr binuptime 9
 .Sh HISTORY
 The
 .Fn get_cyclecount

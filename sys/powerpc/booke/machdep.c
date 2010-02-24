@@ -179,7 +179,6 @@ SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 	   CTLFLAG_RD, &cacheline_size, 0, "");
 
 int hw_direct_map = 0;
-int ppc64 = 0;
 
 static void cpu_e500_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_e500_startup, NULL);
@@ -385,7 +384,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	init_param1();
 
 	/* Start initializing proc0 and thread0. */
-	proc_linkup(&proc0, &thread0);
+	proc_linkup0(&proc0, &thread0);
 	thread0.td_frame = &frame0;
 
 	/* Set up per-cpu data and store the pointer in SPR general 0. */
@@ -665,7 +664,6 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 int
 sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
-	struct proc *p;
 	ucontext_t uc;
 	int error;
 
@@ -680,12 +678,7 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	if (error != 0)
 		return (error);
 
-	p = td->td_proc;
-	PROC_LOCK(p);
-	td->td_sigmask = uc.uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	CTR3(KTR_SIG, "sigreturn: return td=%p pc=%#x sp=%#x",
 	    td, uc.uc_mcontext.mc_srr0, uc.uc_mcontext.mc_gpr[1]);

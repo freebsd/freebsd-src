@@ -77,62 +77,12 @@ static int	tmpfs_statfs(struct mount *, struct statfs *);
 /* --------------------------------------------------------------------- */
 
 static const char *tmpfs_opts[] = {
-	"from", "size", "inodes", "uid", "gid", "mode", "export",
+	"from", "size", "maxfilesize", "inodes", "uid", "gid", "mode", "export",
 	NULL
 };
 
 /* --------------------------------------------------------------------- */
 
-#define SWI_MAXMIB	3
-
-static u_int
-get_swpgtotal(void)
-{
-	struct xswdev xsd;
-	char *sname = "vm.swap_info";
-	int soid[SWI_MAXMIB], oid[2];
-	u_int unswdev, total, dmmax, nswapdev;
-	size_t mibi, len;
-
-	total = 0;
-
-	len = sizeof(dmmax);
-	if (kernel_sysctlbyname(curthread, "vm.dmmax", &dmmax, &len,
-				NULL, 0, NULL, 0) != 0)
-		return total;
-
-	len = sizeof(nswapdev);
-	if (kernel_sysctlbyname(curthread, "vm.nswapdev",
-				&nswapdev, &len,
-				NULL, 0, NULL, 0) != 0)
-		return total;
-
-	mibi = (SWI_MAXMIB - 1) * sizeof(int);
-	oid[0] = 0;
-	oid[1] = 3;
-
-	if (kernel_sysctl(curthread, oid, 2,
-			soid, &mibi, (void *)sname, strlen(sname),
-			NULL, 0) != 0)
-		return total;
-
-	mibi = (SWI_MAXMIB - 1);
-	for (unswdev = 0; unswdev < nswapdev; ++unswdev) {
-		soid[mibi] = unswdev;
-		len = sizeof(struct xswdev);
-		if (kernel_sysctl(curthread,
-				soid, mibi + 1, &xsd, &len, NULL, 0,
-				NULL, 0) != 0)
-			return total;
-		if (len == sizeof(struct xswdev))
-			total += (xsd.xsw_nblks - dmmax);
-	}
-
-	/* Not Reached */
-	return total;
-}
-
-/* --------------------------------------------------------------------- */
 static int
 tmpfs_node_ctor(void *mem, int size, void *arg, int flags)
 {
@@ -181,19 +131,19 @@ tmpfs_mount(struct mount *mp)
 {
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
-	size_t pages, mem_size;
-	ino_t nodes;
+	size_t pages;
+	uint32_t nodes;
 	int error;
 	/* Size counters. */
-	ino_t	nodes_max;
-	size_t	size_max;
+	u_int nodes_max;
+	u_quad_t size_max, maxfilesize;
 
 	/* Root node attributes. */
-	uid_t	root_uid;
-	gid_t	root_gid;
-	mode_t	root_mode;
+	uid_t root_uid;
+	gid_t root_gid;
+	mode_t root_mode;
 
-	struct vattr	va;
+	struct vattr va;
 
 	if (vfs_filteropt(mp->mnt_optnew, tmpfs_opts))
 		return (EINVAL);
@@ -223,31 +173,35 @@ tmpfs_mount(struct mount *mp)
 	if (mp->mnt_cred->cr_ruid != 0 ||
 	    vfs_scanopt(mp->mnt_optnew, "mode", "%ho", &root_mode) != 1)
 		root_mode = va.va_mode;
-	if (vfs_scanopt(mp->mnt_optnew, "inodes", "%d", &nodes_max) != 1)
+	if (vfs_scanopt(mp->mnt_optnew, "inodes", "%u", &nodes_max) != 1)
 		nodes_max = 0;
 	if (vfs_scanopt(mp->mnt_optnew, "size", "%qu", &size_max) != 1)
 		size_max = 0;
+	if (vfs_scanopt(mp->mnt_optnew, "maxfilesize", "%qu",
+	    &maxfilesize) != 1)
+		maxfilesize = 0;
 
 	/* Do not allow mounts if we do not have enough memory to preserve
 	 * the minimum reserved pages. */
-	mem_size = cnt.v_free_count + cnt.v_inactive_count + get_swpgtotal();
-	mem_size -= mem_size > cnt.v_wire_count ? cnt.v_wire_count : mem_size;
-	if (mem_size < TMPFS_PAGES_RESERVED)
+	if (tmpfs_mem_info() < TMPFS_PAGES_RESERVED)
 		return ENOSPC;
 
 	/* Get the maximum number of memory pages this file system is
 	 * allowed to use, based on the maximum size the user passed in
 	 * the mount structure.  A value of zero is treated as if the
 	 * maximum available space was requested. */
-	if (size_max < PAGE_SIZE || size_max >= SIZE_MAX)
+	if (size_max < PAGE_SIZE || size_max > SIZE_MAX - PAGE_SIZE)
 		pages = SIZE_MAX;
 	else
 		pages = howmany(size_max, PAGE_SIZE);
 	MPASS(pages > 0);
 
-	if (nodes_max <= 3)
-		nodes = 3 + pages * PAGE_SIZE / 1024;
-	else
+	if (nodes_max <= 3) {
+		if (pages > UINT32_MAX - 3)
+			nodes = UINT32_MAX;
+		else
+			nodes = pages + 3;
+	} else
 		nodes = nodes_max;
 	MPASS(nodes >= 3);
 
@@ -258,7 +212,7 @@ tmpfs_mount(struct mount *mp)
 	mtx_init(&tmp->allnode_lock, "tmpfs allnode lock", NULL, MTX_DEF);
 	tmp->tm_nodes_max = nodes;
 	tmp->tm_nodes_inuse = 0;
-	tmp->tm_maxfilesize = (u_int64_t)(cnt.v_page_count + get_swpgtotal()) * PAGE_SIZE;
+	tmp->tm_maxfilesize = maxfilesize > 0 ? maxfilesize : UINT64_MAX;
 	LIST_INIT(&tmp->tm_nodes_used);
 
 	tmp->tm_pages_max = pages;

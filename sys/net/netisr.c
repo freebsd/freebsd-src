@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2007-2009 Robert N. M. Watson
+ * Copyright (c) 2010 Juniper Networks, Inc.
  * All rights reserved.
+ *
+ * This software was developed by Robert N. M. Watson under contract
+ * to Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,13 +36,13 @@ __FBSDID("$FreeBSD$");
  * dispatched) and asynchronous (deferred dispatch) processing of packets by
  * registered protocol handlers.  Callers pass a protocol identifier and
  * packet to netisr, along with a direct dispatch hint, and work will either
- * be immediately processed with the registered handler, or passed to a
- * kernel software interrupt (SWI) thread for deferred dispatch.  Callers
- * will generally select one or the other based on:
+ * be immediately processed by the registered handler, or passed to a
+ * software interrupt (SWI) thread for deferred dispatch.  Callers will
+ * generally select one or the other based on:
  *
- * - Might directly dispatching a netisr handler lead to code reentrance or
+ * - Whether directly dispatching a netisr handler lead to code reentrance or
  *   lock recursion, such as entering the socket code from the socket code.
- * - Might directly dispatching a netisr handler lead to recursive
+ * - Whether directly dispatching a netisr handler lead to recursive
  *   processing, such as when decapsulating several wrapped layers of tunnel
  *   information (IPSEC within IPSEC within ...).
  *
@@ -54,9 +58,9 @@ __FBSDID("$FreeBSD$");
  * more than one flow.
  *
  * netisr supports several policy variations, represented by the
- * NETISR_POLICY_* constants, allowing protocols to play a varying role in
+ * NETISR_POLICY_* constants, allowing protocols to play various roles in
  * identifying flows, assigning work to CPUs, etc.  These are described in
- * detail in netisr.h.
+ * netisr.h.
  */
 
 #include "opt_ddb.h"
@@ -101,7 +105,7 @@ __FBSDID("$FreeBSD$");
  *
  * Note: the NETISR_LOCKING define controls whether read locks are acquired
  * in packet processing paths requiring netisr registration stability.  This
- * is disabled by default as it can lead to a measurable performance
+ * is disabled by default as it can lead to measurable performance
  * degradation even with rmlocks (3%-6% for loopback ping-pong traffic), and
  * because netisr registration and unregistration is extremely rare at
  * runtime.  If it becomes more common, this decision should be revisited.
@@ -156,35 +160,36 @@ SYSCTL_INT(_net_isr, OID_AUTO, direct, CTLFLAG_RW,
  */
 static int	netisr_maxthreads = -1;		/* Max number of threads. */
 TUNABLE_INT("net.isr.maxthreads", &netisr_maxthreads);
-SYSCTL_INT(_net_isr, OID_AUTO, maxthreads, CTLFLAG_RD,
+SYSCTL_INT(_net_isr, OID_AUTO, maxthreads, CTLFLAG_RDTUN,
     &netisr_maxthreads, 0,
     "Use at most this many CPUs for netisr processing");
 
 static int	netisr_bindthreads = 0;		/* Bind threads to CPUs. */
 TUNABLE_INT("net.isr.bindthreads", &netisr_bindthreads);
-SYSCTL_INT(_net_isr, OID_AUTO, bindthreads, CTLFLAG_RD,
+SYSCTL_INT(_net_isr, OID_AUTO, bindthreads, CTLFLAG_RDTUN,
     &netisr_bindthreads, 0, "Bind netisr threads to CPUs.");
 
 /*
- * Limit per-workstream queues to at most net.isr.maxqlimit, both for initial
- * configuration and later modification using netisr_setqlimit().
+ * Limit per-workstream mbuf queue limits s to at most net.isr.maxqlimit,
+ * both for initial configuration and later modification using
+ * netisr_setqlimit().
  */
 #define	NETISR_DEFAULT_MAXQLIMIT	10240
 static u_int	netisr_maxqlimit = NETISR_DEFAULT_MAXQLIMIT;
 TUNABLE_INT("net.isr.maxqlimit", &netisr_maxqlimit);
-SYSCTL_INT(_net_isr, OID_AUTO, maxqlimit, CTLFLAG_RD,
+SYSCTL_INT(_net_isr, OID_AUTO, maxqlimit, CTLFLAG_RDTUN,
     &netisr_maxqlimit, 0,
     "Maximum netisr per-protocol, per-CPU queue depth.");
 
 /*
- * The default per-workstream queue limit for protocols that don't initialize
- * the nh_qlimit field of their struct netisr_handler.  If this is set above
- * netisr_maxqlimit, we truncate it to the maximum during boot.
+ * The default per-workstream mbuf queue limit for protocols that don't
+ * initialize the nh_qlimit field of their struct netisr_handler.  If this is
+ * set above netisr_maxqlimit, we truncate it to the maximum during boot.
  */
 #define	NETISR_DEFAULT_DEFAULTQLIMIT	256
 static u_int	netisr_defaultqlimit = NETISR_DEFAULT_DEFAULTQLIMIT;
 TUNABLE_INT("net.isr.defaultqlimit", &netisr_defaultqlimit);
-SYSCTL_INT(_net_isr, OID_AUTO, defaultqlimit, CTLFLAG_RD,
+SYSCTL_INT(_net_isr, OID_AUTO, defaultqlimit, CTLFLAG_RDTUN,
     &netisr_defaultqlimit, 0,
     "Default netisr per-protocol, per-CPU queue limit if not set by protocol");
 
@@ -237,12 +242,14 @@ struct netisr_work {
 };
 
 /*
- * Workstreams hold a set of ordered work across each protocol, and are
+ * Workstreams hold a queue of ordered work across each protocol, and are
  * described by netisr_workstream.  Each workstream is associated with a
  * worker thread, which in turn is pinned to a CPU.  Work associated with a
  * workstream can be processd in other threads during direct dispatch;
  * concurrent processing is prevented by the NWS_RUNNING flag, which
- * indicates that a thread is already processing the work queue.
+ * indicates that a thread is already processing the work queue.  It is
+ * important to prevent a directly dispatched packet from "skipping ahead" of
+ * work already in the workstream queue.
  */
 struct netisr_workstream {
 	struct intr_event *nws_intr_event;	/* Handler for stream. */
@@ -317,7 +324,7 @@ netisr_get_cpuid(u_int cpunumber)
 }
 
 /*
- * The default implementation of -> CPU ID mapping.
+ * The default implementation of flow -> CPU ID mapping.
  *
  * Non-static so that protocols can use it to map their own work to specific
  * CPUs in a manner consistent to netisr for affinity purposes.
@@ -437,7 +444,7 @@ netisr_clearqdrops(const struct netisr_handler *nhp)
 }
 
 /*
- * Query the current drop counters across all workstreams for a protocol.
+ * Query current drop counters across all workstreams for a protocol.
  */
 void
 netisr_getqdrops(const struct netisr_handler *nhp, u_int64_t *qdropp)
@@ -472,7 +479,7 @@ netisr_getqdrops(const struct netisr_handler *nhp, u_int64_t *qdropp)
 }
 
 /*
- * Query the current queue limit for per-workstream queues for a protocol.
+ * Query current per-workstream queue limit for a protocol.
  */
 void
 netisr_getqlimit(const struct netisr_handler *nhp, u_int *qlimitp)
@@ -726,7 +733,7 @@ netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 }
 
 /*
- * SWI handler for netisr -- processes prackets in a set of workstreams that
+ * SWI handler for netisr -- processes packets in a set of workstreams that
  * it owns, woken up by calls to NWS_SIGNAL().  If this workstream is already
  * being direct dispatched, go back to sleep and wait for the dispatching
  * thread to wake us up again.
@@ -794,6 +801,11 @@ netisr_queue_workstream(struct netisr_workstream *nwsp, u_int proto,
 		npwp->nw_len++;
 		if (npwp->nw_len > npwp->nw_watermark)
 			npwp->nw_watermark = npwp->nw_len;
+
+		/*
+		 * We must set the bit regardless of NWS_RUNNING, so that
+		 * swi_net() keeps calling netisr_process_workstream_proto().
+		 */
 		nwsp->nws_pendingbits |= (1 << proto);
 		if (!(nwsp->nws_flags & 
 		    (NWS_RUNNING | NWS_DISPATCHING | NWS_SCHEDULED))) {
@@ -874,7 +886,7 @@ netisr_queue(u_int proto, struct mbuf *m)
 }
 
 /*
- * Dispatch a packet for netisr processing, direct dispatch permitted by
+ * Dispatch a packet for netisr processing; direct dispatch is permitted by
  * calling context.
  */
 int
@@ -1068,12 +1080,12 @@ netisr_init(void *arg)
 	if (netisr_maxthreads < 1)
 		netisr_maxthreads = 1;
 	if (netisr_maxthreads > mp_ncpus) {
-		printf("netisr2: forcing maxthreads from %d to %d\n",
+		printf("netisr_init: forcing maxthreads from %d to %d\n",
 		    netisr_maxthreads, mp_ncpus);
 		netisr_maxthreads = mp_ncpus;
 	}
 	if (netisr_defaultqlimit > netisr_maxqlimit) {
-		printf("netisr2: forcing defaultqlimit from %d to %d\n",
+		printf("netisr_init: forcing defaultqlimit from %d to %d\n",
 		    netisr_defaultqlimit, netisr_maxqlimit);
 		netisr_defaultqlimit = netisr_maxqlimit;
 	}
@@ -1084,8 +1096,8 @@ netisr_init(void *arg)
 	 * polling disables parallel netisr workers.
 	 */
 	if (netisr_maxthreads != 1 || netisr_bindthreads != 0) {
-		printf("netisr2: forcing maxthreads to 1 and bindthreads to "
-		    "0 for device polling\n");
+		printf("netisr_init: forcing maxthreads to 1 and "
+		    "bindthreads to 0 for device polling\n");
 		netisr_maxthreads = 1;
 		netisr_bindthreads = 0;
 	}
@@ -1117,6 +1129,170 @@ netisr_start(void *arg)
 	}
 }
 SYSINIT(netisr_start, SI_SUB_SMP, SI_ORDER_MIDDLE, netisr_start, NULL);
+
+/*
+ * Sysctl monitoring for netisr: query a list of registered protocols.
+ */
+static int
+sysctl_netisr_proto(SYSCTL_HANDLER_ARGS)
+{
+	struct rm_priotracker tracker;
+	struct sysctl_netisr_proto *snpp, *snp_array;
+	struct netisr_proto *npp;
+	u_int counter, proto;
+	int error;
+
+	if (req->newptr != NULL)
+		return (EINVAL);
+	snp_array = malloc(sizeof(*snp_array) * NETISR_MAXPROT, M_TEMP,
+	    M_ZERO | M_WAITOK);
+	counter = 0;
+	NETISR_RLOCK(&tracker);
+	for (proto = 0; proto < NETISR_MAXPROT; proto++) {
+		npp = &np[proto];
+		if (npp->np_name == NULL)
+			continue;
+		snpp = &snp_array[counter];
+		snpp->snp_version = sizeof(*snpp);
+		strlcpy(snpp->snp_name, npp->np_name, NETISR_NAMEMAXLEN);
+		snpp->snp_proto = proto;
+		snpp->snp_qlimit = npp->np_qlimit;
+		snpp->snp_policy = npp->np_policy;
+		if (npp->np_m2flow != NULL)
+			snpp->snp_flags |= NETISR_SNP_FLAGS_M2FLOW;
+		if (npp->np_m2cpuid != NULL)
+			snpp->snp_flags |= NETISR_SNP_FLAGS_M2CPUID;
+		if (npp->np_drainedcpu != NULL)
+			snpp->snp_flags |= NETISR_SNP_FLAGS_DRAINEDCPU;
+		counter++;
+	}
+	NETISR_RUNLOCK(&tracker);
+	KASSERT(counter < NETISR_MAXPROT,
+	    ("sysctl_netisr_proto: counter too big (%d)", counter));
+	error = SYSCTL_OUT(req, snp_array, sizeof(*snp_array) * counter);
+	free(snp_array, M_TEMP);
+	return (error);
+}
+
+SYSCTL_PROC(_net_isr, OID_AUTO, proto,
+    CTLFLAG_RD|CTLTYPE_STRUCT|CTLFLAG_MPSAFE, 0, 0, sysctl_netisr_proto,
+    "S,sysctl_netisr_proto",
+    "Return list of protocols registered with netisr");
+
+/*
+ * Sysctl monitoring for netisr: query a list of workstreams.
+ */
+static int
+sysctl_netisr_workstream(SYSCTL_HANDLER_ARGS)
+{
+	struct rm_priotracker tracker;
+	struct sysctl_netisr_workstream *snwsp, *snws_array;
+	struct netisr_workstream *nwsp;
+	u_int counter, cpuid;
+	int error;
+
+	if (req->newptr != NULL)
+		return (EINVAL);
+	snws_array = malloc(sizeof(*snws_array) * MAXCPU, M_TEMP,
+	    M_ZERO | M_WAITOK);
+	counter = 0;
+	NETISR_RLOCK(&tracker);
+	for (cpuid = 0; cpuid < MAXCPU; cpuid++) {
+		if (CPU_ABSENT(cpuid))
+			continue;
+		nwsp = DPCPU_ID_PTR(cpuid, nws);
+		if (nwsp->nws_intr_event == NULL)
+			continue;
+		NWS_LOCK(nwsp);
+		snwsp = &snws_array[counter];
+		snwsp->snws_version = sizeof(*snwsp);
+
+		/*
+		 * For now, we equate workstream IDs and CPU IDs in the
+		 * kernel, but expose them independently to userspace in case
+		 * that assumption changes in the future.
+		 */
+		snwsp->snws_wsid = cpuid;
+		snwsp->snws_cpu = cpuid;
+		if (nwsp->nws_intr_event != NULL)
+			snwsp->snws_flags |= NETISR_SNWS_FLAGS_INTR;
+		NWS_UNLOCK(nwsp);
+		counter++;
+	}
+	NETISR_RUNLOCK(&tracker);
+	KASSERT(counter < MAXCPU,
+	    ("sysctl_netisr_workstream: counter too big (%d)", counter));
+	error = SYSCTL_OUT(req, snws_array, sizeof(*snws_array) * counter);
+	free(snws_array, M_TEMP);
+	return (error);
+}
+
+SYSCTL_PROC(_net_isr, OID_AUTO, workstream,
+    CTLFLAG_RD|CTLTYPE_STRUCT|CTLFLAG_MPSAFE, 0, 0, sysctl_netisr_workstream,
+    "S,sysctl_netisr_workstream",
+    "Return list of workstreams implemented by netisr");
+
+/*
+ * Sysctl monitoring for netisr: query per-protocol data across all
+ * workstreams.
+ */
+static int
+sysctl_netisr_work(SYSCTL_HANDLER_ARGS)
+{
+	struct rm_priotracker tracker;
+	struct sysctl_netisr_work *snwp, *snw_array;
+	struct netisr_workstream *nwsp;
+	struct netisr_proto *npp;
+	struct netisr_work *nwp;
+	u_int counter, cpuid, proto;
+	int error;
+
+	if (req->newptr != NULL)
+		return (EINVAL);
+	snw_array = malloc(sizeof(*snw_array) * MAXCPU * NETISR_MAXPROT,
+	    M_TEMP, M_ZERO | M_WAITOK);
+	counter = 0;
+	NETISR_RLOCK(&tracker);
+	for (cpuid = 0; cpuid < MAXCPU; cpuid++) {
+		if (CPU_ABSENT(cpuid))
+			continue;
+		nwsp = DPCPU_ID_PTR(cpuid, nws);
+		if (nwsp->nws_intr_event == NULL)
+			continue;
+		NWS_LOCK(nwsp);
+		for (proto = 0; proto < NETISR_MAXPROT; proto++) {
+			npp = &np[proto];
+			if (npp->np_name == NULL)
+				continue;
+			nwp = &nwsp->nws_work[proto];
+			snwp = &snw_array[counter];
+			snwp->snw_version = sizeof(*snwp);
+			snwp->snw_wsid = cpuid;		/* See comment above. */
+			snwp->snw_proto = proto;
+			snwp->snw_len = nwp->nw_len;
+			snwp->snw_watermark = nwp->nw_watermark;
+			snwp->snw_dispatched = nwp->nw_dispatched;
+			snwp->snw_hybrid_dispatched =
+			    nwp->nw_hybrid_dispatched;
+			snwp->snw_qdrops = nwp->nw_qdrops;
+			snwp->snw_queued = nwp->nw_queued;
+			snwp->snw_handled = nwp->nw_handled;
+			counter++;
+		}
+		NWS_UNLOCK(nwsp);
+	}
+	KASSERT(counter < MAXCPU * NETISR_MAXPROT,
+	    ("sysctl_netisr_work: counter too big (%d)", counter));
+	NETISR_RUNLOCK(&tracker);
+	error = SYSCTL_OUT(req, snw_array, sizeof(*snw_array) * counter);
+	free(snw_array, M_TEMP);
+	return (error);
+}
+
+SYSCTL_PROC(_net_isr, OID_AUTO, work,
+    CTLFLAG_RD|CTLTYPE_STRUCT|CTLFLAG_MPSAFE, 0, 0, sysctl_netisr_work,
+    "S,sysctl_netisr_work",
+    "Return list of per-workstream, per-protocol work in netisr");
 
 #ifdef DDB
 DB_SHOW_COMMAND(netisr, db_show_netisr)

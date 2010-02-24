@@ -10,7 +10,7 @@ SRCS=	pam_ssh.c
 # required when linking with a dynamic libssh
 SRCS+=	roaming_dummy.c
 
-WARNS?=	0
+WARNS?=	3
 CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
 
 DPADD=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}

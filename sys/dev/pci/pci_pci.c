@@ -52,7 +52,18 @@ __FBSDID("$FreeBSD$");
 
 #include "pcib_if.h"
 
+#ifdef __HAVE_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include "acpi_if.h"
+#else
+#define	ACPI_PWR_FOR_SLEEP(x, y, z)
+#endif
+
+extern int		pci_do_power_resume;
+
 static int		pcib_probe(device_t dev);
+static int		pcib_suspend(device_t dev);
+static int		pcib_resume(device_t dev);
 
 static device_method_t pcib_methods[] = {
     /* Device interface */
@@ -60,8 +71,8 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(device_attach,		pcib_attach),
     DEVMETHOD(device_detach,		bus_generic_detach),
     DEVMETHOD(device_shutdown,		bus_generic_shutdown),
-    DEVMETHOD(device_suspend,		bus_generic_suspend),
-    DEVMETHOD(device_resume,		bus_generic_resume),
+    DEVMETHOD(device_suspend,		pcib_suspend),
+    DEVMETHOD(device_resume,		pcib_resume),
 
     /* Bus interface */
     DEVMETHOD(bus_print_child,		bus_generic_print_child),
@@ -121,6 +132,154 @@ pcib_is_io_open(struct pcib_softc *sc)
 }
 
 /*
+ * Get current I/O decode.
+ */
+static void
+pcib_get_io_decode(struct pcib_softc *sc)
+{
+	device_t	dev;
+	uint32_t	iolow;
+
+	dev = sc->dev;
+
+	iolow = pci_read_config(dev, PCIR_IOBASEL_1, 1);
+	if ((iolow & PCIM_BRIO_MASK) == PCIM_BRIO_32)
+		sc->iobase = PCI_PPBIOBASE(
+		    pci_read_config(dev, PCIR_IOBASEH_1, 2), iolow);
+	else
+		sc->iobase = PCI_PPBIOBASE(0, iolow);
+
+	iolow = pci_read_config(dev, PCIR_IOLIMITL_1, 1);
+	if ((iolow & PCIM_BRIO_MASK) == PCIM_BRIO_32)
+		sc->iolimit = PCI_PPBIOLIMIT(
+		    pci_read_config(dev, PCIR_IOLIMITH_1, 2), iolow);
+	else
+		sc->iolimit = PCI_PPBIOLIMIT(0, iolow);
+}
+
+/*
+ * Get current memory decode.
+ */
+static void
+pcib_get_mem_decode(struct pcib_softc *sc)
+{
+	device_t	dev;
+	pci_addr_t	pmemlow;
+
+	dev = sc->dev;
+
+	sc->membase = PCI_PPBMEMBASE(0,
+	    pci_read_config(dev, PCIR_MEMBASE_1, 2));
+	sc->memlimit = PCI_PPBMEMLIMIT(0,
+	    pci_read_config(dev, PCIR_MEMLIMIT_1, 2));
+
+	pmemlow = pci_read_config(dev, PCIR_PMBASEL_1, 2);
+	if ((pmemlow & PCIM_BRPM_MASK) == PCIM_BRPM_64)
+		sc->pmembase = PCI_PPBMEMBASE(
+		    pci_read_config(dev, PCIR_PMBASEH_1, 4), pmemlow);
+	else
+		sc->pmembase = PCI_PPBMEMBASE(0, pmemlow);
+
+	pmemlow = pci_read_config(dev, PCIR_PMLIMITL_1, 2);
+	if ((pmemlow & PCIM_BRPM_MASK) == PCIM_BRPM_64)	
+		sc->pmemlimit = PCI_PPBMEMLIMIT(
+		    pci_read_config(dev, PCIR_PMLIMITH_1, 4), pmemlow);
+	else
+		sc->pmemlimit = PCI_PPBMEMLIMIT(0, pmemlow);
+}
+
+/*
+ * Restore previous I/O decode.
+ */
+static void
+pcib_set_io_decode(struct pcib_softc *sc)
+{
+	device_t	dev;
+	uint32_t	iohi;
+
+	dev = sc->dev;
+
+	iohi = sc->iobase >> 16;
+	if (iohi > 0)
+		pci_write_config(dev, PCIR_IOBASEH_1, iohi, 2);
+	pci_write_config(dev, PCIR_IOBASEL_1, sc->iobase >> 8, 1);
+
+	iohi = sc->iolimit >> 16;
+	if (iohi > 0)
+		pci_write_config(dev, PCIR_IOLIMITH_1, iohi, 2);
+	pci_write_config(dev, PCIR_IOLIMITL_1, sc->iolimit >> 8, 1);
+}
+
+/*
+ * Restore previous memory decode.
+ */
+static void
+pcib_set_mem_decode(struct pcib_softc *sc)
+{
+	device_t	dev;
+	pci_addr_t	pmemhi;
+
+	dev = sc->dev;
+
+	pci_write_config(dev, PCIR_MEMBASE_1, sc->membase >> 16, 2);
+	pci_write_config(dev, PCIR_MEMLIMIT_1, sc->memlimit >> 16, 2);
+
+	pmemhi = sc->pmembase >> 32;
+	if (pmemhi > 0)
+		pci_write_config(dev, PCIR_PMBASEH_1, pmemhi, 4);
+	pci_write_config(dev, PCIR_PMBASEL_1, sc->pmembase >> 16, 2);
+
+	pmemhi = sc->pmemlimit >> 32;
+	if (pmemhi > 0)
+		pci_write_config(dev, PCIR_PMLIMITH_1, pmemhi, 4);
+	pci_write_config(dev, PCIR_PMLIMITL_1, sc->pmemlimit >> 16, 2);
+}
+
+/*
+ * Get current bridge configuration.
+ */
+static void
+pcib_cfg_save(struct pcib_softc *sc)
+{
+	device_t	dev;
+
+	dev = sc->dev;
+
+	sc->command = pci_read_config(dev, PCIR_COMMAND, 2);
+	sc->pribus = pci_read_config(dev, PCIR_PRIBUS_1, 1);
+	sc->secbus = pci_read_config(dev, PCIR_SECBUS_1, 1);
+	sc->subbus = pci_read_config(dev, PCIR_SUBBUS_1, 1);
+	sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
+	sc->seclat = pci_read_config(dev, PCIR_SECLAT_1, 1);
+	if (sc->command & PCIM_CMD_PORTEN)
+		pcib_get_io_decode(sc);
+	if (sc->command & PCIM_CMD_MEMEN)
+		pcib_get_mem_decode(sc);
+}
+
+/*
+ * Restore previous bridge configuration.
+ */
+static void
+pcib_cfg_restore(struct pcib_softc *sc)
+{
+	device_t	dev;
+
+	dev = sc->dev;
+
+	pci_write_config(dev, PCIR_COMMAND, sc->command, 2);
+	pci_write_config(dev, PCIR_PRIBUS_1, sc->pribus, 1);
+	pci_write_config(dev, PCIR_SECBUS_1, sc->secbus, 1);
+	pci_write_config(dev, PCIR_SUBBUS_1, sc->subbus, 1);
+	pci_write_config(dev, PCIR_BRIDGECTL_1, sc->bridgectl, 2);
+	pci_write_config(dev, PCIR_SECLAT_1, sc->seclat, 1);
+	if (sc->command & PCIM_CMD_PORTEN)
+		pcib_set_io_decode(sc);
+	if (sc->command & PCIM_CMD_MEMEN)
+		pcib_set_mem_decode(sc);
+}
+
+/*
  * Generic device interface
  */
 static int
@@ -138,7 +297,6 @@ void
 pcib_attach_common(device_t dev)
 {
     struct pcib_softc	*sc;
-    uint8_t		iolow;
     struct sysctl_ctx_list *sctx;
     struct sysctl_oid	*soid;
 
@@ -148,14 +306,9 @@ pcib_attach_common(device_t dev)
     /*
      * Get current bridge configuration.
      */
-    sc->command   = pci_read_config(dev, PCIR_COMMAND, 1);
-    sc->domain    = pci_get_domain(dev);
-    sc->pribus    = pci_read_config(dev, PCIR_PRIBUS_1, 1);
-    sc->secbus    = pci_read_config(dev, PCIR_SECBUS_1, 1);
-    sc->subbus    = pci_read_config(dev, PCIR_SUBBUS_1, 1);
-    sc->secstat   = pci_read_config(dev, PCIR_SECSTAT_1, 2);
-    sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
-    sc->seclat    = pci_read_config(dev, PCIR_SECLAT_1, 1);
+    sc->domain = pci_get_domain(dev);
+    sc->secstat = pci_read_config(dev, PCIR_SECSTAT_1, 2);
+    pcib_cfg_save(sc);
 
     /*
      * Setup sysctl reporting nodes
@@ -170,51 +323,6 @@ pcib_attach_common(device_t dev)
       CTLFLAG_RD, &sc->secbus, 0, "Secondary bus number");
     SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "subbus",
       CTLFLAG_RD, &sc->subbus, 0, "Subordinate bus number");
-
-    /*
-     * Determine current I/O decode.
-     */
-    if (sc->command & PCIM_CMD_PORTEN) {
-	iolow = pci_read_config(dev, PCIR_IOBASEL_1, 1);
-	if ((iolow & PCIM_BRIO_MASK) == PCIM_BRIO_32) {
-	    sc->iobase = PCI_PPBIOBASE(pci_read_config(dev, PCIR_IOBASEH_1, 2),
-				       pci_read_config(dev, PCIR_IOBASEL_1, 1));
-	} else {
-	    sc->iobase = PCI_PPBIOBASE(0, pci_read_config(dev, PCIR_IOBASEL_1, 1));
-	}
-
-	iolow = pci_read_config(dev, PCIR_IOLIMITL_1, 1);
-	if ((iolow & PCIM_BRIO_MASK) == PCIM_BRIO_32) {
-	    sc->iolimit = PCI_PPBIOLIMIT(pci_read_config(dev, PCIR_IOLIMITH_1, 2),
-					 pci_read_config(dev, PCIR_IOLIMITL_1, 1));
-	} else {
-	    sc->iolimit = PCI_PPBIOLIMIT(0, pci_read_config(dev, PCIR_IOLIMITL_1, 1));
-	}
-    }
-
-    /*
-     * Determine current memory decode.
-     */
-    if (sc->command & PCIM_CMD_MEMEN) {
-	sc->membase   = PCI_PPBMEMBASE(0, pci_read_config(dev, PCIR_MEMBASE_1, 2));
-	sc->memlimit  = PCI_PPBMEMLIMIT(0, pci_read_config(dev, PCIR_MEMLIMIT_1, 2));
-	iolow = pci_read_config(dev, PCIR_PMBASEL_1, 1);
-	if ((iolow & PCIM_BRPM_MASK) == PCIM_BRPM_64)
-	    sc->pmembase = PCI_PPBMEMBASE(
-		pci_read_config(dev, PCIR_PMBASEH_1, 4),
-		pci_read_config(dev, PCIR_PMBASEL_1, 2));
-	else
-	    sc->pmembase = PCI_PPBMEMBASE(0,
-		pci_read_config(dev, PCIR_PMBASEL_1, 2));
-	iolow = pci_read_config(dev, PCIR_PMLIMITL_1, 1);
-	if ((iolow & PCIM_BRPM_MASK) == PCIM_BRPM_64)	
-	    sc->pmemlimit = PCI_PPBMEMLIMIT(
-		pci_read_config(dev, PCIR_PMLIMITH_1, 4),
-		pci_read_config(dev, PCIR_PMLIMITL_1, 2));
-	else
-	    sc->pmemlimit = PCI_PPBMEMLIMIT(0,
-		pci_read_config(dev, PCIR_PMLIMITL_1, 2));
-    }
 
     /*
      * Quirk handling.
@@ -334,6 +442,41 @@ pcib_attach(device_t dev)
 
     /* no secondary bus; we should have fixed this */
     return(0);
+}
+
+int
+pcib_suspend(device_t dev)
+{
+	device_t	acpi_dev;
+	int		dstate, error;
+
+	pcib_cfg_save(device_get_softc(dev));
+	error = bus_generic_suspend(dev);
+	if (error == 0 && pci_do_power_resume) {
+		acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
+		if (acpi_dev != NULL) {
+			dstate = PCI_POWERSTATE_D3;
+			ACPI_PWR_FOR_SLEEP(acpi_dev, dev, &dstate);
+			pci_set_powerstate(dev, dstate);
+		}
+	}
+	return (error);
+}
+
+int
+pcib_resume(device_t dev)
+{
+	device_t	acpi_dev;
+
+	if (pci_do_power_resume) {
+		acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
+		if (acpi_dev != NULL) {
+			ACPI_PWR_FOR_SLEEP(acpi_dev, dev, NULL);
+			pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+		}
+	}
+	pcib_cfg_restore(device_get_softc(dev));
+	return (bus_generic_resume(dev));
 }
 
 int

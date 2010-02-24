@@ -100,11 +100,10 @@ merge_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 	acl_get_brand_np(acl, &acl_brand);
 	acl_get_brand_np(*prev_acl, &prev_acl_brand);
 
-	if (acl_brand != prev_acl_brand) {
+	if (branding_mismatch(acl_brand, prev_acl_brand)) {
 		warnx("%s: branding mismatch; existing ACL is %s, "
 		    "entry to be merged is %s", filename,
-		    prev_acl_brand == ACL_BRAND_NFS4 ? "NFSv4" : "POSIX.1e",
-		    acl_brand == ACL_BRAND_NFS4 ? "NFSv4" : "POSIX.1e");
+		    brand_name(prev_acl_brand), brand_name(acl_brand));
 		return (-1);
 	}
 
@@ -252,9 +251,10 @@ add_acl(acl_t acl, uint entry_number, acl_t *prev_acl, const char *filename)
 		return (-1);
 	}
 
-	if (acl_brand != ACL_BRAND_NFS4) {
+	if (branding_mismatch(acl_brand, ACL_BRAND_NFS4)) {
 		warnx("%s: branding mismatch; existing ACL is NFSv4, "
-		    "entry to be added is POSIX.1e", filename);
+		    "entry to be added is %s", filename,
+		    brand_name(acl_brand));
 		return (-1);
 	}
 

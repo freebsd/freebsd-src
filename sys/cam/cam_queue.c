@@ -334,7 +334,6 @@ cam_ccbq_init(struct cam_ccbq *ccbq, int openings)
 	}
 	ccbq->devq_openings = openings;
 	ccbq->dev_openings = openings;	
-	TAILQ_INIT(&ccbq->active_ccbs);
 	return (0);
 }
 

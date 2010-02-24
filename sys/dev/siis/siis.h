@@ -137,12 +137,6 @@
 
 #define ATA_SACTIVE                     16
 
-#define SIIS_SII3124		0x31241095
-#define SIIS_SII3132		0x31321095
-#define SIIS_SII3132_1		0x02421095
-#define SIIS_SII3132_2		0x02441095
-#define SIIS_SII3531		0x35311095
-
 /*
  * Global registers
  */
@@ -310,6 +304,12 @@ struct siis_cmd {
 #define SIIS_PRB_INTERRUPT_MASK		0x0040
 #define SIIS_PRB_SOFT_RESET		0x0080
     u_int16_t			protocol_override;
+#define SIIS_PRB_PROTO_PACKET		0x0001
+#define SIIS_PRB_PROTO_TCQ		0x0002
+#define SIIS_PRB_PROTO_NCQ		0x0004
+#define SIIS_PRB_PROTO_READ		0x0008
+#define SIIS_PRB_PROTO_WRITE		0x0010
+#define SIIS_PRB_PROTO_TRANSPARENT	0x0020
     u_int32_t			transfer_count;
     u_int8_t			fis[24];
     union {
@@ -352,6 +352,14 @@ struct siis_slot {
     struct callout              timeout;        /* Execution timeout */
 };
 
+struct siis_device {
+	int			revision;
+	int			mode;
+	u_int			bytecount;
+	u_int			atapi;
+	u_int			tags;
+};
+
 /* structure describing an ATA channel */
 struct siis_channel {
 	device_t		dev;            /* Device handle */
@@ -362,25 +370,29 @@ struct siis_channel {
 	struct ata_dma		dma;            /* DMA data */
 	struct cam_sim		*sim;
 	struct cam_path		*path;
+	int			quirks;
 	int			pm_level;	/* power management level */
-	int			sata_rev;	/* Maximum allowed SATA generation */
 
 	struct siis_slot	slot[SIIS_MAX_SLOTS];
 	union ccb		*hold[SIIS_MAX_SLOTS];
 	struct mtx		mtx;		/* state lock */
 	int			devices;        /* What is present */
 	int			pm_present;	/* PM presence reported */
+	uint32_t		oslots;		/* Occupied slots */
 	uint32_t		rslots;		/* Running slots */
 	uint32_t		aslots;		/* Slots with atomic commands */
 	uint32_t		eslots;		/* Slots in error */
+	uint32_t		toslots;	/* Slots in timeout */
 	int			numrslots;	/* Number of running slots */
 	int			numtslots[SIIS_MAX_SLOTS]; /* Number of tagged slots */
 	int			numhslots;	/* Number of holden slots */
 	int			readlog;	/* Our READ LOG active */
+	int			fatalerr;	/* Fatal error happend */
 	int			recovery;	/* Some slots are in error */
-	int			lastslot;	/* Last used slot */
-	int			taggedtarget;	/* Last tagged target */
 	union ccb		*frozen;	/* Frozen command */
+
+	struct siis_device	user[16];	/* User-specified settings */
+	struct siis_device	curr[16];	/* Current settings */
 };
 
 /* structure describing a SIIS controller */
@@ -396,7 +408,9 @@ struct siis_controller {
 		void			*handle;
 		int			r_irq_rid;
 	} irq;
+	int			quirks;
 	int			channels;
+	uint32_t		gctl;
 	struct {
 		void			(*function)(void *);
 		void			*argument;

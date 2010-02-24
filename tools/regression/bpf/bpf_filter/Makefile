@@ -20,7 +20,7 @@ TEST_CASES?=	test0001 test0002 test0003 test0004	\
 		test0069 test0070 test0071 test0072	\
 		test0073 test0074 test0075 test0076	\
 		test0077 test0078 test0079 test0080	\
-		test0081 test0082 test0083
+		test0081 test0082 test0083 test0084
 
 SYSDIR?=	${.CURDIR}/../../../../sys
 
@@ -43,6 +43,7 @@ CFLAGS+=	-DBPF_VALIDATE
 SRCS+=		${SYSDIR}/net/bpf_jitter.c	\
 		${SYSDIR}/${MACHINE_ARCH}/${MACHINE_ARCH}/bpf_jit_machdep.c
 CFLAGS+=	-DBPF_JIT_COMPILER
+LIBS+=		-lutil
 WARNS?=		6
 .else
 SRCS+=		${SYSDIR}/net/bpf_filter.c
@@ -52,7 +53,7 @@ WARNS?=		2
 .for TEST in ${TEST_CASES}
 ${TEST}:	${.CURDIR}/tests/${TEST}.h ${SRCS}
 	@${CC} ${CFLAGS} -DBPF_TEST_H=\"${TEST}.h\"	\
-	    -o ${.CURDIR}/${TEST} ${SRCS}
+	    -o ${.CURDIR}/${TEST} ${SRCS} ${LIBS}
 .endfor
 
 all:		${TEST_CASES}

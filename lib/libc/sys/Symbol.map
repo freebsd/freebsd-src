@@ -211,6 +211,7 @@ FBSD_1.0 {
 	posix_openpt;
 	preadv;
 	profil;
+	pselect;
 	ptrace;
 	pwritev;
 	quotactl;
@@ -781,6 +782,8 @@ FBSDprivate_1.0 {
 	__sys_preadv;
 	_profil;
 	__sys_profil;
+	_pselect;
+	__sys_pselect;
 	_ptrace;
 	__sys_ptrace;
 	_pwritev;

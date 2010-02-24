@@ -206,8 +206,7 @@ ioerror:
 }
 
 void
-getstring(bp)
-	char *bp;
+getstring(char *bp)
 {
 	int i;
 	char *cp = bp;
@@ -222,9 +221,7 @@ getstring(bp)
 }
 
 char *
-checkbuf(rec, size)
-	char *rec;
-	int size;
+checkbuf(char *rec, int size)
 {
 
 	if (size <= maxrecsize)
@@ -244,8 +241,7 @@ checkbuf(rec, size)
 }
 
 void
-error(num)
-	int num;
+error(int num)
 {
 
 	DEBUG2("rmtd: E %d (%s)\n", num, strerror(num));

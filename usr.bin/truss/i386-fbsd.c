@@ -305,19 +305,6 @@ i386_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
     }
   }
 
-  /*
-   * The pipe syscall returns its fds in two registers and has assembly glue
-   * to provide the libc API, so it cannot be handled like regular syscalls.
-   * The nargs check is so we don't have to do yet another strcmp on every
-   * syscall.
-   */
-  if (!errorp && fsc.nargs == 0 && fsc.name && strcmp(fsc.name, "pipe") == 0) {
-      fsc.nargs = 1;
-      fsc.s_args = malloc((1+fsc.nargs) * sizeof(char*));
-      asprintf(&fsc.s_args[0], "[%d,%d]", (int)retval, regs.r_edx);
-      retval = 0;
-  }
-
   if (fsc.name != NULL &&
       (!strcmp(fsc.name, "execve") || !strcmp(fsc.name, "exit"))) {
 	trussinfo->curthread->in_syscall = 1;

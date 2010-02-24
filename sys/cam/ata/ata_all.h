@@ -41,6 +41,7 @@ struct ata_cmd {
 #define		CAM_ATAIO_FPDMA		0x02	/* FPDMA command */
 #define		CAM_ATAIO_CONTROL	0x04	/* Control, not a command */
 #define		CAM_ATAIO_NEEDRESULT	0x08	/* Request requires result. */
+#define		CAM_ATAIO_DMA		0x10	/* DMA command */
 
 	u_int8_t	command;
 	u_int8_t	features;
@@ -81,7 +82,19 @@ struct ata_res {
 };
 
 int	ata_version(int ver);
+
+char *	ata_op_string(struct ata_cmd *cmd);
+char *	ata_cmd_string(struct ata_cmd *cmd, char *cmd_string, size_t len);
+char *	ata_res_string(struct ata_res *res, char *res_string, size_t len);
+int	ata_command_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
+int	ata_status_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
+int	ata_res_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
+
 void	ata_print_ident(struct ata_params *ident_data);
+
+uint32_t	ata_logical_sector_size(struct ata_params *ident_data);
+uint64_t	ata_physical_sector_size(struct ata_params *ident_data);
+uint64_t	ata_logical_sector_offset(struct ata_params *ident_data);
 
 void	ata_28bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
     uint32_t lba, uint8_t sector_count);
@@ -91,7 +104,7 @@ void	ata_ncq_cmd(struct ccb_ataio *ataio, uint8_t cmd,
     uint64_t lba, uint16_t sector_count);
 void	ata_reset_cmd(struct ccb_ataio *ataio);
 void	ata_pm_read_cmd(struct ccb_ataio *ataio, int reg, int port);
-void	ata_pm_write_cmd(struct ccb_ataio *ataio, int reg, int port, uint64_t val);
+void	ata_pm_write_cmd(struct ccb_ataio *ataio, int reg, int port, uint32_t val);
 
 void	ata_bswap(int8_t *buf, int len);
 void	ata_btrim(int8_t *buf, int len);
@@ -100,6 +113,15 @@ void	ata_bpack(int8_t *src, int8_t *dst, int len);
 int	ata_max_pmode(struct ata_params *ap);
 int	ata_max_wmode(struct ata_params *ap);
 int	ata_max_umode(struct ata_params *ap);
-int	ata_max_mode(struct ata_params *ap, int mode, int maxmode);
+int	ata_max_mode(struct ata_params *ap, int maxmode);
+
+char *	ata_mode2string(int mode);
+int	ata_string2mode(char *str);
+u_int	ata_mode2speed(int mode);
+u_int	ata_revision2speed(int revision);
+int	ata_speed2revision(u_int speed);
+
+int	ata_identify_match(caddr_t identbuffer, caddr_t table_entry);
+int	ata_static_identify_match(caddr_t identbuffer, caddr_t table_entry);
 
 #endif

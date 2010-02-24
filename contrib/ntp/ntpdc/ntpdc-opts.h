@@ -1,7 +1,7 @@
 /*  
  *  EDIT THIS FILE WITH CAUTION  (ntpdc-opts.h)
  *  
- *  It has been AutoGen-ed  Sunday August 17, 2008 at 05:26:25 AM EDT
+ *  It has been AutoGen-ed  Tuesday December  8, 2009 at 08:14:00 AM EST
  *  From the definitions    ntpdc-opts.def
  *  and the template file   options
  *
@@ -19,7 +19,7 @@
  *
  * This source file is copyrighted and licensed under the following terms:
  *
- * ntpdc copyright 1970-2008 David L. Mills and/or others - all rights reserved
+ * ntpdc copyright 1970-2009 David L. Mills and/or others - all rights reserved
  *
  * see html/copyright.html
  */
@@ -70,8 +70,8 @@ typedef enum {
 } teOptIndex;
 
 #define OPTION_CT    15
-#define NTPDC_VERSION       "4.2.4p5"
-#define NTPDC_FULL_VERSION  "ntpdc - vendor-specific NTP query program - Ver. 4.2.4p5"
+#define NTPDC_VERSION       "4.2.4p8"
+#define NTPDC_FULL_VERSION  "ntpdc - vendor-specific NTP query program - Ver. 4.2.4p8"
 
 /*
  *  Interface defines for all options.  Replace "n" with the UPPER_CASED
@@ -190,7 +190,7 @@ typedef enum {
                 ntpdcOptions.pzCurOpt  = NULL )
 #define START_OPT       RESTART_OPT(1)
 #define USAGE(c)        (*ntpdcOptions.pUsageProc)( &ntpdcOptions, c )
-/* extracted from /usr/local/gnu/share/autogen/opthead.tpl near line 360 */
+/* extracted from /usr/local/gnu/autogen-5.9.1/share/autogen/opthead.tpl near line 360 */
 
 /* * * * * *
  *

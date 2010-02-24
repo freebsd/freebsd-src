@@ -52,6 +52,20 @@
 #include <sys/thr.h>
 #include <pthread.h>
 
+#define	SYM_FB10(sym)			__CONCAT(sym, _fb10)
+#define	SYM_FBP10(sym)			__CONCAT(sym, _fbp10)
+#define	WEAK_REF(sym, alias)		__weak_reference(sym, alias)
+#define	SYM_COMPAT(sym, impl, ver)	__sym_compat(sym, impl, ver)
+#define	SYM_DEFAULT(sym, impl, ver)	__sym_default(sym, impl, ver)
+
+#define	FB10_COMPAT(func, sym)				\
+	WEAK_REF(func, SYM_FB10(sym));			\
+	SYM_COMPAT(sym, SYM_FB10(sym), FBSD_1.0)
+
+#define	FB10_COMPAT_PRIVATE(func, sym)			\
+	WEAK_REF(func, SYM_FBP10(sym));			\
+	SYM_DEFAULT(sym, SYM_FBP10(sym), FBSDprivate_1.0)
+
 #ifndef __hidden
 #define __hidden		__attribute__((visibility("hidden")))
 #endif
@@ -660,6 +674,9 @@ int	_schedparam_to_rtp(int policy, const struct sched_param *param,
 void	_thread_bp_create(void);
 void	_thread_bp_death(void);
 int	_sched_yield(void);
+void	_thr_sem_prefork(void);
+void	_thr_sem_postfork(void);
+void	_thr_sem_child_postfork(void);
 
 void	_pthread_cleanup_push(void (*)(void *), void *);
 void	_pthread_cleanup_pop(int);

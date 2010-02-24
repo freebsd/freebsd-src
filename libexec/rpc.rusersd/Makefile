@@ -12,5 +12,4 @@ LDADD=	-lrpcsvc -lutil
 #LDADD+= -L/usr/X11R6/lib -lXext -lX11
 #.endif
 
-
 .include <bsd.prog.mk>

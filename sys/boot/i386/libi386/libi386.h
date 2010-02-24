@@ -78,9 +78,9 @@ int	bc_add(int biosdev);		/* Register CD booted from. */
 int	bc_getdev(struct i386_devdesc *dev);	/* return dev_t for (dev) */
 int	bc_bios2unit(int biosdev);	/* xlate BIOS device -> bioscd unit */
 int	bc_unit2bios(int unit);		/* xlate bioscd unit -> BIOS device */
-u_int32_t	bd_getbigeom(int bunit);	/* return geometry in bootinfo format */
-int	bd_bios2unit(int biosdev);		/* xlate BIOS device -> biosdisk unit */
-int	bd_unit2bios(int unit);			/* xlate biosdisk unit -> BIOS device */
+uint32_t bd_getbigeom(int bunit);	/* return geometry in bootinfo format */
+int	bd_bios2unit(int biosdev);	/* xlate BIOS device -> biosdisk unit */
+int	bd_unit2bios(int unit);		/* xlate biosdisk unit -> BIOS device */
 int	bd_getdev(struct i386_devdesc *dev);	/* return dev_t for (dev) */
 
 ssize_t	i386_copyin(const void *src, vm_offset_t dest, const size_t len);
@@ -92,12 +92,15 @@ void	bios_addsmapdata(struct preloaded_file *);
 void	bios_getsmap(void);
 
 void	bios_getmem(void);
-extern u_int32_t	bios_basemem;				/* base memory in bytes */
-extern u_int32_t	bios_extmem;				/* extended memory in bytes */
+extern uint32_t		bios_basemem;	/* base memory in bytes */
+extern uint32_t		bios_extmem;	/* extended memory in bytes */
 extern vm_offset_t	memtop;		/* last address of physical memory + 1 */
 extern vm_offset_t	memtop_copyin;	/* memtop less heap size for the cases */
-					/*  when heap is at the top of extended memory */
-					/*  for other cases - just the same as memtop */
+					/*  when heap is at the top of         */
+					/*  extended memory; for other cases   */
+					/*  just the same as memtop            */
+extern uint32_t		high_heap_size;	/* extended memory region available */
+extern vm_offset_t	high_heap_base;	/* for use as the heap */
 
 int biospci_find_devclass(uint32_t class, int index, uint32_t *locator);
 int biospci_write_config(uint32_t locator, int offset, int width, uint32_t val);

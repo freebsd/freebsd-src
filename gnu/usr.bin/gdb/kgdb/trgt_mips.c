@@ -61,18 +61,17 @@ kgdb_trgt_fetch_registers(int regno __unused)
 		warnx("kvm_read: %s", kvm_geterr(kvm));
 		memset(&pcb, 0, sizeof(pcb));
 	}
-	supply_register(MIPS_S0_REGNUM, (char *)&pcb.pcb_context.val[0]);
-	supply_register(MIPS_S1_REGNUM, (char *)&pcb.pcb_context.val[1]);
-	supply_register(MIPS_S2_REGNUM, (char *)&pcb.pcb_context.val[2]);
-	supply_register(MIPS_S3_REGNUM, (char *)&pcb.pcb_context.val[3]);
-	supply_register(MIPS_S4_REGNUM, (char *)&pcb.pcb_context.val[4]);
-	supply_register(MIPS_S5_REGNUM, (char *)&pcb.pcb_context.val[5]);
-	supply_register(MIPS_S6_REGNUM, (char *)&pcb.pcb_context.val[6]);
-	supply_register(MIPS_S7_REGNUM, (char *)&pcb.pcb_context.val[7]);
-	supply_register(MIPS_SP_REGNUM, (char *)&pcb.pcb_context.val[8]);
-	supply_register(MIPS_SP_REGNUM, (char *)&pcb.pcb_context.val[8]);
-	supply_register(MIPS_FP_REGNUM, (char *)&pcb.pcb_context.val[9]);
-	supply_register(MIPS_RA_REGNUM, (char *)&pcb.pcb_context.val[10]);
+	supply_register(MIPS_S0_REGNUM, (char *)&pcb.pcb_context[0]);
+	supply_register(MIPS_S1_REGNUM, (char *)&pcb.pcb_context[1]);
+	supply_register(MIPS_S2_REGNUM, (char *)&pcb.pcb_context[2]);
+	supply_register(MIPS_S3_REGNUM, (char *)&pcb.pcb_context[3]);
+	supply_register(MIPS_S4_REGNUM, (char *)&pcb.pcb_context[4]);
+	supply_register(MIPS_S5_REGNUM, (char *)&pcb.pcb_context[5]);
+	supply_register(MIPS_S6_REGNUM, (char *)&pcb.pcb_context[6]);
+	supply_register(MIPS_S7_REGNUM, (char *)&pcb.pcb_context[7]);
+	supply_register(MIPS_SP_REGNUM, (char *)&pcb.pcb_context[8]);
+	supply_register(MIPS_FP_REGNUM, (char *)&pcb.pcb_context[9]);
+	supply_register(MIPS_RA_REGNUM, (char *)&pcb.pcb_context[10]);
 }
 
 void

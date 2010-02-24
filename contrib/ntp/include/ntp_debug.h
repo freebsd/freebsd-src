@@ -13,11 +13,13 @@
  */
 
 #ifdef DEBUG
-#define DPRINTF(_lvl_, _arg_)                   \
-        if (debug >= (_lvl_))                   \
-                printf _arg_;
+#define DPRINTF(_lvl_, _arg_)				\
+	do { 						\
+		if (debug >= (_lvl_))			\
+			printf _arg_;			\
+	} while (0)
 #else
-#define DPRINTF(_lvl_, _arg_)
+#define DPRINTF(_lvl_, _arg_)	do {} while (0)
 #endif
 
 #endif

@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=		bthost
-WARNS?=		2
 
 DPADD=		${LIBBLUETOOTH}
 LDADD=		-lbluetooth 

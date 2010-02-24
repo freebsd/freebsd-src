@@ -168,7 +168,7 @@ __warn_references(f_prealloc,
 	"warning: this program uses f_prealloc(), which is not recommended.");
 
 void
-f_prealloc()
+f_prealloc(void)
 {
 	struct glue *g;
 	int n;

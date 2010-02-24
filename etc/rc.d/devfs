@@ -44,7 +44,7 @@ read_devfs_conf()
 		while read action devicelist parameter; do
 			case "${action}" in
 			l*)	for device in ${devicelist}; do
-					if [ -c ${device} -a ! -e ${parameter} ]; then
+					if [ ! -e ${parameter} ]; then
 						ln -fs ${device} ${parameter}
 					fi
 				done

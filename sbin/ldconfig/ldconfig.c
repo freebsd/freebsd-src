@@ -222,7 +222,7 @@ main(int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 	"usage: ldconfig [-32] [-aout | -elf] [-Rimrsv] [-f hints_file] [directory | file ...]\n");
@@ -230,9 +230,7 @@ usage()
 }
 	
 int
-dofile(fname, silent)
-char	*fname;
-int	silent;
+dofile(char *fname, int silent)
 {
 	FILE *hfp;
 	char buf[MAXPATHLEN];
@@ -269,9 +267,7 @@ int	silent;
 }
 
 int
-dodir(dir, silent)
-char	*dir;
-int	silent;
+dodir(char *dir, int silent)
 {
 	DIR		*dd;
 	struct dirent	*dp;
@@ -328,9 +324,7 @@ int	silent;
 }
 
 static void
-enter(dir, file, name, dewey, ndewey)
-char	*dir, *file, *name;
-int	dewey[], ndewey;
+enter(char *dir, char *file, char *name, int dewey[], int ndewey)
 {
 	struct shlib_list	*shp;
 
@@ -391,7 +385,7 @@ hinthash(char *cp, int vmajor)
 }
 
 int
-buildhints()
+buildhints(void)
 {
 	struct hints_header	hdr;
 	struct hints_bucket	*blist;
@@ -523,7 +517,7 @@ buildhints()
 }
 
 static int
-readhints()
+readhints(void)
 {
 	int			fd;
 	void			*addr;
@@ -623,7 +617,7 @@ readhints()
 }
 
 static void
-listhints()
+listhints(void)
 {
 	struct shlib_list	*shp;
 	int			i;

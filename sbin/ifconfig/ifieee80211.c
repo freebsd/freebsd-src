@@ -43,13 +43,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -3429,9 +3422,9 @@ get_chaninfo(const struct ieee80211_channel *c, int precise,
 	else if (IEEE80211_IS_CHAN_B(c))
 		strlcat(buf, " 11b", bsize);
 	if (IEEE80211_IS_CHAN_HALF(c))
-		strlcat(buf, "/10Mhz", bsize);
+		strlcat(buf, "/10MHz", bsize);
 	if (IEEE80211_IS_CHAN_QUARTER(c))
-		strlcat(buf, "/5Mhz", bsize);
+		strlcat(buf, "/5MHz", bsize);
 	if (IEEE80211_IS_CHAN_TURBO(c))
 		strlcat(buf, " Turbo", bsize);
 	if (precise) {
@@ -3453,7 +3446,7 @@ print_chaninfo(const struct ieee80211_channel *c, int verb)
 {
 	char buf[14];
 
-	printf("Channel %3u : %u%c Mhz%-14.14s",
+	printf("Channel %3u : %u%c MHz%-14.14s",
 		ieee80211_mhz2ieee(c->ic_freq, c->ic_flags), c->ic_freq,
 		IEEE80211_IS_CHAN_PASSIVE(c) ? '*' : ' ',
 		get_chaninfo(c, verb, buf, sizeof(buf)));
@@ -3562,7 +3555,7 @@ list_channels(int s, int allchans)
 static void
 print_txpow(const struct ieee80211_channel *c)
 {
-	printf("Channel %3u : %u Mhz %3.1f reg %2d  ",
+	printf("Channel %3u : %u MHz %3.1f reg %2d  ",
 	    c->ic_ieee, c->ic_freq,
 	    c->ic_maxpower/2., c->ic_maxregpower);
 }
@@ -4244,7 +4237,7 @@ ieee80211_status(int s)
 	c = getcurchan(s);
 	if (c->ic_freq != IEEE80211_CHAN_ANY) {
 		char buf[14];
-		printf(" channel %d (%u Mhz%s)", c->ic_ieee, c->ic_freq,
+		printf(" channel %d (%u MHz%s)", c->ic_ieee, c->ic_freq,
 			get_chaninfo(c, 1, buf, sizeof(buf)));
 	} else if (verbose)
 		printf(" channel UNDEF");

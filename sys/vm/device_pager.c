@@ -93,17 +93,6 @@ dev_pager_init()
 	    UMA_ZONE_NOFREE|UMA_ZONE_VM); 
 }
 
-static __inline int
-dev_mmap(struct cdevsw *csw, struct cdev *dev, vm_offset_t offset,
-    vm_paddr_t *paddr, int nprot, vm_memattr_t *memattr)
-{
-
-	if (csw->d_flags & D_MMAP2)
-		return (csw->d_mmap2(dev, offset, paddr, nprot, memattr));
-	else
-		return (csw->d_mmap(dev, offset, paddr, nprot));
-}
-
 /*
  * MPSAFE
  */
@@ -116,7 +105,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	vm_pindex_t pindex;
 	unsigned int npages;
 	vm_paddr_t paddr;
-	vm_offset_t off;
+	vm_ooffset_t off;
 	vm_memattr_t dummy;
 	struct cdevsw *csw;
 
@@ -145,7 +134,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 */
 	npages = OFF_TO_IDX(size);
 	for (off = foff; npages--; off += PAGE_SIZE)
-		if (dev_mmap(csw, dev, off, &paddr, (int)prot, &dummy) != 0) {
+		if (csw->d_mmap(dev, off, &paddr, (int)prot, &dummy) != 0) {
 			dev_relthread(dev);
 			return (NULL);
 		}
@@ -242,7 +231,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	td = curthread;
 	fpop = td->td_fpop;
 	td->td_fpop = NULL;
-	ret = dev_mmap(csw, dev, (vm_offset_t)offset << PAGE_SHIFT, &paddr,
+	ret = csw->d_mmap(dev, (vm_ooffset_t)offset << PAGE_SHIFT, &paddr,
 	    PROT_READ, &memattr);
 	KASSERT(ret == 0, ("dev_pager_getpage: map function returns error"));
 	td->td_fpop = fpop;

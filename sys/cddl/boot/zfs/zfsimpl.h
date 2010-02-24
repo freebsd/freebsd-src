@@ -374,6 +374,24 @@ typedef struct vdev_label {
 #define	VDEV_LABEL_END_SIZE	(2 * sizeof (vdev_label_t))
 #define	VDEV_LABELS		4
 
+/*
+ * Gang block headers are self-checksumming and contain an array
+ * of block pointers.
+ */
+#define SPA_GANGBLOCKSIZE	SPA_MINBLOCKSIZE
+#define SPA_GBH_NBLKPTRS	((SPA_GANGBLOCKSIZE - \
+	sizeof (zio_block_tail_t)) / sizeof (blkptr_t))
+#define SPA_GBH_FILLER		((SPA_GANGBLOCKSIZE - \
+	sizeof (zio_block_tail_t) - \
+	(SPA_GBH_NBLKPTRS * sizeof (blkptr_t))) /\
+	sizeof (uint64_t))
+
+typedef struct zio_gbh {
+	blkptr_t		zg_blkptr[SPA_GBH_NBLKPTRS];
+	uint64_t		zg_filler[SPA_GBH_FILLER];
+	zio_block_tail_t	zg_tail;
+} zio_gbh_phys_t;
+
 enum zio_checksum {
 	ZIO_CHECKSUM_INHERIT = 0,
 	ZIO_CHECKSUM_ON,
@@ -461,13 +479,14 @@ typedef enum {
 #define	SPA_VERSION_11			11ULL
 #define	SPA_VERSION_12			12ULL
 #define	SPA_VERSION_13			13ULL
+#define	SPA_VERSION_14			14ULL
 /*
  * When bumping up SPA_VERSION, make sure GRUB ZFS understand the on-disk
  * format change. Go to usr/src/grub/grub-0.95/stage2/{zfs-include/, fsys_zfs*},
  * and do the appropriate changes.
  */
-#define	SPA_VERSION			SPA_VERSION_13
-#define	SPA_VERSION_STRING		"13"
+#define	SPA_VERSION			SPA_VERSION_14
+#define	SPA_VERSION_STRING		"14"
 
 /*
  * Symbolic names for the changes that caused a SPA_VERSION switch.
@@ -502,6 +521,7 @@ typedef enum {
 #define	SPA_VERSION_DSL_SCRUB		SPA_VERSION_11
 #define	SPA_VERSION_SNAP_PROPS		SPA_VERSION_12
 #define	SPA_VERSION_USED_BREAKDOWN	SPA_VERSION_13
+#define	SPA_VERSION_PASSTHROUGH_X	SPA_VERSION_14
 
 /*
  * The following are configuration names used in the nvlist describing a pool's
@@ -528,7 +548,6 @@ typedef enum {
 #define	ZPOOL_CONFIG_DTL		"DTL"
 #define	ZPOOL_CONFIG_STATS		"stats"
 #define	ZPOOL_CONFIG_WHOLE_DISK		"whole_disk"
-#define	ZPOOL_CONFIG_OFFLINE		"offline"
 #define	ZPOOL_CONFIG_ERRCOUNT		"error_count"
 #define	ZPOOL_CONFIG_NOT_PRESENT	"not_present"
 #define	ZPOOL_CONFIG_SPARES		"spares"
@@ -537,6 +556,16 @@ typedef enum {
 #define	ZPOOL_CONFIG_HOSTID		"hostid"
 #define	ZPOOL_CONFIG_HOSTNAME		"hostname"
 #define	ZPOOL_CONFIG_TIMESTAMP		"timestamp" /* not stored on disk */
+
+/*
+ * The persistent vdev state is stored as separate values rather than a single
+ * 'vdev_state' entry.  This is because a device can be in multiple states, such
+ * as offline and degraded.
+ */
+#define	ZPOOL_CONFIG_OFFLINE            "offline"
+#define	ZPOOL_CONFIG_FAULTED            "faulted"
+#define	ZPOOL_CONFIG_DEGRADED           "degraded"
+#define	ZPOOL_CONFIG_REMOVED            "removed"
 
 #define	VDEV_TYPE_ROOT			"root"
 #define	VDEV_TYPE_MIRROR		"mirror"
@@ -570,7 +599,9 @@ typedef enum vdev_state {
 	VDEV_STATE_UNKNOWN = 0,	/* Uninitialized vdev			*/
 	VDEV_STATE_CLOSED,	/* Not currently open			*/
 	VDEV_STATE_OFFLINE,	/* Not allowed to open			*/
+	VDEV_STATE_REMOVED,	/* Explicitly removed from system	*/
 	VDEV_STATE_CANT_OPEN,	/* Tried to open, but failed		*/
+	VDEV_STATE_FAULTED,	/* External request to fault device	*/
 	VDEV_STATE_DEGRADED,	/* Replicated vdev with unhealthy kids	*/
 	VDEV_STATE_HEALTHY	/* Presumed good			*/
 } vdev_state_t;

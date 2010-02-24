@@ -255,6 +255,7 @@ ACPI_SERIAL_DECL(ibm, "ACPI IBM extras");
 static int	acpi_ibm_probe(device_t dev);
 static int	acpi_ibm_attach(device_t dev);
 static int	acpi_ibm_detach(device_t dev);
+static int	acpi_ibm_resume(device_t dev);
 
 static void	ibm_led(void *softc, int onoff);
 static void	ibm_led_task(struct acpi_ibm_softc *sc, int pending __unused);
@@ -273,6 +274,7 @@ static device_method_t acpi_ibm_methods[] = {
 	DEVMETHOD(device_probe, acpi_ibm_probe),
 	DEVMETHOD(device_attach, acpi_ibm_attach),
 	DEVMETHOD(device_detach, acpi_ibm_detach),
+	DEVMETHOD(device_resume, acpi_ibm_resume),
 
 	{0, 0}
 };
@@ -435,6 +437,34 @@ acpi_ibm_detach(device_t dev)
 }
 
 static int
+acpi_ibm_resume(device_t dev)
+{
+	struct acpi_ibm_softc *sc = device_get_softc(dev);
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
+
+	ACPI_SERIAL_BEGIN(ibm);
+	for (int i = 0; acpi_ibm_sysctls[i].name != NULL; i++) {
+		int val;
+
+		if ((acpi_ibm_sysctls[i].access & CTLFLAG_RD) == 0) {
+			continue;
+		}
+
+		val = acpi_ibm_sysctl_get(sc, i);
+
+		if ((acpi_ibm_sysctls[i].access & CTLFLAG_WR) == 0) {
+			continue;
+		}
+
+		acpi_ibm_sysctl_set(sc, i, val);
+	}
+	ACPI_SERIAL_END(ibm);
+
+	return (0);
+}
+
+static int
 acpi_ibm_eventmask_set(struct acpi_ibm_softc *sc, int val)
 {
 	ACPI_OBJECT		arg[2];
@@ -496,7 +526,7 @@ out:
 static int
 acpi_ibm_sysctl_get(struct acpi_ibm_softc *sc, int method)
 {
-	ACPI_INTEGER	val_ec;
+	UINT64		val_ec;
 	int 		val = 0, key;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -627,7 +657,7 @@ static int
 acpi_ibm_sysctl_set(struct acpi_ibm_softc *sc, int method, int arg)
 {
 	int			val, step;
-	ACPI_INTEGER		val_ec;
+	UINT64			val_ec;
 	ACPI_OBJECT		Arg;
 	ACPI_OBJECT_LIST	Args;
 	ACPI_STATUS		status;

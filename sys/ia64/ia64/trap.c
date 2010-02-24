@@ -414,11 +414,9 @@ trap(int vector, struct trapframe *tf)
 
 	case IA64_VEC_NESTED_DTLB:
 		/*
-		 * We never call trap() with this vector. We may want to
-		 * do that in the future in case the nested TLB handler
-		 * could not find the translation it needs. In that case
-		 * we could switch to a special (hardwired) stack and
-		 * come here to produce a nice panic().
+		 * When the nested TLB handler encounters an unexpected
+		 * condition, it'll switch to the backup stack and transfer
+		 * here. All we need to do is panic.
 		 */
 		trap_panic(vector, tf);
 		break;
@@ -574,8 +572,7 @@ trap(int vector, struct trapframe *tf)
 			PROC_UNLOCK(p);
 
 			/* Fault in the user page: */
-			rv = vm_fault(map, va, ftype, (ftype & VM_PROT_WRITE)
-			    ? VM_FAULT_DIRTY : VM_FAULT_NORMAL);
+			rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 
 			PROC_LOCK(p);
 			--p->p_lock;
@@ -652,66 +649,10 @@ trap(int vector, struct trapframe *tf)
 		break;
 
 	case IA64_VEC_DISABLED_FP: {
-		struct pcpu *pcpu;
-		struct pcb *pcb;
-		struct thread *thr;
-
-		/* Always fatal in kernel. Should never happen. */
-		if (!user)
+		if (user)
+			ia64_highfp_enable(td, tf);
+		else
 			trap_panic(vector, tf);
-
-		sched_pin();
-		thr = PCPU_GET(fpcurthread);
-		if (thr == td) {
-			/*
-			 * Short-circuit handling the trap when this CPU
-			 * already holds the high FP registers for this
-			 * thread.  We really shouldn't get the trap in the
-			 * first place, but since it's only a performance
-			 * issue and not a correctness issue, we emit a
-			 * message for now, enable the high FP registers and
-			 * return.
-			 */
-			printf("XXX: bogusly disabled high FP regs\n");
-			tf->tf_special.psr &= ~IA64_PSR_DFH;
-			sched_unpin();
-			goto out;
-		} else if (thr != NULL) {
-			mtx_lock_spin(&thr->td_md.md_highfp_mtx);
-			pcb = thr->td_pcb;
-			save_high_fp(&pcb->pcb_high_fp);
-			pcb->pcb_fpcpu = NULL;
-			PCPU_SET(fpcurthread, NULL);
-			mtx_unlock_spin(&thr->td_md.md_highfp_mtx);
-			thr = NULL;
-		}
-
-		mtx_lock_spin(&td->td_md.md_highfp_mtx);
-		pcb = td->td_pcb;
-		pcpu = pcb->pcb_fpcpu;
-
-#ifdef SMP
-		if (pcpu != NULL) {
-			mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-			ipi_send(pcpu, IPI_HIGH_FP);
-			while (pcb->pcb_fpcpu == pcpu)
-				DELAY(100);
-			mtx_lock_spin(&td->td_md.md_highfp_mtx);
-			pcpu = pcb->pcb_fpcpu;
-			thr = PCPU_GET(fpcurthread);
-		}
-#endif
-
-		if (thr == NULL && pcpu == NULL) {
-			restore_high_fp(&pcb->pcb_high_fp);
-			PCPU_SET(fpcurthread, td);
-			pcb->pcb_fpcpu = pcpup;
-			tf->tf_special.psr &= ~IA64_PSR_MFH;
-			tf->tf_special.psr &= ~IA64_PSR_DFH;
-		}
-
-		mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-		sched_unpin();
 		goto out;
 	}
 
@@ -862,7 +803,7 @@ trap(int vector, struct trapframe *tf)
 		 * out of the gateway page we'll get back into the kernel
 		 * and then we enable single stepping.
 		 * Since this a rather round-about way of enabling single
-		 * stepping, don't make things complicated even more by
+		 * stepping, don't make things even more complicated by
 		 * calling userret() and do_ast(). We do that later...
 		 */
 		tf->tf_special.psr &= ~IA64_PSR_LP;
@@ -873,13 +814,14 @@ trap(int vector, struct trapframe *tf)
 		/*
 		 * Don't assume there aren't any branches other than the
 		 * branch that takes us out of the gateway page. Check the
-		 * iip and raise SIGTRAP only when it's an user address.
+		 * iip and enable single stepping only when it's an user
+		 * address.
 		 */
 		if (tf->tf_special.iip >= VM_MAX_ADDRESS)
 			return;
 		tf->tf_special.psr &= ~IA64_PSR_TB;
-		sig = SIGTRAP;
-		break;
+		tf->tf_special.psr |= IA64_PSR_SS;
+		return;
 
 	case IA64_VEC_IA32_EXCEPTION:
 	case IA64_VEC_IA32_INTERCEPT:
@@ -1032,26 +974,7 @@ syscall(struct trapframe *tf)
 	error = (*callp->sy_call)(td, args);
 	AUDIT_SYSCALL_EXIT(error, td);
 
-	if (error != EJUSTRETURN) {
-		/*
-		 * Save the "raw" error code in r10. We use this to handle
-		 * syscall restarts (see do_ast()).
-		 */
-		tf->tf_scratch.gr10 = error;
-		if (error == 0) {
-			tf->tf_scratch.gr8 = td->td_retval[0];
-			tf->tf_scratch.gr9 = td->td_retval[1];
-		} else if (error != ERESTART) {
-			if (error < p->p_sysent->sv_errsize)
-				error = p->p_sysent->sv_errtbl[error];
-			/*
-			 * Translated error codes are returned in r8. User
-			 * processes use the translated error code.
-			 */
-			tf->tf_scratch.gr8 = error;
-		}
-	}
-
+	cpu_set_syscall_retval(td, error);
 	td->td_syscalls++;
 
 	/*

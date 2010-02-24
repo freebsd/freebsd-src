@@ -165,8 +165,12 @@ cam_strmatch(const u_int8_t *str, const u_int8_t *pattern, int str_len)
 		str++;
 		str_len--;
 	}
-	while (str_len > 0 && *str++ == ' ')
+	while (str_len > 0 && *str == ' ') {
+		str++;
 		str_len--;
+	}
+	if (str_len > 0 && *str == 0)
+		str_len = 0;
 
 	return (str_len);
 }
@@ -229,6 +233,21 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 		return(NULL);
 
 	switch (ccb->ccb_h.func_code) {
+		case XPT_ATA_IO:
+			switch (proto_flags & CAM_EPF_LEVEL_MASK) {
+			case CAM_EPF_NONE:
+				break;
+			case CAM_EPF_ALL:
+			case CAM_EPF_NORMAL:
+				proto_flags |= CAM_EAF_PRINT_RESULT;
+				/* FALLTHROUGH */
+			case CAM_EPF_MINIMAL:
+				proto_flags |= CAM_EAF_PRINT_STATUS;
+				/* FALLTHROUGH */
+			default:
+				break;
+			}
+			break;
 		case XPT_SCSI_IO:
 			switch (proto_flags & CAM_EPF_LEVEL_MASK) {
 			case CAM_EPF_NONE:
@@ -256,10 +275,12 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 	sbuf_new(&sb, str, str_len, 0);
 
 	if (flags & CAM_ESF_COMMAND) {
-
 		sbuf_cat(&sb, path_str);
-
 		switch (ccb->ccb_h.func_code) {
+		case XPT_ATA_IO:
+			ata_command_sbuf(&ccb->ataio, &sb);
+			sbuf_printf(&sb, "\n");
+			break;
 		case XPT_SCSI_IO:
 #ifdef _KERNEL
 			scsi_command_string(&ccb->csio, &sb);
@@ -267,7 +288,6 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 			scsi_command_string(device, &ccb->csio, &sb);
 #endif /* _KERNEL/!_KERNEL */
 			sbuf_printf(&sb, "\n");
-			
 			break;
 		default:
 			break;
@@ -285,16 +305,32 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 		entry = cam_fetch_status_entry(status);
 
 		if (entry == NULL)
-			sbuf_printf(&sb, "CAM Status: Unknown (%#x)\n",
+			sbuf_printf(&sb, "CAM status: Unknown (%#x)\n",
 				    ccb->ccb_h.status);
 		else
-			sbuf_printf(&sb, "CAM Status: %s\n",
+			sbuf_printf(&sb, "CAM status: %s\n",
 				    entry->status_text);
 	}
 
 	if (flags & CAM_ESF_PROTO_STATUS) {
   
 		switch (ccb->ccb_h.func_code) {
+		case XPT_ATA_IO:
+			if ((ccb->ccb_h.status & CAM_STATUS_MASK) !=
+			     CAM_ATA_STATUS_ERROR)
+				break;
+			if (proto_flags & CAM_EAF_PRINT_STATUS) {
+				sbuf_cat(&sb, path_str);
+				ata_status_sbuf(&ccb->ataio, &sb);
+				sbuf_printf(&sb, "\n");
+			}
+			if (proto_flags & CAM_EAF_PRINT_RESULT) {
+				sbuf_cat(&sb, path_str);
+				ata_res_sbuf(&ccb->ataio, &sb);
+				sbuf_printf(&sb, "\n");
+			}
+
+			break;
 		case XPT_SCSI_IO:
 			if ((ccb->ccb_h.status & CAM_STATUS_MASK) !=
 			     CAM_SCSI_STATUS_ERROR)
@@ -302,11 +338,7 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 
 			if (proto_flags & CAM_ESF_PRINT_STATUS) {
 				sbuf_cat(&sb, path_str);
-				/*
-				 * Print out the SCSI status byte as long as
-				 * the user wants some protocol output.
-				 */
-				sbuf_printf(&sb, "SCSI Status: %s\n",
+				sbuf_printf(&sb, "SCSI status: %s\n",
 					    scsi_status_string(&ccb->csio));
 			}
 

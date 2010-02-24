@@ -163,8 +163,8 @@ int		bt_devclose(int s);
 int		bt_devsend (int s, uint16_t opcode, void *param, size_t plen);
 ssize_t		bt_devrecv (int s, void *buf, size_t size, time_t to);
 int		bt_devreq  (int s, struct bt_devreq *r, time_t to);
-int		bt_devfilter(int s, struct bt_devfilter const *new,
-			     struct bt_devfilter *old);
+int		bt_devfilter(int s, struct bt_devfilter const *newp,
+			     struct bt_devfilter *oldp);
 void		bt_devfilter_pkt_set(struct bt_devfilter *filter, uint8_t type);
 void		bt_devfilter_pkt_clr(struct bt_devfilter *filter, uint8_t type);
 int		bt_devfilter_pkt_tst(struct bt_devfilter const *filter, uint8_t type);

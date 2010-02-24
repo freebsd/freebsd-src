@@ -105,7 +105,11 @@ typedef pt_entry_t *pd_entry_t;
 #define PTE_ODDPG       0x00001000 
 /*#define	PG_ATTR		0x0000003f  Not Used */
 #define	PTE_UNCACHED	0x00000010
+#ifdef CPU_SB1
+#define	PTE_CACHE	0x00000028	/* cacheable coherent */
+#else
 #define	PTE_CACHE	0x00000018
+#endif
 /*#define	PG_CACHEMODE	0x00000038 Not Used*/
 #define	PTE_ROPAGE	(PTE_V | PTE_RO | PTE_CACHE) /* Write protected */
 #define	PTE_RWPAGE	(PTE_V | PTE_M | PTE_CACHE)  /* Not wr-prot not clean */

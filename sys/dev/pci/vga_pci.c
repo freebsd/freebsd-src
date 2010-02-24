@@ -63,7 +63,7 @@ SYSCTL_DECL(_hw_pci);
 
 int vga_pci_default_unit = -1;
 TUNABLE_INT("hw.pci.default_vgapci_unit", &vga_pci_default_unit);
-SYSCTL_INT(_hw_pci, OID_AUTO, default_vgapci_unit, CTLFLAG_RD,
+SYSCTL_INT(_hw_pci, OID_AUTO, default_vgapci_unit, CTLFLAG_RDTUN,
     &vga_pci_default_unit, -1, "Default VGA-compatible display");
 
 static int

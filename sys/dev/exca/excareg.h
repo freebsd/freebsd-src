@@ -355,7 +355,7 @@
 /* #define	EXCA_RESERVED			0x3E */
 /* #define	EXCA_RESERVED			0x3F */
 
-/* cardbus extensions - memory window page registers */
+/* CardBus extensions - memory window page registers */
 
 #define	EXCA_MEMREG_WIN_SHIFT			24
 #define	EXCA_SYSMEM_ADDR0_WIN			0x40

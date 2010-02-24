@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2003-2004, 2007 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 2003-2004, 2007, 2009 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -11,7 +11,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: worker.c,v 8.10 2007/12/03 22:06:05 ca Exp $")
+SM_RCSID("@(#)$Id: worker.c,v 8.17 2009/06/15 15:34:54 ca Exp $")
 
 #include "libmilter.h"
 
@@ -210,23 +210,7 @@ mi_close_session(ctx)
 	SM_ASSERT(ctx != NULL);
 
 	(void) mi_list_del_ctx(ctx);
-	if (ValidSocket(ctx->ctx_sd))
-	{
-		(void) closesocket(ctx->ctx_sd);
-		ctx->ctx_sd = INVALID_SOCKET;
-	}
-	if (ctx->ctx_reply != NULL)
-	{
-		free(ctx->ctx_reply);
-		ctx->ctx_reply = NULL;
-	}
-	if (ctx->ctx_privdata != NULL)
-	{
-		smi_log(SMI_LOG_WARN, "%s: private data not NULL",
-			ctx->ctx_smfi->xxfi_name);
-	}
-	mi_clr_macros(ctx, 0);
-	free(ctx);
+	mi_clr_ctx(ctx);
 
 	return MI_SUCCESS;
 }
@@ -259,7 +243,7 @@ mi_pool_controller_init()
 	if (pipe(Tskmgr.tm_p) != 0)
 	{
 		smi_log(SMI_LOG_ERR, "can't create event pipe: %s",
-			sm_errstring(r));
+			sm_errstring(errno));
 		return MI_FAILURE;
 	}
 
@@ -328,6 +312,7 @@ mi_pool_controller(arg)
 	int dim_pfd = 0;
 	bool rebuild_set = true;
 	int pcnt = 0; /* error count for poll() failures */
+	time_t lastcheck;
 
 	Tskmgr.tm_tid = sthread_get_id();
 	if (pthread_detach(Tskmgr.tm_tid) != 0)
@@ -345,12 +330,12 @@ mi_pool_controller(arg)
 	}
 	dim_pfd = PFD_STEP;
 
+	lastcheck = time(NULL);
 	for (;;)
 	{
 		SMFICTX_PTR ctx;
 		int nfd, rfd, i;
 		time_t now;
-		time_t lastcheck;
 
 		POOL_LEV_DPRINTF(4, ("Let's %s again...", WAITFN));
 
@@ -364,20 +349,20 @@ mi_pool_controller(arg)
 		/* check for timed out sessions? */
 		if (lastcheck + DT_CHECK_OLD_SESSIONS < now)
 		{
-			SM_TAILQ_FOREACH(ctx, &WRK_CTX_HEAD, ctx_link)
+			ctx = SM_TAILQ_FIRST(&WRK_CTX_HEAD);
+			while (ctx != SM_TAILQ_END(&WRK_CTX_HEAD))
 			{
+				SMFICTX_PTR ctx_nxt;
+
+				ctx_nxt = SM_TAILQ_NEXT(ctx, ctx_link);
 				if (ctx->ctx_wstate == WKST_WAITING)
 				{
 					if (ctx->ctx_wait == 0)
-					{
 						ctx->ctx_wait = now;
-						continue;
-					}
-
-					/* if session timed out, close it */
-					if (ctx->ctx_wait + OLD_SESSION_TIMEOUT
-					    < now)
+					else if (ctx->ctx_wait + OLD_SESSION_TIMEOUT
+						 < now)
 					{
+						/* if session timed out, close it */
 						sfsistat (*fi_close) __P((SMFICTX *));
 
 						POOL_LEV_DPRINTF(4,
@@ -389,10 +374,9 @@ mi_pool_controller(arg)
 							(void) (*fi_close)(ctx);
 
 						mi_close_session(ctx);
-						ctx = SM_TAILQ_FIRST(&WRK_CTX_HEAD);
-						continue;
 					}
 				}
+				ctx = ctx_nxt;
 			}
 			lastcheck = now;
 		}
@@ -465,6 +449,7 @@ mi_pool_controller(arg)
 					}
 				}
 			}
+			rebuild_set = false;
 		}
 
 		TASKMGR_UNLOCK();

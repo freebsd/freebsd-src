@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2009 Hans Petter Selasky. All rights reserved.
  * Copyright (c) 2007-2008 Daniel Drake.  All rights reserved.
  * Copyright (c) 2001 Johannes Erdfelt.  All rights reserved.
  *
@@ -29,13 +29,13 @@
 #ifndef _LIBUSB20_H_
 #define	_LIBUSB20_H_
 
-#include <stdint.h>
-#include <time.h>
-#include <string.h>
-
+#include <sys/endian.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/endian.h>
+
+#include <stdint.h>
+#include <string.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern	"C" {
@@ -226,6 +226,7 @@ void	libusb20_tr_setup_bulk(struct libusb20_transfer *xfer, void *pbuf, uint32_t
 void	libusb20_tr_setup_control(struct libusb20_transfer *xfer, void *psetup, void *pbuf, uint32_t timeout);
 void	libusb20_tr_setup_intr(struct libusb20_transfer *xfer, void *pbuf, uint32_t length, uint32_t timeout);
 void	libusb20_tr_setup_isoc(struct libusb20_transfer *xfer, void *pbuf, uint32_t length, uint16_t fr_index);
+uint8_t	libusb20_tr_bulk_intr_sync(struct libusb20_transfer *xfer, void *pbuf, uint32_t length, uint32_t *pactlen, uint32_t timeout);
 void	libusb20_tr_start(struct libusb20_transfer *xfer);
 void	libusb20_tr_stop(struct libusb20_transfer *xfer);
 void	libusb20_tr_submit(struct libusb20_transfer *xfer);
@@ -249,6 +250,7 @@ int	libusb20_dev_request_sync(struct libusb20_device *pdev, struct LIBUSB20_CONT
 int	libusb20_dev_req_string_sync(struct libusb20_device *pdev, uint8_t index, uint16_t langid, void *ptr, uint16_t len);
 int	libusb20_dev_req_string_simple_sync(struct libusb20_device *pdev, uint8_t index, void *ptr, uint16_t len);
 int	libusb20_dev_reset(struct libusb20_device *pdev);
+int	libusb20_dev_check_connected(struct libusb20_device *pdev);
 int	libusb20_dev_set_power_mode(struct libusb20_device *pdev, uint8_t power_mode);
 uint8_t	libusb20_dev_get_power_mode(struct libusb20_device *pdev);
 int	libusb20_dev_set_alt_index(struct libusb20_device *pdev, uint8_t iface_index, uint8_t alt_index);

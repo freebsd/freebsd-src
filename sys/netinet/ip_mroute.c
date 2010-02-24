@@ -114,8 +114,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
-#include <security/mac/mac_framework.h>
-
 #ifndef KTR_IPMF
 #define KTR_IPMF KTR_INET
 #endif
@@ -1385,6 +1383,15 @@ fail:
 	    /* clear the RP address */
 	    rt->mfc_rp.s_addr = INADDR_ANY;
 	    rt->mfc_bw_meter = NULL;
+
+	    /* initialize pkt counters per src-grp */
+	    rt->mfc_pkt_cnt = 0;
+	    rt->mfc_byte_cnt = 0;
+	    rt->mfc_wrong_if = 0;
+	    timevalclear(&rt->mfc_last_assert);
+
+	    TAILQ_INIT(&rt->mfc_stall);
+	    rt->mfc_nstall = 0;
 
 	    /* link into table */
 	    LIST_INSERT_HEAD(&mfchashtbl[hash], rt, mfc_hash);

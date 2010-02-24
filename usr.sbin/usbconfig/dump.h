@@ -24,11 +24,17 @@
  * SUCH DAMAGE.
  */
 
+#ifndef _DUMP_H_
+#define	_DUMP_H_
+
 const char *dump_mode(uint8_t value);
 const char *dump_speed(uint8_t value);
 const char *dump_power_mode(uint8_t value);
+void	dump_string_by_index(struct libusb20_device *pdev, uint8_t index);
 void	dump_device_info(struct libusb20_device *pdev, uint8_t show_drv);
 void	dump_be_quirk_names(struct libusb20_backend *pbe);
 void	dump_be_dev_quirks(struct libusb20_backend *pbe);
 void	dump_device_desc(struct libusb20_device *pdev);
 void	dump_config(struct libusb20_device *pdev, uint8_t all_cfg);
+
+#endif	/* _DUMP_H_ */

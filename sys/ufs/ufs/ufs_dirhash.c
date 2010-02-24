@@ -632,6 +632,7 @@ restart:
 				goto fail;
 			}
 		}
+		KASSERT(bp != NULL, ("no buffer allocated"));
 		dp = (struct direct *)(bp->b_data + (offset & bmask));
 		if (dp->d_reclen == 0 || dp->d_reclen >
 		    DIRBLKSIZ - (offset & (DIRBLKSIZ - 1))) {

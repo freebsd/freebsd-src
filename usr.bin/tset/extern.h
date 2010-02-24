@@ -34,8 +34,6 @@
  *	$FreeBSD$
  */
 
-#include <termcap.h>
-
 extern struct termios mode, oldmode;
 extern int Columns, isreset, Lines;
 extern int erasech, intrchar, killch;

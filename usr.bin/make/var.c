@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
  * XXX: There's a lot of duplication in these functions.
  */
 
-#include <assert.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -97,7 +96,6 @@ __FBSDID("$FreeBSD$");
 #include "GNode.h"
 #include "job.h"
 #include "lst.h"
-#include "make.h"
 #include "parse.h"
 #include "str.h"
 #include "targ.h"

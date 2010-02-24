@@ -39,7 +39,7 @@ extern int errno;
 __weak_reference(__error_unthreaded, __error);
 
 int *
-__error_unthreaded()
+__error_unthreaded(void)
 {
 	return(&errno);
 }

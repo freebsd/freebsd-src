@@ -82,10 +82,9 @@ static void	printtrap(u_int vector, struct trapframe *frame, int isfatal,
 		    int user);
 static int	trap_pfault(struct trapframe *frame, int user);
 static int	fix_unaligned(struct thread *td, struct trapframe *frame);
+static int	ppc_instr_emulate(struct trapframe *frame);
 static int	handle_onfault(struct trapframe *frame);
 static void	syscall(struct trapframe *frame);
-
-static __inline void	setusr(u_int);
 
 int	setfault(faultbuf);		/* defined in locore.S */
 
@@ -211,7 +210,9 @@ trap(struct trapframe *frame)
 			/* Identify the trap reason */
 			if (frame->srr1 & EXC_PGM_TRAP)
 				sig = SIGTRAP;
- 			else
+ 			else if (ppc_instr_emulate(frame) == 0)
+				frame->srr0 += 4;
+			else
 				sig = SIGILL;
 			break;
 
@@ -237,12 +238,6 @@ trap(struct trapframe *frame)
 		}
 		trap_fatal(frame);
 	}
-
-#ifdef	ALTIVEC
-	if (td != PCPU_GET(vecthread) ||
-	    td->td_pcb->pcb_veccpu != PCPU_GET(cpuid))
-		frame->srr1 &= ~PSL_VEC;
-#endif /* ALTIVEC */
 
 	if (sig != 0) {
 		if (p->p_sysent->sv_transtrap != NULL)
@@ -417,43 +412,8 @@ syscall(struct trapframe *frame)
 		CTR3(KTR_SYSC, "syscall: p=%s %s ret=%x", td->td_name,
 		     syscallnames[code], td->td_retval[0]);
 	}
-	switch (error) {
-	case 0:
-		if (frame->fixreg[0] == SYS___syscall &&
-		    code != SYS_freebsd6_lseek && code != SYS_lseek) {
-			/*
-			 * 64-bit return, 32-bit syscall. Fixup byte order
-			 */
-			frame->fixreg[FIRSTARG] = 0;
-			frame->fixreg[FIRSTARG + 1] = td->td_retval[0];
-		} else {
-			frame->fixreg[FIRSTARG] = td->td_retval[0];
-			frame->fixreg[FIRSTARG + 1] = td->td_retval[1];
-		}
-		/* XXX: Magic number */
-		frame->cr &= ~0x10000000;
-		break;
-	case ERESTART:
-		/*
-		 * Set user's pc back to redo the system call.
-		 */
-		frame->srr0 -= 4;
-		break;
-	case EJUSTRETURN:
-		/* nothing to do */
-		break;
-	default:
-		if (p->p_sysent->sv_errsize) {
-			if (error >= p->p_sysent->sv_errsize)
-				error = -1;	/* XXX */
-			else
-				error = p->p_sysent->sv_errtbl[error];
-		}
-		frame->fixreg[FIRSTARG] = error;
-		/* XXX: Magic number: Carry Flag Equivalent? */
-		frame->cr |= 0x10000000;
-		break;
-	}
+
+	cpu_set_syscall_retval(td, error);
 
 	/*
 	 * Check for misbehavior.
@@ -534,9 +494,7 @@ trap_pfault(struct trapframe *frame, int user)
 		PROC_UNLOCK(p);
 
 		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype,
-		      (ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY
-					      : VM_FAULT_NORMAL);
+		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 
 		PROC_LOCK(p);
 		--p->p_lock;
@@ -556,13 +514,6 @@ trap_pfault(struct trapframe *frame, int user)
 		return (0);
 
 	return (SIGSEGV);
-}
-
-static __inline void
-setusr(u_int content)
-{
-	__asm __volatile ("isync; mtsr %0,%1; isync"
-		      :: "n"(USER_SR), "r"(content));
 }
 
 int
@@ -667,3 +618,21 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 
 	return -1;
 }
+
+static int
+ppc_instr_emulate(struct trapframe *frame)
+{
+	uint32_t instr;
+	int reg;
+
+	instr = fuword32((void *)frame->srr0);
+
+	if ((instr & 0xfc1fffff) == 0x7c1f42a6) {	/* mfpvr */
+		reg = (instr & ~0xfc1fffff) >> 21;
+		frame->fixreg[reg] = mfpvr();
+		return (0);
+	}
+
+	return (-1);
+}
+

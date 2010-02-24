@@ -25,6 +25,10 @@
  * $FreeBSD$
  */
 
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
+
 #ifndef FILTER_FORK_H
 #define FILTER_FORK_H
 

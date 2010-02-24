@@ -279,7 +279,7 @@ static struct {
 	{ &proc_filtops },			/* EVFILT_PROC */
 	{ &sig_filtops },			/* EVFILT_SIGNAL */
 	{ &timer_filtops },			/* EVFILT_TIMER */
-	{ &file_filtops },			/* EVFILT_NETDEV */
+	{ &null_filtops },			/* former EVFILT_NETDEV */
 	{ &fs_filtops },			/* EVFILT_FS */
 	{ &null_filtops },			/* EVFILT_LIO */
 	{ &user_filtops },			/* EVFILT_USER */
@@ -349,8 +349,10 @@ filt_procattach(struct knote *kn)
 
 	if (p == NULL)
 		return (ESRCH);
-	if ((error = p_cansee(curthread, p)))
+	if ((error = p_cansee(curthread, p))) {
+		PROC_UNLOCK(p);
 		return (error);
+	}
 
 	kn->kn_ptr.p_proc = p;
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
@@ -867,6 +869,7 @@ kqueue_add_filteropts(int filt, struct filterops *filtops)
 {
 	int error;
 
+	error = 0;
 	if (filt > 0 || filt + EVFILT_SYSCOUNT < 0) {
 		printf(
 "trying to add a filterop that is out of range: %d is beyond %d\n",
@@ -883,7 +886,7 @@ kqueue_add_filteropts(int filt, struct filterops *filtops)
 	}
 	mtx_unlock(&filterops_lock);
 
-	return (0);
+	return (error);
 }
 
 int

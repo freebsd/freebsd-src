@@ -18,6 +18,8 @@ CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
+WARNS?=		1
+
 MAN=		nsupdate.1
 
 MANFILTER=	sed -e "s@/etc/named\.conf@/etc/namedb/named.conf@g" \

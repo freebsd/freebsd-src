@@ -231,6 +231,7 @@ md_copymodules(vm_offset_t addr)
 	struct preloaded_file	*fp;
 	struct file_metadata	*md;
 	int			c;
+	vm_offset_t a;
 
 	c = addr != 0;
 	/* start with the first module on the list, should be the kernel */
@@ -240,7 +241,8 @@ md_copymodules(vm_offset_t addr)
 		MOD_TYPE(addr, fp->f_type, c);
 		if (fp->f_args)
 			MOD_ARGS(addr, fp->f_args, c);
-		MOD_ADDR(addr, fp->f_addr, c);
+		a = fp->f_addr - __elfN(relocation_offset);
+		MOD_ADDR(addr, a, c);
 		MOD_SIZE(addr, fp->f_size, c);
 		for (md = fp->f_metadata; md != NULL; md = md->md_next) {
 			if (!(md->md_type & MODINFOMD_NOCOPY))

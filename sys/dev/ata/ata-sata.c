@@ -209,48 +209,30 @@ ata_sata_phy_reset(device_t dev, int port, int quick)
     return 0;
 }
 
-void
-ata_sata_setmode(device_t dev, int mode)
+int
+ata_sata_setmode(device_t dev, int target, int mode)
 {
-    struct ata_device *atadev = device_get_softc(dev);
 
-    /*
-     * if we detect that the device isn't a real SATA device we limit 
-     * the transfer mode to UDMA5/ATA100.
-     * this works around the problems some devices has with the 
-     * Marvell 88SX8030 SATA->PATA converters and UDMA6/ATA133.
-     */
-    if (atadev->param.satacapabilities != 0x0000 &&
-	atadev->param.satacapabilities != 0xffff) {
-	struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+	return (min(mode, ATA_UDMA5));
+}
 
-	/* on some drives we need to set the transfer mode */
-	ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,
-		       ata_limit_mode(dev, mode, ATA_UDMA6));
+int
+ata_sata_getrev(device_t dev, int target)
+{
+	struct ata_channel *ch = device_get_softc(dev);
 
-	/* query SATA STATUS for the speed */
-        if (ch->r_io[ATA_SSTATUS].res && 
-	   ((ATA_IDX_INL(ch, ATA_SSTATUS) & ATA_SS_CONWELL_MASK) ==
-	    ATA_SS_CONWELL_GEN2))
-	    atadev->mode = ATA_SA300;
-	else 
-	    atadev->mode = ATA_SA150;
-    }
-    else {
-	mode = ata_limit_mode(dev, mode, ATA_UDMA5);
-	if (!ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
-	    atadev->mode = mode;
-    }
+	if (ch->r_io[ATA_SSTATUS].res)
+		return ((ATA_IDX_INL(ch, ATA_SSTATUS) & 0x0f0) >> 4);
+	return (0xff);
 }
 
 int
 ata_request2fis_h2d(struct ata_request *request, u_int8_t *fis)
 {
-    struct ata_device *atadev = device_get_softc(request->dev);
 
     if (request->flags & ATA_R_ATAPI) {
 	fis[0] = 0x27;  		/* host to device */
-	fis[1] = 0x80 | (atadev->unit & 0x0f);
+	fis[1] = 0x80 | (request->unit & 0x0f);
 	fis[2] = ATA_PACKET_CMD;
 	if (request->flags & (ATA_R_READ | ATA_R_WRITE))
 	    fis[3] = ATA_F_DMA;
@@ -263,16 +245,15 @@ ata_request2fis_h2d(struct ata_request *request, u_int8_t *fis)
 	return 20;
     }
     else {
-	ata_modify_if_48bit(request);
 	fis[0] = 0x27;			/* host to device */
-	fis[1] = 0x80 | (atadev->unit & 0x0f);
+	fis[1] = 0x80 | (request->unit & 0x0f);
 	fis[2] = request->u.ata.command;
 	fis[3] = request->u.ata.feature;
 	fis[4] = request->u.ata.lba;
 	fis[5] = request->u.ata.lba >> 8;
 	fis[6] = request->u.ata.lba >> 16;
 	fis[7] = ATA_D_LBA;
-	if (!(atadev->flags & ATA_D_48BIT_ACTIVE))
+	if (!(request->flags & ATA_R_48BIT))
 	    fis[7] |= (ATA_D_IBM | (request->u.ata.lba >> 24 & 0x0f));
 	fis[8] = request->u.ata.lba >> 24;
 	fis[9] = request->u.ata.lba >> 32; 
@@ -338,9 +319,6 @@ ata_pm_identify(device_t dev)
 	device_printf(dev, "Port Multiplier (id=%08x rev=%x) with %d ports\n",
 		      pm_chipid, pm_revision, pm_ports);
     }
-
-    /* realloc space for needed DMA slots */
-    ch->dma.dma_slots = pm_ports;
 
     /* reset all ports and register if anything connected */
     for (port=0; port < pm_ports; port++) {

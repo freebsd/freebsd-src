@@ -101,8 +101,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #include <netinet6/scope6_var.h>
 
-#include <security/mac/mac_framework.h>
-
 struct	in6_addr zeroin6_addr;
 
 int
@@ -332,7 +330,7 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 	 * Do not update this earlier, in case we return with an error.
 	 *
 	 * XXX: this in6_selectsrc result might replace the bound local
-	 * aaddress with the address specified by setsockopt(IPV6_PKTINFO).
+	 * address with the address specified by setsockopt(IPV6_PKTINFO).
 	 * Is it the intended behavior?
 	 */
 	*plocal_addr6 = in6a;

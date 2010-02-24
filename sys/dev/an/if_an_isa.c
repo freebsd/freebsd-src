@@ -111,11 +111,9 @@ an_attach_isa(device_t dev)
 	an_alloc_port(dev, sc->port_rid, 1);
 	an_alloc_irq(dev, sc->irq_rid, 0);
 
-	sc->an_bhandle = rman_get_bushandle(sc->port_res);
-	sc->an_btag = rman_get_bustag(sc->port_res);
 	sc->an_dev = dev;
 
-	error = an_attach(sc, device_get_unit(dev), flags);
+	error = an_attach(sc, flags);
 	if (error) {
 		an_release_resources(dev);
 		return (error);

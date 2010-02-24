@@ -818,6 +818,13 @@ twed_attach(device_t dev)
     sc->twed_disk->d_maxsize = (TWE_MAX_SGL_LENGTH - 1) * PAGE_SIZE;
     sc->twed_disk->d_sectorsize = TWE_BLOCK_SIZE;
     sc->twed_disk->d_mediasize = TWE_BLOCK_SIZE * (off_t)sc->twed_drive->td_size;
+    if (sc->twed_drive->td_type == TWE_UD_CONFIG_RAID0 ||
+	sc->twed_drive->td_type == TWE_UD_CONFIG_RAID5 ||
+	sc->twed_drive->td_type == TWE_UD_CONFIG_RAID10) {
+	    sc->twed_disk->d_stripesize =
+		TWE_BLOCK_SIZE << sc->twed_drive->td_stripe;
+	    sc->twed_disk->d_stripeoffset = 0;
+    }
     sc->twed_disk->d_fwsectors = sc->twed_drive->td_sectors;
     sc->twed_disk->d_fwheads = sc->twed_drive->td_heads;
     sc->twed_disk->d_unit = sc->twed_drive->td_sys_unit;

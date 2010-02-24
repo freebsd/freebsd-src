@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2009
+.Dd November 18, 2009
 .Dt LIBUSB20 3
 .Os
 .Sh NAME
@@ -98,6 +98,8 @@ USB access library (libusb -lusb)
 .Fn libusb20_tr_setup_intr "struct libusb20_transfer *xfer" "void *pbuf" "uint32_t length" "uint32_t timeout"
 .Ft void
 .Fn libusb20_tr_setup_isoc "struct libusb20_transfer *xfer" "void *pbuf" "uint32_t length" "uint61_t fr_index"
+.Ft uint8_t
+.Fn libusb20_tr_bulk_intr_sync "struct libusb20_transfer *xfer" "void *pbuf" "uint32_t length" "uint32_t *pactlen" "uint32_t timeout"
 .Ft void
 .Fn libusb20_tr_start "struct libusb20_transfer *xfer"
 .Ft void
@@ -140,6 +142,8 @@ USB access library (libusb -lusb)
 .Fn libusb20_dev_req_string_simple_sync "struct libusb20_device *pdev" "uint8_t index" "void *ptr" "uint16_t len"
 .Ft int
 .Fn libusb20_dev_reset "struct libusb20_device *pdev"
+.Ft int
+.Fn libusb20_dev_check_connected "struct libusb20_device *pdev"
 .Ft int
 .Fn libusb20_dev_set_power_mode "struct libusb20_device *pdev" "uint8_t power_mode"
 .Ft uint8_t
@@ -451,6 +455,29 @@ is a helper function for setting up a multi frame USB ISOCHRONOUS transfer.
 .
 .Pp
 .
+.Fn libusb20_tr_bulk_intr_sync
+will perform a synchronous BULK or INTERRUPT transfer having length given by the
+.Fa length
+argument and buffer pointer given by the
+.Fa pbuf
+argument on the USB transfer given by the
+.Fa xfer
+argument.
+.
+If the
+.Fa pactlen
+argument is non-NULL the actual transfer length will be stored at the given pointer destination.
+.
+If the
+.Fa timeout
+argument is non-zero the transfer will timeout after the given value in milliseconds.
+.
+This function does not change the transfer flags, like short packet not ok.
+.
+This function returns zero on success else a LIBUSB20_TRANSFER_XXX value is returned.
+.
+.Pp
+.
 .Fn libusb20_tr_start
 will get the USB transfer started, if not already
 started.
@@ -651,6 +678,15 @@ the last set USB configuration.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
 returned.
+.
+.
+.Pp
+.
+.Fn libusb20_dev_check_connected
+will check if an opened USB device is still connected.
+.
+This function returns zero if the device is still connected else a LIBUSB20_ERROR value is returned.
+.
 .
 .Pp
 .

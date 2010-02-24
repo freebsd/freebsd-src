@@ -10,6 +10,8 @@ SRCS+=	sigdesc.h top.local.h
 CFLAGS+= -DHAVE_GETOPT -DHAVE_STRERROR -DORDER
 CFLAGS+= -I${.CURDIR} -I${TOPDIR} -I.
 
+WARNS?=	0
+
 #
 # The table size should be a prime number approximately twice as
 # large as the number of lines in /etc/passwd.  The default number

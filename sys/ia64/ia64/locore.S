@@ -98,13 +98,13 @@ ENTRY_NOPROFILE(__start, 1)
 	mov	out0=r0			// we are linked at the right address 
 	;;				// we just need to process fptrs
 }
-{	.bbb
+{	.mib
 	nop	0
 	nop	0
 	br.call.sptk.many rp=_reloc
 	;;
 }
-{	.bbb
+{	.mib
 	nop	0
 	nop	0
 	br.call.sptk.many rp=ia64_init
@@ -112,21 +112,21 @@ ENTRY_NOPROFILE(__start, 1)
 }
 	// We have the new bspstore in r8 and the new sp in r9.
 	// Switch onto the new stack and call mi_startup().
-{
+{	.mmi
 	mov	ar.rsc = 0
 	;;
 	mov	ar.bspstore = r8
 	mov	sp = r9
 	;;
 }
-{
+{	.mmi
 	loadrs
 	;;
 	mov	ar.rsc = 3
 	nop	0
 	;;
 }
-{
+{	.mib
 	nop	0
 	nop	0
 	br.call.sptk.many rp=mi_startup
@@ -163,7 +163,7 @@ ENTRY(fork_trampoline, 0)
 	ld8		out1=[r16]
 	nop		0
 }
-{	.mfb
+{	.mib
 	add		out2=16,sp
 	nop		0
 	br.call.sptk	rp=fork_exit
@@ -174,7 +174,7 @@ ENTRY(fork_trampoline, 0)
 	.global		enter_userland
 	.type		enter_userland, @function
 enter_userland:
-{	.mfb
+{	.mib
 	nop		0
 	nop		0
 	br.sptk		epc_syscall_return
@@ -282,7 +282,7 @@ ENTRY_NOPROFILE(os_boot_rendez,0)
 	add	sp = r18, r16
 	;;
 }
-{	.mfb
+{	.mib
 	mov	ar.rsc = 3
 	nop	0
 	br.call.sptk.few rp = ia64_ap_startup
@@ -290,7 +290,7 @@ ENTRY_NOPROFILE(os_boot_rendez,0)
 }
 	/* NOT REACHED */
 9:
-{	.mfb
+{	.mib
 	nop	0
 	nop	0
 	br.sptk	9b

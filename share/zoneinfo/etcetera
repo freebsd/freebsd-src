@@ -16,9 +16,9 @@ Zone	Etc/UCT		0	-	UCT
 
 # The following link uses older naming conventions,
 # but it belongs here, not in the file `backward',
-# as functions like gmtime load the "GMT" file to handle leap seconds properly.
+# as functions like gmtime load the "UTC" file to handle leap seconds properly.
 # We want this to work even on installations that omit the other older names.
-Link	Etc/GMT				GMT
+Link	Etc/UTC				UTC
 
 Link	Etc/UTC				Etc/Universal
 Link	Etc/UTC				Etc/Zulu

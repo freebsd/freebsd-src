@@ -69,6 +69,8 @@ static u_int8_t	dma_bounced = 0;
 static u_int8_t	dma_busy = 0;		/* Used in isa_dmastart() */
 static u_int8_t	dma_inuse = 0;		/* User for acquire/release */
 static u_int8_t dma_auto_mode = 0;
+static struct mtx isa_dma_lock;
+MTX_SYSINIT(isa_dma_lock, &isa_dma_lock, "isa DMA lock", MTX_DEF);
 
 #define VALID_DMA_MASK (7)
 
@@ -82,7 +84,34 @@ int
 isa_dma_init(int chan, u_int bouncebufsize, int flag)
 {
 	void *buf;
+	int contig;
 
+#ifdef DIAGNOSTIC
+	if (chan & ~VALID_DMA_MASK)
+		panic("isa_dma_init: channel out of range");
+#endif
+
+
+	/* Try malloc() first.  It works better if it works. */
+	buf = malloc(bouncebufsize, M_DEVBUF, flag);
+	if (buf != NULL) {
+		if (isa_dmarangecheck(buf, bouncebufsize, chan) != 0) {
+			free(buf, M_DEVBUF);
+			buf = NULL;
+		}
+		contig = 0;
+	}
+
+	if (buf == NULL) {
+		buf = contigmalloc(bouncebufsize, M_DEVBUF, flag, 0ul, 0xfffffful,
+			   1ul, chan & 4 ? 0x20000ul : 0x10000ul);
+		contig = 1;
+	}
+
+	if (buf == NULL)
+		return (ENOMEM);
+
+	mtx_lock(&isa_dma_lock);
 	/*
 	 * If a DMA channel is shared, both drivers have to call isa_dma_init
 	 * since they don't know that the other driver will do it.
@@ -91,30 +120,20 @@ isa_dma_init(int chan, u_int bouncebufsize, int flag)
 	 * XXX: is typically the case since they are multiple instances of
 	 * XXX: the same driver.
 	 */
-	if (dma_bouncebuf[chan] != NULL)
+	if (dma_bouncebuf[chan] != NULL) {
+		if (contig)
+			contigfree(buf, bouncebufsize, M_DEVBUF);
+		else
+			free(buf, M_DEVBUF);
+		mtx_unlock(&isa_dma_lock);
 		return (0);
-
-#ifdef DIAGNOSTIC
-	if (chan & ~VALID_DMA_MASK)
-		panic("isa_dma_init: channel out of range");
-#endif
+	}
 
 	dma_bouncebufsize[chan] = bouncebufsize;
-
-	/* Try malloc() first.  It works better if it works. */
-	buf = malloc(bouncebufsize, M_DEVBUF, flag);
-	if (buf != NULL) {
-		if (isa_dmarangecheck(buf, bouncebufsize, chan) == 0) {
-			dma_bouncebuf[chan] = buf;
-			return (0);
-		}
-		free(buf, M_DEVBUF);
-	}
-	buf = contigmalloc(bouncebufsize, M_DEVBUF, flag, 0ul, 0xfffffful,
-			   1ul, chan & 4 ? 0x20000ul : 0x10000ul);
-	if (buf == NULL)
-		return (ENOMEM);
 	dma_bouncebuf[chan] = buf;
+
+	mtx_unlock(&isa_dma_lock);
+
 	return (0);
 }
 
@@ -131,12 +150,15 @@ isa_dma_acquire(chan)
 		panic("isa_dma_acquire: channel out of range");
 #endif
 
+	mtx_lock(&isa_dma_lock);
 	if (dma_inuse & (1 << chan)) {
 		printf("isa_dma_acquire: channel %d already in use\n", chan);
+		mtx_unlock(&isa_dma_lock);
 		return (EBUSY);
 	}
 	dma_inuse |= (1 << chan);
 	dma_auto_mode &= ~(1 << chan);
+	mtx_unlock(&isa_dma_lock);
 
 	return (0);
 }
@@ -153,8 +175,11 @@ isa_dma_release(chan)
 	if (chan & ~VALID_DMA_MASK)
 		panic("isa_dma_release: channel out of range");
 
+	mtx_lock(&isa_dma_lock);
 	if ((dma_inuse & (1 << chan)) == 0)
 		printf("isa_dma_release: channel %d not in use\n", chan);
+#else
+	mtx_lock(&isa_dma_lock);
 #endif
 
 	if (dma_busy & (1 << chan)) {
@@ -169,6 +194,8 @@ isa_dma_release(chan)
 
 	dma_inuse &= ~(1 << chan);
 	dma_auto_mode &= ~(1 << chan);
+
+	mtx_unlock(&isa_dma_lock);
 }
 
 /*
@@ -184,6 +211,7 @@ isa_dmacascade(chan)
 		panic("isa_dmacascade: channel out of range");
 #endif
 
+	mtx_lock(&isa_dma_lock);
 	/* set dma channel mode, and set dma channel mode */
 	if ((chan & 4) == 0) {
 		outb(DMA1_MODE, DMA37MD_CASCADE | chan);
@@ -192,6 +220,7 @@ isa_dmacascade(chan)
 		outb(DMA2_MODE, DMA37MD_CASCADE | (chan & 3));
 		outb(DMA2_SMSK, chan & 3);
 	}
+	mtx_unlock(&isa_dma_lock);
 }
 
 /*
@@ -204,8 +233,11 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	vm_paddr_t phys;
 	int waport;
 	caddr_t newaddr;
+	int dma_range_checked;
 
-	GIANT_REQUIRED;
+	/* translate to physical */
+	phys = pmap_extract(kernel_pmap, (vm_offset_t)addr);
+	dma_range_checked = isa_dmarangecheck(addr, nbytes, chan);
 
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
@@ -215,8 +247,11 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	    || (chan >= 4 && (nbytes > (1<<17) || (u_int)addr & 1)))
 		panic("isa_dmastart: impossible request");
 
+	mtx_lock(&isa_dma_lock);
 	if ((dma_inuse & (1 << chan)) == 0)
 		printf("isa_dmastart: channel %d not acquired\n", chan);
+#else
+	mtx_lock(&isa_dma_lock);
 #endif
 
 #if 0
@@ -231,7 +266,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 
 	dma_busy |= (1 << chan);
 
-	if (isa_dmarangecheck(addr, nbytes, chan)) {
+	if (dma_range_checked) {
 		if (dma_bouncebuf[chan] == NULL
 		    || dma_bouncebufsize[chan] < nbytes)
 			panic("isa_dmastart: bad bounce buffer"); 
@@ -243,9 +278,6 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 			bcopy(addr, newaddr, nbytes);
 		addr = newaddr;
 	}
-
-	/* translate to physical */
-	phys = pmap_extract(kernel_pmap, (vm_offset_t)addr);
 
 	if (flags & ISADMA_RAW) {
 	    dma_auto_mode |= (1 << chan);
@@ -321,6 +353,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 		/* unmask channel */
 		outb(DMA2_SMSK, chan & 3);
 	}
+	mtx_unlock(&isa_dma_lock);
 }
 
 void
@@ -334,6 +367,7 @@ isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 		printf("isa_dmadone: channel %d not acquired\n", chan);
 #endif
 
+	mtx_lock(&isa_dma_lock);
 	if (((dma_busy & (1 << chan)) == 0) && 
 	    (dma_auto_mode & (1 << chan)) == 0 )
 		printf("isa_dmadone: channel %d not busy\n", chan);
@@ -349,6 +383,7 @@ isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 		dma_bounced &= ~(1 << chan);
 	}
 	dma_busy &= ~(1 << chan);
+	mtx_unlock(&isa_dma_lock);
 }
 
 /*
@@ -364,8 +399,6 @@ isa_dmarangecheck(caddr_t va, u_int length, int chan)
 	vm_paddr_t phys, priorpage = 0;
 	vm_offset_t endva;
 	u_int dma_pgmsk = (chan & 4) ?  ~(128*1024-1) : ~(64*1024-1);
-
-	GIANT_REQUIRED;
 
 	endva = (vm_offset_t)round_page((vm_offset_t)va + length);
 	for (; va < (caddr_t) endva ; va += PAGE_SIZE) {
@@ -419,12 +452,14 @@ isa_dmarangecheck(caddr_t va, u_int length, int chan)
  * or -1 if the channel requested is not active.
  *
  */
-int
-isa_dmastatus(int chan)
+static int
+isa_dmastatus_locked(int chan)
 {
 	u_long	cnt = 0;
 	int	ffport, waport;
 	u_long	low1, high1, low2, high2;
+
+	mtx_assert(&isa_dma_lock, MA_OWNED);
 
 	/* channel active? */
 	if ((dma_inuse & (1 << chan)) == 0) {
@@ -471,6 +506,18 @@ isa_dmastatus(int chan)
 	return(cnt);
 }
 
+int
+isa_dmastatus(int chan)
+{
+	int status;
+
+	mtx_lock(&isa_dma_lock);
+	status = isa_dmastatus_locked(chan);
+	mtx_unlock(&isa_dma_lock);
+
+	return (status);
+}
+
 /*
  * Reached terminal count yet ?
  */
@@ -490,12 +537,16 @@ isa_dmatc(int chan)
 int
 isa_dmastop(int chan) 
 {
+	int status;
+
+	mtx_lock(&isa_dma_lock);
 	if ((dma_inuse & (1 << chan)) == 0)
 		printf("isa_dmastop: channel %d not acquired\n", chan);  
 
 	if (((dma_busy & (1 << chan)) == 0) &&
 	    ((dma_auto_mode & (1 << chan)) == 0)) {
 		printf("chan %d not busy\n", chan);
+		mtx_unlock(&isa_dma_lock);
 		return -2 ;
 	}
     
@@ -504,7 +555,12 @@ isa_dmastop(int chan)
 	} else {
 		outb(DMA2_SMSK, (chan & 3) | 4 /* disable mask */);
 	}
-	return(isa_dmastatus(chan));
+
+	status = isa_dmastatus_locked(chan);
+
+	mtx_unlock(&isa_dma_lock);
+
+	return (status);
 }
 
 /*

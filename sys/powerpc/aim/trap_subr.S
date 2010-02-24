@@ -275,10 +275,16 @@ CNAME(restorebridgesize) = .-CNAME(restorebridge)
 /*
  * Processor reset exception handler. These are typically
  * the first instructions the processor executes after a
- * software reset.
+ * software reset. We do this in two bits so that we are
+ * not still hanging around in the trap handling region
+ * once the MMU is turned on.
  */
 	.globl	CNAME(rstcode), CNAME(rstsize)
 CNAME(rstcode):
+	ba	cpu_reset
+CNAME(rstsize) = . - CNAME(rstcode)
+
+cpu_reset:
 	bl	1f
 
 	.space	124
@@ -296,7 +302,6 @@ CNAME(rstcode):
 	/* Should not be reached */
 9:
 	b	9b
-CNAME(rstsize) = . - CNAME(rstcode)
 #endif
 
 /*

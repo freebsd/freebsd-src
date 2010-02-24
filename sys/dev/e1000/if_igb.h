@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -128,7 +128,7 @@
 /*
  * This parameter controls the duration of transmit watchdog timer.
  */
-#define IGB_TX_TIMEOUT                   5    /* set to 5 seconds */
+#define IGB_WATCHDOG                   (10 * hz)
 
 /*
  * This parameter controls when the driver calls the routine to reclaim
@@ -173,9 +173,15 @@
 #define IGB_SMARTSPEED_DOWNSHIFT	3
 #define IGB_SMARTSPEED_MAX		15
 #define IGB_MAX_LOOP			10
-#define IGB_RX_PTHRESH			16
+
+#define IGB_RX_PTHRESH			(hw->mac.type <= e1000_82576 ? 16 : 8)
 #define IGB_RX_HTHRESH			8
 #define IGB_RX_WTHRESH			1
+
+#define IGB_TX_PTHRESH			8
+#define IGB_TX_HTHRESH			1
+#define IGB_TX_WTHRESH			((hw->mac.type == e1000_82576 && \
+                                          adapter->msix_mem) ? 1 : 16)
 
 #define MAX_NUM_MULTICAST_ADDRESSES     128
 #define PCI_ANY_ID                      (~0U)
@@ -225,6 +231,7 @@
 #define IGB_TSO_SIZE		(65535 + sizeof(struct ether_vlan_header))
 #define IGB_TSO_SEG_SIZE	4096	/* Max dma segment size */
 #define IGB_HDR_BUF		128
+#define IGB_PKTTYPE_MASK	0x0000FFF0
 #define ETH_ZLEN		60
 #define ETH_ADDR_LEN		6
 
@@ -235,17 +242,16 @@
 #define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP)
 #endif
 
-/* Header split codes for get_buf */
-#define IGB_CLEAN_HEADER		1
-#define IGB_CLEAN_PAYLOAD		2
-#define IGB_CLEAN_BOTH			3
+/* Define the starting Interrupt rate per Queue */
+#define IGB_INTS_PER_SEC        8000
+#define IGB_DEFAULT_ITR          1000000000/(IGB_INTS_PER_SEC * 256)
 
-/*
- * Interrupt Moderation parameters
- */
-#define IGB_LOW_LATENCY         128
-#define IGB_AVE_LATENCY         450
-#define IGB_BULK_LATENCY        1200
+
+/* Header split codes for get_buf */
+#define IGB_CLEAN_HEADER		0x01
+#define IGB_CLEAN_PAYLOAD		0x02
+#define IGB_CLEAN_BOTH			(IGB_CLEAN_HEADER | IGB_CLEAN_PAYLOAD)
+
 #define IGB_LINK_ITR            2000
 
 /* Precision Time Sync (IEEE 1588) defines */
@@ -268,18 +274,33 @@ struct igb_dma_alloc {
 
 
 /*
- * Transmit ring: one per tx queue
+** Driver queue struct: this is the interrupt container
+**  for the associated tx and rx ring.
+*/
+struct igb_queue {
+	struct adapter		*adapter;
+	u32			msix;		/* This queue's MSIX vector */
+	u32			eims;		/* This queue's EIMS bit */
+	u32			eitr_setting;
+	struct resource		*res;
+	void			*tag;
+	struct tx_ring		*txr;
+	struct rx_ring		*rxr;
+	struct task		que_task;
+	struct taskqueue	*tq;
+	u64			irqs;
+};
+
+/*
+ * Transmit ring: one per queue
  */
 struct tx_ring {
 	struct adapter		*adapter;
 	u32			me;
-	u32			msix;		/* This ring's MSIX vector */
-	u32			eims;		/* This ring's EIMS bit */
 	struct mtx		tx_mtx;
 	char			mtx_name[16];
-	struct igb_dma_alloc	txdma;		/* bus_dma glue for tx desc */
+	struct igb_dma_alloc	txdma;
 	struct e1000_tx_desc	*tx_base;
-	struct task		tx_task;	/* cleanup tasklet */
 	u32			next_avail_desc;
 	u32			next_to_clean;
 	volatile u16		tx_avail;
@@ -287,37 +308,38 @@ struct tx_ring {
 #if __FreeBSD_version >= 800000
 	struct buf_ring		*br;
 #endif
-	bus_dma_tag_t		txtag;		/* dma tag for tx */
-	struct resource		*res;
-	void			*tag;
+	bus_dma_tag_t		txtag;
 
-	u32			watchdog_timer;
+	u32			bytes;
+	u32			packets;
+
+	bool			watchdog_check;
+	int			watchdog_time;
 	u64			no_desc_avail;
-	u64			tx_irq;
 	u64			tx_packets;
 };
 
 /*
- * Receive ring: one per rx queue
+ * Receive ring: one per queue
  */
 struct rx_ring {
 	struct adapter		*adapter;
 	u32			me;
-	u32			msix;		/* This ring's MSIX vector */
-	u32			eims;		/* This ring's EIMS bit */
-	struct igb_dma_alloc	rxdma;		/* bus_dma glue for tx desc */
+	struct igb_dma_alloc	rxdma;
 	union e1000_adv_rx_desc	*rx_base;
 	struct lro_ctrl		lro;
 	bool			lro_enabled;
 	bool			hdr_split;
-	struct task		rx_task;	/* cleanup tasklet */
+	bool			discard;
 	struct mtx		rx_mtx;
 	char			mtx_name[16];
 	u32			last_cleaned;
 	u32			next_to_check;
-	struct igb_rx_buffer	*rx_buffers;
-	bus_dma_tag_t		rxtag;		/* dma tag for tx */
-	bus_dmamap_t		rx_spare_map;
+	struct igb_rx_buf	*rx_buffers;
+	bus_dma_tag_t		rx_htag;	/* dma tag for rx head */
+	bus_dmamap_t		rx_hspare_map;
+	bus_dma_tag_t		rx_ptag;	/* dma tag for rx packet */
+	bus_dmamap_t		rx_pspare_map;
 	/*
 	 * First/last mbuf pointers, for
 	 * collecting multisegment RX packets.
@@ -326,14 +348,11 @@ struct rx_ring {
 	struct mbuf	       *lmp;
 
 	u32			bytes;
-	u32			eitr_setting;
-
-	struct resource		*res;
-	void			*tag;
+	u32			packets;
 
 	/* Soft stats */
-	u64			rx_irq;
 	u64			rx_split_packets;
+	u64			rx_discarded;
 	u64			rx_packets;
 	u64			rx_bytes;
 };
@@ -342,7 +361,6 @@ struct adapter {
 	struct ifnet	*ifp;
 	struct e1000_hw	hw;
 
-	/* FreeBSD operating-system-specific structures. */
 	struct e1000_osdep osdep;
 	struct device	*dev;
 
@@ -354,6 +372,7 @@ struct adapter {
 
 	int		linkvec;
 	int		link_mask;
+	struct task	link_task;
 	int		link_irq;
 
 	struct ifmedia	media;
@@ -364,9 +383,8 @@ struct adapter {
 	int		min_frame_size;
 	struct mtx	core_mtx;
 	int		igb_insert_vlan_header;
-	struct task     link_task;
 	struct task     rxtx_task;
-	struct taskqueue *tq;           /* private task queue */
+	struct taskqueue *tq;	/* adapter task queue */
         u16		num_queues;
 
 	eventhandler_tag vlan_attach;
@@ -383,12 +401,14 @@ struct adapter {
 	u16		link_duplex;
 	u32		smartspeed;
 
+	/* Interface queues */
+	struct igb_queue	*queues;
+
 	/*
 	 * Transmit rings
 	 */
 	struct tx_ring		*tx_rings;
         u16			num_tx_desc;
-        u32			txd_cmd;
 
 	/* 
 	 * Receive rings
@@ -445,25 +465,29 @@ struct igb_tx_buffer {
         bus_dmamap_t    map;         /* bus_dma map for packet */
 };
 
-struct igb_rx_buffer {
+struct igb_rx_buf {
         struct mbuf    *m_head;
         struct mbuf    *m_pack;
-        bus_dmamap_t    map;         /* bus_dma map for packet */
+	bus_dmamap_t	head_map;	/* bus_dma map for packet */
+	bus_dmamap_t	pack_map;	/* bus_dma map for packet */
 };
 
 #define	IGB_CORE_LOCK_INIT(_sc, _name) \
 	mtx_init(&(_sc)->core_mtx, _name, "IGB Core Lock", MTX_DEF)
 #define	IGB_CORE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->core_mtx)
-#define	IGB_TX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->tx_mtx)
-#define	IGB_RX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->rx_mtx)
 #define	IGB_CORE_LOCK(_sc)		mtx_lock(&(_sc)->core_mtx)
-#define	IGB_TX_LOCK(_sc)			mtx_lock(&(_sc)->tx_mtx)
-#define	IGB_TX_TRYLOCK(_sc)			mtx_trylock(&(_sc)->tx_mtx)
-#define	IGB_RX_LOCK(_sc)			mtx_lock(&(_sc)->rx_mtx)
 #define	IGB_CORE_UNLOCK(_sc)		mtx_unlock(&(_sc)->core_mtx)
-#define	IGB_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->tx_mtx)
-#define	IGB_RX_UNLOCK(_sc)		mtx_unlock(&(_sc)->rx_mtx)
 #define	IGB_CORE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->core_mtx, MA_OWNED)
+
+#define	IGB_TX_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->tx_mtx)
+#define	IGB_TX_LOCK(_sc)		mtx_lock(&(_sc)->tx_mtx)
+#define	IGB_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->tx_mtx)
+#define	IGB_TX_TRYLOCK(_sc)		mtx_trylock(&(_sc)->tx_mtx)
+#define	IGB_TX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
+
+#define	IGB_RX_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->rx_mtx)
+#define	IGB_RX_LOCK(_sc)		mtx_lock(&(_sc)->rx_mtx)
+#define	IGB_RX_UNLOCK(_sc)		mtx_unlock(&(_sc)->rx_mtx)
 #define	IGB_TX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
 
 #endif /* _IGB_H_DEFINED_ */

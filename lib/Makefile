@@ -30,17 +30,17 @@
 SUBDIR=	${_csu} libc libbsm libauditd libcom_err libcrypt libelf libkvm msun \
 	libmd \
 	ncurses ${_libnetgraph} libradius librpcsvc libsbuf \
-	libtacplus libutil ${_libypclnt} libalias libarchive ${_libatm} \
-	libbegemot ${_libbluetooth} ${_libbsnmp} libbz2 \
+	libtacplus libutil ${_libypclnt} libalias libarchive \
+	${_libatm} libbegemot ${_libbluetooth} ${_libbsnmp} libbz2 \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
-	libdwarf libedit libexpat libfetch libftpio libgeom ${_libgpib} \
-	${_libgssapi} ${_librpcsec_gss} libipsec \
+	libdwarf libedit ${_libefi} libexpat libfetch libftpio libgeom \
+	${_libgpib} ${_libgssapi} ${_librpcsec_gss} libipsec \
 	${_libipx} libjail libkiconv libmagic libmemstat ${_libmilter} \
 	${_libmp} ${_libncp} ${_libngatm} libopie libpam libpcap \
 	${_libpmc} libproc librt ${_libsdp} ${_libsm} ${_libsmb} \
-	${_libsmdb} \
-	${_libsmutil} libstand ${_libtelnet} ${_libthr} libthread_db libufs \
-	libugidfw ${_libusbhid} ${_libusb} ${_libvgl} libwrap liby libz \
+	${_libsmdb} ${_libsmutil} libstand \
+	${_libtelnet} ${_libthr} libthread_db libufs libugidfw libulog \
+	${_libusbhid} ${_libusb} ${_libvgl} libwrap liby libz \
 	${_bind}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
@@ -104,6 +104,7 @@ _libvgl=	libvgl
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
+_libefi=	libefi
 _libsmb=	libsmb
 .endif
 
@@ -116,6 +117,10 @@ _libvgl=	libvgl
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc"
+_libsmb=	libsmb
+.endif
+
+.if ${MACHINE_ARCH} == "sparc64"
 _libsmb=	libsmb
 .endif
 

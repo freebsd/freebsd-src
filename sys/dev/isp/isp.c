@@ -694,7 +694,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	mbs.logval = MBLOGALL;
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		isp_prt(isp, ISP_LOGERR, "NOP ommand failed (%x)", mbs.param[0]);
+		isp_prt(isp, ISP_LOGERR, "NOP command failed (%x)", mbs.param[0]);
 		ISP_RESET0(isp);
 		return;
 	}
@@ -2182,9 +2182,7 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		msg = "no Exchange Control Block";
 		break;
 	case PLOGX_IOCBERR_FAILED:
-		ISP_SNPRINTF(buf, sizeof (buf),
-		    "reason 0x%x (last LOGIN state 0x%x)",
-		    parm1 & 0xff, (parm1 >> 8) & 0xff);
+		ISP_SNPRINTF(buf, sizeof (buf), "reason 0x%x (last LOGIN state 0x%x)", parm1 & 0xff, (parm1 >> 8) & 0xff);
 		msg = buf;
 		break;
 	case PLOGX_IOCBERR_NOFABRIC:
@@ -2194,8 +2192,7 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		msg = "firmware not ready";
 		break;
 	case PLOGX_IOCBERR_NOLOGIN:
-		ISP_SNPRINTF(buf, sizeof (buf), "not logged in (last state 0x%x)",
-		    parm1);
+		ISP_SNPRINTF(buf, sizeof (buf), "not logged in (last state 0x%x)", parm1);
 		msg = buf;
 		rval = MBOX_NOT_LOGGED_IN;
 		break;
@@ -2207,21 +2204,18 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		msg = "no PCB allocated";
 		break;
 	case PLOGX_IOCBERR_EINVAL:
-		ISP_SNPRINTF(buf, sizeof (buf), "invalid parameter at offset 0x%x",
-		    parm1);
+		ISP_SNPRINTF(buf, sizeof (buf), "invalid parameter at offset 0x%x", parm1);
 		msg = buf;
 		break;
 	case PLOGX_IOCBERR_PORTUSED:
 		lev = ISP_LOGSANCFG|ISP_LOGDEBUG0;
-		ISP_SNPRINTF(buf, sizeof (buf),
-		    "already logged in with N-Port handle 0x%x", parm1);
+		ISP_SNPRINTF(buf, sizeof (buf), "already logged in with N-Port handle 0x%x", parm1);
 		msg = buf;
 		rval = MBOX_PORT_ID_USED | (parm1 << 16);
 		break;
 	case PLOGX_IOCBERR_HNDLUSED:
 		lev = ISP_LOGSANCFG|ISP_LOGDEBUG0;
-		ISP_SNPRINTF(buf, sizeof (buf),
-		    "handle already used for PortID 0x%06x", parm1);
+		ISP_SNPRINTF(buf, sizeof (buf), "handle already used for PortID 0x%06x", parm1);
 		msg = buf;
 		rval = MBOX_LOOP_ID_USED;
 		break;
@@ -2232,15 +2226,12 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		msg = "no FLOGI_ACC";
 		break;
 	default:
-		ISP_SNPRINTF(buf, sizeof (buf), "status %x from %x",
-		    plp->plogx_status, flags);
+		ISP_SNPRINTF(buf, sizeof (buf), "status %x from %x", plp->plogx_status, flags);
 		msg = buf;
 		break;
 	}
 	if (msg) {
-		isp_prt(isp, ISP_LOGERR,
-		    "Chan %d PLOGX PortID 0x%06x to N-Port handle 0x%x: %s",
-		    chan, portid, handle, msg);
+		isp_prt(isp, ISP_LOGERR, "Chan %d PLOGX PortID 0x%06x to N-Port handle 0x%x: %s", chan, portid, handle, msg);
 	}
 out:
 	if (gs == 0) {
@@ -3901,8 +3892,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
  * Find an unused handle and try and use to login to a port.
  */
 static int
-isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p,
-    uint16_t *ohp)
+isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p, uint16_t *ohp)
 {
 	int lim, i, r;
 	uint16_t handle;
@@ -3922,8 +3912,7 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p,
 		 */
 		r = isp_getpdb(isp, chan, handle, p, 0);
 		if (r == 0 && p->portid != portid) {
-			(void) isp_plogx(isp, chan, handle, portid,
-			    PLOGX_FLG_CMD_LOGO | PLOGX_FLG_IMPLICIT, 1);
+			(void) isp_plogx(isp, chan, handle, portid, PLOGX_FLG_CMD_LOGO | PLOGX_FLG_IMPLICIT | PLOGX_FLG_FREE_NPHDL, 1);
 		} else if (r == 0) {
 			break;
 		}
@@ -3933,8 +3922,7 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p,
 		/*
 		 * Now try and log into the device
 		 */
-		r = isp_plogx(isp, chan, handle, portid,
-		    PLOGX_FLG_CMD_PLOGI, 1);
+		r = isp_plogx(isp, chan, handle, portid, PLOGX_FLG_CMD_PLOGI, 1);
 		if (FCPARAM(isp, chan)->isp_loopstate != LOOP_SCANNING_FABRIC) {
 			return (-1);
 		}
@@ -3942,7 +3930,26 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p,
 			*ohp = handle;
 			break;
 		} else if ((r & 0xffff) == MBOX_PORT_ID_USED) {
-			handle = r >> 16;
+			/*
+			 * If we get here, then the firmwware still thinks we're logged into this device, but with a different
+			 * handle. We need to break that association. We used to try and just substitute the handle, but then
+			 * failed to get any data via isp_getpdb (below).
+			 */
+			if (isp_plogx(isp, chan, r >> 16, portid, PLOGX_FLG_CMD_LOGO | PLOGX_FLG_IMPLICIT | PLOGX_FLG_FREE_NPHDL, 1)) {
+				isp_prt(isp, ISP_LOGERR, "baw... logout of %x failed", r >> 16);
+			}
+			if (FCPARAM(isp, chan)->isp_loopstate != LOOP_SCANNING_FABRIC) {
+				return (-1);
+			}
+			r = isp_plogx(isp, chan, handle, portid, PLOGX_FLG_CMD_PLOGI, 1);
+			if (FCPARAM(isp, chan)->isp_loopstate != LOOP_SCANNING_FABRIC) {
+				return (-1);
+			}
+			if (r == 0) {
+				*ohp = handle;
+			} else {
+				i = lim;
+			}
 			break;
 		} else if (r != MBOX_LOOP_ID_USED) {
 			i = lim;
@@ -3956,8 +3963,7 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p,
 	}
 
 	if (i == lim) {
-		isp_prt(isp, ISP_LOGWARN, "Chan %d PLOGI 0x%06x failed",
-		    chan, portid);
+		isp_prt(isp, ISP_LOGWARN, "Chan %d PLOGI 0x%06x failed", chan, portid);
 		return (-1);
 	}
 
@@ -3971,15 +3977,12 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p,
 		return (-1);
 	}
 	if (r != 0) {
-		isp_prt(isp, ISP_LOGERR,
-		    "Chan %d new device 0x%06x@0x%x disappeared",
-		    chan, portid, handle);
+		isp_prt(isp, ISP_LOGERR, "Chan %d new device 0x%06x@0x%x disappeared", chan, portid, handle);
 		return (-1);
 	}
 
 	if (p->handle != handle || p->portid != portid) {
-		isp_prt(isp, ISP_LOGERR,
-		    "Chan %d new device 0x%06x@0x%x changed (0x%06x@0x%0x)",
+		isp_prt(isp, ISP_LOGERR, "Chan %d new device 0x%06x@0x%x changed (0x%06x@0x%0x)",
 		    chan, portid, handle, p->portid, p->handle);
 		return (-1);
 	}
@@ -4417,7 +4420,7 @@ isp_start(XS_T *xs)
 		*tptr = 0x1999;
 	}
 
-	if (isp_save_xs(isp, xs, &handle)) {
+	if (isp_allocate_xs(isp, xs, &handle)) {
 		isp_prt(isp, ISP_LOGDEBUG0, "out of xflist pointers");
 		XS_SETERR(xs, HBA_BOTCH);
 		return (CMD_EAGAIN);
@@ -5163,8 +5166,8 @@ again:
 			}
 		}
 
-		if ((sp->req_handle != ISP_SPCL_HANDLE) && (sp->req_handle > isp->isp_maxcmds || sp->req_handle < 1)) {
-			isp_prt(isp, ISP_LOGERR, "bad request handle %d (type 0x%x)", sp->req_handle, etype);
+		if (!ISP_VALID_HANDLE(isp, sp->req_handle)) {
+			isp_prt(isp, ISP_LOGERR, "bad request handle 0x%x (iocb type 0x%x)", sp->req_handle, etype);
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			ISP_WRITE(isp, isp->isp_respoutrp, optr);
 			continue;
@@ -5178,14 +5181,13 @@ again:
 			 */
 			if (etype != RQSTYPE_RESPONSE) {
 				isp_prt(isp, ISP_LOGERR, "cannot find handle 0x%x (type 0x%x)", sp->req_handle, etype);
-			} else if (ts != RQCS_ABORTED && ts != RQCS_RESET_OCCURRED && sp->req_handle != ISP_SPCL_HANDLE) {
+			} else if (ts != RQCS_ABORTED && ts != RQCS_RESET_OCCURRED) {
 				isp_prt(isp, ISP_LOGERR, "cannot find handle 0x%x (status 0x%x)", sp->req_handle, ts);
 			}
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			ISP_WRITE(isp, isp->isp_respoutrp, optr);
 			continue;
 		}
-		isp_destroy_handle(isp, sp->req_handle);
 		if (req_status_flags & RQSTF_BUS_RESET) {
 			XS_SETERR(xs, HBA_BUSRESET);
 			ISP_SET_SENDMARKER(isp, XS_CHANNEL(xs), 1);
@@ -5321,6 +5323,7 @@ again:
 		if (XS_XFRLEN(xs)) {
 			ISP_DMAFREE(isp, xs, sp->req_handle);
 		}
+		isp_destroy_handle(isp, sp->req_handle);
 
 		if (((isp->isp_dblev & (ISP_LOGDEBUG1|ISP_LOGDEBUG2|ISP_LOGDEBUG3))) ||
 		    ((isp->isp_dblev & ISP_LOGDEBUG0) && ((!XS_NOERR(xs)) ||
@@ -5681,16 +5684,19 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 			 * commands that complete (with no apparent error) after
 			 * we receive a LIP. This has been observed mostly on
 			 * Local Loop topologies. To be safe, let's just mark
-			 * all active commands as dead.
+			 * all active initiator commands as dead.
 			 */
 			if (topo == TOPO_NL_PORT || topo == TOPO_FL_PORT) {
 				int i, j;
 				for (i = j = 0; i < isp->isp_maxcmds; i++) {
 					XS_T *xs;
-					xs = isp->isp_xflist[i];
-					if (xs == NULL) {
+					isp_hdl_t *hdp;
+
+					hdp = &isp->isp_xflist[i];
+					if (ISP_H2HT(hdp->handle) != ISP_HANDLE_INITIATOR) {
 						continue;
 					}
+					xs = hdp->cmd;
 					if (XS_CHANNEL(xs) != chan) {
 						continue;
 					}
@@ -6658,8 +6664,8 @@ isp_mbox_continue(ispsoftc_t *isp)
 	ptr = isp->isp_mbxworkp;
 	switch (isp->isp_lastmbxcmd) {
 	case MBOX_WRITE_RAM_WORD:
-		mbs.param[1] = isp->isp_mbxwrk1++;;
-		mbs.param[2] = *ptr++;;
+		mbs.param[1] = isp->isp_mbxwrk1++;
+		mbs.param[2] = *ptr++;
 		break;
 	case MBOX_READ_RAM_WORD:
 		*ptr++ = isp->isp_mboxtmp[2];
@@ -6669,7 +6675,7 @@ isp_mbox_continue(ispsoftc_t *isp)
 		offset = isp->isp_mbxwrk1;
 		offset |= isp->isp_mbxwrk8 << 16;
 
-		mbs.param[2] = *ptr++;;
+		mbs.param[2] = *ptr++;
 		mbs.param[1] = offset;
 		mbs.param[8] = offset >> 16;
 		isp->isp_mbxwrk1 = ++offset;
@@ -8285,6 +8291,8 @@ isp_parse_nvram_2100(ispsoftc_t *isp, uint8_t *nvram_data)
 			if ((wwn >> 60) == 0) {
 				wwn |= (((uint64_t) 2)<< 60);
 			}
+		} else {
+			wwn = fcp->isp_wwpn_nvram & ~((uint64_t) 0xfff << 48);
 		}
 	} else {
 		wwn &= ~((uint64_t) 0xfff << 48);
@@ -8350,11 +8358,6 @@ isp_parse_nvram_2400(ispsoftc_t *isp, uint8_t *nvram_data)
 	    ISP2400_NVRAM_FIRMWARE_OPTIONS3(nvram_data));
 
 	wwn = ISP2400_NVRAM_PORT_NAME(nvram_data);
-	if (wwn) {
-		if ((wwn >> 60) != 2 && (wwn >> 60) != 5) {
-			wwn = 0;
-		}
-	}
 	fcp->isp_wwpn_nvram = wwn;
 
 	wwn = ISP2400_NVRAM_NODE_NAME(nvram_data);
@@ -8362,6 +8365,10 @@ isp_parse_nvram_2400(ispsoftc_t *isp, uint8_t *nvram_data)
 		if ((wwn >> 60) != 2 && (wwn >> 60) != 5) {
 			wwn = 0;
 		}
+	}
+	if (wwn == 0 && (fcp->isp_wwpn_nvram >> 60) == 2) {
+		wwn = fcp->isp_wwpn_nvram;
+		wwn &= ~((uint64_t) 0xfff << 48);
 	}
 	fcp->isp_wwnn_nvram = wwn;
 

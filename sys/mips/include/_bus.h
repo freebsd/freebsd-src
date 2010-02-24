@@ -31,19 +31,20 @@
 
 #ifndef MIPS_INCLUDE__BUS_H
 #define	MIPS_INCLUDE__BUS_H
-#ifdef TARGET_OCTEON
-#include "_bus_octeon.h"
-#else
 /*
  * Bus address and size types
  */
+#include "opt_cputype.h" 
+#if !(defined(TARGET_OCTEON) && defined(ISA_MIPS32))
 typedef uintptr_t bus_addr_t;
+#else
+typedef uint64_t bus_addr_t;
+#endif
 typedef uintptr_t bus_size_t;
 
 /*
  * Access methods for bus resources and address space.
  */
-typedef long bus_space_tag_t;
-typedef u_long bus_space_handle_t;
-#endif
+typedef struct bus_space *bus_space_tag_t;
+typedef bus_addr_t bus_space_handle_t;
 #endif /* MIPS_INCLUDE__BUS_H */

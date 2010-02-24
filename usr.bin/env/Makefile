@@ -3,6 +3,5 @@
 
 PROG=	env
 SRCS=	env.c envopts.c
-WARNS?=	6
 
 .include <bsd.prog.mk>

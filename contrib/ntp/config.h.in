@@ -1,5 +1,8 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define if building universal (internal helper macro) */
+#undef AC_APPLE_UNIVERSAL_BUILD
+
 /* Is adjtime() accurate? */
 #undef ADJTIME_IS_ACCURATE
 
@@ -325,7 +328,7 @@
 /* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
 #undef HAVE_DOPRNT
 
-/* Can we drop root privileges? */
+/* [Can we drop root privileges?] */
 #undef HAVE_DROPROOT
 
 /* Define to 1 if you have the <errno.h> header file. */
@@ -370,8 +373,11 @@
 /* Define to 1 if you have the <ieeefp.h> header file. */
 #undef HAVE_IEEEFP_H
 
-/* ISC: Use iflist_sysctl? */
+/* have iflist_sysctl? */
 #undef HAVE_IFLIST_SYSCTL
+
+/* inline keyword or macro available */
+#undef HAVE_INLINE
 
 /* Define to 1 if the system has the type `int16_t'. */
 #undef HAVE_INT16_T
@@ -387,6 +393,9 @@
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
+
+/* Do we have IPTOS support? */
+#undef HAVE_IPTOS_SUPPORT
 
 /* Define to 1 if you have the `isfinite' function. */
 #undef HAVE_ISFINITE
@@ -421,17 +430,8 @@
 /* Define to 1 if you have the `ld' library (-lld). */
 #undef HAVE_LIBLD
 
-/* Define to 1 if you have the `md' library (-lmd). */
-#undef HAVE_LIBMD
-
-/* Define to 1 if you have the `md5' library (-lmd5). */
-#undef HAVE_LIBMD5
-
 /* Define to 1 if you have the `mld' library (-lmld). */
 #undef HAVE_LIBMLD
-
-/* Define to 1 if you have the `nsl' library (-lnsl). */
-#undef HAVE_LIBNSL
 
 /* Define to 1 if you have the `posix4' library (-lposix4). */
 #undef HAVE_LIBPOSIX4
@@ -442,19 +442,13 @@
 /* Define to 1 if you have the `rt' library (-lrt). */
 #undef HAVE_LIBRT
 
-/* Define to 1 if you have the `socket' library (-lsocket). */
-#undef HAVE_LIBSOCKET
-
-/* Define to 1 if you have the `syslog' library (-lsyslog). */
-#undef HAVE_LIBSYSLOG
-
-/* Define to 1 if you have the `xnet' library (-lxnet). */
-#undef HAVE_LIBXNET
+/* Define to 1 if you have the <libscf.h> header file. */
+#undef HAVE_LIBSCF_H
 
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 
-/* Do we have Linux capabilities? */
+/* [Do we have Linux capabilities?] */
 #undef HAVE_LINUX_CAPABILITIES
 
 /* Define to 1 if you have the <machine/inline.h> header file. */
@@ -543,6 +537,9 @@
 
 /* Define to 1 if you have the `ntp_gettime' function. */
 #undef HAVE_NTP_GETTIME
+
+/* Do we want support for Samba's signing daemon? */
+#undef HAVE_NTP_SIGND
 
 /* Define this if pathfind(3) works */
 #undef HAVE_PATHFIND
@@ -646,6 +643,9 @@
 /* Define to 1 if you have the `snprintf' function. */
 #undef HAVE_SNPRINTF
 
+/* [Are Solaris privileges available?] */
+#undef HAVE_SOLARIS_PRIVS
+
 /* Does struct sockaddr_storage have ss_family? */
 #undef HAVE_SS_FAMILY_IN_SS
 
@@ -691,7 +691,7 @@
 /* Do we have struct ntptimeval? */
 #undef HAVE_STRUCT_NTPTIMEVAL
 
-/* Define to 1 if `time.tv_nsec' is member of `struct ntptimeval'. */
+/* Define to 1 if `time.tv_nsec' is a member of `struct ntptimeval'. */
 #undef HAVE_STRUCT_NTPTIMEVAL_TIME_TV_NSEC
 
 /* Does a system header define struct ppsclockev? */
@@ -699,9 +699,6 @@
 
 /* Do we have struct snd_size? */
 #undef HAVE_STRUCT_SND_SIZE
-
-/* Define to 1 if `sin6_scope_id' is member of `struct sockaddr_in6'. */
-#undef HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID
 
 /* Does a system header define struct sockaddr_storage? */
 #undef HAVE_STRUCT_SOCKADDR_STORAGE
@@ -978,6 +975,9 @@
 /* Does struct sockaddr_storage have __ss_len? */
 #undef HAVE___SS_LEN_IN_SS
 
+/* [Retry queries on _any_ DNS error?] */
+#undef IGNORE_DNS_ERRORS
+
 /* Should we use the IRIG sawtooth filter? */
 #undef IRIG_SUCKS
 
@@ -987,29 +987,32 @@
 /* ISC: do we have if_nametoindex()? */
 #undef ISC_PLATFORM_HAVEIFNAMETOINDEX
 
-/* ISC: have struct if_laddrconf? */
+/* have struct if_laddrconf? */
 #undef ISC_PLATFORM_HAVEIF_LADDRCONF
 
-/* ISC: have struct if_laddrreq? */
+/* have struct if_laddrreq? */
 #undef ISC_PLATFORM_HAVEIF_LADDRREQ
 
-/* ISC: Have struct in6_pktinfo? */
+/* have struct in6_pktinfo? */
 #undef ISC_PLATFORM_HAVEIN6PKTINFO
 
-/* ISC: Have IPv6? */
+/* have IPv6? */
 #undef ISC_PLATFORM_HAVEIPV6
 
 /* ISC: struct sockaddr as sa_len? */
 #undef ISC_PLATFORM_HAVESALEN
 
-/* ISC: Have sin6_scope_id? */
+/* have sin6_scope_id? */
 #undef ISC_PLATFORM_HAVESCOPEID
 
 /* ISC: provide inet_aton() */
 #undef ISC_PLATFORM_NEEDATON
 
-/* ISC: Need in6addr_any? */
+/* missing in6addr_any? */
 #undef ISC_PLATFORM_NEEDIN6ADDRANY
+
+/* Do we need netinet6/in6.h? */
+#undef ISC_PLATFORM_NEEDNETINET6IN6H
 
 /* ISC: provide inet_ntop() */
 #undef ISC_PLATFORM_NEEDNTOP
@@ -1089,6 +1092,9 @@
 /* Default location of crypto key info */
 #undef NTP_KEYSDIR
 
+/* Path to sign daemon rendezvous socket */
+#undef NTP_SIGND_PATH
+
 /* Do we have ntp_{adj,get}time in libc? */
 #undef NTP_SYSCALLS_LIBC
 
@@ -1128,6 +1134,9 @@
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
@@ -1171,22 +1180,22 @@
 /* Do we want the SCO clock hacks? */
 #undef SCO5_CLOCK
 
-/* The size of a `char*', as computed by sizeof. */
+/* The size of `char*', as computed by sizeof. */
 #undef SIZEOF_CHARP
 
-/* The size of a `int', as computed by sizeof. */
+/* The size of `int', as computed by sizeof. */
 #undef SIZEOF_INT
 
-/* The size of a `long', as computed by sizeof. */
+/* The size of `long', as computed by sizeof. */
 #undef SIZEOF_LONG
 
-/* The size of a `short', as computed by sizeof. */
+/* The size of `short', as computed by sizeof. */
 #undef SIZEOF_SHORT
 
-/* The size of a `signed char', as computed by sizeof. */
+/* The size of `signed char', as computed by sizeof. */
 #undef SIZEOF_SIGNED_CHAR
 
-/* The size of a `time_t', as computed by sizeof. */
+/* The size of `time_t', as computed by sizeof. */
 #undef SIZEOF_TIME_T
 
 /* Does SIOCGIFCONF return size in the buffer? */
@@ -1249,6 +1258,28 @@ typedef unsigned int	uintptr_t;
 /* Must we have a CTTY for fsetown? */
 #undef USE_FSETOWNCTTY
 
+/* Enable extensions on AIX 3, Interix.  */
+#ifndef _ALL_SOURCE
+# undef _ALL_SOURCE
+#endif
+/* Enable GNU extensions on systems that have them.  */
+#ifndef _GNU_SOURCE
+# undef _GNU_SOURCE
+#endif
+/* Enable threading extensions on Solaris.  */
+#ifndef _POSIX_PTHREAD_SEMANTICS
+# undef _POSIX_PTHREAD_SEMANTICS
+#endif
+/* Enable extensions on HP NonStop.  */
+#ifndef _TANDEM_SOURCE
+# undef _TANDEM_SOURCE
+#endif
+/* Enable general extensions on Solaris.  */
+#ifndef __EXTENSIONS__
+# undef __EXTENSIONS__
+#endif
+
+
 /* Can we use SIGPOLL for tty IO? */
 #undef USE_TTY_SIGPOLL
 
@@ -1258,15 +1289,26 @@ typedef unsigned int	uintptr_t;
 /* Version number of package */
 #undef VERSION
 
-/* ISC: Want IPv6? */
+/* configure --enable-ipv6 */
 #undef WANT_IPV6
+
+/* Do we want the windows symmetric client hack? */
+#undef WINTIME
 
 /* Define this if a working libregex can be found */
 #undef WITH_LIBREGEX
 
-/* Define to 1 if your processor stores words with the most significant byte
-   first (like Motorola and SPARC, unlike Intel and VAX). */
-#undef WORDS_BIGENDIAN
+/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
+   significant byte first (like Motorola and SPARC, unlike Intel). */
+#if defined AC_APPLE_UNIVERSAL_BUILD
+# if defined __BIG_ENDIAN__
+#  define WORDS_BIGENDIAN 1
+# endif
+#else
+# ifndef WORDS_BIGENDIAN
+#  undef WORDS_BIGENDIAN
+# endif
+#endif
 
 /* Handle ss_family */
 #if !defined(HAVE_SS_FAMILY_IN_SS) && defined(HAVE___SS_FAMILY_IN_SS)
@@ -1277,13 +1319,6 @@ typedef unsigned int	uintptr_t;
 #if !defined(HAVE_SS_LEN_IN_SS) && defined(HAVE___SS_LEN_IN_SS)
 # define ss_len __ss_len
 #endif /* !defined(HAVE_SS_LEN_IN_SS) && defined(HAVE_SA_LEN_IN_SS) */
-
-/* Define to 1 if on AIX 3.
-   System headers sometimes define this.
-   We just want to avoid a redefinition error message.  */
-#ifndef _ALL_SOURCE
-# undef _ALL_SOURCE
-#endif
 
 /* Define to 1 if on MINIX. */
 #undef _MINIX
@@ -1315,10 +1350,10 @@ typedef unsigned int	uintptr_t;
 #undef inline
 #endif
 
-/* Define to `long' if <sys/types.h> does not define. */
+/* Define to `long int' if <sys/types.h> does not define. */
 #undef off_t
 
-/* Define to `unsigned' if <sys/types.h> does not define. */
+/* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
 
 /* Define to `long' if <sys/types.h> does not define. */

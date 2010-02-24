@@ -279,7 +279,6 @@ ng_sppp_constructor (node_p node)
 	if_initname (SP2IFP(pp), NG_SPPP_IFACE_NAME, priv->unit);
 	ifp->if_start = ng_sppp_start;
 	ifp->if_ioctl = ng_sppp_ioctl;
-	ifp->if_watchdog = NULL;
 	ifp->if_flags = (IFF_POINTOPOINT|IFF_MULTICAST);
 
 	/* Give this node the same name as the interface (if possible) */

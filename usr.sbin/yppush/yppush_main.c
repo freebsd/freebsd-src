@@ -487,7 +487,6 @@ main(int argc, char *argv[])
 	};
 	struct hostlist *yppush_hostlist = NULL;
 	struct hostlist *tmp;
-	struct sigaction sa;
 
 	while ((ch = getopt(argc, argv, "d:j:p:h:t:v")) != -1) {
 		switch (ch) {

@@ -7,6 +7,4 @@ MAN=	asf.8
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 
-WARNS?=	4
-
 .include <bsd.prog.mk>

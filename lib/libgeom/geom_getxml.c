@@ -36,7 +36,7 @@
 #include "libgeom.h"
 
 char *
-geom_getxml()
+geom_getxml(void)
 {
 	char *p;
 	size_t l = 0;

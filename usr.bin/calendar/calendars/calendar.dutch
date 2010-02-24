@@ -5,6 +5,7 @@
  */
 
 LANG=nl_NL.ISO8859-15
+Easter=Pasen
 
 /*
  * Feestdagen
@@ -32,21 +33,21 @@ LANG=nl_NL.ISO8859-15
 /*
  * Pasen gerelateerd
  */
-Easter-50	Carnaval
-Easter-49	Carnaval
-Easter-48	Carnaval
-Easter-47	Carnaval (Vastenavond)
-Easter-46	Aswoensdag
-Easter-7	Palmzondag
-Easter-3	Witte Donderdag
-Easter-2	Goede vrijdag
-Easter-1	Stille zaterdag
-Easter		Eerste paasdag
-Easter+1	Tweede paasdag
-Easter+39	Hemelvaartsdag
-Easter+49	Eerste Pinksterdag
-Easter+50	Tweede Pinksterdag
-Easter+56	Trinitatis
+Pasen-50	Carnaval
+Pasen-49	Carnaval
+Pasen-48	Carnaval
+Pasen-47	Carnaval (Vastenavond)
+Pasen-46	Aswoensdag
+Pasen-7	Palmzondag
+Pasen-3	Witte Donderdag
+Pasen-2	Goede vrijdag
+Pasen-1	Stille zaterdag
+Pasen		Eerste paasdag
+Pasen+1	Tweede paasdag
+Pasen+39	Hemelvaartsdag
+Pasen+49	Eerste Pinksterdag
+Pasen+50	Tweede Pinksterdag
+Pasen+56	Trinitatis
 
 /*
  * Misc

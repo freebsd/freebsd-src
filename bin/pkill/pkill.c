@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/user.h>
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -110,17 +111,18 @@ static int	matchargs;
 static int	fullmatch;
 static int	kthreads;
 static int	cflags = REG_EXTENDED;
+static int	quiet;
 static kvm_t	*kd;
 static pid_t	mypid;
 
-static struct listhead euidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead ruidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead rgidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead pgrplist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead ppidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead tdevlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead sidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead jidlist = SLIST_HEAD_INITIALIZER(list);
+static struct listhead euidlist = SLIST_HEAD_INITIALIZER(euidlist);
+static struct listhead ruidlist = SLIST_HEAD_INITIALIZER(ruidlist);
+static struct listhead rgidlist = SLIST_HEAD_INITIALIZER(rgidlist);
+static struct listhead pgrplist = SLIST_HEAD_INITIALIZER(pgrplist);
+static struct listhead ppidlist = SLIST_HEAD_INITIALIZER(ppidlist);
+static struct listhead tdevlist = SLIST_HEAD_INITIALIZER(tdevlist);
+static struct listhead sidlist = SLIST_HEAD_INITIALIZER(sidlist);
+static struct listhead jidlist = SLIST_HEAD_INITIALIZER(jidlist);
 
 static void	usage(void) __attribute__((__noreturn__));
 static int	killact(const struct kinfo_proc *);
@@ -180,9 +182,11 @@ main(int argc, char **argv)
 	debug_opt = 0;
 	pidfile = NULL;
 	pidfilelock = 0;
-	execf = coref = _PATH_DEVNULL;
+	quiet = 0;
+	execf = NULL;
+	coref = _PATH_DEVNULL;
 
-	while ((ch = getopt(argc, argv, "DF:G:ILM:N:P:SU:ad:fg:ij:lnos:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "DF:G:ILM:N:P:SU:ad:fg:ij:lnoqs:t:u:vx")) != -1)
 		switch (ch) {
 		case 'D':
 			debug_opt++;
@@ -256,6 +260,11 @@ main(int argc, char **argv)
 		case 'o':
 			oldest = 1;
 			criteria = 1;
+			break;
+		case 'q':
+			if (!pgrep)
+				usage();
+			quiet = 1;
 			break;
 		case 's':
 			makelist(&sidlist, LT_SID, optarg);
@@ -548,7 +557,7 @@ usage(void)
 	const char *ustr;
 
 	if (pgrep)
-		ustr = "[-LSfilnovx] [-d delim]";
+		ustr = "[-LSfilnoqvx] [-d delim]";
 	else
 		ustr = "[-signal] [-ILfinovx]";
 
@@ -566,6 +575,10 @@ show_process(const struct kinfo_proc *kp)
 {
 	char **argv;
 
+	if (quiet) {
+		assert(pgrep);
+		return;
+	}
 	if ((longfmt || !pgrep) && matchargs &&
 	    (argv = kvm_getargv(kd, kp, 0)) != NULL) {
 		printf("%d ", (int)kp->ki_pid);
@@ -622,7 +635,8 @@ grepact(const struct kinfo_proc *kp)
 {
 
 	show_process(kp);
-	printf("%s", delim);
+	if (!quiet)
+		printf("%s", delim);
 	return (1);
 }
 
@@ -671,8 +685,19 @@ makelist(struct listhead *head, enum listtype type, char *src)
 					li->li_number = -1;	/* any jail */
 				break;
 			case LT_TTY:
-				usage();
-				/* NOTREACHED */
+				if (li->li_number < 0)
+					errx(STATUS_BADUSAGE,
+					     "Negative /dev/pts tty `%s'", sp);
+				snprintf(buf, sizeof(buf), _PATH_DEV "pts/%s",
+				    sp);
+				if (stat(buf, &st) != -1)
+					goto foundtty;
+				if (errno == ENOENT)
+					errx(STATUS_BADUSAGE, "No such tty: `"
+					    _PATH_DEV "pts/%s'", sp);
+				err(STATUS_ERROR, "Cannot access `"
+				    _PATH_DEV "pts/%s'", sp);
+				break;
 			default:
 				break;
 			}

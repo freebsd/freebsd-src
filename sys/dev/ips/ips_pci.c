@@ -154,7 +154,7 @@ static int ips_pci_attach(device_t dev)
         }
 	sc->ips_ich.ich_func = ips_intrhook;
 	sc->ips_ich.ich_arg = sc;
-	mtx_init(&sc->queue_mtx, "IPS bioqueue lock", MTX_DEF, 0);
+	mtx_init(&sc->queue_mtx, "IPS bioqueue lock", NULL, MTX_DEF);
 	sema_init(&sc->cmd_sema, 0, "IPS Command Semaphore");
 	bioq_init(&sc->queue);
 	if (config_intrhook_establish(&sc->ips_ich) != 0) {

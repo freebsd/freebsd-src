@@ -462,8 +462,8 @@ struct cmsghdr {
 #if __BSD_VISIBLE
 /*
  * While we may have more groups than this, the cmsgcred struct must
- * be able to fit in an mbuf, and NGROUPS_MAX is too large to allow
- * this.
+ * be able to fit in an mbuf and we have historically supported a
+ * maximum of 16 groups.
 */
 #define CMGROUP_MAX 16
 

@@ -340,6 +340,11 @@ fetch(char *URL, const char *path)
 		fetchDebug = 1;
 
 	/* parse URL */
+	url = NULL;
+	if (*URL == '\0') {
+		warnx("empty URL");
+		goto failure;
+	}
 	if ((url = fetchParseURL(URL)) == NULL) {
 		warnx("%s: parse error", URL);
 		goto failure;

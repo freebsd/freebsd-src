@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/serial.h>
 #include <sys/tty.h>
+#include <sys/ttydefaults.h>
 #include <sys/kernel.h>
 #include <sys/consio.h>
 #include <sys/mouse.h>

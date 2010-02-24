@@ -457,10 +457,7 @@ mge_allocate_dma(struct mge_softc *sc)
 {
 	int error;
 	struct mge_desc_wrapper *dw;
-	int num, i;
-
-
-	num = MGE_TX_DESC_NUM + MGE_RX_DESC_NUM;
+	int i;
 
 	/* Allocate a busdma tag and DMA safe memory for TX/RX descriptors. */
 	error = bus_dma_tag_create(NULL,	/* parent */
@@ -543,7 +540,7 @@ mge_reinit_rx(struct mge_softc *sc)
 	struct mge_desc_wrapper *dw;
 	int i;
 
-	MGE_RECEIVE_LOCK(sc);
+	MGE_RECEIVE_LOCK_ASSERT(sc);
 
 	mge_free_desc(sc, sc->mge_rx_desc, MGE_RX_DESC_NUM, sc->mge_rx_dtag, 1);
 
@@ -564,8 +561,6 @@ mge_reinit_rx(struct mge_softc *sc)
 
 	/* Enable RX queue */
 	MGE_WRITE(sc, MGE_RX_QUEUE_CMD, MGE_ENABLE_RXQ(MGE_RX_DEFAULT_QUEUE));
-
-	MGE_RECEIVE_UNLOCK(sc);
 }
 
 #ifdef DEVICE_POLLING
@@ -611,6 +606,7 @@ static int
 mge_attach(device_t dev)
 {
 	struct mge_softc *sc;
+	struct mii_softc *miisc;
 	struct ifnet *ifp;
 	uint8_t hwaddr[ETHER_ADDR_LEN];
 	int i, error ;
@@ -689,12 +685,14 @@ mge_attach(device_t dev)
 	error = mii_phy_probe(dev, &sc->miibus, mge_ifmedia_upd, mge_ifmedia_sts);
 	if (error) {
 		device_printf(dev, "MII failed to find PHY\n");
-		if_free(ifp);
-		sc->ifp = NULL;
 		mge_detach(dev);
 		return (error);
 	}
 	sc->mii = device_get_softc(sc->miibus);
+
+	/* Tell the MAC where to find the PHY so autoneg works */
+	miisc = LIST_FIRST(&sc->mii->mii_phys);
+	MGE_WRITE(sc, MGE_REG_PHYDEV, miisc->mii_phy);
 
 	/* Attach interrupt handlers */
 	for (i = 0; i < 2; ++i) {
@@ -704,7 +702,7 @@ mge_attach(device_t dev)
 		if (error) {
 			device_printf(dev, "could not setup %s\n",
 			    mge_intrs[i].description);
-			ether_ifdetach(sc->ifp);
+			mge_detach(dev);
 			return (error);
 		}
 	}
@@ -729,6 +727,9 @@ mge_detach(device_t dev)
 
 	/* Stop and release all interrupts */
 	for (i = 0; i < 2; ++i) {
+		if (!sc->ih_cookie[i])
+			continue;
+
 		error = bus_teardown_intr(dev, sc->res[1 + i], sc->ih_cookie[i]);
 		if (error)
 			device_printf(dev, "could not release %s\n",
@@ -1144,7 +1145,7 @@ mge_intr_tx_locked(struct mge_softc *sc)
 			break;
 
 		sc->tx_desc_used_idx =
-			(++sc->tx_desc_used_idx) % MGE_TX_DESC_NUM;;
+			(++sc->tx_desc_used_idx) % MGE_TX_DESC_NUM;
 		sc->tx_desc_used_count--;
 
 		/* Update collision statistics */
@@ -1369,9 +1370,6 @@ mge_encap(struct mge_softc *sc, struct mbuf *m0)
 	dw = &sc->mge_tx_desc[desc_no];
 	mapp = dw->buffer_dmap;
 
-	bus_dmamap_sync(sc->mge_desc_dtag, mapp,
-	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-
 	/* Create mapping in DMA memory */
 	error = bus_dmamap_load_mbuf_sg(sc->mge_tx_dtag, mapp, m0, segs, &nsegs,
 	    BUS_DMA_NOWAIT);
@@ -1395,7 +1393,7 @@ mge_encap(struct mge_softc *sc, struct mbuf *m0)
 			mge_offload_setup_descriptor(sc, dw);
 	}
 
-	bus_dmamap_sync(sc->mge_desc_dtag, mapp,
+	bus_dmamap_sync(sc->mge_desc_dtag, dw->desc_dmap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	sc->tx_desc_curr = (++sc->tx_desc_curr) % MGE_TX_DESC_NUM;

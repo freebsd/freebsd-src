@@ -21,6 +21,8 @@ SRCS=	rrenumd.c  parser.y lexer.l
 CFLAGS+= -DIPSEC -I. -I${.CURDIR}
 YFLAGS=	-d
 
+WARNS?=	2
+
 LDADD=	-lipsec -ll -ly
 DPADD=	${LIBIPSEC} ${LIBL} ${LIBY}
 

@@ -49,7 +49,6 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <utmp.h>
 
 #include "hostres_snmp.h"
 #include "hostres_oid.h"

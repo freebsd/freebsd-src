@@ -40,7 +40,7 @@ struct ledsc {
 static struct unrhdr *led_unit;
 static struct mtx led_mtx;
 static struct sx led_sx;
-static LIST_HEAD(, ledsc) led_list = LIST_HEAD_INITIALIZER(&led_list);
+static LIST_HEAD(, ledsc) led_list = LIST_HEAD_INITIALIZER(led_list);
 static struct callout led_ch;
 
 static MALLOC_DEFINE(M_LED, "LED", "LED driver");

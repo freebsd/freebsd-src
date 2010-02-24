@@ -130,7 +130,6 @@ gv_access(struct g_provider *pp, int dr, int dw, int de)
 	struct gv_drive *d, *d2;
 	int error;
 	
-	error = ENXIO;
 	gp = pp->geom;
 	sc = gp->softc;
 	/*

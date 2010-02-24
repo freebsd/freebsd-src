@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG = rusers
-WARNS?=	6
 
 DPADD=	${LIBRPCSVC}
 LDADD=	-lrpcsvc

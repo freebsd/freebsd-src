@@ -30,11 +30,16 @@ struct ath_hal_9280 {
 #define	AH9280(_ah)	((struct ath_hal_9280 *)(_ah))
 
 #define	AR9280_DEFAULT_RXCHAINMASK	3
+#define	AR9285_DEFAULT_RXCHAINMASK	1
 #define	AR9280_DEFAULT_TXCHAINMASK	1
+#define	AR9285_DEFAULT_TXCHAINMASK	1
 
 HAL_BOOL ar9280RfAttach(struct ath_hal *, HAL_STATUS *);
 
 struct ath_hal;
 
 HAL_BOOL	ar9280SetAntennaSwitch(struct ath_hal *, HAL_ANT_SETTING);
+void		ar9280SpurMitigate(struct ath_hal *,
+    			const struct ieee80211_channel *);
+
 #endif	/* _ATH_AR9280_H_ */

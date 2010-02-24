@@ -376,7 +376,7 @@ chregister(struct cam_periph *periph, void *arg)
 	 * This first call can't block
 	 */
 	(void)cam_periph_hold(periph, PRIBIO);
-	xpt_schedule(periph, /*priority*/5);
+	xpt_schedule(periph, CAM_PRIORITY_DEV);
 
 	return(CAM_REQ_CMP);
 }
@@ -606,7 +606,8 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 					retry_scheduled = 0;
 
 				/* Don't wedge this device's queue */
-				cam_release_devq(done_ccb->ccb_h.path,
+				if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+					cam_release_devq(done_ccb->ccb_h.path,
 						 /*relsim_flags*/0,
 						 /*reduction*/0,
 						 /*timeout*/0,

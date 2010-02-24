@@ -100,21 +100,66 @@ dump_field(struct libusb20_device *pdev, const char *plevel,
 
 	printf("%s%s = 0x%04x ", plevel, field, value);
 
-	if ((field[0] != 'i') || (field[1] == 'd')) {
-		printf("\n");
+	if (strlen(plevel) == 8) {
+		/* Endpoint Descriptor */
+
+		if (strcmp(field, "bEndpointAddress") == 0) {
+			if (value & 0x80)
+				printf(" <IN>\n");
+			else
+				printf(" <OUT>\n");
+			return;
+		}
+
+		if (strcmp(field, "bmAttributes") == 0) {
+			switch (value & 0x03) {
+			case 0:
+				printf(" <CONTROL>\n");
+				break;
+			case 1:
+				switch (value & 0x0C) {
+				case 0x00:
+					printf(" <ISOCHRONOUS>\n");
+					break;
+				case 0x04:
+					printf(" <ASYNC-ISOCHRONOUS>\n");
+					break;
+				case 0x08:
+					printf(" <ADAPT-ISOCHRONOUS>\n");
+					break;
+				default:
+					printf(" <SYNC-ISOCHRONOUS>\n");
+					break;
+				}
+				break;
+			case 2:
+				printf(" <BULK>\n");
+				break;
+			default:
+				printf(" <INTERRUPT>\n");
+				break;
+			}
+			return;
+		}
+	}
+
+	if ((field[0] == 'i') && (field[1] != 'd')) {
+		/* Indirect String Descriptor */
+		if (value == 0) {
+			printf(" <no string>\n");
+			return;
+		}
+		if (libusb20_dev_req_string_simple_sync(pdev, value,
+		    temp_string, sizeof(temp_string))) {
+			printf(" <retrieving string failed>\n");
+			return;
+		}
+		printf(" <%s>\n", temp_string);
 		return;
 	}
-	if (value == 0) {
-		printf(" <no string>\n");
-		return;
-	}
-	if (libusb20_dev_req_string_simple_sync(pdev, value,
-	    temp_string, sizeof(temp_string))) {
-		printf(" <retrieving string failed>\n");
-		return;
-	}
-	printf(" <%s>\n", temp_string);
-	return;
+
+	/* No additional information */
+	printf("\n");
 }
 
 static void
@@ -319,4 +364,41 @@ dump_config(struct libusb20_device *pdev, uint8_t all_cfg)
 		free(pcfg);
 	}
 	return;
+}
+
+void
+dump_string_by_index(struct libusb20_device *pdev, uint8_t str_index)
+{
+	char *pbuf;
+	uint8_t n;
+	uint8_t len;
+
+	pbuf = malloc(256);
+	if (pbuf == NULL)
+		err(1, "out of memory");
+
+	if (str_index == 0) {
+		/* language table */
+		if (libusb20_dev_req_string_sync(pdev,
+		    str_index, 0, pbuf, 256)) {
+			printf("STRING_0x%02x = <read error>\n", str_index);
+		} else {
+			printf("STRING_0x%02x = ", str_index);
+			len = (uint8_t)pbuf[0];
+			for (n = 0; n != len; n++) {
+				printf("0x%02x%s", (uint8_t)pbuf[n], 
+				    (n != (len-1)) ? ", " : "");
+			}
+			printf("\n");
+		}
+	} else {
+		/* ordinary string */
+		if (libusb20_dev_req_string_simple_sync(pdev,
+		    str_index, pbuf, 256)) {
+			printf("STRING_0x%02x = <read error>\n", str_index);
+		} else {
+			printf("STRING_0x%02x = <%s>\n", str_index, pbuf);
+		}
+	}
+	free(pbuf);
 }

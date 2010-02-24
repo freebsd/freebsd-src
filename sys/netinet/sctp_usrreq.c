@@ -551,6 +551,7 @@ sctp_attach(struct socket *so, int proto, struct thread *p)
 	sctp_log_closing(inp, NULL, 17);
 #endif
 	if (error != 0) {
+try_again:
 		flags = inp->sctp_flags;
 		if (((flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) &&
 		    (atomic_cmpset_int(&inp->sctp_flags, flags, (flags | SCTP_PCB_FLAGS_SOCKET_GONE | SCTP_PCB_FLAGS_CLOSE_IP)))) {
@@ -561,7 +562,12 @@ sctp_attach(struct socket *so, int proto, struct thread *p)
 			sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
 			    SCTP_CALLED_AFTER_CMPSET_OFCLOSE);
 		} else {
-			SCTP_INP_WUNLOCK(inp);
+			flags = inp->sctp_flags;
+			if ((flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) {
+				goto try_again;
+			} else {
+				SCTP_INP_WUNLOCK(inp);
+			}
 		}
 		return error;
 	}
@@ -759,7 +765,7 @@ sctp_disconnect(struct socket *so)
 	SCTP_INP_RLOCK(inp);
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
-		if (SCTP_LIST_EMPTY(&inp->sctp_asoc_list)) {
+		if (LIST_EMPTY(&inp->sctp_asoc_list)) {
 			/* No connection */
 			SCTP_INP_RUNLOCK(inp);
 			return (0);
@@ -974,7 +980,9 @@ sctp_shutdown(struct socket *so)
 	/* For UDP model this is a invalid call */
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) {
 		/* Restore the flags that the soshutdown took away. */
+		SOCKBUF_LOCK(&so->so_rcv);
 		so->so_rcv.sb_state &= ~SBS_CANTRCVMORE;
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		/* This proc will wakeup for read and do nothing (I hope) */
 		SCTP_INP_RUNLOCK(inp);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EOPNOTSUPP);
@@ -2008,7 +2016,7 @@ flags_out:
 				events->sctp_sender_dry_event = 1;
 
 			if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_STREAM_RESETEVNT))
-				events->sctp_stream_reset_events = 1;
+				events->sctp_stream_reset_event = 1;
 			SCTP_INP_RUNLOCK(inp);
 			*optsize = sizeof(struct sctp_event_subscribe);
 		}
@@ -3650,7 +3658,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				sctp_feature_off(inp, SCTP_PCB_FLAGS_DRYEVNT);
 			}
 
-			if (events->sctp_stream_reset_events) {
+			if (events->sctp_stream_reset_event) {
 				sctp_feature_on(inp, SCTP_PCB_FLAGS_STREAM_RESETEVNT);
 			} else {
 				sctp_feature_off(inp, SCTP_PCB_FLAGS_STREAM_RESETEVNT);
@@ -4459,6 +4467,15 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
 		stcb->sctp_ep->sctp_flags |= SCTP_PCB_FLAGS_CONNECTED;
 		/* Set the connected flag so we can queue data */
+		SOCKBUF_LOCK(&so->so_rcv);
+		so->so_rcv.sb_state &= ~SBS_CANTRCVMORE;
+		SOCKBUF_UNLOCK(&so->so_rcv);
+		SOCKBUF_LOCK(&so->so_snd);
+		so->so_snd.sb_state &= ~SBS_CANTSENDMORE;
+		SOCKBUF_UNLOCK(&so->so_snd);
+		SOCK_LOCK(so);
+		so->so_state &= ~SS_ISDISCONNECTING;
+		SOCK_UNLOCK(so);
 		soisconnecting(so);
 	}
 	SCTP_SET_STATE(&stcb->asoc, SCTP_STATE_COOKIE_WAIT);

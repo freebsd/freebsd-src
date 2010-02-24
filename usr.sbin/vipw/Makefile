@@ -4,8 +4,6 @@
 PROG=	vipw
 MAN=	vipw.8
 
-WARNS?=	4
-
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 

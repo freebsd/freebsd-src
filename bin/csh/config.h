@@ -54,7 +54,7 @@
 #define HAVE_GETPWENT 1
 
 /* Define to 1 if you have the `getutent' function. */
-/* #undef HAVE_GETUTENT */
+#define HAVE_GETUTENT 1
 
 /* Define if you have the iconv() function. */
 /* #undef HAVE_ICONV */
@@ -130,10 +130,10 @@
 #define HAVE_STRUCT_UTMP_UT_HOST 1
 
 /* Define to 1 if `ut_tv' is member of `struct utmp'. */
-/* #undef HAVE_STRUCT_UTMP_UT_TV */
+#define HAVE_STRUCT_UTMP_UT_TV 1
 
 /* Define to 1 if `ut_user' is member of `struct utmp'. */
-/* #undef HAVE_STRUCT_UTMP_UT_USER */
+#define HAVE_STRUCT_UTMP_UT_USER 1
 
 /* Define to 1 if `ut_xtime' is member of `struct utmp'. */
 /* #undef HAVE_STRUCT_UTMP_UT_XTIME */
@@ -159,10 +159,10 @@
 #define HAVE_UNISTD_H 1
 
 /* Define to 1 if you have the <utmpx.h> header file. */
-/* #undef HAVE_UTMPX_H */
+#define HAVE_UTMPX_H 1
 
 /* Define to 1 if you have the <utmp.h> header file. */
-#define HAVE_UTMP_H 1
+/* #undef HAVE_UTMP_H */
 
 /* Define to 1 if you have the <wchar.h> header file. */
 #define HAVE_WCHAR_H 1

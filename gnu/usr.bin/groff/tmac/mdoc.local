@@ -43,9 +43,11 @@
 .ds doc-str-Lb-libdevstat  Device Statistics Library (libdevstat, \-ldevstat)
 .ds doc-str-Lb-libdisk     Interface to Slice and Partition Labels Library (libdisk, \-ldisk)
 .ds doc-str-Lb-libedit     Line Editor and History Library (libedit, \-ledit)
+.ds doc-str-Lb-libefi      EFI Runtime Services Library (libefi, \-lefi)
 .ds doc-str-Lb-libelf      ELF Parsing Library (libelf, \-lelf)
 .ds doc-str-Lb-libfetch    File Transfer Library (libfetch, \-lfetch)
 .ds doc-str-Lb-libgeom     Userland API Library for kernel GEOM subsystem (libgeom, \-lgeom)
+.ds doc-str-Lb-libgpib     General-Purpose Instrument Bus (GPIB) library (libgpib, \-lgpib)
 .ds doc-str-Lb-libipx      IPX Address Conversion Support Library (libipx, \-lipx)
 .ds doc-str-Lb-libjail     Jail Library (libjail, \-ljail)
 .ds doc-str-Lb-libkiconv   Kernel side iconv library (libkiconv, \-lkiconv)
@@ -60,6 +62,7 @@
 .ds doc-str-Lb-libthr      1:1 Threading Library (libthr, \-lthr)
 .ds doc-str-Lb-libufs      UFS File System Access Library (libufs, \-lufs)
 .ds doc-str-Lb-libugidfw   File System Firewall Interface Library (libugidfw, \-lugidfw)
+.ds doc-str-Lb-libulog     User Login Record Library (libulog, \-lulog)
 .ds doc-str-Lb-libvgl      Video Graphics Library (libvgl, \-lvgl)
 .
 .\" FreeBSD architectures not found in doc-common
@@ -69,9 +72,6 @@
 .ds doc-default-operating-system FreeBSD\~9.0
 .
 .\" FreeBSD releases not found in doc-common
-.ds doc-operating-system-FreeBSD-6.3    6.3
-.ds doc-operating-system-FreeBSD-6.4    6.4
-.ds doc-operating-system-FreeBSD-7.1    7.1
 .ds doc-operating-system-FreeBSD-7.2    7.2
 .ds doc-operating-system-FreeBSD-7.3    7.3
 .ds doc-operating-system-FreeBSD-8.0    8.0

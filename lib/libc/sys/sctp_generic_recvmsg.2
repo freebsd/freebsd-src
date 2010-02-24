@@ -36,7 +36,7 @@
 .Os
 .Sh NAME
 .Nm sctp_generic_recvmsg
-.Nd receive data from a peer.
+.Nd receive data from a peer
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -46,16 +46,20 @@
 .Ft int
 .Fn sctp_generic_recvmsg "int s" "struct iovec *iov" "int iovlen" "struct sockaddr *from" "socklen_t *fromlen" "struct sctp_sndrcvinfo *sinfo" "int *msgflags"
 .Sh DESCRIPTION
-The
 .Fn sctp_generic_recvmsg
-is the true system calls used by the
-.Fn sctp_recvmsg
-function call. This call is more efficient since it is a
-true system calls but it is specific to FreeBSD and
-can be expected NOT to be present on any other Operating
-System. For detailed useage please see either the
-.Fn sctp_recvmsg 
-function call. 
+is the true system call used by the
+.Xr sctp_recvmsg 3
+function call.
+This call is more efficient since it is a
+true system call but it is specific to
+.Fx
+and can be expected
+.Em not
+to be present on any other operating
+system.
+For detailed usage please see the
+.Xr sctp_recvmsg 3
+function call.
 .Sh RETURN VALUES
 The call returns the number of bytes read on success and -1 upon failure.
 .Sh ERRORS

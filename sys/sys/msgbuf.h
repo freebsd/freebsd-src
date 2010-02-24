@@ -54,6 +54,7 @@ struct msgbuf {
 #ifdef _KERNEL
 extern int	msgbuftrigger;
 extern struct	msgbuf *msgbufp;
+extern struct	mtx msgbuf_lock;
 
 void	msgbufinit(void *ptr, int size);
 void	msgbuf_addchar(struct msgbuf *mbp, int c);

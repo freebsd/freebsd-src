@@ -77,7 +77,8 @@ static int	ed_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ed_start(struct ifnet *);
 static void	ed_start_locked(struct ifnet *);
 static void	ed_reset(struct ifnet *);
-static void	ed_watchdog(struct ifnet *);
+static void	ed_tick(void *);
+static void	ed_watchdog(struct ed_softc *);
 
 static void	ed_ds_getmcaf(struct ed_softc *, uint32_t *);
 
@@ -281,7 +282,6 @@ ed_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_start = ed_start;
 	ifp->if_ioctl = ed_ioctl;
-	ifp->if_watchdog = ed_watchdog;
 	ifp->if_init = ed_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
@@ -381,8 +381,8 @@ ed_detach(device_t dev)
 			ed_stop(sc);
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		ED_UNLOCK(sc);
-		callout_drain(&sc->tick_ch);
 		ether_ifdetach(ifp);
+		callout_drain(&sc->tick_ch);
 	}
 	if (sc->irq_res != NULL && sc->irq_handle)
 		bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
@@ -447,9 +447,26 @@ void
 ed_stop(struct ed_softc *sc)
 {
 	ED_ASSERT_LOCKED(sc);
-	if (sc->sc_tick)
-		callout_stop(&sc->tick_ch);
+	callout_stop(&sc->tick_ch);
 	ed_stop_hw(sc);
+}
+
+/*
+ * Periodic timer used to drive the watchdog and attachment-specific
+ * tick handler.
+ */
+static void
+ed_tick(void *arg)
+{
+	struct ed_softc *sc;
+
+	sc = arg;
+	ED_ASSERT_LOCKED(sc);
+	if (sc->sc_tick)
+		sc->sc_tick(sc);
+	if (sc->tx_timer != 0 && --sc->tx_timer == 0)
+		ed_watchdog(sc);
+	callout_reset(&sc->tick_ch, hz, ed_tick, sc);
 }
 
 /*
@@ -457,16 +474,15 @@ ed_stop(struct ed_softc *sc)
  *	generate an interrupt after a transmit has been started on it.
  */
 static void
-ed_watchdog(struct ifnet *ifp)
+ed_watchdog(struct ed_softc *sc)
 {
-	struct ed_softc *sc = ifp->if_softc;
+	struct ifnet *ifp;
 
+	ifp = sc->ifp;
 	log(LOG_ERR, "%s: device timeout\n", ifp->if_xname);
 	ifp->if_oerrors++;
 
-	ED_LOCK(sc);
 	ed_reset(ifp);
-	ED_UNLOCK(sc);
 }
 
 /*
@@ -499,7 +515,7 @@ ed_init_locked(struct ed_softc *sc)
 
 	/* reset transmitter flags */
 	sc->xmit_busy = 0;
-	ifp->if_timer = 0;
+	sc->tx_timer = 0;
 
 	sc->txb_inuse = 0;
 	sc->txb_new = 0;
@@ -612,8 +628,7 @@ ed_init_locked(struct ed_softc *sc)
 	 */
 	ed_start_locked(ifp);
 
-	if (sc->sc_tick)
-		callout_reset(&sc->tick_ch, hz, sc->sc_tick, sc);
+	callout_reset(&sc->tick_ch, hz, ed_tick, sc);
 }
 
 /*
@@ -622,7 +637,6 @@ ed_init_locked(struct ed_softc *sc)
 static __inline void
 ed_xmit(struct ed_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
 	unsigned short len;
 
 	len = sc->txb_len[sc->txb_next_tx];
@@ -660,7 +674,7 @@ ed_xmit(struct ed_softc *sc)
 	/*
 	 * Set a timer just in case we never hear from the board again
 	 */
-	ifp->if_timer = 2;
+	sc->tx_timer = 2;
 }
 
 /*
@@ -1023,7 +1037,7 @@ edintr(void *arg)
 			/*
 			 * clear watchdog timer
 			 */
-			ifp->if_timer = 0;
+			sc->tx_timer = 0;
 
 			/*
 			 * Add in total number of collisions on last

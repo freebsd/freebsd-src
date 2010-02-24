@@ -406,7 +406,10 @@ checkfilesys(char *filesys)
 	 */
 	if (duplist) {
 		if (preen || usedsoftdep)
-			pfatal("INTERNAL ERROR: dups with -p");
+			pfatal("INTERNAL ERROR: dups with %s%s%s",
+			    preen ? "-p" : "",
+			    (preen && usedsoftdep) ? " and " : "",
+			    usedsoftdep ? "softupdates" : "");
 		printf("** Phase 1b - Rescan For More DUPS\n");
 		pass1b();
 	}

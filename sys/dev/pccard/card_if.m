@@ -35,7 +35,7 @@ INTERFACE card;
 #
 # Companion interface for pccard.  We need to set attributes for memory
 # and i/o port mappings (as well as other types of attributes) that have
-# a well defined meaning inside the pccard/cardbus system.  The bus
+# a well defined meaning inside the PC Card/CardBus system.  The bus
 # methods are inadequate for this because this must be done at the time the
 # resources are set for the device, which predates their activation.  Also,
 # the driver activating the resources doesn't necessarily know or need to know

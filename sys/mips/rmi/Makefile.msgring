@@ -1,0 +1,14 @@
+RM = rm
+MSGRNG_CFG = msgring.cfg
+
+MSGRNG_CFG_C = $(patsubst %.cfg,%.c,$(MSGRNG_CFG))
+
+#all: msgring.l msgring.y msgring.cfg
+all: $(MSGRNG_CFG)
+	flex -omsgring.lex.c msgring.l
+	bison -d -omsgring.yacc.c  msgring.y
+	gcc -g3 msgring.lex.c msgring.yacc.c -o msgring
+	./msgring -i $(MSGRNG_CFG) -o $(MSGRNG_CFG_C)
+
+clean:
+	$(RM) -f msgring.lex.c msgring.yacc.c msgring.yacc.h msgring msgring.o*

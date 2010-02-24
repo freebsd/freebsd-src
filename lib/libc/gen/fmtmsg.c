@@ -128,7 +128,7 @@ printfmt(char *msgverb, long class, const char *label, int sev,
 		size += strlen(sevname);
 	if (text != MM_NULLTXT)
 		size += strlen(text);
-	if (text != MM_NULLACT)
+	if (act != MM_NULLACT)
 		size += strlen(act);
 	if (tag != MM_NULLTAG)
 		size += strlen(tag);

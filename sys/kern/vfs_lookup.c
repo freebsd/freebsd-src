@@ -162,11 +162,16 @@ namei(struct nameidata *ndp)
 		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf,
 			    MAXPATHLEN, (size_t *)&ndp->ni_pathlen);
 
-	/* If we are auditing the kernel pathname, save the user pathname. */
-	if (cnp->cn_flags & AUDITVNODE1)
-		AUDIT_ARG_UPATH1(td, cnp->cn_pnbuf);
-	if (cnp->cn_flags & AUDITVNODE2)
-		AUDIT_ARG_UPATH2(td, cnp->cn_pnbuf);
+	if (error == 0) {
+		/*
+		 * If we are auditing the kernel pathname, save the user
+		 * pathname.
+		 */
+		if (cnp->cn_flags & AUDITVNODE1)
+			AUDIT_ARG_UPATH1(td, cnp->cn_pnbuf);
+		if (cnp->cn_flags & AUDITVNODE2)
+			AUDIT_ARG_UPATH2(td, cnp->cn_pnbuf);
+	}
 
 	/*
 	 * Don't allow empty pathnames.
@@ -552,6 +557,12 @@ dirloop:
 	else
 		cnp->cn_flags &= ~ISLASTCN;
 
+	if ((cnp->cn_flags & ISLASTCN) != 0 &&
+	    cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.' &&
+	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
+		error = EINVAL;
+		goto bad;
+	}
 
 	/*
 	 * Check for degenerate name (e.g. / or "")

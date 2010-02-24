@@ -26,8 +26,6 @@ options 	KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
 options 	STARTUP_PAGETABLE_ADDR=0xa0000000
 #options 	ARM32_NEW_VM_LAYOUT
 include	"../xscale/i80321/std.ep80219"
-#To statically compile in device wiring instead of /boot/device.hints
-#hints		"GENERIC.hints"		#Default places to look for devices.
 makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
@@ -91,6 +89,7 @@ device		dma			# I80321 DMA Controller
 # Debugging for use in -current
 options 	KDB
 options 	DDB			#Enable the kernel debugger
+#options 	DEADLKRES		#Enable the deadlock resolver
 #options 	INVARIANTS		#Enable calls of extra sanity checking
 #options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles

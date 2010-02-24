@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -93,9 +89,11 @@ typedef	void *	DIR;
 #ifndef _KERNEL
 
 __BEGIN_DECLS
+#if __POSIX_VISIBLE >= 200809 || __XSI_VISIBLE >= 700
+int	 alphasort(const struct dirent **, const struct dirent **);
+#endif
 #if __BSD_VISIBLE
 DIR	*__opendir2(const char *, int);
-int	 alphasort(const void *, const void *);
 int	 getdents(int, char *, int);
 int	 getdirentries(int, char *, int, long *);
 #endif
@@ -107,9 +105,10 @@ struct dirent *
 int	 readdir_r(DIR *, struct dirent *, struct dirent **);
 #endif
 void	 rewinddir(DIR *);
-#if __BSD_VISIBLE
+#if __POSIX_VISIBLE >= 200809 || __XSI_VISIBLE >= 700
 int	 scandir(const char *, struct dirent ***,
-	    int (*)(struct dirent *), int (*)(const void *, const void *));
+	    int (*)(const struct dirent *), int (*)(const struct dirent **,
+	    const struct dirent **));
 #endif
 #if __XSI_VISIBLE
 void	 seekdir(DIR *, long);

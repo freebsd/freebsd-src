@@ -384,11 +384,7 @@ new_part(PartType type, char *mpoint, Boolean newfs)
 	pi->newfs_data.newfs_ufs.acls = FALSE;
 	pi->newfs_data.newfs_ufs.multilabel = FALSE;
 	pi->newfs_data.newfs_ufs.softupdates = strcmp(mpoint, "/");
-#ifdef PC98
-	pi->newfs_data.newfs_ufs.ufs1 = TRUE;
-#else
 	pi->newfs_data.newfs_ufs.ufs1 = FALSE;
-#endif
     }
 
     return pi;

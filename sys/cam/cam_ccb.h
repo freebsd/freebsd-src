@@ -126,7 +126,7 @@ typedef enum {
 	XPT_PATH_INQ		= 0x04,
 				/* Path routing inquiry */
 	XPT_REL_SIMQ		= 0x05,
-				/* Release a frozen SIM queue */
+				/* Release a frozen device queue */
 	XPT_SASYNC_CB		= 0x06,
 				/* Set Asynchronous Callback Parameters */
 	XPT_SDEV_TYPE		= 0x07,
@@ -142,6 +142,8 @@ typedef enum {
 				/* Path statistics (error counts, etc.) */
 	XPT_GDEV_STATS		= 0x0c,
 				/* Device statistics (error counts, etc.) */
+	XPT_FREEZE_QUEUE	= 0x0d,
+				/* Freeze device queue */
 /* SCSI Control Functions: 0x10->0x1F */
 	XPT_ABORT		= 0x10,
 				/* Abort the specified CCB */
@@ -307,7 +309,7 @@ struct ccb_getdev {
 	struct scsi_inquiry_data inq_data;
 	struct ata_params ident_data;
 	u_int8_t  serial_num[252];
-	u_int8_t  reserved;
+	u_int8_t  inq_flags;
 	u_int8_t  serial_num_len;
 };
 
@@ -685,8 +687,9 @@ struct ccb_relsim {
 #define RELSIM_RELEASE_AFTER_TIMEOUT	0x02
 #define RELSIM_RELEASE_AFTER_CMDCMPLT	0x04
 #define RELSIM_RELEASE_AFTER_QEMPTY	0x08
+#define RELSIM_RELEASE_RUNLEVEL		0x10
 	u_int32_t      openings;
-	u_int32_t      release_timeout;
+	u_int32_t      release_timeout;	/* Abstract argument. */
 	u_int32_t      qfrozen_cnt;
 };
 
@@ -816,12 +819,30 @@ struct ccb_trans_settings_sas {
 	u_int32_t 	bitrate;	/* Mbps */
 };
 
+struct ccb_trans_settings_ata {
+	u_int     	valid;		/* Which fields to honor */
+#define	CTS_ATA_VALID_MODE		0x01
+#define	CTS_ATA_VALID_BYTECOUNT		0x02
+#define	CTS_ATA_VALID_ATAPI		0x20
+	int		mode;		/* Mode */
+	u_int 		bytecount;	/* Length of PIO transaction */
+	u_int 		atapi;		/* Length of ATAPI CDB */
+};
+
 struct ccb_trans_settings_sata {
 	u_int     	valid;		/* Which fields to honor */
-#define	CTS_SATA_VALID_SPEED		0x01
-#define	CTS_SATA_VALID_PM		0x02
-	u_int32_t 	bitrate;	/* Mbps */
+#define	CTS_SATA_VALID_MODE		0x01
+#define	CTS_SATA_VALID_BYTECOUNT	0x02
+#define	CTS_SATA_VALID_REVISION		0x04
+#define	CTS_SATA_VALID_PM		0x08
+#define	CTS_SATA_VALID_TAGS		0x10
+#define	CTS_SATA_VALID_ATAPI		0x20
+	int		mode;		/* Legacy PATA mode */
+	u_int 		bytecount;	/* Length of PIO transaction */
+	int		revision;	/* SATA revision */
 	u_int 		pm_present;	/* PM is present (XPT->SIM) */
+	u_int 		tags;		/* Number of allowed tags */
+	u_int 		atapi;		/* Length of ATAPI CDB */
 };
 
 /* Get/Set transfer rate/width/disconnection/tag queueing settings */
@@ -841,6 +862,7 @@ struct ccb_trans_settings {
 		struct ccb_trans_settings_spi spi;
 		struct ccb_trans_settings_fc fc;
 		struct ccb_trans_settings_sas sas;
+		struct ccb_trans_settings_ata ata;
 		struct ccb_trans_settings_sata sata;
 	} xport_specific;
 };

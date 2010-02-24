@@ -2,12 +2,10 @@
 
 .include <bsd.own.mk>
 
-SUBDIR= bc \
-	${_binutils} \
+SUBDIR= ${_binutils} \
 	${_cc} \
 	${_cpio} \
 	${_cvs} \
-	dc \
 	dialog \
 	diff \
 	diff3 \
@@ -22,10 +20,6 @@ SUBDIR= bc \
 	send-pr \
 	sort \
 	${_texinfo}
-
-.if ${MACHINE_ARCH} == "mips"
-MK_GDB=no	# not yet
-.endif
 
 .if ${MK_CXX} != "no"
 _gperf=		gperf

@@ -51,6 +51,7 @@ amdmi3 [label="Dmitry Marakasov\namdmi3@FreeBSD.org\n2008/06/19"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11"]
 araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2007/04/26"]
 arved [label="Tilman Linneweh\narved@FreeBSD.org\n2002/10/15"]
+avilla [label="Alberto Villa\navilla@FreeBSD.org\n2010/01/24"]
 avl [label="Alexander Logvinov\navl@FreeBSD.org\n2009/05/27"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03"]
 beat [label="Beat Gaetzi\nbeat@FreeBSD.org\n2009/01/28"]
@@ -109,7 +110,8 @@ lth [label="Lars Thegler\nlth@FreeBSD.org\n2004/05/04"]
 lwhsu [label="Li-Wen Hsu\nlwhsu@FreeBSD.org\n2007/04/03"]
 lx [label="David Thiel\nlx@FreeBSD.org\n2006/11/29"]
 maho [label="Maho Nakata\nmaho@FreeBSD.org\n2002/10/17"]
-makc [label="Max Brazhnikov\makc@FreeBSD.org\n2008/08/25"]
+makc [label="Max Brazhnikov\nmakc@FreeBSD.org\n2008/08/25"]
+mandree [label="Matthias Andree\nmandree@FreeBSD.org\n2009/11/18"]
 marcus [label="Joe Marcus Clarke\nmarcus@FreeBSD.org\n2002/04/05"]
 markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2004/02/21"]
 mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
@@ -133,6 +135,7 @@ philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
 pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
+romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
 sat [label="Andrew Pantyukhin\nsat@FreeBSD.org\n2006/05/06"]
 sem [label="Sergey Matveychuk\nsem@FreeBSD.org\n2004/07/07"]
 sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
@@ -219,12 +222,14 @@ fjoe -> osa
 flz -> garga
 flz -> johans
 flz -> laszlof
+flz -> romain
 
 gabor -> lippe
 gabor -> pgj
 
 garga -> acm
 garga -> alepulver
+garga -> mandree
 garga -> mm
 garga -> rnoland
 garga -> vd
@@ -276,10 +281,12 @@ mat -> thierry
 mezz -> tmclaugh
 
 miwi -> amdmi3
+miwi -> avilla
 miwi -> beat
 miwi -> farrokhi
 miwi -> gahr
 miwi -> makc
+miwi -> mandree
 miwi -> mva
 miwi -> nox
 miwi -> tabthorpe
@@ -328,6 +335,7 @@ stas -> araujo
 
 steve -> netchild
 
+tabthorpe -> avilla
 tabthorpe -> avl
 tabthorpe -> jadawin
 tabthorpe -> pgj

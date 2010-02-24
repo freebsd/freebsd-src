@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -524,13 +524,12 @@ AcpiDsMethodDataGetValue (
 
         if (AcpiGbl_EnableInterpreterSlack)
         {
-            Object = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+            Object = AcpiUtCreateIntegerObject ((UINT64) 0);
             if (!Object)
             {
                 return_ACPI_STATUS (AE_NO_MEMORY);
             }
 
-            Object->Integer.Value = 0;
             Node->Object = Object;
         }
 

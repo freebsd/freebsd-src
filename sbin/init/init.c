@@ -66,6 +66,7 @@ static const char rcsid[] =
 #include <time.h>
 #include <ttyent.h>
 #include <unistd.h>
+#include <utmpx.h>
 #include <sys/reboot.h>
 #include <err.h>
 
@@ -567,12 +568,13 @@ transition(state_t s)
  * NB: should send a message to the session logger to avoid blocking.
  */
 static void
-clear_session_logs(session_t *sp)
+clear_session_logs(session_t *sp __unused)
 {
-	char *line = sp->se_device + sizeof(_PATH_DEV) - 1;
 
-	if (logout(line))
-		logwtmp(line, "", "");
+	/*
+	 * XXX: Use getutxline() and call pututxline() for each entry.
+	 * Is this safe to do this here?  Is it really required anyway?
+	 */
 }
 
 /*
@@ -775,6 +777,7 @@ single_user(void)
 static state_func_t
 runcom(void)
 {
+	struct utmpx utx;
 	state_func_t next_transition;
 
 	if ((next_transition = run_script(_PATH_RUNCOM)) != 0)
@@ -782,7 +785,9 @@ runcom(void)
 
 	runcom_mode = AUTOBOOT;		/* the default */
 	/* NB: should send a message to the session logger to avoid blocking. */
-	logwtmp("~", "reboot", "");
+	utx.ut_type = BOOT_TIME;
+	gettimeofday(&utx.ut_tv, NULL);
+	pututxline(&utx);
 	return (state_func_t) read_ttys;
 }
 
@@ -1487,13 +1492,16 @@ alrm_handler(int sig)
 static state_func_t
 death(void)
 {
+	struct utmpx utx;
 	session_t *sp;
 	int i;
 	pid_t pid;
 	static const int death_sigs[2] = { SIGTERM, SIGKILL };
 
 	/* NB: should send a message to the session logger to avoid blocking. */
-	logwtmp("~", "shutdown", "");
+	utx.ut_type = SHUTDOWN_TIME;
+	gettimeofday(&utx.ut_tv, NULL);
+	pututxline(&utx);
 
 	/*
 	 * Also revoke the TTY here.  Because runshutdown() may reopen

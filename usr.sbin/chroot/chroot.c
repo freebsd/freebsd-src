@@ -61,9 +61,7 @@ char	*group;		/* group to switch to ... */
 char	*grouplist;	/* group list to switch to ... */
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct group	*gp;
 	struct passwd	*pw;
@@ -179,7 +177,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: chroot [-g group] [-G group,group,...] "
 	    "[-u user] newroot [command]\n");

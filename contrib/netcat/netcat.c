@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.92 2008/09/19 13:24:41 sobrado Exp $ */
+/* $OpenBSD: netcat.c,v 1.93 2009/06/05 00:18:10 claudio Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -36,6 +36,7 @@
 #include <sys/limits.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/un.h>
 
@@ -94,6 +95,7 @@ int	Iflag;					/* TCP receive buffer size */
 int	Oflag;					/* TCP send buffer size */
 int	Sflag;					/* TCP MD5 signature option */
 int	Tflag = -1;				/* IP Type of Service */
+u_int	rdomain;
 
 int timeout = -1;
 int family = AF_UNSPEC;
@@ -124,6 +126,8 @@ int
 main(int argc, char *argv[])
 {
 	int ch, s, ret, socksv, ipsec_count;
+	int numfibs;
+	size_t intsize = sizeof(int);
 	char *host, *uport;
 	struct addrinfo hints;
 	struct servent *sv;
@@ -137,6 +141,7 @@ main(int argc, char *argv[])
 		{ NULL,		0,		NULL,		0 }
 	};
 
+	rdomain = 0;
 	ret = 1;
 	ipsec_count = 0;
 	s = 0;
@@ -146,7 +151,7 @@ main(int argc, char *argv[])
 	sv = NULL;
 
 	while ((ch = getopt_long(argc, argv,
-	    "46e:DEdhi:jklnoI:O:P:p:rSs:tT:Uuvw:X:x:z",
+	    "46DdEe:hI:i:jklnO:oP:p:rSs:tT:UuV:vw:X:x:z",
 	    longopts, NULL)) != -1) {
 		switch (ch) {
 		case '4':
@@ -228,6 +233,14 @@ main(int argc, char *argv[])
 			break;
 		case 'u':
 			uflag = 1;
+			break;
+		case 'V':
+			if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
+				errx(1, "Multiple FIBS not supported");
+			rdomain = (unsigned int)strtonum(optarg, 0,
+			    numfibs - 1, &errstr);
+			if (errstr)
+				errx(1, "FIB %s: %s", errstr, optarg);
 			break;
 		case 'v':
 			vflag = 1;
@@ -550,6 +563,11 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 			add_ipsec_policy(s, ipsec_policy[1]);
 #endif
 
+		if (rdomain) {
+			if (setfib(rdomain) == -1)
+				err(1, "setfib");
+		}
+
 		/* Bind to a local port or source address if specified. */
 		if (sflag || pflag) {
 			struct addrinfo ahints, *ares;
@@ -619,6 +637,11 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		if ((s = socket(res0->ai_family, res0->ai_socktype,
 		    res0->ai_protocol)) < 0)
 			continue;
+
+		if (rdomain) {
+			if (setfib(rdomain) == -1)
+				err(1, "setfib");
+		}
 
 		ret = setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &x, sizeof(x));
 		if (ret == -1)
@@ -930,6 +953,7 @@ help(void)
 	\t-t		Answer TELNET negotiation\n\
 	\t-U		Use UNIX domain socket\n\
 	\t-u		UDP mode\n\
+	\t-V fib	Specify alternate routing table (FIB)\n\
 	\t-v		Verbose\n\
 	\t-w secs\t	Timeout for connects and final net reads\n\
 	\t-X proto	Proxy protocol: \"4\", \"5\" (SOCKS) or \"connect\"\n\
@@ -974,8 +998,8 @@ usage(int ret)
 	    "usage: nc [-46DdhklnorStUuvz] [-I length] [-i interval] [-O length]\n"
 #endif
 	    "\t  [-P proxy_username] [-p source_port] [-s source_ip_address] [-T ToS]\n"
-	    "\t  [-w timeout] [-X proxy_protocol] [-x proxy_address[:port]] [hostname]\n"
-	    "\t  [port]\n");
+	    "\t  [-V fib] [-w timeout] [-X proxy_protocol]\n"
+	    "\t  [-x proxy_address[:port]] [hostname] [port]\n");
 	if (ret)
 		exit(1);
 }

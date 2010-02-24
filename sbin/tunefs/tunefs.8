@@ -44,6 +44,7 @@
 .Op Fl L Ar volname
 .Op Fl l Cm enable | disable
 .Op Fl m Ar minfree
+.Op Fl N Cm enable | disable
 .Op Fl n Cm enable | disable
 .Op Fl o Cm space | time
 .Op Fl p
@@ -70,7 +71,7 @@ this option will cause all backups to be modified as well as the
 primary super-block.
 This is potentially dangerous - use with caution.
 .It Fl a Cm enable | disable
-Turn on/off the administrative ACL enable flag.
+Turn on/off the administrative POSIX.1e ACL enable flag.
 .It Fl e Ar maxbpg
 Indicate the maximum number of blocks any single file can
 allocate out of a cylinder group before it is forced to begin
@@ -114,6 +115,8 @@ factor of three over the performance obtained at a 10% threshold.
 If the value is raised above the current usage level,
 users will be unable to allocate files until enough files have
 been deleted to get under the higher threshold.
+.It Fl N Cm enable | disable
+Turn on/off the administrative NFSv4 ACL enable flag.
 .It Fl n Cm enable | disable
 Turn on/off soft updates.
 .It Fl o Cm space | time

@@ -3,8 +3,6 @@
 PROG=	moused
 MAN=	moused.8
 
-WARNS?=6
-
 DPADD=	${LIBUTIL}  ${LIBM}
 LDADD=	-lutil -lm
 

@@ -31,7 +31,6 @@ CC = gcc -fprofile-arcs -ftest-coverage # then gcov f1.c; cat f1.c.gcov
 CC = gcc -Wall -g
 CC = cc
 CC = gcc -O4
-CC = gcc -Wall -g
 
 
 YACC = bison -y

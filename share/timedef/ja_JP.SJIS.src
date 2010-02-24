@@ -5,18 +5,18 @@
 #
 # Short month names
 #
- 1
- 2
- 3
- 4
- 5
- 6
- 7
- 8
- 9
-10
-11
-12
+ 1ŒŽ
+ 2ŒŽ
+ 3ŒŽ
+ 4ŒŽ
+ 5ŒŽ
+ 6ŒŽ
+ 7ŒŽ
+ 8ŒŽ
+ 9ŒŽ
+10ŒŽ
+11ŒŽ
+12ŒŽ
 #
 # Long month names (as in a date)
 #
@@ -65,7 +65,7 @@
 #
 # just following tradition...
 # %a %b %e %H:%M:%S %Y
-%a %b/%e %T %Y
+%a %_m/%e %T %Y
 #
 # am
 #

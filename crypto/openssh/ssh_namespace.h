@@ -223,6 +223,8 @@
 #define get_u32					ssh_get_u32
 #define get_u64					ssh_get_u64
 #define getrrsetbyname				ssh_getrrsetbyname
+#define glob					ssh_glob
+#define globfree				ssh_globfree
 #define host_hash				ssh_host_hash
 #define hostfile_read_key			ssh_hostfile_read_key
 #define hpdelim					ssh_hpdelim

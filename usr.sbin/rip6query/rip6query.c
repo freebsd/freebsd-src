@@ -68,9 +68,7 @@ static const char *sa_n2a(struct sockaddr *);
 static const char *inet6_n2a(struct in6_addr *);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	struct netinfo6 *np;
 	struct sockaddr_in6 fsock;
@@ -175,15 +173,14 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: rip6query [-I iface] address\n");
 }
 
 /* getnameinfo() is preferred as we may be able to show ifindex as ifname */
 static const char *
-sa_n2a(sa)
-	struct sockaddr *sa;
+sa_n2a(struct sockaddr *sa)
 {
 	static char buf[NI_MAXHOST];
 
@@ -195,8 +192,7 @@ sa_n2a(sa)
 }
 
 static const char *
-inet6_n2a(addr)
-	struct in6_addr *addr;
+inet6_n2a(struct in6_addr *addr)
 {
 	static char buf[NI_MAXHOST];
 

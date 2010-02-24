@@ -421,7 +421,8 @@ tdfx_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 }
 
 static int
-tdfx_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+tdfx_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
 	/* 
 	 * mmap(2) is called by a user process to request that an area of memory

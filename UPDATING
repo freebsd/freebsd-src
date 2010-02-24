@@ -22,6 +22,75 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20100113:
+	The utmp user accounting database has been replaced with utmpx,
+	the user accounting interface standardized by POSIX.
+	Unfortunately the semantics of utmp and utmpx don't match,
+	making it practically impossible to support both interfaces.
+	The user accounting database is used by tools like finger(1),
+	last(1), talk(1), w(1) and ac(8).
+
+	All applications in the base system use utmpx.  This means only
+	local binaries (e.g. from the ports tree) may still use these
+	utmp database files.  These applications must be rebuilt to make
+	use of utmpx.
+
+	After the system has been upgraded, it is safe to remove the old
+	log files (/var/run/utmp, /var/log/lastlog and /var/log/wtmp*),
+	assuming their contents is of no importance anymore.  Old wtmp
+	databases can only be used by last(1) and ac(8) after they have
+	been converted to the new format using wtmpcvt(1).
+
+20100108:
+	Introduce the kernel thread "deadlock resolver" (which can be enabled
+	via the DEADLKRES option, see NOTES for more details) and the
+	sleepq_type() function for sleepqueues.
+
+20091202:
+	The rc.firewall and rc.firewall6 were unified, and
+	rc.firewall6 and rc.d/ip6fw were removed.
+	According to the removal of rc.d/ip6fw, ipv6_firewall_* rc
+	variables are obsoleted.  Instead, the following new rc
+	variables are added to rc.d/ipfw:
+
+		firewall_client_net_ipv6, firewall_simple_iif_ipv6,
+		firewall_simple_inet_ipv6, firewall_simple_oif_ipv6,
+		firewall_simple_onet_ipv6, firewall_trusted_ipv6
+
+	The meanings correspond to the relevant IPv4 variables.
+
+20091113:
+	The default terminal emulation for syscons(4) has been changed
+	from cons25 to xterm on all platforms except pc98.  This means
+	that the /etc/ttys file needs to be updated to ensure correct
+	operation of applications on the console.
+
+	The terminal emulation style can be toggled per window by using
+	vidcontrol(1)'s -T flag.  The TEKEN_CONS25 kernel configuration
+	options can be used to change the compile-time default back to
+	cons25.
+
+	To prevent graphical artifacts, make sure the TERM environment
+	variable is set to match the terminal emulation that is being
+	performed by syscons(4).
+
+20091109:
+	The layout of the structure ieee80211req_scan_result has changed.
+	Applications that require wireless scan results (e.g. ifconfig(8))
+	from net80211 need to be recompiled.
+
+	Applications such as wpa_supplicant(8) may require a full world
+	build without using NO_CLEAN in order to get synchronized with the
+	new structure.
+
+20091025:
+	The iwn(4) driver has been updated to support the 5000 and 5150 series.
+	There's one kernel module for each firmware. Adding "device iwnfw"
+	to the kernel configuration file means including all three firmware
+	images inside the kernel. If you want to include just the one for
+	your wireless card, use the the devices iwn4965fw, iwn5000fw or
+	iwn5150fw.
+
 20090926:
 	The rc.d/network_ipv6, IPv6 configuration script has been integrated
 	into rc.d/netif.  The changes are the following:
@@ -116,7 +185,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 20090712: 
 	Padding has been added to struct tcpcb, sackhint and tcpstat in
 	<netinet/tcp_var.h> to facilitate future MFCs and bug fixes whilst
-	maintainig the ABI. However, this change breaks the ABI, so bump
+	maintaining the ABI. However, this change breaks the ABI, so bump
 	__FreeBSD_version to 800102. User space tools that rely on the size of
 	any of these structs (e.g. sockstat) need to be recompiled.
 
@@ -529,6 +598,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 		# Map old usb library to new one for usb2 stack
 		libusb-0.1.so.8	libusb20.so.1
 
+20090209:
+	All USB ethernet devices now attach as interfaces under the name ueN
+	(eg. ue0). This is to provide a predictable name as vendors often
+	change usb chipsets in a product without notice.
+
 20090203:
 	The ichsmb(4) driver has been changed to require SMBus slave
 	addresses be left-justified (xxxxxxx0b) rather than right-justified.
@@ -623,6 +697,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	The ABI used by the PMC toolset has changed.  Please keep
 	userland (libpmc(3)) and the kernel module (hwpmc(4)) in
 	sync.
+
+20081009:
+	atapci kernel module now includes only generic PCI ATA
+	driver. AHCI driver moved to ataahci kernel module.
+	All vendor-specific code moved into separate kernel modules:
+	ataacard, ataacerlabs, ataadaptec, ataamd, ataati, atacenatek,
+	atacypress, atacyrix, atahighpoint, ataintel, ataite, atajmicron,
+	atamarvell, atamicron, atanational, atanetcell, atanvidia,
+	atapromise, ataserverworks, atasiliconimage, atasis, atavia
 
 20080820:
 	The TTY subsystem of the kernel has been replaced by a new
@@ -836,7 +919,7 @@ COMMON ITEMS:
 	-------------
 	Avoid using make -j when upgrading.  While generally safe, there are
 	sometimes problems using -j to upgrade.  If your upgrade fails with
-	-j, please try again wtihout -j.  From time to time in the past there
+	-j, please try again without -j.  From time to time in the past there
 	have been problems using -j with buildworld and/or installworld.  This
 	is especially true when upgrading between "distant" versions (eg one
 	that cross a major release boundary or several minor releases, or when

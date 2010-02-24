@@ -24,6 +24,7 @@ CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections \
 # without the CC make depend breaks
 CC:=${CC:C/^cc|^clang/gcc/}
 CXX:=${CXX:C/^c\+\+|^clang\+\+/g++/}
+PO_CXXFLAGS=	${CXXFLAGS:N-ffunction-sections}
 
 DPADD=		${LIBM}
 LDADD=		-lm
