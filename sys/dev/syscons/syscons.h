@@ -623,6 +623,7 @@ int		sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode,
 int		sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode);
 int		sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize,
 				  int ysize, int fontsize, int font_width);
+int		sc_support_pixel_mode(void *arg);
 int		sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data,
 			     struct thread *td);
 
