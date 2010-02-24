@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 static int	printaname(const FTSENT *, u_long, u_long);
+static void	printdev(size_t, dev_t);
 static void	printlink(const FTSENT *);
 static void	printtime(time_t);
 static int	printtype(u_int);
@@ -165,16 +166,7 @@ printlong(const DISPLAY *dp)
 		if (f_label)
 			(void)printf("%-*s ", dp->s_label, np->label);
 		if (S_ISCHR(sp->st_mode) || S_ISBLK(sp->st_mode))
-			if (minor(sp->st_rdev) > 255 || minor(sp->st_rdev) < 0)
-				(void)printf("%3d, 0x%08x ",
-				    major(sp->st_rdev),
-				    (u_int)minor(sp->st_rdev));
-			else
-				(void)printf("%3d, %3d ",
-				    major(sp->st_rdev), minor(sp->st_rdev));
-		else if (dp->bcfile)
-			(void)printf("%*s%*jd ",
-			    8 - dp->s_size, "", dp->s_size, sp->st_size);
+			printdev(dp->s_size, sp->st_rdev);
 		else
 			printsize(dp->s_size, sp->st_size);
 		if (f_accesstime)
@@ -351,6 +343,24 @@ printaname(const FTSENT *p, u_long inodefield, u_long sizefield)
 	if (f_type)
 		chcnt += printtype(sp->st_mode);
 	return (chcnt);
+}
+
+/*
+ * Print device special file major and minor numbers.
+ */
+static void
+printdev(size_t width, dev_t dev)
+{
+	char buf[DEVSTR_HEX_LEN + 1];
+
+	if (minor(dev) > 255 || minor(dev) < 0)
+		(void)snprintf(buf, sizeof(buf), "%3d, 0x%08x",
+		    major(dev), (u_int)minor(dev));
+	else
+		(void)snprintf(buf, sizeof(buf), "%3d, %3d",
+		    major(dev), minor(dev));
+
+	(void)printf("%*s ", (u_int)width, buf);
 }
 
 static void
@@ -592,11 +602,15 @@ printsize(size_t width, off_t bytes)
 {
 
 	if (f_humanval) {
-		char buf[5];
+		/*
+		 * Reserve one space before the size and allocate room for
+		 * the trailing '\0'.
+		 */
+		char buf[HUMANVALSTR_LEN - 1 + 1];
 
 		humanize_number(buf, sizeof(buf), (int64_t)bytes, "",
 		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
-		(void)printf("%5s ", buf);
+		(void)printf("%*s ", (u_int)width, buf);
 	} else
 		(void)printf("%*jd ", (u_int)width, bytes);
 }
