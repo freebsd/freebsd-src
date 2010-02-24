@@ -3389,7 +3389,7 @@ DB_SHOW_COMMAND(ifnet, db_show_ifnet)
 	if_show_ifnet((struct ifnet *)addr);
 }
 
-DB_SHOW_COMMAND(ifnets, db_show_ifnets)
+DB_SHOW_ALL_COMMAND(ifnets, db_show_all_ifnets)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 	struct ifnet *ifp;
