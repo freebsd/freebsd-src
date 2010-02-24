@@ -369,34 +369,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     if ((info.vi_width < xsize*8) || (info.vi_height < ysize*fontsize))
 	return EINVAL;
 
-    /*
-     * We currently support the following graphic modes:
-     *
-     * - 4 bpp planar modes whose memory size does not exceed 64K
-     * - 15, 16, 24 and 32 bpp linear modes
-     */
-
-    if (info.vi_mem_model == V_INFO_MM_PLANAR) {
-	if (info.vi_planes != 4)
-	    return ENODEV;
-
-	/*
-	 * A memory size >64K requires bank switching to access the entire
-	 * screen. XXX
-	 */
-
-	if (info.vi_width * info.vi_height / 8 > info.vi_window_size)
-	    return ENODEV;
-    } else if (info.vi_mem_model == V_INFO_MM_DIRECT) {
-	if (!(info.vi_flags & V_INFO_LINEAR) &&
-	    (info.vi_depth != 15) && (info.vi_depth != 16) &&
-	    (info.vi_depth != 24) && (info.vi_depth != 32))
-	    return ENODEV;
-    } else if (info.vi_mem_model == V_INFO_MM_PACKED) {
-	if (!(info.vi_flags & V_INFO_LINEAR) &&
-	    (info.vi_depth != 8))
-	    return ENODEV;
-    } else
+    if (!sc_support_pixel_mode(&info))
 	return ENODEV;
 
     /* stop screen saver, etc */
@@ -470,6 +443,48 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 
     return 0;
 #endif /* SC_PIXEL_MODE */
+}
+
+int
+sc_support_pixel_mode(void *arg)
+{
+#ifdef SC_PIXEL_MODE
+	video_info_t *info = arg;
+
+	if ((info->vi_flags & V_INFO_GRAPHICS) == 0)
+		return (0);
+
+	/*
+	 * We currently support the following graphic modes:
+	 *
+	 * - 4 bpp planar modes whose memory size does not exceed 64K
+	 * - 15, 16, 24 and 32 bpp linear modes
+	 */
+	switch (info->vi_mem_model) {
+	case V_INFO_MM_PLANAR:
+		if (info->vi_planes != 4)
+			break;
+		/*
+		 * A memory size >64K requires bank switching to access
+		 * the entire screen. XXX
+		 */
+		if (info->vi_width * info->vi_height / 8 > info->vi_window_size)
+			break;
+		return (1);
+	case V_INFO_MM_DIRECT:
+		if ((info->vi_flags & V_INFO_LINEAR) == 0 &&
+		    info->vi_depth != 15 && info->vi_depth != 16 &&
+		    info->vi_depth != 24 && info->vi_depth != 32)
+			break;
+		return (1);
+	case V_INFO_MM_PACKED:
+		if ((info->vi_flags & V_INFO_LINEAR) == 0 &&
+		    info->vi_depth != 8)
+			break;
+		return (1);
+	}
+#endif
+	return (0);
 }
 
 #define fb_ioctl(a, c, d)		\
