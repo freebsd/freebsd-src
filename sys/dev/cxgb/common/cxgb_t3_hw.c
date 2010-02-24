@@ -3263,7 +3263,6 @@ static void tp_set_timers(adapter_t *adap, unsigned int core_clk)
 #undef SECONDS
 }
 
-#ifdef CONFIG_CHELSIO_T3_CORE
 /**
  *	t3_tp_set_coalescing_size - set receive coalescing size
  *	@adap: the adapter
@@ -3566,7 +3565,6 @@ int t3_set_proto_sram(adapter_t *adap, const u8 *data)
 	}
 	return 0;
 }
-#endif
 
 /**
  *	t3_config_trace_filter - configure one of the tracing filters
@@ -4150,14 +4148,12 @@ int t3_init_hw(adapter_t *adapter, u32 fw_params)
 	if (tp_init(adapter, &adapter->params.tp))
 		goto out_err;
 
-#ifdef CONFIG_CHELSIO_T3_CORE
 	t3_tp_set_coalescing_size(adapter,
 				  min(adapter->params.sge.max_pkt_size,
 				      MAX_RX_COALESCING_LEN), 1);
 	t3_tp_set_max_rxsize(adapter,
 			     min(adapter->params.sge.max_pkt_size, 16384U));
 	ulp_config(adapter, &adapter->params.tp);
-#endif
 	if (is_pcie(adapter))
 		config_pcie(adapter);
 	else
@@ -4508,10 +4504,8 @@ int __devinit t3_prep_adapter(adapter_t *adapter,
 		adapter->params.mc5.nroutes = 0;
 		t3_mc5_prep(adapter, &adapter->mc5, MC5_MODE_144_BIT);
 
-#ifdef CONFIG_CHELSIO_T3_CORE
 		init_mtus(adapter->params.mtus);
 		init_cong_ctrl(adapter->params.a_wnd, adapter->params.b_wnd);
-#endif
 	}
 
 	early_hw_init(adapter, ai);
