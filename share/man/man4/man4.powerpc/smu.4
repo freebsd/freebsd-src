@@ -75,6 +75,9 @@ The following sysctls can be used to control the
 power management behavior and to examine current system power and
 thermal conditions.
 .Bl -tag -width indent
+.It Va dev.smu.%d.server_mode
+Restart after power failure behavior (1 causes system to reboot after power
+cut, 0 causes system to remain off).
 .It Va dev.smu.%d.target_temp
 Target system temperature, in degrees Celsius. The
 .Nm
