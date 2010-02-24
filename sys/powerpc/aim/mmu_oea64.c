@@ -1075,15 +1075,6 @@ moea64_change_wiring(mmu_t mmu, pmap_t pm, vm_offset_t va, boolean_t wired)
 }
 
 /*
- * Zero a page of physical memory by temporarily mapping it into the tlb.
- */
-void
-moea64_zero_page(mmu_t mmu, vm_page_t m)
-{
-	moea64_zero_page_area(mmu,m,0,PAGE_SIZE);
-}
-
-/*
  * This goes through and sets the physical address of our
  * special scratch PTE to the PA we want to zero or copy. Because
  * of locking issues (this can get called in pvo_enter() by
@@ -1144,6 +1135,27 @@ moea64_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 
 	moea64_set_scratchpage_pa(0,pa);
 	bzero((caddr_t)moea64_scratchpage_va[0] + off, size);
+	mtx_unlock(&moea64_scratchpage_mtx);
+}
+
+/*
+ * Zero a page of physical memory by temporarily mapping it
+ */
+void
+moea64_zero_page(mmu_t mmu, vm_page_t m)
+{
+	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
+	vm_offset_t off;
+
+	if (!moea64_initialized)
+		panic("moea64_zero_page: can't zero pa %#x", pa);
+
+	mtx_lock(&moea64_scratchpage_mtx);
+
+	moea64_set_scratchpage_pa(0,pa);
+	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
+		__asm __volatile("dcbz 0,%0" ::
+		    "r"(moea64_scratchpage_va[0] + off));
 	mtx_unlock(&moea64_scratchpage_mtx);
 }
 
