@@ -1477,6 +1477,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		    V_WR_GEN(txqs.gen)) | htonl(V_WR_TID(txq->token));
 		set_wr_hdr(wrp, wr_hi, wr_lo);
 		wmb();
+		ETHER_BPF_MTAP(pi->ifp, m0);
 		wr_gen2(txd, txqs.gen);
 		check_ring_tx_db(sc, txq);
 		return (0);		
@@ -1549,8 +1550,10 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 			    V_WR_GEN(txqs.gen) | V_WR_TID(txq->token));
 			set_wr_hdr(&hdr->wr, wr_hi, wr_lo);
 			wmb();
+			ETHER_BPF_MTAP(pi->ifp, m0);
 			wr_gen2(txd, txqs.gen);
 			check_ring_tx_db(sc, txq);
+			m_freem(m0);
 			return (0);
 		}
 		flits = 3;	
@@ -1578,8 +1581,10 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 			    V_WR_GEN(txqs.gen) | V_WR_TID(txq->token));
 			set_wr_hdr(&cpl->wr, wr_hi, wr_lo);
 			wmb();
+			ETHER_BPF_MTAP(pi->ifp, m0);
 			wr_gen2(txd, txqs.gen);
 			check_ring_tx_db(sc, txq);
+			m_freem(m0);
 			return (0);
 		}
 		flits = 2;
@@ -1590,12 +1595,14 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 
 	sgl_flits = sgl_len(nsegs);
 
+	ETHER_BPF_MTAP(pi->ifp, m0);
+
 	KASSERT(ndesc <= 4, ("ndesc too large %d", ndesc));
 	wr_hi = htonl(V_WR_OP(FW_WROPCODE_TUNNEL_TX_PKT) | txqs.compl);
 	wr_lo = htonl(V_WR_TID(txq->token));
 	write_wr_hdr_sgl(ndesc, txd, &txqs, txq, sgl, flits,
 	    sgl_flits, wr_hi, wr_lo);
-	check_ring_tx_db(pi->adapter, txq);
+	check_ring_tx_db(sc, txq);
 
 	return (0);
 }
@@ -1674,16 +1681,6 @@ cxgb_start_locked(struct sge_qset *qs)
 		 */
 		if (t3_encap(qs, &m_head) || m_head == NULL)
 			break;
-		
-		/* Send a copy of the frame to the BPF listener */
-		ETHER_BPF_MTAP(ifp, m_head);
-
-		/*
-		 * We sent via PIO, no longer need a copy
-		 */
-		if (m_head->m_nextpkt == NULL &&
-		    m_head->m_pkthdr.len <= PIO_LEN)
-			m_freem(m_head);
 
 		m_head = NULL;
 	}
@@ -1726,17 +1723,6 @@ cxgb_transmit_locked(struct ifnet *ifp, struct sge_qset *qs, struct mbuf *m)
 			 */
 			txq->txq_direct_packets++;
 			txq->txq_direct_bytes += m->m_pkthdr.len;
-			/*
-			** Send a copy of the frame to the BPF
-			** listener and set the watchdog on.
-			*/
-			ETHER_BPF_MTAP(ifp, m);
-			/*
-			 * We sent via PIO, no longer need a copy
-			 */
-			if (m->m_pkthdr.len <= PIO_LEN)
-				m_freem(m);
-
 		}
 	} else if ((error = drbr_enqueue(ifp, br, m)) != 0)
 		return (error);
