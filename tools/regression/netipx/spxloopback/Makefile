@@ -5,7 +5,7 @@
 PROG=	spxloopback
 NO_MAN=
 
-DPADD=	${LIBIPX};
+DPADD=	${LIBIPX}
 LDADD=	-lipx
 WARNS?=	3
 
