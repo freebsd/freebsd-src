@@ -19,9 +19,8 @@ CFLAGS+=	-I${OPENSOLARIS_USR_DISTDIR} \
 		-I${OPENSOLARIS_USR_DISTDIR}/tools/ctf/common \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common
 
-LDFLAGS+=	-pthread
-
-LDADD+=		-lelf -lz
+DPADD=		${LIBPTHREAD} ${LIBELF} ${LIBZ}
+LDADD=		-lpthread -lelf -lz
 
 .PATH:		${OPENSOLARIS_USR_DISTDIR}/tools/ctf/common
 .PATH:		${OPENSOLARIS_USR_DISTDIR}/tools/ctf/dump
