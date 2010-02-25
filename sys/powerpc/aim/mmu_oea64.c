@@ -970,10 +970,10 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 
 	mtx_init(&moea64_scratchpage_mtx, "pvo zero page", NULL, MTX_DEF);
 	for (i = 0; i < 2; i++) {
-		moea64_scratchpage_va[i] = virtual_avail;
-		virtual_avail += PAGE_SIZE;
+		moea64_scratchpage_va[i] = (virtual_end+1) - PAGE_SIZE;
+		virtual_end -= PAGE_SIZE;
 
-		moea64_kenter(mmup,moea64_scratchpage_va[i],kernelstart);
+		moea64_kenter(mmup,moea64_scratchpage_va[i],0);
 
 		LOCK_TABLE();
 		moea64_scratchpage_pvo[i] = moea64_pvo_find_va(kernel_pmap,
@@ -1004,20 +1004,25 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 	 * Allocate virtual address space for the message buffer.
 	 */
 	pa = msgbuf_phys = moea64_bootstrap_alloc(MSGBUF_SIZE, PAGE_SIZE);
-	msgbufp = (struct msgbuf *)msgbuf_phys;
-	while (pa - msgbuf_phys < MSGBUF_SIZE) {
-		moea64_kenter(mmup, pa, pa);
+	msgbufp = (struct msgbuf *)virtual_avail;
+	va = virtual_avail;
+	virtual_avail += round_page(MSGBUF_SIZE);
+	while (va < virtual_avail) {
+		moea64_kenter(mmup, va, pa);
 		pa += PAGE_SIZE;
+		va += PAGE_SIZE;
 	}
 
 	/*
 	 * Allocate virtual address space for the dynamic percpu area.
 	 */
 	pa = moea64_bootstrap_alloc(DPCPU_SIZE, PAGE_SIZE);
-	dpcpu = (void *)pa;
-	while (pa - (vm_offset_t)dpcpu < DPCPU_SIZE) {
-		moea64_kenter(mmup, pa, pa);
+	dpcpu = (void *)virtual_avail;
+	virtual_avail += DPCPU_SIZE;
+	while (va < virtual_avail) {
+		moea64_kenter(mmup, va, pa);
 		pa += PAGE_SIZE;
+		va += PAGE_SIZE;
 	}
 	dpcpu_init(dpcpu, 0);
 }
