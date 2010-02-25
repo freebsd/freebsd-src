@@ -39,8 +39,13 @@ __FBSDID("$FreeBSD$");
  * Routines to handle clock hardware.
  */
 
+#ifndef __amd64__
+#include "opt_apic.h"
+#endif
 #include "opt_clock.h"
+#include "opt_kdtrace.h"
 #include "opt_isa.h"
+#include "opt_mca.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -69,6 +74,14 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_ISA
 #include <isa/isareg.h>
 #include <isa/isavar.h>
+#endif
+
+#ifdef DEV_MCA
+#include <i386/bios/mca_machdep.h>
+#endif
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
 #endif
 
 #define	TIMER_DIV(x) ((i8254_freq + (x) / 2) / (x))
@@ -163,6 +176,17 @@ clkintr(struct trapframe *frame)
 	KASSERT(using_lapic_timer == LAPIC_CLOCK_NONE,
 	    ("clk interrupt enabled with lapic timer"));
 
+#ifdef KDTRACE_HOOKS
+	/*
+	 * If the DTrace hooks are configured and a callback function
+	 * has been registered, then call it to process the high speed
+	 * timers.
+	 */
+	int cpu = PCPU_GET(cpuid);
+	if (lapic_cyclic_clock_func[cpu] != NULL)
+		(*lapic_cyclic_clock_func[cpu])(frame);
+#endif
+
 	if (using_atrtc_timer) {
 #ifdef SMP
 		if (smp_started)
@@ -186,6 +210,11 @@ clkintr(struct trapframe *frame)
 		}
 	}
 
+#ifdef DEV_MCA
+	/* Reset clock interrupt by asserting bit 7 of port 0x61 */
+	if (MCA_system)
+		outb(0x61, inb(0x61) | 0x80);
+#endif
 	return (FILTER_HANDLED);
 }
 
@@ -451,6 +480,25 @@ i8254_restore(void)
 	mtx_unlock_spin(&clock_lock);
 }
 
+#ifndef __amd64__
+/*
+ * Restore all the timers non-atomically (XXX: should be atomically).
+ *
+ * This function is called from pmtimer_resume() to restore all the timers.
+ * This should not be necessary, but there are broken laptops that do not
+ * restore all the timers on resume.
+ * As long as pmtimer is not part of amd64 suport, skip this for the amd64
+ * case.
+ */
+void
+timer_restore(void)
+{
+
+	i8254_restore();		/* restore i8254_freq and hz */
+	atrtc_restore();		/* reenable RTC interrupts */
+}
+#endif
+
 /* This is separate from startrtclock() so that it can be called early. */
 void
 i8254_init(void)
@@ -479,7 +527,9 @@ void
 cpu_initclocks()
 {
 
+#if defined(__amd64__) || defined(DEV_APIC)
 	using_lapic_timer = lapic_setup_clock();
+#endif
 	/*
 	 * If we aren't using the local APIC timer to drive the kernel
 	 * clocks, setup the interrupt handler for the 8254 timer 0 so
@@ -579,11 +629,15 @@ i8254_simple_get_timecount(struct timecounter *tc)
 static unsigned
 i8254_get_timecount(struct timecounter *tc)
 {
+	register_t flags;
 	u_int count;
 	u_int high, low;
-	u_long rflags;
 
-	rflags = read_rflags();
+#ifdef __amd64__
+	flags = read_rflags();
+#else
+	flags = read_eflags();
+#endif
 	mtx_lock_spin(&clock_lock);
 
 	/* Select timer0 and latch counter value. */
@@ -594,7 +648,7 @@ i8254_get_timecount(struct timecounter *tc)
 	count = i8254_max_count - ((high << 8) | low);
 	if (count < i8254_lastcount ||
 	    (!i8254_ticked && (clkintr_pending ||
-	    ((count < 20 || (!(rflags & PSL_I) &&
+	    ((count < 20 || (!(flags & PSL_I) &&
 	    count < i8254_max_count / 2u)) &&
 	    i8254_pending != NULL && i8254_pending(i8254_intsrc))))) {
 		i8254_ticked = 1;
@@ -637,7 +691,7 @@ attimer_resume(device_t dev)
 {
 
 	i8254_restore();
-	return(0);
+	return (0);
 }
 
 static device_method_t attimer_methods[] = {
