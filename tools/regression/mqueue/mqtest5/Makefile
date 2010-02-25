@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=mqtest5
-LDADD+=-lrt
+DPADD=	${LIBRT}
+LDADD=	-lrt
 NO_MAN=
 DEBUG_FLAGS=-g
 
