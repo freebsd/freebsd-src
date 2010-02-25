@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/..
+.PATH: ${.CURDIR}/../../../contrib/tzcode/zic
 
 PROG=	zdump
 MAN=	zdump.8
