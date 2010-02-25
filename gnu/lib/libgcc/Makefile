@@ -18,6 +18,9 @@ MK_SSP=	no
 # XXX: a few C++ related GCC builtins are missing
 # http://llvm.org/bugs/show_bug.cgi?id=5255
 CC:=${CC:C/^cc|^clang/gcc/}
+.if ${CC:M*lib32*}
+CC:=${CC:C/-B(.*)/-B\1\/usr\/lib32 /}
+.endif
 
 .PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}/config ${GCCDIR}
 
