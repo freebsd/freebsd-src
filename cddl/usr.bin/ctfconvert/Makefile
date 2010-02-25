@@ -40,7 +40,8 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${OPENSOLARIS_USR_DISTDIR}/tools/ctf/cvt \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common
 
-LDADD+=		-lctf -ldwarf -lelf -lz -lthr
+DPADD=		${LIBCTF} ${LIBDWARF} ${LIBELF} ${LIBZ} ${LIBPTHREAD}
+LDADD=		-lctf -ldwarf -lelf -lz -lpthread
 
 .PATH:		${.CURDIR}
 .PATH:		${OPENSOLARIS_USR_DISTDIR}/tools/ctf/common
