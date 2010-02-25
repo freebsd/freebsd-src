@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 
-.PATH:  ${.CURDIR}/../../../i386/bios
+.PATH:  ${.CURDIR}/../../../x86/bios
 
 KMOD=	smbios
 SRCS=	smbios.c \

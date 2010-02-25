@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1991 The Regents of the University of California.
+ * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -29,71 +29,25 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
+ *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
+ * $FreeBSD$
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include "opt_mca.h"
-
-#include <sys/types.h>
-#include <sys/syslog.h>
-#include <sys/systm.h>
-
-#include <machine/md_var.h>
-
-#define NMI_PARITY (1 << 7)
-#define NMI_IOCHAN (1 << 6)
-#define ENMI_WATCHDOG (1 << 7)
-#define ENMI_BUSTIMER (1 << 6)
-#define ENMI_IOSTATUS (1 << 5)
 
 /*
- * Handle a NMI, possibly a machine check.
- * return true to panic system, false to ignore.
+ * AT/386 Interrupt Control constants
+ * W. Jolitz 8/89
  */
-int
-isa_nmi(int cd)
-{
-	int retval = 0;
-	int isa_port = inb(0x61);
-	int eisa_port = inb(0x461);
 
-	log(LOG_CRIT, "NMI ISA %x, EISA %x\n", isa_port, eisa_port);
-	
-	if (isa_port & NMI_PARITY) {
-		log(LOG_CRIT, "RAM parity error, likely hardware failure.");
-		retval = 1;
-	}
+#ifndef _X86_ISA_ICU_H_
+#define	_X86_ISA_ICU_H_
 
-	if (isa_port & NMI_IOCHAN) {
-		log(LOG_CRIT, "I/O channel check, likely hardware failure.");
-		retval = 1;
-	}
+#ifdef PC98
+#define	ICU_IMR_OFFSET	2
+#else
+#define	ICU_IMR_OFFSET	1
+#endif
 
-	/*
-	 * On a real EISA machine, this will never happen.  However it can
-	 * happen on ISA machines which implement XT style floating point
-	 * error handling (very rare).  Save them from a meaningless panic.
-	 */
-	if (eisa_port == 0xff)
-		return(retval);
+void	atpic_handle_intr(u_int vector, struct trapframe *frame);
+void	atpic_startup(void);
 
-	if (eisa_port & ENMI_WATCHDOG) {
-		log(LOG_CRIT, "EISA watchdog timer expired, likely hardware failure.");
-		retval = 1;
-	}
-
-	if (eisa_port & ENMI_BUSTIMER) {
-		log(LOG_CRIT, "EISA bus timeout, likely hardware failure.");
-		retval = 1;
-	}
-
-	if (eisa_port & ENMI_IOSTATUS) {
-		log(LOG_CRIT, "EISA I/O port status error.");
-		retval = 1;
-	}
-
-	return(retval);
-}
+#endif /* !_X86_ISA_ICU_H_ */

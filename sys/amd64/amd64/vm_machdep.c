@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
 
-#include <amd64/isa/isa.h>
+#include <x86/isa/isa.h>
 
 static void	cpu_reset_real(void);
 #ifdef SMP

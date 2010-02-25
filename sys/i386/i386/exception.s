@@ -294,7 +294,7 @@ ENTRY(fork_trampoline)
 	SUPERALIGN_TEXT
 MCOUNT_LABEL(bintr)
 
-#include <i386/isa/atpic_vector.s>
+#include <i386/i386/atpic_vector.s>
 
 #ifdef DEV_APIC
 	.data
