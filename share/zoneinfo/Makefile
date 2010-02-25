@@ -29,6 +29,8 @@
 #
 
 CLEANFILES+=	yearistype
+CONTRIBDIR=	${.CURDIR}/../../contrib/tzdata/
+.PATH:		${CONTRIBDIR}
 
 .if defined(LEAPSECONDS)
 LEAPFILE=	-L leapseconds
@@ -44,6 +46,8 @@ POSIXRULES=	America/New_York
 TZFILES+=	backward systemv
 .endif
 
+TZFILES:=	${TZFILES:S/^/${CONTRIBDIR}/}
+
 all: yearistype
 
 beforeinstall:
@@ -52,7 +56,7 @@ beforeinstall:
 	    -u ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${LEAPFILE} -y ${.OBJDIR}/yearistype ${TZFILES}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    ${.CURDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
+	    ${CONTRIBDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
 
 afterinstall:
 #
