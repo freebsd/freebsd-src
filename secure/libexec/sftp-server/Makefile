@@ -9,7 +9,7 @@ CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	roaming_dummy.c
 
 DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
-LDADD=  -lcrypt -lcrypto -lz -lssh
+LDADD=  -lssh -lcrypt -lcrypto -lz
 
 .include <bsd.prog.mk>
 
