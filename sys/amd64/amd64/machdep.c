@@ -128,7 +128,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_ATPIC
-#include <amd64/isa/icu.h>
+#include <x86/isa/icu.h>
 #else
 #include <machine/apicvar.h>
 #endif

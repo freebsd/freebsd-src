@@ -95,7 +95,7 @@ __FBSDID("$FreeBSD$");
 #ifdef PC98
 #include <pc98/cbus/cbus.h>
 #else
-#include <i386/isa/isa.h>
+#include <x86/isa/isa.h>
 #endif
 
 #ifdef XBOX
