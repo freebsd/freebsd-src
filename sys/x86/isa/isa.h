@@ -33,8 +33,12 @@
  * $FreeBSD$
  */
 
-#ifndef _I386_ISA_ISA_H_
-#define	_I386_ISA_ISA_H_
+#ifdef PC98
+#error isa.h is included from PC-9801 source
+#endif
+
+#ifndef _X86_ISA_ISA_H_
+#define	_X86_ISA_ISA_H_
 
 /* BEWARE:  Included in both assembler and C code */
 
@@ -77,4 +81,22 @@
 
 #endif /* !IO_ISASIZES */
 
-#endif /* !_I386_ISA_ISA_H_ */
+/*
+ * Input / Output Memory Physical Addresses
+ */
+#ifndef	IOM_BEGIN
+#define	IOM_BEGIN	0x0A0000	/* Start of I/O Memory "hole" */
+#define	IOM_END		0x100000	/* End of I/O Memory "hole" */
+#define	IOM_SIZE	(IOM_END - IOM_BEGIN)
+#endif /* !IOM_BEGIN */
+
+/*
+ * RAM Physical Address Space (ignoring the above mentioned "hole")
+ */
+#ifndef	RAM_BEGIN
+#define	RAM_BEGIN	0x0000000	/* Start of RAM Memory */
+#define	RAM_END		0x1000000	/* End of RAM Memory */
+#define	RAM_SIZE	(RAM_END - RAM_BEGIN)
+#endif /* !RAM_BEGIN */
+
+#endif /* !_X86_ISA_ISA_H_ */

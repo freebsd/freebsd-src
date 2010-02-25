@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
 
-#include <amd64/isa/icu.h>
+#include <x86/isa/icu.h>
 
 /* XXX - should be in header file: */
 void printcpuinfo(void);
