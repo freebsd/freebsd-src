@@ -298,7 +298,7 @@ x86/cpufreq/est.c		optional	cpufreq
 x86/cpufreq/hwpstate.c		optional	cpufreq
 x86/cpufreq/p4tcc.c		optional	cpufreq
 x86/isa/atpic.c			optional	atpic isa
-x86/isa/atrtc.c			optional	atpic
+x86/isa/atrtc.c			standard
 x86/isa/clock.c			standard
 x86/isa/elcr.c			standard
 x86/isa/isa.c			standard
