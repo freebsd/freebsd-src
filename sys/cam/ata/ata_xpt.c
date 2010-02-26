@@ -788,11 +788,10 @@ noerror:
 		ata_btrim(ident_buf->serial, sizeof(ident_buf->serial));
 		ata_bpack(ident_buf->serial, ident_buf->serial, sizeof(ident_buf->serial));
 		/* Device may need spin-up before IDENTIFY become valid. */
-		if ((ident_buf->config & ATA_RESP_INCOMPLETE) ||
-		    ((ident_buf->support.command2 & ATA_SUPPORT_STANDBY) &&
-		     (ident_buf->enabled.command2 & ATA_SUPPORT_STANDBY) &&
-		     (ident_buf->support.command2 & ATA_SUPPORT_SPINUP) &&
-		      softc->spinup == 0)) {
+		if ((ident_buf->specconf == 0x37c8 ||
+		     ident_buf->specconf == 0x738c) &&
+		    ((ident_buf->config & ATA_RESP_INCOMPLETE) ||
+		     softc->spinup == 0)) {
 			PROBE_SET_ACTION(softc, PROBE_SPINUP);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
