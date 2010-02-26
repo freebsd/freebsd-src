@@ -79,38 +79,6 @@ __FBSDID("$FreeBSD$");
 
 #include "newfs.h"
 
-/*
- * The following two constants set the default block and fragment sizes.
- * Both constants must be a power of 2 and meet the following constraints:
- *	MINBSIZE <= DESBLKSIZE <= MAXBSIZE
- *	sectorsize <= DESFRAGSIZE <= DESBLKSIZE
- *	DESBLKSIZE / DESFRAGSIZE <= 8
- */
-#define	DFL_FRAGSIZE	2048
-#define	DFL_BLKSIZE	16384
-
-/*
- * Cylinder groups may have up to MAXBLKSPERCG blocks. The actual
- * number used depends upon how much information can be stored
- * in a cylinder group map which must fit in a single file system
- * block. The default is to use as many as possible blocks per group.
- */
-#define	MAXBLKSPERCG	0x7fffffff	/* desired fs_fpg ("infinity") */
-
-/*
- * MAXBLKPG determines the maximum number of data blocks which are
- * placed in a single cylinder group. The default is one indirect
- * block worth of data blocks.
- */
-#define MAXBLKPG(bsize)	((bsize) / sizeof(ufs2_daddr_t))
-
-/*
- * Each file system has a number of inodes statically allocated.
- * We allocate one inode slot per NFPI fragments, expecting this
- * to be far more than we will ever need.
- */
-#define	NFPI		4
-
 int	Eflag;			/* Erase previous disk contents */
 int	Lflag;			/* add a volume label */
 int	Nflag;			/* run without writing file system */
@@ -387,25 +355,11 @@ main(int argc, char *argv[])
 		fsize = MAX(DFL_FRAGSIZE, sectorsize);
 	if (bsize <= 0)
 		bsize = MIN(DFL_BLKSIZE, 8 * fsize);
-	if (maxbsize == 0)
-		maxbsize = bsize;
-	/*
-	 * Maxcontig sets the default for the maximum number of blocks
-	 * that may be allocated sequentially. With file system clustering
-	 * it is possible to allocate contiguous blocks up to the maximum
-	 * transfer size permitted by the controller or buffering.
-	 */
-	if (maxcontig == 0)
-		maxcontig = MAX(1, MAXPHYS / bsize);
-	if (density == 0)
-		density = NFPI * fsize;
 	if (minfree < MINFREE && opt != FS_OPTSPACE) {
 		fprintf(stderr, "Warning: changing optimization to space ");
 		fprintf(stderr, "because minfree is less than %d%%\n", MINFREE);
 		opt = FS_OPTSPACE;
 	}
-	if (maxbpg == 0)
-		maxbpg = MAXBLKPG(bsize);
 	realsectorsize = sectorsize;
 	if (sectorsize != DEV_BSIZE) {		/* XXX */
 		int secperblk = sectorsize / DEV_BSIZE;
