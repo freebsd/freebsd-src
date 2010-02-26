@@ -622,7 +622,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	}
 	sc->sc_hasclrkey = ath_hal_ciphersupported(ah, HAL_CIPHER_CLR);
 	/*
-	 * Check for multicast key sarch support.
+	 * Check for multicast key search support.
 	 */
 	if (ath_hal_hasmcastkeysearch(sc->sc_ah) &&
 	    !ath_hal_getmcastkeysearch(sc->sc_ah)) {
@@ -2237,7 +2237,6 @@ ath_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 				"%s: bogus group key\n", __func__);
 			return 0;
 		}
-		 */
 		if (vap->iv_opmode != IEEE80211_M_HOSTAP ||
 		    !(k->wk_flags & IEEE80211_KEY_GROUP) ||
 		    !sc->sc_mcastkey) {
