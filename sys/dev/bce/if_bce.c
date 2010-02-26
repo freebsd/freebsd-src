@@ -7102,32 +7102,34 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 			DBPRINT(sc, BCE_INFO_MISC, "Received SIOCSIFCAP = 0x%08X\n", (u32) mask);
 
-			/* Toggle the TX checksum capabilites enable flag. */
-			if (mask & IFCAP_TXCSUM) {
+			/* Toggle the TX checksum capabilities enable flag. */
+			if (mask & IFCAP_TXCSUM &&
+			    ifp->if_capabilities & IFCAP_TXCSUM) {
 				ifp->if_capenable ^= IFCAP_TXCSUM;
 				if (IFCAP_TXCSUM & ifp->if_capenable)
-					ifp->if_hwassist = BCE_IF_HWASSIST;
+					ifp->if_hwassist |= BCE_IF_HWASSIST;
 				else
-					ifp->if_hwassist = 0;
+					ifp->if_hwassist &= ~BCE_IF_HWASSIST;
 			}
 
 			/* Toggle the RX checksum capabilities enable flag. */
-			if (mask & IFCAP_RXCSUM) {
+			if (mask & IFCAP_RXCSUM &&
+			    ifp->if_capabilities & IFCAP_RXCSUM)
 				ifp->if_capenable ^= IFCAP_RXCSUM;
-				if (IFCAP_RXCSUM & ifp->if_capenable)
-					ifp->if_hwassist = BCE_IF_HWASSIST;
-				else
-					ifp->if_hwassist = 0;
-			}
 
 			/* Toggle the TSO capabilities enable flag. */
-			if (bce_tso_enable && (mask & IFCAP_TSO4)) {
+			if (bce_tso_enable && (mask & IFCAP_TSO4) &&
+			    ifp->if_capabilities & IFCAP_TSO4) {
 				ifp->if_capenable ^= IFCAP_TSO4;
-				if (IFCAP_RXCSUM & ifp->if_capenable)
-					ifp->if_hwassist = BCE_IF_HWASSIST;
+				if (IFCAP_TSO4 & ifp->if_capenable)
+					ifp->if_hwassist |= CSUM_TSO;
 				else
-					ifp->if_hwassist = 0;
+					ifp->if_hwassist &= ~CSUM_TSO;
 			}
+
+			if (mask & IFCAP_VLAN_HWCSUM &&
+			    ifp->if_capabilities & IFCAP_VLAN_HWCSUM)
+				ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
 
 			/*
 			 * Don't actually disable VLAN tag stripping as
