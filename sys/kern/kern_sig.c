@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
+#include "opt_core.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/event.h>
 #include <sys/fcntl.h>
+#include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
@@ -78,6 +80,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
+#include <sys/jail.h>
+
 #include <machine/cpu.h>
 
 #include <security/audit/audit.h>
@@ -98,7 +102,7 @@ SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 1, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 2, "int");
 
 static int	coredump(struct thread *);
-static char	*expand_name(const char *, uid_t, pid_t);
+static char	*expand_name(const char *, uid_t, pid_t, struct thread *, int);
 static int	killpg1(struct thread *td, int sig, int pgid, int all,
 		    ksiginfo_t *ksi);
 static int	issignal(struct thread *td, int stop_allowed);
@@ -2936,12 +2940,45 @@ childproc_exited(struct proc *p)
 	sigparent(p, reason, status);
 }
 
+#define MAX_NUM_CORES 10
+static int num_cores = 5;
+static int
+sysctl_debug_num_cores_check (SYSCTL_HANDLER_ARGS)
+{
+	int error = sysctl_handle_int(oidp, &num_cores, 0, req);
+	if (!error) {
+		if (num_cores > MAX_NUM_CORES) num_cores = MAX_NUM_CORES;
+		if (num_cores < 0) num_cores = 0;
+	}
+	return error;
+}
+SYSCTL_PROC(_debug, OID_AUTO, ncores, CTLTYPE_INT|CTLFLAG_RW, 
+	    0, sizeof(int), sysctl_debug_num_cores_check, "I", "");
+
+#if defined(COMPRESS_USER_CORES)
+int compress_user_cores = 1;
+SYSCTL_INT(_kern, OID_AUTO, compress_user_cores, CTLFLAG_RW,
+        &compress_user_cores, 0, "");
+
+int compress_user_cores_gzlevel = -1; /* default level */
+SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RW,
+    &compress_user_cores_gzlevel, -1, "user core gz compression level");
+
+int compress_user_cores_reduce_giant = 1;
+SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_reduce_giant, CTLFLAG_RW,
+    &compress_user_cores_reduce_giant, 0,
+    "reduce giant lock usage while compressing core");
+
+#define GZ_SUFFIX	".gz"	
+#define GZ_SUFFIX_LEN	3	
+#endif
+
 static char corefilename[MAXPATHLEN] = {"%N.core"};
 SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
 	      sizeof(corefilename), "process corefile name format string");
 
 /*
- * expand_name(name, uid, pid)
+ * expand_name(name, uid, pid, td, compress)
  * Expand the name described in corefilename, using name, uid, and pid.
  * corefilename is a printf-like string, with three format specifiers:
  *	%N	name of process ("name")
@@ -2952,20 +2989,25 @@ SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
  * This is controlled by the sysctl variable kern.corefile (see above).
  */
 static char *
-expand_name(name, uid, pid)
+expand_name(name, uid, pid, td, compress)
 	const char *name;
 	uid_t uid;
 	pid_t pid;
+	struct thread *td;
+	int compress;
 {
 	struct sbuf sb;
 	const char *format;
 	char *temp;
 	size_t i;
-
+	int indexpos;
+	char hostname[MAXHOSTNAMELEN];
+	
 	format = corefilename;
 	temp = malloc(MAXPATHLEN, M_TEMP, M_NOWAIT | M_ZERO);
 	if (temp == NULL)
 		return (NULL);
+	indexpos = -1;
 	(void)sbuf_new(&sb, temp, MAXPATHLEN, SBUF_FIXEDLEN);
 	for (i = 0; format[i]; i++) {
 		switch (format[i]) {
@@ -2974,6 +3016,15 @@ expand_name(name, uid, pid)
 			switch (format[i]) {
 			case '%':
 				sbuf_putc(&sb, '%');
+				break;
+			case 'H':	/* hostname */
+				getcredhostname(td->td_ucred, hostname,
+				    sizeof(hostname));
+				sbuf_printf(&sb, "%s", hostname);
+				break;
+			case 'I':       /* autoincrementing index */
+				sbuf_printf(&sb, "0");
+				indexpos = sbuf_len(&sb) - 1;
 				break;
 			case 'N':	/* process name */
 				sbuf_printf(&sb, "%s", name);
@@ -2994,6 +3045,11 @@ expand_name(name, uid, pid)
 			sbuf_putc(&sb, format[i]);
 		}
 	}
+#ifdef COMPRESS_USER_CORES
+	if (compress) {
+		sbuf_printf(&sb, GZ_SUFFIX);
+	}
+#endif
 	if (sbuf_overflowed(&sb)) {
 		sbuf_delete(&sb);
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
@@ -3003,6 +3059,38 @@ expand_name(name, uid, pid)
 	}
 	sbuf_finish(&sb);
 	sbuf_delete(&sb);
+	if (indexpos != -1) {
+		struct nameidata nd;
+		int error, n;
+		int flags = O_CREAT | O_EXCL | FWRITE | O_NOFOLLOW;
+		int cmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+		for (n = 0; n < num_cores; n++) {
+			temp[indexpos] = '0' + n;
+			NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, temp, td);
+			if ((error = vn_open(&nd, &flags, cmode, NULL)) == EEXIST)
+				continue;
+			else if (error) {
+				log(LOG_ERR,
+				    "pid %d (%s), uid (%u):  Path `%s' failed "
+                                    "on initial open test, error = %d\n",
+				    pid, name, uid, temp, error);
+				free(temp, M_TEMP);
+				return (NULL);
+			}
+			VOP_UNLOCK(nd.ni_vp, 0);
+			error = vn_close(nd.ni_vp, FWRITE, td->td_ucred, td);
+			if (error) {
+				log(LOG_ERR,
+				    "pid %d (%s), uid (%u):  Path `%s' failed "
+                                    "on close after initial open test, "
+                                    "error = %d\n",
+				    pid, name, uid, temp, error);
+				free(temp, M_TEMP);
+				return (NULL);
+			}
+			break;
+		}
+	}
 	return (temp);
 }
 
@@ -3028,12 +3116,19 @@ coredump(struct thread *td)
 	char *name;			/* name of corefile */
 	off_t limit;
 	int vfslocked;
+	int compress;
 
+#ifdef COMPRESS_USER_CORES
+	compress = compress_user_cores;
+#else
+	compress = 0;
+#endif
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	MPASS((p->p_flag & P_HADTHREADS) == 0 || p->p_singlethread == td);
 	_STOPEVENT(p, S_CORE, 0);
 
-	name = expand_name(p->p_comm, td->td_ucred->cr_uid, p->p_pid);
+	name = expand_name(p->p_comm, td->td_ucred->cr_uid, p->p_pid, td,
+	    compress);
 	if (name == NULL) {
 		PROC_UNLOCK(p);
 #ifdef AUDIT
@@ -3124,7 +3219,7 @@ restart:
 	PROC_UNLOCK(p);
 
 	error = p->p_sysent->sv_coredump ?
-	  p->p_sysent->sv_coredump(td, vp, limit) :
+	  p->p_sysent->sv_coredump(td, vp, limit, compress ? IMGACT_CORE_COMPRESS : 0) :
 	  ENOSYS;
 
 	if (locked) {
