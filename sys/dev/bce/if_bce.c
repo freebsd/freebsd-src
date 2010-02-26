@@ -6713,7 +6713,7 @@ bce_tx_encap_skip_tso:
 		sc->fragmented_mbuf_count++;
 
 		/* Try to defrag the mbuf. */
-		m0 = m_defrag(*m_head, M_DONTWAIT);
+		m0 = m_collapse(*m_head, M_DONTWAIT, BCE_MAX_SEGMENTS);
 		if (m0 == NULL) {
 			/* Defrag was unsuccessful */
 			m_freem(*m_head);
