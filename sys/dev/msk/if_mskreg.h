@@ -2361,6 +2361,7 @@ struct msk_chain_data {
 	bus_dmamap_t		msk_jumbo_rx_ring_map;
 	bus_dmamap_t		msk_jumbo_rx_sparemap;
 	uint16_t		msk_tso_mtu;
+	uint32_t		msk_last_csum;
 	int			msk_tx_prod;
 	int			msk_tx_cons;
 	int			msk_tx_cnt;
