@@ -738,6 +738,7 @@ msk_init_tx_ring(struct msk_if_softc *sc_if)
 	int i;
 
 	sc_if->msk_cdata.msk_tso_mtu = 0;
+	sc_if->msk_cdata.msk_last_csum = 0;
 	sc_if->msk_cdata.msk_tx_prod = 0;
 	sc_if->msk_cdata.msk_tx_cons = 0;
 	sc_if->msk_cdata.msk_tx_cnt = 0;
@@ -2530,7 +2531,7 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 	struct mbuf *m;
 	bus_dmamap_t map;
 	bus_dma_segment_t txsegs[MSK_MAXTXSEGS];
-	uint32_t control, prod, si;
+	uint32_t control, csum, prod, si;
 	uint16_t offset, tcp_offset, tso_mtu;
 	int error, i, nseg, tso;
 
@@ -2709,17 +2710,22 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		if ((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) != 0)
 			control |= CALSUM;
 		else {
-			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
-			tx_le->msk_addr = htole32(((tcp_offset +
-			    m->m_pkthdr.csum_data) & 0xffff) |
-			    ((uint32_t)tcp_offset << 16));
-			tx_le->msk_control = htole32(1 << 16 |
-			    (OP_TCPLISW | HW_OWNER));
-			control = CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
+			control |= CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
 			if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
 				control |= UDPTCP;
-			sc_if->msk_cdata.msk_tx_cnt++;
-			MSK_INC(prod, MSK_TX_RING_CNT);
+			/* Checksum write position. */
+			csum = (tcp_offset + m->m_pkthdr.csum_data) & 0xffff;
+			/* Checksum start position. */
+			csum |= (uint32_t)tcp_offset << 16;
+			if (csum != sc_if->msk_cdata.msk_last_csum) {
+				tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
+				tx_le->msk_addr = htole32(csum);
+				tx_le->msk_control = htole32(1 << 16 |
+				    (OP_TCPLISW | HW_OWNER));
+				sc_if->msk_cdata.msk_tx_cnt++;
+				MSK_INC(prod, MSK_TX_RING_CNT);
+				sc_if->msk_cdata.msk_last_csum = csum;
+			}
 		}
 	}
 
