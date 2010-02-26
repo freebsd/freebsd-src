@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 
+#include "extern.h"
+
 /*
  * egetopt:	get option letter from argument vector (an extended
  *		version of getopt).
