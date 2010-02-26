@@ -972,7 +972,8 @@ cxgb_makedev(struct port_info *pi)
 }
 
 #define CXGB_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | \
-    IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO)
+    IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO | \
+    IFCAP_VLAN_HWTSO)
 #define CXGB_CAP_ENABLE (CXGB_CAP & ~IFCAP_TSO6)
 
 static int
@@ -1015,8 +1016,8 @@ cxgb_port_attach(device_t dev)
 	 * Disable TSO on 4-port - it isn't supported by the firmware.
 	 */	
 	if (sc->params.nports > 2) {
-		ifp->if_capabilities &= ~IFCAP_TSO;
-		ifp->if_capenable &= ~IFCAP_TSO;
+		ifp->if_capabilities &= ~(IFCAP_TSO | IFCAP_VLAN_HWTSO);
+		ifp->if_capenable &= ~(IFCAP_TSO | IFCAP_VLAN_HWTSO);
 		ifp->if_hwassist &= ~CSUM_TSO;
 	}
 
@@ -2045,28 +2046,34 @@ fail:
 
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if (mask & IFCAP_TXCSUM) {
-			if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable &= ~(IFCAP_TXCSUM|IFCAP_TSO4);
-				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP
-				    | CSUM_IP | CSUM_TSO);
-			} else {
-				ifp->if_capenable |= IFCAP_TXCSUM;
-				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP
-				    | CSUM_IP);
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			ifp->if_hwassist ^= (CSUM_TCP | CSUM_UDP | CSUM_IP);
+
+			if (IFCAP_TSO & ifp->if_capenable &&
+			    !(IFCAP_TXCSUM & ifp->if_capenable)) {
+				ifp->if_capenable &= ~IFCAP_TSO;
+				ifp->if_hwassist &= ~CSUM_TSO;
+				if_printf(ifp,
+				    "tso disabled due to -txcsum.\n");
 			}
 		}
-		if (mask & IFCAP_RXCSUM) {
+		if (mask & IFCAP_RXCSUM)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
-		}
 		if (mask & IFCAP_TSO4) {
-			if (IFCAP_TSO4 & ifp->if_capenable) {
-				ifp->if_capenable &= ~IFCAP_TSO4;
-				ifp->if_hwassist &= ~CSUM_TSO;
-			} else if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable |= IFCAP_TSO4;
-				ifp->if_hwassist |= CSUM_TSO;
+			ifp->if_capenable ^= IFCAP_TSO4;
+
+			if (IFCAP_TSO & ifp->if_capenable) {
+				if (IFCAP_TXCSUM & ifp->if_capenable)
+					ifp->if_hwassist |= CSUM_TSO;
+				else {
+					ifp->if_capenable &= ~IFCAP_TSO;
+					ifp->if_hwassist &= ~CSUM_TSO;
+					if_printf(ifp,
+					    "enable txcsum first.\n");
+					error = EAGAIN;
+				}
 			} else
-				error = EINVAL;
+				ifp->if_hwassist &= ~CSUM_TSO;
 		}
 		if (mask & IFCAP_LRO) {
 			ifp->if_capenable ^= IFCAP_LRO;
@@ -2090,6 +2097,8 @@ fail:
 				PORT_UNLOCK(p);
 			}
 		}
+		if (mask & IFCAP_VLAN_HWTSO)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
 		if (mask & IFCAP_VLAN_HWCSUM)
 			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
 
