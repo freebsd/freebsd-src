@@ -6989,7 +6989,7 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct bce_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	struct mii_data *mii;
-	int mask, error = 0;
+	int mask, error = 0, reinit;
 
 	DBENTER(BCE_VERBOSE_MISC);
 
@@ -7010,7 +7010,16 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 			BCE_LOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			reinit = 0;
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				/*
+				 * Because allocation size is used in RX
+				 * buffer allocation, stop controller if
+				 * it is already running.
+				 */
+				bce_stop(sc);
+				reinit = 1;
+			}
 #ifdef BCE_JUMBO_HDRSPLIT
 			/* No buffer allocation size changes are necessary. */
 #else
@@ -7028,7 +7037,8 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 #endif
 
-			bce_init_locked(sc);
+			if (reinit != 0)
+				bce_init_locked(sc);
 			BCE_UNLOCK(sc);
 			break;
 
@@ -7062,7 +7072,6 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 
 			BCE_UNLOCK(sc);
-			error = 0;
 
 			break;
 
@@ -7072,10 +7081,8 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			DBPRINT(sc, BCE_VERBOSE_MISC, "Received SIOCADDMULTI/SIOCDELMULTI\n");
 
 			BCE_LOCK(sc);
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				bce_set_rx_mode(sc);
-				error = 0;
-			}
 			BCE_UNLOCK(sc);
 
 			break;
