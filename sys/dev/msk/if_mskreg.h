@@ -2468,9 +2468,9 @@ struct msk_hw_stats {
 struct msk_softc {
 	struct resource		*msk_res[1];	/* I/O resource */
 	struct resource_spec	*msk_res_spec;
-	struct resource		*msk_irq[2];	/* IRQ resources */
+	struct resource		*msk_irq[1];	/* IRQ resources */
 	struct resource_spec	*msk_irq_spec;
-	void			*msk_intrhand[2]; /* irq handler handle */
+	void			*msk_intrhand; /* irq handler handle */
 	device_t		msk_dev;
 	uint8_t			msk_hw_id;
 	uint8_t			msk_hw_rev;

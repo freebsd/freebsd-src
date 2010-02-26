@@ -393,12 +393,6 @@ static struct resource_spec msk_irq_spec_msi[] = {
 	{ -1,			0,		0 }
 };
 
-static struct resource_spec msk_irq_spec_msi2[] = {
-	{ SYS_RES_IRQ,		1,		RF_ACTIVE },
-	{ SYS_RES_IRQ,		2,		RF_ACTIVE },
-	{ -1,			0,		0 }
-};
-
 static int
 msk_miibus_readreg(device_t dev, int phy, int reg)
 {
@@ -1757,37 +1751,16 @@ mskc_attach(device_t dev)
 	msic = pci_msi_count(dev);
 	if (bootverbose)
 		device_printf(dev, "MSI count : %d\n", msic);
-	/*
-	 * The Yukon II reports it can handle two messages, one for each
-	 * possible port.  We go ahead and allocate two messages and only
-	 * setup a handler for both if we have a dual port card.
-	 *
-	 * XXX: I haven't untangled the interrupt handler to handle dual
-	 * port cards with separate MSI messages, so for now I disable MSI
-	 * on dual port cards.
-	 */
 	if (legacy_intr != 0)
 		msi_disable = 1;
-	if (msi_disable == 0) {
-		switch (msic) {
-		case 2:
-		case 1: /* 88E8058 reports 1 MSI message */
-			msir = msic;
-			if (sc->msk_num_port == 1 &&
-			    pci_alloc_msi(dev, &msir) == 0) {
-				if (msic == msir) {
-					sc->msk_pflags |= MSK_FLAG_MSI;
-					sc->msk_irq_spec = msic == 2 ?
-					    msk_irq_spec_msi2 :
-					    msk_irq_spec_msi;
-				} else
-					pci_release_msi(dev);
-			}
-			break;
-		default:
-			device_printf(dev,
-			    "Unexpected number of MSI messages : %d\n", msic);
-			break;
+	if (msi_disable == 0 && msic > 0) {
+		msir = 1;
+		if (pci_alloc_msi(dev, &msir) == 0) {
+			if (msir == 1) {
+				sc->msk_pflags |= MSK_FLAG_MSI;
+				sc->msk_irq_spec = msk_irq_spec_msi;
+			} else
+				pci_release_msi(dev);
 		}
 	}
 
@@ -1861,7 +1834,7 @@ mskc_attach(device_t dev)
 	if (legacy_intr)
 		error = bus_setup_intr(dev, sc->msk_irq[0], INTR_TYPE_NET |
 		    INTR_MPSAFE, NULL, msk_legacy_intr, sc,
-		    &sc->msk_intrhand[0]);
+		    &sc->msk_intrhand);
 	else {
 		TASK_INIT(&sc->msk_int_task, 0, msk_int_task, sc);
 		sc->msk_tq = taskqueue_create_fast("msk_taskq", M_WAITOK,
@@ -1869,7 +1842,7 @@ mskc_attach(device_t dev)
 		taskqueue_start_threads(&sc->msk_tq, 1, PI_NET, "%s taskq",
 		    device_get_nameunit(sc->msk_dev));
 		error = bus_setup_intr(dev, sc->msk_irq[0], INTR_TYPE_NET |
-		    INTR_MPSAFE, msk_intr, NULL, sc, &sc->msk_intrhand[0]);
+		    INTR_MPSAFE, msk_intr, NULL, sc, &sc->msk_intrhand);
 	}
 
 	if (error != 0) {
@@ -1983,13 +1956,9 @@ mskc_detach(device_t dev)
 		taskqueue_free(sc->msk_tq);
 		sc->msk_tq = NULL;
 	}
-	if (sc->msk_intrhand[0]) {
-		bus_teardown_intr(dev, sc->msk_irq[0], sc->msk_intrhand[0]);
-		sc->msk_intrhand[0] = NULL;
-	}
-	if (sc->msk_intrhand[1]) {
-		bus_teardown_intr(dev, sc->msk_irq[0], sc->msk_intrhand[0]);
-		sc->msk_intrhand[1] = NULL;
+	if (sc->msk_intrhand) {
+		bus_teardown_intr(dev, sc->msk_irq[0], sc->msk_intrhand);
+		sc->msk_intrhand = NULL;
 	}
 	bus_release_resources(dev, sc->msk_irq_spec, sc->msk_irq);
 	if ((sc->msk_pflags & MSK_FLAG_MSI) != 0)
