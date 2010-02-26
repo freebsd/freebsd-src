@@ -1547,7 +1547,6 @@ OLD_FILES+=usr/libexec/comsat
 OLD_FILES+=usr/share/examples/etc/mail.rc
 OLD_FILES+=usr/share/man/man1/Mail.1.gz
 OLD_FILES+=usr/share/man/man1/biff.1.gz
-OLD_FILES+=usr/share/man/man1/fmt.1.gz
 OLD_FILES+=usr/share/man/man1/from.1.gz
 OLD_FILES+=usr/share/man/man1/mail.1.gz
 OLD_FILES+=usr/share/man/man1/mailx.1.gz
