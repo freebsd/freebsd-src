@@ -2686,7 +2686,7 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 	}
 	/* Check if we have a VLAN tag to insert. */
 	if ((m->m_flags & M_VLANTAG) != 0) {
-		if (tso == 0) {
+		if (tx_le == NULL) {
 			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
 			tx_le->msk_addr = htole32(0);
 			tx_le->msk_control = htole32(OP_VLAN | HW_OWNER |
