@@ -481,8 +481,9 @@ static	int
 bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct bpf_d *d = dev->si_drv1;
-	int timed_out;
 	int error;
+	int non_block;
+	int timed_out;
 
 	/*
 	 * Restrict application to use a buffer the same size as
@@ -490,6 +491,8 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	 */
 	if (uio->uio_resid != d->bd_bufsize)
 		return (EINVAL);
+
+	non_block = ((ioflag & O_NONBLOCK) != 0);
 
 	BPFD_LOCK(d);
 	d->bd_pid = curthread->td_proc->p_pid;
@@ -503,14 +506,20 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	 * have arrived to fill the store buffer.
 	 */
 	while (d->bd_hbuf == NULL) {
-		if ((d->bd_immediate || timed_out) && d->bd_slen != 0) {
+		if (d->bd_slen != 0) {
 			/*
 			 * A packet(s) either arrived since the previous
 			 * read or arrived while we were asleep.
-			 * Rotate the buffers and return what's here.
 			 */
-			ROTATE_BUFFERS(d);
-			break;
+			if (d->bd_immediate || non_block || timed_out) {
+				/*
+				 * Rotate the buffers and return what's here
+				 * if we are in immediate mode, non-blocking
+				 * flag is set, or this descriptor timed out.
+				 */
+				ROTATE_BUFFERS(d);
+				break;
+			}
 		}
 
 		/*
@@ -524,7 +533,7 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 			return (ENXIO);
 		}
 
-		if (ioflag & O_NONBLOCK) {
+		if (non_block) {
 			BPFD_UNLOCK(d);
 			return (EWOULDBLOCK);
 		}
