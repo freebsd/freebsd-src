@@ -1058,7 +1058,8 @@ bce_attach(device_t dev)
 
 	if (bce_tso_enable) {
 		ifp->if_hwassist = BCE_IF_HWASSIST | CSUM_TSO;
-		ifp->if_capabilities = BCE_IF_CAPABILITIES | IFCAP_TSO4;
+		ifp->if_capabilities = BCE_IF_CAPABILITIES | IFCAP_TSO4 |
+		    IFCAP_VLAN_HWTSO;
 	} else {
 		ifp->if_hwassist = BCE_IF_HWASSIST;
 		ifp->if_capabilities = BCE_IF_CAPABILITIES;
@@ -7176,6 +7177,9 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    ifp->if_capabilities & IFCAP_VLAN_HWCSUM)
 				ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
 
+			if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+			    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
+				ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
 			/*
 			 * Don't actually disable VLAN tag stripping as
 			 * management firmware (ASF/IPMI/UMP) requires the
@@ -7184,8 +7188,12 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			 * appending stripped VLAN tag.
 			 */
 			if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-			    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING))
+			    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING)) {
 				ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+				if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+				    == 0)
+					ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
+			}
 			VLAN_CAPABILITIES(ifp);
 			break;
 		default:
