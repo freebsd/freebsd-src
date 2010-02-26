@@ -690,7 +690,6 @@ mpt_raid_thread(void *arg)
 
 		if (mpt->raid_rescan != 0) {
 			union ccb *ccb;
-			struct cam_path *path;
 			int error;
 
 			mpt->raid_rescan = 0;
@@ -699,7 +698,7 @@ mpt_raid_thread(void *arg)
 			ccb = xpt_alloc_ccb();
 
 			MPT_LOCK(mpt);
-			error = xpt_create_path(&path, xpt_periph,
+			error = xpt_create_path(&ccb->ccb_h.path, xpt_periph,
 			    cam_sim_path(mpt->phydisk_sim),
 			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 			if (error != CAM_REQ_CMP) {
