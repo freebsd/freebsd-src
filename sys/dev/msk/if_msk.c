@@ -1503,7 +1503,7 @@ msk_attach(device_t dev)
 	 * Enable Rx checksum offloading if controller support new
 	 * descriptor format.
 	 */
-	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 && 
+	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 &&
 	    (sc_if->msk_flags & MSK_FLAG_NORX_CSUM) == 0)
 		ifp->if_capabilities |= IFCAP_RXCSUM;
 	ifp->if_hwassist = MSK_CSUM_FEATURES | CSUM_TSO;
@@ -1551,7 +1551,7 @@ msk_attach(device_t dev)
 		 * Enable Rx checksum offloading for VLAN taggedd frames
 		 * if controller support new descriptor format.
 		 */
-		if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 && 
+		if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 &&
 		    (sc_if->msk_flags & MSK_FLAG_NORX_CSUM) == 0)
 			ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
 	}
@@ -3719,7 +3719,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL),
 		    GMC_BYP_MACSECRX_ON | GMC_BYP_MACSECTX_ON |
 		    GMC_BYP_RETR_ON);
- 
+
 	/*
 	 * Initialize GMAC first such that speed/duplex/flow-control
 	 * parameters are renegotiated when interface is brought up.
@@ -3767,7 +3767,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	    eaddr[2] | (eaddr[3] << 8));
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_2H,
 	    eaddr[4] | (eaddr[5] << 8));
-	
+
 	/* Disable interrupts for counter overflows. */
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_TX_IRQ_MSK, 0);
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_RX_IRQ_MSK, 0);
