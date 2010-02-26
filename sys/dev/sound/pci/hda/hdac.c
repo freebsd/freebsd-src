@@ -86,7 +86,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20100122_0141"
+#define HDA_DRV_TEST_REV	"20100226_0142"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -3503,7 +3503,7 @@ hdac_stream_setup(struct hdac_chan *ch)
 
 		/* If HP redirection is enabled, but failed to use same
 		   DAC, make last DAC to duplicate first one. */
-		if (as->hpredir >= 0 && i == as->pincnt) {
+		if (as->fakeredir && i == (as->pincnt - 1)) {
 			c = (ch->sid << 4);
 		} else {
 			if (map >= 0) /* Map known speaker setups. */
