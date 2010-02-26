@@ -82,6 +82,8 @@
 #define	SIOCGIFMAC	_IOWR('i', 38, struct ifreq)	/* get IF MAC label */
 #define	SIOCSIFMAC	 _IOW('i', 39, struct ifreq)	/* set IF MAC label */
 #define	SIOCSIFNAME	 _IOW('i', 40, struct ifreq)	/* set IF name */
+#define	SIOCSIFDESCR	 _IOW('i', 41, struct ifreq)	/* set ifnet descr */ 
+#define	SIOCGIFDESCR	_IOWR('i', 42, struct ifreq)	/* get ifnet descr */ 
 
 #define	SIOCADDMULTI	 _IOW('i', 49, struct ifreq)	/* add m'cast addr */
 #define	SIOCDELMULTI	 _IOW('i', 50, struct ifreq)	/* del m'cast addr */
