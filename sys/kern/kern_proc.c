@@ -828,9 +828,10 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 }
 
 /*
- * Fill in information that is thread specific.  Must be called with p_slock
- * locked.  If 'preferthread' is set, overwrite certain process-related
- * fields that are maintained for both threads and processes.
+ * Fill in information that is thread specific.  Must be called with
+ * target process locked.  If 'preferthread' is set, overwrite certain
+ * process-related fields that are maintained for both threads and
+ * processes.
  */
 static void
 fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
@@ -899,7 +900,8 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	/* We can't get this anymore but ps etc never used it anyway. */
 	kp->ki_rqindex = 0;
 
-	SIGSETOR(kp->ki_siglist, td->td_siglist);
+	if (preferthread)
+		kp->ki_siglist = td->td_siglist;
 	kp->ki_sigmask = td->td_sigmask;
 	thread_unlock(td);
 }
