@@ -7789,8 +7789,9 @@ bwn_fw_get(struct bwn_mac *mac, enum bwn_fwtype type,
 		bwn_do_release_fw(bfw);
 	}
 
-	snprintf(namebuf, sizeof(namebuf), "bwn%s_v4_%s",
-	    (type == BWN_FWTYPE_OPENSOURCE) ? "-open" : "", name);
+	snprintf(namebuf, sizeof(namebuf), "bwn%s_v4_%s%s",
+	    (type == BWN_FWTYPE_OPENSOURCE) ? "-open" : "",
+	    (mac->mac_phy.type == BWN_PHYTYPE_LP) ? "lp_" : "", name);
 	/* XXX Sleeping on "fwload" with the non-sleepable locks held */
 	fw = firmware_get(namebuf);
 	if (fw == NULL) {
