@@ -1529,7 +1529,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	}
 	isp->isp_xffree = isp->isp_xflist;
 #ifdef	ISP_TARGET_MODE
-	len = sizeof (isp_hdl_t *) * isp->isp_maxcmds;
+	len = sizeof (isp_hdl_t) * isp->isp_maxcmds;
 	isp->isp_tgtlist = (isp_hdl_t *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 	if (isp->isp_tgtlist == NULL) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
