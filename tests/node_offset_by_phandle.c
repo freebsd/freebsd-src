@@ -29,7 +29,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-void check_search(void *fdt, uint32_t phandle, int target)
+static void check_search(void *fdt, uint32_t phandle, int target)
 {
 	int offset;
 

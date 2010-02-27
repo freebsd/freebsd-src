@@ -30,7 +30,7 @@
 
 #define POISON	('\xff')
 
-void check_path_buf(void *fdt, const char *path, int pathlen, int buflen)
+static void check_path_buf(void *fdt, const char *path, int pathlen, int buflen)
 {
 	int offset;
 	char buf[buflen+1];
@@ -43,6 +43,8 @@ void check_path_buf(void *fdt, const char *path, int pathlen, int buflen)
 	memset(buf, POISON, sizeof(buf)); /* poison the buffer */
 
 	len = fdt_get_path(fdt, offset, buf, buflen);
+	verbose_printf("get_path() %s -> %d -> %s\n", path, offset, buf);
+
 	if (buflen <= pathlen) {
 		if (len != -FDT_ERR_NOSPACE)
 			FAIL("fdt_get_path([%d bytes]) returns %d with "
@@ -51,9 +53,9 @@ void check_path_buf(void *fdt, const char *path, int pathlen, int buflen)
 		if (len < 0)
 			FAIL("fdt_get_path([%d bytes]): %s", buflen,
 			     fdt_strerror(len));
-		if (len != pathlen)
-			FAIL("fdt_get_path([%d bytes]) reports length %d "
-			     "instead of %d", buflen, len, pathlen);
+		if (len != 0)
+			FAIL("fdt_get_path([%d bytes]) returns %d "
+			     "instead of 0", buflen, len);
 		if (strcmp(buf, path) != 0)
 			FAIL("fdt_get_path([%d bytes]) returns \"%s\" "
 			     "instead of \"%s\"", buflen, buf, path);
@@ -63,13 +65,15 @@ void check_path_buf(void *fdt, const char *path, int pathlen, int buflen)
 		FAIL("fdt_get_path([%d bytes]) overran buffer", buflen);
 }
 
-void check_path(void *fdt, const char *path)
+static void check_path(void *fdt, const char *path)
 {
 	int pathlen = strlen(path);
 
 	check_path_buf(fdt, path, pathlen, 1024);
 	check_path_buf(fdt, path, pathlen, pathlen+1);
 	check_path_buf(fdt, path, pathlen, pathlen);
+	check_path_buf(fdt, path, pathlen, 0);
+	check_path_buf(fdt, path, pathlen, 2);
 }
 
 int main(int argc, char *argv[])

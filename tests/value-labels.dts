@@ -1,0 +1,8 @@
+/dts-v1/;
+
+/ {
+	prop1: prop1 = start1: "a", mid1: "b" end1:;
+	prop2: prop2 = start2: < innerstart2: 0xdeadbeef innermid2: 0xabcd1234 innerend2: > end2:;
+	prop3: prop3 = start3: [ innerstart3: ab innermid3: cd innerend3: ] end3:;
+};
+

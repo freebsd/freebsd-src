@@ -4,15 +4,18 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
 #include <fdt.h>
 #include <libfdt_env.h>
 
+#define FTDUMP_BUF_SIZE	65536
+
 #define ALIGN(x, a)	(((x) + ((a) - 1)) & ~((a) - 1))
 #define PALIGN(p, a)	((void *)(ALIGN((unsigned long)(p), (a))))
-#define GET_CELL(p)	(p += 4, *((uint32_t *)(p-4)))
+#define GET_CELL(p)	(p += 4, *((const uint32_t *)(p-4)))
 
 static int is_printable_string(const void *data, int len)
 {
@@ -38,10 +41,10 @@ static int is_printable_string(const void *data, int len)
 	return 1;
 }
 
-static void print_data(const void *data, int len)
+static void print_data(const char *data, int len)
 {
 	int i;
-	const uint8_t *s;
+	const char *p = data;
 
 	/* no data, don't print */
 	if (len == 0)
@@ -52,13 +55,13 @@ static void print_data(const void *data, int len)
 	} else if ((len % 4) == 0) {
 		printf(" = <");
 		for (i = 0; i < len; i += 4)
-			printf("%08x%s", *((const uint32_t *)data + i),
+			printf("0x%08x%s", fdt32_to_cpu(GET_CELL(p)),
 			       i < (len - 4) ? " " : "");
 		printf(">");
 	} else {
 		printf(" = [");
-		for (i = 0, s = data; i < len; i++)
-			printf("%02x%s", s[i], i < len - 1 ? " " : "");
+		for (i = 0; i < len; i++)
+			printf("%02x%s", *p++, i < len - 1 ? " " : "");
 		printf("]");
 	}
 }
@@ -71,13 +74,12 @@ static void dump_blob(void *blob)
 	uint32_t off_str = fdt32_to_cpu(bph->off_dt_strings);
 	struct fdt_reserve_entry *p_rsvmap =
 		(struct fdt_reserve_entry *)((char *)blob + off_mem_rsvmap);
-	char *p_struct = (char *)blob + off_dt;
-	char *p_strings = (char *)blob + off_str;
+	const char *p_struct = (const char *)blob + off_dt;
+	const char *p_strings = (const char *)blob + off_str;
 	uint32_t version = fdt32_to_cpu(bph->version);
 	uint32_t totalsize = fdt32_to_cpu(bph->totalsize);
 	uint32_t tag;
-	char *p;
-	char *s, *t;
+	const char *p, *s, *t;
 	int depth, sz, shift;
 	int i;
 	uint64_t addr, size;
@@ -85,6 +87,7 @@ static void dump_blob(void *blob)
 	depth = 0;
 	shift = 4;
 
+	printf("/dts-v1/;\n");
 	printf("// magic:\t\t0x%x\n", fdt32_to_cpu(bph->magic));
 	printf("// totalsize:\t\t0x%x (%d)\n", totalsize, totalsize);
 	printf("// off_dt_struct:\t0x%x\n", off_dt);
@@ -167,7 +170,7 @@ static void dump_blob(void *blob)
 int main(int argc, char *argv[])
 {
 	FILE *fp;
-	char buf[16384];	/* 16k max */
+	char *buf;
 	int size;
 
 	if (argc < 2) {
@@ -175,15 +178,25 @@ int main(int argc, char *argv[])
 		return 5;
 	}
 
-	fp = fopen(argv[1], "rb");
-	if (fp == NULL) {
-		fprintf(stderr, "unable to open %s\n", argv[1]);
+	if (strcmp(argv[1], "-") == 0) {
+		fp = stdin;
+	} else {
+		fp = fopen(argv[1], "rb");
+		if (fp == NULL) {
+			fprintf(stderr, "unable to open %s\n", argv[1]);
+			return 10;
+		}
+	}
+
+	buf = malloc(FTDUMP_BUF_SIZE);
+	if (!buf) {
+		fprintf(stderr, "Couldn't allocate %d byte buffer\n", FTDUMP_BUF_SIZE);
 		return 10;
 	}
 
-	size = fread(buf, 1, sizeof(buf), fp);
-	if (size == sizeof(buf)) {	/* too large */
-		fprintf(stderr, "file too large\n");
+	size = fread(buf, 1, FTDUMP_BUF_SIZE, fp);
+	if (size == FTDUMP_BUF_SIZE) {
+		fprintf(stderr, "file too large (maximum is %d bytes)\n", FTDUMP_BUF_SIZE);
 		return 10;
 	}
 

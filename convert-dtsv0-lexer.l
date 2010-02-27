@@ -17,7 +17,7 @@
  *                                                                   USA
  */
 
-%option noyywrap nounput
+%option noyywrap nounput noinput
 
 %x INCLUDE
 %x BYTESTRING
@@ -42,6 +42,7 @@ GAP		({WS}|{COMMENT}|{LINECOMMENT})*
 #include <fnmatch.h>
 
 #include "srcpos.h"
+#include "util.h"
 
 static int v1_tagged; /* = 0 */
 static int cbase = 16;
@@ -50,26 +51,6 @@ static unsigned long long last_val;
 static char *last_name; /* = NULL */
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
-static inline void __attribute__((noreturn)) die(char * str, ...)
-{
-	va_list ap;
-
-	va_start(ap, str);
-	fprintf(stderr, "FATAL ERROR: ");
-	vfprintf(stderr, str, ap);
-	exit(1);
-}
-
-static inline void *xmalloc(size_t len)
-{
-	void *new = malloc(len);
-
-	if (! new)
-		die("malloc() failed\n");
-
-	return new;
-}
 
 const struct {
 	const char *pattern;
@@ -185,7 +166,7 @@ const struct {
 
 <PROPNODENAME>{PROPNODECHAR}+ {
 			ECHO;
-			last_name = strdup(yytext);
+			last_name = xstrdup(yytext);
 			BEGIN(INITIAL);
 		}
 

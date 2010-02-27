@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
 {
 	void *fdt;
 	int err;
-	int offset;
+	int offset, s1, s2;
 
 	test_init(argc, argv);
 
@@ -77,21 +77,25 @@ int main(int argc, char *argv[])
 	CHECK(fdt_setprop_string(fdt, 0, "prop-str", TEST_STRING_1));
 
 	OFF_CHECK(offset, fdt_add_subnode(fdt, 0, "subnode@1"));
-	CHECK(fdt_setprop_string(fdt, offset, "compatible", "subnode1"));
-	CHECK(fdt_setprop_cell(fdt, offset, "prop-int", TEST_VALUE_1));
-	OFF_CHECK(offset, fdt_add_subnode(fdt, offset, "subsubnode"));
+	s1 = offset;
+	CHECK(fdt_setprop_string(fdt, s1, "compatible", "subnode1"));
+	CHECK(fdt_setprop_cell(fdt, s1, "prop-int", TEST_VALUE_1));
+	OFF_CHECK(offset, fdt_add_subnode(fdt, s1, "subsubnode"));
 	CHECK(fdt_setprop(fdt, offset, "compatible",
 			  "subsubnode1\0subsubnode", 23));
 	CHECK(fdt_setprop_cell(fdt, offset, "prop-int", TEST_VALUE_1));
+	OFF_CHECK(offset, fdt_add_subnode(fdt, s1, "ss1"));
 
 	OFF_CHECK(offset, fdt_add_subnode(fdt, 0, "subnode@2"));
-	CHECK(fdt_setprop_cell(fdt, offset, "linux,phandle", PHANDLE_1));
-	CHECK(fdt_setprop_cell(fdt, offset, "prop-int", TEST_VALUE_2));
-	OFF_CHECK(offset, fdt_add_subnode(fdt, offset, "subsubnode@0"));
+	s2 = offset;
+	CHECK(fdt_setprop_cell(fdt, s2, "linux,phandle", PHANDLE_1));
+	CHECK(fdt_setprop_cell(fdt, s2, "prop-int", TEST_VALUE_2));
+	OFF_CHECK(offset, fdt_add_subnode(fdt, s2, "subsubnode@0"));
 	CHECK(fdt_setprop_cell(fdt, offset, "linux,phandle", PHANDLE_2));
 	CHECK(fdt_setprop(fdt, offset, "compatible",
 			  "subsubnode2\0subsubnode", 23));
 	CHECK(fdt_setprop_cell(fdt, offset, "prop-int", TEST_VALUE_2));
+	OFF_CHECK(offset, fdt_add_subnode(fdt, s2, "ss2"));
 
 	CHECK(fdt_pack(fdt));
 

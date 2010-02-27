@@ -28,7 +28,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-void check_phandle(void *fdt, const char *path, uint32_t checkhandle)
+static void check_phandle(void *fdt, const char *path, uint32_t checkhandle)
 {
 	int offset;
 	uint32_t phandle;

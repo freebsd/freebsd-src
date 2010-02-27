@@ -28,7 +28,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-void check_ref(const void *fdt, int node, uint32_t checkref)
+static void check_ref(const void *fdt, int node, uint32_t checkref)
 {
 	const uint32_t *p;
 	uint32_t ref;
@@ -60,8 +60,8 @@ void check_ref(const void *fdt, int node, uint32_t checkref)
 int main(int argc, char *argv[])
 {
 	void *fdt;
-	int n1, n2, n3, n4;
-	uint32_t h1, h2, h4;
+	int n1, n2, n3, n4, n5;
+	uint32_t h1, h2, h4, h5;
 
 	test_init(argc, argv);
 	fdt = load_blob_arg(argc, argv);
@@ -78,10 +78,14 @@ int main(int argc, char *argv[])
 	n4 = fdt_path_offset(fdt, "/node4");
 	if (n4 < 0)
 		FAIL("fdt_path_offset(/node4): %s", fdt_strerror(n4));
+	n5 = fdt_path_offset(fdt, "/node5");
+	if (n5 < 0)
+		FAIL("fdt_path_offset(/node5): %s", fdt_strerror(n5));
 
 	h1 = fdt_get_phandle(fdt, n1);
 	h2 = fdt_get_phandle(fdt, n2);
 	h4 = fdt_get_phandle(fdt, n4);
+	h5 = fdt_get_phandle(fdt, n5);
 
 	if (h1 != 0x2000)
 		FAIL("/node1 has wrong phandle, 0x%x instead of 0x%x",
@@ -91,6 +95,11 @@ int main(int argc, char *argv[])
 		     h2, 0x1);
 	if ((h4 == 0x2000) || (h4 == 0x1) || (h4 == 0))
 		FAIL("/node4 has bad phandle, 0x%x", h4);
+
+	if ((h5 == 0) || (h5 == -1))
+		FAIL("/node5 has bad phandle, 0x%x", h5);
+	if ((h5 == h4) || (h5 == h2) || (h5 == h1))
+		FAIL("/node5 has duplicate phandle, 0x%x", h5);
 
 	check_ref(fdt, n1, h2);
 	check_ref(fdt, n2, h1);

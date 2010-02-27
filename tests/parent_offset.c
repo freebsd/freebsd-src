@@ -28,7 +28,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-int path_parent_len(const char *path)
+static int path_parent_len(const char *path)
 {
 	const char *p = strrchr(path, '/');
 
@@ -40,7 +40,7 @@ int path_parent_len(const char *path)
 		return p - path;
 }
 
-void check_path(struct fdt_header *fdt, const char *path)
+static void check_path(struct fdt_header *fdt, const char *path)
 {
 	char *parentpath;
 	int nodeoffset, parentoffset, parentpathoffset, pathparentlen;

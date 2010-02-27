@@ -52,7 +52,7 @@ static void write_prefix(FILE *f, int level)
 		fputc('\t', f);
 }
 
-int isstring(char c)
+static int isstring(char c)
 {
 	return (isprint(c)
 		|| (c == '\0')
@@ -63,25 +63,19 @@ static void write_propval_string(FILE *f, struct data val)
 {
 	const char *str = val.val;
 	int i;
-	int newchunk = 1;
 	struct marker *m = val.markers;
 
 	assert(str[val.len-1] == '\0');
 
+	while (m && (m->offset == 0)) {
+		if (m->type == LABEL)
+			fprintf(f, "%s: ", m->ref);
+		m = m->next;
+	}
+	fprintf(f, "\"");
+
 	for (i = 0; i < (val.len-1); i++) {
 		char c = str[i];
-
-		if (newchunk) {
-			while (m && (m->offset <= i)) {
-				if (m->type == LABEL) {
-					assert(m->offset == i);
-					fprintf(f, "%s: ", m->ref);
-				}
-				m = m->next;
-			}
-			fprintf(f, "\"");
-			newchunk = 0;
-		}
 
 		switch (c) {
 		case '\a':
@@ -113,7 +107,14 @@ static void write_propval_string(FILE *f, struct data val)
 			break;
 		case '\0':
 			fprintf(f, "\", ");
-			newchunk = 1;
+			while (m && (m->offset < i)) {
+				if (m->type == LABEL) {
+					assert(m->offset == (i+1));
+					fprintf(f, "%s: ", m->ref);
+				}
+				m = m->next;
+			}
+			fprintf(f, "\"");
 			break;
 		default:
 			if (isprint(c))

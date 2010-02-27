@@ -1,7 +1,7 @@
 /*
  * libfdt - Flat Device Tree manipulation
- *	Testcase for fdt_node_check_compatible()
- * Copyright (C) 2006 David Gibson, IBM Corporation.
+ *	Testcase for properties with more than one terminating null
+ * Copyright (C) 2009 David Gibson, IBM Corporation.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -17,7 +17,6 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -29,21 +28,15 @@
 #include "tests.h"
 #include "testdata.h"
 
-static void check_compatible(const void *fdt, const char *path,
-			     const char *compat)
+void check_extranull(void *fdt, const char *prop, const char *str, int numnulls)
 {
-	int offset, err;
+	int len = strlen(str);
+	char checkbuf[len+numnulls];
 
-	offset = fdt_path_offset(fdt, path);
-	if (offset < 0)
-		FAIL("fdt_path_offset(%s): %s", path, fdt_strerror(offset));
+	memset(checkbuf, 0, sizeof(checkbuf));
+	memcpy(checkbuf, TEST_STRING_1, len);
 
-	err = fdt_node_check_compatible(fdt, offset, compat);
-	if (err < 0)
-		FAIL("fdt_node_check_compatible(%s): %s", path,
-		     fdt_strerror(err));
-	if (err != 0)
-		FAIL("%s is not compatible with \"%s\"", path, compat);
+	check_getprop(fdt, 0, prop, len+numnulls, checkbuf);
 }
 
 int main(int argc, char *argv[])
@@ -51,13 +44,16 @@ int main(int argc, char *argv[])
 	void *fdt;
 
 	test_init(argc, argv);
+
 	fdt = load_blob_arg(argc, argv);
 
-	check_compatible(fdt, "/", "test_tree1");
-	check_compatible(fdt, "/subnode@1/subsubnode", "subsubnode1");
-	check_compatible(fdt, "/subnode@1/subsubnode", "subsubnode");
-	check_compatible(fdt, "/subnode@2/subsubnode", "subsubnode2");
-	check_compatible(fdt, "/subnode@2/subsubnode", "subsubnode");
+	check_extranull(fdt, "extranull0", TEST_STRING_1, 1);
+	check_extranull(fdt, "extranull1,1", TEST_STRING_1, 2);
+	check_extranull(fdt, "extranull1,2", TEST_STRING_1, 2);
+	check_extranull(fdt, "extranull2,1", TEST_STRING_1, 3);
+	check_extranull(fdt, "extranull2,2", TEST_STRING_1, 3);
+	check_extranull(fdt, "extranull2,3", TEST_STRING_1, 3);
+	check_extranull(fdt, "extranull2,4", TEST_STRING_1, 3);
 
 	PASS();
 }

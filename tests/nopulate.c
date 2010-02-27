@@ -30,7 +30,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-int nopulate_struct(char *buf, const char *fdt)
+static int nopulate_struct(char *buf, const char *fdt)
 {
 	int offset, nextoffset = 0;
 	uint32_t tag;

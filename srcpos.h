@@ -17,6 +17,9 @@
  *                                                                   USA
  */
 
+#ifndef _SRCPOS_H_
+#define _SRCPOS_H_
+
 /*
  * Augment the standard YYLTYPE with a filenum index into an
  * array of all opened filenames.
@@ -69,9 +72,14 @@ typedef struct YYLTYPE {
     while (YYID (0))
 
 
+typedef YYLTYPE srcpos;
 
-extern void yyerror(char const *);
-extern void yyerrorf(char const *, ...) __attribute__((format(printf, 1, 2)));
+/*
+ * Fictional source position used for IR nodes that are
+ * created without otherwise knowing a true source position.
+ * For example,constant definitions from the command line.
+ */
+extern srcpos srcpos_empty;
 
 extern struct dtc_file *srcpos_file;
 
@@ -83,3 +91,14 @@ struct search_path {
 extern struct dtc_file *dtc_open_file(const char *fname,
                                       const struct search_path *search);
 extern void dtc_close_file(struct dtc_file *file);
+
+extern srcpos *srcpos_copy(srcpos *pos);
+extern char *srcpos_string(srcpos *pos);
+extern void srcpos_dump(srcpos *pos);
+
+extern void srcpos_error(srcpos *pos, char const *, ...)
+     __attribute__((format(printf, 2, 3)));
+extern void srcpos_warn(srcpos *pos, char const *, ...)
+     __attribute__((format(printf, 2, 3)));
+
+#endif /* _SRCPOS_H_ */
