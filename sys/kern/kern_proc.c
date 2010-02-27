@@ -676,11 +676,9 @@ fill_kinfo_aggregate(struct proc *p, struct kinfo_proc *kp)
 
 	kp->ki_estcpu = 0;
 	kp->ki_pctcpu = 0;
-	kp->ki_runtime = 0;
 	FOREACH_THREAD_IN_PROC(p, td) {
 		thread_lock(td);
 		kp->ki_pctcpu += sched_pctcpu(td);
-		kp->ki_runtime += cputick2usec(td->td_runtime);
 		kp->ki_estcpu += td->td_estcpu;
 		thread_unlock(td);
 	}
