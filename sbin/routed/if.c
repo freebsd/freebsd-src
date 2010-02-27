@@ -29,6 +29,8 @@
  * $FreeBSD$
  */
 
+#include <stdint.h>
+
 #include "defs.h"
 #include "pathnames.h"
 
@@ -948,9 +950,9 @@ ifinit(void)
 				} else if (now.tv_sec>(ifp->int_data.ts
 						       + CHECK_BAD_INTERVAL)) {
 					trace_act("interface %s has been off"
-						  " %ld seconds; forget it",
+						  " %jd seconds; forget it",
 						  ifp->int_name,
-						  (long)now.tv_sec-
+						  (intmax_t)now.tv_sec -
 						      ifp->int_data.ts);
 					ifdel(ifp);
 				}
