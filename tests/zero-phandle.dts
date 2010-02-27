@@ -1,0 +1,7 @@
+/dts-v1/;
+
+/ {
+	node {
+		linux,phandle = <0>;
+	};
+};

@@ -1,0 +1,7 @@
+{
+   opened blob dumps uninitialized data
+   Memcheck:Param
+   write(buf)
+   obj:/lib/ld-*.so
+   fun:main
+}

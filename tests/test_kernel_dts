@@ -1,0 +1,86 @@
+#!/usr/bin/perl
+
+my $dtc_old = "/home/jdl/FSL/dtc/dtc-old";
+my $dtc_new = "/home/jdl/FSL/dtc/dtc-new";
+
+my $basic_options = "-b 0 -f -I dts -O dtb";
+
+my $linux_dts_dir = "/usr/src/linux-2.6/arch/powerpc/boot/dts";
+
+# Yeah, sure, we could, like, readdir() this instead...
+my @boards = (
+	      "bamboo",
+	      "ebony",
+	      "ep88xc",
+	      "holly",
+	      "kilauea",
+	      "kuroboxHD",
+	      "kuroboxHG",
+	      "lite5200",
+	      "lite5200b",
+	      "mpc7448hpc2",
+	      "mpc8272ads",
+	      "mpc8313erdb",
+	      "mpc832x_mds",
+	      "mpc832x_rdb",
+	      "mpc8349emitx",
+	      "mpc8349emitxgp",
+	      "mpc834x_mds",
+	      "mpc836x_mds",
+	      "mpc8540ads",
+	      "mpc8541cds",
+	      "mpc8544ds",
+	      "mpc8548cds",
+	      "mpc8555cds",
+	      "mpc8560ads",
+	      "mpc8568mds",
+	      "mpc8572ds",
+	      "mpc8610_hpcd",
+	      "mpc8641_hpcn",
+	      "mpc866ads",	# Feh.  Bad node references...
+	      "mpc885ads",
+	      "pq2fads",
+	      "prpmc2800",
+	      "ps3",
+	      "sequoia",
+	      "walnut",
+);
+
+foreach my $board (@boards) {
+	my $dts_file = "$linux_dts_dir/$board.dts";
+
+	my $old_dtb_file = "/tmp/$board.dtb.old";
+	my $new_dtb_file = "/tmp/$board.dtb.new";
+
+	my $cmd_old = "$dtc_old $basic_options -o $old_dtb_file $dts_file";
+	my $cmd_new = "$dtc_new $basic_options -o $new_dtb_file $dts_file";
+	my $cmd_cmp = "cmp $old_dtb_file $new_dtb_file";
+
+	print "------------------------------------------------\n";
+	print "OLD: $cmd_old\n";
+	unlink($old_dtb_file) if (-f $old_dtb_file);
+	system("$cmd_old >& /dev/null");
+	my $status = $?;
+	if ($status) {
+		print "    FAILED to run old DTC on $board\n";
+	}
+
+	print "NEW: $cmd_new\n";
+	unlink($new_dtb_file) if (-f $new_dtb_file);
+	system("$cmd_new >& /dev/null");
+	$status = $?;
+	if ($status) {
+		print "    FAILED to run new DTC on $board\n";
+	}
+
+	if (-f $old_dtb_file && -f $new_dtb_file) {
+	    print "CMP: $cmd_cmp\n";
+	    system($cmd_cmp);
+	    $status = $?;
+	    if ($status) {
+		print "    FAILED $board\n";
+	    }
+	} else {
+	    printf "    FAILED: Missing dtb file\n";
+	}
+}

@@ -1,0 +1,65 @@
+LIB_TESTS_L = get_mem_rsv \
+	root_node find_property subnode_offset path_offset \
+	get_name getprop get_phandle \
+	get_path supernode_atdepth_offset parent_offset \
+	node_offset_by_prop_value node_offset_by_phandle \
+	node_check_compatible node_offset_by_compatible \
+	notfound \
+	setprop_inplace nop_property nop_node \
+	sw_tree1 \
+	move_and_save mangle-layout nopulate \
+	open_pack rw_tree1 set_name setprop del_property del_node \
+	string_escapes references path-references boot-cpuid incbin \
+	dtbs_equal_ordered \
+	add_subnode_with_nops
+LIB_TESTS = $(LIB_TESTS_L:%=$(TESTS_PREFIX)%)
+
+LIBTREE_TESTS_L = truncated_property
+LIBTREE_TESTS = $(LIBTREE_TESTS_L:%=$(TESTS_PREFIX)%)
+
+TESTS = $(LIB_TESTS) $(LIBTREE_TESTS)
+
+TESTS_TREES_L = test_tree1.dtb
+TESTS_TREES = $(TESTS_TREES_L:%=$(TESTS_PREFIX)%)
+
+TESTS_TARGETS = $(TESTS) $(TESTS_TREES)
+
+TESTS_DEPFILES = $(TESTS:%=%.d) \
+	$(addprefix $(TESTS_PREFIX),testutils.d trees.d dumptrees.d)
+
+TESTS_CLEANFILES_L =  *.output vglog.* vgcore.* *.dtb *.test.dts *.dtsv1 tmp.*
+TESTS_CLEANFILES = $(TESTS_CLEANFILES_L:%=$(TESTS_PREFIX)%)
+
+BIN += $(TESTS) $(TESTS_PREFIX)dumptrees
+
+.PHONY: tests
+tests:	$(TESTS) $(TESTS_TREES)
+
+$(LIB_TESTS): %: $(TESTS_PREFIX)testutils.o $(LIBFDT_lib)
+
+$(LIBTREE_TESTS): %: $(TESTS_PREFIX)testutils.o $(TESTS_PREFIX)trees.o $(LIBFDT_lib)
+
+$(TESTS_PREFIX)dumptrees: $(TESTS_PREFIX)trees.o
+
+$(TESTS_TREES): $(TESTS_PREFIX)dumptrees
+	@$(VECHO) DUMPTREES
+	cd $(TESTS_PREFIX); ./dumptrees >/dev/null
+
+tests_clean:
+	@$(VECHO) CLEAN "(tests)"
+	rm -f $(STD_CLEANFILES:%=$(TESTS_PREFIX)%)
+	rm -f $(TESTS_CLEANFILES)
+
+check:	tests dtc convert-dtsv0
+	cd $(TESTS_PREFIX); ./run_tests.sh
+
+checkm: tests dtc convert-dtsv0
+	cd $(TESTS_PREFIX); ./run_tests.sh -m 2>&1 | tee vglog.$$$$
+
+checkv:	tests dtc convert-dtsv0
+	cd $(TESTS_PREFIX); ./run_tests.sh -v
+
+ifneq ($(DEPTARGETS),)
+-include $(TESTS_DEPFILES)
+endif
+

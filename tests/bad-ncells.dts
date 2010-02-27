@@ -1,0 +1,7 @@
+/dts-v1/;
+
+/ {
+	#address-cells = "badthing";
+	#size-cells = "badthing";
+	#interrupt-cells = "badthing";
+};
