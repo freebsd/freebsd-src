@@ -649,7 +649,7 @@ prep_cdevsw(struct cdevsw *devsw)
 		cdevsw_free_devlocked(dsw2);
 }
 
-struct cdev *
+static struct cdev *
 make_dev_credv(int flags, struct cdevsw *devsw, int unit,
     struct ucred *cr, uid_t uid,
     gid_t gid, int mode, const char *fmt, va_list ap)
@@ -947,7 +947,8 @@ clone_setup(struct clonedevs **cdp)
 }
 
 int
-clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **dp, int extra)
+clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up,
+    struct cdev **dp, int extra)
 {
 	struct clonedevs *cd;
 	struct cdev *dev, *ndev, *dl, *de;
@@ -1118,6 +1119,7 @@ destroy_dev_sched_cbl(struct cdev *dev, void (*cb)(void *), void *arg)
 int
 destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg)
 {
+
 	dev_lock();
 	return (destroy_dev_sched_cbl(dev, cb, arg));
 }
@@ -1125,6 +1127,7 @@ destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg)
 int
 destroy_dev_sched(struct cdev *dev)
 {
+
 	return (destroy_dev_sched_cb(dev, NULL, NULL));
 }
 
