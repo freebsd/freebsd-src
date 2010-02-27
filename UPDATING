@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20100227:	p11	FreeBSD-EN-10:02.sched_ule
+	Fix a deadlock in the ULE scheduler.
+
 20100106:	p10	FreeBSD-SA-10:01.bind, FreeBSD-SA-10:02.ntpd,
 			FreeBSD-SA-10:03.zfs
 	Fix BIND named(8) cache poisoning with DNSSEC validation.
