@@ -69,9 +69,7 @@ static void	usage(void) __dead2;
 static int	set_charset(struct ntfs_args *);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	struct ntfs_args args;
 	struct stat sb;
@@ -193,8 +191,7 @@ main(argc, argv)
 }
 
 gid_t
-a_gid(s)
-	char *s;
+a_gid(char *s)
 {
 	struct group *gr;
 	char *gname;
@@ -213,8 +210,7 @@ a_gid(s)
 }
 
 uid_t
-a_uid(s)
-	char *s;
+a_uid(char *s)
 {
 	struct passwd *pw;
 	char *uname;
@@ -233,8 +229,7 @@ a_uid(s)
 }
 
 mode_t
-a_mask(s)
-	char *s;
+a_mask(char *s)
 {
 	int done, rv=0;
 	char *ep;
@@ -250,7 +245,7 @@ a_mask(s)
 }
 
 void
-usage()
+usage(void)
 {
 #ifdef TRANSITION_PERIOD_HACK
 	fprintf(stderr, "%s\n%s\n",
