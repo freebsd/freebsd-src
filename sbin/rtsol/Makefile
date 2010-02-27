@@ -21,8 +21,8 @@ SRCDIR=	${.CURDIR}/../../usr.sbin/rtsold
 PROG=	rtsol
 SRCS=	rtsold.c rtsol.c if.c probe.c rtsock.c
 NO_MAN=
-WARNS?=	0
 
+WARNS?=	3
 CFLAGS+= -DHAVE_ARC4RANDOM -DHAVE_POLL_H -DSMALL
 
 .include <bsd.prog.mk>

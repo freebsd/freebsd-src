@@ -94,9 +94,9 @@ rtsock_input(int s)
 	char *lim, *next;
 	struct rt_msghdr *rtm;
 	int idx;
-	size_t len;
+	ssize_t len;
 	int ret = 0;
-	const size_t lenlim =
+	const ssize_t lenlim =
 	    offsetof(struct rt_msghdr, rtm_msglen) + sizeof(rtm->rtm_msglen);
 
 	n = read(s, msg, sizeof(msg));
@@ -135,7 +135,7 @@ rtsock_input(int s)
 
 #ifdef RTM_IFANNOUNCE	/*NetBSD 1.5 or later*/
 static int
-rtsock_input_ifannounce(int s, struct rt_msghdr *rtm, char *lim)
+rtsock_input_ifannounce(int s __unused, struct rt_msghdr *rtm, char *lim)
 {
 	struct if_announcemsghdr *ifan;
 	struct ifinfo *ifinfo;
