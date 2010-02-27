@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100227: [ia64] removed <machine/sapicreg.h> and <machine/sapicvar.h>
+.if ${TARGET_ARCH} == "ia64"
+OLD_FILES+=usr/include/machine/sapicreg.h
+OLD_FILES+=usr/include/machine/sapicvar.h
+.endif
 # 20100208: man pages moved
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/share/man/man4/i386/alpm.4.gz
