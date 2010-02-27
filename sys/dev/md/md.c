@@ -814,6 +814,8 @@ mdcreate_preload(struct md_s *sc, struct md_ioctl *mdio)
 
 	if (mdio->md_options & ~(MD_AUTOUNIT | MD_FORCE))
 		return (EINVAL);
+	if (mdio->md_base == 0)
+		return (EINVAL);
 	sc->flags = mdio->md_options & MD_FORCE;
 	/* Cast to pointer size, then to pointer to avoid warning */
 	sc->pl_ptr = (u_char *)(uintptr_t)mdio->md_base;
