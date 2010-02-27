@@ -52,8 +52,8 @@ static FILE *fp;
 extern struct ifinfo *iflist;
 
 static void dump_interface_status(void);
-static char *sec2str(time_t);
-char *ifstatstr[] = {"IDLE", "DELAY", "PROBE", "DOWN", "TENTATIVE"};
+static const char *sec2str(time_t);
+static const char * const ifstatstr[] = {"IDLE", "DELAY", "PROBE", "DOWN", "TENTATIVE"};
 
 static void
 dump_interface_status(void)
@@ -97,7 +97,7 @@ dump_interface_status(void)
 }
 
 void
-rtsold_dump_file(char *dumpfile)
+rtsold_dump_file(const char *dumpfile)
 {
 	if ((fp = fopen(dumpfile, "w")) == NULL) {
 		warnmsg(LOG_WARNING, __func__, "open a dump file(%s): %s",
@@ -108,7 +108,7 @@ rtsold_dump_file(char *dumpfile)
 	fclose(fp);
 }
 
-static char *
+static const char *
 sec2str(time_t total)
 {
 	static char result[256];
