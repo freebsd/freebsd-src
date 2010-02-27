@@ -1,0 +1,12 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	node {
+		reg = <0 0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0>;
+	};
+};

@@ -1,0 +1,55 @@
+/memreserve/ 1000000000000000 0000000002000000;
+/memreserve/ 2000000000000000-20ffffffffffffff;
+/memreserve/ 0-13;
+
+/ {
+	model = "MyBoardName";
+	compatible = "MyBoardName", "MyBoardFamilyName";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	cpus {
+		linux,phandle = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		PowerPC,970@0 {
+			name = "PowerPC,970";
+			device_type = "cpu";
+			reg = <0>;
+			clock-frequency = <5f5e1000>;
+			timebase-frequency = <1FCA055>;
+			linux,boot-cpu;
+			i-cache-size = <10000>;
+			d-cache-size = <8000>;
+		};
+
+		PowerPC,970@1 {
+			name = "PowerPC,970";
+			device_type = "cpu";
+			reg = <1>;
+			clock-frequency = <5f5e1000>;
+			timebase-frequency = <1FCA055>;
+			i-cache-size = <10000>;
+			d-cache-size = <8000>;
+		};
+
+	};
+
+	randomnode {
+		string = "\xff\0stuffstuff\t\t\t\n\n\n";
+		blob = [0a 0b 0c 0d de ea ad be ef];
+		ref = < &/memory@0 >;
+		mixed = "abc", [1234], <a b c>;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		memreg: reg = <00000000 00000000 00000000 20000000>;
+	};
+
+	chosen {
+		bootargs = "root=/dev/sda2";
+		linux,platform = <00000600>;
+	};
+
+};

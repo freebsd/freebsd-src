@@ -1,0 +1,31 @@
+/ {
+	model = "SomeModel";
+	compatible = "Nothing";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+        memory@0 {
+                device_type = "memory";
+		reg = <00000000 00000000 00000000 20000000>;
+        };
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		d10 = <d# 10>;		// hex: 0xa
+		d23 = <d# 23>;		// hex: 0x17
+		b101 = <b# 101>;	// hex: 0x5
+		o17 = <o# 17>;		// hex: 0xf
+		hd00d = <h# d00d>;	// hex: 0xd00d
+
+		//   hex:  0x4d2    0x163e      0x2334    0xd80
+		stuff = <d# 1234    d# 5678    d# 9012    d# 3456>;
+
+
+		bad-d-1 = <d# abc123>;		// Hrm. 0
+		bad-d-2 = <d# 123456789012345>;
+		bad-o-1 = <o# 891>;
+		bad-o-2 = <o# 123456123456>;
+	};
+
+};

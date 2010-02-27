@@ -1,0 +1,13 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	PIC: pic@0 {
+		reg = <0x0 0x10>;
+		interrupt-controller;
+	};
+	chosen {
+		interrupt-controller = <&PIC>;
+	};
+};

@@ -1,0 +1,39 @@
+/* regexps for lexing comments are.. tricky.  Check if we've actually
+ * got it right */
+/dts-v1/;
+
+/ {
+	// line comment
+	prop1;
+	/* comment */
+	prop2;
+	/* multiline
+
+	notaprop1;
+
+	   comment */
+	prop3;
+	/**/
+	prop4;
+	/***/
+	prop5;
+	/****/
+	prop6;
+	/* another
+	 * multiline
+	 * comment */
+	prop7;
+	/* yet
+	 * another
+	 * multline
+	 * comment
+	 */
+	prop8;
+	/** try this */
+	prop9;
+	/* and this **/
+	prop10;
+	child /* finally */ {
+	};
+};
+/* final comment */

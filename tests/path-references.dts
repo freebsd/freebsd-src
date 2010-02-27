@@ -1,0 +1,14 @@
+/dts-v1/;
+
+/ {
+	/* Check multiple references case */
+	multiref = &n1 , &n2;
+	n1: node1 {
+		ref = &{/node2}; /* reference precedes target */
+		lref = &n2;
+	};
+	n2: node2 {
+		ref = &{/node1}; /* reference after target */
+		lref = &n1;
+	};
+};

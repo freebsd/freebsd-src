@@ -1,0 +1,6 @@
+DTC: dts->asm  on file "tests/base01.dts"
+Line 26: Invalid cell value '123456789012345'; -1 assumed
+Line 27: Invalid cell value '891'; 0 assumed
+Line 28: Invalid cell value '123456123456'; -1 assumed
+ERROR: Missing /chosen node
+Input tree has errors

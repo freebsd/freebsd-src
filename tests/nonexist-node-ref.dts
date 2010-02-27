@@ -1,0 +1,8 @@
+/dts-v1/;
+
+/ {
+	ref = < &{/node} >;
+	badref = < &{/nosuchnode} >;
+	label: node {
+	};
+};

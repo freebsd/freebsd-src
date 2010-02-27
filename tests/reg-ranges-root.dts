@@ -1,0 +1,8 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	reg = <0x1000 0x10>;
+	ranges = <0x1000 0x2000 0x1000>;
+};
