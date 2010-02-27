@@ -19,6 +19,10 @@ II - The DT block format
 
 III - libfdt
 
+IV - Utility Tools
+    1) convert-dtsv0 -- Conversion to Version 1
+    1) ftdump
+
 
 I - "dtc", the device tree compiler
 ===================================
@@ -28,7 +32,7 @@ I - "dtc", the device tree compiler
 Source code for the Device Tree Compiler can be found at jdl.com.
 The gitweb interface is:
 
-    http://www.jdl.com/git_repos/
+    http://git.jdl.com/gitweb/
 
 The repository is here:
 
@@ -37,7 +41,7 @@ The repository is here:
 
 Tarballs of the 1.0.0 and latest releases are here:
 
-    http://www.jdl.com/software/dtc-1.0.0.tgz
+    http://www.jdl.com/software/dtc-v1.2.0.tgz
     http://www.jdl.com/software/dtc-latest.tgz
 
 
@@ -613,6 +617,36 @@ strings block.
 
 
 III - libfdt
+============
 
 This library should be merged into dtc proper.
 This library should likely be worked into U-Boot and the kernel.
+
+
+IV - Utility Tools
+==================
+
+1) convert-dtsv0 -- Conversion to Version 1
+
+convert-dtsv0 is a small utility program which converts (DTS)
+Device Tree Source from the obsolete version 0 to version 1.
+
+Version 1 DTS files are marked by line "/dts-v1/;" at the top of the file.
+
+The syntax of the convert-dtsv0 command line is:
+
+    convert-dtsv0 [<input_filename ... >]
+
+Each file passed will be converted to the new /dts-v1/ version by creating
+a new file with a "v1" appended the filename.
+
+Comments, empty lines, etc. are preserved.
+
+
+2) ftdump -- Flat Tree dumping utility
+
+The ftdump program prints a readable version of a flat device tree file.
+
+The syntax of the ftdump command line is:
+
+    ftdump <DTB-file-name>

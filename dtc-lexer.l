@@ -18,7 +18,7 @@
  *                                                                   USA
  */
 
-%option noyywrap nounput yylineno
+%option noyywrap nounput noinput yylineno
 
 %x INCLUDE
 %x BYTESTRING
@@ -38,6 +38,11 @@ LINECOMMENT	"//".*\n
 #include "srcpos.h"
 #include "dtc-parser.tab.h"
 
+#define	YY_USER_ACTION \
+	{ \
+		yylloc.file = srcpos_file; \
+		yylloc.first_line = yylineno; \
+	}
 
 /*#define LEXDEBUG	1*/
 
@@ -47,15 +52,10 @@ LINECOMMENT	"//".*\n
 #define DPRINT(fmt, ...)	do { } while (0)
 #endif
 
-static int dts_version; /* = 0 */
+static int dts_version = 1;
 
-#define BEGIN_DEFAULT()	if (dts_version == 0) { \
-				DPRINT("<INITIAL>\n"); \
-				BEGIN(INITIAL); \
-			} else { \
-				DPRINT("<V1>\n"); \
+#define BEGIN_DEFAULT()		DPRINT("<V1>\n"); \
 				BEGIN(V1); \
-			}
 
 static void push_input_file(const char *filename);
 static int pop_input_file(void);
@@ -75,18 +75,13 @@ static int pop_input_file(void);
 		}
 
 <*>{STRING}	{
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
 			DPRINT("String: %s\n", yytext);
 			yylval.data = data_copy_escape_string(yytext+1,
 					yyleng-2);
-			yylloc.first_line = yylineno;
 			return DT_STRING;
 		}
 
 <*>"/dts-v1/"	{
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
 			DPRINT("Keyword: /dts-v1/\n");
 			dts_version = 1;
 			BEGIN_DEFAULT();
@@ -94,106 +89,57 @@ static int pop_input_file(void);
 		}
 
 <*>"/memreserve/"	{
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
 			DPRINT("Keyword: /memreserve/\n");
 			BEGIN_DEFAULT();
 			return DT_MEMRESERVE;
 		}
 
 <*>{LABEL}:	{
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
 			DPRINT("Label: %s\n", yytext);
-			yylval.labelref = strdup(yytext);
+			yylval.labelref = xstrdup(yytext);
 			yylval.labelref[yyleng-1] = '\0';
 			return DT_LABEL;
 		}
 
-<INITIAL>[bodh]# {
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
-			if (*yytext == 'b')
-				yylval.cbase = 2;
-			else if (*yytext == 'o')
-				yylval.cbase = 8;
-			else if (*yytext == 'd')
-				yylval.cbase = 10;
-			else
-				yylval.cbase = 16;
-			DPRINT("Base: %d\n", yylval.cbase);
-			return DT_BASE;
-		}
-
-<INITIAL>[0-9a-fA-F]+	{
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
-			yylval.literal = strdup(yytext);
-			DPRINT("Literal: '%s'\n", yylval.literal);
-			return DT_LEGACYLITERAL;
-		}
-
 <V1>[0-9]+|0[xX][0-9a-fA-F]+      {
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
-			yylval.literal = strdup(yytext);
+			yylval.literal = xstrdup(yytext);
 			DPRINT("Literal: '%s'\n", yylval.literal);
 			return DT_LITERAL;
 		}
 
 \&{LABEL}	{	/* label reference */
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
 			DPRINT("Ref: %s\n", yytext+1);
-			yylval.labelref = strdup(yytext+1);
+			yylval.labelref = xstrdup(yytext+1);
 			return DT_REF;
 		}
 
 "&{/"{PATHCHAR}+\}	{	/* new-style path reference */
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
 			yytext[yyleng-1] = '\0';
 			DPRINT("Ref: %s\n", yytext+2);
-			yylval.labelref = strdup(yytext+2);
-			return DT_REF;
-		}
-
-<INITIAL>"&/"{PATHCHAR}+ {	/* old-style path reference */
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
-			DPRINT("Ref: %s\n", yytext+1);
-			yylval.labelref = strdup(yytext+1);
+			yylval.labelref = xstrdup(yytext+2);
 			return DT_REF;
 		}
 
 <BYTESTRING>[0-9a-fA-F]{2} {
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
 			yylval.byte = strtol(yytext, NULL, 16);
 			DPRINT("Byte: %02x\n", (int)yylval.byte);
 			return DT_BYTE;
 		}
 
 <BYTESTRING>"]"	{
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
 			DPRINT("/BYTESTRING\n");
 			BEGIN_DEFAULT();
 			return ']';
 		}
 
 <PROPNODENAME>{PROPNODECHAR}+ {
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
 			DPRINT("PropNodeName: %s\n", yytext);
-			yylval.propnodename = strdup(yytext);
+			yylval.propnodename = xstrdup(yytext);
 			BEGIN_DEFAULT();
 			return DT_PROPNODENAME;
 		}
 
 "/incbin/"	{
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
 			DPRINT("Binary Include\n");
 			return DT_INCBIN;
 		}
@@ -203,8 +149,6 @@ static int pop_input_file(void);
 <*>{LINECOMMENT}+ /* eat C++-style comments */
 
 <*>.		{
-			yylloc.file = srcpos_file;
-			yylloc.first_line = yylineno;
 			DPRINT("Char: %c (\\x%02x)\n", yytext[0],
 				(unsigned)yytext[0]);
 			if (yytext[0] == '[') {

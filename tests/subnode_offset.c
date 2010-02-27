@@ -28,7 +28,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-int check_subnode(struct fdt_header *fdt, int parent, const char *name)
+static int check_subnode(struct fdt_header *fdt, int parent, const char *name)
 {
 	int offset;
 	const struct fdt_node_header *nh;
@@ -60,6 +60,7 @@ int main(int argc, char *argv[])
 	void *fdt;
 	int subnode1_offset, subnode2_offset;
 	int subsubnode1_offset, subsubnode2_offset, subsubnode2_offset2;
+	int ss11_off, ss12_off, ss21_off, ss22_off;
 
 	test_init(argc, argv);
 	fdt = load_blob_arg(argc, argv);
@@ -83,6 +84,16 @@ int main(int argc, char *argv[])
 
 	if (subsubnode2_offset != subsubnode2_offset2)
 		FAIL("Different offsets with and without unit address");
+
+	ss11_off = check_subnode(fdt, subnode1_offset, "ss1");
+	ss21_off = fdt_subnode_offset(fdt, subnode2_offset, "ss1");
+	if (ss21_off != -FDT_ERR_NOTFOUND)
+		FAIL("Incorrectly found ss1 in subnode2");
+
+	ss12_off = fdt_subnode_offset(fdt, subnode1_offset, "ss2");
+	if (ss12_off != -FDT_ERR_NOTFOUND)
+		FAIL("Incorrectly found ss2 in subnode1");
+	ss22_off = check_subnode(fdt, subnode2_offset, "ss2");
 
 	PASS();
 }

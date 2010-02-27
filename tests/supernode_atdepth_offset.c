@@ -28,7 +28,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-int path_depth(const char *path)
+static int path_depth(const char *path)
 {
 	const char *p;
 	int depth = 0;
@@ -49,7 +49,7 @@ int path_depth(const char *path)
 		return depth;
 }
 
-int path_prefix(const char *path, int depth)
+static int path_prefix(const char *path, int depth)
 {
 	const char *p;
 	int i;
@@ -67,7 +67,7 @@ int path_prefix(const char *path, int depth)
 	return p - path;
 }
 
-void check_supernode_atdepth(struct fdt_header *fdt, const char *path,
+static void check_supernode_atdepth(struct fdt_header *fdt, const char *path,
 			     int depth)
 {
 	int pdepth = path_depth(path);
@@ -106,7 +106,7 @@ void check_supernode_atdepth(struct fdt_header *fdt, const char *path,
 		     "instead of %d", nodedepth, pdepth);
 }
 
-void check_supernode_overdepth(struct fdt_header *fdt, const char *path)
+static void check_supernode_overdepth(struct fdt_header *fdt, const char *path)
 {
 	int pdepth = path_depth(path);
 	int nodeoffset, err;
@@ -121,7 +121,7 @@ void check_supernode_overdepth(struct fdt_header *fdt, const char *path)
 		     "of FDT_ERR_NOTFOUND", path, pdepth+1, err);
 }
 
-void check_path(struct fdt_header *fdt, const char *path)
+static void check_path(struct fdt_header *fdt, const char *path)
 {
 	int i;
 

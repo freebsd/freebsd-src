@@ -406,6 +406,8 @@ int fdt_open_into(const void *fdt, void *buf, int bufsize)
 		struct_size = 0;
 		while (fdt_next_tag(fdt, struct_size, &struct_size) != FDT_END)
 			;
+		if (struct_size < 0)
+			return struct_size;
 	}
 
 	if (!_fdt_blocks_misordered(fdt, mem_rsv_size, struct_size)) {

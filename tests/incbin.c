@@ -31,7 +31,7 @@
 
 #define CHUNKSIZE	1024
 
-char *load_file(const char *name, int *len)
+static char *load_file(const char *name, int *len)
 {
 	FILE *f;
 	char *buf = NULL;

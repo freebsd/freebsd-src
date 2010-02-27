@@ -28,7 +28,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-void check_error(const char *s, int err)
+static void check_error(const char *s, int err)
 {
 	if (err != -FDT_ERR_NOTFOUND)
 		FAIL("%s return error %s instead of -FDT_ERR_NOTFOUND", s,

@@ -29,7 +29,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-void vcheck_search(void *fdt, const char *propname, const void *propval,
+static void vcheck_search(void *fdt, const char *propname, const void *propval,
 		  int proplen, va_list ap)
 {
 	int offset = -1, target;
@@ -48,7 +48,7 @@ void vcheck_search(void *fdt, const char *propname, const void *propval,
 	} while (target >= 0);
 }
 
-void check_search(void *fdt, const char *propname, const void *propval,
+static void check_search(void *fdt, const char *propname, const void *propval,
 		  int proplen, ...)
 {
 	va_list ap;
@@ -58,7 +58,8 @@ void check_search(void *fdt, const char *propname, const void *propval,
 	va_end(ap);
 }
 
-void check_search_str(void *fdt, const char *propname, const char *propval, ...)
+static void check_search_str(void *fdt, const char *propname,
+			     const char *propval, ...)
 {
 	va_list ap;
 

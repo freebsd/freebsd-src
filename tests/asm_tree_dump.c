@@ -1,7 +1,7 @@
 /*
  * libfdt - Flat Device Tree manipulation
- *	Testcase for fdt_node_check_compatible()
- * Copyright (C) 2006 David Gibson, IBM Corporation.
+ *	Tests if an asm tree built into a shared object matches a given dtb
+ * Copyright (C) 2008 David Gibson, IBM Corporation.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -22,6 +22,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <errno.h>
+
+#include <dlfcn.h>
 
 #include <fdt.h>
 #include <libfdt.h>
@@ -29,35 +32,31 @@
 #include "tests.h"
 #include "testdata.h"
 
-static void check_compatible(const void *fdt, const char *path,
-			     const char *compat)
-{
-	int offset, err;
-
-	offset = fdt_path_offset(fdt, path);
-	if (offset < 0)
-		FAIL("fdt_path_offset(%s): %s", path, fdt_strerror(offset));
-
-	err = fdt_node_check_compatible(fdt, offset, compat);
-	if (err < 0)
-		FAIL("fdt_node_check_compatible(%s): %s", path,
-		     fdt_strerror(err));
-	if (err != 0)
-		FAIL("%s is not compatible with \"%s\"", path, compat);
-}
-
 int main(int argc, char *argv[])
 {
+	void *sohandle;
 	void *fdt;
+	int err;
 
 	test_init(argc, argv);
-	fdt = load_blob_arg(argc, argv);
+	if (argc != 3)
+		CONFIG("Usage: %s <so file> <dtb file>", argv[0]);
 
-	check_compatible(fdt, "/", "test_tree1");
-	check_compatible(fdt, "/subnode@1/subsubnode", "subsubnode1");
-	check_compatible(fdt, "/subnode@1/subsubnode", "subsubnode");
-	check_compatible(fdt, "/subnode@2/subsubnode", "subsubnode2");
-	check_compatible(fdt, "/subnode@2/subsubnode", "subsubnode");
+	sohandle = dlopen(argv[1], RTLD_NOW);
+	if (!sohandle)
+		FAIL("Couldn't dlopen() %s", argv[1]);
+
+	fdt = dlsym(sohandle, "dt_blob_start");
+	if (!fdt)
+		FAIL("Couldn't locate \"dt_blob_start\" symbol in %s",
+		     argv[1]);
+
+	err = fdt_check_header(fdt);
+	if (err != 0)
+		FAIL("%s contains invalid tree: %s", argv[1],
+		     fdt_strerror(err));
+
+	save_blob(argv[2], fdt);
 
 	PASS();
 }

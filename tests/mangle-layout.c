@@ -35,7 +35,7 @@ struct bufstate {
 	int size;
 };
 
-void expand_buf(struct bufstate *buf, int newsize)
+static void expand_buf(struct bufstate *buf, int newsize)
 {
 	buf->buf = realloc(buf->buf, newsize);
 	if (!buf->buf)
@@ -43,7 +43,7 @@ void expand_buf(struct bufstate *buf, int newsize)
 	buf->size = newsize;
 }
 
-void new_header(struct bufstate *buf, int version, const void *fdt)
+static void new_header(struct bufstate *buf, int version, const void *fdt)
 {
 	int hdrsize;
 
@@ -63,7 +63,7 @@ void new_header(struct bufstate *buf, int version, const void *fdt)
 	fdt_set_boot_cpuid_phys(buf->buf, fdt_boot_cpuid_phys(fdt));
 }
 
-void add_block(struct bufstate *buf, int version, char block, const void *fdt)
+static void add_block(struct bufstate *buf, int version, char block, const void *fdt)
 {
 	int align, size;
 	const void *src;

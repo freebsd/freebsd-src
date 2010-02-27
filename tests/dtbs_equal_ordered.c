@@ -29,7 +29,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-void compare_mem_rsv(const void *fdt1, const void *fdt2)
+static void compare_mem_rsv(const void *fdt1, const void *fdt2)
 {
 	int i;
 	uint64_t addr1, size1, addr2, size2;
@@ -56,7 +56,7 @@ void compare_mem_rsv(const void *fdt1, const void *fdt2)
 	}
 }
 
-void compare_structure(const void *fdt1, const void *fdt2)
+static void compare_structure(const void *fdt1, const void *fdt2)
 {
 	int nextoffset1 = 0, nextoffset2 = 0;
 	int offset1, offset2;

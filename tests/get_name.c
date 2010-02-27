@@ -28,7 +28,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-void check_name(void *fdt, const char *path)
+static void check_name(void *fdt, const char *path)
 {
 	int offset;
 	const char *getname, *getname2, *checkname;

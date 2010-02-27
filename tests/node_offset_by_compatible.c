@@ -29,7 +29,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-void check_search(void *fdt, const char *compat, ...)
+static void check_search(void *fdt, const char *compat, ...)
 {
 	va_list ap;
 	int offset = -1, target;

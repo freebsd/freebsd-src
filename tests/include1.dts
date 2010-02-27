@@ -15,9 +15,12 @@
 		prop-int = <123456789>;
 
 		/include/ "include8.dts"
-			linux,phandle = <0x2001>;
+			phandle = <0x2001>;
 			compatible = "subsubnode2", "subsubnode";
 			prop-int = <0726746425>;
+		};
+
+		ss2 {
 		};
 	};
 };

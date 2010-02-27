@@ -66,17 +66,22 @@ int main(int argc, char *argv[])
 			   23));
 	CHECK(fdt_property_cell(fdt, "prop-int", TEST_VALUE_1));
 	CHECK(fdt_end_node(fdt));
+	CHECK(fdt_begin_node(fdt, "ss1"));
+	CHECK(fdt_end_node(fdt));
 	CHECK(fdt_end_node(fdt));
 
 	CHECK(fdt_begin_node(fdt, "subnode@2"));
 	CHECK(fdt_property_cell(fdt, "linux,phandle", PHANDLE_1));
 	CHECK(fdt_property_cell(fdt, "prop-int", TEST_VALUE_2));
 	CHECK(fdt_begin_node(fdt, "subsubnode@0"));
-	CHECK(fdt_property_cell(fdt, "linux,phandle", PHANDLE_2));
+	CHECK(fdt_property_cell(fdt, "phandle", PHANDLE_2));
 	CHECK(fdt_property(fdt, "compatible", "subsubnode2\0subsubnode",
 			   23));
 	CHECK(fdt_property_cell(fdt, "prop-int", TEST_VALUE_2));
 	CHECK(fdt_end_node(fdt));
+	CHECK(fdt_begin_node(fdt, "ss2"));
+	CHECK(fdt_end_node(fdt));
+
 	CHECK(fdt_end_node(fdt));
 
 	CHECK(fdt_end_node(fdt));

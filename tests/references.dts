@@ -8,7 +8,7 @@
 		lref = <&n2>;
 	};
 	n2: node2 {
-		linux,phandle = <0x1>;
+		phandle = <0x1>;
 		ref = <&{/node1}>; /* reference after target */
 		lref = <&n1>;
 	};
@@ -19,5 +19,16 @@
 		lref = <&n4>;
 	};
 	n4: node4 {
+	};
+
+	/* Explicit phandle with implicit value */
+	/* This self-reference is the standard way to tag a node as requiring
+	 * a phandle (perhaps for reference by nodes that will be dynamically
+	 * added) without explicitly allocating it a phandle.
+	 * The self-reference requires some special internal handling, though
+	 * so check it actually works */
+	n5: node5 {
+		linux,phandle = <&n5>;
+		phandle = <&n5>;
 	};
 };

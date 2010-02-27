@@ -6,4 +6,7 @@
 			compatible = "subsubnode1", "subsubnode";
 			prop-int = <0xdeadbeef>;
 		};
+
+		ss1 {
+		};
 	};

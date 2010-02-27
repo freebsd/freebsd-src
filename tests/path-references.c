@@ -28,7 +28,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-void check_ref(const void *fdt, int node, const char *checkpath)
+static void check_ref(const void *fdt, int node, const char *checkpath)
 {
 	const char *p;
 	int len;

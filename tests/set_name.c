@@ -28,7 +28,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-void check_set_name(void *fdt, const char *path, const char *newname)
+static void check_set_name(void *fdt, const char *path, const char *newname)
 {
 	int offset;
 	const char *getname, *oldname;

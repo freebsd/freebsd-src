@@ -2,6 +2,10 @@
 
 . ./tests.sh
 
+if [ -z "$CC" ]; then
+    CC=gcc
+fi
+
 export QUIET_TEST=1
 
 export VALGRIND=
@@ -71,11 +75,12 @@ run_dtc_test () {
     base_run_test wrap_test $VALGRIND $DTC "$@"
 }
 
-CONVERT=../convert-dtsv0
+asm_to_so () {
+    $CC -shared -o $1.test.so data.S $1.test.s
+}
 
-run_convert_test () {
-    echo -n "convert-dtsv0 $@:	"
-    base_run_test wrap_test $VALGRIND $CONVERT "$@"
+asm_to_so_test () {
+    run_wrap_test asm_to_so "$@"
 }
 
 tree1_tests () {
@@ -201,6 +206,9 @@ dtc_tests () {
     run_dtc_test -I dts -O dtb -o dtc_escapes.test.dtb escapes.dts
     run_test string_escapes dtc_escapes.test.dtb
 
+    run_dtc_test -I dts -O dtb -o dtc_extra-terminating-null.test.dtb extra-terminating-null.dts
+    run_test extra-terminating-null dtc_extra-terminating-null.test.dtb
+
     run_dtc_test -I dts -O dtb -o dtc_references.test.dtb references.dts
     run_test references dtc_references.test.dtb
 
@@ -210,9 +218,20 @@ dtc_tests () {
     run_dtc_test -I dts -O dtb -o dtc_path-references.test.dtb path-references.dts
     run_test path-references dtc_path-references.test.dtb
 
+    run_test phandle_format dtc_references.test.dtb both
+    for f in legacy epapr both; do
+	run_dtc_test -I dts -O dtb -H $f -o dtc_references.test.$f.dtb references.dts
+	run_test phandle_format dtc_references.test.$f.dtb $f
+    done
+
     run_dtc_test -I dts -O dtb -o dtc_comments.test.dtb comments.dts
     run_dtc_test -I dts -O dtb -o dtc_comments-cmp.test.dtb comments-cmp.dts
     run_test dtbs_equal_ordered dtc_comments.test.dtb dtc_comments-cmp.test.dtb
+
+    # Check aliases support in fdt_path_offset
+    run_dtc_test -I dts -O dtb -o aliases.dtb aliases.dts
+    run_test get_alias aliases.dtb
+    run_test path_offset_aliases aliases.dtb
 
     # Check /include/ directive
     run_dtc_test -I dts -O dtb -o includes.test.dtb include0.dts
@@ -230,8 +249,22 @@ dtc_tests () {
     run_dtc_test -I dtb -O dtb -o boot_cpuid_preserved_test_tree1.test.dtb boot_cpuid_test_tree1.test.dtb
     run_test dtbs_equal_ordered boot_cpuid_preserved_test_tree1.test.dtb boot_cpuid_test_tree1.test.dtb
 
+    # Check -Oasm mode
+    for tree in test_tree1.dts escapes.dts references.dts path-references.dts \
+	comments.dts aliases.dts include0.dts incbin.dts \
+	value-labels.dts ; do
+	run_dtc_test -I dts -O asm -o oasm_$tree.test.s $tree
+	asm_to_so_test oasm_$tree
+	run_dtc_test -I dts -O dtb -o $tree.test.dtb $tree
+	run_test asm_tree_dump ./oasm_$tree.test.so oasm_$tree.test.dtb
+	run_wrap_test cmp oasm_$tree.test.dtb $tree.test.dtb
+    done
+
+    run_test value-labels ./oasm_value-labels.dts.test.so
+
     # Check -Odts mode preserve all dtb information
-    for tree in test_tree1.dtb dtc_tree1.test.dtb dtc_escapes.test.dtb ; do
+    for tree in test_tree1.dtb dtc_tree1.test.dtb dtc_escapes.test.dtb \
+	dtc_extra-terminating-null.test.dtb dtc_references.test.dtb; do
 	run_dtc_test -I dtb -O dts -o odts_$tree.test.dts $tree
 	run_dtc_test -I dts -O dtb -o odts_$tree.test.dtb odts_$tree.test.dts
 	run_test dtbs_equal_ordered $tree odts_$tree.test.dtb
@@ -283,21 +316,6 @@ dtc_tests () {
     run_sh_test dtc-fatal.sh -I fs -O dtb nosuchfile
 }
 
-convert_tests () {
-    V0_DTS="test_tree1_dts0.dts references_dts0.dts empty.dts escapes.dts \
-	test01.dts label01.dts"
-    for dts in $V0_DTS; do
-	run_dtc_test -I dts -O dtb -o cvtraw_$dts.test.dtb $dts
-	run_dtc_test -I dts -O dts -o cvtdtc_$dts.test.dts $dts
-	run_dtc_test -I dts -O dtb -o cvtdtc_$dts.test.dtb cvtdtc_$dts.test.dts
-	run_convert_test $dts
-	run_dtc_test -I dts -O dtb -o cvtcvt_$dts.test.dtb ${dts}v1
-
-	run_wrap_test cmp cvtraw_$dts.test.dtb cvtdtc_$dts.test.dtb
-	run_wrap_test cmp cvtraw_$dts.test.dtb cvtcvt_$dts.test.dtb
-    done
-}
-
 while getopts "vt:m" ARG ; do
     case $ARG in
 	"v")
@@ -313,7 +331,7 @@ while getopts "vt:m" ARG ; do
 done
 
 if [ -z "$TESTSETS" ]; then
-    TESTSETS="libfdt dtc convert"
+    TESTSETS="libfdt dtc"
 fi
 
 # Make sure we don't have stale blobs lying around
@@ -327,20 +345,17 @@ for set in $TESTSETS; do
 	"dtc")
 	    dtc_tests
 	    ;;
-	"convert")
-	    convert_tests
-	    ;;
     esac
 done
 
-echo -e "********** TEST SUMMARY"
-echo -e "*     Total testcases:	$tot_tests"
-echo -e "*                PASS:	$tot_pass"
-echo -e "*                FAIL:	$tot_fail"
-echo -e "*   Bad configuration:	$tot_config"
+echo "********** TEST SUMMARY"
+echo "*     Total testcases:	$tot_tests"
+echo "*                PASS:	$tot_pass"
+echo "*                FAIL:	$tot_fail"
+echo "*   Bad configuration:	$tot_config"
 if [ -n "$VALGRIND" ]; then
-    echo -e "*    valgrind errors:	$tot_vg"
+    echo "*    valgrind errors:	$tot_vg"
 fi
-echo -e "* Strange test result:	$tot_strange"
-echo -e "**********"
+echo "* Strange test result:	$tot_strange"
+echo "**********"
 
