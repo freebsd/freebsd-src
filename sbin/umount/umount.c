@@ -325,14 +325,21 @@ umountfs(struct statfs *sfs)
 		if ((nfsdirname = strdup(sfs->f_mntfromname)) == NULL)
 			err(1, "strdup");
 		orignfsdirname = nfsdirname;
-		if ((delimp = strrchr(nfsdirname, ':')) != NULL) {
-			*delimp = '\0';
+		if (*nfsdirname == '[' &&
+		    (delimp = strchr(nfsdirname + 1, ']')) != NULL &&
+		    *(delimp + 1) == ':') {
+			hostp = nfsdirname + 1;
+			nfsdirname = delimp + 2;
+		} else if ((delimp = strrchr(nfsdirname, ':')) != NULL) {
 			hostp = nfsdirname;
+			nfsdirname = delimp + 1;
+		}
+		if (hostp != NULL) {
+			*delimp = '\0';
 			getaddrinfo(hostp, NULL, &hints, &ai);
 			if (ai == NULL) {
 				warnx("can't get net id for host");
 			}
-			nfsdirname = delimp + 1;
 		}
 
 		/*
