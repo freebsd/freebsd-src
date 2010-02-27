@@ -108,10 +108,11 @@ static const uint8_t alpa_map[] = {
  * Local function prototypes.
  */
 static int isp_parse_async(ispsoftc_t *, uint16_t);
+static int isp_parse_async_fc(ispsoftc_t *, uint16_t);
 static int isp_handle_other_response(ispsoftc_t *, int, isphdr_t *, uint32_t *);
 static void isp_parse_status(ispsoftc_t *, ispstatusreq_t *, XS_T *, long *); static void
 isp_parse_status_24xx(ispsoftc_t *, isp24xx_statusreq_t *, XS_T *, long *);
-static void isp_fastpost_complete(ispsoftc_t *, uint16_t);
+static void isp_fastpost_complete(ispsoftc_t *, uint32_t);
 static int isp_mbox_continue(ispsoftc_t *);
 static void isp_scsi_init(ispsoftc_t *);
 static void isp_scsi_channel_init(ispsoftc_t *, int);
@@ -1334,23 +1335,24 @@ isp_scsi_init(ispsoftc_t *isp)
 	}
 
 	/*
-	 * Turn on Fast Posting, LVD transitions
+	 * Turn on LVD transitions for ULTRA2 or better and other features
 	 *
-	 * Ultra2 F/W always has had fast posting (and LVD transitions)
-	 *
-	 * Ultra and older (i.e., SBus) cards may not. It's just safer
-	 * to assume not for them.
+	 * Now that we have 32 bit handles, don't do any fast posting
+	 * any more. For Ultra2/Ultra3 cards, we can turn on 32 bit RIO
+	 * operation or use fast posting. To be conservative, we'll only
+	 * do this for Ultra3 cards now because the other cards are so
+	 * rare for this author to find and test with.
 	 */
 
 	MBSINIT(&mbs, MBOX_SET_FW_FEATURES, MBLOGALL, 0);
 	if (IS_ULTRA2(isp))
 		mbs.param[1] |= FW_FEATURE_LVD_NOTIFY;
-#ifndef	ISP_NO_RIO
-	if (IS_ULTRA2(isp) || IS_1240(isp))
-		mbs.param[1] |= FW_FEATURE_RIO_16BIT;
-#else
-	if (IS_ULTRA2(isp) || IS_1240(isp))
+#ifdef	ISP_NO_RIO
+	if (IS_ULTRA3(isp))
 		mbs.param[1] |= FW_FEATURE_FAST_POST;
+#else
+	if (IS_ULTRA3(isp))
+		mbs.param[1] |= FW_FEATURE_RIO_32BIT;
 #endif
 	if (mbs.param[1] != 0) {
 		uint16_t sfeat = mbs.param[1];
@@ -1604,25 +1606,15 @@ isp_fibre_init(ispsoftc_t *isp)
 		}
 		if (IS_2200(isp)) {
 			/*
-			 * There seems to just be too much breakage here
-			 * with RIO and Fast Posting- it probably actually
-			 * works okay but this driver is messing it up.
-			 * This card is really ancient by now, so let's
-			 * just opt for safety and not use the feature.
+			 * We can't have Fast Posting any more- we now
+			 * have 32 bit handles.
+			 *
+			 * RIO seemed to have to much breakage.
+			 *
+			 * Just opt for safety.
 			 */
-#if	0
-			if (ISP_FW_NEWER_THAN(isp, 1, 17, 0)) {
-				icbp->icb_xfwoptions |= ICBXOPT_RIO_16BIT;
-				icbp->icb_fwoptions &= ~ICBOPT_FAST_POST;
-				icbp->icb_racctimer = 4;
-				icbp->icb_idelaytimer = 8;
-			} else {
-				icbp->icb_fwoptions |= ICBOPT_FAST_POST;
-			}
-#else
 			icbp->icb_xfwoptions &= ~ICBXOPT_RIO_16BIT;
 			icbp->icb_fwoptions &= ~ICBOPT_FAST_POST;
-#endif
 		} else {
 			/*
 			 * QLogic recommends that FAST Posting be turned
@@ -4863,7 +4855,7 @@ again:
 	 */
 	if (sema) {
  fmbox:
-		if (mbox & 0x4000) {
+		if (mbox & MBOX_COMMAND_COMPLETE) {
 			isp->isp_intmboxc++;
 			if (isp->isp_mboxbsy) {
 				int obits = isp->isp_obits;
@@ -4883,10 +4875,13 @@ again:
 			} else {
 				isp_prt(isp, ISP_LOGWARN, "mailbox cmd (0x%x) with no waiters", mbox);
 			}
-		} else if (isp_parse_async(isp, mbox) < 0) {
-			return;
+		} else {
+			i = IS_FC(isp)? isp_parse_async_fc(isp, mbox) : isp_parse_async(isp, mbox);
+			if (i < 0) {
+				return;
+			}
 		}
-		if ((IS_FC(isp) && mbox != ASYNC_RIO_RESP) || isp->isp_state != ISP_RUNSTATE) {
+		if ((IS_FC(isp) && mbox != ASYNC_RIOZIO_STALL) || isp->isp_state != ISP_RUNSTATE) {
 			goto out;
 		}
 	}
@@ -5068,9 +5063,9 @@ again:
 			req_status_flags = sp->req_status_flags;
 			req_state_flags = sp->req_state_flags;
 			resid = sp->req_resid;
-		} else if (etype == RQSTYPE_RIO2) {
-			isp_rio2_t *rio = (isp_rio2_t *)qe;
-			isp_get_rio2(isp, (isp_rio2_t *) hp, rio);
+		} else if (etype == RQSTYPE_RIO1) {
+			isp_rio1_t *rio = (isp_rio1_t *) qe;
+			isp_get_rio1(isp, (isp_rio1_t *) hp, rio);
 			if (isp->isp_dblev & ISP_LOGDEBUG1) {
 				isp_print_bytes(isp, "Response Queue Entry", QENTRY_LEN, rio);
 			}
@@ -5080,6 +5075,10 @@ again:
 			if (isp->isp_fpcchiwater < rio->req_header.rqs_seqno) {
 				isp->isp_fpcchiwater = rio->req_header.rqs_seqno;
 			}
+			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
+			continue;
+		} else if (etype == RQSTYPE_RIO2) {
+			isp_prt(isp, ISP_LOGERR, "dropping RIO2 response\n");
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			continue;
 		} else {
@@ -5394,40 +5393,35 @@ out:
  * Support routines.
  */
 
-#define	GET_24XX_BUS(isp, chan, msg)										\
-	if (IS_24XX(isp)) {											\
-		chan = ISP_READ(isp, OUTMAILBOX3) & 0xff;							\
-		if (chan >= isp->isp_nchan) {									\
-			isp_prt(isp, ISP_LOGERR, "bogus channel %u for %s at line %d",	chan, msg, __LINE__);	\
-			break;											\
-		}												\
-	}
-
+/*
+ * Parse an ASYNC mailbox complete
+ *
+ * Return non-zero if the event has been acknowledged.
+ */
 static int
 isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 {
-	int rval = 0;
-	int pattern = 0;
-	uint16_t chan;
+	int acked = 0;
+	uint32_t h1 = 0, h2 = 0;
+	uint16_t chan = 0;
 
-	if (IS_DUALBUS(isp)) {
-		chan = ISP_READ(isp, OUTMAILBOX6);
-	} else {
-		chan = 0;
+	/*
+	 * Pick up the channel, but not if this is a ASYNC_RIO32_2,
+	 * where Mailboxes 6/7 have the second handle.
+	 */
+	if (mbox != ASYNC_RIO32_2) {
+		if (IS_DUALBUS(isp)) {
+			chan = ISP_READ(isp, OUTMAILBOX6);
+		}
 	}
 	isp_prt(isp, ISP_LOGDEBUG2, "Async Mbox 0x%x", mbox);
 
 	switch (mbox) {
 	case ASYNC_BUS_RESET:
-		if (IS_FC(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "ILLEGAL ASYNC_BUS_RESET for FC card");
-			break;
-		}
 		ISP_SET_SENDMARKER(isp, chan, 1);
 #ifdef	ISP_TARGET_MODE
 		if (isp_target_async(isp, chan, mbox)) {
-			rval = -1;
+			acked = 1;
 		}
 #endif
 		isp_async(isp, ISPASYNC_BUS_RESET, chan);
@@ -5435,10 +5429,6 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 	case ASYNC_SYSTEM_ERROR:
 		isp->isp_dead = 1;
 		isp->isp_state = ISP_CRASHED;
-		if (IS_FC(isp)) {
-			FCPARAM(isp, chan)->isp_loopstate = LOOP_NIL;
-			FCPARAM(isp, chan)->isp_fwstate = FW_CONFIG_WAIT;
-		}
 		/*
 		 * Were we waiting for a mailbox command to complete?
 		 * If so, it's dead, so wake up the waiter.
@@ -5453,7 +5443,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		 * restart the firmware
 		 */
 		isp_async(isp, ISPASYNC_FW_CRASH);
-		rval = -1;
+		acked = 1;
 		break;
 
 	case ASYNC_RQS_XFER_ERR:
@@ -5465,17 +5455,6 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		break;
 
 	case ASYNC_QWAKEUP:
-#ifdef	ISP_TARGET_MODE
-		if (IS_24XX(isp)) {
-			isp_prt(isp, ISP_LOGERR, "ATIO Queue Transfer Error");
-			break;
-		}
-#endif
-		if (IS_FC(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "ILLEGAL ASYNC_QWAKEUP for FC card");
-			break;
-		}
 		/*
 		 * We've just been notified that the Queue has woken up.
 		 * We don't need to be chatty about this- just unlatch things
@@ -5485,82 +5464,45 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		break;
 
 	case ASYNC_TIMEOUT_RESET:
-		if (IS_FC(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "ILLEGAL ASYNC_TIMEOUT_RESET for FC card");
-			break;
-		}
-		isp_prt(isp, ISP_LOGWARN,
-		    "timeout initiated SCSI bus reset of chan %d", chan);
+		isp_prt(isp, ISP_LOGWARN, "timeout initiated SCSI bus reset of chan %d", chan);
 		ISP_SET_SENDMARKER(isp, chan, 1);
 #ifdef	ISP_TARGET_MODE
 		if (isp_target_async(isp, chan, mbox)) {
-			rval = -1;
+			acked = 1;
 		}
 #endif
 		break;
 
 	case ASYNC_DEVICE_RESET:
-		if (IS_FC(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "ILLEGAL DEVICE_RESET for FC card");
-			break;
-		}
 		isp_prt(isp, ISP_LOGINFO, "device reset on chan %d", chan);
 		ISP_SET_SENDMARKER(isp, chan, 1);
 #ifdef	ISP_TARGET_MODE
 		if (isp_target_async(isp, chan, mbox)) {
-			rval = -1;
+			acked = 1;
 		}
 #endif
 		break;
 
 	case ASYNC_EXTMSG_UNDERRUN:
-		if (IS_FC(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "ILLEGAL ASYNC_EXTMSG_UNDERRUN for FC card");
-			break;
-		}
 		isp_prt(isp, ISP_LOGWARN, "extended message underrun");
 		break;
 
 	case ASYNC_SCAM_INT:
-		if (IS_FC(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "ILLEGAL ASYNC_SCAM_INT for FC card");
-			break;
-		}
 		isp_prt(isp, ISP_LOGINFO, "SCAM interrupt");
 		break;
 
 	case ASYNC_HUNG_SCSI:
-		if (IS_FC(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "ILLEGAL ASYNC_HUNG_SCSI for FC card");
-			break;
-		}
-		isp_prt(isp, ISP_LOGERR,
-		    "stalled SCSI Bus after DATA Overrun");
+		isp_prt(isp, ISP_LOGERR, "stalled SCSI Bus after DATA Overrun");
 		/* XXX: Need to issue SCSI reset at this point */
 		break;
 
 	case ASYNC_KILLED_BUS:
-		if (IS_FC(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "ILLEGAL ASYNC_KILLED_BUS for FC card");
-			break;
-		}
 		isp_prt(isp, ISP_LOGERR, "SCSI Bus reset after DATA Overrun");
 		break;
 
 	case ASYNC_BUS_TRANSIT:
-		if (IS_FC(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "ILLEGAL ASYNC_BUS_TRANSIT for FC card");
-			break;
-		}
 		mbox = ISP_READ(isp, OUTMAILBOX2);
-		switch (mbox & 0x1c00) {
+		switch (mbox & SXP_PINS_MODE_MASK) {
 		case SXP_PINS_LVD_MODE:
 			isp_prt(isp, ISP_LOGINFO, "Transition to LVD mode");
 			SDPARAM(isp, chan)->isp_diffmode = 0;
@@ -5593,70 +5535,142 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		ISP_SET_SENDMARKER(isp, chan, 1);
 		break;
 
-	case ASYNC_RIO5:
-		pattern = 0xce;	/* outgoing mailbox regs 1-3, 6-7 */
-		break;
-
-	case ASYNC_RIO4:
-		pattern = 0x4e;	/* outgoing mailbox regs 1-3, 6 */
-		break;
-
-	case ASYNC_RIO3:
-		pattern = 0x0e;	/* outgoing mailbox regs 1-3 */
-		break;
-
-	case ASYNC_RIO2:
-		pattern = 0x06;	/* outgoing mailbox regs 1-2 */
-		break;
-
-	case ASYNC_RIO1:
 	case ASYNC_CMD_CMPLT:
-		pattern = 0x02;	/* outgoing mailbox regs 1 */
-		break;
-
-	case ASYNC_RIO_RESP:
-		return (rval);
-
-	case ASYNC_CTIO_DONE:
-	{
-#ifdef	ISP_TARGET_MODE
-		int handle;
-		if (IS_SCSI(isp) || IS_24XX(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "bad ASYNC_CTIO_DONE for %s cards",
-			    IS_SCSI(isp)? "SCSI" : "24XX");
+	case ASYNC_RIO32_1:
+		if (!IS_ULTRA3(isp)) {
+			isp_prt(isp, ISP_LOGERR, "unexpected fast posting completion");
 			break;
 		}
-		handle =
-		    (ISP_READ(isp, OUTMAILBOX2) << 16) |
-		    (ISP_READ(isp, OUTMAILBOX1));
-		if (isp_target_async(isp, handle, mbox)) {
-			rval = -1;
+		/* FALLTHROUGH */
+		h1 = (ISP_READ(isp, OUTMAILBOX2) << 16) | ISP_READ(isp, OUTMAILBOX1);
+		break;
+
+	case ASYNC_RIO32_2:
+		h1 = (ISP_READ(isp, OUTMAILBOX2) << 16) | ISP_READ(isp, OUTMAILBOX1);
+		h2 = (ISP_READ(isp, OUTMAILBOX7) << 16) | ISP_READ(isp, OUTMAILBOX6);
+		break;
+
+	case ASYNC_RIO16_5:
+	case ASYNC_RIO16_4:
+	case ASYNC_RIO16_3:
+	case ASYNC_RIO16_2:
+	case ASYNC_RIO16_1:
+		isp_prt(isp, ISP_LOGERR, "unexpected 16 bit RIO handle");
+		break;
+	default:
+		isp_prt(isp, ISP_LOGWARN, "%s: unhandled async code 0x%x", __func__, mbox);
+		break;
+	}
+
+	if (h1 || h2) {
+		isp_prt(isp, ISP_LOGDEBUG3, "fast post/rio completion of 0x%08x", h1);
+		isp_fastpost_complete(isp, h1);
+		if (h2) {
+			isp_prt(isp, ISP_LOGDEBUG3, "fast post/rio completion of 0x%08x", h2);
+			isp_fastpost_complete(isp, h2);
+			if (isp->isp_fpcchiwater < 2) {
+				isp->isp_fpcchiwater = 2;
+			}
 		} else {
-			/* count it as a fast posting intr */
+			if (isp->isp_fpcchiwater < 1) {
+				isp->isp_fpcchiwater = 1;
+			}
+		}
+	} else {
+		isp->isp_intoasync++;
+	}
+	return (acked);
+}
+
+#define	GET_24XX_BUS(isp, chan, msg)										\
+	if (IS_24XX(isp)) {											\
+		chan = ISP_READ(isp, OUTMAILBOX3) & 0xff;							\
+		if (chan >= isp->isp_nchan) {									\
+			isp_prt(isp, ISP_LOGERR, "bogus channel %u for %s at line %d",	chan, msg, __LINE__);	\
+			break;											\
+		}												\
+	}
+
+
+static int
+isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
+{
+	int acked = 0;
+	uint16_t chan;
+
+	if (IS_DUALBUS(isp)) {
+		chan = ISP_READ(isp, OUTMAILBOX6);
+	} else {
+		chan = 0;
+	}
+	isp_prt(isp, ISP_LOGDEBUG2, "Async Mbox 0x%x", mbox);
+
+	switch (mbox) {
+	case ASYNC_SYSTEM_ERROR:
+		isp->isp_dead = 1;
+		isp->isp_state = ISP_CRASHED;
+		FCPARAM(isp, chan)->isp_loopstate = LOOP_NIL;
+		FCPARAM(isp, chan)->isp_fwstate = FW_CONFIG_WAIT;
+		/*
+		 * Were we waiting for a mailbox command to complete?
+		 * If so, it's dead, so wake up the waiter.
+		 */
+		if (isp->isp_mboxbsy) {
+			isp->isp_obits = 1;
+			isp->isp_mboxtmp[0] = MBOX_HOST_INTERFACE_ERROR;
+			MBOX_NOTIFY_COMPLETE(isp);
+		}
+		/*
+		 * It's up to the handler for isp_async to reinit stuff and
+		 * restart the firmware
+		 */
+		isp_async(isp, ISPASYNC_FW_CRASH);
+		acked = 1;
+		break;
+
+	case ASYNC_RQS_XFER_ERR:
+		isp_prt(isp, ISP_LOGERR, "Request Queue Transfer Error");
+		break;
+
+	case ASYNC_RSP_XFER_ERR:
+		isp_prt(isp, ISP_LOGERR, "Response Queue Transfer Error");
+		break;
+
+	case ASYNC_QWAKEUP:
+#ifdef	ISP_TARGET_MODE
+		if (IS_24XX(isp)) {
+			isp_prt(isp, ISP_LOGERR, "ATIO Queue Transfer Error");
+			break;
+		}
+#endif
+		isp_prt(isp, ISP_LOGERR, "%s: unexpected ASYNC_QWAKEUP code", __func__);
+		break;
+
+	case ASYNC_CMD_CMPLT:
+		isp_fastpost_complete(isp, (ISP_READ(isp, OUTMAILBOX2) << 16) | ISP_READ(isp, OUTMAILBOX1));
+		if (isp->isp_fpcchiwater < 1) {
+			isp->isp_fpcchiwater = 1;
+		}
+		break;
+
+	case ASYNC_RIOZIO_STALL:
+		break;
+
+	case ASYNC_CTIO_DONE:
+#ifdef	ISP_TARGET_MODE
+		if (isp_target_async(isp, (ISP_READ(isp, OUTMAILBOX2) << 16) | ISP_READ(isp, OUTMAILBOX1), mbox)) {
+			acked = 1;
+		} else {
 			isp->isp_fphccmplt++;
 		}
 #else
-		if (IS_SCSI(isp) || IS_24XX(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "bad ASYNC_CTIO_DONE for %s cards",
-			    IS_SCSI(isp)? "SCSI" : "24XX");
-			break;
-		}
-		isp_prt(isp, ISP_LOGINFO, "Fast Posting CTIO done");
-		isp->isp_fphccmplt++;	/* count it as a fast posting intr */
+		isp_prt(isp, ISP_LOGWARN, "unexpected ASYNC CTIO done");
 #endif
 		break;
-	}
 	case ASYNC_LIP_ERROR:
 	case ASYNC_LIP_F8:
 	case ASYNC_LIP_OCCURRED:
 	case ASYNC_PTPMODE:
-		if (IS_SCSI(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "bad LIP event for SCSI cards");
-			break;
-		}
 		/*
 		 * These are broadcast events that have to be sent across
 		 * all active channels.
@@ -5676,7 +5690,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 			isp_async(isp, ISPASYNC_LIP, chan);
 #ifdef	ISP_TARGET_MODE
 			if (isp_target_async(isp, chan, mbox)) {
-				rval = -1;
+				acked = 1;
 			}
 #endif
 			/*
@@ -5711,11 +5725,6 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		break;
 
 	case ASYNC_LOOP_UP:
-		if (IS_SCSI(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "bad LOOP UP event for SCSI cards");
-			break;
-		}
 		/*
 		 * This is a broadcast event that has to be sent across
 		 * all active channels.
@@ -5735,18 +5744,13 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 			isp_async(isp, ISPASYNC_LOOP_UP, chan);
 #ifdef	ISP_TARGET_MODE
 			if (isp_target_async(isp, chan, mbox)) {
-				rval = -1;
+				acked = 1;
 			}
 #endif
 		}
 		break;
 
 	case ASYNC_LOOP_DOWN:
-		if (IS_SCSI(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "bad LOOP DOWN event for SCSI cards");
-			break;
-		}
 		/*
 		 * This is a broadcast event that has to be sent across
 		 * all active channels.
@@ -5765,18 +5769,13 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 			isp_async(isp, ISPASYNC_LOOP_DOWN, chan);
 #ifdef	ISP_TARGET_MODE
 			if (isp_target_async(isp, chan, mbox)) {
-				rval = -1;
+				acked = 1;
 			}
 #endif
 		}
 		break;
 
 	case ASYNC_LOOP_RESET:
-		if (IS_SCSI(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "bad LIP RESET event for SCSI cards");
-			break;
-		}
 		/*
 		 * This is a broadcast event that has to be sent across
 		 * all active channels.
@@ -5795,7 +5794,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 			isp_async(isp, ISPASYNC_LOOP_RESET, chan);
 #ifdef	ISP_TARGET_MODE
 			if (isp_target_async(isp, chan, mbox)) {
-				rval = -1;
+				acked = 1;
 			}
 #endif
 		}
@@ -5804,11 +5803,6 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 	case ASYNC_PDB_CHANGED:
 	{
 		int nphdl, nlstate, reason;
-		if (IS_SCSI(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "bad PDB CHANGED event for SCSI cards");
-			break;
-		}
 		/*
 		 * We *should* get a channel out of the 24XX, but we don't seem
 		 * to get more than a PDB CHANGED on channel 0, so turn it into
@@ -5831,8 +5825,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 			ISP_SET_SENDMARKER(isp, chan, 1);
 			fcp->isp_loopstate = LOOP_PDB_RCVD;
 			ISP_MARK_PORTDB(isp, chan, 1);
-			isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan,
-			    ISPASYNC_CHANGE_PDB, nphdl, nlstate, reason);
+			isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan, ISPASYNC_CHANGE_PDB, nphdl, nlstate, reason);
 		}
 		break;
 	}
@@ -5840,11 +5833,6 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 	{
 		int lochan, hichan;
 
-		if (IS_SCSI(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "bad CHANGE NOTIFY event for SCSI cards");
-			break;
-		}
 		if (ISP_FW_NEWER_THAN(isp, 4, 0, 25) && ISP_CAP_MULTI_ID(isp)) {
 			GET_24XX_BUS(isp, chan, "ASYNC_CHANGE_NOTIFY");
 			lochan = chan;
@@ -5866,8 +5854,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 				fcp->isp_loopstate = LOOP_PDB_RCVD;
 			}
 			ISP_MARK_PORTDB(isp, chan, 1);
-			isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan,
-			    ISPASYNC_CHANGE_SNS);
+			isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan, ISPASYNC_CHANGE_SNS);
 		}
 		break;
 	}
@@ -5877,8 +5864,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		 * This only applies to 2100 amd 2200 cards
 		 */
 		if (!IS_2200(isp) && !IS_2100(isp)) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "bad card for ASYNC_CONNMODE event");
+			isp_prt(isp, ISP_LOGWARN, "bad card for ASYNC_CONNMODE event");
 			break;
 		}
 		chan = 0;
@@ -5912,8 +5898,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 			    "Unknown connection mode (0x%x)", mbox);
 			break;
 		}
-		isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan,
-		    ISPASYNC_CHANGE_OTHER);
+		isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan, ISPASYNC_CHANGE_OTHER);
 		FCPARAM(isp, chan)->sendmarker = 1;
 		FCPARAM(isp, chan)->isp_fwstate = FW_CONFIG_WAIT;
 		FCPARAM(isp, chan)->isp_loopstate = LOOP_LIP_RCVD;
@@ -5923,8 +5908,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		if (IS_24XX(isp)) {
 			isp_prt(isp, ISP_LOGWARN, "Receive Error");
 		} else {
-			isp_prt(isp, ISP_LOGWARN,
-			    "Unknown Async Code 0x%x", mbox);
+			isp_prt(isp, ISP_LOGWARN, "unexpected ASYNC_RCV_ERR");
 		}
 		break;
 	case ASYNC_RJT_SENT:	/* same as ASYNC_QFULL_SENT */
@@ -5940,29 +5924,10 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_prt(isp, ISP_LOGWARN, "Unknown Async Code 0x%x", mbox);
 		break;
 	}
-
-	if (pattern) {
-		int i, nh;
-		uint16_t handles[16];
-
-		for (nh = 0, i = 1; i < MAX_MAILBOX(isp); i++) {
-			if ((pattern & (1 << i)) == 0) {
-				continue;
-			}
-			handles[nh++] = ISP_READ(isp, MBOX_OFF(i));
-		}
-		for (i = 0; i < nh; i++) {
-			isp_fastpost_complete(isp, handles[i]);
-			isp_prt(isp,  ISP_LOGDEBUG3,
-			    "fast post completion of %u", handles[i]);
-		}
-		if (isp->isp_fpcchiwater < nh) {
-			isp->isp_fpcchiwater = nh;
-		}
-	} else {
+	if (mbox != ASYNC_CTIO_DONE && mbox != ASYNC_CMD_CMPLT) {
 		isp->isp_intoasync++;
 	}
-	return (rval);
+	return (acked);
 }
 
 /*
@@ -6594,7 +6559,7 @@ isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp,
 }
 
 static void
-isp_fastpost_complete(ispsoftc_t *isp, uint16_t fph)
+isp_fastpost_complete(ispsoftc_t *isp, uint32_t fph)
 {
 	XS_T *xs;
 
@@ -7682,7 +7647,6 @@ isp_setdfltfcparm(ispsoftc_t *isp, int chan)
 		fcp->isp_fwoptions |= ICBOPT_FAIRNESS;
 		fcp->isp_fwoptions |= ICBOPT_PDBCHANGE_AE;
 		fcp->isp_fwoptions |= ICBOPT_HARD_ADDRESS;
-		fcp->isp_fwoptions |= ICBOPT_FAST_POST;
 		if (isp->isp_confopts & ISP_CFG_FULL_DUPLEX) {
 			fcp->isp_fwoptions |= ICBOPT_FULL_DUPLEX;
 		}
