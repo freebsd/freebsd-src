@@ -1788,6 +1788,14 @@ OLD_FILES+=usr/share/examples/etc/portsnap.conf
 OLD_FILES+=usr/share/man/man8/portsnap.8.gz
 .endif
 
+.if ${MK_PPP} == no
+OLD_FILES+=etc/ppp/ppp.conf
+OLD_FILES+=usr/sbin/ppp
+OLD_FILES+=usr/sbin/pppctl
+OLD_FILES+=usr/share/man/man8/ppp.8.gz
+OLD_FILES+=usr/share/man/man8/pppctl.8.gz
+.endif
+
 .if ${MK_PROFILE} == no
 OLD_FILES+=usr/lib/libalias_cuseeme_p.a
 OLD_FILES+=usr/lib/libalias_dummy_p.a
