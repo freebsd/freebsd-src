@@ -360,6 +360,7 @@ static int copy_email(X509V3_CTX *ctx, GENERAL_NAMES *gens, int move_p)
                 if (move_p)
                         {
                         X509_NAME_delete_entry(nm, i);
+			X509_NAME_ENTRY_free(ne);
                         i--;
                         }
 		if(!email || !(gen = GENERAL_NAME_new())) {
@@ -577,6 +578,8 @@ static int do_dirname(GENERAL_NAME *gen, char *value, X509V3_CTX *ctx)
 	if (!ret)
 		X509_NAME_free(nm);
 	gen->d.dirn = nm;
+
+	X509V3_section_free(ctx, sk);
 		
 	return ret;
 	}
