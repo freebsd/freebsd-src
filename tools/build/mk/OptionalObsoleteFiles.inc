@@ -2042,3 +2042,32 @@ OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/tcsh.cat
 #.if ${MK_USB} == no
 # to be filled in
 #.endif
+
+.if ${MK_WIRELESS} == no
+OLD_FILES+=etc/regdomain.xml
+OLD_FILES+=usr/sbin/ancontrol
+OLD_FILES+=usr/sbin/hostapd
+OLD_FILES+=usr/sbin/hostapd_cli
+OLD_FILES+=usr/sbin/ndis_events
+OLD_FILES+=usr/sbin/wlandebug
+OLD_FILES+=usr/sbin/wlconfig
+OLD_FILES+=usr/sbin/wpa_cli
+OLD_FILES+=usr/sbin/wpa_passphrase
+OLD_FILES+=usr/sbin/wpa_supplicant
+OLD_FILES+=usr/share/examples/etc/regdomain.xml
+OLD_FILES+=usr/share/examples/etc/wpa_supplicant.conf
+OLD_FILES+=usr/share/examples/hostapd/hostapd.conf
+OLD_FILES+=usr/share/examples/hostapd/hostapd.eap_user
+OLD_FILES+=usr/share/examples/hostapd/hostapd.wpa_psk
+OLD_FILES+=usr/share/man/man5/hostapd.conf.5.gz
+OLD_FILES+=usr/share/man/man5/wpa_supplicant.conf.5.gz
+OLD_FILES+=usr/share/man/man8/ancontrol.8.gz
+OLD_FILES+=usr/share/man/man8/hostapd.8.gz
+OLD_FILES+=usr/share/man/man8/hostapd_cli.8.gz
+OLD_FILES+=usr/share/man/man8/i386/wlconfig.8.gz
+OLD_FILES+=usr/share/man/man8/ndis_events.8.gz
+OLD_FILES+=usr/share/man/man8/wlandebug.8.gz
+OLD_FILES+=usr/share/man/man8/wpa_cli.8.gz
+OLD_FILES+=usr/share/man/man8/wpa_passphrase.8.gz
+OLD_FILES+=usr/share/man/man8/wpa_supplicant.8.gz
+.endif
