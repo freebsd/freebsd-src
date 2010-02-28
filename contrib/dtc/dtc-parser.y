@@ -18,13 +18,14 @@
  *                                                                   USA
  */
 
-%locations
 
 %{
 #include <stdio.h>
 
 #include "dtc.h"
 #include "srcpos.h"
+
+YYLTYPE yylloc;
 
 extern int yylex(void);
 extern void yyerror(char const *s);
