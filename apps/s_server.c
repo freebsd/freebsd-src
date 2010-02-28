@@ -283,11 +283,10 @@ static char *engine_id=NULL;
 static const char *session_id_prefix=NULL;
 
 static int enable_timeouts = 0;
-#ifdef mtu
-#undef mtu
-#endif
-static long mtu;
+static long socket_mtu;
+#ifndef OPENSSL_NO_DTLS1
 static int cert_chain = 0;
+#endif
 
 
 #ifdef MONOLITH
@@ -375,7 +374,7 @@ static void sv_usage(void)
 	BIO_printf(bio_err," -tls1         - Just talk TLSv1\n");
 	BIO_printf(bio_err," -dtls1        - Just talk DTLSv1\n");
 	BIO_printf(bio_err," -timeout      - Enable timeouts\n");
-	BIO_printf(bio_err," -mtu          - Set MTU\n");
+	BIO_printf(bio_err," -mtu          - Set link layer MTU\n");
 	BIO_printf(bio_err," -chain        - Read a certificate chain\n");
 	BIO_printf(bio_err," -no_ssl2      - Just disable SSLv2\n");
 	BIO_printf(bio_err," -no_ssl3      - Just disable SSLv3\n");
@@ -405,6 +404,7 @@ static void sv_usage(void)
 	BIO_printf(bio_err,"                 not specified (default is %s)\n",TEST_CERT2);
 	BIO_printf(bio_err," -tlsextdebug  - hex dump of all TLS extensions received\n");
 	BIO_printf(bio_err," -no_ticket    - disable use of RFC4507bis session tickets\n");
+	BIO_printf(bio_err," -legacy_renegotiation - enable use of legacy renegotiation (dangerous)\n");
 #endif
 	}
 
@@ -772,6 +772,7 @@ int MAIN(int argc, char *argv[])
 	int s_dcert_format = FORMAT_PEM, s_dkey_format = FORMAT_PEM;
 	X509 *s_cert = NULL, *s_dcert = NULL;
 	EVP_PKEY *s_key = NULL, *s_dkey = NULL;
+	int no_cache = 0;
 #ifndef OPENSSL_NO_TLSEXT
 	EVP_PKEY *s_key2 = NULL;
 	X509 *s_cert2 = NULL;
@@ -911,6 +912,8 @@ int MAIN(int argc, char *argv[])
 			if (--argc < 1) goto bad;
 			CApath= *(++argv);
 			}
+		else if (strcmp(*argv,"-no_cache") == 0)
+			no_cache = 1;
 		else if (strcmp(*argv,"-crl_check") == 0)
 			{
 			vflags |= X509_V_FLAG_CRL_CHECK;
@@ -921,6 +924,8 @@ int MAIN(int argc, char *argv[])
 			}
 		else if	(strcmp(*argv,"-serverpref") == 0)
 			{ off|=SSL_OP_CIPHER_SERVER_PREFERENCE; }
+		else if (strcmp(*argv,"-legacy_renegotiation") == 0)
+			off|=SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION;
 		else if	(strcmp(*argv,"-cipher") == 0)
 			{
 			if (--argc < 1) goto bad;
@@ -1032,7 +1037,7 @@ int MAIN(int argc, char *argv[])
 		else if (strcmp(*argv,"-mtu") == 0)
 			{
 			if (--argc < 1) goto bad;
-			mtu = atol(*(++argv));
+			socket_mtu = atol(*(++argv));
 			}
 		else if (strcmp(*argv, "-chain") == 0)
 			cert_chain = 1;
@@ -1253,8 +1258,10 @@ bad:
 	if (socket_type == SOCK_DGRAM) SSL_CTX_set_read_ahead(ctx, 1);
 
 	if (state) SSL_CTX_set_info_callback(ctx,apps_ssl_info_callback);
-
-	SSL_CTX_sess_set_cache_size(ctx,128);
+	if (no_cache)
+		SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
+	else
+		SSL_CTX_sess_set_cache_size(ctx,128);
 
 #if 0
 	if (cipher == NULL) cipher=getenv("SSL_CIPHER");
@@ -1321,7 +1328,10 @@ bad:
 
 		if (state) SSL_CTX_set_info_callback(ctx2,apps_ssl_info_callback);
 
-		SSL_CTX_sess_set_cache_size(ctx2,128);
+		if (no_cache)
+			SSL_CTX_set_session_cache_mode(ctx2,SSL_SESS_CACHE_OFF);
+		else
+			SSL_CTX_sess_set_cache_size(ctx2,128);
 
 		if ((!SSL_CTX_load_verify_locations(ctx2,CAfile,CApath)) ||
 			(!SSL_CTX_set_default_verify_paths(ctx2)))
@@ -1498,6 +1508,10 @@ bad:
 	SSL_CTX_set_session_id_context(ctx,(void*)&s_server_session_id_context,
 		sizeof s_server_session_id_context);
 
+	/* Set DTLS cookie generation and verification callbacks */
+	SSL_CTX_set_cookie_generate_cb(ctx, generate_cookie_callback);
+	SSL_CTX_set_cookie_verify_cb(ctx, verify_cookie_callback);
+
 #ifndef OPENSSL_NO_TLSEXT
 	if (ctx2)
 		{
@@ -1591,8 +1605,11 @@ static int sv_body(char *hostname, int s, unsigned char *context)
 	unsigned long l;
 	SSL *con=NULL;
 	BIO *sbio;
+	struct timeval timeout;
 #if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_NETWARE)
 	struct timeval tv;
+#else
+	struct timeval *timeoutp;
 #endif
 
 	if ((buf=OPENSSL_malloc(bufsize)) == NULL)
@@ -1644,7 +1661,6 @@ static int sv_body(char *hostname, int s, unsigned char *context)
 
 	if (SSL_version(con) == DTLS1_VERSION)
 		{
-		struct timeval timeout;
 
 		sbio=BIO_new_dgram(s,BIO_NOCLOSE);
 
@@ -1660,10 +1676,10 @@ static int sv_body(char *hostname, int s, unsigned char *context)
 			}
 
 		
-		if ( mtu > 0)
+		if (socket_mtu > 28)
 			{
 			SSL_set_options(con, SSL_OP_NO_QUERY_MTU);
-			SSL_set_mtu(con, mtu);
+			SSL_set_mtu(con, socket_mtu - 28);
 			}
 		else
 			/* want to do MTU discovery */
@@ -1745,7 +1761,19 @@ static int sv_body(char *hostname, int s, unsigned char *context)
 			if(_kbhit())
 				read_from_terminal = 1;
 #else
-			i=select(width,(void *)&readfds,NULL,NULL,NULL);
+			if ((SSL_version(con) == DTLS1_VERSION) &&
+				DTLSv1_get_timeout(con, &timeout))
+				timeoutp = &timeout;
+			else
+				timeoutp = NULL;
+
+			i=select(width,(void *)&readfds,NULL,NULL,timeoutp);
+
+			if ((SSL_version(con) == DTLS1_VERSION) && DTLSv1_handle_timeout(con) > 0)
+				{
+				BIO_printf(bio_err,"TIMEOUT occured\n");
+				}
+
 			if (i <= 0) continue;
 			if (FD_ISSET(fileno(stdin),&readfds))
 				read_from_terminal = 1;
@@ -2002,6 +2030,8 @@ static int init_ssl_connection(SSL *con)
 			con->kssl_ctx->client_princ);
 		}
 #endif /* OPENSSL_NO_KRB5 */
+	BIO_printf(bio_s_out, "Secure Renegotiation IS%s supported\n",
+		      SSL_get_secure_renegotiation_support(con) ? "" : " NOT");
 	return(1);
 	}
 

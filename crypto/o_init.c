@@ -58,6 +58,11 @@
 
 #include <e_os.h>
 #include <openssl/err.h>
+/* Internal only functions: only ever used here */
+extern	void int_ERR_lib_init(void);
+extern	void int_EVP_MD_init_engine_callbacks(void );
+extern	void int_EVP_CIPHER_init_engine_callbacks(void );
+extern	void int_RAND_init_engine_callbacks(void );
 
 /* Perform any essential OpenSSL initialization operations.
  * Currently only sets FIPS callbacks
@@ -73,7 +78,7 @@ void OPENSSL_init(void)
 #ifdef CRYPTO_MDEBUG
 		CRYPTO_malloc_debug_init();
 #endif
-#ifdef OPENSSL_ENGINE
+#ifndef OPENSSL_NO_ENGINE
 		int_EVP_MD_init_engine_callbacks();
 		int_EVP_CIPHER_init_engine_callbacks();
 		int_RAND_init_engine_callbacks();

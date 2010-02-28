@@ -19,6 +19,12 @@ my @fips_dsa_test_list = (
 
 );
 
+my @fips_dsa_pqgver_test_list = (
+
+    [ "PQGVer",  "fips_dssvs pqgver" ]
+
+);
+
 # RSA tests
 
 my @fips_rsa_test_list = (
@@ -304,6 +310,24 @@ my @fips_des3_test_list = (
 
 );
 
+my @fips_des3_cfb1_test_list = (
+
+    # DES3 CFB1 tests
+
+    [ "TCFB1invperm",  "fips_desmovs -f" ],
+    [ "TCFB1MMT1",     "fips_desmovs -f" ],
+    [ "TCFB1MMT2",     "fips_desmovs -f" ],
+    [ "TCFB1MMT3",     "fips_desmovs -f" ],
+    [ "TCFB1Monte1",   "fips_desmovs -f" ],
+    [ "TCFB1Monte2",   "fips_desmovs -f" ],
+    [ "TCFB1Monte3",   "fips_desmovs -f" ],
+    [ "TCFB1permop",   "fips_desmovs -f" ],
+    [ "TCFB1subtab",   "fips_desmovs -f" ],
+    [ "TCFB1varkey",   "fips_desmovs -f" ],
+    [ "TCFB1vartext",  "fips_desmovs -f" ],
+
+);
+
 # Verification special cases.
 # In most cases the output of a test is deterministic and
 # it can be compared to a known good result. A few involve
@@ -342,6 +366,7 @@ my $list_tests     = 0;
 
 my %fips_enabled = (
     dsa         => 1,
+    "dsa-pqgver"  => 0,
     rsa         => 1,
     "rsa-pss0"  => 0,
     "rsa-pss62" => 1,
@@ -351,7 +376,8 @@ my %fips_enabled = (
     "rand-des2" => 0,
     aes         => 1,
     "aes-cfb1"  => 0,
-    des3        => 1
+    des3        => 1,
+    "des3-cfb1" => 0
 );
 
 foreach (@ARGV) {
@@ -417,6 +443,7 @@ foreach (@ARGV) {
 my @fips_test_list;
 
 push @fips_test_list, @fips_dsa_test_list       if $fips_enabled{"dsa"};
+push @fips_test_list, @fips_dsa_pqgver_test_list if $fips_enabled{"dsa-pqgver"};
 push @fips_test_list, @fips_rsa_test_list       if $fips_enabled{"rsa"};
 push @fips_test_list, @fips_rsa_pss0_test_list  if $fips_enabled{"rsa-pss0"};
 push @fips_test_list, @fips_rsa_pss62_test_list if $fips_enabled{"rsa-pss62"};
@@ -427,6 +454,7 @@ push @fips_test_list, @fips_rand_des2_test_list if $fips_enabled{"rand-des2"};
 push @fips_test_list, @fips_aes_test_list       if $fips_enabled{"aes"};
 push @fips_test_list, @fips_aes_cfb1_test_list  if $fips_enabled{"aes-cfb1"};
 push @fips_test_list, @fips_des3_test_list      if $fips_enabled{"des3"};
+push @fips_test_list, @fips_des3_cfb1_test_list if $fips_enabled{"des3-cfb1"};
 
 if ($list_tests) {
     my ( $test, $en );
@@ -525,7 +553,7 @@ $cmd: generate run CMVP algorithm tests
 	--dir=<dirname>             Optional root for *.req file search
 	--filter=<regexp>
 	--onedir <dirname>          Assume all components in current directory
-	--rspdir=<dirname>          Name of subdirectories containing *.rsp files, default "resp"
+	--rspdir=<dirname>          Name of subdirectories containing *.rsp files, default "rsp"
 	--shwrap_prefix=<prefix>
 	--tprefix=<prefix>
 	--ignore-bogus              Ignore duplicate or bogus files
@@ -533,7 +561,16 @@ $cmd: generate run CMVP algorithm tests
 	--quiet                     Shhh....
 	--generate                  Generate algorithm test output
 	--win32                     Win32 environment
+	--enable-<alg>		    Enable algorithm set <alg>.
+	--disable-<alg>		    Disable algorithm set <alg>.
+	Where <alg> can be one of:
 EOF
+
+while (my ($key, $value) = each %fips_enabled)
+	{
+	printf "\t\t%-20s(%s by default)\n", $key ,
+			$value ? "enabled" : "disabled";
+	}
 }
 
 # Sanity check to see if all necessary executables exist
@@ -720,10 +757,10 @@ sub run_tests {
         }
         my $cmd = "$cmd_prefix$tprefix$tcmd ";
         if ( $tcmd =~ /-f$/ ) {
-            $cmd .= "$req $out";
+            $cmd .= "\"$req\" \"$out\"";
         }
         else {
-            $cmd .= "<$req >$out";
+            $cmd .= "<\"$req\" >\"$out\"";
         }
         print STDERR "DEBUG: running test $tname\n" if ( $debug && !$verify );
         system($cmd);
@@ -739,7 +776,7 @@ sub run_tests {
                 $vout =~ s/\.rsp$/.ver/;
                 $tcmd = $verify_special{$tname};
                 $cmd  = "$cmd_prefix$tprefix$tcmd ";
-                $cmd .= "<$out >$vout";
+                $cmd .= "<\"$out\" >\"$vout\"";
                 system($cmd);
                 if ( $? != 0 ) {
                     print STDERR
@@ -806,11 +843,11 @@ sub cmp_file {
             return 1;
         }
         if ( !defined($rspline) ) {
-            print STDERR "ERROR: $tname EOF on $rspf\n";
+            print STDERR "ERROR: $tname EOF on $rsp\n";
             return 0;
         }
         if ( !defined($tstline) ) {
-            print STDERR "ERROR: $tname EOF on $tstf\n";
+            print STDERR "ERROR: $tname EOF on $tst\n";
             return 0;
         }
 
@@ -821,7 +858,7 @@ sub cmp_file {
 
         if ( $tstline ne $rspline ) {
             print STDERR "ERROR: $tname mismatch:\n";
-            print STDERR "\t $tstline != $rspline\n";
+            print STDERR "\t \"$tstline\" != \"$rspline\"\n";
             return 0;
         }
     }
@@ -842,6 +879,8 @@ sub next_line {
 
         # Translate multiple space into one
         s/\s+/ /g;
+	# Delete trailing whitespace
+	s/\s+$//;
         return $_;
     }
     return undef;
