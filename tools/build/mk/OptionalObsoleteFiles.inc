@@ -1510,6 +1510,8 @@ OLD_FILES+=usr/share/man/man8/verify_krb5_conf.8.gz
 #.endif
 
 .if ${MK_LPR} == no
+OLD_FILES+=etc/hosts.lpd
+OLD_FILES+=etc/printcap
 OLD_FILES+=usr/bin/lp
 OLD_FILES+=usr/bin/lpq
 OLD_FILES+=usr/bin/lpr
@@ -1524,6 +1526,8 @@ OLD_FILES+=usr/sbin/lpd
 OLD_FILES+=usr/sbin/lptest
 OLD_FILES+=usr/sbin/pac
 OLD_FILES+=usr/share/doc/smm/07.lpd/paper.ascii.gz
+OLD_FILES+=usr/share/examples/etc/hosts.lpd
+OLD_FILES+=usr/share/examples/etc/printcap
 OLD_FILES+=usr/share/man/man1/lp.1.gz
 OLD_FILES+=usr/share/man/man1/lpq.1.gz
 OLD_FILES+=usr/share/man/man1/lpr.1.gz
