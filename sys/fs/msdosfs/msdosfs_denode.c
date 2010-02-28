@@ -167,9 +167,8 @@ deget(pmp, dirclust, diroffset, depp)
 	ldep->de_dirclust = dirclust;
 	ldep->de_diroffset = diroffset;
 	ldep->de_inode = inode;
-	fc_purge(ldep, 0);	/* init the fat cache for this denode */
-
 	lockmgr(nvp->v_vnlock, LK_EXCLUSIVE, NULL);
+	fc_purge(ldep, 0);	/* init the fat cache for this denode */
 	error = insmntque(nvp, mntp);
 	if (error != 0) {
 		free(ldep, M_MSDOSFSNODE);
