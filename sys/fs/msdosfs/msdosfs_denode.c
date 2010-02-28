@@ -182,9 +182,8 @@ deget(pmp, dirclust, diroffset, depp)
 		return (error);
 	}
 	if (xvp != NULL) {
-		/* XXX: Not sure this is right */
-		nvp = xvp;
-		ldep->de_vnode = nvp;
+		*depp = xvp->v_data;
+		return (0);
 	}
 
 	ldep->de_pmp = pmp;
