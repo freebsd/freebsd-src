@@ -6,9 +6,9 @@ openssl-*/INSTALL.VMS
 openssl-*/INSTALL.W32
 openssl-*/INSTALL.W64
 openssl-*/INSTALL.WCE
-openssl-*/MacOS/
-openssl-*/VMS/
-openssl-*/Netware/
+openssl-*/MacOS
+openssl-*/VMS
+openssl-*/Netware
 openssl-*/*.com
 openssl-*/*.bak
 openssl-*/*.def
@@ -24,10 +24,10 @@ openssl-*/crypto/buildinf.h
 openssl-*/crypto/dso/dso_vms.c
 openssl-*/crypto/dso/dso_win32.c
 openssl-*/crypto/threads/solaris.sh
-openssl-*/demos/engines/rsaref/
-openssl-*/ms/
+openssl-*/demos/engines/rsaref
+openssl-*/ms
 openssl-*/op
-openssl-*/os2/
+openssl-*/os2
 openssl-*/shlib/Makefile.hpux10-cc
 openssl-*/shlib/hpux10-cc.sh
 openssl-*/shlib/irix.sh

@@ -986,7 +986,12 @@ static int internal_verify(X509_STORE_CTX *ctx)
 	while (n >= 0)
 		{
 		ctx->error_depth=n;
-		if (!xs->valid)
+
+		/* Skip signature check for self signed certificates unless
+		 * explicitly asked for. It doesn't add any security and
+		 * just wastes time.
+		 */
+		if (!xs->valid && (xs != xi || (ctx->param->flags & X509_V_FLAG_CHECK_SS_SIGNATURE)))
 			{
 			if ((pkey=X509_get_pubkey(xi)) == NULL)
 				{
@@ -996,13 +1001,6 @@ static int internal_verify(X509_STORE_CTX *ctx)
 				if (!ok) goto end;
 				}
 			else if (X509_verify(xs,pkey) <= 0)
-				/* XXX  For the final trusted self-signed cert,
-				 * this is a waste of time.  That check should
-				 * optional so that e.g. 'openssl x509' can be
-				 * used to detect invalid self-signatures, but
-				 * we don't verify again and again in SSL
-				 * handshakes and the like once the cert has
-				 * been declared trusted. */
 				{
 				ctx->error=X509_V_ERR_CERT_SIGNATURE_FAILURE;
 				ctx->current_cert=xs;

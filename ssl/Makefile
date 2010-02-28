@@ -30,7 +30,7 @@ LIBSRC=	\
 	ssl_lib.c ssl_err2.c ssl_cert.c ssl_sess.c \
 	ssl_ciph.c ssl_stat.c ssl_rsa.c \
 	ssl_asn1.c ssl_txt.c ssl_algs.c \
-	bio_ssl.c ssl_err.c kssl.c
+	bio_ssl.c ssl_err.c kssl.c t1_reneg.c
 LIBOBJ= \
 	s2_meth.o  s2_srvr.o  s2_clnt.o  s2_lib.o  s2_enc.o s2_pkt.o \
 	s3_meth.o  s3_srvr.o  s3_clnt.o  s3_lib.o  s3_enc.o s3_pkt.o s3_both.o \
@@ -41,7 +41,7 @@ LIBOBJ= \
 	ssl_lib.o ssl_err2.o ssl_cert.o ssl_sess.o \
 	ssl_ciph.o ssl_stat.o ssl_rsa.o \
 	ssl_asn1.o ssl_txt.o ssl_algs.o \
-	bio_ssl.o ssl_err.o kssl.o
+	bio_ssl.o ssl_err.o kssl.o t1_reneg.o
 
 SRC= $(LIBSRC)
 
@@ -994,6 +994,27 @@ t1_meth.o: ../include/openssl/ssl3.h ../include/openssl/stack.h
 t1_meth.o: ../include/openssl/symhacks.h ../include/openssl/tls1.h
 t1_meth.o: ../include/openssl/x509.h ../include/openssl/x509_vfy.h ssl_locl.h
 t1_meth.o: t1_meth.c
+t1_reneg.o: ../e_os.h ../include/openssl/asn1.h ../include/openssl/bio.h
+t1_reneg.o: ../include/openssl/bn.h ../include/openssl/buffer.h
+t1_reneg.o: ../include/openssl/comp.h ../include/openssl/crypto.h
+t1_reneg.o: ../include/openssl/dsa.h ../include/openssl/dtls1.h
+t1_reneg.o: ../include/openssl/e_os2.h ../include/openssl/ec.h
+t1_reneg.o: ../include/openssl/ecdh.h ../include/openssl/ecdsa.h
+t1_reneg.o: ../include/openssl/err.h ../include/openssl/evp.h
+t1_reneg.o: ../include/openssl/fips.h ../include/openssl/hmac.h
+t1_reneg.o: ../include/openssl/kssl.h ../include/openssl/lhash.h
+t1_reneg.o: ../include/openssl/obj_mac.h ../include/openssl/objects.h
+t1_reneg.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
+t1_reneg.o: ../include/openssl/ossl_typ.h ../include/openssl/pem.h
+t1_reneg.o: ../include/openssl/pem2.h ../include/openssl/pkcs7.h
+t1_reneg.o: ../include/openssl/pq_compat.h ../include/openssl/pqueue.h
+t1_reneg.o: ../include/openssl/rsa.h ../include/openssl/safestack.h
+t1_reneg.o: ../include/openssl/sha.h ../include/openssl/ssl.h
+t1_reneg.o: ../include/openssl/ssl2.h ../include/openssl/ssl23.h
+t1_reneg.o: ../include/openssl/ssl3.h ../include/openssl/stack.h
+t1_reneg.o: ../include/openssl/symhacks.h ../include/openssl/tls1.h
+t1_reneg.o: ../include/openssl/x509.h ../include/openssl/x509_vfy.h ssl_locl.h
+t1_reneg.o: t1_reneg.c
 t1_srvr.o: ../e_os.h ../include/openssl/asn1.h ../include/openssl/bio.h
 t1_srvr.o: ../include/openssl/bn.h ../include/openssl/buffer.h
 t1_srvr.o: ../include/openssl/comp.h ../include/openssl/crypto.h

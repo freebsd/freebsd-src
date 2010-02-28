@@ -344,6 +344,8 @@ typedef struct ASN1_VALUE_st ASN1_VALUE;
     ((void*) (1 ? p : (type*)0))
 #define CHECKED_PPTR_OF(type, p) \
     ((void**) (1 ? p : (type**)0))
+#define CHECKED_PTR_OF_TO_CHAR(type, p) \
+    ((char*) (1 ? p : (type*)0))
 
 #define TYPEDEF_D2I_OF(type) typedef type *d2i_of_##type(type **,const unsigned char **,long)
 #define TYPEDEF_I2D_OF(type) typedef int i2d_of_##type(type *,unsigned char **)
@@ -933,12 +935,12 @@ void *ASN1_dup(i2d_of_void *i2d, d2i_of_void *d2i, char *x);
 #define ASN1_dup_of(type,i2d,d2i,x) \
     ((type*)ASN1_dup(CHECKED_I2D_OF(type, i2d), \
 		     CHECKED_D2I_OF(type, d2i), \
-		     CHECKED_PTR_OF(type, x)))
+		     CHECKED_PTR_OF_TO_CHAR(type, x)))
 
 #define ASN1_dup_of_const(type,i2d,d2i,x) \
     ((type*)ASN1_dup(CHECKED_I2D_OF(const type, i2d), \
 		     CHECKED_D2I_OF(type, d2i), \
-		     CHECKED_PTR_OF(const type, x)))
+		     CHECKED_PTR_OF_TO_CHAR(const type, x)))
 
 void *ASN1_item_dup(const ASN1_ITEM *it, void *x);
 
@@ -1263,6 +1265,7 @@ void ERR_load_ASN1_strings(void);
 #define ASN1_R_INVALID_MIME_TYPE			 200
 #define ASN1_R_INVALID_MODIFIER				 186
 #define ASN1_R_INVALID_NUMBER				 187
+#define ASN1_R_INVALID_OBJECT_ENCODING			 212
 #define ASN1_R_INVALID_SEPARATOR			 131
 #define ASN1_R_INVALID_TIME_FORMAT			 132
 #define ASN1_R_INVALID_UNIVERSALSTRING_LENGTH		 133

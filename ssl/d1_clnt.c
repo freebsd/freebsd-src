@@ -130,7 +130,7 @@ static int dtls1_get_hello_verify(SSL *s);
 
 static SSL_METHOD *dtls1_get_client_method(int ver)
 	{
-	if (ver == DTLS1_VERSION)
+	if (ver == DTLS1_VERSION || ver == DTLS1_BAD_VER)
 		return(DTLSv1_client_method());
 	else
 		return(NULL);
@@ -145,7 +145,6 @@ int dtls1_connect(SSL *s)
 	{
 	BUF_MEM *buf=NULL;
 	unsigned long Time=(unsigned long)time(NULL),l;
-	long num1;
 	void (*cb)(const SSL *ssl,int type,int val)=NULL;
 	int ret= -1;
 	int new_state,state,skip=0;;
@@ -181,7 +180,8 @@ int dtls1_connect(SSL *s)
 			s->server=0;
 			if (cb != NULL) cb(s,SSL_CB_HANDSHAKE_START,1);
 
-			if ((s->version & 0xff00 ) != (DTLS1_VERSION & 0xff00))
+			if ((s->version & 0xff00 ) != (DTLS1_VERSION & 0xff00) &&
+			    (s->version & 0xff00 ) != (DTLS1_BAD_VER & 0xff00))
 				{
 				SSLerr(SSL_F_DTLS1_CONNECT, ERR_R_INTERNAL_ERROR);
 				ret = -1;
@@ -219,6 +219,8 @@ int dtls1_connect(SSL *s)
 			s->init_num=0;
 			/* mark client_random uninitialized */
 			memset(s->s3->client_random,0,sizeof(s->s3->client_random));
+			s->d1->send_cookie = 0;
+			s->hit = 0;
 			break;
 
 		case SSL3_ST_CW_CLNT_HELLO_A:
@@ -229,6 +231,7 @@ int dtls1_connect(SSL *s)
 			/* every DTLS ClientHello resets Finished MAC */
 			ssl3_init_finished_mac(s);
 
+			dtls1_start_timer(s);
 			ret=dtls1_client_hello(s);
 			if (ret <= 0) goto end;
 
@@ -254,6 +257,7 @@ int dtls1_connect(SSL *s)
 			if (ret <= 0) goto end;
 			else
 				{
+				dtls1_stop_timer(s);
 				if (s->hit)
 					s->state=SSL3_ST_CR_FINISHED_A;
 				else
@@ -268,6 +272,7 @@ int dtls1_connect(SSL *s)
 			ret = dtls1_get_hello_verify(s);
 			if ( ret <= 0)
 				goto end;
+			dtls1_stop_timer(s);
 			if ( s->d1->send_cookie) /* start again, with a cookie */
 				s->state=SSL3_ST_CW_CLNT_HELLO_A;
 			else
@@ -277,15 +282,43 @@ int dtls1_connect(SSL *s)
 
 		case SSL3_ST_CR_CERT_A:
 		case SSL3_ST_CR_CERT_B:
+#ifndef OPENSSL_NO_TLSEXT
+			ret=ssl3_check_finished(s);
+			if (ret <= 0) goto end;
+			if (ret == 2)
+				{
+				s->hit = 1;
+				if (s->tlsext_ticket_expected)
+					s->state=SSL3_ST_CR_SESSION_TICKET_A;
+				else
+					s->state=SSL3_ST_CR_FINISHED_A;
+				s->init_num=0;
+				break;
+				}
+#endif
 			/* Check if it is anon DH */
 			if (!(s->s3->tmp.new_cipher->algorithms & SSL_aNULL))
 				{
 				ret=ssl3_get_server_certificate(s);
 				if (ret <= 0) goto end;
+#ifndef OPENSSL_NO_TLSEXT
+				if (s->tlsext_status_expected)
+					s->state=SSL3_ST_CR_CERT_STATUS_A;
+				else
+					s->state=SSL3_ST_CR_KEY_EXCH_A;
+				}
+			else
+				{
+				skip = 1;
+				s->state=SSL3_ST_CR_KEY_EXCH_A;
+				}
+#else
 				}
 			else
 				skip=1;
+
 			s->state=SSL3_ST_CR_KEY_EXCH_A;
+#endif
 			s->init_num=0;
 			break;
 
@@ -329,6 +362,7 @@ int dtls1_connect(SSL *s)
 		case SSL3_ST_CW_CERT_B:
 		case SSL3_ST_CW_CERT_C:
 		case SSL3_ST_CW_CERT_D:
+			dtls1_start_timer(s);
 			ret=dtls1_send_client_certificate(s);
 			if (ret <= 0) goto end;
 			s->state=SSL3_ST_CW_KEY_EXCH_A;
@@ -337,6 +371,7 @@ int dtls1_connect(SSL *s)
 
 		case SSL3_ST_CW_KEY_EXCH_A:
 		case SSL3_ST_CW_KEY_EXCH_B:
+			dtls1_start_timer(s);
 			ret=dtls1_send_client_key_exchange(s);
 			if (ret <= 0) goto end;
 			l=s->s3->tmp.new_cipher->algorithms;
@@ -359,6 +394,7 @@ int dtls1_connect(SSL *s)
 
 		case SSL3_ST_CW_CERT_VRFY_A:
 		case SSL3_ST_CW_CERT_VRFY_B:
+			dtls1_start_timer(s);
 			ret=dtls1_send_client_verify(s);
 			if (ret <= 0) goto end;
 			s->state=SSL3_ST_CW_CHANGE_A;
@@ -368,6 +404,7 @@ int dtls1_connect(SSL *s)
 
 		case SSL3_ST_CW_CHANGE_A:
 		case SSL3_ST_CW_CHANGE_B:
+			dtls1_start_timer(s);
 			ret=dtls1_send_change_cipher_spec(s,
 				SSL3_ST_CW_CHANGE_A,SSL3_ST_CW_CHANGE_B);
 			if (ret <= 0) goto end;
@@ -402,6 +439,7 @@ int dtls1_connect(SSL *s)
 
 		case SSL3_ST_CW_FINISHED_A:
 		case SSL3_ST_CW_FINISHED_B:
+			dtls1_start_timer(s);
 			ret=dtls1_send_finished(s,
 				SSL3_ST_CW_FINISHED_A,SSL3_ST_CW_FINISHED_B,
 				s->method->ssl3_enc->client_finished_label,
@@ -423,20 +461,44 @@ int dtls1_connect(SSL *s)
 				}
 			else
 				{
+#ifndef OPENSSL_NO_TLSEXT
+				/* Allow NewSessionTicket if ticket expected */
+				if (s->tlsext_ticket_expected)
+					s->s3->tmp.next_state=SSL3_ST_CR_SESSION_TICKET_A;
+				else
+#endif
+				
 				s->s3->tmp.next_state=SSL3_ST_CR_FINISHED_A;
 				}
 			s->init_num=0;
-			/* mark client_random uninitialized */
-			memset (s->s3->client_random,0,sizeof(s->s3->client_random));
 
 			break;
 
+#ifndef OPENSSL_NO_TLSEXT
+		case SSL3_ST_CR_SESSION_TICKET_A:
+		case SSL3_ST_CR_SESSION_TICKET_B:
+			ret=ssl3_get_new_session_ticket(s);
+			if (ret <= 0) goto end;
+			s->state=SSL3_ST_CR_FINISHED_A;
+			s->init_num=0;
+		break;
+
+		case SSL3_ST_CR_CERT_STATUS_A:
+		case SSL3_ST_CR_CERT_STATUS_B:
+			ret=ssl3_get_cert_status(s);
+			if (ret <= 0) goto end;
+			s->state=SSL3_ST_CR_KEY_EXCH_A;
+			s->init_num=0;
+		break;
+#endif
+
 		case SSL3_ST_CR_FINISHED_A:
 		case SSL3_ST_CR_FINISHED_B:
-
+			s->d1->change_cipher_spec_ok = 1;
 			ret=ssl3_get_finished(s,SSL3_ST_CR_FINISHED_A,
 				SSL3_ST_CR_FINISHED_B);
 			if (ret <= 0) goto end;
+			dtls1_stop_timer(s);
 
 			if (s->hit)
 				s->state=SSL3_ST_CW_CHANGE_A;
@@ -446,16 +508,13 @@ int dtls1_connect(SSL *s)
 			break;
 
 		case SSL3_ST_CW_FLUSH:
-			/* number of bytes to be flushed */
-			num1=BIO_ctrl(s->wbio,BIO_CTRL_INFO,0,NULL);
-			if (num1 > 0)
+			s->rwstate=SSL_WRITING;
+			if (BIO_flush(s->wbio) <= 0)
 				{
-				s->rwstate=SSL_WRITING;
-				num1=BIO_flush(s->wbio);
-				if (num1 <= 0) { ret= -1; goto end; }
-				s->rwstate=SSL_NOTHING;
+				ret= -1;
+				goto end;
 				}
-
+			s->rwstate=SSL_NOTHING;
 			s->state=s->s3->tmp.next_state;
 			break;
 
@@ -492,6 +551,7 @@ int dtls1_connect(SSL *s)
 
 			/* done with handshaking */
 			s->d1->handshake_read_seq  = 0;
+			s->d1->next_handshake_write_seq = 0;
 			goto end;
 			/* break; */
 			
@@ -541,8 +601,14 @@ int dtls1_client_hello(SSL *s)
 	buf=(unsigned char *)s->init_buf->data;
 	if (s->state == SSL3_ST_CW_CLNT_HELLO_A)
 		{
+		SSL_SESSION *sess = s->session;
 		if ((s->session == NULL) ||
 			(s->session->ssl_version != s->version) ||
+#ifdef OPENSSL_NO_TLSEXT
+			!sess->session_id_length ||
+#else
+			(!sess->session_id_length && !sess->tlsext_tick) ||
+#endif
 			(s->session->not_resumable))
 			{
 			if (!ssl_get_new_session(s,0))
@@ -621,7 +687,15 @@ int dtls1_client_hello(SSL *s)
 			*(p++)=comp->id;
 			}
 		*(p++)=0; /* Add the NULL method */
-		
+
+#ifndef OPENSSL_NO_TLSEXT
+		if ((p = ssl_add_clienthello_tlsext(s, p, buf+SSL3_RT_MAX_PLAIN_LENGTH)) == NULL)
+			{
+			SSLerr(SSL_F_DTLS1_CLIENT_HELLO,ERR_R_INTERNAL_ERROR);
+			goto err;
+			}
+#endif		
+
 		l=(p-d);
 		d=buf;
 
