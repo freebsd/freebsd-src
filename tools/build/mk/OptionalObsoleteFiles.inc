@@ -2047,6 +2047,13 @@ OLD_FILES+=usr/share/nls/ru_RU.KOI8-R/tcsh.cat
 OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/tcsh.cat
 .endif
 
+.if ${MK_TELNET} == no
+OLD_FILES+=usr/bin/telnet
+OLD_FILES+=usr/libexec/telnetd
+OLD_FILES+=usr/share/man/man1/telnet.1.gz
+OLD_FILES+=usr/share/man/man8/telnetd.8.gz
+.endif
+
 #.if ${MK_TOOLCHAIN} == no
 # to be filled in
 #.endif
