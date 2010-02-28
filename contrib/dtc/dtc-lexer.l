@@ -38,6 +38,8 @@ LINECOMMENT	"//".*\n
 #include "srcpos.h"
 #include "dtc-parser.tab.h"
 
+YYLTYPE yylloc;
+
 #define	YY_USER_ACTION \
 	{ \
 		yylloc.file = srcpos_file; \
