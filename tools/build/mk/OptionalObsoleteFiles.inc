@@ -1599,12 +1599,12 @@ OLD_FILES+=usr/include/netncp/nwerror.h
 #OLD_DIRS+=usr/include/netncp
 OLD_FILES+=usr/lib/libncp.a
 OLD_FILES+=usr/lib/libncp.so
-OLD_LIBS+=usr/lib/libncp.so.3
+OLD_LIBS+=usr/lib/libncp.so.4
 OLD_FILES+=usr/lib/libncp_p.a
 .if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libncp.a
 OLD_FILES+=usr/lib32/libncp.so
-OLD_LIBS+=usr/lib32/libncp.so.3
+OLD_LIBS+=usr/lib32/libncp.so.4
 OLD_FILES+=usr/lib32/libncp_p.a
 .endif
 OLD_FILES+=usr/sbin/mount_nwfs
