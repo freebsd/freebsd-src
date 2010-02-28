@@ -384,12 +384,8 @@ static uint32_t
 ate_mac_hash(const uint8_t *buf)
 {
 	uint32_t index = 0;
-	uint8_t bit;
-	uint8_t bitshift;
 	for (int i = 0; i < 48; i++) {
-		bit = i / 6;
-		bitshift =  i - bit * 6;
-		index ^= ((buf[i >> 3] >> (i & 7)) & 1) << bitshift;
+		index ^= ((buf[i >> 3] >> (i & 7)) & 1) << (i % 6);
 	}
 	return (index);
 }
