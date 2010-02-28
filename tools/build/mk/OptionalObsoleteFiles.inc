@@ -1786,6 +1786,13 @@ OLD_FILES+=usr/share/man/man8/rshd.8.gz
 # to be filled in or replaced with a special target
 #.endif
 
+.if ${MK_ROUTED} == no
+OLD_FILES+=sbin/routed
+OLD_FILES+=sbin/rtquery
+OLD_FILES+=usr/share/man/man8/routed.8.gz
+OLD_FILES+=usr/share/man/man8/rtquery.8.gz
+.endif
+
 .if ${MK_SENDMAIL} == no
 OLD_FILES+=bin/rmail
 OLD_FILES+=usr/bin/vacation
