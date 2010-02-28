@@ -1779,6 +1779,15 @@ OLD_FILES+=usr/share/man/man1/pkg_updating.1.gz
 OLD_FILES+=usr/share/man/man1/pkg_version.1.gz
 .endif
 
+.if ${MK_PORTSNAP} == no
+OLD_FILES+=etc/portsnap.conf
+OLD_FILES+=usr/libexec/make_index
+OLD_FILES+=usr/libexec/phttpget
+OLD_FILES+=usr/sbin/portsnap
+OLD_FILES+=usr/share/examples/etc/portsnap.conf
+OLD_FILES+=usr/share/man/man8/portsnap.8.gz
+.endif
+
 .if ${MK_PROFILE} == no
 OLD_FILES+=usr/lib/libalias_cuseeme_p.a
 OLD_FILES+=usr/lib/libalias_dummy_p.a
