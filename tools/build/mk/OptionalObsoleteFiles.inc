@@ -1614,6 +1614,14 @@ OLD_FILES+=usr/share/man/man1/ncplogout.1.gz
 OLD_FILES+=usr/share/man/man8/mount_nwfs.8.gz
 .endif
 
+.if ${MK_NDIS} == no
+OLD_FILES+=usr/sbin/ndiscvt
+OLD_FILES+=usr/sbin/ndisgen
+OLD_FILES+=usr/share/man/man8/ndiscvt.8.gz
+OLD_FILES+=usr/share/man/man8/ndisgen.8.gz
+OLD_FILES+=usr/share/misc/windrv_stub.c
+.endif
+
 .if ${MK_NETCAT} == no
 OLD_FILES+=usr/bin/nc
 OLD_FILES+=usr/share/man/man1/nc.1.gz
