@@ -714,10 +714,14 @@ static int
 ata_pcichannel_getrev(device_t dev, int target)
 {
 	struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+	struct ata_channel *ch = device_get_softc(dev);
 
-	if (ctlr->getrev)
-		return (ctlr->getrev(dev, target));
-	else
+	if (ch->flags & ATA_SATA) {
+		if (ctlr->getrev)
+			return (ctlr->getrev(dev, target));
+		else 
+			return (0xff);
+	} else
 		return (0);
 }
 
