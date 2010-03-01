@@ -861,7 +861,8 @@ xpt_rescan(union ccb *ccb)
 	struct ccb_hdr *hdr;
 
 	/* Prepare request */
-	if(ccb->ccb_h.path->target->target_id == CAM_TARGET_WILDCARD)
+	if (ccb->ccb_h.path->target->target_id == CAM_TARGET_WILDCARD ||
+	    ccb->ccb_h.path->device->lun_id == CAM_LUN_WILDCARD)
 		ccb->ccb_h.func_code = XPT_SCAN_BUS;
 	else
 		ccb->ccb_h.func_code = XPT_SCAN_LUN;
