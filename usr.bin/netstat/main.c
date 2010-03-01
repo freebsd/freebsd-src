@@ -530,9 +530,11 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 	if (Qflag) {
-		if (!live)
-			usage();
-		netisr_stats();
+		if (!live) {
+			if (kread(0, NULL, 0) == 0)
+				netisr_stats(kvmd);
+		} else
+			netisr_stats(NULL);
 		exit(0);
 	}
 #if 0
