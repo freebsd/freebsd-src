@@ -281,6 +281,8 @@ struct ath_hal_private {
 	uint16_t	ah_maxPowerLevel;	/* calculated max tx power */
 	u_int		ah_tpScale;		/* tx power scale factor */
 	uint32_t	ah_11nCompat;		/* 11n compat controls */
+	uint8_t		ah_txtrig_level;	/* current Tx trigger level */
+	uint8_t		ah_max_txtrig_level;	/* max tx trigger level */
 
 	/*
 	 * State for regulatory domain handling.
