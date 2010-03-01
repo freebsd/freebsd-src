@@ -79,6 +79,7 @@ ata_ali_probe(device_t dev)
      { ATA_ALI_5288, 0x00, 4, ALI_SATA, ATA_SA300, "M5288" },
      { ATA_ALI_5287, 0x00, 4, ALI_SATA, ATA_SA150, "M5287" },
      { ATA_ALI_5281, 0x00, 2, ALI_SATA, ATA_SA150, "M5281" },
+     { ATA_ALI_5228, 0xc5, 0, ALI_NEW,  ATA_UDMA6, "M5228" },
      { ATA_ALI_5229, 0xc5, 0, ALI_NEW,  ATA_UDMA6, "M5229" },
      { ATA_ALI_5229, 0xc4, 0, ALI_NEW,  ATA_UDMA5, "M5229" },
      { ATA_ALI_5229, 0xc2, 0, ALI_NEW,  ATA_UDMA4, "M5229" },
@@ -208,7 +209,7 @@ ata_ali_sata_ch_attach(device_t dev)
 	    io = res->bars[0];
 	    ctlio = res->bars[1];
     }
-		
+    ata_pci_dmainit(dev);
     for (i = ATA_DATA; i <= ATA_COMMAND; i ++) {
 	ch->r_io[i].res = io;
 	ch->r_io[i].offset = i + (unit10 ? 8 : 0);
