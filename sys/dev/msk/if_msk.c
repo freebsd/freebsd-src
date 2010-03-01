@@ -3376,7 +3376,6 @@ msk_handle_events(struct msk_softc *sc)
 	/* Sync status LEs. */
 	bus_dmamap_sync(sc->msk_stat_tag, sc->msk_stat_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-	/* XXX Sync Rx LEs here. */
 
 	rxput[MSK_PORT_A] = rxput[MSK_PORT_B] = 0;
 
@@ -3386,13 +3385,6 @@ msk_handle_events(struct msk_softc *sc)
 		control = le32toh(sd->msk_control);
 		if ((control & HW_OWNER) == 0)
 			break;
-		/*
-		 * Marvell's FreeBSD driver updates status LE after clearing
-		 * HW_OWNER. However we don't have a way to sync single LE
-		 * with bus_dma(9) API. bus_dma(9) provides a way to sync
-		 * an entire DMA map. So don't sync LE until we have a better
-		 * way to sync LEs.
-		 */
 		control &= ~HW_OWNER;
 		sd->msk_control = htole32(control);
 		status = le32toh(sd->msk_status);
@@ -3453,7 +3445,8 @@ msk_handle_events(struct msk_softc *sc)
 	}
 
 	sc->msk_stat_cons = cons;
-	/* XXX We should sync status LEs here. See above notes. */
+	bus_dmamap_sync(sc->msk_stat_tag, sc->msk_stat_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	if (rxput[MSK_PORT_A] > 0)
 		msk_rxput(sc->msk_if[MSK_PORT_A]);
