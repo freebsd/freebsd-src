@@ -66,7 +66,7 @@ ipfw_poststart()
 	#
 	for _coscript in ${firewall_coscripts} ; do
 		if [ -f "${_coscript}" ]; then
-			${_coscript} quietstart
+			${_coscript} start
 		fi
 	done
 
@@ -87,7 +87,7 @@ ipfw_stop()
 	#
 	for _coscript in `reverse_list ${firewall_coscripts}` ; do
 		if [ -f "${_coscript}" ]; then
-			${_coscript} quietstop
+			${_coscript} stop
 		fi
 	done
 }
