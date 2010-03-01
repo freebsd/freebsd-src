@@ -149,6 +149,9 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_getInterrupts		= ar5212GetInterrupts,
 	.ah_setInterrupts		= ar5212SetInterrupts },
 
+	.ah_txtrig_level		= INIT_TX_FIFO_THRESHOLD,
+	.ah_max_txtrig_level		= MAX_TX_FIFO_THRESHOLD,
+
 	.ah_getChannelEdges		= ar5212GetChannelEdges,
 	.ah_getWirelessModes		= ar5212GetWirelessModes,
 	.ah_eepromRead			= ar5212EepromRead,
