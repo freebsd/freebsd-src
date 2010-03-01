@@ -167,7 +167,7 @@ struct sysctl_netisr_work {
  * can rebalance work.
  */
 struct mbuf;
-typedef void		 netisr_handler_t (struct mbuf *m);
+typedef void		 netisr_handler_t(struct mbuf *m);
 typedef struct mbuf	*netisr_m2cpuid_t(struct mbuf *m, uintptr_t source,
 			 u_int *cpuid);
 typedef	struct mbuf	*netisr_m2flow_t(struct mbuf *m, uintptr_t source);
