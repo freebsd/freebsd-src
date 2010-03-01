@@ -532,28 +532,25 @@ msk_miibus_statchg(device_t dev)
 			break;
 		}
 
-		if (((mii->mii_media_active & IFM_GMASK) & IFM_FDX) != 0)
-			gmac |= GM_GPCR_DUP_FULL;
 		/* Disable Rx flow control. */
-		if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG0) == 0)
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG0) == 0)
 			gmac |= GM_GPCR_FC_RX_DIS;
 		/* Disable Tx flow control. */
-		if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG1) == 0)
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG1) == 0)
 			gmac |= GM_GPCR_FC_TX_DIS;
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0)
+			gmac |= GM_GPCR_DUP_FULL;
+		else
+			gmac |= GM_GPCR_FC_RX_DIS | GM_GPCR_FC_TX_DIS;
 		gmac |= GM_GPCR_RX_ENA | GM_GPCR_TX_ENA;
 		GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
 		/* Read again to ensure writing. */
 		GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
-
-		gmac = GMC_PAUSE_ON;
-		if (((mii->mii_media_active & IFM_GMASK) &
-		    (IFM_FLAG0 | IFM_FLAG1)) == 0)
-			gmac = GMC_PAUSE_OFF;
-		/* Diable pause for 10/100 Mbps in half-duplex mode. */
-		if ((((mii->mii_media_active & IFM_GMASK) & IFM_FDX) == 0) &&
-		    (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX ||
-		    IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T))
-			gmac = GMC_PAUSE_OFF;
+		gmac = GMC_PAUSE_OFF;
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
+			if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG0) != 0)
+				gmac = GMC_PAUSE_ON;
+		}
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), gmac);
 
 		/* Enable PHY interrupt for FIFO underrun/overflow. */
