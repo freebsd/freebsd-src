@@ -288,6 +288,8 @@ mca_log(const struct mca_record *rec)
 	printf("\n");
 	if (rec->mr_status & MC_STATUS_ADDRV)
 		printf("MCA: Address 0x%llx\n", (long long)rec->mr_addr);
+	if (rec->mr_status & MC_STATUS_MISCV)
+		printf("MCA: Misc 0x%llx\n", (long long)rec->mr_misc);
 }
 
 static int __nonnull(2)
