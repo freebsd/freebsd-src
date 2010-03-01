@@ -485,7 +485,7 @@ netisr_stats(void *kvmd)
 	}
 
 	printf("Configuration:\n");
-	printf("%-25s %12s %12s\n", "Setting", "Value", "Maximum");
+	printf("%-25s %12s %12s\n", "Setting", "Current", "Limit");
 	printf("%-25s %12u %12u\n", "Thread count", numthreads, maxthreads);
 	printf("%-25s %12u %12u\n", "Default queue limit", defaultqlimit,
 	    maxqlimit);
