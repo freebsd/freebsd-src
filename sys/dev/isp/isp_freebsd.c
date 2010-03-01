@@ -2304,7 +2304,8 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 	uint32_t tval, handle;
 
 	/*
-	 * CTIO, CTIO2 and CTIO7 are close enough....
+	 * CTIO handles are 16 bits.
+	 * CTIO2 and CTIO7 are 32 bits.
 	 */
 
 	if (IS_SCSI(isp)) {
