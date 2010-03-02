@@ -18,9 +18,8 @@ BUGS:
 MISSING FEATURES:
 
 - Add support for shell commands sent by the server.
-- Add missing support for various CVSup options : -D, -a (requires
-  authentication support), -e and -E (requires shell commands support)
-  and the destDir parameter.
+- Add missing support for various CVSup options : -D, -e and -E (requires
+  shell commands support) and the destDir parameter.
 - For now, this code should build fine on FreeBSD, NetBSD, OpenBSD,
   Linux and Darwin.  Solaris support would also be nice at some point.
 - Implement some new useful options : the ability to generate CVS
