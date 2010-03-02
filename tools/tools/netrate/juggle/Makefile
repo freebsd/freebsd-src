@@ -2,9 +2,8 @@
 
 PROG=	juggle
 NO_MAN=
-WARNS=	3
-
-LDADD=	-lpthread
+WARNS?=	3
 DPADD=	${LIBPTHREAD}
+LDADD=	-lpthread
 
 .include <bsd.prog.mk>
