@@ -16,7 +16,6 @@ SRCS+=	rangelock.c
 SRCS+=	subr.c
 SRCS+=	token.l
 SRCS+=	y.tab.h
-WARNS?=	6
 MAN=	hastd.8 hast.conf.5
 
 CFLAGS+=-I${.CURDIR}
