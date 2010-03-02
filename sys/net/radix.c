@@ -936,7 +936,7 @@ on1:
 			if (m)
 				log(LOG_ERR,
 				    "rn_delete: Orphaned Mask %p at %p\n",
-				    (void *)m, (void *)x);
+				    m, x);
 		}
 	}
 	/*
