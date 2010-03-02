@@ -413,6 +413,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 				    (ipoff & IP_MF) ? "+" : "");
 		}
 	}
+#ifdef __FreeBSD__
 	if (oif || m->m_pkthdr.rcvif)
 		log(LOG_SECURITY | LOG_INFO,
 		    "ipfw: %d %s %s %s via %s%s\n",
@@ -421,6 +422,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 		    oif ? oif->if_xname : m->m_pkthdr.rcvif->if_xname,
 		    fragment);
 	else
+#endif
 		log(LOG_SECURITY | LOG_INFO,
 		    "ipfw: %d %s %s [no if info]%s\n",
 		    f ? f->rulenum : -1,

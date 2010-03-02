@@ -487,24 +487,26 @@ struct ip_fw {
 #define RULESIZE(rule)  (sizeof(struct ip_fw) + \
 	((struct ip_fw *)(rule))->cmd_len * 4 - 4)
 
+#if 1 // moved to in.h
 /*
  * This structure is used as a flow mask and a flow id for various
  * parts of the code.
  */
 struct ipfw_flow_id {
-	u_int32_t	dst_ip;
-	u_int32_t	src_ip;
-	u_int16_t	dst_port;
-	u_int16_t	src_port;
-	u_int8_t	fib;
-	u_int8_t	proto;
-	u_int8_t	flags;	/* protocol-specific flags */
+	uint32_t	dst_ip;
+	uint32_t	src_ip;
+	uint16_t	dst_port;
+	uint16_t	src_port;
+	uint8_t	fib;
+	uint8_t	proto;
+	uint8_t	flags;	/* protocol-specific flags */
 	uint8_t		addr_type; /* 4 = ipv4, 6 = ipv6, 1=ether ? */
-	struct in6_addr dst_ip6;	/* could also store MAC addr! */
+	struct in6_addr dst_ip6;
 	struct in6_addr src_ip6;
-	u_int32_t	flow_id6;
-	u_int32_t	frag_id6;
+	uint32_t	flow_id6;
+	uint32_t	frag_id6;
 };
+#endif
 
 #define IS_IP6_FLOW_ID(id)	((id)->addr_type == 6)
 
