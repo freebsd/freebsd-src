@@ -211,7 +211,20 @@ EVENTHANDLER_DECLARE(process_exit, exitlist_fn);
 EVENTHANDLER_DECLARE(process_fork, forklist_fn);
 EVENTHANDLER_DECLARE(process_exec, execlist_fn);
 
+/*
+ * application dump event
+ */
 struct thread;
+typedef void (*app_coredump_start_fn)(void *, struct thread *, char *name);
+typedef void (*app_coredump_progress_fn)(void *, struct thread *td, int byte_count);
+typedef void (*app_coredump_finish_fn)(void *, struct thread *td);
+typedef void (*app_coredump_error_fn)(void *, struct thread *td, char *msg, ...);
+
+EVENTHANDLER_DECLARE(app_coredump_start, app_coredump_start_fn);
+EVENTHANDLER_DECLARE(app_coredump_progress, app_coredump_progress_fn);
+EVENTHANDLER_DECLARE(app_coredump_finish, app_coredump_finish_fn);
+EVENTHANDLER_DECLARE(app_coredump_error, app_coredump_error_fn);
+
 typedef void (*thread_ctor_fn)(void *, struct thread *);
 typedef void (*thread_dtor_fn)(void *, struct thread *);
 typedef void (*thread_fini_fn)(void *, struct thread *);

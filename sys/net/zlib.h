@@ -1010,6 +1010,13 @@ extern int EXPORT inflateInit2_ OF((z_streamp strm, int  windowBits,
 
 uLongf *get_crc_table OF((void)); /* can be used by asm versions of crc32() */
 
+#ifdef _KERNEL
+struct vnode;
+extern gzFile gz_open     OF((const char *path, const char *mode,
+	                              struct vnode *vp));
+#endif
+
+
 #ifdef __cplusplus
 }
 #endif
