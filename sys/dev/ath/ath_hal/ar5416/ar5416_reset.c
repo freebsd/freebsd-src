@@ -436,6 +436,7 @@ ar5416ChannelChange(struct ath_hal *ah, const structu ieee80211_channel *chan)
 static void
 ar5416InitDMA(struct ath_hal *ah)
 {
+	struct ath_hal_5212 *ahp = AH5212(ah);
 
 	/*
 	 * set AHB_MODE not to do cacheline prefetches
@@ -457,7 +458,7 @@ ar5416InitDMA(struct ath_hal *ah)
 	/* restore TX trigger level */
 	OS_REG_WRITE(ah, AR_TXCFG,
 		(OS_REG_READ(ah, AR_TXCFG) &~ AR_FTRIG) |
-		    SM(AH_PRIVATE(ah)->ah_txtrig_level, AR_FTRIG));
+		    SM(ahp->ah_txTrigLev, AR_FTRIG));
 
 	/*
 	 * Setup receive FIFO threshold to hold off TX activities

@@ -149,9 +149,6 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_getInterrupts		= ar5212GetInterrupts,
 	.ah_setInterrupts		= ar5212SetInterrupts },
 
-	.ah_txtrig_level		= INIT_TX_FIFO_THRESHOLD,
-	.ah_max_txtrig_level		= MAX_TX_FIFO_THRESHOLD,
-
 	.ah_getChannelEdges		= ar5212GetChannelEdges,
 	.ah_getWirelessModes		= ar5212GetWirelessModes,
 	.ah_eepromRead			= ar5212EepromRead,
@@ -251,6 +248,9 @@ ar5212InitState(struct ath_hal_5212 *ahp, uint16_t devid, HAL_SOFTC sc,
 	ahp->ah_acktimeout = (u_int) -1;
 	ahp->ah_ctstimeout = (u_int) -1;
 	ahp->ah_sifstime = (u_int) -1;
+	ahp->ah_txTrigLev = INIT_TX_FIFO_THRESHOLD,
+	ahp->ah_maxTxTrigLev = MAX_TX_FIFO_THRESHOLD,
+
 	OS_MEMCPY(&ahp->ah_bssidmask, defbssidmask, IEEE80211_ADDR_LEN);
 #undef N
 }
