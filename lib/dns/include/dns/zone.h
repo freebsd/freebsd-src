@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.h,v 1.160.50.4 2009/01/29 22:40:35 jinmei Exp $ */
+/* $Id: zone.h,v 1.160.50.6 2009/10/05 21:57:00 each Exp $ */
 
 #ifndef DNS_ZONE_H
 #define DNS_ZONE_H 1
@@ -149,13 +149,24 @@ dns_zone_getclass(dns_zone_t *zone);
  *\li	'zone' to be a valid zone.
  */
 
+isc_result_t
+dns_zone_getserial2(dns_zone_t *zone, isc_uint32_t *serialp);
+
 isc_uint32_t
 dns_zone_getserial(dns_zone_t *zone);
 /*%<
- *	Returns the current serial number of the zone.
+ *	Returns the current serial number of the zone.  On success, the SOA
+ *	serial of the zone will be copied into '*serialp'.
+ *	dns_zone_getserial() cannot catch failure cases and is deprecated by
+ *	dns_zone_getserial2().
  *
  * Requires:
  *\li	'zone' to be a valid zone.
+ *\li	'serialp' to be non NULL
+ *
+ * Returns:
+ *\li	#ISC_R_SUCCESS
+ *\li	#DNS_R_NOTLOADED	zone DB is not loaded
  */
 
 void
@@ -256,6 +267,9 @@ dns_zone_load(dns_zone_t *zone);
 
 isc_result_t
 dns_zone_loadnew(dns_zone_t *zone);
+
+isc_result_t
+dns_zone_loadandthaw(dns_zone_t *zone);
 /*%<
  *	Cause the database to be loaded from its backing store.
  *	Confirm that the minimum requirements for the zone type are
@@ -264,6 +278,8 @@ dns_zone_loadnew(dns_zone_t *zone);
  *	dns_zone_loadnew() only loads zones that are not yet loaded.
  *	dns_zone_load() also loads zones that are already loaded and
  *	and whose master file has changed since the last load.
+ *	dns_zone_loadandthaw() is similar to dns_zone_load() but will
+ *	also re-enable DNS UPDATEs when the load completes.
  *
  * Require:
  *\li	'zone' to be a valid zone.
