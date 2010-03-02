@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2009
+.Dd March 1, 2010
 .Dt MSK 4
 .Os
 .Sh NAME
@@ -235,6 +235,12 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width indent
+.It Va dev.mskc.%d.int_holdoff
+Maximum number of time to delay interrupts.
+The valid range is 0 to 34359738 for 125MHz clock in units of 1us,
+the default is 100 (100us).
+The interface need to be brought down and up again before a change
+takes effect.
 .It Va dev.mskc.%d.process_limit
 Maximum amount of Rx events to be processed in the event loop before
 rescheduling a taskqueue.

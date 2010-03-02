@@ -15,9 +15,10 @@ SRCS=	bsdtar.c	\
 	tree.c		\
 	util.c		\
 	write.c
-DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
+DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBMD}
 LDADD=	-larchive -lbz2 -lz -lmd
 .if ${MK_OPENSSL} != "no"
+DPADD+=	${LIBCRYPTO}
 LDADD+= -lcrypto
 .endif
 CFLAGS+=	-DBSDTAR_VERSION_STRING=\"${BSDTAR_VERSION_STRING}\"

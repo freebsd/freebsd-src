@@ -72,8 +72,10 @@ static int rcvcmsglen;
 
 int rssock;
 
-static struct sockaddr_in6 sin6_allrouters =
-{sizeof(sin6_allrouters), AF_INET6};
+static struct sockaddr_in6 sin6_allrouters = {
+	.sin6_len =	sizeof(sin6_allrouters),
+	.sin6_family =	AF_INET6,
+};
 
 static void call_script(char *, char *);
 static int safefile(const char *);
@@ -183,7 +185,7 @@ sendpacket(struct ifinfo *ifinfo)
 	struct in6_pktinfo *pi;
 	struct cmsghdr *cm;
 	int hoplimit = 255;
-	int i;
+	ssize_t i;
 	struct sockaddr_in6 dst;
 
 	dst = sin6_allrouters;
@@ -213,7 +215,7 @@ sendpacket(struct ifinfo *ifinfo)
 	    "send RS on %s, whose state is %d",
 	    ifinfo->ifname, ifinfo->state);
 	i = sendmsg(rssock, &sndmhdr, 0);
-	if (i < 0 || i != ifinfo->rs_datalen) {
+	if (i < 0 || (size_t)i != ifinfo->rs_datalen) {
 		/*
 		 * ENETDOWN is not so serious, especially when using several
 		 * network cards on a mobile node. We ignore it.
@@ -231,7 +233,8 @@ void
 rtsol_input(int s)
 {
 	u_char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
-	int ifindex = 0, i, *hlimp = NULL;
+	int ifindex = 0, *hlimp = NULL;
+	ssize_t i;
 	struct in6_pktinfo *pi = NULL;
 	struct ifinfo *ifi = NULL;
 	struct icmp6_hdr *icp;
@@ -272,9 +275,9 @@ rtsol_input(int s)
 		return;
 	}
 
-	if (i < sizeof(struct nd_router_advert)) {
+	if ((size_t)i < sizeof(struct nd_router_advert)) {
 		warnmsg(LOG_INFO, __func__,
-		    "packet size(%d) is too short", i);
+		    "packet size(%zd) is too short", i);
 		return;
 	}
 

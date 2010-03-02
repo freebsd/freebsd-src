@@ -573,8 +573,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	virtual_avail = va;
 
-	*CMAP1 = 0;
-
 	invltlb();
 
 	/* Initialize the PAT MSR. */
@@ -686,6 +684,15 @@ pmap_init(void)
 	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
+
+	/*
+	 * Disable large page mappings by default if the kernel is running in
+	 * a virtual machine on an AMD Family 10h processor.  This is a work-
+	 * around for Erratum 383.
+	 */
+	if (vm_guest == VM_GUEST_VM && cpu_vendor_id == CPU_VENDOR_AMD &&
+	    CPUID_TO_FAMILY(cpu_id) == 0x10)
+		pg_ps_enabled = 0;
 
 	/*
 	 * Are large page mappings enabled?

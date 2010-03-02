@@ -172,6 +172,7 @@ SUBDIR=	alias \
 	${_rwho} \
 	script \
 	sed \
+	seq \
 	shar \
 	showmount \
 	${_smbutil} \

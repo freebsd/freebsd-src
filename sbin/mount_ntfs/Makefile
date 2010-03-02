@@ -9,8 +9,7 @@ DPADD=	${LIBKICONV}
 LDADD=	-lkiconv
 
 MOUNT=	${.CURDIR}/../mount
-CFLAGS+=-I${MOUNT}
-WARNS?=	0
+CFLAGS+= -I${MOUNT}
 
 # Needs to be dynamically linked for optional dlopen() access to
 # userland libiconv

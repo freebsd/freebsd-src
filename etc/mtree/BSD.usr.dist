@@ -193,8 +193,6 @@
             ..
             IPv6
             ..
-            bc
-            ..
             bootforth
             ..
             cvs
@@ -214,6 +212,8 @@
                 ..
             ..
             find_interface
+            ..
+            hast
             ..
             hostapd
             ..

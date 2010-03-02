@@ -56,13 +56,6 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	vm_page_t m;
 	int pflags;
 	
-	if (!hw_direct_map) {
-		*flags = UMA_SLAB_KMEM;
-		va = (void *)kmem_malloc(kmem_map, bytes, wait);
-	
-		return va;
-	}
-
 	*flags = UMA_SLAB_PRIV;
 	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
 		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
@@ -82,6 +75,10 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	}
 
 	va = (void *) VM_PAGE_TO_PHYS(m);
+
+	if (!hw_direct_map)
+		pmap_kenter((vm_offset_t)va, VM_PAGE_TO_PHYS(m));
+
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		bzero(va, PAGE_SIZE);
 	atomic_add_int(&hw_uma_mdpages, 1);
@@ -94,13 +91,11 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 {
 	vm_page_t m;
 
-	if (!hw_direct_map) {
-		kmem_free(kmem_map, (vm_offset_t)mem, size);
+	if (!hw_direct_map)
+		pmap_remove(kernel_pmap,(vm_offset_t)mem,
+		    (vm_offset_t)mem + PAGE_SIZE);
 
-		return;
-	}
-
-	m = PHYS_TO_VM_PAGE((u_int32_t)mem);
+	m = PHYS_TO_VM_PAGE((vm_offset_t)mem);
 	m->wire_count--;
 	vm_page_free(m);
 	atomic_subtract_int(&cnt.v_wire_count, 1);

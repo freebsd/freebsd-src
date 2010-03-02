@@ -216,7 +216,7 @@ main(int argc, char *argv[])
 		sleep((unsigned int) max(Fort_len / CPERS, MINW));
 	}
 
-	return (0);
+	exit(0);
 }
 
 void

@@ -202,16 +202,7 @@ MACHINE_CPU = itanium
 #.endif
 
 .if ${MACHINE_CPUARCH} == "mips" 
-#. if defined(TARGET_BIG_ENDIAN)
-#CFLAGS += -EB
-#LDFLAGS += -Wl,-EB
-#LD += -EB
-#. else
-#CFLAGS += -EL
-#LDFLAGS += -Wl,-EL
-#LD += -EL
-#. endif
-CFLAGS += -msoft-float -G0 -mabicalls
+CFLAGS += -G0
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk

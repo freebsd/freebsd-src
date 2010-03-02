@@ -108,6 +108,7 @@ void isp_put_cont64_req(ispsoftc_t *, ispcontreq64_t *, ispcontreq64_t *);
 void isp_get_response(ispsoftc_t *, ispstatusreq_t *, ispstatusreq_t *);
 void isp_get_24xx_response(ispsoftc_t *, isp24xx_statusreq_t *, isp24xx_statusreq_t *);
 void isp_get_24xx_abrt(ispsoftc_t *, isp24xx_abrt_t *, isp24xx_abrt_t *);
+void isp_get_rio1(ispsoftc_t *, isp_rio1_t *, isp_rio1_t *);
 void isp_get_rio2(ispsoftc_t *, isp_rio2_t *, isp_rio2_t *);
 void isp_put_icb(ispsoftc_t *, isp_icb_t *, isp_icb_t *);
 void isp_put_icb_2400(ispsoftc_t *, isp_icb_2400_t *, isp_icb_2400_t *);

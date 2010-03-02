@@ -536,6 +536,7 @@ static void	bwn_phy_lp_gaintbl_write_r2(struct bwn_mac *, int,
 		    struct bwn_txgain_entry);
 static void	bwn_phy_lp_gaintbl_write_r01(struct bwn_mac *, int,
 		    struct bwn_txgain_entry);
+static void	bwn_sysctl_node(struct bwn_softc *);
 
 static struct resource_spec bwn_res_spec_legacy[] = {
 	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE },
@@ -1066,9 +1067,6 @@ bwn_attach_post(struct bwn_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct siba_dev_softc *sd = sc->sc_sd;
 	struct siba_sprom *sprom = &sd->sd_bus->siba_sprom;
-#ifdef BWN_DEBUG
-	device_t dev = sc->sc_dev;
-#endif
 
 	ic = ifp->if_l2com;
 	ic->ic_ifp = ifp;
@@ -1078,6 +1076,7 @@ bwn_attach_post(struct bwn_softc *sc)
 	ic->ic_caps =
 		  IEEE80211_C_STA		/* station mode supported */
 		| IEEE80211_C_MONITOR		/* monitor mode */
+		| IEEE80211_C_AHDEMO		/* adhoc demo mode */
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WME		/* WME/WMM supported */
@@ -1117,11 +1116,7 @@ bwn_attach_post(struct bwn_softc *sc)
 	    &sc->sc_rx_th.wr_ihdr, sizeof(sc->sc_rx_th),
 	    BWN_RX_RADIOTAP_PRESENT);
 
-#ifdef BWN_DEBUG
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "debug", CTLFLAG_RW, &sc->sc_debug, 0, "Debug flags");
-#endif
+	bwn_sysctl_node(sc);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -1496,6 +1491,7 @@ bwn_pio_select(struct bwn_mac *mac, uint8_t prio)
 		return (&mac->mac_method.pio.wme[WME_AC_VO]);
 	}
 	KASSERT(0 == 1, ("%s:%d: fail", __func__, __LINE__));
+	return (NULL);
 }
 
 static int
@@ -1905,10 +1901,9 @@ bwn_setup_channels(struct bwn_mac *mac, int have_bg, int have_a)
 static uint32_t
 bwn_shm_read_4(struct bwn_mac *mac, uint16_t way, uint16_t offset)
 {
-	struct bwn_softc *sc = mac->mac_sc;
 	uint32_t ret;
 
-	BWN_ASSERT_LOCKED(sc);
+	BWN_ASSERT_LOCKED(mac->mac_sc);
 
 	if (way == BWN_SHARED) {
 		KASSERT((offset & 0x0001) == 0,
@@ -1932,10 +1927,9 @@ out:
 static uint16_t
 bwn_shm_read_2(struct bwn_mac *mac, uint16_t way, uint16_t offset)
 {
-	struct bwn_softc *sc = mac->mac_sc;
 	uint16_t ret;
 
-	BWN_ASSERT_LOCKED(sc);
+	BWN_ASSERT_LOCKED(mac->mac_sc);
 
 	if (way == BWN_SHARED) {
 		KASSERT((offset & 0x0001) == 0,
@@ -1970,9 +1964,7 @@ static void
 bwn_shm_write_4(struct bwn_mac *mac, uint16_t way, uint16_t offset,
     uint32_t value)
 {
-	struct bwn_softc *sc = mac->mac_sc;
-
-	BWN_ASSERT_LOCKED(sc);
+	BWN_ASSERT_LOCKED(mac->mac_sc);
 
 	if (way == BWN_SHARED) {
 		KASSERT((offset & 0x0001) == 0,
@@ -1995,9 +1987,7 @@ static void
 bwn_shm_write_2(struct bwn_mac *mac, uint16_t way, uint16_t offset,
     uint16_t value)
 {
-	struct bwn_softc *sc = mac->mac_sc;
-
-	BWN_ASSERT_LOCKED(sc);
+	BWN_ASSERT_LOCKED(mac->mac_sc);
 
 	if (way == BWN_SHARED) {
 		KASSERT((offset & 0x0001) == 0,
@@ -3335,10 +3325,9 @@ bwn_core_start(struct bwn_mac *mac)
 static void
 bwn_core_exit(struct bwn_mac *mac)
 {
-	struct bwn_softc *sc = mac->mac_sc;
 	uint32_t macctl;
 
-	BWN_ASSERT_LOCKED(sc);
+	BWN_ASSERT_LOCKED(mac->mac_sc);
 
 	KASSERT(mac->mac_status <= BWN_MAC_STATUS_INITED,
 	    ("%s:%d: fail", __func__, __LINE__));
@@ -5198,6 +5187,8 @@ bwn_rf_init_bcm2050(struct bwn_mac *mac)
 		0x0e, 0x0f, 0x0d, 0x0f,
 	};
 
+	loctl = lomask = reg0 = classctl = crs0 = analogoverval = analogover =
+	    rfoverval = rfover = cck3 = 0;
 	radio0 = BWN_RF_READ(mac, 0x43);
 	radio1 = BWN_RF_READ(mac, 0x51);
 	radio2 = BWN_RF_READ(mac, 0x52);
@@ -5891,7 +5882,6 @@ static void
 bwn_dummy_transmission(struct bwn_mac *mac, int ofdm, int paon)
 {
 	struct bwn_phy *phy = &mac->mac_phy;
-	struct bwn_softc *sc = mac->mac_sc;
 	unsigned int i, max_loop;
 	uint16_t value;
 	uint32_t buffer[5] = {
@@ -5906,7 +5896,7 @@ bwn_dummy_transmission(struct bwn_mac *mac, int ofdm, int paon)
 		buffer[0] = 0x000b846e;
 	}
 
-	BWN_ASSERT_LOCKED(sc);
+	BWN_ASSERT_LOCKED(mac->mac_sc);
 
 	for (i = 0; i < 5; i++)
 		bwn_ram_write(mac, i * 4, buffer[i]);
@@ -5972,10 +5962,9 @@ bwn_ram_write(struct bwn_mac *mac, uint16_t offset, uint32_t val)
 static void
 bwn_lo_write(struct bwn_mac *mac, struct bwn_loctl *ctl)
 {
-	struct bwn_phy *phy = &mac->mac_phy;
 	uint16_t value;
 
-	KASSERT(phy->type == BWN_PHYTYPE_G,
+	KASSERT(mac->mac_phy.type == BWN_PHYTYPE_G,
 	    ("%s:%d: fail", __func__, __LINE__));
 
 	value = (uint8_t) (ctl->q);
@@ -6570,7 +6559,7 @@ bwn_lo_calibset(struct bwn_mac *mac,
 	struct bwn_phy_g *pg = &phy->phy_g;
 	struct bwn_loctl loctl = { 0, 0 };
 	struct bwn_lo_calib *cal;
-	struct bwn_lo_g_value sval;
+	struct bwn_lo_g_value sval = { 0 };
 	int rxgain;
 	uint16_t pad, reg, value;
 
@@ -7800,8 +7789,9 @@ bwn_fw_get(struct bwn_mac *mac, enum bwn_fwtype type,
 		bwn_do_release_fw(bfw);
 	}
 
-	snprintf(namebuf, sizeof(namebuf), "bwn%s_v4_%s",
-	    (type == BWN_FWTYPE_OPENSOURCE) ? "-open" : "", name);
+	snprintf(namebuf, sizeof(namebuf), "bwn%s_v4_%s%s",
+	    (type == BWN_FWTYPE_OPENSOURCE) ? "-open" : "",
+	    (mac->mac_phy.type == BWN_PHYTYPE_LP) ? "lp_" : "", name);
 	/* XXX Sleeping on "fwload" with the non-sleepable locks held */
 	fw = firmware_get(namebuf);
 	if (fw == NULL) {
@@ -8459,7 +8449,8 @@ bwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 	}
 
-	if (vap->iv_opmode == IEEE80211_M_MONITOR) {
+	if (vap->iv_opmode == IEEE80211_M_MONITOR ||
+	    vap->iv_opmode == IEEE80211_M_AHDEMO) {
 		/* XXX nothing to do? */
 	} else if (nstate == IEEE80211_S_RUN) {
 		memcpy(sc->sc_bssid, vap->iv_bss->ni_bssid, IEEE80211_ADDR_LEN);
@@ -8984,9 +8975,7 @@ bwn_noise_gensample(struct bwn_mac *mac)
 static int
 bwn_dma_freeslot(struct bwn_dma_ring *dr)
 {
-	struct bwn_mac *mac = dr->dr_mac;
-
-	BWN_ASSERT_LOCKED(mac->mac_sc);
+	BWN_ASSERT_LOCKED(dr->dr_mac->mac_sc);
 
 	return (dr->dr_numslots - dr->dr_usedslot);
 }
@@ -8994,9 +8983,7 @@ bwn_dma_freeslot(struct bwn_dma_ring *dr)
 static int
 bwn_dma_nextslot(struct bwn_dma_ring *dr, int slot)
 {
-	struct bwn_mac *mac = dr->dr_mac;
-
-	BWN_ASSERT_LOCKED(mac->mac_sc);
+	BWN_ASSERT_LOCKED(dr->dr_mac->mac_sc);
 
 	KASSERT(slot >= -1 && slot <= dr->dr_numslots - 1,
 	    ("%s:%d: fail", __func__, __LINE__));
@@ -9087,6 +9074,7 @@ bwn_handle_txeof(struct bwn_mac *mac, const struct bwn_txstatus *status)
 	struct bwn_pio_txqueue *tq;
 	struct bwn_pio_txpkt *tp = NULL;
 	struct bwn_softc *sc = mac->mac_sc;
+	struct bwn_stats *stats = &mac->mac_stats;
 	struct ieee80211_node *ni;
 	int slot;
 
@@ -9098,9 +9086,9 @@ bwn_handle_txeof(struct bwn_mac *mac, const struct bwn_txstatus *status)
 		device_printf(sc->sc_dev, "TODO: STATUS AMPDU\n");
 	if (status->rtscnt) {
 		if (status->rtscnt == 0xf)
-			device_printf(sc->sc_dev, "TODO: RTS fail\n");
+			stats->rtsfail++;
 		else
-			device_printf(sc->sc_dev, "TODO: RTS ok\n");
+			stats->rts++;
 	}
 
 	if (mac->mac_flags & BWN_MAC_FLAG_DMA) {
@@ -9393,9 +9381,10 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	uint32_t macstat;
-	int padding, rate, rssi, noise, type;
+	int padding, rate, rssi = 0, noise = 0, type;
 	uint16_t phytype, phystat0, phystat3, chanstat;
 	unsigned char *mp = mtod(m, unsigned char *);
+	static int rx_mac_dec_rpt = 0;
 
 	BWN_ASSERT_LOCKED(sc);
 
@@ -9409,26 +9398,29 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 		device_printf(sc->sc_dev, "TODO RX: RX_FLAG_FAILED_FCS_CRC\n");
 	if (phystat0 & (BWN_RX_PHYST0_PLCPHCF | BWN_RX_PHYST0_PLCPFV))
 		device_printf(sc->sc_dev, "TODO RX: RX_FLAG_FAILED_PLCP_CRC\n");
-	if (phystat0 & BWN_RX_PHYST0_SHORTPRMBL)
-		device_printf(sc->sc_dev, "TODO RX: RX_FLAG_SHORTPRE\n");
 	if (macstat & BWN_RX_MAC_DECERR)
 		goto drop;
 
 	padding = (macstat & BWN_RX_MAC_PADDING) ? 2 : 0;
 	if (m->m_pkthdr.len < (sizeof(struct bwn_plcp6) + padding)) {
-		device_printf(sc->sc_dev, "RX: Packet size underrun (1)\n");
+		device_printf(sc->sc_dev, "frame too short (length=%d)\n",
+		    m->m_pkthdr.len);
 		goto drop;
 	}
 	plcp = (struct bwn_plcp6 *)(mp + padding);
 	m_adj(m, sizeof(struct bwn_plcp6) + padding);
 	if (m->m_pkthdr.len < IEEE80211_MIN_LEN) {
-		device_printf(sc->sc_dev, "RX: Packet size underrun (2)\n");
+		device_printf(sc->sc_dev, "frame too short (length=%d)\n",
+		    m->m_pkthdr.len);
 		goto drop;
 	}
 	wh = mtod(m, struct ieee80211_frame_min *);
 
-	if (macstat & BWN_RX_MAC_DEC)
-		device_printf(sc->sc_dev, "TODO: BWN_RX_MAC_DEC\n");
+	if (macstat & BWN_RX_MAC_DEC && rx_mac_dec_rpt++ < 50)
+		device_printf(sc->sc_dev,
+		    "RX decryption attempted (old %d keyidx %#x)\n",
+		    BWN_ISOLDFMT(mac),
+		    (macstat & BWN_RX_MAC_KEYIDX) >> BWN_RX_MAC_KEYIDX_SHIFT);
 
 	/* XXX calculating RSSI & noise & antenna */
 
@@ -10081,15 +10073,15 @@ bwn_dma_select(struct bwn_mac *mac, uint8_t prio)
 		return (mac->mac_method.dma.wme[WME_AC_BK]);
 	}
 	KASSERT(0 == 1, ("%s:%d: fail", __func__, __LINE__));
+	return (NULL);
 }
 
 static int
 bwn_dma_getslot(struct bwn_dma_ring *dr)
 {
-	struct bwn_mac *mac = dr->dr_mac;
 	int slot;
 
-	BWN_ASSERT_LOCKED(mac->mac_sc);
+	BWN_ASSERT_LOCKED(dr->dr_mac->mac_sc);
 
 	KASSERT(dr->dr_tx, ("%s:%d: fail", __func__, __LINE__));
 	KASSERT(!(dr->dr_stop), ("%s:%d: fail", __func__, __LINE__));
@@ -10574,6 +10566,7 @@ bwn_dma_parse_cookie(struct bwn_mac *mac, const struct bwn_txstatus *status,
 		dr = dma->mcast;
 		break;
 	default:
+		dr = NULL;
 		KASSERT(0 == 1,
 		    ("invalid cookie value %d", cookie & 0xf000));
 	}
@@ -11672,6 +11665,7 @@ bwn_phy_lp_set_txpctlmode(struct bwn_mac *mac, uint8_t mode)
 		ctl = BWN_PHY_TX_PWR_CTL_CMD_MODE_SW;
 		break;
 	default:
+		ctl = 0;
 		KASSERT(0 == 1, ("%s:%d: fail", __func__, __LINE__));
 	}
 	BWN_PHY_SETMASK(mac, BWN_PHY_TX_PWR_CTL_CMD,
@@ -12852,7 +12846,6 @@ bwn_phy_lp_clear_deaf(struct bwn_mac *mac, uint8_t user)
 static unsigned int
 bwn_sqrt(struct bwn_mac *mac, unsigned int x)
 {
-	struct bwn_softc *sc = mac->mac_sc;
 	/* Table holding (10 * sqrt(x)) for x between 1 and 256. */
 	static uint8_t sqrt_table[256] = {
 		10, 14, 17, 20, 22, 24, 26, 28,
@@ -12892,9 +12885,11 @@ bwn_sqrt(struct bwn_mac *mac, unsigned int x)
 	if (x == 0)
 		return (0);
 	if (x >= 256) {
-		device_printf(sc->sc_dev,
-		    "out of bounds of the square-root table (%d)\n", x);
-		return (16);
+		unsigned int tmp;
+
+		for (tmp = 0; x >= (2 * tmp) + 1; x -= (2 * tmp++) + 1)
+			/* do nothing */ ;
+		return (tmp);
 	}
 	return (sqrt_table[x - 1] / 10);
 }
@@ -14285,6 +14280,36 @@ bwn_phy_lp_gaintbl_write_r01(struct bwn_mac *mac, int offset,
 	    (te.te_pad << 11) | (te.te_pga << 7) | (te.te_gm  << 4) |
 	    te.te_dac);
 	bwn_tab_write(mac, BWN_TAB_4(10, 0x140 + offset), te.te_bbmult << 20);
+}
+
+static void
+bwn_sysctl_node(struct bwn_softc *sc)
+{
+	device_t dev = sc->sc_dev;
+	struct bwn_mac *mac;
+	struct bwn_stats *stats;
+
+	/* XXX assume that count of MAC is only 1. */
+
+	if ((mac = sc->sc_curmac) == NULL)
+		return;
+	stats = &mac->mac_stats;
+
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "linknoise", CTLFLAG_RW, &stats->rts, 0, "Noise level");
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "rts", CTLFLAG_RW, &stats->rts, 0, "RTS");
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "rtsfail", CTLFLAG_RW, &stats->rtsfail, 0, "RTS failed to send");
+
+#ifdef BWN_DEBUG
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "debug", CTLFLAG_RW, &sc->sc_debug, 0, "Debug flags");
+#endif
 }
 
 static void

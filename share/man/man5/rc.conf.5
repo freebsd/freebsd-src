@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2009
+.Dd February 12, 2010
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1746,6 +1746,27 @@ is set to
 .Dq Li YES ,
 these are the flags to pass to
 .Xr inetd 8 .
+.It Va hastd_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr hastd 8
+daemon.
+.It Va hastd_program
+.Pq Vt str
+Path to
+.Xr hastd 8
+(default
+.Pa /sbin/hastd ) .
+.It Va hastd_flags
+.Pq Vt str
+If
+.Va hastd_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to
+.Xr hastd 8 .
 .It Va named_enable
 .Pq Vt bool
 If set to

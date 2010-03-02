@@ -165,7 +165,9 @@ static int int10_set_mode(int mode);
 static int vesa_bios_post(void);
 static int vesa_bios_get_mode(int mode, struct vesa_mode *vmode);
 static int vesa_bios_set_mode(int mode);
+#if 0
 static int vesa_bios_get_dac(void);
+#endif
 static int vesa_bios_set_dac(int bits);
 static int vesa_bios_save_palette(int start, int colors, u_char *palette,
 				  int bits);
@@ -318,6 +320,7 @@ vesa_bios_set_mode(int mode)
 	return (regs.R_AX != 0x004f);
 }
 
+#if 0
 static int
 vesa_bios_get_dac(void)
 {
@@ -334,6 +337,7 @@ vesa_bios_get_dac(void)
 
 	return (regs.R_BH);
 }
+#endif
 
 static int
 vesa_bios_set_dac(int bits)
@@ -919,9 +923,49 @@ vesa_bios_init(void)
 		vesa_vmode[modes].vi_buffer_size = bsize;
 		vesa_vmode[modes].vi_mem_model =
 		    vesa_translate_mmodel(vmode.v_memmodel);
-		if (vesa_vmode[modes].vi_mem_model == V_INFO_MM_PACKED ||
-		    vesa_vmode[modes].vi_mem_model == V_INFO_MM_DIRECT)
+		switch (vesa_vmode[modes].vi_mem_model) {
+		case V_INFO_MM_DIRECT:
+			if ((vmode.v_modeattr & V_MODELFB) != 0 &&
+			    vers >= 0x0300) {
+				vesa_vmode[modes].vi_pixel_fields[0] =
+				    vmode.v_linredfieldpos;
+				vesa_vmode[modes].vi_pixel_fields[1] =
+				    vmode.v_lingreenfieldpos;
+				vesa_vmode[modes].vi_pixel_fields[2] =
+				    vmode.v_linbluefieldpos;
+				vesa_vmode[modes].vi_pixel_fields[3] =
+				    vmode.v_linresfieldpos;
+				vesa_vmode[modes].vi_pixel_fsizes[0] =
+				    vmode.v_linredmasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[1] =
+				    vmode.v_lingreenmasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[2] =
+				    vmode.v_linbluemasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[3] =
+				    vmode.v_linresmasksize;
+			} else {
+				vesa_vmode[modes].vi_pixel_fields[0] =
+				    vmode.v_redfieldpos;
+				vesa_vmode[modes].vi_pixel_fields[1] =
+				    vmode.v_greenfieldpos;
+				vesa_vmode[modes].vi_pixel_fields[2] =
+				    vmode.v_bluefieldpos;
+				vesa_vmode[modes].vi_pixel_fields[3] =
+				    vmode.v_resfieldpos;
+				vesa_vmode[modes].vi_pixel_fsizes[0] =
+				    vmode.v_redmasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[1] =
+				    vmode.v_greenmasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[2] =
+				    vmode.v_bluemasksize;
+				vesa_vmode[modes].vi_pixel_fsizes[3] =
+				    vmode.v_resmasksize;
+			}
+			/* FALLTHROUGH */
+		case V_INFO_MM_PACKED:
 			vesa_vmode[modes].vi_pixel_size = (vmode.v_bpp + 7) / 8;
+			break;
+		}
 		vesa_vmode[modes].vi_flags =
 		    vesa_translate_flags(vmode.v_modeattr) | V_INFO_VESA;
 
@@ -1158,6 +1202,10 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	if (VESA_MODE(adp->va_mode)) {
 		if (!VESA_MODE(mode) &&
 		    (*prevvidsw->get_info)(adp, mode, &info) == 0) {
+			if ((adp->va_flags & V_ADP_DAC8) != 0) {
+				vesa_bios_set_dac(6);
+				adp->va_flags &= ~V_ADP_DAC8;
+			}
 			int10_set_mode(adp->va_initial_bios_mode);
 			if (adp->va_info.vi_flags & V_INFO_LINEAR)
 				pmap_unmapdev(adp->va_buffer,
@@ -1188,8 +1236,14 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	if (vesa_bios_set_mode(mode | ((info.vi_flags & V_INFO_LINEAR) ? 0x4000 : 0)))
 		return (1);
 
-	if ((vesa_adp_info->v_flags & V_DAC8) != 0)
-		vesa_bios_set_dac(8);
+	/* Palette format is reset by the above VBE function call. */
+	adp->va_flags &= ~V_ADP_DAC8;
+
+	if ((vesa_adp_info->v_flags & V_DAC8) != 0 &&
+	    (info.vi_flags & V_INFO_GRAPHICS) != 0 &&
+	    (info.vi_flags & V_INFO_NONVGA) != 0 &&
+	    vesa_bios_set_dac(8) > 6)
+		adp->va_flags |= V_ADP_DAC8;
 
 	if (adp->va_info.vi_flags & V_INFO_LINEAR)
 		pmap_unmapdev(adp->va_buffer, adp->va_buffer_size);
@@ -1268,10 +1322,10 @@ vesa_save_palette(video_adapter_t *adp, u_char *palette)
 {
 	int bits;
 
-	if (adp == vesa_adp && VESA_MODE(adp->va_mode)) {
-		bits = vesa_bios_get_dac();
-		if ((adp->va_info.vi_flags & V_INFO_NONVGA) != 0 || bits > 6)
-			return (vesa_bios_save_palette(0, 256, palette, bits));
+	if (adp == vesa_adp && VESA_MODE(adp->va_mode) &&
+	    (adp->va_info.vi_flags & V_INFO_NONVGA) != 0) {
+		bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 8 : 6;
+		return (vesa_bios_save_palette(0, 256, palette, bits));
 	}
 
 	return ((*prevvidsw->save_palette)(adp, palette));
@@ -1282,10 +1336,10 @@ vesa_load_palette(video_adapter_t *adp, u_char *palette)
 {
 	int bits;
 
-	if (adp == vesa_adp && VESA_MODE(adp->va_mode)) {
-		bits = vesa_bios_get_dac();
-		if ((adp->va_info.vi_flags & V_INFO_NONVGA) != 0 || bits > 6)
-			return (vesa_bios_load_palette(0, 256, palette, bits));
+	if (adp == vesa_adp && VESA_MODE(adp->va_mode) &&
+	    (adp->va_info.vi_flags & V_INFO_NONVGA) != 0) {
+		bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 8 : 6;
+		return (vesa_bios_load_palette(0, 256, palette, bits));
 	}
 
 	return ((*prevvidsw->load_palette)(adp, palette));
@@ -1490,10 +1544,10 @@ get_palette(video_adapter_t *adp, int base, int count,
 		return (1);
 	if (!VESA_MODE(adp->va_mode))
 		return (1);
-	bits = vesa_bios_get_dac();
-	if ((adp->va_info.vi_flags & V_INFO_NONVGA) == 0 && bits <= 6)
+	if ((adp->va_info.vi_flags & V_INFO_NONVGA) == 0)
 		return (1);
 
+	bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 8 : 6;
 	r = malloc(count * 3, M_DEVBUF, M_WAITOK);
 	g = r + count;
 	b = g + count;
@@ -1528,10 +1582,10 @@ set_palette(video_adapter_t *adp, int base, int count,
 		return (1);
 	if (!VESA_MODE(adp->va_mode))
 		return (1);
-	bits = vesa_bios_get_dac();
-	if ((adp->va_info.vi_flags & V_INFO_NONVGA) == 0 && bits <= 6)
+	if ((adp->va_info.vi_flags & V_INFO_NONVGA) == 0)
 		return (1);
 
+	bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 8 : 6;
 	r = malloc(count * 3, M_DEVBUF, M_WAITOK);
 	g = r + count;
 	b = g + count;
@@ -1749,7 +1803,6 @@ vesa_unload(void)
 {
 	u_char palette[256*3];
 	int error;
-	int bits;
 	int s;
 
 	/* if the adapter is currently in a VESA mode, don't unload */
@@ -1763,15 +1816,11 @@ vesa_unload(void)
 	s = spltty();
 	if ((error = vesa_unload_ioctl()) == 0) {
 		if (vesa_adp != NULL) {
-			if (vesa_adp_info->v_flags & V_DAC8)  {
-				bits = vesa_bios_get_dac();
-				if (bits > 6) {
-					vesa_bios_save_palette(0, 256,
-							       palette, bits);
-					vesa_bios_set_dac(6);
-					vesa_bios_load_palette(0, 256,
-							       palette, 6);
-				}
+			if ((vesa_adp->va_flags & V_ADP_DAC8) != 0) {
+				vesa_bios_save_palette(0, 256, palette, 8);
+				vesa_bios_set_dac(6);
+				vesa_adp->va_flags &= ~V_ADP_DAC8;
+				vesa_bios_load_palette(0, 256, palette, 6);
 			}
 			vesa_adp->va_flags &= ~V_ADP_VESA;
 			vidsw[vesa_adp->va_index] = prevvidsw;

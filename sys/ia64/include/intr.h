@@ -30,6 +30,8 @@
 #ifndef _MACHINE_INTR_H_
 #define	_MACHINE_INTR_H_
 
+struct sapic;
+
 /*
  * Layout of the Processor Interrupt Block.
  */
@@ -46,8 +48,20 @@ struct ia64_pib
 
 extern struct ia64_pib *ia64_pib;
 
-int ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
-    driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep);
-int ia64_teardown_intr(void *cookie);
+int	ia64_setup_intr(const char *, int, driver_filter_t, driver_intr_t,
+	    void *, enum intr_type, void **);
+int	ia64_teardown_intr(void *);
+
+int	sapic_config_intr(u_int, enum intr_trigger, enum intr_polarity);
+struct sapic *sapic_create(u_int, u_int, uint64_t);
+int	sapic_enable(struct sapic *, u_int, u_int);
+void	sapic_eoi(struct sapic *, u_int);
+struct sapic *sapic_lookup(u_int, u_int *);
+void	sapic_mask(struct sapic *, u_int);
+void	sapic_unmask(struct sapic *, u_int);
+
+#ifdef DDB
+void	sapic_print(struct sapic *, u_int);
+#endif
 
 #endif /* !_MACHINE_INTR_H_ */

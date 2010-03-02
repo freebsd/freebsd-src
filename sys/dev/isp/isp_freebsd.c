@@ -2304,7 +2304,8 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 	uint32_t tval, handle;
 
 	/*
-	 * CTIO, CTIO2 and CTIO7 are close enough....
+	 * CTIO handles are 16 bits.
+	 * CTIO2 and CTIO7 are 32 bits.
 	 */
 
 	if (IS_SCSI(isp)) {
@@ -3892,7 +3893,12 @@ isp_make_here(ispsoftc_t *isp, int chan, int tgt)
 		isp_prt(isp, ISP_LOGWARN, "Chan %d unable to alloc CCB for rescan", chan);
 		return;
 	}
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(fc->sim), tgt, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	/*
+	 * xpt_rescan only honors wildcard in the target field. 
+	 * Scan the whole bus instead of target, which will then
+	 * force a scan of all luns.
+	 */
+	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(fc->sim), CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		isp_prt(isp, ISP_LOGWARN, "unable to create path for rescan");
 		xpt_free_ccb(ccb);
 		return;

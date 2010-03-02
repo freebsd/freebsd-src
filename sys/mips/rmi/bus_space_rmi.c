@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/ktr.h>
 
@@ -42,13 +43,11 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cache.h>
-void xlr_print_int(uint32_t);
 
 static int 
 rmi_bus_space_map(void *t, bus_addr_t addr,
     bus_size_t size, int flags,
     bus_space_handle_t * bshp);
-
 
 static void 
 rmi_bus_space_unmap(void *t, bus_space_handle_t bsh,
@@ -132,6 +131,7 @@ rmi_bus_space_write_multi_1(void *t,
     bus_size_t offset,
     const u_int8_t * addr,
     size_t count);
+
 static void 
 rmi_bus_space_write_multi_2(void *t,
     bus_space_handle_t handle,
@@ -175,7 +175,6 @@ rmi_bus_space_set_region_4(void *t,
 static void 
 rmi_bus_space_barrier(void *tag __unused, bus_space_handle_t bsh __unused,
     bus_size_t offset __unused, bus_size_t len __unused, int flags);
-
 
 static void 
 rmi_bus_space_copy_region_2(void *t,
@@ -244,7 +243,8 @@ rmi_bus_space_write_multi_stream_4(void *t,
     const u_int32_t * addr,
     size_t count);
 
-
+#define TODO() printf("XLR memory bus space function '%s' unimplemented\n", __func__)
+ 
 static struct bus_space local_rmi_bus_space = {
 	/* cookie */
 	(void *)0,
@@ -355,27 +355,9 @@ static struct bus_space local_rmi_bus_space = {
 /* generic bus_space tag */
 bus_space_tag_t rmi_bus_space = &local_rmi_bus_space;
 
-#define	MIPS_BUS_SPACE_IO	0	/* space is i/o space */
-#define MIPS_BUS_SPACE_MEM	1	/* space is mem space */
-#define MIPS_BUS_SPACE_PCI	10	/* avoid conflict with other spaces */
-
-#define BUS_SPACE_UNRESTRICTED	(~0)
-
-#define SWAP32(x)\
-        (((x) & 0xff000000) >> 24) | \
-        (((x) & 0x000000ff) << 24) | \
-        (((x) & 0x0000ff00) << 8)  | \
-        (((x) & 0x00ff0000) >> 8)
-
-#define SWAP16(x)\
-        (((x) & 0xff00) >> 8) | \
-        (((x) & 0x00ff) << 8)
-
 /*
  * Map a region of device bus space into CPU virtual address space.
  */
-
-
 static int
 rmi_bus_space_map(void *t __unused, bus_addr_t addr,
     bus_size_t size __unused, int flags __unused,
@@ -417,32 +399,22 @@ static u_int8_t
 rmi_bus_space_read_1(void *tag, bus_space_handle_t handle,
     bus_size_t offset)
 {
-	if ((int)tag == MIPS_BUS_SPACE_PCI)
-		return (u_int8_t) (*(volatile u_int8_t *)(handle + offset));
-	else
-		return (u_int8_t) (*(volatile u_int32_t *)(handle + offset));
+	return (u_int8_t) (*(volatile u_int32_t *)(handle + offset));
 }
 
 static u_int16_t
 rmi_bus_space_read_2(void *tag, bus_space_handle_t handle,
     bus_size_t offset)
 {
-	if ((int)tag == MIPS_BUS_SPACE_PCI)
-		return SWAP16((u_int16_t) (*(volatile u_int16_t *)(handle + offset)));
-	else
-		return *(volatile u_int16_t *)(handle + offset);
+	return (u_int16_t)(*(volatile u_int32_t *)(handle + offset));
 }
 
 static u_int32_t
 rmi_bus_space_read_4(void *tag, bus_space_handle_t handle,
     bus_size_t offset)
 {
-	if ((int)tag == MIPS_BUS_SPACE_PCI)
-		return SWAP32((*(volatile u_int32_t *)(handle + offset)));
-	else
-		return (*(volatile u_int32_t *)(handle + offset));
+	return (*(volatile u_int32_t *)(handle + offset));
 }
-
 
 
 /*
@@ -453,41 +425,21 @@ static void
 rmi_bus_space_read_multi_1(void *tag, bus_space_handle_t handle,
     bus_size_t offset, u_int8_t * addr, size_t count)
 {
-
-	if ((int)tag != MIPS_BUS_SPACE_PCI)
-		return;
-	while (count--) {
-		*addr = (*(volatile u_int8_t *)(handle + offset));
-		addr++;
-	}
+	TODO();
 }
 
 static void
 rmi_bus_space_read_multi_2(void *tag, bus_space_handle_t handle,
     bus_size_t offset, u_int16_t * addr, size_t count)
 {
-
-	if ((int)tag != MIPS_BUS_SPACE_PCI)
-		return;
-	while (count--) {
-		*addr = *(volatile u_int16_t *)(handle + offset);
-		*addr = SWAP16(*addr);
-		addr++;
-	}
+	TODO();
 }
 
 static void
 rmi_bus_space_read_multi_4(void *tag, bus_space_handle_t handle,
     bus_size_t offset, u_int32_t * addr, size_t count)
 {
-
-	if ((int)tag != MIPS_BUS_SPACE_PCI)
-		return;
-	while (count--) {
-		*addr = *(volatile u_int32_t *)(handle + offset);
-		*addr = SWAP32(*addr);
-		addr++;
-	}
+	TODO();
 }
 
 /*
@@ -495,41 +447,26 @@ rmi_bus_space_read_multi_4(void *tag, bus_space_handle_t handle,
  * described by tag/handle/offset.
  */
 
-
 static void
 rmi_bus_space_write_1(void *tag, bus_space_handle_t handle,
     bus_size_t offset, u_int8_t value)
 {
-	mips_sync();
-	if ((int)tag == MIPS_BUS_SPACE_PCI)
-		*(volatile u_int8_t *)(handle + offset) = value;
-	else
-		*(volatile u_int32_t *)(handle + offset) = (u_int32_t) value;
+	*(volatile u_int32_t *)(handle + offset) =  (u_int32_t)value;
 }
 
 static void
 rmi_bus_space_write_2(void *tag, bus_space_handle_t handle,
     bus_size_t offset, u_int16_t value)
 {
-	mips_sync();
-	if ((int)tag == MIPS_BUS_SPACE_PCI) {
-		*(volatile u_int16_t *)(handle + offset) = SWAP16(value);
-	} else
-		*(volatile u_int16_t *)(handle + offset) = value;
+	*(volatile u_int32_t *)(handle + offset) = (u_int32_t)value;
 }
-
 
 static void
 rmi_bus_space_write_4(void *tag, bus_space_handle_t handle,
     bus_size_t offset, u_int32_t value)
 {
-	mips_sync();
-	if ((int)tag == MIPS_BUS_SPACE_PCI) {
-		*(volatile u_int32_t *)(handle + offset) = SWAP32(value);
-	} else
-		*(volatile u_int32_t *)(handle + offset) = value;
+	*(volatile u_int32_t *)(handle + offset) = value;
 }
-
 
 
 /*
@@ -542,39 +479,21 @@ static void
 rmi_bus_space_write_multi_1(void *tag, bus_space_handle_t handle,
     bus_size_t offset, const u_int8_t * addr, size_t count)
 {
-	mips_sync();
-	if ((int)tag != MIPS_BUS_SPACE_PCI)
-		return;
-	while (count--) {
-		(*(volatile u_int8_t *)(handle + offset)) = *addr;
-		addr++;
-	}
+	TODO();
 }
 
 static void
 rmi_bus_space_write_multi_2(void *tag, bus_space_handle_t handle,
     bus_size_t offset, const u_int16_t * addr, size_t count)
 {
-	mips_sync();
-	if ((int)tag != MIPS_BUS_SPACE_PCI)
-		return;
-	while (count--) {
-		(*(volatile u_int16_t *)(handle + offset)) = SWAP16(*addr);
-		addr++;
-	}
+	TODO();
 }
 
 static void
 rmi_bus_space_write_multi_4(void *tag, bus_space_handle_t handle,
     bus_size_t offset, const u_int32_t * addr, size_t count)
 {
-	mips_sync();
-	if ((int)tag != MIPS_BUS_SPACE_PCI)
-		return;
-	while (count--) {
-		(*(volatile u_int32_t *)(handle + offset)) = SWAP32(*addr);
-		addr++;
-	}
+	TODO();
 }
 
 /*
@@ -589,7 +508,7 @@ rmi_bus_space_set_region_2(void *t, bus_space_handle_t bsh,
 	bus_addr_t addr = bsh + offset;
 
 	for (; count != 0; count--, addr += 2)
-		(*(volatile u_int16_t *)(addr)) = value;
+		(*(volatile u_int32_t *)(addr)) = value;
 }
 
 static void
@@ -649,41 +568,22 @@ static void
 rmi_bus_space_read_multi_stream_1(void *tag, bus_space_handle_t handle,
     bus_size_t offset, u_int8_t * addr, size_t count)
 {
-
-	if ((int)tag != MIPS_BUS_SPACE_PCI)
-		return;
-	while (count--) {
-		*addr = (*(volatile u_int8_t *)(handle + offset));
-		addr++;
-	}
+	TODO();
 }
 
 static void
 rmi_bus_space_read_multi_stream_2(void *tag, bus_space_handle_t handle,
     bus_size_t offset, u_int16_t * addr, size_t count)
 {
-
-	if ((int)tag != MIPS_BUS_SPACE_PCI)
-		return;
-	while (count--) {
-		*addr = (*(volatile u_int16_t *)(handle + offset));
-		addr++;
-	}
+	TODO();
 }
 
 static void
 rmi_bus_space_read_multi_stream_4(void *tag, bus_space_handle_t handle,
     bus_size_t offset, u_int32_t * addr, size_t count)
 {
-
-	if ((int)tag != MIPS_BUS_SPACE_PCI)
-		return;
-	while (count--) {
-		*addr = (*(volatile u_int32_t *)(handle + offset));
-		addr++;
-	}
+	TODO();
 }
-
 
 
 /*
@@ -695,24 +595,14 @@ void
 rmi_bus_space_read_region_1(void *t, bus_space_handle_t bsh,
     bus_size_t offset, u_int8_t * addr, size_t count)
 {
-	bus_addr_t baddr = bsh + offset;
-
-	while (count--) {
-		*addr++ = (*(volatile u_int8_t *)(baddr));
-		baddr += 1;
-	}
+	TODO();
 }
 
 void
 rmi_bus_space_read_region_2(void *t, bus_space_handle_t bsh,
     bus_size_t offset, u_int16_t * addr, size_t count)
 {
-	bus_addr_t baddr = bsh + offset;
-
-	while (count--) {
-		*addr++ = (*(volatile u_int16_t *)(baddr));
-		baddr += 2;
-	}
+	TODO();
 }
 
 void
@@ -727,13 +617,11 @@ rmi_bus_space_read_region_4(void *t, bus_space_handle_t bsh,
 	}
 }
 
-
 void
 rmi_bus_space_write_stream_1(void *t, bus_space_handle_t handle,
     bus_size_t offset, u_int8_t value)
 {
-	mips_sync();
-	*(volatile u_int8_t *)(handle + offset) = value;
+	TODO();
 }
 
 
@@ -741,8 +629,7 @@ static void
 rmi_bus_space_write_stream_2(void *t, bus_space_handle_t handle,
     bus_size_t offset, u_int16_t value)
 {
-	mips_sync();
-	*(volatile u_int16_t *)(handle + offset) = value;
+	TODO();
 }
 
 
@@ -750,8 +637,7 @@ static void
 rmi_bus_space_write_stream_4(void *t, bus_space_handle_t handle,
     bus_size_t offset, u_int32_t value)
 {
-	mips_sync();
-	*(volatile u_int32_t *)(handle + offset) = value;
+	TODO();
 }
 
 
@@ -759,39 +645,21 @@ static void
 rmi_bus_space_write_multi_stream_1(void *tag, bus_space_handle_t handle,
     bus_size_t offset, const u_int8_t * addr, size_t count)
 {
-	mips_sync();
-	if ((int)tag != MIPS_BUS_SPACE_PCI)
-		return;
-	while (count--) {
-		(*(volatile u_int8_t *)(handle + offset)) = *addr;
-		addr++;
-	}
+	TODO();
 }
 
 static void
 rmi_bus_space_write_multi_stream_2(void *tag, bus_space_handle_t handle,
     bus_size_t offset, const u_int16_t * addr, size_t count)
 {
-	mips_sync();
-	if ((int)tag != MIPS_BUS_SPACE_PCI)
-		return;
-	while (count--) {
-		(*(volatile u_int16_t *)(handle + offset)) = *addr;
-		addr++;
-	}
+	TODO();
 }
 
 static void
 rmi_bus_space_write_multi_stream_4(void *tag, bus_space_handle_t handle,
     bus_size_t offset, const u_int32_t * addr, size_t count)
 {
-	mips_sync();
-	if ((int)tag != MIPS_BUS_SPACE_PCI)
-		return;
-	while (count--) {
-		(*(volatile u_int32_t *)(handle + offset)) = *addr;
-		addr++;
-	}
+	TODO();
 }
 
 void
@@ -801,31 +669,18 @@ rmi_bus_space_write_region_2(void *t,
     const u_int16_t * addr,
     size_t count)
 {
-	bus_addr_t baddr = (bus_addr_t) bsh + offset;
-
-	while (count--) {
-		(*(volatile u_int16_t *)(baddr)) = *addr;
-		addr++;
-		baddr += 2;
-	}
+	TODO();
 }
 
 void
 rmi_bus_space_write_region_4(void *t, bus_space_handle_t bsh,
     bus_size_t offset, const u_int32_t * addr, size_t count)
 {
-	bus_addr_t baddr = bsh + offset;
-
-	while (count--) {
-		(*(volatile u_int32_t *)(baddr)) = *addr;
-		addr++;
-		baddr += 4;
-	}
+	TODO();
 }
 
 static void
 rmi_bus_space_barrier(void *tag __unused, bus_space_handle_t bsh __unused,
     bus_size_t offset __unused, bus_size_t len __unused, int flags)
 {
-
 }

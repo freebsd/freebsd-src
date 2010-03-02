@@ -220,6 +220,9 @@ const struct cpuidtab cpuids[] = {
 	  generic_steppings },
 	{ CPU_ID_ARM966ESR1,	CPU_CLASS_ARM9ES,	"ARM966E-S",
 	  generic_steppings },
+	{ CPU_ID_FA526,	CPU_CLASS_ARM9,	"FA526",
+	  generic_steppings },
+
 	{ CPU_ID_TI925T,	CPU_CLASS_ARM9TDMI,	"TI ARM925T",
 	  generic_steppings },
 
@@ -317,6 +320,7 @@ const struct cpu_classtab cpu_classes[] = {
 	{ "ARM7",	"CPU_ARM7" },		/* CPU_CLASS_ARM7 */
 	{ "ARM7TDMI",	"CPU_ARM7TDMI" },	/* CPU_CLASS_ARM7TDMI */
 	{ "ARM8",	"CPU_ARM8" },		/* CPU_CLASS_ARM8 */
+	{ "ARM9",	"CPU_ARM9" },		/* CPU_CLASS_ARM9 */
 	{ "ARM9TDMI",	"CPU_ARM9TDMI" },	/* CPU_CLASS_ARM9TDMI */
 	{ "ARM9E-S",	"CPU_ARM9E" },		/* CPU_CLASS_ARM9ES */
 	{ "ARM9EJ-S",	"CPU_ARM9E" },		/* CPU_CLASS_ARM9EJS */

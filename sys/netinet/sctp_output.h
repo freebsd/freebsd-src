@@ -111,7 +111,7 @@ void sctp_send_shutdown(struct sctp_tcb *, struct sctp_nets *);
 
 void sctp_send_shutdown_ack(struct sctp_tcb *, struct sctp_nets *);
 
-void sctp_send_shutdown_complete(struct sctp_tcb *, struct sctp_nets *);
+void sctp_send_shutdown_complete(struct sctp_tcb *, struct sctp_nets *, int);
 
 void 
 sctp_send_shutdown_complete2(struct mbuf *, int, struct sctphdr *,

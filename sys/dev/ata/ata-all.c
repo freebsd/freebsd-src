@@ -289,15 +289,13 @@ static void
 ata_conn_event(void *context, int dummy)
 {
 	device_t dev = (device_t)context;
-	struct ata_channel *ch = device_get_softc(dev);
 #ifdef ATA_CAM
+	struct ata_channel *ch = device_get_softc(dev);
 	union ccb *ccb;
-#endif
 
 	mtx_lock(&ch->state_mtx);
 	ata_reinit(dev);
 	mtx_unlock(&ch->state_mtx);
-#ifdef ATA_CAM
 	if ((ccb = xpt_alloc_ccb()) == NULL)
 		return;
 	if (xpt_create_path(&ccb->ccb_h.path, NULL,
@@ -307,6 +305,8 @@ ata_conn_event(void *context, int dummy)
 		return;
 	}
 	xpt_rescan(ccb);
+#else
+	ata_reinit(dev);
 #endif
 }
 
@@ -1160,6 +1160,7 @@ ata_satarev2str(int rev)
 	case 1: return "SATA 1.5Gb/s";
 	case 2: return "SATA 3Gb/s";
 	case 3: return "SATA 6Gb/s";
+	case 0xff: return "SATA";
 	default: return "???";
 	}
 }
@@ -1536,6 +1537,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		if (ch->flags & ATA_SATA) {
 			cts->transport = XPORT_SATA;
 			cts->transport_version = XPORT_VERSION_UNSPECIFIED;
+			cts->xport_specific.sata.valid = 0;
 			cts->xport_specific.sata.mode = d->mode;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_MODE;
 			cts->xport_specific.sata.bytecount = d->bytecount;
@@ -1543,14 +1545,20 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
 				cts->xport_specific.sata.revision =
 				    ATA_GETREV(dev, ccb->ccb_h.target_id);
-			} else
+				if (cts->xport_specific.sata.revision != 0xff) {
+					cts->xport_specific.sata.valid |=
+					    CTS_SATA_VALID_REVISION;
+				}
+			} else {
 				cts->xport_specific.sata.revision = d->revision;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
+				cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
+			}
 			cts->xport_specific.sata.atapi = d->atapi;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_ATAPI;
 		} else {
 			cts->transport = XPORT_ATA;
 			cts->transport_version = XPORT_VERSION_UNSPECIFIED;
+			cts->xport_specific.ata.valid = 0;
 			cts->xport_specific.ata.mode = d->mode;
 			cts->xport_specific.ata.valid |= CTS_ATA_VALID_MODE;
 			cts->xport_specific.ata.bytecount = d->bytecount;
