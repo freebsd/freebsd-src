@@ -1,8 +1,6 @@
 # $FreeBSD$
 
-.include	"../../Makefile.inc"
-
-.PATH:		${OPENSOLARIS_USR_DISTDIR}/lib/libdtrace/common
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/common
 
 SRCS=		drti.c
 FILES=		${SRCS:R:S/$/.o/g}
@@ -10,7 +8,6 @@ FILESOWN=	${LIBOWN}
 FILESGRP=	${LIBGRP}
 FILESMODE=	${LIBMODE}
 FILESDIR=	${LIBDIR}/dtrace
-WARNS?=		6
 CLEANFILES=	${FILES}
 
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
