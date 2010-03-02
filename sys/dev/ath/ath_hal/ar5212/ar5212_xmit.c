@@ -48,8 +48,7 @@ ar5212UpdateTxTrigLevel(struct ath_hal *ah, HAL_BOOL bIncTrigLevel)
 	uint32_t txcfg, curLevel, newLevel;
 	HAL_INT omask;
 
-	if (AH_PRIVATE(ah)->ah_txtrig_level >=
-	    AH_PRIVATE(ah)->ah_max_txtrig_level)
+	if (ahp->ah_txTrigLev >= ahp->ah_maxTxTrigLev)
 		return AH_FALSE;
 
 	/*
@@ -61,7 +60,7 @@ ar5212UpdateTxTrigLevel(struct ath_hal *ah, HAL_BOOL bIncTrigLevel)
 	curLevel = MS(txcfg, AR_FTRIG);
 	newLevel = curLevel;
 	if (bIncTrigLevel) {		/* increase the trigger level */
-		if (curLevel < AH_PRIVATE(ah)->ah_max_txtrig_level)
+		if (curLevel < ahp->ah_maxTxTrigLev)
 			newLevel++;
 	} else if (curLevel > MIN_TX_FIFO_THRESHOLD)
 		newLevel--;
@@ -70,7 +69,7 @@ ar5212UpdateTxTrigLevel(struct ath_hal *ah, HAL_BOOL bIncTrigLevel)
 		OS_REG_WRITE(ah, AR_TXCFG,
 			(txcfg &~ AR_FTRIG) | SM(newLevel, AR_FTRIG));
 
-	AH_PRIVATE(ah)->ah_txtrig_level = newLevel;
+	ahp->ah_txTrigLev = newLevel;
 
 	/* re-enable chip interrupts */
 	ah->ah_setInterrupts(ah, omask);
