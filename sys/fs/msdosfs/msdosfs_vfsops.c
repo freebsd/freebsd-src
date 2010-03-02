@@ -770,8 +770,8 @@ error_exit:
 		g_topology_unlock();
 		PICKUP_GIANT();
 	}
-	lockdestroy(&pmp->pm_fatlock);
 	if (pmp) {
+		lockdestroy(&pmp->pm_fatlock);
 		if (pmp->pm_inusemap)
 			free(pmp->pm_inusemap, M_MSDOSFSFAT);
 		free(pmp, M_MSDOSFSMNT);
