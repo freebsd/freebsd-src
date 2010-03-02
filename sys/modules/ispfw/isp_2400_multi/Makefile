@@ -1,5 +1,6 @@
+# $FreeBSD$
 #-
-# Copyright (c) 2006 by Matthew Jacob
+# Copyright (c) 2009 by Matthew Jacob
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,26 +25,11 @@
 # SUCH DAMAGE.
 #
 
-# $FreeBSD$ 
+.PATH: ${.CURDIR}/../../../dev/ispfw
 
+KMOD=	isp_2400_multi
+SRCS=	ispfw.c
 
-SUBDIR = ispfw
-SUBDIR += isp_1040
-SUBDIR += isp_1040_it
-SUBDIR += isp_1080
-SUBDIR += isp_1080_it
-SUBDIR += isp_12160
-SUBDIR += isp_12160_it
-SUBDIR += isp_2100
-SUBDIR += isp_2200
-SUBDIR += isp_2300
-SUBDIR += isp_2322
-SUBDIR += isp_2400
-SUBDIR += isp_2400_multi
-SUBDIR += isp_2500
-SUBDIR += isp_2500_multi
-.if ${MACHINE} == "sparc64"
-SUBDIR += isp_1000
-.endif
+CFLAGS += -DISP_2400_MULTI -DMODULE_NAME=\"${KMOD}\"
 
-.include <bsd.subdir.mk>
+.include <bsd.kmod.mk>
