@@ -65,6 +65,9 @@ extern int bootverbose;		/* nonzero to print verbose messages */
 
 extern int maxusers;		/* system tune hint */
 extern int ngroups_max;		/* max # of supplemental groups */
+extern int vm_guest;		/* Running as virtual machine guest? */
+
+enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 
 #ifdef	INVARIANTS		/* The option is always available */
 #define	KASSERT(exp,msg) do {						\
