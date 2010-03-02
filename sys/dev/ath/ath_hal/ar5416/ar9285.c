@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
- * Copyright (c) 2002-2008 Atheros Communications, Inc.
+ * Copyright (c) 2008-2009 Sam Leffler, Errno Consulting
+ * Copyright (c) 2008 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,25 +20,45 @@
 
 #include "ah.h"
 #include "ah_internal.h"
-#include "ah_devid.h"
 
 #include "ah_eeprom_v14.h"
 
-#include "ar5416/ar5416.h"
+#include "ar5416/ar9280.h"
+#include "ar5416/ar9285.h"
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
 
-/*
- * Read 16 bits of data from offset into *data
- */
-HAL_BOOL
-ar5416EepromRead(struct ath_hal *ah, u_int off, uint16_t *data)
+static void
+ar9285GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 {
-        OS_REG_READ(ah,  AR5416_EEPROM_OFFSET + (off << AR5416_EEPROM_S));
-       	if (!ath_hal_wait(ah, AR_EEPROM_STATUS_DATA,
-	    AR_EEPROM_STATUS_DATA_BUSY | AR_EEPROM_STATUS_DATA_PROT_ACCESS, 0))
+	int16_t nf;
+
+	nf = MS(OS_REG_READ(ah, AR_PHY_CCA), AR9280_PHY_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	HALDEBUG(ah, HAL_DEBUG_NFCAL,
+	    "NF calibrated [ctl] [chain 0] is %d\n", nf);
+	nfarray[0] = nf;
+
+	nfarray[1] = 0;
+
+	nf = MS(OS_REG_READ(ah, AR_PHY_EXT_CCA), AR9280_PHY_EXT_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	HALDEBUG(ah, HAL_DEBUG_NFCAL,
+	    "NF calibrated [ext] [chain 0] is %d\n", nf);
+	nfarray[3] = nf;
+
+	nfarray[4] = 0;
+}
+
+HAL_BOOL
+ar9285RfAttach(struct ath_hal *ah, HAL_STATUS *status)
+{
+	if (ar9280RfAttach(ah, status) == AH_FALSE)
 		return AH_FALSE;
-       	*data = MS(OS_REG_READ(ah, AR_EEPROM_STATUS_DATA),
-		   AR_EEPROM_STATUS_DATA_VAL);
+
+	AH_PRIVATE(ah)->ah_getNoiseFloor = ar9285GetNoiseFloor;
+
 	return AH_TRUE;
 }
