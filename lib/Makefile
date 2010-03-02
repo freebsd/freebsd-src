@@ -112,6 +112,7 @@ _libsmb=	libsmb
 _libncp=	libncp
 .endif
 _libsmb=	libsmb
+_libvgl=	libvgl
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc"

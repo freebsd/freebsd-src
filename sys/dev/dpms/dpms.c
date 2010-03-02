@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/module.h>
 
-#include <machine/vm86.h>
+#include <compat/x86bios/x86bios.h>
 
 /*
  * VESA DPMS States 
@@ -118,19 +118,14 @@ static driver_t dpms_driver = {
 
 static devclass_t dpms_devclass;
 
-DRIVER_MODULE(dpms, vgapci, dpms_driver, dpms_devclass, NULL, NULL);
+DRIVER_MODULE(dpms, vgapm, dpms_driver, dpms_devclass, NULL, NULL);
+MODULE_DEPEND(dpms, x86bios, 1, 1, 1);
 
 static void
 dpms_identify(driver_t *driver, device_t parent)
 {
 
-	/*
-	 * XXX: The DPMS VBE only allows for manipulating a single
-	 * monitor, but we don't know which one.  Just attach to the
-	 * first vgapci(4) device we encounter and hope it is the
-	 * right one.
-	 */
-	if (devclass_get_device(dpms_devclass, 0) == NULL)
+	if (x86bios_match_device(0xc0000, device_get_parent(parent)))
 		device_add_child(parent, "dpms", 0);
 }
 
@@ -171,8 +166,11 @@ dpms_detach(device_t dev)
 static int
 dpms_suspend(device_t dev)
 {
+	struct dpms_softc *sc;
 
-	dpms_set_state(DPMS_OFF);
+	sc = device_get_softc(dev);
+	if ((sc->dpms_supported_states & DPMS_OFF) != 0)
+		dpms_set_state(DPMS_OFF);
 	return (0);
 }
 
@@ -189,21 +187,23 @@ dpms_resume(device_t dev)
 static int
 dpms_call_bios(int subfunction, int *bh)
 {
-	struct vm86frame vmf;
-	int error;
+	x86regs_t regs;
 
-	bzero(&vmf, sizeof(vmf));
-	vmf.vmf_ax = VBE_DPMS_FUNCTION;
-	vmf.vmf_bl = subfunction;
-	vmf.vmf_bh = *bh;
-	vmf.vmf_es = 0;
-	vmf.vmf_di = 0;
-	error = vm86_intcall(0x10, &vmf);
-	if (error == 0 && (vmf.vmf_eax & 0xffff) != 0x004f)
-		error = ENXIO;
-	if (error == 0)
-		*bh = vmf.vmf_bh;
-	return (error);
+	if (x86bios_get_intr(0x10) == 0)
+		return (ENXIO);
+
+	x86bios_init_regs(&regs);
+	regs.R_AX = VBE_DPMS_FUNCTION;
+	regs.R_BL = subfunction;
+	regs.R_BH = *bh;
+	x86bios_intr(&regs, 0x10);
+
+	if (regs.R_AX != 0x004f)
+		return (ENXIO);
+
+	*bh = regs.R_BH;
+
+	return (0);
 }
 
 static int

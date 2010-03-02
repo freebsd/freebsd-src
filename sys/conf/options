@@ -841,3 +841,5 @@ SND_FEEDER_FULL_MULTIFORMAT	opt_snd.h
 SND_FEEDER_RATE_HP	opt_snd.h
 SND_PCM_64		opt_snd.h
 SND_OLDSTEREO		opt_snd.h
+
+X86BIOS

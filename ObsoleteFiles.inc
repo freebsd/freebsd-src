@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100301: vesa and dpms promoted to be i386/amd64 common
+OLD_FILES+=usr/include/machine/pc/vesa.h
+OLD_FILES+=usr/share/man/man4/i386/dpms.4.gz
 # 20091218: removal of rc.early(8) link
 OLD_FILES+=usr/share/man/man8/rc.early.8.gz
 # 20091027: pselect.3 implemented as syscall
