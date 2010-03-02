@@ -340,17 +340,47 @@ _C_LABEL(x):
 #define	NON_LEAF(x, fsize, retpc)	NESTED(x, fsize, retpc)
 #define	NNON_LEAF(x, fsize, retpc)	NESTED_NOPROFILE(x, fsize, retpc)
 
+#if defined(__mips_o32)
+#define	SZREG	4
+#else
+#define	SZREG	8
+#endif
+
+#if defined(__mips_o32) || defined(__mips_o64)
+#define	ALSK	7		/* stack alignment */
+#define	ALMASK	-7		/* stack alignment */
+#define	SZFPREG	4
+#define	FP_L	lwc1
+#define	FP_S	swc1
+#else
+#define	ALSK	15		/* stack alignment */
+#define	ALMASK	-15		/* stack alignment */
+#define	SZFPREG	8
+#define	FP_L	ldc1
+#define	FP_S	sdc1
+#endif
+
 /*
  *  standard callframe {
- *  	register_t cf_args[4];		arg0 - arg3
+ *	register_t cf_pad[N];		o32/64 (N=0), n32 (N=1) n64 (N=1)
+ *  	register_t cf_args[4];		arg0 - arg3 (only on o32 and o64)
+ *  	register_t cf_gp;		global pointer (only on n32 and n64)
  *  	register_t cf_sp;		frame pointer
  *  	register_t cf_ra;		return address
  *  };
  */
-#define	CALLFRAME_SIZ	(4 * (4 + 2))
-#define	CALLFRAME_SP	(4 * 4)
-#define	CALLFRAME_RA	(4 * 5)
-#define	START_FRAME	CALLFRAME_SIZ
+#if defined(__mips_o32) || defined(__mips_o64)
+#define	CALLFRAME_SIZ	(SZREG * (4 + 2))
+#define	CALLFRAME_S0	0
+#elif defined(__mips_n32) || defined(__mips_n64)
+#define	CALLFRAME_SIZ	(SZREG * 4)
+#define	CALLFRAME_S0	(CALLFRAME_SIZ - 4 * SZREG)
+#endif
+#ifndef _KERNEL
+#define	CALLFRAME_GP	(CALLFRAME_SIZ - 3 * SZREG)
+#endif
+#define	CALLFRAME_SP	(CALLFRAME_SIZ - 2 * SZREG)
+#define	CALLFRAME_RA	(CALLFRAME_SIZ - 1 * SZREG)
 
 /*
  * While it would be nice to be compatible with the SGI
@@ -361,27 +391,264 @@ _C_LABEL(x):
  * assembler to prevent the assembler from generating 64-bit style
  * ABI calls.
  */
+#if _MIPS_SZPTR == 32
+#define	PTR_ADD		add
+#define	PTR_ADDI	addi
+#define	PTR_ADDU	addu
+#define	PTR_ADDIU	addiu
+#define	PTR_SUB		add
+#define	PTR_SUBI	subi
+#define	PTR_SUBU	subu
+#define	PTR_SUBIU	subu
+#define	PTR_L		lw
+#define	PTR_LA		la
+#define	PTR_S		sw
+#define	PTR_SLL		sll
+#define	PTR_SLLV	sllv
+#define	PTR_SRL		srl
+#define	PTR_SRLV	srlv
+#define	PTR_SRA		sra
+#define	PTR_SRAV	srav
+#define	PTR_LL		ll
+#define	PTR_SC		sc
+#define	PTR_WORD	.word
+#define	PTR_SCALESHIFT	2
+#else /* _MIPS_SZPTR == 64 */
+#define	PTR_ADD		dadd
+#define	PTR_ADDI	daddi
+#define	PTR_ADDU	daddu
+#define	PTR_ADDIU	daddiu
+#define	PTR_SUB		dadd
+#define	PTR_SUBI	dsubi
+#define	PTR_SUBU	dsubu
+#define	PTR_SUBIU	dsubu
+#define	PTR_L		ld
+#define	PTR_LA		dla
+#define	PTR_S		sd
+#define	PTR_SLL		dsll
+#define	PTR_SLLV	dsllv
+#define	PTR_SRL		dsrl
+#define	PTR_SRLV	dsrlv
+#define	PTR_SRA		dsra
+#define	PTR_SRAV	dsrav
+#define	PTR_LL		lld
+#define	PTR_SC		scd
+#define	PTR_WORD	.dword
+#define	PTR_SCALESHIFT	3
+#endif /* _MIPS_SZPTR == 64 */
 
-#if !defined(_MIPS_BSD_API) || _MIPS_BSD_API == _MIPS_BSD_API_LP32
-/* #if !defined(__mips_n64) */
+#if _MIPS_SZINT == 32
+#define	INT_ADD		add
+#define	INT_ADDI	addi
+#define	INT_ADDU	addu
+#define	INT_ADDIU	addiu
+#define	INT_SUB		add
+#define	INT_SUBI	subi
+#define	INT_SUBU	subu
+#define	INT_SUBIU	subu
+#define	INT_L		lw
+#define	INT_LA		la
+#define	INT_S		sw
+#define	INT_SLL		sll
+#define	INT_SLLV	sllv
+#define	INT_SRL		srl
+#define	INT_SRLV	srlv
+#define	INT_SRA		sra
+#define	INT_SRAV	srav
+#define	INT_LL		ll
+#define	INT_SC		sc
+#define	INT_WORD	.word
+#define	INT_SCALESHIFT	2
+#else
+#define	INT_ADD		dadd
+#define	INT_ADDI	daddi
+#define	INT_ADDU	daddu
+#define	INT_ADDIU	daddiu
+#define	INT_SUB		dadd
+#define	INT_SUBI	dsubi
+#define	INT_SUBU	dsubu
+#define	INT_SUBIU	dsubu
+#define	INT_L		ld
+#define	INT_LA		dla
+#define	INT_S		sd
+#define	INT_SLL		dsll
+#define	INT_SLLV	dsllv
+#define	INT_SRL		dsrl
+#define	INT_SRLV	dsrlv
+#define	INT_SRA		dsra
+#define	INT_SRAV	dsrav
+#define	INT_LL		lld
+#define	INT_SC		scd
+#define	INT_WORD	.dword
+#define	INT_SCALESHIFT	3
+#endif
+
+#if _MIPS_SZLONG == 32
+#define	LONG_ADD	add
+#define	LONG_ADDI	addi
+#define	LONG_ADDU	addu
+#define	LONG_ADDIU	addiu
+#define	LONG_SUB	add
+#define	LONG_SUBI	subi
+#define	LONG_SUBU	subu
+#define	LONG_SUBIU	subu
+#define	LONG_L		lw
+#define	LONG_LA		la
+#define	LONG_S		sw
+#define	LONG_SLL	sll
+#define	LONG_SLLV	sllv
+#define	LONG_SRL	srl
+#define	LONG_SRLV	srlv
+#define	LONG_SRA	sra
+#define	LONG_SRAV	srav
+#define	LONG_LL		ll
+#define	LONG_SC		sc
+#define	LONG_WORD	.word
+#define	LONG_SCALESHIFT	2
+#else
+#define	LONG_ADD	dadd
+#define	LONG_ADDI	daddi
+#define	LONG_ADDU	daddu
+#define	LONG_ADDIU	daddiu
+#define	LONG_SUB	dadd
+#define	LONG_SUBI	dsubi
+#define	LONG_SUBU	dsubu
+#define	LONG_SUBIU	dsubu
+#define	LONG_L		ld
+#define	LONG_LA		dla
+#define	LONG_S		sd
+#define	LONG_SLL	dsll
+#define	LONG_SLLV	dsllv
+#define	LONG_SRL	dsrl
+#define	LONG_SRLV	dsrlv
+#define	LONG_SRA	dsra
+#define	LONG_SRAV	dsrav
+#define	LONG_LL		lld
+#define	LONG_SC		scd
+#define	LONG_WORD	.dword
+#define	LONG_SCALESHIFT	3
+#endif
+
+#if SZREG == 4
 #define	REG_L		lw
 #define	REG_S		sw
 #define	REG_LI		li
-#define	REG_PROLOGUE	.set push
-#define	REG_EPILOGUE	.set pop
-#define	SZREG		4
-#define	PTR_LA		la
-#define	PTR_ADDU	addu
+#define	REG_ADDU	addu
+#define	REG_SLL		sll
+#define	REG_SLLV	sllv
+#define	REG_SRL		srl
+#define	REG_SRLV	srlv
+#define	REG_SRA		sra
+#define	REG_SRAV	srav
+#define	REG_LL		ll
+#define	REG_SC		sc
+#define	REG_SCALESHIFT	2
 #else
 #define	REG_L		ld
 #define	REG_S		sd
 #define	REG_LI		dli
+#define	REG_ADDU	daddu
+#define	REG_SLL		dsll
+#define	REG_SLLV	dsllv
+#define	REG_SRL		dsrl
+#define	REG_SRLV	dsrlv
+#define	REG_SRA		dsra
+#define	REG_SRAV	dsrav
+#define	REG_LL		lld
+#define	REG_SC		scd
+#define	REG_SCALESHIFT	3
+#endif
+
+#if _MIPS_ISA == _MIPS_ISA_MIPS1 || _MIPS_ISA == _MIPS_ISA_MIPS2 || \
+    _MIPS_ISA == _MIPS_ISA_MIPS32
+#define	MFC0		mfc0
+#define	MTC0		mtc0
+#endif
+#if _MIPS_ISA == _MIPS_ISA_MIPS3 || _MIPS_ISA == _MIPS_ISA_MIPS4 || \
+    _MIPS_ISA == _MIPS_ISA_MIPS64
+#define	MFC0		dmfc0
+#define	MTC0		dmtc0
+#endif
+
+#if defined(__mips_o32) || defined(__mips_o64)
+
+#ifdef __ABICALLS__
+#define	CPRESTORE(r)	.cprestore r
+#define	CPLOAD(r)	.cpload r
+#else
+#define	CPRESTORE(r)	/* not needed */
+#define	CPLOAD(r)	/* not needed */
+#endif
+
+#define	SETUP_GP	\
+			.set push;				\
+			.set noreorder;				\
+			.cpload	t9;				\
+			.set pop
+#define	SETUP_GPX(r)	\
+			.set push;				\
+			.set noreorder;				\
+			move	r,ra;	/* save old ra */	\
+			bal	7f;				\
+			nop;					\
+		7:	.cpload	ra;				\
+			move	ra,r;				\
+			.set pop
+#define	SETUP_GPX_L(r,lbl)	\
+			.set push;				\
+			.set noreorder;				\
+			move	r,ra;	/* save old ra */	\
+			bal	lbl;				\
+			nop;					\
+		lbl:	.cpload	ra;				\
+			move	ra,r;				\
+			.set pop
+#define	SAVE_GP(x)	.cprestore x
+
+#define	SETUP_GP64(a,b)		/* n32/n64 specific */
+#define	SETUP_GP64_R(a,b)	/* n32/n64 specific */
+#define	SETUP_GPX64(a,b)	/* n32/n64 specific */
+#define	SETUP_GPX64_L(a,b,c)	/* n32/n64 specific */
+#define	RESTORE_GP64		/* n32/n64 specific */
+#define	USE_ALT_CP(a)		/* n32/n64 specific */
+#endif /* __mips_o32 || __mips_o64 */
+
+#if defined(__mips_o32) || defined(__mips_o64)
+#define	REG_PROLOGUE	.set push
+#define	REG_EPILOGUE	.set pop
+#endif
+#if defined(__mips_n32) || defined(__mips_n64)
 #define	REG_PROLOGUE	.set push ; .set mips3
 #define	REG_EPILOGUE	.set pop
-#define	SZREG		8
-#define	PTR_LA		dla
-#define	PTR_ADDU	daddu
-#endif	/* _MIPS_BSD_API */
+#endif
+
+#if defined(__mips_n32) || defined(__mips_n64)
+#define	SETUP_GP		/* o32 specific */
+#define	SETUP_GPX(r)		/* o32 specific */
+#define	SETUP_GPX_L(r,lbl)	/* o32 specific */
+#define	SAVE_GP(x)		/* o32 specific */
+#define	SETUP_GP64(a,b)		.cpsetup $25, a, b
+#define	SETUP_GPX64(a,b)	\
+				.set push;			\
+				move	b,ra;			\
+				.set noreorder;			\
+				bal	7f;			\
+				nop;				\
+			7:	.set pop;			\
+				.cpsetup ra, a, 7b;		\
+				move	ra,b
+#define	SETUP_GPX64_L(a,b,c)	\
+				.set push;			\
+				move	b,ra;			\
+				.set noreorder;			\
+				bal	c;			\
+				nop;				\
+			c:	.set pop;			\
+				.cpsetup ra, a, c;		\
+				move	ra,b
+#define	RESTORE_GP64		.cpreturn
+#define	USE_ALT_CP(a)		.cplocal a
+#endif	/* __mips_n32 || __mips_n64 */
 
 #define	mfc0_macro(data, spr)						\
 	__asm __volatile ("mfc0 %0, $%1"				\
