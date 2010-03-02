@@ -95,6 +95,7 @@ static driver_t mfip_driver = {
 };
 DRIVER_MODULE(mfip, mfi, mfip_driver, mfip_devclass, 0, 0);
 MODULE_DEPEND(mfip, cam, 1, 1, 1);
+MODULE_DEPEND(mfip, mfi, 1, 1, 1);
 
 #define ccb_mfip_ptr sim_priv.entries[0].ptr
 
