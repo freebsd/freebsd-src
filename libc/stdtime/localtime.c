@@ -5,7 +5,7 @@
 
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)localtime.c	8.10";
+static char	elsieid[] = "@(#)localtime.c	8.13";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -350,6 +350,7 @@ register const int		doextend;
 					4 * TZ_MAX_TIMES];
 	} u;
 
+	sp->goback = sp->goahead = FALSE;
 	if (name == NULL && (name = TZDEFAULT) == NULL)
 		return -1;
 	{
@@ -555,7 +556,6 @@ register const int		doextend;
 					sp->ttis[sp->typecnt++] = ts.ttis[1];
 			}
 	}
-	sp->goback = sp->goahead = FALSE;
 	if (sp->timecnt > 1) {
 		for (i = 1; i < sp->timecnt; ++i)
 			if (typesequiv(sp, sp->types[i], sp->types[0]) &&
@@ -1163,7 +1163,7 @@ tzsetwall(void)
 
 #ifdef ALL_STATE
 	if (lclptr == NULL) {
-		lclptr = (struct state *) malloc(sizeof *lclptr);
+		lclptr = (struct state *) calloc(1, sizeof *lclptr);
 		if (lclptr == NULL) {
 			settzname();	/* all we can do */
 			return;
@@ -1194,7 +1194,7 @@ tzset(void)
 
 #ifdef ALL_STATE
 	if (lclptr == NULL) {
-		lclptr = (struct state *) malloc(sizeof *lclptr);
+		lclptr = (struct state *) calloc(1, sizeof *lclptr);
 		if (lclptr == NULL) {
 			settzname();	/* all we can do */
 			return;
@@ -1355,7 +1355,7 @@ struct tm * const	tmp;
 	if (!gmt_is_set) {
 		gmt_is_set = TRUE;
 #ifdef ALL_STATE
-		gmtptr = (struct state *) malloc(sizeof *gmtptr);
+		gmtptr = (struct state *) calloc(1, sizeof *gmtptr);
 		if (gmtptr != NULL)
 #endif /* defined ALL_STATE */
 			gmtload(gmtptr);
