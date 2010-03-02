@@ -2053,6 +2053,7 @@ kern/kern_exec.c		standard
 kern/kern_exit.c		standard
 kern/kern_fail.c		standard
 kern/kern_fork.c		standard
+kern/kern_gzio.c		optional gzio
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
 kern/kern_jail.c		standard
@@ -2344,7 +2345,7 @@ net/slcompress.c		optional netgraph_vjc | sppp | \
 net/vnet.c			optional vimage
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 mxge | netgraph_deflate | \
-					 ddb_ctf
+					 ddb_ctf | zlib
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan wlan_acl
 net80211/ieee80211_action.c	optional wlan

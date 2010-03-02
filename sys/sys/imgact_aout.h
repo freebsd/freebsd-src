@@ -150,7 +150,8 @@ struct exec {
 struct thread;
 struct vnode;
 
-int	aout_coredump(struct thread *td, struct vnode *vp, off_t limit);
+int	aout_coredump(struct thread *td, struct vnode *vp, off_t limit,
+    int flags);
 #endif
 
 #endif /* !_IMGACT_AOUT_H_ */
