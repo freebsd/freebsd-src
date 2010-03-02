@@ -10,7 +10,8 @@ NATIVE_EMULATION=elf${_sz}btsmip_fbsd
 NATIVE_EMULATION=elf${_sz}ltsmip_fbsd
 .endif
 
-MIPS_ABIS=elf32btsmip_fbsd elf32ltsmip_fbsd elf64btsmip_fbsd elf64ltsmip_fbsd
+MIPS_ABIS=elf32btsmip_fbsd elf32ltsmip_fbsd elf64btsmip_fbsd elf64ltsmip_fbsd \
+    elf32btsmipn32_fbsd elf32ltsmipn32_fbsd
 .for abi in ${MIPS_ABIS}
 #.if (${abi} != ${NATIVE_EMULATION})
 EMS+= ${abi}
