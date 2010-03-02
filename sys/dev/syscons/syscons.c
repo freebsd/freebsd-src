@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/consio.h>
@@ -342,16 +343,105 @@ sc_alloc_tty(int index, int devnum)
 	return (tp);
 }
 
+#ifdef SC_PIXEL_MODE
+static void
+sc_set_vesa_mode(scr_stat *scp, sc_softc_t *sc, int unit)
+{
+	video_info_t info;
+	int depth;
+	int i;
+	int vmode;
+
+	vmode = 0;
+	(void)resource_int_value("sc", unit, "vesa_mode", &vmode);
+	if (vmode < M_VESA_BASE || vmode > M_VESA_MODE_MAX ||
+	    vidd_get_info(sc->adp, vmode, &info) != 0 ||
+	    !sc_support_pixel_mode(&info))
+		vmode = 0;
+
+	/*
+	 * If the mode is unset or unsupported, search for an available
+	 * 800x600 graphics mode with the highest color depth.
+	 */
+	if (vmode == 0) {
+		for (depth = 0, i = M_VESA_BASE; i <= M_VESA_MODE_MAX; i++)
+			if (vidd_get_info(sc->adp, i, &info) == 0 &&
+			    info.vi_width == 800 && info.vi_height == 600 &&
+			    sc_support_pixel_mode(&info) &&
+			    info.vi_depth > depth) {
+				vmode = i;
+				depth = info.vi_depth;
+			}
+		if (vmode == 0)
+			return;
+		vidd_get_info(sc->adp, vmode, &info);
+	}
+
+#ifndef SC_NO_FONT_LOADING
+	if ((sc->fonts_loaded & FONT_16) == 0)
+		return;
+#endif
+#ifdef DEV_SPLASH
+	if ((sc->flags & SC_SPLASH_SCRN) != 0)
+		splash_term(sc->adp);
+#endif
+#ifndef SC_NO_HISTORY
+	if (scp->history != NULL) {
+		sc_vtb_append(&scp->vtb, 0, scp->history,
+		    scp->ypos * scp->xsize + scp->xpos);
+		scp->history_pos = sc_vtb_tail(scp->history);
+	}
+#endif
+	vidd_set_mode(sc->adp, vmode);
+	scp->status |= (UNKNOWN_MODE | PIXEL_MODE | MOUSE_HIDDEN);
+	scp->status &= ~(GRAPHICS_MODE | MOUSE_VISIBLE);
+	scp->xpixel = info.vi_width;
+	scp->ypixel = info.vi_height;
+	scp->xsize = scp->xpixel / 8;
+	scp->ysize = scp->ypixel / 16;
+	scp->xpos = 0;
+	scp->ypos = scp->ysize - 1;
+	scp->xoff = scp->yoff = 0;
+#ifndef SC_NO_FONT_LOADING
+	scp->font = sc->font_16;
+#else
+	scp->font = NULL;
+#endif
+	scp->font_size = 16;
+	scp->font_width = 8;
+	scp->start = scp->xsize * scp->ysize - 1;
+	scp->end = 0;
+	scp->cursor_pos = scp->cursor_oldpos = scp->xsize * scp->xsize;
+	scp->mode = sc->initial_mode = vmode;
+#ifndef __sparc64__
+	sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
+	    (void *)sc->adp->va_window, FALSE);
+#endif
+	sc_alloc_scr_buffer(scp, FALSE, FALSE);
+	sc_init_emulator(scp, NULL);
+#ifndef SC_NO_CUTPASTE
+	sc_alloc_cut_buffer(scp, FALSE);
+#endif
+#ifndef SC_NO_HISTORY
+	sc_alloc_history_buffer(scp, 0, 0, FALSE);
+#endif
+	sc_set_border(scp, scp->border);
+	sc_set_cursor_image(scp);
+	scp->status &= ~UNKNOWN_MODE;
+#ifdef DEV_SPLASH
+	if ((sc->flags & SC_SPLASH_SCRN) != 0)
+		splash_init(sc->adp, scsplash_callback, sc);
+#endif
+}
+#endif
+
 int
 sc_attach_unit(int unit, int flags)
 {
     sc_softc_t *sc;
     scr_stat *scp;
-#ifdef SC_PIXEL_MODE
-    video_info_t info;
-#endif
-    int vc;
     struct cdev *dev;
+    int vc;
 
     flags &= ~SC_KERNEL_CONSOLE;
 
@@ -373,21 +463,8 @@ sc_attach_unit(int unit, int flags)
 	sc_console = scp;
 
 #ifdef SC_PIXEL_MODE
-    if ((sc->config & SC_VESA800X600)
-	&& (vidd_get_info(sc->adp, M_VESA_800x600, &info) == 0)) {
-#ifdef DEV_SPLASH
-	if (sc->flags & SC_SPLASH_SCRN)
-	    splash_term(sc->adp);
-#endif
-	sc_set_graphics_mode(scp, NULL, M_VESA_800x600);
-	sc_set_pixel_mode(scp, NULL, COL, ROW, 16, 8);
-	sc->initial_mode = M_VESA_800x600;
-#ifdef DEV_SPLASH
-	/* put up the splash again! */
-	if (sc->flags & SC_SPLASH_SCRN)
-    	    splash_init(sc->adp, scsplash_callback, sc);
-#endif
-    }
+    if ((sc->config & SC_VESAMODE) != 0)
+	sc_set_vesa_mode(scp, sc, unit);
 #endif /* SC_PIXEL_MODE */
 
     /* initialize cursor */
@@ -517,7 +594,7 @@ sctty_open(struct tty *tp)
     if (scp == NULL) {
 	scp = SC_STAT(tp) = alloc_scp(sc, SC_VTY(tp));
 	if (ISGRAPHSC(scp))
-	    sc_set_pixel_mode(scp, NULL, COL, ROW, 16, 8);
+	    sc_set_pixel_mode(scp, NULL, 0, 0, 16, 8);
     }
     if (!tp->t_winsize.ws_col && !tp->t_winsize.ws_row) {
 	tp->t_winsize.ws_col = scp->xsize;
@@ -2049,6 +2126,11 @@ restore_scrn_saver_mode(scr_stat *scp, int changemode)
     }
     if (set_mode(scp) == 0) {
 #ifndef SC_NO_PALETTE_LOADING
+#ifdef SC_PIXEL_MODE
+	if ((scp->sc->adp->va_flags & V_ADP_DAC8) != 0)
+	    vidd_load_palette(scp->sc->adp, scp->sc->palette2);
+	else
+#endif
 	vidd_load_palette(scp->sc->adp, scp->sc->palette);
 #endif
 	--scrn_blanked;
@@ -2452,8 +2534,14 @@ exchange_scr(sc_softc_t *sc)
     if (!ISGRAPHSC(scp))
 	sc_set_cursor_image(scp);
 #ifndef SC_NO_PALETTE_LOADING
-    if (ISGRAPHSC(sc->old_scp))
+    if (ISGRAPHSC(sc->old_scp)) {
+#ifdef SC_PIXEL_MODE
+	if ((sc->adp->va_flags & V_ADP_DAC8) != 0)
+	    vidd_load_palette(sc->adp, sc->palette2);
+	else
+#endif
 	vidd_load_palette(sc->adp, sc->palette);
+    }
 #endif
     sc_set_border(scp, scp->border);
 
@@ -2802,6 +2890,10 @@ scinit(int unit, int flags)
 
 #ifndef SC_NO_PALETTE_LOADING
 	vidd_save_palette(sc->adp, sc->palette);
+#ifdef SC_PIXEL_MODE
+	for (i = 0; i < sizeof(sc->palette2); i++)
+		sc->palette2[i] = i / 3;
+#endif
 #endif
 
 #ifdef DEV_SPLASH
@@ -2995,6 +3087,8 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	scp->ysize = info.vi_height;
 	scp->xpixel = scp->xsize*info.vi_cwidth;
 	scp->ypixel = scp->ysize*info.vi_cheight;
+    }
+
 	scp->font_size = info.vi_cheight;
 	scp->font_width = info.vi_cwidth;
 	if (info.vi_cheight < 14) {
@@ -3016,7 +3110,7 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	    scp->font = NULL;
 #endif
 	}
-    }
+
     sc_vtb_init(&scp->vtb, VTB_MEMORY, 0, 0, NULL, FALSE);
 #ifndef __sparc64__
     sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, 0, 0, NULL, FALSE);

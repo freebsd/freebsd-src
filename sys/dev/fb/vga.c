@@ -156,7 +156,7 @@ vga_mmap(struct cdev *dev, vga_softc_t *sc, vm_offset_t offset, vm_offset_t *pad
 
 #include <isa/rtc.h>
 #ifdef __i386__
-#include <machine/pc/vesa.h>
+#include <dev/fb/vesa.h>
 #endif
 
 #define probe_done(adp)		((adp)->va_flags & V_ADP_PROBED)
