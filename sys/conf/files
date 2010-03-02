@@ -2345,7 +2345,7 @@ net/slcompress.c		optional netgraph_vjc | sppp | \
 net/vnet.c			optional vimage
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 mxge | netgraph_deflate | \
-					 ddb_ctf | zlib
+					 ddb_ctf | gzio
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan wlan_acl
 net80211/ieee80211_action.c	optional wlan
