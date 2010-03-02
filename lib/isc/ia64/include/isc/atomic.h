@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: atomic.h,v 1.4.326.2 2009/02/06 23:47:11 tbox Exp $ */
+/* $Id: atomic.h,v 1.4.326.3 2009/06/24 02:21:28 marka Exp $ */
 
 #ifndef ISC_ATOMIC_H
 #define ISC_ATOMIC_H 1
@@ -31,10 +31,10 @@
  * (e.g., 1 and -1)?
  */
 static inline isc_int32_t
-isc_atomic_xadd(isc_int32_t *p, isc_int32_t val)
 #ifdef __GNUC__
 __attribute__ ((unused))
 #endif
+isc_atomic_xadd(isc_int32_t *p, isc_int32_t val)
 {
 	isc_int32_t prev, swapped;
 
@@ -57,10 +57,10 @@ __attribute__ ((unused))
  * This routine atomically stores the value 'val' in 'p'.
  */
 static inline void
-isc_atomic_store(isc_int32_t *p, isc_int32_t val)
 #ifdef __GNUC__
 __attribute__ ((unused))
 #endif
+isc_atomic_store(isc_int32_t *p, isc_int32_t val)
 {
 	__asm__ volatile(
 		"st4.rel %0=%1"
@@ -76,10 +76,10 @@ __attribute__ ((unused))
  * case.
  */
 static inline isc_int32_t
-isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val)
 #ifdef __GNUC__
 __attribute__ ((unused))
 #endif
+isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val)
 {
 	isc_int32_t ret;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rcode.c,v 1.8 2008/09/25 04:02:38 tbox Exp $ */
+/* $Id: rcode.c,v 1.8.48.2 2010/01/15 23:47:33 tbox Exp $ */
 
 #include <config.h>
 #include <ctype.h>
@@ -100,6 +100,8 @@
 	{ DNS_KEYALG_ECC, "ECC", 0 }, \
 	{ DNS_KEYALG_RSASHA1, "RSASHA1", 0 }, \
 	{ DNS_KEYALG_NSEC3RSASHA1, "NSEC3RSASHA1", 0 }, \
+	{ DNS_KEYALG_RSASHA256, "RSASHA256", 0 }, \
+	{ DNS_KEYALG_RSASHA512, "RSASHA512", 0 }, \
 	{ DNS_KEYALG_INDIRECT, "INDIRECT", 0 }, \
 	{ DNS_KEYALG_PRIVATEDNS, "PRIVATEDNS", 0 }, \
 	{ DNS_KEYALG_PRIVATEOID, "PRIVATEOID", 0 }, \
