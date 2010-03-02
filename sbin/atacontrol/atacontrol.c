@@ -72,6 +72,7 @@ satarev2str(int mode)
 	case 1: return "SATA 1.5Gb/s";
 	case 2: return "SATA 3Gb/s";
 	case 3: return "SATA 6Gb/s";
+	case 0xff: return "SATA";
 	default: return "???";
 	}
 }

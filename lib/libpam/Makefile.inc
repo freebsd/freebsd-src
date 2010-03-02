@@ -30,3 +30,5 @@ DEBUG_FLAGS+=	-DDEBUG
 
 SHLIB_MAJOR=	5
 PAM_MOD_DIR=	${LIBDIR}
+
+.include "../Makefile.inc"

@@ -178,11 +178,13 @@ static void	 ata_dev_async(u_int32_t async_code,
 				struct cam_ed *device,
 				void *async_arg);
 static void	 ata_action(union ccb *start_ccb);
+static void	 ata_announce_periph(struct cam_periph *periph);
 
 static struct xpt_xport ata_xport = {
 	.alloc_device = ata_alloc_device,
 	.action = ata_action,
 	.async = ata_dev_async,
+	.announce = ata_announce_periph,
 };
 
 struct xpt_xport *
@@ -786,11 +788,10 @@ noerror:
 		ata_btrim(ident_buf->serial, sizeof(ident_buf->serial));
 		ata_bpack(ident_buf->serial, ident_buf->serial, sizeof(ident_buf->serial));
 		/* Device may need spin-up before IDENTIFY become valid. */
-		if ((ident_buf->config & ATA_RESP_INCOMPLETE) ||
-		    ((ident_buf->support.command2 & ATA_SUPPORT_STANDBY) &&
-		     (ident_buf->enabled.command2 & ATA_SUPPORT_STANDBY) &&
-		     (ident_buf->support.command2 & ATA_SUPPORT_SPINUP) &&
-		      softc->spinup == 0)) {
+		if ((ident_buf->specconf == 0x37c8 ||
+		     ident_buf->specconf == 0x738c) &&
+		    ((ident_buf->config & ATA_RESP_INCOMPLETE) ||
+		     softc->spinup == 0)) {
 			PROBE_SET_ACTION(softc, PROBE_SPINUP);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
@@ -1639,5 +1640,84 @@ ata_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 		ata_set_transfer_settings(settings, device,
 					  /*async_update*/TRUE);
 	}
+}
+
+static void
+ata_announce_periph(struct cam_periph *periph)
+{
+	struct	ccb_pathinq cpi;
+	struct	ccb_trans_settings cts;
+	struct	cam_path *path = periph->path;
+	u_int	speed;
+	u_int	mb;
+
+	mtx_assert(periph->sim->mtx, MA_OWNED);
+
+	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+	cts.type = CTS_TYPE_CURRENT_SETTINGS;
+	xpt_action((union ccb*)&cts);
+	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
+		return;
+	/* Ask the SIM for its base transfer speed */
+	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+	/* Report connection speed */
+	speed = cpi.base_transfer_speed;
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_ATA) {
+		struct	ccb_trans_settings_ata *ata =
+		    &cts.xport_specific.ata;
+
+		if (ata->valid & CTS_ATA_VALID_MODE)
+			speed = ata_mode2speed(ata->mode);
+	}
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SATA) {
+		struct	ccb_trans_settings_sata *sata =
+		    &cts.xport_specific.sata;
+
+		if (sata->valid & CTS_SATA_VALID_REVISION)
+			speed = ata_revision2speed(sata->revision);
+	}
+	mb = speed / 1000;
+	if (mb > 0)
+		printf("%s%d: %d.%03dMB/s transfers",
+		       periph->periph_name, periph->unit_number,
+		       mb, speed % 1000);
+	else
+		printf("%s%d: %dKB/s transfers", periph->periph_name,
+		       periph->unit_number, speed);
+	/* Report additional information about connection */
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_ATA) {
+		struct ccb_trans_settings_ata *ata =
+		    &cts.xport_specific.ata;
+
+		printf(" (");
+		if (ata->valid & CTS_ATA_VALID_MODE)
+			printf("%s, ", ata_mode2string(ata->mode));
+		if ((ata->valid & CTS_ATA_VALID_ATAPI) && ata->atapi != 0)
+			printf("ATAPI %dbytes, ", ata->atapi);
+		if (ata->valid & CTS_ATA_VALID_BYTECOUNT)
+			printf("PIO %dbytes", ata->bytecount);
+		printf(")");
+	}
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SATA) {
+		struct ccb_trans_settings_sata *sata =
+		    &cts.xport_specific.sata;
+
+		printf(" (");
+		if (sata->valid & CTS_SATA_VALID_REVISION)
+			printf("SATA %d.x, ", sata->revision);
+		else
+			printf("SATA, ");
+		if (sata->valid & CTS_SATA_VALID_MODE)
+			printf("%s, ", ata_mode2string(sata->mode));
+		if ((sata->valid & CTS_ATA_VALID_ATAPI) && sata->atapi != 0)
+			printf("ATAPI %dbytes, ", sata->atapi);
+		if (sata->valid & CTS_SATA_VALID_BYTECOUNT)
+			printf("PIO %dbytes", sata->bytecount);
+		printf(")");
+	}
+	printf("\n");
 }
 

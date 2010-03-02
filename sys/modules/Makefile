@@ -42,6 +42,7 @@ SUBDIR=	${_3dfx} \
 	${_bm} \
 	bridgestp \
 	bwi \
+	bwn \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -194,6 +195,7 @@ SUBDIR=	${_3dfx} \
 	${_ndis} \
 	${_netgraph} \
 	${_nfe} \
+	nfs_common \
 	nfscl \
 	nfsclient \
 	nfscommon \

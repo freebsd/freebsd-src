@@ -10622,27 +10622,37 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
 
 void
 sctp_send_shutdown_complete(struct sctp_tcb *stcb,
-    struct sctp_nets *net)
+    struct sctp_nets *net,
+    int reflect_vtag)
 {
 	/* formulate and SEND a SHUTDOWN-COMPLETE */
 	struct mbuf *m_shutdown_comp;
 	struct sctp_shutdown_complete_chunk *shutdown_complete;
+	uint32_t vtag;
+	uint8_t flags;
 
 	m_shutdown_comp = sctp_get_mbuf_for_msg(sizeof(struct sctp_chunkhdr), 0, M_DONTWAIT, 1, MT_HEADER);
 	if (m_shutdown_comp == NULL) {
 		/* no mbuf's */
 		return;
 	}
+	if (reflect_vtag) {
+		flags = SCTP_HAD_NO_TCB;
+		vtag = stcb->asoc.my_vtag;
+	} else {
+		flags = 0;
+		vtag = stcb->asoc.peer_vtag;
+	}
 	shutdown_complete = mtod(m_shutdown_comp, struct sctp_shutdown_complete_chunk *);
 	shutdown_complete->ch.chunk_type = SCTP_SHUTDOWN_COMPLETE;
-	shutdown_complete->ch.chunk_flags = 0;
+	shutdown_complete->ch.chunk_flags = flags;
 	shutdown_complete->ch.chunk_length = htons(sizeof(struct sctp_shutdown_complete_chunk));
 	SCTP_BUF_LEN(m_shutdown_comp) = sizeof(struct sctp_shutdown_complete_chunk);
 	(void)sctp_lowlevel_chunk_output(stcb->sctp_ep, stcb, net,
 	    (struct sockaddr *)&net->ro._l_addr,
 	    m_shutdown_comp, 0, NULL, 0, 1, 0, NULL, 0,
 	    stcb->sctp_ep->sctp_lport, stcb->rport,
-	    htonl(stcb->asoc.peer_vtag),
+	    htonl(vtag),
 	    net->port, SCTP_SO_NOT_LOCKED, NULL);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 	return;

@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip_var.h>	/* struct ipfw_rule_ref */
 #include <netinet/ip_fw.h>
+#include <sys/queue.h> /* LIST_HEAD */
 #include <netinet/ipfw/ip_fw_private.h>
 
 #ifdef MAC

@@ -214,7 +214,7 @@ blksz_changed_cb(void *arg, uint64_t newval)
 		newval = SPA_MAXBLOCKSIZE;
 
 	zfsvfs->z_max_blksz = newval;
-	zfsvfs->z_vfs->vfs_bsize = newval;
+	zfsvfs->z_vfs->mnt_stat.f_iosize = newval;
 }
 
 static void
@@ -577,7 +577,8 @@ zfs_domount(vfs_t *vfsp, char *osname)
 	if (error = dsl_prop_get_integer(osname, "recordsize", &recordsize,
 	    NULL))
 		goto out;
-	zfsvfs->z_vfs->vfs_bsize = recordsize;
+	zfsvfs->z_vfs->vfs_bsize = SPA_MINBLOCKSIZE;
+	zfsvfs->z_vfs->mnt_stat.f_iosize = recordsize;
 
 	vfsp->vfs_data = zfsvfs;
 	vfsp->mnt_flag |= MNT_LOCAL;
@@ -817,8 +818,8 @@ zfs_statfs(vfs_t *vfsp, struct statfs *statp)
 	 * We report the fragsize as the smallest block size we support,
 	 * and we report our blocksize as the filesystem's maximum blocksize.
 	 */
-	statp->f_bsize = zfsvfs->z_vfs->vfs_bsize;
-	statp->f_iosize = zfsvfs->z_vfs->vfs_bsize;
+	statp->f_bsize = SPA_MINBLOCKSIZE;
+	statp->f_iosize = zfsvfs->z_vfs->mnt_stat.f_iosize;
 
 	/*
 	 * The following report "total" blocks of various kinds in the
@@ -826,7 +827,7 @@ zfs_statfs(vfs_t *vfsp, struct statfs *statp)
 	 * "fragment" size.
 	 */
 
-	statp->f_blocks = (refdbytes + availbytes) / statp->f_bsize;
+	statp->f_blocks = (refdbytes + availbytes) >> SPA_MINBLOCKSHIFT;
 	statp->f_bfree = availbytes / statp->f_bsize;
 	statp->f_bavail = statp->f_bfree; /* no root reservation */
 

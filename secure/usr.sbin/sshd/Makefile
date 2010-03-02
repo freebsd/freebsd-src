@@ -34,8 +34,8 @@ LDADD+=  -lbsm
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DHAVE_GSSAPI_GSSAPI_KRB5_H=1 -DKRB5 -DHEIMDAL
-DPADD+=	 ${LIBGSSAPI} ${LIBGSSAPI_KRB5}
-LDADD+=	 -lgssapi -lgssapi_krb5
+DPADD+=	 ${LIBGSSAPI_KRB5} ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1}
+LDADD+=	 -lgssapi_krb5 -lgssapi -lkrb5 -lasn1
 .endif
 
 .if defined(X11BASE)

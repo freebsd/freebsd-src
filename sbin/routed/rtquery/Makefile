@@ -6,6 +6,6 @@ PROG=	rtquery
 MAN=	rtquery.8
 LDADD=	-lmd
 DPADD=	${LIBMD}
-WARNS?=	0
+WARNS?=	3
 
 .include <bsd.prog.mk>

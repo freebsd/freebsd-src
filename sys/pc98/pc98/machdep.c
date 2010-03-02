@@ -129,7 +129,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_ISA
-#include <i386/isa/icu.h>
+#include <x86/isa/icu.h>
 #endif
 
 /* Sanity check for __curthread() */

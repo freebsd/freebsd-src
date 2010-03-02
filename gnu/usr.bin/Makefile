@@ -9,6 +9,7 @@ SUBDIR= ${_binutils} \
 	dialog \
 	diff \
 	diff3 \
+	dtc \
 	${_gdb} \
 	${_gperf} \
 	${_grep} \
@@ -20,10 +21,6 @@ SUBDIR= ${_binutils} \
 	send-pr \
 	sort \
 	${_texinfo}
-
-.if ${MACHINE_CPUARCH} == "mips"
-MK_GDB=no	# not yet
-.endif
 
 .if ${MK_CXX} != "no"
 _gperf=		gperf

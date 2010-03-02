@@ -275,6 +275,15 @@ SlowFault:
 	mtc0	a0, COP_0_STATUS_REG
 #endif
 	
+/*
+ * Save CPU and CP0 register state.
+ *
+ * This is straightforward except for saving the exception program
+ * counter. The ddb backtrace code looks for the first instruction
+ * matching the form "sw ra, (off)sp" to figure out the address of the
+ * calling function. So we must make sure that we save the exception
+ * PC by staging it through 'ra' as opposed to any other register.
+ */
 #define	SAVE_CPU \
 	SAVE_REG(AT, AST, sp)		;\
 	.set	at		        ; \
@@ -314,9 +323,12 @@ SlowFault:
 	SAVE_REG(v1, MULHI, sp)		;\
 	SAVE_REG(a0, SR, sp)		;\
 	SAVE_REG(a1, CAUSE, sp)		;\
-	SAVE_REG(ra, RA, sp)		;\
 	SAVE_REG(a2, BADVADDR, sp)	;\
-	SAVE_REG(a3, PC, sp)		;\
+	move	t0, ra			;\
+	move	ra, a3			;\
+	SAVE_REG(ra, PC, sp)		;\
+	move	ra, t0			;\
+	SAVE_REG(ra, RA, sp)		;\
 	PTR_ADDU v0, sp, KERN_EXC_FRAME_SIZE ;\
 	SAVE_REG(v0, SP, sp)		;\
 	CLEAR_STATUS			;\

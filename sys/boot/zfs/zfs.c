@@ -397,7 +397,7 @@ zfs_dev_init(void)
 	/*
 	 * Open all the disks we can find and see if we can reconstruct
 	 * ZFS pools from them. Bogusly assumes that the disks are named
-	 * diskN or diskNsM.
+	 * diskN, diskNpM or diskNsM.
 	 */
 	zfs_init();
 	for (unit = 0; unit < 32 /* XXX */; unit++) {

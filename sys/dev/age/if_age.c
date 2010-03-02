@@ -74,9 +74,6 @@ __FBSDID("$FreeBSD$");
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
-#ifndef	IFCAP_VLAN_HWTSO
-#define	IFCAP_VLAN_HWTSO	0
-#endif
 #define	AGE_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
 
 MODULE_DEPEND(age, pci, 1, 1, 1);
@@ -633,8 +630,8 @@ age_attach(device_t dev)
 	ether_ifattach(ifp, sc->age_eaddr);
 
 	/* VLAN capability setup. */
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
+	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
+	    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO;
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Tell the upper layer(s) we support long frames. */
@@ -1892,29 +1889,19 @@ age_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
 		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
 			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
-
-		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
-			age_rxvlan(sc);
-		}
 		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_VLAN_HWCSUM) != 0)
 			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
 		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
 		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
-		/*
-		 * VLAN hardware tagging is required to do checksum
-		 * offload or TSO on VLAN interface. Checksum offload
-		 * on VLAN interface also requires hardware assistance
-		 * of parent interface.
-		 */
-		if ((ifp->if_capenable & IFCAP_TXCSUM) == 0)
-			ifp->if_capenable &= ~IFCAP_VLAN_HWCSUM;
-		if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
-			ifp->if_capenable &=
-			    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
+				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
+			age_rxvlan(sc);
+		}
 		AGE_UNLOCK(sc);
 		VLAN_CAPABILITIES(ifp);
 		break;

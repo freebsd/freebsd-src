@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "../stdlib/atexit.h"
-#include "../stdtime/tzfile.h"
+#include "tzfile.h"		/* from ../../../contrib/tzcode/stdtime */
 
 #define	_PATH_ZONEINFO	TZDIR	/* from tzfile.h */
 

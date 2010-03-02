@@ -51,19 +51,19 @@ __FBSDID("$FreeBSD$");
 
 /*#include <machine/intrcnt.h>*/
 static mips_intrcnt_t mips_intr_counters[XLR_MAX_INTR];
-struct mips_intrhand mips_intr_handlers[XLR_MAX_INTR];
+static struct intr_event *mips_intr_events[XLR_MAX_INTR];
 static int intrcnt_index;
 
-static void
-mips_mask_hard_irq(void *source)
+void
+xlr_mask_hard_irq(void *source)
 {
 	uintptr_t irq = (uintptr_t) source;
 
 	write_c0_eimr64(read_c0_eimr64() & ~(1ULL << irq));
 }
 
-static void
-mips_unmask_hard_irq(void *source)
+void
+xlr_unmask_hard_irq(void *source)
 {
 	uintptr_t irq = (uintptr_t) source;
 
@@ -71,10 +71,11 @@ mips_unmask_hard_irq(void *source)
 }
 
 void
-cpu_establish_hardintr(const char *name, driver_filter_t * filt,
-    void (*handler) (void *), void *arg, int irq, int flags, void **cookiep)
+xlr_cpu_establish_hardintr(const char *name, driver_filter_t * filt,
+    void (*handler) (void *), void *arg, int irq, int flags, void **cookiep,
+    void (*pre_ithread)(void *), void (*post_ithread)(void *),
+    void (*post_filter)(void *), int (*assign_cpu)(void *, u_char))
 {
-	struct mips_intrhand *mih;	/* descriptor for the IRQ */
 	struct intr_event *ie;	/* descriptor for the IRQ */
 	int errcode;
 
@@ -85,25 +86,33 @@ cpu_establish_hardintr(const char *name, driver_filter_t * filt,
 	 * FIXME locking - not needed now, because we do this only on
 	 * startup from CPU0
 	 */
-	mih = &mips_intr_handlers[irq];
+	ie = mips_intr_events[irq];
 	/* mih->cntp = &intrcnt[irq]; */
-	ie = mih->mih_event;
 	if (ie == NULL) {
 		errcode = intr_event_create(&ie, (void *)(uintptr_t) irq, 0,
-		    irq, mips_mask_hard_irq, mips_unmask_hard_irq,
-		    NULL, NULL, "hard intr%d:", irq);
+		    irq, pre_ithread, post_ithread, post_filter, assign_cpu,
+		    "hard intr%d:", irq);
 
 		if (errcode) {
 			printf("Could not create event for intr %d\n", irq);
 			return;
 		}
+		mips_intr_events[irq] = ie;
 	}
+
 	intr_event_add_handler(ie, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
-	mih->mih_event = ie;
-	mips_unmask_hard_irq((void *)(uintptr_t) irq);
+	xlr_unmask_hard_irq((void *)(uintptr_t) irq);
 }
 
+void
+cpu_establish_hardintr(const char *name, driver_filter_t * filt,
+    void (*handler) (void *), void *arg, int irq, int flags, void **cookiep)
+{
+	xlr_cpu_establish_hardintr(name, filt, handler, arg, irq,
+		flags, cookiep, xlr_mask_hard_irq, xlr_unmask_hard_irq,
+		NULL, NULL);
+}
 
 void
 cpu_establish_softintr(const char *name, driver_filter_t * filt,
@@ -111,20 +120,26 @@ cpu_establish_softintr(const char *name, driver_filter_t * filt,
     void **cookiep)
 {
 	/* we don't separate them into soft/hard like other mips */
-	cpu_establish_hardintr(name, filt, handler, arg, irq, flags, cookiep);
+	xlr_cpu_establish_hardintr(name, filt, handler, arg, irq,
+		flags, cookiep, xlr_mask_hard_irq, xlr_unmask_hard_irq,
+		NULL, NULL);
 }
 
 void
 cpu_intr(struct trapframe *tf)
 {
-	struct mips_intrhand *mih;
 	struct intr_event *ie;
-	register_t eirr;
+	uint64_t eirr, eimr;
 	int i;
 
 	critical_enter();
+
+	/* find a list of enabled interrupts */
 	eirr = read_c0_eirr64();
-	if (eirr == 0) {
+	eimr = read_c0_eimr64();
+	eirr &= eimr;
+	
+	if (eirr == 0) { 
 		critical_exit();
 		return;
 	}
@@ -162,9 +177,8 @@ cpu_intr(struct trapframe *tf)
 		}
 #endif
 #endif
-		mih = &mips_intr_handlers[i];
+		ie = mips_intr_events[i];
 		/* atomic_add_long(mih->cntp, 1); */
-		ie = mih->mih_event;
 
 		write_c0_eirr64(1ULL << i);
 		pic_ack(i, 0);

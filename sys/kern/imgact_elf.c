@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_core.h"
 
 #include <sys/param.h>
 #include <sys/exec.h>
@@ -58,6 +59,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/vnode.h>
+#include <sys/syslog.h>
+#include <sys/eventhandler.h>
+
+#include <net/zlib.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -94,6 +99,12 @@ static boolean_t __elfN(check_note)(struct image_params *imgp,
 
 SYSCTL_NODE(_kern, OID_AUTO, __CONCAT(elf, __ELF_WORD_SIZE), CTLFLAG_RW, 0,
     "");
+
+#ifdef COMPRESS_USER_CORES
+static int compress_core(gzFile, char *, char *, unsigned int,
+    struct thread * td);
+#define CORE_BUF_SIZE	(16 * 1024)
+#endif
 
 int __elfN(fallback_brand) = -1;
 SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
@@ -1003,22 +1014,75 @@ static void cb_put_phdr(vm_map_entry_t, void *);
 static void cb_size_segment(vm_map_entry_t, void *);
 static void each_writable_segment(struct thread *, segment_callback, void *);
 static int __elfN(corehdr)(struct thread *, struct vnode *, struct ucred *,
-    int, void *, size_t);
+    int, void *, size_t, gzFile);
 static void __elfN(puthdr)(struct thread *, void *, size_t *, int);
 static void __elfN(putnote)(void *, size_t *, const char *, int,
     const void *, size_t);
 
+#ifdef COMPRESS_USER_CORES
+extern int compress_user_cores;
+extern int compress_user_cores_gzlevel;
+#endif
+
+static int
+core_output(struct vnode *vp, void *base, size_t len, off_t offset,
+    struct ucred *active_cred, struct ucred *file_cred,
+    struct thread *td, char *core_buf, gzFile gzfile) {
+
+	int error;
+	if (gzfile) {
+#ifdef COMPRESS_USER_CORES
+		error = compress_core(gzfile, base, core_buf, len, td);
+#else
+		panic("shouldn't be here");
+#endif
+	} else {
+		error = vn_rdwr_inchunks(UIO_WRITE, vp, base, len, offset,
+		    UIO_USERSPACE, IO_UNIT | IO_DIRECT, active_cred, file_cred,
+		    NULL, td);
+	}
+	return (error);
+}
+
 int
-__elfN(coredump)(td, vp, limit)
-	struct thread *td;
-	struct vnode *vp;
-	off_t limit;
+__elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 {
 	struct ucred *cred = td->td_ucred;
 	int error = 0;
 	struct sseg_closure seginfo;
 	void *hdr;
 	size_t hdrsize;
+
+	gzFile gzfile = Z_NULL;
+	char *core_buf = NULL;
+#ifdef COMPRESS_USER_CORES
+	char gzopen_flags[8];
+	char *p;
+	int doing_compress = flags & IMGACT_CORE_COMPRESS;
+#endif
+
+	hdr = NULL;
+
+#ifdef COMPRESS_USER_CORES
+        if (doing_compress) {
+                p = gzopen_flags;
+                *p++ = 'w';
+                if (compress_user_cores_gzlevel >= 0 &&
+                    compress_user_cores_gzlevel <= 9)
+                        *p++ = '0' + compress_user_cores_gzlevel;
+                *p = 0;
+                gzfile = gz_open("", gzopen_flags, vp);
+                if (gzfile == Z_NULL) {
+                        error = EFAULT;
+                        goto done;
+                }
+                core_buf = malloc(CORE_BUF_SIZE, M_TEMP, M_WAITOK | M_ZERO);
+                if (!core_buf) {
+                        error = ENOMEM;
+                        goto done;
+                }
+        }
+#endif
 
 	/* Size the program segments. */
 	seginfo.count = 0;
@@ -1044,7 +1108,8 @@ __elfN(coredump)(td, vp, limit)
 	if (hdr == NULL) {
 		return (EINVAL);
 	}
-	error = __elfN(corehdr)(td, vp, cred, seginfo.count, hdr, hdrsize);
+	error = __elfN(corehdr)(td, vp, cred, seginfo.count, hdr, hdrsize,
+	    gzfile);
 
 	/* Write the contents of all of the writable segments. */
 	if (error == 0) {
@@ -1055,17 +1120,28 @@ __elfN(coredump)(td, vp, limit)
 		php = (Elf_Phdr *)((char *)hdr + sizeof(Elf_Ehdr)) + 1;
 		offset = hdrsize;
 		for (i = 0; i < seginfo.count; i++) {
-			error = vn_rdwr_inchunks(UIO_WRITE, vp,
-			    (caddr_t)(uintptr_t)php->p_vaddr,
-			    php->p_filesz, offset, UIO_USERSPACE,
-			    IO_UNIT | IO_DIRECT, cred, NOCRED, NULL,
-			    curthread);
+			error = core_output(vp, (caddr_t)(uintptr_t)php->p_vaddr,
+			    php->p_filesz, offset, cred, NOCRED, curthread, core_buf, gzfile);
 			if (error != 0)
 				break;
 			offset += php->p_filesz;
 			php++;
 		}
 	}
+	if (error) {
+		log(LOG_WARNING,
+		    "Failed to write core file for process %s (error %d)\n",
+		    curproc->p_comm, error);
+	}
+
+#ifdef COMPRESS_USER_CORES
+done:
+#endif
+	if (core_buf)
+		free(core_buf, M_TEMP);
+	if (gzfile)
+		gzclose(gzfile);
+
 	free(hdr, M_TEMP);
 
 	return (error);
@@ -1189,13 +1265,14 @@ each_writable_segment(td, func, closure)
  * the page boundary.
  */
 static int
-__elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize)
+__elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize, gzfile)
 	struct thread *td;
 	struct vnode *vp;
 	struct ucred *cred;
 	int numsegs;
 	size_t hdrsize;
 	void *hdr;
+	gzFile gzfile;
 {
 	size_t off;
 
@@ -1204,10 +1281,26 @@ __elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize)
 	off = 0;
 	__elfN(puthdr)(td, hdr, &off, numsegs);
 
-	/* Write it to the core file. */
-	return (vn_rdwr_inchunks(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
-	    UIO_SYSSPACE, IO_UNIT | IO_DIRECT, cred, NOCRED, NULL,
-	    td));
+	if (!gzfile) {
+		/* Write it to the core file. */
+		return (vn_rdwr_inchunks(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
+			UIO_SYSSPACE, IO_UNIT | IO_DIRECT, cred, NOCRED, NULL,
+			td));
+	} else {
+#ifdef COMPRESS_USER_CORES
+		if (gzwrite(gzfile, hdr, hdrsize) != hdrsize) {
+			log(LOG_WARNING,
+			    "Failed to compress core file header for process"
+			    " %s.\n", curproc->p_comm);
+			return (EFAULT);
+		}
+		else {
+			return (0);
+		}
+#else
+		panic("shouldn't be here");
+#endif
+	}
 }
 
 #if defined(COMPAT_IA32) && __ELF_WORD_SIZE == 32
@@ -1476,3 +1569,50 @@ static struct execsw __elfN(execsw) = {
 	__XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
 };
 EXEC_SET(__CONCAT(elf, __ELF_WORD_SIZE), __elfN(execsw));
+
+#ifdef COMPRESS_USER_CORES
+/*
+ * Compress and write out a core segment for a user process.
+ *
+ * 'inbuf' is the starting address of a VM segment in the process' address
+ * space that is to be compressed and written out to the core file.  'dest_buf'
+ * is a buffer in the kernel's address space.  The segment is copied from 
+ * 'inbuf' to 'dest_buf' first before being processed by the compression
+ * routine gzwrite().  This copying is necessary because the content of the VM
+ * segment may change between the compression pass and the crc-computation pass
+ * in gzwrite().  This is because realtime threads may preempt the UNIX kernel.
+ */
+static int
+compress_core (gzFile file, char *inbuf, char *dest_buf, unsigned int len,
+    struct thread *td)
+{
+	int len_compressed;
+	int error = 0;
+	unsigned int chunk_len;
+
+	while (len) {
+		chunk_len = (len > CORE_BUF_SIZE) ? CORE_BUF_SIZE : len;
+		copyin(inbuf, dest_buf, chunk_len);
+		len_compressed = gzwrite(file, dest_buf, chunk_len);
+
+		EVENTHANDLER_INVOKE(app_coredump_progress, td, len_compressed);
+
+		if ((unsigned int)len_compressed != chunk_len) {
+			log(LOG_WARNING,
+			    "compress_core: length mismatch (0x%x returned, "
+			    "0x%x expected)\n", len_compressed, chunk_len);
+			EVENTHANDLER_INVOKE(app_coredump_error, td,
+			    "compress_core: length mismatch %x -> %x",
+			    chunk_len, len_compressed);
+			error = EFAULT;
+			break;
+		}
+		inbuf += chunk_len;
+		len -= chunk_len;
+		if (ticks - PCPU_GET(switchticks) >= hogticks)
+			uio_yield();
+	}
+
+	return (error);
+}
+#endif /* COMPRESS_USER_CORES */

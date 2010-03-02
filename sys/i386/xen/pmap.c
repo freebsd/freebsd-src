@@ -251,9 +251,8 @@ struct sysmaps {
 	caddr_t	CADDR2;
 };
 static struct sysmaps sysmaps_pcpu[MAXCPU];
-pt_entry_t *CMAP1 = 0;
 static pt_entry_t *CMAP3;
-caddr_t CADDR1 = 0, ptvmmap = 0;
+caddr_t ptvmmap = 0;
 static caddr_t CADDR3;
 struct msgbuf *msgbufp = 0;
 
@@ -454,8 +453,9 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 		mtx_init(&sysmaps->lock, "SYSMAPS", NULL, MTX_DEF);
 		SYSMAP(caddr_t, sysmaps->CMAP1, sysmaps->CADDR1, 1)
 		SYSMAP(caddr_t, sysmaps->CMAP2, sysmaps->CADDR2, 1)
+		PT_SET_MA(sysmaps->CADDR1, 0);
+		PT_SET_MA(sysmaps->CADDR2, 0);
 	}
-	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
 	SYSMAP(caddr_t, CMAP3, CADDR3, 1)
 	PT_SET_MA(CADDR3, 0);
 
@@ -483,7 +483,6 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	mtx_init(&PMAP2mutex, "PMAP2", NULL, MTX_DEF);
 
 	virtual_avail = va;
-	PT_SET_MA(CADDR1, 0);
 
 	/*
 	 * Leave in place an identity mapping (virt == phys) for the low 1 MB
@@ -1061,7 +1060,9 @@ pmap_pte(pmap_t pmap, vm_offset_t va)
 		mtx_lock(&PMAP2mutex);
 		newpf = *pde & PG_FRAME;
 		if ((*PMAP2 & PG_FRAME) != newpf) {
+			vm_page_lock_queues();
 			PT_SET_MA(PADDR2, newpf | PG_V | PG_A | PG_M);
+			vm_page_unlock_queues();
 			CTR3(KTR_PMAP, "pmap_pte: pmap=%p va=0x%x newpte=0x%08x",
 			    pmap, va, (*PMAP2 & 0xffffffff));
 		}

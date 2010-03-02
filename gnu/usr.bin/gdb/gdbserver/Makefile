@@ -16,7 +16,7 @@ SRCS+=	fbsd-low.c
 
 SRCS+=	fbsd-${MACHINE_CPUARCH}-low.c reg-${MACHINE_CPUARCH}.c
 
-.if ${MACHINE_CPUARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 SRCS+= i387-fp.c
 .endif
 

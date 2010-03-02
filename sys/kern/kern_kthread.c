@@ -312,18 +312,17 @@ kthread_exit(void)
 {
 	struct proc *p;
 
+	p = curthread->td_proc;
+
 	/* A module may be waiting for us to exit. */
 	wakeup(curthread);
-
-	/*
-	 * We could rely on thread_exit to call exit1() but
-	 * there is extra work that needs to be done
-	 */
-	if (curthread->td_proc->p_numthreads == 1)
-		kproc_exit(0);	/* never returns */
-
-	p = curthread->td_proc;
 	PROC_LOCK(p);
+	if (p->p_numthreads == 1) {
+		PROC_UNLOCK(p);
+		kproc_exit(0);
+
+		/* NOTREACHED. */
+	}
 	PROC_SLOCK(p);
 	thread_exit();
 }
@@ -340,9 +339,9 @@ kthread_suspend(struct thread *td, int timo)
 	p = td->td_proc;
 
 	/*
-	 * td_pflags should not be ready by any other thread different by
+	 * td_pflags should not be read by any thread other than
 	 * curthread, but as long as this flag is invariant during the
-	 * thread lifetime, it is ok to check for it now.
+	 * thread's lifetime, it is OK to check its state.
 	 */
 	if ((td->td_pflags & TDP_KTHREAD) == 0)
 		return (EINVAL);
@@ -371,9 +370,9 @@ kthread_resume(struct thread *td)
 	p = td->td_proc;
 
 	/*
-	 * td_pflags should not be ready by any other thread different by
+	 * td_pflags should not be read by any thread other than
 	 * curthread, but as long as this flag is invariant during the
-	 * thread lifetime, it is ok to check for it now.
+	 * thread's lifetime, it is OK to check its state.
 	 */
 	if ((td->td_pflags & TDP_KTHREAD) == 0)
 		return (EINVAL);

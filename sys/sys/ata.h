@@ -51,7 +51,7 @@ struct ata_params {
 #define ATA_RESP_INCOMPLETE             0x0004
 
 /*001*/ u_int16_t       cylinders;              /* # of cylinders */
-	u_int16_t       reserved2;
+/*002*/ u_int16_t       specconf;		/* specific configuration */
 /*003*/ u_int16_t       heads;                  /* # heads */
 	u_int16_t       obsolete4;
 	u_int16_t       obsolete5;

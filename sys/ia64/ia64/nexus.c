@@ -59,7 +59,6 @@
 #include <machine/nexusvar.h>
 #include <machine/pmap.h>
 #include <machine/resource.h>
-#include <machine/sapicvar.h>
 #include <machine/vmparam.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
