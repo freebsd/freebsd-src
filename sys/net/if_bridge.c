@@ -135,7 +135,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
-#include <netinet/ip_dummynet.h>
 
 /*
  * Size of the route hash table.  Must be a power of two.
@@ -3073,15 +3072,15 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		if (mtag == NULL) {
 			args.rule.slot = 0;
 		} else {
-			struct dn_pkt_tag *dn_tag;
+			struct ipfw_rule_ref *r;
 
 			/* XXX can we free the tag after use ? */
 			mtag->m_tag_id = PACKET_TAG_NONE;
-			dn_tag = (struct dn_pkt_tag *)(mtag + 1);
+			r = (struct ipfw_rule_ref *)(mtag + 1);
 			/* packet already partially processed ? */
-			if (dn_tag->rule.slot != 0 && V_fw_one_pass)
+			if (r->info & IPFW_ONEPASS)
 				goto ipfwpass;
-			args.rule = dn_tag->rule;
+			args.rule = *r;
 		}
 
 		args.m = *mp;

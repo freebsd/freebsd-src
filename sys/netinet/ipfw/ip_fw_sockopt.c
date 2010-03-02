@@ -115,7 +115,8 @@ get_map(struct ip_fw_chain *chain, int extra, int locked)
 		int i;
 
 		i = chain->n_rules + extra;
-		map = malloc(i * sizeof(struct ip_fw *), M_IPFW, M_WAITOK);
+		map = malloc(i * sizeof(struct ip_fw *), M_IPFW,
+			locked ? M_NOWAIT : M_WAITOK);
 		if (map == NULL) {
 			printf("%s: cannot allocate map\n", __FUNCTION__);
 			return NULL;
@@ -771,6 +772,44 @@ bad_size:
 	return EINVAL;
 }
 
+
+/*
+ * Translation of requests for compatibility with FreeBSD 7.2/8.
+ * a static variable tells us if we have an old client from userland,
+ * and if necessary we translate requests and responses between the
+ * two formats.
+ */
+static int is7 = 0;
+
+struct ip_fw7 {
+	struct ip_fw7	*next;		/* linked list of rules     */
+	struct ip_fw7	*next_rule;	/* ptr to next [skipto] rule    */
+	/* 'next_rule' is used to pass up 'set_disable' status      */
+
+	uint16_t	act_ofs;	/* offset of action in 32-bit units */
+	uint16_t	cmd_len;	/* # of 32-bit words in cmd */
+	uint16_t	rulenum;	/* rule number          */
+	uint8_t		set;		/* rule set (0..31)     */
+	// #define RESVD_SET   31  /* set for default and persistent rules */
+	uint8_t		_pad;		/* padding          */
+	// uint32_t        id;             /* rule id, only in v.8 */
+	/* These fields are present in all rules.           */
+	uint64_t	pcnt;		/* Packet counter       */
+	uint64_t	bcnt;		/* Byte counter         */
+	uint32_t	timestamp;	/* tv_sec of last match     */
+
+	ipfw_insn	cmd[1];		/* storage for commands     */
+};
+
+	int convert_rule_to_7(struct ip_fw *rule);
+int convert_rule_to_8(struct ip_fw *rule);
+
+#ifndef RULESIZE7
+#define RULESIZE7(rule)  (sizeof(struct ip_fw7) + \
+	((struct ip_fw7 *)(rule))->cmd_len * 4 - 4)
+#endif
+
+
 /*
  * Copy the static and dynamic rules to the supplied buffer
  * and return the amount of space actually used.
@@ -788,6 +827,32 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
         boot_seconds = boottime.tv_sec;
 	for (i = 0; i < chain->n_rules; i++) {
 		rule = chain->map[i];
+
+		if (is7) {
+		    /* Convert rule to FreeBSd 7.2 format */
+		    l = RULESIZE7(rule);
+		    if (bp + l + sizeof(uint32_t) <= ep) {
+			int error;
+			bcopy(rule, bp, l + sizeof(uint32_t));
+			error = convert_rule_to_7((struct ip_fw *) bp);
+			if (error)
+				return 0; /*XXX correct? */
+			/*
+			 * XXX HACK. Store the disable mask in the "next"
+			 * pointer in a wild attempt to keep the ABI the same.
+			 * Why do we do this on EVERY rule?
+			 */
+			bcopy(&V_set_disable,
+				&(((struct ip_fw7 *)bp)->next_rule),
+				sizeof(V_set_disable));
+			if (((struct ip_fw7 *)bp)->timestamp)
+			    ((struct ip_fw7 *)bp)->timestamp += boot_seconds;
+			bp += l;
+		    }
+		    continue; /* go to next rule */
+		}
+
+		/* normal mode, don't touch rules */
 		l = RULESIZE(rule);
 		if (bp + l > ep) { /* should not happen */
 			printf("overflow dumping static rules\n");
@@ -887,14 +952,41 @@ ipfw_ctl(struct sockopt *sopt)
 		rule = malloc(RULE_MAXSIZE, M_TEMP, M_WAITOK);
 		error = sooptcopyin(sopt, rule, RULE_MAXSIZE,
 			sizeof(struct ip_fw) );
+
+		/*
+		 * If the size of commands equals RULESIZE7 then we assume
+		 * a FreeBSD7.2 binary is talking to us (set is7=1).
+		 * is7 is persistent so the next 'ipfw list' command
+		 * will use this format.
+		 * NOTE: If wrong version is guessed (this can happen if
+		 *       the first ipfw command is 'ipfw [pipe] list')
+		 *       the ipfw binary may crash or loop infinitly...
+		 */
+		if (sopt->sopt_valsize == RULESIZE7(rule)) {
+		    is7 = 1;
+		    error = convert_rule_to_8(rule);
+		    if (error)
+			return error;
+		    if (error == 0)
+			error = check_ipfw_struct(rule, RULESIZE(rule));
+		} else {
+		    is7 = 0;
 		if (error == 0)
 			error = check_ipfw_struct(rule, sopt->sopt_valsize);
+		}
 		if (error == 0) {
 			/* locking is done within ipfw_add_rule() */
 			error = ipfw_add_rule(chain, rule);
 			size = RULESIZE(rule);
-			if (!error && sopt->sopt_dir == SOPT_GET)
+			if (!error && sopt->sopt_dir == SOPT_GET) {
+				if (is7) {
+					error = convert_rule_to_7(rule);
+					size = RULESIZE7(rule);
+					if (error)
+						return error;
+				}
 				error = sooptcopyout(sopt, rule, size);
+		}
 		}
 		free(rule, M_TEMP);
 		break;
@@ -1078,4 +1170,104 @@ ipfw_ctl(struct sockopt *sopt)
 	return (error);
 #undef RULE_MAXSIZE
 }
+
+
+#define	RULE_MAXSIZE	(256*sizeof(u_int32_t))
+
+/* Functions to convert rules 7.2 <==> 8.0 */
+int
+convert_rule_to_7(struct ip_fw *rule)
+{
+	/* Used to modify original rule */
+	struct ip_fw7 *rule7 = (struct ip_fw7 *)rule;
+	/* copy of original rule, version 8 */
+	struct ip_fw *tmp;
+
+	/* Used to copy commands */
+	ipfw_insn *ccmd, *dst;
+	int ll = 0, ccmdlen = 0;
+
+	tmp = malloc(RULE_MAXSIZE, M_TEMP, M_NOWAIT | M_ZERO);
+	if (tmp == NULL) {
+		return 1; //XXX error
+	}
+	bcopy(rule, tmp, RULE_MAXSIZE);
+
+	/* Copy fields */
+	rule7->_pad = tmp->_pad;
+	rule7->set = tmp->set;
+	rule7->rulenum = tmp->rulenum;
+	rule7->cmd_len = tmp->cmd_len;
+	rule7->act_ofs = tmp->act_ofs;
+	rule7->next_rule = (struct ip_fw7 *)tmp->next_rule;
+	rule7->next = (struct ip_fw7 *)tmp->x_next;
+	rule7->cmd_len = tmp->cmd_len;
+	rule7->pcnt = tmp->pcnt;
+	rule7->bcnt = tmp->bcnt;
+	rule7->timestamp = tmp->timestamp;
+
+	/* Copy commands */
+	for (ll = tmp->cmd_len, ccmd = tmp->cmd, dst = rule7->cmd ;
+			ll > 0 ; ll -= ccmdlen, ccmd += ccmdlen, dst += ccmdlen) {
+		ccmdlen = F_LEN(ccmd);
+
+		bcopy(ccmd, dst, F_LEN(ccmd)*sizeof(uint32_t));
+		if (ccmdlen > ll) {
+			printf("ipfw: opcode %d size truncated\n",
+				ccmd->opcode);
+			return EINVAL;
+		}
+	}
+	free(tmp, M_TEMP);
+
+	return 0;
+}
+
+int
+convert_rule_to_8(struct ip_fw *rule)
+{
+	/* Used to modify original rule */
+	struct ip_fw7 *rule7 = (struct ip_fw7 *) rule;
+
+	/* Used to copy commands */
+	ipfw_insn *ccmd, *dst;
+	int ll = 0, ccmdlen = 0;
+
+	/* Copy of original rule */
+	struct ip_fw7 *tmp = malloc(RULE_MAXSIZE, M_TEMP, M_NOWAIT | M_ZERO);
+	if (tmp == NULL) {
+		return 1; //XXX error
+	}
+
+	bcopy(rule7, tmp, RULE_MAXSIZE);
+
+	for (ll = tmp->cmd_len, ccmd = tmp->cmd, dst = rule->cmd ;
+			ll > 0 ; ll -= ccmdlen, ccmd += ccmdlen, dst += ccmdlen) {
+		ccmdlen = F_LEN(ccmd);
+		
+		bcopy(ccmd, dst, F_LEN(ccmd)*sizeof(uint32_t));
+		if (ccmdlen > ll) {
+			printf("ipfw: opcode %d size truncated\n",
+			    ccmd->opcode);
+			return EINVAL;
+		}
+	}
+
+	rule->_pad = tmp->_pad;
+	rule->set = tmp->set;
+	rule->rulenum = tmp->rulenum;
+	rule->cmd_len = tmp->cmd_len;
+	rule->act_ofs = tmp->act_ofs;
+	rule->next_rule = (struct ip_fw *)tmp->next_rule;
+	rule->x_next = (struct ip_fw *)tmp->next;
+	rule->cmd_len = tmp->cmd_len;
+	rule->id = 0; /* XXX see if is ok = 0 */
+	rule->pcnt = tmp->pcnt;
+	rule->bcnt = tmp->bcnt;
+	rule->timestamp = tmp->timestamp;
+
+	free (tmp, M_TEMP);
+	return 0;
+}
+
 /* end of file */
