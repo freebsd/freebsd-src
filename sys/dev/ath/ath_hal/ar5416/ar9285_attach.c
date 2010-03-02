@@ -122,7 +122,7 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_rx_chainmask	= AR9285_DEFAULT_RXCHAINMASK;
 	AH5416(ah)->ah_tx_chainmask	= AR9285_DEFAULT_TXCHAINMASK;
 	
-	AH_PRIVATE(ah)->ah_max_txtrig_level = MAX_TX_FIFO_THRESHOLD >> 1;
+	ahp->ah_maxTxTrigLev		= MAX_TX_FIFO_THRESHOLD >> 1;
 
 	if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON)) {
 		/* reset chip */

@@ -568,8 +568,7 @@ ar5416ProcTxDesc(struct ath_hal *ah,
 
 	/* handle tx trigger level changes internally */
 	if ((ts->ts_status & HAL_TXERR_FIFO) ||
-	    (ts->ts_flags & HAL_TX_DATA_UNDERRUN) ||
-	    (ts->ts_flags & HAL_TX_DELIM_UNDERRUN))
+	    (ts->ts_flags & (HAL_TX_DATA_UNDERRUN | HAL_TX_DELIM_UNDERRUN)))
 		ar5212UpdateTxTrigLevel(ah, AH_TRUE);
 
 	return HAL_OK;
