@@ -721,6 +721,7 @@ extern bus_space_tag_t mips_bus_space_generic;
 /* Special bus space for RMI processors */
 #ifdef TARGET_XLR_XLS
 extern bus_space_tag_t rmi_bus_space;
+extern bus_space_tag_t rmi_pci_bus_space;
 #endif
 
 #include <machine/bus_dma.h>

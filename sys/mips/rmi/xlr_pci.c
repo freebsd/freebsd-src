@@ -115,7 +115,6 @@ struct xlr_pcib_softc {
 	int junk;		/* no softc */
 };
 
-extern bus_space_tag_t rmi_pci_bus_space;
 static devclass_t pcib_devclass;
 static void *xlr_pci_config_base;
 static struct rman irq_rman, port_rman, mem_rman;
