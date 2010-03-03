@@ -29,7 +29,7 @@ SRCS=	attrstack.c \
 	token.l \
 	updater.c
 
-CFLAGS+= -I.
+CFLAGS+= -I. -I${.CURDIR}
 CFLAGS+= -DHAVE_FFLAGS -DNDEBUG
 WARNS?=	1
 
