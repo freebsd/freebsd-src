@@ -191,6 +191,8 @@ X86RegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
         return &X86::GR16_NOREXRegClass;
       else if (A == &X86::GR16_ABCDRegClass)
         return &X86::GR16_ABCDRegClass;
+    } else if (B == &X86::FR32RegClass) {
+      return A;
     }
     break;
   case 2:
@@ -207,6 +209,8 @@ X86RegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
       else if (A == &X86::GR16RegClass || A == &X86::GR16_ABCDRegClass ||
                A == &X86::GR16_NOREXRegClass)
         return &X86::GR16_ABCDRegClass;
+    } else if (B == &X86::FR64RegClass) {
+      return A;
     }
     break;
   case 3:
@@ -234,6 +238,8 @@ X86RegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
         return &X86::GR32_NOREXRegClass;
       else if (A == &X86::GR32_ABCDRegClass)
         return &X86::GR64_ABCDRegClass;
+    } else if (B == &X86::VR128RegClass) {
+      return A;
     }
     break;
   case 4:
@@ -446,8 +452,10 @@ bool X86RegisterInfo::canRealignStack(const MachineFunction &MF) const {
 
 bool X86RegisterInfo::needsStackRealignment(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
+  const Function *F = MF.getFunction();
   bool requiresRealignment =
-    RealignStack && (MFI->getMaxAlignment() > StackAlign);
+    RealignStack && ((MFI->getMaxAlignment() > StackAlign) ||
+                     F->hasFnAttr(Attribute::StackAlignment));
 
   // FIXME: Currently we don't support stack realignment for functions with
   //        variable-sized allocas.

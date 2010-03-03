@@ -51,6 +51,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Support/CFG.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/ADT/SetOperations.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -147,6 +148,11 @@ ReprocessLoop:
     // Delete each unique out-of-loop (and thus dead) predecessor.
     for (SmallPtrSet<BasicBlock *, 4>::iterator I = BadPreds.begin(),
          E = BadPreds.end(); I != E; ++I) {
+
+      DEBUG(dbgs() << "LoopSimplify: Deleting edge from dead predecessor ";
+            WriteAsOperand(dbgs(), *I, false);
+            dbgs() << "\n");
+
       // Inform each successor of each dead pred.
       for (succ_iterator SI = succ_begin(*I), SE = succ_end(*I); SI != SE; ++SI)
         (*SI)->removePredecessor(*I);
@@ -158,6 +164,27 @@ ReprocessLoop:
       Changed = true;
     }
   }
+
+  // If there are exiting blocks with branches on undef, resolve the undef in
+  // the direction which will exit the loop. This will help simplify loop
+  // trip count computations.
+  SmallVector<BasicBlock*, 8> ExitingBlocks;
+  L->getExitingBlocks(ExitingBlocks);
+  for (SmallVectorImpl<BasicBlock *>::iterator I = ExitingBlocks.begin(),
+       E = ExitingBlocks.end(); I != E; ++I)
+    if (BranchInst *BI = dyn_cast<BranchInst>((*I)->getTerminator()))
+      if (BI->isConditional()) {
+        if (UndefValue *Cond = dyn_cast<UndefValue>(BI->getCondition())) {
+
+          DEBUG(dbgs() << "LoopSimplify: Resolving \"br i1 undef\" to exit in ";
+                WriteAsOperand(dbgs(), *I, false);
+                dbgs() << "\n");
+
+          BI->setCondition(ConstantInt::get(Cond->getType(),
+                                            !L->contains(BI->getSuccessor(0))));
+          Changed = true;
+        }
+      }
 
   // Does the loop already have a preheader?  If so, don't insert one.
   BasicBlock *Preheader = L->getLoopPreheader();
@@ -250,8 +277,6 @@ ReprocessLoop:
         break;
       }
   if (UniqueExit) {
-    SmallVector<BasicBlock*, 8> ExitingBlocks;
-    L->getExitingBlocks(ExitingBlocks);
     for (unsigned i = 0, e = ExitingBlocks.size(); i != e; ++i) {
       BasicBlock *ExitingBlock = ExitingBlocks[i];
       if (!ExitingBlock->getSinglePredecessor()) continue;
@@ -282,6 +307,11 @@ ReprocessLoop:
 
       // Success. The block is now dead, so remove it from the loop,
       // update the dominator tree and dominance frontier, and delete it.
+
+      DEBUG(dbgs() << "LoopSimplify: Eliminating exiting block ";
+            WriteAsOperand(dbgs(), ExitingBlock, false);
+            dbgs() << "\n");
+
       assert(pred_begin(ExitingBlock) == pred_end(ExitingBlock));
       Changed = true;
       LI->removeBlock(ExitingBlock);
@@ -335,6 +365,10 @@ BasicBlock *LoopSimplify::InsertPreheaderForLoop(Loop *L) {
     SplitBlockPredecessors(Header, &OutsideBlocks[0], OutsideBlocks.size(),
                            ".preheader", this);
 
+  DEBUG(dbgs() << "LoopSimplify: Creating pre-header ";
+        WriteAsOperand(dbgs(), NewBB, false);
+        dbgs() << "\n");
+
   // Make sure that NewBB is put someplace intelligent, which doesn't mess up
   // code layout too horribly.
   PlaceSplitBlockCarefully(NewBB, OutsideBlocks, L);
@@ -359,6 +393,10 @@ BasicBlock *LoopSimplify::RewriteLoopExitBlock(Loop *L, BasicBlock *Exit) {
   BasicBlock *NewBB = SplitBlockPredecessors(Exit, &LoopBlocks[0], 
                                              LoopBlocks.size(), ".loopexit",
                                              this);
+
+  DEBUG(dbgs() << "LoopSimplify: Creating dedicated exit block ";
+        WriteAsOperand(dbgs(), NewBB, false);
+        dbgs() << "\n");
 
   return NewBB;
 }
@@ -480,6 +518,8 @@ Loop *LoopSimplify::SeparateNestedLoop(Loop *L, LPPassManager &LPM) {
       OuterLoopPreds.push_back(PN->getIncomingBlock(i));
     }
 
+  DEBUG(dbgs() << "LoopSimplify: Splitting out a new outer loop\n");
+
   BasicBlock *Header = L->getHeader();
   BasicBlock *NewBB = SplitBlockPredecessors(Header, &OuterLoopPreds[0],
                                              OuterLoopPreds.size(),
@@ -573,6 +613,10 @@ LoopSimplify::InsertUniqueBackedgeBlock(Loop *L, BasicBlock *Preheader) {
   BasicBlock *BEBlock = BasicBlock::Create(Header->getContext(),
                                            Header->getName()+".backedge", F);
   BranchInst *BETerminator = BranchInst::Create(Header, BEBlock);
+
+  DEBUG(dbgs() << "LoopSimplify: Inserting unique backedge block ";
+        WriteAsOperand(dbgs(), BEBlock, false);
+        dbgs() << "\n");
 
   // Move the new backedge block to right after the last backedge block.
   Function::iterator InsertPos = BackedgeBlocks.back(); ++InsertPos;

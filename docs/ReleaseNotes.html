@@ -451,6 +451,8 @@ release includes a few major enhancements and additions to the optimizers:</p>
 
 </ul>
 
+<p>Also, -anders-aa was removed</p>
+
 </div>
 
 
@@ -644,6 +646,10 @@ Clients must replace calls to
 <li>The <tt>llvm/Support/DataTypes.h</tt> header has moved
 to <tt>llvm/System/DataTypes.h</tt>.</li>
 
+<li>The <tt>isInteger</tt>, <tt>isIntOrIntVector</tt>, <tt>isFloatingPoint</tt>,
+<tt>isFPOrFPVector</tt> and <tt>isFPOrFPVector</tt> methods have been renamed
+<tt>isIntegerTy</tt>, <tt>isIntOrIntVectorTy</tt>, <tt>isFloatingPointTy</tt>, 
+<tt>isFPOrFPVectorTy</tt> and <tt>isFPOrFPVectorTy</tt> respectively.</li>
 </ul>
 
 </div>
@@ -729,7 +735,6 @@ href="http://lists.cs.uiuc.edu/mailman/listinfo/llvmdev">LLVMdev list</a>.</p>
     experimental.</li>
 <li>The <tt>llc</tt> "<tt>-filetype=asm</tt>" (the default) is the only
     supported value for this option.  The ELF writer is experimental.</li>
-<li>The implementation of Andersen's Alias Analysis has many known bugs.</li>
 </ul>
 
 </div>
@@ -992,7 +997,7 @@ lists</a>.</p>
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-02-14 02:47:19 +0100 (Sun, 14 Feb 2010) $
+  Last modified: $Date: 2010-03-01 20:29:17 +0100 (Mon, 01 Mar 2010) $
 </address>
 
 </body>

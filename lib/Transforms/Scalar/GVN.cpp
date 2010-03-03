@@ -662,17 +662,19 @@ namespace {
     bool runOnFunction(Function &F);
   public:
     static char ID; // Pass identification, replacement for typeid
-    explicit GVN(bool nopre = false, bool noloads = false)
-      : FunctionPass(&ID), NoPRE(nopre), NoLoads(noloads), MD(0) { }
+    explicit GVN(bool noloads = false)
+      : FunctionPass(&ID), NoLoads(noloads), MD(0) { }
 
   private:
-    bool NoPRE;
     bool NoLoads;
     MemoryDependenceAnalysis *MD;
     DominatorTree *DT;
 
     ValueTable VN;
     DenseMap<BasicBlock*, ValueNumberScope*> localAvail;
+
+    // List of critical edges to be split between iterations.
+    SmallVector<std::pair<TerminatorInst*, unsigned>, 4> toSplit;
 
     // This transformation requires dominator postdominator info
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
@@ -701,14 +703,15 @@ namespace {
     Value *lookupNumber(BasicBlock *BB, uint32_t num);
     void cleanupGlobalSets();
     void verifyRemoved(const Instruction *I) const;
+    bool splitCriticalEdges();
   };
 
   char GVN::ID = 0;
 }
 
 // createGVNPass - The public interface to this file...
-FunctionPass *llvm::createGVNPass(bool NoPRE, bool NoLoads) {
-  return new GVN(NoPRE, NoLoads);
+FunctionPass *llvm::createGVNPass(bool NoLoads) {
+  return new GVN(NoLoads);
 }
 
 static RegisterPass<GVN> X("gvn",
@@ -836,9 +839,9 @@ static bool CanCoerceMustAliasedValueToLoad(Value *StoredVal,
                                             const TargetData &TD) {
   // If the loaded or stored value is an first class array or struct, don't try
   // to transform them.  We need to be able to bitcast to integer.
-  if (isa<StructType>(LoadTy) || isa<ArrayType>(LoadTy) ||
-      isa<StructType>(StoredVal->getType()) ||
-      isa<ArrayType>(StoredVal->getType()))
+  if (LoadTy->isStructTy() || LoadTy->isArrayTy() ||
+      StoredVal->getType()->isStructTy() ||
+      StoredVal->getType()->isArrayTy())
     return false;
   
   // The store has to be at least as big as the load.
@@ -870,26 +873,26 @@ static Value *CoerceAvailableValueToLoadType(Value *StoredVal,
   
   // If the store and reload are the same size, we can always reuse it.
   if (StoreSize == LoadSize) {
-    if (isa<PointerType>(StoredValTy) && isa<PointerType>(LoadedTy)) {
+    if (StoredValTy->isPointerTy() && LoadedTy->isPointerTy()) {
       // Pointer to Pointer -> use bitcast.
       return new BitCastInst(StoredVal, LoadedTy, "", InsertPt);
     }
     
     // Convert source pointers to integers, which can be bitcast.
-    if (isa<PointerType>(StoredValTy)) {
+    if (StoredValTy->isPointerTy()) {
       StoredValTy = TD.getIntPtrType(StoredValTy->getContext());
       StoredVal = new PtrToIntInst(StoredVal, StoredValTy, "", InsertPt);
     }
     
     const Type *TypeToCastTo = LoadedTy;
-    if (isa<PointerType>(TypeToCastTo))
+    if (TypeToCastTo->isPointerTy())
       TypeToCastTo = TD.getIntPtrType(StoredValTy->getContext());
     
     if (StoredValTy != TypeToCastTo)
       StoredVal = new BitCastInst(StoredVal, TypeToCastTo, "", InsertPt);
     
     // Cast to pointer if the load needs a pointer type.
-    if (isa<PointerType>(LoadedTy))
+    if (LoadedTy->isPointerTy())
       StoredVal = new IntToPtrInst(StoredVal, LoadedTy, "", InsertPt);
     
     return StoredVal;
@@ -901,13 +904,13 @@ static Value *CoerceAvailableValueToLoadType(Value *StoredVal,
   assert(StoreSize >= LoadSize && "CanCoerceMustAliasedValueToLoad fail");
   
   // Convert source pointers to integers, which can be manipulated.
-  if (isa<PointerType>(StoredValTy)) {
+  if (StoredValTy->isPointerTy()) {
     StoredValTy = TD.getIntPtrType(StoredValTy->getContext());
     StoredVal = new PtrToIntInst(StoredVal, StoredValTy, "", InsertPt);
   }
   
   // Convert vectors and fp to integer, which can be manipulated.
-  if (!isa<IntegerType>(StoredValTy)) {
+  if (!StoredValTy->isIntegerTy()) {
     StoredValTy = IntegerType::get(StoredValTy->getContext(), StoreSize);
     StoredVal = new BitCastInst(StoredVal, StoredValTy, "", InsertPt);
   }
@@ -927,7 +930,7 @@ static Value *CoerceAvailableValueToLoadType(Value *StoredVal,
     return StoredVal;
   
   // If the result is a pointer, inttoptr.
-  if (isa<PointerType>(LoadedTy))
+  if (LoadedTy->isPointerTy())
     return new IntToPtrInst(StoredVal, LoadedTy, "inttoptr", InsertPt);
   
   // Otherwise, bitcast.
@@ -989,7 +992,7 @@ static int AnalyzeLoadFromClobberingWrite(const Type *LoadTy, Value *LoadPtr,
                                           const TargetData &TD) {
   // If the loaded or stored value is an first class array or struct, don't try
   // to transform them.  We need to be able to bitcast to integer.
-  if (isa<StructType>(LoadTy) || isa<ArrayType>(LoadTy))
+  if (LoadTy->isStructTy() || LoadTy->isArrayTy())
     return -1;
   
   int64_t StoreOffset = 0, LoadOffset = 0;
@@ -1064,8 +1067,8 @@ static int AnalyzeLoadFromClobberingStore(const Type *LoadTy, Value *LoadPtr,
                                           StoreInst *DepSI,
                                           const TargetData &TD) {
   // Cannot handle reading from store of first-class aggregate yet.
-  if (isa<StructType>(DepSI->getOperand(0)->getType()) ||
-      isa<ArrayType>(DepSI->getOperand(0)->getType()))
+  if (DepSI->getOperand(0)->getType()->isStructTy() ||
+      DepSI->getOperand(0)->getType()->isArrayTy())
     return -1;
 
   Value *StorePtr = DepSI->getPointerOperand();
@@ -1136,9 +1139,9 @@ static Value *GetStoreValueForLoad(Value *SrcVal, unsigned Offset,
   
   // Compute which bits of the stored value are being used by the load.  Convert
   // to an integer type to start with.
-  if (isa<PointerType>(SrcVal->getType()))
+  if (SrcVal->getType()->isPointerTy())
     SrcVal = Builder.CreatePtrToInt(SrcVal, TD.getIntPtrType(Ctx), "tmp");
-  if (!isa<IntegerType>(SrcVal->getType()))
+  if (!SrcVal->getType()->isIntegerTy())
     SrcVal = Builder.CreateBitCast(SrcVal, IntegerType::get(Ctx, StoreSize*8),
                                    "tmp");
   
@@ -1323,7 +1326,7 @@ static Value *ConstructSSAForLoadSet(LoadInst *LI,
   Value *V = SSAUpdate.GetValueInMiddleOfBlock(LI->getParent());
   
   // If new PHI nodes were created, notify alias analysis.
-  if (isa<PointerType>(V->getType()))
+  if (V->getType()->isPointerTy())
     for (unsigned i = 0, e = NewPHIs.size(); i != e; ++i)
       AA->copyValue(LI, NewPHIs[i]);
 
@@ -1491,8 +1494,9 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
 
     if (isa<PHINode>(V))
       V->takeName(LI);
-    if (isa<PointerType>(V->getType()))
+    if (V->getType()->isPointerTy())
       MD->invalidateCachedPointerInfo(V);
+    VN.erase(LI);
     toErase.push_back(LI);
     NumGVNLoad++;
     return true;
@@ -1538,11 +1542,13 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
   // at least one of the values is LI.  Since this means that we won't be able
   // to eliminate LI even if we insert uses in the other predecessors, we will
   // end up increasing code size.  Reject this by scanning for LI.
-  if (!EnableFullLoadPRE) {
-    for (unsigned i = 0, e = ValuesPerBlock.size(); i != e; ++i)
-      if (ValuesPerBlock[i].isSimpleValue() &&
-          ValuesPerBlock[i].getSimpleValue() == LI)
+  for (unsigned i = 0, e = ValuesPerBlock.size(); i != e; ++i) {
+    if (ValuesPerBlock[i].isSimpleValue() &&
+        ValuesPerBlock[i].getSimpleValue() == LI) {
+      // Skip cases where LI is the only definition, even for EnableFullLoadPRE.
+      if (!EnableFullLoadPRE || e == 1)
         return false;
+    }
   }
 
   // FIXME: It is extremely unclear what this loop is doing, other than
@@ -1576,6 +1582,7 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
   for (unsigned i = 0, e = UnavailableBlocks.size(); i != e; ++i)
     FullyAvailableBlocks[UnavailableBlocks[i]] = false;
 
+  bool NeedToSplitEdges = false;
   for (pred_iterator PI = pred_begin(LoadBB), E = pred_end(LoadBB);
        PI != E; ++PI) {
     BasicBlock *Pred = *PI;
@@ -1583,13 +1590,20 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
       continue;
     }
     PredLoads[Pred] = 0;
-    // We don't currently handle critical edges :(
+
     if (Pred->getTerminator()->getNumSuccessors() != 1) {
-      DEBUG(dbgs() << "COULD NOT PRE LOAD BECAUSE OF CRITICAL EDGE '"
-            << Pred->getName() << "': " << *LI << '\n');
-      return false;
+      if (isa<IndirectBrInst>(Pred->getTerminator())) {
+        DEBUG(dbgs() << "COULD NOT PRE LOAD BECAUSE OF INDBR CRITICAL EDGE '"
+              << Pred->getName() << "': " << *LI << '\n');
+        return false;
+      }
+      unsigned SuccNum = GetSuccessorNumber(Pred, LoadBB);
+      toSplit.push_back(std::make_pair(Pred->getTerminator(), SuccNum));
+      NeedToSplitEdges = true;
     }
   }
+  if (NeedToSplitEdges)
+    return false;
 
   // Decide whether PRE is profitable for this load.
   unsigned NumUnavailablePreds = PredLoads.size();
@@ -1623,13 +1637,8 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
       LoadPtr = Address.PHITranslateWithInsertion(LoadBB, UnavailablePred,
                                                   *DT, NewInsts);
     } else {
-      Address.PHITranslateValue(LoadBB, UnavailablePred);
+      Address.PHITranslateValue(LoadBB, UnavailablePred, DT);
       LoadPtr = Address.getAddr();
-    
-      // Make sure the value is live in the predecessor.
-      if (Instruction *Inst = dyn_cast_or_null<Instruction>(LoadPtr))
-        if (!DT->dominates(Inst->getParent(), UnavailablePred))
-          LoadPtr = 0;
     }
 
     // If we couldn't find or insert a computation of this phi translated value,
@@ -1697,6 +1706,8 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
     // Add the newly created load.
     ValuesPerBlock.push_back(AvailableValueInBlock::get(UnavailablePred,
                                                         NewLoad));
+    MD->invalidateCachedPointerInfo(LoadPtr);
+    DEBUG(dbgs() << "GVN INSERTED " << *NewLoad << '\n');
   }
 
   // Perform PHI construction.
@@ -1705,8 +1716,9 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
   LI->replaceAllUsesWith(V);
   if (isa<PHINode>(V))
     V->takeName(LI);
-  if (isa<PointerType>(V->getType()))
+  if (V->getType()->isPointerTy())
     MD->invalidateCachedPointerInfo(V);
+  VN.erase(LI);
   toErase.push_back(LI);
   NumPRELoad++;
   return true;
@@ -1765,8 +1777,9 @@ bool GVN::processLoad(LoadInst *L, SmallVectorImpl<Instruction*> &toErase) {
       
       // Replace the load!
       L->replaceAllUsesWith(AvailVal);
-      if (isa<PointerType>(AvailVal->getType()))
+      if (AvailVal->getType()->isPointerTy())
         MD->invalidateCachedPointerInfo(AvailVal);
+      VN.erase(L);
       toErase.push_back(L);
       NumGVNLoad++;
       return true;
@@ -1810,8 +1823,9 @@ bool GVN::processLoad(LoadInst *L, SmallVectorImpl<Instruction*> &toErase) {
 
     // Remove it!
     L->replaceAllUsesWith(StoredVal);
-    if (isa<PointerType>(StoredVal->getType()))
+    if (StoredVal->getType()->isPointerTy())
       MD->invalidateCachedPointerInfo(StoredVal);
+    VN.erase(L);
     toErase.push_back(L);
     NumGVNLoad++;
     return true;
@@ -1839,8 +1853,9 @@ bool GVN::processLoad(LoadInst *L, SmallVectorImpl<Instruction*> &toErase) {
     
     // Remove it!
     L->replaceAllUsesWith(AvailableVal);
-    if (isa<PointerType>(DepLI->getType()))
+    if (DepLI->getType()->isPointerTy())
       MD->invalidateCachedPointerInfo(DepLI);
+    VN.erase(L);
     toErase.push_back(L);
     NumGVNLoad++;
     return true;
@@ -1851,6 +1866,7 @@ bool GVN::processLoad(LoadInst *L, SmallVectorImpl<Instruction*> &toErase) {
   // intervening stores, for example.
   if (isa<AllocaInst>(DepInst) || isMalloc(DepInst)) {
     L->replaceAllUsesWith(UndefValue::get(L->getType()));
+    VN.erase(L);
     toErase.push_back(L);
     NumGVNLoad++;
     return true;
@@ -1861,6 +1877,7 @@ bool GVN::processLoad(LoadInst *L, SmallVectorImpl<Instruction*> &toErase) {
   if (IntrinsicInst* II = dyn_cast<IntrinsicInst>(DepInst)) {
     if (II->getIntrinsicID() == Intrinsic::lifetime_start) {
       L->replaceAllUsesWith(UndefValue::get(L->getType()));
+      VN.erase(L);
       toErase.push_back(L);
       NumGVNLoad++;
       return true;
@@ -1943,7 +1960,7 @@ bool GVN::processInstruction(Instruction *I,
 
     if (constVal) {
       p->replaceAllUsesWith(constVal);
-      if (MD && isa<PointerType>(constVal->getType()))
+      if (MD && constVal->getType()->isPointerTy())
         MD->invalidateCachedPointerInfo(constVal);
       VN.erase(p);
 
@@ -1964,7 +1981,7 @@ bool GVN::processInstruction(Instruction *I,
     // Remove it!
     VN.erase(I);
     I->replaceAllUsesWith(repl);
-    if (MD && isa<PointerType>(repl->getType()))
+    if (MD && repl->getType()->isPointerTy())
       MD->invalidateCachedPointerInfo(repl);
     toErase.push_back(I);
     return true;
@@ -2004,6 +2021,8 @@ bool GVN::runOnFunction(Function& F) {
   while (ShouldContinue) {
     DEBUG(dbgs() << "GVN iteration: " << Iteration << "\n");
     ShouldContinue = iterateOnFunction(F);
+    if (splitCriticalEdges())
+      ShouldContinue = true;
     Changed |= ShouldContinue;
     ++Iteration;
   }
@@ -2070,7 +2089,6 @@ bool GVN::processBlock(BasicBlock *BB) {
 /// control flow patterns and attempts to perform simple PRE at the join point.
 bool GVN::performPRE(Function &F) {
   bool Changed = false;
-  SmallVector<std::pair<TerminatorInst*, unsigned>, 4> toSplit;
   DenseMap<BasicBlock*, Value*> predMap;
   for (df_iterator<BasicBlock*> DI = df_begin(&F.getEntryBlock()),
        DE = df_end(&F.getEntryBlock()); DI != DE; ++DI) {
@@ -2141,14 +2159,7 @@ bool GVN::performPRE(Function &F) {
       // We can't do PRE safely on a critical edge, so instead we schedule
       // the edge to be split and perform the PRE the next time we iterate
       // on the function.
-      unsigned SuccNum = 0;
-      for (unsigned i = 0, e = PREPred->getTerminator()->getNumSuccessors();
-           i != e; ++i)
-        if (PREPred->getTerminator()->getSuccessor(i) == CurrentBlock) {
-          SuccNum = i;
-          break;
-        }
-
+      unsigned SuccNum = GetSuccessorNumber(PREPred, CurrentBlock);
       if (isCriticalEdge(PREPred->getTerminator(), SuccNum)) {
         toSplit.push_back(std::make_pair(PREPred->getTerminator(), SuccNum));
         continue;
@@ -2204,7 +2215,7 @@ bool GVN::performPRE(Function &F) {
       localAvail[CurrentBlock]->table[ValNo] = Phi;
 
       CurInst->replaceAllUsesWith(Phi);
-      if (MD && isa<PointerType>(Phi->getType()))
+      if (MD && Phi->getType()->isPointerTy())
         MD->invalidateCachedPointerInfo(Phi);
       VN.erase(CurInst);
 
@@ -2216,11 +2227,23 @@ bool GVN::performPRE(Function &F) {
     }
   }
 
-  for (SmallVector<std::pair<TerminatorInst*, unsigned>, 4>::iterator
-       I = toSplit.begin(), E = toSplit.end(); I != E; ++I)
-    SplitCriticalEdge(I->first, I->second, this);
+  if (splitCriticalEdges())
+    Changed = true;
 
-  return Changed || toSplit.size();
+  return Changed;
+}
+
+/// splitCriticalEdges - Split critical edges found during the previous
+/// iteration that may enable further optimization.
+bool GVN::splitCriticalEdges() {
+  if (toSplit.empty())
+    return false;
+  do {
+    std::pair<TerminatorInst*, unsigned> Edge = toSplit.pop_back_val();
+    SplitCriticalEdge(Edge.first, Edge.second, this);
+  } while (!toSplit.empty());
+  if (MD) MD->invalidateCachedPredecessors();
+  return true;
 }
 
 /// iterateOnFunction - Executes one iteration of GVN

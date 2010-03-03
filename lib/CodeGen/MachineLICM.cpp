@@ -252,32 +252,6 @@ bool MachineLICM::IsLoopInvariantInst(MachineInstr &I) {
       return false;
   }
 
-  DEBUG({
-      dbgs() << "--- Checking if we can hoist " << I;
-      if (I.getDesc().getImplicitUses()) {
-        dbgs() << "  * Instruction has implicit uses:\n";
-
-        const TargetRegisterInfo *TRI = TM->getRegisterInfo();
-        for (const unsigned *ImpUses = I.getDesc().getImplicitUses();
-             *ImpUses; ++ImpUses)
-          dbgs() << "      -> " << TRI->getName(*ImpUses) << "\n";
-      }
-
-      if (I.getDesc().getImplicitDefs()) {
-        dbgs() << "  * Instruction has implicit defines:\n";
-
-        const TargetRegisterInfo *TRI = TM->getRegisterInfo();
-        for (const unsigned *ImpDefs = I.getDesc().getImplicitDefs();
-             *ImpDefs; ++ImpDefs)
-          dbgs() << "      -> " << TRI->getName(*ImpDefs) << "\n";
-      }
-    });
-
-  if (I.getDesc().getImplicitDefs() || I.getDesc().getImplicitUses()) {
-    DEBUG(dbgs() << "Cannot hoist with implicit defines or uses\n");
-    return false;
-  }
-
   // The instruction is loop invariant if all of its operands are.
   for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = I.getOperand(i);
@@ -310,6 +284,10 @@ bool MachineLICM::IsLoopInvariantInst(MachineInstr &I) {
         continue;
       } else if (!MO.isDead()) {
         // A def that isn't dead. We can't move it.
+        return false;
+      } else if (CurLoop->getHeader()->isLiveIn(Reg)) {
+        // If the reg is live into the loop, we can't hoist an instruction
+        // which would clobber it.
         return false;
       }
     }
@@ -467,7 +445,7 @@ MachineLICM::LookForDuplicate(const MachineInstr *MI,
                               std::vector<const MachineInstr*> &PrevMIs) {
   for (unsigned i = 0, e = PrevMIs.size(); i != e; ++i) {
     const MachineInstr *PrevMI = PrevMIs[i];
-    if (TII->isIdentical(MI, PrevMI, RegInfo))
+    if (TII->produceSameValue(MI, PrevMI))
       return PrevMI;
   }
   return 0;
@@ -480,9 +458,20 @@ bool MachineLICM::EliminateCSE(MachineInstr *MI,
 
   if (const MachineInstr *Dup = LookForDuplicate(MI, CI->second)) {
     DEBUG(dbgs() << "CSEing " << *MI << " with " << *Dup);
+
+    // Replace virtual registers defined by MI by their counterparts defined
+    // by Dup.
     for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
       const MachineOperand &MO = MI->getOperand(i);
-      if (MO.isReg() && MO.isDef())
+
+      // Physical registers may not differ here.
+      assert((!MO.isReg() || MO.getReg() == 0 ||
+              !TargetRegisterInfo::isPhysicalRegister(MO.getReg()) ||
+              MO.getReg() == Dup->getOperand(i).getReg()) &&
+             "Instructions with different phys regs are not identical!");
+
+      if (MO.isReg() && MO.isDef() &&
+          !TargetRegisterInfo::isPhysicalRegister(MO.getReg()))
         RegInfo->replaceRegWith(MO.getReg(), Dup->getOperand(i).getReg());
     }
     MI->eraseFromParent();

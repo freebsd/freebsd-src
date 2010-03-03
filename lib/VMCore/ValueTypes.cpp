@@ -46,7 +46,7 @@ bool EVT::isExtendedInteger() const {
 
 bool EVT::isExtendedVector() const {
   assert(isExtended() && "Type is not extended!");
-  return isa<VectorType>(LLVMTy);
+  return LLVMTy->isVectorTy();
 }
 
 bool EVT::isExtended64BitVector() const {
@@ -126,6 +126,7 @@ std::string EVT::getEVTString() const {
   case MVT::v8f32:   return "v8f32";
   case MVT::v2f64:   return "v2f64";
   case MVT::v4f64:   return "v4f64";
+  case MVT::Metadata:return "Metadata";
   }
 }
 

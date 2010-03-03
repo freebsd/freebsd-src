@@ -155,7 +155,6 @@ site.exp: FORCE
 	@echo 'set target_triplet "$(TARGET_TRIPLE)"' >> site.tmp
 	@echo 'set TARGETS_TO_BUILD "$(TARGETS_TO_BUILD)"' >> site.tmp
 	@echo 'set llvmgcc_langs "$(LLVMGCC_LANGS)"' >> site.tmp
-	@echo 'set llvmgcc_version "$(LLVMGCC_VERSION)"' >> site.tmp
 	@echo 'set llvmtoolsdir "$(ToolDir)"' >>site.tmp
 	@echo 'set llvmlibsdir "$(LibDir)"' >>site.tmp
 	@echo 'set llvm_bindings "$(BINDINGS_TO_BUILD)"' >> site.tmp
@@ -170,7 +169,6 @@ site.exp: FORCE
 	@echo 'set link "' $(CXX) $(CPP.Flags) $(CXX.Flags) $(TargetCommonOpts) $(CompileCommonOpts) $(LD.Flags) '"' >>site.tmp
 	@echo 'set llvmgcc "$(LLVMGCC) $(TargetCommonOpts) $(EXTRA_OPTIONS)"' >> site.tmp
 	@echo 'set llvmgxx "$(LLVMGCC) $(TargetCommonOpts) $(EXTRA_OPTIONS)"' >> site.tmp
-	@echo 'set llvmgccmajvers "$(LLVMGCC_MAJVERS)"' >> site.tmp
 	@echo 'set bugpoint_topts $(BUGPOINT_TOPTS)' >> site.tmp
 	@echo 'set shlibext "$(SHLIBEXT)"' >> site.tmp
 	@echo 'set ocamlopt "$(OCAMLOPT) -cc \"$(CXX_FOR_OCAMLOPT)\" -I $(LibDir)/ocaml"' >> site.tmp
@@ -200,4 +198,6 @@ Unit/lit.site.cfg: $(PROJ_OBJ_DIR)/Unit/.dir FORCE
 	     -e "s#@LLVM_TOOLS_DIR@#$(ToolDir)#g" \
 	     -e "s#@LLVMGCCDIR@#$(LLVMGCCDIR)#g" \
 	     -e "s#@LLVM_BUILD_MODE@#$(BuildMode)#g" \
+	     -e "s#@ENABLE_SHARED@#$(ENABLE_SHARED)#g" \
+	     -e "s#@SHLIBPATH_VAR@#$(SHLIBPATH_VAR)#g" \
 	     $(PROJ_SRC_DIR)/Unit/lit.site.cfg.in > $@

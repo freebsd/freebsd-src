@@ -20,9 +20,12 @@ class Tool<list<dag> l> {
 def in_language;
 def out_language;
 def output_suffix;
-def cmd_line;
+def command;
+def out_file_option;
+def in_file_option;
 def join;
 def sink;
+def works_on_empty;
 def actions;
 
 // Possible option types.
@@ -46,6 +49,7 @@ def optional;
 def really_hidden;
 def required;
 def comma_separated;
+def forward_not_split;
 
 // The 'case' construct.
 def case;
@@ -81,6 +85,7 @@ def forward_as;
 def forward_value;
 def forward_transformed_value;
 def stop_compilation;
+def no_out_file;
 def unpack_values;
 def warning;
 def error;

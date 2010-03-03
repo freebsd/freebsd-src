@@ -61,8 +61,8 @@ void Type::destroy() const {
   // Structures and Functions allocate their contained types past the end of
   // the type object itself. These need to be destroyed differently than the
   // other types.
-  if (isa<FunctionType>(this) || isa<StructType>(this) ||
-      isa<UnionType>(this)) {
+  if (this->isFunctionTy() || this->isStructTy() ||
+      this->isUnionTy()) {
     // First, make sure we destruct any PATypeHandles allocated by these
     // subclasses.  They must be manually destructed. 
     for (unsigned i = 0; i < NumContainedTys; ++i)
@@ -70,9 +70,9 @@ void Type::destroy() const {
 
     // Now call the destructor for the subclass directly because we're going
     // to delete this as an array of char.
-    if (isa<FunctionType>(this))
+    if (this->isFunctionTy())
       static_cast<const FunctionType*>(this)->FunctionType::~FunctionType();
-    else if (isa<StructType>(this))
+    else if (this->isStructTy())
       static_cast<const StructType*>(this)->StructType::~StructType();
     else
       static_cast<const UnionType*>(this)->UnionType::~UnionType();
@@ -176,8 +176,8 @@ bool Type::canLosslesslyBitCastTo(const Type *Ty) const {
   // At this point we have only various mismatches of the first class types
   // remaining and ptr->ptr. Just select the lossless conversions. Everything
   // else is not lossless.
-  if (isa<PointerType>(this))
-    return isa<PointerType>(Ty);
+  if (this->isPointerTy())
+    return Ty->isPointerTy();
   return false;  // Other types have no identity values
 }
 
@@ -220,7 +220,7 @@ int Type::getFPMantissaWidth() const {
 /// iff all of the members of the type are sized as well.  Since asking for
 /// their size is relatively uncommon, move this operation out of line.
 bool Type::isSizedDerivedType() const {
-  if (isa<IntegerType>(this))
+  if (this->isIntegerTy())
     return true;
 
   if (const ArrayType *ATy = dyn_cast<ArrayType>(this))
@@ -229,7 +229,7 @@ bool Type::isSizedDerivedType() const {
   if (const VectorType *PTy = dyn_cast<VectorType>(this))
     return PTy->getElementType()->isSized();
 
-  if (!isa<StructType>(this) && !isa<UnionType>(this)) 
+  if (!this->isStructTy() && !this->isUnionTy()) 
     return false;
 
   // Okay, our struct is sized if all of the elements are...
@@ -447,7 +447,7 @@ bool FunctionType::isValidReturnType(const Type *RetTy) {
 /// isValidArgumentType - Return true if the specified type is valid as an
 /// argument type.
 bool FunctionType::isValidArgumentType(const Type *ArgTy) {
-  return ArgTy->isFirstClassType() || isa<OpaqueType>(ArgTy);
+  return ArgTy->isFirstClassType() || ArgTy->isOpaqueTy();
 }
 
 FunctionType::FunctionType(const Type *Result,
@@ -613,7 +613,7 @@ void Type::PromoteAbstractToConcrete() {
     // Concrete types are leaves in the tree.  Since an SCC will either be all
     // abstract or all concrete, we only need to check one type.
     if (SCC[0]->isAbstract()) {
-      if (isa<OpaqueType>(SCC[0]))
+      if (SCC[0]->isOpaqueTy())
         return;     // Not going to be concrete, sorry.
 
       // If all of the children of all of the types in this SCC are concrete,
@@ -660,7 +660,7 @@ static bool TypesEqual(const Type *Ty, const Type *Ty2,
                        std::map<const Type *, const Type *> &EqTypes) {
   if (Ty == Ty2) return true;
   if (Ty->getTypeID() != Ty2->getTypeID()) return false;
-  if (isa<OpaqueType>(Ty))
+  if (Ty->isOpaqueTy())
     return false;  // Two unequal opaque types are never equal
 
   std::map<const Type*, const Type*>::iterator It = EqTypes.find(Ty);
@@ -888,7 +888,7 @@ ArrayType *ArrayType::get(const Type *ElementType, uint64_t NumElements) {
 
 bool ArrayType::isValidElementType(const Type *ElemTy) {
   return ElemTy->getTypeID() != VoidTyID && ElemTy->getTypeID() != LabelTyID &&
-         ElemTy->getTypeID() != MetadataTyID && !isa<FunctionType>(ElemTy);
+         ElemTy->getTypeID() != MetadataTyID && !ElemTy->isFunctionTy();
 }
 
 VectorType *VectorType::get(const Type *ElementType, unsigned NumElements) {
@@ -912,7 +912,7 @@ VectorType *VectorType::get(const Type *ElementType, unsigned NumElements) {
 
 bool VectorType::isValidElementType(const Type *ElemTy) {
   return ElemTy->isIntegerTy() || ElemTy->isFloatingPointTy() ||
-         isa<OpaqueType>(ElemTy);
+         ElemTy->isOpaqueTy();
 }
 
 //===----------------------------------------------------------------------===//
@@ -955,7 +955,7 @@ StructType *StructType::get(LLVMContext &Context, const Type *type, ...) {
 
 bool StructType::isValidElementType(const Type *ElemTy) {
   return !ElemTy->isVoidTy() && !ElemTy->isLabelTy() &&
-         !ElemTy->isMetadataTy() && !isa<FunctionType>(ElemTy);
+         !ElemTy->isMetadataTy() && !ElemTy->isFunctionTy();
 }
 
 
@@ -1303,7 +1303,7 @@ void PointerType::typeBecameConcrete(const DerivedType *AbsTy) {
 }
 
 bool SequentialType::indexValid(const Value *V) const {
-  if (isa<IntegerType>(V->getType())) 
+  if (V->getType()->isIntegerTy()) 
     return true;
   return false;
 }

@@ -168,41 +168,31 @@ CAMLprim value llvm_genericvalue_as_nativeint(value GenVal) {
 
 /*--... Operations on execution engines ....................................--*/
 
-/* llmoduleprovider -> ExecutionEngine.t */
-CAMLprim LLVMExecutionEngineRef llvm_ee_create(LLVMModuleProviderRef MP) {
+/* llmodule -> ExecutionEngine.t */
+CAMLprim LLVMExecutionEngineRef llvm_ee_create(LLVMModuleRef M) {
   LLVMExecutionEngineRef Interp;
   char *Error;
-  if (LLVMCreateExecutionEngine(&Interp, MP, &Error))
+  if (LLVMCreateExecutionEngineForModule(&Interp, M, &Error))
     llvm_raise(llvm_ee_error_exn, Error);
   return Interp;
 }
 
-/* llmoduleprovider -> ExecutionEngine.t */
+/* llmodule -> ExecutionEngine.t */
 CAMLprim LLVMExecutionEngineRef
-llvm_ee_create_interpreter(LLVMModuleProviderRef MP) {
+llvm_ee_create_interpreter(LLVMModuleRef M) {
   LLVMExecutionEngineRef Interp;
   char *Error;
-  if (LLVMCreateInterpreter(&Interp, MP, &Error))
+  if (LLVMCreateInterpreterForModule(&Interp, M, &Error))
     llvm_raise(llvm_ee_error_exn, Error);
   return Interp;
 }
 
-/* llmoduleprovider -> ExecutionEngine.t */
+/* llmodule -> int -> ExecutionEngine.t */
 CAMLprim LLVMExecutionEngineRef
-llvm_ee_create_jit(LLVMModuleProviderRef MP) {
+llvm_ee_create_jit(LLVMModuleRef M, value OptLevel) {
   LLVMExecutionEngineRef JIT;
   char *Error;
-  if (LLVMCreateJITCompiler(&JIT, MP, 3, &Error))
-    llvm_raise(llvm_ee_error_exn, Error);
-  return JIT;
-}
-
-/* llmoduleprovider -> ExecutionEngine.t */
-CAMLprim LLVMExecutionEngineRef
-llvm_ee_create_fast_jit(LLVMModuleProviderRef MP) {
-  LLVMExecutionEngineRef JIT;
-  char *Error;
-  if (LLVMCreateJITCompiler(&JIT, MP, 0, &Error))
+  if (LLVMCreateJITCompilerForModule(&JIT, M, Int_val(OptLevel), &Error))
     llvm_raise(llvm_ee_error_exn, Error);
   return JIT;
 }
@@ -213,19 +203,18 @@ CAMLprim value llvm_ee_dispose(LLVMExecutionEngineRef EE) {
   return Val_unit;
 }
 
-/* llmoduleprovider -> ExecutionEngine.t -> unit */
-CAMLprim value llvm_ee_add_mp(LLVMModuleProviderRef MP,
-                              LLVMExecutionEngineRef EE) {
-  LLVMAddModuleProvider(EE, MP);
+/* llmodule -> ExecutionEngine.t -> unit */
+CAMLprim value llvm_ee_add_mp(LLVMModuleRef M, LLVMExecutionEngineRef EE) {
+  LLVMAddModule(EE, M);
   return Val_unit;
 }
 
-/* llmoduleprovider -> ExecutionEngine.t -> llmodule */
-CAMLprim LLVMModuleRef llvm_ee_remove_mp(LLVMModuleProviderRef MP,
+/* llmodule -> ExecutionEngine.t -> llmodule */
+CAMLprim LLVMModuleRef llvm_ee_remove_mp(LLVMModuleRef M,
                                          LLVMExecutionEngineRef EE) {
   LLVMModuleRef RemovedModule;
   char *Error;
-  if (LLVMRemoveModuleProvider(EE, MP, &RemovedModule, &Error))
+  if (LLVMRemoveModule(EE, M, &RemovedModule, &Error))
     llvm_raise(llvm_ee_error_exn, Error);
   return RemovedModule;
 }
@@ -237,7 +226,7 @@ CAMLprim value llvm_ee_find_function(value Name, LLVMExecutionEngineRef EE) {
   LLVMValueRef Found;
   if (LLVMFindFunction(EE, String_val(Name), &Found))
     CAMLreturn(Val_unit);
-  Option = alloc(1, 1);
+  Option = alloc(1, 0);
   Field(Option, 0) = Val_op(Found);
   CAMLreturn(Option);
 }

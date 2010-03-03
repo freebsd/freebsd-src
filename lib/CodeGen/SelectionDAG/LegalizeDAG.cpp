@@ -1539,7 +1539,6 @@ SDValue SelectionDAGLegalize::ExpandVectorBuildThroughStack(SDNode* Node) {
   // the result as a vector.
   // Create the stack frame object.
   EVT VT = Node->getValueType(0);
-  EVT OpVT = Node->getOperand(0).getValueType();
   EVT EltVT = VT.getVectorElementType();
   DebugLoc dl = Node->getDebugLoc();
   SDValue FIPtr = DAG.CreateStackTemporary(VT);
@@ -1559,8 +1558,9 @@ SDValue SelectionDAGLegalize::ExpandVectorBuildThroughStack(SDNode* Node) {
     SDValue Idx = DAG.getConstant(Offset, FIPtr.getValueType());
     Idx = DAG.getNode(ISD::ADD, dl, FIPtr.getValueType(), FIPtr, Idx);
 
-    // If EltVT smaller than OpVT, only store the bits necessary.
-    if (!OpVT.isVector() && EltVT.bitsLT(OpVT)) {
+    // If the destination vector element type is narrower than the source
+    // element type, only store the bits necessary.
+    if (EltVT.bitsLT(Node->getOperand(i).getValueType().getScalarType())) {
       Stores.push_back(DAG.getTruncStore(DAG.getEntryNode(), dl,
                                          Node->getOperand(i), Idx, SV, Offset,
                                          EltVT, false, false, 0));
@@ -1899,8 +1899,7 @@ SDValue SelectionDAGLegalize::ExpandLibCall(RTLIB::Libcall LC, SDNode *Node,
     TLI.LowerCallTo(InChain, RetTy, isSigned, !isSigned, false, false,
                     0, TLI.getLibcallCallingConv(LC), false,
                     /*isReturnValueUsed=*/true,
-                    Callee, Args, DAG,
-                    Node->getDebugLoc(), DAG.GetOrdering(Node));
+                    Callee, Args, DAG, Node->getDebugLoc());
 
   // Legalize the call sequence, starting with the chain.  This will advance
   // the LastCALLSEQ_END to the legalized version of the CALLSEQ_END node that
@@ -2308,7 +2307,7 @@ void SelectionDAGLegalize::ExpandNode(SDNode *Node,
                       false, false, false, false, 0, CallingConv::C, false,
                       /*isReturnValueUsed=*/true,
                       DAG.getExternalSymbol("abort", TLI.getPointerTy()),
-                      Args, DAG, dl, DAG.GetOrdering(Node));
+                      Args, DAG, dl);
     Results.push_back(CallResult.second);
     break;
   }

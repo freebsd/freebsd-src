@@ -580,7 +580,7 @@ MemoryDependenceAnalysis::getNonLocalCallDependency(CallSite QueryCS) {
 void MemoryDependenceAnalysis::
 getNonLocalPointerDependency(Value *Pointer, bool isLoad, BasicBlock *FromBB,
                              SmallVectorImpl<NonLocalDepResult> &Result) {
-  assert(isa<PointerType>(Pointer->getType()) &&
+  assert(Pointer->getType()->isPointerTy() &&
          "Can't get pointer deps of a non-pointer!");
   Result.clear();
   
@@ -861,7 +861,7 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer, uint64_t PointeeSize,
       // Get the PHI translated pointer in this predecessor.  This can fail if
       // not translatable, in which case the getAddr() returns null.
       PHITransAddr PredPointer(Pointer);
-      PredPointer.PHITranslateValue(BB, Pred);
+      PredPointer.PHITranslateValue(BB, Pred, 0);
 
       Value *PredPtrVal = PredPointer.getAddr();
       
@@ -1009,11 +1009,18 @@ RemoveCachedNonLocalPointerDependencies(ValueIsLoadPair P) {
 /// in more places that cached info does not necessarily keep.
 void MemoryDependenceAnalysis::invalidateCachedPointerInfo(Value *Ptr) {
   // If Ptr isn't really a pointer, just ignore it.
-  if (!isa<PointerType>(Ptr->getType())) return;
+  if (!Ptr->getType()->isPointerTy()) return;
   // Flush store info for the pointer.
   RemoveCachedNonLocalPointerDependencies(ValueIsLoadPair(Ptr, false));
   // Flush load info for the pointer.
   RemoveCachedNonLocalPointerDependencies(ValueIsLoadPair(Ptr, true));
+}
+
+/// invalidateCachedPredecessors - Clear the PredIteratorCache info.
+/// This needs to be done when the CFG changes, e.g., due to splitting
+/// critical edges.
+void MemoryDependenceAnalysis::invalidateCachedPredecessors() {
+  PredCache->clear();
 }
 
 /// removeInstruction - Remove an instruction from the dependence analysis,
@@ -1050,7 +1057,7 @@ void MemoryDependenceAnalysis::removeInstruction(Instruction *RemInst) {
   
   // Remove it from both the load info and the store info.  The instruction
   // can't be in either of these maps if it is non-pointer.
-  if (isa<PointerType>(RemInst->getType())) {
+  if (RemInst->getType()->isPointerTy()) {
     RemoveCachedNonLocalPointerDependencies(ValueIsLoadPair(RemInst, false));
     RemoveCachedNonLocalPointerDependencies(ValueIsLoadPair(RemInst, true));
   }

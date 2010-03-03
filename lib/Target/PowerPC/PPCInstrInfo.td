@@ -1019,20 +1019,16 @@ let Uses = [RM] in {
   }
 }
 
-/// FMR is split into 3 versions, one for 4/8 byte FP, and one for extending.
+/// FMR is split into 2 versions, one for 4/8 byte FP, and one for extending.
 ///
 /// Note that these are defined as pseudo-ops on the PPC970 because they are
 /// often coalesced away and we don't want the dispatch group builder to think
 /// that they will fill slots (which could cause the load of a LSU reject to
 /// sneak into a d-group with a store).
-def FMRS   : XForm_26<63, 72, (outs F4RC:$frD), (ins F4RC:$frB),
-                      "fmr $frD, $frB", FPGeneral,
-                      []>,  // (set F4RC:$frD, F4RC:$frB)
-                      PPC970_Unit_Pseudo;
-def FMRD   : XForm_26<63, 72, (outs F8RC:$frD), (ins F8RC:$frB),
-                      "fmr $frD, $frB", FPGeneral,
-                      []>,  // (set F8RC:$frD, F8RC:$frB)
-                      PPC970_Unit_Pseudo;
+def FMR   : XForm_26<63, 72, (outs F4RC:$frD), (ins F4RC:$frB),
+                     "fmr $frD, $frB", FPGeneral,
+                     []>,  // (set F4RC:$frD, F4RC:$frB)
+                     PPC970_Unit_Pseudo;
 def FMRSD  : XForm_26<63, 72, (outs F8RC:$frD), (ins F4RC:$frB),
                       "fmr $frD, $frB", FPGeneral,
                       [(set F8RC:$frD, (fextend F4RC:$frB))]>,
@@ -1215,7 +1211,7 @@ def ADDE  : XOForm_1<31, 138, 0, (outs GPRC:$rT), (ins GPRC:$rA, GPRC:$rB),
                       [(set GPRC:$rT, (adde GPRC:$rA, GPRC:$rB))]>;
 def ADDME  : XOForm_3<31, 234, 0, (outs GPRC:$rT), (ins GPRC:$rA),
                       "addme $rT, $rA", IntGeneral,
-                      [(set GPRC:$rT, (adde GPRC:$rA, immAllOnes))]>;
+                      [(set GPRC:$rT, (adde GPRC:$rA, -1))]>;
 def ADDZE  : XOForm_3<31, 202, 0, (outs GPRC:$rT), (ins GPRC:$rA),
                       "addze $rT, $rA", IntGeneral,
                       [(set GPRC:$rT, (adde GPRC:$rA, 0))]>;
@@ -1224,7 +1220,7 @@ def SUBFE : XOForm_1<31, 136, 0, (outs GPRC:$rT), (ins GPRC:$rA, GPRC:$rB),
                       [(set GPRC:$rT, (sube GPRC:$rB, GPRC:$rA))]>;
 def SUBFME : XOForm_3<31, 232, 0, (outs GPRC:$rT), (ins GPRC:$rA),
                       "subfme $rT, $rA", IntGeneral,
-                      [(set GPRC:$rT, (sube immAllOnes, GPRC:$rA))]>;
+                      [(set GPRC:$rT, (sube -1, GPRC:$rA))]>;
 def SUBFZE : XOForm_3<31, 200, 0, (outs GPRC:$rT), (ins GPRC:$rA),
                       "subfze $rT, $rA", IntGeneral,
                       [(set GPRC:$rT, (sube 0, GPRC:$rA))]>;
@@ -1480,11 +1476,11 @@ def : Pat<(extloadf32 xaddr:$src),
           (FMRSD (LFSX xaddr:$src))>;
 
 // Memory barriers
-def : Pat<(membarrier (i32 imm:$ll),
-                      (i32 imm:$ls),
-                      (i32 imm:$sl),
-                      (i32 imm:$ss),
-                      (i32 imm:$device)),
+def : Pat<(membarrier (i32 imm /*ll*/),
+                      (i32 imm /*ls*/),
+                      (i32 imm /*sl*/),
+                      (i32 imm /*ss*/),
+                      (i32 imm /*device*/)),
            (SYNC)>;
 
 include "PPCInstrAltivec.td"

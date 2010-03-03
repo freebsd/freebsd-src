@@ -55,8 +55,6 @@ void llvm::PHIElimination::getAnalysisUsage(AnalysisUsage &AU) const {
 bool llvm::PHIElimination::runOnMachineFunction(MachineFunction &Fn) {
   MRI = &Fn.getRegInfo();
 
-  PHIDefs.clear();
-  PHIKills.clear();
   bool Changed = false;
 
   // Split critical edges to help the coalescer
@@ -215,10 +213,6 @@ void llvm::PHIElimination::LowerAtomicPHINode(
     TII->copyRegToReg(MBB, AfterPHIsIt, DestReg, IncomingReg, RC, RC);
   }
 
-  // Record PHI def.
-  assert(!hasPHIDef(DestReg) && "Vreg has multiple phi-defs?");
-  PHIDefs[DestReg] = &MBB;
-
   // Update live variable information if there is any.
   LiveVariables *LV = getAnalysisIfAvailable<LiveVariables>();
   if (LV) {
@@ -229,6 +223,7 @@ void llvm::PHIElimination::LowerAtomicPHINode(
 
       // Increment use count of the newly created virtual register.
       VI.NumUses++;
+      LV->setPHIJoin(IncomingReg);
 
       // When we are reusing the incoming register, it may already have been
       // killed in this block. The old kill will also have been inserted at
@@ -275,9 +270,6 @@ void llvm::PHIElimination::LowerAtomicPHINode(
     // Get the MachineBasicBlock equivalent of the BasicBlock that is the source
     // path the PHI.
     MachineBasicBlock &opBlock = *MPhi->getOperand(i*2+2).getMBB();
-
-    // Record the kill.
-    PHIKills[SrcReg].insert(&opBlock);
 
     // If source is defined by an implicit def, there is no need to insert a
     // copy.

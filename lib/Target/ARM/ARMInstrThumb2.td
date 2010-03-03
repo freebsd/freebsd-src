@@ -13,7 +13,7 @@
 
 // IT block predicate field
 def it_pred : Operand<i32> {
-  let PrintMethod = "printPredicateOperand";
+  let PrintMethod = "printMandatoryPredicateOperand";
 }
 
 // IT block condition mask
@@ -53,10 +53,10 @@ def t2_so_imm_neg_XFORM : SDNodeXForm<imm, [{
 // bits [bits 0-7], the 4-bit shift/splat amount is the next 4 bits [bits 8-11].
 def t2_so_imm : Operand<i32>,
                 PatLeaf<(imm), [{
-  return ARM_AM::getT2SOImmVal((uint32_t)N->getZExtValue()) != -1; 
+  return ARM_AM::getT2SOImmVal((uint32_t)N->getZExtValue()) != -1;
 }]>;
 
-// t2_so_imm_not - Match an immediate that is a complement 
+// t2_so_imm_not - Match an immediate that is a complement
 // of a t2_so_imm.
 def t2_so_imm_not : Operand<i32>,
                     PatLeaf<(imm), [{
@@ -114,13 +114,13 @@ def imm0_4095 : Operand<i32>,
   return (uint32_t)N->getZExtValue() < 4096;
 }]>;
 
-def imm0_4095_neg : PatLeaf<(i32 imm), [{ 
- return (uint32_t)(-N->getZExtValue()) < 4096; 
-}], imm_neg_XFORM>; 
+def imm0_4095_neg : PatLeaf<(i32 imm), [{
+ return (uint32_t)(-N->getZExtValue()) < 4096;
+}], imm_neg_XFORM>;
 
 def imm0_255_neg : PatLeaf<(i32 imm), [{
   return (uint32_t)(-N->getZExtValue()) < 255;
-}], imm_neg_XFORM>; 
+}], imm_neg_XFORM>;
 
 // Define Thumb2 specific addressing modes.
 
@@ -208,7 +208,7 @@ multiclass T2I_un_irs<bits<4> opcod, string opc, PatFrag opnode,
 /// T2I_bin_irs - Defines a set of (op reg, {so_imm|r|so_reg}) patterns for a
 //  binary operation that produces a value. These are predicable and can be
 /// changed to modify CPSR.
-multiclass T2I_bin_irs<bits<4> opcod, string opc, PatFrag opnode, 
+multiclass T2I_bin_irs<bits<4> opcod, string opc, PatFrag opnode,
                        bit Commutable = 0, string wide =""> {
    // shifted imm
    def ri : T2sI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_imm:$rhs), IIC_iALUi,
@@ -368,15 +368,16 @@ multiclass T2I_bin_ii12rs<bits<3> op23_21, string opc, PatFrag opnode,
 }
 
 /// T2I_adde_sube_irs - Defines a set of (op reg, {so_imm|r|so_reg}) patterns
-/// for a binary operation that produces a value and use and define the carry
+/// for a binary operation that produces a value and use the carry
 /// bit. It's not predicable.
 let Uses = [CPSR] in {
-multiclass T2I_adde_sube_irs<bits<4> opcod, string opc, PatFrag opnode, bit Commutable = 0> {
+multiclass T2I_adde_sube_irs<bits<4> opcod, string opc, PatFrag opnode,
+                             bit Commutable = 0> {
    // shifted imm
    def ri : T2sI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_imm:$rhs), IIC_iALUi,
                  opc, "\t$dst, $lhs, $rhs",
                  [(set GPR:$dst, (opnode GPR:$lhs, t2_so_imm:$rhs))]>,
-                 Requires<[IsThumb2, CarryDefIsUnused]> {
+                 Requires<[IsThumb2]> {
      let Inst{31-27} = 0b11110;
      let Inst{25} = 0;
      let Inst{24-21} = opcod;
@@ -387,7 +388,7 @@ multiclass T2I_adde_sube_irs<bits<4> opcod, string opc, PatFrag opnode, bit Comm
    def rr : T2sI<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs), IIC_iALUr,
                  opc, ".w\t$dst, $lhs, $rhs",
                  [(set GPR:$dst, (opnode GPR:$lhs, GPR:$rhs))]>,
-                 Requires<[IsThumb2, CarryDefIsUnused]> {
+                 Requires<[IsThumb2]> {
      let isCommutable = Commutable;
      let Inst{31-27} = 0b11101;
      let Inst{26-25} = 0b01;
@@ -401,19 +402,23 @@ multiclass T2I_adde_sube_irs<bits<4> opcod, string opc, PatFrag opnode, bit Comm
    def rs : T2sI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_reg:$rhs), IIC_iALUsi,
                  opc, ".w\t$dst, $lhs, $rhs",
                  [(set GPR:$dst, (opnode GPR:$lhs, t2_so_reg:$rhs))]>,
-                 Requires<[IsThumb2, CarryDefIsUnused]> {
+                 Requires<[IsThumb2]> {
      let Inst{31-27} = 0b11101;
      let Inst{26-25} = 0b01;
      let Inst{24-21} = opcod;
      let Inst{20} = 0; // The S bit.
    }
-   // Carry setting variants
+}
+
+// Carry setting variants
+let Defs = [CPSR] in {
+multiclass T2I_adde_sube_s_irs<bits<4> opcod, string opc, PatFrag opnode,
+                               bit Commutable = 0> {
    // shifted imm
-   def Sri : T2XI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_imm:$rhs), IIC_iALUi,
-                  !strconcat(opc, "s\t$dst, $lhs, $rhs"),
-                  [(set GPR:$dst, (opnode GPR:$lhs, t2_so_imm:$rhs))]>,
-                  Requires<[IsThumb2, CarryDefIsUsed]> {
-     let Defs = [CPSR];
+   def ri : T2sI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_imm:$rhs), IIC_iALUi,
+                 opc, "\t$dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, t2_so_imm:$rhs))]>,
+                 Requires<[IsThumb2]> {
      let Inst{31-27} = 0b11110;
      let Inst{25} = 0;
      let Inst{24-21} = opcod;
@@ -421,11 +426,10 @@ multiclass T2I_adde_sube_irs<bits<4> opcod, string opc, PatFrag opnode, bit Comm
      let Inst{15} = 0;
    }
    // register
-   def Srr : T2XI<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs), IIC_iALUr,
-                  !strconcat(opc, "s.w\t$dst, $lhs, $rhs"),
-                  [(set GPR:$dst, (opnode GPR:$lhs, GPR:$rhs))]>,
-                  Requires<[IsThumb2, CarryDefIsUsed]> {
-     let Defs = [CPSR];
+   def rr : T2sI<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs), IIC_iALUr,
+                 opc, ".w\t$dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, GPR:$rhs))]>,
+                 Requires<[IsThumb2]> {
      let isCommutable = Commutable;
      let Inst{31-27} = 0b11101;
      let Inst{26-25} = 0b01;
@@ -436,16 +440,16 @@ multiclass T2I_adde_sube_irs<bits<4> opcod, string opc, PatFrag opnode, bit Comm
      let Inst{5-4} = 0b00; // type
    }
    // shifted register
-   def Srs : T2XI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_reg:$rhs), IIC_iALUsi,
-                  !strconcat(opc, "s.w\t$dst, $lhs, $rhs"),
-                  [(set GPR:$dst, (opnode GPR:$lhs, t2_so_reg:$rhs))]>,
-                  Requires<[IsThumb2, CarryDefIsUsed]> {
-     let Defs = [CPSR];
+   def rs : T2sI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_reg:$rhs), IIC_iALUsi,
+                 opc, ".w\t$dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, t2_so_reg:$rhs))]>,
+                 Requires<[IsThumb2]> {
      let Inst{31-27} = 0b11101;
      let Inst{26-25} = 0b01;
      let Inst{24-21} = opcod;
      let Inst{20} = 1; // The S bit.
    }
+}
 }
 }
 
@@ -626,19 +630,6 @@ multiclass T2I_st<bits<2> opcod, string opc, PatFrag opnode> {
   }
 }
 
-/// T2I_picld - Defines the PIC load pattern.
-class T2I_picld<string opc, PatFrag opnode> :
-      T2I<(outs GPR:$dst), (ins addrmodepc:$addr), IIC_iLoadi,
-          !strconcat("\n${addr:label}:\n\t", opc), "\t$dst, $addr",
-          [(set GPR:$dst, (opnode addrmodepc:$addr))]>;
-
-/// T2I_picst - Defines the PIC store pattern.
-class T2I_picst<string opc, PatFrag opnode> :
-      T2I<(outs), (ins GPR:$src, addrmodepc:$addr), IIC_iStorer,
-          !strconcat("\n${addr:label}:\n\t", opc), "\t$src, $addr",
-          [(opnode GPR:$src, addrmodepc:$addr)]>;
-
-
 /// T2I_unary_rrot - A unary operation with two forms: one whose operand is a
 /// register and one whose operand is a register rotated by 8/16/24.
 multiclass T2I_unary_rrot<bits<3> opcod, string opc, PatFrag opnode> {
@@ -666,6 +657,31 @@ multiclass T2I_unary_rrot<bits<3> opcod, string opc, PatFrag opnode> {
    }
 }
 
+// DO variant - disassembly only, no pattern
+
+multiclass T2I_unary_rrot_DO<bits<3> opcod, string opc> {
+  def r     : T2I<(outs GPR:$dst), (ins GPR:$src), IIC_iUNAr,
+                  opc, "\t$dst, $src", []> {
+     let Inst{31-27} = 0b11111;
+     let Inst{26-23} = 0b0100;
+     let Inst{22-20} = opcod;
+     let Inst{19-16} = 0b1111; // Rn
+     let Inst{15-12} = 0b1111;
+     let Inst{7} = 1;
+     let Inst{5-4} = 0b00; // rotate
+   }
+  def r_rot : T2I<(outs GPR:$dst), (ins GPR:$src, i32imm:$rot), IIC_iUNAsi,
+                  opc, "\t$dst, $src, ror $rot", []> {
+     let Inst{31-27} = 0b11111;
+     let Inst{26-23} = 0b0100;
+     let Inst{22-20} = opcod;
+     let Inst{19-16} = 0b1111; // Rn
+     let Inst{15-12} = 0b1111;
+     let Inst{7} = 1;
+     let Inst{5-4} = {?,?}; // rotate
+   }
+}
+
 /// T2I_bin_rrot - A binary operation with two forms: one whose operand is a
 /// register and one whose operand is a register rotated by 8/16/24.
 multiclass T2I_bin_rrot<bits<3> opcod, string opc, PatFrag opnode> {
@@ -683,6 +699,29 @@ multiclass T2I_bin_rrot<bits<3> opcod, string opc, PatFrag opnode> {
                   IIC_iALUsr, opc, "\t$dst, $LHS, $RHS, ror $rot",
                   [(set GPR:$dst, (opnode GPR:$LHS,
                                           (rotr GPR:$RHS, rot_imm:$rot)))]> {
+     let Inst{31-27} = 0b11111;
+     let Inst{26-23} = 0b0100;
+     let Inst{22-20} = opcod;
+     let Inst{15-12} = 0b1111;
+     let Inst{7} = 1;
+     let Inst{5-4} = {?,?}; // rotate
+   }
+}
+
+// DO variant - disassembly only, no pattern
+
+multiclass T2I_bin_rrot_DO<bits<3> opcod, string opc> {
+  def rr     : T2I<(outs GPR:$dst), (ins GPR:$LHS, GPR:$RHS), IIC_iALUr,
+                  opc, "\t$dst, $LHS, $RHS", []> {
+     let Inst{31-27} = 0b11111;
+     let Inst{26-23} = 0b0100;
+     let Inst{22-20} = opcod;
+     let Inst{15-12} = 0b1111;
+     let Inst{7} = 1;
+     let Inst{5-4} = 0b00; // rotate
+   }
+  def rr_rot : T2I<(outs GPR:$dst), (ins GPR:$LHS, GPR:$RHS, i32imm:$rot),
+                  IIC_iALUsr, opc, "\t$dst, $LHS, $RHS, ror $rot", []> {
      let Inst{31-27} = 0b11111;
      let Inst{26-23} = 0b0100;
      let Inst{22-20} = opcod;
@@ -734,7 +773,7 @@ def t2ADDrSPi   : T2sI<(outs GPR:$dst), (ins GPR:$sp, t2_so_imm:$imm),
   let Inst{19-16} = 0b1101; // Rn = sp
   let Inst{15} = 0;
 }
-def t2ADDrSPi12 : T2I<(outs GPR:$dst), (ins GPR:$sp, imm0_4095:$imm), 
+def t2ADDrSPi12 : T2I<(outs GPR:$dst), (ins GPR:$sp, imm0_4095:$imm),
                        IIC_iALUi, "addw", "\t$dst, $sp, $imm", []> {
   let Inst{31-27} = 0b11110;
   let Inst{25} = 1;
@@ -787,6 +826,25 @@ def t2SUBrSPs   : T2sI<(outs GPR:$dst), (ins GPR:$sp, t2_so_reg:$rhs),
   let Inst{15} = 0;
 }
 
+// Signed and unsigned division, for disassembly only
+def t2SDIV : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b), IIC_iALUi, 
+                 "sdiv", "\t$dst, $a, $b", []> {
+  let Inst{31-27} = 0b11111;
+  let Inst{26-21} = 0b011100;
+  let Inst{20} = 0b1;
+  let Inst{15-12} = 0b1111;
+  let Inst{7-4} = 0b1111;
+}
+
+def t2UDIV : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b), IIC_iALUi, 
+                 "udiv", "\t$dst, $a, $b", []> {
+  let Inst{31-27} = 0b11111;
+  let Inst{26-21} = 0b011101;
+  let Inst{20} = 0b1;
+  let Inst{15-12} = 0b1111;
+  let Inst{7-4} = 0b1111;
+}
+
 // Pseudo instruction that will expand into a t2SUBrSPi + a copy.
 let usesCustomInserter = 1 in { // Expanded after instruction selection.
 def t2SUBrSPi_   : PseudoInst<(outs GPR:$dst), (ins GPR:$sp, t2_so_imm:$imm),
@@ -803,7 +861,7 @@ def t2SUBrSPs_   : PseudoInst<(outs GPR:$dst), (ins GPR:$sp, t2_so_reg:$rhs),
 //
 
 // Load
-let canFoldAsLoad = 1, isReMaterializable = 1, mayHaveSideEffects = 1  in 
+let canFoldAsLoad = 1, isReMaterializable = 1  in
 defm t2LDR   : T2I_ld<0, 0b10, "ldr",  UnOpFrag<(load node:$Src)>>;
 
 // Loads with zero extension
@@ -926,9 +984,9 @@ def t2LDRSH_POST : T2Iidxldst<1, 0b01, 1, 0, (outs GPR:$dst, GPR:$base_wb),
 }
 
 // Store
-defm t2STR   : T2I_st<0b10, "str",  BinOpFrag<(store node:$LHS, node:$RHS)>>;
-defm t2STRB  : T2I_st<0b00, "strb", BinOpFrag<(truncstorei8 node:$LHS, node:$RHS)>>;
-defm t2STRH  : T2I_st<0b01, "strh", BinOpFrag<(truncstorei16 node:$LHS, node:$RHS)>>;
+defm t2STR :T2I_st<0b10,"str", BinOpFrag<(store node:$LHS, node:$RHS)>>;
+defm t2STRB:T2I_st<0b00,"strb",BinOpFrag<(truncstorei8 node:$LHS, node:$RHS)>>;
+defm t2STRH:T2I_st<0b01,"strh",BinOpFrag<(truncstorei16 node:$LHS, node:$RHS)>>;
 
 // Store doubleword
 let mayLoad = 1, hasExtraSrcRegAllocReq = 1 in
@@ -989,7 +1047,7 @@ def t2STRB_POST : T2Iidxldst<0, 0b00, 0, 0, (outs GPR:$base_wb),
 let mayLoad = 1, hasExtraDefRegAllocReq = 1 in
 def t2LDM : T2XI<(outs),
                  (ins addrmode4:$addr, pred:$p, reglist:$wb, variable_ops),
-              IIC_iLoadm, "ldm${addr:submode}${p}${addr:wide}\t$addr, $wb", []> {
+             IIC_iLoadm, "ldm${addr:submode}${p}${addr:wide}\t$addr, $wb", []> {
   let Inst{31-27} = 0b11101;
   let Inst{26-25} = 0b00;
   let Inst{24-23} = {?, ?}; // IA: '01', DB: '10'
@@ -1001,7 +1059,7 @@ def t2LDM : T2XI<(outs),
 let mayStore = 1, hasExtraSrcRegAllocReq = 1 in
 def t2STM : T2XI<(outs),
                  (ins addrmode4:$addr, pred:$p, reglist:$wb, variable_ops),
-             IIC_iStorem, "stm${addr:submode}${p}${addr:wide}\t$addr, $wb", []> {
+            IIC_iStorem, "stm${addr:submode}${p}${addr:wide}\t$addr, $wb", []> {
   let Inst{31-27} = 0b11101;
   let Inst{26-25} = 0b00;
   let Inst{24-23} = {?, ?}; // IA: '01', DB: '10'
@@ -1074,13 +1132,15 @@ defm t2SXTB  : T2I_unary_rrot<0b100, "sxtb",
                               UnOpFrag<(sext_inreg node:$Src, i8)>>;
 defm t2SXTH  : T2I_unary_rrot<0b000, "sxth",
                               UnOpFrag<(sext_inreg node:$Src, i16)>>;
+defm t2SXTB16 : T2I_unary_rrot_DO<0b010, "sxtb16">;
 
 defm t2SXTAB : T2I_bin_rrot<0b100, "sxtab",
                         BinOpFrag<(add node:$LHS, (sext_inreg node:$RHS, i8))>>;
 defm t2SXTAH : T2I_bin_rrot<0b000, "sxtah",
                         BinOpFrag<(add node:$LHS, (sext_inreg node:$RHS,i16))>>;
+defm t2SXTAB16 : T2I_bin_rrot_DO<0b010, "sxtab16">;
 
-// TODO: SXT(A){B|H}16
+// TODO: SXT(A){B|H}16 - done for disassembly only
 
 // Zero extenders
 
@@ -1101,6 +1161,7 @@ defm t2UXTAB : T2I_bin_rrot<0b101, "uxtab",
                            BinOpFrag<(add node:$LHS, (and node:$RHS, 0x00FF))>>;
 defm t2UXTAH : T2I_bin_rrot<0b001, "uxtah",
                            BinOpFrag<(add node:$LHS, (and node:$RHS, 0xFFFF))>>;
+defm t2UXTAB16 : T2I_bin_rrot_DO<0b011, "uxtab16">;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1119,9 +1180,13 @@ defm t2SUBS : T2I_bin_s_irs <0b1101, "sub",
                              BinOpFrag<(subc node:$LHS, node:$RHS)>>;
 
 defm t2ADC  : T2I_adde_sube_irs<0b1010, "adc",
-                                BinOpFrag<(adde node:$LHS, node:$RHS)>, 1>;
+                          BinOpFrag<(adde_dead_carry node:$LHS, node:$RHS)>, 1>;
 defm t2SBC  : T2I_adde_sube_irs<0b1011, "sbc",
-                                BinOpFrag<(sube node:$LHS, node:$RHS)>>;
+                          BinOpFrag<(sube_dead_carry node:$LHS, node:$RHS)>>;
+defm t2ADCS : T2I_adde_sube_s_irs<0b1010, "adc",
+                          BinOpFrag<(adde_live_carry node:$LHS, node:$RHS)>, 1>;
+defm t2SBCS : T2I_adde_sube_s_irs<0b1011, "sbc",
+                          BinOpFrag<(sube_live_carry node:$LHS, node:$RHS)>>;
 
 // RSB
 defm t2RSB  : T2I_rbin_is   <0b1110, "rsb",
@@ -1138,6 +1203,155 @@ def : T2Pat<(add       GPR:$src, t2_so_imm_neg:$imm),
 def : T2Pat<(add       GPR:$src, imm0_4095_neg:$imm),
             (t2SUBri12 GPR:$src, imm0_4095_neg:$imm)>;
 
+// Select Bytes -- for disassembly only
+
+def t2SEL : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b), NoItinerary, "sel",
+                "\t$dst, $a, $b", []> {
+  let Inst{31-27} = 0b11111;
+  let Inst{26-24} = 0b010;
+  let Inst{23} = 0b1;
+  let Inst{22-20} = 0b010;
+  let Inst{15-12} = 0b1111;
+  let Inst{7} = 0b1;
+  let Inst{6-4} = 0b000;
+}
+
+// A6.3.13, A6.3.14, A6.3.15 Parallel addition and subtraction (signed/unsigned)
+// And Miscellaneous operations -- for disassembly only
+class T2I_pam<bits<3> op22_20, bits<4> op7_4, string opc>
+  : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b), NoItinerary, opc,
+        "\t$dst, $a, $b", [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11111;
+  let Inst{26-23} = 0b0101;
+  let Inst{22-20} = op22_20;
+  let Inst{15-12} = 0b1111;
+  let Inst{7-4} = op7_4;
+}
+
+// Saturating add/subtract -- for disassembly only
+
+def t2QADD    : T2I_pam<0b000, 0b1000, "qadd">;
+def t2QADD16  : T2I_pam<0b001, 0b0001, "qadd16">;
+def t2QADD8   : T2I_pam<0b000, 0b0001, "qadd8">;
+def t2QASX    : T2I_pam<0b010, 0b0001, "qasx">;
+def t2QDADD   : T2I_pam<0b000, 0b1001, "qdadd">;
+def t2QDSUB   : T2I_pam<0b000, 0b1011, "qdsub">;
+def t2QSAX    : T2I_pam<0b110, 0b0001, "qsax">;
+def t2QSUB    : T2I_pam<0b000, 0b1010, "qsub">;
+def t2QSUB16  : T2I_pam<0b101, 0b0001, "qsub16">;
+def t2QSUB8   : T2I_pam<0b100, 0b0001, "qsub8">;
+def t2UQADD16 : T2I_pam<0b001, 0b0101, "uqadd16">;
+def t2UQADD8  : T2I_pam<0b000, 0b0101, "uqadd8">;
+def t2UQASX   : T2I_pam<0b010, 0b0101, "uqasx">;
+def t2UQSAX   : T2I_pam<0b110, 0b0101, "uqsax">;
+def t2UQSUB16 : T2I_pam<0b101, 0b0101, "uqsub16">;
+def t2UQSUB8  : T2I_pam<0b100, 0b0101, "uqsub8">;
+
+// Signed/Unsigned add/subtract -- for disassembly only
+
+def t2SASX    : T2I_pam<0b010, 0b0000, "sasx">;
+def t2SADD16  : T2I_pam<0b001, 0b0000, "sadd16">;
+def t2SADD8   : T2I_pam<0b000, 0b0000, "sadd8">;
+def t2SSAX    : T2I_pam<0b110, 0b0000, "ssax">;
+def t2SSUB16  : T2I_pam<0b101, 0b0000, "ssub16">;
+def t2SSUB8   : T2I_pam<0b100, 0b0000, "ssub8">;
+def t2UASX    : T2I_pam<0b010, 0b0100, "uasx">;
+def t2UADD16  : T2I_pam<0b001, 0b0100, "uadd16">;
+def t2UADD8   : T2I_pam<0b000, 0b0100, "uadd8">;
+def t2USAX    : T2I_pam<0b110, 0b0100, "usax">;
+def t2USUB16  : T2I_pam<0b101, 0b0100, "usub16">;
+def t2USUB8   : T2I_pam<0b100, 0b0100, "usub8">;
+
+// Signed/Unsigned halving add/subtract -- for disassembly only
+
+def t2SHASX   : T2I_pam<0b010, 0b0010, "shasx">;
+def t2SHADD16 : T2I_pam<0b001, 0b0010, "shadd16">;
+def t2SHADD8  : T2I_pam<0b000, 0b0010, "shadd8">;
+def t2SHSAX   : T2I_pam<0b110, 0b0010, "shsax">;
+def t2SHSUB16 : T2I_pam<0b101, 0b0010, "shsub16">;
+def t2SHSUB8  : T2I_pam<0b100, 0b0010, "shsub8">;
+def t2UHASX   : T2I_pam<0b010, 0b0110, "uhasx">;
+def t2UHADD16 : T2I_pam<0b001, 0b0110, "uhadd16">;
+def t2UHADD8  : T2I_pam<0b000, 0b0110, "uhadd8">;
+def t2UHSAX   : T2I_pam<0b110, 0b0110, "uhsax">;
+def t2UHSUB16 : T2I_pam<0b101, 0b0110, "uhsub16">;
+def t2UHSUB8  : T2I_pam<0b100, 0b0110, "uhsub8">;
+
+// Unsigned Sum of Absolute Differences [and Accumulate] -- for disassembly only
+
+def t2USAD8   : T2I_mac<0, 0b111, 0b0000, (outs GPR:$dst), (ins GPR:$a, GPR:$b),
+                        NoItinerary, "usad8", "\t$dst, $a, $b", []> {
+  let Inst{15-12} = 0b1111;
+}
+def t2USADA8  : T2I_mac<0, 0b111, 0b0000, (outs GPR:$dst),
+                        (ins GPR:$a, GPR:$b, GPR:$acc), NoItinerary, "usada8",
+                        "\t$dst, $a, $b, $acc", []>;
+
+// Signed/Unsigned saturate -- for disassembly only
+
+def t2SSATlsl : T2I<(outs GPR:$dst), (ins i32imm:$bit_pos,GPR:$a,i32imm:$shamt),
+                    NoItinerary, "ssat", "\t$dst, $bit_pos, $a, lsl $shamt",
+                    [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11110;
+  let Inst{25-22} = 0b1100;
+  let Inst{20} = 0;
+  let Inst{15} = 0;
+  let Inst{21} = 0;        // sh = '0'
+}
+
+def t2SSATasr : T2I<(outs GPR:$dst), (ins i32imm:$bit_pos,GPR:$a,i32imm:$shamt),
+                    NoItinerary, "ssat", "\t$dst, $bit_pos, $a, asr $shamt",
+                    [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11110;
+  let Inst{25-22} = 0b1100;
+  let Inst{20} = 0;
+  let Inst{15} = 0;
+  let Inst{21} = 1;        // sh = '1'
+}
+
+def t2SSAT16 : T2I<(outs GPR:$dst), (ins i32imm:$bit_pos, GPR:$a), NoItinerary,
+                   "ssat16", "\t$dst, $bit_pos, $a",
+                   [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11110;
+  let Inst{25-22} = 0b1100;
+  let Inst{20} = 0;
+  let Inst{15} = 0;
+  let Inst{21} = 1;        // sh = '1'
+  let Inst{14-12} = 0b000; // imm3 = '000'
+  let Inst{7-6} = 0b00;    // imm2 = '00'
+}
+
+def t2USATlsl : T2I<(outs GPR:$dst), (ins i32imm:$bit_pos,GPR:$a,i32imm:$shamt),
+                     NoItinerary, "usat", "\t$dst, $bit_pos, $a, lsl $shamt",
+                     [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11110;
+  let Inst{25-22} = 0b1110;
+  let Inst{20} = 0;
+  let Inst{15} = 0;
+  let Inst{21} = 0;        // sh = '0'
+}
+
+def t2USATasr : T2I<(outs GPR:$dst), (ins i32imm:$bit_pos,GPR:$a,i32imm:$shamt),
+                     NoItinerary, "usat", "\t$dst, $bit_pos, $a, asr $shamt",
+                     [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11110;
+  let Inst{25-22} = 0b1110;
+  let Inst{20} = 0;
+  let Inst{15} = 0;
+  let Inst{21} = 1;        // sh = '1'
+}
+
+def t2USAT16 : T2I<(outs GPR:$dst), (ins i32imm:$bit_pos, GPR:$a), NoItinerary,
+                   "usat16", "\t$dst, $bit_pos, $a",
+                   [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11110;
+  let Inst{25-22} = 0b1110;
+  let Inst{20} = 0;
+  let Inst{15} = 0;
+  let Inst{21} = 1;        // sh = '1'
+  let Inst{14-12} = 0b000; // imm3 = '000'
+  let Inst{7-6} = 0b00;    // imm2 = '00'
+}
 
 //===----------------------------------------------------------------------===//
 //  Shift and rotate Instructions.
@@ -1342,6 +1556,8 @@ def t2UMAAL : T2I<(outs GPR:$ldst, GPR:$hdst), (ins GPR:$a, GPR:$b), IIC_iMAC64,
 }
 } // neverHasSideEffects
 
+// Rounding variants of the below included for disassembly only
+
 // Most significant word multiply
 def t2SMMUL : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b), IIC_iMUL32,
                   "smmul", "\t$dst, $a, $b",
@@ -1351,6 +1567,15 @@ def t2SMMUL : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b), IIC_iMUL32,
   let Inst{22-20} = 0b101;
   let Inst{15-12} = 0b1111; // Ra = 0b1111 (no accumulate)
   let Inst{7-4} = 0b0000; // No Rounding (Inst{4} = 0)
+}
+
+def t2SMMULR : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b), IIC_iMUL32,
+                  "smmulr", "\t$dst, $a, $b", []> {
+  let Inst{31-27} = 0b11111;
+  let Inst{26-23} = 0b0110;
+  let Inst{22-20} = 0b101;
+  let Inst{15-12} = 0b1111; // Ra = 0b1111 (no accumulate)
+  let Inst{7-4} = 0b0001; // Rounding (Inst{4} = 1)
 }
 
 def t2SMMLA : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b, GPR:$c), IIC_iMAC32,
@@ -1363,6 +1588,14 @@ def t2SMMLA : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b, GPR:$c), IIC_iMAC32,
   let Inst{7-4} = 0b0000; // No Rounding (Inst{4} = 0)
 }
 
+def t2SMMLAR : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b, GPR:$c), IIC_iMAC32,
+                  "smmlar", "\t$dst, $a, $b, $c", []> {
+  let Inst{31-27} = 0b11111;
+  let Inst{26-23} = 0b0110;
+  let Inst{22-20} = 0b101;
+  let Inst{15-12} = {?, ?, ?, ?}; // Ra
+  let Inst{7-4} = 0b0001; // Rounding (Inst{4} = 1)
+}
 
 def t2SMMLS : T2I <(outs GPR:$dst), (ins GPR:$a, GPR:$b, GPR:$c), IIC_iMAC32,
                    "smmls", "\t$dst, $a, $b, $c",
@@ -1372,6 +1605,15 @@ def t2SMMLS : T2I <(outs GPR:$dst), (ins GPR:$a, GPR:$b, GPR:$c), IIC_iMAC32,
   let Inst{22-20} = 0b110;
   let Inst{15-12} = {?, ?, ?, ?}; // Ra
   let Inst{7-4} = 0b0000; // No Rounding (Inst{4} = 0)
+}
+
+def t2SMMLSR : T2I <(outs GPR:$dst), (ins GPR:$a, GPR:$b, GPR:$c), IIC_iMAC32,
+                   "smmlsr", "\t$dst, $a, $b, $c", []> {
+  let Inst{31-27} = 0b11111;
+  let Inst{26-23} = 0b0110;
+  let Inst{22-20} = 0b110;
+  let Inst{15-12} = {?, ?, ?, ?}; // Ra
+  let Inst{7-4} = 0b0001; // Rounding (Inst{4} = 1)
 }
 
 multiclass T2I_smul<string opc, PatFrag opnode> {
@@ -1466,7 +1708,7 @@ multiclass T2I_smla<string opc, PatFrag opnode> {
   def BT : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b, GPR:$acc), IIC_iMAC16,
              !strconcat(opc, "bt"), "\t$dst, $a, $b, $acc",
              [(set GPR:$dst, (add GPR:$acc, (opnode (sext_inreg GPR:$a, i16),
-                                                    (sra GPR:$b, (i32 16)))))]> {
+                                                   (sra GPR:$b, (i32 16)))))]> {
     let Inst{31-27} = 0b11111;
     let Inst{26-23} = 0b0110;
     let Inst{22-20} = 0b001;
@@ -1490,7 +1732,7 @@ multiclass T2I_smla<string opc, PatFrag opnode> {
   def TT : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b, GPR:$acc), IIC_iMAC16,
               !strconcat(opc, "tt"), "\t$dst, $a, $b, $acc",
              [(set GPR:$dst, (add GPR:$acc, (opnode (sra GPR:$a, (i32 16)),
-                                                    (sra GPR:$b, (i32 16)))))]> {
+                                                   (sra GPR:$b, (i32 16)))))]> {
     let Inst{31-27} = 0b11111;
     let Inst{26-23} = 0b0110;
     let Inst{22-20} = 0b001;
@@ -1502,7 +1744,7 @@ multiclass T2I_smla<string opc, PatFrag opnode> {
   def WB : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b, GPR:$acc), IIC_iMAC16,
               !strconcat(opc, "wb"), "\t$dst, $a, $b, $acc",
               [(set GPR:$dst, (add GPR:$acc, (sra (opnode GPR:$a,
-                                       (sext_inreg GPR:$b, i16)), (i32 16))))]> {
+                                      (sext_inreg GPR:$b, i16)), (i32 16))))]> {
     let Inst{31-27} = 0b11111;
     let Inst{26-23} = 0b0110;
     let Inst{22-20} = 0b011;
@@ -1514,7 +1756,7 @@ multiclass T2I_smla<string opc, PatFrag opnode> {
   def WT : T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b, GPR:$acc), IIC_iMAC16,
               !strconcat(opc, "wt"), "\t$dst, $a, $b, $acc",
               [(set GPR:$dst, (add GPR:$acc, (sra (opnode GPR:$a,
-                                         (sra GPR:$b, (i32 16))), (i32 16))))]> {
+                                        (sra GPR:$b, (i32 16))), (i32 16))))]> {
     let Inst{31-27} = 0b11111;
     let Inst{26-23} = 0b0110;
     let Inst{22-20} = 0b011;
@@ -1527,16 +1769,70 @@ multiclass T2I_smla<string opc, PatFrag opnode> {
 defm t2SMUL : T2I_smul<"smul", BinOpFrag<(mul node:$LHS, node:$RHS)>>;
 defm t2SMLA : T2I_smla<"smla", BinOpFrag<(mul node:$LHS, node:$RHS)>>;
 
-// TODO: Halfword multiple accumulate long: SMLAL<x><y>
-// TODO: Dual halfword multiple: SMUAD, SMUSD, SMLAD, SMLSD, SMLALD, SMLSLD
+// Halfword multiple accumulate long: SMLAL<x><y> -- for disassembly only
+def t2SMLALBB : T2I_mac<1, 0b100, 0b1000, (outs GPR:$ldst,GPR:$hdst),
+           (ins GPR:$a,GPR:$b), IIC_iMAC64, "smlalbb", "\t$ldst, $hdst, $a, $b",
+           [/* For disassembly only; pattern left blank */]>;
+def t2SMLALBT : T2I_mac<1, 0b100, 0b1001, (outs GPR:$ldst,GPR:$hdst),
+           (ins GPR:$a,GPR:$b), IIC_iMAC64, "smlalbt", "\t$ldst, $hdst, $a, $b",
+           [/* For disassembly only; pattern left blank */]>;
+def t2SMLALTB : T2I_mac<1, 0b100, 0b1010, (outs GPR:$ldst,GPR:$hdst),
+           (ins GPR:$a,GPR:$b), IIC_iMAC64, "smlaltb", "\t$ldst, $hdst, $a, $b",
+           [/* For disassembly only; pattern left blank */]>;
+def t2SMLALTT : T2I_mac<1, 0b100, 0b1011, (outs GPR:$ldst,GPR:$hdst),
+           (ins GPR:$a,GPR:$b), IIC_iMAC64, "smlaltt", "\t$ldst, $hdst, $a, $b",
+           [/* For disassembly only; pattern left blank */]>;
 
+// Dual halfword multiple: SMUAD, SMUSD, SMLAD, SMLSD, SMLALD, SMLSLD
+// These are for disassembly only.
+
+def t2SMUAD   : T2I_mac<0, 0b010, 0b0000, (outs GPR:$dst), (ins GPR:$a, GPR:$b),
+                        IIC_iMAC32, "smuad", "\t$dst, $a, $b", []> {
+  let Inst{15-12} = 0b1111;
+}
+def t2SMUADX  : T2I_mac<0, 0b010, 0b0001, (outs GPR:$dst), (ins GPR:$a, GPR:$b),
+                        IIC_iMAC32, "smuadx", "\t$dst, $a, $b", []> {
+  let Inst{15-12} = 0b1111;
+}
+def t2SMUSD   : T2I_mac<0, 0b100, 0b0000, (outs GPR:$dst), (ins GPR:$a, GPR:$b),
+                        IIC_iMAC32, "smusd", "\t$dst, $a, $b", []> {
+  let Inst{15-12} = 0b1111;
+}
+def t2SMUSDX  : T2I_mac<0, 0b100, 0b0001, (outs GPR:$dst), (ins GPR:$a, GPR:$b),
+                        IIC_iMAC32, "smusdx", "\t$dst, $a, $b", []> {
+  let Inst{15-12} = 0b1111;
+}
+def t2SMLAD   : T2I_mac<0, 0b010, 0b0000, (outs GPR:$dst),
+                        (ins GPR:$a, GPR:$b, GPR:$acc), IIC_iMAC32, "smlad",
+                        "\t$dst, $a, $b, $acc", []>;
+def t2SMLADX  : T2I_mac<0, 0b010, 0b0001, (outs GPR:$dst),
+                        (ins GPR:$a, GPR:$b, GPR:$acc), IIC_iMAC32, "smladx",
+                        "\t$dst, $a, $b, $acc", []>;
+def t2SMLSD   : T2I_mac<0, 0b100, 0b0000, (outs GPR:$dst),
+                        (ins GPR:$a, GPR:$b, GPR:$acc), IIC_iMAC32, "smlsd",
+                        "\t$dst, $a, $b, $acc", []>;
+def t2SMLSDX  : T2I_mac<0, 0b100, 0b0001, (outs GPR:$dst),
+                        (ins GPR:$a, GPR:$b, GPR:$acc), IIC_iMAC32, "smlsdx",
+                        "\t$dst, $a, $b, $acc", []>;
+def t2SMLALD  : T2I_mac<1, 0b100, 0b1100, (outs GPR:$ldst,GPR:$hdst),
+                        (ins GPR:$a,GPR:$b), IIC_iMAC64, "smlald",
+                        "\t$ldst, $hdst, $a, $b", []>;
+def t2SMLALDX : T2I_mac<1, 0b100, 0b1101, (outs GPR:$ldst,GPR:$hdst),
+                        (ins GPR:$a,GPR:$b), IIC_iMAC64, "smlaldx",
+                        "\t$ldst, $hdst, $a, $b", []>;
+def t2SMLSLD  : T2I_mac<1, 0b101, 0b1100, (outs GPR:$ldst,GPR:$hdst),
+                        (ins GPR:$a,GPR:$b), IIC_iMAC64, "smlsld",
+                        "\t$ldst, $hdst, $a, $b", []>;
+def t2SMLSLDX : T2I_mac<1, 0b101, 0b1101, (outs GPR:$ldst,GPR:$hdst),
+                        (ins GPR:$a,GPR:$b), IIC_iMAC64, "smlsldx",
+                        "\t$ldst, $hdst, $a, $b", []>;
 
 //===----------------------------------------------------------------------===//
 //  Misc. Arithmetic Instructions.
 //
 
-class T2I_misc<bits<2> op1, bits<2> op2, dag oops, dag iops, InstrItinClass itin,
-              string opc, string asm, list<dag> pattern>
+class T2I_misc<bits<2> op1, bits<2> op2, dag oops, dag iops,
+      InstrItinClass itin, string opc, string asm, list<dag> pattern>
   : T2I<oops, iops, itin, opc, asm, pattern> {
   let Inst{31-27} = 0b11111;
   let Inst{26-22} = 0b01010;
@@ -1572,7 +1868,7 @@ def t2REVSH : T2I_misc<0b01, 0b11, (outs GPR:$dst), (ins GPR:$src), IIC_iUNAr,
                           (shl GPR:$src, (i32 8))), i16))]>;
 
 def t2PKHBT : T2I<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2, i32imm:$shamt),
-                  IIC_iALUsi, "pkhbt", "\t$dst, $src1, $src2, LSL $shamt",
+                  IIC_iALUsi, "pkhbt", "\t$dst, $src1, $src2, lsl $shamt",
                   [(set GPR:$dst, (or (and GPR:$src1, 0xFFFF),
                                       (and (shl GPR:$src2, (i32 imm:$shamt)),
                                            0xFFFF0000)))]> {
@@ -1590,7 +1886,7 @@ def : T2Pat<(or (and GPR:$src1, 0xFFFF), (shl GPR:$src2, imm16_31:$shamt)),
             (t2PKHBT GPR:$src1, GPR:$src2, imm16_31:$shamt)>;
 
 def t2PKHTB : T2I<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2, i32imm:$shamt),
-                  IIC_iALUsi, "pkhtb", "\t$dst, $src1, $src2, ASR $shamt",
+                  IIC_iALUsi, "pkhtb", "\t$dst, $src1, $src2, asr $shamt",
                   [(set GPR:$dst, (or (and GPR:$src1, 0xFFFF0000),
                                       (and (sra GPR:$src2, imm16_31:$shamt),
                                            0xFFFF)))]> {
@@ -1643,7 +1939,7 @@ defm t2TEQ  : T2I_cmp_irs<0b0100, "teq",
 
 // Conditional moves
 // FIXME: should be able to write a pattern for ARMcmov, but can't use
-// a two-value operand where a dag node expects two operands. :( 
+// a two-value operand where a dag node expects two operands. :(
 def t2MOVCCr : T2I<(outs GPR:$dst), (ins GPR:$false, GPR:$true), IIC_iCMOVr,
                    "mov", ".w\t$dst, $true",
       [/*(set GPR:$dst, (ARMcmov GPR:$false, GPR:$true, imm:$cc, CCR:$ccr))*/]>,
@@ -1723,6 +2019,66 @@ def t2Int_SyncBarrierV7 : AInoP<(outs), (ins),
 }
 }
 
+// Helper class for multiclass T2MemB -- for disassembly only
+class T2I_memb<string opc, string asm>
+  : T2I<(outs), (ins), NoItinerary, opc, asm,
+        [/* For disassembly only; pattern left blank */]>,
+    Requires<[IsThumb2, HasV7]> {
+  let Inst{31-20} = 0xf3b;
+  let Inst{15-14} = 0b10;
+  let Inst{12} = 0;
+}
+
+multiclass T2MemB<bits<4> op7_4, string opc> {
+
+  def st : T2I_memb<opc, "\tst"> {
+    let Inst{7-4} = op7_4;
+    let Inst{3-0} = 0b1110;
+  }
+
+  def ish : T2I_memb<opc, "\tish"> {
+    let Inst{7-4} = op7_4;
+    let Inst{3-0} = 0b1011;
+  }
+
+  def ishst : T2I_memb<opc, "\tishst"> {
+    let Inst{7-4} = op7_4;
+    let Inst{3-0} = 0b1010;
+  }
+
+  def nsh : T2I_memb<opc, "\tnsh"> {
+    let Inst{7-4} = op7_4;
+    let Inst{3-0} = 0b0111;
+  }
+
+  def nshst : T2I_memb<opc, "\tnshst"> {
+    let Inst{7-4} = op7_4;
+    let Inst{3-0} = 0b0110;
+  }
+
+  def osh : T2I_memb<opc, "\tosh"> {
+    let Inst{7-4} = op7_4;
+    let Inst{3-0} = 0b0011;
+  }
+
+  def oshst : T2I_memb<opc, "\toshst"> {
+    let Inst{7-4} = op7_4;
+    let Inst{3-0} = 0b0010;
+  }
+}
+
+// These DMB variants are for disassembly only.
+defm t2DMB : T2MemB<0b0101, "dmb">;
+
+// These DSB variants are for disassembly only.
+defm t2DSB : T2MemB<0b0100, "dsb">;
+
+// ISB has only full system option -- for disassembly only
+def t2ISBsy : T2I_memb<"isb", ""> {
+  let Inst{7-4} = 0b0110;
+  let Inst{3-0} = 0b1111;
+}
+
 class T2I_ldrex<bits<2> opcod, dag oops, dag iops, AddrMode am, SizeFlagVal sz,
                 InstrItinClass itin, string opc, string asm, string cstr,
                 list<dag> pattern, bits<4> rt2 = 0b1111>
@@ -1787,6 +2143,16 @@ def t2STREXD : T2I_strex<0b11, (outs GPR:$success),
                          AddrModeNone, Size4Bytes, NoItinerary,
                          "strexd", "\t$success, $src, $src2, [$ptr]", "", [],
                          {?, ?, ?, ?}>;
+}
+
+// Clear-Exclusive is for disassembly only.
+def t2CLREX : T2I<(outs), (ins), NoItinerary, "clrex", "",
+                  [/* For disassembly only; pattern left blank */]>,
+            Requires<[IsARM, HasV7]>  {
+  let Inst{31-20} = 0xf3b;
+  let Inst{15-14} = 0b10;
+  let Inst{12} = 0;
+  let Inst{7-4} = 0b0010;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1906,6 +2272,24 @@ def t2TBH :
   let Inst{15-8} = 0b11110000;
   let Inst{7-4} = 0b0001; // H form
 }
+
+// Generic versions of the above two instructions, for disassembly only
+
+def t2TBBgen : T2I<(outs), (ins GPR:$a, GPR:$b), IIC_Br,
+                    "tbb", "\t[$a, $b]", []>{
+  let Inst{31-27} = 0b11101;
+  let Inst{26-20} = 0b0001101;
+  let Inst{15-8} = 0b11110000;
+  let Inst{7-4} = 0b0000; // B form
+}
+
+def t2TBHgen : T2I<(outs), (ins GPR:$a, GPR:$b), IIC_Br,
+                   "tbh", "\t[$a, $b, lsl #1]", []> {
+  let Inst{31-27} = 0b11101;
+  let Inst{26-20} = 0b0001101;
+  let Inst{15-8} = 0b11110000;
+  let Inst{7-4} = 0b0001; // H form
+}
 } // isNotDuplicable, isIndirectBranch
 
 } // isBranch, isTerminator, isBarrier
@@ -1929,6 +2313,119 @@ def t2IT : Thumb2XI<(outs), (ins it_pred:$cc, it_mask:$mask),
   // 16-bit instruction.
   let Inst{31-16} = 0x0000;
   let Inst{15-8} = 0b10111111;
+}
+
+// Branch and Exchange Jazelle -- for disassembly only
+// Rm = Inst{19-16}
+def t2BXJ : T2I<(outs), (ins GPR:$func), NoItinerary, "bxj", "\t$func",
+              [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11110;
+  let Inst{26} = 0;
+  let Inst{25-20} = 0b111100;
+  let Inst{15-14} = 0b10;
+  let Inst{12} = 0;
+}
+
+// Change Processor State is a system instruction -- for disassembly only.
+// The singleton $opt operand contains the following information:
+// opt{4-0} = mode from Inst{4-0}
+// opt{5} = changemode from Inst{17}
+// opt{8-6} = AIF from Inst{8-6}
+// opt{10-9} = imod from Inst{19-18} with 0b10 as enable and 0b11 as disable
+def t2CPS : T2XI<(outs),(ins i32imm:$opt), NoItinerary, "cps${opt:cps}",
+                 [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11110;
+  let Inst{26} = 0;
+  let Inst{25-20} = 0b111010;
+  let Inst{15-14} = 0b10;
+  let Inst{12} = 0;
+}
+
+// A6.3.4 Branches and miscellaneous control
+// Table A6-14 Change Processor State, and hint instructions
+// Helper class for disassembly only.
+class T2I_hint<bits<8> op7_0, string opc, string asm>
+  : T2I<(outs), (ins), NoItinerary, opc, asm,
+        [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-20} = 0xf3a;
+  let Inst{15-14} = 0b10;
+  let Inst{12} = 0;
+  let Inst{10-8} = 0b000;
+  let Inst{7-0} = op7_0;
+}
+
+def t2NOP   : T2I_hint<0b00000000, "nop",   ".w">;
+def t2YIELD : T2I_hint<0b00000001, "yield", ".w">;
+def t2WFE   : T2I_hint<0b00000010, "wfe",   ".w">;
+def t2WFI   : T2I_hint<0b00000011, "wfi",   ".w">;
+def t2SEV   : T2I_hint<0b00000100, "sev",   ".w">;
+
+def t2DBG : T2I<(outs),(ins i32imm:$opt), NoItinerary, "dbg", "\t$opt",
+                [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-20} = 0xf3a;
+  let Inst{15-14} = 0b10;
+  let Inst{12} = 0;
+  let Inst{10-8} = 0b000;
+  let Inst{7-4} = 0b1111;
+}
+
+// Secure Monitor Call is a system instruction -- for disassembly only
+// Option = Inst{19-16}
+def t2SMC : T2I<(outs), (ins i32imm:$opt), NoItinerary, "smc", "\t$opt",
+                [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11110;
+  let Inst{26-20} = 0b1111111;
+  let Inst{15-12} = 0b1000;
+}
+
+// Store Return State is a system instruction -- for disassembly only
+def t2SRSDBW : T2I<(outs),(ins i32imm:$mode),NoItinerary,"srsdb","\tsp!, $mode",
+                   [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11101;
+  let Inst{26-20} = 0b0000010; // W = 1
+}
+
+def t2SRSDB  : T2I<(outs),(ins i32imm:$mode),NoItinerary,"srsdb","\tsp, $mode",
+                   [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11101;
+  let Inst{26-20} = 0b0000000; // W = 0
+}
+
+def t2SRSIAW : T2I<(outs),(ins i32imm:$mode),NoItinerary,"srsia","\tsp!, $mode",
+                   [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11101;
+  let Inst{26-20} = 0b0011010; // W = 1
+}
+
+def t2SRSIA  : T2I<(outs), (ins i32imm:$mode),NoItinerary,"srsia","\tsp, $mode",
+                   [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11101;
+  let Inst{26-20} = 0b0011000; // W = 0
+}
+
+// Return From Exception is a system instruction -- for disassembly only
+def t2RFEDBW : T2I<(outs), (ins GPR:$base), NoItinerary, "rfedb", "\t$base!",
+                   [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11101;
+  let Inst{26-20} = 0b0000011; // W = 1
+}
+
+def t2RFEDB  : T2I<(outs), (ins GPR:$base), NoItinerary, "rfeab", "\t$base",
+                   [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11101;
+  let Inst{26-20} = 0b0000001; // W = 0
+}
+
+def t2RFEIAW : T2I<(outs), (ins GPR:$base), NoItinerary, "rfeia", "\t$base!",
+                   [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11101;
+  let Inst{26-20} = 0b0011011; // W = 1
+}
+
+def t2RFEIA  : T2I<(outs), (ins GPR:$base), NoItinerary, "rfeia", "\t$base",
+                   [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11101;
+  let Inst{26-20} = 0b0011001; // W = 0
 }
 
 //===----------------------------------------------------------------------===//
@@ -1970,9 +2467,59 @@ def : T2Pat<(ARMWrapperJT tjumptable:$dst, imm:$id),
 // Pseudo instruction that combines ldr from constpool and add pc. This should
 // be expanded into two instructions late to allow if-conversion and
 // scheduling.
-let canFoldAsLoad = 1, isReMaterializable = 1, mayHaveSideEffects = 1 in 
+let canFoldAsLoad = 1, isReMaterializable = 1 in
 def t2LDRpci_pic : PseudoInst<(outs GPR:$dst), (ins i32imm:$addr, pclabel:$cp),
                    NoItinerary, "@ ldr.w\t$dst, $addr\n$cp:\n\tadd\t$dst, pc",
                [(set GPR:$dst, (ARMpic_add (load (ARMWrapper tconstpool:$addr)),
                                            imm:$cp))]>,
                Requires<[IsThumb2]>;
+
+//===----------------------------------------------------------------------===//
+// Move between special register and ARM core register -- for disassembly only
+//
+
+// Rd = Instr{11-8}
+def t2MRS : T2I<(outs GPR:$dst), (ins), NoItinerary, "mrs", "\t$dst, cpsr",
+                [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11110;
+  let Inst{26} = 0;
+  let Inst{25-21} = 0b11111;
+  let Inst{20} = 0; // The R bit.
+  let Inst{15-14} = 0b10;
+  let Inst{12} = 0;
+}
+
+// Rd = Instr{11-8}
+def t2MRSsys : T2I<(outs GPR:$dst), (ins), NoItinerary, "mrs", "\t$dst, spsr",
+                   [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11110;
+  let Inst{26} = 0;
+  let Inst{25-21} = 0b11111;
+  let Inst{20} = 1; // The R bit.
+  let Inst{15-14} = 0b10;
+  let Inst{12} = 0;
+}
+
+// FIXME: mask is ignored for the time being.
+// Rn = Inst{19-16}
+def t2MSR : T2I<(outs), (ins GPR:$src), NoItinerary, "msr", "\tcpsr, $src",
+                [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11110;
+  let Inst{26} = 0;
+  let Inst{25-21} = 0b11100;
+  let Inst{20} = 0; // The R bit.
+  let Inst{15-14} = 0b10;
+  let Inst{12} = 0;
+}
+
+// FIXME: mask is ignored for the time being.
+// Rn = Inst{19-16}
+def t2MSRsys : T2I<(outs), (ins GPR:$src), NoItinerary, "msr", "\tspsr, $src",
+                   [/* For disassembly only; pattern left blank */]> {
+  let Inst{31-27} = 0b11110;
+  let Inst{26} = 0;
+  let Inst{25-21} = 0b11100;
+  let Inst{20} = 1; // The R bit.
+  let Inst{15-14} = 0b10;
+  let Inst{12} = 0;
+}
