@@ -97,8 +97,6 @@ static const struct siba_dev {
 	{ PCI_VENDOR_BROADCOM, 0x432b, "Unknown" }
 };
 
-device_t	siba_add_child(device_t, struct siba_softc *, int, const char *,
-		    int);
 int		siba_core_attach(struct siba_softc *);
 int		siba_core_detach(struct siba_softc *);
 int		siba_core_suspend(struct siba_softc *);
@@ -238,15 +236,6 @@ siba_bwn_resume(device_t dev)
 	return (0);
 }
 
-static device_t
-siba_bwn_add_child(device_t dev, int order, const char *name, int unit)
-{
-	struct siba_bwn_softc *ssc = device_get_softc(dev);
-	struct siba_softc *siba = &ssc->ssc_siba;
-
-	return (siba_add_child(dev, siba, order, name, unit));
-}
-
 /* proxying to the parent */
 static struct resource *
 siba_bwn_alloc_resource(device_t dev, device_t child, int type, int *rid,
@@ -342,7 +331,6 @@ static device_method_t siba_bwn_methods[] = {
 	DEVMETHOD(device_resume,	siba_bwn_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_add_child,	siba_bwn_add_child),
 	DEVMETHOD(bus_alloc_resource,   siba_bwn_alloc_resource),
 	DEVMETHOD(bus_release_resource, siba_bwn_release_resource),
 	DEVMETHOD(bus_setup_intr,       siba_bwn_setup_intr),
