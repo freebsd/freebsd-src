@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.313.20.7.12.4 2009/12/31 22:53:03 each Exp $ */
+/* $Id: query.c,v 1.313.20.16 2009/12/30 08:34:29 jinmei Exp $ */
 
 /*! \file */
 
@@ -2244,7 +2244,8 @@ query_addns(ns_client_t *client, dns_db_t *db, dns_dbversion_t *version) {
 
 static inline isc_result_t
 query_addcnamelike(ns_client_t *client, dns_name_t *qname, dns_name_t *tname,
-		   dns_trust_t trust, dns_name_t **anamep, dns_rdatatype_t type)
+		   dns_rdataset_t *dname, dns_name_t **anamep,
+		   dns_rdatatype_t type)
 {
 	dns_rdataset_t *rdataset;
 	dns_rdatalist_t *rdatalist;
@@ -2280,7 +2281,7 @@ query_addcnamelike(ns_client_t *client, dns_name_t *qname, dns_name_t *tname,
 	rdatalist->type = type;
 	rdatalist->covers = 0;
 	rdatalist->rdclass = client->message->rdclass;
-	rdatalist->ttl = 0;
+	rdatalist->ttl = dname->ttl;
 
 	dns_name_toregion(tname, &r);
 	rdata->data = r.base;
@@ -2292,7 +2293,7 @@ query_addcnamelike(ns_client_t *client, dns_name_t *qname, dns_name_t *tname,
 	ISC_LIST_APPEND(rdatalist->rdata, rdata, link);
 	RUNTIME_CHECK(dns_rdatalist_tordataset(rdatalist, rdataset)
 		      == ISC_R_SUCCESS);
-	rdataset->trust = trust;
+	rdataset->trust = dname->trust;
 
 	query_addrrset(client, anamep, &rdataset, NULL, NULL,
 		       DNS_SECTION_ANSWER);
@@ -2735,7 +2736,7 @@ query_addds(ns_client_t *client, dns_db_t *db, dns_dbnode_t *node,
 	return;
 
    addnsec3:
-	if (dns_db_iscache(db))
+	if (!dns_db_iszone(db))
 		goto cleanup;
 	/*
 	 * Add the NSEC3 which proves the DS does not exist.
@@ -3317,6 +3318,14 @@ do { \
 	line = __LINE__; \
 } while (0)
 
+#define RECURSE_ERROR(r) \
+do { \
+	if ((r) == DNS_R_DUPLICATE || (r) == DNS_R_DROP) \
+		QUERY_ERROR(r); \
+	else \
+		QUERY_ERROR(DNS_R_SERVFAIL); \
+} while (0)
+
 /*
  * Extract a network address from the RDATA of an A or AAAA
  * record.
@@ -3604,7 +3613,7 @@ query_findclosestnsec3(dns_name_t *qname, dns_db_t *db,
 		       dns_name_t *found)
 {
 	unsigned char salt[256];
-	size_t salt_length = sizeof(salt);
+	size_t salt_length;
 	isc_uint16_t iterations;
 	isc_result_t result;
 	unsigned int dboptions;
@@ -3999,14 +4008,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				if (result == ISC_R_SUCCESS)
 					client->query.attributes |=
 						NS_QUERYATTR_RECURSING;
-				else if (result == DNS_R_DUPLICATE ||
-					 result == DNS_R_DROP) {
-					/* Duplicate query. */
-					QUERY_ERROR(result);
-				} else {
-					/* Unable to recurse. */
-					QUERY_ERROR(DNS_R_SERVFAIL);
-				}
+				else
+					RECURSE_ERROR(result);
 				goto cleanup;
 			} else {
 				/* Unable to give root server referral. */
@@ -4185,11 +4188,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				if (result == ISC_R_SUCCESS)
 					client->query.attributes |=
 						NS_QUERYATTR_RECURSING;
-				else if (result == DNS_R_DUPLICATE ||
-					 result == DNS_R_DROP)
-					QUERY_ERROR(result);
 				else
-					QUERY_ERROR(DNS_R_SERVFAIL);
+					RECURSE_ERROR(result);
 			} else {
 				dns_fixedname_t fixed;
 
@@ -4603,7 +4603,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		 */
 		dns_name_init(tname, NULL);
 		(void)query_addcnamelike(client, client->query.qname, fname,
-					 trdataset->trust, &tname,
+					 trdataset, &tname,
 					 dns_rdatatype_cname);
 		if (tname != NULL)
 			dns_message_puttempname(client->message, &tname);
@@ -4729,7 +4729,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 						    client->query.attributes |=
 							NS_QUERYATTR_RECURSING;
 						else
-						    QUERY_ERROR(DNS_R_SERVFAIL);					}
+						    RECURSE_ERROR(result);
+					}
 					goto addauth;
 				}
 				/*
@@ -5123,9 +5124,17 @@ ns_query_start(ns_client_t *client) {
 	}
 
 	/*
-	 * Turn on minimal response for DNSKEY queries.
+	 * Turn on minimal response for DNSKEY and DS queries.
 	 */
-	if (qtype == dns_rdatatype_dnskey)
+	if (qtype == dns_rdatatype_dnskey || qtype == dns_rdatatype_ds)
+		client->query.attributes |= (NS_QUERYATTR_NOAUTHORITY |
+					     NS_QUERYATTR_NOADDITIONAL);
+
+	/*
+	 * Turn on minimal responses for EDNS/UDP bufsize 512 queries.
+	 */
+	if (client->opt != NULL && client->udpsize <= 512U &&
+	    (client->attributes & NS_CLIENTATTR_TCP) == 0)
 		client->query.attributes |= (NS_QUERYATTR_NOAUTHORITY |
 					     NS_QUERYATTR_NOADDITIONAL);
 
