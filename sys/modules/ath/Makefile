@@ -83,6 +83,7 @@ SRCS+=	ar5413.c
 #
 .PATH:	${.CURDIR}/../../dev/ath/ath_hal/ar5416
 SRCS+=	ah_eeprom_v14.c \
+	ah_eeprom_v4k.c \
 	ar5416_ani.c ar5416_attach.c ar5416_beacon.c ar5416_cal.c \
 	ar5416_cal_iq.c ar5416_cal_adcgain.c ar5416_cal_adcdc.c \
 	ar5416_eeprom.c ar5416_gpio.c ar5416_interrupts.c ar5416_keycache.c \
