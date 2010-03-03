@@ -1058,7 +1058,7 @@ sys_stk_chk:
 	nop
 
 # stack overflow
-	PTR_LA	a0, _C_LABEL(_start) - START_FRAME - 8  # set sp to a valid place
+	PTR_LA	a0, _C_LABEL(_start) - CALLFRAME_SIZ - 8  # set sp to a valid place
 	sw	sp, 24(a0)
 	move	sp, a0
 	PTR_LA	a0, 1f
@@ -1072,7 +1072,7 @@ sys_stk_chk:
 	jalr	k0
 	mfc0	a3, COP_0_BAD_VADDR
 
-	PTR_LA	sp, _C_LABEL(_start) - START_FRAME  # set sp to a valid place
+	PTR_LA	sp, _C_LABEL(_start) - CALLFRAME_SIZ  # set sp to a valid place
 
 #if !defined(SMP) && defined(DDB)
 	PTR_LA	a0, 2f
