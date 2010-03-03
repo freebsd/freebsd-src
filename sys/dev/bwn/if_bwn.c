@@ -14312,16 +14312,8 @@ bwn_sysctl_node(struct bwn_softc *sc)
 #endif
 }
 
-static void
-bwn_identify(driver_t *driver, device_t parent)
-{
-
-	BUS_ADD_CHILD(parent, 0, "bwn", -1);
-}
-
 static device_method_t bwn_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	bwn_identify),
 	DEVMETHOD(device_probe,		bwn_probe),
 	DEVMETHOD(device_attach,	bwn_attach),
 	DEVMETHOD(device_detach,	bwn_detach),
