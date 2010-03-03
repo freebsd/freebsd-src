@@ -117,6 +117,7 @@ static void getfssize(intmax_t *, const char *p, intmax_t, intmax_t);
 static struct disklabel *getdisklabel(char *s);
 static void rewritelabel(char *s, struct disklabel *lp);
 static void usage(void);
+static int parselength(const char *ls, int *sz);
 
 ufs2_daddr_t part_ofs; /* partition offset in blocks, used with files */
 
@@ -129,7 +130,7 @@ main(int argc, char *argv[])
 	struct stat st;
 	char *cp, *special;
 	intmax_t reserved;
-	int ch, i;
+	int ch, i, rval;
 	off_t mediasize;
 	char part_name;		/* partition name, default to full disk */
 
@@ -169,7 +170,8 @@ main(int argc, char *argv[])
 			Rflag = 1;
 			break;
 		case 'S':
-			if ((sectorsize = atoi(optarg)) <= 0)
+			rval = parselength(optarg, &sectorsize);
+			if (rval < 0 || sectorsize <= 0)
 				errx(1, "%s: bad sector size", optarg);
 			break;
 		case 'T':
@@ -182,12 +184,17 @@ main(int argc, char *argv[])
 			Xflag++;
 			break;
 		case 'a':
-			if ((maxcontig = atoi(optarg)) <= 0)
+			rval = parselength(optarg, &maxcontig);
+			if (rval < 0 || maxcontig <= 0)
 				errx(1, "%s: bad maximum contiguous blocks",
 				    optarg);
 			break;
 		case 'b':
-			if ((bsize = atoi(optarg)) < MINBSIZE)
+			rval = parselength(optarg, &bsize);
+			if (rval < 0)
+				 errx(1, "%s: bad block size",
+                                    optarg);
+			if (bsize < MINBSIZE)
 				errx(1, "%s: block size too small, min is %d",
 				    optarg, MINBSIZE);
 			if (bsize > MAXBSIZE)
@@ -195,33 +202,40 @@ main(int argc, char *argv[])
 				    optarg, MAXBSIZE);
 			break;
 		case 'c':
-			if ((maxblkspercg = atoi(optarg)) <= 0)
+			rval = parselength(optarg, &maxblkspercg);
+			if (rval < 0 || maxblkspercg <= 0)
 				errx(1, "%s: bad blocks per cylinder group",
 				    optarg);
 			break;
 		case 'd':
-			if ((maxbsize = atoi(optarg)) < MINBSIZE)
+			rval = parselength(optarg, &maxbsize);
+			if (rval < 0 || maxbsize < MINBSIZE)
 				errx(1, "%s: bad extent block size", optarg);
 			break;
 		case 'e':
-			if ((maxbpg = atoi(optarg)) <= 0)
+			rval = parselength(optarg, &maxbpg);
+			if (rval < 0 || maxbpg <= 0)
 			  errx(1, "%s: bad blocks per file in a cylinder group",
 				    optarg);
 			break;
 		case 'f':
-			if ((fsize = atoi(optarg)) <= 0)
+			rval = parselength(optarg, &fsize);
+			if (rval < 0 || fsize <= 0)
 				errx(1, "%s: bad fragment size", optarg);
 			break;
 		case 'g':
-			if ((avgfilesize = atoi(optarg)) <= 0)
+			rval = parselength(optarg, &avgfilesize);
+			if (rval < 0 || avgfilesize <= 0)
 				errx(1, "%s: bad average file size", optarg);
 			break;
 		case 'h':
-			if ((avgfilesperdir = atoi(optarg)) <= 0)
+			rval = parselength(optarg, &avgfilesperdir);
+			if (rval < 0 || avgfilesperdir <= 0)
 			       errx(1, "%s: bad average files per dir", optarg);
 			break;
 		case 'i':
-			if ((density = atoi(optarg)) <= 0)
+			rval = parselength(optarg, &density);
+			if (rval < 0 || density <= 0)
 				errx(1, "%s: bad bytes per inode", optarg);
 			break;
 		case 'l':
@@ -480,4 +494,63 @@ usage()
 	fprintf(stderr, "\t-r reserved sectors at the end of device\n");
 	fprintf(stderr, "\t-s file system size (sectors)\n");
 	exit(1);
+}
+
+/*
+ * Return the numeric value of a string given in the form [+-][0-9]+[GMKT]
+ * or -1 on format error or overflow.
+ */
+static int
+parselength(const char *ls, int *sz)
+{
+	off_t length, oflow;
+	int lsign;
+
+	length = 0;
+	lsign = 1;
+
+	switch (*ls) {
+	case '-':
+		lsign = -1;
+	case '+':
+		ls++;
+	}
+
+#define ASSIGN_CHK_OFLOW(x, y)  if (x < y) return -1; y = x
+	/*
+	 * Calculate the value of the decimal digit string, failing
+	 * on overflow.
+	 */
+	while (isdigit(*ls)) {
+		oflow = length * 10 + *ls++ - '0';
+		ASSIGN_CHK_OFLOW(oflow, length);
+	}
+
+	switch (*ls) {
+	case 'T':
+	case 't':
+		oflow = length * 1024;
+		ASSIGN_CHK_OFLOW(oflow, length);
+	case 'G':
+	case 'g':
+		oflow = length * 1024;
+		ASSIGN_CHK_OFLOW(oflow, length);
+	case 'M':
+	case 'm':
+		oflow = length * 1024;
+		ASSIGN_CHK_OFLOW(oflow, length);
+	case 'K':
+	case 'k':
+		if (ls[1] != '\0')
+			return -1;
+		oflow = length * 1024;
+		ASSIGN_CHK_OFLOW(oflow, length);
+	case '\0':
+		break;
+	default:
+		return -1;
+	}
+
+	*sz = length * lsign;
+	return 0;
 }
