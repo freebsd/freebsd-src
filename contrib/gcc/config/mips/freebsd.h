@@ -187,31 +187,47 @@ Boston, MA 02110-1301, USA.  */
       MIPS_CPP_SET_PROCESSOR ("_MIPS_TUNE", mips_tune_info);	\
 								\
       if (ISA_MIPS1)                                            \
-        builtin_define ("__mips=1");                            \
+        {                                                       \
+          builtin_define ("__mips=1");                          \
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS1");         \
+	}							\
       else if (ISA_MIPS2)                                       \
-        builtin_define ("__mips=2");                            \
+        {                                                       \
+          builtin_define ("__mips=2");                          \
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS2");         \
+	}							\
       else if (ISA_MIPS3)					\
-	builtin_define ("__mips=3");				\
+        {                                                       \
+          builtin_define ("__mips=3");                          \
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS3");         \
+	}							\
       else if (ISA_MIPS4)					\
-	builtin_define ("__mips=4");				\
+        {                                                       \
+          builtin_define ("__mips=4");                          \
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS4");         \
+	}							\
       else if (ISA_MIPS32)					\
 	{							\
 	  builtin_define ("__mips=32");				\
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS32");        \
 	  builtin_define ("__mips_isa_rev=1");			\
 	}							\
       else if (ISA_MIPS32R2)					\
 	{							\
 	  builtin_define ("__mips=32");				\
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS32");        \
 	  builtin_define ("__mips_isa_rev=2");			\
 	}							\
       else if (ISA_MIPS64)					\
 	{							\
 	  builtin_define ("__mips=64");				\
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS64");        \
 	  builtin_define ("__mips_isa_rev=1");			\
 	}							\
 /*      else if (ISA_MIPS64R2)					\
 	{							\
 	  builtin_define ("__mips=64");				\
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS64");        \
 	  builtin_define ("__mips_isa_rev=2");			\
 	}							\
 */								\
