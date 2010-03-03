@@ -84,8 +84,9 @@
 	__PMC_CPU(INTEL_CORE2,	0x88,	"Intel Core2")		\
 	__PMC_CPU(INTEL_CORE2EXTREME,	0x89,	"Intel Core2 Extreme")	\
 	__PMC_CPU(INTEL_ATOM,	0x8A,	"Intel Atom") \
-	__PMC_CPU(INTEL_COREI7, 0x8B,   "Intel Core i7")	\
-	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale")
+	__PMC_CPU(INTEL_COREI7, 0x8B,   "Intel Core i7") \
+	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale") \
+	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K") 
 
 enum pmc_cputype {
 #undef	__PMC_CPU
@@ -94,7 +95,7 @@ enum pmc_cputype {
 };
 
 #define	PMC_CPU_FIRST	PMC_CPU_AMD_K7
-#define	PMC_CPU_LAST	PMC_CPU_INTEL_XSCALE
+#define	PMC_CPU_LAST	PMC_CPU_MIPS_24K
 
 /*
  * Classes of PMCs
@@ -108,8 +109,9 @@ enum pmc_cputype {
 	__PMC_CLASS(P6)		/* Intel Pentium Pro counters */	\
 	__PMC_CLASS(P4)		/* Intel Pentium-IV counters */		\
 	__PMC_CLASS(IAF)	/* Intel Core2/Atom, fixed function */	\
-	__PMC_CLASS(IAP)	/* Intel Core...Atom, programmable */	\
-	__PMC_CLASS(XSCALE)	/* Intel XScale counters */
+	__PMC_CLASS(IAP)	/* Intel Core...Atom, programmable */   \
+	__PMC_CLASS(XSCALE)	/* Intel XScale counters */ \
+	__PMC_CLASS(MIPS24K)    /* MIPS 24K */
 
 enum pmc_class {
 #undef  __PMC_CLASS
@@ -118,7 +120,7 @@ enum pmc_class {
 };
 
 #define	PMC_CLASS_FIRST	PMC_CLASS_TSC
-#define	PMC_CLASS_LAST	PMC_CLASS_XSCALE
+#define	PMC_CLASS_LAST	PMC_CLASS_MIPS24K
 
 /*
  * A PMC can be in the following states:
