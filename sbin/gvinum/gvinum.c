@@ -83,8 +83,9 @@ void	printconfig(FILE *, char *);
 char	*create_drive(char *);
 void	 create_volume(int, char **, char *);
 char	*find_name(const char *, int, int);
-char	*find_drive(const char *);
 char	*find_pattern(char *, char *);
+void	 copy_device(struct gv_drive *, const char *);
+#define find_drive() find_name("gvinumdrive", GV_TYPE_DRIVE, GV_MAXDRIVENAME)
 
 int
 main(int argc, char **argv)
@@ -424,7 +425,7 @@ create_drive(char *device)
 	drives = 1;
 	dname = NULL;
 
-	drivename = find_drive(device);
+	drivename = find_drive();
 	if (drivename == NULL)
 		return (NULL);
 
@@ -436,7 +437,7 @@ create_drive(char *device)
 		err(1, "unable to allocate for gv_drive object");
 
 	strlcpy(d->name, drivename, sizeof(d->name));
-	strlcpy(d->device, device, sizeof(d->device));
+	copy_device(d, device);
 	gctl_ro_param(req, "drive0", sizeof(*d), d);
 	gctl_ro_param(req, "flags", sizeof(int), &flags);
 	gctl_ro_param(req, "drives", sizeof(int), &drives);
@@ -626,14 +627,13 @@ find_name(const char *prefix, int type, int namelen)
 	return (NULL);
 }
 
-char *
-find_drive(const char *device)
+void
+copy_device(struct gv_drive *d, const char *device)
 {
-
-	/* Strip possible /dev/ in front. */
 	if (strncmp(device, "/dev/", 5) == 0)
-		device += 5;
-	return (find_name("gvinumdrive", GV_TYPE_DRIVE, GV_MAXDRIVENAME));
+		strlcpy(d->device, (device + 5), sizeof(d->device));
+	else
+		strlcpy(d->device, device, sizeof(d->device));
 }
 
 /* Detach a plex or subdisk from its parent. */
@@ -1275,7 +1275,7 @@ gvinum_grow(int argc, char **argv)
 		return;
 	}
 	/* Lookup device and set an appropriate drive name. */
-	drive = find_drive(argv[2]);
+	drive = find_drive();
 	if (drive == NULL) {
 		warn("unable to find an appropriate drive name");
 		free(s);
@@ -1283,10 +1283,8 @@ gvinum_grow(int argc, char **argv)
 		return;
 	}
 	strlcpy(d->name, drive, sizeof(d->name));
-	if (strncmp(argv[2], "/dev/", 5) == 0)
-		strlcpy(d->device, (argv[2] + 5), sizeof(d->device));
-	else
-		strlcpy(d->device, argv[2], sizeof(d->device));
+	copy_device(d, argv[2]);
+
 	drives = 1;
 
 	/* We try to use the plex name as basis for the subdisk name. */
