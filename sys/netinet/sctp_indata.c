@@ -3513,7 +3513,7 @@ sctp_handle_segments(struct mbuf *m, int *offset, struct sctp_tcb *stcb, struct 
 static void
 sctp_check_for_revoked(struct sctp_tcb *stcb,
     struct sctp_association *asoc, uint32_t cumack,
-    u_long biggest_tsn_acked)
+    uint32_t biggest_tsn_acked)
 {
 	struct sctp_tmit_chunk *tp1;
 	int tot_revoked = 0;
@@ -3595,7 +3595,7 @@ sctp_check_for_revoked(struct sctp_tcb *stcb,
 
 static void
 sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
-    u_long biggest_tsn_acked, u_long biggest_tsn_newly_acked, u_long this_sack_lowest_newack, int accum_moved)
+    uint32_t biggest_tsn_acked, uint32_t biggest_tsn_newly_acked, uint32_t this_sack_lowest_newack, int accum_moved)
 {
 	struct sctp_tmit_chunk *tp1;
 	int strike_flag = 0;
@@ -4781,7 +4781,7 @@ again:
 static void
 sctp_check_for_nr_revoked(struct sctp_tcb *stcb,
     struct sctp_association *asoc, uint32_t cumack,
-    u_long biggest_tsn_acked)
+    uint32_t biggest_tsn_acked)
 {
 	struct sctp_tmit_chunk *tp1;
 

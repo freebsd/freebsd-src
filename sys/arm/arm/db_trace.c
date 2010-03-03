@@ -206,6 +206,6 @@ db_trace_self(void)
 {
 	db_addr_t addr;
 
-	addr = (db_addr_t)__builtin_frame_address(1);
+	addr = (db_addr_t)__builtin_frame_address(0);
 	db_stack_trace_cmd(addr, -1);
 }

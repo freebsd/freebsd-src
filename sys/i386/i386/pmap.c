@@ -162,7 +162,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #if !defined(DIAGNOSTIC)
+#ifdef __GNUC_GNU_INLINE__
+#define PMAP_INLINE	inline
+#else
 #define PMAP_INLINE	extern inline
+#endif
 #else
 #define PMAP_INLINE
 #endif
@@ -217,7 +221,7 @@ static int pat_works = 0;		/* Is page attribute table sane? */
 
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
-static int pg_ps_enabled;
+static int pg_ps_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
     "Are large page mappings enabled?");
 
@@ -686,6 +690,15 @@ pmap_init(void)
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_max = roundup(pv_entry_max, _NPCPV);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
+
+	/*
+	 * Disable large page mappings by default if the kernel is running in
+	 * a virtual machine on an AMD Family 10h processor.  This is a work-
+	 * around for Erratum 383.
+	 */
+	if (vm_guest == VM_GUEST_VM && cpu_vendor_id == CPU_VENDOR_AMD &&
+	    CPUID_TO_FAMILY(cpu_id) == 0x10)
+		pg_ps_enabled = 0;
 
 	/*
 	 * Are large page mappings enabled?

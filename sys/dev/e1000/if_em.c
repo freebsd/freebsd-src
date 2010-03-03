@@ -35,6 +35,7 @@
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
 #include "opt_inet.h"
+#include "opt_altq.h"
 #endif
 
 #include <sys/param.h>
@@ -94,7 +95,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "6.9.24";
+char em_driver_version[] = "6.9.25";
 
 
 /*********************************************************************
@@ -954,7 +955,7 @@ em_mq_start_locked(struct ifnet *ifp, struct mbuf *m)
 	    || (!adapter->link_active)) {
 		error = drbr_enqueue(ifp, adapter->br, m);
 		return (error);
-	} else if (drbr_empty(ifp, adapter->br) &&
+	} else if (!drbr_needs_enqueue(ifp, adapter->br) &&
 	    (adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)) {
 		if ((error = em_xmit(adapter, &m)) != 0) {
 			if (m)
@@ -1287,6 +1288,12 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			reinit = 1;
 		}
+
+		if (mask & IFCAP_VLAN_HWFILTER) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
+			reinit = 1;
+		}
+
 		if ((mask & IFCAP_WOL) &&
 		    (ifp->if_capabilities & IFCAP_WOL) != 0) {
 			if (mask & IFCAP_WOL_MCAST)
@@ -1294,6 +1301,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if (mask & IFCAP_WOL_MAGIC)
 				ifp->if_capenable ^= IFCAP_WOL_MAGIC;
 		}
+
 		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING))
 			em_init(adapter);
 #if __FreeBSD_version >= 700000
@@ -1420,18 +1428,17 @@ em_init_locked(struct adapter *adapter)
 
 	/* Setup VLAN support, basic and offload if available */
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
-
-#if __FreeBSD_version < 700029
 	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
-		u32 ctrl;
-		ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
-		ctrl |= E1000_CTRL_VME;
-		E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+		if (ifp->if_capenable & IFCAP_VLAN_HWFILTER)
+			/* Use real VLAN Filter support */
+			em_setup_vlan_hw_support(adapter);
+		else {
+			u32 ctrl;
+			ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+			ctrl |= E1000_CTRL_VME;
+			E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+		}
 	}
-#else
-	/* Use real VLAN Filter support */
-	em_setup_vlan_hw_support(adapter);
-#endif
 
 	/* Set hardware offload abilities */
 	ifp->if_hwassist = 0;
@@ -1539,13 +1546,13 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
+		/* Link status change */
 		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-			callout_stop(&adapter->timer);
 			adapter->hw.mac.get_link_status = 1;
 			em_update_link_status(adapter);
-			callout_reset(&adapter->timer, hz,
-			    em_local_timer, adapter);
 		}
+		if (reg_icr & E1000_ICR_RXO)
+			adapter->rx_overruns++;
 	}
 	EM_CORE_UNLOCK(adapter);
 
@@ -3123,13 +3130,23 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	if (adapter->hw.mac.type >= e1000_82571)
 		ifp->if_capenable |= IFCAP_TSO4;
 #endif
-
 	/*
-	 * Tell the upper layer(s) we support long frames.
+	 * Tell the upper layer(s) we
+	 * support full VLAN capability
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
-	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+	ifp->if_capenable |= (IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING);
+
+	/*
+	** Dont turn this on by default, if vlans are
+	** created on another pseudo device (eg. lagg)
+	** then vlan events are not passed thru, breaking
+	** operation, but with HW FILTER off it works. If
+	** using vlans directly on the em driver you can
+	** enable this and get full hardware tag filtering. 
+	*/
+	ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
 
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;

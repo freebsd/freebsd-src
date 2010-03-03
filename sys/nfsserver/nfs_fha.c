@@ -202,7 +202,9 @@ fha_extract_info(struct svc_req *req, struct fha_info *i)
 	    procnum == NFSPROC_NULL)
 		goto out;
 
-	nfs_realign(&req->rq_args);
+	error = nfs_realign(&req->rq_args, M_DONTWAIT);
+	if (error)
+		goto out;
 	md = req->rq_args;
 	dpos = mtod(md, caddr_t);
 

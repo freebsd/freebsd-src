@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
-#include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
 #endif
 
@@ -289,12 +288,26 @@ ata_detach(device_t dev)
 static void
 ata_conn_event(void *context, int dummy)
 {
-    device_t dev = (device_t)context;
-    struct ata_channel *ch = device_get_softc(dev);
+	device_t dev = (device_t)context;
+#ifdef ATA_CAM
+	struct ata_channel *ch = device_get_softc(dev);
+	union ccb *ccb;
 
-    mtx_lock(&ch->state_mtx);
-    ata_reinit(dev);
-    mtx_unlock(&ch->state_mtx);
+	mtx_lock(&ch->state_mtx);
+	ata_reinit(dev);
+	mtx_unlock(&ch->state_mtx);
+	if ((ccb = xpt_alloc_ccb()) == NULL)
+		return;
+	if (xpt_create_path(&ccb->ccb_h.path, NULL,
+	    cam_sim_path(ch->sim),
+	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		xpt_free_ccb(ccb);
+		return;
+	}
+	xpt_rescan(ccb);
+#else
+	ata_reinit(dev);
+#endif
 }
 
 int
@@ -390,6 +403,7 @@ ata_reinit(device_t dev)
     /* kick off requests on the queue */
     ata_start(dev);
 #else
+	xpt_freeze_simq(ch->sim, 1);
 	if ((request = ch->running)) {
 		ch->running = NULL;
 		if (ch->state == ATA_ACTIVE)
@@ -404,6 +418,7 @@ ata_reinit(device_t dev)
 	ATA_RESET(dev);
 	/* Tell the XPT about the event */
 	xpt_async(AC_BUS_RESET, ch->path, NULL);
+	xpt_release_simq(ch->sim, TRUE);
 #endif
 	return(0);
 }
@@ -1129,6 +1144,7 @@ ata_satarev2str(int rev)
 	case 1: return "SATA 1.5Gb/s";
 	case 2: return "SATA 3Gb/s";
 	case 3: return "SATA 6Gb/s";
+	case 0xff: return "SATA";
 	default: return "???";
 	}
 }
@@ -1317,6 +1333,8 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 		    ccb->csio.cdb_io.cdb_ptr : ccb->csio.cdb_io.cdb_bytes,
 		    request->u.atapi.ccb, ccb->csio.cdb_len);
 		request->flags |= ATA_R_ATAPI;
+		if (ch->curr[ccb->ccb_h.target_id].atapi == 16)
+			request->flags |= ATA_R_ATAPI16;
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE &&
 		    ch->curr[ccb->ccb_h.target_id].mode >= ATA_DMA)
 			request->flags |= ATA_R_DMA;
@@ -1327,7 +1345,6 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 	}
 	request->transfersize = min(request->bytecount,
 	    ch->curr[ccb->ccb_h.target_id].bytecount);
-//	request->callback = ad_done;
 	request->retries = 0;
 	request->timeout = (ccb->ccb_h.timeout + 999) / 1000;
 	callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);
@@ -1460,7 +1477,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		if (ch->flags & ATA_SATA) {
 			if (cts->xport_specific.sata.valid & CTS_SATA_VALID_REVISION)
 				d->revision = cts->xport_specific.sata.revision;
-			if (cts->xport_specific.ata.valid & CTS_SATA_VALID_MODE) {
+			if (cts->xport_specific.sata.valid & CTS_SATA_VALID_MODE) {
 				if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
 					d->mode = ATA_SETMODE(ch->dev,
 					    ccb->ccb_h.target_id,
@@ -1468,8 +1485,10 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 				} else
 					d->mode = cts->xport_specific.sata.mode;
 			}
-			if (cts->xport_specific.ata.valid & CTS_SATA_VALID_BYTECOUNT)
+			if (cts->xport_specific.sata.valid & CTS_SATA_VALID_BYTECOUNT)
 				d->bytecount = min(8192, cts->xport_specific.sata.bytecount);
+			if (cts->xport_specific.sata.valid & CTS_SATA_VALID_ATAPI)
+				d->atapi = cts->xport_specific.sata.atapi;
 		} else {
 			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_MODE) {
 				if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
@@ -1481,6 +1500,8 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			}
 			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_BYTECOUNT)
 				d->bytecount = cts->xport_specific.ata.bytecount;
+			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_ATAPI)
+				d->atapi = cts->xport_specific.ata.atapi;
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -1500,6 +1521,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		if (ch->flags & ATA_SATA) {
 			cts->transport = XPORT_SATA;
 			cts->transport_version = XPORT_VERSION_UNSPECIFIED;
+			cts->xport_specific.sata.valid = 0;
 			cts->xport_specific.sata.mode = d->mode;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_MODE;
 			cts->xport_specific.sata.bytecount = d->bytecount;
@@ -1507,16 +1529,26 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
 				cts->xport_specific.sata.revision =
 				    ATA_GETREV(dev, ccb->ccb_h.target_id);
-			} else
+				if (cts->xport_specific.sata.revision != 0xff) {
+					cts->xport_specific.sata.valid |=
+					    CTS_SATA_VALID_REVISION;
+				}
+			} else {
 				cts->xport_specific.sata.revision = d->revision;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
+				cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
+			}
+			cts->xport_specific.sata.atapi = d->atapi;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_ATAPI;
 		} else {
 			cts->transport = XPORT_ATA;
 			cts->transport_version = XPORT_VERSION_UNSPECIFIED;
+			cts->xport_specific.ata.valid = 0;
 			cts->xport_specific.ata.mode = d->mode;
 			cts->xport_specific.ata.valid |= CTS_ATA_VALID_MODE;
 			cts->xport_specific.ata.bytecount = d->bytecount;
 			cts->xport_specific.ata.valid |= CTS_ATA_VALID_BYTECOUNT;
+			cts->xport_specific.ata.atapi = d->atapi;
+			cts->xport_specific.ata.valid |= CTS_ATA_VALID_ATAPI;
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);

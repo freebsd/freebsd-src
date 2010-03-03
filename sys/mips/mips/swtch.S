@@ -161,21 +161,19 @@ LEAF(fork_trampoline)
 
 	DO_AST
 
-/*
- * Since interrupts are enabled at this point, we use a1 instead of
- * k0 or k1 to store the PCB pointer.  This is because k0 and k1
- * are not preserved across interrupts.
- */
-	GET_CPU_PCPU(a1)
-	lw	a1, PC_CURPCB(a1)
-1:
-
-	mfc0	v0, COP_0_STATUS_REG	# set exeption level bit.
+	mfc0	v0, COP_0_STATUS_REG
 	and     v0, ~(SR_INT_ENAB)
-	mtc0	v0, COP_0_STATUS_REG	# set exeption level bit.
+	mtc0	v0, COP_0_STATUS_REG	# disable interrupts
 	COP0_SYNC
+/*
+ * The use of k1 for storing the PCB pointer must be done only
+ * after interrupts are disabled.  Otherwise it will get overwritten
+ * by the interrupt code.
+ */
 	.set	noat
-	move	k1, a1	
+	GET_CPU_PCPU(k1)
+	lw	k1, PC_CURPCB(k1)
+
 	RESTORE_U_PCB_REG(t0, MULLO, k1)
 	RESTORE_U_PCB_REG(t1, MULHI, k1)
 	mtlo	t0
@@ -185,11 +183,6 @@ LEAF(fork_trampoline)
 	RESTORE_U_PCB_REG(v0, V0, k1)
 	_MTC0	a0, COP_0_EXC_PC	# set return address
 
-/*
- * The use of k1 for storing the PCB pointer must be done only
- * after interrupts are disabled.  Otherwise it will get overwritten
- * by the interrupt code.
- */
 	RESTORE_U_PCB_REG(v1, V1, k1)
 	RESTORE_U_PCB_REG(a0, A0, k1)
 	RESTORE_U_PCB_REG(a1, A1, k1)

@@ -35,4 +35,8 @@ extern int		 sargc;
 extern const char	**sargv;
 extern const char	*filename;
 extern char		*cmdexpr;
-bool			 interactive;
+extern bool		 interactive;
+extern EditLine		*el;
+extern History		*hist;
+extern HistEvent	 he;
+

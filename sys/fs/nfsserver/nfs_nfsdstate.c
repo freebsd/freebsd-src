@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 
 struct nfsrv_stablefirst nfsrv_stablefirst;
 int nfsrv_issuedelegs = 0;
-int nfsrv_dolocallocks = 1;
+int nfsrv_dolocallocks = 0;
 struct nfsv4lock nfsv4rootfs_lock;
 
 extern int newnfs_numnfsd;

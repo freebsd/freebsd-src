@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/efi.h>
 #include <machine/elf.h>
 #include <machine/fpu.h>
+#include <machine/intr.h>
 #include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/mutex.h>
@@ -133,6 +134,10 @@ struct fpswa_iface *fpswa_iface;
 
 u_int64_t ia64_pal_base;
 u_int64_t ia64_port_base;
+
+u_int64_t ia64_lapic_addr = PAL_PIB_DEFAULT_ADDR;
+
+struct ia64_pib *ia64_pib;
 
 static int ia64_sync_icache_needed;
 
@@ -308,6 +313,8 @@ cpu_startup(void *dummy)
 	 * information.
 	 */
 	ia64_probe_sapics();
+	ia64_pib = pmap_mapdev(ia64_lapic_addr, sizeof(*ia64_pib));
+
 	ia64_mca_init();
 
 	/*
@@ -677,7 +684,8 @@ ia64_init(void)
 	for (md = efi_md_first(); md != NULL; md = efi_md_next(md)) {
 		switch (md->md_type) {
 		case EFI_MD_TYPE_IOPORT:
-			ia64_port_base = IA64_PHYS_TO_RR6(md->md_phys);
+			ia64_port_base = (uintptr_t)pmap_mapdev(md->md_phys,
+			    md->md_pages * EFI_PAGE_SIZE);
 			break;
 		case EFI_MD_TYPE_PALCODE:
 			ia64_pal_base = md->md_phys;

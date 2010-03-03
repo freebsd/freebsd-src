@@ -58,8 +58,8 @@ struct array {
 
 struct stack {
 	struct value	*stack;
-	ssize_t		 sp;
 	ssize_t		 size;
+	ssize_t		 sp;
 };
 
 struct source;
@@ -72,14 +72,14 @@ struct vtable {
 };
 
 struct source {
-	struct vtable	*vtable;
 	union {
-			FILE	*stream;
 			struct {
 				u_char	*buf;
 				size_t	 pos;
 			} string;
+			FILE	*stream;
 	} u;
+	struct vtable	*vtable;
 	int		 lastchar;
 };
 

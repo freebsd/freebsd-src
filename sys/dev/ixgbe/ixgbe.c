@@ -861,7 +861,7 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		goto process;
 
 	/* If nothing queued go right to xmit */
-	if (drbr_empty(ifp, txr->br)) {
+	if (!drbr_needs_enqueue(ifp, txr->br)) {
 		if ((err = ixgbe_xmit(txr, &m)) != 0) {
 			if (m != NULL)
 				err = drbr_enqueue(ifp, txr->br, m);

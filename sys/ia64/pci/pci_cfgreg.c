@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2010 Marcel Moolenaar
  * Copyright (c) 2001 Doug Rabson
  * All rights reserved.
  *
@@ -30,35 +31,69 @@
 #include <machine/pci_cfgreg.h>
 #include <machine/sal.h>
 
-#define SAL_PCI_ADDRESS(bus, slot, func, reg) \
-	(((bus) << 16) | ((slot) << 11) | ((func) << 8) | (reg))
+static u_long
+pci_sal_address(int dom, int bus, int slot, int func, int reg)
+{
+	u_long addr;
+
+	addr = ~0ul;
+	if (dom >= 0 && dom <= 255 && bus >= 0 && bus <= 255 &&
+	    slot >= 0 && slot <= 31 && func >= 0 && func <= 7 &&
+	    reg >= 0 && reg <= 255) {
+		addr = ((u_long)dom << 24) | ((u_long)bus << 16) |
+		    ((u_long)slot << 11) | ((u_long)func << 8) | (u_long)reg;
+	}
+	return (addr);
+}
+
+static int
+pci_valid_access(int reg, int len)
+{
+	int ok;
+
+	ok = ((len == 1 || len == 2 || len == 4) && (reg & (len - 1)) == 0)
+	    ? 1 : 0;
+	return (ok);
+}
 
 int
 pci_cfgregopen(void)
 {
-	return 1;
+	return (1);
 }
 
-u_int32_t
-pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
+uint32_t
+pci_cfgregread(int bus, int slot, int func, int reg, int len)
 {
 	struct ia64_sal_result res;
+	u_long addr;
 
-	res = ia64_sal_entry(SAL_PCI_CONFIG_READ,
-			     SAL_PCI_ADDRESS(bus, slot, func, reg),
-			     bytes, 0, 0, 0, 0, 0);
+	addr = pci_sal_address(0, bus, slot, func, reg);
+	if (addr == ~0ul)
+		return (~0);
+
+	if (!pci_valid_access(reg, len))
+		return (~0);
+
+	res = ia64_sal_entry(SAL_PCI_CONFIG_READ, addr, len, 0, 0, 0, 0, 0);
 	if (res.sal_status < 0)
 		return (~0);
-	else
-		return (res.sal_result[0]);
+
+	return (res.sal_result[0]);
 }
 
 void
-pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
+pci_cfgregwrite(int bus, int slot, int func, int reg, uint32_t data, int len)
 {
 	struct ia64_sal_result res;
+	u_long addr;
 
-	res = ia64_sal_entry(SAL_PCI_CONFIG_WRITE,
-			     SAL_PCI_ADDRESS(bus, slot, func, reg),
-			     bytes, data, 0, 0, 0, 0);
+	addr = pci_sal_address(0, bus, slot, func, reg);
+	if (addr == ~0ul)
+		return;
+
+	if (!pci_valid_access(reg, len))
+		return;
+
+	res = ia64_sal_entry(SAL_PCI_CONFIG_WRITE, addr, len, data, 0, 0, 0, 0);
 }

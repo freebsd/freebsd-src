@@ -513,6 +513,9 @@ g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		sbuf_printf(sb, "%s<rawtype>", indent);
 		sbuf_printf_uuid(sb, &entry->ent.ent_type);
 		sbuf_printf(sb, "</rawtype>\n");
+		sbuf_printf(sb, "%s<rawuuid>", indent);
+		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
+		sbuf_printf(sb, "</rawuuid>\n");
 	} else {
 		/* confxml: scheme information */
 	}

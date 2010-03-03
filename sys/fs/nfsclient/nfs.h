@@ -56,6 +56,19 @@
 	(VFSTONFS((v)->v_mount)->nm_flag & (NFSMNT_NFSV3 | NFSMNT_NFSV4))
 
 /*
+ * NFS iod threads can be in one of these three states once spawned.
+ * NFSIOD_NOT_AVAILABLE - Cannot be assigned an I/O operation at this time.
+ * NFSIOD_AVAILABLE - Available to be assigned an I/O operation.
+ * NFSIOD_CREATED_FOR_NFS_ASYNCIO - Newly created for nfs_asyncio() and
+ *	will be used by the thread that called nfs_asyncio().
+ */
+enum nfsiod_state {
+	NFSIOD_NOT_AVAILABLE = 0,
+	NFSIOD_AVAILABLE = 1,
+	NFSIOD_CREATED_FOR_NFS_ASYNCIO = 2,
+};
+
+/*
  * Function prototypes.
  */
 int ncl_meta_setsize(struct vnode *, struct ucred *, struct thread *,
@@ -87,7 +100,7 @@ int ncl_fsinfo(struct nfsmount *, struct vnode *, struct ucred *,
 int ncl_init(struct vfsconf *);
 int ncl_uninit(struct vfsconf *);
 int ncl_mountroot(struct mount *);
-int ncl_nfsiodnew(void);
+int ncl_nfsiodnew(int);
 
 #endif	/* _KERNEL */
 

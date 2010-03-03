@@ -471,7 +471,8 @@ ata_siiprb_ch_attach(device_t dev)
     ch->hw.softreset = ata_siiprb_softreset;
     ch->hw.pm_read = ata_siiprb_pm_read;
     ch->hw.pm_write = ata_siiprb_pm_write;
-     
+    ch->flags |= ATA_NO_SLAVE;
+    ch->flags |= ATA_SATA;
     return 0;
 }
 

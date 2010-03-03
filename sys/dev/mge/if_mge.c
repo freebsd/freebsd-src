@@ -457,10 +457,7 @@ mge_allocate_dma(struct mge_softc *sc)
 {
 	int error;
 	struct mge_desc_wrapper *dw;
-	int num, i;
-
-
-	num = MGE_TX_DESC_NUM + MGE_RX_DESC_NUM;
+	int i;
 
 	/* Allocate a busdma tag and DMA safe memory for TX/RX descriptors. */
 	error = bus_dma_tag_create(NULL,	/* parent */
@@ -543,7 +540,7 @@ mge_reinit_rx(struct mge_softc *sc)
 	struct mge_desc_wrapper *dw;
 	int i;
 
-	MGE_RECEIVE_LOCK(sc);
+	MGE_RECEIVE_LOCK_ASSERT(sc);
 
 	mge_free_desc(sc, sc->mge_rx_desc, MGE_RX_DESC_NUM, sc->mge_rx_dtag, 1);
 
@@ -564,8 +561,6 @@ mge_reinit_rx(struct mge_softc *sc)
 
 	/* Enable RX queue */
 	MGE_WRITE(sc, MGE_RX_QUEUE_CMD, MGE_ENABLE_RXQ(MGE_RX_DEFAULT_QUEUE));
-
-	MGE_RECEIVE_UNLOCK(sc);
 }
 
 #ifdef DEVICE_POLLING
@@ -1375,9 +1370,6 @@ mge_encap(struct mge_softc *sc, struct mbuf *m0)
 	dw = &sc->mge_tx_desc[desc_no];
 	mapp = dw->buffer_dmap;
 
-	bus_dmamap_sync(sc->mge_desc_dtag, mapp,
-	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-
 	/* Create mapping in DMA memory */
 	error = bus_dmamap_load_mbuf_sg(sc->mge_tx_dtag, mapp, m0, segs, &nsegs,
 	    BUS_DMA_NOWAIT);
@@ -1401,7 +1393,7 @@ mge_encap(struct mge_softc *sc, struct mbuf *m0)
 			mge_offload_setup_descriptor(sc, dw);
 	}
 
-	bus_dmamap_sync(sc->mge_desc_dtag, mapp,
+	bus_dmamap_sync(sc->mge_desc_dtag, dw->desc_dmap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	sc->tx_desc_curr = (++sc->tx_desc_curr) % MGE_TX_DESC_NUM;

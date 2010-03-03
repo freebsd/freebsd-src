@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/pcpu.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/bus_common.h>
 #include <machine/intr_machdep.h>
+#include <machine/nexusvar.h>
 #include <machine/ofw_nexus.h>
 #include <machine/resource.h>
 #include <machine/ver.h>
@@ -154,17 +156,22 @@ static const char *const nexus_excl_name[] = {
 	"aliases",
 	"associations",
 	"chosen",
+	"cmp",
 	"counter-timer",	/* No separate device; handled by psycho/sbus */
+	"failsafe",
 	"memory",
 	"openprom",
 	"options",
 	"packages",
 	"rsc",
+	"sgcn",
+	"todsg",
 	"virtual-memory",
 	NULL
 };
 
 static const char *const nexus_excl_type[] = {
+	"core",
 	"cpu",
 	NULL
 };
@@ -206,20 +213,24 @@ nexus_attach(device_t dev)
 	device_t cdev;
 	phandle_t node;
 
-	node = OF_peer(0);
-	if (node == -1)
-		panic("%s: OF_peer failed.", __func__);
+	if (strcmp(device_get_name(device_get_parent(dev)), "root") == 0) {
+		node = OF_peer(0);
+		if (node == -1)
+			panic("%s: OF_peer failed.", __func__);
 
-	sc = device_get_softc(dev);
-	sc->sc_intr_rman.rm_type = RMAN_ARRAY;
-	sc->sc_intr_rman.rm_descr = "Interrupts";
-	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
-	sc->sc_mem_rman.rm_descr = "Device Memory";
-	if (rman_init(&sc->sc_intr_rman) != 0 ||
-	    rman_init(&sc->sc_mem_rman) != 0 ||
-	    rman_manage_region(&sc->sc_intr_rman, 0, IV_MAX - 1) != 0 ||
-	    rman_manage_region(&sc->sc_mem_rman, 0ULL, ~0ULL) != 0)
-		panic("%s: failed to set up rmans.", __func__);
+		sc = device_get_softc(dev);
+		sc->sc_intr_rman.rm_type = RMAN_ARRAY;
+		sc->sc_intr_rman.rm_descr = "Interrupts";
+		sc->sc_mem_rman.rm_type = RMAN_ARRAY;
+		sc->sc_mem_rman.rm_descr = "Device Memory";
+		if (rman_init(&sc->sc_intr_rman) != 0 ||
+		    rman_init(&sc->sc_mem_rman) != 0 ||
+		    rman_manage_region(&sc->sc_intr_rman, 0,
+		    IV_MAX - 1) != 0 ||
+		    rman_manage_region(&sc->sc_mem_rman, 0ULL, ~0ULL) != 0)
+			panic("%s: failed to set up rmans.", __func__);
+	} else
+		node = ofw_bus_get_node(dev);
 
 	/*
 	 * Allow devices to identify.
@@ -347,12 +358,16 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct rman *rm;
 	struct resource *rv;
 	struct resource_list_entry *rle;
+	device_t nexus;
 	int isdefault, needactivate, passthrough;
 
 	isdefault = (start == 0UL && end == ~0UL);
 	needactivate = flags & RF_ACTIVE;
 	passthrough = (device_get_parent(child) != bus);
-	sc = device_get_softc(bus);
+	nexus = bus;
+	while (strcmp(device_get_name(device_get_parent(nexus)), "root") != 0)
+		nexus = device_get_parent(nexus);
+	sc = device_get_softc(nexus);
 	rle = NULL;
 
 	if (!passthrough) {
@@ -498,15 +513,17 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 	for (i = 0; i < nreg; i++) {
 		phys = NEXUS_REG_PHYS(&reg[i]);
 		size = NEXUS_REG_SIZE(&reg[i]);
-		resource_list_add(&ndi->ndi_rl, SYS_RES_MEMORY, i, phys,
-		    phys + size - 1, size);
+		/* Skip the dummy reg property of glue devices like ssm(4). */
+		if (size != 0)
+			resource_list_add(&ndi->ndi_rl, SYS_RES_MEMORY, i,
+			    phys, phys + size - 1, size);
 	}
 	free(reg, M_OFWPROP);
 
 	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);
 	if (nintr > 0) {
-		if (OF_getprop(node, cpu_impl < CPU_IMPL_ULTRASPARCIII ?
+		if (OF_getprop(node, PCPU_GET(impl) < CPU_IMPL_ULTRASPARCIII ?
 		    "upa-portid" : "portid", &ign, sizeof(ign)) <= 0) {
 			device_printf(dev, "<%s>: could not determine portid\n",
 			    ndi->ndi_obdinfo.obd_name);

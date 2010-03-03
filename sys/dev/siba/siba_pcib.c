@@ -55,9 +55,9 @@ __FBSDID("$FreeBSD$");
 
 #include "pcib_if.h"
 
-#include <dev/siba/sibavar.h>
-#include <dev/siba/sibareg.h>
 #include <dev/siba/siba_ids.h>
+#include <dev/siba/sibareg.h>
+#include <dev/siba/sibavar.h>
 #include <dev/siba/siba_pcibvar.h>
 
 #ifndef MIPS_MEM_RID
@@ -78,10 +78,6 @@ __FBSDID("$FreeBSD$");
  */
 #define SBPCI_CFGBASE			0x0C000000
 #define SBPCI_CFGSIZE			0x01000000
-
-#define SBPCI_SBTOPCI0 0x100
-#define SBPCI_SBTOPCI1 0x104
-#define SBPCI_SBTOPCI2 0x108
 
 /*
  * TODO: implement type 1 config space access (ie beyond bus 0)
@@ -187,9 +183,12 @@ siba_pcib_attach(device_t dev)
 	 * XXX we need to be able to do type 1 too.
 	 * we probably don't need to be able to do i/o cycles.
 	 */
-	SBPCI_WRITE_4(sc, SBPCI_SBTOPCI0, 1);	/* I/O read/write window */
-	SBPCI_WRITE_4(sc, SBPCI_SBTOPCI1, 2);	/* type 0 configuration only */
-	SBPCI_WRITE_4(sc, SBPCI_SBTOPCI2, 1 << 30); /* memory only */
+
+	/* I/O read/write window */
+	SBPCI_WRITE_4(sc, SIBA_PCICORE_SBTOPCI0, 1);
+	/* type 0 configuration only */
+	SBPCI_WRITE_4(sc, SIBA_PCICORE_SBTOPCI1, 2);
+	SBPCI_WRITE_4(sc, SIBA_PCICORE_SBTOPCI2, 1 << 30); /* memory only */
 	DELAY(500);
 
 	/* XXX resource managers */
@@ -365,7 +364,7 @@ siba_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 	/*
 	 * The configuration tag on the broadcom is weird.
 	 */
-	SBPCI_WRITE_4(sc, SBPCI_SBTOPCI1, 2);	/* XXX again??? */
+	SBPCI_WRITE_4(sc, SIBA_PCICORE_SBTOPCI1, 2);	/* XXX again??? */
 	cfgtag = ((1 << slot) << 16) | (func << 8);
 	cfgaddr = SBPCI_CFGBASE | cfgtag | (reg & ~3);
 

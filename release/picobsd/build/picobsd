@@ -889,7 +889,7 @@ fill_floppy_image() {
     if [ ${mfs_start} -gt 0 -a ${mfs_size} -ge ${imgsize} ] ; then
 	mfs_ofs=$((${mfs_start} + 8192))
 	log "Preload kernel with file ${c_fs} at ${mfs_ofs}"
-	logverbose "`ls -l ${c_fs}` to fit in ${mfs_size}"
+	log "`ls -l ${c_fs}` to fit in ${mfs_size}"
 	dd if=${c_fs} ibs=8192 iseek=1 of=kernel obs=${mfs_ofs} \
 	    oseek=1 conv=notrunc # 2> /dev/null
     else
@@ -944,7 +944,7 @@ fill_floppy_image() {
 
     ls -l ${c_img}
     ${c_label} -f `pwd`/${c_img}
-    logverbose "after disklabel"
+    log "after disklabel"
     )
 
     echo "BUILDDIR ${BUILDDIR}"
@@ -958,7 +958,7 @@ fill_floppy_image() {
 
     dd if=${b2} iseek=1 ibs=276 2> /dev/null | \
 	dd of=${BUILDDIR}/${c_img} oseek=1 obs=788 conv=notrunc 2>/dev/null
-    logverbose "done floppy image"
+    log "done disk image"
     # XXX (log "Fixing permissions"; cd ${dst}; chown -R root *)
     rm -rf ${BUILDDIR}/floppy.tree || true # cleanup
     # df -ik ${dst} | colrm 70 > .build.reply

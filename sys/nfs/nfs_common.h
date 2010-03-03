@@ -33,7 +33,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef _NFS_NFS_COMMON_H_
 #define _NFS_NFS_COMMON_H_
 
@@ -49,6 +48,7 @@ extern nfstype nfsv3_type[];
 int	nfs_adv(struct mbuf **, caddr_t *, int, int);
 u_quad_t nfs_curusec(void);
 void	*nfsm_disct(struct mbuf **, caddr_t *, int, int, int);
+int	nfs_realign(struct mbuf **, int);
 
 /* ****************************** */
 /* Build request/reply phase macros */
@@ -86,7 +86,7 @@ do { \
 		goto nfsmout; \
 	} \
 } while (0)
-		
+
 #define	nfsm_dissect(c, s) \
 ({ \
 	void *ret; \

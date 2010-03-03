@@ -21,6 +21,7 @@
 # ----------------------------------------------------------------------
 mips/mips/machdep.c		standard
 mips/mips/mp_machdep.c		optional smp
+mips/mips/mpboot.S		optional smp
 mips/mips/psraccess.S		standard
 # ----------------------------------------------------------------------
 # Phase 3
@@ -71,6 +72,7 @@ geom/geom_mbr.c			optional	geom_mbr
 geom/geom_mbr_enc.c		optional	geom_mbr
 libkern/ashldi3.c		standard
 libkern/ashrdi3.c		standard
+libkern/cmpdi2.c		standard
 libkern/divdi3.c		optional	isa_mips32
 libkern/ffsl.c			standard
 libkern/fls.c			standard
@@ -79,6 +81,7 @@ libkern/lshrdi3.c		standard
 libkern/memmove.c		standard
 libkern/moddi3.c		optional	isa_mips32
 libkern/qdivrem.c		optional	isa_mips32
+libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		optional	isa_mips32
 libkern/umoddi3.c		optional	isa_mips32
 
@@ -86,12 +89,15 @@ libkern/umoddi3.c		optional	isa_mips32
 #libkern/mips/strcmp.S		standard
 #libkern/mips/strncmp.S		standard
 
+kern/link_elf_obj.c		standard
+
 dev/cfe/cfe_api.c		optional	cfe
 dev/cfe/cfe_console.c		optional	cfe_console
 dev/cfe/cfe_env.c		optional	cfe_env
 #dev/cfe/cfe_resource.c		optional	cfe	# not yet needed
 
 dev/siba/siba.c			optional	siba
-dev/siba/siba_pcib.c		optional	siba pci
 dev/siba/siba_cc.c		optional	siba
+dev/siba/siba_core.c		optional	siba
+dev/siba/siba_pcib.c		optional	siba pci
 #mips/sentry5/siba_mips.c			optional siba # not yet

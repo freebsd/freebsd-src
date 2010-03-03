@@ -426,8 +426,10 @@ database files, depending on its
 .Fa ut_type .
 This prevents the need for special utility functions to update the other
 databases, such as the
+.Fn updlastlogx
+and
 .Fn updwtmpx
-function which is often available in other implementations.
+functions which are available in other implementations.
 It also tries to replace
 .Dv DEAD_PROCESS
 entries in the active sessions database when storing

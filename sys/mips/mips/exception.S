@@ -146,19 +146,10 @@ VECTOR_END(MipsTLBMiss)
  *----------------------------------------------------------------------------
  */
 MipsDoTLBMiss:
-#xxx mips64 unsafe?
-#ifndef SMP
-	lui	k1, %hi(_C_LABEL(pcpup))
-#endif
 						#k0 already has BadVA
 	bltz	k0, 1f				#02: k0<0 -> 1f (kernel fault)
 	srl	k0, k0, SEGSHIFT - 2		#03: k0=seg offset (almost)
-#xxx mips64 unsafe?
-#ifdef SMP
 	GET_CPU_PCPU(k1)
-#else
-	lw	k1, %lo(_C_LABEL(pcpup))(k1)
-#endif
 	lw	k1, PC_SEGBASE(k1)
 	beqz	k1, 2f			      #05: make sure segbase is not null
 	andi	k0, k0, 0x7fc			#06: k0=seg offset (mask 0x3)
@@ -284,6 +275,15 @@ SlowFault:
 	mtc0	a0, COP_0_STATUS_REG
 #endif
 	
+/*
+ * Save CPU and CP0 register state.
+ *
+ * This is straightforward except for saving the exception program
+ * counter. The ddb backtrace code looks for the first instruction
+ * matching the form "sw ra, (off)sp" to figure out the address of the
+ * calling function. So we must make sure that we save the exception
+ * PC by staging it through 'ra' as opposed to any other register.
+ */
 #define	SAVE_CPU \
 	SAVE_REG(AT, AST, sp)		;\
 	.set	at		        ; \
@@ -323,9 +323,12 @@ SlowFault:
 	SAVE_REG(v1, MULHI, sp)		;\
 	SAVE_REG(a0, SR, sp)		;\
 	SAVE_REG(a1, CAUSE, sp)		;\
-	SAVE_REG(ra, RA, sp)		;\
 	SAVE_REG(a2, BADVADDR, sp)	;\
-	SAVE_REG(a3, PC, sp)		;\
+	move	t0, ra			;\
+	move	ra, a3			;\
+	SAVE_REG(ra, PC, sp)		;\
+	move	ra, t0			;\
+	SAVE_REG(ra, RA, sp)		;\
 	PTR_ADDU v0, sp, KERN_EXC_FRAME_SIZE ;\
 	SAVE_REG(v0, SP, sp)		;\
 	CLEAR_STATUS			;\
@@ -737,6 +740,18 @@ NNON_LEAF(MipsUserIntr, STAND_FRAME_SIZE, ra)
 	sw	a3, STAND_RA_OFFSET(sp)	# for debugging
 
 /*
+ * Enable interrupts before doing ast().
+ *
+ * On SMP kernels the AST processing might trigger IPI to other processors.
+ * If that processor is also doing AST processing with interrupts disabled
+ * then we may deadlock.
+ */
+	mfc0	a0, COP_0_STATUS_REG
+	or	a0, a0, SR_INT_ENAB
+	mtc0	a0, COP_0_STATUS_REG
+	ITLBNOPFIX
+
+/*
  * DO_AST enabled interrupts
  */
 	DO_AST
@@ -821,12 +836,7 @@ NLEAF(MipsKernTLBInvalidException)
 	sltu	k1, k0, k1
 	beqz	k1, 1f
 	nop
-#ifdef SMP
 	GET_CPU_PCPU(k1)
-#else
-	lui	k1, %hi(_C_LABEL(pcpup))
-	lw	k1, %lo(_C_LABEL(pcpup))(k1)
-#endif
 	lw	k1, PC_SEGBASE(k1)		 # works for single cpu????
 	beqz	k1, _C_LABEL(MipsKernGenException)   # seg tab is null
 	nop
@@ -917,13 +927,7 @@ NLEAF(MipsUserTLBInvalidException)
 	sltu	k1, k0, k1
 	beqz	k1, _C_LABEL(MipsUserGenException)
 	nop
-#xxx mips64 unsafe?
-#ifdef SMP
 	GET_CPU_PCPU(k1)
-#else
-	lui	k1, %hi(_C_LABEL(pcpup))
-	lw	k1, %lo(_C_LABEL(pcpup))(k1)
-#endif
 	lw	k1, PC_SEGBASE(k1)		 # works for single cpu????
 	beqz	k1, _C_LABEL(MipsUserGenException)  # seg tab is null
 	nop
@@ -1054,7 +1058,7 @@ sys_stk_chk:
 	nop
 
 # stack overflow
-	PTR_LA	a0, _C_LABEL(_start) - START_FRAME - 8  # set sp to a valid place
+	PTR_LA	a0, _C_LABEL(_start) - CALLFRAME_SIZ - 8  # set sp to a valid place
 	sw	sp, 24(a0)
 	move	sp, a0
 	PTR_LA	a0, 1f
@@ -1068,7 +1072,7 @@ sys_stk_chk:
 	jalr	k0
 	mfc0	a3, COP_0_BAD_VADDR
 
-	PTR_LA	sp, _C_LABEL(_start) - START_FRAME  # set sp to a valid place
+	PTR_LA	sp, _C_LABEL(_start) - CALLFRAME_SIZ  # set sp to a valid place
 
 #if !defined(SMP) && defined(DDB)
 	PTR_LA	a0, 2f

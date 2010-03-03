@@ -68,8 +68,9 @@ MALLOC_DEFINE(M_SMP, "SMP", "SMP related allocations");
 
 void ia64_ap_startup(void);
 
-#define	LID_SAPIC_ID(x)		((int)((x) >> 24) & 0xff)
-#define	LID_SAPIC_EID(x)	((int)((x) >> 16) & 0xff)
+#define	LID_SAPIC(x)		((u_int)((x) >> 16))
+#define	LID_SAPIC_ID(x)		((u_int)((x) >> 24) & 0xff)
+#define	LID_SAPIC_EID(x)	((u_int)((x) >> 16) & 0xff)
 #define	LID_SAPIC_SET(id,eid)	(((id & 0xff) << 8 | (eid & 0xff)) << 16);
 #define	LID_SAPIC_MASK		0xffff0000UL
 
@@ -114,7 +115,6 @@ ia64_store_mca_state(void* arg)
 void
 ia64_ap_startup(void)
 {
-	volatile struct ia64_interrupt_block *ib = IA64_INTERRUPT_BLOCK;
 	uint64_t vhpt;
 	int vector;
 
@@ -153,7 +153,7 @@ ia64_ap_startup(void)
 	while (vector != 15) {
 		ia64_srlz_d();
 		if (vector == 0)
-			vector = (int)ib->ib_inta;
+			vector = (int)ia64_ld1(&ia64_pib->ib_inta);
 		ia64_set_eoi(0);
 		ia64_srlz_d();
 		vector = ia64_get_ivr();
@@ -363,16 +363,18 @@ ipi_all_but_self(int ipi)
 void
 ipi_send(struct pcpu *cpu, int ipi)
 {
-	volatile uint64_t *pipi;
-	uint64_t vector;
+	u_int lid;
+	uint8_t vector;
 
-	pipi = (void *)IA64_PHYS_TO_RR6(ia64_lapic_address |
-	    ((cpu->pc_md.lid & LID_SAPIC_MASK) >> 12));
-	vector = (uint64_t)(ipi_vector[ipi] & 0xff);
+	lid = LID_SAPIC(cpu->pc_md.lid);
+	vector = ipi_vector[ipi];
 	KASSERT(vector != 0, ("IPI %d is not assigned a vector", ipi));
-	*pipi = vector;
-	CTR3(KTR_SMP, "ipi_send(%p, %ld), cpuid=%d", pipi, vector,
-	    PCPU_GET(cpuid));
+
+	ia64_mf();
+	ia64_st8(&(ia64_pib->ib_ipi[lid][0]), vector);
+	ia64_mf_a();
+	CTR4(KTR_SMP, "ipi_send(%p, %ld): cpuid=%d, vector=%u", cpu, ipi,
+	    PCPU_GET(cpuid), vector);
 }
 
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);

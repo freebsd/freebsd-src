@@ -76,7 +76,7 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <ttyent.h>
 #include <unistd.h>
-#include <utmp.h>
+#include <utmpx.h>
 
 #ifdef USE_PAM
 #include <security/pam_appl.h>
@@ -119,7 +119,6 @@ static char **environ_pam;
 #endif
 
 static int auth_traditional(void);
-extern void login(struct utmp *);
 static void usage(void);
 
 #define	TTYGRPNAME	"tty"		/* name of group to own ttys */
@@ -152,7 +151,7 @@ main(argc, argv)
 	struct group *gr;
 	struct stat st;
 	struct timeval tp;
-	struct utmp utmp;
+	struct utmpx utmp;
 	int rootok, retries, backoff;
 	int ask, ch, cnt, fflag, hflag, pflag, quietlog, rootlogin, rval;
 	int changepass;
@@ -164,6 +163,8 @@ main(argc, argv)
 	char tname[sizeof(_PATH_TTY) + 10];
 	const char *shell = NULL;
 	login_cap_t *lc = NULL;
+	int UT_HOSTSIZE = sizeof(utmp.ut_host);
+	int UT_NAMESIZE = sizeof(utmp.ut_user);
 #ifdef USE_PAM
 	pid_t pid;
 	int e;
@@ -508,14 +509,18 @@ main(argc, argv)
 		refused("Permission denied", "ACCESS", 1);
 #endif /* LOGIN_ACCESS */
 
+#if 1
+	ulog_login(tty, username, hostname);
+#else
 	/* Nothing else left to fail -- really log in. */
 	memset((void *)&utmp, 0, sizeof(utmp));
-	(void)time(&utmp.ut_time);
-	(void)strncpy(utmp.ut_name, username, sizeof(utmp.ut_name));
+	(void)gettimeofday(&utmp.ut_tv, NULL);
+	(void)strncpy(utmp.ut_user, username, sizeof(utmp.ut_user));
 	if (hostname)
 		(void)strncpy(utmp.ut_host, hostname, sizeof(utmp.ut_host));
 	(void)strncpy(utmp.ut_line, tty, sizeof(utmp.ut_line));
 	login(&utmp);
+#endif
 
 	dolastlog(quietlog);
 
@@ -903,7 +908,7 @@ usage()
  * Allow for authentication style and/or kerberos instance
  */
 
-#define	NBUFSIZ		UT_NAMESIZE + 64
+#define	NBUFSIZ		128	// XXX was UT_NAMESIZE + 64
 
 void
 getloginname()
@@ -985,6 +990,7 @@ void
 dolastlog(quiet)
 	int quiet;
 {
+#if 0	/* XXX not implemented after utmp->utmpx change */
 	struct lastlog ll;
 	int fd;
 
@@ -1016,6 +1022,7 @@ dolastlog(quiet)
 	} else {
 		syslog(LOG_ERR, "cannot open %s: %m", _PATH_LASTLOG);
 	}
+#endif
 }
 
 void

@@ -155,16 +155,16 @@ struct uaudio_chan {
 	struct pcmchan_caps pcm_cap;	/* capabilities */
 
 	struct snd_dbuf *pcm_buf;
-	const struct usb_config *usb2_cfg;
+	const struct usb_config *usb_cfg;
 	struct mtx *pcm_mtx;		/* lock protecting this structure */
 	struct uaudio_softc *priv_sc;
 	struct pcm_channel *pcm_ch;
 	struct usb_xfer *xfer[UAUDIO_NCHANBUFS];
-	const struct usb2_audio_streaming_interface_descriptor *p_asid;
-	const struct usb2_audio_streaming_type1_descriptor *p_asf1d;
-	const struct usb2_audio_streaming_endpoint_descriptor *p_sed;
-	const usb2_endpoint_descriptor_audio_t *p_ed1;
-	const usb2_endpoint_descriptor_audio_t *p_ed2;
+	const struct usb_audio_streaming_interface_descriptor *p_asid;
+	const struct usb_audio_streaming_type1_descriptor *p_asf1d;
+	const struct usb_audio_streaming_endpoint_descriptor *p_sed;
+	const usb_endpoint_descriptor_audio_t *p_ed1;
+	const usb_endpoint_descriptor_audio_t *p_ed2;
 	const struct uaudio_format *p_fmt;
 
 	uint8_t *buf;			/* pointer to buffer */
@@ -278,13 +278,13 @@ struct uaudio_search_result {
 struct uaudio_terminal_node {
 	union {
 		const struct usb_descriptor *desc;
-		const struct usb2_audio_input_terminal *it;
-		const struct usb2_audio_output_terminal *ot;
-		const struct usb2_audio_mixer_unit_0 *mu;
-		const struct usb2_audio_selector_unit *su;
-		const struct usb2_audio_feature_unit *fu;
-		const struct usb2_audio_processing_unit_0 *pu;
-		const struct usb2_audio_extension_unit_0 *eu;
+		const struct usb_audio_input_terminal *it;
+		const struct usb_audio_output_terminal *ot;
+		const struct usb_audio_mixer_unit_0 *mu;
+		const struct usb_audio_selector_unit *su;
+		const struct usb_audio_feature_unit *fu;
+		const struct usb_audio_processing_unit_0 *pu;
+		const struct usb_audio_extension_unit_0 *eu;
 	}	u;
 	struct uaudio_search_result usr;
 	struct uaudio_terminal_node *root;
@@ -359,7 +359,7 @@ static void	uaudio_mixer_add_mixer(struct uaudio_softc *,
 static void	uaudio_mixer_add_selector(struct uaudio_softc *,
 		    const struct uaudio_terminal_node *, int);
 static uint32_t	uaudio_mixer_feature_get_bmaControls(
-		    const struct usb2_audio_feature_unit *, uint8_t);
+		    const struct usb_audio_feature_unit *, uint8_t);
 static void	uaudio_mixer_add_feature(struct uaudio_softc *,
 		    const struct uaudio_terminal_node *, int);
 static void	uaudio_mixer_add_processing_updown(struct uaudio_softc *,
@@ -368,7 +368,7 @@ static void	uaudio_mixer_add_processing(struct uaudio_softc *,
 		    const struct uaudio_terminal_node *, int);
 static void	uaudio_mixer_add_extension(struct uaudio_softc *,
 		    const struct uaudio_terminal_node *, int);
-static struct	usb2_audio_cluster uaudio_mixer_get_cluster(uint8_t,
+static struct	usb_audio_cluster uaudio_mixer_get_cluster(uint8_t,
 		    const struct uaudio_terminal_node *);
 static uint16_t	uaudio_mixer_determine_class(const struct uaudio_terminal_node *,
 		    struct uaudio_mixer_node *);
@@ -408,7 +408,7 @@ static int32_t	umidi_detach(device_t dev);
 
 #if USB_DEBUG
 static void	uaudio_chan_dump_ep_desc(
-		    const usb2_endpoint_descriptor_audio_t *);
+		    const usb_endpoint_descriptor_audio_t *);
 static void	uaudio_mixer_dump_cluster(uint8_t,
 		    const struct uaudio_terminal_node *);
 static const char *uaudio_mixer_get_terminal_name(uint16_t);
@@ -782,7 +782,7 @@ uaudio_detach(device_t dev)
 
 #if USB_DEBUG
 static void
-uaudio_chan_dump_ep_desc(const usb2_endpoint_descriptor_audio_t *ed)
+uaudio_chan_dump_ep_desc(const usb_endpoint_descriptor_audio_t *ed)
 {
 	if (ed) {
 		DPRINTF("endpoint=%p bLength=%d bDescriptorType=%d \n"
@@ -803,11 +803,11 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
     uint32_t rate, uint8_t channels, uint8_t bit_resolution)
 {
 	struct usb_descriptor *desc = NULL;
-	const struct usb2_audio_streaming_interface_descriptor *asid = NULL;
-	const struct usb2_audio_streaming_type1_descriptor *asf1d = NULL;
-	const struct usb2_audio_streaming_endpoint_descriptor *sed = NULL;
-	const usb2_endpoint_descriptor_audio_t *ed1 = NULL;
-	const usb2_endpoint_descriptor_audio_t *ed2 = NULL;
+	const struct usb_audio_streaming_interface_descriptor *asid = NULL;
+	const struct usb_audio_streaming_type1_descriptor *asf1d = NULL;
+	const struct usb_audio_streaming_endpoint_descriptor *sed = NULL;
+	const usb_endpoint_descriptor_audio_t *ed1 = NULL;
+	const usb_endpoint_descriptor_audio_t *ed2 = NULL;
 	struct usb_config_descriptor *cd = usbd_get_config_descriptor(udev);
 	struct usb_interface_descriptor *id;
 	const struct uaudio_format *p_fmt;
@@ -1045,10 +1045,10 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 					chan->iface_alt_index = alt_index;
 
 					if (ep_dir == UE_DIR_IN)
-						chan->usb2_cfg =
+						chan->usb_cfg =
 						    uaudio_cfg_record;
 					else
-						chan->usb2_cfg =
+						chan->usb_cfg =
 						    uaudio_cfg_play;
 
 					chan->sample_size = ((
@@ -1429,7 +1429,7 @@ uaudio_chan_init(struct uaudio_softc *sc, struct snd_dbuf *b,
 		}
 	}
 	if (usbd_transfer_setup(sc->sc_udev, &iface_index, ch->xfer,
-	    ch->usb2_cfg, UAUDIO_NCHANBUFS, ch, ch->pcm_mtx)) {
+	    ch->usb_cfg, UAUDIO_NCHANBUFS, ch, ch->pcm_mtx)) {
 		DPRINTF("could not allocate USB transfers!\n");
 		goto error;
 	}
@@ -1709,7 +1709,7 @@ uaudio_mixer_add_input(struct uaudio_softc *sc,
     const struct uaudio_terminal_node *iot, int id)
 {
 #if USB_DEBUG
-	const struct usb2_audio_input_terminal *d = iot[id].u.it;
+	const struct usb_audio_input_terminal *d = iot[id].u.it;
 
 	DPRINTFN(3, "bTerminalId=%d wTerminalType=0x%04x "
 	    "bAssocTerminal=%d bNrChannels=%d wChannelConfig=%d "
@@ -1725,7 +1725,7 @@ uaudio_mixer_add_output(struct uaudio_softc *sc,
     const struct uaudio_terminal_node *iot, int id)
 {
 #if USB_DEBUG
-	const struct usb2_audio_output_terminal *d = iot[id].u.ot;
+	const struct usb_audio_output_terminal *d = iot[id].u.ot;
 
 	DPRINTFN(3, "bTerminalId=%d wTerminalType=0x%04x "
 	    "bAssocTerminal=%d bSourceId=%d iTerminal=%d\n",
@@ -1740,8 +1740,8 @@ uaudio_mixer_add_mixer(struct uaudio_softc *sc,
 {
 	struct uaudio_mixer_node mix;
 
-	const struct usb2_audio_mixer_unit_0 *d0 = iot[id].u.mu;
-	const struct usb2_audio_mixer_unit_1 *d1;
+	const struct usb_audio_mixer_unit_0 *d0 = iot[id].u.mu;
+	const struct usb_audio_mixer_unit_1 *d1;
 
 	uint32_t bno;			/* bit number */
 	uint32_t p;			/* bit number accumulator */
@@ -1823,7 +1823,7 @@ static void
 uaudio_mixer_add_selector(struct uaudio_softc *sc,
     const struct uaudio_terminal_node *iot, int id)
 {
-	const struct usb2_audio_selector_unit *d = iot[id].u.su;
+	const struct usb_audio_selector_unit *d = iot[id].u.su;
 	struct uaudio_mixer_node mix;
 	uint16_t i;
 
@@ -1864,7 +1864,7 @@ uaudio_mixer_add_selector(struct uaudio_softc *sc,
 }
 
 static uint32_t
-uaudio_mixer_feature_get_bmaControls(const struct usb2_audio_feature_unit *d,
+uaudio_mixer_feature_get_bmaControls(const struct usb_audio_feature_unit *d,
     uint8_t index)
 {
 	uint32_t temp = 0;
@@ -1889,7 +1889,7 @@ static void
 uaudio_mixer_add_feature(struct uaudio_softc *sc,
     const struct uaudio_terminal_node *iot, int id)
 {
-	const struct usb2_audio_feature_unit *d = iot[id].u.fu;
+	const struct usb_audio_feature_unit *d = iot[id].u.fu;
 	struct uaudio_mixer_node mix;
 	uint32_t fumask;
 	uint32_t mmask;
@@ -2015,10 +2015,10 @@ static void
 uaudio_mixer_add_processing_updown(struct uaudio_softc *sc,
     const struct uaudio_terminal_node *iot, int id)
 {
-	const struct usb2_audio_processing_unit_0 *d0 = iot[id].u.pu;
-	const struct usb2_audio_processing_unit_1 *d1 =
+	const struct usb_audio_processing_unit_0 *d0 = iot[id].u.pu;
+	const struct usb_audio_processing_unit_1 *d1 =
 	(const void *)(d0->baSourceId + d0->bNrInPins);
-	const struct usb2_audio_processing_unit_updown *ud =
+	const struct usb_audio_processing_unit_updown *ud =
 	(const void *)(d1->bmControls + d1->bControlSize);
 	struct uaudio_mixer_node mix;
 	uint8_t i;
@@ -2057,8 +2057,8 @@ static void
 uaudio_mixer_add_processing(struct uaudio_softc *sc,
     const struct uaudio_terminal_node *iot, int id)
 {
-	const struct usb2_audio_processing_unit_0 *d0 = iot[id].u.pu;
-	const struct usb2_audio_processing_unit_1 *d1 =
+	const struct usb_audio_processing_unit_0 *d0 = iot[id].u.pu;
+	const struct usb_audio_processing_unit_1 *d1 =
 	(const void *)(d0->baSourceId + d0->bNrInPins);
 	struct uaudio_mixer_node mix;
 	uint16_t ptype;
@@ -2102,8 +2102,8 @@ static void
 uaudio_mixer_add_extension(struct uaudio_softc *sc,
     const struct uaudio_terminal_node *iot, int id)
 {
-	const struct usb2_audio_extension_unit_0 *d0 = iot[id].u.eu;
-	const struct usb2_audio_extension_unit_1 *d1 =
+	const struct usb_audio_extension_unit_0 *d0 = iot[id].u.eu;
+	const struct usb_audio_extension_unit_1 *d1 =
 	(const void *)(d0->baSourceId + d0->bNrInPins);
 	struct uaudio_mixer_node mix;
 
@@ -2133,19 +2133,19 @@ uaudio_mixer_add_extension(struct uaudio_softc *sc,
 static const void *
 uaudio_mixer_verify_desc(const void *arg, uint32_t len)
 {
-	const struct usb2_audio_mixer_unit_1 *d1;
-	const struct usb2_audio_extension_unit_1 *e1;
-	const struct usb2_audio_processing_unit_1 *u1;
+	const struct usb_audio_mixer_unit_1 *d1;
+	const struct usb_audio_extension_unit_1 *e1;
+	const struct usb_audio_processing_unit_1 *u1;
 
 	union {
 		const struct usb_descriptor *desc;
-		const struct usb2_audio_input_terminal *it;
-		const struct usb2_audio_output_terminal *ot;
-		const struct usb2_audio_mixer_unit_0 *mu;
-		const struct usb2_audio_selector_unit *su;
-		const struct usb2_audio_feature_unit *fu;
-		const struct usb2_audio_processing_unit_0 *pu;
-		const struct usb2_audio_extension_unit_0 *eu;
+		const struct usb_audio_input_terminal *it;
+		const struct usb_audio_output_terminal *ot;
+		const struct usb_audio_mixer_unit_0 *mu;
+		const struct usb_audio_selector_unit *su;
+		const struct usb_audio_feature_unit *fu;
+		const struct usb_audio_processing_unit_0 *pu;
+		const struct usb_audio_extension_unit_0 *eu;
 	}     u;
 
 	u.desc = arg;
@@ -2269,7 +2269,7 @@ uaudio_mixer_dump_cluster(uint8_t id, const struct uaudio_terminal_node *iot)
 	};
 	uint16_t cc;
 	uint8_t i;
-	const struct usb2_audio_cluster cl = uaudio_mixer_get_cluster(id, iot);
+	const struct usb_audio_cluster cl = uaudio_mixer_get_cluster(id, iot);
 
 	cc = UGETW(cl.wChannelConfig);
 
@@ -2286,10 +2286,10 @@ uaudio_mixer_dump_cluster(uint8_t id, const struct uaudio_terminal_node *iot)
 
 #endif
 
-static struct usb2_audio_cluster
+static struct usb_audio_cluster
 uaudio_mixer_get_cluster(uint8_t id, const struct uaudio_terminal_node *iot)
 {
-	struct usb2_audio_cluster r;
+	struct usb_audio_cluster r;
 	const struct usb_descriptor *dp;
 	uint8_t i;
 
@@ -2311,7 +2311,7 @@ uaudio_mixer_get_cluster(uint8_t id, const struct uaudio_terminal_node *iot)
 			break;
 
 		case UDESCSUB_AC_MIXER:
-			r = *(const struct usb2_audio_cluster *)
+			r = *(const struct usb_audio_cluster *)
 			    &iot[id].u.mu->baSourceId[iot[id].u.mu->
 			    bNrInPins];
 			goto done;
@@ -2328,13 +2328,13 @@ uaudio_mixer_get_cluster(uint8_t id, const struct uaudio_terminal_node *iot)
 			break;
 
 		case UDESCSUB_AC_PROCESSING:
-			r = *((const struct usb2_audio_cluster *)
+			r = *((const struct usb_audio_cluster *)
 			    &iot[id].u.pu->baSourceId[iot[id].u.pu->
 			    bNrInPins]);
 			goto done;
 
 		case UDESCSUB_AC_EXTENSION:
-			r = *((const struct usb2_audio_cluster *)
+			r = *((const struct usb_audio_cluster *)
 			    &iot[id].u.eu->baSourceId[iot[id].u.eu->
 			    bNrInPins]);
 			goto done;
@@ -2760,10 +2760,10 @@ static void
 uaudio_mixer_fill_info(struct uaudio_softc *sc, struct usb_device *udev,
     void *desc)
 {
-	const struct usb2_audio_control_descriptor *acdp;
+	const struct usb_audio_control_descriptor *acdp;
 	struct usb_config_descriptor *cd = usbd_get_config_descriptor(udev);
 	const struct usb_descriptor *dp;
-	const struct usb2_audio_unit *au;
+	const struct usb_audio_unit *au;
 	struct uaudio_terminal_node *iot = NULL;
 	uint16_t wTotalLen;
 	uint8_t ID_max = 0;		/* inclusive */

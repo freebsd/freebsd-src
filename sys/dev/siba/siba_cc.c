@@ -55,9 +55,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/siba/sibavar.h>
-#include <dev/siba/sibareg.h>
 #include <dev/siba/siba_ids.h>
+#include <dev/siba/sibareg.h>
+#include <dev/siba/sibavar.h>
 
 static int	siba_cc_attach(device_t);
 static int	siba_cc_probe(device_t);

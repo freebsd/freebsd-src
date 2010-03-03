@@ -97,7 +97,7 @@ extern int probe_init(void);
 extern void defrouter_probe(struct ifinfo *);
 
 /* dump.c */
-extern void rtsold_dump_file(char *);
+extern void rtsold_dump_file(const char *);
 
 /* rtsock.c */
 extern int rtsock_open(void);

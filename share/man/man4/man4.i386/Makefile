@@ -1,8 +1,6 @@
 # $FreeBSD$
 
 MAN=	aic.4 \
-	alpm.4 \
-	amdpm.4 \
 	apm.4 \
 	ce.4 \
 	cp.4 \
@@ -17,23 +15,18 @@ MAN=	aic.4 \
 	glxsb.4 \
 	ie.4 \
 	longrun.4 \
-	mcd.4 \
 	mse.4 \
 	npx.4 \
-	padlock.4 \
 	pae.4 \
 	pbio.4 \
-	pcf.4 \
 	perfmon.4 \
 	pnp.4 \
 	pnpbios.4 \
 	sbni.4 \
-	scd.4 \
 	smapi.4 \
 	snc.4 \
 	streams.4 \
 	svr4.4 \
-	viapm.4 \
 	vpd.4 \
 	vx.4 \
 	wl.4

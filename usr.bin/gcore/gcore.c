@@ -65,16 +65,15 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <fcntl.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "extern.h"
+int sflag;
 
 static void	killed(int);
-static void	restart_target(void);
 static void	usage(void) __dead2;
 
 static pid_t pid;
@@ -84,7 +83,7 @@ SET_DECLARE(dumpset, struct dumpers);
 int
 main(int argc, char *argv[])
 {
-	int ch, efd, fd, name[4], sflag;
+	int ch, efd, fd, name[4];
 	char *binfile, *corefile;
 	char passpath[MAXPATHLEN], fname[MAXPATHLEN];
 	struct dumpers **d, *dumper;
@@ -148,34 +147,26 @@ main(int argc, char *argv[])
 	fd = open(corefile, O_RDWR|O_CREAT|O_TRUNC, DEFFILEMODE);
 	if (fd < 0)
 		err(1, "%s", corefile);
-	if (sflag) {
-		signal(SIGHUP, killed);
-		signal(SIGINT, killed);
-		signal(SIGTERM, killed);
-		if (kill(pid, SIGSTOP) == -1)
-			err(1, "%d: stop signal", pid);
-		atexit(restart_target);
-	}
+	/*
+	 * The semantics of the 's' flag is to stop the target process.
+	 * Previous versions of gcore would manage this by trapping SIGHUP,
+	 * SIGINT and SIGTERM (to be passed to the target pid), and then
+	 * signal the child to stop.
+	 *
+	 * However, this messes up if the selected dumper uses ptrace calls
+	 * that leave the child already stopped. The waitpid call in elfcore
+	 * never returns.
+	 *
+	 * The best thing to do here is to externalize the 's' flag and let
+	 * each dumper dispose of what that means, if anything. For the elfcore
+	 * dumper, the 's' flag is a no-op since the ptrace attach stops the
+	 * process in question already.
+	 */
+
 	dumper->dump(efd, fd, pid);
 	(void)close(fd);
 	(void)close(efd);
 	exit(0);
-}
-
-static void
-killed(int sig)
-{
-
-	restart_target();
-	signal(sig, SIG_DFL);
-	kill(getpid(), sig);
-}
-
-static void
-restart_target(void)
-{
-
-	kill(pid, SIGCONT);
 }
 
 void

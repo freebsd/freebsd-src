@@ -60,36 +60,40 @@ __FBSDID("$FreeBSD$");
 
 #define _DEFAULT_NLS_PATH "/usr/share/nls/%L/%N.cat:/usr/share/nls/%N/%L:/usr/local/share/nls/%L/%N.cat:/usr/local/share/nls/%N/%L"
 
-#define RLOCK(fail)	{ int ret; \
-			  if (__isthreaded && \
-			      ((ret = _pthread_rwlock_rdlock(&rwlock)) != 0)) { \
-				  errno = ret; \
-				  return (fail); \
+#define RLOCK(fail)	{ int ret;						\
+			  if (__isthreaded &&					\
+			      ((ret = _pthread_rwlock_rdlock(&rwlock)) != 0)) {	\
+				  errno = ret;					\
+				  return (fail);				\
 			  }}
-#define WLOCK(fail)	{ int ret; \
-			  if (__isthreaded && \
-			      ((ret = _pthread_rwlock_wrlock(&rwlock)) != 0)) { \
-				  errno = ret; \
-				  return (fail); \
+#define WLOCK(fail)	{ int ret;						\
+			  if (__isthreaded &&					\
+			      ((ret = _pthread_rwlock_wrlock(&rwlock)) != 0)) {	\
+				  errno = ret;					\
+				  return (fail);				\
 			  }}
-#define UNLOCK		{ if (__isthreaded) \
+#define UNLOCK		{ if (__isthreaded)					\
 			      _pthread_rwlock_unlock(&rwlock); }
 
 #define	NLERR		((nl_catd) -1)
 #define NLRETERR(errc)  { errno = errc; return (NLERR); }
-#define SAVEFAIL(n, e)	{ WLOCK(NLERR); \
-			  np = malloc(sizeof(struct catentry)); \
-			  if (np != NULL) { \
-			  	np->name = strdup(n); \
-				np->caterrno = e; \
-			  	SLIST_INSERT_HEAD(&cache, np, list); \
-			  } \
-			  UNLOCK; \
-			}
+#define SAVEFAIL(n, l, e)	{ WLOCK(NLERR);					\
+				  np = malloc(sizeof(struct catentry));		\
+				  if (np != NULL) {				\
+				  	np->name = strdup(n);			\
+					np->path = NULL;			\
+					np->lang = (l == NULL) ? NULL :		\
+					    strdup(l);				\
+					np->caterrno = e;			\
+				  	SLIST_INSERT_HEAD(&cache, np, list);	\
+				  }						\
+				  UNLOCK;					\
+				  errno = e;					\
+				}
 
 static nl_catd load_msgcat(const char *, const char *, const char *);
 
-static pthread_rwlock_t		 rwlock;
+static pthread_rwlock_t		 rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
 struct catentry {
 	SLIST_ENTRY(catentry)	 list;
@@ -107,17 +111,19 @@ SLIST_HEAD(listhead, catentry) cache =
 nl_catd
 catopen(const char *name, int type)
 {
-	int		 spcleft, saverr;
-	char		 path[PATH_MAX];
-	char		*nlspath, *lang, *base, *cptr, *pathP, *tmpptr;
-	char		*cptr1, *plang, *pter, *pcode;
-	struct stat	 sbuf;
-	struct catentry	*np;
+	struct stat sbuf;
+	struct catentry *np;
+	char *base, *cptr, *cptr1, *lang, *nlspath, *pathP, *pcode;
+	char *plang, *pter, *tmpptr;
+	int saverr, spcleft;
+	char path[PATH_MAX];
 
+	/* sanity checking */
 	if (name == NULL || *name == '\0')
 		NLRETERR(EINVAL);
 
 	if (strchr(name, '/') != NULL)
+		/* have a pathname */
 		lang = NULL;
 	else {
 		if (type == NL_CAT_LOCALE)
@@ -135,12 +141,14 @@ catopen(const char *name, int type)
 	/* Try to get it from the cache first */
 	RLOCK(NLERR);
 	SLIST_FOREACH(np, &cache, list) {
-		if (strcmp(np->name, name) == 0) {
+		if ((strcmp(np->name, name) == 0) &&
+		    ((lang != NULL && np->lang != NULL &&
+		    strcmp(np->lang, lang) == 0) || (np->lang == lang))) {
 			if (np->caterrno != 0) {
 				/* Found cached failing entry */
 				UNLOCK;
 				NLRETERR(np->caterrno);
-			} else if (strcmp(np->lang, lang) == 0) {
+			} else {
 				/* Found cached successful entry */
 				np->refcount++;
 				UNLOCK;
@@ -154,6 +162,7 @@ catopen(const char *name, int type)
 	if (strchr(name, '/') != NULL)
 		return (load_msgcat(name, name, lang));
 
+	/* sanity checking */
 	if ((plang = cptr1 = strdup(lang)) == NULL)
 		return (NLERR);
 	if ((cptr = strchr(cptr1, '@')) != NULL)
@@ -201,7 +210,7 @@ catopen(const char *name, int type)
 						break;
 					case '%':
 						++nlspath;
-						/* fallthrough */
+						/* FALLTHROUGH */
 					default:
 						if (pathP - path >=
 						    sizeof(path) - 1)
@@ -218,6 +227,7 @@ catopen(const char *name, int type)
 			too_long:
 						free(plang);
 						free(base);
+						SAVEFAIL(name, lang, ENAMETOOLONG);
 						NLRETERR(ENAMETOOLONG);
 					}
 					pathP += strlen(tmpptr);
@@ -241,16 +251,17 @@ catopen(const char *name, int type)
 	}
 	free(plang);
 	free(base);
+	SAVEFAIL(name, lang, ENOENT);
 	NLRETERR(ENOENT);
 }
 
 char *
 catgets(nl_catd catd, int set_id, int msg_id, const char *s)
 {
-	struct _nls_cat_hdr	*cat_hdr;
-	struct _nls_set_hdr	*set_hdr;
-	struct _nls_msg_hdr	*msg_hdr;
-	int			 l, u, i, r;
+	struct _nls_cat_hdr *cat_hdr;
+	struct _nls_msg_hdr *msg_hdr;
+	struct _nls_set_hdr *set_hdr;
+	int i, l, r, u;
 
 	if (catd == NULL || catd == NLERR) {
 		errno = EBADF;
@@ -315,8 +326,9 @@ notfound:
 int
 catclose(nl_catd catd)
 {
-	struct catentry		*np;
+	struct catentry *np;
 
+	/* sanity checking */
 	if (catd == NULL || catd == NLERR) {
 		errno = EBADF;
 		return (-1);
@@ -325,13 +337,15 @@ catclose(nl_catd catd)
 	/* Remove from cache if not referenced any more */
 	WLOCK(-1);
 	SLIST_FOREACH(np, &cache, list) {
-		if ((np->catd->__size == catd->__size) &&
-		    memcmp((const void *)np->catd, (const void *)catd, np->catd->__size) == 0) {
+		if (catd == np->catd) {
 			np->refcount--;
 			if (np->refcount == 0) {
 				munmap(catd->__data, (size_t)catd->__size);
 				free(catd);
 				SLIST_REMOVE(&cache, np, catentry, list);
+				free(np->name);
+				free(np->path);
+				free(np->lang);
 				free(np);
 			}
 			break;
@@ -348,19 +362,21 @@ catclose(nl_catd catd)
 static nl_catd
 load_msgcat(const char *path, const char *name, const char *lang)
 {
-	struct stat	 st;
-	nl_catd		 catd;
-	struct catentry	*np;
-	void		*data;
-	int		 fd;
+	struct stat st;
+	nl_catd	catd;
+	struct catentry *np;
+	void *data;
+	int fd;
 
 	/* path/name will never be NULL here */
 
-	/* One more try in cache; if it was not found by name,
-	   it might still be found by absolute path. */
+	/*
+	 * One more try in cache; if it was not found by name,
+	 * it might still be found by absolute path.
+	 */
 	RLOCK(NLERR);
 	SLIST_FOREACH(np, &cache, list) {
-		if (strcmp(np->path, path) == 0) {
+		if ((np->path != NULL) && (strcmp(np->path, path) == 0)) {
 			np->refcount++;
 			UNLOCK;
 			return (np->catd);
@@ -369,36 +385,47 @@ load_msgcat(const char *path, const char *name, const char *lang)
 	UNLOCK;
 
 	if ((fd = _open(path, O_RDONLY)) == -1) {
-		SAVEFAIL(name, errno);
-		return (NLERR);
+		SAVEFAIL(name, lang, errno);
+		NLRETERR(errno);
 	}
 
 	if (_fstat(fd, &st) != 0) {
-		SAVEFAIL(name, errno);
 		_close(fd);
-		return (NLERR);
+		SAVEFAIL(name, lang, EFTYPE);
+		NLRETERR(EFTYPE);
 	}
 
-	data = mmap(0, (size_t)st.st_size, PROT_READ, MAP_FILE|MAP_SHARED, fd,
-	    (off_t)0);
+	/*
+	 * If the file size cannot be held in size_t we cannot mmap()
+	 * it to the memory.  Probably, this will not be a problem given
+	 * that catalog files are usually small.
+	 */
+	if (st.st_size > SIZE_T_MAX) {
+		_close(fd);
+		SAVEFAIL(name, lang, EFBIG);
+		NLRETERR(EFBIG);
+	}
+
+	if ((data = mmap(0, (size_t)st.st_size, PROT_READ,
+	    MAP_FILE|MAP_SHARED, fd, (off_t)0)) == MAP_FAILED) {
+		int saved_errno = errno;
+		_close(fd);
+		SAVEFAIL(name, lang, saved_errno);
+		NLRETERR(saved_errno);
+	}
 	_close(fd);
-
-	if (data == MAP_FAILED) {
-		SAVEFAIL(name, errno);
-		return (NLERR);
-	}
 
 	if (ntohl((u_int32_t)((struct _nls_cat_hdr *)data)->__magic) !=
 	    _NLS_MAGIC) {
-		SAVEFAIL(name, errno);
 		munmap(data, (size_t)st.st_size);
-		NLRETERR(EINVAL);
+		SAVEFAIL(name, lang, EFTYPE);
+		NLRETERR(EFTYPE);
 	}
 
 	if ((catd = malloc(sizeof (*catd))) == NULL) {
-		SAVEFAIL(name, errno);
 		munmap(data, (size_t)st.st_size);
-		return (NLERR);
+		SAVEFAIL(name, lang, ENOMEM);
+		NLRETERR(ENOMEM);
 	}
 
 	catd->__data = data;
@@ -418,4 +445,3 @@ load_msgcat(const char *path, const char *name, const char *lang)
 	UNLOCK;
 	return (catd);
 }
-

@@ -1,3 +1,41 @@
+/***********************license start***************
+ *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
+ *  reserved.
+ *
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions are
+ *  met:
+ *
+ *      * Redistributions of source code must retain the above copyright
+ *        notice, this list of conditions and the following disclaimer.
+ *
+ *      * Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials provided
+ *        with the distribution.
+ *
+ *      * Neither the name of Cavium Networks nor the names of
+ *        its contributors may be used to endorse or promote products
+ *        derived from this software without specific prior written
+ *        permission.
+ *
+ *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
+ *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
+ *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
+ *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
+ *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
+ *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
+ *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
+ *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
+ *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
+ *
+ *
+ *  For any questions regarding licensing please contact marketing@caviumnetworks.com
+ *
+ ***********************license end**************************************/
+
 /*------------------------------------------------------------------
  * octeon_fpa.c        Free Pool Allocator
  *
@@ -171,8 +209,9 @@ void octeon_fpa_fill_pool_mem (u_int pool, u_int elem_size_words, u_int elem_num
     memory = (void *) OCTEON_ALIGN(memory);
 
 #ifdef FPA_DEBUG_TERSE
-    printf("FPA fill: %u  Count: %u  SizeBytes: %u  SizeBytesAligned: %u  1st: %p = 0x%X\n",
-           pool, elem_num, elem_size_bytes, block_size, memory, (void *)OCTEON_PTR2PHYS(memory));
+    printf("FPA fill: %u  Count: %u  SizeBytes: %u  SizeBytesAligned: %u  1st: %p = %p\n",
+           pool, elem_num, elem_size_bytes, block_size, memory,
+	   (void *)(intptr_t)OCTEON_PTR2PHYS(memory));
 #endif
 
 //    memory = (void *) ((((u_int) memory / OCTEON_FPA_POOL_ALIGNMENT) + 1) * OCTEON_FPA_POOL_ALIGNMENT);
@@ -180,7 +219,8 @@ void octeon_fpa_fill_pool_mem (u_int pool, u_int elem_size_words, u_int elem_num
     while (elem_num--) {
 #ifdef FPA_DEBUG
         if (((elems - elem_num) < 4) || (elem_num < 4))
-        printf(" %% Block %d:  %p  Phys 0x%X   Bytes %u\n", block, memory, OCTEON_PTR2PHYS(memory), elem_size_bytes);
+        printf(" %% Block %d:  %p  Phys %p   Bytes %u\n", block, memory,
+	  (void *)(intptr_t)OCTEON_PTR2PHYS(memory), elem_size_bytes);
         block++;
 #endif
         octeon_fpa_free(memory, pool, 0);

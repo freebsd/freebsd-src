@@ -43,6 +43,7 @@ SUBDIR=	${_3dfx} \
 	${_bm} \
 	bridgestp \
 	bwi \
+	bwn \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -195,6 +196,7 @@ SUBDIR=	${_3dfx} \
 	${_ndis} \
 	${_netgraph} \
 	${_nfe} \
+	nfs_common \
 	nfscl \
 	nfsclient \
 	nfscommon \
@@ -240,6 +242,7 @@ SUBDIR=	${_3dfx} \
 	re \
 	reiserfs \
 	rl \
+	runfw \
 	${_s3} \
 	${_safe} \
 	${_sbni} \
@@ -250,6 +253,7 @@ SUBDIR=	${_3dfx} \
 	sem \
 	sf \
 	siftr \
+	siba_bwn \
 	siis \
 	sis \
 	sk \

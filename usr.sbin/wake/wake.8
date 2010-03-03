@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\" Copyright (c) 2009 Marc Balmer <marc@msys.ch>
+.\" Copyright (c) 2009, 2010 Marc Balmer <marc@msys.ch>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -23,7 +23,7 @@
 .Nd send Wake on LAN frames to hosts on a local Ethernet network
 .Sh SYNOPSIS
 .Nm
-.Ar interface
+.Op Ar interface
 .Ar lladdr
 .Op Ar lladdr ...
 .Sh DESCRIPTION
@@ -37,21 +37,27 @@ and can be used to power on machines from a remote system without
 having physical access to them.
 .Pp
 .Ar interface
-is a network interface of the local machine.
+is an Ethernet interface of the local machine and is used to send the
+Wake on LAN frames over it.
+If there is only one Ethernet device available that is up and running, then the
+.Ar interface
+argument can be omitted.
 .Ar lladdr
-are the link layer addresses of the remote machines
-and can be specified as the actual hardware address
+is the link layer address of the remote machine.
+This can be specified as the actual hardware address
 (six hexadecimal numbers separated by colons)
-or a hostname entry in
+or as a hostname entry in
 .Pa /etc/ethers .
-Link layer addresses can be determined and set on
-.Fx
-machines using
+.Nm
+accepts multiple
+.Ar lladdr
+addresses.
+Link layer addresses can be determined and set using
 .Xr ifconfig 8 .
 .Sh FILES
 .Bl -tag -width "/etc/ethers" -compact
 .It /etc/ethers
-Ethernet host name database.
+Ethernet host name data base.
 .El
 .Sh SEE ALSO
 .Xr ethers 5 ,

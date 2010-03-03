@@ -11,7 +11,7 @@ PROG=	rmail
 SRCS=	rmail.c
 MAN=	rmail.8
 
-WARNS?=	0
+WARNS?=	2
 CFLAGS+=-I${SENDMAIL_DIR}/include -I.
 
 LIBSMDIR=	${.OBJDIR}/../../lib/libsm

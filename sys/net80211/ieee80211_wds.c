@@ -414,7 +414,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *key;
 	struct ether_header *eh;
-	int hdrspace, need_tap;
+	int hdrspace, need_tap = 1;	/* mbuf need to be tapped. */
 	uint8_t dir, type, subtype, qos;
 	uint16_t rxseq;
 
@@ -437,7 +437,6 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 
 	KASSERT(ni != NULL, ("null node"));
 
-	need_tap = 1;			/* mbuf need to be tapped. */
 	type = -1;			/* undefined */
 
 	if (m->m_pkthdr.len < sizeof(struct ieee80211_frame_min)) {

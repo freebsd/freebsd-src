@@ -869,23 +869,25 @@ extern unsigned long physfree;
 int pdir, curoffset;
 extern int nkpt;
 
+extern uint32_t kernbase;
+
 void
 initvalues(start_info_t *startinfo)
 { 
-	int l3_pages, l2_pages, l1_pages, offset;
 	vm_offset_t cur_space, cur_space_pt;
 	struct physdev_set_iopl set_iopl;
 	
-	vm_paddr_t KPTphys, IdlePTDma;
+	int l3_pages, l2_pages, l1_pages, offset;
 	vm_paddr_t console_page_ma, xen_store_ma;
-	vm_offset_t KPTphysoff, tmpva;
+	vm_offset_t tmpva;
 	vm_paddr_t shinfo;
 #ifdef PAE
 	vm_paddr_t IdlePDPTma, IdlePDPTnewma;
 	vm_paddr_t IdlePTDnewma[4];
 	pd_entry_t *IdlePDPTnew, *IdlePTDnew;
+	vm_paddr_t IdlePTDma[4];
 #else
-	vm_paddr_t pdir_shadow_ma;
+	vm_paddr_t IdlePTDma[1];
 #endif
 	unsigned long i;
 	int ncpus = MAXCPU;
@@ -921,11 +923,9 @@ initvalues(start_info_t *startinfo)
 	 * Note that only one page directory has been allocated at this point.
 	 * Thus, if KERNBASE
 	 */
-#if 0
 	for (i = 0; i < l2_pages; i++)
 		IdlePTDma[i] = xpmap_ptom(VTOP(IdlePTD + i*PAGE_SIZE));
-#endif
-	
+
 	l2_pages = (l2_pages == 0) ? 1 : l2_pages;
 #else	
 	l3_pages = 0;
@@ -938,10 +938,11 @@ initvalues(start_info_t *startinfo)
 			break;
 		l1_pages++;
 	}
-	
+
 	/* number of pages allocated after the pts + 1*/;
 	cur_space = xen_start_info->pt_base +
-	    ((xen_start_info->nr_pt_frames) + 3 )*PAGE_SIZE;
+	    (l3_pages + l2_pages + l1_pages + 1)*PAGE_SIZE;
+
 	printk("initvalues(): wooh - availmem=%x,%x\n", avail_space, cur_space);
 
 	printk("KERNBASE=%x,pt_base=%x, VTOPFN(base)=%x, nr_pt_frames=%x\n",
@@ -949,72 +950,15 @@ initvalues(start_info_t *startinfo)
 	    xen_start_info->nr_pt_frames);
 	xendebug_flags = 0; /* 0xffffffff; */
 
-	/* allocate 4 pages for bootmem allocator */
-	bootmem_start = bootmem_current = (char *)cur_space;
-	cur_space += (4 * PAGE_SIZE);
-	bootmem_end = (char *)cur_space;
-
-	/* allocate page for gdt */
-	gdt = (union descriptor *)cur_space;
-	cur_space += PAGE_SIZE*ncpus;
-
-        /* allocate page for ldt */
-	ldt = (union descriptor *)cur_space; cur_space += PAGE_SIZE;
-	cur_space += PAGE_SIZE;
-	
-	HYPERVISOR_shared_info = (shared_info_t *)cur_space;
-	cur_space += PAGE_SIZE;
-
-	xen_store = (struct ringbuf_head *)cur_space;
-	cur_space += PAGE_SIZE;
-
-	console_page = (char *)cur_space;
-	cur_space += PAGE_SIZE;
-
 #ifdef ADD_ISA_HOLE
 	shift_phys_machine(xen_phys_machine, xen_start_info->nr_pages);
 #endif
-	/* 
-	 * pre-zero unused mapped pages - mapped on 4MB boundary
-	 */
-#ifdef PAE
-	IdlePDPT = (pd_entry_t *)startinfo->pt_base;
-	IdlePDPTma = xpmap_ptom(VTOP(startinfo->pt_base));
-	/*
-	 * Note that only one page directory has been allocated at this point.
-	 * Thus, if KERNBASE
-	 */
-	IdlePTD = (pd_entry_t *)((uint8_t *)startinfo->pt_base + PAGE_SIZE);
-	IdlePTDma = xpmap_ptom(VTOP(IdlePTD));
-	l3_pages = 1;
-#else	
-	IdlePTD = (pd_entry_t *)startinfo->pt_base;
-	IdlePTDma = xpmap_ptom(VTOP(startinfo->pt_base));
-	l3_pages = 0;
-#endif
-	l2_pages = 1;
-	l1_pages = xen_start_info->nr_pt_frames - l2_pages - l3_pages;
-
-	KPTphysoff = (l2_pages + l3_pages)*PAGE_SIZE;
-
-	KPTphys = xpmap_ptom(VTOP(startinfo->pt_base + KPTphysoff));
 	XENPRINTF("IdlePTD %p\n", IdlePTD);
 	XENPRINTF("nr_pages: %ld shared_info: 0x%lx flags: 0x%lx pt_base: 0x%lx "
 		  "mod_start: 0x%lx mod_len: 0x%lx\n",
 		  xen_start_info->nr_pages, xen_start_info->shared_info, 
 		  xen_start_info->flags, xen_start_info->pt_base, 
 		  xen_start_info->mod_start, xen_start_info->mod_len);
-	/* Map proc0's KSTACK */
-
-	proc0kstack = cur_space; cur_space += (KSTACK_PAGES * PAGE_SIZE);
-	printk("proc0kstack=%u\n", proc0kstack);
-
-	/* vm86/bios stack */
-	cur_space += PAGE_SIZE;
-
-	/* Map space for the vm86 region */
-	vm86paddr = (vm_offset_t)cur_space;
-	cur_space += (PAGE_SIZE * 3);
 
 #ifdef PAE
 	IdlePDPTnew = (pd_entry_t *)cur_space; cur_space += PAGE_SIZE;
@@ -1047,26 +991,42 @@ initvalues(start_info_t *startinfo)
 	 * Unpin the current PDPT
 	 */
 	xen_pt_unpin(IdlePDPTma);
-	
-	for (i = 0; i < 20; i++) {
-		int startidx = ((KERNBASE >> 18) & PAGE_MASK) >> 3;
-
-		if (IdlePTD[startidx + i] == 0) {
-			l1_pages = i;
-			break;
-		}	
-	}
 
 #endif  /* PAE */
+
+	/* Map proc0's KSTACK */
+	proc0kstack = cur_space; cur_space += (KSTACK_PAGES * PAGE_SIZE);
+	printk("proc0kstack=%u\n", proc0kstack);
+
+	/* vm86/bios stack */
+	cur_space += PAGE_SIZE;
+
+	/* Map space for the vm86 region */
+	vm86paddr = (vm_offset_t)cur_space;
+	cur_space += (PAGE_SIZE * 3);
+
+	/* allocate 4 pages for bootmem allocator */
+	bootmem_start = bootmem_current = (char *)cur_space;
+	cur_space += (4 * PAGE_SIZE);
+	bootmem_end = (char *)cur_space;
 	
-	/* unmap remaining pages from initial 4MB chunk
+	/* allocate pages for gdt */
+	gdt = (union descriptor *)cur_space;
+	cur_space += PAGE_SIZE*ncpus;
+
+        /* allocate page for ldt */
+	ldt = (union descriptor *)cur_space; cur_space += PAGE_SIZE;
+	cur_space += PAGE_SIZE;
+	
+	/* unmap remaining pages from initial chunk
 	 *
 	 */
-	for (tmpva = cur_space; (tmpva & ((1<<22)-1)) != 0; tmpva += PAGE_SIZE) {
+	for (tmpva = cur_space; tmpva < (((uint32_t)&kernbase) + (l1_pages<<PDRSHIFT));
+	     tmpva += PAGE_SIZE) {
 		bzero((char *)tmpva, PAGE_SIZE);
 		PT_SET_MA(tmpva, (vm_paddr_t)0);
 	}
-	
+
 	PT_UPDATES_FLUSH();
 
 	memcpy(((uint8_t *)IdlePTDnew) + ((unsigned int)(KERNBASE >> 18)),
@@ -1093,10 +1053,10 @@ initvalues(start_info_t *startinfo)
 		 * make sure that all the initial page table pages
 		 * have been zeroed
 		 */
-		PT_SET_MA(cur_space_pt,
+		PT_SET_MA(cur_space,
 		    xpmap_ptom(VTOP(cur_space)) | PG_V | PG_RW);
-		bzero((char *)cur_space_pt, PAGE_SIZE);
-		PT_SET_MA(cur_space_pt, (vm_paddr_t)0);
+		bzero((char *)cur_space, PAGE_SIZE);
+		PT_SET_MA(cur_space, (vm_paddr_t)0);
 		xen_pt_pin(xpmap_ptom(VTOP(cur_space)));
 		xen_queue_pt_update((vm_paddr_t)(IdlePTDnewma[pdir] +
 			curoffset*sizeof(vm_paddr_t)), 
@@ -1118,6 +1078,15 @@ initvalues(start_info_t *startinfo)
 	IdlePTD = IdlePTDnew;
 	IdlePDPT = IdlePDPTnew;
 	IdlePDPTma = IdlePDPTnewma;
+	
+	HYPERVISOR_shared_info = (shared_info_t *)cur_space;
+	cur_space += PAGE_SIZE;
+
+	xen_store = (struct ringbuf_head *)cur_space;
+	cur_space += PAGE_SIZE;
+
+	console_page = (char *)cur_space;
+	cur_space += PAGE_SIZE;
 	
 	/*
 	 * shared_info is an unsigned long so this will randomly break if

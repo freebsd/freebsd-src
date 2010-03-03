@@ -5,7 +5,7 @@
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
-# XXX Use GNU versions: apropos bc dc diff grep ld man patch whatis
+# XXX Use GNU versions: apropos diff grep ld man patch whatis
 # Moved to secure: bdes
 #
 
@@ -66,7 +66,7 @@ SUBDIR=	alias \
 	${_file2c} \
 	find \
 	finger \
-	${_fmt} \
+	fmt \
 	fold \
 	${_from} \
 	fstat \
@@ -172,6 +172,7 @@ SUBDIR=	alias \
 	${_rwho} \
 	script \
 	sed \
+	seq \
 	shar \
 	showmount \
 	${_smbutil} \
@@ -296,7 +297,6 @@ _locate=	locate
 # XXX msgs?
 .if ${MK_MAIL} != "no"
 _biff=		biff
-_fmt=		fmt
 _from=		from
 _mail=		mail
 _msgs=		msgs

@@ -747,15 +747,6 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			xpt_done(pccb);
 			break;
 		/*
-		 * (Re)Scan the SCSI Bus 
-	 	 * Rescan the given bus, or bus/target/lun
- 		 */
-		case XPT_SCAN_BUS:		    
-			TRM_DPRINTF(" XPT_SCAN_BUS \n");
-	    		pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		/*
 		 * Get EDT entries matching the given pattern 
  		 */
 		case XPT_DEV_MATCH:	    	
@@ -818,15 +809,6 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 	    		pccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(pccb);
 			break;
-		/*
-		 * Scan Logical Unit 
-		 */
-		case XPT_SCAN_LUN:		   
-			TRM_DPRINTF(" XPT_SCAN_LUN \n");
-			pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-
 		/*
 		 * Get/Set transfer rate/width/disconnection/tag queueing 
 		 * settings 

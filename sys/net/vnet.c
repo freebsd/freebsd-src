@@ -37,10 +37,14 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_kdb.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/jail.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/linker_set.h>
@@ -53,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DDB
 #include <ddb/ddb.h>
+#include <ddb/db_sym.h>
 #endif
 
 #include <net/if.h>
@@ -208,6 +213,17 @@ static TAILQ_HEAD(, vnet_data_free) vnet_data_free_head =
 	    TAILQ_HEAD_INITIALIZER(vnet_data_free_head);
 static struct sx vnet_data_free_lock;
 
+SDT_PROVIDER_DEFINE(vnet);
+SDT_PROBE_DEFINE1(vnet, functions, vnet_alloc, entry, "int");
+SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, alloc, "int", "struct vnet *");
+SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, return, "int", "struct vnet *");
+SDT_PROBE_DEFINE2(vnet, functions, vnet_destroy, entry, "int", "struct vnet *");
+SDT_PROBE_DEFINE1(vnet, functions, vnet_destroy, return, "int");
+
+#ifdef DDB
+static void db_show_vnet_print_vs(struct vnet_sysinit *, int);
+#endif
+
 /*
  * Allocate a virtual network stack.
  */
@@ -216,8 +232,10 @@ vnet_alloc(void)
 {
 	struct vnet *vnet;
 
+	SDT_PROBE1(vnet, functions, vnet_alloc, entry, __LINE__);
 	vnet = malloc(sizeof(struct vnet), M_VNET, M_WAITOK | M_ZERO);
 	vnet->vnet_magic_n = VNET_MAGIC_N;
+	SDT_PROBE2(vnet, functions, vnet_alloc, alloc, __LINE__, vnet);
 
 	/*
 	 * Allocate storage for virtualized global variables and copy in
@@ -242,6 +260,7 @@ vnet_alloc(void)
 	LIST_INSERT_HEAD(&vnet_head, vnet, vnet_le);
 	VNET_LIST_WUNLOCK();
 
+	SDT_PROBE2(vnet, functions, vnet_alloc, return, __LINE__, vnet);
 	return (vnet);
 }
 
@@ -253,6 +272,7 @@ vnet_destroy(struct vnet *vnet)
 {
 	struct ifnet *ifp, *nifp;
 
+	SDT_PROBE2(vnet, functions, vnet_destroy, entry, __LINE__, vnet);
 	KASSERT(vnet->vnet_sockcnt == 0,
 	    ("%s: vnet still has sockets", __func__));
 
@@ -279,6 +299,7 @@ vnet_destroy(struct vnet *vnet)
 	vnet->vnet_data_base = 0;
 	vnet->vnet_magic_n = 0xdeadbeef;
 	free(vnet, M_VNET);
+	SDT_PROBE1(vnet, functions, vnet_destroy, return, __LINE__);
 }
 
 /*
@@ -616,6 +637,65 @@ vnet_sysuninit(void)
 	VNET_SYSINIT_RUNLOCK();
 }
 
+#ifdef VNET_DEBUG
+struct vnet_recursion {
+	SLIST_ENTRY(vnet_recursion)	 vnr_le;
+	const char			*prev_fn;
+	const char			*where_fn;
+	int				 where_line;
+	struct vnet			*old_vnet;
+	struct vnet			*new_vnet;
+};
+
+static SLIST_HEAD(, vnet_recursion) vnet_recursions =
+    SLIST_HEAD_INITIALIZER(vnet_recursions);
+
+static void
+vnet_print_recursion(struct vnet_recursion *vnr, int brief)
+{
+
+	if (!brief)
+		printf("CURVNET_SET() recursion in ");
+	printf("%s() line %d, prev in %s()", vnr->where_fn, vnr->where_line,
+	    vnr->prev_fn);
+	if (brief)
+		printf(", ");
+	else
+		printf("\n    ");
+	printf("%p -> %p\n", vnr->old_vnet, vnr->new_vnet);
+}
+
+void
+vnet_log_recursion(struct vnet *old_vnet, const char *old_fn, int line)
+{
+	struct vnet_recursion *vnr;
+
+	/* Skip already logged recursion events. */
+	SLIST_FOREACH(vnr, &vnet_recursions, vnr_le)
+		if (vnr->prev_fn == old_fn &&
+		    vnr->where_fn == curthread->td_vnet_lpush &&
+		    vnr->where_line == line &&
+		    (vnr->old_vnet == vnr->new_vnet) == (curvnet == old_vnet))
+			return;
+
+	vnr = malloc(sizeof(*vnr), M_VNET, M_NOWAIT | M_ZERO);
+	if (vnr == NULL)
+		panic("%s: malloc failed", __func__);
+	vnr->prev_fn = old_fn;
+	vnr->where_fn = curthread->td_vnet_lpush;
+	vnr->where_line = line;
+	vnr->old_vnet = old_vnet;
+	vnr->new_vnet = curvnet;
+
+	SLIST_INSERT_HEAD(&vnet_recursions, vnr, vnr_le);
+
+	vnet_print_recursion(vnr, 0);
+#ifdef KDB
+	kdb_backtrace();
+#endif
+}
+#endif /* VNET_DEBUG */
+
 #ifdef DDB
 DB_SHOW_COMMAND(vnets, db_show_vnets)
 {
@@ -637,4 +717,72 @@ DB_SHOW_COMMAND(vnets, db_show_vnets)
 			break;
 	}
 }
+
+static void
+db_show_vnet_print_vs(struct vnet_sysinit *vs, int ddb)
+{
+	const char *vsname, *funcname;
+	c_db_sym_t sym;
+	db_expr_t  offset;
+
+#define xprint(...)							\
+	if (ddb)							\
+		db_printf(__VA_ARGS__);					\
+	else								\
+		printf(__VA_ARGS__)
+
+	if (vs == NULL) {
+		xprint("%s: no vnet_sysinit * given\n", __func__);
+		return;
+	}
+
+	sym = db_search_symbol((vm_offset_t)vs, DB_STGY_ANY, &offset);
+	db_symbol_values(sym, &vsname, NULL);
+	sym = db_search_symbol((vm_offset_t)vs->func, DB_STGY_PROC, &offset);
+	db_symbol_values(sym, &funcname, NULL);
+	xprint("%s(%p)\n", (vsname != NULL) ? vsname : "", vs);
+	xprint("  0x%08x 0x%08x\n", vs->subsystem, vs->order);
+	xprint("  %p(%s)(%p)\n",
+	    vs->func, (funcname != NULL) ? funcname : "", vs->arg);
+#undef xprint
+}
+
+DB_SHOW_COMMAND(vnet_sysinit, db_show_vnet_sysinit)
+{
+	struct vnet_sysinit *vs;
+
+	db_printf("VNET_SYSINIT vs Name(Ptr)\n");
+	db_printf("  Subsystem  Order\n");
+	db_printf("  Function(Name)(Arg)\n");
+	TAILQ_FOREACH(vs, &vnet_constructors, link) {
+		db_show_vnet_print_vs(vs, 1);
+		if (db_pager_quit)
+			break;
+	}
+}
+
+DB_SHOW_COMMAND(vnet_sysuninit, db_show_vnet_sysuninit)
+{
+	struct vnet_sysinit *vs;
+
+	db_printf("VNET_SYSUNINIT vs Name(Ptr)\n");
+	db_printf("  Subsystem  Order\n");
+	db_printf("  Function(Name)(Arg)\n");
+	TAILQ_FOREACH_REVERSE(vs, &vnet_destructors, vnet_sysuninit_head,
+	    link) {
+		db_show_vnet_print_vs(vs, 1);
+		if (db_pager_quit)
+			break;
+	}
+}
+
+#ifdef VNET_DEBUG
+DB_SHOW_COMMAND(vnetrcrs, db_show_vnetrcrs)
+{
+	struct vnet_recursion *vnr;
+
+	SLIST_FOREACH(vnr, &vnet_recursions, vnr_le)
+		vnet_print_recursion(vnr, 1);
+}
 #endif
+#endif /* DDB */

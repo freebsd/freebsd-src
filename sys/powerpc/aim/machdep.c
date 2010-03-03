@@ -198,6 +198,11 @@ cpu_startup(void *dummy)
 	    ptoa(physmem) / 1048576);
 	realmem = physmem;
 
+	if (bootverbose)
+		printf("available KVA = %zd (%zd MB)\n",
+		    virtual_end - virtual_avail,
+		    (virtual_end - virtual_avail) / 1048576);
+
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */

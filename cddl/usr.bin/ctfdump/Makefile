@@ -1,14 +1,13 @@
 # $FreeBSD$
 
-.include	"../../Makefile.inc"
+.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/common
+.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/dump
 
 PROG=		ctfdump
-
+NO_MAN=
 SRCS=		dump.c \
 		symbol.c \
 		utils.c
-
-WARNS?=		6
 
 CFLAGS+=	-I${OPENSOLARIS_USR_DISTDIR} \
 		-I${OPENSOLARIS_SYS_DISTDIR} \
@@ -19,13 +18,7 @@ CFLAGS+=	-I${OPENSOLARIS_USR_DISTDIR} \
 		-I${OPENSOLARIS_USR_DISTDIR}/tools/ctf/common \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common
 
-LDFLAGS+=	-pthread
-
-LDADD+=		-lelf -lz
-
-.PATH:		${OPENSOLARIS_USR_DISTDIR}/tools/ctf/common
-.PATH:		${OPENSOLARIS_USR_DISTDIR}/tools/ctf/dump
-
-NO_MAN=
+DPADD=		${LIBPTHREAD} ${LIBELF} ${LIBZ}
+LDADD=		-lpthread -lelf -lz
 
 .include <bsd.prog.mk>

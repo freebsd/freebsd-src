@@ -3,7 +3,8 @@
 
 PROG=	dc
 SRCS=	dc.c bcode.c inout.c mem.c stack.c
-LDADD=	-lcrypto
+CFLAGS+=--param max-inline-insns-single=64
 DPADD=	${LIBCRYPTO}
+LDADD=	-lcrypto
 
 .include <bsd.prog.mk>

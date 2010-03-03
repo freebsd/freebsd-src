@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005 Poul-Henning Kamp <phk@FreeBSD.org>
+ * Copyright (c) 2010 Joerg Wunsch <joerg@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -53,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #define UPD7210_SW_DRIVER
 #include <dev/ieee488/upd7210.h>
+#include <dev/ieee488/tnt4882.h>
 
 static MALLOC_DEFINE(M_IBFOO, "IBFOO", "IBFOO");
 
@@ -94,7 +97,10 @@ struct ibfoo {
 		PIO_IDATA,
 		PIO_ODATA,
 		PIO_CMD,
-		DMA_IDATA
+		DMA_IDATA,
+		FIFO_IDATA,
+		FIFO_ODATA,
+		FIFO_CMD
 	}			mode;
 
 	struct timeval		deadline;
@@ -170,7 +176,7 @@ ib_set_errno(struct ibarg *ap, int errno)
 }
 
 static int
-gpib_ib_irq(struct upd7210 *u, int intr __unused)
+gpib_ib_irq(struct upd7210 *u, int isr_3)
 {
 	struct ibfoo *ib;
 
@@ -211,11 +217,53 @@ gpib_ib_irq(struct upd7210 *u, int intr __unused)
 		if (!(u->rreg[ISR1] & IXR1_ENDRX))
 			return (0);
 		break;
+	case FIFO_IDATA:
+		if (!(isr_3 & 0x15))
+			return (0);
+		while (ib->buflen != 0 && (isr_3 & 0x04 /* NEF */) != 0) {
+			*ib->buf = bus_read_1(u->reg_res[0], fifob);
+			ib->buf++;
+			ib->buflen--;
+			isr_3 = bus_read_1(u->reg_res[0], isr3);
+		}
+		if ((isr_3 & 0x01) != 0 /* xfr done */ ||
+		    (u->rreg[ISR1] & IXR1_ENDRX) != 0 ||
+		    ib->buflen == 0)
+			break;
+		if (isr_3 & 0x10)
+			/* xfr stopped */
+			bus_write_1(u->reg_res[0], cmdr, 0x04); /* GO */
+		upd7210_wr(u, AUXMR, AUXMR_RFD);
+		return (1);
+	case FIFO_CMD:
+	case FIFO_ODATA:
+		if (!(isr_3 & 0x19))
+			return (0);
+		if (ib->buflen == 0)
+			/* xfr DONE */
+			break;
+		while (ib->buflen != 0 && (isr_3 & 0x08 /* NFF */) != 0) {
+			bus_write_1(u->reg_res[0], fifob, *ib->buf);
+			ib->buf++;
+			ib->buflen--;
+			isr_3 = bus_read_1(u->reg_res[0], isr3);
+		}
+		if (isr_3 & 0x10)
+			/* xfr stopped */
+			bus_write_1(u->reg_res[0], cmdr, 0x04); /* GO */
+		if (ib->buflen == 0)
+			/* no more NFF interrupts wanted */
+			bus_write_1(u->reg_res[0], imr3, 0x11); /* STOP IE, DONE IE */
+		return (1);
 	default:
 		return (0);
 	}
 	upd7210_wr(u, IMR1, 0);
 	upd7210_wr(u, IMR2, 0);
+	if (u->use_fifo) {
+		bus_write_1(u->reg_res[0], imr3, 0x00);
+		bus_write_1(u->reg_res[0], cmdr, 0x22); /* soft RESET */
+	}
 	ib->mode = BUSY;
 	wakeup(&ib->buflen);
 	return (1);
@@ -227,6 +275,7 @@ gpib_ib_timeout(void *arg)
 	struct upd7210 *u;
 	struct ibfoo *ib;
 	struct timeval tv;
+	u_int isr_3;
 
 	u = arg;
 	ib = u->ibfoo;
@@ -241,7 +290,11 @@ gpib_ib_timeout(void *arg)
 	if (ib->mode > BUSY) {
 		upd7210_rd(u, ISR1);
 		upd7210_rd(u, ISR2);
-		gpib_ib_irq(u, 2);
+		if (u->use_fifo)
+			isr_3 = bus_read_1(u->reg_res[0], isr3);
+		else
+			isr_3 = 0;
+		gpib_ib_irq(u, isr_3);
 	}
 	if (ib->mode != IDLE && timevalisset(&ib->deadline)) {
 		getmicrouptime(&tv);
@@ -249,6 +302,10 @@ gpib_ib_timeout(void *arg)
 			ib_had_timeout(ib->ap);
 			upd7210_wr(u, IMR1, 0);
 			upd7210_wr(u, IMR2, 0);
+			if (u->use_fifo) {
+				bus_write_1(u->reg_res[0], imr3, 0x00);
+				bus_write_1(u->reg_res[0], cmdr, 0x22); /* soft RESET */
+			}
 			ib->mode = BUSY;
 			wakeup(&ib->buflen);
 		}
@@ -280,6 +337,8 @@ gpib_ib_wait_xfer(struct upd7210 *u, struct ibfoo *ib)
 	ib->buf = NULL;
 	upd7210_wr(u, IMR1, 0);
 	upd7210_wr(u, IMR2, 0);
+	if (u->use_fifo)
+		bus_write_1(u->reg_res[0], imr3, 0x00);
 }
 
 static void
@@ -335,14 +394,30 @@ pio_cmd(struct upd7210 *u, u_char *cmd, int len)
 		ib->wrh = NULL;
 	}
 	mtx_lock(&u->mutex);
-	ib->mode = PIO_CMD;
 	ib->buf = cmd;
 	ib->buflen = len;
-	upd7210_wr(u, IMR2, IXR2_CO);
-
-	gpib_ib_irq(u, 1);
+	if (u->use_fifo) {
+		/* TNT5004 or TNT4882 in FIFO mode */
+		ib->mode = FIFO_CMD;
+		upd7210_wr(u, AUXMR, 0x51);		/* holdoff immediately */
+		bus_write_1(u->reg_res[0], cmdr, 0x10); /* reset FIFO */
+		bus_write_1(u->reg_res[0], cfg, 0x80); /* CMD, xfer OUT, 8-bit FIFO */
+		bus_write_1(u->reg_res[0], imr3, 0x19); /* STOP IE, NFF IE, DONE IE */
+		bus_write_1(u->reg_res[0], cnt0, -len);
+		bus_write_1(u->reg_res[0], cnt1, (-len) >> 8);
+		bus_write_1(u->reg_res[0], cnt2, (-len) >> 16);
+		bus_write_1(u->reg_res[0], cnt3, (-len) >> 24);
+		bus_write_1(u->reg_res[0], cmdr, 0x04); /* GO */
+	} else {
+		ib->mode = PIO_CMD;
+		upd7210_wr(u, IMR2, IXR2_CO);
+		gpib_ib_irq(u, 0);
+	}
 
 	gpib_ib_wait_xfer(u, ib);
+
+	if (u->use_fifo)
+		bus_write_1(u->reg_res[0], cmdr, 0x08); /* STOP */
 
 	mtx_unlock(&u->mutex);
 	return (len - ib->buflen);
@@ -358,12 +433,31 @@ pio_odata(struct upd7210 *u, u_char *data, int len)
 	if (len == 0)
 		return (0);
 	mtx_lock(&u->mutex);
-	ib->mode = PIO_ODATA;
 	ib->buf = data;
 	ib->buflen = len;
-	upd7210_wr(u, IMR1, IXR1_DO);
+	if (u->use_fifo) {
+		/* TNT5004 or TNT4882 in FIFO mode */
+		ib->mode = FIFO_ODATA;
+		bus_write_1(u->reg_res[0], cmdr, 0x10); /* reset FIFO */
+		if (ib->doeoi)
+			bus_write_1(u->reg_res[0], cfg, 0x08); /* CCEN */
+		else
+			bus_write_1(u->reg_res[0], cfg, 0x00); /* xfer OUT, 8-bit FIFO */
+		bus_write_1(u->reg_res[0], imr3, 0x19); /* STOP IE, NFF IE, DONE IE */
+		bus_write_1(u->reg_res[0], cnt0, -len);
+		bus_write_1(u->reg_res[0], cnt1, (-len) >> 8);
+		bus_write_1(u->reg_res[0], cnt2, (-len) >> 16);
+		bus_write_1(u->reg_res[0], cnt3, (-len) >> 24);
+		bus_write_1(u->reg_res[0], cmdr, 0x04); /* GO */
+	} else {
+		ib->mode = PIO_ODATA;
+		upd7210_wr(u, IMR1, IXR1_DO);
+	}
 
 	gpib_ib_wait_xfer(u, ib);
+
+	if (u->use_fifo)
+		bus_write_1(u->reg_res[0], cmdr, 0x08); /* STOP */
 
 	mtx_unlock(&u->mutex);
 	return (len - ib->buflen);
@@ -377,12 +471,29 @@ pio_idata(struct upd7210 *u, u_char *data, int len)
 	ib = u->ibfoo;
 
 	mtx_lock(&u->mutex);
-	ib->mode = PIO_IDATA;
 	ib->buf = data;
 	ib->buflen = len;
-	upd7210_wr(u, IMR1, IXR1_DI);
+	if (u->use_fifo) {
+		/* TNT5004 or TNT4882 in FIFO mode */
+		ib->mode = FIFO_IDATA;
+		bus_write_1(u->reg_res[0], cmdr, 0x10); /* reset FIFO */
+		bus_write_1(u->reg_res[0], cfg, 0x20); /* xfer IN, 8-bit FIFO */
+		bus_write_1(u->reg_res[0], cnt0, -len);
+		bus_write_1(u->reg_res[0], cnt1, (-len) >> 8);
+		bus_write_1(u->reg_res[0], cnt2, (-len) >> 16);
+		bus_write_1(u->reg_res[0], cnt3, (-len) >> 24);
+		bus_write_1(u->reg_res[0], cmdr, 0x04); /* GO */
+		upd7210_wr(u, AUXMR, AUXMR_RFD);
+		bus_write_1(u->reg_res[0], imr3, 0x15); /* STOP IE, NEF IE, DONE IE */
+	} else {
+		ib->mode = PIO_IDATA;
+		upd7210_wr(u, IMR1, IXR1_DI);
+	}
 
 	gpib_ib_wait_xfer(u, ib);
+
+	if (u->use_fifo)
+		bus_write_1(u->reg_res[0], cmdr, 0x08); /* STOP */
 
 	mtx_unlock(&u->mutex);
 	return (len - ib->buflen);
@@ -826,6 +937,12 @@ gpib_ib_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	upd7210_wr(u, AUXMR, C_AUXB + 3);
 	upd7210_wr(u, AUXMR, C_AUXE + 0);
 	upd7210_wr(u, AUXMR, AUXMR_PON);
+	if (u->use_fifo) {
+		bus_write_1(u->reg_res[0], imr3, 0x00);
+		bus_write_1(u->reg_res[0], cmdr, 0x22); /* soft reset */
+		bus_write_1(u->reg_res[0], cmdr, 0x03); /* set system
+							 * controller bit */
+	}
 	upd7210_wr(u, AUXMR, AUXMR_CIFC);
 	DELAY(100);
 	upd7210_wr(u, AUXMR, AUXMR_SIFC);
@@ -856,6 +973,11 @@ gpib_ib_close(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	ibdebug = 0;
 	upd7210_wr(u, IMR1, 0x00);
 	upd7210_wr(u, IMR2, 0x00);
+	if (u->use_fifo) {
+		bus_write_1(u->reg_res[0], imr3, 0x00);
+		bus_write_1(u->reg_res[0], cmdr, 0x02); /* clear system
+							 * controller bit */
+	}
 	upd7210_wr(u, AUXMR, AUXMR_CRST);
 	DELAY(10000);
 	mtx_unlock(&u->mutex);

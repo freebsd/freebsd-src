@@ -659,8 +659,8 @@ octeon_memory_init(void)
 	uint32_t realmem_bytes;
 
 	if (octeon_board_real()) {
-		printf("octeon_dram == %llx\n", octeon_dram);
-		printf("reduced to ram: %u MB", (uint32_t) octeon_dram >> 20);
+		printf("octeon_dram == %jx\n", (intmax_t)octeon_dram);
+		printf("reduced to ram: %u MB", (uint32_t)octeon_dram >> 20);
 
 		realmem_bytes = (octeon_dram - PAGE_SIZE);
 		realmem_bytes &= ~(PAGE_SIZE - 1);
@@ -678,8 +678,8 @@ octeon_memory_init(void)
 			phys_avail[1] = realmem_bytes;
 		realmem_bytes -= OCTEON_DRAM_FIRST_256_END;
 		realmem_bytes &= ~(PAGE_SIZE - 1);
-		printf("phys_avail[0] = %x phys_avail[1] = %x\n",
-		    phys_avail[0], phys_avail[1]);
+		printf("phys_avail[0] = %#lx phys_avail[1] = %#lx\n",
+		       (long)phys_avail[0], (long)phys_avail[1]);
 	} else {
 		/* Simulator gets 96Meg period. */
 		phys_avail[1] = (96 << 20);
@@ -707,18 +707,18 @@ octeon_memory_init(void)
 		phys_avail[2] = 0x20000000;
 		printf("realmem_bytes is now at %x\n", realmem_bytes);
 		phys_avail[3] = ((uint32_t) 0x20000000 + realmem_bytes);
-		printf("Next block of memory goes from %x to %x\n",
-		    phys_avail[2], phys_avail[3]);
+		printf("Next block of memory goes from %#lx to %#lx\n",
+		    (long)phys_avail[2], (long)phys_avail[3]);
 		physmem += btoc(phys_avail[3] - phys_avail[2]);
 	} else {
 		printf("realmem_bytes is %d\n", realmem_bytes);
 	}
 	realmem = physmem;
 
-	printf("\nTotal DRAM Size 0x%X", (uint32_t) octeon_dram);
-	printf("\nBank 0 = 0x%8X   ->  0x%8X", phys_avail[0], phys_avail[1]);
-	printf("\nBank 1 = 0x%8X   ->  0x%8X\n", phys_avail[2], phys_avail[3]);
-	printf("\nphysmem: 0x%lx", physmem);
+	printf("Total DRAM Size %#X\n", (uint32_t) octeon_dram);
+	printf("Bank 0 = %#08lX   ->  %#08lX\n", (long)phys_avail[0], (long)phys_avail[1]);
+	printf("Bank 1 = %#08lX   ->  %#08lX\n", (long)phys_avail[2], (long)phys_avail[3]);
+	printf("physmem: %#lx\n", physmem);
 
 	Maxmem = physmem;
 
@@ -729,6 +729,8 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
     __register_t a3)
 {
 	uint64_t platform_counter_freq;
+
+	boothowto |= RB_SINGLE;
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();

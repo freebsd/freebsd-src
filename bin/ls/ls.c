@@ -113,6 +113,7 @@ static int f_listdir;		/* list actual directory, not contents */
 static int f_listdot;		/* list files beginning with . */
 static int f_noautodot;		/* do not automatically enable -A for root */
        int f_longform;		/* long listing format */
+static int f_nofollow;		/* don't follow symbolic link arguments */
        int f_nonprint;		/* show unprintables as ? */
 static int f_nosort;		/* don't sort output */
        int f_notabs;		/* don't use tab-separated multi-col output */
@@ -234,6 +235,7 @@ main(int argc, char *argv[])
 			break;
 		case 'H':
 			fts_options |= FTS_COMFOLLOW;
+			f_nofollow = 0;
 			break;
 		case 'G':
 			setenv("CLICOLOR", "", 1);
@@ -241,11 +243,13 @@ main(int argc, char *argv[])
 		case 'L':
 			fts_options &= ~FTS_PHYSICAL;
 			fts_options |= FTS_LOGICAL;
+			f_nofollow = 0;
 			break;
 		case 'P':
 			fts_options &= ~FTS_COMFOLLOW;
 			fts_options &= ~FTS_LOGICAL;
 			fts_options |= FTS_PHYSICAL;
+			f_nofollow = 1;
 			break;
 		case 'R':
 			f_recursive = 1;
@@ -396,10 +400,10 @@ main(int argc, char *argv[])
 		fts_options |= FTS_NOSTAT;
 
 	/*
-	 * If not -F, -d or -l options, follow any symbolic links listed on
+	 * If not -F, -P, -d or -l options, follow any symbolic links listed on
 	 * the command line.
 	 */
-	if (!f_longform && !f_listdir && (!f_type || f_slash))
+	if (!f_nofollow && !f_longform && !f_listdir && (!f_type || f_slash))
 		fts_options |= FTS_COMFOLLOW;
 
 	/*

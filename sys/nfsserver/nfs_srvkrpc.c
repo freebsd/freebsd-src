@@ -96,8 +96,6 @@ SYSCTL_DECL(_vfs_nfsrv);
 SVCPOOL		*nfsrv_pool;
 int		nfsd_waiting = 0;
 int		nfsrv_numnfsd = 0;
-static int	nfs_realign_test;
-static int	nfs_realign_count;
 struct callout	nfsrv_callout;
 static eventhandler_tag nfsrv_nmbclusters_tag;
 
@@ -111,10 +109,6 @@ SYSCTL_INT(_vfs_nfsrv, OID_AUTO, gatherdelay, CTLFLAG_RW,
 SYSCTL_INT(_vfs_nfsrv, OID_AUTO, gatherdelay_v3, CTLFLAG_RW,
     &nfsrvw_procrastinate_v3, 0,
     "Delay in seconds for NFSv3 write gathering");
-SYSCTL_INT(_vfs_nfsrv, OID_AUTO, realign_test, CTLFLAG_RW,
-	    &nfs_realign_test, 0, "");
-SYSCTL_INT(_vfs_nfsrv, OID_AUTO, realign_count, CTLFLAG_RW,
-	    &nfs_realign_count, 0, "");
 
 static int	nfssvc_addsock(struct file *, struct thread *);
 static int	nfssvc_nfsd(struct thread *, struct nfsd_nfsd_args *);
@@ -250,57 +244,6 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, int err,
 	return (mreq);
 }
 
-/*
- *	nfs_realign:
- *
- *	Check for badly aligned mbuf data and realign by copying the unaligned
- *	portion of the data into a new mbuf chain and freeing the portions
- *	of the old chain that were replaced.
- *
- *	We cannot simply realign the data within the existing mbuf chain
- *	because the underlying buffers may contain other rpc commands and
- *	we cannot afford to overwrite them.
- *
- *	We would prefer to avoid this situation entirely.  The situation does
- *	not occur with NFS/UDP and is supposed to only occassionally occur
- *	with TCP.  Use vfs.nfs.realign_count and realign_test to check this.
- */
-void
-nfs_realign(struct mbuf **pm)	/* XXX COMMON */
-{
-	struct mbuf *m;
-	struct mbuf *n = NULL;
-	int off = 0;
-
-	++nfs_realign_test;
-	while ((m = *pm) != NULL) {
-		if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
-			MGET(n, M_WAIT, MT_DATA);
-			if (m->m_len >= MINCLSIZE) {
-				MCLGET(n, M_WAIT);
-			}
-			n->m_len = 0;
-			break;
-		}
-		pm = &m->m_next;
-	}
-
-	/*
-	 * If n is non-NULL, loop on m copying data, then replace the
-	 * portion of the chain that had to be realigned.
-	 */
-	if (n != NULL) {
-		++nfs_realign_count;
-		while (m) {
-			m_copyback(n, off, m->m_len, mtod(m, caddr_t));
-			off += m->m_len;
-			m = m->m_next;
-		}
-		m_freem(*pm);
-		*pm = n;
-	}
-}
-
 static void
 nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 {
@@ -334,7 +277,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	mreq = mrep = NULL;
 	mreq = rqst->rq_args;
 	rqst->rq_args = NULL;
-	nfs_realign(&mreq);
+	(void)nfs_realign(&mreq, M_WAIT);
 
 	/*
 	 * Note: we want rq_addr, not svc_getrpccaller for nd_nam2 -

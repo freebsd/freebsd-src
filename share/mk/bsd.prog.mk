@@ -17,6 +17,7 @@ NO_WERROR=
 
 .if defined(DEBUG_FLAGS)
 CFLAGS+=${DEBUG_FLAGS}
+CXXFLAGS+=${DEBUG_FLAGS}
 
 .if !defined(NO_CTF) && (${DEBUG_FLAGS:M-g} != "")
 CTFFLAGS+= -g

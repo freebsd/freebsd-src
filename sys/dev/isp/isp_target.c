@@ -826,7 +826,9 @@ isp_target_async(ispsoftc_t *isp, int bus, int event)
 			ct_entry_t *ct = (ct_entry_t *) storage;
 			ct->ct_header.rqs_entry_type = RQSTYPE_CTIO;
 			ct->ct_status = CT_OK;
-			ct->ct_fwhandle = bus;
+			ct->ct_syshandle = bus;
+			/* we skip fwhandle here */
+			ct->ct_fwhandle = 0;
 			ct->ct_flags = CT_SENDSTATUS;
 		}
 		isp_async(isp, ISPASYNC_TARGET_ACTION, storage);

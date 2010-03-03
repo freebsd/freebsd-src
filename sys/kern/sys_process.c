@@ -73,6 +73,20 @@ struct ptrace_io_desc32 {
 	u_int32_t	piod_addr;
 	u_int32_t	piod_len;
 };
+
+struct ptrace_vm_entry32 {
+	int		pve_entry;
+	int		pve_timestamp;
+	uint32_t	pve_start;
+	uint32_t	pve_end;
+	uint32_t	pve_offset;
+	u_int		pve_prot;
+	u_int		pve_pathlen;
+	int32_t		pve_fileid;
+	u_int		pve_fsid;
+	uint32_t	pve_path;
+};
+
 #endif
 
 /*
@@ -346,6 +360,148 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	return (error);
 }
 
+static int
+ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
+{
+	struct vattr vattr;
+	vm_map_t map;
+	vm_map_entry_t entry;
+	vm_object_t obj, tobj, lobj;
+	struct vmspace *vm;
+	struct vnode *vp;
+	char *freepath, *fullpath;
+	u_int pathlen;
+	int error, index, vfslocked;
+
+	error = 0;
+	obj = NULL;
+
+	vm = vmspace_acquire_ref(p);
+	map = &vm->vm_map;
+	vm_map_lock_read(map);
+
+	do {
+		entry = map->header.next;
+		index = 0;
+		while (index < pve->pve_entry && entry != &map->header) {
+			entry = entry->next;
+			index++;
+		}
+		if (index != pve->pve_entry) {
+			error = EINVAL;
+			break;
+		}
+		while (entry != &map->header &&
+		    (entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0) {
+			entry = entry->next;
+			index++;
+		}
+		if (entry == &map->header) {
+			error = ENOENT;
+			break;
+		}
+
+		/* We got an entry. */
+		pve->pve_entry = index + 1;
+		pve->pve_timestamp = map->timestamp;
+		pve->pve_start = entry->start;
+		pve->pve_end = entry->end - 1;
+		pve->pve_offset = entry->offset;
+		pve->pve_prot = entry->protection;
+
+		/* Backing object's path needed? */
+		if (pve->pve_pathlen == 0)
+			break;
+
+		pathlen = pve->pve_pathlen;
+		pve->pve_pathlen = 0;
+
+		obj = entry->object.vm_object;
+		if (obj != NULL)
+			VM_OBJECT_LOCK(obj);
+	} while (0);
+
+	vm_map_unlock_read(map);
+	vmspace_free(vm);
+
+	pve->pve_fsid = VNOVAL;
+	pve->pve_fileid = VNOVAL;
+
+	if (error == 0 && obj != NULL) {
+		lobj = obj;
+		for (tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
+			if (tobj != obj)
+				VM_OBJECT_LOCK(tobj);
+			if (lobj != obj)
+				VM_OBJECT_UNLOCK(lobj);
+			lobj = tobj;
+			pve->pve_offset += tobj->backing_object_offset;
+		}
+		vp = (lobj->type == OBJT_VNODE) ? lobj->handle : NULL;
+		if (vp != NULL)
+			vref(vp);
+		if (lobj != obj)
+			VM_OBJECT_UNLOCK(lobj);
+		VM_OBJECT_UNLOCK(obj);
+
+		if (vp != NULL) {
+			freepath = NULL;
+			fullpath = NULL;
+			vn_fullpath(td, vp, &fullpath, &freepath);
+			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+			vn_lock(vp, LK_SHARED | LK_RETRY);
+			if (VOP_GETATTR(vp, &vattr, td->td_ucred) == 0) {
+				pve->pve_fileid = vattr.va_fileid;
+				pve->pve_fsid = vattr.va_fsid;
+			}
+			vput(vp);
+			VFS_UNLOCK_GIANT(vfslocked);
+
+			if (fullpath != NULL) {
+				pve->pve_pathlen = strlen(fullpath) + 1;
+				if (pve->pve_pathlen <= pathlen) {
+					error = copyout(fullpath, pve->pve_path,
+					    pve->pve_pathlen);
+				} else
+					error = ENAMETOOLONG;
+			}
+			if (freepath != NULL)
+				free(freepath, M_TEMP);
+		}
+	}
+
+	return (error);
+}
+
+#ifdef COMPAT_IA32
+static int      
+ptrace_vm_entry32(struct thread *td, struct proc *p,
+    struct ptrace_vm_entry32 *pve32)
+{
+	struct ptrace_vm_entry pve;
+	int error;
+
+	pve.pve_entry = pve32->pve_entry;
+	pve.pve_pathlen = pve32->pve_pathlen;
+	pve.pve_path = (void *)(uintptr_t)pve32->pve_path;
+
+	error = ptrace_vm_entry(td, p, &pve);
+	if (error == 0) {
+		pve32->pve_entry = pve.pve_entry;
+		pve32->pve_timestamp = pve.pve_timestamp;
+		pve32->pve_start = pve.pve_start;
+		pve32->pve_end = pve.pve_end;
+		pve32->pve_offset = pve.pve_offset;
+		pve32->pve_prot = pve.pve_prot;
+		pve32->pve_fileid = pve.pve_fileid;
+		pve32->pve_fsid = pve.pve_fsid;
+	}
+
+	pve32->pve_pathlen = pve.pve_pathlen;
+	return (error);
+}
+#endif /* COMPAT_IA32 */
+
 /*
  * Process debugging system call.
  */
@@ -389,6 +545,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	union {
 		struct ptrace_io_desc piod;
 		struct ptrace_lwpinfo pl;
+		struct ptrace_vm_entry pve;
 		struct dbreg dbreg;
 		struct fpreg fpreg;
 		struct reg reg;
@@ -397,6 +554,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		struct fpreg32 fpreg32;
 		struct reg32 reg32;
 		struct ptrace_io_desc32 piod32;
+		struct ptrace_vm_entry32 pve32;
 #endif
 	} r;
 	void *addr;
@@ -429,6 +587,9 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_IO:
 		error = COPYIN(uap->addr, &r.piod, sizeof r.piod);
 		break;
+	case PT_VM_ENTRY:
+		error = COPYIN(uap->addr, &r.pve, sizeof r.pve);
+		break;
 	default:
 		addr = uap->addr;
 		break;
@@ -441,6 +602,9 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		return (error);
 
 	switch (uap->req) {
+	case PT_VM_ENTRY:
+		error = COPYOUT(&r.pve, uap->addr, sizeof r.pve);
+		break;
 	case PT_IO:
 		error = COPYOUT(&r.piod, uap->addr, sizeof r.piod);
 		break;
@@ -974,6 +1138,21 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		free(buf, M_TEMP);
 		if (!error)
 			td->td_retval[0] = tmp;
+		PROC_LOCK(p);
+		break;
+
+	case PT_VM_TIMESTAMP:
+		td->td_retval[0] = p->p_vmspace->vm_map.timestamp;
+		break;
+
+	case PT_VM_ENTRY:
+		PROC_UNLOCK(p);
+#ifdef COMPAT_IA32
+		if (wrap32)
+			error = ptrace_vm_entry32(td, p, addr);
+		else
+#endif
+		error = ptrace_vm_entry(td, p, addr);
 		PROC_LOCK(p);
 		break;
 

@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/queue.h>
-#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
@@ -51,14 +50,6 @@ __FBSDID("$FreeBSD$");
  * old clists, but only contains the features we need to buffer the
  * output.
  */
-
-/* Statistics. */
-static unsigned long ttyoutq_nfast = 0;
-SYSCTL_ULONG(_kern, OID_AUTO, tty_outq_nfast, CTLFLAG_RD,
-	&ttyoutq_nfast, 0, "Unbuffered reads to userspace on output");
-static unsigned long ttyoutq_nslow = 0;
-SYSCTL_ULONG(_kern, OID_AUTO, tty_outq_nslow, CTLFLAG_RD,
-	&ttyoutq_nslow, 0, "Buffered reads to userspace on output");
 
 struct ttyoutq_block {
 	struct ttyoutq_block	*tob_next;
@@ -236,8 +227,6 @@ ttyoutq_read_uio(struct ttyoutq *to, struct tty *tp, struct uio *uio)
 		 *   the write pointer to a new block.
 		 */
 		if (cend == TTYOUTQ_DATASIZE || cend == to->to_end) {
-			atomic_add_long(&ttyoutq_nfast, 1);
-
 			/*
 			 * Fast path: zero copy. Remove the first block,
 			 * so we can unlock the TTY temporarily.
@@ -258,7 +247,6 @@ ttyoutq_read_uio(struct ttyoutq *to, struct tty *tp, struct uio *uio)
 			TTYOUTQ_RECYCLE(to, tob);
 		} else {
 			char ob[TTYOUTQ_DATASIZE - 1];
-			atomic_add_long(&ttyoutq_nslow, 1);
 
 			/*
 			 * Slow path: store data in a temporary buffer.

@@ -238,6 +238,7 @@ pcii_attach(device_t dev)
 		sc->upd7210.reg_offset[rid] = 0;
 	}
 	sc->upd7210.irq_clear_res = sc->res[10];
+	sc->upd7210.use_fifo = 0;
 
 	if (sc->res[1] == NULL)
 		sc->upd7210.dmachan = -1;
@@ -245,7 +246,9 @@ pcii_attach(device_t dev)
 		sc->upd7210.dmachan = rman_get_start(sc->res[1]);
 
 	upd7210attach(&sc->upd7210);
-	return (error);
+	device_printf(dev, "attached gpib%d\n", sc->upd7210.unit);
+
+	return (0);
 }
 
 DRIVER_MODULE(pcii, isa, pcii_driver, pcii_devclass, 0, 0);

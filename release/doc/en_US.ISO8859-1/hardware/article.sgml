@@ -316,8 +316,51 @@
     <sect2 id="proc-powerpc">
       <title>powerpc</title>
 
-      <para>The information for this paragraph has yet to be
-	compiled.</para>
+      <para>This section describes the systems currently known to be
+	supported by &os; on the PowerPC platform. This list is not
+	exhaustive.</para>
+
+      <para>In general, all New World architecture Apple hardware
+	is supported, as well a limited selection of non-Apple
+	machines.</para>
+
+      <para>All systems listed below are fully supported, with the
+	exception that software fan control is currently missing on
+	the Power Macintosh G5. SMP is supported on all systems with
+	more than 1 processor.</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>Apple iMac</para>
+	</listitem>
+	<listitem>
+	  <para>Apple Power Macintosh G3 (Blue & White)</para>
+	</listitem>
+	<listitem>
+	  <para>Apple Power Macintosh G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple Power Macintosh G5 (non-970MP models)</para>
+	</listitem>
+	<listitem>
+	  <para>Apple iBook</para>
+	</listitem>
+	<listitem>
+	  <para>Apple PowerBook G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple XServe G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple XServe G5</para>
+	</listitem>
+	<listitem>
+	  <para>Apple Mac Mini</para>
+	</listitem>
+	<listitem>
+	  <para>Embedded boards based on MPC85XX</para>
+	</listitem>
+      </itemizedlist>
     </sect2>
 
     <sect2 id="proc-sparc64">

@@ -633,7 +633,7 @@ g_stripe_start(struct bio *bp)
 	 * Do use "economic" when:
 	 * 1. "Economic" mode is ON.
 	 * or
-	 * 2. "Fast" mode failed. It can only failed if there is no memory.
+	 * 2. "Fast" mode failed. It can only fail if there is no memory.
 	 */
 	if (!fast || error != 0)
 		error = g_stripe_start_economic(bp, no, offset, length);

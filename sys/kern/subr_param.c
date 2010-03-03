@@ -74,10 +74,6 @@ __FBSDID("$FreeBSD$");
 #define	MAXFILES (maxproc * 2)
 #endif
 
-/* Values of enum VM_GUEST members are used as indices in 
- * vm_guest_sysctl_names */
-enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
-
 static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
 
 int	hz;
@@ -128,7 +124,7 @@ SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RDTUN, &sgrowsiz, 0,
     "Amount to grow stack on a stack fault");
 SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
     NULL, 0, sysctl_kern_vm_guest, "A",
-    "Virtual machine detected? (none|generic|xen)");
+    "Virtual machine guest detected? (none|generic|xen)");
 
 /*
  * These have to be allocated somewhere; allocating
@@ -137,6 +133,10 @@ SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
  */
 struct	buf *swbuf;
 
+/*
+ * The elements of this array are ordered based upon the values of the
+ * corresponding enum VM_GUEST members.
+ */
 static const char *const vm_guest_sysctl_names[] = {
 	"none",
 	"generic",
@@ -240,8 +240,6 @@ init_param1(void)
 	TUNABLE_INT_FETCH("kern.ngroups", &ngroups_max);
 	if (ngroups_max < NGROUPS_MAX)
 		ngroups_max = NGROUPS_MAX;
-	if (ngroups_max > INT_MAX - 1)
-		ngroups_max = INT_MAX - 1;
 }
 
 /*

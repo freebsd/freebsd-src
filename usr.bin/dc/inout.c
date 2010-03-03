@@ -91,7 +91,7 @@ src_ungetcharstream(struct source *src)
 static char *
 src_getlinestream(struct source *src)
 {
-	char	 buf[BUFSIZ];
+	char buf[BUFSIZ];
 
 	if (fgets(buf, BUFSIZ, src->u.stream) == NULL)
 		return (bstrdup(""));
@@ -124,8 +124,8 @@ src_ungetcharstring(struct source *src)
 static char *
 src_getlinestring(struct source *src)
 {
-	char	 buf[BUFSIZ];
-	int	 ch, i;
+	char buf[BUFSIZ];
+	int i, ch;
 
 	i = 0;
 	while (i < BUFSIZ-1) {
@@ -173,9 +173,10 @@ putcharwrap(FILE *f, int ch)
 static void
 printwrap(FILE *f, const char *p)
 {
-	char	 buf[12];
-	char	*q = buf;
+	char *q;
+	char buf[12];
 
+	q = buf;
 	strlcpy(buf, p, sizeof(buf));
 	while (*q)
 		putcharwrap(f, *q++);
@@ -184,12 +185,11 @@ printwrap(FILE *f, const char *p)
 struct number *
 readnumber(struct source *src, u_int base)
 {
-	struct number	*n;
-	int		 ch;
-	bool		 sign = false;
-	bool		 dot = false;
-	BN_ULONG	 v;
-	u_int		 i;
+	struct number *n;
+	BN_ULONG v;
+	u_int i;
+	int ch;
+	bool dot = false, sign = false;
 
 	n = new_number();
 	bn_check(BN_zero(n->number));
@@ -236,9 +236,9 @@ readnumber(struct source *src, u_int base)
 char *
 read_string(struct source *src)
 {
-	int	 count, i, sz, new_sz, ch;
-	char	*p;
-	bool	 escape;
+	char *p;
+	int count, ch, i, new_sz, sz;
+	bool escape;
 
 	escape = false;
 	count = 1;
@@ -274,7 +274,7 @@ read_string(struct source *src)
 static char *
 get_digit(u_long num, int digits, u_int base)
 {
-	char	*p;
+	char *p;
 
 	if (base <= 16) {
 		p = bmalloc(2);
@@ -290,13 +290,13 @@ get_digit(u_long num, int digits, u_int base)
 void
 printnumber(FILE *f, const struct number *b, u_int base)
 {
-	struct number	*int_part, *fract_part;
-	int		 digits;
-	char		 buf[11];
-	size_t		 sz;
-	unsigned int	 i;
-	struct stack	 stack;
-	char		*p;
+	struct number *fract_part, *int_part;
+	struct stack stack;
+	char *p;
+	char buf[11];
+	size_t sz;
+	unsigned int i;
+	int digits;
 
 	charcount = 0;
 	lastchar = -1;
@@ -333,8 +333,8 @@ printnumber(FILE *f, const struct number *b, u_int base)
 	}
 	stack_clear(&stack);
 	if (b->scale > 0) {
-		struct number	*num_base;
-		BIGNUM		 mult, stop;
+		struct number *num_base;
+		BIGNUM mult, stop;
 
 		putcharwrap(f, '.');
 		num_base = new_number();
@@ -347,7 +347,7 @@ printnumber(FILE *f, const struct number *b, u_int base)
 
 		i = 0;
 		while (BN_cmp(&mult, &stop) < 0) {
-			u_long	 rem;
+			u_long rem;
 
 			if (i && base > 16)
 				putcharwrap(f, ' ');
@@ -396,8 +396,8 @@ print_value(FILE *f, const struct value *value, const char *prefix, u_int base)
 void
 print_ascii(FILE *f, const struct number *n)
 {
-	BIGNUM		*v;
-	int		 numbits, i, ch;
+	BIGNUM *v;
+	int ch, i, numbits;
 
 	v = BN_dup(n->number);
 	bn_checkp(v);

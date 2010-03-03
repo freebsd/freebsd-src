@@ -48,7 +48,7 @@ time(time_t *tloc)
 }
 
 int
-getsecs()
+getsecs(void)
 {
 
 	return (time(NULL));

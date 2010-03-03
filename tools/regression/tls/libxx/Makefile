@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-LIB=		xx
-SHLIB_MAJOR=	1
+SHLIB_NAME=	libxx.so
 
 SRCS=	xx.c
 #CFLAGS+=-mtls-dialect=sun

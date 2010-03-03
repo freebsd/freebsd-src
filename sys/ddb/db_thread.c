@@ -48,7 +48,7 @@ db_print_thread(void)
 	pid = -1;
 	if (kdb_thread->td_proc != NULL)
 		pid = kdb_thread->td_proc->p_pid;
-	db_printf("[thread pid %d tid %ld ]\n", pid, (long)kdb_thread->td_tid);
+	db_printf("[ thread pid %d tid %ld ]\n", pid, (long)kdb_thread->td_tid);
 }
 
 void

@@ -108,6 +108,7 @@ struct nfsnode {
 	struct timespec		n_mtime;	/* Prev modify time. */
 	time_t			n_ctime;	/* Prev create time. */
 	time_t			n_dmtime;	/* Prev dir modify time. */
+	int			n_dmtime_ticks;	/* Tick of -ve cache entry */
 	time_t			n_expiry;	/* Lease expiry time */
 	struct nfsfh		*n_fhp;		/* NFS File Handle */
 	struct vnode		*n_vnode;	/* associated vnode */

@@ -75,6 +75,8 @@ struct image_params {
 struct sysentvec;
 struct thread;
 
+#define IMGACT_CORE_COMPRESS	0x01
+
 int	exec_check_permissions(struct image_params *);
 register_t *exec_copyout_strings(struct image_params *);
 int	exec_new_vmspace(struct image_params *, struct sysentvec *);

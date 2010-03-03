@@ -53,6 +53,7 @@ struct upd7210 {
 	u_int			reg_offset[8];
 	int			dmachan;
 	int			unit;
+	int			use_fifo;
 
 	/* private stuff */
 	struct mtx		mutex;

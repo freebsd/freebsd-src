@@ -120,7 +120,7 @@ cpu_initclocks(void)
 		 */
 	} else {
 		clock = PCPU_GET(clock);
-		intr_setup(PIL_TICK, cpu_impl < CPU_IMPL_ULTRASPARCIII ?
+		intr_setup(PIL_TICK, PCPU_GET(impl) < CPU_IMPL_ULTRASPARCIII ?
 		    tick_hardclock_bbwar : tick_hardclock, -1, NULL, NULL);
 		set_cputicker(tick_cputicks, clock, 0);
 	}
@@ -322,7 +322,7 @@ tick_start(void)
 }
 
 void
-tick_clear(void)
+tick_clear(u_int cpu_impl)
 {
 
 	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
@@ -331,7 +331,7 @@ tick_clear(void)
 }
 
 void
-tick_stop(void)
+tick_stop(u_int cpu_impl)
 {
 
 	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)

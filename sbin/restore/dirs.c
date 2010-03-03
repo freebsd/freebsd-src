@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <limits.h>
 #include <paths.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -139,9 +140,9 @@ extractdirs(int genmode)
 	vprintf(stdout, "Extract directories from tape\n");
 	if ((tmpdir = getenv("TMPDIR")) == NULL || tmpdir[0] == '\0')
 		tmpdir = _PATH_TMP;
-	(void) sprintf(dirfile, "%s/rstdir%ld", tmpdir, dumpdate);
+	(void) sprintf(dirfile, "%s/rstdir%jd", tmpdir, (intmax_t)dumpdate);
 	if (command != 'r' && command != 'R') {
-		(void *) strcat(dirfile, "-XXXXXX");
+		(void) strcat(dirfile, "-XXXXXX");
 		fd = mkstemp(dirfile);
 	} else
 		fd = open(dirfile, O_RDWR|O_CREAT|O_EXCL, 0666);
@@ -152,9 +153,10 @@ extractdirs(int genmode)
 		done(1);
 	}
 	if (genmode != 0) {
-		(void) sprintf(modefile, "%s/rstmode%ld", tmpdir, dumpdate);
+		(void) sprintf(modefile, "%s/rstmode%jd", tmpdir,
+		    (intmax_t)dumpdate);
 		if (command != 'r' && command != 'R') {
-			(void *) strcat(modefile, "-XXXXXX");
+			(void) strcat(modefile, "-XXXXXX");
 			fd = mkstemp(modefile);
 		} else
 			fd = open(modefile, O_RDWR|O_CREAT|O_EXCL, 0666);
@@ -257,8 +259,8 @@ treescan(char *pname, ino_t ino, long (*todo)(char *, ino_t, int))
 	while (dp != NULL) {
 		locname[namelen] = '\0';
 		if (namelen + dp->d_namlen >= sizeof(locname)) {
-			fprintf(stderr, "%s%s: name exceeds %d char\n",
-				locname, dp->d_name, sizeof(locname) - 1);
+			fprintf(stderr, "%s%s: name exceeds %zu char\n",
+			    locname, dp->d_name, sizeof(locname) - 1);
 		} else {
 			(void)strlcat(locname, dp->d_name, sizeof(locname));
 			treescan(locname, dp->d_ino, todo);
@@ -354,7 +356,7 @@ putdir(char *buf, long size)
 				   "reclen not multiple of 4 ");
 			if (dp->d_reclen < DIRSIZ(0, dp))
 				vprintf(stdout,
-				   "reclen less than DIRSIZ (%d < %d) ",
+				   "reclen less than DIRSIZ (%d < %zu) ",
 				   dp->d_reclen, DIRSIZ(0, dp));
 #if NAME_MAX < 255
 			if (dp->d_namlen > NAME_MAX)
@@ -566,7 +568,8 @@ setdirmodes(int flags)
 	if ((tmpdir = getenv("TMPDIR")) == NULL || tmpdir[0] == '\0')
 		tmpdir = _PATH_TMP;
 	if (command == 'r' || command == 'R')
-		(void) sprintf(modefile, "%s/rstmode%ld", tmpdir, dumpdate);
+		(void) sprintf(modefile, "%s/rstmode%jd", tmpdir,
+		    (intmax_t)dumpdate);
 	if (modefile[0] == '#') {
 		panic("modefile not defined\n");
 		fprintf(stderr, "directory mode, owner, and times not set\n");

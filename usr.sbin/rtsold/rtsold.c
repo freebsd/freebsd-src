@@ -32,15 +32,20 @@
  */
 
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/param.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_var.h>
 
 #include <netinet/in.h>
 #include <netinet/icmp6.h>
+#include <netinet/in_var.h>
+
+#include <netinet6/nd6.h>
 
 #include <signal.h>
 #include <unistd.h>
@@ -86,10 +91,10 @@ int main(int, char **);
 static int mobile_node = 0;
 #ifndef SMALL
 static int do_dump;
-static char *dumpfilename = "/var/run/rtsold.dump"; /* XXX: should be configurable */
+static const char *dumpfilename = "/var/run/rtsold.dump"; /* XXX: should be configurable */
 #endif
 #if 1
-static char *pidfilename = "/var/run/rtsold.pid"; /* should be configurable */
+static const char *pidfilename = "/var/run/rtsold.pid"; /* should be configurable */
 #endif
 
 #if 0
@@ -108,7 +113,8 @@ main(int argc, char **argv)
 {
 	int s, ch, once = 0;
 	struct timeval *timeout;
-	char *argv0, *opts;
+	char *argv0;
+	const char *opts;
 #ifdef HAVE_POLL_H
 	struct pollfd set[2];
 #else
@@ -729,7 +735,7 @@ rtsol_timer_update(struct ifinfo *ifinfo)
 
 #ifndef SMALL
 static void
-rtsold_set_dump_file(int sig)
+rtsold_set_dump_file(int sig __unused)
 {
 	do_dump = 1;
 }
@@ -785,8 +791,9 @@ autoifprobe(void)
 	static char **argv = NULL;
 	static int n = 0;
 	char **a;
-	int i, found;
+	int s = 0, i, found;
 	struct ifaddrs *ifap, *ifa, *target;
+	struct in6_ndireq nd;
 
 	/* initialize */
 	while (n--)
@@ -799,6 +806,11 @@ autoifprobe(void)
 
 	if (getifaddrs(&ifap) != 0)
 		return NULL;
+
+	if (!Fflag && (s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+		err(1, "socket");
+		/* NOTREACHED */
+	}
 
 	target = NULL;
 	/* find an ethernet */
@@ -825,6 +837,23 @@ autoifprobe(void)
 		if (found)
 			continue;
 
+		/*
+		 * Skip the interfaces which IPv6 and/or accepting RA
+		 * is disabled.
+		 */
+		if (!Fflag) {
+			memset(&nd, 0, sizeof(nd));
+			strlcpy(nd.ifname, ifa->ifa_name, sizeof(nd.ifname));
+			if (ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&nd) < 0) {
+				err(1, "ioctl(SIOCGIFINFO_IN6)");
+				/* NOTREACHED */
+			}
+			if ((nd.ndi.flags & ND6_IFF_IFDISABLED))
+				continue;
+			if (!(nd.ndi.flags & ND6_IFF_ACCEPT_RTADV))
+				continue;
+		}
+
 		/* if we find multiple candidates, just warn. */
 		if (n != 0 && dflag > 1)
 			warnx("multiple interfaces found");
@@ -837,7 +866,6 @@ autoifprobe(void)
 		if (!argv[n])
 			err(1, "malloc");
 		n++;
-		argv[n] = NULL;
 	}
 
 	if (n) {
@@ -852,6 +880,8 @@ autoifprobe(void)
 				warnx("probing %s", argv[i]);
 		}
 	}
+	if (!Fflag)
+		close(s);
 	freeifaddrs(ifap);
 	return argv;
 }

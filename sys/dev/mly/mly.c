@@ -101,7 +101,6 @@ static void	mly_unmap_command(struct mly_command *mc);
 static int	mly_cam_attach(struct mly_softc *sc);
 static void	mly_cam_detach(struct mly_softc *sc);
 static void	mly_cam_rescan_btl(struct mly_softc *sc, int bus, int target);
-static void	mly_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb);
 static void	mly_cam_action(struct cam_sim *sim, union ccb *ccb);
 static int	mly_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio);
 static void	mly_cam_poll(struct cam_sim *sim);
@@ -2017,29 +2016,18 @@ mly_cam_rescan_btl(struct mly_softc *sc, int bus, int target)
 
     debug_called(1);
 
-    if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO)) == NULL) {
+    if ((ccb = xpt_alloc_ccb()) == NULL) {
 	mly_printf(sc, "rescan failed (can't allocate CCB)\n");
 	return;
     }
-    
-    if (xpt_create_path(&sc->mly_cam_path, xpt_periph, 
-			cam_sim_path(sc->mly_cam_sim[bus]), target, 0) != CAM_REQ_CMP) {
+    if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, 
+	    cam_sim_path(sc->mly_cam_sim[bus]), target, 0) != CAM_REQ_CMP) {
 	mly_printf(sc, "rescan failed (can't create path)\n");
-	free(ccb, M_TEMP);
+	xpt_free_ccb(ccb);
 	return;
     }
-    xpt_setup_ccb(&ccb->ccb_h, sc->mly_cam_path, 5/*priority (low)*/);
-    ccb->ccb_h.func_code = XPT_SCAN_LUN;
-    ccb->ccb_h.cbfcnp = mly_cam_rescan_callback;
-    ccb->crcn.flags = CAM_FLAG_NONE;
     debug(1, "rescan target %d:%d", bus, target);
-    xpt_action(ccb);
-}
-
-static void
-mly_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
-{
-    free(ccb, M_TEMP);
+    xpt_rescan(ccb);
 }
 
 /********************************************************************************

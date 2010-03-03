@@ -386,6 +386,11 @@ options 	KDTRACE_HOOKS
 options 	SYSCTL_DEBUG
 
 #
+# NO_SYSCTL_DESCR omits the sysctl node descriptions to save space in the
+# resulting kernel.
+options		NO_SYSCTL_DESCR
+
+#
 # DEBUG_MEMGUARD builds and enables memguard(9), a replacement allocator
 # for the kernel used to detect modify-after-free scenarios.  See the
 # memguard(9) man page for more information on usage.
@@ -1974,8 +1979,8 @@ device		xmphy		# XaQti XMAC II
 # txp:	Support for 3Com 3cR990 cards with the "Typhoon" chipset
 # vr:   Support for various fast ethernet adapters based on the VIA
 #       Technologies VT3043 `Rhine I' and VT86C100A `Rhine II' chips,
-#       including the D-Link DFE530TX (see 'rl' for DFE530TX+), the Hawking
-#       Technologies PN102TX, and the AOpen/Acer ALN-320.
+#       including the D-Link DFE520TX and D-Link DFE530TX (see 'rl' for
+#       DFE530TX+), the Hawking Technologies PN102TX, and the AOpen/Acer ALN-320.
 # vx:   3Com 3C590 and 3C595
 # wb:   Support for fast ethernet adapters based on the Winbond W89C840F chip.
 #       Note: this is not the same as the Winbond W89C940F, which is a
@@ -2542,7 +2547,7 @@ options 	SW_WATCHDOG
 #
 # Add the software deadlock resolver thread.
 #
-options		DEADLKRES
+options 	DEADLKRES
 
 #
 # Disable swapping of stack pages.  This option removes all
@@ -2596,8 +2601,10 @@ device		uhid
 device		ukbd
 # USB printer
 device		ulpt
-# USB Iomega Zip 100 Drive (Requires scbus and da)
+# USB mass storage driver (Requires scbus and da)
 device		umass
+# USB mass storage driver for device-side mode
+device		usfs
 # USB support for Belkin F5U109 and Magic Control Technology serial adapters
 device		umct
 # USB modem support
@@ -2668,6 +2675,8 @@ device		uhso
 #
 # Ralink Technology RT2501USB/RT2601USB wireless driver
 device		rum
+# Ralink Technology RT2700U/RT2800U/RT3000U wireless driver
+device		run
 #
 # Atheros AR5523 wireless driver
 device		uath
@@ -2806,6 +2815,11 @@ options 	SHMMNI=33
 # Maximum number of System V shared memory regions that can be attached to
 # a single process at one time.
 options 	SHMSEG=9
+
+# Compress user core dumps.
+options		COMPRESS_USER_CORES
+# required to compress file output from kernel for COMPRESS_USER_CORES.
+device		gzio	    
 
 # Set the amount of time (in seconds) the system will wait before
 # rebooting automatically when a kernel panic occurs.  If set to (-1),

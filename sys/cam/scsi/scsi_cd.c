@@ -433,7 +433,7 @@ cdcleanup(struct cam_periph *periph)
 			callout_stop(&softc->changer->short_handle);
 			softc->changer->flags &= ~CHANGER_SHORT_TMOUT_SCHED;
 		}
-		softc->changer->devq.qfrozen_cnt--;
+		softc->changer->devq.qfrozen_cnt[0]--;
 		softc->changer->flags |= CHANGER_MANUAL_CALL;
 		cdrunchangerqueue(softc->changer);
 	}
@@ -638,15 +638,14 @@ cdregister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	softc = (struct cd_softc *)malloc(sizeof(*softc),M_DEVBUF,M_NOWAIT);
-
+	softc = (struct cd_softc *)malloc(sizeof(*softc),M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
 	if (softc == NULL) {
 		printf("cdregister: Unable to probe new device. "
 		       "Unable to allocate softc\n");				
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	bzero(softc, sizeof(*softc));
 	LIST_INIT(&softc->pending_ccbs);
 	STAILQ_INIT(&softc->mode_queue);
 	softc->state = CD_STATE_PROBE;
@@ -861,8 +860,7 @@ cdregister(struct cam_periph *periph, void *arg)
 		 */
 		else {
 			nchanger = malloc(sizeof(struct cdchanger),
-				M_DEVBUF, M_NOWAIT);
-
+				M_DEVBUF, M_NOWAIT | M_ZERO);
 			if (nchanger == NULL) {
 				softc->flags &= ~CD_FLAG_CHANGER;
 				printf("cdregister: unable to malloc "
@@ -875,10 +873,6 @@ cdregister(struct cam_periph *periph, void *arg)
 				 */
 				goto cdregisterexit;
 			}
-
-			/* zero the structure */
-			bzero(nchanger, sizeof(struct cdchanger));
-
 			if (camq_init(&nchanger->devq, 1) != 0) {
 				softc->flags &= ~CD_FLAG_CHANGER;
 				printf("cdregister: changer support "
@@ -972,9 +966,9 @@ cdregisterexit:
 	(void)cam_periph_hold(periph, PRIBIO);
 
 	if ((softc->flags & CD_FLAG_CHANGER) == 0)
-		xpt_schedule(periph, /*priority*/5);
+		xpt_schedule(periph, CAM_PRIORITY_DEV);
 	else
-		cdschedule(periph, /*priority*/ 5);
+		cdschedule(periph, CAM_PRIORITY_DEV);
 
 	return(CAM_REQ_CMP);
 }
@@ -1167,13 +1161,13 @@ cdrunchangerqueue(void *arg)
 	 * If the changer queue is frozen, that means we have an active
 	 * device.
 	 */
-	if (changer->devq.qfrozen_cnt > 0) {
+	if (changer->devq.qfrozen_cnt[0] > 0) {
 
 		/*
 		 * We always need to reset the frozen count and clear the
 		 * active flag.
 		 */
-		changer->devq.qfrozen_cnt--;
+		changer->devq.qfrozen_cnt[0]--;
 		changer->cur_device->flags &= ~CD_FLAG_ACTIVE;
 		changer->cur_device->flags &= ~CD_FLAG_SCHED_ON_COMP;
 
@@ -1208,7 +1202,7 @@ cdrunchangerqueue(void *arg)
 
 	changer->cur_device = softc;
 
-	changer->devq.qfrozen_cnt++;
+	changer->devq.qfrozen_cnt[0]++;
 	softc->flags |= CD_FLAG_ACTIVE;
 
 	/* Just in case this device is waiting */
@@ -1465,7 +1459,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 			bioq_remove(&softc->bio_queue, bp);
 
 			scsi_read_write(&start_ccb->csio,
-					/*retries*/cd_retry_count,
+					/*retries*/ cd_retry_count,
 					/* cbfcnp */ cddone,
 					MSG_SIMPLE_Q_TAG,
 					/* read */bp->bio_cmd == BIO_READ,
@@ -1506,8 +1500,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 	{
 
 		rcap = (struct scsi_read_capacity_data *)malloc(sizeof(*rcap),
-								M_SCSICD,
-								M_NOWAIT);
+		    M_SCSICD, M_NOWAIT | M_ZERO);
 		if (rcap == NULL) {
 			xpt_print(periph->path,
 			    "cdstart: Couldn't malloc read_capacity data\n");
@@ -1516,7 +1509,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 		}
 		csio = &start_ccb->csio;
 		scsi_read_capacity(csio,
-				   /*retries*/1,
+				   /*retries*/ cd_retry_count,
 				   cddone,
 				   MSG_SIMPLE_Q_TAG,
 				   rcap,
@@ -2073,7 +2066,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 			u_int32_t len = args->data_len;
 
 			data = malloc(sizeof(struct cd_sub_channel_info), 
-				      M_SCSICD, M_WAITOK);
+				      M_SCSICD, M_WAITOK | M_ZERO);
 
 			cam_periph_lock(periph);
 			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE, 
@@ -2125,7 +2118,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 			struct ioc_toc_header *th;
 
 			th = malloc(sizeof(struct ioc_toc_header), M_SCSICD,
-				    M_WAITOK);
+				    M_WAITOK | M_ZERO);
 
 			cam_periph_lock(periph);
 			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE, 
@@ -2162,8 +2155,8 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 			u_int32_t len, readlen, idx, num;
 			u_int32_t starting_track = te->starting_track;
 
-			data = malloc(sizeof(*data), M_SCSICD, M_WAITOK);
-			lead = malloc(sizeof(*lead), M_SCSICD, M_WAITOK);
+			data = malloc(sizeof(*data), M_SCSICD, M_WAITOK | M_ZERO);
+			lead = malloc(sizeof(*lead), M_SCSICD, M_WAITOK | M_ZERO);
 
 			cam_periph_lock(periph);
 			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE, 
@@ -2291,7 +2284,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 			struct ioc_toc_header *th;
 			u_int32_t track;
 
-			data = malloc(sizeof(*data), M_SCSICD, M_WAITOK);
+			data = malloc(sizeof(*data), M_SCSICD, M_WAITOK | M_ZERO);
 
 			cam_periph_lock(periph);
 			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE, 
@@ -2733,7 +2726,7 @@ cdprevent(struct cam_periph *periph, int action)
 	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_prevent(&ccb->csio, 
-		     /*retries*/ 1,
+		     /*retries*/ cd_retry_count,
 		     cddone,
 		     MSG_SIMPLE_Q_TAG,
 		     action,
@@ -2906,12 +2899,12 @@ cdsize(struct cam_periph *periph, u_int32_t *size)
 
 	/* XXX Should be M_WAITOK */
 	rcap_buf = malloc(sizeof(struct scsi_read_capacity_data), 
-			  M_SCSICD, M_NOWAIT);
+			  M_SCSICD, M_NOWAIT | M_ZERO);
 	if (rcap_buf == NULL)
 		return (ENOMEM);
 
 	scsi_read_capacity(&ccb->csio, 
-			   /*retries*/ 1,
+			   /*retries*/ cd_retry_count,
 			   cddone,
 			   MSG_SIMPLE_Q_TAG,
 			   rcap_buf,
@@ -2925,6 +2918,9 @@ cdsize(struct cam_periph *periph, u_int32_t *size)
 
 	softc->params.disksize = scsi_4btoul(rcap_buf->addr) + 1;
 	softc->params.blksize  = scsi_4btoul(rcap_buf->length);
+	/* Make sure we got at least some block size. */
+	if (error == 0 && softc->params.blksize == 0)
+		error = EIO;
 	/*
 	 * SCSI-3 mandates that the reported blocksize shall be 2048.
 	 * Older drives sometimes report funny values, trim it down to
@@ -3159,7 +3155,7 @@ cdreadtoc(struct cam_periph *periph, u_int32_t mode, u_int32_t start,
 	csio = &ccb->csio;
 
 	cam_fill_csio(csio, 
-		      /* retries */ 1, 
+		      /* retries */ cd_retry_count, 
 		      /* cbfcnp */ cddone, 
 		      /* flags */ CAM_DIR_IN,
 		      /* tag_action */ MSG_SIMPLE_Q_TAG,
@@ -3206,7 +3202,7 @@ cdreadsubchannel(struct cam_periph *periph, u_int32_t mode,
 	csio = &ccb->csio;
 
 	cam_fill_csio(csio, 
-		      /* retries */ 1, 
+		      /* retries */ cd_retry_count, 
 		      /* cbfcnp */ cddone, 
 		      /* flags */ CAM_DIR_IN,
 		      /* tag_action */ MSG_SIMPLE_Q_TAG,
@@ -3267,7 +3263,7 @@ cdgetmode(struct cam_periph *periph, struct cd_mode_params *data,
 	param_len = min(param_len, data->alloc_len);
 
 	scsi_mode_sense_len(csio,
-			    /* retries */ 1,
+			    /* retries */ cd_retry_count,
 			    /* cbfcnp */ cddone,
 			    /* tag_action */ MSG_SIMPLE_Q_TAG,
 			    /* dbd */ 0,
@@ -3410,7 +3406,7 @@ cdsetmode(struct cam_periph *periph, struct cd_mode_params *data)
 	param_len = min(param_len, data->alloc_len);
 
 	scsi_mode_select_len(csio,
-			     /* retries */ 1,
+			     /* retries */ cd_retry_count,
 			     /* cbfcnp */ cddone,
 			     /* tag_action */ MSG_SIMPLE_Q_TAG,
 			     /* scsi_page_fmt */ 1,
@@ -3472,7 +3468,7 @@ cdplay(struct cam_periph *periph, u_int32_t blk, u_int32_t len)
 		cdb_len = sizeof(*scsi_cmd);
 	}
 	cam_fill_csio(csio,
-		      /*retries*/2,
+		      /*retries*/ cd_retry_count,
 		      cddone,
 		      /*flags*/CAM_DIR_NONE,
 		      MSG_SIMPLE_Q_TAG,
@@ -3506,7 +3502,7 @@ cdplaymsf(struct cam_periph *periph, u_int32_t startm, u_int32_t starts,
 	csio = &ccb->csio;
 
 	cam_fill_csio(csio, 
-		      /* retries */ 1, 
+		      /* retries */ cd_retry_count, 
 		      /* cbfcnp */ cddone, 
 		      /* flags */ CAM_DIR_NONE,
 		      /* tag_action */ MSG_SIMPLE_Q_TAG,
@@ -3552,7 +3548,7 @@ cdplaytracks(struct cam_periph *periph, u_int32_t strack, u_int32_t sindex,
 	csio = &ccb->csio;
 
 	cam_fill_csio(csio, 
-		      /* retries */ 1, 
+		      /* retries */ cd_retry_count, 
 		      /* cbfcnp */ cddone, 
 		      /* flags */ CAM_DIR_NONE,
 		      /* tag_action */ MSG_SIMPLE_Q_TAG,
@@ -3594,7 +3590,7 @@ cdpause(struct cam_periph *periph, u_int32_t go)
 	csio = &ccb->csio;
 
 	cam_fill_csio(csio, 
-		      /* retries */ 1, 
+		      /* retries */ cd_retry_count, 
 		      /* cbfcnp */ cddone, 
 		      /* flags */ CAM_DIR_NONE,
 		      /* tag_action */ MSG_SIMPLE_Q_TAG,
@@ -3629,7 +3625,7 @@ cdstartunit(struct cam_periph *periph, int load)
 	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_start_stop(&ccb->csio,
-			/* retries */ 1,
+			/* retries */ cd_retry_count,
 			/* cbfcnp */ cddone,
 			/* tag_action */ MSG_SIMPLE_Q_TAG,
 			/* start */ TRUE,
@@ -3657,7 +3653,7 @@ cdstopunit(struct cam_periph *periph, u_int32_t eject)
 	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_start_stop(&ccb->csio,
-			/* retries */ 1,
+			/* retries */ cd_retry_count,
 			/* cbfcnp */ cddone,
 			/* tag_action */ MSG_SIMPLE_Q_TAG,
 			/* start */ FALSE,
@@ -3693,7 +3689,7 @@ cdsetspeed(struct cam_periph *periph, u_int32_t rdspeed, u_int32_t wrspeed)
 		wrspeed *= 177;
 
 	cam_fill_csio(csio,
-		      /* retries */ 1,
+		      /* retries */ cd_retry_count,
 		      /* cbfcnp */ cddone,
 		      /* flags */ CAM_DIR_NONE,
 		      /* tag_action */ MSG_SIMPLE_Q_TAG,
@@ -3768,7 +3764,7 @@ cdreportkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_report_key(&ccb->csio,
-			/* retries */ 1,
+			/* retries */ cd_retry_count,
 			/* cbfcnp */ cddone,
 			/* tag_action */ MSG_SIMPLE_Q_TAG,
 			/* lba */ lba,
@@ -3946,7 +3942,7 @@ cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_send_key(&ccb->csio,
-		      /* retries */ 1,
+		      /* retries */ cd_retry_count,
 		      /* cbfcnp */ cddone,
 		      /* tag_action */ MSG_SIMPLE_Q_TAG,
 		      /* agid */ authinfo->agid,
@@ -4050,7 +4046,7 @@ cdreaddvdstructure(struct cam_periph *periph, struct dvd_struct *dvdstruct)
 	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_read_dvd_structure(&ccb->csio,
-				/* retries */ 1,
+				/* retries */ cd_retry_count,
 				/* cbfcnp */ cddone,
 				/* tag_action */ MSG_SIMPLE_Q_TAG,
 				/* lba */ address,

@@ -43,6 +43,7 @@
  */
 /*-
  * Copyright (c) 2001 by Thomas Moestl <tmm@FreeBSD.org>.
+ * Copyright (c) 2008, 2010 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,32 +90,49 @@ icache_page_inval_t *icache_page_inval;
 
 #define	OF_GET(h, n, v)	OF_getprop((h), (n), &(v), sizeof(v))
 
+static u_int cache_new_prop(u_int cpu_impl);
+
+static u_int
+cache_new_prop(u_int cpu_impl)
+{
+
+	switch (cpu_impl) {
+	case CPU_IMPL_ULTRASPARCIV:
+	case CPU_IMPL_ULTRASPARCIVp:
+		return (1);
+	default:
+		return (0);
+	}
+}
+
 /*
- * Fill in the cache parameters using the cpu node.
+ * Fill in the cache parameters using the CPU node.
  */
 void
 cache_init(struct pcpu *pcpu)
 {
 	u_long set;
+	u_int use_new_prop;
 
-	if (OF_GET(pcpu->pc_node, "icache-size",
-	    pcpu->pc_cache.ic_size) == -1 ||
-	    OF_GET(pcpu->pc_node, "icache-line-size",
-	    pcpu->pc_cache.ic_linesize) == -1 ||
-	    OF_GET(pcpu->pc_node, "icache-associativity",
-	    pcpu->pc_cache.ic_assoc) == -1 ||
-	    OF_GET(pcpu->pc_node, "dcache-size",
-	    pcpu->pc_cache.dc_size) == -1 ||
-	    OF_GET(pcpu->pc_node, "dcache-line-size",
-	    pcpu->pc_cache.dc_linesize) == -1 ||
-	    OF_GET(pcpu->pc_node, "dcache-associativity",
-	    pcpu->pc_cache.dc_assoc) == -1 ||
-	    OF_GET(pcpu->pc_node, "ecache-size",
-	    pcpu->pc_cache.ec_size) == -1 ||
-	    OF_GET(pcpu->pc_node, "ecache-line-size",
-	    pcpu->pc_cache.ec_linesize) == -1 ||
-	    OF_GET(pcpu->pc_node, "ecache-associativity",
-	    pcpu->pc_cache.ec_assoc) == -1)
+	use_new_prop = cache_new_prop(pcpu->pc_impl);
+	if (OF_GET(pcpu->pc_node, !use_new_prop ? "icache-size" :
+	    "l1-icache-size", pcpu->pc_cache.ic_size) == -1 ||
+	    OF_GET(pcpu->pc_node, !use_new_prop ? "icache-line-size" :
+	    "l1-icache-line-size", pcpu->pc_cache.ic_linesize) == -1 ||
+	    OF_GET(pcpu->pc_node, !use_new_prop ? "icache-associativity" :
+	    "l1-icache-associativity", pcpu->pc_cache.ic_assoc) == -1 ||
+	    OF_GET(pcpu->pc_node, !use_new_prop ? "dcache-size" :
+	    "l1-dcache-size", pcpu->pc_cache.dc_size) == -1 ||
+	    OF_GET(pcpu->pc_node, !use_new_prop ? "dcache-line-size" :
+	    "l1-dcache-line-size", pcpu->pc_cache.dc_linesize) == -1 ||
+	    OF_GET(pcpu->pc_node, !use_new_prop ? "dcache-associativity" :
+	    "l1-dcache-associativity", pcpu->pc_cache.dc_assoc) == -1 ||
+	    OF_GET(pcpu->pc_node, !use_new_prop ? "ecache-size" :
+	    "l2-cache-size", pcpu->pc_cache.ec_size) == -1 ||
+	    OF_GET(pcpu->pc_node, !use_new_prop ? "ecache-line-size" :
+	    "l2-cache-line-size", pcpu->pc_cache.ec_linesize) == -1 ||
+	    OF_GET(pcpu->pc_node, !use_new_prop ? "ecache-associativity" :
+	    "l2-cache-associativity", pcpu->pc_cache.ec_assoc) == -1)
 		panic("cache_init: could not retrieve cache parameters");
 
 	set = pcpu->pc_cache.ic_size / pcpu->pc_cache.ic_assoc;
@@ -130,7 +148,7 @@ cache_init(struct pcpu *pcpu)
 	if ((set & ~(1UL << (ffs(set) - 1))) != 0)
 		panic("cache_init: E$ set size not a power of 2");
 
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII) {
+	if (pcpu->pc_impl >= CPU_IMPL_ULTRASPARCIII) {
 		cache_enable = cheetah_cache_enable;
 		cache_flush = cheetah_cache_flush;
 		dcache_page_inval = cheetah_dcache_page_inval;

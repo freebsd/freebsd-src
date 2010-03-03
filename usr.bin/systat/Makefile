@@ -16,7 +16,7 @@ CFLAGS+= -DINET6
 
 WARNS?=	0
 
-DPADD=	${LIBCURSES} ${LIBM} ${LIBDEVSTAT} ${LIBKVM}
-LDADD=	-lcursesw -lm -ldevstat -lkvm
+DPADD=	${LIBNCURSESW} ${LIBM} ${LIBDEVSTAT} ${LIBKVM}
+LDADD=	-lncursesw -lm -ldevstat -lkvm
 
 .include <bsd.prog.mk>

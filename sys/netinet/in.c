@@ -921,6 +921,12 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	if (ia->ia_addr.sin_addr.s_addr == INADDR_ANY)
 		return (0);
 
+	if (ifp->if_flags & IFF_POINTOPOINT) {
+		if (ia->ia_dstaddr.sin_addr.s_addr == ia->ia_addr.sin_addr.s_addr)
+			return (0);
+	}
+
+
 	/*
 	 * add a loopback route to self
 	 */
