@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2008  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2008, 2010  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-keyfromlabel.docbook,v 1.6 2008/11/07 13:54:11 jreed Exp $ -->
+<!-- $Id: dnssec-keyfromlabel.docbook,v 1.6.14.2 2010/01/15 23:47:31 tbox Exp $ -->
 <refentry id="man.dnssec-keyfromlabel">
   <refentryinfo>
     <date>February 8, 2008</date>
@@ -37,6 +37,7 @@
   <docinfo>
     <copyright>
       <year>2008</year>
+      <year>2010</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -75,10 +76,18 @@
         <listitem>
 	  <para>
 	    Selects the cryptographic algorithm.  The value of
-	    <option>algorithm</option> must be one of RSAMD5 (RSA)
-	    or RSASHA1, DSA, NSEC3RSASHA1, NSEC3DSA or DH (Diffie Hellman).
+	    <option>algorithm</option> must be one of RSAMD5,
+ 	    RSASHA1, DSA, NSEC3RSASHA1, NSEC3DSA, RSASHA256,
+ 	    RSASHA512 or DH (Diffie Hellman).
 	    These values are case insensitive.
 	  </para>
+          <para>
+            If no algorithm is specified, then RSASHA1 will be used by
+            default, unless the <option>-3</option> option is specified,
+            in which case NSEC3RSASHA1 will be used instead.  (If
+            <option>-3</option> is used and an algorithm is specified,
+            that algorithm will be checked for compatibility with NSEC3.)
+          </para>
           <para>
             Note 1: that for DNSSEC, RSASHA1 is a mandatory to implement
             algorithm, and DSA is recommended.
@@ -246,9 +255,7 @@
         <refentrytitle>dnssec-signzone</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>,
-      <citetitle>RFC 2539</citetitle>,
-      <citetitle>RFC 2845</citetitle>,
-      <citetitle>RFC 4033</citetitle>.
+      <citetitle>RFC 4034</citetitle>.
     </para>
   </refsect1>
 
