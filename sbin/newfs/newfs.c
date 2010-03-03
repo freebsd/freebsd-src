@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <unistd.h>
 
+#include <libutil.h>
+
 #include "newfs.h"
 
 int	Eflag;			/* Erase previous disk contents */
@@ -90,19 +92,19 @@ int	Jflag;			/* enable gjournal for file system */
 int	lflag;			/* enable multilabel for file system */
 int	nflag;			/* do not create .snap directory */
 intmax_t fssize;		/* file system size */
-int	sectorsize;		/* bytes/sector */
+int64_t	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
-int	fsize = 0;		/* fragment size */
-int	bsize = 0;		/* block size */
-int	maxbsize = 0;		/* maximum clustering */
-int	maxblkspercg = MAXBLKSPERCG; /* maximum blocks per cylinder group */
+int64_t	fsize = 0;		/* fragment size */
+int64_t	bsize = 0;		/* block size */
+int64_t	maxbsize = 0;		/* maximum clustering */
+int64_t	maxblkspercg = MAXBLKSPERCG; /* maximum blocks per cylinder group */
 int	minfree = MINFREE;	/* free space threshold */
 int	opt = DEFAULTOPT;	/* optimization preference (space or time) */
-int	density;		/* number of bytes per inode */
-int	maxcontig = 0;		/* max contiguous blocks to allocate */
-int	maxbpg;			/* maximum blocks per file in a cyl group */
-int	avgfilesize = AVFILESIZ;/* expected average file size */
-int	avgfilesperdir = AFPDIR;/* expected number of files per directory */
+int64_t	density;		/* number of bytes per inode */
+int64_t	maxcontig = 0;		/* max contiguous blocks to allocate */
+int64_t	maxbpg;			/* maximum blocks per file in a cyl group */
+int64_t	avgfilesize = AVFILESIZ;/* expected average file size */
+int64_t	avgfilesperdir = AFPDIR;/* expected number of files per directory */
 u_char	*volumelabel = NULL;	/* volume label for filesystem */
 struct uufsd disk;		/* libufs disk structure */
 
@@ -117,7 +119,6 @@ static void getfssize(intmax_t *, const char *p, intmax_t, intmax_t);
 static struct disklabel *getdisklabel(char *s);
 static void rewritelabel(char *s, struct disklabel *lp);
 static void usage(void);
-static int parselength(const char *ls, int *sz);
 
 ufs2_daddr_t part_ofs; /* partition offset in blocks, used with files */
 
@@ -170,7 +171,7 @@ main(int argc, char *argv[])
 			Rflag = 1;
 			break;
 		case 'S':
-			rval = parselength(optarg, &sectorsize);
+			rval = expand_number(optarg, &sectorsize);
 			if (rval < 0 || sectorsize <= 0)
 				errx(1, "%s: bad sector size", optarg);
 			break;
@@ -184,13 +185,13 @@ main(int argc, char *argv[])
 			Xflag++;
 			break;
 		case 'a':
-			rval = parselength(optarg, &maxcontig);
+			rval = expand_number(optarg, &maxcontig);
 			if (rval < 0 || maxcontig <= 0)
 				errx(1, "%s: bad maximum contiguous blocks",
 				    optarg);
 			break;
 		case 'b':
-			rval = parselength(optarg, &bsize);
+			rval = expand_number(optarg, &bsize);
 			if (rval < 0)
 				 errx(1, "%s: bad block size",
                                     optarg);
@@ -202,39 +203,39 @@ main(int argc, char *argv[])
 				    optarg, MAXBSIZE);
 			break;
 		case 'c':
-			rval = parselength(optarg, &maxblkspercg);
+			rval = expand_number(optarg, &maxblkspercg);
 			if (rval < 0 || maxblkspercg <= 0)
 				errx(1, "%s: bad blocks per cylinder group",
 				    optarg);
 			break;
 		case 'd':
-			rval = parselength(optarg, &maxbsize);
+			rval = expand_number(optarg, &maxbsize);
 			if (rval < 0 || maxbsize < MINBSIZE)
 				errx(1, "%s: bad extent block size", optarg);
 			break;
 		case 'e':
-			rval = parselength(optarg, &maxbpg);
+			rval = expand_number(optarg, &maxbpg);
 			if (rval < 0 || maxbpg <= 0)
 			  errx(1, "%s: bad blocks per file in a cylinder group",
 				    optarg);
 			break;
 		case 'f':
-			rval = parselength(optarg, &fsize);
+			rval = expand_number(optarg, &fsize);
 			if (rval < 0 || fsize <= 0)
 				errx(1, "%s: bad fragment size", optarg);
 			break;
 		case 'g':
-			rval = parselength(optarg, &avgfilesize);
+			rval = expand_number(optarg, &avgfilesize);
 			if (rval < 0 || avgfilesize <= 0)
 				errx(1, "%s: bad average file size", optarg);
 			break;
 		case 'h':
-			rval = parselength(optarg, &avgfilesperdir);
+			rval = expand_number(optarg, &avgfilesperdir);
 			if (rval < 0 || avgfilesperdir <= 0)
 			       errx(1, "%s: bad average files per dir", optarg);
 			break;
 		case 'i':
-			rval = parselength(optarg, &density);
+			rval = expand_number(optarg, &density);
 			if (rval < 0 || density <= 0)
 				errx(1, "%s: bad bytes per inode", optarg);
 			break;
@@ -494,63 +495,4 @@ usage()
 	fprintf(stderr, "\t-r reserved sectors at the end of device\n");
 	fprintf(stderr, "\t-s file system size (sectors)\n");
 	exit(1);
-}
-
-/*
- * Return the numeric value of a string given in the form [+-][0-9]+[GMKT]
- * or -1 on format error or overflow.
- */
-static int
-parselength(const char *ls, int *sz)
-{
-	off_t length, oflow;
-	int lsign;
-
-	length = 0;
-	lsign = 1;
-
-	switch (*ls) {
-	case '-':
-		lsign = -1;
-	case '+':
-		ls++;
-	}
-
-#define ASSIGN_CHK_OFLOW(x, y)  if (x < y) return -1; y = x
-	/*
-	 * Calculate the value of the decimal digit string, failing
-	 * on overflow.
-	 */
-	while (isdigit(*ls)) {
-		oflow = length * 10 + *ls++ - '0';
-		ASSIGN_CHK_OFLOW(oflow, length);
-	}
-
-	switch (*ls) {
-	case 'T':
-	case 't':
-		oflow = length * 1024;
-		ASSIGN_CHK_OFLOW(oflow, length);
-	case 'G':
-	case 'g':
-		oflow = length * 1024;
-		ASSIGN_CHK_OFLOW(oflow, length);
-	case 'M':
-	case 'm':
-		oflow = length * 1024;
-		ASSIGN_CHK_OFLOW(oflow, length);
-	case 'K':
-	case 'k':
-		if (ls[1] != '\0')
-			return -1;
-		oflow = length * 1024;
-		ASSIGN_CHK_OFLOW(oflow, length);
-	case '\0':
-		break;
-	default:
-		return -1;
-	}
-
-	*sz = length * lsign;
-	return 0;
 }
