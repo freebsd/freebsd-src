@@ -1886,6 +1886,7 @@ device		xmphy		# XaQti XMAC II
 #	the Netgear GA302T, the SysKonnect SK-9D21 and SK-9D41, and
 #	the embedded gigE NICs on Dell PowerEdge 2550 servers.
 # bwi:	Broadcom BCM430* and BCM431* family of wireless adapters.
+# bwn:	Broadcom BCM43xx family of wireless adapters.
 # cas:	Sun Cassini/Cassini+ and National Semiconductor DP83065 Saturn
 # cm:	Arcnet SMC COM90c26 / SMC COM90c56
 #	(and SMC COM90c66 in '56 compatibility mode) adapters.
@@ -2092,6 +2093,7 @@ options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 #device		ath_ar9280	# AR9280 chips
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		bwi		# Broadcom BCM430* BCM431*
+device		bwn		# Broadcom BCM43xx
 device		ral		# Ralink Technology RT2500 wireless NICs.
 
 # Use "private" jumbo buffers allocated exclusively for the ti(4) driver.
