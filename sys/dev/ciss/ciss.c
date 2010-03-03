@@ -1353,7 +1353,7 @@ ciss_init_logical(struct ciss_softc *sc)
 
     /* sanity-check reply */
     ndrives = (ntohl(cll->list_size) / sizeof(union ciss_device_address));
-    if ((ndrives < 0) || (ndrives >= CISS_MAX_LOGICAL)) {
+    if ((ndrives < 0) || (ndrives > CISS_MAX_LOGICAL)) {
 	ciss_printf(sc, "adapter claims to report absurd number of logical drives (%d > %d)\n",
 		    ndrives, CISS_MAX_LOGICAL);
 	error = ENXIO;
@@ -2791,7 +2791,7 @@ ciss_cam_init(struct ciss_softc *sc)
      * Allocate a devq.  We can reuse this for the masked physical
      * devices if we decide to export these as well.
      */
-    if ((sc->ciss_cam_devq = cam_simq_alloc(sc->ciss_max_requests)) == NULL) {
+    if ((sc->ciss_cam_devq = cam_simq_alloc(sc->ciss_max_requests - 2)) == NULL) {
 	ciss_printf(sc, "can't allocate CAM SIM queue\n");
 	return(ENOMEM);
     }
@@ -3065,7 +3065,7 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
      */
     if ((error = ciss_get_request(sc, &cr)) != 0) {
 	xpt_freeze_simq(sim, 1);
-	csio->ccb_h.status |= CAM_RELEASE_SIMQ;
+	sc->ciss_flags |= CISS_FLAG_BUSY;
 	csio->ccb_h.status |= CAM_REQUEUE_REQ;
 	return(error);
     }
@@ -3275,6 +3275,13 @@ ciss_cam_complete(struct ciss_request *cr)
     ciss_cam_complete_fixup(sc, csio);
 
     ciss_release_request(cr);
+    if (sc->ciss_flags & CISS_FLAG_BUSY) {
+	sc->ciss_flags &= ~CISS_FLAG_BUSY;
+	if (csio->ccb_h.status & CAM_RELEASE_SIMQ)
+	    xpt_release_simq(xpt_path_sim(csio->ccb_h.path), 0);
+	else
+	    csio->ccb_h.status |= CAM_RELEASE_SIMQ;
+    }
     xpt_done((union ccb *)csio);
 }
 
