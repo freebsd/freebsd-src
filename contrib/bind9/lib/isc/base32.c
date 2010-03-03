@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: base32.c,v 1.3.116.2 2009/01/18 23:47:41 tbox Exp $ */
+/* $Id: base32.c,v 1.3.116.3 2009/10/21 01:22:47 each Exp $ */
 
 /*! \file */
 
@@ -112,6 +112,8 @@ base32_totext(isc_region_t *source, int wordlength, const char *wordbreak,
 			RETERR(str_totext(wordbreak, target));
 		}
 	}
+	if (source->length > 0)
+		isc_region_consume(source, source->length);
 	return (ISC_R_SUCCESS);
 }
 
