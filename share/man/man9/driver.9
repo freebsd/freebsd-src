@@ -62,9 +62,9 @@ static device_method_t foo_methods[] = {
 };
 
 static driver_t foo_driver = {
-	.name = "foo",
-	.methods = foo_methods,
-	.size = sizeof(struct foo_softc)
+	"foo",
+	foo_methods,
+	sizeof(struct foo_softc)
 };
 
 static devclass_t foo_devclass;
