@@ -74,6 +74,12 @@ static int xscale_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
 
+#if defined(__mips__)
+static int mips24k_allocate_pmc(enum pmc_event _pe, char* ctrspec,
+			     struct pmc_op_pmcallocate *_pmc_config);
+#endif /* __mips__ */
+
+
 #define PMC_CALL(cmd, params)				\
 	syscall(pmc_syscall, PMC_OP_##cmd, (params))
 
@@ -137,6 +143,7 @@ PMC_CLASSDEP_TABLE(p4, P4);
 PMC_CLASSDEP_TABLE(p5, P5);
 PMC_CLASSDEP_TABLE(p6, P6);
 PMC_CLASSDEP_TABLE(xscale, XSCALE);
+PMC_CLASSDEP_TABLE(mips24k, MIPS24K);
 
 #undef	__PMC_EV_ALIAS
 #define	__PMC_EV_ALIAS(N,CODE) 	{ N, PMC_EV_##CODE },
@@ -182,6 +189,7 @@ PMC_MDEP_TABLE(p4, P4, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p5, P5, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p6, P6, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(xscale, XSCALE, PMC_CLASS_XSCALE);
+PMC_MDEP_TABLE(mips24k, MIPS24K, PMC_CLASS_MIPS24K);
 
 static const struct pmc_event_descr tsc_event_table[] =
 {
@@ -225,6 +233,10 @@ PMC_CLASS_TABLE_DESC(tsc, TSC, tsc, tsc);
 #if	defined(__XSCALE__)
 PMC_CLASS_TABLE_DESC(xscale, XSCALE, xscale, xscale);
 #endif
+
+#if defined(__mips__)
+PMC_CLASS_TABLE_DESC(mips24k, MIPS24K, mips24k, mips24k);
+#endif /* __mips__ */
 
 #undef	PMC_CLASS_TABLE_DESC
 
@@ -2040,6 +2052,45 @@ xscale_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
 }
 #endif
 
+#if defined(__mips__)
+
+static struct pmc_event_alias mips24k_aliases[] = {
+	EV_ALIAS("instructions",	"INSTR_EXECUTED"),
+	EV_ALIAS("branches",		"BRANCH_COMPLETED"),
+	EV_ALIAS("branch-mispredicts",	"BRANCH_MISPRED"),
+	EV_ALIAS(NULL, NULL)
+};
+
+#define	MIPS24K_KW_OS		"os"
+#define	MIPS24K_KW_USR		"usr"
+#define	MIPS24K_KW_ANYTHREAD	"anythread"
+
+static int
+mips24k_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
+		  struct pmc_op_pmcallocate *pmc_config __unused)
+{
+	char *p;
+
+	(void) pe;
+
+	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
+	
+	while ((p = strsep(&ctrspec, ",")) != NULL) {
+		if (KWMATCH(p, MIPS24K_KW_OS))
+			pmc_config->pm_caps |= PMC_CAP_SYSTEM;
+		else if (KWMATCH(p, MIPS24K_KW_USR))
+			pmc_config->pm_caps |= PMC_CAP_USER;
+		else if (KWMATCH(p, MIPS24K_KW_ANYTHREAD))
+			pmc_config->pm_caps |= (PMC_CAP_USER | PMC_CAP_SYSTEM);
+		else
+			return (-1);
+	}
+
+	return (0);
+}
+#endif /* __mips__ */
+
+
 /*
  * Match an event name `name' with its canonical form.
  *
@@ -2371,6 +2422,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		ev = xscale_event_table;
 		count = PMC_EVENT_TABLE_SIZE(xscale);
 		break;
+	case PMC_CLASS_MIPS24K:
+		ev = mips24k_event_table;
+		count = PMC_EVENT_TABLE_SIZE(mips24k);
+		break;
 	default:
 		errno = EINVAL;
 		return (-1);
@@ -2563,8 +2618,12 @@ pmc_init(void)
 		pmc_class_table[n] = &xscale_class_table_descr;
 		break;
 #endif
-
-
+#if defined(__mips__)
+	case PMC_CPU_MIPS_24K:
+		PMC_MDEP_INIT(mips24k);
+		pmc_class_table[n] = &mips24k_class_table_descr;
+		break;
+#endif /* __mips__ */
 	default:
 		/*
 		 * Some kind of CPU this version of the library knows nothing
@@ -2681,6 +2740,10 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	} else if (pe >= PMC_EV_XSCALE_FIRST && pe <= PMC_EV_XSCALE_LAST) {
 		ev = xscale_event_table;
 		evfence = xscale_event_table + PMC_EVENT_TABLE_SIZE(xscale);
+	} else if (pe >= PMC_EV_MIPS24K_FIRST && pe <= PMC_EV_MIPS24K_LAST) {
+		ev = mips24k_event_table;
+		evfence = mips24k_event_table + PMC_EVENT_TABLE_SIZE(mips24k
+);
 	} else if (pe == PMC_EV_TSC_TSC) {
 		ev = tsc_event_table;
 		evfence = tsc_event_table + PMC_EVENT_TABLE_SIZE(tsc);
