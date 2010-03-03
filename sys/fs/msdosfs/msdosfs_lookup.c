@@ -125,14 +125,14 @@ msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
 #endif
 	dp = VTODE(vdp);
 	pmp = dp->de_pmp;
-	if (vpp != NULL)
-		*vpp = NULL;
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_lookup(): vdp %p, dp %p, Attr %02x\n",
 	    vdp, dp, dp->de_Attributes);
 #endif
 
  restart:
+	if (vpp != NULL)
+		*vpp = NULL;
 	/*
 	 * If they are going after the . or .. entry in the root directory,
 	 * they won't find it.  DOS filesystems don't have them in the root
@@ -525,8 +525,10 @@ foundroot:
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
 		error = msdosfs_deget_dotdot(pdp, cluster, blkoff, vpp);
-		if (error)
+		if (error) {
+			*vpp = NULL;
 			return (error);
+		}
 		/*
 		 * Recheck that ".." still points to the inode we
 		 * looked up before pdp lock was dropped.
@@ -534,6 +536,7 @@ foundroot:
 		error = msdosfs_lookup_(pdp, NULL, cnp, &inode1);
 		if (error) {
 			vput(*vpp);
+			*vpp = NULL;
 			return (error);
 		}
 		if (VTODE(*vpp)->de_inode != inode1) {
