@@ -170,7 +170,7 @@ internally (<tt>APFloat</tt> has the capability of holding floating point
 constants of <em>A</em>rbitrary <em>P</em>recision).  This code basically just
 creates and returns a <tt>ConstantFP</tt>.  Note that in the LLVM IR
 that constants are all uniqued together and shared.  For this reason, the API
-uses "the Context.get..." idiom instead of "new foo(..)" or "foo::Create(..)".</p>
+uses the "foo::get(...)" idiom instead of "new foo(..)" or "foo::Create(..)".</p>
 
 <div class="doc_code">
 <pre>
@@ -323,10 +323,10 @@ really talks about the external interface for a function (not the value computed
 by an expression), it makes sense for it to return the LLVM Function it
 corresponds to when codegen'd.</p>
 
-<p>The call to <tt>Context.get</tt> creates
+<p>The call to <tt>FunctionType::get</tt> creates
 the <tt>FunctionType</tt> that should be used for a given Prototype.  Since all
 function arguments in Kaleidoscope are of type double, the first line creates
-a vector of "N" LLVM double types.  It then uses the <tt>Context.get</tt>
+a vector of "N" LLVM double types.  It then uses the <tt>Functiontype::get</tt>
 method to create a function type that takes "N" doubles as arguments, returns
 one double as a result, and that is not vararg (the false parameter indicates
 this).  Note that Types in LLVM are uniqued just like Constants are, so you
@@ -535,8 +535,7 @@ ready> <b>4+5</b>;
 Read top-level expression:
 define double @""() {
 entry:
-        %addtmp = add double 4.000000e+00, 5.000000e+00
-        ret double %addtmp
+        ret double 9.000000e+00
 }
 </pre>
 </div>
@@ -544,7 +543,8 @@ entry:
 <p>Note how the parser turns the top-level expression into anonymous functions
 for us.  This will be handy when we add <a href="LangImpl4.html#jit">JIT 
 support</a> in the next chapter.  Also note that the code is very literally
-transcribed, no optimizations are being performed.  We will 
+transcribed, no optimizations are being performed except simple constant
+folding done by IRBuilder.  We will 
 <a href="LangImpl4.html#trivialconstfold">add optimizations</a> explicitly in
 the next chapter.</p>
 
@@ -554,12 +554,12 @@ ready&gt; <b>def foo(a b) a*a + 2*a*b + b*b;</b>
 Read function definition:
 define double @foo(double %a, double %b) {
 entry:
-        %multmp = mul double %a, %a
-        %multmp1 = mul double 2.000000e+00, %a
-        %multmp2 = mul double %multmp1, %b
-        %addtmp = add double %multmp, %multmp2
-        %multmp3 = mul double %b, %b
-        %addtmp4 = add double %addtmp, %multmp3
+        %multmp = fmul double %a, %a
+        %multmp1 = fmul double 2.000000e+00, %a
+        %multmp2 = fmul double %multmp1, %b
+        %addtmp = fadd double %multmp, %multmp2
+        %multmp3 = fmul double %b, %b
+        %addtmp4 = fadd double %addtmp, %multmp3
         ret double %addtmp4
 }
 </pre>
@@ -576,7 +576,7 @@ define double @bar(double %a) {
 entry:
         %calltmp = call double @foo( double %a, double 4.000000e+00 )
         %calltmp1 = call double @bar( double 3.133700e+04 )
-        %addtmp = add double %calltmp, %calltmp1
+        %addtmp = fadd double %calltmp, %calltmp1
         ret double %addtmp
 }
 </pre>
@@ -612,18 +612,18 @@ ready&gt; <b>^D</b>
 
 define double @""() {
 entry:
-        %addtmp = add double 4.000000e+00, 5.000000e+00
+        %addtmp = fadd double 4.000000e+00, 5.000000e+00
         ret double %addtmp
 }
 
 define double @foo(double %a, double %b) {
 entry:
-        %multmp = mul double %a, %a
-        %multmp1 = mul double 2.000000e+00, %a
-        %multmp2 = mul double %multmp1, %b
-        %addtmp = add double %multmp, %multmp2
-        %multmp3 = mul double %b, %b
-        %addtmp4 = add double %addtmp, %multmp3
+        %multmp = fmul double %a, %a
+        %multmp1 = fmul double 2.000000e+00, %a
+        %multmp2 = fmul double %multmp1, %b
+        %addtmp = fadd double %multmp, %multmp2
+        %multmp3 = fmul double %b, %b
+        %addtmp4 = fadd double %addtmp, %multmp3
         ret double %addtmp4
 }
 
@@ -631,7 +631,7 @@ define double @bar(double %a) {
 entry:
         %calltmp = call double @foo( double %a, double 4.000000e+00 )
         %calltmp1 = call double @bar( double 3.133700e+04 )
-        %addtmp = add double %calltmp, %calltmp1
+        %addtmp = fadd double %calltmp, %calltmp1
         ret double %addtmp
 }
 
@@ -1263,7 +1263,7 @@ int main() {
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-02-03 18:27:31 +0100 (Wed, 03 Feb 2010) $
+  Last modified: $Date: 2010-03-02 02:11:08 +0100 (Tue, 02 Mar 2010) $
 </address>
 </body>
 </html>

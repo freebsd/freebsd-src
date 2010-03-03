@@ -479,7 +479,6 @@ class PatLeaf<dag frag, code pred = [{}], SDNodeXForm xform = NOOP_SDNodeXForm>
 def vtInt      : PatLeaf<(vt),  [{ return N->getVT().isInteger(); }]>;
 def vtFP       : PatLeaf<(vt),  [{ return N->getVT().isFloatingPoint(); }]>;
 
-def immAllOnes : PatLeaf<(imm), [{ return N->isAllOnesValue(); }]>;
 def immAllOnesV: PatLeaf<(build_vector), [{
   return ISD::isBuildVectorAllOnes(N);
 }]>;
@@ -496,7 +495,7 @@ def immAllZerosV_bc: PatLeaf<(bitconvert), [{
 
 
 // Other helper fragments.
-def not  : PatFrag<(ops node:$in), (xor node:$in, immAllOnes)>;
+def not  : PatFrag<(ops node:$in), (xor node:$in, -1)>;
 def vnot : PatFrag<(ops node:$in), (xor node:$in, immAllOnesV)>;
 def vnot_conv : PatFrag<(ops node:$in), (xor node:$in, immAllOnesV_bc)>;
 def ineg : PatFrag<(ops node:$in), (sub 0, node:$in)>;

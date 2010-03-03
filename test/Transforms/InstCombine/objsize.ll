@@ -23,12 +23,12 @@ entry:
   br i1 %cmp, label %cond.true, label %cond.false
 
 cond.true:
-  %1 = load i8** %retval;
-  ret i8* %1;
+  %1 = load i8** %retval
+  ret i8* %1
 
 cond.false:
-  %2 = load i8** %retval;
-  ret i8* %2;
+  %2 = load i8** %retval
+  ret i8* %2
 }
 
 define i32 @f() nounwind {
@@ -64,12 +64,42 @@ entry:
 }
 
 @.str5 = private constant [9 x i32] [i32 97, i32 98, i32 99, i32 100, i32 0, i32
- 101, i32 102, i32 103, i32 0], align 4 ;
+ 101, i32 102, i32 103, i32 0], align 4
 define i32 @test2() nounwind {
 ; CHECK: @test2
 ; CHECK-NEXT: ret i32 34
   %1 = call i32 @llvm.objectsize.i32(i8* getelementptr (i8* bitcast ([9 x i32]* @.str5 to i8*), i32 2), i1 false)
   ret i32 %1
+}
+
+; rdar://7674946
+@array = internal global [480 x float] zeroinitializer ; <[480 x float]*> [#uses=1]
+
+declare i8* @__memcpy_chk(i8*, i8*, i32, i32) nounwind
+
+declare i32 @llvm.objectsize.i32(i8*, i1) nounwind readonly
+
+declare i8* @__inline_memcpy_chk(i8*, i8*, i32) nounwind inlinehint
+
+define void @test3() nounwind {
+; CHECK: @test3
+entry:
+  br i1 undef, label %bb11, label %bb12
+
+bb11:
+  %0 = getelementptr inbounds float* getelementptr inbounds ([480 x float]* @array, i32 0, i32 128), i32 -127 ; <float*> [#uses=1]
+  %1 = bitcast float* %0 to i8*                   ; <i8*> [#uses=1]
+  %2 = call i32 @llvm.objectsize.i32(i8* %1, i1 false) ; <i32> [#uses=1]
+  %3 = call i8* @__memcpy_chk(i8* undef, i8* undef, i32 512, i32 %2) nounwind ; <i8*> [#uses=0]
+; CHECK: @__memcpy_chk
+  unreachable
+
+bb12:
+  %4 = getelementptr inbounds float* getelementptr inbounds ([480 x float]* @array, i32 0, i32 128), i32 -127 ; <float*> [#uses=1]
+  %5 = bitcast float* %4 to i8*                   ; <i8*> [#uses=1]
+  %6 = call i8* @__inline_memcpy_chk(i8* %5, i8* undef, i32 512) nounwind inlinehint ; <i8*> [#uses=0]
+; CHECK: @__inline_memcpy_chk
+  unreachable
 }
 
 declare i32 @llvm.objectsize.i32(i8*, i1) nounwind readonly

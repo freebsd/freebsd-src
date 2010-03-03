@@ -73,7 +73,7 @@ static TargetLoweringObjectFile *createTLOF(X86TargetMachine &TM) {
   case X86Subtarget::isDarwin:
     if (TM.getSubtarget<X86Subtarget>().is64Bit())
       return new X8664_MachoTargetObjectFile();
-    return new X8632_MachoTargetObjectFile();
+    return new TargetLoweringObjectFileMachO();
   case X86Subtarget::isELF:
    if (TM.getSubtarget<X86Subtarget>().is64Bit())
      return new X8664_ELFTargetObjectFile(TM);
@@ -990,6 +990,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   setTargetDAGCombine(ISD::VECTOR_SHUFFLE);
   setTargetDAGCombine(ISD::BUILD_VECTOR);
   setTargetDAGCombine(ISD::SELECT);
+  setTargetDAGCombine(ISD::AND);
   setTargetDAGCombine(ISD::SHL);
   setTargetDAGCombine(ISD::SRA);
   setTargetDAGCombine(ISD::SRL);
@@ -1743,7 +1744,7 @@ EmitTailCallStoreRetAddr(SelectionDAG & DAG, MachineFunction &MF,
   // Calculate the new stack slot for the return address.
   int SlotSize = Is64Bit ? 8 : 4;
   int NewReturnAddrFI =
-    MF.getFrameInfo()->CreateFixedObject(SlotSize, FPDiff-SlotSize, true,false);
+    MF.getFrameInfo()->CreateFixedObject(SlotSize, FPDiff-SlotSize, false, false);
   EVT VT = Is64Bit ? MVT::i64 : MVT::i32;
   SDValue NewRetAddrFrIdx = DAG.getFrameIndex(NewReturnAddrFI, VT);
   Chain = DAG.getStore(Chain, dl, RetAddrFrIdx, NewRetAddrFrIdx,
@@ -2376,7 +2377,7 @@ SDValue X86TargetLowering::getReturnAddressFrameIndex(SelectionDAG &DAG) {
     // Set up a frame object for the return address.
     uint64_t SlotSize = TD->getPointerSize();
     ReturnAddrIndex = MF.getFrameInfo()->CreateFixedObject(SlotSize, -SlotSize,
-                                                           true, false);
+                                                           false, false);
     FuncInfo->setRAIndex(ReturnAddrIndex);
   }
 
@@ -4816,8 +4817,16 @@ X86TargetLowering::LowerINSERT_VECTOR_ELT_SSE4(SDValue Op, SelectionDAG &DAG){
 
   if ((EltVT.getSizeInBits() == 8 || EltVT.getSizeInBits() == 16) &&
       isa<ConstantSDNode>(N2)) {
-    unsigned Opc = (EltVT.getSizeInBits() == 8) ? X86ISD::PINSRB
-                                                : X86ISD::PINSRW;
+    unsigned Opc;
+    if (VT == MVT::v8i16)
+      Opc = X86ISD::PINSRW;
+    else if (VT == MVT::v4i16)
+      Opc = X86ISD::MMX_PINSRW;
+    else if (VT == MVT::v16i8)
+      Opc = X86ISD::PINSRB;
+    else
+      Opc = X86ISD::PINSRB;
+
     // Transform it so it match pinsr{b,w} which expects a GR32 as its second
     // argument.
     if (N1.getValueType() != MVT::i32)
@@ -4868,7 +4877,8 @@ X86TargetLowering::LowerINSERT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) {
       N1 = DAG.getNode(ISD::ANY_EXTEND, dl, MVT::i32, N1);
     if (N2.getValueType() != MVT::i32)
       N2 = DAG.getIntPtrConstant(cast<ConstantSDNode>(N2)->getZExtValue());
-    return DAG.getNode(X86ISD::PINSRW, dl, VT, N0, N1, N2);
+    return DAG.getNode(VT == MVT::v8i16 ? X86ISD::PINSRW : X86ISD::MMX_PINSRW,
+                       dl, VT, N0, N1, N2);
   }
   return SDValue();
 }
@@ -5244,7 +5254,7 @@ SDValue X86TargetLowering::LowerShift(SDValue Op, SelectionDAG &DAG) {
 
   SDValue AndNode = DAG.getNode(ISD::AND, dl, MVT::i8, ShAmt,
                                 DAG.getConstant(VTBits, MVT::i8));
-  SDValue Cond = DAG.getNode(X86ISD::CMP, dl, VT,
+  SDValue Cond = DAG.getNode(X86ISD::CMP, dl, MVT::i32,
                              AndNode, DAG.getConstant(0, MVT::i8));
 
   SDValue Hi, Lo;
@@ -5873,26 +5883,31 @@ SDValue X86TargetLowering::EmitCmp(SDValue Op0, SDValue Op1, unsigned X86CC,
 
 /// LowerToBT - Result of 'and' is compared against zero. Turn it into a BT node
 /// if it's possible.
-static SDValue LowerToBT(SDValue Op0, ISD::CondCode CC,
+static SDValue LowerToBT(SDValue And, ISD::CondCode CC,
                          DebugLoc dl, SelectionDAG &DAG) {
+  SDValue Op0 = And.getOperand(0);
+  SDValue Op1 = And.getOperand(1);
+  if (Op0.getOpcode() == ISD::TRUNCATE)
+    Op0 = Op0.getOperand(0);
+  if (Op1.getOpcode() == ISD::TRUNCATE)
+    Op1 = Op1.getOperand(0);
+
   SDValue LHS, RHS;
-  if (Op0.getOperand(1).getOpcode() == ISD::SHL) {
-    if (ConstantSDNode *Op010C =
-        dyn_cast<ConstantSDNode>(Op0.getOperand(1).getOperand(0)))
-      if (Op010C->getZExtValue() == 1) {
-        LHS = Op0.getOperand(0);
-        RHS = Op0.getOperand(1).getOperand(1);
+  if (Op1.getOpcode() == ISD::SHL) {
+    if (ConstantSDNode *And10C = dyn_cast<ConstantSDNode>(Op1.getOperand(0)))
+      if (And10C->getZExtValue() == 1) {
+        LHS = Op0;
+        RHS = Op1.getOperand(1);
       }
-  } else if (Op0.getOperand(0).getOpcode() == ISD::SHL) {
-    if (ConstantSDNode *Op000C =
-        dyn_cast<ConstantSDNode>(Op0.getOperand(0).getOperand(0)))
-      if (Op000C->getZExtValue() == 1) {
-        LHS = Op0.getOperand(1);
-        RHS = Op0.getOperand(0).getOperand(1);
+  } else if (Op0.getOpcode() == ISD::SHL) {
+    if (ConstantSDNode *And00C = dyn_cast<ConstantSDNode>(Op0.getOperand(0)))
+      if (And00C->getZExtValue() == 1) {
+        LHS = Op1;
+        RHS = Op0.getOperand(1);
       }
-  } else if (Op0.getOperand(1).getOpcode() == ISD::Constant) {
-    ConstantSDNode *AndRHS = cast<ConstantSDNode>(Op0.getOperand(1));
-    SDValue AndLHS = Op0.getOperand(0);
+  } else if (Op1.getOpcode() == ISD::Constant) {
+    ConstantSDNode *AndRHS = cast<ConstantSDNode>(Op1);
+    SDValue AndLHS = Op0;
     if (AndRHS->getZExtValue() == 1 && AndLHS.getOpcode() == ISD::SRL) {
       LHS = AndLHS.getOperand(0);
       RHS = AndLHS.getOperand(1);
@@ -5940,6 +5955,21 @@ SDValue X86TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) {
     SDValue NewSetCC = LowerToBT(Op0, CC, dl, DAG);
     if (NewSetCC.getNode())
       return NewSetCC;
+  }
+
+  // Look for "(setcc) == / != 1" to avoid unncessary setcc.
+  if (Op0.getOpcode() == X86ISD::SETCC &&
+      Op1.getOpcode() == ISD::Constant &&
+      (cast<ConstantSDNode>(Op1)->getZExtValue() == 1 ||
+       cast<ConstantSDNode>(Op1)->isNullValue()) &&
+      (CC == ISD::SETEQ || CC == ISD::SETNE)) {
+    X86::CondCode CCode = (X86::CondCode)Op0.getConstantOperandVal(0);
+    bool Invert = (CC == ISD::SETNE) ^
+      cast<ConstantSDNode>(Op1)->isNullValue();
+    if (Invert)
+      CCode = X86::GetOppositeBranchCondition(CCode);
+    return DAG.getNode(X86ISD::SETCC, dl, MVT::i8,
+                       DAG.getConstant(CCode, MVT::i8), Op0.getOperand(1));
   }
 
   bool isFP = Op.getOperand(1).getValueType().isFloatingPoint();
@@ -6444,8 +6474,7 @@ X86TargetLowering::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
         LowerCallTo(Chain, Type::getVoidTy(*DAG.getContext()),
                     false, false, false, false,
                     0, CallingConv::C, false, /*isReturnValueUsed=*/false,
-                    DAG.getExternalSymbol(bzeroEntry, IntPtr), Args, DAG, dl,
-                    DAG.GetOrdering(Chain.getNode()));
+                    DAG.getExternalSymbol(bzeroEntry, IntPtr), Args, DAG, dl);
       return CallResult.second;
     }
 
@@ -7662,6 +7691,7 @@ const char *X86TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case X86ISD::INSERTPS:           return "X86ISD::INSERTPS";
   case X86ISD::PINSRB:             return "X86ISD::PINSRB";
   case X86ISD::PINSRW:             return "X86ISD::PINSRW";
+  case X86ISD::MMX_PINSRW:         return "X86ISD::MMX_PINSRW";
   case X86ISD::PSHUFB:             return "X86ISD::PSHUFB";
   case X86ISD::FMAX:               return "X86ISD::FMAX";
   case X86ISD::FMIN:               return "X86ISD::FMIN";
@@ -7769,7 +7799,7 @@ bool X86TargetLowering::isTruncateFree(const Type *Ty1, const Type *Ty2) const {
   unsigned NumBits2 = Ty2->getPrimitiveSizeInBits();
   if (NumBits1 <= NumBits2)
     return false;
-  return Subtarget->is64Bit() || NumBits1 < 64;
+  return true;
 }
 
 bool X86TargetLowering::isTruncateFree(EVT VT1, EVT VT2) const {
@@ -7779,7 +7809,7 @@ bool X86TargetLowering::isTruncateFree(EVT VT1, EVT VT2) const {
   unsigned NumBits2 = VT2.getSizeInBits();
   if (NumBits1 <= NumBits2)
     return false;
-  return Subtarget->is64Bit() || NumBits1 < 64;
+  return true;
 }
 
 bool X86TargetLowering::isZExtFree(const Type *Ty1, const Type *Ty2) const {
@@ -8792,10 +8822,9 @@ static SDValue PerformSELECTCombine(SDNode *N, SelectionDAG &DAG,
   SDValue RHS = N->getOperand(2);
 
   // If we have SSE[12] support, try to form min/max nodes. SSE min/max
-  // instructions have the peculiarity that if either operand is a NaN,
-  // they chose what we call the RHS operand (and as such are not symmetric).
-  // It happens that this matches the semantics of the common C idiom
-  // x<y?x:y and related forms, so we can recognize these cases.
+  // instructions match the semantics of the common C idiom x<y?x:y but not
+  // x<=y?x:y, because of how they handle negative zero (which can be
+  // ignored in unsafe-math mode).
   if (Subtarget->hasSSE2() &&
       (LHS.getValueType() == MVT::f32 || LHS.getValueType() == MVT::f64) &&
       Cond.getOpcode() == ISD::SETCC) {
@@ -8803,36 +8832,34 @@ static SDValue PerformSELECTCombine(SDNode *N, SelectionDAG &DAG,
 
     unsigned Opcode = 0;
     // Check for x CC y ? x : y.
-    if (LHS == Cond.getOperand(0) && RHS == Cond.getOperand(1)) {
+    if (DAG.isEqualTo(LHS, Cond.getOperand(0)) &&
+        DAG.isEqualTo(RHS, Cond.getOperand(1))) {
       switch (CC) {
       default: break;
       case ISD::SETULT:
-        // This can be a min if we can prove that at least one of the operands
-        // is not a nan.
-        if (!FiniteOnlyFPMath()) {
-          if (DAG.isKnownNeverNaN(RHS)) {
-            // Put the potential NaN in the RHS so that SSE will preserve it.
-            std::swap(LHS, RHS);
-          } else if (!DAG.isKnownNeverNaN(LHS))
+        // Converting this to a min would handle NaNs incorrectly, and swapping
+        // the operands would cause it to handle comparisons between positive
+        // and negative zero incorrectly.
+        if (!FiniteOnlyFPMath() &&
+            (!DAG.isKnownNeverNaN(LHS) || !DAG.isKnownNeverNaN(RHS))) {
+          if (!UnsafeFPMath &&
+              !(DAG.isKnownNeverZero(LHS) || DAG.isKnownNeverZero(RHS)))
             break;
+          std::swap(LHS, RHS);
         }
         Opcode = X86ISD::FMIN;
         break;
       case ISD::SETOLE:
-        // This can be a min if we can prove that at least one of the operands
-        // is not a nan.
-        if (!FiniteOnlyFPMath()) {
-          if (DAG.isKnownNeverNaN(LHS)) {
-            // Put the potential NaN in the RHS so that SSE will preserve it.
-            std::swap(LHS, RHS);
-          } else if (!DAG.isKnownNeverNaN(RHS))
-            break;
-        }
+        // Converting this to a min would handle comparisons between positive
+        // and negative zero incorrectly.
+        if (!UnsafeFPMath &&
+            !DAG.isKnownNeverZero(LHS) && !DAG.isKnownNeverZero(RHS))
+          break;
         Opcode = X86ISD::FMIN;
         break;
       case ISD::SETULE:
-        // This can be a min, but if either operand is a NaN we need it to
-        // preserve the original LHS.
+        // Converting this to a min would handle both negative zeros and NaNs
+        // incorrectly, but we can swap the operands to fix both.
         std::swap(LHS, RHS);
       case ISD::SETOLT:
       case ISD::SETLT:
@@ -8841,32 +8868,29 @@ static SDValue PerformSELECTCombine(SDNode *N, SelectionDAG &DAG,
         break;
 
       case ISD::SETOGE:
-        // This can be a max if we can prove that at least one of the operands
-        // is not a nan.
-        if (!FiniteOnlyFPMath()) {
-          if (DAG.isKnownNeverNaN(LHS)) {
-            // Put the potential NaN in the RHS so that SSE will preserve it.
-            std::swap(LHS, RHS);
-          } else if (!DAG.isKnownNeverNaN(RHS))
-            break;
-        }
+        // Converting this to a max would handle comparisons between positive
+        // and negative zero incorrectly.
+        if (!UnsafeFPMath &&
+            !DAG.isKnownNeverZero(LHS) && !DAG.isKnownNeverZero(LHS))
+          break;
         Opcode = X86ISD::FMAX;
         break;
       case ISD::SETUGT:
-        // This can be a max if we can prove that at least one of the operands
-        // is not a nan.
-        if (!FiniteOnlyFPMath()) {
-          if (DAG.isKnownNeverNaN(RHS)) {
-            // Put the potential NaN in the RHS so that SSE will preserve it.
-            std::swap(LHS, RHS);
-          } else if (!DAG.isKnownNeverNaN(LHS))
+        // Converting this to a max would handle NaNs incorrectly, and swapping
+        // the operands would cause it to handle comparisons between positive
+        // and negative zero incorrectly.
+        if (!FiniteOnlyFPMath() &&
+            (!DAG.isKnownNeverNaN(LHS) || !DAG.isKnownNeverNaN(RHS))) {
+          if (!UnsafeFPMath &&
+              !(DAG.isKnownNeverZero(LHS) || DAG.isKnownNeverZero(RHS)))
             break;
+          std::swap(LHS, RHS);
         }
         Opcode = X86ISD::FMAX;
         break;
       case ISD::SETUGE:
-        // This can be a max, but if either operand is a NaN we need it to
-        // preserve the original LHS.
+        // Converting this to a max would handle both negative zeros and NaNs
+        // incorrectly, but we can swap the operands to fix both.
         std::swap(LHS, RHS);
       case ISD::SETOGT:
       case ISD::SETGT:
@@ -8875,36 +8899,33 @@ static SDValue PerformSELECTCombine(SDNode *N, SelectionDAG &DAG,
         break;
       }
     // Check for x CC y ? y : x -- a min/max with reversed arms.
-    } else if (LHS == Cond.getOperand(1) && RHS == Cond.getOperand(0)) {
+    } else if (DAG.isEqualTo(LHS, Cond.getOperand(1)) &&
+               DAG.isEqualTo(RHS, Cond.getOperand(0))) {
       switch (CC) {
       default: break;
       case ISD::SETOGE:
-        // This can be a min if we can prove that at least one of the operands
-        // is not a nan.
-        if (!FiniteOnlyFPMath()) {
-          if (DAG.isKnownNeverNaN(RHS)) {
-            // Put the potential NaN in the RHS so that SSE will preserve it.
-            std::swap(LHS, RHS);
-          } else if (!DAG.isKnownNeverNaN(LHS))
+        // Converting this to a min would handle comparisons between positive
+        // and negative zero incorrectly, and swapping the operands would
+        // cause it to handle NaNs incorrectly.
+        if (!UnsafeFPMath &&
+            !(DAG.isKnownNeverZero(LHS) || DAG.isKnownNeverZero(RHS))) {
+          if (!FiniteOnlyFPMath() &&
+              (!DAG.isKnownNeverNaN(LHS) || !DAG.isKnownNeverNaN(RHS)))
             break;
+          std::swap(LHS, RHS);
         }
         Opcode = X86ISD::FMIN;
         break;
       case ISD::SETUGT:
-        // This can be a min if we can prove that at least one of the operands
-        // is not a nan.
-        if (!FiniteOnlyFPMath()) {
-          if (DAG.isKnownNeverNaN(LHS)) {
-            // Put the potential NaN in the RHS so that SSE will preserve it.
-            std::swap(LHS, RHS);
-          } else if (!DAG.isKnownNeverNaN(RHS))
-            break;
-        }
+        // Converting this to a min would handle NaNs incorrectly.
+        if (!UnsafeFPMath &&
+            (!DAG.isKnownNeverNaN(LHS) || !DAG.isKnownNeverNaN(RHS)))
+          break;
         Opcode = X86ISD::FMIN;
         break;
       case ISD::SETUGE:
-        // This can be a min, but if either operand is a NaN we need it to
-        // preserve the original LHS.
+        // Converting this to a min would handle both negative zeros and NaNs
+        // incorrectly, but we can swap the operands to fix both.
         std::swap(LHS, RHS);
       case ISD::SETOGT:
       case ISD::SETGT:
@@ -8913,32 +8934,28 @@ static SDValue PerformSELECTCombine(SDNode *N, SelectionDAG &DAG,
         break;
 
       case ISD::SETULT:
-        // This can be a max if we can prove that at least one of the operands
-        // is not a nan.
-        if (!FiniteOnlyFPMath()) {
-          if (DAG.isKnownNeverNaN(LHS)) {
-            // Put the potential NaN in the RHS so that SSE will preserve it.
-            std::swap(LHS, RHS);
-          } else if (!DAG.isKnownNeverNaN(RHS))
-            break;
-        }
+        // Converting this to a max would handle NaNs incorrectly.
+        if (!FiniteOnlyFPMath() &&
+            (!DAG.isKnownNeverNaN(LHS) || !DAG.isKnownNeverNaN(RHS)))
+          break;
         Opcode = X86ISD::FMAX;
         break;
       case ISD::SETOLE:
-        // This can be a max if we can prove that at least one of the operands
-        // is not a nan.
-        if (!FiniteOnlyFPMath()) {
-          if (DAG.isKnownNeverNaN(RHS)) {
-            // Put the potential NaN in the RHS so that SSE will preserve it.
-            std::swap(LHS, RHS);
-          } else if (!DAG.isKnownNeverNaN(LHS))
+        // Converting this to a max would handle comparisons between positive
+        // and negative zero incorrectly, and swapping the operands would
+        // cause it to handle NaNs incorrectly.
+        if (!UnsafeFPMath &&
+            !DAG.isKnownNeverZero(LHS) && !DAG.isKnownNeverZero(RHS)) {
+          if (!FiniteOnlyFPMath() &&
+              (!DAG.isKnownNeverNaN(LHS) || !DAG.isKnownNeverNaN(RHS)))
             break;
+          std::swap(LHS, RHS);
         }
         Opcode = X86ISD::FMAX;
         break;
       case ISD::SETULE:
-        // This can be a max, but if either operand is a NaN we need it to
-        // preserve the original LHS.
+        // Converting this to a max would handle both negative zeros and NaNs
+        // incorrectly, but we can swap the operands to fix both.
         std::swap(LHS, RHS);
       case ISD::SETOLT:
       case ISD::SETLT:
@@ -9157,16 +9174,64 @@ static SDValue PerformCMOVCombine(SDNode *N, SelectionDAG &DAG,
   return SDValue();
 }
 
+/// PerformANDCombine - Look for SSE and instructions of this form:
+/// (and x, (build_vector signbit,signbit,signbit,signbit)). If there
+/// exists a use of a build_vector that's the bitwise complement of the mask,
+/// then transform the node to
+/// (and (xor x, (build_vector -1,-1,-1,-1)), (build_vector ~sb,~sb,~sb,~sb)).
+static SDValue PerformANDCombine(SDNode *N, SelectionDAG &DAG,
+                                 TargetLowering::DAGCombinerInfo &DCI) {
+  EVT VT = N->getValueType(0);
+  if (!VT.isVector() || !VT.isInteger())
+    return SDValue();
+
+  SDValue N0 = N->getOperand(0);
+  SDValue N1 = N->getOperand(1);
+  if (N0.getOpcode() == ISD::XOR || !N1.hasOneUse())
+    return SDValue();
+
+  if (N1.getOpcode() == ISD::BUILD_VECTOR) {
+    unsigned NumElts = VT.getVectorNumElements();
+    EVT EltVT = VT.getVectorElementType();
+    SmallVector<SDValue, 8> Mask;
+    Mask.reserve(NumElts);
+    for (unsigned i = 0; i != NumElts; ++i) {
+      SDValue Arg = N1.getOperand(i);
+      if (Arg.getOpcode() == ISD::UNDEF) {
+        Mask.push_back(Arg);
+        continue;
+      }
+      ConstantSDNode *C = dyn_cast<ConstantSDNode>(Arg);
+      if (!C)
+        return SDValue();
+      if (!C->getAPIntValue().isSignBit() &&
+          !C->getAPIntValue().isMaxSignedValue())
+        return SDValue();
+      Mask.push_back(DAG.getConstant(~C->getAPIntValue(), EltVT));
+    }
+    N1 = DAG.getNode(ISD::BUILD_VECTOR, N1.getDebugLoc(), VT,
+                     &Mask[0], NumElts);
+    if (!N1.use_empty()) {
+      unsigned Bits = EltVT.getSizeInBits();
+      Mask.clear();
+      for (unsigned i = 0; i != NumElts; ++i)
+        Mask.push_back(DAG.getConstant(APInt::getAllOnesValue(Bits), EltVT));
+      SDValue NewMask = DAG.getNode(ISD::BUILD_VECTOR, N->getDebugLoc(),
+                                    VT, &Mask[0], NumElts);
+      return DAG.getNode(ISD::AND, N->getDebugLoc(), VT,
+                         DAG.getNode(ISD::XOR, N->getDebugLoc(), VT,
+                                     N0, NewMask), N1);
+    }
+  }
+
+  return SDValue();
+}
 
 /// PerformMulCombine - Optimize a single multiply with constant into two
 /// in order to implement it with two cheaper instructions, e.g.
 /// LEA + SHL, LEA + LEA.
 static SDValue PerformMulCombine(SDNode *N, SelectionDAG &DAG,
                                  TargetLowering::DAGCombinerInfo &DCI) {
-  if (DAG.getMachineFunction().
-      getFunction()->hasFnAttr(Attribute::OptimizeForSize))
-    return SDValue();
-
   if (DCI.isBeforeLegalize() || DCI.isCalledByLegalizer())
     return SDValue();
 
@@ -9305,7 +9370,7 @@ static SDValue PerformShiftCombine(SDNode* N, SelectionDAG &DAG,
       }
     } else if (InVec.getOpcode() == ISD::INSERT_VECTOR_ELT) {
        if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(InVec.getOperand(2))) {
-         unsigned SplatIdx = cast<ShuffleVectorSDNode>(ShAmtOp)->getSplatIndex();
+         unsigned SplatIdx= cast<ShuffleVectorSDNode>(ShAmtOp)->getSplatIndex();
          if (C->getZExtValue() == SplatIdx)
            BaseShAmt = InVec.getOperand(1);
        }
@@ -9690,6 +9755,7 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
   case ISD::VECTOR_SHUFFLE: return PerformShuffleCombine(N, DAG, *this);
   case ISD::SELECT:         return PerformSELECTCombine(N, DAG, Subtarget);
   case X86ISD::CMOV:        return PerformCMOVCombine(N, DAG, DCI);
+  case ISD::AND:            return PerformANDCombine(N, DAG, DCI);
   case ISD::MUL:            return PerformMulCombine(N, DAG, DCI);
   case ISD::SHL:
   case ISD::SRA:

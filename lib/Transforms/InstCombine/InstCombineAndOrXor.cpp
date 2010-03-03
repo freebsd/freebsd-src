@@ -1464,8 +1464,7 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
 
   if (Value *V = SimplifyOrInst(Op0, Op1, TD))
     return ReplaceInstUsesWith(I, V);
-  
-  
+
   // See if we can simplify any instructions used by the instruction whose sole 
   // purpose is to compute bits we don't care about.
   if (SimplifyDemandedInstructionBits(I))
@@ -1474,7 +1473,9 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
   if (ConstantInt *RHS = dyn_cast<ConstantInt>(Op1)) {
     ConstantInt *C1 = 0; Value *X = 0;
     // (X & C1) | C2 --> (X | C2) & (C1|C2)
+    // iff (C1 & C2) == 0.
     if (match(Op0, m_And(m_Value(X), m_ConstantInt(C1))) &&
+        (RHS->getValue() & C1->getValue()) != 0 &&
         Op0->hasOneUse()) {
       Value *Or = Builder->CreateOr(X, RHS);
       Or->takeName(Op0);
@@ -1497,6 +1498,7 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
     if (SelectInst *SI = dyn_cast<SelectInst>(Op0))
       if (Instruction *R = FoldOpIntoSelect(I, SI))
         return R;
+
     if (isa<PHINode>(Op0))
       if (Instruction *NV = FoldOpIntoPhi(I))
         return NV;
@@ -1618,7 +1620,7 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
     // (A & (C0?-1:0)) | (B & ~(C0?-1:0)) ->  C0 ? A : B, and commuted variants.
     // Don't do this for vector select idioms, the code generator doesn't handle
     // them well yet.
-    if (!isa<VectorType>(I.getType())) {
+    if (!I.getType()->isVectorTy()) {
       if (Instruction *Match = MatchSelectFromAndOr(A, B, C, D))
         return Match;
       if (Instruction *Match = MatchSelectFromAndOr(B, A, D, C))
@@ -1755,7 +1757,7 @@ Instruction *InstCombiner::visitXor(BinaryOperator &I) {
   // purpose is to compute bits we don't care about.
   if (SimplifyDemandedInstructionBits(I))
     return &I;
-  if (isa<VectorType>(I.getType()))
+  if (I.getType()->isVectorTy())
     if (isa<ConstantAggregateZero>(Op1))
       return ReplaceInstUsesWith(I, Op0);  // X ^ <0,0> -> X
 

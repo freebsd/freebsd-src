@@ -662,7 +662,7 @@ bool SimpleRegisterCoalescing::ReMaterializeTrivialDef(LiveInterval &SrcInt,
   if (!tii_->isTriviallyReMaterializable(DefMI, AA))
     return false;
   bool SawStore = false;
-  if (!DefMI->isSafeToMove(tii_, SawStore, AA))
+  if (!DefMI->isSafeToMove(tii_, AA, SawStore))
     return false;
   if (TID.getNumDefs() != 1)
     return false;
@@ -702,7 +702,8 @@ bool SimpleRegisterCoalescing::ReMaterializeTrivialDef(LiveInterval &SrcInt,
     for (const unsigned* SR = tri_->getSubRegisters(DstReg); *SR; ++SR) {
       if (!li_->hasInterval(*SR))
         continue;
-      DLR = li_->getInterval(*SR).getLiveRangeContaining(DefIdx);
+      const LiveRange *DLR =
+          li_->getInterval(*SR).getLiveRangeContaining(DefIdx);
       if (DLR && DLR->valno->getCopy() == CopyMI)
         DLR->valno->setCopy(0);
     }
@@ -741,9 +742,21 @@ bool SimpleRegisterCoalescing::ReMaterializeTrivialDef(LiveInterval &SrcInt,
       NewMI->addOperand(MO);
     if (MO.isDef() && li_->hasInterval(MO.getReg())) {
       unsigned Reg = MO.getReg();
-      DLR = li_->getInterval(Reg).getLiveRangeContaining(DefIdx);
+      const LiveRange *DLR =
+          li_->getInterval(Reg).getLiveRangeContaining(DefIdx);
       if (DLR && DLR->valno->getCopy() == CopyMI)
         DLR->valno->setCopy(0);
+      // Handle subregs as well
+      if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+        for (const unsigned* SR = tri_->getSubRegisters(Reg); *SR; ++SR) {
+          if (!li_->hasInterval(*SR))
+            continue;
+          const LiveRange *DLR =
+              li_->getInterval(*SR).getLiveRangeContaining(DefIdx);
+          if (DLR && DLR->valno->getCopy() == CopyMI)
+            DLR->valno->setCopy(0);
+        }
+      }
     }
   }
 
@@ -752,6 +765,7 @@ bool SimpleRegisterCoalescing::ReMaterializeTrivialDef(LiveInterval &SrcInt,
   CopyMI->eraseFromParent();
   ReMatCopies.insert(CopyMI);
   ReMatDefs.insert(DefMI);
+  DEBUG(dbgs() << "Remat: " << *NewMI);
   ++NumReMats;
   return true;
 }
@@ -1705,6 +1719,7 @@ bool SimpleRegisterCoalescing::JoinCopy(CopyRec &TheCopy, bool &Again) {
         (AdjustCopiesBackFrom(SrcInt, DstInt, CopyMI) ||
          RemoveCopyByCommutingDef(SrcInt, DstInt, CopyMI))) {
       JoinedCopies.insert(CopyMI);
+      DEBUG(dbgs() << "Trivial!\n");
       return true;
     }
 
@@ -1864,7 +1879,7 @@ static unsigned ComputeUltimateVN(VNInfo *VNI,
   // If the VN has already been computed, just return it.
   if (ThisValNoAssignments[VN] >= 0)
     return ThisValNoAssignments[VN];
-//  assert(ThisValNoAssignments[VN] != -2 && "Cyclic case?");
+  assert(ThisValNoAssignments[VN] != -2 && "Cyclic value numbers");
 
   // If this val is not a copy from the other val, then it must be a new value
   // number in the destination.

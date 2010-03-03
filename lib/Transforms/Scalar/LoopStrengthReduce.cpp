@@ -198,7 +198,7 @@ struct Formula {
 
 }
 
-/// DoInitialMatch - Recurrsion helper for InitialMatch.
+/// DoInitialMatch - Recursion helper for InitialMatch.
 static void DoInitialMatch(const SCEV *S, Loop *L,
                            SmallVectorImpl<const SCEV *> &Good,
                            SmallVectorImpl<const SCEV *> &Bad,
@@ -337,14 +337,42 @@ void Formula::dump() const {
   print(errs()); errs() << '\n';
 }
 
-/// getSDiv - Return an expression for LHS /s RHS, if it can be determined,
-/// or null otherwise. If IgnoreSignificantBits is true, expressions like
-/// (X * Y) /s Y are simplified to Y, ignoring that the multiplication may
-/// overflow, which is useful when the result will be used in a context where
-/// the most significant bits are ignored.
-static const SCEV *getSDiv(const SCEV *LHS, const SCEV *RHS,
-                           ScalarEvolution &SE,
-                           bool IgnoreSignificantBits = false) {
+/// isAddRecSExtable - Return true if the given addrec can be sign-extended
+/// without changing its value.
+static bool isAddRecSExtable(const SCEVAddRecExpr *AR, ScalarEvolution &SE) {
+  const Type *WideTy =
+    IntegerType::get(SE.getContext(),
+                     SE.getTypeSizeInBits(AR->getType()) + 1);
+  return isa<SCEVAddRecExpr>(SE.getSignExtendExpr(AR, WideTy));
+}
+
+/// isAddSExtable - Return true if the given add can be sign-extended
+/// without changing its value.
+static bool isAddSExtable(const SCEVAddExpr *A, ScalarEvolution &SE) {
+  const Type *WideTy =
+    IntegerType::get(SE.getContext(),
+                     SE.getTypeSizeInBits(A->getType()) + 1);
+  return isa<SCEVAddExpr>(SE.getSignExtendExpr(A, WideTy));
+}
+
+/// isMulSExtable - Return true if the given add can be sign-extended
+/// without changing its value.
+static bool isMulSExtable(const SCEVMulExpr *A, ScalarEvolution &SE) {
+  const Type *WideTy =
+    IntegerType::get(SE.getContext(),
+                     SE.getTypeSizeInBits(A->getType()) + 1);
+  return isa<SCEVMulExpr>(SE.getSignExtendExpr(A, WideTy));
+}
+
+/// getExactSDiv - Return an expression for LHS /s RHS, if it can be determined
+/// and if the remainder is known to be zero,  or null otherwise. If
+/// IgnoreSignificantBits is true, expressions like (X * Y) /s Y are simplified
+/// to Y, ignoring that the multiplication may overflow, which is useful when
+/// the result will be used in a context where the most significant bits are
+/// ignored.
+static const SCEV *getExactSDiv(const SCEV *LHS, const SCEV *RHS,
+                                ScalarEvolution &SE,
+                                bool IgnoreSignificantBits = false) {
   // Handle the trivial case, which works for any SCEV type.
   if (LHS == RHS)
     return SE.getIntegerSCEV(1, LHS->getType());
@@ -365,39 +393,44 @@ static const SCEV *getSDiv(const SCEV *LHS, const SCEV *RHS,
                .sdiv(RC->getValue()->getValue()));
   }
 
-  // Distribute the sdiv over addrec operands.
+  // Distribute the sdiv over addrec operands, if the addrec doesn't overflow.
   if (const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(LHS)) {
-    const SCEV *Start = getSDiv(AR->getStart(), RHS, SE,
-                                IgnoreSignificantBits);
-    if (!Start) return 0;
-    const SCEV *Step = getSDiv(AR->getStepRecurrence(SE), RHS, SE,
-                               IgnoreSignificantBits);
-    if (!Step) return 0;
-    return SE.getAddRecExpr(Start, Step, AR->getLoop());
+    if (IgnoreSignificantBits || isAddRecSExtable(AR, SE)) {
+      const SCEV *Start = getExactSDiv(AR->getStart(), RHS, SE,
+                                       IgnoreSignificantBits);
+      if (!Start) return 0;
+      const SCEV *Step = getExactSDiv(AR->getStepRecurrence(SE), RHS, SE,
+                                      IgnoreSignificantBits);
+      if (!Step) return 0;
+      return SE.getAddRecExpr(Start, Step, AR->getLoop());
+    }
   }
 
-  // Distribute the sdiv over add operands.
+  // Distribute the sdiv over add operands, if the add doesn't overflow.
   if (const SCEVAddExpr *Add = dyn_cast<SCEVAddExpr>(LHS)) {
-    SmallVector<const SCEV *, 8> Ops;
-    for (SCEVAddExpr::op_iterator I = Add->op_begin(), E = Add->op_end();
-         I != E; ++I) {
-      const SCEV *Op = getSDiv(*I, RHS, SE,
-                               IgnoreSignificantBits);
-      if (!Op) return 0;
-      Ops.push_back(Op);
+    if (IgnoreSignificantBits || isAddSExtable(Add, SE)) {
+      SmallVector<const SCEV *, 8> Ops;
+      for (SCEVAddExpr::op_iterator I = Add->op_begin(), E = Add->op_end();
+           I != E; ++I) {
+        const SCEV *Op = getExactSDiv(*I, RHS, SE,
+                                      IgnoreSignificantBits);
+        if (!Op) return 0;
+        Ops.push_back(Op);
+      }
+      return SE.getAddExpr(Ops);
     }
-    return SE.getAddExpr(Ops);
   }
 
   // Check for a multiply operand that we can pull RHS out of.
   if (const SCEVMulExpr *Mul = dyn_cast<SCEVMulExpr>(LHS))
-    if (IgnoreSignificantBits || Mul->hasNoSignedWrap()) {
+    if (IgnoreSignificantBits || isMulSExtable(Mul, SE)) {
       SmallVector<const SCEV *, 4> Ops;
       bool Found = false;
       for (SCEVMulExpr::op_iterator I = Mul->op_begin(), E = Mul->op_end();
            I != E; ++I) {
         if (!Found)
-          if (const SCEV *Q = getSDiv(*I, RHS, SE, IgnoreSignificantBits)) {
+          if (const SCEV *Q = getExactSDiv(*I, RHS, SE,
+                                           IgnoreSignificantBits)) {
             Ops.push_back(Q);
             Found = true;
             continue;
@@ -640,9 +673,9 @@ void Cost::RateRegister(const SCEV *Reg,
 /// RatePrimaryRegister - Record this register in the set. If we haven't seen it
 /// before, rate it.
 void Cost::RatePrimaryRegister(const SCEV *Reg,
-                         SmallPtrSet<const SCEV *, 16> &Regs,
-                         const Loop *L,
-                         ScalarEvolution &SE, DominatorTree &DT) {
+                               SmallPtrSet<const SCEV *, 16> &Regs,
+                               const Loop *L,
+                               ScalarEvolution &SE, DominatorTree &DT) {
   if (Regs.insert(Reg))
     RateRegister(Reg, Regs, L, SE, DT);
 }
@@ -879,7 +912,7 @@ public:
                                       MaxOffset(INT64_MIN),
                                       AllFixupsOutsideLoop(true) {}
 
-  bool InsertFormula(size_t LUIdx, const Formula &F);
+  bool InsertFormula(const Formula &F);
 
   void check() const;
 
@@ -889,7 +922,7 @@ public:
 
 /// InsertFormula - If the given formula has not yet been inserted, add it to
 /// the list, and return true. Return false otherwise.
-bool LSRUse::InsertFormula(size_t LUIdx, const Formula &F) {
+bool LSRUse::InsertFormula(const Formula &F) {
   SmallVector<const SCEV *, 2> Key = F.BaseRegs;
   if (F.ScaledReg) Key.push_back(F.ScaledReg);
   // Unstable sort by host order ok, because this is only used for uniquifying.
@@ -925,7 +958,7 @@ void LSRUse::print(raw_ostream &OS) const {
   case ICmpZero: OS << "ICmpZero"; break;
   case Address:
     OS << "Address of ";
-    if (isa<PointerType>(AccessTy))
+    if (AccessTy->isPointerTy())
       OS << "pointer"; // the full pointer type could be really verbose
     else
       OS << *AccessTy;
@@ -1024,8 +1057,7 @@ static bool isAlwaysFoldable(int64_t BaseOffs,
                              GlobalValue *BaseGV,
                              bool HasBaseReg,
                              LSRUse::KindType Kind, const Type *AccessTy,
-                             const TargetLowering *TLI,
-                             ScalarEvolution &SE) {
+                             const TargetLowering *TLI) {
   // Fast-path: zero is always foldable.
   if (BaseOffs == 0 && !BaseGV) return true;
 
@@ -1153,7 +1185,7 @@ class LSRInstance {
                                     const Type *AccessTy);
 
 public:
-  void InsertInitialFormula(const SCEV *S, Loop *L, LSRUse &LU, size_t LUIdx);
+  void InsertInitialFormula(const SCEV *S, LSRUse &LU, size_t LUIdx);
   void InsertSupplementalFormula(const SCEV *S, LSRUse &LU, size_t LUIdx);
   void CountRegisters(const Formula &F, size_t LUIdx);
   bool InsertFormula(LSRUse &LU, unsigned LUIdx, const Formula &F);
@@ -1184,16 +1216,18 @@ public:
 
   Value *Expand(const LSRFixup &LF,
                 const Formula &F,
-                BasicBlock::iterator IP, Loop *L, Instruction *IVIncInsertPos,
+                BasicBlock::iterator IP,
                 SCEVExpander &Rewriter,
-                SmallVectorImpl<WeakVH> &DeadInsts,
-                ScalarEvolution &SE, DominatorTree &DT) const;
+                SmallVectorImpl<WeakVH> &DeadInsts) const;
+  void RewriteForPHI(PHINode *PN, const LSRFixup &LF,
+                     const Formula &F,
+                     SCEVExpander &Rewriter,
+                     SmallVectorImpl<WeakVH> &DeadInsts,
+                     Pass *P) const;
   void Rewrite(const LSRFixup &LF,
                const Formula &F,
-               Loop *L, Instruction *IVIncInsertPos,
                SCEVExpander &Rewriter,
                SmallVectorImpl<WeakVH> &DeadInsts,
-               ScalarEvolution &SE, DominatorTree &DT,
                Pass *P) const;
   void ImplementSolution(const SmallVectorImpl<const Formula *> &Solution,
                          Pass *P);
@@ -1212,7 +1246,7 @@ public:
 }
 
 /// OptimizeShadowIV - If IV is used in a int-to-float cast
-/// inside the loop then try to eliminate the cast opeation.
+/// inside the loop then try to eliminate the cast operation.
 void LSRInstance::OptimizeShadowIV() {
   const SCEV *BackedgeTakenCount = SE.getBackedgeTakenCount(L);
   if (isa<SCEVCouldNotCompute>(BackedgeTakenCount))
@@ -1522,7 +1556,7 @@ LSRInstance::OptimizeLoopTermCond() {
               A = SE.getSignExtendExpr(A, B->getType());
           }
           if (const SCEVConstant *D =
-                dyn_cast_or_null<SCEVConstant>(getSDiv(B, A, SE))) {
+                dyn_cast_or_null<SCEVConstant>(getExactSDiv(B, A, SE))) {
             // Stride of one or negative one can have reuse with non-addresses.
             if (D->getValue()->isOne() ||
                 D->getValue()->isAllOnesValue())
@@ -1615,12 +1649,12 @@ LSRInstance::reconcileNewOffset(LSRUse &LU, int64_t NewOffset,
   // Conservatively assume HasBaseReg is true for now.
   if (NewOffset < LU.MinOffset) {
     if (!isAlwaysFoldable(LU.MaxOffset - NewOffset, 0, /*HasBaseReg=*/true,
-                          Kind, AccessTy, TLI, SE))
+                          Kind, AccessTy, TLI))
       return false;
     NewMinOffset = NewOffset;
   } else if (NewOffset > LU.MaxOffset) {
     if (!isAlwaysFoldable(NewOffset - LU.MinOffset, 0, /*HasBaseReg=*/true,
-                          Kind, AccessTy, TLI, SE))
+                          Kind, AccessTy, TLI))
       return false;
     NewMaxOffset = NewOffset;
   }
@@ -1639,7 +1673,7 @@ LSRInstance::reconcileNewOffset(LSRUse &LU, int64_t NewOffset,
 
 /// getUse - Return an LSRUse index and an offset value for a fixup which
 /// needs the given expression, with the given kind and optional access type.
-/// Either reuse an exisitng use or create a new one, as needed.
+/// Either reuse an existing use or create a new one, as needed.
 std::pair<size_t, int64_t>
 LSRInstance::getUse(const SCEV *&Expr,
                     LSRUse::KindType Kind, const Type *AccessTy) {
@@ -1647,8 +1681,7 @@ LSRInstance::getUse(const SCEV *&Expr,
   int64_t Offset = ExtractImmediate(Expr, SE);
 
   // Basic uses can't accept any offset, for example.
-  if (!isAlwaysFoldable(Offset, 0, /*HasBaseReg=*/true,
-                        Kind, AccessTy, TLI, SE)) {
+  if (!isAlwaysFoldable(Offset, 0, /*HasBaseReg=*/true, Kind, AccessTy, TLI)) {
     Expr = Copy;
     Offset = 0;
   }
@@ -1683,21 +1716,29 @@ LSRInstance::getUse(const SCEV *&Expr,
 void LSRInstance::CollectInterestingTypesAndFactors() {
   SmallSetVector<const SCEV *, 4> Strides;
 
-  // Collect interesting types and factors.
+  // Collect interesting types and strides.
   for (IVUsers::const_iterator UI = IU.begin(), E = IU.end(); UI != E; ++UI) {
     const SCEV *Stride = UI->getStride();
 
     // Collect interesting types.
     Types.insert(SE.getEffectiveSCEVType(Stride->getType()));
 
-    // Collect interesting factors.
+    // Add the stride for this loop.
+    Strides.insert(Stride);
+
+    // Add strides for other mentioned loops.
+    for (const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(UI->getOffset());
+         AR; AR = dyn_cast<SCEVAddRecExpr>(AR->getStart()))
+      Strides.insert(AR->getStepRecurrence(SE));
+  }
+
+  // Compute interesting factors from the set of interesting strides.
+  for (SmallSetVector<const SCEV *, 4>::const_iterator
+       I = Strides.begin(), E = Strides.end(); I != E; ++I)
     for (SmallSetVector<const SCEV *, 4>::const_iterator NewStrideIter =
-         Strides.begin(), SEnd = Strides.end(); NewStrideIter != SEnd;
-         ++NewStrideIter) {
-      const SCEV *OldStride = Stride;
+         next(I); NewStrideIter != E; ++NewStrideIter) {
+      const SCEV *OldStride = *I;
       const SCEV *NewStride = *NewStrideIter;
-      if (OldStride == NewStride)
-        continue;
 
       if (SE.getTypeSizeInBits(OldStride->getType()) !=
           SE.getTypeSizeInBits(NewStride->getType())) {
@@ -1708,19 +1749,18 @@ void LSRInstance::CollectInterestingTypesAndFactors() {
           OldStride = SE.getSignExtendExpr(OldStride, NewStride->getType());
       }
       if (const SCEVConstant *Factor =
-            dyn_cast_or_null<SCEVConstant>(getSDiv(NewStride, OldStride,
-                                                   SE, true))) {
+            dyn_cast_or_null<SCEVConstant>(getExactSDiv(NewStride, OldStride,
+                                                        SE, true))) {
         if (Factor->getValue()->getValue().getMinSignedBits() <= 64)
           Factors.insert(Factor->getValue()->getValue().getSExtValue());
       } else if (const SCEVConstant *Factor =
-                   dyn_cast_or_null<SCEVConstant>(getSDiv(OldStride, NewStride,
-                                                          SE, true))) {
+                   dyn_cast_or_null<SCEVConstant>(getExactSDiv(OldStride,
+                                                               NewStride,
+                                                               SE, true))) {
         if (Factor->getValue()->getValue().getMinSignedBits() <= 64)
           Factors.insert(Factor->getValue()->getValue().getSExtValue());
       }
     }
-    Strides.insert(Stride);
-  }
 
   // If all uses use the same type, don't bother looking for truncation-based
   // reuse.
@@ -1788,7 +1828,7 @@ void LSRInstance::CollectFixupsAndInitialFormulae() {
 
     // If this is the first use of this LSRUse, give it a formula.
     if (LU.Formulae.empty()) {
-      InsertInitialFormula(S, L, LU, LF.LUIdx);
+      InsertInitialFormula(S, LU, LF.LUIdx);
       CountRegisters(LU.Formulae.back(), LF.LUIdx);
     }
   }
@@ -1797,8 +1837,7 @@ void LSRInstance::CollectFixupsAndInitialFormulae() {
 }
 
 void
-LSRInstance::InsertInitialFormula(const SCEV *S, Loop *L,
-                                  LSRUse &LU, size_t LUIdx) {
+LSRInstance::InsertInitialFormula(const SCEV *S, LSRUse &LU, size_t LUIdx) {
   Formula F;
   F.InitialMatch(S, L, SE, DT);
   bool Inserted = InsertFormula(LU, LUIdx, F);
@@ -1828,7 +1867,7 @@ void LSRInstance::CountRegisters(const Formula &F, size_t LUIdx) {
 /// InsertFormula - If the given formula has not yet been inserted, add it to
 /// the list, and return true. Return false otherwise.
 bool LSRInstance::InsertFormula(LSRUse &LU, unsigned LUIdx, const Formula &F) {
-  if (!LU.InsertFormula(LUIdx, F))
+  if (!LU.InsertFormula(F))
     return false;
 
   CountRegisters(F, LUIdx);
@@ -1996,7 +2035,7 @@ void LSRInstance::GenerateReassociations(LSRUse &LU, unsigned LUIdx,
 /// loop-dominating registers added into a single register.
 void LSRInstance::GenerateCombinations(LSRUse &LU, unsigned LUIdx,
                                        Formula Base) {
-  // This method is only intersting on a plurality of registers.
+  // This method is only interesting on a plurality of registers.
   if (Base.BaseRegs.size() <= 1) return;
 
   Formula F = Base;
@@ -2015,7 +2054,7 @@ void LSRInstance::GenerateCombinations(LSRUse &LU, unsigned LUIdx,
     const SCEV *Sum = SE.getAddExpr(Ops);
     // TODO: If Sum is zero, it probably means ScalarEvolution missed an
     // opportunity to fold something. For now, just ignore such cases
-    // rather than procede with zero in a register.
+    // rather than proceed with zero in a register.
     if (!Sum->isZero()) {
       F.BaseRegs.push_back(Sum);
       (void)InsertFormula(LU, LUIdx, F);
@@ -2105,14 +2144,18 @@ void LSRInstance::GenerateICmpZeroScales(LSRUse &LU, unsigned LUIdx,
     Formula F = Base;
 
     // Check that the multiplication doesn't overflow.
+    if (F.AM.BaseOffs == INT64_MIN && Factor == -1)
+      continue;
     F.AM.BaseOffs = (uint64_t)Base.AM.BaseOffs * Factor;
-    if ((int64_t)F.AM.BaseOffs / Factor != Base.AM.BaseOffs)
+    if (F.AM.BaseOffs / Factor != Base.AM.BaseOffs)
       continue;
 
     // Check that multiplying with the use offset doesn't overflow.
     int64_t Offset = LU.MinOffset;
+    if (Offset == INT64_MIN && Factor == -1)
+      continue;
     Offset = (uint64_t)Offset * Factor;
-    if ((int64_t)Offset / Factor != LU.MinOffset)
+    if (Offset / Factor != LU.MinOffset)
       continue;
 
     // Check that this scale is legal.
@@ -2127,14 +2170,14 @@ void LSRInstance::GenerateICmpZeroScales(LSRUse &LU, unsigned LUIdx,
     // Check that multiplying with each base register doesn't overflow.
     for (size_t i = 0, e = F.BaseRegs.size(); i != e; ++i) {
       F.BaseRegs[i] = SE.getMulExpr(F.BaseRegs[i], FactorS);
-      if (getSDiv(F.BaseRegs[i], FactorS, SE) != Base.BaseRegs[i])
+      if (getExactSDiv(F.BaseRegs[i], FactorS, SE) != Base.BaseRegs[i])
         goto next;
     }
 
     // Check that multiplying with the scaled register doesn't overflow.
     if (F.ScaledReg) {
       F.ScaledReg = SE.getMulExpr(F.ScaledReg, FactorS);
-      if (getSDiv(F.ScaledReg, FactorS, SE) != Base.ScaledReg)
+      if (getExactSDiv(F.ScaledReg, FactorS, SE) != Base.ScaledReg)
         continue;
     }
 
@@ -2189,7 +2232,7 @@ void LSRInstance::GenerateScales(LSRUse &LU, unsigned LUIdx,
           continue;
         // Divide out the factor, ignoring high bits, since we'll be
         // scaling the value back up in the end.
-        if (const SCEV *Quotient = getSDiv(AR, FactorS, SE, true)) {
+        if (const SCEV *Quotient = getExactSDiv(AR, FactorS, SE, true)) {
           // TODO: This could be optimized to avoid all the copying.
           Formula F = Base;
           F.ScaledReg = Quotient;
@@ -2358,7 +2401,7 @@ void LSRInstance::GenerateCrossUseConstantOffsets() {
     const SCEV *NegImmS = SE.getSCEV(ConstantInt::get(IntTy, -(uint64_t)Imm));
     unsigned BitWidth = SE.getTypeSizeInBits(IntTy);
 
-    // TODO: Use a more targetted data structure.
+    // TODO: Use a more targeted data structure.
     for (size_t L = 0, LE = LU.Formulae.size(); L != LE; ++L) {
       Formula F = LU.Formulae[L];
       // Use the immediate in the scaled register.
@@ -2526,9 +2569,9 @@ void LSRInstance::FilterOutUndesirableDedicatedRegisters() {
         });
 }
 
-/// NarrowSearchSpaceUsingHeuristics - If there are an extrordinary number of
+/// NarrowSearchSpaceUsingHeuristics - If there are an extraordinary number of
 /// formulae to choose from, use some rough heuristics to prune down the number
-/// of formulae. This keeps the main solver from taking an extrordinary amount
+/// of formulae. This keeps the main solver from taking an extraordinary amount
 /// of time in some worst-case scenarios.
 void LSRInstance::NarrowSearchSpaceUsingHeuristics() {
   // This is a rough guess that seems to work fairly well.
@@ -2578,7 +2621,7 @@ void LSRInstance::NarrowSearchSpaceUsingHeuristics() {
     }
 
     DEBUG(dbgs() << "Narrowing the search space by assuming " << *Best
-                 << " will yeild profitable reuse.\n");
+                 << " will yield profitable reuse.\n");
     Taken.insert(Best);
 
     // In any use with formulae which references this register, delete formulae
@@ -2625,7 +2668,7 @@ void LSRInstance::SolveRecurse(SmallVectorImpl<const Formula *> &Solution,
   //    - sort the formula so that the most profitable solutions are found first
   //    - sort the uses too
   //  - search faster:
-  //    - dont compute a cost, and then compare. compare while computing a cost
+  //    - don't compute a cost, and then compare. compare while computing a cost
   //      and bail early.
   //    - track register sets with SmallBitVector
 
@@ -2736,10 +2779,8 @@ static BasicBlock *getImmediateDominator(BasicBlock *BB, DominatorTree &DT) {
 Value *LSRInstance::Expand(const LSRFixup &LF,
                            const Formula &F,
                            BasicBlock::iterator IP,
-                           Loop *L, Instruction *IVIncInsertPos,
                            SCEVExpander &Rewriter,
-                           SmallVectorImpl<WeakVH> &DeadInsts,
-                           ScalarEvolution &SE, DominatorTree &DT) const {
+                           SmallVectorImpl<WeakVH> &DeadInsts) const {
   const LSRUse &LU = Uses[LF.LUIdx];
 
   // Then, collect some instructions which we will remain dominated by when
@@ -2752,8 +2793,12 @@ Value *LSRInstance::Expand(const LSRFixup &LF,
     if (Instruction *I =
           dyn_cast<Instruction>(cast<ICmpInst>(LF.UserInst)->getOperand(1)))
       Inputs.push_back(I);
-  if (LF.PostIncLoop && !L->contains(LF.UserInst))
-    Inputs.push_back(L->getLoopLatch()->getTerminator());
+  if (LF.PostIncLoop) {
+    if (!L->contains(LF.UserInst))
+      Inputs.push_back(L->getLoopLatch()->getTerminator());
+    else
+      Inputs.push_back(IVIncInsertPos);
+  }
 
   // Then, climb up the immediate dominator tree as far as we can go while
   // still being dominated by the input positions.
@@ -2816,8 +2861,10 @@ Value *LSRInstance::Expand(const LSRFixup &LF,
       if (AR->getLoop() == LF.PostIncLoop) {
         Reg = SE.getAddExpr(Reg, AR->getStepRecurrence(SE));
         // If the user is inside the loop, insert the code after the increment
-        // so that it is dominated by its operand.
-        if (L->contains(LF.UserInst))
+        // so that it is dominated by its operand. If the original insert point
+        // was already dominated by the increment, keep it, because there may
+        // be loop-variant operands that need to be respected also.
+        if (L->contains(LF.UserInst) && !DT.dominates(IVIncInsertPos, IP))
           IP = IVIncInsertPos;
         break;
       }
@@ -2825,6 +2872,13 @@ Value *LSRInstance::Expand(const LSRFixup &LF,
     }
 
     Ops.push_back(SE.getUnknown(Rewriter.expandCodeFor(Reg, 0, IP)));
+  }
+
+  // Flush the operand list to suppress SCEVExpander hoisting.
+  if (!Ops.empty()) {
+    Value *FullV = Rewriter.expandCodeFor(SE.getAddExpr(Ops), Ty, IP);
+    Ops.clear();
+    Ops.push_back(SE.getUnknown(FullV));
   }
 
   // Expand the ScaledReg portion.
@@ -2853,12 +2907,25 @@ Value *LSRInstance::Expand(const LSRFixup &LF,
                               SE.getIntegerSCEV(F.AM.Scale,
                                                 ScaledS->getType()));
       Ops.push_back(ScaledS);
+
+      // Flush the operand list to suppress SCEVExpander hoisting.
+      Value *FullV = Rewriter.expandCodeFor(SE.getAddExpr(Ops), Ty, IP);
+      Ops.clear();
+      Ops.push_back(SE.getUnknown(FullV));
     }
   }
 
-  // Expand the immediate portions.
-  if (F.AM.BaseGV)
-    Ops.push_back(SE.getSCEV(F.AM.BaseGV));
+  // Expand the GV portion.
+  if (F.AM.BaseGV) {
+    Ops.push_back(SE.getUnknown(F.AM.BaseGV));
+
+    // Flush the operand list to suppress SCEVExpander hoisting.
+    Value *FullV = Rewriter.expandCodeFor(SE.getAddExpr(Ops), Ty, IP);
+    Ops.clear();
+    Ops.push_back(SE.getUnknown(FullV));
+  }
+
+  // Expand the immediate portion.
   int64_t Offset = (uint64_t)F.AM.BaseOffs + LF.Offset;
   if (Offset != 0) {
     if (LU.Kind == LSRUse::ICmpZero) {
@@ -2873,7 +2940,7 @@ Value *LSRInstance::Expand(const LSRFixup &LF,
     } else {
       // Just add the immediate values. These again are expected to be matched
       // as part of the address.
-      Ops.push_back(SE.getIntegerSCEV(Offset, IntTy));
+      Ops.push_back(SE.getUnknown(ConstantInt::getSigned(IntTy, Offset)));
     }
   }
 
@@ -2921,73 +2988,81 @@ Value *LSRInstance::Expand(const LSRFixup &LF,
   return FullV;
 }
 
+/// RewriteForPHI - Helper for Rewrite. PHI nodes are special because the use
+/// of their operands effectively happens in their predecessor blocks, so the
+/// expression may need to be expanded in multiple places.
+void LSRInstance::RewriteForPHI(PHINode *PN,
+                                const LSRFixup &LF,
+                                const Formula &F,
+                                SCEVExpander &Rewriter,
+                                SmallVectorImpl<WeakVH> &DeadInsts,
+                                Pass *P) const {
+  DenseMap<BasicBlock *, Value *> Inserted;
+  for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i)
+    if (PN->getIncomingValue(i) == LF.OperandValToReplace) {
+      BasicBlock *BB = PN->getIncomingBlock(i);
+
+      // If this is a critical edge, split the edge so that we do not insert
+      // the code on all predecessor/successor paths.  We do this unless this
+      // is the canonical backedge for this loop, which complicates post-inc
+      // users.
+      if (e != 1 && BB->getTerminator()->getNumSuccessors() > 1 &&
+          !isa<IndirectBrInst>(BB->getTerminator()) &&
+          (PN->getParent() != L->getHeader() || !L->contains(BB))) {
+        // Split the critical edge.
+        BasicBlock *NewBB = SplitCriticalEdge(BB, PN->getParent(), P);
+
+        // If PN is outside of the loop and BB is in the loop, we want to
+        // move the block to be immediately before the PHI block, not
+        // immediately after BB.
+        if (L->contains(BB) && !L->contains(PN))
+          NewBB->moveBefore(PN->getParent());
+
+        // Splitting the edge can reduce the number of PHI entries we have.
+        e = PN->getNumIncomingValues();
+        BB = NewBB;
+        i = PN->getBasicBlockIndex(BB);
+      }
+
+      std::pair<DenseMap<BasicBlock *, Value *>::iterator, bool> Pair =
+        Inserted.insert(std::make_pair(BB, static_cast<Value *>(0)));
+      if (!Pair.second)
+        PN->setIncomingValue(i, Pair.first->second);
+      else {
+        Value *FullV = Expand(LF, F, BB->getTerminator(), Rewriter, DeadInsts);
+
+        // If this is reuse-by-noop-cast, insert the noop cast.
+        const Type *OpTy = LF.OperandValToReplace->getType();
+        if (FullV->getType() != OpTy)
+          FullV =
+            CastInst::Create(CastInst::getCastOpcode(FullV, false,
+                                                     OpTy, false),
+                             FullV, LF.OperandValToReplace->getType(),
+                             "tmp", BB->getTerminator());
+
+        PN->setIncomingValue(i, FullV);
+        Pair.first->second = FullV;
+      }
+    }
+}
+
 /// Rewrite - Emit instructions for the leading candidate expression for this
 /// LSRUse (this is called "expanding"), and update the UserInst to reference
 /// the newly expanded value.
 void LSRInstance::Rewrite(const LSRFixup &LF,
                           const Formula &F,
-                          Loop *L, Instruction *IVIncInsertPos,
                           SCEVExpander &Rewriter,
                           SmallVectorImpl<WeakVH> &DeadInsts,
-                          ScalarEvolution &SE, DominatorTree &DT,
                           Pass *P) const {
-  const Type *OpTy = LF.OperandValToReplace->getType();
-
   // First, find an insertion point that dominates UserInst. For PHI nodes,
   // find the nearest block which dominates all the relevant uses.
   if (PHINode *PN = dyn_cast<PHINode>(LF.UserInst)) {
-    DenseMap<BasicBlock *, Value *> Inserted;
-    for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i)
-      if (PN->getIncomingValue(i) == LF.OperandValToReplace) {
-        BasicBlock *BB = PN->getIncomingBlock(i);
-
-        // If this is a critical edge, split the edge so that we do not insert
-        // the code on all predecessor/successor paths.  We do this unless this
-        // is the canonical backedge for this loop, which complicates post-inc
-        // users.
-        if (e != 1 && BB->getTerminator()->getNumSuccessors() > 1 &&
-            !isa<IndirectBrInst>(BB->getTerminator()) &&
-            (PN->getParent() != L->getHeader() || !L->contains(BB))) {
-          // Split the critical edge.
-          BasicBlock *NewBB = SplitCriticalEdge(BB, PN->getParent(), P);
-
-          // If PN is outside of the loop and BB is in the loop, we want to
-          // move the block to be immediately before the PHI block, not
-          // immediately after BB.
-          if (L->contains(BB) && !L->contains(PN))
-            NewBB->moveBefore(PN->getParent());
-
-          // Splitting the edge can reduce the number of PHI entries we have.
-          e = PN->getNumIncomingValues();
-          BB = NewBB;
-          i = PN->getBasicBlockIndex(BB);
-        }
-
-        std::pair<DenseMap<BasicBlock *, Value *>::iterator, bool> Pair =
-          Inserted.insert(std::make_pair(BB, static_cast<Value *>(0)));
-        if (!Pair.second)
-          PN->setIncomingValue(i, Pair.first->second);
-        else {
-          Value *FullV = Expand(LF, F, BB->getTerminator(), L, IVIncInsertPos,
-                                Rewriter, DeadInsts, SE, DT);
-
-          // If this is reuse-by-noop-cast, insert the noop cast.
-          if (FullV->getType() != OpTy)
-            FullV =
-              CastInst::Create(CastInst::getCastOpcode(FullV, false,
-                                                       OpTy, false),
-                               FullV, LF.OperandValToReplace->getType(),
-                               "tmp", BB->getTerminator());
-
-          PN->setIncomingValue(i, FullV);
-          Pair.first->second = FullV;
-        }
-      }
+    RewriteForPHI(PN, LF, F, Rewriter, DeadInsts, P);
   } else {
-    Value *FullV = Expand(LF, F, LF.UserInst, L, IVIncInsertPos,
-                          Rewriter, DeadInsts, SE, DT);
+    Value *FullV = Expand(LF, F, LF.UserInst, Rewriter, DeadInsts);
 
     // If this is reuse-by-noop-cast, insert the noop cast.
+    const Type *OpTy = LF.OperandValToReplace->getType();
     if (FullV->getType() != OpTy) {
       Instruction *Cast =
         CastInst::Create(CastInst::getCastOpcode(FullV, false, OpTy, false),
@@ -3024,8 +3099,7 @@ LSRInstance::ImplementSolution(const SmallVectorImpl<const Formula *> &Solution,
   for (size_t i = 0, e = Fixups.size(); i != e; ++i) {
     size_t LUIdx = Fixups[i].LUIdx;
 
-    Rewrite(Fixups[i], *Solution[LUIdx], L, IVIncInsertPos, Rewriter,
-            DeadInsts, SE, DT, P);
+    Rewrite(Fixups[i], *Solution[LUIdx], Rewriter, DeadInsts, P);
 
     Changed = true;
   }
@@ -3054,7 +3128,7 @@ LSRInstance::LSRInstance(const TargetLowering *tli, Loop *l, Pass *P)
         dbgs() << ":\n");
 
   /// OptimizeShadowIV - If IV is used in a int-to-float cast
-  /// inside the loop then try to eliminate the cast opeation.
+  /// inside the loop then try to eliminate the cast operation.
   OptimizeShadowIV();
 
   // Change loop terminating condition to use the postinc iv when possible.

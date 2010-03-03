@@ -100,7 +100,8 @@ int Main(int argc, char** argv) {
     ProgramName = argv[0];
 
     cl::ParseCommandLineOptions
-      (argc, argv, "LLVM Compiler Driver (Work In Progress)", true);
+      (argc, argv, "LLVM Compiler Driver (Work In Progress)",
+       /* ReadResponseFiles = */ false);
 
     PluginLoader Plugins;
     Plugins.RunInitialization(langMap, graph);
@@ -124,10 +125,6 @@ int Main(int argc, char** argv) {
                        ? std::string("compilation-graph.dot")
                        : OutputFilename);
       return 0;
-    }
-
-    if (InputFilenames.empty()) {
-      throw std::runtime_error("no input files");
     }
 
     if (Time) {

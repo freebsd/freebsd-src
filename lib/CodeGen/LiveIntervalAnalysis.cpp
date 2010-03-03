@@ -329,24 +329,43 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
     DEBUG(dbgs() << " +" << NewLR);
     interval.addRange(NewLR);
 
-    // Iterate over all of the blocks that the variable is completely
-    // live in, adding [insrtIndex(begin), instrIndex(end)+4) to the
-    // live interval.
-    for (SparseBitVector<>::iterator I = vi.AliveBlocks.begin(), 
-             E = vi.AliveBlocks.end(); I != E; ++I) {
-      MachineBasicBlock *aliveBlock = mf_->getBlockNumbered(*I);
-      LiveRange LR(getMBBStartIdx(aliveBlock), getMBBEndIdx(aliveBlock), ValNo);
-      interval.addRange(LR);
-      DEBUG(dbgs() << " +" << LR);
+    bool PHIJoin = lv_->isPHIJoin(interval.reg);
+
+    if (PHIJoin) {
+      // A phi join register is killed at the end of the MBB and revived as a new
+      // valno in the killing blocks.
+      assert(vi.AliveBlocks.empty() && "Phi join can't pass through blocks");
+      DEBUG(dbgs() << " phi-join");
+      ValNo->addKill(indexes_->getTerminatorGap(mbb));
+      ValNo->setHasPHIKill(true);
+    } else {
+      // Iterate over all of the blocks that the variable is completely
+      // live in, adding [insrtIndex(begin), instrIndex(end)+4) to the
+      // live interval.
+      for (SparseBitVector<>::iterator I = vi.AliveBlocks.begin(),
+               E = vi.AliveBlocks.end(); I != E; ++I) {
+        MachineBasicBlock *aliveBlock = mf_->getBlockNumbered(*I);
+        LiveRange LR(getMBBStartIdx(aliveBlock), getMBBEndIdx(aliveBlock), ValNo);
+        interval.addRange(LR);
+        DEBUG(dbgs() << " +" << LR);
+      }
     }
 
     // Finally, this virtual register is live from the start of any killing
     // block to the 'use' slot of the killing instruction.
     for (unsigned i = 0, e = vi.Kills.size(); i != e; ++i) {
       MachineInstr *Kill = vi.Kills[i];
-      SlotIndex killIdx =
-        getInstructionIndex(Kill).getDefIndex();
-      LiveRange LR(getMBBStartIdx(Kill->getParent()), killIdx, ValNo);
+      SlotIndex Start = getMBBStartIdx(Kill->getParent());
+      SlotIndex killIdx = getInstructionIndex(Kill).getDefIndex();
+
+      // Create interval with one of a NEW value number.  Note that this value
+      // number isn't actually defined by an instruction, weird huh? :)
+      if (PHIJoin) {
+        ValNo = interval.getNextValue(SlotIndex(Start, true), 0, false,
+                                      VNInfoAllocator);
+        ValNo->setIsPHIDef(true);
+      }
+      LiveRange LR(Start, killIdx, ValNo);
       interval.addRange(LR);
       ValNo->addKill(killIdx);
       DEBUG(dbgs() << " +" << LR);
@@ -409,48 +428,11 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
           interval.print(dbgs(), tri_);
         });
     } else {
-      // Otherwise, this must be because of phi elimination.  If this is the
-      // first redefinition of the vreg that we have seen, go back and change
-      // the live range in the PHI block to be a different value number.
-      if (interval.containsOneValue()) {
-
-        VNInfo *VNI = interval.getValNumInfo(0);
-        // Phi elimination may have reused the register for multiple identical
-        // phi nodes. There will be a kill per phi. Remove the old ranges that
-        // we now know have an incorrect number.
-        for (unsigned ki=0, ke=vi.Kills.size(); ki != ke; ++ki) {
-          MachineInstr *Killer = vi.Kills[ki];
-          SlotIndex Start = getMBBStartIdx(Killer->getParent());
-          SlotIndex End = getInstructionIndex(Killer).getDefIndex();
-          DEBUG({
-              dbgs() << "\n\t\trenaming [" << Start << "," << End << "] in: ";
-              interval.print(dbgs(), tri_);
-            });
-          interval.removeRange(Start, End);
-
-          // Replace the interval with one of a NEW value number.  Note that
-          // this value number isn't actually defined by an instruction, weird
-          // huh? :)
-          LiveRange LR(Start, End,
-                       interval.getNextValue(SlotIndex(Start, true),
-                                             0, false, VNInfoAllocator));
-          LR.valno->setIsPHIDef(true);
-          interval.addRange(LR);
-          LR.valno->addKill(End);
-        }
-
-        MachineBasicBlock *killMBB = getMBBFromIndex(VNI->def);
-        VNI->addKill(indexes_->getTerminatorGap(killMBB));
-        VNI->setHasPHIKill(true);
-        DEBUG({
-            dbgs() << " RESULT: ";
-            interval.print(dbgs(), tri_);
-          });
-      }
-
+      assert(lv_->isPHIJoin(interval.reg) && "Multiply defined register");
       // In the case of PHI elimination, each variable definition is only
       // live until the end of the block.  We've already taken care of the
       // rest of the live range.
+
       SlotIndex defIndex = MIIdx.getDefIndex();
       if (MO.isEarlyClobber())
         defIndex = MIIdx.getUseIndex();
@@ -468,7 +450,7 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
       interval.addRange(LR);
       ValNo->addKill(indexes_->getTerminatorGap(mbb));
       ValNo->setHasPHIKill(true);
-      DEBUG(dbgs() << " +" << LR);
+      DEBUG(dbgs() << " phi-join +" << LR);
     }
   }
 
@@ -1358,11 +1340,9 @@ rewriteInstructionsForSpills(const LiveInterval &li, bool TrySplit,
     MachineBasicBlock *MBB = MI->getParent();
 
     if (ImpUse && MI != ReMatDefMI) {
-      // Re-matting an instruction with virtual register use. Update the
-      // register interval's spill weight to HUGE_VALF to prevent it from
-      // being spilled.
-      LiveInterval &ImpLi = getInterval(ImpUse);
-      ImpLi.weight = HUGE_VALF;
+      // Re-matting an instruction with virtual register use. Prevent interval
+      // from being spilled.
+      getInterval(ImpUse).markNotSpillable();
     }
 
     unsigned MBBId = MBB->getNumber();
@@ -1414,7 +1394,7 @@ rewriteInstructionsForSpills(const LiveInterval &li, bool TrySplit,
     LiveInterval &nI = getOrCreateInterval(NewVReg);
     if (!TrySplit) {
       // The spill weight is now infinity as it cannot be spilled again.
-      nI.weight = HUGE_VALF;
+      nI.markNotSpillable();
       continue;
     }
 
@@ -1562,6 +1542,28 @@ LiveIntervals::handleSpilledImpDefs(const LiveInterval &li, VirtRegMap &vrm,
   }
 }
 
+float
+LiveIntervals::getSpillWeight(bool isDef, bool isUse, unsigned loopDepth) {
+  // Limit the loop depth ridiculousness.
+  if (loopDepth > 200)
+    loopDepth = 200;
+
+  // The loop depth is used to roughly estimate the number of times the
+  // instruction is executed. Something like 10^d is simple, but will quickly
+  // overflow a float. This expression behaves like 10^d for small d, but is
+  // more tempered for large d. At d=200 we get 6.7e33 which leaves a bit of
+  // headroom before overflow.
+  float lc = powf(1 + (100.0f / (loopDepth+10)), (float)loopDepth);
+
+  return (isDef + isUse) * lc;
+}
+
+void
+LiveIntervals::normalizeSpillWeights(std::vector<LiveInterval*> &NewLIs) {
+  for (unsigned i = 0, e = NewLIs.size(); i != e; ++i)
+    normalizeSpillWeight(*NewLIs[i]);
+}
+
 std::vector<LiveInterval*> LiveIntervals::
 addIntervalsForSpillsFast(const LiveInterval &li,
                           const MachineLoopInfo *loopInfo,
@@ -1570,8 +1572,7 @@ addIntervalsForSpillsFast(const LiveInterval &li,
 
   std::vector<LiveInterval*> added;
 
-  assert(li.weight != HUGE_VALF &&
-         "attempt to spill already spilled interval!");
+  assert(li.isSpillable() && "attempt to spill already spilled interval!");
 
   DEBUG({
       dbgs() << "\t\t\t\tadding intervals for spills for interval: ";
@@ -1607,10 +1608,7 @@ addIntervalsForSpillsFast(const LiveInterval &li,
       
       // create a new register for this spill
       LiveInterval &nI = getOrCreateInterval(NewVReg);
-
-      // the spill weight is now infinity as it
-      // cannot be spilled again
-      nI.weight = HUGE_VALF;
+      nI.markNotSpillable();
       
       // Rewrite register operands to use the new vreg.
       for (SmallVectorImpl<unsigned>::iterator I = Indices.begin(),
@@ -1664,8 +1662,7 @@ addIntervalsForSpills(const LiveInterval &li,
   if (EnableFastSpilling)
     return addIntervalsForSpillsFast(li, loopInfo, vrm);
   
-  assert(li.weight != HUGE_VALF &&
-         "attempt to spill already spilled interval!");
+  assert(li.isSpillable() && "attempt to spill already spilled interval!");
 
   DEBUG({
       dbgs() << "\t\t\t\tadding intervals for spills for interval: ";
@@ -1739,6 +1736,7 @@ addIntervalsForSpills(const LiveInterval &li,
     }
 
     handleSpilledImpDefs(li, vrm, rc, NewLIs);
+    normalizeSpillWeights(NewLIs);
     return NewLIs;
   }
 
@@ -1814,6 +1812,7 @@ addIntervalsForSpills(const LiveInterval &li,
   // Insert spills / restores if we are splitting.
   if (!TrySplit) {
     handleSpilledImpDefs(li, vrm, rc, NewLIs);
+    normalizeSpillWeights(NewLIs);
     return NewLIs;
   }
 
@@ -1930,11 +1929,10 @@ addIntervalsForSpills(const LiveInterval &li,
             unsigned ImpUse = getReMatImplicitUse(li, ReMatDefMI);
             if (ImpUse) {
               // Re-matting an instruction with virtual register use. Add the
-              // register as an implicit use on the use MI and update the register
-              // interval's spill weight to HUGE_VALF to prevent it from being
-              // spilled.
+              // register as an implicit use on the use MI and mark the register
+              // interval as unspillable.
               LiveInterval &ImpLi = getInterval(ImpUse);
-              ImpLi.weight = HUGE_VALF;
+              ImpLi.markNotSpillable();
               MI->addOperand(MachineOperand::CreateReg(ImpUse, false, true));
             }
           }
@@ -1973,6 +1971,7 @@ addIntervalsForSpills(const LiveInterval &li,
   }
 
   handleSpilledImpDefs(li, vrm, rc, RetNewLIs);
+  normalizeSpillWeights(RetNewLIs);
   return RetNewLIs;
 }
 

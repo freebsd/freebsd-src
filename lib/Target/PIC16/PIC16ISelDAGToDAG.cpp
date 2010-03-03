@@ -14,10 +14,7 @@
 #define DEBUG_TYPE "pic16-isel"
 
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/raw_ostream.h"
 #include "PIC16ISelDAGToDAG.h"
-#include "llvm/Support/Debug.h"
-
 using namespace llvm;
 
 /// createPIC16ISelDag - This pass converts a legalized DAG into a
@@ -26,13 +23,6 @@ FunctionPass *llvm::createPIC16ISelDag(PIC16TargetMachine &TM) {
   return new PIC16DAGToDAGISel(TM);
 }
 
-
-/// InstructionSelect - This callback is invoked by
-/// SelectionDAGISel when it has created a SelectionDAG for us to codegen.
-void PIC16DAGToDAGISel::InstructionSelect() {
-  SelectRoot(*CurDAG);
-  CurDAG->RemoveDeadNodes();
-}
 
 /// Select - Select instructions not customized! Used for
 /// expanded, promoted and normal instructions.

@@ -65,8 +65,6 @@ namespace {
     bool SelectADDRcpii(SDNode *Op, SDValue Addr, SDValue &Base,
                         SDValue &Offset);
     
-    virtual void InstructionSelect();
-
     virtual const char *getPassName() const {
       return "XCore DAG->DAG Pattern Instruction Selection";
     } 
@@ -147,15 +145,6 @@ bool XCoreDAGToDAGISel::SelectADDRcpii(SDNode *Op, SDValue Addr,
   return false;
 }
 
-/// InstructionSelect - This callback is invoked by
-/// SelectionDAGISel when it has created a SelectionDAG for us to codegen.
-void XCoreDAGToDAGISel::InstructionSelect() {
-  // Select target instructions for the DAG.
-  SelectRoot(*CurDAG);
-  
-  CurDAG->RemoveDeadNodes();
-}
-
 SDNode *XCoreDAGToDAGISel::Select(SDNode *N) {
   DebugLoc dl = N->getDebugLoc();
   EVT NVT = N->getValueType(0);
@@ -164,7 +153,11 @@ SDNode *XCoreDAGToDAGISel::Select(SDNode *N) {
       default: break;
       case ISD::Constant: {
         if (Predicate_immMskBitp(N)) {
-          SDValue MskSize = Transform_msksize_xform(N);
+          // Transformation function: get the size of a mask
+          int64_t MaskVal = cast<ConstantSDNode>(N)->getZExtValue();
+          assert(isMask_32(MaskVal));
+          // Look for the first non-zero bit
+          SDValue MskSize = getI32Imm(32 - CountLeadingZeros_32(MaskVal));
           return CurDAG->getMachineNode(XCore::MKMSK_rus, dl,
                                         MVT::i32, MskSize);
         }

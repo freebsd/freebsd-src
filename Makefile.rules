@@ -493,7 +493,27 @@ ExmplDir    := $(PROJ_OBJ_ROOT)/$(BuildMode)/examples
 LLVMLibDir  := $(LLVM_OBJ_ROOT)/$(BuildMode)/lib
 LLVMToolDir := $(LLVM_OBJ_ROOT)/$(BuildMode)/bin
 LLVMExmplDir:= $(LLVM_OBJ_ROOT)/$(BuildMode)/examples
-CFERuntimeLibDir := $(LLVMGCCDIR)/lib
+
+#--------------------------------------------------------------------
+# LLVM Capable Compiler
+#--------------------------------------------------------------------
+
+ifeq ($(LLVMCC_OPTION),llvm-gcc)
+  LLVMCC := $(LLVMGCC)
+  LLVMCXX := $(LLVMGXX)
+else
+  ifeq ($(LLVMCC_OPTION),clang)
+    ifneq ($(CLANGPATH),)
+      LLVMCC := $(CLANGPATH)
+      LLVMCXX := $(CLANGXXPATH)
+    else
+      ifeq ($(ENABLE_BUILT_CLANG),1)
+        LLVMCC := $(LLVMToolDir)/clang
+        LLVMCXX := $(LLVMToolDir)/clang++
+      endif
+    endif
+  endif
+endif
 
 #--------------------------------------------------------------------
 # Full Paths To Compiled Tools and Utilities
@@ -528,16 +548,6 @@ LOPT     := $(LLVMToolDir)/opt$(EXEEXT)
 endif
 ifndef LBUGPOINT
 LBUGPOINT := $(LLVMToolDir)/bugpoint$(EXEEXT)
-endif
-ifndef LUPGRADE
-LUPGRADE := $(LLVMToolDir)/llvm-upgrade$(EXEEXT)
-endif
-ifeq ($(LLVMGCC_MAJVERS),3)
-LLVMGCCWITHPATH  := PATH="$(LLVMToolDir):$(PATH)" $(LLVMGCC)
-LLVMGXXWITHPATH  := PATH="$(LLVMToolDir):$(PATH)" $(LLVMGXX)
-else
-LLVMGCCWITHPATH  := $(LLVMGCC)
-LLVMGXXWITHPATH  := $(LLVMGXX)
 endif
 
 #--------------------------------------------------------------------
@@ -613,11 +623,12 @@ endif
 ifneq ($(HOST_OS),Darwin)
 ifneq ($(DARWIN_MAJVERS),4)
 ifdef TOOLNAME
-ifdef EXAMPLE_TOOL
-  LD.Flags += $(RPATH) -Wl,$(ExmplDir) $(RDYNAMIC)
-else
-  LD.Flags += $(RPATH) -Wl,$(ToolDir) $(RDYNAMIC)
-endif
+  LD.Flags += $(RPATH) -Wl,'$$ORIGIN/../lib'
+  ifdef EXAMPLE_TOOL
+    LD.Flags += $(RPATH) -Wl,$(ExmplDir) $(RDYNAMIC)
+  else
+    LD.Flags += $(RPATH) -Wl,$(ToolDir) $(RDYNAMIC)
+  endif
 endif
 endif
 endif
@@ -710,14 +721,12 @@ else
                   $(TargetCommonOpts)  $(CompileCommonOpts) $(LD.Flags) $(Strip)
 endif
 
-BCCompile.C   = $(LLVMGCCWITHPATH) $(CPP.Flags) $(C.Flags) $(CFLAGS) \
-		$(CPPFLAGS) \
+BCCompile.C   = $(LLVMCC) $(CPP.Flags) $(C.Flags) $(CFLAGS) $(CPPFLAGS) \
                 $(TargetCommonOpts) $(CompileCommonOpts)
 Preprocess.C  = $(CC) $(CPP.Flags) $(C.Flags) $(CPPFLAGS) \
                 $(TargetCommonOpts) $(CompileCommonOpts) -E
 
-BCCompile.CXX = $(LLVMGXXWITHPATH) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) \
-		$(CPPFLAGS) \
+BCCompile.CXX = $(LLVMCXX) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) $(CPPFLAGS) \
                 $(TargetCommonOpts) $(CompileCommonOpts)
 
 ProgInstall   = $(INSTALL) $(Install.StripFlag) -m 0755
@@ -952,9 +961,14 @@ $(LLVM_CONFIG):
 
 $(ToolDir)/$(strip $(TOOLNAME))$(EXEEXT): $(LLVM_CONFIG)
 
+ifeq ($(ENABLE_SHARED), 1)
+LLVMLibsOptions += -lLLVM-$(LLVMVersion)
+LLVMLibsPaths += $(LibDir)/libLLVM-$(LLVMVersion)$(SHLIBEXT)
+else
 LLVMLibsOptions += $(shell $(LLVM_CONFIG) --libs     $(LINK_COMPONENTS))
 LLVMLibsPaths   += $(LLVM_CONFIG) \
                    $(shell $(LLVM_CONFIG) --libfiles $(LINK_COMPONENTS))
+endif
 endif
 endif
 
@@ -971,12 +985,12 @@ endif
 #---------------------------------------------------------
 
 ifdef MODULE_NAME
-ifeq ($(strip $(LLVMGCC)),)
-$(warning Modules require llvm-gcc but no llvm-gcc is available ****)
+ifeq ($(strip $(LLVMCC)),)
+$(warning Modules require LLVM capable compiler but none is available ****)
 else
 
 Module     := $(LibDir)/$(MODULE_NAME).bc
-LinkModule := $(LLVMLD) -L$(CFERuntimeLibDir) -r
+LinkModule := $(LLVMLD) -r
 
 
 ifdef EXPORTED_SYMBOL_FILE
@@ -1097,15 +1111,14 @@ endif
 #   targets for building them.
 #---------------------------------------------------------
 ifdef BYTECODE_LIBRARY
-ifeq ($(strip $(LLVMGCC)),)
-$(warning Bytecode libraries require llvm-gcc which could not be found ****)
+ifeq ($(strip $(LLVMCC)),)
+$(warning Bytecode libraries require LLVM capable compiler but none is available ****)
 else
 
 all-local:: $(LibName.BCA)
 
 ifdef EXPORTED_SYMBOL_FILE
-BCLinkLib = $(LLVMLD) -L$(CFERuntimeLibDir) \
-                     -internalize-public-api-file=$(EXPORTED_SYMBOL_FILE)
+BCLinkLib = $(LLVMLD) -internalize-public-api-file=$(EXPORTED_SYMBOL_FILE)
 
 $(LibName.BCA): $(ObjectsBC) $(LibDir)/.dir $(LLVMLD) \
                 $(LLVMToolDir)/llvm-ar
@@ -1162,9 +1175,11 @@ endif
 #   If neither BUILD_ARCHIVE or LOADABLE_MODULE are specified, default to
 #   building an archive.
 #---------------------------------------------------------
+ifndef NO_BUILD_ARCHIVE
 ifndef BUILD_ARCHIVE
 ifndef LOADABLE_MODULE
 BUILD_ARCHIVE = 1
+endif
 endif
 endif
 
@@ -1382,19 +1397,19 @@ BC_DEPEND_OPTIONS = -MMD -MP -MF "$(ObjDir)/$*.bc.d.tmp" \
 BC_DEPEND_MOVEFILE = then $(MV) -f "$(ObjDir)/$*.bc.d.tmp" "$(ObjDir)/$*.bc.d"; \
                      else $(RM) "$(ObjDir)/$*.bc.d.tmp"; exit 1; fi
 
-$(ObjDir)/%.ll: %.cpp $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMGXX)
+$(ObjDir)/%.ll: %.cpp $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.cpp for $(BuildMode) build (bytecode)"
 	$(Verb) if $(BCCompile.CXX) $(BC_DEPEND_OPTIONS) \
                               $< -o $(ObjDir)/$*.ll -S -emit-llvm ; \
 	        $(BC_DEPEND_MOVEFILE)
 
-$(ObjDir)/%.ll: %.cc $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMGXX)
+$(ObjDir)/%.ll: %.cc $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.cc for $(BuildMode) build (bytecode)"
 	$(Verb) if $(BCCompile.CXX) $(BC_DEPEND_OPTIONS) \
                               $< -o $(ObjDir)/$*.ll -S -emit-llvm ; \
 	        $(BC_DEPEND_MOVEFILE)
 
-$(ObjDir)/%.ll: %.c $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMGCC)
+$(ObjDir)/%.ll: %.c $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCC)
 	$(Echo) "Compiling $*.c for $(BuildMode) build (bytecode)"
 	$(Verb) if $(BCCompile.C) $(BC_DEPEND_OPTIONS) \
                               $< -o $(ObjDir)/$*.ll -S -emit-llvm ; \
@@ -1415,15 +1430,15 @@ $(ObjDir)/%.o: %.c $(ObjDir)/.dir $(BUILT_SOURCES)
 	$(Echo) "Compiling $*.c for $(BuildMode) build" $(PIC_FLAG)
 	$(Compile.C) $< -o $@
 
-$(ObjDir)/%.ll: %.cpp $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMGXX)
+$(ObjDir)/%.ll: %.cpp $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.cpp for $(BuildMode) build (bytecode)"
 	$(BCCompile.CXX) $< -o $@ -S -emit-llvm
 
-$(ObjDir)/%.ll: %.cc $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMGXX)
+$(ObjDir)/%.ll: %.cc $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.cc for $(BuildMode) build (bytecode)"
 	$(BCCompile.CXX) $< -o $@ -S -emit-llvm
 
-$(ObjDir)/%.ll: %.c $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMGCC)
+$(ObjDir)/%.ll: %.c $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCC)
 	$(Echo) "Compiling $*.c for $(BuildMode) build (bytecode)"
 	$(BCCompile.C) $< -o $@ -S -emit-llvm
 

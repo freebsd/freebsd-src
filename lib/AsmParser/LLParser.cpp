@@ -614,7 +614,7 @@ bool LLParser::ParseAlias(const std::string &Name, LocTy NameLoc,
     Aliasee = ID.ConstantVal;
   }
 
-  if (!isa<PointerType>(Aliasee->getType()))
+  if (!Aliasee->getType()->isPointerTy())
     return Error(AliaseeLoc, "alias must have pointer type");
 
   // Okay, create the alias but do not insert it into the module yet.
@@ -685,7 +685,7 @@ bool LLParser::ParseGlobal(const std::string &Name, LocTy NameLoc,
       return true;
   }
 
-  if (isa<FunctionType>(Ty) || Ty->isLabelTy())
+  if (Ty->isFunctionTy() || Ty->isLabelTy())
     return Error(TyLoc, "invalid type for global variable");
 
   GlobalVariable *GV = 0;
@@ -791,7 +791,7 @@ GlobalValue *LLParser::GetGlobalVal(const std::string &Name, const Type *Ty,
   GlobalValue *FwdVal;
   if (const FunctionType *FT = dyn_cast<FunctionType>(PTy->getElementType())) {
     // Function types can return opaque but functions can't.
-    if (isa<OpaqueType>(FT->getReturnType())) {
+    if (FT->getReturnType()->isOpaqueTy()) {
       Error(Loc, "function may not return opaque type");
       return 0;
     }
@@ -836,7 +836,7 @@ GlobalValue *LLParser::GetGlobalVal(unsigned ID, const Type *Ty, LocTy Loc) {
   GlobalValue *FwdVal;
   if (const FunctionType *FT = dyn_cast<FunctionType>(PTy->getElementType())) {
     // Function types can return opaque but functions can't.
-    if (isa<OpaqueType>(FT->getReturnType())) {
+    if (FT->getReturnType()->isOpaqueTy()) {
       Error(Loc, "function may not return opaque type");
       return 0;
     }
@@ -1515,7 +1515,7 @@ bool LLParser::ParseArgumentList(std::vector<ArgInfo> &ArgList,
         Name = "";
       }
 
-      if (!ArgTy->isFirstClassType() && !isa<OpaqueType>(ArgTy))
+      if (!ArgTy->isFirstClassType() && !ArgTy->isOpaqueTy())
         return Error(TypeLoc, "invalid type for function argument");
 
       ArgList.push_back(ArgInfo(TypeLoc, ArgTy, Attrs, Name));
@@ -1785,7 +1785,7 @@ Value *LLParser::PerFunctionState::GetVal(const std::string &Name,
   }
 
   // Don't make placeholders with invalid type.
-  if (!Ty->isFirstClassType() && !isa<OpaqueType>(Ty) && !Ty->isLabelTy()) {
+  if (!Ty->isFirstClassType() && !Ty->isOpaqueTy() && !Ty->isLabelTy()) {
     P.Error(Loc, "invalid use of a non-first-class type");
     return 0;
   }
@@ -1826,7 +1826,7 @@ Value *LLParser::PerFunctionState::GetVal(unsigned ID, const Type *Ty,
     return 0;
   }
 
-  if (!Ty->isFirstClassType() && !isa<OpaqueType>(Ty) && !Ty->isLabelTy()) {
+  if (!Ty->isFirstClassType() && !Ty->isOpaqueTy() && !Ty->isLabelTy()) {
     P.Error(Loc, "invalid use of a non-first-class type");
     return 0;
   }
@@ -2256,7 +2256,7 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
     } else {
       assert(Opc == Instruction::ICmp && "Unexpected opcode for CmpInst!");
       if (!Val0->getType()->isIntOrIntVectorTy() &&
-          !isa<PointerType>(Val0->getType()))
+          !Val0->getType()->isPointerTy())
         return Error(ID.Loc, "icmp requires pointer or integer operands");
       ID.ConstantVal = ConstantExpr::getICmp(Pred, Val0, Val1);
     }
@@ -2370,7 +2370,7 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
       return true;
 
     if (Opc == Instruction::GetElementPtr) {
-      if (Elts.size() == 0 || !isa<PointerType>(Elts[0]->getType()))
+      if (Elts.size() == 0 || !Elts[0]->getType()->isPointerTy())
         return Error(ID.Loc, "getelementptr requires pointer operand");
 
       if (!GetElementPtrInst::getIndexedType(Elts[0]->getType(),
@@ -2470,7 +2470,7 @@ bool LLParser::ParseGlobalValueVector(SmallVectorImpl<Constant*> &Elts) {
 
 bool LLParser::ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
                                    PerFunctionState *PFS) {
-  if (isa<FunctionType>(Ty))
+  if (Ty->isFunctionTy())
     return Error(ID.Loc, "functions are not values, refer to them as pointers");
 
   switch (ID.Kind) {
@@ -2509,7 +2509,7 @@ bool LLParser::ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
     V = GetGlobalVal(ID.UIntVal, Ty, ID.Loc);
     return V == 0;
   case ValID::t_APSInt:
-    if (!isa<IntegerType>(Ty))
+    if (!Ty->isIntegerTy())
       return Error(ID.Loc, "integer constant must have integer type");
     ID.APSIntVal.extOrTrunc(Ty->getPrimitiveSizeInBits());
     V = ConstantInt::get(Context, ID.APSIntVal);
@@ -2535,19 +2535,19 @@ bool LLParser::ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
 
     return false;
   case ValID::t_Null:
-    if (!isa<PointerType>(Ty))
+    if (!Ty->isPointerTy())
       return Error(ID.Loc, "null must be a pointer type");
     V = ConstantPointerNull::get(cast<PointerType>(Ty));
     return false;
   case ValID::t_Undef:
     // FIXME: LabelTy should not be a first-class type.
     if ((!Ty->isFirstClassType() || Ty->isLabelTy()) &&
-        !isa<OpaqueType>(Ty))
+        !Ty->isOpaqueTy())
       return Error(ID.Loc, "invalid type for undef constant");
     V = UndefValue::get(Ty);
     return false;
   case ValID::t_EmptyArray:
-    if (!isa<ArrayType>(Ty) || cast<ArrayType>(Ty)->getNumElements() != 0)
+    if (!Ty->isArrayTy() || cast<ArrayType>(Ty)->getNumElements() != 0)
       return Error(ID.Loc, "invalid empty array initializer");
     V = UndefValue::get(Ty);
     return false;
@@ -2662,7 +2662,7 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
   }
 
   if (!FunctionType::isValidReturnType(RetType) ||
-      isa<OpaqueType>(RetType))
+      RetType->isOpaqueTy())
     return Error(RetTypeLoc, "invalid function return type");
 
   LocTy NameLoc = Lex.getLoc();
@@ -3186,7 +3186,7 @@ bool LLParser::ParseSwitch(Instruction *&Inst, PerFunctionState &PFS) {
       ParseToken(lltok::lsquare, "expected '[' with switch table"))
     return true;
 
-  if (!isa<IntegerType>(Cond->getType()))
+  if (!Cond->getType()->isIntegerTy())
     return Error(CondLoc, "switch condition must have integer type");
 
   // Parse the jump table pairs.
@@ -3229,7 +3229,7 @@ bool LLParser::ParseIndirectBr(Instruction *&Inst, PerFunctionState &PFS) {
       ParseToken(lltok::lsquare, "expected '[' with indirectbr"))
     return true;
   
-  if (!isa<PointerType>(Address->getType()))
+  if (!Address->getType()->isPointerTy())
     return Error(AddrLoc, "indirectbr address must have pointer type");
   
   // Parse the destination list.
@@ -3436,7 +3436,7 @@ bool LLParser::ParseCompare(Instruction *&Inst, PerFunctionState &PFS,
   } else {
     assert(Opc == Instruction::ICmp && "Unknown opcode for CmpInst!");
     if (!LHS->getType()->isIntOrIntVectorTy() &&
-        !isa<PointerType>(LHS->getType()))
+        !LHS->getType()->isPointerTy())
       return Error(Loc, "icmp requires integer operands");
     Inst = new ICmpInst(CmpInst::Predicate(Pred), LHS, RHS);
   }
@@ -3761,7 +3761,7 @@ bool LLParser::ParseFree(Instruction *&Inst, PerFunctionState &PFS,
                          BasicBlock* BB) {
   Value *Val; LocTy Loc;
   if (ParseTypeAndValue(Val, Loc, PFS)) return true;
-  if (!isa<PointerType>(Val->getType()))
+  if (!Val->getType()->isPointerTy())
     return Error(Loc, "operand to free must be a pointer");
   Inst = CallInst::CreateFree(Val, BB);
   return false;
@@ -3778,7 +3778,7 @@ int LLParser::ParseLoad(Instruction *&Inst, PerFunctionState &PFS,
       ParseOptionalCommaAlign(Alignment, AteExtraComma))
     return true;
 
-  if (!isa<PointerType>(Val->getType()) ||
+  if (!Val->getType()->isPointerTy() ||
       !cast<PointerType>(Val->getType())->getElementType()->isFirstClassType())
     return Error(Loc, "load operand must be a pointer to a first class type");
 
@@ -3799,7 +3799,7 @@ int LLParser::ParseStore(Instruction *&Inst, PerFunctionState &PFS,
       ParseOptionalCommaAlign(Alignment, AteExtraComma))
     return true;
 
-  if (!isa<PointerType>(Ptr->getType()))
+  if (!Ptr->getType()->isPointerTy())
     return Error(PtrLoc, "store operand must be a pointer");
   if (!Val->getType()->isFirstClassType())
     return Error(Loc, "store operand must be a first class value");
@@ -3821,7 +3821,7 @@ bool LLParser::ParseGetResult(Instruction *&Inst, PerFunctionState &PFS) {
       ParseUInt32(Element, EltLoc))
     return true;
 
-  if (!isa<StructType>(Val->getType()) && !isa<ArrayType>(Val->getType()))
+  if (!Val->getType()->isStructTy() && !Val->getType()->isArrayTy())
     return Error(ValLoc, "getresult inst requires an aggregate operand");
   if (!ExtractValueInst::getIndexedType(Val->getType(), Element))
     return Error(EltLoc, "invalid getresult index for value");
@@ -3838,7 +3838,7 @@ int LLParser::ParseGetElementPtr(Instruction *&Inst, PerFunctionState &PFS) {
 
   if (ParseTypeAndValue(Ptr, Loc, PFS)) return true;
 
-  if (!isa<PointerType>(Ptr->getType()))
+  if (!Ptr->getType()->isPointerTy())
     return Error(Loc, "base of getelementptr must be a pointer");
 
   SmallVector<Value*, 16> Indices;
@@ -3849,7 +3849,7 @@ int LLParser::ParseGetElementPtr(Instruction *&Inst, PerFunctionState &PFS) {
       break;
     }
     if (ParseTypeAndValue(Val, EltLoc, PFS)) return true;
-    if (!isa<IntegerType>(Val->getType()))
+    if (!Val->getType()->isIntegerTy())
       return Error(EltLoc, "getelementptr index must be an integer");
     Indices.push_back(Val);
   }

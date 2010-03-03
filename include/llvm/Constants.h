@@ -276,6 +276,12 @@ public:
     return Val.isZero() && Val.isNegative();
   }
 
+  /// isZero - Return true if the value is positive or negative zero.
+  bool isZero() const { return Val.isZero(); }
+
+  /// isNaN - Return true if the value is a NaN.
+  bool isNaN() const { return Val.isNaN(); }
+
   /// isExactlyValue - We don't rely on operator== working on double values, as
   /// it returns true for things that are clearly not equal, like -0.0 and 0.0.
   /// As such, this method can be used to do an exact bit-for-bit comparison of
@@ -692,8 +698,9 @@ public:
   /// independent way (Note: the return type is an i64).
   static Constant *getAlignOf(const Type* Ty);
   
-  /// getSizeOf constant expr - computes the size of a type in a target
-  /// independent way (Note: the return type is an i64).
+  /// getSizeOf constant expr - computes the (alloc) size of a type (in
+  /// address-units, not bits) in a target independent way (Note: the return
+  /// type is an i64).
   ///
   static Constant *getSizeOf(const Type* Ty);
 

@@ -708,6 +708,20 @@ class AI3ldsbpr<dag oops, dag iops, Format f, InstrItinClass itin,
   let Inst{24}    = 1; // P bit
   let Inst{27-25} = 0b000;
 }
+class AI3lddpr<dag oops, dag iops, Format f, InstrItinClass itin,
+             string opc, string asm, string cstr, list<dag> pattern>
+  : I<oops, iops, AddrMode3, Size4Bytes, IndexModePre, f, itin,
+      opc, asm, cstr, pattern> {
+  let Inst{4}     = 1;
+  let Inst{5}     = 0; // H bit
+  let Inst{6}     = 1; // S bit
+  let Inst{7}     = 1;
+  let Inst{20}    = 0; // L bit
+  let Inst{21}    = 1; // W bit
+  let Inst{24}    = 1; // P bit
+  let Inst{27-25} = 0b000;
+}
+
 
 // Pre-indexed stores
 class AI3sthpr<dag oops, dag iops, Format f, InstrItinClass itin,
@@ -717,6 +731,19 @@ class AI3sthpr<dag oops, dag iops, Format f, InstrItinClass itin,
   let Inst{4}     = 1;
   let Inst{5}     = 1; // H bit
   let Inst{6}     = 0; // S bit
+  let Inst{7}     = 1;
+  let Inst{20}    = 0; // L bit
+  let Inst{21}    = 1; // W bit
+  let Inst{24}    = 1; // P bit
+  let Inst{27-25} = 0b000;
+}
+class AI3stdpr<dag oops, dag iops, Format f, InstrItinClass itin,
+             string opc, string asm, string cstr, list<dag> pattern>
+  : I<oops, iops, AddrMode3, Size4Bytes, IndexModePre, f, itin,
+      opc, asm, cstr, pattern> {
+  let Inst{4}     = 1;
+  let Inst{5}     = 1; // H bit
+  let Inst{6}     = 1; // S bit
   let Inst{7}     = 1;
   let Inst{20}    = 0; // L bit
   let Inst{21}    = 1; // W bit
@@ -734,7 +761,7 @@ class AI3ldhpo<dag oops, dag iops, Format f, InstrItinClass itin,
   let Inst{6}     = 0; // S bit
   let Inst{7}     = 1;
   let Inst{20}    = 1; // L bit
-  let Inst{21}    = 1; // W bit
+  let Inst{21}    = 0; // W bit
   let Inst{24}    = 0; // P bit
   let Inst{27-25} = 0b000;
 }
@@ -747,7 +774,7 @@ class AI3ldshpo<dag oops, dag iops, Format f, InstrItinClass itin,
   let Inst{6}     = 1; // S bit
   let Inst{7}     = 1;
   let Inst{20}    = 1; // L bit
-  let Inst{21}    = 1; // W bit
+  let Inst{21}    = 0; // W bit
   let Inst{24}    = 0; // P bit
   let Inst{27-25} = 0b000;
 }
@@ -760,7 +787,20 @@ class AI3ldsbpo<dag oops, dag iops, Format f, InstrItinClass itin,
   let Inst{6}     = 1; // S bit
   let Inst{7}     = 1;
   let Inst{20}    = 1; // L bit
-  let Inst{21}    = 1; // W bit
+  let Inst{21}    = 0; // W bit
+  let Inst{24}    = 0; // P bit
+  let Inst{27-25} = 0b000;
+}
+class AI3lddpo<dag oops, dag iops, Format f, InstrItinClass itin,
+             string opc, string asm, string cstr, list<dag> pattern>
+  : I<oops, iops, AddrMode3, Size4Bytes, IndexModePost, f, itin,
+      opc, asm, cstr, pattern> {
+  let Inst{4}     = 1;
+  let Inst{5}     = 0; // H bit
+  let Inst{6}     = 1; // S bit
+  let Inst{7}     = 1;
+  let Inst{20}    = 0; // L bit
+  let Inst{21}    = 0; // W bit
   let Inst{24}    = 0; // P bit
   let Inst{27-25} = 0b000;
 }
@@ -775,7 +815,20 @@ class AI3sthpo<dag oops, dag iops, Format f, InstrItinClass itin,
   let Inst{6}     = 0; // S bit
   let Inst{7}     = 1;
   let Inst{20}    = 0; // L bit
-  let Inst{21}    = 1; // W bit
+  let Inst{21}    = 0; // W bit
+  let Inst{24}    = 0; // P bit
+  let Inst{27-25} = 0b000;
+}
+class AI3stdpo<dag oops, dag iops, Format f, InstrItinClass itin,
+             string opc, string asm, string cstr, list<dag> pattern>
+  : I<oops, iops, AddrMode3, Size4Bytes, IndexModePost, f, itin,
+      opc, asm, cstr, pattern> {
+  let Inst{4}     = 1;
+  let Inst{5}     = 1; // H bit
+  let Inst{6}     = 1; // S bit
+  let Inst{7}     = 1;
+  let Inst{20}    = 0; // L bit
+  let Inst{21}    = 0; // W bit
   let Inst{24}    = 0; // P bit
   let Inst{27-25} = 0b000;
 }
@@ -1148,6 +1201,19 @@ class T2Iidxldst<bit signed, bits<2> opcod, bit load, bit pre,
   // (P, W) = (1, 1) Pre-indexed or (0, 1) Post-indexed
   let Inst{10} = pre; // The P bit.
   let Inst{8} = 1; // The W bit.
+}
+
+// Helper class for disassembly only
+// A6.3.16 & A6.3.17
+// T2Imac - Thumb2 multiply [accumulate, and absolute difference] instructions.
+class T2I_mac<bit long, bits<3> op22_20, bits<4> op7_4, dag oops, dag iops,
+             InstrItinClass itin, string opc, string asm, list<dag> pattern>
+  : T2I<oops, iops, itin, opc, asm, pattern> {
+  let Inst{31-27} = 0b11111;
+  let Inst{26-24} = 0b011;
+  let Inst{23} = long;
+  let Inst{22-20} = op22_20;
+  let Inst{7-4} = op7_4;
 }
 
 // Tv5Pat - Same as Pat<>, but requires V5T Thumb mode.

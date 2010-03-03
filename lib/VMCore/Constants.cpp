@@ -229,7 +229,7 @@ Constant::PossibleRelocationsTy Constant::getRelocationInfo() const {
 /// This handles breaking down a vector undef into undef elements, etc.  For
 /// constant exprs and other cases we can't handle, we return an empty vector.
 void Constant::getVectorElements(SmallVectorImpl<Constant*> &Elts) const {
-  assert(isa<VectorType>(getType()) && "Not a vector constant!");
+  assert(getType()->isVectorTy() && "Not a vector constant!");
   
   if (const ConstantVector *CV = dyn_cast<ConstantVector>(this)) {
     for (unsigned i = 0, e = CV->getNumOperands(); i != e; ++i)
@@ -944,7 +944,7 @@ bool ConstantFP::isValueValidForType(const Type *Ty, const APFloat& Val) {
 //                      Factory Function Implementation
 
 ConstantAggregateZero* ConstantAggregateZero::get(const Type* Ty) {
-  assert((isa<StructType>(Ty) || isa<ArrayType>(Ty) || isa<VectorType>(Ty)) &&
+  assert((Ty->isStructTy() || Ty->isArrayTy() || Ty->isVectorTy()) &&
          "Cannot create an aggregate zero of non-aggregate type!");
   
   LLVMContextImpl *pImpl = Ty->getContext().pImpl;
@@ -1239,8 +1239,8 @@ Constant *ConstantExpr::getTruncOrBitCast(Constant *C, const Type *Ty) {
 }
 
 Constant *ConstantExpr::getPointerCast(Constant *S, const Type *Ty) {
-  assert(isa<PointerType>(S->getType()) && "Invalid cast");
-  assert((Ty->isIntegerTy() || isa<PointerType>(Ty)) && "Invalid cast");
+  assert(S->getType()->isPointerTy() && "Invalid cast");
+  assert((Ty->isIntegerTy() || Ty->isPointerTy()) && "Invalid cast");
 
   if (Ty->isIntegerTy())
     return getCast(Instruction::PtrToInt, S, Ty);
@@ -1383,14 +1383,14 @@ Constant *ConstantExpr::getFPToSI(Constant *C, const Type *Ty) {
 }
 
 Constant *ConstantExpr::getPtrToInt(Constant *C, const Type *DstTy) {
-  assert(isa<PointerType>(C->getType()) && "PtrToInt source must be pointer");
+  assert(C->getType()->isPointerTy() && "PtrToInt source must be pointer");
   assert(DstTy->isIntegerTy() && "PtrToInt destination must be integral");
   return getFoldedCast(Instruction::PtrToInt, C, DstTy);
 }
 
 Constant *ConstantExpr::getIntToPtr(Constant *C, const Type *DstTy) {
   assert(C->getType()->isIntegerTy() && "IntToPtr source must be integral");
-  assert(isa<PointerType>(DstTy) && "IntToPtr destination must be a pointer");
+  assert(DstTy->isPointerTy() && "IntToPtr destination must be a pointer");
   return getFoldedCast(Instruction::IntToPtr, C, DstTy);
 }
 
@@ -1592,7 +1592,7 @@ Constant *ConstantExpr::getGetElementPtrTy(const Type *ReqTy, Constant *C,
                                                (Constant**)Idxs, NumIdx))
     return FC;          // Fold a few common cases...
 
-  assert(isa<PointerType>(C->getType()) &&
+  assert(C->getType()->isPointerTy() &&
          "Non-pointer type for constant GetElementPtr expression");
   // Look up the constant in the table first to ensure uniqueness
   std::vector<Constant*> ArgVec;
@@ -1619,7 +1619,7 @@ Constant *ConstantExpr::getInBoundsGetElementPtrTy(const Type *ReqTy,
                                                (Constant**)Idxs, NumIdx))
     return FC;          // Fold a few common cases...
 
-  assert(isa<PointerType>(C->getType()) &&
+  assert(C->getType()->isPointerTy() &&
          "Non-pointer type for constant GetElementPtr expression");
   // Look up the constant in the table first to ensure uniqueness
   std::vector<Constant*> ArgVec;
@@ -1727,7 +1727,7 @@ Constant *ConstantExpr::getExtractElementTy(const Type *ReqTy, Constant *Val,
 }
 
 Constant *ConstantExpr::getExtractElement(Constant *Val, Constant *Idx) {
-  assert(isa<VectorType>(Val->getType()) &&
+  assert(Val->getType()->isVectorTy() &&
          "Tried to create extractelement operation on non-vector type!");
   assert(Idx->getType()->isIntegerTy(32) &&
          "Extractelement index must be i32 type!");
@@ -1751,7 +1751,7 @@ Constant *ConstantExpr::getInsertElementTy(const Type *ReqTy, Constant *Val,
 
 Constant *ConstantExpr::getInsertElement(Constant *Val, Constant *Elt, 
                                          Constant *Idx) {
-  assert(isa<VectorType>(Val->getType()) &&
+  assert(Val->getType()->isVectorTy() &&
          "Tried to create insertelement operation on non-vector type!");
   assert(Elt->getType() == cast<VectorType>(Val->getType())->getElementType()
          && "Insertelement types must match!");
@@ -2113,7 +2113,52 @@ void ConstantStruct::replaceUsesOfWithOnConstant(Value *From, Value *To,
 
 void ConstantUnion::replaceUsesOfWithOnConstant(Value *From, Value *To,
                                                  Use *U) {
-  assert(false && "Implement replaceUsesOfWithOnConstant for unions");
+  assert(isa<Constant>(To) && "Cannot make Constant refer to non-constant!");
+  Constant *ToC = cast<Constant>(To);
+
+  assert(U == OperandList && "Union constants can only have one use!");
+  assert(getNumOperands() == 1 && "Union constants can only have one use!");
+  assert(getOperand(0) == From && "ReplaceAllUsesWith broken!");
+
+  std::pair<LLVMContextImpl::UnionConstantsTy::MapKey, ConstantUnion*> Lookup;
+  Lookup.first.first = getType();
+  Lookup.second = this;
+  Lookup.first.second = ToC;
+
+  LLVMContext &Context = getType()->getContext();
+  LLVMContextImpl *pImpl = Context.pImpl;
+
+  Constant *Replacement = 0;
+  if (ToC->isNullValue()) {
+    Replacement = ConstantAggregateZero::get(getType());
+  } else {
+    // Check to see if we have this union type already.
+    bool Exists;
+    LLVMContextImpl::UnionConstantsTy::MapTy::iterator I =
+      pImpl->UnionConstants.InsertOrGetItem(Lookup, Exists);
+    
+    if (Exists) {
+      Replacement = I->second;
+    } else {
+      // Okay, the new shape doesn't exist in the system yet.  Instead of
+      // creating a new constant union, inserting it, replaceallusesof'ing the
+      // old with the new, then deleting the old... just update the current one
+      // in place!
+      pImpl->UnionConstants.MoveConstantToNewSlot(this, I);
+      
+      // Update to the new value.
+      setOperand(0, ToC);
+      return;
+    }
+  }
+  
+  assert(Replacement != this && "I didn't contain From!");
+  
+  // Everyone using this now uses the replacement.
+  uncheckedReplaceAllUsesWith(Replacement);
+  
+  // Delete the old constant!
+  destroyConstant();
 }
 
 void ConstantVector::replaceUsesOfWithOnConstant(Value *From, Value *To,

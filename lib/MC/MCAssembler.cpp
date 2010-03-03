@@ -42,6 +42,8 @@ STATISTIC(EmittedFragments, "Number of emitted assembler fragments");
 static void WriteFileData(raw_ostream &OS, const MCSectionData &SD,
                           MachObjectWriter &MOW);
 
+static uint64_t WriteNopData(uint64_t Count, MachObjectWriter &MOW);
+
 /// isVirtualSection - Check if this is a section which does not actually exist
 /// in the object file.
 static bool isVirtualSection(const MCSection &Section) {
@@ -51,7 +53,7 @@ static bool isVirtualSection(const MCSection &Section) {
   return (Type == MCSectionMachO::S_ZEROFILL);
 }
 
-static unsigned getFixupKindLog2Size(MCFixupKind Kind) {
+static unsigned getFixupKindLog2Size(unsigned Kind) {
   switch (Kind) {
   default: llvm_unreachable("invalid fixup kind!");
   case X86::reloc_pcrel_1byte:
@@ -64,7 +66,7 @@ static unsigned getFixupKindLog2Size(MCFixupKind Kind) {
   }
 }
 
-static bool isFixupKindPCRel(MCFixupKind Kind) {
+static bool isFixupKindPCRel(unsigned Kind) {
   switch (Kind) {
   default:
     return false;
@@ -439,6 +441,7 @@ public:
                                      std::vector<MachRelocationEntry> &Relocs) {
     uint32_t Address = Fragment.getOffset() + Fixup.Offset;
     unsigned IsPCRel = 0;
+    unsigned Log2Size = getFixupKindLog2Size(Fixup.Kind);
     unsigned Type = RIT_Vanilla;
 
     // See <reloc.h>.
@@ -454,12 +457,10 @@ public:
       Value2 = SD->getFragment()->getAddress() + SD->getOffset();
     }
 
-    unsigned Log2Size = getFixupKindLog2Size(Fixup.Kind);
-
     // The value which goes in the fixup is current value of the expression.
     Fixup.FixedValue = Value - Value2 + Target.getConstant();
     if (isFixupKindPCRel(Fixup.Kind)) {
-      Fixup.FixedValue -= Address + (1 << Log2Size);
+      Fixup.FixedValue -= Address;
       IsPCRel = 1;
     }
 
@@ -507,6 +508,7 @@ public:
     uint32_t Value = 0;
     unsigned Index = 0;
     unsigned IsPCRel = 0;
+    unsigned Log2Size = getFixupKindLog2Size(Fixup.Kind);
     unsigned IsExtern = 0;
     unsigned Type = 0;
 
@@ -544,10 +546,8 @@ public:
     // The value which goes in the fixup is current value of the expression.
     Fixup.FixedValue = Value + Target.getConstant();
 
-    unsigned Log2Size = getFixupKindLog2Size(Fixup.Kind);
-
     if (isFixupKindPCRel(Fixup.Kind)) {
-      Fixup.FixedValue -= Address + (1<<Log2Size);
+      Fixup.FixedValue -= Address;
       IsPCRel = 1;
     }
 
@@ -1060,6 +1060,64 @@ void MCAssembler::LayoutSection(MCSectionData &SD) {
     SD.setFileSize(Address - SD.getAddress());
 }
 
+/// WriteNopData - Write optimal nops to the output file for the \arg Count
+/// bytes.  This returns the number of bytes written.  It may return 0 if
+/// the \arg Count is more than the maximum optimal nops.
+///
+/// FIXME this is X86 32-bit specific and should move to a better place.
+static uint64_t WriteNopData(uint64_t Count, MachObjectWriter &MOW) {
+  static const uint8_t Nops[16][16] = {
+    // nop
+    {0x90},
+    // xchg %ax,%ax
+    {0x66, 0x90},
+    // nopl (%[re]ax)
+    {0x0f, 0x1f, 0x00},
+    // nopl 0(%[re]ax)
+    {0x0f, 0x1f, 0x40, 0x00},
+    // nopl 0(%[re]ax,%[re]ax,1)
+    {0x0f, 0x1f, 0x44, 0x00, 0x00},
+    // nopw 0(%[re]ax,%[re]ax,1)
+    {0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00},
+    // nopl 0L(%[re]ax)
+    {0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00},
+    // nopl 0L(%[re]ax,%[re]ax,1)
+    {0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+    // nopw 0L(%[re]ax,%[re]ax,1)
+    {0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+    // nopw %cs:0L(%[re]ax,%[re]ax,1)
+    {0x66, 0x2e, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+    // nopl 0(%[re]ax,%[re]ax,1)
+    // nopw 0(%[re]ax,%[re]ax,1)
+    {0x0f, 0x1f, 0x44, 0x00, 0x00,
+     0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00},
+    // nopw 0(%[re]ax,%[re]ax,1)
+    // nopw 0(%[re]ax,%[re]ax,1)
+    {0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00,
+     0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00},
+    // nopw 0(%[re]ax,%[re]ax,1)
+    // nopl 0L(%[re]ax) */
+    {0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00,
+     0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00},
+    // nopl 0L(%[re]ax)
+    // nopl 0L(%[re]ax)
+    {0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00,
+     0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00},
+    // nopl 0L(%[re]ax)
+    // nopl 0L(%[re]ax,%[re]ax,1)
+    {0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00,
+     0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00}
+  };
+
+  if (Count > 15)
+    return 0;
+
+  for (uint64_t i = 0; i < Count; i++)
+    MOW.Write8 (uint8_t(Nops[Count - 1][i]));
+
+  return Count;
+}
+
 /// WriteFileData - Write the \arg F data to the output file.
 static void WriteFileData(raw_ostream &OS, const MCFragment &F,
                           MachObjectWriter &MOW) {
@@ -1082,6 +1140,14 @@ static void WriteFileData(raw_ostream &OS, const MCFragment &F,
                         Twine(AF.getValueSize()) +
                         "' is not a divisor of padding size '" +
                         Twine(AF.getFileSize()) + "'");
+
+    // See if we are aligning with nops, and if so do that first to try to fill
+    // the Count bytes.  Then if that did not fill any bytes or there are any
+    // bytes left to fill use the the Value and ValueSize to fill the rest.
+    if (AF.getEmitNops()) {
+      uint64_t NopByteCount = WriteNopData(Count, MOW);
+      Count -= NopByteCount;
+    }
 
     for (uint64_t i = 0; i != Count; ++i) {
       switch (AF.getValueSize()) {

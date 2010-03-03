@@ -419,8 +419,7 @@ PIC16TargetLowering::MakePIC16Libcall(PIC16ISD::PIC16Libcall Call,
      LowerCallTo(DAG.getEntryNode(), RetTy, isSigned, !isSigned, false,
                  false, 0, CallingConv::C, false,
                  /*isReturnValueUsed=*/true,
-                 Callee, Args, DAG, dl,
-                 DAG.GetOrdering(DAG.getEntryNode().getNode()));
+                 Callee, Args, DAG, dl);
 
   return CallInfo.first;
 }
@@ -1527,10 +1526,24 @@ bool PIC16TargetLowering::NeedToConvertToMemOp(SDValue Op, unsigned &MemOp,
     return true;
 
   if (isDirectLoad(Op.getOperand(1))) {
-    if (Op.getOperand(1).hasOneUse())
-      return false;
-    else 
-      MemOp = 1; 
+    if (Op.getOperand(1).hasOneUse()) {
+      // Legal and profitable folding check uses the NodeId of DAG nodes.
+      // This NodeId is assigned by topological order. Therefore first 
+      // assign topological order then perform legal and profitable check.
+      // Note:- Though this ordering is done before begining with legalization,
+      // newly added node during legalization process have NodeId=-1 (NewNode)
+      // therefore before performing any check proper ordering of the node is
+      // required.
+      DAG.AssignTopologicalOrder();
+
+      // Direct load operands are folded in binary operations. But before folding
+      // verify if this folding is legal. Fold only if it is legal otherwise
+      // convert this direct load to a separate memory operation.
+      if(ISel->IsLegalToFold(Op.getOperand(1), Op.getNode(), Op.getNode()))
+         return false;
+      else 
+         MemOp = 1; 
+    }
   }
   return true;
 }  

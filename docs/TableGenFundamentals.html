@@ -155,7 +155,6 @@ file prints this (at the time of this writing):</p>
   <b>bit</b> hasCtrlDep = 0;
   <b>bit</b> isNotDuplicable = 0;
   <b>bit</b> hasSideEffects = 0;
-  <b>bit</b> mayHaveSideEffects = 0;
   <b>bit</b> neverHasSideEffects = 0;
   InstrItinClass Itinerary = NoItinerary;
   <b>string</b> Constraints = "";
@@ -189,7 +188,7 @@ backend, and is only shown as an example.</p>
 
 <p>As you can see, a lot of information is needed for every instruction
 supported by the code generator, and specifying it all manually would be
-unmaintainble, prone to bugs, and tiring to do in the first place.  Because we
+unmaintainable, prone to bugs, and tiring to do in the first place.  Because we
 are using TableGen, all of the information was derived from the following
 definition:</p>
 
@@ -798,7 +797,7 @@ This should highlight the APIs in <tt>TableGen/Record.h</tt>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-01-05 20:11:42 +0100 (Tue, 05 Jan 2010) $
+  Last modified: $Date: 2010-02-28 00:47:46 +0100 (Sun, 28 Feb 2010) $
 </address>
 
 </body>

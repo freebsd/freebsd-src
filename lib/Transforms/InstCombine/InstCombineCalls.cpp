@@ -319,7 +319,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Op1)) {
       if (GV->hasDefinitiveInitializer()) {
         Constant *C = GV->getInitializer();
-        size_t globalSize = TD->getTypeAllocSize(C->getType());
+        uint64_t globalSize = TD->getTypeAllocSize(C->getType());
         return ReplaceInstUsesWith(CI, ConstantInt::get(ReturnTy, globalSize));
       } else {
         Constant *RetVal = ConstantInt::get(ReturnTy, Min ? 0 : -1ULL);
@@ -341,16 +341,21 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
       // Get what we're pointing to and its size. 
       const PointerType *BaseType = 
         cast<PointerType>(Operand->getType());
-      size_t Size = TD->getTypeAllocSize(BaseType->getElementType());
+      uint64_t Size = TD->getTypeAllocSize(BaseType->getElementType());
       
       // Get the current byte offset into the thing. Use the original
       // operand in case we're looking through a bitcast.
       SmallVector<Value*, 8> Ops(CE->op_begin()+1, CE->op_end());
       const PointerType *OffsetType =
         cast<PointerType>(GEP->getPointerOperand()->getType());
-      size_t Offset = TD->getIndexedOffset(OffsetType, &Ops[0], Ops.size());
+      uint64_t Offset = TD->getIndexedOffset(OffsetType, &Ops[0], Ops.size());
 
-      assert(Size >= Offset);
+      if (Size < Offset) {
+        // Out of bound reference? Negative index normalized to large
+        // index? Just return "I don't know".
+        Constant *RetVal = ConstantInt::get(ReturnTy, Min ? 0 : -1ULL);
+        return ReplaceInstUsesWith(CI, RetVal);
+      }
       
       Constant *RetVal = ConstantInt::get(ReturnTy, Size-Offset);
       return ReplaceInstUsesWith(CI, RetVal);
@@ -831,7 +836,7 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
   const Type *OldRetTy = Caller->getType();
   const Type *NewRetTy = FT->getReturnType();
 
-  if (isa<StructType>(NewRetTy))
+  if (NewRetTy->isStructTy())
     return false; // TODO: Handle multiple return values.
 
   // Check to see if we are changing the return type...
@@ -839,9 +844,9 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
     if (Callee->isDeclaration() &&
         // Conversion is ok if changing from one pointer type to another or from
         // a pointer to an integer of the same size.
-        !((isa<PointerType>(OldRetTy) || !TD ||
+        !((OldRetTy->isPointerTy() || !TD ||
            OldRetTy == TD->getIntPtrType(Caller->getContext())) &&
-          (isa<PointerType>(NewRetTy) || !TD ||
+          (NewRetTy->isPointerTy() || !TD ||
            NewRetTy == TD->getIntPtrType(Caller->getContext()))))
       return false;   // Cannot transform this return value.
 
@@ -888,9 +893,9 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
     // Converting from one pointer type to another or between a pointer and an
     // integer of the same size is safe even if we do not have a body.
     bool isConvertible = ActTy == ParamTy ||
-      (TD && ((isa<PointerType>(ParamTy) ||
+      (TD && ((ParamTy->isPointerTy() ||
       ParamTy == TD->getIntPtrType(Caller->getContext())) &&
-              (isa<PointerType>(ActTy) ||
+              (ActTy->isPointerTy() ||
               ActTy == TD->getIntPtrType(Caller->getContext()))));
     if (Callee->isDeclaration() && !isConvertible) return false;
   }

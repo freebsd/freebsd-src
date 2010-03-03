@@ -73,7 +73,7 @@ architecture which is not compatible with the current system.
 =item B<-march>=I<arch>
 
 Specify the architecture for which to generate assembly, overriding the target
-encoded in the bitcode file.  See the output of B<llc --help> for a list of
+encoded in the bitcode file.  See the output of B<llc -help> for a list of
 valid architectures.  By default this is inferred from the target triple or
 autodetected to the current architecture.
 
@@ -170,7 +170,7 @@ Instruction schedulers available (before register allocation):
 
 =item B<-regalloc>=I<allocator>
 
-Register allocator to use: (default = linearscan)
+Register allocator to use (default=linearscan)
 
     =bigblock: Big-block register allocator 
     =linearscan: linear scan register allocator =local -   local register allocator 
@@ -186,7 +186,7 @@ Choose relocation model from:
 
 =item B<-spiller>
 
-Spiller to use: (default: local) 
+Spiller to use (default=local) 
 
     =simple: simple spiller 
     =local: local spiller 

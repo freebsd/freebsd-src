@@ -57,7 +57,7 @@
 using namespace llvm;
 
 static RegisterRegAlloc
-registerPBQPRepAlloc("pbqp", "PBQP register allocator.",
+registerPBQPRepAlloc("pbqp", "PBQP register allocator",
                        llvm::createPBQPRegisterAllocator);
 
 static cl::opt<bool>
@@ -866,10 +866,6 @@ bool PBQPRegAlloc::runOnMachineFunction(MachineFunction &MF) {
 
   // Find the vreg intervals in need of allocation.
   findVRegIntervalsToAlloc();
-
-  // If there aren't any then we're done here.
-  if (vregIntervalsToAlloc.empty() && emptyVRegIntervals.empty())
-    return true;
 
   // If there are non-empty intervals allocate them using pbqp.
   if (!vregIntervalsToAlloc.empty()) {

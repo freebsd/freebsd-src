@@ -238,7 +238,18 @@ public:
         LIndex = DSI;
       }
     }
-    setLastInsn(LastInsn);
+
+    unsigned CurrentLastInsnIndex = 0;
+    if (const MachineInstr *CL = getLastInsn()) 
+      CurrentLastInsnIndex = MIIndexMap[CL];
+    unsigned FIndex = MIIndexMap[getFirstInsn()];
+
+    // Set LastInsn as the last instruction for this scope only if
+    // it follows 
+    //  1) this scope's first instruction and
+    //  2) current last instruction for this scope, if any.
+    if (LIndex >= CurrentLastInsnIndex && LIndex >= FIndex)
+      setLastInsn(LastInsn);
   }
 
 #ifndef NDEBUG
@@ -1166,7 +1177,9 @@ DIE *DwarfDebug::createSubprogramDIE(const DISubprogram &SP, bool MakeDecl) {
     return SPDie;
 
   SPDie = new DIE(dwarf::DW_TAG_subprogram);
-  addString(SPDie, dwarf::DW_AT_name, dwarf::DW_FORM_string, SP.getName());
+  // Constructors and operators for anonymous aggregates do not have names.
+  if (!SP.getName().empty())
+    addString(SPDie, dwarf::DW_AT_name, dwarf::DW_FORM_string, SP.getName());
 
   StringRef LinkageName = SP.getLinkageName();
   if (!LinkageName.empty())

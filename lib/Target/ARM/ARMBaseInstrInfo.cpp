@@ -643,6 +643,13 @@ ARMBaseInstrInfo::copyRegToReg(MachineBasicBlock &MBB,
   DebugLoc DL = DebugLoc::getUnknownLoc();
   if (I != MBB.end()) DL = I->getDebugLoc();
 
+  // tGPR is used sometimes in ARM instructions that need to avoid using
+  // certain registers.  Just treat it as GPR here.
+  if (DestRC == ARM::tGPRRegisterClass)
+    DestRC = ARM::GPRRegisterClass;
+  if (SrcRC == ARM::tGPRRegisterClass)
+    SrcRC = ARM::GPRRegisterClass;
+
   if (DestRC != SrcRC) {
     if (DestRC->getSize() != SrcRC->getSize())
       return false;
@@ -697,6 +704,11 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                             MFI.getObjectSize(FI),
                             Align);
 
+  // tGPR is used sometimes in ARM instructions that need to avoid using
+  // certain registers.  Just treat it as GPR here.
+  if (RC == ARM::tGPRRegisterClass)
+    RC = ARM::GPRRegisterClass;
+
   if (RC == ARM::GPRRegisterClass) {
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::STR))
                    .addReg(SrcReg, getKillRegState(isKill))
@@ -744,6 +756,11 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                             MachineMemOperand::MOLoad, 0,
                             MFI.getObjectSize(FI),
                             Align);
+
+  // tGPR is used sometimes in ARM instructions that need to avoid using
+  // certain registers.  Just treat it as GPR here.
+  if (RC == ARM::tGPRRegisterClass)
+    RC = ARM::GPRRegisterClass;
 
   if (RC == ARM::GPRRegisterClass) {
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::LDR), DestReg)
@@ -1020,9 +1037,8 @@ ARMBaseInstrInfo::duplicate(MachineInstr *Orig, MachineFunction &MF) const {
   return MI;
 }
 
-bool ARMBaseInstrInfo::isIdentical(const MachineInstr *MI0,
-                                  const MachineInstr *MI1,
-                                  const MachineRegisterInfo *MRI) const {
+bool ARMBaseInstrInfo::produceSameValue(const MachineInstr *MI0,
+                                        const MachineInstr *MI1) const {
   int Opcode = MI0->getOpcode();
   if (Opcode == ARM::t2LDRpci ||
       Opcode == ARM::t2LDRpci_pic ||
@@ -1051,7 +1067,7 @@ bool ARMBaseInstrInfo::isIdentical(const MachineInstr *MI0,
     return ACPV0->hasSameValue(ACPV1);
   }
 
-  return TargetInstrInfoImpl::isIdentical(MI0, MI1, MRI);
+  return MI0->isIdenticalTo(MI1, MachineInstr::IgnoreVRegDefs);
 }
 
 /// getInstrPredicate - If instruction is predicated, returns its predicate

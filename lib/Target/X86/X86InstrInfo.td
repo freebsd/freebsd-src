@@ -343,17 +343,36 @@ def X86_COND_O   : PatLeaf<(i8 13)>;
 def X86_COND_P   : PatLeaf<(i8 14)>; // alt. COND_PE
 def X86_COND_S   : PatLeaf<(i8 15)>;
 
-def i16immSExt8  : PatLeaf<(i16 imm), [{
-  // i16immSExt8 predicate - True if the 16-bit immediate fits in a 8-bit
-  // sign extended field.
-  return (int16_t)N->getZExtValue() == (int8_t)N->getZExtValue();
+def immSext8 : PatLeaf<(imm), [{
+  return N->getSExtValue() == (int8_t)N->getSExtValue();
 }]>;
 
-def i32immSExt8  : PatLeaf<(i32 imm), [{
-  // i32immSExt8 predicate - True if the 32-bit immediate fits in a 8-bit
-  // sign extended field.
-  return (int32_t)N->getZExtValue() == (int8_t)N->getZExtValue();
+def i16immSExt8  : PatLeaf<(i16 immSext8)>;
+def i32immSExt8  : PatLeaf<(i32 immSext8)>;
+
+/// Load patterns: these constraint the match to the right address space.
+def dsload : PatFrag<(ops node:$ptr), (load node:$ptr), [{
+  if (const Value *Src = cast<LoadSDNode>(N)->getSrcValue())
+    if (const PointerType *PT = dyn_cast<PointerType>(Src->getType()))
+      if (PT->getAddressSpace() > 255)
+        return false;
+  return true;
 }]>;
+
+def gsload : PatFrag<(ops node:$ptr), (load node:$ptr), [{
+  if (const Value *Src = cast<LoadSDNode>(N)->getSrcValue())
+    if (const PointerType *PT = dyn_cast<PointerType>(Src->getType()))
+      return PT->getAddressSpace() == 256;
+  return false;
+}]>;
+
+def fsload : PatFrag<(ops node:$ptr), (load node:$ptr), [{
+  if (const Value *Src = cast<LoadSDNode>(N)->getSrcValue())
+    if (const PointerType *PT = dyn_cast<PointerType>(Src->getType()))
+      return PT->getAddressSpace() == 257;
+  return false;
+}]>;
+
 
 // Helper fragments for loads.
 // It's always safe to treat a anyext i16 load as a i32 load if the i16 is
@@ -372,8 +391,7 @@ def loadi16 : PatFrag<(ops node:$ptr), (i16 (unindexedload node:$ptr)), [{
   return false;
 }]>;
 
-def loadi16_anyext : PatFrag<(ops node:$ptr), (i32 (unindexedload node:$ptr)),
-[{
+def loadi16_anyext : PatFrag<(ops node:$ptr), (i32 (unindexedload node:$ptr)),[{
   LoadSDNode *LD = cast<LoadSDNode>(N);
   if (const Value *Src = LD->getSrcValue())
     if (const PointerType *PT = dyn_cast<PointerType>(Src->getType()))
@@ -399,72 +417,11 @@ def loadi32 : PatFrag<(ops node:$ptr), (i32 (unindexedload node:$ptr)), [{
   return false;
 }]>;
 
-def nvloadi32 : PatFrag<(ops node:$ptr), (i32 (unindexedload node:$ptr)), [{
-  LoadSDNode *LD = cast<LoadSDNode>(N);
-  if (const Value *Src = LD->getSrcValue())
-    if (const PointerType *PT = dyn_cast<PointerType>(Src->getType()))
-      if (PT->getAddressSpace() > 255)
-        return false;
-  if (LD->isVolatile())
-    return false;
-  ISD::LoadExtType ExtType = LD->getExtensionType();
-  if (ExtType == ISD::NON_EXTLOAD)
-    return true;
-  if (ExtType == ISD::EXTLOAD)
-    return LD->getAlignment() >= 4;
-  return false;
-}]>;
-
-def gsload : PatFrag<(ops node:$ptr), (load node:$ptr), [{
-  if (const Value *Src = cast<LoadSDNode>(N)->getSrcValue())
-    if (const PointerType *PT = dyn_cast<PointerType>(Src->getType()))
-      return PT->getAddressSpace() == 256;
-  return false;
-}]>;
-
-def fsload : PatFrag<(ops node:$ptr), (load node:$ptr), [{
-  if (const Value *Src = cast<LoadSDNode>(N)->getSrcValue())
-    if (const PointerType *PT = dyn_cast<PointerType>(Src->getType()))
-      return PT->getAddressSpace() == 257;
-  return false;
-}]>;
-
-def loadi8  : PatFrag<(ops node:$ptr), (i8  (load node:$ptr)), [{
-  if (const Value *Src = cast<LoadSDNode>(N)->getSrcValue())
-    if (const PointerType *PT = dyn_cast<PointerType>(Src->getType()))
-      if (PT->getAddressSpace() > 255)
-        return false;
-  return true;
-}]>;
-def loadi64 : PatFrag<(ops node:$ptr), (i64 (load node:$ptr)), [{
-  if (const Value *Src = cast<LoadSDNode>(N)->getSrcValue())
-    if (const PointerType *PT = dyn_cast<PointerType>(Src->getType()))
-      if (PT->getAddressSpace() > 255)
-        return false;
-  return true;
-}]>;
-
-def loadf32 : PatFrag<(ops node:$ptr), (f32 (load node:$ptr)), [{
-  if (const Value *Src = cast<LoadSDNode>(N)->getSrcValue())
-    if (const PointerType *PT = dyn_cast<PointerType>(Src->getType()))
-      if (PT->getAddressSpace() > 255)
-        return false;
-  return true;
-}]>;
-def loadf64 : PatFrag<(ops node:$ptr), (f64 (load node:$ptr)), [{
-  if (const Value *Src = cast<LoadSDNode>(N)->getSrcValue())
-    if (const PointerType *PT = dyn_cast<PointerType>(Src->getType()))
-      if (PT->getAddressSpace() > 255)
-        return false;
-  return true;
-}]>;
-def loadf80 : PatFrag<(ops node:$ptr), (f80 (load node:$ptr)), [{
-  if (const Value *Src = cast<LoadSDNode>(N)->getSrcValue())
-    if (const PointerType *PT = dyn_cast<PointerType>(Src->getType()))
-      if (PT->getAddressSpace() > 255)
-        return false;
-  return true;
-}]>;
+def loadi8  : PatFrag<(ops node:$ptr), (i8  (dsload node:$ptr))>;
+def loadi64 : PatFrag<(ops node:$ptr), (i64 (dsload node:$ptr))>;
+def loadf32 : PatFrag<(ops node:$ptr), (f32 (dsload node:$ptr))>;
+def loadf64 : PatFrag<(ops node:$ptr), (f64 (dsload node:$ptr))>;
+def loadf80 : PatFrag<(ops node:$ptr), (f80 (dsload node:$ptr))>;
 
 def sextloadi16i8  : PatFrag<(ops node:$ptr), (i16 (sextloadi8 node:$ptr))>;
 def sextloadi32i8  : PatFrag<(ops node:$ptr), (i32 (sextloadi8 node:$ptr))>;
@@ -1037,7 +994,7 @@ def MOV16rr_REV : I<0x8B, MRMSrcReg, (outs GR16:$dst), (ins GR16:$src),
 def MOV32rr_REV : I<0x8B, MRMSrcReg, (outs GR32:$dst), (ins GR32:$src),
                     "mov{l}\t{$src, $dst|$dst, $src}", []>;
 
-let canFoldAsLoad = 1, isReMaterializable = 1, mayHaveSideEffects = 1 in {
+let canFoldAsLoad = 1, isReMaterializable = 1 in {
 def MOV8rm  : I<0x8A, MRMSrcMem, (outs GR8 :$dst), (ins i8mem :$src),
                 "mov{b}\t{$src, $dst|$dst, $src}",
                 [(set GR8:$dst, (loadi8 addr:$src))]>;
@@ -1071,7 +1028,7 @@ def MOV8mr_NOREX : I<0x88, MRMDestMem,
                      (outs), (ins i8mem_NOREX:$dst, GR8_NOREX:$src),
                      "mov{b}\t{$src, $dst|$dst, $src}  # NOREX", []>;
 let mayLoad = 1,
-    canFoldAsLoad = 1, isReMaterializable = 1, mayHaveSideEffects = 1 in
+    canFoldAsLoad = 1, isReMaterializable = 1 in
 def MOV8rm_NOREX : I<0x8A, MRMSrcMem,
                      (outs GR8_NOREX:$dst), (ins i8mem_NOREX:$src),
                      "mov{b}\t{$src, $dst|$dst, $src}  # NOREX", []>;
@@ -1156,7 +1113,7 @@ def IMUL32m : I<0xF7, MRM5m, (outs), (ins i32mem:$src),
 } // neverHasSideEffects
 
 // unsigned division/remainder
-let Defs = [AL,AH,EFLAGS], Uses = [AX] in
+let Defs = [AX,EFLAGS], Uses = [AX] in
 def DIV8r  : I<0xF6, MRM6r, (outs),  (ins GR8:$src),    // AX/r8 = AL,AH
                "div{b}\t$src", []>;
 let Defs = [AX,DX,EFLAGS], Uses = [AX,DX] in
@@ -4442,12 +4399,6 @@ def : Pat<(i16 (anyext GR8 :$src)), (MOVZX16rr8  GR8 :$src)>;
 def : Pat<(i32 (anyext GR8 :$src)), (MOVZX32rr8  GR8 :$src)>;
 def : Pat<(i32 (anyext GR16:$src)), (MOVZX32rr16 GR16:$src)>;
 
-// (and (i32 load), 255) -> (zextload i8)
-def : Pat<(i32 (and (nvloadi32 addr:$src), (i32 255))),
-          (MOVZX32rm8 addr:$src)>;
-def : Pat<(i32 (and (nvloadi32 addr:$src), (i32 65535))),
-          (MOVZX32rm16 addr:$src)>;
-
 //===----------------------------------------------------------------------===//
 // Some peepholes
 //===----------------------------------------------------------------------===//
@@ -4543,43 +4494,43 @@ def : Pat<(shl GR16:$src1, (i8 1)), (ADD16rr GR16:$src1, GR16:$src1)>;
 def : Pat<(shl GR32:$src1, (i8 1)), (ADD32rr GR32:$src1, GR32:$src1)>;
 
 // (shl x (and y, 31)) ==> (shl x, y)
-def : Pat<(shl GR8:$src1, (and CL:$amt, 31)),
+def : Pat<(shl GR8:$src1, (and CL, 31)),
           (SHL8rCL GR8:$src1)>;
-def : Pat<(shl GR16:$src1, (and CL:$amt, 31)),
+def : Pat<(shl GR16:$src1, (and CL, 31)),
           (SHL16rCL GR16:$src1)>;
-def : Pat<(shl GR32:$src1, (and CL:$amt, 31)),
+def : Pat<(shl GR32:$src1, (and CL, 31)),
           (SHL32rCL GR32:$src1)>;
-def : Pat<(store (shl (loadi8 addr:$dst), (and CL:$amt, 31)), addr:$dst),
+def : Pat<(store (shl (loadi8 addr:$dst), (and CL, 31)), addr:$dst),
           (SHL8mCL addr:$dst)>;
-def : Pat<(store (shl (loadi16 addr:$dst), (and CL:$amt, 31)), addr:$dst),
+def : Pat<(store (shl (loadi16 addr:$dst), (and CL, 31)), addr:$dst),
           (SHL16mCL addr:$dst)>;
-def : Pat<(store (shl (loadi32 addr:$dst), (and CL:$amt, 31)), addr:$dst),
+def : Pat<(store (shl (loadi32 addr:$dst), (and CL, 31)), addr:$dst),
           (SHL32mCL addr:$dst)>;
 
-def : Pat<(srl GR8:$src1, (and CL:$amt, 31)),
+def : Pat<(srl GR8:$src1, (and CL, 31)),
           (SHR8rCL GR8:$src1)>;
-def : Pat<(srl GR16:$src1, (and CL:$amt, 31)),
+def : Pat<(srl GR16:$src1, (and CL, 31)),
           (SHR16rCL GR16:$src1)>;
-def : Pat<(srl GR32:$src1, (and CL:$amt, 31)),
+def : Pat<(srl GR32:$src1, (and CL, 31)),
           (SHR32rCL GR32:$src1)>;
-def : Pat<(store (srl (loadi8 addr:$dst), (and CL:$amt, 31)), addr:$dst),
+def : Pat<(store (srl (loadi8 addr:$dst), (and CL, 31)), addr:$dst),
           (SHR8mCL addr:$dst)>;
-def : Pat<(store (srl (loadi16 addr:$dst), (and CL:$amt, 31)), addr:$dst),
+def : Pat<(store (srl (loadi16 addr:$dst), (and CL, 31)), addr:$dst),
           (SHR16mCL addr:$dst)>;
-def : Pat<(store (srl (loadi32 addr:$dst), (and CL:$amt, 31)), addr:$dst),
+def : Pat<(store (srl (loadi32 addr:$dst), (and CL, 31)), addr:$dst),
           (SHR32mCL addr:$dst)>;
 
-def : Pat<(sra GR8:$src1, (and CL:$amt, 31)),
+def : Pat<(sra GR8:$src1, (and CL, 31)),
           (SAR8rCL GR8:$src1)>;
-def : Pat<(sra GR16:$src1, (and CL:$amt, 31)),
+def : Pat<(sra GR16:$src1, (and CL, 31)),
           (SAR16rCL GR16:$src1)>;
-def : Pat<(sra GR32:$src1, (and CL:$amt, 31)),
+def : Pat<(sra GR32:$src1, (and CL, 31)),
           (SAR32rCL GR32:$src1)>;
-def : Pat<(store (sra (loadi8 addr:$dst), (and CL:$amt, 31)), addr:$dst),
+def : Pat<(store (sra (loadi8 addr:$dst), (and CL, 31)), addr:$dst),
           (SAR8mCL addr:$dst)>;
-def : Pat<(store (sra (loadi16 addr:$dst), (and CL:$amt, 31)), addr:$dst),
+def : Pat<(store (sra (loadi16 addr:$dst), (and CL, 31)), addr:$dst),
           (SAR16mCL addr:$dst)>;
-def : Pat<(store (sra (loadi32 addr:$dst), (and CL:$amt, 31)), addr:$dst),
+def : Pat<(store (sra (loadi32 addr:$dst), (and CL, 31)), addr:$dst),
           (SAR32mCL addr:$dst)>;
 
 // (or (x >> c) | (y << (32 - c))) ==> (shrd32 x, y, c)
@@ -4600,11 +4551,11 @@ def : Pat<(store (or (srl (loadi32 addr:$dst), (i8 (trunc ECX:$amt))),
                  addr:$dst),
           (SHRD32mrCL addr:$dst, GR32:$src2)>;
 
-def : Pat<(shrd GR32:$src1, (i8 imm:$amt1), GR32:$src2, (i8 imm:$amt2)),
+def : Pat<(shrd GR32:$src1, (i8 imm:$amt1), GR32:$src2, (i8 imm/*:$amt2*/)),
           (SHRD32rri8 GR32:$src1, GR32:$src2, (i8 imm:$amt1))>;
 
 def : Pat<(store (shrd (loadi32 addr:$dst), (i8 imm:$amt1),
-                       GR32:$src2, (i8 imm:$amt2)), addr:$dst),
+                       GR32:$src2, (i8 imm/*:$amt2*/)), addr:$dst),
           (SHRD32mri8 addr:$dst, GR32:$src2, (i8 imm:$amt1))>;
 
 // (or (x << c) | (y >> (32 - c))) ==> (shld32 x, y, c)
@@ -4625,11 +4576,11 @@ def : Pat<(store (or (shl (loadi32 addr:$dst), (i8 (trunc ECX:$amt))),
                  addr:$dst),
           (SHLD32mrCL addr:$dst, GR32:$src2)>;
 
-def : Pat<(shld GR32:$src1, (i8 imm:$amt1), GR32:$src2, (i8 imm:$amt2)),
+def : Pat<(shld GR32:$src1, (i8 imm:$amt1), GR32:$src2, (i8 imm/*:$amt2*/)),
           (SHLD32rri8 GR32:$src1, GR32:$src2, (i8 imm:$amt1))>;
 
 def : Pat<(store (shld (loadi32 addr:$dst), (i8 imm:$amt1),
-                       GR32:$src2, (i8 imm:$amt2)), addr:$dst),
+                       GR32:$src2, (i8 imm/*:$amt2*/)), addr:$dst),
           (SHLD32mri8 addr:$dst, GR32:$src2, (i8 imm:$amt1))>;
 
 // (or (x >> c) | (y << (16 - c))) ==> (shrd16 x, y, c)
@@ -4650,11 +4601,11 @@ def : Pat<(store (or (srl (loadi16 addr:$dst), (i8 (trunc CX:$amt))),
                  addr:$dst),
           (SHRD16mrCL addr:$dst, GR16:$src2)>;
 
-def : Pat<(shrd GR16:$src1, (i8 imm:$amt1), GR16:$src2, (i8 imm:$amt2)),
+def : Pat<(shrd GR16:$src1, (i8 imm:$amt1), GR16:$src2, (i8 imm/*:$amt2*/)),
           (SHRD16rri8 GR16:$src1, GR16:$src2, (i8 imm:$amt1))>;
 
 def : Pat<(store (shrd (loadi16 addr:$dst), (i8 imm:$amt1),
-                       GR16:$src2, (i8 imm:$amt2)), addr:$dst),
+                       GR16:$src2, (i8 imm/*:$amt2*/)), addr:$dst),
           (SHRD16mri8 addr:$dst, GR16:$src2, (i8 imm:$amt1))>;
 
 // (or (x << c) | (y >> (16 - c))) ==> (shld16 x, y, c)
@@ -4675,11 +4626,11 @@ def : Pat<(store (or (shl (loadi16 addr:$dst), (i8 (trunc CX:$amt))),
                  addr:$dst),
           (SHLD16mrCL addr:$dst, GR16:$src2)>;
 
-def : Pat<(shld GR16:$src1, (i8 imm:$amt1), GR16:$src2, (i8 imm:$amt2)),
+def : Pat<(shld GR16:$src1, (i8 imm:$amt1), GR16:$src2, (i8 imm/*:$amt2*/)),
           (SHLD16rri8 GR16:$src1, GR16:$src2, (i8 imm:$amt1))>;
 
 def : Pat<(store (shld (loadi16 addr:$dst), (i8 imm:$amt1),
-                       GR16:$src2, (i8 imm:$amt2)), addr:$dst),
+                       GR16:$src2, (i8 imm/*:$amt2*/)), addr:$dst),
           (SHLD16mri8 addr:$dst, GR16:$src2, (i8 imm:$amt1))>;
 
 // (anyext (setcc_carry)) -> (setcc_carry)

@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language:   llvm
 " Maintainer: The LLVM team, http://llvm.org/
-" Updated:    2003-06-02
+" Version:      $Revision: 97271 $
 
 if version < 600
   syntax clear
@@ -52,11 +52,12 @@ syn keyword llvmKeyword x86_stdcallcc x86_fastcallcc
 syn keyword llvmKeyword signext zeroext inreg sret nounwind noreturn
 syn keyword llvmKeyword nocapture byval nest readnone readonly noalias
 syn keyword llvmKeyword inlinehint noinline alwaysinline optsize ssp sspreq
-syn keyword llvmKeyword noredzone noimplicitfloat naked
+syn keyword llvmKeyword noredzone noimplicitfloat naked alignstack
 syn keyword llvmKeyword module asm align tail to
 syn keyword llvmKeyword addrspace section alias sideeffect c gc
 syn keyword llvmKeyword target datalayout triple
 syn keyword llvmKeyword blockaddress
+syn keyword llvmKeyword union
 
 " Obsolete keywords.
 syn keyword llvmError  uninitialized implementation

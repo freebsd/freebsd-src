@@ -18,6 +18,7 @@
 namespace llvm {
   template<typename T>
   class SmallVectorImpl;
+  class APInt;
 
   /// StringRef - Represent a constant reference to a string, i.e. a character
   /// array and a length, which need not be null terminated.
@@ -273,6 +274,19 @@ namespace llvm {
 
     // TODO: Provide overloads for int/unsigned that check for overflow.
 
+    /// getAsInteger - Parse the current string as an integer of the
+    /// specified radix, or of an autosensed radix if the radix given
+    /// is 0.  The current value in Result is discarded, and the
+    /// storage is changed to be wide enough to store the parsed
+    /// integer.
+    ///
+    /// Returns true if the string does not solely consist of a valid
+    /// non-empty number in the appropriate base.
+    ///
+    /// APInt::fromString is superficially similar but assumes the
+    /// string is well-formed in the given radix.
+    bool getAsInteger(unsigned Radix, APInt &Result) const;
+
     /// @}
     /// @name Substring Operations
     /// @{
@@ -355,7 +369,7 @@ namespace llvm {
     /// \param A - Where to put the substrings.
     /// \param Separator - The string to split on.
     /// \param MaxSplit - The maximum number of times the string is split.
-    /// \parm KeepEmpty - True if empty substring should be added.
+    /// \param KeepEmpty - True if empty substring should be added.
     void split(SmallVectorImpl<StringRef> &A,
                StringRef Separator, int MaxSplit = -1,
                bool KeepEmpty = true) const;
