@@ -147,7 +147,7 @@ auth_domd5auth(struct config *config)
 			lprintf(-1, "Server failed to authenticate itself to client\n");
 			return (STATUS_FAILURE);
 		}
-		lprintf(2, "MD5 authentication successfull\n");
+		lprintf(2, "MD5 authentication successful\n");
 		return (STATUS_SUCCESS);
 	}
 	if (strcmp(cmd, "!") == 0) {
