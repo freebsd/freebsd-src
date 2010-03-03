@@ -626,6 +626,8 @@ Parser::OwningExprResult Parser::ParseCastExpression(bool isUnaryExpression,
           Next.is(tok::l_paren)) {
         // If TryAnnotateTypeOrScopeToken annotates the token, tail recurse.
         if (TryAnnotateTypeOrScopeToken())
+          return ExprError();
+        if (!Tok.is(tok::identifier))
           return ParseCastExpression(isUnaryExpression, isAddressOfOperand);
       }
     }
@@ -790,7 +792,7 @@ Parser::OwningExprResult Parser::ParseCastExpression(bool isUnaryExpression,
 
     if (SavedKind == tok::kw_typename) {
       // postfix-expression: typename-specifier '(' expression-list[opt] ')'
-      if (!TryAnnotateTypeOrScopeToken())
+      if (TryAnnotateTypeOrScopeToken())
         return ExprError();
     }
 
@@ -852,6 +854,8 @@ Parser::OwningExprResult Parser::ParseCastExpression(bool isUnaryExpression,
     // ::foo::bar -> global qualified name etc.   If TryAnnotateTypeOrScopeToken
     // annotates the token, tail recurse.
     if (TryAnnotateTypeOrScopeToken())
+      return ExprError();
+    if (!Tok.is(tok::coloncolon))
       return ParseCastExpression(isUnaryExpression, isAddressOfOperand);
 
     // ::new -> [C++] new-expression
@@ -996,12 +1000,16 @@ Parser::ParsePostfixExpressionSuffix(OwningExprResult LHS) {
 
       CXXScopeSpec SS;
       Action::TypeTy *ObjectType = 0;
+      bool MayBePseudoDestructor = false;
       if (getLang().CPlusPlus && !LHS.isInvalid()) {
         LHS = Actions.ActOnStartCXXMemberReference(CurScope, move(LHS),
-                                                   OpLoc, OpKind, ObjectType);
+                                                   OpLoc, OpKind, ObjectType,
+                                                   MayBePseudoDestructor);
         if (LHS.isInvalid())
           break;
-        ParseOptionalCXXScopeSpecifier(SS, ObjectType, false);
+
+        ParseOptionalCXXScopeSpecifier(SS, ObjectType, false,
+                                       &MayBePseudoDestructor);
       }
 
       if (Tok.is(tok::code_completion)) {
@@ -1012,6 +1020,17 @@ Parser::ParsePostfixExpressionSuffix(OwningExprResult LHS) {
         ConsumeToken();
       }
       
+      if (MayBePseudoDestructor) {
+        LHS = ParseCXXPseudoDestructor(move(LHS), OpLoc, OpKind, SS, 
+                                       ObjectType);
+        break;
+      }
+
+      // Either the action has told is that this cannot be a
+      // pseudo-destructor expression (based on the type of base
+      // expression), or we didn't see a '~' in the right place. We
+      // can still parse a destructor name here, but in that case it
+      // names a real destructor.
       UnqualifiedId Name;
       if (ParseUnqualifiedId(SS, 
                              /*EnteringContext=*/false, 
@@ -1022,10 +1041,9 @@ Parser::ParsePostfixExpressionSuffix(OwningExprResult LHS) {
         return ExprError();
       
       if (!LHS.isInvalid())
-        LHS = Actions.ActOnMemberAccessExpr(CurScope, move(LHS), OpLoc, OpKind,
-                                            SS, Name, ObjCImpDecl,
+        LHS = Actions.ActOnMemberAccessExpr(CurScope, move(LHS), OpLoc, 
+                                            OpKind, SS, Name, ObjCImpDecl,
                                             Tok.is(tok::l_paren));
-      
       break;
     }
     case tok::plusplus:    // postfix-expression: postfix-expression '++'

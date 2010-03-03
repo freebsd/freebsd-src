@@ -57,7 +57,6 @@ namespace PR6031 {
     int foo() {
       class NoDepBase::Nested nested; // expected-error{{'Nested' does not name a tag member in the specified scope}}
       typedef typename NoDepBase::template MemberTemplate<T>::type type; // expected-error{{'MemberTemplate' following the 'template' keyword does not refer to a template}} \
-      // FIXME: expected-error{{expected an identifier or template-id after '::'}} \
       // FIXME: expected-error{{unqualified-id}}
       return NoDepBase::a; // expected-error{{no member named 'a' in 'struct PR6031::NoDepBase'}}
     }
@@ -109,4 +108,28 @@ namespace PR6081 {
       // FIXME: expected-error{{unqualified-id}}
     }
   };
+}
+
+namespace PR6413 {
+  template <typename T> class Base_A { };
+  
+  class Base_B { };
+  
+  template <typename T>
+  class Derived
+    : public virtual Base_A<T>
+    , public virtual Base_B
+  { };
+}
+
+namespace PR5812 {
+  template <class T> struct Base { 
+    Base* p; 
+  }; 
+
+  template <class T> struct Derived: public Base<T> { 
+    typename Derived::Base* p; // meaning Derived::Base<T> 
+  };
+
+  Derived<int> di;
 }

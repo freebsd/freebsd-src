@@ -29,10 +29,12 @@ def ext_null_pointer_expr_not_ice : Extension<
 // Semantic analysis of constant literals.
 def ext_predef_outside_function : Warning<
   "predefined identifier is only valid inside function">;
-def err_float_overflow : Error<
-  "magnitude of floating-point constant too large for type %0; maximum is %1">;
-def err_float_underflow : Error<
-  "magnitude of floating-point constant too small for type %0; minimum is %1">;
+def warn_float_overflow : Warning<
+  "magnitude of floating-point constant too large for type %0; maximum is %1">,
+   InGroup<BadLiteral>;
+def warn_float_underflow : Warning<
+  "magnitude of floating-point constant too small for type %0; minimum is %1">,
+  InGroup<BadLiteral>;
 
 // C99 Designated Initializers
 def err_array_designator_negative : Error<
@@ -253,6 +255,12 @@ def err_dup_implementation_category : Error<
   "reimplementation of category %1 for class %0">;
 def err_conflicting_ivar_type : Error<
   "instance variable %0 has conflicting type: %1 vs %2">;
+def err_duplicate_ivar_declaration : Error<
+  "instance variable is already declared">;
+def warn_on_superclass_use : Warning<
+  "class implementation may not have super class">;
+def err_non_private_ivar_declaration : Error<
+  "only private ivars may be declared in implementation">;
 def err_conflicting_ivar_bitwidth : Error<
   "instance variable %0 has conflicting bit-field width">;
 def err_conflicting_ivar_name : Error<
@@ -447,6 +455,8 @@ def err_qualified_member_nonclass : Error<
   "qualified member access refers to a member in %0">;
 def err_incomplete_member_access : Error<
   "member access into incomplete type %0">;
+def err_incomplete_type : Error<
+  "incomplete type %0 where a complete type is required">;
   
 // C++ class members
 def err_storageclass_invalid_for_member : Error<
@@ -486,8 +496,7 @@ def err_implicit_object_parameter_init : Error<
 
 def note_field_decl : Note<"member is declared here">;
 def note_bitfield_decl : Note<"bit-field is declared here">;
-def note_previous_decl : Note<
-  "%0 declared here">;
+def note_previous_decl : Note<"%0 declared here">;
 def note_member_synthesized_at : Note<
   "implicit default %select{constructor|copy constructor|"
   "copy assignment operator|destructor}0 for %1 first required here">;
@@ -557,6 +566,10 @@ def err_destructor_typedef_name : Error<
   "destructor cannot be declared using a typedef %0 of the class name">;
 def err_destructor_name : Error<
   "expected the class name after '~' to name the enclosing class">;
+def err_destructor_class_name : Error<
+  "expected the class name after '~' to name a destructor">;
+def err_ident_in_pseudo_dtor_not_a_type : Error<
+  "identifier %0 in pseudo-destructor expression does not name a type">;
 
 // C++ initialization
 def err_init_conversion_failed : Error<
@@ -724,9 +737,6 @@ def err_attribute_aligned_not_power_of_two : Error<
 def warn_redeclaration_without_attribute_prev_attribute_ignored : Warning<
   "'%0' redeclared without %1 attribute: previous %1 ignored">;
 def warn_attribute_ignored : Warning<"%0 attribute ignored">;
-def warn_faap_attribute_ignored : Warning<
-  "force_align_arg_pointer used on function pointer; attribute ignored">,
-  InGroup<ForceAlignArgPointer>;
 def warn_attribute_precede_definition : Warning<
   "attribute declaration must precede definition">;
 def warn_attribute_void_function : Warning<
@@ -741,6 +751,12 @@ def err_attribute_weak_static : Error<
   "weak declaration of '%0' must be public">;
 def warn_attribute_weak_import_invalid_on_definition : Warning<
   "'weak_import' attribute cannot be specified on a definition">;
+def err_attribute_weakref_not_static : Error<
+  "weakref declaration of '%0' must be static">;
+def err_attribute_weakref_not_global_context : Error<
+  "weakref declaration of '%0' must be in a global context">;
+def err_attribute_weakref_without_alias : Error<
+  "weakref declaration of '%0' must also have an alias attribute">;
 def warn_attribute_wrong_decl_type : Warning<
   "%0 attribute only applies to %select{function|union|"
   "variable and function|function or method|parameter|"
@@ -846,8 +862,10 @@ def err_attribute_regparm_invalid_number : Error<
 
 // Clang-Specific Attributes
 def err_attribute_iboutlet : Error<
-  "'iboutlet' attribute can only be applied to instance variables or "
+  "iboutlet attribute can only be applied to instance variables or "
   "properties">;
+def err_attribute_ibaction: Error<
+  "ibaction attribute can only be applied to Objective-C instance methods">;
 def err_attribute_overloadable_not_function : Error<
   "'overloadable' attribute can only be applied to a function">;
 def err_attribute_overloadable_missing : Error<
@@ -1482,6 +1500,8 @@ def err_forward_ref_enum : Error<
   "ISO C++ forbids forward references to 'enum' types">;
 def err_redefinition_of_enumerator : Error<"redefinition of enumerator %0">;
 def err_duplicate_member : Error<"duplicate member %0">;
+def err_misplaced_ivar : Error<"ivar may be placed in a class extension "
+                               "in non-fragile-abi2 mode only">;
 def ext_enum_value_not_int : Extension<
   "ISO C restricts enumerator values to range of 'int' (%0 is too "
   "%select{small|large}1)">;
@@ -1572,6 +1592,8 @@ def err_indirect_goto_in_protected_scope : Error<
 def err_addr_of_label_in_protected_scope : Error<
   "address taken of label in protected scope, jump to it would have "
   "unknown effect on scope">;
+def note_protected_by_variable_init : Note<
+  "jump bypasses variable initialization">;
 def note_protected_by_vla_typedef : Note<
   "jump bypasses initialization of VLA typedef">;
 def note_protected_by_vla : Note<
@@ -1761,7 +1783,8 @@ def err_typecheck_incomplete_array_needs_initializer : Error<
 def err_array_init_not_init_list : Error<
   "array initializer must be an initializer "
   "list%select{| or string literal}0">;
-
+def warn_deprecated_string_literal_conversion : Warning<
+  "conversion from string literal to %0 is deprecated">;
 def err_realimag_invalid_type : Error<"invalid type %0 to %1 operator">;
 def err_typecheck_sclass_fscope : Error<
   "illegal storage class on file-scoped variable">;
@@ -1777,6 +1800,11 @@ def err_unqualified_pointer_member_function : Error<
   "must explicitly qualify member function %0 when taking its address">;
 def err_typecheck_invalid_lvalue_addrof : Error<
   "address expression must be an lvalue or a function designator">;
+def ext_typecheck_addrof_class_temporary : ExtWarn<
+  "taking the address of a temporary object of type %0">, 
+  InGroup<DiagGroup<"address-of-temporary">>, DefaultError;
+def err_typecheck_addrof_class_temporary : Error<
+  "taking the address of a temporary object of type %0">;
 def err_typecheck_unary_expr : Error<
   "invalid argument type %0 to unary expression">;
 def err_typecheck_indirection_requires_pointer : Error<
@@ -1807,6 +1835,9 @@ def ext_typecheck_cond_incompatible_operands : ExtWarn<
   "incompatible operand types (%0 and %1)">;
 def err_typecheck_comparison_of_distinct_pointers : Error<
   "comparison of distinct pointer types (%0 and %1)">;
+def ext_typecheck_comparison_of_distinct_pointers_nonstandard : ExtWarn<
+  "comparison of distinct pointer types (%0 and %1) uses non-standard "
+  "composite pointer type %2">;
 def err_typecheck_vector_comparison : Error<
   "comparison of vector types (%0 and %1) not supported yet">;
 def err_typecheck_assign_const : Error<"read-only variable is not assignable">;
@@ -1992,6 +2023,9 @@ def err_new_array_nonconst : Error<
   "only the first dimension of an allocated array may have dynamic size">;
 def err_new_paren_array_nonconst : Error<
   "when type is in parentheses, array cannot have dynamic size">;
+def err_placement_new_non_placement_delete : Error<
+  "'new' expression with placement arguments refers to non-placement "
+  "'operator delete'">;
 def err_array_size_not_integral : Error<
   "array size expression must have integral or enumerated type, not %0">;
 def err_default_init_const : Error<
@@ -2057,7 +2091,12 @@ def err_pseudo_dtor_call_with_args : Error<
 def err_dtor_expr_without_call : Error<
   "%select{destructor reference|pseudo-destructor expression}0 must be "
   "called immediately with '()'">;
-
+def err_pseudo_dtor_destructor_non_type : Error<
+  "%0 does not refer to a type name in pseudo-destructor expression; expected "
+  "the name of type %1">;
+def err_pseudo_dtor_template : Error<
+  "specialization of template %0 does not refer to a scalar type in pseudo-"
+  "destructor expression">;
 def err_invalid_use_of_function_type : Error<
   "a function type is not allowed here">;
 def err_invalid_use_of_array_type : Error<"an array type is not allowed here">;
@@ -2226,6 +2265,9 @@ def err_typecheck_expect_scalar_operand : Error<
   "operand of type %0 where arithmetic or pointer type is required">;
 def err_typecheck_cond_incompatible_operands : Error<
   "incompatible operand types (%0 and %1)">;
+def ext_typecheck_cond_incompatible_operands_nonstandard : ExtWarn<
+  "incompatible operand types (%0 and %1) use non-standard composite pointer "
+  "type %2">;
 def err_cast_selector_expr : Error<
   "cannot type cast @selector expression">;
 def warn_typecheck_cond_incompatible_pointers : ExtWarn<
@@ -2486,8 +2528,8 @@ def warn_printf_write_back : Warning<
   InGroup<FormatSecurity>;
 def warn_printf_insufficient_data_args : Warning<
   "more '%%' conversions than data arguments">, InGroup<Format>;
-def warn_printf_too_many_data_args : Warning<
-  "more data arguments than format specifiers">, InGroup<FormatExtraArgs>;
+def warn_printf_data_arg_not_used : Warning<
+  "data argument not used by format string">, InGroup<FormatExtraArgs>;
 def warn_printf_invalid_conversion : Warning<
   "invalid conversion specifier '%0'">, InGroup<Format>;
 def warn_printf_incomplete_specifier : Warning<
@@ -2496,6 +2538,15 @@ def warn_printf_missing_format_string : Warning<
   "format string missing">, InGroup<Format>;
 def warn_printf_conversion_argument_type_mismatch : Warning<
   "conversion specifies type %0 but the argument has type %1">,
+  InGroup<Format>;
+def warn_printf_zero_positional_specifier : Warning<
+  "position arguments in format strings start counting at 1 (not 0)">,
+  InGroup<Format>;
+def warn_printf_invalid_positional_specifier : Warning<
+  "invalid position specified for %select{field width|field precision}0">,
+  InGroup<Format>;
+def warn_printf_mix_positional_nonpositional_args : Warning<
+  "cannot mix positional and non-positional arguments in format string">,
   InGroup<Format>;
 def warn_null_arg : Warning<
   "null passed to a callee which requires a non-null argument">,
@@ -2506,15 +2557,10 @@ def warn_printf_format_string_is_wide_literal : Warning<
   "format string should not be a wide string">, InGroup<Format>;
 def warn_printf_format_string_contains_null_char : Warning<
   "format string contains '\\0' within the string body">, InGroup<Format>;
-def warn_printf_asterisk_width_missing_arg : Warning<
-  "'*' specified field width is missing a matching 'int' argument">;
-def warn_printf_asterisk_precision_missing_arg : Warning<
-  "'.*' specified field precision is missing a matching 'int' argument">;
-def warn_printf_asterisk_width_wrong_type : Warning<
-  "field width should have type %0, but argument has type %1">,
-  InGroup<Format>;
-def warn_printf_asterisk_precision_wrong_type : Warning<
-  "field precision should have type %0, but argument has type %1">,
+def warn_printf_asterisk_missing_arg : Warning<
+  "'%select{*|.*}0' specified field %select{width|precision}0 is missing a matching 'int' argument">;
+def warn_printf_asterisk_wrong_type : Warning<
+  "field %select{width|precision}0 should have type %1, but argument has type %2">,
   InGroup<Format>;
 def warn_printf_nonsensical_precision: Warning<
   "precision used in '%0' conversion specifier (where it has no meaning)">,
@@ -2571,7 +2617,8 @@ def err_case_not_in_switch : Error<"'case' statement not in switch statement">;
 def warn_bool_switch_condition : Warning<
   "switch condition is a bool">;
 def warn_case_value_overflow : Warning<
-  "overflow converting case value to switch condition type (%0 to %1)">;
+  "overflow converting case value to switch condition type (%0 to %1)">,
+  InGroup<DiagGroup<"switch">>;
 def err_duplicate_case : Error<"duplicate case value '%0'">;
 def warn_case_empty_range : Warning<"empty case range specified">;
 def warn_missing_cases : Warning<"enumeration value %0 not handled in switch">,
@@ -2695,6 +2742,8 @@ def ext_c99_array_usage : Extension<
 def err_c99_array_usage_cxx : Error<
   "C99-specific array features are not permitted in C++">;
   
+def note_getter_unavailable : Note<
+  "or because setter is declared here, but no getter method %0 is found">;
 def err_invalid_protocol_qualifiers : Error<
   "invalid protocol qualifiers on non-ObjC type">;
 def warn_ivar_use_hidden : Warning<

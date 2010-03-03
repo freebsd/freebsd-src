@@ -55,7 +55,7 @@ void check_conditional_literal(const char* s, int i) {
   printf(i == 1 ? "yes" : "no"); // no-warning
   printf(i == 0 ? (i == 1 ? "yes" : "no") : "dont know"); // no-warning
   printf(i == 0 ? (i == 1 ? s : "no") : "dont know"); // expected-warning{{format string is not a string literal}}
-  printf("yes" ?: "no %d", 1); // expected-warning{{more data arguments than format specifiers}}
+  printf("yes" ?: "no %d", 1); // expected-warning{{data argument not used by format string}}
 }
 
 void check_writeback_specifier()
@@ -145,6 +145,7 @@ void torture(va_list v8) {
 }
 
 void test10(int x, float f, int i, long long lli) {
+  printf("%s"); // expected-warning{{more '%' conversions than data arguments}}
   printf("%@", 12); // expected-warning{{invalid conversion specifier '@'}}
   printf("\0"); // expected-warning{{format string contains '\0' within the string body}}
   printf("xs\0"); // expected-warning{{format string contains '\0' within the string body}}
@@ -155,7 +156,7 @@ void test10(int x, float f, int i, long long lli) {
   printf("%**\n"); // expected-warning{{invalid conversion specifier '*'}}
   printf("%n", &i); // expected-warning{{use of '%n' in format string discouraged (potentially insecure)}}
   printf("%d%d\n", x); // expected-warning{{more '%' conversions than data arguments}}
-  printf("%d\n", x, x); // expected-warning{{more data arguments than format specifiers}}
+  printf("%d\n", x, x); // expected-warning{{data argument not used by format string}}
   printf("%W%d%Z\n", x, x, x); // expected-warning{{invalid conversion specifier 'W'}} expected-warning{{invalid conversion specifier 'Z'}}
   printf("%"); // expected-warning{{incomplete format specifier}}
   printf("%.d", x); // no-warning
@@ -169,6 +170,8 @@ void test10(int x, float f, int i, long long lli) {
   printf("%d", (long long) 10); // expected-warning{{conversion specifies type 'int' but the argument has type 'long long'}}
   printf("%Lf\n", (long double) 1.0); // no-warning
   printf("%f\n", (long double) 1.0); // expected-warning{{conversion specifies type 'double' but the argument has type 'long double'}}
+  // The man page says that a zero precision is okay.
+  printf("%.0Lf", (long double) 1.0); // no-warning
 } 
 
 void test11(void *p, char *s) {
@@ -204,3 +207,34 @@ void test_asl(aslclient asl) {
 // <rdar://problem/7595366>
 typedef enum { A } int_t;
 void f0(int_t x) { printf("%d\n", x); }
+
+// Unicode test cases.  These are possibly specific to Mac OS X.  If so, they should
+// eventually be moved into a separate test.
+typedef __WCHAR_TYPE__ wchar_t;
+
+void test_unicode_conversions(wchar_t *s) {
+  printf("%S", s); // no-warning
+  printf("%s", s); // expected-warning{{conversion specifies type 'char *' but the argument has type 'wchar_t *'}}
+  printf("%C", s[0]); // no-warning
+  printf("%c", s[0]);
+  // FIXME: This test reports inconsistent results. On Windows, '%C' expects
+  // 'unsigned short'.
+  // printf("%C", 10);
+  // FIXME: we report the expected type as 'int*' instead of 'wchar_t*'
+  printf("%S", "hello"); // expected-warning{{but the argument has type 'char *'}}
+}
+
+// Mac OS X supports positional arguments in format strings.
+// This is an IEEE extension (IEEE Std 1003.1).
+// FIXME: This is probably not portable everywhere.
+void test_positional_arguments() {
+  printf("%0$", (int)2); // expected-warning{{position arguments in format strings start counting at 1 (not 0)}}
+  printf("%1$*0$d", (int) 2); // expected-warning{{position arguments in format strings start counting at 1 (not 0)}}
+  printf("%1$d", (int) 2); // no-warning
+  printf("%1$d", (int) 2, 2); // expected-warning{{data argument not used by format string}}
+  printf("%1$d%1$f", (int) 2); // expected-warning{{conversion specifies type 'double' but the argument has type 'int'}}
+  printf("%1$2.2d", (int) 2); // no-warning
+  printf("%2$*1$.2d", (int) 2, (int) 3); // no-warning
+  printf("%2$*8$d", (int) 2, (int) 3); // expected-warning{{specified field width is missing a matching 'int' argument}}
+}
+

@@ -55,6 +55,7 @@ namespace clang {
   class ObjCImplementationDecl;
   class ObjCPropertyImplDecl;
   class TargetInfo;
+  class TargetCodeGenInfo;
   class VarDecl;
   class ObjCForCollectionStmt;
   class ObjCAtTryStmt;
@@ -62,7 +63,6 @@ namespace clang {
   class ObjCAtSynchronizedStmt;
 
 namespace CodeGen {
-  class CodeGenModule;
   class CodeGenTypes;
   class CGDebugInfo;
   class CGFunctionInfo;
@@ -91,9 +91,6 @@ public:
 
   /// CurGD - The GlobalDecl for the current function being compiled.
   GlobalDecl CurGD;
-  /// OuterTryBlock - This is the address of the outter most try block, 0
-  /// otherwise.
-  const Stmt *OuterTryBlock;
 
   /// ReturnBlock - Unified return block.
   llvm::BasicBlock *ReturnBlock;
@@ -382,11 +379,13 @@ private:
   /// CXXThisDecl - When generating code for a C++ member function,
   /// this will hold the implicit 'this' declaration.
   ImplicitParamDecl *CXXThisDecl;
+  llvm::Value *CXXThisValue;
 
   /// CXXVTTDecl - When generating code for a base object constructor or
   /// base object destructor with virtual bases, this will hold the implicit
   /// VTT parameter.
   ImplicitParamDecl *CXXVTTDecl;
+  llvm::Value *CXXVTTValue;
   
   /// CXXLiveTemporaryInfo - Holds information about a live C++ temporary.
   struct CXXLiveTemporaryInfo {
@@ -466,7 +465,8 @@ public:
   //===--------------------------------------------------------------------===//
 
   llvm::Value *BuildBlockLiteralTmp(const BlockExpr *);
-  llvm::Constant *BuildDescriptorBlockDecl(bool BlockHasCopyDispose,
+  llvm::Constant *BuildDescriptorBlockDecl(const BlockExpr *,
+                                           bool BlockHasCopyDispose,
                                            CharUnits Size,
                                            const llvm::StructType *,
                                            std::vector<HelperInfo> *);
@@ -491,6 +491,10 @@ public:
                      llvm::Function *Fn,
                      const FunctionArgList &Args,
                      SourceLocation StartLoc);
+
+  void EmitConstructorBody(FunctionArgList &Args);
+  void EmitDestructorBody(FunctionArgList &Args);
+  void EmitFunctionBody(FunctionArgList &Args);
 
   /// EmitReturnBlock - Emit the unified return block, trying to avoid its
   /// emission when possible.
@@ -525,24 +529,8 @@ public:
                                      llvm::Value *ThisPtr,
                                      uint64_t Offset);
 
-  void SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
-                                    CXXCtorType Type,
-                                    llvm::Function *Fn,
-                                    const FunctionArgList &Args);
-
-  void SynthesizeCXXCopyAssignment(const CXXMethodDecl *CD,
-                                   llvm::Function *Fn,
-                                   const FunctionArgList &Args);
-
-  void SynthesizeDefaultConstructor(const CXXConstructorDecl *Ctor,
-                                    CXXCtorType Type,
-                                    llvm::Function *Fn,
-                                    const FunctionArgList &Args);
-
-  void SynthesizeDefaultDestructor(const CXXDestructorDecl *Dtor,
-                                   CXXDtorType Type,
-                                   llvm::Function *Fn,
-                                   const FunctionArgList &Args);
+  void SynthesizeCXXCopyConstructor(const FunctionArgList &Args);
+  void SynthesizeCXXCopyAssignment(const FunctionArgList &Args);
 
   /// EmitDtorEpilogue - Emit all code that comes at the end of class's
   /// destructor. This is to call destructors on members and base classes in
@@ -663,6 +651,13 @@ public:
   llvm::AllocaInst *CreateTempAlloca(const llvm::Type *Ty,
                                      const llvm::Twine &Name = "tmp");
 
+  /// CreateIRTemp - Create a temporary IR object of the given type, with
+  /// appropriate alignment. This routine should only be used when an temporary
+  /// value needs to be stored into an alloca (for example, to avoid explicit
+  /// PHI construction), but the type is the IR type, not the type appropriate
+  /// for storing in memory.
+  llvm::Value *CreateIRTemp(QualType T, const llvm::Twine &Name = "tmp");
+
   /// CreateMemTemp - Create a temporary memory object of the given type, with
   /// appropriate alignment.
   llvm::Value *CreateMemTemp(QualType T, const llvm::Twine &Name = "tmp");
@@ -738,11 +733,17 @@ public:
 
   /// LoadCXXThis - Load the value of 'this'. This function is only valid while
   /// generating code for an C++ member function.
-  llvm::Value *LoadCXXThis();
+  llvm::Value *LoadCXXThis() {
+    assert(CXXThisValue && "no 'this' value for this function");
+    return CXXThisValue;
+  }
 
   /// LoadCXXVTT - Load the VTT parameter to base constructors/destructors have
   /// virtual bases.
-  llvm::Value *LoadCXXVTT();
+  llvm::Value *LoadCXXVTT() {
+    assert(CXXVTTValue && "no VTT value for this function");
+    return CXXVTTValue;
+  }
 
   /// GetAddressOfBaseOfCompleteClass - Convert the given pointer to a
   /// complete class down to one of its virtual bases.
@@ -789,6 +790,9 @@ public:
                                const CXXRecordDecl *BaseClassDecl,
                                QualType Ty);
 
+  void EmitDelegateCXXConstructorCall(const CXXConstructorDecl *Ctor,
+                                      CXXCtorType CtorType,
+                                      const FunctionArgList &Args);
   void EmitCXXConstructorCall(const CXXConstructorDecl *D, CXXCtorType Type,
                               llvm::Value *This,
                               CallExpr::const_arg_iterator ArgBeg,
@@ -915,6 +919,14 @@ public:
   void EmitObjCAtTryStmt(const ObjCAtTryStmt &S);
   void EmitObjCAtThrowStmt(const ObjCAtThrowStmt &S);
   void EmitObjCAtSynchronizedStmt(const ObjCAtSynchronizedStmt &S);
+
+  struct CXXTryStmtInfo {
+    llvm::BasicBlock *SavedLandingPad;
+    llvm::BasicBlock *HandlerBlock;
+    llvm::BasicBlock *FinallyBlock;
+  };
+  CXXTryStmtInfo EnterCXXTryStmt(const CXXTryStmt &S);
+  void ExitCXXTryStmt(const CXXTryStmt &S, CXXTryStmtInfo Info);
 
   void EmitCXXTryStmt(const CXXTryStmt &S);
   
@@ -1325,6 +1337,10 @@ private:
       Args.push_back(std::make_pair(EmitCallArg(*Arg, ArgType),
                                     ArgType));
     }
+  }
+
+  const TargetCodeGenInfo &getTargetHooks() const {
+    return CGM.getTargetCodeGenInfo();
   }
 };
 

@@ -540,11 +540,11 @@ namespace {
       
     /// \brief Transform the given declaration by instantiating a reference to
     /// this declaration.
-    Decl *TransformDecl(Decl *D);
+    Decl *TransformDecl(SourceLocation Loc, Decl *D);
 
     /// \brief Transform the definition of the given declaration by
     /// instantiating it.
-    Decl *TransformDefinition(Decl *D);
+    Decl *TransformDefinition(SourceLocation Loc, Decl *D);
 
     /// \bried Transform the first qualifier within a scope by instantiating the
     /// declaration.
@@ -570,11 +570,12 @@ namespace {
     /// \brief Transforms a template type parameter type by performing
     /// substitution of the corresponding template type argument.
     QualType TransformTemplateTypeParmType(TypeLocBuilder &TLB,
-                                           TemplateTypeParmTypeLoc TL);
+                                           TemplateTypeParmTypeLoc TL,
+                                           QualType ObjectType);
   };
 }
 
-Decl *TemplateInstantiator::TransformDecl(Decl *D) {
+Decl *TemplateInstantiator::TransformDecl(SourceLocation Loc, Decl *D) {
   if (!D)
     return 0;
 
@@ -599,10 +600,10 @@ Decl *TemplateInstantiator::TransformDecl(Decl *D) {
     // template parameter.
   }
 
-  return SemaRef.FindInstantiatedDecl(cast<NamedDecl>(D), TemplateArgs);
+  return SemaRef.FindInstantiatedDecl(Loc, cast<NamedDecl>(D), TemplateArgs);
 }
 
-Decl *TemplateInstantiator::TransformDefinition(Decl *D) {
+Decl *TemplateInstantiator::TransformDefinition(SourceLocation Loc, Decl *D) {
   Decl *Inst = getSema().SubstDecl(D, getSema().CurContext, TemplateArgs);
   if (!Inst)
     return 0;
@@ -622,7 +623,7 @@ TemplateInstantiator::TransformFirstQualifierInScope(NamedDecl *D,
     if (TTP->getDepth() < TemplateArgs.getNumLevels()) {
       QualType T = TemplateArgs(TTP->getDepth(), TTP->getIndex()).getAsType();
       if (T.isNull())
-        return cast_or_null<NamedDecl>(TransformDecl(D));
+        return cast_or_null<NamedDecl>(TransformDecl(Loc, D));
       
       if (const TagType *Tag = T->getAs<TagType>())
         return Tag->getDecl();
@@ -633,7 +634,7 @@ TemplateInstantiator::TransformFirstQualifierInScope(NamedDecl *D,
     }
   }
   
-  return cast_or_null<NamedDecl>(TransformDecl(D));
+  return cast_or_null<NamedDecl>(TransformDecl(Loc, D));
 }
 
 VarDecl *
@@ -723,7 +724,8 @@ TemplateInstantiator::TransformTemplateParmRefExpr(DeclRefExpr *E,
     // Find the instantiation of the template argument.  This is
     // required for nested templates.
     VD = cast_or_null<ValueDecl>(
-                              getSema().FindInstantiatedDecl(VD, TemplateArgs));
+                            getSema().FindInstantiatedDecl(E->getLocation(),
+                                                           VD, TemplateArgs));
     if (!VD)
       return SemaRef.ExprError();
 
@@ -859,7 +861,8 @@ Sema::OwningExprResult TemplateInstantiator::TransformCXXDefaultArgExpr(
 
 QualType
 TemplateInstantiator::TransformTemplateTypeParmType(TypeLocBuilder &TLB,
-                                                TemplateTypeParmTypeLoc TL) {
+                                                TemplateTypeParmTypeLoc TL, 
+                                                    QualType ObjectType) {
   TemplateTypeParmType *T = TL.getTypePtr();
   if (T->getDepth() < TemplateArgs.getNumLevels()) {
     // Replace the template type parameter with its corresponding

@@ -19,6 +19,7 @@
 #include "clang/Driver/CC1Options.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/OptTable.h"
+#include "clang/Frontend/CodeGenAction.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendActions.h"
@@ -30,10 +31,8 @@
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/DynamicLibrary.h"
-#include "llvm/System/Signals.h"
 #include "llvm/Target/TargetSelect.h"
 #include <cstdio>
 using namespace clang;

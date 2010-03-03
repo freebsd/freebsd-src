@@ -320,86 +320,39 @@ private:
   /// This returns true if the token was annotated.
   bool TryAnnotateTypeOrScopeToken(bool EnteringContext = false);
 
-  /// TryAnnotateCXXScopeToken - Like TryAnnotateTypeOrScopeToken but only
-  /// annotates C++ scope specifiers.  This returns true if the token was
-  /// annotated.
+  /// TryAnnotateCXXScopeToken - Like TryAnnotateTypeOrScopeToken but
+  /// only annotates C++ scope specifiers.  This returns true if there
+  /// was an unrecoverable error.
   bool TryAnnotateCXXScopeToken(bool EnteringContext = false);
 
   /// TryAltiVecToken - Check for context-sensitive AltiVec identifier tokens,
   /// replacing them with the non-context-sensitive keywords.  This returns
   /// true if the token was replaced.
   bool TryAltiVecToken(DeclSpec &DS, SourceLocation Loc,
-      const char *&PrevSpec, unsigned &DiagID, bool &isInvalid) {
-    if (getLang().AltiVec) {
-      if (Tok.getIdentifierInfo() == Ident_vector) {
-        const Token nextToken = NextToken();
-        switch (nextToken.getKind()) {
-          case tok::kw_short:
-          case tok::kw_long:
-          case tok::kw_signed:
-          case tok::kw_unsigned:
-          case tok::kw_void:
-          case tok::kw_char:
-          case tok::kw_int:
-          case tok::kw_float:
-          case tok::kw_double:
-          case tok::kw_bool:
-          case tok::kw___pixel:
-            isInvalid = DS.SetTypeAltiVecVector(true, Loc, PrevSpec, DiagID);
-            return true;
-          case tok::identifier:
-            if (nextToken.getIdentifierInfo() == Ident_pixel) {
-              isInvalid = DS.SetTypeAltiVecVector(true, Loc, PrevSpec, DiagID);
-              return true;
-            }
-            break;
-          default:
-            break;
-        }
-      } else if ((Tok.getIdentifierInfo() == Ident_pixel) &&
-          DS.isTypeAltiVecVector()) {
-        isInvalid = DS.SetTypeAltiVecPixel(true, Loc, PrevSpec, DiagID);
-        return true;
-      }
-    }
-    return false;
+                       const char *&PrevSpec, unsigned &DiagID,
+                       bool &isInvalid) {
+    if (!getLang().AltiVec ||
+        (Tok.getIdentifierInfo() != Ident_vector &&
+         Tok.getIdentifierInfo() != Ident_pixel))
+      return false;
+    
+    return TryAltiVecTokenOutOfLine(DS, Loc, PrevSpec, DiagID, isInvalid);
   }
 
   /// TryAltiVecVectorToken - Check for context-sensitive AltiVec vector
   /// identifier token, replacing it with the non-context-sensitive __vector.
   /// This returns true if the token was replaced.
   bool TryAltiVecVectorToken() {
-    if (getLang().AltiVec) {
-      if (Tok.getIdentifierInfo() == Ident_vector) {
-        const Token nextToken = NextToken();
-        switch (nextToken.getKind()) {
-          case tok::kw_short:
-          case tok::kw_long:
-          case tok::kw_signed:
-          case tok::kw_unsigned:
-          case tok::kw_void:
-          case tok::kw_char:
-          case tok::kw_int:
-          case tok::kw_float:
-          case tok::kw_double:
-          case tok::kw_bool:
-          case tok::kw___pixel:
-            Tok.setKind(tok::kw___vector);
-            return true;
-          case tok::identifier:
-            if (nextToken.getIdentifierInfo() == Ident_pixel) {
-              Tok.setKind(tok::kw___vector);
-              return true;
-            }
-            break;
-          default:
-            break;
-        }
-      }
-    }
-    return false;
+    if (!getLang().AltiVec ||
+        Tok.getIdentifierInfo() != Ident_vector) return false;
+    return TryAltiVecVectorTokenOutOfLine();
   }
-
+  
+  bool TryAltiVecVectorTokenOutOfLine();
+  bool TryAltiVecTokenOutOfLine(DeclSpec &DS, SourceLocation Loc,
+                                const char *&PrevSpec, unsigned &DiagID,
+                                bool &isInvalid);
+    
   /// TentativeParsingAction - An object that is used as a kind of "tentative
   /// parsing transaction". It gets instantiated to mark the token position and
   /// after the token consumption is done, Commit() or Revert() is called to
@@ -849,6 +802,7 @@ private:
   DeclPtrTy ParseObjCAtInterfaceDeclaration(SourceLocation atLoc,
                                           AttributeList *prefixAttrs = 0);
   void ParseObjCClassInstanceVariables(DeclPtrTy interfaceDecl,
+                                       tok::ObjCKeywordKind visibility,
                                        SourceLocation atLoc);
   bool ParseObjCProtocolReferences(llvm::SmallVectorImpl<Action::DeclPtrTy> &P,
                                    llvm::SmallVectorImpl<SourceLocation> &PLocs,
@@ -962,7 +916,8 @@ private:
 
   bool ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
                                       TypeTy *ObjectType,
-                                      bool EnteringContext);
+                                      bool EnteringContext,
+                                      bool *MayBePseudoDestructor = 0);
 
   //===--------------------------------------------------------------------===//
   // C++ 5.2p1: C++ Casts
@@ -971,6 +926,13 @@ private:
   //===--------------------------------------------------------------------===//
   // C++ 5.2p1: C++ Type Identification
   OwningExprResult ParseCXXTypeid();
+
+  //===--------------------------------------------------------------------===//
+  // C++ 5.2.4: C++ Pseudo-Destructor Expressions
+  OwningExprResult ParseCXXPseudoDestructor(ExprArg Base, SourceLocation OpLoc,
+                                            tok::TokenKind OpKind,
+                                            CXXScopeSpec &SS,
+                                            Action::TypeTy *ObjectType);
 
   //===--------------------------------------------------------------------===//
   // C++ 9.3.2: C++ 'this' pointer
@@ -1153,7 +1115,7 @@ private:
   void ParseObjCTypeQualifierList(ObjCDeclSpec &DS);
 
   void ParseEnumSpecifier(SourceLocation TagLoc, DeclSpec &DS,
-                          AccessSpecifier AS = AS_none);
+                const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo(),                          AccessSpecifier AS = AS_none);
   void ParseEnumBody(SourceLocation StartLoc, DeclPtrTy TagDecl);
   void ParseStructUnionBody(SourceLocation StartLoc, unsigned TagType,
                             DeclPtrTy TagDecl);
@@ -1172,6 +1134,11 @@ private:
   bool isDeclarationSpecifier();
   bool isTypeSpecifierQualifier();
   bool isTypeQualifier() const;
+  
+  /// isKnownToBeTypeSpecifier - Return true if we know that the specified token
+  /// is definitely a type-specifier.  Return false if it isn't part of a type
+  /// specifier or if we're not sure.
+  bool isKnownToBeTypeSpecifier(const Token &Tok) const;
 
   /// isDeclarationStatement - Disambiguates between a declaration or an
   /// expression statement, when parsing function bodies.
@@ -1387,8 +1354,7 @@ private:
   //===--------------------------------------------------------------------===//
   // C++ 9: classes [class] and C structs/unions.
   TypeResult ParseClassName(SourceLocation &EndLocation,
-                            const CXXScopeSpec *SS = 0,
-                            bool DestrExpected = false);
+                            const CXXScopeSpec *SS = 0);
   void ParseClassSpecifier(tok::TokenKind TagTokKind, SourceLocation TagLoc,
                            DeclSpec &DS,
                 const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo(),
@@ -1414,7 +1380,8 @@ private:
                                     SourceLocation NameLoc,
                                     bool EnteringContext,
                                     TypeTy *ObjectType,
-                                    UnqualifiedId &Id);
+                                    UnqualifiedId &Id,
+                                    bool AssumeTemplateId = false);
   bool ParseUnqualifiedIdOperator(CXXScopeSpec &SS, bool EnteringContext,
                                   TypeTy *ObjectType,
                                   UnqualifiedId &Result);

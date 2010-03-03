@@ -17,3 +17,18 @@ void destroy_me(T me) {
 }
 
 template void destroy_me(Incomplete*);
+
+namespace PR6152 {
+  template<typename T> struct X { void f(); };
+  template<typename T> struct Y { };
+  template<typename T>
+  void X<T>::f() {
+    Y<T> *y;
+    y->template Y<T>::~Y();
+    y->template Y<T>::~Y<T>();
+    y->~Y();
+  }
+  
+  template struct X<int>;
+}
+

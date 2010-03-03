@@ -235,7 +235,6 @@ def fastcp : Flag<"-fastcp">, Group<f_Group>;
 def fastf : Flag<"-fastf">, Group<f_Group>;
 def fast : Flag<"-fast">, Group<f_Group>;
 def fasynchronous_unwind_tables : Flag<"-fasynchronous-unwind-tables">, Group<f_Group>;
-def fblock_introspection : Flag<"-fblock-introspection">, Group<f_Group>;
 def fblocks : Flag<"-fblocks">, Group<f_Group>;
 def fbootclasspath_EQ : Joined<"-fbootclasspath=">, Group<f_Group>;
 def fbuiltin_strcat : Flag<"-fbuiltin-strcat">, Group<f_Group>;
@@ -445,7 +444,7 @@ def multiply__defined : Separate<"-multiply_defined">;
 def mwarn_nonportable_cfstrings : Flag<"-mwarn-nonportable-cfstrings">, Group<m_Group>;
 def m_Separate : Separate<"-m">, Group<m_Group>;
 def m_Joined : Joined<"-m">, Group<m_Group>;
-def no_canonical_prefixes : Flag<"-no-canonical-prefixes">, Flags<[DriverOption, HelpHidden]>,
+def no_canonical_prefixes : Flag<"-no-canonical-prefixes">, Flags<[HelpHidden]>,
   HelpText<"Use relative instead of canonical paths">;
 def no_cpp_precomp : Flag<"-no-cpp-precomp">;
 def no_integrated_as : Flag<"-no-integrated-as">, Flags<[DriverOption]>;

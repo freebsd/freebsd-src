@@ -72,6 +72,7 @@ typedef std::pair<const AttributeList*,QualType> DelayedAttribute;
 typedef llvm::SmallVectorImpl<DelayedAttribute> DelayedAttributeSet;
 
 static void ProcessTypeAttributeList(Sema &S, QualType &Type,
+                                     bool IsDeclSpec,
                                      const AttributeList *Attrs,
                                      DelayedAttributeSet &DelayedFnAttrs);
 static bool ProcessFnAttr(Sema &S, QualType &Type, const AttributeList &Attr);
@@ -385,7 +386,7 @@ static QualType ConvertDeclSpecToType(Sema &TheSema,
   // See if there are any attributes on the declspec that apply to the type (as
   // opposed to the decl).
   if (const AttributeList *AL = DS.getAttributes())
-    ProcessTypeAttributeList(TheSema, Result, AL, Delayed);
+    ProcessTypeAttributeList(TheSema, Result, true, AL, Delayed);
 
   // Apply const/volatile/restrict qualifiers to T.
   if (unsigned TypeQuals = DS.getTypeQualifiers()) {
@@ -797,7 +798,7 @@ QualType Sema::BuildFunctionType(QualType T,
     return QualType();
 
   return Context.getFunctionType(T, ParamTypes, NumParamTypes, Variadic,
-                                 Quals);
+                                 Quals, false, false, 0, 0, false, CC_Default);
 }
 
 /// \brief Build a member pointer type \c T Class::*.
@@ -1132,7 +1133,8 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
           T = Context.getFunctionType(T, NULL, 0, FTI.isVariadic, FTI.TypeQuals,
                                       FTI.hasExceptionSpec,
                                       FTI.hasAnyExceptionSpec,
-                                      Exceptions.size(), Exceptions.data());
+                                      Exceptions.size(), Exceptions.data(),
+                                      false, CC_Default);
         } else if (FTI.isVariadic) {
           // We allow a zero-parameter variadic function in C if the
           // function is marked with the "overloadable"
@@ -1148,7 +1150,8 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
 
           if (!Overloadable)
             Diag(FTI.getEllipsisLoc(), diag::err_ellipsis_first_arg);
-          T = Context.getFunctionType(T, NULL, 0, FTI.isVariadic, 0);
+          T = Context.getFunctionType(T, NULL, 0, FTI.isVariadic, 0, 
+                                      false, false, 0, 0, false, CC_Default);
         } else {
           // Simple void foo(), where the incoming T is the result type.
           T = Context.getFunctionNoProtoType(T);
@@ -1223,7 +1226,8 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
                                     FTI.isVariadic, FTI.TypeQuals,
                                     FTI.hasExceptionSpec,
                                     FTI.hasAnyExceptionSpec,
-                                    Exceptions.size(), Exceptions.data());
+                                    Exceptions.size(), Exceptions.data(),
+                                    false, CC_Default);
       }
 
       // For GCC compatibility, we allow attributes that apply only to
@@ -1294,7 +1298,7 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
 
     // See if there are any attributes on this declarator chunk.
     if (const AttributeList *AL = DeclType.getAttrs())
-      ProcessTypeAttributeList(*this, T, AL, FnAttrsFromPreviousChunk);
+      ProcessTypeAttributeList(*this, T, false, AL, FnAttrsFromPreviousChunk);
   }
 
   if (getLangOptions().CPlusPlus && T->isFunctionType()) {
@@ -1320,7 +1324,8 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
 
       // Strip the cv-quals from the type.
       T = Context.getFunctionType(FnTy->getResultType(), FnTy->arg_type_begin(),
-                                  FnTy->getNumArgs(), FnTy->isVariadic(), 0);
+                                  FnTy->getNumArgs(), FnTy->isVariadic(), 0, 
+                                  false, false, 0, 0, false, CC_Default);
     }
   }
 
@@ -1333,7 +1338,8 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
   // block-literal expressions, which are parsed wierdly.
   if (D.getContext() != Declarator::BlockLiteralContext)
     if (const AttributeList *Attrs = D.getAttributes())
-      ProcessTypeAttributeList(*this, T, Attrs, FnAttrsFromPreviousChunk);
+      ProcessTypeAttributeList(*this, T, false, Attrs,
+                               FnAttrsFromPreviousChunk);
 
   DiagnoseDelayedFnAttrs(*this, FnAttrsFromPreviousChunk);
 
@@ -1751,7 +1757,8 @@ bool ProcessFnAttr(Sema &S, QualType &Type, const AttributeList &Attr) {
   }
 
   CallingConv CCOld = Fn->getCallConv();
-  if (CC == CCOld) return false;
+  if (S.Context.getCanonicalCallConv(CC) ==
+      S.Context.getCanonicalCallConv(CCOld)) return false;
 
   if (CCOld != CC_Default) {
     // Should we diagnose reapplications of the same convention?
@@ -1829,7 +1836,7 @@ static void HandleVectorSizeAttr(QualType& CurType, const AttributeList &Attr, S
 }
 
 void ProcessTypeAttributeList(Sema &S, QualType &Result,
-                              const AttributeList *AL,
+                              bool IsDeclSpec, const AttributeList *AL,
                               DelayedAttributeSet &FnAttrs) {
   // Scan through and apply attributes to this type where it makes sense.  Some
   // attributes (such as __address_space__, __vector_size__, etc) apply to the
@@ -1855,7 +1862,9 @@ void ProcessTypeAttributeList(Sema &S, QualType &Result,
     case AttributeList::AT_cdecl:
     case AttributeList::AT_fastcall:
     case AttributeList::AT_stdcall:
-      if (ProcessFnAttr(S, Result, *AL))
+      // Don't process these on the DeclSpec.
+      if (IsDeclSpec ||
+          ProcessFnAttr(S, Result, *AL))
         FnAttrs.push_back(DelayedAttribute(AL, Result));
       break;
     }

@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "TargetInfo.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
 #include "clang/Basic/TargetInfo.h"
@@ -19,6 +20,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/Basic/TargetBuiltins.h"
 #include "llvm/Intrinsics.h"
+#include "llvm/Target/TargetData.h"
 using namespace clang;
 using namespace CodeGen;
 using namespace llvm;
@@ -55,6 +57,10 @@ static RValue EmitBinaryAtomicPost(CodeGenFunction& CGF,
 
 
   return RValue::get(CGF.Builder.CreateBinOp(Op, Result, Operand));
+}
+
+static llvm::ConstantInt *getInt32(llvm::LLVMContext &Context, int32_t Value) {
+  return llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), Value);
 }
 
 RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
@@ -341,6 +347,20 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
                         llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), 1));
     return RValue::get(Address);
   }
+  case Builtin::BI__builtin_dwarf_cfa: {
+    // The offset in bytes from the first argument to the CFA.
+    //
+    // Why on earth is this in the frontend?  Is there any reason at
+    // all that the backend can't reasonably determine this while
+    // lowering llvm.eh.dwarf.cfa()?
+    //
+    // TODO: If there's a satisfactory reason, add a target hook for
+    // this instead of hard-coding 0, which is correct for most targets.
+    int32_t Offset = 0;
+
+    Value *F = CGM.getIntrinsic(Intrinsic::eh_dwarf_cfa, 0, 0);
+    return RValue::get(Builder.CreateCall(F, getInt32(VMContext, Offset)));
+  }
   case Builtin::BI__builtin_return_address: {
     Value *Depth = EmitScalarExpr(E->getArg(0));
     Depth = Builder.CreateIntCast(Depth,
@@ -358,12 +378,63 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     return RValue::get(Builder.CreateCall(F, Depth));
   }
   case Builtin::BI__builtin_extract_return_addr: {
-    // FIXME: There should be a target hook for this
-    return RValue::get(EmitScalarExpr(E->getArg(0)));
+    Value *Address = EmitScalarExpr(E->getArg(0));
+    Value *Result = getTargetHooks().decodeReturnAddress(*this, Address);
+    return RValue::get(Result);
+  }
+  case Builtin::BI__builtin_frob_return_addr: {
+    Value *Address = EmitScalarExpr(E->getArg(0));
+    Value *Result = getTargetHooks().encodeReturnAddress(*this, Address);
+    return RValue::get(Result);
+  }
+  case Builtin::BI__builtin_eh_return: {
+    Value *Int = EmitScalarExpr(E->getArg(0));
+    Value *Ptr = EmitScalarExpr(E->getArg(1));
+
+    const llvm::IntegerType *IntTy = cast<llvm::IntegerType>(Int->getType());
+    assert((IntTy->getBitWidth() == 32 || IntTy->getBitWidth() == 64) &&
+           "LLVM's __builtin_eh_return only supports 32- and 64-bit variants");
+    Value *F = CGM.getIntrinsic(IntTy->getBitWidth() == 32
+                                  ? Intrinsic::eh_return_i32
+                                  : Intrinsic::eh_return_i64,
+                                0, 0);
+    Builder.CreateCall2(F, Int, Ptr);
+    Value *V = Builder.CreateUnreachable();
+    Builder.ClearInsertionPoint();
+    return RValue::get(V);
   }
   case Builtin::BI__builtin_unwind_init: {
     Value *F = CGM.getIntrinsic(Intrinsic::eh_unwind_init, 0, 0);
     return RValue::get(Builder.CreateCall(F));
+  }
+  case Builtin::BI__builtin_extend_pointer: {
+    // Extends a pointer to the size of an _Unwind_Word, which is
+    // uint64_t on all platforms.  Generally this gets poked into a
+    // register and eventually used as an address, so if the
+    // addressing registers are wider than pointers and the platform
+    // doesn't implicitly ignore high-order bits when doing
+    // addressing, we need to make sure we zext / sext based on
+    // the platform's expectations.
+    //
+    // See: http://gcc.gnu.org/ml/gcc-bugs/2002-02/msg00237.html
+
+    LLVMContext &C = CGM.getLLVMContext();
+
+    // Cast the pointer to intptr_t.
+    Value *Ptr = EmitScalarExpr(E->getArg(0));
+    const llvm::IntegerType *IntPtrTy = CGM.getTargetData().getIntPtrType(C);
+    Value *Result = Builder.CreatePtrToInt(Ptr, IntPtrTy, "extend.cast");
+
+    // If that's 64 bits, we're done.
+    if (IntPtrTy->getBitWidth() == 64)
+      return RValue::get(Result);
+
+    // Otherwise, ask the codegen data what to do.
+    const llvm::IntegerType *Int64Ty = llvm::IntegerType::get(C, 64);
+    if (getTargetHooks().extendPointerWithSExt())
+      return RValue::get(Builder.CreateSExt(Result, Int64Ty, "extend.sext"));
+    else
+      return RValue::get(Builder.CreateZExt(Result, Int64Ty, "extend.zext"));
   }
 #if 0
   // FIXME: Finish/enable when LLVM backend support stabilizes

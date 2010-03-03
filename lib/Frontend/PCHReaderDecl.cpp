@@ -39,6 +39,7 @@ namespace {
     void VisitDecl(Decl *D);
     void VisitTranslationUnitDecl(TranslationUnitDecl *TU);
     void VisitNamedDecl(NamedDecl *ND);
+    void VisitNamespaceDecl(NamespaceDecl *D);
     void VisitTypeDecl(TypeDecl *TD);
     void VisitTypedefDecl(TypedefDecl *TD);
     void VisitTagDecl(TagDecl *TD);
@@ -94,6 +95,18 @@ void PCHDeclReader::VisitTranslationUnitDecl(TranslationUnitDecl *TU) {
 void PCHDeclReader::VisitNamedDecl(NamedDecl *ND) {
   VisitDecl(ND);
   ND->setDeclName(Reader.ReadDeclarationName(Record, Idx));
+}
+
+void PCHDeclReader::VisitNamespaceDecl(NamespaceDecl *D) {
+  VisitNamedDecl(D);
+  D->setLBracLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  D->setRBracLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  D->setNextNamespace(
+                    cast_or_null<NamespaceDecl>(Reader.GetDecl(Record[Idx++])));
+  D->setOriginalNamespace(
+                    cast_or_null<NamespaceDecl>(Reader.GetDecl(Record[Idx++])));
+  D->setAnonymousNamespace(
+                    cast_or_null<NamespaceDecl>(Reader.GetDecl(Record[Idx++])));
 }
 
 void PCHDeclReader::VisitTypeDecl(TypeDecl *TD) {
@@ -235,7 +248,6 @@ void PCHDeclReader::VisitObjCInterfaceDecl(ObjCInterfaceDecl *ID) {
   IVars.reserve(NumIvars);
   for (unsigned I = 0; I != NumIvars; ++I)
     IVars.push_back(cast<ObjCIvarDecl>(Reader.GetDecl(Record[Idx++])));
-  ID->setIVarList(IVars.data(), NumIvars, *Reader.getContext());
   ID->setCategoryList(
                cast_or_null<ObjCCategoryDecl>(Reader.GetDecl(Record[Idx++])));
   ID->setForwardDecl(Record[Idx++]);
@@ -517,6 +529,10 @@ Attr *PCHReader::ReadAttributes() {
     SIMPLE_ATTR(GNUInline);
     SIMPLE_ATTR(Hiding);
 
+    case Attr::IBActionKind:
+      New = ::new (*Context) IBActionAttr();
+      break;
+
     case Attr::IBOutletKind:
       New = ::new (*Context) IBOutletAttr();
       break;
@@ -546,7 +562,9 @@ Attr *PCHReader::ReadAttributes() {
 
     SIMPLE_ATTR(ObjCException);
     SIMPLE_ATTR(ObjCNSObject);
+    SIMPLE_ATTR(CFReturnsNotRetained);
     SIMPLE_ATTR(CFReturnsRetained);
+    SIMPLE_ATTR(NSReturnsNotRetained);
     SIMPLE_ATTR(NSReturnsRetained);
     SIMPLE_ATTR(Overloadable);
     SIMPLE_ATTR(Override);
@@ -568,6 +586,7 @@ Attr *PCHReader::ReadAttributes() {
 
     SIMPLE_ATTR(WarnUnusedResult);
     SIMPLE_ATTR(Weak);
+    SIMPLE_ATTR(WeakRef);
     SIMPLE_ATTR(WeakImport);
     }
 
@@ -737,6 +756,10 @@ Decl *PCHReader::ReadDeclRecord(uint64_t Offset, unsigned Index) {
     break;
   case pch::DECL_BLOCK:
     D = BlockDecl::Create(*Context, 0, SourceLocation());
+    break;
+      
+  case pch::DECL_NAMESPACE:
+    D = NamespaceDecl::Create(*Context, 0, SourceLocation(), 0);
     break;
   }
 

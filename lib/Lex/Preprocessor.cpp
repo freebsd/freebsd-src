@@ -40,7 +40,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
-#include <cstdio>
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -365,6 +364,24 @@ unsigned Preprocessor::getSpelling(const Token &Tok,
   return OutBuf-Buffer;
 }
 
+/// getSpelling - This method is used to get the spelling of a token into a
+/// SmallVector. Note that the returned StringRef may not point to the
+/// supplied buffer if a copy can be avoided.
+llvm::StringRef Preprocessor::getSpelling(const Token &Tok,
+                                    llvm::SmallVectorImpl<char> &Buffer) const {
+  // Try the fast path.
+  if (const IdentifierInfo *II = Tok.getIdentifierInfo())
+    return II->getName();
+
+  // Resize the buffer if we need to copy into it.
+  if (Tok.needsCleaning())
+    Buffer.resize(Tok.getLength());
+
+  const char *Ptr = Buffer.data();
+  unsigned Len = getSpelling(Tok, Ptr);
+  return llvm::StringRef(Ptr, Len);
+}
+
 /// CreateString - Plop the specified string into a scratch buffer and return a
 /// location for it.  If specified, the source location provides a source
 /// location for the token.
@@ -503,10 +520,8 @@ IdentifierInfo *Preprocessor::LookUpIdentifierInfo(Token &Identifier,
   } else {
     // Cleaning needed, alloca a buffer, clean into it, then use the buffer.
     llvm::SmallVector<char, 64> IdentifierBuffer;
-    IdentifierBuffer.resize(Identifier.getLength());
-    const char *TmpBuf = &IdentifierBuffer[0];
-    unsigned Size = getSpelling(Identifier, TmpBuf);
-    II = getIdentifierInfo(llvm::StringRef(TmpBuf, Size));
+    llvm::StringRef CleanedStr = getSpelling(Identifier, IdentifierBuffer);
+    II = getIdentifierInfo(CleanedStr);
   }
   Identifier.setIdentifierInfo(II);
   return II;

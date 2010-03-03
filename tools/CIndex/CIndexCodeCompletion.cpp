@@ -21,6 +21,7 @@
 #include "llvm/System/Program.h"
 
 using namespace clang;
+using namespace clang::cxstring;
 
 extern "C" {
 
@@ -80,11 +81,11 @@ clang_getCompletionChunkKind(CXCompletionString completion_string,
   return CXCompletionChunk_Text;
 }
 
-const char *clang_getCompletionChunkText(CXCompletionString completion_string,
-                                         unsigned chunk_number) {
+CXString clang_getCompletionChunkText(CXCompletionString completion_string,
+                                      unsigned chunk_number) {
   CodeCompletionString *CCStr = (CodeCompletionString *)completion_string;
   if (!CCStr || chunk_number >= CCStr->size())
-    return 0;
+    return createCXString(0);
 
   switch ((*CCStr)[chunk_number].Kind) {
   case CodeCompletionString::CK_TypedText:
@@ -107,16 +108,17 @@ const char *clang_getCompletionChunkText(CXCompletionString completion_string,
   case CodeCompletionString::CK_Equal:
   case CodeCompletionString::CK_HorizontalSpace:
   case CodeCompletionString::CK_VerticalSpace:
-    return (*CCStr)[chunk_number].Text;
+    return createCXString((*CCStr)[chunk_number].Text, false);
 
   case CodeCompletionString::CK_Optional:
     // Note: treated as an empty text block.
-    return "";
+    return createCXString("");
   }
 
   // Should be unreachable, but let's be careful.
-  return 0;
+  return createCXString(0);
 }
+
 
 CXCompletionString
 clang_getCompletionChunkCompletionString(CXCompletionString completion_string,
@@ -175,13 +177,43 @@ static bool ReadUnsigned(const char *&Memory, const char *MemoryEnd,
 /// \brief The CXCodeCompleteResults structure we allocate internally;
 /// the client only sees the initial CXCodeCompleteResults structure.
 struct AllocatedCXCodeCompleteResults : public CXCodeCompleteResults {
+  AllocatedCXCodeCompleteResults();
+  ~AllocatedCXCodeCompleteResults();
+  
   /// \brief The memory buffer from which we parsed the results. We
   /// retain this buffer because the completion strings point into it.
   llvm::MemoryBuffer *Buffer;
 
+  /// \brief Diagnostics produced while performing code completion.
+  llvm::SmallVector<StoredDiagnostic, 8> Diagnostics;
+
+  /// \brief Language options used to adjust source locations.
   LangOptions LangOpts;
+
+  /// \brief Source manager, used for diagnostics.
+  SourceManager SourceMgr;
+  
+  /// \brief File manager, used for diagnostics.
+  FileManager FileMgr;
+  
+  /// \brief Temporary files that should be removed once we have finished
+  /// with the code-completion results.
+  std::vector<llvm::sys::Path> TemporaryFiles;
 };
 
+AllocatedCXCodeCompleteResults::AllocatedCXCodeCompleteResults() 
+  : CXCodeCompleteResults(), Buffer(0) { }
+  
+AllocatedCXCodeCompleteResults::~AllocatedCXCodeCompleteResults() {
+  for (unsigned I = 0, N = NumResults; I != N; ++I)
+    delete (CodeCompletionString *)Results[I].CompletionString;
+  delete [] Results;
+  delete Buffer;
+  
+  for (unsigned I = 0, N = TemporaryFiles.size(); I != N; ++I)
+    TemporaryFiles[I].eraseFromDisk();
+}
+  
 CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx,
                                           const char *source_filename,
                                           int num_command_line_args,
@@ -190,9 +222,7 @@ CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx,
                                           struct CXUnsavedFile *unsaved_files,
                                           const char *complete_filename,
                                           unsigned complete_line,
-                                          unsigned complete_column,
-                                          CXDiagnosticCallback diag_callback,
-                                          CXClientData diag_client_data) {
+                                          unsigned complete_column) {
   // The indexer, which is mainly used to determine where diagnostics go.
   CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
 
@@ -200,8 +230,6 @@ CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx,
   DiagnosticOptions DiagOpts;
   llvm::OwningPtr<Diagnostic> Diags;
   Diags.reset(CompilerInstance::createDiagnostics(DiagOpts, 0, 0));
-  CIndexDiagnosticClient DiagClient(diag_callback, diag_client_data);
-  Diags->setClient(&DiagClient);
   
   // The set of temporary files that we've built.
   std::vector<llvm::sys::Path> TemporaryFiles;
@@ -302,13 +330,17 @@ CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx,
         AllArgs += *I;
     }
     
-    Diags->Report(diag::err_fe_clang) << AllArgs << ErrMsg;
+    Diags->Report(diag::err_fe_invoking) << AllArgs << ErrMsg;
   }
 
   // Parse the resulting source file to find code-completion results.
   using llvm::MemoryBuffer;
   using llvm::StringRef;
-  AllocatedCXCodeCompleteResults *Results = 0;
+  AllocatedCXCodeCompleteResults *Results = new AllocatedCXCodeCompleteResults;
+  Results->Results = 0;
+  Results->NumResults = 0;
+  Results->Buffer = 0;
+  // FIXME: Set Results->LangOpts!
   if (MemoryBuffer *F = MemoryBuffer::getFile(ResultsFile.c_str())) {
     llvm::SmallVector<CXCompletionResult, 4> CompletionResults;
     StringRef Buffer = F->getBuffer();
@@ -333,7 +365,6 @@ CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx,
     };
 
     // Allocate the results.
-    Results = new AllocatedCXCodeCompleteResults;
     Results->Results = new CXCompletionResult [CompletionResults.size()];
     Results->NumResults = CompletionResults.size();
     memcpy(Results->Results, CompletionResults.data(),
@@ -341,15 +372,13 @@ CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx,
     Results->Buffer = F;
   }
 
-  // FIXME: The LangOptions we are passing here are not at all correct. However,
-  // in the current design we must pass something in so the SourceLocations have
-  // a LangOptions object to refer to.
-  ReportSerializedDiagnostics(DiagnosticsFile, *Diags, 
-                              num_unsaved_files, unsaved_files,
-                              Results->LangOpts);
-  
-  for (unsigned i = 0, e = TemporaryFiles.size(); i != e; ++i)
-    TemporaryFiles[i].eraseFromDisk();
+  LoadSerializedDiagnostics(DiagnosticsFile, num_unsaved_files, unsaved_files,
+                            Results->FileMgr, Results->SourceMgr, 
+                            Results->Diagnostics);
+
+  // Make sure we delete temporary files when the code-completion results are
+  // destroyed.
+  Results->TemporaryFiles.swap(TemporaryFiles);
 
   return Results;
 }
@@ -360,16 +389,29 @@ void clang_disposeCodeCompleteResults(CXCodeCompleteResults *ResultsIn) {
 
   AllocatedCXCodeCompleteResults *Results
     = static_cast<AllocatedCXCodeCompleteResults*>(ResultsIn);
-
-  for (unsigned I = 0, N = Results->NumResults; I != N; ++I)
-    delete (CXCompletionString *)Results->Results[I].CompletionString;
-  delete [] Results->Results;
-
-  Results->Results = 0;
-  Results->NumResults = 0;
-  delete Results->Buffer;
-  Results->Buffer = 0;
   delete Results;
 }
+
+unsigned 
+clang_codeCompleteGetNumDiagnostics(CXCodeCompleteResults *ResultsIn) {
+  AllocatedCXCodeCompleteResults *Results
+    = static_cast<AllocatedCXCodeCompleteResults*>(ResultsIn);
+  if (!Results)
+    return 0;
+
+  return Results->Diagnostics.size();
+}
+
+CXDiagnostic 
+clang_codeCompleteGetDiagnostic(CXCodeCompleteResults *ResultsIn,
+                                unsigned Index) {
+  AllocatedCXCodeCompleteResults *Results
+    = static_cast<AllocatedCXCodeCompleteResults*>(ResultsIn);
+  if (!Results || Index >= Results->Diagnostics.size())
+    return 0;
+
+  return new CXStoredDiagnostic(Results->Diagnostics[Index], Results->LangOpts);
+}
+
 
 } // end extern "C"

@@ -49,6 +49,7 @@ Driver::Driver(llvm::StringRef _Name, llvm::StringRef _Dir,
   : Opts(createDriverOptTable()), Diags(_Diags),
     Name(_Name), Dir(_Dir), DefaultHostTriple(_DefaultHostTriple),
     DefaultImageName(_DefaultImageName),
+    DriverTitle("clang \"gcc-compatible\" driver"),
     Host(0),
     CCCGenericGCCName("gcc"), CCCIsCXX(false), CCCEcho(false),
     CCCPrintBindings(false), CheckInputsExist(true), CCCUseClang(true),
@@ -273,8 +274,8 @@ void Driver::PrintOptions(const ArgList &Args) const {
 // FIXME: Move -ccc options to real options in the .td file (or eliminate), and
 // then move to using OptTable::PrintHelp.
 void Driver::PrintHelp(bool ShowHidden) const {
-  getOpts().PrintHelp(llvm::outs(), Name.c_str(),
-                      "clang \"gcc-compatible\" driver", ShowHidden);
+  getOpts().PrintHelp(llvm::outs(), Name.c_str(), DriverTitle.c_str(),
+                      ShowHidden);
 }
 
 void Driver::PrintVersion(const Compilation &C, llvm::raw_ostream &OS) const {
@@ -558,6 +559,17 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
 
           if (Ty == types::TY_INVALID)
             Ty = types::TY_Object;
+
+          // If the driver is invoked as C++ compiler (like clang++ or c++) it
+          // should autodetect some input files as C++ for g++ compatibility.
+          if (CCCIsCXX) {
+            types::ID OldTy = Ty;
+            Ty = types::lookupCXXTypeForCType(Ty);
+
+            if (Ty != OldTy)
+              Diag(clang::diag::warn_drv_treating_input_as_cxx)
+                << getTypeName(OldTy) << getTypeName(Ty);
+          }
         }
 
         // -ObjC and -ObjC++ override the default language, but only for "source

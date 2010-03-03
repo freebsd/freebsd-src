@@ -79,14 +79,17 @@ static void HandleX86ForceAlignArgPointerAttr(Decl *D,
     return;
   }
 
-  // If we try to apply it to a function pointer, warn. This is a special
-  // instance of the warn_attribute_ignored warning that can be turned
-  // off with -Wno-force-align-arg-pointer.
-  ValueDecl* VD = dyn_cast<ValueDecl>(D);
-  if (VD && VD->getType()->isFunctionPointerType()) {
-    S.Diag(Attr.getLoc(), diag::warn_faap_attribute_ignored);
+  // If we try to apply it to a function pointer, don't warn, but don't
+  // do anything, either. It doesn't matter anyway, because there's nothing
+  // special about calling a force_align_arg_pointer function.
+  ValueDecl *VD = dyn_cast<ValueDecl>(D);
+  if (VD && VD->getType()->isFunctionPointerType())
     return;
-  }
+  // Also don't warn on function pointer typedefs.
+  TypedefDecl *TD = dyn_cast<TypedefDecl>(D);
+  if (TD && (TD->getUnderlyingType()->isFunctionPointerType() ||
+             TD->getUnderlyingType()->isFunctionType()))
+    return;
   // Attribute can only be applied to function types.
   if (!isa<FunctionDecl>(D)) {
     S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
@@ -97,13 +100,106 @@ static void HandleX86ForceAlignArgPointerAttr(Decl *D,
   D->addAttr(::new (S.Context) X86ForceAlignArgPointerAttr());
 }
 
+static void HandleDLLImportAttr(Decl *D, const AttributeList &Attr, Sema &S) {
+  // check the attribute arguments.
+  if (Attr.getNumArgs() != 0) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 0;
+    return;
+  }
+
+  // Attribute can be applied only to functions or variables.
+  if (isa<VarDecl>(D)) {
+    D->addAttr(::new (S.Context) DLLImportAttr());
+    return;
+  }
+
+  FunctionDecl *FD = dyn_cast<FunctionDecl>(D);
+  if (!FD) {
+    // Apparently Visual C++ thinks it is okay to not emit a warning
+    // in this case, so only emit a warning when -fms-extensions is not
+    // specified.
+    if (!S.getLangOptions().Microsoft)
+      S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
+        << Attr.getName() << 2 /*variable and function*/;
+    return;
+  }
+
+  // Currently, the dllimport attribute is ignored for inlined functions.
+  // Warning is emitted.
+  if (FD->isInlineSpecified()) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_ignored) << "dllimport";
+    return;
+  }
+
+  // The attribute is also overridden by a subsequent declaration as dllexport.
+  // Warning is emitted.
+  for (AttributeList *nextAttr = Attr.getNext(); nextAttr;
+       nextAttr = nextAttr->getNext()) {
+    if (nextAttr->getKind() == AttributeList::AT_dllexport) {
+      S.Diag(Attr.getLoc(), diag::warn_attribute_ignored) << "dllimport";
+      return;
+    }
+  }
+
+  if (D->getAttr<DLLExportAttr>()) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_ignored) << "dllimport";
+    return;
+  }
+
+  D->addAttr(::new (S.Context) DLLImportAttr());
+}
+
+static void HandleDLLExportAttr(Decl *D, const AttributeList &Attr, Sema &S) {
+  // check the attribute arguments.
+  if (Attr.getNumArgs() != 0) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 0;
+    return;
+  }
+
+  // Attribute can be applied only to functions or variables.
+  if (isa<VarDecl>(D)) {
+    D->addAttr(::new (S.Context) DLLExportAttr());
+    return;
+  }
+
+  FunctionDecl *FD = dyn_cast<FunctionDecl>(D);
+  if (!FD) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
+      << Attr.getName() << 2 /*variable and function*/;
+    return;
+  }
+
+  // Currently, the dllexport attribute is ignored for inlined functions, unless
+  // the -fkeep-inline-functions flag has been used. Warning is emitted;
+  if (FD->isInlineSpecified()) {
+    // FIXME: ... unless the -fkeep-inline-functions flag has been used.
+    S.Diag(Attr.getLoc(), diag::warn_attribute_ignored) << "dllexport";
+    return;
+  }
+
+  D->addAttr(::new (S.Context) DLLExportAttr());
+}
+
 namespace {
   class X86AttributesSema : public TargetAttributesSema {
   public:
     X86AttributesSema() { }
     bool ProcessDeclAttribute(Scope *scope, Decl *D,
                               const AttributeList &Attr, Sema &S) const {
-      if (Attr.getName()->getName() == "force_align_arg_pointer") {
+      const llvm::Triple &Triple(S.Context.Target.getTriple());
+      if (Triple.getOS() == llvm::Triple::Win32 ||
+          Triple.getOS() == llvm::Triple::MinGW32 ||
+          Triple.getOS() == llvm::Triple::MinGW64) {
+        switch (Attr.getKind()) {
+        case AttributeList::AT_dllimport: HandleDLLImportAttr(D, Attr, S);
+                                          return true;
+        case AttributeList::AT_dllexport: HandleDLLExportAttr(D, Attr, S);
+                                          return true;
+        default:                          break;
+        }
+      }
+      if (Attr.getName()->getName() == "force_align_arg_pointer" ||
+          Attr.getName()->getName() == "__force_align_arg_pointer__") {
         HandleX86ForceAlignArgPointerAttr(D, Attr, S);
         return true;
       }

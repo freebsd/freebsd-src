@@ -314,15 +314,13 @@ void Sema::ConvertIntegerToTypeWarnOnOverflow(llvm::APSInt &Val,
   // Perform a conversion to the promoted condition type if needed.
   if (NewWidth > Val.getBitWidth()) {
     // If this is an extension, just do it.
-    llvm::APSInt OldVal(Val);
     Val.extend(NewWidth);
-
-    // If the input was signed and negative and the output is unsigned,
-    // warn.
-    if (!NewSign && OldVal.isSigned() && OldVal.isNegative())
-      Diag(Loc, DiagID) << OldVal.toString(10) << Val.toString(10);
-
     Val.setIsSigned(NewSign);
+
+    // If the input was signed and negative and the output is
+    // unsigned, don't bother to warn: this is implementation-defined
+    // behavior.
+    // FIXME: Introduce a second, default-ignored warning for this case?
   } else if (NewWidth < Val.getBitWidth()) {
     // If this is a truncation, check for overflow.
     llvm::APSInt ConvVal(Val);
@@ -340,11 +338,11 @@ void Sema::ConvertIntegerToTypeWarnOnOverflow(llvm::APSInt &Val,
   } else if (NewSign != Val.isSigned()) {
     // Convert the sign to match the sign of the condition.  This can cause
     // overflow as well: unsigned(INTMIN)
+    // We don't diagnose this overflow, because it is implementation-defined 
+    // behavior.
+    // FIXME: Introduce a second, default-ignored warning for this case?
     llvm::APSInt OldVal(Val);
     Val.setIsSigned(NewSign);
-
-    if (Val.isNegative())  // Sign bit changes meaning.
-      Diag(Loc, DiagID) << OldVal.toString(10) << Val.toString(10);
   }
 }
 
@@ -752,7 +750,7 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, StmtArg Switch,
 
     // Check to see if switch is over an Enum and handles all of its 
     // values  
-    const EnumType* ET = dyn_cast<EnumType>(CondTypeBeforePromotion);
+    const EnumType* ET = CondTypeBeforePromotion->getAs<EnumType>();
     // If switch has default case, then ignore it.
     if (!CaseListIsErroneous && !TheDefaultStmt && ET) {
       const EnumDecl *ED = ET->getDecl();
@@ -1038,6 +1036,7 @@ Action::OwningStmtResult
 Sema::ActOnBlockReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
   // If this is the first return we've seen in the block, infer the type of
   // the block from it.
+  BlockScopeInfo *CurBlock = getCurBlock();
   if (CurBlock->ReturnType.isNull()) {
     if (RetValExp) {
       // Don't call UsualUnaryConversions(), since we don't want to do
@@ -1132,7 +1131,7 @@ static bool IsReturnCopyElidable(ASTContext &Ctx, QualType RetType,
 Action::OwningStmtResult
 Sema::ActOnReturnStmt(SourceLocation ReturnLoc, ExprArg rex) {
   Expr *RetValExp = rex.takeAs<Expr>();
-  if (CurBlock)
+  if (getCurBlock())
     return ActOnBlockReturnStmt(ReturnLoc, RetValExp);
 
   QualType FnRetType;
@@ -1502,7 +1501,7 @@ Sema::ActOnObjCAtFinallyStmt(SourceLocation AtLoc, StmtArg Body) {
 Action::OwningStmtResult
 Sema::ActOnObjCAtTryStmt(SourceLocation AtLoc,
                          StmtArg Try, StmtArg Catch, StmtArg Finally) {
-  CurFunctionNeedsScopeChecking = true;
+  FunctionNeedsScopeChecking() = true;
   return Owned(new (Context) ObjCAtTryStmt(AtLoc, Try.takeAs<Stmt>(),
                                            Catch.takeAs<Stmt>(),
                                            Finally.takeAs<Stmt>()));
@@ -1535,7 +1534,7 @@ Sema::ActOnObjCAtThrowStmt(SourceLocation AtLoc, ExprArg expr,Scope *CurScope) {
 Action::OwningStmtResult
 Sema::ActOnObjCAtSynchronizedStmt(SourceLocation AtLoc, ExprArg SynchExpr,
                                   StmtArg SynchBody) {
-  CurFunctionNeedsScopeChecking = true;
+  FunctionNeedsScopeChecking() = true;
 
   // Make sure the expression type is an ObjC pointer or "void *".
   Expr *SyncExpr = static_cast<Expr*>(SynchExpr.get());
@@ -1645,7 +1644,7 @@ Sema::ActOnCXXTryBlock(SourceLocation TryLoc, StmtArg TryBlock,
   // Neither of these are explicitly forbidden, but every compiler detects them
   // and warns.
 
-  CurFunctionNeedsScopeChecking = true;
+  FunctionNeedsScopeChecking() = true;
   RawHandlers.release();
   return Owned(CXXTryStmt::Create(Context, TryLoc,
                                   static_cast<Stmt*>(TryBlock.release()),

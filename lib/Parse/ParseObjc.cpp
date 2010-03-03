@@ -188,7 +188,10 @@ Parser::DeclPtrTy Parser::ParseObjCAtInterfaceDeclaration(
                                           ProtocolRefs.size(),
                                           ProtocolLocs.data(),
                                           EndProtoLoc);
-
+    if (Tok.is(tok::l_brace))
+      ParseObjCClassInstanceVariables(CategoryType, tok::objc_private,
+                                      atLoc);
+    
     ParseObjCInterfaceDeclList(CategoryType, tok::objc_not_keyword);
     return CategoryType;
   }
@@ -229,7 +232,7 @@ Parser::DeclPtrTy Parser::ParseObjCAtInterfaceDeclaration(
                                      EndProtoLoc, attrList);
 
   if (Tok.is(tok::l_brace))
-    ParseObjCClassInstanceVariables(ClsType, atLoc);
+    ParseObjCClassInstanceVariables(ClsType, tok::objc_protected, atLoc);
 
   ParseObjCInterfaceDeclList(ClsType, tok::objc_interface);
   return ClsType;
@@ -772,6 +775,12 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDecl(SourceLocation mLoc,
   if (Tok.is(tok::l_paren))
     ReturnType = ParseObjCTypeName(DSRet);
 
+  // If attributes exist before the method, parse them.
+  llvm::OwningPtr<AttributeList> MethodAttrs;
+  if (getLang().ObjC2 && Tok.is(tok::kw___attribute))
+    MethodAttrs.reset(ParseGNUAttributes());
+
+  // Now parse the selector.
   SourceLocation selLoc;
   IdentifierInfo *SelIdent = ParseObjCSelectorPiece(selLoc);
 
@@ -787,9 +796,9 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDecl(SourceLocation mLoc,
   llvm::SmallVector<Declarator, 8> CargNames;
   if (Tok.isNot(tok::colon)) {
     // If attributes exist after the method, parse them.
-    llvm::OwningPtr<AttributeList> MethodAttrs;
     if (getLang().ObjC2 && Tok.is(tok::kw___attribute))
-      MethodAttrs.reset(ParseGNUAttributes());
+      MethodAttrs.reset(addAttributeLists(MethodAttrs.take(),
+                                          ParseGNUAttributes()));
 
     Selector Sel = PP.getSelectorTable().getNullarySelector(SelIdent);
     DeclPtrTy Result
@@ -863,9 +872,9 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDecl(SourceLocation mLoc,
 
   // FIXME: Add support for optional parmameter list...
   // If attributes exist after the method, parse them.
-  llvm::OwningPtr<AttributeList> MethodAttrs;
   if (getLang().ObjC2 && Tok.is(tok::kw___attribute))
-    MethodAttrs.reset(ParseGNUAttributes());
+    MethodAttrs.reset(addAttributeLists(MethodAttrs.take(),
+                                        ParseGNUAttributes()));
 
   if (KeyIdents.size() == 0)
     return DeclPtrTy();
@@ -959,6 +968,7 @@ ParseObjCProtocolReferences(llvm::SmallVectorImpl<Action::DeclPtrTy> &Protocols,
 ///     struct-declaration
 ///
 void Parser::ParseObjCClassInstanceVariables(DeclPtrTy interfaceDecl,
+                                             tok::ObjCKeywordKind visibility,
                                              SourceLocation atLoc) {
   assert(Tok.is(tok::l_brace) && "expected {");
   llvm::SmallVector<DeclPtrTy, 32> AllIvarDecls;
@@ -967,7 +977,6 @@ void Parser::ParseObjCClassInstanceVariables(DeclPtrTy interfaceDecl,
 
   SourceLocation LBraceLoc = ConsumeBrace(); // the "{"
 
-  tok::ObjCKeywordKind visibility = tok::objc_protected;
   // While we still have something to read, read the instance variables.
   while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
     // Each iteration of this loop reads one objc-instance-variable-decl.
@@ -1222,7 +1231,8 @@ Parser::DeclPtrTy Parser::ParseObjCAtImplementationDeclaration(
                                   superClassId, superClassLoc);
 
   if (Tok.is(tok::l_brace)) // we have ivars
-    ParseObjCClassInstanceVariables(ImplClsType/*FIXME*/, atLoc);
+    ParseObjCClassInstanceVariables(ImplClsType/*FIXME*/, 
+                                    tok::objc_protected, atLoc);
   ObjCImpDecl = ImplClsType;
   PendingObjCImpDecl.push_back(ObjCImpDecl);
   

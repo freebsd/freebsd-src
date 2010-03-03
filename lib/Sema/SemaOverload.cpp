@@ -80,7 +80,7 @@ ImplicitConversionRank GetConversionRank(ImplicitConversionKind Kind) {
     ICR_Conversion,
     ICR_Conversion,
     ICR_Conversion,
-    ICR_Conversion
+    ICR_Complex_Real_Conversion
   };
   return Rank[(int)Kind];
 }
@@ -118,7 +118,7 @@ void StandardConversionSequence::setAsIdentityConversion() {
   First = ICK_Identity;
   Second = ICK_Identity;
   Third = ICK_Identity;
-  Deprecated = false;
+  DeprecatedStringLiteralToCharPtr = false;
   ReferenceBinding = false;
   DirectBinding = false;
   RRefBinding = false;
@@ -453,8 +453,7 @@ Sema::TryImplicitConversion(Expr* From, QualType ToType,
   }
 
   if (!getLangOptions().CPlusPlus) {
-    ICS.setBad();
-    ICS.Bad.init(BadConversionSequence::no_conversion, From, ToType);
+    ICS.setBad(BadConversionSequence::no_conversion, From, ToType);
     return ICS;
   }
 
@@ -500,8 +499,7 @@ Sema::TryImplicitConversion(Expr* From, QualType ToType,
     //   13.3.1.6 in all cases, only standard conversion sequences and
     //   ellipsis conversion sequences are allowed.
     if (SuppressUserConversions && ICS.isUserDefined()) {
-      ICS.setBad();
-      ICS.Bad.init(BadConversionSequence::suppressed_user, From, ToType);
+      ICS.setBad(BadConversionSequence::suppressed_user, From, ToType);
     }
   } else if (UserDefResult == OR_Ambiguous && !SuppressUserConversions) {
     ICS.setAmbiguous();
@@ -512,8 +510,7 @@ Sema::TryImplicitConversion(Expr* From, QualType ToType,
       if (Cand->Viable)
         ICS.Ambiguous.addConversion(Cand->Function);
   } else {
-    ICS.setBad();
-    ICS.Bad.init(BadConversionSequence::no_conversion, From, ToType);
+    ICS.setBad(BadConversionSequence::no_conversion, From, ToType);
   }
 
   return ICS;
@@ -552,7 +549,7 @@ Sema::IsStandardConversion(Expr* From, QualType ToType,
 
   // Standard conversions (C++ [conv])
   SCS.setAsIdentityConversion();
-  SCS.Deprecated = false;
+  SCS.DeprecatedStringLiteralToCharPtr = false;
   SCS.IncompatibleObjC = false;
   SCS.setFromType(FromType);
   SCS.CopyConstructor = 0;
@@ -595,7 +592,7 @@ Sema::IsStandardConversion(Expr* From, QualType ToType,
 
     if (IsStringLiteralToNonConstPointerConversion(From, ToType)) {
       // This conversion is deprecated. (C++ D.4).
-      SCS.Deprecated = true;
+      SCS.DeprecatedStringLiteralToCharPtr = true;
 
       // For the purpose of ranking in overload resolution
       // (13.3.3.1.1), this conversion is considered an
@@ -672,13 +669,18 @@ Sema::IsStandardConversion(Expr* From, QualType ToType,
     // Integral conversions (C++ 4.7).
     SCS.Second = ICK_Integral_Conversion;
     FromType = ToType.getUnqualifiedType();
-  } else if (FromType->isFloatingType() && ToType->isFloatingType()) {
-    // Floating point conversions (C++ 4.8).
-    SCS.Second = ICK_Floating_Conversion;
-    FromType = ToType.getUnqualifiedType();
   } else if (FromType->isComplexType() && ToType->isComplexType()) {
     // Complex conversions (C99 6.3.1.6)
     SCS.Second = ICK_Complex_Conversion;
+    FromType = ToType.getUnqualifiedType();
+  } else if ((FromType->isComplexType() && ToType->isArithmeticType()) ||
+             (ToType->isComplexType() && FromType->isArithmeticType())) {
+    // Complex-real conversions (C99 6.3.1.7)
+    SCS.Second = ICK_Complex_Real;
+    FromType = ToType.getUnqualifiedType();
+  } else if (FromType->isFloatingType() && ToType->isFloatingType()) {
+    // Floating point conversions (C++ 4.8).
+    SCS.Second = ICK_Floating_Conversion;
     FromType = ToType.getUnqualifiedType();
   } else if ((FromType->isFloatingType() &&
               ToType->isIntegralType() && (!ToType->isBooleanType() &&
@@ -687,11 +689,6 @@ Sema::IsStandardConversion(Expr* From, QualType ToType,
               ToType->isFloatingType())) {
     // Floating-integral conversions (C++ 4.9).
     SCS.Second = ICK_Floating_Integral;
-    FromType = ToType.getUnqualifiedType();
-  } else if ((FromType->isComplexType() && ToType->isArithmeticType()) ||
-             (ToType->isComplexType() && FromType->isArithmeticType())) {
-    // Complex-real conversions (C99 6.3.1.7)
-    SCS.Second = ICK_Complex_Real;
     FromType = ToType.getUnqualifiedType();
   } else if (IsPointerConversion(From, FromType, ToType, InOverloadResolution,
                                  FromType, IncompatibleObjC)) {
@@ -1094,6 +1091,7 @@ bool Sema::IsPointerConversion(Expr *From, QualType FromType, QualType ToType,
   // here. That is handled by CheckPointerConversion.
   if (getLangOptions().CPlusPlus &&
       FromPointeeType->isRecordType() && ToPointeeType->isRecordType() &&
+      !Context.hasSameUnqualifiedType(FromPointeeType, ToPointeeType) &&
       !RequireCompleteType(From->getLocStart(), FromPointeeType, PDiag()) &&
       IsDerivedFrom(FromPointeeType, ToPointeeType)) {
     ConvertedType = BuildSimilarlyQualifiedPointerType(FromTypePtr,
@@ -1995,7 +1993,7 @@ Sema::CompareQualificationConversions(const StandardConversionSequence& SCS1,
   // the deprecated string literal array to pointer conversion.
   switch (Result) {
   case ImplicitConversionSequence::Better:
-    if (SCS1.Deprecated)
+    if (SCS1.DeprecatedStringLiteralToCharPtr)
       Result = ImplicitConversionSequence::Indistinguishable;
     break;
 
@@ -2003,7 +2001,7 @@ Sema::CompareQualificationConversions(const StandardConversionSequence& SCS1,
     break;
 
   case ImplicitConversionSequence::Worse:
-    if (SCS2.Deprecated)
+    if (SCS2.DeprecatedStringLiteralToCharPtr)
       Result = ImplicitConversionSequence::Indistinguishable;
     break;
   }
@@ -2096,32 +2094,6 @@ Sema::CompareDerivedToBaseConversions(const StandardConversionSequence& SCS1,
     }
   }
 
-  // Compare based on reference bindings.
-  if (SCS1.ReferenceBinding && SCS2.ReferenceBinding &&
-      SCS1.Second == ICK_Derived_To_Base) {
-    //   -- binding of an expression of type C to a reference of type
-    //      B& is better than binding an expression of type C to a
-    //      reference of type A&,
-    if (Context.hasSameUnqualifiedType(FromType1, FromType2) &&
-        !Context.hasSameUnqualifiedType(ToType1, ToType2)) {
-      if (IsDerivedFrom(ToType1, ToType2))
-        return ImplicitConversionSequence::Better;
-      else if (IsDerivedFrom(ToType2, ToType1))
-        return ImplicitConversionSequence::Worse;
-    }
-
-    //   -- binding of an expression of type B to a reference of type
-    //      A& is better than binding an expression of type C to a
-    //      reference of type A&,
-    if (!Context.hasSameUnqualifiedType(FromType1, FromType2) &&
-        Context.hasSameUnqualifiedType(ToType1, ToType2)) {
-      if (IsDerivedFrom(FromType2, FromType1))
-        return ImplicitConversionSequence::Better;
-      else if (IsDerivedFrom(FromType1, FromType2))
-        return ImplicitConversionSequence::Worse;
-    }
-  }
-  
   // Ranking of member-pointer types.
   if (SCS1.Second == ICK_Pointer_Member && SCS2.Second == ICK_Pointer_Member &&
       FromType1->isMemberPointerType() && FromType2->isMemberPointerType() &&
@@ -2158,9 +2130,13 @@ Sema::CompareDerivedToBaseConversions(const StandardConversionSequence& SCS1,
     }
   }
   
-  if (SCS1.CopyConstructor && SCS2.CopyConstructor &&
+  if ((SCS1.ReferenceBinding || SCS1.CopyConstructor) && 
+      (SCS2.ReferenceBinding || SCS2.CopyConstructor) &&
       SCS1.Second == ICK_Derived_To_Base) {
     //   -- conversion of C to B is better than conversion of C to A,
+    //   -- binding of an expression of type C to a reference of type
+    //      B& is better than binding an expression of type C to a
+    //      reference of type A&,
     if (Context.hasSameUnqualifiedType(FromType1, FromType2) &&
         !Context.hasSameUnqualifiedType(ToType1, ToType2)) {
       if (IsDerivedFrom(ToType1, ToType2))
@@ -2170,6 +2146,9 @@ Sema::CompareDerivedToBaseConversions(const StandardConversionSequence& SCS1,
     }
 
     //   -- conversion of B to A is better than conversion of C to A.
+    //   -- binding of an expression of type B to a reference of type
+    //      A& is better than binding an expression of type C to a
+    //      reference of type A&,
     if (!Context.hasSameUnqualifiedType(FromType1, FromType2) &&
         Context.hasSameUnqualifiedType(ToType1, ToType2)) {
       if (IsDerivedFrom(FromType2, FromType1))
@@ -2195,7 +2174,7 @@ Sema::TryCopyInitialization(Expr *From, QualType ToType,
                             bool InOverloadResolution) {
   if (ToType->isReferenceType()) {
     ImplicitConversionSequence ICS;
-    ICS.Bad.init(BadConversionSequence::no_conversion, From, ToType);
+    ICS.setBad(BadConversionSequence::no_conversion, From, ToType);
     CheckReferenceInit(From, ToType,
                        /*FIXME:*/From->getLocStart(),
                        SuppressUserConversions,
@@ -2267,8 +2246,6 @@ Sema::TryObjectArgumentInitialization(QualType OrigFromType,
   // Set up the conversion sequence as a "bad" conversion, to allow us
   // to exit early.
   ImplicitConversionSequence ICS;
-  ICS.Standard.setAsIdentityConversion();
-  ICS.setBad();
 
   // We need to have an object of class type.
   QualType FromType = OrigFromType;
@@ -2292,25 +2269,29 @@ Sema::TryObjectArgumentInitialization(QualType OrigFromType,
   if (ImplicitParamType.getCVRQualifiers() 
                                     != FromTypeCanon.getLocalCVRQualifiers() &&
       !ImplicitParamType.isAtLeastAsQualifiedAs(FromTypeCanon)) {
-    ICS.Bad.init(BadConversionSequence::bad_qualifiers,
-                 OrigFromType, ImplicitParamType);
+    ICS.setBad(BadConversionSequence::bad_qualifiers,
+               OrigFromType, ImplicitParamType);
     return ICS;
   }
 
   // Check that we have either the same type or a derived type. It
   // affects the conversion rank.
   QualType ClassTypeCanon = Context.getCanonicalType(ClassType);
-  if (ClassTypeCanon == FromTypeCanon.getLocalUnqualifiedType())
-    ICS.Standard.Second = ICK_Identity;
-  else if (IsDerivedFrom(FromType, ClassType))
-    ICS.Standard.Second = ICK_Derived_To_Base;
+  ImplicitConversionKind SecondKind;
+  if (ClassTypeCanon == FromTypeCanon.getLocalUnqualifiedType()) {
+    SecondKind = ICK_Identity;
+  } else if (IsDerivedFrom(FromType, ClassType))
+    SecondKind = ICK_Derived_To_Base;
   else {
-    ICS.Bad.init(BadConversionSequence::unrelated_class, FromType, ImplicitParamType);
+    ICS.setBad(BadConversionSequence::unrelated_class,
+               FromType, ImplicitParamType);
     return ICS;
   }
 
   // Success. Mark this as a reference binding.
   ICS.setStandard();
+  ICS.Standard.setAsIdentityConversion();
+  ICS.Standard.Second = SecondKind;
   ICS.Standard.setFromType(FromType);
   ICS.Standard.setAllToTypes(ImplicitParamType);
   ICS.Standard.ReferenceBinding = true;
@@ -2439,7 +2420,8 @@ Sema::AddOverloadCandidate(FunctionDecl *Function,
     QualType ClassType = Context.getTypeDeclType(Constructor->getParent());
     if (NumArgs == 1 && 
         Constructor->isCopyConstructorLikeSpecialization() &&
-        Context.hasSameUnqualifiedType(ClassType, Args[0]->getType()))
+        (Context.hasSameUnqualifiedType(ClassType, Args[0]->getType()) ||
+         IsDerivedFrom(Args[0]->getType(), ClassType)))
       return;
   }
   
@@ -4462,7 +4444,7 @@ void DiagnoseBadConversion(Sema &S, OverloadCandidate *Cand, unsigned I) {
   QualType ToTy = Conv.Bad.getToType();
 
   if (FromTy == S.Context.OverloadTy) {
-    assert(FromExpr);
+    assert(FromExpr && "overload set argument came from implicit argument?");
     Expr *E = FromExpr->IgnoreParens();
     if (isa<UnaryOperator>(E))
       E = cast<UnaryOperator>(E)->getSubExpr()->IgnoreParens();
@@ -4665,8 +4647,9 @@ void NoteFunctionCandidate(Sema &S, OverloadCandidate *Cand,
   case ovl_fail_bad_final_conversion:
     return S.NoteOverloadCandidate(Fn);
 
-  case ovl_fail_bad_conversion:
-    for (unsigned I = 0, N = Cand->Conversions.size(); I != N; ++I)
+  case ovl_fail_bad_conversion: {
+    unsigned I = (Cand->IgnoreObjectArgument ? 1 : 0);
+    for (unsigned N = Cand->Conversions.size(); I != N; ++I)
       if (Cand->Conversions[I].isBad())
         return DiagnoseBadConversion(S, Cand, I);
     
@@ -4674,6 +4657,7 @@ void NoteFunctionCandidate(Sema &S, OverloadCandidate *Cand,
     // when user-conversion overload fails.  Figure out how to handle
     // those conditions and diagnose them well.
     return S.NoteOverloadCandidate(Fn);
+  }
   }
 }
 
@@ -4794,7 +4778,8 @@ struct CompareOverloadCandidatesForDisplay {
         assert(L->Conversions.size() == R->Conversions.size());
 
         int leftBetter = 0;
-        for (unsigned I = 0, E = L->Conversions.size(); I != E; ++I) {
+        unsigned I = (L->IgnoreObjectArgument || R->IgnoreObjectArgument);
+        for (unsigned E = L->Conversions.size(); I != E; ++I) {
           switch (S.CompareImplicitConversionSequences(L->Conversions[I],
                                                        R->Conversions[I])) {
           case ImplicitConversionSequence::Better:
@@ -4840,7 +4825,7 @@ void CompleteNonViableCandidate(Sema &S, OverloadCandidate *Cand,
   if (Cand->FailureKind != ovl_fail_bad_conversion) return;
 
   // Skip forward to the first bad conversion.
-  unsigned ConvIdx = 0;
+  unsigned ConvIdx = (Cand->IgnoreObjectArgument ? 1 : 0);
   unsigned ConvCount = Cand->Conversions.size();
   while (true) {
     assert(ConvIdx != ConvCount && "no bad conversion in candidate");
@@ -4851,6 +4836,9 @@ void CompleteNonViableCandidate(Sema &S, OverloadCandidate *Cand,
 
   if (ConvIdx == ConvCount)
     return;
+
+  assert(!Cand->Conversions[ConvIdx].isInitialized() &&
+         "remaining conversion is initialized?");
 
   // FIXME: these should probably be preserved from the overload
   // operation somehow.

@@ -49,8 +49,6 @@ void Sema::ActOnStartOfObjCMethodDef(Scope *FnBodyScope, DeclPtrTy D) {
   if (!MDecl)
     return;
 
-  CurFunctionNeedsScopeChecking = false;
-
   // Allow the rest of sema to find private method decl implementations.
   if (MDecl->isInstanceMethod())
     AddInstanceMethodToGlobalPool(MDecl);
@@ -59,7 +57,8 @@ void Sema::ActOnStartOfObjCMethodDef(Scope *FnBodyScope, DeclPtrTy D) {
 
   // Allow all of Sema to see that we are entering a method definition.
   PushDeclContext(FnBodyScope, MDecl);
-
+  PushFunctionScope();
+  
   // Create Decl objects for each parameter, entrring them in the scope for
   // binding to their use.
 
@@ -599,25 +598,30 @@ ActOnStartCategoryInterface(SourceLocation AtInterfaceLoc,
                             SourceLocation EndProtoLoc) {
   ObjCCategoryDecl *CDecl = 0;
   ObjCInterfaceDecl *IDecl = getObjCInterfaceDecl(ClassName, ClassLoc);
+
+  /// Check that class of this category is already completely declared.
+  if (!IDecl || IDecl->isForwardDecl()) {
+    // Create an invalid ObjCCategoryDecl to serve as context for
+    // the enclosing method declarations.  We mark the decl invalid
+    // to make it clear that this isn't a valid AST.
+    CDecl = ObjCCategoryDecl::Create(Context, CurContext, AtInterfaceLoc,
+                                     ClassLoc, CategoryLoc, CategoryName);
+    CDecl->setInvalidDecl();
+    Diag(ClassLoc, diag::err_undef_interface) << ClassName;
+    return DeclPtrTy::make(CDecl);
+  }
+
   if (!CategoryName) {
     // Class extensions require a special treatment. Use an existing one.
-    for (CDecl = IDecl->getCategoryList(); CDecl;
-         CDecl = CDecl->getNextClassCategory())
-      if (CDecl->IsClassExtension()) 
-        break;  
+    // Note that 'getClassExtension()' can return NULL.
+    CDecl = IDecl->getClassExtension();
   }
+
   if (!CDecl) {
-    CDecl = ObjCCategoryDecl::Create(Context, CurContext, AtInterfaceLoc, ClassLoc,
-                                     CategoryLoc, CategoryName);
+    CDecl = ObjCCategoryDecl::Create(Context, CurContext, AtInterfaceLoc,
+                                     ClassLoc, CategoryLoc, CategoryName);
     // FIXME: PushOnScopeChains?
     CurContext->addDecl(CDecl);
-
-    /// Check that class of this category is already completely declared.
-    if (!IDecl || IDecl->isForwardDecl()) {
-      CDecl->setInvalidDecl();
-      Diag(ClassLoc, diag::err_undef_interface) << ClassName;
-      return DeclPtrTy::make(CDecl);
-    }
 
     CDecl->setClassInterface(IDecl);
     // Insert first use of class extension to the list of class's categories.
@@ -821,8 +825,14 @@ void Sema::CheckImplementationIvars(ObjCImplementationDecl *ImpDecl,
   /// (legacy objective-c @implementation decl without an @interface decl).
   /// Add implementations's ivar to the synthesize class's ivar list.
   if (IDecl->isImplicitInterfaceDecl()) {
-    IDecl->setIVarList(ivars, numIvars, Context);
     IDecl->setLocEnd(RBrace);
+    // Add ivar's to class's DeclContext.
+    for (unsigned i = 0, e = numIvars; i != e; ++i) {
+      ivars[i]->setLexicalDeclContext(ImpDecl);
+      IDecl->makeDeclVisibleInContext(ivars[i], false);
+      ImpDecl->addDecl(ivars[i]);
+    }
+    
     return;
   }
   // If implementation has empty ivar list, just return.
@@ -830,7 +840,26 @@ void Sema::CheckImplementationIvars(ObjCImplementationDecl *ImpDecl,
     return;
 
   assert(ivars && "missing @implementation ivars");
-
+  if (LangOpts.ObjCNonFragileABI2) {
+    if (ImpDecl->getSuperClass())
+      Diag(ImpDecl->getLocation(), diag::warn_on_superclass_use);
+    for (unsigned i = 0; i < numIvars; i++) {
+      ObjCIvarDecl* ImplIvar = ivars[i];
+      if (const ObjCIvarDecl *ClsIvar = 
+            IDecl->getIvarDecl(ImplIvar->getIdentifier())) {
+        Diag(ImplIvar->getLocation(), diag::err_duplicate_ivar_declaration); 
+        Diag(ClsIvar->getLocation(), diag::note_previous_definition);
+        continue;
+      }
+      if (ImplIvar->getAccessControl() != ObjCIvarDecl::Private)
+        Diag(ImplIvar->getLocation(), diag::err_non_private_ivar_declaration); 
+      // Instance ivar to Implementation's DeclContext.
+      ImplIvar->setLexicalDeclContext(ImpDecl);
+      IDecl->makeDeclVisibleInContext(ImplIvar, false);
+      ImpDecl->addDecl(ImplIvar);
+    }
+    return;
+  }
   // Check interface's Ivar list against those in the implementation.
   // names and types must match.
   //
@@ -1751,6 +1780,29 @@ void Sema::CompareMethodParamsInBaseAndSuper(Decl *ClassDecl,
   }
 }
 
+/// DiagnoseDuplicateIvars - 
+/// Check for duplicate ivars in the entire class at the start of 
+/// @implementation. This becomes necesssary because class extension can
+/// add ivars to a class in random order which will not be known until
+/// class's @implementation is seen.
+void Sema::DiagnoseDuplicateIvars(ObjCInterfaceDecl *ID, 
+                                  ObjCInterfaceDecl *SID) {
+  for (ObjCInterfaceDecl::ivar_iterator IVI = ID->ivar_begin(),
+       IVE = ID->ivar_end(); IVI != IVE; ++IVI) {
+    ObjCIvarDecl* Ivar = (*IVI);
+    if (Ivar->isInvalidDecl())
+      continue;
+    if (IdentifierInfo *II = Ivar->getIdentifier()) {
+      ObjCIvarDecl* prevIvar = SID->lookupInstanceVariable(II);
+      if (prevIvar) {
+        Diag(Ivar->getLocation(), diag::err_duplicate_member) << II;
+        Diag(prevIvar->getLocation(), diag::note_previous_declaration);
+        Ivar->setInvalidDecl();
+      }
+    }
+  }
+}
+
 // Note: For class/category implemenations, allMethods/allProperties is
 // always null.
 void Sema::ActOnAtEnd(SourceRange AtEnd,
@@ -1862,6 +1914,11 @@ void Sema::ActOnAtEnd(SourceRange AtEnd,
     if (ObjCInterfaceDecl* IDecl = IC->getClassInterface()) {
       ImplMethodsVsClassMethods(IC, IDecl);
       AtomicPropertySetterGetterRules(IC, IDecl);
+      if (LangOpts.ObjCNonFragileABI2)
+        while (IDecl->getSuperClass()) {
+          DiagnoseDuplicateIvars(IDecl, IDecl->getSuperClass());
+          IDecl = IDecl->getSuperClass();
+        }
     }
   } else if (ObjCCategoryImplDecl* CatImplClass =
                                    dyn_cast<ObjCCategoryImplDecl>(ClassDecl)) {
@@ -1930,7 +1987,7 @@ Sema::DeclPtrTy Sema::ActOnMethodDeclaration(
   // Make sure we can establish a context for the method.
   if (!ClassDecl) {
     Diag(MethodLoc, diag::error_missing_method_context);
-    FunctionLabelMap.clear();
+    getLabelMap().clear();
     return DeclPtrTy();
   }
   QualType resultDeclType;
@@ -2440,8 +2497,7 @@ Sema::DeclPtrTy Sema::ActOnPropertyImplDecl(SourceLocation AtLoc,
                                   PropertyIvar, PropType, /*Dinfo=*/0,
                                   ObjCIvarDecl::Public,
                                   (Expr *)0);
-      Ivar->setLexicalDeclContext(IDecl);
-      IDecl->addDecl(Ivar);
+      IDecl->makeDeclVisibleInContext(Ivar, false);
       property->setPropertyIvarDecl(Ivar);
       if (!getLangOptions().ObjCNonFragileABI)
         Diag(PropertyLoc, diag::error_missing_property_ivar_decl) << PropertyId;

@@ -455,7 +455,9 @@ void CXXNameMangler::mangleUnresolvedScope(NestedNameSpecifier *Qualifier) {
     mangleType(QualType(Qualifier->getAsType(), 0));
     break;
   case NestedNameSpecifier::Identifier:
-    mangleUnresolvedScope(Qualifier->getPrefix());
+    // Member expressions can have these without prefixes.
+    if (Qualifier->getPrefix())
+      mangleUnresolvedScope(Qualifier->getPrefix());
     mangleSourceName(Qualifier->getAsIdentifier());
     break;
   }
@@ -1123,6 +1125,42 @@ void CXXNameMangler::mangleType(const TypenameType *T) {
   Out << 'E';
 }
 
+void CXXNameMangler::mangleType(const TypeOfType *T) {
+  // FIXME: this is pretty unsatisfactory, but there isn't an obvious
+  // "extension with parameters" mangling.
+  Out << "u6typeof";
+}
+
+void CXXNameMangler::mangleType(const TypeOfExprType *T) {
+  // FIXME: this is pretty unsatisfactory, but there isn't an obvious
+  // "extension with parameters" mangling.
+  Out << "u6typeof";
+}
+
+void CXXNameMangler::mangleType(const DecltypeType *T) {
+  Expr *E = T->getUnderlyingExpr();
+  
+  // type ::= Dt <expression> E  # decltype of an id-expression
+  //                             #   or class member access
+  //      ::= DT <expression> E  # decltype of an expression
+
+  // This purports to be an exhaustive list of id-expressions and
+  // class member accesses.  Note that we do not ignore parentheses;
+  // parentheses change the semantics of decltype for these
+  // expressions (and cause the mangler to use the other form).
+  if (isa<DeclRefExpr>(E) ||
+      isa<MemberExpr>(E) ||
+      isa<UnresolvedLookupExpr>(E) ||
+      isa<DependentScopeDeclRefExpr>(E) ||
+      isa<CXXDependentScopeMemberExpr>(E) ||
+      isa<UnresolvedMemberExpr>(E))
+    Out << "Dt";
+  else
+    Out << "DT";
+  mangleExpression(E);
+  Out << 'E';
+}
+
 void CXXNameMangler::mangleIntegerLiteral(QualType T, 
                                           const llvm::APSInt &Value) {
   //  <expr-primary> ::= L <type> <value number> E # integer literal
@@ -1163,20 +1201,14 @@ void CXXNameMangler::mangleCalledExpression(const Expr *E, unsigned Arity) {
 /// Mangles a member expression.  Implicit accesses are not handled,
 /// but that should be okay, because you shouldn't be able to
 /// make an implicit access in a function template declaration.
-///
-/// The standard ABI does not describe how member expressions should
-/// be mangled, so this is very unstandardized.  We mangle as if it
-/// were a binary operator, except that the RHS is mangled as an
-/// abstract name.
-///
-/// The standard ABI also does not assign a mangling to the dot
-/// operator, so we arbitrarily select 'me'.
 void CXXNameMangler::mangleMemberExpr(const Expr *Base,
                                       bool IsArrow,
                                       NestedNameSpecifier *Qualifier,
                                       DeclarationName Member,
                                       unsigned Arity) {
-  Out << (IsArrow ? "pt" : "me");
+  // gcc-4.4 uses 'dt' for dot expressions, which is reasonable.
+  // OTOH, gcc also mangles the name as an expression.
+  Out << (IsArrow ? "pt" : "dt");
   mangleExpression(Base);
   mangleUnresolvedName(Qualifier, Member, Arity);
 }
@@ -1346,10 +1378,16 @@ void CXXNameMangler::mangleExpression(const Expr *E) {
     break;
 
   case Expr::DeclRefExprClass: {
-    const Decl *D = cast<DeclRefExpr>(E)->getDecl();
+    const NamedDecl *D = cast<DeclRefExpr>(E)->getDecl();
 
     switch (D->getKind()) {
-    default: assert(false && "Unhandled decl kind!");
+    default: 
+      //  <expr-primary> ::= L <mangled-name> E # external name
+      Out << 'L';
+      mangle(D, "_Z");
+      Out << 'E';
+      break;
+
     case Decl::NonTypeTemplateParm: {
       const NonTypeTemplateParmDecl *PD = cast<NonTypeTemplateParmDecl>(D);
       mangleTemplateParameter(PD->getIndex());
@@ -1363,7 +1401,18 @@ void CXXNameMangler::mangleExpression(const Expr *E) {
 
   case Expr::DependentScopeDeclRefExprClass: {
     const DependentScopeDeclRefExpr *DRE = cast<DependentScopeDeclRefExpr>(E);
-    const Type *QTy = DRE->getQualifier()->getAsType();
+    NestedNameSpecifier *NNS = DRE->getQualifier();
+    const Type *QTy = NNS->getAsType();
+
+    // When we're dealing with a nested-name-specifier that has just a
+    // dependent identifier in it, mangle that as a typename.  FIXME:
+    // It isn't clear that we ever actually want to have such a
+    // nested-name-specifier; why not just represent it as a typename type?
+    if (!QTy && NNS->getAsIdentifier() && NNS->getPrefix()) {
+      QTy = getASTContext().getTypenameType(NNS->getPrefix(),
+                                            NNS->getAsIdentifier())
+              .getTypePtr();
+    }
     assert(QTy && "Qualifier was not type!");
 
     // ::= sr <type> <unqualified-name>                   # dependent name
@@ -1648,6 +1697,9 @@ bool CXXNameMangler::mangleStandardSubstitution(const NamedDecl *ND) {
 
   if (const ClassTemplateSpecializationDecl *SD =
         dyn_cast<ClassTemplateSpecializationDecl>(ND)) {
+    if (!isStdNamespace(SD->getDeclContext()))
+      return false;
+
     //    <substitution> ::= Ss # ::std::basic_string<char,
     //                            ::std::char_traits<char>,
     //                            ::std::allocator<char> >

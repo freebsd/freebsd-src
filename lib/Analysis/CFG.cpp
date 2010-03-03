@@ -38,11 +38,16 @@ static SourceLocation GetEndLoc(Decl* D) {
   
 class AddStmtChoice {
 public:
-  enum Kind { NotAlwaysAdd = 0, AlwaysAdd, AlwaysAddAsLValue };
-public:
-  AddStmtChoice(Kind kind) : k(kind) {}  
-  bool alwaysAdd() const { return k != NotAlwaysAdd; }
-  bool asLValue() const { return k == AlwaysAddAsLValue; }
+  enum Kind { NotAlwaysAdd = 0,
+              AlwaysAdd = 1,
+              AsLValueNotAlwaysAdd = 2,
+              AlwaysAddAsLValue = 3 };
+
+  AddStmtChoice(Kind kind) : k(kind) {}
+
+  bool alwaysAdd() const { return (unsigned)k & 0x1; }
+  bool asLValue() const { return k >= AlwaysAddAsLValue; }
+
 private:
   Kind k;
 };
@@ -589,7 +594,7 @@ CFGBlock *CFGBuilder::VisitCallExpr(CallExpr *C, AddStmtChoice asc) {
     AddEHEdge = false;
 
   if (!NoReturn && !AddEHEdge)
-    return VisitStmt(C, asc);
+    return VisitStmt(C, AddStmtChoice::AlwaysAdd);
 
   if (Block) {
     Succ = Block;
@@ -771,18 +776,10 @@ CFGBlock *CFGBuilder::VisitDeclSubExpr(Decl* D) {
   Expr *Init = VD->getInit();
 
   if (Init) {
-    // Optimization: Don't create separate block-level statements for literals.
-    switch (Init->getStmtClass()) {
-      case Stmt::IntegerLiteralClass:
-      case Stmt::CharacterLiteralClass:
-      case Stmt::StringLiteralClass:
-        break;
-      default:
-        Block = addStmt(Init,
-                        VD->getType()->isReferenceType()
-                        ? AddStmtChoice::AlwaysAddAsLValue
-                        : AddStmtChoice::AlwaysAdd);
-    }
+    AddStmtChoice::Kind k =
+      VD->getType()->isReferenceType() ? AddStmtChoice::AsLValueNotAlwaysAdd
+                                       : AddStmtChoice::NotAlwaysAdd;
+    Visit(Init, AddStmtChoice(k));
   }
 
   // If the type of VD is a VLA, then we must process its size expressions.

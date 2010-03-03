@@ -62,7 +62,8 @@ public:
     FormatArg,
     GNUInline,
     Hiding,
-    IBOutletKind, // Clang-specific.  Use "Kind" suffix to not conflict with
+    IBOutletKind, // Clang-specific. Use "Kind" suffix to not conflict w/ macro.
+    IBActionKind, // Clang-specific. Use "Kind" suffix to not conflict w/ macro.
     Malloc,
     NoDebug,
     NoInline,
@@ -72,8 +73,10 @@ public:
     ObjCException,
     ObjCNSObject,
     Override,
-    CFReturnsRetained,   // Clang/Checker-specific.
-    NSReturnsRetained,   // Clang/Checker-specific.
+    CFReturnsRetained,      // Clang/Checker-specific.
+    CFReturnsNotRetained,   // Clang/Checker-specific.
+    NSReturnsRetained,      // Clang/Checker-specific.
+    NSReturnsNotRetained,   // Clang/Checker-specific.
     Overloadable, // Clang-specific
     Packed,
     PragmaPack,
@@ -91,6 +94,7 @@ public:
     WarnUnusedResult,
     Weak,
     WeakImport,
+    WeakRef,
 
     FIRST_TARGET_ATTRIBUTE,
     DLLExport,
@@ -300,19 +304,6 @@ public:
   static bool classof(const DestructorAttr *A) { return true; }
 };
 
-class GNUInlineAttr : public Attr {
-public:
-  GNUInlineAttr() : Attr(GNUInline) {}
-
-  virtual Attr *clone(ASTContext &C) const;
-
-  // Implement isa/cast/dyncast/etc.
-  static bool classof(const Attr *A) {
-    return A->getKind() == GNUInline;
-  }
-  static bool classof(const GNUInlineAttr *A) { return true; }
-};
-
 class IBOutletAttr : public Attr {
 public:
   IBOutletAttr() : Attr(IBOutletKind) {}
@@ -326,11 +317,25 @@ public:
   static bool classof(const IBOutletAttr *A) { return true; }
 };
 
-DEF_SIMPLE_ATTR(Malloc);
-DEF_SIMPLE_ATTR(NoReturn);
+class IBActionAttr : public Attr {
+public:
+  IBActionAttr() : Attr(IBActionKind) {}
+
+  virtual Attr *clone(ASTContext &C) const;
+
+    // Implement isa/cast/dyncast/etc.
+  static bool classof(const Attr *A) {
+    return A->getKind() == IBActionKind;
+  }
+  static bool classof(const IBActionAttr *A) { return true; }
+};
+
 DEF_SIMPLE_ATTR(AnalyzerNoReturn);
 DEF_SIMPLE_ATTR(Deprecated);
 DEF_SIMPLE_ATTR(Final);
+DEF_SIMPLE_ATTR(GNUInline);
+DEF_SIMPLE_ATTR(Malloc);
+DEF_SIMPLE_ATTR(NoReturn);
 
 class SectionAttr : public AttrWithString {
 public:
@@ -353,6 +358,7 @@ DEF_SIMPLE_ATTR(Unused);
 DEF_SIMPLE_ATTR(Used);
 DEF_SIMPLE_ATTR(Weak);
 DEF_SIMPLE_ATTR(WeakImport);
+DEF_SIMPLE_ATTR(WeakRef);
 DEF_SIMPLE_ATTR(NoThrow);
 DEF_SIMPLE_ATTR(Const);
 DEF_SIMPLE_ATTR(Pure);
@@ -543,7 +549,9 @@ public:
 };
 
 // Checker-specific attributes.
+DEF_SIMPLE_ATTR(CFReturnsNotRetained);
 DEF_SIMPLE_ATTR(CFReturnsRetained);
+DEF_SIMPLE_ATTR(NSReturnsNotRetained);
 DEF_SIMPLE_ATTR(NSReturnsRetained);
 
 // C++0x member checking attributes.

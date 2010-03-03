@@ -53,7 +53,7 @@ int* k(char*);
 double* k(bool);
 
 void test_k() {
-  int* ip1 = k("foo");
+  int* ip1 = k("foo"); // expected-warning{{conversion from string literal to 'char *' is deprecated}}
   double* dp1 = k(L"foo");
 }
 
@@ -61,7 +61,7 @@ int* l(wchar_t*);
 double* l(bool);
 
 void test_l() {
-  int* ip1 = l(L"foo");
+  int* ip1 = l(L"foo"); // expected-warning{{conversion from string literal to 'wchar_t *' is deprecated}}
   double* dp1 = l("foo");
 }
 
@@ -79,7 +79,7 @@ class E;
 void test_n(E* e) {
   char ca[7];
   int* ip1 = n(ca);
-  int* ip2 = n("foo");
+  int* ip2 = n("foo"); // expected-warning{{conversion from string literal to 'char *' is deprecated}}
 
   float fa[7];
   double* dp1 = n(fa);
@@ -357,5 +357,32 @@ namespace DerivedToBaseVsVoid {
   
   void g(B *b) {
     int &ir = f(b);
+  }
+}
+
+// PR 6398 + PR 6421
+namespace test4 {
+  class A;
+  class B {
+    static void foo(); // expected-note {{not viable}}
+    static void foo(int*); // expected-note {{not viable}}
+    static void foo(long*); // expected-note {{not viable}}
+
+    void bar(A *a) { 
+      foo(a); // expected-error {{no matching function for call}}
+    }
+  };
+}
+
+namespace DerivedToBase {
+  struct A { };
+  struct B : A { };
+  struct C : B { };
+  
+  int &f0(const A&);
+  float &f0(B);
+  
+  void g() {
+    float &fr = f0(C());
   }
 }
