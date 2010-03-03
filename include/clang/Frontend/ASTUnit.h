@@ -18,6 +18,8 @@
 #include "llvm/ADT/OwningPtr.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Index/ASTLocation.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/System/Path.h"
 #include <string>
 #include <vector>
 #include <cassert>
@@ -51,7 +53,6 @@ class ASTUnit {
   llvm::OwningPtr<TargetInfo>       Target;
   llvm::OwningPtr<Preprocessor>     PP;
   llvm::OwningPtr<ASTContext>       Ctx;
-  bool                              tempFile;
 
   /// Optional owned invocation, just used to make the invocation used in
   /// LoadFromCommandLine available.
@@ -80,6 +81,14 @@ class ASTUnit {
   // Critical optimization when using clang_getCursor().
   ASTLocation LastLoc;
 
+  /// \brief The set of diagnostics produced when creating this
+  /// translation unit.
+  llvm::SmallVector<StoredDiagnostic, 4> Diagnostics;
+
+  /// \brief Temporary files that should be removed when the ASTUnit is 
+  /// destroyed.
+  llvm::SmallVector<llvm::sys::Path, 4> TemporaryFiles;
+  
   ASTUnit(const ASTUnit&); // DO NOT IMPLEMENT
   ASTUnit &operator=(const ASTUnit &); // DO NOT IMPLEMENT
 
@@ -104,8 +113,13 @@ public:
   const std::string &getOriginalSourceFileName();
   const std::string &getPCHFileName();
 
-  void unlinkTemporaryFile() { tempFile = true; }
-
+  /// \brief Add a temporary file that the ASTUnit depends on.
+  ///
+  /// This file will be erased when the ASTUnit is destroyed.
+  void addTemporaryFile(const llvm::sys::Path &TempFile) {
+    TemporaryFiles.push_back(TempFile);
+  }
+                        
   bool getOnlyLocalDecls() const { return OnlyLocalDecls; }
 
   void setLastASTLocation(ASTLocation ALoc) { LastLoc = ALoc; }
@@ -118,6 +132,15 @@ public:
   const std::vector<Decl*> &getTopLevelDecls() const {
     assert(!isMainFileAST() && "Invalid call for AST based ASTUnit!");
     return TopLevelDecls;
+  }
+
+  // Retrieve the diagnostics associated with this AST
+  typedef const StoredDiagnostic * diag_iterator;
+  diag_iterator diag_begin() const { return Diagnostics.begin(); }
+  diag_iterator diag_end() const { return Diagnostics.end(); }
+  unsigned diag_size() const { return Diagnostics.size(); }
+  llvm::SmallVector<StoredDiagnostic, 4> &getDiagnostics() { 
+    return Diagnostics; 
   }
 
   /// \brief A mapping from a file name to the memory buffer that stores the
@@ -136,7 +159,8 @@ public:
                                   Diagnostic &Diags,
                                   bool OnlyLocalDecls = false,
                                   RemappedFile *RemappedFiles = 0,
-                                  unsigned NumRemappedFiles = 0);
+                                  unsigned NumRemappedFiles = 0,
+                                  bool CaptureDiagnostics = false);
 
   /// LoadFromCompilerInvocation - Create an ASTUnit from a source file, via a
   /// CompilerInvocation object.
@@ -151,7 +175,8 @@ public:
   // shouldn't need to specify them at construction time.
   static ASTUnit *LoadFromCompilerInvocation(CompilerInvocation *CI,
                                              Diagnostic &Diags,
-                                             bool OnlyLocalDecls = false);
+                                             bool OnlyLocalDecls = false,
+                                             bool CaptureDiagnostics = false);
 
   /// LoadFromCommandLine - Create an ASTUnit from a vector of command line
   /// arguments, which must specify exactly one source file.
@@ -173,7 +198,8 @@ public:
                                       llvm::StringRef ResourceFilesPath,
                                       bool OnlyLocalDecls = false,
                                       RemappedFile *RemappedFiles = 0,
-                                      unsigned NumRemappedFiles = 0);
+                                      unsigned NumRemappedFiles = 0,
+                                      bool CaptureDiagnostics = false);
 };
 
 } // namespace clang

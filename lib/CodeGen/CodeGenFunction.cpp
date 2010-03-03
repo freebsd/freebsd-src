@@ -30,7 +30,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule &cgm)
     Builder(cgm.getModule().getContext()),
     DebugInfo(0), IndirectBranch(0),
     SwitchInsn(0), CaseRangeBlock(0), InvokeDest(0),
-    CXXThisDecl(0), CXXVTTDecl(0),
+    CXXThisDecl(0), CXXThisValue(0), CXXVTTDecl(0), CXXVTTValue(0),
     ConditionalBranchLevel(0), TerminateHandler(0), TrapBB(0),
     UniqueAggrDestructorCount(0) {
   LLVMIntTy = ConvertType(getContext().IntTy);
@@ -197,7 +197,10 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
   Builder.SetInsertPoint(EntryBB);
 
-  QualType FnType = getContext().getFunctionType(RetTy, 0, 0, false, 0);
+  QualType FnType = getContext().getFunctionType(RetTy, 0, 0, false, 0,
+                                                 false, false, 0, 0,
+                                                 /*FIXME?*/false,
+                                                 /*FIXME?*/CC_Default);
 
   // Emit subprogram debug descriptor.
   if (CGDebugInfo *DI = getDebugInfo()) {
@@ -216,14 +219,19 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   } else if (CurFnInfo->getReturnInfo().getKind() == ABIArgInfo::Indirect &&
              hasAggregateLLVMType(CurFnInfo->getReturnType())) {
     // Indirect aggregate return; emit returned value directly into sret slot.
-    // This reduces code size, and is also affects correctness in C++.
+    // This reduces code size, and affects correctness in C++.
     ReturnValue = CurFn->arg_begin();
   } else {
-    ReturnValue = CreateTempAlloca(ConvertType(RetTy), "retval");
+    ReturnValue = CreateIRTemp(RetTy, "retval");
   }
 
   EmitStartEHSpec(CurCodeDecl);
   EmitFunctionProlog(*CurFnInfo, CurFn, Args);
+
+  if (CXXThisDecl)
+    CXXThisValue = Builder.CreateLoad(LocalDeclMap[CXXThisDecl], "this");
+  if (CXXVTTDecl)
+    CXXVTTValue = Builder.CreateLoad(LocalDeclMap[CXXVTTDecl], "vtt");
 
   // If any of the arguments have a variably modified type, make sure to
   // emit the type size.
@@ -233,6 +241,19 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
     if (Ty->isVariablyModifiedType())
       EmitVLASize(Ty);
+  }
+}
+
+void CodeGenFunction::EmitFunctionBody(FunctionArgList &Args) {
+  const FunctionDecl *FD = cast<FunctionDecl>(CurGD.getDecl());
+
+  Stmt *Body = FD->getBody();
+  if (Body)
+    EmitStmt(Body);
+  else {
+    assert(FD->isImplicit() && "non-implicit function def has no body");
+    assert(FD->isCopyAssignment() && "implicit function not copy assignment");
+    SynthesizeCXXCopyAssignment(Args);
   }
 }
 
@@ -246,13 +267,13 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn) {
   FunctionArgList Args;
 
   CurGD = GD;
-  OuterTryBlock = 0;
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
     if (MD->isInstance()) {
       // Create the implicit 'this' decl.
       // FIXME: I'm not entirely sure I like using a fake decl just for code
       // generation. Maybe we can come up with a better way?
-      CXXThisDecl = ImplicitParamDecl::Create(getContext(), 0, SourceLocation(),
+      CXXThisDecl = ImplicitParamDecl::Create(getContext(), 0,
+                                              FD->getLocation(),
                                               &getContext().Idents.get("this"),
                                               MD->getThisType(getContext()));
       Args.push_back(std::make_pair(CXXThisDecl, CXXThisDecl->getType()));
@@ -262,7 +283,7 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn) {
         // FIXME: The comment about using a fake decl above applies here too.
         QualType T = getContext().getPointerType(getContext().VoidPtrTy);
         CXXVTTDecl = 
-          ImplicitParamDecl::Create(getContext(), 0, SourceLocation(),
+          ImplicitParamDecl::Create(getContext(), 0, FD->getLocation(),
                                     &getContext().Idents.get("vtt"), T);
         Args.push_back(std::make_pair(CXXVTTDecl, CXXVTTDecl->getType()));
       }
@@ -278,80 +299,22 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn) {
                                     FProto->getArgType(i)));
   }
 
-  if (const CompoundStmt *S = FD->getCompoundBody()) {
-    StartFunction(GD, FD->getResultType(), Fn, Args, S->getLBracLoc());
+  SourceRange BodyRange;
+  if (Stmt *Body = FD->getBody()) BodyRange = Body->getSourceRange();
 
-    if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(FD)) {
-      EmitCtorPrologue(CD, GD.getCtorType());
-      EmitStmt(S);
-      
-      // If any of the member initializers are temporaries bound to references
-      // make sure to emit their destructors.
-      EmitCleanupBlocks(0);
-      
-    } else if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(FD)) {
-      llvm::BasicBlock *DtorEpilogue  = createBasicBlock("dtor.epilogue");
-      PushCleanupBlock(DtorEpilogue);
+  // Emit the standard function prologue.
+  StartFunction(GD, FD->getResultType(), Fn, Args, BodyRange.getBegin());
 
-      InitializeVtablePtrs(DD->getParent());
+  // Generate the body of the function.
+  if (isa<CXXDestructorDecl>(FD))
+    EmitDestructorBody(Args);
+  else if (isa<CXXConstructorDecl>(FD))
+    EmitConstructorBody(Args);
+  else
+    EmitFunctionBody(Args);
 
-      EmitStmt(S);
-      
-      CleanupBlockInfo Info = PopCleanupBlock();
-
-      assert(Info.CleanupBlock == DtorEpilogue && "Block mismatch!");
-      EmitBlock(DtorEpilogue);
-      EmitDtorEpilogue(DD, GD.getDtorType());
-      
-      if (Info.SwitchBlock)
-        EmitBlock(Info.SwitchBlock);
-      if (Info.EndBlock)
-        EmitBlock(Info.EndBlock);
-    } else {
-      // Just a regular function, emit its body.
-      EmitStmt(S);
-    }
-    
-    FinishFunction(S->getRBracLoc());
-  } else if (FD->isImplicit()) {
-    const CXXRecordDecl *ClassDecl =
-      cast<CXXRecordDecl>(FD->getDeclContext());
-    (void) ClassDecl;
-    if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(FD)) {
-      // FIXME: For C++0x, we want to look for implicit *definitions* of
-      // these special member functions, rather than implicit *declarations*.
-      if (CD->isCopyConstructor()) {
-        assert(!ClassDecl->hasUserDeclaredCopyConstructor() &&
-               "Cannot synthesize a non-implicit copy constructor");
-        SynthesizeCXXCopyConstructor(CD, GD.getCtorType(), Fn, Args);
-      } else if (CD->isDefaultConstructor()) {
-        assert(!ClassDecl->hasUserDeclaredConstructor() &&
-               "Cannot synthesize a non-implicit default constructor.");
-        SynthesizeDefaultConstructor(CD, GD.getCtorType(), Fn, Args);
-      } else {
-        assert(false && "Implicit constructor cannot be synthesized");
-      }
-    } else if (const CXXDestructorDecl *CD = dyn_cast<CXXDestructorDecl>(FD)) {
-      assert(!ClassDecl->hasUserDeclaredDestructor() &&
-             "Cannot synthesize a non-implicit destructor");
-      SynthesizeDefaultDestructor(CD, GD.getDtorType(), Fn, Args);
-    } else if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
-      assert(MD->isCopyAssignment() && 
-             !ClassDecl->hasUserDeclaredCopyAssignment() &&
-             "Cannot synthesize a method that is not an implicit-defined "
-             "copy constructor");
-      SynthesizeCXXCopyAssignment(MD, Fn, Args);
-    } else {
-      assert(false && "Cannot synthesize unknown implicit function");
-    }
-  } else if (const Stmt *S = FD->getBody()) {
-    if (const CXXTryStmt *TS = dyn_cast<CXXTryStmt>(S)) {
-      OuterTryBlock = TS;
-      StartFunction(GD, FD->getResultType(), Fn, Args, TS->getTryLoc());
-      EmitStmt(TS);
-      FinishFunction(TS->getEndLoc());
-    }
-  }
+  // Emit the standard function epilogue.
+  FinishFunction(BodyRange.getEnd());
 
   // Destroy the 'this' declaration.
   if (CXXThisDecl)

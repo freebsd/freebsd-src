@@ -279,7 +279,8 @@ public:
 
   /// \brief Whether this declaration was used, meaning that a definition
   /// is required.
-  bool isUsed() const { return Used; }
+  bool isUsed() const;
+  
   void setUsed(bool U = true) { Used = U; }
 
   /// \brief Retrieve the level of precompiled header from which this
@@ -330,7 +331,7 @@ public:
     return const_cast<Decl*>(this)->getLexicalDeclContext();
   }
 
-  bool isOutOfLine() const {
+  virtual bool isOutOfLine() const {
     return getLexicalDeclContext() != getDeclContext();
   }
 

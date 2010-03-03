@@ -1137,12 +1137,15 @@ static void AddOrdinaryNameResults(Action::CodeCompletionContext CCC,
     else if (ObjCMethodDecl *Method
                                  = dyn_cast<ObjCMethodDecl>(SemaRef.CurContext))
       isVoid = Method->getResultType()->isVoidType();
-    else if (SemaRef.CurBlock && !SemaRef.CurBlock->ReturnType.isNull())
-      isVoid = SemaRef.CurBlock->ReturnType->isVoidType();
+    else if (SemaRef.getCurBlock() && 
+             !SemaRef.getCurBlock()->ReturnType.isNull())
+      isVoid = SemaRef.getCurBlock()->ReturnType->isVoidType();
     Pattern = new CodeCompletionString;
     Pattern->AddTypedTextChunk("return");
-    if (!isVoid)
+    if (!isVoid) {
+      Pattern->AddChunk(CodeCompletionString::CK_HorizontalSpace);
       Pattern->AddPlaceholderChunk("expression");
+    }
     Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
     Results.AddResult(Result(Pattern));
 

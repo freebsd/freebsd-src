@@ -59,6 +59,12 @@ ASTContext::~ASTContext() {
   // Release the DenseMaps associated with DeclContext objects.
   // FIXME: Is this the ideal solution?
   ReleaseDeclContextMaps();
+
+  // Release all of the memory associated with overridden C++ methods.
+  for (llvm::DenseMap<const CXXMethodDecl *, CXXMethodVector>::iterator 
+         OM = OverriddenMethods.begin(), OMEnd = OverriddenMethods.end();
+       OM != OMEnd; ++OM)
+    OM->second.Destroy();
   
   if (FreeMemory) {
     // Deallocate all the types.
@@ -319,6 +325,80 @@ void ASTContext::setInstantiatedFromUnnamedFieldDecl(FieldDecl *Inst,
   InstantiatedFromUnnamedFieldDecl[Inst] = Tmpl;
 }
 
+CXXMethodVector::iterator CXXMethodVector::begin() const {
+  if ((Storage & 0x01) == 0)
+    return reinterpret_cast<iterator>(&Storage);
+
+  vector_type *Vec = reinterpret_cast<vector_type *>(Storage & ~0x01);
+  return &Vec->front();
+}
+
+CXXMethodVector::iterator CXXMethodVector::end() const {
+  if ((Storage & 0x01) == 0) {
+    if (Storage == 0)
+      return reinterpret_cast<iterator>(&Storage);
+
+    return reinterpret_cast<iterator>(&Storage) + 1;
+  }
+
+  vector_type *Vec = reinterpret_cast<vector_type *>(Storage & ~0x01);
+  return &Vec->front() + Vec->size();
+}
+
+void CXXMethodVector::push_back(const CXXMethodDecl *Method) {
+  if (Storage == 0) {
+    // 0 -> 1 element.
+    Storage = reinterpret_cast<uintptr_t>(Method);
+    return;
+  }
+
+  vector_type *Vec;
+  if ((Storage & 0x01) == 0) {
+    // 1 -> 2 elements. Allocate a new vector and push the element into that
+    // vector.
+    Vec = new vector_type;
+    Vec->push_back(reinterpret_cast<const CXXMethodDecl *>(Storage));
+    Storage = reinterpret_cast<uintptr_t>(Vec) | 0x01;
+  } else
+    Vec = reinterpret_cast<vector_type *>(Storage & ~0x01);
+
+  // Add the new method to the vector.
+  Vec->push_back(Method);
+}
+
+void CXXMethodVector::Destroy() {
+  if (Storage & 0x01)
+    delete reinterpret_cast<vector_type *>(Storage & ~0x01);
+
+  Storage = 0;
+}
+
+
+ASTContext::overridden_cxx_method_iterator
+ASTContext::overridden_methods_begin(const CXXMethodDecl *Method) const {
+  llvm::DenseMap<const CXXMethodDecl *, CXXMethodVector>::const_iterator Pos
+    = OverriddenMethods.find(Method);
+  if (Pos == OverriddenMethods.end())
+    return 0;
+
+  return Pos->second.begin();
+}
+
+ASTContext::overridden_cxx_method_iterator
+ASTContext::overridden_methods_end(const CXXMethodDecl *Method) const {
+  llvm::DenseMap<const CXXMethodDecl *, CXXMethodVector>::const_iterator Pos
+    = OverriddenMethods.find(Method);
+  if (Pos == OverriddenMethods.end())
+    return 0;
+
+  return Pos->second.end();
+}
+
+void ASTContext::addOverriddenMethod(const CXXMethodDecl *Method, 
+                                     const CXXMethodDecl *Overridden) {
+  OverriddenMethods[Method].push_back(Overridden);
+}
+
 namespace {
   class BeforeInTranslationUnit
     : std::binary_function<SourceRange, SourceRange, bool> {
@@ -562,6 +642,12 @@ CharUnits ASTContext::getDeclAlign(const Decl *D, bool RefAsPointee) {
         T = cast<ArrayType>(T)->getElementType();
 
       Align = std::max(Align, getPreferredTypeAlign(T.getTypePtr()));
+    }
+    if (const FieldDecl *FD = dyn_cast<FieldDecl>(VD)) {
+      // In the case of a field in a packed struct, we want the minimum
+      // of the alignment of the field and the alignment of the struct.
+      Align = std::min(Align,
+        getPreferredTypeAlign(FD->getParent()->getTypeForDecl()));
     }
   }
 
@@ -872,14 +958,13 @@ void ASTContext::CollectObjCIvars(const ObjCInterfaceDecl *OI,
 /// Collect all ivars, including those synthesized, in the current class.
 ///
 void ASTContext::ShallowCollectObjCIvars(const ObjCInterfaceDecl *OI,
-                                 llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars,
-                                 bool CollectSynthesized) {
+                                 llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars) {
   for (ObjCInterfaceDecl::ivar_iterator I = OI->ivar_begin(),
          E = OI->ivar_end(); I != E; ++I) {
      Ivars.push_back(*I);
   }
-  if (CollectSynthesized)
-    CollectSynthesizedIvars(OI, Ivars);
+
+  CollectNonClassIvars(OI, Ivars);
 }
 
 void ASTContext::CollectProtocolSynthesizedIvars(const ObjCProtocolDecl *PD,
@@ -895,11 +980,20 @@ void ASTContext::CollectProtocolSynthesizedIvars(const ObjCProtocolDecl *PD,
     CollectProtocolSynthesizedIvars(*P, Ivars);
 }
 
-/// CollectSynthesizedIvars -
-/// This routine collect synthesized ivars for the designated class.
+/// CollectNonClassIvars -
+/// This routine collects all other ivars which are not declared in the class.
+/// This includes synthesized ivars and those in class's implementation.
 ///
-void ASTContext::CollectSynthesizedIvars(const ObjCInterfaceDecl *OI,
+void ASTContext::CollectNonClassIvars(const ObjCInterfaceDecl *OI,
                                 llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars) {
+  // Find ivars declared in class extension.
+  if (const ObjCCategoryDecl *CDecl = OI->getClassExtension()) {
+    for (ObjCCategoryDecl::ivar_iterator I = CDecl->ivar_begin(),
+         E = CDecl->ivar_end(); I != E; ++I) {
+      Ivars.push_back(*I);
+    }
+  }
+  
   for (ObjCInterfaceDecl::prop_iterator I = OI->prop_begin(),
        E = OI->prop_end(); I != E; ++I) {
     if (ObjCIvarDecl *Ivar = (*I)->getPropertyIvarDecl())
@@ -911,6 +1005,13 @@ void ASTContext::CollectSynthesizedIvars(const ObjCInterfaceDecl *OI,
        PE = OI->protocol_end(); P != PE; ++P) {
     ObjCProtocolDecl *PD = (*P);
     CollectProtocolSynthesizedIvars(PD, Ivars);
+  }
+
+  // Also add any ivar defined in this class's implementation
+  if (ObjCImplementationDecl *ImplDecl = OI->getImplementation()) {
+    for (ObjCImplementationDecl::ivar_iterator I = ImplDecl->ivar_begin(),
+         E = ImplDecl->ivar_end(); I != E; ++I)
+      Ivars.push_back(*I);
   }
 }
 
@@ -924,9 +1025,11 @@ void ASTContext::CollectInheritedProtocols(const Decl *CDecl,
       ObjCProtocolDecl *Proto = (*P);
       Protocols.insert(Proto);
       for (ObjCProtocolDecl::protocol_iterator P = Proto->protocol_begin(),
-           PE = Proto->protocol_end(); P != PE; ++P)
+           PE = Proto->protocol_end(); P != PE; ++P) {
+        Protocols.insert(*P);
         CollectInheritedProtocols(*P, Protocols);
       }
+    }
     
     // Categories of this Interface.
     for (const ObjCCategoryDecl *CDeclChain = OI->getCategoryList(); 
@@ -4401,7 +4504,8 @@ QualType ASTContext::mergeFunctionTypes(QualType lhs, QualType rhs) {
     if (allRTypes) return rhs;
     return getFunctionType(retType, proto->arg_type_begin(),
                            proto->getNumArgs(), proto->isVariadic(),
-                           proto->getTypeQuals(), NoReturn, lcc);
+                           proto->getTypeQuals(), 
+                           false, false, 0, 0, NoReturn, lcc);
   }
 
   if (allLTypes) return lhs;
@@ -4498,6 +4602,7 @@ QualType ASTContext::mergeTypes(QualType LHS, QualType RHS) {
   switch (LHSClass) {
 #define TYPE(Class, Base)
 #define ABSTRACT_TYPE(Class, Base)
+#define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base) case Type::Class:
 #define NON_CANONICAL_TYPE(Class, Base) case Type::Class:
 #define DEPENDENT_TYPE(Class, Base) case Type::Class:
 #include "clang/AST/TypeNodes.def"
@@ -4620,9 +4725,6 @@ QualType ASTContext::mergeTypes(QualType LHS, QualType RHS) {
 
     return QualType();
   }
-  case Type::TemplateSpecialization:
-    assert(false && "Dependent types have no size");
-    break;
   }
 
   return QualType();
@@ -4888,8 +4990,11 @@ QualType ASTContext::GetBuiltinType(unsigned id,
   // handle untyped/variadic arguments "T c99Style();" or "T cppStyle(...);".
   if (ArgTypes.size() == 0 && TypeStr[0] == '.')
     return getFunctionNoProtoType(ResType);
+
+  // FIXME: Should we create noreturn types?
   return getFunctionType(ResType, ArgTypes.data(), ArgTypes.size(),
-                         TypeStr[0] == '.', 0);
+                         TypeStr[0] == '.', 0, false, false, 0, 0,
+                         false, CC_Default);
 }
 
 QualType

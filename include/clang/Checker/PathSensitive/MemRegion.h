@@ -428,7 +428,6 @@ public:
 ///  which correspond to "code+data".  The distinction is important, because
 ///  like a closure a block captures the values of externally referenced
 ///  variables.
-/// BlockDataRegion - A region that represents code texts of blocks (closures).
 class BlockDataRegion : public SubRegion {
   friend class MemRegionManager;
   const BlockTextRegion *BC;
@@ -798,11 +797,10 @@ class MemRegionManager {
 
   GlobalsSpaceRegion *globals;
   
-  const StackFrameContext *cachedStackLocalsFrame;
-  StackLocalsSpaceRegion *cachedStackLocalsRegion;
-  
-  const StackFrameContext *cachedStackArgumentsFrame;
-  StackArgumentsSpaceRegion *cachedStackArgumentsRegion;
+  llvm::DenseMap<const StackFrameContext *, StackLocalsSpaceRegion *> 
+    StackLocalsSpaceRegions;
+  llvm::DenseMap<const StackFrameContext *, StackArgumentsSpaceRegion *>
+    StackArgumentsSpaceRegions;
 
   HeapSpaceRegion *heap;
   UnknownSpaceRegion *unknown;
@@ -810,10 +808,7 @@ class MemRegionManager {
 
 public:
   MemRegionManager(ASTContext &c, llvm::BumpPtrAllocator& a)
-    : C(c), A(a), globals(0),
-      cachedStackLocalsFrame(0), cachedStackLocalsRegion(0),
-      cachedStackArgumentsFrame(0), cachedStackArgumentsRegion(0),
-      heap(0), unknown(0), code(0) {}
+    : C(c), A(a), globals(0), heap(0), unknown(0), code(0) {}
 
   ~MemRegionManager();
 

@@ -51,7 +51,8 @@ public:
                 AttributeList *Next, bool declspec = false, bool cxx0x = false);
   ~AttributeList();
 
-  enum Kind {              // Please keep this list alphabetized.
+  enum Kind {             // Please keep this list alphabetized.
+    AT_IBAction,          // Clang-specific.
     AT_IBOutlet,          // Clang-specific.
     AT_address_space,
     AT_alias,
@@ -88,8 +89,10 @@ public:
     AT_nsobject,
     AT_objc_exception,
     AT_override,
-    AT_cf_returns_retained,   // Clang-specific.
-    AT_ns_returns_retained,   // Clang-specific.
+    AT_cf_returns_not_retained, // Clang-specific.
+    AT_cf_returns_retained,     // Clang-specific.
+    AT_ns_returns_not_retained, // Clang-specific.
+    AT_ns_returns_retained,     // Clang-specific.
     AT_objc_gc,
     AT_overloadable,       // Clang-specific.
     AT_packed,
@@ -106,6 +109,7 @@ public:
     AT_visibility,
     AT_warn_unused_result,
     AT_weak,
+    AT_weakref,
     AT_weak_import,
     AT_reqd_wg_size,
     IgnoredAttribute,

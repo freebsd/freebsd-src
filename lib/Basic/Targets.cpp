@@ -436,11 +436,13 @@ void PPCTargetInfo::getTargetDefines(const LangOptions &Opts,
   // Target identification.
   Builder.defineMacro("__ppc__");
   Builder.defineMacro("_ARCH_PPC");
+  Builder.defineMacro("__powerpc__");
   Builder.defineMacro("__POWERPC__");
   if (PointerWidth == 64) {
     Builder.defineMacro("_ARCH_PPC64");
     Builder.defineMacro("_LP64");
     Builder.defineMacro("__LP64__");
+    Builder.defineMacro("__powerpc64__");
     Builder.defineMacro("__ppc64__");
   } else {
     Builder.defineMacro("__ppc__");
@@ -571,9 +573,12 @@ void PPCTargetInfo::getGCCRegAliases(const GCCRegAlias *&Aliases,
 namespace {
 class PPC32TargetInfo : public PPCTargetInfo {
 public:
-  PPC32TargetInfo(const std::string& triple) : PPCTargetInfo(triple) {
+  PPC32TargetInfo(const std::string &triple) : PPCTargetInfo(triple) {
     DescriptionString = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
                         "i64:64:64-f32:32:32-f64:64:64-v128:128:128-n32";
+
+    if (getTriple().getOS() == llvm::Triple::FreeBSD)
+        this->SizeType = TargetInfo::UnsignedInt;
   }
 };
 } // end anonymous namespace.
@@ -1919,12 +1924,38 @@ namespace {
 
 namespace {
 class MipsTargetInfo : public TargetInfo {
+  std::string ABI, CPU;
   static const TargetInfo::GCCRegAlias GCCRegAliases[];
   static const char * const GCCRegNames[];
 public:
-  MipsTargetInfo(const std::string& triple) : TargetInfo(triple) {
+  MipsTargetInfo(const std::string& triple) : TargetInfo(triple), ABI("o32") {
     DescriptionString = "E-p:32:32:32-i1:8:8-i8:8:32-i16:16:32-i32:32:32-"
                         "i64:32:64-f32:32:32-f64:64:64-v64:64:64-n32";
+  }
+  virtual const char *getABI() const { return ABI.c_str(); }
+  virtual bool setABI(const std::string &Name) {
+
+    if ((Name == "o32") || (Name == "eabi")) {
+      ABI = Name;
+      return true;
+    } else
+      return false;
+  }
+  virtual bool setCPU(const std::string &Name) {
+    CPU = Name;
+    return true;
+  }
+  void getDefaultFeatures(const std::string &CPU,
+                          llvm::StringMap<bool> &Features) const {
+    Features[ABI] = true;
+    Features[CPU] = true;
+  }
+  virtual void getArchDefines(const LangOptions &Opts,
+                                MacroBuilder &Builder) const {
+    if (ABI == "o32")
+      Builder.defineMacro("__mips_o32");
+    else if (ABI == "eabi")
+      Builder.defineMacro("__mips_eabi");
   }
   virtual void getTargetDefines(const LangOptions &Opts,
                                 MacroBuilder &Builder) const {
@@ -1933,6 +1964,7 @@ public:
     DefineStd(Builder, "MIPSEB", Opts);
     Builder.defineMacro("_MIPSEB");
     Builder.defineMacro("__REGISTER_PREFIX__", "");
+    getArchDefines(Opts, Builder);
   }
   virtual void getTargetBuiltins(const Builtin::Info *&Records,
                                  unsigned &NumRecords) const {
@@ -2044,6 +2076,7 @@ void MipselTargetInfo::getTargetDefines(const LangOptions &Opts,
   DefineStd(Builder, "MIPSEL", Opts);
   Builder.defineMacro("_MIPSEL");
   Builder.defineMacro("__REGISTER_PREFIX__", "");
+  getArchDefines(Opts, Builder);
 }
 } // end anonymous namespace.
 
@@ -2096,6 +2129,8 @@ static TargetInfo *AllocateTarget(const std::string &T) {
   case llvm::Triple::ppc:
     if (os == llvm::Triple::Darwin)
       return new DarwinTargetInfo<PPCTargetInfo>(T);
+    else if (os == llvm::Triple::FreeBSD)
+      return new FreeBSDTargetInfo<PPC32TargetInfo>(T);
     return new PPC32TargetInfo(T);
 
   case llvm::Triple::ppc64:
@@ -2103,6 +2138,8 @@ static TargetInfo *AllocateTarget(const std::string &T) {
       return new DarwinTargetInfo<PPC64TargetInfo>(T);
     else if (os == llvm::Triple::Lv2)
       return new PS3PPUTargetInfo<PPC64TargetInfo>(T);
+    else if (os == llvm::Triple::FreeBSD)
+      return new FreeBSDTargetInfo<PPC64TargetInfo>(T);
     return new PPC64TargetInfo(T);
 
   case llvm::Triple::sparc:

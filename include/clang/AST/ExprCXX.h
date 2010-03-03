@@ -997,21 +997,59 @@ public:
   virtual child_iterator child_end();
 };
 
+/// \brief Structure used to store the type being destroyed by a 
+/// pseudo-destructor expression.
+class PseudoDestructorTypeStorage {
+  /// \brief Either the type source information or the name of the type, if 
+  /// it couldn't be resolved due to type-dependence.
+  llvm::PointerUnion<TypeSourceInfo *, IdentifierInfo *> Type;
+  
+  /// \brief The starting source location of the pseudo-destructor type.
+  SourceLocation Location;
+  
+public:
+  PseudoDestructorTypeStorage() { }
+  
+  PseudoDestructorTypeStorage(IdentifierInfo *II, SourceLocation Loc)
+    : Type(II), Location(Loc) { }
+  
+  PseudoDestructorTypeStorage(TypeSourceInfo *Info);
+  
+  TypeSourceInfo *getTypeSourceInfo() const { 
+    return Type.dyn_cast<TypeSourceInfo *>(); 
+  }
+  
+  IdentifierInfo *getIdentifier() const {
+    return Type.dyn_cast<IdentifierInfo *>();
+  }
+  
+  SourceLocation getLocation() const { return Location; }
+};
+  
 /// \brief Represents a C++ pseudo-destructor (C++ [expr.pseudo]).
 ///
-/// Example:
+/// A pseudo-destructor is an expression that looks like a member access to a
+/// destructor of a scalar type, except that scalar types don't have 
+/// destructors. For example:
 ///
 /// \code
-/// template<typename T>
-/// void destroy(T* ptr) {
-///   ptr->~T();
+/// typedef int T;
+/// void f(int *p) {
+///   p->T::~T();
 /// }
 /// \endcode
 ///
-/// When the template is parsed, the expression \c ptr->~T will be stored as
-/// a member reference expression. If it then instantiated with a scalar type
-/// as a template argument for T, the resulting expression will be a
-/// pseudo-destructor expression.
+/// Pseudo-destructors typically occur when instantiating templates such as:
+/// 
+/// \code
+/// template<typename T>
+/// void destroy(T* ptr) {
+///   ptr->T::~T();
+/// }
+/// \endcode
+///
+/// for scalar types. A pseudo-destructor expression has no run-time semantics
+/// beyond evaluating the base expression.
 class CXXPseudoDestructorExpr : public Expr {
   /// \brief The base expression (that is being destroyed).
   Stmt *Base;
@@ -1030,28 +1068,44 @@ class CXXPseudoDestructorExpr : public Expr {
   /// present.
   SourceRange QualifierRange;
 
-  /// \brief The type being destroyed.
-  QualType DestroyedType;
-
-  /// \brief The location of the type after the '~'.
-  SourceLocation DestroyedTypeLoc;
+  /// \brief The type that precedes the '::' in a qualified pseudo-destructor
+  /// expression.
+  TypeSourceInfo *ScopeType;
+  
+  /// \brief The location of the '::' in a qualified pseudo-destructor 
+  /// expression.
+  SourceLocation ColonColonLoc;
+  
+  /// \brief The location of the '~'.
+  SourceLocation TildeLoc;
+  
+  /// \brief The type being destroyed, or its name if we were unable to 
+  /// resolve the name.
+  PseudoDestructorTypeStorage DestroyedType;
 
 public:
   CXXPseudoDestructorExpr(ASTContext &Context,
                           Expr *Base, bool isArrow, SourceLocation OperatorLoc,
                           NestedNameSpecifier *Qualifier,
                           SourceRange QualifierRange,
-                          QualType DestroyedType,
-                          SourceLocation DestroyedTypeLoc)
+                          TypeSourceInfo *ScopeType,
+                          SourceLocation ColonColonLoc,
+                          SourceLocation TildeLoc,
+                          PseudoDestructorTypeStorage DestroyedType)
     : Expr(CXXPseudoDestructorExprClass,
            Context.getPointerType(Context.getFunctionType(Context.VoidTy, 0, 0,
-                                                          false, 0)),
-           /*isTypeDependent=*/false,
+                                                          false, 0, false, 
+                                                          false, 0, 0, false,
+                                                          CC_Default)),
+           /*isTypeDependent=*/(Base->isTypeDependent() ||
+            (DestroyedType.getTypeSourceInfo() &&
+              DestroyedType.getTypeSourceInfo()->getType()->isDependentType())),
            /*isValueDependent=*/Base->isValueDependent()),
       Base(static_cast<Stmt *>(Base)), IsArrow(isArrow),
       OperatorLoc(OperatorLoc), Qualifier(Qualifier),
-      QualifierRange(QualifierRange), DestroyedType(DestroyedType),
-      DestroyedTypeLoc(DestroyedTypeLoc) { }
+      QualifierRange(QualifierRange), 
+      ScopeType(ScopeType), ColonColonLoc(ColonColonLoc), TildeLoc(TildeLoc),
+      DestroyedType(DestroyedType) { }
 
   void setBase(Expr *E) { Base = E; }
   Expr *getBase() const { return cast<Expr>(Base); }
@@ -1079,15 +1133,51 @@ public:
   /// \brief Retrieve the location of the '.' or '->' operator.
   SourceLocation getOperatorLoc() const { return OperatorLoc; }
 
-  /// \brief Retrieve the type that is being destroyed.
-  QualType getDestroyedType() const { return DestroyedType; }
-
-  /// \brief Retrieve the location of the type being destroyed.
-  SourceLocation getDestroyedTypeLoc() const { return DestroyedTypeLoc; }
-
-  virtual SourceRange getSourceRange() const {
-    return SourceRange(Base->getLocStart(), DestroyedTypeLoc);
+  /// \brief Retrieve the scope type in a qualified pseudo-destructor 
+  /// expression.
+  ///
+  /// Pseudo-destructor expressions can have extra qualification within them
+  /// that is not part of the nested-name-specifier, e.g., \c p->T::~T().
+  /// Here, if the object type of the expression is (or may be) a scalar type,
+  /// \p T may also be a scalar type and, therefore, cannot be part of a 
+  /// nested-name-specifier. It is stored as the "scope type" of the pseudo-
+  /// destructor expression.
+  TypeSourceInfo *getScopeTypeInfo() const { return ScopeType; }
+  
+  /// \brief Retrieve the location of the '::' in a qualified pseudo-destructor
+  /// expression.
+  SourceLocation getColonColonLoc() const { return ColonColonLoc; }
+  
+  /// \brief Retrieve the location of the '~'.
+  SourceLocation getTildeLoc() const { return TildeLoc; }
+  
+  /// \brief Retrieve the source location information for the type
+  /// being destroyed.
+  ///
+  /// This type-source information is available for non-dependent 
+  /// pseudo-destructor expressions and some dependent pseudo-destructor
+  /// expressions. Returns NULL if we only have the identifier for a
+  /// dependent pseudo-destructor expression.
+  TypeSourceInfo *getDestroyedTypeInfo() const { 
+    return DestroyedType.getTypeSourceInfo(); 
   }
+  
+  /// \brief In a dependent pseudo-destructor expression for which we do not
+  /// have full type information on the destroyed type, provides the name
+  /// of the destroyed type.
+  IdentifierInfo *getDestroyedTypeIdentifier() const {
+    return DestroyedType.getIdentifier();
+  }
+  
+  /// \brief Retrieve the type being destroyed.
+  QualType getDestroyedType() const;
+  
+  /// \brief Retrieve the starting location of the type being destroyed.
+  SourceLocation getDestroyedTypeLoc() const { 
+    return DestroyedType.getLocation(); 
+  }
+
+  virtual SourceRange getSourceRange() const;
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXPseudoDestructorExprClass;

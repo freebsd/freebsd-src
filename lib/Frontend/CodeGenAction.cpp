@@ -1,4 +1,4 @@
-//===--- Backend.cpp - Interface to LLVM backend technologies -------------===//
+//===--- CodeGenAction.cpp - LLVM Code Generation Frontend Action ---------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Frontend/ASTConsumers.h"
+#include "clang/Frontend/CodeGenAction.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclGroup.h"
@@ -15,6 +15,8 @@
 #include "clang/Basic/TargetOptions.h"
 #include "clang/CodeGen/CodeGenOptions.h"
 #include "clang/CodeGen/ModuleBuilder.h"
+#include "clang/Frontend/ASTConsumers.h"
+#include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "llvm/Module.h"
 #include "llvm/PassManager.h"
@@ -37,6 +39,14 @@ using namespace clang;
 using namespace llvm;
 
 namespace {
+  enum BackendAction {
+    Backend_EmitAssembly,  ///< Emit native assembly files
+    Backend_EmitBC,        ///< Emit LLVM bitcode files
+    Backend_EmitLL,        ///< Emit human-readable LLVM assembly
+    Backend_EmitNothing,   ///< Don't emit anything (benchmarking mode)
+    Backend_EmitObj        ///< Emit native object files
+  };
+
   class BackendConsumer : public ASTConsumer {
     Diagnostic &Diags;
     BackendAction Action;
@@ -52,7 +62,7 @@ namespace {
 
     llvm::OwningPtr<CodeGenerator> Gen;
 
-    llvm::Module *TheModule;
+    llvm::OwningPtr<llvm::Module> TheModule;
     llvm::TargetData *TheTargetData;
 
     mutable FunctionPassManager *CodeGenPasses;
@@ -87,7 +97,7 @@ namespace {
       LLVMIRGeneration("LLVM IR Generation Time"),
       CodeGenerationTime("Code Generation Time"),
       Gen(CreateLLVMCodeGen(Diags, infile, compopts, C)),
-      TheModule(0), TheTargetData(0),
+      TheTargetData(0),
       CodeGenPasses(0), PerModulePasses(0), PerFunctionPasses(0) {
 
       if (AsmOutStream)
@@ -99,11 +109,12 @@ namespace {
 
     ~BackendConsumer() {
       delete TheTargetData;
-      delete TheModule;
       delete CodeGenPasses;
       delete PerModulePasses;
       delete PerFunctionPasses;
     }
+
+    llvm::Module *takeModule() { return TheModule.take(); }
 
     virtual void Initialize(ASTContext &Ctx) {
       Context = &Ctx;
@@ -113,7 +124,7 @@ namespace {
 
       Gen->Initialize(Ctx);
 
-      TheModule = Gen->GetModule();
+      TheModule.reset(Gen->GetModule());
       TheTargetData = new llvm::TargetData(Ctx.Target.getTargetDescription());
 
       if (llvm::TimePassesIsEnabled)
@@ -169,7 +180,7 @@ namespace {
 
 FunctionPassManager *BackendConsumer::getCodeGenPasses() const {
   if (!CodeGenPasses) {
-    CodeGenPasses = new FunctionPassManager(TheModule);
+    CodeGenPasses = new FunctionPassManager(&*TheModule);
     CodeGenPasses->add(new TargetData(*TheTargetData));
   }
 
@@ -187,7 +198,7 @@ PassManager *BackendConsumer::getPerModulePasses() const {
 
 FunctionPassManager *BackendConsumer::getPerFunctionPasses() const {
   if (!PerFunctionPasses) {
-    PerFunctionPasses = new FunctionPassManager(TheModule);
+    PerFunctionPasses = new FunctionPassManager(&*TheModule);
     PerFunctionPasses->add(new TargetData(*TheTargetData));
   }
 
@@ -303,12 +314,21 @@ bool BackendConsumer::AddEmitPasses() {
     case 3: OptLevel = CodeGenOpt::Aggressive; break;
     }
 
+    // Request that addPassesToEmitFile run the Verifier after running
+    // passes which modify the IR.
+#ifndef NDEBUG
+    bool DisableVerify = false;
+#else
+    bool DisableVerify = true;
+#endif
+
     // Normal mode, emit a .s or .o file by running the code generator. Note,
     // this also adds codegenerator level optimization passes.
     TargetMachine::CodeGenFileType CGFT = TargetMachine::CGFT_AssemblyFile;
     if (Action == Backend_EmitObj)
       CGFT = TargetMachine::CGFT_ObjectFile;
-    if (TM->addPassesToEmitFile(*PM, FormattedOutStream, CGFT, OptLevel)) {
+    if (TM->addPassesToEmitFile(*PM, FormattedOutStream, CGFT, OptLevel,
+                                DisableVerify)) {
       Diags.Report(diag::err_fe_unable_to_interface_with_target);
       return false;
     }
@@ -381,11 +401,12 @@ void BackendConsumer::EmitAssembly() {
   if (!M) {
     // The module has been released by IR gen on failures, do not
     // double free.
-    TheModule = 0;
+    TheModule.take();
     return;
   }
 
-  assert(TheModule == M && "Unexpected module change during IR generation");
+  assert(TheModule.get() == M &&
+         "Unexpected module change during IR generation");
 
   CreatePasses();
   if (!AddEmitPasses())
@@ -419,15 +440,64 @@ void BackendConsumer::EmitAssembly() {
   }
 }
 
-ASTConsumer *clang::CreateBackendConsumer(BackendAction Action,
-                                          Diagnostic &Diags,
-                                          const LangOptions &LangOpts,
-                                          const CodeGenOptions &CodeGenOpts,
-                                          const TargetOptions &TargetOpts,
-                                          bool TimePasses,
-                                          const std::string& InFile,
-                                          llvm::raw_ostream* OS,
-                                          LLVMContext& C) {
-  return new BackendConsumer(Action, Diags, LangOpts, CodeGenOpts,
-                             TargetOpts, TimePasses, InFile, OS, C);
+//
+
+CodeGenAction::CodeGenAction(unsigned _Act) : Act(_Act) {}
+
+CodeGenAction::~CodeGenAction() {}
+
+void CodeGenAction::EndSourceFileAction() {
+  // If the consumer creation failed, do nothing.
+  if (!getCompilerInstance().hasASTConsumer())
+    return;
+
+  // Steal the module from the consumer.
+  BackendConsumer *Consumer = static_cast<BackendConsumer*>(
+    &getCompilerInstance().getASTConsumer());
+
+  TheModule.reset(Consumer->takeModule());
 }
+
+llvm::Module *CodeGenAction::takeModule() {
+  return TheModule.take();
+}
+
+ASTConsumer *CodeGenAction::CreateASTConsumer(CompilerInstance &CI,
+                                              llvm::StringRef InFile) {
+  BackendAction BA = static_cast<BackendAction>(Act);
+  llvm::OwningPtr<llvm::raw_ostream> OS;
+  switch (BA) {
+  case Backend_EmitAssembly:
+    OS.reset(CI.createDefaultOutputFile(false, InFile, "s"));
+    break;
+  case Backend_EmitLL:
+    OS.reset(CI.createDefaultOutputFile(false, InFile, "ll"));
+    break;
+  case Backend_EmitBC:
+    OS.reset(CI.createDefaultOutputFile(true, InFile, "bc"));
+    break;
+  case Backend_EmitNothing:
+    break;
+  case Backend_EmitObj:
+    OS.reset(CI.createDefaultOutputFile(true, InFile, "o"));
+    break;
+  }
+  if (BA != Backend_EmitNothing && !OS)
+    return 0;
+
+  return new BackendConsumer(BA, CI.getDiagnostics(), CI.getLangOpts(),
+                             CI.getCodeGenOpts(), CI.getTargetOpts(),
+                             CI.getFrontendOpts().ShowTimers, InFile, OS.take(),
+                             CI.getLLVMContext());
+}
+
+EmitAssemblyAction::EmitAssemblyAction()
+  : CodeGenAction(Backend_EmitAssembly) {}
+
+EmitBCAction::EmitBCAction() : CodeGenAction(Backend_EmitBC) {}
+
+EmitLLVMAction::EmitLLVMAction() : CodeGenAction(Backend_EmitLL) {}
+
+EmitLLVMOnlyAction::EmitLLVMOnlyAction() : CodeGenAction(Backend_EmitNothing) {}
+
+EmitObjAction::EmitObjAction() : CodeGenAction(Backend_EmitObj) {}

@@ -24,7 +24,7 @@ using namespace clang;
 using namespace CodeGen;
 
 llvm::Constant *CodeGenFunction::
-BuildDescriptorBlockDecl(bool BlockHasCopyDispose, CharUnits Size,
+BuildDescriptorBlockDecl(const BlockExpr *BE, bool BlockHasCopyDispose, CharUnits Size,
                          const llvm::StructType* Ty,
                          std::vector<HelperInfo> *NoteForHelper) {
   const llvm::Type *UnsignedLongTy
@@ -43,6 +43,7 @@ BuildDescriptorBlockDecl(bool BlockHasCopyDispose, CharUnits Size,
   C = llvm::ConstantInt::get(UnsignedLongTy, Size.getQuantity());
   Elts.push_back(C);
 
+  // optional copy/dispose helpers
   if (BlockHasCopyDispose) {
     // copy_func_helper_decl
     Elts.push_back(BuildCopyHelper(Ty, NoteForHelper));
@@ -50,6 +51,17 @@ BuildDescriptorBlockDecl(bool BlockHasCopyDispose, CharUnits Size,
     // destroy_func_decl
     Elts.push_back(BuildDestroyHelper(Ty, NoteForHelper));
   }
+
+  // Signature.  non-optional ObjC-style method descriptor @encode sequence
+  std::string BlockTypeEncoding;
+  CGM.getContext().getObjCEncodingForBlock(BE, BlockTypeEncoding);
+
+  Elts.push_back(llvm::ConstantExpr::getBitCast(
+          CGM.GetAddrOfConstantCString(BlockTypeEncoding), PtrToInt8Ty));
+  
+  // Layout.
+  C = llvm::ConstantInt::get(UnsignedLongTy, 0);
+  Elts.push_back(C);
 
   C = llvm::ConstantStruct::get(VMContext, Elts, false);
 
@@ -110,19 +122,6 @@ static bool CanBlockBeGlobal(const CodeGenFunction::BlockInfo &Info) {
 /// invoke function.
 static void AllocateAllBlockDeclRefs(const CodeGenFunction::BlockInfo &Info,
                                      CodeGenFunction *CGF) {
-  // Always allocate self, as it is often handy in the debugger, even if there
-  // is no codegen in the block that uses it.  This is also useful to always do
-  // this as if we didn't, we'd have to figure out all code that uses a self
-  // pointer, including implicit uses.
-  if (const ObjCMethodDecl *OMD
-      = dyn_cast_or_null<ObjCMethodDecl>(CGF->CurFuncDecl)) {
-    ImplicitParamDecl *SelfDecl = OMD->getSelfDecl();
-    BlockDeclRefExpr *BDRE = new (CGF->getContext())
-      BlockDeclRefExpr(SelfDecl,
-                       SelfDecl->getType(), SourceLocation(), false);
-    CGF->AllocateBlockDecl(BDRE);
-  }
-
   // FIXME: Also always forward the this pointer in C++ as well.
 
   for (size_t i = 0; i < Info.DeclRefs.size(); ++i)
@@ -148,30 +147,14 @@ llvm::Value *CodeGenFunction::BuildBlockLiteralTmp(const BlockExpr *BE) {
 
   size_t BlockFields = 5;
 
-  bool hasIntrospection  = CGM.getContext().getLangOptions().BlockIntrospection;
-
-  if (hasIntrospection) {
-    BlockFields++;
-  }
   std::vector<llvm::Constant*> Elts(BlockFields);
-
-  if (hasIntrospection) {
-    std::string BlockTypeEncoding;
-    CGM.getContext().getObjCEncodingForBlock(BE, BlockTypeEncoding);
-
-    Elts[5] = llvm::ConstantExpr::getBitCast(
-            CGM.GetAddrOfConstantCString(BlockTypeEncoding), PtrToInt8Ty);
-  }
 
   llvm::Constant *C;
   llvm::Value *V;
 
   {
     // C = BuildBlockStructInitlist();
-    unsigned int flags = BLOCK_HAS_DESCRIPTOR;
-
-    if (hasIntrospection)
-      flags |= BLOCK_HAS_OBJC_TYPE;
+    unsigned int flags = BLOCK_HAS_OBJC_TYPE;
 
     // We run this first so that we set BlockHasCopyDispose from the entire
     // block literal.
@@ -212,7 +195,7 @@ llvm::Value *CodeGenFunction::BuildBlockLiteralTmp(const BlockExpr *BE) {
 
     if (subBlockDeclRefDecls.size() == 0) {
       // __descriptor
-      Elts[4] = BuildDescriptorBlockDecl(subBlockHasCopyDispose, subBlockSize,
+      Elts[4] = BuildDescriptorBlockDecl(BE, subBlockHasCopyDispose, subBlockSize,
                                          0, 0);
 
       // Optimize to being a global block.
@@ -234,8 +217,6 @@ llvm::Value *CodeGenFunction::BuildBlockLiteralTmp(const BlockExpr *BE) {
     for (int i=0; i<4; ++i)
       Types[i] = Elts[i]->getType();
     Types[4] = PtrToInt8Ty;
-    if (hasIntrospection)
-      Types[5] = PtrToInt8Ty;
 
     for (unsigned i=0; i < subBlockDeclRefDecls.size(); ++i) {
       const Expr *E = subBlockDeclRefDecls[i];
@@ -258,8 +239,6 @@ llvm::Value *CodeGenFunction::BuildBlockLiteralTmp(const BlockExpr *BE) {
 
     for (unsigned i=0; i<4; ++i)
       Builder.CreateStore(Elts[i], Builder.CreateStructGEP(V, i, "block.tmp"));
-    if (hasIntrospection)
-      Builder.CreateStore(Elts[5], Builder.CreateStructGEP(V, 5, "block.tmp"));
 
     for (unsigned i=0; i < subBlockDeclRefDecls.size(); ++i)
       {
@@ -348,7 +327,8 @@ llvm::Value *CodeGenFunction::BuildBlockLiteralTmp(const BlockExpr *BE) {
     NoteForHelper.resize(helpersize);
 
     // __descriptor
-    llvm::Value *Descriptor = BuildDescriptorBlockDecl(subBlockHasCopyDispose,
+    llvm::Value *Descriptor = BuildDescriptorBlockDecl(BE,
+                                                       subBlockHasCopyDispose,
                                                        subBlockSize, Ty,
                                                        &NoteForHelper);
     Descriptor = Builder.CreateBitCast(Descriptor, PtrToInt8Ty);
@@ -384,6 +364,16 @@ const llvm::Type *BlockModule::getBlockDescriptorType() {
   // struct __block_descriptor {
   //   unsigned long reserved;
   //   unsigned long block_size;
+  //
+  //   // later, the following will be added
+  //
+  //   struct {
+  //     void (*copyHelper)();
+  //     void (*copyHelper)();
+  //   } helpers;                // !!! optional
+  //
+  //   const char *signature;   // the block signature
+  //   const char *layout;      // reserved
   // };
   BlockDescriptorType = llvm::StructType::get(UnsignedLongTy->getContext(),
                                               UnsignedLongTy,
@@ -412,20 +402,8 @@ const llvm::Type *BlockModule::getGenericBlockLiteralType() {
   //   int __reserved;
   //   void (*__invoke)(void *);
   //   struct __block_descriptor *__descriptor;
-  //   // GNU runtime only:
-  //   const char *types;
   // };
-  if (CGM.getContext().getLangOptions().BlockIntrospection)
-    GenericBlockLiteralType = llvm::StructType::get(IntTy->getContext(),
-                                                  PtrToInt8Ty,
-                                                  IntTy,
-                                                  IntTy,
-                                                  PtrToInt8Ty,
-                                                  BlockDescPtrTy,
-                                                  PtrToInt8Ty,
-                                                  NULL);
-  else
-    GenericBlockLiteralType = llvm::StructType::get(IntTy->getContext(),
+  GenericBlockLiteralType = llvm::StructType::get(IntTy->getContext(),
                                                   PtrToInt8Ty,
                                                   IntTy,
                                                   IntTy,
@@ -439,40 +417,6 @@ const llvm::Type *BlockModule::getGenericBlockLiteralType() {
   return GenericBlockLiteralType;
 }
 
-const llvm::Type *BlockModule::getGenericExtendedBlockLiteralType() {
-  if (GenericExtendedBlockLiteralType)
-    return GenericExtendedBlockLiteralType;
-
-  const llvm::Type *BlockDescPtrTy =
-    llvm::PointerType::getUnqual(getBlockDescriptorType());
-
-  const llvm::IntegerType *IntTy = cast<llvm::IntegerType>(
-    getTypes().ConvertType(getContext().IntTy));
-
-  // struct __block_literal_generic {
-  //   void *__isa;
-  //   int __flags;
-  //   int __reserved;
-  //   void (*__invoke)(void *);
-  //   struct __block_descriptor *__descriptor;
-  //   void *__copy_func_helper_decl;
-  //   void *__destroy_func_decl;
-  // };
-  GenericExtendedBlockLiteralType = llvm::StructType::get(IntTy->getContext(),
-                                                          PtrToInt8Ty,
-                                                          IntTy,
-                                                          IntTy,
-                                                          PtrToInt8Ty,
-                                                          BlockDescPtrTy,
-                                                          PtrToInt8Ty,
-                                                          PtrToInt8Ty,
-                                                          NULL);
-
-  getModule().addTypeName("struct.__block_literal_extended_generic",
-                          GenericExtendedBlockLiteralType);
-
-  return GenericExtendedBlockLiteralType;
-}
 
 RValue CodeGenFunction::EmitBlockCallExpr(const CallExpr* E, 
                                           ReturnValueSlot ReturnValue) {
@@ -603,7 +547,7 @@ BlockModule::GetAddrOfGlobalBlock(const BlockExpr *BE, const char * n) {
   const llvm::IntegerType *IntTy = cast<llvm::IntegerType>(
     getTypes().ConvertType(getContext().IntTy));
 
-  llvm::Constant *DescriptorFields[2];
+  llvm::Constant *DescriptorFields[4];
 
   // Reserved
   DescriptorFields[0] = llvm::Constant::getNullValue(UnsignedLongTy);
@@ -614,9 +558,21 @@ BlockModule::GetAddrOfGlobalBlock(const BlockExpr *BE, const char * n) {
     CGM.GetTargetTypeStoreSize(getGenericBlockLiteralType());
   DescriptorFields[1] =
     llvm::ConstantInt::get(UnsignedLongTy,BlockLiteralSize.getQuantity());
+  
+  // signature.  non-optional ObjC-style method descriptor @encode sequence
+  std::string BlockTypeEncoding;
+  CGM.getContext().getObjCEncodingForBlock(BE, BlockTypeEncoding);
 
+  DescriptorFields[2] = llvm::ConstantExpr::getBitCast(
+          CGM.GetAddrOfConstantCString(BlockTypeEncoding), PtrToInt8Ty);
+  
+  // layout
+  DescriptorFields[3] =
+    llvm::ConstantInt::get(UnsignedLongTy,0);
+
+  // build the structure from the 4 elements
   llvm::Constant *DescriptorStruct =
-    llvm::ConstantStruct::get(VMContext, &DescriptorFields[0], 2, false);
+    llvm::ConstantStruct::get(VMContext, &DescriptorFields[0], 4, false);
 
   llvm::GlobalVariable *Descriptor =
     new llvm::GlobalVariable(getModule(), DescriptorStruct->getType(), true,
@@ -625,8 +581,6 @@ BlockModule::GetAddrOfGlobalBlock(const BlockExpr *BE, const char * n) {
 
   int FieldCount = 5;
   // Generate the constants for the block literal.
-  if (CGM.getContext().getLangOptions().BlockIntrospection)
-    FieldCount = 6;
 
   std::vector<llvm::Constant*> LiteralFields(FieldCount);
 
@@ -649,10 +603,8 @@ BlockModule::GetAddrOfGlobalBlock(const BlockExpr *BE, const char * n) {
   LiteralFields[0] = getNSConcreteGlobalBlock();
 
   // Flags
-  LiteralFields[1] = CGM.getContext().getLangOptions().BlockIntrospection ?
-    llvm::ConstantInt::get(IntTy, BLOCK_IS_GLOBAL | BLOCK_HAS_DESCRIPTOR |
-            BLOCK_HAS_OBJC_TYPE) :
-    llvm::ConstantInt::get(IntTy, BLOCK_IS_GLOBAL | BLOCK_HAS_DESCRIPTOR);
+  LiteralFields[1] =
+    llvm::ConstantInt::get(IntTy, BLOCK_IS_GLOBAL | BLOCK_HAS_OBJC_TYPE);
 
   // Reserved
   LiteralFields[2] = llvm::Constant::getNullValue(IntTy);
@@ -663,14 +615,6 @@ BlockModule::GetAddrOfGlobalBlock(const BlockExpr *BE, const char * n) {
   // Descriptor
   LiteralFields[4] = Descriptor;
   
-  // Type encoding
-  if (CGM.getContext().getLangOptions().BlockIntrospection) {
-    std::string BlockTypeEncoding;
-    CGM.getContext().getObjCEncodingForBlock(BE, BlockTypeEncoding);
-
-    LiteralFields[5] = CGM.GetAddrOfConstantCString(BlockTypeEncoding);
-  }
-
   llvm::Constant *BlockLiteralStruct =
     llvm::ConstantStruct::get(VMContext, LiteralFields, false);
 

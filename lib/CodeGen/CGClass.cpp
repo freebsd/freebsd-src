@@ -14,6 +14,7 @@
 #include "CodeGenFunction.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/AST/StmtCXX.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -477,12 +478,21 @@ static llvm::Value *GetVTTParameter(CodeGenFunction &CGF, GlobalDecl GD) {
   
   const CXXRecordDecl *RD = cast<CXXMethodDecl>(CGF.CurFuncDecl)->getParent();
   const CXXRecordDecl *Base = cast<CXXMethodDecl>(GD.getDecl())->getParent();
-  
+
   llvm::Value *VTT;
 
-  uint64_t SubVTTIndex = 
-    CGF.CGM.getVtableInfo().getSubVTTIndex(RD, Base);
-  assert(SubVTTIndex != 0 && "Sub-VTT index must be greater than zero!");
+  uint64_t SubVTTIndex;
+
+  // If the record matches the base, this is the complete ctor/dtor
+  // variant calling the base variant in a class with virtual bases.
+  if (RD == Base) {
+    assert(!CGVtableInfo::needsVTTParameter(CGF.CurGD) &&
+           "doing no-op VTT offset in base dtor/ctor?");
+    SubVTTIndex = 0;
+  } else {
+    SubVTTIndex = CGF.CGM.getVtableInfo().getSubVTTIndex(RD, Base);
+    assert(SubVTTIndex != 0 && "Sub-VTT index must be greater than zero!");
+  }
   
   if (CGVtableInfo::needsVTTParameter(CGF.CurGD)) {
     // A VTT parameter was passed to the constructor, use it.
@@ -590,19 +600,6 @@ void CodeGenFunction::EmitClassCopyAssignment(
            Callee, ReturnValueSlot(), CallArgs, MD);
 }
 
-/// SynthesizeDefaultConstructor - synthesize a default constructor
-void
-CodeGenFunction::SynthesizeDefaultConstructor(const CXXConstructorDecl *Ctor,
-                                              CXXCtorType Type,
-                                              llvm::Function *Fn,
-                                              const FunctionArgList &Args) {
-  assert(!Ctor->isTrivial() && "shouldn't need to generate trivial ctor");
-  StartFunction(GlobalDecl(Ctor, Type), Ctor->getResultType(), Fn, Args, 
-                SourceLocation());
-  EmitCtorPrologue(Ctor, Type);
-  FinishFunction();
-}
-
 /// SynthesizeCXXCopyConstructor - This routine implicitly defines body of a
 /// copy constructor, in accordance with section 12.8 (p7 and p8) of C++03
 /// The implicitly-defined copy constructor for class X performs a memberwise
@@ -619,16 +616,12 @@ CodeGenFunction::SynthesizeDefaultConstructor(const CXXConstructorDecl *Ctor,
 /// implicitly-defined copy constructor
 
 void 
-CodeGenFunction::SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
-                                              CXXCtorType Type,
-                                              llvm::Function *Fn,
-                                              const FunctionArgList &Args) {
+CodeGenFunction::SynthesizeCXXCopyConstructor(const FunctionArgList &Args) {
+  const CXXConstructorDecl *Ctor = cast<CXXConstructorDecl>(CurGD.getDecl());
   const CXXRecordDecl *ClassDecl = Ctor->getParent();
   assert(!ClassDecl->hasUserDeclaredCopyConstructor() &&
       "SynthesizeCXXCopyConstructor - copy constructor has definition already");
   assert(!Ctor->isTrivial() && "shouldn't need to generate trivial ctor");
-  StartFunction(GlobalDecl(Ctor, Type), Ctor->getResultType(), Fn, Args, 
-                SourceLocation());
 
   FunctionArgList::const_iterator i = Args.begin();
   const VarDecl *ThisArg = i->first;
@@ -698,7 +691,6 @@ CodeGenFunction::SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
   }
 
   InitializeVtablePtrs(ClassDecl);
-  FinishFunction();
 }
 
 /// SynthesizeCXXCopyAssignment - Implicitly define copy assignment operator.
@@ -721,14 +713,11 @@ CodeGenFunction::SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
 ///
 ///   if the subobject is of scalar type, the built-in assignment operator is
 ///   used.
-void CodeGenFunction::SynthesizeCXXCopyAssignment(const CXXMethodDecl *CD,
-                                                  llvm::Function *Fn,
-                                                  const FunctionArgList &Args) {
-
+void CodeGenFunction::SynthesizeCXXCopyAssignment(const FunctionArgList &Args) {
+  const CXXMethodDecl *CD = cast<CXXMethodDecl>(CurGD.getDecl());
   const CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(CD->getDeclContext());
   assert(!ClassDecl->hasUserDeclaredCopyAssignment() &&
          "SynthesizeCXXCopyAssignment - copy assignment has user declaration");
-  StartFunction(CD, CD->getResultType(), Fn, Args, SourceLocation());
 
   FunctionArgList::const_iterator i = Args.begin();
   const VarDecl *ThisArg = i->first;
@@ -796,8 +785,6 @@ void CodeGenFunction::SynthesizeCXXCopyAssignment(const CXXMethodDecl *CD,
 
   // return *this;
   Builder.CreateStore(LoadOfThis, ReturnValue);
-
-  FinishFunction();
 }
 
 static void EmitBaseInitializer(CodeGenFunction &CGF, 
@@ -904,6 +891,101 @@ static void EmitMemberInitializer(CodeGenFunction &CGF,
   }
 }
 
+/// Checks whether the given constructor is a valid subject for the
+/// complete-to-base constructor delegation optimization, i.e.
+/// emitting the complete constructor as a simple call to the base
+/// constructor.
+static bool IsConstructorDelegationValid(const CXXConstructorDecl *Ctor) {
+
+  // Currently we disable the optimization for classes with virtual
+  // bases because (1) the addresses of parameter variables need to be
+  // consistent across all initializers but (2) the delegate function
+  // call necessarily creates a second copy of the parameter variable.
+  //
+  // The limiting example (purely theoretical AFAIK):
+  //   struct A { A(int &c) { c++; } };
+  //   struct B : virtual A {
+  //     B(int count) : A(count) { printf("%d\n", count); }
+  //   };
+  // ...although even this example could in principle be emitted as a
+  // delegation since the address of the parameter doesn't escape.
+  if (Ctor->getParent()->getNumVBases()) {
+    // TODO: white-list trivial vbase initializers.  This case wouldn't
+    // be subject to the restrictions below.
+
+    // TODO: white-list cases where:
+    //  - there are no non-reference parameters to the constructor
+    //  - the initializers don't access any non-reference parameters
+    //  - the initializers don't take the address of non-reference
+    //    parameters
+    //  - etc.
+    // If we ever add any of the above cases, remember that:
+    //  - function-try-blocks will always blacklist this optimization
+    //  - we need to perform the constructor prologue and cleanup in
+    //    EmitConstructorBody.
+
+    return false;
+  }
+
+  // We also disable the optimization for variadic functions because
+  // it's impossible to "re-pass" varargs.
+  if (Ctor->getType()->getAs<FunctionProtoType>()->isVariadic())
+    return false;
+
+  return true;
+}
+
+/// EmitConstructorBody - Emits the body of the current constructor.
+void CodeGenFunction::EmitConstructorBody(FunctionArgList &Args) {
+  const CXXConstructorDecl *Ctor = cast<CXXConstructorDecl>(CurGD.getDecl());
+  CXXCtorType CtorType = CurGD.getCtorType();
+
+  // Before we go any further, try the complete->base constructor
+  // delegation optimization.
+  if (CtorType == Ctor_Complete && IsConstructorDelegationValid(Ctor)) {
+    EmitDelegateCXXConstructorCall(Ctor, Ctor_Base, Args);
+    return;
+  }
+
+  Stmt *Body = Ctor->getBody();
+
+  // Enter the function-try-block before the constructor prologue if
+  // applicable.
+  CXXTryStmtInfo TryInfo;
+  bool IsTryBody = (Body && isa<CXXTryStmt>(Body));
+
+  if (IsTryBody)
+    TryInfo = EnterCXXTryStmt(*cast<CXXTryStmt>(Body));
+
+  unsigned CleanupStackSize = CleanupEntries.size();
+
+  // Emit the constructor prologue, i.e. the base and member
+  // initializers.
+  EmitCtorPrologue(Ctor, CtorType);
+
+  // Emit the body of the statement.
+  if (IsTryBody)
+    EmitStmt(cast<CXXTryStmt>(Body)->getTryBlock());
+  else if (Body)
+    EmitStmt(Body);
+  else {
+    assert(Ctor->isImplicit() && "bodyless ctor not implicit");
+    if (!Ctor->isDefaultConstructor()) {
+      assert(Ctor->isCopyConstructor());
+      SynthesizeCXXCopyConstructor(Args);
+    }
+  }
+
+  // Emit any cleanup blocks associated with the member or base
+  // initializers, which includes (along the exceptional path) the
+  // destructors for those members and bases that were fully
+  // constructed.
+  EmitCleanupBlocks(CleanupStackSize);
+
+  if (IsTryBody)
+    ExitCXXTryStmt(*cast<CXXTryStmt>(Body), TryInfo);
+}
+
 /// EmitCtorPrologue - This routine generates necessary code to initialize
 /// base classes and non-static data members belonging to this constructor.
 void CodeGenFunction::EmitCtorPrologue(const CXXConstructorDecl *CD,
@@ -938,16 +1020,131 @@ void CodeGenFunction::EmitCtorPrologue(const CXXConstructorDecl *CD,
   }
 }
 
+/// EmitDestructorBody - Emits the body of the current destructor.
+void CodeGenFunction::EmitDestructorBody(FunctionArgList &Args) {
+  const CXXDestructorDecl *Dtor = cast<CXXDestructorDecl>(CurGD.getDecl());
+  CXXDtorType DtorType = CurGD.getDtorType();
+
+  Stmt *Body = Dtor->getBody();
+
+  // If the body is a function-try-block, enter the try before
+  // anything else --- unless we're in a deleting destructor, in which
+  // case we're just going to call the complete destructor and then
+  // call operator delete() on the way out.
+  CXXTryStmtInfo TryInfo;
+  bool isTryBody = (DtorType != Dtor_Deleting &&
+                    Body && isa<CXXTryStmt>(Body));
+  if (isTryBody)
+    TryInfo = EnterCXXTryStmt(*cast<CXXTryStmt>(Body));
+
+  llvm::BasicBlock *DtorEpilogue = createBasicBlock("dtor.epilogue");
+  PushCleanupBlock(DtorEpilogue);
+
+  bool SkipBody = false; // should get jump-threaded
+
+  // If this is the deleting variant, just invoke the complete
+  // variant, then call the appropriate operator delete() on the way
+  // out.
+  if (DtorType == Dtor_Deleting) {
+    EmitCXXDestructorCall(Dtor, Dtor_Complete, LoadCXXThis());
+    SkipBody = true;
+
+  // If this is the complete variant, just invoke the base variant;
+  // the epilogue will destruct the virtual bases.  But we can't do
+  // this optimization if the body is a function-try-block, because
+  // we'd introduce *two* handler blocks.
+  } else if (!isTryBody && DtorType == Dtor_Complete) {
+    EmitCXXDestructorCall(Dtor, Dtor_Base, LoadCXXThis());
+    SkipBody = true;
+      
+  // Otherwise, we're in the base variant, so we need to ensure the
+  // vtable ptrs are right before emitting the body.
+  } else {
+    InitializeVtablePtrs(Dtor->getParent());
+  }
+
+  // Emit the body of the statement.
+  if (SkipBody)
+    (void) 0;
+  else if (isTryBody)
+    EmitStmt(cast<CXXTryStmt>(Body)->getTryBlock());
+  else if (Body)
+    EmitStmt(Body);
+  else {
+    assert(Dtor->isImplicit() && "bodyless dtor not implicit");
+    // nothing to do besides what's in the epilogue
+  }
+
+  // Jump to the cleanup block.
+  CleanupBlockInfo Info = PopCleanupBlock();
+  assert(Info.CleanupBlock == DtorEpilogue && "Block mismatch!");
+  EmitBlock(DtorEpilogue);
+
+  // Emit the destructor epilogue now.  If this is a complete
+  // destructor with a function-try-block, perform the base epilogue
+  // as well.
+  if (isTryBody && DtorType == Dtor_Complete)
+    EmitDtorEpilogue(Dtor, Dtor_Base);
+  EmitDtorEpilogue(Dtor, DtorType);
+
+  // Link up the cleanup information.
+  if (Info.SwitchBlock)
+    EmitBlock(Info.SwitchBlock);
+  if (Info.EndBlock)
+    EmitBlock(Info.EndBlock);
+
+  // Exit the try if applicable.
+  if (isTryBody)
+    ExitCXXTryStmt(*cast<CXXTryStmt>(Body), TryInfo);
+}
+
 /// EmitDtorEpilogue - Emit all code that comes at the end of class's
 /// destructor. This is to call destructors on members and base classes
 /// in reverse order of their construction.
-/// FIXME: This needs to take a CXXDtorType.
 void CodeGenFunction::EmitDtorEpilogue(const CXXDestructorDecl *DD,
                                        CXXDtorType DtorType) {
   assert(!DD->isTrivial() &&
          "Should not emit dtor epilogue for trivial dtor!");
 
   const CXXRecordDecl *ClassDecl = DD->getParent();
+
+  // In a deleting destructor, we've already called the complete
+  // destructor as a subroutine, so we just have to delete the
+  // appropriate value.
+  if (DtorType == Dtor_Deleting) {
+    assert(DD->getOperatorDelete() && 
+           "operator delete missing - EmitDtorEpilogue");
+    EmitDeleteCall(DD->getOperatorDelete(), LoadCXXThis(),
+                   getContext().getTagDeclType(ClassDecl));
+    return;
+  }
+
+  // For complete destructors, we've already called the base
+  // destructor (in GenerateBody), so we just need to destruct all the
+  // virtual bases.
+  if (DtorType == Dtor_Complete) {
+    // Handle virtual bases.
+    for (CXXRecordDecl::reverse_base_class_const_iterator I = 
+           ClassDecl->vbases_rbegin(), E = ClassDecl->vbases_rend();
+              I != E; ++I) {
+      const CXXBaseSpecifier &Base = *I;
+      CXXRecordDecl *BaseClassDecl
+        = cast<CXXRecordDecl>(Base.getType()->getAs<RecordType>()->getDecl());
+    
+      // Ignore trivial destructors.
+      if (BaseClassDecl->hasTrivialDestructor())
+        continue;
+      const CXXDestructorDecl *D = BaseClassDecl->getDestructor(getContext());
+      llvm::Value *V = GetAddressOfBaseOfCompleteClass(LoadCXXThis(),
+                                                       true,
+                                                       ClassDecl,
+                                                       BaseClassDecl);
+      EmitCXXDestructorCall(D, Dtor_Base, V);
+    }
+    return;
+  }
+
+  assert(DtorType == Dtor_Base);
 
   // Collect the fields.
   llvm::SmallVector<const FieldDecl *, 16> FieldDecls;
@@ -1021,51 +1218,6 @@ void CodeGenFunction::EmitDtorEpilogue(const CXXDestructorDecl *DD,
                                            /*NullCheckValue=*/false);
     EmitCXXDestructorCall(D, Dtor_Base, V);
   }
-
-  // If we're emitting a base destructor, we don't want to emit calls to the
-  // virtual bases.
-  if (DtorType == Dtor_Base)
-    return;
-  
-  // Handle virtual bases.
-  for (CXXRecordDecl::reverse_base_class_const_iterator I = 
-       ClassDecl->vbases_rbegin(), E = ClassDecl->vbases_rend(); I != E; ++I) {
-    const CXXBaseSpecifier &Base = *I;
-    CXXRecordDecl *BaseClassDecl
-      = cast<CXXRecordDecl>(Base.getType()->getAs<RecordType>()->getDecl());
-    
-    // Ignore trivial destructors.
-    if (BaseClassDecl->hasTrivialDestructor())
-      continue;
-    const CXXDestructorDecl *D = BaseClassDecl->getDestructor(getContext());
-    llvm::Value *V = GetAddressOfBaseOfCompleteClass(LoadCXXThis(),
-                                                     true,
-                                                     ClassDecl,
-                                                     BaseClassDecl);
-    EmitCXXDestructorCall(D, Dtor_Base, V);
-  }
-    
-  // If we have a deleting destructor, emit a call to the delete operator.
-  if (DtorType == Dtor_Deleting) {
-    assert(DD->getOperatorDelete() && 
-           "operator delete missing - EmitDtorEpilogue");
-    EmitDeleteCall(DD->getOperatorDelete(), LoadCXXThis(),
-                   getContext().getTagDeclType(ClassDecl));
-  }
-}
-
-void CodeGenFunction::SynthesizeDefaultDestructor(const CXXDestructorDecl *Dtor,
-                                                  CXXDtorType DtorType,
-                                                  llvm::Function *Fn,
-                                                  const FunctionArgList &Args) {
-  assert(!Dtor->getParent()->hasUserDeclaredDestructor() &&
-         "SynthesizeDefaultDestructor - destructor has user declaration");
-
-  StartFunction(GlobalDecl(Dtor, DtorType), Dtor->getResultType(), Fn, Args, 
-                SourceLocation());
-  InitializeVtablePtrs(Dtor->getParent());
-  EmitDtorEpilogue(Dtor, DtorType);
-  FinishFunction();
 }
 
 /// EmitCXXAggrConstructorCall - This routine essentially creates a (nested)
@@ -1303,6 +1455,71 @@ CodeGenFunction::EmitCXXConstructorCall(const CXXConstructorDecl *D,
   EmitCXXMemberCall(D, Callee, ReturnValueSlot(), This, VTT, ArgBeg, ArgEnd);
 }
 
+void
+CodeGenFunction::EmitDelegateCXXConstructorCall(const CXXConstructorDecl *Ctor,
+                                                CXXCtorType CtorType,
+                                                const FunctionArgList &Args) {
+  CallArgList DelegateArgs;
+
+  FunctionArgList::const_iterator I = Args.begin(), E = Args.end();
+  assert(I != E && "no parameters to constructor");
+
+  // this
+  DelegateArgs.push_back(std::make_pair(RValue::get(LoadCXXThis()),
+                                        I->second));
+  ++I;
+
+  // vtt
+  if (llvm::Value *VTT = GetVTTParameter(*this, GlobalDecl(Ctor, CtorType))) {
+    QualType VoidPP = getContext().getPointerType(getContext().VoidPtrTy);
+    DelegateArgs.push_back(std::make_pair(RValue::get(VTT), VoidPP));
+
+    if (CGVtableInfo::needsVTTParameter(CurGD)) {
+      assert(I != E && "cannot skip vtt parameter, already done with args");
+      assert(I->second == VoidPP && "skipping parameter not of vtt type");
+      ++I;
+    }
+  }
+
+  // Explicit arguments.
+  for (; I != E; ++I) {
+    
+    const VarDecl *Param = I->first;
+    QualType ArgType = Param->getType(); // because we're passing it to itself
+
+    // StartFunction converted the ABI-lowered parameter(s) into a
+    // local alloca.  We need to turn that into an r-value suitable
+    // for EmitCall.
+    llvm::Value *Local = GetAddrOfLocalVar(Param);
+    RValue Arg;
+ 
+    // For the most part, we just need to load the alloca, except:
+    // 1) aggregate r-values are actually pointers to temporaries, and
+    // 2) references to aggregates are pointers directly to the aggregate.
+    // I don't know why references to non-aggregates are different here.
+    if (ArgType->isReferenceType()) {
+      const ReferenceType *RefType = ArgType->getAs<ReferenceType>();
+      if (hasAggregateLLVMType(RefType->getPointeeType()))
+        Arg = RValue::getAggregate(Local);
+      else
+        // Locals which are references to scalars are represented
+        // with allocas holding the pointer.
+        Arg = RValue::get(Builder.CreateLoad(Local));
+    } else {
+      if (hasAggregateLLVMType(ArgType))
+        Arg = RValue::getAggregate(Local);
+      else
+        Arg = RValue::get(EmitLoadOfScalar(Local, false, ArgType));
+    }
+
+    DelegateArgs.push_back(std::make_pair(Arg, ArgType));
+  }
+
+  EmitCall(CGM.getTypes().getFunctionInfo(Ctor, CtorType),
+           CGM.GetAddrOfCXXConstructor(Ctor, CtorType), 
+           ReturnValueSlot(), DelegateArgs, Ctor);
+}
+
 void CodeGenFunction::EmitCXXDestructorCall(const CXXDestructorDecl *DD,
                                             CXXDtorType Type,
                                             llvm::Value *This) {
@@ -1404,12 +1621,4 @@ void CodeGenFunction::InitializeVtablePtrsRecursive(
 
   // Store address point
   Builder.CreateStore(VtableAddressPoint, VtableField);
-}
-
-llvm::Value *CodeGenFunction::LoadCXXVTT() {
-  assert((isa<CXXConstructorDecl>(CurFuncDecl) ||
-          isa<CXXDestructorDecl>(CurFuncDecl)) &&
-         "Must be in a C++ ctor or dtor to load the vtt parameter");
-
-  return Builder.CreateLoad(LocalDeclMap[CXXVTTDecl], "vtt");
 }

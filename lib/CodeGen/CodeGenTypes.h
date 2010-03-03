@@ -35,6 +35,7 @@ namespace llvm {
 namespace clang {
   class ABIInfo;
   class ASTContext;
+  template <typename> class CanQual;
   class CXXConstructorDecl;
   class CXXDestructorDecl;
   class CXXMethodDecl;
@@ -48,6 +49,7 @@ namespace clang {
   class TagDecl;
   class TargetInfo;
   class Type;
+  typedef CanQual<Type> CanQualType;
 
 namespace CodeGen {
   class CodeGenTypes;
@@ -168,6 +170,8 @@ public:
   const llvm::FunctionType *GetFunctionType(const CGFunctionInfo &Info,
                                             bool IsVariadic);
 
+  const llvm::FunctionType *GetFunctionType(GlobalDecl GD);
+
 
   /// GetFunctionTypeForVtable - Get the LLVM function type for use in a vtable,
   /// given a CXXMethodDecl. If the method to has an incomplete return type, 
@@ -184,11 +188,6 @@ public:
   /// replace the 'opaque' type we previously made for it if applicable.
   void UpdateCompletedType(const TagDecl *TD);
 
-private:
-  const CGFunctionInfo &getFunctionInfo(const FunctionNoProtoType *FTNP);
-  const CGFunctionInfo &getFunctionInfo(const FunctionProtoType *FTP);
-
-public:
   /// getFunctionInfo - Get the function info for the specified function decl.
   const CGFunctionInfo &getFunctionInfo(GlobalDecl GD);
   
@@ -205,6 +204,8 @@ public:
     return getFunctionInfo(Ty->getResultType(), Args,
                            Ty->getCallConv(), Ty->getNoReturnAttr());
   }
+  const CGFunctionInfo &getFunctionInfo(CanQual<FunctionProtoType> Ty);
+  const CGFunctionInfo &getFunctionInfo(CanQual<FunctionNoProtoType> Ty);
 
   // getFunctionInfo - Get the function info for a member function.
   const CGFunctionInfo &getFunctionInfo(const CXXRecordDecl *RD,
@@ -221,8 +222,12 @@ public:
                                         const FunctionArgList &Args,
                                         CallingConv CC,
                                         bool NoReturn);
-  const CGFunctionInfo &getFunctionInfo(QualType RetTy,
-                                  const llvm::SmallVector<QualType, 16> &ArgTys,
+
+  /// Retrieves the ABI information for the given function signature.
+  /// 
+  /// \param ArgTys - must all actually be canonical as params
+  const CGFunctionInfo &getFunctionInfo(CanQualType RetTy,
+                               const llvm::SmallVectorImpl<CanQualType> &ArgTys,
                                         CallingConv CC,
                                         bool NoReturn);
 

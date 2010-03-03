@@ -24,14 +24,24 @@
 
 using namespace clang;
 
+namespace clang {
+namespace cxstring {
+  CXString createCXString(const char *String, bool DupString = false);
+  CXString createCXString(llvm::StringRef String, bool DupString = true);  
+}
+}
+
 class CIndexer {
   bool UseExternalASTGeneration;
   bool OnlyLocalDecls;
-  
+  bool DisplayDiagnostics;
+
   llvm::sys::Path ClangPath;
   
 public:
-  CIndexer() : UseExternalASTGeneration(false), OnlyLocalDecls(false) { }
+ CIndexer() 
+   : UseExternalASTGeneration(false), OnlyLocalDecls(false),
+     DisplayDiagnostics(false) { }
   
   /// \brief Whether we only want to see "local" declarations (that did not
   /// come from a previous precompiled header). If false, we want to see all
@@ -39,6 +49,11 @@ public:
   bool getOnlyLocalDecls() const { return OnlyLocalDecls; }
   void setOnlyLocalDecls(bool Local = true) { OnlyLocalDecls = Local; }
   
+  bool getDisplayDiagnostics() const { return DisplayDiagnostics; }
+  void setDisplayDiagnostics(bool Display = true) {
+    DisplayDiagnostics = Display;
+  }
+
   bool getUseExternalASTGeneration() const { return UseExternalASTGeneration; }
   void setUseExternalASTGeneration(bool Value) {
     UseExternalASTGeneration = Value;
@@ -49,10 +64,6 @@ public:
   
   /// \brief Get the path of the clang resource files.
   std::string getClangResourcesPath();
-
-  static CXString createCXString(const char *String, bool DupString = false);
-  static CXString createCXString(llvm::StringRef String, 
-                                 bool DupString = false);
 };
 
 namespace clang {

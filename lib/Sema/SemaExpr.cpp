@@ -393,10 +393,10 @@ Sema::ActOnStringLiteral(const Token *StringToks, unsigned NumStringToks) {
 /// variables defined outside the block) or false if this is not needed (e.g.
 /// for values inside the block or for globals).
 ///
-/// This also keeps the 'hasBlockDeclRefExprs' in the BlockSemaInfo records
+/// This also keeps the 'hasBlockDeclRefExprs' in the BlockScopeInfo records
 /// up-to-date.
 ///
-static bool ShouldSnapshotBlockValueReference(BlockSemaInfo *CurBlock,
+static bool ShouldSnapshotBlockValueReference(Sema &S, BlockScopeInfo *CurBlock,
                                               ValueDecl *VD) {
   // If the value is defined inside the block, we couldn't snapshot it even if
   // we wanted to.
@@ -421,8 +421,12 @@ static bool ShouldSnapshotBlockValueReference(BlockSemaInfo *CurBlock,
   // which case that outer block doesn't get "hasBlockDeclRefExprs") or it may
   // be defined outside all of the current blocks (in which case the blocks do
   // all get the bit).  Walk the nesting chain.
-  for (BlockSemaInfo *NextBlock = CurBlock->PrevBlockInfo; NextBlock;
-       NextBlock = NextBlock->PrevBlockInfo) {
+  for (unsigned I = S.FunctionScopes.size() - 1; I; --I) {
+    BlockScopeInfo *NextBlock = dyn_cast<BlockScopeInfo>(S.FunctionScopes[I]);
+    
+    if (!NextBlock)
+      continue;
+    
     // If we found the defining block for the variable, don't mark the block as
     // having a reference outside it.
     if (NextBlock->TheDecl == VD->getDeclContext())
@@ -1597,7 +1601,8 @@ Sema::BuildDeclarationNameExpr(const CXXScopeSpec &SS,
   // We do not do this for things like enum constants, global variables, etc,
   // as they do not get snapshotted.
   //
-  if (CurBlock && ShouldSnapshotBlockValueReference(CurBlock, VD)) {
+  if (getCurBlock() && 
+      ShouldSnapshotBlockValueReference(*this, getCurBlock(), VD)) {
     if (VD->getType().getTypePtr()->isVariablyModifiedType()) {
       Diag(Loc, diag::err_ref_vm_type);
       Diag(D->getLocation(), diag::note_declared_at);
@@ -1664,12 +1669,10 @@ Sema::OwningExprResult Sema::ActOnPredefinedExpr(SourceLocation Loc,
 
 Sema::OwningExprResult Sema::ActOnCharacterConstant(const Token &Tok) {
   llvm::SmallString<16> CharBuffer;
-  CharBuffer.resize(Tok.getLength());
-  const char *ThisTokBegin = &CharBuffer[0];
-  unsigned ActualLength = PP.getSpelling(Tok, ThisTokBegin);
+  llvm::StringRef ThisTok = PP.getSpelling(Tok, CharBuffer);
 
-  CharLiteralParser Literal(ThisTokBegin, ThisTokBegin+ActualLength,
-                            Tok.getLocation(), PP);
+  CharLiteralParser Literal(ThisTok.begin(), ThisTok.end(), Tok.getLocation(),
+                            PP);
   if (Literal.hadError())
     return ExprError();
 
@@ -1736,10 +1739,10 @@ Action::OwningExprResult Sema::ActOnNumericConstant(const Token &Tok) {
       unsigned diagnostic;
       llvm::SmallVector<char, 20> buffer;
       if (result & APFloat::opOverflow) {
-        diagnostic = diag::err_float_overflow;
+        diagnostic = diag::warn_float_overflow;
         APFloat::getLargest(Format).toString(buffer);
       } else {
-        diagnostic = diag::err_float_underflow;
+        diagnostic = diag::warn_float_underflow;
         APFloat::getSmallest(Format).toString(buffer);
       }
 
@@ -2900,46 +2903,6 @@ Sema::LookupMemberExpr(LookupResult &R, Expr *&BaseExpr,
     return Owned((Expr*) 0);
   }
 
-  // Handle pseudo-destructors (C++ [expr.pseudo]). Since anything referring
-  // into a record type was handled above, any destructor we see here is a
-  // pseudo-destructor.
-  if (MemberName.getNameKind() == DeclarationName::CXXDestructorName) {
-    // C++ [expr.pseudo]p2:
-    //   The left hand side of the dot operator shall be of scalar type. The
-    //   left hand side of the arrow operator shall be of pointer to scalar
-    //   type.
-    if (!BaseType->isScalarType())
-      return Owned(Diag(OpLoc, diag::err_pseudo_dtor_base_not_scalar)
-                     << BaseType << BaseExpr->getSourceRange());
-
-    //   [...] The type designated by the pseudo-destructor-name shall be the
-    //   same as the object type.
-    if (!MemberName.getCXXNameType()->isDependentType() &&
-        !Context.hasSameUnqualifiedType(BaseType, MemberName.getCXXNameType()))
-      return Owned(Diag(OpLoc, diag::err_pseudo_dtor_type_mismatch)
-                     << BaseType << MemberName.getCXXNameType()
-                     << BaseExpr->getSourceRange() << SourceRange(MemberLoc));
-
-    //   [...] Furthermore, the two type-names in a pseudo-destructor-name of
-    //   the form
-    //
-    //       ::[opt] nested-name-specifier[opt] type-name ::  ̃ type-name
-    //
-    //   shall designate the same scalar type.
-    //
-    // FIXME: DPG can't see any way to trigger this particular clause, so it
-    // isn't checked here.
-
-    // FIXME: We've lost the precise spelling of the type by going through
-    // DeclarationName. Can we do better?
-    return Owned(new (Context) CXXPseudoDestructorExpr(Context, BaseExpr,
-                                                       IsArrow, OpLoc,
-                               (NestedNameSpecifier *) SS.getScopeRep(),
-                                                       SS.getRange(),
-                                                   MemberName.getCXXNameType(),
-                                                       MemberLoc));
-  }
-
   // Handle access to Objective-C instance variables, such as "Obj->ivar" and
   // (*Obj).ivar.
   if ((IsArrow && BaseType->isObjCObjectPointerType()) ||
@@ -3147,9 +3110,12 @@ Sema::LookupMemberExpr(LookupResult &R, Expr *&BaseExpr,
       return LookupMemberExpr(Res, BaseExpr, IsArrow, OpLoc, SS,
                               ObjCImpDecl);
     }
-
-    return ExprError(Diag(MemberLoc, diag::err_property_not_found)
-      << MemberName << BaseType);
+    Diag(MemberLoc, diag::err_property_not_found)
+      << MemberName << BaseType;
+    if (Setter && !Getter)
+      Diag(Setter->getLocation(), diag::note_getter_unavailable)
+        << MemberName << BaseExpr->getSourceRange();
+    return ExprError();
   }
 
   // Handle the following exceptional case (*Obj).isa.
@@ -3168,28 +3134,11 @@ Sema::LookupMemberExpr(LookupResult &R, Expr *&BaseExpr,
     return Owned(new (Context) ExtVectorElementExpr(ret, BaseExpr, *Member,
                                                     MemberLoc));
   }
-
+  
   Diag(MemberLoc, diag::err_typecheck_member_reference_struct_union)
     << BaseType << BaseExpr->getSourceRange();
 
   return ExprError();
-}
-
-static Sema::OwningExprResult DiagnoseDtorReference(Sema &SemaRef,
-                                                    SourceLocation NameLoc,
-                                                    Sema::ExprArg MemExpr) {
-  Expr *E = (Expr *) MemExpr.get();
-  SourceLocation ExpectedLParenLoc = SemaRef.PP.getLocForEndOfToken(NameLoc);
-  SemaRef.Diag(E->getLocStart(), diag::err_dtor_expr_without_call)
-    << isa<CXXPseudoDestructorExpr>(E)
-    << CodeModificationHint::CreateInsertion(ExpectedLParenLoc, "()");
-  
-  return SemaRef.ActOnCallExpr(/*Scope*/ 0,
-                               move(MemExpr),
-                               /*LPLoc*/ ExpectedLParenLoc,
-                               Sema::MultiExprArg(SemaRef, 0, 0),
-                               /*CommaLocs*/ 0,
-                               /*RPLoc*/ ExpectedLParenLoc);
 }
 
 /// The main callback when the parser finds something like
@@ -3262,7 +3211,7 @@ Sema::OwningExprResult Sema::ActOnMemberAccessExpr(Scope *S, ExprArg BaseArg,
         // call now.
         if (!HasTrailingLParen &&
             Id.getKind() == UnqualifiedId::IK_DestructorName)
-          return DiagnoseDtorReference(*this, NameLoc, move(Result));
+          return DiagnoseDtorReference(NameLoc, move(Result));
 
         return move(Result);
       }
@@ -5378,11 +5327,18 @@ QualType Sema::CheckCompareOperands(Expr *&lex, Expr *&rex, SourceLocation Loc,
       //
       // C++ [expr.eq]p1 uses the same notion for (in)equality
       // comparisons of pointers.
-      QualType T = FindCompositePointerType(lex, rex);
+      bool NonStandardCompositeType = false;
+      QualType T = FindCompositePointerType(lex, rex,
+                              isSFINAEContext()? 0 : &NonStandardCompositeType);
       if (T.isNull()) {
         Diag(Loc, diag::err_typecheck_comparison_of_distinct_pointers)
           << lType << rType << lex->getSourceRange() << rex->getSourceRange();
         return QualType();
+      } else if (NonStandardCompositeType) {
+        Diag(Loc, 
+             diag::ext_typecheck_comparison_of_distinct_pointers_nonstandard)
+          << lType << rType << T 
+          << lex->getSourceRange() << rex->getSourceRange();
       }
 
       ImpCastExprToType(lex, T, CastExpr::CK_BitCast);
@@ -5444,11 +5400,18 @@ QualType Sema::CheckCompareOperands(Expr *&lex, Expr *&rex, SourceLocation Loc,
       //   of one of the operands, with a cv-qualification signature (4.4)
       //   that is the union of the cv-qualification signatures of the operand
       //   types.
-      QualType T = FindCompositePointerType(lex, rex);
+      bool NonStandardCompositeType = false;
+      QualType T = FindCompositePointerType(lex, rex,
+                              isSFINAEContext()? 0 : &NonStandardCompositeType);
       if (T.isNull()) {
         Diag(Loc, diag::err_typecheck_comparison_of_distinct_pointers)
-        << lType << rType << lex->getSourceRange() << rex->getSourceRange();
+          << lType << rType << lex->getSourceRange() << rex->getSourceRange();
         return QualType();
+      } else if (NonStandardCompositeType) {
+        Diag(Loc, 
+             diag::ext_typecheck_comparison_of_distinct_pointers_nonstandard)
+          << lType << rType << T 
+          << lex->getSourceRange() << rex->getSourceRange();
       }
 
       ImpCastExprToType(lex, T, CastExpr::CK_BitCast);
@@ -5697,7 +5660,6 @@ static bool CheckForModifiableLvalue(Expr *E, SourceLocation Loc, Sema &S) {
   unsigned Diag = 0;
   bool NeedType = false;
   switch (IsLV) { // C99 6.5.16p2
-  default: assert(0 && "Unknown result from isModifiableLvalue!");
   case Expr::MLV_ConstQualified: Diag = diag::err_typecheck_assign_const; break;
   case Expr::MLV_ArrayType:
     Diag = diag::err_typecheck_array_not_modifiable_lvalue;
@@ -5710,7 +5672,11 @@ static bool CheckForModifiableLvalue(Expr *E, SourceLocation Loc, Sema &S) {
   case Expr::MLV_LValueCast:
     Diag = diag::err_typecheck_lvalue_casts_not_supported;
     break;
+  case Expr::MLV_Valid:
+    llvm_unreachable("did not take early return for MLV_Valid");
   case Expr::MLV_InvalidExpression:
+  case Expr::MLV_MemberFunction:
+  case Expr::MLV_ClassTemporary:
     Diag = diag::err_typecheck_expression_not_modifiable_lvalue;
     break;
   case Expr::MLV_IncompleteType:
@@ -5995,6 +5961,12 @@ QualType Sema::CheckAddressOfOperand(Expr *op, SourceLocation OpLoc) {
     return Context.getMemberPointerType(op->getType(),
                 Context.getTypeDeclType(cast<RecordDecl>(dcl->getDeclContext()))
                        .getTypePtr());
+  } else if (lval == Expr::LV_ClassTemporary) {
+    Diag(OpLoc, isSFINAEContext()? diag::err_typecheck_addrof_class_temporary
+                                 : diag::ext_typecheck_addrof_class_temporary)
+      << op->getType() << op->getSourceRange();
+    if (isSFINAEContext())
+      return QualType();
   } else if (lval != Expr::LV_Valid && lval != Expr::LV_IncompleteVoidType) {
     // C99 6.5.3.2p1
     // The operand must be either an l-value or a function designator
@@ -6755,28 +6727,16 @@ Sema::OwningExprResult Sema::ActOnChooseExpr(SourceLocation BuiltinLoc,
 
 /// ActOnBlockStart - This callback is invoked when a block literal is started.
 void Sema::ActOnBlockStart(SourceLocation CaretLoc, Scope *BlockScope) {
-  // Analyze block parameters.
-  BlockSemaInfo *BSI = new BlockSemaInfo();
-
-  // Add BSI to CurBlock.
-  BSI->PrevBlockInfo = CurBlock;
-  CurBlock = BSI;
-
-  BSI->ReturnType = QualType();
-  BSI->TheScope = BlockScope;
-  BSI->hasBlockDeclRefExprs = false;
-  BSI->hasPrototype = false;
-  BSI->SavedFunctionNeedsScopeChecking = CurFunctionNeedsScopeChecking;
-  CurFunctionNeedsScopeChecking = false;
-
-  BSI->TheDecl = BlockDecl::Create(Context, CurContext, CaretLoc);
-  CurContext->addDecl(BSI->TheDecl);
-  PushDeclContext(BlockScope, BSI->TheDecl);
+  BlockDecl *Block = BlockDecl::Create(Context, CurContext, CaretLoc);
+  PushBlockScope(BlockScope, Block);
+  CurContext->addDecl(Block);
+  PushDeclContext(BlockScope, Block);
 }
 
 void Sema::ActOnBlockArguments(Declarator &ParamInfo, Scope *CurScope) {
   assert(ParamInfo.getIdentifier()==0 && "block-id should have no identifier!");
-
+  BlockScopeInfo *CurBlock = getCurBlock();
+  
   if (ParamInfo.getNumTypeObjects() == 0
       || ParamInfo.getTypeObject(0).Kind != DeclaratorChunk::Function) {
     ProcessDeclAttributes(CurScope, CurBlock->TheDecl, ParamInfo);
@@ -6790,7 +6750,8 @@ void Sema::ActOnBlockArguments(Declarator &ParamInfo, Scope *CurScope) {
 
     // The parameter list is optional, if there was none, assume ().
     if (!T->isFunctionType())
-      T = Context.getFunctionType(T, NULL, 0, 0, 0);
+      T = Context.getFunctionType(T, 0, 0, false, 0, false, false, 0, 0, false,
+                                  CC_Default);
 
     CurBlock->hasPrototype = true;
     CurBlock->isVariadic = false;
@@ -6877,14 +6838,9 @@ void Sema::ActOnBlockArguments(Declarator &ParamInfo, Scope *CurScope) {
 /// ActOnBlockError - If there is an error parsing a block, this callback
 /// is invoked to pop the information about the block from the action impl.
 void Sema::ActOnBlockError(SourceLocation CaretLoc, Scope *CurScope) {
-  // Ensure that CurBlock is deleted.
-  llvm::OwningPtr<BlockSemaInfo> CC(CurBlock);
-
-  CurFunctionNeedsScopeChecking = CurBlock->SavedFunctionNeedsScopeChecking;
-
   // Pop off CurBlock, handle nested blocks.
   PopDeclContext();
-  CurBlock = CurBlock->PrevBlockInfo;
+  PopFunctionOrBlockScope();
   // FIXME: Delete the ParmVarDecl objects as well???
 }
 
@@ -6896,13 +6852,9 @@ Sema::OwningExprResult Sema::ActOnBlockStmtExpr(SourceLocation CaretLoc,
   if (!LangOpts.Blocks)
     Diag(CaretLoc, diag::err_blocks_disable);
 
-  // Ensure that CurBlock is deleted.
-  llvm::OwningPtr<BlockSemaInfo> BSI(CurBlock);
+  BlockScopeInfo *BSI = cast<BlockScopeInfo>(FunctionScopes.back());
 
   PopDeclContext();
-
-  // Pop off CurBlock, handle nested blocks.
-  CurBlock = CurBlock->PrevBlockInfo;
 
   QualType RetTy = Context.VoidTy;
   if (!BSI->ReturnType.isNull())
@@ -6916,20 +6868,19 @@ Sema::OwningExprResult Sema::ActOnBlockStmtExpr(SourceLocation CaretLoc,
   QualType BlockTy;
   if (!BSI->hasPrototype)
     BlockTy = Context.getFunctionType(RetTy, 0, 0, false, 0, false, false, 0, 0,
-                                      NoReturn);
+                                      NoReturn, CC_Default);
   else
     BlockTy = Context.getFunctionType(RetTy, ArgTypes.data(), ArgTypes.size(),
                                       BSI->isVariadic, 0, false, false, 0, 0,
-                                      NoReturn);
+                                      NoReturn, CC_Default);
 
   // FIXME: Check that return/parameter types are complete/non-abstract
   DiagnoseUnusedParameters(BSI->Params.begin(), BSI->Params.end());
   BlockTy = Context.getBlockPointerType(BlockTy);
 
   // If needed, diagnose invalid gotos and switches in the block.
-  if (CurFunctionNeedsScopeChecking)
+  if (FunctionNeedsScopeChecking() && !hasAnyErrorsInThisFunction())
     DiagnoseInvalidJumps(static_cast<CompoundStmt*>(body.get()));
-  CurFunctionNeedsScopeChecking = BSI->SavedFunctionNeedsScopeChecking;
 
   BSI->TheDecl->setBody(body.takeAs<CompoundStmt>());
 
@@ -6948,15 +6899,18 @@ Sema::OwningExprResult Sema::ActOnBlockStmtExpr(SourceLocation CaretLoc,
     Diag(L->getIdentLoc(), diag::err_undeclared_label_use) << L->getName();
     Good = false;
   }
-  BSI->LabelMap.clear();
-  if (!Good)
+  if (!Good) {
+    PopFunctionOrBlockScope();
     return ExprError();
-
+  }
+  
   AnalysisContext AC(BSI->TheDecl);
   CheckFallThroughForBlock(BlockTy, BSI->TheDecl->getBody(), AC);
   CheckUnreachable(AC);
-  return Owned(new (Context) BlockExpr(BSI->TheDecl, BlockTy,
-                                       BSI->hasBlockDeclRefExprs));
+  Expr *Result = new (Context) BlockExpr(BSI->TheDecl, BlockTy,
+                                         BSI->hasBlockDeclRefExprs);
+  PopFunctionOrBlockScope();  
+  return Owned(Result);
 }
 
 Sema::OwningExprResult Sema::ActOnVAArg(SourceLocation BuiltinLoc,

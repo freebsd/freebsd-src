@@ -19,27 +19,33 @@ namespace clang {
 
 class GRExprEngine;
 
+// Foundational checks that handle basic semantics.
 void RegisterAdjustedReturnValueChecker(GRExprEngine &Eng);
+void RegisterArrayBoundChecker(GRExprEngine &Eng);
 void RegisterAttrNonNullChecker(GRExprEngine &Eng);
+void RegisterBuiltinFunctionChecker(GRExprEngine &Eng);
+void RegisterCallAndMessageChecker(GRExprEngine &Eng);
+void RegisterCastToStructChecker(GRExprEngine &Eng);
 void RegisterDereferenceChecker(GRExprEngine &Eng);
 void RegisterDivZeroChecker(GRExprEngine &Eng);
-void RegisterReturnPointerRangeChecker(GRExprEngine &Eng);
-void RegisterReturnStackAddressChecker(GRExprEngine &Eng);  
-void RegisterReturnUndefChecker(GRExprEngine &Eng);
-void RegisterVLASizeChecker(GRExprEngine &Eng);
-void RegisterPointerSubChecker(GRExprEngine &Eng);
-void RegisterPointerArithChecker(GRExprEngine &Eng);
 void RegisterFixedAddressChecker(GRExprEngine &Eng);
-void RegisterCastToStructChecker(GRExprEngine &Eng);
-void RegisterCallAndMessageChecker(GRExprEngine &Eng);
-void RegisterArrayBoundChecker(GRExprEngine &Eng);
-void RegisterUndefinedArraySubscriptChecker(GRExprEngine &Eng);
-void RegisterUndefinedAssignmentChecker(GRExprEngine &Eng);
+void RegisterNoReturnFunctionChecker(GRExprEngine &Eng);
+void RegisterPointerArithChecker(GRExprEngine &Eng);
+void RegisterPointerSubChecker(GRExprEngine &Eng);
+void RegisterReturnPointerRangeChecker(GRExprEngine &Eng);
+void RegisterReturnStackAddressChecker(GRExprEngine &Eng);
+void RegisterReturnUndefChecker(GRExprEngine &Eng);
 void RegisterUndefBranchChecker(GRExprEngine &Eng);
 void RegisterUndefCapturedBlockVarChecker(GRExprEngine &Eng);
 void RegisterUndefResultChecker(GRExprEngine &Eng);
-void RegisterNoReturnFunctionChecker(GRExprEngine &Eng);
-void RegisterBuiltinFunctionChecker(GRExprEngine &Eng);
+void RegisterUndefinedArraySubscriptChecker(GRExprEngine &Eng);
+void RegisterUndefinedAssignmentChecker(GRExprEngine &Eng);
+void RegisterVLASizeChecker(GRExprEngine &Eng);
+
+// API checks.
+void RegisterMacOSXAPIChecker(GRExprEngine &Eng);
 void RegisterOSAtomicChecker(GRExprEngine &Eng);
+void RegisterUnixAPIChecker(GRExprEngine &Eng);
+
 } // end clang namespace
 #endif

@@ -146,8 +146,6 @@ def err_missing_comma_before_ellipsis : Error<
 def err_unexpected_typedef_ident : Error<
   "unexpected type name %0: expected identifier">;
 def err_expected_class_name : Error<"expected class name">;
-def err_destructor_class_name : Error<
-  "expected the class name after '~' to name a destructor">;
 def err_unspecified_vla_size_with_static : Error<
   "'static' may not be used with an unspecified variable length array size">;
 
@@ -247,8 +245,10 @@ def err_expected_catch : Error<"expected catch">;
 def err_expected_lbrace_or_comma : Error<"expected '{' or ','">;
 def err_using_namespace_in_class : Error<
   "'using namespace' is not allowed in classes">;
-def err_ident_in_pseudo_dtor_not_a_type : Error<
-  "identifier %0 in pseudo-destructor expression does not name a type">;
+def err_destructor_tilde_identifier : Error<
+  "expected a class name after '~' to name a destructor">;
+def err_destructor_template_id : Error<
+  "destructor name %0 does not refer to a template">;
 
 // C++ derived classes
 def err_dup_virtual : Error<"duplicate 'virtual' in base specifier">;
@@ -300,6 +300,7 @@ def err_explicit_instantiation_with_definition : Error<
     "explicit template instantiation cannot have a definition; if this "
     "definition is meant to be an explicit specialization, add '<>' after the "
     "'template' keyword">;
+def err_enum_template : Error<"enumeration cannot be a template">;
 
 // Constructor template diagnostics.
 def err_out_of_line_constructor_template_id : Error<

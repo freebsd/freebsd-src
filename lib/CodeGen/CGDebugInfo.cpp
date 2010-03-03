@@ -1034,6 +1034,28 @@ llvm::DIType CGDebugInfo::CreateType(const TagType *Ty,
   return llvm::DIType();
 }
 
+llvm::DIType CGDebugInfo::CreateType(const VectorType *Ty,
+				     llvm::DICompileUnit Unit) {
+  llvm::DIType ElementTy = getOrCreateType(Ty->getElementType(), Unit);
+  uint64_t NumElems = Ty->getNumElements();
+  if (NumElems > 0)
+    --NumElems;
+  llvm::SmallVector<llvm::DIDescriptor, 8> Subscripts;
+  Subscripts.push_back(DebugFactory.GetOrCreateSubrange(0, NumElems));
+
+  llvm::DIArray SubscriptArray =
+    DebugFactory.GetOrCreateArray(Subscripts.data(), Subscripts.size());
+
+  uint64_t Size = CGM.getContext().getTypeSize(Ty);
+  uint64_t Align = CGM.getContext().getTypeAlign(Ty);
+
+  return
+    DebugFactory.CreateCompositeType(llvm::dwarf::DW_TAG_vector_type,
+                                     Unit, "", llvm::DICompileUnit(),
+                                     0, Size, Align, 0, 0,
+				     ElementTy,  SubscriptArray);
+}
+
 llvm::DIType CGDebugInfo::CreateType(const ArrayType *Ty,
                                      llvm::DICompileUnit Unit) {
   uint64_t Size;
@@ -1214,9 +1236,10 @@ llvm::DIType CGDebugInfo::CreateTypeNode(QualType Ty,
 
   // FIXME: Handle these.
   case Type::ExtVector:
-  case Type::Vector:
     return llvm::DIType();
-      
+
+  case Type::Vector:
+    return CreateType(cast<VectorType>(Ty), Unit);
   case Type::ObjCObjectPointer:
     return CreateType(cast<ObjCObjectPointerType>(Ty), Unit);
   case Type::ObjCInterface:
@@ -1351,10 +1374,13 @@ void CGDebugInfo::EmitStopPoint(llvm::Function *Fn, CGBuilderTy &Builder) {
 /// EmitRegionStart- Constructs the debug code for entering a declarative
 /// region - "llvm.dbg.region.start.".
 void CGDebugInfo::EmitRegionStart(llvm::Function *Fn, CGBuilderTy &Builder) {
+  SourceManager &SM = CGM.getContext().getSourceManager();
+  PresumedLoc PLoc = SM.getPresumedLoc(CurLoc);
   llvm::DIDescriptor D =
     DebugFactory.CreateLexicalBlock(RegionStack.empty() ? 
                                     llvm::DIDescriptor() : 
-                                    llvm::DIDescriptor(RegionStack.back()));
+                                    llvm::DIDescriptor(RegionStack.back()),
+                                    PLoc.getLine(), PLoc.getColumn());
   RegionStack.push_back(D.getNode());
 }
 
@@ -1666,7 +1692,7 @@ void CGDebugInfo::EmitGlobalVariable(llvm::GlobalVariable *Var,
     T = CGM.getContext().getConstantArrayType(ET, ConstVal,
                                            ArrayType::Normal, 0);
   }
-  llvm::StringRef DeclName = D->getName();
+  llvm::StringRef DeclName = Var->getName();
   llvm::DIDescriptor DContext = 
     getContextDescriptor(dyn_cast<Decl>(D->getDeclContext()), Unit);
   DebugFactory.CreateGlobalVariable(DContext, DeclName,

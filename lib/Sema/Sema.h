@@ -95,6 +95,7 @@ namespace clang {
   class ObjCMethodDecl;
   class ObjCPropertyDecl;
   class ObjCContainerDecl;
+  class PseudoDestructorTypeStorage;
   class FunctionProtoType;
   class CXXBasePath;
   class CXXBasePaths;
@@ -107,9 +108,47 @@ namespace clang {
   class TargetAttributesSema;
   class ADLResult;
 
-/// BlockSemaInfo - When a block is being parsed, this contains information
-/// about the block.  It is pointed to from Sema::CurBlock.
-struct BlockSemaInfo {
+/// \brief Retains information about a function, method, or block that is 
+/// currently being parsed.
+struct FunctionScopeInfo {
+  /// \brief Whether this scope information structure defined information for
+  /// a block.
+  bool IsBlockInfo;
+  
+  /// \brief Set true when a function, method contains a VLA or ObjC try block, 
+  /// which introduce scopes that need to be checked for goto conditions.  If a
+  /// function does not contain this, then it need not have the jump checker run on it.
+  bool NeedsScopeChecking;
+    
+  /// \brief The number of errors that had occurred before starting this
+  /// function or block.
+  unsigned NumErrorsAtStartOfFunction;
+  
+  /// LabelMap - This is a mapping from label identifiers to the LabelStmt for
+  /// it (which acts like the label decl in some ways).  Forward referenced
+  /// labels have a LabelStmt created for them with a null location & SubStmt.
+  llvm::DenseMap<IdentifierInfo*, LabelStmt*> LabelMap;
+  
+  /// SwitchStack - This is the current set of active switch statements in the
+  /// block.
+  llvm::SmallVector<SwitchStmt*, 8> SwitchStack;  
+  
+  FunctionScopeInfo(unsigned NumErrors) 
+    : IsBlockInfo(false), NeedsScopeChecking(false), 
+      NumErrorsAtStartOfFunction(NumErrors) { }
+
+  virtual ~FunctionScopeInfo();
+
+  /// \brief Clear out the information in this function scope, making it
+  /// suitable for reuse.
+  void Clear(unsigned NumErrors);
+  
+  static bool classof(const FunctionScopeInfo *FSI) { return true; }  
+};
+  
+  
+/// \brief Retains information about a block that is currently being parsed.
+struct BlockScopeInfo : FunctionScopeInfo {
   llvm::SmallVector<ParmVarDecl*, 8> Params;
   bool hasPrototype;
   bool isVariadic;
@@ -125,22 +164,17 @@ struct BlockSemaInfo {
   /// return types, if any, in the block body.
   QualType ReturnType;
 
-  /// LabelMap - This is a mapping from label identifiers to the LabelStmt for
-  /// it (which acts like the label decl in some ways).  Forward referenced
-  /// labels have a LabelStmt created for them with a null location & SubStmt.
-  llvm::DenseMap<IdentifierInfo*, LabelStmt*> LabelMap;
+  BlockScopeInfo(unsigned NumErrors, Scope *BlockScope, BlockDecl *Block) 
+    : FunctionScopeInfo(NumErrors), hasPrototype(false), isVariadic(false), 
+      hasBlockDeclRefExprs(false), TheDecl(Block), TheScope(BlockScope) 
+  {
+    IsBlockInfo = true; 
+  }
 
-  /// SwitchStack - This is the current set of active switch statements in the
-  /// block.
-  llvm::SmallVector<SwitchStmt*, 8> SwitchStack;
+  virtual ~BlockScopeInfo();
 
-  /// SavedFunctionNeedsScopeChecking - This is the value of
-  /// CurFunctionNeedsScopeChecking at the point when the block started.
-  bool SavedFunctionNeedsScopeChecking;
-
-  /// PrevBlockInfo - If this is nested inside another block, this points
-  /// to the outer block.
-  BlockSemaInfo *PrevBlockInfo;
+  static bool classof(const FunctionScopeInfo *FSI) { return FSI->IsBlockInfo; }
+  static bool classof(const BlockScopeInfo *BSI) { return true; }
 };
 
 /// \brief Holds a QualType and a TypeSourceInfo* that came out of a declarator
@@ -199,37 +233,24 @@ public:
   /// CurContext - This is the current declaration context of parsing.
   DeclContext *CurContext;
 
-  /// CurBlock - If inside of a block definition, this contains a pointer to
-  /// the active block object that represents it.
-  BlockSemaInfo *CurBlock;
-
   /// PackContext - Manages the stack for #pragma pack. An alignment
   /// of 0 indicates default alignment.
   void *PackContext; // Really a "PragmaPackStack*"
 
-  /// FunctionLabelMap - This is a mapping from label identifiers to the
-  /// LabelStmt for it (which acts like the label decl in some ways).  Forward
-  /// referenced labels have a LabelStmt created for them with a null location &
-  /// SubStmt.
+  /// \brief Stack containing information about each of the nested function,
+  /// block, and method scopes that are currently active.
+  llvm::SmallVector<FunctionScopeInfo *, 4> FunctionScopes;
+  
+  /// \brief Cached function scope object used for the top function scope
+  /// and when there is no function scope (in error cases).
   ///
-  /// Note that this should always be accessed through getLabelMap() in order
-  /// to handle blocks properly.
-  llvm::DenseMap<IdentifierInfo*, LabelStmt*> FunctionLabelMap;
-
-  /// FunctionSwitchStack - This is the current set of active switch statements
-  /// in the top level function.  Clients should always use getSwitchStack() to
-  /// handle the case when they are in a block.
-  llvm::SmallVector<SwitchStmt*, 8> FunctionSwitchStack;
-
+  /// This should never be accessed directly; rather, it's address will be 
+  /// pushed into \c FunctionScopes when we want to re-use it.
+  FunctionScopeInfo TopFunctionScope;
+  
   /// ExprTemporaries - This is the stack of temporaries that are created by
   /// the current full expression.
   llvm::SmallVector<CXXTemporary*, 8> ExprTemporaries;
-
-  /// CurFunctionNeedsScopeChecking - This is set to true when a function or
-  /// ObjC method body contains a VLA or an ObjC try block, which introduce
-  /// scopes that need to be checked for goto conditions.  If a function does
-  /// not contain this, then it need not have the jump checker run on it.
-  bool CurFunctionNeedsScopeChecking;
 
   /// ExtVectorDecls - This is a list all the extended vector types. This allows
   /// us to associate a raw vector type with one of the ext_vector type names.
@@ -606,18 +627,42 @@ public:
 
   virtual void ActOnEndOfTranslationUnit();
 
+  void PushFunctionScope();
+  void PushBlockScope(Scope *BlockScope, BlockDecl *Block);
+  void PopFunctionOrBlockScope();
+  
   /// getLabelMap() - Return the current label map.  If we're in a block, we
   /// return it.
   llvm::DenseMap<IdentifierInfo*, LabelStmt*> &getLabelMap() {
-    return CurBlock ? CurBlock->LabelMap : FunctionLabelMap;
+    if (FunctionScopes.empty())
+      return TopFunctionScope.LabelMap;
+    
+    return FunctionScopes.back()->LabelMap;
   }
 
   /// getSwitchStack - This is returns the switch stack for the current block or
   /// function.
   llvm::SmallVector<SwitchStmt*,8> &getSwitchStack() {
-    return CurBlock ? CurBlock->SwitchStack : FunctionSwitchStack;
+    if (FunctionScopes.empty())
+      return TopFunctionScope.SwitchStack;
+    
+    return FunctionScopes.back()->SwitchStack;
   }
 
+  /// \brief Determine whether the current function or block needs scope 
+  /// checking.
+  bool &FunctionNeedsScopeChecking() {
+    if (FunctionScopes.empty())
+      return TopFunctionScope.NeedsScopeChecking;
+    
+    return FunctionScopes.back()->NeedsScopeChecking;
+  }
+  
+  bool hasAnyErrorsInThisFunction() const;
+  
+  /// \brief Retrieve the current block, if any.
+  BlockScopeInfo *getCurBlock();
+  
   /// WeakTopLevelDeclDecls - access to #pragma weak-generated Decls
   llvm::SmallVector<Decl*,2> &WeakTopLevelDecls() { return WeakTopLevelDecl; }
 
@@ -1440,6 +1485,8 @@ public:
   void AtomicPropertySetterGetterRules(ObjCImplDecl* IMPDecl,
                                        ObjCContainerDecl* IDecl);
 
+  void DiagnoseDuplicateIvars(ObjCInterfaceDecl *ID, ObjCInterfaceDecl *SID);
+
   /// MatchTwoMethodDeclarations - Checks if two methods' type match and returns
   /// true, or false, accordingly.
   bool MatchTwoMethodDeclarations(const ObjCMethodDecl *Method,
@@ -2056,6 +2103,12 @@ public:
                                SourceLocation Loc,                                    
                       ASTOwningVector<&ActionBase::DeleteExpr> &ConvertedArgs);
     
+  virtual TypeTy *getDestructorName(SourceLocation TildeLoc,
+                                    IdentifierInfo &II, SourceLocation NameLoc,
+                                    Scope *S, const CXXScopeSpec &SS,
+                                    TypeTy *ObjectType,
+                                    bool EnteringContext);
+
   /// ActOnCXXNamedCast - Parse {dynamic,static,reinterpret,const}_cast's.
   virtual OwningExprResult ActOnCXXNamedCast(SourceLocation OpLoc,
                                              tok::TokenKind Kind,
@@ -2167,8 +2220,32 @@ public:
                                                         ExprArg Base,
                                                         SourceLocation OpLoc,
                                                         tok::TokenKind OpKind,
-                                                        TypeTy *&ObjectType);
+                                                        TypeTy *&ObjectType,
+                                                   bool &MayBePseudoDestructor);
 
+  OwningExprResult DiagnoseDtorReference(SourceLocation NameLoc,
+                                         ExprArg MemExpr);
+  
+  OwningExprResult BuildPseudoDestructorExpr(ExprArg Base,
+                                             SourceLocation OpLoc,
+                                             tok::TokenKind OpKind,
+                                             const CXXScopeSpec &SS,
+                                             TypeSourceInfo *ScopeType,
+                                             SourceLocation CCLoc,
+                                             SourceLocation TildeLoc,
+                                     PseudoDestructorTypeStorage DestroyedType,
+                                             bool HasTrailingLParen);
+    
+  virtual OwningExprResult ActOnPseudoDestructorExpr(Scope *S, ExprArg Base,
+                                                     SourceLocation OpLoc,
+                                                     tok::TokenKind OpKind,
+                                                     const CXXScopeSpec &SS,
+                                                   UnqualifiedId &FirstTypeName,
+                                                     SourceLocation CCLoc,
+                                                     SourceLocation TildeLoc,
+                                                  UnqualifiedId &SecondTypeName,
+                                                     bool HasTrailingLParen);
+   
   /// MaybeCreateCXXExprWithTemporaries - If the list of temporaries is
   /// non-empty, will create a new CXXExprWithTemporaries expression.
   /// Otherwise, just returs the passed in expression.
@@ -2195,7 +2272,11 @@ public:
   bool isAcceptableNestedNameSpecifier(NamedDecl *SD);
   NamedDecl *FindFirstQualifierInScope(Scope *S, NestedNameSpecifier *NNS);
 
-
+  virtual bool isNonTypeNestedNameSpecifier(Scope *S, const CXXScopeSpec &SS,
+                                            SourceLocation IdLoc,
+                                            IdentifierInfo &II,
+                                            TypeTy *ObjectType);
+  
   CXXScopeTy *BuildCXXNestedNameSpecifier(Scope *S,
                                           const CXXScopeSpec &SS,
                                           SourceLocation IdLoc,
@@ -3376,7 +3457,8 @@ public:
 
     Decl *getInstantiationOf(const Decl *D) {
       Decl *Result = LocalDecls[D];
-      assert(Result && "declaration was not instantiated in this scope!");
+      assert((Result || D->isInvalidDecl()) && 
+             "declaration was not instantiated in this scope!");
       return Result;
     }
 
@@ -3395,7 +3477,7 @@ public:
     
     void InstantiatedLocal(const Decl *D, Decl *Inst) {
       Decl *&Stored = LocalDecls[D];
-      assert(!Stored && "Already instantiated this local");
+      assert((!Stored || Stored == Inst) && "Already instantiated this local");
       Stored = Inst;
     }
   };
@@ -3502,9 +3584,9 @@ public:
                                   const CXXConstructorDecl *Tmpl,
                             const MultiLevelTemplateArgumentList &TemplateArgs);
 
-  NamedDecl *FindInstantiatedDecl(NamedDecl *D,
+  NamedDecl *FindInstantiatedDecl(SourceLocation Loc, NamedDecl *D,
                           const MultiLevelTemplateArgumentList &TemplateArgs);
-  DeclContext *FindInstantiatedContext(DeclContext *DC,
+  DeclContext *FindInstantiatedContext(SourceLocation Loc, DeclContext *DC,
                           const MultiLevelTemplateArgumentList &TemplateArgs);
 
   // Objective-C declarations.
@@ -3910,7 +3992,8 @@ public:
     Expr *&cond, Expr *&lhs, Expr *&rhs, SourceLocation questionLoc);
   QualType CXXCheckConditionalOperands( // C++ 5.16
     Expr *&cond, Expr *&lhs, Expr *&rhs, SourceLocation questionLoc);
-  QualType FindCompositePointerType(Expr *&E1, Expr *&E2); // C++ 5.9
+  QualType FindCompositePointerType(Expr *&E1, Expr *&E2,
+                                    bool *NonStandardCompositeType = 0);
 
   QualType FindCompositeObjCPointerType(Expr *&LHS, Expr *&RHS,
                                         SourceLocation questionLoc);
@@ -4129,7 +4212,7 @@ private:
                                                     CallExpr *TheCall);
   bool SemaBuiltinVAStart(CallExpr *TheCall);
   bool SemaBuiltinUnorderedCompare(CallExpr *TheCall);
-  bool SemaBuiltinFPClassification(CallExpr *TheCall, unsigned LastArg=1);
+  bool SemaBuiltinFPClassification(CallExpr *TheCall, unsigned NumArgs);
   bool SemaBuiltinStackAddress(CallExpr *TheCall);
 
 public:

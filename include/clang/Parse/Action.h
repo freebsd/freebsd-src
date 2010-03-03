@@ -327,13 +327,26 @@ public:
     return false;
   }
   
+  /// \brief Determine whether the given name refers to a non-type nested name
+  /// specifier, e.g., the name of a namespace or namespace alias.
+  ///
+  /// This actual is used in the parsing of pseudo-destructor names to 
+  /// distinguish a nested-name-specifier and a "type-name ::" when we
+  /// see the token sequence "X :: ~".
+  virtual bool isNonTypeNestedNameSpecifier(Scope *S, const CXXScopeSpec &SS,
+                                            SourceLocation IdLoc,
+                                            IdentifierInfo &II,
+                                            TypeTy *ObjectType) {
+    return false;
+  }
+  
   /// ActOnCXXGlobalScopeSpecifier - Return the object that represents the
   /// global scope ('::').
   virtual CXXScopeTy *ActOnCXXGlobalScopeSpecifier(Scope *S,
                                                    SourceLocation CCLoc) {
     return 0;
   }
-
+  
   /// \brief Parsed an identifier followed by '::' in a C++
   /// nested-name-specifier.
   ///
@@ -490,6 +503,12 @@ public:
     return;
   }
 
+  /// \brief Note that the given declaration had an initializer that could not
+  /// be parsed.
+  virtual void ActOnInitializerError(DeclPtrTy Dcl) {
+    return;
+  }
+  
   /// FinalizeDeclaratorGroup - After a sequence of declarators are parsed, this
   /// gives the actions implementation a chance to process the group as a whole.
   virtual DeclGroupPtrTy FinalizeDeclaratorGroup(Scope *S, const DeclSpec& DS,
@@ -1075,7 +1094,7 @@ public:
                                                    SourceLocation RLoc) {
     return ExprEmpty();
   }
-  
+
   /// \brief Parsed a member access expresion (C99 6.5.2.3, C++ [expr.ref])
   /// of the form \c x.m or \c p->m.
   ///
@@ -1473,6 +1492,18 @@ public:
 
   //===------------------------- C++ Expressions --------------------------===//
 
+  /// \brief Parsed a destructor name or pseudo-destructor name. 
+  ///
+  /// \returns the type being destructed.
+  virtual TypeTy *getDestructorName(SourceLocation TildeLoc,
+                                    IdentifierInfo &II, SourceLocation NameLoc,
+                                    Scope *S, const CXXScopeSpec &SS,
+                                    TypeTy *ObjectType,
+                                    bool EnteringContext) {
+    return getTypeName(II, NameLoc, S, &SS, false, ObjectType);
+  }
+
+
   /// ActOnCXXNamedCast - Parse {dynamic,static,reinterpret,const}_cast's.
   virtual OwningExprResult ActOnCXXNamedCast(SourceLocation OpLoc,
                                              tok::TokenKind Kind,
@@ -1594,12 +1625,66 @@ public:
   /// with the type into which name lookup should look to find the member in
   /// the member access expression.
   ///
+  /// \param MayBePseudoDestructor Originally false. The action should
+  /// set this true if the expression may end up being a
+  /// pseudo-destructor expression, indicating to the parser that it
+  /// shoudl be parsed as a pseudo-destructor rather than as a member
+  /// access expression. Note that this should apply both when the
+  /// object type is a scalar and when the object type is dependent.
+  ///
   /// \returns the (possibly modified) \p Base expression
   virtual OwningExprResult ActOnStartCXXMemberReference(Scope *S,
                                                         ExprArg Base,
                                                         SourceLocation OpLoc,
                                                         tok::TokenKind OpKind,
-                                                        TypeTy *&ObjectType) {
+                                                        TypeTy *&ObjectType,
+                                                  bool &MayBePseudoDestructor) {
+    return ExprEmpty();
+  }
+
+  /// \brief Parsed a C++ pseudo-destructor expression or a dependent
+  /// member access expression that has the same syntactic form as a
+  /// pseudo-destructor expression.
+  ///
+  /// \param S The scope in which the member access expression occurs.
+  ///
+  /// \param Base The expression in which a member is being accessed, e.g., the
+  /// "x" in "x.f".
+  ///
+  /// \param OpLoc The location of the member access operator ("." or "->")
+  ///
+  /// \param OpKind The kind of member access operator ("." or "->")
+  ///
+  /// \param SS The nested-name-specifier that precedes the type names
+  /// in the grammar. Note that this nested-name-specifier will not
+  /// cover the last "type-name ::" in the grammar, because it isn't
+  /// necessarily a nested-name-specifier.
+  ///
+  /// \param FirstTypeName The type name that follows the optional
+  /// nested-name-specifier but precedes the '::', e.g., the first
+  /// type-name in "type-name :: type-name". This type name may be
+  /// empty. This will be either an identifier or a template-id.
+  ///
+  /// \param CCLoc The location of the '::' in "type-name ::
+  /// typename". May be invalid, if there is no \p FirstTypeName.
+  ///
+  /// \param TildeLoc The location of the '~'.
+  ///
+  /// \param SecondTypeName The type-name following the '~', which is
+  /// the name of the type being destroyed. This will be either an
+  /// identifier or a template-id.
+  ///
+  /// \param HasTrailingLParen Whether the next token in the stream is
+  /// a left parentheses.
+  virtual OwningExprResult ActOnPseudoDestructorExpr(Scope *S, ExprArg Base,
+                                                     SourceLocation OpLoc,
+                                                     tok::TokenKind OpKind,
+                                                     const CXXScopeSpec &SS,
+                                                  UnqualifiedId &FirstTypeName,
+                                                     SourceLocation CCLoc,
+                                                     SourceLocation TildeLoc,
+                                                 UnqualifiedId &SecondTypeName,
+                                                     bool HasTrailingLParen) {
     return ExprEmpty();
   }
 
