@@ -1690,8 +1690,8 @@ compute_space(struct dn_id *cmd, int *to_copy)
 	 *                             link, scheduler template, flowset
 	 *                             integrated in scheduler and header
 	 *                             for flowset list
-	 *   (NSI)*(dn_flow + dn_queue) all scheduler instance + one
-	 *                              queue per instance
+	 *   (NSI)*(dn_flow) all scheduler instance (includes
+	 *                              the queue instance)
 	 * - ipfw sched show
 	 *   (NP/2)*(dn_link + dn_sch + dn_id + dn_fs) only half scheduler
 	 *                             link, scheduler template, flowset
@@ -1708,11 +1708,13 @@ compute_space(struct dn_id *cmd, int *to_copy)
 	default:
 		return -1;
 	/* XXX where do LINK and SCH differ ? */
+	/* 'ipfw sched show' could list all queues associated to
+	 * a scheduler. This feature for now is disabled
+	 */
 	case DN_LINK:	/* pipe show */
 		x = DN_C_LINK | DN_C_SCH | DN_C_FLOW;
 		need += dn_cfg.schk_count *
 			(sizeof(struct dn_fs) + profile_size) / 2;
-		need += dn_cfg.si_count * sizeof(struct dn_queue);
 		need += dn_cfg.fsk_count * sizeof(uint32_t);
 		break;
 	case DN_SCH:	/* sched show */
@@ -2072,11 +2074,12 @@ ip_dn_init(void)
 static void
 ip_dn_destroy(void)
 {
+	callout_drain(&dn_timeout);
+
 	DN_BH_WLOCK();
 	ip_dn_ctl_ptr = NULL;
 	ip_dn_io_ptr = NULL;
 
-	callout_stop(&dn_timeout);
 	dummynet_flush();
 	DN_BH_WUNLOCK();
 	taskqueue_drain(dn_tq, &dn_task);
