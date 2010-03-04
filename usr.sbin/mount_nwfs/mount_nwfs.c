@@ -62,16 +62,19 @@ static int parsercfile(struct ncp_conn_loginfo *li, struct nwfs_args *mdata);
 
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
-	{ NULL }
+	MOPT_END
 };
 
-static int 
-parsercfile(struct ncp_conn_loginfo *li, struct nwfs_args *mdata) {
+static int
+parsercfile(struct ncp_conn_loginfo *li __unused,
+    struct nwfs_args *mdata __unused)
+{
 	return 0;
 }
 
 int
-main(int argc, char *argv[]) {
+main(int argc, char *argv[])
+{
 	NWCONN_HANDLE connHandle;
 	struct nwfs_args mdata;
 	struct ncp_conn_loginfo li;
@@ -80,6 +83,7 @@ main(int argc, char *argv[]) {
 	struct tm *tm;
 	time_t ltime;
 	int opt, error, mntflags, nlsopt, wall_clock;
+	int uid_set, gid_set;
 	size_t len;
 	char *p, *p1, tmp[1024];
 	u_char *pv;
@@ -100,7 +104,7 @@ main(int argc, char *argv[]) {
 
 	mntflags = error = 0;
 	bzero(&mdata,sizeof(mdata));
-	mdata.uid = mdata.gid = -1;
+	gid_set = uid_set = 0;
 	nlsopt = 0;
 
 	if (ncp_li_init(&li, argc, argv)) return 1;
@@ -182,6 +186,7 @@ main(int argc, char *argv[]) {
 			if (pwd == NULL)
 				errx(EX_NOUSER, "unknown user '%s'", optarg);
 			mdata.uid = pwd->pw_uid;
+			uid_set = 1;
 			break;
 		    }
 		    case 'g': {
@@ -192,6 +197,7 @@ main(int argc, char *argv[]) {
 			if (grp == NULL)
 				errx(EX_NOUSER, "unknown group '%s'", optarg);
 			mdata.gid = grp->gr_gid;
+			gid_set = 1;
 			break;
 		    }
 		    case 'd':
@@ -282,10 +288,10 @@ main(int argc, char *argv[]) {
 	if (ncp_geteinfo(mount_point, &einfo) == 0)
 		errx(EX_OSERR, "can't mount on %s twice", mount_point);
 
-	if (mdata.uid == -1) {
+	if (uid_set == 0) {
 		mdata.uid = st.st_uid;
 	}
-	if (mdata.gid == -1) {
+	if (gid_set == 0) {
 		mdata.gid = st.st_gid;
 	}
 	if (mdata.file_mode == 0 ) {
