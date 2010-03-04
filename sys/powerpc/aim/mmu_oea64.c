@@ -1664,8 +1664,10 @@ moea64_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 	loops = 0;
 	LOCK_TABLE();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		if (pvo->pvo_pmap == pmap)
+		if (pvo->pvo_pmap == pmap) {
+			UNLOCK_TABLE();
 			return (TRUE);
+		}
 		if (++loops >= 16)
 			break;
 	}
@@ -2063,7 +2065,7 @@ moea64_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		bootstrap = 1;
 	} else {
 		/*
-		 * Note: drop the table around the UMA allocation in
+		 * Note: drop the table lock around the UMA allocation in
 		 * case the UMA allocator needs to manipulate the page
 		 * table. The mapping we are working with is already
 		 * protected by the PMAP lock.
