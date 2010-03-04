@@ -1625,13 +1625,21 @@ ipfw_sets_handler(char *av[])
 	if (av[0] == NULL)
 		errx(EX_USAGE, "set needs command");
 	if (_substrcmp(*av, "show") == 0) {
-		void *data;
+		void *data = NULL;
 		char const *msg;
+		int nalloc;
 
-		nbytes = sizeof(struct ip_fw);
+		nalloc = nbytes = sizeof(struct ip_fw);
+		while (nbytes >= nalloc) {
+			if (data)
+				free(data);
+			nalloc = nalloc * 2 + 200;
+			nbytes = nalloc;
 		data = safe_calloc(1, nbytes);
 		if (do_cmd(IP_FW_GET, data, (uintptr_t)&nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_FW_GET)");
+		}
+
 		bcopy(&((struct ip_fw *)data)->next_rule,
 			&set_disable, sizeof(set_disable));
 
@@ -1661,7 +1669,7 @@ ipfw_sets_handler(char *av[])
 		i = do_cmd(IP_FW_DEL, masks, sizeof(uint32_t));
 	} else if (_substrcmp(*av, "move") == 0) {
 		av++;
-		if (!av[0] && _substrcmp(*av, "rule") == 0) {
+		if (av[0] && _substrcmp(*av, "rule") == 0) {
 			cmd = 2;
 			av++;
 		} else
@@ -1685,7 +1693,7 @@ ipfw_sets_handler(char *av[])
 		av++;
 		masks[0] = masks[1] = 0;
 
-		while (!av[0]) {
+		while (av[0]) {
 			if (isdigit(**av)) {
 				i = atoi(*av);
 				if (i < 0 || i > RESVD_SET)
