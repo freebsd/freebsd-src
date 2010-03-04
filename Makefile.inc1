@@ -31,7 +31,7 @@
 .include <bsd.own.mk>
 
 .if ${MACHINE_CPUARCH} == "mips"
-#MK_RESCUE=no	# not yet
+MK_RESCUE=no	# not yet
 .endif
 
 # We must do share/info early so that installation of info `dir'
