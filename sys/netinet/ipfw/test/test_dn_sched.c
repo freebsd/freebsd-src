@@ -74,3 +74,16 @@ ipdn_bound_var(int *v, int dflt, int lo, int hi, const char *msg)
         return *v;
 }
 
+#ifndef __FreeBSD__
+int
+fls(int mask)
+{
+	int bit;
+
+	if (mask == 0)
+		return (0);
+	for (bit = 1; mask != 1; bit++)
+		mask = (unsigned int)mask >> 1;
+	return (bit);
+}
+#endif
