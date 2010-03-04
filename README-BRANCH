@@ -22,3 +22,8 @@ ARM have multiple ABIs, and we'll need something to be the default,
 and different CPUs within a family might have different defaults.
 Etc.  Plus there's t he need for multilib.  However, issues like this
 are beyond the scope of this branch.
+
+In addition, this branch starts to move away from having if this
+machine compile this, if that machine compile that lists in the Makefiles,
+but moves them to a Makefile.$ARCH where $ARCH is $MACHINE_CPUARCH,
+$MACHINE_ARCH or $MACHINE, tried in that order.
