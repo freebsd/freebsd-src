@@ -12,10 +12,8 @@
 #include <strings.h>	/* bzero, ffs, ... */
 #include <string.h>	/* strcmp */
 #include <errno.h>
-#include <inttypes.h>
 #include <sys/queue.h>
 #include <sys/time.h>
-
 
 extern int debug;
 #define ND(fmt, args...) do {} while (0)
@@ -139,6 +137,10 @@ struct dn_alg {
         int (*new_queue)(struct dn_queue *q);
 };
 
+#endif
+
+#ifndef __FreeBSD__
+int fls(int);
 #endif
 
 static inline void
