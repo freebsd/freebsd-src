@@ -38,9 +38,10 @@
 #include <sys/ioctl.h>
 #include SESINC
 
+#include "eltsub.h"
+
 char *
-geteltnm(type)
-	int type;
+geteltnm(int type)
 {
 	static char rbuf[132];
 
@@ -116,8 +117,7 @@ geteltnm(type)
 }
 
 static char *
-scode2ascii(code)
-	u_char code;
+scode2ascii(u_char code)
 {
 	static char rbuf[32];
 	switch (code & 0xf) {
@@ -154,9 +154,7 @@ scode2ascii(code)
 
 
 char *
-stat2ascii(eletype, cstat)
-	int eletype;
-	u_char *cstat;
+stat2ascii(int eletype __unused, u_char *cstat)
 {
 	static char ebuf[256], *scode;
 

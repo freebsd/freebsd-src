@@ -2,7 +2,7 @@
 <HEAD><TITLE>Milter API</TITLE></HEAD>
 <BODY>
 <!--
-$Id: api.html,v 1.35 2006/11/30 23:09:23 ca Exp $
+$Id: api.html,v 1.37 2009/05/19 00:40:52 ca Exp $
 -->
 <H1>Milter API</H1>
 
@@ -80,7 +80,9 @@ The following functions change a message's contents and attributes.
 <EM>They may only be called in <A HREF="xxfi_eom.html">xxfi_eom</A></EM>.
 All of these functions may invoke additional communication with the MTA.
 They will return either MI_SUCCESS or MI_FAILURE to indicate the status of
-the operation.
+the operation.  Message data (senders, recipients, headers, body chunks)
+passed to these functions via parameters is copied and does not need to be
+preserved (i.e., allocated memory can be freed).
 
 <P>
 A filter must have set the appropriate flag (listed below) in the
@@ -310,7 +312,7 @@ for a protocol stage.
 
 <HR SIZE="1">
 <FONT SIZE="-1">
-Copyright (c) 2000, 2003, 2006 Sendmail, Inc. and its suppliers.
+Copyright (c) 2000, 2003, 2006, 2009 Sendmail, Inc. and its suppliers.
 All rights reserved.
 <BR>
 By using this file, you agree to the terms and conditions set

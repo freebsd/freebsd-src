@@ -33,6 +33,8 @@ SRCS=	bsm_audit.c							\
 #
 CFLAGS+=	-I${OPENBSMDIR} -I${LIBBSMDIR}
 
+WARNS?=		1
+
 INCS=		audit_uevents.h libbsm.h
 INCSDIR=	${INCLUDEDIR}/bsm
 

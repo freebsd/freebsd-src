@@ -221,7 +221,7 @@ gatherline(struct openfile *ip)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
 "usage: lam [ -f min.max ] [ -s sepstring ] [ -t c ] file ...",

@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.741 2007/06/22 23:08:59 ca Exp $
+.\"	$Id: op.me,v 8.745 2009/12/13 04:12:46 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -90,13 +90,14 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.741 $
+.Ve $Revision: 8.745 $
 .rm Ve
 .sp
 For Sendmail Version 8.14
 .)l
 .(f
 Sendmail is a trademark of Sendmail, Inc.
+US Patent Numbers 6865671, 6986037.
 .)f
 .sp 2
 .pp
@@ -4952,9 +4953,21 @@ as "(may be forged)".
 .ip ${cn_issuer}
 The CN (common name) of the CA that signed the presented certificate
 (STARTTLS only).
+Note: if the CN cannot be extracted properly it will be replaced by
+one of these strings based on the encountered error:
+.(b
+.ta 25n
+BadCertificateContainsNUL	CN contains a NUL character
+BadCertificateTooLong	CN is too long
+BadCertificateUnknown	CN could not be extracted
+.)b
+In the last case, some other (unspecific) error occurred.
 .ip ${cn_subject}
 The CN (common name) of the presented certificate
 (STARTTLS only).
+See
+.b ${cn_issuer}
+for possible replacements.
 .ip ${currHeader}
 Header value as quoted string
 (possibly truncated to
@@ -5130,7 +5143,7 @@ The total number of incoming connections over the time interval specified
 by ConnectionRateWindowSize.
 .ip ${verify}
 The result of the verification of the presented cert;
-only defined after STARTTLS has been used.
+only defined after STARTTLS has been used (or attempted).
 Possible values are:
 .(b
 .ta 13n
@@ -6710,10 +6723,25 @@ CRL checking requires at least OpenSSL version 0.9.7.
 Note: if a CRLFile is specified but the file is unusable,
 STARTTLS is disabled.
 .ip DHParameters
-File with DH parameters for STARTTLS.
+Possible values are:
+.(b
+.ta 1i
+5	use 512 bit prime
+1	use 1024 bit prime
+none	do not use Diffie-Hellman
+NAME	load prime from file
+.)b
 This is only required if a ciphersuite containing DSA/DH is used.
-This is only for people with a good knowledge of TLS, all others
-can ignore this option.
+If ``5'' is selected, then precomputed, fixed primes are used.
+This is the default for the client side.
+If ``1'' is selected, then prime values are computed during startup.
+This is the default for the server side.
+Note: this operation can take a significant amount of time on a
+slow machine (several seconds), but it is only done once at startup.
+If ``none'' is selected, then TLS ciphersuites containing DSA/DH
+cannot be used.
+If a file name is specified (which must be an absolute path),
+then the primes are read from it.
 .ip DaemonPortOptions=\fIoptions\fP
 [O]
 Set server SMTP options.
@@ -11435,7 +11463,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.741 $
+.\"Version $Revision: 8.745 $
 .\".ce 0
 .bp 3
 .ce

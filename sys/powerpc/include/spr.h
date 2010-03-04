@@ -50,7 +50,7 @@
 #define mtspr64(reg,valhi,vallo,scratch)				\
 	__asm __volatile("						\
 		mfmsr %0; 						\
-		insrdi %0,1,1,0; 					\
+		insrdi %0,%5,1,0; 					\
 		mtmsrd %0; 						\
 		isync; 							\
 									\
@@ -62,13 +62,13 @@
 		clrldi %0,%0,1; 					\
 		mtmsrd %0; 						\
 		isync;"							\
-	: "=r"(scratch), "=r"(valhi) : "r"(vallo), "K"(reg), "r"(32))
+	: "=r"(scratch), "=r"(valhi) : "r"(vallo), "K"(reg), "r"(32), "r"(1))
 
 #define mfspr64upper(reg,scratch)					\
 	( { register_t val;						\
 	    __asm __volatile("						\
 		mfmsr %0; 						\
-		insrdi %0,1,1,0; 					\
+		insrdi %0,%4,1,0; 					\
 		mtmsrd %0; 						\
 		isync; 							\
 									\
@@ -78,7 +78,7 @@
 		clrldi %0,%0,1; 					\
 		mtmsrd %0; 						\
 		isync;" 						\
-	    : "=r"(scratch), "=r"(val) : "K"(reg), "r"(32)); 			\
+	    : "=r"(scratch), "=r"(val) : "K"(reg), "r"(32), "r"(1));	\
 	    val; } )
 
 #endif /* _LOCORE */

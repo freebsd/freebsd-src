@@ -335,8 +335,11 @@ zvol_start(struct bio *bp)
 		wakeup_one(&zv->zv_queue);
 		mtx_unlock(&zv->zv_queue_mtx);
 		break;
-	case BIO_DELETE:
 	case BIO_GETATTR:
+		if (g_handleattr_int(bp, "ZFS::iszvol", 1))
+			break;
+		/* FALLTHROUGH */
+	case BIO_DELETE:
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		break;

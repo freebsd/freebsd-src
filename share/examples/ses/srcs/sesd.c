@@ -49,13 +49,11 @@
  */
 
 int
-main(a, v)
-	int a;
-	char **v;
+main(int a, char **v)
 {
-	static char *usage =
+	static const char *usage =
 	    "usage: %s [ -d ] [ -t pollinterval ] device [ device ]\n";
-	int fd, polltime, dev, devbase, nodaemon, bpri;
+	int fd, polltime, dev, devbase, nodaemon;
 	ses_encstat stat, *carray;
 
 	if (a < 2) {
@@ -115,7 +113,6 @@ main(a, v)
 
 	for (;;) {
 		for (dev = devbase; dev < a; dev++) {
-			char buf[128];
 			fd = open(v[dev], O_RDWR);
 			if (fd < 0) {
 				syslog(LOG_ERR, "%s: %m", v[dev]);

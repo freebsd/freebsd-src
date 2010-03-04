@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 24, 2008
+.Dd December 21, 2009
 .Dt POWERD 8
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@ The
 .Nm
 utility monitors the system state and sets various power control options
 accordingly.
-It offers three modes (maximum, minimum, and adaptive) that can be
+It offers four modes (maximum, minimum, adaptive and hiadaptive) that can be
 individually selected while on AC power or batteries.
 The modes maximum, minimum, adaptive and hiadaptive may be abbreviated
 max, min, adp, hadp.
@@ -57,9 +57,10 @@ Adaptive mode attempts to strike a balance by degrading performance when
 the system appears idle and increasing it when the system is busy.
 It offers a good balance between a small performance loss for greatly
 increased power savings.
-Hiadaptive mode is alike adaptive mode, but tuned for systems where
+Hiadaptive mode is like adaptive mode, but tuned for systems where
 performance and interactivity are more important then power consumption.
-It rises frequency faster, drops slower and keeps twice lower CPU load.
+It increases frequency faster, reduces the frequency less aggressively and
+will maintain full frequency for longer.
 The default mode is adaptive for battery power and hiadaptive for the rest.
 .Pp
 The

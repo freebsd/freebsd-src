@@ -100,7 +100,7 @@ zfs_open(const char *upath, struct open_file *f)
 	f->f_fsdata = (void *)fp;
 
 	if (spa->spa_root_objset.os_type != DMU_OST_ZFS) {
-		printf("Unexpected object set type %lld\n",
+		printf("Unexpected object set type %llu\n",
 		    spa->spa_root_objset.os_type);
 		rc = EIO;
 		goto out;
@@ -397,7 +397,7 @@ zfs_dev_init(void)
 	/*
 	 * Open all the disks we can find and see if we can reconstruct
 	 * ZFS pools from them. Bogusly assumes that the disks are named
-	 * diskN or diskNsM.
+	 * diskN, diskNpM or diskNsM.
 	 */
 	zfs_init();
 	for (unit = 0; unit < 32 /* XXX */; unit++) {
@@ -413,7 +413,7 @@ zfs_dev_init(void)
 		if (vdev_probe(vdev_read, (void*) (uintptr_t) fd, 0))
 			close(fd);
 
-		for (slice = 1; slice <= 4; slice++) {
+		for (slice = 1; slice <= 128; slice++) {
 			sprintf(devname, "disk%dp%d:", unit, slice);
 			fd = open(devname, O_RDONLY);
 			if (fd == -1) {

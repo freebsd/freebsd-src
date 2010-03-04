@@ -60,8 +60,6 @@ CFLAGS+=	-I. -I${.CURDIR}
 
 SHLIB_MAJOR=	1
 
-WARNS?=	6
-
 MAN=	elf.3							\
 	elf_begin.3						\
 	elf_cntl.3						\

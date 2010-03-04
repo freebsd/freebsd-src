@@ -26,30 +26,22 @@
 # include <sys/stat.h>
 #endif
 #include <stdio.h>
-#ifndef SYS_WINNT
-# if !defined(VMS)	/*wjm*/
-#  ifdef HAVE_SYS_PARAM_H
-#   include <sys/param.h>
-#  endif
-# endif /* VMS */
-# ifdef HAVE_SYS_SIGNAL_H
-#  include <sys/signal.h>
-# else
-#  include <signal.h>
+#if !defined(VMS)	/*wjm*/
+# ifdef HAVE_SYS_PARAM_H
+#  include <sys/param.h>
 # endif
-# ifdef HAVE_SYS_IOCTL_H
-#  include <sys/ioctl.h>
-# endif /* HAVE_SYS_IOCTL_H */
-# ifdef HAVE_SYS_RESOURCE_H
-#  include <sys/resource.h>
-# endif /* HAVE_SYS_RESOURCE_H */
+#endif /* VMS */
+#ifdef HAVE_SYS_SIGNAL_H
+# include <sys/signal.h>
 #else
 # include <signal.h>
-# include <process.h>
-# include <io.h>
-# include <clockstuff.h>
-#include "ntp_iocompletionport.h"
-#endif /* SYS_WINNT */
+#endif
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif /* HAVE_SYS_IOCTL_H */
+#ifdef HAVE_SYS_RESOURCE_H
+# include <sys/resource.h>
+#endif /* HAVE_SYS_RESOURCE_H */
 #if defined(HAVE_RTPRIO)
 # ifdef HAVE_SYS_RESOURCE_H
 #  include <sys/resource.h>
@@ -821,9 +813,6 @@ ntpdmain(
 	init_restrict();
 	init_mon();
 	init_timer();
-#if defined (HAVE_IO_COMPLETION_PORT)
-	init_io_completion_port();
-#endif
 	init_lib();
 	init_request();
 	init_control();
@@ -993,7 +982,7 @@ getgroup:
 #if defined(HAVE_IO_COMPLETION_PORT)
 
 	for (;;) {
-		int tot_full_recvbufs = GetReceivedBuffers();
+		GetReceivedBuffers();
 #else /* normal I/O */
 
 	BLOCK_IO_AND_ALARM();

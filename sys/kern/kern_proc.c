@@ -140,7 +140,6 @@ struct sx allproc_lock;
 struct sx proctree_lock;
 struct mtx ppeers_lock;
 uma_zone_t proc_zone;
-uma_zone_t ithread_zone;
 
 int kstack_pages = KSTACK_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0, "");
@@ -358,6 +357,7 @@ enterpgrp(p, pgid, pgrp, sess)
 		sess->s_sid = p->p_pid;
 		refcount_init(&sess->s_count, 1);
 		sess->s_ttyvp = NULL;
+		sess->s_ttydp = NULL;
 		sess->s_ttyp = NULL;
 		bcopy(p->p_session->s_login, sess->s_login,
 			    sizeof(sess->s_login));
@@ -676,11 +676,9 @@ fill_kinfo_aggregate(struct proc *p, struct kinfo_proc *kp)
 
 	kp->ki_estcpu = 0;
 	kp->ki_pctcpu = 0;
-	kp->ki_runtime = 0;
 	FOREACH_THREAD_IN_PROC(p, td) {
 		thread_lock(td);
 		kp->ki_pctcpu += sched_pctcpu(td);
-		kp->ki_runtime += cputick2usec(td->td_runtime);
 		kp->ki_estcpu += td->td_estcpu;
 		thread_unlock(td);
 	}
@@ -830,9 +828,10 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 }
 
 /*
- * Fill in information that is thread specific.  Must be called with p_slock
- * locked.  If 'preferthread' is set, overwrite certain process-related
- * fields that are maintained for both threads and processes.
+ * Fill in information that is thread specific.  Must be called with
+ * target process locked.  If 'preferthread' is set, overwrite certain
+ * process-related fields that are maintained for both threads and
+ * processes.
  */
 static void
 fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
@@ -847,8 +846,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 		strlcpy(kp->ki_wmesg, td->td_wmesg, sizeof(kp->ki_wmesg));
 	else
 		bzero(kp->ki_wmesg, sizeof(kp->ki_wmesg));
-	if (td->td_name[0] != '\0')
-		strlcpy(kp->ki_ocomm, td->td_name, sizeof(kp->ki_ocomm));
+	strlcpy(kp->ki_ocomm, td->td_name, sizeof(kp->ki_ocomm));
 	if (TD_ON_LOCK(td)) {
 		kp->ki_kiflag |= KI_LOCKBLOCK;
 		strlcpy(kp->ki_lockname, td->td_lockname,
@@ -902,7 +900,8 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	/* We can't get this anymore but ps etc never used it anyway. */
 	kp->ki_rqindex = 0;
 
-	SIGSETOR(kp->ki_siglist, td->td_siglist);
+	if (preferthread)
+		kp->ki_siglist = td->td_siglist;
 	kp->ki_sigmask = td->td_sigmask;
 	thread_unlock(td);
 }

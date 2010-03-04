@@ -116,22 +116,6 @@ __FBSDID("$FreeBSD$");
  *	another, and then marking both regions as copy-on-write.
  */
 
-/*
- *	vm_map_startup:
- *
- *	Initialize the vm_map module.  Must be called before
- *	any other vm_map routines.
- *
- *	Map and entry structures are allocated from the general
- *	purpose memory pool with some exceptions:
- *
- *	- The kernel map and kmem submap are allocated statically.
- *	- Kernel map entries are allocated out of a static pool.
- *
- *	These restrictions are necessary since malloc() uses the
- *	maps and requires map entries.
- */
-
 static struct mtx map_sleep_mtx;
 static uma_zone_t mapentzone;
 static uma_zone_t kmapentzone;
@@ -175,6 +159,22 @@ static void vmspace_zdtor(void *mem, int size, void *arg);
 		if (start > end)			\
 			start = end;			\
 		}
+
+/*
+ *	vm_map_startup:
+ *
+ *	Initialize the vm_map module.  Must be called before
+ *	any other vm_map routines.
+ *
+ *	Map and entry structures are allocated from the general
+ *	purpose memory pool with some exceptions:
+ *
+ *	- The kernel map and kmem submap are allocated statically.
+ *	- Kernel map entries are allocated out of a static pool.
+ *
+ *	These restrictions are necessary since malloc() uses the
+ *	maps and requires map entries.
+ */
 
 void
 vm_map_startup(void)
@@ -1136,7 +1136,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	    ((protoeflags & MAP_ENTRY_NEEDS_COPY) || object == NULL))) {
 		if (!(cow & MAP_ACC_CHARGED) && !swap_reserve(end - start))
 			return (KERN_RESOURCE_SHORTAGE);
-		KASSERT(object == NULL || (cow & MAP_ENTRY_NEEDS_COPY) ||
+		KASSERT(object == NULL || (protoeflags & MAP_ENTRY_NEEDS_COPY) ||
 		    object->uip == NULL,
 		    ("OVERCOMMIT: vm_map_insert o %p", object));
 		uip = curthread->td_ucred->cr_ruidinfo;
@@ -1805,10 +1805,10 @@ int
 vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	       vm_prot_t new_prot, boolean_t set_max)
 {
-	vm_map_entry_t current;
-	vm_map_entry_t entry;
+	vm_map_entry_t current, entry;
 	vm_object_t obj;
 	struct uidinfo *uip;
+	vm_prot_t old_prot;
 
 	vm_map_lock(map);
 
@@ -1897,9 +1897,8 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	 */
 	current = entry;
 	while ((current != &map->header) && (current->start < end)) {
-		vm_prot_t old_prot;
-
 		old_prot = current->protection;
+
 		if (set_max)
 			current->protection =
 			    (current->max_protection = new_prot) &
@@ -1907,11 +1906,18 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		else
 			current->protection = new_prot;
 
+		if ((current->eflags & (MAP_ENTRY_COW | MAP_ENTRY_USER_WIRED))
+		     == (MAP_ENTRY_COW | MAP_ENTRY_USER_WIRED) &&
+		    (current->protection & VM_PROT_WRITE) != 0 &&
+		    (old_prot & VM_PROT_WRITE) == 0) {
+			vm_fault_copy_entry(map, map, current, current, NULL);
+		}
+
 		/*
-		 * Update physical map if necessary. Worry about copy-on-write
-		 * here.
+		 * When restricting access, update the physical map.  Worry
+		 * about copy-on-write here.
 		 */
-		if (current->protection != old_prot) {
+		if ((old_prot & ~current->protection) != 0) {
 #define MASK(entry)	(((entry)->eflags & MAP_ENTRY_COW) ? ~VM_PROT_WRITE : \
 							VM_PROT_ALL)
 			pmap_protect(map->pmap, current->start,
@@ -2375,7 +2381,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			 */
 			vm_map_unlock(map);
 			rv = vm_fault_wire(map, saved_start, saved_end,
-			    user_wire, fictitious);
+			    fictitious);
 			vm_map_lock(map);
 			if (last_timestamp + 1 != map->timestamp) {
 				/*
@@ -3548,23 +3554,16 @@ RetryLookup:;
 
 	/*
 	 * Check whether this task is allowed to have this page.
-	 * Note the special case for MAP_ENTRY_COW
-	 * pages with an override.  This is to implement a forced
-	 * COW for debuggers.
 	 */
-	if (fault_type & VM_PROT_OVERRIDE_WRITE)
-		prot = entry->max_protection;
-	else
-		prot = entry->protection;
+	prot = entry->protection;
 	fault_type &= (VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE);
-	if ((fault_type & prot) != fault_type) {
+	if ((fault_type & prot) != fault_type || prot == VM_PROT_NONE) {
 		vm_map_unlock_read(map);
 		return (KERN_PROTECTION_FAILURE);
 	}
 	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
 	    (entry->eflags & MAP_ENTRY_COW) &&
-	    (fault_type & VM_PROT_WRITE) &&
-	    (fault_typea & VM_PROT_OVERRIDE_WRITE) == 0) {
+	    (fault_type & VM_PROT_WRITE)) {
 		vm_map_unlock_read(map);
 		return (KERN_PROTECTION_FAILURE);
 	}
@@ -3575,7 +3574,7 @@ RetryLookup:;
 	 */
 	*wired = (entry->wired_count != 0);
 	if (*wired)
-		prot = fault_type = entry->protection;
+		fault_type = entry->protection;
 	size = entry->end - entry->start;
 	/*
 	 * If the entry was copy-on-write, we either ...
@@ -3588,7 +3587,8 @@ RetryLookup:;
 		 * If we don't need to write the page, we just demote the
 		 * permissions allowed.
 		 */
-		if (fault_type & VM_PROT_WRITE) {
+		if ((fault_type & VM_PROT_WRITE) != 0 ||
+		    (fault_typea & VM_PROT_COPY) != 0) {
 			/*
 			 * Make a new object, and place it in the object
 			 * chain.  Note that no new references have appeared
@@ -3711,21 +3711,14 @@ vm_map_lookup_locked(vm_map_t *var_map,		/* IN/OUT */
 
 	/*
 	 * Check whether this task is allowed to have this page.
-	 * Note the special case for MAP_ENTRY_COW
-	 * pages with an override.  This is to implement a forced
-	 * COW for debuggers.
 	 */
-	if (fault_type & VM_PROT_OVERRIDE_WRITE)
-		prot = entry->max_protection;
-	else
-		prot = entry->protection;
+	prot = entry->protection;
 	fault_type &= VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE;
 	if ((fault_type & prot) != fault_type)
 		return (KERN_PROTECTION_FAILURE);
 	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
 	    (entry->eflags & MAP_ENTRY_COW) &&
-	    (fault_type & VM_PROT_WRITE) &&
-	    (fault_typea & VM_PROT_OVERRIDE_WRITE) == 0)
+	    (fault_type & VM_PROT_WRITE))
 		return (KERN_PROTECTION_FAILURE);
 
 	/*
@@ -3734,7 +3727,7 @@ vm_map_lookup_locked(vm_map_t *var_map,		/* IN/OUT */
 	 */
 	*wired = (entry->wired_count != 0);
 	if (*wired)
-		prot = fault_type = entry->protection;
+		fault_type = entry->protection;
 
 	if (entry->eflags & MAP_ENTRY_NEEDS_COPY) {
 		/*

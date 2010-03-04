@@ -30,19 +30,11 @@
 #ifndef _SYS_UMTX_H_
 #define	_SYS_UMTX_H_
 
-#include <sys/_types.h>
+#include <sys/_umtx.h>
 #include <sys/limits.h>
 
-/* 
- * See pthread_*
- */
-
-#define	UMTX_UNOWNED	0x0
-#define	UMTX_CONTESTED	LONG_MIN
-
-struct umtx {
-	volatile u_long	u_owner;	/* Owner of the mutex. */
-};
+#define	UMTX_UNOWNED		0x0
+#define	UMTX_CONTESTED		LONG_MIN
 
 #define USYNC_PROCESS_SHARED	0x0001	/* Process shared sync objs */
 
@@ -53,27 +45,6 @@ struct umtx {
 #define	UMUTEX_PRIO_INHERIT	0x0004	/* Priority inherited mutex */
 #define	UMUTEX_PRIO_PROTECT	0x0008	/* Priority protect mutex */
 
-struct umutex {
-	volatile __lwpid_t	m_owner;	/* Owner of the mutex */
-	uint32_t		m_flags;	/* Flags of the mutex */
-	uint32_t		m_ceilings[2];	/* Priority protect ceiling */
-	uint32_t		m_spare[4];
-};
-
-struct ucond {
-	volatile uint32_t	c_has_waiters;	/* Has waiters in kernel */
-	uint32_t		c_flags;	/* Flags of the condition variable */
-	uint32_t		c_spare[2];	/* Spare space */
-};
-
-struct urwlock {
-	volatile int32_t	rw_state;
-	uint32_t		rw_flags;
-	uint32_t		rw_blocked_readers;
-	uint32_t		rw_blocked_writers;
-	uint32_t		rw_spare[4];
-};
-
 /* urwlock flags */
 #define URWLOCK_PREFER_READER	0x0002
 
@@ -82,6 +53,9 @@ struct urwlock {
 #define URWLOCK_READ_WAITERS	0x20000000U
 #define URWLOCK_MAX_READERS	0x1fffffffU
 #define URWLOCK_READER_COUNT(c)	((c) & URWLOCK_MAX_READERS)
+
+/* _usem flags */
+#define SEM_NAMED	0x0002
 
 /* op code for _umtx_op */
 #define	UMTX_OP_LOCK		0
@@ -100,10 +74,12 @@ struct urwlock {
 #define	UMTX_OP_RW_WRLOCK	13
 #define	UMTX_OP_RW_UNLOCK	14
 #define	UMTX_OP_WAIT_UINT_PRIVATE	15
-#define	UMTX_OP_WAKE_PRIVATE		16
-#define	UMTX_OP_MUTEX_WAIT		17
-#define	UMTX_OP_MUTEX_WAKE		18
-#define	UMTX_OP_MAX		19
+#define	UMTX_OP_WAKE_PRIVATE	16
+#define	UMTX_OP_MUTEX_WAIT	17
+#define	UMTX_OP_MUTEX_WAKE	18
+#define	UMTX_OP_SEM_WAIT	19
+#define	UMTX_OP_SEM_WAKE	20
+#define	UMTX_OP_MAX		21
 
 /* flags for UMTX_OP_CV_WAIT */
 #define UMTX_CHECK_UNPARKING	0x01

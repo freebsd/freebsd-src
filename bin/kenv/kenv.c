@@ -118,7 +118,7 @@ main(int argc, char **argv)
 }
 
 static int
-kdumpenv()
+kdumpenv(void)
 {
 	char *buf, *cp;
 	int buflen, envlen;

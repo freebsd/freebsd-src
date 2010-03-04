@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	mknod
-WARNS?=	0
 MAN=	mknod.8
 
 .include <bsd.prog.mk>

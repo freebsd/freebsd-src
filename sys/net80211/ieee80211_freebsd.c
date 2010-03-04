@@ -730,6 +730,7 @@ ieee80211_load_module(const char *modname)
 }
 
 static eventhandler_tag wlan_bpfevent;
+static eventhandler_tag wlan_ifllevent;
 
 static void
 bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
@@ -756,6 +757,33 @@ bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
 	}
 }
 
+static void
+wlan_iflladdr(void *arg __unused, struct ifnet *ifp)
+{
+	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap, *next;
+
+	if (ifp->if_type != IFT_IEEE80211 || ic == NULL)
+		return;
+
+	IEEE80211_LOCK(ic);
+	TAILQ_FOREACH_SAFE(vap, &ic->ic_vaps, iv_next, next) {
+		/*
+		 * If the MAC address has changed on the parent and it was
+		 * copied to the vap on creation then re-sync.
+		 */
+		if (vap->iv_ic == ic &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_UNIQMAC) == 0) {
+			IEEE80211_ADDR_COPY(vap->iv_myaddr, IF_LLADDR(ifp));
+			IEEE80211_UNLOCK(ic);
+			if_setlladdr(vap->iv_ifp, IF_LLADDR(ifp),
+			    IEEE80211_ADDR_LEN);
+			IEEE80211_LOCK(ic);
+		}
+	}
+	IEEE80211_UNLOCK(ic);
+}
+
 /*
  * Module glue.
  *
@@ -772,6 +800,12 @@ wlan_modevent(module_t mod, int type, void *unused)
 		    bpf_track, 0, EVENTHANDLER_PRI_ANY);
 		if (wlan_bpfevent == NULL)
 			return ENOMEM;
+		wlan_ifllevent = EVENTHANDLER_REGISTER(iflladdr_event,
+		    wlan_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
+		if (wlan_ifllevent == NULL) {
+			EVENTHANDLER_DEREGISTER(bpf_track, wlan_bpfevent);
+			return ENOMEM;
+		}
 		if_clone_attach(&wlan_cloner);
 		if_register_com_alloc(IFT_IEEE80211, wlan_alloc, wlan_free);
 		return 0;
@@ -779,6 +813,7 @@ wlan_modevent(module_t mod, int type, void *unused)
 		if_deregister_com_alloc(IFT_IEEE80211);
 		if_clone_detach(&wlan_cloner);
 		EVENTHANDLER_DEREGISTER(bpf_track, wlan_bpfevent);
+		EVENTHANDLER_DEREGISTER(iflladdr_event, wlan_ifllevent);
 		return 0;
 	}
 	return EINVAL;

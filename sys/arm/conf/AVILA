@@ -39,6 +39,7 @@ options 	DEVICE_POLLING
 options 	KDB
 #options 	GDB
 options 	DDB			#Enable the kernel debugger
+#options 	DEADLKRES		#Enable the deadlock resolver
 options 	INVARIANTS		#Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
@@ -60,6 +61,10 @@ options 	BOOTP_WIRED_TO=npe0
 options 	BOOTP_COMPAT
 #options 	PREEMPTION
 #options 	VERBOSE_SYSINIT
+
+# Hardware performance counters
+options 	HWPMC_HOOKS
+device		hwpmc
 
 #device		saarm
 
@@ -132,6 +137,7 @@ device		ath_rf5413
 device		ath_ar5416
 options 	AH_SUPPORT_AR5416
 device		ath_ar9160
+device		ath_ar9280
 
 device		usb
 #options 	USB_DEBUG

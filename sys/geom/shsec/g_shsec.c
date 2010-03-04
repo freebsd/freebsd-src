@@ -638,6 +638,10 @@ g_shsec_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	g_topology_assert();
 
+	/* Skip providers that are already open for writing. */
+	if (pp->acw > 0)
+		return (NULL);
+
 	G_SHSEC_DEBUG(3, "Tasting %s.", pp->name);
 
 	gp = g_new_geomf(mp, "shsec:taste");

@@ -49,8 +49,8 @@ extern u_int xen_rcr2(void);
 extern void xen_load_cr3(u_int data);
 extern void xen_tlb_flush(void);
 extern void xen_invlpg(u_int addr);
-extern int xen_save_and_cli(void);
-extern void xen_restore_flags(u_int eflags);
+extern void write_eflags(u_int eflags);
+extern u_int read_eflags(void);
 #endif
 
 struct region_descriptor;
@@ -132,14 +132,14 @@ enable_intr(void)
 #endif
 }
 
-static inline void
+static __inline void
 cpu_monitor(const void *addr, int extensions, int hints)
 {
 	__asm __volatile("monitor;"
 	    : :"a" (addr), "c" (extensions), "d"(hints));
 }
 
-static inline void
+static __inline void
 cpu_mwait(int extensions, int hints)
 {
 	__asm __volatile("mwait;" : :"a" (hints), "c" (extensions));
@@ -203,28 +203,28 @@ inl(u_int port)
 }
 
 static __inline void
-insb(u_int port, void *addr, size_t cnt)
+insb(u_int port, void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; insb"
-			 : "+D" (addr), "+c" (cnt)
+			 : "+D" (addr), "+c" (count)
 			 : "d" (port)
 			 : "memory");
 }
 
 static __inline void
-insw(u_int port, void *addr, size_t cnt)
+insw(u_int port, void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; insw"
-			 : "+D" (addr), "+c" (cnt)
+			 : "+D" (addr), "+c" (count)
 			 : "d" (port)
 			 : "memory");
 }
 
 static __inline void
-insl(u_int port, void *addr, size_t cnt)
+insl(u_int port, void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; insl"
-			 : "+D" (addr), "+c" (cnt)
+			 : "+D" (addr), "+c" (count)
 			 : "d" (port)
 			 : "memory");
 }
@@ -257,26 +257,26 @@ outl(u_int port, u_int data)
 }
 
 static __inline void
-outsb(u_int port, const void *addr, size_t cnt)
+outsb(u_int port, const void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; outsb"
-			 : "+S" (addr), "+c" (cnt)
+			 : "+S" (addr), "+c" (count)
 			 : "d" (port));
 }
 
 static __inline void
-outsw(u_int port, const void *addr, size_t cnt)
+outsw(u_int port, const void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; outsw"
-			 : "+S" (addr), "+c" (cnt)
+			 : "+S" (addr), "+c" (count)
 			 : "d" (port));
 }
 
 static __inline void
-outsl(u_int port, const void *addr, size_t cnt)
+outsl(u_int port, const void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; outsl"
-			 : "+S" (addr), "+c" (cnt)
+			 : "+S" (addr), "+c" (count)
 			 : "d" (port));
 }
 
@@ -293,7 +293,11 @@ ia32_pause(void)
 }
 
 static __inline u_int
+#ifdef XEN
+_read_eflags(void)
+#else	
 read_eflags(void)
+#endif
 {
 	u_int	ef;
 
@@ -335,7 +339,11 @@ wbinvd(void)
 }
 
 static __inline void
+#ifdef XEN
+_write_eflags(u_int ef)
+#else
 write_eflags(u_int ef)
+#endif
 {
 	__asm __volatile("pushl %0; popfl" : : "r" (ef));
 }
@@ -653,23 +661,15 @@ intr_disable(void)
 {
 	register_t eflags;
 
-#ifdef XEN
-	eflags = xen_save_and_cli();
-#else 	
 	eflags = read_eflags();
 	disable_intr();
-#endif	
 	return (eflags);
 }
 
 static __inline void
 intr_restore(register_t eflags)
 {
-#ifdef XEN
-	xen_restore_flags(eflags);
-#else
 	write_eflags(eflags);
-#endif
 }
 
 #else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
@@ -684,9 +684,9 @@ void	halt(void);
 void	ia32_pause(void);
 u_char	inb(u_int port);
 u_int	inl(u_int port);
-void	insb(u_int port, void *addr, size_t cnt);
-void	insl(u_int port, void *addr, size_t cnt);
-void	insw(u_int port, void *addr, size_t cnt);
+void	insb(u_int port, void *addr, size_t count);
+void	insl(u_int port, void *addr, size_t count);
+void	insw(u_int port, void *addr, size_t count);
 register_t	intr_disable(void);
 void	intr_restore(register_t ef);
 void	invd(void);
@@ -711,9 +711,9 @@ void	load_gs(u_int sel);
 void	ltr(u_short sel);
 void	outb(u_int port, u_char data);
 void	outl(u_int port, u_int data);
-void	outsb(u_int port, const void *addr, size_t cnt);
-void	outsl(u_int port, const void *addr, size_t cnt);
-void	outsw(u_int port, const void *addr, size_t cnt);
+void	outsb(u_int port, const void *addr, size_t count);
+void	outsl(u_int port, const void *addr, size_t count);
+void	outsw(u_int port, const void *addr, size_t count);
 void	outw(u_int port, u_short data);
 u_int	rcr0(void);
 u_int	rcr2(void);

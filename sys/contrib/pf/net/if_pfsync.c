@@ -465,7 +465,7 @@ pfsync_insert_net_state(struct pfsync_state *sp, u_int8_t chksum_flag)
 	st->direction = sp->direction;
 	st->log = sp->log;
 	st->timeout = sp->timeout;
-	st->allow_opts = sp->allow_opts;
+	st->state_flags = sp->state_flags;
 
 	bcopy(sp->id, &st->id, sizeof(st->id));
 	st->creatorid = sp->creatorid;
@@ -1578,7 +1578,7 @@ pfsync_pack_state(u_int8_t action, struct pf_state *st, int flags)
 		sp->proto = st->proto;
 		sp->direction = st->direction;
 		sp->log = st->log;
-		sp->allow_opts = st->allow_opts;
+		sp->state_flags = st->state_flags;
 		sp->timeout = st->timeout;
 
 		if (flags & PFSYNC_FLAG_STALE)

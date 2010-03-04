@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ident "$Id: iir_pci.c 1.2 2003/08/26 12:29:55 achim Exp $"
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 

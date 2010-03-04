@@ -270,10 +270,13 @@ struct mxge_softc {
 	int dying;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
+	struct taskqueue *tq;
+	struct task watchdog_task;
 	struct sysctl_oid *slice_sysctl_tree;
 	struct sysctl_ctx_list slice_sysctl_ctx;
 	char *mac_addr_string;
 	uint8_t	mac_addr[6];		/* eeprom mac address */
+	uint16_t pectl;			/* save PCIe CTL state */
 	char product_code_string[64];
 	char serial_number_string[64];
 	char cmd_mtx_name[16];

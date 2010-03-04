@@ -38,7 +38,7 @@ dev/fb/fb.c			optional	sc
 dev/fb/gallant12x22.c		optional	sc
 dev/fb/machfb.c			optional	machfb sc
 dev/hwpmc/hwpmc_sparc64.c	optional	hwpmc
-dev/kbd/kbd.c			optional	atkbd | sc | ukbd | usb2_input_kbd
+dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/le/if_le_lebuffer.c		optional	le sbus
 dev/le/if_le_ledma.c		optional	le sbus
 dev/le/lebuffer_sbus.c		optional	le sbus
@@ -67,12 +67,14 @@ libkern/flsl.c			standard
 libkern/memmove.c		standard
 sparc64/central/central.c	optional	central
 sparc64/ebus/ebus.c		optional	ebus
+sparc64/ebus/epic.c		optional	epic ebus
 sparc64/fhc/clkbrd.c		optional	fhc
 sparc64/fhc/fhc.c		optional	fhc
 sparc64/isa/isa.c		optional	isa
 sparc64/isa/isa_dma.c		optional	isa
 sparc64/isa/ofw_isa.c		optional	ebus | isa
 sparc64/pci/apb.c		optional	pci
+sparc64/pci/fire.c		optional	pci
 sparc64/pci/ofw_pcib.c		optional	pci
 sparc64/pci/ofw_pcib_subr.c	optional	pci
 sparc64/pci/ofw_pcibus.c	optional	pci
@@ -122,6 +124,7 @@ sparc64/sparc64/rwindow.c	standard
 sparc64/sparc64/sc_machdep.c	optional	sc
 sparc64/sparc64/schppm.c	standard
 sparc64/sparc64/spitfire.c	standard
+sparc64/sparc64/ssm.c		standard
 sparc64/sparc64/stack_machdep.c	optional	ddb | stack
 sparc64/sparc64/support.S	standard				\
 	compile-with "${NORMAL_S} -mcpu=ultrasparc"

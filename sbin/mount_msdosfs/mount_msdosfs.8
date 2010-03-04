@@ -205,14 +205,6 @@ The use of the
 flag could result in damaged file systems,
 albeit the damage is in part taken care of by
 procedures similar to the ones used in Win'95.
-.Pp
-.Fx 2.1
-and earlier versions could not handle cluster sizes larger than 16K.
-Just mounting an MS-DOS file system could cause corruption to any
-mounted file system.
-Cluster sizes larger than 16K are unavoidable for file system sizes
-larger than 1G, and also occur when file systems larger than 1G are
-shrunk to smaller than 1G using FIPS.
 .Sh HISTORY
 The
 .Nm

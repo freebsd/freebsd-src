@@ -14,13 +14,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the NetBSD
-.\"	Foundation, Inc. and its contributors.
-.\" 4. Neither the name of The NetBSD Foundation nor the names of its
-.\"    contributors may be used to endorse or promote products derived
-.\"    from this software without specific prior written permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
 .\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -101,38 +94,9 @@ be rewritten to make use of it.
 The
 .Nm
 functions were mostly imported from
-.Nx
-and it is intended that they remain synced between the
-two projects.
-With that in mind there are several variable
-definitions that can help in this regard.
-They are:
-.Bl -tag -width 4n
-.It Va OSTYPE
-Its value will be either
-.Qq Li FreeBSD
-or
-.Qq Li NetBSD ,
-depending on which OS it is running on.
-.It Va SYSCTL
-The path to the
-.Xr sysctl 8
-command.
-.It Va SYSCTL_N
-The path and argument list to display only the
-.Xr sysctl 8
-values instead of a
-.Ar name Ns = Ns Ar value
-pair.
-.It Va SYSCTL_W
-The path and argument to write or modify
-.Xr sysctl 8
-values.
-.El
+.Nx .
 .Pp
-The
-.Nm
-functions are accessed by sourcing
+They are accessed by sourcing
 .Pa /etc/rc.subr
 into the current shell.
 .Pp

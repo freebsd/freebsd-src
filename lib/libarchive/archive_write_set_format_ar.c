@@ -145,7 +145,6 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 	const char *filename;
 	int64_t size;
 
-	ret = 0;
 	append_fn = 0;
 	ar = (struct ar_w *)a->format_data;
 	ar->is_strtab = 0;

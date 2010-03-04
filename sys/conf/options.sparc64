@@ -8,6 +8,8 @@ SUN4U			opt_global.h
 
 ATKBD_DFLT_KEYMAP	opt_atkbd.h
 
+FIRE_DEBUG		opt_fire.h
+
 # Debug IOMMU inserts/removes using diagnostic accesses.  This is very loud.
 IOMMU_DIAG		opt_iommu.h
 

@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <langinfo.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <utmp.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,10 +65,6 @@ __FBSDID("$FreeBSD$");
 #define OLDFRMTM	"%b %e  %Y"
 #define CURFRMTD	"%e %b %H:%M"
 #define OLDFRMTD	"%e %b  %Y"
-#ifndef UT_NAMESIZE
-#define UT_NAMESIZE	8
-#endif
-#define UT_GRPSIZE	6
 
 static int d_first = -1;
 
@@ -116,9 +111,8 @@ ls_list(ARCHD *arcn, time_t now, FILE *fp)
 	 */
 	if (strftime(f_date,DATELEN,timefrmt,localtime(&(sbp->st_mtime))) == 0)
 		f_date[0] = '\0';
-	(void)fprintf(fp, "%s%2u %-*s %-*s ", f_mode, sbp->st_nlink,
-		UT_NAMESIZE, name_uid(sbp->st_uid, 1), UT_GRPSIZE,
-		name_gid(sbp->st_gid, 1));
+	(void)fprintf(fp, "%s%2u %-12s %-12s ", f_mode, sbp->st_nlink,
+		name_uid(sbp->st_uid, 1), name_gid(sbp->st_gid, 1));
 
 	/*
 	 * print device id's for devices, or sizes for other nodes

@@ -99,7 +99,7 @@ static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 		    struct nfs_args *argp, struct ucred *, struct thread *);
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, u_char *, u_char *, u_char *,
-		    struct vnode **, struct ucred *, struct thread *);
+		    struct vnode **, struct ucred *, struct thread *, int);
 static vfs_mount_t nfs_mount;
 static vfs_cmount_t nfs_cmount;
 static vfs_unmount_t nfs_unmount;
@@ -498,7 +498,7 @@ nfs_mountdiskless(char *path,
 
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
 	if ((error = mountnfs(args, mp, nam, path, NULL, NULL, NULL, vpp,
-	    td->td_ucred, td)) != 0) {
+	    td->td_ucred, td, NFS_DEFAULT_NEGNAMETIMEO)) != 0) {
 		printf("nfs_mountroot: mount %s on /: %d\n", path, error);
 		return (error);
 	}
@@ -669,6 +669,7 @@ static const char *nfs_opts[] = { "from",
     "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", "resvport",
     "readahead", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
     "principal", "nfsv4", "gssname", "allgssname", "dirpath",
+    "negnametimeo",
     NULL };
 
 /*
@@ -717,6 +718,7 @@ nfs_mount(struct mount *mp)
 	char hst[MNAMELEN];
 	u_char nfh[NFSX_FHMAX], krbname[100], dirpath[100], srvkrbname[100];
 	char *opt, *name, *secname;
+	int negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
 
 	if (vfs_filteropt(mp->mnt_optnew, nfs_opts)) {
 		error = EINVAL;
@@ -891,6 +893,16 @@ nfs_mount(struct mount *mp)
 		}
 		args.flags |= NFSMNT_TIMEO;
 	}
+	if (vfs_getopt(mp->mnt_optnew, "negnametimeo", (void **)&opt, NULL)
+	    == 0) {
+		ret = sscanf(opt, "%d", &negnametimeo);
+		if (ret != 1 || negnametimeo < 0) {
+			vfs_mount_error(mp, "illegal negnametimeo: %s",
+			    opt);
+			error = EINVAL;
+			goto out;
+		}
+	}
 	if (vfs_getopt(mp->mnt_optnew, "sec",
 		(void **) &secname, NULL) == 0)
 		nfs_sec_name(secname, &args.flags);
@@ -990,7 +1002,7 @@ nfs_mount(struct mount *mp)
 
 	args.fh = nfh;
 	error = mountnfs(&args, mp, nam, hst, krbname, dirpath, srvkrbname,
-	    &vp, td->td_ucred, td);
+	    &vp, td->td_ucred, td, negnametimeo);
 out:
 	if (!error) {
 		MNT_ILOCK(mp);
@@ -1033,7 +1045,8 @@ nfs_cmount(struct mntarg *ma, void *data, int flags)
 static int
 mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
     char *hst, u_char *krbname, u_char *dirpath, u_char *srvkrbname,
-    struct vnode **vpp, struct ucred *cred, struct thread *td)
+    struct vnode **vpp, struct ucred *cred, struct thread *td,
+    int negnametimeo)
 {
 	struct nfsmount *nmp;
 	struct nfsnode *np;
@@ -1101,6 +1114,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
 	mtx_init(&nmp->nm_mtx, "NFSmount lock", NULL, MTX_DEF | MTX_DUPOK);			
+	nmp->nm_negnametimeo = negnametimeo;
 
 	nfs_decode_args(mp, nmp, argp, cred, td);
 

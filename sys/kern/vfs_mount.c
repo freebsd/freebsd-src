@@ -104,13 +104,17 @@ struct vnode	*rootvnode;
  * The root filesystem is detailed in the kernel environment variable
  * vfs.root.mountfrom, which is expected to be in the general format
  *
- * <vfsname>:[<path>]
+ * <vfsname>:[<path>][	<vfsname>:[<path>] ...]
  * vfsname   := the name of a VFS known to the kernel and capable
  *              of being mounted as root
  * path      := disk device name or other data used by the filesystem
  *              to locate its physical store
  *
- * The environment variable vfs.root.mountfrom options is a comma delimited
+ * If the environment variable vfs.root.mountfrom is a space separated list,
+ * each list element is tried in turn and the root filesystem will be mounted
+ * from the first one that suceeds.
+ *
+ * The environment variable vfs.root.mountfrom.options is a comma delimited
  * set of string mount options.  These mount options must be parseable
  * by nmount() in the kernel.
  */
@@ -955,12 +959,12 @@ vfs_domount(
 		}
 		vp->v_iflag |= VI_MOUNT;
 		VI_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0);
 
 		/*
 		 * Allocate and initialize the filesystem.
 		 */
 		mp = vfs_mount_alloc(vp, vfsp, fspath, td->td_ucred);
-		VOP_UNLOCK(vp, 0);
 
 		/* XXXMAC: pass to vfs_mount_alloc? */
 		mp->mnt_optnew = fsdata;
@@ -1056,12 +1060,12 @@ vfs_domount(
 	 * Put the new filesystem on the mount list after root.
 	 */
 	cache_purge(vp);
+	VI_LOCK(vp);
+	vp->v_iflag &= ~VI_MOUNT;
+	VI_UNLOCK(vp);
 	if (!error) {
 		struct vnode *newdp;
 
-		VI_LOCK(vp);
-		vp->v_iflag &= ~VI_MOUNT;
-		VI_UNLOCK(vp);
 		vp->v_mountedhere = mp;
 		mtx_lock(&mountlist_mtx);
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
@@ -1079,9 +1083,6 @@ vfs_domount(
 		if (error)
 			vrele(vp);
 	} else {
-		VI_LOCK(vp);
-		vp->v_iflag &= ~VI_MOUNT;
-		VI_UNLOCK(vp);
 		vfs_unbusy(mp);
 		vfs_mount_destroy(mp);
 		vput(vp);
@@ -1350,7 +1351,7 @@ struct root_hold_token {
 };
 
 static LIST_HEAD(, root_hold_token)	root_holds =
-    LIST_HEAD_INITIALIZER(&root_holds);
+    LIST_HEAD_INITIALIZER(root_holds);
 
 static int root_mount_complete;
 
@@ -1643,7 +1644,7 @@ vfs_opterror(struct vfsoptlist *opts, const char *fmt, ...)
 void
 vfs_mountroot(void)
 {
-	char *cp, *options;
+	char *cp, *cpt, *options, *tmpdev;
 	int error, i, asked = 0;
 
 	options = NULL;
@@ -1695,10 +1696,15 @@ vfs_mountroot(void)
 	 */
 	cp = getenv("vfs.root.mountfrom");
 	if (cp != NULL) {
-		error = vfs_mountroot_try(cp, options);
+		cpt = cp;
+		while ((tmpdev = strsep(&cpt, " \t")) != NULL) {
+			error = vfs_mountroot_try(tmpdev, options);
+			if (error == 0) {
+				freeenv(cp);
+				goto mounted;
+			}
+		}
 		freeenv(cp);
-		if (!error)
-			goto mounted;
 	}
 
 	/*
@@ -1892,6 +1898,7 @@ vfs_mountroot_ask(void)
 		freeenv(options);
 		printf("\nManual root filesystem specification:\n");
 		printf("  <fstype>:<device>  Mount <device> using filesystem <fstype>\n");
+		printf("                       eg. zfs:tank\n");
 		printf("                       eg. ufs:/dev/da0s1a\n");
 		printf("                       eg. cd9660:/dev/acd0\n");
 		printf("                       This is equivalent to: ");

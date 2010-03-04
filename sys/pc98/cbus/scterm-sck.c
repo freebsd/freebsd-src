@@ -94,15 +94,16 @@ typedef struct {
 	color_t		dflt_rev_color;		/* default reverse color */
 } term_stat;
 
-static sc_term_init_t	scterm_init;
-static sc_term_term_t	scterm_term;
-static sc_term_puts_t	scterm_puts;
-static sc_term_ioctl_t	scterm_ioctl;
-static sc_term_reset_t	scterm_reset;
+static sc_term_init_t		scterm_init;
+static sc_term_term_t		scterm_term;
+static sc_term_puts_t		scterm_puts;
+static sc_term_ioctl_t		scterm_ioctl;
+static sc_term_reset_t		scterm_reset;
 static sc_term_default_attr_t	scterm_default_attr;
-static sc_term_clear_t	scterm_clear;
-static sc_term_notify_t	scterm_notify;
-static sc_term_input_t	scterm_input;
+static sc_term_clear_t		scterm_clear;
+static sc_term_notify_t		scterm_notify;
+static sc_term_input_t		scterm_input;
+static sc_term_fkeystr_t	scterm_fkeystr;
 
 static sc_term_sw_t sc_term_sc = {
 	{ NULL, NULL },
@@ -120,6 +121,7 @@ static sc_term_sw_t sc_term_sc = {
 	scterm_clear,
 	scterm_notify,
 	scterm_input,
+	scterm_fkeystr,
 };
 
 SCTERM_MODULE(sc, sc_term_sc);
@@ -1189,6 +1191,13 @@ static int
 scterm_input(scr_stat *scp, int c, struct tty *tp)
 {
 	return FALSE;
+}
+
+static const char *
+scterm_fkeystr(scr_stat *scp, int c)
+{
+
+	return (NULL);
 }
 
 /*

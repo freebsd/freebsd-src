@@ -42,9 +42,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/sysctl.h>
-#include <sys/mbuf.h>   
+#include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 
 #include <machine/bus.h>
- 
+
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 
 #ifdef INET
-#include <netinet/in.h> 
+#include <netinet/in.h>
 #include <netinet/if_ether.h>
 #endif
 
@@ -467,7 +467,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/*
 	 * Allocate hardware transmit queues: one queue for
 	 * beacon frames and one data queue for each QoS
-	 * priority.  Note that the hal handles reseting
+	 * priority.  Note that the hal handles resetting
 	 * these queues at the needed time.
 	 *
 	 * XXX PS-Poll
@@ -560,7 +560,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_start = ath_start;
-	ifp->if_watchdog = NULL;
 	ifp->if_ioctl = ath_ioctl;
 	ifp->if_init = ath_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
@@ -621,6 +620,13 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			sc->sc_wmetkipmic = 1;
 	}
 	sc->sc_hasclrkey = ath_hal_ciphersupported(ah, HAL_CIPHER_CLR);
+	/*
+	 * Check for multicast key search support.
+	 */
+	if (ath_hal_hasmcastkeysearch(sc->sc_ah) &&
+	    !ath_hal_getmcastkeysearch(sc->sc_ah)) {
+		ath_hal_setmcastkeysearch(sc->sc_ah, 1);
+	}
 	sc->sc_mcastkey = ath_hal_getmcastkeysearch(ah);
 	/*
 	 * Mark key cache slots associated with global keys
@@ -752,7 +758,7 @@ ath_detach(struct ath_softc *sc)
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: if_flags %x\n",
 		__func__, ifp->if_flags);
 
-	/* 
+	/*
 	 * NB: the order of these is important:
 	 * o stop the chip so no more interrupts will fire
 	 * o call the 802.11 layer before detaching the hal to
@@ -1191,7 +1197,7 @@ ath_suspend(struct ath_softc *sc)
 	/*
 	 * NB: don't worry about putting the chip in low power
 	 * mode; pci will power off our socket on suspend and
-	 * cardbus detaches the device.
+	 * CardBus detaches the device.
 	 */
 }
 
@@ -1469,7 +1475,7 @@ ath_bmiss_proc(void *arg, int pending)
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: pending %u\n", __func__, pending);
 
 	if (ath_hal_gethangstate(sc->sc_ah, 0xff, &hangs) && hangs != 0) {
-		if_printf(ifp, "bb hang detected (0x%x), reseting\n", hangs); 
+		if_printf(ifp, "bb hang detected (0x%x), resetting\n", hangs);
 		ath_reset(ifp);
 	} else
 		ieee80211_beacon_miss(ifp->if_l2com);
@@ -1832,7 +1838,7 @@ ath_start(struct ifnet *ifp)
 		 * go out or none...
 		 */
 		STAILQ_INIT(&frags);
-		if ((m->m_flags & M_FRAG) && 
+		if ((m->m_flags & M_FRAG) &&
 		    !ath_txfrag_setup(sc, &frags, m, ni)) {
 			DPRINTF(sc, ATH_DEBUG_XMIT,
 			    "%s: out of txfrag buffers\n", __func__);
@@ -2039,7 +2045,7 @@ ath_keyset(struct ath_softc *sc, const struct ieee80211_key *k,
 	if ((k->wk_flags & IEEE80211_KEY_GROUP) && sc->sc_mcastkey) {
 		/*
 		 * Group keys on hardware that supports multicast frame
-		 * key search use a mac that is the sender's address with
+		 * key search use a MAC that is the sender's address with
 		 * the high bit set instead of the app-specified address.
 		 */
 		IEEE80211_ADDR_COPY(gmac, bss->ni_macaddr);
@@ -2219,8 +2225,10 @@ ath_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 	 * it permits us to support multiple users for adhoc and/or
 	 * multi-station operation.
 	 */
-	if (k->wk_keyix != IEEE80211_KEYIX_NONE ||	/* global key */
-	    ((k->wk_flags & IEEE80211_KEY_GROUP) && !sc->sc_mcastkey)) {
+	if (k->wk_keyix != IEEE80211_KEYIX_NONE) {
+		/*
+		 * Only global keys should have key index assigned.
+		 */
 		if (!(&vap->iv_nw_keys[0] <= k &&
 		      k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])) {
 			/* should not happen */
@@ -2228,12 +2236,21 @@ ath_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 				"%s: bogus group key\n", __func__);
 			return 0;
 		}
+		if (vap->iv_opmode != IEEE80211_M_HOSTAP ||
+		    !(k->wk_flags & IEEE80211_KEY_GROUP) ||
+		    !sc->sc_mcastkey) {
+			/*
+			 * XXX we pre-allocate the global keys so
+			 * have no way to check if they've already
+			 * been allocated.
+			 */
+			*keyix = *rxkeyix = k - vap->iv_nw_keys;
+			return 1;
+		}
 		/*
-		 * XXX we pre-allocate the global keys so
-		 * have no way to check if they've already been allocated.
+		 * Group key and device supports multicast key search.
 		 */
-		*keyix = *rxkeyix = k - vap->iv_nw_keys;
-		return 1;
+		k->wk_keyix = IEEE80211_KEYIX_NONE;
 	}
 
 	/*
@@ -3339,7 +3356,7 @@ ath_descdma_setup(struct ath_softc *sc,
 	}
 
 	error = bus_dmamem_alloc(dd->dd_dmat, (void**) &dd->dd_desc,
-				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT, 
+				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
 				 &dd->dd_dmamap);
 	if (error != 0) {
 		if_printf(ifp, "unable to alloc memory for %u %s descriptors, "
@@ -3775,7 +3792,7 @@ ath_rx_proc(void *arg, int npending)
 			/*
 			 * If mbuf allocation failed previously there
 			 * will be no mbuf; try again to re-populate it.
-			 */ 
+			 */
 			/* XXX make debug msg */
 			if_printf(ifp, "%s: no mbuf!\n", __func__);
 			STAILQ_REMOVE_HEAD(&sc->sc_rxbuf, bf_list);
@@ -3846,7 +3863,7 @@ ath_rx_proc(void *arg, int npending)
 					bus_dmamap_sync(sc->sc_dmat,
 					    bf->bf_dmamap,
 					    BUS_DMASYNC_POSTREAD);
-					ath_handle_micerror(ic, 
+					ath_handle_micerror(ic,
 					    mtod(m, struct ieee80211_frame *),
 					    sc->sc_splitmic ?
 						rs->rs_keyix-32 : rs->rs_keyix);
@@ -4023,7 +4040,7 @@ rx_accept:
 			 */
 			if (type == IEEE80211_FC0_TYPE_DATA) {
 				const HAL_RATE_TABLE *rt = sc->sc_currates;
-				ath_led_event(sc, 
+				ath_led_event(sc,
 				    rt->rateCodeToIndex[rs->rs_rate]);
 			} else if (ticks - sc->sc_ledevent >= sc->sc_ledidle)
 				ath_led_event(sc, 0);
@@ -5305,7 +5322,7 @@ ath_startrecv(struct ath_softc *sc)
 	return 0;
 }
 
-/* 
+/*
  * Update internal state after a channel change.
  */
 static void
@@ -5325,7 +5342,7 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 
 /*
  * Set/change channels.  If the channel is really being changed,
- * it's done by reseting the chip.  To accomplish this we must
+ * it's done by resetting the chip.  To accomplish this we must
  * first cleanup any pending DMA, then restart stuff after a la
  * ath_init.
  */
@@ -5352,7 +5369,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		ath_stoprecv(sc);		/* turn off frame recv */
 		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
 			if_printf(ifp, "%s: unable to reset "
-			    "channel %u (%u Mhz, flags 0x%x), hal status %u\n",
+			    "channel %u (%u MHz, flags 0x%x), hal status %u\n",
 			    __func__, ieee80211_chan2ieee(ic, chan),
 			    chan->ic_freq, chan->ic_flags, status);
 			return EIO;
@@ -5524,7 +5541,7 @@ ath_set_channel(struct ieee80211com *ic)
 		sc->sc_syncbeacon = 1;
 }
 
-/* 
+/*
  * Walk the vap list and check if there any vap's in RUN state.
  */
 static int
@@ -5786,7 +5803,7 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 	an->an_mgmtrix = ath_tx_findrix(sc, tp->mgmtrate);
 
 	ath_rate_newassoc(sc, an, isnew);
-	if (isnew && 
+	if (isnew &&
 	    (vap->iv_flags & IEEE80211_F_PRIVACY) == 0 && sc->sc_hasclrkey &&
 	    ni->ni_ucastkey.wk_keyix == IEEE80211_KEYIX_NONE)
 		ath_setup_stationkey(ni);
@@ -6031,7 +6048,7 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 		sc->sc_protrix = ath_tx_findrix(sc, 2*2);
 	else
 		sc->sc_protrix = ath_tx_findrix(sc, 2*1);
-	/* NB: caller is responsible for reseting rate control state */
+	/* NB: caller is responsible for resetting rate control state */
 #undef N
 }
 
@@ -6106,7 +6123,7 @@ ath_watchdog(void *arg)
 		if (ath_hal_gethangstate(sc->sc_ah, 0xffff, &hangs) &&
 		    hangs != 0) {
 			if_printf(ifp, "%s hang detected (0x%x)\n",
-			    hangs & 0xff ? "bb" : "mac", hangs); 
+			    hangs & 0xff ? "bb" : "mac", hangs);
 		} else
 			if_printf(ifp, "device timeout\n");
 		ath_reset(ifp);
@@ -6787,7 +6804,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (IFF_DUMPPKTS(sc, ATH_DEBUG_XMIT))
 		ieee80211_dump_pkt(ic, mtod(m0, caddr_t), m0->m_len,
 		    sc->sc_hwmap[rix].ieeerate, -1);
-	
+
 	if (ieee80211_radiotap_active_vap(vap)) {
 		u_int64_t tsf = ath_hal_gettsf64(ah);
 
@@ -6945,6 +6962,8 @@ ath_announce(struct ath_softc *sc)
 		if_printf(ifp, "using %u rx buffers\n", ath_rxbuf);
 	if (ath_txbuf != ATH_TXBUF)
 		if_printf(ifp, "using %u tx buffers\n", ath_txbuf);
+	if (sc->sc_mcastkey && bootverbose)
+		if_printf(ifp, "using multicast key search\n");
 }
 
 #ifdef IEEE80211_SUPPORT_TDMA

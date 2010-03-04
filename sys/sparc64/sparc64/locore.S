@@ -46,12 +46,14 @@ ENTRY(btext)
 ENTRY(_start)
 	/*
 	 * Initialize misc. state to known values: interrupts disabled, normal
-	 * globals, windows flushed (cr = 0, cs = nwindows - 1), no clean
-	 * windows, pil 0, and floating point disabled.
+	 * globals, windows flushed (cr = 0, cs = nwindows - 1), PIL 0 and
+	 * floating point disabled.
+	 * Note that some firmware versions don't implement a clean window
+	 * trap handler so we unfortunately can't clear the windows by setting
+	 * %cleanwin to zero here.
 	 */
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 	flushw
-	wrpr	%g0, 0, %cleanwin
 	wrpr	%g0, 0, %pil
 	wr	%g0, 0, %fprs
 

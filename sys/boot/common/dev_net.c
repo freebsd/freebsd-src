@@ -1,6 +1,4 @@
-/*
- * $NetBSD: dev_net.c,v 1.12 1997/12/10 20:38:37 gwr Exp $
- */
+/*	$NetBSD: dev_net.c,v 1.23 2008/04/28 20:24:06 martin Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -17,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -76,14 +67,18 @@ __FBSDID("$FreeBSD$");
 #include "dev_net.h"
 #include "bootstrap.h"
 
+#ifdef	NETIF_DEBUG
 int debug = 0;
+#endif
 
+static char *netdev_name;
 static int netdev_sock = -1;
 static int netdev_opens;
 
 static int	net_init(void);
 static int	net_open(struct open_file *, ...);
 static int	net_close(struct open_file *);
+static void	net_cleanup(void);
 static int	net_strategy();
 static void	net_print(int);
 
@@ -97,10 +92,11 @@ struct devsw netdev = {
 	net_open,
 	net_close,
 	noioctl,
-	net_print
+	net_print,
+	net_cleanup
 };
 
-int
+static int
 net_init(void)
 {
 
@@ -112,7 +108,7 @@ net_init(void)
  * This opens the low-level device and sets f->f_devdata.
  * This is declared with variable arguments...
  */
-int
+static int
 net_open(struct open_file *f, ...)
 {
 	va_list args;
@@ -123,6 +119,12 @@ net_open(struct open_file *f, ...)
 	devname = va_arg(args, char*);
 	va_end(args);
 
+#ifdef	NETIF_OPEN_CLOSE_ONCE
+	/* Before opening another interface, close the previous one first. */
+	if (netdev_sock >= 0 && strcmp(devname, netdev_name) != 0)
+		net_cleanup();
+#endif
+
 	/* On first open, do netif open, mount, etc. */
 	if (netdev_opens == 0) {
 		/* Find network interface. */
@@ -132,56 +134,75 @@ net_open(struct open_file *f, ...)
 				printf("net_open: netif_open() failed\n");
 				return (ENXIO);
 			}
+			netdev_name = strdup(devname);
+#ifdef	NETIF_DEBUG
 			if (debug)
-			printf("net_open: netif_open() succeeded\n");
+				printf("net_open: netif_open() succeeded\n");
+#endif
 		}
 		if (rootip.s_addr == 0) {
 			/* Get root IP address, and path, etc. */
 			error = net_getparams(netdev_sock);
 			if (error) {
 				/* getparams makes its own noise */
+				free(netdev_name);
 				netif_close(netdev_sock);
 				netdev_sock = -1;
 				return (error);
 			}
 		}
-#if defined(__sparc64__)
-		netdev_opens++;
-#endif
 	}
 	netdev_opens++;
 	f->f_devdata = &netdev_sock;
 	return (error);
 }
 
-int
+static int
 net_close(struct open_file *f)
 {
+
 #ifdef	NETIF_DEBUG
 	if (debug)
 		printf("net_close: opens=%d\n", netdev_opens);
 #endif
 
-	/* On last close, do netif close, etc. */
 	f->f_devdata = NULL;
+
+#ifndef	NETIF_OPEN_CLOSE_ONCE
 	/* Extra close call? */
 	if (netdev_opens <= 0)
 		return (0);
 	netdev_opens--;
 	/* Not last close? */
 	if (netdev_opens > 0)
-		return(0);
-	rootip.s_addr = 0;
-	if (netdev_sock >= 0) {
-		if (debug)
-			printf("net_close: calling netif_close()\n");
-		netif_close(netdev_sock);
-		netdev_sock = -1;
-	}
+		return (0);
+	/* On last close, do netif close, etc. */
+#ifdef	NETIF_DEBUG
+	if (debug)
+		printf("net_close: calling net_cleanup()\n");
+#endif
+	net_cleanup();
+#endif
 	return (0);
 }
 
-int
+static void
+net_cleanup(void)
+{
+
+	if (netdev_sock >= 0) {
+#ifdef	NETIF_DEBUG
+		if (debug)
+			printf("net_cleanup: calling netif_close()\n");
+#endif
+		rootip.s_addr = 0;
+		free(netdev_name);
+		netif_close(netdev_sock);
+		netdev_sock = -1;
+	}
+}
+
+static int
 net_strategy()
 {
 
@@ -227,8 +248,10 @@ net_getparams(int sock)
 		bootp(sock, BOOTP_NONE);
 	if (myip.s_addr != 0)
 		goto exit;
+#ifdef	NETIF_DEBUG
 	if (debug)
 		printf("net_open: BOOTP failed, trying RARP/RPC...\n");
+#endif
 #endif
 
 	/*
@@ -246,8 +269,10 @@ net_getparams(int sock)
 		printf("net_open: bootparam/whoami RPC failed\n");
 		return (EIO);
 	}
+#ifdef	NETIF_DEBUG
 	if (debug)
 		printf("net_open: client name: %s\n", hostname);
+#endif
 
 	/*
 	 * Ignore the gateway from whoami (unreliable).
@@ -261,11 +286,15 @@ net_getparams(int sock)
 	}
 	if (smask) {
 		netmask = smask;
+#ifdef	NETIF_DEBUG
 		if (debug)
-		printf("net_open: subnet mask: %s\n", intoa(netmask));
+			printf("net_open: subnet mask: %s\n", intoa(netmask));
+#endif
 	}
+#ifdef	NETIF_DEBUG
 	if (gateip.s_addr && debug)
 		printf("net_open: net gateway: %s\n", inet_ntoa(gateip));
+#endif
 
 	/* Get the root server and pathname. */
 	if (bp_getfile(sock, "root", &rootip, rootpath)) {
@@ -288,10 +317,12 @@ exit:
 		bcopy(&rootpath[i], &temp[0], strlen(&rootpath[i])+1);
 		bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i])+1);
 	}
+#ifdef	NETIF_DEBUG
 	if (debug) {
 		printf("net_open: server addr: %s\n", inet_ntoa(rootip));
 		printf("net_open: server path: %s\n", rootpath);
 	}
+#endif
 
 	d = socktodesc(sock);
 	sprintf(temp, "%6D", d->myea, ":");

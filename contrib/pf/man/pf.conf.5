@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 30, 2006
+.Dd June 10, 2008
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -2059,6 +2059,13 @@ Changes the timeout values used for states created by this rule.
 For a list of all valid timeout names, see
 .Sx OPTIONS
 above.
+.It Ar sloppy
+Uses a sloppy TCP connection tracker that does not check sequence
+numbers at all, which makes insertion and ICMP teardown attacks way
+easier.
+This is intended to be used in situations where one does not see all
+packets of a connection, i.e. in asymmetric routing situations.
+Cannot be used with modulate or synproxy state.
 .El
 .Pp
 Multiple options can be specified, separated by commas:
@@ -2923,7 +2930,7 @@ tos            = "tos" ( "lowdelay" | "throughput" | "reliability" |
                  [ "0x" ] number )
 
 state-opts     = state-opt [ [ "," ] state-opts ]
-state-opt      = ( "max" number | "no-sync" | timeout |
+state-opt      = ( "max" number | "no-sync" | timeout | sloppy |
                  "source-track" [ ( "rule" | "global" ) ] |
                  "max-src-nodes" number | "max-src-states" number |
                  "max-src-conn" number |

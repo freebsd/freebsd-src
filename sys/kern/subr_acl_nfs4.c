@@ -82,6 +82,13 @@ _access_mask_from_accmode(accmode_t accmode)
 			access_mask |= accmode2mask[i].mask;
 	}
 
+	/*
+	 * VAPPEND is just a modifier for VWRITE; if the caller asked
+	 * for 'VAPPEND | VWRITE', we want to check for ACL_APPEND_DATA only.
+	 */
+	if (access_mask & ACL_APPEND_DATA)
+		access_mask &= ~ACL_WRITE_DATA;
+
 	return (access_mask);
 }
 
@@ -155,6 +162,14 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 	accmode_t priv_granted = 0;
 	int denied, explicitly_denied, access_mask, is_directory,
 	    must_be_owner = 0;
+
+	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND |
+	    VEXPLICIT_DENY | VREAD_NAMED_ATTRS | VWRITE_NAMED_ATTRS |
+	    VDELETE_CHILD | VREAD_ATTRIBUTES | VWRITE_ATTRIBUTES | VDELETE |
+	    VREAD_ACL | VWRITE_ACL | VWRITE_OWNER | VSYNCHRONIZE)) == 0,
+	    ("invalid bit in accmode"));
+	KASSERT((accmode & VAPPEND) == 0 || (accmode & VWRITE),
+	    	("VAPPEND without VWRITE"));
 
 	if (privused != NULL)
 		*privused = 0;
@@ -970,7 +985,7 @@ _acls_are_equal(const struct acl *a, const struct acl *b)
 }
 
 /*
- * This routine is used to determine whether to remove entry_type attribute
+ * This routine is used to determine whether to remove extended attribute
  * that stores ACL contents.
  */
 int
@@ -989,9 +1004,8 @@ acl_nfs4_is_trivial(const struct acl *aclp, int file_owner_id)
 	 *
 	 * XXX: I guess there is a faster way to do this.  However, even
 	 *      this slow implementation significantly speeds things up
-	 *      for files that don't have any entry_type ACL entries - it's
-	 *      critical for performance to not use EA when they are not
-	 *      needed.
+	 *      for files that don't have non-trivial ACLs - it's critical
+	 *      for performance to not use EA when they are not needed.
 	 */
 	tmpaclp = acl_alloc(M_WAITOK | M_ZERO);
 	acl_nfs4_sync_mode_from_acl(&tmpmode, aclp);

@@ -650,17 +650,12 @@ rad_continue_send_request(struct rad_handle *h, int selected, int *fd,
 	n = sendto(h->fd, h->out, h->out_len, 0,
 	    (const struct sockaddr *)&h->servers[h->srv].addr,
 	    sizeof h->servers[h->srv].addr);
-	if (n != h->out_len) {
-		if (n == -1)
-			generr(h, "sendto: %s", strerror(errno));
-		else
-			generr(h, "sendto: short write");
-		return -1;
-	}
-
+	if (n != h->out_len)
+		tv->tv_sec = 1; /* Do not wait full timeout if send failed. */
+	else
+		tv->tv_sec = h->servers[h->srv].timeout;
 	h->try++;
 	h->servers[h->srv].num_tries++;
-	tv->tv_sec = h->servers[h->srv].timeout;
 	tv->tv_usec = 0;
 	*fd = h->fd;
 

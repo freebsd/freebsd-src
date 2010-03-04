@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -183,13 +183,12 @@ AcpiExOpcode_0A_0T_1R (
 
         /* Create a return object of type Integer */
 
-        ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+        ReturnDesc = AcpiUtCreateIntegerObject (AcpiOsGetTimer ());
         if (!ReturnDesc)
         {
             Status = AE_NO_MEMORY;
             goto Cleanup;
         }
-        ReturnDesc->Integer.Value = AcpiOsGetTimer ();
         break;
 
     default:                /*  Unknown opcode  */
@@ -369,8 +368,8 @@ AcpiExOpcode_1A_1T_1R (
     ACPI_OPERAND_OBJECT     *ReturnDesc2 = NULL;
     UINT32                  Temp32;
     UINT32                  i;
-    ACPI_INTEGER            PowerOfTen;
-    ACPI_INTEGER            Digit;
+    UINT64                  PowerOfTen;
+    UINT64                  Digit;
 
 
     ACPI_FUNCTION_TRACE_STR (ExOpcode_1A_1T_1R,
@@ -478,7 +477,7 @@ AcpiExOpcode_1A_1T_1R (
                 /* Sum the digit into the result with the current power of 10 */
 
                 ReturnDesc->Integer.Value +=
-                    (((ACPI_INTEGER) Temp32) * PowerOfTen);
+                    (((UINT64) Temp32) * PowerOfTen);
 
                 /* Shift to next BCD digit */
 
@@ -507,7 +506,7 @@ AcpiExOpcode_1A_1T_1R (
                  * remainder from above
                  */
                 ReturnDesc->Integer.Value |=
-                    (((ACPI_INTEGER) Temp32) << ACPI_MUL_4 (i));
+                    (((UINT64) Temp32) << ACPI_MUL_4 (i));
             }
 
             /* Overflow if there is any data left in Digit */
@@ -554,7 +553,7 @@ AcpiExOpcode_1A_1T_1R (
 
             /* The object exists in the namespace, return TRUE */
 
-            ReturnDesc->Integer.Value = ACPI_INTEGER_MAX;
+            ReturnDesc->Integer.Value = ACPI_UINT64_MAX;
             goto Cleanup;
 
 
@@ -720,7 +719,7 @@ AcpiExOpcode_1A_0T_1R (
     ACPI_OPERAND_OBJECT     *ReturnDesc = NULL;
     ACPI_STATUS             Status = AE_OK;
     UINT32                  Type;
-    ACPI_INTEGER            Value;
+    UINT64                  Value;
 
 
     ACPI_FUNCTION_TRACE_STR (ExOpcode_1A_0T_1R,
@@ -733,7 +732,7 @@ AcpiExOpcode_1A_0T_1R (
     {
     case AML_LNOT_OP:               /* LNot (Operand) */
 
-        ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+        ReturnDesc = AcpiUtCreateIntegerObject ((UINT64) 0);
         if (!ReturnDesc)
         {
             Status = AE_NO_MEMORY;
@@ -746,7 +745,7 @@ AcpiExOpcode_1A_0T_1R (
          */
         if (!Operand[0]->Integer.Value)
         {
-            ReturnDesc->Integer.Value = ACPI_INTEGER_MAX;
+            ReturnDesc->Integer.Value = ACPI_UINT64_MAX;
         }
         break;
 
@@ -838,14 +837,12 @@ AcpiExOpcode_1A_0T_1R (
 
         /* Allocate a descriptor to hold the type. */
 
-        ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+        ReturnDesc = AcpiUtCreateIntegerObject ((UINT64) Type);
         if (!ReturnDesc)
         {
             Status = AE_NO_MEMORY;
             goto Cleanup;
         }
-
-        ReturnDesc->Integer.Value = Type;
         break;
 
 
@@ -917,14 +914,12 @@ AcpiExOpcode_1A_0T_1R (
          * Now that we have the size of the object, create a result
          * object to hold the value
          */
-        ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+        ReturnDesc = AcpiUtCreateIntegerObject (Value);
         if (!ReturnDesc)
         {
             Status = AE_NO_MEMORY;
             goto Cleanup;
         }
-
-        ReturnDesc->Integer.Value = Value;
         break;
 
 
@@ -1089,21 +1084,18 @@ AcpiExOpcode_1A_0T_1R (
                      * NOTE: index into a buffer is NOT a pointer to a
                      * sub-buffer of the main buffer, it is only a pointer to a
                      * single element (byte) of the buffer!
+                     *
+                     * Since we are returning the value of the buffer at the
+                     * indexed location, we don't need to add an additional
+                     * reference to the buffer itself.
                      */
-                    ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+                    ReturnDesc = AcpiUtCreateIntegerObject ((UINT64)
+                        TempDesc->Buffer.Pointer[Operand[0]->Reference.Value]);
                     if (!ReturnDesc)
                     {
                         Status = AE_NO_MEMORY;
                         goto Cleanup;
                     }
-
-                    /*
-                     * Since we are returning the value of the buffer at the
-                     * indexed location, we don't need to add an additional
-                     * reference to the buffer itself.
-                     */
-                    ReturnDesc->Integer.Value =
-                        TempDesc->Buffer.Pointer[Operand[0]->Reference.Value];
                     break;
 
 

@@ -468,6 +468,11 @@ MK_MAILWRAPPER:= no
 MK_SENDMAIL:=	no
 .endif
 
+.if ${MK_NETGRAPH} == "no"
+MK_ATM:=	no
+MK_BLUETOOTH:=	no
+.endif
+
 .if ${MK_OPENSSL} == "no"
 MK_OPENSSH:=	no
 MK_KERBEROS:=	no

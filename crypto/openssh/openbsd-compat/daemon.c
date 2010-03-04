@@ -57,18 +57,8 @@ daemon(int nochdir, int noclose)
 	case -1:
 		return (-1);
 	case 0:
-#ifdef HAVE_CYGWIN
-		register_9x_service();
-#endif
 		break;
 	default:
-#ifdef HAVE_CYGWIN
-		/*
-		 * This sleep avoids a race condition which kills the
-		 * child process if parent is started by a NT/W2K service.
-		 */
-		sleep(1);
-#endif
 		_exit(0);
 	}
 

@@ -75,9 +75,7 @@ MAP *cur, *maplist;
  * The baud rate tests are: >, <, @, =, !
  */
 void
-add_mapping(port, arg)
-	const char *port;
-	char *arg;
+add_mapping(const char *port, char *arg)
 {
 	MAP *mapp;
 	char *copy, *p, *termp;
@@ -190,8 +188,7 @@ badmopt:		errx(1, "illegal -m option format: %s", copy);
  * 'type'.
  */
 const char *
-mapped(type)
-	const char *type;
+mapped(const char *type)
 {
 	MAP *mapp;
 	int match;
@@ -240,8 +237,7 @@ SPEEDS speeds[] = {
 };
 
 speed_t
-tset_baudrate(rate)
-	char *rate;
+tset_baudrate(char *rate)
 {
 	SPEEDS *sp;
 	speed_t speed;

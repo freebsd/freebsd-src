@@ -287,7 +287,7 @@ word:	gotsp = 1;
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: wc [-Lclmw] [file ...]\n");
 	exit(1);

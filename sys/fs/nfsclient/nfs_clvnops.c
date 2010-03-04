@@ -128,10 +128,8 @@ static vop_readlink_t	nfs_readlink;
 static vop_print_t	nfs_print;
 static vop_advlock_t	nfs_advlock;
 static vop_advlockasync_t nfs_advlockasync;
-#ifdef NFS4_ACL_EXTATTR_NAME
 static vop_getacl_t nfs_getacl;
 static vop_setacl_t nfs_setacl;
-#endif
 
 /*
  * Global vfs data structures for nfs
@@ -166,10 +164,8 @@ struct vop_vector newnfs_vnodeops = {
 	.vop_strategy =		nfs_strategy,
 	.vop_symlink =		nfs_symlink,
 	.vop_write =		ncl_write,
-#ifdef NFS4_ACL_EXTATTR_NAME
 	.vop_getacl =		nfs_getacl,
 	.vop_setacl =		nfs_setacl,
-#endif
 };
 
 struct vop_vector newnfs_fifoops = {
@@ -223,10 +219,6 @@ SYSCTL_INT(_vfs_newnfs, OID_AUTO, clean_pages_on_close, CTLFLAG_RW,
 int newnfs_directio_enable = 0;
 SYSCTL_INT(_vfs_newnfs, OID_AUTO, directio_enable, CTLFLAG_RW,
 	   &newnfs_directio_enable, 0, "Enable NFS directio");
-
-static int newnfs_neglookup_enable = 1;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, neglookup_enable, CTLFLAG_RW,
-    &newnfs_neglookup_enable, 0, "Enable NFS negative lookup caching");
 
 /*
  * This sysctl allows other processes to mmap a file that has been opened
@@ -331,12 +323,9 @@ nfs_access(struct vop_access_args *ap)
 	 * unless the file is a socket, fifo, or a block or character
 	 * device resident on the filesystem.
 	 */
-	if ((ap->a_accmode & (VWRITE | VAPPEND
-#ifdef NFS4_ACL_EXTATTR_NAME
-	    | VWRITE_NAMED_ATTRS | VDELETE_CHILD | VWRITE_ATTRIBUTES |
-	    VDELETE | VWRITE_ACL | VWRITE_OWNER
-#endif
-	    )) != 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) != 0) {
+	if ((ap->a_accmode & (VWRITE | VAPPEND | VWRITE_NAMED_ATTRS |
+	    VDELETE_CHILD | VWRITE_ATTRIBUTES | VDELETE | VWRITE_ACL |
+	    VWRITE_OWNER)) != 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) != 0) {
 		switch (vp->v_type) {
 		case VREG:
 		case VDIR:
@@ -366,10 +355,8 @@ nfs_access(struct vop_access_args *ap)
 				mode |= NFSACCESS_EXTEND;
 			if (ap->a_accmode & VEXEC)
 				mode |= NFSACCESS_EXECUTE;
-#ifdef NFS4_ACL_EXTATTR_NAME
 			if (ap->a_accmode & VDELETE)
 				mode |= NFSACCESS_DELETE;
-#endif
 		} else {
 			if (ap->a_accmode & VWRITE)
 				mode |= (NFSACCESS_MODIFY | NFSACCESS_EXTEND);
@@ -377,12 +364,10 @@ nfs_access(struct vop_access_args *ap)
 				mode |= NFSACCESS_EXTEND;
 			if (ap->a_accmode & VEXEC)
 				mode |= NFSACCESS_LOOKUP;
-#ifdef NFS4_ACL_EXTATTR_NAME
 			if (ap->a_accmode & VDELETE)
 				mode |= NFSACCESS_DELETE;
 			if (ap->a_accmode & VDELETE_CHILD)
 				mode |= NFSACCESS_MODIFY;
-#endif
 		}
 		/* XXX safety belt, only make blanket request if caching */
 		if (nfsaccess_cache_timeout > 0) {
@@ -713,11 +698,11 @@ nfs_close(struct vop_close_args *ap)
 	     *     enabled. (What does this have to do with negative lookup
 	     *     caching? Well nothing, except it was reported by the
 	     *     same user that needed negative lookup caching and I wanted
-	     *     there to be a way to disable it via sysctl to see if it
+	     *     there to be a way to disable it to see if it
 	     *     is the cause of some caching/coherency issue that might
 	     *     crop up.)
  	     */
-	    if (newnfs_neglookup_enable == 0)
+	    if (VFSTONFS(vp->v_mount)->nm_negnametimeo == 0)
 		    np->n_attrstamp = 0;
 	    if (np->n_flag & NWRITEERR) {
 		np->n_flag &= ~NWRITEERR;
@@ -1007,6 +992,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct thread *td = cnp->cn_thread;
 	struct nfsfh *nfhp;
 	struct nfsvattr dnfsva, nfsva;
+	struct vattr vattr;
+	time_t dmtime;
 	
 	*vpp = NULLVP;
 	if ((flags & ISLASTCN) && (mp->mnt_flag & MNT_RDONLY) &&
@@ -1027,37 +1014,68 @@ nfs_lookup(struct vop_lookup_args *ap)
 
 	if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)) != 0)
 		return (error);
-	if ((error = cache_lookup(dvp, vpp, cnp)) &&
-	    (error != ENOENT || newnfs_neglookup_enable != 0)) {
-		struct vattr vattr;
-
-		if (error == ENOENT) {
-			if (!VOP_GETATTR(dvp, &vattr, cnp->cn_cred) &&
-			    vattr.va_mtime.tv_sec == np->n_dmtime) {
-			     NFSINCRGLOBAL(newnfsstats.lookupcache_hits);
-				return (ENOENT);
-			}
-			cache_purge_negative(dvp);
-			np->n_dmtime = 0;
-		} else {
-			newvp = *vpp;
-			if (nfscl_nodeleg(newvp, 0) == 0 ||
-			    (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred) &&
-			     vattr.va_ctime.tv_sec==VTONFS(newvp)->n_ctime)) {
-			     NFSINCRGLOBAL(newnfsstats.lookupcache_hits);
-			     if (cnp->cn_nameiop != LOOKUP &&
-				 (flags & ISLASTCN))
-				     cnp->cn_flags |= SAVENAME;
-			     return (0);
-			}
-			cache_purge(newvp);
-			if (dvp != newvp)
-				vput(newvp);
-			else 
-				vrele(newvp);
-			*vpp = NULLVP;
+	error = cache_lookup(dvp, vpp, cnp);
+	if (error > 0 && error != ENOENT)
+		return (error);
+	if (error == -1) {
+		/*
+		 * We only accept a positive hit in the cache if the
+		 * change time of the file matches our cached copy.
+		 * Otherwise, we discard the cache entry and fallback
+		 * to doing a lookup RPC.
+		 */
+		newvp = *vpp;
+		if (nfscl_nodeleg(newvp, 0) == 0 ||
+		    (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred)
+		    && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime)) {
+			NFSINCRGLOBAL(newnfsstats.lookupcache_hits);
+			if (cnp->cn_nameiop != LOOKUP &&
+			    (flags & ISLASTCN))
+				cnp->cn_flags |= SAVENAME;
+			return (0);
 		}
+		cache_purge(newvp);
+		if (dvp != newvp)
+			vput(newvp);
+		else 
+			vrele(newvp);
+		*vpp = NULLVP;
+	} else if (error == ENOENT) {
+		if (dvp->v_iflag & VI_DOOMED)
+			return (ENOENT);
+		/*
+		 * We only accept a negative hit in the cache if the
+		 * modification time of the parent directory matches
+		 * our cached copy.  Otherwise, we discard all of the
+		 * negative cache entries for this directory. We also
+		 * only trust -ve cache entries for less than
+		 * nm_negative_namecache_timeout seconds.
+		 */
+		if ((u_int)(ticks - np->n_dmtime_ticks) <
+		    (nmp->nm_negnametimeo * hz) &&
+		    VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
+		    vattr.va_mtime.tv_sec == np->n_dmtime) {
+			NFSINCRGLOBAL(newnfsstats.lookupcache_hits);
+			return (ENOENT);
+		}
+		cache_purge_negative(dvp);
+		mtx_lock(&np->n_mtx);
+		np->n_dmtime = 0;
+		mtx_unlock(&np->n_mtx);
 	}
+
+	/*
+	 * Cache the modification time of the parent directory in case
+	 * the lookup fails and results in adding the first negative
+	 * name cache entry for the directory.  Since this is reading
+	 * a single time_t, don't bother with locking.  The
+	 * modification time may be a bit stale, but it must be read
+	 * before performing the lookup RPC to prevent a race where
+	 * another lookup updates the timestamp on the directory after
+	 * the lookup RPC has been performed on the server but before
+	 * n_dmtime is set at the end of this function.
+	 */
+	dmtime = np->n_vattr.na_mtime.tv_sec;
 	error = 0;
 	newvp = NULLVP;
 	NFSINCRGLOBAL(newnfsstats.lookupcache_misses);
@@ -1067,29 +1085,60 @@ nfs_lookup(struct vop_lookup_args *ap)
 	if (dattrflag)
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, NULL, 0, 1);
 	if (error) {
-		if (newnfs_neglookup_enable != 0 &&
-		    error == ENOENT && (cnp->cn_flags & MAKEENTRY) &&
-		    cnp->cn_nameiop != CREATE) {
-			if (np->n_dmtime == 0)
-				np->n_dmtime = np->n_vattr.na_mtime.tv_sec;
-			cache_enter(dvp, NULL, cnp);
-		}
 		if (newvp != NULLVP) {
 			vput(newvp);
 			*vpp = NULLVP;
 		}
-		if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
-		    (flags & ISLASTCN) && error == ENOENT) {
-			if (mp->mnt_flag & MNT_RDONLY)
-				error = EROFS;
-			else
-				error = EJUSTRETURN;
+
+		if (error != ENOENT) {
+			if (NFS_ISV4(dvp))
+				error = nfscl_maperr(td, error, (uid_t)0,
+				    (gid_t)0);
+			return (error);
 		}
-		if (cnp->cn_nameiop != LOOKUP && (flags & ISLASTCN))
+
+		/* The requested file was not found. */
+		if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
+		    (flags & ISLASTCN)) {
+			/*
+			 * XXX: UFS does a full VOP_ACCESS(dvp,
+			 * VWRITE) here instead of just checking
+			 * MNT_RDONLY.
+			 */
+			if (mp->mnt_flag & MNT_RDONLY)
+				return (EROFS);
 			cnp->cn_flags |= SAVENAME;
-		if (NFS_ISV4(dvp))
-			error = nfscl_maperr(td, error, (uid_t)0, (gid_t)0);
-		return (error);
+			return (EJUSTRETURN);
+		}
+
+		if ((cnp->cn_flags & MAKEENTRY) && cnp->cn_nameiop != CREATE) {
+			/*
+			 * Maintain n_dmtime as the modification time
+			 * of the parent directory when the oldest -ve
+			 * name cache entry for this directory was
+			 * added.  If a -ve cache entry has already
+			 * been added with a newer modification time
+			 * by a concurrent lookup, then don't bother
+			 * adding a cache entry.  The modification
+			 * time of the directory might have changed
+			 * due to the file this lookup failed to find
+			 * being created.  In that case a subsequent
+			 * lookup would incorrectly use the entry
+			 * added here instead of doing an extra
+			 * lookup.
+			 */
+			mtx_lock(&np->n_mtx);
+			if (np->n_dmtime <= dmtime) {
+				if (np->n_dmtime == 0) {
+					np->n_dmtime = dmtime;
+					np->n_dmtime_ticks = ticks;
+				}
+				mtx_unlock(&np->n_mtx);
+				cache_enter(dvp, NULL, cnp);
+			} else
+				mtx_unlock(&np->n_mtx);
+		}
+		return (ENOENT);
 	}
 
 	/*
@@ -1365,7 +1414,30 @@ nfs_mknod(struct vop_mknod_args *ap)
 	return (nfs_mknodrpc(ap->a_dvp, ap->a_vpp, ap->a_cnp, ap->a_vap));
 }
 
-static u_long create_verf;
+static struct mtx nfs_cverf_mtx;
+MTX_SYSINIT(nfs_cverf_mtx, &nfs_cverf_mtx, "NFS create verifier mutex",
+    MTX_DEF);
+
+static nfsquad_t
+nfs_get_cverf(void)
+{
+	static nfsquad_t cverf;
+	nfsquad_t ret;
+	static int cverf_initialized = 0;
+
+	mtx_lock(&nfs_cverf_mtx);
+	if (cverf_initialized == 0) {
+		cverf.lval[0] = arc4random();
+		cverf.lval[1] = arc4random();
+		cverf_initialized = 1;
+	} else
+		cverf.qval++;
+	ret = cverf;
+	mtx_unlock(&nfs_cverf_mtx);
+
+	return (ret);
+}
+
 /*
  * nfs file create call
  */
@@ -1405,19 +1477,7 @@ again:
 	}
 	mtx_unlock(&dnp->n_mtx);
 
-#ifdef INET
-	CURVNET_SET(CRED_TO_VNET(cnp->cn_cred));
-	IN_IFADDR_RLOCK();
-	if (!TAILQ_EMPTY(&V_in_ifaddrhead))
-		cverf.lval[0] = IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr.s_addr;
-	else
-#endif
-		cverf.lval[0] = create_verf;
-#ifdef INET
-	IN_IFADDR_RUNLOCK();
-	CURVNET_RESTORE();
-#endif
-	cverf.lval[1] = ++create_verf;
+	cverf = nfs_get_cverf();
 	error = nfsrpc_create(dvp, cnp->cn_nameptr, cnp->cn_namelen,
 	    vap, cverf, fmode, cnp->cn_cred, cnp->cn_thread, &dnfsva, &nfsva,
 	    &nfhp, &attrflag, &dattrflag, NULL);
@@ -1829,7 +1889,7 @@ nfs_link(struct vop_link_args *ap)
 	 * but if negative caching is enabled, then the system
 	 * must care about lookup caching hit rate, so...
 	 */
-	if (newnfs_neglookup_enable != 0 &&
+	if (VFSTONFS(vp->v_mount)->nm_negnametimeo != 0 &&
 	    (cnp->cn_flags & MAKEENTRY))
 		cache_enter(tdvp, vp, cnp);
 	if (error && NFS_ISV4(vp))
@@ -1893,7 +1953,7 @@ nfs_symlink(struct vop_symlink_args *ap)
 		 * but if negative caching is enabled, then the system
 		 * must care about lookup caching hit rate, so...
 		 */
-		if (newnfs_neglookup_enable != 0 &&
+		if (VFSTONFS(dvp->v_mount)->nm_negnametimeo != 0 &&
 		    (cnp->cn_flags & MAKEENTRY))
 			cache_enter(dvp, newvp, cnp);
 		*ap->a_vpp = newvp;
@@ -1973,7 +2033,7 @@ nfs_mkdir(struct vop_mkdir_args *ap)
 		 * but if negative caching is enabled, then the system
 		 * must care about lookup caching hit rate, so...
 		 */
-		if (newnfs_neglookup_enable != 0 &&
+		if (VFSTONFS(dvp->v_mount)->nm_negnametimeo != 0 &&
 		    (cnp->cn_flags & MAKEENTRY))
 			cache_enter(dvp, newvp, cnp);
 		*ap->a_vpp = newvp;
@@ -2708,9 +2768,9 @@ loop:
 		mtx_lock(&np->n_mtx);
 		while (np->n_directio_asyncwr > 0) {
 			np->n_flag |= NFSYNCWAIT;
-			error = ncl_msleep(td, (caddr_t)&np->n_directio_asyncwr,
-					   &np->n_mtx, slpflag | (PRIBIO + 1), 
-					   "nfsfsync", 0);
+			error = newnfs_msleep(td, &np->n_directio_asyncwr,
+			    &np->n_mtx, slpflag | (PRIBIO + 1), 
+			    "nfsfsync", 0);
 			if (error) {
 				if (newnfs_sigintr(nmp, td)) {
 					mtx_unlock(&np->n_mtx);
@@ -3125,7 +3185,6 @@ nfs_lock1(struct vop_lock1_args *ap)
 	    ap->a_line));
 }
 
-#ifdef NFS4_ACL_EXTATTR_NAME
 static int
 nfs_getacl(struct vop_getacl_args *ap)
 {
@@ -3157,5 +3216,3 @@ nfs_setacl(struct vop_setacl_args *ap)
 	}
 	return (error);
 }
-
-#endif	/* NFS4_ACL_EXTATTR_NAME */

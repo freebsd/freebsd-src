@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008, 2009 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.666 2008/02/14 17:25:14 ca Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.674 2009/10/26 17:47:00 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -113,6 +113,9 @@ readcf(cfname, safe, e)
 	FileName = cfname;
 	LineNumber = 0;
 
+#if STARTTLS
+	Srv_SSL_Options = Clt_SSL_Options = SSL_OP_ALL;
+#endif /* STARTTLS */
 	if (DontLockReadFiles)
 		sff |= SFF_NOLOCK;
 	cf = safefopen(cfname, O_RDONLY, 0444, sff);
@@ -136,7 +139,7 @@ readcf(cfname, safe, e)
 
 	if (OpMode != MD_TEST && bitset(S_IWGRP|S_IWOTH, statb.st_mode))
 	{
-		if (OpMode == MD_DAEMON || OpMode == MD_INITALIAS)
+		if (OpMode == MD_DAEMON || OpMode == MD_INITALIAS || OpMode == MD_CHECKCONFIG)
 			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
 					     "%s: WARNING: dangerous write permissions\n",
 					     FileName);
@@ -462,7 +465,7 @@ readcf(cfname, safe, e)
 			rwp = RewriteRules[ruleset];
 			if (rwp != NULL)
 			{
-				if (OpMode == MD_TEST)
+				if (OpMode == MD_TEST || OpMode == MD_CHECKCONFIG)
 					(void) sm_io_fprintf(smioout,
 							     SM_TIME_DEFAULT,
 							     "WARNING: Ruleset %s has multiple definitions\n",
@@ -534,7 +537,6 @@ readcf(cfname, safe, e)
 					p++;
 				while (isascii(*p) && isspace(*p))
 					p++;
-				file = p;
 			}
 			else
 				optional = false;
@@ -2255,9 +2257,100 @@ static struct optioninfo
 # define O_RCPTSHUTDG	0xe2
 	{ "BadRcptShutdownGood",	O_RCPTSHUTDG,	OI_SAFE	},
 #endif /* _FFR_BADRCPT_SHUTDOWN */
+#if STARTTLS && _FFR_TLS_1
+# define O_SRV_SSL_OPTIONS	0xe3
+	{ "ServerSSLOptions",		O_SRV_SSL_OPTIONS,	OI_NONE	},
+# define O_CLT_SSL_OPTIONS	0xe4
+	{ "ClientSSLOptions",		O_CLT_SSL_OPTIONS,	OI_NONE	},
+#endif /* STARTTLS && _FFR_TLS_1 */
+#if _FFR_EXPDELAY
+# define O_MAX_QUEUE_AGE	0xe5
+	{ "MaxQueueAge",	O_MAX_QUEUE_AGE,	OI_NONE },
+#endif /* _FFR_EXPDELAY */
+#if _FFR_RCPTTHROTDELAY
+# define O_RCPTTHROTDELAY	0xe6
+	{ "BadRcptThrottleDelay",	O_RCPTTHROTDELAY,	OI_SAFE	},
+#endif /* _FFR_RCPTTHROTDELAY */
 
 	{ NULL,				'\0',		OI_NONE	}
 };
+
+#if STARTTLS && _FFR_TLS_1
+static struct ssl_options
+{
+	const char	*sslopt_name;	/* name of the flag */
+	long		sslopt_bits;	/* bits to set/clear */
+} SSL_Option[] =
+{
+/* these are turned on by default */
+#ifdef SSL_OP_MICROSOFT_SESS_ID_BUG
+	{ "SSL_OP_MICROSOFT_SESS_ID_BUG",	SSL_OP_MICROSOFT_SESS_ID_BUG	},
+#endif /* SSL_OP_MICROSOFT_SESS_ID_BUG */
+#ifdef SSL_OP_NETSCAPE_CHALLENGE_BUG
+	{ "SSL_OP_NETSCAPE_CHALLENGE_BUG",	SSL_OP_NETSCAPE_CHALLENGE_BUG	},
+#endif /* SSL_OP_NETSCAPE_CHALLENGE_BUG */
+#ifdef SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
+	{ "SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG",	SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG	},
+#endif /* SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG */
+#ifdef SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
+	{ "SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG",	SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG	},
+#endif /* SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG */
+#ifdef SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
+	{ "SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER",	SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER	},
+#endif /* SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER */
+#ifdef SSL_OP_MSIE_SSLV2_RSA_PADDING
+	{ "SSL_OP_MSIE_SSLV2_RSA_PADDING",	SSL_OP_MSIE_SSLV2_RSA_PADDING	},
+#endif /* SSL_OP_MSIE_SSLV2_RSA_PADDING */
+#ifdef SSL_OP_SSLEAY_080_CLIENT_DH_BUG
+	{ "SSL_OP_SSLEAY_080_CLIENT_DH_BUG",	SSL_OP_SSLEAY_080_CLIENT_DH_BUG	},
+#endif /* SSL_OP_SSLEAY_080_CLIENT_DH_BUG */
+#ifdef SSL_OP_TLS_D5_BUG
+	{ "SSL_OP_TLS_D5_BUG",	SSL_OP_TLS_D5_BUG	},
+#endif /* SSL_OP_TLS_D5_BUG */
+#ifdef SSL_OP_TLS_BLOCK_PADDING_BUG
+	{ "SSL_OP_TLS_BLOCK_PADDING_BUG",	SSL_OP_TLS_BLOCK_PADDING_BUG	},
+#endif /* SSL_OP_TLS_BLOCK_PADDING_BUG */
+#ifdef SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
+	{ "SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS",	SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS	},
+#endif /* SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS */
+	{ "SSL_OP_ALL",	SSL_OP_ALL	},
+#ifdef SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
+	{ "SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION",	SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION	},
+#endif /* SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION */
+#ifdef SSL_OP_EPHEMERAL_RSA
+	{ "SSL_OP_EPHEMERAL_RSA",	SSL_OP_EPHEMERAL_RSA	},
+#endif /* SSL_OP_EPHEMERAL_RSA */
+#ifdef SSL_OP_CIPHER_SERVER_PREFERENCE
+	{ "SSL_OP_CIPHER_SERVER_PREFERENCE",	SSL_OP_CIPHER_SERVER_PREFERENCE	},
+#endif /* SSL_OP_CIPHER_SERVER_PREFERENCE */
+#ifdef SSL_OP_TLS_ROLLBACK_BUG
+	{ "SSL_OP_TLS_ROLLBACK_BUG",	SSL_OP_TLS_ROLLBACK_BUG	},
+#endif /* SSL_OP_TLS_ROLLBACK_BUG */
+#ifdef SSL_OP_NO_SSLv2
+	{ "SSL_OP_NO_SSLv2",	SSL_OP_NO_SSLv2	},
+#endif /* SSL_OP_NO_SSLv2 */
+#ifdef SSL_OP_NO_SSLv3
+	{ "SSL_OP_NO_SSLv3",	SSL_OP_NO_SSLv3	},
+#endif /* SSL_OP_NO_SSLv3 */
+#ifdef SSL_OP_NO_TLSv1
+	{ "SSL_OP_NO_TLSv1",	SSL_OP_NO_TLSv1	},
+#endif /* SSL_OP_NO_TLSv1 */
+#ifdef SSL_OP_PKCS1_CHECK_1
+	{ "SSL_OP_PKCS1_CHECK_1",	SSL_OP_PKCS1_CHECK_1	},
+#endif /* SSL_OP_PKCS1_CHECK_1 */
+#ifdef SSL_OP_PKCS1_CHECK_2
+	{ "SSL_OP_PKCS1_CHECK_2",	SSL_OP_PKCS1_CHECK_2	},
+#endif /* SSL_OP_PKCS1_CHECK_2 */
+#ifdef SSL_OP_NETSCAPE_CA_DN_BUG
+	{ "SSL_OP_NETSCAPE_CA_DN_BUG",	SSL_OP_NETSCAPE_CA_DN_BUG	},
+#endif /* SSL_OP_NETSCAPE_CA_DN_BUG */
+#ifdef SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG
+	{ "SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG",	SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG	},
+#endif /* SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG */
+	{ NULL,		0		}
+};
+#endif /* STARTTLS && _FFR_TLS_1 */
+
 
 # define CANONIFY(val)
 
@@ -2299,6 +2392,9 @@ setoption(opt, val, safe, sticky, e)
 	char *newval;
 	char exbuf[MAXLINE];
 #endif /* STARTTLS || SM_CONF_SHM */
+#if STARTTLS && _FFR_TLS_1
+	long *pssloptions = NULL;
+#endif /* STARTTLS && _FFR_TLS_1 */
 
 	errno = 0;
 	if (opt == ' ')
@@ -2995,6 +3091,12 @@ setoption(opt, val, safe, sticky, e)
 		MinQueueAge = convtime(val, 'm');
 		break;
 
+#if _FFR_EXPDELAY
+	  case O_MAX_QUEUE_AGE:
+		MaxQueueAge = convtime(val, 'm');
+		break;
+#endif /* _FFR_EXPDELAY */
+
 	  case O_DEFCHARSET:	/* default character set for mimefying */
 		DefaultCharSet = newstr(denlstring(val, true, true));
 		break;
@@ -3317,6 +3419,12 @@ setoption(opt, val, safe, sticky, e)
 		BadRcptThrottle = atoi(val);
 		break;
 
+#if _FFR_RCPTTHROTDELAY
+	  case O_RCPTTHROTDELAY:
+		BadRcptThrottleDelay = atoi(val);
+		break;
+#endif /* _FFR_RCPTTHROTDELAY */
+
 	  case O_DEADLETTER:
 		CANONIFY(val);
 		PSTRSET(DeadLetterDrop, val);
@@ -3578,7 +3686,51 @@ setoption(opt, val, safe, sticky, e)
 		SET_STRING_EXP(DHParams5);
 	  case O_CIPHERLIST:
 		SET_STRING_EXP(CipherList);
+	  case O_SRV_SSL_OPTIONS:
+		pssloptions = &Srv_SSL_Options;
+	  case O_CLT_SSL_OPTIONS:
+		if (pssloptions == NULL)
+			pssloptions = &Clt_SSL_Options;
+		for (p = val; *p != 0; )
+		{
+			bool clearmode;
+			char *q;
+			struct ssl_options *sslopts;
+
+			while (*p == ' ')
+				p++;
+			if (*p == '\0')
+				break;
+			clearmode = false;
+			if (*p == '-' || *p == '+')
+				clearmode = *p++ == '-';
+			q = p;
+			while (*p != '\0' && !(isascii(*p) && isspace(*p)))
+				p++;
+			if (*p != '\0')
+				*p++ = '\0';
+			for (sslopts = SSL_Option;
+			     sslopts->sslopt_name != NULL; sslopts++)
+			{
+				if (sm_strcasecmp(q, sslopts->sslopt_name) == 0)
+					break;
+			}
+			if (sslopts->sslopt_name == NULL)
+			{
+				errno = 0;
+				syserr("readcf: %s option value %s unrecognized",
+					o->o_name, q);
+			}
+			else if (clearmode)
+				*pssloptions &= ~sslopts->sslopt_bits;
+			else
+				*pssloptions |= sslopts->sslopt_bits;
+		}
+		pssloptions = NULL;
+		break;
+
 # endif /* _FFR_TLS_1 */
+
 	  case O_CRLFILE:
 # if OPENSSL_VERSION_NUMBER > 0x00907000L
 		SET_STRING_EXP(CRLFile);
@@ -4026,8 +4178,7 @@ strtorwset(p, endp, stabmode)
 		char *q = NULL;
 
 		q = p;
-		while (*p != '\0' && isascii(*p) &&
-		       (isalnum(*p) || *p == '_'))
+		while (*p != '\0' && isascii(*p) && (isalnum(*p) || *p == '_'))
 			p++;
 		if (q == p || !(isascii(*q) && isalpha(*q)))
 		{

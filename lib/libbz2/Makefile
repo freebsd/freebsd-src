@@ -10,4 +10,6 @@ SRCS=		bzlib.c blocksort.c compress.c crctable.c decompress.c \
 INCS=		bzlib.h
 CFLAGS+=	-I${BZ2DIR}
 
+WARNS?=		3
+
 .include <bsd.lib.mk>

@@ -7,15 +7,15 @@
 .\" these terms are retained. Under no circumstances is the author
 .\" responsible for the proper functioning of this software, nor does
 .\" the author assume any responsibility for damages incurred with its
+.\" use.
 .\"
 .\" $FreeBSD$
 .\"
-.\" use.
-.Dd November 1, 1994
+.Dd December 22, 2009
 .Dt APM 8 i386
 .Os
 .Sh NAME
-.Nm apm , zzz
+.Nm apm
 .Nd control the APM BIOS and display its information
 .Sh SYNOPSIS
 .Nm
@@ -24,27 +24,14 @@
 .Op Fl e Ar enable
 .Op Fl h Ar enable
 .Op Fl r Ar delta
-.Pp
-.Nm zzz
 .Sh DESCRIPTION
 The
 .Nm
 utility
 controls the Intel / Microsoft APM (Advanced Power Management) BIOS and
 displays the current status of APM on laptop PCs.
-The
-.Nm zzz
-utility suspends the system by controlling APM.
 .Pp
-The following options are available for
-.Nm
-(no options are available for
-.Nm zzz ) .
-If no options are specified,
-.Nm
-displays information and current status of APM in verbose mode.
-If multiple display options are given, the values are displayed one
-per line in the order given here.
+The options are as follows:
 .Bl -tag -width indent
 .It Fl a
 Display the current AC-line status as an integer value.
@@ -126,9 +113,15 @@ output of
 tells what your laptop claims to support.
 .It Fl z
 Suspend the system.
-It is equivalent to
-.Nm zzz .
+It is used by
+.Xr zzz 8 .
 .El
+.Pp
+If no options are specified,
+.Nm
+displays information and current status of APM in verbose mode.
+If multiple display options are given, the values are displayed one
+per line in the order given here.
 .Sh NOTES
 .Xr apmconf 8
 has been merged in
@@ -137,7 +130,8 @@ and thus
 .Nm
 replaces all of its functionality.
 .Sh SEE ALSO
-.Xr apm 4
+.Xr apm 4 ,
+.Xr zzz 8
 .Sh AUTHORS
 .An Tatsumi Hosokawa Aq hosokawa@jp.FreeBSD.org
 .Sh BUGS

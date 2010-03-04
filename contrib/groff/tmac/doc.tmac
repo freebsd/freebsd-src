@@ -356,10 +356,10 @@
 .    ds doc-macro-name Fl
 .    doc-parse-args \$@
 .
-.    if !\n[.$] \{\
-.      \" no arguments
+.    \" no arguments
+.    if !\n[.$] \
 .      nop \|\-\|\f[]\s[0]
-.  \}\}
+.  \}
 .
 .  if !\n[doc-arg-limit] \
 .    return
@@ -481,8 +481,8 @@
 .  el \{\
 .    nr doc-reg-dpr \n[doc-arg-ptr]
 .
+.    \" the `\%' prevents hyphenation on a dash (`-')
 .    ie (\n[doc-reg-dpr1] == 2) \
-.      \" the `\%' prevents hyphenation on a dash (`-')
 .      nop \%\*[doc-str-dpr]\&\c
 .    el \{\
 .      \" punctuation character
@@ -595,10 +595,10 @@
 .    ds doc-macro-name Ar
 .    doc-parse-args \$@
 .
-.    if !\n[.$] \{\
-.      \" no argument
+.    \" no argument
+.    if !\n[.$] \
 .      nop \)\*[doc-str-Ar-default]\&\f[]\s[0]
-.  \}\}
+.  \}
 .
 .  if !\n[doc-arg-limit] \
 .    return
@@ -1034,10 +1034,10 @@
 .    ds doc-macro-name Pa
 .    doc-parse-args \$@
 .
-.    if !\n[.$] \{\
-.      \" default value
+.    \" default value
+.    if !\n[.$] \
 .      nop \*[doc-Pa-font]~\f[]\s[0]
-.  \}\}
+.  \}
 .
 .  if !\n[doc-arg-limit] \
 .    return
@@ -3430,6 +3430,8 @@
 .  nr doc-reference-title-count-saved \n[doc-reference-title-count]
 .  ds doc-reference-title-name-saved "\*[doc-reference-title-name]
 .  ds doc-reference-title-name-for-book-saved "\*[doc-reference-title-name-for-book]
+.  nr doc-url-count-saved \n[doc-url-count]
+.  ds doc-url-name-saved "\*[doc-url-name]
 .  nr doc-volume-count-saved \n[doc-volume-count]
 .  ds doc-volume-name-saved "\*[doc-volume-name]
 .  nr doc-have-author-saved \n[doc-have-author]
@@ -3570,6 +3572,8 @@
 .  nr doc-reference-title-count \n[doc-reference-title-count-saved]
 .  ds doc-reference-title-name "\*[doc-reference-title-name-saved]
 .  ds doc-reference-title-name-for-book "\*[doc-reference-title-name-for-book-saved]
+.  nr doc-url-count \n[doc-url-count-saved]
+.  ds doc-url-name "\*[doc-url-name-saved]
 .  nr doc-volume-count \n[doc-volume-count-saved]
 .  ds doc-volume-name "\*[doc-volume-name-saved]
 .  nr doc-have-author \n[doc-have-author-saved]
@@ -5194,6 +5198,8 @@
 .\" NS   doc-reference-title-name-for-book
 .\" NS   doc-report-count
 .\" NS   doc-report-name
+.\" NS   doc-url-count
+.\" NS   doc-url-name
 .\" NS   doc-volume-count
 .\" NS   doc-volume-name
 .
@@ -5208,6 +5214,7 @@
 .  nr doc-corporate-count 0
 .  nr doc-report-count 0
 .  nr doc-reference-title-count 0
+.  nr doc-url-count 0
 .  nr doc-volume-count 0
 .  nr doc-date-count 0
 .  nr doc-page-number-count 0
@@ -5222,6 +5229,7 @@
 .  ds doc-report-name
 .  ds doc-reference-title-name
 .  ds doc-reference-title-name-for-book
+.  ds doc-url-name
 .  ds doc-volume-name
 .  ds doc-date
 .  ds doc-page-number-string
@@ -5314,6 +5322,13 @@
 .    chop doc-volume-name
 .    nop \*[doc-volume-name]\c
 .    doc-finish-reference \n[doc-volume-count]
+.  \}
+.
+.  if \n[doc-url-count] \{\
+.    unformat doc-url-name
+.    chop doc-url-name
+.    nop \*[doc-url-name]\c
+.    doc-finish-reference \n[doc-url-count]
 .  \}
 .
 .  if \n[doc-page-number-count] \{\
@@ -6019,6 +6034,18 @@
 ..
 .
 .
+.\" NS doc-url-count global register
+.\" NS   counter of hypertext references
+.
+.nr doc-url-count 0
+.
+.
+.\" NS doc-url-name global box
+.\" NS   string of collected hypertext references
+.
+.ds doc-url-name
+.
+.
 .\" NS doc-volume-count global register
 .\" NS   counter of reference title references
 .
@@ -6031,6 +6058,48 @@
 .ds doc-volume-name
 .
 .
+.\" NS %U user macro
+.\" NS   hypertext reference
+.\" NS
+.\" NS modifies:
+.\" NS   doc-arg-ptr
+.\" NS   doc-curr-font
+.\" NS   doc-curr-size
+.\" NS   doc-macro-name
+.\" NS   doc-reference-count
+.\" NS   doc-url-count
+.\" NS
+.\" NS local variables:
+.\" NS   doc-env-%U
+.\" NS
+.\" NS width register `%U' set in doc-common
+.
+.de %U
+.  if (\n[doc-arg-limit] : (\n[.$] == 0)) \{\
+.    tm Usage: .%U URL ... (#\n[.c])
+.    return
+.  \}
+.
+.  nr doc-url-count +1
+.  nr doc-reference-count +1
+.
+.  ds doc-macro-name %U
+.  doc-parse-args \$@
+.
+.  nr doc-arg-ptr +1
+.  nr doc-curr-font \n[.f]
+.  nr doc-curr-size \n[.ps]
+.
+.  \" append to reference box
+.  boxa doc-url-name
+.  ev doc-env-%U
+.  evc 0
+.  in 0
+.  nf
+.  doc-do-references
+..
+.
+.
 .\" NS %V user macro
 .\" NS   reference volume
 .\" NS
@@ -6039,7 +6108,7 @@
 .\" NS   doc-curr-font
 .\" NS   doc-curr-size
 .\" NS   doc-macro-name
-.\" NS   doc-reference-title-count
+.\" NS   doc-reference-count
 .\" NS   doc-volume-count
 .\" NS
 .\" NS local variables:
@@ -6426,6 +6495,19 @@
 .
 .
 .ec
+.
+.
+.\" For UTF-8, map some characters conservatively for the sake
+.\" of easy cut and paste.
+.
+.if '\*[.T]'utf8' \{\
+.  rchar \- - ' `
+.
+.  char \- \N'45'
+.  char  - \N'45'
+.  char  ' \N'39'
+.  char  ` \N'96'
+.\}
 .
 .
 .\" load local modifications

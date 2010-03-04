@@ -48,8 +48,8 @@ typedef int tsw_ioctl_t(struct tty *tp, u_long cmd, caddr_t data,
     struct thread *td);
 typedef int tsw_param_t(struct tty *tp, struct termios *t);
 typedef int tsw_modem_t(struct tty *tp, int sigon, int sigoff);
-typedef int tsw_mmap_t(struct tty *tp, vm_offset_t offset,
-    vm_paddr_t * paddr, int nprot);
+typedef int tsw_mmap_t(struct tty *tp, vm_ooffset_t offset,
+    vm_paddr_t * paddr, int nprot, vm_memattr_t *memattr);
 typedef void tsw_pktnotify_t(struct tty *tp, char event);
 typedef void tsw_free_t(void *softc);
 
@@ -142,11 +142,12 @@ ttydevsw_modem(struct tty *tp, int sigon, int sigoff)
 }
 
 static __inline int
-ttydevsw_mmap(struct tty *tp, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+ttydevsw_mmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
 	MPASS(!tty_gone(tp));
 
-	return tp->t_devsw->tsw_mmap(tp, offset, paddr, nprot);
+	return tp->t_devsw->tsw_mmap(tp, offset, paddr, nprot, memattr);
 }
 
 static __inline void

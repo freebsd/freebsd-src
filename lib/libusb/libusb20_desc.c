@@ -24,11 +24,11 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/queue.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <poll.h>
-#include <sys/queue.h>
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -118,6 +118,9 @@ libusb20_parse_config_desc(const void *config_desc)
 	if (lub_config == NULL) {
 		return (NULL);		/* out of memory */
 	}
+	/* make sure memory is initialised */
+	memset(lub_config, 0, size);
+
 	lub_interface = (void *)(lub_config + 1);
 	lub_alt_interface = (void *)(lub_interface + niface_no_alt);
 	lub_endpoint = (void *)(lub_interface + niface);

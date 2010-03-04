@@ -262,8 +262,8 @@ audit_arg_groupset(gid_t *gidset, u_int gidset_size)
 	u_int i;
 	struct kaudit_record *ar;
 
-	KASSERT(gidset_size <= NGROUPS,
-	    ("audit_arg_groupset: gidset_size > NGROUPS"));
+	KASSERT(gidset_size <= ngroups_max + 1,
+	    ("audit_arg_groupset: gidset_size > (kern.ngroups + 1)"));
 
 	ar = currecord();
 	if (ar == NULL)

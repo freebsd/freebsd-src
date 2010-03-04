@@ -162,6 +162,9 @@ autoboot(int timeout, char *prompt)
     int		c, yes;
     char	*argv[2], *cp, *ep;
     char	*kernelname;
+#ifdef BOOT_PROMPT_123
+    const char	*seq = "123", *p = seq;
+#endif
 
     autoboot_tried = 1;
 
@@ -192,14 +195,29 @@ autoboot(int timeout, char *prompt)
 
         yes = 0;
 
+#ifdef BOOT_PROMPT_123
+        printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or "
+	    "1 2 3 sequence for command prompt." : prompt);
+#else
         printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or any other key for command prompt." : prompt);
+#endif
 
         for (;;) {
 	    if (ischar()) {
 	        c = getchar();
+#ifdef BOOT_PROMPT_123
+		if ((c == '\r') || (c == '\n')) {
+			yes = 1;
+			break;
+		} else if (c != *p++)
+			p = seq;
+		if (*p == 0)
+			break;
+#else
 	        if ((c == '\r') || (c == '\n'))
 		    yes = 1;
 	        break;
+#endif
 	    }
 	    ntime = time(NULL);
 	    if (ntime >= when) {

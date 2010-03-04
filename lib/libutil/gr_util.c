@@ -117,8 +117,8 @@ gr_make(const struct group *gr)
 	/* Create the group line and fill it. */
 	if ((line = malloc(line_size)) == NULL)
 		return (NULL);
-	line_size = snprintf(line, line_size, group_line_format, gr->gr_name,
-	    gr->gr_passwd, (uintmax_t)gr->gr_gid);
+	snprintf(line, line_size, group_line_format, gr->gr_name, gr->gr_passwd,
+	    (uintmax_t)gr->gr_gid);
 	if (gr->gr_mem != NULL)
 		for (ndx = 0; gr->gr_mem[ndx] != NULL; ndx++) {
 			strcat(line, gr->gr_mem[ndx]);

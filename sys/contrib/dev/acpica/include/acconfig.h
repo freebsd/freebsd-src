@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -177,9 +177,9 @@
 
 #define ACPI_MAX_REFERENCE_COUNT        0x800
 
-/* Size of cached memory mapping for system memory operation region */
+/* Default page size for use in mapping memory for operation regions */
 
-#define ACPI_SYSMEM_REGION_WINDOW_SIZE  4096
+#define ACPI_DEFAULT_PAGE_SIZE          4096    /* Must be power of 2 */
 
 /* OwnerId tracking. 8 entries allows for 255 OwnerIds */
 

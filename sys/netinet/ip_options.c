@@ -65,8 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/socketvar.h>
 
-#include <security/mac/mac_framework.h>
-
 static int	ip_dosourceroute = 0;
 SYSCTL_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute, CTLFLAG_RW,
     &ip_dosourceroute, 0, "Enable forwarding source routed IP packets");

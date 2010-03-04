@@ -148,8 +148,7 @@ print_xdr_func_def(const char *name, int pointerp)
 
 
 static void
-pconstdef(def)
-	definition *def;
+pconstdef(definition *def)
 {
 	pdefine(def->def_name, def->def.co);
 }
@@ -205,8 +204,7 @@ pstructdef(definition *def)
 }
 
 static void
-puniondef(def)
-	definition *def;
+puniondef(definition *def)
 {
 	case_list *l;
 	const char *name = def->def_name;
@@ -374,8 +372,7 @@ parglist(proc_list *proc, const char *addargtype)
 }
 
 static void
-penumdef(def)
-	definition *def;
+penumdef(definition *def)
 {
 	const char *name = def->def_name;
 	enumval_list *l;
@@ -406,8 +403,7 @@ penumdef(def)
 }
 
 static void
-ptypedef(def)
-	definition *def;
+ptypedef(definition *def)
 {
 	const char *name = def->def_name;
 	const char *old = def->def.ty.old_type;

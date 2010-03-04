@@ -131,6 +131,8 @@ pmc_intel_initialize(void)
 			nclasses = 3;
 			break;
 		case 0x1A:
+		case 0x1E:	/* Per Intel document 253669-032 9/2009, pages A-2 and A-57 */
+		case 0x1F:	/* Per Intel document 253669-032 9/2009, pages A-2 and A-57 */
 			cputype = PMC_CPU_INTEL_COREI7;
 			nclasses = 3;
 			break;

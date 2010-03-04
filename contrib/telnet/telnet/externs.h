@@ -57,7 +57,7 @@
 #include <errno.h>
 #ifdef	USE_TERMIO
 # ifndef	VINTR
-#  include <sys/termios.h>
+#  include <termios.h>
 # endif
 # define termio termios
 #endif

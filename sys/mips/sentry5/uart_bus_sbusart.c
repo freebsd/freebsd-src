@@ -85,9 +85,9 @@ uart_malta_probe(device_t dev)
 	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
 	sc->sc_class = &uart_ns8250_class;
 	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
-	sc->sc_sysdev->bas.bst = 0;
+	sc->sc_sysdev->bas.bst = mips_bus_space_generic;
 	sc->sc_sysdev->bas.bsh = MIPS_PHYS_TO_KSEG1(SENTRY5_UART1ADR);
-	sc->sc_bas.bst = 0;
+	sc->sc_bas.bst = mips_bus_space_generic;
 	sc->sc_bas.bsh = MIPS_PHYS_TO_KSEG1(SENTRY5_UART1ADR);
 	return(uart_bus_probe(dev, 0, 0, 0, 0));
 }

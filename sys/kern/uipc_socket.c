@@ -773,6 +773,8 @@ soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	if (so->so_options & SO_ACCEPTCONN)
 		return (EOPNOTSUPP);
+
+	CURVNET_SET(so->so_vnet);
 	/*
 	 * If protocol is connection-based, can only connect once.
 	 * Otherwise, if connected, try to disconnect first.  This allows
@@ -788,10 +790,9 @@ soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		 * biting us.
 		 */
 		so->so_error = 0;
-		CURVNET_SET(so->so_vnet);
 		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam, td);
-		CURVNET_RESTORE();
 	}
+	CURVNET_RESTORE();
 
 	return (error);
 }
@@ -970,9 +971,6 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	 * must use a signed comparison of space and resid.  On the other
 	 * hand, a negative resid causes us to loop sending 0-length
 	 * segments to the protocol.
-	 *
-	 * Also check to make sure that MSG_EOR isn't used on SOCK_STREAM
-	 * type sockets since that's an error.
 	 */
 	if (resid < 0) {
 		error = EINVAL;

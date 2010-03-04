@@ -93,7 +93,7 @@
  * This does not reflect the optimal alignment, just the possibility
  * (within reasonable limits). 
  */
-#define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof (t) - 1)) == 0)
+#define	ALIGNED_POINTER(p, t)	((((unsigned long)(p)) & (sizeof (t) - 1)) == 0)
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
@@ -154,10 +154,10 @@
 /*
  * Conversion macros
  */
-#define	mips_round_page(x)	((((unsigned)(x)) + NBPG - 1) & ~(NBPG-1))
-#define	mips_trunc_page(x)	((unsigned)(x) & ~(NBPG-1))
-#define	mips_btop(x)		((unsigned)(x) >> PGSHIFT)
-#define	mips_ptob(x)		((unsigned)(x) << PGSHIFT)
+#define	mips_round_page(x)	((((unsigned long)(x)) + NBPG - 1) & ~(NBPG-1))
+#define	mips_trunc_page(x)	((unsigned long)(x) & ~(NBPG-1))
+#define	mips_btop(x)		((unsigned long)(x) >> PGSHIFT)
+#define	mips_ptob(x)		((unsigned long)(x) << PGSHIFT)
 #define	round_page		mips_round_page
 #define	trunc_page		mips_trunc_page
 #define	atop(x)			((unsigned long)(x) >> PAGE_SHIFT)

@@ -12,6 +12,9 @@ AC_PROG_CC
 # It's a small library - we might as well use a static version of it.
 AC_DISABLE_SHARED
 
+m4_defun([_LT_AC_LANG_CXX_CONFIG], [:])
+m4_defun([_LT_AC_LANG_F77_CONFIG], [:])
+
 AC_PROG_LIBTOOL
 
 # NTP has (so far) been relying on leading-edge autogen.
@@ -39,6 +42,17 @@ case "$ac_cv_cpp_warning" in
     AC_MSG_RESULT([[Enabling NO_OPTION_NAME_WARNINGS as #warning does not work]])
     ;;
 esac
+
+AC_C_INLINE
+
+case "$ac_cv_c_inline" in
+ '')
+    ;;
+ *)
+    AC_DEFINE(HAVE_INLINE,1,[inline keyword or macro available])
+    AC_SUBST(HAVE_INLINE)
+esac
+
 
 # Checks for libraries.
 
@@ -96,14 +110,14 @@ case "$ac_cv_have_ss_family_in_struct_ss$ac_cv_have___ss_family_in_struct_ss" in
 esac
 
 # Checks for library functions.
-AC_FUNC_MEMCMP
+#AC_FUNC_MEMCMP	 dnl HMS: we don't have a memcmp.c to use here, so why bother?
 AC_FUNC_SETVBUF_REVERSED
 AC_TYPE_SIGNAL
 AC_CHECK_FUNCS([alarm])
-AC_CHECK_FUNC(gethostent, , AC_CHECK_LIB(nsl, gethostent, , , -lsocket))
+AC_CHECK_FUNC([gethostent], , AC_SEARCH_LIBS([gethostent], [nsl], , , [-lsocket]))
 AC_CHECK_FUNCS([gettimeofday inet_ntoa memset])
-AC_CHECK_FUNCS(socket, , AC_CHECK_LIB(socket, socket))
-AC_CHECK_FUNCS(sqrt, , AC_CHECK_LIB(m, sqrt))
+AC_CHECK_FUNCS([socket], , AC_SEARCH_LIBS([socket], [socket]))
+AC_CHECK_FUNCS([sqrt], , AC_SEARCH_LIBS([sqrt], [m]))
 AC_CHECK_FUNCS([strrchr])
 
 case "$host" in

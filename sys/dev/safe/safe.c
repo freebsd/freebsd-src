@@ -1902,7 +1902,7 @@ safe_init_board(struct safe_softc *sc)
 {
 	u_int32_t v, dwords;
 
-	v = READ_REG(sc, SAFE_PE_DMACFG);;
+	v = READ_REG(sc, SAFE_PE_DMACFG);
 	v &=~ SAFE_PE_DMACFG_PEMODE;
 	v |= SAFE_PE_DMACFG_FSENA		/* failsafe enable */
 	  |  SAFE_PE_DMACFG_GPRPCI		/* gather ring on PCI */

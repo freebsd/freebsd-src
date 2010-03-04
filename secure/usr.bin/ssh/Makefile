@@ -11,7 +11,10 @@ MLINKS=	ssh.1 slogin.1
 
 SRCS=	ssh.c readconf.c clientloop.c sshtty.c \
 	sshconnect.c sshconnect1.c sshconnect2.c mux.c \
-	gss-genr.c
+	roaming_common.c
+
+# gss-genr.c really belongs in libssh; see src/secure/lib/libssh/Makefile
+SRCS+=	gss-genr.c
 
 DPADD=	${LIBSSH} ${LIBUTIL} ${LIBZ}
 LDADD=	-lssh -lutil -lz

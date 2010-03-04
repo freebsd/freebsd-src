@@ -63,6 +63,7 @@
 #define STE_RX_DMABURST_THRESH	0x14
 #define STE_RX_DMAURG_THRESH	0x15
 #define STE_RX_DMAPOLL_PERIOD	0x16
+#define	STE_COUNTDOWN		0x18
 #define STE_DEBUGCTL		0x1A
 #define STE_ASICCTL		0x30
 #define STE_EEPROM_DATA		0x34
@@ -75,7 +76,6 @@
 #define STE_WAKE_EVENT		0x45
 #define STE_TX_STATUS		0x46
 #define STE_TX_FRAMEID		0x47
-#define STE_COUNTDOWN		0x48
 #define STE_ISR_ACK		0x4A
 #define STE_IMR			0x4C
 #define STE_ISR			0x4E
@@ -92,11 +92,25 @@
 #define STE_MAR1		0x62
 #define STE_MAR2		0x64
 #define STE_MAR3		0x66
-#define STE_STATS		0x68
 
-#define STE_LATE_COLLS  0x75
-#define STE_MULTI_COLLS	0x76
-#define STE_SINGLE_COLLS 0x77	
+#define	STE_STAT_RX_OCTETS_LO	0x68
+#define	STE_STAT_RX_OCTETS_HI	0x6A
+#define	STE_STAT_TX_OCTETS_LO	0x6C
+#define	STE_STAT_TX_OCTETS_HI	0x6E
+#define	STE_STAT_TX_FRAMES	0x70
+#define	STE_STAT_RX_FRAMES	0x72
+#define	STE_STAT_CARRIER_ERR	0x74
+#define	STE_STAT_LATE_COLLS	0x75
+#define	STE_STAT_MULTI_COLLS	0x76
+#define	STE_STAT_SINGLE_COLLS	0x77
+#define	STE_STAT_TX_DEFER	0x78
+#define	STE_STAT_RX_LOST	0x79
+#define	STE_STAT_TX_EXDEFER	0x7A
+#define	STE_STAT_TX_ABORT	0x7B
+#define	STE_STAT_TX_BCAST	0x7C
+#define	STE_STAT_RX_BCAST	0x7D
+#define	STE_STAT_TX_MCAST	0x7E
+#define	STE_STAT_RX_MCAST	0x7F
 
 #define STE_DMACTL_RXDMA_STOPPED	0x00000001
 #define STE_DMACTL_TXDMA_CMPREQ		0x00000002
@@ -199,18 +213,6 @@
 #define STE_ASICCTL_SOFTINTR		0x02000000
 #define STE_ASICCTL_RESET_BUSY		0x04000000
 
-#define STE_ASICCTL1_GLOBAL_RESET	0x0001
-#define STE_ASICCTL1_RX_RESET		0x0002
-#define STE_ASICCTL1_TX_RESET		0x0004
-#define STE_ASICCTL1_DMA_RESET		0x0008
-#define STE_ASICCTL1_FIFO_RESET		0x0010
-#define STE_ASICCTL1_NETWORK_RESET	0x0020
-#define STE_ASICCTL1_HOST_RESET		0x0040
-#define STE_ASICCTL1_AUTOINIT_RESET	0x0080
-#define STE_ASICCTL1_EXTRESET_RESET	0x0100
-#define STE_ASICCTL1_SOFTINTR		0x0200
-#define STE_ASICCTL1_RESET_BUSY		0x0400
-
 #define STE_EECTL_ADDR			0x00FF
 #define STE_EECTL_OPCODE		0x0300
 #define STE_EECTL_BUSY			0x1000
@@ -253,6 +255,11 @@
 #define STE_TXSTATUS_TXINTR_REQ		0x40
 #define STE_TXSTATUS_TXDONE		0x80
 
+#define	STE_ERR_BITS			"\20"				\
+					"\2RECLAIM\3STSOFLOW"		\
+					"\4EXCESSCOLLS\5UNDERRUN"	\
+					"\6INTREQ\7DONE"
+
 #define STE_ISRACK_INTLATCH		0x0001
 #define STE_ISRACK_HOSTERR		0x0002
 #define STE_ISRACK_TX_DONE		0x0004
@@ -276,10 +283,10 @@
 #define STE_IMR_TX_DMADONE		0x0200
 #define STE_IMR_RX_DMADONE		0x0400
 
-#define STE_INTRS					\
+#define STE_INTRS				\
 	(STE_IMR_RX_DMADONE|STE_IMR_TX_DMADONE|	\
-	STE_IMR_TX_DONE|STE_IMR_HOSTERR| \
-        STE_IMR_LINKEVENT)
+	STE_IMR_TX_DONE|STE_IMR_SOFTINTR|	\
+	STE_IMR_HOSTERR)
 
 #define STE_ISR_INTLATCH		0x0001
 #define STE_ISR_HOSTERR			0x0002
@@ -343,6 +350,13 @@
 #define STE_PHYCTL_SPEEDSTAT		0x40
 #define STE_PHYCTL_LINKSTAT		0x80
 
+#define	STE_TIMER_TICKS			32
+#define	STE_TIMER_USECS(x)		((x * 10) / STE_TIMER_TICKS)
+
+#define	STE_IM_RX_TIMER_MIN		0
+#define	STE_IM_RX_TIMER_MAX		209712
+#define	STE_IM_RX_TIMER_DEFAULT		150
+
 /*
  * EEPROM offsets.
  */
@@ -384,49 +398,63 @@
 #define STE_PME_EN			0x0010
 #define STE_PME_STATUS			0x8000
 
-
-struct ste_stats {
-	u_int32_t		ste_rx_bytes;
-	u_int32_t		ste_tx_bytes;
-	u_int16_t		ste_tx_frames;
-	u_int16_t		ste_rx_frames;
-	u_int8_t		ste_carrsense_errs;
-	u_int8_t		ste_late_colls;
-	u_int8_t		ste_multi_colls;
-	u_int8_t		ste_single_colls;
-	u_int8_t		ste_tx_frames_defered;
-	u_int8_t		ste_rx_lost_frames;
-	u_int8_t		ste_tx_excess_defers;
-	u_int8_t		ste_tx_abort_excess_colls;
-	u_int8_t		ste_tx_bcast_frames;
-	u_int8_t		ste_rx_bcast_frames;
-	u_int8_t		ste_tx_mcast_frames;
-	u_int8_t		ste_rx_mcast_frames;
+struct ste_hw_stats {
+	uint64_t		rx_bytes;
+	uint32_t		rx_frames;
+	uint32_t		rx_bcast_frames;
+	uint32_t		rx_mcast_frames;
+	uint32_t		rx_lost_frames;
+	uint64_t		tx_bytes;
+	uint32_t		tx_frames;
+	uint32_t		tx_bcast_frames;
+	uint32_t		tx_mcast_frames;
+	uint32_t		tx_carrsense_errs;
+	uint32_t		tx_single_colls;
+	uint32_t		tx_multi_colls;
+	uint32_t		tx_late_colls;
+	uint32_t		tx_frames_defered;
+	uint32_t		tx_excess_defers;
+	uint32_t		tx_abort;
 };
 
 struct ste_frag {
-	u_int32_t		ste_addr;
-	u_int32_t		ste_len;
+	uint32_t		ste_addr;
+	uint32_t		ste_len;
 };
 
 #define STE_FRAG_LAST		0x80000000
 #define STE_FRAG_LEN		0x00001FFF
 
+/*
+ * A TFD is 16 to 512 bytes in length which means it can have up to 126
+ * fragments for a single Tx frame. Since most frames used in stack have
+ * 3-4 fragments supporting 8 fragments would be enough for normal
+ * operation. If we encounter more than 8 fragments we'll collapse them
+ * into a frame that has less than or equal to 8 fragments. Each buffer
+ * address of a fragment has no alignment limitation.
+ */
 #define STE_MAXFRAGS	8
 
 struct ste_desc {
-	u_int32_t		ste_next;
-	u_int32_t		ste_ctl;
+	uint32_t		ste_next;
+	uint32_t		ste_ctl;
 	struct ste_frag		ste_frags[STE_MAXFRAGS];
 };
 
+/*
+ * A RFD has the same structure of TFD which in turn means hardware
+ * supports scatter operation in Rx buffer. Since we just allocate Rx
+ * buffer with m_getcl(9) there is no fragmentation at all so use
+ * single fragment for RFD.
+ */
 struct ste_desc_onefrag {
-	u_int32_t		ste_next;
-	u_int32_t		ste_status;
+	uint32_t		ste_next;
+	uint32_t		ste_status;
 	struct ste_frag		ste_frag;
 };
 
 #define STE_TXCTL_WORDALIGN	0x00000003
+#define STE_TXCTL_ALIGN_DIS	0x00000001
 #define STE_TXCTL_FRAMEID	0x000003FC
 #define STE_TXCTL_NOCRC		0x00002000
 #define STE_TXCTL_TXINTR	0x00008000
@@ -445,87 +473,118 @@ struct ste_desc_onefrag {
 #define STE_RXSTAT_DMA_OFLOW	0x01000000
 #define STE_RXATAT_ONEBUF	0x10000000
 
+#define STE_RX_BYTES(x)		((x) & STE_RXSTAT_FRAMELEN)
+
 /*
  * register space access macros
  */
 #define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->ste_btag, sc->ste_bhandle, reg, val)
+	bus_write_4((sc)->ste_res, reg, val)
 #define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->ste_btag, sc->ste_bhandle, reg, val)
+	bus_write_2((sc)->ste_res, reg, val)
 #define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->ste_btag, sc->ste_bhandle, reg, val)
+	bus_write_1((sc)->ste_res, reg, val)
 
 #define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->ste_btag, sc->ste_bhandle, reg)
+	bus_read_4((sc)->ste_res, reg)
 #define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->ste_btag, sc->ste_bhandle, reg)
+	bus_read_2((sc)->ste_res, reg)
 #define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->ste_btag, sc->ste_bhandle, reg)
+	bus_read_1((sc)->ste_res, reg)
 
+#define	STE_DESC_ALIGN		8
+#define STE_RX_LIST_CNT		128
+#define STE_TX_LIST_CNT		128
+#define	STE_RX_LIST_SZ		\
+	(sizeof(struct ste_desc_onefrag) * STE_RX_LIST_CNT)
+#define	STE_TX_LIST_SZ		\
+	(sizeof(struct ste_desc) * STE_TX_LIST_CNT)
+#define	STE_ADDR_LO(x)		((uint64_t)(x) & 0xFFFFFFFF)
+#define	STE_ADDR_HI(x)		((uint64_t)(x) >> 32)
+
+/*
+ * Since Tx status can hold up to 31 status bytes we should
+ * check Tx status before controller fills it up. Otherwise
+ * Tx MAC stalls.
+ */
+#define	STE_TX_INTR_FRAMES	16
+#define	STE_TX_TIMEOUT		5
 #define STE_TIMEOUT		1000
 #define STE_MIN_FRAMELEN	60
 #define STE_PACKET_SIZE		1536
-#define ETHER_ALIGN		2
-#define STE_RX_LIST_CNT		64
-#define STE_TX_LIST_CNT		128
 #define STE_INC(x, y)		(x) = (x + 1) % y
+#define STE_DEC(x, y)		(x) = ((x) + ((y) - 1)) % (y)
 #define STE_NEXT(x, y)		(x + 1) % y
 
 struct ste_type {
-	u_int16_t		ste_vid;
-	u_int16_t		ste_did;
+	uint16_t		ste_vid;
+	uint16_t		ste_did;
 	char			*ste_name;
 };
 
 struct ste_list_data {
-	struct ste_desc_onefrag	ste_rx_list[STE_RX_LIST_CNT];
-	struct ste_desc		ste_tx_list[STE_TX_LIST_CNT];
+	struct ste_desc_onefrag	*ste_rx_list;
+	bus_addr_t		ste_rx_list_paddr;
+	struct ste_desc		*ste_tx_list;
+	bus_addr_t		ste_tx_list_paddr;
 };
 
 struct ste_chain {
 	struct ste_desc		*ste_ptr;
 	struct mbuf		*ste_mbuf;
 	struct ste_chain	*ste_next;
-	u_int32_t		ste_phys;
+	uint32_t		ste_phys;
+	bus_dmamap_t		ste_map;
 };
 
 struct ste_chain_onefrag {
 	struct ste_desc_onefrag	*ste_ptr;
 	struct mbuf		*ste_mbuf;
 	struct ste_chain_onefrag	*ste_next;
+	bus_dmamap_t		ste_map;
 };
 
 struct ste_chain_data {
+	bus_dma_tag_t		ste_parent_tag;
+	bus_dma_tag_t		ste_rx_tag;
+	bus_dma_tag_t		ste_tx_tag;
+	bus_dma_tag_t		ste_rx_list_tag;
+	bus_dmamap_t		ste_rx_list_map;
+	bus_dma_tag_t		ste_tx_list_tag;
+	bus_dmamap_t		ste_tx_list_map;
+	bus_dmamap_t		ste_rx_sparemap;
 	struct ste_chain_onefrag ste_rx_chain[STE_RX_LIST_CNT];
-	struct ste_chain	 ste_tx_chain[STE_TX_LIST_CNT];
+	struct ste_chain	ste_tx_chain[STE_TX_LIST_CNT];
 	struct ste_chain_onefrag *ste_rx_head;
-
+	struct ste_chain	*ste_last_tx;
 	int			ste_tx_prod;
 	int			ste_tx_cons;
+	int			ste_tx_cnt;
 };
 
 struct ste_softc {
 	struct ifnet		*ste_ifp;
-	bus_space_tag_t		ste_btag;
-	bus_space_handle_t	ste_bhandle;
 	struct resource		*ste_res;
+	int			ste_res_id;
+	int			ste_res_type;
 	struct resource		*ste_irq;
 	void			*ste_intrhand;
 	struct ste_type		*ste_info;
 	device_t		ste_miibus;
 	device_t		ste_dev;
 	int			ste_tx_thresh;
-	u_int8_t		ste_link;
+	int			ste_flags;
+#define	STE_FLAG_ONE_PHY	0x0001
+#define	STE_FLAG_LINK		0x8000
 	int			ste_if_flags;
-	struct ste_chain	*ste_tx_prev;
-	struct ste_list_data	*ste_ldata;
+	int			ste_timer;
+	int			ste_int_rx_act;
+	int			ste_int_rx_mod;
+	struct ste_list_data	ste_ldata;
 	struct ste_chain_data	ste_cdata;
-	struct callout		ste_stat_callout;
+	struct callout		ste_callout;
+	struct ste_hw_stats	ste_stats;
 	struct mtx		ste_mtx;
-	u_int8_t		ste_one_phy;
-#ifdef DEVICE_POLLING
-	int			rxcycles;
-#endif
 };
 
 #define	STE_LOCK(_sc)		mtx_lock(&(_sc)->ste_mtx)
@@ -533,12 +592,12 @@ struct ste_softc {
 #define	STE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->ste_mtx, MA_OWNED)
 
 struct ste_mii_frame {
-	u_int8_t		mii_stdelim;
-	u_int8_t		mii_opcode;
-	u_int8_t		mii_phyaddr;
-	u_int8_t		mii_regaddr;
-	u_int8_t		mii_turnaround;
-	u_int16_t		mii_data;
+	uint8_t			mii_stdelim;
+	uint8_t			mii_opcode;
+	uint8_t			mii_phyaddr;
+	uint8_t			mii_regaddr;
+	uint8_t			mii_turnaround;
+	uint16_t		mii_data;
 };
 
 /*

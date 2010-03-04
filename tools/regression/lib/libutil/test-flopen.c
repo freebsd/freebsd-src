@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2007-2009 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,18 +23,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/signal.h>
 #include <sys/types.h>
 #include <sys/fcntl.h>
 
 #include <errno.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -163,21 +161,18 @@ test_flopen_lock_child(void)
 	if (fd1 < 0) {
 		result = strerror(errno);
 	} else {
-		if ((pid = fork()) == 0) {
+		pid = fork();
+		if (pid == -1) {
+			result = strerror(errno);
+		} else if (pid == 0) {
 			select(0, 0, 0, 0, 0);
 			_exit(0);
 		}
 		close(fd1);
-		fd2 = -42;
-		if (vfork() == 0) {
-			fd2 = flopen(fn, O_RDWR|O_NONBLOCK);
-			close(fd2);
-			_exit(0);
-		}
-		if (fd2 == -42)
-			result = "vfork() doesn't work as expected";
-		if (fd2 >= 0)
+		if ((fd2 = flopen(fn, O_RDWR|O_NONBLOCK)) != -1) {
 			result = "second open succeeded";
+			close(fd2);
+		}
 		kill(pid, SIGINT);
 	}
 	unlink(fn);

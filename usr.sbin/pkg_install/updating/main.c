@@ -10,7 +10,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+
+#include <sys/param.h>
+#include <stdio.h>
 #include <errno.h>
+#include <fetch.h>
 #include <limits.h>
 #include <sysexits.h>
 #include <getopt.h>
@@ -115,10 +119,10 @@ main(int argc, char *argv[])
 	if (argc != 0) {
 		pflag = 1;
 		while (*argv) {
-			if((curr = (INSTALLEDPORT *)
+			if ((curr = (INSTALLEDPORT *)
 				malloc(sizeof(INSTALLEDPORT))) == NULL)
 				(void)exit(EXIT_FAILURE);
-			strlcpy (curr->name, *argv, strlen(*argv) + 1);
+			strlcpy(curr->name, *argv, strlen(*argv) + 1);
 			curr->next = head;
 			head = curr;
 			(void)*argv++;
@@ -131,22 +135,22 @@ main(int argc, char *argv[])
 	 */
 	if (pflag == 0) {
 		/* Open /var/db/pkg and search for all installed ports. */
-		if((dir = opendir(pkgdbpath)) != NULL) {
+		if ((dir = opendir(pkgdbpath)) != NULL) {
 			while ((pkgdbdir = readdir(dir)) != NULL) {
 				if (strcmp(pkgdbdir->d_name, ".") != 0 && 
-					strcmp(pkgdbdir->d_name, "..") !=0) {
+					strcmp(pkgdbdir->d_name, "..") != 0) {
 
 					/* Create path to +CONTENTS file for each installed port */
 					n = strlcpy(tmp_file, pkgdbpath, strlen(pkgdbpath)+1);
 					n = strlcpy(tmp_file + n, "/", sizeof(tmp_file) - n);
 					n = strlcat(tmp_file + n, pkgdbdir->d_name,
 						sizeof(tmp_file) - n);
-					if(stat(tmp_file, &attribute) == -1) {
+					if (stat(tmp_file, &attribute) == -1) {
 						fprintf(stderr, "can't open %s: %s\n",
 							tmp_file, strerror(errno));
 						return EXIT_FAILURE;
 					}
-					if(attribute.st_mode & S_IFREG)
+					if (attribute.st_mode & S_IFREG)
 						continue;
 					(void)strlcat(tmp_file + n, "/",
 						sizeof(tmp_file) - n);
@@ -155,7 +159,7 @@ main(int argc, char *argv[])
 
 					/* Open +CONTENT file */
 					fd = fopen(tmp_file, "r");
-					if(fd == NULL) {
+					if (fd == NULL) {
 						fprintf(stderr, "warning: can't open %s: %s\n",
 						tmp_file, strerror(errno));
 						continue;
@@ -165,14 +169,14 @@ main(int argc, char *argv[])
 					 * Parses +CONTENT for ORIGIN line and
 					 * put element into linked list.
 					 */
-					while(fgets(originline, maxcharperline, fd) != NULL) {
+					while (fgets(originline, maxcharperline, fd) != NULL) {
 						tmpline1 = strstr(originline, origin);
-						if( tmpline1 != NULL ) {
+						if (tmpline1 != NULL) {
 							/* Tmp variable to store port name. */
 							char *pname;
 							pname = strrchr(originline, (int)':');
 							pname++;
-							if((curr = (INSTALLEDPORT *)
+							if ((curr = (INSTALLEDPORT *)
 								malloc(sizeof(INSTALLEDPORT))) == NULL)
 								(void)exit(EXIT_FAILURE);
 							if (pname[strlen(pname) - 1] == '\n')
@@ -183,7 +187,7 @@ main(int argc, char *argv[])
 						}
 					}
 					
-					if(ferror(fd)) {
+					if (ferror(fd)) {
 						fprintf(stderr, "error reading input\n");
 						exit(EX_IOERR);
 					}
@@ -195,32 +199,41 @@ main(int argc, char *argv[])
 		} 
 	}
 
-	/* Open UPDATING file */
-	fd = fopen(updatingfile, "r");
-	if(fd == NULL) {
+	/* Fetch UPDATING file if needed and open file */
+	if (isURL(updatingfile)) {
+		if ((fd = fetchGetURL(updatingfile, "")) == NULL) {
+			fprintf(stderr, "Error: Unable to get %s: %s\n",
+				updatingfile, fetchLastErrString);
+			exit(EX_UNAVAILABLE);
+		}
+	}
+	else {
+		fd = fopen(updatingfile, "r");
+	}
+	if (fd == NULL) {
 		fprintf(stderr, "can't open %s: %s\n",
-		updatingfile, strerror(errno));
+			updatingfile, strerror(errno));
 		exit(EX_UNAVAILABLE);
 	}
 
 	/* Parse opened UPDATING file. */
-	while(fgets(updatingline, maxcharperline, fd) != NULL) {
+	while (fgets(updatingline, maxcharperline, fd) != NULL) {
 		/* No entry is found so far */
 		if (found == 0) {
 			/* Search for AFFECTS line to parse the portname. */
 			tmpline1 = strstr(updatingline, affects);
 
-			if( tmpline1 != NULL ) {
+			if (tmpline1 != NULL) {
 				curr = head; 
-				while(curr != NULL) {
+				while (curr != NULL) {
 					tmpline2 = strstr(updatingline, curr->name);
-					if( tmpline2 != NULL )
+					if (tmpline2 != NULL)
 						break;
 					curr = curr->next;
 				}
-				if( tmpline2 != NULL ) {
+				if (tmpline2 != NULL) {
 					/* If -d is set, check if entry is newer than the date. */
-					if ( (dflag == 1) && (strncmp(dateline, date, 8) < 0))
+					if ((dflag == 1) && (strncmp(dateline, date, 8) < 0))
 						continue;
 					printf("%s", dateline);
 					printf("%s", updatingline);
@@ -231,7 +244,7 @@ main(int argc, char *argv[])
 		/* Search for the end of an entry, if not found print the line. */
 		else {
 			tmpline1 = strstr(updatingline, end);
-			if( tmpline1 == NULL )
+			if (tmpline1 == NULL)
 				printf("%s", updatingline);
 			else {
 				linelength = strlen(updatingline);
@@ -245,7 +258,7 @@ main(int argc, char *argv[])
 		dateline = strdup(updatingline);
 	}
 
-	if(ferror(fd)) {
+	if (ferror(fd)) {
 		fprintf(stderr, "error reading input\n");
 		exit(EX_IOERR);
 	}

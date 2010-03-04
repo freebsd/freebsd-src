@@ -111,8 +111,10 @@ DEFINE_TEST(test_read_disk)
 	if (archive_read_disk_set_standard_lookup(a) != ARCHIVE_OK) {
 		skipping("standard uname/gname lookup");
 	} else {
-#if defined(__CYGWIN__)
-		skipping("standard uname/gname lookup; typically no user with uid=0 on cygwin platform");
+#if defined(__CYGWIN__) || defined(__HAIKU__)
+		/* Some platforms don't have predictable names for
+		 * uid=0, so we skip this part of the test. */
+		skipping("standard uname/gname lookup");
 		i = 0;
 		p = zero_groups[0]; /* avoid unused warnings */
 #else

@@ -188,4 +188,107 @@ struct usb_cdc_notification {
 #define	UCDC_MDM_PARITY_ERR		0x20
 #define	UCDC_MDM_OVERRUN_ERR		0x40
 
+/*
+ * Network Control Model, NCM16 + NCM32, protocol definitions
+ */
+struct usb_ncm16_hdr {
+	uDWord	dwSignature;
+	uWord	wHeaderLength;
+	uWord	wSequence;
+	uWord	wBlockLength;
+	uWord	wDptIndex;
+} __packed;
+
+struct usb_ncm16_dp {
+	uWord	wFrameIndex;
+	uWord	wFrameLength;
+} __packed;
+
+struct usb_ncm16_dpt {
+	uDWord	dwSignature;
+	uWord	wLength;
+	uWord	wNextNdpIndex;
+	struct usb_ncm16_dp dp[0];
+} __packed;
+
+struct usb_ncm32_hdr {
+	uDWord	dwSignature;
+	uWord	wHeaderLength;
+	uWord	wSequence;
+	uDWord	dwBlockLength;
+	uDWord	dwDptIndex;
+} __packed;
+
+struct usb_ncm32_dp {
+	uDWord	dwFrameIndex;
+	uDWord	dwFrameLength;
+} __packed;
+
+struct usb_ncm32_dpt {
+	uDWord	dwSignature;
+	uWord	wLength;
+	uWord	wReserved6;
+	uDWord	dwNextNdpIndex;
+	uDWord	dwReserved12;
+	struct usb_ncm32_dp dp[0];
+} __packed;
+
+/* Communications interface class specific descriptors */
+
+#define	UCDC_NCM_FUNC_DESC_SUBTYPE	0x1A
+
+struct usb_ncm_func_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bcdNcmVersion[2];
+	uByte	bmNetworkCapabilities;
+#define	UCDC_NCM_CAP_FILTER	0x01
+#define	UCDC_NCM_CAP_MAC_ADDR	0x02
+#define	UCDC_NCM_CAP_ENCAP	0x04
+#define	UCDC_NCM_CAP_MAX_DATA	0x08
+#define	UCDC_NCM_CAP_CRCMODE	0x10
+} __packed;
+
+/* Communications interface specific class request codes */
+
+#define	UCDC_NCM_SET_ETHERNET_MULTICAST_FILTERS			0x40
+#define	UCDC_NCM_SET_ETHERNET_POWER_MGMT_PATTERN_FILTER		0x41
+#define	UCDC_NCM_GET_ETHERNET_POWER_MGMT_PATTERN_FILTER		0x42
+#define	UCDC_NCM_SET_ETHERNET_PACKET_FILTER			0x43
+#define	UCDC_NCM_GET_ETHERNET_STATISTIC				0x44
+#define	UCDC_NCM_GET_NTB_PARAMETERS				0x80
+#define	UCDC_NCM_GET_NET_ADDRESS				0x81
+#define	UCDC_NCM_SET_NET_ADDRESS				0x82
+#define	UCDC_NCM_GET_NTB_FORMAT					0x83
+#define	UCDC_NCM_SET_NTB_FORMAT					0x84
+#define	UCDC_NCM_GET_NTB_INPUT_SIZE				0x85
+#define	UCDC_NCM_SET_NTB_INPUT_SIZE				0x86
+#define	UCDC_NCM_GET_MAX_DATAGRAM_SIZE				0x87
+#define	UCDC_NCM_SET_MAX_DATAGRAM_SIZE				0x88
+#define	UCDC_NCM_GET_CRC_MODE					0x89
+#define	UCDC_NCM_SET_CRC_MODE					0x8A
+
+struct usb_ncm_parameters {
+	uWord	wLength;
+	uWord	bmNtbFormatsSupported;
+#define	UCDC_NCM_FORMAT_NTB16	0x0001
+#define	UCDC_NCM_FORMAT_NTB32	0x0002
+	uDWord	dwNtbInMaxSize;
+	uWord	wNdpInDivisor;
+	uWord	wNdpInPayloadRemainder;
+	uWord	wNdpInAlignment;
+	uWord	wReserved14;
+	uDWord	dwNtbOutMaxSize;
+	uWord	wNdpOutDivisor;
+	uWord	wNdpOutPayloadRemainder;
+	uWord	wNdpOutAlignment;
+	uWord	wReserved26;
+} __packed;
+
+/* Communications interface specific class notification codes */
+#define	UCDC_NCM_NOTIF_NETWORK_CONNECTION	0x00
+#define	UCDC_NCM_NOTIF_RESPONSE_AVAILABLE	0x01
+#define	UCDC_NCM_NOTIF_CONNECTION_SPEED_CHANGE	0x2A
+
 #endif					/* _USB_CDC_H_ */

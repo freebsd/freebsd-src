@@ -47,7 +47,7 @@ extern void icache_inval(void);
 
 volatile void *ap_pcpu;
 
-uint32_t
+uintptr_t
 cpudep_ap_bootstrap()
 {
 	uint32_t msr, sp, csr;
@@ -77,4 +77,9 @@ cpudep_ap_bootstrap()
 	/* XXX shouldn't the pcb_sp be checked/forced for alignment here?? */
 
 	return (sp);
+}
+
+void
+cpudep_ap_setup()
+{
 }

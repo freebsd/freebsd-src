@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -460,52 +460,99 @@ AcpiNsExecModuleCode (
     ACPI_OPERAND_OBJECT     *MethodObj,
     ACPI_EVALUATE_INFO      *Info)
 {
-    ACPI_OPERAND_OBJECT     *RootObj;
+    ACPI_OPERAND_OBJECT     *ParentObj;
+    ACPI_NAMESPACE_NODE     *ParentNode;
+    ACPI_OBJECT_TYPE        Type;
     ACPI_STATUS             Status;
 
 
     ACPI_FUNCTION_TRACE (NsExecModuleCode);
 
 
+    /*
+     * Get the parent node. We cheat by using the NextObject field
+     * of the method object descriptor.
+     */
+    ParentNode = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE,
+                    MethodObj->Method.NextObject);
+    Type = AcpiNsGetType (ParentNode);
+
+    /*
+     * Get the region handler and save it in the method object. We may need
+     * this if an operation region declaration causes a _REG method to be run.
+     *
+     * We can't do this in AcpiPsLinkModuleCode because
+     * AcpiGbl_RootNode->Object is NULL at PASS1.
+     */
+    if ((Type == ACPI_TYPE_DEVICE) && ParentNode->Object)
+    {
+        MethodObj->Method.Extra.Handler =
+            ParentNode->Object->Device.Handler;
+    }
+
+    /* Must clear NextObject (AcpiNsAttachObject needs the field) */
+
+    MethodObj->Method.NextObject = NULL;
+
     /* Initialize the evaluation information block */
 
     ACPI_MEMSET (Info, 0, sizeof (ACPI_EVALUATE_INFO));
-    Info->PrefixNode = AcpiGbl_RootNode;
+    Info->PrefixNode = ParentNode;
 
     /*
-     * Get the currently attached root object. Add a reference, because the
+     * Get the currently attached parent object. Add a reference, because the
      * ref count will be decreased when the method object is installed to
-     * the root node.
+     * the parent node.
      */
-    RootObj = AcpiNsGetAttachedObject (AcpiGbl_RootNode);
-    AcpiUtAddReference (RootObj);
+    ParentObj = AcpiNsGetAttachedObject (ParentNode);
+    if (ParentObj)
+    {
+        AcpiUtAddReference (ParentObj);
+    }
 
-    /* Install the method (module-level code) in the root node */
+    /* Install the method (module-level code) in the parent node */
 
-    Status = AcpiNsAttachObject (AcpiGbl_RootNode, MethodObj,
+    Status = AcpiNsAttachObject (ParentNode, MethodObj,
                 ACPI_TYPE_METHOD);
     if (ACPI_FAILURE (Status))
     {
         goto Exit;
     }
 
-    /* Execute the root node as a control method */
+    /* Execute the parent node as a control method */
 
     Status = AcpiNsEvaluate (Info);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "Executed module-level code at %p\n",
         MethodObj->Method.AmlStart));
 
+    /* Delete a possible implicit return value (in slack mode) */
+
+    if (Info->ReturnObject)
+    {
+        AcpiUtRemoveReference (Info->ReturnObject);
+    }
+
     /* Detach the temporary method object */
 
-    AcpiNsDetachObject (AcpiGbl_RootNode);
+    AcpiNsDetachObject (ParentNode);
 
-    /* Restore the original root object */
+    /* Restore the original parent object */
 
-    Status = AcpiNsAttachObject (AcpiGbl_RootNode, RootObj, ACPI_TYPE_DEVICE);
+    if (ParentObj)
+    {
+        Status = AcpiNsAttachObject (ParentNode, ParentObj, Type);
+    }
+    else
+    {
+        ParentNode->Type = (UINT8) Type;
+    }
 
 Exit:
-    AcpiUtRemoveReference (RootObj);
+    if (ParentObj)
+    {
+        AcpiUtRemoveReference (ParentObj);
+    }
     return_VOID;
 }
 

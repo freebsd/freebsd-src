@@ -80,6 +80,7 @@
 #define		listen				_listen
 #define		nanosleep			_nanosleep
 #define		open				_open
+#define		openat				_openat
 #define		poll				_poll
 #define		pthread_atfork			_pthread_atfork
 #define		pthread_attr_destroy		_pthread_attr_destroy

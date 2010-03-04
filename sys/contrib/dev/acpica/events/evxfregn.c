@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -171,7 +171,7 @@ AcpiInstallAddressSpaceHandler (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsMapHandleToNode (Device);
+    Node = AcpiNsValidateHandle (Device);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
@@ -244,7 +244,7 @@ AcpiRemoveAddressSpaceHandler (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsMapHandleToNode (Device);
+    Node = AcpiNsValidateHandle (Device);
     if (!Node ||
         ((Node->Type != ACPI_TYPE_DEVICE)    &&
          (Node->Type != ACPI_TYPE_PROCESSOR) &&

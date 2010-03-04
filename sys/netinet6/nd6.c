@@ -439,31 +439,27 @@ skip1:
 void
 nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 {
+	int canceled;
+
 	if (tick < 0) {
 		ln->la_expire = 0;
 		ln->ln_ntick = 0;
-		callout_stop(&ln->ln_timer_ch);
-		/*
-		 * XXX - do we know that there is
-		 * callout installed? i.e. are we 
-		 * guaranteed that we're not dropping
-		 * a reference that we did not add?
-		 * KMM 
-		 */
-		LLE_REMREF(ln);
+		canceled = callout_stop(&ln->ln_timer_ch);
 	} else {
 		ln->la_expire = time_second + tick / hz;
 		LLE_ADDREF(ln);
 		if (tick > INT_MAX) {
 			ln->ln_ntick = tick - INT_MAX;
-			callout_reset(&ln->ln_timer_ch, INT_MAX,
+			canceled = callout_reset(&ln->ln_timer_ch, INT_MAX,
 			    nd6_llinfo_timer, ln);
 		} else {
 			ln->ln_ntick = 0;
-			callout_reset(&ln->ln_timer_ch, tick,
+			canceled = callout_reset(&ln->ln_timer_ch, tick,
 			    nd6_llinfo_timer, ln);
 		}
 	}
+	if (canceled)
+		LLE_REMREF(ln);
 }
 
 void
@@ -507,12 +503,13 @@ nd6_llinfo_timer(void *arg)
 
 	ndi = ND_IFINFO(ifp);
 	dst = &L3_ADDR_SIN6(ln)->sin6_addr;
-	if ((ln->la_flags & LLE_STATIC) || (ln->la_expire > time_second)) {
+	if (ln->la_flags & LLE_STATIC) {
 		goto done;
 	}
 
 	if (ln->la_flags & LLE_DELETED) {
 		(void)nd6_free(ln, 0);
+		ln = NULL;
 		goto done;
 	}
 
@@ -581,10 +578,10 @@ nd6_llinfo_timer(void *arg)
 		}
 		break;
 	}
-	CURVNET_RESTORE();
 done:
 	if (ln != NULL)
 		LLE_FREE(ln);
+	CURVNET_RESTORE();
 }
 
 
@@ -767,22 +764,25 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 		 */
 		if (!IFA6_IS_DEPRECATED(it6))
 		    public_ifa6 = it6;
+
+		if (public_ifa6 != NULL)
+			ifa_ref(&public_ifa6->ia_ifa);
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	if (public_ifa6 != NULL) {
 		int e;
 
 		if ((e = in6_tmpifadd(public_ifa6, 0, 0)) != 0) {
-			IF_ADDR_UNLOCK(ifp);
+			ifa_free(&public_ifa6->ia_ifa);
 			log(LOG_NOTICE, "regen_tmpaddr: failed to create a new"
 			    " tmp addr,errno=%d\n", e);
 			return (-1);
 		}
-		IF_ADDR_UNLOCK(ifp);
+		ifa_free(&public_ifa6->ia_ifa);
 		return (0);
 	}
 
-	IF_ADDR_UNLOCK(ifp);
 	return (-1);
 }
 
@@ -938,8 +938,28 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 		if (pr->ndpr_ifp != ifp)
 			continue;
 
-		if (!(pr->ndpr_stateflags & NDPRF_ONLINK))
-			continue;
+		if (!(pr->ndpr_stateflags & NDPRF_ONLINK)) {
+			struct rtentry *rt;
+			rt = rtalloc1((struct sockaddr *)&pr->ndpr_prefix, 0, 0);
+			if (rt == NULL)
+				continue;
+			/*
+			 * This is the case where multiple interfaces
+			 * have the same prefix, but only one is installed 
+			 * into the routing table and that prefix entry
+			 * is not the one being examined here. In the case
+			 * where RADIX_MPATH is enabled, multiple route
+			 * entries (of the same rt_key value) will be 
+			 * installed because the interface addresses all
+			 * differ.
+			 */
+			if (!IN6_ARE_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
+			       &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr)) {
+				RTFREE_LOCKED(rt);
+				continue;
+			}
+			RTFREE_LOCKED(rt);
+		}
 
 		if (IN6_ARE_MASKED_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
 		    &addr->sin6_addr, &pr->ndpr_mask))
@@ -1047,6 +1067,9 @@ nd6_free(struct llentry *ln, int gc)
 			else
 				nd6_llinfo_settimer(ln, (long)V_nd6_gctimer * hz);
 			splx(s);
+			LLE_WLOCK(ln);
+			LLE_REMREF(ln);
+			LLE_WUNLOCK(ln);
 			return (LIST_NEXT(ln, lle_next));
 		}
 

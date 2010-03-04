@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -457,6 +457,9 @@ typedef struct recvflags {
 
 	/* byteswap flag is used internally; callers need not specify */
 	int byteswap : 1;
+
+	/* do not mount file systems as they are extracted (private) */
+	int nomount : 1;
 } recvflags_t;
 
 extern int zfs_receive(libzfs_handle_t *, const char *, recvflags_t,

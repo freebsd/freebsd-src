@@ -141,7 +141,7 @@ static void		acpi_wmi_notify_handler(ACPI_HANDLE h, UINT32 notify,
 			    void *context);
 static ACPI_STATUS	acpi_wmi_ec_handler(UINT32 function,
 			    ACPI_PHYSICAL_ADDRESS address, UINT32 width,
-			    ACPI_INTEGER *value, void *context,
+			    UINT64 *value, void *context,
 			    void *region_context);
 /* helpers */
 static ACPI_STATUS	acpi_wmi_read_wdg_blocks(ACPI_HANDLE h);
@@ -646,12 +646,12 @@ acpi_wmi_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
  */
 static ACPI_STATUS
 acpi_wmi_ec_handler(UINT32 function, ACPI_PHYSICAL_ADDRESS address,
-    UINT32 width, ACPI_INTEGER *value, void *context,
+    UINT32 width, UINT64 *value, void *context,
     void *region_context)
 {
 	struct acpi_wmi_softc *sc;
 	int i;
-	ACPI_INTEGER ec_data;
+	UINT64 ec_data;
 	UINT8 ec_addr;
 	ACPI_STATUS status;
 
@@ -672,7 +672,7 @@ acpi_wmi_ec_handler(UINT32 function, ACPI_PHYSICAL_ADDRESS address,
 		case ACPI_READ:
 			status = ACPI_EC_READ(sc->ec_dev, ec_addr, &ec_data, 1);
 			if (ACPI_SUCCESS(status))
-				*value |= ((ACPI_INTEGER)ec_data) << i;
+				*value |= ((UINT64)ec_data) << i;
 		break;
 		case ACPI_WRITE:
 			ec_data = (UINT8)((*value) >> i);

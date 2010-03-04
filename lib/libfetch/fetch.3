@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2008
+.Dd January 26, 2010
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -509,9 +509,13 @@ Specifies HTTP authorization parameters as a colon-separated list of
 items.
 The first and second item are the authorization scheme and realm
 respectively; further items are scheme-dependent.
-Currently, only basic authorization is supported.
+Currently, the
+.Dq basic
+and
+.Dq digest
+authorization methods are supported.
 .Pp
-Basic authorization requires two parameters: the user name and
+Both methods require two parameters: the user name and
 password, in that order.
 .Pp
 This variable is only used if the server requires authorization and
@@ -656,12 +660,14 @@ The
 .Nm fetch
 library was mostly written by
 .An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org
-with numerous suggestions from
+with numerous suggestions and contributions from
 .An Jordan K. Hubbard Aq jkh@FreeBSD.org ,
-.An Eugene Skepner Aq eu@qub.com
-and other
-.Fx
-developers.
+.An Eugene Skepner Aq eu@qub.com ,
+.An Hajimu Umemoto Aq ume@FreeBSD.org ,
+.An Henry Whincup Aq henry@techiebod.com ,
+.An Jukka A. Ukkonen Aq jau@iki.fi ,
+.An Jean-Fran\(,cois Dockes Aq jf@dockes.org
+and others.
 It replaces the older
 .Nm ftpio
 library written by

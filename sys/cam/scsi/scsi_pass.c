@@ -563,12 +563,10 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 * that request.  Otherwise, it's up to the user to perform any
 	 * error recovery.
 	 */
-	error = cam_periph_runccb(ccb,
-				  (ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER) ?
-				  passerror : NULL,
-				  /* cam_flags */ CAM_RETRY_SELTO,
-				  /* sense_flags */SF_RETRY_UA,
-				  softc->device_stats);
+	cam_periph_runccb(ccb,
+	    (ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER) ? passerror : NULL,
+	    /* cam_flags */ CAM_RETRY_SELTO, /* sense_flags */SF_RETRY_UA,
+	    softc->device_stats);
 
 	if (need_unmap != 0)
 		cam_periph_unmapmem(ccb, &mapinfo);
@@ -577,7 +575,7 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	ccb->ccb_h.periph_priv = inccb->ccb_h.periph_priv;
 	bcopy(ccb, inccb, sizeof(union ccb));
 
-	return(error);
+	return(0);
 }
 
 static int

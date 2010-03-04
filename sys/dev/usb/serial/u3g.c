@@ -59,9 +59,7 @@
 #define	USB_DEBUG_VAR u3g_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_dynamic.h>
 #include <dev/usb/usb_msctest.h>
-#include <dev/usb/usb_device.h>
 
 #include <dev/usb/serial/usb_serial.h>
 
@@ -86,10 +84,15 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 #define	U3GSP_HSPA		6
 #define	U3GSP_MAX		7
 
-#define	U3GFL_HUAWEI_INIT	0x0001	/* Init command required */
-#define	U3GFL_SCSI_EJECT	0x0002	/* SCSI eject command required */
-#define	U3GFL_SIERRA_INIT	0x0004	/* Init command required */
-#define	U3GFL_SAEL_M460_INIT	0x0008	/* Init device */
+#define	U3GINIT_HUAWEI		1	/* Requires Huawei init command */
+#define	U3GINIT_SIERRA		2	/* Requires Sierra init command */
+#define	U3GINIT_SCSIEJECT	3	/* Requires SCSI eject command */
+#define	U3GINIT_REZERO		4	/* Requires SCSI rezero command */
+#define	U3GINIT_ZTESTOR		5	/* Requires ZTE SCSI command */
+#define	U3GINIT_CMOTECH		6	/* Requires CMOTECH SCSI command */
+#define	U3GINIT_WAIT		7	/* Device reappears after a delay */
+#define	U3GINIT_SAEL_M460	8	/* Requires vendor init */
+#define	U3GINIT_HUAWEISCSI	9	/* Requires Huawei SCSI init command */
 
 enum {
 	U3G_BULK_WR,
@@ -122,7 +125,12 @@ static void u3g_stop_read(struct ucom_softc *ucom);
 static void u3g_start_write(struct ucom_softc *ucom);
 static void u3g_stop_write(struct ucom_softc *ucom);
 
+
+static void u3g_test_autoinst(void *, struct usb_device *,
+		struct usb_attach_arg *);
 static int u3g_driver_loaded(struct module *mod, int what, void *arg);
+
+static eventhandler_tag u3g_etag;
 
 static const struct usb_config u3g_config[U3G_N_TRANSFER] = {
 
@@ -173,29 +181,125 @@ MODULE_DEPEND(u3g, usb, 1, 1, 1);
 
 static const struct usb_device_id u3g_devs[] = {
 #define	U3G_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
-	/* OEM: Option */
-	U3G_DEV(OPTION, GT3G, 0),
-	U3G_DEV(OPTION, GT3GQUAD, 0),
-	U3G_DEV(OPTION, GT3GPLUS, 0),
-	U3G_DEV(OPTION, GTMAX36, 0),
-	U3G_DEV(OPTION, GTHSDPA, 0),
-	U3G_DEV(OPTION, GTMAXHSUPA, 0),
-	U3G_DEV(OPTION, VODAFONEMC3G, 0),
-	/* OEM: Qualcomm, Inc. */
-	U3G_DEV(QUALCOMMINC, ZTE_STOR, U3GFL_SCSI_EJECT),
-	U3G_DEV(QUALCOMMINC, CDMA_MSM, U3GFL_SCSI_EJECT),
-	/* OEM: Huawei */
-	U3G_DEV(HUAWEI, MOBILE, U3GFL_HUAWEI_INIT),
-	U3G_DEV(HUAWEI, E180V, U3GFL_HUAWEI_INIT),
-	U3G_DEV(HUAWEI, E220, U3GFL_HUAWEI_INIT),
-	/* OEM: Novatel */
-	U3G_DEV(NOVATEL, CDMA_MODEM, 0),
+	U3G_DEV(ACERP, H10, 0),
+	U3G_DEV(AIRPLUS, MCD650, 0),
+	U3G_DEV(AIRPRIME, PC5220, 0),
+	U3G_DEV(ALINK, 3G, 0),
+	U3G_DEV(ALINK, 3GU, 0),
+	U3G_DEV(ALINK, DWM652U5, 0),
+	U3G_DEV(AMOI, H01, 0),
+	U3G_DEV(AMOI, H01A, 0),
+	U3G_DEV(AMOI, H02, 0),
+	U3G_DEV(ANYDATA, ADU_500A, 0),
+	U3G_DEV(ANYDATA, ADU_620UW, 0),
+	U3G_DEV(ANYDATA, ADU_E100X, 0),
+	U3G_DEV(AXESSTEL, DATAMODEM, 0),
+	U3G_DEV(CMOTECH, CDMA_MODEM1, 0),
+	U3G_DEV(CMOTECH, CGU628, U3GINIT_CMOTECH),
+	U3G_DEV(DELL, U5500, 0),
+	U3G_DEV(DELL, U5505, 0),
+	U3G_DEV(DELL, U5510, 0),
+	U3G_DEV(DELL, U5520, 0),
+	U3G_DEV(DELL, U5520_2, 0),
+	U3G_DEV(DELL, U5520_3, 0),
+	U3G_DEV(DELL, U5700, 0),
+	U3G_DEV(DELL, U5700_2, 0),
+	U3G_DEV(DELL, U5700_3, 0),
+	U3G_DEV(DELL, U5700_4, 0),
+	U3G_DEV(DELL, U5720, 0),
+	U3G_DEV(DELL, U5720_2, 0),
+	U3G_DEV(DELL, U5730, 0),
+	U3G_DEV(DELL, U5730_2, 0),
+	U3G_DEV(DELL, U5730_3, 0),
+	U3G_DEV(DELL, U740, 0),
+	U3G_DEV(DLINK3, DWM652, 0),
+	U3G_DEV(HP, EV2200, 0),
+	U3G_DEV(HP, HS2300, 0),
+	U3G_DEV(HUAWEI, E1401, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1402, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1403, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1404, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1405, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1406, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1407, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1408, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1409, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E140A, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E140B, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E140D, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E140E, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E140F, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1410, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1411, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1412, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1413, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1414, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1415, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1416, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1417, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1418, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1419, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E141A, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E141B, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E141C, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E141D, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E141E, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E141F, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1420, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1421, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1422, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1423, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1424, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1425, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1426, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1427, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1428, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1429, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E142A, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E142B, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E142C, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E142D, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E142E, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E142F, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1430, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1431, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1432, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1433, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1434, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1435, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1436, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1437, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1438, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1439, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E143A, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E143B, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E143C, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E143D, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E143E, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E143F, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E14AC, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E180V, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E220, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E220BIS, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, MOBILE, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1752, U3GINIT_HUAWEISCSI),
+	U3G_DEV(KYOCERA2, CDMA_MSM_K, 0),
+	U3G_DEV(KYOCERA2, KPC680, 0),
+	U3G_DEV(MERLIN, V620, 0),
+	U3G_DEV(NOVATEL, E725, 0),
 	U3G_DEV(NOVATEL, ES620, 0),
+	U3G_DEV(NOVATEL, ES620_2, 0),
+	U3G_DEV(NOVATEL, EU730, 0),
+	U3G_DEV(NOVATEL, EU740, 0),
+	U3G_DEV(NOVATEL, EU870D, 0),
+	U3G_DEV(NOVATEL, MC760, 0),
 	U3G_DEV(NOVATEL, MC950D, 0),
 	U3G_DEV(NOVATEL, U720, 0),
 	U3G_DEV(NOVATEL, U727, 0),
+	U3G_DEV(NOVATEL, U727_2, 0),
 	U3G_DEV(NOVATEL, U740, 0),
 	U3G_DEV(NOVATEL, U740_2, 0),
+	U3G_DEV(NOVATEL, U760, U3GINIT_SCSIEJECT),
 	U3G_DEV(NOVATEL, U870, 0),
 	U3G_DEV(NOVATEL, V620, 0),
 	U3G_DEV(NOVATEL, V640, 0),
@@ -203,50 +307,208 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(NOVATEL, V740, 0),
 	U3G_DEV(NOVATEL, X950D, 0),
 	U3G_DEV(NOVATEL, XU870, 0),
-	U3G_DEV(NOVATEL, ZEROCD, U3GFL_SCSI_EJECT),
-	U3G_DEV(DELL, U740, 0),
-	/* OEM: Merlin */
-	U3G_DEV(MERLIN, V620, 0),
-	/* OEM: Sierra Wireless: */
-	U3G_DEV(SIERRA, AIRCARD580, 0),
-	U3G_DEV(SIERRA, AIRCARD595, 0),
+	U3G_DEV(OPTION, E6500, 0),
+	U3G_DEV(OPTION, E6501, 0),
+	U3G_DEV(OPTION, E6601, 0),
+	U3G_DEV(OPTION, E6721, 0),
+	U3G_DEV(OPTION, E6741, 0),
+	U3G_DEV(OPTION, E6761, 0),
+	U3G_DEV(OPTION, E6800, 0),
+	U3G_DEV(OPTION, E7021, 0),
+	U3G_DEV(OPTION, E7041, 0),
+	U3G_DEV(OPTION, E7061, 0),
+	U3G_DEV(OPTION, E7100, 0),
+	U3G_DEV(OPTION, GE40X, 0),
+	U3G_DEV(OPTION, GT3G, 0),
+	U3G_DEV(OPTION, GT3GPLUS, 0),
+	U3G_DEV(OPTION, GT3GQUAD, 0),
+	U3G_DEV(OPTION, GT3G_1, 0),
+	U3G_DEV(OPTION, GT3G_2, 0),
+	U3G_DEV(OPTION, GT3G_3, 0),
+	U3G_DEV(OPTION, GT3G_4, 0),
+	U3G_DEV(OPTION, GT3G_5, 0),
+	U3G_DEV(OPTION, GT3G_6, 0),
+	U3G_DEV(OPTION, GTHSDPA, 0),
+	U3G_DEV(OPTION, GTM380, 0),
+	U3G_DEV(OPTION, GTMAX36, 0),
+	U3G_DEV(OPTION, GTMAX380HSUPAE, 0),
+	U3G_DEV(OPTION, GTMAXHSUPA, 0),
+	U3G_DEV(OPTION, GTMAXHSUPAE, 0),
+	U3G_DEV(OPTION, VODAFONEMC3G, 0),
+	U3G_DEV(QISDA, H20_1, 0),
+	U3G_DEV(QISDA, H20_2, 0),
+	U3G_DEV(QISDA, H21_1, 0),
+	U3G_DEV(QISDA, H21_2, 0),
+	U3G_DEV(QUALCOMM2, AC8700, 0),
+	U3G_DEV(QUALCOMM2, MF330, 0),
+	U3G_DEV(QUALCOMMINC, AC2726, 0),
+	U3G_DEV(QUALCOMMINC, AC8700, 0),
+	U3G_DEV(QUALCOMMINC, AC8710, 0),
+	U3G_DEV(QUALCOMMINC, CDMA_MSM, U3GINIT_SCSIEJECT),
+	U3G_DEV(QUALCOMMINC, E0002, 0),
+	U3G_DEV(QUALCOMMINC, E0003, 0),
+	U3G_DEV(QUALCOMMINC, E0004, 0),
+	U3G_DEV(QUALCOMMINC, E0005, 0),
+	U3G_DEV(QUALCOMMINC, E0006, 0),
+	U3G_DEV(QUALCOMMINC, E0007, 0),
+	U3G_DEV(QUALCOMMINC, E0008, 0),
+	U3G_DEV(QUALCOMMINC, E0009, 0),
+	U3G_DEV(QUALCOMMINC, E000A, 0),
+	U3G_DEV(QUALCOMMINC, E000B, 0),
+	U3G_DEV(QUALCOMMINC, E000C, 0),
+	U3G_DEV(QUALCOMMINC, E000D, 0),
+	U3G_DEV(QUALCOMMINC, E000E, 0),
+	U3G_DEV(QUALCOMMINC, E000F, 0),
+	U3G_DEV(QUALCOMMINC, E0010, 0),
+	U3G_DEV(QUALCOMMINC, E0011, 0),
+	U3G_DEV(QUALCOMMINC, E0012, 0),
+	U3G_DEV(QUALCOMMINC, E0013, 0),
+	U3G_DEV(QUALCOMMINC, E0014, 0),
+	U3G_DEV(QUALCOMMINC, E0017, 0),
+	U3G_DEV(QUALCOMMINC, E0018, 0),
+	U3G_DEV(QUALCOMMINC, E0019, 0),
+	U3G_DEV(QUALCOMMINC, E0020, 0),
+	U3G_DEV(QUALCOMMINC, E0021, 0),
+	U3G_DEV(QUALCOMMINC, E0022, 0),
+	U3G_DEV(QUALCOMMINC, E0023, 0),
+	U3G_DEV(QUALCOMMINC, E0024, 0),
+	U3G_DEV(QUALCOMMINC, E0025, 0),
+	U3G_DEV(QUALCOMMINC, E0026, 0),
+	U3G_DEV(QUALCOMMINC, E0027, 0),
+	U3G_DEV(QUALCOMMINC, E0028, 0),
+	U3G_DEV(QUALCOMMINC, E0029, 0),
+	U3G_DEV(QUALCOMMINC, E0030, 0),
+	U3G_DEV(QUALCOMMINC, E0032, 0),
+	U3G_DEV(QUALCOMMINC, E0033, 0),
+	U3G_DEV(QUALCOMMINC, E0037, 0),
+	U3G_DEV(QUALCOMMINC, E0039, 0),
+	U3G_DEV(QUALCOMMINC, E0042, 0),
+	U3G_DEV(QUALCOMMINC, E0043, 0),
+	U3G_DEV(QUALCOMMINC, E0048, 0),
+	U3G_DEV(QUALCOMMINC, E0049, 0),
+	U3G_DEV(QUALCOMMINC, E0051, 0),
+	U3G_DEV(QUALCOMMINC, E0052, 0),
+	U3G_DEV(QUALCOMMINC, E0054, 0),
+	U3G_DEV(QUALCOMMINC, E0055, 0),
+	U3G_DEV(QUALCOMMINC, E0057, 0),
+	U3G_DEV(QUALCOMMINC, E0058, 0),
+	U3G_DEV(QUALCOMMINC, E0059, 0),
+	U3G_DEV(QUALCOMMINC, E0060, 0),
+	U3G_DEV(QUALCOMMINC, E0061, 0),
+	U3G_DEV(QUALCOMMINC, E0062, 0),
+	U3G_DEV(QUALCOMMINC, E0063, 0),
+	U3G_DEV(QUALCOMMINC, E0064, 0),
+	U3G_DEV(QUALCOMMINC, E0066, 0),
+	U3G_DEV(QUALCOMMINC, E0069, 0),
+	U3G_DEV(QUALCOMMINC, E0070, 0),
+	U3G_DEV(QUALCOMMINC, E0073, 0),
+	U3G_DEV(QUALCOMMINC, E0076, 0),
+	U3G_DEV(QUALCOMMINC, E0078, 0),
+	U3G_DEV(QUALCOMMINC, E0082, 0),
+	U3G_DEV(QUALCOMMINC, E0086, 0),
+	U3G_DEV(QUALCOMMINC, E2002, 0),
+	U3G_DEV(QUALCOMMINC, E2003, 0),
+	U3G_DEV(QUALCOMMINC, MF626, 0),
+	U3G_DEV(QUALCOMMINC, MF628, 0),
+	U3G_DEV(QUALCOMMINC, MF633R, 0),
+	U3G_DEV(QUANTA, GKE, 0),
+	U3G_DEV(QUANTA, GLE, 0),
+	U3G_DEV(QUANTA, GLX, 0),
+	U3G_DEV(QUANTA, Q101, 0),
+	U3G_DEV(QUANTA, Q111, 0),
+	U3G_DEV(SIERRA, AC402, 0),
 	U3G_DEV(SIERRA, AC595U, 0),
 	U3G_DEV(SIERRA, AC597E, 0),
-	U3G_DEV(SIERRA, C597, 0),
+	U3G_DEV(SIERRA, AC875E, 0),
+	U3G_DEV(SIERRA, AC875U, 0),
+	U3G_DEV(SIERRA, AC875U_2, 0),
 	U3G_DEV(SIERRA, AC880, 0),
 	U3G_DEV(SIERRA, AC880E, 0),
 	U3G_DEV(SIERRA, AC880U, 0),
 	U3G_DEV(SIERRA, AC881, 0),
 	U3G_DEV(SIERRA, AC881E, 0),
 	U3G_DEV(SIERRA, AC881U, 0),
+	U3G_DEV(SIERRA, AC885E, 0),
+	U3G_DEV(SIERRA, AC885E_2, 0),
 	U3G_DEV(SIERRA, AC885U, 0),
+	U3G_DEV(SIERRA, AIRCARD580, 0),
+	U3G_DEV(SIERRA, AIRCARD595, 0),
+	U3G_DEV(SIERRA, AIRCARD875, 0),
+	U3G_DEV(SIERRA, C22, 0),
+	U3G_DEV(SIERRA, C597, 0),
+	U3G_DEV(SIERRA, C888, 0),
+	U3G_DEV(SIERRA, E0029, 0),
+	U3G_DEV(SIERRA, E6892, 0),
+	U3G_DEV(SIERRA, E6893, 0),
 	U3G_DEV(SIERRA, EM5625, 0),
+	U3G_DEV(SIERRA, EM5725, 0),
 	U3G_DEV(SIERRA, MC5720, 0),
 	U3G_DEV(SIERRA, MC5720_2, 0),
 	U3G_DEV(SIERRA, MC5725, 0),
-	U3G_DEV(SIERRA, MINI5725, 0),
-	U3G_DEV(SIERRA, AIRCARD875, 0),
+	U3G_DEV(SIERRA, MC5727, 0),
+	U3G_DEV(SIERRA, MC5727_2, 0),
+	U3G_DEV(SIERRA, MC5728, 0),
 	U3G_DEV(SIERRA, MC8755, 0),
 	U3G_DEV(SIERRA, MC8755_2, 0),
 	U3G_DEV(SIERRA, MC8755_3, 0),
+	U3G_DEV(SIERRA, MC8755_4, 0),
 	U3G_DEV(SIERRA, MC8765, 0),
-	U3G_DEV(SIERRA, AC875U, 0),
+	U3G_DEV(SIERRA, MC8765_2, 0),
+	U3G_DEV(SIERRA, MC8765_3, 0),
+	U3G_DEV(SIERRA, MC8775, 0),
 	U3G_DEV(SIERRA, MC8775_2, 0),
 	U3G_DEV(SIERRA, MC8780, 0),
+	U3G_DEV(SIERRA, MC8780_2, 0),
+	U3G_DEV(SIERRA, MC8780_3, 0),
 	U3G_DEV(SIERRA, MC8781, 0),
-	U3G_DEV(HP, HS2300, 0),
-	/* Sierra TruInstaller device ID */
-	U3G_DEV(SIERRA, TRUINSTALL, U3GFL_SIERRA_INIT),
-	/* PRUEBA SILABS */
-	U3G_DEV(SILABS, SAEL, U3GFL_SAEL_M460_INIT),
+	U3G_DEV(SIERRA, MC8781_2, 0),
+	U3G_DEV(SIERRA, MC8781_3, 0),
+	U3G_DEV(SIERRA, MC8785, 0),
+	U3G_DEV(SIERRA, MC8785_2, 0),
+	U3G_DEV(SIERRA, MC8790, 0),
+	U3G_DEV(SIERRA, MC8791, 0),
+	U3G_DEV(SIERRA, MC8792, 0),
+	U3G_DEV(SIERRA, MINI5725, 0),
+	U3G_DEV(SIERRA, T11, 0),
+	U3G_DEV(SIERRA, T598, 0),
+	U3G_DEV(SILABS, SAEL, U3GINIT_SAEL_M460),
+	U3G_DEV(STELERA, C105, 0),
+	U3G_DEV(STELERA, E1003, 0),
+	U3G_DEV(STELERA, E1004, 0),
+	U3G_DEV(STELERA, E1005, 0),
+	U3G_DEV(STELERA, E1006, 0),
+	U3G_DEV(STELERA, E1007, 0),
+	U3G_DEV(STELERA, E1008, 0),
+	U3G_DEV(STELERA, E1009, 0),
+	U3G_DEV(STELERA, E100A, 0),
+	U3G_DEV(STELERA, E100B, 0),
+	U3G_DEV(STELERA, E100C, 0),
+	U3G_DEV(STELERA, E100D, 0),
+	U3G_DEV(STELERA, E100E, 0),
+	U3G_DEV(STELERA, E100F, 0),
+	U3G_DEV(STELERA, E1010, 0),
+	U3G_DEV(STELERA, E1011, 0),
+	U3G_DEV(STELERA, E1012, 0),
+	U3G_DEV(TCTMOBILE, X060S, 0),
+	U3G_DEV(TELIT, UC864E, 0),
+	U3G_DEV(TELIT, UC864G, 0),
+	U3G_DEV(TLAYTECH, TEU800, 0),
+	U3G_DEV(TOSHIBA, G450, 0),
+	U3G_DEV(TOSHIBA, HSDPA, 0),
+	U3G_DEV(YISO, C893, 0),
+	/* Autoinstallers */
+	U3G_DEV(NOVATEL, ZEROCD, U3GINIT_SCSIEJECT),
+	U3G_DEV(OPTION, GTICON322, U3GINIT_REZERO),
+	U3G_DEV(QUALCOMMINC, ZTE_STOR, U3GINIT_ZTESTOR),
+	U3G_DEV(QUALCOMMINC, ZTE_STOR2, U3GINIT_SCSIEJECT),
+	U3G_DEV(SIERRA, TRUINSTALL, U3GINIT_SIERRA),
+#undef	U3G_DEV
 };
 
-static void
+static int
 u3g_sierra_init(struct usb_device *udev)
 {
 	struct usb_device_request req;
-
-	DPRINTFN(0, "\n");
 
 	req.bmRequestType = UT_VENDOR;
 	req.bRequest = UR_SET_INTERFACE;
@@ -258,15 +520,13 @@ u3g_sierra_init(struct usb_device *udev)
 	    NULL, 0, NULL, USB_MS_HZ)) {
 		/* ignore any errors */
 	}
-	return;
+	return (0);
 }
 
-static void
+static int
 u3g_huawei_init(struct usb_device *udev)
 {
 	struct usb_device_request req;
-
-	DPRINTFN(0, "\n");
 
 	req.bmRequestType = UT_WRITE_DEVICE;
 	req.bRequest = UR_SET_FEATURE;
@@ -278,7 +538,7 @@ u3g_huawei_init(struct usb_device *udev)
 	    NULL, 0, NULL, USB_MS_HZ)) {
 		/* ignore any errors */
 	}
-	return;
+	return (0);
 }
 
 static void
@@ -361,58 +621,67 @@ u3g_sael_m460_init(struct usb_device *udev)
 	}
 }
 
-static int
-u3g_lookup_huawei(struct usb_attach_arg *uaa)
-{
-	/* Calling the lookup function will also set the driver info! */
-	return (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa));
-}
-
 /*
  * The following function handles 3G modem devices (E220, Mobile,
  * etc.) with auto-install flash disks for Windows/MacOSX on the first
  * interface.  After some command or some delay they change appearance
  * to a modem.
  */
-static usb_error_t
-u3g_test_huawei_autoinst(struct usb_device *udev,
+static void
+u3g_test_autoinst(void *arg, struct usb_device *udev,
     struct usb_attach_arg *uaa)
 {
 	struct usb_interface *iface;
 	struct usb_interface_descriptor *id;
-	uint32_t flags;
+	int error;
 
-	if (udev == NULL) {
-		return (USB_ERR_INVAL);
-	}
+	if (uaa->dev_state != UAA_DEV_READY)
+		return;
+
 	iface = usbd_get_iface(udev, 0);
-	if (iface == NULL) {
-		return (USB_ERR_INVAL);
-	}
+	if (iface == NULL)
+		return;
 	id = iface->idesc;
-	if (id == NULL) {
-		return (USB_ERR_INVAL);
-	}
-	if (id->bInterfaceClass != UICLASS_MASS) {
-		return (USB_ERR_INVAL);
-	}
-	if (u3g_lookup_huawei(uaa)) {
-		/* no device match */
-		return (USB_ERR_INVAL);
-	}
-	flags = USB_GET_DRIVER_INFO(uaa);
+	if (id == NULL || id->bInterfaceClass != UICLASS_MASS)
+		return;
+	if (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa))
+		return;		/* no device match */
 
-	if (flags & U3GFL_HUAWEI_INIT) {
-		u3g_huawei_init(udev);
-	} else if (flags & U3GFL_SCSI_EJECT) {
-		return (usb_test_autoinstall(udev, 0, 1));
-	} else if (flags & U3GFL_SIERRA_INIT) {
-		u3g_sierra_init(udev);
-	} else {
-		/* no quirks */
-		return (USB_ERR_INVAL);
+	switch (USB_GET_DRIVER_INFO(uaa)) {
+		case U3GINIT_HUAWEI:
+			error = u3g_huawei_init(udev);
+			break;
+		case U3GINIT_HUAWEISCSI:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_HUAWEI);
+			break;
+		case U3GINIT_SCSIEJECT:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_STOPUNIT);
+			break;
+		case U3GINIT_REZERO:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_REZERO);
+			break;
+		case U3GINIT_ZTESTOR:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_ZTESTOR);
+			break;
+		case U3GINIT_CMOTECH:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_CMOTECH);
+			break;
+		case U3GINIT_SIERRA:
+			error = u3g_sierra_init(udev);
+			break;
+		case U3GINIT_WAIT:
+			/* Just pretend we ejected, the card will timeout */
+			error = 0;
+			break;
+		default:
+			/* no 3G eject quirks */
+			error = EOPNOTSUPP;
+			break;
 	}
-	return (0);			/* success */
+	if (error == 0) {
+		/* success, mark the udev as disappearing */
+		uaa->dev_state = UAA_DEV_EJECTING;
+	}
 }
 
 static int
@@ -421,10 +690,11 @@ u3g_driver_loaded(struct module *mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		/* register our autoinstall handler */
-		usb_test_huawei_autoinst_p = &u3g_test_huawei_autoinst;
+		u3g_etag = EVENTHANDLER_REGISTER(usb_dev_configured,
+		    u3g_test_autoinst, NULL, EVENTHANDLER_PRI_ANY);
 		break;
 	case MOD_UNLOAD:
-		usb_test_huawei_unload(NULL);
+		EVENTHANDLER_DEREGISTER(usb_dev_configured, u3g_etag);
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -446,7 +716,7 @@ u3g_probe(device_t self)
 	if (uaa->info.bInterfaceClass != UICLASS_VENDOR) {
 		return (ENXIO);
 	}
-	return (u3g_lookup_huawei(uaa));
+	return (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa));
 }
 
 static int
@@ -458,15 +728,14 @@ u3g_attach(device_t dev)
 	struct usb_interface *iface;
 	struct usb_interface_descriptor *id;
 	uint32_t iface_valid;
-	int error, flags, nports;
+	int error, type, nports;
 	int ep, n;
 	uint8_t i;
 
 	DPRINTF("sc=%p\n", sc);
 
-	flags = USB_GET_DRIVER_INFO(uaa);
-
-	if (flags & U3GFL_SAEL_M460_INIT)
+	type = USB_GET_DRIVER_INFO(uaa);
+	if (type == U3GINIT_SAEL_M460)
 		u3g_sael_m460_init(uaa->device);
 
 	/* copy in USB config */
@@ -538,8 +807,8 @@ u3g_attach(device_t dev)
 		DPRINTF("ucom_attach failed\n");
 		goto detach;
 	}
-	if (sc->sc_numports > 1)
-		device_printf(dev, "Found %u ports.\n", sc->sc_numports);
+	device_printf(dev, "Found %u port%s.\n", sc->sc_numports,
+	    sc->sc_numports > 1 ? "s":"");
 	return (0);
 
 detach:

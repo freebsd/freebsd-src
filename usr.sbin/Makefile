@@ -167,6 +167,7 @@ SUBDIR=	${_ac} \
 	${_sa} \
 	${_sade} \
 	${_sendmail} \
+	service \
 	setfib \
 	setfmac \
 	setpmac \
@@ -188,6 +189,7 @@ SUBDIR=	${_ac} \
 	tzsetup \
 	${_uathload} \
 	ugidfw \
+	${_uhsoctl} \
 	${_usbdevs} \
 	${_usbconfig} \
 	${_vidcontrol} \
@@ -409,6 +411,7 @@ _crunch=	crunch
 .if ${MACHINE_ARCH} != "ia64"
 _uathload=	uathload
 .endif
+_uhsoctl=	uhsoctl
 #_usbdevs=	usbdevs
 _usbconfig=	usbconfig
 .endif
@@ -468,6 +471,9 @@ _boot98cfg=	boot98cfg
 .if ${MK_ACPI} != "no"
 _acpi=		acpi
 .endif
+.if ${MK_APM} != "no"
+_apm=		apm
+.endif
 _asf=		asf
 _boot0cfg=	boot0cfg
 .if ${MK_TOOLCHAIN} != "no"
@@ -506,6 +512,7 @@ _ofwdump=	ofwdump
 
 .if ${MACHINE_ARCH} == "sparc64"
 _eeprom=	eeprom
+_mount_smbfs=	mount_smbfs
 _ofwdump=	ofwdump
 .endif
 

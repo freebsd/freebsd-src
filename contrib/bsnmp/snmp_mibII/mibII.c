@@ -117,6 +117,15 @@ u_int mibif_hc_update_interval;
 /* HC update timer handle */
 static void *hc_update_timer;
 
+/* Idle poll timer */
+static void *mibII_poll_timer;
+
+/* interfaces' data poll interval */
+u_int mibII_poll_ticks;
+
+/* Idle poll hook */
+static void mibII_idle(void *arg __unused);
+
 /*****************************/
 
 static const struct asn_oid oid_ifMIB = OIDX_ifMIB;
@@ -408,6 +417,20 @@ mibif_reset_hc_timer(void)
 		return;
 	}
 	mibif_hc_update_interval = ticks;
+}
+
+/**
+ * Restart the idle poll timer.
+ */
+void
+mibif_restart_mibII_poll_timer(void)
+{
+	if (mibII_poll_timer != NULL)
+		timer_stop(mibII_poll_timer);
+
+	if ((mibII_poll_timer = timer_start_repeat(mibII_poll_ticks * 10,
+	    mibII_poll_ticks * 10, mibII_idle, NULL, module)) == NULL)
+		syslog(LOG_ERR, "timer_start(%u): %m", mibII_poll_ticks);
 }
 
 /*
@@ -1553,7 +1576,7 @@ get_cloners(void)
  * Idle function
  */
 static void
-mibII_idle(void)
+mibII_idle(void *arg __unused)
 {
 	struct mibifa *ifa;
 
@@ -1608,6 +1631,10 @@ mibII_start(void)
 	ipForward_reg = or_register(&oid_ipForward,
 	   "The MIB module for the display of CIDR multipath IP Routes.",
 	   module);
+
+	mibII_poll_timer = NULL;
+	mibII_poll_ticks = MIBII_POLL_TICKS;
+	mibif_restart_mibII_poll_timer();
 }
 
 /*
@@ -1651,6 +1678,11 @@ mibII_init(struct lmodule *mod, int argc __unused, char *argv[] __unused)
 static int
 mibII_fini(void)
 {
+	if (mibII_poll_timer != NULL ) {
+		timer_stop(mibII_poll_timer);
+		mibII_poll_timer = NULL;
+	}
+
 	if (route_fd != NULL)
 		fd_deselect(route_fd);
 	if (route != -1)
@@ -1690,7 +1722,7 @@ const struct snmp_module config = {
 	"This module implements the interface and ip groups.",
 	mibII_init,
 	mibII_fini,
-	mibII_idle,	/* idle */
+	NULL,		/* idle */
 	NULL,		/* dump */
 	NULL,		/* config */
 	mibII_start,

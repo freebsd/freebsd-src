@@ -73,7 +73,7 @@ enum gpt_state {
 struct g_part_gpt_table {
 	struct g_part_table	base;
 	u_char			mbr[MBRSIZE];
-	struct gpt_hdr		hdr;
+	struct gpt_hdr		*hdr;
 	quad_t			lba[GPT_ELT_COUNT];
 	enum gpt_state		state[GPT_ELT_COUNT];
 };
@@ -131,7 +131,13 @@ static struct g_part_scheme g_part_gpt_scheme = {
 };
 G_PART_SCHEME_DECLARE(g_part_gpt);
 
+static struct uuid gpt_uuid_apple_boot = GPT_ENT_TYPE_APPLE_BOOT;
 static struct uuid gpt_uuid_apple_hfs = GPT_ENT_TYPE_APPLE_HFS;
+static struct uuid gpt_uuid_apple_label = GPT_ENT_TYPE_APPLE_LABEL;
+static struct uuid gpt_uuid_apple_raid = GPT_ENT_TYPE_APPLE_RAID;
+static struct uuid gpt_uuid_apple_raid_offline = GPT_ENT_TYPE_APPLE_RAID_OFFLINE;
+static struct uuid gpt_uuid_apple_tv_recovery = GPT_ENT_TYPE_APPLE_TV_RECOVERY;
+static struct uuid gpt_uuid_apple_ufs = GPT_ENT_TYPE_APPLE_UFS;
 static struct uuid gpt_uuid_efi = GPT_ENT_TYPE_EFI;
 static struct uuid gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
 static struct uuid gpt_uuid_freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
@@ -139,17 +145,66 @@ static struct uuid gpt_uuid_freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
 static struct uuid gpt_uuid_freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 static struct uuid gpt_uuid_freebsd_vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
 static struct uuid gpt_uuid_freebsd_zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
+static struct uuid gpt_uuid_linux_data = GPT_ENT_TYPE_LINUX_DATA;
+static struct uuid gpt_uuid_linux_lvm = GPT_ENT_TYPE_LINUX_LVM;
+static struct uuid gpt_uuid_linux_raid = GPT_ENT_TYPE_LINUX_RAID;
 static struct uuid gpt_uuid_linux_swap = GPT_ENT_TYPE_LINUX_SWAP;
+static struct uuid gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
+static struct uuid gpt_uuid_ms_reserved = GPT_ENT_TYPE_MS_RESERVED;
+static struct uuid gpt_uuid_ms_ldm_data = GPT_ENT_TYPE_MS_LDM_DATA;
+static struct uuid gpt_uuid_ms_ldm_metadata = GPT_ENT_TYPE_MS_LDM_METADATA;
+static struct uuid gpt_uuid_netbsd_ccd = GPT_ENT_TYPE_NETBSD_CCD;
+static struct uuid gpt_uuid_netbsd_cgd = GPT_ENT_TYPE_NETBSD_CGD;
+static struct uuid gpt_uuid_netbsd_ffs = GPT_ENT_TYPE_NETBSD_FFS;
+static struct uuid gpt_uuid_netbsd_lfs = GPT_ENT_TYPE_NETBSD_LFS;
+static struct uuid gpt_uuid_netbsd_raid = GPT_ENT_TYPE_NETBSD_RAID;
+static struct uuid gpt_uuid_netbsd_swap = GPT_ENT_TYPE_NETBSD_SWAP;
 static struct uuid gpt_uuid_mbr = GPT_ENT_TYPE_MBR;
 static struct uuid gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
 
-static void
+static struct g_part_uuid_alias {
+	struct uuid *uuid;
+	int alias;		
+} gpt_uuid_alias_match[] = {
+	{ &gpt_uuid_apple_boot,		G_PART_ALIAS_APPLE_BOOT },
+	{ &gpt_uuid_apple_hfs,		G_PART_ALIAS_APPLE_HFS },
+	{ &gpt_uuid_apple_label,	G_PART_ALIAS_APPLE_LABEL },
+	{ &gpt_uuid_apple_raid,		G_PART_ALIAS_APPLE_RAID },
+	{ &gpt_uuid_apple_raid_offline,	G_PART_ALIAS_APPLE_RAID_OFFLINE },
+	{ &gpt_uuid_apple_tv_recovery,	G_PART_ALIAS_APPLE_TV_RECOVERY },
+	{ &gpt_uuid_apple_ufs,		G_PART_ALIAS_APPLE_UFS },
+	{ &gpt_uuid_efi, 		G_PART_ALIAS_EFI },
+	{ &gpt_uuid_freebsd,		G_PART_ALIAS_FREEBSD },
+	{ &gpt_uuid_freebsd_boot, 	G_PART_ALIAS_FREEBSD_BOOT },
+	{ &gpt_uuid_freebsd_swap,	G_PART_ALIAS_FREEBSD_SWAP },
+	{ &gpt_uuid_freebsd_ufs,	G_PART_ALIAS_FREEBSD_UFS },
+	{ &gpt_uuid_freebsd_vinum,	G_PART_ALIAS_FREEBSD_VINUM },
+	{ &gpt_uuid_freebsd_zfs,	G_PART_ALIAS_FREEBSD_ZFS },
+	{ &gpt_uuid_linux_data,		G_PART_ALIAS_LINUX_DATA },
+	{ &gpt_uuid_linux_lvm,		G_PART_ALIAS_LINUX_LVM },
+	{ &gpt_uuid_linux_raid,		G_PART_ALIAS_LINUX_RAID },
+	{ &gpt_uuid_linux_swap,		G_PART_ALIAS_LINUX_SWAP },
+	{ &gpt_uuid_mbr,		G_PART_ALIAS_MBR },
+	{ &gpt_uuid_ms_basic_data,	G_PART_ALIAS_MS_BASIC_DATA },
+	{ &gpt_uuid_ms_ldm_data,	G_PART_ALIAS_MS_LDM_DATA },
+	{ &gpt_uuid_ms_ldm_metadata,	G_PART_ALIAS_MS_LDM_METADATA },
+	{ &gpt_uuid_ms_reserved,	G_PART_ALIAS_MS_RESERVED },
+	{ &gpt_uuid_netbsd_ccd,		G_PART_ALIAS_NETBSD_CCD },
+	{ &gpt_uuid_netbsd_cgd,		G_PART_ALIAS_NETBSD_CGD },
+	{ &gpt_uuid_netbsd_ffs,		G_PART_ALIAS_NETBSD_FFS },
+	{ &gpt_uuid_netbsd_lfs,		G_PART_ALIAS_NETBSD_LFS },
+	{ &gpt_uuid_netbsd_raid,	G_PART_ALIAS_NETBSD_RAID },
+	{ &gpt_uuid_netbsd_swap,	G_PART_ALIAS_NETBSD_SWAP },
+
+	{ NULL, 0 }
+};
+
+static struct gpt_hdr *
 gpt_read_hdr(struct g_part_gpt_table *table, struct g_consumer *cp,
-    enum gpt_elt elt, struct gpt_hdr *hdr)
+    enum gpt_elt elt)
 {
-	struct uuid uuid;
+	struct gpt_hdr *buf, *hdr;
 	struct g_provider *pp;
-	char *buf;
 	quad_t lba, last;
 	int error;
 	uint32_t crc, sz;
@@ -161,63 +216,75 @@ gpt_read_hdr(struct g_part_gpt_table *table, struct g_consumer *cp,
 	buf = g_read_data(cp, table->lba[elt] * pp->sectorsize, pp->sectorsize,
 	    &error);
 	if (buf == NULL)
-		return;
-	bcopy(buf, hdr, sizeof(*hdr));
-	if (memcmp(hdr->hdr_sig, GPT_HDR_SIG, sizeof(hdr->hdr_sig)) != 0)
-		return;
+		return (NULL);
+	hdr = NULL;
+	if (memcmp(buf->hdr_sig, GPT_HDR_SIG, sizeof(buf->hdr_sig)) != 0)
+		goto fail;
 
 	table->state[elt] = GPT_STATE_CORRUPT;
-	sz = le32toh(hdr->hdr_size);
+	sz = le32toh(buf->hdr_size);
 	if (sz < 92 || sz > pp->sectorsize)
-		return;
-	crc = le32toh(hdr->hdr_crc_self);
-	hdr->hdr_crc_self = 0;
-	if (crc32(hdr, sz) != crc)
-		return;
+		goto fail;
+
+	hdr = g_malloc(sz, M_WAITOK | M_ZERO);
+	bcopy(buf, hdr, sz);
 	hdr->hdr_size = sz;
+
+	crc = le32toh(buf->hdr_crc_self);
+	buf->hdr_crc_self = 0;
+	if (crc32(buf, sz) != crc)
+		goto fail;
 	hdr->hdr_crc_self = crc;
 
 	table->state[elt] = GPT_STATE_INVALID;
-	hdr->hdr_revision = le32toh(hdr->hdr_revision);
+	hdr->hdr_revision = le32toh(buf->hdr_revision);
 	if (hdr->hdr_revision < 0x00010000)
-		return;
-	hdr->hdr_lba_self = le64toh(hdr->hdr_lba_self);
+		goto fail;
+	hdr->hdr_lba_self = le64toh(buf->hdr_lba_self);
 	if (hdr->hdr_lba_self != table->lba[elt])
-		return;
-	hdr->hdr_lba_alt = le64toh(hdr->hdr_lba_alt);
+		goto fail;
+	hdr->hdr_lba_alt = le64toh(buf->hdr_lba_alt);
 
 	/* Check the managed area. */
-	hdr->hdr_lba_start = le64toh(hdr->hdr_lba_start);
+	hdr->hdr_lba_start = le64toh(buf->hdr_lba_start);
 	if (hdr->hdr_lba_start < 2 || hdr->hdr_lba_start >= last)
-		return;
-	hdr->hdr_lba_end = le64toh(hdr->hdr_lba_end);
+		goto fail;
+	hdr->hdr_lba_end = le64toh(buf->hdr_lba_end);
 	if (hdr->hdr_lba_end < hdr->hdr_lba_start || hdr->hdr_lba_end >= last)
-		return;
+		goto fail;
 
 	/* Check the table location and size of the table. */
-	hdr->hdr_entries = le32toh(hdr->hdr_entries);
-	hdr->hdr_entsz = le32toh(hdr->hdr_entsz);
+	hdr->hdr_entries = le32toh(buf->hdr_entries);
+	hdr->hdr_entsz = le32toh(buf->hdr_entsz);
 	if (hdr->hdr_entries == 0 || hdr->hdr_entsz < 128 ||
 	    (hdr->hdr_entsz & 7) != 0)
-		return;
-	hdr->hdr_lba_table = le64toh(hdr->hdr_lba_table);
+		goto fail;
+	hdr->hdr_lba_table = le64toh(buf->hdr_lba_table);
 	if (hdr->hdr_lba_table < 2 || hdr->hdr_lba_table >= last)
-		return;
+		goto fail;
 	if (hdr->hdr_lba_table >= hdr->hdr_lba_start &&
 	    hdr->hdr_lba_table <= hdr->hdr_lba_end)
-		return;
+		goto fail;
 	lba = hdr->hdr_lba_table +
 	    (hdr->hdr_entries * hdr->hdr_entsz + pp->sectorsize - 1) /
 	    pp->sectorsize - 1;
 	if (lba >= last)
-		return;
+		goto fail;
 	if (lba >= hdr->hdr_lba_start && lba <= hdr->hdr_lba_end)
-		return;
+		goto fail;
 
 	table->state[elt] = GPT_STATE_OK;
-	le_uuid_dec(&hdr->hdr_uuid, &uuid);
-	hdr->hdr_uuid = uuid;
-	hdr->hdr_crc_table = le32toh(hdr->hdr_crc_table);
+	le_uuid_dec(&buf->hdr_uuid, &hdr->hdr_uuid);
+	hdr->hdr_crc_table = le32toh(buf->hdr_crc_table);
+
+	g_free(buf);
+	return (hdr);
+
+ fail:
+	if (hdr != NULL)
+		g_free(hdr);
+	g_free(buf);
+	return (NULL);
 }
 
 static struct gpt_ent *
@@ -229,6 +296,9 @@ gpt_read_tbl(struct g_part_gpt_table *table, struct g_consumer *cp,
 	char *buf, *p;
 	unsigned int idx, sectors, tblsz;
 	int error;
+
+	if (hdr == NULL)
+		return (NULL);
 
 	pp = cp->provider;
 	table->lba[elt] = hdr->hdr_lba_table;
@@ -271,6 +341,9 @@ static int
 gpt_matched_hdrs(struct gpt_hdr *pri, struct gpt_hdr *sec)
 {
 
+	if (pri == NULL || sec == NULL)
+		return (0);
+
 	if (!EQUUID(&pri->hdr_uuid, &sec->hdr_uuid))
 		return (0);
 	return ((pri->hdr_revision == sec->hdr_revision &&
@@ -288,6 +361,7 @@ gpt_parse_type(const char *type, struct uuid *uuid)
 	struct uuid tmp;
 	const char *alias;
 	int error;
+	struct g_part_uuid_alias *uap;
 
 	if (type[0] == '!') {
 		error = parse_uuid(type + 1, &tmp);
@@ -298,50 +372,12 @@ gpt_parse_type(const char *type, struct uuid *uuid)
 		*uuid = tmp;
 		return (0);
 	}
-	alias = g_part_alias_name(G_PART_ALIAS_EFI);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_efi;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_freebsd;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_BOOT);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_freebsd_boot;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_freebsd_swap;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_freebsd_ufs;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_freebsd_vinum;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_ZFS);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_freebsd_zfs;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_MBR);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_mbr;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_APPLE_HFS);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_apple_hfs;
-		return (0);
+	for (uap = &gpt_uuid_alias_match[0]; uap->uuid; uap++) {
+		alias = g_part_alias_name(uap->alias);
+		if (!strcasecmp(type, alias)) {
+			*uuid = *uap->uuid;
+			return (0);
+		}
 	}
 	return (EINVAL);
 }
@@ -382,6 +418,9 @@ g_part_gpt_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 	codesz = MIN(codesz, gpp->gpp_codesize);
 	if (codesz > 0)
 		bcopy(gpp->gpp_codeptr, table->mbr, codesz);
+
+	/* Mark the PMBR active since some BIOS require it */
+	table->mbr[DOSPARTOFF] = 0x80;		/* status */
 	return (0);
 }
 
@@ -424,17 +463,20 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	table->lba[GPT_ELT_SECHDR] = last;
 	table->lba[GPT_ELT_SECTBL] = last - tblsz;
 
-	bcopy(GPT_HDR_SIG, table->hdr.hdr_sig, sizeof(table->hdr.hdr_sig));
-	table->hdr.hdr_revision = GPT_HDR_REVISION;
-	table->hdr.hdr_size = offsetof(struct gpt_hdr, padding);
-	table->hdr.hdr_lba_start = 2 + tblsz;
-	table->hdr.hdr_lba_end = last - tblsz - 1;
-	kern_uuidgen(&table->hdr.hdr_uuid, 1);
-	table->hdr.hdr_entries = basetable->gpt_entries;
-	table->hdr.hdr_entsz = sizeof(struct gpt_ent);
+	/* Allocate space for the header */
+	table->hdr = g_malloc(sizeof(struct gpt_hdr), M_WAITOK | M_ZERO);
 
-	basetable->gpt_first = table->hdr.hdr_lba_start;
-	basetable->gpt_last = table->hdr.hdr_lba_end;
+	bcopy(GPT_HDR_SIG, table->hdr->hdr_sig, sizeof(table->hdr->hdr_sig));
+	table->hdr->hdr_revision = GPT_HDR_REVISION;
+	table->hdr->hdr_size = offsetof(struct gpt_hdr, padding);
+	table->hdr->hdr_lba_start = 2 + tblsz;
+	table->hdr->hdr_lba_end = last - tblsz - 1;
+	kern_uuidgen(&table->hdr->hdr_uuid, 1);
+	table->hdr->hdr_entries = basetable->gpt_entries;
+	table->hdr->hdr_entsz = sizeof(struct gpt_ent);
+
+	basetable->gpt_first = table->hdr->hdr_lba_start;
+	basetable->gpt_last = table->hdr->hdr_lba_end;
 	return (0);
 }
 
@@ -471,6 +513,9 @@ g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		sbuf_printf(sb, "%s<rawtype>", indent);
 		sbuf_printf_uuid(sb, &entry->ent.ent_type);
 		sbuf_printf(sb, "</rawtype>\n");
+		sbuf_printf(sb, "%s<rawuuid>", indent);
+		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
+		sbuf_printf(sb, "</rawuuid>\n");
 	} else {
 		/* confxml: scheme information */
 	}
@@ -579,7 +624,7 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 static int
 g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 {
-	struct gpt_hdr prihdr, sechdr;
+	struct gpt_hdr *prihdr, *sechdr;
 	struct gpt_ent *tbl, *pritbl, *sectbl;
 	struct g_provider *pp;
 	struct g_part_gpt_table *table;
@@ -598,18 +643,18 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 	g_free(buf);
 
 	/* Read the primary header and table. */
-	gpt_read_hdr(table, cp, GPT_ELT_PRIHDR, &prihdr);
+	prihdr = gpt_read_hdr(table, cp, GPT_ELT_PRIHDR);
 	if (table->state[GPT_ELT_PRIHDR] == GPT_STATE_OK) {
-		pritbl = gpt_read_tbl(table, cp, GPT_ELT_PRITBL, &prihdr);
+		pritbl = gpt_read_tbl(table, cp, GPT_ELT_PRITBL, prihdr);
 	} else {
 		table->state[GPT_ELT_PRITBL] = GPT_STATE_MISSING;
 		pritbl = NULL;
 	}
 
 	/* Read the secondary header and table. */
-	gpt_read_hdr(table, cp, GPT_ELT_SECHDR, &sechdr);
+	sechdr = gpt_read_hdr(table, cp, GPT_ELT_SECHDR);
 	if (table->state[GPT_ELT_SECHDR] == GPT_STATE_OK) {
-		sectbl = gpt_read_tbl(table, cp, GPT_ELT_SECTBL, &sechdr);
+		sectbl = gpt_read_tbl(table, cp, GPT_ELT_SECTBL, sechdr);
 	} else {
 		table->state[GPT_ELT_SECTBL] = GPT_STATE_MISSING;
 		sectbl = NULL;
@@ -632,13 +677,17 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 	 */
 	if (table->state[GPT_ELT_PRIHDR] == GPT_STATE_OK &&
 	    table->state[GPT_ELT_SECHDR] == GPT_STATE_OK &&
-	    !gpt_matched_hdrs(&prihdr, &sechdr)) {
+	    !gpt_matched_hdrs(prihdr, sechdr)) {
 		if (table->state[GPT_ELT_PRITBL] == GPT_STATE_OK) {
 			table->state[GPT_ELT_SECHDR] = GPT_STATE_INVALID;
 			table->state[GPT_ELT_SECTBL] = GPT_STATE_MISSING;
+			g_free(sechdr);
+			sechdr = NULL;
 		} else {
 			table->state[GPT_ELT_PRIHDR] = GPT_STATE_INVALID;
 			table->state[GPT_ELT_PRITBL] = GPT_STATE_MISSING;
+			g_free(prihdr);
+			prihdr = NULL;
 		}
 	}
 
@@ -648,6 +697,8 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 		printf("GEOM: %s: using the secondary instead -- recovery "
 		    "strongly advised.\n", pp->name);
 		table->hdr = sechdr;
+		if (prihdr != NULL)
+			g_free(prihdr);
 		tbl = sectbl;
 		if (pritbl != NULL)
 			g_free(pritbl);
@@ -659,14 +710,16 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 			    "suggested.\n", pp->name);
 		}
 		table->hdr = prihdr;
+		if (sechdr != NULL)
+			g_free(sechdr);
 		tbl = pritbl;
 		if (sectbl != NULL)
 			g_free(sectbl);
 	}
 
-	basetable->gpt_first = table->hdr.hdr_lba_start;
-	basetable->gpt_last = table->hdr.hdr_lba_end;
-	basetable->gpt_entries = table->hdr.hdr_entries;
+	basetable->gpt_first = table->hdr->hdr_lba_start;
+	basetable->gpt_last = table->hdr->hdr_lba_end;
+	basetable->gpt_entries = table->hdr->hdr_entries;
 
 	for (index = basetable->gpt_entries - 1; index >= 0; index--) {
 		if (EQUUID(&tbl[index].ent_type, &gpt_uuid_unused))
@@ -686,27 +739,16 @@ g_part_gpt_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 {
 	struct g_part_gpt_entry *entry;
 	struct uuid *type;
+	struct g_part_uuid_alias *uap;
  
 	entry = (struct g_part_gpt_entry *)baseentry;
 	type = &entry->ent.ent_type;
-	if (EQUUID(type, &gpt_uuid_efi))
-		return (g_part_alias_name(G_PART_ALIAS_EFI));
-	if (EQUUID(type, &gpt_uuid_freebsd))
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD));
-	if (EQUUID(type, &gpt_uuid_freebsd_boot))
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_BOOT));
-	if (EQUUID(type, &gpt_uuid_freebsd_swap))
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP));
-	if (EQUUID(type, &gpt_uuid_freebsd_ufs))
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS));
-	if (EQUUID(type, &gpt_uuid_freebsd_vinum))
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM));
-	if (EQUUID(type, &gpt_uuid_freebsd_zfs))
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_ZFS));
-	if (EQUUID(type, &gpt_uuid_mbr))
-		return (g_part_alias_name(G_PART_ALIAS_MBR));
+	for (uap = &gpt_uuid_alias_match[0]; uap->uuid; uap++)
+		if (EQUUID(type, uap->uuid))
+			return (g_part_alias_name(uap->alias));
 	buf[0] = '!';
 	snprintf_uuid(buf + 1, bufsz - 1, type);
+
 	return (buf);
 }
 
@@ -724,7 +766,7 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_gpt_table *)basetable;
-	tlbsz = (table->hdr.hdr_entries * table->hdr.hdr_entsz +
+	tlbsz = (table->hdr->hdr_entries * table->hdr->hdr_entsz +
 	    pp->sectorsize - 1) / pp->sectorsize;
 
 	/* Write the PMBR */
@@ -738,21 +780,21 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	/* Allocate space for the header and entries. */
 	buf = g_malloc((tlbsz + 1) * pp->sectorsize, M_WAITOK | M_ZERO);
 
-	memcpy(buf, table->hdr.hdr_sig, sizeof(table->hdr.hdr_sig));
-	le32enc(buf + 8, table->hdr.hdr_revision);
-	le32enc(buf + 12, table->hdr.hdr_size);
-	le64enc(buf + 40, table->hdr.hdr_lba_start);
-	le64enc(buf + 48, table->hdr.hdr_lba_end);
-	le_uuid_enc(buf + 56, &table->hdr.hdr_uuid);
-	le32enc(buf + 80, table->hdr.hdr_entries);
-	le32enc(buf + 84, table->hdr.hdr_entsz);
+	memcpy(buf, table->hdr->hdr_sig, sizeof(table->hdr->hdr_sig));
+	le32enc(buf + 8, table->hdr->hdr_revision);
+	le32enc(buf + 12, table->hdr->hdr_size);
+	le64enc(buf + 40, table->hdr->hdr_lba_start);
+	le64enc(buf + 48, table->hdr->hdr_lba_end);
+	le_uuid_enc(buf + 56, &table->hdr->hdr_uuid);
+	le32enc(buf + 80, table->hdr->hdr_entries);
+	le32enc(buf + 84, table->hdr->hdr_entsz);
 
 	LIST_FOREACH(baseentry, &basetable->gpt_entry, gpe_entry) {
 		if (baseentry->gpe_deleted)
 			continue;
 		entry = (struct g_part_gpt_entry *)baseentry;
 		index = baseentry->gpe_index - 1;
-		bp = buf + pp->sectorsize + table->hdr.hdr_entsz * index;
+		bp = buf + pp->sectorsize + table->hdr->hdr_entsz * index;
 		le_uuid_enc(bp, &entry->ent.ent_type);
 		le_uuid_enc(bp + 16, &entry->ent.ent_uuid);
 		le64enc(bp + 32, entry->ent.ent_lba_start);
@@ -763,7 +805,7 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	}
 
 	crc = crc32(buf + pp->sectorsize,
-	    table->hdr.hdr_entries * table->hdr.hdr_entsz);
+	    table->hdr->hdr_entries * table->hdr->hdr_entsz);
 	le32enc(buf + 88, crc);
 
 	/* Write primary meta-data. */
@@ -771,7 +813,7 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	le64enc(buf + 24, table->lba[GPT_ELT_PRIHDR]);	/* hdr_lba_self. */
 	le64enc(buf + 32, table->lba[GPT_ELT_SECHDR]);	/* hdr_lba_alt. */
 	le64enc(buf + 72, table->lba[GPT_ELT_PRITBL]);	/* hdr_lba_table. */
-	crc = crc32(buf, table->hdr.hdr_size);
+	crc = crc32(buf, table->hdr->hdr_size);
 	le32enc(buf + 16, crc);
 
 	error = g_write_data(cp, table->lba[GPT_ELT_PRITBL] * pp->sectorsize,
@@ -788,7 +830,7 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	le64enc(buf + 24, table->lba[GPT_ELT_SECHDR]);	/* hdr_lba_self. */
 	le64enc(buf + 32, table->lba[GPT_ELT_PRIHDR]);	/* hdr_lba_alt. */
 	le64enc(buf + 72, table->lba[GPT_ELT_SECTBL]);	/* hdr_lba_table. */
-	crc = crc32(buf, table->hdr.hdr_size);
+	crc = crc32(buf, table->hdr->hdr_size);
 	le32enc(buf + 16, crc);
 
 	error = g_write_data(cp, table->lba[GPT_ELT_SECTBL] * pp->sectorsize,

@@ -108,7 +108,21 @@ struct vesa_mode
     u_int32_t		v_lfb;
     u_int32_t		v_offscreen;
     u_int16_t		v_offscreensize;
-};
+    /* 3.0 implementations */
+    u_int16_t		v_linbpscanline;
+    u_int8_t		v_bankipages;
+    u_int8_t		v_linipages;
+    u_int8_t		v_linredmasksize;
+    u_int8_t		v_linredfieldpos;
+    u_int8_t		v_lingreenmasksize;
+    u_int8_t		v_lingreenfieldpos;
+    u_int8_t		v_linbluemasksize;
+    u_int8_t		v_linbluefieldpos;
+    u_int8_t		v_linresmasksize;
+    u_int8_t		v_linresfieldpos;
+    u_int32_t		v_maxpixelclock;
+    u_int8_t		v_reserved1[190];
+} __packed;
 
 #ifdef _KERNEL
 

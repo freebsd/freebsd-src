@@ -58,7 +58,7 @@ main(int argc, char **argv)
 {
 	int i, ch, fd, error;
 	char buf[BUFSIZ], ident[DISK_IDENT_SIZE];
-	off_t	mediasize;
+	off_t	mediasize, stripesize, stripeoffset;
 	u_int	sectorsize, fwsectors, fwheads;
 
 	while ((ch = getopt(argc, argv, "ctv")) != -1) {
@@ -104,11 +104,19 @@ main(int argc, char **argv)
 		error = ioctl(fd, DIOCGFWHEADS, &fwheads);
 		if (error)
 			fwheads = 0;
+		error = ioctl(fd, DIOCGSTRIPESIZE, &stripesize);
+		if (error)
+			stripesize = 0;
+		error = ioctl(fd, DIOCGSTRIPEOFFSET, &stripeoffset);
+		if (error)
+			stripeoffset = 0;
 		if (!opt_v) {
 			printf("%s", argv[i]);
 			printf("\t%u", sectorsize);
 			printf("\t%jd", (intmax_t)mediasize);
 			printf("\t%jd", (intmax_t)mediasize/sectorsize);
+			printf("\t%jd", (intmax_t)stripesize);
+			printf("\t%jd", (intmax_t)stripeoffset);
 			if (fwsectors != 0 && fwheads != 0) {
 				printf("\t%jd", (intmax_t)mediasize /
 				    (fwsectors * fwheads * sectorsize));
@@ -124,6 +132,8 @@ main(int argc, char **argv)
 			    (intmax_t)mediasize, buf);
 			printf("\t%-12jd\t# mediasize in sectors\n",
 			    (intmax_t)mediasize/sectorsize);
+			printf("\t%-12jd\t# stripesize\n", stripesize);
+			printf("\t%-12jd\t# stripeoffset\n", stripeoffset);
 			if (fwsectors != 0 && fwheads != 0) {
 				printf("\t%-12jd\t# Cylinders according to firmware.\n", (intmax_t)mediasize /
 				    (fwsectors * fwheads * sectorsize));

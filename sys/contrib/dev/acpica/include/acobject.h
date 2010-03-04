@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -190,7 +190,7 @@ typedef struct acpi_object_integer
 {
     ACPI_OBJECT_COMMON_HEADER
     UINT8                           Fill[3];            /* Prevent warning on some compilers */
-    ACPI_INTEGER                    Value;
+    UINT64                          Value;
 
 } ACPI_OBJECT_INTEGER;
 
@@ -288,7 +288,12 @@ typedef struct acpi_object_method
     UINT8                           SyncLevel;
     union acpi_operand_object       *Mutex;
     UINT8                           *AmlStart;
-    ACPI_INTERNAL_METHOD            Implementation;
+    union
+    {
+        ACPI_INTERNAL_METHOD            Implementation;
+        union acpi_operand_object       *Handler;
+    } Extra;
+
     UINT32                          AmlLength;
     UINT8                           ThreadCount;
     ACPI_OWNER_ID                   OwnerId;

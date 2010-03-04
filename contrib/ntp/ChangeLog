@@ -1,6 +1,85 @@
-(4.2.4p5) 2008/08/17 Released by Harlan Stenn <stenn@ntp.org>
 ---
-(4.2.4p5) 2008/08/17 Released by Harlan Stenn <stenn@ntp.org>
+(4.2.4p8) 2009/12/08 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 1331] DoS with mode 7 packets - CVE-2009-3563.
+
+---
+(4.2.4p7) 2009/05/18 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 1151] Remote exploit if autokey is enabled - CVE-2009-1252.
+* [Bug 1187] Update the copyright date.
+* [Bug 1191] ntpd fails on Win2000 - "Address already in use" after fix
+  for [Sec 1149].
+
+---
+(4.2.4p7-RC7) 2009/05/12 Released by Harlan Stenn <stenn@ntp.org>
+
+* ntp.isc.org -> ntp.org cleanup.
+* [Bug 1178] Use prior FORCE_DNSRETRY behavior as needed at runtime,
+  add configure --enable-ignore-dns-errors to be even more stubborn
+
+---
+(4.2.4p7-RC6) 2009/05/08 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 784] Make --enable-linuxcaps the default when available
+* [Bug 1179] error messages for -u/--user and -i lacking droproot
+* Updated JJY reference clock driver from Takao Abe
+* [Bug 1071] Log a message and exit before trying to use FD_SET with a
+  descriptor larger than FD_SETSIZE, which will corrupt memory
+* On corruption of the iface list head in add_interface, log and exit
+
+---
+(4.2.4p7-RC5) 2009/05/02 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 1172] 4.2.4p7-RC{3,4} fail to build on linux.
+* flock-build script unportable 'set -m' use removed
+
+---
+(4.2.4p7-RC4) 2009/04/29 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 1167] use gcc -Winit-self only if it is understood
+
+---
+(4.2.4p7-RC3) 2009/04/22 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 787] Bug fixes for 64-bit time_t on Windows
+* [Bug 813] Conditional naming of Event
+* [Bug 1147] System errors should be logged to msyslog()
+* [Bug 1155] Fix compile problem on Windows with VS2005
+* [Bug 1156] lock_thread_to_processor() should be declared in header
+* [Bug 1157] quiet OpenSSL warnings, clean up configure.ac
+* [Bug 1158] support for aix6.1
+* [Bug 1160] MacOS X is like BSD regarding F_SETOWN
+
+---
+(4.2.4p7-RC2) 2009/04/09 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 1144] limited buffer overflow in ntpq.  CVE-2009-0159
+* [Sec 1149] use SO_EXCLUSIVEADDRUSE on Windows
+
+---
+(4.2.4p7-RC1) 2009/03/30 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 1131] UDP sockets should not use SIGPOLL on Solaris.
+* build system email address cleanup
+* [Bug 774] parsesolaris.c does not compile under the new Solaris
+* [Bug 873] Windows serial refclock proper TTY line discipline emulation
+* [Bug 1014] Enable building with VC9 (in Visual Studio 2008,
+  Visual C++ 2008, or SDK)
+* [Bug 1117] Deferred interface binding under Windows works only correctly
+  if FORCE_DNSRETRY is defined
+* [BUG 1124] Lock QueryPerformanceCounter() client threads to same CPU
+* DPRINTF macro made safer, always evaluates to a statement and will not
+  misassociate an else which follows the macro.
+
+---
+(4.2.4p6) 2009/01/08 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 1113] Fixed build errors with recent versions of openSSL. 
+* [Sec 1111] Fix incorrect check of EVP_VerifyFinal()'s return value.
+* Update the copyright year.
+
+---
 (4.2.4p5) 2008/08/17 Released by Harlan Stenn <stenn@ntp.org>
 
 * [BUG 1051] Month off by one in leap second message written to clockstats

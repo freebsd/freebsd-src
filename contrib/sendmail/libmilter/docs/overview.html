@@ -4,7 +4,7 @@
 </HEAD>
 <BODY>
 <!--
-$Id: overview.html,v 1.19 2006/12/21 18:23:47 ca Exp $
+$Id: overview.html,v 1.20 2009/11/13 18:15:05 ca Exp $
 -->
 
 <H1>Technical Overview</H1>
@@ -60,7 +60,9 @@ returns to <CODE>MESSAGE</CODE>.
 For each of N connections
 {
 	For each filter
-		process connection/helo (<A HREF="xxfi_connect.html">xxfi_connect</A>, <A HREF="xxfi_helo.html">xxfi_helo</A>)
+		process connection (<A HREF="xxfi_connect.html">xxfi_connect</A>)
+	For each filter
+		process helo/ehlo (<A HREF="xxfi_helo.html">xxfi_helo</A>)
 MESSAGE:For each message in this connection (sequentially)
 	{
 		For each filter

@@ -13,6 +13,7 @@ SUBDIR=	geom_bde \
 	geom_linux_lvm \
 	geom_mbr \
 	geom_mirror \
+	geom_mountver \
 	geom_multipath \
 	geom_nop \
 	geom_part \

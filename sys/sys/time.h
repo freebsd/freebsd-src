@@ -283,7 +283,7 @@ extern struct timeval boottime;
  *
  * Functions with the "get" prefix returns a less precise result
  * much faster than the functions without "get" prefix and should
- * be used where a precision of 10 msec is acceptable or where
+ * be used where a precision of 1/hz seconds is acceptable or where
  * performance is priority. (NB: "precision", _not_ "resolution" !) 
  * 
  */

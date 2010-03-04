@@ -105,7 +105,7 @@ ieee80211_send_action_register(int cat, int act, ieee80211_send_action_func *f)
 		meshlm_send_action[act] = f;
 		return 0;
 	case IEEE80211_ACTION_CAT_MESHPATH:
-		if (act > N(hwmp_send_action))
+		if (act >= N(hwmp_send_action))
 			break;
 		hwmp_send_action[act] = f;
 		return 0;

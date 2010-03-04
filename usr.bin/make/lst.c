@@ -41,7 +41,6 @@
 #include <stdlib.h>
 
 #include "lst.h"
-#include "make.h"
 #include "util.h"
 
 /**

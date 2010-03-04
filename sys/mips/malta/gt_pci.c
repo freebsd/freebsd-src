@@ -91,11 +91,16 @@ __FBSDID("$FreeBSD$");
 #define OCW3_POLL_IRQ(x) ((x) & 0x7f)
 #define OCW3_POLL_PENDING (1U << 7)
 
+struct gt_pci_softc;
+
+struct gt_pci_intr_cookie {
+	int irq;
+	struct gt_pci_softc *sc;
+};
+
 struct gt_pci_softc {
 	device_t 		sc_dev;
 	bus_space_tag_t 	sc_st;
-	bus_space_tag_t		sc_pciio;
-	bus_space_tag_t		sc_pcimem;
 	bus_space_handle_t	sc_ioh_icu1;
 	bus_space_handle_t	sc_ioh_icu2;
 	bus_space_handle_t	sc_ioh_elcr;
@@ -109,6 +114,7 @@ struct gt_pci_softc {
 
 	struct resource		*sc_irq;
 	struct intr_event	*sc_eventstab[ICU_LEN];
+	struct gt_pci_intr_cookie	sc_intr_cookies[ICU_LEN];
 	uint16_t		sc_imask;
 	uint16_t		sc_elcr;
 
@@ -116,6 +122,52 @@ struct gt_pci_softc {
 
 	void			*sc_ih;
 };
+
+static void gt_pci_set_icus(struct gt_pci_softc *);
+static int gt_pci_intr(void *v);
+static int gt_pci_probe(device_t);
+static int gt_pci_attach(device_t);
+static int gt_pci_activate_resource(device_t, device_t, int, int, 
+    struct resource *);
+static int gt_pci_setup_intr(device_t, device_t, struct resource *, 
+    int, driver_filter_t *, driver_intr_t *, void *, void **);
+static int gt_pci_teardown_intr(device_t, device_t, struct resource *, void*);
+static int gt_pci_maxslots(device_t );
+static int gt_pci_conf_setup(struct gt_pci_softc *, int, int, int, int, 
+    uint32_t *);
+static uint32_t gt_pci_read_config(device_t, u_int, u_int, u_int, u_int, int);
+static void gt_pci_write_config(device_t, u_int, u_int, u_int, u_int, 
+    uint32_t, int);
+static int gt_pci_route_interrupt(device_t pcib, device_t dev, int pin);
+static struct resource * gt_pci_alloc_resource(device_t, device_t, int, 
+    int *, u_long, u_long, u_long, u_int);
+
+static void
+gt_pci_mask_irq(void *source)
+{
+	struct gt_pci_intr_cookie *cookie = source;
+	struct gt_pci_softc *sc = cookie->sc;
+	int irq = cookie->irq;
+
+	sc->sc_imask |= (1 << irq);
+	sc->sc_elcr |= (1 << irq);
+
+	gt_pci_set_icus(sc);
+}
+
+static void
+gt_pci_unmask_irq(void *source)
+{
+	struct gt_pci_intr_cookie *cookie = source;
+	struct gt_pci_softc *sc = cookie->sc;
+	int irq = cookie->irq;
+
+	/* Enable it, set trigger mode. */
+	sc->sc_imask &= ~(1 << irq);
+	sc->sc_elcr &= ~(1 << irq);
+
+	gt_pci_set_icus(sc);
+}
 
 static void
 gt_pci_set_icus(struct gt_pci_softc *sc)
@@ -126,14 +178,14 @@ gt_pci_set_icus(struct gt_pci_softc *sc)
 	else
 		sc->sc_imask |= (1U << 2);
 
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, PIC_OCW1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, PIC_OCW1,
 	    sc->sc_imask & 0xff);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, PIC_OCW1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, PIC_OCW1,
 	    (sc->sc_imask >> 8) & 0xff);
 
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_elcr, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_elcr, 0,
 	    sc->sc_elcr & 0xff);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_elcr, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_elcr, 1,
 	    (sc->sc_elcr >> 8) & 0xff);
 }
 
@@ -145,9 +197,9 @@ gt_pci_intr(void *v)
 	int irq;
 
 	for (;;) {
-		bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, PIC_OCW3,
+		bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, PIC_OCW3,
 		    OCW3_SEL | OCW3_P);
-		irq = bus_space_read_1(sc->sc_pciio, sc->sc_ioh_icu1, PIC_OCW3);
+		irq = bus_space_read_1(sc->sc_st, sc->sc_ioh_icu1, PIC_OCW3);
 		if ((irq & OCW3_POLL_PENDING) == 0)
 		{
 			return FILTER_HANDLED;
@@ -156,9 +208,9 @@ gt_pci_intr(void *v)
 		irq = OCW3_POLL_IRQ(irq);
 
 		if (irq == 2) {
-			bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2,
+			bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2,
 			    PIC_OCW3, OCW3_SEL | OCW3_P);
-			irq = bus_space_read_1(sc->sc_pciio, sc->sc_ioh_icu2,
+			irq = bus_space_read_1(sc->sc_st, sc->sc_ioh_icu2,
 			    PIC_OCW3);
 			if (irq & OCW3_POLL_PENDING)
 				irq = OCW3_POLL_IRQ(irq) + 8;
@@ -177,13 +229,13 @@ gt_pci_intr(void *v)
 
 		/* Send a specific EOI to the 8259. */
 		if (irq > 7) {
-			bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2,
+			bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2,
 			    PIC_OCW2, OCW2_SELECT | OCW2_EOI | OCW2_SL |
 			    OCW2_ILS(irq & 7));
 			irq = 2;
 		}
 
-		bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, PIC_OCW2,
+		bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, PIC_OCW2,
 		    OCW2_SELECT | OCW2_EOI | OCW2_SL | OCW2_ILS(irq));
 	}
 
@@ -208,8 +260,7 @@ gt_pci_attach(device_t dev)
 	busno = 0;
 	sc->sc_dev = dev;
 	sc->sc_busno = busno;
-	sc->sc_pciio = MIPS_BUS_SPACE_IO;
-	sc->sc_pcimem = MIPS_BUS_SPACE_MEM;
+	sc->sc_st = mips_bus_space_generic;
 
 	/* Use KSEG1 to access IO ports for it is uncached */
 	sc->sc_io = MIPS_PHYS_TO_KSEG1(MALTA_PCI0_IO_BASE);
@@ -239,11 +290,11 @@ gt_pci_attach(device_t dev)
 	 * Map the PIC/ELCR registers.
 	 */
 #if 0
-	if (bus_space_map(sc->sc_pciio, 0x4d0, 2, 0, &sc->sc_ioh_elcr) != 0)
+	if (bus_space_map(sc->sc_st, 0x4d0, 2, 0, &sc->sc_ioh_elcr) != 0)
 		device_printf(dev, "unable to map ELCR registers\n");
-	if (bus_space_map(sc->sc_pciio, IO_ICU1, 2, 0, &sc->sc_ioh_icu1) != 0)
+	if (bus_space_map(sc->sc_st, IO_ICU1, 2, 0, &sc->sc_ioh_icu1) != 0)
 		device_printf(dev, "unable to map ICU1 registers\n");
-	if (bus_space_map(sc->sc_pciio, IO_ICU2, 2, 0, &sc->sc_ioh_icu2) != 0)
+	if (bus_space_map(sc->sc_st, IO_ICU2, 2, 0, &sc->sc_ioh_icu2) != 0)
 		device_printf(dev, "unable to map ICU2 registers\n");
 #else
 	sc->sc_ioh_elcr = sc->sc_io + 0x4d0;
@@ -262,58 +313,58 @@ gt_pci_attach(device_t dev)
 	 * Initialize the 8259s.
 	 */
 	/* reset, program device, 4 bytes */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 0,
 	    ICW1_RESET | ICW1_IC4);
 	/*
 	 * XXX: values from NetBSD's <dev/ic/i8259reg.h>
 	 */	 
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
 	    0/*XXX*/);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
 	    1 << 2);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
 	    ICW4_8086);
 
 	/* mask all interrupts */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 0,
 	    sc->sc_imask & 0xff);
 
 	/* enable special mask mode */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
 	    OCW3_SEL | OCW3_ESMM | OCW3_SMM);
 
 	/* read IRR by default */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
 	    OCW3_SEL | OCW3_RR);
 
 	/* reset, program device, 4 bytes */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 0,
 	    ICW1_RESET | ICW1_IC4);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 1,
 	    0/*XXX*/);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 1,
 	    1 << 2);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 1,
 	    ICW4_8086);
 
 	/* mask all interrupts */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 0,
 	    sc->sc_imask & 0xff);
 
 	/* enable special mask mode */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 1,
 	    OCW3_SEL | OCW3_ESMM | OCW3_SMM);
 
 	/* read IRR by default */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 1,
 	    OCW3_SEL | OCW3_RR);
 
 	/*
 	 * Default all interrupts to edge-triggered.
 	 */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_elcr, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_elcr, 0,
 	    sc->sc_elcr & 0xff);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_elcr, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_elcr, 1,
 	    (sc->sc_elcr >> 8) & 0xff);
 
 	/*
@@ -570,12 +621,12 @@ gt_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_mem_rman;
-		bt = sc->sc_pcimem;
+		bt = sc->sc_st;
 		bh = sc->sc_mem;
 		break;
 	case SYS_RES_IOPORT:
 		rm = &sc->sc_io_rman;
-		bt = sc->sc_pciio;
+		bt = sc->sc_st;
 		bh = sc->sc_io;
 		break;
 	default:
@@ -632,10 +683,13 @@ gt_pci_setup_intr(device_t dev, device_t child, struct resource *ires,
 		panic("%s: bad irq or type", __func__);
 
 	event = sc->sc_eventstab[irq];
+	sc->sc_intr_cookies[irq].irq = irq;
+	sc->sc_intr_cookies[irq].sc = sc;
 	if (event == NULL) {
-                error = intr_event_create(&event, (void *)irq, 0, irq,
-		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
-		    (mask_fn)mips_unmask_irq, NULL, "gt_pci intr%d:", irq);
+                error = intr_event_create(&event, 
+		    (void *)&sc->sc_intr_cookies[irq], 0, irq,
+		    gt_pci_mask_irq, gt_pci_unmask_irq,
+		    NULL, NULL, "gt_pci intr%d:", irq);
 		if (error)
 			return 0;
 		sc->sc_eventstab[irq] = event;
@@ -644,12 +698,7 @@ gt_pci_setup_intr(device_t dev, device_t child, struct resource *ires,
 	intr_event_add_handler(event, device_get_nameunit(child), filt, 
 	    handler, arg, intr_priority(flags), flags, cookiep);
 
-	/* Enable it, set trigger mode. */
-	sc->sc_imask &= ~(1 << irq);
-	sc->sc_elcr &= ~(1 << irq);
-
-	gt_pci_set_icus(sc);
-
+	gt_pci_unmask_irq((void *)&sc->sc_intr_cookies[irq]);
 	return 0;
 }
 
@@ -657,6 +706,12 @@ static int
 gt_pci_teardown_intr(device_t dev, device_t child, struct resource *res,
     void *cookie)
 {
+	struct gt_pci_softc *sc = device_get_softc(dev);
+	int irq;
+
+	irq = rman_get_start(res);
+	gt_pci_mask_irq((void *)&sc->sc_intr_cookies[irq]);
+
 	return (intr_event_remove_handler(cookie));
 }
 

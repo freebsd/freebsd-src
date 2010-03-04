@@ -84,13 +84,13 @@ static const char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #include <string.h>
 #include <timeconv.h>
 #include <unistd.h>
-#include <utmp.h>
+#include <utmpx.h>
 #include <vis.h>
 
 #include "extern.h"
 
 struct timeval	boottime;
-struct utmp	utmp;
+struct utmpx   *utmp;
 struct winsize	ws;
 kvm_t	       *kd;
 time_t		now;		/* the current time of day */
@@ -109,7 +109,7 @@ char	      **sel_users;	/* login array of particular users selected */
  */
 struct	entry {
 	struct	entry *next;
-	struct	utmp utmp;
+	struct	utmpx utmp;
 	dev_t	tdev;			/* dev_t of terminal */
 	time_t	idle;			/* idle time of terminal in seconds */
 	struct	kinfo_proc *kp;		/* `most interesting' proc */
@@ -117,13 +117,14 @@ struct	entry {
 	struct	kinfo_proc *dkp;	/* debug option proc list */
 } *ep, *ehead = NULL, **nextp = &ehead;
 
-#define	debugproc(p) *((struct kinfo_proc **)&(p)->ki_udata)
+#define	debugproc(p) *(&((struct kinfo_proc *)p)->ki_udata)
 
-/* W_DISPHOSTSIZE should not be greater than UT_HOSTSIZE */
-#define	W_DISPHOSTSIZE	16
+#define	W_DISPUSERSIZE	10
+#define	W_DISPLINESIZE	8
+#define	W_DISPHOSTSIZE	24
 
 static void		 pr_header(time_t *, int);
-static struct stat	*ttystat(char *, int);
+static struct stat	*ttystat(char *);
 static void		 usage(int);
 static int		 this_is_uptime(const char *s);
 
@@ -135,7 +136,6 @@ main(int argc, char *argv[])
 	struct kinfo_proc *kp;
 	struct kinfo_proc *dkp;
 	struct stat *stp;
-	FILE *ut;
 	time_t touched;
 	int ch, i, nentries, nusers, wcmd, longidle, longattime, dropgid;
 	const char *memf, *nlistf, *p;
@@ -158,7 +158,8 @@ main(int argc, char *argv[])
 	}
 
 	dropgid = 0;
-	memf = nlistf = _PATH_DEVNULL;
+	memf = _PATH_DEVNULL;
+	nlistf = NULL;
 	while ((ch = getopt(argc, argv, p)) != -1)
 		switch (ch) {
 		case 'd':
@@ -208,16 +209,15 @@ main(int argc, char *argv[])
 		errx(1, "%s", errbuf);
 
 	(void)time(&now);
-	if ((ut = fopen(_PATH_UTMP, "r")) == NULL)
-		err(1, "%s", _PATH_UTMP);
 
 	if (*argv)
 		sel_users = argv;
 
-	for (nusers = 0; fread(&utmp, sizeof(utmp), 1, ut);) {
-		if (utmp.ut_name[0] == '\0')
+	setutxent();
+	for (nusers = 0; (utmp = getutxent()) != NULL;) {
+		if (utmp->ut_type != USER_PROCESS)
 			continue;
-		if (!(stp = ttystat(utmp.ut_line, UT_LINESIZE)))
+		if (!(stp = ttystat(utmp->ut_line)))
 			continue;	/* corrupted record */
 		++nusers;
 		if (wcmd == 0)
@@ -228,7 +228,7 @@ main(int argc, char *argv[])
 
 			usermatch = 0;
 			for (user = sel_users; !usermatch && *user; user++)
-				if (!strncmp(utmp.ut_name, *user, UT_NAMESIZE))
+				if (!strcmp(utmp->ut_user, *user))
 					usermatch = 1;
 			if (!usermatch)
 				continue;
@@ -237,7 +237,7 @@ main(int argc, char *argv[])
 			errx(1, "calloc");
 		*nextp = ep;
 		nextp = &ep->next;
-		memmove(&ep->utmp, &utmp, sizeof(struct utmp));
+		memmove(&ep->utmp, utmp, sizeof *utmp);
 		ep->tdev = stp->st_rdev;
 		/*
 		 * If this is the console device, attempt to ascertain
@@ -250,14 +250,14 @@ main(int argc, char *argv[])
 			(void)sysctlbyname("machdep.consdev", &ep->tdev, &size, NULL, 0);
 		}
 		touched = stp->st_atime;
-		if (touched < ep->utmp.ut_time) {
+		if (touched < ep->utmp.ut_tv.tv_sec) {
 			/* tty untouched since before login */
-			touched = ep->utmp.ut_time;
+			touched = ep->utmp.ut_tv.tv_sec;
 		}
 		if ((ep->idle = now - touched) < 0)
 			ep->idle = 0;
 	}
-	(void)fclose(ut);
+	endutxent();
 
 	if (header || wcmd == 0) {
 		pr_header(&now, nusers);
@@ -271,11 +271,11 @@ main(int argc, char *argv[])
 #define HEADER_FROM		"FROM"
 #define HEADER_LOGIN_IDLE	"LOGIN@  IDLE "
 #define HEADER_WHAT		"WHAT\n"
-#define WUSED  (UT_NAMESIZE + UT_LINESIZE + W_DISPHOSTSIZE + \
+#define WUSED  (W_DISPUSERSIZE + W_DISPLINESIZE + W_DISPHOSTSIZE + \
 		sizeof(HEADER_LOGIN_IDLE) + 3)	/* header width incl. spaces */ 
 		(void)printf("%-*.*s %-*.*s %-*.*s  %s", 
-				UT_NAMESIZE, UT_NAMESIZE, HEADER_USER,
-				UT_LINESIZE, UT_LINESIZE, HEADER_TTY,
+				W_DISPUSERSIZE, W_DISPUSERSIZE, HEADER_USER,
+				W_DISPLINESIZE, W_DISPLINESIZE, HEADER_TTY,
 				W_DISPHOSTSIZE, W_DISPHOSTSIZE, HEADER_FROM,
 				HEADER_LOGIN_IDLE HEADER_WHAT);
 	}
@@ -283,7 +283,8 @@ main(int argc, char *argv[])
 	if ((kp = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nentries)) == NULL)
 		err(1, "%s", kvm_geterr(kd));
 	for (i = 0; i < nentries; i++, kp++) {
-		if (kp->ki_stat == SIDL || kp->ki_stat == SZOMB)
+		if (kp->ki_stat == SIDL || kp->ki_stat == SZOMB ||
+		    kp->ki_tdev == NODEV)
 			continue;
 		for (ep = ehead; ep != NULL; ep = ep->next) {
 			if (ep->tdev == kp->ki_tdev) {
@@ -347,7 +348,7 @@ main(int argc, char *argv[])
 	}
 
 	for (ep = ehead; ep != NULL; ep = ep->next) {
-		char host_buf[UT_HOSTSIZE + 1];
+		struct addrinfo hints, *res;
 		struct sockaddr_storage ss;
 		struct sockaddr *sa = (struct sockaddr *)&ss;
 		struct sockaddr_in *lsin = (struct sockaddr_in *)&ss;
@@ -355,9 +356,7 @@ main(int argc, char *argv[])
 		time_t t;
 		int isaddr;
 
-		host_buf[UT_HOSTSIZE] = '\0';
-		strncpy(host_buf, ep->utmp.ut_host, UT_HOSTSIZE);
-		p = *host_buf ? host_buf : "-";
+		p = *ep->utmp.ut_host ? ep->utmp.ut_host : "-";
 		if ((x_suffix = strrchr(p, ':')) != NULL) {
 			if ((dot = strchr(x_suffix, '.')) != NULL &&
 			    strchr(dot+1, '.') == NULL)
@@ -365,23 +364,42 @@ main(int argc, char *argv[])
 			else
 				x_suffix = NULL;
 		}
+
+		isaddr = 0;
+		memset(&ss, '\0', sizeof(ss));
+		if (inet_pton(AF_INET6, p, &lsin6->sin6_addr) == 1) {
+			lsin6->sin6_len = sizeof(*lsin6);
+			lsin6->sin6_family = AF_INET6;
+			isaddr = 1;
+		} else if (inet_pton(AF_INET, p, &lsin->sin_addr) == 1) {
+			lsin->sin_len = sizeof(*lsin);
+			lsin->sin_family = AF_INET;
+			isaddr = 1;
+		}
 		if (!nflag) {
 			/* Attempt to change an IP address into a name */
-			isaddr = 0;
-			memset(&ss, '\0', sizeof(ss));
-			if (inet_pton(AF_INET6, p, &lsin6->sin6_addr) == 1) {
-				lsin6->sin6_len = sizeof(*lsin6);
-				lsin6->sin6_family = AF_INET6;
-				isaddr = 1;
-			} else if (inet_pton(AF_INET, p, &lsin->sin_addr) == 1) {
-				lsin->sin_len = sizeof(*lsin);
-				lsin->sin_family = AF_INET;
-				isaddr = 1;
-			}
 			if (isaddr && realhostname_sa(fn, sizeof(fn), sa,
 			    sa->sa_len) == HOSTNAME_FOUND)
 				p = fn;
+		} else if (!isaddr) {
+			/*
+			 * If a host has only one A/AAAA RR, change a
+			 * name into an IP address
+			 */
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_UNSPEC;
+			hints.ai_socktype = SOCK_STREAM;
+			if (getaddrinfo(p, NULL, &hints, &res) == 0) {
+				if (res->ai_next == NULL &&
+				    getnameinfo(res->ai_addr, res->ai_addrlen,
+					fn, sizeof(fn), NULL, 0,
+					NI_NUMERICHOST) == 0)
+					p = fn;
+				freeaddrinfo(res);
+			}
 		}
+
 		if (x_suffix) {
 			(void)snprintf(buf, sizeof(buf), "%s:%s", p, x_suffix);
 			p = buf;
@@ -399,13 +417,14 @@ main(int argc, char *argv[])
 			}
 		}
 		(void)printf("%-*.*s %-*.*s %-*.*s ",
-		    UT_NAMESIZE, UT_NAMESIZE, ep->utmp.ut_name,
-		    UT_LINESIZE, UT_LINESIZE,
-		    strncmp(ep->utmp.ut_line, "tty", 3) &&
+		    W_DISPUSERSIZE, W_DISPUSERSIZE, ep->utmp.ut_user,
+		    W_DISPLINESIZE, W_DISPLINESIZE,
+		    *ep->utmp.ut_line ?
+		    (strncmp(ep->utmp.ut_line, "tty", 3) &&
 		    strncmp(ep->utmp.ut_line, "cua", 3) ?
-		    ep->utmp.ut_line : ep->utmp.ut_line + 3,
+		    ep->utmp.ut_line : ep->utmp.ut_line + 3) : "-",
 		    W_DISPHOSTSIZE, W_DISPHOSTSIZE, *p ? p : "-");
-		t = _time_to_time32(ep->utmp.ut_time);
+		t = ep->utmp.ut_tv.tv_sec;
 		longattime = pr_attime(&t, &now);
 		longidle = pr_idle(ep->idle);
 		(void)printf("%.*s\n", argwidth - longidle - longattime,
@@ -476,12 +495,12 @@ pr_header(time_t *nowp, int nusers)
 }
 
 static struct stat *
-ttystat(char *line, int sz)
+ttystat(char *line)
 {
 	static struct stat sb;
 	char ttybuf[MAXPATHLEN];
 
-	(void)snprintf(ttybuf, sizeof(ttybuf), "%s%.*s", _PATH_DEV, sz, line);
+	(void)snprintf(ttybuf, sizeof(ttybuf), "%s%s", _PATH_DEV, line);
 	if (stat(ttybuf, &sb) == 0) {
 		return (&sb);
 	} else

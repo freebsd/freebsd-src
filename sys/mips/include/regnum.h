@@ -63,8 +63,7 @@
 #define PREG_RA   10
 #define PREG_SR   11
 #define PREG_GP   12
-
-
+#define PREG_PC   13
 
 /*
  * Location of the saved registers relative to ZERO.
@@ -82,10 +81,10 @@
 #define	T1	9
 #define	T2	10
 #define	T3	11
-#define	T4	12
-#define	T5	13
-#define	T6	14
-#define	T7	15
+#define	TA0	12
+#define	TA1	13
+#define	TA2	14
+#define	TA3	15
 #define	S0	16
 #define	S1	17
 #define	S2	18

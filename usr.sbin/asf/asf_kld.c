@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
  * Works with a live kernel only.
  */
 void
-asf_kld()
+asf_kld(void)
 {
 	struct kld_file_stat kfs;
 	int fid = 0;	/* indicates the beginning of the linker file list */

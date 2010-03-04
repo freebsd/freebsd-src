@@ -34,6 +34,7 @@
 .Nm archive_copy_error ,
 .Nm archive_errno ,
 .Nm archive_error_string ,
+.Nm archive_file_count ,
 .Nm archive_format ,
 .Nm archive_format_name ,
 .Nm archive_set_error
@@ -52,6 +53,8 @@
 .Fn archive_errno "struct archive *"
 .Ft const char *
 .Fn archive_error_string "struct archive *"
+.Ft int
+.Fn archive_file_count "struct archive *"
 .Ft int
 .Fn archive_format "struct archive *"
 .Ft const char *
@@ -92,6 +95,12 @@ obtained from passing the result of
 .Fn archive_errno
 to
 .Xr strerror 3 .
+.It Fn archive_file_count
+Returns a count of the number of files processed by this archive object.
+The count is incremented by calls to
+.Xr archive_write_header
+or
+.Xr archive_read_next_header .
 .It Fn archive_format
 Returns a numeric code indicating the format of the current
 archive entry.

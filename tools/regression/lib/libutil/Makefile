@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-TESTS=	test-trimdomain test-trimdomain-nodomain test-flopen test-grp
-CFLAGS+= -g -Wall -lutil
+TESTS=	test-trimdomain test-trimdomain-nodomain test-flopen test-grp test-pidfile
+CFLAGS+= -g -Wall -Wextra -Werror -lutil
 
 .PHONY: tests
 tests: ${TESTS}

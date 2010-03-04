@@ -642,8 +642,8 @@ bcmp(const void *b1, const void *b2, size_t length)
 static struct {
 	uint16_t len;
 	uint16_t count;
-	uint16_t seg;
 	uint16_t off;
+	uint16_t seg;
 	uint64_t lba;
 } packet;
 
@@ -656,8 +656,8 @@ drvread(void *buf, daddr_t lba, unsigned nblk)
 	printf("%c\b", c = c << 8 | c >> 24);
     packet.len = 0x10;
     packet.count = nblk;
-    packet.seg = VTOPOFF(buf);
-    packet.off = VTOPSEG(buf);
+    packet.off = VTOPOFF(buf);
+    packet.seg = VTOPSEG(buf);
     packet.lba = lba;
     v86.ctl = V86_FLAGS;
     v86.addr = 0x13;

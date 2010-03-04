@@ -48,12 +48,12 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <locale.h>
-#include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <utmpx.h>
 
 #include "extern.h"
 #include "vary.h"
@@ -181,6 +181,7 @@ main(int argc, char *argv[])
 static void
 setthetime(const char *fmt, const char *p, int jflag, int nflag)
 {
+	struct utmpx utx;
 	struct tm *lt;
 	struct timeval tv;
 	const char *dot, *t;
@@ -271,12 +272,16 @@ setthetime(const char *fmt, const char *p, int jflag, int nflag)
 	if (!jflag) {
 		/* set the time */
 		if (nflag || netsettime(tval)) {
-			logwtmp("|", "date", "");
+			utx.ut_type = OLD_TIME;
+			gettimeofday(&utx.ut_tv, NULL);
+			pututxline(&utx);
 			tv.tv_sec = tval;
 			tv.tv_usec = 0;
 			if (settimeofday(&tv, (struct timezone *)NULL))
 				err(1, "settimeofday (timeval)");
-			logwtmp("{", "date", "");
+			utx.ut_type = NEW_TIME;
+			gettimeofday(&utx.ut_tv, NULL);
+			pututxline(&utx);
 		}
 
 		if ((p = getlogin()) == NULL)

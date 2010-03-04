@@ -1669,6 +1669,7 @@ LibAliasRefreshModules(void)
 			LibAliasLoadModule(buf);
 		}
 	}
+	fclose(fd);
 	return (0);
 }
 

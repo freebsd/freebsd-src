@@ -140,7 +140,7 @@ parse_cmdline() {
 			if [ ! -z "${SERVERNAME}" ]; then usage; fi
 			shift; SERVERNAME="$1"
 			;;
-		cron | extract | fetch | update)
+		cron | extract | fetch | update | alfred)
 			COMMANDS="${COMMANDS} $1"
 			;;
 		*)
@@ -1038,6 +1038,22 @@ cmd_extract() {
 cmd_update() {
 	update_check_params
 	update_run || exit 1
+}
+
+# Alfred command.  Run 'fetch' or 'cron' depending on
+# whether stdin is a terminal; then run 'update' or
+# 'extract' depending on whether ${PORTSDIR} exists.
+cmd_alfred() {
+	if [ -t 0 ]; then
+		cmd_fetch
+	else
+		cmd_cron
+	fi
+	if [ -d ${PORTSDIR} ]; then
+		cmd_update
+	else
+		cmd_extract
+	fi
 }
 
 #### Entry point

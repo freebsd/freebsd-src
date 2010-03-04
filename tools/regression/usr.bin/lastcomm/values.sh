@@ -12,6 +12,11 @@ run()
 	/usr/bin/time -l -o $1.time "$@"
 }
 
+if [ `whoami` != "root" ]; then
+	echo "You need to be root to run this test."
+	exit 1
+fi
+
 echo Redirecting accounting.
 
 mkdir $TMPDIR

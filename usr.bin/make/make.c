@@ -72,8 +72,6 @@ __FBSDID("$FreeBSD$");
  *			and perform the .USE actions if so.
  */
 
-#include <stdlib.h>
-
 #include "arch.h"
 #include "config.h"
 #include "dir.h"

@@ -173,7 +173,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #if !defined(PMAP_DIAGNOSTIC)
-#define PMAP_INLINE	__gnu89_inline
+#ifdef __GNUC_GNU_INLINE__
+#define PMAP_INLINE	inline
+#else
+#define PMAP_INLINE	extern inline
+#endif
 #else
 #define PMAP_INLINE
 #endif
@@ -247,9 +251,8 @@ struct sysmaps {
 	caddr_t	CADDR2;
 };
 static struct sysmaps sysmaps_pcpu[MAXCPU];
-pt_entry_t *CMAP1 = 0;
 static pt_entry_t *CMAP3;
-caddr_t CADDR1 = 0, ptvmmap = 0;
+caddr_t ptvmmap = 0;
 static caddr_t CADDR3;
 struct msgbuf *msgbufp = 0;
 
@@ -279,7 +282,7 @@ static struct mtx PMAP2mutex;
 
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 static int pg_ps_enabled;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RD, &pg_ps_enabled, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
     "Are large page mappings enabled?");
 
 SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_max, CTLFLAG_RD, &pv_entry_max, 0,
@@ -317,6 +320,9 @@ static __inline void pagezero(void *page);
 
 #if defined(PAE) && !defined(XEN)
 static void *pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
+#endif
+#ifndef XEN
+static void pmap_set_pg(void);
 #endif
 
 CTASSERT(1 << PDESHIFT == sizeof(pd_entry_t));
@@ -447,8 +453,9 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 		mtx_init(&sysmaps->lock, "SYSMAPS", NULL, MTX_DEF);
 		SYSMAP(caddr_t, sysmaps->CMAP1, sysmaps->CADDR1, 1)
 		SYSMAP(caddr_t, sysmaps->CMAP2, sysmaps->CADDR2, 1)
+		PT_SET_MA(sysmaps->CADDR1, 0);
+		PT_SET_MA(sysmaps->CADDR2, 0);
 	}
-	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
 	SYSMAP(caddr_t, CMAP3, CADDR3, 1)
 	PT_SET_MA(CADDR3, 0);
 
@@ -476,7 +483,6 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	mtx_init(&PMAP2mutex, "PMAP2", NULL, MTX_DEF);
 
 	virtual_avail = va;
-	PT_SET_MA(CADDR1, 0);
 
 	/*
 	 * Leave in place an identity mapping (virt == phys) for the low 1 MB
@@ -549,10 +555,11 @@ pmap_init_pat(void)
 	wrmsr(MSR_PAT, pat_msr);
 }
 
+#ifndef XEN
 /*
  * Set PG_G on kernel pages.  Only the BSP calls this when SMP is turned on.
  */
-void
+static void
 pmap_set_pg(void)
 {
 	pd_entry_t pdir;
@@ -587,6 +594,7 @@ pmap_set_pg(void)
 		}
 	}
 }
+#endif
 
 /*
  * Initialize a vm_page's machine-dependent fields.
@@ -1052,7 +1060,9 @@ pmap_pte(pmap_t pmap, vm_offset_t va)
 		mtx_lock(&PMAP2mutex);
 		newpf = *pde & PG_FRAME;
 		if ((*PMAP2 & PG_FRAME) != newpf) {
+			vm_page_lock_queues();
 			PT_SET_MA(PADDR2, newpf | PG_V | PG_A | PG_M);
+			vm_page_unlock_queues();
 			CTR3(KTR_PMAP, "pmap_pte: pmap=%p va=0x%x newpte=0x%08x",
 			    pmap, va, (*PMAP2 & 0xffffffff));
 		}
@@ -3101,9 +3111,10 @@ void *
 pmap_kenter_temporary(vm_paddr_t pa, int i)
 {
 	vm_offset_t va;
+	vm_paddr_t ma = xpmap_ptom(pa);
 
 	va = (vm_offset_t)crashdumpmap + (i * PAGE_SIZE);
-	pmap_kenter(va, pa);
+	PT_SET_MA(va, (ma & ~PAGE_MASK) | PG_V | pgeflag);
 	invlpg(va);
 	return ((void *)crashdumpmap);
 }
@@ -4173,6 +4184,11 @@ pmap_activate(struct thread *td)
 	load_cr3(cr3);
 	PCPU_SET(curpmap, pmap);
 	critical_exit();
+}
+
+void
+pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
+{
 }
 
 /*

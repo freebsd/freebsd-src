@@ -4,7 +4,6 @@
 .include <bsd.own.mk>
 
 PROG=	logger
-WARNS?=	6
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6

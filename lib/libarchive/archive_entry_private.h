@@ -25,6 +25,10 @@
  * $FreeBSD$
  */
 
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
+
 #ifndef ARCHIVE_ENTRY_PRIVATE_H_INCLUDED
 #define	ARCHIVE_ENTRY_PRIVATE_H_INCLUDED
 
@@ -115,7 +119,7 @@ struct archive_entry {
 		int64_t		aest_birthtime;
 		uint32_t	aest_birthtime_nsec;
 		gid_t		aest_gid;
-		ino_t		aest_ino;
+		int64_t		aest_ino;
 		mode_t		aest_mode;
 		uint32_t	aest_nlink;
 		uint64_t	aest_size;

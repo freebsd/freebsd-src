@@ -1377,7 +1377,7 @@ again:
 	 * Find a free iod to process this request.
 	 */
 	for (iod = 0; iod < nfs_numasync; iod++)
-		if (nfs_iodwant[iod]) {
+		if (nfs_iodwant[iod] == NFSIOD_AVAILABLE) {
 			gotiod = TRUE;
 			break;
 		}
@@ -1386,7 +1386,7 @@ again:
 	 * Try to create one if none are free.
 	 */
 	if (!gotiod) {
-		iod = nfs_nfsiodnew();
+		iod = nfs_nfsiodnew(1);
 		if (iod != -1)
 			gotiod = TRUE;
 	}
@@ -1398,7 +1398,7 @@ again:
 		 */
 		NFS_DPF(ASYNCIO, ("nfs_asyncio: waking iod %d for mount %p\n",
 		    iod, nmp));
-		nfs_iodwant[iod] = NULL;
+		nfs_iodwant[iod] = NFSIOD_NOT_AVAILABLE;
 		nfs_iodmount[iod] = nmp;
 		nmp->nm_bufqiods++;
 		wakeup(&nfs_iodwant[iod]);

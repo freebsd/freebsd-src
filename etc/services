@@ -1521,6 +1521,8 @@ nfa		1155/tcp   #Network File Access
 nfa		1155/udp   #Network File Access
 phone		1167/udp   #conference calling
 skkserv		1178/tcp   #SKK (kanji input)
+openvpn		1194/tcp   #OpenVPN
+openvpn		1194/udp   #OpenVPN
 lupa		1212/tcp
 lupa		1212/udp
 nerv		1222/tcp   #SNI R&D network
@@ -2223,10 +2225,14 @@ nuts_dem	4132/tcp   #NUTS Daemon
 nuts_dem	4132/udp   #NUTS Daemon
 nuts_bootp	4133/tcp   #NUTS Bootp Server
 nuts_bootp	4133/udp   #NUTS Bootp Server
+sieve		4190/tcp   #ManageSieve Protocol
+sieve		4190/udp   #ManageSieve Protocol
 rwhois		4321/tcp   #Remote Who Is
 rwhois		4321/udp   #Remote Who Is
 unicall		4343/tcp
 unicall		4343/udp
+epmd		4369/tcp   #Erlang Port Mapper Daemon
+epmd		4369/udp   #Erlang Port Mapper Daemon
 krb524		4444/tcp
 krb524		4444/udp
 # PROBLEM krb524 assigned the port,
@@ -2334,6 +2340,8 @@ sge_execd	6445/tcp   #Grid Engine Execution Service
 sge_execd	6445/udp   #Grid Engine Execution Service
 xdsxdm		6558/tcp
 xdsxdm		6558/udp
+sane-port	6566/tcp   #Scanner Access Now Easy (SANE) Control Port
+sane-port	6566/udp   #Scanner Access Now Easy (SANE) Control Port
 ircd		6667/tcp   #Internet Relay Chat (unoffical)
 acmsoda		6969/tcp
 acmsoda		6969/udp
@@ -2372,6 +2380,8 @@ dlip		7201/udp
 ftp-proxy	8021/tcp   # FTP proxy
 natd		8668/divert # Network Address Translation
 jetdirect	9100/tcp   #HP JetDirect card
+git		9418/tcp   #git pack transfer service
+git		9418/udp   #git pack transfer service
 man		9535/tcp
 man		9535/udp
 sd		9876/tcp   #Session Director

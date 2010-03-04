@@ -88,8 +88,8 @@ struct acpi_powerresource {
     TAILQ_ENTRY(acpi_powerresource)	ap_link;
     TAILQ_HEAD(,acpi_powerreference)	ap_references;
     ACPI_HANDLE				ap_resource;
-    ACPI_INTEGER			ap_systemlevel;
-    ACPI_INTEGER			ap_order;
+    UINT64				ap_systemlevel;
+    UINT64				ap_order;
     int					ap_state;
 };
 

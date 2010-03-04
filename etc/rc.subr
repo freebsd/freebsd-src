@@ -15,13 +15,6 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 3. All advertising materials mentioning features or use of this software
-#    must display the following acknowledgement:
-#        This product includes software developed by the NetBSD
-#        Foundation, Inc. and its contributors.
-# 4. Neither the name of The NetBSD Foundation nor the names of its
-#    contributors may be used to endorse or promote products derived
-#    from this software without specific prior written permission.
 #
 # THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
 # ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -52,21 +45,11 @@ _rc_subr_loaded="YES"
 
 SYSCTL="/sbin/sysctl"
 SYSCTL_N="${SYSCTL} -n"
-CMD_OSTYPE="${SYSCTL_N} kern.ostype"
-OSTYPE=`${CMD_OSTYPE}`
+SYSCTL_W="${SYSCTL}"
 ID="/usr/bin/id"
 IDCMD="if [ -x $ID ]; then $ID -un; fi"
 PS="/bin/ps -ww"
 JID=`$PS -p $$ -o jid=`
-
-case ${OSTYPE} in
-FreeBSD)
-	SYSCTL_W="${SYSCTL}"
-	;;
-NetBSD)
-	SYSCTL_W="${SYSCTL} -w"
-	;;
-esac
 
 #
 #	functions
@@ -390,10 +373,24 @@ wait_for_pids()
 		_list=$_nlist
 		echo -n ${_prefix:-"Waiting for PIDS: "}$_list
 		_prefix=", "
-		sleep 2
+		pwait $_list 2>/dev/null || sleep 2
 	done
 	if [ -n "$_prefix" ]; then
 		echo "."
+	fi
+}
+
+#
+# check_startmsgs
+#	If rc_quiet is set (usually as a result of using faststart at
+#	boot time) check if rc_startmsgs is enabled.
+#
+check_startmsgs()
+{
+	if [ -n "$rc_quiet" ]; then
+		checkyesno rc_startmsgs
+	else
+		return 0
 	fi
 }
 
@@ -579,7 +576,7 @@ run_rc_command()
 		rc_fast=yes
 		rc_quiet=yes
 		;;
-	force*)				# "force prefix; always run
+	force*)				# "force" prefix; always run
 		rc_force=yes
 		_rc_prefix=force
 		rc_arg=${rc_arg#${_rc_prefix}}
@@ -602,7 +599,7 @@ run_rc_command()
 	esac
 
 	eval _override_command=\$${name}_program
-	command=${command:-${_override_command}}
+	command=${_override_command:-$command}
 
 	_keywords="start stop restart rcvar $extra_commands"
 	rc_pid=
@@ -708,13 +705,7 @@ run_rc_command()
 
 					# setup the full command to run
 					#
-			_show_startmsgs=1
-			if [ -n "${rc_quiet}" ]; then
-				if ! checkyesno rc_startmsgs; then
-					unset _show_startmsgs
-				fi
-			fi
-			[ -n "$_show_startmsgs" ] && echo "Starting ${name}."
+			check_startmsgs && echo "Starting ${name}."
 			if [ -n "$_chroot" ]; then
 				_doit="\
 ${_nice:+nice -n $_nice }\
@@ -730,7 +721,7 @@ $command $rc_flags $command_args"
 				if [ -n "$_nice" ]; then
 					if [ -z "$_user" ]; then
 						_doit="sh -c \"$_doit\""
-					fi	
+					fi
 					_doit="nice -n $_nice $_doit"
 				fi
 			fi
@@ -950,10 +941,11 @@ _run_rc_killcmd()
 #
 # run_rc_script file arg
 #	Start the script `file' with `arg', and correctly handle the
-#	return value from the script.  If `file' ends with `.sh', it's
-#	sourced into the current environment.  If `file' appears to be
-#	a backup or scratch file, ignore it.  Otherwise if it's
-#	executable run as a child process.
+#	return value from the script.
+#	If `file' ends with `.sh', it's sourced into the current environment
+#	when $rc_fast_and_loose is set, otherwise it is run as a child process.
+#	If `file' appears to be a backup or scratch file, ignore it.
+#	Otherwise if it is executable run as a child process.
 #
 run_rc_script()
 {
@@ -1055,7 +1047,7 @@ load_rc_config()
 		esac
 	done
 }
-  
+
 #
 # load_rc_config_var name var
 #	Read the rc.conf(5) var for name and set in the

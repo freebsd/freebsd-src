@@ -112,6 +112,7 @@ __FBSDID("$FreeBSD$");
 #define	USB_DEBUG_VAR umodem_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
+#include <dev/usb/quirk/usb_quirk.h>
 
 #include <dev/usb/serial/usb_serial.h>
 
@@ -196,6 +197,7 @@ static void	umodem_cfg_set_break(struct ucom_softc *, uint8_t);
 static void	*umodem_get_desc(struct usb_attach_arg *, uint8_t, uint8_t);
 static usb_error_t umodem_set_comm_feature(struct usb_device *, uint8_t,
 		    uint16_t, uint16_t);
+static void	umodem_poll(struct ucom_softc *ucom);
 
 static const struct usb_config umodem_config[UMODEM_N_TRANSFER] = {
 
@@ -242,6 +244,7 @@ static const struct ucom_callback umodem_callback = {
 	.ucom_stop_read = &umodem_stop_read,
 	.ucom_start_write = &umodem_start_write,
 	.ucom_stop_write = &umodem_stop_write,
+	.ucom_poll = &umodem_poll,
 };
 
 static device_method_t umodem_methods[] = {
@@ -309,11 +312,16 @@ umodem_attach(device_t dev)
 		    0 - 1, UDESCSUB_CDC_UNION, 0 - 1);
 
 		if ((cud == NULL) || (cud->bLength < sizeof(*cud))) {
-			device_printf(dev, "no CM or union descriptor!\n");
-			goto detach;
+			device_printf(dev, "Missing descriptor. "
+			    "Assuming data interface is next.\n");
+			if (sc->sc_ctrl_iface_no == 0xFF)
+				goto detach;
+			else
+				sc->sc_data_iface_no = 
+				    sc->sc_ctrl_iface_no + 1;
+		} else {
+			sc->sc_data_iface_no = cud->bSlaveInterface[0];
 		}
-
-		sc->sc_data_iface_no = cud->bSlaveInterface[0];
 	} else {
 		sc->sc_data_iface_no = cmd->bDataInterface;
 	}
@@ -342,21 +350,25 @@ umodem_attach(device_t dev)
 				break;
 			}
 		} else {
-			device_printf(dev, "no data interface!\n");
+			device_printf(dev, "no data interface\n");
 			goto detach;
 		}
 	}
 
-	if (sc->sc_cm_cap & USB_CDC_CM_OVER_DATA) {
-		if (sc->sc_acm_cap & USB_CDC_ACM_HAS_FEATURE) {
-
-			error = umodem_set_comm_feature
-			    (uaa->device, sc->sc_ctrl_iface_no,
-			    UCDC_ABSTRACT_STATE, UCDC_DATA_MULTIPLEXED);
-
-			/* ignore any errors */
-		}
+	if (usb_test_quirk(uaa, UQ_ASSUME_CM_OVER_DATA)) {
 		sc->sc_cm_over_data = 1;
+	} else {
+		if (sc->sc_cm_cap & USB_CDC_CM_OVER_DATA) {
+			if (sc->sc_acm_cap & USB_CDC_ACM_HAS_FEATURE) {
+
+				error = umodem_set_comm_feature
+				(uaa->device, sc->sc_ctrl_iface_no,
+				 UCDC_ABSTRACT_STATE, UCDC_DATA_MULTIPLEXED);
+
+				/* ignore any errors */
+			}
+			sc->sc_cm_over_data = 1;
+		}
 	}
 	error = usbd_transfer_setup(uaa->device,
 	    sc->sc_iface_index, sc->sc_xfer,
@@ -809,4 +821,11 @@ umodem_detach(device_t dev)
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
+}
+
+static void
+umodem_poll(struct ucom_softc *ucom)
+{
+	struct umodem_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UMODEM_N_TRANSFER);
 }

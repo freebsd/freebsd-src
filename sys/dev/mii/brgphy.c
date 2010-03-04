@@ -104,6 +104,7 @@ static void	brgphy_reset(struct mii_softc *);
 static void	brgphy_enable_loopback(struct mii_softc *);
 static void	bcm5401_load_dspcode(struct mii_softc *);
 static void	bcm5411_load_dspcode(struct mii_softc *);
+static void	bcm54k2_load_dspcode(struct mii_softc *);
 static void	brgphy_fixup_5704_a0_bug(struct mii_softc *);
 static void	brgphy_fixup_adc_bug(struct mii_softc *);
 static void	brgphy_fixup_adjust_trim(struct mii_softc *);
@@ -117,6 +118,7 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM, BCM5400),
 	MII_PHY_DESC(xxBROADCOM, BCM5401),
 	MII_PHY_DESC(xxBROADCOM, BCM5411),
+	MII_PHY_DESC(xxBROADCOM, BCM54K2),
 	MII_PHY_DESC(xxBROADCOM, BCM5701),
 	MII_PHY_DESC(xxBROADCOM, BCM5703),
 	MII_PHY_DESC(xxBROADCOM, BCM5704),
@@ -133,7 +135,9 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5708S),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5709CAX),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5722),
+	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5784),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5709C),
+	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5761),
 	MII_PHY_DESC(BROADCOM2, BCM5906),
 	MII_PHY_END
 };
@@ -195,6 +199,7 @@ brgphy_attach(device_t dev)
 	case MII_OUI_xxBROADCOM:
 		switch (bsc->mii_model) {
 			case MII_MODEL_xxBROADCOM_BCM5706:
+			case MII_MODEL_xxBROADCOM_BCM5714:
 				/*
 				 * The 5464 PHY used in the 5706 supports both copper
 				 * and fiber interfaces over GMII.  Need to check the
@@ -411,6 +416,9 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 				break;
 			case MII_MODEL_xxBROADCOM_BCM5411:
 				bcm5411_load_dspcode(sc);
+				break;
+			case MII_MODEL_xxBROADCOM_BCM54K2:
+				bcm54k2_load_dspcode(sc);
 				break;
 			}
 			break;
@@ -727,6 +735,24 @@ bcm5411_load_dspcode(struct mii_softc *sc)
 		PHY_WRITE(sc, dspcode[i].reg, dspcode[i].val);
 }
 
+void
+bcm54k2_load_dspcode(struct mii_softc *sc)
+{
+	static const struct {
+		int		reg;
+		uint16_t	val;
+	} dspcode[] = {
+		{ 4,				0x01e1 },
+		{ 9,				0x0300 },
+		{ 0,				0 },
+	};
+	int i;
+
+	for (i = 0; dspcode[i].reg != 0; i++)
+		PHY_WRITE(sc, dspcode[i].reg, dspcode[i].val);
+
+}
+
 static void
 brgphy_fixup_5704_a0_bug(struct mii_softc *sc)
 {
@@ -928,6 +954,9 @@ brgphy_reset(struct mii_softc *sc)
 			break;
 		case MII_MODEL_xxBROADCOM_BCM5411:
 			bcm5411_load_dspcode(sc);
+			break;
+		case MII_MODEL_xxBROADCOM_BCM54K2:
+			bcm54k2_load_dspcode(sc);
 			break;
 		}
 		break;

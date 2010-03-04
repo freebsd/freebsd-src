@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	logname
-WARNS?= 6
 
 .include <bsd.prog.mk>

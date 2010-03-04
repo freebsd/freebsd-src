@@ -110,7 +110,7 @@ main(int argc, char *argv[])
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: biff [n | y | b]\n");
 	exit(2);

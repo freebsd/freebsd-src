@@ -3490,11 +3490,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			tos_value = inp->ip_inp.inp.inp_ip_tos;
 		}
 		if ((nofragment_flag) && (port == 0)) {
-#if defined(WITH_CONVERT_IP_OFF) || defined(__FreeBSD__) || defined(__APPLE__) || defined(__Userspace__)
 			ip->ip_off = IP_DF;
-#else
-			ip->ip_off = htons(IP_DF);
-#endif
 		} else
 			ip->ip_off = 0;
 
@@ -3570,7 +3566,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				sctp_free_ifa(_lsrc);
 			} else {
 				ip->ip_src = over_addr->sin.sin_addr;
-				SCTP_RTALLOC((&ro->ro_rt), vrf_id);
+				SCTP_RTALLOC(ro, vrf_id);
 			}
 		}
 		if (port) {
@@ -3924,7 +3920,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				sctp_free_ifa(_lsrc);
 			} else {
 				lsa6->sin6_addr = over_addr->sin6.sin6_addr;
-				SCTP_RTALLOC((&ro->ro_rt), vrf_id);
+				SCTP_RTALLOC(ro, vrf_id);
 			}
 			(void)sa6_recoverscope(sin6);
 		}
@@ -4313,16 +4309,8 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 		if (stcb->asoc.authinfo.random != NULL) {
 			randp = (struct sctp_auth_random *)(mtod(m, caddr_t)+SCTP_BUF_LEN(m));
 			p_len = sizeof(*randp) + stcb->asoc.authinfo.random_len;
-#ifdef SCTP_AUTH_DRAFT_04
-			randp->ph.param_type = htons(SCTP_RANDOM);
-			randp->ph.param_length = htons(p_len);
-			bcopy(stcb->asoc.authinfo.random->key,
-			    randp->random_data,
-			    stcb->asoc.authinfo.random_len);
-#else
 			/* random key already contains the header */
 			bcopy(stcb->asoc.authinfo.random->key, randp, p_len);
-#endif
 			/* zero out any padding required */
 			bzero((caddr_t)randp + p_len, SCTP_SIZE32(p_len) - p_len);
 			SCTP_BUF_LEN(m) += SCTP_SIZE32(p_len);
@@ -5602,37 +5590,13 @@ sctp_insert_on_wheel(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     struct sctp_stream_out *strq, int holds_lock)
 {
-	struct sctp_stream_out *stre, *strn;
-
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
-	if ((strq->next_spoke.tqe_next) ||
-	    (strq->next_spoke.tqe_prev)) {
-		/* already on wheel */
-		goto outof_here;
+	if ((strq->next_spoke.tqe_next == NULL) &&
+	    (strq->next_spoke.tqe_prev == NULL)) {
+		TAILQ_INSERT_TAIL(&asoc->out_wheel, strq, next_spoke);
 	}
-	stre = TAILQ_FIRST(&asoc->out_wheel);
-	if (stre == NULL) {
-		/* only one on wheel */
-		TAILQ_INSERT_HEAD(&asoc->out_wheel, strq, next_spoke);
-		goto outof_here;
-	}
-	for (; stre; stre = strn) {
-		strn = TAILQ_NEXT(stre, next_spoke);
-		if (stre->stream_no > strq->stream_no) {
-			TAILQ_INSERT_BEFORE(stre, strq, next_spoke);
-			goto outof_here;
-		} else if (stre->stream_no == strq->stream_no) {
-			/* huh, should not happen */
-			goto outof_here;
-		} else if (strn == NULL) {
-			/* next one is null */
-			TAILQ_INSERT_AFTER(&asoc->out_wheel, stre, strq,
-			    next_spoke);
-		}
-	}
-outof_here:
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_UNLOCK(stcb);
 	}
@@ -5645,19 +5609,26 @@ sctp_remove_from_wheel(struct sctp_tcb *stcb,
     int holds_lock)
 {
 	/* take off and then setup so we know it is not on the wheel */
-	if (holds_lock == 0)
+	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
-	if (TAILQ_FIRST(&strq->outqueue)) {
-		/* more was added */
-		if (holds_lock == 0)
-			SCTP_TCB_SEND_UNLOCK(stcb);
-		return;
 	}
-	TAILQ_REMOVE(&asoc->out_wheel, strq, next_spoke);
-	strq->next_spoke.tqe_next = NULL;
-	strq->next_spoke.tqe_prev = NULL;
-	if (holds_lock == 0)
+	if (TAILQ_EMPTY(&strq->outqueue)) {
+		if (asoc->last_out_stream == strq) {
+			asoc->last_out_stream = TAILQ_PREV(asoc->last_out_stream, sctpwheel_listhead, next_spoke);
+			if (asoc->last_out_stream == NULL) {
+				asoc->last_out_stream = TAILQ_LAST(&asoc->out_wheel, sctpwheel_listhead);
+			}
+			if (asoc->last_out_stream == strq) {
+				asoc->last_out_stream = NULL;
+			}
+		}
+		TAILQ_REMOVE(&asoc->out_wheel, strq, next_spoke);
+		strq->next_spoke.tqe_next = NULL;
+		strq->next_spoke.tqe_prev = NULL;
+	}
+	if (holds_lock == 0) {
 		SCTP_TCB_SEND_UNLOCK(stcb);
+	}
 }
 
 static void
@@ -5892,10 +5863,8 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	sp->strseq = 0;
 	if (sp->sinfo_flags & SCTP_ADDR_OVER) {
 		sp->net = net;
-		sp->addr_over = 1;
 	} else {
 		sp->net = stcb->asoc.primary_destination;
-		sp->addr_over = 0;
 	}
 	atomic_add_int(&sp->net->ref_count, 1);
 	(void)SCTP_GETTIME_TIMEVAL(&sp->ts);
@@ -7069,7 +7038,6 @@ dont_do_it:
 
 	chk->rec.data.timetodrop = sp->ts;
 	chk->flags = sp->act_flags;
-	chk->addr_over = sp->addr_over;
 
 	chk->whoTo = net;
 	atomic_add_int(&chk->whoTo->ref_count, 1);
@@ -7190,22 +7158,14 @@ sctp_select_a_stream(struct sctp_tcb *stcb, struct sctp_association *asoc)
 
 	/* Find the next stream to use */
 	if (asoc->last_out_stream == NULL) {
-		strq = asoc->last_out_stream = TAILQ_FIRST(&asoc->out_wheel);
-		if (asoc->last_out_stream == NULL) {
-			/* huh nothing on the wheel, TSNH */
-			return (NULL);
+		strq = TAILQ_FIRST(&asoc->out_wheel);
+	} else {
+		strq = TAILQ_NEXT(asoc->last_out_stream, next_spoke);
+		if (strq == NULL) {
+			strq = TAILQ_FIRST(&asoc->out_wheel);
 		}
-		goto done_it;
 	}
-	strq = TAILQ_NEXT(asoc->last_out_stream, next_spoke);
-done_it:
-	if (strq == NULL) {
-		strq = asoc->last_out_stream = TAILQ_FIRST(&asoc->out_wheel);
-	}
-	/* Save off the last stream */
-	asoc->last_out_stream = strq;
 	return (strq);
-
 }
 
 
@@ -7214,7 +7174,7 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
     struct sctp_nets *net, int frag_point, int eeor_mode, int *quit_now)
 {
 	struct sctp_association *asoc;
-	struct sctp_stream_out *strq, *strqn, *strqt;
+	struct sctp_stream_out *strq, *strqn;
 	int goal_mtu, moved_how_much, total_moved = 0, bail = 0;
 	int locked, giveup;
 	struct sctp_stream_queue_pending *sp;
@@ -7280,7 +7240,9 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 		bail = 0;
 		moved_how_much = sctp_move_to_outqueue(stcb, net, strq, goal_mtu, frag_point, &locked,
 		    &giveup, eeor_mode, &bail);
-		asoc->last_out_stream = strq;
+		if (moved_how_much)
+			asoc->last_out_stream = strq;
+
 		if (locked) {
 			asoc->locked_on_sending = strq;
 			if ((moved_how_much == 0) || (giveup) || bail)
@@ -7288,11 +7250,10 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 				break;
 		} else {
 			asoc->locked_on_sending = NULL;
-			strqt = sctp_select_a_stream(stcb, asoc);
-			if (TAILQ_FIRST(&strq->outqueue) == NULL) {
+			if (TAILQ_EMPTY(&strq->outqueue)) {
 				if (strq == strqn) {
 					/* Must move start to next one */
-					strqn = TAILQ_NEXT(asoc->last_out_stream, next_spoke);
+					strqn = TAILQ_NEXT(strq, next_spoke);
 					if (strqn == NULL) {
 						strqn = TAILQ_FIRST(&asoc->out_wheel);
 						if (strqn == NULL) {
@@ -7305,7 +7266,7 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 			if ((giveup) || bail) {
 				break;
 			}
-			strq = strqt;
+			strq = sctp_select_a_stream(stcb, asoc);
 			if (strq == NULL) {
 				break;
 			}
@@ -9466,6 +9427,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 
 	if ((un_sent <= 0) &&
 	    (TAILQ_EMPTY(&asoc->control_send_queue)) &&
+	    (TAILQ_EMPTY(&asoc->asconf_send_queue)) &&
 	    (asoc->sent_queue_retran_cnt == 0)) {
 		/* Nothing to do unless there is something to be sent left */
 		return;
@@ -10210,7 +10172,6 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 	struct sctp_nr_sack_chunk *nr_sack;
 
 	struct sctp_gap_ack_block *gap_descriptor;
-	struct sctp_nr_gap_ack_block *nr_gap_descriptor;
 
 	struct sack_track *selector;
 	struct sack_track *nr_selector;
@@ -10471,8 +10432,6 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 	}
 	/*---------------------------------------------------------filling the nr_gap_ack blocks----------------------------------------------------*/
 
-	nr_gap_descriptor = (struct sctp_nr_gap_ack_block *)gap_descriptor;
-
 	/* EY - there will be gaps + nr_gaps if draining is possible */
 	if ((SCTP_BASE_SYSCTL(sctp_do_drain)) && (limit_reached == 0)) {
 
@@ -10508,7 +10467,7 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 					 * ok to merge.
 					 */
 					num_nr_gap_blocks--;
-					nr_gap_descriptor--;
+					gap_descriptor--;
 				}
 				if (nr_selector->num_entries == 0)
 					mergeable = 0;
@@ -10527,12 +10486,12 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 							 * left side
 							 */
 							mergeable = 0;
-							nr_gap_descriptor->start = htons((nr_selector->gaps[j].start + offset));
+							gap_descriptor->start = htons((nr_selector->gaps[j].start + offset));
 						}
-						nr_gap_descriptor->end = htons((nr_selector->gaps[j].end + offset));
+						gap_descriptor->end = htons((nr_selector->gaps[j].end + offset));
 						num_nr_gap_blocks++;
-						nr_gap_descriptor++;
-						if (((caddr_t)nr_gap_descriptor + sizeof(struct sctp_nr_gap_ack_block)) > limit) {
+						gap_descriptor++;
+						if (((caddr_t)gap_descriptor + sizeof(struct sctp_gap_ack_block)) > limit) {
 							/* no more room */
 							limit_reached = 1;
 							break;
@@ -10555,7 +10514,7 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 
 	/* now we must add any dups we are going to report. */
 	if ((limit_reached == 0) && (asoc->numduptsns)) {
-		dup = (uint32_t *) nr_gap_descriptor;
+		dup = (uint32_t *) gap_descriptor;
 		for (i = 0; i < asoc->numduptsns; i++) {
 			*dup = htonl(asoc->dup_tsns[i]);
 			dup++;
@@ -10575,10 +10534,9 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 		num_nr_gap_blocks = num_gap_blocks;
 		num_gap_blocks = 0;
 	}
-	a_chk->send_size = (sizeof(struct sctp_nr_sack_chunk) +
-	    (num_gap_blocks * sizeof(struct sctp_gap_ack_block)) +
-	    (num_nr_gap_blocks * sizeof(struct sctp_nr_gap_ack_block)) +
-	    (num_dups * sizeof(int32_t)));
+	a_chk->send_size = sizeof(struct sctp_nr_sack_chunk) +
+	    (num_gap_blocks + num_nr_gap_blocks) * sizeof(struct sctp_gap_ack_block) +
+	    num_dups * sizeof(int32_t);
 
 	SCTP_BUF_LEN(a_chk->data) = a_chk->send_size;
 	nr_sack->nr_sack.num_gap_ack_blks = htons(num_gap_blocks);
@@ -10664,27 +10622,37 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
 
 void
 sctp_send_shutdown_complete(struct sctp_tcb *stcb,
-    struct sctp_nets *net)
+    struct sctp_nets *net,
+    int reflect_vtag)
 {
 	/* formulate and SEND a SHUTDOWN-COMPLETE */
 	struct mbuf *m_shutdown_comp;
 	struct sctp_shutdown_complete_chunk *shutdown_complete;
+	uint32_t vtag;
+	uint8_t flags;
 
 	m_shutdown_comp = sctp_get_mbuf_for_msg(sizeof(struct sctp_chunkhdr), 0, M_DONTWAIT, 1, MT_HEADER);
 	if (m_shutdown_comp == NULL) {
 		/* no mbuf's */
 		return;
 	}
+	if (reflect_vtag) {
+		flags = SCTP_HAD_NO_TCB;
+		vtag = stcb->asoc.my_vtag;
+	} else {
+		flags = 0;
+		vtag = stcb->asoc.peer_vtag;
+	}
 	shutdown_complete = mtod(m_shutdown_comp, struct sctp_shutdown_complete_chunk *);
 	shutdown_complete->ch.chunk_type = SCTP_SHUTDOWN_COMPLETE;
-	shutdown_complete->ch.chunk_flags = 0;
+	shutdown_complete->ch.chunk_flags = flags;
 	shutdown_complete->ch.chunk_length = htons(sizeof(struct sctp_shutdown_complete_chunk));
 	SCTP_BUF_LEN(m_shutdown_comp) = sizeof(struct sctp_shutdown_complete_chunk);
 	(void)sctp_lowlevel_chunk_output(stcb->sctp_ep, stcb, net,
 	    (struct sockaddr *)&net->ro._l_addr,
 	    m_shutdown_comp, 0, NULL, 0, 1, 0, NULL, 0,
 	    stcb->sctp_ep->sctp_lport, stcb->rport,
-	    htonl(stcb->asoc.peer_vtag),
+	    htonl(vtag),
 	    net->port, SCTP_SO_NOT_LOCKED, NULL);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 	return;
@@ -12275,10 +12243,8 @@ skip_copy:
 	} else {
 		if (sp->sinfo_flags & SCTP_ADDR_OVER) {
 			sp->net = net;
-			sp->addr_over = 1;
 		} else {
 			sp->net = asoc->primary_destination;
-			sp->addr_over = 0;
 		}
 		atomic_add_int(&sp->net->ref_count, 1);
 		sctp_set_prsctp_policy(sp);

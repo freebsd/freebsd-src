@@ -67,7 +67,7 @@ int
 main(int argc, char *argv[])
 {
 	char hostname[MAXHOSTNAMELEN];
-	struct passwd *pwd;
+	struct passwd *pwd = NULL; /* Keep compiler happy. */
 	int o, pam_err;
 	uid_t uid;
 

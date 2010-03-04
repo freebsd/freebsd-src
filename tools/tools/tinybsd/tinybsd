@@ -393,7 +393,7 @@ create_etc() {
 
 	cd /usr/src/etc/
 	mkdir -p ${WORKDIR}/var/named/etc/namedb
-	make distribution DESTDIR=${WORKDIR}
+	make distribution DESTDIR=${WORKDIR} || exit 1
 }
 
 create_ssh_keys() {

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2008
+.Dd December 12, 2009
 .Os
 .Dt SLEEP 9
 .Sh NAME
@@ -97,6 +97,7 @@ when it resumes.
 should never be used, as it is for compatibility only.
 A new priority of 0 means to use the thread's current priority when
 it is made runnable again.
+.Pp
 If
 .Fa priority
 includes the
@@ -113,6 +114,17 @@ possible, and
 is returned if the system call should be interrupted by the signal
 (return
 .Er EINTR ) .
+If
+.Dv PBDRY
+flag is specified in addition to
+.Dv PCATCH ,
+then the sleeping thread is not stopped while sleeping upon delivery of
+.Dv SIGSTOP
+or other stop action.
+Instead, it is waken up, assuming that stop occurs on reaching a stop
+point when returning to usermode.
+The flag should be used when sleeping thread owns resources, for instance
+vnode locks, that should be freed timely.
 .Pp
 The parameter
 .Fa wmesg

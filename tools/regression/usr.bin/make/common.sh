@@ -233,6 +233,12 @@ reset_test()
 #
 eval_clean()
 {
+	#
+	# If you have special cleaning needs, provide a 'cleanup' shell script.
+	#
+	if [ -n "${TEST_CLEANUP}" ] ; then
+		. ${SRC_DIR}/cleanup
+	fi
 	rm -rf ${WORK_DIR}
 	rm -rf ${OUTPUT_DIR}
 }

@@ -85,9 +85,9 @@ expr:
 	ARITH_LPAREN expr ARITH_RPAREN
 		{ $$ = $2; } |
 	expr ARITH_OR expr
-		{ $$ = $1 ? $1 : $3 ? $3 : 0; } |
+		{ $$ = $1 || $3; } |
 	expr ARITH_AND expr
-		{ $$ = $1 ? ( $3 ? $3 : 0 ) : 0; } |
+		{ $$ = $1 && $3; } |
 	expr ARITH_BOR expr
 		{ $$ = $1 | $3; } |
 	expr ARITH_BXOR expr
@@ -265,7 +265,7 @@ expr:
 #define YYPARSE_PARAM_TYPE arith_t *
 #define YYPARSE_PARAM result
 
-char *arith_buf, *arith_startbuf;
+const char *arith_buf, *arith_startbuf;
 
 int yylex(void);
 int yyparse(YYPARSE_PARAM_TYPE);
@@ -284,7 +284,7 @@ arith_assign(char *name, arith_t value)
 }
 
 arith_t
-arith(char *s)
+arith(const char *s)
 {
 	arith_t result;
 
@@ -299,7 +299,7 @@ arith(char *s)
 }
 
 static void
-yyerror(char *s)
+yyerror(const char *s)
 {
 
 	yyerrok;
@@ -314,7 +314,7 @@ yyerror(char *s)
 int
 expcmd(int argc, char **argv)
 {
-	char *p;
+	const char *p;
 	char *concat;
 	char **ap;
 	arith_t i;
@@ -354,7 +354,7 @@ main(int argc, char *argv[])
 	printf("%d\n", exp(argv[1]));
 }
 
-error(char *s)
+error(const char *s)
 {
 	fprintf(stderr, "exp: %s\n", s);
 	exit(1);

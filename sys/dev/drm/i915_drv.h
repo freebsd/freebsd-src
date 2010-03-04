@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #ifndef _I915_DRV_H_
 #define _I915_DRV_H_
 
+#include "dev/drm/drm_mm.h"
 #include "dev/drm/i915_reg.h"
 
 /* General customization:
@@ -236,9 +237,8 @@ typedef struct drm_i915_private {
 	u8 saveCR[37];
 
 	struct {
-#ifdef __linux__
 		struct drm_mm gtt_space;
-#endif
+
 		/**
 		 * List of objects currently involved in rendering from the
 		 * ringbuffer.
@@ -644,7 +644,8 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		       (dev)->pci_device == 0x2A42 || \
 		       (dev)->pci_device == 0x2E02 || \
 		       (dev)->pci_device == 0x2E12 || \
-		       (dev)->pci_device == 0x2E22)
+		       (dev)->pci_device == 0x2E22 || \
+		       (dev)->pci_device == 0x2E32)
 
 #define IS_I965GM(dev) ((dev)->pci_device == 0x2A02)
 
@@ -653,6 +654,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define IS_G4X(dev) ((dev)->pci_device == 0x2E02 || \
 		     (dev)->pci_device == 0x2E12 || \
 		     (dev)->pci_device == 0x2E22 || \
+		     (dev)->pci_device == 0x2E32 || \
 		     IS_GM45(dev))
 
 #define IS_G33(dev)    ((dev)->pci_device == 0x29C2 ||	\

@@ -44,7 +44,7 @@
 .In sys/socket.h
 .In netinet/sctp.h
 .Ft int
-.Fn sctp_connectx "int s" "struct sockaddr *" "int addrcnt" "sctp_assoc_t *"
+.Fn sctp_connectx "int sd" "struct sockaddr *addrs" "int addrcnt" "sctp_assoc_t *id"
 .Sh DESCRIPTION
 The
 .Fn sctp_connectx
@@ -75,7 +75,7 @@ the extra addresses sent in the
 call will be silently discarded from the association.
 On
 successful completion the provided
-.Fa "sctp_assoc_t *"
+.Fa id
 will be
 filled in with the association identification of the newly
 forming association.
@@ -84,7 +84,7 @@ The call returns 0 on success and -1 upon failure.
 .Sh ERRORS
 The
 .Fn sctp_connectx
-can return the following errors.
+function can return the following errors:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 An address listed has an invalid family or no

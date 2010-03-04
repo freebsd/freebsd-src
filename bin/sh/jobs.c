@@ -92,7 +92,7 @@ STATIC struct job *getjob(char *);
 STATIC pid_t dowait(int, struct job *);
 STATIC pid_t waitproc(int, int *);
 STATIC void cmdtxt(union node *);
-STATIC void cmdputs(char *);
+STATIC void cmdputs(const char *);
 #if JOBS
 STATIC void setcurjob(struct job *);
 STATIC void deljob(struct job *);
@@ -146,7 +146,7 @@ setjobctl(int on)
 		do { /* while we are in the background */
 			initialpgrp = tcgetpgrp(ttyfd);
 			if (initialpgrp < 0) {
-out:				out2str("sh: can't access tty; job control turned off\n");
+out:				out2fmt_flush("sh: can't access tty; job control turned off\n");
 				mflag = 0;
 				return;
 			}
@@ -757,6 +757,7 @@ forkshell(struct job *jp, union node *n, int mode)
 		TRACE(("Child shell %d\n", (int)getpid()));
 		wasroot = rootshell;
 		rootshell = 0;
+		handler = &main_handler;
 		closescript();
 		INTON;
 		clear_traps();
@@ -1046,7 +1047,7 @@ stoppedjobs(void)
 		if (jp->used == 0)
 			continue;
 		if (jp->state == JOBSTOPPED) {
-			out2str("You have stopped jobs.\n");
+			out2fmt_flush("You have stopped jobs.\n");
 			job_warning = 2;
 			return (1);
 		}
@@ -1082,7 +1083,7 @@ cmdtxt(union node *n)
 {
 	union node *np;
 	struct nodelist *lp;
-	char *p;
+	const char *p;
 	int i;
 	char s[2];
 
@@ -1211,9 +1212,10 @@ redir:
 
 
 STATIC void
-cmdputs(char *s)
+cmdputs(const char *s)
 {
-	char *p, *q;
+	const char *p;
+	char *q;
 	char c;
 	int subtype = 0;
 

@@ -50,6 +50,7 @@
 #include <sys/event.h>
 #include <sys/mount.h>
 #include <sys/statvfs.h>
+#include <sys/stdint.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
@@ -250,10 +251,10 @@ statvfs_main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	(void)printf("f_bsize=%llu\n", buf.f_bsize);
-	(void)printf("f_blocks=%llu\n", buf.f_blocks);
-	(void)printf("f_bfree=%llu\n", buf.f_bfree);
-	(void)printf("f_files=%llu\n", buf.f_files);
+	(void)printf("f_bsize=%ju\n", (uintmax_t)buf.f_bsize);
+	(void)printf("f_blocks=%ju\n", (uintmax_t)buf.f_blocks);
+	(void)printf("f_bfree=%ju\n", (uintmax_t)buf.f_bfree);
+	(void)printf("f_files=%ju\n", (uintmax_t)buf.f_files);
 
 	return EXIT_SUCCESS;
 }

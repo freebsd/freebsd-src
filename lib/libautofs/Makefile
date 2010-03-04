@@ -3,7 +3,6 @@
 
 LIB=	autofs
 SHLIB_MAJOR= 3
-WARNS?=	4
 
 SRCS=	libautofs.c
 INCS=	libautofs.h

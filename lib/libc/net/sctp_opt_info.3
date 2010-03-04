@@ -45,7 +45,7 @@
 .In sys/socket.h
 .In netinet/sctp.h
 .Ft int
-.Fn sctp_opt_info "int s" "sctp_assoc_t" "int opt" "void *arg" "socklen_t *size"
+.Fn sctp_opt_info "int sd" "sctp_assoc_t id" "int opt" "void *arg" "socklen_t *size"
 .Sh DESCRIPTION
 The
 .Fn sctp_opt_info
@@ -87,10 +87,12 @@ socket options.
 .Dv SCTP_PEER_AUTH_CHUNKS
 .Pp
 .Dv SCTP_LOCAL_AUTH_CHUNKS
+.Sh RETURN VALUES
+The call returns 0 on success and -1 upon error.
 .Sh ERRORS
 The
 .Fn sctp_opt_info
-function can return the following errors.
+function can return the following errors:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The argument

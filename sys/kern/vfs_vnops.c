@@ -212,7 +212,7 @@ restart:
 		accmode |= VREAD;
 	if (fmode & FEXEC)
 		accmode |= VEXEC;
-	if (fmode & O_APPEND)
+	if ((fmode & O_APPEND) && (fmode & FWRITE))
 		accmode |= VAPPEND;
 #ifdef MAC
 	error = mac_vnode_check_open(cred, vp, accmode);
@@ -311,6 +311,9 @@ vn_close(vp, flags, file_cred, td)
 static int
 sequential_heuristic(struct uio *uio, struct file *fp)
 {
+
+	if (atomic_load_acq_int(&(fp->f_flag)) & FRDAHEAD)
+		return (fp->f_seqcount << IO_SEQSHIFT);
 
 	/*
 	 * Offset 0 is handled specially.  open() sets f_seqcount to 1 so

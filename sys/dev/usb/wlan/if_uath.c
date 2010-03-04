@@ -188,9 +188,9 @@ static const struct usb_device_id uath_devs[] = {
 	UATH_DEV(NETGEAR,		WG111U),
 	UATH_DEV(NETGEAR3,		WG111T),
 	UATH_DEV(NETGEAR3,		WPN111),
+	UATH_DEV(NETGEAR3,		WPN111_2),
 	UATH_DEV(UMEDIA,		TEW444UBEU),
 	UATH_DEV(UMEDIA,		AR5523_2),
-	UATH_DEV(UMEDIA,		AR5523_3),
 	UATH_DEV(WISTRONNEWEB,		AR5523_1),
 	UATH_DEV(WISTRONNEWEB,		AR5523_2),
 	UATH_DEV(ZCOM,			AR5523)
@@ -2762,6 +2762,9 @@ setup:
 			m = NULL;
 			desc = NULL;
 		}
+		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
+		    !IFQ_IS_EMPTY(&ifp->if_snd))
+			uath_start(ifp);
 		UATH_LOCK(sc);
 		break;
 	default:

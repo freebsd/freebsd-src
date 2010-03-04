@@ -60,7 +60,7 @@ dump_environ(void)
 static void
 usage(const char *program)
 {
-	fprintf(stderr, "Usage:  %s [-DGUchrt] [-c 1|2|3|4] [-gu name] "
+	fprintf(stderr, "Usage:  %s [-DGUchrt] [-c 1|2|3|4] [-bgu name] "
 	    "[-p name=value]\n"
 	    "\t[(-S|-s name) value overwrite]\n\n"
 	    "Options:\n"
@@ -68,6 +68,7 @@ usage(const char *program)
 	    "  -G name\t\t\tgetenv(NULL)\n"
 	    "  -S value overwrite\t\tsetenv(NULL, value, overwrite)\n"
 	    "  -U\t\t\t\tunsetenv(NULL)\n"
+	    "  -b name\t\t\tblank the 'name=$name' entry, corrupting it\n"
 	    "  -c 1|2|3|4\t\t\tClear environ variable using method:\n"
 	    "\t\t\t\t1 - set environ to NULL pointer\n"
 	    "\t\t\t\t2 - set environ[0] to NULL pointer\n"
@@ -98,6 +99,28 @@ print_rtrn_errno(int rtrnVal, const char *eol)
 	return;
 }
 
+static void
+blank_env(const char *var)
+{
+	char **newenviron;
+	int n, varlen;
+
+	if (environ == NULL)
+		return;
+
+	for (n = 0; environ[n] != NULL; n++)
+		;
+	newenviron = malloc(sizeof(char *) * (n + 1));
+	varlen = strlen(var);
+	for (; n >= 0; n--) {
+		newenviron[n] = environ[n];
+		if (newenviron[n] != NULL &&
+		    strncmp(newenviron[n], var, varlen) == 0 &&
+		    newenviron[n][varlen] == '=')
+			newenviron[n] += strlen(newenviron[n]);
+	}
+	environ = newenviron;
+}
 
 int
 main(int argc, char **argv)
@@ -114,8 +137,12 @@ main(int argc, char **argv)
 	}
 
 	/* The entire program is basically executed from this loop. */
-	while ((arg = getopt(argc, argv, "DGS:Uc:g:hp:rs:tu:")) != -1) {
+	while ((arg = getopt(argc, argv, "DGS:Ub:c:g:hp:rs:tu:")) != -1) {
 		switch (arg) {
+		case 'b':
+			blank_env(optarg);
+			break;
+
 		case 'c':
 			switch (atoi(optarg)) {
 			case 1:

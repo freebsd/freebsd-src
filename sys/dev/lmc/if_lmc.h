@@ -1140,7 +1140,6 @@ struct softc
 #endif
 
 #if NETGRAPH
-  struct callout ng_callout;	/* ng_watchdog needs this                  */
   node_p	ng_node;	/* pointer to our node struct              */
   hook_p	ng_hook;	/* non-zero means NETGRAPH owns device     */
 # if (__FreeBSD_version >= 503000)
@@ -1153,6 +1152,7 @@ struct softc
 #endif
 
 #ifdef __FreeBSD__
+  struct callout callout;	/* watchdog needs this                  */
   struct device	*dev;		/* base device pointer                     */
   bus_space_tag_t csr_tag;	/* bus_space needs this                    */
   bus_space_handle_t csr_handle;/* bus_space_needs this                    */
@@ -1596,7 +1596,6 @@ static int lmc_ifnet_ioctl(struct ifnet *, u_long, caddr_t);
 static void lmc_ifnet_start(struct ifnet *);
 static int lmc_raw_output(struct ifnet *, struct mbuf *,
  struct sockaddr *, struct route *);
-static void lmc_ifnet_watchdog(struct ifnet *);
 # ifdef __OpenBSD__
 static int ifmedia_change(struct ifnet *);
 static void ifmedia_status(struct ifnet *, struct ifmediareq *);

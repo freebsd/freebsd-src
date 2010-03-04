@@ -77,7 +77,7 @@ uart_ebus_probe(device_t dev)
 	if (!strcmp(nm, "lom-console") || !strcmp(nm, "su") ||
 	    !strcmp(nm, "su_pnp") || !strcmp(cmpt, "rsc-console") ||
 	    !strcmp(cmpt, "rsc-control") || !strcmp(cmpt, "su") ||
-	    !strcmp(cmpt, "su16550")) {
+	    !strcmp(cmpt, "su16550") || !strcmp(cmpt, "su16552")) {
 		/*
 		 * On AXi and AXmp boards the NS16550 (used to connect
 		 * keyboard/mouse) share their IRQ lines with the i8042.

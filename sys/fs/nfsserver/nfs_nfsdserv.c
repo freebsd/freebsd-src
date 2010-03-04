@@ -88,6 +88,7 @@ nfsrvd_access(struct nfsrv_descript *nd, __unused int isdgram,
 	int getret, error = 0;
 	struct nfsvattr nva;
 	u_int32_t testmode, nfsmode, supported = 0;
+	accmode_t deletebit;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, 1, &nva);
@@ -105,26 +106,30 @@ nfsrvd_access(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 	if (nfsmode & NFSACCESS_READ) {
 		supported |= NFSACCESS_READ;
-		if (nfsvno_accchk(vp, NFSV4ACE_READDATA, nd->nd_cred, exp, p,
-		    NFSACCCHK_NOOVERRIDE, NFSACCCHK_VPISLOCKED))
+		if (nfsvno_accchk(vp, VREAD, nd->nd_cred, exp, p,
+		    NFSACCCHK_NOOVERRIDE, NFSACCCHK_VPISLOCKED, &supported))
 			nfsmode &= ~NFSACCESS_READ;
 	}
 	if (nfsmode & NFSACCESS_MODIFY) {
 		supported |= NFSACCESS_MODIFY;
-		if (nfsvno_accchk(vp, NFSV4ACE_WRITEDATA, nd->nd_cred, exp, p,
-		    NFSACCCHK_NOOVERRIDE, NFSACCCHK_VPISLOCKED))
+		if (nfsvno_accchk(vp, VWRITE, nd->nd_cred, exp, p,
+		    NFSACCCHK_NOOVERRIDE, NFSACCCHK_VPISLOCKED, &supported))
 			nfsmode &= ~NFSACCESS_MODIFY;
 	}
 	if (nfsmode & NFSACCESS_EXTEND) {
 		supported |= NFSACCESS_EXTEND;
-		if (nfsvno_accchk(vp, NFSV4ACE_APPENDDATA, nd->nd_cred, exp, p,
-		    NFSACCCHK_NOOVERRIDE, NFSACCCHK_VPISLOCKED))
+		if (nfsvno_accchk(vp, VWRITE | VAPPEND, nd->nd_cred, exp, p,
+		    NFSACCCHK_NOOVERRIDE, NFSACCCHK_VPISLOCKED, &supported))
 			nfsmode &= ~NFSACCESS_EXTEND;
 	}
 	if (nfsmode & NFSACCESS_DELETE) {
 		supported |= NFSACCESS_DELETE;
-		if (nfsvno_accchk(vp, NFSV4ACE_DELETE, nd->nd_cred, exp, p,
-		    NFSACCCHK_NOOVERRIDE, NFSACCCHK_VPISLOCKED))
+		if (vp->v_type == VDIR)
+			deletebit = VDELETE_CHILD;
+		else
+			deletebit = VDELETE;
+		if (nfsvno_accchk(vp, deletebit, nd->nd_cred, exp, p,
+		    NFSACCCHK_NOOVERRIDE, NFSACCCHK_VPISLOCKED, &supported))
 			nfsmode &= ~NFSACCESS_DELETE;
 	}
 	if (vnode_vtype(vp) == VDIR)
@@ -133,8 +138,8 @@ nfsrvd_access(struct nfsrv_descript *nd, __unused int isdgram,
 		testmode = NFSACCESS_EXECUTE;
 	if (nfsmode & testmode) {
 		supported |= (nfsmode & testmode);
-		if (nfsvno_accchk(vp, NFSV4ACE_EXECUTE, nd->nd_cred, exp, p,
-		    NFSACCCHK_NOOVERRIDE, NFSACCCHK_VPISLOCKED))
+		if (nfsvno_accchk(vp, VEXEC, nd->nd_cred, exp, p,
+		    NFSACCCHK_NOOVERRIDE, NFSACCCHK_VPISLOCKED, &supported))
 			nfsmode &= ~testmode;
 	}
 	nfsmode &= supported;
@@ -189,9 +194,9 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 		}
 		if (!nd->nd_repstat)
 			nd->nd_repstat = nfsvno_accchk(vp,
-			    NFSV4ACE_READATTRIBUTES,
-			    nd->nd_cred, exp, p,
-			    NFSACCCHK_NOOVERRIDE, NFSACCCHK_VPISLOCKED);
+			    VREAD_ATTRIBUTES,
+			    nd->nd_cred, exp, p, NFSACCCHK_NOOVERRIDE,
+			    NFSACCCHK_VPISLOCKED, NULL);
 	}
 	if (!nd->nd_repstat)
 		nd->nd_repstat = nfsvno_getattr(vp, &nva, nd->nd_cred, p);
@@ -291,8 +296,9 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 			else if (nva2.na_uid != nd->nd_cred->cr_uid ||
 			    NFSVNO_EXSTRICTACCESS(exp))
 				nd->nd_repstat = nfsvno_accchk(vp,
-				    NFSV4ACE_WRITEDATA, nd->nd_cred, exp, p,
-				    NFSACCCHK_NOOVERRIDE,NFSACCCHK_VPISLOCKED);
+				    VWRITE, nd->nd_cred, exp, p,
+				    NFSACCCHK_NOOVERRIDE,
+				    NFSACCCHK_VPISLOCKED, NULL);
 		}
 	}
 	if (!nd->nd_repstat && (nd->nd_flag & ND_NFSV4))
@@ -612,13 +618,13 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 	if (!nd->nd_repstat &&
 	    (nva.na_uid != nd->nd_cred->cr_uid ||
 	     NFSVNO_EXSTRICTACCESS(exp))) {
-		nd->nd_repstat = nfsvno_accchk(vp, NFSV4ACE_READDATA,
+		nd->nd_repstat = nfsvno_accchk(vp, VREAD,
 		    nd->nd_cred, exp, p,
-		    NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED);
+		    NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED, NULL);
 		if (nd->nd_repstat)
-			nd->nd_repstat = nfsvno_accchk(vp, NFSV4ACE_EXECUTE,
-			    nd->nd_cred, exp, p,
-			    NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED);
+			nd->nd_repstat = nfsvno_accchk(vp, VEXEC,
+			    nd->nd_cred, exp, p, NFSACCCHK_ALLOWOWNER,
+			    NFSACCCHK_VPISLOCKED, NULL);
 	}
 	if ((nd->nd_flag & ND_NFSV4) && !nd->nd_repstat)
 		nd->nd_repstat = nfsrv_lockctrl(vp, &stp, &lop, NULL, clientid,
@@ -788,9 +794,9 @@ nfsrvd_write(struct nfsrv_descript *nd, __unused int isdgram,
 	if (!nd->nd_repstat &&
 	    (forat.na_uid != nd->nd_cred->cr_uid ||
 	     NFSVNO_EXSTRICTACCESS(exp)))
-		nd->nd_repstat = nfsvno_accchk(vp, NFSV4ACE_WRITEDATA,
+		nd->nd_repstat = nfsvno_accchk(vp, VWRITE,
 		    nd->nd_cred, exp, p,
-		    NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED);
+		    NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED, NULL);
 	if ((nd->nd_flag & ND_NFSV4) && !nd->nd_repstat) {
 		nd->nd_repstat = nfsrv_lockctrl(vp, &stp, &lop, NULL, clientid,
 		    &stateid, exp, nd, p);
@@ -865,11 +871,11 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 	int how = NFSCREATE_UNCHECKED, exclusive_flag = 0;
 	NFSDEV_T rdev = 0;
 	vnode_t vp = NULL, dirp = NULL;
-	u_char cverf[NFSX_VERF], *cp;
 	fhandle_t fh;
 	char *bufp;
 	u_long *hashp;
 	enum vtype vtyp;
+	int32_t cverf[2], tverf[2] = { 0, 0 };
 
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
@@ -920,8 +926,9 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 					goto nfsmout;
 				break;
 			case NFSCREATE_EXCLUSIVE:
-				NFSM_DISSECT(cp, u_char *, NFSX_VERF);
-				NFSBCOPY(cp, cverf, NFSX_VERF);
+				NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
+				cverf[0] = *tl++;
+				cverf[1] = *tl;
 				exclusive_flag = 1;
 				break;
 			};
@@ -988,6 +995,10 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 			nd->nd_repstat = nfsvno_getattr(vp, &nva, nd->nd_cred,
 			    p);
 		vput(vp);
+		if (!nd->nd_repstat) {
+			tverf[0] = nva.na_atime.tv_sec;
+			tverf[1] = nva.na_atime.tv_nsec;
+		}
 	}
 	if (nd->nd_flag & ND_NFSV2) {
 		if (!nd->nd_repstat) {
@@ -995,8 +1006,8 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 			nfsrv_fillattr(nd, &nva);
 		}
 	} else {
-		if (exclusive_flag && !nd->nd_repstat &&
-			NFSBCMP(cverf, (caddr_t)&nva.na_atime, NFSX_VERF))
+		if (exclusive_flag && !nd->nd_repstat && (cverf[0] != tverf[0]
+		    || cverf[1] != tverf[1]))
 			nd->nd_repstat = EEXIST;
 		diraft_ret = nfsvno_getattr(dirp, &diraft, nd->nd_cred, p);
 		vrele(dirp);
@@ -2141,17 +2152,17 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 	if (!nd->nd_repstat) {
 	    if (lflags & NFSLCK_WRITE) {
-		nd->nd_repstat = nfsvno_accchk(vp, NFSV4ACE_WRITEDATA,
+		nd->nd_repstat = nfsvno_accchk(vp, VWRITE,
 		    nd->nd_cred, exp, p, NFSACCCHK_ALLOWOWNER,
-		    NFSACCCHK_VPISLOCKED);
+		    NFSACCCHK_VPISLOCKED, NULL);
 	    } else {
-		nd->nd_repstat = nfsvno_accchk(vp, NFSV4ACE_READDATA,
+		nd->nd_repstat = nfsvno_accchk(vp, VREAD,
 		    nd->nd_cred, exp, p, NFSACCCHK_ALLOWOWNER,
-		    NFSACCCHK_VPISLOCKED);
+		    NFSACCCHK_VPISLOCKED, NULL);
 		if (nd->nd_repstat)
-		    nd->nd_repstat = nfsvno_accchk(vp, NFSV4ACE_EXECUTE,
+		    nd->nd_repstat = nfsvno_accchk(vp, VEXEC,
 			nd->nd_cred, exp, p, NFSACCCHK_ALLOWOWNER,
-			NFSACCCHK_VPISLOCKED);
+			NFSACCCHK_VPISLOCKED, NULL);
 	    }
 	}
 
@@ -2406,7 +2417,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0, create, claim, exclusive_flag = 0;
 	u_int32_t rflags = NFSV4OPEN_LOCKTYPEPOSIX, acemask;
 	int how = NFSCREATE_UNCHECKED;
-	u_char cverf[NFSX_VERF];
+	int32_t cverf[2], tverf[2] = { 0, 0 };
 	vnode_t vp = NULL, dirp = NULL;
 	struct nfsvattr nva, dirfor, diraft;
 	struct nameidata named;
@@ -2517,7 +2528,8 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			break;
 		case NFSCREATE_EXCLUSIVE:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
-			NFSBCOPY((caddr_t)tl, cverf, NFSX_VERF);
+			cverf[0] = *tl++;
+			cverf[1] = *tl;
 			break;
 		default:
 			nd->nd_repstat = NFSERR_BADXDR;
@@ -2666,21 +2678,26 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_repstat = NFSERR_INVAL;
 	}
 	if (!nd->nd_repstat && (stp->ls_flags & NFSLCK_WRITEACCESS))
-	    nd->nd_repstat = nfsvno_accchk(vp, NFSV4ACE_WRITEDATA, nd->nd_cred,
-	        exp, p, NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED);
+	    nd->nd_repstat = nfsvno_accchk(vp, VWRITE, nd->nd_cred,
+	        exp, p, NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED, NULL);
 	if (!nd->nd_repstat && (stp->ls_flags & NFSLCK_READACCESS)) {
-	    nd->nd_repstat = nfsvno_accchk(vp, NFSV4ACE_READDATA, nd->nd_cred,
-	        exp, p, NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED);
+	    nd->nd_repstat = nfsvno_accchk(vp, VREAD, nd->nd_cred,
+	        exp, p, NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED, NULL);
 	    if (nd->nd_repstat)
-		nd->nd_repstat = nfsvno_accchk(vp, NFSV4ACE_EXECUTE,
+		nd->nd_repstat = nfsvno_accchk(vp, VEXEC,
 		    nd->nd_cred, exp, p, NFSACCCHK_ALLOWOWNER,
-		    NFSACCCHK_VPISLOCKED);
+		    NFSACCCHK_VPISLOCKED, NULL);
 	}
 
-	if (!nd->nd_repstat)
+	if (!nd->nd_repstat) {
 		nd->nd_repstat = nfsvno_getattr(vp, &nva, nd->nd_cred, p);
-	if (!nd->nd_repstat && exclusive_flag &&
-	    NFSBCMP(cverf, (caddr_t)&nva.na_atime, NFSX_VERF))
+		if (!nd->nd_repstat) {
+			tverf[0] = nva.na_atime.tv_sec;
+			tverf[1] = nva.na_atime.tv_nsec;
+		}
+	}
+	if (!nd->nd_repstat && exclusive_flag && (cverf[0] != tverf[0] ||
+	    cverf[1] != tverf[1]))
 		nd->nd_repstat = EEXIST;
 	/*
 	 * Do the open locking/delegation stuff.

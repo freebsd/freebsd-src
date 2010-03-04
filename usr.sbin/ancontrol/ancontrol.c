@@ -1327,8 +1327,8 @@ an_setkeys(const char *iface, const char *key, int keytype)
 	}
 }
 
-static void an_readkeyinfo(iface)
-	const char		*iface;
+static void
+an_readkeyinfo(const char *iface)
 {
 	struct an_req		areq;
 	struct an_ltv_genconfig	*cfg;

@@ -737,7 +737,7 @@ auth_pam(void)
  * Export any environment variables PAM modules may have set
  */
 static void
-export_pam_environment()
+export_pam_environment(void)
 {
 	char **pam_env;
 	char **pp;
@@ -786,7 +786,7 @@ export(const char *s)
 }
 
 static void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "usage: login [-fp] [-h hostname] [username]\n");
@@ -797,7 +797,7 @@ usage()
  * Prompt user and read login name from stdin.
  */
 static char *
-getloginname()
+getloginname(void)
 {
 	char *nbuf, *p;
 	int ch;
@@ -941,7 +941,7 @@ pam_syslog(const char *msg)
  * Shut down PAM
  */
 static void
-pam_cleanup()
+pam_cleanup(void)
 {
 
 	if (pamh != NULL) {

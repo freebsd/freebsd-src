@@ -29,6 +29,8 @@
  * $FreeBSD$
  */
 
+#include <stdint.h>
+
 #include "defs.h"
 #include "pathnames.h"
 
@@ -42,7 +44,7 @@ __RCSID("$Revision: 2.27 $");
 #endif
 
 struct ifhead ifnet = LIST_HEAD_INITIALIZER(ifnet);	/* all interfaces */
-struct ifhead remote_if = LIST_HEAD_INITIALIZER(ifnet);	/* remote interfaces */
+struct ifhead remote_if = LIST_HEAD_INITIALIZER(remote_if);	/* remote interfaces */
 
 /* hash table for all interfaces, big enough to tolerate ridiculous
  * numbers of IP aliases.  Crazy numbers of aliases such as 7000
@@ -948,9 +950,9 @@ ifinit(void)
 				} else if (now.tv_sec>(ifp->int_data.ts
 						       + CHECK_BAD_INTERVAL)) {
 					trace_act("interface %s has been off"
-						  " %ld seconds; forget it",
+						  " %jd seconds; forget it",
 						  ifp->int_name,
-						  (long)now.tv_sec-
+						  (intmax_t)now.tv_sec -
 						      ifp->int_data.ts);
 					ifdel(ifp);
 				}

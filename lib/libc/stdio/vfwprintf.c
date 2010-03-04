@@ -293,7 +293,7 @@ __mbsconv(char *mbsarg, int prec)
 		 * number of characters to print.
 		 */
 		p = mbsarg;
-		insize = nchars = 0;
+		insize = nchars = nconv = 0;
 		mbs = initial_mbs;
 		while (nchars != (size_t)prec) {
 			nconv = mbrlen(p, MB_CUR_MAX, &mbs);

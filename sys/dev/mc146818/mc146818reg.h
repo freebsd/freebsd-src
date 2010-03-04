@@ -1,17 +1,17 @@
 /*-
  * Copyright (c) 1995 Carnegie-Mellon University.
  * All rights reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -22,7 +22,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	from: NetBSD: mc146818reg.h,v 1.5 2003/11/02 11:07:45 wiz Exp
+ *	$NetBSD: mc146818reg.h,v 1.9 2006/03/08 23:46:25 lukem Exp $
  *
  * $FreeBSD$
  */
@@ -122,8 +122,8 @@
  * Periodic Interrupt Rate Select constants (Control register A)
  */
 #define	MC_RATE_NONE	0x0	/* No periodic interrupt */
-#define	MC_RATE_1	0x1     /* 256 Hz if MC_BASE_32_KHz, else 32768 Hz */
-#define	MC_RATE_2	0x2     /* 128 Hz if MC_BASE_32_KHz, else 16384 Hz */
+#define	MC_RATE_1	0x1	/* 256 Hz if MC_BASE_32_KHz, else 32768 Hz */
+#define	MC_RATE_2	0x2	/* 128 Hz if MC_BASE_32_KHz, else 16384 Hz */
 #define	MC_RATE_8192_Hz	0x3	/* 122.070 us period */
 #define	MC_RATE_4096_Hz	0x4	/* 244.141 us period */
 #define	MC_RATE_2048_Hz	0x5	/* 488.281 us period */
@@ -141,8 +141,8 @@
 /*
  * Time base (divisor select) constants (Control register A)
  */
-#define	MC_BASE_4_MHz	0x00		/* 4MHz crystal */
-#define	MC_BASE_1_MHz	MC_REGA_DV0	/* 1MHz crystal */
-#define	MC_BASE_32_KHz	MC_REGA_DV1	/* 32KHz crystal */
+#define	MC_BASE_4_MHz	0x00		/* 4 MHz crystal */
+#define	MC_BASE_1_MHz	MC_REGA_DV0	/* 1 MHz crystal */
+#define	MC_BASE_32_KHz	MC_REGA_DV1	/* 32 KHz crystal */
 #define	MC_BASE_NONE	(MC_REGA_DV2 | MC_REGA_DV1) /* actually also resets */
 #define	MC_BASE_RESET	(MC_REGA_DV2 | MC_REGA_DV1 | MC_REGA_DV0)

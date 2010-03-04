@@ -170,7 +170,7 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
     &VNET_NAME(ip_checkinterface), 0,
     "Verify packet arrives on correct interface");
 
-struct pfil_head inet_pfil_hook;	/* Packet filter hooks */
+VNET_DEFINE(struct pfil_head, inet_pfil_hook);	/* Packet filter hooks */
 
 static struct netisr_handler ip_nh = {
 	.nh_name = "ip",
@@ -199,6 +199,7 @@ static struct mtx ipqlock;
 
 static void	maxnipq_update(void);
 static void	ipq_zone_change(void *);
+static void	ip_drain_locked(void);
 
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_RD,
     &VNET_NAME(nipq), 0,
@@ -318,6 +319,13 @@ ip_init(void)
 	    NULL, UMA_ALIGN_PTR, 0);
 	maxnipq_update();
 
+	/* Initialize packet filter hooks. */
+	V_inet_pfil_hook.ph_type = PFIL_TYPE_AF;
+	V_inet_pfil_hook.ph_af = AF_INET;
+	if ((i = pfil_head_register(&V_inet_pfil_hook)) != 0)
+		printf("%s: WARNING: unable to register pfil hook, "
+			"error %d\n", __func__, i);
+
 #ifdef FLOWTABLE
 	TUNABLE_INT_FETCH("net.inet.ip.output_flowtable_size",
 	    &V_ip_output_flowtable_size);
@@ -348,13 +356,6 @@ ip_init(void)
 				ip_protox[pr->pr_protocol] = pr - inetsw;
 		}
 
-	/* Initialize packet filter hooks. */
-	inet_pfil_hook.ph_type = PFIL_TYPE_AF;
-	inet_pfil_hook.ph_af = AF_INET;
-	if ((i = pfil_head_register(&inet_pfil_hook)) != 0)
-		printf("%s: WARNING: unable to register pfil hook, "
-			"error %d\n", __func__, i);
-
 	/* Start ipport_tick. */
 	callout_init(&ipport_tick_callout, CALLOUT_MPSAFE);
 	callout_reset(&ipport_tick_callout, 1, ipport_tick, NULL);
@@ -367,6 +368,22 @@ ip_init(void)
 	IPQ_LOCK_INIT();
 	netisr_register(&ip_nh);
 }
+
+#ifdef VIMAGE
+void
+ip_destroy(void)
+{
+
+	/* Cleanup in_ifaddr hash table; should be empty. */
+	hashdestroy(V_in_ifaddrhashtbl, M_IFADDR, V_in_ifaddrhmask);
+
+	IPQ_LOCK();
+	ip_drain_locked();
+	IPQ_UNLOCK();
+
+	uma_zdestroy(V_ipq_zone);
+}
+#endif
 
 void
 ip_fini(void *xtp)
@@ -510,11 +527,11 @@ tooshort:
 	 */
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (!PFIL_HOOKED(&inet_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet_pfil_hook))
 		goto passin;
 
 	odst = ip->ip_dst;
-	if (pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_IN, NULL) != 0)
+	if (pfil_run_hooks(&V_inet_pfil_hook, &m, ifp, PFIL_IN, NULL) != 0)
 		return;
 	if (m == NULL)			/* consumed by filter */
 		return;
@@ -530,9 +547,9 @@ tooshort:
 	}
 	if ((dchg = (m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL)) != 0) {
 		/*
-		 * Directly ship on the packet.  This allows to forward packets
-		 * that were destined for us to some other directly connected
-		 * host.
+		 * Directly ship the packet on.  This allows forwarding
+		 * packets originally destined to us to some other directly
+		 * connected host.
 		 */
 		ip_forward(m, dchg);
 		return;
@@ -1237,23 +1254,32 @@ ip_slowtimo(void)
 /*
  * Drain off all datagram fragments.
  */
+static void
+ip_drain_locked(void)
+{
+	int     i;
+
+	IPQ_LOCK_ASSERT();
+
+	for (i = 0; i < IPREASS_NHASH; i++) {
+		while(!TAILQ_EMPTY(&V_ipq[i])) {
+			IPSTAT_ADD(ips_fragdropped,
+			    TAILQ_FIRST(&V_ipq[i])->ipq_nfrags);
+			ip_freef(&V_ipq[i], TAILQ_FIRST(&V_ipq[i]));
+		}
+	}
+}
+
 void
 ip_drain(void)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
-	int     i;
 
 	VNET_LIST_RLOCK_NOSLEEP();
 	IPQ_LOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		for (i = 0; i < IPREASS_NHASH; i++) {
-			while(!TAILQ_EMPTY(&V_ipq[i])) {
-				IPSTAT_ADD(ips_fragdropped,
-				    TAILQ_FIRST(&V_ipq[i])->ipq_nfrags);
-				ip_freef(&V_ipq[i], TAILQ_FIRST(&V_ipq[i]));
-			}
-		}
+		ip_drain_locked();
 		CURVNET_RESTORE();
 	}
 	IPQ_UNLOCK();

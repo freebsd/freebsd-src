@@ -17,6 +17,8 @@ CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
+WARNS?=		3
+
 MAN=		dnssec-keyfromlabel.8
 
 .include <bsd.prog.mk>

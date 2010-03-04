@@ -698,7 +698,7 @@ rpc_marshal_func(char *buffer, size_t *buffer_size, void *retval, va_list ap,
 		return (NS_RETURN);
 	}
 
-	memcpy(&new_rpc, rpc, sizeof(struct rpcent));
+	new_rpc = *rpc;
 
 	*buffer_size = desired_size;
 	memset(buffer, 0, desired_size);

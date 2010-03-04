@@ -4,6 +4,5 @@
 PROG=		xinstall
 PROGNAME=	install
 MAN=		install.1
-WARNS?=		6
 
 .include <bsd.prog.mk>

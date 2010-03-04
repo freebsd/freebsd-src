@@ -153,9 +153,7 @@ usage(void)
 }
 
 int
-quotaonoff(fs, offmode, type)
-	struct fstab *fs;
-	int offmode, type;
+quotaonoff(struct fstab *fs, int offmode, int type)
 {
 	struct quotafile *qf;
 

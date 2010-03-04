@@ -62,8 +62,8 @@
 #include <machine/segments.h>
 #include <machine/frame.h>
 #include <dev/ic/i8259.h>
-#include <amd64/isa/icu.h>
-#include <amd64/isa/isa.h>
+#include <x86/isa/icu.h>
+#include <x86/isa/isa.h>
 #endif
 
 #define	MAX_STRAY_LOG	5
@@ -399,6 +399,23 @@ atpic_reset(void)
 	outb(IO_ICU2, OCW3_SEL | OCW3_RR);
 }
 #endif
+
+/* Add a description to an active interrupt handler. */
+int
+intr_describe(u_int vector, void *ih, const char *descr)
+{
+	struct intsrc *isrc;
+	int error;
+
+	isrc = intr_lookup_source(vector);
+	if (isrc == NULL)
+		return (EINVAL);
+	error = intr_event_describe_handler(isrc->is_event, ih, descr);
+	if (error)
+		return (error);
+	intrcnt_updatename(isrc);
+	return (0);
+}
 
 #ifdef DDB
 /*

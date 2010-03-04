@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 LIB=	calendar
-WARNS?=	2
 
 SRCS=	calendar.c easter.c
 INCS=	calendar.h

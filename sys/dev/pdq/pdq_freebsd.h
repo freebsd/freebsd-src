@@ -124,10 +124,13 @@ typedef struct _pdq_os_ctx_t {
 	void *			irq_ih;
 
 	struct mtx		mtx;
+	struct callout		watchdog;
+	int			timer;
 } pdq_softc_t;
 
 #define PDQ_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
 #define PDQ_UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
+#define	PDQ_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
 
 #define	PDQ_OS_HDR_OFFSET	PDQ_RX_FC_OFFSET
 
@@ -255,7 +258,8 @@ pdq_state_t	pdq_stop (pdq_t *pdq);
  * OS dependent functions provided by
  * pdq_ifsubr.c or pdq.c to the bus front ends
  */
-void		pdq_ifattach (pdq_softc_t *, const pdq_uint8_t *);
+int		pdq_ifattach (pdq_softc_t *, const pdq_uint8_t *,
+			      pdq_type_t type);
 void		pdq_ifdetach (pdq_softc_t *);
 void		pdq_free (device_t);
 int		pdq_interrupt (pdq_t *pdq);

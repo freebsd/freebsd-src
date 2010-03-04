@@ -34,6 +34,7 @@
 #ifdef _KERNEL
 
 #include <sys/queue.h>
+#include <cam/cam.h>
 
 /*
  * This structure implements a heap based priority queue.  The queue
@@ -47,7 +48,7 @@ struct camq {
 	int	   array_size;
 	int	   entries;
 	u_int32_t  generation;
-	u_int32_t  qfrozen_cnt;
+	u_int32_t  qfrozen_cnt[CAM_RL_VALUES];
 };
 
 TAILQ_HEAD(ccb_hdr_tailq, ccb_hdr);
@@ -60,7 +61,6 @@ struct cam_ccbq {
 	int	dev_openings;	
 	int	dev_active;
 	int	held;
-	struct	ccb_hdr_tailq active_ccbs;
 };
 
 struct cam_ed;
@@ -141,6 +141,10 @@ cam_pinfo	*camq_remove(struct camq *queue, int index);
 /* Index the first element in the heap */
 #define CAMQ_GET_HEAD(camq) ((camq)->queue_array[CAMQ_HEAD])
 
+/* Get the first element priority. */
+#define CAMQ_GET_PRIO(camq) (((camq)->entries > 0) ?			\
+			    ((camq)->queue_array[CAMQ_HEAD]->priority) : 0)
+
 /*
  * camq_change_priority: Raise or lower the priority of an entry
  * maintaining queue order.
@@ -154,10 +158,10 @@ cam_ccbq_pending_ccb_count(struct cam_ccbq *ccbq);
 static __inline void
 cam_ccbq_take_opening(struct cam_ccbq *ccbq);
 
-static __inline void
+static __inline int
 cam_ccbq_insert_ccb(struct cam_ccbq *ccbq, union ccb *new_ccb);
 
-static __inline void
+static __inline int
 cam_ccbq_remove_ccb(struct cam_ccbq *ccbq, union ccb *ccb);
 
 static __inline union ccb *
@@ -186,17 +190,31 @@ cam_ccbq_take_opening(struct cam_ccbq *ccbq)
 	ccbq->held++;
 }
 
-static __inline void
+static __inline int
 cam_ccbq_insert_ccb(struct cam_ccbq *ccbq, union ccb *new_ccb)
 {
 	ccbq->held--;
 	camq_insert(&ccbq->queue, &new_ccb->ccb_h.pinfo);
+	if (ccbq->queue.qfrozen_cnt[CAM_PRIORITY_TO_RL(
+	    new_ccb->ccb_h.pinfo.priority)] > 0) {
+		ccbq->devq_openings++;
+		ccbq->held++;
+		return (1);
+	} else
+		return (0);
 }
 
-static __inline void
+static __inline int
 cam_ccbq_remove_ccb(struct cam_ccbq *ccbq, union ccb *ccb)
 {
 	camq_remove(&ccbq->queue, ccb->ccb_h.pinfo.index);
+	if (ccbq->queue.qfrozen_cnt[CAM_PRIORITY_TO_RL(
+	    ccb->ccb_h.pinfo.priority)] > 0) {
+		ccbq->devq_openings--;
+		ccbq->held--;
+		return (1);
+	} else
+		return (0);
 }
 
 static __inline union ccb *
@@ -209,9 +227,6 @@ static __inline void
 cam_ccbq_send_ccb(struct cam_ccbq *ccbq, union ccb *send_ccb)
 {
 
-	TAILQ_INSERT_TAIL(&ccbq->active_ccbs,
-			  &(send_ccb->ccb_h),
-			  xpt_links.tqe);
 	send_ccb->ccb_h.pinfo.index = CAM_ACTIVE_INDEX;
 	ccbq->dev_active++;
 	ccbq->dev_openings--;		
@@ -220,8 +235,7 @@ cam_ccbq_send_ccb(struct cam_ccbq *ccbq, union ccb *send_ccb)
 static __inline void
 cam_ccbq_ccb_done(struct cam_ccbq *ccbq, union ccb *done_ccb)
 {
-	TAILQ_REMOVE(&ccbq->active_ccbs, &done_ccb->ccb_h,
-		     xpt_links.tqe);
+
 	ccbq->dev_active--;
 	ccbq->dev_openings++;	
 	ccbq->held++;
@@ -232,6 +246,82 @@ cam_ccbq_release_opening(struct cam_ccbq *ccbq)
 {
 	ccbq->held--;
 	ccbq->devq_openings++;
+}
+
+static __inline int
+cam_ccbq_freeze(struct cam_ccbq *ccbq, cam_rl rl, u_int32_t cnt)
+{
+	int i, frozen = 0;
+	cam_rl p, n;
+
+	/* Find pevious run level. */
+	for (p = 0; p < CAM_RL_VALUES && ccbq->queue.qfrozen_cnt[p] == 0; p++);
+	/* Find new run level. */
+	n = min(rl, p);
+	/* Apply new run level. */
+	for (i = rl; i < CAM_RL_VALUES; i++)
+		ccbq->queue.qfrozen_cnt[i] += cnt;
+	/* Update ccbq statistics. */
+	if (n == p)
+		return (0);
+	for (i = CAMQ_HEAD; i <= ccbq->queue.entries; i++) {
+		cam_rl rrl =
+		    CAM_PRIORITY_TO_RL(ccbq->queue.queue_array[i]->priority);
+		if (rrl < n)
+			continue;
+		if (rrl >= p)
+			break;
+		ccbq->devq_openings++;
+		ccbq->held++;
+		frozen++;
+	}
+	return (frozen);
+}
+
+static __inline int
+cam_ccbq_release(struct cam_ccbq *ccbq, cam_rl rl, u_int32_t cnt)
+{
+	int i, released = 0;
+	cam_rl p, n;
+
+	/* Apply new run level. */
+	for (i = rl; i < CAM_RL_VALUES; i++)
+		ccbq->queue.qfrozen_cnt[i] -= cnt;
+	/* Find new run level. */
+	for (n = 0; n < CAM_RL_VALUES && ccbq->queue.qfrozen_cnt[n] == 0; n++);
+	/* Find previous run level. */
+	p = min(rl, n);
+	/* Update ccbq statistics. */
+	if (n == p)
+		return (0);
+	for (i = CAMQ_HEAD; i <= ccbq->queue.entries; i++) {
+		cam_rl rrl =
+		    CAM_PRIORITY_TO_RL(ccbq->queue.queue_array[i]->priority);
+		if (rrl < p)
+			continue;
+		if (rrl >= n)
+			break;
+		ccbq->devq_openings--;
+		ccbq->held--;
+		released++;
+	}
+	return (released);
+}
+
+static __inline u_int32_t
+cam_ccbq_frozen(struct cam_ccbq *ccbq, cam_rl rl)
+{
+	
+	return (ccbq->queue.qfrozen_cnt[rl]);
+}
+
+static __inline u_int32_t
+cam_ccbq_frozen_top(struct cam_ccbq *ccbq)
+{
+	cam_rl rl;
+	
+	rl = CAM_PRIORITY_TO_RL(CAMQ_GET_PRIO(&ccbq->queue));
+	return (ccbq->queue.qfrozen_cnt[rl]);
 }
 
 #endif /* _KERNEL */

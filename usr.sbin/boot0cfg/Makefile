@@ -3,9 +3,7 @@
 PROG=	boot0cfg
 MAN=	boot0cfg.8
 
-WARNS?=	2
-
-DPADD=	${LIBGEOM}
-LDADD=	-lgeom
+DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF}
+LDADD=	-lgeom -lbsdxml -lsbuf
 
 .include <bsd.prog.mk>

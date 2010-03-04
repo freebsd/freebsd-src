@@ -126,7 +126,7 @@ enum {
 	WPI_DEBUG_ANY		= 0xffffffff
 };
 
-static int wpi_debug = 1;
+static int wpi_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, wpi, CTLFLAG_RW, &wpi_debug, 0, "wpi debug level");
 TUNABLE_INT("debug.wpi", &wpi_debug);
 
@@ -713,13 +713,14 @@ wpi_detach(device_t dev)
 {
 	struct wpi_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic;
 	int ac;
 
-	ieee80211_draintask(ic, &sc->sc_restarttask);
-	ieee80211_draintask(ic, &sc->sc_radiotask);
-
 	if (ifp != NULL) {
+		ic = ifp->if_l2com;
+
+		ieee80211_draintask(ic, &sc->sc_restarttask);
+		ieee80211_draintask(ic, &sc->sc_radiotask);
 		wpi_stop(sc);
 		callout_drain(&sc->watchdog_to);
 		callout_drain(&sc->calib_to);

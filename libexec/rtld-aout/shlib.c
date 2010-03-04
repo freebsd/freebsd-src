@@ -82,8 +82,7 @@ add_search_dir(const char *name)
 }
 
 void
-add_search_path(path)
-char	*path;
+add_search_path(char *path)
 {
 	register char	*cp, *dup;
 
@@ -98,7 +97,7 @@ char	*path;
 }
 
 void
-std_search_path()
+std_search_path(void)
 {
 	int	i, n;
 
@@ -115,9 +114,7 @@ std_search_path()
  */
 
 int
-getdewey(dewey, cp)
-int	dewey[];
-char	*cp;
+getdewey(int dewey[], char *cp)
 {
 	int	i, n;
 
@@ -142,9 +139,7 @@ char	*cp;
  * Return  0 if equal.
  */
 int
-cmpndewey(d1, n1, d2, n2)
-int	d1[], d2[];
-int	n1, n2;
+cmpndewey(int d1[], int n1, int d2[], int n2)
 {
 	register int	i;
 
@@ -185,10 +180,7 @@ int	n1, n2;
  */
 
 char *
-findshlib(name, majorp, minorp, do_dot_a)
-char	*name;
-int	*majorp, *minorp;
-int	do_dot_a;
+findshlib(char *name, int *majorp, int *minorp, int do_dot_a)
 {
 	int		i;
 
@@ -212,8 +204,7 @@ int	do_dot_a;
  */
 
 char *
-find_lib_file(name)
-	const char	*name;
+find_lib_file(const char *name)
 {
 	int		i;
 
@@ -261,12 +252,7 @@ find_lib_file(name)
  */
 
 char *
-search_lib_dir(dir, name, majorp, minorp, do_dot_a)
-	char		*dir;
-	char		*name;
-	int		*majorp;
-	int		*minorp;
-	int		do_dot_a;
+search_lib_dir(char *dir, char *name, int *majorp, int *minorp, int do_dot_a)
 {
 	size_t		namelen;
 	DIR		*dd;

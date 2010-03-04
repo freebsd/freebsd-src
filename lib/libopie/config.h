@@ -216,7 +216,7 @@
 #define HAVE_GETUSERSHELL 1
 
 /* Define if you have the getutxline function.  */
-/* #undef HAVE_GETUTXLINE */
+#define HAVE_GETUTXLINE 1
 
 /* Define if you have the getwd function.  */
 /* #undef HAVE_GETWD */
@@ -231,7 +231,7 @@
 /* #undef HAVE_ON_EXIT */
 
 /* Define if you have the pututxline function.  */
-/* #undef HAVE_PUTUTXLINE */
+#define HAVE_PUTUTXLINE 1
 
 /* Define if you have the rindex function.  */
 /* #undef HAVE_RINDEX */
@@ -366,7 +366,7 @@
 #define HAVE_UNISTD_H 1
 
 /* Define if you have the <utmpx.h> header file.  */
-/* #undef HAVE_UTMPX_H */
+#define HAVE_UTMPX_H 1
 
 /* Define if you have the crypt library (-lcrypt).  */
 #define HAVE_LIBCRYPT 1

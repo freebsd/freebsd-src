@@ -170,6 +170,7 @@ enum {
 
 	WOR9_WORLD	= 0x69,		/* World9 (WO9 SKU) */	
 	WORA_WORLD	= 0x6A,		/* WorldA (WOA SKU) */	
+	WORB_WORLD	= 0x6B,		/* WorldB (WOB SKU) */
 
 	MKK3_MKKB	= 0x80,		/* Japan UNI-1 even + MKKB */
 	MKK3_MKKA2	= 0x81,		/* Japan UNI-1 even + MKKA2 */
@@ -432,6 +433,7 @@ static REG_DMN_PAIR_MAPPING regDomainPairs[] = {
 	{EU1_WORLD,	EU1_WORLD,	EU1_WORLD,	NO_REQ, NO_REQ, PSCAN_DEFER, CTRY_DEFAULT },
 	{WOR9_WORLD,	WOR9_WORLD,	WOR9_WORLD,	DISALLOW_ADHOC_11A | DISALLOW_ADHOC_11A_TURB, NO_REQ, PSCAN_DEFER, CTRY_DEFAULT },
 	{WORA_WORLD,	WORA_WORLD,	WORA_WORLD,	DISALLOW_ADHOC_11A | DISALLOW_ADHOC_11A_TURB, NO_REQ, PSCAN_DEFER, CTRY_DEFAULT },
+	{WORB_WORLD,	WORB_WORLD,	WORB_WORLD,	DISALLOW_ADHOC_11A | DISALLOW_ADHOC_11A_TURB, NO_REQ, PSCAN_DEFER, CTRY_DEFAULT },
 };
 
 /* 
@@ -1657,6 +1659,31 @@ static REG_DOMAIN regDomains[] = {
 	 .chan11g_turbo		= BM1(T3_2437_2437)},
 
 	{.regDmnEnum		= WORA_WORLD,
+	 .conformanceTestLimit	= NO_CTL,
+	 .dfsMask		= DFS_FCC3 | DFS_ETSI,
+	 .pscan			= PSCAN_WWR,
+	 .flags			= DISALLOW_ADHOC_11A,
+	 .chan11a		= BM4(W1_5260_5320,
+				      W1_5180_5240,
+				      W1_5745_5825,
+				      W1_5500_5700),
+	 .chan11b		= BM7(W1_2412_2412,
+				      W1_2437_2442,
+				      W1_2462_2462,
+				      W1_2472_2472,
+				      W1_2417_2432,
+				      W1_2447_2457,
+				      W1_2467_2467),
+	 .chan11g		= BM7(WG1_2412_2412,
+				      WG1_2437_2442,
+				      WG1_2462_2462,
+				      WG1_2472_2472,
+				      WG1_2417_2432,
+				      WG1_2447_2457,
+				      WG1_2467_2467),
+	 .chan11g_turbo		= BM1(T3_2437_2437)},
+
+	{.regDmnEnum		= WORB_WORLD,
 	 .conformanceTestLimit	= NO_CTL,
 	 .dfsMask		= DFS_FCC3 | DFS_ETSI,
 	 .pscan			= PSCAN_WWR,

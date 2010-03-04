@@ -282,9 +282,15 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->tdb_encalgxform != NULL, ("null encoding xform"));
-	IPSEC_ASSERT((skip&3) == 0 && (m->m_pkthdr.len&3) == 0,
-		("misaligned packet, skip %u pkt len %u",
-			skip, m->m_pkthdr.len));
+
+	/* Valid IP Packet length ? */
+	if ( (skip&3) || (m->m_pkthdr.len&3) ){
+		DPRINTF(("%s: misaligned packet, skip %u pkt len %u",
+				__func__, skip, m->m_pkthdr.len));
+		V_espstat.esps_badilen++;
+		m_freem(m);
+		return EINVAL;
+	}
 
 	/* XXX don't pullup, just copy header */
 	IP6_EXTHDR_GET(esp, struct newesp *, m, skip, sizeof (struct newesp));

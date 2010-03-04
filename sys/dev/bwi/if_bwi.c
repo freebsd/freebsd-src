@@ -106,7 +106,7 @@ static void	bwi_start(struct ifnet *);
 static void	bwi_start_locked(struct ifnet *);
 static int	bwi_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			const struct ieee80211_bpf_params *);
-static void	bwi_watchdog(struct ifnet *);
+static void	bwi_watchdog(void *);
 static void	bwi_scan_start(struct ieee80211com *);
 static void	bwi_set_channel(struct ieee80211com *);
 static void	bwi_scan_end(struct ieee80211com *);
@@ -464,10 +464,10 @@ bwi_attach(struct bwi_softc *sc)
 	ifp->if_init = bwi_init;
 	ifp->if_ioctl = bwi_ioctl;
 	ifp->if_start = bwi_start;
-	ifp->if_watchdog = bwi_watchdog;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
+	callout_init_mtx(&sc->sc_watchdog_timer, &sc->sc_mtx, 0);
 
 	/*
 	 * Setup ratesets, phytype, channels and get MAC address
@@ -581,6 +581,7 @@ bwi_detach(struct bwi_softc *sc)
 	bwi_stop(sc, 1);
 	callout_drain(&sc->sc_led_blink_ch);
 	callout_drain(&sc->sc_calib_ch);
+	callout_drain(&sc->sc_watchdog_timer);
 	ieee80211_ifdetach(ic);
 
 	for (i = 0; i < sc->sc_nmac; ++i)
@@ -1295,6 +1296,7 @@ bwi_init_statechg(struct bwi_softc *sc, int statechg)
 	sc->sc_flags &= ~BWI_F_STOP;
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	callout_reset(&sc->sc_watchdog_timer, hz, bwi_watchdog, sc);
 
 	/* Enable intrs */
 	bwi_enable_intrs(sc, BWI_INIT_INTRS);
@@ -1433,7 +1435,7 @@ bwi_start_locked(struct ifnet *ifp)
 	tbd->tbd_idx = idx;
 
 	if (trans)
-		ifp->if_timer = 5;
+		sc->sc_tx_timer = 5;
 }
 
 static int
@@ -1474,7 +1476,7 @@ bwi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		if (++tbd->tbd_used + BWI_TX_NSPRDESC >= BWI_TX_NDESC)
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		tbd->tbd_idx = (idx + 1) % BWI_TX_NDESC;
-		ifp->if_timer = 5;
+		sc->sc_tx_timer = 5;
 	} else {
 		/* NB: m is reclaimed on encap failure */
 		ieee80211_free_node(ni);
@@ -1485,17 +1487,20 @@ bwi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 }
 
 static void
-bwi_watchdog(struct ifnet *ifp)
+bwi_watchdog(void *arg)
 {
-	struct bwi_softc *sc = ifp->if_softc;
+	struct bwi_softc *sc;
+	struct ifnet *ifp;
 
-	BWI_LOCK(sc);
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	sc = arg;
+	ifp = sc->sc_ifp;
+	BWI_ASSERT_LOCKED(sc);
+	if (sc->sc_tx_timer != 0 && --sc->sc_tx_timer == 0) {
 		if_printf(ifp, "watchdog timeout\n");
 		ifp->if_oerrors++;
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_restart_task);
 	}
-	BWI_UNLOCK(sc);
+	callout_reset(&sc->sc_watchdog_timer, hz, bwi_watchdog, sc);
 }
 
 static void
@@ -1551,7 +1556,7 @@ bwi_stop_locked(struct bwi_softc *sc, int statechg)
 		bwi_bbp_power_off(sc);
 
 	sc->sc_tx_timer = 0;
-	ifp->if_timer = 0;
+	callout_stop(&sc->sc_watchdog_timer);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
 
@@ -3420,7 +3425,7 @@ _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 	tb->tb_mbuf = NULL;
 
 	if (tbd->tbd_used == 0)
-		ifp->if_timer = 0;
+		sc->sc_tx_timer = 0;
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
@@ -3922,7 +3927,7 @@ bwi_led_attach(struct bwi_softc *sc)
 			"%dth led, act %d, lowact %d\n", i,
 			led->l_act, led->l_flags & BWI_LED_F_ACTLOW);
 	}
-	callout_init(&sc->sc_led_blink_ch, CALLOUT_MPSAFE);
+	callout_init_mtx(&sc->sc_led_blink_ch, &sc->sc_mtx, 0);
 }
 
 static __inline uint16_t

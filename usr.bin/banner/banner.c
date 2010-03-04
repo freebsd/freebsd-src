@@ -1178,7 +1178,7 @@ main(int argc, char *argv[])
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: banner [-d] [-t] [-w width] message ...\n");
 	exit(1);

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -519,7 +519,7 @@ AcpiDsCallControlMethod (
 
     if (ObjDesc->Method.MethodFlags & AML_METHOD_INTERNAL_ONLY)
     {
-        Status = ObjDesc->Method.Implementation (NextWalkState);
+        Status = ObjDesc->Method.Extra.Implementation (NextWalkState);
         if (Status == AE_OK)
         {
             Status = AE_CTRL_TERMINATE;

@@ -221,11 +221,11 @@ amr_attach(struct amr_softc *sc)
 	sc->amr_submit_command = amr_std_submit_command;
 	sc->amr_get_work       = amr_std_get_work;
 	sc->amr_poll_command   = amr_std_poll_command;
-	amr_std_attach_mailbox(sc);;
+	amr_std_attach_mailbox(sc);
     }
 
 #ifdef AMR_BOARD_INIT
-    if ((AMR_IS_QUARTZ(sc) ? amr_quartz_init(sc) : amr_std_init(sc))))
+    if ((AMR_IS_QUARTZ(sc) ? amr_quartz_init(sc) : amr_std_init(sc)))
 	return(ENXIO);
 #endif
 

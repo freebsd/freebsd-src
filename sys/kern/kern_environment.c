@@ -60,6 +60,8 @@ static MALLOC_DEFINE(M_KENV, "kenv", "kernel environment");
 
 /* pointer to the static environment */
 char		*kern_envp;
+static int	env_len;
+static int	env_pos;
 static char	*kernenv_next(char *);
 
 /* dynamic environment variables */
@@ -208,6 +210,14 @@ done:
 	return (error);
 }
 
+void
+init_static_kenv(char *buf, size_t len)
+{
+	kern_envp = buf;
+	env_len = len;
+	env_pos = 0;
+}
+
 /*
  * Setup the dynamic kernel environment.
  */
@@ -336,6 +346,26 @@ testenv(const char *name)
 	return (0);
 }
 
+static int
+setenv_static(const char *name, const char *value)
+{
+	int len;
+
+	if (env_pos >= env_len)
+		return (-1);
+
+	/* Check space for x=y and two nuls */
+	len = strlen(name) + strlen(value);
+	if (len + 3 < env_len - env_pos) {
+		len = sprintf(&kern_envp[env_pos], "%s=%s", name, value);
+		env_pos += len+1;
+		kern_envp[env_pos] = '\0';
+		return (0);
+	} else
+		return (-1);
+
+}
+
 /*
  * Set an environment variable by name.
  */
@@ -344,6 +374,9 @@ setenv(const char *name, const char *value)
 {
 	char *buf, *cp, *oldenv;
 	int namelen, vallen, i;
+
+	if (dynamic_kenv == 0 && env_len > 0)
+		return (setenv_static(name, value));
 
 	KENV_CHECK;
 

@@ -113,6 +113,7 @@ static int f_listdir;		/* list actual directory, not contents */
 static int f_listdot;		/* list files beginning with . */
 static int f_noautodot;		/* do not automatically enable -A for root */
        int f_longform;		/* long listing format */
+static int f_nofollow;		/* don't follow symbolic link arguments */
        int f_nonprint;		/* show unprintables as ? */
 static int f_nosort;		/* don't sort output */
        int f_notabs;		/* don't use tab-separated multi-col output */
@@ -234,6 +235,7 @@ main(int argc, char *argv[])
 			break;
 		case 'H':
 			fts_options |= FTS_COMFOLLOW;
+			f_nofollow = 0;
 			break;
 		case 'G':
 			setenv("CLICOLOR", "", 1);
@@ -241,11 +243,13 @@ main(int argc, char *argv[])
 		case 'L':
 			fts_options &= ~FTS_PHYSICAL;
 			fts_options |= FTS_LOGICAL;
+			f_nofollow = 0;
 			break;
 		case 'P':
 			fts_options &= ~FTS_COMFOLLOW;
 			fts_options &= ~FTS_LOGICAL;
 			fts_options |= FTS_PHYSICAL;
+			f_nofollow = 1;
 			break;
 		case 'R':
 			f_recursive = 1;
@@ -396,10 +400,10 @@ main(int argc, char *argv[])
 		fts_options |= FTS_NOSTAT;
 
 	/*
-	 * If not -F, -d or -l options, follow any symbolic links listed on
+	 * If not -F, -P, -d or -l options, follow any symbolic links listed on
 	 * the command line.
 	 */
-	if (!f_longform && !f_listdir && !f_type)
+	if (!f_nofollow && !f_longform && !f_listdir && (!f_type || f_slash))
 		fts_options |= FTS_COMFOLLOW;
 
 	/*
@@ -508,7 +512,7 @@ traverse(int argc, char *argv[], int options)
 			break;
 		case FTS_DNR:
 		case FTS_ERR:
-			warnx("%s: %s", p->fts_name, strerror(p->fts_errno));
+			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			break;
 		case FTS_D:
@@ -559,7 +563,8 @@ display(const FTSENT *p, FTSENT *list, int options)
 	long maxblock;
 	u_long btotal, labelstrlen, maxinode, maxlen, maxnlink;
 	u_long maxlabelstr;
-	int bcfile, maxflags;
+	u_int devstrlen;
+	int maxflags;
 	gid_t maxgroup;
 	uid_t maxuser;
 	size_t flen, ulen, glen;
@@ -651,7 +656,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 		MAKENINES(maxsize);
 		free(jinitmax);
 	}
-	bcfile = 0;
+	devstrlen = 0;
 	flags = NULL;
 	for (cur = list, entries = 0; cur; cur = cur->fts_link) {
 		if (cur->fts_info == FTS_ERR || cur->fts_info == FTS_NS) {
@@ -791,9 +796,15 @@ label_out:
 				np->group = &np->data[ulen + 1];
 				(void)strcpy(np->group, group);
 
-				if (S_ISCHR(sp->st_mode) ||
-				    S_ISBLK(sp->st_mode))
-					bcfile = 1;
+				if ((S_ISCHR(sp->st_mode) ||
+				    S_ISBLK(sp->st_mode)) &&
+				    devstrlen < DEVSTR_HEX_LEN) {
+					if (minor(sp->st_rdev) > 255 ||
+					    minor(sp->st_rdev) < 0)
+						devstrlen = DEVSTR_HEX_LEN;
+					else
+						devstrlen = DEVSTR_LEN;
+				}
 
 				if (f_flags) {
 					np->flags = &np->data[ulen + glen + 2];
@@ -825,7 +836,6 @@ label_out:
 	d.entries = entries;
 	d.maxlen = maxlen;
 	if (needstats) {
-		d.bcfile = bcfile;
 		d.btotal = btotal;
 		(void)snprintf(buf, sizeof(buf), "%lu", maxblock);
 		d.s_block = strlen(buf);
@@ -836,8 +846,14 @@ label_out:
 		d.s_inode = strlen(buf);
 		(void)snprintf(buf, sizeof(buf), "%lu", maxnlink);
 		d.s_nlink = strlen(buf);
-		(void)snprintf(buf, sizeof(buf), "%ju", maxsize);
-		d.s_size = strlen(buf);
+		if (f_humanval)
+			d.s_size = HUMANVALSTR_LEN;
+		else {
+			(void)snprintf(buf, sizeof(buf), "%ju", maxsize);
+			d.s_size = strlen(buf);
+		}
+		if (d.s_size < devstrlen)
+			d.s_size = devstrlen;
 		d.s_user = maxuser;
 	}
 	printfcn(&d);

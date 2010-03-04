@@ -136,7 +136,7 @@ static void ar5211GetLowerUpperPcdacs(uint16_t pcdac,
 		uint16_t channel, const PCDACS_EEPROM *pSrcStruct,
 		uint16_t *pLowerPcdac, uint16_t *pUpperPcdac);
 
-static void ar5211SetRfgain(struct ath_hal *, const GAIN_VALUES *);;
+static void ar5211SetRfgain(struct ath_hal *, const GAIN_VALUES *);
 static void ar5211RequestRfgain(struct ath_hal *);
 static HAL_BOOL ar5211InvalidGainReadback(struct ath_hal *, GAIN_VALUES *);
 static HAL_BOOL ar5211IsGainAdjustNeeded(struct ath_hal *, const GAIN_VALUES *);

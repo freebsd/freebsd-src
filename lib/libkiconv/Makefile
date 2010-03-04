@@ -15,4 +15,6 @@ MLINKS+=	kiconv.3 kiconv_add_xlat16_cspair.3 \
 
 CFLAGS+=	-I${.CURDIR}/../../sys
 
+WARNS?=		1
+
 .include <bsd.lib.mk>

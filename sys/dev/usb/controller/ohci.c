@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/ohci.h>
+#include <dev/usb/controller/ohcireg.h>
 
 #define	OHCI_BUS2SC(bus) \
    ((ohci_softc_t *)(((uint8_t *)(bus)) - \
@@ -83,6 +84,9 @@ static int ohcidebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
 SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RW,
     &ohcidebug, 0, "ohci debug level");
+
+TUNABLE_INT("hw.usb.ohci.debug", &ohcidebug);
+
 static void ohci_dumpregs(ohci_softc_t *);
 static void ohci_dump_tds(ohci_td_t *);
 static uint8_t ohci_dump_td(ohci_td_t *);

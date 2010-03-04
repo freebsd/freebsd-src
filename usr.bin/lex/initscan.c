@@ -2894,7 +2894,7 @@ case YY_STATE_EOF(LINEDIR):
  *	EOB_ACT_END_OF_FILE - end of file
  */
 
-static int yy_get_next_buffer()
+static int yy_get_next_buffer(void)
 	{
 	char *dest = yy_current_buffer->yy_ch_buf;
 	char *source = yytext_ptr;
@@ -3026,7 +3026,7 @@ static int yy_get_next_buffer()
 
 /* yy_get_previous_state - get the state just before the EOB char was reached */
 
-static yy_state_type yy_get_previous_state()
+static yy_state_type yy_get_previous_state(void)
 	{
 	yy_state_type yy_current_state;
 	char *yy_cp;
@@ -3138,7 +3138,7 @@ char *yy_bp;
 #ifdef __cplusplus
 static int yyinput()
 #else
-static int input()
+static int input(void)
 #endif
 	{
 	int c;

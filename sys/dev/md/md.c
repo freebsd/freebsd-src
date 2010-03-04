@@ -152,7 +152,7 @@ struct g_class g_md_class = {
 DECLARE_GEOM_CLASS(g_md_class, g_md);
 
 
-static LIST_HEAD(, md_s) md_softc_list = LIST_HEAD_INITIALIZER(&md_softc_list);
+static LIST_HEAD(, md_s) md_softc_list = LIST_HEAD_INITIALIZER(md_softc_list);
 
 #define NINDIR	(PAGE_SIZE / sizeof(uintptr_t))
 #define NMASK	(NINDIR-1)
@@ -813,6 +813,8 @@ mdcreate_preload(struct md_s *sc, struct md_ioctl *mdio)
 {
 
 	if (mdio->md_options & ~(MD_AUTOUNIT | MD_FORCE))
+		return (EINVAL);
+	if (mdio->md_base == 0)
 		return (EINVAL);
 	sc->flags = mdio->md_options & MD_FORCE;
 	/* Cast to pointer size, then to pointer to avoid warning */

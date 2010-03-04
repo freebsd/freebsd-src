@@ -51,6 +51,13 @@ __FBSDID("$FreeBSD$");
 
 int yylex(void);
 
+struct varname
+{
+	struct varname *next;
+	char name[1];
+};
+static struct varname *varnames;
+
 #undef YY_INPUT
 #define YY_INPUT(buf,result,max) \
 	result = (*buf = *arith_buf++) ? 1 : YY_NULL;
@@ -80,11 +87,14 @@ int yylex(void);
 			 * If variable doesn't exist, we should initialize
 			 * it to zero.
 			 */
-			char *temp;
+			struct varname *temp;
 			if (lookupvar(yytext) == NULL)
 				setvarsafe(yytext, "0", 0);
-			temp = (char *)ckmalloc(strlen(yytext) + 1);
-			yylval.s_value = strcpy(temp, yytext);
+			temp = ckmalloc(sizeof(struct varname) +
+			    strlen(yytext));
+			temp->next = varnames;
+			varnames = temp;
+			yylval.s_value = strcpy(temp->name, yytext);
 
 			return ARITH_VAR;
 		}
@@ -130,5 +140,15 @@ int yylex(void);
 void
 arith_lex_reset(void)
 {
+	struct varname *name, *next;
+
 	YY_NEW_FILE;
+
+	name = varnames;
+	while (name != NULL) {
+		next = name->next;
+		ckfree(name);
+		name = next;
+	}
+	varnames = NULL;
 }

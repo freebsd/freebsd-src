@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2009
+.Dd December 27, 2009
 .Dt tar 5
 .Os
 .Sh NAME
@@ -55,8 +55,11 @@ number of records with each I/O operation.
 These
 .Dq blocks
 are always a multiple of the record size.
-The most common block size\(emand the maximum supported by historic
-implementations\(emis 10240 bytes or 20 records.
+The maximum block size supported by early
+implementations was 10240 bytes or 20 records.
+This is still the default for most implementations
+although block sizes of 1MiB (2048 records) or larger are
+commonly used with modern high-speed tape drives.
 (Note: the terms
 .Dq block
 and
@@ -272,16 +275,19 @@ when they are set and the corresponding names exist on
 the system.
 .It Va devmajor , Va devminor
 Major and minor numbers for character device or block device entry.
-.It Va prefix
-First part of pathname.
+.It Va name , Va prefix
 If the pathname is too long to fit in the 100 bytes provided by the standard
 format, it can be split at any
 .Pa /
-character with the first portion going here.
+character with the first portion going into the prefix field.
 If the prefix field is not empty, the reader will prepend
 the prefix value and a
 .Pa /
 character to the regular name field to obtain the full pathname.
+The standard does not require a trailing
+.Pa /
+character on directory names, though most implementations still
+include this for compatibility reasons.
 .El
 .Pp
 Note that all unused bytes must be set to
@@ -308,7 +314,7 @@ unless they fill the entire field.
 happens to have a
 .Pa /
 as the 156th character.)
-POSIX requires numeric fields to be zero-padded in the front, and allows
+POSIX requires numeric fields to be zero-padded in the front, and requires
 them to be terminated with either space or
 .Dv NUL
 characters.
@@ -809,9 +815,17 @@ John Gilmore's
 .Nm pdtar
 public-domain implementation (circa 1987) was highly influential
 and formed the basis of
-.Nm GNU tar .
+.Nm GNU tar
+(circa 1988).
 Joerg Shilling's
 .Nm star
 archiver is another open-source (GPL) archiver (originally developed
 circa 1985) which features complete support for pax interchange
 format.
+.Pp
+This documentation was written as part of the
+.Nm libarchive
+and
+.Nm bsdtar
+project by
+.An Tim Kientzle Aq kientzle@FreeBSD.org .

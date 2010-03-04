@@ -88,7 +88,7 @@ tr abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ < $temp |
 	awk '{	printf "#define %s %d\n", $1, NR-1}'
 echo '
 struct builtincmd {
-      char *name;
+      const char *name;
       int code;
       int special;
 };

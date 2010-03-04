@@ -45,6 +45,7 @@ static const char sccsid[] = "@(#)term.c	8.1 (Berkeley) 6/9/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termcap.h>
 #include <unistd.h>
 #include <ttyent.h>
 #include "extern.h"
@@ -59,8 +60,7 @@ char	*ttys(char *);
  * its termcap entry.
  */
 const char *
-get_termcap_entry(userarg, tcapbufp)
-	char *userarg, **tcapbufp;
+get_termcap_entry(char *userarg, char **tcapbufp)
 {
 	struct ttyent *t;
 	int rval;
@@ -125,8 +125,7 @@ found:	if ((p = getenv("TERMCAP")) != NULL && *p != '/')
 
 /* Prompt the user for a terminal type. */
 const char *
-askuser(dflt)
-	const char *dflt;
+askuser(const char *dflt)
 {
 	static char answer[256];
 	char *p;

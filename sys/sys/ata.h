@@ -48,9 +48,10 @@ struct ata_params {
 #define ATA_DRQ_SLOW                    0x0000  /* cpu 3 ms delay */
 #define ATA_DRQ_INTR                    0x0020  /* interrupt 10 ms delay */
 #define ATA_DRQ_FAST                    0x0040  /* accel 50 us delay */
+#define ATA_RESP_INCOMPLETE             0x0004
 
 /*001*/ u_int16_t       cylinders;              /* # of cylinders */
-	u_int16_t       reserved2;
+/*002*/ u_int16_t       specconf;		/* specific configuration */
 /*003*/ u_int16_t       heads;                  /* # heads */
 	u_int16_t       obsolete4;
 	u_int16_t       obsolete5;
@@ -67,6 +68,8 @@ struct ata_params {
 /*049*/ u_int16_t       capabilities1;
 #define ATA_SUPPORT_DMA                 0x0100
 #define ATA_SUPPORT_LBA                 0x0200
+#define ATA_SUPPORT_IORDY               0x0400
+#define ATA_SUPPORT_IORDYDIS            0x0800
 #define ATA_SUPPORT_OVERLAP             0x4000
 
 /*050*/ u_int16_t       capabilities2;
@@ -99,7 +102,9 @@ struct ata_params {
 /*066*/ u_int16_t       mwdmarec;               /* rec. M/W DMA time ns */
 /*067*/ u_int16_t       pioblind;               /* min. PIO cycle w/o flow */
 /*068*/ u_int16_t       pioiordy;               /* min. PIO cycle IORDY flow */
-	u_int16_t       reserved69;
+/*069*/ u_int16_t       support3;
+#define ATA_SUPPORT_RZAT                0x0020
+#define ATA_SUPPORT_DRAT                0x4000
 	u_int16_t       reserved70;
 /*071*/ u_int16_t       rlsovlap;               /* rel time (us) for overlap */
 /*072*/ u_int16_t       rlsservice;             /* rel time (us) for service */
@@ -108,22 +113,31 @@ struct ata_params {
 /*075*/ u_int16_t       queue;
 #define ATA_QUEUE_LEN(x)                ((x) & 0x001f)
 
-	u_int16_t       satacapabilities;
+/*76*/  u_int16_t       satacapabilities;
 #define ATA_SATA_GEN1                   0x0002
 #define ATA_SATA_GEN2                   0x0004
+#define ATA_SATA_GEN3                   0x0008
 #define ATA_SUPPORT_NCQ                 0x0100
 #define ATA_SUPPORT_IFPWRMNGTRCV        0x0200
 #define ATA_SUPPORT_PHYEVENTCNT         0x0400
 #define ATA_SUPPORT_NCQ_UNLOAD          0x0800
 #define ATA_SUPPORT_NCQ_PRIO            0x1000
+#define ATA_SUPPORT_HAPST               0x2000
+#define ATA_SUPPORT_DAPST               0x4000
+#define ATA_SUPPORT_READLOGDMAEXT       0x8000
 
-	u_int16_t       reserved77;
-	u_int16_t       satasupport;
+/*77*/  u_int16_t       satacapabilities2;
+#define ATA_SATA_CURR_GEN_MASK          0x0006
+#define ATA_SUPPORT_NCQ_STREAM          0x0010
+#define ATA_SUPPORT_NCQ_QMANAGEMENT     0x0020
+/*78*/  u_int16_t       satasupport;
 #define ATA_SUPPORT_NONZERO             0x0002
 #define ATA_SUPPORT_AUTOACTIVATE        0x0004
 #define ATA_SUPPORT_IFPWRMNGT           0x0008
 #define ATA_SUPPORT_INORDERDATA         0x0010
-	u_int16_t       sataenabled;
+#define ATA_SUPPORT_SOFTSETPRESERVE     0x0040
+/*79*/  u_int16_t       sataenabled;
+#define ATA_ENABLED_DAPST               0x0080
 
 /*080*/ u_int16_t       version_major;
 /*081*/ u_int16_t       version_minor;
@@ -161,8 +175,8 @@ struct ata_params {
 #define ATA_SUPPORT_FLUSHCACHE48        0x2000
 
 /*084/087*/ u_int16_t   extension;
-#define ATA_SUPPORT_SMARTTEST		0x0001
-#define ATA_SUPPORT_SMARTLOG		0x0002
+#define ATA_SUPPORT_SMARTLOG		0x0001
+#define ATA_SUPPORT_SMARTTEST		0x0002
 #define ATA_SUPPORT_MEDIASN		0x0004
 #define ATA_SUPPORT_MEDIAPASS		0x0008
 #define ATA_SUPPORT_STREAMING		0x0010
@@ -170,6 +184,7 @@ struct ata_params {
 #define ATA_SUPPORT_WRITEDMAFUAEXT	0x0040
 #define ATA_SUPPORT_WRITEDMAQFUAEXT	0x0080
 #define ATA_SUPPORT_64BITWWN		0x0100
+#define ATA_SUPPORT_UNLOAD		0x2000
 	} __packed support, enabled;
 
 /*088*/ u_int16_t       udmamodes;              /* UltraDMA modes */
@@ -192,14 +207,56 @@ struct ata_params {
 	u_int16_t       lba_size48_2;
 	u_int16_t       lba_size48_3;
 	u_int16_t       lba_size48_4;
-	u_int16_t       reserved104[23];
+	u_int16_t       reserved104;
+/*105*/	u_int16_t       max_dsm_blocks;
+/*106*/	u_int16_t       pss;
+#define ATA_PSS_LSPPS			0x000F
+#define ATA_PSS_LSSABOVE512		0x1000
+#define ATA_PSS_MULTLS			0x2000
+/*107*/ u_int16_t       isd;
+/*108*/ u_int16_t       wwn[4];
+	u_int16_t       reserved112[5];
+/*117*/ u_int16_t       lss_1;
+/*118*/ u_int16_t       lss_2;
+/*119*/ u_int16_t       support2;
+#define ATA_SUPPORT_WRITEREADVERIFY	0x0002
+#define ATA_SUPPORT_WRITEUNCORREXT	0x0004
+#define ATA_SUPPORT_RWLOGDMAEXT		0x0008
+#define ATA_SUPPORT_MICROCODE3		0x0010
+#define ATA_SUPPORT_FREEFALL		0x0020
+/*120*/ u_int16_t       enabled2;
+	u_int16_t       reserved121[6];
 /*127*/ u_int16_t       removable_status;
 /*128*/ u_int16_t       security_status;
 	u_int16_t       reserved129[31];
 /*160*/ u_int16_t       cfa_powermode1;
-	u_int16_t       reserved161[15];
-/*176*/ u_int16_t       media_serial[30];
-	u_int16_t       reserved206[49];
+	u_int16_t       reserved161;
+/*162*/ u_int16_t       cfa_kms_support;
+/*163*/ u_int16_t       cfa_trueide_modes;
+/*164*/ u_int16_t       cfa_memory_modes;
+	u_int16_t       reserved165[4];
+/*169*/	u_int16_t       support_dsm;
+#define ATA_SUPPORT_DSM_TRIM		0x0001
+	u_int16_t       reserved170[6];
+/*176*/ u_int8_t        media_serial[60];
+/*206*/ u_int16_t       sct;
+	u_int16_t       reserved206[2];
+/*209*/ u_int16_t       lsalign;
+/*210*/ u_int16_t       wrv_sectors_m3_1;
+	u_int16_t       wrv_sectors_m3_2;
+/*212*/ u_int16_t       wrv_sectors_m2_1;
+	u_int16_t       wrv_sectors_m2_2;
+/*214*/ u_int16_t       nv_cache_caps;
+/*215*/ u_int16_t       nv_cache_size_1;
+	u_int16_t       nv_cache_size_2;
+/*217*/ u_int16_t       media_rotation_rate;
+	u_int16_t       reserved218;
+/*219*/ u_int16_t       nv_cache_opt;
+/*220*/ u_int16_t       wrv_mode;
+	u_int16_t       reserved221;
+/*222*/ u_int16_t       transport_major;
+/*223*/ u_int16_t       transport_minor;
+	u_int16_t       reserved224[31];
 /*255*/ u_int16_t       integrity;
 } __packed;
 
@@ -228,15 +285,14 @@ struct ata_params {
 #define ATA_SA150               0x47
 #define ATA_SA300               0x48
 #define ATA_DMA_MAX             0x4f
-#define ATA_USB			0x80
-#define ATA_USB1		0x81
-#define ATA_USB2		0x82
 
 
 /* ATA commands */
 #define ATA_NOP                         0x00    /* NOP */
 #define         ATA_NF_FLUSHQUEUE       0x00    /* flush queued cmd's */
 #define         ATA_NF_AUTOPOLL         0x01    /* start autopoll function */
+#define ATA_DATA_SET_MANAGEMENT		0x06
+#define 	ATA_DSM_TRIM		0x01
 #define ATA_DEVICE_RESET                0x08    /* reset device */
 #define ATA_READ                        0x20    /* read */
 #define ATA_READ48                      0x24    /* read 48bit LBA */
@@ -244,12 +300,21 @@ struct ata_params {
 #define ATA_READ_DMA_QUEUED48           0x26    /* read DMA QUEUED 48bit LBA */
 #define ATA_READ_NATIVE_MAX_ADDRESS48   0x27    /* read native max addr 48bit */
 #define ATA_READ_MUL48                  0x29    /* read multi 48bit LBA */
+#define ATA_READ_STREAM_DMA48           0x2a    /* read DMA stream 48bit LBA */
+#define ATA_READ_STREAM48               0x2b    /* read stream 48bit LBA */
 #define ATA_WRITE                       0x30    /* write */
 #define ATA_WRITE48                     0x34    /* write 48bit LBA */
 #define ATA_WRITE_DMA48                 0x35    /* write DMA 48bit LBA */
 #define ATA_WRITE_DMA_QUEUED48          0x36    /* write DMA QUEUED 48bit LBA*/
 #define ATA_SET_MAX_ADDRESS48           0x37    /* set max address 48bit */
 #define ATA_WRITE_MUL48                 0x39    /* write multi 48bit LBA */
+#define ATA_WRITE_STREAM_DMA48          0x3a
+#define ATA_WRITE_STREAM48              0x3b
+#define ATA_WRITE_DMA_FUA48             0x3d
+#define ATA_WRITE_DMA_QUEUED_FUA48      0x3e
+#define ATA_WRITE_LOG_EXT               0x3f
+#define ATA_READ_VERIFY                 0x40
+#define ATA_READ_VERIFY48               0x42
 #define ATA_READ_FPDMA_QUEUED           0x60    /* read DMA NCQ */
 #define ATA_WRITE_FPDMA_QUEUED          0x61    /* write DMA NCQ */
 #define ATA_SEEK                        0x70    /* seek */
@@ -265,6 +330,7 @@ struct ata_params {
 #define ATA_READ_DMA                    0xc8    /* read DMA */
 #define ATA_WRITE_DMA                   0xca    /* write DMA */
 #define ATA_WRITE_DMA_QUEUED            0xcc    /* write DMA QUEUED */
+#define ATA_WRITE_MUL_FUA48             0xce
 #define ATA_STANDBY_IMMEDIATE           0xe0    /* standby immediate */
 #define ATA_IDLE_IMMEDIATE              0xe1    /* idle immediate */
 #define ATA_STANDBY_CMD                 0xe2    /* standby */
@@ -280,6 +346,9 @@ struct ata_params {
 #define         ATA_SF_SETXFER          0x03    /* set transfer mode */
 #define         ATA_SF_ENAB_WCACHE      0x02    /* enable write cache */
 #define         ATA_SF_DIS_WCACHE       0x82    /* disable write cache */
+#define         ATA_SF_ENAB_PUIS        0x06    /* enable PUIS */
+#define         ATA_SF_DIS_PUIS         0x86    /* disable PUIS */
+#define         ATA_SF_PUIS_SPINUP      0x07    /* PUIS spin-up */
 #define         ATA_SF_ENAB_RCACHE      0xaa    /* enable readahead cache */
 #define         ATA_SF_DIS_RCACHE       0x55    /* disable readahead cache */
 #define         ATA_SF_ENAB_RELIRQ      0x5d    /* enable release interrupt */

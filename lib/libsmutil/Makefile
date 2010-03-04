@@ -9,6 +9,8 @@ CFLAGS+=-DNEWDB -DNIS -DMAP_REGEX -DNOT_SENDMAIL
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
 
+WARNS?=	2
+
 LIB=	smutil
 
 SRCS+=	sm_os.h

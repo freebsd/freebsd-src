@@ -393,10 +393,10 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 	pp = g_new_providerf(gp, sbuf_data(sb));
 	pp2 = LIST_FIRST(&gp->consumer)->provider;
 	pp->flags = pp2->flags & G_PF_CANDELETE;
-	if (pp2->stripesize > 0) {
-		pp->stripesize = pp2->stripesize;
-		pp->stripeoffset = (pp2->stripeoffset + offset) % pp->stripesize;
-	}
+	pp->stripesize = pp2->stripesize;
+	pp->stripeoffset = pp2->stripeoffset + offset;
+	if (pp->stripesize > 0)
+		pp->stripeoffset %= pp->stripesize;
 	if (0 && bootverbose)
 		printf("GEOM: Configure %s, start %jd length %jd end %jd\n",
 		    pp->name, (intmax_t)offset, (intmax_t)length,

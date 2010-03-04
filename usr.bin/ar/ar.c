@@ -349,7 +349,7 @@ only_mode(struct bsdar *bsdar, const char *opt, const char *valid_modes)
 }
 
 static void
-bsdar_usage()
+bsdar_usage(void)
 {
 
 	(void)fprintf(stderr, "usage:  ar -d [-Tjsvz] archive file ...\n");
@@ -367,7 +367,7 @@ bsdar_usage()
 }
 
 static void
-ranlib_usage()
+ranlib_usage(void)
 {
 
 	(void)fprintf(stderr, "usage:	ranlib [-t] archive ...\n");
@@ -376,14 +376,14 @@ ranlib_usage()
 }
 
 static void
-bsdar_version()
+bsdar_version(void)
 {
 	(void)printf("BSD ar %s - %s\n", BSDAR_VERSION, archive_version());
 	exit(EX_OK);
 }
 
 static void
-ranlib_version()
+ranlib_version(void)
 {
 	(void)printf("ranlib %s - %s\n", BSDAR_VERSION, archive_version());
 	exit(EX_OK);
