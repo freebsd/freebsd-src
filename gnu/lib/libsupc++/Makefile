@@ -15,8 +15,6 @@ SRCS+=	del_op.cc del_opnt.cc del_opv.cc del_opvnt.cc eh_alloc.cc eh_arm.cc \
 	new_opnt.cc new_opv.cc new_opvnt.cc pure.cc tinfo.cc tinfo2.cc \
 	vec.cc vterminate.cc
 
-CXX:=${CXX:C/^c\+\+|^clang\+\+/g++/}
-
 # from libiberty:
 SRCS+=	cp-demangle.c
 
