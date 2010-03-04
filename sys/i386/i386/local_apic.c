@@ -150,6 +150,7 @@ extern inthand_t IDTVEC(rsvd);
 volatile lapic_t *lapic;
 vm_paddr_t lapic_paddr;
 static u_long lapic_timer_divisor, lapic_timer_period, lapic_timer_hz;
+static enum lapic_clock clockcoverage;
 
 static void	lapic_enable(void);
 static void	lapic_resume(struct pic *pic);
@@ -160,17 +161,6 @@ static void	lapic_timer_set_divisor(u_int divisor);
 static uint32_t	lvt_mode(struct lapic *la, u_int pin, uint32_t value);
 
 struct pic lapic_pic = { .pic_resume = lapic_resume };
-
-/*
- * The atrtc device is compiled in only if atpic is present.
- * If it is not, force lapic to take care of all the clocks.
- */
-#ifdef DEV_ATPIC
-static int lapic_allclocks;
-TUNABLE_INT("machdep.lapic_allclocks", &lapic_allclocks);
-#else
-static int lapic_allclocks = 1;
-#endif
 
 static uint32_t
 lvt_mode(struct lapic *la, u_int pin, uint32_t value)
@@ -431,17 +421,20 @@ lapic_disable_pmc(void)
  * that it can drive hardclock, statclock, and profclock. 
  */
 enum lapic_clock
-lapic_setup_clock(void)
+lapic_setup_clock(enum lapic_clock srcsdes)
 {
 	u_long value;
 	int i;
 
-	/* Can't drive the timer without a local APIC. */
-	if (lapic == NULL)
-		return (LAPIC_CLOCK_NONE);
+	/* lapic_setup_clock() should not be called with LAPIC_CLOCK_NONE. */
+	MPASS(srcsdes != LAPIC_CLOCK_NONE);
 
-	if (resource_int_value("apic", 0, "clock", &i) == 0 && i == 0)
-		return (LAPIC_CLOCK_NONE);
+	/* Can't drive the timer without a local APIC. */
+	if (lapic == NULL ||
+	    (resource_int_value("apic", 0, "clock", &i) == 0 && i == 0)) {
+		clockcoverage = LAPIC_CLOCK_NONE;
+		return (clockcoverage);
+	}
 
 	/* Start off with a divisor of 2 (power on reset default). */
 	lapic_timer_divisor = 2;
@@ -477,7 +470,7 @@ lapic_setup_clock(void)
 	 * Please note that stathz and profhz are set only if all the
 	 * clocks are handled through the local APIC.
 	 */
-	if (lapic_allclocks != 0) {
+	if (srcsdes == LAPIC_CLOCK_ALL) {
 		if (hz >= 1500)
 			lapic_timer_hz = hz;
 		else if (hz >= 750)
@@ -487,7 +480,7 @@ lapic_setup_clock(void)
 	} else
 		lapic_timer_hz = hz;
 	lapic_timer_period = value / lapic_timer_hz;
-	if (lapic_allclocks != 0) {
+	if (srcsdes == LAPIC_CLOCK_ALL) {
 		if (lapic_timer_hz < 128)
 			stathz = lapic_timer_hz;
 		else
@@ -501,7 +494,8 @@ lapic_setup_clock(void)
 	 */
 	lapic_timer_periodic(lapic_timer_period);
 	lapic_timer_enable_intr();
-	return (lapic_allclocks == 0 ? LAPIC_CLOCK_HARDCLOCK : LAPIC_CLOCK_ALL);
+	clockcoverage = srcsdes;
+	return (srcsdes);
 }
 
 void
@@ -804,7 +798,7 @@ lapic_handle_timer(struct trapframe *frame)
 		else
 			hardclock_cpu(TRAPF_USERMODE(frame));
 	}
-	if (lapic_allclocks != 0) {
+	if (clockcoverage == LAPIC_CLOCK_ALL) {
 
 		/* Fire statclock at stathz. */
 		la->la_stat_ticks += stathz;

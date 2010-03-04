@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <unistd.h>
 
+#include <libutil.h>
+
 #include "newfs.h"
 
 int	Eflag;			/* Erase previous disk contents */
@@ -90,19 +92,19 @@ int	Jflag;			/* enable gjournal for file system */
 int	lflag;			/* enable multilabel for file system */
 int	nflag;			/* do not create .snap directory */
 intmax_t fssize;		/* file system size */
-int	sectorsize;		/* bytes/sector */
+int64_t	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
-int	fsize = 0;		/* fragment size */
-int	bsize = 0;		/* block size */
-int	maxbsize = 0;		/* maximum clustering */
-int	maxblkspercg = MAXBLKSPERCG; /* maximum blocks per cylinder group */
+int64_t	fsize = 0;		/* fragment size */
+int64_t	bsize = 0;		/* block size */
+int64_t	maxbsize = 0;		/* maximum clustering */
+int64_t	maxblkspercg = MAXBLKSPERCG; /* maximum blocks per cylinder group */
 int	minfree = MINFREE;	/* free space threshold */
 int	opt = DEFAULTOPT;	/* optimization preference (space or time) */
-int	density;		/* number of bytes per inode */
-int	maxcontig = 0;		/* max contiguous blocks to allocate */
-int	maxbpg;			/* maximum blocks per file in a cyl group */
-int	avgfilesize = AVFILESIZ;/* expected average file size */
-int	avgfilesperdir = AFPDIR;/* expected number of files per directory */
+int64_t	density;		/* number of bytes per inode */
+int64_t	maxcontig = 0;		/* max contiguous blocks to allocate */
+int64_t	maxbpg;			/* maximum blocks per file in a cyl group */
+int64_t	avgfilesize = AVFILESIZ;/* expected average file size */
+int64_t	avgfilesperdir = AFPDIR;/* expected number of files per directory */
 u_char	*volumelabel = NULL;	/* volume label for filesystem */
 struct uufsd disk;		/* libufs disk structure */
 
@@ -129,7 +131,7 @@ main(int argc, char *argv[])
 	struct stat st;
 	char *cp, *special;
 	intmax_t reserved;
-	int ch, i;
+	int ch, i, rval;
 	off_t mediasize;
 	char part_name;		/* partition name, default to full disk */
 
@@ -169,7 +171,8 @@ main(int argc, char *argv[])
 			Rflag = 1;
 			break;
 		case 'S':
-			if ((sectorsize = atoi(optarg)) <= 0)
+			rval = expand_number(optarg, &sectorsize);
+			if (rval < 0 || sectorsize <= 0)
 				errx(1, "%s: bad sector size", optarg);
 			break;
 		case 'T':
@@ -182,12 +185,17 @@ main(int argc, char *argv[])
 			Xflag++;
 			break;
 		case 'a':
-			if ((maxcontig = atoi(optarg)) <= 0)
+			rval = expand_number(optarg, &maxcontig);
+			if (rval < 0 || maxcontig <= 0)
 				errx(1, "%s: bad maximum contiguous blocks",
 				    optarg);
 			break;
 		case 'b':
-			if ((bsize = atoi(optarg)) < MINBSIZE)
+			rval = expand_number(optarg, &bsize);
+			if (rval < 0)
+				 errx(1, "%s: bad block size",
+                                    optarg);
+			if (bsize < MINBSIZE)
 				errx(1, "%s: block size too small, min is %d",
 				    optarg, MINBSIZE);
 			if (bsize > MAXBSIZE)
@@ -195,33 +203,40 @@ main(int argc, char *argv[])
 				    optarg, MAXBSIZE);
 			break;
 		case 'c':
-			if ((maxblkspercg = atoi(optarg)) <= 0)
+			rval = expand_number(optarg, &maxblkspercg);
+			if (rval < 0 || maxblkspercg <= 0)
 				errx(1, "%s: bad blocks per cylinder group",
 				    optarg);
 			break;
 		case 'd':
-			if ((maxbsize = atoi(optarg)) < MINBSIZE)
+			rval = expand_number(optarg, &maxbsize);
+			if (rval < 0 || maxbsize < MINBSIZE)
 				errx(1, "%s: bad extent block size", optarg);
 			break;
 		case 'e':
-			if ((maxbpg = atoi(optarg)) <= 0)
+			rval = expand_number(optarg, &maxbpg);
+			if (rval < 0 || maxbpg <= 0)
 			  errx(1, "%s: bad blocks per file in a cylinder group",
 				    optarg);
 			break;
 		case 'f':
-			if ((fsize = atoi(optarg)) <= 0)
+			rval = expand_number(optarg, &fsize);
+			if (rval < 0 || fsize <= 0)
 				errx(1, "%s: bad fragment size", optarg);
 			break;
 		case 'g':
-			if ((avgfilesize = atoi(optarg)) <= 0)
+			rval = expand_number(optarg, &avgfilesize);
+			if (rval < 0 || avgfilesize <= 0)
 				errx(1, "%s: bad average file size", optarg);
 			break;
 		case 'h':
-			if ((avgfilesperdir = atoi(optarg)) <= 0)
+			rval = expand_number(optarg, &avgfilesperdir);
+			if (rval < 0 || avgfilesperdir <= 0)
 			       errx(1, "%s: bad average files per dir", optarg);
 			break;
 		case 'i':
-			if ((density = atoi(optarg)) <= 0)
+			rval = expand_number(optarg, &density);
+			if (rval < 0 || density <= 0)
 				errx(1, "%s: bad bytes per inode", optarg);
 			break;
 		case 'l':

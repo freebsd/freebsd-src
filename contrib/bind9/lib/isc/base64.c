@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: base64.c,v 1.32 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: base64.c,v 1.32.332.2 2009/10/21 23:47:20 tbox Exp $ */
 
 /*! \file */
 
@@ -85,11 +85,13 @@ isc_base64_totext(isc_region_t *source, int wordlength,
 		buf[2] = base64[((source->base[1]<<2)&0x3c)];
 		buf[3] = '=';
 		RETERR(str_totext(buf, target));
+		isc_region_consume(source, 2);
 	} else if (source->length == 1) {
 		buf[0] = base64[(source->base[0]>>2)&0x3f];
 		buf[1] = base64[((source->base[0]<<4)&0x30)];
 		buf[2] = buf[3] = '=';
 		RETERR(str_totext(buf, target));
+		isc_region_consume(source, 1);
 	}
 	return (ISC_R_SUCCESS);
 }
@@ -217,7 +219,7 @@ isc_base64_decodestring(const char *cstr, isc_buffer_t *target) {
 			continue;
 		RETERR(base64_decode_char(&ctx, c));
 	}
-	RETERR(base64_decode_finish(&ctx));	
+	RETERR(base64_decode_finish(&ctx));
 	return (ISC_R_SUCCESS);
 }
 

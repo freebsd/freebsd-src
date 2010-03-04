@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100303: actual removal of utmp.h
+OLD_FILES+=usr/include/utmp.h
 # 20100227: [ia64] removed <machine/sapicreg.h> and <machine/sapicvar.h>
 .if ${TARGET_ARCH} == "ia64"
 OLD_FILES+=usr/include/machine/sapicreg.h

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.c,v 1.151.12.5.12.1 2009/07/28 14:18:08 marka Exp $ */
+/* $Id: update.c,v 1.151.12.9 2009/12/30 04:02:56 marka Exp $ */
 
 #include <config.h>
 
@@ -3031,7 +3031,7 @@ check_dnssec(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
 	} else {
 		CHECK(get_iterations(db, ver, &iterations));
 		CHECK(dns_nsec3_maxiterations(db, ver, client->mctx, &max));
-		if (iterations > max) {
+		if (max != 0 && iterations > max) {
 			flag = ISC_TRUE;
 			update_log(client, zone, ISC_LOG_WARNING,
 				   "too many NSEC3 iterations (%u) for "
@@ -3157,6 +3157,24 @@ add_nsec3param_records(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
 							   &newtuple));
 				CHECK(do_one_tuple(&newtuple, db, ver, diff));
 			}
+
+			/*
+			 * Remove any existing CREATE request to add an
+			 * otherwise indentical chain with a reversed
+			 * OPTOUT state.
+			 */
+			buf[1] ^= DNS_NSEC3FLAG_OPTOUT;
+			CHECK(rr_exists(db, ver, name, &rdata, &flag));
+
+			if (flag) {
+				CHECK(dns_difftuple_create(diff->mctx,
+							   DNS_DIFFOP_DEL,
+							   name, tuple->ttl,
+							   &rdata,
+							   &newtuple));
+				CHECK(do_one_tuple(&newtuple, db, ver, diff));
+			}
+
 			/*
 			 * Remove the temporary add record.
 			 */
@@ -4140,9 +4158,6 @@ update_action(isc_task_t *task, isc_event_t *event) {
 	goto common;
 
  failure:
-	if (result == DNS_R_REFUSED)
-		inc_stats(zone, dns_nsstatscounter_updaterej);
-
 	/*
 	 * The reason for failure should have been logged at this point.
 	 */

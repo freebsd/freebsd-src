@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 23, 2009
+.Dd March 3, 2010
 .Dt ATA 4
 .Os
 .Sh NAME
@@ -81,6 +81,13 @@ To support ATAPI floppy drives:
 To support ATAPI tape drives:
 .Cd device atapist
 .Pp
+To turn
+.Xr ata 4
+subsystem controller drivers into cam(4) interface modules (disables all native
+.Xr ata 4
+APIs and periperal drivers):
+.Cd options ATA_CAM
+.Pp
 The following tunables are settable from the loader:
 .Bl -ohang
 .It Va hw.ata.ata_dma
@@ -125,7 +132,7 @@ The currently supported ATA/SATA controller chips are:
 .It Acard:
 ATP850P, ATP860A, ATP860R, ATP865A, ATP865R.
 .It ALI:
-M5229, M5281, M5287, M5288, M5289.
+M5228, M5229, M5281, M5283, M5287, M5288, M5289.
 .It AMD:
 AMD756, AMD766, AMD768, AMD8111, CS5536.
 .It ATI:
@@ -139,7 +146,8 @@ Cyrix 5530.
 .It HighPoint:
 HPT302, HPT366, HPT368, HPT370, HPT371, HPT372, HPT372N, HPT374.
 .It Intel:
-6300ESB, 31244, PIIX, PIIX3, PIIX4, ESB2, ICH, ICH0, ICH2, ICH3, ICH4, ICH5, ICH6, ICH7, ICH8, ICH9, ICH10.
+6300ESB, 31244, PIIX, PIIX3, PIIX4, ESB2, ICH, ICH0, ICH2, ICH3, ICH4, ICH5,
+ICH6, ICH7, ICH8, ICH9, ICH10, SCH, PCH.
 .It ITE:
 IT8211F, IT8212F, IT8213F.
 .It JMicron:
@@ -163,7 +171,9 @@ SiI0680, SiI3112, SiI3114, SiI3124, SiI3132, SiI3512.
 .It SiS:
 SIS180, SIS181, SIS182, SIS5513, SIS530, SIS540, SIS550, SIS620, SIS630, SIS630S, SIS633, SIS635, SIS730, SIS733, SIS735, SIS745, SIS961, SIS962, SIS963, SIS964, SIS965.
 .It VIA:
-VT6410, VT6420, VT6421, VT82C586, VT82C586B, VT82C596, VT82C596B, VT82C686, VT82C686A, VT82C686B, VT8231, VT8233, VT8233A, VT8233C, VT8235, VT8237, VT8237A, VT8237S, VT8251.
+VT6410, VT6420, VT6421, VT82C586, VT82C586B, VT82C596, VT82C596B, VT82C686,
+VT82C686A, VT82C686B, VT8231, VT8233, VT8233A, VT8233C, VT8235, VT8237,
+VT8237A, VT8237S, VT8251, CX700, VX800, VX855.
 .El
 .Pp
 Unknown ATA chipsets are supported in PIO modes, and if the standard
@@ -246,9 +256,12 @@ and not depend on attach order.
 .Pp
 Native Command Queuing (NCQ) on SATA drives is not yet supported.
 .Sh SEE ALSO
+.Xr ahci 4 ,
+.Xr cam 4 ,
 .Xr ataraid 4 ,
 .Xr atacontrol 8 ,
-.Xr burncd 8
+.Xr burncd 8 ,
+.Xr siis 4
 .Sh HISTORY
 The
 .Nm
