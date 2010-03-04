@@ -87,7 +87,7 @@ struct quotause {
 	char	fsname[MAXPATHLEN + 1];
 };
 
-static char *timeprt(int64_t seconds, int *needfree);
+static char *timeprt(int64_t seconds);
 static struct quotause *getprivs(long id, int quotatype);
 static void usage(void);
 static int showuid(u_long uid);
@@ -281,8 +281,7 @@ showquotas(int type, u_long id, const char *name)
 	struct quotause *quplist;
 	const char *msgi, *msgb;
 	const char *nam;
-	char *bgrace, *igrace;
-	int bfree, ifree;
+	char *bgrace = NULL, *igrace = NULL;
 	int lines = 0, overquota = 0;
 	static time_t now;
 
@@ -290,7 +289,7 @@ showquotas(int type, u_long id, const char *name)
 		time(&now);
 	quplist = getprivs(id, type);
 	for (qup = quplist; qup; qup = qup->next) {
-		msgi = (char *)0;
+		msgi = NULL;
 		if (qup->dqblk.dqb_ihardlimit &&
 		    qup->dqblk.dqb_curinodes >= qup->dqblk.dqb_ihardlimit) {
 			overquota++;
@@ -304,7 +303,7 @@ showquotas(int type, u_long id, const char *name)
 			else
 				msgi = "Over file quota on";
 		}
-		msgb = (char *)0;
+		msgb = NULL;
 		if (qup->dqblk.dqb_bhardlimit &&
 		    qup->dqblk.dqb_curblocks >= qup->dqblk.dqb_bhardlimit) {
 			overquota++;
@@ -329,12 +328,12 @@ showquotas(int type, u_long id, const char *name)
 		    qup->dqblk.dqb_bhardlimit == 0)
 			continue;
 		if (qflag) {
-			if ((msgi != (char *)0 || msgb != (char *)0) &&
+			if ((msgi != NULL || msgb != NULL) &&
 			    lines++ == 0)
 				heading(type, id, name, "");
-			if (msgi != (char *)0)
+			if (msgi != NULL)
 				printf("\t%s %s\n", msgi, qup->fsname);
-			if (msgb != (char *)0)
+			if (msgb != NULL)
 				printf("\t%s %s\n", msgb, qup->fsname);
 			continue;
 		}
@@ -352,42 +351,42 @@ showquotas(int type, u_long id, const char *name)
 		printf("%-15s", nam);
 		if (hflag) {
 			prthumanval(7, dbtob(qup->dqblk.dqb_curblocks));
-			printf("%c", (msgb == (char *)0) ? ' ' : '*');
+			printf("%c", (msgb == NULL) ? ' ' : '*');
 			prthumanval(7, dbtob(qup->dqblk.dqb_bsoftlimit));
 			prthumanval(7, dbtob(qup->dqblk.dqb_bhardlimit));
 		} else {
 			printf(" %7ju%c %7ju %7ju",
 			    dbtob(1024) * (uintmax_t)qup->dqblk.dqb_curblocks,
-			    (msgb == (char *)0) ? ' ' : '*',
+			    (msgb == NULL) ? ' ' : '*',
 			    dbtob(1024) * (uintmax_t)qup->dqblk.dqb_bsoftlimit,
 			    dbtob(1024) * (uintmax_t)qup->dqblk.dqb_bhardlimit);
 		}
 		if (msgb != NULL)
-			bgrace = timeprt(qup->dqblk.dqb_btime, &bfree);
+			bgrace = timeprt(qup->dqblk.dqb_btime);
 		if (msgi != NULL)
-			igrace = timeprt(qup->dqblk.dqb_itime, &ifree);
+			igrace = timeprt(qup->dqblk.dqb_itime);
 		printf("%8s %6ju%c %6ju %6ju%8s\n"
-			, (msgb == (char *)0) ? "" : bgrace
+			, (msgb == NULL) ? "" : bgrace
 			, (uintmax_t)qup->dqblk.dqb_curinodes
-			, (msgi == (char *)0) ? ' ' : '*'
+			, (msgi == NULL) ? ' ' : '*'
 			, (uintmax_t)qup->dqblk.dqb_isoftlimit
 			, (uintmax_t)qup->dqblk.dqb_ihardlimit
-			, (msgi == (char *)0) ? "" : igrace
+			, (msgi == NULL) ? "" : igrace
 		);
-		if (msgb != NULL && bfree)
+		if (msgb != NULL)
 			free(bgrace);
-		if (msgi != NULL && ifree)
+		if (msgi != NULL)
 			free(igrace);
 	}
 	if (!qflag && !rflag && lines == 0)
 		heading(type, id, name, "none");
-	return(overquota);
+	return (overquota);
 }
 
 static void
 showrawquotas(int type, u_long id, struct quotause *qup)
 {
-	time_t time;
+	time_t t;
 
 	printf("Raw %s quota information for id %lu on %s\n",
 	    type == USRQUOTA ? "user" : "group", id, qup->fsname);
@@ -406,15 +405,15 @@ showrawquotas(int type, u_long id, struct quotause *qup)
 	printf("block grace time:     %jd",
 	    (intmax_t)qup->dqblk.dqb_btime);
 	if (qup->dqblk.dqb_btime != 0) {
-		time = qup->dqblk.dqb_btime;
-		printf(" %s", ctime(&time));
+		t = qup->dqblk.dqb_btime;
+		printf(" %s", ctime(&t));
 	} else {
 		printf("\n");
 	}
 	printf("i-node grace time:    %jd", (intmax_t)qup->dqblk.dqb_itime);
 	if (qup->dqblk.dqb_itime != 0) {
-		time = qup->dqblk.dqb_itime;
-		printf(" %s", ctime(&time));
+		t = qup->dqblk.dqb_itime;
+		printf(" %s", ctime(&t));
 	} else {
 		printf("\n");
 	}
@@ -446,37 +445,35 @@ heading(int type, u_long id, const char *name, const char *tag)
  * Calculate the grace period and return a printable string for it.
  */
 static char *
-timeprt(int64_t seconds, int *needfree)
+timeprt(int64_t seconds)
 {
 	time_t hours, minutes;
-	char	*buf;
+	char *buf;
 	static time_t now;
 
 	if (now == 0)
 		time(&now);
 	if (now > seconds) {
-		*needfree = 0;
-		return ("none");
+		if ((buf = strdup("none")) == NULL)
+			errx(1, "strdup() failed in timeprt()");
+		return (buf);
 	}
 	seconds -= now;
 	minutes = (seconds + 30) / 60;
 	hours = (minutes + 30) / 60;
 	if (hours >= 36) {
 		if (asprintf(&buf, "%lddays", ((long)hours + 12) / 24) < 0)
-			errx(1, "asprintf failed in timeprt(1)");
-		*needfree = 1;
+			errx(1, "asprintf() failed in timeprt(1)");
 		return (buf);
 	}
 	if (minutes >= 60) {
 		if (asprintf(&buf, "%2ld:%ld", (long)minutes / 60,
 		    (long)minutes % 60) < 0)
-			errx(1, "asprintf failed in timeprt(2)");
-		*needfree = 1;
+			errx(1, "asprintf() failed in timeprt(2)");
 		return (buf);
 	}
 	if (asprintf(&buf, "%2ld", (long)minutes) < 0)
-		errx(1, "asprintf failed in timeprt(3)");
-	*needfree = 1;
+		errx(1, "asprintf() failed in timeprt(3)");
 	return (buf);
 }
 
