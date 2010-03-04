@@ -1,9 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
-CC:=${CC:C/^cc|^clang/gcc/}
-
 .PATH:		${.CURDIR}/../boot2
 
 FILES=		zfsboot
