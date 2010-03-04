@@ -1136,11 +1136,11 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 
 #ifdef COMPRESS_USER_CORES
 done:
-#endif
 	if (core_buf)
 		free(core_buf, M_TEMP);
 	if (gzfile)
 		gzclose(gzfile);
+#endif
 
 	free(hdr, M_TEMP);
 
