@@ -9,8 +9,8 @@
 # csu must be built before all shared libaries for ELF.
 # libc must be built before all other shared libraries.
 # libbsm must be built before ibauditd.
-# libcom_err must be built before libkrb5 and libpam.
-# libcrypt must be built before libkrb5 and libpam.
+# libcom_err must be built before libpam.
+# libcrypt must be built before libpam.
 # libkvm must be built before libdevstat.
 # msun must be built before libg++ and libstdc++.
 # libmd must be built before libatm, libopie, libradius, and libtacplus.
@@ -26,15 +26,16 @@
 # libgssapi must be built before librpcsec_gss
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
+#
+# Except it appears bind needs to be compiled last
 
-SUBDIR=	${_csu} libc libbsm libauditd libcom_err libcrypt libelf libkvm msun \
-	libmd \
-	ncurses ${_libnetgraph} libradius librpcsvc libsbuf \
-	libtacplus libutil ${_libypclnt} libalias libarchive \
-	${_libatm} libbegemot ${_libbluetooth} ${_libbsnmp} libbz2 \
-	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
-	libdwarf libedit ${_libefi} libexpat libfetch libftpio libgeom \
-	${_libgpib} ${_libgssapi} ${_librpcsec_gss} libipsec \
+SUBDIR=	${_csu} libc libbsm libauditd libcom_err libcrypt libelf libkvm \
+	msun libmd ncurses ${_libnetgraph} libradius librpcsvc libsbuf \
+	libtacplus libutil ${_libypclnt}
+SUBDIR+=libalias libarchive ${_libatm} libbegemot ${_libbluetooth} \
+	${_libbsnmp} libbz2 libcalendar libcam libcompat libdevinfo \
+	libdevstat libdisk libdwarf libedit ${_libefi} libexpat libfetch \
+	libftpio libgeom ${_libgpib} ${_libgssapi} ${_librpcsec_gss} libipsec \
 	${_libipx} libjail libkiconv libmagic libmemstat ${_libmilter} \
 	${_libmp} ${_libncp} ${_libngatm} libopie libpam libpcap \
 	${_libpmc} libproc librt ${_libsdp} ${_libsm} ${_libsmb} \
