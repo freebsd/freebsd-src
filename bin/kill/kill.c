@@ -108,7 +108,7 @@ main(int argc, char *argv[])
 			numsig = strtol(*argv, &ep, 10);
 			if (!**argv || *ep)
 				errx(1, "illegal signal number: %s", *argv);
-			if (numsig < 0 || numsig >= sys_nsig)
+			if (numsig < 0)
 				nosig(*argv);
 		} else
 			nosig(*argv);
