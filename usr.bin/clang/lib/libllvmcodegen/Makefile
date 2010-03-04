@@ -12,7 +12,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp BranchFolding.cpp CalcSpillWeights.cpp \
 	LLVMTargetMachine.cpp LatencyPriorityQueue.cpp LiveInterval.cpp \
 	LiveIntervalAnalysis.cpp LiveStackAnalysis.cpp \
 	LiveVariables.cpp LowerSubregs.cpp \
-	MachineBasicBlock.cpp MachineDominators.cpp \
+	MachineBasicBlock.cpp MachineCSE.cpp MachineDominators.cpp \
 	MachineFunction.cpp MachineFunctionAnalysis.cpp MachineFunctionPass.cpp \
 	MachineInstr.cpp MachineLICM.cpp \
 	MachineLoopInfo.cpp MachineModuleInfo.cpp MachineModuleInfoImpls.cpp \

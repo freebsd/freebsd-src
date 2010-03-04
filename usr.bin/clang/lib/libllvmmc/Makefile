@@ -8,6 +8,6 @@ SRCS=	MCAsmInfo.cpp MCAsmInfoCOFF.cpp MCAsmInfoDarwin.cpp \
 	MCContext.cpp MCDisassembler.cpp MCExpr.cpp MCInst.cpp \
 	MCInstPrinter.cpp MCMachOStreamer.cpp MCNullStreamer.cpp \
 	MCSection.cpp MCSectionELF.cpp MCSectionMachO.cpp MCStreamer.cpp \
-	MCSymbol.cpp MCValue.cpp
+	MCSymbol.cpp MCValue.cpp TargetAsmBackend.cpp
 
 .include "../../clang.lib.mk"

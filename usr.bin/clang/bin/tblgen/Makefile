@@ -8,8 +8,8 @@ SRCS=	AsmMatcherEmitter.cpp AsmWriterEmitter.cpp AsmWriterInst.cpp \
 	ClangDiagnosticsEmitter.cpp CodeEmitterGen.cpp \
 	CodeGenDAGPatterns.cpp CodeGenInstruction.cpp \
 	CodeGenTarget.cpp DAGISelEmitter.cpp DAGISelMatcher.cpp \
-	DAGISelMatcherEmitter.cpp DAGISelMatcherGen.cpp DisassemblerEmitter.cpp \
-	EDEmitter.cpp FastISelEmitter.cpp \
+	DAGISelMatcherEmitter.cpp DAGISelMatcherGen.cpp DAGISelMatcherOpt.cpp \
+	DisassemblerEmitter.cpp EDEmitter.cpp FastISelEmitter.cpp \
 	InstrEnumEmitter.cpp InstrInfoEmitter.cpp IntrinsicEmitter.cpp \
 	LLVMCConfigurationEmitter.cpp OptParserEmitter.cpp Record.cpp \
 	RegisterInfoEmitter.cpp SubtargetEmitter.cpp TGLexer.cpp \

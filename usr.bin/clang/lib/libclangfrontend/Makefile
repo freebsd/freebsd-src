@@ -4,8 +4,8 @@ LIB=	clangfrontend
 
 SRCDIR=	tools/clang/lib/Frontend
 SRCS=	ASTConsumers.cpp ASTMerge.cpp ASTUnit.cpp AnalysisConsumer.cpp \
-	Backend.cpp \
-	CacheTokens.cpp CompilerInstance.cpp CompilerInvocation.cpp \
+	CacheTokens.cpp \
+	CodeGenAction.cpp CompilerInstance.cpp CompilerInvocation.cpp \
 	DeclXML.cpp DependencyFile.cpp DiagChecker.cpp \
 	DocumentXML.cpp FixItRewriter.cpp FrontendAction.cpp \
 	FrontendActions.cpp FrontendOptions.cpp GeneratePCH.cpp \
